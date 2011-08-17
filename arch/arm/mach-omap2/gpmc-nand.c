@@ -12,14 +12,13 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach/flash.h>
 
 #include <plat/nand.h>
 #include <plat/board.h>
 #include <plat/gpmc.h>
-
-static struct omap_nand_platform_data *gpmc_nand_data;
 
 static struct resource gpmc_nand_resource = {
 	.flags		= IORESOURCE_MEM,
@@ -32,7 +31,7 @@ static struct platform_device gpmc_nand_device = {
 	.resource	= &gpmc_nand_resource,
 };
 
-static int omap2_nand_gpmc_retime(void)
+static int omap2_nand_gpmc_retime(struct omap_nand_platform_data *gpmc_nand_data)
 {
 	struct gpmc_timings t;
 	int err;
@@ -69,8 +68,10 @@ static int omap2_nand_gpmc_retime(void)
 	t.wr_cycle  = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->wr_cycle);
 
 	/* Configure GPMC */
-	gpmc_cs_configure(gpmc_nand_data->cs,
-				GPMC_CONFIG_DEV_SIZE, gpmc_nand_data->devsize);
+	if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
+		gpmc_cs_configure(gpmc_nand_data->cs, GPMC_CONFIG_DEV_SIZE, 1);
+	else
+		gpmc_cs_configure(gpmc_nand_data->cs, GPMC_CONFIG_DEV_SIZE, 0);
 	gpmc_cs_configure(gpmc_nand_data->cs,
 			GPMC_CONFIG_DEV_TYPE, GPMC_DEVICETYPE_NAND);
 	err = gpmc_cs_set_timings(gpmc_nand_data->cs, &t);
@@ -80,13 +81,11 @@ static int omap2_nand_gpmc_retime(void)
 	return 0;
 }
 
-int __init gpmc_nand_init(struct omap_nand_platform_data *_nand_data)
+int __init gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data)
 {
 	int err	= 0;
 	struct device *dev = &gpmc_nand_device.dev;
 
-	gpmc_nand_data = _nand_data;
-	gpmc_nand_data->nand_setup = omap2_nand_gpmc_retime;
 	gpmc_nand_device.dev.platform_data = gpmc_nand_data;
 
 	err = gpmc_cs_request(gpmc_nand_data->cs, NAND_IO_SIZE,
@@ -97,7 +96,7 @@ int __init gpmc_nand_init(struct omap_nand_platform_data *_nand_data)
 	}
 
 	 /* Set timings in GPMC */
-	err = omap2_nand_gpmc_retime();
+	err = omap2_nand_gpmc_retime(gpmc_nand_data);
 	if (err < 0) {
 		dev_err(dev, "Unable to set gpmc timings: %d\n", err);
 		return err;

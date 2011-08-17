@@ -12,7 +12,9 @@ Table of Contents
 =================
 
   I - Introduction
-    1) Entry point for arch/powerpc
+    1) Entry point for arch/arm
+    2) Entry point for arch/powerpc
+    3) Entry point for arch/x86
 
   II - The DT block format
     1) Header
@@ -137,7 +139,7 @@ and properties to be present. This will be described in detail in
 section III, but, for example, the kernel does not require you to
 create a node for every PCI device in the system. It is a requirement
 to have a node for PCI host bridges in order to provide interrupt
-routing informations and memory/IO ranges, among others. It is also
+routing information and memory/IO ranges, among others. It is also
 recommended to define nodes for on chip devices and other buses that
 don't specifically fit in an existing OF specification. This creates a
 great flexibility in the way the kernel can then probe those and match
@@ -147,7 +149,46 @@ upgrades without significantly impacting the kernel code or cluttering
 it with special cases.
 
 
-1) Entry point for arch/powerpc
+1) Entry point for arch/arm
+---------------------------
+
+   There is one single entry point to the kernel, at the start
+   of the kernel image. That entry point supports two calling
+   conventions.  A summary of the interface is described here.  A full
+   description of the boot requirements is documented in
+   Documentation/arm/Booting
+
+        a) ATAGS interface.  Minimal information is passed from firmware
+        to the kernel with a tagged list of predefined parameters.
+
+                r0 : 0
+
+                r1 : Machine type number
+
+                r2 : Physical address of tagged list in system RAM
+
+        b) Entry with a flattened device-tree block.  Firmware loads the
+        physical address of the flattened device tree block (dtb) into r2,
+        r1 is not used, but it is considered good practise to use a valid
+        machine number as described in Documentation/arm/Booting.
+
+                r0 : 0
+
+                r1 : Valid machine type number.  When using a device tree,
+                a single machine type number will often be assigned to
+                represent a class or family of SoCs.
+
+                r2 : physical pointer to the device-tree block
+                (defined in chapter II) in RAM.  Device tree can be located
+                anywhere in system RAM, but it should be aligned on a 64 bit
+                boundary.
+
+   The kernel will differentiate between ATAGS and device tree booting by
+   reading the memory pointed to by r2 and looking for either the flattened
+   device tree block magic value (0xd00dfeed) or the ATAG_CORE value at
+   offset 0x4 from r2 (0x54410001).
+
+2) Entry point for arch/powerpc
 -------------------------------
 
    There is one single entry point to the kernel, at the start
@@ -225,6 +266,25 @@ it with special cases.
   cannot support both configurations with Book E and configurations
   with classic Powerpc architectures.
 
+3) Entry point for arch/x86
+-------------------------------
+
+  There is one single 32bit entry point to the kernel at code32_start,
+  the decompressor (the real mode entry point goes to the same  32bit
+  entry point once it switched into protected mode). That entry point
+  supports one calling convention which is documented in
+  Documentation/x86/boot.txt
+  The physical pointer to the device-tree block (defined in chapter II)
+  is passed via setup_data which requires at least boot protocol 2.09.
+  The type filed is defined as
+
+  #define SETUP_DTB                      2
+
+  This device-tree is used as an extension to the "boot page". As such it
+  does not parse / consider data which is already covered by the boot
+  page. This includes memory size, reserved ranges, command line arguments
+  or initrd address. It simply holds information which can not be retrieved
+  otherwise like interrupt routing or a list of devices behind an I2C bus.
 
 II - The DT block format
 ========================
@@ -365,7 +425,7 @@ struct boot_param_header {
      among others, by kexec. If you are on an SMP system, this value
      should match the content of the "reg" property of the CPU node in
      the device-tree corresponding to the CPU calling the kernel entry
-     point (see further chapters for more informations on the required
+     point (see further chapters for more information on the required
      device-tree contents)
 
    - size_dt_strings
@@ -533,7 +593,7 @@ looks like in practice.
 
 This tree is almost a minimal tree. It pretty much contains the
 minimal set of required nodes and properties to boot a linux kernel;
-that is, some basic model informations at the root, the CPUs, and the
+that is, some basic model information at the root, the CPUs, and the
 physical memory layout.  It also includes misc information passed
 through /chosen, like in this example, the platform type (mandatory)
 and the kernel command line arguments (optional).

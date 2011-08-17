@@ -174,7 +174,9 @@ void gfs2_set_inode_flags(struct inode *inode)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned int flags = inode->i_flags;
 
-	flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
+	flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_NOSEC);
+	if ((ip->i_eattr == 0) && !is_sxid(inode->i_mode))
+		inode->i_flags |= S_NOSEC;
 	if (ip->i_diskflags & GFS2_DIF_IMMUTABLE)
 		flags |= S_IMMUTABLE;
 	if (ip->i_diskflags & GFS2_DIF_APPENDONLY)
@@ -221,7 +223,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 		goto out_drop_write;
 
 	error = -EACCES;
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		goto out;
 
 	error = 0;
@@ -243,7 +245,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	    !capable(CAP_LINUX_IMMUTABLE))
 		goto out;
 	if (!IS_IMMUTABLE(inode)) {
-		error = gfs2_permission(inode, MAY_WRITE, 0);
+		error = gfs2_permission(inode, MAY_WRITE);
 		if (error)
 			goto out;
 	}
@@ -448,15 +450,20 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 
-	if (!(file->f_flags & O_NOATIME)) {
+	if (!(file->f_flags & O_NOATIME) &&
+	    !IS_NOATIME(&ip->i_inode)) {
 		struct gfs2_holder i_gh;
 		int error;
 
-		gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 		error = gfs2_glock_nq(&i_gh);
-		file_accessed(file);
-		if (error == 0)
-			gfs2_glock_dq_uninit(&i_gh);
+		if (error == 0) {
+			file_accessed(file);
+			gfs2_glock_dq(&i_gh);
+		}
+		gfs2_holder_uninit(&i_gh);
+		if (error)
+			return error;
 	}
 	vma->vm_ops = &gfs2_vm_ops;
 	vma->vm_flags |= VM_CAN_NONLINEAR;
@@ -539,43 +546,44 @@ static int gfs2_close(struct inode *inode, struct file *file)
 
 /**
  * gfs2_fsync - sync the dirty data for a file (across the cluster)
- * @file: the file that points to the dentry (we ignore this)
- * @dentry: the dentry that points to the inode to sync
+ * @file: the file that points to the dentry
+ * @start: the start position in the file to sync
+ * @end: the end position in the file to sync
+ * @datasync: set if we can ignore timestamp changes
  *
- * The VFS will flush "normal" data for us. We only need to worry
- * about metadata here. For journaled data, we just do a log flush
- * as we can't avoid it. Otherwise we can just bale out if datasync
- * is set. For stuffed inodes we must flush the log in order to
- * ensure that all data is on disk.
- *
- * The call to write_inode_now() is there to write back metadata and
- * the inode itself. It does also try and write the data, but thats
- * (hopefully) a no-op due to the VFS having already called filemap_fdatawrite()
- * for us.
+ * The VFS will flush data for us. We only need to worry
+ * about metadata here.
  *
  * Returns: errno
  */
 
-static int gfs2_fsync(struct file *file, int datasync)
+static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
+		      int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
-	int ret = 0;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	int ret;
 
-	if (gfs2_is_jdata(GFS2_I(inode))) {
-		gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
-		return 0;
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
+	if (datasync)
+		sync_state &= ~I_DIRTY_SYNC;
+
+	if (sync_state) {
+		ret = sync_inode_metadata(inode, 1);
+		if (ret) {
+			mutex_unlock(&inode->i_mutex);
+			return ret;
+		}
+		gfs2_ail_flush(ip->i_gl);
 	}
 
-	if (sync_state != 0) {
-		if (!datasync)
-			ret = write_inode_now(inode, 0);
-
-		if (gfs2_is_stuffed(GFS2_I(inode)))
-			gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
-	}
-
-	return ret;
+	mutex_unlock(&inode->i_mutex);
+	return 0;
 }
 
 /**
@@ -612,66 +620,110 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	return generic_file_aio_write(iocb, iov, nr_segs, pos);
 }
 
-static void empty_write_end(struct page *page, unsigned from,
-			   unsigned to)
+static int empty_write_end(struct page *page, unsigned from,
+			   unsigned to, int mode)
 {
-	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct inode *inode = page->mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct buffer_head *bh;
+	unsigned offset, blksize = 1 << inode->i_blkbits;
+	pgoff_t end_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
 
-	page_zero_new_buffers(page, from, to);
-	flush_dcache_page(page);
+	zero_user(page, from, to-from);
 	mark_page_accessed(page);
 
-	if (!gfs2_is_writeback(ip))
-		gfs2_page_add_databufs(ip, page, from, to);
+	if (page->index < end_index || !(mode & FALLOC_FL_KEEP_SIZE)) {
+		if (!gfs2_is_writeback(ip))
+			gfs2_page_add_databufs(ip, page, from, to);
 
-	block_commit_write(page, from, to);
-}
-
-static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
-{
-	unsigned start, end, next;
-	struct buffer_head *bh, *head;
-	int error;
-
-	if (!page_has_buffers(page)) {
-		error = __block_write_begin(page, from, to - from, gfs2_block_map);
-		if (unlikely(error))
-			return error;
-
-		empty_write_end(page, from, to);
+		block_commit_write(page, from, to);
 		return 0;
 	}
 
-	bh = head = page_buffers(page);
+	offset = 0;
+	bh = page_buffers(page);
+	while (offset < to) {
+		if (offset >= from) {
+			set_buffer_uptodate(bh);
+			mark_buffer_dirty(bh);
+			clear_buffer_new(bh);
+			write_dirty_buffer(bh, WRITE);
+		}
+		offset += blksize;
+		bh = bh->b_this_page;
+	}
+
+	offset = 0;
+	bh = page_buffers(page);
+	while (offset < to) {
+		if (offset >= from) {
+			wait_on_buffer(bh);
+			if (!buffer_uptodate(bh))
+				return -EIO;
+		}
+		offset += blksize;
+		bh = bh->b_this_page;
+	}
+	return 0;
+}
+
+static int needs_empty_write(sector_t block, struct inode *inode)
+{
+	int error;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
+
+	bh_map.b_size = 1 << inode->i_blkbits;
+	error = gfs2_block_map(inode, block, &bh_map, 0);
+	if (unlikely(error))
+		return error;
+	return !buffer_mapped(&bh_map);
+}
+
+static int write_empty_blocks(struct page *page, unsigned from, unsigned to,
+			      int mode)
+{
+	struct inode *inode = page->mapping->host;
+	unsigned start, end, next, blksize;
+	sector_t block = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	int ret;
+
+	blksize = 1 << inode->i_blkbits;
 	next = end = 0;
 	while (next < from) {
-		next += bh->b_size;
-		bh = bh->b_this_page;
+		next += blksize;
+		block++;
 	}
 	start = next;
 	do {
-		next += bh->b_size;
-		if (buffer_mapped(bh)) {
+		next += blksize;
+		ret = needs_empty_write(block, inode);
+		if (unlikely(ret < 0))
+			return ret;
+		if (ret == 0) {
 			if (end) {
-				error = __block_write_begin(page, start, end - start,
-							    gfs2_block_map);
-				if (unlikely(error))
-					return error;
-				empty_write_end(page, start, end);
+				ret = __block_write_begin(page, start, end - start,
+							  gfs2_block_map);
+				if (unlikely(ret))
+					return ret;
+				ret = empty_write_end(page, start, end, mode);
+				if (unlikely(ret))
+					return ret;
 				end = 0;
 			}
 			start = next;
 		}
 		else
 			end = next;
-		bh = bh->b_this_page;
+		block++;
 	} while (next < to);
 
 	if (end) {
-		error = __block_write_begin(page, start, end - start, gfs2_block_map);
-		if (unlikely(error))
-			return error;
-		empty_write_end(page, start, end);
+		ret = __block_write_begin(page, start, end - start, gfs2_block_map);
+		if (unlikely(ret))
+			return ret;
+		ret = empty_write_end(page, start, end, mode);
+		if (unlikely(ret))
+			return ret;
 	}
 
 	return 0;
@@ -720,7 +772,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 
 		if (curr == end)
 			to = end_offset;
-		error = write_empty_blocks(page, from, to);
+		error = write_empty_blocks(page, from, to, mode);
 		if (!error && offset + to > inode->i_size &&
 		    !(mode & FALLOC_FL_KEEP_SIZE)) {
 			i_size_write(inode, offset + to);
@@ -777,6 +829,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	loff_t bytes, max_bytes;
 	struct gfs2_alloc *al;
 	int error;
+	loff_t bsize_mask = ~((loff_t)sdp->sd_sb.sb_bsize - 1);
 	loff_t next = (offset + len - 1) >> sdp->sd_sb.sb_bsize_shift;
 	next = (next + 1) << sdp->sd_sb.sb_bsize_shift;
 
@@ -784,13 +837,15 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	if (mode & ~FALLOC_FL_KEEP_SIZE)
 		return -EOPNOTSUPP;
 
-	offset = (offset >> sdp->sd_sb.sb_bsize_shift) <<
-		 sdp->sd_sb.sb_bsize_shift;
+	offset &= bsize_mask;
 
 	len = next - offset;
 	bytes = sdp->sd_max_rg_data * sdp->sd_sb.sb_bsize / 2;
 	if (!bytes)
 		bytes = UINT_MAX;
+	bytes &= bsize_mask;
+	if (bytes == 0)
+		bytes = sdp->sd_sb.sb_bsize;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
 	error = gfs2_glock_nq(&ip->i_gh);
@@ -821,6 +876,9 @@ retry:
 		if (error) {
 			if (error == -ENOSPC && bytes > sdp->sd_sb.sb_bsize) {
 				bytes >>= 1;
+				bytes &= bsize_mask;
+				if (bytes == 0)
+					bytes = sdp->sd_sb.sb_bsize;
 				goto retry;
 			}
 			goto out_qunlock;
@@ -976,8 +1034,10 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 
 	mutex_lock(&fp->f_fl_mutex);
 	flock_lock_file_wait(file, fl);
-	if (fl_gh->gh_gl)
-		gfs2_glock_dq_uninit(fl_gh);
+	if (fl_gh->gh_gl) {
+		gfs2_glock_dq_wait(fl_gh);
+		gfs2_holder_uninit(fl_gh);
+	}
 	mutex_unlock(&fp->f_fl_mutex);
 }
 

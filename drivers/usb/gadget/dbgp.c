@@ -173,7 +173,9 @@ fail_1:
 
 static int __enable_ep(struct usb_ep *ep, struct usb_endpoint_descriptor *desc)
 {
-	int err = usb_ep_enable(ep, desc);
+	int err;
+	ep->desc = desc;
+	err = usb_ep_enable(ep);
 	ep->driver_data = dbgp.gadget;
 	return err;
 }
@@ -261,15 +263,15 @@ static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 	o_desc.wMaxPacketSize =
 		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
-	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress & 0x7f;
-	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress & 0x7f;
+	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress;
+	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial->in = dbgp.i_ep;
 	dbgp.serial->out = dbgp.o_ep;
 
-	dbgp.serial->in_desc = &i_desc;
-	dbgp.serial->out_desc = &o_desc;
+	dbgp.serial->in->desc = &i_desc;
+	dbgp.serial->out->desc = &o_desc;
 
 	if (gserial_setup(gadget, 1) < 0) {
 		stp = 3;
@@ -350,9 +352,9 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	u8 request = ctrl->bRequest;
 	u16 value = le16_to_cpu(ctrl->wValue);
 	u16 length = le16_to_cpu(ctrl->wLength);
-	int err = 0;
-	void *data;
-	u16 len;
+	int err = -EOPNOTSUPP;
+	void *data = NULL;
+	u16 len = 0;
 
 	gadget->ep0->driver_data = gadget;
 
@@ -362,6 +364,7 @@ static int dbgp_setup(struct usb_gadget *gadget,
 			dev_dbg(&dbgp.gadget->dev, "setup: desc device\n");
 			len = sizeof device_desc;
 			data = &device_desc;
+			device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 			break;
 		case USB_DT_DEBUG:
 			dev_dbg(&dbgp.gadget->dev, "setup: desc debug\n");
@@ -371,10 +374,9 @@ static int dbgp_setup(struct usb_gadget *gadget,
 		default:
 			goto fail;
 		}
+		err = 0;
 	} else if (request == USB_REQ_SET_FEATURE &&
 		   value == USB_DEVICE_DEBUG_MODE) {
-		len = 0;
-		data = NULL;
 		dev_dbg(&dbgp.gadget->dev, "setup: feat debug\n");
 #ifdef CONFIG_USB_G_DBGP_PRINTK
 		err = dbgp_enable_ep();

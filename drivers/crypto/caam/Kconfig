@@ -1,0 +1,72 @@
+config CRYPTO_DEV_FSL_CAAM
+	tristate "Freescale CAAM-Multicore driver backend"
+	depends on FSL_SOC
+	help
+	  Enables the driver module for Freescale's Cryptographic Accelerator
+	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
+	  This module adds a job ring operation interface, and configures h/w
+	  to operate as a DPAA component automatically, depending
+	  on h/w feature availability.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called caam.
+
+config CRYPTO_DEV_FSL_CAAM_RINGSIZE
+	int "Job Ring size"
+	depends on CRYPTO_DEV_FSL_CAAM
+	range 2 9
+	default "9"
+	help
+	  Select size of Job Rings as a power of 2, within the
+	  range 2-9 (ring size 4-512).
+	  Examples:
+		2 => 4
+		3 => 8
+		4 => 16
+		5 => 32
+		6 => 64
+		7 => 128
+		8 => 256
+		9 => 512
+
+config CRYPTO_DEV_FSL_CAAM_INTC
+	bool "Job Ring interrupt coalescing"
+	depends on CRYPTO_DEV_FSL_CAAM
+	default y
+	help
+	  Enable the Job Ring's interrupt coalescing feature.
+
+config CRYPTO_DEV_FSL_CAAM_INTC_COUNT_THLD
+	int "Job Ring interrupt coalescing count threshold"
+	depends on CRYPTO_DEV_FSL_CAAM_INTC
+	range 1 255
+	default 255
+	help
+	  Select number of descriptor completions to queue before
+	  raising an interrupt, in the range 1-255. Note that a selection
+	  of 1 functionally defeats the coalescing feature, and a selection
+	  equal or greater than the job ring size will force timeouts.
+
+config CRYPTO_DEV_FSL_CAAM_INTC_TIME_THLD
+	int "Job Ring interrupt coalescing timer threshold"
+	depends on CRYPTO_DEV_FSL_CAAM_INTC
+	range 1 65535
+	default 2048
+	help
+	  Select number of bus clocks/64 to timeout in the case that one or
+	  more descriptor completions are queued without reaching the count
+	  threshold. Range is 1-65535.
+
+config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
+	tristate "Register algorithm implementations with the Crypto API"
+	depends on CRYPTO_DEV_FSL_CAAM
+	default y
+	select CRYPTO_ALGAPI
+	select CRYPTO_AUTHENC
+	help
+	  Selecting this will offload crypto for users of the
+	  scatterlist crypto API (such as the linux native IPSec
+	  stack) to the SEC4 via job ring.
+
+	  To compile this as a module, choose M here: the module
+	  will be called caamalg.

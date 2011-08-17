@@ -26,15 +26,6 @@
 #define TI_WILINK_ST_H
 
 /**
- * enum kim_gpio_state - Few protocols such as FM have ACTIVE LOW
- *	gpio states for their chip/core enable gpios
- */
-enum kim_gpio_state {
-	KIM_GPIO_INACTIVE,
-	KIM_GPIO_ACTIVE,
-};
-
-/**
  * enum proto-type - The protocol on WiLink chips which share a
  *	common physical interface like UART.
  */
@@ -42,7 +33,7 @@ enum proto_type {
 	ST_BT,
 	ST_FM,
 	ST_GPS,
-	ST_MAX,
+	ST_MAX_CHANNELS = 16,
 };
 
 /**
@@ -62,6 +53,17 @@ enum proto_type {
  * @priv_data: privdate data holder for the protocol drivers, sent
  *	from the protocol drivers during registration, and sent back on
  *	reg_complete_cb and recv.
+ * @chnl_id: channel id the protocol driver is interested in, the channel
+ *	id is nothing but the 1st byte of the packet in UART frame.
+ * @max_frame_size: size of the largest frame the protocol can receive.
+ * @hdr_len: length of the header structure of the protocol.
+ * @offset_len_in_hdr: this provides the offset of the length field in the
+ *	header structure of the protocol header, to assist ST to know
+ *	how much to receive, if the data is split across UART frames.
+ * @len_size: whether the length field inside the header is 2 bytes
+ *	or 1 byte.
+ * @reserve: the number of bytes ST needs to reserve in the skb being
+ *	prepared for the protocol driver.
  */
 struct st_proto_s {
 	enum proto_type type;
@@ -70,10 +72,17 @@ struct st_proto_s {
 	void (*reg_complete_cb) (void *, char data);
 	long (*write) (struct sk_buff *skb);
 	void *priv_data;
+
+	unsigned char chnl_id;
+	unsigned short max_frame_size;
+	unsigned char hdr_len;
+	unsigned char offset_len_in_hdr;
+	unsigned char len_size;
+	unsigned char reserve;
 };
 
 extern long st_register(struct st_proto_s *);
-extern long st_unregister(enum proto_type);
+extern long st_unregister(struct st_proto_s *);
 
 
 /*
@@ -114,6 +123,7 @@ extern long st_unregister(enum proto_type);
  * @rx_skb: the skb where all data for a protocol gets accumulated,
  *	since tty might not call receive when a complete event packet
  *	is received, the states, count and the skb needs to be maintained.
+ * @rx_chnl: the channel ID for which the data is getting accumalated for.
  * @txq: the list of skbs which needs to be sent onto the TTY.
  * @tx_waitq: if the chip is not in AWAKE state, the skbs needs to be queued
  *	up in here, PM(WAKEUP_IND) data needs to be sent and then the skbs
@@ -130,22 +140,29 @@ extern long st_unregister(enum proto_type);
  */
 struct st_data_s {
 	unsigned long st_state;
-	struct tty_struct *tty;
 	struct sk_buff *tx_skb;
 #define ST_TX_SENDING	1
 #define ST_TX_WAKEUP	2
 	unsigned long tx_state;
-	struct st_proto_s *list[ST_MAX];
+	struct st_proto_s *list[ST_MAX_CHANNELS];
+	bool is_registered[ST_MAX_CHANNELS];
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
+	unsigned char rx_chnl;
 	struct sk_buff_head txq, tx_waitq;
 	spinlock_t lock;
 	unsigned char	protos_registered;
 	unsigned long ll_state;
 	void *kim_data;
+	struct tty_struct *tty;
 };
 
+/*
+ * wrapper around tty->ops->write_room to check
+ * availability during firmware download
+ */
+int st_get_uart_wr_room(struct st_data_s *st_gdata);
 /**
  * st_int_write -
  * point this to tty->driver->write or tty->ops->write
@@ -186,8 +203,9 @@ void gps_chrdrv_stub_init(void);
 /* time in msec to wait for
  * line discipline to be installed
  */
-#define LDISC_TIME	500
-#define CMD_RESP_TIME	500
+#define LDISC_TIME	1000
+#define CMD_RESP_TIME	800
+#define CMD_WR_TIME	5000
 #define MAKEWORD(a, b)  ((unsigned short)(((unsigned char)(a)) \
 	| ((unsigned short)((unsigned char)(b))) << 8))
 
@@ -210,6 +228,7 @@ struct chip_version {
 	unsigned short maj_ver;
 };
 
+#define UART_DEV_NAME_LEN 32
 /**
  * struct kim_data_s - the KIM internal data, embedded as the
  *	platform's drv data. One for each ST device in the system.
@@ -225,14 +244,11 @@ struct chip_version {
  *	the ldisc was properly installed.
  * @resp_buffer: data buffer for the .bts fw file name.
  * @fw_entry: firmware class struct to request/release the fw.
- * @gpios: the list of core/chip enable gpios for BT, FM and GPS cores.
  * @rx_state: the rx state for kim's receive func during fw download.
  * @rx_count: the rx count for the kim's receive func during fw download.
  * @rx_skb: all of fw data might not come at once, and hence data storage for
  *	whole of the fw response, only HCI_EVENTs and hence diff from ST's
  *	response.
- * @rfkill: rfkill data for each of the cores to be registered with rfkill.
- * @rf_protos: proto types of the data registered with rfkill sub-system.
  * @core_data: ST core's data, which mainly is the tty's disc_data
  * @version: chip version available via a sysfs entry.
  *
@@ -243,14 +259,16 @@ struct kim_data_s {
 	struct completion kim_rcvd, ldisc_installed;
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
-	long gpios[ST_MAX];
+	long nshutdown;
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
-	struct rfkill *rfkill[ST_MAX];
-	enum proto_type rf_protos[ST_MAX];
 	struct st_data_s *core_data;
 	struct chip_version version;
+	unsigned char ldisc_install;
+	unsigned char dev_name[UART_DEV_NAME_LEN];
+	unsigned char flow_cntrl;
+	unsigned long baud_rate;
 };
 
 /**
@@ -262,7 +280,6 @@ long st_kim_start(void *);
 long st_kim_stop(void *);
 
 void st_kim_recv(void *, const unsigned char *, long count);
-void st_kim_chip_toggle(enum proto_type, enum kim_gpio_state);
 void st_kim_complete(void *);
 void kim_st_list_protocols(struct st_data_s *, void *);
 
@@ -338,12 +355,8 @@ struct hci_command {
 
 /* ST LL receiver states */
 #define ST_W4_PACKET_TYPE       0
-#define ST_BT_W4_EVENT_HDR      1
-#define ST_BT_W4_ACL_HDR        2
-#define ST_BT_W4_SCO_HDR        3
-#define ST_BT_W4_DATA           4
-#define ST_FM_W4_EVENT_HDR      5
-#define ST_GPS_W4_EVENT_HDR	6
+#define ST_W4_HEADER		1
+#define ST_W4_DATA		2
 
 /* ST LL state machines */
 #define ST_LL_ASLEEP               0
@@ -396,5 +409,15 @@ struct gps_event_hdr {
 	u8 opcode;
 	u16 plen;
 } __attribute__ ((packed));
+
+/* platform data */
+struct ti_st_plat_data {
+	long nshutdown_gpio;
+	unsigned char dev_name[UART_DEV_NAME_LEN]; /* uart name */
+	unsigned char flow_cntrl; /* flow control flag */
+	unsigned long baud_rate;
+	int (*suspend)(struct platform_device *, pm_message_t);
+	int (*resume)(struct platform_device *);
+};
 
 #endif /* TI_WILINK_ST_H */

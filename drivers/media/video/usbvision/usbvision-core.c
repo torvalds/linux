@@ -49,10 +49,6 @@ static unsigned int core_debug;
 module_param(core_debug, int, 0644);
 MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
-static unsigned int force_testpattern;
-module_param(force_testpattern, int, 0644);
-MODULE_PARM_DESC(force_testpattern, "enable test pattern display [core]");
-
 static int adjust_compression = 1;	/* Set the compression to be adaptive */
 module_param(adjust_compression, int, 0444);
 MODULE_PARM_DESC(adjust_compression, " Set the ADPCM compression for the device.  Default: 1 (On)");
@@ -388,90 +384,6 @@ void usbvision_scratch_free(struct usb_usbvision *usbvision)
 }
 
 /*
- * usbvision_testpattern()
- *
- * Procedure forms a test pattern (yellow grid on blue background).
- *
- * Parameters:
- * fullframe:   if TRUE then entire frame is filled, otherwise the procedure
- *		continues from the current scanline.
- * pmode	0: fill the frame with solid blue color (like on VCR or TV)
- *		1: Draw a colored grid
- *
- */
-static void usbvision_testpattern(struct usb_usbvision *usbvision,
-				  int fullframe, int pmode)
-{
-	static const char proc[] = "usbvision_testpattern";
-	struct usbvision_frame *frame;
-	unsigned char *f;
-	int num_cell = 0;
-	int scan_length = 0;
-	static int num_pass;
-
-	if (usbvision == NULL) {
-		printk(KERN_ERR "%s: usbvision == NULL\n", proc);
-		return;
-	}
-	if (usbvision->cur_frame == NULL) {
-		printk(KERN_ERR "%s: usbvision->cur_frame is NULL.\n", proc);
-		return;
-	}
-
-	/* Grab the current frame */
-	frame = usbvision->cur_frame;
-
-	/* Optionally start at the beginning */
-	if (fullframe) {
-		frame->curline = 0;
-		frame->scanlength = 0;
-	}
-
-	/* Form every scan line */
-	for (; frame->curline < frame->frmheight; frame->curline++) {
-		int i;
-
-		f = frame->data + (usbvision->curwidth * 3 * frame->curline);
-		for (i = 0; i < usbvision->curwidth; i++) {
-			unsigned char cb = 0x80;
-			unsigned char cg = 0;
-			unsigned char cr = 0;
-
-			if (pmode == 1) {
-				if (frame->curline % 32 == 0)
-					cb = 0, cg = cr = 0xFF;
-				else if (i % 32 == 0) {
-					if (frame->curline % 32 == 1)
-						num_cell++;
-					cb = 0, cg = cr = 0xFF;
-				} else {
-					cb =
-					    ((num_cell * 7) +
-					     num_pass) & 0xFF;
-					cg =
-					    ((num_cell * 5) +
-					     num_pass * 2) & 0xFF;
-					cr =
-					    ((num_cell * 3) +
-					     num_pass * 3) & 0xFF;
-				}
-			} else {
-				/* Just the blue screen */
-			}
-
-			*f++ = cb;
-			*f++ = cg;
-			*f++ = cr;
-			scan_length += 3;
-		}
-	}
-
-	frame->grabstate = frame_state_done;
-	frame->scanlength += scan_length;
-	++num_pass;
-}
-
-/*
  * usbvision_decompress_alloc()
  *
  * allocates intermediate buffer for decompression
@@ -571,10 +483,6 @@ static enum parse_state usbvision_find_header(struct usb_usbvision *usbvision)
 	frame->scanstate = scan_state_lines;
 	frame->curline = 0;
 
-	if (force_testpattern) {
-		usbvision_testpattern(usbvision, 1, 1);
-		return parse_state_next_frame;
-	}
 	return parse_state_continue;
 }
 
@@ -1679,6 +1587,55 @@ int usbvision_power_off(struct usb_usbvision *usbvision)
 	return err_code;
 }
 
+/* configure webcam image sensor using the serial port */
+static int usbvision_init_webcam(struct usb_usbvision *usbvision)
+{
+	int rc;
+	int i;
+	static char init_values[38][3] = {
+		{ 0x04, 0x12, 0x08 }, { 0x05, 0xff, 0xc8 }, { 0x06, 0x18, 0x07 }, { 0x07, 0x90, 0x00 },
+		{ 0x09, 0x00, 0x00 }, { 0x0a, 0x00, 0x00 }, { 0x0b, 0x08, 0x00 }, { 0x0d, 0xcc, 0xcc },
+		{ 0x0e, 0x13, 0x14 }, { 0x10, 0x9b, 0x83 }, { 0x11, 0x5a, 0x3f }, { 0x12, 0xe4, 0x73 },
+		{ 0x13, 0x88, 0x84 }, { 0x14, 0x89, 0x80 }, { 0x15, 0x00, 0x20 }, { 0x16, 0x00, 0x00 },
+		{ 0x17, 0xff, 0xa0 }, { 0x18, 0x6b, 0x20 }, { 0x19, 0x22, 0x40 }, { 0x1a, 0x10, 0x07 },
+		{ 0x1b, 0x00, 0x47 }, { 0x1c, 0x03, 0xe0 }, { 0x1d, 0x00, 0x00 }, { 0x1e, 0x00, 0x00 },
+		{ 0x1f, 0x00, 0x00 }, { 0x20, 0x00, 0x00 }, { 0x21, 0x00, 0x00 }, { 0x22, 0x00, 0x00 },
+		{ 0x23, 0x00, 0x00 }, { 0x24, 0x00, 0x00 }, { 0x25, 0x00, 0x00 }, { 0x26, 0x00, 0x00 },
+		{ 0x27, 0x00, 0x00 }, { 0x28, 0x00, 0x00 }, { 0x29, 0x00, 0x00 }, { 0x08, 0x80, 0x60 },
+		{ 0x0f, 0x2d, 0x24 }, { 0x0c, 0x80, 0x80 }
+	};
+	char value[3];
+
+	/* the only difference between PAL and NTSC init_values */
+	if (usbvision_device_data[usbvision->dev_model].video_norm == V4L2_STD_NTSC)
+		init_values[4][1] = 0x34;
+
+	for (i = 0; i < sizeof(init_values) / 3; i++) {
+		usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_SER_MODE_SOFT);
+		memcpy(value, init_values[i], 3);
+		rc = usb_control_msg(usbvision->dev,
+				     usb_sndctrlpipe(usbvision->dev, 1),
+				     USBVISION_OP_CODE,
+				     USB_DIR_OUT | USB_TYPE_VENDOR |
+				     USB_RECIP_ENDPOINT, 0,
+				     (__u16) USBVISION_SER_DAT1, value,
+				     3, HZ);
+		if (rc < 0)
+			return rc;
+		usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_SER_MODE_SIO);
+		/* write 3 bytes to the serial port using SIO mode */
+		usbvision_write_reg(usbvision, USBVISION_SER_CONT, 3 | 0x10);
+		usbvision_write_reg(usbvision, USBVISION_IOPIN_REG, 0);
+		usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_SER_MODE_SOFT);
+		usbvision_write_reg(usbvision, USBVISION_IOPIN_REG, USBVISION_IO_2);
+		usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_SER_MODE_SOFT | USBVISION_CLK_OUT);
+		usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_SER_MODE_SOFT | USBVISION_DAT_IO);
+		usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_SER_MODE_SOFT | USBVISION_CLK_OUT | USBVISION_DAT_IO);
+	}
+
+	return 0;
+}
+
 /*
  * usbvision_set_video_format()
  *
@@ -1796,6 +1753,13 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 	PDEBUG(DBG_FUNC, "frame_rate %d fps, frame_drop %d", frame_rate, frame_drop);
 
 	frame_drop = FRAMERATE_MAX;	/* We can allow the maximum here, because dropping is controlled */
+
+	if (usbvision_device_data[usbvision->dev_model].codec == CODEC_WEBCAM) {
+		if (usbvision_device_data[usbvision->dev_model].video_norm == V4L2_STD_PAL)
+			frame_drop = 25;
+		else
+			frame_drop = 30;
+	}
 
 	/* frame_drop = 7; => frame_phase = 1, 5, 9, 13, 17, 21, 25, 0, 4, 8, ...
 		=> frame_skip = 4;
@@ -2046,6 +2010,12 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 		value[7] = 0x00;	/* 0x0010 -> 16 Input video v offset */
 	}
 
+	/* webcam is only 480 pixels wide, both PAL and NTSC version */
+	if (usbvision_device_data[usbvision->dev_model].codec == CODEC_WEBCAM) {
+		value[0] = 0xe0;
+		value[1] = 0x01;	/* 0x01E0 -> 480 Input video line length */
+	}
+
 	if (usbvision_device_data[usbvision->dev_model].x_offset >= 0) {
 		value[4] = usbvision_device_data[usbvision->dev_model].x_offset & 0xff;
 		value[5] = (usbvision_device_data[usbvision->dev_model].x_offset & 0x0300) >> 8;
@@ -2148,7 +2118,7 @@ static int usbvision_set_dram_settings(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_DRM_PRM1, value, 8, HZ);
 
 	if (rc < 0) {
-		dev_err(&usbvision->dev->dev, "%sERROR=%d\n", __func__, rc);
+		dev_err(&usbvision->dev->dev, "%s: ERROR=%d\n", __func__, rc);
 		return rc;
 	}
 
@@ -2180,8 +2150,15 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			USBVISION_SSPND_EN | USBVISION_RES2);
 
+	if (usbvision_device_data[usbvision->dev_model].codec == CODEC_WEBCAM) {
+		usbvision_write_reg(usbvision, USBVISION_VIN_REG1,
+				USBVISION_16_422_SYNC | USBVISION_HVALID_PO);
+		usbvision_write_reg(usbvision, USBVISION_VIN_REG2,
+				USBVISION_NOHVALID | USBVISION_KEEP_BLANK);
+	}
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			USBVISION_SSPND_EN | USBVISION_PWR_VID);
+	mdelay(10);
 	err_code = usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			USBVISION_SSPND_EN | USBVISION_PWR_VID | USBVISION_RES2);
 	if (err_code == 1)
@@ -2310,6 +2287,8 @@ int usbvision_set_audio(struct usb_usbvision *usbvision, int audio_channel)
 
 int usbvision_setup(struct usb_usbvision *usbvision, int format)
 {
+	if (usbvision_device_data[usbvision->dev_model].codec == CODEC_WEBCAM)
+		usbvision_init_webcam(usbvision);
 	usbvision_set_video_format(usbvision, format);
 	usbvision_set_dram_settings(usbvision);
 	usbvision_set_compress_params(usbvision);

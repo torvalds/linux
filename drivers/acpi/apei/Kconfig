@@ -1,5 +1,7 @@
 config ACPI_APEI
 	bool "ACPI Platform Error Interface (APEI)"
+	select MISC_FILESYSTEMS
+	select PSTORE
 	depends on X86
 	help
 	  APEI allows to report errors (for example from the chipset)
@@ -8,9 +10,11 @@ config ACPI_APEI
 	  error injection.
 
 config ACPI_APEI_GHES
-	tristate "APEI Generic Hardware Error Source"
+	bool "APEI Generic Hardware Error Source"
 	depends on ACPI_APEI && X86
 	select ACPI_HED
+	select LLIST
+	select GENERIC_ALLOCATOR
 	help
 	  Generic Hardware Error Source provides a way to report
 	  platform hardware errors (such as that from chipset). It
@@ -20,6 +24,20 @@ config ACPI_APEI_GHES
 	  error registers or non-standard hardware link can be checked
 	  by firmware to produce more valuable hardware error
 	  information for Linux.
+
+config ACPI_APEI_PCIEAER
+	bool "APEI PCIe AER logging/recovering support"
+	depends on ACPI_APEI && PCIEAER
+	help
+	  PCIe AER errors may be reported via APEI firmware first mode.
+	  Turn on this option to enable the corresponding support.
+
+config ACPI_APEI_MEMORY_FAILURE
+	bool "APEI memory error recovering support"
+	depends on ACPI_APEI && MEMORY_FAILURE
+	help
+	  Memory errors may be reported via APEI firmware first mode.
+	  Turn on this option to enable the memory recovering support.
 
 config ACPI_APEI_EINJ
 	tristate "APEI Error INJection (EINJ)"

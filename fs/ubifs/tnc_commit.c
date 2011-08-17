@@ -22,6 +22,7 @@
 
 /* This file implements TNC functions for committing */
 
+#include <linux/random.h>
 #include "ubifs.h"
 
 /**
@@ -87,8 +88,12 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 	atomic_long_dec(&c->dirty_zn_cnt);
 
 	ubifs_assert(ubifs_zn_dirty(znode));
-	ubifs_assert(test_bit(COW_ZNODE, &znode->flags));
+	ubifs_assert(ubifs_zn_cow(znode));
 
+	/*
+	 * Note, unlike 'write_index()' we do not add memory barriers here
+	 * because this function is called with @c->tnc_mutex locked.
+	 */
 	__clear_bit(DIRTY_ZNODE, &znode->flags);
 	__clear_bit(COW_ZNODE, &znode->flags);
 
@@ -377,15 +382,13 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				c->gap_lebs = NULL;
 				return err;
 			}
-			if (!dbg_force_in_the_gaps_enabled) {
+			if (!dbg_is_chk_index(c)) {
 				/*
 				 * Do not print scary warnings if the debugging
 				 * option which forces in-the-gaps is enabled.
 				 */
-				ubifs_err("out of space");
-				spin_lock(&c->space_lock);
-				dbg_dump_budg(c);
-				spin_unlock(&c->space_lock);
+				ubifs_warn("out of space");
+				dbg_dump_budg(c, &c->bi);
 				dbg_dump_lprops(c);
 			}
 			/* Try to commit anyway */
@@ -492,25 +495,6 @@ static int layout_in_empty_space(struct ubifs_info *c)
 			next_len = 0;
 		else
 			next_len = ubifs_idx_node_sz(c, cnext->child_cnt);
-
-		if (c->min_io_size == 1) {
-			buf_offs += ALIGN(len, 8);
-			if (next_len) {
-				if (buf_offs + next_len <= c->leb_size)
-					continue;
-				err = ubifs_update_one_lp(c, lnum, 0,
-						c->leb_size - buf_offs, 0, 0);
-				if (err)
-					return err;
-				lnum = -1;
-				continue;
-			}
-			err = ubifs_update_one_lp(c, lnum,
-					c->leb_size - buf_offs, 0, 0, 0);
-			if (err)
-				return err;
-			break;
-		}
 
 		/* Update buffer positions */
 		wlen = used + len;
@@ -660,7 +644,7 @@ static int get_znodes_to_commit(struct ubifs_info *c)
 	}
 	cnt += 1;
 	while (1) {
-		ubifs_assert(!test_bit(COW_ZNODE, &znode->flags));
+		ubifs_assert(!ubifs_zn_cow(znode));
 		__set_bit(COW_ZNODE, &znode->flags);
 		znode->alt = 0;
 		cnext = find_next_dirty(znode);
@@ -706,7 +690,7 @@ static int alloc_idx_lebs(struct ubifs_info *c, int cnt)
 		c->ilebs[c->ileb_cnt++] = lnum;
 		dbg_cmt("LEB %d", lnum);
 	}
-	if (dbg_force_in_the_gaps())
+	if (dbg_is_chk_index(c) && !(random32() & 7))
 		return -ENOSPC;
 	return 0;
 }
@@ -796,16 +780,16 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	spin_lock(&c->space_lock);
 	/*
 	 * Although we have not finished committing yet, update size of the
-	 * committed index ('c->old_idx_sz') and zero out the index growth
+	 * committed index ('c->bi.old_idx_sz') and zero out the index growth
 	 * budget. It is OK to do this now, because we've reserved all the
 	 * space which is needed to commit the index, and it is save for the
 	 * budgeting subsystem to assume the index is already committed,
 	 * even though it is not.
 	 */
-	ubifs_assert(c->min_idx_lebs == ubifs_calc_min_idx_lebs(c));
-	c->old_idx_sz = c->calc_idx_sz;
-	c->budg_uncommitted_idx = 0;
-	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	ubifs_assert(c->bi.min_idx_lebs == ubifs_calc_min_idx_lebs(c));
+	c->bi.old_idx_sz = c->calc_idx_sz;
+	c->bi.uncommitted_idx = 0;
+	c->bi.min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 	spin_unlock(&c->space_lock);
 	mutex_unlock(&c->tnc_mutex);
 
@@ -832,7 +816,7 @@ static int write_index(struct ubifs_info *c)
 	struct ubifs_idx_node *idx;
 	struct ubifs_znode *znode, *cnext;
 	int i, lnum, offs, len, next_len, buf_len, buf_offs, used;
-	int avail, wlen, err, lnum_pos = 0;
+	int avail, wlen, err, lnum_pos = 0, blen, nxt_offs;
 
 	cnext = c->enext;
 	if (!cnext)
@@ -909,7 +893,7 @@ static int write_index(struct ubifs_info *c)
 		cnext = znode->cnext;
 
 		ubifs_assert(ubifs_zn_dirty(znode));
-		ubifs_assert(test_bit(COW_ZNODE, &znode->flags));
+		ubifs_assert(ubifs_zn_cow(znode));
 
 		/*
 		 * It is important that other threads should see %DIRTY_ZNODE
@@ -923,6 +907,28 @@ static int write_index(struct ubifs_info *c)
 		smp_mb__before_clear_bit();
 		clear_bit(COW_ZNODE, &znode->flags);
 		smp_mb__after_clear_bit();
+
+		/*
+		 * We have marked the znode as clean but have not updated the
+		 * @c->clean_zn_cnt counter. If this znode becomes dirty again
+		 * before 'free_obsolete_znodes()' is called, then
+		 * @c->clean_zn_cnt will be decremented before it gets
+		 * incremented (resulting in 2 decrements for the same znode).
+		 * This means that @c->clean_zn_cnt may become negative for a
+		 * while.
+		 *
+		 * Q: why we cannot increment @c->clean_zn_cnt?
+		 * A: because we do not have the @c->tnc_mutex locked, and the
+		 *    following code would be racy and buggy:
+		 *
+		 *    if (!ubifs_zn_obsolete(znode)) {
+		 *            atomic_long_inc(&c->clean_zn_cnt);
+		 *            atomic_long_inc(&ubifs_clean_zn_cnt);
+		 *    }
+		 *
+		 *    Thus, we just delay the @c->clean_zn_cnt update until we
+		 *    have the mutex locked.
+		 */
 
 		/* Do not access znode from this point on */
 
@@ -940,65 +946,38 @@ static int write_index(struct ubifs_info *c)
 		else
 			next_len = ubifs_idx_node_sz(c, cnext->child_cnt);
 
-		if (c->min_io_size == 1) {
-			/*
-			 * Write the prepared index node immediately if there is
-			 * no minimum IO size
-			 */
-			err = ubifs_leb_write(c, lnum, c->cbuf, buf_offs,
-					      wlen, UBI_SHORTTERM);
-			if (err)
-				return err;
-			buf_offs += ALIGN(wlen, 8);
-			if (next_len) {
-				used = 0;
-				avail = buf_len;
-				if (buf_offs + next_len > c->leb_size) {
-					err = ubifs_update_one_lp(c, lnum,
-						LPROPS_NC, 0, 0, LPROPS_TAKEN);
-					if (err)
-						return err;
-					lnum = -1;
-				}
+		nxt_offs = buf_offs + used + next_len;
+		if (next_len && nxt_offs <= c->leb_size) {
+			if (avail > 0)
 				continue;
-			}
+			else
+				blen = buf_len;
 		} else {
-			int blen, nxt_offs = buf_offs + used + next_len;
+			wlen = ALIGN(wlen, 8);
+			blen = ALIGN(wlen, c->min_io_size);
+			ubifs_pad(c, c->cbuf + wlen, blen - wlen);
+		}
 
-			if (next_len && nxt_offs <= c->leb_size) {
-				if (avail > 0)
-					continue;
-				else
-					blen = buf_len;
-			} else {
-				wlen = ALIGN(wlen, 8);
-				blen = ALIGN(wlen, c->min_io_size);
-				ubifs_pad(c, c->cbuf + wlen, blen - wlen);
+		/* The buffer is full or there are no more znodes to do */
+		err = ubifs_leb_write(c, lnum, c->cbuf, buf_offs, blen,
+				      UBI_SHORTTERM);
+		if (err)
+			return err;
+		buf_offs += blen;
+		if (next_len) {
+			if (nxt_offs > c->leb_size) {
+				err = ubifs_update_one_lp(c, lnum, LPROPS_NC, 0,
+							  0, LPROPS_TAKEN);
+				if (err)
+					return err;
+				lnum = -1;
 			}
-			/*
-			 * The buffer is full or there are no more znodes
-			 * to do
-			 */
-			err = ubifs_leb_write(c, lnum, c->cbuf, buf_offs,
-					      blen, UBI_SHORTTERM);
-			if (err)
-				return err;
-			buf_offs += blen;
-			if (next_len) {
-				if (nxt_offs > c->leb_size) {
-					err = ubifs_update_one_lp(c, lnum,
-						LPROPS_NC, 0, 0, LPROPS_TAKEN);
-					if (err)
-						return err;
-					lnum = -1;
-				}
-				used -= blen;
-				if (used < 0)
-					used = 0;
-				avail = buf_len - used;
-				memmove(c->cbuf, c->cbuf + blen, used);
-				continue;
-			}
+			used -= blen;
+			if (used < 0)
+				used = 0;
+			avail = buf_len - used;
+			memmove(c->cbuf, c->cbuf + blen, used);
+			continue;
 		}
 		break;
 	}
@@ -1031,7 +1010,7 @@ static void free_obsolete_znodes(struct ubifs_info *c)
 	do {
 		znode = cnext;
 		cnext = znode->cnext;
-		if (test_bit(OBSOLETE_ZNODE, &znode->flags))
+		if (ubifs_zn_obsolete(znode))
 			kfree(znode);
 		else {
 			znode->cnext = NULL;

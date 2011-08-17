@@ -2,6 +2,14 @@ Kernel driver f71882fg
 ======================
 
 Supported chips:
+  * Fintek F71808E
+    Prefix: 'f71808e'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
+  * Fintek F71808A
+    Prefix: 'f71808a'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
   * Fintek F71858FG
     Prefix: 'f71858fg'
     Addresses scanned: none, address read from Super I/O config space
@@ -10,6 +18,14 @@ Supported chips:
     Prefix: 'f71862fg'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
+  * Fintek F71869F and F71869E
+    Prefix: 'f71869'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
+  * Fintek F71869A
+    Prefix: 'f71869a'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
   * Fintek F71882FG and F71883FG
     Prefix: 'f71882fg'
     Addresses scanned: none, address read from Super I/O config space
@@ -17,11 +33,30 @@ Supported chips:
   * Fintek F71889FG
     Prefix: 'f71889fg'
     Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
+  * Fintek F71889ED
+    Prefix: 'f71889ed'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Should become available on the Fintek website soon
+  * Fintek F71889A
+    Prefix: 'f71889a'
+    Addresses scanned: none, address read from Super I/O config space
     Datasheet: Should become available on the Fintek website soon
   * Fintek F8000
     Prefix: 'f8000'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Not public
+  * Fintek F81801U
+    Prefix: 'f71889fg'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
+    Note: This is the 64-pin variant of the F71889FG, they have the
+	  same device ID and are fully compatible as far as hardware
+	  monitoring is concerned.
+  * Fintek F81865F
+    Prefix: 'f81865f'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
 
 Author: Hans de Goede <hdegoede@redhat.com>
 
@@ -29,9 +64,9 @@ Author: Hans de Goede <hdegoede@redhat.com>
 Description
 -----------
 
-Fintek F718xxFG/F8000 Super I/O chips include complete hardware monitoring
-capabilities. They can monitor up to 9 voltages (3 for the F8000), 4 fans and
-3 temperature sensors.
+Fintek F718xx/F8000 Super I/O chips include complete hardware monitoring
+capabilities. They can monitor up to 9 voltages, 4 fans and 3 temperature
+sensors.
 
 These chips also have fan controlling features, using either DC or PWM, in
 three different modes (one manual, two automatic).
@@ -99,5 +134,5 @@ Writing an unsupported mode will result in an invalid parameter error.
   The fan speed is regulated to keep the temp the fan is mapped to between
   temp#_auto_point2_temp and temp#_auto_point3_temp.
 
-Both of the automatic modes require that pwm1 corresponds to fan1, pwm2 to
+All of the automatic modes require that pwm1 corresponds to fan1, pwm2 to
 fan2 and pwm3 to fan3.

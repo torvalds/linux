@@ -1,5 +1,7 @@
 /*
- * OHCI HCD (Host Controller Driver) for USB.
+ * Open Host Controller Interface (OHCI) driver for USB.
+ *
+ * Maintainer: Alan Stern <stern@rowland.harvard.edu>
  *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2004 David Brownell <dbrownell@users.sourceforge.net>
@@ -75,6 +77,7 @@ static const char	hcd_name [] = "ohci_hcd";
 #define	STATECHANGE_DELAY	msecs_to_jiffies(300)
 
 #include "ohci.h"
+#include "pci-quirks.h"
 
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
@@ -85,18 +88,8 @@ static int ohci_restart (struct ohci_hcd *ohci);
 #endif
 
 #ifdef CONFIG_PCI
-static void quirk_amd_pll(int state);
-static void amd_iso_dev_put(void);
 static void sb800_prefetch(struct ohci_hcd *ohci, int on);
 #else
-static inline void quirk_amd_pll(int state)
-{
-	return;
-}
-static inline void amd_iso_dev_put(void)
-{
-	return;
-}
 static inline void sb800_prefetch(struct ohci_hcd *ohci, int on)
 {
 	return;
@@ -171,7 +164,7 @@ static int ohci_urb_enqueue (
 		// case PIPE_INTERRUPT:
 		// case PIPE_BULK:
 		default:
-			/* one TD for every 4096 Bytes (can be upto 8K) */
+			/* one TD for every 4096 Bytes (can be up to 8K) */
 			size += urb->transfer_buffer_length / 4096;
 			/* ... and for any remaining bytes ... */
 			if ((urb->transfer_buffer_length % 4096) != 0)
@@ -773,6 +766,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	if (ints == ~(u32)0) {
 		disable (ohci);
 		ohci_dbg (ohci, "device removed!\n");
+		usb_hc_died(hcd);
 		return IRQ_HANDLED;
 	}
 
@@ -780,7 +774,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	ints &= ohci_readl(ohci, &regs->intrenable);
 
 	/* interrupt for some other device? */
-	if (ints == 0)
+	if (ints == 0 || unlikely(hcd->state == HC_STATE_HALT))
 		return IRQ_NOTMINE;
 
 	if (ints & OHCI_INTR_UE) {
@@ -797,6 +791,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		} else {
 			disable (ohci);
 			ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
+			usb_hc_died(hcd);
 		}
 
 		ohci_dump (ohci, 1);
@@ -912,7 +907,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	if (quirk_zfmicro(ohci))
 		del_timer(&ohci->unlink_watchdog);
 	if (quirk_amdiso(ohci))
-		amd_iso_dev_put();
+		usb_amd_dev_put();
 
 	remove_debug_files (ohci);
 	ohci_mem_cleanup (ohci);
@@ -1023,11 +1018,6 @@ MODULE_LICENSE ("GPL");
 #define OMAP3_PLATFORM_DRIVER	ohci_hcd_omap3_driver
 #endif
 
-#ifdef CONFIG_ARCH_LH7A404
-#include "ohci-lh7a404.c"
-#define PLATFORM_DRIVER		ohci_hcd_lh7a404_driver
-#endif
-
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #include "ohci-pxa27x.c"
 #define PLATFORM_DRIVER		ohci_hcd_pxa27x_driver
@@ -1068,10 +1058,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_da8xx_driver
 #endif
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7763) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7786)
+#ifdef CONFIG_USB_OHCI_SH
 #include "ohci-sh.c"
 #define PLATFORM_DRIVER		ohci_hcd_sh_driver
 #endif
@@ -1120,6 +1107,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_CNS3XXX_OHCI
 #include "ohci-cns3xxx.c"
 #define PLATFORM_DRIVER		ohci_hcd_cns3xxx_driver
+#endif
+
+#ifdef CONFIG_USB_OHCI_ATH79
+#include "ohci-ath79.c"
+#define PLATFORM_DRIVER		ohci_hcd_ath79_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\
@@ -1180,7 +1172,7 @@ static int __init ohci_hcd_mod_init(void)
 #endif
 
 #ifdef OF_PLATFORM_DRIVER
-	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
+	retval = platform_driver_register(&OF_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto error_of_platform;
 #endif
@@ -1239,7 +1231,7 @@ static int __init ohci_hcd_mod_init(void)
  error_sa1111:
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
  error_of_platform:
 #endif
 #ifdef PLATFORM_DRIVER
@@ -1287,7 +1279,7 @@ static void __exit ohci_hcd_mod_exit(void)
 	sa1111_driver_unregister(&SA1111_DRIVER);
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);

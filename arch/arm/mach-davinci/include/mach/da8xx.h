@@ -15,6 +15,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/davinci_emac.h>
+#include <linux/spi/spi.h>
 
 #include <mach/serial.h>
 #include <mach/edma.h>
@@ -23,6 +24,7 @@
 #include <mach/mmc.h>
 #include <mach/usb.h>
 #include <mach/pm.h>
+#include <mach/spi.h>
 
 extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;
@@ -55,6 +57,7 @@ extern unsigned int da850_max_speed;
 #define DA8XX_SYSCFG1_BASE	(IO_PHYS + 0x22C000)
 #define DA8XX_SYSCFG1_VIRT(x)	(da8xx_syscfg1_base + (x))
 #define DA8XX_DEEPSLEEP_REG	0x8
+#define DA8XX_PWRDN_REG		0x18
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000
@@ -62,13 +65,9 @@ extern unsigned int da850_max_speed;
 #define DA8XX_TIMER64P1_BASE	0x01c21000
 #define DA8XX_GPIO_BASE		0x01e26000
 #define DA8XX_PSC1_BASE		0x01e27000
-#define DA8XX_LCD_CNTRL_BASE	0x01e13000
-#define DA8XX_PLL1_BASE		0x01e1a000
-#define DA8XX_MMCSD0_BASE	0x01c40000
 #define DA8XX_AEMIF_CS2_BASE	0x60000000
 #define DA8XX_AEMIF_CS3_BASE	0x62000000
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
-#define DA8XX_DDR2_CTL_BASE	0xb0000000
 #define DA8XX_ARM_RAM_BASE	0xffff0000
 
 void __init da830_init(void);
@@ -77,6 +76,7 @@ void __init da850_init(void);
 int da830_register_edma(struct edma_rsv_info *rsv);
 int da850_register_edma(struct edma_rsv_info *rsv[2]);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
+int da8xx_register_spi(int instance, struct spi_board_info *info, unsigned len);
 int da8xx_register_watchdog(void);
 int da8xx_register_usb20(unsigned mA, unsigned potpgt);
 int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
@@ -90,11 +90,13 @@ int da850_register_cpufreq(char *async_clk);
 int da8xx_register_cpuidle(void);
 void __iomem * __init da8xx_get_mem_ctlr(void);
 int da850_register_pm(struct platform_device *pdev);
+int __init da850_register_sata(unsigned long refclkpn);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
 extern struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata;
 extern struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata;
+extern struct davinci_spi_platform_data da8xx_spi_pdata[];
 
 extern struct platform_device da8xx_wdt_device;
 
@@ -123,15 +125,8 @@ extern const short da830_ecap2_pins[];
 extern const short da830_eqep0_pins[];
 extern const short da830_eqep1_pins[];
 
-extern const short da850_uart0_pins[];
-extern const short da850_uart1_pins[];
-extern const short da850_uart2_pins[];
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
-extern const short da850_cpgmac_pins[];
-extern const short da850_mcasp_pins[];
 extern const short da850_lcdcntl_pins[];
-extern const short da850_mmcsd0_pins[];
-extern const short da850_emif25_pins[];
 
 #endif /* __ASM_ARCH_DAVINCI_DA8XX_H */

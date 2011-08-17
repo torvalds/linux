@@ -31,6 +31,7 @@ struct iommu {
 	struct clk	*clk;
 	void __iomem	*regbase;
 	struct device	*dev;
+	void		*isr_priv;
 
 	unsigned int	refcount;
 	struct mutex	iommu_lock;	/* global for this whole object */
@@ -47,7 +48,7 @@ struct iommu {
 	struct list_head	mmap;
 	struct mutex		mmap_lock; /* protect mmap */
 
-	int (*isr)(struct iommu *obj);
+	int (*isr)(struct iommu *obj, u32 da, u32 iommu_errs, void *priv);
 
 	void *ctx; /* iommu context: registres saved area */
 	u32 da_start;
@@ -109,6 +110,13 @@ struct iommu_platform_data {
 	u32 da_end;
 };
 
+/* IOMMU errors */
+#define OMAP_IOMMU_ERR_TLB_MISS		(1 << 0)
+#define OMAP_IOMMU_ERR_TRANS_FAULT	(1 << 1)
+#define OMAP_IOMMU_ERR_EMU_MISS		(1 << 2)
+#define OMAP_IOMMU_ERR_TBLWALK_FAULT	(1 << 3)
+#define OMAP_IOMMU_ERR_MULTIHIT_FAULT	(1 << 4)
+
 #if defined(CONFIG_ARCH_OMAP1)
 #error "iommu for this processor not implemented yet"
 #else
@@ -154,11 +162,17 @@ extern void flush_iotlb_range(struct iommu *obj, u32 start, u32 end);
 extern void flush_iotlb_all(struct iommu *obj);
 
 extern int iopgtable_store_entry(struct iommu *obj, struct iotlb_entry *e);
+extern void iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd,
+				   u32 **ppte);
 extern size_t iopgtable_clear_entry(struct iommu *obj, u32 iova);
 
 extern int iommu_set_da_range(struct iommu *obj, u32 start, u32 end);
 extern struct iommu *iommu_get(const char *name);
 extern void iommu_put(struct iommu *obj);
+extern int iommu_set_isr(const char *name,
+			 int (*isr)(struct iommu *obj, u32 da, u32 iommu_errs,
+				    void *priv),
+			 void *isr_priv);
 
 extern void iommu_save_ctx(struct iommu *obj);
 extern void iommu_restore_ctx(struct iommu *obj);

@@ -63,17 +63,6 @@ union IO_APIC_reg_03 {
 	} __attribute__ ((packed)) bits;
 };
 
-enum ioapic_irq_destination_types {
-	dest_Fixed = 0,
-	dest_LowestPrio = 1,
-	dest_SMI = 2,
-	dest__reserved_1 = 3,
-	dest_NMI = 4,
-	dest_INIT = 5,
-	dest__reserved_2 = 6,
-	dest_ExtINT = 7
-};
-
 struct IO_APIC_route_entry {
 	__u32	vector		:  8,
 		delivery_mode	:  3,	/* 000: FIXED
@@ -106,18 +95,22 @@ struct IR_IO_APIC_route_entry {
 		index		: 15;
 } __attribute__ ((packed));
 
+#define IOAPIC_AUTO     -1
+#define IOAPIC_EDGE     0
+#define IOAPIC_LEVEL    1
+
 #ifdef CONFIG_X86_IO_APIC
 
 /*
  * # of IO-APICs and # of IRQ routing registers
  */
 extern int nr_ioapics;
-extern int nr_ioapic_registers[MAX_IO_APICS];
+
+extern int mpc_ioapic_id(int ioapic);
+extern unsigned int mpc_ioapic_addr(int ioapic);
+extern struct mp_ioapic_gsi *mp_ioapic_gsi_routing(int ioapic);
 
 #define MP_MAX_IOAPIC_PIN 127
-
-/* I/O APIC entries */
-extern struct mpc_ioapic mp_ioapics[MAX_IO_APICS];
 
 /* # of MP IRQ source entries */
 extern int mp_irq_entries;
@@ -150,11 +143,6 @@ extern int timer_through_8259;
 #define io_apic_assign_pci_irqs \
 	(mp_irq_entries && !skip_ioapic_setup && io_apic_irqs)
 
-extern u8 io_apic_unique_id(u8 id);
-extern int io_apic_get_unique_id(int ioapic, int apic_id);
-extern int io_apic_get_version(int ioapic);
-extern int io_apic_get_redir_entries(int ioapic);
-
 struct io_apic_irq_attr;
 extern int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr);
@@ -162,11 +150,11 @@ void setup_IO_APIC_irq_extra(u32 gsi);
 extern void ioapic_and_gsi_init(void);
 extern void ioapic_insert_resources(void);
 
-extern struct IO_APIC_route_entry **alloc_ioapic_entries(void);
-extern void free_ioapic_entries(struct IO_APIC_route_entry **ioapic_entries);
-extern int save_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
-extern void mask_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
-extern int restore_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
+int io_apic_setup_irq_pin_once(unsigned int irq, int node, struct io_apic_irq_attr *attr);
+
+extern int save_ioapic_entries(void);
+extern void mask_ioapic_entries(void);
+extern int restore_ioapic_entries(void);
 
 extern int get_nr_irqs_gsi(void);
 
@@ -186,6 +174,8 @@ extern void __init pre_init_apic_IRQ0(void);
 
 extern void mp_save_irq(struct mpc_intsrc *m);
 
+extern void disable_ioapic_support(void);
+
 #else  /* !CONFIG_X86_IO_APIC */
 
 #define io_apic_assign_pci_irqs 0
@@ -199,6 +189,20 @@ static inline int mp_find_ioapic(u32 gsi) { return 0; }
 struct io_apic_irq_attr;
 static inline int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr) { return 0; }
+
+static inline int save_ioapic_entries(void)
+{
+	return -ENOMEM;
+}
+
+static inline void mask_ioapic_entries(void) { }
+static inline int restore_ioapic_entries(void)
+{
+	return -ENOMEM;
+}
+
+static inline void mp_save_irq(struct mpc_intsrc *m) { };
+static inline void disable_ioapic_support(void) { }
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

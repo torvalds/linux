@@ -1351,11 +1351,6 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			u32 position;
 
-			/* make sure this is a multicast address -
-				shouldn't this be a given if we have it here ? */
-			if (!(*ha->addr & 1))
-				continue;
-
 			/* upper 6 bits are used as hash index */
 			position = ether_crc(ETH_ALEN, ha->addr)>>26;
 
@@ -1488,9 +1483,9 @@ smc911x_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 				SUPPORTED_TP | SUPPORTED_AUI;
 
 		if (lp->ctl_rspeed == 10)
-			cmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(cmd, SPEED_10);
 		else if (lp->ctl_rspeed == 100)
-			cmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(cmd, SPEED_100);
 
 		cmd->autoneg = AUTONEG_DISABLE;
 		if (lp->mii.phy_id==1)

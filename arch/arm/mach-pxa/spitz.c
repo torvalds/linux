@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -46,8 +47,6 @@
 #include <mach/spitz.h>
 #include <mach/sharpsl_pm.h>
 #include <mach/smemc.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -725,7 +724,7 @@ static struct pxafb_mach_info spitz_pxafb_info = {
 
 static void __init spitz_lcd_init(void)
 {
-	set_pxa_fb_info(&spitz_pxafb_info);
+	pxa_set_fb_info(NULL, &spitz_pxafb_info);
 }
 #else
 static inline void spitz_lcd_init(void) {}
@@ -985,6 +984,7 @@ MACHINE_START(SPITZ, "SHARP Spitz")
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -995,6 +995,7 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -1005,6 +1006,7 @@ MACHINE_START(AKITA, "SHARP Akita")
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END

@@ -65,16 +65,20 @@
 #define SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE		16
 
 /* flag that signifies tah the lock is
-currently held by the proccess (struct file) */
+currently held by the process (struct file) */
 #define SEP_DRIVER_OWN_LOCK_FLAG                        1
 
 /* flag that signifies tah the lock is currently NOT
-held by the proccess (struct file) */
+held by the process (struct file) */
 #define SEP_DRIVER_DISOWN_LOCK_FLAG                     0
 
 /* indicates whether driver has mapped/unmapped shared area */
 #define SEP_REQUEST_DAEMON_MAPPED 1
 #define SEP_REQUEST_DAEMON_UNMAPPED 0
+
+#define SEP_DEV_NAME "sep_sec_driver"
+#define SEP_DEV_SINGLETON "sep_sec_singleton_driver"
+#define SEP_DEV_DAEMON "sep_req_daemon_driver"
 
 /*--------------------------------------------------------
 	SHARED AREA  memory total size is 36K
@@ -176,7 +180,7 @@ held by the proccess (struct file) */
 /* offset of the caller id area */
 #define SEP_CALLER_ID_OFFSET_BYTES \
 	(SEP_DRIVER_SYSTEM_RAR_MEMORY_OFFSET_IN_BYTES + \
-    SEP_DRIVER_SYSTEM_RAR_MEMORY_SIZE_IN_BYTES)
+	SEP_DRIVER_SYSTEM_RAR_MEMORY_SIZE_IN_BYTES)
 
 /* offset of the DCB area */
 #define SEP_DRIVER_SYSTEM_DCB_MEMORY_OFFSET_IN_BYTES \

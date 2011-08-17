@@ -464,7 +464,7 @@ static void free_all_tags(void)
  *
  * Parameters: Scsi_Cmnd *cmd
  *    The command to work on. The first scatter buffer's data are
- *    assumed to be already transfered into ptr/this_residual.
+ *    assumed to be already transferred into ptr/this_residual.
  */
 
 static void merge_contiguous_buffers(Scsi_Cmnd *cmd)
@@ -892,6 +892,11 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	return 0;
 }
 
+static void NCR5380_exit(struct Scsi_Host *instance)
+{
+	/* Empty, as we didn't schedule any delayed work */
+}
+
 /*
  * Function : int NCR5380_queue_command (Scsi_Cmnd *cmd,
  *	void (*done)(Scsi_Cmnd *))
@@ -914,7 +919,6 @@ static int NCR5380_queue_command_lck(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 {
 	SETUP_HOSTDATA(cmd->device->host);
 	Scsi_Cmnd *tmp;
-	int oldto;
 	unsigned long flags;
 
 #if (NDEBUG & NDEBUG_NO_WRITE)
@@ -1720,7 +1724,7 @@ static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd, int tag)
  *	bytes to transfer, **data - pointer to data pointer.
  *
  * Returns : -1 when different phase is entered without transferring
- *	maximum number of bytes, 0 if all bytes are transfered or exit
+ *	maximum number of bytes, 0 if all bytes are transferred or exit
  *	is in same phase.
  *
  *	Also, *phase, *count, *data are modified in place.
@@ -1911,7 +1915,7 @@ static int do_abort(struct Scsi_Host *host)
  *	bytes to transfer, **data - pointer to data pointer.
  *
  * Returns : -1 when different phase is entered without transferring
- *	maximum number of bytes, 0 if all bytes or transfered or exit
+ *	maximum number of bytes, 0 if all bytes or transferred or exit
  *	is in same phase.
  *
  *	Also, *phase, *count, *data are modified in place.

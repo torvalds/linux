@@ -2,7 +2,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/buffer_head.h>
 
 #include "squashfs_fs.h"
@@ -51,6 +52,12 @@ static const struct squashfs_decompressor squashfs_xz_comp_ops = {
 };
 #endif
 
+#ifndef CONFIG_SQUASHFS_ZLIB
+static const struct squashfs_decompressor squashfs_zlib_comp_ops = {
+	NULL, NULL, NULL, ZLIB_COMPRESSION, "zlib", 0
+};
+#endif
+
 static const struct squashfs_decompressor squashfs_unknown_comp_ops = {
 	NULL, NULL, NULL, 0, "unknown", 0
 };
@@ -73,4 +80,37 @@ const struct squashfs_decompressor *squashfs_lookup_decompressor(int id)
 			break;
 
 	return decompressor[i];
+}
+
+
+void *squashfs_decompressor_init(struct super_block *sb, unsigned short flags)
+{
+	struct squashfs_sb_info *msblk = sb->s_fs_info;
+	void *strm, *buffer = NULL;
+	int length = 0;
+
+	/*
+	 * Read decompressor specific options from file system if present
+	 */
+	if (SQUASHFS_COMP_OPTS(flags)) {
+		buffer = kmalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+		if (buffer == NULL)
+			return ERR_PTR(-ENOMEM);
+
+		length = squashfs_read_data(sb, &buffer,
+			sizeof(struct squashfs_super_block), 0, NULL,
+			PAGE_CACHE_SIZE, 1);
+
+		if (length < 0) {
+			strm = ERR_PTR(length);
+			goto finished;
+		}
+	}
+
+	strm = msblk->decompressor->init(msblk, buffer, length);
+
+finished:
+	kfree(buffer);
+
+	return strm;
 }

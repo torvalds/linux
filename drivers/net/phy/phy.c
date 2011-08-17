@@ -33,7 +33,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -238,6 +238,8 @@ static void phy_sanitize_settings(struct phy_device *phydev)
  */
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 {
+	u32 speed = ethtool_cmd_speed(cmd);
+
 	if (cmd->phy_address != phydev->addr)
 		return -EINVAL;
 
@@ -253,16 +255,16 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 
 	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((cmd->speed != SPEED_1000 &&
-	      cmd->speed != SPEED_100 &&
-	      cmd->speed != SPEED_10) ||
+	    ((speed != SPEED_1000 &&
+	      speed != SPEED_100 &&
+	      speed != SPEED_10) ||
 	     (cmd->duplex != DUPLEX_HALF &&
 	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;
 
 	phydev->autoneg = cmd->autoneg;
 
-	phydev->speed = cmd->speed;
+	phydev->speed = speed;
 
 	phydev->advertising = cmd->advertising;
 
@@ -286,7 +288,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	cmd->advertising = phydev->advertising;
 
-	cmd->speed = phydev->speed;
+	ethtool_cmd_speed_set(cmd, phydev->speed);
 	cmd->duplex = phydev->duplex;
 	cmd->port = PORT_MII;
 	cmd->phy_address = phydev->addr;
@@ -319,7 +321,8 @@ int phy_mii_ioctl(struct phy_device *phydev,
 		/* fall through */
 
 	case SIOCGMIIREG:
-		mii_data->val_out = phy_read(phydev, mii_data->reg_num);
+		mii_data->val_out = mdiobus_read(phydev->bus, mii_data->phy_id,
+						 mii_data->reg_num);
 		break;
 
 	case SIOCSMIIREG:
@@ -350,8 +353,9 @@ int phy_mii_ioctl(struct phy_device *phydev,
 			}
 		}
 
-		phy_write(phydev, mii_data->reg_num, val);
-		
+		mdiobus_write(phydev->bus, mii_data->phy_id,
+			      mii_data->reg_num, val);
+
 		if (mii_data->reg_num == MII_BMCR &&
 		    val & BMCR_RESET &&
 		    phydev->drv->config_init) {

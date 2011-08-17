@@ -86,8 +86,8 @@
 
 #ifdef CONFIG_QUOTA
 /* Amount of blocks needed for quota update - we know that the structure was
- * allocated so we need to update only inode+data */
-#define EXT4_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 2 : 0)
+ * allocated so we need to update only data block */
+#define EXT4_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 1 : 0)
 /* Amount of blocks needed for quota insert/delete - we do some block writes
  * but inode, sb and group updates are done only once */
 #define EXT4_QUOTA_INIT_BLOCKS(sb) (test_opt(sb, QUOTA) ? (DQUOT_INIT_ALLOC*\
@@ -126,9 +126,6 @@ void ext4_journal_abort_handle(const char *caller, unsigned int line,
 			       const char *err_fn,
 		struct buffer_head *bh, handle_t *handle, int err);
 
-int __ext4_journal_get_undo_access(const char *where, unsigned int line,
-				   handle_t *handle, struct buffer_head *bh);
-
 int __ext4_journal_get_write_access(const char *where, unsigned int line,
 				    handle_t *handle, struct buffer_head *bh);
 
@@ -146,8 +143,6 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 int __ext4_handle_dirty_super(const char *where, unsigned int line,
 			      handle_t *handle, struct super_block *sb);
 
-#define ext4_journal_get_undo_access(handle, bh) \
-	__ext4_journal_get_undo_access(__func__, __LINE__, (handle), (bh))
 #define ext4_journal_get_write_access(handle, bh) \
 	__ext4_journal_get_write_access(__func__, __LINE__, (handle), (bh))
 #define ext4_forget(handle, is_metadata, inode, bh, block_nr) \
@@ -200,13 +195,6 @@ static inline int ext4_handle_has_enough_credits(handle_t *handle, int needed)
 	if (ext4_handle_valid(handle) && handle->h_buffer_credits < needed)
 		return 0;
 	return 1;
-}
-
-static inline void ext4_journal_release_buffer(handle_t *handle,
-						struct buffer_head *bh)
-{
-	if (ext4_handle_valid(handle))
-		jbd2_journal_release_buffer(handle, bh);
 }
 
 static inline handle_t *ext4_journal_start(struct inode *inode, int nblocks)

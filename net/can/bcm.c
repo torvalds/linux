@@ -43,6 +43,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/hrtimer.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
@@ -165,9 +166,9 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 	struct bcm_sock *bo = bcm_sk(sk);
 	struct bcm_op *op;
 
-	seq_printf(m, ">>> socket %p", sk->sk_socket);
-	seq_printf(m, " / sk %p", sk);
-	seq_printf(m, " / bo %p", bo);
+	seq_printf(m, ">>> socket %pK", sk->sk_socket);
+	seq_printf(m, " / sk %pK", sk);
+	seq_printf(m, " / bo %pK", bo);
 	seq_printf(m, " / dropped %lu", bo->dropped_usr_msgs);
 	seq_printf(m, " / bound %s", bcm_proc_getifname(ifname, bo->ifindex));
 	seq_printf(m, " <<<\n");
@@ -387,7 +388,7 @@ static void bcm_tx_timeout_tsklet(unsigned long data)
 }
 
 /*
- * bcm_tx_timeout_handler - performes cyclic CAN frame transmissions
+ * bcm_tx_timeout_handler - performs cyclic CAN frame transmissions
  */
 static enum hrtimer_restart bcm_tx_timeout_handler(struct hrtimer *hrtimer)
 {
@@ -1427,8 +1428,13 @@ static int bcm_init(struct sock *sk)
 static int bcm_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct bcm_sock *bo = bcm_sk(sk);
+	struct bcm_sock *bo;
 	struct bcm_op *op, *next;
+
+	if (sk == NULL)
+		return 0;
+
+	bo = bcm_sk(sk);
 
 	/* remove bcm_ops, timer, rx_unregister(), etc. */
 
@@ -1569,7 +1575,7 @@ static int bcm_recvmsg(struct kiocb *iocb, struct socket *sock,
 	return size;
 }
 
-static struct proto_ops bcm_ops __read_mostly = {
+static const struct proto_ops bcm_ops = {
 	.family        = PF_CAN,
 	.release       = bcm_release,
 	.bind          = sock_no_bind,
@@ -1578,7 +1584,7 @@ static struct proto_ops bcm_ops __read_mostly = {
 	.accept        = sock_no_accept,
 	.getname       = sock_no_getname,
 	.poll          = datagram_poll,
-	.ioctl         = NULL,		/* use can_ioctl() from af_can.c */
+	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,
 	.setsockopt    = sock_no_setsockopt,
@@ -1596,7 +1602,7 @@ static struct proto bcm_proto __read_mostly = {
 	.init       = bcm_init,
 };
 
-static struct can_proto bcm_can_proto __read_mostly = {
+static const struct can_proto bcm_can_proto = {
 	.type       = SOCK_DGRAM,
 	.protocol   = CAN_BCM,
 	.ops        = &bcm_ops,

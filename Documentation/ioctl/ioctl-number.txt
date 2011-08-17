@@ -133,6 +133,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
+'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!
@@ -165,7 +166,6 @@ Code  Seq#(hex)	Include File		Comments
 'T'	all	arch/x86/include/asm/ioctls.h	conflict!
 'T'	C0-DF	linux/if_tun.h		conflict!
 'U'	all	sound/asound.h		conflict!
-'U'	00-0F	drivers/media/video/uvc/uvcvideo.h	conflict!
 'U'	00-CF	linux/uinput.h		conflict!
 'U'	00-EF	linux/usbdevice_fs.h
 'U'	C0-CF	drivers/bluetooth/hci_uart.h
@@ -258,6 +258,7 @@ Code  Seq#(hex)	Include File		Comments
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
 'u'	00-1F	linux/smb_fs.h		gone
+'u'	20-3F	linux/uvcvideo.h	USB video class host driver
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
@@ -272,6 +273,7 @@ Code  Seq#(hex)	Include File		Comments
 'z'	40-7F				CAN bus card	conflict!
 					<mailto:oe@port.de>
 'z'	10-4F	drivers/s390/crypto/zcrypt_api.h	conflict!
+'|'	00-7F	linux/media.h
 0x80	00-1F	linux/fb.h
 0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h
@@ -290,6 +292,7 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:buk@buks.ipn.de>
 0xA0	all	linux/sdp/sdp.h		Industrial Device Project
 					<mailto:kenji@bitgate.com>
+0xA2	00-0F	arch/tile/include/asm/hardwall.h
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
 0xA3	90-9F	linux/dtlk.h
@@ -299,9 +302,11 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:rusty@rustcorp.com.au>
 0xAE	all	linux/kvm.h		Kernel-based Virtual Machine
 					<mailto:kvm@vger.kernel.org>
+0xAF	00-1F	linux/fsl_hypervisor.h	Freescale hypervisor
 0xB0	all	RATIO devices		in development:
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>
+0xB3	00	linux/mmc/ioctl.h
 0xC0	00-0F	linux/usb/iowarrior.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>

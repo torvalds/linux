@@ -1008,15 +1008,13 @@ static int ewrk3_rx(struct net_device *dev)
 							}
 						}
 						p = skb->data;	/* Look at the dest addr */
-						if (p[0] & 0x01) {	/* Multicast/Broadcast */
-							if ((*(s16 *) & p[0] == -1) && (*(s16 *) & p[2] == -1) && (*(s16 *) & p[4] == -1)) {
+						if (is_multicast_ether_addr(p)) {
+							if (is_broadcast_ether_addr(p)) {
 								lp->pktStats.broadcast++;
 							} else {
 								lp->pktStats.multicast++;
 							}
-						} else if ((*(s16 *) & p[0] == *(s16 *) & dev->dev_addr[0]) &&
-							   (*(s16 *) & p[2] == *(s16 *) & dev->dev_addr[2]) &&
-							   (*(s16 *) & p[4] == *(s16 *) & dev->dev_addr[4])) {
+						} else if (compare_ether_addr(p, dev->dev_addr) == 0) {
 							lp->pktStats.unicast++;
 						}
 						lp->pktStats.bins[0]++;		/* Duplicates stats.rx_packets */
@@ -1171,7 +1169,7 @@ static void SetMulticastFilter(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	u_long iobase = dev->base_addr;
 	int i;
-	char *addrs, bit, byte;
+	char bit, byte;
 	short __iomem *p = lp->mctbl;
 	u16 hashcode;
 	u32 crc;
@@ -1213,25 +1211,22 @@ static void SetMulticastFilter(struct net_device *dev)
 
 		/* Update table */
 		netdev_for_each_mc_addr(ha, dev) {
-			addrs = ha->addr;
-			if ((*addrs & 0x01) == 1) {	/* multicast address? */
-				crc = ether_crc_le(ETH_ALEN, addrs);
-				hashcode = crc & ((1 << 9) - 1);	/* hashcode is 9 LSb of CRC */
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
+			hashcode = crc & ((1 << 9) - 1);	/* hashcode is 9 LSb of CRC */
 
-				byte = hashcode >> 3;	/* bit[3-8] -> byte in filter */
-				bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
+			byte = hashcode >> 3;	/* bit[3-8] -> byte in filter */
+			bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
 
-				if (lp->shmem_length == IO_ONLY) {
-					u_char tmp;
+			if (lp->shmem_length == IO_ONLY) {
+				u_char tmp;
 
-					outw(PAGE0_HTE + byte, EWRK3_PIR1);
-					tmp = inb(EWRK3_DATA);
-					tmp |= bit;
-					outw(PAGE0_HTE + byte, EWRK3_PIR1);
-					outb(tmp, EWRK3_DATA);
-				} else {
-					writeb(readb(lp->mctbl + byte) | bit, lp->mctbl + byte);
-				}
+				outw(PAGE0_HTE + byte, EWRK3_PIR1);
+				tmp = inb(EWRK3_DATA);
+				tmp |= bit;
+				outw(PAGE0_HTE + byte, EWRK3_PIR1);
+				outb(tmp, EWRK3_DATA);
+			} else {
+				writeb(readb(lp->mctbl + byte) | bit, lp->mctbl + byte);
 			}
 		}
 	}
@@ -1545,7 +1540,7 @@ static int ewrk3_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	}
 
 	ecmd->supported |= SUPPORTED_10baseT_Half;
-	ecmd->speed = SPEED_10;
+	ethtool_cmd_speed_set(ecmd, SPEED_10);
 	ecmd->duplex = DUPLEX_HALF;
 	return 0;
 }
@@ -1604,55 +1599,47 @@ static u32 ewrk3_get_link(struct net_device *dev)
 	return !(cmr & CMR_LINK);
 }
 
-static int ewrk3_phys_id(struct net_device *dev, u32 data)
+static int ewrk3_set_phys_id(struct net_device *dev,
+			     enum ethtool_phys_id_state state)
 {
 	struct ewrk3_private *lp = netdev_priv(dev);
 	unsigned long iobase = dev->base_addr;
-	unsigned long flags;
 	u8 cr;
-	int count;
 
-	/* Toggle LED 4x per second */
-	count = data << 2;
+	spin_lock_irq(&lp->hw_lock);
 
-	spin_lock_irqsave(&lp->hw_lock, flags);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		/* Prevent ISR from twiddling the LED */
+		lp->led_mask = 0;
+		spin_unlock_irq(&lp->hw_lock);
+		return 2;	/* cycle on/off twice per second */
 
-	/* Bail if a PHYS_ID is already in progress */
-	if (lp->led_mask == 0) {
-		spin_unlock_irqrestore(&lp->hw_lock, flags);
-		return -EBUSY;
-	}
-
-	/* Prevent ISR from twiddling the LED */
-	lp->led_mask = 0;
-
-	while (count--) {
-		/* Toggle the LED */
+	case ETHTOOL_ID_ON:
 		cr = inb(EWRK3_CR);
-		outb(cr ^ CR_LED, EWRK3_CR);
+		outb(cr | CR_LED, EWRK3_CR);
+		break;
 
-		/* Wait a little while */
-		spin_unlock_irqrestore(&lp->hw_lock, flags);
-		msleep(250);
-		spin_lock_irqsave(&lp->hw_lock, flags);
+	case ETHTOOL_ID_OFF:
+		cr = inb(EWRK3_CR);
+		outb(cr & ~CR_LED, EWRK3_CR);
+		break;
 
-		/* Exit if we got a signal */
-		if (signal_pending(current))
-			break;
+	case ETHTOOL_ID_INACTIVE:
+		lp->led_mask = CR_LED;
+		cr = inb(EWRK3_CR);
+		outb(cr & ~CR_LED, EWRK3_CR);
 	}
+	spin_unlock_irq(&lp->hw_lock);
 
-	lp->led_mask = CR_LED;
-	cr = inb(EWRK3_CR);
-	outb(cr & ~CR_LED, EWRK3_CR);
-	spin_unlock_irqrestore(&lp->hw_lock, flags);
-	return signal_pending(current) ? -ERESTARTSYS : 0;
+	return 0;
 }
 
 static const struct ethtool_ops ethtool_ops_203 = {
 	.get_drvinfo = ewrk3_get_drvinfo,
 	.get_settings = ewrk3_get_settings,
 	.set_settings = ewrk3_set_settings,
-	.phys_id = ewrk3_phys_id,
+	.set_phys_id = ewrk3_set_phys_id,
 };
 
 static const struct ethtool_ops ethtool_ops = {
@@ -1660,7 +1647,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_settings = ewrk3_get_settings,
 	.set_settings = ewrk3_set_settings,
 	.get_link = ewrk3_get_link,
-	.phys_id = ewrk3_phys_id,
+	.set_phys_id = ewrk3_set_phys_id,
 };
 
 /*

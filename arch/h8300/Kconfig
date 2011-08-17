@@ -3,7 +3,7 @@ config H8300
 	default y
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_SHOW
 
 config SYMBOL_PREFIX
 	string
@@ -40,10 +40,6 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 	default n
-
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
 
 config GENERIC_HWEIGHT
 	bool

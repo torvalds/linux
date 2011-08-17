@@ -43,43 +43,6 @@ int no_pci_devices(void)
 EXPORT_SYMBOL(no_pci_devices);
 
 /*
- * PCI Bus Class Devices
- */
-static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
-					int type,
-					struct device_attribute *attr,
-					char *buf)
-{
-	int ret;
-	const struct cpumask *cpumask;
-
-	cpumask = cpumask_of_pcibus(to_pci_bus(dev));
-	ret = type?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask) :
-		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
-	buf[ret++] = '\n';
-	buf[ret] = '\0';
-	return ret;
-}
-
-static ssize_t inline pci_bus_show_cpumaskaffinity(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
-}
-
-static ssize_t inline pci_bus_show_cpulistaffinity(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
-}
-
-DEVICE_ATTR(cpuaffinity,     S_IRUGO, pci_bus_show_cpumaskaffinity, NULL);
-DEVICE_ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL);
-
-/*
  * PCI Bus Class
  */
 static void release_pcibus_dev(struct device *dev)
@@ -89,12 +52,14 @@ static void release_pcibus_dev(struct device *dev)
 	if (pci_bus->bridge)
 		put_device(pci_bus->bridge);
 	pci_bus_remove_resources(pci_bus);
+	pci_release_bus_of_node(pci_bus);
 	kfree(pci_bus);
 }
 
 static struct class pcibus_class = {
 	.name		= "pci_bus",
 	.dev_release	= &release_pcibus_dev,
+	.dev_attrs	= pcibus_dev_attrs,
 };
 
 static int __init pcibus_class_init(void)
@@ -102,21 +67,6 @@ static int __init pcibus_class_init(void)
 	return class_register(&pcibus_class);
 }
 postcore_initcall(pcibus_class_init);
-
-/*
- * Translate the low bits of the PCI base
- * to the resource type
- */
-static inline unsigned int pci_calc_resource_flags(unsigned int flags)
-{
-	if (flags & PCI_BASE_ADDRESS_SPACE_IO)
-		return IORESOURCE_IO;
-
-	if (flags & PCI_BASE_ADDRESS_MEM_PREFETCH)
-		return IORESOURCE_MEM | IORESOURCE_PREFETCH;
-
-	return IORESOURCE_MEM;
-}
 
 static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 {
@@ -136,18 +86,39 @@ static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 	return size;
 }
 
-static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
+static inline unsigned long decode_bar(struct pci_dev *dev, u32 bar)
 {
+	u32 mem_type;
+	unsigned long flags;
+
 	if ((bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
-		res->flags = bar & ~PCI_BASE_ADDRESS_IO_MASK;
-		return pci_bar_io;
+		flags = bar & ~PCI_BASE_ADDRESS_IO_MASK;
+		flags |= IORESOURCE_IO;
+		return flags;
 	}
 
-	res->flags = bar & ~PCI_BASE_ADDRESS_MEM_MASK;
+	flags = bar & ~PCI_BASE_ADDRESS_MEM_MASK;
+	flags |= IORESOURCE_MEM;
+	if (flags & PCI_BASE_ADDRESS_MEM_PREFETCH)
+		flags |= IORESOURCE_PREFETCH;
 
-	if (res->flags & PCI_BASE_ADDRESS_MEM_TYPE_64)
-		return pci_bar_mem64;
-	return pci_bar_mem32;
+	mem_type = bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK;
+	switch (mem_type) {
+	case PCI_BASE_ADDRESS_MEM_TYPE_32:
+		break;
+	case PCI_BASE_ADDRESS_MEM_TYPE_1M:
+		dev_info(&dev->dev, "1M mem BAR treated as 32-bit BAR\n");
+		break;
+	case PCI_BASE_ADDRESS_MEM_TYPE_64:
+		flags |= IORESOURCE_MEM_64;
+		break;
+	default:
+		dev_warn(&dev->dev,
+			 "mem unknown type %x treated as 32-bit BAR\n",
+			 mem_type);
+		break;
+	}
+	return flags;
 }
 
 /**
@@ -200,11 +171,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		l = 0;
 
 	if (type == pci_bar_unknown) {
-		type = decode_bar(res, l);
-		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
-		if (type == pci_bar_io) {
+		res->flags = decode_bar(dev, l);
+		res->flags |= IORESOURCE_SIZEALIGN;
+		if (res->flags & IORESOURCE_IO) {
 			l &= PCI_BASE_ADDRESS_IO_MASK;
-			mask = PCI_BASE_ADDRESS_IO_MASK & IO_SPACE_LIMIT;
+			mask = PCI_BASE_ADDRESS_IO_MASK & (u32) IO_SPACE_LIMIT;
 		} else {
 			l &= PCI_BASE_ADDRESS_MEM_MASK;
 			mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
@@ -215,7 +186,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		mask = (u32)PCI_ROM_ADDRESS_MASK;
 	}
 
-	if (type == pci_bar_mem64) {
+	if (res->flags & IORESOURCE_MEM_64) {
 		u64 l64 = l;
 		u64 sz64 = sz;
 		u64 mask64 = mask | (u64)~0 << 32;
@@ -239,7 +210,6 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			goto fail;
 		}
 
-		res->flags |= IORESOURCE_MEM_64;
 		if ((sizeof(resource_size_t) < 8) && l) {
 			/* Address above 32-bit boundary; disable the BAR */
 			pci_write_config_dword(dev, pos, 0);
@@ -265,7 +235,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	}
 
  out:
-	return (type == pci_bar_mem64) ? 1 : 0;
+	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
  fail:
 	res->flags = 0;
 	goto out;
@@ -319,10 +289,6 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 		if (!res->end)
 			res->end = limit + 0xfff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
-	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			 "  bridge window [io  %#06lx-%#06lx] (disabled)\n",
-				 base, limit);
 	}
 }
 
@@ -343,10 +309,6 @@ static void __devinit pci_read_bridge_mmio(struct pci_bus *child)
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
-	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			"  bridge window [mem %#010lx-%#010lx] (disabled)\n",
-					 base, limit + 0xfffff);
 	}
 }
 
@@ -394,10 +356,6 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
-	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-		     "  bridge window [mem %#010lx-%#010lx pref] (disabled)\n",
-					 base, limit + 0xfffff);
 	}
 }
 
@@ -624,7 +582,7 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 
 	child->self = bridge;
 	child->bridge = get_device(&bridge->dev);
-
+	pci_set_bus_of_node(child);
 	pci_set_bus_speed(child);
 
 	/* Set up default resource pointers and names.. */
@@ -760,10 +718,14 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		pci_write_config_word(dev, PCI_STATUS, 0xffff);
 
 		/* Prevent assigning a bus number that already exists.
-		 * This can happen when a bridge is hot-plugged */
-		if (pci_find_bus(pci_domain_nr(bus), max+1))
-			goto out;
-		child = pci_add_new_bus(bus, dev, ++max);
+		 * This can happen when a bridge is hot-plugged, so in
+		 * this case we only re-scan this bus. */
+		child = pci_find_bus(pci_domain_nr(bus), max+1);
+		if (!child) {
+			child = pci_add_new_bus(bus, dev, ++max);
+			if (!child)
+				goto out;
+		}
 		buses = (buses & 0xff000000)
 		      | ((unsigned int)(child->primary)     <<  0)
 		      | ((unsigned int)(child->secondary)   <<  8)
@@ -777,7 +739,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 			buses &= ~0xff000000;
 			buses |= CARDBUS_LATENCY_TIMER << 24;
 		}
-			
+
 		/*
 		 * We need to blast all three values with a single write.
 		 */
@@ -1072,6 +1034,7 @@ static void pci_release_dev(struct device *dev)
 
 	pci_dev = to_pci_dev(dev);
 	pci_release_capabilities(pci_dev);
+	pci_release_of_node(pci_dev);
 	kfree(pci_dev);
 }
 
@@ -1190,6 +1153,8 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	dev->devfn = devfn;
 	dev->vendor = l & 0xffff;
 	dev->device = (l >> 16) & 0xffff;
+
+	pci_set_of_node(dev);
 
 	if (pci_setup_device(dev)) {
 		kfree(dev);
@@ -1443,6 +1408,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 		goto dev_reg_err;
 	b->bridge = get_device(dev);
 	device_enable_async_suspend(b->bridge);
+	pci_set_bus_of_node(b);
 
 	if (!parent)
 		set_dev_node(b->bridge, pcibus_to_node(b));
@@ -1453,9 +1419,6 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;
-	error = device_create_file(&b->dev, &dev_attr_cpuaffinity);
-	if (error)
-		goto dev_create_file_err;
 
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(b);
@@ -1466,8 +1429,6 @@ struct pci_bus * pci_create_bus(struct device *parent,
 
 	return b;
 
-dev_create_file_err:
-	device_unregister(&b->dev);
 class_dev_reg_err:
 	device_unregister(dev);
 dev_reg_err:

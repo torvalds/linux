@@ -2,7 +2,7 @@
  *
  *	Added conditional policy language extensions
  *
- *  Updated: Hewlett-Packard <paul.moore@hp.com>
+ *  Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *	Added support for the policy capability bitmap
  *
@@ -28,6 +28,8 @@
 #include <linux/percpu.h>
 #include <linux/audit.h>
 #include <linux/uaccess.h>
+#include <linux/kobject.h>
+#include <linux/ctype.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -280,7 +282,7 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 
 	length = -ENOMEM;
 	if (count >= PAGE_SIZE)
-		goto out;;
+		goto out;
 
 	/* No partial writes. */
 	length = -EINVAL;
@@ -750,14 +752,24 @@ out:
 	return length;
 }
 
+static inline int hexcode_to_int(int code) {
+	if (code == '\0' || !isxdigit(code))
+		return -1;
+	if (isdigit(code))
+		return code - '0';
+	return tolower(code) - 'a' + 10;
+}
+
 static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 {
 	char *scon = NULL, *tcon = NULL;
+	char *namebuf = NULL, *objname = NULL;
 	u32 ssid, tsid, newsid;
 	u16 tclass;
 	ssize_t length;
 	char *newcon = NULL;
 	u32 len;
+	int nargs;
 
 	length = task_has_security(current, SECURITY__COMPUTE_CREATE);
 	if (length)
@@ -773,9 +785,43 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (!tcon)
 		goto out;
 
-	length = -EINVAL;
-	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
+	length = -ENOMEM;
+	namebuf = kzalloc(size + 1, GFP_KERNEL);
+	if (!namebuf)
 		goto out;
+
+	length = -EINVAL;
+	nargs = sscanf(buf, "%s %s %hu %s", scon, tcon, &tclass, namebuf);
+	if (nargs < 3 || nargs > 4)
+		goto out;
+	if (nargs == 4) {
+		/*
+		 * If and when the name of new object to be queried contains
+		 * either whitespace or multibyte characters, they shall be
+		 * encoded based on the percentage-encoding rule.
+		 * If not encoded, the sscanf logic picks up only left-half
+		 * of the supplied name; splitted by a whitespace unexpectedly.
+		 */
+		char   *r, *w;
+		int     c1, c2;
+
+		r = w = namebuf;
+		do {
+			c1 = *r++;
+			if (c1 == '+')
+				c1 = ' ';
+			else if (c1 == '%') {
+				if ((c1 = hexcode_to_int(*r++)) < 0)
+					goto out;
+				if ((c2 = hexcode_to_int(*r++)) < 0)
+					goto out;
+				c1 = (c1 << 4) | c2;
+			}
+			*w++ = c1;
+		} while (c1 != '\0');
+
+		objname = namebuf;
+	}
 
 	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length)
@@ -785,7 +831,8 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = security_transition_sid_user(ssid, tsid, tclass, &newsid);
+	length = security_transition_sid_user(ssid, tsid, tclass,
+					      objname, &newsid);
 	if (length)
 		goto out;
 
@@ -804,6 +851,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	length = len;
 out:
 	kfree(newcon);
+	kfree(namebuf);
 	kfree(tcon);
 	kfree(scon);
 	return length;
@@ -876,12 +924,12 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 
 	length = task_has_security(current, SECURITY__COMPUTE_USER);
 	if (length)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	con = kzalloc(size + 1, GFP_KERNEL);
 	if (!con)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	user = kzalloc(size + 1, GFP_KERNEL);
@@ -941,7 +989,7 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	length = -ENOMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
@@ -1380,10 +1428,14 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "lookups hits misses allocations reclaims "
 			   "frees\n");
-	else
-		seq_printf(seq, "%u %u %u %u %u %u\n", st->lookups,
-			   st->hits, st->misses, st->allocations,
+	else {
+		unsigned int lookups = st->lookups;
+		unsigned int misses = st->misses;
+		unsigned int hits = lookups - misses;
+		seq_printf(seq, "%u %u %u %u %u %u\n", lookups,
+			   hits, misses, st->allocations,
 			   st->reclaims, st->frees);
+	}
 	return 0;
 }
 
@@ -1897,6 +1949,7 @@ static struct file_system_type sel_fs_type = {
 };
 
 struct vfsmount *selinuxfs_mount;
+static struct kobject *selinuxfs_kobj;
 
 static int __init init_sel_fs(void)
 {
@@ -1904,9 +1957,16 @@ static int __init init_sel_fs(void)
 
 	if (!selinux_enabled)
 		return 0;
+
+	selinuxfs_kobj = kobject_create_and_add("selinux", fs_kobj);
+	if (!selinuxfs_kobj)
+		return -ENOMEM;
+
 	err = register_filesystem(&sel_fs_type);
-	if (err)
+	if (err) {
+		kobject_put(selinuxfs_kobj);
 		return err;
+	}
 
 	selinuxfs_mount = kern_mount(&sel_fs_type);
 	if (IS_ERR(selinuxfs_mount)) {
@@ -1923,6 +1983,8 @@ __initcall(init_sel_fs);
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 void exit_sel_fs(void)
 {
+	kobject_put(selinuxfs_kobj);
+	kern_unmount(selinuxfs_mount);
 	unregister_filesystem(&sel_fs_type);
 }
 #endif

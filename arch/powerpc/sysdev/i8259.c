@@ -78,19 +78,19 @@ unsigned int i8259_irq(void)
 	return irq;
 }
 
-static void i8259_mask_and_ack_irq(unsigned int irq_nr)
+static void i8259_mask_and_ack_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&i8259_lock, flags);
-	if (irq_nr > 7) {
-		cached_A1 |= 1 << (irq_nr-8);
+	if (d->irq > 7) {
+		cached_A1 |= 1 << (d->irq-8);
 		inb(0xA1); 	/* DUMMY */
 		outb(cached_A1, 0xA1);
 		outb(0x20, 0xA0);	/* Non-specific EOI */
 		outb(0x20, 0x20);	/* Non-specific EOI to cascade */
 	} else {
-		cached_21 |= 1 << irq_nr;
+		cached_21 |= 1 << d->irq;
 		inb(0x21); 	/* DUMMY */
 		outb(cached_21, 0x21);
 		outb(0x20, 0x20);	/* Non-specific EOI */
@@ -104,42 +104,42 @@ static void i8259_set_irq_mask(int irq_nr)
 	outb(cached_21,0x21);
 }
 
-static void i8259_mask_irq(unsigned int irq_nr)
+static void i8259_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
-	pr_debug("i8259_mask_irq(%d)\n", irq_nr);
+	pr_debug("i8259_mask_irq(%d)\n", d->irq);
 
 	raw_spin_lock_irqsave(&i8259_lock, flags);
-	if (irq_nr < 8)
-		cached_21 |= 1 << irq_nr;
+	if (d->irq < 8)
+		cached_21 |= 1 << d->irq;
 	else
-		cached_A1 |= 1 << (irq_nr-8);
-	i8259_set_irq_mask(irq_nr);
+		cached_A1 |= 1 << (d->irq-8);
+	i8259_set_irq_mask(d->irq);
 	raw_spin_unlock_irqrestore(&i8259_lock, flags);
 }
 
-static void i8259_unmask_irq(unsigned int irq_nr)
+static void i8259_unmask_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
-	pr_debug("i8259_unmask_irq(%d)\n", irq_nr);
+	pr_debug("i8259_unmask_irq(%d)\n", d->irq);
 
 	raw_spin_lock_irqsave(&i8259_lock, flags);
-	if (irq_nr < 8)
-		cached_21 &= ~(1 << irq_nr);
+	if (d->irq < 8)
+		cached_21 &= ~(1 << d->irq);
 	else
-		cached_A1 &= ~(1 << (irq_nr-8));
-	i8259_set_irq_mask(irq_nr);
+		cached_A1 &= ~(1 << (d->irq-8));
+	i8259_set_irq_mask(d->irq);
 	raw_spin_unlock_irqrestore(&i8259_lock, flags);
 }
 
 static struct irq_chip i8259_pic = {
 	.name		= "i8259",
-	.mask		= i8259_mask_irq,
-	.disable	= i8259_mask_irq,
-	.unmask		= i8259_unmask_irq,
-	.mask_ack	= i8259_mask_and_ack_irq,
+	.irq_mask	= i8259_mask_irq,
+	.irq_disable	= i8259_mask_irq,
+	.irq_unmask	= i8259_unmask_irq,
+	.irq_mask_ack	= i8259_mask_and_ack_irq,
 };
 
 static struct resource pic1_iores = {
@@ -175,26 +175,14 @@ static int i8259_host_map(struct irq_host *h, unsigned int virq,
 
 	/* We block the internal cascade */
 	if (hw == 2)
-		irq_to_desc(virq)->status |= IRQ_NOREQUEST;
+		irq_set_status_flags(virq, IRQ_NOREQUEST);
 
 	/* We use the level handler only for now, we might want to
 	 * be more cautious here but that works for now
 	 */
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &i8259_pic, handle_level_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &i8259_pic, handle_level_irq);
 	return 0;
-}
-
-static void i8259_host_unmap(struct irq_host *h, unsigned int virq)
-{
-	/* Make sure irq is masked in hardware */
-	i8259_mask_irq(virq);
-
-	/* remove chip and handler */
-	set_irq_chip_and_handler(virq, NULL, NULL);
-
-	/* Make sure it's completed */
-	synchronize_irq(virq);
 }
 
 static int i8259_host_xlate(struct irq_host *h, struct device_node *ct,
@@ -220,7 +208,6 @@ static int i8259_host_xlate(struct irq_host *h, struct device_node *ct,
 static struct irq_host_ops i8259_host_ops = {
 	.match = i8259_host_match,
 	.map = i8259_host_map,
-	.unmap = i8259_host_unmap,
 	.xlate = i8259_host_xlate,
 };
 

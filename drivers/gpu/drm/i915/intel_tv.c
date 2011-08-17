@@ -1006,6 +1006,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	const struct video_levels *video_levels;
 	const struct color_conversion *color_conversion;
 	bool burst_ena;
+	int pipe = intel_crtc->pipe;
 
 	if (!tv_mode)
 		return;	/* can't happen (mode_prepare prevents this) */
@@ -1149,14 +1150,11 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			   ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			    (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
 	{
-		int pipeconf_reg = (intel_crtc->pipe == 0) ?
-			PIPEACONF : PIPEBCONF;
-		int dspcntr_reg = (intel_crtc->plane == 0) ?
-			DSPACNTR : DSPBCNTR;
+		int pipeconf_reg = PIPECONF(pipe);
+		int dspcntr_reg = DSPCNTR(intel_crtc->plane);
 		int pipeconf = I915_READ(pipeconf_reg);
 		int dspcntr = I915_READ(dspcntr_reg);
-		int dspbase_reg = (intel_crtc->plane == 0) ?
-			DSPAADDR : DSPBADDR;
+		int dspbase_reg = DSPADDR(intel_crtc->plane);
 		int xpos = 0x0, ypos = 0x0;
 		unsigned int xsize, ysize;
 		/* Pipe must be off here */
@@ -1238,6 +1236,8 @@ intel_tv_detect_type (struct intel_tv *intel_tv,
 		      struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = &intel_tv->base.base;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -1260,6 +1260,10 @@ intel_tv_detect_type (struct intel_tv *intel_tv,
 	/* Poll for TV detection */
 	tv_ctl &= ~(TV_ENC_ENABLE | TV_TEST_MODE_MASK);
 	tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
+	if (intel_crtc->pipe == 1)
+		tv_ctl |= TV_ENC_PIPEB_SELECT;
+	else
+		tv_ctl &= ~TV_ENC_PIPEB_SELECT;
 
 	tv_dac &= ~(TVDAC_SENSE_MASK | DAC_A_MASK | DAC_B_MASK | DAC_C_MASK);
 	tv_dac |= (TVDAC_STATE_CHG_EN |
@@ -1279,26 +1283,26 @@ intel_tv_detect_type (struct intel_tv *intel_tv,
 			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
 
 	type = -1;
-	if (wait_for((tv_dac = I915_READ(TV_DAC)) & TVDAC_STATE_CHG, 20) == 0) {
-		DRM_DEBUG_KMS("TV detected: %x, %x\n", tv_ctl, tv_dac);
-		/*
-		 *  A B C
-		 *  0 1 1 Composite
-		 *  1 0 X svideo
-		 *  0 0 0 Component
-		 */
-		if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
-			DRM_DEBUG_KMS("Detected Composite TV connection\n");
-			type = DRM_MODE_CONNECTOR_Composite;
-		} else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
-			DRM_DEBUG_KMS("Detected S-Video TV connection\n");
-			type = DRM_MODE_CONNECTOR_SVIDEO;
-		} else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
-			DRM_DEBUG_KMS("Detected Component TV connection\n");
-			type = DRM_MODE_CONNECTOR_Component;
-		} else {
-			DRM_DEBUG_KMS("Unrecognised TV connection\n");
-		}
+	tv_dac = I915_READ(TV_DAC);
+	DRM_DEBUG_KMS("TV detected: %x, %x\n", tv_ctl, tv_dac);
+	/*
+	 *  A B C
+	 *  0 1 1 Composite
+	 *  1 0 X svideo
+	 *  0 0 0 Component
+	 */
+	if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
+		DRM_DEBUG_KMS("Detected Composite TV connection\n");
+		type = DRM_MODE_CONNECTOR_Composite;
+	} else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
+		DRM_DEBUG_KMS("Detected S-Video TV connection\n");
+		type = DRM_MODE_CONNECTOR_SVIDEO;
+	} else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
+		DRM_DEBUG_KMS("Detected Component TV connection\n");
+		type = DRM_MODE_CONNECTOR_Component;
+	} else {
+		DRM_DEBUG_KMS("Unrecognised TV connection\n");
+		type = -1;
 	}
 
 	I915_WRITE(TV_DAC, save_tv_dac & ~TVDAC_STATE_CHG_EN);
@@ -1363,15 +1367,14 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
 		type = intel_tv_detect_type(intel_tv, connector);
 	} else if (force) {
-		struct drm_crtc *crtc;
-		int dpms_mode;
+		struct intel_load_detect_pipe tmp;
 
-		crtc = intel_get_load_detect_pipe(&intel_tv->base, connector,
-						  &mode, &dpms_mode);
-		if (crtc) {
+		if (intel_get_load_detect_pipe(&intel_tv->base, connector,
+					       &mode, &tmp)) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(&intel_tv->base, connector,
-						       dpms_mode);
+			intel_release_load_detect_pipe(&intel_tv->base,
+						       connector,
+						       &tmp);
 		} else
 			return connector_status_unknown;
 	} else
@@ -1380,7 +1383,9 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	if (type < 0)
 		return connector_status_disconnected;
 
+	intel_tv->type = type;
 	intel_tv_find_better_format(connector);
+
 	return connector_status_connected;
 }
 
@@ -1672,8 +1677,7 @@ intel_tv_init(struct drm_device *dev)
 	 *
 	 * More recent chipsets favour HDMI rather than integrated S-Video.
 	 */
-	connector->polled =
-		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
 	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);

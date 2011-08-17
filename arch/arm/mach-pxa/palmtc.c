@@ -31,14 +31,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/palmtc.h>
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa25x.h>
 #include <mach/irda.h>
 #include <mach/udc.h>
-#include <mach/pxa2xx-regs.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -507,7 +506,7 @@ static struct pxafb_mach_info palmtc_lcd_screen = {
 
 static void __init palmtc_lcd_init(void)
 {
-	set_pxa_fb_info(&palmtc_lcd_screen);
+	pxa_set_fb_info(NULL, &palmtc_lcd_screen);
 }
 #else
 static inline void palmtc_lcd_init(void) {}
@@ -541,6 +540,7 @@ MACHINE_START(PALMTC, "Palm Tungsten|C")
 	.boot_params 	= 0xa0000100,
 	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= palmtc_init
 MACHINE_END

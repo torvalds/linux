@@ -29,21 +29,6 @@ struct file;
 struct pci_controller;
 struct kimage;
 
-#ifdef CONFIG_SMP
-struct smp_ops_t {
-	void  (*message_pass)(int target, int msg);
-	int   (*probe)(void);
-	void  (*kick_cpu)(int nr);
-	void  (*setup_cpu)(int nr);
-	void  (*take_timebase)(void);
-	void  (*give_timebase)(void);
-	int   (*cpu_enable)(unsigned int nr);
-	int   (*cpu_disable)(void);
-	void  (*cpu_die)(unsigned int nr);
-	int   (*cpu_bootable)(unsigned int nr);
-};
-#endif
-
 struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
@@ -240,6 +225,12 @@ struct machdep_calls {
 	 * claims to support kexec.
 	 */
 	int (*machine_kexec_prepare)(struct kimage *image);
+
+	/* Called to perform the _real_ kexec.
+	 * Do NOT allocate memory or fail here. We are past the point of
+	 * no return.
+	 */
+	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC */
 
 #ifdef CONFIG_SUSPEND
@@ -261,7 +252,7 @@ struct machdep_calls {
 
 extern void e500_idle(void);
 extern void power4_idle(void);
-extern void power4_cpu_offline_powersave(void);
+extern void power7_idle(void);
 extern void ppc6xx_idle(void);
 extern void book3e_idle(void);
 
@@ -305,12 +296,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-#ifdef CONFIG_SMP
-/* Poor default implementations */
-extern void __devinit smp_generic_give_timebase(void);
-extern void __devinit smp_generic_take_timebase(void);
-#endif /* CONFIG_SMP */
 
 
 /* Functions to produce codes on the leds.

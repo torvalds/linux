@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,6 +21,36 @@ void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath9k_channel *chan = ah->curchan;
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+
+	/*
+	 * 3 bits for modalHeader5G.papdRateMaskHt20
+	 * is used for sub-band disabling of PAPRD.
+	 * 5G band is divided into 3 sub-bands -- upper,
+	 * middle, lower.
+	 * if bit 30 of modalHeader5G.papdRateMaskHt20 is set
+	 * -- disable PAPRD for upper band 5GHz
+	 * if bit 29 of modalHeader5G.papdRateMaskHt20 is set
+	 * -- disable PAPRD for middle band 5GHz
+	 * if bit 28 of modalHeader5G.papdRateMaskHt20 is set
+	 * -- disable PAPRD for lower band 5GHz
+	 */
+
+	if (IS_CHAN_5GHZ(chan)) {
+		if (chan->channel >= UPPER_5G_SUB_BAND_START) {
+			if (le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20)
+								  & BIT(30))
+				val = false;
+		} else if (chan->channel >= MID_5G_SUB_BAND_START) {
+			if (le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20)
+								  & BIT(29))
+				val = false;
+		} else {
+			if (le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20)
+								  & BIT(28))
+				val = false;
+		}
+	}
 
 	if (val) {
 		ah->paprd_table_write_done = true;
@@ -46,11 +76,10 @@ EXPORT_SYMBOL(ar9003_paprd_enable);
 
 static int ar9003_get_training_power_2g(struct ath_hw *ah)
 {
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	struct ar9300_modal_eep_header *hdr = &eep->modalHeader2G;
+	struct ath9k_channel *chan = ah->curchan;
 	unsigned int power, scale, delta;
 
-	scale = MS(le32_to_cpu(hdr->papdRateMaskHt20), AR9300_PAPRD_SCALE_1);
+	scale = ar9003_get_paprd_scale_factor(ah, chan);
 	power = REG_READ_FIELD(ah, AR_PHY_POWERTX_RATE5,
 			       AR_PHY_POWERTX_RATE5_POWERTXHT20_0);
 
@@ -67,20 +96,10 @@ static int ar9003_get_training_power_2g(struct ath_hw *ah)
 static int ar9003_get_training_power_5g(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	struct ar9300_modal_eep_header *hdr = &eep->modalHeader5G;
 	struct ath9k_channel *chan = ah->curchan;
 	unsigned int power, scale, delta;
 
-	if (chan->channel >= 5700)
-		scale = MS(le32_to_cpu(hdr->papdRateMaskHt20),
-			   AR9300_PAPRD_SCALE_1);
-	else if (chan->channel >= 5400)
-		scale = MS(le32_to_cpu(hdr->papdRateMaskHt40),
-			   AR9300_PAPRD_SCALE_2);
-	else
-		scale = MS(le32_to_cpu(hdr->papdRateMaskHt40),
-			   AR9300_PAPRD_SCALE_1);
+	scale = ar9003_get_paprd_scale_factor(ah, chan);
 
 	if (IS_CHAN_HT40(chan))
 		power = REG_READ_FIELD(ah, AR_PHY_POWERTX_RATE8,
@@ -94,7 +113,23 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 	if (delta > scale)
 		return -1;
 
-	power += 2 * get_streams(common->tx_chainmask);
+	switch (get_streams(common->tx_chainmask)) {
+	case 1:
+		delta = 6;
+		break;
+	case 2:
+		delta = 4;
+		break;
+	case 3:
+		delta = 2;
+		break;
+	default:
+		delta = 0;
+		ath_dbg(common, ATH_DBG_CALIBRATE,
+		"Invalid tx-chainmask: %u\n", common->tx_chainmask);
+	}
+
+	power += delta;
 	return power;
 }
 
@@ -119,15 +154,16 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 	else
 		training_power = ar9003_get_training_power_5g(ah);
 
+	ath_dbg(common, ATH_DBG_CALIBRATE,
+		"Training power: %d, Target power: %d\n",
+		training_power, ah->paprd_target_power);
+
 	if (training_power < 0) {
 		ath_dbg(common, ATH_DBG_CALIBRATE,
 			"PAPRD target power delta out of range");
 		return -ERANGE;
 	}
 	ah->paprd_training_power = training_power;
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Training power: %d, Target power: %d\n",
-		ah->paprd_training_power, ah->paprd_target_power);
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2AM, AR_PHY_PAPRD_AM2AM_MASK,
 		      ah->paprd_ratemask);
@@ -230,7 +266,7 @@ static void ar9003_paprd_get_gain_table(struct ath_hw *ah)
 	memset(entry, 0, sizeof(ah->paprd_gain_table_entries));
 	memset(index, 0, sizeof(ah->paprd_gain_table_index));
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < PAPRD_GAIN_TABLE_ENTRIES; i++) {
 		entry[i] = REG_READ(ah, reg);
 		index[i] = (entry[i] >> 24) & 0xff;
 		reg += 4;
@@ -240,13 +276,13 @@ static void ar9003_paprd_get_gain_table(struct ath_hw *ah)
 static unsigned int ar9003_get_desired_gain(struct ath_hw *ah, int chain,
 					    int target_power)
 {
-	int olpc_gain_delta = 0;
+	int olpc_gain_delta = 0, cl_gain_mod;
 	int alpha_therm, alpha_volt;
 	int therm_cal_value, volt_cal_value;
 	int therm_value, volt_value;
 	int thermal_gain_corr, voltage_gain_corr;
 	int desired_scale, desired_gain = 0;
-	u32 reg;
+	u32 reg_olpc  = 0, reg_cl_gain  = 0;
 
 	REG_CLR_BIT(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 		    AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_TRAIN_DONE);
@@ -265,15 +301,29 @@ static unsigned int ar9003_get_desired_gain(struct ath_hw *ah, int chain,
 	volt_value = REG_READ_FIELD(ah, AR_PHY_BB_THERM_ADC_4,
 				    AR_PHY_BB_THERM_ADC_4_LATEST_VOLT_VALUE);
 
-	if (chain == 0)
-		reg = AR_PHY_TPC_11_B0;
-	else if (chain == 1)
-		reg = AR_PHY_TPC_11_B1;
-	else
-		reg = AR_PHY_TPC_11_B2;
+	switch (chain) {
+	case 0:
+		reg_olpc = AR_PHY_TPC_11_B0;
+		reg_cl_gain = AR_PHY_CL_TAB_0;
+		break;
+	case 1:
+		reg_olpc = AR_PHY_TPC_11_B1;
+		reg_cl_gain = AR_PHY_CL_TAB_1;
+		break;
+	case 2:
+		reg_olpc = AR_PHY_TPC_11_B2;
+		reg_cl_gain = AR_PHY_CL_TAB_2;
+		break;
+	default:
+		ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+		"Invalid chainmask: %d\n", chain);
+		break;
+	}
 
-	olpc_gain_delta = REG_READ_FIELD(ah, reg,
+	olpc_gain_delta = REG_READ_FIELD(ah, reg_olpc,
 					 AR_PHY_TPC_11_OLPC_GAIN_DELTA);
+	cl_gain_mod = REG_READ_FIELD(ah, reg_cl_gain,
+					 AR_PHY_CL_TAB_CL_GAIN_MOD);
 
 	if (olpc_gain_delta >= 128)
 		olpc_gain_delta = olpc_gain_delta - 256;
@@ -283,7 +333,7 @@ static unsigned int ar9003_get_desired_gain(struct ath_hw *ah, int chain,
 	voltage_gain_corr = (alpha_volt * (volt_value - volt_cal_value) +
 			     (128 / 2)) / 128;
 	desired_gain = target_power - olpc_gain_delta - thermal_gain_corr -
-	    voltage_gain_corr + desired_scale;
+	    voltage_gain_corr + desired_scale + cl_gain_mod;
 
 	return desired_gain;
 }
@@ -721,7 +771,7 @@ int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 	desired_gain = ar9003_get_desired_gain(ah, chain, train_power);
 
 	gain_index = 0;
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < PAPRD_GAIN_TABLE_ENTRIES; i++) {
 		if (ah->paprd_gain_table_index[i] >= desired_gain)
 			break;
 		gain_index++;
@@ -795,7 +845,26 @@ EXPORT_SYMBOL(ar9003_paprd_init_table);
 
 bool ar9003_paprd_is_done(struct ath_hw *ah)
 {
-	return !!REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
+	int paprd_done, agc2_pwr;
+	paprd_done = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 				AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_TRAIN_DONE);
+
+	if (paprd_done == 0x1) {
+		agc2_pwr = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
+				AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_AGC2_PWR);
+
+		ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			"AGC2_PWR = 0x%x training done = 0x%x\n",
+			agc2_pwr, paprd_done);
+	/*
+	 * agc2_pwr range should not be less than 'IDEAL_AGC2_PWR_CHANGE'
+	 * when the training is completely done, otherwise retraining is
+	 * done to make sure the value is in ideal range
+	 */
+		if (agc2_pwr <= PAPRD_IDEAL_AGC2_PWR_RANGE)
+			paprd_done = 0;
+	}
+
+	return !!paprd_done;
 }
 EXPORT_SYMBOL(ar9003_paprd_is_done);

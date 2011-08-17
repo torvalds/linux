@@ -59,7 +59,5 @@ void __init dec_ioasic_clocksource_init(void)
 	printk(KERN_INFO "I/O ASIC clock frequency %dHz\n", freq);
 
 	clocksource_dec.rating = 200 + freq / 10000000;
-	clocksource_set_clock(&clocksource_dec, freq);
-
-	clocksource_register(&clocksource_dec);
+	clocksource_register_hz(&clocksource_dec, freq);
 }

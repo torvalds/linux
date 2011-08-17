@@ -141,7 +141,7 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 }
 
 static int
-nfs3_proc_lookup(struct inode *dir, struct qstr *name,
+nfs3_proc_lookup(struct rpc_clnt *clnt, struct inode *dir, struct qstr *name,
 		 struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	struct nfs3_diropargs	arg = {
@@ -316,7 +316,7 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		 int flags, struct nfs_open_context *ctx)
 {
 	struct nfs3_createdata *data;
-	mode_t mode = sattr->ia_mode;
+	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  create %s\n", dentry->d_name.name);
@@ -562,7 +562,7 @@ static int
 nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 {
 	struct nfs3_createdata *data;
-	int mode = sattr->ia_mode;
+	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
@@ -681,7 +681,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		dev_t rdev)
 {
 	struct nfs3_createdata *data;
-	mode_t mode = sattr->ia_mode;
+	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  mknod %s %u:%u\n", dentry->d_name.name,
@@ -885,4 +885,5 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.lock		= nfs3_proc_lock,
 	.clear_acl_cache = nfs3_forget_cached_acls,
 	.close_context	= nfs_close_context,
+	.init_client	= nfs_init_client,
 };

@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/pty.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  Added support for a Unix98-style ptmx device.
@@ -23,7 +21,6 @@
 #include <linux/major.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/sysctl.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
@@ -296,8 +293,8 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 		return -ENOMEM;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
-		free_tty_struct(o_tty);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_free_tty;
 	}
 	initialize_tty_struct(o_tty, driver->other, idx);
 
@@ -305,13 +302,11 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	   the easy way .. */
 	retval = tty_init_termios(tty);
 	if (retval)
-		goto free_mem_out;
+		goto err_deinit_tty;
 
 	retval = tty_init_termios(o_tty);
-	if (retval) {
-		tty_free_termios(tty);
-		goto free_mem_out;
-	}
+	if (retval)
+		goto err_free_termios;
 
 	/*
 	 * Everything allocated ... set up the o_tty structure.
@@ -328,13 +323,17 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	tty->count++;
 	driver->ttys[idx] = tty;
 	return 0;
-free_mem_out:
+err_free_termios:
+	tty_free_termios(tty);
+err_deinit_tty:
+	deinitialize_tty_struct(o_tty);
 	module_put(o_tty->driver->owner);
+err_free_tty:
 	free_tty_struct(o_tty);
-	return -ENOMEM;
+	return retval;
 }
 
-static int pty_bsd_ioctl(struct tty_struct *tty, struct file *file,
+static int pty_bsd_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -489,7 +488,7 @@ static struct ctl_table pty_root_table[] = {
 };
 
 
-static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
+static int pty_unix98_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -560,20 +559,19 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 		return -ENOMEM;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
-		free_tty_struct(o_tty);
-		return -ENOMEM;
+		goto err_free_tty;
 	}
 	initialize_tty_struct(o_tty, driver->other, idx);
 
 	tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
 	if (tty->termios == NULL)
-		goto free_mem_out;
+		goto err_free_mem;
 	*tty->termios = driver->init_termios;
 	tty->termios_locked = tty->termios + 1;
 
 	o_tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
 	if (o_tty->termios == NULL)
-		goto free_mem_out;
+		goto err_free_mem;
 	*o_tty->termios = driver->other->init_termios;
 	o_tty->termios_locked = o_tty->termios + 1;
 
@@ -592,11 +590,13 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 	tty->count++;
 	pty_count++;
 	return 0;
-free_mem_out:
+err_free_mem:
+	deinitialize_tty_struct(o_tty);
 	kfree(o_tty->termios);
-	module_put(o_tty->driver->owner);
-	free_tty_struct(o_tty);
 	kfree(tty->termios);
+	module_put(o_tty->driver->owner);
+err_free_tty:
+	free_tty_struct(o_tty);
 	return -ENOMEM;
 }
 

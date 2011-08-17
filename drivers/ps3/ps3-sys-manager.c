@@ -80,7 +80,7 @@ static void __maybe_unused _dump_sm_header(
  *
  * Currently all messages received from the system manager are either
  * (16 bytes header + 8 bytes payload = 24 bytes) or (16 bytes header
- * + 16 bytes payload = 32 bytes).  This knowlege is used to simplify
+ * + 16 bytes payload = 32 bytes).  This knowledge is used to simplify
  * the logic.
  */
 

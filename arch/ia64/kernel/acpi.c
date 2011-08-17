@@ -803,7 +803,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
  *  ACPI based hotplug CPU support
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
-static
+static __cpuinit
 int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
@@ -878,7 +878,7 @@ __init void prefill_possible_map(void)
 		set_cpu_possible(i, true);
 }
 
-int acpi_map_lsapic(acpi_handle handle, int *pcpu)
+static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -929,6 +929,11 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	return (0);
 }
 
+/* wrapper to silence section mismatch warning */
+int __ref acpi_map_lsapic(acpi_handle handle, int *pcpu)
+{
+	return _acpi_map_lsapic(handle, pcpu);
+}
 EXPORT_SYMBOL(acpi_map_lsapic);
 
 int acpi_unmap_lsapic(int cpu)
@@ -1034,18 +1039,8 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
 /*
- * acpi_save_state_mem() - save kernel state
+ * acpi_suspend_lowlevel() - save kernel state and suspend.
  *
  * TBD when when IA64 starts to support suspend...
  */
-int acpi_save_state_mem(void) { return 0; } 
-
-/*
- * acpi_restore_state()
- */
-void acpi_restore_state_mem(void) {}
-
-/*
- * do_suspend_lowlevel()
- */
-void do_suspend_lowlevel(void) {}
+int acpi_suspend_lowlevel(void) { return 0; }

@@ -20,7 +20,7 @@
  * struct bcom_bd - Structure describing a generic BestComm buffer descriptor
  * @status: The current status of this buffer. Exact meaning depends on the
  *          task type
- * @data: An array of u32 extra data.  Size of array is task dependant.
+ * @data: An array of u32 extra data.  Size of array is task dependent.
  *
  * Note: Don't dereference a bcom_bd pointer as an array.  The size of the
  *       bcom_bd is variable.  Use bcom_get_bd() instead.

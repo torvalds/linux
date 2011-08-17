@@ -396,3 +396,9 @@ sys_call_table:
 	.long sys_fanotify_init
 	.long sys_fanotify_mark
 	.long sys_prlimit64
+	.long sys_name_to_handle_at	/* 370 */
+	.long sys_open_by_handle_at
+	.long sys_clock_adjtime
+	.long sys_syncfs
+	.long sys_sendmmsg
+	.long sys_setns			/* 375 */

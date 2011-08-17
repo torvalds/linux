@@ -7,6 +7,11 @@ Supported chips:
     Addresses scanned: I2C 0x48 - 0x4f
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
+  * National Semiconductor LM75A
+    Prefix: 'lm75a'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/
   * Dallas Semiconductor DS75
     Prefix: 'lm75'
     Addresses scanned: I2C 0x48 - 0x4f

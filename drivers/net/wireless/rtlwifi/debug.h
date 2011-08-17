@@ -105,6 +105,7 @@
 #define COMP_MAC80211		BIT(26)
 #define COMP_REGD			BIT(27)
 #define COMP_CHAN			BIT(28)
+#define COMP_USB			BIT(29)
 
 /*--------------------------------------------------------------
 		Define the rt_print components
@@ -202,11 +203,6 @@ enum dbgp_flag_e {
 			printk(KERN_DEBUG "\n");			\
 		} \
 	} while (0);
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) \
-	((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2],\
-	((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 
 void rtl_dbgp_flag_init(struct ieee80211_hw *hw);
 #endif

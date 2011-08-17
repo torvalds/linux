@@ -11,7 +11,7 @@
  *
  * The intel 5100 has two independent channels. EDAC core currently
  * can not reflect this configuration so instead the chip-select
- * rows for each respective channel are layed out one after another,
+ * rows for each respective channel are laid out one after another,
  * the first half belonging to channel 0, the second half belonging
  * to channel 1.
  */

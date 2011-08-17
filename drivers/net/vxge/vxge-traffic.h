@@ -240,7 +240,7 @@ struct vxge_hw_tim_intr_config {
 	u32				btimer_val;
 #define VXGE_HW_MIN_TIM_BTIMER_VAL				0
 #define VXGE_HW_MAX_TIM_BTIMER_VAL				67108864
-#define VXGE_HW_USE_FLASH_DEFAULT				0xffffffff
+#define VXGE_HW_USE_FLASH_DEFAULT				(~0)
 
 	u32				timer_ac_en;
 #define VXGE_HW_TIM_TIMER_AC_ENABLE				1
@@ -681,7 +681,7 @@ struct vxge_hw_xmac_aggr_stats {
  * @rx_red_discard: Count of received frames that are discarded because of RED
  *            (Random Early Discard).
  * @rx_xgmii_ctrl_err_cnt: Maintains a count of unexpected or misplaced control
- *            characters occuring between times of normal data transmission
+ *            characters occurring between times of normal data transmission
  *            (i.e. not included in RX_XGMII_DATA_ERR_CNT). This counter is
  *            incremented when either -
  *            1) The Reconciliation Sublayer (RS) is expecting one control
@@ -2142,6 +2142,10 @@ void vxge_hw_device_clear_tx_rx(
  *  Virtual Paths
  */
 
+void vxge_hw_vpath_dynamic_rti_rtimer_set(struct __vxge_hw_ring *ring);
+
+void vxge_hw_vpath_dynamic_tti_rtimer_set(struct __vxge_hw_fifo *fifo);
+
 u32 vxge_hw_vpath_id(
 	struct __vxge_hw_vpath_handle *vpath_handle);
 
@@ -2245,6 +2249,8 @@ void
 vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vpath_handle,
 			int msix_id);
 
+void vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id);
+
 void vxge_hw_device_flush_io(struct __vxge_hw_device *devh);
 
 void
@@ -2270,6 +2276,9 @@ void
 vxge_hw_channel_msix_unmask(struct __vxge_hw_channel *channelh, int msix_id);
 
 void
+vxge_hw_channel_msix_clear(struct __vxge_hw_channel *channelh, int msix_id);
+
+void
 vxge_hw_channel_dtr_try_complete(struct __vxge_hw_channel *channel,
 				 void **dtrh);
 
@@ -2282,7 +2291,8 @@ vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh);
 int
 vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel);
 
-void
-vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id);
+void vxge_hw_vpath_tti_ci_set(struct __vxge_hw_fifo *fifo);
+
+void vxge_hw_vpath_dynamic_rti_ci_set(struct __vxge_hw_ring *ring);
 
 #endif

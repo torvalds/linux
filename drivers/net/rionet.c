@@ -162,8 +162,8 @@ static int rionet_queue_tx_msg(struct sk_buff *skb, struct net_device *ndev,
 	rnet->tx_slot &= (RIONET_TX_RING_SIZE - 1);
 
 	if (netif_msg_tx_queued(rnet))
-		printk(KERN_INFO "%s: queued skb %8.8x len %8.8x\n", DRV_NAME,
-		       (u32) skb, skb->len);
+		printk(KERN_INFO "%s: queued skb len %8.8x\n", DRV_NAME,
+		       skb->len);
 
 	return 0;
 }
@@ -190,7 +190,7 @@ static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (eth->h_dest[0] & 0x01) {
+	if (is_multicast_ether_addr(eth->h_dest)) {
 		for (i = 0; i < RIO_MAX_ROUTE_ENTRIES(rnet->mport->sys_size);
 				i++)
 			if (rionet_active[i])
@@ -378,11 +378,11 @@ static int rionet_close(struct net_device *ndev)
 
 static void rionet_remove(struct rio_dev *rdev)
 {
-	struct net_device *ndev = NULL;
+	struct net_device *ndev = rio_get_drvdata(rdev);
 	struct rionet_peer *peer, *tmp;
 
 	free_pages((unsigned long)rionet_active, rdev->net->hport->sys_size ?
-					__ilog2(sizeof(void *)) + 4 : 0);
+					__fls(sizeof(void *)) + 4 : 0);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
 
@@ -433,24 +433,14 @@ static const struct net_device_ops rionet_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int rionet_setup_netdev(struct rio_mport *mport)
+static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 {
 	int rc = 0;
-	struct net_device *ndev = NULL;
 	struct rionet_private *rnet;
 	u16 device_id;
 
-	/* Allocate our net_device structure */
-	ndev = alloc_etherdev(sizeof(struct rionet_private));
-	if (ndev == NULL) {
-		printk(KERN_INFO "%s: could not allocate ethernet device.\n",
-		       DRV_NAME);
-		rc = -ENOMEM;
-		goto out;
-	}
-
 	rionet_active = (struct rio_dev **)__get_free_pages(GFP_KERNEL,
-			mport->sys_size ? __ilog2(sizeof(void *)) + 4 : 0);
+			mport->sys_size ? __fls(sizeof(void *)) + 4 : 0);
 	if (!rionet_active) {
 		rc = -ENOMEM;
 		goto out;
@@ -504,10 +494,20 @@ static int rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 	int rc = -ENODEV;
 	u32 lpef, lsrc_ops, ldst_ops;
 	struct rionet_peer *peer;
+	struct net_device *ndev = NULL;
 
 	/* If local device is not rionet capable, give up quickly */
 	if (!rionet_capable)
 		goto out;
+
+	/* Allocate our net_device structure */
+	ndev = alloc_etherdev(sizeof(struct rionet_private));
+	if (ndev == NULL) {
+		printk(KERN_INFO "%s: could not allocate ethernet device.\n",
+		       DRV_NAME);
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * First time through, make sure local device is rionet
@@ -529,7 +529,7 @@ static int rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 			goto out;
 		}
 
-		rc = rionet_setup_netdev(rdev->net->hport);
+		rc = rionet_setup_netdev(rdev->net->hport, ndev);
 		rionet_check = 1;
 	}
 
@@ -545,6 +545,8 @@ static int rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 		peer->rdev = rdev;
 		list_add_tail(&peer->node, &rionet_peers);
 	}
+
+	rio_set_drvdata(rdev, ndev);
 
       out:
 	return rc;
@@ -571,5 +573,5 @@ static void __exit rionet_exit(void)
 	rio_unregister_driver(&rionet_driver);
 }
 
-module_init(rionet_init);
+late_initcall(rionet_init);
 module_exit(rionet_exit);

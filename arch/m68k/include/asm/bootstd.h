@@ -31,7 +31,7 @@
 #define __BN_flash_write_range		20
 
 /* Calling conventions compatible to (uC)linux/68k
- * We use simmilar macros to call into the bootloader as for uClinux
+ * We use similar macros to call into the bootloader as for uClinux
  */
 
 #define __bsc_return(type, res) \

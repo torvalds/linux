@@ -40,12 +40,13 @@ static z_stream inf_strm, def_strm;
 
 static int __init alloc_workspaces(void)
 {
-	def_strm.workspace = vmalloc(zlib_deflate_workspacesize());
+	def_strm.workspace = vmalloc(zlib_deflate_workspacesize(MAX_WBITS,
+							MAX_MEM_LEVEL));
 	if (!def_strm.workspace) {
-		printk(KERN_WARNING "Failed to allocate %d bytes for deflate workspace\n", zlib_deflate_workspacesize());
+		printk(KERN_WARNING "Failed to allocate %d bytes for deflate workspace\n", zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL));
 		return -ENOMEM;
 	}
-	D1(printk(KERN_DEBUG "Allocated %d bytes for deflate workspace\n", zlib_deflate_workspacesize()));
+	D1(printk(KERN_DEBUG "Allocated %d bytes for deflate workspace\n", zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL)));
 	inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
 	if (!inf_strm.workspace) {
 		printk(KERN_WARNING "Failed to allocate %d bytes for inflate workspace\n", zlib_inflate_workspacesize());

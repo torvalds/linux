@@ -315,7 +315,7 @@ err: these values should match;
 
 #if HCF_DMA
 //************************* DMA (bus mastering)
-	// Be carefull to use these registers only at a genuine 32 bits NIC
+	// Be careful to use these registers only at a genuine 32 bits NIC
 	// On 16 bits NICs, these addresses are mapped into the range 0x00 through 0x3F with all consequences
 	// thereof, e.g.  HREG_DMA_CTRL register maps to HREG_CMD.
 #define HREG_DMA_CTRL						0x0040

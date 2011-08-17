@@ -115,7 +115,7 @@ macro_arglist:
 |	macro_arglist ',' T_ARG
 	{
 		if ($1 == 0) {
-			stop("Comma without preceeding argument in arg list",
+			stop("Comma without preceding argument in arg list",
 			     EX_DATAERR);
 			/* NOTREACHED */
 		}

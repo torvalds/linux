@@ -297,9 +297,8 @@ static void smsusb_term_device(struct usb_interface *intf)
 		if (dev->coredev)
 			smscore_unregister_device(dev->coredev);
 
-		kfree(dev);
-
 		sms_info("device %p destroyed", dev);
+		kfree(dev);
 	}
 
 	usb_set_intfdata(intf, NULL);

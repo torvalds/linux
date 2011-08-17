@@ -6,7 +6,7 @@
  * Author: Li Yang <leoli@freescale.com>
  *
  * Limitation:
- * Can only get/set setttings of the first queue.
+ * Can only get/set settings of the first queue.
  * Need to re-open the interface manually after changing some parameters.
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -410,7 +410,6 @@ static const struct ethtool_ops uec_ethtool_ops = {
 	.set_ringparam          = uec_set_ringparam,
 	.get_pauseparam         = uec_get_pauseparam,
 	.set_pauseparam         = uec_set_pauseparam,
-	.set_sg                 = ethtool_op_set_sg,
 	.get_sset_count		= uec_get_sset_count,
 	.get_strings            = uec_get_strings,
 	.get_ethtool_stats      = uec_get_ethtool_stats,

@@ -2111,7 +2111,7 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 	/*
 	 * Keep chip from being accessed until we are ready.  Use
 	 * writeq() directly, to allow the write even though QIB_PRESENT
-	 * isnt' set.
+	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT);
 	dd->int_counter = 0; /* so we check interrupts work again */
@@ -2434,6 +2434,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 	int lsb, ret = 0, setforce = 0;
 	u16 lcmd, licmd;
 	unsigned long flags;
+	u32 tmp = 0;
 
 	switch (which) {
 	case QIB_IB_CFG_LIDLMC:
@@ -2467,9 +2468,6 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		maskr = IBA7220_IBC_WIDTH_MASK;
 		lsb = IBA7220_IBC_WIDTH_SHIFT;
 		setforce = 1;
-		spin_lock_irqsave(&ppd->lflags_lock, flags);
-		ppd->lflags |= QIBL_IB_FORCE_NOTIFY;
-		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 		break;
 
 	case QIB_IB_CFG_SPD_ENB: /* set allowed Link speeds */
@@ -2479,7 +2477,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		 * we command the link down.  As with width, only write the
 		 * actual register if the link is currently down, otherwise
 		 * takes effect on next link change.  Since setting is being
-		 * explictly requested (via MAD or sysfs), clear autoneg
+		 * explicitly requested (via MAD or sysfs), clear autoneg
 		 * failure status if speed autoneg is enabled.
 		 */
 		ppd->link_speed_enabled = val;
@@ -2643,6 +2641,28 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 			goto bail;
 		}
 		qib_set_ib_7220_lstate(ppd, lcmd, licmd);
+
+		maskr = IBA7220_IBC_WIDTH_MASK;
+		lsb = IBA7220_IBC_WIDTH_SHIFT;
+		tmp = (ppd->cpspec->ibcddrctrl >> lsb) & maskr;
+		/* If the width active on the chip does not match the
+		 * width in the shadow register, write the new active
+		 * width to the chip.
+		 * We don't have to worry about speed as the speed is taken
+		 * care of by set_7220_ibspeed_fast called by ib_updown.
+		 */
+		if (ppd->link_width_enabled-1 != tmp) {
+			ppd->cpspec->ibcddrctrl &= ~(maskr << lsb);
+			ppd->cpspec->ibcddrctrl |=
+				(((u64)(ppd->link_width_enabled-1) & maskr) <<
+				 lsb);
+			qib_write_kreg(dd, kr_ibcddrctrl,
+				       ppd->cpspec->ibcddrctrl);
+			qib_write_kreg(dd, kr_scratch, 0);
+			spin_lock_irqsave(&ppd->lflags_lock, flags);
+			ppd->lflags |= QIBL_IB_FORCE_NOTIFY;
+			spin_unlock_irqrestore(&ppd->lflags_lock, flags);
+		}
 		goto bail;
 
 	case QIB_IB_CFG_HRTBT: /* set Heartbeat off/enable/auto */
@@ -2778,7 +2798,7 @@ static void rcvctrl_7220_mod(struct qib_pportdata *ppd, unsigned int op,
 		 * Init the context registers also; if we were
 		 * disabled, tail and head should both be zero
 		 * already from the enable, but since we don't
-		 * know, we have to do it explictly.
+		 * know, we have to do it explicitly.
 		 */
 		val = qib_read_ureg32(dd, ur_rcvegrindextail, ctxt);
 		qib_write_ureg(dd, ur_rcvegrindexhead, val, ctxt);

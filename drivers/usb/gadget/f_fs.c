@@ -368,6 +368,14 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 	req->buf      = data;
 	req->length   = len;
 
+	/*
+	 * UDC layer requires to provide a buffer even for ZLP, but should
+	 * not use it at all. Let's provide some poisoned pointer to catch
+	 * possible bug in the driver.
+	 */
+	if (req->buf == NULL)
+		req->buf = (void *)0xDEADBABE;
+
 	INIT_COMPLETION(ffs->ep0req_completion);
 
 	ret = usb_ep_queue(ffs->gadget->ep0, req, GFP_ATOMIC);
@@ -1536,7 +1544,8 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 		ds = ep->descs[ep->descs[1] ? 1 : 0];
 
 		ep->ep->driver_data = ep;
-		ret = usb_ep_enable(ep->ep, ds);
+		ep->ep->desc = ds;
+		ret = usb_ep_enable(ep->ep);
 		if (likely(!ret)) {
 			epfile->ep = ep;
 			epfile->in = usb_endpoint_dir_in(ds);

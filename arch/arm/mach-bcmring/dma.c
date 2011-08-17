@@ -34,7 +34,7 @@
 
 #include <linux/mm.h>
 #include <linux/pfn.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <mach/dma.h>
 
 /* I don't quite understand why dc4 fails when this is set to 1 and DMA is enabled */
@@ -629,7 +629,7 @@ EXPORT_SYMBOL(dma_get_device_descriptor_ring);
 *   Configures a DMA channel.
 *
 *   @return
-*       >= 0    - Initialization was successfull.
+*       >= 0    - Initialization was successful.
 *
 *       -EBUSY  - Device is currently being used.
 *       -ENODEV - Device handed in is invalid.
@@ -673,7 +673,7 @@ static int ConfigChannel(DMA_Handle_t handle)
 /**
 *   Initializes all of the data structures associated with the DMA.
 *   @return
-*       >= 0    - Initialization was successfull.
+*       >= 0    - Initialization was successful.
 *
 *       -EBUSY  - Device is currently being used.
 *       -ENODEV - Device handed in is invalid.
@@ -835,7 +835,7 @@ int dma_init(void)
 
 	/* Create /proc/dma/channels and /proc/dma/devices */
 
-	gDmaDir = create_proc_entry("dma", S_IFDIR | S_IRUGO | S_IXUGO, NULL);
+	gDmaDir = proc_mkdir("dma", NULL);
 
 	if (gDmaDir == NULL) {
 		printk(KERN_ERR "Unable to create /proc/dma\n");

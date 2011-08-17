@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/cpu.h>
 #include <linux/pm_runtime.h>
+#include <linux/suspend.h>
 #include "pci.h"
 
 struct pci_dynid {
@@ -431,7 +432,7 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msix_shutdown(pci_dev);
 }
 
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 
 /* Auxiliary functions used for system resume and run-time resume. */
 
@@ -616,6 +617,21 @@ static int pci_pm_prepare(struct device *dev)
 	int error = 0;
 
 	/*
+	 * If a PCI device configured to wake up the system from sleep states
+	 * has been suspended at run time and there's a resume request pending
+	 * for it, this is equivalent to the device signaling wakeup, so the
+	 * system suspend operation should be aborted.
+	 */
+	pm_runtime_get_noresume(dev);
+	if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
+		pm_wakeup_event(dev, 0);
+
+	if (pm_wakeup_pending()) {
+		pm_runtime_put_sync(dev);
+		return -EBUSY;
+	}
+
+	/*
 	 * PCI devices suspended at run time need to be resumed at this
 	 * point, because in general it is necessary to reconfigure them for
 	 * system suspend.  Namely, if the device is supposed to wake up the
@@ -638,6 +654,8 @@ static void pci_pm_complete(struct device *dev)
 
 	if (drv && drv->pm && drv->pm->complete)
 		drv->pm->complete(dev);
+
+	pm_runtime_put_sync(dev);
 }
 
 #else /* !CONFIG_PM_SLEEP */
@@ -781,7 +799,7 @@ static int pci_pm_resume(struct device *dev)
 
 #endif /* !CONFIG_SUSPEND */
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 
 static int pci_pm_freeze(struct device *dev)
 {
@@ -970,7 +988,7 @@ static int pci_pm_restore(struct device *dev)
 	return error;
 }
 
-#else /* !CONFIG_HIBERNATION */
+#else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define pci_pm_freeze		NULL
 #define pci_pm_freeze_noirq	NULL
@@ -981,7 +999,7 @@ static int pci_pm_restore(struct device *dev)
 #define pci_pm_restore		NULL
 #define pci_pm_restore_noirq	NULL
 
-#endif /* !CONFIG_HIBERNATION */
+#endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #ifdef CONFIG_PM_RUNTIME
 
@@ -1059,7 +1077,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 
 #endif /* !CONFIG_PM_RUNTIME */
 
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 
 const struct dev_pm_ops pci_dev_pm_ops = {
 	.prepare = pci_pm_prepare,

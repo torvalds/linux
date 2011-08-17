@@ -52,10 +52,10 @@ static u8 dtl_event_mask = 0x7;
 
 
 /*
- * Size of per-cpu log buffers. Default is just under 16 pages worth.
+ * Size of per-cpu log buffers. Firmware requires that the buffer does
+ * not cross a 4k boundary.
  */
-static int dtl_buf_entries = (16 * 85);
-
+static int dtl_buf_entries = N_DISPATCH_LOG;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 struct dtl_ring {
@@ -151,7 +151,7 @@ static int dtl_start(struct dtl *dtl)
 
 	/* Register our dtl buffer with the hypervisor. The HV expects the
 	 * buffer size to be passed in the second word of the buffer */
-	((u32 *)dtl->buf)[1] = dtl->buf_entries * sizeof(struct dtl_entry);
+	((u32 *)dtl->buf)[1] = DISPATCH_LOG_BYTES;
 
 	hwcpu = get_hard_smp_processor_id(dtl->cpu);
 	addr = __pa(dtl->buf);
@@ -181,7 +181,7 @@ static void dtl_stop(struct dtl *dtl)
 
 	lppaca_of(dtl->cpu).dtl_enable_mask = 0x0;
 
-	unregister_dtl(hwcpu, __pa(dtl->buf));
+	unregister_dtl(hwcpu);
 }
 
 static u64 dtl_current_index(struct dtl *dtl)
@@ -196,13 +196,15 @@ static int dtl_enable(struct dtl *dtl)
 	long int rc;
 	struct dtl_entry *buf = NULL;
 
+	if (!dtl_cache)
+		return -ENOMEM;
+
 	/* only allow one reader */
 	if (dtl->buf)
 		return -EBUSY;
 
 	n_entries = dtl_buf_entries;
-	buf = kmalloc_node(n_entries * sizeof(struct dtl_entry),
-			GFP_KERNEL, cpu_to_node(dtl->cpu));
+	buf = kmem_cache_alloc_node(dtl_cache, GFP_KERNEL, cpu_to_node(dtl->cpu));
 	if (!buf) {
 		printk(KERN_WARNING "%s: buffer alloc failed for cpu %d\n",
 				__func__, dtl->cpu);
@@ -223,7 +225,7 @@ static int dtl_enable(struct dtl *dtl)
 	spin_unlock(&dtl->lock);
 
 	if (rc)
-		kfree(buf);
+		kmem_cache_free(dtl_cache, buf);
 	return rc;
 }
 
@@ -231,7 +233,7 @@ static void dtl_disable(struct dtl *dtl)
 {
 	spin_lock(&dtl->lock);
 	dtl_stop(dtl);
-	kfree(dtl->buf);
+	kmem_cache_free(dtl_cache, dtl->buf);
 	dtl->buf = NULL;
 	dtl->buf_entries = 0;
 	spin_unlock(&dtl->lock);
@@ -365,7 +367,7 @@ static int dtl_init(void)
 
 	event_mask_file = debugfs_create_x8("dtl_event_mask", 0600,
 				dtl_dir, &dtl_event_mask);
-	buf_entries_file = debugfs_create_u32("dtl_buf_entries", 0600,
+	buf_entries_file = debugfs_create_u32("dtl_buf_entries", 0400,
 				dtl_dir, &dtl_buf_entries);
 
 	if (!event_mask_file || !buf_entries_file) {

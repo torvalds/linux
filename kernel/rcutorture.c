@@ -33,7 +33,7 @@
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
@@ -47,7 +47,6 @@
 #include <linux/srcu.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
-#include <linux/sched.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and "
@@ -132,7 +131,7 @@ struct rcu_torture {
 
 static LIST_HEAD(rcu_torture_freelist);
 static struct rcu_torture __rcu *rcu_torture_current;
-static long rcu_torture_current_version;
+static unsigned long rcu_torture_current_version;
 static struct rcu_torture rcu_tortures[10 * RCU_TORTURE_PIPE_LEN];
 static DEFINE_SPINLOCK(rcu_torture_lock);
 static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_count) =
@@ -147,8 +146,6 @@ static atomic_t n_rcu_torture_mberror;
 static atomic_t n_rcu_torture_error;
 static long n_rcu_torture_boost_ktrerror;
 static long n_rcu_torture_boost_rterror;
-static long n_rcu_torture_boost_allocerror;
-static long n_rcu_torture_boost_afferror;
 static long n_rcu_torture_boost_failure;
 static long n_rcu_torture_boosts;
 static long n_rcu_torture_timers;
@@ -164,11 +161,11 @@ static int stutter_pause_test;
 #endif
 int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
 
-#ifdef CONFIG_RCU_BOOST
+#if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU)
 #define rcu_can_boost() 1
-#else /* #ifdef CONFIG_RCU_BOOST */
+#else /* #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
 #define rcu_can_boost() 0
-#endif /* #else #ifdef CONFIG_RCU_BOOST */
+#endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
 
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
@@ -752,6 +749,7 @@ static int rcu_torture_boost(void *arg)
 		n_rcu_torture_boost_rterror++;
 	}
 
+	init_rcu_head_on_stack(&rbi.rcu);
 	/* Each pass through the following loop does one boost-test cycle. */
 	do {
 		/* Wait for the next test interval. */
@@ -811,6 +809,7 @@ checkwait:	rcu_stutter_wait("rcu_torture_boost");
 
 	/* Clean up and exit. */
 	VERBOSE_PRINTK_STRING("rcu_torture_boost task stopping");
+	destroy_rcu_head_on_stack(&rbi.rcu);
 	rcutorture_shutdown_absorb("rcu_torture_boost");
 	while (!kthread_should_stop() || rbi.inflight)
 		schedule_timeout_uninterruptible(1);
@@ -887,7 +886,7 @@ rcu_torture_writer(void *arg)
 			old_rp->rtort_pipe_count++;
 			cur_ops->deferred_free(old_rp);
 		}
-		rcu_torture_current_version++;
+		rcutorture_record_progress(++rcu_torture_current_version);
 		oldbatch = cur_ops->completed();
 		rcu_stutter_wait("rcu_torture_writer");
 	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
@@ -942,7 +941,6 @@ static void rcu_torture_timer(unsigned long unused)
 	idx = cur_ops->readlock();
 	completed = cur_ops->completed();
 	p = rcu_dereference_check(rcu_torture_current,
-				  rcu_read_lock_held() ||
 				  rcu_read_lock_bh_held() ||
 				  rcu_read_lock_sched_held() ||
 				  srcu_read_lock_held(&srcu_ctl));
@@ -1003,7 +1001,6 @@ rcu_torture_reader(void *arg)
 		idx = cur_ops->readlock();
 		completed = cur_ops->completed();
 		p = rcu_dereference_check(rcu_torture_current,
-					  rcu_read_lock_held() ||
 					  rcu_read_lock_bh_held() ||
 					  rcu_read_lock_sched_held() ||
 					  srcu_read_lock_held(&srcu_ctl));
@@ -1067,8 +1064,8 @@ rcu_torture_printk(char *page)
 	}
 	cnt += sprintf(&page[cnt], "%s%s ", torture_type, TORTURE_FLAG);
 	cnt += sprintf(&page[cnt],
-		       "rtc: %p ver: %ld tfle: %d rta: %d rtaf: %d rtf: %d "
-		       "rtmbe: %d rtbke: %ld rtbre: %ld rtbae: %ld rtbafe: %ld "
+		       "rtc: %p ver: %lu tfle: %d rta: %d rtaf: %d rtf: %d "
+		       "rtmbe: %d rtbke: %ld rtbre: %ld "
 		       "rtbf: %ld rtb: %ld nt: %ld",
 		       rcu_torture_current,
 		       rcu_torture_current_version,
@@ -1079,16 +1076,12 @@ rcu_torture_printk(char *page)
 		       atomic_read(&n_rcu_torture_mberror),
 		       n_rcu_torture_boost_ktrerror,
 		       n_rcu_torture_boost_rterror,
-		       n_rcu_torture_boost_allocerror,
-		       n_rcu_torture_boost_afferror,
 		       n_rcu_torture_boost_failure,
 		       n_rcu_torture_boosts,
 		       n_rcu_torture_timers);
 	if (atomic_read(&n_rcu_torture_mberror) != 0 ||
 	    n_rcu_torture_boost_ktrerror != 0 ||
 	    n_rcu_torture_boost_rterror != 0 ||
-	    n_rcu_torture_boost_allocerror != 0 ||
-	    n_rcu_torture_boost_afferror != 0 ||
 	    n_rcu_torture_boost_failure != 0)
 		cnt += sprintf(&page[cnt], " !!!");
 	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
@@ -1332,6 +1325,7 @@ rcu_torture_cleanup(void)
 	int i;
 
 	mutex_lock(&fullstop_mutex);
+	rcutorture_record_test_transition();
 	if (fullstop == FULLSTOP_SHUTDOWN) {
 		printk(KERN_WARNING /* but going down anyway, so... */
 		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
@@ -1487,8 +1481,6 @@ rcu_torture_init(void)
 	atomic_set(&n_rcu_torture_error, 0);
 	n_rcu_torture_boost_ktrerror = 0;
 	n_rcu_torture_boost_rterror = 0;
-	n_rcu_torture_boost_allocerror = 0;
-	n_rcu_torture_boost_afferror = 0;
 	n_rcu_torture_boost_failure = 0;
 	n_rcu_torture_boosts = 0;
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
@@ -1625,6 +1617,7 @@ rcu_torture_init(void)
 		}
 	}
 	register_reboot_notifier(&rcutorture_shutdown_nb);
+	rcutorture_record_test_transition();
 	mutex_unlock(&fullstop_mutex);
 	return 0;
 

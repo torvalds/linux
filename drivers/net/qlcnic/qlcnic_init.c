@@ -94,7 +94,7 @@ void qlcnic_release_rx_buffers(struct qlcnic_adapter *adapter)
 	struct qlcnic_rx_buffer *rx_buf;
 	int i, ring;
 
-	recv_ctx = &adapter->recv_ctx;
+	recv_ctx = adapter->recv_ctx;
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 		for (i = 0; i < rds_ring->num_desc; ++i) {
@@ -119,7 +119,7 @@ void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter)
 	struct qlcnic_rx_buffer *rx_buf;
 	int i, ring;
 
-	recv_ctx = &adapter->recv_ctx;
+	recv_ctx = adapter->recv_ctx;
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 
@@ -173,7 +173,7 @@ void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)
 	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
 
-	recv_ctx = &adapter->recv_ctx;
+	recv_ctx = adapter->recv_ctx;
 
 	if (recv_ctx->rds_rings == NULL)
 		goto skip_rds;
@@ -226,7 +226,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	}
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
 
-	recv_ctx = &adapter->recv_ctx;
+	recv_ctx = adapter->recv_ctx;
 
 	size = adapter->max_rds_rings * sizeof(struct qlcnic_host_rds_ring);
 	rds_ring = kzalloc(size, GFP_KERNEL);
@@ -345,7 +345,7 @@ static int qlcnic_wait_rom_done(struct qlcnic_adapter *adapter)
 }
 
 static int do_rom_fast_read(struct qlcnic_adapter *adapter,
-			    int addr, int *valp)
+			    u32 addr, u32 *valp)
 {
 	QLCWR32(adapter, QLCNIC_ROMUSB_ROM_ADDRESS, addr);
 	QLCWR32(adapter, QLCNIC_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
@@ -398,7 +398,7 @@ qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,
 	return ret;
 }
 
-int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp)
+int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, u32 addr, u32 *valp)
 {
 	int ret;
 
@@ -864,7 +864,7 @@ nomn:
 	for (i = 0; i < entries; i++) {
 
 		__le32 flags, file_chiprev, offs;
-		u8 chiprev = adapter->ahw.revision_id;
+		u8 chiprev = adapter->ahw->revision_id;
 		u32 flagbit;
 
 		offs = cpu_to_le32(ptab_descr->findex) +
@@ -1130,9 +1130,20 @@ qlcnic_load_firmware(struct qlcnic_adapter *adapter)
 	} else {
 		u64 data;
 		u32 hi, lo;
+		int ret;
+		struct qlcnic_flt_entry bootld_entry;
 
-		size = (QLCNIC_IMAGE_START - QLCNIC_BOOTLD_START) / 8;
-		flashaddr = QLCNIC_BOOTLD_START;
+		ret = qlcnic_get_flt_entry(adapter, QLCNIC_BOOTLD_REGION,
+					&bootld_entry);
+		if (!ret) {
+			size = bootld_entry.size / 8;
+			flashaddr = bootld_entry.start_addr;
+		} else {
+			size = (QLCNIC_IMAGE_START - QLCNIC_BOOTLD_START) / 8;
+			flashaddr = QLCNIC_BOOTLD_START;
+			dev_info(&pdev->dev,
+				"using legacy method to get flash fw region");
+		}
 
 		for (i = 0; i < size; i++) {
 			if (qlcnic_rom_fast_read(adapter,
@@ -1270,6 +1281,7 @@ qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 	u16 cable_len;
 	u16 link_speed;
 	u8  link_status, module, duplex, autoneg;
+	u8 lb_status = 0;
 	struct net_device *netdev = adapter->netdev;
 
 	adapter->has_link_events = 1;
@@ -1281,6 +1293,7 @@ qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 	link_status = msg->body[2] & 0xff;
 	duplex = (msg->body[2] >> 16) & 0xff;
 	autoneg = (msg->body[2] >> 24) & 0xff;
+	lb_status = (msg->body[2] >> 32) & 0x3;
 
 	module = (msg->body[2] >> 8) & 0xff;
 	if (module == LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE)
@@ -1289,6 +1302,10 @@ qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 	else if (module == LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN)
 		dev_info(&netdev->dev, "unsupported cable length %d\n",
 				cable_len);
+
+	if (!link_status && (lb_status == QLCNIC_ILB_MODE ||
+	    lb_status == QLCNIC_ELB_MODE))
+		adapter->ahw->loopback_state |= QLCNIC_LINKEVENT;
 
 	qlcnic_advert_link_change(adapter, link_status);
 
@@ -1308,7 +1325,9 @@ qlcnic_handle_fw_message(int desc_cnt, int index,
 {
 	struct qlcnic_fw_msg msg;
 	struct status_desc *desc;
-	int i = 0, opcode;
+	struct qlcnic_adapter *adapter;
+	struct device *dev;
+	int i = 0, opcode, ret;
 
 	while (desc_cnt > 0 && i < 8) {
 		desc = &sds_ring->desc_head[index];
@@ -1319,10 +1338,34 @@ qlcnic_handle_fw_message(int desc_cnt, int index,
 		desc_cnt--;
 	}
 
+	adapter = sds_ring->adapter;
+	dev = &adapter->pdev->dev;
 	opcode = qlcnic_get_nic_msg_opcode(msg.body[0]);
+
 	switch (opcode) {
 	case QLCNIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE:
-		qlcnic_handle_linkevent(sds_ring->adapter, &msg);
+		qlcnic_handle_linkevent(adapter, &msg);
+		break;
+	case QLCNIC_C2H_OPCODE_CONFIG_LOOPBACK:
+		ret = (u32)(msg.body[1]);
+		switch (ret) {
+		case 0:
+			adapter->ahw->loopback_state |= QLCNIC_LB_RESPONSE;
+			break;
+		case 1:
+			dev_info(dev, "loopback already in progress\n");
+			adapter->diag_cnt = -QLCNIC_TEST_IN_PROGRESS;
+			break;
+		case 2:
+			dev_info(dev, "loopback cable is not connected\n");
+			adapter->diag_cnt = -QLCNIC_LB_CABLE_NOT_CONN;
+			break;
+		default:
+			dev_info(dev, "loopback configure request failed,"
+					" ret %x\n", ret);
+			adapter->diag_cnt = -QLCNIC_UNDEFINED_ERROR;
+			break;
+		}
 		break;
 	default:
 		break;
@@ -1379,8 +1422,8 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 
 	skb = buffer->skb;
 
-	if (likely(adapter->rx_csum && (cksum == STATUS_CKSUM_OK ||
-						cksum == STATUS_CKSUM_LOOP))) {
+	if (likely((adapter->netdev->features & NETIF_F_RXCSUM) &&
+	    (cksum == STATUS_CKSUM_OK || cksum == STATUS_CKSUM_LOOP))) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else {
@@ -1394,7 +1437,7 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 	return skb;
 }
 
-static int
+static inline int
 qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter, struct sk_buff *skb,
 			u16 *vlan_tag)
 {
@@ -1425,7 +1468,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 		int ring, u64 sts_data0)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_rx_buffer *buffer;
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
@@ -1467,10 +1510,10 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	if ((vid != 0xffff) && adapter->vlgrp)
-		vlan_gro_receive(&sds_ring->napi, adapter->vlgrp, vid, skb);
-	else
-		napi_gro_receive(&sds_ring->napi, skb);
+	if (vid != 0xffff)
+		__vlan_hwaccel_put_tag(skb, vid);
+
+	napi_gro_receive(&sds_ring->napi, skb);
 
 	adapter->stats.rx_pkts++;
 	adapter->stats.rxbytes += length;
@@ -1488,7 +1531,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 		int ring, u64 sts_data0, u64 sts_data1)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_rx_buffer *buffer;
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
@@ -1552,10 +1595,9 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 
 	length = skb->len;
 
-	if ((vid != 0xffff) && adapter->vlgrp)
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
-	else
-		netif_receive_skb(skb);
+	if (vid != 0xffff)
+		__vlan_hwaccel_put_tag(skb, vid);
+	netif_receive_skb(skb);
 
 	adapter->stats.lro_pkts++;
 	adapter->stats.lrobytes += length;
@@ -1625,7 +1667,7 @@ skip:
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		struct qlcnic_host_rds_ring *rds_ring =
-			&adapter->recv_ctx.rds_rings[ring];
+			&adapter->recv_ctx->rds_rings[ring];
 
 		if (!list_empty(&sds_ring->free_list[ring])) {
 			list_for_each(cur, &sds_ring->free_list[ring]) {
@@ -1651,12 +1693,13 @@ skip:
 }
 
 void
-qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
+qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 	struct qlcnic_host_rds_ring *rds_ring)
 {
 	struct rcv_desc *pdesc;
 	struct qlcnic_rx_buffer *buffer;
-	int producer, count = 0;
+	int count = 0;
+	u32 producer;
 	struct list_head *head;
 
 	producer = rds_ring->producer;
@@ -1696,7 +1739,8 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 {
 	struct rcv_desc *pdesc;
 	struct qlcnic_rx_buffer *buffer;
-	int producer, count = 0;
+	int  count = 0;
+	uint32_t producer;
 	struct list_head *head;
 
 	if (!spin_trylock(&rds_ring->lock))
@@ -1732,6 +1776,103 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 				rds_ring->crb_rcv_producer);
 	}
 	spin_unlock(&rds_ring->lock);
+}
+
+static void dump_skb(struct sk_buff *skb)
+{
+	int i;
+	unsigned char *data = skb->data;
+
+	printk(KERN_INFO "\n");
+	for (i = 0; i < skb->len; i++) {
+		printk(KERN_INFO "%02x ", data[i]);
+		if ((i & 0x0f) == 8)
+			printk(KERN_INFO "\n");
+	}
+}
+
+void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
+		struct qlcnic_host_sds_ring *sds_ring,
+		int ring, u64 sts_data0)
+{
+	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
+	struct sk_buff *skb;
+	struct qlcnic_host_rds_ring *rds_ring;
+	int index, length, cksum, pkt_offset;
+
+	if (unlikely(ring >= adapter->max_rds_rings))
+		return;
+
+	rds_ring = &recv_ctx->rds_rings[ring];
+
+	index = qlcnic_get_sts_refhandle(sts_data0);
+	length = qlcnic_get_sts_totallength(sts_data0);
+	if (unlikely(index >= rds_ring->num_desc))
+		return;
+
+	cksum  = qlcnic_get_sts_status(sts_data0);
+	pkt_offset = qlcnic_get_sts_pkt_offset(sts_data0);
+
+	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, cksum);
+	if (!skb)
+		return;
+
+	if (length > rds_ring->skb_size)
+		skb_put(skb, rds_ring->skb_size);
+	else
+		skb_put(skb, length);
+
+	if (pkt_offset)
+		skb_pull(skb, pkt_offset);
+
+	if (!qlcnic_check_loopback_buff(skb->data, adapter->mac_addr))
+		adapter->diag_cnt++;
+	else
+		dump_skb(skb);
+
+	dev_kfree_skb_any(skb);
+	adapter->stats.rx_pkts++;
+	adapter->stats.rxbytes += length;
+
+	return;
+}
+
+void
+qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
+{
+	struct qlcnic_adapter *adapter = sds_ring->adapter;
+	struct status_desc *desc;
+	u64 sts_data0;
+	int ring, opcode, desc_cnt;
+
+	u32 consumer = sds_ring->consumer;
+
+	desc = &sds_ring->desc_head[consumer];
+	sts_data0 = le64_to_cpu(desc->status_desc_data[0]);
+
+	if (!(sts_data0 & STATUS_OWNER_HOST))
+		return;
+
+	desc_cnt = qlcnic_get_sts_desc_cnt(sts_data0);
+	opcode = qlcnic_get_sts_opcode(sts_data0);
+	switch (opcode) {
+	case QLCNIC_RESPONSE_DESC:
+		qlcnic_handle_fw_message(desc_cnt, consumer, sds_ring);
+		break;
+	default:
+		ring = qlcnic_get_sts_type(sts_data0);
+		qlcnic_process_rcv_diag(adapter, sds_ring, ring, sts_data0);
+		break;
+	}
+
+	for (; desc_cnt > 0; desc_cnt--) {
+		desc = &sds_ring->desc_head[consumer];
+		desc->status_desc_data[0] = cpu_to_le64(STATUS_OWNER_PHANTOM);
+		consumer = get_next_index(consumer, sds_ring->num_desc);
+	}
+
+	sds_ring->consumer = consumer;
+	writel(consumer, sds_ring->crb_sts_consumer);
 }
 
 void

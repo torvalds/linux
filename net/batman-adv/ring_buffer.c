@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -28,9 +28,9 @@ void ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index, uint8_t value)
 	*lq_index = (*lq_index + 1) % TQ_GLOBAL_WINDOW_SIZE;
 }
 
-uint8_t ring_buffer_avg(uint8_t lq_recv[])
+uint8_t ring_buffer_avg(const uint8_t lq_recv[])
 {
-	uint8_t *ptr;
+	const uint8_t *ptr;
 	uint16_t count = 0, i = 0, sum = 0;
 
 	ptr = lq_recv;

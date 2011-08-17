@@ -25,9 +25,11 @@
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
 #include <linux/via_i2c.h>
+#include <asm/olpc.h>
 
 #include "via-camera.h"
 
+MODULE_ALIAS("platform:viafb-camera");
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("VIA framebuffer-based camera controller driver");
 MODULE_LICENSE("GPL");
@@ -38,14 +40,12 @@ MODULE_PARM_DESC(flip_image,
 		"If set, the sensor will be instructed to flip the image "
 		"vertically.");
 
-#ifdef CONFIG_OLPC_XO_1_5
 static int override_serial;
 module_param(override_serial, bool, 0444);
 MODULE_PARM_DESC(override_serial,
 		"The camera driver will normally refuse to load if "
 		"the XO 1.5 serial port is enabled.  Set this option "
-		"to force the issue.");
-#endif
+		"to force-enable the camera.");
 
 /*
  * Basic window sizes.
@@ -1246,6 +1246,62 @@ static const struct v4l2_ioctl_ops viacam_ioctl_ops = {
 /*
  * Power management.
  */
+#ifdef CONFIG_PM
+
+static int viacam_suspend(void *priv)
+{
+	struct via_camera *cam = priv;
+	enum viacam_opstate state = cam->opstate;
+
+	if (cam->opstate != S_IDLE) {
+		viacam_stop_engine(cam);
+		cam->opstate = state; /* So resume restarts */
+	}
+
+	return 0;
+}
+
+static int viacam_resume(void *priv)
+{
+	struct via_camera *cam = priv;
+	int ret = 0;
+
+	/*
+	 * Get back to a reasonable operating state.
+	 */
+	via_write_reg_mask(VIASR, 0x78, 0, 0x80);
+	via_write_reg_mask(VIASR, 0x1e, 0xc0, 0xc0);
+	viacam_int_disable(cam);
+	set_bit(CF_CONFIG_NEEDED, &cam->flags);
+	/*
+	 * Make sure the sensor's power state is correct
+	 */
+	if (cam->users > 0)
+		via_sensor_power_up(cam);
+	else
+		via_sensor_power_down(cam);
+	/*
+	 * If it was operating, try to restart it.
+	 */
+	if (cam->opstate != S_IDLE) {
+		mutex_lock(&cam->lock);
+		ret = viacam_configure_sensor(cam);
+		if (!ret)
+			ret = viacam_config_controller(cam);
+		mutex_unlock(&cam->lock);
+		if (!ret)
+			viacam_start_engine(cam);
+	}
+
+	return ret;
+}
+
+static struct viafb_pm_hooks viacam_pm_hooks = {
+	.suspend = viacam_suspend,
+	.resume = viacam_resume
+};
+
+#endif /* CONFIG_PM */
 
 /*
  * Setup stuff.
@@ -1261,6 +1317,37 @@ static struct video_device viacam_v4l_template = {
 	.release	= video_device_release_empty, /* Check this */
 };
 
+/*
+ * The OLPC folks put the serial port on the same pin as
+ * the camera.	They also get grumpy if we break the
+ * serial port and keep them from using it.  So we have
+ * to check the serial enable bit and not step on it.
+ */
+#define VIACAM_SERIAL_DEVFN 0x88
+#define VIACAM_SERIAL_CREG 0x46
+#define VIACAM_SERIAL_BIT 0x40
+
+static __devinit bool viacam_serial_is_enabled(void)
+{
+	struct pci_bus *pbus = pci_find_bus(0, 0);
+	u8 cbyte;
+
+	pci_bus_read_config_byte(pbus, VIACAM_SERIAL_DEVFN,
+			VIACAM_SERIAL_CREG, &cbyte);
+	if ((cbyte & VIACAM_SERIAL_BIT) == 0)
+		return false; /* Not enabled */
+	if (override_serial == 0) {
+		printk(KERN_NOTICE "Via camera: serial port is enabled, " \
+				"refusing to load.\n");
+		printk(KERN_NOTICE "Specify override_serial=1 to force " \
+				"module loading.\n");
+		return true;
+	}
+	printk(KERN_NOTICE "Via camera: overriding serial port\n");
+	pci_bus_write_config_byte(pbus, VIACAM_SERIAL_DEVFN,
+			VIACAM_SERIAL_CREG, cbyte & ~VIACAM_SERIAL_BIT);
+	return false;
+}
 
 static __devinit int viacam_probe(struct platform_device *pdev)
 {
@@ -1292,6 +1379,10 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 		printk(KERN_ERR "viacam: No I/O memory, so no pictures\n");
 		return -ENOMEM;
 	}
+
+	if (machine_is_olpc() && viacam_serial_is_enabled())
+		return -EBUSY;
+
 	/*
 	 * Basic structure initialization.
 	 */
@@ -1369,6 +1460,14 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 		goto out_irq;
 	video_set_drvdata(&cam->vdev, cam);
 
+#ifdef CONFIG_PM
+	/*
+	 * Hook into PM events
+	 */
+	viacam_pm_hooks.private = cam;
+	viafb_pm_register(&viacam_pm_hooks);
+#endif
+
 	/* Power the sensor down until somebody opens the device */
 	via_sensor_power_down(cam);
 	return 0;
@@ -1395,7 +1494,6 @@ static __devexit int viacam_remove(struct platform_device *pdev)
 	return 0;
 }
 
-
 static struct platform_driver viacam_driver = {
 	.driver = {
 		.name = "viafb-camera",
@@ -1404,50 +1502,8 @@ static struct platform_driver viacam_driver = {
 	.remove = viacam_remove,
 };
 
-
-#ifdef CONFIG_OLPC_XO_1_5
-/*
- * The OLPC folks put the serial port on the same pin as
- * the camera.	They also get grumpy if we break the
- * serial port and keep them from using it.  So we have
- * to check the serial enable bit and not step on it.
- */
-#define VIACAM_SERIAL_DEVFN 0x88
-#define VIACAM_SERIAL_CREG 0x46
-#define VIACAM_SERIAL_BIT 0x40
-
-static __devinit int viacam_check_serial_port(void)
-{
-	struct pci_bus *pbus = pci_find_bus(0, 0);
-	u8 cbyte;
-
-	pci_bus_read_config_byte(pbus, VIACAM_SERIAL_DEVFN,
-			VIACAM_SERIAL_CREG, &cbyte);
-	if ((cbyte & VIACAM_SERIAL_BIT) == 0)
-		return 0; /* Not enabled */
-	if (override_serial == 0) {
-		printk(KERN_NOTICE "Via camera: serial port is enabled, " \
-				"refusing to load.\n");
-		printk(KERN_NOTICE "Specify override_serial=1 to force " \
-				"module loading.\n");
-		return -EBUSY;
-	}
-	printk(KERN_NOTICE "Via camera: overriding serial port\n");
-	pci_bus_write_config_byte(pbus, VIACAM_SERIAL_DEVFN,
-			VIACAM_SERIAL_CREG, cbyte & ~VIACAM_SERIAL_BIT);
-	return 0;
-}
-#endif
-
-
-
-
 static int viacam_init(void)
 {
-#ifdef CONFIG_OLPC_XO_1_5
-	if (viacam_check_serial_port())
-		return -EBUSY;
-#endif
 	return platform_driver_register(&viacam_driver);
 }
 module_init(viacam_init);

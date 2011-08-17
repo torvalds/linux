@@ -118,7 +118,7 @@
  * arch/powerepc/include/asm/hvcserver.h
  *
  * 1.3.2 -> 1.3.3 Replaced yield() in hvcs_close() with tty_wait_until_sent() to
- * prevent possible lockup with realtime scheduling as similarily pointed out by
+ * prevent possible lockup with realtime scheduling as similarly pointed out by
  * akpm in hvc_console.  Changed resulted in the removal of hvcs_final_close()
  * to reorder cleanup operations and prevent discarding of pending data during
  * an hvcs_close().  Removed spinlock protection of hvcs_struct data members in
@@ -292,7 +292,7 @@ struct hvcs_struct {
 	/*
 	 * Any variable below the kref is valid before a tty is connected and
 	 * stays valid after the tty is disconnected.  These shouldn't be
-	 * whacked until the koject refcount reaches zero though some entries
+	 * whacked until the kobject refcount reaches zero though some entries
 	 * may be changed via sysfs initiatives.
 	 */
 	struct kref kref; /* ref count & hvcs_struct lifetime */
@@ -309,6 +309,7 @@ struct hvcs_struct {
 
 static LIST_HEAD(hvcs_structs);
 static DEFINE_SPINLOCK(hvcs_structs_lock);
+static DEFINE_MUTEX(hvcs_init_mutex);
 
 static void hvcs_unthrottle(struct tty_struct *tty);
 static void hvcs_throttle(struct tty_struct *tty);
@@ -340,6 +341,7 @@ static int __devinit hvcs_probe(struct vio_dev *dev,
 static int __devexit hvcs_remove(struct vio_dev *dev);
 static int __init hvcs_module_init(void);
 static void __exit hvcs_module_exit(void);
+static int __devinit hvcs_initialize(void);
 
 #define HVCS_SCHED_READ	0x00000001
 #define HVCS_QUICK_READ	0x00000002
@@ -579,7 +581,7 @@ static void hvcs_try_write(struct hvcs_struct *hvcsd)
 			/*
 			 * We are still obligated to deliver the data to the
 			 * hypervisor even if the tty has been closed because
-			 * we commited to delivering it.  But don't try to wake
+			 * we committed to delivering it.  But don't try to wake
 			 * a non-existent tty.
 			 */
 			if (tty) {
@@ -762,12 +764,19 @@ static int __devinit hvcs_probe(
 	const struct vio_device_id *id)
 {
 	struct hvcs_struct *hvcsd;
-	int index;
+	int index, rc;
 	int retval;
 
 	if (!dev || !id) {
 		printk(KERN_ERR "HVCS: probed with invalid parameter.\n");
 		return -EPERM;
+	}
+
+	/* Make sure we are properly initialized */
+	rc = hvcs_initialize();
+	if (rc) {
+		pr_err("HVCS: Failed to initialize core driver.\n");
+		return rc;
 	}
 
 	/* early to avoid cleanup on failure */
@@ -1340,7 +1349,7 @@ static int hvcs_write(struct tty_struct *tty,
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
 	/*
-	 * Somehow an open succedded but the device was removed or the
+	 * Somehow an open succeeded but the device was removed or the
 	 * connection terminated between the vty-server and partner vty during
 	 * the middle of a write operation?  This is a crummy place to do this
 	 * but we want to keep it all in the spinlock.
@@ -1411,7 +1420,7 @@ static int hvcs_write(struct tty_struct *tty,
 }
 
 /*
- * This is really asking how much can we guarentee that we can send or that we
+ * This is really asking how much can we guarantee that we can send or that we
  * absolutely WILL BUFFER if we can't send it.  This driver MUST honor the
  * return value, hence the reason for hvcs_struct buffering.
  */
@@ -1464,12 +1473,15 @@ static void hvcs_free_index_list(void)
 	hvcs_index_count = 0;
 }
 
-static int __init hvcs_module_init(void)
+static int __devinit hvcs_initialize(void)
 {
-	int rc;
-	int num_ttys_to_alloc;
+	int rc, num_ttys_to_alloc;
 
-	printk(KERN_INFO "Initializing %s\n", hvcs_driver_string);
+	mutex_lock(&hvcs_init_mutex);
+	if (hvcs_task) {
+		mutex_unlock(&hvcs_init_mutex);
+		return 0;
+	}
 
 	/* Has the user specified an overload with an insmod param? */
 	if (hvcs_parm_num_devs <= 0 ||
@@ -1528,35 +1540,13 @@ static int __init hvcs_module_init(void)
 
 	hvcs_task = kthread_run(khvcsd, NULL, "khvcsd");
 	if (IS_ERR(hvcs_task)) {
-		printk(KERN_ERR "HVCS: khvcsd creation failed.  Driver not loaded.\n");
+		printk(KERN_ERR "HVCS: khvcsd creation failed.\n");
 		rc = -EIO;
 		goto kthread_fail;
 	}
-
-	rc = vio_register_driver(&hvcs_vio_driver);
-	if (rc) {
-		printk(KERN_ERR "HVCS: can't register vio driver\n");
-		goto vio_fail;
-	}
-
-	/*
-	 * This needs to be done AFTER the vio_register_driver() call or else
-	 * the kobjects won't be initialized properly.
-	 */
-	rc = driver_create_file(&(hvcs_vio_driver.driver), &driver_attr_rescan);
-	if (rc) {
-		printk(KERN_ERR "HVCS: sysfs attr create failed\n");
-		goto attr_fail;
-	}
-
-	printk(KERN_INFO "HVCS: driver module inserted.\n");
-
+	mutex_unlock(&hvcs_init_mutex);
 	return 0;
 
-attr_fail:
-	vio_unregister_driver(&hvcs_vio_driver);
-vio_fail:
-	kthread_stop(hvcs_task);
 kthread_fail:
 	kfree(hvcs_pi_buff);
 buff_alloc_fail:
@@ -1566,7 +1556,28 @@ register_fail:
 index_fail:
 	put_tty_driver(hvcs_tty_driver);
 	hvcs_tty_driver = NULL;
+	mutex_unlock(&hvcs_init_mutex);
 	return rc;
+}
+
+static int __init hvcs_module_init(void)
+{
+	int rc = vio_register_driver(&hvcs_vio_driver);
+	if (rc) {
+		printk(KERN_ERR "HVCS: can't register vio driver\n");
+		return rc;
+	}
+
+	pr_info("HVCS: Driver registered.\n");
+
+	/* This needs to be done AFTER the vio_register_driver() call or else
+	 * the kobjects won't be initialized properly.
+	 */
+	rc = driver_create_file(&(hvcs_vio_driver.driver), &driver_attr_rescan);
+	if (rc)
+		pr_warning(KERN_ERR "HVCS: Failed to create rescan file (err %d)\n", rc);
+
+	return 0;
 }
 
 static void __exit hvcs_module_exit(void)
@@ -1575,6 +1586,9 @@ static void __exit hvcs_module_exit(void)
 	 * This driver receives hvcs_remove callbacks for each device upon
 	 * module removal.
 	 */
+	vio_unregister_driver(&hvcs_vio_driver);
+	if (!hvcs_task)
+		return;
 
 	/*
 	 * This synchronous operation  will wake the khvcsd kthread if it is
@@ -1588,8 +1602,6 @@ static void __exit hvcs_module_exit(void)
 	spin_unlock(&hvcs_pi_lock);
 
 	driver_remove_file(&hvcs_vio_driver.driver, &driver_attr_rescan);
-
-	vio_unregister_driver(&hvcs_vio_driver);
 
 	tty_unregister_driver(hvcs_tty_driver);
 

@@ -55,7 +55,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct ttm_object_file {
 	struct ttm_object_device *tdev;
@@ -206,7 +206,7 @@ void ttm_base_object_unref(struct ttm_base_object **p_base)
 	 */
 
 	write_lock(&tdev->object_lock);
-	(void)kref_put(&base->refcount, &ttm_release_base);
+	kref_put(&base->refcount, ttm_release_base);
 	write_unlock(&tdev->object_lock);
 }
 EXPORT_SYMBOL(ttm_base_object_unref);

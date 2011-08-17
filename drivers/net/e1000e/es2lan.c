@@ -612,7 +612,7 @@ static s32 e1000_get_cfg_done_80003es2lan(struct e1000_hw *hw)
 	while (timeout) {
 		if (er32(EEMNGCTL) & mask)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 		timeout--;
 	}
 	if (!timeout) {
@@ -802,7 +802,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	ew32(TCTL, E1000_TCTL_PSP);
 	e1e_flush();
 
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	ctrl = er32(CTRL);
 
@@ -836,6 +836,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 reg_data;
 	s32 ret_val;
+	u16 kum_reg_data;
 	u16 i;
 
 	e1000_initialize_hw_bits_80003es2lan(hw);
@@ -860,6 +861,13 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Setup link and flow control */
 	ret_val = e1000e_setup_link(hw);
+
+	/* Disable IBIST slave mode (far-end loopback) */
+	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+					&kum_reg_data);
+	kum_reg_data |= E1000_KMRNCTRLSTA_IBIST_DISABLE;
+	e1000_write_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+					 kum_reg_data);
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
@@ -1305,6 +1313,7 @@ static s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
 	               E1000_KMRNCTRLSTA_OFFSET) | E1000_KMRNCTRLSTA_REN;
 	ew32(KMRNCTRLSTA, kmrnctrlsta);
+	e1e_flush();
 
 	udelay(2);
 
@@ -1339,6 +1348,7 @@ static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
 	               E1000_KMRNCTRLSTA_OFFSET) | data;
 	ew32(KMRNCTRLSTA, kmrnctrlsta);
+	e1e_flush();
 
 	udelay(2);
 
@@ -1434,6 +1444,7 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 static struct e1000_mac_operations es2_mac_ops = {
 	.read_mac_addr		= e1000_read_mac_addr_80003es2lan,
 	.id_led_init		= e1000e_id_led_init,
+	.blink_led		= e1000e_blink_led_generic,
 	.check_mng_mode		= e1000e_check_mng_mode_generic,
 	/* check_for_link dependent on media type */
 	.cleanup_led		= e1000e_cleanup_led_generic,

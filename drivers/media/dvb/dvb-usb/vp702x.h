@@ -98,6 +98,13 @@ extern int dvb_usb_vp702x_debug;
 #define RESET_TUNER		0xBE
 /* IN  i: 0, v: 0, no extra buffer */
 
+struct vp702x_device_state {
+	struct mutex buf_mutex;
+	int buf_len;
+	u8 *buf;
+};
+
+
 extern struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d);
 
 extern int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec);

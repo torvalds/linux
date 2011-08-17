@@ -45,7 +45,8 @@
 #define DMA_STATUS_MASK_BITS		0x3
 #define DMA_STATUS_SHIFT_BITS		16
 #define DMA_STATUS_IRQ(x)		(0x1 << (x))
-#define DMA_STATUS_ERR(x)		(0x1 << ((x) + 8))
+#define DMA_STATUS0_ERR(x)		(0x1 << ((x) + 8))
+#define DMA_STATUS2_ERR(x)		(0x1 << (x))
 
 #define DMA_DESC_WIDTH_SHIFT_BITS	12
 #define DMA_DESC_WIDTH_1_BYTE		(0x3 << DMA_DESC_WIDTH_SHIFT_BITS)
@@ -60,6 +61,9 @@
 #define DMA_DESC_FOLLOW_WITH_IRQ	0x3
 
 #define MAX_CHAN_NR			8
+
+#define DMA_MASK_CTL0_MODE	0x33333333
+#define DMA_MASK_CTL2_MODE	0x00003333
 
 static unsigned int init_nr_desc_per_channel = 64;
 module_param(init_nr_desc_per_channel, uint, 0644);
@@ -77,12 +81,12 @@ struct pch_dma_regs {
 	u32	dma_ctl0;
 	u32	dma_ctl1;
 	u32	dma_ctl2;
-	u32	reserved1;
+	u32	dma_ctl3;
 	u32	dma_sts0;
 	u32	dma_sts1;
-	u32	reserved2;
+	u32	dma_sts2;
 	u32	reserved3;
-	struct pch_dma_desc_regs desc[0];
+	struct pch_dma_desc_regs desc[MAX_CHAN_NR];
 };
 
 struct pch_dma_desc {
@@ -124,21 +128,24 @@ struct pch_dma {
 	struct pci_pool		*pool;
 	struct pch_dma_regs	regs;
 	struct pch_dma_desc_regs ch_regs[MAX_CHAN_NR];
-	struct pch_dma_chan	channels[0];
+	struct pch_dma_chan	channels[MAX_CHAN_NR];
 };
 
 #define PCH_DMA_CTL0	0x00
 #define PCH_DMA_CTL1	0x04
 #define PCH_DMA_CTL2	0x08
+#define PCH_DMA_CTL3	0x0C
 #define PCH_DMA_STS0	0x10
 #define PCH_DMA_STS1	0x14
+#define PCH_DMA_STS2	0x18
 
 #define dma_readl(pd, name) \
 	readl((pd)->membase + PCH_DMA_##name)
 #define dma_writel(pd, name, val) \
 	writel((val), (pd)->membase + PCH_DMA_##name)
 
-static inline struct pch_dma_desc *to_pd_desc(struct dma_async_tx_descriptor *txd)
+static inline
+struct pch_dma_desc *to_pd_desc(struct dma_async_tx_descriptor *txd)
 {
 	return container_of(txd, struct pch_dma_desc, txd);
 }
@@ -163,13 +170,15 @@ static inline struct device *chan2parent(struct dma_chan *chan)
 	return chan->dev->device.parent;
 }
 
-static inline struct pch_dma_desc *pdc_first_active(struct pch_dma_chan *pd_chan)
+static inline
+struct pch_dma_desc *pdc_first_active(struct pch_dma_chan *pd_chan)
 {
 	return list_first_entry(&pd_chan->active_list,
 				struct pch_dma_desc, desc_node);
 }
 
-static inline struct pch_dma_desc *pdc_first_queued(struct pch_dma_chan *pd_chan)
+static inline
+struct pch_dma_desc *pdc_first_queued(struct pch_dma_chan *pd_chan)
 {
 	return list_first_entry(&pd_chan->queue,
 				struct pch_dma_desc, desc_node);
@@ -179,13 +188,19 @@ static void pdc_enable_irq(struct dma_chan *chan, int enable)
 {
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	int pos;
+
+	if (chan->chan_id < 8)
+		pos = chan->chan_id;
+	else
+		pos = chan->chan_id + 8;
 
 	val = dma_readl(pd, CTL2);
 
 	if (enable)
-		val |= 0x1 << chan->chan_id;
+		val |= 0x1 << pos;
 	else
-		val &= ~(0x1 << chan->chan_id);
+		val &= ~(0x1 << pos);
 
 	dma_writel(pd, CTL2, val);
 
@@ -198,17 +213,44 @@ static void pdc_set_dir(struct dma_chan *chan)
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	u32 mask_mode;
+	u32 mask_ctl;
 
-	val = dma_readl(pd, CTL0);
+	if (chan->chan_id < 8) {
+		val = dma_readl(pd, CTL0);
 
-	if (pd_chan->dir == DMA_TO_DEVICE)
-		val |= 0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
-			       DMA_CTL0_DIR_SHIFT_BITS);
-	else
-		val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
-				 DMA_CTL0_DIR_SHIFT_BITS));
+		mask_mode = DMA_CTL0_MODE_MASK_BITS <<
+					(DMA_CTL0_BITS_PER_CH * chan->chan_id);
+		mask_ctl = DMA_MASK_CTL0_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+				       (DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		val &= mask_mode;
+		if (pd_chan->dir == DMA_TO_DEVICE)
+			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
+				       DMA_CTL0_DIR_SHIFT_BITS);
+		else
+			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
+					 DMA_CTL0_DIR_SHIFT_BITS));
 
-	dma_writel(pd, CTL0, val);
+		val |= mask_ctl;
+		dma_writel(pd, CTL0, val);
+	} else {
+		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
+		val = dma_readl(pd, CTL3);
+
+		mask_mode = DMA_CTL0_MODE_MASK_BITS <<
+						(DMA_CTL0_BITS_PER_CH * ch);
+		mask_ctl = DMA_MASK_CTL2_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+						 (DMA_CTL0_BITS_PER_CH * ch));
+		val &= mask_mode;
+		if (pd_chan->dir == DMA_TO_DEVICE)
+			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * ch +
+				       DMA_CTL0_DIR_SHIFT_BITS);
+		else
+			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * ch +
+					 DMA_CTL0_DIR_SHIFT_BITS));
+		val |= mask_ctl;
+		dma_writel(pd, CTL3, val);
+	}
 
 	dev_dbg(chan2dev(chan), "pdc_set_dir: chan %d -> %x\n",
 		chan->chan_id, val);
@@ -218,20 +260,37 @@ static void pdc_set_mode(struct dma_chan *chan, u32 mode)
 {
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	u32 mask_ctl;
+	u32 mask_dir;
 
-	val = dma_readl(pd, CTL0);
-
-	val &= ~(DMA_CTL0_MODE_MASK_BITS <<
-		(DMA_CTL0_BITS_PER_CH * chan->chan_id));
-	val |= mode << (DMA_CTL0_BITS_PER_CH * chan->chan_id);
-
-	dma_writel(pd, CTL0, val);
+	if (chan->chan_id < 8) {
+		mask_ctl = DMA_MASK_CTL0_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+			   (DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		mask_dir = 1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +\
+				 DMA_CTL0_DIR_SHIFT_BITS);
+		val = dma_readl(pd, CTL0);
+		val &= mask_dir;
+		val |= mode << (DMA_CTL0_BITS_PER_CH * chan->chan_id);
+		val |= mask_ctl;
+		dma_writel(pd, CTL0, val);
+	} else {
+		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
+		mask_ctl = DMA_MASK_CTL2_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+						 (DMA_CTL0_BITS_PER_CH * ch));
+		mask_dir = 1 << (DMA_CTL0_BITS_PER_CH * ch +\
+				 DMA_CTL0_DIR_SHIFT_BITS);
+		val = dma_readl(pd, CTL3);
+		val &= mask_dir;
+		val |= mode << (DMA_CTL0_BITS_PER_CH * ch);
+		val |= mask_ctl;
+		dma_writel(pd, CTL3, val);
+	}
 
 	dev_dbg(chan2dev(chan), "pdc_set_mode: chan %d -> %x\n",
 		chan->chan_id, val);
 }
 
-static u32 pdc_get_status(struct pch_dma_chan *pd_chan)
+static u32 pdc_get_status0(struct pch_dma_chan *pd_chan)
 {
 	struct pch_dma *pd = to_pd(pd_chan->chan.device);
 	u32 val;
@@ -241,9 +300,27 @@ static u32 pdc_get_status(struct pch_dma_chan *pd_chan)
 			DMA_STATUS_BITS_PER_CH * pd_chan->chan.chan_id));
 }
 
+static u32 pdc_get_status2(struct pch_dma_chan *pd_chan)
+{
+	struct pch_dma *pd = to_pd(pd_chan->chan.device);
+	u32 val;
+
+	val = dma_readl(pd, STS2);
+	return DMA_STATUS_MASK_BITS & (val >> (DMA_STATUS_SHIFT_BITS +
+			DMA_STATUS_BITS_PER_CH * (pd_chan->chan.chan_id - 8)));
+}
+
 static bool pdc_is_idle(struct pch_dma_chan *pd_chan)
 {
-	if (pdc_get_status(pd_chan) == DMA_STATUS_IDLE)
+	u32 sts;
+
+	if (pd_chan->chan.chan_id < 8)
+		sts = pdc_get_status0(pd_chan);
+	else
+		sts = pdc_get_status2(pd_chan);
+
+
+	if (sts == DMA_STATUS_IDLE)
 		return true;
 	else
 		return false;
@@ -251,9 +328,6 @@ static bool pdc_is_idle(struct pch_dma_chan *pd_chan)
 
 static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 {
-	struct pch_dma *pd = to_pd(pd_chan->chan.device);
-	u32 val;
-
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
 			"BUG: Attempt to start non-idle channel\n");
@@ -279,10 +353,6 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 		channel_writel(pd_chan, NEXT, desc->txd.phys);
 		pdc_set_mode(&pd_chan->chan, DMA_CTL0_SG);
 	}
-
-	val = dma_readl(pd, CTL2);
-	val |= 1 << (DMA_CTL2_START_SHIFT_BITS + pd_chan->chan.chan_id);
-	dma_writel(pd, CTL2, val);
 }
 
 static void pdc_chain_complete(struct pch_dma_chan *pd_chan,
@@ -366,7 +436,7 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 	struct pch_dma_chan *pd_chan = to_pd_chan(txd->chan);
 	dma_cookie_t cookie;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock(&pd_chan->lock);
 	cookie = pdc_assign_cookie(pd_chan, desc);
 
 	if (list_empty(&pd_chan->active_list)) {
@@ -376,7 +446,7 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 		list_add_tail(&desc->desc_node, &pd_chan->queue);
 	}
 
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock(&pd_chan->lock);
 	return 0;
 }
 
@@ -386,7 +456,7 @@ static struct pch_dma_desc *pdc_alloc_desc(struct dma_chan *chan, gfp_t flags)
 	struct pch_dma *pd = to_pd(chan->device);
 	dma_addr_t addr;
 
-	desc = pci_pool_alloc(pd->pool, GFP_KERNEL, &addr);
+	desc = pci_pool_alloc(pd->pool, flags, &addr);
 	if (desc) {
 		memset(desc, 0, sizeof(struct pch_dma_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
@@ -403,9 +473,9 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 {
 	struct pch_dma_desc *desc, *_d;
 	struct pch_dma_desc *ret = NULL;
-	int i;
+	int i = 0;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock(&pd_chan->lock);
 	list_for_each_entry_safe(desc, _d, &pd_chan->free_list, desc_node) {
 		i++;
 		if (async_tx_test_ack(&desc->txd)) {
@@ -415,15 +485,15 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 		}
 		dev_dbg(chan2dev(&pd_chan->chan), "desc %p not ACKed\n", desc);
 	}
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock(&pd_chan->lock);
 	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
 
 	if (!ret) {
 		ret = pdc_alloc_desc(&pd_chan->chan, GFP_NOIO);
 		if (ret) {
-			spin_lock_bh(&pd_chan->lock);
+			spin_lock(&pd_chan->lock);
 			pd_chan->descs_allocated++;
-			spin_unlock_bh(&pd_chan->lock);
+			spin_unlock(&pd_chan->lock);
 		} else {
 			dev_err(chan2dev(&pd_chan->chan),
 				"failed to alloc desc\n");
@@ -437,10 +507,10 @@ static void pdc_desc_put(struct pch_dma_chan *pd_chan,
 			 struct pch_dma_desc *desc)
 {
 	if (desc) {
-		spin_lock_bh(&pd_chan->lock);
+		spin_lock(&pd_chan->lock);
 		list_splice_init(&desc->tx_list, &pd_chan->free_list);
 		list_add(&desc->desc_node, &pd_chan->free_list);
-		spin_unlock_bh(&pd_chan->lock);
+		spin_unlock(&pd_chan->lock);
 	}
 }
 
@@ -471,14 +541,13 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &tmp_list);
 	}
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	list_splice(&tmp_list, &pd_chan->free_list);
 	pd_chan->descs_allocated = i;
 	pd_chan->completed_cookie = chan->cookie = 1;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	pdc_enable_irq(chan, 1);
-	pdc_set_dir(chan);
 
 	return pd_chan->descs_allocated;
 }
@@ -494,10 +563,10 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 	BUG_ON(!list_empty(&pd_chan->active_list));
 	BUG_ON(!list_empty(&pd_chan->queue));
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	list_splice_init(&pd_chan->free_list, &tmp_list);
 	pd_chan->descs_allocated = 0;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	list_for_each_entry_safe(desc, _d, &tmp_list, desc_node)
 		pci_pool_free(pd->pool, desc, desc->txd.phys);
@@ -513,10 +582,10 @@ static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_cookie_t last_completed;
 	int ret;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	last_completed = pd_chan->completed_cookie;
 	last_used = chan->cookie;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	ret = dma_async_is_complete(cookie, last_completed, last_used);
 
@@ -530,9 +599,9 @@ static void pd_issue_pending(struct dma_chan *chan)
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 
 	if (pdc_is_idle(pd_chan)) {
-		spin_lock_bh(&pd_chan->lock);
+		spin_lock(&pd_chan->lock);
 		pdc_advance_work(pd_chan);
-		spin_unlock_bh(&pd_chan->lock);
+		spin_unlock(&pd_chan->lock);
 	}
 }
 
@@ -560,6 +629,9 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 		reg = pd_slave->tx_reg;
 	else
 		return NULL;
+
+	pd_chan->dir = direction;
+	pdc_set_dir(chan);
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		desc = pdc_desc_get(pd_chan);
@@ -591,7 +663,6 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 		default:
 			goto err_desc_get;
 		}
-
 
 		if (!first) {
 			first = desc;
@@ -629,7 +700,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	if (cmd != DMA_TERMINATE_ALL)
 		return -ENXIO;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 
 	pdc_set_mode(&pd_chan->chan, DMA_CTL0_DISABLE);
 
@@ -639,8 +710,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	list_for_each_entry_safe(desc, _d, &list, desc_node)
 		pdc_chain_complete(pd_chan, desc);
 
-	spin_unlock_bh(&pd_chan->lock);
-
+	spin_unlock_irq(&pd_chan->lock);
 
 	return 0;
 }
@@ -648,6 +718,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 static void pdc_tasklet(unsigned long data)
 {
 	struct pch_dma_chan *pd_chan = (struct pch_dma_chan *)data;
+	unsigned long flags;
 
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
@@ -655,12 +726,12 @@ static void pdc_tasklet(unsigned long data)
 		return;
 	}
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irqsave(&pd_chan->lock, flags);
 	if (test_and_clear_bit(0, &pd_chan->err_status))
 		pdc_handle_error(pd_chan);
 	else
 		pdc_advance_work(pd_chan);
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irqrestore(&pd_chan->lock, flags);
 }
 
 static irqreturn_t pd_irq(int irq, void *devid)
@@ -668,32 +739,48 @@ static irqreturn_t pd_irq(int irq, void *devid)
 	struct pch_dma *pd = (struct pch_dma *)devid;
 	struct pch_dma_chan *pd_chan;
 	u32 sts0;
+	u32 sts2;
 	int i;
-	int ret = IRQ_NONE;
+	int ret0 = IRQ_NONE;
+	int ret2 = IRQ_NONE;
 
 	sts0 = dma_readl(pd, STS0);
+	sts2 = dma_readl(pd, STS2);
 
 	dev_dbg(pd->dma.dev, "pd_irq sts0: %x\n", sts0);
 
 	for (i = 0; i < pd->dma.chancnt; i++) {
 		pd_chan = &pd->channels[i];
 
-		if (sts0 & DMA_STATUS_IRQ(i)) {
-			if (sts0 & DMA_STATUS_ERR(i))
-				set_bit(0, &pd_chan->err_status);
+		if (i < 8) {
+			if (sts0 & DMA_STATUS_IRQ(i)) {
+				if (sts0 & DMA_STATUS0_ERR(i))
+					set_bit(0, &pd_chan->err_status);
 
-			tasklet_schedule(&pd_chan->tasklet);
-			ret = IRQ_HANDLED;
+				tasklet_schedule(&pd_chan->tasklet);
+				ret0 = IRQ_HANDLED;
+			}
+		} else {
+			if (sts2 & DMA_STATUS_IRQ(i - 8)) {
+				if (sts2 & DMA_STATUS2_ERR(i))
+					set_bit(0, &pd_chan->err_status);
+
+				tasklet_schedule(&pd_chan->tasklet);
+				ret2 = IRQ_HANDLED;
+			}
 		}
-
 	}
 
 	/* clear interrupt bits in status register */
-	dma_writel(pd, STS0, sts0);
+	if (ret0)
+		dma_writel(pd, STS0, sts0);
+	if (ret2)
+		dma_writel(pd, STS2, sts2);
 
-	return ret;
+	return ret0 | ret2;
 }
 
+#ifdef	CONFIG_PM
 static void pch_dma_save_regs(struct pch_dma *pd)
 {
 	struct pch_dma_chan *pd_chan;
@@ -703,6 +790,7 @@ static void pch_dma_save_regs(struct pch_dma *pd)
 	pd->regs.dma_ctl0 = dma_readl(pd, CTL0);
 	pd->regs.dma_ctl1 = dma_readl(pd, CTL1);
 	pd->regs.dma_ctl2 = dma_readl(pd, CTL2);
+	pd->regs.dma_ctl3 = dma_readl(pd, CTL3);
 
 	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_node) {
 		pd_chan = to_pd_chan(chan);
@@ -725,6 +813,7 @@ static void pch_dma_restore_regs(struct pch_dma *pd)
 	dma_writel(pd, CTL0, pd->regs.dma_ctl0);
 	dma_writel(pd, CTL1, pd->regs.dma_ctl1);
 	dma_writel(pd, CTL2, pd->regs.dma_ctl2);
+	dma_writel(pd, CTL3, pd->regs.dma_ctl3);
 
 	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_node) {
 		pd_chan = to_pd_chan(chan);
@@ -771,6 +860,7 @@ static int pch_dma_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static int __devinit pch_dma_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
@@ -849,8 +939,6 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 
 		pd_chan->membase = &regs->desc[i];
 
-		pd_chan->dir = (i % 2) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-
 		spin_lock_init(&pd_chan->lock);
 
 		INIT_LIST_HEAD(&pd_chan->active_list);
@@ -928,13 +1016,23 @@ static void __devexit pch_dma_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_ML7213_DMA1_8CH	0x8026
 #define PCI_DEVICE_ID_ML7213_DMA2_8CH	0x802B
 #define PCI_DEVICE_ID_ML7213_DMA3_4CH	0x8034
+#define PCI_DEVICE_ID_ML7213_DMA4_12CH	0x8032
+#define PCI_DEVICE_ID_ML7223_DMA1_4CH	0x800B
+#define PCI_DEVICE_ID_ML7223_DMA2_4CH	0x800E
+#define PCI_DEVICE_ID_ML7223_DMA3_4CH	0x8017
+#define PCI_DEVICE_ID_ML7223_DMA4_4CH	0x803B
 
-static const struct pci_device_id pch_dma_id_table[] = {
+DEFINE_PCI_DEVICE_TABLE(pch_dma_id_table) = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_4CH), 4 },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA1_8CH), 8}, /* UART Video */
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA2_8CH), 8}, /* PCMIF SPI */
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA3_4CH), 4}, /* FPGA */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA4_12CH), 12}, /* I2S */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA1_4CH), 4}, /* UART */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA2_4CH), 4}, /* Video SPI */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA3_4CH), 4}, /* Security */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA4_4CH), 4}, /* FPGA */
 	{ 0, },
 };
 

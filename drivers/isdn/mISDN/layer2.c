@@ -1640,7 +1640,7 @@ l2_tei_remove(struct FsmInst *fi, int event, void *arg)
 }
 
 static void
-l2_st14_persistant_da(struct FsmInst *fi, int event, void *arg)
+l2_st14_persistent_da(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer2 *l2 = fi->userdata;
 	struct sk_buff *skb = arg;
@@ -1654,7 +1654,7 @@ l2_st14_persistant_da(struct FsmInst *fi, int event, void *arg)
 }
 
 static void
-l2_st5_persistant_da(struct FsmInst *fi, int event, void *arg)
+l2_st5_persistent_da(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer2 *l2 = fi->userdata;
 	struct sk_buff *skb = arg;
@@ -1671,7 +1671,7 @@ l2_st5_persistant_da(struct FsmInst *fi, int event, void *arg)
 }
 
 static void
-l2_st6_persistant_da(struct FsmInst *fi, int event, void *arg)
+l2_st6_persistent_da(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer2 *l2 = fi->userdata;
 	struct sk_buff *skb = arg;
@@ -1685,7 +1685,7 @@ l2_st6_persistant_da(struct FsmInst *fi, int event, void *arg)
 }
 
 static void
-l2_persistant_da(struct FsmInst *fi, int event, void *arg)
+l2_persistent_da(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer2 *l2 = fi->userdata;
 	struct sk_buff *skb = arg;
@@ -1829,14 +1829,14 @@ static struct FsmNode L2FnList[] =
 	{ST_L2_6, EV_L2_FRAME_ERROR, l2_frame_error},
 	{ST_L2_7, EV_L2_FRAME_ERROR, l2_frame_error_reest},
 	{ST_L2_8, EV_L2_FRAME_ERROR, l2_frame_error_reest},
-	{ST_L2_1, EV_L1_DEACTIVATE, l2_st14_persistant_da},
+	{ST_L2_1, EV_L1_DEACTIVATE, l2_st14_persistent_da},
 	{ST_L2_2, EV_L1_DEACTIVATE, l2_st24_tei_remove},
 	{ST_L2_3, EV_L1_DEACTIVATE, l2_st3_tei_remove},
-	{ST_L2_4, EV_L1_DEACTIVATE, l2_st14_persistant_da},
-	{ST_L2_5, EV_L1_DEACTIVATE, l2_st5_persistant_da},
-	{ST_L2_6, EV_L1_DEACTIVATE, l2_st6_persistant_da},
-	{ST_L2_7, EV_L1_DEACTIVATE, l2_persistant_da},
-	{ST_L2_8, EV_L1_DEACTIVATE, l2_persistant_da},
+	{ST_L2_4, EV_L1_DEACTIVATE, l2_st14_persistent_da},
+	{ST_L2_5, EV_L1_DEACTIVATE, l2_st5_persistent_da},
+	{ST_L2_6, EV_L1_DEACTIVATE, l2_st6_persistent_da},
+	{ST_L2_7, EV_L1_DEACTIVATE, l2_persistent_da},
+	{ST_L2_8, EV_L1_DEACTIVATE, l2_persistent_da},
 };
 
 static int
@@ -1864,7 +1864,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		psapi >>= 2;
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
-			/* not our bussiness */
+			/* not our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
 					__func__, psapi, l2->sapi);
@@ -1872,7 +1872,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 			return 0;
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
-			/* not our bussiness */
+			/* not our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
 					__func__, ptei, l2->tei);

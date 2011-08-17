@@ -15,11 +15,14 @@
 #include <linux/reboot.h>
 #include <linux/cpu.h>
 
+#include <asm/hypervisor.h>
 #include <asm/ldc.h>
 #include <asm/vio.h>
 #include <asm/mdesc.h>
 #include <asm/head.h>
 #include <asm/irq.h>
+
+#include "kernel.h"
 
 #define DRV_MODULE_NAME		"ds"
 #define PFX DRV_MODULE_NAME	": "
@@ -497,7 +500,7 @@ static void dr_cpu_init_response(struct ds_data *resp, u64 req_num,
 	tag->num_records = ncpus;
 
 	i = 0;
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		ent[i].cpu = cpu;
 		ent[i].result = DR_CPU_RES_OK;
 		ent[i].stat = default_stat;
@@ -534,7 +537,7 @@ static int __cpuinit dr_cpu_configure(struct ds_info *dp,
 	int resp_len, ncpus, cpu;
 	unsigned long flags;
 
-	ncpus = cpus_weight(*mask);
+	ncpus = cpumask_weight(mask);
 	resp_len = dr_cpu_size_response(ncpus);
 	resp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp)
@@ -547,7 +550,7 @@ static int __cpuinit dr_cpu_configure(struct ds_info *dp,
 	mdesc_populate_present_mask(mask);
 	mdesc_fill_in_cpu_data(mask);
 
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		int err;
 
 		printk(KERN_INFO "ds-%llu: Starting cpu %d...\n",
@@ -593,7 +596,7 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 	int resp_len, ncpus, cpu;
 	unsigned long flags;
 
-	ncpus = cpus_weight(*mask);
+	ncpus = cpumask_weight(mask);
 	resp_len = dr_cpu_size_response(ncpus);
 	resp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp)
@@ -603,7 +606,7 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 			     resp_len, ncpus, mask,
 			     DR_CPU_STAT_UNCONFIGURED);
 
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		int err;
 
 		printk(KERN_INFO "ds-%llu: Shutting down cpu %d...\n",
@@ -649,13 +652,13 @@ static void __cpuinit dr_cpu_data(struct ds_info *dp,
 
 	purge_dups(cpu_list, tag->num_records);
 
-	cpus_clear(mask);
+	cpumask_clear(&mask);
 	for (i = 0; i < tag->num_records; i++) {
 		if (cpu_list[i] == CPU_SENTINEL)
 			continue;
 
 		if (cpu_list[i] < nr_cpu_ids)
-			cpu_set(cpu_list[i], mask);
+			cpumask_set_cpu(cpu_list[i], &mask);
 	}
 
 	if (tag->type == DR_CPU_CONFIGURE)
@@ -828,18 +831,32 @@ void ldom_set_var(const char *var, const char *value)
 	}
 }
 
+static char full_boot_str[256] __attribute__((aligned(32)));
+static int reboot_data_supported;
+
 void ldom_reboot(const char *boot_command)
 {
 	/* Don't bother with any of this if the boot_command
 	 * is empty.
 	 */
 	if (boot_command && strlen(boot_command)) {
-		char full_boot_str[256];
+		unsigned long len;
 
 		strcpy(full_boot_str, "boot ");
 		strcpy(full_boot_str + strlen("boot "), boot_command);
+		len = strlen(full_boot_str);
 
-		ldom_set_var("reboot-command", full_boot_str);
+		if (reboot_data_supported) {
+			unsigned long ra = kimage_addr_to_ra(full_boot_str);
+			unsigned long hv_ret;
+
+			hv_ret = sun4v_reboot_data_set(ra, len);
+			if (hv_ret != HV_EOK)
+				pr_err("SUN4V: Unable to set reboot data "
+				       "hv_ret=%lu\n", hv_ret);
+		} else {
+			ldom_set_var("reboot-command", full_boot_str);
+		}
 	}
 	sun4v_mach_sir();
 }
@@ -1218,7 +1235,7 @@ static int ds_remove(struct vio_dev *vdev)
 	return 0;
 }
 
-static struct vio_device_id __initdata ds_match[] = {
+static const struct vio_device_id ds_match[] = {
 	{
 		.type = "domain-services-port",
 	},
@@ -1237,6 +1254,16 @@ static struct vio_driver ds_driver = {
 
 static int __init ds_init(void)
 {
+	unsigned long hv_ret, major, minor;
+
+	if (tlb_type == hypervisor) {
+		hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &minor);
+		if (hv_ret == HV_EOK) {
+			pr_info("SUN4V: Reboot data supported (maj=%lu,min=%lu).\n",
+				major, minor);
+			reboot_data_supported = 1;
+		}
+	}
 	kthread_run(ds_thread, NULL, "kldomd");
 
 	return vio_register_driver(&ds_driver);

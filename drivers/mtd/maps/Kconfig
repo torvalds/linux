@@ -82,7 +82,6 @@ config MTD_PHYSMAP_OF
 config MTD_PMC_MSP_EVM
 	tristate "CFI Flash device mapped on PMC-Sierra MSP"
 	depends on PMC_MSP && MTD_CFI
-	select MTD_PARTITIONS
 	help
 	  This provides a 'mapping' driver which supports the way
 	  in which user-programmable flash chips are connected on the
@@ -114,7 +113,7 @@ config MTD_SUN_UFLASH
 
 config MTD_SC520CDP
 	tristate "CFI Flash device mapped on AMD SC520 CDP"
-	depends on X86 && MTD_CFI && MTD_CONCAT
+	depends on X86 && MTD_CFI
 	help
 	  The SC520 CDP board has two banks of CFI-compliant chips and one
 	  Dual-in-line JEDEC chip. This 'mapping' driver supports that
@@ -122,7 +121,7 @@ config MTD_SC520CDP
 
 config MTD_NETSC520
 	tristate "CFI Flash device mapped on AMD NetSc520"
-	depends on X86 && MTD_CFI && MTD_PARTITIONS
+	depends on X86 && MTD_CFI
 	help
 	  This enables access routines for the flash chips on the AMD NetSc520
 	  demonstration board. If you have one of these boards and would like
@@ -131,7 +130,6 @@ config MTD_NETSC520
 config MTD_TS5500
 	tristate "JEDEC Flash device mapped on Technologic Systems TS-5500"
 	depends on X86
-	select MTD_PARTITIONS
 	select MTD_JEDECPROBE
 	select MTD_CFI_AMDSTD
 	help
@@ -149,7 +147,7 @@ config MTD_TS5500
 
 config MTD_SBC_GXX
 	tristate "CFI Flash device mapped on Arcom SBC-GXx boards"
-	depends on X86 && MTD_CFI_INTELEXT && MTD_PARTITIONS && MTD_COMPLEX_MAPPINGS
+	depends on X86 && MTD_CFI_INTELEXT && MTD_COMPLEX_MAPPINGS
 	help
 	  This provides a driver for the on-board flash of Arcom Control
 	  Systems' SBC-GXn family of boards, formerly known as SBC-MediaGX.
@@ -161,7 +159,6 @@ config MTD_SBC_GXX
 config MTD_PXA2XX
 	tristate "CFI Flash device mapped on Intel XScale PXA2xx based boards"
 	depends on (PXA25x || PXA27x) && MTD_CFI_INTELEXT
-	select MTD_PARTITIONS
 	help
 	  This provides a driver for the NOR flash attached to a PXA2xx chip.
 
@@ -185,7 +182,7 @@ config MTD_VMAX
 
 config MTD_SCx200_DOCFLASH
 	tristate "Flash device mapped with DOCCS on NatSemi SCx200"
-	depends on SCx200 && MTD_CFI && MTD_PARTITIONS
+	depends on SCx200 && MTD_CFI
 	help
 	  Enable support for a flash chip mapped using the DOCCS signal on a
 	  National Semiconductor SCx200 processor.
@@ -247,7 +244,7 @@ config MTD_TSUNAMI
 
 config MTD_NETtel
 	tristate "CFI flash device on SnapGear/SecureEdge"
-	depends on X86 && MTD_PARTITIONS && MTD_JEDECPROBE
+	depends on X86 && MTD_JEDECPROBE
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
@@ -260,9 +257,16 @@ config MTD_BCM963XX
 	  Support for parsing CFE image tag and creating MTD partitions on
 	  Broadcom BCM63xx boards.
 
+config MTD_LANTIQ
+	tristate "Lantiq SoC NOR support"
+	depends on LANTIQ
+	select MTD_PARTITIONS
+	help
+	  Support for NOR flash attached to the Lantiq SoC's External Bus Unit.
+
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
-	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
+	depends on X86 && MTD_CFI_INTELEXT && BROKEN
 	help
 	  MTD map driver for SSV DIL/Net PC Boards "DNP" and "ADNP".
 	  For details, see <http://www.ssv-embedded.de/ssv/pc104/p169.htm>
@@ -348,7 +352,7 @@ config MTD_CDB89712
 
 config MTD_SA1100
 	tristate "CFI Flash device mapped on StrongARM SA11x0"
-	depends on MTD_CFI && ARCH_SA1100 && MTD_PARTITIONS
+	depends on MTD_CFI && ARCH_SA1100
 	help
 	  This enables access to the flash chips on most platforms based on
 	  the SA1100 and SA1110, including the Assabet and the Compaq iPAQ.
@@ -382,7 +386,7 @@ config MTD_IXP2000
 
 config MTD_FORTUNET
 	tristate "CFI Flash device mapped on the FortuNet board"
-	depends on MTD_CFI && MTD_PARTITIONS && SA1100_FORTUNET
+	depends on MTD_CFI && SA1100_FORTUNET
 	help
 	  This enables access to the Flash on the FortuNet board.  If you
 	  have such a board, say 'Y'.
@@ -454,7 +458,6 @@ config MTD_PCMCIA_ANONYMOUS
 config MTD_BFIN_ASYNC
 	tristate "Blackfin BF533-STAMP Flash Chip Support"
 	depends on BFIN533_STAMP && MTD_CFI && MTD_COMPLEX_MAPPINGS
-	select MTD_PARTITIONS
 	default y
 	help
 	  Map driver which allows for simultaneous utilization of
@@ -466,7 +469,6 @@ config MTD_GPIO_ADDR
 	tristate "GPIO-assisted Flash Chip Support"
 	depends on GENERIC_GPIO || GPIOLIB
 	depends on MTD_COMPLEX_MAPPINGS
-	select MTD_PARTITIONS
 	help
 	  Map driver which allows flashes to be partially physically addressed
 	  and assisted by GPIOs.
@@ -475,14 +477,13 @@ config MTD_GPIO_ADDR
 
 config MTD_UCLINUX
 	bool "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_PARTITIONS && MTD_RAM=y && !MMU
+	depends on MTD_RAM=y && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.
 
 config MTD_WRSBC8260
 	tristate "Map driver for WindRiver PowerQUICC II MPC82xx board"
 	depends on (SBC82xx || SBC8560)
-	select MTD_PARTITIONS
 	select MTD_MAP_BANK_WIDTH_4
 	select MTD_MAP_BANK_WIDTH_1
 	select MTD_CFI_I1
@@ -495,7 +496,6 @@ config MTD_WRSBC8260
 config MTD_DMV182
         tristate "Map driver for Dy-4 SVME/DMV-182 board."
         depends on DMV182
-        select MTD_PARTITIONS
 	select MTD_MAP_BANK_WIDTH_32
 	select MTD_CFI_I8
 	select MTD_CFI_AMDSTD
@@ -551,5 +551,14 @@ config MTD_PISMO
 	  and/or MTD_PLATRAM according to the devices on your module.
 
 	  When built as a module, it will be called pismo.ko
+
+config MTD_LATCH_ADDR
+        tristate "Latch-assisted Flash Chip Support"
+        depends on MTD_COMPLEX_MAPPINGS
+        help
+          Map driver which allows flashes to be partially physically addressed
+          and have the upper address lines set by a board specific code.
+
+          If compiled as a module, it will be called latch-addr-flash.
 
 endmenu

@@ -72,6 +72,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_waitqueue_head(&sdp->sd_glock_wait);
 	atomic_set(&sdp->sd_glock_disposal, 0);
+	init_completion(&sdp->sd_locking_init);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
@@ -99,6 +100,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_waitqueue_head(&sdp->sd_log_waitq);
 	init_waitqueue_head(&sdp->sd_logd_waitq);
+	spin_lock_init(&sdp->sd_ail_lock);
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
@@ -125,8 +127,10 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
  * changed.
  */
 
-static int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent)
+static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 {
+	struct gfs2_sb_host *sb = &sdp->sd_sb;
+
 	if (sb->sb_magic != GFS2_MAGIC ||
 	    sb->sb_type != GFS2_METATYPE_SB) {
 		if (!silent)
@@ -156,8 +160,10 @@ static void end_bio_io_page(struct bio *bio, int error)
 	unlock_page(page);
 }
 
-static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
+static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 {
+	struct gfs2_sb_host *sb = &sdp->sd_sb;
+	struct super_block *s = sdp->sd_vfs;
 	const struct gfs2_sb *str = buf;
 
 	sb->sb_magic = be32_to_cpu(str->sb_header.mh_magic);
@@ -174,7 +180,7 @@ static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 
 	memcpy(sb->sb_lockproto, str->sb_lockproto, GFS2_LOCKNAME_LEN);
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
-	memcpy(sb->sb_uuid, str->sb_uuid, 16);
+	memcpy(s->s_uuid, str->sb_uuid, 16);
 }
 
 /**
@@ -196,7 +202,7 @@ static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
  * Returns: 0 on success or error
  */
 
-static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
+static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_sb *p;
@@ -226,10 +232,10 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 		return -EIO;
 	}
 	p = kmap(page);
-	gfs2_sb_in(&sdp->sd_sb, p);
+	gfs2_sb_in(sdp, p);
 	kunmap(page);
 	__free_page(page);
-	return 0;
+	return gfs2_check_sb(sdp, silent);
 }
 
 /**
@@ -246,16 +252,12 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 	unsigned int x;
 	int error;
 
-	error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+	error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift, silent);
 	if (error) {
 		if (!silent)
 			fs_err(sdp, "can't read superblock\n");
 		return error;
 	}
-
-	error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
-	if (error)
-		return error;
 
 	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
 			       GFS2_BASIC_BLOCK_SHIFT;
@@ -339,13 +341,9 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	/*  Try to autodetect  */
 
 	if (!proto[0] || !table[0]) {
-		error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+		error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift, silent);
 		if (error)
 			return error;
-
-		error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
-		if (error)
-			goto out;
 
 		if (!proto[0])
 			proto = sdp->sd_sb.sb_lockproto;
@@ -363,7 +361,6 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	while ((table = strchr(table, '/')))
 		*table = '_';
 
-out:
 	return error;
 }
 
@@ -429,7 +426,7 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 	struct dentry *dentry;
 	struct inode *inode;
 
-	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0);
+	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0, 0);
 	if (IS_ERR(inode)) {
 		fs_err(sdp, "can't read in %s inode: %ld\n", name, PTR_ERR(inode));
 		return PTR_ERR(inode);
@@ -928,17 +925,9 @@ static const match_table_t nolock_tokens = {
 	{ Opt_err, NULL },
 };
 
-static void nolock_put_lock(struct kmem_cache *cachep, struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-	kmem_cache_free(cachep, gl);
-	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
-		wake_up(&sdp->sd_glock_wait);
-}
-
 static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
-	.lm_put_lock = nolock_put_lock,
+	.lm_put_lock = gfs2_glock_free,
 	.lm_tokens = &nolock_tokens,
 };
 
@@ -1029,11 +1018,13 @@ hostdata_error:
 		fsname++;
 	if (lm->lm_mount == NULL) {
 		fs_info(sdp, "Now mounting FS...\n");
+		complete_all(&sdp->sd_locking_init);
 		return 0;
 	}
 	ret = lm->lm_mount(sdp, fsname);
 	if (ret == 0)
 		fs_info(sdp, "Joined cluster. Now mounting FS...\n");
+	complete_all(&sdp->sd_locking_init);
 	return ret;
 }
 
@@ -1103,6 +1094,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (sdp->sd_args.ar_nobarrier)
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 
+	sb->s_flags |= MS_NOSEC;
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_d_op = &gfs2_dops;
@@ -1126,8 +1118,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (sdp->sd_args.ar_statfs_quantum) {
 		sdp->sd_tune.gt_statfs_slow = 0;
 		sdp->sd_tune.gt_statfs_quantum = sdp->sd_args.ar_statfs_quantum;
-	}
-	else {
+	} else {
 		sdp->sd_tune.gt_statfs_slow = 1;
 		sdp->sd_tune.gt_statfs_quantum = 30;
 	}

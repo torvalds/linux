@@ -1,8 +1,8 @@
-/**
-  * This file contains definitions and data structures specific
-  * to Marvell 802.11 NIC. It contains the Device Information
-  * structure struct lbs_private..
-  */
+/*
+ * This file contains definitions and data structures specific
+ * to Marvell 802.11 NIC. It contains the Device Information
+ * structure struct lbs_private..
+ */
 #ifndef _LBS_DEV_H_
 #define _LBS_DEV_H_
 
@@ -12,7 +12,7 @@
 
 #include <linux/kfifo.h>
 
-/** sleep_params */
+/* sleep_params */
 struct sleep_params {
 	uint16_t sp_error;
 	uint16_t sp_offset;
@@ -23,7 +23,7 @@ struct sleep_params {
 };
 
 
-/** Private structure for the MV device */
+/* Private structure for the MV device */
 struct lbs_private {
 
 	/* Basic networking */
@@ -44,9 +44,7 @@ struct lbs_private {
 	/* Mesh */
 	struct net_device *mesh_dev; /* Virtual device */
 #ifdef CONFIG_LIBERTAS_MESH
-	u32 mesh_connect_status;
 	struct lbs_mesh_stats mstats;
-	int mesh_open;
 	uint16_t mesh_tlv;
 	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 mesh_ssid_len;
@@ -90,6 +88,7 @@ struct lbs_private {
 	void *card;
 	u8 fw_ready;
 	u8 surpriseremoved;
+	u8 setup_fw_on_resume;
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
 	void (*reset_card) (struct lbs_private *priv);
 	int (*enter_deep_sleep) (struct lbs_private *priv);
@@ -101,6 +100,7 @@ struct lbs_private {
 	u32 fwcapinfo;
 	u16 regioncode;
 	u8 current_addr[ETH_ALEN];
+	u8 copied_hwaddr;
 
 	/* Command download */
 	u8 dnld_sent;
@@ -123,12 +123,12 @@ struct lbs_private {
 	/* Events sent from hardware to driver */
 	struct kfifo event_fifo;
 
-	/** thread to service interrupts */
+	/* thread to service interrupts */
 	struct task_struct *main_thread;
 	wait_queue_head_t waitq;
 	struct workqueue_struct *work_thread;
 
-	/** Encryption stuff */
+	/* Encryption stuff */
 	u8 authtype_auto;
 	u8 wep_tx_key;
 	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
@@ -160,7 +160,7 @@ struct lbs_private {
 	s16 txpower_min;
 	s16 txpower_max;
 
-	/** Scanning */
+	/* Scanning */
 	struct delayed_work scan_work;
 	int scan_channel;
 	/* Queue of things waiting for scan completion */

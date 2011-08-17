@@ -326,15 +326,18 @@ static void load_csrs(struct lance_private *lp)
  */
 static void cp_to_buf(const int type, void *to, const void *from, int len)
 {
-	unsigned short *tp, *fp, clen;
-	unsigned char *rtp, *rfp;
+	unsigned short *tp;
+	const unsigned short *fp;
+	unsigned short clen;
+	unsigned char *rtp;
+	const unsigned char *rfp;
 
 	if (type == PMAD_LANCE) {
 		memcpy(to, from, len);
 	} else if (type == PMAX_LANCE) {
 		clen = len >> 1;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 
 		while (clen--) {
 			*tp++ = *fp++;
@@ -342,8 +345,8 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 		}
 
 		clen = len & 1;
-		rtp = (unsigned char *) tp;
-		rfp = (unsigned char *) fp;
+		rtp = tp;
+		rfp = fp;
 		while (clen--) {
 			*rtp++ = *rfp++;
 		}
@@ -352,8 +355,8 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 		 * copy 16 Byte chunks
 		 */
 		clen = len >> 4;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 		while (clen--) {
 			*tp++ = *fp++;
 			*tp++ = *fp++;
@@ -382,15 +385,18 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 
 static void cp_from_buf(const int type, void *to, const void *from, int len)
 {
-	unsigned short *tp, *fp, clen;
-	unsigned char *rtp, *rfp;
+	unsigned short *tp;
+	const unsigned short *fp;
+	unsigned short clen;
+	unsigned char *rtp;
+	const unsigned char *rfp;
 
 	if (type == PMAD_LANCE) {
 		memcpy(to, from, len);
 	} else if (type == PMAX_LANCE) {
 		clen = len >> 1;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 		while (clen--) {
 			*tp++ = *fp++;
 			fp++;
@@ -398,8 +404,8 @@ static void cp_from_buf(const int type, void *to, const void *from, int len)
 
 		clen = len & 1;
 
-		rtp = (unsigned char *) tp;
-		rfp = (unsigned char *) fp;
+		rtp = tp;
+		rfp = fp;
 
 		while (clen--) {
 			*rtp++ = *rfp++;
@@ -410,8 +416,8 @@ static void cp_from_buf(const int type, void *to, const void *from, int len)
 		 * copy 16 Byte chunks
 		 */
 		clen = len >> 4;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 		while (clen--) {
 			*tp++ = *fp++;
 			*tp++ = *fp++;
@@ -940,7 +946,6 @@ static void lance_load_multicast(struct net_device *dev)
 	struct lance_private *lp = netdev_priv(dev);
 	volatile u16 *ib = (volatile u16 *)dev->mem_start;
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	u32 crc;
 
 	/* set all multicast bits */
@@ -959,13 +964,7 @@ static void lance_load_multicast(struct net_device *dev)
 
 	/* Add addresses */
 	netdev_for_each_mc_addr(ha, dev) {
-		addrs = ha->addr;
-
-		/* multicast address? */
-		if (!(*addrs & 1))
-			continue;
-
-		crc = ether_crc_le(ETH_ALEN, addrs);
+		crc = ether_crc_le(ETH_ALEN, ha->addr);
 		crc = crc >> 26;
 		*lib_ptr(ib, filter[crc >> 4], lp->type) |= 1 << (crc & 0xf);
 	}

@@ -1058,11 +1058,11 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 #define TDA9875_MVR         0x1b  /* Main volume droite */
 #define TDA9875_MBA         0x1d  /* Main Basse */
 #define TDA9875_MTR         0x1e  /* Main treble */
-#define TDA9875_ACS         0x1f  /* Auxilary channel select (FM) 0b0000000*/
-#define TDA9875_AVL         0x20  /* Auxilary volume gauche */
-#define TDA9875_AVR         0x21  /* Auxilary volume droite */
-#define TDA9875_ABA         0x22  /* Auxilary Basse */
-#define TDA9875_ATR         0x23  /* Auxilary treble */
+#define TDA9875_ACS         0x1f  /* Auxiliary channel select (FM) 0b0000000*/
+#define TDA9875_AVL         0x20  /* Auxiliary volume gauche */
+#define TDA9875_AVR         0x21  /* Auxiliary volume droite */
+#define TDA9875_ABA         0x22  /* Auxiliary Basse */
+#define TDA9875_ATR         0x23  /* Auxiliary treble */
 
 #define TDA9875_MSR         0x02  /* Monitor select register */
 #define TDA9875_C1MSB       0x03  /* Carrier 1 (FM) frequency register MSB */

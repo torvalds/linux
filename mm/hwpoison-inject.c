@@ -1,4 +1,4 @@
-/* Inject a hwpoison memory failure on a arbitary pfn */
+/* Inject a hwpoison memory failure on a arbitrary pfn */
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>

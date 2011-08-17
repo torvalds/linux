@@ -46,18 +46,17 @@ static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
 
 /*
- * Reschedule call back. Nothing to do,
- * all the work is done automatically when
- * we return from the interrupt.
+ * Reschedule call back.
  */
 static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 {
 	inc_irq_stat(irq_resched_count);
+	scheduler_ipi();
 
 	return IRQ_HANDLED;
 }
 
-static __cpuinit void cpu_bringup(void)
+static void __cpuinit cpu_bringup(void)
 {
 	int cpu = smp_processor_id();
 
@@ -85,7 +84,7 @@ static __cpuinit void cpu_bringup(void)
 	wmb();			/* make sure everything is out */
 }
 
-static __cpuinit void cpu_bringup_and_idle(void)
+static void __cpuinit cpu_bringup_and_idle(void)
 {
 	cpu_bringup();
 	cpu_idle();
@@ -206,11 +205,18 @@ static void __init xen_smp_prepare_boot_cpu(void)
 static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned cpu;
+	unsigned int i;
 
 	xen_init_lock_cpu(0);
 
 	smp_store_cpu_info(0);
 	cpu_data(0).x86_max_cores = 1;
+
+	for_each_possible_cpu(i) {
+		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
+		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
+		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
+	}
 	set_cpu_sibling_map(0);
 
 	if (xen_smp_intr_init(0))
@@ -242,7 +248,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-static __cpuinit int
+static int __cpuinit
 cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
@@ -486,7 +492,7 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct smp_ops xen_smp_ops __initdata = {
+static const struct smp_ops xen_smp_ops __initconst = {
 	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
 	.smp_prepare_cpus = xen_smp_prepare_cpus,
 	.smp_cpus_done = xen_smp_cpus_done,
@@ -508,4 +514,42 @@ void __init xen_smp_init(void)
 	smp_ops = xen_smp_ops;
 	xen_fill_possible_map();
 	xen_init_spinlocks();
+}
+
+static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
+{
+	native_smp_prepare_cpus(max_cpus);
+	WARN_ON(xen_smp_intr_init(0));
+
+	if (!xen_have_vector_callback)
+		return;
+	xen_init_lock_cpu(0);
+	xen_init_spinlocks();
+}
+
+static int __cpuinit xen_hvm_cpu_up(unsigned int cpu)
+{
+	int rc;
+	rc = native_cpu_up(cpu);
+	WARN_ON (xen_smp_intr_init(cpu));
+	return rc;
+}
+
+static void xen_hvm_cpu_die(unsigned int cpu)
+{
+	unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
+	native_cpu_die(cpu);
+}
+
+void __init xen_hvm_smp_init(void)
+{
+	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
+	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
+	smp_ops.cpu_up = xen_hvm_cpu_up;
+	smp_ops.cpu_die = xen_hvm_cpu_die;
+	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
+	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
 }

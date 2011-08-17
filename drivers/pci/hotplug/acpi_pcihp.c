@@ -351,7 +351,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 	 * To handle different BIOS behavior, we look for _OSC on a root
 	 * bridge preferentially (according to PCI fw spec). Later for
 	 * OSHP within the scope of the hotplug controller and its parents,
-	 * upto the host bridge under which this controller exists.
+	 * up to the host bridge under which this controller exists.
 	 */
 	handle = acpi_find_root_bridge_handle(pdev);
 	if (handle) {
@@ -408,7 +408,7 @@ got_one:
 }
 EXPORT_SYMBOL(acpi_get_hp_hw_control_from_firmware);
 
-static int is_ejectable(acpi_handle handle)
+static int pcihp_is_ejectable(acpi_handle handle)
 {
 	acpi_status status;
 	acpi_handle tmp;
@@ -442,7 +442,7 @@ int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle)
 		return 0;
 	if (bridge_handle != parent_handle)
 		return 0;
-	return is_ejectable(handle);
+	return pcihp_is_ejectable(handle);
 }
 EXPORT_SYMBOL_GPL(acpi_pci_check_ejectable);
 
@@ -450,7 +450,7 @@ static acpi_status
 check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int *found = (int *)context;
-	if (is_ejectable(handle)) {
+	if (pcihp_is_ejectable(handle)) {
 		*found = 1;
 		return AE_CTRL_TERMINATE;
 	}

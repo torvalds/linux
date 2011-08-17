@@ -40,11 +40,13 @@ This document describes the Linux kernel Makefiles.
 	   --- 6.6 Commands useful for building a boot image
 	   --- 6.7 Custom kbuild commands
 	   --- 6.8 Preprocessing linker scripts
+	   --- 6.9 Generic header files
 
 	=== 7 Kbuild syntax for exported headers
 		--- 7.1 header-y
 		--- 7.2 objhdr-y
 		--- 7.3 destination-y
+		--- 7.4 generic-y
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -439,7 +441,7 @@ more details, with real examples.
 	specified if first option are not supported.
 
 	Example:
-		#arch/i386/kernel/Makefile
+		#arch/x86/kernel/Makefile
 		vsyscall-flags += $(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 
 	In the above example, vsyscall-flags will be assigned the option
@@ -458,7 +460,7 @@ more details, with real examples.
 	supported to use an optional second option.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		cflags-y += $(call cc-option,-march=pentium-mmx,-march=i586)
 
 	In the above example, cflags-y will be assigned the option
@@ -499,6 +501,18 @@ more details, with real examples.
 	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
 	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
 
+    cc-disable-warning
+	cc-disable-warning checks if gcc supports a given warning and returns
+	the commandline switch to disable it. This special function is needed,
+	because gcc 4.4 and later accept any unknown -Wno-* option and only
+	warn about it if there is another warning in the source file.
+
+	Example:
+		KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+
+	In the above example, -Wno-unused-but-set-variable will be added to
+	KBUILD_CFLAGS only if gcc really accepts it.
+
     cc-version
 	cc-version returns a numerical version of the $(CC) compiler version.
 	The format is <major><minor> where both are two digits. So for example
@@ -508,7 +522,7 @@ more details, with real examples.
 	even though the option was accepted by gcc.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		cflags-y += $(shell \
 		if [ $(call cc-version) -ge 0300 ] ; then \
 			echo "-mregparm=3"; fi ;)
@@ -788,7 +802,7 @@ but in the architecture makefiles where the kbuild infrastructure
 is not sufficient this sometimes needs to be explicit.
 
 	Example:
-		#arch/i386/boot/Makefile
+		#arch/x86/boot/Makefile
 		subdir- := compressed/
 
 The above assignment instructs kbuild to descend down in the
@@ -798,12 +812,12 @@ To support the clean infrastructure in the Makefiles that builds the
 final bootimage there is an optional target named archclean:
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		archclean:
-			$(Q)$(MAKE) $(clean)=arch/i386/boot
+			$(Q)$(MAKE) $(clean)=arch/x86/boot
 
-When "make clean" is executed, make will descend down in arch/i386/boot,
-and clean as usual. The Makefile located in arch/i386/boot/ may use
+When "make clean" is executed, make will descend down in arch/x86/boot,
+and clean as usual. The Makefile located in arch/x86/boot/ may use
 the subdir- trick to descend further down.
 
 Note 1: arch/$(ARCH)/Makefile cannot use "subdir-", because that file is
@@ -868,7 +882,7 @@ When kbuild executes, the following steps are followed (roughly):
 	LDFLAGS_vmlinux uses the LDFLAGS_$@ support.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		LDFLAGS_vmlinux := -e stext
 
     OBJCOPYFLAGS	objcopy flags
@@ -906,14 +920,14 @@ When kbuild executes, the following steps are followed (roughly):
 	Often, the KBUILD_CFLAGS variable depends on the configuration.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		cflags-$(CONFIG_M386) += -march=i386
 		KBUILD_CFLAGS += $(cflags-y)
 
 	Many arch Makefiles dynamically run the target C compiler to
 	probe supported options:
 
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 
 		...
 		cflags-$(CONFIG_MPENTIUMII)     += $(call cc-option,\
@@ -954,6 +968,11 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_LDFLAGS_MODULE) is used to add arch specific options
 	used when linking modules. This is often a linker script.
 	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
+
+    KBUILD_ARFLAGS   Options for $(AR) when creating archives
+
+	$(KBUILD_ARFLAGS) set by the top level Makefile to "D" (deterministic
+	mode) if this option is supported by $(AR).
 
 --- 6.2 Add prerequisites to archprepare:
 
@@ -1019,8 +1038,8 @@ When kbuild executes, the following steps are followed (roughly):
 	into the arch/$(ARCH)/boot/Makefile.
 
 	Example:
-		#arch/i386/Makefile
-		boot := arch/i386/boot
+		#arch/x86/Makefile
+		boot := arch/x86/boot
 		bzImage: vmlinux
 			$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
@@ -1032,7 +1051,7 @@ When kbuild executes, the following steps are followed (roughly):
 	To support this, $(archhelp) must be defined.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		define archhelp
 		  echo  '* bzImage      - Image (arch/$(ARCH)/boot/bzImage)'
 		endif
@@ -1046,7 +1065,7 @@ When kbuild executes, the following steps are followed (roughly):
 	from vmlinux.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		all: bzImage
 
 	When "make" is executed without arguments, bzImage will be built.
@@ -1064,7 +1083,7 @@ When kbuild executes, the following steps are followed (roughly):
 	2) kbuild knows what files to delete during "make clean"
 
 	Example:
-		#arch/i386/kernel/Makefile
+		#arch/x86/kernel/Makefile
 		extra-y := head.o init_task.o
 
 	In this example, extra-y is used to list object files that
@@ -1114,7 +1133,7 @@ When kbuild executes, the following steps are followed (roughly):
 	Compress target. Use maximum compression to compress target.
 
 	Example:
-		#arch/i386/boot/Makefile
+		#arch/x86/boot/Makefile
 		LDFLAGS_bootsect := -Ttext 0x0 -s --oformat binary
 		LDFLAGS_setup    := -Ttext 0x0 -s --oformat binary -e begtext
 
@@ -1174,7 +1193,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	When updating the $(obj)/bzImage target, the line
 
-	BUILD    arch/i386/boot/bzImage
+	BUILD    arch/x86/boot/bzImage
 
 	will be displayed with "make KBUILD_VERBOSE=0".
 
@@ -1188,7 +1207,7 @@ When kbuild executes, the following steps are followed (roughly):
 	kbuild knows .lds files and includes a rule *lds.S -> *lds.
 
 	Example:
-		#arch/i386/kernel/Makefile
+		#arch/x86/kernel/Makefile
 		always := vmlinux.lds
 
 		#Makefile
@@ -1208,6 +1227,14 @@ When kbuild executes, the following steps are followed (roughly):
 
 	The kbuild infrastructure for *lds file are used in several
 	architecture-specific files.
+
+--- 6.9 Generic header files
+
+	The directory include/asm-generic contains the header files
+	that may be shared between individual architectures.
+	The recommended approach how to use a generic header file is
+	to list the file in the Kbuild file.
+	See "7.4 generic-y" for further info on syntax etc.
 
 === 7 Kbuild syntax for exported headers
 
@@ -1265,6 +1292,32 @@ See subsequent chapter for the syntax of the Kbuild file.
 	In the example above all exported headers in the Kbuild file
 	will be located in the directory "include/linux" when exported.
 
+	--- 7.4 generic-y
+
+	If an architecture uses a verbatim copy of a header from
+	include/asm-generic then this is listed in the file
+	arch/$(ARCH)/include/asm/Kbuild like this:
+
+		Example:
+			#arch/x86/include/asm/Kbuild
+			generic-y += termios.h
+			generic-y += rtc.h
+
+	During the prepare phase of the build a wrapper include
+	file is generated in the directory:
+
+		arch/$(ARCH)/include/generated/asm
+
+	When a header is exported where the architecture uses
+	the generic header a similar wrapper is generated as part
+	of the set of exported headers in the directory:
+
+		usr/include/asm
+
+	The generated wrapper will in both cases look like the following:
+
+		Example: termios.h
+			#include <asm-generic/termios.h>
 
 === 8 Kbuild Variables
 
@@ -1325,7 +1378,8 @@ The top Makefile exports the following variables:
 	If this variable is specified, will cause modules to be stripped
 	after they are installed.  If INSTALL_MOD_STRIP is '1', then the
 	default option --strip-debug will be used.  Otherwise,
-	INSTALL_MOD_STRIP will used as the option(s) to the strip command.
+	INSTALL_MOD_STRIP value will be used as the option(s) to the strip
+	command.
 
 
 === 9 Makefile language

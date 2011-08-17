@@ -21,10 +21,13 @@
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/console.h>
+#include <linux/backlight.h>
+#include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "sh_mobile_lcdcfb.h"
+#include "sh_mobile_meram.h"
 
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000
@@ -67,6 +70,7 @@ static unsigned long lcdc_offs_mainlcd[NR_CH_REGS] = {
 	[LDSM1R] = 0x428,
 	[LDSM2R] = 0x42c,
 	[LDSA1R] = 0x430,
+	[LDSA2R] = 0x434,
 	[LDMLSR] = 0x438,
 	[LDHCNR] = 0x448,
 	[LDHSYNR] = 0x44c,
@@ -140,6 +144,7 @@ struct sh_mobile_lcdc_priv {
 	unsigned long saved_shared_regs[NR_SHARED_REGS];
 	int started;
 	int forced_bpp; /* 2 channel LCDC must share bpp setting */
+	struct sh_mobile_meram_info *meram_dev;
 };
 
 static bool banked(int reg_nr)
@@ -151,6 +156,7 @@ static bool banked(int reg_nr)
 	case LDDFR:
 	case LDSM1R:
 	case LDSA1R:
+	case LDSA2R:
 	case LDMLSR:
 	case LDHCNR:
 	case LDHSYNR:
@@ -463,8 +469,8 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	struct sh_mobile_lcdc_board_cfg	*board_cfg;
 	unsigned long tmp;
 	int bpp = 0;
-	int k, m;
-	int ret = 0;
+	unsigned long ldddsr;
+	int k, m, ret;
 
 	/* enable clocks before accessing the hardware */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
@@ -533,27 +539,36 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		lcdc_write_chan(ch, LDPMR, 0);
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->setup_sys)
-			ret = board_cfg->setup_sys(board_cfg->board_data, ch,
-						   &sh_mobile_lcdc_sys_bus_ops);
-		if (ret)
-			return ret;
+		if (board_cfg->setup_sys) {
+			ret = board_cfg->setup_sys(board_cfg->board_data,
+						ch, &sh_mobile_lcdc_sys_bus_ops);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* word and long word swap */
-	switch (bpp) {
-	case 16:
-		lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 6);
-		break;
-	case 24:
-		lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 7);
-		break;
-	case 32:
-		lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 4);
-		break;
+	ldddsr = lcdc_read(priv, _LDDDSR);
+	if  (priv->ch[0].info->var.nonstd)
+		lcdc_write(priv, _LDDDSR, ldddsr | 7);
+	else {
+		switch (bpp) {
+		case 16:
+			lcdc_write(priv, _LDDDSR, ldddsr | 6);
+			break;
+		case 24:
+			lcdc_write(priv, _LDDDSR, ldddsr | 7);
+			break;
+		case 32:
+			lcdc_write(priv, _LDDDSR, ldddsr | 4);
+			break;
+		}
 	}
 
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
+		unsigned long base_addr_y;
+		unsigned long base_addr_c = 0;
+		int pitch;
 		ch = &priv->ch[k];
 
 		if (!priv->ch[k].enabled)
@@ -561,24 +576,95 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		/* set bpp format in PKF[4:0] */
 		tmp = lcdc_read_chan(ch, LDDFR);
-		tmp &= ~0x0001001f;
-		switch (ch->info->var.bits_per_pixel) {
-		case 16:
-			tmp |= 0x03;
-			break;
-		case 24:
-			tmp |= 0x0b;
-			break;
-		case 32:
-			break;
+		tmp &= ~0x0003031f;
+		if (ch->info->var.nonstd) {
+			tmp |= (ch->info->var.nonstd << 16);
+			switch (ch->info->var.bits_per_pixel) {
+			case 12:
+				break;
+			case 16:
+				tmp |= (0x1 << 8);
+				break;
+			case 24:
+				tmp |= (0x2 << 8);
+				break;
+			}
+		} else {
+			switch (ch->info->var.bits_per_pixel) {
+			case 16:
+				tmp |= 0x03;
+				break;
+			case 24:
+				tmp |= 0x0b;
+				break;
+			case 32:
+				break;
+			}
 		}
 		lcdc_write_chan(ch, LDDFR, tmp);
 
+		base_addr_y = ch->info->fix.smem_start;
+		base_addr_c = base_addr_y +
+				ch->info->var.xres *
+				ch->info->var.yres_virtual;
+		pitch = ch->info->fix.line_length;
+
+		/* test if we can enable meram */
+		if (ch->cfg.meram_cfg && priv->meram_dev &&
+				priv->meram_dev->ops) {
+			struct sh_mobile_meram_cfg *cfg;
+			struct sh_mobile_meram_info *mdev;
+			unsigned long icb_addr_y, icb_addr_c;
+			int icb_pitch;
+			int pf;
+
+			cfg = ch->cfg.meram_cfg;
+			mdev = priv->meram_dev;
+			/* we need to de-init configured ICBs before we
+			 * we can re-initialize them.
+			 */
+			if (ch->meram_enabled)
+				mdev->ops->meram_unregister(mdev, cfg);
+
+			ch->meram_enabled = 0;
+
+			if (ch->info->var.nonstd) {
+				if (ch->info->var.bits_per_pixel == 24)
+					pf = SH_MOBILE_MERAM_PF_NV24;
+				else
+					pf = SH_MOBILE_MERAM_PF_NV;
+			} else {
+				pf = SH_MOBILE_MERAM_PF_RGB;
+			}
+
+			ret = mdev->ops->meram_register(mdev, cfg, pitch,
+						ch->info->var.yres,
+						pf,
+						base_addr_y,
+						base_addr_c,
+						&icb_addr_y,
+						&icb_addr_c,
+						&icb_pitch);
+			if (!ret)  {
+				/* set LDSA1R value */
+				base_addr_y = icb_addr_y;
+				pitch = icb_pitch;
+
+				/* set LDSA2R value if required */
+				if (base_addr_c)
+					base_addr_c = icb_addr_c;
+
+				ch->meram_enabled = 1;
+			}
+		}
+
 		/* point out our frame buffer */
-		lcdc_write_chan(ch, LDSA1R, ch->info->fix.smem_start);
+		lcdc_write_chan(ch, LDSA1R, base_addr_y);
+		if (ch->info->var.nonstd)
+			lcdc_write_chan(ch, LDSA2R, base_addr_c);
 
 		/* set line size */
-		lcdc_write_chan(ch, LDMLSR, ch->info->fix.line_length);
+		lcdc_write_chan(ch, LDMLSR, pitch);
 
 		/* setup deferred io if SYS bus */
 		tmp = ch->cfg.sys_bus_cfg.deferred_io_msec;
@@ -614,9 +700,14 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+		if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 			board_cfg->display_on(board_cfg->board_data, ch->info);
 			module_put(board_cfg->owner);
+		}
+
+		if (ch->bl) {
+			ch->bl->props.power = FB_BLANK_UNBLANK;
+			backlight_update_status(ch->bl);
 		}
 	}
 
@@ -648,11 +739,27 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 			sh_mobile_lcdc_clk_on(priv);
 		}
 
+		if (ch->bl) {
+			ch->bl->props.power = FB_BLANK_POWERDOWN;
+			backlight_update_status(ch->bl);
+		}
+
 		board_cfg = &ch->cfg.board_cfg;
-		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
+		if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
+
+		/* disable the meram */
+		if (ch->meram_enabled) {
+			struct sh_mobile_meram_cfg *cfg;
+			struct sh_mobile_meram_info *mdev;
+			cfg = ch->cfg.meram_cfg;
+			mdev = priv->meram_dev;
+			mdev->ops->meram_unregister(mdev, cfg);
+			ch->meram_enabled = 0;
+		}
+
 	}
 
 	/* stop the lcdc */
@@ -804,9 +911,15 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
 	unsigned long ldrcntr;
 	unsigned long new_pan_offset;
+	unsigned long base_addr_y, base_addr_c;
+	unsigned long c_offset;
 
-	new_pan_offset = (var->yoffset * info->fix.line_length) +
-		(var->xoffset * (info->var.bits_per_pixel / 8));
+	if (!var->nonstd)
+		new_pan_offset = (var->yoffset * info->fix.line_length) +
+			(var->xoffset * (info->var.bits_per_pixel / 8));
+	else
+		new_pan_offset = (var->yoffset * info->fix.line_length) +
+			(var->xoffset);
 
 	if (new_pan_offset == ch->pan_offset)
 		return 0;	/* No change, do nothing */
@@ -814,7 +927,46 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	ldrcntr = lcdc_read(priv, _LDRCNTR);
 
 	/* Set the source address for the next refresh */
-	lcdc_write_chan_mirror(ch, LDSA1R, ch->dma_handle + new_pan_offset);
+	base_addr_y = ch->dma_handle + new_pan_offset;
+	if (var->nonstd) {
+		/* Set y offset */
+		c_offset = (var->yoffset *
+			info->fix.line_length *
+			(info->var.bits_per_pixel - 8)) / 8;
+		base_addr_c = ch->dma_handle + var->xres * var->yres_virtual +
+			c_offset;
+		/* Set x offset */
+		if (info->var.bits_per_pixel == 24)
+			base_addr_c += 2 * var->xoffset;
+		else
+			base_addr_c += var->xoffset;
+	} else
+		base_addr_c = 0;
+
+	if (!ch->meram_enabled) {
+		lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
+		if (base_addr_c)
+			lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
+	} else {
+		struct sh_mobile_meram_cfg *cfg;
+		struct sh_mobile_meram_info *mdev;
+		unsigned long icb_addr_y, icb_addr_c;
+		int ret;
+
+		cfg = ch->cfg.meram_cfg;
+		mdev = priv->meram_dev;
+		ret = mdev->ops->meram_update(mdev, cfg,
+					base_addr_y, base_addr_c,
+					&icb_addr_y, &icb_addr_c);
+		if (ret)
+			return ret;
+
+		lcdc_write_chan_mirror(ch, LDSA1R, icb_addr_y);
+		if (icb_addr_c)
+			lcdc_write_chan_mirror(ch, LDSA2R, icb_addr_c);
+
+	}
+
 	if (lcdc_chan_is_sublcd(ch))
 		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
 	else
@@ -885,7 +1037,10 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 		/* Couldn't reconfigure, hopefully, can continue as before */
 		return;
 
-	info->fix.line_length = mode1.xres * (ch->cfg.bpp / 8);
+	if (info->var.nonstd)
+		info->fix.line_length = mode1.xres;
+	else
+		info->fix.line_length = mode1.xres * (ch->cfg.bpp / 8);
 
 	/*
 	 * fb_set_var() calls the notifier change internally, only if
@@ -965,6 +1120,49 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	return 0;
 }
 
+/*
+ * Screen blanking. Behavior is as follows:
+ * FB_BLANK_UNBLANK: screen unblanked, clocks enabled
+ * FB_BLANK_NORMAL: screen blanked, clocks enabled
+ * FB_BLANK_VSYNC,
+ * FB_BLANK_HSYNC,
+ * FB_BLANK_POWEROFF: screen blanked, clocks disabled
+ */
+static int sh_mobile_lcdc_blank(int blank, struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_priv *p = ch->lcdc;
+
+	/* blank the screen? */
+	if (blank > FB_BLANK_UNBLANK && ch->blank_status == FB_BLANK_UNBLANK) {
+		struct fb_fillrect rect = {
+			.width = info->var.xres,
+			.height = info->var.yres,
+		};
+		sh_mobile_lcdc_fillrect(info, &rect);
+	}
+	/* turn clocks on? */
+	if (blank <= FB_BLANK_NORMAL && ch->blank_status > FB_BLANK_NORMAL) {
+		sh_mobile_lcdc_clk_on(p);
+	}
+	/* turn clocks off? */
+	if (blank > FB_BLANK_NORMAL && ch->blank_status <= FB_BLANK_NORMAL) {
+		/* make sure the screen is updated with the black fill before
+		 * switching the clocks off. one vsync is not enough since
+		 * blanking may occur in the middle of a refresh. deferred io
+		 * mode will reenable the clocks and update the screen in time,
+		 * so it does not need this. */
+		if (!info->fbdefio) {
+			sh_mobile_wait_for_vsync(info);
+			sh_mobile_wait_for_vsync(info);
+		}
+		sh_mobile_lcdc_clk_off(p);
+	}
+
+	ch->blank_status = blank;
+	return 0;
+}
+
 static struct fb_ops sh_mobile_lcdc_ops = {
 	.owner          = THIS_MODULE,
 	.fb_setcolreg	= sh_mobile_lcdc_setcolreg,
@@ -973,6 +1171,7 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_fillrect	= sh_mobile_lcdc_fillrect,
 	.fb_copyarea	= sh_mobile_lcdc_copyarea,
 	.fb_imageblit	= sh_mobile_lcdc_imageblit,
+	.fb_blank	= sh_mobile_lcdc_blank,
 	.fb_pan_display = sh_mobile_fb_pan_display,
 	.fb_ioctl       = sh_mobile_ioctl,
 	.fb_open	= sh_mobile_open,
@@ -980,8 +1179,81 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_check_var	= sh_mobile_check_var,
 };
 
-static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
+static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
 {
+	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
+	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
+	int brightness = bdev->props.brightness;
+
+	if (bdev->props.power != FB_BLANK_UNBLANK ||
+	    bdev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
+		brightness = 0;
+
+	return cfg->set_brightness(cfg->board_data, brightness);
+}
+
+static int sh_mobile_lcdc_get_brightness(struct backlight_device *bdev)
+{
+	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
+	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
+
+	return cfg->get_brightness(cfg->board_data);
+}
+
+static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,
+				   struct fb_info *info)
+{
+	return (info->bl_dev == bdev);
+}
+
+static struct backlight_ops sh_mobile_lcdc_bl_ops = {
+	.options	= BL_CORE_SUSPENDRESUME,
+	.update_status	= sh_mobile_lcdc_update_bl,
+	.get_brightness	= sh_mobile_lcdc_get_brightness,
+	.check_fb	= sh_mobile_lcdc_check_fb,
+};
+
+static struct backlight_device *sh_mobile_lcdc_bl_probe(struct device *parent,
+					       struct sh_mobile_lcdc_chan *ch)
+{
+	struct backlight_device *bl;
+
+	bl = backlight_device_register(ch->cfg.bl_info.name, parent, ch,
+				       &sh_mobile_lcdc_bl_ops, NULL);
+	if (IS_ERR(bl)) {
+		dev_err(parent, "unable to register backlight device: %ld\n",
+			PTR_ERR(bl));
+		return NULL;
+	}
+
+	bl->props.max_brightness = ch->cfg.bl_info.max_brightness;
+	bl->props.brightness = bl->props.max_brightness;
+	backlight_update_status(bl);
+
+	return bl;
+}
+
+static void sh_mobile_lcdc_bl_remove(struct backlight_device *bdev)
+{
+	backlight_device_unregister(bdev);
+}
+
+static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp,
+				   int nonstd)
+{
+	if (nonstd) {
+		switch (bpp) {
+		case 12:
+		case 16:
+		case 24:
+			var->bits_per_pixel = bpp;
+			var->nonstd = nonstd;
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	}
+
 	switch (bpp) {
 	case 16: /* PKF[4:0] = 00011 - RGB 565 */
 		var->red.offset = 11;
@@ -1104,7 +1376,6 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 	struct fb_info *info = event->info;
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
-	int ret;
 
 	if (&ch->lcdc->notifier != nb)
 		return NOTIFY_DONE;
@@ -1114,11 +1385,10 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 
 	switch(action) {
 	case FB_EVENT_SUSPEND:
-		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
+		if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
-		pm_runtime_put(info->device);
 		sh_mobile_lcdc_stop(ch->lcdc);
 		break;
 	case FB_EVENT_RESUME:
@@ -1127,14 +1397,12 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 		mutex_unlock(&ch->open_lock);
 
 		/* HDMI must be enabled before LCDC configuration */
-		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+		if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 			board_cfg->display_on(board_cfg->board_data, info);
 			module_put(board_cfg->owner);
 		}
 
-		ret = sh_mobile_lcdc_start(ch->lcdc);
-		if (!ret)
-			pm_runtime_get_sync(info->device);
+		sh_mobile_lcdc_start(ch->lcdc);
 	}
 
 	return NOTIFY_OK;
@@ -1198,6 +1466,10 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		init_completion(&ch->vsync_completion);
 		ch->pan_offset = 0;
 
+		/* probe the backlight is there is one defined */
+		if (ch->cfg.bl_info.max_brightness)
+			ch->bl = sh_mobile_lcdc_bl_probe(&pdev->dev, ch);
+
 		switch (pdata->ch[i].chan) {
 		case LCDC_CHAN_MAINLCD:
 			ch->enabled = 1 << 1;
@@ -1232,6 +1504,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	priv->meram_dev = pdata->meram_dev;
+
 	for (i = 0; i < j; i++) {
 		struct fb_var_screeninfo *var;
 		const struct fb_videomode *lcd_cfg, *max_cfg = NULL;
@@ -1260,6 +1534,14 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		     k < cfg->num_cfg && lcd_cfg;
 		     k++, lcd_cfg++) {
 			unsigned long size = lcd_cfg->yres * lcd_cfg->xres;
+			/* NV12 buffers must have even number of lines */
+			if ((cfg->nonstd) && cfg->bpp == 12 &&
+					(lcd_cfg->yres & 0x1)) {
+				dev_err(&pdev->dev, "yres must be multiple of 2"
+						" for YCbCr420 mode.\n");
+				error = -EINVAL;
+				goto err1;
+			}
 
 			if (size > max_size) {
 				max_cfg = lcd_cfg;
@@ -1274,7 +1556,11 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 				max_cfg->xres, max_cfg->yres);
 
 		info->fix = sh_mobile_lcdc_fix;
-		info->fix.smem_len = max_size * (cfg->bpp / 8) * 2;
+		info->fix.smem_len = max_size * 2 * cfg->bpp / 8;
+
+		 /* Only pan in 2 line steps for NV12 */
+		if (cfg->nonstd && cfg->bpp == 12)
+			info->fix.ypanstep = 2;
 
 		if (!mode) {
 			mode = &default_720p;
@@ -1292,7 +1578,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		var->yres_virtual = var->yres * 2;
 		var->activate = FB_ACTIVATE_NOW;
 
-		error = sh_mobile_lcdc_set_bpp(var, cfg->bpp);
+		error = sh_mobile_lcdc_set_bpp(var, cfg->bpp, cfg->nonstd);
 		if (error)
 			break;
 
@@ -1316,7 +1602,11 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		}
 
 		info->fix.smem_start = ch->dma_handle;
-		info->fix.line_length = var->xres * (cfg->bpp / 8);
+		if (var->nonstd)
+			info->fix.line_length = var->xres;
+		else
+			info->fix.line_length = var->xres * (cfg->bpp / 8);
+
 		info->screen_base = buf;
 		info->device = &pdev->dev;
 		ch->display_var = *var;
@@ -1344,6 +1634,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 				goto err1;
 			}
 		}
+
+		info->bl_dev = ch->bl;
 
 		error = register_framebuffer(info);
 		if (error < 0)
@@ -1402,6 +1694,11 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 					  priv->ch[i].dma_handle);
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
+		if (priv->ch[i].bl)
+			sh_mobile_lcdc_bl_remove(priv->ch[i].bl);
 	}
 
 	if (priv->dot_clk)

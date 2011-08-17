@@ -73,8 +73,7 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 */
 	buf->f_bsize = 1 << CEPH_BLOCK_SHIFT;
 	buf->f_blocks = le64_to_cpu(st.kb) >> (CEPH_BLOCK_SHIFT-10);
-	buf->f_bfree = (le64_to_cpu(st.kb) - le64_to_cpu(st.kb_used)) >>
-		(CEPH_BLOCK_SHIFT-10);
+	buf->f_bfree = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
 	buf->f_bavail = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
 
 	buf->f_files = le64_to_cpu(st.num_objects);
@@ -131,6 +130,7 @@ enum {
 	Opt_rbytes,
 	Opt_norbytes,
 	Opt_noasyncreaddir,
+	Opt_ino32,
 };
 
 static match_table_t fsopt_tokens = {
@@ -150,6 +150,7 @@ static match_table_t fsopt_tokens = {
 	{Opt_rbytes, "rbytes"},
 	{Opt_norbytes, "norbytes"},
 	{Opt_noasyncreaddir, "noasyncreaddir"},
+	{Opt_ino32, "ino32"},
 	{-1, NULL}
 };
 
@@ -225,6 +226,9 @@ static int parse_fsopt_token(char *c, void *private)
 	case Opt_noasyncreaddir:
 		fsopt->flags |= CEPH_MOUNT_OPT_NOASYNCREADDIR;
 		break;
+	case Opt_ino32:
+		fsopt->flags |= CEPH_MOUNT_OPT_INO32;
+		break;
 	default:
 		BUG_ON(token);
 	}
@@ -288,7 +292,7 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
         fsopt->sb_flags = flags;
         fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
 
-        fsopt->rsize = CEPH_MOUNT_RSIZE_DEFAULT;
+        fsopt->rsize = CEPH_RSIZE_DEFAULT;
         fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
@@ -348,7 +352,7 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	if (opt->name)
 		seq_printf(m, ",name=%s", opt->name);
-	if (opt->secret)
+	if (opt->key)
 		seq_puts(m, ",secret=<hidden>");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
@@ -370,7 +374,7 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
-	if (fsopt->rsize != CEPH_MOUNT_RSIZE_DEFAULT)
+	if (fsopt->rsize != CEPH_RSIZE_DEFAULT)
 		seq_printf(m, ",rsize=%d", fsopt->rsize);
 	if (fsopt->congestion_kb != default_congestion_kb())
 		seq_printf(m, ",write_congestion_kb=%d", fsopt->congestion_kb);
@@ -775,6 +779,10 @@ static int ceph_register_bdi(struct super_block *sb,
 		fsc->backing_dev_info.ra_pages =
 			(fsc->mount_options->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
+	else
+		fsc->backing_dev_info.ra_pages =
+			default_backing_dev_info.ra_pages;
+
 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%d",
 			   atomic_long_inc_return(&bdi_seq));
 	if (!err)

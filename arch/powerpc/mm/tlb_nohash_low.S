@@ -189,6 +189,13 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	blr
 
 #ifdef CONFIG_PPC_47x
+
+/*
+ * 47x variant of icbt
+ */
+# define ICBT(CT,RA,RB)	\
+	.long	0x7c00002c | ((CT) << 21) | ((RA) << 16) | ((RB) << 11)
+
 /*
  * _tlbivax_bcast is only on 47x. We don't bother doing a runtime
  * check though, it will blow up soon enough if we mistakenly try
@@ -206,7 +213,35 @@ _GLOBAL(_tlbivax_bcast)
 	isync
 	eieio
 	tlbsync
+BEGIN_FTR_SECTION
+	b	1f
+END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	sync
+	wrtee	r10
+	blr
+/*
+ * DD2 HW could hang if in instruction fetch happens before msync completes.
+ * Touch enough instruction cache lines to ensure cache hits
+ */
+1:	mflr	r9
+	bl	2f
+2:	mflr	r6
+	li	r7,32
+	ICBT(0,r6,r7)		/* touch next cache line */
+	add	r6,r6,r7
+	ICBT(0,r6,r7)		/* touch next cache line */
+	add	r6,r6,r7
+	ICBT(0,r6,r7)		/* touch next cache line */
+	sync
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	mtlr	r9
 	wrtee	r10
 	blr
 #endif /* CONFIG_PPC_47x */

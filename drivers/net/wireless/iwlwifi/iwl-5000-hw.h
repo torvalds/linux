@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ static inline s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
 {
 	u16 temperature, voltage;
 	__le16 *temp_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_TEMPERATURE);
 
 	temperature = le16_to_cpu(temp_calib[0]);
 	voltage = le16_to_cpu(temp_calib[1]);

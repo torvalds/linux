@@ -82,6 +82,7 @@ MACHINE_START(RD88F6192_NAS, "Marvell RD-88F6192-NAS Development Board")
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f6192_init,
 	.map_io		= kirkwood_map_io,
+	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
 MACHINE_END

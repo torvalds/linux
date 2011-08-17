@@ -13,21 +13,19 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <mach/pxa27x.h>
 #include <mach/colibri.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x-udc.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"

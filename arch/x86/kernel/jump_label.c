@@ -34,7 +34,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 		code.offset = entry->target -
 				(entry->code + JUMP_LABEL_NOP_SIZE);
 	} else
-		memcpy(&code, ideal_nop5, JUMP_LABEL_NOP_SIZE);
+		memcpy(&code, ideal_nops[NOP_ATOMIC5], JUMP_LABEL_NOP_SIZE);
 	get_online_cpus();
 	mutex_lock(&text_mutex);
 	text_poke_smp((void *)entry->code, &code, JUMP_LABEL_NOP_SIZE);
@@ -44,7 +44,8 @@ void arch_jump_label_transform(struct jump_entry *entry,
 
 void arch_jump_label_text_poke_early(jump_label_t addr)
 {
-	text_poke_early((void *)addr, ideal_nop5, JUMP_LABEL_NOP_SIZE);
+	text_poke_early((void *)addr, ideal_nops[NOP_ATOMIC5],
+			JUMP_LABEL_NOP_SIZE);
 }
 
 #endif

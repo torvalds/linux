@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct device;
 struct fw_card;
@@ -97,6 +97,8 @@ struct fw_card_driver {
 			 struct fw_iso_buffer *buffer,
 			 unsigned long payload);
 
+	void (*flush_queue_iso)(struct fw_iso_context *ctx);
+
 	int (*stop_iso)(struct fw_iso_context *ctx);
 };
 
@@ -147,9 +149,6 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 /* -iso */
 
 int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
-void fw_iso_resource_manage(struct fw_card *card, int generation,
-			    u64 channels_mask, int *channel, int *bandwidth,
-			    bool allocate, __be32 buffer[2]);
 
 
 /* -topology */

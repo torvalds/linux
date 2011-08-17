@@ -27,7 +27,7 @@
 #include <net/atmclip.h>
 #include <linux/uaccess.h>
 #include <linux/param.h> /* for HZ */
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "resources.h"
 #include "common.h" /* atm_proc_init prototype */
 #include "signaling.h" /* to get sigd - ugly too */
@@ -191,7 +191,7 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
 	struct sock *sk = sk_atm(vcc);
 
-	seq_printf(seq, "%p ", vcc);
+	seq_printf(seq, "%pK ", vcc);
 	if (!vcc->dev)
 		seq_printf(seq, "Unassigned    ");
 	else
@@ -218,7 +218,7 @@ static void svc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
 	if (!vcc->dev)
 		seq_printf(seq, sizeof(void *) == 4 ?
-			   "N/A@%p%10s" : "N/A@%p%2s", vcc, "");
+			   "N/A@%pK%10s" : "N/A@%pK%2s", vcc, "");
 	else
 		seq_printf(seq, "%3d %3d %5d         ",
 			   vcc->dev->number, vcc->vpi, vcc->vci);

@@ -20,8 +20,11 @@
 #include <linux/compiler.h>
 #include <linux/mutex.h>
 
+#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
+
 struct memory_block {
-	unsigned long phys_index;
+	unsigned long start_section_nr;
+	unsigned long end_section_nr;
 	unsigned long state;
 	int section_count;
 

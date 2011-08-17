@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -416,8 +416,7 @@ struct cmd_type_6 {
 	uint8_t vp_index;
 
 	uint32_t fcp_data_dseg_address[2];	/* Data segment address. */
-	uint16_t fcp_data_dseg_len;		/* Data segment length. */
-	uint16_t reserved_1;			/* MUST be set to 0. */
+	uint32_t fcp_data_dseg_len;		/* Data segment length. */
 };
 
 #define COMMAND_TYPE_7	0x18		/* Command Type 7 entry */
@@ -539,7 +538,7 @@ struct sts_entry_24xx {
 	 * If DIF Error is set in comp_status, these additional fields are
 	 * defined:
 	 * &data[10] : uint8_t report_runt_bg[2];	- computed guard
-	 * &data[12] : uint8_t actual_dif[8];		- DIF Data recieved
+	 * &data[12] : uint8_t actual_dif[8];		- DIF Data received
 	 * &data[20] : uint8_t expected_dif[8];		- DIF Data computed
 	*/
 };

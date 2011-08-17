@@ -28,24 +28,29 @@ dbx500_add_msp_spi(const char *name, resource_size_t base, int irq,
 
 static inline struct amba_device *
 dbx500_add_spi(const char *name, resource_size_t base, int irq,
-				   struct spi_master_cntlr *pdata)
+	       struct spi_master_cntlr *pdata,
+	       u32 periphid)
 {
-	return dbx500_add_amba_device(name, base, irq, pdata, 0);
+	return dbx500_add_amba_device(name, base, irq, pdata, periphid);
 }
 
 struct mmci_platform_data;
 
 static inline struct amba_device *
 dbx500_add_sdi(const char *name, resource_size_t base, int irq,
-	       struct mmci_platform_data *pdata)
+	       struct mmci_platform_data *pdata,
+	       u32 periphid)
 {
-	return dbx500_add_amba_device(name, base, irq, pdata, 0);
+	return dbx500_add_amba_device(name, base, irq, pdata, periphid);
 }
 
+struct amba_pl011_data;
+
 static inline struct amba_device *
-dbx500_add_uart(const char *name, resource_size_t base, int irq)
+dbx500_add_uart(const char *name, resource_size_t base, int irq,
+		struct amba_pl011_data *pdata)
 {
-	return dbx500_add_amba_device(name, base, irq, NULL, 0);
+	return dbx500_add_amba_device(name, base, irq, pdata, 0);
 }
 
 struct nmk_i2c_controller;

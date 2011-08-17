@@ -244,7 +244,7 @@ FAN_TO_REG(long rpm, int div)
 #define TEMP1_TO_REG(val)	(SENSORS_LIMIT(((val) < 0 ? (val)+0x100*1000 \
 					: (val)) / 1000, 0, 0xff))
 #define TEMP1_FROM_REG(val)	(((val) & 0x80 ? (val)-0x100 : (val)) * 1000)
-/* for temp2 and temp3, because they need addtional resolution */
+/* for temp2 and temp3, because they need additional resolution */
 #define TEMP_ADD_FROM_REG(val1, val2) \
 	((((val1) & 0x80 ? (val1)-0x100 \
 		: (val1)) * 1000) + ((val2 & 0x80) ? 500 : 0))

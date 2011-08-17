@@ -412,6 +412,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	struct dcss_segment *seg;
 	int rc, diag_cc;
 
+	start_addr = end_addr = 0;
 	seg = kmalloc(sizeof(*seg), GFP_KERNEL | GFP_DMA);
 	if (seg == NULL) {
 		rc = -ENOMEM;
@@ -573,6 +574,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	unsigned long start_addr, end_addr, dummy;
 	int rc, diag_cc;
 
+	start_addr = end_addr = 0;
 	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL) {
@@ -681,8 +683,6 @@ void
 segment_save(char *name)
 {
 	struct dcss_segment *seg;
-	int startpfn = 0;
-	int endpfn = 0;
 	char cmd1[160];
 	char cmd2[80];
 	int i, response;
@@ -698,8 +698,6 @@ segment_save(char *name)
 		goto out;
 	}
 
-	startpfn = seg->start_addr >> PAGE_SHIFT;
-	endpfn = (seg->end) >> PAGE_SHIFT;
 	sprintf(cmd1, "DEFSEG %s", name);
 	for (i=0; i<seg->segcnt; i++) {
 		sprintf(cmd1+strlen(cmd1), " %lX-%lX %s",

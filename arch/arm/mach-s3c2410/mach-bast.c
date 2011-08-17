@@ -17,7 +17,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/dm9000.h>
@@ -214,17 +214,16 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 /* NAND Flash on BAST board */
 
 #ifdef CONFIG_PM
-static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
+static int bast_pm_suspend(void)
 {
 	/* ensure that an nRESET is not generated on resume. */
 	gpio_direction_output(S3C2410_GPA(21), 1);
 	return 0;
 }
 
-static int bast_pm_resume(struct sys_device *sd)
+static void bast_pm_resume(void)
 {
 	s3c_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
-	return 0;
 }
 
 #else
@@ -232,14 +231,9 @@ static int bast_pm_resume(struct sys_device *sd)
 #define bast_pm_resume NULL
 #endif
 
-static struct sysdev_class bast_pm_sysclass = {
-	.name		= "mach-bast",
+static struct syscore_ops bast_pm_syscore_ops = {
 	.suspend	= bast_pm_suspend,
 	.resume		= bast_pm_resume,
-};
-
-static struct sys_device bast_pm_sysdev = {
-	.cls		= &bast_pm_sysclass,
 };
 
 static int smartmedia_map[] = { 0 };
@@ -642,8 +636,7 @@ static void __init bast_map_io(void)
 
 static void __init bast_init(void)
 {
-	sysdev_class_register(&bast_pm_sysclass);
-	sysdev_register(&bast_pm_sysdev);
+	register_syscore_ops(&bast_pm_syscore_ops);
 
 	s3c_i2c0_set_platdata(&bast_i2c_info);
 	s3c_nand_set_platdata(&bast_nand_info);

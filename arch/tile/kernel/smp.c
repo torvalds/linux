@@ -36,6 +36,22 @@ static unsigned long __iomem *ipi_mappings[NR_CPUS];
 /* Set by smp_send_stop() to avoid recursive panics. */
 static int stopping_cpus;
 
+static void __send_IPI_many(HV_Recipient *recip, int nrecip, int tag)
+{
+	int sent = 0;
+	while (sent < nrecip) {
+		int rc = hv_send_message(recip, nrecip,
+					 (HV_VirtAddr)&tag, sizeof(tag));
+		if (rc < 0) {
+			if (!stopping_cpus)  /* avoid recursive panic */
+				panic("hv_send_message returned %d", rc);
+			break;
+		}
+		WARN_ONCE(rc == 0, "hv_send_message() returned zero\n");
+		sent += rc;
+	}
+}
+
 void send_IPI_single(int cpu, int tag)
 {
 	HV_Recipient recip = {
@@ -43,14 +59,13 @@ void send_IPI_single(int cpu, int tag)
 		.x = cpu % smp_width,
 		.state = HV_TO_BE_SENT
 	};
-	int rc = hv_send_message(&recip, 1, (HV_VirtAddr)&tag, sizeof(tag));
-	BUG_ON(rc <= 0);
+	__send_IPI_many(&recip, 1, tag);
 }
 
 void send_IPI_many(const struct cpumask *mask, int tag)
 {
 	HV_Recipient recip[NR_CPUS];
-	int cpu, sent;
+	int cpu;
 	int nrecip = 0;
 	int my_cpu = smp_processor_id();
 	for_each_cpu(cpu, mask) {
@@ -61,17 +76,7 @@ void send_IPI_many(const struct cpumask *mask, int tag)
 		r->x = cpu % smp_width;
 		r->state = HV_TO_BE_SENT;
 	}
-	sent = 0;
-	while (sent < nrecip) {
-		int rc = hv_send_message(recip, nrecip,
-					 (HV_VirtAddr)&tag, sizeof(tag));
-		if (rc <= 0) {
-			if (!stopping_cpus)  /* avoid recursive panic */
-				panic("hv_send_message returned %d", rc);
-			break;
-		}
-		sent += rc;
-	}
+	__send_IPI_many(recip, nrecip, tag);
 }
 
 void send_IPI_allbutself(int tag)
@@ -184,12 +189,8 @@ void flush_icache_range(unsigned long start, unsigned long end)
 /* Called when smp_send_reschedule() triggers IRQ_RESCHEDULE. */
 static irqreturn_t handle_reschedule_ipi(int irq, void *token)
 {
-	/*
-	 * Nothing to do here; when we return from interrupt, the
-	 * rescheduling will occur there. But do bump the interrupt
-	 * profiler count in the meantime.
-	 */
 	__get_cpu_var(irq_stat).irq_resched_count++;
+	scheduler_ipi();
 
 	return IRQ_HANDLED;
 }

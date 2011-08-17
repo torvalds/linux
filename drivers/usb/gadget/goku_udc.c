@@ -38,6 +38,7 @@
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -995,8 +996,14 @@ static int goku_get_frame(struct usb_gadget *_gadget)
 	return -EOPNOTSUPP;
 }
 
+static int goku_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int goku_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops goku_ops = {
 	.get_frame	= goku_get_frame,
+	.start		= goku_start,
+	.stop		= goku_stop,
 	// no remote wakeup
 	// not selfpowered
 };
@@ -1343,7 +1350,7 @@ static struct goku_udc	*the_controller;
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int goku_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct goku_udc	*dev = the_controller;
@@ -1381,7 +1388,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	DBG(dev, "registered gadget driver '%s'\n", driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void
 stop_activity(struct goku_udc *dev, struct usb_gadget_driver *driver)
@@ -1407,7 +1413,7 @@ stop_activity(struct goku_udc *dev, struct usb_gadget_driver *driver)
 		udc_enable(dev);
 }
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int goku_stop(struct usb_gadget_driver *driver)
 {
 	struct goku_udc	*dev = the_controller;
 	unsigned long	flags;
@@ -1428,8 +1434,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	DBG(dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -1729,6 +1733,8 @@ static void goku_remove(struct pci_dev *pdev)
 
 	DBG(dev, "%s\n", __func__);
 
+	usb_del_gadget_udc(&dev->gadget);
+
 	BUG_ON(dev->driver);
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
@@ -1853,6 +1859,10 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err;
 	}
 	dev->registered = 1;
+	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	if (retval)
+		goto err;
+
 	return 0;
 
 err:

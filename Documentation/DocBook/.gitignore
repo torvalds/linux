@@ -8,3 +8,7 @@
 *.dvi
 *.log
 *.out
+*.png
+*.gif
+media-indices.tmpl
+media-entities.tmpl

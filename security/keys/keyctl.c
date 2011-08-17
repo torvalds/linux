@@ -206,8 +206,14 @@ SYSCALL_DEFINE4(request_key, const char __user *, _type,
 		goto error5;
 	}
 
+	/* wait for the key to finish being constructed */
+	ret = wait_for_key_construction(key, 1);
+	if (ret < 0)
+		goto error6;
+
 	ret = key->serial;
 
+error6:
  	key_put(key);
 error5:
 	key_type_put(ktype);
@@ -913,6 +919,21 @@ static int keyctl_change_reqkey_auth(struct key *key)
 }
 
 /*
+ * Copy the iovec data from userspace
+ */
+static long copy_from_user_iovec(void *buffer, const struct iovec *iov,
+				 unsigned ioc)
+{
+	for (; ioc > 0; ioc--) {
+		if (copy_from_user(buffer, iov->iov_base, iov->iov_len) != 0)
+			return -EFAULT;
+		buffer += iov->iov_len;
+		iov++;
+	}
+	return 0;
+}
+
+/*
  * Instantiate a key with the specified payload and link the key into the
  * destination keyring if one is given.
  *
@@ -921,10 +942,11 @@ static int keyctl_change_reqkey_auth(struct key *key)
  *
  * If successful, 0 will be returned.
  */
-long keyctl_instantiate_key(key_serial_t id,
-			    const void __user *_payload,
-			    size_t plen,
-			    key_serial_t ringid)
+long keyctl_instantiate_key_common(key_serial_t id,
+				   const struct iovec *payload_iov,
+				   unsigned ioc,
+				   size_t plen,
+				   key_serial_t ringid)
 {
 	const struct cred *cred = current_cred();
 	struct request_key_auth *rka;
@@ -953,7 +975,7 @@ long keyctl_instantiate_key(key_serial_t id,
 	/* pull the payload in if one was supplied */
 	payload = NULL;
 
-	if (_payload) {
+	if (payload_iov) {
 		ret = -ENOMEM;
 		payload = kmalloc(plen, GFP_KERNEL);
 		if (!payload) {
@@ -965,8 +987,8 @@ long keyctl_instantiate_key(key_serial_t id,
 				goto error;
 		}
 
-		ret = -EFAULT;
-		if (copy_from_user(payload, _payload, plen) != 0)
+		ret = copy_from_user_iovec(payload, payload_iov, ioc);
+		if (ret < 0)
 			goto error2;
 	}
 
@@ -997,6 +1019,72 @@ error:
 }
 
 /*
+ * Instantiate a key with the specified payload and link the key into the
+ * destination keyring if one is given.
+ *
+ * The caller must have the appropriate instantiation permit set for this to
+ * work (see keyctl_assume_authority).  No other permissions are required.
+ *
+ * If successful, 0 will be returned.
+ */
+long keyctl_instantiate_key(key_serial_t id,
+			    const void __user *_payload,
+			    size_t plen,
+			    key_serial_t ringid)
+{
+	if (_payload && plen) {
+		struct iovec iov[1] = {
+			[0].iov_base = (void __user *)_payload,
+			[0].iov_len  = plen
+		};
+
+		return keyctl_instantiate_key_common(id, iov, 1, plen, ringid);
+	}
+
+	return keyctl_instantiate_key_common(id, NULL, 0, 0, ringid);
+}
+
+/*
+ * Instantiate a key with the specified multipart payload and link the key into
+ * the destination keyring if one is given.
+ *
+ * The caller must have the appropriate instantiation permit set for this to
+ * work (see keyctl_assume_authority).  No other permissions are required.
+ *
+ * If successful, 0 will be returned.
+ */
+long keyctl_instantiate_key_iov(key_serial_t id,
+				const struct iovec __user *_payload_iov,
+				unsigned ioc,
+				key_serial_t ringid)
+{
+	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
+	long ret;
+
+	if (_payload_iov == 0 || ioc == 0)
+		goto no_payload;
+
+	ret = rw_copy_check_uvector(WRITE, _payload_iov, ioc,
+				    ARRAY_SIZE(iovstack), iovstack, &iov);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		goto no_payload_free;
+
+	ret = keyctl_instantiate_key_common(id, iov, ioc, ret, ringid);
+
+	if (iov != iovstack)
+		kfree(iov);
+	return ret;
+
+no_payload_free:
+	if (iov != iovstack)
+		kfree(iov);
+no_payload:
+	return keyctl_instantiate_key_common(id, NULL, 0, 0, ringid);
+}
+
+/*
  * Negatively instantiate the key with the given timeout (in seconds) and link
  * the key into the destination keyring if one is given.
  *
@@ -1013,12 +1101,42 @@ error:
  */
 long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 {
+	return keyctl_reject_key(id, timeout, ENOKEY, ringid);
+}
+
+/*
+ * Negatively instantiate the key with the given timeout (in seconds) and error
+ * code and link the key into the destination keyring if one is given.
+ *
+ * The caller must have the appropriate instantiation permit set for this to
+ * work (see keyctl_assume_authority).  No other permissions are required.
+ *
+ * The key and any links to the key will be automatically garbage collected
+ * after the timeout expires.
+ *
+ * Negative keys are used to rate limit repeated request_key() calls by causing
+ * them to return the specified error code until the negative key expires.
+ *
+ * If successful, 0 will be returned.
+ */
+long keyctl_reject_key(key_serial_t id, unsigned timeout, unsigned error,
+		       key_serial_t ringid)
+{
 	const struct cred *cred = current_cred();
 	struct request_key_auth *rka;
 	struct key *instkey, *dest_keyring;
 	long ret;
 
-	kenter("%d,%u,%d", id, timeout, ringid);
+	kenter("%d,%u,%u,%d", id, timeout, error, ringid);
+
+	/* must be a valid error code and mustn't be a kernel special */
+	if (error <= 0 ||
+	    error >= MAX_ERRNO ||
+	    error == ERESTARTSYS ||
+	    error == ERESTARTNOINTR ||
+	    error == ERESTARTNOHAND ||
+	    error == ERESTART_RESTARTBLOCK)
+		return -EINVAL;
 
 	/* the appropriate instantiation authorisation key must have been
 	 * assumed before calling this */
@@ -1038,7 +1156,7 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 		goto error;
 
 	/* instantiate the key and link it into a keyring */
-	ret = key_negate_and_link(rka->target_key, timeout,
+	ret = key_reject_and_link(rka->target_key, timeout, error,
 				  dest_keyring, instkey);
 
 	key_put(dest_keyring);
@@ -1491,6 +1609,19 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 	case KEYCTL_SESSION_TO_PARENT:
 		return keyctl_session_to_parent();
+
+	case KEYCTL_REJECT:
+		return keyctl_reject_key((key_serial_t) arg2,
+					 (unsigned) arg3,
+					 (unsigned) arg4,
+					 (key_serial_t) arg5);
+
+	case KEYCTL_INSTANTIATE_IOV:
+		return keyctl_instantiate_key_iov(
+			(key_serial_t) arg2,
+			(const struct iovec __user *) arg3,
+			(unsigned) arg4,
+			(key_serial_t) arg5);
 
 	default:
 		return -EOPNOTSUPP;

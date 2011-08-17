@@ -33,7 +33,7 @@
 
 #define ERST_DBG_PFX			"ERST DBG: "
 
-#define ERST_DBG_RECORD_LEN_MAX		4096
+#define ERST_DBG_RECORD_LEN_MAX		0x4000
 
 static void *erst_dbg_buf;
 static unsigned int erst_dbg_buf_len;
@@ -43,10 +43,25 @@ static DEFINE_MUTEX(erst_dbg_mutex);
 
 static int erst_dbg_open(struct inode *inode, struct file *file)
 {
+	int rc, *pos;
+
 	if (erst_disable)
 		return -ENODEV;
 
+	pos = (int *)&file->private_data;
+
+	rc = erst_get_record_id_begin(pos);
+	if (rc)
+		return rc;
+
 	return nonseekable_open(inode, file);
+}
+
+static int erst_dbg_release(struct inode *inode, struct file *file)
+{
+	erst_get_record_id_end();
+
+	return 0;
 }
 
 static long erst_dbg_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
@@ -79,18 +94,20 @@ static long erst_dbg_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 static ssize_t erst_dbg_read(struct file *filp, char __user *ubuf,
 			     size_t usize, loff_t *off)
 {
-	int rc;
+	int rc, *pos;
 	ssize_t len = 0;
 	u64 id;
 
-	if (*off != 0)
+	if (*off)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&erst_dbg_mutex) != 0)
 		return -EINTR;
 
+	pos = (int *)&filp->private_data;
+
 retry_next:
-	rc = erst_get_next_record_id(&id);
+	rc = erst_get_record_id_next(pos, &id);
 	if (rc)
 		goto out;
 	/* no more record */
@@ -181,6 +198,7 @@ out:
 static const struct file_operations erst_dbg_ops = {
 	.owner		= THIS_MODULE,
 	.open		= erst_dbg_open,
+	.release	= erst_dbg_release,
 	.read		= erst_dbg_read,
 	.write		= erst_dbg_write,
 	.unlocked_ioctl	= erst_dbg_ioctl,
@@ -195,6 +213,10 @@ static struct miscdevice erst_dbg_dev = {
 
 static __init int erst_dbg_init(void)
 {
+	if (erst_disable) {
+		pr_info(ERST_DBG_PFX "ERST support is disabled.\n");
+		return -ENODEV;
+	}
 	return misc_register(&erst_dbg_dev);
 }
 

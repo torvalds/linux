@@ -39,8 +39,6 @@ u32 iop13xx_atue_mem_base;
 u32 iop13xx_atux_mem_base;
 size_t iop13xx_atue_mem_size;
 size_t iop13xx_atux_mem_size;
-unsigned long iop13xx_pcibios_min_io = 0;
-unsigned long iop13xx_pcibios_min_mem = 0;
 
 EXPORT_SYMBOL(iop13xx_atue_mem_base);
 EXPORT_SYMBOL(iop13xx_atux_mem_base);
@@ -225,7 +223,7 @@ static u32 iop13xx_atue_cfg_address(struct pci_bus *bus, int devfn, int where)
 /* This routine checks the status of the last configuration cycle.  If an error
  * was detected it returns >0, else it returns a 0.  The errors being checked
  * are parity, master abort, target abort (master and target).  These types of
- * errors occure during a config cycle where there is no device, like during
+ * errors occur during a config cycle where there is no device, like during
  * the discovery stage.
  */
 static int iop13xx_atux_pci_status(int clear)
@@ -332,7 +330,7 @@ static struct pci_ops iop13xx_atux_ops = {
 /* This routine checks the status of the last configuration cycle.  If an error
  * was detected it returns >0, else it returns a 0.  The errors being checked
  * are parity, master abort, target abort (master and target).  These types of
- * errors occure during a config cycle where there is no device, like during
+ * errors occur during a config cycle where there is no device, like during
  * the discovery stage.
  */
 static int iop13xx_atue_pci_status(int clear)
@@ -390,7 +388,7 @@ static int iop13xx_atue_pci_status(int clear)
 }
 
 static int
-iop13xx_pcie_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
+iop13xx_pcie_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	WARN_ON(idsel != 0);
 
@@ -971,7 +969,8 @@ void __init iop13xx_pci_init(void)
 	__raw_writel(__raw_readl(IOP13XX_XBG_BECSR) & 3, IOP13XX_XBG_BECSR);
 
 	/* Setup the Min Address for PCI memory... */
-	iop13xx_pcibios_min_mem = IOP13XX_PCIX_LOWER_MEM_BA;
+	pcibios_min_io = 0;
+	pcibios_min_mem = IOP13XX_PCIX_LOWER_MEM_BA;
 
 	/* if Linux is given control of an ATU
 	 * clear out its prior configuration,

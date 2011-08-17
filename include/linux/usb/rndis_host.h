@@ -256,6 +256,8 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 #define FLAG_RNDIS_PHYM_NOT_WIRELESS	0x0001
 #define FLAG_RNDIS_PHYM_WIRELESS	0x0002
 
+/* Flags for driver_info::data */
+#define RNDIS_DRIVER_DATA_POLL_STATUS	1	/* poll status before control */
 
 extern void rndis_status(struct usbnet *dev, struct urb *urb);
 extern int

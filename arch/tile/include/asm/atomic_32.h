@@ -11,7 +11,7 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  *
- * Do not include directly; use <asm/atomic.h>.
+ * Do not include directly; use <linux/atomic.h>.
  */
 
 #ifndef _ASM_TILE_ATOMIC_32_H
@@ -21,7 +21,7 @@
 
 #ifndef __ASSEMBLY__
 
-/* Tile-specific routines to support <asm/atomic.h>. */
+/* Tile-specific routines to support <linux/atomic.h>. */
 int _atomic_xchg(atomic_t *v, int n);
 int _atomic_xchg_add(atomic_t *v, int i);
 int _atomic_xchg_add_unless(atomic_t *v, int a, int u);
@@ -81,18 +81,18 @@ static inline int atomic_add_return(int i, atomic_t *v)
 }
 
 /**
- * atomic_add_unless - add unless the number is already a given value
+ * __atomic_add_unless - add unless the number is already a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as @v was not already @u.
- * Returns non-zero if @v was not @u, and zero otherwise.
+ * Returns the old value of @v.
  */
-static inline int atomic_add_unless(atomic_t *v, int a, int u)
+static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	smp_mb();  /* barrier for proper semantics */
-	return _atomic_xchg_add_unless(v, a, u) != u;
+	return _atomic_xchg_add_unless(v, a, u);
 }
 
 /**
@@ -109,16 +109,6 @@ static inline void atomic_set(atomic_t *v, int n)
 {
 	_atomic_xchg(v, n);
 }
-
-#define xchg(ptr, x) ((typeof(*(ptr))) \
-  ((sizeof(*(ptr)) == sizeof(atomic_t)) ? \
-   atomic_xchg((atomic_t *)(ptr), (long)(x)) : \
-   __xchg_called_with_bad_pointer()))
-
-#define cmpxchg(ptr, o, n) ((typeof(*(ptr))) \
-  ((sizeof(*(ptr)) == sizeof(atomic_t)) ? \
-   atomic_cmpxchg((atomic_t *)(ptr), (long)(o), (long)(n)) : \
-   __cmpxchg_called_with_bad_pointer()))
 
 /* A 64bit atomic type */
 
@@ -209,7 +199,7 @@ static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as @v was not already @u.
- * Returns non-zero if @v was not @u, and zero otherwise.
+ * Returns the old value of @v.
  */
 static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
 {

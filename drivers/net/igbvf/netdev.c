@@ -41,10 +41,11 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 
 #include "igbvf.h"
 
-#define DRV_VERSION "1.0.8-k0"
+#define DRV_VERSION "2.0.0-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
@@ -99,12 +100,12 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
                               struct sk_buff *skb,
                               u32 status, u16 vlan)
 {
-	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-		                         le16_to_cpu(vlan) &
-		                         E1000_RXD_SPC_VLAN_MASK);
-	else
-		netif_receive_skb(skb);
+	if (status & E1000_RXD_STAT_VP) {
+		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
+	netif_receive_skb(skb);
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -394,35 +395,6 @@ static void igbvf_put_txbuf(struct igbvf_adapter *adapter,
 		buffer_info->skb = NULL;
 	}
 	buffer_info->time_stamp = 0;
-}
-
-static void igbvf_print_tx_hang(struct igbvf_adapter *adapter)
-{
-	struct igbvf_ring *tx_ring = adapter->tx_ring;
-	unsigned int i = tx_ring->next_to_clean;
-	unsigned int eop = tx_ring->buffer_info[i].next_to_watch;
-	union e1000_adv_tx_desc *eop_desc = IGBVF_TX_DESC_ADV(*tx_ring, eop);
-
-	/* detected Tx unit hang */
-	dev_err(&adapter->pdev->dev,
-	        "Detected Tx Unit Hang:\n"
-	        "  TDH                  <%x>\n"
-	        "  TDT                  <%x>\n"
-	        "  next_to_use          <%x>\n"
-	        "  next_to_clean        <%x>\n"
-	        "buffer_info[next_to_clean]:\n"
-	        "  time_stamp           <%lx>\n"
-	        "  next_to_watch        <%x>\n"
-	        "  jiffies              <%lx>\n"
-	        "  next_to_watch.status <%x>\n",
-	        readl(adapter->hw.hw_addr + tx_ring->head),
-	        readl(adapter->hw.hw_addr + tx_ring->tail),
-	        tx_ring->next_to_use,
-	        tx_ring->next_to_clean,
-	        tx_ring->buffer_info[eop].time_stamp,
-	        eop,
-	        jiffies,
-	        eop_desc->wb.status);
 }
 
 /**
@@ -771,7 +743,6 @@ static void igbvf_set_itr(struct igbvf_adapter *adapter)
 static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 {
 	struct igbvf_adapter *adapter = tx_ring->adapter;
-	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct igbvf_buffer *buffer_info;
 	struct sk_buff *skb;
@@ -832,22 +803,6 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		}
 	}
 
-	if (adapter->detect_tx_hung) {
-		/* Detect a transmit hang in hardware, this serializes the
-		 * check with the clearing of time_stamp and movement of i */
-		adapter->detect_tx_hung = false;
-		if (tx_ring->buffer_info[i].time_stamp &&
-		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp +
-		               (adapter->tx_timeout_factor * HZ)) &&
-		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
-
-			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
-			/* detected Tx unit hang */
-			igbvf_print_tx_hang(adapter);
-
-			netif_stop_queue(netdev);
-		}
-	}
 	adapter->net_stats.tx_bytes += total_bytes;
 	adapter->net_stats.tx_packets += total_packets;
 	return count < tx_ring->count;
@@ -1212,12 +1167,10 @@ static int igbvf_poll(struct napi_struct *napi, int budget)
  */
 static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 {
-	int max_frame_size = adapter->max_frame_size;
+	int max_frame_size;
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (adapter->vlgrp)
-		max_frame_size += VLAN_TAG_SIZE;
-
+	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
 	e1000_rlpml_set_vf(hw, max_frame_size);
 }
 
@@ -1228,6 +1181,8 @@ static void igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 
 	if (hw->mac.ops.set_vfta(hw, vid, true))
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
+	else
+		set_bit(vid, adapter->active_vlans);
 }
 
 static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -1236,7 +1191,6 @@ static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct e1000_hw *hw = &adapter->hw;
 
 	igbvf_irq_disable(adapter);
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		igbvf_irq_enable(adapter);
@@ -1244,30 +1198,16 @@ static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	if (hw->mac.ops.set_vfta(hw, vid, false))
 		dev_err(&adapter->pdev->dev,
 		        "Failed to remove vlan id %d\n", vid);
-}
-
-static void igbvf_vlan_rx_register(struct net_device *netdev,
-                                   struct vlan_group *grp)
-{
-	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	adapter->vlgrp = grp;
+	else
+		clear_bit(vid, adapter->active_vlans);
 }
 
 static void igbvf_restore_vlan(struct igbvf_adapter *adapter)
 {
 	u16 vid;
 
-	if (!adapter->vlgrp)
-		return;
-
-	for (vid = 0; vid < VLAN_N_VID; vid++) {
-		if (!vlan_group_get_device(adapter->vlgrp, vid))
-			continue;
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
 		igbvf_vlan_rx_add_vid(adapter->netdev, vid);
-	}
-
-	igbvf_set_rlpml(adapter);
 }
 
 /**
@@ -1286,6 +1226,7 @@ static void igbvf_configure_tx(struct igbvf_adapter *adapter)
 	/* disable transmits */
 	txdctl = er32(TXDCTL(0));
 	ew32(TXDCTL(0), txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+	e1e_flush();
 	msleep(10);
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
@@ -1366,6 +1307,7 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	/* disable receives */
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+	e1e_flush();
 	msleep(10);
 
 	rdlen = rx_ring->count * sizeof(union e1000_adv_rx_desc);
@@ -1863,17 +1805,6 @@ static void igbvf_watchdog_task(struct work_struct *work)
 			                          &adapter->link_duplex);
 			igbvf_print_link_info(adapter);
 
-			/* adjust timeout factor according to speed/duplex */
-			adapter->tx_timeout_factor = 1;
-			switch (adapter->link_speed) {
-			case SPEED_10:
-				adapter->tx_timeout_factor = 16;
-				break;
-			case SPEED_100:
-				/* maybe add some timeout factor ? */
-				break;
-			}
-
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
 		}
@@ -1906,9 +1837,6 @@ static void igbvf_watchdog_task(struct work_struct *work)
 
 	/* Cause software interrupt to ensure Rx ring is cleaned */
 	ew32(EICS, adapter->rx_ring->eims_value);
-
-	/* Force detection of hung controller every watchdog period */
-	adapter->detect_tx_hung = 1;
 
 	/* Reset the timer */
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
@@ -2262,7 +2190,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGBVF_TX_FLAGS_VLAN;
 		tx_flags |= (vlan_tx_tag_get(skb) << IGBVF_TX_FLAGS_VLAN_SHIFT);
 	}
@@ -2287,7 +2215,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	/*
 	 * count reflects descriptors mapped, if 0 then mapping error
-	 * has occured and we need to rewind the descriptor queue
+	 * has occurred and we need to rewind the descriptor queue
 	 */
 	count = igbvf_tx_map_adv(adapter, tx_ring, skb, first);
 
@@ -2615,7 +2543,6 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_change_mtu                 = igbvf_change_mtu,
 	.ndo_do_ioctl                   = igbvf_ioctl,
 	.ndo_tx_timeout                 = igbvf_tx_timeout,
-	.ndo_vlan_rx_register           = igbvf_vlan_rx_register,
 	.ndo_vlan_rx_add_vid            = igbvf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid           = igbvf_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2699,8 +2626,7 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_device_id = pdev->subsystem_device;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
+	hw->revision_id = pdev->revision;
 
 	err = -EIO;
 	adapter->hw.hw_addr = ioremap(pci_resource_start(pdev, 0),

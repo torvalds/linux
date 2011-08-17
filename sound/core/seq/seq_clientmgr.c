@@ -1052,7 +1052,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 		} else {
 #ifdef CONFIG_COMPAT
 			if (client->convert32 && snd_seq_ev_is_varusr(&event)) {
-				void *ptr = compat_ptr(event.data.raw32.d[1]);
+				void *ptr = (void __force *)compat_ptr(event.data.raw32.d[1]);
 				event.data.ext.ptr = ptr;
 			}
 #endif
@@ -2407,7 +2407,7 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 	if (client == NULL)
 		return -ENXIO;
 	fs = snd_enter_user();
-	result = snd_seq_do_ioctl(client, cmd, (void __user *)arg);
+	result = snd_seq_do_ioctl(client, cmd, (void __force __user *)arg);
 	snd_leave_user(fs);
 	return result;
 }
@@ -2496,9 +2496,6 @@ static void snd_seq_info_dump_ports(struct snd_info_buffer *buffer,
 	mutex_unlock(&client->ports_mutex);
 }
 
-
-void snd_seq_info_pool(struct snd_info_buffer *buffer,
-		       struct snd_seq_pool *pool, char *space);
 
 /* exported to seq_info.c */
 void snd_seq_info_clients_read(struct snd_info_entry *entry, 

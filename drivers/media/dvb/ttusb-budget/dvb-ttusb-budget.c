@@ -52,7 +52,7 @@
     my TTUSB, so let it undef'd unless you want to implement another
     frontend. never tested.
 
-  DEBUG:
+  debug:
     define it to > 3 for really hardcore debugging. you probably don't want
     this unless the device doesn't load at all. > 2 for bandwidth statistics.
 */
@@ -134,20 +134,19 @@ struct ttusb {
 /* ugly workaround ... don't know why it's necessary to read */
 /* all result codes. */
 
-#define DEBUG 0
 static int ttusb_cmd(struct ttusb *ttusb,
 	      const u8 * data, int len, int needresult)
 {
 	int actual_len;
 	int err;
-#if DEBUG >= 3
 	int i;
 
-	printk(">");
-	for (i = 0; i < len; ++i)
-		printk(" %02x", data[i]);
-	printk("\n");
-#endif
+	if (debug >= 3) {
+		printk(KERN_DEBUG ">");
+		for (i = 0; i < len; ++i)
+			printk(KERN_CONT " %02x", data[i]);
+		printk(KERN_CONT "\n");
+	}
 
 	if (mutex_lock_interruptible(&ttusb->semusb) < 0)
 		return -EAGAIN;
@@ -176,13 +175,15 @@ static int ttusb_cmd(struct ttusb *ttusb,
 		mutex_unlock(&ttusb->semusb);
 		return err;
 	}
-#if DEBUG >= 3
-	actual_len = ttusb->last_result[3] + 4;
-	printk("<");
-	for (i = 0; i < actual_len; ++i)
-		printk(" %02x", ttusb->last_result[i]);
-	printk("\n");
-#endif
+
+	if (debug >= 3) {
+		actual_len = ttusb->last_result[3] + 4;
+		printk(KERN_DEBUG "<");
+		for (i = 0; i < actual_len; ++i)
+			printk(KERN_CONT " %02x", ttusb->last_result[i]);
+		printk(KERN_CONT "\n");
+	}
+
 	if (!needresult)
 		mutex_unlock(&ttusb->semusb);
 	return 0;
@@ -334,6 +335,7 @@ static int ttusb_boot_dsp(struct ttusb *ttusb)
 	err = ttusb_cmd(ttusb, b, 4, 0);
 
       done:
+	release_firmware(fw);
 	if (err) {
 		dprintk("%s: usb_bulk_msg() failed, return value %i!\n",
 			__func__, err);
@@ -635,16 +637,13 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 				++ttusb->mux_state;
 			else {
 				ttusb->mux_state = 0;
-#if DEBUG > 3
-				if (ttusb->insync)
-					printk("%02x ", data[-1]);
-#else
 				if (ttusb->insync) {
-					printk("%s: lost sync.\n",
+					dprintk("%s: %02x\n",
+						__func__, data[-1]);
+					printk(KERN_INFO "%s: lost sync.\n",
 					       __func__);
 					ttusb->insync = 0;
 				}
-#endif
 			}
 			break;
 		case 3:
@@ -743,6 +742,9 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 static void ttusb_iso_irq(struct urb *urb)
 {
 	struct ttusb *ttusb = urb->context;
+	struct usb_iso_packet_descriptor *d;
+	u8 *data;
+	int len, i;
 
 	if (!ttusb->iso_streaming)
 		return;
@@ -754,21 +756,14 @@ static void ttusb_iso_irq(struct urb *urb)
 #endif
 
 	if (!urb->status) {
-		int i;
 		for (i = 0; i < urb->number_of_packets; ++i) {
-			struct usb_iso_packet_descriptor *d;
-			u8 *data;
-			int len;
 			numpkt++;
 			if (time_after_eq(jiffies, lastj + HZ)) {
-#if DEBUG > 2
-				printk
-				    ("frames/s: %d (ts: %d, stuff %d, sec: %d, invalid: %d, all: %d)\n",
-				     numpkt * HZ / (jiffies - lastj),
-				     numts, numstuff, numsec, numinvalid,
-				     numts + numstuff + numsec +
-				     numinvalid);
-#endif
+				dprintk("frames/s: %lu (ts: %d, stuff %d, "
+					"sec: %d, invalid: %d, all: %d)\n",
+					numpkt * HZ / (jiffies - lastj),
+					numts, numstuff, numsec, numinvalid,
+					numts + numstuff + numsec + numinvalid);
 				numts = numstuff = numsec = numinvalid = 0;
 				lastj = jiffies;
 				numpkt = 0;

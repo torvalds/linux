@@ -1366,7 +1366,7 @@ error:
 /* The values below are based on the OnStream frame payload size of 32K == 2**15,
  * that is, OSST_FRAME_SHIFT + OSST_SECTOR_SHIFT must be 15. With a minimum block
  * size of 512 bytes, we need to be able to resolve 32K/512 == 64 == 2**6 positions
- * inside each frame. Finaly, OSST_SECTOR_MASK == 2**OSST_FRAME_SHIFT - 1.
+ * inside each frame. Finally, OSST_SECTOR_MASK == 2**OSST_FRAME_SHIFT - 1.
  */
 #define OSST_FRAME_SHIFT  6
 #define OSST_SECTOR_SHIFT 9
@@ -1484,7 +1484,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 	int			dbg              = debugging;
 #endif
 
-	if ((buffer = (unsigned char *)vmalloc((nframes + 1) * OS_DATA_SIZE)) == NULL)
+	if ((buffer = vmalloc((nframes + 1) * OS_DATA_SIZE)) == NULL)
 		return (-EIO);
 
 	printk(KERN_INFO "%s:I: Reading back %d frames from drive buffer%s\n",
@@ -2296,7 +2296,7 @@ static int osst_write_header(struct osst_tape * STp, struct osst_request ** aSRp
 	if (STp->raw) return 0;
 
 	if (STp->header_cache == NULL) {
-		if ((STp->header_cache = (os_header_t *)vmalloc(sizeof(os_header_t))) == NULL) {
+		if ((STp->header_cache = vmalloc(sizeof(os_header_t))) == NULL) {
 			printk(KERN_ERR "%s:E: Failed to allocate header cache\n", name);
 			return (-ENOMEM);
 		}
@@ -2484,7 +2484,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 				   name, ppos, update_frame_cntr);
 #endif
 		if (STp->header_cache == NULL) {
-			if ((STp->header_cache = (os_header_t *)vmalloc(sizeof(os_header_t))) == NULL) {
+			if ((STp->header_cache = vmalloc(sizeof(os_header_t))) == NULL) {
 				printk(KERN_ERR "%s:E: Failed to allocate header cache\n", name);
 				return 0;
 			}
@@ -3131,7 +3131,7 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 		}
 #if DEBUG
 		if (debugging)
-			printk(OSST_DEB_MSG "%s:D: Flushing %d bytes, Transfering %d bytes in %d lblocks.\n",
+			printk(OSST_DEB_MSG "%s:D: Flushing %d bytes, Transferring %d bytes in %d lblocks.\n",
 			  			 name, offset, transfer, blks);
 #endif
 
@@ -3811,7 +3811,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 			if (transfer == 0) {
 				printk(KERN_WARNING
-				  "%s:W: Nothing can be transfered, requested %Zd, tape block size (%d%c).\n",
+				  "%s:W: Nothing can be transferred, requested %Zd, tape block size (%d%c).\n",
 			   		name, count, STp->block_size < 1024?
 					STp->block_size:STp->block_size/1024,
 				       	STp->block_size<1024?'b':'k');
@@ -4698,12 +4698,14 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 			break;
 
 			if ((SRpnt->sense[2] & 0x0f) == UNIT_ATTENTION) {
+				int j;
+
 				STp->pos_unknown = 0;
 				STp->partition = STp->new_partition = 0;
 				if (STp->can_partitions)
 					STp->nbr_partitions = 1;  /* This guess will be updated later if necessary */
-				for (i=0; i < ST_NBR_PARTITIONS; i++) {
-					STps = &(STp->ps[i]);
+				for (j = 0; j < ST_NBR_PARTITIONS; j++) {
+					STps = &(STp->ps[j]);
 					STps->rw = ST_IDLE;
 					STps->eof = ST_NOEOF;
 					STps->at_sm = 0;
@@ -5851,9 +5853,7 @@ static int osst_probe(struct device *dev)
 	/* if this is the first attach, build the infrastructure */
 	write_lock(&os_scsi_tapes_lock);
 	if (os_scsi_tapes == NULL) {
-		os_scsi_tapes =
-			(struct osst_tape **)kmalloc(osst_max_dev * sizeof(struct osst_tape *),
-				   GFP_ATOMIC);
+		os_scsi_tapes = kmalloc(osst_max_dev * sizeof(struct osst_tape *), GFP_ATOMIC);
 		if (os_scsi_tapes == NULL) {
 			write_unlock(&os_scsi_tapes_lock);
 			printk(KERN_ERR "osst :E: Unable to allocate array for OnStream SCSI tapes.\n");

@@ -124,7 +124,7 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hcd->rsrc_start = res_mem->start;
-	hcd->rsrc_len = res_mem->end - res_mem->start + 1;
+	hcd->rsrc_len = resource_size(res_mem);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				OCTEON_EHCI_HCD_NAME)) {
@@ -151,7 +151,7 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 

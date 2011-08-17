@@ -378,26 +378,32 @@ static void xenbus_dev_release(struct device *dev)
 		kfree(to_xenbus_device(dev));
 }
 
-static ssize_t xendev_show_nodename(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t nodename_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->nodename);
 }
-static DEVICE_ATTR(nodename, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_nodename, NULL);
 
-static ssize_t xendev_show_devtype(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t devtype_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->devicetype);
 }
-static DEVICE_ATTR(devtype, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_devtype, NULL);
 
-static ssize_t xendev_show_modalias(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "xen:%s\n", to_xenbus_device(dev)->devicetype);
+	return sprintf(buf, "%s:%s\n", dev->bus->name,
+		       to_xenbus_device(dev)->devicetype);
 }
-static DEVICE_ATTR(modalias, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_modalias, NULL);
+
+struct device_attribute xenbus_dev_attrs[] = {
+	__ATTR_RO(nodename),
+	__ATTR_RO(devtype),
+	__ATTR_RO(modalias),
+	__ATTR_NULL
+};
+EXPORT_SYMBOL_GPL(xenbus_dev_attrs);
 
 int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,
@@ -449,25 +455,7 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 	if (err)
 		goto fail;
 
-	err = device_create_file(&xendev->dev, &dev_attr_nodename);
-	if (err)
-		goto fail_unregister;
-
-	err = device_create_file(&xendev->dev, &dev_attr_devtype);
-	if (err)
-		goto fail_remove_nodename;
-
-	err = device_create_file(&xendev->dev, &dev_attr_modalias);
-	if (err)
-		goto fail_remove_devtype;
-
 	return 0;
-fail_remove_devtype:
-	device_remove_file(&xendev->dev, &dev_attr_devtype);
-fail_remove_nodename:
-	device_remove_file(&xendev->dev, &dev_attr_nodename);
-fail_unregister:
-	device_unregister(&xendev->dev);
 fail:
 	kfree(xendev);
 	return err;
@@ -577,7 +565,7 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_changed);
 
-int xenbus_dev_suspend(struct device *dev, pm_message_t state)
+int xenbus_dev_suspend(struct device *dev)
 {
 	int err = 0;
 	struct xenbus_driver *drv;
@@ -590,7 +578,7 @@ int xenbus_dev_suspend(struct device *dev, pm_message_t state)
 		return 0;
 	drv = to_xenbus_driver(dev->driver);
 	if (drv->suspend)
-		err = drv->suspend(xdev, state);
+		err = drv->suspend(xdev);
 	if (err)
 		printk(KERN_WARNING
 		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
@@ -641,6 +629,14 @@ int xenbus_dev_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_resume);
+
+int xenbus_dev_cancel(struct device *dev)
+{
+	/* Do nothing */
+	DPRINTK("cancel");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xenbus_dev_cancel);
 
 /* A flag to determine if xenstored is 'ready' (i.e. has started) */
 int xenstored_ready = 0;

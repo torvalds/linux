@@ -85,7 +85,7 @@ int update_persistent_clock(struct timespec now)
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
+ * as well as call the "xtime_update()" routine every clocktick
  */
 
 #define TICK_SIZE (tick_nsec / 1000)
@@ -96,14 +96,9 @@ static irqreturn_t timer_interrupt(int dummy, void *dev_id)
 	profile_tick(CPU_PROFILING);
 #endif
 
-	/* Protect counter clear so that do_gettimeoffset works */
-	write_seqlock(&xtime_lock);
-
 	clear_clock_irq();
 
-	do_timer(1);
-
-	write_sequnlock(&xtime_lock);
+	xtime_update(1);
 
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
@@ -142,12 +137,16 @@ static struct platform_device m48t59_rtc = {
 	},
 };
 
-static int __devinit clock_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit clock_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
 
 	if (!model)
+		return -ENODEV;
+
+	/* Only the primary RTC has an address property */
+	if (!of_find_property(dp, "address", NULL))
 		return -ENODEV;
 
 	m48t59_rtc.resource = &op->resource[0];
@@ -169,14 +168,14 @@ static int __devinit clock_probe(struct platform_device *op, const struct of_dev
 	return 0;
 }
 
-static struct of_device_id __initdata clock_match[] = {
+static struct of_device_id clock_match[] = {
 	{
 		.name = "eeprom",
 	},
 	{},
 };
 
-static struct of_platform_driver clock_driver = {
+static struct platform_driver clock_driver = {
 	.probe		= clock_probe,
 	.driver = {
 		.name = "rtc",
@@ -189,7 +188,7 @@ static struct of_platform_driver clock_driver = {
 /* Probe for the mostek real time clock chip. */
 static int __init clock_init(void)
 {
-	return of_register_platform_driver(&clock_driver);
+	return platform_driver_register(&clock_driver);
 }
 /* Must be after subsys_initcall() so that busses are probed.  Must
  * be before device_initcall() because things like the RTC driver
@@ -224,19 +223,15 @@ static void __init sbus_time_init(void)
 
 	btfixup();
 
-	sparc_init_timers(timer_interrupt);
+	sparc_irq_config.init_timers(timer_interrupt);
 }
 
 void __init time_init(void)
 {
-#ifdef CONFIG_PCI
-	extern void pci_time_init(void);
-	if (pcic_present()) {
+	if (pcic_present())
 		pci_time_init();
-		return;
-	}
-#endif
-	sbus_time_init();
+	else
+		sbus_time_init();
 }
 
 

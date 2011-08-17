@@ -186,10 +186,11 @@ static int viocd_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	return ret;
 }
 
-static int viocd_blk_media_changed(struct gendisk *disk)
+static unsigned int viocd_blk_check_events(struct gendisk *disk,
+					   unsigned int clearing)
 {
 	struct disk_info *di = disk->private_data;
-	return cdrom_media_changed(&di->viocd_info);
+	return cdrom_check_events(&di->viocd_info, clearing);
 }
 
 static const struct block_device_operations viocd_fops = {
@@ -197,7 +198,7 @@ static const struct block_device_operations viocd_fops = {
 	.open =			viocd_blk_open,
 	.release =		viocd_blk_release,
 	.ioctl =		viocd_blk_ioctl,
-	.media_changed =	viocd_blk_media_changed,
+	.check_events =		viocd_blk_check_events,
 };
 
 static int viocd_open(struct cdrom_device_info *cdi, int purpose)
@@ -320,7 +321,8 @@ static void do_viocd_request(struct request_queue *q)
 	}
 }
 
-static int viocd_media_changed(struct cdrom_device_info *cdi, int disc_nr)
+static unsigned int viocd_check_events(struct cdrom_device_info *cdi,
+				       unsigned int clearing, int disc_nr)
 {
 	struct viocd_waitevent we;
 	HvLpEvent_Rc hvrc;
@@ -340,7 +342,7 @@ static int viocd_media_changed(struct cdrom_device_info *cdi, int disc_nr)
 	if (hvrc != 0) {
 		pr_warning("bad rc on HvCallEvent_signalLpEventFast %d\n",
 			   (int)hvrc);
-		return -EIO;
+		return 0;
 	}
 
 	wait_for_completion(&we.com);
@@ -354,7 +356,7 @@ static int viocd_media_changed(struct cdrom_device_info *cdi, int disc_nr)
 		return 0;
 	}
 
-	return we.changed;
+	return we.changed ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static int viocd_lock_door(struct cdrom_device_info *cdi, int locking)
@@ -550,7 +552,7 @@ static int viocd_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
 static struct cdrom_device_ops viocd_dops = {
 	.open = viocd_open,
 	.release = viocd_release,
-	.media_changed = viocd_media_changed,
+	.check_events = viocd_check_events,
 	.lock_door = viocd_lock_door,
 	.generic_packet = viocd_packet,
 	.audio_ioctl = viocd_audio_ioctl,
@@ -623,7 +625,8 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	blk_queue_max_hw_sectors(q, 4096 / 512);
 	gendisk->queue = q;
 	gendisk->fops = &viocd_fops;
-	gendisk->flags = GENHD_FL_CD|GENHD_FL_REMOVABLE;
+	gendisk->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE |
+			 GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
 	set_capacity(gendisk, 0);
 	gendisk->private_data = d;
 	d->viocd_disk = gendisk;

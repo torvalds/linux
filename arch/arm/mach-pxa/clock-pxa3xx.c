@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/smemc.h>
 #include <mach/pxa3xx-regs.h>
@@ -182,7 +183,7 @@ const struct clkops clk_pxa3xx_pout_ops = {
 static uint32_t cken[2];
 static uint32_t accr;
 
-static int pxa3xx_clock_suspend(struct sys_device *d, pm_message_t state)
+static int pxa3xx_clock_suspend(void)
 {
 	cken[0] = CKENA;
 	cken[1] = CKENB;
@@ -190,28 +191,18 @@ static int pxa3xx_clock_suspend(struct sys_device *d, pm_message_t state)
 	return 0;
 }
 
-static int pxa3xx_clock_resume(struct sys_device *d)
+static void pxa3xx_clock_resume(void)
 {
 	ACCR = accr;
 	CKENA = cken[0];
 	CKENB = cken[1];
-	return 0;
 }
 #else
 #define pxa3xx_clock_suspend	NULL
 #define pxa3xx_clock_resume	NULL
 #endif
 
-struct sysdev_class pxa3xx_clock_sysclass = {
-	.name		= "pxa3xx-clock",
+struct syscore_ops pxa3xx_clock_syscore_ops = {
 	.suspend	= pxa3xx_clock_suspend,
 	.resume		= pxa3xx_clock_resume,
 };
-
-static int __init pxa3xx_clock_init(void)
-{
-	if (cpu_is_pxa3xx() || cpu_is_pxa95x())
-		return sysdev_class_register(&pxa3xx_clock_sysclass);
-	return 0;
-}
-postcore_initcall(pxa3xx_clock_init);

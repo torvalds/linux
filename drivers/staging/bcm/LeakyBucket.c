@@ -213,7 +213,7 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "For Queue: %zd\n", psSF-Adapter->PackInfo);
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "\nAvailable Tokens = %d required = %d\n",
 					psSF->uiCurrentTokenCount, iPacketLen);
-				//this part indicates that becuase of non-availability of the tokens
+				//this part indicates that because of non-availability of the tokens
 				//pkt has not been send out hence setting the pending flag indicating the host to send it out
 				//first next iteration  .
 				psSF->uiPendedLast = TRUE;

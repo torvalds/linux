@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/prefetch.h>
 #include  <linux/io.h>
 
 #include <asm/irq.h>
@@ -440,7 +441,7 @@ union ring_type {
 #define NV_RX3_VLAN_TAG_PRESENT (1<<16)
 #define NV_RX3_VLAN_TAG_MASK	(0x0000FFFF)
 
-/* Miscelaneous hardware related defines: */
+/* Miscellaneous hardware related defines: */
 #define NV_PCI_REGSZ_VER1	0x270
 #define NV_PCI_REGSZ_VER2	0x2d4
 #define NV_PCI_REGSZ_VER3	0x604
@@ -774,7 +775,6 @@ struct fe_priv {
 	u32 driver_data;
 	u32 device_id;
 	u32 register_size;
-	int rx_csum;
 	u32 mac_in_use;
 	int mgmt_version;
 	int mgmt_sema;
@@ -819,9 +819,6 @@ struct fe_priv {
 	struct nv_skb_map *tx_change_owner;
 	struct nv_skb_map *tx_end_flip;
 	int tx_stop;
-
-	/* vlan fields */
-	struct vlan_group *vlangrp;
 
 	/* msi/msi-x fields */
 	u32 msi_flags;
@@ -1488,7 +1485,7 @@ static int phy_init(struct net_device *dev)
 		}
 	}
 
-	/* some phys clear out pause advertisment on reset, set it back */
+	/* some phys clear out pause advertisement on reset, set it back */
 	mii_rw(dev, np->phyaddr, MII_ADVERTISE, reg);
 
 	/* restart auto negotiation, power down phy */
@@ -2535,7 +2532,7 @@ static void nv_tx_timeout(struct net_device *dev)
 	else
 		nv_tx_done_optimized(dev, np->tx_ring_size);
 
-	/* save current HW postion */
+	/* save current HW position */
 	if (np->tx_change_owner)
 		put_tx.ex = np->tx_change_owner->first_tx_desc;
 	else
@@ -2766,17 +2763,20 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			skb->protocol = eth_type_trans(skb, dev);
 			prefetch(skb->data);
 
-			if (likely(!np->vlangrp)) {
-				napi_gro_receive(&np->napi, skb);
-			} else {
-				vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
-				if (vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
-					vlan_gro_receive(&np->napi, np->vlangrp,
-							 vlanflags & NV_RX3_VLAN_TAG_MASK, skb);
-				} else {
-					napi_gro_receive(&np->napi, skb);
-				}
+			vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
+
+			/*
+			 * There's need to check for NETIF_F_HW_VLAN_RX here.
+			 * Even if vlan rx accel is disabled,
+			 * NV_RX3_VLAN_TAG_PRESENT is pseudo randomly set.
+			 */
+			if (dev->features & NETIF_F_HW_VLAN_RX &&
+			    vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
+				u16 vid = vlanflags & NV_RX3_VLAN_TAG_MASK;
+
+				__vlan_hwaccel_put_tag(skb, vid);
 			}
+			napi_gro_receive(&np->napi, skb);
 
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += len;
@@ -3956,6 +3956,7 @@ static int nv_set_wol(struct net_device *dev, struct ethtool_wolinfo *wolinfo)
 static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct fe_priv *np = netdev_priv(dev);
+	u32 speed;
 	int adv;
 
 	spin_lock_irq(&np->lock);
@@ -3975,23 +3976,26 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (netif_carrier_ok(dev)) {
 		switch (np->linkspeed & (NVREG_LINKSPEED_MASK)) {
 		case NVREG_LINKSPEED_10:
-			ecmd->speed = SPEED_10;
+			speed = SPEED_10;
 			break;
 		case NVREG_LINKSPEED_100:
-			ecmd->speed = SPEED_100;
+			speed = SPEED_100;
 			break;
 		case NVREG_LINKSPEED_1000:
-			ecmd->speed = SPEED_1000;
+			speed = SPEED_1000;
+			break;
+		default:
+			speed = -1;
 			break;
 		}
 		ecmd->duplex = DUPLEX_HALF;
 		if (np->duplex)
 			ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		speed = -1;
 		ecmd->duplex = -1;
 	}
-
+	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = np->autoneg;
 
 	ecmd->advertising = ADVERTISED_MII;
@@ -4030,6 +4034,7 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct fe_priv *np = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(ecmd);
 
 	if (ecmd->port != PORT_MII)
 		return -EINVAL;
@@ -4053,9 +4058,9 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	} else if (ecmd->autoneg == AUTONEG_DISABLE) {
 		/* Note: autonegotiation disable, speed 1000 intentionally
-		 * forbidden - noone should need that. */
+		 * forbidden - no one should need that. */
 
-		if (ecmd->speed != SPEED_10 && ecmd->speed != SPEED_100)
+		if (speed != SPEED_10 && speed != SPEED_100)
 			return -EINVAL;
 		if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 			return -EINVAL;
@@ -4103,7 +4108,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			adv |= ADVERTISE_100HALF;
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
 			adv |= ADVERTISE_100FULL;
-		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ)  /* for rx we set both advertisments but disable tx pause */
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ)  /* for rx we set both advertisements but disable tx pause */
 			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
 			adv |=  ADVERTISE_PAUSE_ASYM;
@@ -4139,16 +4144,16 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
 		adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_HALF)
+		if (speed == SPEED_10 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_10HALF;
-		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_FULL)
+		if (speed == SPEED_10 && ecmd->duplex == DUPLEX_FULL)
 			adv |= ADVERTISE_10FULL;
-		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_HALF)
+		if (speed == SPEED_100 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_100HALF;
-		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
+		if (speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
 			adv |= ADVERTISE_100FULL;
 		np->pause_flags &= ~(NV_PAUSEFRAME_AUTONEG|NV_PAUSEFRAME_RX_ENABLE|NV_PAUSEFRAME_TX_ENABLE);
-		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) {/* for rx we set both advertisments but disable tx pause */
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) {/* for rx we set both advertisements but disable tx pause */
 			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 			np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
 		}
@@ -4262,16 +4267,6 @@ static int nv_nway_reset(struct net_device *dev)
 	}
 
 	return ret;
-}
-
-static int nv_set_tso(struct net_device *dev, u32 value)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if ((np->driver_data & DEV_HAS_CHECKSUM))
-		return ethtool_op_set_tso(dev, value);
-	else
-		return -EOPNOTSUPP;
 }
 
 static void nv_get_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
@@ -4449,7 +4444,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
 		adv &= ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) /* for rx we set both advertisments but disable tx pause */
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) /* for rx we set both advertisements but disable tx pause */
 			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
 			adv |=  ADVERTISE_PAUSE_ASYM;
@@ -4480,58 +4475,60 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	return 0;
 }
 
-static u32 nv_get_rx_csum(struct net_device *dev)
+static u32 nv_fix_features(struct net_device *dev, u32 features)
 {
-	struct fe_priv *np = netdev_priv(dev);
-	return np->rx_csum != 0;
+	/* vlan is dependent on rx checksum offload */
+	if (features & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
+		features |= NETIF_F_RXCSUM;
+
+	return features;
 }
 
-static int nv_set_rx_csum(struct net_device *dev, u32 data)
+static void nv_vlan_mode(struct net_device *dev, u32 features)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+
+	spin_lock_irq(&np->lock);
+
+	if (features & NETIF_F_HW_VLAN_RX)
+		np->txrxctl_bits |= NVREG_TXRXCTL_VLANSTRIP;
+	else
+		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANSTRIP;
+
+	if (features & NETIF_F_HW_VLAN_TX)
+		np->txrxctl_bits |= NVREG_TXRXCTL_VLANINS;
+	else
+		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANINS;
+
+	writel(np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
+
+	spin_unlock_irq(&np->lock);
+}
+
+static int nv_set_features(struct net_device *dev, u32 features)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int retcode = 0;
+	u32 changed = dev->features ^ features;
 
-	if (np->driver_data & DEV_HAS_CHECKSUM) {
-		if (data) {
-			np->rx_csum = 1;
+	if (changed & NETIF_F_RXCSUM) {
+		spin_lock_irq(&np->lock);
+
+		if (features & NETIF_F_RXCSUM)
 			np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
-		} else {
-			np->rx_csum = 0;
-			/* vlan is dependent on rx checksum offload */
-			if (!(np->vlanctl_bits & NVREG_VLANCONTROL_ENABLE))
-				np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
-		}
-		if (netif_running(dev)) {
-			spin_lock_irq(&np->lock);
+		else
+			np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
+
+		if (netif_running(dev))
 			writel(np->txrxctl_bits, base + NvRegTxRxControl);
-			spin_unlock_irq(&np->lock);
-		}
-	} else {
-		return -EINVAL;
+
+		spin_unlock_irq(&np->lock);
 	}
 
-	return retcode;
-}
+	if (changed & (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX))
+		nv_vlan_mode(dev, features);
 
-static int nv_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if (np->driver_data & DEV_HAS_CHECKSUM)
-		return ethtool_op_set_tx_csum(dev, data);
-	else
-		return -EOPNOTSUPP;
-}
-
-static int nv_set_sg(struct net_device *dev, u32 data)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if (np->driver_data & DEV_HAS_CHECKSUM)
-		return ethtool_op_set_sg(dev, data);
-	else
-		return -EOPNOTSUPP;
+	return 0;
 }
 
 static int nv_get_sset_count(struct net_device *dev, int sset)
@@ -4896,43 +4893,15 @@ static const struct ethtool_ops ops = {
 	.get_regs_len = nv_get_regs_len,
 	.get_regs = nv_get_regs,
 	.nway_reset = nv_nway_reset,
-	.set_tso = nv_set_tso,
 	.get_ringparam = nv_get_ringparam,
 	.set_ringparam = nv_set_ringparam,
 	.get_pauseparam = nv_get_pauseparam,
 	.set_pauseparam = nv_set_pauseparam,
-	.get_rx_csum = nv_get_rx_csum,
-	.set_rx_csum = nv_set_rx_csum,
-	.set_tx_csum = nv_set_tx_csum,
-	.set_sg = nv_set_sg,
 	.get_strings = nv_get_strings,
 	.get_ethtool_stats = nv_get_ethtool_stats,
 	.get_sset_count = nv_get_sset_count,
 	.self_test = nv_self_test,
 };
-
-static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
-{
-	struct fe_priv *np = get_nvpriv(dev);
-
-	spin_lock_irq(&np->lock);
-
-	/* save vlan group */
-	np->vlangrp = grp;
-
-	if (grp) {
-		/* enable vlan on MAC */
-		np->txrxctl_bits |= NVREG_TXRXCTL_VLANSTRIP | NVREG_TXRXCTL_VLANINS;
-	} else {
-		/* disable vlan on MAC */
-		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANSTRIP;
-		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANINS;
-	}
-
-	writel(np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
-
-	spin_unlock_irq(&np->lock);
-}
 
 /* The mgmt unit and driver use a semaphore to access the phy during init */
 static int nv_mgmt_acquire_sema(struct net_device *dev)
@@ -5235,10 +5204,11 @@ static const struct net_device_ops nv_netdev_ops = {
 	.ndo_start_xmit		= nv_start_xmit,
 	.ndo_tx_timeout		= nv_tx_timeout,
 	.ndo_change_mtu		= nv_change_mtu,
+	.ndo_fix_features	= nv_fix_features,
+	.ndo_set_features	= nv_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= nv_set_mac_address,
 	.ndo_set_multicast_list	= nv_set_multicast,
-	.ndo_vlan_rx_register	= nv_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= nv_poll_controller,
 #endif
@@ -5251,10 +5221,11 @@ static const struct net_device_ops nv_netdev_ops_optimized = {
 	.ndo_start_xmit		= nv_start_xmit_optimized,
 	.ndo_tx_timeout		= nv_tx_timeout,
 	.ndo_change_mtu		= nv_change_mtu,
+	.ndo_fix_features	= nv_fix_features,
+	.ndo_set_features	= nv_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= nv_set_mac_address,
 	.ndo_set_multicast_list	= nv_set_multicast,
-	.ndo_vlan_rx_register	= nv_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= nv_poll_controller,
 #endif
@@ -5364,18 +5335,18 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->pkt_limit = NV_PKTLIMIT_2;
 
 	if (id->driver_data & DEV_HAS_CHECKSUM) {
-		np->rx_csum = 1;
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		dev->features |= NETIF_F_TSO;
-		dev->features |= NETIF_F_GRO;
+		dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_SG |
+			NETIF_F_TSO | NETIF_F_RXCSUM;
 	}
 
 	np->vlanctl_bits = 0;
 	if (id->driver_data & DEV_HAS_VLAN) {
 		np->vlanctl_bits = NVREG_VLANCONTROL_ENABLE;
-		dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
+		dev->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
 	}
+
+	dev->features |= dev->hw_features;
 
 	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE | NV_PAUSEFRAME_RX_REQ | NV_PAUSEFRAME_AUTONEG;
 	if ((id->driver_data & DEV_HAS_PAUSEFRAME_TX_V1) ||
@@ -5383,7 +5354,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	    (id->driver_data & DEV_HAS_PAUSEFRAME_TX_V3)) {
 		np->pause_flags |= NV_PAUSEFRAME_TX_CAPABLE | NV_PAUSEFRAME_TX_REQ;
 	}
-
 
 	err = -ENOMEM;
 	np->base = ioremap(addr, np->register_size);
@@ -5645,6 +5615,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		goto out_error;
 	}
 
+	nv_vlan_mode(dev, dev->features);
+
 	netif_carrier_off(dev);
 
 	dev_info(&pci_dev->dev, "ifname %s, PHY OUI 0x%x @ %d, addr %pM\n",
@@ -5744,7 +5716,7 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int nv_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -5795,6 +5767,11 @@ static int nv_resume(struct device *device)
 static SIMPLE_DEV_PM_OPS(nv_pm_ops, nv_suspend, nv_resume);
 #define NV_PM_OPS (&nv_pm_ops)
 
+#else
+#define NV_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
 static void nv_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -5822,7 +5799,6 @@ static void nv_shutdown(struct pci_dev *pdev)
 	}
 }
 #else
-#define NV_PM_OPS NULL
 #define nv_shutdown NULL
 #endif /* CONFIG_PM */
 

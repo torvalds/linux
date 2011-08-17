@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -27,8 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
@@ -37,6 +35,7 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
+#include <linux/stringify.h>
 
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
@@ -45,13 +44,12 @@
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
-#include "iwl-agn-led.h"
 #include "iwl-agn-hw.h"
 #include "iwl-5000-hw.h"
-#include "iwl-agn-debugfs.h"
+#include "iwl-trans.h"
 
 /* Highest firmware API version supported */
-#define IWL5000_UCODE_API_MAX 2
+#define IWL5000_UCODE_API_MAX 5
 #define IWL5150_UCODE_API_MAX 2
 
 /* Lowest firmware API version supported */
@@ -59,34 +57,19 @@
 #define IWL5150_UCODE_API_MIN 1
 
 #define IWL5000_FW_PRE "iwlwifi-5000-"
-#define _IWL5000_MODULE_FIRMWARE(api) IWL5000_FW_PRE #api ".ucode"
-#define IWL5000_MODULE_FIRMWARE(api) _IWL5000_MODULE_FIRMWARE(api)
+#define IWL5000_MODULE_FIRMWARE(api) IWL5000_FW_PRE __stringify(api) ".ucode"
 
 #define IWL5150_FW_PRE "iwlwifi-5150-"
-#define _IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE #api ".ucode"
-#define IWL5150_MODULE_FIRMWARE(api) _IWL5150_MODULE_FIRMWARE(api)
+#define IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE __stringify(api) ".ucode"
 
 /* NIC configuration for 5000 series */
 static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	u16 radio_cfg;
+
+	iwl_rf_config(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
-
-	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
-
-	/* write radio config values to register */
-	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) < EEPROM_RF_CONFIG_TYPE_MAX)
-		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
-			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
-			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
-
-	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
@@ -168,13 +151,12 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 
 static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
@@ -185,10 +167,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
-	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
@@ -214,13 +194,12 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
@@ -231,10 +210,8 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
-	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
@@ -263,7 +240,7 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 	u32 vt = 0;
 	s32 offset =  iwl_temp_calib_to_offset(priv);
 
-	vt = le32_to_cpu(priv->_agn.statistics.general.common.temperature);
+	vt = le32_to_cpu(priv->statistics.common.temperature);
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
 	/* now vt hold the temperature in Kelvin */
 	priv->temperature = KELVIN_TO_CELSIUS(vt);
@@ -288,9 +265,9 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	struct ieee80211_vif *vif = ctx->vif;
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
-		.len = sizeof(cmd),
+		.len = { sizeof(cmd), },
 		.flags = CMD_SYNC,
-		.data = &cmd,
+		.data = { &cmd, },
 	};
 
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
@@ -337,39 +314,14 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 			ctx->active.channel, ch);
 		return -EFAULT;
 	}
-	priv->switch_rxon.channel = cmd.channel;
-	priv->switch_rxon.switch_in_progress = true;
 
-	return iwl_send_cmd_sync(priv, &hcmd);
+	return trans_send_cmd(&priv->trans, &hcmd);
 }
 
 static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
-	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
-	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
-	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_agg_enable = iwlagn_txq_agg_enable,
-	.txq_agg_disable = iwlagn_txq_agg_disable,
-	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
-	.txq_free_tfd = iwl_hw_txq_free_tfd,
-	.txq_init = iwl_hw_tx_queue_init,
-	.rx_handler_setup = iwlagn_rx_handler_setup,
-	.setup_deferred_work = iwlagn_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.dump_nic_event_log = iwl_dump_nic_event_log,
-	.dump_nic_error_log = iwl_dump_nic_error_log,
-	.dump_csr = iwl_dump_csr,
-	.dump_fh = iwl_dump_fh,
-	.load_ucode = iwlagn_load_ucode,
-	.init_alive_start = iwlagn_init_alive_start,
-	.alive_notify = iwlagn_alive_notify,
-	.send_tx_power = iwlagn_send_tx_power,
-	.update_chain_flags = iwl_update_chain_flags,
 	.set_channel_switch = iwl5000_hw_channel_switch,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl5000_nic_config,
-	},
+	.nic_config = iwl5000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -380,65 +332,14 @@ static struct iwl_lib_ops iwl5000_lib = {
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
-		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwlagn_eeprom_calib_version,
-		.query_addr = iwlagn_eeprom_query_addr,
 	},
-	.isr_ops = {
-		.isr = iwl_isr_ict,
-		.free = iwl_free_isr_ict,
-		.alloc = iwl_alloc_isr_ict,
-		.reset = iwl_reset_ict,
-		.disable = iwl_disable_ict,
-	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
-	.debugfs_ops = {
-		.rx_stats_read = iwl_ucode_rx_stats_read,
-		.tx_stats_read = iwl_ucode_tx_stats_read,
-		.general_stats_read = iwl_ucode_general_stats_read,
-		.bt_stats_read = iwl_ucode_bt_stats_read,
-		.reply_tx_error = iwl_reply_tx_error_read,
-	},
-	.check_plcp_health = iwl_good_plcp_health,
-	.check_ack_health = iwl_good_ack_health,
-	.txfifo_flush = iwlagn_txfifo_flush,
-	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
+	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
-	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
-	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
-	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_agg_enable = iwlagn_txq_agg_enable,
-	.txq_agg_disable = iwlagn_txq_agg_disable,
-	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
-	.txq_free_tfd = iwl_hw_txq_free_tfd,
-	.txq_init = iwl_hw_tx_queue_init,
-	.rx_handler_setup = iwlagn_rx_handler_setup,
-	.setup_deferred_work = iwlagn_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.dump_nic_event_log = iwl_dump_nic_event_log,
-	.dump_nic_error_log = iwl_dump_nic_error_log,
-	.dump_csr = iwl_dump_csr,
-	.load_ucode = iwlagn_load_ucode,
-	.init_alive_start = iwlagn_init_alive_start,
-	.alive_notify = iwlagn_alive_notify,
-	.send_tx_power = iwlagn_send_tx_power,
-	.update_chain_flags = iwl_update_chain_flags,
 	.set_channel_switch = iwl5000_hw_channel_switch,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl5000_nic_config,
-	},
+	.nic_config = iwl5000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -449,53 +350,8 @@ static struct iwl_lib_ops iwl5150_lib = {
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
-		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwlagn_eeprom_calib_version,
-		.query_addr = iwlagn_eeprom_query_addr,
 	},
-	.isr_ops = {
-		.isr = iwl_isr_ict,
-		.free = iwl_free_isr_ict,
-		.alloc = iwl_alloc_isr_ict,
-		.reset = iwl_reset_ict,
-		.disable = iwl_disable_ict,
-	},
-	.temp_ops = {
-		.temperature = iwl5150_temperature,
-	 },
-	.debugfs_ops = {
-		.rx_stats_read = iwl_ucode_rx_stats_read,
-		.tx_stats_read = iwl_ucode_tx_stats_read,
-		.general_stats_read = iwl_ucode_general_stats_read,
-		.bt_stats_read = iwl_ucode_bt_stats_read,
-		.reply_tx_error = iwl_reply_tx_error_read,
-	},
-	.check_plcp_health = iwl_good_plcp_health,
-	.check_ack_health = iwl_good_ack_health,
-	.txfifo_flush = iwlagn_txfifo_flush,
-	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
-};
-
-static const struct iwl_ops iwl5000_ops = {
-	.lib = &iwl5000_lib,
-	.hcmd = &iwlagn_hcmd,
-	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
-};
-
-static const struct iwl_ops iwl5150_ops = {
-	.lib = &iwl5150_lib,
-	.hcmd = &iwlagn_hcmd,
-	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
+	.temperature = iwl5150_temperature,
 };
 
 static struct iwl_base_params iwl5000_base_params = {
@@ -503,21 +359,16 @@ static struct iwl_base_params iwl5000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
-	.use_bsm = false,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.no_idle_support = true,
 };
 static struct iwl_ht_params iwl5000_ht_params = {
 	.ht_greenfield_support = true,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
 };
 
 #define IWL_DEVICE_5000						\
@@ -526,14 +377,16 @@ static struct iwl_ht_params iwl5000_ht_params = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,	\
-	.ops = &iwl5000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
+	.lib = &iwl5000_lib,					\
 	.base_params = &iwl5000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
 struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
 	IWL_DEVICE_5000,
+	/* at least EEPROM 0x11A has wrong info */
+	.valid_tx_ant = ANT_ABC,	/* .cfg overwrite */
+	.valid_rx_ant = ANT_ABC,	/* .cfg overwrite */
 	.ht_params = &iwl5000_ht_params,
 };
 
@@ -567,8 +420,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.ops = &iwl5000_ops,
-	.mod_params = &iwlagn_mod_params,
+	.lib = &iwl5000_lib,
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
 	.led_mode = IWL_LED_BLINK,
@@ -581,8 +433,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ucode_api_min = IWL5150_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
-	.ops = &iwl5150_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
+	.lib = &iwl5150_lib,					\
 	.base_params = &iwl5000_base_params,			\
 	.need_dc_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\

@@ -9,7 +9,7 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  *
- * SCU runing in ARC processor communicates with other entity running in IA
+ * SCU running in ARC processor communicates with other entity running in IA
  * core through IPC mechanism which in turn messaging between IA core ad SCU.
  * SCU has two IPC mechanism IPC-1 and IPC-2. IPC-1 is used between IA32 and
  * SCU where IPC-2 is used between P-Unit and SCU. This driver delas with
@@ -725,7 +725,7 @@ static void ipc_remove(struct pci_dev *pdev)
 	intel_scu_devices_destroy();
 }
 
-static const struct pci_device_id pci_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080e)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x082a)},
 	{ 0,}

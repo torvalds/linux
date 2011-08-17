@@ -258,7 +258,7 @@ config USB_NET_NET1080
 	  optionally with LEDs that indicate traffic
 
 config USB_NET_PLUSB
-	tristate "Prolific PL-2301/2302 based cables"
+	tristate "Prolific PL-2301/2302/25A1 based cables"
 	# if the handshake/init/reset problems, from original 'plusb',
 	# are ever resolved ... then remove "experimental"
 	depends on USB_USBNET && EXPERIMENTAL
@@ -385,6 +385,16 @@ config USB_NET_CX82310_ETH
 	  router with USB ethernet port. This driver is for routers only,
 	  it will not work with ADSL modems (use cxacru driver instead).
 
+config USB_NET_KALMIA
+	tristate "Samsung Kalmia based LTE USB modem"
+	depends on USB_USBNET
+	help
+	  Choose this option if you have a Samsung Kalmia based USB modem
+	  as Samsung GT-B3730.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kalmia.
+
 config USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
 	depends on USB && RFKILL
@@ -432,5 +442,20 @@ config USB_SIERRA_NET
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra_net.
+
+config USB_VL600
+	tristate "LG VL600 modem dongle"
+	depends on USB_NET_CDCETHER
+	select USB_ACM
+	help
+	  Select this if you want to use an LG Electronics 4G/LTE usb modem
+	  called VL600.  This driver only handles the ethernet
+	  interface exposed by the modem firmware.  To establish a connection
+	  you will first need a userspace program that sends the right
+	  command to the modem through its CDC ACM port, and most
+	  likely also a DHCP client.  See this thread about using the
+	  4G modem from Verizon:
+
+	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
 
 endmenu

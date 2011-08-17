@@ -8,6 +8,7 @@ config 64BIT
 
 config X86_32
 	def_bool !64BIT
+	select CLKSRC_I8253
 
 config X86_64
 	def_bool 64BIT
@@ -16,11 +17,10 @@ config X86_64
 config X86
 	def_bool y
 	select HAVE_AOUT if X86_32
-	select HAVE_READQ
-	select HAVE_WRITEQ
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_IRQ_WORK
 	select HAVE_IOREMAP_PROT
@@ -64,9 +64,15 @@ config X86
 	select HAVE_TEXT_POKE_SMP
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_IRQ_SHOW
+	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_BPF_JIT if (X86_64 && NET)
+	select CLKEVT_I8253
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -90,6 +96,10 @@ config CLOCKSOURCE_WATCHDOG
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
+config ARCH_CLOCKSOURCE_DATA
+	def_bool y
+	depends on X86_64
+
 config GENERIC_CLOCKEVENTS_BROADCAST
 	def_bool y
 	depends on X86_64 || (X86_32 && X86_LOCAL_APIC)
@@ -107,7 +117,14 @@ config MMU
 	def_bool y
 
 config ZONE_DMA
-	def_bool y
+	bool "DMA memory allocation support" if EXPERT
+	default y
+	help
+	  DMA memory allocation support allows devices with less than 32-bit
+	  addressing to allocate within the first 16MB of address space.
+	  Disable if no such devices will be used.
+
+	  If unsure, say Y.
 
 config SBUS
 	bool
@@ -119,7 +136,7 @@ config NEED_SG_DMA_LENGTH
 	def_bool y
 
 config GENERIC_ISA_DMA
-	def_bool y
+	def_bool ISA_DMA_API
 
 config GENERIC_IOMAP
 	def_bool y
@@ -139,7 +156,7 @@ config GENERIC_GPIO
 	bool
 
 config ARCH_MAY_HAVE_PC_FDC
-	def_bool y
+	def_bool ISA_DMA_API
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool !X86_XADD
@@ -216,10 +233,6 @@ config X86_64_SMP
 config X86_HT
 	def_bool y
 	depends on SMP
-
-config X86_TRAMPOLINE
-	def_bool y
-	depends on SMP || (64BIT && ACPI_SLEEP)
 
 config X86_32_LAZY_GS
 	def_bool y
@@ -364,17 +377,6 @@ config X86_UV
 # Following is an alphabetically sorted list of 32 bit extended platforms
 # Please maintain the alphabetic order if and when there are additions
 
-config X86_ELAN
-	bool "AMD Elan"
-	depends on X86_32
-	depends on X86_EXTENDED_PLATFORM
-	---help---
-	  Select this for an AMD Elan processor.
-
-	  Do not use this option for K6/Athlon/Opteron processors!
-
-	  If unsure, choose "PC-compatible" instead.
-
 config X86_INTEL_CE
 	bool "CE4100 TV platform"
 	depends on PCI
@@ -382,17 +384,28 @@ config X86_INTEL_CE
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	select X86_REBOOTFIXUPS
+	select OF
+	select OF_EARLY_FLATTREE
 	---help---
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
 	  boxes and media devices.
 
+config X86_INTEL_MID
+	bool "Intel MID platform support"
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	---help---
+	  Select to build a kernel capable of supporting Intel MID platform
+	  systems which do not have the PCI legacy interfaces (Moorestown,
+	  Medfield). If you are building for a PC class system say N here.
+
+if X86_INTEL_MID
+
 config X86_MRST
        bool "Moorestown MID platform"
 	depends on PCI
 	depends on PCI_GOANY
-	depends on X86_32
-	depends on X86_EXTENDED_PLATFORM
 	depends on X86_IO_APIC
 	select APB_TIMER
 	select I2C
@@ -406,6 +419,8 @@ config X86_MRST
 	  Unlike standard x86 PCs, Moorestown does not have many legacy devices
 	  nor standard legacy replacement devices/features. e.g. Moorestown does
 	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
+
+endif
 
 config X86_RDC321X
 	bool "RDC R-321x SoC"
@@ -515,6 +530,18 @@ menuconfig PARAVIRT_GUEST
 
 if PARAVIRT_GUEST
 
+config PARAVIRT_TIME_ACCOUNTING
+	bool "Paravirtual steal time accounting"
+	select PARAVIRT
+	default n
+	---help---
+	  Select this option to enable fine granularity task steal time
+	  accounting. Time spent executing other tasks in parallel with
+	  the current vCPU is discounted from the vCPU power. To account for
+	  that, there can be a small performance impact.
+
+	  If in doubt, say N here.
+
 source "arch/x86/xen/Kconfig"
 
 config KVM_CLOCK
@@ -620,6 +647,7 @@ config HPET_EMULATE_RTC
 config APB_TIMER
        def_bool y if MRST
        prompt "Langwell APB Timer Support" if X86_MRST
+       select DW_APB_TIMER
        help
          APB timer is the replacement for 8254, HPET on X86 MID platforms.
          The APBT provides a stable time base on SMP
@@ -683,32 +711,6 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
 
-config AMD_IOMMU
-	bool "AMD IOMMU support"
-	select SWIOTLB
-	select PCI_MSI
-	depends on X86_64 && PCI && ACPI
-	---help---
-	  With this option you can enable support for AMD IOMMU hardware in
-	  your system. An IOMMU is a hardware component which provides
-	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
-	  can isolate the the DMA memory of different devices and protect the
-	  system from misbehaving device drivers or hardware.
-
-	  You can find out if your system has an AMD IOMMU if you look into
-	  your BIOS for an option to enable it or if you have an IVRS ACPI
-	  table.
-
-config AMD_IOMMU_STATS
-	bool "Export AMD IOMMU statistics to debugfs"
-	depends on AMD_IOMMU
-	select DEBUG_FS
-	---help---
-	  This option enables code in the AMD IOMMU driver to collect various
-	  statistics about whats happening in the driver and exports that
-	  information to userspace via debugfs.
-	  If unsure, say N.
-
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	def_bool y if X86_64
@@ -721,9 +723,6 @@ config SWIOTLB
 
 config IOMMU_HELPER
 	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU)
-
-config IOMMU_API
-	def_bool (AMD_IOMMU || DMAR)
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
@@ -811,7 +810,7 @@ config X86_LOCAL_APIC
 
 config X86_IO_APIC
 	def_bool y
-	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC
+	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC
 
 config X86_VISWS_APIC
 	def_bool y
@@ -916,6 +915,7 @@ config TOSHIBA
 
 config I8K
 	tristate "Dell laptop support"
+	select HWMON
 	---help---
 	  This adds a driver to safely access the System Management Mode
 	  of the CPU on the Dell Inspiron 8000. The System Management Mode
@@ -1198,7 +1198,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA_EMU
 	bool "NUMA emulation"
-	depends on X86_64 && NUMA
+	depends on NUMA
 	---help---
 	  Enable NUMA emulation. A flat machine will be split
 	  into virtual nodes when booted with "numa=fake=N", where N is the
@@ -1220,6 +1220,10 @@ config HAVE_ARCH_BOOTMEM
 	def_bool y
 	depends on X86_32 && NUMA
 
+config HAVE_ARCH_ALLOC_REMAP
+	def_bool y
+	depends on X86_32 && NUMA
+
 config ARCH_HAVE_MEMORY_PRESENT
 	def_bool y
 	depends on X86_32 && DISCONTIGMEM
@@ -1228,13 +1232,9 @@ config NEED_NODE_MEMMAP_SIZE
 	def_bool y
 	depends on X86_32 && (DISCONTIGMEM || SPARSEMEM)
 
-config HAVE_ARCH_ALLOC_REMAP
-	def_bool y
-	depends on X86_32 && NUMA
-
 config ARCH_FLATMEM_ENABLE
 	def_bool y
-	depends on X86_32 && ARCH_SELECT_MEMORY_MODEL && !NUMA
+	depends on X86_32 && !NUMA
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
@@ -1244,19 +1244,15 @@ config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on NUMA && X86_32
 
-config ARCH_PROC_KCORE_TEXT
-	def_bool y
-	depends on X86_64 && PROC_KCORE
-
-config ARCH_SPARSEMEM_DEFAULT
-	def_bool y
-	depends on X86_64
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	depends on X86_64 || NUMA || (EXPERIMENTAL && X86_32) || X86_32_NON_STANDARD
 	select SPARSEMEM_STATIC if X86_32
 	select SPARSEMEM_VMEMMAP_ENABLE if X86_64
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+	depends on X86_64
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
@@ -1265,6 +1261,10 @@ config ARCH_SELECT_MEMORY_MODEL
 config ARCH_MEMORY_PROBE
 	def_bool X86_64
 	depends on MEMORY_HOTPLUG
+
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+	depends on X86_64 && PROC_KCORE
 
 config ILLEGAL_POINTER_VALUE
        hex
@@ -1700,12 +1700,8 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
-config HAVE_ARCH_EARLY_PFN_TO_NID
-	def_bool X86_64
-	depends on NUMA
-
 config USE_PERCPU_NUMA_NODE_ID
-	def_bool X86_64
+	def_bool y
 	depends on NUMA
 
 menu "Power management and ACPI options"
@@ -1742,8 +1738,8 @@ menuconfig APM
 	  machines with more than one CPU.
 
 	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/power/pm.txt> and the
-	  Battery Powered Linux mini-HOWTO, available from
+	  and more information, read <file:Documentation/power/apm-acpi.txt>
+	  and the Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  This driver does not spin down disk drives (see the hdparm(8)
@@ -1845,7 +1841,7 @@ config APM_ALLOW_INTS
 
 endif # APM
 
-source "arch/x86/kernel/cpu/cpufreq/Kconfig"
+source "drivers/cpufreq/Kconfig"
 
 source "drivers/cpuidle/Kconfig"
 
@@ -1910,7 +1906,7 @@ config PCI_BIOS
 # x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT
 	def_bool y
-	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC))
+	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC || PCI_GOMMCONFIG))
 
 config PCI_MMCONFIG
 	def_bool y
@@ -1947,62 +1943,17 @@ config PCI_CNB20LE_QUIRK
 
 	  You should say N unless you know you need this.
 
-config DMAR
-	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
-	depends on PCI_MSI && ACPI && EXPERIMENTAL
-	help
-	  DMA remapping (DMAR) devices support enables independent address
-	  translations for Direct Memory Access (DMA) from devices.
-	  These DMA remapping devices are reported via ACPI tables
-	  and include PCI device scope covered by these DMA
-	  remapping devices.
-
-config DMAR_DEFAULT_ON
-	def_bool y
-	prompt "Enable DMA Remapping Devices by default"
-	depends on DMAR
-	help
-	  Selecting this option will enable a DMAR device at boot time if
-	  one is found. If this option is not selected, DMAR support can
-	  be enabled by passing intel_iommu=on to the kernel. It is
-	  recommended you say N here while the DMAR code remains
-	  experimental.
-
-config DMAR_BROKEN_GFX_WA
-	bool "Workaround broken graphics drivers (going away soon)"
-	depends on DMAR && BROKEN
-	---help---
-	  Current Graphics drivers tend to use physical address
-	  for DMA and avoid using DMA APIs. Setting this config
-	  option permits the IOMMU driver to set a unity map for
-	  all the OS-visible memory. Hence the driver can continue
-	  to use physical addresses for DMA, at least until this
-	  option is removed in the 2.6.32 kernel.
-
-config DMAR_FLOPPY_WA
-	def_bool y
-	depends on DMAR
-	---help---
-	  Floppy disk drivers are known to bypass DMA API calls
-	  thereby failing to work when IOMMU is enabled. This
-	  workaround will setup a 1:1 mapping for the first
-	  16MiB to make floppy (an ISA device) work.
-
-config INTR_REMAP
-	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
-	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
-	---help---
-	  Supports Interrupt remapping for IO-APIC and MSI devices.
-	  To use x2apic mode in the CPU's which support x2APIC enhancements or
-	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
-
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
 
-# x86_64 have no ISA slots, but do have ISA-style DMA.
+# x86_64 have no ISA slots, but can have ISA-style DMA.
 config ISA_DMA_API
-	def_bool y
+	bool "ISA-style DMA support" if (X86_64 && EXPERT)
+	default y
+	help
+	  Enables ISA-style DMA support for devices requiring such controllers.
+	  If unsure, say Y.
 
 if X86_32
 
@@ -2066,33 +2017,52 @@ config SCx200HR_TIMER
 
 config OLPC
 	bool "One Laptop Per Child support"
+	depends on !X86_PAE
 	select GPIOLIB
-	select OLPC_OPENFIRMWARE
-	depends on !X86_64 && !X86_PAE
+	select OF
+	select OF_PROMTREE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
 
-config OLPC_XO1
-	tristate "OLPC XO-1 support"
-	depends on OLPC && MFD_CS5535
+config OLPC_XO1_PM
+	bool "OLPC XO-1 Power Management"
+	depends on OLPC && MFD_CS5535 && PM_SLEEP
+	select MFD_CORE
 	---help---
-	  Add support for non-essential features of the OLPC XO-1 laptop.
+	  Add support for poweroff and suspend of the OLPC XO-1 laptop.
 
-config OLPC_OPENFIRMWARE
-	bool "Support for OLPC's Open Firmware"
-	depends on !X86_64 && !X86_PAE
-	default n
-	select OF
-	help
-	  This option adds support for the implementation of Open Firmware
-	  that is used on the OLPC XO-1 Children's Machine.
-	  If unsure, say N here.
+config OLPC_XO1_RTC
+	bool "OLPC XO-1 Real Time Clock"
+	depends on OLPC_XO1_PM && RTC_DRV_CMOS
+	---help---
+	  Add support for the XO-1 real time clock, which can be used as a
+	  programmable wakeup source.
 
-config OLPC_OPENFIRMWARE_DT
-	bool
-	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
-	select OF_PROMTREE
+config OLPC_XO1_SCI
+	bool "OLPC XO-1 SCI extras"
+	depends on OLPC && OLPC_XO1_PM
+	select POWER_SUPPLY
+	select GPIO_CS5535
+	select MFD_CORE
+	---help---
+	  Add support for SCI-based features of the OLPC XO-1 laptop:
+	   - EC-driven system wakeups
+	   - Power button
+	   - Ebook switch
+	   - Lid switch
+	   - AC adapter status updates
+	   - Battery status updates
+
+config OLPC_XO15_SCI
+	bool "OLPC XO-1.5 SCI extras"
+	depends on OLPC && ACPI
+	select POWER_SUPPLY
+	---help---
+	  Add support for SCI-based features of the OLPC XO-1.5 laptop:
+	   - EC-driven system wakeups
+	   - AC adapter status updates
+	   - Battery status updates
 
 endif # X86_32
 
@@ -2103,6 +2073,16 @@ config AMD_NB
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
+
+config RAPIDIO
+	bool "RapidIO support"
+	depends on PCI
+	default n
+	help
+	  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support RapidIO interconnect devices.
+
+source "drivers/rapidio/Kconfig"
 
 endmenu
 
@@ -2137,6 +2117,11 @@ config COMPAT_FOR_U64_ALIGNMENT
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
+
+config KEYS_COMPAT
+	bool
+	depends on COMPAT && KEYS
+	default y
 
 endmenu
 

@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef __SH_MMCIF_H__
-#define __SH_MMCIF_H__
+#ifndef LINUX_MMC_SH_MMCIF_H
+#define LINUX_MMC_SH_MMCIF_H
 
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -103,9 +103,6 @@ static inline void sh_mmcif_writel(void __iomem *addr, int reg, u32 val)
 }
 
 #define SH_MMCIF_BBS 512 /* boot block size */
-
-enum { MMCIF_PROGRESS_ENTER, MMCIF_PROGRESS_INIT,
-       MMCIF_PROGRESS_LOAD, MMCIF_PROGRESS_DONE };
 
 static inline void sh_mmcif_boot_cmd_send(void __iomem *base,
 					  unsigned long cmd, unsigned long arg)
@@ -223,4 +220,4 @@ static inline void sh_mmcif_boot_init(void __iomem *base)
 	sh_mmcif_boot_cmd(base, 0x03400040, 0x00010000);
 }
 
-#endif /* __SH_MMCIF_H__ */
+#endif /* LINUX_MMC_SH_MMCIF_H */

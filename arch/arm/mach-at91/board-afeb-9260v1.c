@@ -48,10 +48,10 @@
 #include "generic.h"
 
 
-static void __init afeb9260_map_io(void)
+static void __init afeb9260_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -69,12 +69,6 @@ static void __init afeb9260_map_io(void)
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
 }
-
-static void __init afeb9260_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
 
 /*
  * USB Host port
@@ -218,10 +212,10 @@ static void __init afeb9260_board_init(void)
 
 MACHINE_START(AFEB9260, "Custom afeb9260 board")
 	/* Maintainer: Sergey Lapin <slapin@ossfans.org> */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= afeb9260_map_io,
-	.init_irq	= afeb9260_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= afeb9260_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= afeb9260_board_init,
 MACHINE_END
 

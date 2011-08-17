@@ -53,14 +53,14 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-static int          msglevel                =MSG_LEVEL_INFO;
+static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
 
-/*+
+/*
  *
  * Routine Description:
  * Enable hw power saving functions
@@ -68,69 +68,65 @@ static int          msglevel                =MSG_LEVEL_INFO;
  * Return Value:
  *    None.
  *
--*/
+ */
 
 void PSvEnablePowerSaving(void *hDeviceContext,
 			  WORD wListenInterval)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    WORD            wAID = pMgmt->wCurrAID | BIT14 | BIT15;
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	WORD wAID = pMgmt->wCurrAID | BIT14 | BIT15;
 
-    /* set period of power up before TBTT */
-    MACvWriteWord(pDevice, MAC_REG_PWBT, C_PWBT);
+	/* set period of power up before TBTT */
+	MACvWriteWord(pDevice, MAC_REG_PWBT, C_PWBT);
 
-    if (pDevice->eOPMode != OP_MODE_ADHOC) {
-	/* set AID */
-	MACvWriteWord(pDevice, MAC_REG_AIDATIM, wAID);
-    } else {
-    	// set ATIM Window
-        //MACvWriteATIMW(pDevice->PortOffset, pMgmt->wCurrATIMWindow);
-    }
+	if (pDevice->eOPMode != OP_MODE_ADHOC) {
+		/* set AID */
+		MACvWriteWord(pDevice, MAC_REG_AIDATIM, wAID);
+	} else {
+		/* set ATIM Window */
+		/* MACvWriteATIMW(pDevice->PortOffset, pMgmt->wCurrATIMWindow); */
+	}
 
-    //Warren:06-18-2004,the sequence must follow PSEN->AUTOSLEEP->GO2DOZE
-    // enable power saving hw function
-    MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
-    // Set AutoSleep
-    MACvRegBitsOn(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+	/* Warren:06-18-2004,the sequence must follow PSEN->AUTOSLEEP->GO2DOZE */
+	/* enable power saving hw function */
+	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
 
-    //Warren:MUST turn on this once before turn on AUTOSLEEP ,or the AUTOSLEEP doesn't work
-    MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
+	/* Set AutoSleep */
+	MACvRegBitsOn(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
+	/* Warren:MUST turn on this once before turn on AUTOSLEEP ,or the AUTOSLEEP doesn't work */
+	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 
-    if (wListenInterval >= 2) {
+	if (wListenInterval >= 2) {
 
-        // clear always listen beacon
-        MACvRegBitsOff(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
-        // first time set listen next beacon
-        MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+		/* clear always listen beacon */
+		MACvRegBitsOff(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
-        pMgmt->wCountToWakeUp = wListenInterval;
+		/* first time set listen next beacon */
+		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 
-    }
-    else {
+		pMgmt->wCountToWakeUp = wListenInterval;
 
-        // always listen beacon
-        MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
-        pMgmt->wCountToWakeUp = 0;
+	} else {
 
-    }
+		/* always listen beacon */
+		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
-    pDevice->bEnablePSMode = TRUE;
+		pMgmt->wCountToWakeUp = 0;
+	}
 
-    if (pDevice->eOPMode == OP_MODE_ADHOC) {
-	/* bMgrPrepareBeaconToSend((void *) pDevice, pMgmt); */
-    }
-    // We don't send null pkt in ad hoc mode since beacon will handle this.
-    else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
-        PSbSendNullPacket(pDevice);
-    }
-    pDevice->bPWBitOn = TRUE;
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
-    return;
+	pDevice->bEnablePSMode = TRUE;
+
+	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
+	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
+		PSbSendNullPacket(pDevice);
+
+	pDevice->bPWBitOn = TRUE;
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Disable hw power saving functions
@@ -138,39 +134,31 @@ void PSvEnablePowerSaving(void *hDeviceContext,
  * Return Value:
  *    None.
  *
--*/
+ */
 
 void PSvDisablePowerSaving(void *hDeviceContext)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-//    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	/* PSMgmtObject pMgmt = &(pDevice->sMgmtObj); */
 
+	/* disable power saving hw function */
+	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
+						0, 0, NULL);
 
-    // disable power saving hw function
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_DISABLE_PS,
-                        0,
-                        0,
-                        0,
-                        NULL
-                        );
+	/* clear AutoSleep */
+	MACvRegBitsOff(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
-    //clear AutoSleep
-    MACvRegBitsOff(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+	/* set always listen beacon */
+	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
+	pDevice->bEnablePSMode = FALSE;
 
-    // set always listen beacon
-    MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
+	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
+		PSbSendNullPacket(pDevice);
 
-    pDevice->bEnablePSMode = FALSE;
-
-    if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
-        PSbSendNullPacket(pDevice);
-    }
-    pDevice->bPWBitOn = FALSE;
-    return;
+	pDevice->bPWBitOn = FALSE;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Consider to power down when no more packets to tx or rx.
@@ -178,55 +166,56 @@ void PSvDisablePowerSaving(void *hDeviceContext)
  * Return Value:
  *    TRUE, if power down success
  *    FALSE, if fail
--*/
+ */
 
 BOOL PSbConsiderPowerDown(void *hDeviceContext,
 			  BOOL bCheckRxDMA,
 			  BOOL bCheckCountToWakeUp)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    BYTE            byData;
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	BYTE byData;
 
+	/* check if already in Doze mode */
+	ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG,
+					MAC_REG_PSCTL, &byData);
 
-    // check if already in Doze mode
-    ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
-    if ( (byData & PSCTL_PS) != 0 )
-        return TRUE;
+	if ((byData & PSCTL_PS) != 0)
+		return TRUE;
 
-    if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
-        // check if in TIM wake period
-        if (pMgmt->bInTIMWake)
-            return FALSE;
-    }
+	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
+		/* check if in TIM wake period */
+		if (pMgmt->bInTIMWake)
+			return FALSE;
+	}
 
-    // check scan state
-    if (pDevice->bCmdRunning)
-        return FALSE;
+	/* check scan state */
+	if (pDevice->bCmdRunning)
+		return FALSE;
 
-    //Tx Burst
-    if ( pDevice->bPSModeTxBurst )
-        return FALSE;
+	/* Tx Burst */
+	if (pDevice->bPSModeTxBurst)
+		return FALSE;
 
-    // Froce PSEN on
-    MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
+	/* Froce PSEN on */
+	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
 
-    if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
-        if (bCheckCountToWakeUp &&
-            (pMgmt->wCountToWakeUp == 0 || pMgmt->wCountToWakeUp == 1)) {
-             return FALSE;
-        }
-    }
+	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
+		if (bCheckCountToWakeUp && (pMgmt->wCountToWakeUp == 0
+			|| pMgmt->wCountToWakeUp == 1)) {
+				return FALSE;
+		}
+	}
 
-    pDevice->bPSRxBeacon = TRUE;
-    // no Tx, no Rx isr, now go to Doze
-    MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
+	pDevice->bPSRxBeacon = TRUE;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
-    return TRUE;
+	/* no Tx, no Rx isr, now go to Doze */
+	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
+	return TRUE;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Send PS-POLL packet
@@ -234,41 +223,37 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
  * Return Value:
  *    None.
  *
--*/
+ */
 
 void PSvSendPSPOLL(void *hDeviceContext)
 {
-    PSDevice            pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-    PSTxMgmtPacket      pTxPacket = NULL;
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	PSTxMgmtPacket pTxPacket = NULL;
 
+	memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_HDR_ADDR2_LEN);
+	pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
+	pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+	pTxPacket->p80211Header->sA2.wFrameCtl = cpu_to_le16(
+		(
+			WLAN_SET_FC_FTYPE(WLAN_TYPE_CTL) |
+			WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_PSPOLL) |
+			WLAN_SET_FC_PWRMGT(0)
+		));
 
-    memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_HDR_ADDR2_LEN);
-    pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-    pTxPacket->p80211Header->sA2.wFrameCtl = cpu_to_le16(
-         (
-         WLAN_SET_FC_FTYPE(WLAN_TYPE_CTL) |
-         WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_PSPOLL) |
-         WLAN_SET_FC_PWRMGT(0)
-         ));
-    pTxPacket->p80211Header->sA2.wDurationID = pMgmt->wCurrAID | BIT14 | BIT15;
-    memcpy(pTxPacket->p80211Header->sA2.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
-    memcpy(pTxPacket->p80211Header->sA2.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
-    pTxPacket->cbMPDULen = WLAN_HDR_ADDR2_LEN;
-    pTxPacket->cbPayloadLen = 0;
-    // send the frame
-    if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
-    }
-    else {
-//        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
-    };
+	pTxPacket->p80211Header->sA2.wDurationID = pMgmt->wCurrAID | BIT14 | BIT15;
+	memcpy(pTxPacket->p80211Header->sA2.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
+	memcpy(pTxPacket->p80211Header->sA2.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
+	pTxPacket->cbMPDULen = WLAN_HDR_ADDR2_LEN;
+	pTxPacket->cbPayloadLen = 0;
 
-    return;
+	/* log failure if sending failed */
+	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
+	}
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Send NULL packet to AP for notification power state of STA
@@ -276,70 +261,54 @@ void PSvSendPSPOLL(void *hDeviceContext)
  * Return Value:
  *    None.
  *
--*/
+ */
 
 BOOL PSbSendNullPacket(void *hDeviceContext)
 {
-    PSDevice            pDevice = (PSDevice)hDeviceContext;
-    PSTxMgmtPacket      pTxPacket = NULL;
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSTxMgmtPacket pTxPacket = NULL;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	u16 flags = 0;
 
+	if (pDevice->bLinkPass == FALSE)
+		return FALSE;
 
+	if ((pDevice->bEnablePSMode == FALSE) &&
+		(pDevice->fTxDataInSleep == FALSE)) {
+			return FALSE;
+	}
 
-    if (pDevice->bLinkPass == FALSE) {
-        return FALSE;
-    }
+	memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN);
+	pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
+	pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
 
-     if ((pDevice->bEnablePSMode == FALSE) &&
-	  (pDevice->fTxDataInSleep == FALSE)){
-        return FALSE;
-    }
+	flags = WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
+                        WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL);
 
-    memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN);
-    pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+	if (pDevice->bEnablePSMode)
+		flags |= WLAN_SET_FC_PWRMGT(1);
+	else
+		flags |= WLAN_SET_FC_PWRMGT(0);
 
-    if (pDevice->bEnablePSMode) {
+	pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(flags);
 
-        pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(
-             (
-            WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
-            WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL) |
-            WLAN_SET_FC_PWRMGT(1)
-            ));
-    }
-    else {
-        pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(
-             (
-            WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
-            WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL) |
-            WLAN_SET_FC_PWRMGT(0)
-            ));
-    }
+	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
+		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_TODS(1));
 
-    if(pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
-        pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_TODS(1));
-    }
-
-    memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
-    memcpy(pTxPacket->p80211Header->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
-    memcpy(pTxPacket->p80211Header->sA3.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
-    pTxPacket->cbMPDULen = WLAN_HDR_ADDR3_LEN;
-    pTxPacket->cbPayloadLen = 0;
-    // send the frame
-    if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
-        return FALSE;
-    }
-    else {
-//            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
-    }
-
-
-    return TRUE ;
+	memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
+	memcpy(pTxPacket->p80211Header->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
+	memcpy(pTxPacket->p80211Header->sA3.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
+	pTxPacket->cbMPDULen = WLAN_HDR_ADDR3_LEN;
+	pTxPacket->cbPayloadLen = 0;
+	/* log error if sending failed */
+	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
+		return FALSE;
+	}
+	return TRUE;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Check if Next TBTT must wake up
@@ -347,36 +316,30 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
  * Return Value:
  *    None.
  *
--*/
+ */
 
 BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext)
 {
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	BOOL bWakeUp = FALSE;
 
-    PSDevice         pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-    BOOL                bWakeUp = FALSE;
+	if (pMgmt->wListenInterval >= 2) {
+		if (pMgmt->wCountToWakeUp == 0)
+			pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
 
-    if (pMgmt->wListenInterval >= 2) {
-        if (pMgmt->wCountToWakeUp == 0) {
-            pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
-        }
+		pMgmt->wCountToWakeUp--;
 
-        pMgmt->wCountToWakeUp --;
-
-        if (pMgmt->wCountToWakeUp == 1) {
-
-            // Turn on wake up to listen next beacon
-            MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
-            pDevice->bPSRxBeacon = FALSE;
-            bWakeUp = TRUE;
-
-        } else if ( !pDevice->bPSRxBeacon ) {
-            //Listen until RxBeacon
-            MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
-        }
-
-    }
-
-    return bWakeUp;
+		if (pMgmt->wCountToWakeUp == 1) {
+			/* Turn on wake up to listen next beacon */
+			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+			pDevice->bPSRxBeacon = FALSE;
+			bWakeUp = TRUE;
+		} else if (!pDevice->bPSRxBeacon) {
+			/* Listen until RxBeacon */
+			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+		}
+	}
+	return bWakeUp;
 }
 

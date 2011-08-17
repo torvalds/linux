@@ -274,7 +274,7 @@
 #define MSR0_RD			0xc0000000	/* rounding mode */
 #define MSR0_RD_NEAREST		0x00000000	/* - nearest */
 #define MSR0_RD_ZERO		0x40000000	/* - zero */
-#define MSR0_RD_POS_INF		0x80000000	/* - postive infinity */
+#define MSR0_RD_POS_INF		0x80000000	/* - positive infinity */
 #define MSR0_RD_NEG_INF		0xc0000000	/* - negative infinity */
 
 /*

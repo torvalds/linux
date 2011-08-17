@@ -253,7 +253,7 @@ static u8 stv0288_inittab[] = {
 	0x3d, 0x30,
 	0x40, 0x63,
 	0x41, 0x04,
-	0x42, 0x60,
+	0x42, 0x20,
 	0x43, 0x00,
 	0x44, 0x00,
 	0x45, 0x00,
@@ -367,8 +367,11 @@ static int stv0288_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	dprintk("%s : FE_READ_STATUS : VSTATUS: 0x%02x\n", __func__, sync);
 
 	*status = 0;
-
-	if ((sync & 0x08) == 0x08) {
+	if (sync & 0x80)
+		*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
+	if (sync & 0x10)
+		*status |= FE_HAS_VITERBI;
+	if (sync & 0x08) {
 		*status |= FE_HAS_LOCK;
 		dprintk("stv0288 has locked\n");
 	}

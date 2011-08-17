@@ -614,7 +614,7 @@ void __cpuinit *per_cpu_init(void)
  * Shows a simple page count of reserved and used pages in the system.
  * For discontig machines, it does this on a per-pgdat basis.
  */
-void show_mem(void)
+void show_mem(unsigned int filter)
 {
 	int i, total_reserved = 0;
 	int total_shared = 0, total_cached = 0;
@@ -622,13 +622,16 @@ void show_mem(void)
 	pg_data_t *pgdat;
 
 	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas();
+	show_free_areas(filter);
 	printk(KERN_INFO "Node memory in pages:\n");
 	for_each_online_pgdat(pgdat) {
 		unsigned long present;
 		unsigned long flags;
 		int shared = 0, cached = 0, reserved = 0;
+		int nid = pgdat->node_id;
 
+		if (skip_free_areas_node(filter, nid))
+			continue;
 		pgdat_resize_lock(pgdat, &flags);
 		present = pgdat->node_present_pages;
 		for(i = 0; i < pgdat->node_spanned_pages; i++) {
@@ -638,8 +641,7 @@ void show_mem(void)
 			if (pfn_valid(pgdat->node_start_pfn + i))
 				page = pfn_to_page(pgdat->node_start_pfn + i);
 			else {
-				i = vmemmap_find_next_valid_pfn(pgdat->node_id,
-					 i) - 1;
+				i = vmemmap_find_next_valid_pfn(nid, i) - 1;
 				continue;
 			}
 			if (PageReserved(page))
@@ -655,7 +657,7 @@ void show_mem(void)
 		total_cached += cached;
 		total_shared += shared;
 		printk(KERN_INFO "Node %4d:  RAM: %11ld, rsvd: %8d, "
-		       "shrd: %10d, swpd: %10d\n", pgdat->node_id,
+		       "shrd: %10d, swpd: %10d\n", nid,
 		       present, reserved, shared, cached);
 	}
 	printk(KERN_INFO "%ld pages of RAM\n", total_present);

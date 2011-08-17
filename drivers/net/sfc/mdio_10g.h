@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -68,8 +68,7 @@ extern int efx_mdio_reset_mmd(struct efx_nic *efx, int mmd,
 			      int spins, int spintime);
 
 /* As efx_mdio_check_mmd but for multiple MMDs */
-int efx_mdio_check_mmds(struct efx_nic *efx,
-			unsigned int mmd_mask, unsigned int fatal_mask);
+int efx_mdio_check_mmds(struct efx_nic *efx, unsigned int mmd_mask);
 
 /* Check the link status of specified mmds in bit mask */
 extern bool efx_mdio_links_ok(struct efx_nic *efx, unsigned int mmd_mask);
@@ -93,7 +92,7 @@ extern void efx_mdio_an_reconfigure(struct efx_nic *efx);
 /* Get pause parameters from AN if available (otherwise return
  * requested pause parameters)
  */
-enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx);
+u8 efx_mdio_get_pause(struct efx_nic *efx);
 
 /* Wait for specified MMDs to exit reset within a timeout */
 extern int efx_mdio_wait_reset_mmds(struct efx_nic *efx,

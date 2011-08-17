@@ -39,8 +39,13 @@ extern void blackfin_invalidate_entire_icache(void);
 
 static inline void flush_icache_range(unsigned start, unsigned end)
 {
-#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
-	blackfin_dcache_flush_range(start, end);
+#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK)
+	if (end <= physical_mem_end)
+		blackfin_dcache_flush_range(start, end);
+#endif
+#if defined(CONFIG_BFIN_L2_WRITEBACK)
+	if (start >= L2_START && end <= L2_START + L2_LENGTH)
+		blackfin_dcache_flush_range(start, end);
 #endif
 
 	/* Make sure all write buffers in the data side of the core
@@ -52,9 +57,17 @@ static inline void flush_icache_range(unsigned start, unsigned end)
 	 * the pipeline.
 	 */
 	SSYNC();
-#if defined(CONFIG_BFIN_ICACHE)
-	blackfin_icache_flush_range(start, end);
-	flush_icache_range_others(start, end);
+#if defined(CONFIG_BFIN_EXTMEM_ICACHEABLE)
+	if (end <= physical_mem_end) {
+		blackfin_icache_flush_range(start, end);
+		flush_icache_range_others(start, end);
+	}
+#endif
+#if defined(CONFIG_BFIN_L2_ICACHEABLE)
+	if (start >= L2_START && end <= L2_START + L2_LENGTH) {
+		blackfin_icache_flush_range(start, end);
+		flush_icache_range_others(start, end);
+	}
 #endif
 }
 

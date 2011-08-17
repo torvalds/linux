@@ -1,8 +1,7 @@
 /*
- * This file define the irq handler for MSP SLM subsystem interrupts.
+ * Copyright 2010 PMC-Sierra, Inc, derived from irq_cpu.c
  *
- * Copyright 2005-2007 PMC-Sierra, Inc, derived from irq_cpu.c
- * Author: Andrew Hughes, Andrew_Hughes@pmc-sierra.com
+ * This file define the irq handler for MSP CIC subsystem interrupts.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -16,119 +15,203 @@
 #include <linux/bitops.h>
 #include <linux/irq.h>
 
+#include <asm/mipsregs.h>
 #include <asm/system.h>
 
 #include <msp_cic_int.h>
 #include <msp_regs.h>
 
 /*
- * NOTE: We are only enabling support for VPE0 right now.
+ * External API
  */
+extern void msp_per_irq_init(void);
+extern void msp_per_irq_dispatch(void);
 
-static inline void unmask_msp_cic_irq(unsigned int irq)
-{
-
-	/* check for PER interrupt range */
-	if (irq < MSP_PER_INTBASE)
-		*CIC_VPE0_MSK_REG |= (1 << (irq - MSP_CIC_INTBASE));
-	else
-		*PER_INT_MSK_REG |= (1 << (irq - MSP_PER_INTBASE));
-}
-
-static inline void mask_msp_cic_irq(unsigned int irq)
-{
-	/* check for PER interrupt range */
-	if (irq < MSP_PER_INTBASE)
-		*CIC_VPE0_MSK_REG &= ~(1 << (irq - MSP_CIC_INTBASE));
-	else
-		*PER_INT_MSK_REG &= ~(1 << (irq - MSP_PER_INTBASE));
-}
 
 /*
- * While we ack the interrupt interrupts are disabled and thus we don't need
- * to deal with concurrency issues.  Same for msp_cic_irq_end.
+ * Convenience Macro.  Should be somewhere generic.
  */
-static inline void ack_msp_cic_irq(unsigned int irq)
+#define get_current_vpe()   \
+	((read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) & TCBIND_CURVPE)
+
+#ifdef CONFIG_SMP
+
+#define LOCK_VPE(flags, mtflags) \
+do {				\
+	local_irq_save(flags);	\
+	mtflags = dmt();	\
+} while (0)
+
+#define UNLOCK_VPE(flags, mtflags) \
+do {				\
+	emt(mtflags);		\
+	local_irq_restore(flags);\
+} while (0)
+
+#define LOCK_CORE(flags, mtflags) \
+do {				\
+	local_irq_save(flags);	\
+	mtflags = dvpe();	\
+} while (0)
+
+#define UNLOCK_CORE(flags, mtflags)		\
+do {				\
+	evpe(mtflags);		\
+	local_irq_restore(flags);\
+} while (0)
+
+#else
+
+#define LOCK_VPE(flags, mtflags)
+#define UNLOCK_VPE(flags, mtflags)
+#endif
+
+/* ensure writes to cic are completed */
+static inline void cic_wmb(void)
 {
-	mask_msp_cic_irq(irq);
+	const volatile void __iomem *cic_mem = CIC_VPE0_MSK_REG;
+	volatile u32 dummy_read;
+
+	wmb();
+	dummy_read = __raw_readl(cic_mem);
+	dummy_read++;
+}
+
+static void unmask_cic_irq(struct irq_data *d)
+{
+	volatile u32   *cic_msk_reg = CIC_VPE0_MSK_REG;
+	int vpe;
+#ifdef CONFIG_SMP
+	unsigned int mtflags;
+	unsigned long  flags;
 
 	/*
-	 * only really necessary for 18, 16-14 and sometimes 3:0 (since
-	 * these can be edge sensitive) but it doesn't hurt for the others.
-	 */
+	* Make sure we have IRQ affinity.  It may have changed while
+	* we were processing the IRQ.
+	*/
+	if (!cpumask_test_cpu(smp_processor_id(), d->affinity))
+		return;
+#endif
 
-	/* check for PER interrupt range */
-	if (irq < MSP_PER_INTBASE)
-		*CIC_STS_REG = (1 << (irq - MSP_CIC_INTBASE));
-	else
-		*PER_INT_STS_REG = (1 << (irq - MSP_PER_INTBASE));
+	vpe = get_current_vpe();
+	LOCK_VPE(flags, mtflags);
+	cic_msk_reg[vpe] |= (1 << (d->irq - MSP_CIC_INTBASE));
+	UNLOCK_VPE(flags, mtflags);
+	cic_wmb();
 }
+
+static void mask_cic_irq(struct irq_data *d)
+{
+	volatile u32 *cic_msk_reg = CIC_VPE0_MSK_REG;
+	int	vpe = get_current_vpe();
+#ifdef CONFIG_SMP
+	unsigned long flags, mtflags;
+#endif
+	LOCK_VPE(flags, mtflags);
+	cic_msk_reg[vpe] &= ~(1 << (d->irq - MSP_CIC_INTBASE));
+	UNLOCK_VPE(flags, mtflags);
+	cic_wmb();
+}
+static void msp_cic_irq_ack(struct irq_data *d)
+{
+	mask_cic_irq(d);
+	/*
+	* Only really necessary for 18, 16-14 and sometimes 3:0
+	* (since these can be edge sensitive) but it doesn't
+	* hurt for the others
+	*/
+	*CIC_STS_REG = (1 << (d->irq - MSP_CIC_INTBASE));
+	smtc_im_ack_irq(d->irq);
+}
+
+/*Note: Limiting to VSMP . Not tested in SMTC */
+
+#ifdef CONFIG_MIPS_MT_SMP
+static int msp_cic_irq_set_affinity(struct irq_data *d,
+				    const struct cpumask *cpumask, bool force)
+{
+	int cpu;
+	unsigned long flags;
+	unsigned int  mtflags;
+	unsigned long imask = (1 << (irq - MSP_CIC_INTBASE));
+	volatile u32 *cic_mask = (volatile u32 *)CIC_VPE0_MSK_REG;
+
+	/* timer balancing should be disabled in kernel code */
+	BUG_ON(irq == MSP_INT_VPE0_TIMER || irq == MSP_INT_VPE1_TIMER);
+
+	LOCK_CORE(flags, mtflags);
+	/* enable if any of each VPE's TCs require this IRQ */
+	for_each_online_cpu(cpu) {
+		if (cpumask_test_cpu(cpu, cpumask))
+			cic_mask[cpu] |= imask;
+		else
+			cic_mask[cpu] &= ~imask;
+
+	}
+
+	UNLOCK_CORE(flags, mtflags);
+	return 0;
+
+}
+#endif
 
 static struct irq_chip msp_cic_irq_controller = {
 	.name = "MSP_CIC",
-	.ack = ack_msp_cic_irq,
-	.mask = ack_msp_cic_irq,
-	.mask_ack = ack_msp_cic_irq,
-	.unmask = unmask_msp_cic_irq,
+	.irq_mask = mask_cic_irq,
+	.irq_mask_ack = msp_cic_irq_ack,
+	.irq_unmask = unmask_cic_irq,
+	.irq_ack = msp_cic_irq_ack,
+#ifdef CONFIG_MIPS_MT_SMP
+	.irq_set_affinity = msp_cic_irq_set_affinity,
+#endif
 };
-
 
 void __init msp_cic_irq_init(void)
 {
 	int i;
-
 	/* Mask/clear interrupts. */
 	*CIC_VPE0_MSK_REG = 0x00000000;
-	*PER_INT_MSK_REG  = 0x00000000;
+	*CIC_VPE1_MSK_REG = 0x00000000;
 	*CIC_STS_REG      = 0xFFFFFFFF;
-	*PER_INT_STS_REG  = 0xFFFFFFFF;
-
-#if defined(CONFIG_PMC_MSP7120_GW) || \
-    defined(CONFIG_PMC_MSP7120_EVAL)
 	/*
-	 * The MSP7120 RG and EVBD boards use IRQ[6:4] for PCI.
-	 * These inputs map to EXT_INT_POL[6:4] inside the CIC.
-	 * They are to be active low, level sensitive.
-	 */
+	* The MSP7120 RG and EVBD boards use IRQ[6:4] for PCI.
+	* These inputs map to EXT_INT_POL[6:4] inside the CIC.
+	* They are to be active low, level sensitive.
+	*/
 	*CIC_EXT_CFG_REG &= 0xFFFF8F8F;
-#endif
 
 	/* initialize all the IRQ descriptors */
-	for (i = MSP_CIC_INTBASE; i < MSP_PER_INTBASE + 32; i++)
-		set_irq_chip_and_handler(i, &msp_cic_irq_controller,
+	for (i = MSP_CIC_INTBASE ; i < MSP_CIC_INTBASE + 32 ; i++) {
+		irq_set_chip_and_handler(i, &msp_cic_irq_controller,
 					 handle_level_irq);
+#ifdef CONFIG_MIPS_MT_SMTC
+		/* Mask of CIC interrupt */
+		irq_hwmask[i] = C_IRQ4;
+#endif
+	}
+
+	/* Initialize the PER interrupt sub-system */
+	 msp_per_irq_init();
 }
 
+/* CIC masked by CIC vector processing before dispatch called */
 void msp_cic_irq_dispatch(void)
 {
-	u32 pending;
-	int intbase;
-
-	intbase = MSP_CIC_INTBASE;
-	pending = *CIC_STS_REG & *CIC_VPE0_MSK_REG;
-
-	/* check for PER interrupt */
-	if (pending == (1 << (MSP_INT_PER - MSP_CIC_INTBASE))) {
-		intbase = MSP_PER_INTBASE;
-		pending = *PER_INT_STS_REG & *PER_INT_MSK_REG;
-	}
-
-	/* check for spurious interrupt */
-	if (pending == 0x00000000) {
-		printk(KERN_ERR
-			"Spurious %s interrupt? status %08x, mask %08x\n",
-			(intbase == MSP_CIC_INTBASE) ? "CIC" : "PER",
-			(intbase == MSP_CIC_INTBASE) ?
-				*CIC_STS_REG : *PER_INT_STS_REG,
-			(intbase == MSP_CIC_INTBASE) ?
-				*CIC_VPE0_MSK_REG : *PER_INT_MSK_REG);
-		return;
-	}
-
-	/* check for the timer and dispatch it first */
-	if ((intbase == MSP_CIC_INTBASE) &&
-	    (pending & (1 << (MSP_INT_VPE0_TIMER - MSP_CIC_INTBASE))))
+	volatile u32	*cic_msk_reg = (volatile u32 *)CIC_VPE0_MSK_REG;
+	u32	cic_mask;
+	u32	 pending;
+	int	cic_status = *CIC_STS_REG;
+	cic_mask = cic_msk_reg[get_current_vpe()];
+	pending = cic_status & cic_mask;
+	if (pending & (1 << (MSP_INT_VPE0_TIMER - MSP_CIC_INTBASE))) {
 		do_IRQ(MSP_INT_VPE0_TIMER);
-	else
-		do_IRQ(ffs(pending) + intbase - 1);
+	} else if (pending & (1 << (MSP_INT_VPE1_TIMER - MSP_CIC_INTBASE))) {
+		do_IRQ(MSP_INT_VPE1_TIMER);
+	} else if (pending & (1 << (MSP_INT_PER - MSP_CIC_INTBASE))) {
+		msp_per_irq_dispatch();
+	} else if (pending) {
+		do_IRQ(ffs(pending) + MSP_CIC_INTBASE - 1);
+	} else{
+		spurious_interrupt();
+	}
 }

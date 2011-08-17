@@ -183,7 +183,7 @@ void handle_watchdog_bite(struct pt_regs *regs)
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick.
+ * as well as call the "xtime_update()" routine every clocktick.
  */
 extern void cris_do_profile(struct pt_regs *regs);
 
@@ -216,9 +216,7 @@ static inline irqreturn_t timer_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	/* Call the real timer interrupt handler */
-	write_seqlock(&xtime_lock);
-	do_timer(1);
-	write_sequnlock(&xtime_lock);
+	xtime_update(1);
         return IRQ_HANDLED;
 }
 

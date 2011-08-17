@@ -9,27 +9,6 @@
 #include <asm/diag.h>
 
 /*
- * Diagnose 10: Release pages
- */
-void diag10(unsigned long addr)
-{
-	if (addr >= 0x7ff00000)
-		return;
-	asm volatile(
-#ifdef CONFIG_64BIT
-		"	sam31\n"
-		"	diag	%0,%0,0x10\n"
-		"0:	sam64\n"
-#else
-		"	diag	%0,%0,0x10\n"
-		"0:\n"
-#endif
-		EX_TABLE(0b, 0b)
-		: : "a" (addr));
-}
-EXPORT_SYMBOL(diag10);
-
-/*
  * Diagnose 14: Input spool file manipulation
  */
 int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)

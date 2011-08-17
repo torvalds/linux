@@ -103,9 +103,7 @@ static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, 
 	return readb(sharpsl->io + ECCCNTR) != 0;
 }
 
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 
 /*
  * Main initialization routine
@@ -113,10 +111,8 @@ static const char *part_probes[] = { "cmdlinepart", NULL };
 static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *sharpsl_partition_info;
 	int nr_partitions;
-#endif
 	struct resource *r;
 	int err = 0;
 	struct sharpsl_nand *sharpsl;
@@ -188,18 +184,14 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 
 	/* Register the partitions */
 	sharpsl->mtd.name = "sharpsl-nand";
-#ifdef CONFIG_MTD_PARTITIONS
 	nr_partitions = parse_mtd_partitions(&sharpsl->mtd, part_probes, &sharpsl_partition_info, 0);
 	if (nr_partitions <= 0) {
 		nr_partitions = data->nr_partitions;
 		sharpsl_partition_info = data->partitions;
 	}
 
-	if (nr_partitions > 0)
-		err = add_mtd_partitions(&sharpsl->mtd, sharpsl_partition_info, nr_partitions);
-	else
-#endif
-	err = add_mtd_device(&sharpsl->mtd);
+	err = mtd_device_register(&sharpsl->mtd, sharpsl_partition_info,
+				  nr_partitions);
 	if (err)
 		goto err_add;
 

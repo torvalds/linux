@@ -31,13 +31,14 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
+#include "trace_gfs2.h"
 
 static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct buffer_head *bh, *head;
 	int nr_underway = 0;
 	int write_op = REQ_META |
-		(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC_PLUG : WRITE);
+		(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!page_has_buffers(page));
@@ -94,7 +95,6 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 const struct address_space_operations gfs2_meta_aops = {
 	.writepage = gfs2_aspace_writepage,
 	.releasepage = gfs2_releasepage,
-	.sync_page = block_sync_page,
 };
 
 /**
@@ -311,6 +311,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	struct gfs2_bufdata *bd = bh->b_private;
 
 	if (test_clear_buffer_pinned(bh)) {
+		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
 		list_del_init(&bd->bd_le.le_list);
 		if (meta) {
@@ -326,6 +327,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 		brelse(bh);
 	}
 	if (bd) {
+		spin_lock(&sdp->sd_ail_lock);
 		if (bd->bd_ail) {
 			gfs2_remove_from_ail(bd);
 			bh->b_private = NULL;
@@ -333,6 +335,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 			bd->bd_blkno = bh->b_blocknr;
 			gfs2_trans_add_revoke(sdp, bd);
 		}
+		spin_unlock(&sdp->sd_ail_lock);
 	}
 	clear_buffer_dirty(bh);
 	clear_buffer_uptodate(bh);

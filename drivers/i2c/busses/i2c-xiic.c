@@ -21,7 +21,7 @@
  * to the automotive development board Russellville. The copyright holder
  * as seen in the header is Intel corporation.
  * Mocean Laboratories forked off the GNU/Linux platform work into a
- * separate company called Pelagicore AB, which commited the code to the
+ * separate company called Pelagicore AB, which committed the code to the
  * kernel.
  */
 

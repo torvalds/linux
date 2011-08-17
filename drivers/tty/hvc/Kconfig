@@ -1,0 +1,110 @@
+config HVC_DRIVER
+	bool
+	help
+	  Generic "hypervisor virtual console" infrastructure for various
+	  hypervisors (pSeries, iSeries, Xen, lguest).
+	  It will automatically be selected if one of the back-end console drivers
+	  is selected.
+
+config HVC_IRQ
+	bool
+
+config HVC_CONSOLE
+	bool "pSeries Hypervisor Virtual Console support"
+	depends on PPC_PSERIES
+	select HVC_DRIVER
+	select HVC_IRQ
+	help
+	  pSeries machines when partitioned support a hypervisor virtual
+	  console. This driver allows each pSeries partition to have a console
+	  which is accessed via the HMC.
+
+config HVC_OLD_HVSI
+	bool "Old driver for pSeries serial port (/dev/hvsi*)"
+	depends on HVC_CONSOLE
+	default n
+
+config HVC_ISERIES
+	bool "iSeries Hypervisor Virtual Console support"
+	depends on PPC_ISERIES
+	default y
+	select HVC_DRIVER
+	select HVC_IRQ
+	select VIOPATH
+	help
+	  iSeries machines support a hypervisor virtual console.
+
+config HVC_RTAS
+	bool "IBM RTAS Console support"
+	depends on PPC_RTAS
+	select HVC_DRIVER
+	help
+	  IBM Console device driver which makes use of RTAS
+
+config HVC_BEAT
+	bool "Toshiba's Beat Hypervisor Console support"
+	depends on PPC_CELLEB
+	select HVC_DRIVER
+	help
+	  Toshiba's Cell Reference Set Beat Console device driver
+
+config HVC_IUCV
+	bool "z/VM IUCV Hypervisor console support (VM only)"
+	depends on S390
+	select HVC_DRIVER
+	select IUCV
+	default y
+	help
+	  This driver provides a Hypervisor console (HVC) back-end to access
+	  a Linux (console) terminal via a z/VM IUCV communication path.
+
+config HVC_XEN
+	bool "Xen Hypervisor Console support"
+	depends on XEN
+	select HVC_DRIVER
+	select HVC_IRQ
+	default y
+	help
+	  Xen virtual console device driver
+
+config HVC_UDBG
+       bool "udbg based fake hypervisor console"
+       depends on PPC && EXPERIMENTAL
+       select HVC_DRIVER
+       default n
+
+config HVC_DCC
+       bool "ARM JTAG DCC console"
+       depends on ARM
+       select HVC_DRIVER
+       help
+         This console uses the JTAG DCC on ARM to create a console under the HVC
+	 driver. This console is used through a JTAG only on ARM. If you don't have
+	 a JTAG then you probably don't want this option.
+
+config HVC_BFIN_JTAG
+	bool "Blackfin JTAG console"
+	depends on BLACKFIN
+	select HVC_DRIVER
+	help
+	 This console uses the Blackfin JTAG to create a console under the
+	 the HVC driver.  If you don't have JTAG, then you probably don't
+	 want this option.
+
+config HVCS
+	tristate "IBM Hypervisor Virtual Console Server support"
+	depends on PPC_PSERIES && HVC_CONSOLE
+	help
+	  Partitionable IBM Power5 ppc64 machines allow hosting of
+	  firmware virtual consoles from one Linux partition by
+	  another Linux partition.  This driver allows console data
+	  from Linux partitions to be accessed through TTY device
+	  interfaces in the device tree of a Linux partition running
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hvcs.  Additionally, this module
+	  will depend on arch specific APIs exported from hvcserver.ko
+	  which will also be compiled when this driver is built as a
+	  module.
+

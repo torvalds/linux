@@ -111,21 +111,10 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 {
 	pmd_t *pmdp = (pmd_t *) ptep;
 
-	if (!MACHINE_HAS_IDTE) {
-		__pmd_csp(pmdp);
-		if (mm->context.noexec) {
-			pmdp = get_shadow_table(pmdp);
-			__pmd_csp(pmdp);
-		}
-		return;
-	}
-
-	__pmd_idte(address, pmdp);
-	if (mm->context.noexec) {
-		pmdp = get_shadow_table(pmdp);
+	if (MACHINE_HAS_IDTE)
 		__pmd_idte(address, pmdp);
-	}
-	return;
+	else
+		__pmd_csp(pmdp);
 }
 
 #define huge_ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty) \

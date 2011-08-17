@@ -36,12 +36,8 @@
 		   addressible natively, and may in fact turn
 		   out to be not scsi at all. */
 
-#define SCSI_CCISS_CAN_QUEUE 2
 
 /* 
-
-Note, cmd_per_lun could give us some trouble, so I'm setting it very low.
-Likewise, SCSI_CCISS_CAN_QUEUE is set very conservatively.
 
 If the upper scsi layer tries to track how many commands we have 
 outstanding, it will be operating under the misapprehension that it is

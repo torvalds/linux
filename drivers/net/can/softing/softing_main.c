@@ -17,10 +17,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <asm/io.h>
 
 #include "softing.h"
 
@@ -218,7 +218,7 @@ static int softing_handle_1(struct softing *card)
 	ptr = buf;
 	cmd = *ptr++;
 	if (cmd == 0xff)
-		/* not quite usefull, probably the card has got out */
+		/* not quite useful, probably the card has got out */
 		return 0;
 	netdev = card->net[0];
 	if (cmd & CMD_BUS2)
@@ -633,6 +633,7 @@ static const struct net_device_ops softing_netdev_ops = {
 };
 
 static const struct can_bittiming_const softing_btr_const = {
+	.name = "softing",
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -796,9 +797,9 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 	ret = -EINVAL;
 	pres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pres)
-		goto platform_resource_failed;;
+		goto platform_resource_failed;
 	card->dpram_phys = pres->start;
-	card->dpram_size = pres->end - pres->start + 1;
+	card->dpram_size = resource_size(pres);
 	card->dpram = ioremap_nocache(card->dpram_phys, card->dpram_size);
 	if (!card->dpram) {
 		dev_alert(&card->pdev->dev, "dpram ioremap failed\n");

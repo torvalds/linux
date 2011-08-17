@@ -100,23 +100,9 @@ pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 static struct clock_event_device ckevt_pxa_osmr0 = {
 	.name		= "osmr0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.rating		= 200,
 	.set_next_event	= pxa_osmr0_set_next_event,
 	.set_mode	= pxa_osmr0_set_mode,
-};
-
-static cycle_t pxa_read_oscr(struct clocksource *cs)
-{
-	return OSCR;
-}
-
-static struct clocksource cksrc_pxa_oscr0 = {
-	.name           = "oscr0",
-	.rating         = 200,
-	.read           = pxa_read_oscr,
-	.mask           = CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static struct irqaction pxa_ost0_irq = {
@@ -135,8 +121,7 @@ static void __init pxa_timer_init(void)
 
 	init_sched_clock(&cd, pxa_update_sched_clock, 32, clock_tick_rate);
 
-	ckevt_pxa_osmr0.mult =
-		div_sc(clock_tick_rate, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
+	clockevents_calc_mult_shift(&ckevt_pxa_osmr0, clock_tick_rate, 4);
 	ckevt_pxa_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =
@@ -145,7 +130,8 @@ static void __init pxa_timer_init(void)
 
 	setup_irq(IRQ_OST0, &pxa_ost0_irq);
 
-	clocksource_register_hz(&cksrc_pxa_oscr0, clock_tick_rate);
+	clocksource_mmio_init(&OSCR, "oscr0", clock_tick_rate, 200, 32,
+		clocksource_mmio_readl_up);
 	clockevents_register_device(&ckevt_pxa_osmr0);
 }
 

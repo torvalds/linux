@@ -341,7 +341,7 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 	struct mc13783_regulator_init_data *init_data;
 	int i, ret;
 
-	dev_dbg(&pdev->dev, "mc13783_regulator_probe id %d\n", pdev->id);
+	dev_dbg(&pdev->dev, "%s id %d\n", __func__, pdev->id);
 
 	priv = kzalloc(sizeof(*priv) +
 			pdata->num_regulators * sizeof(priv->regulators[0]),

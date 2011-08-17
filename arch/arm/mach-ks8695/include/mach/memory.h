@@ -18,7 +18,7 @@
 /*
  * Physical SRAM offset.
  */
-#define PHYS_OFFSET		KS8695_SDRAM_PA
+#define PLAT_PHYS_OFFSET		KS8695_SDRAM_PA
 
 #ifndef __ASSEMBLY__
 

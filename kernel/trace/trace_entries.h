@@ -27,7 +27,7 @@
  *	  in the structure.
  *
  *   * for structures within structures, the format of the internal
- *	structure is layed out. This allows the internal structure
+ *	structure is laid out. This allows the internal structure
  *	to be deciphered for the format file. Although these macros
  *	may become out of sync with the internal structure, they
  *	will create a compile error if it happens. Since the
@@ -109,12 +109,12 @@ FTRACE_ENTRY(funcgraph_exit, ftrace_graph_ret_entry,
  */
 #define FTRACE_CTX_FIELDS					\
 	__field(	unsigned int,	prev_pid	)	\
+	__field(	unsigned int,	next_pid	)	\
+	__field(	unsigned int,	next_cpu	)       \
 	__field(	unsigned char,	prev_prio	)	\
 	__field(	unsigned char,	prev_state	)	\
-	__field(	unsigned int,	next_pid	)	\
 	__field(	unsigned char,	next_prio	)	\
-	__field(	unsigned char,	next_state	)	\
-	__field(	unsigned int,	next_cpu	)
+	__field(	unsigned char,	next_state	)
 
 FTRACE_ENTRY(context_switch, ctx_switch_entry,
 
@@ -161,7 +161,8 @@ FTRACE_ENTRY(kernel_stack, stack_entry,
 	TRACE_STACK,
 
 	F_STRUCT(
-		__array(	unsigned long,	caller, FTRACE_STACK_ENTRIES	)
+		__field(	int,		size	)
+		__dynamic_array(unsigned long,	caller	)
 	),
 
 	F_printk("\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n"

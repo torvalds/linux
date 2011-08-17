@@ -4,7 +4,7 @@
 
 extern int usb_create_sysfs_dev_files(struct usb_device *dev);
 extern void usb_remove_sysfs_dev_files(struct usb_device *dev);
-extern int usb_create_sysfs_intf_files(struct usb_interface *intf);
+extern void usb_create_sysfs_intf_files(struct usb_interface *intf);
 extern void usb_remove_sysfs_intf_files(struct usb_interface *intf);
 extern int usb_create_ep_devs(struct device *parent,
 				struct usb_host_endpoint *endpoint,
@@ -77,6 +77,9 @@ static inline int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 extern void usb_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
 extern int usb_remote_wakeup(struct usb_device *dev);
+extern int usb_runtime_suspend(struct device *dev);
+extern int usb_runtime_resume(struct device *dev);
+extern int usb_runtime_idle(struct device *dev);
 
 #else
 
@@ -120,6 +123,19 @@ static inline int is_usb_device_driver(struct device_driver *drv)
 {
 	return container_of(drv, struct usbdrv_wrap, driver)->
 			for_devices;
+}
+
+/* translate USB error codes to codes user space understands */
+static inline int usb_translate_errors(int error_code)
+{
+	switch (error_code) {
+	case 0:
+	case -ENOMEM:
+	case -ENODEV:
+		return error_code;
+	default:
+		return -EIO;
+	}
 }
 
 

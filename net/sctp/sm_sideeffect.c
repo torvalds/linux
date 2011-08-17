@@ -482,7 +482,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * If the timer was a heartbeat, we only increment error counts
 	 * when we already have an outstanding HEARTBEAT that has not
 	 * been acknowledged.
-	 * Additionaly, some tranport states inhibit error increments.
+	 * Additionally, some tranport states inhibit error increments.
 	 */
 	if (!is_hb) {
 		asoc->overall_error_count++;
@@ -595,8 +595,7 @@ static int sctp_cmd_process_init(sctp_cmd_seq_t *commands,
 	 * fail during INIT processing (due to malloc problems),
 	 * just return the error and stop processing the stack.
 	 */
-	if (!sctp_process_init(asoc, chunk->chunk_hdr->type,
-			       sctp_source(chunk), peer_init, gfp))
+	if (!sctp_process_init(asoc, chunk, sctp_source(chunk), peer_init, gfp))
 		error = -ENOMEM;
 	else
 		error = 0;
@@ -671,10 +670,19 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	/* 8.3 Upon the receipt of the HEARTBEAT ACK, the sender of the
 	 * HEARTBEAT should clear the error counter of the destination
 	 * transport address to which the HEARTBEAT was sent.
-	 * The association's overall error count is also cleared.
 	 */
 	t->error_count = 0;
-	t->asoc->overall_error_count = 0;
+
+	/*
+	 * Although RFC4960 specifies that the overall error count must
+	 * be cleared when a HEARTBEAT ACK is received, we make an
+	 * exception while in SHUTDOWN PENDING. If the peer keeps its
+	 * window shut forever, we may never be able to transmit our
+	 * outstanding data and rely on the retransmission limit be reached
+	 * to shutdown the association.
+	 */
+	if (t->asoc->state != SCTP_STATE_SHUTDOWN_PENDING)
+		t->asoc->overall_error_count = 0;
 
 	/* Clear the hb_sent flag to signal that we had a good
 	 * acknowledgement.
@@ -1202,7 +1210,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 	int local_cork = 0;
 
 	if (SCTP_EVENT_T_TIMEOUT != event_type)
-		chunk = (struct sctp_chunk *) event_arg;
+		chunk = event_arg;
 
 	/* Note:  This whole file is a huge candidate for rework.
 	 * For example, each command could either have its own handler, so
@@ -1415,12 +1423,6 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 					SCTP_RTXR_T3_RTX);
 			break;
 
-		case SCTP_CMD_TRANSMIT:
-			/* Kick start transmission. */
-			error = sctp_outq_uncork(&asoc->outqueue);
-			local_cork = 0;
-			break;
-
 		case SCTP_CMD_ECN_CE:
 			/* Do delayed CE processing.   */
 			sctp_do_ecn_ce_work(asoc, cmd->obj.u32);
@@ -1443,6 +1445,13 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_SETUP_T2:
 			sctp_cmd_setup_t2(commands, asoc, cmd->obj.ptr);
 			break;
+
+		case SCTP_CMD_TIMER_START_ONCE:
+			timer = &asoc->timers[cmd->obj.to];
+
+			if (timer_pending(timer))
+				break;
+			/* fall through */
 
 		case SCTP_CMD_TIMER_START:
 			timer = &asoc->timers[cmd->obj.to];
@@ -1676,6 +1685,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			break;
 		case SCTP_CMD_SEND_NEXT_ASCONF:
 			sctp_cmd_send_asconf(asoc);
+			break;
+		case SCTP_CMD_PURGE_ASCONF_QUEUE:
+			sctp_asconf_queue_teardown(asoc);
 			break;
 		default:
 			pr_warn("Impossible command: %u, %p\n",

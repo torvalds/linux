@@ -1,6 +1,4 @@
 /*
- * linux/drivers/serial/pmac_zilog.c
- * 
  * Driver for PowerMac Z85c30 based ESCC cell found in the
  * "macio" ASICs of various PowerMac models
  * 
@@ -330,7 +328,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 		 * When that happens, I disable the receive side of the driver.
 		 * Note that what I've been experiencing is a real irq loop where
 		 * I'm getting flooded regardless of the actual port speed.
-		 * Something stange is going on with the HW
+		 * Something strange is going on with the HW
 		 */
 		if ((++loops) > 1000)
 			goto flood;
@@ -396,7 +394,7 @@ static void pmz_transmit_chars(struct uart_pmac_port *uap)
 		 * be nice to transmit console writes just like we normally would for
 		 * a TTY line. (ie. buffered and TX interrupt driven).  That is not
 		 * easy because console writes cannot sleep.  One solution might be
-		 * to poll on enough port->xmit space becomming free.  -DaveM
+		 * to poll on enough port->xmit space becoming free.  -DaveM
 		 */
 		if (!(status & Tx_BUF_EMP))
 			return;
@@ -809,7 +807,7 @@ static int pmz_set_scc_power(struct uart_pmac_port *uap, int state)
 #endif /* !CONFIG_PPC_PMAC */
 
 /*
- * FixZeroBug....Works around a bug in the SCC receving channel.
+ * FixZeroBug....Works around a bug in the SCC receiving channel.
  * Inspired from Darwin code, 15 Sept. 2000  -DanM
  *
  * The following sequence prevents a problem that is seen with O'Hare ASICs

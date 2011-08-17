@@ -176,6 +176,7 @@ ENDPROC(v6_coherent_kern_range)
  */
 ENTRY(v6_flush_kern_dcache_area)
 	add	r1, r0, r1
+	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line
@@ -329,16 +330,5 @@ ENDPROC(v6_dma_unmap_area)
 
 	__INITDATA
 
-	.type	v6_cache_fns, #object
-ENTRY(v6_cache_fns)
-	.long	v6_flush_icache_all
-	.long	v6_flush_kern_cache_all
-	.long	v6_flush_user_cache_all
-	.long	v6_flush_user_cache_range
-	.long	v6_coherent_kern_range
-	.long	v6_coherent_user_range
-	.long	v6_flush_kern_dcache_area
-	.long	v6_dma_map_area
-	.long	v6_dma_unmap_area
-	.long	v6_dma_flush_range
-	.size	v6_cache_fns, . - v6_cache_fns
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions v6

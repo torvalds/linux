@@ -320,7 +320,7 @@ void pnp_remove_card_device(struct pnp_dev *dev)
  * pnp_request_card_device - Searches for a PnP device under the specified card
  * @clink: pointer to the card link, cannot be NULL
  * @id: pointer to a PnP ID structure that explains the rules for finding the device
- * @from: Starting place to search from. If NULL it will start from the begining.
+ * @from: Starting place to search from. If NULL it will start from the beginning.
  */
 struct pnp_dev *pnp_request_card_device(struct pnp_card_link *clink,
 					const char *id, struct pnp_dev *from)
@@ -369,7 +369,7 @@ err_out:
 
 /**
  * pnp_release_card_device - call this when the driver no longer needs the device
- * @dev: pointer to the PnP device stucture
+ * @dev: pointer to the PnP device structure
  */
 void pnp_release_card_device(struct pnp_dev *dev)
 {

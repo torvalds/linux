@@ -18,775 +18,135 @@
 #include <linux/bitmap.h>
 #include <linux/rbtree.h>
 
-static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
+#include <trace/events/asoc.h>
+
+static bool snd_soc_set_cache_val(void *base, unsigned int idx,
+				  unsigned int val, unsigned int word_size)
 {
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg)) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
-}
-
-static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
-{
-	u8 data[2];
-	int ret;
-
-	data[0] = (reg << 4) | ((value >> 8) & 0x000f);
-	data[1] = value & 0x00ff;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	ret = codec->hw_write(codec->control_data, data, 2);
-	if (ret == 2)
-		return 0;
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-#if defined(CONFIG_SPI_MASTER)
-static int snd_soc_4_12_spi_write(void *control_data, const char *data,
-				 int len)
-{
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[1];
-	msg[1] = data[0];
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#else
-#define snd_soc_4_12_spi_write NULL
-#endif
-
-static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
-{
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg)) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
-}
-
-static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
-{
-	u8 data[2];
-	int ret;
-
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	ret = codec->hw_write(codec->control_data, data, 2);
-	if (ret == 2)
-		return 0;
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-#if defined(CONFIG_SPI_MASTER)
-static int snd_soc_7_9_spi_write(void *control_data, const char *data,
-				 int len)
-{
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#else
-#define snd_soc_7_9_spi_write NULL
-#endif
-
-static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
-{
-	u8 data[2];
-	int ret;
-
-	reg &= 0xff;
-	data[0] = reg;
-	data[1] = value & 0xff;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
-static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
-{
-	int ret;
-	unsigned int val;
-
-	reg &= 0xff;
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg)) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
-}
-
-#if defined(CONFIG_SPI_MASTER)
-static int snd_soc_8_8_spi_write(void *control_data, const char *data,
-				 int len)
-{
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#else
-#define snd_soc_8_8_spi_write NULL
-#endif
-
-static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
-			      unsigned int value)
-{
-	u8 data[3];
-	int ret;
-
-	data[0] = reg;
-	data[1] = (value >> 8) & 0xff;
-	data[2] = value & 0xff;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	if (codec->hw_write(codec->control_data, data, 3) == 3)
-		return 0;
-	else
-		return -EIO;
-}
-
-static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-	    snd_soc_codec_volatile_register(codec, reg)) {
-		if (codec->cache_only)
-			return -1;
-
-		BUG_ON(!codec->hw_read);
-		return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
-}
-
-#if defined(CONFIG_SPI_MASTER)
-static int snd_soc_8_16_spi_write(void *control_data, const char *data,
-				 int len)
-{
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[3];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-	msg[2] = data[2];
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#else
-#define snd_soc_8_16_spi_write NULL
-#endif
-
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-static unsigned int snd_soc_8_8_read_i2c(struct snd_soc_codec *codec,
-					  unsigned int r)
-{
-	struct i2c_msg xfer[2];
-	u8 reg = r;
-	u8 data;
-	int ret;
-	struct i2c_client *client = codec->control_data;
-
-	/* Write register */
-	xfer[0].addr = client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 1;
-	xfer[0].buf = &reg;
-
-	/* Read data */
-	xfer[1].addr = client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 1;
-	xfer[1].buf = &data;
-
-	ret = i2c_transfer(client->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
-		return 0;
-	}
-
-	return data;
-}
-#else
-#define snd_soc_8_8_read_i2c NULL
-#endif
-
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-static unsigned int snd_soc_8_16_read_i2c(struct snd_soc_codec *codec,
-					  unsigned int r)
-{
-	struct i2c_msg xfer[2];
-	u8 reg = r;
-	u16 data;
-	int ret;
-	struct i2c_client *client = codec->control_data;
-
-	/* Write register */
-	xfer[0].addr = client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 1;
-	xfer[0].buf = &reg;
-
-	/* Read data */
-	xfer[1].addr = client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 2;
-	xfer[1].buf = (u8 *)&data;
-
-	ret = i2c_transfer(client->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
-		return 0;
-	}
-
-	return (data >> 8) | ((data & 0xff) << 8);
-}
-#else
-#define snd_soc_8_16_read_i2c NULL
-#endif
-
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-static unsigned int snd_soc_16_8_read_i2c(struct snd_soc_codec *codec,
-					  unsigned int r)
-{
-	struct i2c_msg xfer[2];
-	u16 reg = r;
-	u8 data;
-	int ret;
-	struct i2c_client *client = codec->control_data;
-
-	/* Write register */
-	xfer[0].addr = client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 2;
-	xfer[0].buf = (u8 *)&reg;
-
-	/* Read data */
-	xfer[1].addr = client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 1;
-	xfer[1].buf = &data;
-
-	ret = i2c_transfer(client->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
-		return 0;
-	}
-
-	return data;
-}
-#else
-#define snd_soc_16_8_read_i2c NULL
-#endif
-
-static unsigned int snd_soc_16_8_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
-{
-	int ret;
-	unsigned int val;
-
-	reg &= 0xff;
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg)) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
-}
-
-static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
-{
-	u8 data[3];
-	int ret;
-
-	data[0] = (reg >> 8) & 0xff;
-	data[1] = reg & 0xff;
-	data[2] = value;
-
-	reg &= 0xff;
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	ret = codec->hw_write(codec->control_data, data, 3);
-	if (ret == 3)
-		return 0;
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-#if defined(CONFIG_SPI_MASTER)
-static int snd_soc_16_8_spi_write(void *control_data, const char *data,
-				 int len)
-{
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[3];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-	msg[2] = data[2];
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#else
-#define snd_soc_16_8_spi_write NULL
-#endif
-
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-static unsigned int snd_soc_16_16_read_i2c(struct snd_soc_codec *codec,
-					   unsigned int r)
-{
-	struct i2c_msg xfer[2];
-	u16 reg = cpu_to_be16(r);
-	u16 data;
-	int ret;
-	struct i2c_client *client = codec->control_data;
-
-	/* Write register */
-	xfer[0].addr = client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 2;
-	xfer[0].buf = (u8 *)&reg;
-
-	/* Read data */
-	xfer[1].addr = client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 2;
-	xfer[1].buf = (u8 *)&data;
-
-	ret = i2c_transfer(client->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
-		return 0;
-	}
-
-	return be16_to_cpu(data);
-}
-#else
-#define snd_soc_16_16_read_i2c NULL
-#endif
-
-static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
-				       unsigned int reg)
-{
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-	    snd_soc_codec_volatile_register(codec, reg)) {
-		if (codec->cache_only)
-			return -1;
-
-		BUG_ON(!codec->hw_read);
-		return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-
-	return val;
-}
-
-static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
-			       unsigned int value)
-{
-	u8 data[4];
-	int ret;
-
-	data[0] = (reg >> 8) & 0xff;
-	data[1] = reg & 0xff;
-	data[2] = (value >> 8) & 0xff;
-	data[3] = value & 0xff;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	ret = codec->hw_write(codec->control_data, data, 4);
-	if (ret == 4)
-		return 0;
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-#if defined(CONFIG_SPI_MASTER)
-static int snd_soc_16_16_spi_write(void *control_data, const char *data,
-				 int len)
-{
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[4];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-	msg[2] = data[2];
-	msg[3] = data[3];
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#else
-#define snd_soc_16_16_spi_write NULL
-#endif
-
-static struct {
-	int addr_bits;
-	int data_bits;
-	int (*write)(struct snd_soc_codec *codec, unsigned int, unsigned int);
-	int (*spi_write)(void *, const char *, int);
-	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
-	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
-} io_types[] = {
-	{
-		.addr_bits = 4, .data_bits = 12,
-		.write = snd_soc_4_12_write, .read = snd_soc_4_12_read,
-		.spi_write = snd_soc_4_12_spi_write,
-	},
-	{
-		.addr_bits = 7, .data_bits = 9,
-		.write = snd_soc_7_9_write, .read = snd_soc_7_9_read,
-		.spi_write = snd_soc_7_9_spi_write,
-	},
-	{
-		.addr_bits = 8, .data_bits = 8,
-		.write = snd_soc_8_8_write, .read = snd_soc_8_8_read,
-		.i2c_read = snd_soc_8_8_read_i2c,
-		.spi_write = snd_soc_8_8_spi_write,
-	},
-	{
-		.addr_bits = 8, .data_bits = 16,
-		.write = snd_soc_8_16_write, .read = snd_soc_8_16_read,
-		.i2c_read = snd_soc_8_16_read_i2c,
-		.spi_write = snd_soc_8_16_spi_write,
-	},
-	{
-		.addr_bits = 16, .data_bits = 8,
-		.write = snd_soc_16_8_write, .read = snd_soc_16_8_read,
-		.i2c_read = snd_soc_16_8_read_i2c,
-		.spi_write = snd_soc_16_8_spi_write,
-	},
-	{
-		.addr_bits = 16, .data_bits = 16,
-		.write = snd_soc_16_16_write, .read = snd_soc_16_16_read,
-		.i2c_read = snd_soc_16_16_read_i2c,
-		.spi_write = snd_soc_16_16_spi_write,
-	},
-};
-
-/**
- * snd_soc_codec_set_cache_io: Set up standard I/O functions.
- *
- * @codec: CODEC to configure.
- * @type: Type of cache.
- * @addr_bits: Number of bits of register address data.
- * @data_bits: Number of bits of data per register.
- * @control: Control bus used.
- *
- * Register formats are frequently shared between many I2C and SPI
- * devices.  In order to promote code reuse the ASoC core provides
- * some standard implementations of CODEC read and write operations
- * which can be set up using this function.
- *
- * The caller is responsible for allocating and initialising the
- * actual cache.
- *
- * Note that at present this code cannot be used by CODECs with
- * volatile registers.
- */
-int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
-			       int addr_bits, int data_bits,
-			       enum snd_soc_control_type control)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(io_types); i++)
-		if (io_types[i].addr_bits == addr_bits &&
-		    io_types[i].data_bits == data_bits)
-			break;
-	if (i == ARRAY_SIZE(io_types)) {
-		printk(KERN_ERR
-		       "No I/O functions for %d bit address %d bit data\n",
-		       addr_bits, data_bits);
-		return -EINVAL;
-	}
-
-	codec->write = io_types[i].write;
-	codec->read = io_types[i].read;
-
-	switch (control) {
-	case SND_SOC_CUSTOM:
-		break;
-
-	case SND_SOC_I2C:
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-		codec->hw_write = (hw_write_t)i2c_master_send;
-#endif
-		if (io_types[i].i2c_read)
-			codec->hw_read = io_types[i].i2c_read;
-
-		codec->control_data = container_of(codec->dev,
-						   struct i2c_client,
-						   dev);
-		break;
-
-	case SND_SOC_SPI:
-		if (io_types[i].spi_write)
-			codec->hw_write = io_types[i].spi_write;
-
-		codec->control_data = container_of(codec->dev,
-						   struct spi_device,
-						   dev);
+	switch (word_size) {
+	case 1: {
+		u8 *cache = base;
+		if (cache[idx] == val)
+			return true;
+		cache[idx] = val;
 		break;
 	}
-
-	return 0;
+	case 2: {
+		u16 *cache = base;
+		if (cache[idx] == val)
+			return true;
+		cache[idx] = val;
+		break;
+	}
+	default:
+		BUG();
+	}
+	return false;
 }
-EXPORT_SYMBOL_GPL(snd_soc_codec_set_cache_io);
+
+static unsigned int snd_soc_get_cache_val(const void *base, unsigned int idx,
+		unsigned int word_size)
+{
+	if (!base)
+		return -1;
+
+	switch (word_size) {
+	case 1: {
+		const u8 *cache = base;
+		return cache[idx];
+	}
+	case 2: {
+		const u16 *cache = base;
+		return cache[idx];
+	}
+	default:
+		BUG();
+	}
+	/* unreachable */
+	return -1;
+}
 
 struct snd_soc_rbtree_node {
-	struct rb_node node;
-	unsigned int reg;
-	unsigned int value;
-	unsigned int defval;
+	struct rb_node node; /* the actual rbtree node holding this block */
+	unsigned int base_reg; /* base register handled by this block */
+	unsigned int word_size; /* number of bytes needed to represent the register index */
+	void *block; /* block of adjacent registers */
+	unsigned int blklen; /* number of registers available in the block */
 } __attribute__ ((packed));
 
 struct snd_soc_rbtree_ctx {
 	struct rb_root root;
+	struct snd_soc_rbtree_node *cached_rbnode;
 };
+
+static inline void snd_soc_rbtree_get_base_top_reg(
+	struct snd_soc_rbtree_node *rbnode,
+	unsigned int *base, unsigned int *top)
+{
+	*base = rbnode->base_reg;
+	*top = rbnode->base_reg + rbnode->blklen - 1;
+}
+
+static unsigned int snd_soc_rbtree_get_register(
+	struct snd_soc_rbtree_node *rbnode, unsigned int idx)
+{
+	unsigned int val;
+
+	switch (rbnode->word_size) {
+	case 1: {
+		u8 *p = rbnode->block;
+		val = p[idx];
+		return val;
+	}
+	case 2: {
+		u16 *p = rbnode->block;
+		val = p[idx];
+		return val;
+	}
+	default:
+		BUG();
+		break;
+	}
+	return -1;
+}
+
+static void snd_soc_rbtree_set_register(struct snd_soc_rbtree_node *rbnode,
+					unsigned int idx, unsigned int val)
+{
+	switch (rbnode->word_size) {
+	case 1: {
+		u8 *p = rbnode->block;
+		p[idx] = val;
+		break;
+	}
+	case 2: {
+		u16 *p = rbnode->block;
+		p[idx] = val;
+		break;
+	}
+	default:
+		BUG();
+		break;
+	}
+}
 
 static struct snd_soc_rbtree_node *snd_soc_rbtree_lookup(
 	struct rb_root *root, unsigned int reg)
 {
 	struct rb_node *node;
 	struct snd_soc_rbtree_node *rbnode;
+	unsigned int base_reg, top_reg;
 
 	node = root->rb_node;
 	while (node) {
 		rbnode = container_of(node, struct snd_soc_rbtree_node, node);
-		if (rbnode->reg < reg)
-			node = node->rb_left;
-		else if (rbnode->reg > reg)
-			node = node->rb_right;
-		else
+		snd_soc_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
+		if (reg >= base_reg && reg <= top_reg)
 			return rbnode;
+		else if (reg > top_reg)
+			node = node->rb_right;
+		else if (reg < base_reg)
+			node = node->rb_left;
 	}
 
 	return NULL;
@@ -797,19 +157,28 @@ static int snd_soc_rbtree_insert(struct rb_root *root,
 {
 	struct rb_node **new, *parent;
 	struct snd_soc_rbtree_node *rbnode_tmp;
+	unsigned int base_reg_tmp, top_reg_tmp;
+	unsigned int base_reg;
 
 	parent = NULL;
 	new = &root->rb_node;
 	while (*new) {
 		rbnode_tmp = container_of(*new, struct snd_soc_rbtree_node,
 					  node);
+		/* base and top registers of the current rbnode */
+		snd_soc_rbtree_get_base_top_reg(rbnode_tmp, &base_reg_tmp,
+						&top_reg_tmp);
+		/* base register of the rbnode to be added */
+		base_reg = rbnode->base_reg;
 		parent = *new;
-		if (rbnode_tmp->reg < rbnode->reg)
-			new = &((*new)->rb_left);
-		else if (rbnode_tmp->reg > rbnode->reg)
-			new = &((*new)->rb_right);
-		else
+		/* if this register has already been inserted, just return */
+		if (base_reg >= base_reg_tmp &&
+		    base_reg <= top_reg_tmp)
 			return 0;
+		else if (base_reg > top_reg_tmp)
+			new = &((*new)->rb_right);
+		else if (base_reg < base_reg_tmp)
+			new = &((*new)->rb_left);
 	}
 
 	/* insert the node into the rbtree */
@@ -824,24 +193,60 @@ static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
 	struct snd_soc_rbtree_ctx *rbtree_ctx;
 	struct rb_node *node;
 	struct snd_soc_rbtree_node *rbnode;
-	unsigned int val;
+	unsigned int regtmp;
+	unsigned int val, def;
 	int ret;
+	int i;
 
 	rbtree_ctx = codec->reg_cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct snd_soc_rbtree_node, node);
-		if (rbnode->value == rbnode->defval)
-			continue;
-		ret = snd_soc_cache_read(codec, rbnode->reg, &val);
-		if (ret)
-			return ret;
-		ret = snd_soc_write(codec, rbnode->reg, val);
-		if (ret)
-			return ret;
-		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
-			rbnode->reg, val);
+		for (i = 0; i < rbnode->blklen; ++i) {
+			regtmp = rbnode->base_reg + i;
+			WARN_ON(codec->writable_register &&
+				codec->writable_register(codec, regtmp));
+			val = snd_soc_rbtree_get_register(rbnode, i);
+			def = snd_soc_get_cache_val(codec->reg_def_copy, i,
+						    rbnode->word_size);
+			if (val == def)
+				continue;
+
+			codec->cache_bypass = 1;
+			ret = snd_soc_write(codec, regtmp, val);
+			codec->cache_bypass = 0;
+			if (ret)
+				return ret;
+			dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
+				regtmp, val);
+		}
 	}
 
+	return 0;
+}
+
+static int snd_soc_rbtree_insert_to_block(struct snd_soc_rbtree_node *rbnode,
+					  unsigned int pos, unsigned int reg,
+					  unsigned int value)
+{
+	u8 *blk;
+
+	blk = krealloc(rbnode->block,
+		       (rbnode->blklen + 1) * rbnode->word_size, GFP_KERNEL);
+	if (!blk)
+		return -ENOMEM;
+
+	/* insert the register value in the correct place in the rbnode block */
+	memmove(blk + (pos + 1) * rbnode->word_size,
+		blk + pos * rbnode->word_size,
+		(rbnode->blklen - pos) * rbnode->word_size);
+
+	/* update the rbnode block, its size and the base register */
+	rbnode->block = blk;
+	rbnode->blklen++;
+	if (!pos)
+		rbnode->base_reg = reg;
+
+	snd_soc_rbtree_set_register(rbnode, pos, value);
 	return 0;
 }
 
@@ -849,29 +254,85 @@ static int snd_soc_rbtree_cache_write(struct snd_soc_codec *codec,
 				      unsigned int reg, unsigned int value)
 {
 	struct snd_soc_rbtree_ctx *rbtree_ctx;
-	struct snd_soc_rbtree_node *rbnode;
+	struct snd_soc_rbtree_node *rbnode, *rbnode_tmp;
+	struct rb_node *node;
+	unsigned int val;
+	unsigned int reg_tmp;
+	unsigned int base_reg, top_reg;
+	unsigned int pos;
+	int i;
+	int ret;
 
 	rbtree_ctx = codec->reg_cache;
+	/* look up the required register in the cached rbnode */
+	rbnode = rbtree_ctx->cached_rbnode;
+	if (rbnode) {
+		snd_soc_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
+		if (reg >= base_reg && reg <= top_reg) {
+			reg_tmp = reg - base_reg;
+			val = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+			if (val == value)
+				return 0;
+			snd_soc_rbtree_set_register(rbnode, reg_tmp, value);
+			return 0;
+		}
+	}
+	/* if we can't locate it in the cached rbnode we'll have
+	 * to traverse the rbtree looking for it.
+	 */
 	rbnode = snd_soc_rbtree_lookup(&rbtree_ctx->root, reg);
 	if (rbnode) {
-		if (rbnode->value == value)
+		reg_tmp = reg - rbnode->base_reg;
+		val = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+		if (val == value)
 			return 0;
-		rbnode->value = value;
+		snd_soc_rbtree_set_register(rbnode, reg_tmp, value);
+		rbtree_ctx->cached_rbnode = rbnode;
 	} else {
 		/* bail out early, no need to create the rbnode yet */
 		if (!value)
 			return 0;
-		/*
-		 * for uninitialized registers whose value is changed
-		 * from the default zero, create an rbnode and insert
-		 * it into the tree.
+		/* look for an adjacent register to the one we are about to add */
+		for (node = rb_first(&rbtree_ctx->root); node;
+		     node = rb_next(node)) {
+			rbnode_tmp = rb_entry(node, struct snd_soc_rbtree_node, node);
+			for (i = 0; i < rbnode_tmp->blklen; ++i) {
+				reg_tmp = rbnode_tmp->base_reg + i;
+				if (abs(reg_tmp - reg) != 1)
+					continue;
+				/* decide where in the block to place our register */
+				if (reg_tmp + 1 == reg)
+					pos = i + 1;
+				else
+					pos = i;
+				ret = snd_soc_rbtree_insert_to_block(rbnode_tmp, pos,
+								     reg, value);
+				if (ret)
+					return ret;
+				rbtree_ctx->cached_rbnode = rbnode_tmp;
+				return 0;
+			}
+		}
+		/* we did not manage to find a place to insert it in an existing
+		 * block so create a new rbnode with a single register in its block.
+		 * This block will get populated further if any other adjacent
+		 * registers get modified in the future.
 		 */
 		rbnode = kzalloc(sizeof *rbnode, GFP_KERNEL);
 		if (!rbnode)
 			return -ENOMEM;
-		rbnode->reg = reg;
-		rbnode->value = value;
+		rbnode->blklen = 1;
+		rbnode->base_reg = reg;
+		rbnode->word_size = codec->driver->reg_word_size;
+		rbnode->block = kmalloc(rbnode->blklen * rbnode->word_size,
+					GFP_KERNEL);
+		if (!rbnode->block) {
+			kfree(rbnode);
+			return -ENOMEM;
+		}
+		snd_soc_rbtree_set_register(rbnode, 0, value);
 		snd_soc_rbtree_insert(&rbtree_ctx->root, rbnode);
+		rbtree_ctx->cached_rbnode = rbnode;
 	}
 
 	return 0;
@@ -882,11 +343,28 @@ static int snd_soc_rbtree_cache_read(struct snd_soc_codec *codec,
 {
 	struct snd_soc_rbtree_ctx *rbtree_ctx;
 	struct snd_soc_rbtree_node *rbnode;
+	unsigned int base_reg, top_reg;
+	unsigned int reg_tmp;
 
 	rbtree_ctx = codec->reg_cache;
+	/* look up the required register in the cached rbnode */
+	rbnode = rbtree_ctx->cached_rbnode;
+	if (rbnode) {
+		snd_soc_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
+		if (reg >= base_reg && reg <= top_reg) {
+			reg_tmp = reg - base_reg;
+			*value = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+			return 0;
+		}
+	}
+	/* if we can't locate it in the cached rbnode we'll have
+	 * to traverse the rbtree looking for it.
+	 */
 	rbnode = snd_soc_rbtree_lookup(&rbtree_ctx->root, reg);
 	if (rbnode) {
-		*value = rbnode->value;
+		reg_tmp = reg - rbnode->base_reg;
+		*value = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+		rbtree_ctx->cached_rbnode = rbnode;
 	} else {
 		/* uninitialized registers default to 0 */
 		*value = 0;
@@ -912,6 +390,7 @@ static int snd_soc_rbtree_cache_exit(struct snd_soc_codec *codec)
 		rbtree_node = rb_entry(next, struct snd_soc_rbtree_node, node);
 		next = rb_next(&rbtree_node->node);
 		rb_erase(&rbtree_node->node, &rbtree_ctx->root);
+		kfree(rbtree_node->block);
 		kfree(rbtree_node);
 	}
 
@@ -925,6 +404,10 @@ static int snd_soc_rbtree_cache_exit(struct snd_soc_codec *codec)
 static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
 {
 	struct snd_soc_rbtree_ctx *rbtree_ctx;
+	unsigned int word_size;
+	unsigned int val;
+	int i;
+	int ret;
 
 	codec->reg_cache = kmalloc(sizeof *rbtree_ctx, GFP_KERNEL);
 	if (!codec->reg_cache)
@@ -932,60 +415,27 @@ static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
 
 	rbtree_ctx = codec->reg_cache;
 	rbtree_ctx->root = RB_ROOT;
+	rbtree_ctx->cached_rbnode = NULL;
 
 	if (!codec->reg_def_copy)
 		return 0;
 
-/*
- * populate the rbtree with the initialized registers.  All other
- * registers will be inserted into the tree when they are first written.
- *
- * The reasoning behind this, is that we need to step through and
- * dereference the cache in u8/u16 increments without sacrificing
- * portability.  This could also be done using memcpy() but that would
- * be slightly more cryptic.
- */
-#define snd_soc_rbtree_populate(cache)					\
-({									\
-	int ret, i;							\
-	struct snd_soc_rbtree_node *rbtree_node;			\
-									\
-	ret = 0;							\
-	cache = codec->reg_def_copy;					\
-	for (i = 0; i < codec->driver->reg_cache_size; ++i) {		\
-		if (!cache[i])						\
-			continue;					\
-		rbtree_node = kzalloc(sizeof *rbtree_node, GFP_KERNEL);	\
-		if (!rbtree_node) {					\
-			ret = -ENOMEM;					\
-			snd_soc_cache_exit(codec);			\
-			break;						\
-		}							\
-		rbtree_node->reg = i;					\
-		rbtree_node->value = cache[i];				\
-		rbtree_node->defval = cache[i];				\
-		snd_soc_rbtree_insert(&rbtree_ctx->root,		\
-				      rbtree_node);			\
-	}								\
-	ret;								\
-})
-
-	switch (codec->driver->reg_word_size) {
-	case 1: {
-		const u8 *cache;
-
-		return snd_soc_rbtree_populate(cache);
-	}
-	case 2: {
-		const u16 *cache;
-
-		return snd_soc_rbtree_populate(cache);
-	}
-	default:
-		BUG();
+	word_size = codec->driver->reg_word_size;
+	for (i = 0; i < codec->driver->reg_cache_size; ++i) {
+		val = snd_soc_get_cache_val(codec->reg_def_copy, i,
+					    word_size);
+		if (!val)
+			continue;
+		ret = snd_soc_rbtree_cache_write(codec, i, val);
+		if (ret)
+			goto err;
 	}
 
 	return 0;
+
+err:
+	snd_soc_cache_exit(codec);
+	return ret;
 }
 
 #ifdef CONFIG_SND_SOC_CACHE_LZO
@@ -1080,34 +530,28 @@ static inline int snd_soc_lzo_get_blkindex(struct snd_soc_codec *codec,
 		unsigned int reg)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 	return (reg * codec_drv->reg_word_size) /
-	       DIV_ROUND_UP(reg_size, snd_soc_lzo_block_count());
+	       DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count());
 }
 
 static inline int snd_soc_lzo_get_blkpos(struct snd_soc_codec *codec,
 		unsigned int reg)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
-	return reg % (DIV_ROUND_UP(reg_size, snd_soc_lzo_block_count()) /
+	return reg % (DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count()) /
 		      codec_drv->reg_word_size);
 }
 
 static inline int snd_soc_lzo_get_blksize(struct snd_soc_codec *codec)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
-	return DIV_ROUND_UP(reg_size, snd_soc_lzo_block_count());
+	return DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count());
 }
 
 static int snd_soc_lzo_cache_sync(struct snd_soc_codec *codec)
@@ -1119,10 +563,14 @@ static int snd_soc_lzo_cache_sync(struct snd_soc_codec *codec)
 
 	lzo_blocks = codec->reg_cache;
 	for_each_set_bit(i, lzo_blocks[0]->sync_bmp, lzo_blocks[0]->sync_bmp_nbits) {
+		WARN_ON(codec->writable_register &&
+			codec->writable_register(codec, i));
 		ret = snd_soc_cache_read(codec, i, &val);
 		if (ret)
 			return ret;
+		codec->cache_bypass = 1;
 		ret = snd_soc_write(codec, i, val);
+		codec->cache_bypass = 0;
 		if (ret)
 			return ret;
 		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
@@ -1165,29 +613,10 @@ static int snd_soc_lzo_cache_write(struct snd_soc_codec *codec,
 	}
 
 	/* write the new value to the cache */
-	switch (codec->driver->reg_word_size) {
-	case 1: {
-		u8 *cache;
-		cache = lzo_block->dst;
-		if (cache[blkpos] == value) {
-			kfree(lzo_block->dst);
-			goto out;
-		}
-		cache[blkpos] = value;
-	}
-	break;
-	case 2: {
-		u16 *cache;
-		cache = lzo_block->dst;
-		if (cache[blkpos] == value) {
-			kfree(lzo_block->dst);
-			goto out;
-		}
-		cache[blkpos] = value;
-	}
-	break;
-	default:
-		BUG();
+	if (snd_soc_set_cache_val(lzo_block->dst, blkpos, value,
+				  codec->driver->reg_word_size)) {
+		kfree(lzo_block->dst);
+		goto out;
 	}
 
 	/* prepare the source to be the decompressed block */
@@ -1241,25 +670,10 @@ static int snd_soc_lzo_cache_read(struct snd_soc_codec *codec,
 
 	/* decompress the block */
 	ret = snd_soc_lzo_decompress_cache_block(codec, lzo_block);
-	if (ret >= 0) {
+	if (ret >= 0)
 		/* fetch the value from the cache */
-		switch (codec->driver->reg_word_size) {
-		case 1: {
-			u8 *cache;
-			cache = lzo_block->dst;
-			*value = cache[blkpos];
-		}
-		break;
-		case 2: {
-			u16 *cache;
-			cache = lzo_block->dst;
-			*value = cache[blkpos];
-		}
-		break;
-		default:
-			BUG();
-		}
-	}
+		*value = snd_soc_get_cache_val(lzo_block->dst, blkpos,
+					       codec->driver->reg_word_size);
 
 	kfree(lzo_block->dst);
 	/* restore the pointer and length of the compressed block */
@@ -1301,7 +715,7 @@ static int snd_soc_lzo_cache_exit(struct snd_soc_codec *codec)
 static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 {
 	struct snd_soc_lzo_ctx **lzo_blocks;
-	size_t reg_size, bmp_size;
+	size_t bmp_size;
 	const struct snd_soc_codec_driver *codec_drv;
 	int ret, tofree, i, blksize, blkcount;
 	const char *p, *end;
@@ -1309,7 +723,6 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 
 	ret = 0;
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
 	/*
 	 * If we have not been given a default register cache
@@ -1321,8 +734,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 		tofree = 1;
 
 	if (!codec->reg_def_copy) {
-		codec->reg_def_copy = kzalloc(reg_size,
-						       GFP_KERNEL);
+		codec->reg_def_copy = kzalloc(codec->reg_size, GFP_KERNEL);
 		if (!codec->reg_def_copy)
 			return -ENOMEM;
 	}
@@ -1370,7 +782,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 
 	blksize = snd_soc_lzo_get_blksize(codec);
 	p = codec->reg_def_copy;
-	end = codec->reg_def_copy + reg_size;
+	end = codec->reg_def_copy + codec->reg_size;
 	/* compress the register map and fill the lzo blocks */
 	for (i = 0; i < blkcount; ++i, p += blksize) {
 		lzo_blocks[i]->src = p;
@@ -1411,31 +823,15 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 
 	codec_drv = codec->driver;
 	for (i = 0; i < codec_drv->reg_cache_size; ++i) {
+		WARN_ON(codec->writable_register &&
+			codec->writable_register(codec, i));
 		ret = snd_soc_cache_read(codec, i, &val);
 		if (ret)
 			return ret;
-		if (codec_drv->reg_cache_default) {
-			switch (codec_drv->reg_word_size) {
-			case 1: {
-				const u8 *cache;
-
-				cache = codec_drv->reg_cache_default;
-				if (cache[i] == val)
-					continue;
-			}
-			break;
-			case 2: {
-				const u16 *cache;
-
-				cache = codec_drv->reg_cache_default;
-				if (cache[i] == val)
-					continue;
-			}
-			break;
-			default:
-				BUG();
-			}
-		}
+		if (codec->reg_def_copy)
+			if (snd_soc_get_cache_val(codec->reg_def_copy,
+						  i, codec_drv->reg_word_size) == val)
+				continue;
 		ret = snd_soc_write(codec, i, val);
 		if (ret)
 			return ret;
@@ -1448,50 +844,16 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 static int snd_soc_flat_cache_write(struct snd_soc_codec *codec,
 				    unsigned int reg, unsigned int value)
 {
-	switch (codec->driver->reg_word_size) {
-	case 1: {
-		u8 *cache;
-
-		cache = codec->reg_cache;
-		cache[reg] = value;
-	}
-	break;
-	case 2: {
-		u16 *cache;
-
-		cache = codec->reg_cache;
-		cache[reg] = value;
-	}
-	break;
-	default:
-		BUG();
-	}
-
+	snd_soc_set_cache_val(codec->reg_cache, reg, value,
+			      codec->driver->reg_word_size);
 	return 0;
 }
 
 static int snd_soc_flat_cache_read(struct snd_soc_codec *codec,
 				   unsigned int reg, unsigned int *value)
 {
-	switch (codec->driver->reg_word_size) {
-	case 1: {
-		u8 *cache;
-
-		cache = codec->reg_cache;
-		*value = cache[reg];
-	}
-	break;
-	case 2: {
-		u16 *cache;
-
-		cache = codec->reg_cache;
-		*value = cache[reg];
-	}
-	break;
-	default:
-		BUG();
-	}
-
+	*value = snd_soc_get_cache_val(codec->reg_cache, reg,
+				       codec->driver->reg_word_size);
 	return 0;
 }
 
@@ -1507,24 +869,14 @@ static int snd_soc_flat_cache_exit(struct snd_soc_codec *codec)
 static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
-	/*
-	 * for flat compression, we don't need to keep a copy of the
-	 * original defaults register cache as it will definitely not
-	 * be marked as __devinitconst
-	 */
-	kfree(codec->reg_def_copy);
-	codec->reg_def_copy = NULL;
-
-	if (codec_drv->reg_cache_default)
-		codec->reg_cache = kmemdup(codec_drv->reg_cache_default,
-					   reg_size, GFP_KERNEL);
+	if (codec->reg_def_copy)
+		codec->reg_cache = kmemdup(codec->reg_def_copy,
+					   codec->reg_size, GFP_KERNEL);
 	else
-		codec->reg_cache = kzalloc(reg_size, GFP_KERNEL);
+		codec->reg_cache = kzalloc(codec->reg_size, GFP_KERNEL);
 	if (!codec->reg_cache)
 		return -ENOMEM;
 
@@ -1589,7 +941,7 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->init(codec);
 	}
-	return -EINVAL;
+	return -ENOSYS;
 }
 
 /*
@@ -1604,7 +956,7 @@ int snd_soc_cache_exit(struct snd_soc_codec *codec)
 				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->exit(codec);
 	}
-	return -EINVAL;
+	return -ENOSYS;
 }
 
 /**
@@ -1628,7 +980,7 @@ int snd_soc_cache_read(struct snd_soc_codec *codec,
 	}
 
 	mutex_unlock(&codec->cache_rw_mutex);
-	return -EINVAL;
+	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_read);
 
@@ -1653,7 +1005,7 @@ int snd_soc_cache_write(struct snd_soc_codec *codec,
 	}
 
 	mutex_unlock(&codec->cache_rw_mutex);
-	return -EINVAL;
+	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_write);
 
@@ -1669,21 +1021,91 @@ EXPORT_SYMBOL_GPL(snd_soc_cache_write);
 int snd_soc_cache_sync(struct snd_soc_codec *codec)
 {
 	int ret;
+	const char *name;
 
 	if (!codec->cache_sync) {
 		return 0;
 	}
 
-	if (codec->cache_ops && codec->cache_ops->sync) {
-		if (codec->cache_ops->name)
-			dev_dbg(codec->dev, "Syncing %s cache for %s codec\n",
-				codec->cache_ops->name, codec->name);
-		ret = codec->cache_ops->sync(codec);
-		if (!ret)
-			codec->cache_sync = 0;
-		return ret;
-	}
+	if (!codec->cache_ops || !codec->cache_ops->sync)
+		return -ENOSYS;
 
-	return -EINVAL;
+	if (codec->cache_ops->name)
+		name = codec->cache_ops->name;
+	else
+		name = "unknown";
+
+	if (codec->cache_ops->name)
+		dev_dbg(codec->dev, "Syncing %s cache for %s codec\n",
+			codec->cache_ops->name, codec->name);
+	trace_snd_soc_cache_sync(codec, name, "start");
+	ret = codec->cache_ops->sync(codec);
+	if (!ret)
+		codec->cache_sync = 0;
+	trace_snd_soc_cache_sync(codec, name, "end");
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_sync);
+
+static int snd_soc_get_reg_access_index(struct snd_soc_codec *codec,
+					unsigned int reg)
+{
+	const struct snd_soc_codec_driver *codec_drv;
+	unsigned int min, max, index;
+
+	codec_drv = codec->driver;
+	min = 0;
+	max = codec_drv->reg_access_size - 1;
+	do {
+		index = (min + max) / 2;
+		if (codec_drv->reg_access_default[index].reg == reg)
+			return index;
+		if (codec_drv->reg_access_default[index].reg < reg)
+			min = index + 1;
+		else
+			max = index;
+	} while (min <= max);
+	return -1;
+}
+
+int snd_soc_default_volatile_register(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	int index;
+
+	if (reg >= codec->driver->reg_cache_size)
+		return 1;
+	index = snd_soc_get_reg_access_index(codec, reg);
+	if (index < 0)
+		return 0;
+	return codec->driver->reg_access_default[index].vol;
+}
+EXPORT_SYMBOL_GPL(snd_soc_default_volatile_register);
+
+int snd_soc_default_readable_register(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	int index;
+
+	if (reg >= codec->driver->reg_cache_size)
+		return 1;
+	index = snd_soc_get_reg_access_index(codec, reg);
+	if (index < 0)
+		return 0;
+	return codec->driver->reg_access_default[index].read;
+}
+EXPORT_SYMBOL_GPL(snd_soc_default_readable_register);
+
+int snd_soc_default_writable_register(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	int index;
+
+	if (reg >= codec->driver->reg_cache_size)
+		return 1;
+	index = snd_soc_get_reg_access_index(codec, reg);
+	if (index < 0)
+		return 0;
+	return codec->driver->reg_access_default[index].write;
+}
+EXPORT_SYMBOL_GPL(snd_soc_default_writable_register);

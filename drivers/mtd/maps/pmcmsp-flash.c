@@ -3,7 +3,7 @@
  * Config with both CFI and JEDEC device support.
  *
  * Basically physmap.c with the addition of partitions and
- * an array of mapping info to accomodate more than one flash type per board.
+ * an array of mapping info to accommodate more than one flash type per board.
  *
  * Copyright 2005-2007 PMC-Sierra, Inc.
  *
@@ -173,7 +173,7 @@ static int __init init_msp_flash(void)
 		msp_flash[i] = do_map_probe("cfi_probe", &msp_maps[i]);
 		if (msp_flash[i]) {
 			msp_flash[i]->owner = THIS_MODULE;
-			add_mtd_partitions(msp_flash[i], msp_parts[i], pcnt);
+			mtd_device_register(msp_flash[i], msp_parts[i], pcnt);
 		} else {
 			printk(KERN_ERR "map probe failed for flash\n");
 			ret = -ENXIO;
@@ -188,7 +188,7 @@ static int __init init_msp_flash(void)
 
 cleanup_loop:
 	while (i--) {
-		del_mtd_partitions(msp_flash[i]);
+		mtd_device_unregister(msp_flash[i]);
 		map_destroy(msp_flash[i]);
 		kfree(msp_maps[i].name);
 		iounmap(msp_maps[i].virt);
@@ -207,7 +207,7 @@ static void __exit cleanup_msp_flash(void)
 	int i;
 
 	for (i = 0; i < fcnt; i++) {
-		del_mtd_partitions(msp_flash[i]);
+		mtd_device_unregister(msp_flash[i]);
 		map_destroy(msp_flash[i]);
 		iounmap((void *)msp_maps[i].virt);
 

@@ -378,7 +378,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
  * the device's state as sometimes we need to do a link-renew (the BS
  * wants us to renew a DHCP lease, for example).
  *
- * In fact, doc says that everytime we get a link-up, we should do a
+ * In fact, doc says that every time we get a link-up, we should do a
  * DHCP negotiation...
  */
 static
@@ -675,7 +675,7 @@ void i2400m_msg_to_dev_cancel_wait(struct i2400m *i2400m, int code)
  *  - the ack message wasn't formatted correctly
  *
  * The returned skb has been allocated with wimax_msg_to_user_alloc(),
- * it contains the reponse in a netlink attribute and is ready to be
+ * it contains the response in a netlink attribute and is ready to be
  * passed up to user space with wimax_msg_to_user_send(). To access
  * the payload and its length, use wimax_msg_{data,len}() on the skb.
  *

@@ -18,27 +18,30 @@
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
-#include "osd.h"
-#include "logging.h"
-#include "vmbus_private.h"
-#include "utils.h"
+
+#include "hyperv.h"
+#include "hyperv_vmbus.h"
 
 struct vmbus_channel_message_table_entry {
-	enum vmbus_channel_message_type messageType;
-	void (*messageHandler)(struct vmbus_channel_message_header *msg);
+	enum vmbus_channel_message_type message_type;
+	void (*message_handler)(struct vmbus_channel_message_header *msg);
 };
 
-#define MAX_MSG_TYPES                    3
-#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 7
+#define MAX_MSG_TYPES                    4
+#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 8
 
 static const struct hv_guid
-	gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
+	supported_device_classes[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
 	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
 	/* Storage - SCSI */
 	{
@@ -98,6 +101,15 @@ static const struct hv_guid
 			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
 		}
 	},
+	/* {A9A0F4E7-5A45-4d96-B827-8A841E8C03E6} */
+	/* KVP */
+	{
+		.data = {
+			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6
+	}
+	},
+
 };
 
 
@@ -155,7 +167,7 @@ EXPORT_SYMBOL(prep_negotiate_resp);
  * from Hyper-V. This stub responds to the default negotiate messages
  * that come in for every non IDE/SCSI/Network request.
  * This behavior is normally overwritten in the hv_utils driver. That
- * driver handles requests like gracefull shutdown, heartbeats etc.
+ * driver handles requests like graceful shutdown, heartbeats etc.
  *
  * Mainly used by Hyper-V drivers.
  */
@@ -168,6 +180,24 @@ void chn_cb_negotiate(void *context)
 
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
+
+	if (channel->util_index >= 0) {
+		/*
+		 * This is a properly initialized util channel.
+		 * Route this callback appropriately and setup state
+		 * so that we don't need to reroute again.
+		 */
+		if (hv_cb_utils[channel->util_index].callback != NULL) {
+			/*
+			 * The util driver has established a handler for
+			 * this service; do the magic.
+			 */
+			channel->onchannel_callback =
+			hv_cb_utils[channel->util_index].callback;
+			(hv_cb_utils[channel->util_index].callback)(channel);
+			return;
+		}
+	}
 
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
@@ -185,7 +215,7 @@ void chn_cb_negotiate(void *context)
 
 		vmbus_sendpacket(channel, buf,
 				       recvlen, requestid,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 	}
 
 	kfree(buf);
@@ -205,7 +235,6 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
 			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "Shutdown channel functionality initialized"
 	},
 
@@ -217,7 +246,6 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "Timesync channel functionality initialized"
 	},
 	/* {57164f39-9115-4e78-ab55-382f3bd5422d} */
@@ -228,8 +256,16 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "Heartbeat channel functionality initialized"
+	},
+	/* {A9A0F4E7-5A45-4d96-B827-8A841E8C03E6} */
+	/* KVP */
+	{
+		.data = {
+			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6
+		},
+		.log_msg = "KVP channel functionality initialized"
 	},
 };
 EXPORT_SYMBOL(hv_cb_utils);
@@ -246,10 +282,6 @@ static struct vmbus_channel *alloc_channel(void)
 		return NULL;
 
 	spin_lock_init(&channel->inbound_lock);
-
-	init_timer(&channel->poll_timer);
-	channel->poll_timer.data = (unsigned long)channel;
-	channel->poll_timer.function = vmbus_ontimer;
 
 	channel->controlwq = create_workqueue("hv_vmbus_ctl");
 	if (!channel->controlwq) {
@@ -269,9 +301,7 @@ static void release_channel(struct work_struct *work)
 						     struct vmbus_channel,
 						     work);
 
-	DPRINT_DBG(VMBUS, "releasing channel (%p)", channel);
 	destroy_workqueue(channel->controlwq);
-	DPRINT_DBG(VMBUS, "channel released (%p)", channel);
 
 	kfree(channel);
 }
@@ -281,7 +311,6 @@ static void release_channel(struct work_struct *work)
  */
 void free_channel(struct vmbus_channel *channel)
 {
-	del_timer_sync(&channel->poll_timer);
 
 	/*
 	 * We have to release the channel's workqueue/thread in the vmbus's
@@ -289,26 +318,10 @@ void free_channel(struct vmbus_channel *channel)
 	 * ie we can't destroy ourselves.
 	 */
 	INIT_WORK(&channel->work, release_channel);
-	queue_work(gVmbusConnection.WorkQueue, &channel->work);
+	queue_work(vmbus_connection.work_queue, &channel->work);
 }
 
 
-DECLARE_COMPLETION(hv_channel_ready);
-
-/*
- * Count initialized channels, and ensure all channels are ready when hv_vmbus
- * module loading completes.
- */
-static void count_hv_channel(void)
-{
-	static int counter;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
-	if (++counter == MAX_MSG_TYPES)
-		complete(&hv_channel_ready);
-	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
-}
 
 /*
  * vmbus_process_rescind_offer -
@@ -342,14 +355,14 @@ static void vmbus_process_offer(struct work_struct *work)
 	INIT_WORK(&newchannel->work, vmbus_process_rescind_offer);
 
 	/* Make sure this is a new offer */
-	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
-	list_for_each_entry(channel, &gVmbusConnection.ChannelList, listentry) {
-		if (!memcmp(&channel->offermsg.offer.InterfaceType,
-			    &newchannel->offermsg.offer.InterfaceType,
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		if (!memcmp(&channel->offermsg.offer.if_type,
+			    &newchannel->offermsg.offer.if_type,
 			    sizeof(struct hv_guid)) &&
-		    !memcmp(&channel->offermsg.offer.InterfaceInstance,
-			    &newchannel->offermsg.offer.InterfaceInstance,
+		    !memcmp(&channel->offermsg.offer.if_instance,
+			    &newchannel->offermsg.offer.if_instance,
 			    sizeof(struct hv_guid))) {
 			fnew = false;
 			break;
@@ -358,13 +371,11 @@ static void vmbus_process_offer(struct work_struct *work)
 
 	if (fnew)
 		list_add_tail(&newchannel->listentry,
-			      &gVmbusConnection.ChannelList);
+			      &vmbus_connection.chn_list);
 
-	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 	if (!fnew) {
-		DPRINT_DBG(VMBUS, "Ignoring duplicate offer for relid (%d)",
-			   newchannel->offermsg.child_relid);
 		free_channel(newchannel);
 		return;
 	}
@@ -372,30 +383,26 @@ static void vmbus_process_offer(struct work_struct *work)
 	/*
 	 * Start the process of binding this offer to the driver
 	 * We need to set the DeviceObject field before calling
-	 * VmbusChildDeviceAdd()
+	 * vmbus_child_dev_add()
 	 */
 	newchannel->device_obj = vmbus_child_device_create(
-		&newchannel->offermsg.offer.InterfaceType,
-		&newchannel->offermsg.offer.InterfaceInstance,
+		&newchannel->offermsg.offer.if_type,
+		&newchannel->offermsg.offer.if_instance,
 		newchannel);
-
-	DPRINT_DBG(VMBUS, "child device object allocated - %p",
-		   newchannel->device_obj);
 
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
 	 */
-	ret = VmbusChildDeviceAdd(newchannel->device_obj);
+	ret = vmbus_child_device_register(newchannel->device_obj);
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS,
-			   "unable to add child device object (relid %d)",
+		pr_err("unable to add child device object (relid %d)\n",
 			   newchannel->offermsg.child_relid);
 
-		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 		list_del(&newchannel->listentry);
-		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 		free_channel(newchannel);
 	} else {
@@ -405,20 +412,22 @@ static void vmbus_process_offer(struct work_struct *work)
 		 * can cleanup properly
 		 */
 		newchannel->state = CHANNEL_OPEN_STATE;
+		newchannel->util_index = -1; /* Invalid index */
 
 		/* Open IC channels */
 		for (cnt = 0; cnt < MAX_MSG_TYPES; cnt++) {
-			if (memcmp(&newchannel->offermsg.offer.InterfaceType,
+			if (memcmp(&newchannel->offermsg.offer.if_type,
 				   &hv_cb_utils[cnt].data,
 				   sizeof(struct hv_guid)) == 0 &&
 				vmbus_open(newchannel, 2 * PAGE_SIZE,
 						 2 * PAGE_SIZE, NULL, 0,
-						 hv_cb_utils[cnt].callback,
+						 chn_cb_negotiate,
 						 newchannel) == 0) {
 				hv_cb_utils[cnt].channel = newchannel;
-				DPRINT_INFO(VMBUS, "%s",
-						hv_cb_utils[cnt].log_msg);
-				count_hv_channel();
+				newchannel->util_index = cnt;
+
+				pr_info("%s\n", hv_cb_utils[cnt].log_msg);
+
 			}
 		}
 	}
@@ -442,62 +451,32 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 	for (i = 0; i < MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++) {
-		if (memcmp(&offer->offer.InterfaceType,
-		    &gSupportedDeviceClasses[i], sizeof(struct hv_guid)) == 0) {
+		if (memcmp(&offer->offer.if_type,
+			&supported_device_classes[i],
+			sizeof(struct hv_guid)) == 0) {
 			fsupported = 1;
 			break;
 		}
 	}
 
-	if (!fsupported) {
-		DPRINT_DBG(VMBUS, "Ignoring channel offer notification for "
-			   "child relid %d", offer->child_relid);
+	if (!fsupported)
 		return;
-	}
 
-	guidtype = &offer->offer.InterfaceType;
-	guidinstance = &offer->offer.InterfaceInstance;
-
-	DPRINT_INFO(VMBUS, "Channel offer notification - "
-		    "child relid %d monitor id %d allocated %d, "
-		    "type {%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-		    "%02x%02x%02x%02x%02x%02x%02x%02x} "
-		    "instance {%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-		    "%02x%02x%02x%02x%02x%02x%02x%02x}",
-		    offer->child_relid, offer->monitorid,
-		    offer->monitor_allocated,
-		    guidtype->data[3], guidtype->data[2],
-		    guidtype->data[1], guidtype->data[0],
-		    guidtype->data[5], guidtype->data[4],
-		    guidtype->data[7], guidtype->data[6],
-		    guidtype->data[8], guidtype->data[9],
-		    guidtype->data[10], guidtype->data[11],
-		    guidtype->data[12], guidtype->data[13],
-		    guidtype->data[14], guidtype->data[15],
-		    guidinstance->data[3], guidinstance->data[2],
-		    guidinstance->data[1], guidinstance->data[0],
-		    guidinstance->data[5], guidinstance->data[4],
-		    guidinstance->data[7], guidinstance->data[6],
-		    guidinstance->data[8], guidinstance->data[9],
-		    guidinstance->data[10], guidinstance->data[11],
-		    guidinstance->data[12], guidinstance->data[13],
-		    guidinstance->data[14], guidinstance->data[15]);
+	guidtype = &offer->offer.if_type;
+	guidinstance = &offer->offer.if_instance;
 
 	/* Allocate the channel object and save this offer. */
 	newchannel = alloc_channel();
 	if (!newchannel) {
-		DPRINT_ERR(VMBUS, "unable to allocate channel object");
+		pr_err("Unable to allocate channel object\n");
 		return;
 	}
-
-	DPRINT_DBG(VMBUS, "channel object allocated - %p", newchannel);
 
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
 	newchannel->monitor_grp = (u8)offer->monitorid / 32;
 	newchannel->monitor_bit = (u8)offer->monitorid % 32;
 
-	/* TODO: Make sure the offer comes from our parent partition */
 	INIT_WORK(&newchannel->work, vmbus_process_offer);
 	queue_work(newchannel->controlwq, &newchannel->work);
 }
@@ -513,12 +492,11 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	struct vmbus_channel *channel;
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
-	channel = GetChannelFromRelId(rescind->child_relid);
-	if (channel == NULL) {
-		DPRINT_DBG(VMBUS, "channel not found for relId %d",
-			   rescind->child_relid);
+	channel = relid2channel(rescind->child_relid);
+
+	if (channel == NULL)
+		/* Just return here, no channel found */
 		return;
-	}
 
 	/* work is initialized for vmbus_process_rescind_offer() from
 	 * vmbus_process_offer() where the channel got created */
@@ -546,23 +524,20 @@ static void vmbus_onoffers_delivered(
 static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_open_result *result;
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_open_channel *openmsg;
 	unsigned long flags;
 
 	result = (struct vmbus_channel_open_result *)hdr;
-	DPRINT_DBG(VMBUS, "vmbus open result - %d", result->status);
 
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -573,13 +548,14 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 			    openmsg->openid == result->openid) {
 				memcpy(&msginfo->response.open_result,
 				       result,
-				       sizeof(struct vmbus_channel_open_result));
-				osd_waitevent_set(msginfo->waitevent);
+				       sizeof(
+					struct vmbus_channel_open_result));
+				complete(&msginfo->waitevent);
 				break;
 			}
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /*
@@ -592,25 +568,21 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_gpadl_created *gpadlcreated;
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_gpadl_header *gpadlheader;
 	unsigned long flags;
 
 	gpadlcreated = (struct vmbus_channel_gpadl_created *)hdr;
-	DPRINT_DBG(VMBUS, "vmbus gpadl created result - %d",
-		   gpadlcreated->creation_status);
 
 	/*
 	 * Find the establish msg, copy the result and signal/unblock the wait
 	 * event
 	 */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -623,13 +595,14 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 			    (gpadlcreated->gpadl == gpadlheader->gpadl)) {
 				memcpy(&msginfo->response.gpadl_created,
 				       gpadlcreated,
-				       sizeof(struct vmbus_channel_gpadl_created));
-				osd_waitevent_set(msginfo->waitevent);
+				       sizeof(
+					struct vmbus_channel_gpadl_created));
+				complete(&msginfo->waitevent);
 				break;
 			}
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /*
@@ -643,7 +616,6 @@ static void vmbus_ongpadl_torndown(
 			struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_gpadl_torndown *gpadl_torndown;
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_gpadl_teardown *gpadl_teardown;
@@ -654,11 +626,10 @@ static void vmbus_ongpadl_torndown(
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -669,13 +640,14 @@ static void vmbus_ongpadl_torndown(
 			if (gpadl_torndown->gpadl == gpadl_teardown->gpadl) {
 				memcpy(&msginfo->response.gpadl_torndown,
 				       gpadl_torndown,
-				       sizeof(struct vmbus_channel_gpadl_torndown));
-				osd_waitevent_set(msginfo->waitevent);
+				       sizeof(
+					struct vmbus_channel_gpadl_torndown));
+				complete(&msginfo->waitevent);
 				break;
 			}
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /*
@@ -688,7 +660,6 @@ static void vmbus_ongpadl_torndown(
 static void vmbus_onversion_response(
 		struct vmbus_channel_message_header *hdr)
 {
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_initiate_contact *initiate;
@@ -696,11 +667,10 @@ static void vmbus_onversion_response(
 	unsigned long flags;
 
 	version_response = (struct vmbus_channel_version_response *)hdr;
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -711,15 +681,15 @@ static void vmbus_onversion_response(
 			memcpy(&msginfo->response.version_response,
 			      version_response,
 			      sizeof(struct vmbus_channel_version_response));
-			osd_waitevent_set(msginfo->waitevent);
+			complete(&msginfo->waitevent);
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /* Channel message dispatch table */
 static struct vmbus_channel_message_table_entry
-	gChannelMessageTable[CHANNELMSG_COUNT] = {
+	channel_message_table[CHANNELMSG_COUNT] = {
 	{CHANNELMSG_INVALID,			NULL},
 	{CHANNELMSG_OFFERCHANNEL,		vmbus_onoffer},
 	{CHANNELMSG_RESCIND_CHANNELOFFER,	vmbus_onoffer_rescind},
@@ -753,22 +723,18 @@ void vmbus_onmessage(void *context)
 	hdr = (struct vmbus_channel_message_header *)msg->u.payload;
 	size = msg->header.payload_size;
 
-	DPRINT_DBG(VMBUS, "message type %d size %d", hdr->msgtype, size);
-
 	if (hdr->msgtype >= CHANNELMSG_COUNT) {
-		DPRINT_ERR(VMBUS,
-			   "Received invalid channel message type %d size %d",
+		pr_err("Received invalid channel message type %d size %d\n",
 			   hdr->msgtype, size);
 		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
 				     (unsigned char *)msg->u.payload, size);
 		return;
 	}
 
-	if (gChannelMessageTable[hdr->msgtype].messageHandler)
-		gChannelMessageTable[hdr->msgtype].messageHandler(hdr);
+	if (channel_message_table[hdr->msgtype].message_handler)
+		channel_message_table[hdr->msgtype].message_handler(hdr);
 	else
-		DPRINT_ERR(VMBUS, "Unhandled channel message type %d",
-			   hdr->msgtype);
+		pr_err("Unhandled channel message type %d\n", hdr->msgtype);
 }
 
 /*
@@ -778,7 +744,7 @@ int vmbus_request_offers(void)
 {
 	struct vmbus_channel_message_header *msg;
 	struct vmbus_channel_msginfo *msginfo;
-	int ret;
+	int ret, t;
 
 	msginfo = kmalloc(sizeof(*msginfo) +
 			  sizeof(struct vmbus_channel_message_header),
@@ -786,80 +752,33 @@ int vmbus_request_offers(void)
 	if (!msginfo)
 		return -ENOMEM;
 
-	msginfo->waitevent = osd_waitevent_create();
-	if (!msginfo->waitevent) {
-		kfree(msginfo);
-		return -ENOMEM;
-	}
+	init_completion(&msginfo->waitevent);
 
 	msg = (struct vmbus_channel_message_header *)msginfo->msg;
 
 	msg->msgtype = CHANNELMSG_REQUESTOFFERS;
 
-	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
-	INSERT_TAIL_LIST(&gVmbusConnection.channelMsgList,
-			 &msgInfo->msgListEntry);
-	SpinlockRelease(gVmbusConnection.channelMsgLock);*/
 
-	ret = VmbusPostMessage(msg,
+	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS, "Unable to request offers - %d", ret);
+		pr_err("Unable to request offers - %d\n", ret);
 
-		/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
-		REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);
-		SpinlockRelease(gVmbusConnection.channelMsgLock);*/
-
-		goto Cleanup;
+		goto cleanup;
 	}
-	/* osd_waitevent_wait(msgInfo->waitEvent); */
 
-	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
-	REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);
-	SpinlockRelease(gVmbusConnection.channelMsgLock);*/
-
-
-Cleanup:
-	if (msginfo) {
-		kfree(msginfo->waitevent);
-		kfree(msginfo);
+	t = wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
 	}
+
+
+
+cleanup:
+	kfree(msginfo);
 
 	return ret;
-}
-
-/*
- * vmbus_release_unattached_channels - Release channels that are
- * unattached/unconnected ie (no drivers associated)
- */
-void vmbus_release_unattached_channels(void)
-{
-	struct vmbus_channel *channel, *pos;
-	struct vmbus_channel *start = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
-
-	list_for_each_entry_safe(channel, pos, &gVmbusConnection.ChannelList,
-				 listentry) {
-		if (channel == start)
-			break;
-
-		if (!channel->device_obj->Driver) {
-			list_del(&channel->listentry);
-			DPRINT_INFO(VMBUS,
-				    "Releasing unattached device object %p",
-				    channel->device_obj);
-
-			vmbus_child_device_unregister(channel->device_obj);
-			free_channel(channel);
-		} else {
-			if (!start)
-				start = channel;
-		}
-	}
-
-	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 }
 
 /* eof */

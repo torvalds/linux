@@ -397,9 +397,9 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	union p54_scan_body_union *body;
 	struct p54_scan_tail_rate *rate;
 	struct pda_rssi_cal_entry *rssi;
+	struct p54_rssi_db_entry *rssi_data;
 	unsigned int i;
 	void *entry;
-	int band = priv->hw->conf.channel->band;
 	__le16 freq = cpu_to_le16(priv->hw->conf.channel->center_freq);
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*head) +
@@ -503,13 +503,14 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	}
 
 	rssi = (struct pda_rssi_cal_entry *) skb_put(skb, sizeof(*rssi));
-	rssi->mul = cpu_to_le16(priv->rssical_db[band].mul);
-	rssi->add = cpu_to_le16(priv->rssical_db[band].add);
+	rssi_data = p54_rssi_find(priv, le16_to_cpu(freq));
+	rssi->mul = cpu_to_le16(rssi_data->mul);
+	rssi->add = cpu_to_le16(rssi_data->add);
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
 		/* Longbow frontend needs ever more */
 		rssi = (void *) skb_put(skb, sizeof(*rssi));
-		rssi->mul = cpu_to_le16(priv->rssical_db[band].longbow_unkn);
-		rssi->add = cpu_to_le16(priv->rssical_db[band].longbow_unk2);
+		rssi->mul = cpu_to_le16(rssi_data->longbow_unkn);
+		rssi->add = cpu_to_le16(rssi_data->longbow_unk2);
 	}
 
 	if (priv->fw_var >= 0x509) {
@@ -523,6 +524,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	hdr->len = cpu_to_le16(skb->len - sizeof(*hdr));
 
 	p54_tx(priv, skb);
+	priv->cur_rssi = rssi_data;
 	return 0;
 
 err:
@@ -557,6 +559,7 @@ int p54_set_edcf(struct p54_common *priv)
 {
 	struct sk_buff *skb;
 	struct p54_edcf *edcf;
+	u8 rtd;
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*edcf),
 			    P54_CONTROL_TYPE_DCFINIT, GFP_ATOMIC);
@@ -573,9 +576,15 @@ int p54_set_edcf(struct p54_common *priv)
 		edcf->sifs = 0x0a;
 		edcf->eofpad = 0x06;
 	}
+	/*
+	 * calculate the extra round trip delay according to the
+	 * formula from 802.11-2007 17.3.8.6.
+	 */
+	rtd = 3 * priv->coverage_class;
+	edcf->slottime += rtd;
+	edcf->round_trip_delay = cpu_to_le16(rtd);
 	/* (see prism54/isl_oid.h for further details) */
 	edcf->frameburst = cpu_to_le16(0);
-	edcf->round_trip_delay = cpu_to_le16(0);
 	edcf->flags = 0;
 	memset(edcf->mapping, 0, sizeof(edcf->mapping));
 	memcpy(edcf->queue, priv->qos_params, sizeof(edcf->queue));
@@ -714,6 +723,37 @@ int p54_fetch_statistics(struct p54_common *priv)
 	txinfo = IEEE80211_SKB_CB(skb);
 	p54info = (void *) txinfo->rate_driver_data;
 	p54info->extra_len = sizeof(struct p54_statistics);
+
+	p54_tx(priv, skb);
+	return 0;
+}
+
+int p54_set_groupfilter(struct p54_common *priv)
+{
+	struct p54_group_address_table *grp;
+	struct sk_buff *skb;
+	bool on = false;
+
+	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*grp),
+			    P54_CONTROL_TYPE_GROUP_ADDRESS_TABLE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	grp = (struct p54_group_address_table *)skb_put(skb, sizeof(*grp));
+
+	on = !(priv->filter_flags & FIF_ALLMULTI) &&
+	     (priv->mc_maclist_num > 0 &&
+	      priv->mc_maclist_num <= MC_FILTER_ADDRESS_NUM);
+
+	if (on) {
+		grp->filter_enable = cpu_to_le16(1);
+		grp->num_address = cpu_to_le16(priv->mc_maclist_num);
+		memcpy(grp->mac_list, priv->mc_maclist, sizeof(grp->mac_list));
+	} else {
+		grp->filter_enable = cpu_to_le16(0);
+		grp->num_address = cpu_to_le16(0);
+		memset(grp->mac_list, 0, sizeof(grp->mac_list));
+	}
 
 	p54_tx(priv, skb);
 	return 0;

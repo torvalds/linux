@@ -194,7 +194,7 @@ static int __init topstar_laptop_init(void)
 	if (ret < 0)
 		return ret;
 
-	printk(KERN_INFO "Topstar Laptop ACPI extras driver loaded\n");
+	pr_info("ACPI extras driver loaded\n");
 
 	return 0;
 }

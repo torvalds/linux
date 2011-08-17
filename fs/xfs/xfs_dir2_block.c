@@ -23,17 +23,14 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
-#include "xfs_dir2_data.h"
-#include "xfs_dir2_leaf.h"
-#include "xfs_dir2_block.h"
+#include "xfs_dir2_format.h"
+#include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
 
@@ -67,7 +64,7 @@ xfs_dir2_block_addname(
 	xfs_da_args_t		*args)		/* directory op arguments */
 {
 	xfs_dir2_data_free_t	*bf;		/* bestfree table in block */
-	xfs_dir2_block_t	*block;		/* directory block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	xfs_dabuf_t		*bp;		/* buffer for block */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
@@ -105,13 +102,13 @@ xfs_dir2_block_addname(
 		return error;
 	}
 	ASSERT(bp != NULL);
-	block = bp->data;
+	hdr = bp->data;
 	/*
 	 * Check the magic number, corrupted if wrong.
 	 */
-	if (unlikely(be32_to_cpu(block->hdr.magic) != XFS_DIR2_BLOCK_MAGIC)) {
+	if (unlikely(hdr->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))) {
 		XFS_CORRUPTION_ERROR("xfs_dir2_block_addname",
-				     XFS_ERRLEVEL_LOW, mp, block);
+				     XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_da_brelse(tp, bp);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
@@ -119,8 +116,8 @@ xfs_dir2_block_addname(
 	/*
 	 * Set up pointers to parts of the block.
 	 */
-	bf = block->hdr.bestfree;
-	btp = xfs_dir2_block_tail_p(mp, block);
+	bf = hdr->bestfree;
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
 	 * No stale entries?  Need space for entry and new leaf.
@@ -133,7 +130,7 @@ xfs_dir2_block_addname(
 		/*
 		 * Data object just before the first leaf entry.
 		 */
-		enddup = (xfs_dir2_data_unused_t *)((char *)block + be16_to_cpu(*tagp));
+		enddup = (xfs_dir2_data_unused_t *)((char *)hdr + be16_to_cpu(*tagp));
 		/*
 		 * If it's not free then can't do this add without cleaning up:
 		 * the space before the first leaf entry needs to be free so it
@@ -146,7 +143,7 @@ xfs_dir2_block_addname(
 		 */
 		else {
 			dup = (xfs_dir2_data_unused_t *)
-			      ((char *)block + be16_to_cpu(bf[0].offset));
+			      ((char *)hdr + be16_to_cpu(bf[0].offset));
 			if (dup == enddup) {
 				/*
 				 * It is the biggest freespace, is it too small
@@ -159,7 +156,7 @@ xfs_dir2_block_addname(
 					 */
 					if (be16_to_cpu(bf[1].length) >= len)
 						dup = (xfs_dir2_data_unused_t *)
-						      ((char *)block +
+						      ((char *)hdr +
 						       be16_to_cpu(bf[1].offset));
 					else
 						dup = NULL;
@@ -182,7 +179,7 @@ xfs_dir2_block_addname(
 	 */
 	else if (be16_to_cpu(bf[0].length) >= len) {
 		dup = (xfs_dir2_data_unused_t *)
-		      ((char *)block + be16_to_cpu(bf[0].offset));
+		      ((char *)hdr + be16_to_cpu(bf[0].offset));
 		compact = 0;
 	}
 	/*
@@ -196,7 +193,7 @@ xfs_dir2_block_addname(
 		/*
 		 * Data object just before the first leaf entry.
 		 */
-		dup = (xfs_dir2_data_unused_t *)((char *)block + be16_to_cpu(*tagp));
+		dup = (xfs_dir2_data_unused_t *)((char *)hdr + be16_to_cpu(*tagp));
 		/*
 		 * If it's not free then the data will go where the
 		 * leaf data starts now, if it works at all.
@@ -255,7 +252,8 @@ xfs_dir2_block_addname(
 			highstale = lfloghigh = -1;
 		     fromidx >= 0;
 		     fromidx--) {
-			if (be32_to_cpu(blp[fromidx].address) == XFS_DIR2_NULL_DATAPTR) {
+			if (blp[fromidx].address ==
+			    cpu_to_be32(XFS_DIR2_NULL_DATAPTR)) {
 				if (highstale == -1)
 					highstale = toidx;
 				else {
@@ -272,7 +270,7 @@ xfs_dir2_block_addname(
 		lfloghigh -= be32_to_cpu(btp->stale) - 1;
 		be32_add_cpu(&btp->count, -(be32_to_cpu(btp->stale) - 1));
 		xfs_dir2_data_make_free(tp, bp,
-			(xfs_dir2_data_aoff_t)((char *)blp - (char *)block),
+			(xfs_dir2_data_aoff_t)((char *)blp - (char *)hdr),
 			(xfs_dir2_data_aoff_t)((be32_to_cpu(btp->stale) - 1) * sizeof(*blp)),
 			&needlog, &needscan);
 		blp += be32_to_cpu(btp->stale) - 1;
@@ -282,7 +280,7 @@ xfs_dir2_block_addname(
 		 * This needs to happen before the next call to use_free.
 		 */
 		if (needscan) {
-			xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block, &needlog);
+			xfs_dir2_data_freescan(mp, hdr, &needlog);
 			needscan = 0;
 		}
 	}
@@ -318,7 +316,7 @@ xfs_dir2_block_addname(
 		 */
 		xfs_dir2_data_use_free(tp, bp, enddup,
 			(xfs_dir2_data_aoff_t)
-			((char *)enddup - (char *)block + be16_to_cpu(enddup->length) -
+			((char *)enddup - (char *)hdr + be16_to_cpu(enddup->length) -
 			 sizeof(*blp)),
 			(xfs_dir2_data_aoff_t)sizeof(*blp),
 			&needlog, &needscan);
@@ -331,8 +329,7 @@ xfs_dir2_block_addname(
 		 * This needs to happen before the next call to use_free.
 		 */
 		if (needscan) {
-			xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block,
-				&needlog);
+			xfs_dir2_data_freescan(mp, hdr, &needlog);
 			needscan = 0;
 		}
 		/*
@@ -353,12 +350,14 @@ xfs_dir2_block_addname(
 	else {
 		for (lowstale = mid;
 		     lowstale >= 0 &&
-			be32_to_cpu(blp[lowstale].address) != XFS_DIR2_NULL_DATAPTR;
+			blp[lowstale].address !=
+			cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 		     lowstale--)
 			continue;
 		for (highstale = mid + 1;
 		     highstale < be32_to_cpu(btp->count) &&
-			be32_to_cpu(blp[highstale].address) != XFS_DIR2_NULL_DATAPTR &&
+			blp[highstale].address !=
+			cpu_to_be32(XFS_DIR2_NULL_DATAPTR) &&
 			(lowstale < 0 || mid - lowstale > highstale - mid);
 		     highstale++)
 			continue;
@@ -397,13 +396,13 @@ xfs_dir2_block_addname(
 	 */
 	blp[mid].hashval = cpu_to_be32(args->hashval);
 	blp[mid].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
-				(char *)dep - (char *)block));
+				(char *)dep - (char *)hdr));
 	xfs_dir2_block_log_leaf(tp, bp, lfloglow, lfloghigh);
 	/*
 	 * Mark space for the data entry used.
 	 */
 	xfs_dir2_data_use_free(tp, bp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)block),
+		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
 		(xfs_dir2_data_aoff_t)len, &needlog, &needscan);
 	/*
 	 * Create the new data entry.
@@ -412,12 +411,12 @@ xfs_dir2_block_addname(
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
 	tagp = xfs_dir2_data_entry_tag_p(dep);
-	*tagp = cpu_to_be16((char *)dep - (char *)block);
+	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Clean up the bestfree array and log the header, tail, and entry.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block, &needlog);
+		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, bp);
 	xfs_dir2_block_log_tail(tp, bp);
@@ -437,7 +436,7 @@ xfs_dir2_block_getdents(
 	xfs_off_t		*offset,
 	filldir_t		filldir)
 {
-	xfs_dir2_block_t	*block;		/* directory block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dabuf_t		*bp;		/* buffer for block */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_dir2_data_entry_t	*dep;		/* block data entry */
@@ -470,13 +469,13 @@ xfs_dir2_block_getdents(
 	 * We'll skip entries before this.
 	 */
 	wantoff = xfs_dir2_dataptr_to_off(mp, *offset);
-	block = bp->data;
+	hdr = bp->data;
 	xfs_dir2_data_check(dp, bp);
 	/*
 	 * Set up values for the loop.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, block);
-	ptr = (char *)block->u;
+	btp = xfs_dir2_block_tail_p(mp, hdr);
+	ptr = (char *)(hdr + 1);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 
 	/*
@@ -502,11 +501,11 @@ xfs_dir2_block_getdents(
 		/*
 		 * The entry is before the desired starting point, skip it.
 		 */
-		if ((char *)dep - (char *)block < wantoff)
+		if ((char *)dep - (char *)hdr < wantoff)
 			continue;
 
 		cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					    (char *)dep - (char *)block);
+					    (char *)dep - (char *)hdr);
 
 		/*
 		 * If it didn't fit, set the final offset to here & return.
@@ -540,17 +539,14 @@ xfs_dir2_block_log_leaf(
 	int			first,		/* index of first logged leaf */
 	int			last)		/* index of last logged leaf */
 {
-	xfs_dir2_block_t	*block;		/* directory block structure */
-	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
-	xfs_dir2_block_tail_t	*btp;		/* block tail */
-	xfs_mount_t		*mp;		/* filesystem mount point */
+	xfs_dir2_data_hdr_t	*hdr = bp->data;
+	xfs_dir2_leaf_entry_t	*blp;
+	xfs_dir2_block_tail_t	*btp;
 
-	mp = tp->t_mountp;
-	block = bp->data;
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(tp->t_mountp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
-	xfs_da_log_buf(tp, bp, (uint)((char *)&blp[first] - (char *)block),
-		(uint)((char *)&blp[last + 1] - (char *)block - 1));
+	xfs_da_log_buf(tp, bp, (uint)((char *)&blp[first] - (char *)hdr),
+		(uint)((char *)&blp[last + 1] - (char *)hdr - 1));
 }
 
 /*
@@ -561,15 +557,12 @@ xfs_dir2_block_log_tail(
 	xfs_trans_t		*tp,		/* transaction structure */
 	xfs_dabuf_t		*bp)		/* block buffer */
 {
-	xfs_dir2_block_t	*block;		/* directory block structure */
-	xfs_dir2_block_tail_t	*btp;		/* block tail */
-	xfs_mount_t		*mp;		/* filesystem mount point */
+	xfs_dir2_data_hdr_t	*hdr = bp->data;
+	xfs_dir2_block_tail_t	*btp;
 
-	mp = tp->t_mountp;
-	block = bp->data;
-	btp = xfs_dir2_block_tail_p(mp, block);
-	xfs_da_log_buf(tp, bp, (uint)((char *)btp - (char *)block),
-		(uint)((char *)(btp + 1) - (char *)block - 1));
+	btp = xfs_dir2_block_tail_p(tp->t_mountp, hdr);
+	xfs_da_log_buf(tp, bp, (uint)((char *)btp - (char *)hdr),
+		(uint)((char *)(btp + 1) - (char *)hdr - 1));
 }
 
 /*
@@ -580,7 +573,7 @@ int						/* error */
 xfs_dir2_block_lookup(
 	xfs_da_args_t		*args)		/* dir lookup arguments */
 {
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	xfs_dabuf_t		*bp;		/* block buffer */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
@@ -600,14 +593,14 @@ xfs_dir2_block_lookup(
 		return error;
 	dp = args->dp;
 	mp = dp->i_mount;
-	block = bp->data;
+	hdr = bp->data;
 	xfs_dir2_data_check(dp, bp);
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
 	 * Get the offset from the leaf entry, to point to the data.
 	 */
-	dep = (xfs_dir2_data_entry_t *)((char *)block +
+	dep = (xfs_dir2_data_entry_t *)((char *)hdr +
 		xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
 	/*
 	 * Fill in inode number, CI name if appropriate, release the block.
@@ -628,7 +621,7 @@ xfs_dir2_block_lookup_int(
 	int			*entno)		/* returned entry number */
 {
 	xfs_dir2_dataptr_t	addr;		/* data entry address */
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	xfs_dabuf_t		*bp;		/* block buffer */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
@@ -654,9 +647,9 @@ xfs_dir2_block_lookup_int(
 		return error;
 	}
 	ASSERT(bp != NULL);
-	block = bp->data;
+	hdr = bp->data;
 	xfs_dir2_data_check(dp, bp);
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
 	 * Loop doing a binary search for our hash value.
@@ -694,7 +687,7 @@ xfs_dir2_block_lookup_int(
 		 * Get pointer to the entry from the leaf.
 		 */
 		dep = (xfs_dir2_data_entry_t *)
-			((char *)block + xfs_dir2_dataptr_to_off(mp, addr));
+			((char *)hdr + xfs_dir2_dataptr_to_off(mp, addr));
 		/*
 		 * Compare name and if it's an exact match, return the index
 		 * and buffer. If it's the first case-insensitive match, store
@@ -733,7 +726,7 @@ int						/* error */
 xfs_dir2_block_removename(
 	xfs_da_args_t		*args)		/* directory operation args */
 {
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf pointer */
 	xfs_dabuf_t		*bp;		/* block buffer */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
@@ -760,20 +753,20 @@ xfs_dir2_block_removename(
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
-	block = bp->data;
-	btp = xfs_dir2_block_tail_p(mp, block);
+	hdr = bp->data;
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
 	 * Point to the data entry using the leaf entry.
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
+	      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
 	/*
 	 * Mark the data entry's space free.
 	 */
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, bp,
-		(xfs_dir2_data_aoff_t)((char *)dep - (char *)block),
+		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
 		xfs_dir2_data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * Fix up the block tail.
@@ -789,15 +782,15 @@ xfs_dir2_block_removename(
 	 * Fix up bestfree, log the header if necessary.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block, &needlog);
+		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, bp);
 	xfs_dir2_data_check(dp, bp);
 	/*
 	 * See if the size as a shortform is good enough.
 	 */
-	if ((size = xfs_dir2_block_sfsize(dp, block, &sfh)) >
-	    XFS_IFORK_DSIZE(dp)) {
+	size = xfs_dir2_block_sfsize(dp, hdr, &sfh);
+	if (size > XFS_IFORK_DSIZE(dp)) {
 		xfs_da_buf_done(bp);
 		return 0;
 	}
@@ -815,7 +808,7 @@ int						/* error */
 xfs_dir2_block_replace(
 	xfs_da_args_t		*args)		/* directory operation args */
 {
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	xfs_dabuf_t		*bp;		/* block buffer */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
@@ -836,14 +829,14 @@ xfs_dir2_block_replace(
 	}
 	dp = args->dp;
 	mp = dp->i_mount;
-	block = bp->data;
-	btp = xfs_dir2_block_tail_p(mp, block);
+	hdr = bp->data;
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
 	 * Point to the data entry we need to change.
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
+	      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
 	ASSERT(be64_to_cpu(dep->inumber) != args->inumber);
 	/*
 	 * Change the inode number to the new value.
@@ -882,7 +875,7 @@ xfs_dir2_leaf_to_block(
 	xfs_dabuf_t		*dbp)		/* data buffer */
 {
 	__be16			*bestsp;	/* leaf bests table */
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	xfs_dir2_data_unused_t	*dup;		/* unused data entry */
@@ -906,7 +899,7 @@ xfs_dir2_leaf_to_block(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = lbp->data;
-	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC);
+	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	/*
 	 * If there are data blocks other than the first one, take this
@@ -917,7 +910,7 @@ xfs_dir2_leaf_to_block(
 	while (dp->i_d.di_size > mp->m_dirblksize) {
 		bestsp = xfs_dir2_leaf_bests_p(ltp);
 		if (be16_to_cpu(bestsp[be32_to_cpu(ltp->bestcount) - 1]) ==
-		    mp->m_dirblksize - (uint)sizeof(block->hdr)) {
+		    mp->m_dirblksize - (uint)sizeof(*hdr)) {
 			if ((error =
 			    xfs_dir2_leaf_trim_data(args, lbp,
 				    (xfs_dir2_db_t)(be32_to_cpu(ltp->bestcount) - 1))))
@@ -935,18 +928,18 @@ xfs_dir2_leaf_to_block(
 		    XFS_DATA_FORK))) {
 		goto out;
 	}
-	block = dbp->data;
-	ASSERT(be32_to_cpu(block->hdr.magic) == XFS_DIR2_DATA_MAGIC);
+	hdr = dbp->data;
+	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC));
 	/*
 	 * Size of the "leaf" area in the block.
 	 */
-	size = (uint)sizeof(block->tail) +
+	size = (uint)sizeof(xfs_dir2_block_tail_t) +
 	       (uint)sizeof(*lep) * (be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale));
 	/*
 	 * Look at the last data entry.
 	 */
-	tagp = (__be16 *)((char *)block + mp->m_dirblksize) - 1;
-	dup = (xfs_dir2_data_unused_t *)((char *)block + be16_to_cpu(*tagp));
+	tagp = (__be16 *)((char *)hdr + mp->m_dirblksize) - 1;
+	dup = (xfs_dir2_data_unused_t *)((char *)hdr + be16_to_cpu(*tagp));
 	/*
 	 * If it's not free or is too short we can't do it.
 	 */
@@ -958,7 +951,7 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Start converting it to block form.
 	 */
-	block->hdr.magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
+	hdr->magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
 	needlog = 1;
 	needscan = 0;
 	/*
@@ -969,7 +962,7 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Initialize the block tail.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	btp->count = cpu_to_be32(be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale));
 	btp->stale = 0;
 	xfs_dir2_block_log_tail(tp, dbp);
@@ -978,7 +971,8 @@ xfs_dir2_leaf_to_block(
 	 */
 	lep = xfs_dir2_block_leaf_p(btp);
 	for (from = to = 0; from < be16_to_cpu(leaf->hdr.count); from++) {
-		if (be32_to_cpu(leaf->ents[from].address) == XFS_DIR2_NULL_DATAPTR)
+		if (leaf->ents[from].address ==
+		    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 			continue;
 		lep[to++] = leaf->ents[from];
 	}
@@ -988,7 +982,7 @@ xfs_dir2_leaf_to_block(
 	 * Scan the bestfree if we need it and log the data block header.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block, &needlog);
+		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
 	/*
@@ -1002,8 +996,8 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Now see if the resulting block can be shrunken to shortform.
 	 */
-	if ((size = xfs_dir2_block_sfsize(dp, block, &sfh)) >
-	    XFS_IFORK_DSIZE(dp)) {
+	size = xfs_dir2_block_sfsize(dp, hdr, &sfh);
+	if (size > XFS_IFORK_DSIZE(dp)) {
 		error = 0;
 		goto out;
 	}
@@ -1024,12 +1018,10 @@ xfs_dir2_sf_to_block(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
 	xfs_dir2_db_t		blkno;		/* dir-relative block # (0) */
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	xfs_dabuf_t		*bp;		/* block buffer */
 	xfs_dir2_block_tail_t	*btp;		/* block tail pointer */
-	char			*buf;		/* sf buffer */
-	int			buf_len;
 	xfs_dir2_data_entry_t	*dep;		/* data entry pointer */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			dummy;		/* trash */
@@ -1043,7 +1035,8 @@ xfs_dir2_sf_to_block(
 	int			newoffset;	/* offset from current entry */
 	int			offset;		/* target block offset */
 	xfs_dir2_sf_entry_t	*sfep;		/* sf entry pointer */
-	xfs_dir2_sf_t		*sfp;		/* shortform structure */
+	xfs_dir2_sf_hdr_t	*oldsfp;	/* old shortform header  */
+	xfs_dir2_sf_hdr_t	*sfp;		/* shortform header  */
 	__be16			*tagp;		/* end of data entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_name		name;
@@ -1061,32 +1054,30 @@ xfs_dir2_sf_to_block(
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		return XFS_ERROR(EIO);
 	}
+
+	oldsfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
+
 	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
-	sfp = (xfs_dir2_sf_t *)dp->i_df.if_u1.if_data;
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->hdr.i8count));
+	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(oldsfp->i8count));
+
 	/*
-	 * Copy the directory into the stack buffer.
+	 * Copy the directory into a temporary buffer.
 	 * Then pitch the incore inode data so we can make extents.
 	 */
+	sfp = kmem_alloc(dp->i_df.if_bytes, KM_SLEEP);
+	memcpy(sfp, oldsfp, dp->i_df.if_bytes);
 
-	buf_len = dp->i_df.if_bytes;
-	buf = kmem_alloc(buf_len, KM_SLEEP);
-
-	memcpy(buf, sfp, buf_len);
-	xfs_idata_realloc(dp, -buf_len, XFS_DATA_FORK);
+	xfs_idata_realloc(dp, -dp->i_df.if_bytes, XFS_DATA_FORK);
 	dp->i_d.di_size = 0;
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
-	/*
-	 * Reset pointer - old sfp is gone.
-	 */
-	sfp = (xfs_dir2_sf_t *)buf;
+
 	/*
 	 * Add block 0 to the inode.
 	 */
 	error = xfs_dir2_grow_inode(args, XFS_DIR2_DATA_SPACE, &blkno);
 	if (error) {
-		kmem_free(buf);
+		kmem_free(sfp);
 		return error;
 	}
 	/*
@@ -1094,21 +1085,21 @@ xfs_dir2_sf_to_block(
 	 */
 	error = xfs_dir2_data_init(args, blkno, &bp);
 	if (error) {
-		kmem_free(buf);
+		kmem_free(sfp);
 		return error;
 	}
-	block = bp->data;
-	block->hdr.magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
+	hdr = bp->data;
+	hdr->magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
 	/*
 	 * Compute size of block "tail" area.
 	 */
 	i = (uint)sizeof(*btp) +
-	    (sfp->hdr.count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t);
+	    (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t);
 	/*
 	 * The whole thing is initialized to free by the init routine.
 	 * Say we're using the leaf and tail area.
 	 */
-	dup = (xfs_dir2_data_unused_t *)block->u;
+	dup = (xfs_dir2_data_unused_t *)(hdr + 1);
 	needlog = needscan = 0;
 	xfs_dir2_data_use_free(tp, bp, dup, mp->m_dirblksize - i, i, &needlog,
 		&needscan);
@@ -1116,50 +1107,51 @@ xfs_dir2_sf_to_block(
 	/*
 	 * Fill in the tail.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, block);
-	btp->count = cpu_to_be32(sfp->hdr.count + 2);	/* ., .. */
+	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp->count = cpu_to_be32(sfp->count + 2);	/* ., .. */
 	btp->stale = 0;
 	blp = xfs_dir2_block_leaf_p(btp);
-	endoffset = (uint)((char *)blp - (char *)block);
+	endoffset = (uint)((char *)blp - (char *)hdr);
 	/*
 	 * Remove the freespace, we'll manage it.
 	 */
 	xfs_dir2_data_use_free(tp, bp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)block),
+		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
 		be16_to_cpu(dup->length), &needlog, &needscan);
 	/*
 	 * Create entry for .
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + XFS_DIR2_DATA_DOT_OFFSET);
+	      ((char *)hdr + XFS_DIR2_DATA_DOT_OFFSET);
 	dep->inumber = cpu_to_be64(dp->i_ino);
 	dep->namelen = 1;
 	dep->name[0] = '.';
 	tagp = xfs_dir2_data_entry_tag_p(dep);
-	*tagp = cpu_to_be16((char *)dep - (char *)block);
+	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
 	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
-				(char *)dep - (char *)block));
+				(char *)dep - (char *)hdr));
 	/*
 	 * Create entry for ..
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-		((char *)block + XFS_DIR2_DATA_DOTDOT_OFFSET);
-	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent));
+		((char *)hdr + XFS_DIR2_DATA_DOTDOT_OFFSET);
+	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	tagp = xfs_dir2_data_entry_tag_p(dep);
-	*tagp = cpu_to_be16((char *)dep - (char *)block);
+	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
 	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
-				(char *)dep - (char *)block));
+				(char *)dep - (char *)hdr));
 	offset = XFS_DIR2_DATA_FIRST_OFFSET;
 	/*
 	 * Loop over existing entries, stuff them in.
 	 */
-	if ((i = 0) == sfp->hdr.count)
+	i = 0;
+	if (!sfp->count)
 		sfep = NULL;
 	else
 		sfep = xfs_dir2_sf_firstentry(sfp);
@@ -1179,43 +1171,40 @@ xfs_dir2_sf_to_block(
 		 * There should be a hole here, make one.
 		 */
 		if (offset < newoffset) {
-			dup = (xfs_dir2_data_unused_t *)
-			      ((char *)block + offset);
+			dup = (xfs_dir2_data_unused_t *)((char *)hdr + offset);
 			dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 			dup->length = cpu_to_be16(newoffset - offset);
 			*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16(
-				((char *)dup - (char *)block));
+				((char *)dup - (char *)hdr));
 			xfs_dir2_data_log_unused(tp, bp, dup);
-			(void)xfs_dir2_data_freeinsert((xfs_dir2_data_t *)block,
-				dup, &dummy);
+			xfs_dir2_data_freeinsert(hdr, dup, &dummy);
 			offset += be16_to_cpu(dup->length);
 			continue;
 		}
 		/*
 		 * Copy a real entry.
 		 */
-		dep = (xfs_dir2_data_entry_t *)((char *)block + newoffset);
-		dep->inumber = cpu_to_be64(xfs_dir2_sf_get_inumber(sfp,
-				xfs_dir2_sf_inumberp(sfep)));
+		dep = (xfs_dir2_data_entry_t *)((char *)hdr + newoffset);
+		dep->inumber = cpu_to_be64(xfs_dir2_sfe_get_ino(sfp, sfep));
 		dep->namelen = sfep->namelen;
 		memcpy(dep->name, sfep->name, dep->namelen);
 		tagp = xfs_dir2_data_entry_tag_p(dep);
-		*tagp = cpu_to_be16((char *)dep - (char *)block);
+		*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 		xfs_dir2_data_log_entry(tp, bp, dep);
 		name.name = sfep->name;
 		name.len = sfep->namelen;
 		blp[2 + i].hashval = cpu_to_be32(mp->m_dirnameops->
 							hashname(&name));
 		blp[2 + i].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
-						 (char *)dep - (char *)block));
-		offset = (int)((char *)(tagp + 1) - (char *)block);
-		if (++i == sfp->hdr.count)
+						 (char *)dep - (char *)hdr));
+		offset = (int)((char *)(tagp + 1) - (char *)hdr);
+		if (++i == sfp->count)
 			sfep = NULL;
 		else
 			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 	/* Done with the temporary buffer */
-	kmem_free(buf);
+	kmem_free(sfp);
 	/*
 	 * Sort the leaf entries by hash value.
 	 */

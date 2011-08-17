@@ -1475,6 +1475,11 @@ void reiserfs_read_locked_inode(struct inode *inode,
 
 	reiserfs_check_path(&path_to_sd);	/* init inode should be relsing */
 
+	/*
+	 * Stat data v1 doesn't support ACLs.
+	 */
+	if (get_inode_sd_version(inode) == STAT_DATA_V1)
+		cache_no_acl(inode);
 }
 
 /**
@@ -1593,8 +1598,13 @@ int reiserfs_encode_fh(struct dentry *dentry, __u32 * data, int *lenp,
 	struct inode *inode = dentry->d_inode;
 	int maxlen = *lenp;
 
-	if (maxlen < 3)
+	if (need_parent && (maxlen < 5)) {
+		*lenp = 5;
 		return 255;
+	} else if (maxlen < 3) {
+		*lenp = 3;
+		return 255;
+	}
 
 	data[0] = inode->i_ino;
 	data[1] = le32_to_cpu(INODE_PKEY(inode)->k_dir_id);
@@ -3063,9 +3073,8 @@ static ssize_t reiserfs_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs,
-				  reiserfs_get_blocks_direct_io, NULL);
+	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
+				  reiserfs_get_blocks_direct_io);
 
 	/*
 	 * In case of error extending write may have instantiated a few
@@ -3109,6 +3118,9 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 			error = -EFBIG;
 			goto out;
 		}
+
+		inode_dio_wait(inode);
+
 		/* fill in hole pointers in the expanding truncate case. */
 		if (attr->ia_size > inode->i_size) {
 			error = generic_cont_expand_simple(inode, attr->ia_size);
@@ -3212,7 +3224,6 @@ const struct address_space_operations reiserfs_address_space_operations = {
 	.readpages = reiserfs_readpages,
 	.releasepage = reiserfs_releasepage,
 	.invalidatepage = reiserfs_invalidatepage,
-	.sync_page = block_sync_page,
 	.write_begin = reiserfs_write_begin,
 	.write_end = reiserfs_write_end,
 	.bmap = reiserfs_aop_bmap,

@@ -59,11 +59,8 @@ SECTIONS
 
   . = ALIGN(PAGE_SIZE);
   VMLINUX_SYMBOL(_sinitdata) = .;
-  .init.page : AT (ADDR(.init.page) - LOAD_OFFSET) {
-    *(.init.page)
-  } :data =0
-  INIT_DATA_SECTION(16)
-  PERCPU(PAGE_SIZE)
+  INIT_DATA_SECTION(16) :data =0
+  PERCPU_SECTION(L2_CACHE_BYTES)
   . = ALIGN(PAGE_SIZE);
   VMLINUX_SYMBOL(_einitdata) = .;
 

@@ -369,8 +369,14 @@
 #define __NR_recvmsg		356
 #define __NR_recvmmsg		357
 #define __NR_accept4		358
+#define __NR_name_to_handle_at	359
+#define __NR_open_by_handle_at	360
+#define __NR_clock_adjtime	361
+#define __NR_syncfs		362
+#define __NR_sendmmsg		363
+#define __NR_setns		364
 
-#define NR_syscalls 359
+#define NR_syscalls 365
 
 #ifdef __KERNEL__
 

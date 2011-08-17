@@ -273,9 +273,8 @@ static irqreturn_t vsc_sata_interrupt(int irq, void *dev_instance)
 
 	if (unlikely(status == 0xffffffff || status == 0)) {
 		if (status)
-			dev_printk(KERN_ERR, host->dev,
-				": IRQ status == 0xffffffff, "
-				"PCI fault or device removal?\n");
+			dev_err(host->dev,
+				": IRQ status == 0xffffffff, PCI fault or device removal?\n");
 		goto out;
 	}
 
@@ -340,22 +339,19 @@ static int __devinit vsc_sata_init_one(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
 	static const struct ata_port_info pi = {
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO,
+		.flags		= ATA_FLAG_SATA,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &vsc_sata_ops,
 	};
 	const struct ata_port_info *ppi[] = { &pi, NULL };
-	static int printed_version;
 	struct ata_host *host;
 	void __iomem *mmio_base;
 	int i, rc;
 	u8 cls;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* allocate host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 4);

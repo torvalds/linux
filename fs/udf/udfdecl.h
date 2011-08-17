@@ -136,22 +136,20 @@ extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
 extern long udf_ioctl(struct file *, unsigned int, unsigned long);
 /* inode.c */
 extern struct inode *udf_iget(struct super_block *, struct kernel_lb_addr *);
-extern void udf_expand_file_adinicb(struct inode *, int, int *);
+extern int udf_expand_file_adinicb(struct inode *);
 extern struct buffer_head *udf_expand_dir_adinicb(struct inode *, int *, int *);
 extern struct buffer_head *udf_bread(struct inode *, int, int, int *);
-extern void udf_truncate(struct inode *);
+extern int udf_setsize(struct inode *, loff_t);
 extern void udf_read_inode(struct inode *);
 extern void udf_evict_inode(struct inode *);
 extern int udf_write_inode(struct inode *, struct writeback_control *wbc);
 extern long udf_block_map(struct inode *, sector_t);
-extern int udf_extend_file(struct inode *, struct extent_position *,
-			   struct kernel_long_ad *, sector_t);
 extern int8_t inode_bmap(struct inode *, sector_t, struct extent_position *,
 			 struct kernel_lb_addr *, uint32_t *, sector_t *);
-extern int8_t udf_add_aext(struct inode *, struct extent_position *,
+extern int udf_add_aext(struct inode *, struct extent_position *,
+			struct kernel_lb_addr *, uint32_t, int);
+extern void udf_write_aext(struct inode *, struct extent_position *,
 			   struct kernel_lb_addr *, uint32_t, int);
-extern int8_t udf_write_aext(struct inode *, struct extent_position *,
-			     struct kernel_lb_addr *, uint32_t, int);
 extern int8_t udf_delete_aext(struct inode *, struct extent_position,
 			      struct kernel_lb_addr, uint32_t);
 extern int8_t udf_next_aext(struct inode *, struct extent_position *,

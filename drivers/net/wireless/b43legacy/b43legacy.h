@@ -8,7 +8,7 @@
 #include <linux/stringify.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/io.h>
 
 #include <linux/ssb/ssb.h>
@@ -488,7 +488,7 @@ struct b43legacy_phy {
 	/* Current Interference Mitigation mode */
 	int interfmode;
 	/* Stack of saved values from the Interference Mitigation code.
-	 * Each value in the stack is layed out as follows:
+	 * Each value in the stack is laid out as follows:
 	 * bit 0-11:  offset
 	 * bit 12-15: register ID
 	 * bit 16-32: value
@@ -532,6 +532,8 @@ struct b43legacy_dma {
 
 	struct b43legacy_dmaring *rx_ring0;
 	struct b43legacy_dmaring *rx_ring3; /* only on core.rev < 5 */
+
+	u32 translation; /* Routing bits */
 };
 
 /* Data structures for PIO transmission, per 80211 core. */

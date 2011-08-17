@@ -144,9 +144,6 @@ config HAVE_CLK
 config HAVE_DMA_API_DEBUG
 	bool
 
-config HAVE_DEFAULT_NO_SPIN_MUTEXES
-	bool
-
 config HAVE_HW_BREAKPOINT
 	bool
 	depends on PERF_EVENTS
@@ -176,6 +173,12 @@ config HAVE_ARCH_JUMP_LABEL
 	bool
 
 config HAVE_ARCH_MUTEX_CPU_RELAX
+	bool
+
+config HAVE_RCU_TABLE_FREE
+	bool
+
+config ARCH_HAVE_NMI_SAFE_CMPXCHG
 	bool
 
 source "kernel/gcov/Kconfig"

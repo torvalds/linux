@@ -19,20 +19,15 @@ struct ad7476_platform_data {
 };
 
 struct ad7476_chip_info {
-	u8				bits;
-	u8				storagebits;
-	u8				res_shift;
-	char				sign;
 	u16				int_vref_mv;
+	struct iio_chan_spec		channel[2];
 };
 
 struct ad7476_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	const struct ad7476_chip_info	*chip_info;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
-	atomic_t			protect_ring;
+	size_t				d_size;
 	u16				int_vref_mv;
 	struct spi_transfer		xfer;
 	struct spi_message		msg;
@@ -55,11 +50,11 @@ enum ad7476_supported_device_ids {
 };
 
 #ifdef CONFIG_IIO_RING_BUFFER
-int ad7476_scan_from_ring(struct ad7476_state *st);
+int ad7476_scan_from_ring(struct iio_dev *indio_dev);
 int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7476_ring_cleanup(struct iio_dev *indio_dev);
 #else /* CONFIG_IIO_RING_BUFFER */
-static inline int ad7476_scan_from_ring(struct ad7476_state *st)
+static inline int ad7476_scan_from_ring(struct iio_dev *indio_dev)
 {
 	return 0;
 }

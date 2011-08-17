@@ -223,7 +223,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_exclusive_irq(link, pdacf_interrupt);
+	ret = pcmcia_request_irq(link, pdacf_interrupt);
 	if (ret)
 		goto failed;
 
@@ -278,7 +278,7 @@ static int pdacf_resume(struct pcmcia_device *link)
 /*
  * Module entry points
  */
-static struct pcmcia_device_id snd_pdacf_ids[] = {
+static const struct pcmcia_device_id snd_pdacf_ids[] = {
 	/* this is too general PCMCIA_DEVICE_MANF_CARD(0x015d, 0x4c45), */
 	PCMCIA_DEVICE_PROD_ID12("Core Sound","PDAudio-CF",0x396d19d2,0x71717b49),
 	PCMCIA_DEVICE_NULL

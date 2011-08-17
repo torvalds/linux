@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/socket.h>
+#include <linux/un.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/kernel.h>
@@ -31,6 +32,8 @@
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_BIND
 #endif
+
+#define RPCBIND_SOCK_PATHNAME	"/var/run/rpcbind.sock"
 
 #define RPCBIND_PROGRAM		(100000u)
 #define RPCBIND_PORT		(111u)
@@ -158,20 +161,69 @@ static void rpcb_map_release(void *data)
 	kfree(map);
 }
 
-static const struct sockaddr_in rpcb_inaddr_loopback = {
-	.sin_family		= AF_INET,
-	.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
-	.sin_port		= htons(RPCBIND_PORT),
-};
+/*
+ * Returns zero on success, otherwise a negative errno value
+ * is returned.
+ */
+static int rpcb_create_local_unix(void)
+{
+	static const struct sockaddr_un rpcb_localaddr_rpcbind = {
+		.sun_family		= AF_LOCAL,
+		.sun_path		= RPCBIND_SOCK_PATHNAME,
+	};
+	struct rpc_create_args args = {
+		.net		= &init_net,
+		.protocol	= XPRT_TRANSPORT_LOCAL,
+		.address	= (struct sockaddr *)&rpcb_localaddr_rpcbind,
+		.addrsize	= sizeof(rpcb_localaddr_rpcbind),
+		.servername	= "localhost",
+		.program	= &rpcb_program,
+		.version	= RPCBVERS_2,
+		.authflavor	= RPC_AUTH_NULL,
+	};
+	struct rpc_clnt *clnt, *clnt4;
+	int result = 0;
 
-static DEFINE_MUTEX(rpcb_create_local_mutex);
+	/*
+	 * Because we requested an RPC PING at transport creation time,
+	 * this works only if the user space portmapper is rpcbind, and
+	 * it's listening on AF_LOCAL on the named socket.
+	 */
+	clnt = rpc_create(&args);
+	if (IS_ERR(clnt)) {
+		dprintk("RPC:       failed to create AF_LOCAL rpcbind "
+				"client (errno %ld).\n", PTR_ERR(clnt));
+		result = -PTR_ERR(clnt);
+		goto out;
+	}
+
+	clnt4 = rpc_bind_new_program(clnt, &rpcb_program, RPCBVERS_4);
+	if (IS_ERR(clnt4)) {
+		dprintk("RPC:       failed to bind second program to "
+				"rpcbind v4 client (errno %ld).\n",
+				PTR_ERR(clnt4));
+		clnt4 = NULL;
+	}
+
+	/* Protected by rpcb_create_local_mutex */
+	rpcb_local_clnt = clnt;
+	rpcb_local_clnt4 = clnt4;
+
+out:
+	return result;
+}
 
 /*
  * Returns zero on success, otherwise a negative errno value
  * is returned.
  */
-static int rpcb_create_local(void)
+static int rpcb_create_local_net(void)
 {
+	static const struct sockaddr_in rpcb_inaddr_loopback = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
+		.sin_port		= htons(RPCBIND_PORT),
+	};
 	struct rpc_create_args args = {
 		.net		= &init_net,
 		.protocol	= XPRT_TRANSPORT_TCP,
@@ -185,13 +237,6 @@ static int rpcb_create_local(void)
 	};
 	struct rpc_clnt *clnt, *clnt4;
 	int result = 0;
-
-	if (rpcb_local_clnt)
-		return result;
-
-	mutex_lock(&rpcb_create_local_mutex);
-	if (rpcb_local_clnt)
-		goto out;
 
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
@@ -214,8 +259,32 @@ static int rpcb_create_local(void)
 		clnt4 = NULL;
 	}
 
+	/* Protected by rpcb_create_local_mutex */
 	rpcb_local_clnt = clnt;
 	rpcb_local_clnt4 = clnt4;
+
+out:
+	return result;
+}
+
+/*
+ * Returns zero on success, otherwise a negative errno value
+ * is returned.
+ */
+static int rpcb_create_local(void)
+{
+	static DEFINE_MUTEX(rpcb_create_local_mutex);
+	int result = 0;
+
+	if (rpcb_local_clnt)
+		return result;
+
+	mutex_lock(&rpcb_create_local_mutex);
+	if (rpcb_local_clnt)
+		goto out;
+
+	if (rpcb_create_local_unix() != 0)
+		result = rpcb_create_local_net();
 
 out:
 	mutex_unlock(&rpcb_create_local_mutex);
@@ -528,7 +597,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	u32 bind_version;
 	struct rpc_xprt *xprt;
 	struct rpc_clnt	*rpcb_clnt;
-	static struct rpcbind_args *map;
+	struct rpcbind_args *map;
 	struct rpc_task	*child;
 	struct sockaddr_storage addr;
 	struct sockaddr *sap = (struct sockaddr *)&addr;

@@ -610,7 +610,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 
 	/*
 	 * This is to deail with the case of an application
-	 * opening a device and then the device dissapears while
+	 * opening a device and then the device disappears while
 	 * it's in use, and then the application tries to release
 	 * it.  ex: Unmounting a deleted RAID volume at reboot.
 	 * If we send messages, it will just cause FAILs since
@@ -695,27 +695,29 @@ static int i2o_block_ioctl(struct block_device *bdev, fmode_t mode,
 };
 
 /**
- *	i2o_block_media_changed - Have we seen a media change?
+ *	i2o_block_check_events - Have we seen a media change?
  *	@disk: gendisk which should be verified
+ *	@clearing: events being cleared
  *
  *	Verifies if the media has changed.
  *
  *	Returns 1 if the media was changed or 0 otherwise.
  */
-static int i2o_block_media_changed(struct gendisk *disk)
+static unsigned int i2o_block_check_events(struct gendisk *disk,
+					   unsigned int clearing)
 {
 	struct i2o_block_device *p = disk->private_data;
 
 	if (p->media_change_flag) {
 		p->media_change_flag = 0;
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 	}
 	return 0;
 }
 
 /**
  *	i2o_block_transfer - Transfer a request to/from the I2O controller
- *	@req: the request which should be transfered
+ *	@req: the request which should be transferred
  *
  *	This function converts the request into a I2O message. The necessary
  *	DMA buffers are allocated and after everything is setup post the message
@@ -895,11 +897,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 {
 	struct request *req;
 
-	while (!blk_queue_plugged(q)) {
-		req = blk_peek_request(q);
-		if (!req)
-			break;
-
+	while ((req = blk_peek_request(q)) != NULL) {
 		if (req->cmd_type == REQ_TYPE_FS) {
 			struct i2o_block_delayed_request *dreq;
 			struct i2o_block_request *ireq = req->special;
@@ -950,7 +948,7 @@ static const struct block_device_operations i2o_block_fops = {
 	.ioctl = i2o_block_ioctl,
 	.compat_ioctl = i2o_block_ioctl,
 	.getgeo = i2o_block_getgeo,
-	.media_changed = i2o_block_media_changed
+	.check_events = i2o_block_check_events,
 };
 
 /**

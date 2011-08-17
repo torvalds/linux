@@ -46,6 +46,7 @@ MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, Audio 2 DJ},"
 			 "{Native Instruments, Audio 4 DJ},"
 			 "{Native Instruments, Audio 8 DJ},"
+			 "{Native Instruments, Traktor Audio 2},"
 			 "{Native Instruments, Session I/O},"
 			 "{Native Instruments, GuitarRig mobile}"
 			 "{Native Instruments, Traktor Kontrol X1}"
@@ -139,6 +140,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =    USB_PID_TRAKTORKONTROLS4
+	},
+	{
+		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =    USB_PID_TRAKTORAUDIO2
 	},
 	{ /* terminator */ }
 };

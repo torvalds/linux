@@ -56,7 +56,7 @@ void s3c6400_setup_sdhci_cfg_card(struct platform_device *dev,
 	else
 		ctrl3 = (S3C_SDHCI_CTRL3_FCSEL1 | S3C_SDHCI_CTRL3_FCSEL0);
 
-	printk(KERN_INFO "%s: CTRL 2=%08x, 3=%08x\n", __func__, ctrl2, ctrl3);
+	pr_debug("%s: CTRL 2=%08x, 3=%08x\n", __func__, ctrl2, ctrl3);
 	writel(ctrl2, r + S3C_SDHCI_CONTROL2);
 	writel(ctrl3, r + S3C_SDHCI_CONTROL3);
 }

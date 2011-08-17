@@ -67,19 +67,20 @@ void __init init_7343se_IRQ(void)
 			return;
 		se7343_fpga_irq[i] = irq;
 
-		set_irq_chip_and_handler_name(se7343_fpga_irq[i],
+		irq_set_chip_and_handler_name(se7343_fpga_irq[i],
 					      &se7343_irq_chip,
-					      handle_level_irq, "level");
+					      handle_level_irq,
+					      "level");
 
-		set_irq_chip_data(se7343_fpga_irq[i], (void *)i);
+		irq_set_chip_data(se7343_fpga_irq[i], (void *)i);
 	}
 
-	set_irq_chained_handler(IRQ0_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(IRQ1_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ1_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(IRQ4_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ4_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(IRQ5_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ5_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ0_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ1_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ1_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ4_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ4_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ5_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ5_IRQ, IRQ_TYPE_LEVEL_LOW);
 }

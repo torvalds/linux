@@ -126,29 +126,21 @@
 /**
  * struct adis16240_state - device instance specific data
  * @us:			actual spi_device
- * @work_trigger_to_ring: bh for triggered event handling
- * @inter:		used to check if new interrupt has been triggered
- * @last_timestamp:	passing timestamp from th to bh of interrupt handler
- * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16240_state {
-	struct spi_device		*us;
-	struct work_struct		work_trigger_to_ring;
-	s64				last_timestamp;
-	struct iio_dev			*indio_dev;
-	struct iio_trigger		*trig;
-	u8				*tx;
-	u8				*rx;
-	struct mutex			buf_lock;
+	struct spi_device	*us;
+	struct iio_trigger	*trig;
+	struct mutex		buf_lock;
+	u8			tx[ADIS16240_MAX_TX] ____cacheline_aligned;
+	u8			rx[ADIS16240_MAX_RX];
 };
 
-int adis16240_set_irq(struct device *dev, bool enable);
+int adis16240_set_irq(struct iio_dev *indio_dev, bool enable);
 
-#ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
@@ -160,6 +152,7 @@ int adis16240_set_irq(struct device *dev, bool enable);
 #define ADIS16240_SCAN_AUX_ADC	4
 #define ADIS16240_SCAN_TEMP	5
 
+#ifdef CONFIG_IIO_RING_BUFFER
 void adis16240_remove_trigger(struct iio_dev *indio_dev);
 int adis16240_probe_trigger(struct iio_dev *indio_dev);
 

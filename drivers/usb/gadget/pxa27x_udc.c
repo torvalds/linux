@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -602,7 +603,7 @@ static void inc_ep_stats_reqs(struct pxa_ep *ep, int is_in)
 /**
  * inc_ep_stats_bytes - Update ep stats counts
  * @ep: physical endpoint
- * @count: bytes transfered on endpoint
+ * @count: bytes transferred on endpoint
  * @is_in: ep direction (USB_DIR_IN or 0)
  */
 static void inc_ep_stats_bytes(struct pxa_ep *ep, int count, int is_in)
@@ -877,7 +878,7 @@ static void nuke(struct pxa_ep *ep, int status)
  * If there is less space in request than bytes received in OUT endpoint,
  * bytes are left in the OUT endpoint.
  *
- * Returns how many bytes were actually transfered
+ * Returns how many bytes were actually transferred
  */
 static int read_packet(struct pxa_ep *ep, struct pxa27x_request *req)
 {
@@ -914,7 +915,7 @@ static int read_packet(struct pxa_ep *ep, struct pxa27x_request *req)
  * endpoint. If there are no bytes to transfer, doesn't write anything
  * to physical endpoint.
  *
- * Returns how many bytes were actually transfered.
+ * Returns how many bytes were actually transferred.
  */
 static int write_packet(struct pxa_ep *ep, struct pxa27x_request *req,
 			unsigned int max)
@@ -991,7 +992,7 @@ static int read_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * caller guarantees at least one packet buffer is ready (or a zlp).
  * Doesn't complete the request, that's the caller's job
  *
- * Returns 1 if request fully transfered, 0 if partial transfer
+ * Returns 1 if request fully transferred, 0 if partial transfer
  */
 static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 {
@@ -1094,7 +1095,7 @@ static int read_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * Sends a request (or a part of the request) to the control endpoint (ep0 in).
  * If the request doesn't fit, the remaining part will be sent from irq.
  * The request is considered fully written only if either :
- *   - last write transfered all remaining bytes, but fifo was not fully filled
+ *   - last write transferred all remaining bytes, but fifo was not fully filled
  *   - last write was a 0 length write
  *
  * Returns 1 if request fully written, 0 if request only partially sent
@@ -1548,7 +1549,7 @@ static int pxa_udc_get_frame(struct usb_gadget *_gadget)
  * pxa_udc_wakeup - Force udc device out of suspend
  * @_gadget: usb gadget
  *
- * Returns 0 if successfull, error code otherwise
+ * Returns 0 if successful, error code otherwise
  */
 static int pxa_udc_wakeup(struct usb_gadget *_gadget)
 {
@@ -1679,12 +1680,18 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
+static int pxa27x_udc_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int pxa27x_udc_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
 	.wakeup		= pxa_udc_wakeup,
 	.pullup		= pxa_udc_pullup,
 	.vbus_session	= pxa_udc_vbus_session,
 	.vbus_draw	= pxa_udc_vbus_draw,
+	.start		= pxa27x_udc_start,
+	.stop		= pxa27x_udc_stop,
 };
 
 /**
@@ -1790,7 +1797,7 @@ static void udc_enable(struct pxa_udc *udc)
 }
 
 /**
- * usb_gadget_probe_driver - Register gadget driver
+ * pxa27x_start - Register gadget driver
  * @driver: gadget driver
  * @bind: bind function
  *
@@ -1804,7 +1811,7 @@ static void udc_enable(struct pxa_udc *udc)
  *
  * Returns 0 if no error, -EINVAL, -ENODEV, -EBUSY otherwise
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int pxa27x_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct pxa_udc *udc = the_controller;
@@ -1859,8 +1866,6 @@ add_fail:
 	udc->gadget.dev.driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
-
 
 /**
  * stop_activity - Stops udc endpoints
@@ -1887,12 +1892,12 @@ static void stop_activity(struct pxa_udc *udc, struct usb_gadget_driver *driver)
 }
 
 /**
- * usb_gadget_unregister_driver - Unregister the gadget driver
+ * pxa27x_udc_stop - Unregister the gadget driver
  * @driver: gadget driver
  *
  * Returns 0 if no error, -ENODEV, -EINVAL otherwise
  */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int pxa27x_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct pxa_udc *udc = the_controller;
 
@@ -1916,7 +1921,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		return otg_set_peripheral(udc->transceiver, NULL);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /**
  * handle_ep0_ctrl_req - handle control endpoint control request
@@ -2515,9 +2519,14 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 			driver_name, IRQ_USB, retval);
 		goto err_irq;
 	}
+	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	if (retval)
+		goto err_add_udc;
 
 	pxa_init_debugfs(udc);
 	return 0;
+err_add_udc:
+	free_irq(udc->irq, udc);
 err_irq:
 	iounmap(udc->regs);
 err_map:
@@ -2536,6 +2545,7 @@ static int __exit pxa_udc_remove(struct platform_device *_dev)
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	int gpio = udc->mach->gpio_pullup;
 
+	usb_del_gadget_udc(&udc->gadget);
 	usb_gadget_unregister_driver(udc->driver);
 	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);

@@ -612,8 +612,8 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	idev->open = ati_remote2_open;
 	idev->close = ati_remote2_close;
 
-	idev->getkeycode_new = ati_remote2_getkeycode;
-	idev->setkeycode_new = ati_remote2_setkeycode;
+	idev->getkeycode = ati_remote2_getkeycode;
+	idev->setkeycode = ati_remote2_setkeycode;
 
 	idev->name = ar2->name;
 	idev->phys = ar2->phys;
@@ -737,14 +737,17 @@ static ssize_t ati_remote2_store_channel_mask(struct device *dev,
 
 	mutex_lock(&ati_remote2_mutex);
 
-	if (mask != ar2->channel_mask && !ati_remote2_setup(ar2, mask))
-		ar2->channel_mask = mask;
+	if (mask != ar2->channel_mask) {
+		r = ati_remote2_setup(ar2, mask);
+		if (!r)
+			ar2->channel_mask = mask;
+	}
 
 	mutex_unlock(&ati_remote2_mutex);
 
 	usb_autopm_put_interface(ar2->intf[0]);
 
-	return count;
+	return r ? r : count;
 }
 
 static ssize_t ati_remote2_show_mode_mask(struct device *dev,

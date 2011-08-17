@@ -104,7 +104,7 @@ struct sock *unix_get_socket(struct file *filp)
 	/*
 	 *	Socket ?
 	 */
-	if (S_ISSOCK(inode->i_mode)) {
+	if (S_ISSOCK(inode->i_mode) && !(filp->f_mode & FMODE_PATH)) {
 		struct socket *sock = SOCKET_I(inode);
 		struct sock *s = sock->sk;
 

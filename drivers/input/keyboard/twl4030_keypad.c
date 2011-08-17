@@ -332,17 +332,19 @@ static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
 static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 {
 	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
-	const struct matrix_keymap_data *keymap_data = pdata->keymap_data;
+	const struct matrix_keymap_data *keymap_data;
 	struct twl4030_keypad *kp;
 	struct input_dev *input;
 	u8 reg;
 	int error;
 
-	if (!pdata || !pdata->rows || !pdata->cols ||
+	if (!pdata || !pdata->rows || !pdata->cols || !pdata->keymap_data ||
 	    pdata->rows > TWL4030_MAX_ROWS || pdata->cols > TWL4030_MAX_COLS) {
 		dev_err(&pdev->dev, "Invalid platform_data\n");
 		return -EINVAL;
 	}
+
+	keymap_data = pdata->keymap_data;
 
 	kp = kzalloc(sizeof(*kp), GFP_KERNEL);
 	input = input_allocate_device();

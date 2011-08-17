@@ -1,6 +1,10 @@
 /*
  * tick internal variable and functions used by low/high res code
  */
+#include <linux/hrtimer.h>
+#include <linux/tick.h>
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
 
 #define TICK_DO_TIMER_NONE	-1
 #define TICK_DO_TIMER_BOOT	-2
@@ -135,3 +139,8 @@ static inline int tick_device_is_functional(struct clock_event_device *dev)
 {
 	return !(dev->features & CLOCK_EVT_FEAT_DUMMY);
 }
+
+#endif
+
+extern void do_timer(unsigned long ticks);
+extern seqlock_t xtime_lock;

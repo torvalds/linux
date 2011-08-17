@@ -155,50 +155,32 @@ static inline void io_be_clrbit(u32 __iomem *addr, int bitno)
 /*
  * IRQ[0-3] interrupt irq_chip
  */
-static void mpc52xx_extirq_mask(unsigned int virq)
+static void mpc52xx_extirq_mask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_clrbit(&intr->ctrl, 11 - l2irq);
 }
 
-static void mpc52xx_extirq_unmask(unsigned int virq)
+static void mpc52xx_extirq_unmask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_setbit(&intr->ctrl, 11 - l2irq);
 }
 
-static void mpc52xx_extirq_ack(unsigned int virq)
+static void mpc52xx_extirq_ack(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_setbit(&intr->ctrl, 27-l2irq);
 }
 
-static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
+static int mpc52xx_extirq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	u32 ctrl_reg, type;
-	int irq;
-	int l2irq;
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	void *handler = handle_level_irq;
 
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
-	pr_debug("%s: irq=%x. l2=%d flow_type=%d\n", __func__, irq, l2irq, flow_type);
+	pr_debug("%s: irq=%x. l2=%d flow_type=%d\n", __func__,
+		(int) irqd_to_hwirq(d), l2irq, flow_type);
 
 	switch (flow_type) {
 	case IRQF_TRIGGER_HIGH: type = 0; break;
@@ -214,132 +196,97 @@ static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
 	ctrl_reg |= (type << (22 - (l2irq * 2)));
 	out_be32(&intr->ctrl, ctrl_reg);
 
-	__set_irq_handler_unlocked(virq, handler);
+	__irq_set_handler_locked(d->irq, handler);
 
 	return 0;
 }
 
 static struct irq_chip mpc52xx_extirq_irqchip = {
 	.name = "MPC52xx External",
-	.mask = mpc52xx_extirq_mask,
-	.unmask = mpc52xx_extirq_unmask,
-	.ack = mpc52xx_extirq_ack,
-	.set_type = mpc52xx_extirq_set_type,
+	.irq_mask = mpc52xx_extirq_mask,
+	.irq_unmask = mpc52xx_extirq_unmask,
+	.irq_ack = mpc52xx_extirq_ack,
+	.irq_set_type = mpc52xx_extirq_set_type,
 };
 
 /*
  * Main interrupt irq_chip
  */
-static int mpc52xx_null_set_type(unsigned int virq, unsigned int flow_type)
+static int mpc52xx_null_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	return 0; /* Do nothing so that the sense mask will get updated */
 }
 
-static void mpc52xx_main_mask(unsigned int virq)
+static void mpc52xx_main_mask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_setbit(&intr->main_mask, 16 - l2irq);
 }
 
-static void mpc52xx_main_unmask(unsigned int virq)
+static void mpc52xx_main_unmask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_clrbit(&intr->main_mask, 16 - l2irq);
 }
 
 static struct irq_chip mpc52xx_main_irqchip = {
 	.name = "MPC52xx Main",
-	.mask = mpc52xx_main_mask,
-	.mask_ack = mpc52xx_main_mask,
-	.unmask = mpc52xx_main_unmask,
-	.set_type = mpc52xx_null_set_type,
+	.irq_mask = mpc52xx_main_mask,
+	.irq_mask_ack = mpc52xx_main_mask,
+	.irq_unmask = mpc52xx_main_unmask,
+	.irq_set_type = mpc52xx_null_set_type,
 };
 
 /*
  * Peripherals interrupt irq_chip
  */
-static void mpc52xx_periph_mask(unsigned int virq)
+static void mpc52xx_periph_mask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_setbit(&intr->per_mask, 31 - l2irq);
 }
 
-static void mpc52xx_periph_unmask(unsigned int virq)
+static void mpc52xx_periph_unmask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_clrbit(&intr->per_mask, 31 - l2irq);
 }
 
 static struct irq_chip mpc52xx_periph_irqchip = {
 	.name = "MPC52xx Peripherals",
-	.mask = mpc52xx_periph_mask,
-	.mask_ack = mpc52xx_periph_mask,
-	.unmask = mpc52xx_periph_unmask,
-	.set_type = mpc52xx_null_set_type,
+	.irq_mask = mpc52xx_periph_mask,
+	.irq_mask_ack = mpc52xx_periph_mask,
+	.irq_unmask = mpc52xx_periph_unmask,
+	.irq_set_type = mpc52xx_null_set_type,
 };
 
 /*
  * SDMA interrupt irq_chip
  */
-static void mpc52xx_sdma_mask(unsigned int virq)
+static void mpc52xx_sdma_mask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_setbit(&sdma->IntMask, l2irq);
 }
 
-static void mpc52xx_sdma_unmask(unsigned int virq)
+static void mpc52xx_sdma_unmask(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	io_be_clrbit(&sdma->IntMask, l2irq);
 }
 
-static void mpc52xx_sdma_ack(unsigned int virq)
+static void mpc52xx_sdma_ack(struct irq_data *d)
 {
-	int irq;
-	int l2irq;
-
-	irq = irq_map[virq].hwirq;
-	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
+	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	out_be32(&sdma->IntPend, 1 << l2irq);
 }
 
 static struct irq_chip mpc52xx_sdma_irqchip = {
 	.name = "MPC52xx SDMA",
-	.mask = mpc52xx_sdma_mask,
-	.unmask = mpc52xx_sdma_unmask,
-	.ack = mpc52xx_sdma_ack,
-	.set_type = mpc52xx_null_set_type,
+	.irq_mask = mpc52xx_sdma_mask,
+	.irq_unmask = mpc52xx_sdma_unmask,
+	.irq_ack = mpc52xx_sdma_ack,
+	.irq_set_type = mpc52xx_null_set_type,
 };
 
 /**
@@ -414,7 +361,7 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 		else
 			hndlr = handle_level_irq;
 
-		set_irq_chip_and_handler(virq, &mpc52xx_extirq_irqchip, hndlr);
+		irq_set_chip_and_handler(virq, &mpc52xx_extirq_irqchip, hndlr);
 		pr_debug("%s: External IRQ%i virq=%x, hw=%x. type=%x\n",
 			 __func__, l2irq, virq, (int)irq, type);
 		return 0;
@@ -431,7 +378,7 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 		return -EINVAL;
 	}
 
-	set_irq_chip_and_handler(virq, irqchip, handle_level_irq);
+	irq_set_chip_and_handler(virq, irqchip, handle_level_irq);
 	pr_debug("%s: virq=%x, l1=%i, l2=%i\n", __func__, virq, l1irq, l2irq);
 
 	return 0;
@@ -512,7 +459,7 @@ void __init mpc52xx_init_irq(void)
 /**
  * mpc52xx_get_irq - Get pending interrupt number hook function
  *
- * Called by the interupt handler to determine what IRQ handler needs to be
+ * Called by the interrupt handler to determine what IRQ handler needs to be
  * executed.
  *
  * Status of pending interrupts is determined by reading the encoded status
@@ -539,7 +486,7 @@ void __init mpc52xx_init_irq(void)
 unsigned int mpc52xx_get_irq(void)
 {
 	u32 status;
-	int irq = NO_IRQ_IGNORE;
+	int irq;
 
 	status = in_be32(&intr->enc_status);
 	if (status & 0x00000400) {	/* critical */
@@ -562,6 +509,8 @@ unsigned int mpc52xx_get_irq(void)
 		} else {
 			irq |= (MPC52xx_IRQ_L1_PERP << MPC52xx_IRQ_L1_OFFSET);
 		}
+	} else {
+		return NO_IRQ;
 	}
 
 	return irq_linear_revmap(mpc52xx_irqhost, irq);

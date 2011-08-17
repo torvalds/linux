@@ -41,9 +41,7 @@ struct async_state {
 	uint32_t flash_ambctl0, flash_ambctl1;
 	uint32_t save_ambctl0, save_ambctl1;
 	unsigned long irq_flags;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts;
-#endif
 };
 
 static void switch_to_flash(struct async_state *state)
@@ -124,9 +122,7 @@ static void bfin_flash_copy_to(struct map_info *map, unsigned long to, const voi
 	switch_back(state);
 }
 
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
-#endif
 
 static int __devinit bfin_flash_probe(struct platform_device *pdev)
 {
@@ -146,7 +142,7 @@ static int __devinit bfin_flash_probe(struct platform_device *pdev)
 	state->map.write      = bfin_flash_write;
 	state->map.copy_to    = bfin_flash_copy_to;
 	state->map.bankwidth  = pdata->width;
-	state->map.size       = memory->end - memory->start + 1;
+	state->map.size       = resource_size(memory);
 	state->map.virt       = (void __iomem *)memory->start;
 	state->map.phys       = memory->start;
 	state->map.map_priv_1 = (unsigned long)state;
@@ -169,22 +165,17 @@ static int __devinit bfin_flash_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
 	ret = parse_mtd_partitions(state->mtd, part_probe_types, &pdata->parts, 0);
 	if (ret > 0) {
 		pr_devinit(KERN_NOTICE DRIVER_NAME ": Using commandline partition definition\n");
-		add_mtd_partitions(state->mtd, pdata->parts, ret);
+		mtd_device_register(state->mtd, pdata->parts, ret);
 		state->parts = pdata->parts;
-
 	} else if (pdata->nr_parts) {
 		pr_devinit(KERN_NOTICE DRIVER_NAME ": Using board partition definition\n");
-		add_mtd_partitions(state->mtd, pdata->parts, pdata->nr_parts);
-
-	} else
-#endif
-	{
+		mtd_device_register(state->mtd, pdata->parts, pdata->nr_parts);
+	} else {
 		pr_devinit(KERN_NOTICE DRIVER_NAME ": no partition info available, registering whole flash at once\n");
-		add_mtd_device(state->mtd);
+		mtd_device_register(state->mtd, NULL, 0);
 	}
 
 	platform_set_drvdata(pdev, state);
@@ -196,10 +187,8 @@ static int __devexit bfin_flash_remove(struct platform_device *pdev)
 {
 	struct async_state *state = platform_get_drvdata(pdev);
 	gpio_free(state->enet_flash_pin);
-#ifdef CONFIG_MTD_PARTITIONS
-	del_mtd_partitions(state->mtd);
+	mtd_device_unregister(state->mtd);
 	kfree(state->parts);
-#endif
 	map_destroy(state->mtd);
 	kfree(state);
 	return 0;

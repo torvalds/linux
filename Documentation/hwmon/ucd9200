@@ -1,0 +1,112 @@
+Kernel driver ucd9200
+=====================
+
+Supported chips:
+  * TI UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, and UCD9248
+    Prefixes: 'ucd9220', 'ucd9222', 'ucd9224', 'ucd9240', 'ucd9244', 'ucd9246',
+	'ucd9248'
+    Addresses scanned: -
+    Datasheets:
+	http://focus.ti.com/lit/ds/symlink/ucd9220.pdf
+	http://focus.ti.com/lit/ds/symlink/ucd9222.pdf
+	http://focus.ti.com/lit/ds/symlink/ucd9224.pdf
+	http://focus.ti.com/lit/ds/symlink/ucd9240.pdf
+	http://focus.ti.com/lit/ds/symlink/ucd9244.pdf
+	http://focus.ti.com/lit/ds/symlink/ucd9246.pdf
+	http://focus.ti.com/lit/ds/symlink/ucd9248.pdf
+
+Author: Guenter Roeck <guenter.roeck@ericsson.com>
+
+
+Description
+-----------
+
+[From datasheets] UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, and
+UCD9248 are multi-rail, multi-phase synchronous buck digital PWM controllers
+designed for non-isolated DC/DC power applications. The devices integrate
+dedicated circuitry for DC/DC loop management with flash memory and a serial
+interface to support configuration, monitoring and management.
+
+This driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices for
+details.
+
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data. Please see
+Documentation/hwmon/pmbus for details.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported. Limits are read-write; all other
+attributes are read-only.
+
+in1_label		"vin".
+in1_input		Measured voltage. From READ_VIN register.
+in1_min			Minumum Voltage. From VIN_UV_WARN_LIMIT register.
+in1_max			Maximum voltage. From VIN_OV_WARN_LIMIT register.
+in1_lcrit		Critical minumum Voltage. VIN_UV_FAULT_LIMIT register.
+in1_crit		Critical maximum voltage. From VIN_OV_FAULT_LIMIT register.
+in1_min_alarm		Voltage low alarm. From VIN_UV_WARNING status.
+in1_max_alarm		Voltage high alarm. From VIN_OV_WARNING status.
+in1_lcrit_alarm		Voltage critical low alarm. From VIN_UV_FAULT status.
+in1_crit_alarm		Voltage critical high alarm. From VIN_OV_FAULT status.
+
+in[2-5]_label		"vout[1-4]".
+in[2-5]_input		Measured voltage. From READ_VOUT register.
+in[2-5]_min		Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
+in[2-5]_max		Maximum voltage. From VOUT_OV_WARN_LIMIT register.
+in[2-5]_lcrit		Critical minumum Voltage. VOUT_UV_FAULT_LIMIT register.
+in[2-5]_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT register.
+in[2-5]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
+in[2-5]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
+in[2-5]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT status.
+in[2-5]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
+
+curr1_label		"iin".
+curr1_input		Measured current. From READ_IIN register.
+
+curr[2-5]_label		"iout[1-4]".
+curr[2-5]_input		Measured current. From READ_IOUT register.
+curr[2-5]_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
+curr[2-5]_lcrit		Critical minumum output current. From IOUT_UC_FAULT_LIMIT
+			register.
+curr[2-5]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
+curr[2-5]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
+curr[2-5]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
+
+power1_input		Measured input power. From READ_PIN register.
+power1_label		"pin"
+
+power[2-5]_input	Measured output power. From READ_POUT register.
+power[2-5]_label	"pout[1-4]"
+
+			The number of output voltage, current, and power
+			attribute sets is determined by the number of enabled
+			rails. See chip datasheets for details.
+
+temp[1-5]_input		Measured temperatures. From READ_TEMPERATURE_1 and
+		        READ_TEMPERATURE_2 registers.
+			temp1 is the chip internal temperature. temp[2-5] are
+			rail temperatures.  temp[2-5] attributes are only
+			created for enabled rails. See chip datasheets for
+			details.
+temp[1-5]_max		Maximum temperature. From OT_WARN_LIMIT register.
+temp[1-5]_crit		Critical high temperature. From OT_FAULT_LIMIT register.
+temp[1-5]_max_alarm	Temperature high alarm.
+temp[1-5]_crit_alarm	Temperature critical high alarm.
+
+fan1_input		Fan RPM. ucd9240 only.
+fan1_alarm		Fan alarm. ucd9240 only.
+fan1_fault		Fan fault. ucd9240 only.

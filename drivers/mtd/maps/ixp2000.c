@@ -119,7 +119,7 @@ static int ixp2000_flash_remove(struct platform_device *dev)
 		return 0;
 
 	if (info->mtd) {
-		del_mtd_partitions(info->mtd);
+		mtd_device_unregister(info->mtd);
 		map_destroy(info->mtd);
 	}
 	if (info->map.map_priv_1)
@@ -155,7 +155,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	if (!plat)
 		return -ENODEV;
 
-	window_size = dev->resource->end - dev->resource->start + 1;
+	window_size = resource_size(dev->resource);
 	dev_info(&dev->dev, "Probe of IXP2000 flash(%d banks x %dMiB)\n",
 		 ixp_data->nr_banks, ((u32)window_size >> 20));
 
@@ -194,16 +194,17 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	info->map.copy_to = ixp2000_flash_copy_to;
 
 	info->res = request_mem_region(dev->resource->start,
-			dev->resource->end - dev->resource->start + 1,
-			dev_name(&dev->dev));
+				       resource_size(dev->resource),
+				       dev_name(&dev->dev));
 	if (!info->res) {
 		dev_err(&dev->dev, "Could not reserve memory region\n");
 		err = -ENOMEM;
 		goto Error;
 	}
 
-	info->map.map_priv_1 = (unsigned long) ioremap(dev->resource->start,
-			    	dev->resource->end - dev->resource->start + 1);
+	info->map.map_priv_1 =
+		(unsigned long)ioremap(dev->resource->start,
+				       resource_size(dev->resource));
 	if (!info->map.map_priv_1) {
 		dev_err(&dev->dev, "Failed to ioremap flash region\n");
 		err = -EIO;
@@ -230,7 +231,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 
 	err = parse_mtd_partitions(info->mtd, probes, &info->partitions, 0);
 	if (err > 0) {
-		err = add_mtd_partitions(info->mtd, info->partitions, err);
+		err = mtd_device_register(info->mtd, info->partitions, err);
 		if(err)
 			dev_err(&dev->dev, "Could not parse partitions\n");
 	}

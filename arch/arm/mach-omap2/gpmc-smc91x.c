@@ -147,25 +147,24 @@ void __init gpmc_smc91x_init(struct omap_smc91x_platform_data *board_data)
 			goto free1;
 	}
 
-	if (gpio_request(gpmc_cfg->gpio_irq, "SMC91X irq") < 0)
+	if (gpio_request_one(gpmc_cfg->gpio_irq, GPIOF_IN, "SMC91X irq") < 0)
 		goto free1;
 
-	gpio_direction_input(gpmc_cfg->gpio_irq);
 	gpmc_smc91x_resources[1].start = gpio_to_irq(gpmc_cfg->gpio_irq);
 
 	if (gpmc_cfg->gpio_pwrdwn) {
-		ret = gpio_request(gpmc_cfg->gpio_pwrdwn, "SMC91X powerdown");
+		ret = gpio_request_one(gpmc_cfg->gpio_pwrdwn,
+				       GPIOF_OUT_INIT_LOW, "SMC91X powerdown");
 		if (ret)
 			goto free2;
-		gpio_direction_output(gpmc_cfg->gpio_pwrdwn, 0);
 	}
 
 	if (gpmc_cfg->gpio_reset) {
-		ret = gpio_request(gpmc_cfg->gpio_reset, "SMC91X reset");
+		ret = gpio_request_one(gpmc_cfg->gpio_reset,
+				       GPIOF_OUT_INIT_LOW, "SMC91X reset");
 		if (ret)
 			goto free3;
 
-		gpio_direction_output(gpmc_cfg->gpio_reset, 0);
 		gpio_set_value(gpmc_cfg->gpio_reset, 1);
 		msleep(100);
 		gpio_set_value(gpmc_cfg->gpio_reset, 0);

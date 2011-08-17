@@ -59,24 +59,7 @@ static __inline__ void clear_page(void *addr)
 	: "ctr", "memory");
 }
 
-extern void copy_4K_page(void *to, void *from);
-
-#ifdef CONFIG_PPC_64K_PAGES
-static inline void copy_page(void *to, void *from)
-{
-	unsigned int i;
-	for (i=0; i < (1 << (PAGE_SHIFT - 12)); i++) {
-		copy_4K_page(to, from);
-		to += 4096;
-		from += 4096;
-	}
-}
-#else /* CONFIG_PPC_64K_PAGES */
-static inline void copy_page(void *to, void *from)
-{
-	copy_4K_page(to, from);
-}
-#endif /* CONFIG_PPC_64K_PAGES */
+extern void copy_page(void *to, void *from);
 
 /* Log 2 of page table size */
 extern u64 ppc64_pft_size;
@@ -130,7 +113,7 @@ extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 				  unsigned long len, unsigned int psize);
 
-#define slice_mm_new_context(mm)	((mm)->context.id == 0)
+#define slice_mm_new_context(mm)	((mm)->context.id == MMU_NO_CONTEXT)
 
 #endif /* __ASSEMBLY__ */
 #else
@@ -169,7 +152,7 @@ do {						\
 /*
  * This is the default if a program doesn't have a PT_GNU_STACK
  * program header entry. The PPC64 ELF ABI has a non executable stack
- * stack by default, so in the absense of a PT_GNU_STACK program header
+ * stack by default, so in the absence of a PT_GNU_STACK program header
  * we turn execute permission off.
  */
 #define VM_STACK_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \

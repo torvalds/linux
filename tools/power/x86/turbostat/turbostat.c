@@ -128,34 +128,34 @@ unsigned long long get_msr(int cpu, off_t offset)
 void print_header(void)
 {
 	if (show_pkg)
-		fprintf(stderr, "pkg ");
+		fprintf(stderr, "pk");
 	if (show_core)
-		fprintf(stderr, "core");
+		fprintf(stderr, " cr");
 	if (show_cpu)
 		fprintf(stderr, " CPU");
 	if (do_nhm_cstates)
-		fprintf(stderr, "   %%c0 ");
+		fprintf(stderr, "    %%c0 ");
 	if (has_aperf)
-		fprintf(stderr, "  GHz");
+		fprintf(stderr, " GHz");
 	fprintf(stderr, "  TSC");
 	if (do_nhm_cstates)
-		fprintf(stderr, "   %%c1 ");
+		fprintf(stderr, "    %%c1");
 	if (do_nhm_cstates)
-		fprintf(stderr, "   %%c3 ");
+		fprintf(stderr, "    %%c3");
 	if (do_nhm_cstates)
-		fprintf(stderr, "   %%c6 ");
+		fprintf(stderr, "    %%c6");
 	if (do_snb_cstates)
-		fprintf(stderr, "   %%c7 ");
+		fprintf(stderr, "    %%c7");
 	if (do_snb_cstates)
-		fprintf(stderr, "  %%pc2 ");
+		fprintf(stderr, "  %%pc2");
 	if (do_nhm_cstates)
-		fprintf(stderr, "  %%pc3 ");
+		fprintf(stderr, "  %%pc3");
 	if (do_nhm_cstates)
-		fprintf(stderr, "  %%pc6 ");
+		fprintf(stderr, "  %%pc6");
 	if (do_snb_cstates)
-		fprintf(stderr, "  %%pc7 ");
+		fprintf(stderr, "  %%pc7");
 	if (extra_msr_offset)
-		fprintf(stderr, "       MSR 0x%x ", extra_msr_offset);
+		fprintf(stderr, "        MSR 0x%x ", extra_msr_offset);
 
 	putc('\n', stderr);
 }
@@ -194,14 +194,14 @@ void print_cnt(struct counters *p)
 	/* topology columns, print blanks on 1st (average) line */
 	if (p == cnt_average) {
 		if (show_pkg)
-			fprintf(stderr, "    ");
+			fprintf(stderr, " ");
 		if (show_core)
 			fprintf(stderr, "    ");
 		if (show_cpu)
 			fprintf(stderr, "    ");
 	} else {
 		if (show_pkg)
-			fprintf(stderr, "%4d", p->pkg);
+			fprintf(stderr, "%d", p->pkg);
 		if (show_core)
 			fprintf(stderr, "%4d", p->core);
 		if (show_cpu)
@@ -241,22 +241,22 @@ void print_cnt(struct counters *p)
 		if (!skip_c1)
 			fprintf(stderr, "%7.2f", 100.0 * p->c1/p->tsc);
 		else
-			fprintf(stderr, "   ****");
+			fprintf(stderr, "  ****");
 	}
 	if (do_nhm_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->c3/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->c3/p->tsc);
 	if (do_nhm_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->c6/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->c6/p->tsc);
 	if (do_snb_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->c7/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->c7/p->tsc);
 	if (do_snb_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->pc2/p->tsc);
+		fprintf(stderr, " %5.2f", 100.0 * p->pc2/p->tsc);
 	if (do_nhm_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->pc3/p->tsc);
+		fprintf(stderr, " %5.2f", 100.0 * p->pc3/p->tsc);
 	if (do_nhm_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->pc6/p->tsc);
+		fprintf(stderr, " %5.2f", 100.0 * p->pc6/p->tsc);
 	if (do_snb_cstates)
-		fprintf(stderr, "%7.2f", 100.0 * p->pc7/p->tsc);
+		fprintf(stderr, " %5.2f", 100.0 * p->pc7/p->tsc);
 	if (extra_msr_offset)
 		fprintf(stderr, "  0x%016llx", p->extra_msr);
 	putc('\n', stderr);
@@ -990,7 +990,7 @@ int fork_it(char **argv)
 	if (!retval)
 		print_counters(cnt_delta);
 
-	fprintf(stderr, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec/1000000.0);;
+	fprintf(stderr, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec/1000000.0);
 
 	return 0;
 }

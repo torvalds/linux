@@ -120,7 +120,6 @@ extern void do_dabr(struct pt_regs *regs, unsigned long address,
 		    unsigned long error_code);
 #endif
 extern void print_backtrace(unsigned long *);
-extern void show_regs(struct pt_regs * regs);
 extern void flush_instruction_cache(void);
 extern void hard_reset_now(void);
 extern void poweroff_now(void);
@@ -219,8 +218,6 @@ extern int mem_init_done;	/* set on boot once kmalloc can be called */
 extern int init_bootmem_done;	/* set once bootmem is available */
 extern phys_addr_t memory_limit;
 extern unsigned long klimit;
-
-extern void *alloc_maybe_bootmem(size_t size, gfp_t mask);
 extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */

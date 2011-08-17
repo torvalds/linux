@@ -96,16 +96,11 @@ static inline struct thread_info *current_thread_info(void)
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk)					\
-	({							\
-		struct thread_info *ret;			\
-	 							\
-	 	ret = kzalloc(THREAD_SIZE, GFP_KERNEL);		\
-								\
-	 	ret;						\
-	 })
+#define alloc_thread_info_node(tsk, node)			\
+		kzalloc_node(THREAD_SIZE, GFP_KERNEL, node)
 #else
-#define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
+#define alloc_thread_info_node(tsk, node)			\
+		kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
 #endif
 
 #define free_thread_info(info) kfree(info)

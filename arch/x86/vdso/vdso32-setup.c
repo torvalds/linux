@@ -417,24 +417,25 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 	return NULL;
 }
 
-struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
-	struct mm_struct *mm = tsk->mm;
-
-	/* Check to see if this task was created in compat vdso mode */
+	/*
+	 * Check to see if the corresponding task was created in compat vdso
+	 * mode.
+	 */
 	if (mm && mm->context.vdso == (void *)VDSO_HIGH_BASE)
 		return &gate_vma;
 	return NULL;
 }
 
-int in_gate_area(struct task_struct *task, unsigned long addr)
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
 {
-	const struct vm_area_struct *vma = get_gate_vma(task);
+	const struct vm_area_struct *vma = get_gate_vma(mm);
 
 	return vma && addr >= vma->vm_start && addr < vma->vm_end;
 }
 
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return 0;
 }

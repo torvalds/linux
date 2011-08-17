@@ -337,7 +337,7 @@ unsigned long get_wchan(struct task_struct *p);
 /*
  * Return_address is a replacement for __builtin_return_address(count)
  * which on certain architectures cannot reasonably be implemented in GCC
- * (MIPS, Alpha) or is unuseable with -fomit-frame-pointer (i386).
+ * (MIPS, Alpha) or is unusable with -fomit-frame-pointer (i386).
  * Note that __builtin_return_address(x>=1) is forbidden because GCC
  * aborts compilation on some CPUs.  It's simply not possible to unwind
  * some CPU's stackframes.

@@ -38,6 +38,11 @@ static inline void s3c_fimc_setname(int id, char *name)
 		s5p_device_fimc2.name = name;
 		break;
 #endif
+#ifdef CONFIG_S5P_DEV_FIMC3
+	case 3:
+		s5p_device_fimc3.name = name;
+		break;
+#endif
 	}
 }
 

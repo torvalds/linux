@@ -113,13 +113,13 @@
 static u32 et131x_speed_set;
 module_param(et131x_speed_set, uint, 0);
 MODULE_PARM_DESC(et131x_speed_set,
-		"Set Link speed and dublex manually (0-5)  [0]\n \
-		 1 : 10Mb   Half-Duplex\n \
-		 2 : 10Mb   Full-Duplex\n \
-		 3 : 100Mb  Half-Duplex\n \
-		 4 : 100Mb  Full-Duplex\n \
-		 5 : 1000Mb Full-Duplex\n \
-		 0 : Auto Speed Auto Dublex");
+		"Set Link speed and dublex manually (0-5)  [0]\n"
+		"1 : 10Mb   Half-Duplex\n"
+		"2 : 10Mb   Full-Duplex\n"
+		"3 : 100Mb  Half-Duplex\n"
+		"4 : 100Mb  Full-Duplex\n"
+		"5 : 1000Mb Full-Duplex\n"
+		"0 : Auto Speed Auto Dublex");
 
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
@@ -131,32 +131,32 @@ void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
 	 */
-	if (adapter->PermanentAddress[0] == 0x00 &&
-	    adapter->PermanentAddress[1] == 0x00 &&
-	    adapter->PermanentAddress[2] == 0x00 &&
-	    adapter->PermanentAddress[3] == 0x00 &&
-	    adapter->PermanentAddress[4] == 0x00 &&
-	    adapter->PermanentAddress[5] == 0x00) {
+	if (adapter->rom_addr[0] == 0x00 &&
+	    adapter->rom_addr[1] == 0x00 &&
+	    adapter->rom_addr[2] == 0x00 &&
+	    adapter->rom_addr[3] == 0x00 &&
+	    adapter->rom_addr[4] == 0x00 &&
+	    adapter->rom_addr[5] == 0x00) {
 		/*
 		 * We need to randomly generate the last octet so we
 		 * decrease our chances of setting the mac address to
 		 * same as another one of our cards in the system
 		 */
-		get_random_bytes(&adapter->CurrentAddress[5], 1);
+		get_random_bytes(&adapter->addr[5], 1);
 		/*
 		 * We have the default value in the register we are
 		 * working with so we need to copy the current
 		 * address into the permanent address
 		 */
-		memcpy(adapter->PermanentAddress,
-			adapter->CurrentAddress, ETH_ALEN);
+		memcpy(adapter->rom_addr,
+			adapter->addr, ETH_ALEN);
 	} else {
 		/* We do not have an override address, so set the
 		 * current address to the permanent address and add
 		 * it to the device
 		 */
-		memcpy(adapter->CurrentAddress,
-		       adapter->PermanentAddress, ETH_ALEN);
+		memcpy(adapter->addr,
+		       adapter->rom_addr, ETH_ALEN);
 	}
 }
 
@@ -193,17 +193,17 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	max_payload &= 0x07;	/* Only the lower 3 bits are valid */
 
 	if (max_payload < 2) {
-		static const u16 AckNak[2] = { 0x76, 0xD0 };
-		static const u16 Replay[2] = { 0x1E0, 0x2ED };
+		static const u16 acknak[2] = { 0x76, 0xD0 };
+		static const u16 replay[2] = { 0x1E0, 0x2ED };
 
 		if (pci_write_config_word(pdev, ET1310_PCI_ACK_NACK,
-					       AckNak[max_payload])) {
+					       acknak[max_payload])) {
 			dev_err(&pdev->dev,
 			  "Could not write PCI config space for ACK/NAK\n");
 			return -EIO;
 		}
 		if (pci_write_config_word(pdev, ET1310_PCI_REPLAY,
-					       Replay[max_payload])) {
+					       replay[max_payload])) {
 			dev_err(&pdev->dev,
 			  "Could not write PCI config space for Replay Timer\n");
 			return -EIO;
@@ -245,12 +245,12 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 
 	for (i = 0; i < ETH_ALEN; i++) {
 		if (pci_read_config_byte(pdev, ET1310_PCI_MAC_ADDRESS + i,
-					adapter->PermanentAddress + i)) {
+					adapter->rom_addr + i)) {
 			dev_err(&pdev->dev, "Could not read PCI config space for MAC address\n");
 			return -EIO;
 		}
 	}
-	memcpy(adapter->CurrentAddress, adapter->PermanentAddress, ETH_ALEN);
+	memcpy(adapter->addr, adapter->rom_addr, ETH_ALEN);
 	return 0;
 }
 
@@ -274,14 +274,14 @@ void et131x_error_timer_handler(unsigned long data)
 		dev_err(&etdev->pdev->dev,
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
-	if (!etdev->Bmsr.bits.link_status &&
+	if (!(etdev->bmsr & MI_BMSR_LINK_STATUS) &&
 	    etdev->RegistryPhyComa &&
-	    etdev->PoMgmt.TransPhyComaModeOnBoot < 11) {
-		etdev->PoMgmt.TransPhyComaModeOnBoot++;
+	    etdev->boot_coma < 11) {
+		etdev->boot_coma++;
 	}
 
-	if (etdev->PoMgmt.TransPhyComaModeOnBoot == 10) {
-		if (!etdev->Bmsr.bits.link_status
+	if (etdev->boot_coma == 10) {
+		if (!(etdev->bmsr & MI_BMSR_LINK_STATUS)
 		    && etdev->RegistryPhyComa) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
@@ -312,7 +312,6 @@ void et131x_link_detection_handler(unsigned long data)
 		spin_lock_irqsave(&etdev->Lock, flags);
 
 		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
-		etdev->Flags &= ~fMP_ADAPTER_LINK_DETECTION;
 
 		spin_unlock_irqrestore(&etdev->Lock, flags);
 
@@ -539,7 +538,8 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 
 	struct et131x_adapter *etdev;
 
-	/* Setup the fundamental net_device and private adapter structure elements  */
+	/* Setup the fundamental net_device and private adapter structure
+	 * elements  */
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	/* Allocate private adapter struct and copy in relevant information */
@@ -555,8 +555,8 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	spin_lock_init(&etdev->Lock);
 	spin_lock_init(&etdev->TCBSendQLock);
 	spin_lock_init(&etdev->TCBReadyQLock);
-	spin_lock_init(&etdev->SendHWLock);
-	spin_lock_init(&etdev->RcvLock);
+	spin_lock_init(&etdev->send_hw_lock);
+	spin_lock_init(&etdev->rcv_lock);
 	spin_lock_init(&etdev->RcvPendLock);
 	spin_lock_init(&etdev->FbrLock);
 	spin_lock_init(&etdev->PHYLock);
@@ -570,7 +570,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
 
 	/* Set the MAC address to a default */
-	memcpy(etdev->CurrentAddress, default_mac, ETH_ALEN);
+	memcpy(etdev->addr, default_mac, ETH_ALEN);
 
 	/* Decode SpeedDuplex
 	 *
@@ -711,7 +711,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	INIT_WORK(&adapter->task, et131x_isr_handler);
 
 	/* Copy address into the net_device struct */
-	memcpy(netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN);
+	memcpy(netdev->dev_addr, adapter->addr, ETH_ALEN);
 
 	/* Setup et1310 as per the documentation */
 	et131x_adapter_setup(adapter);
@@ -728,7 +728,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 
 	/* Initialize variable for counting how long we do not have
 							link status */
-	adapter->PoMgmt.TransPhyComaModeOnBoot = 0;
+	adapter->boot_coma = 0;
 
 	/* We can enable interrupts now
 	 *
@@ -807,12 +807,12 @@ static struct pci_device_id et131x_pci_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, et131x_pci_table);
 
 static struct pci_driver et131x_driver = {
-      .name	= DRIVER_NAME,
-      .id_table	= et131x_pci_table,
-      .probe	= et131x_pci_setup,
-      .remove	= __devexit_p(et131x_pci_remove),
-      .suspend	= NULL,		/* et131x_pci_suspend */
-      .resume	= NULL,		/* et131x_pci_resume */
+	.name		= DRIVER_NAME,
+	.id_table	= et131x_pci_table,
+	.probe		= et131x_pci_setup,
+	.remove		= __devexit_p(et131x_pci_remove),
+	.suspend	= NULL,		/* et131x_pci_suspend */
+	.resume		= NULL,		/* et131x_pci_resume */
 };
 
 

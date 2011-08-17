@@ -223,7 +223,7 @@ static struct ubifs_znode *copy_znode(struct ubifs_info *c,
 	__set_bit(DIRTY_ZNODE, &zn->flags);
 	__clear_bit(COW_ZNODE, &zn->flags);
 
-	ubifs_assert(!test_bit(OBSOLETE_ZNODE, &znode->flags));
+	ubifs_assert(!ubifs_zn_obsolete(znode));
 	__set_bit(OBSOLETE_ZNODE, &znode->flags);
 
 	if (znode->level != 0) {
@@ -271,7 +271,7 @@ static struct ubifs_znode *dirty_cow_znode(struct ubifs_info *c,
 	struct ubifs_znode *zn;
 	int err;
 
-	if (!test_bit(COW_ZNODE, &znode->flags)) {
+	if (!ubifs_zn_cow(znode)) {
 		/* znode is not being committed */
 		if (!test_and_set_bit(DIRTY_ZNODE, &znode->flags)) {
 			atomic_long_inc(&c->dirty_zn_cnt);
@@ -447,8 +447,11 @@ static int tnc_read_node_nm(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  *
  * Note, this function does not check CRC of data nodes if @c->no_chk_data_crc
  * is true (it is controlled by corresponding mount option). However, if
- * @c->always_chk_crc is true, @c->no_chk_data_crc is ignored and CRC is always
- * checked.
+ * @c->mounting or @c->remounting_rw is true (we are mounting or re-mounting to
+ * R/W mode), @c->no_chk_data_crc is ignored and CRC is checked. This is
+ * because during mounting or re-mounting from R/O mode to R/W mode we may read
+ * journal nodes (when replying the journal or doing the recovery) and the
+ * journal nodes may potentially be corrupted, so checking is required.
  */
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 			 int len, int lnum, int offs)
@@ -459,7 +462,7 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 
 	dbg_io("LEB %d:%d, %s, length %d", lnum, offs, dbg_ntype(type), len);
 
-	err = ubi_read(c->ubi, lnum, buf, offs, len);
+	err = ubifs_leb_read(c, lnum, buf, offs, len, 1);
 	if (err) {
 		ubifs_err("cannot read node type %d from LEB %d:%d, error %d",
 			  type, lnum, offs, err);
@@ -476,7 +479,8 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (node_len != len)
 		return 0;
 
-	if (type == UBIFS_DATA_NODE && !c->always_chk_crc && c->no_chk_data_crc)
+	if (type == UBIFS_DATA_NODE && c->no_chk_data_crc && !c->mounting &&
+	    !c->remounting_rw)
 		return 1;
 
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
@@ -1662,7 +1666,7 @@ static int read_wbuf(struct ubifs_wbuf *wbuf, void *buf, int len, int lnum,
 	if (!overlap) {
 		/* We may safely unlock the write-buffer and read the data */
 		spin_unlock(&wbuf->lock);
-		return ubi_read(c->ubi, lnum, buf, offs, len);
+		return ubifs_leb_read(c, lnum, buf, offs, len, 0);
 	}
 
 	/* Don't read under wbuf */
@@ -1676,7 +1680,7 @@ static int read_wbuf(struct ubifs_wbuf *wbuf, void *buf, int len, int lnum,
 
 	if (rlen > 0)
 		/* Read everything that goes before write-buffer */
-		return ubi_read(c->ubi, lnum, buf, offs, rlen);
+		return ubifs_leb_read(c, lnum, buf, offs, rlen, 0);
 
 	return 0;
 }
@@ -1763,7 +1767,7 @@ int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu)
 	if (wbuf)
 		err = read_wbuf(wbuf, bu->buf, len, lnum, offs);
 	else
-		err = ubi_read(c->ubi, lnum, bu->buf, offs, len);
+		err = ubifs_leb_read(c, lnum, bu->buf, offs, len, 0);
 
 	/* Check for a race with GC */
 	if (maybe_leb_gced(c, lnum, bu->gc_seq))
@@ -2419,7 +2423,7 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 	 */
 
 	do {
-		ubifs_assert(!test_bit(OBSOLETE_ZNODE, &znode->flags));
+		ubifs_assert(!ubifs_zn_obsolete(znode));
 		ubifs_assert(ubifs_zn_dirty(znode));
 
 		zp = znode->parent;
@@ -2475,9 +2479,8 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 			c->zroot.offs = zbr->offs;
 			c->zroot.len = zbr->len;
 			c->zroot.znode = znode;
-			ubifs_assert(!test_bit(OBSOLETE_ZNODE,
-				     &zp->flags));
-			ubifs_assert(test_bit(DIRTY_ZNODE, &zp->flags));
+			ubifs_assert(!ubifs_zn_obsolete(zp));
+			ubifs_assert(ubifs_zn_dirty(zp));
 			atomic_long_dec(&c->dirty_zn_cnt);
 
 			if (zp->cnext) {
@@ -2553,11 +2556,11 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 		if (err) {
 			/* Ensure the znode is dirtied */
 			if (znode->cnext || !ubifs_zn_dirty(znode)) {
-				    znode = dirty_cow_bottom_up(c, znode);
-				    if (IS_ERR(znode)) {
-					    err = PTR_ERR(znode);
-					    goto out_unlock;
-				    }
+				znode = dirty_cow_bottom_up(c, znode);
+				if (IS_ERR(znode)) {
+					err = PTR_ERR(znode);
+					goto out_unlock;
+				}
 			}
 			err = tnc_delete(c, znode, n);
 		}
@@ -2861,7 +2864,7 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
 		struct ubifs_znode *znode = cnext;
 
 		cnext = cnext->cnext;
-		if (test_bit(OBSOLETE_ZNODE, &znode->flags))
+		if (ubifs_zn_obsolete(znode))
 			kfree(znode);
 	} while (cnext && cnext != c->cnext);
 }
@@ -2872,12 +2875,13 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
  */
 void ubifs_tnc_close(struct ubifs_info *c)
 {
-	long clean_freed;
-
 	tnc_destroy_cnext(c);
 	if (c->zroot.znode) {
-		clean_freed = ubifs_destroy_tnc_subtree(c->zroot.znode);
-		atomic_long_sub(clean_freed, &ubifs_clean_zn_cnt);
+		long n;
+
+		ubifs_destroy_tnc_subtree(c->zroot.znode);
+		n = atomic_long_read(&c->clean_zn_cnt);
+		atomic_long_sub(n, &ubifs_clean_zn_cnt);
 	}
 	kfree(c->gap_lebs);
 	kfree(c->ilebs);
@@ -3296,7 +3300,7 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 
 	if (!S_ISREG(inode->i_mode))
 		return 0;
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	block = (size + UBIFS_BLOCK_SIZE - 1) >> UBIFS_BLOCK_SHIFT;
@@ -3332,9 +3336,10 @@ out_dump:
 	ubifs_err("inode %lu has size %lld, but there are data at offset %lld "
 		  "(data key %s)", (unsigned long)inode->i_ino, size,
 		  ((loff_t)block) << UBIFS_BLOCK_SHIFT, DBGKEY(key));
+	mutex_unlock(&c->tnc_mutex);
 	dbg_dump_inode(c, inode);
 	dbg_dump_stack();
-	err = -EINVAL;
+	return -EINVAL;
 
 out_unlock:
 	mutex_unlock(&c->tnc_mutex);

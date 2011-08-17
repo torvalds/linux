@@ -8,10 +8,12 @@ on whether they contain certain headers */
 #ifndef __IPV6HEADER_H
 #define __IPV6HEADER_H
 
+#include <linux/types.h>
+
 struct ip6t_ipv6header_info {
-	u_int8_t matchflags;
-	u_int8_t invflags;
-	u_int8_t modeflag;
+	__u8 matchflags;
+	__u8 invflags;
+	__u8 modeflag;
 };
 
 #define MASK_HOPOPTS    128

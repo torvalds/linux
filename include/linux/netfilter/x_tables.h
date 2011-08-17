@@ -456,72 +456,60 @@ extern void xt_proto_fini(struct net *net, u_int8_t af);
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
 
-/*
- * Per-CPU spinlock associated with per-cpu table entries, and
- * with a counter for the "reading" side that allows a recursive
- * reader to avoid taking the lock and deadlocking.
- *
- * "reading" is used by ip/arp/ip6 tables rule processing which runs per-cpu.
- * It needs to ensure that the rules are not being changed while the packet
- * is being processed. In some cases, the read lock will be acquired
- * twice on the same CPU; this is okay because of the count.
- *
- * "writing" is used when reading counters.
- *  During replace any readers that are using the old tables have to complete
- *  before freeing the old table. This is handled by the write locking
- *  necessary for reading the counters.
+/**
+ * xt_recseq - recursive seqcount for netfilter use
+ * 
+ * Packet processing changes the seqcount only if no recursion happened
+ * get_counters() can use read_seqcount_begin()/read_seqcount_retry(),
+ * because we use the normal seqcount convention :
+ * Low order bit set to 1 if a writer is active.
  */
-struct xt_info_lock {
-	seqlock_t lock;
-	unsigned char readers;
-};
-DECLARE_PER_CPU(struct xt_info_lock, xt_info_locks);
+DECLARE_PER_CPU(seqcount_t, xt_recseq);
 
-/*
- * Note: we need to ensure that preemption is disabled before acquiring
- * the per-cpu-variable, so we do it as a two step process rather than
- * using "spin_lock_bh()".
+/**
+ * xt_write_recseq_begin - start of a write section
  *
- * We _also_ need to disable bottom half processing before updating our
- * nesting count, to make sure that the only kind of re-entrancy is this
- * code being called by itself: since the count+lock is not an atomic
- * operation, we can allow no races.
- *
- * _Only_ that special combination of being per-cpu and never getting
- * re-entered asynchronously means that the count is safe.
+ * Begin packet processing : all readers must wait the end
+ * 1) Must be called with preemption disabled
+ * 2) softirqs must be disabled too (or we should use irqsafe_cpu_add())
+ * Returns :
+ *  1 if no recursion on this cpu
+ *  0 if recursion detected
  */
-static inline void xt_info_rdlock_bh(void)
+static inline unsigned int xt_write_recseq_begin(void)
 {
-	struct xt_info_lock *lock;
+	unsigned int addend;
 
-	local_bh_disable();
-	lock = &__get_cpu_var(xt_info_locks);
-	if (likely(!lock->readers++))
-		write_seqlock(&lock->lock);
+	/*
+	 * Low order bit of sequence is set if we already
+	 * called xt_write_recseq_begin().
+	 */
+	addend = (__this_cpu_read(xt_recseq.sequence) + 1) & 1;
+
+	/*
+	 * This is kind of a write_seqcount_begin(), but addend is 0 or 1
+	 * We dont check addend value to avoid a test and conditional jump,
+	 * since addend is most likely 1
+	 */
+	__this_cpu_add(xt_recseq.sequence, addend);
+	smp_wmb();
+
+	return addend;
 }
 
-static inline void xt_info_rdunlock_bh(void)
-{
-	struct xt_info_lock *lock = &__get_cpu_var(xt_info_locks);
-
-	if (likely(!--lock->readers))
-		write_sequnlock(&lock->lock);
-	local_bh_enable();
-}
-
-/*
- * The "writer" side needs to get exclusive access to the lock,
- * regardless of readers.  This must be called with bottom half
- * processing (and thus also preemption) disabled.
+/**
+ * xt_write_recseq_end - end of a write section
+ * @addend: return value from previous xt_write_recseq_begin()
+ *
+ * End packet processing : all readers can proceed
+ * 1) Must be called with preemption disabled
+ * 2) softirqs must be disabled too (or we should use irqsafe_cpu_add())
  */
-static inline void xt_info_wrlock(unsigned int cpu)
+static inline void xt_write_recseq_end(unsigned int addend)
 {
-	write_seqlock(&per_cpu(xt_info_locks, cpu).lock);
-}
-
-static inline void xt_info_wrunlock(unsigned int cpu)
-{
-	write_sequnlock(&per_cpu(xt_info_locks, cpu).lock);
+	/* this is kind of a write_seqcount_end(), but addend is 0 or 1 */
+	smp_wmb();
+	__this_cpu_add(xt_recseq.sequence, addend);
 }
 
 /*
@@ -611,8 +599,9 @@ struct _compat_xt_align {
 extern void xt_compat_lock(u_int8_t af);
 extern void xt_compat_unlock(u_int8_t af);
 
-extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, short delta);
+extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta);
 extern void xt_compat_flush_offsets(u_int8_t af);
+extern void xt_compat_init_offsets(u_int8_t af, unsigned int number);
 extern int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
 extern int xt_compat_match_offset(const struct xt_match *match);

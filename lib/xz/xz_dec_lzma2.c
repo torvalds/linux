@@ -969,6 +969,9 @@ XZ_EXTERN enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s,
 			 */
 			tmp = b->in[b->in_pos++];
 
+			if (tmp == 0x00)
+				return XZ_STREAM_END;
+
 			if (tmp >= 0xE0 || tmp == 0x01) {
 				s->lzma2.need_props = true;
 				s->lzma2.need_dict_reset = false;
@@ -1001,9 +1004,6 @@ XZ_EXTERN enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s,
 						lzma_reset(s);
 				}
 			} else {
-				if (tmp == 0x00)
-					return XZ_STREAM_END;
-
 				if (tmp > 0x02)
 					return XZ_DATA_ERROR;
 

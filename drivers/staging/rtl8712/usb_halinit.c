@@ -112,7 +112,7 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 		/* Initialization for power on sequence, */
 		r8712_write8(padapter, SPS0_CTRL + 1, 0x53);
 		r8712_write8(padapter, SPS0_CTRL, 0x57);
-		/* Enable AFE Macro Block's Bandgap adn Enable AFE Macro
+		/* Enable AFE Macro Block's Bandgap and Enable AFE Macro
 		 * Block's Mbias
 		 */
 		val8 = r8712_read8(padapter, AFE_MISC);

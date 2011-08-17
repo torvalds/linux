@@ -20,9 +20,11 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach/map.h>
+#include <asm/suspend.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 #include <mach/pxa3xx-regs.h>
@@ -30,9 +32,7 @@
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/regs-intc.h>
 #include <mach/smemc.h>
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -141,9 +141,13 @@ static void pxa3xx_cpu_pm_suspend(void)
 {
 	volatile unsigned long *p = (volatile void *)0xc0000000;
 	unsigned long saved_data = *p;
+#ifndef CONFIG_IWMMXT
+	u64 acc0;
 
-	extern void pxa3xx_cpu_suspend(void);
-	extern void pxa3xx_cpu_resume(void);
+	asm volatile("mra %Q0, %R0, acc0" : "=r" (acc0));
+#endif
+
+	extern int pxa3xx_finish_suspend(unsigned long);
 
 	/* resuming from D2 requires the HSIO2/BOOT/TPM clocks enabled */
 	CKENA |= (1 << CKEN_BOOT) | (1 << CKEN_TPM);
@@ -161,13 +165,17 @@ static void pxa3xx_cpu_pm_suspend(void)
 	PSPR = 0x5c014000;
 
 	/* overwrite with the resume address */
-	*p = virt_to_phys(pxa3xx_cpu_resume);
+	*p = virt_to_phys(cpu_resume);
 
-	pxa3xx_cpu_suspend();
+	cpu_suspend(0, pxa3xx_finish_suspend);
 
 	*p = saved_data;
 
 	AD3ER = 0;
+
+#ifndef CONFIG_IWMMXT
+	asm volatile("mar acc0, %Q0, %R0" : "=r" (acc0));
+#endif
 }
 
 static void pxa3xx_cpu_pm_enter(suspend_state_t state)
@@ -329,13 +337,13 @@ static void pxa_ack_ext_wakeup(struct irq_data *d)
 
 static void pxa_mask_ext_wakeup(struct irq_data *d)
 {
-	ICMR2 &= ~(1 << ((d->irq - PXA_IRQ(0)) & 0x1f));
+	pxa_mask_irq(d);
 	PECR &= ~PECR_IE(d->irq - IRQ_WAKEUP0);
 }
 
 static void pxa_unmask_ext_wakeup(struct irq_data *d)
 {
-	ICMR2 |= 1 << ((d->irq - PXA_IRQ(0)) & 0x1f);
+	pxa_unmask_irq(d);
 	PECR |= PECR_IE(d->irq - IRQ_WAKEUP0);
 }
 
@@ -363,8 +371,8 @@ static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
 	int irq;
 
 	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
-		set_irq_chip(irq, &pxa_ext_wakeup_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &pxa_ext_wakeup_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
@@ -428,21 +436,9 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_pwm1,
 };
 
-static struct sys_device pxa3xx_sysdev[] = {
-	{
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.cls	= &pxa3xx_mfp_sysclass,
-	}, {
-		.cls	= &pxa_gpio_sysclass,
-	}, {
-		.cls	= &pxa3xx_clock_sysclass,
-	}
-};
-
 static int __init pxa3xx_init(void)
 {
-	int i, ret = 0;
+	int ret = 0;
 
 	if (cpu_is_pxa3xx()) {
 
@@ -463,11 +459,10 @@ static int __init pxa3xx_init(void)
 
 		pxa3xx_init_pm();
 
-		for (i = 0; i < ARRAY_SIZE(pxa3xx_sysdev); i++) {
-			ret = sysdev_register(&pxa3xx_sysdev[i]);
-			if (ret)
-				pr_err("failed to register sysdev[%d]\n", i);
-		}
+		register_syscore_ops(&pxa_irq_syscore_ops);
+		register_syscore_ops(&pxa3xx_mfp_syscore_ops);
+		register_syscore_ops(&pxa_gpio_syscore_ops);
+		register_syscore_ops(&pxa3xx_clock_syscore_ops);
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}

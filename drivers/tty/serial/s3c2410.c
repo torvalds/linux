@@ -1,5 +1,4 @@
-/* linux/drivers/serial/s3c2410.c
- *
+/*
  * Driver for Samsung S3C2410 SoC onboard UARTs.
  *
  * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics
@@ -96,8 +95,6 @@ static struct platform_driver s3c2410_serial_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-s3c24xx_console_init(&s3c2410_serial_driver, &s3c2410_uart_inf);
 
 static int __init s3c2410_serial_init(void)
 {

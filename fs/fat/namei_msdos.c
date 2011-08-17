@@ -209,29 +209,20 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 	int err;
 
 	lock_super(sb);
-
 	err = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
-	if (err) {
-		if (err == -ENOENT) {
-			inode = NULL;
-			goto out;
-		}
-		goto error;
+	switch (err) {
+	case -ENOENT:
+		inode = NULL;
+		break;
+	case 0:
+		inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
+		brelse(sinfo.bh);
+		break;
+	default:
+		inode = ERR_PTR(err);
 	}
-
-	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
-	brelse(sinfo.bh);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
-		goto error;
-	}
-out:
 	unlock_super(sb);
 	return d_splice_alias(inode, dentry);
-
-error:
-	unlock_super(sb);
-	return ERR_PTR(err);
 }
 
 /***** Creates a directory entry (name is already formatted). */
@@ -659,14 +650,14 @@ static const struct inode_operations msdos_dir_inode_operations = {
 
 static void setup(struct super_block *sb)
 {
+	MSDOS_SB(sb)->dir_ops = &msdos_dir_inode_operations;
 	sb->s_d_op = &msdos_dentry_operations;
 	sb->s_flags |= MS_NOATIME;
 }
 
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 {
-	return fat_fill_super(sb, data, silent, &msdos_dir_inode_operations,
-			     0, setup);
+	return fat_fill_super(sb, data, silent, 0, setup);
 }
 
 static struct dentry *msdos_mount(struct file_system_type *fs_type,

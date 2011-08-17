@@ -130,7 +130,7 @@ struct lpfc_scsi_buf {
 	dma_addr_t nonsg_phys;	/* Non scatter-gather physical address. */
 
 	/*
-	 * data and dma_handle are the kernel virutal and bus address of the
+	 * data and dma_handle are the kernel virtual and bus address of the
 	 * dma-able buffer containing the fcp_cmd, fcp_rsp and a scatter
 	 * gather bde list that supports the sg_tablesize value.
 	 */

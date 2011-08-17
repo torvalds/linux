@@ -2,7 +2,7 @@
  * OMAP2XXX powerdomain definitions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2010 Nokia Corporation
+ * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Paul Walmsley, Jouni Högander
  *
@@ -30,13 +30,13 @@ static struct powerdomain dsp_pwrdm = {
 	.prcm_offs	  = OMAP24XX_DSP_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET,
+		[0] = PWRSTS_RET,
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,
+		[0] = PWRSTS_ON,
 	},
 };
 
@@ -48,10 +48,10 @@ static struct powerdomain mpu_24xx_pwrdm = {
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET,
+		[0] = PWRSTS_RET,
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,
+		[0] = PWRSTS_ON,
 	},
 };
 
@@ -78,7 +78,7 @@ static struct powerdomain core_24xx_pwrdm = {
  * 2430-specific powerdomains
  */
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 
 /* XXX 2430 KILLDOMAINWKUP bit?  No current users apparently */
 
@@ -87,17 +87,17 @@ static struct powerdomain mdm_pwrdm = {
 	.prcm_offs	  = OMAP2430_MDM_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 
-#endif     /* CONFIG_ARCH_OMAP2430 */
+#endif     /* CONFIG_SOC_OMAP2430 */
 
 /* As powerdomains are added or removed above, this list must also be changed */
 static struct powerdomain *powerdomains_omap2xxx[] __initdata = {
@@ -111,7 +111,7 @@ static struct powerdomain *powerdomains_omap2xxx[] __initdata = {
 	&core_24xx_pwrdm,
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 	&mdm_pwrdm,
 #endif
 	NULL

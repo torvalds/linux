@@ -1,6 +1,7 @@
-/**
-  * This file contains the handling of TX in wlan driver.
-  */
+/*
+ * This file contains the handling of TX in wlan driver.
+ */
+#include <linux/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
@@ -13,11 +14,11 @@
 #include "dev.h"
 
 /**
- *  @brief This function converts Tx/Rx rates from IEEE80211_RADIOTAP_RATE
- *  units (500 Kb/s) into Marvell WLAN format (see Table 8 in Section 3.2.1)
+ * convert_radiotap_rate_to_mv - converts Tx/Rx rates from IEEE80211_RADIOTAP_RATE
+ * units (500 Kb/s) into Marvell WLAN format (see Table 8 in Section 3.2.1)
  *
- *  @param rate    Input rate
- *  @return      Output Rate (0 if invalid)
+ * @rate:	Input rate
+ * returns:	Output Rate (0 if invalid)
  */
 static u32 convert_radiotap_rate_to_mv(u8 rate)
 {
@@ -51,12 +52,12 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
 }
 
 /**
- *  @brief This function checks the conditions and sends packet to IF
- *  layer if everything is ok.
+ * lbs_hard_start_xmit - checks the conditions and sends packet to IF
+ * layer if everything is ok
  *
- *  @param priv    A pointer to struct lbs_private structure
- *  @param skb     A pointer to skb which includes TX packet
- *  @return 	   0 or -1
+ * @skb:	A pointer to skb which includes TX packet
+ * @dev:	A pointer to the &struct net_device
+ * returns:	0 or -1
  */
 netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -168,13 +169,13 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- *  @brief This function sends to the host the last transmitted packet,
- *  filling the radiotap headers with transmission information.
+ * lbs_send_tx_feedback - sends to the host the last transmitted packet,
+ * filling the radiotap headers with transmission information.
  *
- *  @param priv     A pointer to struct lbs_private structure
- *  @param status   A 32 bit value containing transmission status.
+ * @priv:	A pointer to &struct lbs_private structure
+ * @try_count:	A 32-bit value containing transmission retry status.
  *
- *  @returns void
+ * returns:	void
  */
 void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 {
@@ -198,7 +199,7 @@ void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 	if (priv->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev && lbs_mesh_connected(priv))
+	if (priv->mesh_dev && netif_running(priv->mesh_dev))
 		netif_wake_queue(priv->mesh_dev);
 }
 EXPORT_SYMBOL_GPL(lbs_send_tx_feedback);

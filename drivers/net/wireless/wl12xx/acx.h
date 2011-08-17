@@ -133,7 +133,6 @@ enum {
 
 #define DEFAULT_UCAST_PRIORITY          0
 #define DEFAULT_RX_Q_PRIORITY           0
-#define DEFAULT_NUM_STATIONS            1
 #define DEFAULT_RXQ_PRIORITY            0 /* low 0 .. 15 high  */
 #define DEFAULT_RXQ_TYPE                0x07    /* All frames, Data/Ctrl/Mgmt */
 #define TRACE_BUFFER_MAX_SIZE           256
@@ -304,7 +303,6 @@ struct acx_beacon_filter_option {
 	struct acx_header header;
 
 	u8 enable;
-
 	/*
 	 * The number of beacons without the unicast TIM
 	 * bit set that the firmware buffers before
@@ -371,13 +369,22 @@ struct acx_bt_wlan_coex {
 	u8 pad[3];
 } __packed;
 
-struct acx_bt_wlan_coex_param {
+struct acx_sta_bt_wlan_coex_param {
 	struct acx_header header;
 
-	__le32 params[CONF_SG_PARAMS_MAX];
+	__le32 params[CONF_SG_STA_PARAMS_MAX];
 	u8 param_idx;
 	u8 padding[3];
 } __packed;
+
+struct acx_ap_bt_wlan_coex_param {
+	struct acx_header header;
+
+	__le32 params[CONF_SG_AP_PARAMS_MAX];
+	u8 param_idx;
+	u8 padding[3];
+} __packed;
+
 
 struct acx_dco_itrim_params {
 	struct acx_header header;
@@ -747,11 +754,21 @@ struct acx_rate_class {
 #define ACX_TX_BASIC_RATE      0
 #define ACX_TX_AP_FULL_RATE    1
 #define ACX_TX_RATE_POLICY_CNT 2
-struct acx_rate_policy {
+struct acx_sta_rate_policy {
 	struct acx_header header;
 
 	__le32 rate_class_cnt;
 	struct acx_rate_class rate_class[CONF_TX_MAX_RATE_CLASSES];
+} __packed;
+
+
+#define ACX_TX_AP_MODE_MGMT_RATE 4
+#define ACX_TX_AP_MODE_BCST_RATE 5
+struct acx_ap_rate_policy {
+	struct acx_header header;
+
+	__le32 rate_policy_idx;
+	struct acx_rate_class rate_policy;
 } __packed;
 
 struct acx_ac_cfg {
@@ -787,12 +804,9 @@ struct acx_tx_config_options {
 	__le16 tx_compl_threshold;   /* number of packets */
 } __packed;
 
-#define ACX_RX_MEM_BLOCKS     70
-#define ACX_TX_MIN_MEM_BLOCKS 40
 #define ACX_TX_DESCRIPTORS    32
-#define ACX_NUM_SSID_PROFILES 1
 
-struct wl1271_acx_config_memory {
+struct wl1271_acx_ap_config_memory {
 	struct acx_header header;
 
 	u8 rx_mem_block_num;
@@ -800,6 +814,22 @@ struct wl1271_acx_config_memory {
 	u8 num_stations;
 	u8 num_ssid_profiles;
 	__le32 total_tx_descriptors;
+} __packed;
+
+struct wl1271_acx_sta_config_memory {
+	struct acx_header header;
+
+	u8 rx_mem_block_num;
+	u8 tx_min_mem_block_num;
+	u8 num_stations;
+	u8 num_ssid_profiles;
+	__le32 total_tx_descriptors;
+	u8 dyn_mem_enable;
+	u8 tx_free_req;
+	u8 rx_free_req;
+	u8 tx_min;
+	u8 fwlog_blocks;
+	u8 padding[3];
 } __packed;
 
 struct wl1271_acx_mem_map {
@@ -917,6 +947,16 @@ struct wl1271_acx_keep_alive_config {
 	u8 tpl_validation;
 	u8 trigger;
 	u8 padding;
+} __packed;
+
+#define HOST_IF_CFG_RX_FIFO_ENABLE     BIT(0)
+#define HOST_IF_CFG_TX_EXTRA_BLKS_SWAP BIT(1)
+#define HOST_IF_CFG_TX_PAD_TO_SDIO_BLK BIT(3)
+
+struct wl1271_acx_host_config_bitmap {
+	struct acx_header header;
+
+	__le32 host_cfg_bitmap;
 } __packed;
 
 enum {
@@ -1051,6 +1091,59 @@ struct wl1271_acx_ht_information {
 	u8 padding[3];
 } __packed;
 
+#define RX_BA_WIN_SIZE 8
+
+struct wl1271_acx_ba_session_policy {
+	struct acx_header header;
+	/*
+	 * Specifies role Id, Range 0-7, 0xFF means ANY role.
+	 * Future use. For now this field is irrelevant
+	 */
+	u8 role_id;
+	/*
+	 * Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id.
+	 * Not applicable if Role Id is set to ANY.
+	 */
+	u8 link_id;
+
+	u8 tid;
+
+	u8 enable;
+
+	/* Windows size in number of packets */
+	u16 win_size;
+
+	/*
+	 * As initiator inactivity timeout in time units(TU) of 1024us.
+	 * As receiver reserved
+	 */
+	u16 inactivity_timeout;
+
+	/* Initiator = 1/Receiver = 0 */
+	u8 ba_direction;
+
+	u8 padding[3];
+} __packed;
+
+struct wl1271_acx_ba_receiver_setup {
+	struct acx_header header;
+
+	/* Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id */
+	u8 link_id;
+
+	u8 tid;
+
+	u8 enable;
+
+	u8 padding[1];
+
+	/* Windows size in number of packets */
+	u16 win_size;
+
+	/* BA session starting sequence number.  RANGE 0-FFF */
+	u16 ssn;
+} __packed;
+
 struct wl1271_acx_fw_tsf_information {
 	struct acx_header header;
 
@@ -1060,6 +1153,112 @@ struct wl1271_acx_fw_tsf_information {
 	__le32 last_tbtt_low;
 	u8 last_dtim_count;
 	u8 padding[3];
+} __packed;
+
+struct wl1271_acx_ps_rx_streaming {
+	struct acx_header header;
+
+	u8 tid;
+	u8 enable;
+
+	/* interval between triggers (10-100 msec) */
+	u8 period;
+
+	/* timeout before first trigger (0-200 msec) */
+	u8 timeout;
+} __packed;
+
+struct wl1271_acx_ap_max_tx_retry {
+	struct acx_header header;
+
+	/*
+	 * the number of frames transmission failures before
+	 * issuing the aging event.
+	 */
+	__le16 max_tx_retry;
+	u8 padding_1[2];
+} __packed;
+
+struct wl1271_acx_config_ps {
+	struct acx_header header;
+
+	u8 exit_retries;
+	u8 enter_retries;
+	u8 padding[2];
+	__le32 null_data_rate;
+} __packed;
+
+struct wl1271_acx_inconnection_sta {
+	struct acx_header header;
+
+	u8 addr[ETH_ALEN];
+	u8 padding1[2];
+} __packed;
+
+struct acx_ap_beacon_filter {
+	struct acx_header header;
+
+	u8 enable;
+	u8 pad[3];
+} __packed;
+
+/*
+ * ACX_FM_COEX_CFG
+ * set the FM co-existence parameters.
+ */
+struct wl1271_acx_fm_coex {
+	struct acx_header header;
+	/* enable(1) / disable(0) the FM Coex feature */
+	u8 enable;
+	/*
+	 * Swallow period used in COEX PLL swallowing mechanism.
+	 * 0xFF = use FW default
+	 */
+	u8 swallow_period;
+	/*
+	 * The N divider used in COEX PLL swallowing mechanism for Fref of
+	 * 38.4/19.2 Mhz. 0xFF = use FW default
+	 */
+	u8 n_divider_fref_set_1;
+	/*
+	 * The N divider used in COEX PLL swallowing mechanism for Fref of
+	 * 26/52 Mhz. 0xFF = use FW default
+	 */
+	u8 n_divider_fref_set_2;
+	/*
+	 * The M divider used in COEX PLL swallowing mechanism for Fref of
+	 * 38.4/19.2 Mhz. 0xFFFF = use FW default
+	 */
+	__le16 m_divider_fref_set_1;
+	/*
+	 * The M divider used in COEX PLL swallowing mechanism for Fref of
+	 * 26/52 Mhz. 0xFFFF = use FW default
+	 */
+	__le16 m_divider_fref_set_2;
+	/*
+	 * The time duration in uSec required for COEX PLL to stabilize.
+	 * 0xFFFFFFFF = use FW default
+	 */
+	__le32 coex_pll_stabilization_time;
+	/*
+	 * The time duration in uSec required for LDO to stabilize.
+	 * 0xFFFFFFFF = use FW default
+	 */
+	__le16 ldo_stabilization_time;
+	/*
+	 * The disturbed frequency band margin around the disturbed frequency
+	 * center (single sided).
+	 * For example, if 2 is configured, the following channels will be
+	 * considered disturbed channel:
+	 *   80 +- 0.1 MHz, 91 +- 0.1 MHz, 98 +- 0.1 MHz, 102 +- 0.1 MH
+	 * 0xFF = use FW default
+	 */
+	u8 fm_disturbed_band_margin;
+	/*
+	 * The swallow clock difference of the swallowing mechanism.
+	 * 0xFF = use FW default
+	 */
+	u8 swallow_clk_diff;
 } __packed;
 
 enum {
@@ -1080,6 +1279,7 @@ enum {
 	ACX_TID_CFG                 = 0x001A,
 	ACX_PS_RX_STREAMING         = 0x001B,
 	ACX_BEACON_FILTER_OPT       = 0x001F,
+	ACX_AP_BEACON_FILTER_OPT    = 0x0020,
 	ACX_NOISE_HIST              = 0x0021,
 	ACX_HDK_VERSION             = 0x0022, /* ??? */
 	ACX_PD_THRESHOLD            = 0x0023,
@@ -1091,6 +1291,7 @@ enum {
 	ACX_BCN_DTIM_OPTIONS        = 0x0031,
 	ACX_SG_ENABLE               = 0x0032,
 	ACX_SG_CFG                  = 0x0033,
+	ACX_FM_COEX_CFG             = 0x0034,
 	ACX_BEACON_FILTER_TABLE     = 0x0038,
 	ACX_ARP_IP_FILTER           = 0x0039,
 	ACX_ROAMING_STATISTICS_TBL  = 0x003B,
@@ -1113,22 +1314,24 @@ enum {
 	ACX_RSSI_SNR_WEIGHTS        = 0x0052,
 	ACX_KEEP_ALIVE_MODE         = 0x0053,
 	ACX_SET_KEEP_ALIVE_CONFIG   = 0x0054,
-	ACX_BA_SESSION_RESPONDER_POLICY = 0x0055,
-	ACX_BA_SESSION_INITIATOR_POLICY = 0x0056,
+	ACX_BA_SESSION_POLICY_CFG   = 0x0055,
+	ACX_BA_SESSION_RX_SETUP     = 0x0056,
 	ACX_PEER_HT_CAP             = 0x0057,
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
+	ACX_GEN_FW_CMD              = 0x0070,
+	ACX_HOST_IF_CFG_BITMAP      = 0x0071,
+	ACX_MAX_TX_FAILURE          = 0x0072,
+	ACX_UPDATE_INCONNECTION_STA_LIST = 0x0073,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
 	DOT11_RX_DOT11_MODE         = 0x1012,
 	DOT11_RTS_THRESHOLD         = 0x1013,
 	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
 	ACX_PM_CONFIG               = 0x1016,
-
-	MAX_DOT11_IE = DOT11_GROUP_ADDRESS_TBL,
-
-	MAX_IE = 0xFFFF
+	ACX_CONFIG_PS               = 0x1017,
+	ACX_CONFIG_HANGOVER         = 0x1018,
 };
 
 
@@ -1145,13 +1348,14 @@ int wl1271_acx_slot(struct wl1271 *wl, enum acx_slot_type slot_time);
 int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,
 				 void *mc_list, u32 mc_list_len);
 int wl1271_acx_service_period_timeout(struct wl1271 *wl);
-int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold);
+int wl1271_acx_rts_threshold(struct wl1271 *wl, u32 rts_threshold);
 int wl1271_acx_dco_itrim_params(struct wl1271 *wl);
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
 int wl1271_acx_conn_monit_params(struct wl1271 *wl, bool enable);
 int wl1271_acx_sg_enable(struct wl1271 *wl, bool enable);
-int wl1271_acx_sg_cfg(struct wl1271 *wl);
+int wl1271_acx_sta_sg_cfg(struct wl1271 *wl);
+int wl1271_acx_ap_sg_cfg(struct wl1271 *wl);
 int wl1271_acx_cca_threshold(struct wl1271 *wl);
 int wl1271_acx_bcn_dtim_options(struct wl1271 *wl);
 int wl1271_acx_aid(struct wl1271 *wl, u16 aid);
@@ -1160,16 +1364,20 @@ int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble);
 int wl1271_acx_cts_protect(struct wl1271 *wl,
 			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
-int wl1271_acx_rate_policies(struct wl1271 *wl);
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl);
+int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
+		      u8 idx);
 int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		      u8 aifsn, u16 txop);
 int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
 		       u8 tsid, u8 ps_scheme, u8 ack_policy,
 		       u32 apsd_conf0, u32 apsd_conf1);
-int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold);
+int wl1271_acx_frag_threshold(struct wl1271 *wl, u32 frag_threshold);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
-int wl1271_acx_mem_cfg(struct wl1271 *wl);
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl);
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);
+int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable);
@@ -1185,6 +1393,17 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 				    bool allow_ht_operation);
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   u16 ht_operation_mode);
+int wl1271_acx_set_ba_session(struct wl1271 *wl,
+			      enum ieee80211_back_parties direction,
+			      u8 tid_index, u8 policy);
+int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
+				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
+int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable);
+int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl);
+int wl1271_acx_config_ps(struct wl1271 *wl);
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
+int wl1271_acx_set_ap_beacon_filter(struct wl1271 *wl, bool enable);
+int wl1271_acx_fm_coex(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

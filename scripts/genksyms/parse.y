@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include "genksyms.h"
 
 static int is_typedef;
@@ -227,16 +228,19 @@ type_specifier:
 		  add_symbol(i->string, SYM_UNION, s, is_extern);
 		  $$ = $3;
 		}
-	| ENUM_KEYW IDENT BRACE_PHRASE
+	| ENUM_KEYW IDENT enum_body
 		{ struct string_list *s = *$3, *i = *$2, *r;
 		  r = copy_node(i); r->tag = SYM_ENUM;
 		  r->next = (*$1)->next; *$3 = r; (*$1)->next = NULL;
 		  add_symbol(i->string, SYM_ENUM, s, is_extern);
 		  $$ = $3;
 		}
-
-	/* Anonymous s/u/e definitions.  Nothing needs doing.  */
-	| ENUM_KEYW BRACE_PHRASE			{ $$ = $2; }
+	/*
+	 * Anonymous enum definition. Tell add_symbol() to restart its counter.
+	 */
+	| ENUM_KEYW enum_body
+		{ add_symbol(NULL, SYM_ENUM, NULL, 0); $$ = $2; }
+	/* Anonymous s/u definitions.  Nothing needs doing.  */
 	| STRUCT_KEYW class_body			{ $$ = $2; }
 	| UNION_KEYW class_body				{ $$ = $2; }
 	;
@@ -448,6 +452,28 @@ attribute_opt:
 	/* empty */					{ $$ = NULL; }
 	| attribute_opt ATTRIBUTE_PHRASE
 	;
+
+enum_body:
+	'{' enumerator_list '}'				{ $$ = $3; }
+	| '{' enumerator_list ',' '}'			{ $$ = $4; }
+	 ;
+
+enumerator_list:
+	enumerator
+	| enumerator_list ',' enumerator
+
+enumerator:
+	IDENT
+		{
+			const char *name = strdup((*$1)->string);
+			add_symbol(name, SYM_ENUM_CONST, NULL, 0);
+		}
+	| IDENT '=' EXPRESSION_PHRASE
+		{
+			const char *name = strdup((*$1)->string);
+			struct string_list *expr = copy_list_range(*$3, *$2);
+			add_symbol(name, SYM_ENUM_CONST, expr, 0);
+		}
 
 asm_definition:
 	ASM_PHRASE ';'					{ $$ = $2; }

@@ -929,6 +929,7 @@ static int standard_setup_req(struct fsg_dev *fsg,
 
 		case USB_DT_DEVICE:
 			VDBG(fsg, "get device descriptor\n");
+			device_desc.bMaxPacketSize0 = fsg->ep0->maxpacket;
 			value = sizeof device_desc;
 			memcpy(req->buf, &device_desc, value);
 			break;
@@ -936,6 +937,11 @@ static int standard_setup_req(struct fsg_dev *fsg,
 			VDBG(fsg, "get device qualifier\n");
 			if (!gadget_is_dualspeed(fsg->gadget))
 				break;
+			/*
+			 * Assume ep0 uses the same maxpacket value for both
+			 * speeds
+			 */
+			dev_qualifier.bMaxPacketSize0 = fsg->ep0->maxpacket;
 			value = sizeof dev_qualifier;
 			memcpy(req->buf, &dev_qualifier, value);
 			break;
@@ -1947,37 +1953,6 @@ static int wedge_bulk_in_endpoint(struct fsg_dev *fsg)
 	return rc;
 }
 
-static int pad_with_zeros(struct fsg_dev *fsg)
-{
-	struct fsg_buffhd	*bh = fsg->next_buffhd_to_fill;
-	u32			nkeep = bh->inreq->length;
-	u32			nsend;
-	int			rc;
-
-	bh->state = BUF_STATE_EMPTY;		// For the first iteration
-	fsg->usb_amount_left = nkeep + fsg->residue;
-	while (fsg->usb_amount_left > 0) {
-
-		/* Wait for the next buffer to be free */
-		while (bh->state != BUF_STATE_EMPTY) {
-			rc = sleep_thread(fsg);
-			if (rc)
-				return rc;
-		}
-
-		nsend = min(fsg->usb_amount_left, (u32) mod_data.buflen);
-		memset(bh->buf + nkeep, 0, nsend - nkeep);
-		bh->inreq->length = nsend;
-		bh->inreq->zero = 0;
-		start_transfer(fsg, fsg->bulk_in, bh->inreq,
-				&bh->inreq_busy, &bh->state);
-		bh = fsg->next_buffhd_to_fill = bh->next;
-		fsg->usb_amount_left -= nsend;
-		nkeep = 0;
-	}
-	return 0;
-}
-
 static int throw_away_data(struct fsg_dev *fsg)
 {
 	struct fsg_buffhd	*bh;
@@ -2082,18 +2057,20 @@ static int finish_reply(struct fsg_dev *fsg)
 			}
 		}
 
-		/* For Bulk-only, if we're allowed to stall then send the
-		 * short packet and halt the bulk-in endpoint.  If we can't
-		 * stall, pad out the remaining data with 0's. */
+		/*
+		 * For Bulk-only, mark the end of the data with a short
+		 * packet.  If we are allowed to stall, halt the bulk-in
+		 * endpoint.  (Note: This violates the Bulk-Only Transport
+		 * specification, which requires us to pad the data if we
+		 * don't halt the endpoint.  Presumably nobody will mind.)
+		 */
 		else {
-			if (mod_data.can_stall) {
-				bh->inreq->zero = 1;
-				start_transfer(fsg, fsg->bulk_in, bh->inreq,
-						&bh->inreq_busy, &bh->state);
-				fsg->next_buffhd_to_fill = bh->next;
+			bh->inreq->zero = 1;
+			start_transfer(fsg, fsg->bulk_in, bh->inreq,
+					&bh->inreq_busy, &bh->state);
+			fsg->next_buffhd_to_fill = bh->next;
+			if (mod_data.can_stall)
 				rc = halt_bulk_in_endpoint(fsg);
-			} else
-				rc = pad_with_zeros(fsg);
 		}
 		break;
 
@@ -2314,7 +2291,7 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 		fsg->lun = lun;		// Use LUN from the command
 
 	/* Check the LUN */
-	if (fsg->lun >= 0 && fsg->lun < fsg->nluns) {
+	if (fsg->lun < fsg->nluns) {
 		fsg->curlun = curlun = &fsg->luns[fsg->lun];
 		if (fsg->cmnd[0] != REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;
@@ -2742,7 +2719,8 @@ static int enable_endpoint(struct fsg_dev *fsg, struct usb_ep *ep,
 	int	rc;
 
 	ep->driver_data = fsg;
-	rc = usb_ep_enable(ep, d);
+	ep->desc = d;
+	rc = usb_ep_enable(ep);
 	if (rc)
 		ERROR(fsg, "can't enable %s, result %d\n", ep->name, rc);
 	return rc;
@@ -3445,7 +3423,6 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	}
 
 	/* Fix up the descriptors */
-	device_desc.bMaxPacketSize0 = fsg->ep0->maxpacket;
 	device_desc.idVendor = cpu_to_le16(mod_data.vendor);
 	device_desc.idProduct = cpu_to_le16(mod_data.product);
 	device_desc.bcdDevice = cpu_to_le16(mod_data.release);
@@ -3458,9 +3435,6 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	if (gadget_is_dualspeed(gadget)) {
 		fsg_hs_function[i + FSG_HS_FUNCTION_PRE_EP_ENTRIES] = NULL;
-
-		/* Assume ep0 uses the same maxpacket value for both speeds */
-		dev_qualifier.bMaxPacketSize0 = fsg->ep0->maxpacket;
 
 		/* Assume endpoint addresses are the same for both speeds */
 		fsg_hs_bulk_in_desc.bEndpointAddress =
@@ -3515,6 +3489,8 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	}
 
 	INFO(fsg, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
+	INFO(fsg, "NOTE: This driver is deprecated.  "
+			"Consider using g_mass_storage instead.\n");
 	INFO(fsg, "Number of LUNs=%d\n", fsg->nluns);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);

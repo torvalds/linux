@@ -459,7 +459,7 @@ apply_interrupt_map(struct device_node *dp, struct device_node *pp,
 		 *
 		 * Handle this by deciding that, if we didn't get a
 		 * match in the parent's 'interrupt-map', and the
-		 * parent is an IRQ translater, then use the parent as
+		 * parent is an IRQ translator, then use the parent as
 		 * our IRQ controller.
 		 */
 		if (pp->irq_trans)
@@ -622,8 +622,9 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 out:
 	nid = of_node_to_nid(dp);
 	if (nid != -1) {
-		cpumask_t numa_mask = *cpumask_of_node(nid);
+		cpumask_t numa_mask;
 
+		cpumask_copy(&numa_mask, cpumask_of_node(nid));
 		irq_set_affinity(irq, &numa_mask);
 	}
 

@@ -50,7 +50,7 @@ static inline void __tlb_flush_full(struct mm_struct *mm)
 	/*
 	 * If the process only ran on the local cpu, do a local flush.
 	 */
-	local_cpumask = cpumask_of_cpu(smp_processor_id());
+	cpumask_copy(&local_cpumask, cpumask_of(smp_processor_id()));
 	if (cpumask_equal(mm_cpumask(mm), &local_cpumask))
 		__tlb_flush_local();
 	else
@@ -80,16 +80,11 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 	 * on all cpus instead of doing a local flush if the mm
 	 * only ran on the local cpu.
 	 */
-	if (MACHINE_HAS_IDTE) {
-		if (mm->context.noexec)
-			__tlb_flush_idte((unsigned long)
-					 get_shadow_table(mm->pgd) |
-					 mm->context.asce_bits);
+	if (MACHINE_HAS_IDTE && list_empty(&mm->context.gmap_list))
 		__tlb_flush_idte((unsigned long) mm->pgd |
 				 mm->context.asce_bits);
-		return;
-	}
-	__tlb_flush_full(mm);
+	else
+		__tlb_flush_full(mm);
 }
 
 static inline void __tlb_flush_mm_cond(struct mm_struct * mm)

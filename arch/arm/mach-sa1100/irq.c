@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/ioport.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/hardware.h>
 #include <asm/mach/irq.h>
@@ -234,7 +234,7 @@ static struct sa1100irq_state {
 	unsigned int	iccr;
 } sa1100irq_state;
 
-static int sa1100irq_suspend(struct sys_device *dev, pm_message_t state)
+static int sa1100irq_suspend(void)
 {
 	struct sa1100irq_state *st = &sa1100irq_state;
 
@@ -264,7 +264,7 @@ static int sa1100irq_suspend(struct sys_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int sa1100irq_resume(struct sys_device *dev)
+static void sa1100irq_resume(void)
 {
 	struct sa1100irq_state *st = &sa1100irq_state;
 
@@ -277,24 +277,17 @@ static int sa1100irq_resume(struct sys_device *dev)
 
 		ICMR = st->icmr;
 	}
-	return 0;
 }
 
-static struct sysdev_class sa1100irq_sysclass = {
-	.name		= "sa11x0-irq",
+static struct syscore_ops sa1100irq_syscore_ops = {
 	.suspend	= sa1100irq_suspend,
 	.resume		= sa1100irq_resume,
 };
 
-static struct sys_device sa1100irq_device = {
-	.id		= 0,
-	.cls		= &sa1100irq_sysclass,
-};
-
 static int __init sa1100irq_init_devicefs(void)
 {
-	sysdev_class_register(&sa1100irq_sysclass);
-	return sysdev_register(&sa1100irq_device);
+	register_syscore_ops(&sa1100irq_syscore_ops);
+	return 0;
 }
 
 device_initcall(sa1100irq_init_devicefs);
@@ -323,28 +316,28 @@ void __init sa1100_init_irq(void)
 	ICCR = 1;
 
 	for (irq = 0; irq <= 10; irq++) {
-		set_irq_chip(irq, &sa1100_low_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1100_low_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	for (irq = 12; irq <= 31; irq++) {
-		set_irq_chip(irq, &sa1100_normal_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &sa1100_normal_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	for (irq = 32; irq <= 48; irq++) {
-		set_irq_chip(irq, &sa1100_high_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1100_high_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/*
 	 * Install handler for GPIO 11-27 edge detect interrupts
 	 */
-	set_irq_chip(IRQ_GPIO11_27, &sa1100_normal_chip);
-	set_irq_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
+	irq_set_chip(IRQ_GPIO11_27, &sa1100_normal_chip);
+	irq_set_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
 
 	sa1100_init_gpio();
 }

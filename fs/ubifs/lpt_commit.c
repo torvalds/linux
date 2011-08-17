@@ -27,7 +27,14 @@
 
 #include <linux/crc16.h>
 #include <linux/slab.h>
+#include <linux/random.h>
 #include "ubifs.h"
+
+#ifdef CONFIG_UBIFS_FS_DEBUG
+static int dbg_populate_lsave(struct ubifs_info *c);
+#else
+#define dbg_populate_lsave(c) 0
+#endif
 
 /**
  * first_dirty_cnode - find first dirty cnode.
@@ -110,8 +117,8 @@ static int get_cnodes_to_commit(struct ubifs_info *c)
 		return 0;
 	cnt += 1;
 	while (1) {
-		ubifs_assert(!test_bit(COW_ZNODE, &cnode->flags));
-		__set_bit(COW_ZNODE, &cnode->flags);
+		ubifs_assert(!test_bit(COW_CNODE, &cnode->flags));
+		__set_bit(COW_CNODE, &cnode->flags);
 		cnext = next_dirty_cnode(cnode);
 		if (!cnext) {
 			cnode->cnext = c->lpt_cnext;
@@ -459,7 +466,7 @@ static int write_cnodes(struct ubifs_info *c)
 		 */
 		clear_bit(DIRTY_CNODE, &cnode->flags);
 		smp_mb__before_clear_bit();
-		clear_bit(COW_ZNODE, &cnode->flags);
+		clear_bit(COW_CNODE, &cnode->flags);
 		smp_mb__after_clear_bit();
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
@@ -586,7 +593,7 @@ static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
 			if (nnode->nbranch[iip].lnum)
 				break;
 		}
-       } while (iip >= UBIFS_LPT_FANOUT);
+	} while (iip >= UBIFS_LPT_FANOUT);
 
 	/* Go right */
 	nnode = ubifs_get_nnode(c, nnode, iip);
@@ -815,6 +822,10 @@ static void populate_lsave(struct ubifs_info *c)
 		c->lpt_drty_flgs |= LSAVE_DIRTY;
 		ubifs_add_lpt_dirt(c, c->lsave_lnum, c->lsave_sz);
 	}
+
+	if (dbg_populate_lsave(c))
+		return;
+
 	list_for_each_entry(lprops, &c->empty_list, list) {
 		c->lsave[cnt++] = lprops->lnum;
 		if (cnt >= c->lsave_cnt)
@@ -1150,11 +1161,11 @@ static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 	void *buf = c->lpt_buf;
 
 	dbg_lp("LEB %d", lnum);
-	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
-	if (err) {
-		ubifs_err("cannot read LEB %d, error %d", lnum, err);
+
+	err = ubifs_leb_read(c, lnum, buf, 0, c->leb_size, 1);
+	if (err)
 		return err;
-	}
+
 	while (1) {
 		if (!is_a_node(c, buf, len)) {
 			int pad_len;
@@ -1628,29 +1639,35 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 {
 	int err, len = c->leb_size, dirty = 0, node_type, node_num, node_len;
 	int ret;
-	void *buf = c->dbg->buf;
+	void *buf, *p;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
-	dbg_lp("LEB %d", lnum);
-	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
-	if (err) {
-		dbg_msg("ubi_read failed, LEB %d, error %d", lnum, err);
-		return err;
+	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubifs_err("cannot allocate memory for ltab checking");
+		return 0;
 	}
+
+	dbg_lp("LEB %d", lnum);
+
+	err = ubifs_leb_read(c, lnum, buf, 0, c->leb_size, 1);
+	if (err)
+		goto out;
+
 	while (1) {
-		if (!is_a_node(c, buf, len)) {
+		if (!is_a_node(c, p, len)) {
 			int i, pad_len;
 
-			pad_len = get_pad_len(c, buf, len);
+			pad_len = get_pad_len(c, p, len);
 			if (pad_len) {
-				buf += pad_len;
+				p += pad_len;
 				len -= pad_len;
 				dirty += pad_len;
 				continue;
 			}
-			if (!dbg_is_all_ff(buf, len)) {
+			if (!dbg_is_all_ff(p, len)) {
 				dbg_msg("invalid empty space in LEB %d at %d",
 					lnum, c->leb_size - len);
 				err = -EINVAL;
@@ -1668,16 +1685,21 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 					lnum, dirty, c->ltab[i].dirty);
 				err = -EINVAL;
 			}
-			return err;
+			goto out;
 		}
-		node_type = get_lpt_node_type(c, buf, &node_num);
+		node_type = get_lpt_node_type(c, p, &node_num);
 		node_len = get_lpt_node_len(c, node_type);
 		ret = dbg_is_node_dirty(c, node_type, lnum, c->leb_size - len);
 		if (ret == 1)
 			dirty += node_len;
-		buf += node_len;
+		p += node_len;
 		len -= node_len;
 	}
+
+	err = 0;
+out:
+	vfree(buf);
+	return err;
 }
 
 /**
@@ -1690,7 +1712,7 @@ int dbg_check_ltab(struct ubifs_info *c)
 {
 	int lnum, err, i, cnt;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	/* Bring the entire tree into memory */
@@ -1733,7 +1755,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 	long long free = 0;
 	int i;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	for (i = 0; i < c->lpt_lebs; i++) {
@@ -1775,7 +1797,7 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 	long long chk_lpt_sz, lpt_sz;
 	int err = 0;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	switch (action) {
@@ -1870,25 +1892,30 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 {
 	int err, len = c->leb_size, node_type, node_num, node_len, offs;
-	void *buf = c->dbg->buf;
+	void *buf, *p;
 
 	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
 	       current->pid, lnum);
-	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
-	if (err) {
-		ubifs_err("cannot read LEB %d, error %d", lnum, err);
+	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubifs_err("cannot allocate memory to dump LPT");
 		return;
 	}
+
+	err = ubifs_leb_read(c, lnum, buf, 0, c->leb_size, 1);
+	if (err)
+		goto out;
+
 	while (1) {
 		offs = c->leb_size - len;
-		if (!is_a_node(c, buf, len)) {
+		if (!is_a_node(c, p, len)) {
 			int pad_len;
 
-			pad_len = get_pad_len(c, buf, len);
+			pad_len = get_pad_len(c, p, len);
 			if (pad_len) {
 				printk(KERN_DEBUG "LEB %d:%d, pad %d bytes\n",
 				       lnum, offs, pad_len);
-				buf += pad_len;
+				p += pad_len;
 				len -= pad_len;
 				continue;
 			}
@@ -1898,7 +1925,7 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 			break;
 		}
 
-		node_type = get_lpt_node_type(c, buf, &node_num);
+		node_type = get_lpt_node_type(c, p, &node_num);
 		switch (node_type) {
 		case UBIFS_LPT_PNODE:
 		{
@@ -1923,7 +1950,7 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 			else
 				printk(KERN_DEBUG "LEB %d:%d, nnode, ",
 				       lnum, offs);
-			err = ubifs_unpack_nnode(c, buf, &nnode);
+			err = ubifs_unpack_nnode(c, p, &nnode);
 			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
 				printk(KERN_CONT "%d:%d", nnode.nbranch[i].lnum,
 				       nnode.nbranch[i].offs);
@@ -1944,15 +1971,18 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 			break;
 		default:
 			ubifs_err("LPT node type %d not recognized", node_type);
-			return;
+			goto out;
 		}
 
-		buf += node_len;
+		p += node_len;
 		len -= node_len;
 	}
 
 	printk(KERN_DEBUG "(pid %d) finish dumping LEB %d\n",
 	       current->pid, lnum);
+out:
+	vfree(buf);
+	return;
 }
 
 /**
@@ -1972,6 +2002,49 @@ void dbg_dump_lpt_lebs(const struct ubifs_info *c)
 		dump_lpt_leb(c, i + c->lpt_first);
 	printk(KERN_DEBUG "(pid %d) finish dumping all LPT LEBs\n",
 	       current->pid);
+}
+
+/**
+ * dbg_populate_lsave - debugging version of 'populate_lsave()'
+ * @c: UBIFS file-system description object
+ *
+ * This is a debugging version for 'populate_lsave()' which populates lsave
+ * with random LEBs instead of useful LEBs, which is good for test coverage.
+ * Returns zero if lsave has not been populated (this debugging feature is
+ * disabled) an non-zero if lsave has been populated.
+ */
+static int dbg_populate_lsave(struct ubifs_info *c)
+{
+	struct ubifs_lprops *lprops;
+	struct ubifs_lpt_heap *heap;
+	int i;
+
+	if (!dbg_is_chk_gen(c))
+		return 0;
+	if (random32() & 3)
+		return 0;
+
+	for (i = 0; i < c->lsave_cnt; i++)
+		c->lsave[i] = c->main_first;
+
+	list_for_each_entry(lprops, &c->empty_list, list)
+		c->lsave[random32() % c->lsave_cnt] = lprops->lnum;
+	list_for_each_entry(lprops, &c->freeable_list, list)
+		c->lsave[random32() % c->lsave_cnt] = lprops->lnum;
+	list_for_each_entry(lprops, &c->frdi_idx_list, list)
+		c->lsave[random32() % c->lsave_cnt] = lprops->lnum;
+
+	heap = &c->lpt_heap[LPROPS_DIRTY_IDX - 1];
+	for (i = 0; i < heap->cnt; i++)
+		c->lsave[random32() % c->lsave_cnt] = heap->arr[i]->lnum;
+	heap = &c->lpt_heap[LPROPS_DIRTY - 1];
+	for (i = 0; i < heap->cnt; i++)
+		c->lsave[random32() % c->lsave_cnt] = heap->arr[i]->lnum;
+	heap = &c->lpt_heap[LPROPS_FREE - 1];
+	for (i = 0; i < heap->cnt; i++)
+		c->lsave[random32() % c->lsave_cnt] = heap->arr[i]->lnum;
+
+	return 1;
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */

@@ -322,7 +322,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     "port" needs to match the BASE ADDRESS jumper on the card (0x220 or 0x240)
     or the value stored in the card's EEPROM for cards that have an EEPROM and
     their "CONFIG MODE" jumper set to "EEPROM SETTING". The other values can
-    be choosen freely from the options enumerated above.
+    be chosen freely from the options enumerated above.
 
     If dma2 is specified and different from dma1, the card will operate in
     full-duplex mode. When dma1=3, only dma2=0 is valid and the only way to
@@ -356,7 +356,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     "port" needs to match the BASE ADDRESS jumper on the card (0x220 or 0x240)
     or the value stored in the card's EEPROM for cards that have an EEPROM and
     their "CONFIG MODE" jumper set to "EEPROM SETTING". The other values can
-    be choosen freely from the options enumerated above.
+    be chosen freely from the options enumerated above.
 
     If dma2 is specified and different from dma1, the card will operate in
     full-duplex mode. When dma1=3, only dma2=0 is valid and the only way to
@@ -1229,6 +1229,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple cards.
     The driver requires the firmware loader support on kernel.
+
+  Module snd-lola
+  ---------------
+
+    Module for Digigram Lola PCI-e boards
+
+    This module supports multiple cards.
 
   Module snd-lx6464es
   -------------------
@@ -2229,7 +2236,7 @@ Proc interfaces (/proc/asound)
 
 /proc/asound/card#/pcm#[cp]/oss
 -------------------------------
-  String "erase" - erase all additional informations about OSS applications
+  String "erase" - erase all additional information about OSS applications
   String "<app_name> <fragments> <fragment_size> [<options>]"
 
    <app_name> - name of application with (higher priority) or without path

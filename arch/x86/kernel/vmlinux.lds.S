@@ -71,7 +71,6 @@ PHDRS {
 	text PT_LOAD FLAGS(5);          /* R_E */
 	data PT_LOAD FLAGS(6);          /* RW_ */
 #ifdef CONFIG_X86_64
-	user PT_LOAD FLAGS(5);          /* R_E */
 #ifdef CONFIG_SMP
 	percpu PT_LOAD FLAGS(6);        /* RW_ */
 #endif
@@ -105,6 +104,7 @@ SECTIONS
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		ENTRY_TEXT
 		IRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
@@ -153,68 +153,25 @@ SECTIONS
 
 #ifdef CONFIG_X86_64
 
-#define VSYSCALL_ADDR (-10*1024*1024)
+	. = ALIGN(PAGE_SIZE);
+	__vvar_page = .;
 
-#define VLOAD_OFFSET (VSYSCALL_ADDR - __vsyscall_0 + LOAD_OFFSET)
-#define VLOAD(x) (ADDR(x) - VLOAD_OFFSET)
+	.vvar : AT(ADDR(.vvar) - LOAD_OFFSET) {
+		/* work around gold bug 13023 */
+		__vvar_beginning_hack = .;
 
-#define VVIRT_OFFSET (VSYSCALL_ADDR - __vsyscall_0)
-#define VVIRT(x) (ADDR(x) - VVIRT_OFFSET)
+		/* Place all vvars at the offsets in asm/vvar.h. */
+#define EMIT_VVAR(name, offset) 			\
+		. = __vvar_beginning_hack + offset;	\
+		*(.vvar_ ## name)
+#define __VVAR_KERNEL_LDS
+#include <asm/vvar.h>
+#undef __VVAR_KERNEL_LDS
+#undef EMIT_VVAR
 
-	. = ALIGN(4096);
-	__vsyscall_0 = .;
+	} :data
 
-	. = VSYSCALL_ADDR;
-	.vsyscall_0 : AT(VLOAD(.vsyscall_0)) {
-		*(.vsyscall_0)
-	} :user
-
-	. = ALIGN(L1_CACHE_BYTES);
-	.vsyscall_fn : AT(VLOAD(.vsyscall_fn)) {
-		*(.vsyscall_fn)
-	}
-
-	. = ALIGN(L1_CACHE_BYTES);
-	.vsyscall_gtod_data : AT(VLOAD(.vsyscall_gtod_data)) {
-		*(.vsyscall_gtod_data)
-	}
-
-	vsyscall_gtod_data = VVIRT(.vsyscall_gtod_data);
-	.vsyscall_clock : AT(VLOAD(.vsyscall_clock)) {
-		*(.vsyscall_clock)
-	}
-	vsyscall_clock = VVIRT(.vsyscall_clock);
-
-
-	.vsyscall_1 ADDR(.vsyscall_0) + 1024: AT(VLOAD(.vsyscall_1)) {
-		*(.vsyscall_1)
-	}
-	.vsyscall_2 ADDR(.vsyscall_0) + 2048: AT(VLOAD(.vsyscall_2)) {
-		*(.vsyscall_2)
-	}
-
-	.vgetcpu_mode : AT(VLOAD(.vgetcpu_mode)) {
-		*(.vgetcpu_mode)
-	}
-	vgetcpu_mode = VVIRT(.vgetcpu_mode);
-
-	. = ALIGN(L1_CACHE_BYTES);
-	.jiffies : AT(VLOAD(.jiffies)) {
-		*(.jiffies)
-	}
-	jiffies = VVIRT(.jiffies);
-
-	.vsyscall_3 ADDR(.vsyscall_0) + 3072: AT(VLOAD(.vsyscall_3)) {
-		*(.vsyscall_3)
-	}
-
-	. = __vsyscall_0 + PAGE_SIZE;
-
-#undef VSYSCALL_ADDR
-#undef VLOAD_OFFSET
-#undef VLOAD
-#undef VVIRT_OFFSET
-#undef VVIRT
+       . = ALIGN(__vvar_page + PAGE_SIZE, PAGE_SIZE);
 
 #endif /* CONFIG_X86_64 */
 
@@ -230,7 +187,7 @@ SECTIONS
 	 * output PHDR, so the next output section - .init.text - should
 	 * start another segment - init.
 	 */
-	PERCPU_VADDR(0, :percpu)
+	PERCPU_VADDR(INTERNODE_CACHE_BYTES, 0, :percpu)
 #endif
 
 	INIT_TEXT_SECTION(PAGE_SIZE)
@@ -239,6 +196,18 @@ SECTIONS
 #endif
 
 	INIT_DATA_SECTION(16)
+
+	/*
+	 * Code and data for a variety of lowlevel trampolines, to be
+	 * copied into base memory (< 1 MiB) during initialization.
+	 * Since it is copied early, the main copy can be discarded
+	 * afterwards.
+	 */
+	 .x86_trampoline : AT(ADDR(.x86_trampoline) - LOAD_OFFSET) {
+		x86_trampoline_start = .;
+		*(.x86_trampoline)
+		x86_trampoline_end = .;
+	}
 
 	.x86_cpu_dev.init : AT(ADDR(.x86_cpu_dev.init) - LOAD_OFFSET) {
 		__x86_cpu_dev_start = .;
@@ -291,6 +260,14 @@ SECTIONS
 		*(.iommu_table)
 		__iommu_table_end = .;
 	}
+
+	. = ALIGN(8);
+	.apicdrivers : AT(ADDR(.apicdrivers) - LOAD_OFFSET) {
+		__apicdrivers = .;
+		*(.apicdrivers);
+		__apicdrivers_end = .;
+	}
+
 	. = ALIGN(8);
 	/*
 	 * .exit.text is discard at runtime, not link time, to deal with
@@ -305,7 +282,7 @@ SECTIONS
 	}
 
 #if !defined(CONFIG_X86_64) || !defined(CONFIG_SMP)
-	PERCPU(THREAD_SIZE)
+	PERCPU_SECTION(INTERNODE_CACHE_BYTES)
 #endif
 
 	. = ALIGN(PAGE_SIZE);

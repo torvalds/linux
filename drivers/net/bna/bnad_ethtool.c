@@ -237,10 +237,10 @@ bnad_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	cmd->phy_address = 0;
 
 	if (netif_carrier_ok(netdev)) {
-		cmd->speed = SPEED_10000;
+		ethtool_cmd_speed_set(cmd, SPEED_10000);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 	cmd->transceiver = XCVR_EXTERNAL;
@@ -256,7 +256,8 @@ bnad_set_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	/* 10G full duplex setting supported only */
 	if (cmd->autoneg == AUTONEG_ENABLE)
 		return -EOPNOTSUPP; else {
-		if ((cmd->speed == SPEED_10000) && (cmd->duplex == DUPLEX_FULL))
+		if ((ethtool_cmd_speed(cmd) == SPEED_10000)
+		    && (cmd->duplex == DUPLEX_FULL))
 			return 0;
 	}
 
@@ -294,7 +295,7 @@ get_regs(struct bnad *bnad, u32 * regs)
 	u32 reg_addr;
 	unsigned long flags;
 
-#define BNAD_GET_REG(addr) 					\
+#define BNAD_GET_REG(addr)					\
 do {								\
 	if (regs)						\
 		regs[num++] = readl(bnad->bar0 + (addr));	\
@@ -806,61 +807,6 @@ bnad_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
-static u32
-bnad_get_rx_csum(struct net_device *netdev)
-{
-	u32 rx_csum;
-	struct bnad *bnad = netdev_priv(netdev);
-
-	rx_csum = bnad->rx_csum;
-	return rx_csum;
-}
-
-static int
-bnad_set_rx_csum(struct net_device *netdev, u32 rx_csum)
-{
-	struct bnad *bnad = netdev_priv(netdev);
-
-	mutex_lock(&bnad->conf_mutex);
-	bnad->rx_csum = rx_csum;
-	mutex_unlock(&bnad->conf_mutex);
-	return 0;
-}
-
-static int
-bnad_set_tx_csum(struct net_device *netdev, u32 tx_csum)
-{
-	struct bnad *bnad = netdev_priv(netdev);
-
-	mutex_lock(&bnad->conf_mutex);
-	if (tx_csum) {
-		netdev->features |= NETIF_F_IP_CSUM;
-		netdev->features |= NETIF_F_IPV6_CSUM;
-	} else {
-		netdev->features &= ~NETIF_F_IP_CSUM;
-		netdev->features &= ~NETIF_F_IPV6_CSUM;
-	}
-	mutex_unlock(&bnad->conf_mutex);
-	return 0;
-}
-
-static int
-bnad_set_tso(struct net_device *netdev, u32 tso)
-{
-	struct bnad *bnad = netdev_priv(netdev);
-
-	mutex_lock(&bnad->conf_mutex);
-	if (tso) {
-		netdev->features |= NETIF_F_TSO;
-		netdev->features |= NETIF_F_TSO6;
-	} else {
-		netdev->features &= ~NETIF_F_TSO;
-		netdev->features &= ~NETIF_F_TSO6;
-	}
-	mutex_unlock(&bnad->conf_mutex);
-	return 0;
-}
-
 static void
 bnad_get_strings(struct net_device *netdev, u32 stringset, u8 * string)
 {
@@ -1256,14 +1202,6 @@ static struct ethtool_ops bnad_ethtool_ops = {
 	.set_ringparam = bnad_set_ringparam,
 	.get_pauseparam = bnad_get_pauseparam,
 	.set_pauseparam = bnad_set_pauseparam,
-	.get_rx_csum = bnad_get_rx_csum,
-	.set_rx_csum = bnad_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = bnad_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = bnad_set_tso,
 	.get_strings = bnad_get_strings,
 	.get_ethtool_stats = bnad_get_ethtool_stats,
 	.get_sset_count = bnad_get_sset_count

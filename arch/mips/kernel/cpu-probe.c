@@ -71,7 +71,6 @@ void r4k_wait_irqoff(void)
 	local_irq_enable();
 	__asm__(" 	.globl __pastwait	\n"
 		"__pastwait:			\n");
-	return;
 }
 
 /*
@@ -289,6 +288,12 @@ static inline int cpu_has_confreg(void)
 #else
 	return 0;
 #endif
+}
+
+static inline void set_elf_platform(int cpu, const char *plat)
+{
+	if (cpu == 0)
+		__elf_platform = plat;
 }
 
 /*
@@ -614,6 +619,16 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_LOONGSON2:
 		c->cputype = CPU_LOONGSON2;
 		__cpu_name[cpu] = "ICT Loongson-2";
+
+		switch (c->processor_id & PRID_REV_MASK) {
+		case PRID_REV_LOONGSON2E:
+			set_elf_platform(cpu, "loongson2e");
+			break;
+		case PRID_REV_LOONGSON2F:
+			set_elf_platform(cpu, "loongson2f");
+			break;
+		}
+
 		c->isa_level = MIPS_CPU_ISA_III;
 		c->options = R4K_OPTS |
 			     MIPS_CPU_FPU | MIPS_CPU_LLSC |
@@ -911,12 +926,14 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_BMIPS32_REV8:
 		c->cputype = CPU_BMIPS32;
 		__cpu_name[cpu] = "Broadcom BMIPS32";
+		set_elf_platform(cpu, "bmips32");
 		break;
 	case PRID_IMP_BMIPS3300:
 	case PRID_IMP_BMIPS3300_ALT:
 	case PRID_IMP_BMIPS3300_BUG:
 		c->cputype = CPU_BMIPS3300;
 		__cpu_name[cpu] = "Broadcom BMIPS3300";
+		set_elf_platform(cpu, "bmips3300");
 		break;
 	case PRID_IMP_BMIPS43XX: {
 		int rev = c->processor_id & 0xff;
@@ -925,15 +942,18 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 				rev <= PRID_REV_BMIPS4380_HI) {
 			c->cputype = CPU_BMIPS4380;
 			__cpu_name[cpu] = "Broadcom BMIPS4380";
+			set_elf_platform(cpu, "bmips4380");
 		} else {
 			c->cputype = CPU_BMIPS4350;
 			__cpu_name[cpu] = "Broadcom BMIPS4350";
+			set_elf_platform(cpu, "bmips4350");
 		}
 		break;
 	}
 	case PRID_IMP_BMIPS5000:
 		c->cputype = CPU_BMIPS5000;
 		__cpu_name[cpu] = "Broadcom BMIPS5000";
+		set_elf_platform(cpu, "bmips5000");
 		c->options |= MIPS_CPU_ULRI;
 		break;
 	}
@@ -956,14 +976,12 @@ static inline void cpu_probe_cavium(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_CAVIUM_OCTEON_PLUS;
 		__cpu_name[cpu] = "Cavium Octeon+";
 platform:
-		if (cpu == 0)
-			__elf_platform = "octeon";
+		set_elf_platform(cpu, "octeon");
 		break;
 	case PRID_IMP_CAVIUM_CN63XX:
 		c->cputype = CPU_CAVIUM_OCTEON2;
 		__cpu_name[cpu] = "Cavium Octeon II";
-		if (cpu == 0)
-			__elf_platform = "octeon2";
+		set_elf_platform(cpu, "octeon2");
 		break;
 	default:
 		printk(KERN_INFO "Unknown Octeon chip!\n");
@@ -986,6 +1004,59 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		panic("Unknown Ingenic Processor ID!");
 		break;
 	}
+}
+
+static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
+{
+	decode_configs(c);
+
+	c->options = (MIPS_CPU_TLB       |
+			MIPS_CPU_4KEX    |
+			MIPS_CPU_COUNTER |
+			MIPS_CPU_DIVEC   |
+			MIPS_CPU_WATCH   |
+			MIPS_CPU_EJTAG   |
+			MIPS_CPU_LLSC);
+
+	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLR732:
+	case PRID_IMP_NETLOGIC_XLR716:
+	case PRID_IMP_NETLOGIC_XLR532:
+	case PRID_IMP_NETLOGIC_XLR308:
+	case PRID_IMP_NETLOGIC_XLR532C:
+	case PRID_IMP_NETLOGIC_XLR516C:
+	case PRID_IMP_NETLOGIC_XLR508C:
+	case PRID_IMP_NETLOGIC_XLR308C:
+		c->cputype = CPU_XLR;
+		__cpu_name[cpu] = "Netlogic XLR";
+		break;
+
+	case PRID_IMP_NETLOGIC_XLS608:
+	case PRID_IMP_NETLOGIC_XLS408:
+	case PRID_IMP_NETLOGIC_XLS404:
+	case PRID_IMP_NETLOGIC_XLS208:
+	case PRID_IMP_NETLOGIC_XLS204:
+	case PRID_IMP_NETLOGIC_XLS108:
+	case PRID_IMP_NETLOGIC_XLS104:
+	case PRID_IMP_NETLOGIC_XLS616B:
+	case PRID_IMP_NETLOGIC_XLS608B:
+	case PRID_IMP_NETLOGIC_XLS416B:
+	case PRID_IMP_NETLOGIC_XLS412B:
+	case PRID_IMP_NETLOGIC_XLS408B:
+	case PRID_IMP_NETLOGIC_XLS404B:
+		c->cputype = CPU_XLR;
+		__cpu_name[cpu] = "Netlogic XLS";
+		break;
+
+	default:
+		printk(KERN_INFO "Unknown Netlogic chip id [%02x]!\n",
+		       c->processor_id);
+		c->cputype = CPU_XLR;
+		break;
+	}
+
+	c->isa_level = MIPS_CPU_ISA_M64R1;
+	c->tlbsize = ((read_c0_config1() >> 25) & 0x3f) + 1;
 }
 
 #ifdef CONFIG_64BIT
@@ -1034,6 +1105,9 @@ __cpuinit void cpu_probe(void)
 		break;
 	case PRID_COMP_INGENIC:
 		cpu_probe_ingenic(c, cpu);
+		break;
+	case PRID_COMP_NETLOGIC:
+		cpu_probe_netlogic(c, cpu);
 		break;
 	}
 

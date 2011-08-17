@@ -52,7 +52,7 @@ ata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int, unsigned int);
-	int (*check_acl)(struct inode *, int, unsigned int);
+	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -80,7 +80,7 @@ put_link:	no
 truncate:	yes		(see below)
 setattr:	yes
 permission:	no (may not block if called in rcu-walk mode)
-check_acl:	no
+get_acl:	no
 getattr:	no
 setxattr:	yes
 getxattr:	no
@@ -104,7 +104,7 @@ of the locking scheme for directory operations.
 prototypes:
 	struct inode *(*alloc_inode)(struct super_block *sb);
 	void (*destroy_inode)(struct inode *);
-	void (*dirty_inode) (struct inode *);
+	void (*dirty_inode) (struct inode *, int flags);
 	int (*write_inode) (struct inode *, struct writeback_control *wbc);
 	int (*drop_inode) (struct inode *);
 	void (*evict_inode) (struct inode *);
@@ -126,9 +126,9 @@ locking rules:
 			s_umount
 alloc_inode:
 destroy_inode:
-dirty_inode:				(must not sleep)
+dirty_inode:
 write_inode:
-drop_inode:				!!!inode_lock!!!
+drop_inode:				!!!inode->i_lock!!!
 evict_inode:
 put_super:		write
 write_super:		read
@@ -166,13 +166,11 @@ prototypes:
 	void (*kill_sb) (struct super_block *);
 locking rules:
 		may block
-get_sb		yes
 mount		yes
 kill_sb		yes
 
-->get_sb() returns error or 0 with locked superblock attached to the vfsmount
-(exclusive on ->s_umount).
-->mount() returns ERR_PTR or the root dentry.
+->mount() returns ERR_PTR or the root dentry; its superblock should be locked
+on return.
 ->kill_sb() takes a write-locked superblock, does all shutdown work on it,
 unlocks and drops the reference.
 
@@ -340,21 +338,21 @@ fl_release_private:	maybe		no
 
 ----------------------- lock_manager_operations ---------------------------
 prototypes:
-	int (*fl_compare_owner)(struct file_lock *, struct file_lock *);
-	void (*fl_notify)(struct file_lock *);  /* unblock callback */
-	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
-	void (*fl_release_private)(struct file_lock *);
-	void (*fl_break)(struct file_lock *); /* break_lease callback */
-	int (*fl_change)(struct file_lock **, int);
+	int (*lm_compare_owner)(struct file_lock *, struct file_lock *);
+	void (*lm_notify)(struct file_lock *);  /* unblock callback */
+	int (*lm_grant)(struct file_lock *, struct file_lock *, int);
+	void (*lm_release_private)(struct file_lock *);
+	void (*lm_break)(struct file_lock *); /* break_lease callback */
+	int (*lm_change)(struct file_lock **, int);
 
 locking rules:
 			file_lock_lock	may block
-fl_compare_owner:	yes		no
-fl_notify:		yes		no
-fl_grant:		no		no
-fl_release_private:	maybe		no
-fl_break:		yes		no
-fl_change		yes		no
+lm_compare_owner:	yes		no
+lm_notify:		yes		no
+lm_grant:		no		no
+lm_release_private:	maybe		no
+lm_break:		yes		no
+lm_change		yes		no
 
 --------------------------- buffer_head -----------------------------------
 prototypes:
@@ -414,7 +412,7 @@ prototypes:
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *);
 	int (*release) (struct inode *, struct file *);
-	int (*fsync) (struct file *, int datasync);
+	int (*fsync) (struct file *, loff_t start, loff_t end, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
@@ -440,9 +438,7 @@ prototypes:
 
 locking rules:
 	All may block except for ->setlease.
-	No VFS locks held on entry except for ->fsync and ->setlease.
-
-->fsync() has i_mutex on inode.
+	No VFS locks held on entry except for ->setlease.
 
 ->setlease has the file_list_lock held and must not sleep.
 

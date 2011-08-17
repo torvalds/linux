@@ -80,8 +80,34 @@
 enum vnic_devcmd_cmd {
 	CMD_NONE                = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_NONE, 0),
 
-	/* mcpu fw info in mem: (u64)a0=paddr to struct vnic_devcmd_fw_info */
-	CMD_MCPU_FW_INFO        = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 1),
+	/*
+	 * mcpu fw info in mem:
+	 * in:
+	 *   (u64)a0=paddr to struct vnic_devcmd_fw_info
+	 * action:
+	 *   Fills in struct vnic_devcmd_fw_info (128 bytes)
+	 * note:
+	 *   An old definition of CMD_MCPU_FW_INFO
+	 */
+	CMD_MCPU_FW_INFO_OLD    = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 1),
+
+	/*
+	 * mcpu fw info in mem:
+	 * in:
+	 *   (u64)a0=paddr to struct vnic_devcmd_fw_info
+	 *   (u16)a1=size of the structure
+	 * out:
+	 *	 (u16)a1=0                          for in:a1 = 0,
+	 *	         data size actually written for other values.
+	 * action:
+	 *   Fills in first 128 bytes of vnic_devcmd_fw_info for in:a1 = 0,
+	 *            first in:a1 bytes               for 0 < in:a1 <= 132,
+	 *            132 bytes                       for other values of in:a1.
+	 * note:
+	 *   CMD_MCPU_FW_INFO and CMD_MCPU_FW_INFO_OLD have the same enum 1
+	 *   for source compatibility.
+	 */
+	CMD_MCPU_FW_INFO        = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 1),
 
 	/* dev-specific block member:
 	 *    in: (u16)a0=offset,(u8)a1=size
@@ -241,16 +267,80 @@ enum vnic_devcmd_cmd {
 
 	/*
 	 * As for BY_BDF except a0 is index of hvnlink subordinate vnic
-	 * or SR-IOV virtual vnic */
+	 * or SR-IOV virtual vnic
+	 */
 	CMD_PROXY_BY_INDEX =    _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 43),
 
 	/*
-	 * in:  (u64)a0=paddr of buffer to put latest VIC VIF-CONFIG-INFO TLV in
-	 *      (u32)a1=length of buffer in a0
-	 * out: (u64)a0=paddr of buffer with latest VIC VIF-CONFIG-INFO TLV
-	 *      (u32)a1=actual length of latest VIC VIF-CONFIG-INFO TLV */
+	 * For HPP toggle:
+	 * adapter-info-get
+	 * in:  (u64)a0=phsical address of buffer passed in from caller.
+	 *      (u16)a1=size of buffer specified in a0.
+	 * out: (u64)a0=phsical address of buffer passed in from caller.
+	 *      (u16)a1=actual bytes from VIF-CONFIG-INFO TLV, or
+	 *              0 if no VIF-CONFIG-INFO TLV was ever received. */
 	CMD_CONFIG_INFO_GET     = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
+
+	/* init_prov_info2:
+	 * Variant of CMD_INIT_PROV_INFO, where it will not try to enable
+	 * the vnic until CMD_ENABLE2 is issued.
+	 *     (u64)a0=paddr of vnic_devcmd_provinfo
+	 *     (u32)a1=sizeof provision info */
+	CMD_INIT_PROV_INFO2  = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 47),
+
+	/* enable2:
+	 *      (u32)a0=0                  ==> standby
+	 *             =CMD_ENABLE2_ACTIVE ==> active
+	 */
+	CMD_ENABLE2 = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 48),
+
+	/*
+	 * cmd_status:
+	 *     Returns the status of the specified command
+	 * Input:
+	 *     a0 = command for which status is being queried.
+	 *          Possible values are:
+	 *              CMD_SOFT_RESET
+	 *              CMD_HANG_RESET
+	 *              CMD_OPEN
+	 *              CMD_INIT
+	 *              CMD_INIT_PROV_INFO
+	 *              CMD_DEINIT
+	 *              CMD_INIT_PROV_INFO2
+	 *              CMD_ENABLE2
+	 * Output:
+	 *     if status == STAT_ERROR
+	 *        a0 = ERR_ENOTSUPPORTED - status for command in a0 is
+	 *                                 not supported
+	 *     if status == STAT_NONE
+	 *        a0 = status of the devcmd specified in a0 as follows.
+	 *             ERR_SUCCESS   - command in a0 completed successfully
+	 *             ERR_EINPROGRESS - command in a0 is still in progress
+	 */
+	CMD_STATUS = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 49),
+
+	/*
+	 * Returns interrupt coalescing timer conversion factors.
+	 * After calling this devcmd, ENIC driver can convert
+	 * interrupt coalescing timer in usec into CPU cycles as follows:
+	 *
+	 *   intr_timer_cycles = intr_timer_usec * multiplier / divisor
+	 *
+	 * Interrupt coalescing timer in usecs can be obtained from
+	 * CPU cycles as follows:
+	 *
+	 *   intr_timer_usec = intr_timer_cycles * divisor / multiplier
+	 *
+	 * in: none
+	 * out: (u32)a0 = multiplier
+	 *      (u32)a1 = divisor
+	 *      (u32)a2 = maximum timer value in usec
+	 */
+	CMD_INTR_COAL_CONVERT = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 50),
 };
+
+/* CMD_ENABLE2 flags */
+#define CMD_ENABLE2_ACTIVE  0x1
 
 /* flags for CMD_OPEN */
 #define CMD_OPENF_OPROM		0x1	/* open coming from option rom */
@@ -289,13 +379,23 @@ enum vnic_devcmd_error {
 	ERR_ETIMEDOUT = 8,
 	ERR_ELINKDOWN = 9,
 	ERR_EMAXRES = 10,
+	ERR_ENOTSUPPORTED = 11,
+	ERR_EINPROGRESS = 12,
 };
 
+/*
+ * note: hw_version and asic_rev refer to the same thing,
+ *       but have different formats. hw_version is
+ *       a 32-byte string (e.g. "A2") and asic_rev is
+ *       a 16-bit integer (e.g. 0xA2).
+ */
 struct vnic_devcmd_fw_info {
 	char fw_version[32];
 	char fw_build[32];
 	char hw_version[32];
 	char hw_serial_number[32];
+	u16 asic_type;
+	u16 asic_rev;
 };
 
 struct vnic_devcmd_notify {

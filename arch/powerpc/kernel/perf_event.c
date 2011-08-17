@@ -398,6 +398,25 @@ static int check_excludes(struct perf_event **ctrs, unsigned int cflags[],
 	return 0;
 }
 
+static u64 check_and_compute_delta(u64 prev, u64 val)
+{
+	u64 delta = (val - prev) & 0xfffffffful;
+
+	/*
+	 * POWER7 can roll back counter values, if the new value is smaller
+	 * than the previous value it will cause the delta and the counter to
+	 * have bogus values unless we rolled a counter over.  If a coutner is
+	 * rolled back, it will be smaller, but within 256, which is the maximum
+	 * number of events to rollback at once.  If we dectect a rollback
+	 * return 0.  This can lead to a small lack of precision in the
+	 * counters.
+	 */
+	if (prev > val && (prev - val) < 256)
+		delta = 0;
+
+	return delta;
+}
+
 static void power_pmu_read(struct perf_event *event)
 {
 	s64 val, delta, prev;
@@ -416,10 +435,11 @@ static void power_pmu_read(struct perf_event *event)
 		prev = local64_read(&event->hw.prev_count);
 		barrier();
 		val = read_pmc(event->hw.idx);
+		delta = check_and_compute_delta(prev, val);
+		if (!delta)
+			return;
 	} while (local64_cmpxchg(&event->hw.prev_count, prev, val) != prev);
 
-	/* The counters are only 32 bits wide */
-	delta = (val - prev) & 0xfffffffful;
 	local64_add(delta, &event->count);
 	local64_sub(delta, &event->hw.period_left);
 }
@@ -449,8 +469,9 @@ static void freeze_limited_counters(struct cpu_hw_events *cpuhw,
 		val = (event->hw.idx == 5) ? pmc5 : pmc6;
 		prev = local64_read(&event->hw.prev_count);
 		event->hw.idx = 0;
-		delta = (val - prev) & 0xfffffffful;
-		local64_add(delta, &event->count);
+		delta = check_and_compute_delta(prev, val);
+		if (delta)
+			local64_add(delta, &event->count);
 	}
 }
 
@@ -458,14 +479,16 @@ static void thaw_limited_counters(struct cpu_hw_events *cpuhw,
 				  unsigned long pmc5, unsigned long pmc6)
 {
 	struct perf_event *event;
-	u64 val;
+	u64 val, prev;
 	int i;
 
 	for (i = 0; i < cpuhw->n_limited; ++i) {
 		event = cpuhw->limited_counter[i];
 		event->hw.idx = cpuhw->limited_hwidx[i];
 		val = (event->hw.idx == 5) ? pmc5 : pmc6;
-		local64_set(&event->hw.prev_count, val);
+		prev = local64_read(&event->hw.prev_count);
+		if (check_and_compute_delta(prev, val))
+			local64_set(&event->hw.prev_count, val);
 		perf_event_update_userpage(event);
 	}
 }
@@ -759,7 +782,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 
 	/*
 	 * If group events scheduling transaction was started,
-	 * skip the schedulability test here, it will be peformed
+	 * skip the schedulability test here, it will be performed
 	 * at commit time(->commit_txn) as a whole
 	 */
 	if (cpuhw->group_flag & PERF_EVENT_TXN)
@@ -1184,7 +1207,7 @@ struct pmu power_pmu = {
  * here so there is no possibility of being interrupted.
  */
 static void record_and_restart(struct perf_event *event, unsigned long val,
-			       struct pt_regs *regs, int nmi)
+			       struct pt_regs *regs)
 {
 	u64 period = event->hw.sample_period;
 	s64 prev, delta, left;
@@ -1197,7 +1220,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 
 	/* we don't have to worry about interrupts here */
 	prev = local64_read(&event->hw.prev_count);
-	delta = (val - prev) & 0xfffffffful;
+	delta = check_and_compute_delta(prev, val);
 	local64_add(delta, &event->count);
 
 	/*
@@ -1235,7 +1258,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 		if (event->attr.sample_type & PERF_SAMPLE_ADDR)
 			perf_get_data_addr(regs, &data.addr);
 
-		if (perf_event_overflow(event, nmi, &data, regs))
+		if (perf_event_overflow(event, &data, regs))
 			power_pmu_stop(event, 0);
 	}
 }
@@ -1267,6 +1290,28 @@ unsigned long perf_instruction_pointer(struct pt_regs *regs)
 
 	ip = mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
 	return ip;
+}
+
+static bool pmc_overflow(unsigned long val)
+{
+	if ((int)val < 0)
+		return true;
+
+	/*
+	 * Events on POWER7 can roll back if a speculative event doesn't
+	 * eventually complete. Unfortunately in some rare cases they will
+	 * raise a performance monitor exception. We need to catch this to
+	 * ensure we reset the PMC. In all cases the PMC will be 256 or less
+	 * cycles from overflow.
+	 *
+	 * We only do this if the first pass fails to find any overflowing
+	 * PMCs because a user might set a period of less than 256 and we
+	 * don't want to mistakenly reset them.
+	 */
+	if (__is_processor(PV_POWER7) && ((0x80000000 - val) <= 256))
+		return true;
+
+	return false;
 }
 
 /*
@@ -1301,7 +1346,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 		if ((int)val < 0) {
 			/* event has overflowed */
 			found = 1;
-			record_and_restart(event, val, regs, nmi);
+			record_and_restart(event, val, regs);
 		}
 	}
 
@@ -1316,7 +1361,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 			if (is_limited_pmc(i + 1))
 				continue;
 			val = read_pmc(i + 1);
-			if ((int)val < 0)
+			if (pmc_overflow(val))
 				write_pmc(i + 1, 0);
 		}
 	}
@@ -1363,7 +1408,7 @@ power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu
 	return NOTIFY_OK;
 }
 
-int register_power_pmu(struct power_pmu *pmu)
+int __cpuinit register_power_pmu(struct power_pmu *pmu)
 {
 	if (ppmu)
 		return -EBUSY;		/* something's already registered */

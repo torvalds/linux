@@ -8,7 +8,7 @@
 
 /* per-channel registers */
 enum { LDDCKPAT1R, LDDCKPAT2R, LDMT1R, LDMT2R, LDMT3R, LDDFR, LDSM1R,
-       LDSM2R, LDSA1R, LDMLSR, LDHCNR, LDHSYNR, LDVLNR, LDVSYNR, LDPMR,
+       LDSM2R, LDSA1R, LDSA2R, LDMLSR, LDHCNR, LDHSYNR, LDVLNR, LDVSYNR, LDPMR,
        LDHAJR,
        NR_CH_REGS };
 
@@ -16,6 +16,7 @@ enum { LDDCKPAT1R, LDDCKPAT2R, LDMT1R, LDMT2R, LDMT3R, LDDFR, LDSM1R,
 
 struct sh_mobile_lcdc_priv;
 struct fb_info;
+struct backlight_device;
 
 struct sh_mobile_lcdc_chan {
 	struct sh_mobile_lcdc_priv *lcdc;
@@ -26,6 +27,7 @@ struct sh_mobile_lcdc_chan {
 	u32 pseudo_palette[PALETTE_NR];
 	unsigned long saved_ch_regs[NR_CH_REGS];
 	struct fb_info *info;
+	struct backlight_device *bl;
 	dma_addr_t dma_handle;
 	struct fb_deferred_io defio;
 	struct scatterlist *sglist;
@@ -35,7 +37,9 @@ struct sh_mobile_lcdc_chan {
 	struct completion vsync_completion;
 	struct fb_var_screeninfo display_var;
 	int use_count;
+	int blank_status;
 	struct mutex open_lock;		/* protects the use counter */
+	int meram_enabled;
 };
 
 #endif

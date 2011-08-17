@@ -24,10 +24,6 @@
 #ifndef _DBGLOG_H_
 #define _DBGLOG_H_
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,7 +40,7 @@ extern "C" {
 #define DBGLOG_MODULEID_NUM_MAX          16 /* Upper limit is width of mask */
 
 /*
- * Please ensure that the definition of any new module intrduced is captured
+ * Please ensure that the definition of any new module introduced is captured
  * between the DBGLOG_MODULEID_START and DBGLOG_MODULEID_END defines. The 
  * structure is required for the parser to correctly pick up the values for
  * different modules.
@@ -89,31 +85,31 @@ extern "C" {
 
 PREPACK struct dbglog_buf_s {
     struct dbglog_buf_s *next;
-    A_UINT8             *buffer;
-    A_UINT32             bufsize;
-    A_UINT32             length;
-    A_UINT32             count;
-    A_UINT32             free;
+    u8 *buffer;
+    u32 bufsize;
+    u32 length;
+    u32 count;
+    u32 free;
 } POSTPACK;
 
 PREPACK struct dbglog_hdr_s {
     struct dbglog_buf_s *dbuf;
-    A_UINT32             dropped;
+    u32 dropped;
 } POSTPACK;
 
 PREPACK struct dbglog_config_s {
-    A_UINT32                    cfgvalid; /* Mask with valid config bits */
+    u32 cfgvalid; /* Mask with valid config bits */
     union {
         /* TODO: Take care of endianness */
         struct {
-            A_UINT32            mmask:16; /* Mask of modules with logging on */
-            A_UINT32            rep:1; /* Reporting enabled or not */
-            A_UINT32            tsr:3; /* Time stamp resolution. Def: 1 ms */
-            A_UINT32            size:10; /* Report size in number of messages */
-            A_UINT32            reserved:2;
+            u32 mmask:16; /* Mask of modules with logging on */
+            u32 rep:1; /* Reporting enabled or not */
+            u32 tsr:3; /* Time stamp resolution. Def: 1 ms */
+            u32 size:10; /* Report size in number of messages */
+            u32 reserved:2;
         } dbglog_config;
 
-        A_UINT32                value;
+        u32 value;
     } u;
 } POSTPACK;
 
@@ -125,10 +121,6 @@ PREPACK struct dbglog_config_s {
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
 #endif
 
 #endif /* _DBGLOG_H_ */

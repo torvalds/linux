@@ -95,6 +95,8 @@ typedef struct user_i387_struct elf_fpregset_t;
 	(pr_reg)[25] = 0;					\
 	(pr_reg)[26] = 0;
 
+#define task_pt_regs(t) (&(t)->thread.regs)
+
 struct task_struct;
 
 extern int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu);
@@ -116,5 +118,15 @@ extern long elf_aux_hwcap;
 #define ELF_PLATFORM "x86_64"
 
 #define SET_PERSONALITY(ex) do ; while(0)
+
+#define __HAVE_ARCH_GATE_AREA 1
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
+struct linux_binprm;
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+	int uses_interp);
+
+extern unsigned long um_vdso_addr;
+#define AT_SYSINFO_EHDR 33
+#define ARCH_DLINFO	NEW_AUX_ENT(AT_SYSINFO_EHDR, um_vdso_addr)
 
 #endif

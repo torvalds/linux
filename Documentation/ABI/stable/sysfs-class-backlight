@@ -34,3 +34,23 @@ Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
 		Maximum brightness for <backlight>.
 Users:		HAL
+
+What:		/sys/class/backlight/<backlight>/type
+Date:		September 2010
+KernelVersion:	2.6.37
+Contact:	Matthew Garrett <mjg@redhat.com>
+Description:
+		The type of interface controlled by <backlight>.
+		"firmware": The driver uses a standard firmware interface
+		"platform": The driver uses a platform-specific interface
+		"raw": The driver controls hardware registers directly
+
+		In the general case, when multiple backlight
+		interfaces are available for a single device, firmware
+		control should be preferred to platform control should
+		be preferred to raw control. Using a firmware
+		interface reduces the probability of confusion with
+		the hardware and the OS independently updating the
+		backlight state. Platform interfaces are mostly a
+		holdover from pre-standardisation of firmware
+		interfaces.

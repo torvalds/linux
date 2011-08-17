@@ -79,7 +79,7 @@ LEAF(except_vec2_sb1)
 recovered_dcache:
 	/*
 	 * Unlock CacheErr-D (which in turn unlocks CacheErr-DPA).
-	 * Ought to log the occurence of this recovered dcache error.
+	 * Ought to log the occurrence of this recovered dcache error.
 	 */
 	b	recovered
 	 mtc0	$0,C0_CERR_D

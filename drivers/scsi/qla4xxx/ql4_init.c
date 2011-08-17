@@ -723,13 +723,38 @@ int qla4_is_relogin_allowed(struct scsi_qla_host *ha, uint32_t conn_err)
 	return relogin;
 }
 
+static void qla4xxx_flush_AENS(struct scsi_qla_host *ha)
+{
+	unsigned long wtime;
+
+	/* Flush the 0x8014 AEN from the firmware as a result of
+	 * Auto connect. We are basically doing get_firmware_ddb()
+	 * to determine whether we need to log back in or not.
+	 * Trying to do a set ddb before we have processed 0x8014
+	 * will result in another set_ddb() for the same ddb. In other
+	 * words there will be stale entries in the aen_q.
+	 */
+	wtime = jiffies + (2 * HZ);
+	do {
+		if (qla4xxx_get_firmware_state(ha) == QLA_SUCCESS)
+			if (ha->firmware_state & (BIT_2 | BIT_0))
+				return;
+
+		if (test_and_clear_bit(DPC_AEN, &ha->dpc_flags))
+			qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
+
+		msleep(1000);
+	} while (!time_after_eq(jiffies, wtime));
+}
+
 /**
- * qla4xxx_configure_ddbs - builds driver ddb list
+ * qla4xxx_build_ddb_list - builds driver ddb list
  * @ha: Pointer to host adapter structure.
  *
  * This routine searches for all valid firmware ddb entries and builds
  * an internal ddb list. Ddbs that are considered valid are those with
  * a device state of SESSION_ACTIVE.
+ * A relogin (set_ddb) is issued for DDBs that are not online.
  **/
 static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 {
@@ -743,6 +768,8 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 	dma_addr_t fw_ddb_entry_dma;
 	uint32_t ipv6_device;
 	uint32_t new_tgt;
+
+	qla4xxx_flush_AENS(ha);
 
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 			&fw_ddb_entry_dma, GFP_KERNEL);
@@ -847,144 +874,6 @@ exit_build_ddb_list_no_free:
 	return status;
 }
 
-struct qla4_relog_scan {
-	int halt_wait;
-	uint32_t conn_err;
-	uint32_t fw_ddb_index;
-	uint32_t next_fw_ddb_index;
-	uint32_t fw_ddb_device_state;
-};
-
-static int qla4_test_rdy(struct scsi_qla_host *ha, struct qla4_relog_scan *rs)
-{
-	struct ddb_entry *ddb_entry;
-
-	if (qla4_is_relogin_allowed(ha, rs->conn_err)) {
-		/* We either have a device that is in
-		 * the process of relogging in or a
-		 * device that is waiting to be
-		 * relogged in */
-		rs->halt_wait = 0;
-
-		ddb_entry = qla4xxx_lookup_ddb_by_fw_index(ha,
-							   rs->fw_ddb_index);
-		if (ddb_entry == NULL)
-			return QLA_ERROR;
-
-		if (ddb_entry->dev_scan_wait_to_start_relogin != 0
-		    && time_after_eq(jiffies,
-				     ddb_entry->
-				     dev_scan_wait_to_start_relogin))
-		{
-			ddb_entry->dev_scan_wait_to_start_relogin = 0;
-			qla4xxx_set_ddb_entry(ha, rs->fw_ddb_index, 0);
-		}
-	}
-	return QLA_SUCCESS;
-}
-
-static int qla4_scan_for_relogin(struct scsi_qla_host *ha,
-				 struct qla4_relog_scan *rs)
-{
-	int error;
-
-	/* scan for relogins
-	 * ----------------- */
-	for (rs->fw_ddb_index = 0; rs->fw_ddb_index < MAX_DDB_ENTRIES;
-	     rs->fw_ddb_index = rs->next_fw_ddb_index) {
-		if (qla4xxx_get_fwddb_entry(ha, rs->fw_ddb_index, NULL, 0,
-					    NULL, &rs->next_fw_ddb_index,
-					    &rs->fw_ddb_device_state,
-					    &rs->conn_err, NULL, NULL)
-		    == QLA_ERROR)
-			return QLA_ERROR;
-
-		if (rs->fw_ddb_device_state == DDB_DS_LOGIN_IN_PROCESS)
-			rs->halt_wait = 0;
-
-		if (rs->fw_ddb_device_state == DDB_DS_SESSION_FAILED ||
-		    rs->fw_ddb_device_state == DDB_DS_NO_CONNECTION_ACTIVE) {
-			error = qla4_test_rdy(ha, rs);
-			if (error)
-				return error;
-		}
-
-		/* We know we've reached the last device when
-		 * next_fw_ddb_index is 0 */
-		if (rs->next_fw_ddb_index == 0)
-			break;
-	}
-	return QLA_SUCCESS;
-}
-
-/**
- * qla4xxx_devices_ready - wait for target devices to be logged in
- * @ha: pointer to adapter structure
- *
- * This routine waits up to ql4xdiscoverywait seconds
- * F/W database during driver load time.
- **/
-static int qla4xxx_devices_ready(struct scsi_qla_host *ha)
-{
-	int error;
-	unsigned long discovery_wtime;
-	struct qla4_relog_scan rs;
-
-	discovery_wtime = jiffies + (ql4xdiscoverywait * HZ);
-
-	DEBUG(printk("Waiting (%d) for devices ...\n", ql4xdiscoverywait));
-	do {
-		/* poll for AEN. */
-		qla4xxx_get_firmware_state(ha);
-		if (test_and_clear_bit(DPC_AEN, &ha->dpc_flags)) {
-			/* Set time-between-relogin timer */
-			qla4xxx_process_aen(ha, RELOGIN_DDB_CHANGED_AENS);
-		}
-
-		/* if no relogins active or needed, halt discvery wait */
-		rs.halt_wait = 1;
-
-		error = qla4_scan_for_relogin(ha, &rs);
-
-		if (rs.halt_wait) {
-			DEBUG2(printk("scsi%ld: %s: Delay halted.  Devices "
-				      "Ready.\n", ha->host_no, __func__));
-			return QLA_SUCCESS;
-		}
-
-		msleep(2000);
-	} while (!time_after_eq(jiffies, discovery_wtime));
-
-	DEBUG3(qla4xxx_get_conn_event_log(ha));
-
-	return QLA_SUCCESS;
-}
-
-static void qla4xxx_flush_AENS(struct scsi_qla_host *ha)
-{
-	unsigned long wtime;
-
-	/* Flush the 0x8014 AEN from the firmware as a result of
-	 * Auto connect. We are basically doing get_firmware_ddb()
-	 * to determine whether we need to log back in or not.
-	 *  Trying to do a set ddb before we have processed 0x8014
-	 *  will result in another set_ddb() for the same ddb. In other
-	 *  words there will be stale entries in the aen_q.
-	 */
-	wtime = jiffies + (2 * HZ);
-	do {
-		if (qla4xxx_get_firmware_state(ha) == QLA_SUCCESS)
-			if (ha->firmware_state & (BIT_2 | BIT_0))
-				return;
-
-		if (test_and_clear_bit(DPC_AEN, &ha->dpc_flags))
-			qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
-
-		msleep(1000);
-	} while (!time_after_eq(jiffies, wtime));
-
-}
-
 static int qla4xxx_initialize_ddb_list(struct scsi_qla_host *ha)
 {
 	uint16_t fw_ddb_index;
@@ -996,29 +885,12 @@ static int qla4xxx_initialize_ddb_list(struct scsi_qla_host *ha)
 
 	for (fw_ddb_index = 0; fw_ddb_index < MAX_DDB_ENTRIES; fw_ddb_index++)
 		ha->fw_ddb_index_map[fw_ddb_index] =
-			(struct ddb_entry *)INVALID_ENTRY;
+		    (struct ddb_entry *)INVALID_ENTRY;
 
 	ha->tot_ddbs = 0;
 
-	qla4xxx_flush_AENS(ha);
-
-	/* Wait for an AEN */
-	qla4xxx_devices_ready(ha);
-
-	/*
-	 * First perform device discovery for active
-	 * fw ddb indexes and build
-	 * ddb list.
-	 */
-	if ((status = qla4xxx_build_ddb_list(ha)) == QLA_ERROR)
-		return status;
-
-	/*
-	 * Targets can come online after the inital discovery, so processing
-	 * the aens here will catch them.
-	 */
-	if (test_and_clear_bit(DPC_AEN, &ha->dpc_flags))
-		qla4xxx_process_aen(ha, PROCESS_ALL_AENS);
+	/* Perform device discovery and build ddb list. */
+	status = qla4xxx_build_ddb_list(ha);
 
 	return status;
 }
@@ -1403,7 +1275,7 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 	if (ha->isp_ops->start_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
-	if (qla4xxx_get_fw_version(ha) == QLA_ERROR)
+	if (qla4xxx_about_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
 	if (ha->isp_ops->get_sys_info(ha) == QLA_ERROR)
@@ -1466,7 +1338,7 @@ exit_init_hba:
 	}
 
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
-	    status == QLA_ERROR ? "FAILED" : "SUCCEDED"));
+	    status == QLA_ERROR ? "FAILED" : "SUCCEEDED"));
 	return status;
 }
 
@@ -1537,7 +1409,6 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		uint32_t state, uint32_t conn_err)
 {
 	struct ddb_entry * ddb_entry;
-	uint32_t old_fw_ddb_device_state;
 
 	/* check for out of range index */
 	if (fw_ddb_index >= MAX_DDB_ENTRIES)
@@ -1553,27 +1424,18 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 	}
 
 	/* Device already exists in our database. */
-	old_fw_ddb_device_state = ddb_entry->fw_ddb_device_state;
 	DEBUG2(printk("scsi%ld: %s DDB - old state= 0x%x, new state=0x%x for "
 		      "index [%d]\n", ha->host_no, __func__,
 		      ddb_entry->fw_ddb_device_state, state, fw_ddb_index));
-	if (old_fw_ddb_device_state == state &&
-	    state == DDB_DS_SESSION_ACTIVE) {
-		if (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE) {
-			atomic_set(&ddb_entry->state, DDB_STATE_ONLINE);
-			iscsi_unblock_session(ddb_entry->sess);
-		}
-		return QLA_SUCCESS;
-	}
 
 	ddb_entry->fw_ddb_device_state = state;
 	/* Device is back online. */
-	if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE) {
+	if ((ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE) &&
+	   (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE)) {
 		atomic_set(&ddb_entry->state, DDB_STATE_ONLINE);
 		atomic_set(&ddb_entry->relogin_retry_count, 0);
 		atomic_set(&ddb_entry->relogin_timer, 0);
 		clear_bit(DF_RELOGIN, &ddb_entry->flags);
-		clear_bit(DF_NO_RELOGIN, &ddb_entry->flags);
 		iscsi_unblock_session(ddb_entry->sess);
 		iscsi_session_event(ddb_entry->sess,
 				    ISCSI_KEVENT_CREATE_SESSION);
@@ -1581,7 +1443,7 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		 * Change the lun state to READY in case the lun TIMEOUT before
 		 * the device came back.
 		 */
-	} else {
+	} else if (ddb_entry->fw_ddb_device_state != DDB_DS_SESSION_ACTIVE) {
 		/* Device went away, mark device missing */
 		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE) {
 			DEBUG2(ql4_printk(KERN_INFO, ha, "%s mark missing "
@@ -1598,7 +1460,6 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		 */
 		if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_FAILED &&
 		    !test_bit(DF_RELOGIN, &ddb_entry->flags) &&
-		    !test_bit(DF_NO_RELOGIN, &ddb_entry->flags) &&
 		    qla4_is_relogin_allowed(ha, conn_err)) {
 			/*
 			 * This triggers a relogin.  After the relogin_timer

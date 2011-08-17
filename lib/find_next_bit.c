@@ -16,7 +16,7 @@
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
-#ifdef CONFIG_GENERIC_FIND_NEXT_BIT
+#ifndef find_next_bit
 /*
  * Find the next set bit in a memory region.
  */
@@ -59,7 +59,9 @@ found_middle:
 	return result + __ffs(tmp);
 }
 EXPORT_SYMBOL(find_next_bit);
+#endif
 
+#ifndef find_next_zero_bit
 /*
  * This implementation of find_{first,next}_zero_bit was stolen from
  * Linus' asm-alpha/bitops.h.
@@ -103,9 +105,9 @@ found_middle:
 	return result + ffz(tmp);
 }
 EXPORT_SYMBOL(find_next_zero_bit);
-#endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
+#endif
 
-#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
+#ifndef find_first_bit
 /*
  * Find the first set bit in a memory region.
  */
@@ -131,7 +133,9 @@ found:
 	return result + __ffs(tmp);
 }
 EXPORT_SYMBOL(find_first_bit);
+#endif
 
+#ifndef find_first_zero_bit
 /*
  * Find the first cleared bit in a memory region.
  */
@@ -157,7 +161,7 @@ found:
 	return result + ffz(tmp);
 }
 EXPORT_SYMBOL(find_first_zero_bit);
-#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
+#endif
 
 #ifdef __BIG_ENDIAN
 
@@ -185,15 +189,17 @@ static inline unsigned long ext2_swab(const unsigned long y)
 #endif
 }
 
-unsigned long generic_find_next_zero_le_bit(const unsigned long *addr, unsigned
+#ifndef find_next_zero_bit_le
+unsigned long find_next_zero_bit_le(const void *addr, unsigned
 		long size, unsigned long offset)
 {
-	const unsigned long *p = addr + BITOP_WORD(offset);
+	const unsigned long *p = addr;
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
 	unsigned long tmp;
 
 	if (offset >= size)
 		return size;
+	p += BITOP_WORD(offset);
 	size -= result;
 	offset &= (BITS_PER_LONG - 1UL);
 	if (offset) {
@@ -226,18 +232,20 @@ found_middle:
 found_middle_swap:
 	return result + ffz(ext2_swab(tmp));
 }
+EXPORT_SYMBOL(find_next_zero_bit_le);
+#endif
 
-EXPORT_SYMBOL(generic_find_next_zero_le_bit);
-
-unsigned long generic_find_next_le_bit(const unsigned long *addr, unsigned
+#ifndef find_next_bit_le
+unsigned long find_next_bit_le(const void *addr, unsigned
 		long size, unsigned long offset)
 {
-	const unsigned long *p = addr + BITOP_WORD(offset);
+	const unsigned long *p = addr;
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
 	unsigned long tmp;
 
 	if (offset >= size)
 		return size;
+	p += BITOP_WORD(offset);
 	size -= result;
 	offset &= (BITS_PER_LONG - 1UL);
 	if (offset) {
@@ -271,5 +279,7 @@ found_middle:
 found_middle_swap:
 	return result + __ffs(ext2_swab(tmp));
 }
-EXPORT_SYMBOL(generic_find_next_le_bit);
+EXPORT_SYMBOL(find_next_bit_le);
+#endif
+
 #endif /* __BIG_ENDIAN */

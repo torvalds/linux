@@ -23,7 +23,7 @@ static int ehci_sh_reset(struct usb_hcd *hcd)
 	int ret;
 
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(ehci_readl(ehci,
+	ehci->regs = hcd->regs + HC_LENGTH(ehci, ehci_readl(ehci,
 		&ehci->caps->hc_capbase));
 
 	dbg_hcs_params(ehci, "reset");

@@ -135,7 +135,7 @@ void release_segments(struct mm_struct *mm)
 
 void machine_restart(char *cmd)
 {
-#ifdef CONFIG_GDBSTUB
+#ifdef CONFIG_KERNEL_DEBUGGER
 	gdbstub_exit(0);
 #endif
 
@@ -148,14 +148,14 @@ void machine_restart(char *cmd)
 
 void machine_halt(void)
 {
-#ifdef CONFIG_GDBSTUB
+#ifdef CONFIG_KERNEL_DEBUGGER
 	gdbstub_exit(0);
 #endif
 }
 
 void machine_power_off(void)
 {
-#ifdef CONFIG_GDBSTUB
+#ifdef CONFIG_KERNEL_DEBUGGER
 	gdbstub_exit(0);
 #endif
 }

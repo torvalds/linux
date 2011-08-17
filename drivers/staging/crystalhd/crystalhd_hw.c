@@ -302,7 +302,7 @@ static bool crystalhd_start_device(struct crystalhd_adp *adp)
 	crystalhd_enable_interrupts(adp);
 
 	/* Enable the option for getting the total no. of DWORDS
-	 * that have been transfered by the RXDMA engine
+	 * that have been transferred by the RXDMA engine
 	 */
 	dbg_options = crystalhd_reg_rd(adp, MISC1_DMA_DEBUG_OPTIONS_REG);
 	dbg_options |= 0x10;
@@ -1776,7 +1776,7 @@ enum BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw,
 		return sts;
 	}
 
-	/*Get the Responce Address*/
+	/*Get the Response Address*/
 	cmd_res_addr = bc_dec_reg_rd(hw->adp, Cpu2HstMbx1);
 
 	/*Read the Response*/
@@ -1965,6 +1965,7 @@ enum BC_STATUS crystalhd_hw_setup_dma_rings(struct crystalhd_hw *hw)
 		} else {
 			BCMLOG_ERR("Insufficient Memory For RX\n");
 			crystalhd_hw_free_dma_rings(hw);
+			kfree(rpkt);
 			return BC_STS_INSUFF_RES;
 		}
 		rpkt->desc_mem.pdma_desc_start = mem;
@@ -2366,7 +2367,7 @@ enum BC_STATUS crystalhd_hw_set_core_clock(struct crystalhd_hw *hw)
 	BCMLOG(BCMLOG_INFO, "clock is moving to %d with n %d with vco_mg %d\n",
 	       hw->core_clock_mhz, n, vco_mg);
 
-	/* Change the DRAM refresh rate to accomodate the new frequency */
+	/* Change the DRAM refresh rate to accommodate the new frequency */
 	/* refresh reg = ((refresh_rate * clock_rate)/16) - 1; rounding up*/
 	refresh_reg = (7 * hw->core_clock_mhz / 16);
 	bc_dec_reg_wr(hw->adp, SDRAM_REF_PARAM, ((1 << 12) | refresh_reg));

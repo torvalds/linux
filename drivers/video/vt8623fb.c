@@ -121,13 +121,19 @@ MODULE_PARM_DESC(mtrr, "Enable write-combining with MTRR (1=enable, 0=disable, d
 
 /* ------------------------------------------------------------------------- */
 
+static void vt8623fb_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
+{
+	struct vt8623fb_info *par = info->par;
+
+	svga_tilecursor(par->state.vgabase, info, cursor);
+}
 
 static struct fb_tile_ops vt8623fb_tile_ops = {
 	.fb_settile	= svga_settile,
 	.fb_tilecopy	= svga_tilecopy,
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
-	.fb_tilecursor  = svga_tilecursor,
+	.fb_tilecursor  = vt8623fb_tilecursor,
 	.fb_get_tilemax = svga_get_tilemax,
 };
 
@@ -253,6 +259,7 @@ static void vt8623fb_fillrect(struct fb_info *info, const struct fb_fillrect *re
 
 static void vt8623_set_pixclock(struct fb_info *info, u32 pixclock)
 {
+	struct vt8623fb_info *par = info->par;
 	u16 m, n, r;
 	u8 regval;
 	int rv;
@@ -264,18 +271,18 @@ static void vt8623_set_pixclock(struct fb_info *info, u32 pixclock)
 	}
 
 	/* Set VGA misc register  */
-	regval = vga_r(NULL, VGA_MIS_R);
-	vga_w(NULL, VGA_MIS_W, regval | VGA_MIS_ENB_PLL_LOAD);
+	regval = vga_r(par->state.vgabase, VGA_MIS_R);
+	vga_w(par->state.vgabase, VGA_MIS_W, regval | VGA_MIS_ENB_PLL_LOAD);
 
 	/* Set clock registers */
-	vga_wseq(NULL, 0x46, (n  | (r << 6)));
-	vga_wseq(NULL, 0x47, m);
+	vga_wseq(par->state.vgabase, 0x46, (n  | (r << 6)));
+	vga_wseq(par->state.vgabase, 0x47, m);
 
 	udelay(1000);
 
 	/* PLL reset */
-	svga_wseq_mask(0x40, 0x02, 0x02);
-	svga_wseq_mask(0x40, 0x00, 0x02);
+	svga_wseq_mask(par->state.vgabase, 0x40, 0x02, 0x02);
+	svga_wseq_mask(par->state.vgabase, 0x40, 0x00, 0x02);
 }
 
 
@@ -285,7 +292,10 @@ static int vt8623fb_open(struct fb_info *info, int user)
 
 	mutex_lock(&(par->open_lock));
 	if (par->ref_count == 0) {
+		void __iomem *vgabase = par->state.vgabase;
+
 		memset(&(par->state), 0, sizeof(struct vgastate));
+		par->state.vgabase = vgabase;
 		par->state.flags = VGA_SAVE_MODE | VGA_SAVE_FONTS | VGA_SAVE_CMAP;
 		par->state.num_crtc = 0xA2;
 		par->state.num_seq = 0x50;
@@ -373,6 +383,7 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 static int vt8623fb_set_par(struct fb_info *info)
 {
 	u32 mode, offset_value, fetch_value, screen_size;
+	struct vt8623fb_info *par = info->par;
 	u32 bpp = info->var.bits_per_pixel;
 
 	if (bpp != 0) {
@@ -414,82 +425,82 @@ static int vt8623fb_set_par(struct fb_info *info)
 	info->var.activate = FB_ACTIVATE_NOW;
 
 	/* Unlock registers */
-	svga_wseq_mask(0x10, 0x01, 0x01);
-	svga_wcrt_mask(0x11, 0x00, 0x80);
-	svga_wcrt_mask(0x47, 0x00, 0x01);
+	svga_wseq_mask(par->state.vgabase, 0x10, 0x01, 0x01);
+	svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x47, 0x00, 0x01);
 
 	/* Device, screen and sync off */
-	svga_wseq_mask(0x01, 0x20, 0x20);
-	svga_wcrt_mask(0x36, 0x30, 0x30);
-	svga_wcrt_mask(0x17, 0x00, 0x80);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+	svga_wcrt_mask(par->state.vgabase, 0x36, 0x30, 0x30);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 
 	/* Set default values */
-	svga_set_default_gfx_regs();
-	svga_set_default_atc_regs();
-	svga_set_default_seq_regs();
-	svga_set_default_crt_regs();
-	svga_wcrt_multi(vt8623_line_compare_regs, 0xFFFFFFFF);
-	svga_wcrt_multi(vt8623_start_address_regs, 0);
+	svga_set_default_gfx_regs(par->state.vgabase);
+	svga_set_default_atc_regs(par->state.vgabase);
+	svga_set_default_seq_regs(par->state.vgabase);
+	svga_set_default_crt_regs(par->state.vgabase);
+	svga_wcrt_multi(par->state.vgabase, vt8623_line_compare_regs, 0xFFFFFFFF);
+	svga_wcrt_multi(par->state.vgabase, vt8623_start_address_regs, 0);
 
-	svga_wcrt_multi(vt8623_offset_regs, offset_value);
-	svga_wseq_multi(vt8623_fetch_count_regs, fetch_value);
+	svga_wcrt_multi(par->state.vgabase, vt8623_offset_regs, offset_value);
+	svga_wseq_multi(par->state.vgabase, vt8623_fetch_count_regs, fetch_value);
 
 	/* Clear H/V Skew */
-	svga_wcrt_mask(0x03, 0x00, 0x60);
-	svga_wcrt_mask(0x05, 0x00, 0x60);
+	svga_wcrt_mask(par->state.vgabase, 0x03, 0x00, 0x60);
+	svga_wcrt_mask(par->state.vgabase, 0x05, 0x00, 0x60);
 
 	if (info->var.vmode & FB_VMODE_DOUBLE)
-		svga_wcrt_mask(0x09, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x80, 0x80);
 	else
-		svga_wcrt_mask(0x09, 0x00, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x00, 0x80);
 
-	svga_wseq_mask(0x1E, 0xF0, 0xF0); // DI/DVP bus
-	svga_wseq_mask(0x2A, 0x0F, 0x0F); // DI/DVP bus
-	svga_wseq_mask(0x16, 0x08, 0xBF); // FIFO read threshold
-	vga_wseq(NULL, 0x17, 0x1F);       // FIFO depth
-	vga_wseq(NULL, 0x18, 0x4E);
-	svga_wseq_mask(0x1A, 0x08, 0x08); // enable MMIO ?
+	svga_wseq_mask(par->state.vgabase, 0x1E, 0xF0, 0xF0); // DI/DVP bus
+	svga_wseq_mask(par->state.vgabase, 0x2A, 0x0F, 0x0F); // DI/DVP bus
+	svga_wseq_mask(par->state.vgabase, 0x16, 0x08, 0xBF); // FIFO read threshold
+	vga_wseq(par->state.vgabase, 0x17, 0x1F);       // FIFO depth
+	vga_wseq(par->state.vgabase, 0x18, 0x4E);
+	svga_wseq_mask(par->state.vgabase, 0x1A, 0x08, 0x08); // enable MMIO ?
 
-	vga_wcrt(NULL, 0x32, 0x00);
-	vga_wcrt(NULL, 0x34, 0x00);
-	vga_wcrt(NULL, 0x6A, 0x80);
-	vga_wcrt(NULL, 0x6A, 0xC0);
+	vga_wcrt(par->state.vgabase, 0x32, 0x00);
+	vga_wcrt(par->state.vgabase, 0x34, 0x00);
+	vga_wcrt(par->state.vgabase, 0x6A, 0x80);
+	vga_wcrt(par->state.vgabase, 0x6A, 0xC0);
 
-	vga_wgfx(NULL, 0x20, 0x00);
-	vga_wgfx(NULL, 0x21, 0x00);
-	vga_wgfx(NULL, 0x22, 0x00);
+	vga_wgfx(par->state.vgabase, 0x20, 0x00);
+	vga_wgfx(par->state.vgabase, 0x21, 0x00);
+	vga_wgfx(par->state.vgabase, 0x22, 0x00);
 
 	/* Set SR15 according to number of bits per pixel */
 	mode = svga_match_format(vt8623fb_formats, &(info->var), &(info->fix));
 	switch (mode) {
 	case 0:
 		pr_debug("fb%d: text mode\n", info->node);
-		svga_set_textmode_vga_regs();
-		svga_wseq_mask(0x15, 0x00, 0xFE);
-		svga_wcrt_mask(0x11, 0x60, 0x70);
+		svga_set_textmode_vga_regs(par->state.vgabase);
+		svga_wseq_mask(par->state.vgabase, 0x15, 0x00, 0xFE);
+		svga_wcrt_mask(par->state.vgabase, 0x11, 0x60, 0x70);
 		break;
 	case 1:
 		pr_debug("fb%d: 4 bit pseudocolor\n", info->node);
-		vga_wgfx(NULL, VGA_GFX_MODE, 0x40);
-		svga_wseq_mask(0x15, 0x20, 0xFE);
-		svga_wcrt_mask(0x11, 0x00, 0x70);
+		vga_wgfx(par->state.vgabase, VGA_GFX_MODE, 0x40);
+		svga_wseq_mask(par->state.vgabase, 0x15, 0x20, 0xFE);
+		svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x70);
 		break;
 	case 2:
 		pr_debug("fb%d: 4 bit pseudocolor, planar\n", info->node);
-		svga_wseq_mask(0x15, 0x00, 0xFE);
-		svga_wcrt_mask(0x11, 0x00, 0x70);
+		svga_wseq_mask(par->state.vgabase, 0x15, 0x00, 0xFE);
+		svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x70);
 		break;
 	case 3:
 		pr_debug("fb%d: 8 bit pseudocolor\n", info->node);
-		svga_wseq_mask(0x15, 0x22, 0xFE);
+		svga_wseq_mask(par->state.vgabase, 0x15, 0x22, 0xFE);
 		break;
 	case 4:
 		pr_debug("fb%d: 5/6/5 truecolor\n", info->node);
-		svga_wseq_mask(0x15, 0xB6, 0xFE);
+		svga_wseq_mask(par->state.vgabase, 0x15, 0xB6, 0xFE);
 		break;
 	case 5:
 		pr_debug("fb%d: 8/8/8 truecolor\n", info->node);
-		svga_wseq_mask(0x15, 0xAE, 0xFE);
+		svga_wseq_mask(par->state.vgabase, 0x15, 0xAE, 0xFE);
 		break;
 	default:
 		printk(KERN_ERR "vt8623fb: unsupported mode - bug\n");
@@ -497,16 +508,16 @@ static int vt8623fb_set_par(struct fb_info *info)
 	}
 
 	vt8623_set_pixclock(info, info->var.pixclock);
-	svga_set_timings(&vt8623_timing_regs, &(info->var), 1, 1,
+	svga_set_timings(par->state.vgabase, &vt8623_timing_regs, &(info->var), 1, 1,
 			 (info->var.vmode & FB_VMODE_DOUBLE) ? 2 : 1, 1,
 			 1, info->node);
 
 	memset_io(info->screen_base, 0x00, screen_size);
 
 	/* Device and screen back on */
-	svga_wcrt_mask(0x17, 0x80, 0x80);
-	svga_wcrt_mask(0x36, 0x00, 0x30);
-	svga_wseq_mask(0x01, 0x00, 0x20);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
 }
@@ -569,31 +580,33 @@ static int vt8623fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 {
+	struct vt8623fb_info *par = info->par;
+
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
-		svga_wcrt_mask(0x36, 0x00, 0x30);
-		svga_wseq_mask(0x01, 0x00, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
-		svga_wcrt_mask(0x36, 0x00, 0x30);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		pr_debug("fb%d: DPMS standby (hsync off)\n", info->node);
-		svga_wcrt_mask(0x36, 0x10, 0x30);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x10, 0x30);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: DPMS suspend (vsync off)\n", info->node);
-		svga_wcrt_mask(0x36, 0x20, 0x30);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x20, 0x30);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_POWERDOWN:
 		pr_debug("fb%d: DPMS off (no sync)\n", info->node);
-		svga_wcrt_mask(0x36, 0x30, 0x30);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x30, 0x30);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	}
 
@@ -603,6 +616,7 @@ static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 
 static int vt8623fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct vt8623fb_info *par = info->par;
 	unsigned int offset;
 
 	/* Calculate the offset */
@@ -616,7 +630,7 @@ static int vt8623fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *i
 	}
 
 	/* Set the offset */
-	svga_wcrt_multi(vt8623_start_address_regs, offset);
+	svga_wcrt_multi(par->state.vgabase, vt8623_start_address_regs, offset);
 
 	return 0;
 }
@@ -647,6 +661,8 @@ static struct fb_ops vt8623fb_ops = {
 
 static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct pci_bus_region bus_reg;
+	struct resource vga_res;
 	struct fb_info *info;
 	struct vt8623fb_info *par;
 	unsigned int memsize1, memsize2;
@@ -705,9 +721,18 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 		goto err_iomap_2;
 	}
 
+	bus_reg.start = 0;
+	bus_reg.end = 64 * 1024;
+
+	vga_res.flags = IORESOURCE_IO;
+
+	pcibios_bus_to_resource(dev, &vga_res, &bus_reg);
+
+	par->state.vgabase = (void __iomem *) vga_res.start;
+
 	/* Find how many physical memory there is on card */
-	memsize1 = (vga_rseq(NULL, 0x34) + 1) >> 1;
-	memsize2 = vga_rseq(NULL, 0x39) << 2;
+	memsize1 = (vga_rseq(par->state.vgabase, 0x34) + 1) >> 1;
+	memsize2 = vga_rseq(par->state.vgabase, 0x39) << 2;
 
 	if ((16 <= memsize1) && (memsize1 <= 64) && (memsize1 == memsize2))
 		info->screen_size = memsize1 << 20;

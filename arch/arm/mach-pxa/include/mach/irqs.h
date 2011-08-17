@@ -93,9 +93,6 @@
 #define GPIO_2_x_TO_IRQ(x)	(PXA_GPIO_IRQ_BASE + (x))
 #define IRQ_GPIO(x)	(((x) < 2) ? (IRQ_GPIO0 + (x)) : GPIO_2_x_TO_IRQ(x))
 
-#define IRQ_TO_GPIO_2_x(i)	((i) - PXA_GPIO_IRQ_BASE)
-#define IRQ_TO_GPIO(i)	(((i) < IRQ_GPIO(2)) ? ((i) - IRQ_GPIO0) : IRQ_TO_GPIO_2_x(i))
-
 /*
  * The following interrupts are for board specific purposes. Since
  * the kernel can only run on one machine at a time, we can re-use
@@ -106,5 +103,17 @@
 #define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_GPIO_IRQ_NUM)
 
 #define NR_IRQS			(IRQ_BOARD_START)
+
+#ifndef __ASSEMBLY__
+struct irq_data;
+struct pt_regs;
+
+void pxa_mask_irq(struct irq_data *);
+void pxa_unmask_irq(struct irq_data *);
+void icip_handle_irq(struct pt_regs *);
+void ichp_handle_irq(struct pt_regs *);
+
+void pxa_init_irq(int irq_nr, int (*set_wake)(struct irq_data *, unsigned int));
+#endif
 
 #endif /* __ASM_MACH_IRQS_H */

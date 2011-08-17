@@ -99,9 +99,27 @@ static const struct routing_scheme routing_defgv = {
 	.cnt = ARRAY_SIZE(routing_schemegv),
 };
 
+/* Specific to grabster av400 device */
+static const struct routing_scheme_item routing_schemeav400[] = {
+	[PVR2_CVAL_INPUT_COMPOSITE] = {
+		.vid = CX25840_COMPOSITE1,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_SVIDEO] = {
+		.vid = (CX25840_SVIDEO_LUMA2|CX25840_SVIDEO_CHROMA4),
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+};
+
+static const struct routing_scheme routing_defav400 = {
+	.def = routing_schemeav400,
+	.cnt = ARRAY_SIZE(routing_schemeav400),
+};
+
 static const struct routing_scheme *routing_schemes[] = {
 	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = &routing_def0,
 	[PVR2_ROUTING_SCHEME_GOTVIEW] = &routing_defgv,
+	[PVR2_ROUTING_SCHEME_AV400] = &routing_defav400,
 };
 
 void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)

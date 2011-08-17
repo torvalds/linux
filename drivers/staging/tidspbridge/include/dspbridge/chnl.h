@@ -25,27 +25,6 @@
 #include <dspbridge/chnlpriv.h>
 
 /*
- *  ======== chnl_close ========
- *  Purpose:
- *      Ensures all pending I/O on this channel is cancelled, discards all
- *      queued I/O completion notifications, then frees the resources allocated
- *      for this channel, and makes the corresponding logical channel id
- *      available for subsequent use.
- *  Parameters:
- *      chnl_obj:          Channel object handle.
- *  Returns:
- *      0:        Success;
- *      -EFAULT:    Invalid chnl_obj.
- *  Requires:
- *      chnl_init(void) called.
- *      No thread must be blocked on this channel's I/O completion event.
- *  Ensures:
- *      0:        The I/O completion event for this channel is freed.
- *                      chnl_obj is no longer valid.
- */
-extern int chnl_close(struct chnl_object *chnl_obj);
-
-/*
  *  ======== chnl_create ========
  *  Purpose:
  *      Create a channel manager object, responsible for opening new channels

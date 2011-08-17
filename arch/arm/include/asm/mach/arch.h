@@ -15,15 +15,17 @@ struct meminfo;
 struct sys_timer;
 
 struct machine_desc {
-	/*
-	 * Note! The first two elements are used
-	 * by assembler code in head.S, head-common.S
-	 */
 	unsigned int		nr;		/* architecture number	*/
 	const char		*name;		/* architecture name	*/
 	unsigned long		boot_params;	/* tagged list		*/
+	const char		**dt_compat;	/* array of device tree
+						 * 'compatible' strings	*/
 
 	unsigned int		nr_irqs;	/* number of IRQs */
+
+#ifdef CONFIG_ZONE_DMA
+	unsigned long		dma_zone_size;	/* size of DMA-able area */
+#endif
 
 	unsigned int		video_start;	/* start of video RAM	*/
 	unsigned int		video_end;	/* end of video RAM	*/
@@ -52,6 +54,13 @@ struct machine_desc {
 extern struct machine_desc *machine_desc;
 
 /*
+ * Machine type table - also only accessible during boot
+ */
+extern struct machine_desc __arch_info_begin[], __arch_info_end[];
+#define for_each_machine_desc(p)			\
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+
+/*
  * Set of macros to define architecture features.  This is built into
  * a table by the linker.
  */
@@ -64,5 +73,12 @@ static const struct machine_desc __mach_desc_##_type	\
 
 #define MACHINE_END				\
 };
+
+#define DT_MACHINE_START(_name, _namestr)		\
+static const struct machine_desc __mach_desc_##_name	\
+ __used							\
+ __attribute__((__section__(".arch.info.init"))) = {	\
+	.nr		= ~0,				\
+	.name		= _namestr,
 
 #endif

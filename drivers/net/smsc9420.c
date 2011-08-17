@@ -19,6 +19,7 @@
  ***************************************************************************
  */
 
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
@@ -364,7 +365,7 @@ static int smsc9420_eeprom_send_cmd(struct smsc9420_pdata *pd, u32 op)
 	}
 
 	if (e2cmd & E2P_CMD_EPC_TIMEOUT_) {
-		smsc_info(HW, "Error occured during eeprom operation");
+		smsc_info(HW, "Error occurred during eeprom operation");
 		return -EINVAL;
 	}
 
@@ -1029,6 +1030,8 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 	/* assign ownership to DMAC */
 	pd->tx_ring[index].status = TDES0_OWN_;
 	wmb();
+
+	skb_tx_timestamp(skb);
 
 	/* kick the DMA */
 	smsc9420_reg_write(pd, TX_POLL_DEMAND, 1);

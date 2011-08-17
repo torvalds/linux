@@ -39,7 +39,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -289,7 +288,6 @@ u8 MR_GetPhyParams(u32 ld, u64 stripRow, u16 stripRef, u64 *pdBlock,
 				/* Get dev handle from Pd */
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
 		}
-		retval = FALSE;
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;

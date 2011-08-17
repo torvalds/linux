@@ -34,6 +34,7 @@
 #include <linux/string.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/nand_bch.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
 #include <linux/list.h>
@@ -108,6 +109,7 @@ static unsigned int rptwear = 0;
 static unsigned int overridesize = 0;
 static char *cache_file = NULL;
 static unsigned int bbt;
+static unsigned int bch;
 
 module_param(first_id_byte,  uint, 0400);
 module_param(second_id_byte, uint, 0400);
@@ -132,6 +134,7 @@ module_param(rptwear,        uint, 0400);
 module_param(overridesize,   uint, 0400);
 module_param(cache_file,     charp, 0400);
 module_param(bbt,	     uint, 0400);
+module_param(bch,	     uint, 0400);
 
 MODULE_PARM_DESC(first_id_byte,  "The first byte returned by NAND Flash 'read ID' command (manufacturer ID)");
 MODULE_PARM_DESC(second_id_byte, "The second byte returned by NAND Flash 'read ID' command (chip ID)");
@@ -159,12 +162,14 @@ MODULE_PARM_DESC(bitflips,       "Maximum number of random bit flips per page (z
 MODULE_PARM_DESC(gravepages,     "Pages that lose data [: maximum reads (defaults to 3)]"
 				 " separated by commas e.g. 1401:2 means page 1401"
 				 " can be read only twice before failing");
-MODULE_PARM_DESC(rptwear,        "Number of erases inbetween reporting wear, if not zero");
+MODULE_PARM_DESC(rptwear,        "Number of erases between reporting wear, if not zero");
 MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the ID bytes. "
 				 "The size is specified in erase blocks and as the exponent of a power of two"
 				 " e.g. 5 means a size of 32 erase blocks");
 MODULE_PARM_DESC(cache_file,     "File to use to cache nand pages instead of memory");
 MODULE_PARM_DESC(bbt,		 "0 OOB, 1 BBT with marker in OOB, 2 BBT with marker in data area");
+MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
+				 "be correctable in 512-byte blocks");
 
 /* The largest possible page size */
 #define NS_LARGEST_PAGE_SIZE	4096
@@ -2309,7 +2314,43 @@ static int __init ns_init_module(void)
 	if ((retval = parse_gravepages()) != 0)
 		goto error;
 
-	if ((retval = nand_scan(nsmtd, 1)) != 0) {
+	retval = nand_scan_ident(nsmtd, 1, NULL);
+	if (retval) {
+		NS_ERR("cannot scan NAND Simulator device\n");
+		if (retval > 0)
+			retval = -ENXIO;
+		goto error;
+	}
+
+	if (bch) {
+		unsigned int eccsteps, eccbytes;
+		if (!mtd_nand_has_bch()) {
+			NS_ERR("BCH ECC support is disabled\n");
+			retval = -EINVAL;
+			goto error;
+		}
+		/* use 512-byte ecc blocks */
+		eccsteps = nsmtd->writesize/512;
+		eccbytes = (bch*13+7)/8;
+		/* do not bother supporting small page devices */
+		if ((nsmtd->oobsize < 64) || !eccsteps) {
+			NS_ERR("bch not available on small page devices\n");
+			retval = -EINVAL;
+			goto error;
+		}
+		if ((eccbytes*eccsteps+2) > nsmtd->oobsize) {
+			NS_ERR("invalid bch value %u\n", bch);
+			retval = -EINVAL;
+			goto error;
+		}
+		chip->ecc.mode = NAND_ECC_SOFT_BCH;
+		chip->ecc.size = 512;
+		chip->ecc.bytes = eccbytes;
+		NS_INFO("using %u-bit/%u bytes BCH ECC\n", bch, chip->ecc.size);
+	}
+
+	retval = nand_scan_tail(nsmtd);
+	if (retval) {
 		NS_ERR("can't register NAND Simulator\n");
 		if (retval > 0)
 			retval = -ENXIO;
@@ -2342,7 +2383,9 @@ static int __init ns_init_module(void)
 		goto err_exit;
 
 	/* Register NAND partitions */
-	if ((retval = add_mtd_partitions(nsmtd, &nand->partitions[0], nand->nbparts)) != 0)
+	retval = mtd_device_register(nsmtd, &nand->partitions[0],
+				     nand->nbparts);
+	if (retval != 0)
 		goto err_exit;
 
         return 0;

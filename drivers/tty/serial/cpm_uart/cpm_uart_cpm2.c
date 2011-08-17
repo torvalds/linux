@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/serial/cpm_uart_cpm2.c
- *
  *  Driver for CPM (SCC/SMC) serial ports; CPM2 definitions
  *
  *  Maintainer: Kumar Gala (galak@kernel.crashing.org) (CPM2)

@@ -499,7 +499,7 @@ scsi_netlink_init(void)
 				SCSI_NL_GRP_CNT, scsi_nl_rcv_msg, NULL,
 				THIS_MODULE);
 	if (!scsi_nl_sock) {
-		printk(KERN_ERR "%s: register of recieve handler failed\n",
+		printk(KERN_ERR "%s: register of receive handler failed\n",
 				__func__);
 		netlink_unregister_notifier(&scsi_netlink_notifier);
 		return;

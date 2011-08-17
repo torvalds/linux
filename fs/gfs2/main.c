@@ -14,7 +14,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfs2_ondisk.h>
-#include <asm/atomic.h>
+#include <linux/rcupdate.h>
+#include <linux/rculist_bl.h>
+#include <linux/atomic.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -39,18 +41,20 @@ static void gfs2_init_inode_once(void *foo)
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
 	ip->i_alloc = NULL;
+	ip->i_hash_cache = NULL;
 }
 
 static void gfs2_init_glock_once(void *foo)
 {
 	struct gfs2_glock *gl = foo;
 
-	INIT_HLIST_NODE(&gl->gl_list);
+	INIT_HLIST_BL_NODE(&gl->gl_list);
 	spin_lock_init(&gl->gl_spin);
 	INIT_LIST_HEAD(&gl->gl_holders);
 	INIT_LIST_HEAD(&gl->gl_lru);
 	INIT_LIST_HEAD(&gl->gl_ail_list);
 	atomic_set(&gl->gl_ail_count, 0);
+	atomic_set(&gl->gl_revokes, 0);
 }
 
 static void gfs2_init_gl_aspace_once(void *foo)
@@ -143,7 +147,7 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_register_debugfs();
 
-	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
+	printk("GFS2 installed\n");
 
 	return 0;
 
@@ -190,6 +194,8 @@ static void __exit exit_gfs2_fs(void)
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 	destroy_workqueue(gfs_recovery_wq);
+
+	rcu_barrier();
 
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

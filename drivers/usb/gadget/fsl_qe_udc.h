@@ -207,15 +207,15 @@ struct qe_frame{
 
 /* Frame status field */
 /* Receive side */
-#define FRAME_OK               0x00000000 /* Frame tranmitted or received OK */
-#define FRAME_ERROR            0x80000000 /* Error occured on frame */
+#define FRAME_OK               0x00000000 /* Frame transmitted or received OK */
+#define FRAME_ERROR            0x80000000 /* Error occurred on frame */
 #define START_FRAME_LOST       0x40000000 /* START_FRAME_LOST */
 #define END_FRAME_LOST         0x20000000 /* END_FRAME_LOST */
 #define RX_ER_NONOCT           0x10000000 /* Rx Non Octet Aligned Packet */
 #define RX_ER_BITSTUFF         0x08000000 /* Frame Aborted --Received packet
 					     with bit stuff error */
 #define RX_ER_CRC              0x04000000 /* Received packet with CRC error */
-#define RX_ER_OVERUN           0x02000000 /* Over-run occured on reception */
+#define RX_ER_OVERUN           0x02000000 /* Over-run occurred on reception */
 #define RX_ER_PID              0x01000000 /* Wrong PID received */
 /* Tranmit side */
 #define TX_ER_NAK              0x00800000 /* Received NAK handshake */
@@ -379,7 +379,7 @@ struct qe_udc {
 #define T_LSP         0x01000000         /* Low-speed transaction */
 #define T_PID         0x00c00000         /* packet id */
 #define T_NAK         0x00100000         /* No ack. */
-#define T_STAL        0x00080000         /* Stall recieved */
+#define T_STAL        0x00080000         /* Stall received */
 #define T_TO          0x00040000         /* time out */
 #define T_UN          0x00020000         /* underrun */
 

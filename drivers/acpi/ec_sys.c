@@ -24,10 +24,6 @@ MODULE_PARM_DESC(write_support, "Dangerous, reboot and removal of battery may "
 
 #define EC_SPACE_SIZE 256
 
-struct sysdev_class acpi_ec_sysdev_class = {
-	.name = "ec",
-};
-
 static struct dentry *acpi_ec_debugfs_dir;
 
 static int acpi_ec_open_io(struct inode *i, struct file *f)
@@ -96,7 +92,7 @@ static ssize_t acpi_ec_write_io(struct file *f, const char __user *buf,
 	return count;
 }
 
-static struct file_operations acpi_ec_io_ops = {
+static const struct file_operations acpi_ec_io_ops = {
 	.owner = THIS_MODULE,
 	.open  = acpi_ec_open_io,
 	.read  = acpi_ec_read_io,

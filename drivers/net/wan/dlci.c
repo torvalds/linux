@@ -28,6 +28,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -112,8 +114,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 
 	dlp = netdev_priv(dev);
 	if (!pskb_may_pull(skb, sizeof(*hdr))) {
-		printk(KERN_NOTICE "%s: invalid data no header\n",
-		       dev->name);
+		netdev_notice(dev, "invalid data no header\n");
 		dev->stats.rx_errors++;
 		kfree_skb(skb);
 		return;
@@ -126,7 +127,8 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 
 	if (hdr->control != FRAD_I_UI)
 	{
-		printk(KERN_NOTICE "%s: Invalid header flag 0x%02X.\n", dev->name, hdr->control);
+		netdev_notice(dev, "Invalid header flag 0x%02X\n",
+			      hdr->control);
 		dev->stats.rx_errors++;
 	}
 	else
@@ -135,14 +137,18 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 			case FRAD_P_PADDING:
 				if (hdr->NLPID != FRAD_P_SNAP)
 				{
-					printk(KERN_NOTICE "%s: Unsupported NLPID 0x%02X.\n", dev->name, hdr->NLPID);
+					netdev_notice(dev, "Unsupported NLPID 0x%02X\n",
+						      hdr->NLPID);
 					dev->stats.rx_errors++;
 					break;
 				}
 	 
 				if (hdr->OUI[0] + hdr->OUI[1] + hdr->OUI[2] != 0)
 				{
-					printk(KERN_NOTICE "%s: Unsupported organizationally unique identifier 0x%02X-%02X-%02X.\n", dev->name, hdr->OUI[0], hdr->OUI[1], hdr->OUI[2]);
+					netdev_notice(dev, "Unsupported organizationally unique identifier 0x%02X-%02X-%02X\n",
+						      hdr->OUI[0],
+						      hdr->OUI[1],
+						      hdr->OUI[2]);
 					dev->stats.rx_errors++;
 					break;
 				}
@@ -163,12 +169,14 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 			case FRAD_P_SNAP:
 			case FRAD_P_Q933:
 			case FRAD_P_CLNP:
-				printk(KERN_NOTICE "%s: Unsupported NLPID 0x%02X.\n", dev->name, hdr->pad);
+				netdev_notice(dev, "Unsupported NLPID 0x%02X\n",
+					      hdr->pad);
 				dev->stats.rx_errors++;
 				break;
 
 			default:
-				printk(KERN_NOTICE "%s: Invalid pad byte 0x%02X.\n", dev->name, hdr->pad);
+				netdev_notice(dev, "Invalid pad byte 0x%02X\n",
+					      hdr->pad);
 				dev->stats.rx_errors++;
 				break;				
 		}
@@ -340,10 +348,6 @@ static int dlci_add(struct dlci_add *dlci)
 			goto err2;
 		}
 	}
-
-	err = dev_alloc_name(master, master->name);
-	if (err < 0)
-		goto err2;
 
 	*(short *)(master->dev_addr) = dlci->dlci;
 

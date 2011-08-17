@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h> /* printk() */
 #include <linux/fs.h> /* everything... */
+#include <linux/scatterlist.h>
 #include <linux/slab.h> /* kmalloc() */
 #include <linux/dmaengine.h>
 #include <linux/platform_device.h>
@@ -40,6 +41,8 @@ struct coh901318_desc {
 	struct coh901318_lli *lli;
 	enum dma_data_direction dir;
 	unsigned long flags;
+	u32 head_config;
+	u32 head_ctrl;
 };
 
 struct coh901318_base {
@@ -529,7 +532,7 @@ static void coh901318_pause(struct dma_chan *chan)
 	val = readl(virtbase + COH901318_CX_CFG +
 		    COH901318_CX_CFG_SPACING * channel);
 
-	/* Stopping infinit transfer */
+	/* Stopping infinite transfer */
 	if ((val & COH901318_CX_CTRL_TC_ENABLE) == 0 &&
 	    (val & COH901318_CX_CFG_CH_ENABLE))
 		cohc->stopped = 1;
@@ -660,6 +663,9 @@ static struct coh901318_desc *coh901318_queue_start(struct coh901318_chan *cohc)
 
 		coh901318_desc_submit(cohc, cohd);
 
+		/* Program the transaction head */
+		coh901318_set_conf(cohc, cohd->head_config);
+		coh901318_set_ctrl(cohc, cohd->head_ctrl);
 		coh901318_prep_linked_list(cohc, cohd->lli);
 
 		/* start dma job on this channel */
@@ -849,7 +855,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 
 				/* Must clear TC interrupt before calling
 				 * dma_tc_handle
-				 * in case tc_handle initate a new dma job
+				 * in case tc_handle initiate a new dma job
 				 */
 				__set_bit(i, virtbase + COH901318_TC_INT_CLEAR1);
 
@@ -894,7 +900,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 				}
 				/* Must clear TC interrupt before calling
 				 * dma_tc_handle
-				 * in case tc_handle initate a new dma job
+				 * in case tc_handle initiate a new dma job
 				 */
 				__set_bit(i, virtbase + COH901318_TC_INT_CLEAR2);
 
@@ -1090,8 +1096,6 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	} else
 		goto err_direction;
 
-	coh901318_set_conf(cohc, config);
-
 	/* The dma only supports transmitting packages up to
 	 * MAX_DMA_PACKET_SIZE. Calculate to total number of
 	 * dma elemts required to send the entire sg list
@@ -1128,16 +1132,18 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (ret)
 		goto err_lli_fill;
 
-	/*
-	 * Set the default ctrl for the channel to the one from the lli,
-	 * things may have changed due to odd buffer alignment etc.
-	 */
-	coh901318_set_ctrl(cohc, lli->control);
 
 	COH_DBG(coh901318_list_print(cohc, lli));
 
 	/* Pick a descriptor to handle this transfer */
 	cohd = coh901318_desc_get(cohc);
+	cohd->head_config = config;
+	/*
+	 * Set the default head ctrl for the channel to the one from the
+	 * lli, things may have changed due to odd buffer alignment
+	 * etc.
+	 */
+	cohd->head_ctrl = lli->control;
 	cohd->dir = direction;
 	cohd->flags = flags;
 	cohd->desc.tx_submit = coh901318_tx_submit;
@@ -1610,7 +1616,7 @@ int __init coh901318_init(void)
 {
 	return platform_driver_probe(&coh901318_driver, coh901318_probe);
 }
-arch_initcall(coh901318_init);
+subsys_initcall(coh901318_init);
 
 void __exit coh901318_exit(void)
 {

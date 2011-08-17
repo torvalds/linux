@@ -39,6 +39,7 @@
 #include <linux/bitops.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/slab.h>
 
 #include <asm/processor.h>
@@ -2053,13 +2054,6 @@ static void emac_ethtool_get_pauseparam(struct net_device *ndev,
 	mutex_unlock(&dev->link_lock);
 }
 
-static u32 emac_ethtool_get_rx_csum(struct net_device *ndev)
-{
-	struct emac_instance *dev = netdev_priv(ndev);
-
-	return dev->tah_dev != NULL;
-}
-
 static int emac_get_regs_len(struct emac_instance *dev)
 {
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4))
@@ -2203,15 +2197,11 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_ringparam = emac_ethtool_get_ringparam,
 	.get_pauseparam = emac_ethtool_get_pauseparam,
 
-	.get_rx_csum = emac_ethtool_get_rx_csum,
-
 	.get_strings = emac_ethtool_get_strings,
 	.get_sset_count = emac_ethtool_get_sset_count,
 	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
 
 	.get_link = ethtool_op_get_link,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 };
 
 static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
@@ -2517,18 +2507,6 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
 	const void *p;
-	unsigned int plen;
-	const char *pm, *phy_modes[] = {
-		[PHY_MODE_NA] = "",
-		[PHY_MODE_MII] = "mii",
-		[PHY_MODE_RMII] = "rmii",
-		[PHY_MODE_SMII] = "smii",
-		[PHY_MODE_RGMII] = "rgmii",
-		[PHY_MODE_TBI] = "tbi",
-		[PHY_MODE_GMII] = "gmii",
-		[PHY_MODE_RTBI] = "rtbi",
-		[PHY_MODE_SGMII] = "sgmii",
-	};
 
 	/* Read config from device-tree */
 	if (emac_read_uint_prop(np, "mal-device", &dev->mal_ph, 1))
@@ -2577,23 +2555,9 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		dev->mal_burst_size = 256;
 
 	/* PHY mode needs some decoding */
-	dev->phy_mode = PHY_MODE_NA;
-	pm = of_get_property(np, "phy-mode", &plen);
-	if (pm != NULL) {
-		int i;
-		for (i = 0; i < ARRAY_SIZE(phy_modes); i++)
-			if (!strcasecmp(pm, phy_modes[i])) {
-				dev->phy_mode = i;
-				break;
-			}
-	}
-
-	/* Backward compat with non-final DT */
-	if (dev->phy_mode == PHY_MODE_NA && pm != NULL && plen == 4) {
-		u32 nmode = *(const u32 *)pm;
-		if (nmode > PHY_MODE_NA && nmode <= PHY_MODE_SGMII)
-			dev->phy_mode = nmode;
-	}
+	dev->phy_mode = of_get_phy_mode(np);
+	if (dev->phy_mode < 0)
+		dev->phy_mode = PHY_MODE_NA;
 
 	/* Check EMAC version */
 	if (of_device_is_compatible(np, "ibm,emac4sync")) {
@@ -2719,8 +2683,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_change_mtu		= emac_change_mtu,
 };
 
-static int __devinit emac_probe(struct platform_device *ofdev,
-				const struct of_device_id *match)
+static int __devinit emac_probe(struct platform_device *ofdev)
 {
 	struct net_device *ndev;
 	struct emac_instance *dev;
@@ -2782,7 +2745,7 @@ static int __devinit emac_probe(struct platform_device *ofdev,
 	}
 	// TODO : request_mem_region
 	dev->emacp = ioremap(dev->rsrc_regs.start,
-			     dev->rsrc_regs.end - dev->rsrc_regs.start + 1);
+			     resource_size(&dev->rsrc_regs));
 	if (dev->emacp == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",
 		       np->full_name);
@@ -2860,8 +2823,10 @@ static int __devinit emac_probe(struct platform_device *ofdev,
 	if (err != 0)
 		goto err_detach_tah;
 
-	if (dev->tah_dev)
-		ndev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+	if (dev->tah_dev) {
+		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG;
+		ndev->features |= ndev->hw_features | NETIF_F_RXCSUM;
+	}
 	ndev->watchdog_timeo = 5 * HZ;
 	if (emac_phy_supports_gige(dev->phy_mode)) {
 		ndev->netdev_ops = &emac_gige_netdev_ops;
@@ -2994,7 +2959,7 @@ static struct of_device_id emac_match[] =
 };
 MODULE_DEVICE_TABLE(of, emac_match);
 
-static struct of_platform_driver emac_driver = {
+static struct platform_driver emac_driver = {
 	.driver = {
 		.name = "emac",
 		.owner = THIS_MODULE,
@@ -3069,7 +3034,7 @@ static int __init emac_init(void)
 	rc = tah_init();
 	if (rc)
 		goto err_rgmii;
-	rc = of_register_platform_driver(&emac_driver);
+	rc = platform_driver_register(&emac_driver);
 	if (rc)
 		goto err_tah;
 
@@ -3091,7 +3056,7 @@ static void __exit emac_exit(void)
 {
 	int i;
 
-	of_unregister_platform_driver(&emac_driver);
+	platform_driver_unregister(&emac_driver);
 
 	tah_exit();
 	rgmii_exit();

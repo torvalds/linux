@@ -205,29 +205,6 @@ static int ab3100_enable_regulator(struct regulator_dev *reg)
 		return err;
 	}
 
-	/* Per-regulator power on delay from spec */
-	switch (abreg->regreg) {
-	case AB3100_LDO_A: /* Fallthrough */
-	case AB3100_LDO_C: /* Fallthrough */
-	case AB3100_LDO_D: /* Fallthrough */
-	case AB3100_LDO_E: /* Fallthrough */
-	case AB3100_LDO_H: /* Fallthrough */
-	case AB3100_LDO_K:
-		udelay(200);
-		break;
-	case AB3100_LDO_F:
-		udelay(600);
-		break;
-	case AB3100_LDO_G:
-		udelay(400);
-		break;
-	case AB3100_BUCK:
-		mdelay(1);
-		break;
-	default:
-		break;
-	}
-
 	return 0;
 }
 
@@ -449,11 +426,37 @@ static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 	return abreg->plfdata->external_voltage;
 }
 
+static int ab3100_enable_time_regulator(struct regulator_dev *reg)
+{
+	struct ab3100_regulator *abreg = reg->reg_data;
+
+	/* Per-regulator power on delay from spec */
+	switch (abreg->regreg) {
+	case AB3100_LDO_A: /* Fallthrough */
+	case AB3100_LDO_C: /* Fallthrough */
+	case AB3100_LDO_D: /* Fallthrough */
+	case AB3100_LDO_E: /* Fallthrough */
+	case AB3100_LDO_H: /* Fallthrough */
+	case AB3100_LDO_K:
+		return 200;
+	case AB3100_LDO_F:
+		return 600;
+	case AB3100_LDO_G:
+		return 400;
+	case AB3100_BUCK:
+		return 1000;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static struct regulator_ops regulator_ops_fixed = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
 	.get_voltage = ab3100_get_voltage_regulator,
+	.enable_time = ab3100_enable_time_regulator,
 };
 
 static struct regulator_ops regulator_ops_variable = {
@@ -463,6 +466,7 @@ static struct regulator_ops regulator_ops_variable = {
 	.get_voltage = ab3100_get_voltage_regulator,
 	.set_voltage = ab3100_set_voltage_regulator,
 	.list_voltage = ab3100_list_voltage_regulator,
+	.enable_time = ab3100_enable_time_regulator,
 };
 
 static struct regulator_ops regulator_ops_variable_sleepable = {
@@ -473,6 +477,7 @@ static struct regulator_ops regulator_ops_variable_sleepable = {
 	.set_voltage = ab3100_set_voltage_regulator,
 	.set_suspend_voltage = ab3100_set_suspend_voltage_regulator,
 	.list_voltage = ab3100_list_voltage_regulator,
+	.enable_time = ab3100_enable_time_regulator,
 };
 
 /*

@@ -92,6 +92,7 @@ static struct snd_soc_ops at91sam9g20ek_ops = {
 };
 
 static int at91sam9g20ek_set_bias_level(struct snd_soc_card *card,
+					struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
 	static int mclk_on;
@@ -146,7 +147,7 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 			"at91sam9g20ek_wm8731 "
 			": at91sam9g20ek_wm8731_init() called\n");
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_MCLK,
 		MCLK_RATE, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		printk(KERN_ERR "Failed to set WM8731 SYSCLK: %d\n", ret);
@@ -184,7 +185,7 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
 	.platform_name = "atmel-pcm-audio",
-	.codec_name = "wm8731-codec.0-001b",
+	.codec_name = "wm8731.0-001b",
 	.ops = &at91sam9g20ek_ops,
 };
 

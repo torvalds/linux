@@ -2,7 +2,7 @@
  * net/tipc/msg.c: TIPC message header routines
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,24 +61,8 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 	msg_set_size(m, hsize);
 	msg_set_prevnode(m, tipc_own_addr);
 	msg_set_type(m, type);
-	if (!msg_short(m)) {
-		msg_set_orignode(m, tipc_own_addr);
-		msg_set_destnode(m, destnode);
-	}
-}
-
-/**
- * tipc_msg_calc_data_size - determine total data size for message
- */
-
-int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
-{
-	int dsz = 0;
-	int i;
-
-	for (i = 0; i < num_sect; i++)
-		dsz += msg_sect[i].iov_len;
-	return dsz;
+	msg_set_orignode(m, tipc_own_addr);
+	msg_set_destnode(m, destnode);
 }
 
 /**
@@ -89,18 +73,13 @@ int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
  * Returns message data size or errno
  */
 
-int tipc_msg_build(struct tipc_msg *hdr,
-			    struct iovec const *msg_sect, u32 num_sect,
+int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
+		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf)
 {
 	int dsz, sz, hsz, pos, res, cnt;
 
-	dsz = tipc_msg_calc_data_size(msg_sect, num_sect);
-	if (unlikely(dsz > TIPC_MAX_USER_MSG_SIZE)) {
-		*buf = NULL;
-		return -EINVAL;
-	}
-
+	dsz = total_len;
 	pos = hsz = msg_hdr_sz(hdr);
 	sz = hsz + dsz;
 	msg_set_size(hdr, sz);
@@ -192,8 +171,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE %u", msg_type(msg));
 		}
-		if (msg_routed(msg) && !msg_non_seq(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):",
 				    msg_reroute_cnt(msg));
@@ -210,8 +187,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN:%x", msg_type(msg));
 		}
-		if (msg_routed(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):",
 				    msg_reroute_cnt(msg));
@@ -232,13 +207,10 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));
 		}
-		if (msg_routed(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):", msg_reroute_cnt(msg));
 		break;
 	case LINK_PROTOCOL:
-		tipc_printf(buf, "PROT:TIM(%u):", msg_timestamp(msg));
 		switch (msg_type(msg)) {
 		case STATE_MSG:
 			tipc_printf(buf, "STATE:");
@@ -270,33 +242,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		case ORIGINAL_MSG:
 			tipc_printf(buf, "ORIG:");
 			tipc_printf(buf, "EXP(%u)", msg_msgcnt(msg));
-			break;
-		default:
-			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));
-		}
-		break;
-	case ROUTE_DISTRIBUTOR:
-		tipc_printf(buf, "ROUTING_MNG:");
-		switch (msg_type(msg)) {
-		case EXT_ROUTING_TABLE:
-			tipc_printf(buf, "EXT_TBL:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case LOCAL_ROUTING_TABLE:
-			tipc_printf(buf, "LOCAL_TBL:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case SLAVE_ROUTING_TABLE:
-			tipc_printf(buf, "DP_TBL:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case ROUTE_ADDITION:
-			tipc_printf(buf, "ADD:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case ROUTE_REMOVAL:
-			tipc_printf(buf, "REMOVE:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
 			break;
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));
@@ -381,20 +326,15 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 			tipc_printf(buf, ":OPRT(%u):", msg_origport(msg));
 			tipc_printf(buf, ":DPRT(%u):", msg_destport(msg));
 		}
-		if (msg_routed(msg) && !msg_non_seq(msg))
-			tipc_printf(buf, ":TSEQN(%u)", msg_transp_seqno(msg));
 	}
 	if (msg_user(msg) == NAME_DISTRIBUTOR) {
 		tipc_printf(buf, ":ONOD(%x):", msg_orignode(msg));
 		tipc_printf(buf, ":DNOD(%x):", msg_destnode(msg));
-		if (msg_routed(msg))
-			tipc_printf(buf, ":CSEQN(%u)", msg_transp_seqno(msg));
 	}
 
 	if (msg_user(msg) ==  LINK_CONFIG) {
 		u32 *raw = (u32 *)msg;
 		struct tipc_media_addr *orig = (struct tipc_media_addr *)&raw[5];
-		tipc_printf(buf, ":REQL(%u):", msg_req_links(msg));
 		tipc_printf(buf, ":DDOM(%x):", msg_dest_domain(msg));
 		tipc_printf(buf, ":NETID(%u):", msg_bc_netid(msg));
 		tipc_media_addr_printf(buf, orig);

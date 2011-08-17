@@ -37,7 +37,7 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/mman.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * LOCKING:
@@ -62,7 +62,7 @@
  * This mutex is acquired by ep_free() during the epoll file
  * cleanup path and it is also acquired by eventpoll_release_file()
  * if a file has been pushed inside an epoll set and it is then
- * close()d without a previous call toepoll_ctl(EPOLL_CTL_DEL).
+ * close()d without a previous call to epoll_ctl(EPOLL_CTL_DEL).
  * It is also acquired when inserting an epoll fd onto another epoll
  * fd. We do this so that we walk the epoll tree and ensure that this
  * insertion does not create a cycle of epoll file descriptors, which
@@ -152,11 +152,11 @@ struct epitem {
 
 /*
  * This structure is stored inside the "private_data" member of the file
- * structure and rapresent the main data sructure for the eventpoll
+ * structure and represents the main data structure for the eventpoll
  * interface.
  */
 struct eventpoll {
-	/* Protect the this structure access */
+	/* Protect the access to this structure */
 	spinlock_t lock;
 
 	/*
@@ -181,7 +181,7 @@ struct eventpoll {
 
 	/*
 	 * This is a single linked list that chains all the "struct epitem" that
-	 * happened while transfering ready events to userspace w/out
+	 * happened while transferring ready events to userspace w/out
 	 * holding ->lock.
 	 */
 	struct epitem *ovflist;
@@ -313,6 +313,19 @@ static void ep_nested_calls_init(struct nested_calls *ncalls)
 {
 	INIT_LIST_HEAD(&ncalls->tasks_call_list);
 	spin_lock_init(&ncalls->lock);
+}
+
+/**
+ * ep_events_available - Checks if ready events might be available.
+ *
+ * @ep: Pointer to the eventpoll context.
+ *
+ * Returns: Returns a value different than zero if ready events are available,
+ *          or zero otherwise.
+ */
+static inline int ep_events_available(struct eventpoll *ep)
+{
+	return !list_empty(&ep->rdllist) || ep->ovflist != EP_UNACTIVE_PTR;
 }
 
 /**
@@ -593,7 +606,7 @@ static void ep_free(struct eventpoll *ep)
 	 * We do not need to hold "ep->mtx" here because the epoll file
 	 * is on the way to be removed and no one has references to it
 	 * anymore. The only hit might come from eventpoll_release_file() but
-	 * holding "epmutex" is sufficent here.
+	 * holding "epmutex" is sufficient here.
 	 */
 	mutex_lock(&epmutex);
 
@@ -707,7 +720,7 @@ void eventpoll_release_file(struct file *file)
 	/*
 	 * We don't want to get "file->f_lock" because it is not
 	 * necessary. It is not necessary because we're in the "struct file"
-	 * cleanup path, and this means that noone is using this file anymore.
+	 * cleanup path, and this means that no one is using this file anymore.
 	 * So, for example, epoll_ctl() cannot hit here since if we reach this
 	 * point, the file counter already went to zero and fget() would fail.
 	 * The only hit might come from ep_free() but by holding the mutex
@@ -793,7 +806,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 /*
  * This is the callback that is passed to the wait queue wakeup
- * machanism. It is called by the stored file descriptors when they
+ * mechanism. It is called by the stored file descriptors when they
  * have events to report.
  */
 static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *key)
@@ -824,9 +837,9 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 		goto out_unlock;
 
 	/*
-	 * If we are trasfering events to userspace, we can hold no locks
+	 * If we are transferring events to userspace, we can hold no locks
 	 * (because we're accessing user memory, and because of linux f_op->poll()
-	 * semantics). All the events that happens during that period of time are
+	 * semantics). All the events that happen during that period of time are
 	 * chained in ep->ovflist and requeued later on.
 	 */
 	if (unlikely(ep->ovflist != EP_UNACTIVE_PTR)) {
@@ -1099,7 +1112,7 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 				 * Trigger mode, we need to insert back inside
 				 * the ready list, so that the next call to
 				 * epoll_wait() will check again the events
-				 * availability. At this point, noone can insert
+				 * availability. At this point, no one can insert
 				 * into ep->rdllist besides us. The epoll_ctl()
 				 * callers are locked out by
 				 * ep_scan_ready_list() holding "mtx" and the
@@ -1135,12 +1148,29 @@ static inline struct timespec ep_set_mstimeout(long ms)
 	return timespec_add_safe(now, ts);
 }
 
+/**
+ * ep_poll - Retrieves ready events, and delivers them to the caller supplied
+ *           event buffer.
+ *
+ * @ep: Pointer to the eventpoll context.
+ * @events: Pointer to the userspace buffer where the ready events should be
+ *          stored.
+ * @maxevents: Size (in terms of number of events) of the caller event buffer.
+ * @timeout: Maximum timeout for the ready events fetch operation, in
+ *           milliseconds. If the @timeout is zero, the function will not block,
+ *           while if the @timeout is less than zero, the function will block
+ *           until at least one event has been retrieved (or an error
+ *           occurred).
+ *
+ * Returns: Returns the number of ready events which have been fetched, or an
+ *          error code, in case of error.
+ */
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
-	int res, eavail, timed_out = 0;
+	int res = 0, eavail, timed_out = 0;
 	unsigned long flags;
-	long slack;
+	long slack = 0;
 	wait_queue_t wait;
 	ktime_t expires, *to = NULL;
 
@@ -1151,14 +1181,19 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		to = &expires;
 		*to = timespec_to_ktime(end_time);
 	} else if (timeout == 0) {
+		/*
+		 * Avoid the unnecessary trip to the wait queue loop, if the
+		 * caller specified a non blocking operation.
+		 */
 		timed_out = 1;
+		spin_lock_irqsave(&ep->lock, flags);
+		goto check_events;
 	}
 
-retry:
+fetch_events:
 	spin_lock_irqsave(&ep->lock, flags);
 
-	res = 0;
-	if (list_empty(&ep->rdllist)) {
+	if (!ep_events_available(ep)) {
 		/*
 		 * We don't have any available event to return to the caller.
 		 * We need to sleep here, and we will be wake up by
@@ -1174,7 +1209,7 @@ retry:
 			 * to TASK_INTERRUPTIBLE before doing the checks.
 			 */
 			set_current_state(TASK_INTERRUPTIBLE);
-			if (!list_empty(&ep->rdllist) || timed_out)
+			if (ep_events_available(ep) || timed_out)
 				break;
 			if (signal_pending(current)) {
 				res = -EINTR;
@@ -1191,8 +1226,9 @@ retry:
 
 		set_current_state(TASK_RUNNING);
 	}
+check_events:
 	/* Is it worth to try to dig for events ? */
-	eavail = !list_empty(&ep->rdllist) || ep->ovflist != EP_UNACTIVE_PTR;
+	eavail = ep_events_available(ep);
 
 	spin_unlock_irqrestore(&ep->lock, flags);
 
@@ -1203,7 +1239,7 @@ retry:
 	 */
 	if (!res && eavail &&
 	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
-		goto retry;
+		goto fetch_events;
 
 	return res;
 }

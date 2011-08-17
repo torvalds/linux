@@ -339,7 +339,7 @@ _GLOBAL(real_205_writeb)
 #endif /* CONFIG_PPC_PASEMI */
 
 
-#ifdef CONFIG_CPU_FREQ_PMAC64
+#if defined(CONFIG_CPU_FREQ_PMAC64) || defined(CONFIG_CPU_FREQ_MAPLE)
 /*
  * SCOM access functions for 970 (FX only for now)
  *
@@ -408,7 +408,7 @@ _GLOBAL(scom970_write)
 	/* restore interrupts */
 	mtmsrd	r5,1
 	blr
-#endif /* CONFIG_CPU_FREQ_PMAC64 */
+#endif /* CONFIG_CPU_FREQ_PMAC64 || CONFIG_CPU_FREQ_MAPLE */
 
 
 /*
@@ -462,7 +462,8 @@ _GLOBAL(disable_kernel_fp)
  * wait for the flag to change, indicating this kernel is going away but
  * the slave code for the next one is at addresses 0 to 100.
  *
- * This is used by all slaves.
+ * This is used by all slaves, even those that did not find a matching
+ * paca in the secondary startup code.
  *
  * Physical (hardware) cpu id should be in r3.
  */
@@ -470,10 +471,6 @@ _GLOBAL(kexec_wait)
 	bl	1f
 1:	mflr	r5
 	addi	r5,r5,kexec_flag-1b
-
-	li	r4,KEXEC_STATE_REAL_MODE
-	stb	r4,PACAKEXECSTATE(r13)
-	SYNC
 
 99:	HMT_LOW
 #ifdef CONFIG_KEXEC		/* use no memory without kexec */
@@ -499,11 +496,17 @@ kexec_flag:
  *
  * get phys id from paca
  * switch to real mode
+ * mark the paca as no longer used
  * join other cpus in kexec_wait(phys_id)
  */
 _GLOBAL(kexec_smp_wait)
 	lhz	r3,PACAHWCPUID(r13)
 	bl	real_mode
+
+	li	r4,KEXEC_STATE_REAL_MODE
+	stb	r4,PACAKEXECSTATE(r13)
+	SYNC
+
 	b	.kexec_wait
 
 /*

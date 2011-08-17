@@ -18,6 +18,7 @@
 /*
  * Reprograms ULPD and CKCTL.
  */
+	.align	3
 ENTRY(omap1_sram_reprogram_clock)
 	stmfd	sp!, {r0 - r12, lr}		@ save registers on stack
 

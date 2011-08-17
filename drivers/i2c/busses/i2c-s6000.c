@@ -318,7 +318,7 @@ static int __devinit s6i2c_probe(struct platform_device *dev)
 	rc = request_irq(iface->irq, s6i2c_interrupt_entry,
 			 IRQF_SHARED, dev->name, iface);
 	if (rc) {
-		dev_err(&p_adap->dev, "s6i2c: cant get IRQ %d\n", iface->irq);
+		dev_err(&p_adap->dev, "s6i2c: can't get IRQ %d\n", iface->irq);
 		goto err_clk_dis;
 	}
 
@@ -341,10 +341,7 @@ static int __devinit s6i2c_probe(struct platform_device *dev)
 	i2c_wr16(iface, S6_I2C_TXTL, 0);
 
 	platform_set_drvdata(dev, iface);
-	if (bus_num < 0)
-		rc = i2c_add_adapter(p_adap);
-	else
-		rc = i2c_add_numbered_adapter(p_adap);
+	rc = i2c_add_numbered_adapter(p_adap);
 	if (rc)
 		goto err_irq_free;
 	return 0;

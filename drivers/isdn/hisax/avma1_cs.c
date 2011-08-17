@@ -146,7 +146,7 @@ static void avma1cs_release(struct pcmcia_device *link)
 	pcmcia_disable_device(link);
 } /* avma1cs_release */
 
-static struct pcmcia_device_id avma1cs_ids[] = {
+static const struct pcmcia_device_id avma1cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN A", 0x95d42008, 0xadc9d4bb),
 	PCMCIA_DEVICE_PROD_ID12("ISDN", "CARD", 0x8d9761c8, 0x01c5aa7b),
 	PCMCIA_DEVICE_NULL

@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -536,7 +536,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	efx_oword_t reg;
 	int link_speed, isolate;
 
-	isolate = (efx->reset_pending != RESET_TYPE_NONE);
+	isolate = !!ACCESS_ONCE(efx->reset_pending);
 
 	switch (link_state->speed) {
 	case 10000: link_speed = 3; break;
@@ -692,7 +692,7 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 	efx_oword_t md_stat;
 	int count;
 
-	/* wait upto 50ms - taken max from datasheet */
+	/* wait up to 50ms - taken max from datasheet */
 	for (count = 0; count < 5000; count++) {
 		efx_reado(efx, &md_stat, FR_AB_MD_STAT);
 		if (EFX_OWORD_FIELD(md_stat, FRF_AB_MD_BSY) == 0) {
@@ -1051,6 +1051,49 @@ static int falcon_b0_test_registers(struct efx_nic *efx)
  **************************************************************************
  */
 
+static enum reset_type falcon_map_reset_reason(enum reset_type reason)
+{
+	switch (reason) {
+	case RESET_TYPE_RX_RECOVERY:
+	case RESET_TYPE_RX_DESC_FETCH:
+	case RESET_TYPE_TX_DESC_FETCH:
+	case RESET_TYPE_TX_SKIP:
+		/* These can occasionally occur due to hardware bugs.
+		 * We try to reset without disrupting the link.
+		 */
+		return RESET_TYPE_INVISIBLE;
+	default:
+		return RESET_TYPE_ALL;
+	}
+}
+
+static int falcon_map_reset_flags(u32 *flags)
+{
+	enum {
+		FALCON_RESET_INVISIBLE = (ETH_RESET_DMA | ETH_RESET_FILTER |
+					  ETH_RESET_OFFLOAD | ETH_RESET_MAC),
+		FALCON_RESET_ALL = FALCON_RESET_INVISIBLE | ETH_RESET_PHY,
+		FALCON_RESET_WORLD = FALCON_RESET_ALL | ETH_RESET_IRQ,
+	};
+
+	if ((*flags & FALCON_RESET_WORLD) == FALCON_RESET_WORLD) {
+		*flags &= ~FALCON_RESET_WORLD;
+		return RESET_TYPE_WORLD;
+	}
+
+	if ((*flags & FALCON_RESET_ALL) == FALCON_RESET_ALL) {
+		*flags &= ~FALCON_RESET_ALL;
+		return RESET_TYPE_ALL;
+	}
+
+	if ((*flags & FALCON_RESET_INVISIBLE) == FALCON_RESET_INVISIBLE) {
+		*flags &= ~FALCON_RESET_INVISIBLE;
+		return RESET_TYPE_INVISIBLE;
+	}
+
+	return -EINVAL;
+}
+
 /* Resets NIC to known state.  This routine must be called in process
  * context and is allowed to sleep. */
 static int __falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
@@ -1221,7 +1264,7 @@ static int falcon_reset_sram(struct efx_nic *efx)
 
 			return 0;
 		}
-	} while (++count < 20);	/* wait upto 0.4 sec */
+	} while (++count < 20);	/* wait up to 0.4 sec */
 
 	netif_err(efx, hw, efx->net_dev, "timed out waiting for SRAM reset\n");
 	return -ETIMEDOUT;
@@ -1478,36 +1521,26 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 	/* RX control FIFO thresholds (32 entries) */
 	const unsigned ctrl_xon_thr = 20;
 	const unsigned ctrl_xoff_thr = 25;
-	/* RX data FIFO thresholds (256-byte units; size varies) */
-	int data_xon_thr = efx_nic_rx_xon_thresh >> 8;
-	int data_xoff_thr = efx_nic_rx_xoff_thresh >> 8;
 	efx_oword_t reg;
 
 	efx_reado(efx, &reg, FR_AZ_RX_CFG);
 	if (efx_nic_rev(efx) <= EFX_REV_FALCON_A1) {
 		/* Data FIFO size is 5.5K */
-		if (data_xon_thr < 0)
-			data_xon_thr = 512 >> 8;
-		if (data_xoff_thr < 0)
-			data_xoff_thr = 2048 >> 8;
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_DESC_PUSH_EN, 0);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_USR_BUF_SIZE,
 				    huge_buf_size);
-		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XON_MAC_TH, data_xon_thr);
-		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XOFF_MAC_TH, data_xoff_thr);
+		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XON_MAC_TH, 512 >> 8);
+		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XOFF_MAC_TH, 2048 >> 8);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XON_TX_TH, ctrl_xon_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XOFF_TX_TH, ctrl_xoff_thr);
 	} else {
 		/* Data FIFO size is 80K; register fields moved */
-		if (data_xon_thr < 0)
-			data_xon_thr = 27648 >> 8; /* ~3*max MTU */
-		if (data_xoff_thr < 0)
-			data_xoff_thr = 54272 >> 8; /* ~80Kb - 3*max MTU */
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_DESC_PUSH_EN, 0);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_USR_BUF_SIZE,
 				    huge_buf_size);
-		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XON_MAC_TH, data_xon_thr);
-		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_MAC_TH, data_xoff_thr);
+		/* Send XON and XOFF at ~3 * max MTU away from empty/full */
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XON_MAC_TH, 27648 >> 8);
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_MAC_TH, 54272 >> 8);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XON_TX_TH, ctrl_xon_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_TX_TH, ctrl_xoff_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
@@ -1713,12 +1746,14 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
  **************************************************************************
  */
 
-struct efx_nic_type falcon_a1_nic_type = {
+const struct efx_nic_type falcon_a1_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
 	.fini = efx_port_dummy_op_void,
 	.monitor = falcon_monitor,
+	.map_reset_reason = falcon_map_reset_reason,
+	.map_reset_flags = falcon_map_reset_flags,
 	.reset = falcon_reset_hw,
 	.probe_port = falcon_probe_port,
 	.remove_port = falcon_remove_port,
@@ -1751,15 +1786,16 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM,
-	.reset_world_flags = ETH_RESET_IRQ,
 };
 
-struct efx_nic_type falcon_b0_nic_type = {
+const struct efx_nic_type falcon_b0_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
 	.fini = efx_port_dummy_op_void,
 	.monitor = falcon_monitor,
+	.map_reset_reason = falcon_map_reset_reason,
+	.map_reset_flags = falcon_map_reset_flags,
 	.reset = falcon_reset_hw,
 	.probe_port = falcon_probe_port,
 	.remove_port = falcon_remove_port,
@@ -1801,6 +1837,5 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
-	.reset_world_flags = ETH_RESET_IRQ,
 };
 

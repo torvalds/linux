@@ -33,11 +33,14 @@
 
 #undef DEBUG
 
-/* The size of a state save frame. */
-#define STATE_SAVE_SIZE		(PT_SIZE + STATE_SAVE_ARG_SPACE)
-
-/* The offset of the struct pt_regs in a `state save frame' on the stack. */
-#define PTO	STATE_SAVE_ARG_SPACE /* 24 the space for args */
+#ifdef DEBUG
+/* Create space for syscalls counting. */
+.section .data
+.global syscall_debug_table
+.align 4
+syscall_debug_table:
+	.space	(__NR_syscalls * 4)
+#endif /* DEBUG */
 
 #define C_ENTRY(name)	.globl name; .align 4; name
 
@@ -172,72 +175,72 @@
 1:
 
 #define SAVE_REGS \
-	swi	r2, r1, PTO+PT_R2;	/* Save SDA */			\
-	swi	r3, r1, PTO+PT_R3;					\
-	swi	r4, r1, PTO+PT_R4;					\
-	swi	r5, r1, PTO+PT_R5;					\
-	swi	r6, r1, PTO+PT_R6;					\
-	swi	r7, r1, PTO+PT_R7;					\
-	swi	r8, r1, PTO+PT_R8;					\
-	swi	r9, r1, PTO+PT_R9;					\
-	swi	r10, r1, PTO+PT_R10;					\
-	swi	r11, r1, PTO+PT_R11;	/* save clobbered regs after rval */\
-	swi	r12, r1, PTO+PT_R12;					\
-	swi	r13, r1, PTO+PT_R13;	/* Save SDA2 */			\
-	swi	r14, r1, PTO+PT_PC;	/* PC, before IRQ/trap */	\
-	swi	r15, r1, PTO+PT_R15;	/* Save LP */			\
-	swi	r16, r1, PTO+PT_R16;					\
-	swi	r17, r1, PTO+PT_R17;					\
-	swi	r18, r1, PTO+PT_R18;	/* Save asm scratch reg */	\
-	swi	r19, r1, PTO+PT_R19;					\
-	swi	r20, r1, PTO+PT_R20;					\
-	swi	r21, r1, PTO+PT_R21;					\
-	swi	r22, r1, PTO+PT_R22;					\
-	swi	r23, r1, PTO+PT_R23;					\
-	swi	r24, r1, PTO+PT_R24;					\
-	swi	r25, r1, PTO+PT_R25;					\
-	swi	r26, r1, PTO+PT_R26;					\
-	swi	r27, r1, PTO+PT_R27;					\
-	swi	r28, r1, PTO+PT_R28;					\
-	swi	r29, r1, PTO+PT_R29;					\
-	swi	r30, r1, PTO+PT_R30;					\
-	swi	r31, r1, PTO+PT_R31;	/* Save current task reg */	\
+	swi	r2, r1, PT_R2;	/* Save SDA */			\
+	swi	r3, r1, PT_R3;					\
+	swi	r4, r1, PT_R4;					\
+	swi	r5, r1, PT_R5;					\
+	swi	r6, r1, PT_R6;					\
+	swi	r7, r1, PT_R7;					\
+	swi	r8, r1, PT_R8;					\
+	swi	r9, r1, PT_R9;					\
+	swi	r10, r1, PT_R10;					\
+	swi	r11, r1, PT_R11;	/* save clobbered regs after rval */\
+	swi	r12, r1, PT_R12;					\
+	swi	r13, r1, PT_R13;	/* Save SDA2 */			\
+	swi	r14, r1, PT_PC;	/* PC, before IRQ/trap */	\
+	swi	r15, r1, PT_R15;	/* Save LP */			\
+	swi	r16, r1, PT_R16;					\
+	swi	r17, r1, PT_R17;					\
+	swi	r18, r1, PT_R18;	/* Save asm scratch reg */	\
+	swi	r19, r1, PT_R19;					\
+	swi	r20, r1, PT_R20;					\
+	swi	r21, r1, PT_R21;					\
+	swi	r22, r1, PT_R22;					\
+	swi	r23, r1, PT_R23;					\
+	swi	r24, r1, PT_R24;					\
+	swi	r25, r1, PT_R25;					\
+	swi	r26, r1, PT_R26;					\
+	swi	r27, r1, PT_R27;					\
+	swi	r28, r1, PT_R28;					\
+	swi	r29, r1, PT_R29;					\
+	swi	r30, r1, PT_R30;					\
+	swi	r31, r1, PT_R31;	/* Save current task reg */	\
 	mfs	r11, rmsr;		/* save MSR */			\
-	swi	r11, r1, PTO+PT_MSR;
+	swi	r11, r1, PT_MSR;
 
 #define RESTORE_REGS \
-	lwi	r11, r1, PTO+PT_MSR;					\
+	lwi	r11, r1, PT_MSR;					\
 	mts	rmsr , r11;						\
-	lwi	r2, r1, PTO+PT_R2;	/* restore SDA */		\
-	lwi	r3, r1, PTO+PT_R3;					\
-	lwi	r4, r1, PTO+PT_R4;					\
-	lwi	r5, r1, PTO+PT_R5;					\
-	lwi	r6, r1, PTO+PT_R6;					\
-	lwi	r7, r1, PTO+PT_R7;					\
-	lwi	r8, r1, PTO+PT_R8;					\
-	lwi	r9, r1, PTO+PT_R9;					\
-	lwi	r10, r1, PTO+PT_R10;					\
-	lwi	r11, r1, PTO+PT_R11;	/* restore clobbered regs after rval */\
-	lwi	r12, r1, PTO+PT_R12;					\
-	lwi	r13, r1, PTO+PT_R13;	/* restore SDA2 */		\
-	lwi	r14, r1, PTO+PT_PC;	/* RESTORE_LINK PC, before IRQ/trap */\
-	lwi	r15, r1, PTO+PT_R15;	/* restore LP */		\
-	lwi	r16, r1, PTO+PT_R16;					\
-	lwi	r17, r1, PTO+PT_R17;					\
-	lwi	r18, r1, PTO+PT_R18;	/* restore asm scratch reg */	\
-	lwi	r19, r1, PTO+PT_R19;					\
-	lwi	r20, r1, PTO+PT_R20;					\
-	lwi	r21, r1, PTO+PT_R21;					\
-	lwi	r22, r1, PTO+PT_R22;					\
-	lwi	r23, r1, PTO+PT_R23;					\
-	lwi	r24, r1, PTO+PT_R24;					\
-	lwi	r25, r1, PTO+PT_R25;					\
-	lwi	r26, r1, PTO+PT_R26;					\
-	lwi	r27, r1, PTO+PT_R27;					\
-	lwi	r28, r1, PTO+PT_R28;					\
-	lwi	r29, r1, PTO+PT_R29;					\
-	lwi	r30, r1, PTO+PT_R30;					\
-	lwi	r31, r1, PTO+PT_R31;	/* Restore cur task reg */
+	lwi	r2, r1, PT_R2;	/* restore SDA */		\
+	lwi	r3, r1, PT_R3;					\
+	lwi	r4, r1, PT_R4;					\
+	lwi	r5, r1, PT_R5;					\
+	lwi	r6, r1, PT_R6;					\
+	lwi	r7, r1, PT_R7;					\
+	lwi	r8, r1, PT_R8;					\
+	lwi	r9, r1, PT_R9;					\
+	lwi	r10, r1, PT_R10;					\
+	lwi	r11, r1, PT_R11;	/* restore clobbered regs after rval */\
+	lwi	r12, r1, PT_R12;					\
+	lwi	r13, r1, PT_R13;	/* restore SDA2 */		\
+	lwi	r14, r1, PT_PC;	/* RESTORE_LINK PC, before IRQ/trap */\
+	lwi	r15, r1, PT_R15;	/* restore LP */		\
+	lwi	r16, r1, PT_R16;					\
+	lwi	r17, r1, PT_R17;					\
+	lwi	r18, r1, PT_R18;	/* restore asm scratch reg */	\
+	lwi	r19, r1, PT_R19;					\
+	lwi	r20, r1, PT_R20;					\
+	lwi	r21, r1, PT_R21;					\
+	lwi	r22, r1, PT_R22;					\
+	lwi	r23, r1, PT_R23;					\
+	lwi	r24, r1, PT_R24;					\
+	lwi	r25, r1, PT_R25;					\
+	lwi	r26, r1, PT_R26;					\
+	lwi	r27, r1, PT_R27;					\
+	lwi	r28, r1, PT_R28;					\
+	lwi	r29, r1, PT_R29;					\
+	lwi	r30, r1, PT_R30;					\
+	lwi	r31, r1, PT_R31;	/* Restore cur task reg */
 
 #define SAVE_STATE	\
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
@@ -250,11 +253,11 @@
 	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	/* FIXME: I can add these two lines to one */			\
 	/* tophys(r1,r1); */						\
-	/* addik	r1, r1, -STATE_SAVE_SIZE; */			\
-	addik	r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE; \
+	/* addik	r1, r1, -PT_SIZE; */				\
+	addik	r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - PT_SIZE; \
 	SAVE_REGS							\
 	brid	2f;							\
-	swi	r1, r1, PTO+PT_MODE; 	 				\
+	swi	r1, r1, PT_MODE; 	 				\
 1:	/* User-mode state save.  */					\
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
 	tophys(r1,r1);							\
@@ -262,12 +265,12 @@
 	/* MS these three instructions can be added to one */		\
 	/* addik	r1, r1, THREAD_SIZE; */				\
 	/* tophys(r1,r1); */						\
-	/* addik	r1, r1, -STATE_SAVE_SIZE; */			\
-	addik r1, r1, THREAD_SIZE + CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE; \
+	/* addik	r1, r1, -PT_SIZE; */			\
+	addik r1, r1, THREAD_SIZE + CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - PT_SIZE; \
 	SAVE_REGS							\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
-	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
-	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
+	swi	r11, r1, PT_R1; /* Store user SP.  */		\
+	swi	r0, r1, PT_MODE; /* Was in user-mode.  */		\
 	/* MS: I am clearing UMS even in case when I come from kernel space */ \
 	clear_ums; 							\
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
@@ -299,10 +302,10 @@ C_ENTRY(_user_exception):
 	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
 	tophys(r1,r1);
 
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack. */
+	addik	r1, r1, -PT_SIZE; /* Make room on the stack. */
 	SAVE_REGS
 
-	swi	r1, r1, PTO + PT_MODE; /* pt_regs -> kernel mode */
+	swi	r1, r1, PT_MODE; /* pt_regs -> kernel mode */
 	brid	2f;
 	nop;				/* Fill delay slot */
 
@@ -315,18 +318,18 @@ C_ENTRY(_user_exception):
 	addik	r1, r1, THREAD_SIZE;
 	tophys(r1,r1);
 
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
+	addik	r1, r1, -PT_SIZE; /* Make room on the stack.  */
 	SAVE_REGS
-	swi	r0, r1, PTO + PT_R3
-	swi	r0, r1, PTO + PT_R4
+	swi	r0, r1, PT_R3
+	swi	r0, r1, PT_R4
 
-	swi	r0, r1, PTO + PT_MODE;			/* Was in user-mode. */
+	swi	r0, r1, PT_MODE;			/* Was in user-mode. */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
-	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
+	swi	r11, r1, PT_R1;		/* Store user SP.  */
 	clear_ums;
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
-	swi	r12, r1, PTO+PT_R0;
+	swi	r12, r1, PT_R0;
 	tovirt(r1,r1)
 
 /* where the trap should return need -8 to adjust for rtsd r15, 8*/
@@ -345,18 +348,18 @@ C_ENTRY(_user_exception):
 	beqi	r11, 4f
 
 	addik	r3, r0, -ENOSYS
-	swi	r3, r1, PTO + PT_R3
+	swi	r3, r1, PT_R3
 	brlid	r15, do_syscall_trace_enter
-	addik	r5, r1, PTO + PT_R0
+	addik	r5, r1, PT_R0
 
 	# do_syscall_trace_enter returns the new syscall nr.
 	addk	r12, r0, r3
-	lwi	r5, r1, PTO+PT_R5;
-	lwi	r6, r1, PTO+PT_R6;
-	lwi	r7, r1, PTO+PT_R7;
-	lwi	r8, r1, PTO+PT_R8;
-	lwi	r9, r1, PTO+PT_R9;
-	lwi	r10, r1, PTO+PT_R10;
+	lwi	r5, r1, PT_R5;
+	lwi	r6, r1, PT_R6;
+	lwi	r7, r1, PT_R7;
+	lwi	r8, r1, PT_R8;
+	lwi	r9, r1, PT_R9;
+	lwi	r10, r1, PT_R10;
 4:
 /* Jump to the appropriate function for the system call number in r12
  * (r12 is not preserved), or return an error if r12 is not valid.
@@ -371,10 +374,14 @@ C_ENTRY(_user_exception):
 	add	r12, r12, r12;
 
 #ifdef DEBUG
-	/* Trac syscalls and stored them to r0_ram */
-	lwi	r3, r12, 0x400 + r0_ram
+	/* Trac syscalls and stored them to syscall_debug_table */
+	/* The first syscall location stores total syscall number */
+	lwi	r3, r0, syscall_debug_table
 	addi	r3, r3, 1
-	swi	r3, r12, 0x400 + r0_ram
+	swi	r3, r0, syscall_debug_table
+	lwi	r3, r12, syscall_debug_table
+	addi	r3, r3, 1
+	swi	r3, r12, syscall_debug_table
 #endif
 
 	# Find and jump into the syscall handler.
@@ -391,10 +398,10 @@ C_ENTRY(_user_exception):
 /* Entry point used to return from a syscall/trap */
 /* We re-enable BIP bit before state restore */
 C_ENTRY(ret_from_trap):
-	swi	r3, r1, PTO + PT_R3
-	swi	r4, r1, PTO + PT_R4
+	swi	r3, r1, PT_R3
+	swi	r4, r1, PT_R4
 
-	lwi	r11, r1, PTO + PT_MODE;
+	lwi	r11, r1, PT_MODE;
 /* See if returning to kernel mode, if so, skip resched &c.  */
 	bnei	r11, 2f;
 	/* We're returning to user mode, so check for various conditions that
@@ -406,7 +413,7 @@ C_ENTRY(ret_from_trap):
 	beqi	r11, 1f
 
 	brlid	r15, do_syscall_trace_leave
-	addik	r5, r1, PTO + PT_R0
+	addik	r5, r1, PT_R0
 1:
 	/* We're returning to user mode, so check for various conditions that
 	 * trigger rescheduling. */
@@ -426,7 +433,7 @@ C_ENTRY(ret_from_trap):
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
-	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	addi	r7, r0, 1;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
@@ -437,7 +444,7 @@ C_ENTRY(ret_from_trap):
 	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS;
-	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
+	addik	r1, r1, PT_SIZE		/* Clean up stack space.  */
 	lwi	r1, r1, PT_R1 - PT_SIZE;/* Restore user stack pointer. */
 	bri	6f;
 
@@ -446,7 +453,7 @@ C_ENTRY(ret_from_trap):
 	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS;
-	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
+	addik	r1, r1, PT_SIZE		/* Clean up stack space.  */
 	tovirt(r1,r1);
 6:
 TRAP_return:		/* Make global symbol for debugging */
@@ -459,8 +466,8 @@ TRAP_return:		/* Make global symbol for debugging */
 
 C_ENTRY(sys_fork_wrapper):
 	addi	r5, r0, SIGCHLD			/* Arg 0: flags */
-	lwi	r6, r1, PTO+PT_R1	/* Arg 1: child SP (use parent's) */
-	addik	r7, r1, PTO			/* Arg 2: parent context */
+	lwi	r6, r1, PT_R1	/* Arg 1: child SP (use parent's) */
+	addik	r7, r1, 0			/* Arg 2: parent context */
 	add	r8. r0, r0			/* Arg 3: (unused) */
 	add	r9, r0, r0;			/* Arg 4: (unused) */
 	brid	do_fork		/* Do real work (tail-call) */
@@ -480,12 +487,12 @@ C_ENTRY(ret_from_fork):
 
 C_ENTRY(sys_vfork):
 	brid	microblaze_vfork	/* Do real work (tail-call) */
-	addik	r5, r1, PTO
+	addik	r5, r1, 0
 
 C_ENTRY(sys_clone):
 	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
-	lwi	r6, r1, PTO + PT_R1;	/* If so, use paret's stack ptr */
-1:	addik	r7, r1, PTO;			/* Arg 2: parent context */
+	lwi	r6, r1, PT_R1;	/* If so, use paret's stack ptr */
+1:	addik	r7, r1, 0;			/* Arg 2: parent context */
 	add	r8, r0, r0;			/* Arg 3: (unused) */
 	add	r9, r0, r0;			/* Arg 4: (unused) */
 	brid	do_fork		/* Do real work (tail-call) */
@@ -493,11 +500,11 @@ C_ENTRY(sys_clone):
 
 C_ENTRY(sys_execve):
 	brid	microblaze_execve;	/* Do real work (tail-call).*/
-	addik	r8, r1, PTO;		/* add user context as 4th arg */
+	addik	r8, r1, 0;		/* add user context as 4th arg */
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
 	brid	sys_rt_sigreturn	/* Do real work */
-	addik	r5, r1, PTO;		/* add user context as 1st arg */
+	addik	r5, r1, 0;		/* add user context as 1st arg */
 
 /*
  * HW EXCEPTION rutine start
@@ -508,7 +515,7 @@ C_ENTRY(full_exception_trap):
 	addik	r17, r17, -4
 	SAVE_STATE /* Save registers */
 	/* PC, before IRQ/trap - this is one instruction above */
-	swi	r17, r1, PTO+PT_PC;
+	swi	r17, r1, PT_PC;
 	tovirt(r1,r1)
 	/* FIXME this can be store directly in PT_ESR reg.
 	 * I tested it but there is a fault */
@@ -518,7 +525,7 @@ C_ENTRY(full_exception_trap):
 	mfs	r7, rfsr;		/* save FSR */
 	mts	rfsr, r0;	/* Clear sticky fsr */
 	rted	r0, full_exception
-	addik	r5, r1, PTO		 /* parameter struct pt_regs * regs */
+	addik	r5, r1, 0		 /* parameter struct pt_regs * regs */
 
 /*
  * Unaligned data trap.
@@ -544,14 +551,14 @@ C_ENTRY(unaligned_data_trap):
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	SAVE_STATE		/* Save registers.*/
 	/* PC, before IRQ/trap - this is one instruction above */
-	swi	r17, r1, PTO+PT_PC;
+	swi	r17, r1, PT_PC;
 	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r3, resr		/* ESR */
 	mfs	r4, rear		/* EAR */
 	rtbd	r0, _unaligned_data_exception
-	addik	r7, r1, PTO		/* parameter struct pt_regs * regs */
+	addik	r7, r1, 0		/* parameter struct pt_regs * regs */
 
 /*
  * Page fault traps.
@@ -574,30 +581,30 @@ C_ENTRY(unaligned_data_trap):
 C_ENTRY(page_fault_data_trap):
 	SAVE_STATE		/* Save registers.*/
 	/* PC, before IRQ/trap - this is one instruction above */
-	swi	r17, r1, PTO+PT_PC;
+	swi	r17, r1, PT_PC;
 	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r6, rear		/* parameter unsigned long address */
 	mfs	r7, resr		/* parameter unsigned long error_code */
 	rted	r0, do_page_fault
-	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
+	addik	r5, r1, 0		/* parameter struct pt_regs * regs */
 
 C_ENTRY(page_fault_instr_trap):
 	SAVE_STATE		/* Save registers.*/
 	/* PC, before IRQ/trap - this is one instruction above */
-	swi	r17, r1, PTO+PT_PC;
+	swi	r17, r1, PT_PC;
 	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r6, rear		/* parameter unsigned long address */
 	ori	r7, r0, 0		/* parameter unsigned long error_code */
 	rted	r0, do_page_fault
-	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
+	addik	r5, r1, 0		/* parameter struct pt_regs * regs */
 
 /* Entry point used to return from an exception.  */
 C_ENTRY(ret_from_exc):
-	lwi	r11, r1, PTO + PT_MODE;
+	lwi	r11, r1, PT_MODE;
 	bnei	r11, 2f;		/* See if returning to kernel mode, */
 					/* ... if so, skip resched &c.  */
 
@@ -629,7 +636,7 @@ C_ENTRY(ret_from_exc):
 	 * complete register state.  Here we save anything not saved by
 	 * the normal entry sequence, so that it may be safely restored
 	 * (in a possibly modified form) after do_signal returns. */
-	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
@@ -641,7 +648,7 @@ C_ENTRY(ret_from_exc):
 	tophys(r1,r1);
 
 	RESTORE_REGS;
-	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
+	addik	r1, r1, PT_SIZE		/* Clean up stack space.  */
 
 	lwi	r1, r1, PT_R1 - PT_SIZE; /* Restore user stack pointer. */
 	bri	6f;
@@ -650,7 +657,7 @@ C_ENTRY(ret_from_exc):
 	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS;
-	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
+	addik	r1, r1, PT_SIZE		/* Clean up stack space.  */
 
 	tovirt(r1,r1);
 6:
@@ -683,10 +690,10 @@ C_ENTRY(_interrupt):
 	tophys(r1,r1); /* MS: I have in r1 physical address where stack is */
 	/* save registers */
 /* MS: Make room on the stack -> activation record */
-	addik	r1, r1, -STATE_SAVE_SIZE;
+	addik	r1, r1, -PT_SIZE;
 	SAVE_REGS
 	brid	2f;
-	swi	r1, r1, PTO + PT_MODE; /* 0 - user mode, 1 - kernel mode */
+	swi	r1, r1, PT_MODE; /* 0 - user mode, 1 - kernel mode */
 1:
 /* User-mode state save. */
  /* MS: get the saved current */
@@ -696,23 +703,23 @@ C_ENTRY(_interrupt):
 	addik	r1, r1, THREAD_SIZE;
 	tophys(r1,r1);
 	/* save registers */
-	addik	r1, r1, -STATE_SAVE_SIZE;
+	addik	r1, r1, -PT_SIZE;
 	SAVE_REGS
 	/* calculate mode */
-	swi	r0, r1, PTO + PT_MODE;
+	swi	r0, r1, PT_MODE;
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
-	swi	r11, r1, PTO+PT_R1;
+	swi	r11, r1, PT_R1;
 	clear_ums;
 2:
 	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	tovirt(r1,r1)
 	addik	r15, r0, irq_call;
 irq_call:rtbd	r0, do_IRQ;
-	addik	r5, r1, PTO;
+	addik	r5, r1, 0;
 
 /* MS: we are in virtual mode */
 ret_from_irq:
-	lwi	r11, r1, PTO + PT_MODE;
+	lwi	r11, r1, PT_MODE;
 	bnei	r11, 2f;
 
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
@@ -729,7 +736,7 @@ ret_from_irq:
 	beqid	r11, no_intr_resched
 /* Handle a signal return; Pending signals should be in r18. */
 	addi	r7, r0, 0; /* Arg 3: int in_syscall */
-	addik	r5, r1, PTO; /* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, 0; /* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0; /* Arg 2: sigset_t *oldset */
 
@@ -741,7 +748,7 @@ no_intr_resched:
 	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS
-	addik	r1, r1, STATE_SAVE_SIZE /* MS: Clean up stack space. */
+	addik	r1, r1, PT_SIZE /* MS: Clean up stack space. */
 	lwi	r1, r1, PT_R1 - PT_SIZE;
 	bri	6f;
 /* MS: Return to kernel state. */
@@ -769,7 +776,7 @@ restore:
 	VM_OFF /* MS: turn off MMU */
 	tophys(r1,r1)
 	RESTORE_REGS
-	addik	r1, r1, STATE_SAVE_SIZE	/* MS: Clean up stack space. */
+	addik	r1, r1, PT_SIZE	/* MS: Clean up stack space. */
 	tovirt(r1,r1);
 6:
 IRQ_return: /* MS: Make global symbol for debugging */
@@ -792,29 +799,29 @@ C_ENTRY(_debug_exception):
 	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
 
 	/* BIP bit is set on entry, no interrupts can occur */
-	addik   r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE;
+	addik   r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - PT_SIZE;
 	SAVE_REGS;
 	/* save all regs to pt_reg structure */
-	swi	r0, r1, PTO+PT_R0;	/* R0 must be saved too */
-	swi	r14, r1, PTO+PT_R14	/* rewrite saved R14 value */
-	swi	r16, r1, PTO+PT_PC; /* PC and r16 are the same */
+	swi	r0, r1, PT_R0;	/* R0 must be saved too */
+	swi	r14, r1, PT_R14	/* rewrite saved R14 value */
+	swi	r16, r1, PT_PC; /* PC and r16 are the same */
 	/* save special purpose registers to pt_regs */
 	mfs	r11, rear;
-	swi	r11, r1, PTO+PT_EAR;
+	swi	r11, r1, PT_EAR;
 	mfs	r11, resr;
-	swi	r11, r1, PTO+PT_ESR;
+	swi	r11, r1, PT_ESR;
 	mfs	r11, rfsr;
-	swi	r11, r1, PTO+PT_FSR;
+	swi	r11, r1, PT_FSR;
 
 	/* stack pointer is in physical address at it is decrease
-	 * by STATE_SAVE_SIZE but we need to get correct R1 value */
-	addik   r11, r1, CONFIG_KERNEL_START - CONFIG_KERNEL_BASE_ADDR + STATE_SAVE_SIZE;
-	swi	r11, r1, PTO+PT_R1
+	 * by PT_SIZE but we need to get correct R1 value */
+	addik   r11, r1, CONFIG_KERNEL_START - CONFIG_KERNEL_BASE_ADDR + PT_SIZE;
+	swi	r11, r1, PT_R1
 	/* MS: r31 - current pointer isn't changed */
 	tovirt(r1,r1)
 #ifdef CONFIG_KGDB
-	addi	r5, r1, PTO /* pass pt_reg address as the first arg */
-	la	r15, r0, dbtrap_call; /* return address */
+	addi	r5, r1, 0 /* pass pt_reg address as the first arg */
+	addik	r15, r0, dbtrap_call; /* return address */
 	rtbd	r0, microblaze_kgdb_break
 	nop;
 #endif
@@ -829,16 +836,16 @@ C_ENTRY(_debug_exception):
 	addik	r1, r1, THREAD_SIZE;	/* calculate kernel stack pointer */
 	tophys(r1,r1);
 
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
+	addik	r1, r1, -PT_SIZE; /* Make room on the stack.  */
 	SAVE_REGS;
-	swi	r16, r1, PTO+PT_PC;	/* Save LP */
-	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */
+	swi	r16, r1, PT_PC;	/* Save LP */
+	swi	r0, r1, PT_MODE; /* Was in user-mode.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
-	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
+	swi	r11, r1, PT_R1; /* Store user SP.  */
 	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	tovirt(r1,r1)
 	set_vms;
-	addik	r5, r1, PTO;
+	addik	r5, r1, 0;
 	addik	r15, r0, dbtrap_call;
 dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	rtbd	r0, sw_exception
@@ -846,7 +853,7 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 
 	/* MS: The first instruction for the second part of the gdb/kgdb */
 	set_bip; /* Ints masked for state restore */
-	lwi	r11, r1, PTO + PT_MODE;
+	lwi	r11, r1, PT_MODE;
 	bnei	r11, 2f;
 /* MS: Return to user space - gdb */
 	/* Get current task ptr into r11 */
@@ -865,7 +872,7 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
-	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	addi  r7, r0, 0;	/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
@@ -876,7 +883,7 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	tophys(r1,r1);
 	/* MS: Restore all regs */
 	RESTORE_REGS
-	addik	r1, r1, STATE_SAVE_SIZE	 /* Clean up stack space */
+	addik	r1, r1, PT_SIZE	 /* Clean up stack space */
 	lwi	r1, r1, PT_R1 - PT_SIZE; /* Restore user stack pointer */
 DBTRAP_return_user: /* MS: Make global symbol for debugging */
 	rtbd	r16, 0; /* MS: Instructions to return from a debug trap */
@@ -887,9 +894,9 @@ DBTRAP_return_user: /* MS: Make global symbol for debugging */
 	tophys(r1,r1);
 	/* MS: Restore all regs */
 	RESTORE_REGS
-	lwi	r14, r1, PTO+PT_R14;
-	lwi	r16, r1, PTO+PT_PC;
-	addik	r1, r1, STATE_SAVE_SIZE; /* MS: Clean up stack space */
+	lwi	r14, r1, PT_R14;
+	lwi	r16, r1, PT_PC;
+	addik	r1, r1, PT_SIZE; /* MS: Clean up stack space */
 	tovirt(r1,r1);
 DBTRAP_return_kernel: /* MS: Make global symbol for debugging */
 	rtbd	r16, 0; /* MS: Instructions to return from a debug trap */
@@ -981,20 +988,22 @@ ENTRY(_switch_to)
 	nop
 
 ENTRY(_reset)
-	brai	0x70; /* Jump back to FS-boot */
+	brai	0; /* Jump to reset vector */
 
 	/* These are compiled and loaded into high memory, then
 	 * copied into place in mach_early_setup */
 	.section	.init.ivt, "ax"
+#if CONFIG_MANUAL_RESET_VECTOR
 	.org	0x0
-	/* this is very important - here is the reset vector */
-	/* in current MMU branch you don't care what is here - it is
-	 * used from bootloader site - but this is correct for FS-BOOT */
-	brai	0x70
-	nop
+	brai	CONFIG_MANUAL_RESET_VECTOR
+#endif
+	.org	0x8
 	brai	TOPHYS(_user_exception); /* syscall handler */
+	.org	0x10
 	brai	TOPHYS(_interrupt);	/* Interrupt handler */
+	.org	0x18
 	brai	TOPHYS(_debug_exception);	/* debug trap handler */
+	.org	0x20
 	brai	TOPHYS(_hw_exception_handler);	/* HW exception handler */
 
 .section .rodata,"a"

@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/8250_pci.c
- *
  *  Probe module for 8250/16550-type PCI serial ports.
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
@@ -41,6 +39,7 @@ struct pci_serial_quirk {
 	u32	device;
 	u32	subvendor;
 	u32	subdevice;
+	int	(*probe)(struct pci_dev *dev);
 	int	(*init)(struct pci_dev *dev);
 	int	(*setup)(struct serial_private *,
 			 const struct pciserial_board *,
@@ -57,6 +56,9 @@ struct serial_private {
 	struct pci_serial_quirk	*quirk;
 	int			line[0];
 };
+
+static int pci_default_setup(struct serial_private*,
+	  const struct pciserial_board*, struct uart_port*, int);
 
 static void moan_device(const char *str, struct pci_dev *dev)
 {
@@ -433,7 +435,7 @@ static void __devexit sbs_exit(struct pci_dev *dev)
 /*
  * SIIG serial cards have an PCI interface chip which also controls
  * the UART clocking frequency. Each UART can be clocked independently
- * (except cards equiped with 4 UARTs) and initial clocking settings
+ * (except cards equipped with 4 UARTs) and initial clocking settings
  * are stored in the EEPROM chip. It can cause problems because this
  * version of serial driver doesn't support differently clocked UART's
  * on single PCI card. To prevent this, initialization functions set
@@ -572,6 +574,28 @@ static const struct timedia_struct {
 	{ 4, timedia_quad_port },
 	{ 8, timedia_eight_port }
 };
+
+/*
+ * There are nearly 70 different Timedia/SUNIX PCI serial devices.  Instead of
+ * listing them individually, this driver merely grabs them all with
+ * PCI_ANY_ID.  Some of these devices, however, also feature a parallel port,
+ * and should be left free to be claimed by parport_serial instead.
+ */
+static int pci_timedia_probe(struct pci_dev *dev)
+{
+	/*
+	 * Check the third digit of the subdevice ID
+	 * (0,2,3,5,6: serial only -- 7,8,9: serial + parallel)
+	 */
+	if ((dev->subsystem_device & 0x00f0) >= 0x70) {
+		dev_info(&dev->dev,
+			"ignoring Timedia subdevice %04x for parport_serial\n",
+			dev->subsystem_device);
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static int pci_timedia_init(struct pci_dev *dev)
 {
@@ -745,7 +769,7 @@ pci_ni8430_setup(struct serial_private *priv,
 	len =  pci_resource_len(priv->dev, bar);
 	p = ioremap_nocache(base, len);
 
-	/* enable the transciever */
+	/* enable the transceiver */
 	writeb(readb(p + offset + NI8430_PORTCON) | NI8430_PORTCON_TXVR_ENABLE,
 	       p + offset + NI8430_PORTCON);
 
@@ -754,6 +778,62 @@ pci_ni8430_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
+static int pci_netmos_9900_setup(struct serial_private *priv,
+				const struct pciserial_board *board,
+				struct uart_port *port, int idx)
+{
+	unsigned int bar;
+
+	if ((priv->dev->subsystem_device & 0xff00) == 0x3000) {
+		/* netmos apparently orders BARs by datasheet layout, so serial
+		 * ports get BARs 0 and 3 (or 1 and 4 for memmapped)
+		 */
+		bar = 3 * idx;
+
+		return setup_port(priv, port, bar, 0, board->reg_shift);
+	} else {
+		return pci_default_setup(priv, board, port, idx);
+	}
+}
+
+/* the 99xx series comes with a range of device IDs and a variety
+ * of capabilities:
+ *
+ * 9900 has varying capabilities and can cascade to sub-controllers
+ *   (cascading should be purely internal)
+ * 9904 is hardwired with 4 serial ports
+ * 9912 and 9922 are hardwired with 2 serial ports
+ */
+static int pci_netmos_9900_numports(struct pci_dev *dev)
+{
+	unsigned int c = dev->class;
+	unsigned int pi;
+	unsigned short sub_serports;
+
+	pi = (c & 0xff);
+
+	if (pi == 2) {
+		return 1;
+	} else if ((pi == 0) &&
+			   (dev->device == PCI_DEVICE_ID_NETMOS_9900)) {
+		/* two possibilities: 0x30ps encodes number of parallel and
+		 * serial ports, or 0x1000 indicates *something*. This is not
+		 * immediately obvious, since the 2s1p+4s configuration seems
+		 * to offer all functionality on functions 0..2, while still
+		 * advertising the same function 3 as the 4s+2s1p config.
+		 */
+		sub_serports = dev->subsystem_device & 0xf;
+		if (sub_serports > 0) {
+			return sub_serports;
+		} else {
+			printk(KERN_NOTICE "NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
+			return 0;
+		}
+	}
+
+	moan_device("unknown NetMos/Mostech program interface", dev);
+	return 0;
+}
 
 static int pci_netmos_init(struct pci_dev *dev)
 {
@@ -763,12 +843,28 @@ static int pci_netmos_init(struct pci_dev *dev)
 	if ((dev->device == PCI_DEVICE_ID_NETMOS_9901) ||
 		(dev->device == PCI_DEVICE_ID_NETMOS_9865))
 		return 0;
+
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
 		return 0;
 
+	switch (dev->device) { /* FALLTHROUGH on all */
+		case PCI_DEVICE_ID_NETMOS_9904:
+		case PCI_DEVICE_ID_NETMOS_9912:
+		case PCI_DEVICE_ID_NETMOS_9922:
+		case PCI_DEVICE_ID_NETMOS_9900:
+			num_serial = pci_netmos_9900_numports(dev);
+			break;
+
+		default:
+			if (num_serial == 0 ) {
+				moan_device("unknown NetMos/Mostech device", dev);
+			}
+	}
+
 	if (num_serial == 0)
 		return -ENODEV;
+
 	return num_serial;
 }
 
@@ -973,6 +1069,14 @@ ce4100_serial_setup(struct serial_private *priv,
 	return ret;
 }
 
+static int
+pci_omegapci_setup(struct serial_private *priv,
+		      const struct pciserial_board *board,
+		      struct uart_port *port, int idx)
+{
+	return setup_port(priv, port, 2, idx * 8, 0);
+}
+
 static int skip_tx_en_setup(struct serial_private *priv,
 			const struct pciserial_board *board,
 			struct uart_port *port, int idx)
@@ -986,6 +1090,15 @@ static int skip_tx_en_setup(struct serial_private *priv,
 			  priv->dev->subsystem_device);
 
 	return pci_default_setup(priv, board, port, idx);
+}
+
+static int pci_eg20t_init(struct pci_dev *dev)
+{
+#if defined(CONFIG_SERIAL_PCH_UART) || defined(CONFIG_SERIAL_PCH_UART_MODULE)
+	return -ENODEV;
+#else
+	return 0;
+#endif
 }
 
 /* This should be in linux/pci_ids.h */
@@ -1012,6 +1125,8 @@ static int skip_tx_en_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_TITAN_200EI	0xA016
 #define PCI_DEVICE_ID_TITAN_200EISI	0xA017
 #define PCI_DEVICE_ID_OXSEMI_16PCI958	0x9538
+#define PCIE_DEVICE_ID_NEO_2_OX_IBM	0x00F6
+#define PCI_DEVICE_ID_PLX_CRONYX_OMEGA	0xc001
 
 /* Unknown vendors/cards - this should not be in linux/pci_ids.h */
 #define PCI_SUBDEVICE_ID_UNKNOWN_0x1584	0x1584
@@ -1379,6 +1494,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device		= PCI_DEVICE_ID_TIMEDIA_1889,
 		.subvendor	= PCI_VENDOR_ID_TIMEDIA,
 		.subdevice	= PCI_ANY_ID,
+		.probe		= pci_timedia_probe,
 		.init		= pci_timedia_init,
 		.setup		= pci_timedia_setup,
 	},
@@ -1409,10 +1525,10 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_netmos_init,
-		.setup		= pci_default_setup,
+		.setup		= pci_netmos_9900_setup,
 	},
 	/*
-	 * For Oxford Semiconductor and Mainpine
+	 * For Oxford Semiconductor Tornado based devices
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_OXSEMI,
@@ -1430,6 +1546,74 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.init		= pci_oxsemi_tornado_init,
 		.setup		= pci_default_setup,
 	},
+	{
+		.vendor		= PCI_VENDOR_ID_DIGI,
+		.device		= PCIE_DEVICE_ID_NEO_2_OX_IBM,
+		.subvendor		= PCI_SUBVENDOR_ID_IBM,
+		.subdevice		= PCI_ANY_ID,
+		.init			= pci_oxsemi_tornado_init,
+		.setup		= pci_default_setup,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8811,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8812,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8813,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8814,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x8027,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x8028,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x8029,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x800C,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x800D,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x800D,
+		.init		= pci_eg20t_init,
+	},
+	/*
+	 * Cronyx Omega PCI (PLX-chip based)
+	 */
+	{
+		.vendor		= PCI_VENDOR_ID_PLX,
+		.device		= PCI_DEVICE_ID_PLX_CRONYX_OMEGA,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_omegapci_setup,
+	 },
 	/*
 	 * Default "match everything" terminator entry
 	 */
@@ -1617,6 +1801,8 @@ enum pci_board_num_t {
 	pbn_ADDIDATA_PCIe_4_3906250,
 	pbn_ADDIDATA_PCIe_8_3906250,
 	pbn_ce4100_1_115200,
+	pbn_omegapci,
+	pbn_NETMOS9900_2s_115200,
 };
 
 /*
@@ -2312,6 +2498,17 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.base_baud	= 921600,
 		.reg_shift      = 2,
 	},
+	[pbn_omegapci] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 8,
+		.base_baud	= 115200,
+		.uart_offset	= 0x200,
+	},
+	[pbn_NETMOS9900_2s_115200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 2,
+		.base_baud	= 115200,
+	},
 };
 
 static const struct pci_device_id softmodem_blacklist[] = {
@@ -2548,10 +2745,18 @@ EXPORT_SYMBOL_GPL(pciserial_resume_ports);
 static int __devinit
 pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
+	struct pci_serial_quirk *quirk;
 	struct serial_private *priv;
 	const struct pciserial_board *board;
 	struct pciserial_board tmp;
 	int rc;
+
+	quirk = find_quirk(dev);
+	if (quirk->probe) {
+		rc = quirk->probe(dev);
+		if (rc)
+			return rc;
+	}
 
 	if (ent->driver_data >= ARRAY_SIZE(pci_boards)) {
 		printk(KERN_ERR "pci_init_one: invalid driver_data: %ld\n",
@@ -2562,6 +2767,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	board = &pci_boards[ent->driver_data];
 
 	rc = pci_enable_device(dev);
+	pci_save_state(dev);
 	if (rc)
 		return rc;
 
@@ -3075,6 +3281,14 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_MAINPINE, 0x4000,	/* IQ Express 8 Port V.34 Super-G3 Fax */
 		PCI_VENDOR_ID_MAINPINE, 0x4008, 0, 0,
 		pbn_oxsemi_8_4000000 },
+
+	/*
+	 * Digi/IBM PCIe 2-port Async EIA-232 Adapter utilizing OxSemi Tornado
+	 */
+	{	PCI_VENDOR_ID_DIGI, PCIE_DEVICE_ID_NEO_2_OX_IBM,
+		PCI_SUBVENDOR_ID_IBM, PCI_ANY_ID, 0, 0,
+		pbn_oxsemi_2_4000000 },
+
 	/*
 	 * SBS Technologies, Inc. P-Octal and PMC-OCTPRO cards,
 	 * from skokodyn@yahoo.com
@@ -3785,6 +3999,27 @@ static struct pci_device_id serial_pci_tbl[] = {
 		0xA000, 0x1000,
 		0, 0, pbn_b0_1_115200 },
 
+	/* the 9901 is a rebranded 9912 */
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9912,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9922,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9904,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+		0xA000, 0x3002,
+		0, 0, pbn_NETMOS9900_2s_115200 },
+
 	/*
 	 * Best Connectivity PCI Multi I/O cards
 	 */
@@ -3801,6 +4036,12 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID,  PCI_ANY_ID, 0, 0,
 		pbn_ce4100_1_115200 },
 
+	/*
+	 * Cronyx Omega PCI
+	 */
+	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_CRONYX_OMEGA,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_omegapci },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
@@ -3821,6 +4062,51 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{ 0, }
 };
 
+static pci_ers_result_t serial8250_io_error_detected(struct pci_dev *dev,
+						pci_channel_state_t state)
+{
+	struct serial_private *priv = pci_get_drvdata(dev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	if (priv)
+		pciserial_suspend_ports(priv);
+
+	pci_disable_device(dev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t serial8250_io_slot_reset(struct pci_dev *dev)
+{
+	int rc;
+
+	rc = pci_enable_device(dev);
+
+	if (rc)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_restore_state(dev);
+	pci_save_state(dev);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void serial8250_io_resume(struct pci_dev *dev)
+{
+	struct serial_private *priv = pci_get_drvdata(dev);
+
+	if (priv)
+		pciserial_resume_ports(priv);
+}
+
+static struct pci_error_handlers serial8250_err_handler = {
+	.error_detected = serial8250_io_error_detected,
+	.slot_reset = serial8250_io_slot_reset,
+	.resume = serial8250_io_resume,
+};
+
 static struct pci_driver serial_pci_driver = {
 	.name		= "serial",
 	.probe		= pciserial_init_one,
@@ -3830,6 +4116,7 @@ static struct pci_driver serial_pci_driver = {
 	.resume		= pciserial_resume_one,
 #endif
 	.id_table	= serial_pci_tbl,
+	.err_handler	= &serial8250_err_handler,
 };
 
 static int __init serial8250_pci_init(void)

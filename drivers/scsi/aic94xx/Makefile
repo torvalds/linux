@@ -22,9 +22,7 @@
 # along with the aic94xx driver; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ifeq ($(CONFIG_AIC94XX_DEBUG),y)
-	EXTRA_CFLAGS += -DASD_DEBUG -DASD_ENTER_EXIT
-endif
+ccflags-$(CONFIG_AIC94XX_DEBUG) := -DASD_DEBUG -DASD_ENTER_EXIT
 
 obj-$(CONFIG_SCSI_AIC94XX) += aic94xx.o
 aic94xx-y += aic94xx_init.o \

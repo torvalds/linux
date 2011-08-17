@@ -40,7 +40,7 @@
  *	o the hash function for ints is pathetic (but could be changed)
  *	o locking is sometime suspicious (especially during enumeration)
  *	o most users have only a few elements (== overhead)
- *	o most users never use seach, so don't benefit from hashing
+ *	o most users never use search, so don't benefit from hashing
  * Problem already fixed :
  *	o not 64 bit compliant (most users do hashv = (int) self)
  *	o hashbin_remove() is broken => use hashbin_remove_this()
@@ -780,7 +780,7 @@ void* hashbin_lock_find( hashbin_t* hashbin, long hashv, const char* name )
 	/*
 	 * Search for entry
 	 */
-	entry = (irda_queue_t* ) hashbin_find( hashbin, hashv, name );
+	entry = hashbin_find(hashbin, hashv, name);
 
 	/* Release lock */
 	spin_unlock_irqrestore(&hashbin->hb_spinlock, flags);
@@ -813,7 +813,7 @@ void* hashbin_find_next( hashbin_t* hashbin, long hashv, const char* name,
 	 * This allow to check if the current item is still in the
 	 * hashbin or has been removed.
 	 */
-	entry = (irda_queue_t* ) hashbin_find( hashbin, hashv, name );
+	entry = hashbin_find(hashbin, hashv, name);
 
 	/*
 	 * Trick hashbin_get_next() to return what we want

@@ -74,7 +74,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 
 #ifdef CONFIG_X86_64
 		case 0x40 ... 0x4f:
-			if (regs->cs != __USER_CS)
+			if (!user_64bit_mode(regs))
 				/* 32-bit mode: register increment */
 				return 0;
 			/* 64-bit mode: REX prefix */
@@ -166,7 +166,7 @@ static void enable_step(struct task_struct *child, bool block)
 	 * Make sure block stepping (BTF) is not enabled unless it should be.
 	 * Note that we don't try to worry about any is_setting_trap_flag()
 	 * instructions after the first when using block stepping.
-	 * So noone should try to use debugger block stepping in a program
+	 * So no one should try to use debugger block stepping in a program
 	 * that uses user-mode single stepping itself.
 	 */
 	if (enable_single_step(child) && block) {

@@ -44,28 +44,6 @@ xfs_trans_inode_broot_debug(
 #endif
 
 /*
- * Get an inode and join it to the transaction.
- */
-int
-xfs_trans_iget(
-	xfs_mount_t	*mp,
-	xfs_trans_t	*tp,
-	xfs_ino_t	ino,
-	uint		flags,
-	uint		lock_flags,
-	xfs_inode_t	**ipp)
-{
-	int			error;
-
-	error = xfs_iget(mp, tp, ino, flags, lock_flags, ipp);
-	if (!error && tp) {
-		xfs_trans_ijoin(tp, *ipp);
-		(*ipp)->i_itemp->ili_lock_flags = lock_flags;
-	}
-	return error;
-}
-
-/*
  * Add a locked inode to the transaction.
  *
  * The inode must be locked, and it cannot be associated with any transaction.
@@ -77,7 +55,6 @@ xfs_trans_ijoin(
 {
 	xfs_inode_log_item_t	*iip;
 
-	ASSERT(ip->i_transp == NULL);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	if (ip->i_itemp == NULL)
 		xfs_inode_item_init(ip, ip->i_mount);
@@ -90,12 +67,6 @@ xfs_trans_ijoin(
 	xfs_trans_add_item(tp, &iip->ili_item);
 
 	xfs_trans_inode_broot_debug(ip);
-
-	/*
-	 * Initialize i_transp so we can find it with xfs_inode_incore()
-	 * in xfs_trans_iget() above.
-	 */
-	ip->i_transp = tp;
 }
 
 /*
@@ -103,7 +74,7 @@ xfs_trans_ijoin(
  *
  *
  * Grabs a reference to the inode which will be dropped when the transaction
- * is commited.  The inode will also be unlocked at that point.  The inode
+ * is committed.  The inode will also be unlocked at that point.  The inode
  * must be locked, and it cannot be associated with any transaction.
  */
 void
@@ -133,7 +104,6 @@ xfs_trans_ichgtime(
 
 	ASSERT(tp);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(ip->i_transp == tp);
 
 	tv = current_fs_time(inode->i_sb);
 
@@ -162,7 +132,6 @@ xfs_trans_log_inode(
 	xfs_inode_t	*ip,
 	uint		flags)
 {
-	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 

@@ -23,7 +23,6 @@
  */
 
 #include "drmP.h"
-#include "drm_fixed.h"
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 
@@ -47,45 +46,52 @@ nv50_calc_pll(struct drm_device *dev, struct pll_lims *pll, int clk,
 }
 
 int
-nv50_calc_pll2(struct drm_device *dev, struct pll_lims *pll, int clk,
-	       int *N, int *fN, int *M, int *P)
+nva3_calc_pll(struct drm_device *dev, struct pll_lims *pll, int clk,
+	      int *pN, int *pfN, int *pM, int *P)
 {
-	fixed20_12 fb_div, a, b;
-	u32 refclk = pll->refclk / 10;
-	u32 max_vco_freq = pll->vco1.maxfreq / 10;
-	u32 max_vco_inputfreq = pll->vco1.max_inputfreq / 10;
-	clk /= 10;
+	u32 best_err = ~0, err;
+	int M, lM, hM, N, fN;
 
-	*P = max_vco_freq / clk;
+	*P = pll->vco1.maxfreq / clk;
 	if (*P > pll->max_p)
 		*P = pll->max_p;
 	if (*P < pll->min_p)
 		*P = pll->min_p;
 
-	/* *M = floor((refclk + max_vco_inputfreq) / max_vco_inputfreq); */
-	a.full = dfixed_const(refclk + max_vco_inputfreq);
-	b.full = dfixed_const(max_vco_inputfreq);
-	a.full = dfixed_div(a, b);
-	a.full = dfixed_floor(a);
-	*M = dfixed_trunc(a);
+	lM = (pll->refclk + pll->vco1.max_inputfreq) / pll->vco1.max_inputfreq;
+	lM = max(lM, (int)pll->vco1.min_m);
+	hM = (pll->refclk + pll->vco1.min_inputfreq) / pll->vco1.min_inputfreq;
+	hM = min(hM, (int)pll->vco1.max_m);
 
-	/* fb_div = (vco * *M) / refclk; */
-	fb_div.full = dfixed_const(clk * *P);
-	fb_div.full = dfixed_mul(fb_div, a);
-	a.full = dfixed_const(refclk);
-	fb_div.full = dfixed_div(fb_div, a);
+	for (M = lM; M <= hM; M++) {
+		u32 tmp = clk * *P * M;
+		N  = tmp / pll->refclk;
+		fN = tmp % pll->refclk;
+		if (!pfN && fN >= pll->refclk / 2)
+			N++;
 
-	/* *N = floor(fb_div); */
-	a.full = dfixed_floor(fb_div);
-	*N = dfixed_trunc(fb_div);
+		if (N < pll->vco1.min_n)
+			continue;
+		if (N > pll->vco1.max_n)
+			break;
 
-	/* *fN = (fmod(fb_div, 1.0) * 8192) - 4096; */
-	b.full = dfixed_const(8192);
-	a.full = dfixed_mul(a, b);
-	fb_div.full = dfixed_mul(fb_div, b);
-	fb_div.full = fb_div.full - a.full;
-	*fN = dfixed_trunc(fb_div) - 4096;
-	*fN &= 0xffff;
+		err = abs(clk - (pll->refclk * N / M / *P));
+		if (err < best_err) {
+			best_err = err;
+			*pN = N;
+			*pM = M;
+		}
 
-	return clk;
+		if (pfN) {
+			*pfN = (((fN << 13) / pll->refclk) - 4096) & 0xffff;
+			return clk;
+		}
+	}
+
+	if (unlikely(best_err == ~0)) {
+		NV_ERROR(dev, "unable to find matching pll values\n");
+		return -EINVAL;
+	}
+
+	return pll->refclk * *pN / *pM / *P;
 }

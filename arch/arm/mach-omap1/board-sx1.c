@@ -399,7 +399,7 @@ static void __init omap_sx1_init(void)
 	sx1_mmc_init();
 
 	/* turn on USB power */
-	/* sx1_setusbpower(1); cant do it here because i2c is not ready */
+	/* sx1_setusbpower(1); can't do it here because i2c is not ready */
 	gpio_request(1, "A_IRDA_OFF");
 	gpio_request(11, "A_SWITCH");
 	gpio_request(15, "A_USB_ON");
@@ -411,7 +411,7 @@ static void __init omap_sx1_init(void)
 static void __init omap_sx1_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 /*----------------------------------------*/
 
@@ -426,5 +426,5 @@ MACHINE_START(SX1, "OMAP310 based Siemens SX1")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_sx1_init_irq,
 	.init_machine	= omap_sx1_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

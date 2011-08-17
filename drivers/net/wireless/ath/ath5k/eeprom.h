@@ -50,7 +50,7 @@
 
 #define AR5K_EEPROM_VERSION		AR5K_EEPROM_INFO(1)	/* EEPROM Version */
 #define AR5K_EEPROM_VERSION_3_0		0x3000	/* No idea what's going on before this version */
-#define AR5K_EEPROM_VERSION_3_1		0x3001	/* ob/db values for 2Ghz (ar5211_rfregs) */
+#define AR5K_EEPROM_VERSION_3_1		0x3001	/* ob/db values for 2GHz (ar5211_rfregs) */
 #define AR5K_EEPROM_VERSION_3_2		0x3002	/* different frequency representation (eeprom_bin2freq) */
 #define AR5K_EEPROM_VERSION_3_3		0x3003	/* offsets changed, has 32 CTLs (see below) and ee_false_detect (eeprom_read_modes) */
 #define AR5K_EEPROM_VERSION_3_4		0x3004	/* has ee_i_gain, ee_cck_ofdm_power_delta (eeprom_read_modes) */
@@ -75,11 +75,11 @@
 #define AR5K_EEPROM_HDR_11A(_v)		(((_v) >> AR5K_EEPROM_MODE_11A) & 0x1)
 #define AR5K_EEPROM_HDR_11B(_v)		(((_v) >> AR5K_EEPROM_MODE_11B) & 0x1)
 #define AR5K_EEPROM_HDR_11G(_v)		(((_v) >> AR5K_EEPROM_MODE_11G) & 0x1)
-#define AR5K_EEPROM_HDR_T_2GHZ_DIS(_v)	(((_v) >> 3) & 0x1)	/* Disable turbo for 2Ghz */
+#define AR5K_EEPROM_HDR_T_2GHZ_DIS(_v)	(((_v) >> 3) & 0x1)	/* Disable turbo for 2GHz */
 #define AR5K_EEPROM_HDR_T_5GHZ_DBM(_v)	(((_v) >> 4) & 0x7f)	/* Max turbo power for < 2W power consumption */
 #define AR5K_EEPROM_HDR_DEVICE(_v)	(((_v) >> 11) & 0x7)	/* Device type (1 Cardbus, 2 PCI, 3 MiniPCI, 4 AP) */
 #define AR5K_EEPROM_HDR_RFKILL(_v)	(((_v) >> 14) & 0x1)	/* Device has RFKill support */
-#define AR5K_EEPROM_HDR_T_5GHZ_DIS(_v)	(((_v) >> 15) & 0x1)	/* Disable turbo for 5Ghz */
+#define AR5K_EEPROM_HDR_T_5GHZ_DIS(_v)	(((_v) >> 15) & 0x1)	/* Disable turbo for 5GHz */
 
 /* Newer EEPROMs are using a different offset */
 #define AR5K_EEPROM_OFF(_v, _v3_0, _v3_3) \
@@ -120,7 +120,7 @@
 #define AR5K_EEPROM_FF_DIS(_v)		(((_v) >> 2) & 0x1)	/* disable fast frames */
 #define AR5K_EEPROM_BURST_DIS(_v)	(((_v) >> 3) & 0x1)	/* disable bursting */
 #define AR5K_EEPROM_MAX_QCU(_v)		(((_v) >> 4) & 0xf)	/* max number of QCUs. defaults to 10 */
-#define AR5K_EEPROM_HEAVY_CLIP_EN(_v)	(((_v) >> 8) & 0x1)	/* enable heayy clipping */
+#define AR5K_EEPROM_HEAVY_CLIP_EN(_v)	(((_v) >> 8) & 0x1)	/* enable heavy clipping */
 #define AR5K_EEPROM_KEY_CACHE_SIZE(_v)	(((_v) >> 12) & 0xf)	/* key cache size. defaults to 128 */
 
 #define AR5K_EEPROM_MISC6		AR5K_EEPROM_INFO(10)
@@ -223,7 +223,7 @@
 #define AR5K_EEPROM_CCK_OFDM_DELTA	15
 #define AR5K_EEPROM_N_IQ_CAL		2
 /* 5GHz/2GHz */
-enum ath5k_eeprom_freq_bands{
+enum ath5k_eeprom_freq_bands {
 	AR5K_EEPROM_BAND_5GHZ = 0,
 	AR5K_EEPROM_BAND_2GHZ = 1,
 	AR5K_EEPROM_N_FREQ_BANDS,
@@ -241,9 +241,8 @@ enum ath5k_eeprom_freq_bands{
 #define	AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz	6250
 
 #define AR5K_EEPROM_READ(_o, _v) do {			\
-	ret = ath5k_hw_nvram_read(ah, (_o), &(_v));	\
-	if (ret)					\
-		return ret;				\
+	if (!ath5k_hw_nvram_read(ah, (_o), &(_v)))	\
+		return -EIO;				\
 } while (0)
 
 #define AR5K_EEPROM_READ_HDR(_o, _v)					\
@@ -269,32 +268,9 @@ enum ath5k_ctl_mode {
 	AR5K_CTL_MODE_M = 15,
 };
 
-/* Default CTL ids for the 3 main reg domains.
- * Atheros only uses these by default but vendors
- * can have up to 32 different CTLs for different
- * scenarios. Note that theese values are ORed with
- * the mode id (above) so we can have up to 24 CTL
- * datasets out of these 3 main regdomains. That leaves
- * 8 ids that can be used by vendors and since 0x20 is
- * missing from HAL sources i guess this is the set of
- * custom CTLs vendors can use. */
-#define	AR5K_CTL_FCC	0x10
-#define	AR5K_CTL_CUSTOM	0x20
-#define	AR5K_CTL_ETSI	0x30
-#define	AR5K_CTL_MKK	0x40
-
-/* Indicates a CTL with only mode set and
- * no reg domain mapping, such CTLs are used
- * for world roaming domains or simply when
- * a reg domain is not set */
-#define	AR5K_CTL_NO_REGDOMAIN	0xf0
-
-/* Indicates an empty (invalid) CTL */
-#define AR5K_CTL_NO_CTL		0xff
-
 /* Per channel calibration data, used for power table setup */
 struct ath5k_chan_pcal_info_rf5111 {
-	/* Power levels in half dbm units
+	/* Power levels in half dBm units
 	 * for one power curve. */
 	u8 pwr[AR5K_EEPROM_N_PWR_POINTS_5111];
 	/* PCDAC table steps

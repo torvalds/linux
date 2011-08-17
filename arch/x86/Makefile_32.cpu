@@ -37,7 +37,7 @@ cflags-$(CONFIG_MATOM)		+= $(call cc-option,-march=atom,$(call cc-option,-march=
 	$(call cc-option,-mtune=atom,$(call cc-option,-mtune=generic))
 
 # AMD Elan support
-cflags-$(CONFIG_X86_ELAN)	+= -march=i486
+cflags-$(CONFIG_MELAN)		+= -march=i486
 
 # Geode GX1 support
 cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx

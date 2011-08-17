@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -33,7 +33,7 @@
 	 sizeof(struct bcast_packet))))
 
 
-struct batman_if {
+struct hard_iface {
 	struct list_head list;
 	int16_t if_num;
 	char if_status;
@@ -43,7 +43,7 @@ struct batman_if {
 	unsigned char *packet_buff;
 	int packet_len;
 	struct kobject *hardif_obj;
-	struct kref refcount;
+	atomic_t refcount;
 	struct packet_type batman_adv_ptype;
 	struct net_device *soft_iface;
 	struct rcu_head rcu;
@@ -67,36 +67,53 @@ struct batman_if {
 struct orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
-	struct neigh_node *router;
+	struct neigh_node __rcu *router; /* rcu protected pointer */
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
-	uint8_t tq_own;
-	int tq_asym_penalty;
 	unsigned long last_valid;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
 	uint8_t gw_flags;
 	uint8_t flags;
-	unsigned char *hna_buff;
-	int16_t hna_buff_len;
+	atomic_t last_ttvn; /* last seen translation table version number */
+	uint16_t tt_crc;
+	unsigned char *tt_buff;
+	int16_t tt_buff_len;
+	spinlock_t tt_buff_lock; /* protects tt_buff */
+	atomic_t tt_size;
+	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
+	 * If true, then I sent a Roaming_adv to this orig_node and I have to
+	 * inspect every packet directed to it to check whether it is still
+	 * the true destination or not. This flag will be reset to false as
+	 * soon as I receive a new TTVN from this orig_node */
+	bool tt_poss_change;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	unsigned long bcast_bits[NUM_WORDS];
 	uint32_t last_bcast_seqno;
-	struct list_head neigh_list;
+	struct hlist_head neigh_list;
 	struct list_head frag_list;
+	spinlock_t neigh_list_lock; /* protects neigh_list and router */
+	atomic_t refcount;
+	struct rcu_head rcu;
+	struct hlist_node hash_entry;
+	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
-	struct {
-		uint8_t candidates;
-		struct neigh_node *selected;
-	} bond;
+	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
+	 * neigh_node->real_bits, neigh_node->real_packet_count */
+	spinlock_t ogm_cnt_lock;
+	/* bcast_seqno_lock protects bcast_bits, last_bcast_seqno */
+	spinlock_t bcast_seqno_lock;
+	spinlock_t tt_list_lock; /* protects tt_list */
+	atomic_t bond_candidates;
+	struct list_head bond_list;
 };
 
 struct gw_node {
 	struct hlist_node list;
 	struct orig_node *orig_node;
 	unsigned long deleted;
-	struct kref refcount;
+	atomic_t refcount;
 	struct rcu_head rcu;
 };
 
@@ -105,18 +122,21 @@ struct gw_node {
  *	@last_valid: when last packet via this neighbor was received
  */
 struct neigh_node {
-	struct list_head list;
+	struct hlist_node list;
 	uint8_t addr[ETH_ALEN];
 	uint8_t real_packet_count;
 	uint8_t tq_recv[TQ_GLOBAL_WINDOW_SIZE];
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
-	struct neigh_node *next_bond_candidate;
+	struct list_head bonding_list;
 	unsigned long last_valid;
 	unsigned long real_bits[NUM_WORDS];
+	atomic_t refcount;
+	struct rcu_head rcu;
 	struct orig_node *orig_node;
-	struct batman_if *if_incoming;
+	struct hard_iface *if_incoming;
+	spinlock_t tq_lock;	/* protects: tq_recv, tq_index */
 };
 
 
@@ -136,36 +156,53 @@ struct bat_priv {
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
+	atomic_t ttvn; /* tranlation table version number */
+	atomic_t tt_ogm_append_cnt;
+	atomic_t tt_local_changes; /* changes registered in a OGM interval */
+	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
+	 * If true, then I received a Roaming_adv and I have to inspect every
+	 * packet directed to me to check whether I am still the true
+	 * destination or not. This flag will be reset to false as soon as I
+	 * increase my TTVN */
+	bool tt_poss_change;
 	char num_ifaces;
-	struct hlist_head softif_neigh_list;
-	struct softif_neigh *softif_neigh;
 	struct debug_log *debug_log;
-	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
 	struct hlist_head gw_list;
+	struct hlist_head softif_neigh_vids;
+	struct list_head tt_changes_list; /* tracks changes in a OGM int */
 	struct list_head vis_send_list;
 	struct hashtable_t *orig_hash;
-	struct hashtable_t *hna_local_hash;
-	struct hashtable_t *hna_global_hash;
+	struct hashtable_t *tt_local_hash;
+	struct hashtable_t *tt_global_hash;
+	struct list_head tt_req_list; /* list of pending tt_requests */
+	struct list_head tt_roam_list;
 	struct hashtable_t *vis_hash;
-	spinlock_t orig_hash_lock; /* protects orig_hash */
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
-	spinlock_t hna_lhash_lock; /* protects hna_local_hash */
-	spinlock_t hna_ghash_lock; /* protects hna_global_hash */
-	spinlock_t gw_list_lock; /* protects gw_list */
+	spinlock_t tt_changes_list_lock; /* protects tt_changes */
+	spinlock_t tt_req_list_lock; /* protects tt_req_list */
+	spinlock_t tt_roam_list_lock; /* protects tt_roam_list */
+	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
 	spinlock_t softif_neigh_lock; /* protects soft-interface neigh list */
-	int16_t num_local_hna;
-	atomic_t hna_local_changed;
-	struct delayed_work hna_work;
+	spinlock_t softif_neigh_vid_lock; /* protects soft-interface vid list */
+	atomic_t num_local_tt;
+	/* Checksum of the local table, recomputed before sending a new OGM */
+	atomic_t tt_crc;
+	unsigned char *tt_buff;
+	int16_t tt_buff_len;
+	spinlock_t tt_buff_lock; /* protects tt_buff */
+	struct delayed_work tt_work;
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
-	struct gw_node *curr_gw;
+	struct gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	atomic_t gw_reselect;
+	struct hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct vis_info *my_vis_info;
 };
 
@@ -184,15 +221,42 @@ struct socket_packet {
 	struct icmp_packet_rr icmp_packet;
 };
 
-struct hna_local_entry {
+struct tt_local_entry {
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
-	char never_purge;
+	uint16_t flags;
+	atomic_t refcount;
+	struct rcu_head rcu;
+	struct hlist_node hash_entry;
 };
 
-struct hna_global_entry {
+struct tt_global_entry {
 	uint8_t addr[ETH_ALEN];
 	struct orig_node *orig_node;
+	uint8_t ttvn;
+	uint16_t flags; /* only TT_GLOBAL_ROAM is used */
+	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
+	atomic_t refcount;
+	struct rcu_head rcu;
+	struct hlist_node hash_entry; /* entry in the global table */
+};
+
+struct tt_change_node {
+	struct list_head list;
+	struct tt_change change;
+};
+
+struct tt_req_node {
+	uint8_t addr[ETH_ALEN];
+	unsigned long issued_at;
+	struct list_head list;
+};
+
+struct tt_roam_node {
+	uint8_t addr[ETH_ALEN];
+	atomic_t counter;
+	unsigned long first_time;
+	struct list_head list;
 };
 
 /**
@@ -208,7 +272,7 @@ struct forw_packet {
 	uint32_t direct_link_flags;
 	uint8_t num_packets;
 	struct delayed_work delayed_work;
-	struct batman_if *if_incoming;
+	struct hard_iface *if_incoming;
 };
 
 /* While scanning for vis-entries of a particular vis-originator
@@ -236,12 +300,13 @@ struct frag_packet_list_entry {
 };
 
 struct vis_info {
-	unsigned long       first_seen;
-	struct list_head    recv_list;
-			    /* list of server-neighbors we received a vis-packet
-			     * from.  we should not reply to them. */
+	unsigned long first_seen;
+	/* list of server-neighbors we received a vis-packet
+	 * from.  we should not reply to them. */
+	struct list_head recv_list;
 	struct list_head send_list;
 	struct kref refcount;
+	struct hlist_node hash_entry;
 	struct bat_priv *bat_priv;
 	/* this packet might be part of the vis send queue. */
 	struct sk_buff *skb_packet;
@@ -251,7 +316,7 @@ struct vis_info {
 struct vis_info_entry {
 	uint8_t  src[ETH_ALEN];
 	uint8_t  dest[ETH_ALEN];
-	uint8_t  quality;	/* quality = 0 means HNA */
+	uint8_t  quality;	/* quality = 0 client */
 } __packed;
 
 struct recvlist_node {
@@ -259,12 +324,21 @@ struct recvlist_node {
 	uint8_t mac[ETH_ALEN];
 };
 
+struct softif_neigh_vid {
+	struct hlist_node list;
+	struct bat_priv *bat_priv;
+	short vid;
+	atomic_t refcount;
+	struct softif_neigh __rcu *softif_neigh;
+	struct rcu_head rcu;
+	struct hlist_head softif_neigh_list;
+};
+
 struct softif_neigh {
 	struct hlist_node list;
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
-	short vid;
-	struct kref refcount;
+	atomic_t refcount;
 	struct rcu_head rcu;
 };
 

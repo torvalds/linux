@@ -53,9 +53,9 @@ static inline long vpa_call(unsigned long flags, unsigned long cpu,
 	return plpar_hcall_norets(H_REGISTER_VPA, flags, cpu, vpa);
 }
 
-static inline long unregister_vpa(unsigned long cpu, unsigned long vpa)
+static inline long unregister_vpa(unsigned long cpu)
 {
-	return vpa_call(0x5, cpu, vpa);
+	return vpa_call(0x5, cpu, 0);
 }
 
 static inline long register_vpa(unsigned long cpu, unsigned long vpa)
@@ -63,9 +63,9 @@ static inline long register_vpa(unsigned long cpu, unsigned long vpa)
 	return vpa_call(0x1, cpu, vpa);
 }
 
-static inline long unregister_slb_shadow(unsigned long cpu, unsigned long vpa)
+static inline long unregister_slb_shadow(unsigned long cpu)
 {
-	return vpa_call(0x7, cpu, vpa);
+	return vpa_call(0x7, cpu, 0);
 }
 
 static inline long register_slb_shadow(unsigned long cpu, unsigned long vpa)
@@ -73,9 +73,9 @@ static inline long register_slb_shadow(unsigned long cpu, unsigned long vpa)
 	return vpa_call(0x3, cpu, vpa);
 }
 
-static inline long unregister_dtl(unsigned long cpu, unsigned long vpa)
+static inline long unregister_dtl(unsigned long cpu)
 {
-	return vpa_call(0x6, cpu, vpa);
+	return vpa_call(0x6, cpu, 0);
 }
 
 static inline long register_dtl(unsigned long cpu, unsigned long vpa)
@@ -268,33 +268,6 @@ static inline long plpar_put_term_char(unsigned long termno, unsigned long len,
 	unsigned long *lbuf = (unsigned long *)buffer;	/* TODO: alignment? */
 	return plpar_hcall_norets(H_PUT_TERM_CHAR, termno, len, lbuf[0],
 			lbuf[1]);
-}
-
-static inline long plpar_eoi(unsigned long xirr)
-{
-	return plpar_hcall_norets(H_EOI, xirr);
-}
-
-static inline long plpar_cppr(unsigned long cppr)
-{
-	return plpar_hcall_norets(H_CPPR, cppr);
-}
-
-static inline long plpar_ipi(unsigned long servernum, unsigned long mfrr)
-{
-	return plpar_hcall_norets(H_IPI, servernum, mfrr);
-}
-
-static inline long plpar_xirr(unsigned long *xirr_ret, unsigned char cppr)
-{
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-
-	rc = plpar_hcall(H_XIRR, retbuf, cppr);
-
-	*xirr_ret = retbuf[0];
-
-	return rc;
 }
 
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */

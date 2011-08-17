@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -28,9 +28,31 @@
 #include "gateway_client.h"
 #include "vis.h"
 
-#define to_dev(obj)		container_of(obj, struct device, kobj)
-#define kobj_to_netdev(obj)	to_net_dev(to_dev(obj->parent))
-#define kobj_to_batpriv(obj)	netdev_priv(kobj_to_netdev(obj))
+static struct net_device *kobj_to_netdev(struct kobject *obj)
+{
+	struct device *dev = container_of(obj->parent, struct device, kobj);
+	return to_net_dev(dev);
+}
+
+static struct bat_priv *kobj_to_batpriv(struct kobject *obj)
+{
+	struct net_device *net_dev = kobj_to_netdev(obj);
+	return netdev_priv(net_dev);
+}
+
+#define UEV_TYPE_VAR	"BATTYPE="
+#define UEV_ACTION_VAR	"BATACTION="
+#define UEV_DATA_VAR	"BATDATA="
+
+static char *uev_action_str[] = {
+	"add",
+	"del",
+	"change"
+};
+
+static char *uev_type_str[] = {
+	"gw"
+};
 
 /* Use this, if you have customized show and store functions */
 #define BAT_ATTR(_name, _mode, _show, _store)	\
@@ -96,7 +118,7 @@ ssize_t show_##_name(struct kobject *kobj, struct attribute *attr,	\
 
 static int store_bool_attr(char *buff, size_t count,
 			   struct net_device *net_dev,
-			   char *attr_name, atomic_t *attr)
+			   const char *attr_name, atomic_t *attr)
 {
 	int enabled = -1;
 
@@ -138,16 +160,15 @@ static inline ssize_t __store_bool_attr(char *buff, size_t count,
 {
 	int ret;
 
-	ret = store_bool_attr(buff, count, net_dev, (char *)attr->name,
-			      attr_store);
+	ret = store_bool_attr(buff, count, net_dev, attr->name, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);
 
 	return ret;
 }
 
-static int store_uint_attr(char *buff, size_t count,
-			   struct net_device *net_dev, char *attr_name,
+static int store_uint_attr(const char *buff, size_t count,
+			   struct net_device *net_dev, const char *attr_name,
 			   unsigned int min, unsigned int max, atomic_t *attr)
 {
 	unsigned long uint_val;
@@ -183,15 +204,15 @@ static int store_uint_attr(char *buff, size_t count,
 	return count;
 }
 
-static inline ssize_t __store_uint_attr(char *buff, size_t count,
+static inline ssize_t __store_uint_attr(const char *buff, size_t count,
 			int min, int max,
 			void (*post_func)(struct net_device *),
-			struct attribute *attr,
+			const struct attribute *attr,
 			atomic_t *attr_store, struct net_device *net_dev)
 {
 	int ret;
 
-	ret = store_uint_attr(buff, count, net_dev, (char *)attr->name,
+	ret = store_uint_attr(buff, count, net_dev, attr->name,
 			      min, max, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);
@@ -368,7 +389,7 @@ BAT_ATTR_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, TQ_MAX_VALUE,
 static BAT_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, show_gw_bwidth,
 		store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BAT_ATTR_UINT(log_level, S_IRUGO | S_IWUSR, 0, 3, NULL);
+BAT_ATTR_UINT(log_level, S_IRUGO | S_IWUSR, 0, 7, NULL);
 #endif
 
 static struct bat_attribute *mesh_attrs[] = {
@@ -441,16 +462,16 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 			       char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
-	if (!batman_if)
+	if (!hard_iface)
 		return 0;
 
-	length = sprintf(buff, "%s\n", batman_if->if_status == IF_NOT_IN_USE ?
-			 "none" : batman_if->soft_iface->name);
+	length = sprintf(buff, "%s\n", hard_iface->if_status == IF_NOT_IN_USE ?
+			 "none" : hard_iface->soft_iface->name);
 
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(hard_iface);
 
 	return length;
 }
@@ -459,11 +480,11 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 				char *buff, size_t count)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	int status_tmp = -1;
-	int ret;
+	int ret = count;
 
-	if (!batman_if)
+	if (!hard_iface)
 		return count;
 
 	if (buff[count - 1] == '\n')
@@ -472,7 +493,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
 		       "interface name too long '%s'\n", buff);
-		kref_put(&batman_if->refcount, hardif_free_ref);
+		hardif_free_ref(hard_iface);
 		return -EINVAL;
 	}
 
@@ -481,30 +502,33 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	else
 		status_tmp = IF_I_WANT_YOU;
 
-	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
-	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0))) {
-		kref_put(&batman_if->refcount, hardif_free_ref);
-		return count;
+	if (hard_iface->if_status == status_tmp)
+		goto out;
+
+	if ((hard_iface->soft_iface) &&
+	    (strncmp(hard_iface->soft_iface->name, buff, IFNAMSIZ) == 0))
+		goto out;
+
+	if (!rtnl_trylock()) {
+		ret = -ERESTARTSYS;
+		goto out;
 	}
 
 	if (status_tmp == IF_NOT_IN_USE) {
-		rtnl_lock();
-		hardif_disable_interface(batman_if);
-		rtnl_unlock();
-		kref_put(&batman_if->refcount, hardif_free_ref);
-		return count;
+		hardif_disable_interface(hard_iface);
+		goto unlock;
 	}
 
 	/* if the interface already is in use */
-	if (batman_if->if_status != IF_NOT_IN_USE) {
-		rtnl_lock();
-		hardif_disable_interface(batman_if);
-		rtnl_unlock();
-	}
+	if (hard_iface->if_status != IF_NOT_IN_USE)
+		hardif_disable_interface(hard_iface);
 
-	ret = hardif_enable_interface(batman_if, buff);
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	ret = hardif_enable_interface(hard_iface, buff);
 
+unlock:
+	rtnl_unlock();
+out:
+	hardif_free_ref(hard_iface);
 	return ret;
 }
 
@@ -512,13 +536,13 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 				 char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
-	if (!batman_if)
+	if (!hard_iface)
 		return 0;
 
-	switch (batman_if->if_status) {
+	switch (hard_iface->if_status) {
 	case IF_TO_BE_REMOVED:
 		length = sprintf(buff, "disabling\n");
 		break;
@@ -537,7 +561,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 		break;
 	}
 
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(hard_iface);
 
 	return length;
 }
@@ -590,4 +614,61 @@ void sysfs_del_hardif(struct kobject **hardif_obj)
 {
 	kobject_put(*hardif_obj);
 	*hardif_obj = NULL;
+}
+
+int throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
+		 enum uev_action action, const char *data)
+{
+	int ret = -1;
+	struct hard_iface *primary_if = NULL;
+	struct kobject *bat_kobj;
+	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
+
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
+	bat_kobj = &primary_if->soft_iface->dev.kobj;
+
+	uevent_env[0] = kmalloc(strlen(UEV_TYPE_VAR) +
+				strlen(uev_type_str[type]) + 1,
+				GFP_ATOMIC);
+	if (!uevent_env[0])
+		goto out;
+
+	sprintf(uevent_env[0], "%s%s", UEV_TYPE_VAR, uev_type_str[type]);
+
+	uevent_env[1] = kmalloc(strlen(UEV_ACTION_VAR) +
+				strlen(uev_action_str[action]) + 1,
+				GFP_ATOMIC);
+	if (!uevent_env[1])
+		goto out;
+
+	sprintf(uevent_env[1], "%s%s", UEV_ACTION_VAR, uev_action_str[action]);
+
+	/* If the event is DEL, ignore the data field */
+	if (action != UEV_DEL) {
+		uevent_env[2] = kmalloc(strlen(UEV_DATA_VAR) +
+					strlen(data) + 1, GFP_ATOMIC);
+		if (!uevent_env[2])
+			goto out;
+
+		sprintf(uevent_env[2], "%s%s", UEV_DATA_VAR, data);
+	}
+
+	ret = kobject_uevent_env(bat_kobj, KOBJ_CHANGE, uevent_env);
+out:
+	kfree(uevent_env[0]);
+	kfree(uevent_env[1]);
+	kfree(uevent_env[2]);
+
+	if (primary_if)
+		hardif_free_ref(primary_if);
+
+	if (ret)
+		bat_dbg(DBG_BATMAN, bat_priv, "Impossible to send "
+			"uevent for (%s,%s,%s) event (err: %d)\n",
+			uev_type_str[type], uev_action_str[action],
+			(action == UEV_DEL ? "NULL" : data), ret);
+	return ret;
 }

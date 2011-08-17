@@ -28,6 +28,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -37,16 +39,13 @@
 #include <linux/jiffies.h>
 #include <linux/uaccess.h>
 
-static struct i2c_driver i2cdev_driver;
-
 /*
  * An i2c_dev represents an i2c_adapter ... an I2C or SMBus master, not a
  * slave (i2c_client) with which messages will be exchanged.  It's coupled
  * with a character special file which is accessed by user mode drivers.
  *
  * The list of i2c_dev structures is parallel to the i2c_adapter lists
- * maintained by the driver model, and is updated using notifications
- * delivered to the i2cdev_driver.
+ * maintained by the driver model, and is updated using bus notifications.
  */
 struct i2c_dev {
 	struct list_head list;
@@ -491,7 +490,6 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 	snprintf(client->name, I2C_NAME_SIZE, "i2c-dev %d", adap->nr);
-	client->driver = &i2cdev_driver;
 
 	client->adapter = adap;
 	file->private_data = client;
@@ -522,18 +520,17 @@ static const struct file_operations i2cdev_fops = {
 
 /* ------------------------------------------------------------------------- */
 
-/*
- * The legacy "i2cdev_driver" is used primarily to get notifications when
- * I2C adapters are added or removed, so that each one gets an i2c_dev
- * and is thus made available to userspace driver code.
- */
-
 static struct class *i2c_dev_class;
 
-static int i2cdev_attach_adapter(struct i2c_adapter *adap)
+static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 {
+	struct i2c_adapter *adap;
 	struct i2c_dev *i2c_dev;
 	int res;
+
+	if (dev->type != &i2c_adapter_type)
+		return 0;
+	adap = to_i2c_adapter(dev);
 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
@@ -561,9 +558,14 @@ error:
 	return res;
 }
 
-static int i2cdev_detach_adapter(struct i2c_adapter *adap)
+static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 {
+	struct i2c_adapter *adap;
 	struct i2c_dev *i2c_dev;
+
+	if (dev->type != &i2c_adapter_type)
+		return 0;
+	adap = to_i2c_adapter(dev);
 
 	i2c_dev = i2c_dev_get_by_minor(adap->nr);
 	if (!i2c_dev) /* attach_adapter must have failed */
@@ -577,12 +579,23 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	return 0;
 }
 
-static struct i2c_driver i2cdev_driver = {
-	.driver = {
-		.name	= "dev_driver",
-	},
-	.attach_adapter	= i2cdev_attach_adapter,
-	.detach_adapter	= i2cdev_detach_adapter,
+int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
+			 void *data)
+{
+	struct device *dev = data;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		return i2cdev_attach_adapter(dev, NULL);
+	case BUS_NOTIFY_DEL_DEVICE:
+		return i2cdev_detach_adapter(dev, NULL);
+	}
+
+	return 0;
+}
+
+static struct notifier_block i2cdev_notifier = {
+	.notifier_call = i2cdev_notifier_call,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -607,9 +620,13 @@ static int __init i2c_dev_init(void)
 		goto out_unreg_chrdev;
 	}
 
-	res = i2c_add_driver(&i2cdev_driver);
+	/* Keep track of adapters which will be added or removed later */
+	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
 	if (res)
 		goto out_unreg_class;
+
+	/* Bind to already existing adapters right away */
+	i2c_for_each_dev(NULL, i2cdev_attach_adapter);
 
 	return 0;
 
@@ -624,7 +641,8 @@ out:
 
 static void __exit i2c_dev_exit(void)
 {
-	i2c_del_driver(&i2cdev_driver);
+	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
+	i2c_for_each_dev(NULL, i2cdev_detach_adapter);
 	class_destroy(i2c_dev_class);
 	unregister_chrdev(I2C_MAJOR, "i2c");
 }

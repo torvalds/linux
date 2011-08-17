@@ -36,7 +36,6 @@
  *                using information provided by Jiun-Kuei Jung @ AVerMedia.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -383,7 +382,6 @@ struct ivtv_open_id {
 	u32 open_id;                    /* unique ID for this file descriptor */
 	int type;                       /* stream type */
 	int yuv_frames;                 /* 1: started OUT_UDMA_YUV output mode */
-	enum v4l2_priority prio;        /* priority */
 	struct ivtv *itv;
 };
 
@@ -710,7 +708,6 @@ struct ivtv {
 
 	/* Miscellaneous */
 	u32 open_id;			/* incremented each time an open occurs, is >= 1 */
-	struct v4l2_prio_state prio;    /* priority state */
 	int search_pack_header;         /* 1 if ivtv_copy_buf_to_user() is scanning for a pack header (0xba) */
 	int speed;                      /* current playback speed setting */
 	u8 speed_mute_audio;            /* 1 if audio should be muted when fast forward */

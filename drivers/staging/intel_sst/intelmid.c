@@ -32,15 +32,21 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/firmware.h>
+#include <linux/input.h>
 #include <sound/control.h>
 #include <asm/mrst.h>
 #include <sound/pcm.h>
-#include "jack.h"
+#include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
+#include <linux/gpio.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
+#include "intel_sst_fw_ipc.h"
+#include "intel_sst_common.h"
 #include "intelmid_snd_control.h"
+#include "intelmid_adc_control.h"
 #include "intelmid.h"
 
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
@@ -62,7 +68,14 @@ MODULE_PARM_DESC(card_id, "ID string for INTELMAD soundcard.");
 
 int	sst_card_vendor_id;
 int intelmid_audio_interrupt_enable;/*checkpatch fix*/
+struct snd_intelmad *intelmad_drv;
 
+#define INFO(_cpu_id, _irq_cache, _size) \
+	((kernel_ulong_t)&(struct snd_intelmad_probe_info) {	\
+		.cpu_id = (_cpu_id),			\
+		.irq_cache = (_irq_cache),			\
+		.size = (_size),				\
+	})
 /* Data path functionalities */
 static struct snd_pcm_hardware snd_intelmad_stream = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
@@ -184,7 +197,7 @@ static int snd_intelmad_pcm_prepare(struct snd_pcm_substream *substream)
 		return ret_val;
 	}
 
-	 ret_val = snd_intelmad_alloc_stream(substream);
+	ret_val = snd_intelmad_alloc_stream(substream);
 	if (ret_val < 0)
 		return ret_val;
 	stream->dbg_cum_bytes = 0;
@@ -323,6 +336,16 @@ static int snd_intelmad_open(struct snd_pcm_substream *substream,
 	runtime = substream->runtime;
 	/* set the runtime hw parameter with local snd_pcm_hardware struct */
 	runtime->hw = snd_intelmad_stream;
+	if (intelmaddata->cpu_id == CPU_CHIP_LINCROFT) {
+		/*
+		 * MRST firmware currently denies stereo recording requests.
+		 */
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			runtime->hw.formats = (SNDRV_PCM_FMTBIT_S16 |
+					       SNDRV_PCM_FMTBIT_U16);
+			runtime->hw.channels_max = 1;
+		}
+	}
 	if (intelmaddata->cpu_id == CPU_CHIP_PENWELL) {
 		runtime->hw = snd_intelmad_stream;
 		runtime->hw.rates = SNDRV_PCM_RATE_48000;
@@ -423,7 +446,55 @@ static struct snd_pcm_ops snd_intelmad_capture_ops = {
 	.pointer = snd_intelmad_pcm_pointer,
 };
 
+int intelmad_get_mic_bias(void)
+{
+	struct snd_pmic_ops *pmic_ops;
 
+	if (!intelmad_drv || !intelmad_drv->sstdrv_ops)
+		return -ENODEV;
+	pmic_ops = intelmad_drv->sstdrv_ops->scard_ops;
+	if (pmic_ops && pmic_ops->pmic_get_mic_bias)
+		return pmic_ops->pmic_get_mic_bias(intelmad_drv);
+	else
+		return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(intelmad_get_mic_bias);
+
+int intelmad_set_headset_state(int state)
+{
+	struct snd_pmic_ops *pmic_ops;
+
+	if (!intelmad_drv || !intelmad_drv->sstdrv_ops)
+		return -ENODEV;
+	pmic_ops = intelmad_drv->sstdrv_ops->scard_ops;
+	if (pmic_ops && pmic_ops->pmic_set_headset_state)
+		return pmic_ops->pmic_set_headset_state(state);
+	else
+		return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(intelmad_set_headset_state);
+
+void sst_process_mad_jack_detection(struct work_struct *work)
+{
+	u8 interrupt_status;
+	struct mad_jack_msg_wq *mad_jack_detect =
+			container_of(work, struct mad_jack_msg_wq, wq);
+
+	struct snd_intelmad *intelmaddata =
+			mad_jack_detect->intelmaddata;
+
+	if (!intelmaddata)
+		return;
+
+	interrupt_status = mad_jack_detect->intsts;
+	if (intelmaddata->sstdrv_ops && intelmaddata->sstdrv_ops->scard_ops
+			&& intelmaddata->sstdrv_ops->scard_ops->pmic_irq_cb) {
+		intelmaddata->sstdrv_ops->scard_ops->pmic_irq_cb(
+			(void *)intelmaddata, interrupt_status);
+		intelmaddata->sstdrv_ops->scard_ops->pmic_jack_enable();
+	}
+	kfree(mad_jack_detect);
+}
 /**
  * snd_intelmad_intr_handler- interrupt handler
  *
@@ -436,15 +507,17 @@ static irqreturn_t snd_intelmad_intr_handler(int irq, void *dev)
 {
 	struct snd_intelmad *intelmaddata =
 			(struct snd_intelmad *)dev;
-	u8 intsts;
-
-	memcpy_fromio(&intsts,
+	u8 interrupt_status;
+	struct mad_jack_msg_wq  *mad_jack_msg;
+	memcpy_fromio(&interrupt_status,
 			((void *)(intelmaddata->int_base)),
 			sizeof(u8));
-	intelmaddata->mad_jack_msg.intsts = intsts;
-	intelmaddata->mad_jack_msg.intelmaddata = intelmaddata;
 
-	queue_work(intelmaddata->mad_jack_wq, &intelmaddata->mad_jack_msg.wq);
+	mad_jack_msg = kzalloc(sizeof(*mad_jack_msg), GFP_ATOMIC);
+	mad_jack_msg->intsts = interrupt_status;
+	mad_jack_msg->intelmaddata = intelmaddata;
+	INIT_WORK(&mad_jack_msg->wq, sst_process_mad_jack_detection);
+	queue_work(intelmaddata->mad_jack_wq, &mad_jack_msg->wq);
 
 	return IRQ_HANDLED;
 }
@@ -457,286 +530,22 @@ void sst_mad_send_jack_report(struct snd_jack *jack,
 		pr_debug("MAD error jack empty\n");
 
 	} else {
-		pr_debug("MAD send jack report for = %d!!!\n", status);
-		pr_debug("MAD send jack report %d\n", jack->type);
 		snd_jack_report(jack, status);
-
-		/*button pressed and released */
+		/* button pressed and released */
 		if (buttonpressevent)
 			snd_jack_report(jack, 0);
 		pr_debug("MAD sending jack report Done !!!\n");
 	}
-
-
-
 }
-
-void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
-{
-	struct snd_jack *jack = NULL;
-	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
-	struct sc_reg_access sc_access[] = {
-				{0x187, 0x00, MASK7},
-				{0x188, 0x10, MASK4},
-				{0x18b, 0x10, MASK4},
-	};
-
-	struct sc_reg_access sc_access_write[] = {
-				{0x198, 0x00, 0x0},
-	};
-
-	if (intsts & 0x4) {
-
-		if (!(intelmid_audio_interrupt_enable)) {
-			pr_debug("Audio interrupt enable\n");
-			sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 3);
-
-			sst_sc_reg_access(sc_access_write, PMIC_WRITE, 1);
-			intelmid_audio_interrupt_enable = 1;
-			intelmaddata->jack[0].jack_status = 0;
-			intelmaddata->jack[1].jack_status = 0;
-
-		}
-		/* send headphone detect */
-		pr_debug("MAD headphone %d\n", intsts & 0x4);
-		jack = &intelmaddata->jack[0].jack;
-		present = !(intelmaddata->jack[0].jack_status);
-		intelmaddata->jack[0].jack_status = present;
-		jack_event_flag = 1;
-
-	}
-
-	if (intsts & 0x2) {
-		/* send short push */
-		pr_debug("MAD short push %d\n", intsts & 0x2);
-		jack = &intelmaddata->jack[2].jack;
-		present = 1;
-		jack_event_flag = 1;
-		buttonpressflag = 1;
-	}
-	if (intsts & 0x1) {
-		/* send long push */
-		pr_debug("MAD long push %d\n", intsts & 0x1);
-		jack = &intelmaddata->jack[3].jack;
-		present = 1;
-		jack_event_flag = 1;
-		buttonpressflag = 1;
-	}
-	if (intsts & 0x8) {
-		if (!(intelmid_audio_interrupt_enable)) {
-			pr_debug("Audio interrupt enable\n");
-			sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 3);
-
-			sst_sc_reg_access(sc_access_write, PMIC_WRITE, 1);
-			intelmid_audio_interrupt_enable = 1;
-			intelmaddata->jack[0].jack_status = 0;
-			intelmaddata->jack[1].jack_status = 0;
-		}
-		/* send headset detect */
-		pr_debug("MAD headset = %d\n", intsts & 0x8);
-		jack = &intelmaddata->jack[1].jack;
-		present = !(intelmaddata->jack[1].jack_status);
-		intelmaddata->jack[1].jack_status = present;
-		jack_event_flag = 1;
-	}
-
-	if (jack_event_flag)
-		sst_mad_send_jack_report(jack, buttonpressflag, present);
-}
-
-
-void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
-{
-	u8 value = 0, jack_prev_state = 0;
-	struct snd_jack *jack = NULL;
-	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
-	time_t  timediff;
-	struct sc_reg_access sc_access_read = {0,};
-	struct snd_pmic_ops *scard_ops;
-
-	scard_ops = intelmaddata->sstdrv_ops->scard_ops;
-
-	pr_debug("previous value: %x\n", intelmaddata->jack_prev_state);
-
-	if (!(intelmid_audio_interrupt_enable)) {
-		pr_debug("Audio interrupt enable\n");
-		intelmaddata->jack_prev_state = 0xC0;
-		intelmid_audio_interrupt_enable = 1;
-	}
-
-	if (intsts & 0x2) {
-		jack_prev_state = intelmaddata->jack_prev_state;
-		if (intelmaddata->pmic_status == PMIC_INIT) {
-			sc_access_read.reg_addr = 0x201;
-			sst_sc_reg_access(&sc_access_read, PMIC_READ, 1);
-			value = (sc_access_read.value);
-			pr_debug("value returned = 0x%x\n", value);
-		}
-
-		if (jack_prev_state == 0xc0 && value == 0x40) {
-			/*headset detected. */
-			pr_debug("MAD headset inserted\n");
-			jack = &intelmaddata->jack[1].jack;
-			present = 1;
-			jack_event_flag = 1;
-			intelmaddata->jack[1].jack_status = 1;
-
-		}
-
-		if (jack_prev_state == 0xc0 && value == 0x00) {
-			/* headphone  detected. */
-			pr_debug("MAD headphone inserted\n");
-			jack = &intelmaddata->jack[0].jack;
-			present = 1;
-			jack_event_flag = 1;
-
-		}
-
-		if (jack_prev_state == 0x40 && value == 0xc0) {
-			/*headset  removed*/
-			pr_debug("Jack headset status %d\n",
-				intelmaddata->jack[1].jack_status);
-			pr_debug("MAD headset removed\n");
-			jack = &intelmaddata->jack[1].jack;
-			present = 0;
-			jack_event_flag = 1;
-			intelmaddata->jack[1].jack_status = 0;
-		}
-
-		if (jack_prev_state == 0x00 && value == 0xc0) {
-			/* headphone  detected. */
-			pr_debug("Jack headphone status %d\n",
-					intelmaddata->jack[0].jack_status);
-			pr_debug("headphone removed\n");
-			jack = &intelmaddata->jack[0].jack;
-			present = 0;
-			jack_event_flag = 1;
-		}
-
-		if (jack_prev_state == 0x40 && value == 0x00) {
-			/*button pressed*/
-			do_gettimeofday(&intelmaddata->jack[1].buttonpressed);
-			pr_debug("MAD button press detected\n");
-		}
-
-
-		if (jack_prev_state == 0x00 && value == 0x40) {
-			if (intelmaddata->jack[1].jack_status) {
-				/*button pressed*/
-				do_gettimeofday(
-					&intelmaddata->jack[1].buttonreleased);
-				/*button pressed */
-				pr_debug("Button Released detected\n");
-				timediff = intelmaddata->jack[1].
-					buttonreleased.tv_sec - intelmaddata->
-					jack[1].buttonpressed.tv_sec;
-				buttonpressflag = 1;
-				if (timediff > 1) {
-					pr_debug("long press detected\n");
-					/* send headphone detect/undetect */
-					jack = &intelmaddata->jack[3].jack;
-					present = 1;
-					jack_event_flag = 1;
-				} else {
-					pr_debug("short press detected\n");
-					/* send headphone detect/undetect */
-					jack = &intelmaddata->jack[2].jack;
-					present = 1;
-					jack_event_flag = 1;
-				}
-			}
-
-		}
-		intelmaddata->jack_prev_state = value;
-	}
-	if (jack_event_flag)
-		sst_mad_send_jack_report(jack, buttonpressflag, present);
-}
-
-
-void sst_mad_jackdetection_nec(u8 intsts, struct snd_intelmad *intelmaddata)
-{
-	u8 value = 0;
-	struct snd_jack *jack = NULL;
-	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
-	struct sc_reg_access sc_access_read = {0,};
-
-	if (intelmaddata->pmic_status == PMIC_INIT) {
-		sc_access_read.reg_addr = 0x132;
-		sst_sc_reg_access(&sc_access_read, PMIC_READ, 1);
-		value = (sc_access_read.value);
-		pr_debug("value returned = 0x%x\n", value);
-	}
-	if (intsts & 0x1) {
-		pr_debug("headset detected\n");
-		/* send headset detect/undetect */
-		jack = &intelmaddata->jack[1].jack;
-		present = (value == 0x1) ? 1 : 0;
-		jack_event_flag = 1;
-	}
-	if (intsts & 0x2) {
-		pr_debug("headphone detected\n");
-		/* send headphone detect/undetect */
-		jack = &intelmaddata->jack[0].jack;
-		present = (value == 0x2) ? 1 : 0;
-		jack_event_flag = 1;
-	}
-	if (intsts & 0x4) {
-		pr_debug("short push detected\n");
-		/* send short push */
-		jack = &intelmaddata->jack[2].jack;
-		present = 1;
-		jack_event_flag = 1;
-		buttonpressflag = 1;
-	}
-	if (intsts & 0x8) {
-		pr_debug("long push detected\n");
-		/* send long push */
-		jack = &intelmaddata->jack[3].jack;
-		present = 1;
-		jack_event_flag = 1;
-		buttonpressflag = 1;
-	}
-
-	if (jack_event_flag)
-		sst_mad_send_jack_report(jack, buttonpressflag, present);
-
-
-}
-
-void sst_process_mad_jack_detection(struct work_struct *work)
-{
-	u8 intsts;
-	struct mad_jack_msg_wq *mad_jack_detect =
-			container_of(work, struct mad_jack_msg_wq, wq);
-
-	struct snd_intelmad *intelmaddata =
-			mad_jack_detect->intelmaddata;
-
-	intsts = mad_jack_detect->intsts;
-
-	switch (intelmaddata->sstdrv_ops->vendor_id) {
-	case SND_FS:
-		sst_mad_jackdetection_fs(intsts , intelmaddata);
-		break;
-	case SND_MX:
-		sst_mad_jackdetection_mx(intsts , intelmaddata);
-		break;
-	case SND_NC:
-		sst_mad_jackdetection_nec(intsts , intelmaddata);
-		break;
-	}
-}
-
 
 static int __devinit snd_intelmad_register_irq(
-					struct snd_intelmad *intelmaddata)
+		struct snd_intelmad *intelmaddata, unsigned int regbase,
+		unsigned int regsize)
 {
 	int ret_val;
-	u32 regbase = AUDINT_BASE, regsize = 8;
 	char *drv_name;
 
-	pr_debug("irq reg done, regbase 0x%x, regsize 0x%x\n",
+	pr_debug("irq reg regbase 0x%x, regsize 0x%x\n",
 					regbase, regsize);
 	intelmaddata->int_base = ioremap_nocache(regbase, regsize);
 	if (!intelmaddata->int_base)
@@ -773,7 +582,7 @@ static int __devinit snd_intelmad_sst_register(
 		if (ret_val)
 			return ret_val;
 		sst_card_vendor_id = (vendor_addr.value & (MASK2|MASK1|MASK0));
-		pr_debug("orginal n extrated vendor id = 0x%x %d\n",
+		pr_debug("original n extrated vendor id = 0x%x %d\n",
 				vendor_addr.value, sst_card_vendor_id);
 		if (sst_card_vendor_id < 0 || sst_card_vendor_id > 2) {
 			pr_err("vendor card not supported!!\n");
@@ -794,6 +603,7 @@ static int __devinit snd_intelmad_sst_register(
 		intelmaddata->sstdrv_ops->scard_ops->input_dev_id = DMIC;
 		intelmaddata->sstdrv_ops->scard_ops->output_dev_id =
 							STEREO_HEADPHONE;
+		intelmaddata->sstdrv_ops->scard_ops->lineout_dev_id = NONE;
 	}
 
 	/* registering with SST driver to get access to SST APIs to use */
@@ -802,12 +612,15 @@ static int __devinit snd_intelmad_sst_register(
 		pr_err("sst card registration failed\n");
 		return ret_val;
 	}
-
 	sst_card_vendor_id = intelmaddata->sstdrv_ops->vendor_id;
 	intelmaddata->pmic_status = PMIC_UNINIT;
 	return ret_val;
 }
 
+static void snd_intelmad_page_free(struct snd_pcm *pcm)
+{
+	snd_pcm_lib_preallocate_free_for_all(pcm);
+}
 /* Driver Init/exit functionalities */
 /**
  * snd_intelmad_pcm_new - to setup pcm for the card
@@ -859,6 +672,7 @@ static int __devinit snd_intelmad_pcm_new(struct snd_card *card,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, cap_ops);
 	/* setup private data which can be retrieved when required */
 	pcm->private_data = intelmaddata;
+	pcm->private_free = snd_intelmad_page_free;
 	pcm->info_flags = 0;
 	strncpy(pcm->name, card->shortname, strlen(card->shortname));
 	/* allocate dma pages for ALSA stream operations */
@@ -903,48 +717,18 @@ static int snd_intelmad_jack(struct snd_intelmad *intelmaddata)
 
 	pr_debug("snd_intelmad_jack called\n");
 	jack = &intelmaddata->jack[0].jack;
-	retval = snd_jack_new(intelmaddata->card, "Headphone",
-				SND_JACK_HEADPHONE, &jack);
+	snd_jack_set_key(jack, SND_JACK_BTN_0, KEY_PHONE);
+	retval = snd_jack_new(intelmaddata->card, "Intel(R) MID Audio Jack",
+		SND_JACK_HEADPHONE | SND_JACK_HEADSET |
+		SW_JACK_PHYSICAL_INSERT | SND_JACK_BTN_0
+		| SND_JACK_BTN_1, &jack);
+	pr_debug("snd_intelmad_jack called\n");
 	if (retval < 0)
 		return retval;
 	snd_jack_report(jack, 0);
 
 	jack->private_data = jack;
 	intelmaddata->jack[0].jack = *jack;
-
-
-	jack = &intelmaddata->jack[1].jack;
-	retval = snd_jack_new(intelmaddata->card, "Headset",
-				SND_JACK_HEADSET, &jack);
-	if (retval < 0)
-		return retval;
-
-
-
-	jack->private_data = jack;
-	intelmaddata->jack[1].jack = *jack;
-
-
-	jack = &intelmaddata->jack[2].jack;
-	retval = snd_jack_new(intelmaddata->card, "Short Press",
-				SND_JACK_HS_SHORT_PRESS, &jack);
-	if (retval < 0)
-		return retval;
-
-
-	jack->private_data = jack;
-	intelmaddata->jack[2].jack = *jack;
-
-
-	jack = &intelmaddata->jack[3].jack;
-	retval = snd_jack_new(intelmaddata->card, "Long Press",
-				SND_JACK_HS_LONG_PRESS, &jack);
-	if (retval < 0)
-		return retval;
-
-
-	jack->private_data = jack;
-	intelmaddata->jack[3].jack = *jack;
 
 	return retval;
 }
@@ -998,14 +782,14 @@ static int snd_intelmad_dev_free(struct snd_device *device)
 	intelmaddata = device->device_data;
 
 	pr_debug("snd_intelmad_dev_free called\n");
-	snd_card_free(intelmaddata->card);
-	/*genl_unregister_family(&audio_event_genl_family);*/
 	unregister_sst_card(intelmaddata->sstdrv_ops);
 
 	/* free allocated memory for internal context */
 	destroy_workqueue(intelmaddata->mad_jack_wq);
+	device->device_data = NULL;
 	kfree(intelmaddata->sstdrv_ops);
 	kfree(intelmaddata);
+
 	return 0;
 }
 
@@ -1036,9 +820,10 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	int ret_val;
 	struct snd_intelmad *intelmaddata;
 	const struct platform_device_id *id = platform_get_device_id(pdev);
-	unsigned int cpu_id = (unsigned int)id->driver_data;
+	struct snd_intelmad_probe_info *info = (void *)id->driver_data;
 
-	pr_debug("probe for %s cpu_id %d\n", pdev->name, cpu_id);
+	pr_debug("probe for %s cpu_id %d\n", pdev->name, info->cpu_id);
+	pr_debug("rq_chache %x of size %x\n", info->irq_cache, info->size);
 	if (!strcmp(pdev->name, DRIVER_NAME_MRST))
 		pr_debug("detected MRST\n");
 	else if (!strcmp(pdev->name, DRIVER_NAME_MFLD))
@@ -1047,7 +832,8 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 		pr_err("detected unknown device abort!!\n");
 		return -EIO;
 	}
-	if ((cpu_id < CPU_CHIP_LINCROFT) || (cpu_id > CPU_CHIP_PENWELL)) {
+	if ((info->cpu_id < CPU_CHIP_LINCROFT) ||
+				(info->cpu_id > CPU_CHIP_PENWELL)) {
 		pr_err("detected unknown cpu_id abort!!\n");
 		return -EIO;
 	}
@@ -1057,6 +843,7 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 		pr_debug("mem alloctn fail\n");
 		return -ENOMEM;
 	}
+	intelmad_drv = intelmaddata;
 
 	/* allocate memory for LPE API set */
 	intelmaddata->sstdrv_ops = kzalloc(sizeof(struct intel_sst_card_ops),
@@ -1067,7 +854,7 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	intelmaddata->cpu_id = cpu_id;
+	intelmaddata->cpu_id = info->cpu_id;
 	/* create a card instance with ALSA framework */
 	ret_val = snd_card_create(card_index, card_id, THIS_MODULE, 0, &card);
 	if (ret_val) {
@@ -1091,7 +878,7 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	ret_val = snd_intelmad_sst_register(intelmaddata);
 	if (ret_val) {
 		pr_err("snd_intelmad_sst_register failed\n");
-		goto free_allocs;
+		goto set_null_data;
 	}
 
 	intelmaddata->pmic_status = PMIC_INIT;
@@ -1099,20 +886,21 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	ret_val = snd_intelmad_pcm(card, intelmaddata);
 	if (ret_val) {
 		pr_err("snd_intelmad_pcm failed\n");
-		goto free_allocs;
+		goto free_sst;
 	}
 
 	ret_val = snd_intelmad_mixer(intelmaddata);
 	if (ret_val) {
 		pr_err("snd_intelmad_mixer failed\n");
-		goto free_allocs;
+		goto free_card;
 	}
 
 	ret_val = snd_intelmad_jack(intelmaddata);
 	if (ret_val) {
 		pr_err("snd_intelmad_jack failed\n");
-		goto free_allocs;
+		goto free_card;
 	}
+	intelmaddata->adc_address = mid_initialize_adc();
 
 	/*create work queue for jack interrupt*/
 	INIT_WORK(&intelmaddata->mad_jack_msg.wq,
@@ -1120,33 +908,48 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 
 	intelmaddata->mad_jack_wq = create_workqueue("sst_mad_jack_wq");
 	if (!intelmaddata->mad_jack_wq)
-		goto free_mad_jack_wq;
+		goto free_card;
 
-	ret_val = snd_intelmad_register_irq(intelmaddata);
+	ret_val = snd_intelmad_register_irq(intelmaddata,
+					info->irq_cache, info->size);
 	if (ret_val) {
 		pr_err("snd_intelmad_register_irq fail\n");
-		goto free_allocs;
+		goto free_mad_jack_wq;
 	}
 
 	/* internal function call to register device with ALSA */
 	ret_val = snd_intelmad_create(intelmaddata, card);
 	if (ret_val) {
 		pr_err("snd_intelmad_create failed\n");
-		goto free_allocs;
+		goto set_pvt_data;
 	}
 	card->private_data = &intelmaddata;
 	snd_card_set_dev(card, &pdev->dev);
 	ret_val = snd_card_register(card);
 	if (ret_val) {
 		pr_err("snd_card_register failed\n");
-		goto free_allocs;
+		goto set_pvt_data;
+	}
+	if (pdev->dev.platform_data) {
+		int gpio_amp = *(int *)pdev->dev.platform_data;
+		if (gpio_request_one(gpio_amp, GPIOF_OUT_INIT_LOW, "amp power"))
+			gpio_amp = 0;
+		intelmaddata->sstdrv_ops->scard_ops->gpio_amp = gpio_amp;
 	}
 
 	pr_debug("snd_intelmad_probe complete\n");
 	return ret_val;
 
+set_pvt_data:
+	card->private_data = NULL;
 free_mad_jack_wq:
 	destroy_workqueue(intelmaddata->mad_jack_wq);
+free_card:
+	snd_card_free(intelmaddata->card);
+free_sst:
+	unregister_sst_card(intelmaddata->sstdrv_ops);
+set_null_data:
+	platform_set_drvdata(pdev, NULL);
 free_allocs:
 	pr_err("probe failed\n");
 	snd_card_free(card);
@@ -1161,13 +964,13 @@ static int snd_intelmad_remove(struct platform_device *pdev)
 	struct snd_intelmad *intelmaddata = platform_get_drvdata(pdev);
 
 	if (intelmaddata) {
+		if (intelmaddata->sstdrv_ops->scard_ops->gpio_amp)
+			gpio_free(intelmaddata->sstdrv_ops->scard_ops->gpio_amp);
+		free_irq(intelmaddata->irq, intelmaddata);
 		snd_card_free(intelmaddata->card);
-		unregister_sst_card(intelmaddata->sstdrv_ops);
-		/* free allocated memory for internal context */
-		destroy_workqueue(intelmaddata->mad_jack_wq);
-		kfree(intelmaddata->sstdrv_ops);
-		kfree(intelmaddata);
 	}
+	intelmad_drv = NULL;
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -1175,8 +978,8 @@ static int snd_intelmad_remove(struct platform_device *pdev)
  *		Driver initialization and exit
  *********************************************************************/
 static const struct platform_device_id snd_intelmad_ids[] = {
-	{DRIVER_NAME_MRST, CPU_CHIP_LINCROFT},
-	{DRIVER_NAME_MFLD, CPU_CHIP_PENWELL},
+	{DRIVER_NAME_MRST, INFO(CPU_CHIP_LINCROFT, AUDINT_BASE, 1)},
+	{DRIVER_NAME_MFLD, INFO(CPU_CHIP_PENWELL, 0xFFFF7FCD, 1)},
 	{"", 0},
 
 };

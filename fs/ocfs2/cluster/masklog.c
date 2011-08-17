@@ -30,7 +30,7 @@
 
 struct mlog_bits mlog_and_bits = MLOG_BITS_RHS(MLOG_INITIAL_AND_MASK);
 EXPORT_SYMBOL_GPL(mlog_and_bits);
-struct mlog_bits mlog_not_bits = MLOG_BITS_RHS(MLOG_INITIAL_NOT_MASK);
+struct mlog_bits mlog_not_bits = MLOG_BITS_RHS(0);
 EXPORT_SYMBOL_GPL(mlog_not_bits);
 
 static ssize_t mlog_mask_show(u64 mask, char *buf)
@@ -80,8 +80,6 @@ struct mlog_attribute {
 }
 
 static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
-	define_mask(ENTRY),
-	define_mask(EXIT),
 	define_mask(TCP),
 	define_mask(MSG),
 	define_mask(SOCKET),
@@ -93,27 +91,11 @@ static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
 	define_mask(DLM_THREAD),
 	define_mask(DLM_MASTER),
 	define_mask(DLM_RECOVERY),
-	define_mask(AIO),
-	define_mask(JOURNAL),
-	define_mask(DISK_ALLOC),
-	define_mask(SUPER),
-	define_mask(FILE_IO),
-	define_mask(EXTENT_MAP),
 	define_mask(DLM_GLUE),
-	define_mask(BH_IO),
-	define_mask(UPTODATE),
-	define_mask(NAMEI),
-	define_mask(INODE),
 	define_mask(VOTE),
-	define_mask(DCACHE),
 	define_mask(CONN),
 	define_mask(QUORUM),
-	define_mask(EXPORT),
-	define_mask(XATTR),
-	define_mask(QUOTA),
-	define_mask(REFCOUNT),
 	define_mask(BASTS),
-	define_mask(RESERVATIONS),
 	define_mask(CLUSTER),
 	define_mask(ERROR),
 	define_mask(NOTICE),

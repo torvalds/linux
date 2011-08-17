@@ -105,10 +105,7 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 			gfp_t gfp)
 {
 	struct sk_buff_head temp;
-	sctp_data_chunk_t *hdr;
 	struct sctp_ulpevent *event;
-
-	hdr = (sctp_data_chunk_t *) chunk->chunk_hdr;
 
 	/* Create an event from the incoming chunk. */
 	event = sctp_ulpevent_make_rcvmsg(chunk->asoc, chunk, gfp);
@@ -243,7 +240,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		} else {
 			/*
 			 * If fragment interleave is enabled, we
-			 * can queue this to the recieve queue instead
+			 * can queue this to the receive queue instead
 			 * of the lobby.
 			 */
 			if (sctp_sk(sk)->frag_interleave)
@@ -743,11 +740,9 @@ static void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 	struct sk_buff *pos, *tmp;
 	struct sctp_ulpevent *cevent;
 	struct sctp_stream *in;
-	__u16 sid, csid;
-	__u16 ssn, cssn;
+	__u16 sid, csid, cssn;
 
 	sid = event->stream;
-	ssn = event->ssn;
 	in  = &ulpq->asoc->ssnmap->in;
 
 	event_list = (struct sk_buff_head *) sctp_event2skb(event)->prev;

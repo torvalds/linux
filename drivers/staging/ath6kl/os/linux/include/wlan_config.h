@@ -56,11 +56,7 @@
  * If the firmware successly roams within the disconnect timeout
  * it sends a new connect event
  */
-#ifdef ANDROID_ENV
-#define WLAN_CONFIG_DISCONNECT_TIMEOUT 3
-#else
 #define WLAN_CONFIG_DISCONNECT_TIMEOUT 10
-#endif /* ANDROID_ENV */ 
 
 /*
  * This configuration item disables 11n support. 
@@ -103,9 +99,10 @@
 #define WLAN_CONFIG_PM_WOW2                 0
 
 /*
- * Platform specific function to power ON/OFF AR6000 
- * and enable/disable SDIO card detection
+ * This configuration item enables/disables transmit bursting 
+ * 0 - Enable tx Bursting (default)
+ * 1 - Disable tx bursting 
  */
-#define plat_setup_power(on, detect)
+#define WLAN_CONFIG_DISABLE_TX_BURSTING     0
 
 #endif /* _HOST_WLAN_CONFIG_H_ */

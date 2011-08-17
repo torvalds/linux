@@ -7,15 +7,11 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/i2c.h>
-#include <linux/rtc.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -54,11 +50,7 @@
  */
 
 struct adt75_chip_info {
-	const char *name;
 	struct i2c_client *client;
-	struct iio_dev *indio_dev;
-	struct work_struct thresh_work;
-	s64 last_timestamp;
 	u8  config;
 };
 
@@ -66,8 +58,9 @@ struct adt75_chip_info {
  * adt75 register access by I2C
  */
 
-static int adt75_i2c_read(struct adt75_chip_info *chip, u8 reg, u8 *data)
+static int adt75_i2c_read(struct iio_dev *dev_info, u8 reg, u8 *data)
 {
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	struct i2c_client *client = chip->client;
 	int ret = 0, len;
 
@@ -91,8 +84,9 @@ static int adt75_i2c_read(struct adt75_chip_info *chip, u8 reg, u8 *data)
 	return ret;
 }
 
-static int adt75_i2c_write(struct adt75_chip_info *chip, u8 reg, u8 data)
+static int adt75_i2c_write(struct iio_dev *dev_info, u8 reg, u8 data)
 {
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	struct i2c_client *client = chip->client;
 	int ret = 0;
 
@@ -111,8 +105,7 @@ static ssize_t adt75_show_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_get_drvdata(dev));
 
 	if (chip->config & ADT75_PD)
 		return sprintf(buf, "power-save\n");
@@ -126,11 +119,11 @@ static ssize_t adt75_store_mode(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	u8 config;
 
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -138,7 +131,7 @@ static ssize_t adt75_store_mode(struct device *dev,
 	if (!strcmp(buf, "full"))
 		config |= ADT75_PD;
 
-	ret = adt75_i2c_write(chip, ADT75_CONFIG, config);
+	ret = adt75_i2c_write(dev_info, ADT75_CONFIG, config);
 	if (ret)
 		return -EIO;
 
@@ -165,8 +158,7 @@ static ssize_t adt75_show_oneshot(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_get_drvdata(dev));
 
 	return sprintf(buf, "%d\n", !!(chip->config & ADT75_ONESHOT));
 }
@@ -177,7 +169,7 @@ static ssize_t adt75_store_oneshot(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	unsigned long data = 0;
 	int ret;
 	u8 config;
@@ -187,7 +179,7 @@ static ssize_t adt75_store_oneshot(struct device *dev,
 		return -EINVAL;
 
 
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -195,7 +187,7 @@ static ssize_t adt75_store_oneshot(struct device *dev,
 	if (data)
 		config |= ADT75_ONESHOT;
 
-	ret = adt75_i2c_write(chip, ADT75_CONFIG, config);
+	ret = adt75_i2c_write(dev_info, ADT75_CONFIG, config);
 	if (ret)
 		return -EIO;
 
@@ -214,7 +206,7 @@ static ssize_t adt75_show_value(struct device *dev,
 		char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	u16 data;
 	char sign = ' ';
 	int ret;
@@ -231,7 +223,7 @@ static ssize_t adt75_show_value(struct device *dev,
 			return -EIO;
 	}
 
-	ret = adt75_i2c_read(chip, ADT75_TEMPERATURE, (u8 *)&data);
+	ret = adt75_i2c_read(dev_info, ADT75_TEMPERATURE, (u8 *)&data);
 	if (ret)
 		return -EIO;
 
@@ -249,23 +241,11 @@ static ssize_t adt75_show_value(struct device *dev,
 
 static IIO_DEVICE_ATTR(value, S_IRUGO, adt75_show_value, NULL, 0);
 
-static ssize_t adt75_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, adt75_show_name, NULL, 0);
-
 static struct attribute *adt75_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
 	&iio_dev_attr_oneshot.dev_attr.attr,
 	&iio_dev_attr_value.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -277,45 +257,30 @@ static const struct attribute_group adt75_attribute_group = {
  * temperature bound events
  */
 
-#define IIO_EVENT_CODE_ADT75_OTI    IIO_BUFFER_EVENT_CODE(0)
+#define IIO_EVENT_CODE_ADT75_OTI IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_TEMP, \
+						      0,		\
+						      IIO_EV_TYPE_THRESH, \
+						      IIO_EV_DIR_FALLING)
 
-static void adt75_interrupt_bh(struct work_struct *work_s)
+static irqreturn_t adt75_event_handler(int irq, void *private)
 {
-	struct adt75_chip_info *chip =
-		container_of(work_s, struct adt75_chip_info, thresh_work);
+	iio_push_event(private, 0,
+		       IIO_EVENT_CODE_ADT75_OTI,
+		       iio_get_time_ns());
 
-	enable_irq(chip->client->irq);
-
-	iio_push_event(chip->indio_dev, 0,
-			IIO_EVENT_CODE_ADT75_OTI,
-			chip->last_timestamp);
+	return IRQ_HANDLED;
 }
-
-static int adt75_interrupt(struct iio_dev *dev_info,
-		int index,
-		s64 timestamp,
-		int no_test)
-{
-	struct adt75_chip_info *chip = dev_info->dev_data;
-
-	chip->last_timestamp = timestamp;
-	schedule_work(&chip->thresh_work);
-
-	return 0;
-}
-
-IIO_EVENT_SH(adt75, &adt75_interrupt);
 
 static ssize_t adt75_show_oti_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
 	/* retrive ALART status */
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -331,12 +296,12 @@ static ssize_t adt75_set_oti_mode(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	u8 config;
 
 	/* retrive ALART status */
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -344,7 +309,7 @@ static ssize_t adt75_set_oti_mode(struct device *dev,
 	if (strcmp(buf, "comparator") != 0)
 		config |= ADT75_OS_INT;
 
-	ret = adt75_i2c_write(chip, ADT75_CONFIG, config);
+	ret = adt75_i2c_write(dev_info, ADT75_CONFIG, config);
 	if (ret)
 		return -EIO;
 
@@ -365,11 +330,11 @@ static ssize_t adt75_show_smbus_alart(struct device *dev,
 		char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
 	/* retrive ALART status */
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -382,7 +347,7 @@ static ssize_t adt75_set_smbus_alart(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	unsigned long data = 0;
 	int ret;
 	u8 config;
@@ -392,7 +357,7 @@ static ssize_t adt75_set_smbus_alart(struct device *dev,
 		return -EINVAL;
 
 	/* retrive ALART status */
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -400,7 +365,7 @@ static ssize_t adt75_set_smbus_alart(struct device *dev,
 	if (data)
 		config |= ADT75_SMBUS_ALART;
 
-	ret = adt75_i2c_write(chip, ADT75_CONFIG, config);
+	ret = adt75_i2c_write(dev_info, ADT75_CONFIG, config);
 	if (ret)
 		return -EIO;
 
@@ -414,11 +379,11 @@ static ssize_t adt75_show_fault_queue(struct device *dev,
 		char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
 	/* retrive ALART status */
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
@@ -432,7 +397,7 @@ static ssize_t adt75_set_fault_queue(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
+	struct adt75_chip_info *chip = iio_priv(dev_info);
 	unsigned long data;
 	int ret;
 	u8 config;
@@ -442,13 +407,13 @@ static ssize_t adt75_set_fault_queue(struct device *dev,
 		return -EINVAL;
 
 	/* retrive ALART status */
-	ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+	ret = adt75_i2c_read(dev_info, ADT75_CONFIG, &chip->config);
 	if (ret)
 		return -EIO;
 
 	config = chip->config & ~ADT75_FAULT_QUEUE_MASK;
 	config |= (data << ADT75_FAULT_QUEUE_OFFSET);
-	ret = adt75_i2c_write(chip, ADT75_CONFIG, config);
+	ret = adt75_i2c_write(dev_info, ADT75_CONFIG, config);
 	if (ret)
 		return -EIO;
 
@@ -458,16 +423,15 @@ static ssize_t adt75_set_fault_queue(struct device *dev,
 }
 static inline ssize_t adt75_show_t_bound(struct device *dev,
 		struct device_attribute *attr,
-		u8 bound_reg,
 		char *buf)
 {
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
 	u16 data;
 	char sign = ' ';
 	int ret;
 
-	ret = adt75_i2c_read(chip, bound_reg, (u8 *)&data);
+	ret = adt75_i2c_read(dev_info, this_attr->address, (u8 *)&data);
 	if (ret)
 		return -EIO;
 
@@ -485,12 +449,11 @@ static inline ssize_t adt75_show_t_bound(struct device *dev,
 
 static inline ssize_t adt75_set_t_bound(struct device *dev,
 		struct device_attribute *attr,
-		u8 bound_reg,
 		const char *buf,
 		size_t len)
 {
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
 	long tmp1, tmp2;
 	u16 data;
 	char *pos;
@@ -525,72 +488,54 @@ static inline ssize_t adt75_set_t_bound(struct device *dev,
 	data <<= ADT75_VALUE_OFFSET;
 	data = swab16(data);
 
-	ret = adt75_i2c_write(chip, bound_reg, (u8)data);
+	ret = adt75_i2c_write(dev_info, this_attr->address, (u8)data);
 	if (ret)
 		return -EIO;
 
 	return ret;
 }
 
-static ssize_t adt75_show_t_os(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	return adt75_show_t_bound(dev, attr,
-			ADT75_T_OS, buf);
-}
 
-static inline ssize_t adt75_set_t_os(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	return adt75_set_t_bound(dev, attr,
-			ADT75_T_OS, buf, len);
-}
-
-static ssize_t adt75_show_t_hyst(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	return adt75_show_t_bound(dev, attr,
-			ADT75_T_HYST, buf);
-}
-
-static inline ssize_t adt75_set_t_hyst(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	return adt75_set_t_bound(dev, attr,
-			ADT75_T_HYST, buf, len);
-}
-
-IIO_EVENT_ATTR_SH(oti_mode, iio_event_adt75,
-		adt75_show_oti_mode, adt75_set_oti_mode, 0);
-IIO_EVENT_ATTR_SH(available_oti_modes, iio_event_adt75,
-		adt75_show_available_oti_modes, NULL, 0);
-IIO_EVENT_ATTR_SH(smbus_alart, iio_event_adt75,
-		adt75_show_smbus_alart, adt75_set_smbus_alart, 0);
-IIO_EVENT_ATTR_SH(fault_queue, iio_event_adt75,
-		adt75_show_fault_queue, adt75_set_fault_queue, 0);
-IIO_EVENT_ATTR_SH(t_os, iio_event_adt75,
-		adt75_show_t_os, adt75_set_t_os, 0);
-IIO_EVENT_ATTR_SH(t_hyst, iio_event_adt75,
-		adt75_show_t_hyst, adt75_set_t_hyst, 0);
+static IIO_DEVICE_ATTR(oti_mode,
+		       S_IRUGO | S_IWUSR,
+		       adt75_show_oti_mode, adt75_set_oti_mode, 0);
+static IIO_DEVICE_ATTR(available_oti_modes,
+		       S_IRUGO,
+		       adt75_show_available_oti_modes, NULL, 0);
+static IIO_DEVICE_ATTR(smbus_alart,
+		       S_IRUGO | S_IWUSR,
+		       adt75_show_smbus_alart, adt75_set_smbus_alart, 0);
+static IIO_DEVICE_ATTR(fault_queue,
+		       S_IRUGO | S_IWUSR,
+		       adt75_show_fault_queue, adt75_set_fault_queue, 0);
+static IIO_DEVICE_ATTR(t_os_value,
+		       S_IRUGO | S_IWUSR,
+		       adt75_show_t_bound, adt75_set_t_bound,
+		       ADT75_T_OS);
+static IIO_DEVICE_ATTR(t_hyst_value,
+		       S_IRUGO | S_IWUSR,
+		       adt75_show_t_bound, adt75_set_t_bound,
+		       ADT75_T_HYST);
 
 static struct attribute *adt75_event_attributes[] = {
-	&iio_event_attr_oti_mode.dev_attr.attr,
-	&iio_event_attr_available_oti_modes.dev_attr.attr,
-	&iio_event_attr_smbus_alart.dev_attr.attr,
-	&iio_event_attr_fault_queue.dev_attr.attr,
-	&iio_event_attr_t_os.dev_attr.attr,
-	&iio_event_attr_t_hyst.dev_attr.attr,
+	&iio_dev_attr_oti_mode.dev_attr.attr,
+	&iio_dev_attr_available_oti_modes.dev_attr.attr,
+	&iio_dev_attr_smbus_alart.dev_attr.attr,
+	&iio_dev_attr_fault_queue.dev_attr.attr,
+	&iio_dev_attr_t_os_value.dev_attr.attr,
+	&iio_dev_attr_t_hyst_value.dev_attr.attr,
 	NULL,
 };
 
 static struct attribute_group adt75_event_attribute_group = {
 	.attrs = adt75_event_attributes,
+};
+
+static const struct iio_info adt75_info = {
+	.attrs = &adt75_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &adt75_event_attribute_group,
+	.driver_module = THIS_MODULE,
 };
 
 /*
@@ -601,57 +546,41 @@ static int __devinit adt75_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct adt75_chip_info *chip;
+	struct iio_dev *indio_dev;
 	int ret = 0;
 
-	chip = kzalloc(sizeof(struct adt75_chip_info), GFP_KERNEL);
-
-	if (chip == NULL)
-		return -ENOMEM;
+	indio_dev = iio_allocate_device(sizeof(*chip));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+	chip = iio_priv(indio_dev);
 
 	/* this is only used for device removal purposes */
-	i2c_set_clientdata(client, chip);
+	i2c_set_clientdata(client, indio_dev);
 
 	chip->client = client;
-	chip->name = id->name;
 
-	chip->indio_dev = iio_allocate_device();
-	if (chip->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_chip;
-	}
+	indio_dev->name = id->name;
+	indio_dev->dev.parent = &client->dev;
+	indio_dev->info = &adt75_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->attrs = &adt75_attribute_group;
-	chip->indio_dev->event_attrs = &adt75_event_attribute_group;
-	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
-	chip->indio_dev->modes = INDIO_DIRECT_MODE;
-
-	ret = iio_device_register(chip->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
 	if (client->irq > 0) {
-		ret = iio_register_interrupt_line(client->irq,
-				chip->indio_dev,
-				0,
-				IRQF_TRIGGER_LOW,
-				chip->name);
+		ret = request_threaded_irq(client->irq,
+					   NULL,
+					   &adt75_event_handler,
+					   IRQF_TRIGGER_LOW,
+					   indio_dev->name,
+					   indio_dev);
 		if (ret)
 			goto error_unreg_dev;
 
-		/*
-		 * The event handler list element refer to iio_event_adt75.
-		 * All event attributes bind to the same event handler.
-		 * So, only register event handler once.
-		 */
-		iio_add_event_to_list(&iio_event_adt75,
-				&chip->indio_dev->interrupts[0]->ev_list);
-
-		INIT_WORK(&chip->thresh_work, adt75_interrupt_bh);
-
-		ret = adt75_i2c_read(chip, ADT75_CONFIG, &chip->config);
+		ret = adt75_i2c_read(indio_dev, ADT75_CONFIG, &chip->config);
 		if (ret) {
 			ret = -EIO;
 			goto error_unreg_irq;
@@ -660,7 +589,7 @@ static int __devinit adt75_probe(struct i2c_client *client,
 		/* set irq polarity low level */
 		chip->config &= ~ADT75_OS_POLARITY;
 
-		ret = adt75_i2c_write(chip, ADT75_CONFIG, chip->config);
+		ret = adt75_i2c_write(indio_dev, ADT75_CONFIG, chip->config);
 		if (ret) {
 			ret = -EIO;
 			goto error_unreg_irq;
@@ -668,31 +597,27 @@ static int __devinit adt75_probe(struct i2c_client *client,
 	}
 
 	dev_info(&client->dev, "%s temperature sensor registered.\n",
-			 id->name);
+			 indio_dev->name);
 
 	return 0;
 error_unreg_irq:
-	iio_unregister_interrupt_line(chip->indio_dev, 0);
+	free_irq(client->irq, indio_dev);
 error_unreg_dev:
-	iio_device_unregister(chip->indio_dev);
+	iio_device_unregister(indio_dev);
 error_free_dev:
-	iio_free_device(chip->indio_dev);
-error_free_chip:
-	kfree(chip);
-
+	iio_free_device(indio_dev);
+error_ret:
 	return ret;
 }
 
 static int __devexit adt75_remove(struct i2c_client *client)
 {
-	struct adt75_chip_info *chip = i2c_get_clientdata(client);
-	struct iio_dev *indio_dev = chip->indio_dev;
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	if (client->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
+		free_irq(client->irq, indio_dev);
 	iio_device_unregister(indio_dev);
-	iio_free_device(chip->indio_dev);
-	kfree(chip);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

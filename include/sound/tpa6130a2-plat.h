@@ -3,7 +3,7 @@
  *
  * Copyright (C) Nokia Corporation
  *
- * Written by Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

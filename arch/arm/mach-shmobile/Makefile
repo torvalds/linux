@@ -30,6 +30,11 @@ obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH73A0)	+= entry-gic.o
 
+# PM objects
+obj-$(CONFIG_SUSPEND)		+= suspend.o
+obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
+obj-$(CONFIG_ARCH_SH7372)	+= pm-sh7372.o sleep-sh7372.o
+
 # Board objects
 obj-$(CONFIG_MACH_G3EVM)	+= board-g3evm.o
 obj-$(CONFIG_MACH_G4EVM)	+= board-g4evm.o

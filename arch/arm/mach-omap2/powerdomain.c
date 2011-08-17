@@ -2,7 +2,7 @@
  * OMAP powerdomain control
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Written by Paul Walmsley
  * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
@@ -19,18 +19,23 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <trace/events/power.h>
+
 #include "cm2xxx_3xxx.h"
 #include "prcm44xx.h"
 #include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 
+#include <asm/cpu.h>
 #include <plat/cpu.h>
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include <plat/prcm.h>
 
 #include "pm.h"
+
+#define PWRDM_TRACE_STATES_FLAG	(1<<31)
 
 enum {
 	PWRDM_STATE_NOW = 0,
@@ -130,8 +135,7 @@ static void _update_logic_membank_counters(struct powerdomain *pwrdm)
 static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 {
 
-	int prev;
-	int state;
+	int prev, state, trace_state = 0;
 
 	if (pwrdm == NULL)
 		return -EINVAL;
@@ -148,6 +152,17 @@ static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 			pwrdm->state_counter[prev]++;
 		if (prev == PWRDM_POWER_RET)
 			_update_logic_membank_counters(pwrdm);
+		/*
+		 * If the power domain did not hit the desired state,
+		 * generate a trace event with both the desired and hit states
+		 */
+		if (state != prev) {
+			trace_state = (PWRDM_TRACE_STATES_FLAG |
+				       ((state & OMAP_POWERSTATE_MASK) << 8) |
+				       ((prev & OMAP_POWERSTATE_MASK) << 0));
+			trace_power_domain_target(pwrdm->name, trace_state,
+						  smp_processor_id());
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -181,7 +196,7 @@ static int _pwrdm_post_transition_cb(struct powerdomain *pwrdm, void *unused)
 /**
  * pwrdm_init - set up the powerdomain layer
  * @pwrdm_list: array of struct powerdomain pointers to register
- * @custom_funcs: func pointers for arch specfic implementations
+ * @custom_funcs: func pointers for arch specific implementations
  *
  * Loop through the array of powerdomains @pwrdm_list, registering all
  * that are available on the current CPU. If pwrdm_list is supplied
@@ -406,8 +421,13 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 	pr_debug("powerdomain: setting next powerstate for %s to %0x\n",
 		 pwrdm->name, pwrst);
 
-	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst)
+	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst) {
+		/* Trace the pwrdm desired target state */
+		trace_power_domain_target(pwrdm->name, pwrst,
+					  smp_processor_id());
+		/* Program the pwrdm desired target state */
 		ret = arch_pwrdm->pwrdm_set_next_pwrst(pwrdm, pwrst);
+	}
 
 	return ret;
 }
@@ -937,4 +957,45 @@ u32 pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
 		 pwrdm->name, count);
 
 	return count;
+}
+
+/**
+ * pwrdm_can_ever_lose_context - can this powerdomain ever lose context?
+ * @pwrdm: struct powerdomain *
+ *
+ * Given a struct powerdomain * @pwrdm, returns 1 if the powerdomain
+ * can lose either memory or logic context or if @pwrdm is invalid, or
+ * returns 0 otherwise.  This function is not concerned with how the
+ * powerdomain registers are programmed (i.e., to go off or not); it's
+ * concerned with whether it's ever possible for this powerdomain to
+ * go off while some other part of the chip is active.  This function
+ * assumes that every powerdomain can go to either ON or INACTIVE.
+ */
+bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
+{
+	int i;
+
+	if (IS_ERR_OR_NULL(pwrdm)) {
+		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
+			 __func__);
+		return 1;
+	}
+
+	if (pwrdm->pwrsts & PWRSTS_OFF)
+		return 1;
+
+	if (pwrdm->pwrsts & PWRSTS_RET) {
+		if (pwrdm->pwrsts_logic_ret & PWRSTS_OFF)
+			return 1;
+
+		for (i = 0; i < pwrdm->banks; i++)
+			if (pwrdm->pwrsts_mem_ret[i] & PWRSTS_OFF)
+				return 1;
+	}
+
+	for (i = 0; i < pwrdm->banks; i++)
+		if (pwrdm->pwrsts_mem_on[i] & PWRSTS_OFF)
+			return 1;
+
+	return 0;
 }

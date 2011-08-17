@@ -87,7 +87,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 
@@ -394,7 +393,7 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	 */
 	if (!expected) {
 		unaligned_fixups_notify(current, instruction, regs);
-		perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1,
 			      regs, address);
 	}
 

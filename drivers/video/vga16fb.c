@@ -152,7 +152,7 @@ static inline int setop(int op)
 }
 
 /* Set the Enable Set/Reset Register and return its old value.  
-   The code here always uses value 0xf for thsi register. */
+   The code here always uses value 0xf for this register. */
 static inline int setsr(int sr)
 {
 	int oldsr;
@@ -1265,9 +1265,11 @@ static void vga16fb_imageblit(struct fb_info *info, const struct fb_image *image
 
 static void vga16fb_destroy(struct fb_info *info)
 {
+	struct platform_device *dev = container_of(info->device, struct platform_device, dev);
 	iounmap(info->screen_base);
 	fb_dealloc_cmap(&info->cmap);
 	/* XXX unshare VGA regions */
+	platform_set_drvdata(dev, NULL);
 	framebuffer_release(info);
 }
 

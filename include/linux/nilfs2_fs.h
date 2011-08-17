@@ -40,26 +40,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
-
-/*
- * Inode flags stored in nilfs_inode and on-memory nilfs inode
- *
- * We define these flags based on ext2-fs because of the
- * compatibility reason; to avoid problems in chattr(1)
- */
-#define NILFS_SECRM_FL		0x00000001 /* Secure deletion */
-#define NILFS_UNRM_FL		0x00000002 /* Undelete */
-#define NILFS_SYNC_FL		0x00000008 /* Synchronous updates */
-#define NILFS_IMMUTABLE_FL	0x00000010 /* Immutable file */
-#define NILFS_APPEND_FL		0x00000020 /* writes to file may only append */
-#define NILFS_NODUMP_FL		0x00000040 /* do not dump file */
-#define NILFS_NOATIME_FL	0x00000080 /* do not update atime */
-/* Reserved for compression usage... */
-#define NILFS_NOTAIL_FL		0x00008000 /* file tail should not be merged */
-#define NILFS_DIRSYNC_FL	0x00010000 /* dirsync behaviour */
-
-#define NILFS_FL_USER_VISIBLE	0x0003DFFF /* User visible flags */
-#define NILFS_FL_USER_MODIFIABLE	0x000380FF /* User modifiable flags */
+#include <linux/magic.h>
 
 
 #define NILFS_INODE_BMAP_SIZE	7
@@ -126,7 +107,7 @@ struct nilfs_super_root {
 #define NILFS_SR_DAT_OFFSET(inode_size)     NILFS_SR_MDT_OFFSET(inode_size, 0)
 #define NILFS_SR_CPFILE_OFFSET(inode_size)  NILFS_SR_MDT_OFFSET(inode_size, 1)
 #define NILFS_SR_SUFILE_OFFSET(inode_size)  NILFS_SR_MDT_OFFSET(inode_size, 2)
-#define NILFS_SR_BYTES                  (sizeof(struct nilfs_super_root))
+#define NILFS_SR_BYTES(inode_size)	    NILFS_SR_MDT_OFFSET(inode_size, 3)
 
 /*
  * Maximal mount counts
@@ -236,8 +217,10 @@ struct nilfs_super_block {
  * If there is a bit set in the incompatible feature set that the kernel
  * doesn't know about, it should refuse to mount the filesystem.
  */
+#define NILFS_FEATURE_COMPAT_RO_BLOCK_COUNT	0x00000001ULL
+
 #define NILFS_FEATURE_COMPAT_SUPP	0ULL
-#define NILFS_FEATURE_COMPAT_RO_SUPP	0ULL
+#define NILFS_FEATURE_COMPAT_RO_SUPP	NILFS_FEATURE_COMPAT_RO_BLOCK_COUNT
 #define NILFS_FEATURE_INCOMPAT_SUPP	0ULL
 
 /*
@@ -260,7 +243,6 @@ struct nilfs_super_block {
 #define NILFS_USER_INO		11	/* Fisrt user's file inode number */
 
 #define NILFS_SB_OFFSET_BYTES	1024	/* byte offset of nilfs superblock */
-#define NILFS_SUPER_MAGIC	0x3434	/* NILFS filesystem  magic number */
 
 #define NILFS_SEG_MIN_BLOCKS	16	/* Minimum number of blocks in
 					   a full segment */
@@ -346,17 +328,21 @@ static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
 {
 	unsigned len = le16_to_cpu(dlen);
 
+#if !defined(__KERNEL__) || (PAGE_CACHE_SIZE >= 65536)
 	if (len == NILFS_MAX_REC_LEN)
 		return 1 << 16;
+#endif
 	return len;
 }
 
 static inline __le16 nilfs_rec_len_to_disk(unsigned len)
 {
+#if !defined(__KERNEL__) || (PAGE_CACHE_SIZE >= 65536)
 	if (len == (1 << 16))
 		return cpu_to_le16(NILFS_MAX_REC_LEN);
 	else if (len > (1 << 16))
 		BUG();
+#endif
 	return cpu_to_le16(len);
 }
 
@@ -525,7 +511,7 @@ struct nilfs_checkpoint {
 	__le64 cp_create;
 	__le64 cp_nblk_inc;
 	__le64 cp_inodes_count;
-	__le64 cp_blocks_count;		/* Reserved (might be deleted) */
+	__le64 cp_blocks_count;
 
 	/* Do not change the byte offset of ifile inode.
 	   To keep the compatibility of the disk format,
@@ -859,5 +845,7 @@ struct nilfs_bdesc {
 	_IOR(NILFS_IOCTL_IDENT, 0x8A, __u64)
 #define NILFS_IOCTL_RESIZE  \
 	_IOW(NILFS_IOCTL_IDENT, 0x8B, __u64)
+#define NILFS_IOCTL_SET_ALLOC_RANGE  \
+	_IOW(NILFS_IOCTL_IDENT, 0x8C, __u64[2])
 
 #endif	/* _LINUX_NILFS_FS_H */

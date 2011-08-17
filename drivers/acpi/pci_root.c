@@ -32,6 +32,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
+#include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
@@ -484,7 +485,8 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 		root->secondary.end = 0xFF;
 		printk(KERN_WARNING FW_BUG PREFIX
 		       "no secondary bus range in _CRS\n");
-		status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN,					       NULL, &bus);
+		status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN,
+					       NULL, &bus);
 		if (ACPI_SUCCESS(status))
 			root->secondary.start = bus;
 		else if (status == AE_NOT_FOUND)
@@ -564,7 +566,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	/* Indicate support for various _OSC capabilities. */
 	if (pci_ext_cfg_avail(root->bus->self))
 		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
-	if (pcie_aspm_enabled())
+	if (pcie_aspm_support_enabled())
 		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
 			OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
 	if (pci_msi_enabled())
@@ -591,12 +593,22 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 
 		status = acpi_pci_osc_control_set(device->handle, &flags,
 					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-		if (ACPI_SUCCESS(status))
+		if (ACPI_SUCCESS(status)) {
 			dev_info(root->bus->bridge,
 				"ACPI _OSC control (0x%02x) granted\n", flags);
-		else
-			dev_dbg(root->bus->bridge,
-				"ACPI _OSC request failed (code %d)\n", status);
+		} else {
+			dev_info(root->bus->bridge,
+				"ACPI _OSC request failed (%s), "
+				"returned control mask: 0x%02x\n",
+				acpi_format_exception(status), flags);
+			pr_info("ACPI _OSC control for PCIe not granted, "
+				"disabling ASPM\n");
+			pcie_no_aspm();
+		}
+	} else {
+		dev_info(root->bus->bridge,
+			 "Unable to request _OSC control "
+			 "(_OSC support mask: 0x%02x)\n", flags);
 	}
 
 	pci_acpi_add_bus_pm_notifier(device, root->bus);

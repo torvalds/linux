@@ -73,7 +73,8 @@ static int intel_sst_reset_dsp_medfield(void)
 	union config_status_reg csr;
 
 	pr_debug("Resetting the DSP in medfield\n");
-	csr.full = 0x048303E2;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.full |= 0x382;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 
 	return 0;
@@ -109,11 +110,16 @@ static int sst_start_medfield(void)
 {
 	union config_status_reg csr;
 
-	csr.full = 0x04830062;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.part.bypass = 0;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
-	csr.full = 0x04830063;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.part.mfld_strb = 1;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
-	csr.full = 0x04830061;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.part.run_stall = 0;
+	csr.part.sst_reset = 0;
+	pr_debug("Starting the DSP_medfld %x\n", csr.full);
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 	pr_debug("Starting the DSP_medfld\n");
 
@@ -350,7 +356,7 @@ static int sst_download_library(const struct firmware *fw_lib,
 
 }
 
-/* This function is called befoer downloading the codec/postprocessing
+/* This function is called before downloading the codec/postprocessing
 library is set for download to SST DSP*/
 static int sst_validate_library(const struct firmware *fw_lib,
 		struct lib_slot_info *slot,
@@ -405,7 +411,7 @@ exit:
 
 }
 
-/* This function is called when FW requests for a particular libary download
+/* This function is called when FW requests for a particular library download
 This function prepares the library to download*/
 int sst_load_library(struct snd_sst_lib_download *lib, u8 ops)
 {

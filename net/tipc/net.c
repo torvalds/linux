@@ -2,7 +2,7 @@
  * net/tipc/net.c: TIPC network routing code
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 #include "name_distr.h"
 #include "subscr.h"
 #include "port.h"
+#include "node.h"
 #include "config.h"
 
 /*
@@ -108,26 +109,6 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-struct network tipc_net;
-
-static int net_start(void)
-{
-	tipc_net.nodes = kcalloc(tipc_max_nodes + 1,
-				 sizeof(*tipc_net.nodes), GFP_ATOMIC);
-	tipc_net.highest_node = 0;
-
-	return tipc_net.nodes ? 0 : -ENOMEM;
-}
-
-static void net_stop(void)
-{
-	u32 n_num;
-
-	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++)
-		tipc_node_delete(tipc_net.nodes[n_num]);
-	kfree(tipc_net.nodes);
-	tipc_net.nodes = NULL;
-}
 
 static void net_route_named_msg(struct sk_buff *buf)
 {
@@ -217,9 +198,6 @@ int tipc_net_start(u32 addr)
 	tipc_named_reinit();
 	tipc_port_reinit();
 
-	res = net_start();
-	if (res)
-		return res;
 	res = tipc_bclink_init();
 	if (res)
 		return res;
@@ -235,14 +213,16 @@ int tipc_net_start(u32 addr)
 
 void tipc_net_stop(void)
 {
+	struct tipc_node *node, *t_node;
+
 	if (tipc_mode != TIPC_NET_MODE)
 		return;
 	write_lock_bh(&tipc_net_lock);
 	tipc_bearer_stop();
 	tipc_mode = TIPC_NODE_MODE;
 	tipc_bclink_stop();
-	net_stop();
+	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
+		tipc_node_delete(node);
 	write_unlock_bh(&tipc_net_lock);
 	info("Left network mode\n");
 }
-

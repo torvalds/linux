@@ -106,14 +106,13 @@ static void __init n8x0_usb_init(void)
 	static char	announce[] __initdata = KERN_INFO "TUSB 6010\n";
 
 	/* PM companion chip power control pin */
-	ret = gpio_request(TUSB6010_GPIO_ENABLE, "TUSB6010 enable");
+	ret = gpio_request_one(TUSB6010_GPIO_ENABLE, GPIOF_OUT_INIT_LOW,
+			       "TUSB6010 enable");
 	if (ret != 0) {
 		printk(KERN_ERR "Could not get TUSB power GPIO%i\n",
 		       TUSB6010_GPIO_ENABLE);
 		return;
 	}
-	gpio_direction_output(TUSB6010_GPIO_ENABLE, 0);
-
 	tusb_set_power(0);
 
 	ret = tusb6010_setup_interface(&tusb_data, TUSB6010_REFCLK_19, 2,
@@ -494,8 +493,12 @@ static struct omap_mmc_platform_data mmc1_data = {
 
 static struct omap_mmc_platform_data *mmc_data[OMAP24XX_NR_MMC];
 
-static void __init n8x0_mmc_init(void)
+static struct gpio n810_emmc_gpios[] __initdata = {
+	{ N810_EMMC_VSD_GPIO, GPIOF_OUT_INIT_LOW,  "MMC slot 2 Vddf" },
+	{ N810_EMMC_VIO_GPIO, GPIOF_OUT_INIT_LOW,  "MMC slot 2 Vdd"  },
+};
 
+static void __init n8x0_mmc_init(void)
 {
 	int err;
 
@@ -512,31 +515,22 @@ static void __init n8x0_mmc_init(void)
 		mmc1_data.slots[1].ban_openended = 1;
 	}
 
-	err = gpio_request(N8X0_SLOT_SWITCH_GPIO, "MMC slot switch");
+	err = gpio_request_one(N8X0_SLOT_SWITCH_GPIO, GPIOF_OUT_INIT_LOW,
+			       "MMC slot switch");
 	if (err)
 		return;
 
-	gpio_direction_output(N8X0_SLOT_SWITCH_GPIO, 0);
-
 	if (machine_is_nokia_n810()) {
-		err = gpio_request(N810_EMMC_VSD_GPIO, "MMC slot 2 Vddf");
+		err = gpio_request_array(n810_emmc_gpios,
+					 ARRAY_SIZE(n810_emmc_gpios));
 		if (err) {
 			gpio_free(N8X0_SLOT_SWITCH_GPIO);
 			return;
 		}
-		gpio_direction_output(N810_EMMC_VSD_GPIO, 0);
-
-		err = gpio_request(N810_EMMC_VIO_GPIO, "MMC slot 2 Vdd");
-		if (err) {
-			gpio_free(N8X0_SLOT_SWITCH_GPIO);
-			gpio_free(N810_EMMC_VSD_GPIO);
-			return;
-		}
-		gpio_direction_output(N810_EMMC_VIO_GPIO, 0);
 	}
 
 	mmc_data[0] = &mmc1_data;
-	omap2_init_mmc(mmc_data, OMAP24XX_NR_MMC);
+	omap242x_init_mmc(mmc_data);
 }
 #else
 
@@ -628,11 +622,10 @@ static void __init n8x0_map_io(void)
 	omap242x_map_common_io();
 }
 
-static void __init n8x0_init_irq(void)
+static void __init n8x0_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -703,27 +696,30 @@ static void __init n8x0_init_machine(void)
 
 MACHINE_START(NOKIA_N800, "Nokia N800")
 	.boot_params	= 0x80000100,
-	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= n8x0_init_irq,
+	.map_io		= n8x0_map_io,
+	.init_early	= n8x0_init_early,
+	.init_irq	= omap2_init_irq,
 	.init_machine	= n8x0_init_machine,
-	.timer		= &omap_timer,
+	.timer		= &omap2_timer,
 MACHINE_END
 
 MACHINE_START(NOKIA_N810, "Nokia N810")
 	.boot_params	= 0x80000100,
-	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= n8x0_init_irq,
+	.map_io		= n8x0_map_io,
+	.init_early	= n8x0_init_early,
+	.init_irq	= omap2_init_irq,
 	.init_machine	= n8x0_init_machine,
-	.timer		= &omap_timer,
+	.timer		= &omap2_timer,
 MACHINE_END
 
 MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.boot_params	= 0x80000100,
-	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= n8x0_init_irq,
+	.map_io		= n8x0_map_io,
+	.init_early	= n8x0_init_early,
+	.init_irq	= omap2_init_irq,
 	.init_machine	= n8x0_init_machine,
-	.timer		= &omap_timer,
+	.timer		= &omap2_timer,
 MACHINE_END

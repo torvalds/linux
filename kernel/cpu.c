@@ -126,7 +126,7 @@ static void cpu_hotplug_done(void)
 #else /* #if CONFIG_HOTPLUG_CPU */
 static void cpu_hotplug_begin(void) {}
 static void cpu_hotplug_done(void) {}
-#endif	/* #esle #if CONFIG_HOTPLUG_CPU */
+#endif	/* #else #if CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
 int __ref register_cpu_notifier(struct notifier_block *nb)
@@ -160,7 +160,6 @@ static void cpu_notify_nofail(unsigned long val, void *v)
 {
 	BUG_ON(cpu_notify(val, v));
 }
-
 EXPORT_SYMBOL(register_cpu_notifier);
 
 void __ref unregister_cpu_notifier(struct notifier_block *nb)
@@ -205,7 +204,6 @@ static int __ref take_cpu_down(void *_param)
 		return err;
 
 	cpu_notify(CPU_DYING | param->mod, param->hcpu);
-
 	return 0;
 }
 
@@ -227,6 +225,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 		return -EINVAL;
 
 	cpu_hotplug_begin();
+
 	err = __cpu_notify(CPU_DOWN_PREPARE | mod, hcpu, -1, &nr_calls);
 	if (err) {
 		nr_calls--;
@@ -304,7 +303,7 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	ret = __cpu_notify(CPU_UP_PREPARE | mod, hcpu, -1, &nr_calls);
 	if (ret) {
 		nr_calls--;
-		printk("%s: attempt to bring up CPU %u failed\n",
+		printk(KERN_WARNING "%s: attempt to bring up CPU %u failed\n",
 				__func__, cpu);
 		goto out_notify;
 	}
@@ -450,14 +449,14 @@ void __ref enable_nonboot_cpus(void)
 	if (cpumask_empty(frozen_cpus))
 		goto out;
 
-	printk("Enabling non-boot CPUs ...\n");
+	printk(KERN_INFO "Enabling non-boot CPUs ...\n");
 
 	arch_enable_nonboot_cpus_begin();
 
 	for_each_cpu(cpu, frozen_cpus) {
 		error = _cpu_up(cpu, 1);
 		if (!error) {
-			printk("CPU%d is up\n", cpu);
+			printk(KERN_INFO "CPU%d is up\n", cpu);
 			continue;
 		}
 		printk(KERN_WARNING "Error taking CPU%d up: %d\n", cpu, error);
@@ -509,7 +508,7 @@ void __cpuinit notify_cpu_starting(unsigned int cpu)
  */
 
 /* cpu_bit_bitmap[0] is empty - so we can back into it */
-#define MASK_DECLARE_1(x)	[x+1][0] = 1UL << (x)
+#define MASK_DECLARE_1(x)	[x+1][0] = (1UL << (x))
 #define MASK_DECLARE_2(x)	MASK_DECLARE_1(x), MASK_DECLARE_1(x+1)
 #define MASK_DECLARE_4(x)	MASK_DECLARE_2(x), MASK_DECLARE_2(x+2)
 #define MASK_DECLARE_8(x)	MASK_DECLARE_4(x), MASK_DECLARE_4(x+4)

@@ -74,7 +74,7 @@ we have a user context", and is generally done by the page fault handler
 and things like that).
 
 Anyway, I put a pre-patch-2.3.13-1 on ftp.kernel.org just a moment ago,
-because it slightly changes the interfaces to accomodate the alpha (who
+because it slightly changes the interfaces to accommodate the alpha (who
 would have thought it, but the alpha actually ends up having one of the
 ugliest context switch codes - unlike the other architectures where the MM
 and register state is separate, the alpha PALcode joins the two, and you

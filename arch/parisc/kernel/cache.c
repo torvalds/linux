@@ -27,11 +27,16 @@
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
+#include <asm/shmparam.h>
 
 int split_tlb __read_mostly;
 int dcache_stride __read_mostly;
 int icache_stride __read_mostly;
 EXPORT_SYMBOL(dcache_stride);
+
+void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
+EXPORT_SYMBOL(flush_dcache_page_asm);
+void flush_icache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
 
 /* On some machines (e.g. ones with the Merced bus), there can be
@@ -259,81 +264,13 @@ void disable_sr_hashing(void)
 		panic("SpaceID hashing is still on!\n");
 }
 
-/* Simple function to work out if we have an existing address translation
- * for a user space vma. */
-static inline int translation_exists(struct vm_area_struct *vma,
-				unsigned long addr, unsigned long pfn)
-{
-	pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
-	pmd_t *pmd;
-	pte_t pte;
-
-	if(pgd_none(*pgd))
-		return 0;
-
-	pmd = pmd_offset(pgd, addr);
-	if(pmd_none(*pmd) || pmd_bad(*pmd))
-		return 0;
-
-	/* We cannot take the pte lock here: flush_cache_page is usually
-	 * called with pte lock already held.  Whereas flush_dcache_page
-	 * takes flush_dcache_mmap_lock, which is lower in the hierarchy:
-	 * the vma itself is secure, but the pte might come or go racily.
-	 */
-	pte = *pte_offset_map(pmd, addr);
-	/* But pte_unmap() does nothing on this architecture */
-
-	/* Filter out coincidental file entries and swap entries */
-	if (!(pte_val(pte) & (_PAGE_FLUSH|_PAGE_PRESENT)))
-		return 0;
-
-	return pte_pfn(pte) == pfn;
-}
-
-/* Private function to flush a page from the cache of a non-current
- * process.  cr25 contains the Page Directory of the current user
- * process; we're going to hijack both it and the user space %sr3 to
- * temporarily make the non-current process current.  We have to do
- * this because cache flushing may cause a non-access tlb miss which
- * the handlers have to fill in from the pgd of the non-current
- * process. */
 static inline void
-flush_user_cache_page_non_current(struct vm_area_struct *vma,
-				  unsigned long vmaddr)
+__flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
+		   unsigned long physaddr)
 {
-	/* save the current process space and pgd */
-	unsigned long space = mfsp(3), pgd = mfctl(25);
-
-	/* we don't mind taking interrupts since they may not
-	 * do anything with user space, but we can't
-	 * be preempted here */
-	preempt_disable();
-
-	/* make us current */
-	mtctl(__pa(vma->vm_mm->pgd), 25);
-	mtsp(vma->vm_mm->context, 3);
-
-	flush_user_dcache_page(vmaddr);
-	if(vma->vm_flags & VM_EXEC)
-		flush_user_icache_page(vmaddr);
-
-	/* put the old current process back */
-	mtsp(space, 3);
-	mtctl(pgd, 25);
-	preempt_enable();
-}
-
-
-static inline void
-__flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr)
-{
-	if (likely(vma->vm_mm->context == mfsp(3))) {
-		flush_user_dcache_page(vmaddr);
-		if (vma->vm_flags & VM_EXEC)
-			flush_user_icache_page(vmaddr);
-	} else {
-		flush_user_cache_page_non_current(vma, vmaddr);
-	}
+	flush_dcache_page_asm(physaddr, vmaddr);
+	if (vma->vm_flags & VM_EXEC)
+		flush_icache_page_asm(physaddr, vmaddr);
 }
 
 void flush_dcache_page(struct page *page)
@@ -342,10 +279,8 @@ void flush_dcache_page(struct page *page)
 	struct vm_area_struct *mpnt;
 	struct prio_tree_iter iter;
 	unsigned long offset;
-	unsigned long addr;
+	unsigned long addr, old_addr = 0;
 	pgoff_t pgoff;
-	unsigned long pfn = page_to_pfn(page);
-
 
 	if (mapping && !mapping_mapped(mapping)) {
 		set_bit(PG_dcache_dirty, &page->flags);
@@ -369,20 +304,21 @@ void flush_dcache_page(struct page *page)
 		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
 		addr = mpnt->vm_start + offset;
 
-		/* Flush instructions produce non access tlb misses.
-		 * On PA, we nullify these instructions rather than
-		 * taking a page fault if the pte doesn't exist.
-		 * This is just for speed.  If the page translation
-		 * isn't there, there's no point exciting the
-		 * nadtlb handler into a nullification frenzy.
-		 *
-		 * Make sure we really have this page: the private
-		 * mappings may cover this area but have COW'd this
-		 * particular page.
-		 */
-  		if (translation_exists(mpnt, addr, pfn)) {
-			__flush_cache_page(mpnt, addr);
-			break;
+		/* The TLB is the engine of coherence on parisc: The
+		 * CPU is entitled to speculate any page with a TLB
+		 * mapping, so here we kill the mapping then flush the
+		 * page along a special flush only alias mapping.
+		 * This guarantees that the page is no-longer in the
+		 * cache for any process and nor may it be
+		 * speculatively read in (until the user or kernel
+		 * specifically accesses it, of course) */
+
+		flush_tlb_page(mpnt, addr);
+		if (old_addr == 0 || (old_addr & (SHMLBA - 1)) != (addr & (SHMLBA - 1))) {
+			__flush_cache_page(mpnt, addr, page_to_phys(page));
+			if (old_addr)
+				printk(KERN_ERR "INEQUIVALENT ALIASES 0x%lx and 0x%lx in file %s\n", old_addr, addr, mpnt->vm_file ? (char *)mpnt->vm_file->f_path.dentry->d_name.name : "(null)");
+			old_addr = addr;
 		}
 	}
 	flush_dcache_mmap_unlock(mapping);
@@ -573,7 +509,7 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 {
 	BUG_ON(!vma->vm_mm->context);
 
-	if (likely(translation_exists(vma, vmaddr, pfn)))
-		__flush_cache_page(vma, vmaddr);
+	flush_tlb_page(vma, vmaddr);
+	__flush_cache_page(vma, vmaddr, page_to_phys(pfn_to_page(pfn)));
 
 }

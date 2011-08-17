@@ -883,7 +883,7 @@ struct intr_info {
  *
  *	A table driven interrupt handler that applies a set of masks to an
  *	interrupt status word and performs the corresponding actions if the
- *	interrupts described by the mask have occured.  The actions include
+ *	interrupts described by the mask have occurred.  The actions include
  *	optionally emitting a warning or alert message.  The table is terminated
  *	by an entry specifying mask 0.  Returns the number of fatal interrupt
  *	conditions.

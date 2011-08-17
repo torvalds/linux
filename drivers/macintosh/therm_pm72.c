@@ -44,11 +44,11 @@
  * TODO:  - Check MPU structure version/signature
  *        - Add things like /sbin/overtemp for non-critical
  *          overtemp conditions so userland can take some policy
- *          decisions, like slewing down CPUs
+ *          decisions, like slowing down CPUs
  *	  - Deal with fan and i2c failures in a better way
  *	  - Maybe do a generic PID based on params used for
  *	    U3 and Drives ? Definitely need to factor code a bit
- *          bettter... also make sensor detection more robust using
+ *          better... also make sensor detection more robust using
  *          the device-tree to probe for them
  *        - Figure out how to get the slots consumption and set the
  *          slots fan accordingly
@@ -91,7 +91,7 @@
  *
  *  Mar. 10, 2005 : 1.2
  *	- Add basic support for Xserve G5
- *	- Retreive pumps min/max from EEPROM image in device-tree (broken)
+ *	- Retrieve pumps min/max from EEPROM image in device-tree (broken)
  *	- Use min/max macros here or there
  *	- Latest darwin updated U3H min fan speed to 20% PWM
  *
@@ -153,7 +153,7 @@ static struct i2c_adapter *		u3_0;
 static struct i2c_adapter *		u3_1;
 static struct i2c_adapter *		k2;
 static struct i2c_client *		fcu;
-static struct cpu_pid_state		cpu_state[2];
+static struct cpu_pid_state		processor_state[2];
 static struct basckside_pid_params	backside_params;
 static struct backside_pid_state	backside_state;
 static struct drives_pid_state		drives_state;
@@ -375,7 +375,7 @@ static int read_smon_adc(struct cpu_pid_state *state, int chan)
 		rc = i2c_master_send(state->monitor, buf, 2);
 		if (rc <= 0)
 			goto error;
-		/* Wait for convertion */
+		/* Wait for conversion */
 		msleep(1);
 		/* Switch to data register */
 		buf[0] = 4;
@@ -664,8 +664,8 @@ static int read_eeprom(int cpu, struct mpu_data *out)
 
 static void fetch_cpu_pumps_minmax(void)
 {
-	struct cpu_pid_state *state0 = &cpu_state[0];
-	struct cpu_pid_state *state1 = &cpu_state[1];
+	struct cpu_pid_state *state0 = &processor_state[0];
+	struct cpu_pid_state *state1 = &processor_state[1];
 	u16 pump_min = 0, pump_max = 0xffff;
 	u16 tmp[4];
 
@@ -717,17 +717,17 @@ static ssize_t show_##name(struct device *dev, struct device_attribute *attr, ch
 	return sprintf(buf, "%d", data);			\
 }
 
-BUILD_SHOW_FUNC_FIX(cpu0_temperature, cpu_state[0].last_temp)
-BUILD_SHOW_FUNC_FIX(cpu0_voltage, cpu_state[0].voltage)
-BUILD_SHOW_FUNC_FIX(cpu0_current, cpu_state[0].current_a)
-BUILD_SHOW_FUNC_INT(cpu0_exhaust_fan_rpm, cpu_state[0].rpm)
-BUILD_SHOW_FUNC_INT(cpu0_intake_fan_rpm, cpu_state[0].intake_rpm)
+BUILD_SHOW_FUNC_FIX(cpu0_temperature, processor_state[0].last_temp)
+BUILD_SHOW_FUNC_FIX(cpu0_voltage, processor_state[0].voltage)
+BUILD_SHOW_FUNC_FIX(cpu0_current, processor_state[0].current_a)
+BUILD_SHOW_FUNC_INT(cpu0_exhaust_fan_rpm, processor_state[0].rpm)
+BUILD_SHOW_FUNC_INT(cpu0_intake_fan_rpm, processor_state[0].intake_rpm)
 
-BUILD_SHOW_FUNC_FIX(cpu1_temperature, cpu_state[1].last_temp)
-BUILD_SHOW_FUNC_FIX(cpu1_voltage, cpu_state[1].voltage)
-BUILD_SHOW_FUNC_FIX(cpu1_current, cpu_state[1].current_a)
-BUILD_SHOW_FUNC_INT(cpu1_exhaust_fan_rpm, cpu_state[1].rpm)
-BUILD_SHOW_FUNC_INT(cpu1_intake_fan_rpm, cpu_state[1].intake_rpm)
+BUILD_SHOW_FUNC_FIX(cpu1_temperature, processor_state[1].last_temp)
+BUILD_SHOW_FUNC_FIX(cpu1_voltage, processor_state[1].voltage)
+BUILD_SHOW_FUNC_FIX(cpu1_current, processor_state[1].current_a)
+BUILD_SHOW_FUNC_INT(cpu1_exhaust_fan_rpm, processor_state[1].rpm)
+BUILD_SHOW_FUNC_INT(cpu1_intake_fan_rpm, processor_state[1].intake_rpm)
 
 BUILD_SHOW_FUNC_FIX(backside_temperature, backside_state.last_temp)
 BUILD_SHOW_FUNC_INT(backside_fan_pwm, backside_state.pwm)
@@ -919,8 +919,8 @@ static void do_cpu_pid(struct cpu_pid_state *state, s32 temp, s32 power)
 
 static void do_monitor_cpu_combined(void)
 {
-	struct cpu_pid_state *state0 = &cpu_state[0];
-	struct cpu_pid_state *state1 = &cpu_state[1];
+	struct cpu_pid_state *state0 = &processor_state[0];
+	struct cpu_pid_state *state1 = &processor_state[1];
 	s32 temp0, power0, temp1, power1;
 	s32 temp_combi, power_combi;
 	int rc, intake, pump;
@@ -1150,7 +1150,7 @@ static void do_monitor_cpu_rack(struct cpu_pid_state *state)
 /*
  * Initialize the state structure for one CPU control loop
  */
-static int init_cpu_state(struct cpu_pid_state *state, int index)
+static int init_processor_state(struct cpu_pid_state *state, int index)
 {
 	int err;
 
@@ -1192,7 +1192,7 @@ static int init_cpu_state(struct cpu_pid_state *state, int index)
 		err |= device_create_file(&of_dev->dev, &dev_attr_cpu1_intake_fan_rpm);
 	}
 	if (err)
-		printk(KERN_WARNING "Failed to create some of the atribute"
+		printk(KERN_WARNING "Failed to create some of the attribute"
 			"files for CPU %d\n", index);
 
 	return 0;
@@ -1205,7 +1205,7 @@ static int init_cpu_state(struct cpu_pid_state *state, int index)
 /*
  * Dispose of the state data for one CPU control loop
  */
-static void dispose_cpu_state(struct cpu_pid_state *state)
+static void dispose_processor_state(struct cpu_pid_state *state)
 {
 	if (state->monitor == NULL)
 		return;
@@ -1804,9 +1804,9 @@ static int main_control_loop(void *x)
 		set_pwm_fan(SLOTS_FAN_PWM_INDEX, SLOTS_FAN_DEFAULT_PWM);
 
 	/* Initialize ADCs */
-	initialize_adc(&cpu_state[0]);
-	if (cpu_state[1].monitor != NULL)
-		initialize_adc(&cpu_state[1]);
+	initialize_adc(&processor_state[0]);
+	if (processor_state[1].monitor != NULL)
+		initialize_adc(&processor_state[1]);
 
 	fcu_tickle_ticks = FCU_TICKLE_TICKS;
 
@@ -1833,14 +1833,14 @@ static int main_control_loop(void *x)
 		if (cpu_pid_type == CPU_PID_TYPE_COMBINED)
 			do_monitor_cpu_combined();
 		else if (cpu_pid_type == CPU_PID_TYPE_RACKMAC) {
-			do_monitor_cpu_rack(&cpu_state[0]);
-			if (cpu_state[1].monitor != NULL)
-				do_monitor_cpu_rack(&cpu_state[1]);
+			do_monitor_cpu_rack(&processor_state[0]);
+			if (processor_state[1].monitor != NULL)
+				do_monitor_cpu_rack(&processor_state[1]);
 			// better deal with UP
 		} else {
-			do_monitor_cpu_split(&cpu_state[0]);
-			if (cpu_state[1].monitor != NULL)
-				do_monitor_cpu_split(&cpu_state[1]);
+			do_monitor_cpu_split(&processor_state[0]);
+			if (processor_state[1].monitor != NULL)
+				do_monitor_cpu_split(&processor_state[1]);
 			// better deal with UP
 		}
 		/* Then, the rest */
@@ -1885,8 +1885,8 @@ static int main_control_loop(void *x)
  */
 static void dispose_control_loops(void)
 {
-	dispose_cpu_state(&cpu_state[0]);
-	dispose_cpu_state(&cpu_state[1]);
+	dispose_processor_state(&processor_state[0]);
+	dispose_processor_state(&processor_state[1]);
 	dispose_backside_state(&backside_state);
 	dispose_drives_state(&drives_state);
 	dispose_slots_state(&slots_state);
@@ -1928,12 +1928,12 @@ static int create_control_loops(void)
 	/* Create control loops for everything. If any fail, everything
 	 * fails
 	 */
-	if (init_cpu_state(&cpu_state[0], 0))
+	if (init_processor_state(&processor_state[0], 0))
 		goto fail;
 	if (cpu_pid_type == CPU_PID_TYPE_COMBINED)
 		fetch_cpu_pumps_minmax();
 
-	if (cpu_count > 1 && init_cpu_state(&cpu_state[1], 1))
+	if (cpu_count > 1 && init_processor_state(&processor_state[1], 1))
 		goto fail;
 	if (init_backside_state(&backside_state))
 		goto fail;
@@ -2210,7 +2210,7 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 	}
 }
 
-static int fcu_of_probe(struct platform_device* dev, const struct of_device_id *match)
+static int fcu_of_probe(struct platform_device* dev)
 {
 	state = state_detached;
 	of_dev = dev;
@@ -2240,7 +2240,7 @@ static const struct of_device_id fcu_match[] =
 };
 MODULE_DEVICE_TABLE(of, fcu_match);
 
-static struct of_platform_driver fcu_of_platform_driver = 
+static struct platform_driver fcu_of_platform_driver = 
 {
 	.driver = {
 		.name = "temperature",
@@ -2263,12 +2263,12 @@ static int __init therm_pm72_init(void)
 	    !rackmac)
 	    	return -ENODEV;
 
-	return of_register_platform_driver(&fcu_of_platform_driver);
+	return platform_driver_register(&fcu_of_platform_driver);
 }
 
 static void __exit therm_pm72_exit(void)
 {
-	of_unregister_platform_driver(&fcu_of_platform_driver);
+	platform_driver_unregister(&fcu_of_platform_driver);
 }
 
 module_init(therm_pm72_init);

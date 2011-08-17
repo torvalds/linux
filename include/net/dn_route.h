@@ -16,7 +16,7 @@
 *******************************************************************************/
 
 extern struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
-extern int dn_route_output_sock(struct dst_entry **pprt, struct flowi *, struct sock *sk, int flags);
+extern int dn_route_output_sock(struct dst_entry **pprt, struct flowidn *, struct sock *sk, int flags);
 extern int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
 extern void dn_rt_cache_flush(int delay);
 
@@ -67,7 +67,7 @@ extern void dn_rt_cache_flush(int delay);
 struct dn_route {
 	struct dst_entry dst;
 
-	struct flowi fl;
+	struct flowidn fld;
 
 	__le16 rt_saddr;
 	__le16 rt_daddr;
@@ -82,12 +82,12 @@ struct dn_route {
 
 static inline bool dn_is_input_route(struct dn_route *rt)
 {
-	return rt->fl.iif != 0;
+	return rt->fld.flowidn_iif != 0;
 }
 
 static inline bool dn_is_output_route(struct dn_route *rt)
 {
-	return rt->fl.iif == 0;
+	return rt->fld.flowidn_iif == 0;
 }
 
 extern void dn_route_init(void);

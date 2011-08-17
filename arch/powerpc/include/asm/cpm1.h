@@ -4,7 +4,7 @@
  *
  * This file contains structures and information for the communication
  * processor channels.  Some CPM control and status is available
- * throught the MPC8xx internal memory map.  See immap.h for details.
+ * through the MPC8xx internal memory map.  See immap.h for details.
  * This file only contains what I need for the moment, not the total
  * CPM capabilities.  I (or someone else) will add definitions as they
  * are needed.  -- Dan

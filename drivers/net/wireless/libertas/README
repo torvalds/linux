@@ -70,7 +70,7 @@ rdrf
 	These commands are used to read the MAC, BBP and RF registers from the
 	card.  These commands take one parameter that specifies the offset
 	location that is to be read.  This parameter must be specified in
-	hexadecimal (its possible to preceed preceding the number with a "0x").
+	hexadecimal (its possible to precede preceding the number with a "0x").
 
 	Path: /sys/kernel/debug/libertas_wireless/ethX/registers/
 
@@ -84,7 +84,7 @@ wrrf
 	These commands are used to write the MAC, BBP and RF registers in the
 	card.  These commands take two parameters that specify the offset
 	location and the value that is to be written. This parameters must
-	be specified in hexadecimal (its possible to preceed the number
+	be specified in hexadecimal (its possible to precede the number
 	with a "0x").
 
 	Usage:

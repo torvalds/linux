@@ -104,6 +104,7 @@ static int __devinit adx_backlight_probe(struct platform_device *pdev)
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 0xff;
 	bldev = backlight_device_register(dev_name(&pdev->dev), &pdev->dev,
 					  bl, &adx_backlight_ops, &props);

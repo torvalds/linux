@@ -2,7 +2,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,23 +44,24 @@ extern struct squashfs_cache_entry *squashfs_get_fragment(struct super_block *,
 				u64, int);
 extern struct squashfs_cache_entry *squashfs_get_datablock(struct super_block *,
 				u64, int);
-extern int squashfs_read_table(struct super_block *, void *, u64, int);
+extern void *squashfs_read_table(struct super_block *, u64, int);
 
 /* decompressor.c */
 extern const struct squashfs_decompressor *squashfs_lookup_decompressor(int);
+extern void *squashfs_decompressor_init(struct super_block *, unsigned short);
 
 /* export.c */
-extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64,
+extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64, u64,
 				unsigned int);
 
 /* fragment.c */
 extern int squashfs_frag_lookup(struct super_block *, unsigned int, u64 *);
 extern __le64 *squashfs_read_fragment_index_table(struct super_block *,
-				u64, unsigned int);
+				u64, u64, unsigned int);
 
 /* id.c */
 extern int squashfs_get_id(struct super_block *, unsigned int, unsigned int *);
-extern __le64 *squashfs_read_id_index_table(struct super_block *, u64,
+extern __le64 *squashfs_read_id_index_table(struct super_block *, u64, u64,
 				unsigned short);
 
 /* inode.c */
@@ -96,6 +97,3 @@ extern const struct inode_operations squashfs_symlink_inode_ops;
 
 /* xattr.c */
 extern const struct xattr_handler *squashfs_xattr_handlers[];
-
-/* zlib_wrapper.c */
-extern const struct squashfs_decompressor squashfs_zlib_comp_ops;

@@ -35,8 +35,8 @@
 
 static struct platform_device **omap_mcbsp_devices;
 
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size)
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size)
 {
 	int i;
 
@@ -54,6 +54,8 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 		new_mcbsp = platform_device_alloc("omap-mcbsp", i + 1);
 		if (!new_mcbsp)
 			continue;
+		platform_device_add_resources(new_mcbsp, &res[i * res_count],
+					res_count);
 		new_mcbsp->dev.platform_data = &config[i];
 		ret = platform_device_add(new_mcbsp);
 		if (ret) {
@@ -65,8 +67,8 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 }
 
 #else
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size)
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size)
 {  }
 #endif
 
@@ -278,7 +280,7 @@ EXPORT_SYMBOL(omap_dsp_get_mempool_base);
  * Claiming GPIOs, and setting their direction and initial values, is the
  * responsibility of the device drivers.  So is responding to probe().
  *
- * Board-specific knowlege like creating devices or pin setup is to be
+ * Board-specific knowledge like creating devices or pin setup is to be
  * kept out of drivers as much as possible.  In particular, pin setup
  * may be handled by the boot loader, and drivers should expect it will
  * normally have been done by the time they're probed.

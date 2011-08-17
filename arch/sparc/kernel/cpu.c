@@ -4,6 +4,7 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -11,7 +12,9 @@
 #include <linux/threads.h>
 
 #include <asm/spitfire.h>
+#include <asm/pgtable.h>
 #include <asm/oplib.h>
+#include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/head.h>
 #include <asm/psr.h>
@@ -22,6 +25,9 @@
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 EXPORT_PER_CPU_SYMBOL(__cpu_data);
+
+int ncpus_probed;
+unsigned int fsr_storage;
 
 struct cpu_info {
 	int psr_vers;
@@ -247,13 +253,12 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
  * machine type value into consideration too.  I will fix this.
  */
 
-const char *sparc_cpu_type;
-const char *sparc_fpu_type;
+static const char *sparc_cpu_type;
+static const char *sparc_fpu_type;
 const char *sparc_pmu_type;
 
-unsigned int fsr_storage;
 
-static void set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
+static void __init set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 {
 	const struct manufacturer_info *manuf;
 	int i;
@@ -313,7 +318,124 @@ static void set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 }
 
 #ifdef CONFIG_SPARC32
-void __cpuinit cpu_probe(void)
+static int show_cpuinfo(struct seq_file *m, void *__unused)
+{
+	seq_printf(m,
+		   "cpu\t\t: %s\n"
+		   "fpu\t\t: %s\n"
+		   "promlib\t\t: Version %d Revision %d\n"
+		   "prom\t\t: %d.%d\n"
+		   "type\t\t: %s\n"
+		   "ncpus probed\t: %d\n"
+		   "ncpus active\t: %d\n"
+#ifndef CONFIG_SMP
+		   "CPU0Bogo\t: %lu.%02lu\n"
+		   "CPU0ClkTck\t: %ld\n"
+#endif
+		   ,
+		   sparc_cpu_type,
+		   sparc_fpu_type ,
+		   romvec->pv_romvers,
+		   prom_rev,
+		   romvec->pv_printrev >> 16,
+		   romvec->pv_printrev & 0xffff,
+		   &cputypval[0],
+		   ncpus_probed,
+		   num_online_cpus()
+#ifndef CONFIG_SMP
+		   , cpu_data(0).udelay_val/(500000/HZ),
+		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,
+		   cpu_data(0).clock_tick
+#endif
+		);
+
+#ifdef CONFIG_SMP
+	smp_bogo(m);
+#endif
+	mmu_info(m);
+#ifdef CONFIG_SMP
+	smp_info(m);
+#endif
+	return 0;
+}
+#endif /* CONFIG_SPARC32 */
+
+#ifdef CONFIG_SPARC64
+unsigned int dcache_parity_tl1_occurred;
+unsigned int icache_parity_tl1_occurred;
+
+
+static int show_cpuinfo(struct seq_file *m, void *__unused)
+{
+	seq_printf(m,
+		   "cpu\t\t: %s\n"
+		   "fpu\t\t: %s\n"
+		   "pmu\t\t: %s\n"
+		   "prom\t\t: %s\n"
+		   "type\t\t: %s\n"
+		   "ncpus probed\t: %d\n"
+		   "ncpus active\t: %d\n"
+		   "D$ parity tl1\t: %u\n"
+		   "I$ parity tl1\t: %u\n"
+#ifndef CONFIG_SMP
+		   "Cpu0ClkTck\t: %016lx\n"
+#endif
+		   ,
+		   sparc_cpu_type,
+		   sparc_fpu_type,
+		   sparc_pmu_type,
+		   prom_version,
+		   ((tlb_type == hypervisor) ?
+		    "sun4v" :
+		    "sun4u"),
+		   ncpus_probed,
+		   num_online_cpus(),
+		   dcache_parity_tl1_occurred,
+		   icache_parity_tl1_occurred
+#ifndef CONFIG_SMP
+		   , cpu_data(0).clock_tick
+#endif
+		);
+	cpucap_info(m);
+#ifdef CONFIG_SMP
+	smp_bogo(m);
+#endif
+	mmu_info(m);
+#ifdef CONFIG_SMP
+	smp_info(m);
+#endif
+	return 0;
+}
+#endif /* CONFIG_SPARC64 */
+
+static void *c_start(struct seq_file *m, loff_t *pos)
+{
+	/* The pointer we are returning is arbitrary,
+	 * it just has to be non-NULL and not IS_ERR
+	 * in the success case.
+	 */
+	return *pos == 0 ? &c_start : NULL;
+}
+
+static void *c_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	++*pos;
+	return c_start(m, pos);
+}
+
+static void c_stop(struct seq_file *m, void *v)
+{
+}
+
+const struct seq_operations cpuinfo_op = {
+	.start =c_start,
+	.next =	c_next,
+	.stop =	c_stop,
+	.show =	show_cpuinfo,
+};
+
+#ifdef CONFIG_SPARC32
+static int __init cpu_type_probe(void)
 {
 	int psr_impl, psr_vers, fpu_vers;
 	int psr;
@@ -324,7 +446,7 @@ void __cpuinit cpu_probe(void)
 	psr = get_psr();
 	put_psr(psr | PSR_EF);
 #ifdef CONFIG_SPARC_LEON
-	fpu_vers = 7;
+	fpu_vers = get_psr() & PSR_EF ? ((get_fsr() >> 17) & 0x7) : 7;
 #else
 	fpu_vers = ((get_fsr() >> 17) & 0x7);
 #endif
@@ -332,8 +454,12 @@ void __cpuinit cpu_probe(void)
 	put_psr(psr);
 
 	set_cpu_and_fpu(psr_impl, psr_vers, fpu_vers);
+
+	return 0;
 }
-#else
+#endif /* CONFIG_SPARC32 */
+
+#ifdef CONFIG_SPARC64
 static void __init sun4v_cpu_probe(void)
 {
 	switch (sun4v_chip_type) {
@@ -349,11 +475,18 @@ static void __init sun4v_cpu_probe(void)
 		sparc_pmu_type = "niagara2";
 		break;
 
+	case SUN4V_CHIP_NIAGARA3:
+		sparc_cpu_type = "UltraSparc T3 (Niagara3)";
+		sparc_fpu_type = "UltraSparc T3 integrated FPU";
+		sparc_pmu_type = "niagara3";
+		break;
+
 	default:
 		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
 		       prom_cpu_compatible);
 		sparc_cpu_type = "Unknown SUN4V CPU";
 		sparc_fpu_type = "Unknown SUN4V FPU";
+		sparc_pmu_type = "Unknown SUN4V PMU";
 		break;
 	}
 }
@@ -374,6 +507,6 @@ static int __init cpu_type_probe(void)
 	}
 	return 0;
 }
+#endif /* CONFIG_SPARC64 */
 
 early_initcall(cpu_type_probe);
-#endif

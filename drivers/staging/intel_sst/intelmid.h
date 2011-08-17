@@ -28,6 +28,7 @@
 #define __INTELMID_H
 
 #include <linux/time.h>
+#include <sound/jack.h>
 
 #define DRIVER_NAME_MFLD "msic_audio"
 #define DRIVER_NAME_MRST "pmic_audio"
@@ -43,7 +44,7 @@
 #define MAX_BUFFER		(800*1024) /* for PCM */
 #define MIN_BUFFER		(800*1024)
 #define MAX_PERIODS		(1024*2)
-#define MIN_PERIODS		1
+#define MIN_PERIODS		2
 #define MAX_PERIOD_BYTES MAX_BUFFER
 #define MIN_PERIOD_BYTES 32
 /*#define MIN_PERIOD_BYTES 160*/
@@ -53,12 +54,12 @@
 #define STEREO_CNTL		2
 #define MIN_CHANNEL		1
 #define MAX_CHANNEL_AMIC	2
-#define MAX_CHANNEL_DMIC	4
+#define MAX_CHANNEL_DMIC	5
 #define FIFO_SIZE		0 /* fifo not being used */
 #define INTEL_MAD		"Intel MAD"
-#define MAX_CTRL_MRST		7
-#define MAX_CTRL_MFLD		2
-#define MAX_CTRL		7
+#define MAX_CTRL_MRST		8
+#define MAX_CTRL_MFLD		7
+#define MAX_CTRL		8
 #define MAX_VENDORS		4
 /* TODO +6 db */
 #define MAX_VOL		64
@@ -66,12 +67,17 @@
 #define MIN_VOL		0
 #define PLAYBACK_COUNT  1
 #define CAPTURE_COUNT	1
+#define ADC_ONE_LSB_MULTIPLIER 2346
+
+#define MID_JACK_HS_LONG_PRESS SND_JACK_BTN_0
+#define MID_JACK_HS_SHORT_PRESS SND_JACK_BTN_1
 
 extern int	sst_card_vendor_id;
 
 struct mad_jack {
 	struct snd_jack jack;
 	int jack_status;
+	int jack_dev_state;
 	struct timeval buttonpressed;
 	struct timeval  buttonreleased;
 };
@@ -83,6 +89,12 @@ struct mad_jack_msg_wq {
 
 };
 
+struct snd_intelmad_probe_info {
+	unsigned int cpu_id;
+	unsigned int irq_cache;
+	unsigned int size;
+};
+
 /**
  * struct snd_intelmad - intelmad driver structure
  *
@@ -90,12 +102,12 @@ struct mad_jack_msg_wq {
  * @card_index: sound card index
  * @card_id: sound card id detected
  * @sstdrv_ops: ptr to sst driver ops
- * @pdev: ptr to platfrom device
+ * @pdev: ptr to platform device
  * @irq: interrupt number detected
  * @pmic_status: Device status of sound card
  * @int_base: ptr to MMIO interrupt region
- * @output_sel: device slected as o/p
- * @input_sel: device slected as i/p
+ * @output_sel: device selected as o/p
+ * @input_sel: device selected as i/p
  * @master_mute: master mute status
  * @jack: jack status
  * @playback_cnt: active pb streams
@@ -116,10 +128,12 @@ struct snd_intelmad {
 	void __iomem *int_base;
 	int output_sel;
 	int input_sel;
+	int lineout_sel;
 	int master_mute;
 	struct mad_jack jack[4];
 	int playback_cnt;
 	int capture_cnt;
+	u16 adc_address;
 	struct mad_jack_msg_wq  mad_jack_msg;
 	struct workqueue_struct *mad_jack_wq;
 	u8 jack_prev_state;
@@ -131,6 +145,8 @@ struct snd_control_val {
 	int	playback_vol_min;
 	int	capture_vol_max;
 	int	capture_vol_min;
+	int	master_vol_max;
+	int	master_vol_min;
 };
 
 struct mad_stream_pvt {
@@ -161,7 +177,17 @@ enum _widget_ctrl {
 	PLAYBACK_MUTE,
 	CAPTURE_VOL,
 	CAPTURE_MUTE,
+	MASTER_VOL,
 	MASTER_MUTE
+};
+enum _widget_ctrl_mfld {
+	LINEOUT_SEL_MFLD = 3,
+};
+enum hw_chs {
+	HW_CH0 = 0,
+	HW_CH1,
+	HW_CH2,
+	HW_CH3
 };
 
 void period_elapsed(void *mad_substream);
@@ -177,5 +203,7 @@ extern struct snd_control_val intelmad_ctrl_val[];
 extern struct snd_kcontrol_new snd_intelmad_controls_mrst[];
 extern struct snd_kcontrol_new snd_intelmad_controls_mfld[];
 extern struct snd_pmic_ops *intelmad_vendor_ops[];
+void sst_mad_send_jack_report(struct snd_jack *jack,
+			int buttonpressevent , int status);
 
 #endif /* __INTELMID_H */

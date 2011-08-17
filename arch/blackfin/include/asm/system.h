@@ -19,11 +19,11 @@
  * Force strict CPU ordering.
  */
 #define nop()  __asm__ __volatile__ ("nop;\n\t" : : )
-#define mb()   __asm__ __volatile__ (""   : : : "memory")
-#define rmb()  __asm__ __volatile__ (""   : : : "memory")
-#define wmb()  __asm__ __volatile__ (""   : : : "memory")
-#define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
-#define read_barrier_depends() 		do { } while(0)
+#define smp_mb()  mb()
+#define smp_rmb() rmb()
+#define smp_wmb() wmb()
+#define set_mb(var, value) do { var = value; mb(); } while (0)
+#define smp_read_barrier_depends()	read_barrier_depends()
 
 #ifdef CONFIG_SMP
 asmlinkage unsigned long __raw_xchg_1_asm(volatile void *ptr, unsigned long value);
@@ -37,16 +37,16 @@ asmlinkage unsigned long __raw_cmpxchg_4_asm(volatile void *ptr,
 					unsigned long new, unsigned long old);
 
 #ifdef __ARCH_SYNC_CORE_DCACHE
-# define smp_mb()	do { barrier(); smp_check_barrier(); smp_mark_barrier(); } while (0)
-# define smp_rmb()	do { barrier(); smp_check_barrier(); } while (0)
-# define smp_wmb()	do { barrier(); smp_mark_barrier(); } while (0)
-#define smp_read_barrier_depends()	do { barrier(); smp_check_barrier(); } while (0)
-
+/* Force Core data cache coherence */
+# define mb()	do { barrier(); smp_check_barrier(); smp_mark_barrier(); } while (0)
+# define rmb()	do { barrier(); smp_check_barrier(); } while (0)
+# define wmb()	do { barrier(); smp_mark_barrier(); } while (0)
+# define read_barrier_depends()	do { barrier(); smp_check_barrier(); } while (0)
 #else
-# define smp_mb()	barrier()
-# define smp_rmb()	barrier()
-# define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	barrier()
+# define mb()	barrier()
+# define rmb()	barrier()
+# define wmb()	barrier()
+# define read_barrier_depends()	do { } while (0)
 #endif
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
@@ -99,10 +99,10 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 
 #else /* !CONFIG_SMP */
 
-#define smp_mb()	barrier()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	do { } while(0)
+#define mb()	barrier()
+#define rmb()	barrier()
+#define wmb()	barrier()
+#define read_barrier_depends()	do { } while (0)
 
 struct __xchg_dummy {
 	unsigned long a[100];

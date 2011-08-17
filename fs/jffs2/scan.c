@@ -94,7 +94,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	uint32_t buf_size = 0;
 	struct jffs2_summary *s = NULL; /* summary info collected by the scan process */
 #ifndef __ECOS
-	size_t pointlen;
+	size_t pointlen, try_size;
 
 	if (c->mtd->point) {
 		ret = c->mtd->point(c->mtd, 0, c->mtd->size, &pointlen,
@@ -113,18 +113,21 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		/* For NAND it's quicker to read a whole eraseblock at a time,
 		   apparently */
 		if (jffs2_cleanmarker_oob(c))
-			buf_size = c->sector_size;
+			try_size = c->sector_size;
 		else
-			buf_size = PAGE_SIZE;
+			try_size = PAGE_SIZE;
 
-		/* Respect kmalloc limitations */
-		if (buf_size > 128*1024)
-			buf_size = 128*1024;
+		D1(printk(KERN_DEBUG "Trying to allocate readbuf of %zu "
+			"bytes\n", try_size));
 
-		D1(printk(KERN_DEBUG "Allocating readbuf of %d bytes\n", buf_size));
-		flashbuf = kmalloc(buf_size, GFP_KERNEL);
+		flashbuf = mtd_kmalloc_up_to(c->mtd, &try_size);
 		if (!flashbuf)
 			return -ENOMEM;
+
+		D1(printk(KERN_DEBUG "Allocated readbuf of %zu bytes\n",
+			try_size));
+
+		buf_size = (uint32_t)try_size;
 	}
 
 	if (jffs2_sum_active()) {

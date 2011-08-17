@@ -1,0 +1,50 @@
+comment "Processor Type"
+
+# Select CPU types depending on the architecture selected.  This selects
+# which CPUs we support in the kernel image, and the compiler instruction
+# optimiser behaviour.
+
+config CPU_UCV2
+	def_bool y
+
+comment "Processor Features"
+
+config CPU_ICACHE_DISABLE
+	bool "Disable I-Cache (I-bit)"
+	help
+	  Say Y here to disable the processor instruction cache. Unless
+	  you have a reason not to or are unsure, say N.
+
+config CPU_DCACHE_DISABLE
+	bool "Disable D-Cache (D-bit)"
+	help
+	  Say Y here to disable the processor data cache. Unless
+	  you have a reason not to or are unsure, say N.
+
+config CPU_DCACHE_WRITETHROUGH
+	bool "Force write through D-cache"
+	help
+	  Say Y here to use the data cache in writethrough mode. Unless you
+	  specifically require this or are unsure, say N.
+
+config CPU_DCACHE_LINE_DISABLE
+	bool "Disable D-cache line ops"
+	default y
+	help
+	  Say Y here to disable the data cache line operations.
+
+config CPU_TLB_SINGLE_ENTRY_DISABLE
+	bool "Disable TLB single entry ops"
+	default y
+	help
+	  Say Y here to disable the TLB single entry operations.
+
+config SWIOTLB
+	def_bool y
+
+config IOMMU_HELPER
+	def_bool SWIOTLB
+
+config NEED_SG_DMA_LENGTH
+	def_bool SWIOTLB
+

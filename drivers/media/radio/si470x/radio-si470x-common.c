@@ -174,15 +174,27 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 	if (retval < 0)
 		goto done;
 
-	/* wait till tune operation has completed */
-	timeout = jiffies + msecs_to_jiffies(tune_timeout);
-	do {
-		retval = si470x_get_register(radio, STATUSRSSI);
-		if (retval < 0)
-			goto stop;
-		timed_out = time_after(jiffies, timeout);
-	} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0) &&
-		(!timed_out));
+	/* currently I2C driver only uses interrupt way to tune */
+	if (radio->stci_enabled) {
+		INIT_COMPLETION(radio->completion);
+
+		/* wait till tune operation has completed */
+		retval = wait_for_completion_timeout(&radio->completion,
+				msecs_to_jiffies(tune_timeout));
+		if (!retval)
+			timed_out = true;
+	} else {
+		/* wait till tune operation has completed */
+		timeout = jiffies + msecs_to_jiffies(tune_timeout);
+		do {
+			retval = si470x_get_register(radio, STATUSRSSI);
+			if (retval < 0)
+				goto stop;
+			timed_out = time_after(jiffies, timeout);
+		} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
+				&& (!timed_out));
+	}
+
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
 		dev_warn(&radio->videodev->dev, "tune does not complete\n");
 	if (timed_out)
@@ -310,15 +322,27 @@ static int si470x_set_seek(struct si470x_device *radio,
 	if (retval < 0)
 		goto done;
 
-	/* wait till seek operation has completed */
-	timeout = jiffies + msecs_to_jiffies(seek_timeout);
-	do {
-		retval = si470x_get_register(radio, STATUSRSSI);
-		if (retval < 0)
-			goto stop;
-		timed_out = time_after(jiffies, timeout);
-	} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0) &&
-		(!timed_out));
+	/* currently I2C driver only uses interrupt way to seek */
+	if (radio->stci_enabled) {
+		INIT_COMPLETION(radio->completion);
+
+		/* wait till seek operation has completed */
+		retval = wait_for_completion_timeout(&radio->completion,
+				msecs_to_jiffies(seek_timeout));
+		if (!retval)
+			timed_out = true;
+	} else {
+		/* wait till seek operation has completed */
+		timeout = jiffies + msecs_to_jiffies(seek_timeout);
+		do {
+			retval = si470x_get_register(radio, STATUSRSSI);
+			if (retval < 0)
+				goto stop;
+			timed_out = time_after(jiffies, timeout);
+		} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
+				&& (!timed_out));
+	}
+
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
 		dev_warn(&radio->videodev->dev, "seek does not complete\n");
 	if (radio->registers[STATUSRSSI] & STATUSRSSI_SF)
@@ -460,7 +484,6 @@ static ssize_t si470x_fops_read(struct file *file, char __user *buf,
 	count /= 3;
 
 	/* copy RDS block out of internal buffer and to user buffer */
-	mutex_lock(&radio->lock);
 	while (block_count < count) {
 		if (radio->rd_index == radio->wr_index)
 			break;

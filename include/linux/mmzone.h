@@ -16,7 +16,7 @@
 #include <linux/nodemask.h>
 #include <linux/pageblock-flags.h>
 #include <generated/bounds.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -158,6 +158,12 @@ static inline int is_unevictable_lru(enum lru_list l)
 	return (l == LRU_UNEVICTABLE);
 }
 
+/* Mask used at gathering information at once (see memcontrol.c) */
+#define LRU_ALL_FILE (BIT(LRU_INACTIVE_FILE) | BIT(LRU_ACTIVE_FILE))
+#define LRU_ALL_ANON (BIT(LRU_INACTIVE_ANON) | BIT(LRU_ACTIVE_ANON))
+#define LRU_ALL_EVICTABLE (LRU_ALL_FILE | LRU_ALL_ANON)
+#define LRU_ALL	     ((1 << NR_LRU_LISTS) - 1)
+
 enum zone_watermarks {
 	WMARK_MIN,
 	WMARK_LOW,
@@ -273,11 +279,6 @@ struct zone_reclaim_stat {
 	 */
 	unsigned long		recent_rotated[2];
 	unsigned long		recent_scanned[2];
-
-	/*
-	 * accumulated for batching
-	 */
-	unsigned long		nr_saved_scan[NR_LRU_LISTS];
 };
 
 struct zone {
@@ -472,7 +473,7 @@ static inline int zone_is_oom_locked(const struct zone *zone)
 #ifdef CONFIG_NUMA
 
 /*
- * The NUMA zonelists are doubled becausse we need zonelists that restrict the
+ * The NUMA zonelists are doubled because we need zonelists that restrict the
  * allocations to a single node for GFP_THISNODE.
  *
  * [0]	: Zonelist with fallback
@@ -651,6 +652,13 @@ typedef struct pglist_data {
 #define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->node_start_pfn + (pagenr))
 #endif
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
+
+#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+
+#define node_end_pfn(nid) ({\
+	pg_data_t *__pgdat = NODE_DATA(nid);\
+	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;\
+})
 
 #include <linux/memory_hotplug.h>
 
@@ -928,9 +936,6 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
 #define pfn_to_nid(pfn)		(0)
 #endif
 
-#define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
-#define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
-
 #ifdef CONFIG_SPARSEMEM
 
 /*
@@ -955,6 +960,12 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
 #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
 #error Allocator MAX_ORDER exceeds SECTION_SIZE
 #endif
+
+#define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
+#define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
+
+#define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
+#define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
 
 struct page;
 struct page_cgroup;
@@ -1053,12 +1064,14 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
 	return __nr_to_section(pfn_to_section_nr(pfn));
 }
 
+#ifndef CONFIG_HAVE_ARCH_PFN_VALID
 static inline int pfn_valid(unsigned long pfn)
 {
 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
 		return 0;
 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
 }
+#endif
 
 static inline int pfn_present(unsigned long pfn)
 {

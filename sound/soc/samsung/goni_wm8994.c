@@ -11,21 +11,13 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/io.h>
-#include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
+
 #include <asm/mach-types.h>
 #include <mach/gpio.h>
-#include <mach/regs-clock.h>
 
-#include <linux/mfd/wm8994/core.h>
-#include <linux/mfd/wm8994/registers.h>
 #include "../codecs/wm8994.h"
-#include "dma.h"
-#include "i2s.h"
 
 #define MACHINE_NAME	0
 #define CPU_VOICE_DAI	1
@@ -244,18 +236,17 @@ static struct snd_soc_dai_link goni_dai[] = {
 	.name = "WM8994",
 	.stream_name = "WM8994 HiFi",
 	.cpu_dai_name = "samsung-i2s.0",
-	.codec_dai_name = "wm8994-hifi",
+	.codec_dai_name = "wm8994-aif1",
 	.platform_name = "samsung-audio",
-	.codec_name = "wm8994-codec.0-0x1a",
+	.codec_name = "wm8994-codec.0-001a",
 	.init = goni_wm8994_init,
 	.ops = &goni_hifi_ops,
 }, {
 	.name = "WM8994 Voice",
 	.stream_name = "Voice",
 	.cpu_dai_name = "goni-voice-dai",
-	.codec_dai_name = "wm8994-voice",
-	.platform_name = "samsung-audio",
-	.codec_name = "wm8994-codec.0-0x1a",
+	.codec_dai_name = "wm8994-aif2",
+	.codec_name = "wm8994-codec.0-001a",
 	.ops = &goni_voice_ops,
 },
 };

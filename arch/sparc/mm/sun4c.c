@@ -318,7 +318,7 @@ void __init sun4c_probe_vac(void)
 		prom_printf("probe_vac: Didn't expect vac-linesize of %d, halting\n",
 			    sun4c_vacinfo.linesize);
 		prom_halt();
-	};
+	}
 
 	sun4c_flush_all();
 	sun4c_enable_vac();
@@ -364,7 +364,7 @@ static void __init patch_kernel_fault_handler(void)
 			prom_printf("Unhandled number of segmaps: %d\n",
 				    num_segmaps);
 			prom_halt();
-	};
+	}
 	switch (num_contexts) {
 		case 8:
 			/* Default, nothing to do. */
@@ -377,7 +377,7 @@ static void __init patch_kernel_fault_handler(void)
 			prom_printf("Unhandled number of contexts: %d\n",
 				    num_contexts);
 			prom_halt();
-	};
+	}
 
 	if (sun4c_vacinfo.do_hwflushes != 0) {
 		PATCH_INSN(vac_hwflush_patch1_on, vac_hwflush_patch1);
@@ -394,7 +394,7 @@ static void __init patch_kernel_fault_handler(void)
 			prom_printf("Impossible VAC linesize %d, halting...\n",
 				    sun4c_vacinfo.linesize);
 			prom_halt();
-		};
+		}
 	}
 }
 
@@ -922,7 +922,7 @@ static inline void garbage_collect(int entry)
 	free_locked_segment(BUCKET_ADDR(entry));
 }
 
-static struct thread_info *sun4c_alloc_thread_info(void)
+static struct thread_info *sun4c_alloc_thread_info_node(int node)
 {
 	unsigned long addr, pages;
 	int entry;
@@ -2155,7 +2155,7 @@ void __init ld_mmu_sun4c(void)
 	BTFIXUPSET_CALL(__swp_offset, sun4c_swp_offset, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__swp_entry, sun4c_swp_entry, BTFIXUPCALL_NORM);
 
-	BTFIXUPSET_CALL(alloc_thread_info, sun4c_alloc_thread_info, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(alloc_thread_info_node, sun4c_alloc_thread_info_node, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(free_thread_info, sun4c_free_thread_info, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(mmu_info, sun4c_mmu_info, BTFIXUPCALL_NORM);

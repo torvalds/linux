@@ -1,7 +1,7 @@
 /*
  * Main USB camera driver
  *
- * Copyright (C) 2008-2010 Jean-François Moine <http://moinejf.free.fr>
+ * Copyright (C) 2008-2011 Jean-François Moine <http://moinejf.free.fr>
  *
  * Camera button input handling by Márton Németh
  * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
@@ -24,7 +24,6 @@
 #define MODULE_NAME "gspca"
 
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
@@ -51,11 +50,12 @@
 #error "DEF_NURBS too big"
 #endif
 
+#define DRIVER_VERSION_NUMBER	"2.13.0"
+
 MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
-
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 12, 0)
+MODULE_VERSION(DRIVER_VERSION_NUMBER);
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -414,7 +414,6 @@ resubmit:
  *	- 0 or many INTER_PACKETs
  *	- one LAST_PACKET
  * DISCARD_PACKET invalidates the whole frame.
- * On LAST_PACKET, a new frame is returned.
  */
 void gspca_frame_add(struct gspca_dev *gspca_dev,
 			enum gspca_packet_type packet_type,
@@ -444,8 +443,11 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	} else {
 		switch (gspca_dev->last_packet_type) {
 		case DISCARD_PACKET:
-			if (packet_type == LAST_PACKET)
+			if (packet_type == LAST_PACKET) {
 				gspca_dev->last_packet_type = packet_type;
+				gspca_dev->image = NULL;
+				gspca_dev->image_len = 0;
+			}
 			return;
 		case LAST_PACKET:
 			return;
@@ -631,7 +633,8 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 		ep = &alt->endpoint[i];
 		attr = ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 		if (attr == xfer
-		    && ep->desc.wMaxPacketSize != 0)
+		    && ep->desc.wMaxPacketSize != 0
+		    && usb_endpoint_dir_in(&ep->desc))
 			return ep;
 	}
 	return NULL;
@@ -857,7 +860,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 
 		/* the bandwidth is not wide enough
-		 * negociate or try a lower alternate setting */
+		 * negotiate or try a lower alternate setting */
 		PDEBUG(D_ERR|D_STREAM,
 			"bandwidth not wide enough - trying again");
 		msleep(20);	/* wait for kill complete */
@@ -1278,10 +1281,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		ret = -ENODEV;
 		goto out;
 	}
-	strncpy((char *) cap->driver, gspca_dev->sd_desc->name,
+	strlcpy((char *) cap->driver, gspca_dev->sd_desc->name,
 			sizeof cap->driver);
 	if (gspca_dev->dev->product != NULL) {
-		strncpy((char *) cap->card, gspca_dev->dev->product,
+		strlcpy((char *) cap->card, gspca_dev->dev->product,
 			sizeof cap->card);
 	} else {
 		snprintf((char *) cap->card, sizeof cap->card,
@@ -1291,7 +1294,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	}
 	usb_make_path(gspca_dev->dev, (char *) cap->bus_info,
 			sizeof(cap->bus_info));
-	cap->version = DRIVER_VERSION_NUMBER;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 			  | V4L2_CAP_STREAMING
 			  | V4L2_CAP_READWRITE;
@@ -1460,7 +1462,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->status = gspca_dev->cam.input_flags;
-	strncpy(input->name, gspca_dev->sd_desc->name,
+	strlcpy(input->name, gspca_dev->sd_desc->name,
 		sizeof input->name);
 	return 0;
 }
@@ -1525,10 +1527,12 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		gspca_dev->usb_err = 0;
 		gspca_stream_off(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
+
+		/* Don't restart the stream when switching from read
+		 * to mmap mode */
+		if (gspca_dev->memory == GSPCA_MEMORY_READ)
+			streaming = 0;
 	}
-	/* Don't restart the stream when switching from read to mmap mode */
-	if (gspca_dev->memory == GSPCA_MEMORY_READ)
-		streaming = 0;
 
 	/* free the previous allocated buffers, if any */
 	if (gspca_dev->nframes != 0)
@@ -2152,7 +2156,7 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_g_chip_ident	= vidioc_g_chip_ident,
 };
 
-static struct video_device gspca_template = {
+static const struct video_device gspca_template = {
 	.name = "gspca main driver",
 	.fops = &dev_fops,
 	.ioctl_ops = &dev_ioctl_ops,
@@ -2344,7 +2348,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	/* release the device */
-	/* (this will call gspca_release() immediatly or on last close) */
+	/* (this will call gspca_release() immediately or on last close) */
 	video_unregister_device(&gspca_dev->vdev);
 
 /*	PDEBUG(D_PROBE, "disconnect complete"); */
@@ -2476,10 +2480,7 @@ EXPORT_SYMBOL(gspca_auto_gain_n_exposure);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-	info("v%d.%d.%d registered",
-		(DRIVER_VERSION_NUMBER >> 16) & 0xff,
-		(DRIVER_VERSION_NUMBER >> 8) & 0xff,
-		DRIVER_VERSION_NUMBER & 0xff);
+	info("v" DRIVER_VERSION_NUMBER " registered");
 	return 0;
 }
 static void __exit gspca_exit(void)
@@ -2493,6 +2494,6 @@ module_exit(gspca_exit);
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		"Debug (bit) 0x01:error 0x02:probe 0x04:config"
-		" 0x08:stream 0x10:frame 0x20:packet 0x40:USBin 0x80:USBout"
+		" 0x08:stream 0x10:frame 0x20:packet"
 		" 0x0100: v4l2");
 #endif

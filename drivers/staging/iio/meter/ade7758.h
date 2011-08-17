@@ -1,3 +1,11 @@
+/*
+ * ADE7758 Poly Phase Multifunction Energy Metering IC driver
+ *
+ * Copyright 2010-2011 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2.
+ */
+
 #ifndef _ADE7758_H
 #define _ADE7758_H
 
@@ -83,42 +91,53 @@
 #define ADE7758_MAX_RX    4
 #define ADE7758_STARTUP_DELAY 1
 
-#define ADE7758_SPI_SLOW	(u32)(300 * 1000)
-#define ADE7758_SPI_BURST	(u32)(1000 * 1000)
-#define ADE7758_SPI_FAST	(u32)(2000 * 1000)
+#define AD7758_NUM_WAVSEL	5
+#define AD7758_NUM_PHSEL	3
+#define AD7758_NUM_WAVESRC	(AD7758_NUM_WAVSEL * AD7758_NUM_PHSEL)
+
+#define AD7758_PHASE_A		0
+#define AD7758_PHASE_B		1
+#define AD7758_PHASE_C		2
+#define AD7758_CURRENT		0
+#define AD7758_VOLTAGE		1
+#define AD7758_ACT_PWR		2
+#define AD7758_REACT_PWR	3
+#define AD7758_APP_PWR		4
+#define AD7758_WT(p, w)		(((w) << 2) | (p))
 
 #define DRIVER_NAME		"ade7758"
+
 
 /**
  * struct ade7758_state - device instance specific data
  * @us:			actual spi_device
- * @work_trigger_to_ring: bh for triggered event handling
- * @inter:		used to check if new interrupt has been triggered
- * @last_timestamp:	passing timestamp from th to bh of interrupt handler
- * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct ade7758_state {
-	struct spi_device		*us;
-	struct work_struct		work_trigger_to_ring;
-	s64				last_timestamp;
-	struct iio_dev			*indio_dev;
-	struct iio_trigger		*trig;
-	u8				*tx;
-	u8				*rx;
-	struct mutex			buf_lock;
+	struct spi_device	*us;
+	struct iio_trigger	*trig;
+	u8			*tx;
+	u8			*rx;
+	struct mutex		buf_lock;
+	u32			available_scan_masks[AD7758_NUM_WAVESRC];
+	struct iio_chan_spec	*ade7758_ring_channels;
+	struct spi_transfer	ring_xfer[4];
+	struct spi_message	ring_msg;
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	unsigned char		rx_buf[8] ____cacheline_aligned;
+	unsigned char		tx_buf[8];
+
 };
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
-
-enum ade7758_scan {
-	ADE7758_SCAN_WFORM,
-};
 
 void ade7758_remove_trigger(struct iio_dev *indio_dev);
 int ade7758_probe_trigger(struct iio_dev *indio_dev);
@@ -134,20 +153,18 @@ void ade7758_unconfigure_ring(struct iio_dev *indio_dev);
 int ade7758_initialize_ring(struct iio_ring_buffer *ring);
 void ade7758_uninitialize_ring(struct iio_ring_buffer *ring);
 int ade7758_set_irq(struct device *dev, bool enable);
+
+int ade7758_spi_write_reg_8(struct device *dev,
+		u8 reg_address, u8 val);
+int ade7758_spi_read_reg_8(struct device *dev,
+		u8 reg_address, u8 *val);
+
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void ade7758_remove_trigger(struct iio_dev *indio_dev)
 {
 }
 static inline int ade7758_probe_trigger(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline ssize_t
-ade7758_read_data_from_ring(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
 {
 	return 0;
 }

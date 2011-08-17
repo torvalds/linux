@@ -11,65 +11,69 @@
 #ifndef V4L2_MEDIABUS_H
 #define V4L2_MEDIABUS_H
 
+#include <linux/v4l2-mediabus.h>
+
+/* Parallel flags */
 /*
- * These pixel codes uniquely identify data formats on the media bus. Mostly
- * they correspond to similarly named V4L2_PIX_FMT_* formats, format 0 is
- * reserved, V4L2_MBUS_FMT_FIXED shall be used by host-client pairs, where the
- * data format is fixed. Additionally, "2X8" means that one pixel is transferred
- * in two 8-bit samples, "BE" or "LE" specify in which order those samples are
- * transferred over the bus: "LE" means that the least significant bits are
- * transferred first, "BE" means that the most significant bits are transferred
- * first, and "PADHI" and "PADLO" define which bits - low or high, in the
- * incomplete high byte, are filled with padding bits.
+ * Can the client run in master or in slave mode. By "Master mode" an operation
+ * mode is meant, when the client (e.g., a camera sensor) is producing
+ * horizontal and vertical synchronisation. In "Slave mode" the host is
+ * providing these signals to the slave.
  */
-enum v4l2_mbus_pixelcode {
-	V4L2_MBUS_FMT_FIXED = 1,
-	V4L2_MBUS_FMT_YUYV8_2X8,
-	V4L2_MBUS_FMT_YVYU8_2X8,
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_VYUY8_2X8,
-	V4L2_MBUS_FMT_YVYU10_2X10,
-	V4L2_MBUS_FMT_YUYV10_2X10,
-	V4L2_MBUS_FMT_YVYU10_1X20,
-	V4L2_MBUS_FMT_YUYV10_1X20,
-	V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
-	V4L2_MBUS_FMT_RGB444_2X8_PADHI_BE,
-	V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
-	V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE,
-	V4L2_MBUS_FMT_RGB565_2X8_LE,
-	V4L2_MBUS_FMT_RGB565_2X8_BE,
-	V4L2_MBUS_FMT_BGR565_2X8_LE,
-	V4L2_MBUS_FMT_BGR565_2X8_BE,
-	V4L2_MBUS_FMT_SBGGR8_1X8,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_GREY8_1X8,
-	V4L2_MBUS_FMT_Y10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE,
-	V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE,
-	V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE,
-	V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE,
-	V4L2_MBUS_FMT_SGRBG8_1X8,
-	V4L2_MBUS_FMT_SBGGR12_1X12,
-	V4L2_MBUS_FMT_YUYV8_1_5X8,
-	V4L2_MBUS_FMT_YVYU8_1_5X8,
-	V4L2_MBUS_FMT_UYVY8_1_5X8,
-	V4L2_MBUS_FMT_VYUY8_1_5X8,
+#define V4L2_MBUS_MASTER			(1 << 0)
+#define V4L2_MBUS_SLAVE				(1 << 1)
+/* Which signal polarities it supports */
+/* Note: in BT.656 mode HSYNC and VSYNC are unused */
+#define V4L2_MBUS_HSYNC_ACTIVE_HIGH		(1 << 2)
+#define V4L2_MBUS_HSYNC_ACTIVE_LOW		(1 << 3)
+#define V4L2_MBUS_VSYNC_ACTIVE_HIGH		(1 << 4)
+#define V4L2_MBUS_VSYNC_ACTIVE_LOW		(1 << 5)
+#define V4L2_MBUS_PCLK_SAMPLE_RISING		(1 << 6)
+#define V4L2_MBUS_PCLK_SAMPLE_FALLING		(1 << 7)
+#define V4L2_MBUS_DATA_ACTIVE_HIGH		(1 << 8)
+#define V4L2_MBUS_DATA_ACTIVE_LOW		(1 << 9)
+
+/* Serial flags */
+/* How many lanes the client can use */
+#define V4L2_MBUS_CSI2_1_LANE			(1 << 0)
+#define V4L2_MBUS_CSI2_2_LANE			(1 << 1)
+#define V4L2_MBUS_CSI2_3_LANE			(1 << 2)
+#define V4L2_MBUS_CSI2_4_LANE			(1 << 3)
+/* On which channels it can send video data */
+#define V4L2_MBUS_CSI2_CHANNEL_0		(1 << 4)
+#define V4L2_MBUS_CSI2_CHANNEL_1		(1 << 5)
+#define V4L2_MBUS_CSI2_CHANNEL_2		(1 << 6)
+#define V4L2_MBUS_CSI2_CHANNEL_3		(1 << 7)
+/* Does it support only continuous or also non-continuous clock mode */
+#define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK		(1 << 8)
+#define V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK	(1 << 9)
+
+#define V4L2_MBUS_CSI2_LANES		(V4L2_MBUS_CSI2_1_LANE | V4L2_MBUS_CSI2_2_LANE | \
+					 V4L2_MBUS_CSI2_3_LANE | V4L2_MBUS_CSI2_4_LANE)
+#define V4L2_MBUS_CSI2_CHANNELS		(V4L2_MBUS_CSI2_CHANNEL_0 | V4L2_MBUS_CSI2_CHANNEL_1 | \
+					 V4L2_MBUS_CSI2_CHANNEL_2 | V4L2_MBUS_CSI2_CHANNEL_3)
+
+/**
+ * v4l2_mbus_type - media bus type
+ * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
+ * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
+ *			also be used for BT.1120
+ * @V4L2_MBUS_CSI2:	MIPI CSI-2 serial interface
+ */
+enum v4l2_mbus_type {
+	V4L2_MBUS_PARALLEL,
+	V4L2_MBUS_BT656,
+	V4L2_MBUS_CSI2,
 };
 
 /**
- * struct v4l2_mbus_framefmt - frame format on the media bus
- * @width:	frame width
- * @height:	frame height
- * @code:	data format code
- * @field:	used interlacing type
- * @colorspace:	colorspace of the data
+ * v4l2_mbus_config - media bus configuration
+ * @type:	in: interface type
+ * @flags:	in / out: configuration flags, depending on @type
  */
-struct v4l2_mbus_framefmt {
-	__u32				width;
-	__u32				height;
-	enum v4l2_mbus_pixelcode	code;
-	enum v4l2_field			field;
-	enum v4l2_colorspace		colorspace;
+struct v4l2_mbus_config {
+	enum v4l2_mbus_type type;
+	unsigned int flags;
 };
 
 static inline void v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,

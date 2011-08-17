@@ -418,9 +418,9 @@ static void bh_status(MGSLPC_INFO *info);
 /*
  * ioctl handlers
  */
-static int tiocmget(struct tty_struct *tty, struct file *file);
-static int tiocmset(struct tty_struct *tty, struct file *file,
-		    unsigned int set, unsigned int clear);
+static int tiocmget(struct tty_struct *tty);
+static int tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear);
 static int get_stats(MGSLPC_INFO *info, struct mgsl_icount __user *user_icount);
 static int get_params(MGSLPC_INFO *info, MGSL_PARAMS __user *user_params);
 static int set_params(MGSLPC_INFO *info, MGSL_PARAMS __user *new_params, struct tty_struct *tty);
@@ -1290,7 +1290,7 @@ static int startup(MGSLPC_INFO * info, struct tty_struct *tty)
 	/* Allocate and claim adapter resources */
 	retval = claim_resources(info);
 
-	/* perform existance check and diagnostics */
+	/* perform existence check and diagnostics */
 	if ( !retval )
 		retval = adapter_test(info);
 
@@ -2114,7 +2114,7 @@ static int modem_input_wait(MGSLPC_INFO *info,int arg)
 
 /* return the state of the serial control and status signals
  */
-static int tiocmget(struct tty_struct *tty, struct file *file)
+static int tiocmget(struct tty_struct *tty)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned int result;
@@ -2139,7 +2139,7 @@ static int tiocmget(struct tty_struct *tty, struct file *file)
 
 /* set modem control signals (DTR/RTS)
  */
-static int tiocmset(struct tty_struct *tty, struct file *file,
+static int tiocmset(struct tty_struct *tty,
 		    unsigned int set, unsigned int clear)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
@@ -2222,13 +2222,12 @@ static int mgslpc_get_icount(struct tty_struct *tty,
  * Arguments:
  *
  * 	tty	pointer to tty instance data
- * 	file	pointer to associated file object for device
  * 	cmd	IOCTL command code
  * 	arg	command argument/context
  *
  * Return Value:	0 if success, otherwise error code
  */
-static int mgslpc_ioctl(struct tty_struct *tty, struct file * file,
+static int mgslpc_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
@@ -2681,7 +2680,7 @@ static void rx_free_buffers(MGSLPC_INFO *info)
 static int claim_resources(MGSLPC_INFO *info)
 {
 	if (rx_alloc_buffers(info) < 0 ) {
-		printk( "Cant allocate rx buffer %s\n", info->device_name);
+		printk( "Can't allocate rx buffer %s\n", info->device_name);
 		release_resources(info);
 		return -ENODEV;
 	}
@@ -2759,7 +2758,7 @@ static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
 	}
 }
 
-static struct pcmcia_device_id mgslpc_ids[] = {
+static const struct pcmcia_device_id mgslpc_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x02c5, 0x0050),
 	PCMCIA_DEVICE_NULL
 };

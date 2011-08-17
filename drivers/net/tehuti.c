@@ -645,7 +645,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCDEVPRIVATE) {
 		error = copy_from_user(data, ifr->ifr_data, sizeof(data));
 		if (error) {
-			pr_err("cant copy from user\n");
+			pr_err("can't copy from user\n");
 			RET(-EFAULT);
 		}
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
@@ -740,22 +740,6 @@ static void bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
 static void bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 0);
-}
-
-/*
- * bdx_vlan_rx_register - kernel hook for adding VLAN group
- * @ndev network device
- * @grp  VLAN group
- */
-static void
-bdx_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
-{
-	struct bdx_priv *priv = netdev_priv(ndev);
-
-	ENTER;
-	DBG("device='%s', group='%p'\n", ndev->name, grp);
-	priv->vlgrp = grp;
-	RET();
 }
 
 /**
@@ -999,7 +983,7 @@ static inline void bdx_rxdb_free_elem(struct rxdb *db, int n)
  *
  * RxD fifo is smaller than RxF fifo by design. Upon high load, RxD will be
  * filled and packets will be dropped by nic without getting into host or
- * cousing interrupt. Anyway, in that condition, host has no chance to proccess
+ * cousing interrupt. Anyway, in that condition, host has no chance to process
  * all packets, but dropping in nic is cheaper, since it takes 0 cpu cycles
  */
 
@@ -1146,21 +1130,15 @@ NETIF_RX_MUX(struct bdx_priv *priv, u32 rxd_val1, u16 rxd_vlan,
 	     struct sk_buff *skb)
 {
 	ENTER;
-	DBG("rxdd->flags.bits.vtag=%d vlgrp=%p\n", GET_RXD_VTAG(rxd_val1),
-	    priv->vlgrp);
-	if (priv->vlgrp && GET_RXD_VTAG(rxd_val1)) {
-		DBG("%s: vlan rcv vlan '%x' vtag '%x', device name '%s'\n",
+	DBG("rxdd->flags.bits.vtag=%d\n", GET_RXD_VTAG(rxd_val1));
+	if (GET_RXD_VTAG(rxd_val1)) {
+		DBG("%s: vlan rcv vlan '%x' vtag '%x'\n",
 		    priv->ndev->name,
 		    GET_RXD_VLAN_ID(rxd_vlan),
-		    GET_RXD_VTAG(rxd_val1),
-		    vlan_group_get_device(priv->vlgrp,
-					  GET_RXD_VLAN_ID(rxd_vlan))->name);
-		/* NAPI variant of receive functions */
-		vlan_hwaccel_receive_skb(skb, priv->vlgrp,
-					 GET_RXD_VLAN_TCI(rxd_vlan));
-	} else {
-		netif_receive_skb(skb);
+		    GET_RXD_VTAG(rxd_val1));
+		__vlan_hwaccel_put_tag(skb, GET_RXD_VLAN_TCI(rxd_vlan));
 	}
+	netif_receive_skb(skb);
 }
 
 static void bdx_recycle_skb(struct bdx_priv *priv, struct rxd_desc *rxdd)
@@ -1200,8 +1178,8 @@ static void bdx_recycle_skb(struct bdx_priv *priv, struct rxd_desc *rxdd)
 	RET();
 }
 
-/* bdx_rx_receive - recieves full packets from RXD fifo and pass them to OS
- * NOTE: a special treatment is given to non-continous descriptors
+/* bdx_rx_receive - receives full packets from RXD fifo and pass them to OS
+ * NOTE: a special treatment is given to non-continuous descriptors
  * that start near the end, wraps around and continue at the beginning. a second
  * part is copied right after the first, and then descriptor is interpreted as
  * normal. fifo has an extra space to allow such operations
@@ -1584,9 +1562,9 @@ err_mem:
 }
 
 /*
- * bdx_tx_space - calculates avalable space in TX fifo
+ * bdx_tx_space - calculates available space in TX fifo
  * @priv - NIC private structure
- * Returns avaliable space in TX fifo in bytes
+ * Returns available space in TX fifo in bytes
  */
 static inline int bdx_tx_space(struct bdx_priv *priv)
 {
@@ -1877,7 +1855,7 @@ static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)
 }
 
 static const struct net_device_ops bdx_netdev_ops = {
-	.ndo_open	 	= bdx_open,
+	.ndo_open		= bdx_open,
 	.ndo_stop		= bdx_close,
 	.ndo_start_xmit		= bdx_tx_transmit,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1885,7 +1863,6 @@ static const struct net_device_ops bdx_netdev_ops = {
 	.ndo_set_multicast_list = bdx_setmulti,
 	.ndo_change_mtu		= bdx_change_mtu,
 	.ndo_set_mac_address	= bdx_set_mac,
-	.ndo_vlan_rx_register	= bdx_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= bdx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= bdx_vlan_rx_kill_vid,
 };
@@ -2017,9 +1994,11 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev->irq = pdev->irq;
 		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
 		    | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		    NETIF_F_HW_VLAN_FILTER
+		    NETIF_F_HW_VLAN_FILTER | NETIF_F_RXCSUM
 		    /*| NETIF_F_FRAGLIST */
 		    ;
+		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
+			NETIF_F_TSO | NETIF_F_HW_VLAN_TX;
 
 		if (pci_using_dac)
 			ndev->features |= NETIF_F_HIGHDMA;
@@ -2149,7 +2128,7 @@ static int bdx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
 	ecmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
-	ecmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(ecmd, SPEED_10000);
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->port = PORT_FIBRE;
 	ecmd->transceiver = XCVR_EXTERNAL;	/* what does it mean? */
@@ -2185,24 +2164,6 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
-}
-
-/*
- * bdx_get_rx_csum - report whether receive checksums are turned on or off
- * @netdev
- */
-static u32 bdx_get_rx_csum(struct net_device *netdev)
-{
-	return 1;		/* always on */
-}
-
-/*
- * bdx_get_tx_csum - report whether transmit checksums are turned on or off
- * @netdev
- */
-static u32 bdx_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
 }
 
 /*
@@ -2424,10 +2385,6 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
 		.set_coalesce = bdx_set_coalesce,
 		.get_ringparam = bdx_get_ringparam,
 		.set_ringparam = bdx_set_ringparam,
-		.get_rx_csum = bdx_get_rx_csum,
-		.get_tx_csum = bdx_get_tx_csum,
-		.get_sg = ethtool_op_get_sg,
-		.get_tso = ethtool_op_get_tso,
 		.get_strings = bdx_get_strings,
 		.get_sset_count = bdx_get_sset_count,
 		.get_ethtool_stats = bdx_get_ethtool_stats,

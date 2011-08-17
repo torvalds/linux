@@ -482,8 +482,9 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 			cable->streams[SNDRV_PCM_STREAM_CAPTURE];
 	unsigned long delta_play = 0, delta_capt = 0;
 	unsigned int running;
+	unsigned long flags;
 
-	spin_lock(&cable->lock);	
+	spin_lock_irqsave(&cable->lock, flags);
 	running = cable->running ^ cable->pause;
 	if (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) {
 		delta_play = jiffies - dpcm_play->last_jiffies;
@@ -495,10 +496,8 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 		dpcm_capt->last_jiffies += delta_capt;
 	}
 
-	if (delta_play == 0 && delta_capt == 0) {
-		spin_unlock(&cable->lock);
-		return running;
-	}
+	if (delta_play == 0 && delta_capt == 0)
+		goto unlock;
 		
 	if (delta_play > delta_capt) {
 		loopback_bytepos_update(dpcm_play, delta_play - delta_capt,
@@ -510,14 +509,14 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 		delta_capt = delta_play;
 	}
 
-	if (delta_play == 0 && delta_capt == 0) {
-		spin_unlock(&cable->lock);
-		return running;
-	}
+	if (delta_play == 0 && delta_capt == 0)
+		goto unlock;
+
 	/* note delta_capt == delta_play at this moment */
 	loopback_bytepos_update(dpcm_capt, delta_capt, BYTEPOS_UPDATE_COPY);
 	loopback_bytepos_update(dpcm_play, delta_play, BYTEPOS_UPDATE_POSONLY);
-	spin_unlock(&cable->lock);
+ unlock:
+	spin_unlock_irqrestore(&cable->lock, flags);
 	return running;
 }
 

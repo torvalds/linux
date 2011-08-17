@@ -180,31 +180,31 @@ static struct platform_device edmini_v2_gpio_buttons = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode edminiv2_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_UNUSED },
-	{  2, MPP_UNUSED },
-	{  3, MPP_GPIO },	/* RTC interrupt */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_UNUSED },
-	{  7, MPP_UNUSED },
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },	/* SATA 0 presence */
-	{ 13, MPP_SATA_LED },	/* SATA 1 presence */
-	{ 14, MPP_SATA_LED },	/* SATA 0 active */
-	{ 15, MPP_SATA_LED },	/* SATA 1 active */
+static unsigned int edminiv2_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_UNUSED,
+	MPP2_UNUSED,
+	MPP3_GPIO,	/* RTC interrupt */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_UNUSED,
+	MPP7_UNUSED,
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_SATA_LED,	/* SATA 0 presence */
+	MPP13_SATA_LED,	/* SATA 1 presence */
+	MPP14_SATA_LED,	/* SATA 0 active */
+	MPP15_SATA_LED,	/* SATA 1 active */
 	/* 16: Power LED control (0 = On, 1 = Off) */
-	{ 16, MPP_GPIO },
+	MPP16_GPIO,
 	/* 17: Power LED control select (0 = CPLD, 1 = GPIO16) */
-	{ 17, MPP_GPIO },
+	MPP17_GPIO,
 	/* 18: Power button status (0 = Released, 1 = Pressed) */
-	{ 18, MPP_GPIO },
-	{ 19, MPP_UNUSED },
-	{ -1 }
+	MPP18_GPIO,
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init edmini_v2_init(void)
@@ -254,6 +254,7 @@ MACHINE_START(EDMINI_V2, "LaCie Ethernet Disk mini V2")
 	.boot_params	= 0x00000100,
 	.init_machine	= edmini_v2_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

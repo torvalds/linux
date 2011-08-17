@@ -29,6 +29,10 @@
 #define H_LONG_BUSY_ORDER_100_SEC	9905  /* Long busy, hint that 100sec \
 						 is a good time to retry */
 #define H_LONG_BUSY_END_RANGE		9905  /* End of long busy range */
+
+/* Internal value used in book3s_hv kvm support; not returned to guests */
+#define H_TOO_HARD	9999
+
 #define H_HARDWARE	-1	/* Hardware error */
 #define H_FUNCTION	-2	/* Function not supported */
 #define H_PRIVILEGE	-3	/* Caller not privileged */
@@ -100,8 +104,10 @@
 #define H_PAGE_SET_ACTIVE	H_PAGE_STATE_CHANGE
 #define H_AVPN			(1UL<<(63-32))	/* An avpn is provided as a sanity test */
 #define H_ANDCOND		(1UL<<(63-33))
+#define H_LOCAL			(1UL<<(63-35))
 #define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (ignored for IO pages) */
 #define H_ICACHE_SYNCHRONIZE	(1UL<<(63-41))	/* dcbst, icbi, etc (ignored for IO pages */
+#define H_COALESCE_CAND	(1UL<<(63-42))	/* page is a good candidate for coalescing */
 #define H_ZERO_PAGE		(1UL<<(63-48))	/* zero the page before mapping (ignored for IO pages) */
 #define H_COPY_PAGE		(1UL<<(63-49))
 #define H_N			(1UL<<(63-61))
@@ -122,7 +128,7 @@
 #define H_DABRX_KERNEL		(1UL<<(63-62))
 #define H_DABRX_USER		(1UL<<(63-63))
 
-/* Each control block has to be on a 4K bondary */
+/* Each control block has to be on a 4K boundary */
 #define H_CB_ALIGNMENT          4096
 
 /* pSeries hypervisor opcodes */
@@ -234,7 +240,8 @@
 #define H_GET_MPP		0x2D4
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
 #define H_BEST_ENERGY		0x2F4
-#define MAX_HCALL_OPCODE	H_BEST_ENERGY
+#define H_GET_MPP_X		0x314
+#define MAX_HCALL_OPCODE	H_GET_MPP_X
 
 #ifndef __ASSEMBLY__
 
@@ -311,6 +318,16 @@ struct hvcall_mpp_data {
 };
 
 int h_get_mpp(struct hvcall_mpp_data *);
+
+struct hvcall_mpp_x_data {
+	unsigned long coalesced_bytes;
+	unsigned long pool_coalesced_bytes;
+	unsigned long pool_purr_cycles;
+	unsigned long pool_spurr_cycles;
+	unsigned long reserved[3];
+};
+
+int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data);
 
 #ifdef CONFIG_PPC_PSERIES
 extern int CMO_PrPSP;

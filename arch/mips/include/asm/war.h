@@ -227,7 +227,7 @@
 #endif
 
 /*
- * On the R10000 upto version 2.6 (not sure about 2.7) there is a bug that
+ * On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
 #ifndef R10000_LLSC_WAR

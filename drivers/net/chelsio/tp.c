@@ -152,11 +152,6 @@ void t1_tp_set_ip_checksum_offload(struct petp *tp, int enable)
 	set_csum_offload(tp, F_IP_CSUM, enable);
 }
 
-void t1_tp_set_udp_checksum_offload(struct petp *tp, int enable)
-{
-	set_csum_offload(tp, F_UDP_CSUM, enable);
-}
-
 void t1_tp_set_tcp_checksum_offload(struct petp *tp, int enable)
 {
 	set_csum_offload(tp, F_TCP_CSUM, enable);

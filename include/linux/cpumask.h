@@ -547,6 +547,21 @@ static inline int cpumask_parse_user(const char __user *buf, int len,
 }
 
 /**
+ * cpumask_parselist_user - extract a cpumask from a user string
+ * @buf: the buffer to extract from
+ * @len: the length of the buffer
+ * @dstp: the cpumask to set.
+ *
+ * Returns -errno, or 0 for success.
+ */
+static inline int cpumask_parselist_user(const char __user *buf, int len,
+				     struct cpumask *dstp)
+{
+	return bitmap_parselist_user(buf, len, cpumask_bits(dstp),
+							nr_cpumask_bits);
+}
+
+/**
  * cpulist_scnprintf - print a cpumask into a string as comma-separated list
  * @buf: the buffer to sprintf into
  * @len: the length of the buffer
@@ -602,6 +617,20 @@ static inline size_t cpumask_size(void)
  *	  ... use 'tmpmask' like a normal struct cpumask * ...
  *
  *	free_cpumask_var(tmpmask);
+ *
+ *
+ * However, one notable exception is there. alloc_cpumask_var() allocates
+ * only nr_cpumask_bits bits (in the other hand, real cpumask_t always has
+ * NR_CPUS bits). Therefore you don't have to dereference cpumask_var_t.
+ *
+ *	cpumask_var_t tmpmask;
+ *	if (!alloc_cpumask_var(&tmpmask, GFP_KERNEL))
+ *		return -ENOMEM;
+ *
+ *	var = *tmpmask;
+ *
+ * This code makes NR_CPUS length memcopy and brings to a memory corruption.
+ * cpumask_copy() provide safe copy functionality.
  */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 typedef struct cpumask *cpumask_var_t;

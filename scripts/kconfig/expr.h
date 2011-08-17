@@ -20,11 +20,7 @@ struct file {
 	struct file *parent;
 	const char *name;
 	int lineno;
-	int flags;
 };
-
-#define FILE_BUSY		0x0001
-#define FILE_SCANNED		0x0002
 
 typedef enum tristate {
 	no, mod, yes
@@ -176,8 +172,6 @@ struct menu {
 #define MENU_CHANGED		0x0001
 #define MENU_ROOT		0x0002
 
-#ifndef SWIG
-
 extern struct file *file_list;
 extern struct file *current_file;
 struct file *lookup_file(const char *name);
@@ -222,7 +216,6 @@ static inline int expr_is_no(struct expr *e)
 {
 	return e && (e->type == E_SYMBOL && e->left.sym == &symbol_no);
 }
-#endif
 
 #ifdef __cplusplus
 }

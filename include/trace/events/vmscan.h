@@ -6,6 +6,8 @@
 
 #include <linux/types.h>
 #include <linux/tracepoint.h>
+#include <linux/mm.h>
+#include <linux/memcontrol.h>
 #include "gfpflags.h"
 
 #define RECLAIM_WB_ANON		0x0001u
@@ -177,6 +179,83 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
 	TP_ARGS(nr_reclaimed)
 );
 
+TRACE_EVENT(mm_shrink_slab_start,
+	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
+		long nr_objects_to_shrink, unsigned long pgs_scanned,
+		unsigned long lru_pgs, unsigned long cache_items,
+		unsigned long long delta, unsigned long total_scan),
+
+	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
+		cache_items, delta, total_scan),
+
+	TP_STRUCT__entry(
+		__field(struct shrinker *, shr)
+		__field(void *, shrink)
+		__field(long, nr_objects_to_shrink)
+		__field(gfp_t, gfp_flags)
+		__field(unsigned long, pgs_scanned)
+		__field(unsigned long, lru_pgs)
+		__field(unsigned long, cache_items)
+		__field(unsigned long long, delta)
+		__field(unsigned long, total_scan)
+	),
+
+	TP_fast_assign(
+		__entry->shr = shr;
+		__entry->shrink = shr->shrink;
+		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
+		__entry->gfp_flags = sc->gfp_mask;
+		__entry->pgs_scanned = pgs_scanned;
+		__entry->lru_pgs = lru_pgs;
+		__entry->cache_items = cache_items;
+		__entry->delta = delta;
+		__entry->total_scan = total_scan;
+	),
+
+	TP_printk("%pF %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+		__entry->shrink,
+		__entry->shr,
+		__entry->nr_objects_to_shrink,
+		show_gfp_flags(__entry->gfp_flags),
+		__entry->pgs_scanned,
+		__entry->lru_pgs,
+		__entry->cache_items,
+		__entry->delta,
+		__entry->total_scan)
+);
+
+TRACE_EVENT(mm_shrink_slab_end,
+	TP_PROTO(struct shrinker *shr, int shrinker_retval,
+		long unused_scan_cnt, long new_scan_cnt),
+
+	TP_ARGS(shr, shrinker_retval, unused_scan_cnt, new_scan_cnt),
+
+	TP_STRUCT__entry(
+		__field(struct shrinker *, shr)
+		__field(void *, shrink)
+		__field(long, unused_scan)
+		__field(long, new_scan)
+		__field(int, retval)
+		__field(long, total_scan)
+	),
+
+	TP_fast_assign(
+		__entry->shr = shr;
+		__entry->shrink = shr->shrink;
+		__entry->unused_scan = unused_scan_cnt;
+		__entry->new_scan = new_scan_cnt;
+		__entry->retval = shrinker_retval;
+		__entry->total_scan = new_scan_cnt - unused_scan_cnt;
+	),
+
+	TP_printk("%pF %p: unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
+		__entry->shrink,
+		__entry->shr,
+		__entry->unused_scan,
+		__entry->new_scan,
+		__entry->total_scan,
+		__entry->retval)
+);
 
 DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
 
@@ -310,6 +389,87 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
 
+TRACE_EVENT(replace_swap_token,
+	TP_PROTO(struct mm_struct *old_mm,
+		 struct mm_struct *new_mm),
+
+	TP_ARGS(old_mm, new_mm),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct*,	old_mm)
+		__field(unsigned int,		old_prio)
+		__field(struct mm_struct*,	new_mm)
+		__field(unsigned int,		new_prio)
+	),
+
+	TP_fast_assign(
+		__entry->old_mm   = old_mm;
+		__entry->old_prio = old_mm ? old_mm->token_priority : 0;
+		__entry->new_mm   = new_mm;
+		__entry->new_prio = new_mm->token_priority;
+	),
+
+	TP_printk("old_token_mm=%p old_prio=%u new_token_mm=%p new_prio=%u",
+		  __entry->old_mm, __entry->old_prio,
+		  __entry->new_mm, __entry->new_prio)
+);
+
+DECLARE_EVENT_CLASS(put_swap_token_template,
+	TP_PROTO(struct mm_struct *swap_token_mm),
+
+	TP_ARGS(swap_token_mm),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct*, swap_token_mm)
+	),
+
+	TP_fast_assign(
+		__entry->swap_token_mm = swap_token_mm;
+	),
+
+	TP_printk("token_mm=%p", __entry->swap_token_mm)
+);
+
+DEFINE_EVENT(put_swap_token_template, put_swap_token,
+	TP_PROTO(struct mm_struct *swap_token_mm),
+	TP_ARGS(swap_token_mm)
+);
+
+DEFINE_EVENT_CONDITION(put_swap_token_template, disable_swap_token,
+	TP_PROTO(struct mm_struct *swap_token_mm),
+	TP_ARGS(swap_token_mm),
+	TP_CONDITION(swap_token_mm != NULL)
+);
+
+TRACE_EVENT_CONDITION(update_swap_token_priority,
+	TP_PROTO(struct mm_struct *mm,
+		 unsigned int old_prio,
+		 struct mm_struct *swap_token_mm),
+
+	TP_ARGS(mm, old_prio, swap_token_mm),
+
+	TP_CONDITION(mm->token_priority != old_prio),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct*, mm)
+		__field(unsigned int, old_prio)
+		__field(unsigned int, new_prio)
+		__field(struct mm_struct*, swap_token_mm)
+		__field(unsigned int, swap_token_prio)
+	),
+
+	TP_fast_assign(
+		__entry->mm		= mm;
+		__entry->old_prio	= old_prio;
+		__entry->new_prio	= mm->token_priority;
+		__entry->swap_token_mm	= swap_token_mm;
+		__entry->swap_token_prio = swap_token_mm ? swap_token_mm->token_priority : 0;
+	),
+
+	TP_printk("mm=%p old_prio=%u new_prio=%u swap_token_mm=%p token_prio=%u",
+		  __entry->mm, __entry->old_prio, __entry->new_prio,
+		  __entry->swap_token_mm, __entry->swap_token_prio)
+);
 
 #endif /* _TRACE_VMSCAN_H */
 

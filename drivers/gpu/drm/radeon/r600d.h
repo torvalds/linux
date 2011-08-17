@@ -536,7 +536,7 @@
 #define IH_RB_WPTR_ADDR_LO                                0x3e14
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
-#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP(x)                              ((x) << 1)
 #       define IH_MC_SWAP_NONE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
@@ -1304,6 +1304,14 @@
 #define     V_038004_FMT_16_16_16_FLOAT                0x0000002E
 #define     V_038004_FMT_32_32_32                      0x0000002F
 #define     V_038004_FMT_32_32_32_FLOAT                0x00000030
+#define     V_038004_FMT_BC1                           0x00000031
+#define     V_038004_FMT_BC2                           0x00000032
+#define     V_038004_FMT_BC3                           0x00000033
+#define     V_038004_FMT_BC4                           0x00000034
+#define     V_038004_FMT_BC5                           0x00000035
+#define     V_038004_FMT_BC6                           0x00000036
+#define     V_038004_FMT_BC7                           0x00000037
+#define     V_038004_FMT_32_AS_32_32_32_32             0x00000038
 #define R_038010_SQ_TEX_RESOURCE_WORD4_0             0x038010
 #define   S_038010_FORMAT_COMP_X(x)                    (((x) & 0x3) << 0)
 #define   G_038010_FORMAT_COMP_X(x)                    (((x) >> 0) & 0x3)

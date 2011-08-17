@@ -32,7 +32,7 @@
 #include <linux/fs_uart_pd.h>
 
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/time.h>
@@ -41,6 +41,7 @@
 #include <sysdev/fsl_soc.h>
 #include <mm/mmu_decl.h>
 #include <asm/cpm2.h>
+#include <asm/fsl_hcalls.h>	/* For the Freescale hypervisor */
 
 extern void init_fcc_ioports(struct fs_platform_info*);
 extern void init_fec_ioports(struct fs_platform_info*);
@@ -252,3 +253,29 @@ void fsl_rstcr_restart(char *cmd)
 struct platform_diu_data_ops diu_ops;
 EXPORT_SYMBOL(diu_ops);
 #endif
+
+/*
+ * Restart the current partition
+ *
+ * This function should be assigned to the ppc_md.restart function pointer,
+ * to initiate a partition restart when we're running under the Freescale
+ * hypervisor.
+ */
+void fsl_hv_restart(char *cmd)
+{
+	pr_info("hv restart\n");
+	fh_partition_restart(-1);
+}
+
+/*
+ * Halt the current partition
+ *
+ * This function should be assigned to the ppc_md.power_off and ppc_md.halt
+ * function pointers, to shut down the partition when we're running under
+ * the Freescale hypervisor.
+ */
+void fsl_hv_halt(void)
+{
+	pr_info("hv exit\n");
+	fh_partition_stop(-1);
+}

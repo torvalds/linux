@@ -25,12 +25,12 @@
 
 #include "ieee80211_i.h"
 #include "rate.h"
+#include "driver-ops.h"
 
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)
 #define IEEE80211_AUTH_MAX_TRIES 3
 #define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
 #define IEEE80211_ASSOC_MAX_TRIES 3
-#define IEEE80211_MAX_PROBE_TRIES 5
 
 enum work_action {
 	WORK_ACT_MISMATCH,
@@ -66,17 +66,9 @@ static void run_again(struct ieee80211_local *local,
 		mod_timer(&local->work_timer, timeout);
 }
 
-static void work_free_rcu(struct rcu_head *head)
-{
-	struct ieee80211_work *wk =
-		container_of(head, struct ieee80211_work, rcu_head);
-
-	kfree(wk);
-}
-
 void free_work(struct ieee80211_work *wk)
 {
-	call_rcu(&wk->rcu_head, work_free_rcu);
+	kfree_rcu(wk, rcu_head);
 }
 
 static int ieee80211_compatible_rates(const u8 *supp_rates, int supp_rates_len,
@@ -125,12 +117,6 @@ static void ieee80211_add_ht_ie(struct sk_buff *skb, const u8 *ht_info_ie,
 	ht_info = (struct ieee80211_ht_info *)(ht_info_ie + 2);
 
 	/* determine capability flags */
-
-	if (ieee80211_disable_40mhz_24ghz &&
-	    sband->band == IEEE80211_BAND_2GHZ) {
-		cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		cap &= ~IEEE80211_HT_CAP_SGI_40;
-	}
 
 	switch (ht_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
@@ -205,9 +191,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info;
-	const u8 *ies;
 	size_t offset = 0, noffset;
-	int i, len, count, rates_len, supp_rates_len;
+	int i, count, rates_len, supp_rates_len;
 	u16 capab;
 	struct ieee80211_supported_band *sband;
 	u32 rates = 0;
@@ -292,7 +277,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* SSID */
-	ies = pos = skb_put(skb, 2 + wk->assoc.ssid_len);
+	pos = skb_put(skb, 2 + wk->assoc.ssid_len);
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = wk->assoc.ssid_len;
 	memcpy(pos, wk->assoc.ssid, wk->assoc.ssid_len);
@@ -302,7 +287,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	if (supp_rates_len > 8)
 		supp_rates_len = 8;
 
-	len = sband->n_bitrates;
 	pos = skb_put(skb, supp_rates_len + 2);
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos++ = supp_rates_len;
@@ -444,6 +428,14 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 	struct ieee80211_sub_if_data *sdata = wk->sdata;
 	struct ieee80211_local *local = sdata->local;
 
+	if (!wk->probe_auth.synced) {
+		int ret = drv_tx_sync(local, sdata, wk->filter_ta,
+				      IEEE80211_TX_SYNC_AUTH);
+		if (ret)
+			return WORK_ACT_TIMEOUT;
+	}
+	wk->probe_auth.synced = true;
+
 	wk->probe_auth.tries++;
 	if (wk->probe_auth.tries > IEEE80211_AUTH_MAX_TRIES) {
 		printk(KERN_DEBUG "%s: direct probe to %pM timed out\n",
@@ -467,7 +459,8 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 	 * will not answer to direct packet in unassociated state.
 	 */
 	ieee80211_send_probe_req(sdata, NULL, wk->probe_auth.ssid,
-				 wk->probe_auth.ssid_len, NULL, 0);
+				 wk->probe_auth.ssid_len, NULL, 0,
+				 (u32) -1, true);
 
 	wk->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
 	run_again(local, wk->timeout);
@@ -481,6 +474,14 @@ ieee80211_authenticate(struct ieee80211_work *wk)
 {
 	struct ieee80211_sub_if_data *sdata = wk->sdata;
 	struct ieee80211_local *local = sdata->local;
+
+	if (!wk->probe_auth.synced) {
+		int ret = drv_tx_sync(local, sdata, wk->filter_ta,
+				      IEEE80211_TX_SYNC_AUTH);
+		if (ret)
+			return WORK_ACT_TIMEOUT;
+	}
+	wk->probe_auth.synced = true;
 
 	wk->probe_auth.tries++;
 	if (wk->probe_auth.tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -514,6 +515,14 @@ ieee80211_associate(struct ieee80211_work *wk)
 {
 	struct ieee80211_sub_if_data *sdata = wk->sdata;
 	struct ieee80211_local *local = sdata->local;
+
+	if (!wk->assoc.synced) {
+		int ret = drv_tx_sync(local, sdata, wk->filter_ta,
+				      IEEE80211_TX_SYNC_ASSOC);
+		if (ret)
+			return WORK_ACT_TIMEOUT;
+	}
+	wk->assoc.synced = true;
 
 	wk->assoc.tries++;
 	if (wk->assoc.tries > IEEE80211_ASSOC_MAX_TRIES) {
@@ -874,6 +883,44 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 	kfree_skb(skb);
 }
 
+static bool ieee80211_work_ct_coexists(enum nl80211_channel_type wk_ct,
+				       enum nl80211_channel_type oper_ct)
+{
+	switch (wk_ct) {
+	case NL80211_CHAN_NO_HT:
+		return true;
+	case NL80211_CHAN_HT20:
+		if (oper_ct != NL80211_CHAN_NO_HT)
+			return true;
+		return false;
+	case NL80211_CHAN_HT40MINUS:
+	case NL80211_CHAN_HT40PLUS:
+		return (wk_ct == oper_ct);
+	}
+	WARN_ON(1); /* shouldn't get here */
+	return false;
+}
+
+static enum nl80211_channel_type
+ieee80211_calc_ct(enum nl80211_channel_type wk_ct,
+		  enum nl80211_channel_type oper_ct)
+{
+	switch (wk_ct) {
+	case NL80211_CHAN_NO_HT:
+		return oper_ct;
+	case NL80211_CHAN_HT20:
+		if (oper_ct != NL80211_CHAN_NO_HT)
+			return oper_ct;
+		return wk_ct;
+	case NL80211_CHAN_HT40MINUS:
+	case NL80211_CHAN_HT40PLUS:
+		return wk_ct;
+	}
+	WARN_ON(1); /* shouldn't get here */
+	return wk_ct;
+}
+
+
 static void ieee80211_work_timer(unsigned long data)
 {
 	struct ieee80211_local *local = (void *) data;
@@ -924,18 +971,52 @@ static void ieee80211_work_work(struct work_struct *work)
 		}
 
 		if (!started && !local->tmp_channel) {
-			/*
-			 * TODO: could optimize this by leaving the
-			 *	 station vifs in awake mode if they
-			 *	 happen to be on the same channel as
-			 *	 the requested channel
-			 */
-			ieee80211_offchannel_stop_beaconing(local);
-			ieee80211_offchannel_stop_station(local);
+			bool on_oper_chan;
+			bool tmp_chan_changed = false;
+			bool on_oper_chan2;
+			enum nl80211_channel_type wk_ct;
+			on_oper_chan = ieee80211_cfg_on_oper_channel(local);
+
+			/* Work with existing channel type if possible. */
+			wk_ct = wk->chan_type;
+			if (wk->chan == local->hw.conf.channel)
+				wk_ct = ieee80211_calc_ct(wk->chan_type,
+						local->hw.conf.channel_type);
+
+			if (local->tmp_channel)
+				if ((local->tmp_channel != wk->chan) ||
+				    (local->tmp_channel_type != wk_ct))
+					tmp_chan_changed = true;
 
 			local->tmp_channel = wk->chan;
-			local->tmp_channel_type = wk->chan_type;
-			ieee80211_hw_config(local, 0);
+			local->tmp_channel_type = wk_ct;
+			/*
+			 * Leave the station vifs in awake mode if they
+			 * happen to be on the same channel as
+			 * the requested channel.
+			 */
+			on_oper_chan2 = ieee80211_cfg_on_oper_channel(local);
+			if (on_oper_chan != on_oper_chan2) {
+				if (on_oper_chan2) {
+					/* going off oper channel, PS too */
+					ieee80211_offchannel_stop_vifs(local,
+								       true);
+					ieee80211_hw_config(local, 0);
+				} else {
+					/* going on channel, but leave PS
+					 * off-channel. */
+					ieee80211_hw_config(local, 0);
+					ieee80211_offchannel_return(local,
+								    true,
+								    false);
+				}
+			} else if (tmp_chan_changed)
+				/* Still off-channel, but on some other
+				 * channel, so update hardware.
+				 * PS should already be off-channel.
+				 */
+				ieee80211_hw_config(local, 0);
+
 			started = true;
 			wk->timeout = jiffies;
 		}
@@ -1005,15 +1086,34 @@ static void ieee80211_work_work(struct work_struct *work)
 			continue;
 		if (wk->chan != local->tmp_channel)
 			continue;
-		if (wk->chan_type != local->tmp_channel_type)
+		if (ieee80211_work_ct_coexists(wk->chan_type,
+					       local->tmp_channel_type))
 			continue;
 		remain_off_channel = true;
 	}
 
 	if (!remain_off_channel && local->tmp_channel) {
+		bool on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 		local->tmp_channel = NULL;
-		ieee80211_hw_config(local, 0);
-		ieee80211_offchannel_return(local, true);
+		/* If tmp_channel wasn't operating channel, then
+		 * we need to go back on-channel.
+		 * NOTE:  If we can ever be here while scannning,
+		 * or if the hw_config() channel config logic changes,
+		 * then we may need to do a more thorough check to see if
+		 * we still need to do a hardware config.  Currently,
+		 * we cannot be here while scanning, however.
+		 */
+		if (ieee80211_cfg_on_oper_channel(local) && !on_oper_chan)
+			ieee80211_hw_config(local, 0);
+
+		/* At the least, we need to disable offchannel_ps,
+		 * so just go ahead and run the entire offchannel
+		 * return logic here.  We *could* skip enabling
+		 * beaconing if we were already on-oper-channel
+		 * as a future optimization.
+		 */
+		ieee80211_offchannel_return(local, true, true);
+
 		/* give connection some time to breathe */
 		run_again(local, jiffies + HZ/2);
 	}

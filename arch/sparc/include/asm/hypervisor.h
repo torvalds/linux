@@ -654,7 +654,7 @@ extern unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
  * ARG3:	mmu context
  * ARG4:	flags (HV_MMU_{IMMU,DMMU})
  * RET0:	status
- * ERRORS:	EINVAL			Invalid virutal address, context, or
+ * ERRORS:	EINVAL			Invalid virtual address, context, or
  *					flags value
  *		ENOTSUPPORTED		ARG0 or ARG1 is non-zero
  *
@@ -721,7 +721,7 @@ extern void sun4v_mmu_demap_all(void);
  * ARG2:	TTE
  * ARG3:	flags (HV_MMU_{IMMU,DMMU})
  * RET0:	status
- * ERRORS:	EINVAL			Invalid virutal address or flags value
+ * ERRORS:	EINVAL			Invalid virtual address or flags value
  *		EBADPGSZ		Invalid page size value
  *		ENORADDR		Invalid real address in TTE
  *		ETOOMANY		Too many mappings (max of 8 reached)
@@ -800,7 +800,7 @@ extern unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * ARG1:	reserved, must be zero
  * ARG2:	flags (HV_MMU_{IMMU,DMMU})
  * RET0:	status
- * ERRORS:	EINVAL			Invalid virutal address or flags value
+ * ERRORS:	EINVAL			Invalid virtual address or flags value
  *		ENOMAP			Specified mapping was not found
  *
  * Demaps any permanent page mapping (established via
@@ -1205,7 +1205,7 @@ struct hv_trap_trace_control {
  * structure contents.  Attempts to do so will result in undefined
  * behavior for the guest.
  *
- * Each trap trace buffer entry is layed out as follows:
+ * Each trap trace buffer entry is laid out as follows:
  */
 #ifndef __ASSEMBLY__
 struct hv_trap_trace_entry {
@@ -1300,7 +1300,7 @@ struct hv_trap_trace_entry {
  * state in RET1.  Future systems may define various flags for the
  * enable argument (ARG0), for the moment a guest should pass
  * "(uint64_t) -1" to enable, and "(uint64_t) 0" to disable all
- * tracing - which will ensure future compatability.
+ * tracing - which will ensure future compatibility.
  */
 #define HV_FAST_TTRACE_ENABLE		0x92
 
@@ -1880,7 +1880,7 @@ extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * pci_device, at pci_config_offset from the beginning of the device's
  * configuration space.  If there was no error, RET1 is set to zero and
  * RET2 is set to the data read.  Insignificant bits in RET2 are not
- * guarenteed to have any specific value and therefore must be ignored.
+ * guaranteed to have any specific value and therefore must be ignored.
  *
  * The data returned in RET2 is size based byte swapped.
  *
@@ -1941,9 +1941,9 @@ extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * and return the actual data read in RET2.  The data returned is size based
  * byte swapped.
  *
- * Non-significant bits in RET2 are not guarenteed to have any specific value
+ * Non-significant bits in RET2 are not guaranteed to have any specific value
  * and therefore must be ignored.  If RET1 is returned as non-zero, the data
- * value is not guarenteed to have any specific value and should be ignored.
+ * value is not guaranteed to have any specific value and should be ignored.
  *
  * The caller must have permission to read from the given devhandle, real
  * address, which must be an IO address.  The argument real address must be a
@@ -2456,9 +2456,9 @@ extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  *
  * As receive queue configuration causes a reset of the queue's head and
  * tail pointers there is no way for a gues to determine how many entries
- * have been received between a preceeding ldc_get_rx_state() API call
+ * have been received between a preceding ldc_get_rx_state() API call
  * and the completion of the configuration operation.  It should be noted
- * that datagram delivery is not guarenteed via domain channels anyway,
+ * that datagram delivery is not guaranteed via domain channels anyway,
  * and therefore any higher protocol should be resilient to datagram
  * loss if necessary.  However, to overcome this specific race potential
  * it is recommended, for example, that a higher level protocol be employed
@@ -2927,6 +2927,13 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_FAST_FIRE_GET_PERFREG	0x120
 #define HV_FAST_FIRE_SET_PERFREG	0x121
 
+#define HV_FAST_REBOOT_DATA_SET		0x172
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_reboot_data_set(unsigned long ra,
+					   unsigned long len);
+#endif
+
 /* Function numbers for HV_CORE_TRAP.  */
 #define HV_CORE_SET_VER			0x00
 #define HV_CORE_PUTCHAR			0x01
@@ -2940,16 +2947,23 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_GRP_CORE			0x0001
 #define HV_GRP_INTR			0x0002
 #define HV_GRP_SOFT_STATE		0x0003
+#define HV_GRP_TM			0x0080
 #define HV_GRP_PCI			0x0100
 #define HV_GRP_LDOM			0x0101
 #define HV_GRP_SVC_CHAN			0x0102
 #define HV_GRP_NCS			0x0103
 #define HV_GRP_RNG			0x0104
+#define HV_GRP_PBOOT			0x0105
+#define HV_GRP_TPM			0x0107
+#define HV_GRP_SDIO			0x0108
+#define HV_GRP_SDIO_ERR			0x0109
+#define HV_GRP_REBOOT_DATA		0x0110
 #define HV_GRP_NIAG_PERF		0x0200
 #define HV_GRP_FIRE_PERF		0x0201
 #define HV_GRP_N2_CPU			0x0202
 #define HV_GRP_NIU			0x0204
 #define HV_GRP_VF_CPU			0x0205
+#define HV_GRP_KT_CPU			0x0209
 #define HV_GRP_DIAG			0x0300
 
 #ifndef __ASSEMBLY__

@@ -36,7 +36,7 @@ config KPROBES
 
 config GDBSTUB
 	bool "Remote GDB kernel debugging"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && DEPRECATED
 	select DEBUG_INFO
 	select FRAME_POINTER
 	help
@@ -46,6 +46,9 @@ config GDBSTUB
 	  RAM to avoid excessive linking time. This is only useful for kernel
 	  hackers. If unsure, say N.
 
+	  This is deprecated in favour of KGDB and will be removed in a later
+	  version.
+
 config GDBSTUB_IMMEDIATE
 	bool "Break into GDB stub immediately"
 	depends on GDBSTUB
@@ -53,6 +56,14 @@ config GDBSTUB_IMMEDIATE
 	  If you say Y here, GDB stub will break into the program as soon as
 	  possible, leaving the program counter at the beginning of
 	  start_kernel() in init/main.c.
+
+config GDBSTUB_ALLOW_SINGLE_STEP
+	bool "Allow software single-stepping in GDB stub"
+	depends on GDBSTUB && !SMP && !PREEMPT
+	help
+	  Allow GDB stub to perform software single-stepping through the
+	  kernel.  This doesn't work very well on SMP or preemptible kernels as
+	  it uses temporary breakpoints to emulate single-stepping.
 
 config GDB_CONSOLE
 	bool "Console output to GDB"
@@ -142,3 +153,7 @@ config GDBSTUB_ON_TTYSx
 	default y
 
 endmenu
+
+config KERNEL_DEBUGGER
+	def_bool y
+	depends on GDBSTUB || KGDB

@@ -5,33 +5,33 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf);
 void r8712_got_addbareq_event_callback(struct _adapter *adapter , u8 *pbuf);
 
 enum rtl8712_c2h_event {
-	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
+	GEN_EVT_CODE(_Read_MACREG) = 0,		/*0*/
 	GEN_EVT_CODE(_Read_BBREG),
 	GEN_EVT_CODE(_Read_RFREG),
 	GEN_EVT_CODE(_Read_EEPROM),
 	GEN_EVT_CODE(_Read_EFUSE),
-	GEN_EVT_CODE(_Read_CAM),			/*5*/
+	GEN_EVT_CODE(_Read_CAM),		/*5*/
 	GEN_EVT_CODE(_Get_BasicRate),
 	GEN_EVT_CODE(_Get_DataRate),
-	GEN_EVT_CODE(_Survey),	 /*8*/
-	GEN_EVT_CODE(_SurveyDone),	 /*9*/
+	GEN_EVT_CODE(_Survey),			/*8*/
+	GEN_EVT_CODE(_SurveyDone),		/*9*/
 
-	GEN_EVT_CODE(_JoinBss) , /*10*/
+	GEN_EVT_CODE(_JoinBss),			/*10*/
 	GEN_EVT_CODE(_AddSTA),
 	GEN_EVT_CODE(_DelSTA),
-	GEN_EVT_CODE(_AtimDone) ,
+	GEN_EVT_CODE(_AtimDone),
 	GEN_EVT_CODE(_TX_Report),
-	GEN_EVT_CODE(_CCX_Report),			/*15*/
+	GEN_EVT_CODE(_CCX_Report),		/*15*/
 	GEN_EVT_CODE(_DTM_Report),
 	GEN_EVT_CODE(_TX_Rate_Statistics),
 	GEN_EVT_CODE(_C2HLBK),
 	GEN_EVT_CODE(_FWDBG),
-	GEN_EVT_CODE(_C2HFEEDBACK),               /*20*/
+	GEN_EVT_CODE(_C2HFEEDBACK),		/*20*/
 	GEN_EVT_CODE(_ADDBA),
 	GEN_EVT_CODE(_C2HBCN),
 	GEN_EVT_CODE(_ReportPwrState),		/*filen: only for PCIE, USB*/
 	GEN_EVT_CODE(_WPS_PBC),			/*24*/
-	GEN_EVT_CODE(_ADDBAReq_Report),	/*25*/
+	GEN_EVT_CODE(_ADDBAReq_Report),		/*25*/
 	MAX_C2HEVT
 };
 
@@ -48,7 +48,8 @@ static struct fwevent wlanevents[] = {
 	{0, NULL},
 	{0, NULL},
 	{0, &r8712_survey_event_callback},		/*8*/
-	{sizeof(struct surveydone_event), &r8712_surveydone_event_callback},/*9*/
+	{sizeof(struct surveydone_event),
+		&r8712_surveydone_event_callback},	/*9*/
 
 	{0, &r8712_joinbss_event_callback},		/*10*/
 	{sizeof(struct stassoc_event), &r8712_stassoc_event_callback},
@@ -59,8 +60,8 @@ static struct fwevent wlanevents[] = {
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
-	{0, NULL}, /*fwdbg_event_callback},*/
-	{0, NULL},	 /*20*/
+	{0, NULL},	/*fwdbg_event_callback},*/
+	{0, NULL},	/*20*/
 	{0, NULL},
 	{0, NULL},
 	{0, &r8712_cpwm_event_callback},

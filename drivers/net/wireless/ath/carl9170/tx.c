@@ -104,12 +104,60 @@ static void carl9170_tx_accounting(struct ar9170 *ar, struct sk_buff *skb)
 	spin_unlock_bh(&ar->tx_stats_lock);
 }
 
+/* needs rcu_read_lock */
+static struct ieee80211_sta *__carl9170_get_tx_sta(struct ar9170 *ar,
+						   struct sk_buff *skb)
+{
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
+	struct ieee80211_hdr *hdr = (void *) super->frame_data;
+	struct ieee80211_vif *vif;
+	unsigned int vif_id;
+
+	vif_id = (super->s.misc & CARL9170_TX_SUPER_MISC_VIF_ID) >>
+		 CARL9170_TX_SUPER_MISC_VIF_ID_S;
+
+	if (WARN_ON_ONCE(vif_id >= AR9170_MAX_VIRTUAL_MAC))
+		return NULL;
+
+	vif = rcu_dereference(ar->vif_priv[vif_id].vif);
+	if (unlikely(!vif))
+		return NULL;
+
+	/*
+	 * Normally we should use wrappers like ieee80211_get_DA to get
+	 * the correct peer ieee80211_sta.
+	 *
+	 * But there is a problem with indirect traffic (broadcasts, or
+	 * data which is designated for other stations) in station mode.
+	 * The frame will be directed to the AP for distribution and not
+	 * to the actual destination.
+	 */
+
+	return ieee80211_find_sta(vif, hdr->addr1);
+}
+
+static void carl9170_tx_ps_unblock(struct ar9170 *ar, struct sk_buff *skb)
+{
+	struct ieee80211_sta *sta;
+	struct carl9170_sta_info *sta_info;
+
+	rcu_read_lock();
+	sta = __carl9170_get_tx_sta(ar, skb);
+	if (unlikely(!sta))
+		goto out_rcu;
+
+	sta_info = (struct carl9170_sta_info *) sta->drv_priv;
+	if (atomic_dec_return(&sta_info->pending_frames) == 0)
+		ieee80211_sta_block_awake(ar->hw, sta, false);
+
+out_rcu:
+	rcu_read_unlock();
+}
+
 static void carl9170_tx_accounting_free(struct ar9170 *ar, struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *txinfo;
 	int queue;
 
-	txinfo = IEEE80211_SKB_CB(skb);
 	queue = skb_get_queue_mapping(skb);
 
 	spin_lock_bh(&ar->tx_stats_lock);
@@ -135,6 +183,7 @@ static void carl9170_tx_accounting_free(struct ar9170 *ar, struct sk_buff *skb)
 	}
 
 	spin_unlock_bh(&ar->tx_stats_lock);
+
 	if (atomic_dec_and_test(&ar->tx_total_queued))
 		complete(&ar->tx_flush);
 }
@@ -329,13 +378,9 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 {
 	struct _carl9170_tx_superframe *super = (void *) skb->data;
 	struct ieee80211_hdr *hdr = (void *) super->frame_data;
-	struct ieee80211_tx_info *tx_info;
-	struct carl9170_tx_info *ar_info;
-	struct carl9170_sta_info *sta_info;
 	struct ieee80211_sta *sta;
+	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *tid_info;
-	struct ieee80211_vif *vif;
-	unsigned int vif_id;
 	u8 tid;
 
 	if (!(txinfo->flags & IEEE80211_TX_CTL_AMPDU) ||
@@ -343,30 +388,8 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	   (!(super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_AGGR))))
 		return;
 
-	tx_info = IEEE80211_SKB_CB(skb);
-	ar_info = (void *) tx_info->rate_driver_data;
-
-	vif_id = (super->s.misc & CARL9170_TX_SUPER_MISC_VIF_ID) >>
-		 CARL9170_TX_SUPER_MISC_VIF_ID_S;
-
-	if (WARN_ON_ONCE(vif_id >= AR9170_MAX_VIRTUAL_MAC))
-		return;
-
 	rcu_read_lock();
-	vif = rcu_dereference(ar->vif_priv[vif_id].vif);
-	if (unlikely(!vif))
-		goto out_rcu;
-
-	/*
-	 * Normally we should use wrappers like ieee80211_get_DA to get
-	 * the correct peer ieee80211_sta.
-	 *
-	 * But there is a problem with indirect traffic (broadcasts, or
-	 * data which is designated for other stations) in station mode.
-	 * The frame will be directed to the AP for distribution and not
-	 * to the actual destination.
-	 */
-	sta = ieee80211_find_sta(vif, hdr->addr1);
+	sta = __carl9170_get_tx_sta(ar, skb);
 	if (unlikely(!sta))
 		goto out_rcu;
 
@@ -383,6 +406,7 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 
 	if (sta_info->stats[tid].clear) {
 		sta_info->stats[tid].clear = false;
+		sta_info->stats[tid].req = false;
 		sta_info->stats[tid].ampdu_len = 0;
 		sta_info->stats[tid].ampdu_ack_len = 0;
 	}
@@ -391,10 +415,16 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	if (txinfo->status.rates[0].count == 1)
 		sta_info->stats[tid].ampdu_ack_len++;
 
+	if (!(txinfo->flags & IEEE80211_TX_STAT_ACK))
+		sta_info->stats[tid].req = true;
+
 	if (super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_IMM_BA)) {
 		super->s.rix = sta_info->stats[tid].ampdu_len;
 		super->s.cnt = sta_info->stats[tid].ampdu_ack_len;
 		txinfo->flags |= IEEE80211_TX_STAT_AMPDU;
+		if (sta_info->stats[tid].req)
+			txinfo->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+
 		sta_info->stats[tid].clear = true;
 	}
 	spin_unlock_bh(&tid_info->lock);
@@ -420,6 +450,7 @@ void carl9170_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 	if (txinfo->flags & IEEE80211_TX_CTL_AMPDU)
 		carl9170_tx_status_process_ampdu(ar, skb, txinfo);
 
+	carl9170_tx_ps_unblock(ar, skb);
 	carl9170_tx_put_skb(skb);
 }
 
@@ -533,11 +564,7 @@ static void carl9170_tx_ampdu_timeout(struct ar9170 *ar)
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *txinfo;
 	struct carl9170_tx_info *arinfo;
-	struct _carl9170_tx_superframe *super;
 	struct ieee80211_sta *sta;
-	struct ieee80211_vif *vif;
-	struct ieee80211_hdr *hdr;
-	unsigned int vif_id;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(iter, &ar->tx_ampdu_list, list) {
@@ -555,20 +582,7 @@ static void carl9170_tx_ampdu_timeout(struct ar9170 *ar)
 		    msecs_to_jiffies(CARL9170_QUEUE_TIMEOUT)))
 			goto unlock;
 
-		super = (void *) skb->data;
-		hdr = (void *) super->frame_data;
-
-		vif_id = (super->s.misc & CARL9170_TX_SUPER_MISC_VIF_ID) >>
-			 CARL9170_TX_SUPER_MISC_VIF_ID_S;
-
-		if (WARN_ON(vif_id >= AR9170_MAX_VIRTUAL_MAC))
-			goto unlock;
-
-		vif = rcu_dereference(ar->vif_priv[vif_id].vif);
-		if (WARN_ON(!vif))
-			goto unlock;
-
-		sta = ieee80211_find_sta(vif, hdr->addr1);
+		sta = __carl9170_get_tx_sta(ar, skb);
 		if (WARN_ON(!sta))
 			goto unlock;
 
@@ -604,7 +618,6 @@ static void __carl9170_tx_process_status(struct ar9170 *ar,
 {
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *txinfo;
-	struct carl9170_tx_info *arinfo;
 	unsigned int r, t, q;
 	bool success = true;
 
@@ -620,7 +633,6 @@ static void __carl9170_tx_process_status(struct ar9170 *ar,
 	}
 
 	txinfo = IEEE80211_SKB_CB(skb);
-	arinfo = (void *) txinfo->rate_driver_data;
 
 	if (!(info & CARL9170_TX_STATUS_SUCCESS))
 		success = false;
@@ -649,11 +661,67 @@ void carl9170_tx_process_status(struct ar9170 *ar,
 	}
 }
 
+static void carl9170_tx_rate_tpc_chains(struct ar9170 *ar,
+	struct ieee80211_tx_info *info,	struct ieee80211_tx_rate *txrate,
+	unsigned int *phyrate, unsigned int *tpc, unsigned int *chains)
+{
+	struct ieee80211_rate *rate = NULL;
+	u8 *txpower;
+	unsigned int idx;
+
+	idx = txrate->idx;
+	*tpc = 0;
+	*phyrate = 0;
+
+	if (txrate->flags & IEEE80211_TX_RC_MCS) {
+		if (txrate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) {
+			/* +1 dBm for HT40 */
+			*tpc += 2;
+
+			if (info->band == IEEE80211_BAND_2GHZ)
+				txpower = ar->power_2G_ht40;
+			else
+				txpower = ar->power_5G_ht40;
+		} else {
+			if (info->band == IEEE80211_BAND_2GHZ)
+				txpower = ar->power_2G_ht20;
+			else
+				txpower = ar->power_5G_ht20;
+		}
+
+		*phyrate = txrate->idx;
+		*tpc += txpower[idx & 7];
+	} else {
+		if (info->band == IEEE80211_BAND_2GHZ) {
+			if (idx < 4)
+				txpower = ar->power_2G_cck;
+			else
+				txpower = ar->power_2G_ofdm;
+		} else {
+			txpower = ar->power_5G_leg;
+			idx += 4;
+		}
+
+		rate = &__carl9170_ratetable[idx];
+		*tpc += txpower[(rate->hw_value & 0x30) >> 4];
+		*phyrate = rate->hw_value & 0xf;
+	}
+
+	if (ar->eeprom.tx_mask == 1) {
+		*chains = AR9170_TX_PHY_TXCHAIN_1;
+	} else {
+		if (!(txrate->flags & IEEE80211_TX_RC_MCS) &&
+		    rate && rate->bitrate >= 360)
+			*chains = AR9170_TX_PHY_TXCHAIN_1;
+		else
+			*chains = AR9170_TX_PHY_TXCHAIN_2;
+	}
+}
+
 static __le32 carl9170_tx_physet(struct ar9170 *ar,
 	struct ieee80211_tx_info *info, struct ieee80211_tx_rate *txrate)
 {
-	struct ieee80211_rate *rate = NULL;
-	u32 power, chains;
+	unsigned int power = 0, chains = 0, phyrate = 0;
 	__le32 tmp;
 
 	tmp = cpu_to_le32(0);
@@ -670,35 +738,12 @@ static __le32 carl9170_tx_physet(struct ar9170 *ar,
 		tmp |= cpu_to_le32(AR9170_TX_PHY_SHORT_GI);
 
 	if (txrate->flags & IEEE80211_TX_RC_MCS) {
-		u32 r = txrate->idx;
-		u8 *txpower;
+		SET_VAL(AR9170_TX_PHY_MCS, phyrate, txrate->idx);
 
 		/* heavy clip control */
-		tmp |= cpu_to_le32((r & 0x7) <<
+		tmp |= cpu_to_le32((txrate->idx & 0x7) <<
 			AR9170_TX_PHY_TX_HEAVY_CLIP_S);
 
-		if (txrate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) {
-			if (info->band == IEEE80211_BAND_5GHZ)
-				txpower = ar->power_5G_ht40;
-			else
-				txpower = ar->power_2G_ht40;
-		} else {
-			if (info->band == IEEE80211_BAND_5GHZ)
-				txpower = ar->power_5G_ht20;
-			else
-				txpower = ar->power_2G_ht20;
-		}
-
-		power = txpower[r & 7];
-
-		/* +1 dBm for HT40 */
-		if (txrate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			power += 2;
-
-		r <<= AR9170_TX_PHY_MCS_S;
-		BUG_ON(r & ~AR9170_TX_PHY_MCS);
-
-		tmp |= cpu_to_le32(r & AR9170_TX_PHY_MCS);
 		tmp |= cpu_to_le32(AR9170_TX_PHY_MOD_HT);
 
 		/*
@@ -708,33 +753,14 @@ static __le32 carl9170_tx_physet(struct ar9170 *ar,
 		 * tmp |= cpu_to_le32(AR9170_TX_PHY_GREENFIELD);
 		 */
 	} else {
-		u8 *txpower;
-		u32 mod;
-		u32 phyrate;
-		u8 idx = txrate->idx;
-
-		if (info->band != IEEE80211_BAND_2GHZ) {
-			idx += 4;
-			txpower = ar->power_5G_leg;
-			mod = AR9170_TX_PHY_MOD_OFDM;
+		if (info->band == IEEE80211_BAND_2GHZ) {
+			if (txrate->idx <= AR9170_TX_PHY_RATE_CCK_11M)
+				tmp |= cpu_to_le32(AR9170_TX_PHY_MOD_CCK);
+			else
+				tmp |= cpu_to_le32(AR9170_TX_PHY_MOD_OFDM);
 		} else {
-			if (idx < 4) {
-				txpower = ar->power_2G_cck;
-				mod = AR9170_TX_PHY_MOD_CCK;
-			} else {
-				mod = AR9170_TX_PHY_MOD_OFDM;
-				txpower = ar->power_2G_ofdm;
-			}
+			tmp |= cpu_to_le32(AR9170_TX_PHY_MOD_OFDM);
 		}
-
-		rate = &__carl9170_ratetable[idx];
-
-		phyrate = rate->hw_value & 0xF;
-		power = txpower[(rate->hw_value & 0x30) >> 4];
-		phyrate <<= AR9170_TX_PHY_MCS_S;
-
-		tmp |= cpu_to_le32(mod);
-		tmp |= cpu_to_le32(phyrate);
 
 		/*
 		 * short preamble seems to be broken too.
@@ -743,23 +769,12 @@ static __le32 carl9170_tx_physet(struct ar9170 *ar,
 		 *	tmp |= cpu_to_le32(AR9170_TX_PHY_SHORT_PREAMBLE);
 		 */
 	}
-	power <<= AR9170_TX_PHY_TX_PWR_S;
-	power &= AR9170_TX_PHY_TX_PWR;
-	tmp |= cpu_to_le32(power);
+	carl9170_tx_rate_tpc_chains(ar, info, txrate,
+				    &phyrate, &power, &chains);
 
-	/* set TX chains */
-	if (ar->eeprom.tx_mask == 1) {
-		chains = AR9170_TX_PHY_TXCHAIN_1;
-	} else {
-		chains = AR9170_TX_PHY_TXCHAIN_2;
-
-		/* >= 36M legacy OFDM - use only one chain */
-		if (rate && rate->bitrate >= 360 &&
-		    !(txrate->flags & IEEE80211_TX_RC_MCS))
-			chains = AR9170_TX_PHY_TXCHAIN_1;
-	}
-	tmp |= cpu_to_le32(chains << AR9170_TX_PHY_TXCHAIN_S);
-
+	tmp |= cpu_to_le32(SET_CONSTVAL(AR9170_TX_PHY_MCS, phyrate));
+	tmp |= cpu_to_le32(SET_CONSTVAL(AR9170_TX_PHY_TX_PWR, power));
+	tmp |= cpu_to_le32(SET_CONSTVAL(AR9170_TX_PHY_TXCHAIN, chains));
 	return tmp;
 }
 
@@ -861,6 +876,9 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 	if (unlikely(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM))
 		txc->s.misc |= CARL9170_TX_SUPER_MISC_CAB;
+
+	if (unlikely(info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
+		txc->s.misc |= CARL9170_TX_SUPER_MISC_ASSIGN_SEQ;
 
 	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control)))
 		txc->s.misc |= CARL9170_TX_SUPER_MISC_FILL_IN_TSF;
@@ -1189,15 +1207,6 @@ static struct sk_buff *carl9170_tx_pick_skb(struct ar9170 *ar,
 	arinfo = (void *) info->rate_driver_data;
 
 	arinfo->timeout = jiffies;
-
-	/*
-	 * increase ref count to "2".
-	 * Ref counting is the easiest way to solve the race between
-	 * the the urb's completion routine: carl9170_tx_callback and
-	 * wlan tx status functions: carl9170_tx_status/janitor.
-	 */
-	carl9170_tx_get_skb(skb);
-
 	return skb;
 
 err_unlock:
@@ -1216,6 +1225,36 @@ void carl9170_tx_drop(struct ar9170 *ar, struct sk_buff *skb)
 	SET_VAL(CARL9170_TX_SUPER_MISC_QUEUE, q,
 		ar9170_qmap[carl9170_get_queue(ar, skb)]);
 	__carl9170_tx_process_status(ar, super->s.cookie, q);
+}
+
+static bool carl9170_tx_ps_drop(struct ar9170 *ar, struct sk_buff *skb)
+{
+	struct ieee80211_sta *sta;
+	struct carl9170_sta_info *sta_info;
+
+	rcu_read_lock();
+	sta = __carl9170_get_tx_sta(ar, skb);
+	if (!sta)
+		goto out_rcu;
+
+	sta_info = (void *) sta->drv_priv;
+	if (unlikely(sta_info->sleeping)) {
+		struct ieee80211_tx_info *tx_info;
+
+		rcu_read_unlock();
+
+		tx_info = IEEE80211_SKB_CB(skb);
+		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU)
+			atomic_dec(&ar->tx_ampdu_upload);
+
+		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+		carl9170_tx_status(ar, skb, false);
+		return true;
+	}
+
+out_rcu:
+	rcu_read_unlock();
+	return false;
 }
 
 static void carl9170_tx(struct ar9170 *ar)
@@ -1237,6 +1276,9 @@ static void carl9170_tx(struct ar9170 *ar)
 			if (unlikely(!skb))
 				break;
 
+			if (unlikely(carl9170_tx_ps_drop(ar, skb)))
+				continue;
+
 			atomic_inc(&ar->tx_total_pending);
 
 			q = __carl9170_get_queue(ar, i);
@@ -1245,6 +1287,16 @@ static void carl9170_tx(struct ar9170 *ar)
 			 * TODO: Move into pick_skb or alloc_dev_space.
 			 */
 			skb_queue_tail(&ar->tx_status[q], skb);
+
+			/*
+			 * increase ref count to "2".
+			 * Ref counting is the easiest way to solve the
+			 * race between the urb's completion routine:
+			 *	carl9170_tx_callback
+			 * and wlan tx status functions:
+			 *	carl9170_tx_status/janitor.
+			 */
+			carl9170_tx_get_skb(skb);
 
 			carl9170_usb_tx(ar, skb);
 			schedule_garbagecollector = true;
@@ -1265,7 +1317,6 @@ static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *agg;
 	struct sk_buff *iter;
-	unsigned int max;
 	u16 tid, seq, qseq, off;
 	bool run = false;
 
@@ -1275,7 +1326,6 @@ static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
 
 	rcu_read_lock();
 	agg = rcu_dereference(sta_info->agg[tid]);
-	max = sta_info->ampdu_max_len;
 
 	if (!agg)
 		goto err_unlock_rcu;
@@ -1336,7 +1386,7 @@ err_unlock_rcu:
 	return false;
 }
 
-int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
@@ -1358,6 +1408,11 @@ int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * all ressouces which are associated with the frame.
 	 */
 
+	if (sta) {
+		struct carl9170_sta_info *stai = (void *) sta->drv_priv;
+		atomic_inc(&stai->pending_frames);
+	}
+
 	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 		run = carl9170_tx_ampdu_queue(ar, sta, skb);
 		if (run)
@@ -1370,12 +1425,11 @@ int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	carl9170_tx(ar);
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	ar->tx_dropped++;
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 void carl9170_tx_scheduler(struct ar9170 *ar)
@@ -1386,4 +1440,155 @@ void carl9170_tx_scheduler(struct ar9170 *ar)
 
 	if (ar->tx_schedule)
 		carl9170_tx(ar);
+}
+
+int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
+{
+	struct sk_buff *skb = NULL;
+	struct carl9170_vif_info *cvif;
+	struct ieee80211_tx_info *txinfo;
+	struct ieee80211_tx_rate *rate;
+	__le32 *data, *old = NULL;
+	unsigned int plcp, power, chains;
+	u32 word, ht1, off, addr, len;
+	int i = 0, err = 0;
+
+	rcu_read_lock();
+	cvif = rcu_dereference(ar->beacon_iter);
+retry:
+	if (ar->vifs == 0 || !cvif)
+		goto out_unlock;
+
+	list_for_each_entry_continue_rcu(cvif, &ar->vif_list, list) {
+		if (cvif->active && cvif->enable_beacon)
+			goto found;
+	}
+
+	if (!ar->beacon_enabled || i++)
+		goto out_unlock;
+
+	goto retry;
+
+found:
+	rcu_assign_pointer(ar->beacon_iter, cvif);
+
+	skb = ieee80211_beacon_get_tim(ar->hw, carl9170_get_vif(cvif),
+		NULL, NULL);
+
+	if (!skb) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
+	txinfo = IEEE80211_SKB_CB(skb);
+	spin_lock_bh(&ar->beacon_lock);
+	data = (__le32 *)skb->data;
+	if (cvif->beacon)
+		old = (__le32 *)cvif->beacon->data;
+
+	off = cvif->id * AR9170_MAC_BCN_LENGTH_MAX;
+	addr = ar->fw.beacon_addr + off;
+	len = roundup(skb->len + FCS_LEN, 4);
+
+	if ((off + len) > ar->fw.beacon_max_len) {
+		if (net_ratelimit()) {
+			wiphy_err(ar->hw->wiphy, "beacon does not "
+				  "fit into device memory!\n");
+		}
+		err = -EINVAL;
+		goto err_unlock;
+	}
+
+	if (len > AR9170_MAC_BCN_LENGTH_MAX) {
+		if (net_ratelimit()) {
+			wiphy_err(ar->hw->wiphy, "no support for beacons "
+				"bigger than %d (yours:%d).\n",
+				 AR9170_MAC_BCN_LENGTH_MAX, len);
+		}
+
+		err = -EMSGSIZE;
+		goto err_unlock;
+	}
+
+	ht1 = AR9170_MAC_BCN_HT1_TX_ANT0;
+	rate = &txinfo->control.rates[0];
+	carl9170_tx_rate_tpc_chains(ar, txinfo, rate, &plcp, &power, &chains);
+	if (!(txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS)) {
+		if (plcp <= AR9170_TX_PHY_RATE_CCK_11M)
+			plcp |= ((skb->len + FCS_LEN) << (3 + 16)) + 0x0400;
+		else
+			plcp |= ((skb->len + FCS_LEN) << 16) + 0x0010;
+	} else {
+		ht1 |= AR9170_MAC_BCN_HT1_HT_EN;
+		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+			plcp |= AR9170_MAC_BCN_HT2_SGI;
+
+		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) {
+			ht1 |= AR9170_MAC_BCN_HT1_BWC_40M_SHARED;
+			plcp |= AR9170_MAC_BCN_HT2_BW40;
+		}
+		if (rate->flags & IEEE80211_TX_RC_DUP_DATA) {
+			ht1 |= AR9170_MAC_BCN_HT1_BWC_40M_DUP;
+			plcp |= AR9170_MAC_BCN_HT2_BW40;
+		}
+
+		SET_VAL(AR9170_MAC_BCN_HT2_LEN, plcp, skb->len + FCS_LEN);
+	}
+
+	SET_VAL(AR9170_MAC_BCN_HT1_PWR_CTRL, ht1, 7);
+	SET_VAL(AR9170_MAC_BCN_HT1_TPC, ht1, power);
+	SET_VAL(AR9170_MAC_BCN_HT1_CHAIN_MASK, ht1, chains);
+	if (chains == AR9170_TX_PHY_TXCHAIN_2)
+		ht1 |= AR9170_MAC_BCN_HT1_TX_ANT1;
+
+	carl9170_async_regwrite_begin(ar);
+	carl9170_async_regwrite(AR9170_MAC_REG_BCN_HT1, ht1);
+	if (!(txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS))
+		carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP, plcp);
+	else
+		carl9170_async_regwrite(AR9170_MAC_REG_BCN_HT2, plcp);
+
+	for (i = 0; i < DIV_ROUND_UP(skb->len, 4); i++) {
+		/*
+		 * XXX: This accesses beyond skb data for up
+		 *	to the last 3 bytes!!
+		 */
+
+		if (old && (data[i] == old[i]))
+			continue;
+
+		word = le32_to_cpu(data[i]);
+		carl9170_async_regwrite(addr + 4 * i, word);
+	}
+	carl9170_async_regwrite_finish();
+
+	dev_kfree_skb_any(cvif->beacon);
+	cvif->beacon = NULL;
+
+	err = carl9170_async_regwrite_result();
+	if (!err)
+		cvif->beacon = skb;
+	spin_unlock_bh(&ar->beacon_lock);
+	if (err)
+		goto err_free;
+
+	if (submit) {
+		err = carl9170_bcn_ctrl(ar, cvif->id,
+					CARL9170_BCN_CTRL_CAB_TRIGGER,
+					addr, skb->len + FCS_LEN);
+
+		if (err)
+			goto err_free;
+	}
+out_unlock:
+	rcu_read_unlock();
+	return 0;
+
+err_unlock:
+	spin_unlock_bh(&ar->beacon_lock);
+
+err_free:
+	rcu_read_unlock();
+	dev_kfree_skb_any(skb);
+	return err;
 }

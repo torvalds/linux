@@ -36,31 +36,16 @@ static void rxrpc_destroy_peer(struct work_struct *work);
 static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 {
 	struct rtable *rt;
-	struct flowi fl;
-	int ret;
+	struct flowi4 fl4;
 
 	peer->if_mtu = 1500;
 
-	memset(&fl, 0, sizeof(fl));
-
-	switch (peer->srx.transport.family) {
-	case AF_INET:
-		fl.oif = 0;
-		fl.proto = IPPROTO_UDP,
-		fl.fl4_dst = peer->srx.transport.sin.sin_addr.s_addr;
-		fl.fl4_src = 0;
-		fl.fl4_tos = 0;
-		/* assume AFS.CM talking to AFS.FS */
-		fl.fl_ip_sport = htons(7001);
-		fl.fl_ip_dport = htons(7000);
-		break;
-	default:
-		BUG();
-	}
-
-	ret = ip_route_output_key(&init_net, &rt, &fl);
-	if (ret < 0) {
-		_leave(" [route err %d]", ret);
+	rt = ip_route_output_ports(&init_net, &fl4, NULL,
+				   peer->srx.transport.sin.sin_addr.s_addr, 0,
+				   htons(7000), htons(7001),
+				   IPPROTO_UDP, 0, 0);
+	if (IS_ERR(rt)) {
+		_leave(" [route err %ld]", PTR_ERR(rt));
 		return;
 	}
 
@@ -172,6 +157,7 @@ struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *srx, gfp_t gfp)
 	/* we can now add the new candidate to the list */
 	peer = candidate;
 	candidate = NULL;
+	usage = atomic_read(&peer->usage);
 
 	list_add_tail(&peer->link, &rxrpc_peers);
 	write_unlock_bh(&rxrpc_peer_lock);
@@ -186,7 +172,7 @@ success:
 	     &peer->srx.transport.sin.sin_addr,
 	     ntohs(peer->srx.transport.sin.sin_port));
 
-	_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
+	_leave(" = %p {u=%d}", peer, usage);
 	return peer;
 
 	/* we found the peer in the list immediately */

@@ -36,7 +36,7 @@
 #include <sound/tlv.h>
 
 /* Register descriptions are here */
-#include <linux/mfd/twl4030-codec.h>
+#include <linux/mfd/twl4030-audio.h>
 
 /* Shadow register used by the audio driver */
 #define TWL4030_REG_SW_SHADOW		0x4A
@@ -251,9 +251,9 @@ static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
 		return;
 
 	if (enable)
-		mode = twl4030_codec_enable_resource(TWL4030_CODEC_RES_POWER);
+		mode = twl4030_audio_enable_resource(TWL4030_AUDIO_RES_POWER);
 	else
-		mode = twl4030_codec_disable_resource(TWL4030_CODEC_RES_POWER);
+		mode = twl4030_audio_disable_resource(TWL4030_AUDIO_RES_POWER);
 
 	if (mode >= 0) {
 		twl4030_write_reg_cache(codec, TWL4030_REG_CODEC_MODE, mode);
@@ -280,7 +280,7 @@ static inline void twl4030_check_defaults(struct snd_soc_codec *codec)
 				 i, val, twl4030_reg[i]);
 		}
 	}
-	dev_dbg(codec->dev, "Found %d non maching registers. %s\n",
+	dev_dbg(codec->dev, "Found %d non-matching registers. %s\n",
 		 difference, difference ? "Not OK" : "OK");
 }
 
@@ -297,7 +297,7 @@ static inline void twl4030_reset_registers(struct snd_soc_codec *codec)
 
 static void twl4030_init_chip(struct snd_soc_codec *codec)
 {
-	struct twl4030_codec_audio_data *pdata = dev_get_platdata(codec->dev);
+	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	u8 reg, byte;
 	int i = 0;
@@ -375,13 +375,13 @@ static void twl4030_apll_enable(struct snd_soc_codec *codec, int enable)
 	if (enable) {
 		twl4030->apll_enabled++;
 		if (twl4030->apll_enabled == 1)
-			status = twl4030_codec_enable_resource(
-							TWL4030_CODEC_RES_APLL);
+			status = twl4030_audio_enable_resource(
+							TWL4030_AUDIO_RES_APLL);
 	} else {
 		twl4030->apll_enabled--;
 		if (!twl4030->apll_enabled)
-			status = twl4030_codec_disable_resource(
-							TWL4030_CODEC_RES_APLL);
+			status = twl4030_audio_disable_resource(
+							TWL4030_AUDIO_RES_APLL);
 	}
 
 	if (status >= 0)
@@ -732,7 +732,7 @@ static int aif_event(struct snd_soc_dapm_widget *w,
 
 static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 {
-	struct twl4030_codec_audio_data *pdata = codec->dev->platform_data;
+	struct twl4030_codec_data *pdata = codec->dev->platform_data;
 	unsigned char hs_gain, hs_pop;
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	/* Base values for ramp delay calculation: 2^19 - 2^26 */
@@ -2016,7 +2016,7 @@ static int twl4030_voice_startup(struct snd_pcm_substream *substream,
 	u8 mode;
 
 	/* If the system master clock is not 26MHz, the voice PCM interface is
-	 * not avilable.
+	 * not available.
 	 */
 	if (twl4030->sysclk != 26000) {
 		dev_err(codec->dev, "The board is configured for %u Hz, while"
@@ -2026,7 +2026,7 @@ static int twl4030_voice_startup(struct snd_pcm_substream *substream,
 	}
 
 	/* If the codec mode is not option2, the voice PCM interface is not
-	 * avilable.
+	 * available.
 	 */
 	mode = twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE)
 		& TWL4030_OPT_MODE;
@@ -2260,7 +2260,7 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 	}
 	snd_soc_codec_set_drvdata(codec, twl4030);
 	/* Set the defaults, and power up the codec */
-	twl4030->sysclk = twl4030_codec_get_mclk() / 1000;
+	twl4030->sysclk = twl4030_audio_get_mclk() / 1000;
 	codec->dapm.idle_bias_off = 1;
 
 	twl4030_init_chip(codec);
@@ -2297,7 +2297,7 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 {
-	struct twl4030_codec_audio_data *pdata = pdev->dev.platform_data;
+	struct twl4030_codec_data *pdata = pdev->dev.platform_data;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "platform_data is missing\n");

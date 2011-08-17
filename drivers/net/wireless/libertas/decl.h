@@ -1,8 +1,8 @@
 
-/**
-  *  This file contains declaration referring to
-  *  functions defined in other source files
-  */
+/*
+ *  This file contains declaration referring to
+ *  functions defined in other source files
+ */
 
 #ifndef _LBS_DECL_H_
 #define _LBS_DECL_H_

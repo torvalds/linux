@@ -173,7 +173,7 @@ void jfs_evict_inode(struct inode *inode)
 	dquot_drop(inode);
 }
 
-void jfs_dirty_inode(struct inode *inode)
+void jfs_dirty_inode(struct inode *inode, int flags)
 {
 	static int noisy = 5;
 
@@ -329,8 +329,8 @@ static ssize_t jfs_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				offset, nr_segs, jfs_get_block, NULL);
+	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
+				 jfs_get_block);
 
 	/*
 	 * In case of error extending write may have instantiated a few
@@ -352,7 +352,6 @@ const struct address_space_operations jfs_aops = {
 	.readpages	= jfs_readpages,
 	.writepage	= jfs_writepage,
 	.writepages	= jfs_writepages,
-	.sync_page	= block_sync_page,
 	.write_begin	= jfs_write_begin,
 	.write_end	= nobh_write_end,
 	.bmap		= jfs_bmap,

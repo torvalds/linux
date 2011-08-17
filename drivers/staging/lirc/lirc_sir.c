@@ -143,9 +143,9 @@ static unsigned int duty_cycle = 50;   /* duty cycle of 50% */
 #endif
 #ifndef LIRC_PORT
 /* for external dongles, default to com1 */
-#if defined(LIRC_SIR_ACTISYS_ACT200L) || \
-    defined(LIRC_SIR_ACTISYS_ACT220L) || \
-    defined(LIRC_SIR_TEKRAM)
+#if defined(LIRC_SIR_ACTISYS_ACT200L)         || \
+	    defined(LIRC_SIR_ACTISYS_ACT220L) || \
+	    defined(LIRC_SIR_TEKRAM)
 #define LIRC_PORT 0x3f8
 #else
 /* onboard sir ports are typically com3 */
@@ -467,7 +467,7 @@ static const struct file_operations lirc_fops = {
 
 static int set_use_inc(void *data)
 {
-       return 0;
+	return 0;
 }
 
 static void set_use_dec(void *data)
@@ -475,17 +475,17 @@ static void set_use_dec(void *data)
 }
 
 static struct lirc_driver driver = {
-       .name		= LIRC_DRIVER_NAME,
-       .minor		= -1,
-       .code_length	= 1,
-       .sample_rate	= 0,
-       .data		= NULL,
-       .add_to_buf	= NULL,
-       .set_use_inc	= set_use_inc,
-       .set_use_dec	= set_use_dec,
-       .fops		= &lirc_fops,
-       .dev		= NULL,
-       .owner		= THIS_MODULE,
+	.name		= LIRC_DRIVER_NAME,
+	.minor		= -1,
+	.code_length	= 1,
+	.sample_rate	= 0,
+	.data		= NULL,
+	.add_to_buf	= NULL,
+	.set_use_inc	= set_use_inc,
+	.set_use_dec	= set_use_dec,
+	.fops		= &lirc_fops,
+	.dev		= NULL,
+	.owner		= THIS_MODULE,
 };
 
 
@@ -739,23 +739,16 @@ static void send_space(unsigned long len)
 static void send_pulse(unsigned long len)
 {
 	long bytes_out = len / TIME_CONST;
-	long time_left;
 
-	time_left = (long)len - (long)bytes_out * (long)TIME_CONST;
-	if (bytes_out == 0) {
+	if (bytes_out == 0)
 		bytes_out++;
-		time_left = 0;
-	}
+
 	while (bytes_out--) {
 		outb(PULSE, io + UART_TX);
 		/* FIXME treba seriozne cakanie z char/serial.c */
 		while (!(inb(io + UART_LSR) & UART_LSR_THRE))
 			;
 	}
-#if 0
-	if (time_left > 0)
-		safe_udelay(time_left);
-#endif
 }
 #endif
 

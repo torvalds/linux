@@ -289,6 +289,6 @@ struct mpc52xx_fec {
 #define FEC_XMIT_FSM_ENABLE_CRC		0x01000000
 
 
-extern struct of_platform_driver mpc52xx_fec_mdio_driver;
+extern struct platform_driver mpc52xx_fec_mdio_driver;
 
 #endif	/* __DRIVERS_NET_MPC52XX_FEC_H__ */

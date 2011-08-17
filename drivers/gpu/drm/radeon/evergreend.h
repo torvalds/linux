@@ -64,6 +64,8 @@
 #define GB_BACKEND_MAP  				0x98FC
 #define DMIF_ADDR_CONFIG  				0xBD4
 #define HDP_ADDR_CONFIG  				0x2F48
+#define HDP_MISC_CNTL  					0x2F4C
+#define		HDP_FLUSH_INVALIDATE_CACHE      	(1 << 0)
 
 #define	CC_SYS_RB_BACKEND_DISABLE			0x3F88
 #define	GC_USER_RB_BACKEND_DISABLE			0x9B7C
@@ -166,10 +168,16 @@
 #define		SE_DB_BUSY					(1 << 30)
 #define		SE_CB_BUSY					(1 << 31)
 /* evergreen */
+#define	CG_THERMAL_CTRL					0x72c
+#define		TOFFSET_MASK			        0x00003FE0
+#define		TOFFSET_SHIFT			        5
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
-#define		ASIC_T_MASK			        0x7FF0000
+#define		ASIC_T_MASK			        0x07FF0000
 #define		ASIC_T_SHIFT			        16
+#define	CG_TS0_STATUS					0x760
+#define		TS0_ADC_DOUT_MASK			0x000003FF
+#define		TS0_ADC_DOUT_SHIFT			0
 /* APU */
 #define	CG_THERMAL_STATUS			        0x678
 
@@ -200,6 +208,7 @@
 #define		BURSTLENGTH_SHIFT				9
 #define		BURSTLENGTH_MASK				0x00000200
 #define		CHANSIZE_OVERRIDE				(1 << 11)
+#define	FUS_MC_ARB_RAMCFG				0x2768
 #define	MC_VM_AGP_TOP					0x2028
 #define	MC_VM_AGP_BOT					0x202C
 #define	MC_VM_AGP_BASE					0x2030
@@ -221,6 +230,11 @@
 #define	MC_VM_MD_L1_TLB0_CNTL				0x2654
 #define	MC_VM_MD_L1_TLB1_CNTL				0x2658
 #define	MC_VM_MD_L1_TLB2_CNTL				0x265C
+
+#define	FUS_MC_VM_MD_L1_TLB0_CNTL			0x265C
+#define	FUS_MC_VM_MD_L1_TLB1_CNTL			0x2660
+#define	FUS_MC_VM_MD_L1_TLB2_CNTL			0x2664
+
 #define	MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x203C
 #define	MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2038
 #define	MC_VM_SYSTEM_APERTURE_LOW_ADDR			0x2034
@@ -337,6 +351,7 @@
 #define		COLOR_BUFFER_SIZE(x)				((x) << 0)
 #define		POSITION_BUFFER_SIZE(x)				((x) << 8)
 #define		SMX_BUFFER_SIZE(x)				((x) << 16)
+#define	SX_MEMORY_EXPORT_BASE				0x9010
 #define	SX_MISC						0x28350
 
 #define CB_PERF_CTR0_SEL_0				0x9A20
@@ -452,7 +467,7 @@
 #define IH_RB_WPTR_ADDR_LO                                0x3e14
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
-#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP(x)                              ((x) << 1)
 #       define IH_MC_SWAP_NONE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
@@ -533,7 +548,7 @@
 #       define LB_D5_VBLANK_INTERRUPT                   (1 << 3)
 #       define DC_HPD5_INTERRUPT                        (1 << 17)
 #       define DC_HPD5_RX_INTERRUPT                     (1 << 18)
-#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6050
+#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6150
 #       define LB_D6_VLINE_INTERRUPT                    (1 << 2)
 #       define LB_D6_VBLANK_INTERRUPT                   (1 << 3)
 #       define DC_HPD6_INTERRUPT                        (1 << 17)
@@ -755,13 +770,21 @@
 
 #define SQ_CONST_MEM_BASE				0x8df8
 
+#define SQ_ESGS_RING_BASE				0x8c40
 #define SQ_ESGS_RING_SIZE				0x8c44
+#define SQ_GSVS_RING_BASE				0x8c48
 #define SQ_GSVS_RING_SIZE				0x8c4c
+#define SQ_ESTMP_RING_BASE				0x8c50
 #define SQ_ESTMP_RING_SIZE				0x8c54
+#define SQ_GSTMP_RING_BASE				0x8c58
 #define SQ_GSTMP_RING_SIZE				0x8c5c
+#define SQ_VSTMP_RING_BASE				0x8c60
 #define SQ_VSTMP_RING_SIZE				0x8c64
+#define SQ_PSTMP_RING_BASE				0x8c68
 #define SQ_PSTMP_RING_SIZE				0x8c6c
+#define SQ_LSTMP_RING_BASE				0x8e10
 #define SQ_LSTMP_RING_SIZE				0x8e14
+#define SQ_HSTMP_RING_BASE				0x8e18
 #define SQ_HSTMP_RING_SIZE				0x8e1c
 #define VGT_TF_RING_SIZE				0x8988
 
@@ -1093,5 +1116,15 @@
 #define SQ_TEX_RESOURCE_WORD6_0                         0x30018
 #define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
 
+/* cayman 3D regs */
+#define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B0
+#define CAYMAN_DB_EQAA					0x28804
+#define CAYMAN_DB_DEPTH_INFO				0x2803C
+#define CAYMAN_PA_SC_AA_CONFIG				0x28BE0
+#define         CAYMAN_MSAA_NUM_SAMPLES_SHIFT           0
+#define         CAYMAN_MSAA_NUM_SAMPLES_MASK            0x7
+#define CAYMAN_SX_SCATTER_EXPORT_BASE			0x28358
+/* cayman packet3 addition */
+#define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
 
 #endif

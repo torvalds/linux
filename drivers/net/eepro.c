@@ -1703,7 +1703,7 @@ static int eepro_ethtool_get_settings(struct net_device *dev,
 		cmd->advertising |= ADVERTISED_AUI;
 	}
 
-	cmd->speed = SPEED_10;
+	ethtool_cmd_speed_set(cmd, SPEED_10);
 
 	if (dev->if_port == TPE && lp->word[1] & ee_Duplex) {
 		cmd->duplex = DUPLEX_FULL;

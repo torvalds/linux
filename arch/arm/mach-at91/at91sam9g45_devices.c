@@ -180,7 +180,6 @@ void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data)
 	}
 
 	usbh_ehci_data = *data;
-	at91_clock_associate("uhphs_clk", &at91_usbh_ehci_device.dev, "ehci_clk");
 	platform_device_register(&at91_usbh_ehci_device);
 }
 #else
@@ -256,7 +255,7 @@ void __init at91_add_device_usba(struct usba_platform_data *data)
 {
 	usba_udc_data.pdata.vbus_pin = -EINVAL;
 	usba_udc_data.pdata.num_ep = ARRAY_SIZE(usba_udc_ep);
-	memcpy(usba_udc_data.ep, usba_udc_ep, sizeof(usba_udc_ep));;
+	memcpy(usba_udc_data.ep, usba_udc_ep, sizeof(usba_udc_ep));
 
 	if (data && data->vbus_pin > 0) {
 		at91_set_gpio_input(data->vbus_pin, 0);
@@ -265,10 +264,6 @@ void __init at91_add_device_usba(struct usba_platform_data *data)
 	}
 
 	/* Pullup pin is handled internally by USB device peripheral */
-
-	/* Clocks */
-	at91_clock_associate("utmi_clk", &at91_usba_udc_device.dev, "hclk");
-	at91_clock_associate("udphs_clk", &at91_usba_udc_device.dev, "pclk");
 
 	platform_device_register(&at91_usba_udc_device);
 }
@@ -478,7 +473,6 @@ void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 		}
 
 		mmc0_data = *data;
-		at91_clock_associate("mci0_clk", &at91sam9g45_mmc0_device.dev, "mci_clk");
 		platform_device_register(&at91sam9g45_mmc0_device);
 
 	} else {			/* MCI1 */
@@ -504,7 +498,6 @@ void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 		}
 
 		mmc1_data = *data;
-		at91_clock_associate("mci1_clk", &at91sam9g45_mmc1_device.dev, "mci_clk");
 		platform_device_register(&at91sam9g45_mmc1_device);
 
 	}
@@ -801,7 +794,6 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 		at91_set_A_periph(AT91_PIN_PB1, 0);	/* SPI0_MOSI */
 		at91_set_A_periph(AT91_PIN_PB2, 0);	/* SPI0_SPCK */
 
-		at91_clock_associate("spi0_clk", &at91sam9g45_spi0_device.dev, "spi_clk");
 		platform_device_register(&at91sam9g45_spi0_device);
 	}
 	if (enable_spi1) {
@@ -809,7 +801,6 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 		at91_set_A_periph(AT91_PIN_PB15, 0);	/* SPI1_MOSI */
 		at91_set_A_periph(AT91_PIN_PB16, 0);	/* SPI1_SPCK */
 
-		at91_clock_associate("spi1_clk", &at91sam9g45_spi1_device.dev, "spi_clk");
 		platform_device_register(&at91sam9g45_spi1_device);
 	}
 }
@@ -999,10 +990,7 @@ static struct platform_device at91sam9g45_tcb1_device = {
 
 static void __init at91_add_device_tc(void)
 {
-	/* this chip has one clock and irq for all six TC channels */
-	at91_clock_associate("tcb0_clk", &at91sam9g45_tcb0_device.dev, "t0_clk");
 	platform_device_register(&at91sam9g45_tcb0_device);
-	at91_clock_associate("tcb1_clk", &at91sam9g45_tcb1_device.dev, "t0_clk");
 	platform_device_register(&at91sam9g45_tcb1_device);
 }
 #else
@@ -1286,12 +1274,10 @@ void __init at91_add_device_ssc(unsigned id, unsigned pins)
 	case AT91SAM9G45_ID_SSC0:
 		pdev = &at91sam9g45_ssc0_device;
 		configure_ssc0_pins(pins);
-		at91_clock_associate("ssc0_clk", &pdev->dev, "pclk");
 		break;
 	case AT91SAM9G45_ID_SSC1:
 		pdev = &at91sam9g45_ssc1_device;
 		configure_ssc1_pins(pins);
-		at91_clock_associate("ssc1_clk", &pdev->dev, "pclk");
 		break;
 	default:
 		return;
@@ -1527,37 +1513,34 @@ struct platform_device *atmel_default_console_device;	/* the serial console devi
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 {
 	struct platform_device *pdev;
+	struct atmel_uart_data *pdata;
 
 	switch (id) {
 		case 0:		/* DBGU */
 			pdev = &at91sam9g45_dbgu_device;
 			configure_dbgu_pins();
-			at91_clock_associate("mck", &pdev->dev, "usart");
 			break;
 		case AT91SAM9G45_ID_US0:
 			pdev = &at91sam9g45_uart0_device;
 			configure_usart0_pins(pins);
-			at91_clock_associate("usart0_clk", &pdev->dev, "usart");
 			break;
 		case AT91SAM9G45_ID_US1:
 			pdev = &at91sam9g45_uart1_device;
 			configure_usart1_pins(pins);
-			at91_clock_associate("usart1_clk", &pdev->dev, "usart");
 			break;
 		case AT91SAM9G45_ID_US2:
 			pdev = &at91sam9g45_uart2_device;
 			configure_usart2_pins(pins);
-			at91_clock_associate("usart2_clk", &pdev->dev, "usart");
 			break;
 		case AT91SAM9G45_ID_US3:
 			pdev = &at91sam9g45_uart3_device;
 			configure_usart3_pins(pins);
-			at91_clock_associate("usart3_clk", &pdev->dev, "usart");
 			break;
 		default:
 			return;
 	}
-	pdev->id = portnr;		/* update to mapped ID */
+	pdata = pdev->dev.platform_data;
+	pdata->num = portnr;		/* update to mapped ID */
 
 	if (portnr < ATMEL_MAX_UART)
 		at91_uarts[portnr] = pdev;
@@ -1565,8 +1548,10 @@ void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 
 void __init at91_set_serial_console(unsigned portnr)
 {
-	if (portnr < ATMEL_MAX_UART)
+	if (portnr < ATMEL_MAX_UART) {
 		atmel_default_console_device = at91_uarts[portnr];
+		at91sam9g45_set_console_clock(at91_uarts[portnr]->id);
+	}
 }
 
 void __init at91_add_device_serial(void)

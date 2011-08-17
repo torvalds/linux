@@ -40,6 +40,7 @@
 #ifndef __CXGB4VF_ADAPTER_H__
 #define __CXGB4VF_ADAPTER_H__
 
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -91,21 +92,14 @@ struct sge_rspq;
  */
 struct port_info {
 	struct adapter *adapter;	/* our adapter */
-	struct vlan_group *vlan_grp;	/* out VLAN group */
 	u16 viid;			/* virtual interface ID */
 	s16 xact_addr_filt;		/* index of our MAC address filter */
 	u16 rss_size;			/* size of VI's RSS table slice */
 	u8 pidx;			/* index into adapter port[] */
 	u8 port_id;			/* physical port ID */
-	u8 rx_offload;			/* CSO, etc. */
 	u8 nqsets;			/* # of "Queue Sets" */
 	u8 first_qset;			/* index of first "Queue Set" */
 	struct link_config link_cfg;	/* physical port configuration */
-};
-
-/* port_info.rx_offload flags */
-enum {
-	RX_CSO = 1 << 0,
 };
 
 /*

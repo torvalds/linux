@@ -25,19 +25,6 @@
 
 static void __iomem *timer_base;
 
-static cycle_t tcc_get_cycles(struct clocksource *cs)
-{
-	return __raw_readl(timer_base + TC32MCNT_OFFS);
-}
-
-static struct clocksource clocksource_tcc = {
-	.name		= "tcc_tc32",
-	.rating		= 200,
-	.read		= tcc_get_cycles,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static int tcc_set_next_event(unsigned long evt,
 			      struct clock_event_device *unused)
 {
@@ -102,7 +89,8 @@ static int __init tcc_clockevent_init(struct clk *clock)
 {
 	unsigned int c = clk_get_rate(clock);
 
-	clocksource_register_hz(&clocksource_tcc, c);
+	clocksource_mmio_init(timer_base + TC32MCNT_OFFS, "tcc_tc32", c,
+		200, 32, clocksource_mmio_readl_up);
 
 	clockevent_tcc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_tcc.shift);

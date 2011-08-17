@@ -234,7 +234,7 @@ typedef struct {
 } PACKED befs_btree_super;
 
 /*
- * Header stucture of each btree node
+ * Header structure of each btree node
  */
 typedef struct {
 	fs64 left;

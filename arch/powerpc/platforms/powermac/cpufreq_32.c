@@ -429,7 +429,7 @@ static u32 read_gpio(struct device_node *np)
 	return offset;
 }
 
-static int pmac_cpufreq_suspend(struct cpufreq_policy *policy, pm_message_t pmsg)
+static int pmac_cpufreq_suspend(struct cpufreq_policy *policy)
 {
 	/* Ok, this could be made a bit smarter, but let's be robust for now. We
 	 * always force a speed change to high speed before sleep, to make sure

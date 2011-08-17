@@ -100,6 +100,14 @@ static inline void rcu_note_context_switch(int cpu)
 }
 
 /*
+ * Take advantage of the fact that there is only one CPU, which
+ * allows us to ignore virtualization-based context switches.
+ */
+static inline void rcu_virt_note_context_switch(int cpu)
+{
+}
+
+/*
  * Return the number of grace periods.
  */
 static inline long rcu_batches_completed(void)

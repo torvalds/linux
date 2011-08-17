@@ -94,9 +94,21 @@ extern unsigned int fc_debug_logging;
 				(lport)->host->host_no,	##args))
 
 /*
+ * FC-4 Providers.
+ */
+extern struct fc4_prov *fc_active_prov[];	/* providers without recv */
+extern struct fc4_prov *fc_passive_prov[];	/* providers with recv */
+extern struct mutex fc_prov_mutex;		/* lock over table changes */
+
+extern struct fc4_prov fc_rport_t0_prov;	/* type 0 provider */
+extern struct fc4_prov fc_lport_els_prov;	/* ELS provider */
+extern struct fc4_prov fc_rport_fcp_init;	/* FCP initiator provider */
+
+/*
  * Set up direct-data placement for this I/O request
  */
 void fc_fcp_ddp_setup(struct fc_fcp_pkt *fsp, u16 xid);
+void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp);
 
 /*
  * Module setup functions
@@ -112,6 +124,9 @@ void fc_destroy_fcp(void);
  * Internal libfc functions
  */
 const char *fc_els_resp_type(struct fc_frame *);
+extern void fc_fc4_add_lport(struct fc_lport *);
+extern void fc_fc4_del_lport(struct fc_lport *);
+extern void fc_fc4_conf_lport_params(struct fc_lport *, enum fc_fh_type);
 
 /*
  * Copies a buffer into an sg list

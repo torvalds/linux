@@ -105,7 +105,7 @@ void __init colibri_pxa3xx_init_lcd(int bl_pin)
 	lcd_bl_pin = bl_pin;
 	gpio_request(bl_pin, "lcd backlight");
 	gpio_direction_output(bl_pin, 0);
-	set_pxa_fb_info(&sharp_lq43_info);
+	pxa_set_fb_info(NULL, &sharp_lq43_info);
 }
 #endif
 

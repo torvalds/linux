@@ -124,7 +124,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 
 	/* set last entry flag in current SBALE of current SBAL */
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale->eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	/* don't exceed last allowed SBAL */
 	if (q_req->sbal_last == q_req->sbal_limit)
@@ -132,7 +132,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 
 	/* set chaining flag in first SBALE of current SBAL */
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS0_MORE_SBALS;
+	sbale->sflags |= SBAL_SFLAGS0_MORE_SBALS;
 
 	/* calculate index of next SBAL */
 	q_req->sbal_last++;
@@ -147,7 +147,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 
 	/* set storage-block type for new SBAL */
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= q_req->sbtype;
+	sbale->sflags |= q_req->sbtype;
 
 	return sbale;
 }
@@ -177,7 +177,7 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 
 	/* set storage-block type for this request */
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
-	sbale->flags |= q_req->sbtype;
+	sbale->sflags |= q_req->sbtype;
 
 	for (; sg; sg = sg_next(sg)) {
 		sbale = zfcp_qdio_sbale_next(qdio, q_req);
@@ -384,14 +384,15 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	for (cc = 0; cc < QDIO_MAX_BUFFERS_PER_Q; cc++) {
 		sbale = &(qdio->res_q[cc]->element[0]);
 		sbale->length = 0;
-		sbale->flags = SBAL_FLAGS_LAST_ENTRY;
+		sbale->eflags = SBAL_EFLAGS_LAST_ENTRY;
+		sbale->sflags = 0;
 		sbale->addr = NULL;
 	}
 
 	if (do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, 0, QDIO_MAX_BUFFERS_PER_Q))
 		goto failed_qdio;
 
-	/* set index of first avalable SBALS / number of available SBALS */
+	/* set index of first available SBALS / number of available SBALS */
 	qdio->req_q_idx = 0;
 	atomic_set(&qdio->req_q_free, QDIO_MAX_BUFFERS_PER_Q);
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);

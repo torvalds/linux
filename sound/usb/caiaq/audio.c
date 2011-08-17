@@ -614,6 +614,7 @@ static void read_completed(struct urb *urb)
 	struct snd_usb_caiaqdev *dev;
 	struct urb *out;
 	int frame, len, send_it = 0, outframe = 0;
+	size_t offset = 0;
 
 	if (urb->status || !info)
 		return;
@@ -634,7 +635,8 @@ static void read_completed(struct urb *urb)
 		len = urb->iso_frame_desc[outframe].actual_length;
 		out->iso_frame_desc[outframe].length = len;
 		out->iso_frame_desc[outframe].actual_length = 0;
-		out->iso_frame_desc[outframe].offset = BYTES_PER_FRAME * frame;
+		out->iso_frame_desc[outframe].offset = offset;
+		offset += len;
 
 		if (len > 0) {
 			spin_lock(&dev->spinlock);
@@ -650,7 +652,7 @@ static void read_completed(struct urb *urb)
 	}
 
 	if (send_it) {
-		out->number_of_packets = FRAMES_PER_URB;
+		out->number_of_packets = outframe;
 		out->transfer_flags = URB_ISO_ASAP;
 		usb_submit_urb(out, GFP_ATOMIC);
 	}
@@ -805,6 +807,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO2DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORAUDIO2):
 		dev->samplerates |= SNDRV_PCM_RATE_88200;
 		break;
 	}

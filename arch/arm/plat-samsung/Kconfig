@@ -8,6 +8,7 @@ config PLAT_SAMSUNG
 	bool
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
 	select NO_IOPORT
+	select GENERIC_IRQ_CHIP
 	default y
 	help
 	  Base platform code for all Samsung SoC based systems
@@ -272,6 +273,25 @@ config SAMSUNG_DEV_KEYPAD
 	bool
 	help
 	  Compile in platform device definitions for keypad
+
+config SAMSUNG_DEV_PWM
+	bool
+	default y if ARCH_S3C2410
+	help
+	  Compile in platform device definition for PWM Timer
+
+config SAMSUNG_DEV_BACKLIGHT
+	bool
+	depends on SAMSUNG_DEV_PWM
+	help
+	  Compile in platform device definition LCD backlight with PWM Timer
+
+config S3C24XX_PWM
+	bool "PWM device support"
+	select HAVE_PWM
+	help
+	  Support for exporting the PWM timer blocks via the pwm device
+	  system
 
 # DMA
 

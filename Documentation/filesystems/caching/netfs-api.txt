@@ -95,7 +95,7 @@ restraints as possible on how an index is structured and where it is placed in
 the tree.  The netfs can even mix indices and data files at the same level, but
 it's not recommended.
 
-Each index entry consists of a key of indeterminate length plus some auxilliary
+Each index entry consists of a key of indeterminate length plus some auxiliary
 data, also of indeterminate length.
 
 There are some limits on indices:
@@ -203,23 +203,23 @@ This has the following fields:
 
      If the function is absent, a file size of 0 is assumed.
 
- (6) A function to retrieve auxilliary data from the netfs [optional].
+ (6) A function to retrieve auxiliary data from the netfs [optional].
 
      This function will be called with the netfs data that was passed to the
-     cookie acquisition function and the maximum length of auxilliary data that
-     it may provide.  It should write the auxilliary data into the given buffer
+     cookie acquisition function and the maximum length of auxiliary data that
+     it may provide.  It should write the auxiliary data into the given buffer
      and return the quantity it wrote.
 
-     If this function is absent, the auxilliary data length will be set to 0.
+     If this function is absent, the auxiliary data length will be set to 0.
 
-     The length of the auxilliary data buffer may be dependent on the key
+     The length of the auxiliary data buffer may be dependent on the key
      length.  A netfs mustn't rely on being able to provide more than 400 bytes
      for both.
 
- (7) A function to check the auxilliary data [optional].
+ (7) A function to check the auxiliary data [optional].
 
      This function will be called to check that a match found in the cache for
-     this object is valid.  For instance with AFS it could check the auxilliary
+     this object is valid.  For instance with AFS it could check the auxiliary
      data against the data version number returned by the server to determine
      whether the index entry in a cache is still valid.
 
@@ -232,7 +232,7 @@ This has the following fields:
 	(*) FSCACHE_CHECKAUX_NEEDS_UPDATE	- the entry requires update
 	(*) FSCACHE_CHECKAUX_OBSOLETE		- the entry should be deleted
 
-     This function can also be used to extract data from the auxilliary data in
+     This function can also be used to extract data from the auxiliary data in
      the cache and copy it into the netfs's structures.
 
  (8) A pair of functions to manage contexts for the completion callback
@@ -671,6 +671,22 @@ released.
 To make a page available for release, this function may wait for an outstanding
 storage request to complete, or it may attempt to cancel the storage request -
 in which case the page will not be stored in the cache this time.
+
+
+BULK INODE PAGE UNCACHE
+-----------------------
+
+A convenience routine is provided to perform an uncache on all the pages
+attached to an inode.  This assumes that the pages on the inode correspond on a
+1:1 basis with the pages in the cache.
+
+	void fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
+					     struct inode *inode);
+
+This takes the netfs cookie that the pages were cached with and the inode that
+the pages are attached to.  This function will wait for pages to finish being
+written to the cache and for the cache to finish with the page generally.  No
+error is returned.
 
 
 ==========================

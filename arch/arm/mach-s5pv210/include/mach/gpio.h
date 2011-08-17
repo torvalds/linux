@@ -18,7 +18,7 @@
 #define gpio_cansleep	__gpio_cansleep
 #define gpio_to_irq	__gpio_to_irq
 
-/* Practically, GPIO banks upto MP03 are the configurable gpio banks */
+/* Practically, GPIO banks up to MP03 are the configurable gpio banks */
 
 /* GPIO bank sizes */
 #define S5PV210_GPIO_A0_NR	(8)

@@ -30,6 +30,7 @@
 #include "drm.h"
 #include "i915_drv.h"
 #include "i915_drm.h"
+#include "i915_trace.h"
 
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
@@ -62,6 +63,8 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 				       min_size, alignment, 0))
 			return 0;
 	}
+
+	trace_i915_gem_evict(dev, min_size, alignment, mappable);
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
@@ -188,6 +191,8 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 		       list_empty(&dev_priv->mm.active_list));
 	if (lists_empty)
 		return -ENOSPC;
+
+	trace_i915_gem_evict_everything(dev, purgeable_only);
 
 	/* Flush everything (on to the inactive lists) and evict */
 	ret = i915_gpu_idle(dev);

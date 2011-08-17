@@ -65,7 +65,6 @@ void t1_tp_intr_clear(struct petp *tp);
 int t1_tp_intr_handler(struct petp *tp);
 
 void t1_tp_get_mib_statistics(adapter_t *adap, struct tp_mib_statistics *tps);
-void t1_tp_set_udp_checksum_offload(struct petp *tp, int enable);
 void t1_tp_set_tcp_checksum_offload(struct petp *tp, int enable);
 void t1_tp_set_ip_checksum_offload(struct petp *tp, int enable);
 int t1_tp_set_coalescing_size(struct petp *tp, unsigned int size);

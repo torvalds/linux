@@ -1,7 +1,10 @@
 config MN10300
 	def_bool y
 	select HAVE_OPROFILE
-	select GENERIC_HARDIRQS
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ARCH_KGDB
 
 config AM33_2
 	def_bool n
@@ -41,9 +44,6 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_CMOS_UPDATE
         def_bool n
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 
@@ -52,21 +52,6 @@ config GENERIC_TIME
 
 config GENERIC_CLOCKEVENTS
 	def_bool y
-
-config GENERIC_CLOCKEVENTS_BUILD
-	def_bool y
-	depends on GENERIC_CLOCKEVENTS
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-
-config CEVT_MN10300
-       def_bool y
-       depends on GENERIC_CLOCKEVENTS
-
-config CSRC_MN10300
-       def_bool y
-       depends on GENERIC_TIME
 
 config GENERIC_BUG
 	def_bool y
@@ -415,9 +400,9 @@ comment "[!] NOTE: A lower number/level indicates a higher priority (0 is highes
 comment "____Non-maskable interrupt levels____"
 comment "The following must be set to a higher priority than local_irq_disable() and on-chip serial"
 
-config GDBSTUB_IRQ_LEVEL
-	int "GDBSTUB interrupt priority"
-	depends on GDBSTUB
+config DEBUGGER_IRQ_LEVEL
+	int "DEBUGGER interrupt priority"
+	depends on KERNEL_DEBUGGER
 	range 0 1 if LINUX_CLI_LEVEL = 2
 	range 0 2 if LINUX_CLI_LEVEL = 3
 	range 0 3 if LINUX_CLI_LEVEL = 4
@@ -451,7 +436,7 @@ config LINUX_CLI_LEVEL
 	  EPSW.IM from 7.  Any interrupt is permitted for which the level is
 	  lower than EPSW.IM.
 
-	  Certain interrupts, such as GDBSTUB and virtual MN10300 on-chip
+	  Certain interrupts, such as DEBUGGER and virtual MN10300 on-chip
 	  serial DMA interrupts are allowed to interrupt normal disabled
 	  sections.
 

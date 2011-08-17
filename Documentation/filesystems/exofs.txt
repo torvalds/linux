@@ -104,7 +104,15 @@ Where:
     exofs specific options: Options are separated by commas (,)
 		pid=<integer> - The partition number to mount/create as
                                 container of the filesystem.
-                                This option is mandatory.
+                                This option is mandatory. integer can be
+                                Hex by pre-pending an 0x to the number.
+		osdname=<id>  - Mount by a device's osdname.
+                                osdname is usually a 36 character uuid of the
+                                form "d2683732-c906-4ee1-9dbd-c10c27bb40df".
+                                It is one of the device's uuid specified in the
+                                mkfs.exofs format command.
+                                If this option is specified then the /dev/osdX
+                                above can be empty and is ignored.
                 to=<integer>  - Timeout in ticks for a single command.
                                 default is (60 * HZ) [for debugging only]
 

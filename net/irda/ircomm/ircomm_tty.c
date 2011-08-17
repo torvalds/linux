@@ -38,6 +38,7 @@
 #include <linux/seq_file.h>
 #include <linux/termios.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>		/* for MODULE_ALIAS_CHARDEV_MAJOR */
 
@@ -1132,7 +1133,6 @@ static int ircomm_tty_data_indication(void *instance, void *sap,
 				      struct sk_buff *skb)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
-	struct tty_ldisc *ld;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
@@ -1161,15 +1161,11 @@ static int ircomm_tty_data_indication(void *instance, void *sap,
 	}
 
 	/*
-	 * Just give it over to the line discipline. There is no need to
-	 * involve the flip buffers, since we are not running in an interrupt
-	 * handler
+	 * Use flip buffer functions since the code may be called from interrupt
+	 * context
 	 */
-
-	ld = tty_ldisc_ref(self->tty);
-	if (ld)
-		ld->ops->receive_buf(self->tty, skb->data, NULL, skb->len);
-	tty_ldisc_deref(ld);
+	tty_insert_flip_string(self->tty, skb->data, skb->len);
+	tty_flip_buffer_push(self->tty);
 
 	/* No need to kfree_skb - see ircomm_ttp_data_indication() */
 

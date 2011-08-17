@@ -24,6 +24,7 @@
 #define USB_PORTSC           (MSM_USB_BASE + 0x0184)
 #define USB_OTGSC            (MSM_USB_BASE + 0x01A4)
 #define USB_USBMODE          (MSM_USB_BASE + 0x01A8)
+#define USB_PHY_CTRL         (MSM_USB_BASE + 0x0240)
 
 #define USBCMD_RESET   2
 #define USB_USBINTR          (MSM_USB_BASE + 0x0148)
@@ -42,6 +43,7 @@
 
 #define ASYNC_INTR_CTRL         (1 << 29) /* Enable async interrupt */
 #define ULPI_STP_CTRL           (1 << 30) /* Block communication with PHY */
+#define PHY_RETEN               (1 << 1) /* PHY retention enable/disable */
 
 /* OTG definitions */
 #define OTGSC_INTSTS_MASK	(0x7f << 16)

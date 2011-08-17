@@ -56,7 +56,7 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 	struct e1000_adapter *adapter = hw->adapter;
 	u16 pcie_link_status, cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	cap_offset = adapter->pdev->pcie_cap;
 	if (!cap_offset) {
 		bus->width = e1000_bus_width_unknown;
 	} else {
@@ -144,7 +144,7 @@ void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value)
  *  @hw: pointer to the HW structure
  *  @rar_count: receive address registers
  *
- *  Setups the receive address registers by setting the base receive address
+ *  Setup the receive address registers by setting the base receive address
  *  register to the devices MAC address and clearing all the other receive
  *  address registers to 0.
  **/
@@ -190,7 +190,8 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	/* Check for LOM (vs. NIC) or one of two valid mezzanine cards */
 	if (!((nvm_data & NVM_COMPAT_LOM) ||
 	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_DUAL) ||
-	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD)))
+	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD) ||
+	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES)))
 		goto out;
 
 	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
@@ -200,10 +201,10 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 		goto out;
 	}
 
-	if (nvm_alt_mac_addr_offset == 0xFFFF) {
+	if ((nvm_alt_mac_addr_offset == 0xFFFF) ||
+	    (nvm_alt_mac_addr_offset == 0x0000))
 		/* There is no Alternate MAC Address */
 		goto out;
-	}
 
 	if (hw->bus.func == E1000_FUNC_1)
 		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
@@ -220,7 +221,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	}
 
 	/* if multicast bit is set, the alternate address will not be used */
-	if (alt_mac_addr[0] & 0x01) {
+	if (is_multicast_ether_addr(alt_mac_addr)) {
 		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
 		goto out;
 	}
@@ -868,7 +869,7 @@ static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	 * milliseconds even if the other end is doing it in SW).
 	 */
 	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
-		msleep(10);
+		usleep_range(10000, 20000);
 		status = er32(STATUS);
 		if (status & E1000_STATUS_LU)
 			break;
@@ -930,7 +931,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 
 	ew32(CTRL, ctrl);
 	e1e_flush();
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	/*
 	 * For these adapters, the SW definable pin 1 is set when the optics
@@ -1181,7 +1182,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			 * of pause frames.  In this case, we had to advertise
 			 * FULL flow control because we could not advertise Rx
 			 * ONLY. Hence, we must now check to see if we need to
-			 * turn OFF  the TRANSMISSION of PAUSE frames.
+			 * turn OFF the TRANSMISSION of PAUSE frames.
 			 */
 			if (hw->fc.requested_mode == e1000_fc_full) {
 				hw->fc.current_mode = e1000_fc_full;
@@ -1385,7 +1386,7 @@ s32 e1000e_get_auto_rd_done(struct e1000_hw *hw)
 	while (i < AUTO_READ_DONE_TIMEOUT) {
 		if (er32(EECD) & E1000_EECD_AUTO_RD)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 		i++;
 	}
 
@@ -1530,12 +1531,12 @@ s32 e1000e_cleanup_led_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_blink_led - Blink LED
+ *  e1000e_blink_led_generic - Blink LED
  *  @hw: pointer to the HW structure
  *
  *  Blink the LEDs which are set to be on.
  **/
-s32 e1000e_blink_led(struct e1000_hw *hw)
+s32 e1000e_blink_led_generic(struct e1000_hw *hw)
 {
 	u32 ledctl_blink = 0;
 	u32 i;
@@ -1978,15 +1979,16 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = er32(EECD);
-	u16 timeout = 0;
 	u8 spi_stat_reg;
 
 	if (nvm->type == e1000_nvm_eeprom_spi) {
+		u16 timeout = NVM_MAX_RETRY_SPI;
+
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		ew32(EECD, eecd);
+		e1e_flush();
 		udelay(1);
-		timeout = NVM_MAX_RETRY_SPI;
 
 		/*
 		 * Read "Status Register" repeatedly until the LSB is cleared.
@@ -2087,8 +2089,6 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	if (ret_val)
 		return ret_val;
 
-	msleep(10);
-
 	while (widx < words) {
 		u8 write_opcode = NVM_WRITE_OPCODE_SPI;
 
@@ -2132,7 +2132,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		}
 	}
 
-	msleep(10);
+	usleep_range(10000, 20000);
 	nvm->ops.release(hw);
 	return 0;
 }

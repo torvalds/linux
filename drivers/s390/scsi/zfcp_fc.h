@@ -64,31 +64,14 @@ struct zfcp_fc_gid_pn_req {
 } __packed;
 
 /**
- * struct zfcp_fc_gid_pn_resp - container for ct header plus gid_pn response
+ * struct zfcp_fc_gid_pn_rsp - container for ct header plus gid_pn response
  * @ct_hdr: FC GS common transport header
  * @gid_pn: GID_PN response
  */
-struct zfcp_fc_gid_pn_resp {
+struct zfcp_fc_gid_pn_rsp {
 	struct fc_ct_hdr	ct_hdr;
 	struct fc_gid_pn_resp	gid_pn;
 } __packed;
-
-/**
- * struct zfcp_fc_gid_pn - everything required in zfcp for gid_pn request
- * @ct: data passed to zfcp_fsf for issuing fsf request
- * @sg_req: scatterlist entry for request data
- * @sg_resp: scatterlist entry for response data
- * @gid_pn_req: GID_PN request data
- * @gid_pn_resp: GID_PN response data
- */
-struct zfcp_fc_gid_pn {
-	struct zfcp_fsf_ct_els ct;
-	struct scatterlist sg_req;
-	struct scatterlist sg_resp;
-	struct zfcp_fc_gid_pn_req gid_pn_req;
-	struct zfcp_fc_gid_pn_resp gid_pn_resp;
-	struct zfcp_port *port;
-};
 
 /**
  * struct zfcp_fc_gpn_ft - container for ct header plus gpn_ft request
@@ -101,41 +84,72 @@ struct zfcp_fc_gpn_ft_req {
 } __packed;
 
 /**
- * struct zfcp_fc_gpn_ft_resp - container for ct header plus gpn_ft response
+ * struct zfcp_fc_gspn_req - container for ct header plus GSPN_ID request
  * @ct_hdr: FC GS common transport header
- * @gpn_ft: Array of gpn_ft response data to fill one memory page
+ * @gspn: GSPN_ID request
  */
-struct zfcp_fc_gpn_ft_resp {
+struct zfcp_fc_gspn_req {
 	struct fc_ct_hdr	ct_hdr;
-	struct fc_gpn_ft_resp	gpn_ft[ZFCP_FC_GPN_FT_ENT_PAGE];
+	struct fc_gid_pn_resp	gspn;
 } __packed;
 
 /**
- * struct zfcp_fc_gpn_ft - zfcp data for gpn_ft request
- * @ct: data passed to zfcp_fsf for issuing fsf request
- * @sg_req: scatter list entry for gpn_ft request
- * @sg_resp: scatter list entries for gpn_ft responses (per memory page)
+ * struct zfcp_fc_gspn_rsp - container for ct header plus GSPN_ID response
+ * @ct_hdr: FC GS common transport header
+ * @gspn: GSPN_ID response
+ * @name: The name string of the GSPN_ID response
  */
-struct zfcp_fc_gpn_ft {
-	struct zfcp_fsf_ct_els ct;
-	struct scatterlist sg_req;
-	struct scatterlist sg_resp[ZFCP_FC_GPN_FT_NUM_BUFS];
-};
+struct zfcp_fc_gspn_rsp {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_gspn_resp	gspn;
+	char			name[FC_SYMBOLIC_NAME_SIZE];
+} __packed;
 
 /**
- * struct zfcp_fc_els_adisc - everything required in zfcp for issuing ELS ADISC
- * @els: data required for issuing els fsf command
- * @req: scatterlist entry for ELS ADISC request
- * @resp: scatterlist entry for ELS ADISC response
- * @adisc_req: ELS ADISC request data
- * @adisc_resp: ELS ADISC response data
+ * struct zfcp_fc_rspn_req - container for ct header plus RSPN_ID request
+ * @ct_hdr: FC GS common transport header
+ * @rspn: RSPN_ID request
+ * @name: The name string of the RSPN_ID request
  */
-struct zfcp_fc_els_adisc {
-	struct zfcp_fsf_ct_els els;
-	struct scatterlist req;
-	struct scatterlist resp;
-	struct fc_els_adisc adisc_req;
-	struct fc_els_adisc adisc_resp;
+struct zfcp_fc_rspn_req {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_ns_rspn	rspn;
+	char			name[FC_SYMBOLIC_NAME_SIZE];
+} __packed;
+
+/**
+ * struct zfcp_fc_req - Container for FC ELS and CT requests sent from zfcp
+ * @ct_els: data required for issuing fsf command
+ * @sg_req: scatterlist entry for request data
+ * @sg_rsp: scatterlist entry for response data
+ * @u: request specific data
+ */
+struct zfcp_fc_req {
+	struct zfcp_fsf_ct_els				ct_els;
+	struct scatterlist				sg_req;
+	struct scatterlist				sg_rsp;
+	union {
+		struct {
+			struct fc_els_adisc		req;
+			struct fc_els_adisc		rsp;
+		} adisc;
+		struct {
+			struct zfcp_fc_gid_pn_req	req;
+			struct zfcp_fc_gid_pn_rsp	rsp;
+		} gid_pn;
+		struct {
+			struct scatterlist sg_rsp2[ZFCP_FC_GPN_FT_NUM_BUFS - 1];
+			struct zfcp_fc_gpn_ft_req	req;
+		} gpn_ft;
+		struct {
+			struct zfcp_fc_gspn_req		req;
+			struct zfcp_fc_gspn_rsp		rsp;
+		} gspn;
+		struct {
+			struct zfcp_fc_rspn_req		req;
+			struct fc_ct_hdr		rsp;
+		} rspn;
+	} u;
 };
 
 /**
@@ -192,13 +206,20 @@ struct zfcp_fc_wka_ports {
  * zfcp_fc_scsi_to_fcp - setup FCP command with data from scsi_cmnd
  * @fcp: fcp_cmnd to setup
  * @scsi: scsi_cmnd where to get LUN, task attributes/flags and CDB
+ * @tm: task management flags to setup task management command
  */
 static inline
-void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi)
+void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi,
+			 u8 tm_flags)
 {
 	char tag[2];
 
 	int_to_scsilun(scsi->device->lun, (struct scsi_lun *) &fcp->fc_lun);
+
+	if (unlikely(tm_flags)) {
+		fcp->fc_tm_flags = tm_flags;
+		return;
+	}
 
 	if (scsi_populate_tag_msg(scsi, tag)) {
 		switch (tag[0]) {
@@ -223,19 +244,6 @@ void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi)
 
 	if (scsi_get_prot_type(scsi) == SCSI_PROT_DIF_TYPE1)
 		fcp->fc_dl += fcp->fc_dl / scsi->device->sector_size * 8;
-}
-
-/**
- * zfcp_fc_fcp_tm - setup FCP command as task management command
- * @fcp: fcp_cmnd to setup
- * @dev: scsi_device where to send the task management command
- * @tm: task management flags to setup tm command
- */
-static inline
-void zfcp_fc_fcp_tm(struct fcp_cmnd *fcp, struct scsi_device *dev, u8 tm_flags)
-{
-	int_to_scsilun(dev->lun, (struct scsi_lun *) &fcp->fc_lun);
-	fcp->fc_tm_flags |= tm_flags;
 }
 
 /**

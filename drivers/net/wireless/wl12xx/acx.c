@@ -25,7 +25,6 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
@@ -91,7 +90,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 	struct acx_current_tx_power *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx dot11_cur_tx_pwr");
+	wl1271_debug(DEBUG_ACX, "acx dot11_cur_tx_pwr %d", power);
 
 	if (power < 0 || power > 25)
 		return -EINVAL;
@@ -325,12 +324,19 @@ out:
 	return ret;
 }
 
-int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold)
+int wl1271_acx_rts_threshold(struct wl1271 *wl, u32 rts_threshold)
 {
 	struct acx_rts_threshold *rts;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx rts threshold");
+	/*
+	 * If the RTS threshold is not configured or out of range, use the
+	 * default value.
+	 */
+	if (rts_threshold > IEEE80211_MAX_RTS_THRESHOLD)
+		rts_threshold = wl->conf.rx.rts_threshold;
+
+	wl1271_debug(DEBUG_ACX, "acx rts threshold: %d", rts_threshold);
 
 	rts = kzalloc(sizeof(*rts), GFP_KERNEL);
 	if (!rts) {
@@ -338,7 +344,7 @@ int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold)
 		goto out;
 	}
 
-	rts->threshold = cpu_to_le16(rts_threshold);
+	rts->threshold = cpu_to_le16((u16)rts_threshold);
 
 	ret = wl1271_cmd_configure(wl, DOT11_RTS_THRESHOLD, rts, sizeof(*rts));
 	if (ret < 0) {
@@ -540,13 +546,13 @@ out:
 	return ret;
 }
 
-int wl1271_acx_sg_cfg(struct wl1271 *wl)
+int wl1271_acx_sta_sg_cfg(struct wl1271 *wl)
 {
-	struct acx_bt_wlan_coex_param *param;
+	struct acx_sta_bt_wlan_coex_param *param;
 	struct conf_sg_settings *c = &wl->conf.sg;
 	int i, ret;
 
-	wl1271_debug(DEBUG_ACX, "acx sg cfg");
+	wl1271_debug(DEBUG_ACX, "acx sg sta cfg");
 
 	param = kzalloc(sizeof(*param), GFP_KERNEL);
 	if (!param) {
@@ -555,8 +561,38 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	for (i = 0; i < CONF_SG_PARAMS_MAX; i++)
-		param->params[i] = cpu_to_le32(c->params[i]);
+	for (i = 0; i < CONF_SG_STA_PARAMS_MAX; i++)
+		param->params[i] = cpu_to_le32(c->sta_params[i]);
+	param->param_idx = CONF_SG_PARAMS_ALL;
+
+	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
+	if (ret < 0) {
+		wl1271_warning("failed to set sg config: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(param);
+	return ret;
+}
+
+int wl1271_acx_ap_sg_cfg(struct wl1271 *wl)
+{
+	struct acx_ap_bt_wlan_coex_param *param;
+	struct conf_sg_settings *c = &wl->conf.sg;
+	int i, ret;
+
+	wl1271_debug(DEBUG_ACX, "acx sg ap cfg");
+
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* BT-WLAN coext parameters */
+	for (i = 0; i < CONF_SG_AP_PARAMS_MAX; i++)
+		param->params[i] = cpu_to_le32(c->ap_params[i]);
 	param->param_idx = CONF_SG_PARAMS_ALL;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
@@ -751,10 +787,10 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_rate_policies(struct wl1271 *wl)
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 {
-	struct acx_rate_policy *acx;
-	struct conf_tx_rate_class *c = &wl->conf.tx.rc_conf;
+	struct acx_sta_rate_policy *acx;
+	struct conf_tx_rate_class *c = &wl->conf.tx.sta_rc_conf;
 	int idx = 0;
 	int ret = 0;
 
@@ -783,9 +819,46 @@ int wl1271_acx_rate_policies(struct wl1271 *wl)
 
 	acx->rate_class_cnt = cpu_to_le32(ACX_TX_RATE_POLICY_CNT);
 
+	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
+		acx->rate_class[ACX_TX_BASIC_RATE].enabled_rates,
+		acx->rate_class[ACX_TX_AP_FULL_RATE].enabled_rates);
+
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of rate policies failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
+		      u8 idx)
+{
+	struct acx_ap_rate_policy *acx;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ap rate policy %d rates 0x%x",
+		     idx, c->enabled_rates);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->rate_policy.enabled_rates = cpu_to_le32(c->enabled_rates);
+	acx->rate_policy.short_retry_limit = c->short_retry_limit;
+	acx->rate_policy.long_retry_limit = c->long_retry_limit;
+	acx->rate_policy.aflags = c->aflags;
+
+	acx->rate_policy_idx = cpu_to_le32(idx);
+
+	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("Setting of ap rate policy failed: %d", ret);
 		goto out;
 	}
 
@@ -862,12 +935,19 @@ out:
 	return ret;
 }
 
-int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold)
+int wl1271_acx_frag_threshold(struct wl1271 *wl, u32 frag_threshold)
 {
 	struct acx_frag_threshold *acx;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx frag threshold");
+	/*
+	 * If the fragmentation is not configured or out of range, use the
+	 * default value.
+	 */
+	if (frag_threshold > IEEE80211_MAX_FRAG_THRESHOLD)
+		frag_threshold = wl->conf.tx.frag_threshold;
+
+	wl1271_debug(DEBUG_ACX, "acx frag threshold: %d", frag_threshold);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 
@@ -876,7 +956,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold)
 		goto out;
 	}
 
-	acx->frag_threshold = cpu_to_le16(frag_threshold);
+	acx->frag_threshold = cpu_to_le16((u16)frag_threshold);
 	ret = wl1271_cmd_configure(wl, ACX_FRAG_CFG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of frag threshold failed: %d", ret);
@@ -915,9 +995,10 @@ out:
 	return ret;
 }
 
-int wl1271_acx_mem_cfg(struct wl1271 *wl)
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
 {
-	struct wl1271_acx_config_memory *mem_conf;
+	struct wl1271_acx_ap_config_memory *mem_conf;
+	struct conf_memory_settings *mem;
 	int ret;
 
 	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
@@ -928,11 +1009,21 @@ int wl1271_acx_mem_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		/*
+		 * FIXME: The 128x AP FW does not yet support dynamic memory.
+		 * Use the base memory configuration for 128x for now. This
+		 * should be fine tuned in the future.
+		 */
+		mem = &wl->conf.mem_wl128x;
+	else
+		mem = &wl->conf.mem_wl127x;
+
 	/* memory config */
-	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
-	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
-	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
-	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
+	mem_conf->num_stations = mem->num_stations;
+	mem_conf->rx_mem_block_num = mem->rx_block_num;
+	mem_conf->tx_min_mem_block_num = mem->tx_min_block_num;
+	mem_conf->num_ssid_profiles = mem->ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
@@ -947,13 +1038,78 @@ out:
 	return ret;
 }
 
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
+{
+	struct wl1271_acx_sta_config_memory *mem_conf;
+	struct conf_memory_settings *mem;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
+
+	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
+	if (!mem_conf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		mem = &wl->conf.mem_wl128x;
+	else
+		mem = &wl->conf.mem_wl127x;
+
+	/* memory config */
+	mem_conf->num_stations = mem->num_stations;
+	mem_conf->rx_mem_block_num = mem->rx_block_num;
+	mem_conf->tx_min_mem_block_num = mem->tx_min_block_num;
+	mem_conf->num_ssid_profiles = mem->ssid_profiles;
+	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
+	mem_conf->dyn_mem_enable = mem->dynamic_memory;
+	mem_conf->tx_free_req = mem->min_req_tx_blocks;
+	mem_conf->rx_free_req = mem->min_req_rx_blocks;
+	mem_conf->tx_min = mem->tx_min;
+	mem_conf->fwlog_blocks = wl->conf.fwlog.mem_blocks;
+
+	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
+				   sizeof(*mem_conf));
+	if (ret < 0) {
+		wl1271_warning("wl1271 mem config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(mem_conf);
+	return ret;
+}
+
+int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap)
+{
+	struct wl1271_acx_host_config_bitmap *bitmap_conf;
+	int ret;
+
+	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
+	if (!bitmap_conf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	bitmap_conf->host_cfg_bitmap = cpu_to_le32(host_cfg_bitmap);
+
+	ret = wl1271_cmd_configure(wl, ACX_HOST_IF_CFG_BITMAP,
+				   bitmap_conf, sizeof(*bitmap_conf));
+	if (ret < 0) {
+		wl1271_warning("wl1271 bitmap config opt failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(bitmap_conf);
+
+	return ret;
+}
+
 int wl1271_acx_init_mem_config(struct wl1271 *wl)
 {
 	int ret;
-
-	ret = wl1271_acx_mem_cfg(wl);
-	if (ret < 0)
-		return ret;
 
 	wl->target_mem_map = kzalloc(sizeof(struct wl1271_acx_mem_map),
 				     GFP_KERNEL);
@@ -1233,6 +1389,7 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 	struct wl1271_acx_ht_capabilities *acx;
 	u8 mac_address[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	int ret = 0;
+	u32 ht_capabilites = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx ht capabilities setting");
 
@@ -1244,26 +1401,25 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 
 	/* Allow HT Operation ? */
 	if (allow_ht_operation) {
-		acx->ht_capabilites =
+		ht_capabilites =
 			WL1271_ACX_FW_CAP_HT_OPERATION;
 		if (ht_cap->cap & IEEE80211_HT_CAP_GRN_FLD)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_GREENFIELD_FRAME_FORMAT;
 		if (ht_cap->cap & IEEE80211_HT_CAP_SGI_20)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_SHORT_GI_FOR_20MHZ_PACKETS;
 		if (ht_cap->cap & IEEE80211_HT_CAP_LSIG_TXOP_PROT)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_LSIG_TXOP_PROTECTION;
 
 		/* get data from A-MPDU parameters field */
 		acx->ampdu_max_length = ht_cap->ampdu_factor;
 		acx->ampdu_min_spacing = ht_cap->ampdu_density;
-
-		memcpy(acx->mac_address, mac_address, ETH_ALEN);
-	} else { /* HT operations are not allowed */
-		acx->ht_capabilites = 0;
 	}
+
+	memcpy(acx->mac_address, mac_address, ETH_ALEN);
+	acx->ht_capabilites = cpu_to_le32(ht_capabilites);
 
 	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -1293,7 +1449,8 @@ int wl1271_acx_set_ht_information(struct wl1271 *wl,
 	acx->ht_protection =
 		(u8)(ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION);
 	acx->rifs_mode = 0;
-	acx->gf_protection = 0;
+	acx->gf_protection =
+		!!(ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 	acx->ht_tx_burst_limit = 0;
 	acx->dual_cts_protection = 0;
 
@@ -1301,6 +1458,91 @@ int wl1271_acx_set_ht_information(struct wl1271 *wl,
 
 	if (ret < 0) {
 		wl1271_warning("acx ht information setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+/* Configure BA session initiator/receiver parameters setting in the FW. */
+int wl1271_acx_set_ba_session(struct wl1271 *wl,
+			       enum ieee80211_back_parties direction,
+			       u8 tid_index, u8 policy)
+{
+	struct wl1271_acx_ba_session_policy *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx ba session setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* ANY role */
+	acx->role_id = 0xff;
+	acx->tid = tid_index;
+	acx->enable = policy;
+	acx->ba_direction = direction;
+
+	switch (direction) {
+	case WLAN_BACK_INITIATOR:
+		acx->win_size = wl->conf.ht.tx_ba_win_size;
+		acx->inactivity_timeout = wl->conf.ht.inactivity_timeout;
+		break;
+	case WLAN_BACK_RECIPIENT:
+		acx->win_size = RX_BA_WIN_SIZE;
+		acx->inactivity_timeout = 0;
+		break;
+	default:
+		wl1271_error("Incorrect acx command id=%x\n", direction);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = wl1271_cmd_configure(wl,
+				   ACX_BA_SESSION_POLICY_CFG,
+				   acx,
+				   sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ba session setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+/* setup BA session receiver setting in the FW. */
+int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
+					bool enable)
+{
+	struct wl1271_acx_ba_receiver_setup *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx ba receiver session setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Single link for now */
+	acx->link_id = 1;
+	acx->tid = tid_index;
+	acx->enable = enable;
+	acx->win_size = 0;
+	acx->ssn = ssn;
+
+	ret = wl1271_cmd_configure(wl, ACX_BA_SESSION_RX_SETUP, acx,
+				   sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ba receiver session failed: %d", ret);
 		goto out;
 	}
 
@@ -1332,5 +1574,196 @@ int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
 
 out:
 	kfree(tsf_info);
+	return ret;
+}
+
+int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable)
+{
+	struct wl1271_acx_ps_rx_streaming *rx_streaming;
+	u32 conf_queues, enable_queues;
+	int i, ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ps rx streaming");
+
+	rx_streaming = kzalloc(sizeof(*rx_streaming), GFP_KERNEL);
+	if (!rx_streaming) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	conf_queues = wl->conf.rx_streaming.queues;
+	if (enable)
+		enable_queues = conf_queues;
+	else
+		enable_queues = 0;
+
+	for (i = 0; i < 8; i++) {
+		/*
+		 * Skip non-changed queues, to avoid redundant acxs.
+		 * this check assumes conf.rx_streaming.queues can't
+		 * be changed while rx_streaming is enabled.
+		 */
+		if (!(conf_queues & BIT(i)))
+			continue;
+
+		rx_streaming->tid = i;
+		rx_streaming->enable = enable_queues & BIT(i);
+		rx_streaming->period = wl->conf.rx_streaming.interval;
+		rx_streaming->timeout = wl->conf.rx_streaming.interval;
+
+		ret = wl1271_cmd_configure(wl, ACX_PS_RX_STREAMING,
+					   rx_streaming,
+					   sizeof(*rx_streaming));
+		if (ret < 0) {
+			wl1271_warning("acx ps rx streaming failed: %d", ret);
+			goto out;
+		}
+	}
+out:
+	kfree(rx_streaming);
+	return ret;
+}
+
+int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl)
+{
+	struct wl1271_acx_ap_max_tx_retry *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx ap max tx retry");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.max_tx_retries);
+
+	ret = wl1271_cmd_configure(wl, ACX_MAX_TX_FAILURE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ap max tx retry failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_config_ps(struct wl1271 *wl)
+{
+	struct wl1271_acx_config_ps *config_ps;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx config ps");
+
+	config_ps = kzalloc(sizeof(*config_ps), GFP_KERNEL);
+	if (!config_ps) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	config_ps->exit_retries = wl->conf.conn.psm_exit_retries;
+	config_ps->enter_retries = wl->conf.conn.psm_entry_retries;
+	config_ps->null_data_rate = cpu_to_le32(wl->basic_rate);
+
+	ret = wl1271_cmd_configure(wl, ACX_CONFIG_PS, config_ps,
+				   sizeof(*config_ps));
+
+	if (ret < 0) {
+		wl1271_warning("acx config ps failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(config_ps);
+	return ret;
+}
+
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr)
+{
+	struct wl1271_acx_inconnection_sta *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx set inconnaction sta %pM", addr);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	memcpy(acx->addr, addr, ETH_ALEN);
+
+	ret = wl1271_cmd_configure(wl, ACX_UPDATE_INCONNECTION_STA_LIST,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx set inconnaction sta failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_set_ap_beacon_filter(struct wl1271 *wl, bool enable)
+{
+	struct acx_ap_beacon_filter *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx set ap beacon filter: %d", enable);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->enable = enable ? 1 : 0;
+
+	ret = wl1271_cmd_configure(wl, ACX_AP_BEACON_FILTER_OPT,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx set ap beacon filter failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_fm_coex(struct wl1271 *wl)
+{
+	struct wl1271_acx_fm_coex *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx fm coex setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->enable = wl->conf.fm_coex.enable;
+	acx->swallow_period = wl->conf.fm_coex.swallow_period;
+	acx->n_divider_fref_set_1 = wl->conf.fm_coex.n_divider_fref_set_1;
+	acx->n_divider_fref_set_2 = wl->conf.fm_coex.n_divider_fref_set_2;
+	acx->m_divider_fref_set_1 =
+		cpu_to_le16(wl->conf.fm_coex.m_divider_fref_set_1);
+	acx->m_divider_fref_set_2 =
+		cpu_to_le16(wl->conf.fm_coex.m_divider_fref_set_2);
+	acx->coex_pll_stabilization_time =
+		cpu_to_le32(wl->conf.fm_coex.coex_pll_stabilization_time);
+	acx->ldo_stabilization_time =
+		cpu_to_le16(wl->conf.fm_coex.ldo_stabilization_time);
+	acx->fm_disturbed_band_margin =
+		wl->conf.fm_coex.fm_disturbed_band_margin;
+	acx->swallow_clk_diff = wl->conf.fm_coex.swallow_clk_diff;
+
+	ret = wl1271_cmd_configure(wl, ACX_FM_COEX_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx fm coex setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
 	return ret;
 }

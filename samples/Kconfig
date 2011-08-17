@@ -55,10 +55,16 @@ config SAMPLE_KFIFO
 	  If in doubt, say "N" here.
 
 config SAMPLE_KDB
-	tristate "Build kdb command exmaple -- loadable modules only"
+	tristate "Build kdb command example -- loadable modules only"
 	depends on KGDB_KDB && m
 	help
 	  Build an example of how to dynamically add the hello
 	  command to the kdb shell.
+
+config SAMPLE_HIDRAW
+	bool "Build simple hidraw example"
+	depends on HIDRAW && HEADERS_CHECK
+	help
+	  Build an example of how to use hidraw from userspace.
 
 endif # SAMPLES

@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dma-mapping.h>
@@ -337,8 +338,6 @@ static int dnet_mii_init(struct dnet *bp)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		bp->mii_bus->irq[i] = PHY_POLL;
 
-	platform_set_drvdata(bp->dev, bp->mii_bus);
-
 	if (mdiobus_register(bp->mii_bus)) {
 		err = -ENXIO;
 		goto err_out_free_mdio_irq;
@@ -588,6 +587,8 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		irq_enable |= DNET_INTR_ENB_TX_FIFOAE;
 		dnet_writel(bp, irq_enable, INTR_ENB);
 	}
+
+	skb_tx_timestamp(skb);
 
 	/* free the buffer */
 	dev_kfree_skb(skb);
@@ -863,6 +864,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 	bp = netdev_priv(dev);
 	bp->dev = dev;
 
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	spin_lock_init(&bp->lock);

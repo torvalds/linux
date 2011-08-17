@@ -581,12 +581,13 @@ static void nv04_dfp_restore(struct drm_encoder *encoder)
 	int head = nv_encoder->restore.head;
 
 	if (nv_encoder->dcb->type == OUTPUT_LVDS) {
-		struct drm_display_mode *native_mode = nouveau_encoder_connector_get(nv_encoder)->native_mode;
-		if (native_mode)
-			call_lvds_script(dev, nv_encoder->dcb, head, LVDS_PANEL_ON,
-					 native_mode->clock);
-		else
-			NV_ERROR(dev, "Not restoring LVDS without native mode\n");
+		struct nouveau_connector *connector =
+			nouveau_encoder_connector_get(nv_encoder);
+
+		if (connector && connector->native_mode)
+			call_lvds_script(dev, nv_encoder->dcb, head,
+					 LVDS_PANEL_ON,
+					 connector->native_mode->clock);
 
 	} else if (nv_encoder->dcb->type == OUTPUT_TMDS) {
 		int clock = nouveau_hw_pllvals_to_clk

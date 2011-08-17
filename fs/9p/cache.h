@@ -25,20 +25,6 @@
 #include <linux/fscache.h>
 #include <linux/spinlock.h>
 
-extern struct kmem_cache *vcookie_cache;
-
-struct v9fs_cookie {
-	spinlock_t lock;
-	struct inode inode;
-	struct fscache_cookie *fscache;
-	struct p9_qid *qid;
-};
-
-static inline struct v9fs_cookie *v9fs_inode2cookie(const struct inode *inode)
-{
-	return container_of(inode, struct v9fs_cookie, inode);
-}
-
 extern struct fscache_netfs v9fs_cache_netfs;
 extern const struct fscache_cookie_def v9fs_cache_session_index_def;
 extern const struct fscache_cookie_def v9fs_cache_inode_index_def;
@@ -64,23 +50,8 @@ extern int __v9fs_readpages_from_fscache(struct inode *inode,
 					 struct list_head *pages,
 					 unsigned *nr_pages);
 extern void __v9fs_readpage_to_fscache(struct inode *inode, struct page *page);
-
-
-/**
- * v9fs_cache_register - Register v9fs file system with the cache
- */
-static inline int v9fs_cache_register(void)
-{
-	return __v9fs_cache_register();
-}
-
-/**
- * v9fs_cache_unregister - Unregister v9fs from the cache
- */
-static inline void v9fs_cache_unregister(void)
-{
-	__v9fs_cache_unregister();
-}
+extern void __v9fs_fscache_wait_on_page_write(struct inode *inode,
+					      struct page *page);
 
 static inline int v9fs_fscache_release_page(struct page *page,
 					    gfp_t gfp)
@@ -117,28 +88,18 @@ static inline void v9fs_readpage_to_fscache(struct inode *inode,
 
 static inline void v9fs_uncache_page(struct inode *inode, struct page *page)
 {
-	struct v9fs_cookie *vcookie = v9fs_inode2cookie(inode);
-	fscache_uncache_page(vcookie->fscache, page);
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	fscache_uncache_page(v9inode->fscache, page);
 	BUG_ON(PageFsCache(page));
 }
 
-static inline void v9fs_vcookie_set_qid(struct inode *inode,
-					struct p9_qid *qid)
+static inline void v9fs_fscache_wait_on_page_write(struct inode *inode,
+						   struct page *page)
 {
-	struct v9fs_cookie *vcookie = v9fs_inode2cookie(inode);
-	spin_lock(&vcookie->lock);
-	vcookie->qid = qid;
-	spin_unlock(&vcookie->lock);
+	return __v9fs_fscache_wait_on_page_write(inode, page);
 }
 
 #else /* CONFIG_9P_FSCACHE */
-
-static inline int v9fs_cache_register(void)
-{
-	return 1;
-}
-
-static inline void v9fs_cache_unregister(void) {}
 
 static inline int v9fs_fscache_release_page(struct page *page,
 					    gfp_t gfp) {
@@ -168,9 +129,11 @@ static inline void v9fs_readpage_to_fscache(struct inode *inode,
 static inline void v9fs_uncache_page(struct inode *inode, struct page *page)
 {}
 
-static inline void v9fs_vcookie_set_qid(struct inode *inode,
-					struct p9_qid *qid)
-{}
+static inline void v9fs_fscache_wait_on_page_write(struct inode *inode,
+						   struct page *page)
+{
+	return;
+}
 
 #endif /* CONFIG_9P_FSCACHE */
 #endif /* _9P_CACHE_H */

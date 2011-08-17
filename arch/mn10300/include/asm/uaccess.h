@@ -15,6 +15,7 @@
  * User space memory access functions
  */
 #include <linux/thread_info.h>
+#include <linux/kernel.h>
 #include <asm/page.h>
 #include <asm/errno.h>
 
@@ -160,9 +161,10 @@ struct __large_struct { unsigned long buf[100]; };
 
 #define __get_user_check(x, ptr, size)					\
 ({									\
+	const __typeof__(ptr) __guc_ptr = (ptr);			\
 	int _e;								\
-	if (likely(__access_ok((unsigned long) (ptr), (size))))		\
-		_e = __get_user_nocheck((x), (ptr), (size));		\
+	if (likely(__access_ok((unsigned long) __guc_ptr, (size))))	\
+		_e = __get_user_nocheck((x), __guc_ptr, (size));	\
 	else {								\
 		_e = -EFAULT;						\
 		(x) = (__typeof__(x))0;					\

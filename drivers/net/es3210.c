@@ -54,6 +54,7 @@ static const char version[] =
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 

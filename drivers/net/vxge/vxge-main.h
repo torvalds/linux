@@ -18,6 +18,8 @@
 #include "vxge-config.h"
 #include "vxge-version.h"
 #include <linux/list.h>
+#include <linux/bitops.h>
+#include <linux/if_vlan.h>
 
 #define VXGE_DRIVER_NAME		"vxge"
 #define VXGE_DRIVER_VENDOR		"Neterion, Inc"
@@ -59,11 +61,13 @@
 #define VXGE_TTI_LTIMER_VAL	1000
 #define VXGE_T1A_TTI_LTIMER_VAL	80
 #define VXGE_TTI_RTIMER_VAL	0
+#define VXGE_TTI_RTIMER_ADAPT_VAL	10
 #define VXGE_T1A_TTI_RTIMER_VAL	400
 #define VXGE_RTI_BTIMER_VAL	250
 #define VXGE_RTI_LTIMER_VAL	100
 #define VXGE_RTI_RTIMER_VAL	0
-#define VXGE_FIFO_INDICATE_MAX_PKTS VXGE_DEF_FIFO_LENGTH
+#define VXGE_RTI_RTIMER_ADAPT_VAL	15
+#define VXGE_FIFO_INDICATE_MAX_PKTS	VXGE_DEF_FIFO_LENGTH
 #define VXGE_ISR_POLLING_CNT 	8
 #define VXGE_MAX_CONFIG_DEV	0xFF
 #define VXGE_EXEC_MODE_DISABLE	0
@@ -107,6 +111,14 @@
 #define RTI_T1A_RX_UFC_C	50
 #define RTI_T1A_RX_UFC_D	60
 
+/*
+ * The interrupt rate is maintained at 3k per second with the moderation
+ * parameters for most traffic but not all. This is the maximum interrupt
+ * count allowed per function with INTA or per vector in the case of
+ * MSI-X in a 10 millisecond time period. Enabled only for Titan 1A.
+ */
+#define VXGE_T1A_MAX_INTERRUPT_COUNT	100
+#define VXGE_T1A_MAX_TX_INTERRUPT_COUNT	200
 
 /* Milli secs timer period */
 #define VXGE_TIMER_DELAY		10000
@@ -158,9 +170,6 @@ struct vxge_config {
 
 #define	NEW_NAPI_WEIGHT	64
 	int		napi_weight;
-#define VXGE_GRO_DONOT_AGGREGATE		0
-#define VXGE_GRO_ALWAYS_AGGREGATE		1
-	int		gro_enable;
 	int		intr_type;
 #define INTA	0
 #define MSI	1
@@ -194,30 +203,14 @@ struct vxge_msix_entry {
 /* Software Statistics */
 
 struct vxge_sw_stats {
-	/* Network Stats (interface stats) */
-
-	/* Tx */
-	u64 tx_frms;
-	u64 tx_errors;
-	u64 tx_bytes;
-	u64 txd_not_free;
-	u64 txd_out_of_desc;
 
 	/* Virtual Path */
-	u64 vpaths_open;
-	u64 vpath_open_fail;
-
-	/* Rx */
-	u64 rx_frms;
-	u64 rx_errors;
-	u64 rx_bytes;
-	u64 rx_mcast;
+	unsigned long vpaths_open;
+	unsigned long vpath_open_fail;
 
 	/* Misc. */
-	u64 link_up;
-	u64 link_down;
-	u64 pci_map_fail;
-	u64 skb_alloc_fail;
+	unsigned long link_up;
+	unsigned long link_down;
 };
 
 struct vxge_mac_addrs {
@@ -230,12 +223,14 @@ struct vxge_mac_addrs {
 struct vxgedev;
 
 struct vxge_fifo_stats {
+	struct u64_stats_sync	syncp;
 	u64 tx_frms;
-	u64 tx_errors;
 	u64 tx_bytes;
-	u64 txd_not_free;
-	u64 txd_out_of_desc;
-	u64 pci_map_fail;
+
+	unsigned long tx_errors;
+	unsigned long txd_not_free;
+	unsigned long txd_out_of_desc;
+	unsigned long pci_map_fail;
 };
 
 struct vxge_fifo {
@@ -247,19 +242,26 @@ struct vxge_fifo {
 	int tx_steering_type;
 	int indicate_max_pkts;
 
+	/* Adaptive interrupt moderation parameters used in T1A */
+	unsigned long interrupt_count;
+	unsigned long jiffies;
+
+	u32 tx_vector_no;
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
 } ____cacheline_aligned;
 
 struct vxge_ring_stats {
-	u64 prev_rx_frms;
+	struct u64_stats_sync syncp;
 	u64 rx_frms;
-	u64 rx_errors;
-	u64 rx_dropped;
-	u64 rx_bytes;
 	u64 rx_mcast;
-	u64 pci_map_fail;
-	u64 skb_alloc_fail;
+	u64 rx_bytes;
+
+	unsigned long rx_errors;
+	unsigned long rx_dropped;
+	unsigned long prev_rx_frms;
+	unsigned long pci_map_fail;
+	unsigned long skb_alloc_fail;
 };
 
 struct vxge_ring {
@@ -271,13 +273,15 @@ struct vxge_ring {
 	 */
 	int driver_id;
 
-	/* copy of the flag indicating whether rx_csum is to be used */
-	u32 rx_csum:1,
-	    rx_hwts:1;
+	/* Adaptive interrupt moderation parameters used in T1A */
+	unsigned long interrupt_count;
+	unsigned long jiffies;
+
+	/* copy of the flag indicating whether rx_hwts is to be used */
+	u32 rx_hwts:1;
 
 	int pkts_processed;
 	int budget;
-	int gro_enable;
 
 	struct napi_struct napi;
 	struct napi_struct *napi_p;
@@ -285,8 +289,7 @@ struct vxge_ring {
 #define VXGE_MAX_MAC_ADDR_COUNT		30
 
 	int vlan_tag_strip;
-	struct vlan_group *vlgrp;
-	int rx_vector_no;
+	u32 rx_vector_no;
 	enum vxge_hw_status last_status;
 
 	/* Rx stats */
@@ -330,7 +333,7 @@ struct vxgedev {
 	struct net_device	*ndev;
 	struct pci_dev		*pdev;
 	struct __vxge_hw_device *devh;
-	struct vlan_group	*vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	int vlan_tag_strip;
 	struct vxge_config	config;
 	unsigned long	state;
@@ -350,9 +353,8 @@ struct vxgedev {
 	 */
 	u16		all_multi_flg;
 
-	 /* A flag indicating whether rx_csum is to be used or not. */
-	u32	rx_csum:1,
-		rx_hwts:1,
+	/* A flag indicating whether rx_hwts is to be used or not. */
+	u32	rx_hwts:1,
 		titan1:1;
 
 	struct vxge_msix_entry *vxge_entries;

@@ -1,14 +1,11 @@
 /*
  * Cryptographic API.
  *
- * s390 implementation of the SHA256 Secure Hash Algorithm.
+ * s390 implementation of the SHA256 and SHA224 Secure Hash Algorithm.
  *
  * s390 Version:
- *   Copyright IBM Corp. 2005,2007
+ *   Copyright IBM Corp. 2005,2011
  *   Author(s): Jan Glauber (jang@de.ibm.com)
- *
- * Derived from "crypto/sha256_generic.c"
- * and "arch/s390/crypto/sha1_s390.c"
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -65,7 +62,7 @@ static int sha256_import(struct shash_desc *desc, const void *in)
 	return 0;
 }
 
-static struct shash_alg alg = {
+static struct shash_alg sha256_alg = {
 	.digestsize	=	SHA256_DIGEST_SIZE,
 	.init		=	sha256_init,
 	.update		=	s390_sha_update,
@@ -84,22 +81,69 @@ static struct shash_alg alg = {
 	}
 };
 
-static int sha256_s390_init(void)
+static int sha224_init(struct shash_desc *desc)
 {
-	if (!crypt_s390_func_available(KIMD_SHA_256))
-		return -EOPNOTSUPP;
+	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 
-	return crypto_register_shash(&alg);
+	sctx->state[0] = SHA224_H0;
+	sctx->state[1] = SHA224_H1;
+	sctx->state[2] = SHA224_H2;
+	sctx->state[3] = SHA224_H3;
+	sctx->state[4] = SHA224_H4;
+	sctx->state[5] = SHA224_H5;
+	sctx->state[6] = SHA224_H6;
+	sctx->state[7] = SHA224_H7;
+	sctx->count = 0;
+	sctx->func = KIMD_SHA_256;
+
+	return 0;
+}
+
+static struct shash_alg sha224_alg = {
+	.digestsize	=	SHA224_DIGEST_SIZE,
+	.init		=	sha224_init,
+	.update		=	s390_sha_update,
+	.final		=	s390_sha_final,
+	.export		=	sha256_export,
+	.import		=	sha256_import,
+	.descsize	=	sizeof(struct s390_sha_ctx),
+	.statesize	=	sizeof(struct sha256_state),
+	.base		=	{
+		.cra_name	=	"sha224",
+		.cra_driver_name=	"sha224-s390",
+		.cra_priority	=	CRYPT_S390_PRIORITY,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	SHA224_BLOCK_SIZE,
+		.cra_module	=	THIS_MODULE,
+	}
+};
+
+static int __init sha256_s390_init(void)
+{
+	int ret;
+
+	if (!crypt_s390_func_available(KIMD_SHA_256, CRYPT_S390_MSA))
+		return -EOPNOTSUPP;
+	ret = crypto_register_shash(&sha256_alg);
+	if (ret < 0)
+		goto out;
+	ret = crypto_register_shash(&sha224_alg);
+	if (ret < 0)
+		crypto_unregister_shash(&sha256_alg);
+out:
+	return ret;
 }
 
 static void __exit sha256_s390_fini(void)
 {
-	crypto_unregister_shash(&alg);
+	crypto_unregister_shash(&sha224_alg);
+	crypto_unregister_shash(&sha256_alg);
 }
 
 module_init(sha256_s390_init);
 module_exit(sha256_s390_fini);
 
 MODULE_ALIAS("sha256");
+MODULE_ALIAS("sha224");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("SHA256 Secure Hash Algorithm");
+MODULE_DESCRIPTION("SHA256 and SHA224 Secure Hash Algorithm");

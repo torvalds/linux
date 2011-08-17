@@ -105,42 +105,14 @@ in_irq_stack(unsigned long *stack, unsigned long *irq_stack,
 }
 
 /*
- * We are returning from the irq stack and go to the previous one.
- * If the previous stack is also in the irq stack, then bp in the first
- * frame of the irq stack points to the previous, interrupted one.
- * Otherwise we have another level of indirection: We first save
- * the bp of the previous stack, then we switch the stack to the irq one
- * and save a new bp that links to the previous one.
- * (See save_args())
- */
-static inline unsigned long
-fixup_bp_irq_link(unsigned long bp, unsigned long *stack,
-		  unsigned long *irq_stack, unsigned long *irq_stack_end)
-{
-#ifdef CONFIG_FRAME_POINTER
-	struct stack_frame *frame = (struct stack_frame *)bp;
-	unsigned long next;
-
-	if (!in_irq_stack(stack, irq_stack, irq_stack_end)) {
-		if (!probe_kernel_address(&frame->next_frame, next))
-			return next;
-		else
-			WARN_ONCE(1, "Perf: bad frame pointer = %p in "
-				  "callchain\n", &frame->next_frame);
-	}
-#endif
-	return bp;
-}
-
-/*
  * x86-64 can have up to three kernel stacks:
  * process stack
  * interrupt stack
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
 
-void dump_trace(struct task_struct *task,
-		struct pt_regs *regs, unsigned long *stack,
+void dump_trace(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = get_cpu();
@@ -150,18 +122,21 @@ void dump_trace(struct task_struct *task,
 	struct thread_info *tinfo;
 	int graph = 0;
 	unsigned long dummy;
-	unsigned long bp;
 
 	if (!task)
 		task = current;
 
 	if (!stack) {
-		stack = &dummy;
-		if (task && task != current)
+		if (regs)
+			stack = (unsigned long *)regs->sp;
+		else if (task && task != current)
 			stack = (unsigned long *)task->thread.sp;
+		else
+			stack = &dummy;
 	}
 
-	bp = stack_frame(task, regs);
+	if (!bp)
+		bp = stack_frame(task, regs);
 	/*
 	 * Print function call entries in all stacks, starting at the
 	 * current stack address. If the stacks consist of nested
@@ -205,8 +180,6 @@ void dump_trace(struct task_struct *task,
 				 * pointer (index -1 to end) in the IRQ stack:
 				 */
 				stack = (unsigned long *) (irq_stack_end[-1]);
-				bp = fixup_bp_irq_link(bp, stack, irq_stack,
-						       irq_stack_end);
 				irq_stack_end = NULL;
 				ops->stack(data, "EOI");
 				continue;
@@ -225,7 +198,7 @@ EXPORT_SYMBOL(dump_trace);
 
 void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		   unsigned long *sp, char *log_lvl)
+		   unsigned long *sp, unsigned long bp, char *log_lvl)
 {
 	unsigned long *irq_stack_end;
 	unsigned long *irq_stack;
@@ -269,7 +242,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	preempt_enable();
 
 	printk(KERN_CONT "\n");
-	show_trace_log_lvl(task, regs, sp, log_lvl);
+	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
 
 void show_registers(struct pt_regs *regs)
@@ -298,7 +271,7 @@ void show_registers(struct pt_regs *regs)
 
 		printk(KERN_EMERG "Stack:\n");
 		show_stack_log_lvl(NULL, regs, (unsigned long *)sp,
-				   KERN_EMERG);
+				   0, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 

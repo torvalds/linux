@@ -1,6 +1,7 @@
 config EASYCAP
 	tristate "EasyCAP USB ID 05e1:0408 support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_DEV && SND
+	select SND_PCM
 
 	---help---
 	  This is an integrated audio/video driver for EasyCAP cards with
@@ -14,4 +15,16 @@ config EASYCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called easycap
+
+config EASYCAP_DEBUG
+	bool "Enable EasyCAP driver debugging"
+	depends on EASYCAP
+
+	---help---
+	  This option enables debug printouts
+
+	  To enable debug, pass the debug level to the debug module
+          parameter:
+
+          modprobe easycap debug=[0..9]
 

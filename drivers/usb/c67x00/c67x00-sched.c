@@ -907,7 +907,7 @@ static inline int c67x00_end_of_data(struct c67x00_td *td)
 
 /* Remove all td's from the list which come
  * after last_td and are meant for the same pipe.
- * This is used when a short packet has occured */
+ * This is used when a short packet has occurred */
 static inline void c67x00_clear_pipe(struct c67x00_hcd *c67x00,
 				     struct c67x00_td *last_td)
 {

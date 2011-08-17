@@ -71,7 +71,7 @@ static void ivtv_set_wss(struct ivtv *itv, int enabled, int mode)
 	   Turning this signal on and off can confuse certain
 	   TVs. As far as I can tell there is no reason not to
 	   transmit this signal. */
-	if ((itv->std & V4L2_STD_625_50) && !enabled) {
+	if ((itv->std_out & V4L2_STD_625_50) && !enabled) {
 		enabled = 1;
 		mode = 0x08;  /* 4x3 full format */
 	}
@@ -174,7 +174,7 @@ ivtv_write_vbi_from_user(struct ivtv *itv,
 			ret = -EFAULT;
 			break;
 		}
-		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
+		ivtv_write_vbi_line(itv, &d, &cc, &found_cc);
 	}
 
 	if (found_cc)

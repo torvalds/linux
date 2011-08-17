@@ -795,7 +795,7 @@ int hp_sdc_release_cooked_irq(hp_sdc_irqhook *callback)
 
 /************************* Keepalive timer task *********************/
 
-void hp_sdc_kicker (unsigned long data)
+static void hp_sdc_kicker(unsigned long data)
 {
 	tasklet_schedule(&hp_sdc.task);
 	/* Re-insert the periodic task. */
@@ -955,7 +955,7 @@ static int __init hp_sdc_init_hppa(struct parisc_device *d)
 	INIT_DELAYED_WORK(&moduleloader_work, request_module_delayed);
 
 	ret = hp_sdc_init();
-	/* after successfull initialization give SDC some time to settle
+	/* after successful initialization give SDC some time to settle
 	 * and then load the hp_sdc_mlc upper layer driver */
 	if (!ret)
 		schedule_delayed_work(&moduleloader_work,

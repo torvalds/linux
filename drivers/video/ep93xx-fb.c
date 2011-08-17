@@ -4,7 +4,7 @@
  * Framebuffer support for the EP93xx series.
  *
  * Copyright (C) 2007 Bluewater Systems Ltd
- * Author: Ryan Mallon <ryan@bluewatersys.com>
+ * Author: Ryan Mallon
  *
  * Copyright (c) 2009 H Hartley Sweeten <hsweeten@visionengravers.com>
  *
@@ -456,7 +456,7 @@ static int __init ep93xxfb_alloc_videomem(struct fb_info *info)
 	 * There is a bug in the ep93xx framebuffer which causes problems
 	 * if bit 27 of the physical address is set.
 	 * See: http://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
-	 * There does not seem to be any offical errata for this, but I
+	 * There does not seem to be any official errata for this, but I
 	 * have confirmed the problem exists on my hardware (ep9315) at
 	 * least.
 	 */
@@ -644,6 +644,6 @@ module_exit(ep93xxfb_exit);
 
 MODULE_DESCRIPTION("EP93XX Framebuffer Driver");
 MODULE_ALIAS("platform:ep93xx-fb");
-MODULE_AUTHOR("Ryan Mallon <ryan&bluewatersys.com>, "
+MODULE_AUTHOR("Ryan Mallon, "
 	      "H Hartley Sweeten <hsweeten@visionengravers.com");
 MODULE_LICENSE("GPL");

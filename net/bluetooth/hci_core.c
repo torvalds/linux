@@ -41,6 +41,8 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/rfkill.h>
+#include <linux/timer.h>
+#include <linux/crypto.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -50,10 +52,11 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#define AUTO_OFF_TIMEOUT 2000
+
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
-static void hci_notify(struct hci_dev *hdev, int event);
 
 static DEFINE_RWLOCK(hci_task_lock);
 
@@ -95,11 +98,10 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 {
 	BT_DBG("%s command 0x%04x result 0x%2.2x", hdev->name, cmd, result);
 
-	/* If the request has set req_last_cmd (typical for multi-HCI
-	 * command requests) check if the completed command matches
-	 * this, and if not just return. Single HCI command requests
-	 * typically leave req_last_cmd as 0 */
-	if (hdev->req_last_cmd && cmd != hdev->req_last_cmd)
+	/* If this is the init phase check if the completed command matches
+	 * the last init command, and if not just return.
+	 */
+	if (test_bit(HCI_INIT, &hdev->flags) && hdev->init_last_cmd != cmd)
 		return;
 
 	if (hdev->req_status == HCI_REQ_PEND) {
@@ -122,7 +124,7 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 
 /* Execute request and wait for completion. */
 static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev, unsigned long opt),
-				unsigned long opt, __u32 timeout)
+					unsigned long opt, __u32 timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
@@ -144,7 +146,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 
 	switch (hdev->req_status) {
 	case HCI_REQ_DONE:
-		err = -bt_err(hdev->req_result);
+		err = -bt_to_errno(hdev->req_result);
 		break;
 
 	case HCI_REQ_CANCELED:
@@ -156,7 +158,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 		break;
 	}
 
-	hdev->req_last_cmd = hdev->req_status = hdev->req_result = 0;
+	hdev->req_status = hdev->req_result = 0;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
 
@@ -164,7 +166,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 }
 
 static inline int hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev, unsigned long opt),
-				unsigned long opt, __u32 timeout)
+					unsigned long opt, __u32 timeout)
 {
 	int ret;
 
@@ -184,11 +186,13 @@ static void hci_reset_req(struct hci_dev *hdev, unsigned long opt)
 	BT_DBG("%s %ld", hdev->name, opt);
 
 	/* Reset device */
+	set_bit(HCI_RESET, &hdev->flags);
 	hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
 }
 
 static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 {
+	struct hci_cp_delete_stored_link_key cp;
 	struct sk_buff *skb;
 	__le16 param;
 	__u8 flt_type;
@@ -210,8 +214,10 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Mandatory initialization */
 
 	/* Reset */
-	if (!test_bit(HCI_QUIRK_NO_RESET, &hdev->quirks))
+	if (!test_bit(HCI_QUIRK_NO_RESET, &hdev->quirks)) {
+			set_bit(HCI_RESET, &hdev->flags);
 			hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
+	}
 
 	/* Read Local Supported Features */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_FEATURES, 0, NULL);
@@ -252,15 +258,21 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	flt_type = HCI_FLT_CLEAR_ALL;
 	hci_send_cmd(hdev, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
 
-	/* Page timeout ~20 secs */
-	param = cpu_to_le16(0x8000);
-	hci_send_cmd(hdev, HCI_OP_WRITE_PG_TIMEOUT, 2, &param);
-
 	/* Connection accept timeout ~20 secs */
 	param = cpu_to_le16(0x7d00);
 	hci_send_cmd(hdev, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
 
-	hdev->req_last_cmd = HCI_OP_WRITE_CA_TIMEOUT;
+	bacpy(&cp.bdaddr, BDADDR_ANY);
+	cp.delete_all = 1;
+	hci_send_cmd(hdev, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
+}
+
+static void hci_le_init_req(struct hci_dev *hdev, unsigned long opt)
+{
+	BT_DBG("%s", hdev->name);
+
+	/* Read LE buffer size */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
 }
 
 static void hci_scan_req(struct hci_dev *hdev, unsigned long opt)
@@ -429,7 +441,8 @@ int hci_inquiry(void __user *arg)
 	if (copy_from_user(&ir, ptr, sizeof(ir)))
 		return -EFAULT;
 
-	if (!(hdev = hci_dev_get(ir.dev_id)))
+	hdev = hci_dev_get(ir.dev_id);
+	if (!hdev)
 		return -ENODEV;
 
 	hci_dev_lock_bh(hdev);
@@ -455,7 +468,7 @@ int hci_inquiry(void __user *arg)
 	/* cache_dump can't sleep. Therefore we allocate temp buffer and then
 	 * copy it to the user space.
 	 */
-	buf = kmalloc(sizeof(struct inquiry_info) *max_rsp, GFP_KERNEL);
+	buf = kmalloc(sizeof(struct inquiry_info) * max_rsp, GFP_KERNEL);
 	if (!buf) {
 		err = -ENOMEM;
 		goto done;
@@ -489,7 +502,8 @@ int hci_dev_open(__u16 dev)
 	struct hci_dev *hdev;
 	int ret = 0;
 
-	if (!(hdev = hci_dev_get(dev)))
+	hdev = hci_dev_get(dev);
+	if (!hdev)
 		return -ENODEV;
 
 	BT_DBG("%s %p", hdev->name, hdev);
@@ -521,9 +535,13 @@ int hci_dev_open(__u16 dev)
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		set_bit(HCI_INIT, &hdev->flags);
+		hdev->init_last_cmd = 0;
 
-		//__hci_request(hdev, hci_reset_req, 0, HZ);
 		ret = __hci_request(hdev, hci_init_req, 0,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
+
+		if (lmp_host_le_capable(hdev))
+			ret = __hci_request(hdev, hci_le_init_req, 0,
 					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 
 		clear_bit(HCI_INIT, &hdev->flags);
@@ -533,6 +551,8 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
+		if (!test_bit(HCI_SETUP, &hdev->flags))
+			mgmt_powered(hdev->id, 1);
 	} else {
 		/* Init failed, cleanup */
 		tasklet_kill(&hdev->rx_task);
@@ -568,6 +588,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hci_req_lock(hdev);
 
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
+		del_timer_sync(&hdev->cmd_timer);
 		hci_req_unlock(hdev);
 		return 0;
 	}
@@ -606,6 +627,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	/* Drop last sent command */
 	if (hdev->sent_cmd) {
+		del_timer_sync(&hdev->cmd_timer);
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
@@ -613,6 +635,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */
 	hdev->close(hdev);
+
+	mgmt_powered(hdev->id, 0);
 
 	/* Clear flags */
 	hdev->flags = 0;
@@ -664,7 +688,7 @@ int hci_dev_reset(__u16 dev)
 		hdev->flush(hdev);
 
 	atomic_set(&hdev->cmd_cnt, 1);
-	hdev->acl_cnt = 0; hdev->sco_cnt = 0;
+	hdev->acl_cnt = 0; hdev->sco_cnt = 0; hdev->le_cnt = 0;
 
 	if (!test_bit(HCI_RAW, &hdev->flags))
 		ret = __hci_request(hdev, hci_reset_req, 0,
@@ -793,9 +817,17 @@ int hci_get_dev_list(void __user *arg)
 	read_lock_bh(&hci_dev_list_lock);
 	list_for_each(p, &hci_dev_list) {
 		struct hci_dev *hdev;
+
 		hdev = list_entry(p, struct hci_dev, list);
+
+		hci_del_off_timer(hdev);
+
+		if (!test_bit(HCI_MGMT, &hdev->flags))
+			set_bit(HCI_PAIRABLE, &hdev->flags);
+
 		(dr + n)->dev_id  = hdev->id;
 		(dr + n)->dev_opt = hdev->flags;
+
 		if (++n >= dev_num)
 			break;
 	}
@@ -822,6 +854,11 @@ int hci_get_dev_info(void __user *arg)
 	hdev = hci_dev_get(di.dev_id);
 	if (!hdev)
 		return -ENODEV;
+
+	hci_del_off_timer(hdev);
+
+	if (!test_bit(HCI_MGMT, &hdev->flags))
+		set_bit(HCI_PAIRABLE, &hdev->flags);
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
@@ -891,6 +928,518 @@ void hci_free_dev(struct hci_dev *hdev)
 }
 EXPORT_SYMBOL(hci_free_dev);
 
+static void hci_power_on(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, power_on);
+
+	BT_DBG("%s", hdev->name);
+
+	if (hci_dev_open(hdev->id) < 0)
+		return;
+
+	if (test_bit(HCI_AUTO_OFF, &hdev->flags))
+		mod_timer(&hdev->off_timer,
+				jiffies + msecs_to_jiffies(AUTO_OFF_TIMEOUT));
+
+	if (test_and_clear_bit(HCI_SETUP, &hdev->flags))
+		mgmt_index_added(hdev->id);
+}
+
+static void hci_power_off(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, power_off);
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_close(hdev->id);
+}
+
+static void hci_auto_off(unsigned long data)
+{
+	struct hci_dev *hdev = (struct hci_dev *) data;
+
+	BT_DBG("%s", hdev->name);
+
+	clear_bit(HCI_AUTO_OFF, &hdev->flags);
+
+	queue_work(hdev->workqueue, &hdev->power_off);
+}
+
+void hci_del_off_timer(struct hci_dev *hdev)
+{
+	BT_DBG("%s", hdev->name);
+
+	clear_bit(HCI_AUTO_OFF, &hdev->flags);
+	del_timer(&hdev->off_timer);
+}
+
+int hci_uuids_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->uuids) {
+		struct bt_uuid *uuid;
+
+		uuid = list_entry(p, struct bt_uuid, list);
+
+		list_del(p);
+		kfree(uuid);
+	}
+
+	return 0;
+}
+
+int hci_link_keys_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->link_keys) {
+		struct link_key *key;
+
+		key = list_entry(p, struct link_key, list);
+
+		list_del(p);
+		kfree(key);
+	}
+
+	return 0;
+}
+
+struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct list_head *p;
+
+	list_for_each(p, &hdev->link_keys) {
+		struct link_key *k;
+
+		k = list_entry(p, struct link_key, list);
+
+		if (bacmp(bdaddr, &k->bdaddr) == 0)
+			return k;
+	}
+
+	return NULL;
+}
+
+static int hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
+						u8 key_type, u8 old_key_type)
+{
+	/* Legacy key */
+	if (key_type < 0x03)
+		return 1;
+
+	/* Debug keys are insecure so don't store them persistently */
+	if (key_type == HCI_LK_DEBUG_COMBINATION)
+		return 0;
+
+	/* Changed combination key and there's no previous one */
+	if (key_type == HCI_LK_CHANGED_COMBINATION && old_key_type == 0xff)
+		return 0;
+
+	/* Security mode 3 case */
+	if (!conn)
+		return 1;
+
+	/* Neither local nor remote side had no-bonding as requirement */
+	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
+		return 1;
+
+	/* Local side had dedicated bonding as requirement */
+	if (conn->auth_type == 0x02 || conn->auth_type == 0x03)
+		return 1;
+
+	/* Remote side had dedicated bonding as requirement */
+	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03)
+		return 1;
+
+	/* If none of the above criteria match, then don't store the key
+	 * persistently */
+	return 0;
+}
+
+struct link_key *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
+{
+	struct link_key *k;
+
+	list_for_each_entry(k, &hdev->link_keys, list) {
+		struct key_master_id *id;
+
+		if (k->type != HCI_LK_SMP_LTK)
+			continue;
+
+		if (k->dlen != sizeof(*id))
+			continue;
+
+		id = (void *) &k->data;
+		if (id->ediv == ediv &&
+				(memcmp(rand, id->rand, sizeof(id->rand)) == 0))
+			return k;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(hci_find_ltk);
+
+struct link_key *hci_find_link_key_type(struct hci_dev *hdev,
+					bdaddr_t *bdaddr, u8 type)
+{
+	struct link_key *k;
+
+	list_for_each_entry(k, &hdev->link_keys, list)
+		if (k->type == type && bacmp(bdaddr, &k->bdaddr) == 0)
+			return k;
+
+	return NULL;
+}
+EXPORT_SYMBOL(hci_find_link_key_type);
+
+int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
+				bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
+{
+	struct link_key *key, *old_key;
+	u8 old_key_type, persistent;
+
+	old_key = hci_find_link_key(hdev, bdaddr);
+	if (old_key) {
+		old_key_type = old_key->type;
+		key = old_key;
+	} else {
+		old_key_type = conn ? conn->key_type : 0xff;
+		key = kzalloc(sizeof(*key), GFP_ATOMIC);
+		if (!key)
+			return -ENOMEM;
+		list_add(&key->list, &hdev->link_keys);
+	}
+
+	BT_DBG("%s key for %s type %u", hdev->name, batostr(bdaddr), type);
+
+	/* Some buggy controller combinations generate a changed
+	 * combination key for legacy pairing even when there's no
+	 * previous key */
+	if (type == HCI_LK_CHANGED_COMBINATION &&
+					(!conn || conn->remote_auth == 0xff) &&
+					old_key_type == 0xff) {
+		type = HCI_LK_COMBINATION;
+		if (conn)
+			conn->key_type = type;
+	}
+
+	bacpy(&key->bdaddr, bdaddr);
+	memcpy(key->val, val, 16);
+	key->pin_len = pin_len;
+
+	if (type == HCI_LK_CHANGED_COMBINATION)
+		key->type = old_key_type;
+	else
+		key->type = type;
+
+	if (!new_key)
+		return 0;
+
+	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
+
+	mgmt_new_key(hdev->id, key, persistent);
+
+	if (!persistent) {
+		list_del(&key->list);
+		kfree(key);
+	}
+
+	return 0;
+}
+
+int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
+			u8 key_size, __le16 ediv, u8 rand[8], u8 ltk[16])
+{
+	struct link_key *key, *old_key;
+	struct key_master_id *id;
+	u8 old_key_type;
+
+	BT_DBG("%s addr %s", hdev->name, batostr(bdaddr));
+
+	old_key = hci_find_link_key_type(hdev, bdaddr, HCI_LK_SMP_LTK);
+	if (old_key) {
+		key = old_key;
+		old_key_type = old_key->type;
+	} else {
+		key = kzalloc(sizeof(*key) + sizeof(*id), GFP_ATOMIC);
+		if (!key)
+			return -ENOMEM;
+		list_add(&key->list, &hdev->link_keys);
+		old_key_type = 0xff;
+	}
+
+	key->dlen = sizeof(*id);
+
+	bacpy(&key->bdaddr, bdaddr);
+	memcpy(key->val, ltk, sizeof(key->val));
+	key->type = HCI_LK_SMP_LTK;
+	key->pin_len = key_size;
+
+	id = (void *) &key->data;
+	id->ediv = ediv;
+	memcpy(id->rand, rand, sizeof(id->rand));
+
+	if (new_key)
+		mgmt_new_key(hdev->id, key, old_key_type);
+
+	return 0;
+}
+
+int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct link_key *key;
+
+	key = hci_find_link_key(hdev, bdaddr);
+	if (!key)
+		return -ENOENT;
+
+	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+
+	list_del(&key->list);
+	kfree(key);
+
+	return 0;
+}
+
+/* HCI command timer function */
+static void hci_cmd_timer(unsigned long arg)
+{
+	struct hci_dev *hdev = (void *) arg;
+
+	BT_ERR("%s command tx timeout", hdev->name);
+	atomic_set(&hdev->cmd_cnt, 1);
+	clear_bit(HCI_RESET, &hdev->flags);
+	tasklet_schedule(&hdev->cmd_task);
+}
+
+struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
+							bdaddr_t *bdaddr)
+{
+	struct oob_data *data;
+
+	list_for_each_entry(data, &hdev->remote_oob_data, list)
+		if (bacmp(bdaddr, &data->bdaddr) == 0)
+			return data;
+
+	return NULL;
+}
+
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+	if (!data)
+		return -ENOENT;
+
+	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+
+	list_del(&data->list);
+	kfree(data);
+
+	return 0;
+}
+
+int hci_remote_oob_data_clear(struct hci_dev *hdev)
+{
+	struct oob_data *data, *n;
+
+	list_for_each_entry_safe(data, n, &hdev->remote_oob_data, list) {
+		list_del(&data->list);
+		kfree(data);
+	}
+
+	return 0;
+}
+
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
+								u8 *randomizer)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+
+	if (!data) {
+		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		if (!data)
+			return -ENOMEM;
+
+		bacpy(&data->bdaddr, bdaddr);
+		list_add(&data->list, &hdev->remote_oob_data);
+	}
+
+	memcpy(data->hash, hash, sizeof(data->hash));
+	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
+
+	BT_DBG("%s for %s", hdev->name, batostr(bdaddr));
+
+	return 0;
+}
+
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
+						bdaddr_t *bdaddr)
+{
+	struct list_head *p;
+
+	list_for_each(p, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		if (bacmp(bdaddr, &b->bdaddr) == 0)
+			return b;
+	}
+
+	return NULL;
+}
+
+int hci_blacklist_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		list_del(p);
+		kfree(b);
+	}
+
+	return 0;
+}
+
+int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct bdaddr_list *entry;
+	int err;
+
+	if (bacmp(bdaddr, BDADDR_ANY) == 0)
+		return -EBADF;
+
+	hci_dev_lock_bh(hdev);
+
+	if (hci_blacklist_lookup(hdev, bdaddr)) {
+		err = -EEXIST;
+		goto err;
+	}
+
+	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	if (!entry) {
+		return -ENOMEM;
+		goto err;
+	}
+
+	bacpy(&entry->bdaddr, bdaddr);
+
+	list_add(&entry->list, &hdev->blacklist);
+
+	err = 0;
+
+err:
+	hci_dev_unlock_bh(hdev);
+	return err;
+}
+
+int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct bdaddr_list *entry;
+	int err = 0;
+
+	hci_dev_lock_bh(hdev);
+
+	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
+		hci_blacklist_clear(hdev);
+		goto done;
+	}
+
+	entry = hci_blacklist_lookup(hdev, bdaddr);
+	if (!entry) {
+		err = -ENOENT;
+		goto done;
+	}
+
+	list_del(&entry->list);
+	kfree(entry);
+
+done:
+	hci_dev_unlock_bh(hdev);
+	return err;
+}
+
+static void hci_clear_adv_cache(unsigned long arg)
+{
+	struct hci_dev *hdev = (void *) arg;
+
+	hci_dev_lock(hdev);
+
+	hci_adv_entries_clear(hdev);
+
+	hci_dev_unlock(hdev);
+}
+
+int hci_adv_entries_clear(struct hci_dev *hdev)
+{
+	struct adv_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &hdev->adv_entries, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+
+	BT_DBG("%s adv cache cleared", hdev->name);
+
+	return 0;
+}
+
+struct adv_entry *hci_find_adv_entry(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct adv_entry *entry;
+
+	list_for_each_entry(entry, &hdev->adv_entries, list)
+		if (bacmp(bdaddr, &entry->bdaddr) == 0)
+			return entry;
+
+	return NULL;
+}
+
+static inline int is_connectable_adv(u8 evt_type)
+{
+	if (evt_type == ADV_IND || evt_type == ADV_DIRECT_IND)
+		return 1;
+
+	return 0;
+}
+
+int hci_add_adv_entry(struct hci_dev *hdev,
+					struct hci_ev_le_advertising_info *ev)
+{
+	struct adv_entry *entry;
+
+	if (!is_connectable_adv(ev->evt_type))
+		return -EINVAL;
+
+	/* Only new entries should be added to adv_entries. So, if
+	 * bdaddr was found, don't add it. */
+	if (hci_find_adv_entry(hdev, &ev->bdaddr))
+		return 0;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (!entry)
+		return -ENOMEM;
+
+	bacpy(&entry->bdaddr, &ev->bdaddr);
+	entry->bdaddr_type = ev->bdaddr_type;
+
+	list_add(&entry->list, &hdev->adv_entries);
+
+	BT_DBG("%s adv entry added: address %s type %u", hdev->name,
+				batostr(&entry->bdaddr), entry->bdaddr_type);
+
+	return 0;
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -923,6 +1472,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
+	hdev->io_capability = 0x03; /* No Input No Output */
 
 	hdev->idle_timeout = 0;
 	hdev->sniff_max_interval = 800;
@@ -936,6 +1486,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
 
+	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
+
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		hdev->reassembly[i] = NULL;
 
@@ -948,6 +1500,20 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	INIT_LIST_HEAD(&hdev->blacklist);
 
+	INIT_LIST_HEAD(&hdev->uuids);
+
+	INIT_LIST_HEAD(&hdev->link_keys);
+
+	INIT_LIST_HEAD(&hdev->remote_oob_data);
+
+	INIT_LIST_HEAD(&hdev->adv_entries);
+	setup_timer(&hdev->adv_timer, hci_clear_adv_cache,
+						(unsigned long) hdev);
+
+	INIT_WORK(&hdev->power_on, hci_power_on);
+	INIT_WORK(&hdev->power_off, hci_power_off);
+	setup_timer(&hdev->off_timer, hci_auto_off, (unsigned long) hdev);
+
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 
 	atomic_set(&hdev->promisc, 0);
@@ -957,6 +1523,11 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->workqueue = create_singlethread_workqueue(hdev->name);
 	if (!hdev->workqueue)
 		goto nomem;
+
+	hdev->tfm = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hdev->tfm))
+		BT_INFO("Failed to load transform for ecb(aes): %ld",
+							PTR_ERR(hdev->tfm));
 
 	hci_register_sysfs(hdev);
 
@@ -969,7 +1540,10 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
-	mgmt_index_added(hdev->id);
+	set_bit(HCI_AUTO_OFF, &hdev->flags);
+	set_bit(HCI_SETUP, &hdev->flags);
+	queue_work(hdev->workqueue, &hdev->power_on);
+
 	hci_notify(hdev, HCI_DEV_REG);
 
 	return id;
@@ -999,7 +1573,13 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		kfree_skb(hdev->reassembly[i]);
 
-	mgmt_index_removed(hdev->id);
+	if (!test_bit(HCI_INIT, &hdev->flags) &&
+					!test_bit(HCI_SETUP, &hdev->flags))
+		mgmt_index_removed(hdev->id);
+
+	if (!IS_ERR(hdev->tfm))
+		crypto_free_blkcipher(hdev->tfm);
+
 	hci_notify(hdev, HCI_DEV_UNREG);
 
 	if (hdev->rfkill) {
@@ -1009,10 +1589,17 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_unregister_sysfs(hdev);
 
+	hci_del_off_timer(hdev);
+	del_timer(&hdev->adv_timer);
+
 	destroy_workqueue(hdev->workqueue);
 
 	hci_dev_lock_bh(hdev);
 	hci_blacklist_clear(hdev);
+	hci_uuids_clear(hdev);
+	hci_link_keys_clear(hdev);
+	hci_remote_oob_data_clear(hdev);
+	hci_adv_entries_clear(hdev);
 	hci_dev_unlock_bh(hdev);
 
 	__hci_dev_put(hdev);
@@ -1062,7 +1649,7 @@ int hci_recv_frame(struct sk_buff *skb)
 EXPORT_SYMBOL(hci_recv_frame);
 
 static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
-			  int count, __u8 index, gfp_t gfp_mask)
+						  int count, __u8 index)
 {
 	int len = 0;
 	int hlen = 0;
@@ -1092,7 +1679,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 			break;
 		}
 
-		skb = bt_skb_alloc(len, gfp_mask);
+		skb = bt_skb_alloc(len, GFP_ATOMIC);
 		if (!skb)
 			return -ENOMEM;
 
@@ -1178,14 +1765,13 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 		return -EILSEQ;
 
 	while (count) {
-		rem = hci_reassembly(hdev, type, data, count,
-						type - 1, GFP_ATOMIC);
+		rem = hci_reassembly(hdev, type, data, count, type - 1);
 		if (rem < 0)
 			return rem;
 
 		data += (count - rem);
 		count = rem;
-	};
+	}
 
 	return rem;
 }
@@ -1213,14 +1799,14 @@ int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
 		} else
 			type = bt_cb(skb)->pkt_type;
 
-		rem = hci_reassembly(hdev, type, data,
-					count, STREAM_REASSEMBLY, GFP_ATOMIC);
+		rem = hci_reassembly(hdev, type, data, count,
+							STREAM_REASSEMBLY);
 		if (rem < 0)
 			return rem;
 
 		data += (count - rem);
 		count = rem;
-	};
+	}
 
 	return rem;
 }
@@ -1313,7 +1899,7 @@ static int hci_send_frame(struct sk_buff *skb)
 		/* Time stamp */
 		__net_timestamp(skb);
 
-		hci_send_to_sock(hdev, skb);
+		hci_send_to_sock(hdev, skb, NULL);
 	}
 
 	/* Get rid of skb owner, prior to sending to the driver. */
@@ -1348,6 +1934,9 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 	skb->dev = (void *) hdev;
+
+	if (test_bit(HCI_INIT, &hdev->flags))
+		hdev->init_last_cmd = opcode;
 
 	skb_queue_tail(&hdev->cmd_q, skb);
 	tasklet_schedule(&hdev->cmd_task);
@@ -1395,7 +1984,7 @@ void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 
 	skb->dev = (void *) hdev;
 	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags | ACL_START);
+	hci_add_acl_hdr(skb, conn->handle, flags);
 
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
@@ -1413,12 +2002,15 @@ void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 		spin_lock_bh(&conn->data_q.lock);
 
 		__skb_queue_tail(&conn->data_q, skb);
+
+		flags &= ~ACL_START;
+		flags |= ACL_CONT;
 		do {
 			skb = list; list = list->next;
 
 			skb->dev = (void *) hdev;
 			bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-			hci_add_acl_hdr(skb, conn->handle, flags | ACL_CONT);
+			hci_add_acl_hdr(skb, conn->handle, flags);
 
 			BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
 
@@ -1486,8 +2078,25 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 	}
 
 	if (conn) {
-		int cnt = (type == ACL_LINK ? hdev->acl_cnt : hdev->sco_cnt);
-		int q = cnt / num;
+		int cnt, q;
+
+		switch (conn->type) {
+		case ACL_LINK:
+			cnt = hdev->acl_cnt;
+			break;
+		case SCO_LINK:
+		case ESCO_LINK:
+			cnt = hdev->sco_cnt;
+			break;
+		case LE_LINK:
+			cnt = hdev->le_mtu ? hdev->le_cnt : hdev->acl_cnt;
+			break;
+		default:
+			cnt = 0;
+			BT_ERR("Unknown link type");
+		}
+
+		q = cnt / num;
 		*quote = q ? q : 1;
 	} else
 		*quote = 0;
@@ -1496,19 +2105,19 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 	return conn;
 }
 
-static inline void hci_acl_tx_to(struct hci_dev *hdev)
+static inline void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct list_head *p;
 	struct hci_conn  *c;
 
-	BT_ERR("%s ACL tx timeout", hdev->name);
+	BT_ERR("%s link tx timeout", hdev->name);
 
 	/* Kill stalled connections */
 	list_for_each(p, &h->list) {
 		c = list_entry(p, struct hci_conn, list);
-		if (c->type == ACL_LINK && c->sent) {
-			BT_ERR("%s killing stalled ACL connection %s",
+		if (c->type == type && c->sent) {
+			BT_ERR("%s killing stalled connection %s",
 				hdev->name, batostr(&c->dst));
 			hci_acl_disconn(c, 0x13);
 		}
@@ -1527,14 +2136,14 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 		/* ACL tx timeout must be longer than maximum
 		 * link supervision timeout (40.9 seconds) */
 		if (!hdev->acl_cnt && time_after(jiffies, hdev->acl_last_tx + HZ * 45))
-			hci_acl_tx_to(hdev);
+			hci_link_tx_to(hdev, ACL_LINK);
 	}
 
 	while (hdev->acl_cnt && (conn = hci_low_sent(hdev, ACL_LINK, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
 
-			hci_conn_enter_active_mode(conn);
+			hci_conn_enter_active_mode(conn, bt_cb(skb)->force_active);
 
 			hci_send_frame(skb);
 			hdev->acl_last_tx = jiffies;
@@ -1586,6 +2195,40 @@ static inline void hci_sched_esco(struct hci_dev *hdev)
 	}
 }
 
+static inline void hci_sched_le(struct hci_dev *hdev)
+{
+	struct hci_conn *conn;
+	struct sk_buff *skb;
+	int quote, cnt;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!test_bit(HCI_RAW, &hdev->flags)) {
+		/* LE tx timeout must be longer than maximum
+		 * link supervision timeout (40.9 seconds) */
+		if (!hdev->le_cnt && hdev->le_pkts &&
+				time_after(jiffies, hdev->le_last_tx + HZ * 45))
+			hci_link_tx_to(hdev, LE_LINK);
+	}
+
+	cnt = hdev->le_pkts ? hdev->le_cnt : hdev->acl_cnt;
+	while (cnt && (conn = hci_low_sent(hdev, LE_LINK, &quote))) {
+		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
+			BT_DBG("skb %p len %d", skb, skb->len);
+
+			hci_send_frame(skb);
+			hdev->le_last_tx = jiffies;
+
+			cnt--;
+			conn->sent++;
+		}
+	}
+	if (hdev->le_pkts)
+		hdev->le_cnt = cnt;
+	else
+		hdev->acl_cnt = cnt;
+}
+
 static void hci_tx_task(unsigned long arg)
 {
 	struct hci_dev *hdev = (struct hci_dev *) arg;
@@ -1593,7 +2236,8 @@ static void hci_tx_task(unsigned long arg)
 
 	read_lock(&hci_task_lock);
 
-	BT_DBG("%s acl %d sco %d", hdev->name, hdev->acl_cnt, hdev->sco_cnt);
+	BT_DBG("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
+		hdev->sco_cnt, hdev->le_cnt);
 
 	/* Schedule queues and send stuff to HCI driver */
 
@@ -1603,6 +2247,8 @@ static void hci_tx_task(unsigned long arg)
 
 	hci_sched_esco(hdev);
 
+	hci_sched_le(hdev);
+
 	/* Send next queued raw (unknown type) packet */
 	while ((skb = skb_dequeue(&hdev->raw_q)))
 		hci_send_frame(skb);
@@ -1610,7 +2256,7 @@ static void hci_tx_task(unsigned long arg)
 	read_unlock(&hci_task_lock);
 }
 
-/* ----- HCI RX task (incoming data proccessing) ----- */
+/* ----- HCI RX task (incoming data processing) ----- */
 
 /* ACL data packet */
 static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1636,7 +2282,7 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn) {
 		register struct hci_proto *hp;
 
-		hci_conn_enter_active_mode(conn);
+		hci_conn_enter_active_mode(conn, bt_cb(skb)->force_active);
 
 		/* Send to upper protocol */
 		hp = hci_proto[HCI_PROTO_L2CAP];
@@ -1700,7 +2346,7 @@ static void hci_rx_task(unsigned long arg)
 	while ((skb = skb_dequeue(&hdev->rx_q))) {
 		if (atomic_read(&hdev->promisc)) {
 			/* Send copy to the sockets */
-			hci_send_to_sock(hdev, skb);
+			hci_send_to_sock(hdev, skb, NULL);
 		}
 
 		if (test_bit(HCI_RAW, &hdev->flags)) {
@@ -1750,20 +2396,20 @@ static void hci_cmd_task(unsigned long arg)
 
 	BT_DBG("%s cmd %d", hdev->name, atomic_read(&hdev->cmd_cnt));
 
-	if (!atomic_read(&hdev->cmd_cnt) && time_after(jiffies, hdev->cmd_last_tx + HZ)) {
-		BT_ERR("%s command tx timeout", hdev->name);
-		atomic_set(&hdev->cmd_cnt, 1);
-	}
-
 	/* Send queued commands */
-	if (atomic_read(&hdev->cmd_cnt) && (skb = skb_dequeue(&hdev->cmd_q))) {
+	if (atomic_read(&hdev->cmd_cnt)) {
+		skb = skb_dequeue(&hdev->cmd_q);
+		if (!skb)
+			return;
+
 		kfree_skb(hdev->sent_cmd);
 
 		hdev->sent_cmd = skb_clone(skb, GFP_ATOMIC);
 		if (hdev->sent_cmd) {
 			atomic_dec(&hdev->cmd_cnt);
 			hci_send_frame(skb);
-			hdev->cmd_last_tx = jiffies;
+			mod_timer(&hdev->cmd_timer,
+				  jiffies + msecs_to_jiffies(HCI_CMD_TIMEOUT));
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
 			tasklet_schedule(&hdev->cmd_task);

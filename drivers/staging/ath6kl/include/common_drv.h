@@ -29,23 +29,23 @@
 /* structure that is the state information for the default credit distribution callback
  * drivers should instantiate (zero-init as well) this structure in their driver instance
  * and pass it as a context to the HTC credit distribution functions */
-typedef struct _COMMON_CREDIT_STATE_INFO {
+struct common_credit_state_info {
     int TotalAvailableCredits;      /* total credits in the system at startup */
     int CurrentFreeCredits;         /* credits available in the pool that have not been
                                        given out to endpoints */
-    HTC_ENDPOINT_CREDIT_DIST *pLowestPriEpDist;  /* pointer to the lowest priority endpoint dist struct */
-} COMMON_CREDIT_STATE_INFO;
+    struct htc_endpoint_credit_dist *pLowestPriEpDist;  /* pointer to the lowest priority endpoint dist struct */
+};
 
-typedef struct {
-    A_INT32 (*setupTransport)(void *ar);
+struct hci_transport_callbacks {
+    s32 (*setupTransport)(void *ar);
     void (*cleanupTransport)(void *ar);
-} HCI_TRANSPORT_CALLBACKS;
+};
 
-typedef struct {
+struct hci_transport_misc_handles {
    void *netDevice;
    void *hifDevice;
    void *htcHandle;
-} HCI_TRANSPORT_MISC_HANDLES;
+};
 
 /* HTC TX packet tagging definitions */
 #define AR6K_CONTROL_PKT_TAG    HTC_TX_PACKET_TAG_USER_DEFINED
@@ -64,42 +64,38 @@ extern "C" {
 #endif
 
 /* OS-independent APIs */
-A_STATUS ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, COMMON_CREDIT_STATE_INFO *pCredInfo);
+int ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, struct common_credit_state_info *pCredInfo);
 
-A_STATUS ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+int ar6000_ReadRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data);
 
-A_STATUS ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+int ar6000_WriteRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data);
 
-A_STATUS ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,  A_UCHAR *data, A_UINT32 length);
+int ar6000_ReadDataDiag(struct hif_device *hifDevice, u32 address,  u8 *data, u32 length);
 
-A_STATUS ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitForCompletion, A_BOOL coldReset);
+int ar6000_reset_device(struct hif_device *hifDevice, u32 TargetType, bool waitForCompletion, bool coldReset);
 
-void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType);
+void ar6000_dump_target_assert_info(struct hif_device *hifDevice, u32 TargetType);
 
-A_STATUS ar6000_set_htc_params(HIF_DEVICE *hifDevice,
-                               A_UINT32    TargetType,
-                               A_UINT32    MboxIsrYieldValue,
-                               A_UINT8     HtcControlBuffers);
+int ar6000_set_htc_params(struct hif_device *hifDevice,
+                               u32 TargetType,
+                               u32 MboxIsrYieldValue,
+                               u8 HtcControlBuffers);
 
-A_STATUS ar6000_prepare_target(HIF_DEVICE *hifDevice,
-                               A_UINT32    TargetType,
-                               A_UINT32    TargetVersion);
+int ar6000_set_hci_bridge_flags(struct hif_device *hifDevice,
+                                     u32 TargetType,
+                                     u32 Flags);
 
-A_STATUS ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
-                                     A_UINT32    TargetType,
-                                     A_UINT32    Flags);
+void ar6000_copy_cust_data_from_target(struct hif_device *hifDevice, u32 TargetType);
 
-void ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType);
+u8 *ar6000_get_cust_data_buffer(u32 TargetType);
 
-A_UINT8 *ar6000_get_cust_data_buffer(A_UINT32 TargetType);
+int ar6000_setBTState(void *context, u8 *pInBuf, u32 InBufSize);
 
-A_STATUS ar6000_setBTState(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setDevicePowerState(void *context, u8 *pInBuf, u32 InBufSize);
 
-A_STATUS ar6000_setDevicePowerState(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setWowMode(void *context, u8 *pInBuf, u32 InBufSize);
 
-A_STATUS ar6000_setWowMode(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
-
-A_STATUS ar6000_setHostMode(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setHostMode(void *context, u8 *pInBuf, u32 InBufSize);
 
 #ifdef __cplusplus
 }

@@ -146,54 +146,6 @@ void dsp_clk_init(void)
 					ssi.sst_fck, ssi.ssr_fck, ssi.ick);
 }
 
-#ifdef CONFIG_OMAP_MCBSP
-static void mcbsp_clk_prepare(bool flag, u8 id)
-{
-	struct cfg_hostres *resources;
-	struct dev_object *hdev_object = NULL;
-	struct bridge_dev_context *bridge_context = NULL;
-	u32 val;
-
-	hdev_object = (struct dev_object *)drv_get_first_dev_object();
-	if (!hdev_object)
-		return;
-
-	dev_get_bridge_context(hdev_object, &bridge_context);
-	if (!bridge_context)
-		return;
-
-	resources = bridge_context->resources;
-	if (!resources)
-		return;
-
-	if (flag) {
-		if (id == DSP_CLK_MCBSP1) {
-			/* set MCBSP1_CLKS, on McBSP1 ON */
-			val = __raw_readl(resources->dw_sys_ctrl_base + 0x274);
-			val |= 1 << 2;
-			__raw_writel(val, resources->dw_sys_ctrl_base + 0x274);
-		} else if (id == DSP_CLK_MCBSP2) {
-			/* set MCBSP2_CLKS, on McBSP2 ON */
-			val = __raw_readl(resources->dw_sys_ctrl_base + 0x274);
-			val |= 1 << 6;
-			__raw_writel(val, resources->dw_sys_ctrl_base + 0x274);
-		}
-	} else {
-		if (id == DSP_CLK_MCBSP1) {
-			/* clear MCBSP1_CLKS, on McBSP1 OFF */
-			val = __raw_readl(resources->dw_sys_ctrl_base + 0x274);
-			val &= ~(1 << 2);
-			__raw_writel(val, resources->dw_sys_ctrl_base + 0x274);
-		} else if (id == DSP_CLK_MCBSP2) {
-			/* clear MCBSP2_CLKS, on McBSP2 OFF */
-			val = __raw_readl(resources->dw_sys_ctrl_base + 0x274);
-			val &= ~(1 << 6);
-			__raw_writel(val, resources->dw_sys_ctrl_base + 0x274);
-		}
-	}
-}
-#endif
-
 /**
  * dsp_gpt_wait_overflow - set gpt overflow and wait for fixed timeout
  * @clk_id:      GP Timer clock id.
@@ -257,9 +209,9 @@ int dsp_clk_enable(enum dsp_clk_id clk_id)
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:
-		mcbsp_clk_prepare(true, clk_id);
 		omap_mcbsp_set_io_type(MCBSP_ID(clk_id), OMAP_MCBSP_POLL_IO);
 		omap_mcbsp_request(MCBSP_ID(clk_id));
+		omap2_mcbsp_set_clks_src(MCBSP_ID(clk_id), MCBSP_CLKS_PAD_SRC);
 		break;
 #endif
 	case WDT_CLK:
@@ -334,7 +286,7 @@ int dsp_clk_disable(enum dsp_clk_id clk_id)
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:
-		mcbsp_clk_prepare(false, clk_id);
+		omap2_mcbsp_set_clks_src(MCBSP_ID(clk_id), MCBSP_CLKS_PRCM_SRC);
 		omap_mcbsp_free(MCBSP_ID(clk_id));
 		break;
 #endif

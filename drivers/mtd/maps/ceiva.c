@@ -42,7 +42,7 @@
  *
  * Please note:
  *  1. The flash size given should be the largest flash size that can
- *     be accomodated.
+ *     be accommodated.
  *
  *  2. The bus width must defined in clps_setup_flash.
  *
@@ -58,7 +58,7 @@
 #define BOOT_PARTITION_SIZE_KiB       (16)
 #define PARAMS_PARTITION_SIZE_KiB     (8)
 #define KERNEL_PARTITION_SIZE_KiB     (4*128)
-/* Use both remaing portion of first flash, and all of second flash */
+/* Use both remaining portion of first flash, and all of second flash */
 #define ROOT_PARTITION_SIZE_KiB       (3*128) + (8*128)
 
 static struct mtd_partition ceiva_partitions[] = {
@@ -194,16 +194,10 @@ static int __init clps_setup_mtd(struct clps_info *clps, int nr, struct mtd_info
 			 * We detected multiple devices.  Concatenate
 			 * them together.
 			 */
-#ifdef CONFIG_MTD_CONCAT
 			*rmtd = mtd_concat_create(subdev, found,
 						  "clps flash");
 			if (*rmtd == NULL)
 				ret = -ENXIO;
-#else
-			printk(KERN_ERR "clps flash: multiple devices "
-			       "found but MTD concat support disabled.\n");
-			ret = -ENXIO;
-#endif
 		}
 	}
 
@@ -230,7 +224,7 @@ static void __exit clps_destroy_mtd(struct clps_info *clps, struct mtd_info *mtd
 {
 	int i;
 
-	del_mtd_partitions(mtd);
+	mtd_device_unregister(mtd);
 
 	if (mtd != clps[0].mtd)
 		mtd_concat_destroy(mtd);
@@ -298,11 +292,11 @@ static void __init clps_locate_partitions(struct mtd_info *mtd)
 	if (nr_parts == 0) {
 		printk(KERN_NOTICE "clps flash: no partition info "
 			"available, registering whole flash\n");
-		add_mtd_device(mtd);
+		mtd_device_register(mtd, NULL, 0);
 	} else {
 		printk(KERN_NOTICE "clps flash: using %s partition "
 			"definition\n", part_type);
-		add_mtd_partitions(mtd, parsed_parts, nr_parts);
+		mtd_device_register(mtd, parsed_parts, nr_parts);
 	}
 
 	/* Always succeeds. */

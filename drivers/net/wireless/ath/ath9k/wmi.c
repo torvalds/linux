@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,20 +23,18 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_ECHO_CMDID";
 	case WMI_ACCESS_MEMORY_CMDID:
 		return "WMI_ACCESS_MEMORY_CMDID";
+	case WMI_GET_FW_VERSION:
+		return "WMI_GET_FW_VERSION";
 	case WMI_DISABLE_INTR_CMDID:
 		return "WMI_DISABLE_INTR_CMDID";
 	case WMI_ENABLE_INTR_CMDID:
 		return "WMI_ENABLE_INTR_CMDID";
-	case WMI_RX_LINK_CMDID:
-		return "WMI_RX_LINK_CMDID";
 	case WMI_ATH_INIT_CMDID:
 		return "WMI_ATH_INIT_CMDID";
 	case WMI_ABORT_TXQ_CMDID:
 		return "WMI_ABORT_TXQ_CMDID";
 	case WMI_STOP_TX_DMA_CMDID:
 		return "WMI_STOP_TX_DMA_CMDID";
-	case WMI_STOP_DMA_RECV_CMDID:
-		return "WMI_STOP_DMA_RECV_CMDID";
 	case WMI_ABORT_TX_DMA_CMDID:
 		return "WMI_ABORT_TX_DMA_CMDID";
 	case WMI_DRAIN_TXQ_CMDID:
@@ -51,8 +49,6 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_FLUSH_RECV_CMDID";
 	case WMI_SET_MODE_CMDID:
 		return "WMI_SET_MODE_CMDID";
-	case WMI_RESET_CMDID:
-		return "WMI_RESET_CMDID";
 	case WMI_NODE_CREATE_CMDID:
 		return "WMI_NODE_CREATE_CMDID";
 	case WMI_NODE_REMOVE_CMDID:
@@ -61,8 +57,6 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_VAP_REMOVE_CMDID";
 	case WMI_VAP_CREATE_CMDID:
 		return "WMI_VAP_CREATE_CMDID";
-	case WMI_BEACON_UPDATE_CMDID:
-		return "WMI_BEACON_UPDATE_CMDID";
 	case WMI_REG_READ_CMDID:
 		return "WMI_REG_READ_CMDID";
 	case WMI_REG_WRITE_CMDID:
@@ -71,22 +65,22 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_RC_STATE_CHANGE_CMDID";
 	case WMI_RC_RATE_UPDATE_CMDID:
 		return "WMI_RC_RATE_UPDATE_CMDID";
-	case WMI_DEBUG_INFO_CMDID:
-		return "WMI_DEBUG_INFO_CMDID";
-	case WMI_HOST_ATTACH:
-		return "WMI_HOST_ATTACH";
 	case WMI_TARGET_IC_UPDATE_CMDID:
 		return "WMI_TARGET_IC_UPDATE_CMDID";
-	case WMI_TGT_STATS_CMDID:
-		return "WMI_TGT_STATS_CMDID";
 	case WMI_TX_AGGR_ENABLE_CMDID:
 		return "WMI_TX_AGGR_ENABLE_CMDID";
 	case WMI_TGT_DETACH_CMDID:
 		return "WMI_TGT_DETACH_CMDID";
-	case WMI_TGT_TXQ_ENABLE_CMDID:
-		return "WMI_TGT_TXQ_ENABLE_CMDID";
-	case WMI_AGGR_LIMIT_CMD:
-		return "WMI_AGGR_LIMIT_CMD";
+	case WMI_NODE_UPDATE_CMDID:
+		return "WMI_NODE_UPDATE_CMDID";
+	case WMI_INT_STATS_CMDID:
+		return "WMI_INT_STATS_CMDID";
+	case WMI_TX_STATS_CMDID:
+		return "WMI_TX_STATS_CMDID";
+	case WMI_RX_STATS_CMDID:
+		return "WMI_RX_STATS_CMDID";
+	case WMI_BITRATE_MASK_CMDID:
+		return "WMI_BITRATE_MASK_CMDID";
 	}
 
 	return "Bogus";
@@ -102,9 +96,15 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 
 	wmi->drv_priv = priv;
 	wmi->stopped = false;
+	skb_queue_head_init(&wmi->wmi_event_queue);
+	spin_lock_init(&wmi->wmi_lock);
+	spin_lock_init(&wmi->event_lock);
 	mutex_init(&wmi->op_mutex);
 	mutex_init(&wmi->multi_write_mutex);
 	init_completion(&wmi->cmd_wait);
+	INIT_LIST_HEAD(&wmi->pending_tx_events);
+	tasklet_init(&wmi->wmi_event_tasklet, ath9k_wmi_event_tasklet,
+		     (unsigned long)wmi);
 
 	return wmi;
 }
@@ -120,15 +120,65 @@ void ath9k_deinit_wmi(struct ath9k_htc_priv *priv)
 	kfree(priv->wmi);
 }
 
-void ath9k_swba_tasklet(unsigned long data)
+void ath9k_wmi_event_drain(struct ath9k_htc_priv *priv)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
-	struct ath_common *common = ath9k_hw_common(priv->ah);
+	unsigned long flags;
 
-	ath_dbg(common, ATH_DBG_WMI, "SWBA Event received\n");
+	tasklet_kill(&priv->wmi->wmi_event_tasklet);
+	spin_lock_irqsave(&priv->wmi->wmi_lock, flags);
+	__skb_queue_purge(&priv->wmi->wmi_event_queue);
+	spin_unlock_irqrestore(&priv->wmi->wmi_lock, flags);
+}
 
-	ath9k_htc_swba(priv, priv->wmi->beacon_pending);
+void ath9k_wmi_event_tasklet(unsigned long data)
+{
+	struct wmi *wmi = (struct wmi *)data;
+	struct ath9k_htc_priv *priv = wmi->drv_priv;
+	struct wmi_cmd_hdr *hdr;
+	void *wmi_event;
+	struct wmi_event_swba *swba;
+	struct sk_buff *skb = NULL;
+	unsigned long flags;
+	u16 cmd_id;
 
+	do {
+		spin_lock_irqsave(&wmi->wmi_lock, flags);
+		skb = __skb_dequeue(&wmi->wmi_event_queue);
+		if (!skb) {
+			spin_unlock_irqrestore(&wmi->wmi_lock, flags);
+			return;
+		}
+		spin_unlock_irqrestore(&wmi->wmi_lock, flags);
+
+		hdr = (struct wmi_cmd_hdr *) skb->data;
+		cmd_id = be16_to_cpu(hdr->command_id);
+		wmi_event = skb_pull(skb, sizeof(struct wmi_cmd_hdr));
+
+		switch (cmd_id) {
+		case WMI_SWBA_EVENTID:
+			swba = (struct wmi_event_swba *) wmi_event;
+			ath9k_htc_swba(priv, swba);
+			break;
+		case WMI_FATAL_EVENTID:
+			ieee80211_queue_work(wmi->drv_priv->hw,
+					     &wmi->drv_priv->fatal_work);
+			break;
+		case WMI_TXSTATUS_EVENTID:
+			spin_lock_bh(&priv->tx.tx_lock);
+			if (priv->tx.flags & ATH9K_HTC_OP_TX_DRAIN) {
+				spin_unlock_bh(&priv->tx.tx_lock);
+				break;
+			}
+			spin_unlock_bh(&priv->tx.tx_lock);
+
+			ath9k_htc_txstatus(priv, wmi_event);
+			break;
+		default:
+			break;
+		}
+
+		kfree_skb(skb);
+	} while (1);
 }
 
 void ath9k_fatal_work(struct work_struct *work)
@@ -157,10 +207,6 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 	struct wmi *wmi = (struct wmi *) priv;
 	struct wmi_cmd_hdr *hdr;
 	u16 cmd_id;
-	void *wmi_event;
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-	__be32 txrate;
-#endif
 
 	if (unlikely(wmi->stopped))
 		goto free_skb;
@@ -169,26 +215,10 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 	cmd_id = be16_to_cpu(hdr->command_id);
 
 	if (cmd_id & 0x1000) {
-		wmi_event = skb_pull(skb, sizeof(struct wmi_cmd_hdr));
-		switch (cmd_id) {
-		case WMI_SWBA_EVENTID:
-			wmi->beacon_pending = *(u8 *)wmi_event;
-			tasklet_schedule(&wmi->drv_priv->swba_tasklet);
-			break;
-		case WMI_FATAL_EVENTID:
-			ieee80211_queue_work(wmi->drv_priv->hw,
-					     &wmi->drv_priv->fatal_work);
-			break;
-		case WMI_TXRATE_EVENTID:
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-			txrate = ((struct wmi_event_txrate *)wmi_event)->txrate;
-			wmi->drv_priv->debug.txrate = be32_to_cpu(txrate);
-#endif
-			break;
-		default:
-			break;
-		}
-		kfree_skb(skb);
+		spin_lock(&wmi->wmi_lock);
+		__skb_queue_tail(&wmi->wmi_event_queue, skb);
+		spin_unlock(&wmi->wmi_lock);
+		tasklet_schedule(&wmi->wmi_event_tasklet);
 		return;
 	}
 
@@ -247,7 +277,7 @@ static int ath9k_wmi_cmd_issue(struct wmi *wmi,
 	hdr->command_id = cpu_to_be16(cmd);
 	hdr->seq_no = cpu_to_be16(++wmi->tx_seq_id);
 
-	return htc_send(wmi->htc, skb, wmi->ctrl_epid, NULL);
+	return htc_send_epid(wmi->htc, skb, wmi->ctrl_epid);
 }
 
 int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,

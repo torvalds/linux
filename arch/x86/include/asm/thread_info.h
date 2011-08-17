@@ -21,7 +21,7 @@ struct task_struct;
 struct exec_domain;
 #include <asm/processor.h>
 #include <asm/ftrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
@@ -161,8 +161,14 @@ struct thread_info {
 
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
-#define alloc_thread_info(tsk)						\
-	((struct thread_info *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER))
+#define alloc_thread_info_node(tsk, node)				\
+({									\
+	struct page *page = alloc_pages_node(node, THREAD_FLAGS,	\
+					     THREAD_ORDER);		\
+	struct thread_info *ret = page ? page_address(page) : NULL;	\
+									\
+	ret;								\
+})
 
 #ifdef CONFIG_X86_32
 

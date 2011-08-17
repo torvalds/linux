@@ -1,6 +1,6 @@
 /* n2_core.c: Niagara2 Stream Processing Unit (SPU) crypto support.
  *
- * Copyright (C) 2010 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2010, 2011 David S. Miller <davem@davemloft.net>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -31,8 +31,8 @@
 #include "n2_core.h"
 
 #define DRV_MODULE_NAME		"n2_crypto"
-#define DRV_MODULE_VERSION	"0.1"
-#define DRV_MODULE_RELDATE	"April 29, 2010"
+#define DRV_MODULE_VERSION	"0.2"
+#define DRV_MODULE_RELDATE	"July 28, 2011"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -1823,22 +1823,17 @@ static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *de
 static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 				   struct spu_mdesc_info *ip)
 {
-	const u64 *intr, *ino;
-	int intr_len, ino_len;
+	const u64 *ino;
+	int ino_len;
 	int i;
 
-	intr = mdesc_get_property(mdesc, node, "intr", &intr_len);
-	if (!intr)
-		return -ENODEV;
-
 	ino = mdesc_get_property(mdesc, node, "ino", &ino_len);
-	if (!ino)
+	if (!ino) {
+		printk("NO 'ino'\n");
 		return -ENODEV;
+	}
 
-	if (intr_len != ino_len)
-		return -EINVAL;
-
-	ip->num_intrs = intr_len / sizeof(u64);
+	ip->num_intrs = ino_len / sizeof(u64);
 	ip->ino_table = kzalloc((sizeof(struct ino_blob) *
 				 ip->num_intrs),
 				GFP_KERNEL);
@@ -1847,7 +1842,7 @@ static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 
 	for (i = 0; i < ip->num_intrs; i++) {
 		struct ino_blob *b = &ip->ino_table[i];
-		b->intr = intr[i];
+		b->intr = i + 1;
 		b->ino = ino[i];
 	}
 
@@ -2004,8 +1999,7 @@ static void __devinit n2_spu_driver_version(void)
 		pr_info("%s", version);
 }
 
-static int __devinit n2_crypto_probe(struct platform_device *dev,
-				     const struct of_device_id *match)
+static int __devinit n2_crypto_probe(struct platform_device *dev)
 {
 	struct mdesc_handle *mdesc;
 	const char *full_name;
@@ -2116,8 +2110,7 @@ static void free_ncp(struct n2_mau *mp)
 	kfree(mp);
 }
 
-static int __devinit n2_mau_probe(struct platform_device *dev,
-				     const struct of_device_id *match)
+static int __devinit n2_mau_probe(struct platform_device *dev)
 {
 	struct mdesc_handle *mdesc;
 	const char *full_name;
@@ -2206,12 +2199,16 @@ static struct of_device_id n2_crypto_match[] = {
 		.name = "n2cp",
 		.compatible = "SUNW,vf-cwq",
 	},
+	{
+		.name = "n2cp",
+		.compatible = "SUNW,kt-cwq",
+	},
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, n2_crypto_match);
 
-static struct of_platform_driver n2_crypto_driver = {
+static struct platform_driver n2_crypto_driver = {
 	.driver = {
 		.name		=	"n2cp",
 		.owner		=	THIS_MODULE,
@@ -2230,12 +2227,16 @@ static struct of_device_id n2_mau_match[] = {
 		.name = "ncp",
 		.compatible = "SUNW,vf-mau",
 	},
+	{
+		.name = "ncp",
+		.compatible = "SUNW,kt-mau",
+	},
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, n2_mau_match);
 
-static struct of_platform_driver n2_mau_driver = {
+static struct platform_driver n2_mau_driver = {
 	.driver = {
 		.name		=	"ncp",
 		.owner		=	THIS_MODULE,
@@ -2247,20 +2248,20 @@ static struct of_platform_driver n2_mau_driver = {
 
 static int __init n2_init(void)
 {
-	int err = of_register_platform_driver(&n2_crypto_driver);
+	int err = platform_driver_register(&n2_crypto_driver);
 
 	if (!err) {
-		err = of_register_platform_driver(&n2_mau_driver);
+		err = platform_driver_register(&n2_mau_driver);
 		if (err)
-			of_unregister_platform_driver(&n2_crypto_driver);
+			platform_driver_unregister(&n2_crypto_driver);
 	}
 	return err;
 }
 
 static void __exit n2_exit(void)
 {
-	of_unregister_platform_driver(&n2_mau_driver);
-	of_unregister_platform_driver(&n2_crypto_driver);
+	platform_driver_unregister(&n2_mau_driver);
+	platform_driver_unregister(&n2_crypto_driver);
 }
 
 module_init(n2_init);

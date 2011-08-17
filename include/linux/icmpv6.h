@@ -183,10 +183,10 @@ extern void				icmpv6_cleanup(void);
 extern void				icmpv6_param_prob(struct sk_buff *skb,
 							  u8 code, int pos);
 
-struct flowi;
+struct flowi6;
 struct in6_addr;
 extern void				icmpv6_flow_init(struct sock *sk,
-							 struct flowi *fl,
+							 struct flowi6 *fl6,
 							 u8 type,
 							 const struct in6_addr *saddr,
 							 const struct in6_addr *daddr,

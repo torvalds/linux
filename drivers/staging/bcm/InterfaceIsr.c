@@ -80,8 +80,8 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 		}
 		case -EINPROGRESS:
 		{
-			//This situation may happend when URBunlink is used. for detail check usb_unlink_urb documentation.
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Impossibe condition has occured... something very bad is going on");
+			//This situation may happened when URBunlink is used. for detail check usb_unlink_urb documentation.
+			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Impossibe condition has occurred... something very bad is going on");
 			break ;
 			//return;
 		}

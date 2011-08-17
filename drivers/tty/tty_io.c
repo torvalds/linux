@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/tty_io.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
@@ -90,13 +88,13 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
+#include <linux/ratelimit.h>
 
 #include <linux/uaccess.h>
 #include <asm/system.h>
@@ -965,12 +963,14 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 }
 
 void tty_write_unlock(struct tty_struct *tty)
+	__releases(&tty->atomic_write_lock)
 {
 	mutex_unlock(&tty->atomic_write_lock);
 	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
 }
 
 int tty_write_lock(struct tty_struct *tty, int ndelay)
+	__acquires(&tty->atomic_write_lock)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
 		if (ndelay)
@@ -1392,16 +1392,15 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 		return ERR_PTR(-ENODEV);
 
 	tty = alloc_tty_struct();
-	if (!tty)
-		goto fail_no_mem;
+	if (!tty) {
+		retval = -ENOMEM;
+		goto err_module_put;
+	}
 	initialize_tty_struct(tty, driver, idx);
 
 	retval = tty_driver_install_tty(driver, tty);
-	if (retval < 0) {
-		free_tty_struct(tty);
-		module_put(driver->owner);
-		return ERR_PTR(retval);
-	}
+	if (retval < 0)
+		goto err_deinit_tty;
 
 	/*
 	 * Structures all installed ... call the ldisc open routines.
@@ -1410,17 +1409,19 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	 */
 	retval = tty_ldisc_setup(tty, tty->link);
 	if (retval)
-		goto release_mem_out;
+		goto err_release_tty;
 	return tty;
 
-fail_no_mem:
+err_deinit_tty:
+	deinitialize_tty_struct(tty);
+	free_tty_struct(tty);
+err_module_put:
 	module_put(driver->owner);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(retval);
 
 	/* call the tty release_tty routine to clean out this slot */
-release_mem_out:
-	if (printk_ratelimit())
-		printk(KERN_INFO "tty_init_dev: ldisc open failed, "
+err_release_tty:
+	printk_ratelimited(KERN_INFO "tty_init_dev: ldisc open failed, "
 				 "clearing slot %d\n", idx);
 	release_tty(tty, idx);
 	return ERR_PTR(retval);
@@ -1893,6 +1894,7 @@ got_driver:
 	retval = tty_add_file(tty, filp);
 	if (retval) {
 		tty_unlock();
+		tty_release(inode, filp);
 		return retval;
 	}
 
@@ -1903,12 +1905,10 @@ got_driver:
 #ifdef TTY_DEBUG_HANGUP
 	printk(KERN_DEBUG "opening %s...", tty->name);
 #endif
-	if (!retval) {
-		if (tty->ops->open)
-			retval = tty->ops->open(tty, filp);
-		else
-			retval = -ENODEV;
-	}
+	if (tty->ops->open)
+		retval = tty->ops->open(tty, filp);
+	else
+		retval = -ENODEV;
 	filp->f_flags = saved_flags;
 
 	if (!retval && test_bit(TTY_EXCLUSIVE, &tty->flags) &&
@@ -2135,7 +2135,7 @@ done:
  *	actually has driver level meaning and triggers a VC resize.
  *
  *	Locking:
- *		Driver dependant. The default do_resize method takes the
+ *		Driver dependent. The default do_resize method takes the
  *	tty termios mutex and ctrl_lock. The console takes its own lock
  *	then calls into the default method.
  */
@@ -2156,7 +2156,7 @@ static int tiocswinsz(struct tty_struct *tty, struct winsize __user *arg)
  *	tioccons	-	allow admin to move logical console
  *	@file: the file to become console
  *
- *	Allow the adminstrator to move the redirected console device
+ *	Allow the administrator to move the redirected console device
  *
  *	Locking: uses redirect_lock to guard the redirect information
  */
@@ -2291,7 +2291,7 @@ EXPORT_SYMBOL_GPL(tty_get_pgrp);
 /**
  *	tiocgpgrp		-	get process group
  *	@tty: tty passed by user
- *	@real_tty: tty side of the tty pased by the user if a pty else the tty
+ *	@real_tty: tty side of the tty passed by the user if a pty else the tty
  *	@p: returned pid
  *
  *	Obtain the process group of the tty. If there is no process group
@@ -2368,7 +2368,7 @@ out_unlock:
 /**
  *	tiocgsid		-	get session id
  *	@tty: tty passed by user
- *	@real_tty: tty side of the tty pased by the user if a pty else the tty
+ *	@real_tty: tty side of the tty passed by the user if a pty else the tty
  *	@p: pointer to returned session id
  *
  *	Obtain the session id of the tty. If there is no session
@@ -2465,12 +2465,12 @@ out:
  *	Locking: none (up to the driver)
  */
 
-static int tty_tiocmget(struct tty_struct *tty, struct file *file, int __user *p)
+static int tty_tiocmget(struct tty_struct *tty, int __user *p)
 {
 	int retval = -EINVAL;
 
 	if (tty->ops->tiocmget) {
-		retval = tty->ops->tiocmget(tty, file);
+		retval = tty->ops->tiocmget(tty);
 
 		if (retval >= 0)
 			retval = put_user(retval, p);
@@ -2481,7 +2481,6 @@ static int tty_tiocmget(struct tty_struct *tty, struct file *file, int __user *p
 /**
  *	tty_tiocmset		-	set modem status
  *	@tty: tty device
- *	@file: user file pointer
  *	@cmd: command - clear bits, set bits or set all
  *	@p: pointer to desired bits
  *
@@ -2491,7 +2490,7 @@ static int tty_tiocmget(struct tty_struct *tty, struct file *file, int __user *p
  *	Locking: none (up to the driver)
  */
 
-static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int cmd,
+static int tty_tiocmset(struct tty_struct *tty, unsigned int cmd,
 	     unsigned __user *p)
 {
 	int retval;
@@ -2518,7 +2517,7 @@ static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int 
 	}
 	set &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
 	clear &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
-	return tty->ops->tiocmset(tty, file, set, clear);
+	return tty->ops->tiocmset(tty, set, clear);
 }
 
 static int tty_tiocgicount(struct tty_struct *tty, void __user *arg)
@@ -2627,6 +2626,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(tty->ldisc->ops->num, (int __user *)p);
 	case TIOCSETD:
 		return tiocsetd(tty, p);
+	case TIOCVHANGUP:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		tty_vhangup(tty);
+		return 0;
 	case TIOCGDEV:
 	{
 		unsigned int ret = new_encode_dev(tty_devnum(real_tty));
@@ -2655,11 +2659,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return send_break(tty, arg ? arg*100 : 250);
 
 	case TIOCMGET:
-		return tty_tiocmget(tty, file, p);
+		return tty_tiocmget(tty, p);
 	case TIOCMSET:
 	case TIOCMBIC:
 	case TIOCMBIS:
-		return tty_tiocmset(tty, file, cmd, p);
+		return tty_tiocmset(tty, cmd, p);
 	case TIOCGICOUNT:
 		retval = tty_tiocgicount(tty, p);
 		/* For the moment allow fall through to the old method */
@@ -2677,7 +2681,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	if (tty->ops->ioctl) {
-		retval = (tty->ops->ioctl)(tty, file, cmd, arg);
+		retval = (tty->ops->ioctl)(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
@@ -2705,7 +2709,7 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 
 	if (tty->ops->compat_ioctl) {
-		retval = (tty->ops->compat_ioctl)(tty, file, cmd, arg);
+		retval = (tty->ops->compat_ioctl)(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
@@ -2882,6 +2886,20 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty->index = idx;
 	tty_line_name(driver, idx, tty->name);
 	tty->dev = tty_get_device(tty);
+}
+
+/**
+ *	deinitialize_tty_struct
+ *	@tty: tty to deinitialize
+ *
+ *	This subroutine deinitializes a tty structure that has been newly
+ *	allocated but tty_release cannot be called on that yet.
+ *
+ *	Locking: none - tty in question must not be exposed at this point
+ */
+void deinitialize_tty_struct(struct tty_struct *tty)
+{
+	tty_ldisc_deinit(tty);
 }
 
 /**

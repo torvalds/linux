@@ -44,16 +44,6 @@
 
 static struct snd_soc_card bf5xx_ssm2602;
 
-static int bf5xx_ssm2602_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-	pr_debug("%s enter\n", __func__);
-	snd_soc_dai_set_drvdata(cpu_dai, sport_handle);
-	return 0;
-}
-
 static int bf5xx_ssm2602_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
@@ -109,23 +99,33 @@ static int bf5xx_ssm2602_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops bf5xx_ssm2602_ops = {
-	.startup = bf5xx_ssm2602_startup,
 	.hw_params = bf5xx_ssm2602_hw_params,
 };
 
-static struct snd_soc_dai_link bf5xx_ssm2602_dai = {
-	.name = "ssm2602",
-	.stream_name = "SSM2602",
-	.cpu_dai_name = "bf5xx-i2s",
-	.codec_dai_name = "ssm2602-hifi",
-	.platform_name = "bf5xx-pcm-audio",
-	.codec_name = "ssm2602-codec.0-001b",
-	.ops = &bf5xx_ssm2602_ops,
+static struct snd_soc_dai_link bf5xx_ssm2602_dai[] = {
+	{
+		.name = "ssm2602",
+		.stream_name = "SSM2602",
+		.cpu_dai_name = "bfin-i2s.0",
+		.codec_dai_name = "ssm2602-hifi",
+		.platform_name = "bfin-i2s-pcm-audio",
+		.codec_name = "ssm2602.0-001b",
+		.ops = &bf5xx_ssm2602_ops,
+	},
+	{
+		.name = "ssm2602",
+		.stream_name = "SSM2602",
+		.cpu_dai_name = "bfin-i2s.1",
+		.codec_dai_name = "ssm2602-hifi",
+		.platform_name = "bfin-i2s-pcm-audio",
+		.codec_name = "ssm2602.0-001b",
+		.ops = &bf5xx_ssm2602_ops,
+	},
 };
 
 static struct snd_soc_card bf5xx_ssm2602 = {
-	.name = "bf5xx_ssm2602",
-	.dai_link = &bf5xx_ssm2602_dai,
+	.name = "bfin-ssm2602",
+	.dai_link = &bf5xx_ssm2602_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 };
 

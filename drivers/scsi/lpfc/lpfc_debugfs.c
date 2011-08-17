@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2007-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2007-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -48,6 +48,7 @@
 #include "lpfc_version.h"
 #include "lpfc_compat.h"
 #include "lpfc_debugfs.h"
+#include "lpfc_bsg.h"
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 /*
@@ -57,8 +58,8 @@
  * # mount -t debugfs none /sys/kernel/debug
  *
  * The lpfc debugfs directory hierarchy is:
- * lpfc/lpfcX/vportY
- * where X is the lpfc hba unique_id
+ * /sys/kernel/debug/lpfc/fnX/vportY
+ * where X is the lpfc hba function unique_id
  * where Y is the vport VPI on that hba
  *
  * Debugging services available per vport:
@@ -82,51 +83,33 @@
  *                               the HBA. X MUST also be a power of 2.
  */
 static int lpfc_debugfs_enable = 1;
-module_param(lpfc_debugfs_enable, int, 0);
+module_param(lpfc_debugfs_enable, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_enable, "Enable debugfs services");
 
 /* This MUST be a power of 2 */
 static int lpfc_debugfs_max_disc_trc;
-module_param(lpfc_debugfs_max_disc_trc, int, 0);
+module_param(lpfc_debugfs_max_disc_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_max_disc_trc,
 	"Set debugfs discovery trace depth");
 
 /* This MUST be a power of 2 */
 static int lpfc_debugfs_max_slow_ring_trc;
-module_param(lpfc_debugfs_max_slow_ring_trc, int, 0);
+module_param(lpfc_debugfs_max_slow_ring_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_max_slow_ring_trc,
 	"Set debugfs slow ring trace depth");
 
 static int lpfc_debugfs_mask_disc_trc;
-module_param(lpfc_debugfs_mask_disc_trc, int, 0);
+module_param(lpfc_debugfs_mask_disc_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_mask_disc_trc,
 	"Set debugfs discovery trace mask");
 
 #include <linux/debugfs.h>
 
-/* size of output line, for discovery_trace and slow_ring_trace */
-#define LPFC_DEBUG_TRC_ENTRY_SIZE 100
-
-/* nodelist output buffer size */
-#define LPFC_NODELIST_SIZE 8192
-#define LPFC_NODELIST_ENTRY_SIZE 120
-
-/* dumpHBASlim output buffer size */
-#define LPFC_DUMPHBASLIM_SIZE 4096
-
-/* dumpHostSlim output buffer size */
-#define LPFC_DUMPHOSTSLIM_SIZE 4096
-
-/* hbqinfo output buffer size */
-#define LPFC_HBQINFO_SIZE 8192
-
-struct lpfc_debug {
-	char *buffer;
-	int  len;
-};
-
 static atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
 static unsigned long lpfc_debugfs_start_time = 0L;
+
+/* iDiag */
+static struct lpfc_idiag idiag;
 
 /**
  * lpfc_debugfs_disc_trc_data - Dump discovery logging to a buffer
@@ -153,7 +136,11 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 	int i, index, len, enable;
 	uint32_t ms;
 	struct lpfc_debugfs_trc *dtp;
-	char buffer[LPFC_DEBUG_TRC_ENTRY_SIZE];
+	char *buffer;
+
+	buffer = kmalloc(LPFC_DEBUG_TRC_ENTRY_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return 0;
 
 	enable = lpfc_debugfs_enable;
 	lpfc_debugfs_enable = 0;
@@ -185,6 +172,8 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 	}
 
 	lpfc_debugfs_enable = enable;
+	kfree(buffer);
+
 	return len;
 }
 
@@ -213,8 +202,11 @@ lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
 	int i, index, len, enable;
 	uint32_t ms;
 	struct lpfc_debugfs_trc *dtp;
-	char buffer[LPFC_DEBUG_TRC_ENTRY_SIZE];
+	char *buffer;
 
+	buffer = kmalloc(LPFC_DEBUG_TRC_ENTRY_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return 0;
 
 	enable = lpfc_debugfs_enable;
 	lpfc_debugfs_enable = 0;
@@ -246,6 +238,8 @@ lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
 	}
 
 	lpfc_debugfs_enable = enable;
+	kfree(buffer);
+
 	return len;
 }
 
@@ -396,7 +390,11 @@ lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
 	int len = 0;
 	int i, off;
 	uint32_t *ptr;
-	char buffer[1024];
+	char *buffer;
+
+	buffer = kmalloc(1024, GFP_KERNEL);
+	if (!buffer)
+		return 0;
 
 	off = 0;
 	spin_lock_irq(&phba->hbalock);
@@ -425,6 +423,8 @@ lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
 	}
 
 	spin_unlock_irq(&phba->hbalock);
+	kfree(buffer);
+
 	return len;
 }
 
@@ -926,7 +926,7 @@ lpfc_debugfs_dumpData_open(struct inode *inode, struct file *file)
 	if (!debug)
 		goto out;
 
-	/* Round to page boundry */
+	/* Round to page boundary */
 	printk(KERN_ERR "9059 BLKGRD:  %s: _dump_buf_data=0x%p\n",
 			__func__, _dump_buf_data);
 	debug->buffer = _dump_buf_data;
@@ -956,7 +956,7 @@ lpfc_debugfs_dumpDif_open(struct inode *inode, struct file *file)
 	if (!debug)
 		goto out;
 
-	/* Round to page boundry */
+	/* Round to page boundary */
 	printk(KERN_ERR	"9060 BLKGRD: %s: _dump_buf_dif=0x%p file=%s\n",
 		__func__, _dump_buf_dif, file->f_dentry->d_name.name);
 	debug->buffer = _dump_buf_dif;
@@ -995,8 +995,6 @@ lpfc_debugfs_dumpDataDif_write(struct file *file, const char __user *buf,
 
 	return nbytes;
 }
-
-
 
 /**
  * lpfc_debugfs_nodelist_open - Open the nodelist debugfs file
@@ -1099,6 +1097,7 @@ lpfc_debugfs_read(struct file *file, char __user *buf,
 		  size_t nbytes, loff_t *ppos)
 {
 	struct lpfc_debug *debug = file->private_data;
+
 	return simple_read_from_buffer(buf, nbytes, ppos, debug->buffer,
 				       debug->len);
 }
@@ -1135,6 +1134,2185 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
 	kfree(debug);
 
 	return 0;
+}
+
+/*
+ * ---------------------------------
+ * iDiag debugfs file access methods
+ * ---------------------------------
+ *
+ * All access methods are through the proper SLI4 PCI function's debugfs
+ * iDiag directory:
+ *
+ *     /sys/kernel/debug/lpfc/fn<#>/iDiag
+ */
+
+/**
+ * lpfc_idiag_cmd_get - Get and parse idiag debugfs comands from user space
+ * @buf: The pointer to the user space buffer.
+ * @nbytes: The number of bytes in the user space buffer.
+ * @idiag_cmd: pointer to the idiag command struct.
+ *
+ * This routine reads data from debugfs user space buffer and parses the
+ * buffer for getting the idiag command and arguments. The while space in
+ * between the set of data is used as the parsing separator.
+ *
+ * This routine returns 0 when successful, it returns proper error code
+ * back to the user space in error conditions.
+ */
+static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
+			      struct lpfc_idiag_cmd *idiag_cmd)
+{
+	char mybuf[64];
+	char *pbuf, *step_str;
+	int i;
+	size_t bsize;
+
+	/* Protect copy from user */
+	if (!access_ok(VERIFY_READ, buf, nbytes))
+		return -EFAULT;
+
+	memset(mybuf, 0, sizeof(mybuf));
+	memset(idiag_cmd, 0, sizeof(*idiag_cmd));
+	bsize = min(nbytes, (sizeof(mybuf)-1));
+
+	if (copy_from_user(mybuf, buf, bsize))
+		return -EFAULT;
+	pbuf = &mybuf[0];
+	step_str = strsep(&pbuf, "\t ");
+
+	/* The opcode must present */
+	if (!step_str)
+		return -EINVAL;
+
+	idiag_cmd->opcode = simple_strtol(step_str, NULL, 0);
+	if (idiag_cmd->opcode == 0)
+		return -EINVAL;
+
+	for (i = 0; i < LPFC_IDIAG_CMD_DATA_SIZE; i++) {
+		step_str = strsep(&pbuf, "\t ");
+		if (!step_str)
+			return i;
+		idiag_cmd->data[i] = simple_strtol(step_str, NULL, 0);
+	}
+	return i;
+}
+
+/**
+ * lpfc_idiag_open - idiag open debugfs
+ * @inode: The inode pointer that contains a pointer to phba.
+ * @file: The file pointer to attach the file operation.
+ *
+ * Description:
+ * This routine is the entry point for the debugfs open file operation. It
+ * gets the reference to phba from the i_private field in @inode, it then
+ * allocates buffer for the file operation, performs the necessary PCI config
+ * space read into the allocated buffer according to the idiag user command
+ * setup, and then returns a pointer to buffer in the private_data field in
+ * @file.
+ *
+ * Returns:
+ * This function returns zero if successful. On error it will return an
+ * negative error value.
+ **/
+static int
+lpfc_idiag_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		return -ENOMEM;
+
+	debug->i_private = inode->i_private;
+	debug->buffer = NULL;
+	file->private_data = debug;
+
+	return 0;
+}
+
+/**
+ * lpfc_idiag_release - Release idiag access file operation
+ * @inode: The inode pointer that contains a vport pointer. (unused)
+ * @file: The file pointer that contains the buffer to release.
+ *
+ * Description:
+ * This routine is the generic release routine for the idiag access file
+ * operation, it frees the buffer that was allocated when the debugfs file
+ * was opened.
+ *
+ * Returns:
+ * This function returns zero.
+ **/
+static int
+lpfc_idiag_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug = file->private_data;
+
+	/* Free the buffers to the file operation */
+	kfree(debug->buffer);
+	kfree(debug);
+
+	return 0;
+}
+
+/**
+ * lpfc_idiag_cmd_release - Release idiag cmd access file operation
+ * @inode: The inode pointer that contains a vport pointer. (unused)
+ * @file: The file pointer that contains the buffer to release.
+ *
+ * Description:
+ * This routine frees the buffer that was allocated when the debugfs file
+ * was opened. It also reset the fields in the idiag command struct in the
+ * case of command for write operation.
+ *
+ * Returns:
+ * This function returns zero.
+ **/
+static int
+lpfc_idiag_cmd_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug = file->private_data;
+
+	if (debug->op == LPFC_IDIAG_OP_WR) {
+		switch (idiag.cmd.opcode) {
+		case LPFC_IDIAG_CMD_PCICFG_WR:
+		case LPFC_IDIAG_CMD_PCICFG_ST:
+		case LPFC_IDIAG_CMD_PCICFG_CL:
+		case LPFC_IDIAG_CMD_QUEACC_WR:
+		case LPFC_IDIAG_CMD_QUEACC_ST:
+		case LPFC_IDIAG_CMD_QUEACC_CL:
+			memset(&idiag, 0, sizeof(idiag));
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Free the buffers to the file operation */
+	kfree(debug->buffer);
+	kfree(debug);
+
+	return 0;
+}
+
+/**
+ * lpfc_idiag_pcicfg_read - idiag debugfs read pcicfg
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba pci config space according to the
+ * idiag command, and copies to user @buf. Depending on the PCI config space
+ * read command setup, it does either a single register read of a byte
+ * (8 bits), a word (16 bits), or a dword (32 bits) or browsing through all
+ * registers from the 4K extended PCI config space.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_pcicfg_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	int offset_label, offset, len = 0, index = LPFC_PCI_CFG_RD_SIZE;
+	int where, count;
+	char *pbuffer;
+	struct pci_dev *pdev;
+	uint32_t u32val;
+	uint16_t u16val;
+	uint8_t u8val;
+
+	pdev = phba->pcidev;
+	if (!pdev)
+		return 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_PCI_CFG_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_RD) {
+		where = idiag.cmd.data[IDIAG_PCICFG_WHERE_INDX];
+		count = idiag.cmd.data[IDIAG_PCICFG_COUNT_INDX];
+	} else
+		return 0;
+
+	/* Read single PCI config space register */
+	switch (count) {
+	case SIZE_U8: /* byte (8 bits) */
+		pci_read_config_byte(pdev, where, &u8val);
+		len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+				"%03x: %02x\n", where, u8val);
+		break;
+	case SIZE_U16: /* word (16 bits) */
+		pci_read_config_word(pdev, where, &u16val);
+		len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+				"%03x: %04x\n", where, u16val);
+		break;
+	case SIZE_U32: /* double word (32 bits) */
+		pci_read_config_dword(pdev, where, &u32val);
+		len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+				"%03x: %08x\n", where, u32val);
+		break;
+	case LPFC_PCI_CFG_BROWSE: /* browse all */
+		goto pcicfg_browse;
+		break;
+	default:
+		/* illegal count */
+		len = 0;
+		break;
+	}
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+
+pcicfg_browse:
+
+	/* Browse all PCI config space registers */
+	offset_label = idiag.offset.last_rd;
+	offset = offset_label;
+
+	/* Read PCI config space */
+	len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+			"%03x: ", offset_label);
+	while (index > 0) {
+		pci_read_config_dword(pdev, offset, &u32val);
+		len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+				"%08x ", u32val);
+		offset += sizeof(uint32_t);
+		if (offset >= LPFC_PCI_CFG_SIZE) {
+			len += snprintf(pbuffer+len,
+					LPFC_PCI_CFG_SIZE-len, "\n");
+			break;
+		}
+		index -= sizeof(uint32_t);
+		if (!index)
+			len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+					"\n");
+		else if (!(index % (8 * sizeof(uint32_t)))) {
+			offset_label += (8 * sizeof(uint32_t));
+			len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
+					"\n%03x: ", offset_label);
+		}
+	}
+
+	/* Set up the offset for next portion of pci cfg read */
+	if (index == 0) {
+		idiag.offset.last_rd += LPFC_PCI_CFG_RD_SIZE;
+		if (idiag.offset.last_rd >= LPFC_PCI_CFG_SIZE)
+			idiag.offset.last_rd = 0;
+	} else
+		idiag.offset.last_rd = 0;
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_pcicfg_write - Syntax check and set up idiag pcicfg commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and
+ * then perform the syntax check for PCI config space read or write command
+ * accordingly. In the case of PCI config space read command, it sets up
+ * the command in the idiag command struct for the debugfs read operation.
+ * In the case of PCI config space write operation, it executes the write
+ * operation into the PCI config space accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ */
+static ssize_t
+lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t where, value, count;
+	uint32_t u32val;
+	uint16_t u16val;
+	uint8_t u8val;
+	struct pci_dev *pdev;
+	int rc;
+
+	pdev = phba->pcidev;
+	if (!pdev)
+		return -EFAULT;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_RD) {
+		/* Sanity check on PCI config read command line arguments */
+		if (rc != LPFC_PCI_CFG_RD_CMD_ARG)
+			goto error_out;
+		/* Read command from PCI config space, set up command fields */
+		where = idiag.cmd.data[IDIAG_PCICFG_WHERE_INDX];
+		count = idiag.cmd.data[IDIAG_PCICFG_COUNT_INDX];
+		if (count == LPFC_PCI_CFG_BROWSE) {
+			if (where % sizeof(uint32_t))
+				goto error_out;
+			/* Starting offset to browse */
+			idiag.offset.last_rd = where;
+		} else if ((count != sizeof(uint8_t)) &&
+			   (count != sizeof(uint16_t)) &&
+			   (count != sizeof(uint32_t)))
+			goto error_out;
+		if (count == sizeof(uint8_t)) {
+			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint8_t))
+				goto error_out;
+			if (where % sizeof(uint8_t))
+				goto error_out;
+		}
+		if (count == sizeof(uint16_t)) {
+			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint16_t))
+				goto error_out;
+			if (where % sizeof(uint16_t))
+				goto error_out;
+		}
+		if (count == sizeof(uint32_t)) {
+			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint32_t))
+				goto error_out;
+			if (where % sizeof(uint32_t))
+				goto error_out;
+		}
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+		/* Sanity check on PCI config write command line arguments */
+		if (rc != LPFC_PCI_CFG_WR_CMD_ARG)
+			goto error_out;
+		/* Write command to PCI config space, read-modify-write */
+		where = idiag.cmd.data[IDIAG_PCICFG_WHERE_INDX];
+		count = idiag.cmd.data[IDIAG_PCICFG_COUNT_INDX];
+		value = idiag.cmd.data[IDIAG_PCICFG_VALUE_INDX];
+		/* Sanity checks */
+		if ((count != sizeof(uint8_t)) &&
+		    (count != sizeof(uint16_t)) &&
+		    (count != sizeof(uint32_t)))
+			goto error_out;
+		if (count == sizeof(uint8_t)) {
+			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint8_t))
+				goto error_out;
+			if (where % sizeof(uint8_t))
+				goto error_out;
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR)
+				pci_write_config_byte(pdev, where,
+						      (uint8_t)value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST) {
+				rc = pci_read_config_byte(pdev, where, &u8val);
+				if (!rc) {
+					u8val |= (uint8_t)value;
+					pci_write_config_byte(pdev, where,
+							      u8val);
+				}
+			}
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+				rc = pci_read_config_byte(pdev, where, &u8val);
+				if (!rc) {
+					u8val &= (uint8_t)(~value);
+					pci_write_config_byte(pdev, where,
+							      u8val);
+				}
+			}
+		}
+		if (count == sizeof(uint16_t)) {
+			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint16_t))
+				goto error_out;
+			if (where % sizeof(uint16_t))
+				goto error_out;
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR)
+				pci_write_config_word(pdev, where,
+						      (uint16_t)value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST) {
+				rc = pci_read_config_word(pdev, where, &u16val);
+				if (!rc) {
+					u16val |= (uint16_t)value;
+					pci_write_config_word(pdev, where,
+							      u16val);
+				}
+			}
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+				rc = pci_read_config_word(pdev, where, &u16val);
+				if (!rc) {
+					u16val &= (uint16_t)(~value);
+					pci_write_config_word(pdev, where,
+							      u16val);
+				}
+			}
+		}
+		if (count == sizeof(uint32_t)) {
+			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint32_t))
+				goto error_out;
+			if (where % sizeof(uint32_t))
+				goto error_out;
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR)
+				pci_write_config_dword(pdev, where, value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST) {
+				rc = pci_read_config_dword(pdev, where,
+							   &u32val);
+				if (!rc) {
+					u32val |= value;
+					pci_write_config_dword(pdev, where,
+							       u32val);
+				}
+			}
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+				rc = pci_read_config_dword(pdev, where,
+							   &u32val);
+				if (!rc) {
+					u32val &= ~value;
+					pci_write_config_dword(pdev, where,
+							       u32val);
+				}
+			}
+		}
+	} else
+		/* All other opecodes are illegal for now */
+		goto error_out;
+
+	return nbytes;
+error_out:
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_baracc_read - idiag debugfs pci bar access read
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba pci bar memory mapped space
+ * according to the idiag command, and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_baracc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	int offset_label, offset, offset_run, len = 0, index;
+	int bar_num, acc_range, bar_size;
+	char *pbuffer;
+	void __iomem *mem_mapped_bar;
+	uint32_t if_type;
+	struct pci_dev *pdev;
+	uint32_t u32val;
+
+	pdev = phba->pcidev;
+	if (!pdev)
+		return 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_PCI_BAR_RD_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_RD) {
+		bar_num   = idiag.cmd.data[IDIAG_BARACC_BAR_NUM_INDX];
+		offset    = idiag.cmd.data[IDIAG_BARACC_OFF_SET_INDX];
+		acc_range = idiag.cmd.data[IDIAG_BARACC_ACC_MOD_INDX];
+		bar_size = idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX];
+	} else
+		return 0;
+
+	if (acc_range == 0)
+		return 0;
+
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
+		if (bar_num == IDIAG_BARACC_BAR_0)
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		else if (bar_num == IDIAG_BARACC_BAR_1)
+			mem_mapped_bar = phba->sli4_hba.ctrl_regs_memmap_p;
+		else if (bar_num == IDIAG_BARACC_BAR_2)
+			mem_mapped_bar = phba->sli4_hba.drbl_regs_memmap_p;
+		else
+			return 0;
+	} else if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (bar_num == IDIAG_BARACC_BAR_0)
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		else
+			return 0;
+	} else
+		return 0;
+
+	/* Read single PCI bar space register */
+	if (acc_range == SINGLE_WORD) {
+		offset_run = offset;
+		u32val = readl(mem_mapped_bar + offset_run);
+		len += snprintf(pbuffer+len, LPFC_PCI_BAR_RD_BUF_SIZE-len,
+				"%05x: %08x\n", offset_run, u32val);
+	} else
+		goto baracc_browse;
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+
+baracc_browse:
+
+	/* Browse all PCI bar space registers */
+	offset_label = idiag.offset.last_rd;
+	offset_run = offset_label;
+
+	/* Read PCI bar memory mapped space */
+	len += snprintf(pbuffer+len, LPFC_PCI_BAR_RD_BUF_SIZE-len,
+			"%05x: ", offset_label);
+	index = LPFC_PCI_BAR_RD_SIZE;
+	while (index > 0) {
+		u32val = readl(mem_mapped_bar + offset_run);
+		len += snprintf(pbuffer+len, LPFC_PCI_BAR_RD_BUF_SIZE-len,
+				"%08x ", u32val);
+		offset_run += sizeof(uint32_t);
+		if (acc_range == LPFC_PCI_BAR_BROWSE) {
+			if (offset_run >= bar_size) {
+				len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len, "\n");
+				break;
+			}
+		} else {
+			if (offset_run >= offset +
+			    (acc_range * sizeof(uint32_t))) {
+				len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len, "\n");
+				break;
+			}
+		}
+		index -= sizeof(uint32_t);
+		if (!index)
+			len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len, "\n");
+		else if (!(index % (8 * sizeof(uint32_t)))) {
+			offset_label += (8 * sizeof(uint32_t));
+			len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len,
+					"\n%05x: ", offset_label);
+		}
+	}
+
+	/* Set up the offset for next portion of pci bar read */
+	if (index == 0) {
+		idiag.offset.last_rd += LPFC_PCI_BAR_RD_SIZE;
+		if (acc_range == LPFC_PCI_BAR_BROWSE) {
+			if (idiag.offset.last_rd >= bar_size)
+				idiag.offset.last_rd = 0;
+		} else {
+			if (offset_run >= offset +
+			    (acc_range * sizeof(uint32_t)))
+				idiag.offset.last_rd = offset;
+		}
+	} else {
+		if (acc_range == LPFC_PCI_BAR_BROWSE)
+			idiag.offset.last_rd = 0;
+		else
+			idiag.offset.last_rd = offset;
+	}
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_baracc_write - Syntax check and set up idiag bar access commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and
+ * then perform the syntax check for PCI bar memory mapped space read or
+ * write command accordingly. In the case of PCI bar memory mapped space
+ * read command, it sets up the command in the idiag command struct for
+ * the debugfs read operation. In the case of PCI bar memorpy mapped space
+ * write operation, it executes the write operation into the PCI bar memory
+ * mapped space accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ */
+static ssize_t
+lpfc_idiag_baracc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t bar_num, bar_size, offset, value, acc_range;
+	struct pci_dev *pdev;
+	void __iomem *mem_mapped_bar;
+	uint32_t if_type;
+	uint32_t u32val;
+	int rc;
+
+	pdev = phba->pcidev;
+	if (!pdev)
+		return -EFAULT;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	bar_num = idiag.cmd.data[IDIAG_BARACC_BAR_NUM_INDX];
+
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
+		if ((bar_num != IDIAG_BARACC_BAR_0) &&
+		    (bar_num != IDIAG_BARACC_BAR_1) &&
+		    (bar_num != IDIAG_BARACC_BAR_2))
+			goto error_out;
+	} else if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (bar_num != IDIAG_BARACC_BAR_0)
+			goto error_out;
+	} else
+		goto error_out;
+
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
+		if (bar_num == IDIAG_BARACC_BAR_0) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF0_BAR0_SIZE;
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		} else if (bar_num == IDIAG_BARACC_BAR_1) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF0_BAR1_SIZE;
+			mem_mapped_bar = phba->sli4_hba.ctrl_regs_memmap_p;
+		} else if (bar_num == IDIAG_BARACC_BAR_2) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF0_BAR2_SIZE;
+			mem_mapped_bar = phba->sli4_hba.drbl_regs_memmap_p;
+		} else
+			goto error_out;
+	} else if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (bar_num == IDIAG_BARACC_BAR_0) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF2_BAR0_SIZE;
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		} else
+			goto error_out;
+	} else
+		goto error_out;
+
+	offset = idiag.cmd.data[IDIAG_BARACC_OFF_SET_INDX];
+	if (offset % sizeof(uint32_t))
+		goto error_out;
+
+	bar_size = idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX];
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_RD) {
+		/* Sanity check on PCI config read command line arguments */
+		if (rc != LPFC_PCI_BAR_RD_CMD_ARG)
+			goto error_out;
+		acc_range = idiag.cmd.data[IDIAG_BARACC_ACC_MOD_INDX];
+		if (acc_range == LPFC_PCI_BAR_BROWSE) {
+			if (offset > bar_size - sizeof(uint32_t))
+				goto error_out;
+			/* Starting offset to browse */
+			idiag.offset.last_rd = offset;
+		} else if (acc_range > SINGLE_WORD) {
+			if (offset + acc_range * sizeof(uint32_t) > bar_size)
+				goto error_out;
+			/* Starting offset to browse */
+			idiag.offset.last_rd = offset;
+		} else if (acc_range != SINGLE_WORD)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_WR ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_ST ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_CL) {
+		/* Sanity check on PCI bar write command line arguments */
+		if (rc != LPFC_PCI_BAR_WR_CMD_ARG)
+			goto error_out;
+		/* Write command to PCI bar space, read-modify-write */
+		acc_range = SINGLE_WORD;
+		value = idiag.cmd.data[IDIAG_BARACC_REG_VAL_INDX];
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_WR) {
+			writel(value, mem_mapped_bar + offset);
+			readl(mem_mapped_bar + offset);
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_ST) {
+			u32val = readl(mem_mapped_bar + offset);
+			u32val |= value;
+			writel(u32val, mem_mapped_bar + offset);
+			readl(mem_mapped_bar + offset);
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_CL) {
+			u32val = readl(mem_mapped_bar + offset);
+			u32val &= ~value;
+			writel(u32val, mem_mapped_bar + offset);
+			readl(mem_mapped_bar + offset);
+		}
+	} else
+		/* All other opecodes are illegal for now */
+		goto error_out;
+
+	return nbytes;
+error_out:
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_queinfo_read - idiag debugfs read queue information
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba SLI4 PCI function queue information,
+ * and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
+			loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	int len = 0, fcp_qidx;
+	char *pbuffer;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	/* Get slow-path event queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path EQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tEQID[%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
+			phba->sli4_hba.sp_eq->queue_id,
+			phba->sli4_hba.sp_eq->entry_count,
+			phba->sli4_hba.sp_eq->entry_size,
+			phba->sli4_hba.sp_eq->host_index,
+			phba->sli4_hba.sp_eq->hba_index);
+
+	/* Get fast-path event queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Fast-path EQ information:\n");
+	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tEQID[%02d], "
+				"QE-COUNT[%04d], QE-SIZE[%04d], "
+				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
+				phba->sli4_hba.fp_eq[fcp_qidx]->queue_id,
+				phba->sli4_hba.fp_eq[fcp_qidx]->entry_count,
+				phba->sli4_hba.fp_eq[fcp_qidx]->entry_size,
+				phba->sli4_hba.fp_eq[fcp_qidx]->host_index,
+				phba->sli4_hba.fp_eq[fcp_qidx]->hba_index);
+	}
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+
+	/* Get mailbox complete queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path MBX CQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Associated EQID[%02d]:\n",
+			phba->sli4_hba.mbx_cq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tCQID[%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
+			phba->sli4_hba.mbx_cq->queue_id,
+			phba->sli4_hba.mbx_cq->entry_count,
+			phba->sli4_hba.mbx_cq->entry_size,
+			phba->sli4_hba.mbx_cq->host_index,
+			phba->sli4_hba.mbx_cq->hba_index);
+
+	/* Get slow-path complete queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path ELS CQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Associated EQID[%02d]:\n",
+			phba->sli4_hba.els_cq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tCQID [%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
+			phba->sli4_hba.els_cq->queue_id,
+			phba->sli4_hba.els_cq->entry_count,
+			phba->sli4_hba.els_cq->entry_size,
+			phba->sli4_hba.els_cq->host_index,
+			phba->sli4_hba.els_cq->hba_index);
+
+	/* Get fast-path complete queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Fast-path FCP CQ information:\n");
+	fcp_qidx = 0;
+	do {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"Associated EQID[%02d]:\n",
+				phba->sli4_hba.fcp_cq[fcp_qidx]->assoc_qid);
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tCQID[%02d], "
+				"QE-COUNT[%04d], QE-SIZE[%04d], "
+				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
+				phba->sli4_hba.fcp_cq[fcp_qidx]->queue_id,
+				phba->sli4_hba.fcp_cq[fcp_qidx]->entry_count,
+				phba->sli4_hba.fcp_cq[fcp_qidx]->entry_size,
+				phba->sli4_hba.fcp_cq[fcp_qidx]->host_index,
+				phba->sli4_hba.fcp_cq[fcp_qidx]->hba_index);
+	} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+
+	/* Get mailbox queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path MBX MQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Associated CQID[%02d]:\n",
+			phba->sli4_hba.mbx_wq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tWQID[%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
+			phba->sli4_hba.mbx_wq->queue_id,
+			phba->sli4_hba.mbx_wq->entry_count,
+			phba->sli4_hba.mbx_wq->entry_size,
+			phba->sli4_hba.mbx_wq->host_index,
+			phba->sli4_hba.mbx_wq->hba_index);
+
+	/* Get slow-path work queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path ELS WQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Associated CQID[%02d]:\n",
+			phba->sli4_hba.els_wq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tWQID[%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
+			phba->sli4_hba.els_wq->queue_id,
+			phba->sli4_hba.els_wq->entry_count,
+			phba->sli4_hba.els_wq->entry_size,
+			phba->sli4_hba.els_wq->host_index,
+			phba->sli4_hba.els_wq->hba_index);
+
+	/* Get fast-path work queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Fast-path FCP WQ information:\n");
+	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count; fcp_qidx++) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"Associated CQID[%02d]:\n",
+				phba->sli4_hba.fcp_wq[fcp_qidx]->assoc_qid);
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tWQID[%02d], "
+				"QE-COUNT[%04d], WQE-SIZE[%04d], "
+				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
+				phba->sli4_hba.fcp_wq[fcp_qidx]->queue_id,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->entry_count,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->entry_size,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->host_index,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->hba_index);
+	}
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+
+	/* Get receive queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path RQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Associated CQID[%02d]:\n",
+			phba->sli4_hba.hdr_rq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tHQID[%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
+			phba->sli4_hba.hdr_rq->queue_id,
+			phba->sli4_hba.hdr_rq->entry_count,
+			phba->sli4_hba.hdr_rq->entry_size,
+			phba->sli4_hba.hdr_rq->host_index,
+			phba->sli4_hba.hdr_rq->hba_index);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tDQID[%02d], "
+			"QE-COUNT[%04d], QE-SIZE[%04d], "
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
+			phba->sli4_hba.dat_rq->queue_id,
+			phba->sli4_hba.dat_rq->entry_count,
+			phba->sli4_hba.dat_rq->entry_size,
+			phba->sli4_hba.dat_rq->host_index,
+			phba->sli4_hba.dat_rq->hba_index);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_que_param_check - queue access command parameter sanity check
+ * @q: The pointer to queue structure.
+ * @index: The index into a queue entry.
+ * @count: The number of queue entries to access.
+ *
+ * Description:
+ * The routine performs sanity check on device queue access method commands.
+ *
+ * Returns:
+ * This function returns -EINVAL when fails the sanity check, otherwise, it
+ * returns 0.
+ **/
+static int
+lpfc_idiag_que_param_check(struct lpfc_queue *q, int index, int count)
+{
+	/* Only support single entry read or browsing */
+	if ((count != 1) && (count != LPFC_QUE_ACC_BROWSE))
+		return -EINVAL;
+	if (index > q->entry_count - 1)
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * lpfc_idiag_queacc_read_qe - read a single entry from the given queue index
+ * @pbuffer: The pointer to buffer to copy the read data into.
+ * @pque: The pointer to the queue to be read.
+ * @index: The index into the queue entry.
+ *
+ * Description:
+ * This routine reads out a single entry from the given queue's index location
+ * and copies it into the buffer provided.
+ *
+ * Returns:
+ * This function returns 0 when it fails, otherwise, it returns the length of
+ * the data read into the buffer provided.
+ **/
+static int
+lpfc_idiag_queacc_read_qe(char *pbuffer, int len, struct lpfc_queue *pque,
+			  uint32_t index)
+{
+	int offset, esize;
+	uint32_t *pentry;
+
+	if (!pbuffer || !pque)
+		return 0;
+
+	esize = pque->entry_size;
+	len += snprintf(pbuffer+len, LPFC_QUE_ACC_BUF_SIZE-len,
+			"QE-INDEX[%04d]:\n", index);
+
+	offset = 0;
+	pentry = pque->qe[index].address;
+	while (esize > 0) {
+		len += snprintf(pbuffer+len, LPFC_QUE_ACC_BUF_SIZE-len,
+				"%08x ", *pentry);
+		pentry++;
+		offset += sizeof(uint32_t);
+		esize -= sizeof(uint32_t);
+		if (esize > 0 && !(offset % (4 * sizeof(uint32_t))))
+			len += snprintf(pbuffer+len,
+					LPFC_QUE_ACC_BUF_SIZE-len, "\n");
+	}
+	len += snprintf(pbuffer+len, LPFC_QUE_ACC_BUF_SIZE-len, "\n");
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_queacc_read - idiag debugfs read port queue
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba device queue memory according to the
+ * idiag command, and copies to user @buf. Depending on the queue dump read
+ * command setup, it does either a single queue entry read or browing through
+ * all entries of the queue.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_queacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	uint32_t last_index, index, count;
+	struct lpfc_queue *pque = NULL;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_QUE_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_RD) {
+		index = idiag.cmd.data[IDIAG_QUEACC_INDEX_INDX];
+		count = idiag.cmd.data[IDIAG_QUEACC_COUNT_INDX];
+		pque = (struct lpfc_queue *)idiag.ptr_private;
+	} else
+		return 0;
+
+	/* Browse the queue starting from index */
+	if (count == LPFC_QUE_ACC_BROWSE)
+		goto que_browse;
+
+	/* Read a single entry from the queue */
+	len = lpfc_idiag_queacc_read_qe(pbuffer, len, pque, index);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+
+que_browse:
+
+	/* Browse all entries from the queue */
+	last_index = idiag.offset.last_rd;
+	index = last_index;
+
+	while (len < LPFC_QUE_ACC_SIZE - pque->entry_size) {
+		len = lpfc_idiag_queacc_read_qe(pbuffer, len, pque, index);
+		index++;
+		if (index > pque->entry_count - 1)
+			break;
+	}
+
+	/* Set up the offset for next portion of pci cfg read */
+	if (index > pque->entry_count - 1)
+		index = 0;
+	idiag.offset.last_rd = index;
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_queacc_write - Syntax check and set up idiag queacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for port queue read (dump) or write (set) command
+ * accordingly. In the case of port queue read command, it sets up the command
+ * in the idiag command struct for the following debugfs read operation. In
+ * the case of port queue write operation, it executes the write operation
+ * into the port queue entry accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t qidx, quetp, queid, index, count, offset, value;
+	uint32_t *pentry;
+	struct lpfc_queue *pque;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Get and sanity check on command feilds */
+	quetp  = idiag.cmd.data[IDIAG_QUEACC_QUETP_INDX];
+	queid  = idiag.cmd.data[IDIAG_QUEACC_QUEID_INDX];
+	index  = idiag.cmd.data[IDIAG_QUEACC_INDEX_INDX];
+	count  = idiag.cmd.data[IDIAG_QUEACC_COUNT_INDX];
+	offset = idiag.cmd.data[IDIAG_QUEACC_OFFST_INDX];
+	value  = idiag.cmd.data[IDIAG_QUEACC_VALUE_INDX];
+
+	/* Sanity check on command line arguments */
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_CL) {
+		if (rc != LPFC_QUE_ACC_WR_CMD_ARG)
+			goto error_out;
+		if (count != 1)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_RD) {
+		if (rc != LPFC_QUE_ACC_RD_CMD_ARG)
+			goto error_out;
+	} else
+		goto error_out;
+
+	switch (quetp) {
+	case LPFC_IDIAG_EQ:
+		/* Slow-path event queue */
+		if (phba->sli4_hba.sp_eq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.sp_eq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.sp_eq;
+			goto pass_check;
+		}
+		/* Fast-path event queue */
+		for (qidx = 0; qidx < phba->cfg_fcp_eq_count; qidx++) {
+			if (phba->sli4_hba.fp_eq[qidx]->queue_id == queid) {
+				/* Sanity check */
+				rc = lpfc_idiag_que_param_check(
+						phba->sli4_hba.fp_eq[qidx],
+						index, count);
+				if (rc)
+					goto error_out;
+				idiag.ptr_private = phba->sli4_hba.fp_eq[qidx];
+				goto pass_check;
+			}
+		}
+		goto error_out;
+		break;
+	case LPFC_IDIAG_CQ:
+		/* MBX complete queue */
+		if (phba->sli4_hba.mbx_cq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.mbx_cq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.mbx_cq;
+			goto pass_check;
+		}
+		/* ELS complete queue */
+		if (phba->sli4_hba.els_cq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.els_cq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.els_cq;
+			goto pass_check;
+		}
+		/* FCP complete queue */
+		qidx = 0;
+		do {
+			if (phba->sli4_hba.fcp_cq[qidx]->queue_id == queid) {
+				/* Sanity check */
+				rc = lpfc_idiag_que_param_check(
+						phba->sli4_hba.fcp_cq[qidx],
+						index, count);
+				if (rc)
+					goto error_out;
+				idiag.ptr_private =
+						phba->sli4_hba.fcp_cq[qidx];
+				goto pass_check;
+			}
+		} while (++qidx < phba->cfg_fcp_eq_count);
+		goto error_out;
+		break;
+	case LPFC_IDIAG_MQ:
+		/* MBX work queue */
+		if (phba->sli4_hba.mbx_wq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.mbx_wq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.mbx_wq;
+			goto pass_check;
+		}
+		break;
+	case LPFC_IDIAG_WQ:
+		/* ELS work queue */
+		if (phba->sli4_hba.els_wq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.els_wq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.els_wq;
+			goto pass_check;
+		}
+		/* FCP work queue */
+		for (qidx = 0; qidx < phba->cfg_fcp_wq_count; qidx++) {
+			if (phba->sli4_hba.fcp_wq[qidx]->queue_id == queid) {
+				/* Sanity check */
+				rc = lpfc_idiag_que_param_check(
+						phba->sli4_hba.fcp_wq[qidx],
+						index, count);
+				if (rc)
+					goto error_out;
+				idiag.ptr_private =
+					phba->sli4_hba.fcp_wq[qidx];
+				goto pass_check;
+			}
+		}
+		goto error_out;
+		break;
+	case LPFC_IDIAG_RQ:
+		/* HDR queue */
+		if (phba->sli4_hba.hdr_rq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.hdr_rq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.hdr_rq;
+			goto pass_check;
+		}
+		/* DAT queue */
+		if (phba->sli4_hba.dat_rq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.dat_rq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.dat_rq;
+			goto pass_check;
+		}
+		goto error_out;
+		break;
+	default:
+		goto error_out;
+		break;
+	}
+
+pass_check:
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_RD) {
+		if (count == LPFC_QUE_ACC_BROWSE)
+			idiag.offset.last_rd = index;
+	}
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_CL) {
+		/* Additional sanity checks on write operation */
+		pque = (struct lpfc_queue *)idiag.ptr_private;
+		if (offset > pque->entry_size/sizeof(uint32_t) - 1)
+			goto error_out;
+		pentry = pque->qe[index].address;
+		pentry += offset;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_WR)
+			*pentry = value;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_ST)
+			*pentry |= value;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_CL)
+			*pentry &= ~value;
+	}
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_drbacc_read_reg - idiag debugfs read a doorbell register
+ * @phba: The pointer to hba structure.
+ * @pbuffer: The pointer to the buffer to copy the data to.
+ * @len: The lenght of bytes to copied.
+ * @drbregid: The id to doorbell registers.
+ *
+ * Description:
+ * This routine reads a doorbell register and copies its content to the
+ * user buffer pointed to by @pbuffer.
+ *
+ * Returns:
+ * This function returns the amount of data that was copied into @pbuffer.
+ **/
+static int
+lpfc_idiag_drbacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
+			   int len, uint32_t drbregid)
+{
+
+	if (!pbuffer)
+		return 0;
+
+	switch (drbregid) {
+	case LPFC_DRB_EQCQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"EQCQ-DRB-REG: 0x%08x\n",
+				readl(phba->sli4_hba.EQCQDBregaddr));
+		break;
+	case LPFC_DRB_MQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"MQ-DRB-REG:   0x%08x\n",
+				readl(phba->sli4_hba.MQDBregaddr));
+		break;
+	case LPFC_DRB_WQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"WQ-DRB-REG:   0x%08x\n",
+				readl(phba->sli4_hba.WQDBregaddr));
+		break;
+	case LPFC_DRB_RQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"RQ-DRB-REG:   0x%08x\n",
+				readl(phba->sli4_hba.RQDBregaddr));
+		break;
+	default:
+		break;
+	}
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_drbacc_read - idiag debugfs read port doorbell
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba device doorbell register according
+ * to the idiag command, and copies to user @buf. Depending on the doorbell
+ * register read command setup, it does either a single doorbell register
+ * read or dump all doorbell registers.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_drbacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t drb_reg_id, i;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_DRB_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_RD)
+		drb_reg_id = idiag.cmd.data[IDIAG_DRBACC_REGID_INDX];
+	else
+		return 0;
+
+	if (drb_reg_id == LPFC_DRB_ACC_ALL)
+		for (i = 1; i <= LPFC_DRB_MAX; i++)
+			len = lpfc_idiag_drbacc_read_reg(phba,
+							 pbuffer, len, i);
+	else
+		len = lpfc_idiag_drbacc_read_reg(phba,
+						 pbuffer, len, drb_reg_id);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_drbacc_write - Syntax check and set up idiag drbacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for port doorbell register read (dump) or write
+ * (set) command accordingly. In the case of port queue read command, it sets
+ * up the command in the idiag command struct for the following debugfs read
+ * operation. In the case of port doorbell register write operation, it
+ * executes the write operation into the port doorbell register accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_drbacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t drb_reg_id, value, reg_val = 0;
+	void __iomem *drb_reg;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Sanity check on command line arguments */
+	drb_reg_id = idiag.cmd.data[IDIAG_DRBACC_REGID_INDX];
+	value = idiag.cmd.data[IDIAG_DRBACC_VALUE_INDX];
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
+		if (rc != LPFC_DRB_ACC_WR_CMD_ARG)
+			goto error_out;
+		if (drb_reg_id > LPFC_DRB_MAX)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_RD) {
+		if (rc != LPFC_DRB_ACC_RD_CMD_ARG)
+			goto error_out;
+		if ((drb_reg_id > LPFC_DRB_MAX) &&
+		    (drb_reg_id != LPFC_DRB_ACC_ALL))
+			goto error_out;
+	} else
+		goto error_out;
+
+	/* Perform the write access operation */
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
+		switch (drb_reg_id) {
+		case LPFC_DRB_EQCQ:
+			drb_reg = phba->sli4_hba.EQCQDBregaddr;
+			break;
+		case LPFC_DRB_MQ:
+			drb_reg = phba->sli4_hba.MQDBregaddr;
+			break;
+		case LPFC_DRB_WQ:
+			drb_reg = phba->sli4_hba.WQDBregaddr;
+			break;
+		case LPFC_DRB_RQ:
+			drb_reg = phba->sli4_hba.RQDBregaddr;
+			break;
+		default:
+			goto error_out;
+		}
+
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR)
+			reg_val = value;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST) {
+			reg_val = readl(drb_reg);
+			reg_val |= value;
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
+			reg_val = readl(drb_reg);
+			reg_val &= ~value;
+		}
+		writel(reg_val, drb_reg);
+		readl(drb_reg); /* flush */
+	}
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_ctlacc_read_reg - idiag debugfs read a control registers
+ * @phba: The pointer to hba structure.
+ * @pbuffer: The pointer to the buffer to copy the data to.
+ * @len: The lenght of bytes to copied.
+ * @drbregid: The id to doorbell registers.
+ *
+ * Description:
+ * This routine reads a control register and copies its content to the
+ * user buffer pointed to by @pbuffer.
+ *
+ * Returns:
+ * This function returns the amount of data that was copied into @pbuffer.
+ **/
+static int
+lpfc_idiag_ctlacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
+			   int len, uint32_t ctlregid)
+{
+
+	if (!pbuffer)
+		return 0;
+
+	switch (ctlregid) {
+	case LPFC_CTL_PORT_SEM:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port SemReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_SEM_OFFSET));
+		break;
+	case LPFC_CTL_PORT_STA:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port StaReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_STA_OFFSET));
+		break;
+	case LPFC_CTL_PORT_CTL:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port CtlReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_CTL_OFFSET));
+		break;
+	case LPFC_CTL_PORT_ER1:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port Er1Reg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_ER1_OFFSET));
+		break;
+	case LPFC_CTL_PORT_ER2:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port Er2Reg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_ER2_OFFSET));
+		break;
+	case LPFC_CTL_PDEV_CTL:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"PDev CtlReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PDEV_CTL_OFFSET));
+		break;
+	default:
+		break;
+	}
+	return len;
+}
+
+/**
+ * lpfc_idiag_ctlacc_read - idiag debugfs read port and device control register
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba port and device registers according
+ * to the idiag command, and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_ctlacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t ctl_reg_id, i;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_CTL_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_RD)
+		ctl_reg_id = idiag.cmd.data[IDIAG_CTLACC_REGID_INDX];
+	else
+		return 0;
+
+	if (ctl_reg_id == LPFC_CTL_ACC_ALL)
+		for (i = 1; i <= LPFC_CTL_MAX; i++)
+			len = lpfc_idiag_ctlacc_read_reg(phba,
+							 pbuffer, len, i);
+	else
+		len = lpfc_idiag_ctlacc_read_reg(phba,
+						 pbuffer, len, ctl_reg_id);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_ctlacc_write - Syntax check and set up idiag ctlacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for port and device control register read (dump)
+ * or write (set) command accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_ctlacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t ctl_reg_id, value, reg_val = 0;
+	void __iomem *ctl_reg;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Sanity check on command line arguments */
+	ctl_reg_id = idiag.cmd.data[IDIAG_CTLACC_REGID_INDX];
+	value = idiag.cmd.data[IDIAG_CTLACC_VALUE_INDX];
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_CL) {
+		if (rc != LPFC_CTL_ACC_WR_CMD_ARG)
+			goto error_out;
+		if (ctl_reg_id > LPFC_CTL_MAX)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_RD) {
+		if (rc != LPFC_CTL_ACC_RD_CMD_ARG)
+			goto error_out;
+		if ((ctl_reg_id > LPFC_CTL_MAX) &&
+		    (ctl_reg_id != LPFC_CTL_ACC_ALL))
+			goto error_out;
+	} else
+		goto error_out;
+
+	/* Perform the write access operation */
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_CL) {
+		switch (ctl_reg_id) {
+		case LPFC_CTL_PORT_SEM:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_SEM_OFFSET;
+			break;
+		case LPFC_CTL_PORT_STA:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_STA_OFFSET;
+			break;
+		case LPFC_CTL_PORT_CTL:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_CTL_OFFSET;
+			break;
+		case LPFC_CTL_PORT_ER1:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_ER1_OFFSET;
+			break;
+		case LPFC_CTL_PORT_ER2:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_ER2_OFFSET;
+			break;
+		case LPFC_CTL_PDEV_CTL:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PDEV_CTL_OFFSET;
+			break;
+		default:
+			goto error_out;
+		}
+
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR)
+			reg_val = value;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST) {
+			reg_val = readl(ctl_reg);
+			reg_val |= value;
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_CL) {
+			reg_val = readl(ctl_reg);
+			reg_val &= ~value;
+		}
+		writel(reg_val, ctl_reg);
+		readl(ctl_reg); /* flush */
+	}
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_mbxacc_get_setup - idiag debugfs get mailbox access setup
+ * @phba: Pointer to HBA context object.
+ * @pbuffer: Pointer to data buffer.
+ *
+ * Description:
+ * This routine gets the driver mailbox access debugfs setup information.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static int
+lpfc_idiag_mbxacc_get_setup(struct lpfc_hba *phba, char *pbuffer)
+{
+	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt, mbx_mbox_cmd;
+	int len = 0;
+
+	mbx_mbox_cmd = idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
+
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_dump_map: 0x%08x\n", mbx_dump_map);
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_dump_cnt: %04d\n", mbx_dump_cnt);
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_word_cnt: %04d\n", mbx_word_cnt);
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_mbox_cmd: 0x%02x\n", mbx_mbox_cmd);
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_mbxacc_read - idiag debugfs read on mailbox access
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba driver mailbox access debugfs setup
+ * information.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_mbxacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_MBX_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if ((idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP) &&
+	    (idiag.cmd.opcode != LPFC_IDIAG_BSG_MBXACC_DP))
+		return 0;
+
+	len = lpfc_idiag_mbxacc_get_setup(phba, pbuffer);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_mbxacc_write - Syntax check and set up idiag mbxacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for driver mailbox command (dump) and sets up the
+ * necessary states in the idiag command struct accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt, mbx_mbox_cmd;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Sanity check on command line arguments */
+	mbx_mbox_cmd = idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_MBXACC_DP) {
+		if (!(mbx_dump_map & LPFC_MBX_DMP_MBX_ALL))
+			goto error_out;
+		if ((mbx_dump_map & ~LPFC_MBX_DMP_MBX_ALL) &&
+		    (mbx_dump_map != LPFC_MBX_DMP_ALL))
+			goto error_out;
+		if (mbx_word_cnt > sizeof(MAILBOX_t))
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_BSG_MBXACC_DP) {
+		if (!(mbx_dump_map & LPFC_BSG_DMP_MBX_ALL))
+			goto error_out;
+		if ((mbx_dump_map & ~LPFC_BSG_DMP_MBX_ALL) &&
+		    (mbx_dump_map != LPFC_MBX_DMP_ALL))
+			goto error_out;
+		if (mbx_word_cnt > (BSG_MBOX_SIZE)/4)
+			goto error_out;
+		if (mbx_mbox_cmd != 0x9b)
+			goto error_out;
+	} else
+		goto error_out;
+
+	if (mbx_word_cnt == 0)
+		goto error_out;
+	if (rc != LPFC_MBX_DMP_ARG)
+		goto error_out;
+	if (mbx_mbox_cmd & ~0xff)
+		goto error_out;
+
+	/* condition for stop mailbox dump */
+	if (mbx_dump_cnt == 0)
+		goto reset_out;
+
+	return nbytes;
+
+reset_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_extacc_avail_get - get the available extents information
+ * @phba: pointer to lpfc hba data structure.
+ * @pbuffer: pointer to internal buffer.
+ * @len: length into the internal buffer data has been copied.
+ *
+ * Description:
+ * This routine is to get the available extent information.
+ *
+ * Returns:
+ * overall lenth of the data read into the internal buffer.
+ **/
+static int
+lpfc_idiag_extacc_avail_get(struct lpfc_hba *phba, char *pbuffer, int len)
+{
+	uint16_t ext_cnt, ext_size;
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\nAvailable Extents Information:\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available VPI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_VPI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available VFI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_VFI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available RPI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_RPI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available XRI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_XRI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_extacc_alloc_get - get the allocated extents information
+ * @phba: pointer to lpfc hba data structure.
+ * @pbuffer: pointer to internal buffer.
+ * @len: length into the internal buffer data has been copied.
+ *
+ * Description:
+ * This routine is to get the allocated extent information.
+ *
+ * Returns:
+ * overall lenth of the data read into the internal buffer.
+ **/
+static int
+lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
+{
+	uint16_t ext_cnt, ext_size;
+	int rc;
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\nAllocated Extents Information:\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated VPI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_VPI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated VFI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_VFI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated RPI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_RPI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated XRI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_XRI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_extacc_drivr_get - get driver extent information
+ * @phba: pointer to lpfc hba data structure.
+ * @pbuffer: pointer to internal buffer.
+ * @len: length into the internal buffer data has been copied.
+ *
+ * Description:
+ * This routine is to get the driver extent information.
+ *
+ * Returns:
+ * overall lenth of the data read into the internal buffer.
+ **/
+static int
+lpfc_idiag_extacc_drivr_get(struct lpfc_hba *phba, char *pbuffer, int len)
+{
+	struct lpfc_rsrc_blks *rsrc_blks;
+	int index;
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\nDriver Extents Information:\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tVPI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->lpfc_vpi_blk_list, list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tVFI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_vfi_blk_list,
+			    list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tRPI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_rpi_blk_list,
+			    list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tXRI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_xri_blk_list,
+			    list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_extacc_write - Syntax check and set up idiag extacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for extent information access commands and sets
+ * up the necessary states in the idiag command struct accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_extacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	uint32_t ext_map;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	ext_map = idiag.cmd.data[IDIAG_EXTACC_EXMAP_INDX];
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
+		goto error_out;
+	if (rc != LPFC_EXT_ACC_CMD_ARG)
+		goto error_out;
+	if (!(ext_map & LPFC_EXT_ACC_ALL))
+		goto error_out;
+
+	return nbytes;
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_extacc_read - idiag debugfs read access to extent information
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the proper extent information according to
+ * the idiag command, and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_extacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char *pbuffer;
+	uint32_t ext_map;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_EXT_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+	if (*ppos)
+		return 0;
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
+		return 0;
+
+	ext_map = idiag.cmd.data[IDIAG_EXTACC_EXMAP_INDX];
+	if (ext_map & LPFC_EXT_ACC_AVAIL)
+		len = lpfc_idiag_extacc_avail_get(phba, pbuffer, len);
+	if (ext_map & LPFC_EXT_ACC_ALLOC)
+		len = lpfc_idiag_extacc_alloc_get(phba, pbuffer, len);
+	if (ext_map & LPFC_EXT_ACC_DRIVR)
+		len = lpfc_idiag_extacc_drivr_get(phba, pbuffer, len);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
 }
 
 #undef lpfc_debugfs_op_disc_trc
@@ -1213,7 +3391,285 @@ static const struct file_operations lpfc_debugfs_op_slow_ring_trc = {
 
 static struct dentry *lpfc_debugfs_root = NULL;
 static atomic_t lpfc_debugfs_hba_count;
+
+/*
+ * File operations for the iDiag debugfs
+ */
+#undef lpfc_idiag_op_pciCfg
+static const struct file_operations lpfc_idiag_op_pciCfg = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_pcicfg_read,
+	.write =        lpfc_idiag_pcicfg_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_barAcc
+static const struct file_operations lpfc_idiag_op_barAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_baracc_read,
+	.write =        lpfc_idiag_baracc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_queInfo
+static const struct file_operations lpfc_idiag_op_queInfo = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.read =         lpfc_idiag_queinfo_read,
+	.release =      lpfc_idiag_release,
+};
+
+#undef lpfc_idiag_op_queAcc
+static const struct file_operations lpfc_idiag_op_queAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_queacc_read,
+	.write =        lpfc_idiag_queacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_drbAcc
+static const struct file_operations lpfc_idiag_op_drbAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_drbacc_read,
+	.write =        lpfc_idiag_drbacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_ctlAcc
+static const struct file_operations lpfc_idiag_op_ctlAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_ctlacc_read,
+	.write =        lpfc_idiag_ctlacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_mbxAcc
+static const struct file_operations lpfc_idiag_op_mbxAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_mbxacc_read,
+	.write =        lpfc_idiag_mbxacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_extAcc
+static const struct file_operations lpfc_idiag_op_extAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_extacc_read,
+	.write =        lpfc_idiag_extacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
 #endif
+
+/* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag debugfs dump bsg mailbox command
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to a DMA buffer descriptor.
+ *
+ * Description:
+ * This routine dump a bsg pass-through non-embedded mailbox command with
+ * external buffer.
+ **/
+void
+lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
+				enum mbox_type mbox_tp, enum dma_type dma_tp,
+				enum sta_type sta_tp,
+				struct lpfc_dmabuf *dmabuf, uint32_t ext_buf)
+{
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint32_t *mbx_mbox_cmd, *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt;
+	char line_buf[LPFC_MBX_ACC_LBUF_SZ];
+	int len = 0;
+	uint32_t do_dump = 0;
+	uint32_t *pword;
+	uint32_t i;
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_BSG_MBXACC_DP)
+		return;
+
+	mbx_mbox_cmd = &idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = &idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = &idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = &idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
+
+	if (!(*mbx_dump_map & LPFC_MBX_DMP_ALL) ||
+	    (*mbx_dump_cnt == 0) ||
+	    (*mbx_word_cnt == 0))
+		return;
+
+	if (*mbx_mbox_cmd != 0x9B)
+		return;
+
+	if ((mbox_tp == mbox_rd) && (dma_tp == dma_mbox)) {
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_RD_MBX) {
+			do_dump |= LPFC_BSG_DMP_MBX_RD_MBX;
+			printk(KERN_ERR "\nRead mbox command (x%x), "
+			       "nemb:0x%x, extbuf_cnt:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+	if ((mbox_tp == mbox_rd) && (dma_tp == dma_ebuf)) {
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_RD_BUF) {
+			do_dump |= LPFC_BSG_DMP_MBX_RD_BUF;
+			printk(KERN_ERR "\nRead mbox buffer (x%x), "
+			       "nemb:0x%x, extbuf_seq:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+	if ((mbox_tp == mbox_wr) && (dma_tp == dma_mbox)) {
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_WR_MBX) {
+			do_dump |= LPFC_BSG_DMP_MBX_WR_MBX;
+			printk(KERN_ERR "\nWrite mbox command (x%x), "
+			       "nemb:0x%x, extbuf_cnt:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+	if ((mbox_tp == mbox_wr) && (dma_tp == dma_ebuf)) {
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_WR_BUF) {
+			do_dump |= LPFC_BSG_DMP_MBX_WR_BUF;
+			printk(KERN_ERR "\nWrite mbox buffer (x%x), "
+			       "nemb:0x%x, extbuf_seq:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+
+	/* dump buffer content */
+	if (do_dump) {
+		pword = (uint32_t *)dmabuf->virt;
+		for (i = 0; i < *mbx_word_cnt; i++) {
+			if (!(i % 8)) {
+				if (i != 0)
+					printk(KERN_ERR "%s\n", line_buf);
+				len = 0;
+				len += snprintf(line_buf+len,
+						LPFC_MBX_ACC_LBUF_SZ-len,
+						"%03d: ", i);
+			}
+			len += snprintf(line_buf+len, LPFC_MBX_ACC_LBUF_SZ-len,
+					"%08x ", (uint32_t)*pword);
+			pword++;
+		}
+		if ((i - 1) % 8)
+			printk(KERN_ERR "%s\n", line_buf);
+		(*mbx_dump_cnt)--;
+	}
+
+	/* Clean out command structure on reaching dump count */
+	if (*mbx_dump_cnt == 0)
+		memset(&idiag, 0, sizeof(idiag));
+	return;
+#endif
+}
+
+/* lpfc_idiag_mbxacc_dump_issue_mbox - idiag debugfs dump issue mailbox command
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to a DMA buffer descriptor.
+ *
+ * Description:
+ * This routine dump a pass-through non-embedded mailbox command from issue
+ * mailbox command.
+ **/
+void
+lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
+{
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint32_t *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt, *mbx_mbox_cmd;
+	char line_buf[LPFC_MBX_ACC_LBUF_SZ];
+	int len = 0;
+	uint32_t *pword;
+	uint8_t *pbyte;
+	uint32_t i, j;
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
+		return;
+
+	mbx_mbox_cmd = &idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = &idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = &idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = &idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
+
+	if (!(*mbx_dump_map & LPFC_MBX_DMP_MBX_ALL) ||
+	    (*mbx_dump_cnt == 0) ||
+	    (*mbx_word_cnt == 0))
+		return;
+
+	if ((*mbx_mbox_cmd != LPFC_MBX_ALL_CMD) &&
+	    (*mbx_mbox_cmd != pmbox->mbxCommand))
+		return;
+
+	/* dump buffer content */
+	if (*mbx_dump_map & LPFC_MBX_DMP_MBX_WORD) {
+		printk(KERN_ERR "Mailbox command:0x%x dump by word:\n",
+		       pmbox->mbxCommand);
+		pword = (uint32_t *)pmbox;
+		for (i = 0; i < *mbx_word_cnt; i++) {
+			if (!(i % 8)) {
+				if (i != 0)
+					printk(KERN_ERR "%s\n", line_buf);
+				len = 0;
+				memset(line_buf, 0, LPFC_MBX_ACC_LBUF_SZ);
+				len += snprintf(line_buf+len,
+						LPFC_MBX_ACC_LBUF_SZ-len,
+						"%03d: ", i);
+			}
+			len += snprintf(line_buf+len, LPFC_MBX_ACC_LBUF_SZ-len,
+					"%08x ",
+					((uint32_t)*pword) & 0xffffffff);
+			pword++;
+		}
+		if ((i - 1) % 8)
+			printk(KERN_ERR "%s\n", line_buf);
+		printk(KERN_ERR "\n");
+	}
+	if (*mbx_dump_map & LPFC_MBX_DMP_MBX_BYTE) {
+		printk(KERN_ERR "Mailbox command:0x%x dump by byte:\n",
+		       pmbox->mbxCommand);
+		pbyte = (uint8_t *)pmbox;
+		for (i = 0; i < *mbx_word_cnt; i++) {
+			if (!(i % 8)) {
+				if (i != 0)
+					printk(KERN_ERR "%s\n", line_buf);
+				len = 0;
+				memset(line_buf, 0, LPFC_MBX_ACC_LBUF_SZ);
+				len += snprintf(line_buf+len,
+						LPFC_MBX_ACC_LBUF_SZ-len,
+						"%03d: ", i);
+			}
+			for (j = 0; j < 4; j++) {
+				len += snprintf(line_buf+len,
+						LPFC_MBX_ACC_LBUF_SZ-len,
+						"%02x",
+						((uint8_t)*pbyte) & 0xff);
+				pbyte++;
+			}
+			len += snprintf(line_buf+len,
+					LPFC_MBX_ACC_LBUF_SZ-len, " ");
+		}
+		if ((i - 1) % 8)
+			printk(KERN_ERR "%s\n", line_buf);
+		printk(KERN_ERR "\n");
+	}
+	(*mbx_dump_cnt)--;
+
+	/* Clean out command structure on reaching dump count */
+	if (*mbx_dump_cnt == 0)
+		memset(&idiag, 0, sizeof(idiag));
+	return;
+#endif
+}
 
 /**
  * lpfc_debugfs_initialize - Initialize debugfs for a vport
@@ -1249,8 +3705,8 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	if (!lpfc_debugfs_start_time)
 		lpfc_debugfs_start_time = jiffies;
 
-	/* Setup lpfcX directory for specific HBA */
-	snprintf(name, sizeof(name), "lpfc%d", phba->brd_no);
+	/* Setup funcX directory for specific HBA PCI function */
+	snprintf(name, sizeof(name), "fn%d", phba->brd_no);
 	if (!phba->hba_debugfs_root) {
 		phba->hba_debugfs_root =
 			debugfs_create_dir(name, lpfc_debugfs_root);
@@ -1275,28 +3731,38 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 
 		/* Setup dumpHBASlim */
-		snprintf(name, sizeof(name), "dumpHBASlim");
-		phba->debug_dumpHBASlim =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 phba->hba_debugfs_root,
-				 phba, &lpfc_debugfs_op_dumpHBASlim);
-		if (!phba->debug_dumpHBASlim) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"0413 Cannot create debugfs dumpHBASlim\n");
-			goto debug_failed;
-		}
+		if (phba->sli_rev < LPFC_SLI_REV4) {
+			snprintf(name, sizeof(name), "dumpHBASlim");
+			phba->debug_dumpHBASlim =
+				debugfs_create_file(name,
+					S_IFREG|S_IRUGO|S_IWUSR,
+					phba->hba_debugfs_root,
+					phba, &lpfc_debugfs_op_dumpHBASlim);
+			if (!phba->debug_dumpHBASlim) {
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+						 "0413 Cannot create debugfs "
+						"dumpHBASlim\n");
+				goto debug_failed;
+			}
+		} else
+			phba->debug_dumpHBASlim = NULL;
 
 		/* Setup dumpHostSlim */
-		snprintf(name, sizeof(name), "dumpHostSlim");
-		phba->debug_dumpHostSlim =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 phba->hba_debugfs_root,
-				 phba, &lpfc_debugfs_op_dumpHostSlim);
-		if (!phba->debug_dumpHostSlim) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"0414 Cannot create debugfs dumpHostSlim\n");
-			goto debug_failed;
-		}
+		if (phba->sli_rev < LPFC_SLI_REV4) {
+			snprintf(name, sizeof(name), "dumpHostSlim");
+			phba->debug_dumpHostSlim =
+				debugfs_create_file(name,
+					S_IFREG|S_IRUGO|S_IWUSR,
+					phba->hba_debugfs_root,
+					phba, &lpfc_debugfs_op_dumpHostSlim);
+			if (!phba->debug_dumpHostSlim) {
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+						 "0414 Cannot create debugfs "
+						 "dumpHostSlim\n");
+				goto debug_failed;
+			}
+		} else
+			phba->debug_dumpHBASlim = NULL;
 
 		/* Setup dumpData */
 		snprintf(name, sizeof(name), "dumpData");
@@ -1322,8 +3788,6 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			goto debug_failed;
 		}
 
-
-
 		/* Setup slow ring trace */
 		if (lpfc_debugfs_max_slow_ring_trc) {
 			num = lpfc_debugfs_max_slow_ring_trc - 1;
@@ -1341,7 +3805,6 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				       "%d\n", lpfc_debugfs_max_disc_trc);
 			}
 		}
-
 
 		snprintf(name, sizeof(name), "slow_ring_trace");
 		phba->debug_slow_ring_trc =
@@ -1378,7 +3841,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			debugfs_create_dir(name, phba->hba_debugfs_root);
 		if (!vport->vport_debugfs_root) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0417 Cant create debugfs\n");
+					 "0417 Can't create debugfs\n");
 			goto debug_failed;
 		}
 		atomic_inc(&phba->debugfs_vport_count);
@@ -1431,9 +3894,140 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 vport, &lpfc_debugfs_op_nodelist);
 	if (!vport->debug_nodelist) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0409 Cant create debugfs nodelist\n");
+				 "2985 Can't create debugfs nodelist\n");
 		goto debug_failed;
 	}
+
+	/*
+	 * iDiag debugfs root entry points for SLI4 device only
+	 */
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		goto debug_failed;
+
+	snprintf(name, sizeof(name), "iDiag");
+	if (!phba->idiag_root) {
+		phba->idiag_root =
+			debugfs_create_dir(name, phba->hba_debugfs_root);
+		if (!phba->idiag_root) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2922 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+		/* Initialize iDiag data structure */
+		memset(&idiag, 0, sizeof(idiag));
+	}
+
+	/* iDiag read PCI config space */
+	snprintf(name, sizeof(name), "pciCfg");
+	if (!phba->idiag_pci_cfg) {
+		phba->idiag_pci_cfg =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_pciCfg);
+		if (!phba->idiag_pci_cfg) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2923 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+		idiag.offset.last_rd = 0;
+	}
+
+	/* iDiag PCI BAR access */
+	snprintf(name, sizeof(name), "barAcc");
+	if (!phba->idiag_bar_acc) {
+		phba->idiag_bar_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_barAcc);
+		if (!phba->idiag_bar_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					"3056 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+		idiag.offset.last_rd = 0;
+	}
+
+	/* iDiag get PCI function queue information */
+	snprintf(name, sizeof(name), "queInfo");
+	if (!phba->idiag_que_info) {
+		phba->idiag_que_info =
+			debugfs_create_file(name, S_IFREG|S_IRUGO,
+			phba->idiag_root, phba, &lpfc_idiag_op_queInfo);
+		if (!phba->idiag_que_info) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2924 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+	/* iDiag access PCI function queue */
+	snprintf(name, sizeof(name), "queAcc");
+	if (!phba->idiag_que_acc) {
+		phba->idiag_que_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_queAcc);
+		if (!phba->idiag_que_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2926 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+	/* iDiag access PCI function doorbell registers */
+	snprintf(name, sizeof(name), "drbAcc");
+	if (!phba->idiag_drb_acc) {
+		phba->idiag_drb_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_drbAcc);
+		if (!phba->idiag_drb_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2927 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+	/* iDiag access PCI function control registers */
+	snprintf(name, sizeof(name), "ctlAcc");
+	if (!phba->idiag_ctl_acc) {
+		phba->idiag_ctl_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_ctlAcc);
+		if (!phba->idiag_ctl_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2981 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+	/* iDiag access mbox commands */
+	snprintf(name, sizeof(name), "mbxAcc");
+	if (!phba->idiag_mbx_acc) {
+		phba->idiag_mbx_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_mbxAcc);
+		if (!phba->idiag_mbx_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					"2980 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+	/* iDiag extents access commands */
+	if (phba->sli4_hba.extents_in_use) {
+		snprintf(name, sizeof(name), "extAcc");
+		if (!phba->idiag_ext_acc) {
+			phba->idiag_ext_acc =
+				debugfs_create_file(name,
+						    S_IFREG|S_IRUGO|S_IWUSR,
+						    phba->idiag_root, phba,
+						    &lpfc_idiag_op_extAcc);
+			if (!phba->idiag_ext_acc) {
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+						"2986 Cant create "
+						"idiag debugfs\n");
+				goto debug_failed;
+			}
+		}
+	}
+
 debug_failed:
 	return;
 #endif
@@ -1468,7 +4062,6 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		debugfs_remove(vport->debug_nodelist); /* nodelist */
 		vport->debug_nodelist = NULL;
 	}
-
 	if (vport->vport_debugfs_root) {
 		debugfs_remove(vport->vport_debugfs_root); /* vportX */
 		vport->vport_debugfs_root = NULL;
@@ -1508,8 +4101,61 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 			phba->debug_slow_ring_trc = NULL;
 		}
 
+		/*
+		 * iDiag release
+		 */
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			if (phba->idiag_ext_acc) {
+				/* iDiag extAcc */
+				debugfs_remove(phba->idiag_ext_acc);
+				phba->idiag_ext_acc = NULL;
+			}
+			if (phba->idiag_mbx_acc) {
+				/* iDiag mbxAcc */
+				debugfs_remove(phba->idiag_mbx_acc);
+				phba->idiag_mbx_acc = NULL;
+			}
+			if (phba->idiag_ctl_acc) {
+				/* iDiag ctlAcc */
+				debugfs_remove(phba->idiag_ctl_acc);
+				phba->idiag_ctl_acc = NULL;
+			}
+			if (phba->idiag_drb_acc) {
+				/* iDiag drbAcc */
+				debugfs_remove(phba->idiag_drb_acc);
+				phba->idiag_drb_acc = NULL;
+			}
+			if (phba->idiag_que_acc) {
+				/* iDiag queAcc */
+				debugfs_remove(phba->idiag_que_acc);
+				phba->idiag_que_acc = NULL;
+			}
+			if (phba->idiag_que_info) {
+				/* iDiag queInfo */
+				debugfs_remove(phba->idiag_que_info);
+				phba->idiag_que_info = NULL;
+			}
+			if (phba->idiag_bar_acc) {
+				/* iDiag barAcc */
+				debugfs_remove(phba->idiag_bar_acc);
+				phba->idiag_bar_acc = NULL;
+			}
+			if (phba->idiag_pci_cfg) {
+				/* iDiag pciCfg */
+				debugfs_remove(phba->idiag_pci_cfg);
+				phba->idiag_pci_cfg = NULL;
+			}
+
+			/* Finally remove the iDiag debugfs root */
+			if (phba->idiag_root) {
+				/* iDiag root */
+				debugfs_remove(phba->idiag_root);
+				phba->idiag_root = NULL;
+			}
+		}
+
 		if (phba->hba_debugfs_root) {
-			debugfs_remove(phba->hba_debugfs_root); /* lpfcX */
+			debugfs_remove(phba->hba_debugfs_root); /* fnX */
 			phba->hba_debugfs_root = NULL;
 			atomic_dec(&lpfc_debugfs_hba_count);
 		}

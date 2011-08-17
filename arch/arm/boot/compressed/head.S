@@ -21,18 +21,10 @@
 
 #if defined(CONFIG_DEBUG_ICEDCC)
 
-#ifdef CONFIG_CPU_V6
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
-		mcr	p14, 0, \ch, c0, c5, 0
-		.endm
-#elif defined(CONFIG_CPU_V7)
-		.macro	loadsp, rb, tmp
-		.endm
-		.macro	writeb, ch, rb
-wait:		mrc	p14, 0, pc, c0, c1, 0
-		bcs	wait
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
 #elif defined(CONFIG_CPU_XSCALE)
@@ -128,14 +120,14 @@ wait:		mrc	p14, 0, pc, c0, c1, 0
 		.arm				@ Always enter in ARM state
 start:
 		.type	start,#function
- THUMB(		adr	r12, BSYM(1f)	)
- THUMB(		bx	r12		)
- THUMB(		.rept	6		)
- ARM(		.rept	8		)
+		.rept	7
 		mov	r0, r0
 		.endr
+   ARM(		mov	r0, r0		)
+   ARM(		b	1f		)
+ THUMB(		adr	r12, BSYM(1f)	)
+ THUMB(		bx	r12		)
 
-		b	1f
 		.word	0x016f2818		@ Magic numbers to help the loader
 		.word	start			@ absolute load/run zImage address
 		.word	_edata			@ zImage end address
@@ -174,9 +166,7 @@ not_angel:
 		 */
 
 		.text
-		adr	r0, LC0
-		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip}
-		ldr	sp, [r0, #28]
+
 #ifdef CONFIG_AUTO_ZRELADDR
 		@ determine final kernel image address
 		mov	r4, pc
@@ -185,35 +175,135 @@ not_angel:
 #else
 		ldr	r4, =zreladdr
 #endif
-		subs	r0, r0, r1		@ calculate the delta offset
 
-						@ if delta is zero, we are
-		beq	not_relocated		@ running at the address we
-						@ were linked at.
+		bl	cache_on
+
+restart:	adr	r0, LC0
+		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
+		ldr	sp, [r0, #28]
 
 		/*
-		 * We're running at a different address.  We need to fix
-		 * up various pointers:
-		 *   r5 - zImage base address (_start)
-		 *   r6 - size of decompressed image
-		 *   r11 - GOT start
-		 *   ip - GOT end
+		 * We might be running at a different address.  We need
+		 * to fix up various pointers.
 		 */
-		add	r5, r5, r0
+		sub	r0, r0, r1		@ calculate the delta offset
+		add	r6, r6, r0		@ _edata
+		add	r10, r10, r0		@ inflated kernel size location
+
+		/*
+		 * The kernel build system appends the size of the
+		 * decompressed kernel at the end of the compressed data
+		 * in little-endian form.
+		 */
+		ldrb	r9, [r10, #0]
+		ldrb	lr, [r10, #1]
+		orr	r9, r9, lr, lsl #8
+		ldrb	lr, [r10, #2]
+		ldrb	r10, [r10, #3]
+		orr	r9, r9, lr, lsl #16
+		orr	r9, r9, r10, lsl #24
+
+#ifndef CONFIG_ZBOOT_ROM
+		/* malloc space is above the relocated stack (64k max) */
+		add	sp, sp, r0
+		add	r10, sp, #0x10000
+#else
+		/*
+		 * With ZBOOT_ROM the bss/stack is non relocatable,
+		 * but someone could still run this code from RAM,
+		 * in which case our reference is _edata.
+		 */
+		mov	r10, r6
+#endif
+
+/*
+ * Check to see if we will overwrite ourselves.
+ *   r4  = final kernel address
+ *   r9  = size of decompressed image
+ *   r10 = end of this image, including  bss/stack/malloc space if non XIP
+ * We basically want:
+ *   r4 - 16k page directory >= r10 -> OK
+ *   r4 + image length <= current position (pc) -> OK
+ */
+		add	r10, r10, #16384
+		cmp	r4, r10
+		bhs	wont_overwrite
+		add	r10, r4, r9
+   ARM(		cmp	r10, pc		)
+ THUMB(		mov	lr, pc		)
+ THUMB(		cmp	r10, lr		)
+		bls	wont_overwrite
+
+/*
+ * Relocate ourselves past the end of the decompressed kernel.
+ *   r6  = _edata
+ *   r10 = end of the decompressed kernel
+ * Because we always copy ahead, we need to do it from the end and go
+ * backward in case the source and destination overlap.
+ */
+		/*
+		 * Bump to the next 256-byte boundary with the size of
+		 * the relocation code added. This avoids overwriting
+		 * ourself when the offset is small.
+		 */
+		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
+		bic	r10, r10, #255
+
+		/* Get start of code we want to copy and align it down. */
+		adr	r5, restart
+		bic	r5, r5, #31
+
+		sub	r9, r6, r5		@ size to copy
+		add	r9, r9, #31		@ rounded up to a multiple
+		bic	r9, r9, #31		@ ... of 32 bytes
+		add	r6, r9, r5
+		add	r9, r9, r10
+
+1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
+		cmp	r6, r5
+		stmdb	r9!, {r0 - r3, r10 - r12, lr}
+		bhi	1b
+
+		/* Preserve offset to relocated code. */
+		sub	r6, r9, r6
+
+#ifndef CONFIG_ZBOOT_ROM
+		/* cache_clean_flush may use the stack, so relocate it */
+		add	sp, sp, r6
+#endif
+
+		bl	cache_clean_flush
+
+		adr	r0, BSYM(restart)
+		add	r0, r0, r6
+		mov	pc, r0
+
+wont_overwrite:
+/*
+ * If delta is zero, we are running at the address we were linked at.
+ *   r0  = delta
+ *   r2  = BSS start
+ *   r3  = BSS end
+ *   r4  = kernel execution address
+ *   r7  = architecture ID
+ *   r8  = atags pointer
+ *   r11 = GOT start
+ *   r12 = GOT end
+ *   sp  = stack pointer
+ */
+		teq	r0, #0
+		beq	not_relocated
 		add	r11, r11, r0
-		add	ip, ip, r0
+		add	r12, r12, r0
 
 #ifndef CONFIG_ZBOOT_ROM
 		/*
 		 * If we're running fully PIC === CONFIG_ZBOOT_ROM = n,
 		 * we need to fix up pointers into the BSS region.
-		 *   r2 - BSS start
-		 *   r3 - BSS end
-		 *   sp - stack pointer
+		 * Note that the stack pointer has already been fixed up.
 		 */
 		add	r2, r2, r0
 		add	r3, r3, r0
-		add	sp, sp, r0
 
 		/*
 		 * Relocate all entries in the GOT table.
@@ -221,7 +311,7 @@ not_angel:
 1:		ldr	r1, [r11, #0]		@ relocate entries in the GOT
 		add	r1, r1, r0		@ table.  This fixes up the
 		str	r1, [r11], #4		@ C references.
-		cmp	r11, ip
+		cmp	r11, r12
 		blo	1b
 #else
 
@@ -234,7 +324,7 @@ not_angel:
 		cmphs	r3, r1			@ _end < entry
 		addlo	r1, r1, r0		@ table.  This fixes up the
 		str	r1, [r11], #4		@ C references.
-		cmp	r11, ip
+		cmp	r11, r12
 		blo	1b
 #endif
 
@@ -246,88 +336,36 @@ not_relocated:	mov	r0, #0
 		cmp	r2, r3
 		blo	1b
 
-		/*
-		 * The C runtime environment should now be setup
-		 * sufficiently.  Turn the cache on, set up some
-		 * pointers, and start decompressing.
-		 */
-		bl	cache_on
-
+/*
+ * The C runtime environment should now be setup sufficiently.
+ * Set up some pointers, and start decompressing.
+ *   r4  = kernel execution address
+ *   r7  = architecture ID
+ *   r8  = atags pointer
+ */
+		mov	r0, r4
 		mov	r1, sp			@ malloc space above stack
 		add	r2, sp, #0x10000	@ 64k max
-
-/*
- * Check to see if we will overwrite ourselves.
- *   r4 = final kernel address
- *   r5 = start of this image
- *   r6 = size of decompressed image
- *   r2 = end of malloc space (and therefore this image)
- * We basically want:
- *   r4 >= r2 -> OK
- *   r4 + image length <= r5 -> OK
- */
-		cmp	r4, r2
-		bhs	wont_overwrite
-		add	r0, r4, r6
-		cmp	r0, r5
-		bls	wont_overwrite
-
-		mov	r5, r2			@ decompress after malloc space
-		mov	r0, r5
 		mov	r3, r7
 		bl	decompress_kernel
-
-		add	r0, r0, #127 + 128	@ alignment + stack
-		bic	r0, r0, #127		@ align the kernel length
-/*
- * r0     = decompressed kernel length
- * r1-r3  = unused
- * r4     = kernel execution address
- * r5     = decompressed kernel start
- * r7     = architecture ID
- * r8     = atags pointer
- * r9-r12,r14 = corrupted
- */
-		add	r1, r5, r0		@ end of decompressed kernel
-		adr	r2, reloc_start
-		ldr	r3, LC1
-		add	r3, r2, r3
-1:		ldmia	r2!, {r9 - r12, r14}	@ copy relocation code
-		stmia	r1!, {r9 - r12, r14}
-		ldmia	r2!, {r9 - r12, r14}
-		stmia	r1!, {r9 - r12, r14}
-		cmp	r2, r3
-		blo	1b
-		mov	sp, r1
-		add	sp, sp, #128		@ relocate the stack
-
 		bl	cache_clean_flush
- ARM(		add	pc, r5, r0		) @ call relocation code
- THUMB(		add	r12, r5, r0		)
- THUMB(		mov	pc, r12			) @ call relocation code
-
-/*
- * We're not in danger of overwriting ourselves.  Do this the simple way.
- *
- * r4     = kernel execution address
- * r7     = architecture ID
- */
-wont_overwrite:	mov	r0, r4
-		mov	r3, r7
-		bl	decompress_kernel
-		b	call_kernel
+		bl	cache_off
+		mov	r0, #0			@ must be zero
+		mov	r1, r7			@ restore architecture number
+		mov	r2, r8			@ restore atags pointer
+ ARM(		mov	pc, r4	)		@ call kernel
+ THUMB(		bx	r4	)		@ entry point is always ARM
 
 		.align	2
 		.type	LC0, #object
 LC0:		.word	LC0			@ r1
 		.word	__bss_start		@ r2
 		.word	_end			@ r3
-		.word	_start			@ r5
-		.word	_image_size		@ r6
+		.word	_edata			@ r6
+		.word	input_data_end - 4	@ r10 (inflated size location)
 		.word	_got_start		@ r11
 		.word	_got_end		@ ip
-		.word	user_stack_end		@ sp
-LC1:		.word	reloc_end - reloc_start
+		.word	.L_user_stack_end	@ sp
 		.size	LC0, . - LC0
 
 #ifdef CONFIG_ARCH_RPC
@@ -353,7 +391,7 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
  * On exit,
  *  r0, r1, r2, r3, r9, r10, r12 corrupted
  * This routine must preserve:
- *  r4, r5, r6, r7, r8
+ *  r4, r7, r8
  */
 		.align	5
 cache_on:	mov	r3, #8			@ cache_on function
@@ -436,7 +474,11 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		orr	r1, r1, #3 << 10
 		add	r2, r3, #16384
 1:		cmp	r1, r9			@ if virt > start of RAM
+#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
+		orrhs	r1, r1, #0x08		@ set cacheable
+#else
 		orrhs	r1, r1, #0x0c		@ set cacheable, bufferable
+#endif
 		cmp	r1, r10			@ if virt > end of RAM
 		bichs	r1, r1, #0x0c		@ clear cacheable, bufferable
 		str	r1, [r0], #4		@ 1:1 mapping
@@ -460,6 +502,12 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		str	r1, [r0]
 		mov	pc, lr
 ENDPROC(__setup_mmu)
+
+__arm926ejs_mmu_cache_on:
+#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
+		mov	r0, #4			@ put dcache in WT mode
+		mcr	p15, 7, r0, c15, c0, 0
+#endif
 
 __armv4_mmu_cache_on:
 		mov	r12, lr
@@ -550,42 +598,7 @@ __common_mmu_cache_on:
 		sub	pc, lr, r0, lsr #32	@ properly flush pipeline
 #endif
 
-/*
- * All code following this line is relocatable.  It is relocated by
- * the above code to the end of the decompressed kernel image and
- * executed there.  During this time, we have no stacks.
- *
- * r0     = decompressed kernel length
- * r1-r3  = unused
- * r4     = kernel execution address
- * r5     = decompressed kernel start
- * r7     = architecture ID
- * r8     = atags pointer
- * r9-r12,r14 = corrupted
- */
-		.align	5
-reloc_start:	add	r9, r5, r0
-		sub	r9, r9, #128		@ do not copy the stack
-		debug_reloc_start
-		mov	r1, r4
-1:
-		.rept	4
-		ldmia	r5!, {r0, r2, r3, r10 - r12, r14}	@ relocate kernel
-		stmia	r1!, {r0, r2, r3, r10 - r12, r14}
-		.endr
-
-		cmp	r5, r9
-		blo	1b
-		mov	sp, r1
-		add	sp, sp, #128		@ relocate the stack
-		debug_reloc_end
-
-call_kernel:	bl	cache_clean_flush
-		bl	cache_off
-		mov	r0, #0			@ must be zero
-		mov	r1, r7			@ restore architecture number
-		mov	r2, r8			@ restore atags pointer
-		mov	pc, r4			@ call kernel
+#define PROC_ENTRY_SIZE (4*5)
 
 /*
  * Here follow the relocatable cache support functions for the
@@ -614,7 +627,7 @@ call_cache_fn:	adr	r12, proc_types
  ARM(		addeq	pc, r12, r3		) @ call cache function
  THUMB(		addeq	r12, r3			)
  THUMB(		moveq	pc, r12			) @ call cache function
-		add	r12, r12, #4*5
+		add	r12, r12, #PROC_ENTRY_SIZE
 		b	1b
 
 /*
@@ -678,6 +691,12 @@ proc_types:
 		W(b)	__armv4_mpu_cache_on
 		W(b)	__armv4_mpu_cache_off
 		W(b)	__armv4_mpu_cache_flush
+
+		.word	0x41069260		@ ARM926EJ-S (v5TEJ)
+		.word	0xff0ffff0
+		W(b)	__arm926ejs_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000
@@ -761,12 +780,6 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv6_mmu_cache_flush
 
-		.word	0x560f5810		@ Marvell PJ4 ARMv6
-		.word	0xff0ffff0
-		W(b)	__armv4_mmu_cache_on
-		W(b)	__armv4_mmu_cache_off
-		W(b)	__armv6_mmu_cache_flush
-
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
 		W(b)	__armv7_mmu_cache_on
@@ -784,6 +797,16 @@ proc_types:
 
 		.size	proc_types, . - proc_types
 
+		/*
+		 * If you get a "non-constant expression in ".if" statement"
+		 * error from the assembler on this line, check that you have
+		 * not accidentally written a "b" instruction where you should
+		 * have written W(b).
+		 */
+		.if (. - proc_types) % PROC_ENTRY_SIZE != 0
+		.error "The size of one or more proc_types entries is wrong."
+		.endif
+
 /*
  * Turn off the Cache and MMU.  ARMv3 does not support
  * reading the control register, but ARMv4 does.
@@ -791,7 +814,7 @@ proc_types:
  * On exit,
  *  r0, r1, r2, r3, r9, r12 corrupted
  * This routine must preserve:
- *  r4, r6, r7
+ *  r4, r7, r8
  */
 		.align	5
 cache_off:	mov	r3, #12			@ cache_off function
@@ -866,7 +889,7 @@ __armv3_mmu_cache_off:
  * On exit,
  *  r1, r2, r3, r9, r10, r11, r12 corrupted
  * This routine must preserve:
- *  r0, r4, r5, r6, r7
+ *  r4, r6, r7, r8
  */
 		.align	5
 cache_clean_flush:
@@ -1088,9 +1111,9 @@ memdump:	mov	r12, r0
 #endif
 
 		.ltorg
-reloc_end:
+reloc_code_end:
 
 		.align
 		.section ".stack", "aw", %nobits
-user_stack:	.space	4096
-user_stack_end:
+.L_user_stack:	.space	4096
+.L_user_stack_end:

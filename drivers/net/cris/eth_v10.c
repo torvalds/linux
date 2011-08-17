@@ -491,8 +491,8 @@ e100_open(struct net_device *dev)
 
 	/* allocate the irq corresponding to the receiving DMA */
 
-	if (request_irq(NETWORK_DMA_RX_IRQ_NBR, e100rxtx_interrupt,
-			IRQF_SAMPLE_RANDOM, cardname, (void *)dev)) {
+	if (request_irq(NETWORK_DMA_RX_IRQ_NBR, e100rxtx_interrupt, 0, cardname,
+			(void *)dev)) {
 		goto grace_exit0;
 	}
 
@@ -1383,7 +1383,7 @@ e100_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	spin_lock(&np->lock); /* Preempt protection */
 	switch (cmd) {
 		/* The ioctls below should be considered obsolete but are */
-		/* still present for compatability with old scripts/apps  */
+		/* still present for compatibility with old scripts/apps  */
 		case SET_ETH_SPEED_10:                  /* 10 Mbps */
 			e100_set_speed(dev, 10);
 			break;

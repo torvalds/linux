@@ -78,7 +78,7 @@ static void start_translation(struct sh_flctl *flctl)
 
 static void timeout_error(struct sh_flctl *flctl, const char *str)
 {
-	dev_err(&flctl->pdev->dev, "Timeout occured in %s\n", str);
+	dev_err(&flctl->pdev->dev, "Timeout occurred in %s\n", str);
 }
 
 static void wait_completion(struct sh_flctl *flctl)
@@ -867,7 +867,7 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	add_mtd_partitions(flctl_mtd, pdata->parts, pdata->nr_parts);
+	mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
 
 	return 0;
 

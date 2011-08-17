@@ -1,7 +1,6 @@
 config PPC64
 	bool "64-bit kernel"
 	default n
-	select PPC_HAVE_PMU_SUPPORT
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
@@ -69,10 +68,12 @@ choice
 config PPC_BOOK3S_64
 	bool "Server processors"
 	select PPC_FPU
+	select PPC_HAVE_PMU_SUPPORT
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
 	select PPC_FPU # Make it a choice ?
+	select PPC_SMP_MUXED_IPI
 
 endchoice
 
@@ -106,6 +107,10 @@ config POWER3
 config POWER4
 	depends on PPC64 && PPC_BOOK3S
 	def_bool y
+
+config PPC_A2
+	bool
+	depends on PPC_BOOK3E_64
 
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
@@ -174,6 +179,7 @@ config FSL_BOOKE
 config PPC_FSL_BOOK3E
 	bool
 	select FSL_EMB_PERFMON
+	select PPC_SMP_MUXED_IPI
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -225,6 +231,24 @@ config VSX
 	  CPUs (it does, however add code to the kernel).
 
 	  If in doubt, say Y here.
+
+config PPC_ICSWX
+	bool "Support for PowerPC icswx coprocessor instruction"
+	depends on POWER4
+	default n
+	---help---
+
+	  This option enables kernel support for the PowerPC Initiate
+	  Coprocessor Store Word (icswx) coprocessor instruction on POWER7
+	  or newer processors.
+
+	  This option is only useful if you have a processor that supports
+	  the icswx coprocessor instruction. It does not have any effect
+	  on processors without the icswx coprocessor instruction.
+
+	  This option slightly increases kernel memory usage.
+
+	  If in doubt, say N here.
 
 config SPE
 	bool "SPE Support"

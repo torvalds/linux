@@ -21,11 +21,8 @@
  *
  */
 
-#ifdef  ATH_AR6K_11N_SUPPORT
-
 #include <a_config.h>
 #include <athdefs.h>
-#include <a_types.h>
 #include <a_osapi.h>
 #include <a_debug.h>
 #include "pkt_log.h"
@@ -33,36 +30,36 @@
 #include "aggr_rx_internal.h"
 #include "wmi.h"
 
-extern A_STATUS
+extern int
 wmi_dot3_2_dix(void *osbuf);
 
 static void
-aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf);
+aggr_slice_amsdu(struct aggr_info *p_aggr, struct rxtid *rxtid, void **osbuf);
 
 static void
-aggr_timeout(A_ATH_TIMER arg);
+aggr_timeout(unsigned long arg);
 
 static void
-aggr_deque_frms(AGGR_INFO *p_aggr, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 order);
+aggr_deque_frms(struct aggr_info *p_aggr, u8 tid, u16 seq_no, u8 order);
 
 static void
-aggr_dispatch_frames(AGGR_INFO *p_aggr, A_NETBUF_QUEUE_T *q);
+aggr_dispatch_frames(struct aggr_info *p_aggr, A_NETBUF_QUEUE_T *q);
 
 static void *
-aggr_get_osbuf(AGGR_INFO *p_aggr);
+aggr_get_osbuf(struct aggr_info *p_aggr);
 
 void *
 aggr_init(ALLOC_NETBUFS netbuf_allocator)
 {
-    AGGR_INFO   *p_aggr = NULL;
-    RXTID *rxtid;
-    A_UINT8 i;
-    A_STATUS status = A_OK;
+    struct aggr_info   *p_aggr = NULL;
+    struct rxtid *rxtid;
+    u8 i;
+    int status = 0;
 
     A_PRINTF("In aggr_init..\n");
 
     do {
-        p_aggr = A_MALLOC(sizeof(AGGR_INFO));
+        p_aggr = A_MALLOC(sizeof(struct aggr_info));
         if(!p_aggr) {
             A_PRINTF("Failed to allocate memory for aggr_node\n");
             status = A_ERROR;
@@ -70,10 +67,10 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
         }
 
         /* Init timer and data structures */
-        A_MEMZERO(p_aggr, sizeof(AGGR_INFO));
+        A_MEMZERO(p_aggr, sizeof(struct aggr_info));
         p_aggr->aggr_sz = AGGR_SZ_DEFAULT;
         A_INIT_TIMER(&p_aggr->timer, aggr_timeout, p_aggr);
-        p_aggr->timerScheduled = FALSE;
+        p_aggr->timerScheduled = false;
         A_NETBUF_QUEUE_INIT(&p_aggr->freeQ);
 
         p_aggr->netbuf_allocator = netbuf_allocator;
@@ -81,30 +78,30 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
 
         for(i = 0; i < NUM_OF_TIDS; i++) {
             rxtid = AGGR_GET_RXTID(p_aggr, i);
-            rxtid->aggr = FALSE;
-            rxtid->progress = FALSE;
-            rxtid->timerMon = FALSE;
+            rxtid->aggr = false;
+            rxtid->progress = false;
+            rxtid->timerMon = false;
             A_NETBUF_QUEUE_INIT(&rxtid->q);
             A_MUTEX_INIT(&rxtid->lock);
         }
-    }while(FALSE);
+    }while(false);
 
     A_PRINTF("going out of aggr_init..status %s\n",
-                    (status == A_OK) ? "OK":"Error");
+                    (status == 0) ? "OK":"Error");
 
-    if(status != A_OK) {
+    if (status) {
         /* Cleanup */
         aggr_module_destroy(p_aggr);
     }
-    return ((status == A_OK) ? p_aggr : NULL);
+    return ((status == 0) ? p_aggr : NULL);
 }
 
 /* utility function to clear rx hold_q for a tid */
 static void
-aggr_delete_tid_state(AGGR_INFO *p_aggr, A_UINT8 tid)
+aggr_delete_tid_state(struct aggr_info *p_aggr, u8 tid)
 {
-    RXTID *rxtid;
-    RXTID_STATS *stats;
+    struct rxtid *rxtid;
+    struct rxtid_stats *stats;
 
     A_ASSERT(tid < NUM_OF_TIDS && p_aggr);
 
@@ -115,34 +112,34 @@ aggr_delete_tid_state(AGGR_INFO *p_aggr, A_UINT8 tid)
         aggr_deque_frms(p_aggr, tid, 0, ALL_SEQNO);
     }
 
-    rxtid->aggr = FALSE;
-    rxtid->progress = FALSE;
-    rxtid->timerMon = FALSE;
+    rxtid->aggr = false;
+    rxtid->progress = false;
+    rxtid->timerMon = false;
     rxtid->win_sz = 0;
     rxtid->seq_next = 0;
     rxtid->hold_q_sz = 0;
 
     if(rxtid->hold_q) {
-        A_FREE(rxtid->hold_q);
+        kfree(rxtid->hold_q);
         rxtid->hold_q = NULL;
     }
 
-    A_MEMZERO(stats, sizeof(RXTID_STATS));
+    A_MEMZERO(stats, sizeof(struct rxtid_stats));
 }
 
 void
 aggr_module_destroy(void *cntxt)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
-    RXTID *rxtid;
-    A_UINT8 i, k;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
+    struct rxtid *rxtid;
+    u8 i, k;
     A_PRINTF("%s(): aggr = %p\n",_A_FUNCNAME_, p_aggr);
     A_ASSERT(p_aggr);
 
     if(p_aggr) {
         if(p_aggr->timerScheduled) {
             A_UNTIMEOUT(&p_aggr->timer);
-            p_aggr->timerScheduled = FALSE;
+            p_aggr->timerScheduled = false;
         }
 
         for(i = 0; i < NUM_OF_TIDS; i++) {
@@ -154,7 +151,7 @@ aggr_module_destroy(void *cntxt)
                         A_NETBUF_FREE(rxtid->hold_q[k].osbuf);
                     }
                 }
-                A_FREE(rxtid->hold_q);
+                kfree(rxtid->hold_q);
             }
             /* Free the dispatch q contents*/
             while(A_NETBUF_QUEUE_SIZE(&rxtid->q)) {
@@ -168,7 +165,7 @@ aggr_module_destroy(void *cntxt)
         while(A_NETBUF_QUEUE_SIZE(&p_aggr->freeQ)) {
             A_NETBUF_FREE(A_NETBUF_DEQUEUE(&p_aggr->freeQ));
         }
-        A_FREE(p_aggr);
+        kfree(p_aggr);
     }
     A_PRINTF("out aggr_module_destroy\n");
 }
@@ -177,7 +174,7 @@ aggr_module_destroy(void *cntxt)
 void
 aggr_register_rx_dispatcher(void *cntxt, void * dev, RX_CALLBACK fn)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
 
     A_ASSERT(p_aggr && fn && dev);
 
@@ -187,10 +184,10 @@ aggr_register_rx_dispatcher(void *cntxt, void * dev, RX_CALLBACK fn)
 
 
 void
-aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no)
+aggr_process_bar(void *cntxt, u8 tid, u16 seq_no)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
-    RXTID_STATS *stats;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
+    struct rxtid_stats *stats;
 
     A_ASSERT(p_aggr);
     stats = AGGR_GET_RXTID_STATS(p_aggr, tid);
@@ -201,11 +198,11 @@ aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no)
 
 
 void
-aggr_recv_addba_req_evt(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_sz)
+aggr_recv_addba_req_evt(void *cntxt, u8 tid, u16 seq_no, u8 win_sz)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
-    RXTID *rxtid;
-    RXTID_STATS *stats;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
+    struct rxtid *rxtid;
+    struct rxtid_stats *stats;
 
     A_ASSERT(p_aggr);
     rxtid = AGGR_GET_RXTID(p_aggr, tid);
@@ -249,14 +246,14 @@ aggr_recv_addba_req_evt(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_s
         A_ASSERT(0);
     }
 
-    rxtid->aggr = TRUE;
+    rxtid->aggr = true;
 }
 
 void
-aggr_recv_delba_req_evt(void *cntxt, A_UINT8 tid)
+aggr_recv_delba_req_evt(void *cntxt, u8 tid)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
-    RXTID *rxtid;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
+    struct rxtid *rxtid;
 
     A_ASSERT(p_aggr);
     A_PRINTF("%s(): tid %d\n", _A_FUNCNAME_, tid);
@@ -269,12 +266,12 @@ aggr_recv_delba_req_evt(void *cntxt, A_UINT8 tid)
 }
 
 static void
-aggr_deque_frms(AGGR_INFO *p_aggr, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 order)
+aggr_deque_frms(struct aggr_info *p_aggr, u8 tid, u16 seq_no, u8 order)
 {
-    RXTID *rxtid;
-    OSBUF_HOLD_Q *node;
-    A_UINT16 idx, idx_end, seq_end;
-    RXTID_STATS *stats;
+    struct rxtid *rxtid;
+    struct osbuf_hold_q *node;
+    u16 idx, idx_end, seq_end;
+    struct rxtid_stats *stats;
 
     A_ASSERT(p_aggr);
     rxtid = AGGR_GET_RXTID(p_aggr, tid);
@@ -334,7 +331,7 @@ aggr_deque_frms(AGGR_INFO *p_aggr, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 order)
 }
 
 static void *
-aggr_get_osbuf(AGGR_INFO *p_aggr)
+aggr_get_osbuf(struct aggr_info *p_aggr)
 {
     void *buf = NULL;
 
@@ -356,11 +353,11 @@ aggr_get_osbuf(AGGR_INFO *p_aggr)
 
 
 static void
-aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
+aggr_slice_amsdu(struct aggr_info *p_aggr, struct rxtid *rxtid, void **osbuf)
 {
     void *new_buf;
-    A_UINT16 frame_8023_len, payload_8023_len, mac_hdr_len, amsdu_len;
-    A_UINT8 *framep;
+    u16 frame_8023_len, payload_8023_len, mac_hdr_len, amsdu_len;
+    u8 *framep;
 
     /* Frame format at this point:
      *  [DIX hdr | 802.3 | 802.3 | ... | 802.3]
@@ -397,9 +394,9 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
             break;
         }
 
-        A_MEMCPY(A_NETBUF_DATA(new_buf), framep, frame_8023_len);
+        memcpy(A_NETBUF_DATA(new_buf), framep, frame_8023_len);
         A_NETBUF_PUT(new_buf, frame_8023_len);
-        if (wmi_dot3_2_dix(new_buf) != A_OK) {
+        if (wmi_dot3_2_dix(new_buf) != 0) {
             A_PRINTF("dot3_2_dix err..\n");
             A_NETBUF_FREE(new_buf);
             break;
@@ -426,14 +423,14 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 }
 
 void
-aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu, void **osbuf)
+aggr_process_recv_frm(void *cntxt, u8 tid, u16 seq_no, bool is_amsdu, void **osbuf)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
-    RXTID *rxtid;
-    RXTID_STATS *stats;
-    A_UINT16 idx, st, cur, end;
-    A_UINT16 *log_idx;
-    OSBUF_HOLD_Q *node;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
+    struct rxtid *rxtid;
+    struct rxtid_stats *stats;
+    u16 idx, st, cur, end;
+    u16 *log_idx;
+    struct osbuf_hold_q *node;
     PACKET_LOG *log;
 
     A_ASSERT(p_aggr);
@@ -472,7 +469,7 @@ aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu
          * be assumed that the window has moved for some valid reason.
          * Therefore, we dequeue all frames and start fresh.
          */
-        A_UINT16 extended_end;
+        u16 extended_end;
 
         extended_end = (end + rxtid->hold_q_sz-1) & IEEE80211_MAX_SEQ_NO;
 
@@ -536,17 +533,17 @@ aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu
     aggr_deque_frms(p_aggr, tid, 0, CONTIGUOUS_SEQNO);
 
     if(p_aggr->timerScheduled) {
-        rxtid->progress = TRUE;
+        rxtid->progress = true;
     }else{
         for(idx=0 ; idx<rxtid->hold_q_sz ; idx++) {
             if(rxtid->hold_q[idx].osbuf) {
                 /* there is a frame in the queue and no timer so
                  * start a timer to ensure that the frame doesn't remain
                  * stuck forever. */
-                p_aggr->timerScheduled = TRUE;
+                p_aggr->timerScheduled = true;
                 A_TIMEOUT_MS(&p_aggr->timer, AGGR_RX_TIMEOUT, 0);
-                rxtid->progress = FALSE;
-                rxtid->timerMon = TRUE;
+                rxtid->progress = false;
+                rxtid->timerMon = true;
                 break;
             }
         }
@@ -561,8 +558,8 @@ aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu
 void
 aggr_reset_state(void *cntxt)
 {
-    A_UINT8 tid;
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
+    u8 tid;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
 
     A_ASSERT(p_aggr);
 
@@ -573,12 +570,12 @@ aggr_reset_state(void *cntxt)
 
 
 static void
-aggr_timeout(A_ATH_TIMER arg)
+aggr_timeout(unsigned long arg)
 {
-    A_UINT8 i,j;
-    AGGR_INFO *p_aggr = (AGGR_INFO *)arg;
-    RXTID   *rxtid;
-    RXTID_STATS *stats;
+    u8 i,j;
+    struct aggr_info *p_aggr = (struct aggr_info *)arg;
+    struct rxtid   *rxtid;
+    struct rxtid_stats *stats;
     /*
      * If the q for which the timer was originally started has
      * not progressed then it is necessary to dequeue all the
@@ -588,9 +585,9 @@ aggr_timeout(A_ATH_TIMER arg)
         rxtid = AGGR_GET_RXTID(p_aggr, i);
         stats = AGGR_GET_RXTID_STATS(p_aggr, i);
 
-        if(rxtid->aggr == FALSE ||
-           rxtid->timerMon == FALSE ||
-           rxtid->progress == TRUE) {
+        if(rxtid->aggr == false ||
+           rxtid->timerMon == false ||
+           rxtid->progress == true) {
             continue;
         }
         // dequeue all frames in for this tid
@@ -599,25 +596,25 @@ aggr_timeout(A_ATH_TIMER arg)
         aggr_deque_frms(p_aggr, i, 0, ALL_SEQNO);
     }
 
-    p_aggr->timerScheduled = FALSE;
+    p_aggr->timerScheduled = false;
     // determine whether a new timer should be started.
     for(i = 0; i < NUM_OF_TIDS; i++) {
         rxtid = AGGR_GET_RXTID(p_aggr, i);
 
-        if(rxtid->aggr == TRUE && rxtid->hold_q) {
+        if(rxtid->aggr == true && rxtid->hold_q) {
             for(j = 0 ; j < rxtid->hold_q_sz ; j++)
             {
                 if(rxtid->hold_q[j].osbuf)
                 {
-                    p_aggr->timerScheduled = TRUE;
-                    rxtid->timerMon = TRUE;
-                    rxtid->progress = FALSE;
+                    p_aggr->timerScheduled = true;
+                    rxtid->timerMon = true;
+                    rxtid->progress = false;
                     break;
                 }
             }
 
             if(j >= rxtid->hold_q_sz) {
-                rxtid->timerMon = FALSE;
+                rxtid->timerMon = false;
             }
         }
     }
@@ -630,7 +627,7 @@ aggr_timeout(A_ATH_TIMER arg)
 }
 
 static void
-aggr_dispatch_frames(AGGR_INFO *p_aggr, A_NETBUF_QUEUE_T *q)
+aggr_dispatch_frames(struct aggr_info *p_aggr, A_NETBUF_QUEUE_T *q)
 {
     void *osbuf;
 
@@ -642,10 +639,10 @@ aggr_dispatch_frames(AGGR_INFO *p_aggr, A_NETBUF_QUEUE_T *q)
 void
 aggr_dump_stats(void *cntxt, PACKET_LOG **log_buf)
 {
-    AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
-    RXTID   *rxtid;
-    RXTID_STATS *stats;
-    A_UINT8 i;
+    struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
+    struct rxtid   *rxtid;
+    struct rxtid_stats *stats;
+    u8 i;
 
     *log_buf = &p_aggr->pkt_log;
     A_PRINTF("\n\n================================================\n");
@@ -662,5 +659,3 @@ aggr_dump_stats(void *cntxt, PACKET_LOG **log_buf)
     A_PRINTF("================================================\n\n");
 
 }
-
-#endif  /* ATH_AR6K_11N_SUPPORT */

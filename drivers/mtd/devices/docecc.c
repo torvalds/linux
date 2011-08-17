@@ -109,7 +109,7 @@ for(ci=(n)-1;ci >=0;ci--)\
    of the integer "alpha_to[i]" with a(0) being the LSB and a(m-1) the MSB. Thus for
    example the polynomial representation of @^5 would be given by the binary
    representation of the integer "alpha_to[5]".
-                   Similarily, index_of[] can be used as follows:
+                   Similarly, index_of[] can be used as follows:
         As above, let @ represent the primitive element of GF(2^m) that is
    the root of the primitive polynomial p(x). In order to find the power
    of @ (alpha) that has the polynomial representation
@@ -121,7 +121,7 @@ for(ci=(n)-1;ci >=0;ci--)\
    NOTE:
         The element alpha_to[2^m-1] = 0 always signifying that the
    representation of "@^infinity" = 0 is (0,0,0,...,0).
-        Similarily, the element index_of[0] = A0 always signifying
+        Similarly, the element index_of[0] = A0 always signifying
    that the power of alpha which has the polynomial representation
    (0,0,...,0) is "infinity".
 

@@ -23,15 +23,12 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
-#include "AR6002/hw2.0/hw/apb_map.h"
-#include "AR6002/hw2.0/hw/si_reg.h"
-#include "AR6002/hw2.0/hw/gpio_reg.h"
-#include "AR6002/hw2.0/hw/rtc_reg.h"
-#include "AR6002/hw2.0/hw/vmc_reg.h"
-#include "AR6002/hw2.0/hw/mbox_reg.h"
+#include "hw/mbox_host_reg.h"
+#include "gpio_reg.h"
+#include "hw/rtc_reg.h"
+#include "hw/mbox_reg.h"
+#include "hw/apb_map.h"
 
 #include "a_osapi.h"
 #include "targaddrs.h"
@@ -47,7 +44,7 @@
 
 static ATH_DEBUG_MODULE_DBG_INFO *g_pModuleInfoHead = NULL;
 static A_MUTEX_T                 g_ModuleListLock;
-static A_BOOL                    g_ModuleDebugInit = FALSE;
+static bool                    g_ModuleDebugInit = false;
 
 #ifdef ATH_DEBUG_MODULE
 
@@ -71,8 +68,8 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(misc,
 #define CPU_DBG_SEL_ADDRESS                      0x00000483
 #define CPU_DBG_ADDRESS                          0x00000484
 
-static A_UINT8 custDataAR6002[AR6002_CUST_DATA_SIZE];
-static A_UINT8 custDataAR6003[AR6003_CUST_DATA_SIZE];
+static u8 custDataAR6002[AR6002_CUST_DATA_SIZE];
+static u8 custDataAR6003[AR6003_CUST_DATA_SIZE];
 
 /* Compile the 4BYTE version of the window register setup routine,
  * This mitigates host interconnect issues with non-4byte aligned bus requests, some
@@ -83,18 +80,18 @@ static A_UINT8 custDataAR6003[AR6003_CUST_DATA_SIZE];
 #ifdef USE_4BYTE_REGISTER_ACCESS
 
     /* set the window address register (using 4-byte register access ). */
-A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 RegisterAddr, A_UINT32 Address)
+int ar6000_SetAddressWindowRegister(struct hif_device *hifDevice, u32 RegisterAddr, u32 Address)
 {
-    A_STATUS status;
-    A_UINT8 addrValue[4];
-    A_INT32 i;
+    int status;
+    u8 addrValue[4];
+    s32 i;
 
         /* write bytes 1,2,3 of the register to set the upper address bytes, the LSB is written
          * last to initiate the access cycle */
 
     for (i = 1; i <= 3; i++) {
             /* fill the buffer with the address byte value we want to hit 4 times*/
-        addrValue[0] = ((A_UINT8 *)&Address)[i];
+        addrValue[0] = ((u8 *)&Address)[i];
         addrValue[1] = addrValue[0];
         addrValue[2] = addrValue[0];
         addrValue[3] = addrValue[0];
@@ -107,12 +104,12 @@ A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 Registe
                               4,
                               HIF_WR_SYNC_BYTE_FIX,
                               NULL);
-        if (status != A_OK) {
+        if (status) {
             break;
         }
     }
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write initial bytes of 0x%x to window reg: 0x%X \n",
             Address, RegisterAddr));
         return status;
@@ -123,18 +120,18 @@ A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 Registe
          * 3 byte write to bytes 1,2,3 has no effect since we are writing the same values again */
     status = HIFReadWrite(hifDevice,
                           RegisterAddr,
-                          (A_UCHAR *)(&Address),
+                          (u8 *)(&Address),
                           4,
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write 0x%x to window reg: 0x%X \n",
             Address, RegisterAddr));
         return status;
     }
 
-    return A_OK;
+    return 0;
 
 
 
@@ -144,20 +141,20 @@ A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 Registe
 #else
 
     /* set the window address register */
-A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 RegisterAddr, A_UINT32 Address)
+int ar6000_SetAddressWindowRegister(struct hif_device *hifDevice, u32 RegisterAddr, u32 Address)
 {
-    A_STATUS status;
+    int status;
 
         /* write bytes 1,2,3 of the register to set the upper address bytes, the LSB is written
          * last to initiate the access cycle */
     status = HIFReadWrite(hifDevice,
                           RegisterAddr+1,  /* write upper 3 bytes */
-                          ((A_UCHAR *)(&Address))+1,
-                          sizeof(A_UINT32)-1,
+                          ((u8 *)(&Address))+1,
+                          sizeof(u32)-1,
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write initial bytes of 0x%x to window reg: 0x%X \n",
              RegisterAddr, Address));
         return status;
@@ -166,18 +163,18 @@ A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 Registe
         /* write the LSB of the register, this initiates the operation */
     status = HIFReadWrite(hifDevice,
                           RegisterAddr,
-                          (A_UCHAR *)(&Address),
-                          sizeof(A_UINT8),
+                          (u8 *)(&Address),
+                          sizeof(u8),
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write 0x%x to window reg: 0x%X \n",
             RegisterAddr, Address));
         return status;
     }
 
-    return A_OK;
+    return 0;
 }
 
 #endif
@@ -186,28 +183,28 @@ A_STATUS ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 Registe
  * Read from the AR6000 through its diagnostic window.
  * No cooperation from the Target is required for this.
  */
-A_STATUS
-ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data)
+int
+ar6000_ReadRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data)
 {
-    A_STATUS status;
+    int status;
 
         /* set window register to start read cycle */
     status = ar6000_SetAddressWindowRegister(hifDevice,
                                              WINDOW_READ_ADDR_ADDRESS,
                                              *address);
 
-    if (status != A_OK) {
+    if (status) {
         return status;
     }
 
         /* read the data */
     status = HIFReadWrite(hifDevice,
                           WINDOW_DATA_ADDRESS,
-                          (A_UCHAR *)data,
-                          sizeof(A_UINT32),
+                          (u8 *)data,
+                          sizeof(u32),
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot read from WINDOW_DATA_ADDRESS\n"));
         return status;
     }
@@ -220,19 +217,19 @@ ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data)
  * Write to the AR6000 through its diagnostic window.
  * No cooperation from the Target is required for this.
  */
-A_STATUS
-ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data)
+int
+ar6000_WriteRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data)
 {
-    A_STATUS status;
+    int status;
 
         /* set write data */
     status = HIFReadWrite(hifDevice,
                           WINDOW_DATA_ADDRESS,
-                          (A_UCHAR *)data,
-                          sizeof(A_UINT32),
+                          (u8 *)data,
+                          sizeof(u32),
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write 0x%x to WINDOW_DATA_ADDRESS\n", *data));
         return status;
     }
@@ -243,16 +240,16 @@ ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data)
                                            *address);
     }
 
-A_STATUS
-ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,
-                    A_UCHAR *data, A_UINT32 length)
+int
+ar6000_ReadDataDiag(struct hif_device *hifDevice, u32 address,
+                    u8 *data, u32 length)
 {
-    A_UINT32 count;
-    A_STATUS status = A_OK;
+    u32 count;
+    int status = 0;
 
     for (count = 0; count < length; count += 4, address += 4) {
         if ((status = ar6000_ReadRegDiag(hifDevice, &address,
-                                         (A_UINT32 *)&data[count])) != A_OK)
+                                         (u32 *)&data[count])) != 0)
         {
             break;
         }
@@ -261,16 +258,16 @@ ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,
     return status;
 }
 
-A_STATUS
-ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,
-                    A_UCHAR *data, A_UINT32 length)
+int
+ar6000_WriteDataDiag(struct hif_device *hifDevice, u32 address,
+                    u8 *data, u32 length)
 {
-    A_UINT32 count;
-    A_STATUS status = A_OK;
+    u32 count;
+    int status = 0;
 
     for (count = 0; count < length; count += 4, address += 4) {
         if ((status = ar6000_WriteRegDiag(hifDevice, &address,
-                                         (A_UINT32 *)&data[count])) != A_OK)
+                                         (u32 *)&data[count])) != 0)
         {
             break;
         }
@@ -279,12 +276,12 @@ ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,
     return status;
 }
 
-A_STATUS
-ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, A_UINT32 *regval)
+int
+ar6k_ReadTargetRegister(struct hif_device *hifDevice, int regsel, u32 *regval)
 {
-    A_STATUS status;
-    A_UCHAR vals[4];
-    A_UCHAR register_selection[4];
+    int status;
+    u8 vals[4];
+    u8 register_selection[4];
 
     register_selection[0] = register_selection[1] = register_selection[2] = register_selection[3] = (regsel & 0xff);
     status = HIFReadWrite(hifDevice,
@@ -294,18 +291,18 @@ ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, A_UINT32 *regval)
                           HIF_WR_SYNC_BYTE_FIX,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write CPU_DBG_SEL (%d)\n", regsel));
         return status;
     }
 
     status = HIFReadWrite(hifDevice,
                           CPU_DBG_ADDRESS,
-                          (A_UCHAR *)vals,
+                          (u8 *)vals,
                           sizeof(vals),
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot read from CPU_DBG_ADDRESS\n"));
         return status;
     }
@@ -316,10 +313,10 @@ ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, A_UINT32 *regval)
 }
 
 void
-ar6k_FetchTargetRegs(HIF_DEVICE *hifDevice, A_UINT32 *targregs)
+ar6k_FetchTargetRegs(struct hif_device *hifDevice, u32 *targregs)
 {
     int i;
-    A_UINT32 val;
+    u32 val;
 
     for (i=0; i<AR6003_FETCH_TARG_REGS_COUNT; i++) {
         val=0xffffffff;
@@ -329,13 +326,13 @@ ar6k_FetchTargetRegs(HIF_DEVICE *hifDevice, A_UINT32 *targregs)
 }
 
 #if 0
-static A_STATUS
-_do_write_diag(HIF_DEVICE *hifDevice, A_UINT32 addr, A_UINT32 value)
+static int
+_do_write_diag(struct hif_device *hifDevice, u32 addr, u32 value)
 {
-    A_STATUS status;
+    int status;
 
     status = ar6000_WriteRegDiag(hifDevice, &addr, &value);
-    if (status != A_OK)
+    if (status)
     {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot force Target to execute ROM!\n"));
     }
@@ -357,12 +354,12 @@ _do_write_diag(HIF_DEVICE *hifDevice, A_UINT32 addr, A_UINT32 value)
  * TBD: Might want to add special handling for AR6K_OPTION_BMI_DISABLE.
  */
 #if 0
-static A_STATUS
-_delay_until_target_alive(HIF_DEVICE *hifDevice, A_INT32 wait_msecs, A_UINT32 TargetType)
+static int
+_delay_until_target_alive(struct hif_device *hifDevice, s32 wait_msecs, u32 TargetType)
 {
-    A_INT32 actual_wait;
-    A_INT32 i;
-    A_UINT32 address;
+    s32 actual_wait;
+    s32 i;
+    u32 address;
 
     actual_wait = 0;
 
@@ -376,19 +373,19 @@ _delay_until_target_alive(HIF_DEVICE *hifDevice, A_INT32 wait_msecs, A_UINT32 Ta
     }
     address += 0x10;
     for (i=0; actual_wait < wait_msecs; i++) {
-        A_UINT32 data;
+        u32 data;
 
         A_MDELAY(100);
         actual_wait += 100;
 
         data = 0;
-        if (ar6000_ReadRegDiag(hifDevice, &address, &data) != A_OK) {
+        if (ar6000_ReadRegDiag(hifDevice, &address, &data) != 0) {
             return A_ERROR;
         }
 
         if (data != 0) {
             /* No need to wait longer -- we have a BMI credit */
-            return A_OK;
+            return 0;
         }
     }
     return A_ERROR; /* timed out */
@@ -399,11 +396,11 @@ _delay_until_target_alive(HIF_DEVICE *hifDevice, A_INT32 wait_msecs, A_UINT32 Ta
 #define AR6002_RESET_CONTROL_ADDRESS 0x00004000
 #define AR6003_RESET_CONTROL_ADDRESS 0x00004000
 /* reset device */
-A_STATUS ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitForCompletion, A_BOOL coldReset)
+int ar6000_reset_device(struct hif_device *hifDevice, u32 TargetType, bool waitForCompletion, bool coldReset)
 {
-    A_STATUS status = A_OK;
-    A_UINT32 address;
-    A_UINT32 data;
+    int status = 0;
+    u32 address;
+    u32 data;
 
     do {
 // Workaround BEGIN
@@ -428,7 +425,7 @@ A_STATUS ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL 
 
         status = ar6000_WriteRegDiag(hifDevice, &address, &data);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -458,7 +455,7 @@ A_STATUS ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL 
         data = 0;
         status = ar6000_ReadRegDiag(hifDevice, &address, &data);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -470,27 +467,27 @@ A_STATUS ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL 
 #endif
 // Workaroud END
 
-    } while (FALSE);
+    } while (false);
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Failed to reset target \n"));
     }
 
-    return A_OK;
+    return 0;
 }
 
 /* This should be called in BMI phase after firmware is downloaded */
 void
-ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
+ar6000_copy_cust_data_from_target(struct hif_device *hifDevice, u32 TargetType)
 {
-    A_UINT32 eepHeaderAddr;
-    A_UINT8 AR6003CustDataShadow[AR6003_CUST_DATA_SIZE+4];
-    A_INT32 i;
+    u32 eepHeaderAddr;
+    u8 AR6003CustDataShadow[AR6003_CUST_DATA_SIZE+4];
+    s32 i;
 
     if (BMIReadMemory(hifDevice,
             HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_board_data),
-            (A_UCHAR *)&eepHeaderAddr,
-            4)!= A_OK)
+            (u8 *)&eepHeaderAddr,
+            4)!= 0)
     {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadMemory for reading board data address failed \n"));
         return;
@@ -500,7 +497,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
         eepHeaderAddr += 36;  /* AR6003 customer data section offset is 37 */
 
         for (i=0; i<AR6003_CUST_DATA_SIZE+4; i+=4){
-            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (A_UINT32 *)&AR6003CustDataShadow[i])!= A_OK) {
+            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (u32 *)&AR6003CustDataShadow[i])!= 0) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadSOCRegister () failed \n"));
                 return ;
             }  
@@ -514,7 +511,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
         eepHeaderAddr += 64;  /* AR6002 customer data sectioin offset is 64 */
 
         for (i=0; i<AR6002_CUST_DATA_SIZE; i+=4){
-            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (A_UINT32 *)&custDataAR6002[i])!= A_OK) {
+            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (u32 *)&custDataAR6002[i])!= 0) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadSOCRegister () failed \n"));
                 return ;
             }  
@@ -526,8 +523,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
 }
 
 /* This is the function to call when need to use the cust data */
-A_UINT8 *
-ar6000_get_cust_data_buffer(A_UINT32 TargetType)
+u8 *ar6000_get_cust_data_buffer(u32 TargetType)
 {
     if (TargetType == TARGET_TYPE_AR6003)
         return custDataAR6003;
@@ -553,14 +549,14 @@ ar6000_get_cust_data_buffer(A_UINT32 TargetType)
 #endif
 
 
-void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
+void ar6000_dump_target_assert_info(struct hif_device *hifDevice, u32 TargetType)
 {
-    A_UINT32 address;
-    A_UINT32 regDumpArea = 0;
-    A_STATUS status;
-    A_UINT32 regDumpValues[REGISTER_DUMP_LEN_MAX];
-    A_UINT32 regDumpCount = 0;
-    A_UINT32 i;
+    u32 address;
+    u32 regDumpArea = 0;
+    int status;
+    u32 regDumpValues[REGISTER_DUMP_LEN_MAX];
+    u32 regDumpCount = 0;
+    u32 i;
 
     do {
 
@@ -579,7 +575,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
             /* read RAM location through diagnostic window */
         status = ar6000_ReadRegDiag(hifDevice, &address, &regDumpArea);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR6K: Failed to get ptr to register dump area \n"));
             break;
         }
@@ -596,10 +592,10 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
             /* fetch register dump data */
         status = ar6000_ReadDataDiag(hifDevice,
                                      regDumpArea,
-                                     (A_UCHAR *)&regDumpValues[0],
-                                     regDumpCount * (sizeof(A_UINT32)));
+                                     (u8 *)&regDumpValues[0],
+                                     regDumpCount * (sizeof(u32)));
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR6K: Failed to get register dump \n"));
             break;
         }
@@ -619,26 +615,26 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
 #endif
         }
 
-    } while (FALSE);
+    } while (false);
 
 }
 
 /* set HTC/Mbox operational parameters, this can only be called when the target is in the
  * BMI phase */
-A_STATUS ar6000_set_htc_params(HIF_DEVICE *hifDevice,
-                               A_UINT32    TargetType,
-                               A_UINT32    MboxIsrYieldValue,
-                               A_UINT8     HtcControlBuffers)
+int ar6000_set_htc_params(struct hif_device *hifDevice,
+                               u32 TargetType,
+                               u32 MboxIsrYieldValue,
+                               u8 HtcControlBuffers)
 {
-    A_STATUS status;
-    A_UINT32 blocksizes[HTC_MAILBOX_NUM_MAX];
+    int status;
+    u32 blocksizes[HTC_MAILBOX_NUM_MAX];
 
     do {
             /* get the block sizes */
         status = HIFConfigureDevice(hifDevice, HIF_DEVICE_GET_MBOX_BLOCK_SIZE,
                                     blocksizes, sizeof(blocksizes));
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_LOG_ERR,("Failed to get block size info from HIF layer...\n"));
             break;
         }
@@ -649,16 +645,16 @@ A_STATUS ar6000_set_htc_params(HIF_DEVICE *hifDevice,
 
         if (HtcControlBuffers != 0) {
                 /* set override for number of control buffers to use */
-            blocksizes[1] |=  ((A_UINT32)HtcControlBuffers) << 16;
+            blocksizes[1] |=  ((u32)HtcControlBuffers) << 16;
         }
 
             /* set the host interest area for the block size */
         status = BMIWriteMemory(hifDevice,
                                 HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_mbox_io_block_sz),
-                                (A_UCHAR *)&blocksizes[1],
+                                (u8 *)&blocksizes[1],
                                 4);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_LOG_ERR,("BMIWriteMemory for IO block size failed \n"));
             break;
         }
@@ -670,139 +666,26 @@ A_STATUS ar6000_set_htc_params(HIF_DEVICE *hifDevice,
                 /* set the host interest area for the mbox ISR yield limit */
             status = BMIWriteMemory(hifDevice,
                                     HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_mbox_isr_yield_limit),
-                                    (A_UCHAR *)&MboxIsrYieldValue,
+                                    (u8 *)&MboxIsrYieldValue,
                                     4);
 
-            if (A_FAILED(status)) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_LOG_ERR,("BMIWriteMemory for yield limit failed \n"));
                 break;
             }
         }
 
-    } while (FALSE);
+    } while (false);
 
     return status;
 }
 
-
-static A_STATUS prepare_ar6002(HIF_DEVICE *hifDevice, A_UINT32 TargetVersion)
+void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription)
 {
-    A_STATUS status = A_OK;
-
-    /* placeholder */
-
-    return status;
-}
-
-static A_STATUS prepare_ar6003(HIF_DEVICE *hifDevice, A_UINT32 TargetVersion)
-{
-    A_STATUS status = A_OK;
-
-    /* placeholder */
-
-    return status;
-}
-
-/* this function assumes the caller has already initialized the BMI APIs */
-A_STATUS ar6000_prepare_target(HIF_DEVICE *hifDevice,
-                               A_UINT32    TargetType,
-                               A_UINT32    TargetVersion)
-{
-    if (TargetType == TARGET_TYPE_AR6002) {
-            /* do any preparations for AR6002 devices */
-        return prepare_ar6002(hifDevice,TargetVersion);
-    } else if (TargetType == TARGET_TYPE_AR6003) {
-        return prepare_ar6003(hifDevice,TargetVersion);
-    }
-
-    return A_OK;
-}
-
-#if defined(CONFIG_AR6002_REV1_FORCE_HOST)
-/*
- * Call this function just before the call to BMIInit
- * in order to force* AR6002 rev 1.x firmware to detect a Host.
- * THIS IS FOR USE ONLY WITH AR6002 REV 1.x.
- * TBDXXX: Remove this function when REV 1.x is desupported.
- */
-A_STATUS
-ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
-{
-    A_INT32 i;
-    struct forceROM_s {
-        A_UINT32 addr;
-        A_UINT32 data;
-    };
-    struct forceROM_s *ForceROM;
-    A_INT32 szForceROM;
-    A_STATUS status = A_OK;
-    A_UINT32 address;
-    A_UINT32 data;
-
-    /* Force AR6002 REV1.x to recognize Host presence.
-     *
-     * Note: Use RAM at 0x52df80..0x52dfa0 with ROM Remap entry 0
-     * so that this workaround functions with AR6002.war1.sh.  We
-     * could fold that entire workaround into this one, but it's not
-     * worth the effort at this point.  This workaround cannot be
-     * merged into the other workaround because this must be done
-     * before BMI.
-     */
-
-    static struct forceROM_s ForceROM_NEW[] = {
-        {0x52df80, 0x20f31c07},
-        {0x52df84, 0x92374420},
-        {0x52df88, 0x1d120c03},
-        {0x52df8c, 0xff8216f0},
-        {0x52df90, 0xf01d120c},
-        {0x52df94, 0x81004136},
-        {0x52df98, 0xbc9100bd},
-        {0x52df9c, 0x00bba100},
-
-        {0x00008000|MC_TCAM_TARGET_ADDRESS, 0x0012dfe0}, /* Use remap entry 0 */
-        {0x00008000|MC_TCAM_COMPARE_ADDRESS, 0x000e2380},
-        {0x00008000|MC_TCAM_MASK_ADDRESS, 0x00000000},
-        {0x00008000|MC_TCAM_VALID_ADDRESS, 0x00000001},
-
-        {0x00018000|(LOCAL_COUNT_ADDRESS+0x10), 0}, /* clear BMI credit counter */
-
-        {0x00004000|AR6002_RESET_CONTROL_ADDRESS, RESET_CONTROL_WARM_RST_MASK},
-    };
-
-    address = 0x004ed4b0; /* REV1 target software ID is stored here */
-    status = ar6000_ReadRegDiag(hifDevice, &address, &data);
-    if (A_FAILED(status) || (data != AR6002_VERSION_REV1)) {
-        return A_ERROR; /* Not AR6002 REV1 */
-    }
-
-    ForceROM = ForceROM_NEW;
-    szForceROM = sizeof(ForceROM_NEW)/sizeof(*ForceROM);
-
-    ATH_DEBUG_PRINTF (DBG_MISC_DRV, ATH_DEBUG_TRC, ("Force Target to recognize Host....\n"));
-    for (i = 0; i < szForceROM; i++)
-    {
-        if (ar6000_WriteRegDiag(hifDevice,
-                                &ForceROM[i].addr,
-                                &ForceROM[i].data) != A_OK)
-        {
-            ATH_DEBUG_PRINTF (DBG_MISC_DRV, ATH_DEBUG_TRC, ("Cannot force Target to recognize Host!\n"));
-            return A_ERROR;
-        }
-    }
-
-    A_MDELAY(1000);
-
-    return A_OK;
-}
-
-#endif /* CONFIG_AR6002_REV1_FORCE_HOST */
-
-void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription)
-{
-    A_CHAR stream[60];
-    A_CHAR byteOffsetStr[10];
-    A_UINT32 i;
-    A_UINT16 offset, count, byteOffset;
+    char stream[60];
+    char byteOffsetStr[10];
+    u32 i;
+    u16 offset, count, byteOffset;
 
     A_PRINTF("<---------Dumping %d Bytes : %s ------>\n", length, pDescription);
 
@@ -835,7 +718,7 @@ void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription)
 void a_dump_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo)
 {
     int                         i;
-    ATH_DEBUG_MASK_DESCRIPTION *pDesc;
+    struct ath_debug_mask_description *pDesc;
 
     if (pInfo == NULL) {
         return;
@@ -868,7 +751,7 @@ void a_dump_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo)
 }
 
 
-static ATH_DEBUG_MODULE_DBG_INFO *FindModule(A_CHAR *module_name)
+static ATH_DEBUG_MODULE_DBG_INFO *FindModule(char *module_name)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = g_pModuleInfoHead;
 
@@ -878,7 +761,7 @@ static ATH_DEBUG_MODULE_DBG_INFO *FindModule(A_CHAR *module_name)
 
     while (pInfo != NULL) {
             /* TODO: need to use something other than strlen */
-        if (A_MEMCMP(pInfo->ModuleName,module_name,strlen(module_name)) == 0) {
+        if (memcmp(pInfo->ModuleName,module_name,strlen(module_name)) == 0) {
             break;
         }
         pInfo = pInfo->pNext;
@@ -909,7 +792,7 @@ void a_register_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo)
     A_MUTEX_UNLOCK(&g_ModuleListLock);
 }
 
-void a_dump_module_debug_info_by_name(A_CHAR *module_name)
+void a_dump_module_debug_info_by_name(char *module_name)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = g_pModuleInfoHead;
 
@@ -917,7 +800,7 @@ void a_dump_module_debug_info_by_name(A_CHAR *module_name)
         return;
     }
 
-    if (A_MEMCMP(module_name,"all",3) == 0) {
+    if (memcmp(module_name,"all",3) == 0) {
             /* dump all */
         while (pInfo != NULL) {
             a_dump_module_debug_info(pInfo);
@@ -934,7 +817,7 @@ void a_dump_module_debug_info_by_name(A_CHAR *module_name)
 
 }
 
-A_STATUS a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask)
+int a_get_module_mask(char *module_name, u32 *pMask)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = FindModule(module_name);
 
@@ -943,10 +826,10 @@ A_STATUS a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask)
     }
 
     *pMask = pInfo->CurrentMask;
-    return A_OK;
+    return 0;
 }
 
-A_STATUS a_set_module_mask(A_CHAR *module_name, A_UINT32 Mask)
+int a_set_module_mask(char *module_name, u32 Mask)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = FindModule(module_name);
 
@@ -956,7 +839,7 @@ A_STATUS a_set_module_mask(A_CHAR *module_name, A_UINT32 Mask)
 
     pInfo->CurrentMask = Mask;
     A_PRINTF("Module %s,  new mask: 0x%8.8X \n",module_name,pInfo->CurrentMask);
-    return A_OK;
+    return 0;
 }
 
 
@@ -967,7 +850,7 @@ void a_module_debug_support_init(void)
     }
     A_MUTEX_INIT(&g_ModuleListLock);
     g_pModuleInfoHead = NULL;
-    g_ModuleDebugInit = TRUE;
+    g_ModuleDebugInit = true;
     A_REGISTER_MODULE_DEBUG_INFO(misc);
 }
 
@@ -980,7 +863,7 @@ void a_module_debug_support_cleanup(void)
         return;
     }
 
-    g_ModuleDebugInit = FALSE;
+    g_ModuleDebugInit = false;
 
     A_MUTEX_LOCK(&g_ModuleListLock);
 
@@ -999,11 +882,11 @@ void a_module_debug_support_cleanup(void)
 }
 
     /* can only be called during bmi init stage */
-A_STATUS ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
-                                     A_UINT32    TargetType,
-                                     A_UINT32    Flags)
+int ar6000_set_hci_bridge_flags(struct hif_device *hifDevice,
+                                     u32 TargetType,
+                                     u32 Flags)
 {
-    A_STATUS status = A_OK;
+    int status = 0;
 
     do {
 
@@ -1016,11 +899,11 @@ A_STATUS ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
             /* set hci bridge flags */
         status = BMIWriteMemory(hifDevice,
                                 HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_hci_bridge_flags),
-                                (A_UCHAR *)&Flags,
+                                (u8 *)&Flags,
                                 4);
 
 
-    } while (FALSE);
+    } while (false);
 
     return status;
 }

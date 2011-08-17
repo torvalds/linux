@@ -46,6 +46,11 @@ modules.builtin
 /Module.symvers
 
 #
+# Debian directory (make deb-pkg)
+#
+/debian/
+
+#
 # git files that we don't want to ignore even it they are dot-files
 #
 !.gitignore
@@ -57,6 +62,7 @@ modules.builtin
 include/config
 include/linux/version.h
 include/generated
+arch/*/include/generated
 
 # stgit generated dirs
 patches-*

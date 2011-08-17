@@ -263,7 +263,7 @@ static int free_dind_blocks(handle_t *handle,
 	for (i = 0; i < max_entries; i++) {
 		if (tmp_idata[i]) {
 			extend_credit_for_blkdel(handle, inode);
-			ext4_free_blocks(handle, inode, 0,
+			ext4_free_blocks(handle, inode, NULL,
 					 le32_to_cpu(tmp_idata[i]), 1,
 					 EXT4_FREE_BLOCKS_METADATA |
 					 EXT4_FREE_BLOCKS_FORGET);
@@ -271,7 +271,7 @@ static int free_dind_blocks(handle_t *handle,
 	}
 	put_bh(bh);
 	extend_credit_for_blkdel(handle, inode);
-	ext4_free_blocks(handle, inode, 0, le32_to_cpu(i_data), 1,
+	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(i_data), 1,
 			 EXT4_FREE_BLOCKS_METADATA |
 			 EXT4_FREE_BLOCKS_FORGET);
 	return 0;
@@ -302,7 +302,7 @@ static int free_tind_blocks(handle_t *handle,
 	}
 	put_bh(bh);
 	extend_credit_for_blkdel(handle, inode);
-	ext4_free_blocks(handle, inode, 0, le32_to_cpu(i_data), 1,
+	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(i_data), 1,
 			 EXT4_FREE_BLOCKS_METADATA |
 			 EXT4_FREE_BLOCKS_FORGET);
 	return 0;
@@ -315,7 +315,7 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 	/* ei->i_data[EXT4_IND_BLOCK] */
 	if (i_data[0]) {
 		extend_credit_for_blkdel(handle, inode);
-		ext4_free_blocks(handle, inode, 0,
+		ext4_free_blocks(handle, inode, NULL,
 				le32_to_cpu(i_data[0]), 1,
 				 EXT4_FREE_BLOCKS_METADATA |
 				 EXT4_FREE_BLOCKS_FORGET);
@@ -376,7 +376,7 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
 	 */
-	ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS);
+	ext4_set_inode_flag(inode, EXT4_INODE_EXTENTS);
 	memcpy(ei->i_data, tmp_ei->i_data, sizeof(ei->i_data));
 
 	/*
@@ -428,7 +428,7 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 	}
 	put_bh(bh);
 	extend_credit_for_blkdel(handle, inode);
-	ext4_free_blocks(handle, inode, 0, block, 1,
+	ext4_free_blocks(handle, inode, NULL, block, 1,
 			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET);
 	return retval;
 }
@@ -517,7 +517,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * start with one credit accounted for
 	 * superblock modification.
 	 *
-	 * For the tmp_inode we already have commited the
+	 * For the tmp_inode we already have committed the
 	 * trascation that created the inode. Later as and
 	 * when we add extents we extent the journal
 	 */

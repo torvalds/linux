@@ -123,7 +123,7 @@ static long apc_ioctl(struct file *f, unsigned int cmd, unsigned long __arg)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -137,8 +137,7 @@ static const struct file_operations apc_fops = {
 
 static struct miscdevice apc_miscdev = { APC_MINOR, APC_DEVNAME, &apc_fops };
 
-static int __devinit apc_probe(struct platform_device *op,
-			       const struct of_device_id *match)
+static int __devinit apc_probe(struct platform_device *op)
 {
 	int err;
 
@@ -166,7 +165,7 @@ static int __devinit apc_probe(struct platform_device *op,
 	return 0;
 }
 
-static struct of_device_id __initdata apc_match[] = {
+static struct of_device_id apc_match[] = {
 	{
 		.name = APC_OBPNAME,
 	},
@@ -174,7 +173,7 @@ static struct of_device_id __initdata apc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, apc_match);
 
-static struct of_platform_driver apc_driver = {
+static struct platform_driver apc_driver = {
 	.driver = {
 		.name = "apc",
 		.owner = THIS_MODULE,
@@ -185,7 +184,7 @@ static struct of_platform_driver apc_driver = {
 
 static int __init apc_init(void)
 {
-	return of_register_platform_driver(&apc_driver);
+	return platform_driver_register(&apc_driver);
 }
 
 /* This driver is not critical to the boot process

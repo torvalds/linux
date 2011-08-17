@@ -41,7 +41,7 @@ static int ui_entry__read(const char *title, char *bf, size_t size, int width)
 out_free_form:
 	newtPopWindow();
 	newtFormDestroy(form);
-	return 0;
+	return err;
 }
 
 struct map_browser {

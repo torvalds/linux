@@ -58,21 +58,25 @@ static struct platform_device leds_gpio = {
 	},
 };
 
+/*
+ * cpuidle C-states definition override from the default values.
+ * The 'exit_latency' field is the sum of sleep and wake-up latencies.
+ */
 static struct cpuidle_params rx51_cpuidle_params[] = {
 	/* C1 */
-	{1, 110, 162, 5},
+	{110 + 162, 5 , 1},
 	/* C2 */
-	{1, 106, 180, 309},
+	{106 + 180, 309, 1},
 	/* C3 */
-	{0, 107, 410, 46057},
+	{107 + 410, 46057, 0},
 	/* C4 */
-	{0, 121, 3374, 46057},
+	{121 + 3374, 46057, 0},
 	/* C5 */
-	{1, 855, 1146, 46057},
+	{855 + 1146, 46057, 1},
 	/* C6 */
-	{0, 7580, 4134, 484329},
+	{7580 + 4134, 484329, 0},
 	/* C7 */
-	{1, 7505, 15274, 484329},
+	{7505 + 15274, 484329, 1},
 };
 
 static struct omap_lcd_config rx51_lcd_config = {
@@ -98,17 +102,13 @@ static struct omap_board_config_kernel rx51_config[] = {
 	{ OMAP_TAG_LCD,		&rx51_lcd_config },
 };
 
-static void __init rx51_init_irq(void)
+static void __init rx51_init_early(void)
 {
 	struct omap_sdrc_params *sdrc_params;
 
-	omap_board_config = rx51_config;
-	omap_board_config_size = ARRAY_SIZE(rx51_config);
-	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	omap2_init_common_infrastructure();
 	sdrc_params = nokia_get_sdram_timings();
 	omap2_init_common_devices(sdrc_params, sdrc_params);
-	omap_init_irq();
 }
 
 extern void __init rx51_peripherals_init(void);
@@ -128,6 +128,9 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init rx51_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = rx51_config;
+	omap_board_config_size = ARRAY_SIZE(rx51_config);
+	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	rx51_peripherals_init();
@@ -142,16 +145,22 @@ static void __init rx51_init(void)
 static void __init rx51_map_io(void)
 {
 	omap2_set_globals_3xxx();
-	rx51_video_mem_init();
 	omap34xx_map_common_io();
+}
+
+static void __init rx51_reserve(void)
+{
+	rx51_video_mem_init();
+	omap_reserve();
 }
 
 MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	/* Maintainer: Lauri Leukkunen <lauri.leukkunen@nokia.com> */
 	.boot_params	= 0x80000100,
+	.reserve	= rx51_reserve,
 	.map_io		= rx51_map_io,
-	.reserve	= omap_reserve,
-	.init_irq	= rx51_init_irq,
+	.init_early	= rx51_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= rx51_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

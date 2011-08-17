@@ -72,9 +72,21 @@ struct role_datum {
 
 struct role_trans {
 	u32 role;		/* current role */
-	u32 type;		/* program executable type */
+	u32 type;		/* program executable type, or new object type */
+	u32 tclass;		/* process class, or new object class */
 	u32 new_role;		/* new role */
 	struct role_trans *next;
+};
+
+struct filename_trans {
+	u32 stype;		/* current process */
+	u32 ttype;		/* parent dir context */
+	u16 tclass;		/* class of new object */
+	const char *name;	/* last path component */
+};
+
+struct filename_trans_datum {
+	u32 otype;		/* expected of new object */
 };
 
 struct role_allow {
@@ -217,6 +229,12 @@ struct policydb {
 	/* role transitions */
 	struct role_trans *role_tr;
 
+	/* file transitions with the last path component */
+	/* quickly exclude lookups when parent ttype has no rules */
+	struct ebitmap filename_trans_ttypes;
+	/* actual set of filename_trans rules */
+	struct hashtab *filename_trans;
+
 	/* bools indexed by (value - 1) */
 	struct cond_bool_datum **bool_val_to_struct;
 	/* type enforcement conditional access vectors and transitions */
@@ -302,7 +320,7 @@ static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 	return 0;
 }
 
-static inline int put_entry(void *buf, size_t bytes, int num, struct policy_file *fp)
+static inline int put_entry(const void *buf, size_t bytes, int num, struct policy_file *fp)
 {
 	size_t len = bytes * num;
 

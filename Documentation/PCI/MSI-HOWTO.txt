@@ -253,8 +253,8 @@ In constrast, MSI is restricted to a maximum of 32 interrupts (and
 must be a power of two).  In addition, the MSI interrupt vectors must
 be allocated consecutively, so the system may not be able to allocate
 as many vectors for MSI as it could for MSI-X.  On some platforms, MSI
-interrupts must all be targetted at the same set of CPUs whereas MSI-X
-interrupts can all be targetted at different CPUs.
+interrupts must all be targeted at the same set of CPUs whereas MSI-X
+interrupts can all be targeted at different CPUs.
 
 4.5.2 Spinlocks
 

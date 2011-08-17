@@ -21,6 +21,10 @@ depfile = $(subst $(comma),_,$(dot-target).d)
 basetarget = $(basename $(notdir $@))
 
 ###
+# filename of first prerequisite with directory and extension stripped
+baseprereq = $(basename $(notdir $<))
+
+###
 # Escape single quote for use in echo statements
 escsq = $(subst $(squote),'\$(squote)',$1)
 
@@ -118,6 +122,11 @@ cc-option-yn = $(call try-run,\
 cc-option-align = $(subst -functions=0,,\
 	$(call cc-option,-falign-functions=0,-malign-functions=0))
 
+# cc-disable-warning
+# Usage: cflags-y += $(call cc-disable-warning,unused-but-set-variable)
+cc-disable-warning = $(call try-run,\
+	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -W$(strip $(1)) -c -xc /dev/null -o "$$TMP",-Wno-$(strip $(1)))
+
 # cc-version
 # Usage gcc-ver := $(call cc-version)
 cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
@@ -140,6 +149,11 @@ cc-ldoption = $(call try-run,\
 # Usage: LDFLAGS += $(call ld-option, -X)
 ld-option = $(call try-run,\
 	$(CC) /dev/null -c -o "$$TMPO" ; $(LD) $(1) "$$TMPO" -o "$$TMP",$(1),$(2))
+
+# ar-option
+# Usage: KBUILD_ARFLAGS := $(call ar-option,D)
+# Important: no spaces around options
+ar-option = $(call try-run, $(AR) rc$(1) "$$TMP",$(1),$(2))
 
 ######
 
@@ -187,6 +201,8 @@ ifneq ($(KBUILD_NOCMDDEP),1)
 # User may override this check using make KBUILD_NOCMDDEP=1
 arg-check = $(strip $(filter-out $(cmd_$(1)), $(cmd_$@)) \
                     $(filter-out $(cmd_$@),   $(cmd_$(1))) )
+else
+arg-check = $(if $(strip $(cmd_$@)),,1)
 endif
 
 # >'< substitution is for echo to work,

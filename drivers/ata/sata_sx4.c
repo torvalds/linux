@@ -273,9 +273,8 @@ static struct ata_port_operations pdc_20621_ops = {
 static const struct ata_port_info pdc_port_info[] = {
 	/* board_20621 */
 	{
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_ATAPI |
+				  ATA_FLAG_PIO_POLLING,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
@@ -1441,15 +1440,13 @@ static void pdc_20621_init(struct ata_host *host)
 static int pdc_sata_init_one(struct pci_dev *pdev,
 			     const struct pci_device_id *ent)
 {
-	static int printed_version;
 	const struct ata_port_info *ppi[] =
 		{ &pdc_port_info[ent->driver_data], NULL };
 	struct ata_host *host;
 	struct pdc_host_priv *hpriv;
 	int i, rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* allocate host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 4);

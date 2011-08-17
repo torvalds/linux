@@ -30,6 +30,7 @@
 
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
+#include "pci-quirks.h"
 
 /* xHCI PCI Configuration Registers */
 #define XHCI_SBRN_OFFSET	(0x60)
@@ -56,13 +57,13 @@
  * @run_regs_off:	RTSOFF - Runtime register space offset
  */
 struct xhci_cap_regs {
-	u32	hc_capbase;
-	u32	hcs_params1;
-	u32	hcs_params2;
-	u32	hcs_params3;
-	u32	hcc_params;
-	u32	db_off;
-	u32	run_regs_off;
+	__le32	hc_capbase;
+	__le32	hcs_params1;
+	__le32	hcs_params2;
+	__le32	hcs_params3;
+	__le32	hcc_params;
+	__le32	db_off;
+	__le32	run_regs_off;
 	/* Reserved up to (CAPLENGTH - 0x1C) */
 };
 
@@ -154,26 +155,26 @@ struct xhci_cap_regs {
  * 			devices.
  */
 struct xhci_op_regs {
-	u32	command;
-	u32	status;
-	u32	page_size;
-	u32	reserved1;
-	u32	reserved2;
-	u32	dev_notification;
-	u64	cmd_ring;
+	__le32	command;
+	__le32	status;
+	__le32	page_size;
+	__le32	reserved1;
+	__le32	reserved2;
+	__le32	dev_notification;
+	__le64	cmd_ring;
 	/* rsvd: offset 0x20-2F */
-	u32	reserved3[4];
-	u64	dcbaa_ptr;
-	u32	config_reg;
+	__le32	reserved3[4];
+	__le64	dcbaa_ptr;
+	__le32	config_reg;
 	/* rsvd: offset 0x3C-3FF */
-	u32	reserved4[241];
+	__le32	reserved4[241];
 	/* port 1 registers, which serve as a base address for other ports */
-	u32	port_status_base;
-	u32	port_power_base;
-	u32	port_link_base;
-	u32	reserved5;
+	__le32	port_status_base;
+	__le32	port_power_base;
+	__le32	port_link_base;
+	__le32	reserved5;
 	/* registers for ports 2-255 */
-	u32	reserved6[NUM_PORT_REGS*254];
+	__le32	reserved6[NUM_PORT_REGS*254];
 };
 
 /* USBCMD - USB command - command bitmasks */
@@ -232,7 +233,7 @@ struct xhci_op_regs {
  * notification type that matches a bit set in this bit field.
  */
 #define	DEV_NOTE_MASK		(0xffff)
-#define ENABLE_DEV_NOTE(x)	(1 << x)
+#define ENABLE_DEV_NOTE(x)	(1 << (x))
 /* Most of the device notification types should only be used for debug.
  * SW does need to pay attention to function wake notifications.
  */
@@ -348,6 +349,9 @@ struct xhci_op_regs {
 /* Initiate a warm port reset - complete when PORT_WRC is '1' */
 #define PORT_WR		(1 << 31)
 
+/* We mark duplicate entries with -1 */
+#define DUPLICATE_ENTRY ((u8)(-1))
+
 /* Port Power Management Status and Control - port_power_base bitmasks */
 /* Inactivity timer value for transitions into U1, in microseconds.
  * Timeout can be up to 127us.  0xFF means an infinite timeout.
@@ -378,12 +382,12 @@ struct xhci_op_regs {
  * updates the dequeue pointer.
  */
 struct xhci_intr_reg {
-	u32	irq_pending;
-	u32	irq_control;
-	u32	erst_size;
-	u32	rsvd;
-	u64	erst_base;
-	u64	erst_dequeue;
+	__le32	irq_pending;
+	__le32	irq_control;
+	__le32	erst_size;
+	__le32	rsvd;
+	__le64	erst_base;
+	__le64	erst_dequeue;
 };
 
 /* irq_pending bitmasks */
@@ -428,8 +432,8 @@ struct xhci_intr_reg {
  * or larger accesses"
  */
 struct xhci_run_regs {
-	u32			microframe_index;
-	u32			rsvd[7];
+	__le32			microframe_index;
+	__le32			rsvd[7];
 	struct xhci_intr_reg	ir_set[128];
 };
 
@@ -443,7 +447,7 @@ struct xhci_run_regs {
  * Section 5.6
  */
 struct xhci_doorbell_array {
-	u32	doorbell[256];
+	__le32	doorbell[256];
 };
 
 #define DB_VALUE(ep, stream)	((((ep) + 1) & 0xff) | ((stream) << 16))
@@ -500,12 +504,12 @@ struct xhci_container_ctx {
  * reserved at the end of the slot context for HC internal use.
  */
 struct xhci_slot_ctx {
-	u32	dev_info;
-	u32	dev_info2;
-	u32	tt_info;
-	u32	dev_state;
+	__le32	dev_info;
+	__le32	dev_info2;
+	__le32	tt_info;
+	__le32	dev_state;
 	/* offset 0x10 to 0x1f reserved for HC internal use */
-	u32	reserved[4];
+	__le32	reserved[4];
 };
 
 /* dev_info bitmasks */
@@ -556,6 +560,11 @@ struct xhci_slot_ctx {
 #define SLOT_STATE	(0x1f << 27)
 #define GET_SLOT_STATE(p)	(((p) & (0x1f << 27)) >> 27)
 
+#define SLOT_STATE_DISABLED	0
+#define SLOT_STATE_ENABLED	SLOT_STATE_DISABLED
+#define SLOT_STATE_DEFAULT	1
+#define SLOT_STATE_ADDRESSED	2
+#define SLOT_STATE_CONFIGURED	3
 
 /**
  * struct xhci_ep_ctx
@@ -576,12 +585,12 @@ struct xhci_slot_ctx {
  * reserved at the end of the endpoint context for HC internal use.
  */
 struct xhci_ep_ctx {
-	u32	ep_info;
-	u32	ep_info2;
-	u64	deq;
-	u32	tx_info;
+	__le32	ep_info;
+	__le32	ep_info2;
+	__le64	deq;
+	__le32	tx_info;
 	/* offset 0x14 - 0x1f reserved for HC internal use */
-	u32	reserved[3];
+	__le32	reserved[3];
 };
 
 /* ep_info bitmasks */
@@ -601,11 +610,11 @@ struct xhci_ep_ctx {
 #define EP_STATE_STOPPED	3
 #define EP_STATE_ERROR		4
 /* Mult - Max number of burtst within an interval, in EP companion desc. */
-#define EP_MULT(p)		((p & 0x3) << 8)
+#define EP_MULT(p)		(((p) & 0x3) << 8)
 /* bits 10:14 are Max Primary Streams */
 /* bit 15 is Linear Stream Array */
 /* Interval - period between requests to an endpoint - 125u increments. */
-#define EP_INTERVAL(p)		((p & 0xff) << 16)
+#define EP_INTERVAL(p)		(((p) & 0xff) << 16)
 #define EP_INTERVAL_TO_UFRAMES(p)		(1 << (((p) >> 16) & 0xff))
 #define EP_MAXPSTREAMS_MASK	(0x1f << 10)
 #define EP_MAXPSTREAMS(p)	(((p) << 10) & EP_MAXPSTREAMS_MASK)
@@ -644,6 +653,9 @@ struct xhci_ep_ctx {
 #define AVG_TRB_LENGTH_FOR_EP(p)	((p) & 0xffff)
 #define MAX_ESIT_PAYLOAD_FOR_EP(p)	(((p) & 0xffff) << 16)
 
+/* deq bitmasks */
+#define EP_CTX_CYCLE_MASK		(1 << 0)
+
 
 /**
  * struct xhci_input_control_context
@@ -653,9 +665,9 @@ struct xhci_ep_ctx {
  * @add_context:	set the bit of the endpoint context you want to enable
  */
 struct xhci_input_control_ctx {
-	u32	drop_flags;
-	u32	add_flags;
-	u32	rsvd2[6];
+	__le32	drop_flags;
+	__le32	add_flags;
+	__le32	rsvd2[6];
 };
 
 /* Represents everything that is needed to issue a command on the command ring.
@@ -681,9 +693,9 @@ struct xhci_command {
 
 struct xhci_stream_ctx {
 	/* 64-bit stream ring address, cycle state, and stream type */
-	u64	stream_ring;
+	__le64	stream_ring;
 	/* offset 0x14 - 0x1f reserved for HC internal use */
-	u32	reserved[2];
+	__le32	reserved[2];
 };
 
 /* Stream Context Types (section 6.4.1) - bits 3:1 of stream ctx deq ptr */
@@ -746,6 +758,12 @@ struct xhci_virt_ep {
 	struct timer_list	stop_cmd_timer;
 	int			stop_cmds_pending;
 	struct xhci_hcd		*xhci;
+	/* Dequeue pointer and dequeue segment for a submitted Set TR Dequeue
+	 * command.  We'll need to update the ring's dequeue segment and dequeue
+	 * pointer after the command completes.
+	 */
+	struct xhci_segment	*queued_deq_seg;
+	union xhci_trb		*queued_deq_ptr;
 	/*
 	 * Sometimes the xHC can not process isochronous endpoint ring quickly
 	 * enough, and it will miss some isoc tds on the ring and generate
@@ -790,7 +808,7 @@ struct xhci_virt_device {
  */
 struct xhci_device_context_array {
 	/* 64-bit device addresses; we only write 32-bit addresses */
-	u64			dev_context_ptrs[MAX_HC_SLOTS];
+	__le64			dev_context_ptrs[MAX_HC_SLOTS];
 	/* private xHCD pointers */
 	dma_addr_t	dma;
 };
@@ -803,10 +821,10 @@ struct xhci_device_context_array {
 
 struct xhci_transfer_event {
 	/* 64-bit buffer address, or immediate data */
-	u64	buffer;
-	u32	transfer_len;
+	__le64	buffer;
+	__le32	transfer_len;
 	/* This field is interpreted differently based on the type of TRB */
-	u32	flags;
+	__le32	flags;
 };
 
 /** Transfer Event bit fields **/
@@ -856,6 +874,8 @@ struct xhci_transfer_event {
 #define COMP_PING_ERR	20
 /* Event Ring is full */
 #define COMP_ER_FULL	21
+/* Incompatible Device Error */
+#define COMP_DEV_ERR	22
 /* Missed Service Error - HC couldn't service an isoc ep within interval */
 #define COMP_MISSED_INT	23
 /* Successfully stopped command ring */
@@ -864,11 +884,13 @@ struct xhci_transfer_event {
 #define COMP_CMD_ABORT	25
 /* Stopped - transfer was terminated by a stop endpoint command */
 #define COMP_STOP	26
-/* Same as COMP_EP_STOPPED, but the transfered length in the event is invalid */
+/* Same as COMP_EP_STOPPED, but the transferred length in the event is invalid */
 #define COMP_STOP_INVAL	27
 /* Control Abort Error - Debug Capability - control pipe aborted */
 #define COMP_DBG_ABORT	28
-/* TRB type 29 and 30 reserved */
+/* Max Exit Latency Too Large Error */
+#define COMP_MEL_ERR	29
+/* TRB type 30 reserved */
 /* Isoc Buffer Overrun - an isoc IN ep sent more data than could fit in TD */
 #define COMP_BUFF_OVER	31
 /* Event Lost Error - xHC has an "internal event overrun condition" */
@@ -885,9 +907,9 @@ struct xhci_transfer_event {
 
 struct xhci_link_trb {
 	/* 64-bit segment pointer*/
-	u64 segment_ptr;
-	u32 intr_target;
-	u32 control;
+	__le64 segment_ptr;
+	__le32 intr_target;
+	__le32 control;
 };
 
 /* control bitfields */
@@ -896,9 +918,9 @@ struct xhci_link_trb {
 /* Command completion event TRB */
 struct xhci_event_cmd {
 	/* Pointer to command TRB, or the value passed by the event data trb */
-	u64 cmd_trb;
-	u32 status;
-	u32 flags;
+	__le64 cmd_trb;
+	__le32 status;
+	__le32 flags;
 };
 
 /* flags bitmasks */
@@ -930,6 +952,8 @@ struct xhci_event_cmd {
 /* Interrupter Target - which MSI-X vector to target the completion event at */
 #define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
 #define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)
+#define TRB_TBC(p)		(((p) & 0x3) << 7)
+#define TRB_TLBPC(p)		(((p) & 0xf) << 16)
 
 /* Cycle bit - indicates TRB ownership by HC or HCD */
 #define TRB_CYCLE		(1<<0)
@@ -949,15 +973,20 @@ struct xhci_event_cmd {
 /* The buffer pointer contains immediate data */
 #define TRB_IDT			(1<<6)
 
+/* Block Event Interrupt */
+#define	TRB_BEI			(1<<9)
 
 /* Control transfer TRB specific fields */
 #define TRB_DIR_IN		(1<<16)
+#define	TRB_TX_TYPE(p)		((p) << 16)
+#define	TRB_DATA_OUT		2
+#define	TRB_DATA_IN		3
 
 /* Isochronous TRB specific fields */
 #define TRB_SIA			(1<<31)
 
 struct xhci_generic_trb {
-	u32 field[4];
+	__le32 field[4];
 };
 
 union xhci_trb {
@@ -1043,6 +1072,13 @@ union xhci_trb {
 /* Get NEC firmware revision. */
 #define	TRB_NEC_GET_FW		49
 
+#define TRB_TYPE_LINK(x)	(((x) & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
+/* Above, but for __le32 types -- can avoid work by swapping constants: */
+#define TRB_TYPE_LINK_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+				 cpu_to_le32(TRB_TYPE(TRB_LINK)))
+#define TRB_TYPE_NOOP_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+				 cpu_to_le32(TRB_TYPE(TRB_TR_NOOP)))
+
 #define NEC_FW_MINOR(p)		(((p) >> 0) & 0xff)
 #define NEC_FW_MAJOR(p)		(((p) >> 8) & 0xff)
 
@@ -1101,14 +1137,15 @@ struct xhci_ring {
 	 */
 	u32			cycle_state;
 	unsigned int		stream_id;
+	bool			last_td_was_short;
 };
 
 struct xhci_erst_entry {
 	/* 64-bit event ring segment address */
-	u64	seg_addr;
-	u32	seg_size;
+	__le64	seg_addr;
+	__le32	seg_size;
 	/* Set to zero */
-	u32	rsvd;
+	__le32	rsvd;
 };
 
 struct xhci_erst {
@@ -1161,8 +1198,29 @@ struct s3_save {
 	u64	erst_dequeue;
 };
 
+struct xhci_bus_state {
+	unsigned long		bus_suspended;
+	unsigned long		next_statechange;
+
+	/* Port suspend arrays are indexed by the portnum of the fake roothub */
+	/* ports suspend status arrays - max 31 ports for USB2, 15 for USB3 */
+	u32			port_c_suspend;
+	u32			suspended_ports;
+	unsigned long		resume_done[USB_MAXCHILDREN];
+};
+
+static inline unsigned int hcd_index(struct usb_hcd *hcd)
+{
+	if (hcd->speed == HCD_USB3)
+		return 0;
+	else
+		return 1;
+}
+
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
+	struct usb_hcd *main_hcd;
+	struct usb_hcd *shared_hcd;
 	/* glue to PCI and HCD framework */
 	struct xhci_cap_regs __iomem *cap_regs;
 	struct xhci_op_regs __iomem *op_regs;
@@ -1224,9 +1282,6 @@ struct xhci_hcd {
 	/* Host controller watchdog timer structures */
 	unsigned int		xhc_state;
 
-	unsigned long		bus_suspended;
-	unsigned long		next_statechange;
-
 	u32			command;
 	struct s3_save		s3;
 /* Host controller is dying - not responding to commands. "I'm not dead yet!"
@@ -1242,40 +1297,50 @@ struct xhci_hcd {
  * There are no reports of xHCI host controllers that display this issue.
  */
 #define XHCI_STATE_DYING	(1 << 0)
+#define XHCI_STATE_HALTED	(1 << 1)
 	/* Statistics */
-	int			noops_submitted;
-	int			noops_handled;
 	int			error_bitmask;
 	unsigned int		quirks;
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
 #define XHCI_NEC_HOST		(1 << 2)
-	u32			port_c_suspend[8];	/* port suspend change*/
-	u32			suspended_ports[8];	/* which ports are
-							   suspended */
-	unsigned long		resume_done[MAX_HC_PORTS];
+#define XHCI_AMD_PLL_FIX	(1 << 3)
+#define XHCI_SPURIOUS_SUCCESS	(1 << 4)
+/*
+ * Certain Intel host controllers have a limit to the number of endpoint
+ * contexts they can handle.  Ideally, they would signal that they can't handle
+ * anymore endpoint contexts by returning a Resource Error for the Configure
+ * Endpoint command, but they don't.  Instead they expect software to keep track
+ * of the number of active endpoints for them, across configure endpoint
+ * commands, reset device commands, disable slot commands, and address device
+ * commands.
+ */
+#define XHCI_EP_LIMIT_QUIRK	(1 << 5)
+#define XHCI_BROKEN_MSI		(1 << 6)
+#define XHCI_RESET_ON_RESUME	(1 << 7)
+	unsigned int		num_active_eps;
+	unsigned int		limit_active_eps;
+	/* There are two roothubs to keep track of bus suspend info for */
+	struct xhci_bus_state   bus_state[2];
 	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
 	u8			*port_array;
 	/* Array of pointers to USB 3.0 PORTSC registers */
-	u32 __iomem		**usb3_ports;
+	__le32 __iomem		**usb3_ports;
 	unsigned int		num_usb3_ports;
 	/* Array of pointers to USB 2.0 PORTSC registers */
-	u32 __iomem		**usb2_ports;
+	__le32 __iomem		**usb2_ports;
 	unsigned int		num_usb2_ports;
 };
-
-/* For testing purposes */
-#define NUM_TEST_NOOPS	0
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct xhci_hcd *hcd_to_xhci(struct usb_hcd *hcd)
 {
-	return (struct xhci_hcd *) (hcd->hcd_priv);
+	return *((struct xhci_hcd **) (hcd->hcd_priv));
 }
 
 static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 {
-	return container_of((void *) xhci, struct usb_hcd, hcd_priv);
+	return xhci->main_hcd;
 }
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
@@ -1296,16 +1361,13 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 /* TODO: copied from ehci.h - can be refactored? */
 /* xHCI spec says all registers are little endian */
 static inline unsigned int xhci_readl(const struct xhci_hcd *xhci,
-		__u32 __iomem *regs)
+		__le32 __iomem *regs)
 {
 	return readl(regs);
 }
 static inline void xhci_writel(struct xhci_hcd *xhci,
-		const unsigned int val, __u32 __iomem *regs)
+		const unsigned int val, __le32 __iomem *regs)
 {
-	xhci_dbg(xhci,
-			"`MEM_WRITE_DWORD(3'b000, 32'h%p, 32'h%0x, 4'hf);\n",
-			regs, val);
 	writel(val, regs);
 }
 
@@ -1319,7 +1381,7 @@ static inline void xhci_writel(struct xhci_hcd *xhci,
  * the high dword, and write order is irrelevant.
  */
 static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
-		__u64 __iomem *regs)
+		__le64 __iomem *regs)
 {
 	__u32 __iomem *ptr = (__u32 __iomem *) regs;
 	u64 val_lo = readl(ptr);
@@ -1327,15 +1389,12 @@ static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
 	return val_lo + (val_hi << 32);
 }
 static inline void xhci_write_64(struct xhci_hcd *xhci,
-		const u64 val, __u64 __iomem *regs)
+				 const u64 val, __le64 __iomem *regs)
 {
 	__u32 __iomem *ptr = (__u32 __iomem *) regs;
 	u32 val_lo = lower_32_bits(val);
 	u32 val_hi = upper_32_bits(val);
 
-	xhci_dbg(xhci,
-			"`MEM_WRITE_DWORD(3'b000, 64'h%p, 64'h%0lx, 4'hf);\n",
-			regs, (long unsigned int) val);
 	writel(val_lo, ptr);
 	writel(val_hi, ptr + 1);
 }
@@ -1404,6 +1463,8 @@ void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep);
+void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
+	struct xhci_virt_device *virt_dev, bool drop_control_ep);
 struct xhci_ring *xhci_dma_to_transfer_ring(
 		struct xhci_virt_ep *ep,
 		u64 address);
@@ -1471,7 +1532,6 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 		dma_addr_t suspect_dma);
 int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
-void *xhci_setup_one_noop(struct xhci_hcd *xhci);
 int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);
@@ -1525,7 +1585,8 @@ int xhci_bus_resume(struct usb_hcd *hcd);
 #endif	/* CONFIG_PM */
 
 u32 xhci_port_state_to_neutral(u32 state);
-int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port);
+int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
+		u16 port);
 void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 
 /* xHCI contexts */

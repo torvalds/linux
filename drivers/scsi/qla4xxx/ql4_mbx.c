@@ -19,7 +19,7 @@
  * @mbx_cmd: data pointer for mailbox in registers.
  * @mbx_sts: data pointer for mailbox out registers.
  *
- * This routine isssue mailbox commands and waits for completion.
+ * This routine issue mailbox commands and waits for completion.
  * If outCount is 0, this routine completes successfully WITHOUT waiting
  * for the mailbox command to complete.
  **/
@@ -32,6 +32,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	u_long wait_count;
 	uint32_t intr_status;
 	unsigned long flags = 0;
+	uint32_t dev_state;
 
 	/* Make sure that pointers are valid */
 	if (!mbx_cmd || !mbx_sts) {
@@ -40,12 +41,23 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		return status;
 	}
 
-	if (is_qla8022(ha) &&
-	    test_bit(AF_FW_RECOVERY, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: prematurely "
-		    "completing mbx cmd as firmware recovery detected\n",
-		    ha->host_no, __func__));
-		return status;
+	if (is_qla8022(ha)) {
+		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "
+			    "prematurely completing mbx cmd as firmware "
+			    "recovery detected\n", ha->host_no, __func__));
+			return status;
+		}
+		/* Do not send any mbx cmd if h/w is in failed state*/
+		qla4_8xxx_idc_lock(ha);
+		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla4_8xxx_idc_unlock(ha);
+		if (dev_state == QLA82XX_DEV_FAILED) {
+			ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: H/W is in "
+			    "failed state, do not send any mailbox commands\n",
+			    ha->host_no, __func__);
+			return status;
+		}
 	}
 
 	if ((is_aer_supported(ha)) &&
@@ -74,21 +86,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		msleep(10);
 	}
 
-	/* To prevent overwriting mailbox registers for a command that has
-	 * not yet been serviced, check to see if an active command
-	 * (AEN, IOCB, etc.) is interrupting, then service it.
-	 * -----------------------------------------------------------------
-	 */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-
-	if (!is_qla8022(ha)) {
-		intr_status = readl(&ha->reg->ctrl_status);
-		if (intr_status & CSR_SCSI_PROCESSOR_INTR) {
-			/* Service existing interrupt */
-			ha->isp_ops->interrupt_service_routine(ha, intr_status);
-			clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
-		}
-	}
 
 	ha->mbox_status_count = outCount;
 	for (i = 0; i < outCount; i++)
@@ -139,7 +137,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
 	    test_bit(AF_INTERRUPTS_ON, &ha->flags) &&
 	    test_bit(AF_ONLINE, &ha->flags) &&
-	    !test_bit(AF_HBA_GOING_AWAY, &ha->flags)) {
+	    !test_bit(AF_HA_REMOVAL, &ha->flags)) {
 		/* Do not poll for completion. Use completion queue */
 		set_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
 		wait_for_completion_timeout(&ha->mbx_intr_comp, MBOX_TOV * HZ);
@@ -395,9 +393,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	/*memcpy(ha->alias, init_fw_cb->Alias,
 	       min(sizeof(ha->alias), sizeof(init_fw_cb->Alias)));*/
 
-	/* Save Command Line Paramater info */
-	ha->discovery_wait = ql4xdiscoverywait;
-
 	if (ha->acb_version == ACB_SUPPORTED) {
 		ha->ipv6_options = init_fw_cb->ipv6_opts;
 		ha->ipv6_addl_options = init_fw_cb->ipv6_addtl_opts;
@@ -466,6 +461,11 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 		    __constant_cpu_to_le16(FWOPT_ENABLE_CRBDB);
 
 	init_fw_cb->fw_options &= __constant_cpu_to_le16(~FWOPT_TARGET_MODE);
+
+	/* Set bit for "serialize task mgmt" all other bits need to be zero */
+	init_fw_cb->add_fw_options = 0;
+	init_fw_cb->add_fw_options |=
+	    __constant_cpu_to_le16(SERIALIZE_TASK_MGMT);
 
 	if (qla4xxx_set_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)
 		!= QLA_SUCCESS) {
@@ -1043,38 +1043,65 @@ int qla4xxx_get_flash(struct scsi_qla_host * ha, dma_addr_t dma_addr,
 }
 
 /**
- * qla4xxx_get_fw_version - gets firmware version
+ * qla4xxx_about_firmware - gets FW, iscsi draft and boot loader version
  * @ha: Pointer to host adapter structure.
  *
- * Retrieves the firmware version on HBA. In QLA4010, mailboxes 2 & 3 may
- * hold an address for data.  Make sure that we write 0 to those mailboxes,
- * if unused.
+ * Retrieves the FW version, iSCSI draft version & bootloader version of HBA.
+ * Mailboxes 2 & 3 may hold an address for data. Make sure that we write 0 to
+ * those mailboxes, if unused.
  **/
-int qla4xxx_get_fw_version(struct scsi_qla_host * ha)
+int qla4xxx_about_firmware(struct scsi_qla_host *ha)
 {
+	struct about_fw_info *about_fw = NULL;
+	dma_addr_t about_fw_dma;
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status = QLA_ERROR;
 
-	/* Get firmware version. */
+	about_fw = dma_alloc_coherent(&ha->pdev->dev,
+				      sizeof(struct about_fw_info),
+				      &about_fw_dma, GFP_KERNEL);
+	if (!about_fw) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: Unable to alloc memory "
+				  "for about_fw\n", __func__));
+		return status;
+	}
+
+	memset(about_fw, 0, sizeof(struct about_fw_info));
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
 
 	mbox_cmd[0] = MBOX_CMD_ABOUT_FW;
+	mbox_cmd[2] = LSDW(about_fw_dma);
+	mbox_cmd[3] = MSDW(about_fw_dma);
+	mbox_cmd[4] = sizeof(struct about_fw_info);
 
-	if (qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 5, &mbox_cmd[0], &mbox_sts[0]) !=
-	    QLA_SUCCESS) {
-		DEBUG2(printk("scsi%ld: %s: MBOX_CMD_ABOUT_FW failed w/ "
-		    "status %04X\n", ha->host_no, __func__, mbox_sts[0]));
-		return QLA_ERROR;
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, MBOX_REG_COUNT,
+					 &mbox_cmd[0], &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_WARNING, ha, "%s: MBOX_CMD_ABOUT_FW "
+				  "failed w/ status %04X\n", __func__,
+				  mbox_sts[0]));
+		goto exit_about_fw;
 	}
 
-	/* Save firmware version information. */
-	ha->firmware_version[0] = mbox_sts[1];
-	ha->firmware_version[1] = mbox_sts[2];
-	ha->patch_number = mbox_sts[3];
-	ha->build_number = mbox_sts[4];
+	/* Save version information. */
+	ha->firmware_version[0] = le16_to_cpu(about_fw->fw_major);
+	ha->firmware_version[1] = le16_to_cpu(about_fw->fw_minor);
+	ha->patch_number = le16_to_cpu(about_fw->fw_patch);
+	ha->build_number = le16_to_cpu(about_fw->fw_build);
+	ha->iscsi_major = le16_to_cpu(about_fw->iscsi_major);
+	ha->iscsi_minor = le16_to_cpu(about_fw->iscsi_minor);
+	ha->bootload_major = le16_to_cpu(about_fw->bootload_major);
+	ha->bootload_minor = le16_to_cpu(about_fw->bootload_minor);
+	ha->bootload_patch = le16_to_cpu(about_fw->bootload_patch);
+	ha->bootload_build = le16_to_cpu(about_fw->bootload_build);
+	status = QLA_SUCCESS;
 
-	return QLA_SUCCESS;
+exit_about_fw:
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct about_fw_info),
+			  about_fw, about_fw_dma);
+	return status;
 }
 
 static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha,

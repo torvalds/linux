@@ -86,15 +86,6 @@
  *	SPBA0	0x70000000+0x100000	->	0xf5400000+0x100000
  *	AIPS1	0x73f00000+0x100000	->	0xf5700000+0x100000
  *	AIPS2	0x83f00000+0x100000	->	0xf4300000+0x100000
- * mxc91231:
- *	L2CC	0x30000000+0x010000	->	0xf4400000+0x010000
- *	X_MEMC	0xb8000000+0x010000	->	0xf4c00000+0x010000
- *	ROMP	0x60000000+0x010000	->	0xf5000000+0x010000
- *	AVIC	0x68000000+0x010000	->	0xf5800000+0x010000
- *	AIPS1	0x43f00000+0x100000	->	0xf5300000+0x100000
- *	SPBA0	0x50000000+0x100000	->	0xf5400000+0x100000
- *	SPBA1	0x52000000+0x100000	->	0xf5600000+0x100000
- *	AIPS2	0x53f00000+0x100000	->	0xf5700000+0x100000
  */
 #define IMX_IO_P2V(x)	(						\
 			0xf4000000 +					\
@@ -104,41 +95,19 @@
 
 #define IMX_IO_ADDRESS(x)	IOMEM(IMX_IO_P2V(x))
 
-#ifdef CONFIG_ARCH_MX5
+#include <mach/mxc.h>
+
 #include <mach/mx50.h>
 #include <mach/mx51.h>
 #include <mach/mx53.h>
-#endif
-
-#ifdef CONFIG_ARCH_MX3
 #include <mach/mx3x.h>
 #include <mach/mx31.h>
 #include <mach/mx35.h>
-#endif
-
-#ifdef CONFIG_ARCH_MX2
-# include <mach/mx2x.h>
-# ifdef CONFIG_MACH_MX21
-#  include <mach/mx21.h>
-# endif
-# ifdef CONFIG_MACH_MX27
-#  include <mach/mx27.h>
-# endif
-#endif
-
-#ifdef CONFIG_ARCH_MX1
-# include <mach/mx1.h>
-#endif
-
-#ifdef CONFIG_ARCH_MX25
-# include <mach/mx25.h>
-#endif
-
-#ifdef CONFIG_ARCH_MXC91231
-# include <mach/mxc91231.h>
-#endif
-
-#include <mach/mxc.h>
+#include <mach/mx2x.h>
+#include <mach/mx21.h>
+#include <mach/mx27.h>
+#include <mach/mx1.h>
+#include <mach/mx25.h>
 
 #define imx_map_entry(soc, name, _type)	{				\
 	.virtual = soc ## _IO_P2V(soc ## _ ## name ## _BASE_ADDR),	\

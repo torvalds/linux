@@ -46,7 +46,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 	int type;
 	struct ceph_nfs_fh *fh = (void *)rawfh;
 	struct ceph_nfs_confh *cfh = (void *)rawfh;
-	struct dentry *parent = dentry->d_parent;
+	struct dentry *parent;
 	struct inode *inode = dentry->d_inode;
 	int connected_handle_length = sizeof(*cfh)/4;
 	int handle_length = sizeof(*fh)/4;
@@ -55,26 +55,33 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EINVAL;
 
+	spin_lock(&dentry->d_lock);
+	parent = dget(dentry->d_parent);
+	spin_unlock(&dentry->d_lock);
+
 	if (*max_len >= connected_handle_length) {
 		dout("encode_fh %p connectable\n", dentry);
 		cfh->ino = ceph_ino(dentry->d_inode);
 		cfh->parent_ino = ceph_ino(parent->d_inode);
-		cfh->parent_name_hash = ceph_dentry_hash(parent);
+		cfh->parent_name_hash = ceph_dentry_hash(parent->d_inode,
+							 dentry);
 		*max_len = connected_handle_length;
 		type = 2;
 	} else if (*max_len >= handle_length) {
 		if (connectable) {
 			*max_len = connected_handle_length;
-			return 255;
+			type = 255;
+		} else {
+			dout("encode_fh %p\n", dentry);
+			fh->ino = ceph_ino(dentry->d_inode);
+			*max_len = handle_length;
+			type = 1;
 		}
-		dout("encode_fh %p\n", dentry);
-		fh->ino = ceph_ino(dentry->d_inode);
-		*max_len = handle_length;
-		type = 1;
 	} else {
 		*max_len = handle_length;
-		return 255;
+		type = 255;
 	}
+	dput(parent);
 	return type;
 }
 
@@ -86,6 +93,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 static struct dentry *__fh_to_dentry(struct super_block *sb,
 				     struct ceph_nfs_fh *fh)
 {
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;
@@ -95,8 +103,24 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 	vino.ino = fh->ino;
 	vino.snap = CEPH_NOSNAP;
 	inode = ceph_find_inode(sb, vino);
-	if (!inode)
-		return ERR_PTR(-ESTALE);
+	if (!inode) {
+		struct ceph_mds_request *req;
+
+		req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPINO,
+					       USE_ANY_MDS);
+		if (IS_ERR(req))
+			return ERR_CAST(req);
+
+		req->r_ino1 = vino;
+		req->r_num_caps = 1;
+		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		inode = req->r_target_inode;
+		if (inode)
+			ihold(inode);
+		ceph_mdsc_put_request(req);
+		if (!inode)
+			return ERR_PTR(-ESTALE);
+	}
 
 	dentry = d_obtain_alias(inode);
 	if (IS_ERR(dentry)) {
@@ -106,7 +130,6 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 		return dentry;
 	}
 	err = ceph_init_dentry(dentry);
-
 	if (err < 0) {
 		iput(inode);
 		return ERR_PTR(err);
@@ -148,8 +171,10 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		snprintf(req->r_path2, 16, "%d", cfh->parent_name_hash);
 		req->r_num_caps = 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		inode = req->r_target_inode;
+		if (inode)
+			ihold(inode);
 		ceph_mdsc_put_request(req);
-		inode = ceph_find_inode(sb, vino);
 		if (!inode)
 			return ERR_PTR(err ? err : -ESTALE);
 	}

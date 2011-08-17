@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/kdev_t.h>
-#include <linux/smp_lock.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
@@ -445,6 +444,8 @@ static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
 extern struct list_head cx25821_devlist;
+extern struct mutex cx25821_devlist_mutex;
+
 extern struct cx25821_board cx25821_boards[];
 extern struct cx25821_subid cx25821_subids[];
 

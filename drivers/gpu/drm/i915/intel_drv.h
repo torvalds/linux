@@ -39,7 +39,7 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W && !in_dbg_master()) msleep(W);			\
+		if (W && !(in_atomic() || in_dbg_master())) msleep(W);	\
 	}								\
 	ret__;								\
 })
@@ -140,7 +140,6 @@ struct intel_fbdev {
 struct intel_encoder {
 	struct drm_encoder base;
 	int type;
-	bool load_detect_temp;
 	bool needs_tv_clock;
 	void (*hot_plug)(struct intel_encoder *);
 	int crtc_mask;
@@ -171,6 +170,7 @@ struct intel_crtc {
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
+	unsigned int bpp;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -178,9 +178,27 @@ struct intel_crtc {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
+#define DIP_HEADER_SIZE	5
+
 #define DIP_TYPE_AVI    0x82
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
+
+#define DIP_TYPE_SPD	0x3
+#define DIP_VERSION_SPD	0x1
+#define DIP_LEN_SPD	25
+#define DIP_SPD_UNKNOWN	0
+#define DIP_SPD_DSTB	0x1
+#define DIP_SPD_DVDP	0x2
+#define DIP_SPD_DVHS	0x3
+#define DIP_SPD_HDDVR	0x4
+#define DIP_SPD_DVC	0x5
+#define DIP_SPD_DSC	0x6
+#define DIP_SPD_VCD	0x7
+#define DIP_SPD_GAME	0x8
+#define DIP_SPD_PC	0x9
+#define DIP_SPD_BD	0xa
+#define DIP_SPD_SCD	0xb
 
 struct dip_infoframe {
 	uint8_t type;		/* HB0 */
@@ -206,6 +224,11 @@ struct dip_infoframe {
 			uint16_t left_bar_end;
 			uint16_t right_bar_start;
 		} avi;
+		struct {
+			uint8_t vn[8];
+			uint8_t pd[16];
+			uint8_t sdi;
+		} spd;
 		uint8_t payload[27];
 	} __attribute__ ((packed)) body;
 } __attribute__((packed));
@@ -215,6 +238,13 @@ intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	return dev_priv->pipe_to_crtc_mapping[pipe];
+}
+
+static inline struct drm_crtc *
+intel_get_crtc_for_plane(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return dev_priv->plane_to_crtc_mapping[plane];
 }
 
 struct intel_unpin_work {
@@ -227,8 +257,18 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
+struct intel_fbc_work {
+	struct delayed_work work;
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	int interval;
+};
+
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
+
+extern void intel_attach_force_audio_property(struct drm_connector *connector);
+extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
@@ -260,6 +300,7 @@ extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
 extern void intel_panel_setup_backlight(struct drm_device *dev);
 extern void intel_panel_enable_backlight(struct drm_device *dev);
 extern void intel_panel_disable_backlight(struct drm_device *dev);
+extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
@@ -281,13 +322,19 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
-extern struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
-						   struct drm_connector *connector,
-						   struct drm_display_mode *mode,
-						   int *dpms_mode);
+
+struct intel_load_detect_pipe {
+	struct drm_framebuffer *release_fb;
+	bool load_detect_temp;
+	int dpms_mode;
+};
+extern bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
+				       struct drm_connector *connector,
+				       struct drm_display_mode *mode,
+				       struct intel_load_detect_pipe *old);
 extern void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 					   struct drm_connector *connector,
-					   int dpms_mode);
+					   struct intel_load_detect_pipe *old);
 
 extern struct drm_connector* intel_sdvo_find(struct drm_device *dev, int sdvoB);
 extern int intel_sdvo_supports_hotplug(struct drm_connector *connector);
@@ -301,6 +348,7 @@ extern void intel_enable_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
+extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
 extern void gen6_disable_rps(struct drm_device *dev);
 extern void intel_init_emon(struct drm_device *dev);
 
@@ -321,12 +369,14 @@ extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);
-extern int intel_overlay_switch_off(struct intel_overlay *overlay,
-				    bool interruptible);
+extern int intel_overlay_switch_off(struct intel_overlay *overlay);
 extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
 
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
+extern void intel_fb_restore_mode(struct drm_device *dev);
+
+extern void intel_init_clock_gating(struct drm_device *dev);
 #endif /* __INTEL_DRV_H__ */

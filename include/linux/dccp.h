@@ -236,6 +236,7 @@ enum dccp_packet_dequeueing_policy {
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/uio.h>
@@ -278,8 +279,6 @@ enum dccp_state {
 	DCCP_PASSIVE_CLOSEREQ,			/* clients receiving CloseReq */
 	DCCP_MAX_STATES
 };
-
-#define DCCP_STATE_MASK 0x1f
 
 enum {
 	DCCPF_OPEN	      = TCPF_ESTABLISHED,

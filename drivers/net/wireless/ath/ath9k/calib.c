@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,15 +69,21 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 					      int16_t *nfarray)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
 	struct ath_nf_limits *limit;
 	struct ath9k_nfcal_hist *h;
 	bool high_nf_mid = false;
+	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	int i;
 
 	h = cal->nfCalHist;
 	limit = ath9k_hw_get_nf_limits(ah, ah->curchan);
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (!(chainmask & (1 << i)) ||
+		    ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf)))
+			continue;
+
 		h[i].nfCalBuffer[h[i].currIndex] = nfarray[i];
 
 		if (++h[i].currIndex >= ATH9K_NF_CAL_HIST_MAX)
@@ -225,6 +231,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	int32_t val;
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
 	s16 default_nf = ath9k_hw_get_default_nf(ah, chan);
 
 	if (ah->caldata)
@@ -233,6 +240,9 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (chainmask & (1 << i)) {
 			s16 nfval;
+
+			if ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf))
+				continue;
 
 			if (h)
 				nfval = h[i].privNF;
@@ -262,7 +272,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * since 250us often results in NF load timeout and causes deaf
 	 * condition during stress testing 12/12/2009
 	 */
-	for (j = 0; j < 1000; j++) {
+	for (j = 0; j < 10000; j++) {
 		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
 		     AR_PHY_AGC_CONTROL_NF) == 0)
 			break;
@@ -278,7 +288,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * here, the baseband nf cal will just be capped by our present
 	 * noisefloor until the next calibration timer.
 	 */
-	if (j == 1000) {
+	if (j == 10000) {
 		ath_dbg(common, ATH_DBG_ANY,
 			"Timeout while waiting for nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 			REG_READ(ah, AR_PHY_AGC_CONTROL));
@@ -293,6 +303,9 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	ENABLE_REGWRITE_BUFFER(ah);
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (chainmask & (1 << i)) {
+			if ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf))
+				continue;
+
 			val = REG_READ(ah, ah->nf_regs[i]);
 			val &= 0xFFFFFE00;
 			val |= (((u32) (-50) << 1) & 0x1ff);
@@ -382,9 +395,8 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 	s16 default_nf;
 	int i, j;
 
-	if (!ah->caldata)
-		return;
-
+	ah->caldata->channel = chan->channel;
+	ah->caldata->channelFlags = chan->channelFlags & ~CHANNEL_CW_INT;
 	h = ah->caldata->nfCalHist;
 	default_nf = ath9k_hw_get_default_nf(ah, chan);
 	for (i = 0; i < NUM_NF_READINGS; i++) {
@@ -397,14 +409,6 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 	}
 }
 
-s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	if (!ah->curchan || !ah->curchan->noisefloor)
-		return ath9k_hw_get_default_nf(ah, chan);
-
-	return ah->curchan->noisefloor;
-}
-EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
 void ath9k_hw_bstuck_nfcal(struct ath_hw *ah)
 {

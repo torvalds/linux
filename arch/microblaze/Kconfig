@@ -6,7 +6,6 @@ config MICROBLAZE
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
-	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB
@@ -17,6 +16,7 @@ config MICROBLAZE
 	select OF_EARLY_FLATTREE
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
 
 config SWAP
 	def_bool n
@@ -32,9 +32,6 @@ config ARCH_HAS_ILOG2_U32
 
 config ARCH_HAS_ILOG2_U64
 	def_bool n
-
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -183,6 +180,17 @@ config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
 	default "0x30000000"
 
+config MANUAL_RESET_VECTOR
+	hex "Microblaze reset vector address setup"
+	default "0x0"
+	help
+	  Set this option to have the kernel override the CPU Reset vector.
+	  If zero, no change will be made to the MicroBlaze reset vector at
+	  address 0x0.
+	  If non-zero, a jump instruction to this address, will be written
+	  to the reset vector at address 0x0.
+	  If you are unsure, set it to default value 0x0.
+
 config KERNEL_START_BOOL
 	bool "Set custom kernel base address"
 	depends on ADVANCED_OPTIONS
@@ -247,7 +255,7 @@ endmenu
 
 source "mm/Kconfig"
 
-menu "Exectuable file formats"
+menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
 

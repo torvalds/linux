@@ -205,15 +205,14 @@ int __init s5p_init_irq_eint(void)
 	int irq;
 
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(15); irq++)
-		set_irq_chip(irq, &s5p_irq_vic_eint);
+		irq_set_chip(irq, &s5p_irq_vic_eint);
 
 	for (irq = IRQ_EINT(16); irq <= IRQ_EINT(31); irq++) {
-		set_irq_chip(irq, &s5p_irq_eint);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &s5p_irq_eint, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	set_irq_chained_handler(IRQ_EINT16_31, s5p_irq_demux_eint16_31);
+	irq_set_chained_handler(IRQ_EINT16_31, s5p_irq_demux_eint16_31);
 	return 0;
 }
 

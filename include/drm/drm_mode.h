@@ -277,7 +277,7 @@ struct drm_mode_mode_cmd {
 #define DRM_MODE_CURSOR_MOVE	(1<<1)
 
 /*
- * depending on the value in flags diffrent members are used.
+ * depending on the value in flags different members are used.
  *
  * CURSOR_BO uses
  *    crtc
@@ -342,6 +342,35 @@ struct drm_mode_crtc_page_flip {
 	__u32 flags;
 	__u32 reserved;
 	__u64 user_data;
+};
+
+/* create a dumb scanout buffer */
+struct drm_mode_create_dumb {
+	uint32_t height;
+	uint32_t width;
+	uint32_t bpp;
+	uint32_t flags;
+	/* handle, pitch, size will be returned */
+	uint32_t handle;
+	uint32_t pitch;
+	uint64_t size;
+};
+
+/* set up for mmap of a dumb scanout buffer */
+struct drm_mode_map_dumb {
+	/** Handle for the object being mapped. */
+	__u32 handle;
+	__u32 pad;
+	/**
+	 * Fake offset to use for subsequent mmap call
+	 *
+	 * This is a fixed-size type for 32/64 compatibility.
+	 */
+	__u64 offset;
+};
+
+struct drm_mode_destroy_dumb {
+	uint32_t handle;
 };
 
 #endif

@@ -5,6 +5,8 @@
 # error "please don't include this file directly"
 #endif
 
+#include <asm/processor.h>	/* for cpu_relax() */
+
 /*
  * include/linux/spinlock_up.h - UP-debug version of spinlocks.
  *

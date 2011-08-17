@@ -175,6 +175,7 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static void vesafb_destroy(struct fb_info *info)
 {
+	fb_dealloc_cmap(&info->cmap);
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
@@ -303,19 +304,6 @@ static int __init vesafb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = screen_info.lfb_base;
 	info->apertures->ranges[0].size = size_total;
 
-	info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
-	if (!info->screen_base) {
-		printk(KERN_ERR
-		       "vesafb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
-			vesafb_fix.smem_len, vesafb_fix.smem_start);
-		err = -EIO;
-		goto err;
-	}
-
-	printk(KERN_INFO "vesafb: framebuffer at 0x%lx, mapped to 0x%p, "
-	       "using %dk, total %dk\n",
-	       vesafb_fix.smem_start, info->screen_base,
-	       size_remap/1024, size_total/1024);
 	printk(KERN_INFO "vesafb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
 	       vesafb_defined.xres, vesafb_defined.yres, vesafb_defined.bits_per_pixel, vesafb_fix.line_length, screen_info.pages);
 
@@ -438,8 +426,7 @@ static int __init vesafb_probe(struct platform_device *dev)
 			int rc;
 
 			/* Find the largest power-of-two */
-			while (temp_size & (temp_size - 1))
-				temp_size &= (temp_size - 1);
+			temp_size = roundup_pow_of_two(temp_size);
 
 			/* Try and find a power of two to add */
 			do {
@@ -451,6 +438,34 @@ static int __init vesafb_probe(struct platform_device *dev)
 	}
 #endif
 	
+	switch (mtrr) {
+	case 1: /* uncachable */
+		info->screen_base = ioremap_nocache(vesafb_fix.smem_start, vesafb_fix.smem_len);
+		break;
+	case 2: /* write-back */
+		info->screen_base = ioremap_cache(vesafb_fix.smem_start, vesafb_fix.smem_len);
+		break;
+	case 3: /* write-combining */
+		info->screen_base = ioremap_wc(vesafb_fix.smem_start, vesafb_fix.smem_len);
+		break;
+	case 4: /* write-through */
+	default:
+		info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
+		break;
+	}
+	if (!info->screen_base) {
+		printk(KERN_ERR
+		       "vesafb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
+			vesafb_fix.smem_len, vesafb_fix.smem_start);
+		err = -EIO;
+		goto err;
+	}
+
+	printk(KERN_INFO "vesafb: framebuffer at 0x%lx, mapped to 0x%p, "
+	       "using %dk, total %dk\n",
+	       vesafb_fix.smem_start, info->screen_base,
+	       size_remap/1024, size_total/1024);
+
 	info->fbops = &vesafb_ops;
 	info->var = vesafb_defined;
 	info->fix = vesafb_fix;

@@ -1538,8 +1538,6 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	/* Build a packet */
-	SOCK_DEBUG(sk, "AX.25: sendto: Addresses built. Building packet.\n");
-
 	/* Assume the worst case */
 	size = len + ax25->ax25_dev->dev->hard_header_len;
 
@@ -1548,8 +1546,6 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 
 	skb_reserve(skb, size - len);
-
-	SOCK_DEBUG(sk, "AX.25: Appending user data\n");
 
 	/* User data follows immediately after the AX.25 data */
 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
@@ -1563,8 +1559,6 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	/* Add the PID if one is not supplied by the user in the skb */
 	if (!ax25->pidincl)
 		*skb_push(skb, 1) = sk->sk_protocol;
-
-	SOCK_DEBUG(sk, "AX.25: Transmitting buffer\n");
 
 	if (sk->sk_type == SOCK_SEQPACKET) {
 		/* Connected mode sockets go via the LAPB machine */
@@ -1583,21 +1577,13 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_push(skb, 1 + ax25_addr_size(dp));
 
-	SOCK_DEBUG(sk, "Building AX.25 Header (dp=%p).\n", dp);
-
-	if (dp != NULL)
-		SOCK_DEBUG(sk, "Num digipeaters=%d\n", dp->ndigi);
+	/* Building AX.25 Header */
 
 	/* Build an AX.25 header */
 	lv = ax25_addr_build(skb->data, &ax25->source_addr, &sax.sax25_call,
 			     dp, AX25_COMMAND, AX25_MODULUS);
 
-	SOCK_DEBUG(sk, "Built header (%d bytes)\n",lv);
-
 	skb_set_transport_header(skb, lv);
-
-	SOCK_DEBUG(sk, "base=%p pos=%p\n",
-		   skb->data, skb_transport_header(skb));
 
 	*skb_transport_header(skb) = AX25_UI;
 

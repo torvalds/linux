@@ -390,7 +390,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 	outb(v, dev->iobase + DAQP_CONTROL);
 
-	/* Reset any pending interrupts (my card has a tendancy to require
+	/* Reset any pending interrupts (my card has a tendency to require
 	 * require multiple reads on the status register to achieve this)
 	 */
 
@@ -752,7 +752,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	outb(v, dev->iobase + DAQP_CONTROL);
 
-	/* Reset any pending interrupts (my card has a tendancy to require
+	/* Reset any pending interrupts (my card has a tendency to require
 	 * require multiple reads on the status register to achieve this)
 	 */
 	counter = 100;
@@ -1087,7 +1087,7 @@ static int daqp_cs_resume(struct pcmcia_device *link)
 
 #ifdef MODULE
 
-static struct pcmcia_device_id daqp_cs_id_table[] = {
+static const struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
 };

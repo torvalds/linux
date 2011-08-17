@@ -92,7 +92,8 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
-static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
+static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats);
 static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
 /*  PCI Device ID Table  */
@@ -485,16 +486,49 @@ static void netxen_set_multicast_list(struct net_device *dev)
 	adapter->set_multi(dev);
 }
 
+static u32 netxen_fix_features(struct net_device *dev, u32 features)
+{
+	if (!(features & NETIF_F_RXCSUM)) {
+		netdev_info(dev, "disabling LRO as RXCSUM is off\n");
+
+		features &= ~NETIF_F_LRO;
+	}
+
+	return features;
+}
+
+static int netxen_set_features(struct net_device *dev, u32 features)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	int hw_lro;
+
+	if (!((dev->features ^ features) & NETIF_F_LRO))
+		return 0;
+
+	hw_lro = (features & NETIF_F_LRO) ? NETXEN_NIC_LRO_ENABLED
+	         : NETXEN_NIC_LRO_DISABLED;
+
+	if (netxen_config_hw_lro(adapter, hw_lro))
+		return -EIO;
+
+	if (!(features & NETIF_F_LRO) && netxen_send_lro_cleanup(adapter))
+		return -EIO;
+
+	return 0;
+}
+
 static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_open	   = netxen_nic_open,
 	.ndo_stop	   = netxen_nic_close,
 	.ndo_start_xmit    = netxen_nic_xmit_frame,
-	.ndo_get_stats	   = netxen_nic_get_stats,
+	.ndo_get_stats64   = netxen_nic_get_stats,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_multicast_list = netxen_set_multicast_list,
 	.ndo_set_mac_address    = netxen_nic_set_mac,
 	.ndo_change_mtu	   = netxen_nic_change_mtu,
 	.ndo_tx_timeout	   = netxen_tx_timeout,
+	.ndo_fix_features = netxen_fix_features,
+	.ndo_set_features = netxen_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = netxen_nic_poll_controller,
 #endif
@@ -905,7 +939,7 @@ netxen_nic_request_irq(struct netxen_adapter *adapter)
 	struct nx_host_sds_ring *sds_ring;
 	int err, ring;
 
-	unsigned long flags = IRQF_SAMPLE_RANDOM;
+	unsigned long flags = 0;
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
@@ -1031,6 +1065,9 @@ __netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
+
+	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
+		netxen_linkevent_request(adapter, 0);
 
 	if (adapter->stop_port)
 		adapter->stop_port(adapter);
@@ -1193,7 +1230,6 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 	int err = 0;
 	struct pci_dev *pdev = adapter->pdev;
 
-	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		adapter->max_mc_count = 38;
@@ -1207,14 +1243,13 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
 
-	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
-	netdev->features |= (NETIF_F_GRO);
-	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
+	netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
+	                      NETIF_F_RXCSUM;
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		netdev->features |= (NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
-		netdev->vlan_features |= (NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
-	}
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netdev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
+
+	netdev->vlan_features |= netdev->hw_features;
 
 	if (adapter->pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -1222,10 +1257,12 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 	}
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_FVLANTX)
-		netdev->features |= (NETIF_F_HW_VLAN_TX);
+		netdev->hw_features |= NETIF_F_HW_VLAN_TX;
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
-		netdev->features |= NETIF_F_LRO;
+		netdev->hw_features |= NETIF_F_LRO;
+
+	netdev->features |= netdev->hw_features;
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
@@ -1350,6 +1387,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	default:
 		break;
 	}
+
+	err = netxen_check_flash_fw_compatibility(adapter);
+	if (err)
+		goto err_out_iounmap;
 
 	if (adapter->portnum == 0) {
 		val = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
@@ -1841,6 +1882,8 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct cmd_desc_type0 *hwdesc, *first_desc;
 	struct pci_dev *pdev;
 	int i, k;
+	int delta = 0;
+	struct skb_frag_struct *frag;
 
 	u32 producer;
 	int frag_count, no_of_desc;
@@ -1848,6 +1891,21 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
+	/* 14 frags supported for normal packet and
+	 * 32 frags supported for TSO packet
+	 */
+	if (!skb_is_gso(skb) && frag_count > NETXEN_MAX_FRAGS_PER_TX) {
+
+		for (i = 0; i < (frag_count - NETXEN_MAX_FRAGS_PER_TX); i++) {
+			frag = &skb_shinfo(skb)->frags[i];
+			delta += frag->size;
+		}
+
+		if (!__pskb_pull_tail(skb, delta))
+			goto drop_packet;
+
+		frag_count = 1 + skb_shinfo(skb)->nr_frags;
+	}
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
@@ -1912,10 +1970,10 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	netxen_tso_check(netdev, tx_ring, first_desc, skb);
 
-	netxen_nic_update_cmd_producer(adapter, tx_ring);
-
 	adapter->stats.txbytes += skb->len;
 	adapter->stats.xmitcalled++;
+
+	netxen_nic_update_cmd_producer(adapter, tx_ring);
 
 	return NETDEV_TX_OK;
 
@@ -2057,10 +2115,10 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *netdev,
+						      struct rtnl_link_stats64 *stats)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct net_device_stats *stats = &netdev->stats;
 
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;

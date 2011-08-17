@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <asm/opcode-tile.h>
 #include <asm/pgtable.h>
+#include <asm/homecache.h>
 
 #ifdef __tilegx__
 # define Elf_Rela Elf64_Rela
@@ -86,29 +87,15 @@ error:
 void module_free(struct module *mod, void *module_region)
 {
 	vfree(module_region);
+
+	/* Globally flush the L1 icache. */
+	flush_remote(0, HV_FLUSH_EVICT_L1I, cpu_online_mask,
+		     0, 0, 0, NULL, NULL, 0);
+
 	/*
-	 * FIXME: If module_region == mod->init_region, trim exception
+	 * FIXME: If module_region == mod->module_init, trim exception
 	 * table entries.
 	 */
-}
-
-/* We don't need anything special. */
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-			      Elf_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod)
-{
-	return 0;
-}
-
-int apply_relocate(Elf_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *me)
-{
-	pr_err("module %s: .rel relocation unsupported\n", me->name);
-	return -ENOEXEC;
 }
 
 #ifdef __tilegx__
@@ -242,16 +229,4 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		}
 	}
 	return 0;
-}
-
-int module_finalize(const Elf_Ehdr *hdr,
-		    const Elf_Shdr *sechdrs,
-		    struct module *me)
-{
-	/* FIXME: perhaps remove the "writable" bit from the TLB? */
-	return 0;
-}
-
-void module_arch_cleanup(struct module *mod)
-{
 }

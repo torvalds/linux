@@ -38,14 +38,12 @@ enum {
 	BH_NILFS_Redirected,
 };
 
-BUFFER_FNS(NILFS_Allocated, nilfs_allocated)	/* nilfs private buffers */
 BUFFER_FNS(NILFS_Node, nilfs_node)		/* nilfs node buffers */
 BUFFER_FNS(NILFS_Volatile, nilfs_volatile)
 BUFFER_FNS(NILFS_Checked, nilfs_checked)	/* buffer is verified */
 BUFFER_FNS(NILFS_Redirected, nilfs_redirected)	/* redirected to a copy */
 
 
-void nilfs_mark_buffer_dirty(struct buffer_head *bh);
 int __nilfs_clear_page_dirty(struct page *);
 
 struct buffer_head *nilfs_grab_buffer(struct inode *, struct address_space *,
@@ -54,16 +52,12 @@ void nilfs_forget_buffer(struct buffer_head *);
 void nilfs_copy_buffer(struct buffer_head *, struct buffer_head *);
 int nilfs_page_buffers_clean(struct page *);
 void nilfs_page_bug(struct page *);
-struct page *nilfs_alloc_private_page(struct block_device *, int,
-				      unsigned long);
-void nilfs_free_private_page(struct page *);
 
 int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
 void nilfs_copy_back_pages(struct address_space *, struct address_space *);
 void nilfs_clear_dirty_pages(struct address_space *);
-void nilfs_mapping_init(struct address_space *mapping,
-			struct backing_dev_info *bdi,
-			const struct address_space_operations *aops);
+void nilfs_mapping_init(struct address_space *mapping, struct inode *inode,
+			struct backing_dev_info *bdi);
 unsigned nilfs_page_count_clean_buffers(struct page *, unsigned, unsigned);
 unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 					    sector_t start_blk,

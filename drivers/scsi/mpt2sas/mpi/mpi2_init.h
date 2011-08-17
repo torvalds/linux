@@ -6,7 +6,7 @@
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *    mpi2_init.h Version:  02.00.10
+ *    mpi2_init.h Version:  02.00.11
  *
  *  Version History
  *  ---------------
@@ -21,7 +21,7 @@
  *  05-21-08  02.00.05  Fixed typo in name of Mpi2SepRequest_t.
  *  10-02-08  02.00.06  Removed Untagged and No Disconnect values from SCSI IO
  *                      Control field Task Attribute flags.
- *                      Moved LUN field defines to mpi2.h becasue they are
+ *                      Moved LUN field defines to mpi2.h because they are
  *                      common to many structures.
  *  05-06-09  02.00.07  Changed task management type of Query Unit Attention to
  *                      Query Asynchronous Event.
@@ -33,6 +33,7 @@
  *                      Added MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG define.
  *  02-10-10  02.00.09  Removed unused structure that had "#if 0" around it.
  *  05-12-10  02.00.10  Added optional vendor-unique region to SCSI IO Request.
+ *  11-10-10  02.00.11  Added MPI2_SCSIIO_NUM_SGLOFFSETS define.
  *  --------------------------------------------------------------------------
  */
 
@@ -138,6 +139,9 @@ typedef struct _MPI2_SCSI_IO_REQUEST
 #define MPI2_SCSIIO_SGLFLAGS_SGL2_SHIFT             (8)
 #define MPI2_SCSIIO_SGLFLAGS_SGL1_SHIFT             (4)
 #define MPI2_SCSIIO_SGLFLAGS_SGL0_SHIFT             (0)
+
+/* number of SGLOffset fields */
+#define MPI2_SCSIIO_NUM_SGLOFFSETS                  (4)
 
 /* SCSI IO IoFlags bits */
 

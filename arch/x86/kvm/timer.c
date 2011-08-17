@@ -15,7 +15,7 @@
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/hrtimer.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "kvm_timer.h"
 
 static int __kvm_timer_fn(struct kvm_vcpu *vcpu, struct kvm_timer *ktimer)
@@ -25,7 +25,7 @@ static int __kvm_timer_fn(struct kvm_vcpu *vcpu, struct kvm_timer *ktimer)
 
 	/*
 	 * There is a race window between reading and incrementing, but we do
-	 * not care about potentially loosing timer events in the !reinject
+	 * not care about potentially losing timer events in the !reinject
 	 * case anyway. Note: KVM_REQ_PENDING_TIMER is implicitly checked
 	 * in vcpu_enter_guest.
 	 */

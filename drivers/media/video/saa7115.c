@@ -757,8 +757,8 @@ static int saa711x_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_CHROMA_AGC:
 		/* chroma gain cluster */
-		if (state->agc->cur.val)
-			state->gain->cur.val =
+		if (state->agc->val)
+			state->gain->val =
 				saa711x_read(sd, R_0F_CHROMA_GAIN_CNTL) & 0x7f;
 		break;
 	}

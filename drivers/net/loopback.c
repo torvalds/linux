@@ -129,10 +129,6 @@ static u32 always_on(struct net_device *dev)
 
 static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_link		= always_on,
-	.set_tso		= ethtool_op_set_tso,
-	.get_tx_csum		= always_on,
-	.get_sg			= always_on,
-	.get_rx_csum		= always_on,
 };
 
 static int loopback_dev_init(struct net_device *dev)
@@ -169,12 +165,17 @@ static void loopback_setup(struct net_device *dev)
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;
 	dev->priv_flags	       &= ~IFF_XMIT_DST_RELEASE;
+	dev->hw_features	= NETIF_F_ALL_TSO | NETIF_F_UFO;
 	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
-		| NETIF_F_TSO
+		| NETIF_F_ALL_TSO
+		| NETIF_F_UFO
 		| NETIF_F_NO_CSUM
+		| NETIF_F_RXCSUM
 		| NETIF_F_HIGHDMA
 		| NETIF_F_LLTX
-		| NETIF_F_NETNS_LOCAL;
+		| NETIF_F_NETNS_LOCAL
+		| NETIF_F_VLAN_CHALLENGED
+		| NETIF_F_LOOPBACK;
 	dev->ethtool_ops	= &loopback_ethtool_ops;
 	dev->header_ops		= &eth_header_ops;
 	dev->netdev_ops		= &loopback_ops;

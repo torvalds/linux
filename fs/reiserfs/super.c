@@ -393,7 +393,7 @@ void add_save_link(struct reiserfs_transaction_handle *th,
 	/* body of "save" link */
 	link = INODE_PKEY(inode)->k_dir_id;
 
-	/* put "save" link inot tree, don't charge quota to anyone */
+	/* put "save" link into tree, don't charge quota to anyone */
 	retval =
 	    reiserfs_insert_item(th, &path, &key, &ih, NULL, (char *)&link);
 	if (retval) {
@@ -568,7 +568,7 @@ static void destroy_inodecache(void)
 }
 
 /* we don't mark inodes dirty, we just log them */
-static void reiserfs_dirty_inode(struct inode *inode)
+static void reiserfs_dirty_inode(struct inode *inode, int flags)
 {
 	struct reiserfs_transaction_handle th;
 
@@ -1643,6 +1643,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	/* Set default values for options: non-aggressive tails, RO on errors */
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_ERROR_RO);
+	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_BARRIER_FLUSH);
 	/* no preallocation minimum, be smart in
 	   reiserfs_file_write instead */
 	REISERFS_SB(s)->s_alloc_options.preallocmin = 0;
@@ -2104,7 +2105,7 @@ out:
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t reiserfs_quota_read(struct super_block *sb, int type, char *data,
 				   size_t len, loff_t off)

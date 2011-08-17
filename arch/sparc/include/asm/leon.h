@@ -52,29 +52,6 @@
 #define LEON_DIAGF_VALID	0x2000
 #define LEON_DIAGF_VALID_SHIFT	13
 
-/*
- *  Interrupt Sources
- *
- *  The interrupt source numbers directly map to the trap type and to
- *  the bits used in the Interrupt Clear, Interrupt Force, Interrupt Mask,
- *  and the Interrupt Pending Registers.
- */
-#define LEON_INTERRUPT_CORRECTABLE_MEMORY_ERROR	1
-#define LEON_INTERRUPT_UART_1_RX_TX		2
-#define LEON_INTERRUPT_UART_0_RX_TX		3
-#define LEON_INTERRUPT_EXTERNAL_0		4
-#define LEON_INTERRUPT_EXTERNAL_1		5
-#define LEON_INTERRUPT_EXTERNAL_2		6
-#define LEON_INTERRUPT_EXTERNAL_3		7
-#define LEON_INTERRUPT_TIMER1			8
-#define LEON_INTERRUPT_TIMER2			9
-#define LEON_INTERRUPT_EMPTY1			10
-#define LEON_INTERRUPT_EMPTY2			11
-#define LEON_INTERRUPT_OPEN_ETH			12
-#define LEON_INTERRUPT_EMPTY4			13
-#define LEON_INTERRUPT_EMPTY5			14
-#define LEON_INTERRUPT_EMPTY6			15
-
 /* irq masks */
 #define LEON_HARD_INT(x)	(1 << (x))	/* irq 0-15 */
 #define LEON_IRQMASK_R		0x0000fffe	/* bit 15- 1 of lregs.irqmask */
@@ -183,7 +160,6 @@ static inline void leon_srmmu_enabletlb(void)
 /* macro access for leon_readnobuffer_reg() */
 #define LEON_BYPASSCACHE_LOAD_VA(x) leon_readnobuffer_reg((unsigned long)(x))
 
-extern void sparc_leon_eirq_register(int eirq);
 extern void leon_init(void);
 extern void leon_switch_mm(void);
 extern void leon_init_IRQ(void);
@@ -239,8 +215,8 @@ static inline int sparc_leon3_cpuid(void)
 #endif /*!__ASSEMBLY__*/
 
 #ifdef CONFIG_SMP
-# define LEON3_IRQ_RESCHEDULE		13
-# define LEON3_IRQ_TICKER		(leon_percpu_timer_dev[0].irq)
+# define LEON3_IRQ_IPI_DEFAULT		13
+# define LEON3_IRQ_TICKER		(leon3_ticker_irq)
 # define LEON3_IRQ_CROSS_CALL		15
 #endif
 
@@ -339,9 +315,12 @@ struct leon2_cacheregs {
 #include <linux/interrupt.h>
 
 struct device_node;
-extern int sparc_leon_eirq_get(int eirq, int cpu);
-extern irqreturn_t sparc_leon_eirq_isr(int dummy, void *dev_id);
-extern void sparc_leon_eirq_register(int eirq);
+extern unsigned int leon_build_device_irq(unsigned int real_irq,
+					   irq_flow_handler_t flow_handler,
+					   const char *name, int do_ack);
+extern void leon_update_virq_handling(unsigned int virq,
+			      irq_flow_handler_t flow_handler,
+			      const char *name, int do_ack);
 extern void leon_clear_clock_irq(void);
 extern void leon_load_profile_irq(int cpu, unsigned int limit);
 extern void leon_init_timers(irq_handler_t counter_fn);
@@ -358,6 +337,7 @@ extern void leon3_getCacheRegs(struct leon3_cacheregs *regs);
 extern int leon_flush_needed(void);
 extern void leon_switch_mm(void);
 extern int srmmu_swprobe_trace;
+extern int leon3_ticker_irq;
 
 #ifdef CONFIG_SMP
 extern int leon_smp_nrcpus(void);
@@ -366,20 +346,19 @@ extern void leon_smp_done(void);
 extern void leon_boot_cpus(void);
 extern int leon_boot_one_cpu(int i);
 void leon_init_smp(void);
-extern void cpu_probe(void);
 extern void cpu_idle(void);
 extern void init_IRQ(void);
 extern void cpu_panic(void);
 extern int __leon_processor_id(void);
 void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu);
+extern irqreturn_t leon_percpu_timer_interrupt(int irq, void *unused);
 
-extern unsigned int real_irq_entry[], smpleon_ticker[];
+extern unsigned int real_irq_entry[];
+extern unsigned int smpleon_ipi[];
 extern unsigned int patchme_maybe_smp_msg[];
-extern unsigned long trapbase_cpu1[];
-extern unsigned long trapbase_cpu2[];
-extern unsigned long trapbase_cpu3[];
 extern unsigned int t_nmi[], linux_trap_ipi15_leon[];
 extern unsigned int linux_trap_ipi15_sun4m[];
+extern int leon_ipi_irq;
 
 #endif /* CONFIG_SMP */
 

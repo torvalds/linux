@@ -97,7 +97,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		ret = 0;
 		goto out;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	wret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 
 	if (wret < 0) {

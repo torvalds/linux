@@ -431,7 +431,8 @@ static int mc13892_sw_regulator_set_voltage(struct regulator_dev *rdev,
 		int min_uV, int max_uV, unsigned *selector)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
-	int hi, value, val, mask, id = rdev_get_id(rdev);
+	int hi, value, mask, id = rdev_get_id(rdev);
+	u32 valread;
 	int ret;
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d min_uV: %d max_uV: %d\n",
@@ -447,15 +448,16 @@ static int mc13892_sw_regulator_set_voltage(struct regulator_dev *rdev,
 
 	mc13xxx_lock(priv->mc13xxx);
 	ret = mc13xxx_reg_read(priv->mc13xxx,
-		mc13892_regulators[id].vsel_reg, &val);
+		mc13892_regulators[id].vsel_reg, &valread);
 	if (ret)
 		goto err;
 
-	hi  = val & MC13892_SWITCHERS0_SWxHI;
-	if (value > 1375)
+	if (value > 1375000)
 		hi = 1;
-	if (value < 1100)
+	else if (value < 1100000)
 		hi = 0;
+	else
+		hi = valread & MC13892_SWITCHERS0_SWxHI;
 
 	if (hi) {
 		value = (value - 1100000) / 25000;
@@ -464,8 +466,10 @@ static int mc13892_sw_regulator_set_voltage(struct regulator_dev *rdev,
 		value = (value - 600000) / 25000;
 
 	mask = mc13892_regulators[id].vsel_mask | MC13892_SWITCHERS0_SWxHI;
-	ret = mc13xxx_reg_rmw(priv->mc13xxx, mc13892_regulators[id].vsel_reg,
-			mask, value << mc13892_regulators[id].vsel_shift);
+	valread = (valread & ~mask) |
+			(value << mc13892_regulators[id].vsel_shift);
+	ret = mc13xxx_reg_write(priv->mc13xxx, mc13892_regulators[id].vsel_reg,
+			valread);
 err:
 	mc13xxx_unlock(priv->mc13xxx);
 

@@ -2,3 +2,7 @@
         - this file
 mmc-dev-attrs.txt
         - info on SD and MMC device attributes
+mmc-dev-parts.txt
+        - info on SD and MMC device partitions
+mmc-async-req.txt
+        - info on mmc asynchronous requests

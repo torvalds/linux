@@ -64,7 +64,7 @@ void *memset(void *v_src, int c, __kernel_size_t n)
 
 	if (likely(n >= 4)) {
 		/* Align the destination to a word boundary */
-		/* This is done in an endian independant manner */
+		/* This is done in an endian independent manner */
 		switch ((unsigned) src & 3) {
 		case 1:
 			*src++ = c;

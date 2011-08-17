@@ -101,6 +101,7 @@ static void tkip_mixing_phase1(const u8 *tk, struct tkip_ctx *ctx,
 		p1k[4] += tkipS(p1k[3] ^ get_unaligned_le16(tk + 0 + j)) + i;
 	}
 	ctx->state = TKIP_STATE_PHASE1_DONE;
+	ctx->p1k_iv32 = tsc_IV32;
 }
 
 static void tkip_mixing_phase2(const u8 *tk, struct tkip_ctx *ctx,
@@ -140,60 +141,80 @@ static void tkip_mixing_phase2(const u8 *tk, struct tkip_ctx *ctx,
 /* Add TKIP IV and Ext. IV at @pos. @iv0, @iv1, and @iv2 are the first octets
  * of the IV. Returns pointer to the octet following IVs (i.e., beginning of
  * the packet payload). */
-u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key, u16 iv16)
+u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key)
 {
-	pos = write_tkip_iv(pos, iv16);
+	lockdep_assert_held(&key->u.tkip.txlock);
+
+	pos = write_tkip_iv(pos, key->u.tkip.tx.iv16);
 	*pos++ = (key->conf.keyidx << 6) | (1 << 5) /* Ext IV */;
 	put_unaligned_le32(key->u.tkip.tx.iv32, pos);
 	return pos + 4;
 }
 
-void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
-			struct sk_buff *skb, enum ieee80211_tkip_key_type type,
-			u8 *outkey)
+static void ieee80211_compute_tkip_p1k(struct ieee80211_key *key, u32 iv32)
+{
+	struct ieee80211_sub_if_data *sdata = key->sdata;
+	struct tkip_ctx *ctx = &key->u.tkip.tx;
+	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
+
+	lockdep_assert_held(&key->u.tkip.txlock);
+
+	/*
+	 * Update the P1K when the IV32 is different from the value it
+	 * had when we last computed it (or when not initialised yet).
+	 * This might flip-flop back and forth if packets are processed
+	 * out-of-order due to the different ACs, but then we have to
+	 * just compute the P1K more often.
+	 */
+	if (ctx->p1k_iv32 != iv32 || ctx->state == TKIP_STATE_NOT_INIT)
+		tkip_mixing_phase1(tk, ctx, sdata->vif.addr, iv32);
+}
+
+void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
+			       u32 iv32, u16 *p1k)
 {
 	struct ieee80211_key *key = (struct ieee80211_key *)
 			container_of(keyconf, struct ieee80211_key, conf);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	u8 *data;
-	const u8 *tk;
-	struct tkip_ctx *ctx;
-	u16 iv16;
-	u32 iv32;
+	struct tkip_ctx *ctx = &key->u.tkip.tx;
+	unsigned long flags;
 
-	data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
-	iv16 = data[2] | (data[0] << 8);
-	iv32 = get_unaligned_le32(&data[4]);
-
-	tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
-	ctx = &key->u.tkip.tx;
-
-#ifdef CONFIG_MAC80211_TKIP_DEBUG
-	printk(KERN_DEBUG "TKIP encrypt: iv16 = 0x%04x, iv32 = 0x%08x\n",
-			iv16, iv32);
-
-	if (iv32 != ctx->iv32) {
-		printk(KERN_DEBUG "skb: iv32 = 0x%08x key: iv32 = 0x%08x\n",
-			iv32, ctx->iv32);
-		printk(KERN_DEBUG "Wrap around of iv16 in the middle of a "
-			"fragmented packet\n");
-	}
-#endif
-
-	/* Update the p1k only when the iv16 in the packet wraps around, this
-	 * might occur after the wrap around of iv16 in the key in case of
-	 * fragmented packets. */
-	if (iv16 == 0 || ctx->state == TKIP_STATE_NOT_INIT)
-		tkip_mixing_phase1(tk, ctx, hdr->addr2, iv32);
-
-	if (type == IEEE80211_TKIP_P1_KEY) {
-		memcpy(outkey, ctx->p1k, sizeof(u16) * 5);
-		return;
-	}
-
-	tkip_mixing_phase2(tk, ctx, iv16, outkey);
+	spin_lock_irqsave(&key->u.tkip.txlock, flags);
+	ieee80211_compute_tkip_p1k(key, iv32);
+	memcpy(p1k, ctx->p1k, sizeof(ctx->p1k));
+	spin_unlock_irqrestore(&key->u.tkip.txlock, flags);
 }
-EXPORT_SYMBOL(ieee80211_get_tkip_key);
+EXPORT_SYMBOL(ieee80211_get_tkip_p1k_iv);
+
+void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
+                               const u8 *ta, u32 iv32, u16 *p1k)
+{
+	const u8 *tk = &keyconf->key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
+	struct tkip_ctx ctx;
+
+	tkip_mixing_phase1(tk, &ctx, ta, iv32);
+	memcpy(p1k, ctx.p1k, sizeof(ctx.p1k));
+}
+EXPORT_SYMBOL(ieee80211_get_tkip_rx_p1k);
+
+void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
+			    struct sk_buff *skb, u8 *p2k)
+{
+	struct ieee80211_key *key = (struct ieee80211_key *)
+			container_of(keyconf, struct ieee80211_key, conf);
+	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
+	struct tkip_ctx *ctx = &key->u.tkip.tx;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	const u8 *data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
+	u32 iv32 = get_unaligned_le32(&data[4]);
+	u16 iv16 = data[2] | (data[0] << 8);
+	unsigned long flags;
+
+	spin_lock_irqsave(&key->u.tkip.txlock, flags);
+	ieee80211_compute_tkip_p1k(key, iv32);
+	tkip_mixing_phase2(tk, ctx, iv16, p2k);
+	spin_unlock_irqrestore(&key->u.tkip.txlock, flags);
+}
+EXPORT_SYMBOL(ieee80211_get_tkip_p2k);
 
 /*
  * Encrypt packet payload with TKIP using @key. @pos is a pointer to the
@@ -202,28 +223,24 @@ EXPORT_SYMBOL(ieee80211_get_tkip_key);
  * @payload_len is the length of payload (_not_ including IV/ICV length).
  * @ta is the transmitter addresses.
  */
-int ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
+int ieee80211_tkip_encrypt_data(struct crypto_cipher *tfm,
 				struct ieee80211_key *key,
-				u8 *pos, size_t payload_len, u8 *ta)
+				struct sk_buff *skb,
+				u8 *payload, size_t payload_len)
 {
 	u8 rc4key[16];
-	struct tkip_ctx *ctx = &key->u.tkip.tx;
-	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 
-	/* Calculate per-packet key */
-	if (ctx->iv16 == 0 || ctx->state == TKIP_STATE_NOT_INIT)
-		tkip_mixing_phase1(tk, ctx, ta, ctx->iv32);
+	ieee80211_get_tkip_p2k(&key->conf, skb, rc4key);
 
-	tkip_mixing_phase2(tk, ctx, ctx->iv16, rc4key);
-
-	return ieee80211_wep_encrypt_data(tfm, rc4key, 16, pos, payload_len);
+	return ieee80211_wep_encrypt_data(tfm, rc4key, 16,
+					  payload, payload_len);
 }
 
 /* Decrypt packet payload with TKIP using @key. @pos is a pointer to the
  * beginning of the buffer containing IEEE 802.11 header payload, i.e.,
  * including IV, Ext. IV, real data, Michael MIC, ICV. @payload_len is the
  * length of payload, including IV, Ext. IV, MIC, ICV.  */
-int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
+int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
 				u8 *ra, int only_iv, int queue,

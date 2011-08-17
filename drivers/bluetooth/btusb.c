@@ -54,6 +54,7 @@ static struct usb_driver btusb_driver;
 #define BTUSB_BCM92035		0x10
 #define BTUSB_BROKEN_ISOC	0x20
 #define BTUSB_WRONG_SCO_MTU	0x40
+#define BTUSB_ATH3012		0x80
 
 static struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
@@ -70,6 +71,9 @@ static struct usb_device_id btusb_table[] = {
 
 	/* Apple MacBookAir3,1, MacBookAir3,2 */
 	{ USB_DEVICE(0x05ac, 0x821b) },
+
+	/* Apple MacBookPro8,2 */
+	{ USB_DEVICE(0x05ac, 0x821a) },
 
 	/* AVM BlueFRITZ! USB v2.0 */
 	{ USB_DEVICE(0x057c, 0x3800) },
@@ -101,9 +105,13 @@ static struct usb_device_id blacklist_table[] = {
 
 	/* Atheros 3011 with sflash firmware */
 	{ USB_DEVICE(0x0cf3, 0x3002), .driver_info = BTUSB_IGNORE },
+	{ USB_DEVICE(0x13d3, 0x3304), .driver_info = BTUSB_IGNORE },
 
 	/* Atheros AR9285 Malbec with sflash firmware */
 	{ USB_DEVICE(0x03f0, 0x311d), .driver_info = BTUSB_IGNORE },
+
+	/* Atheros 3012 with sflash firmware */
+	{ USB_DEVICE(0x0cf3, 0x3004), .driver_info = BTUSB_ATH3012 },
 
 	/* Atheros AR5BBU12 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xe02c), .driver_info = BTUSB_IGNORE },
@@ -430,7 +438,7 @@ static void btusb_isoc_complete(struct urb *urb)
 	}
 }
 
-static void inline __fill_isoc_descriptor(struct urb *urb, int len, int mtu)
+static inline void __fill_isoc_descriptor(struct urb *urb, int len, int mtu)
 {
 	int i, offset = 0;
 
@@ -687,7 +695,8 @@ static int btusb_send_frame(struct sk_buff *skb)
 		break;
 
 	case HCI_ACLDATA_PKT:
-		if (!data->bulk_tx_ep || hdev->conn_hash.acl_num < 1)
+		if (!data->bulk_tx_ep || (hdev->conn_hash.acl_num < 1 &&
+						hdev->conn_hash.le_num < 1))
 			return -ENODEV;
 
 		urb = usb_alloc_urb(0, GFP_ATOMIC);
@@ -714,15 +723,11 @@ static int btusb_send_frame(struct sk_buff *skb)
 		pipe = usb_sndisocpipe(data->udev,
 					data->isoc_tx_ep->bEndpointAddress);
 
-		urb->dev      = data->udev;
-		urb->pipe     = pipe;
-		urb->context  = skb;
-		urb->complete = btusb_isoc_tx_complete;
-		urb->interval = data->isoc_tx_ep->bInterval;
+		usb_fill_int_urb(urb, data->udev, pipe,
+				skb->data, skb->len, btusb_isoc_tx_complete,
+				skb, data->isoc_tx_ep->bInterval);
 
 		urb->transfer_flags  = URB_ISO_ASAP;
-		urb->transfer_buffer = skb->data;
-		urb->transfer_buffer_length = skb->len;
 
 		__fill_isoc_descriptor(urb, skb->len,
 				le16_to_cpu(data->isoc_tx_ep->wMaxPacketSize));
@@ -781,7 +786,7 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 	}
 }
 
-static int inline __set_isoc_interface(struct hci_dev *hdev, int altsetting)
+static inline int __set_isoc_interface(struct hci_dev *hdev, int altsetting)
 {
 	struct btusb_data *data = hdev->driver_data;
 	struct usb_interface *intf = data->isoc;
@@ -909,6 +914,15 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (ignore_sniffer && id->driver_info & BTUSB_SNIFFER)
 		return -ENODEV;
+
+	if (id->driver_info & BTUSB_ATH3012) {
+		struct usb_device *udev = interface_to_usbdev(intf);
+
+		/* Old firmware would otherwise let ath3k driver load
+		 * patch and sysconfig files */
+		if (le16_to_cpu(udev->descriptor.bcdDevice) <= 0x0001)
+			return -ENODEV;
+	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)

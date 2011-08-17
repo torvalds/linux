@@ -28,11 +28,18 @@
 
 int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 		struct cfg80211_scan_request *req);
+int wl1271_scan_stop(struct wl1271 *wl);
 int wl1271_scan_build_probe_req(struct wl1271 *wl,
 				const u8 *ssid, size_t ssid_len,
 				const u8 *ie, size_t ie_len, u8 band);
 void wl1271_scan_stm(struct wl1271 *wl);
 void wl1271_scan_complete_work(struct work_struct *work);
+int wl1271_scan_sched_scan_config(struct wl1271 *wl,
+				     struct cfg80211_sched_scan_request *req,
+				     struct ieee80211_sched_scan_ies *ies);
+int wl1271_scan_sched_scan_start(struct wl1271 *wl);
+void wl1271_scan_sched_scan_stop(struct wl1271 *wl);
+void wl1271_scan_sched_scan_results(struct wl1271 *wl);
 
 #define WL1271_SCAN_MAX_CHANNELS       24
 #define WL1271_SCAN_DEFAULT_TAG        1
@@ -105,5 +112,113 @@ struct wl1271_cmd_trigger_scan_to {
 
 	__le32 timeout;
 } __packed;
+
+#define MAX_CHANNELS_2GHZ	14
+#define MAX_CHANNELS_5GHZ	23
+#define MAX_CHANNELS_4GHZ	4
+
+#define SCAN_MAX_CYCLE_INTERVALS 16
+#define SCAN_MAX_BANDS 3
+
+enum {
+	SCAN_SSID_FILTER_ANY      = 0,
+	SCAN_SSID_FILTER_SPECIFIC = 1,
+	SCAN_SSID_FILTER_LIST     = 2,
+	SCAN_SSID_FILTER_DISABLED = 3
+};
+
+enum {
+	SCAN_BSS_TYPE_INDEPENDENT,
+	SCAN_BSS_TYPE_INFRASTRUCTURE,
+	SCAN_BSS_TYPE_ANY,
+};
+
+#define SCAN_CHANNEL_FLAGS_DFS		BIT(0)
+#define SCAN_CHANNEL_FLAGS_DFS_ENABLED	BIT(1)
+
+struct conn_scan_ch_params {
+	__le16 min_duration;
+	__le16 max_duration;
+	__le16 passive_duration;
+
+	u8  channel;
+	u8  tx_power_att;
+
+	/* bit 0: DFS channel; bit 1: DFS enabled */
+	u8  flags;
+
+	u8  padding[3];
+} __packed;
+
+struct wl1271_cmd_sched_scan_config {
+	struct wl1271_cmd_header header;
+
+	__le32 intervals[SCAN_MAX_CYCLE_INTERVALS];
+
+	s8 rssi_threshold; /* for filtering (in dBm) */
+	s8 snr_threshold;  /* for filtering (in dB) */
+
+	u8 cycles;       /* maximum number of scan cycles */
+	u8 report_after; /* report when this number of results are received */
+	u8 terminate;    /* stop scanning after reporting */
+
+	u8 tag;
+	u8 bss_type; /* for filtering */
+	u8 filter_type;
+
+	u8 ssid_len;     /* For SCAN_SSID_FILTER_SPECIFIC */
+	u8 ssid[IW_ESSID_MAX_SIZE];
+
+	u8 n_probe_reqs; /* Number of probes requests per channel */
+
+	u8 passive[SCAN_MAX_BANDS];
+	u8 active[SCAN_MAX_BANDS];
+
+	u8 dfs;
+
+	u8 padding[3];
+
+	struct conn_scan_ch_params channels_2[MAX_CHANNELS_2GHZ];
+	struct conn_scan_ch_params channels_5[MAX_CHANNELS_5GHZ];
+	struct conn_scan_ch_params channels_4[MAX_CHANNELS_4GHZ];
+} __packed;
+
+
+#define SCHED_SCAN_MAX_SSIDS 8
+
+enum {
+	SCAN_SSID_TYPE_PUBLIC = 0,
+	SCAN_SSID_TYPE_HIDDEN = 1,
+};
+
+struct wl1271_ssid {
+	u8 type;
+	u8 len;
+	u8 ssid[IW_ESSID_MAX_SIZE];
+	/* u8 padding[2]; */
+} __packed;
+
+struct wl1271_cmd_sched_scan_ssid_list {
+	struct wl1271_cmd_header header;
+
+	u8 n_ssids;
+	struct wl1271_ssid ssids[SCHED_SCAN_MAX_SSIDS];
+	u8 padding[3];
+} __packed;
+
+struct wl1271_cmd_sched_scan_start {
+	struct wl1271_cmd_header header;
+
+	u8 tag;
+	u8 padding[3];
+} __packed;
+
+struct wl1271_cmd_sched_scan_stop {
+	struct wl1271_cmd_header header;
+
+	u8 tag;
+	u8 padding[3];
+} __packed;
+
 
 #endif /* __WL1271_SCAN_H__ */

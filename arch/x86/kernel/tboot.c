@@ -36,6 +36,7 @@
 #include <asm/bootparam.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/swiotlb.h>
 #include <asm/fixmap.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
@@ -110,7 +111,6 @@ static struct mm_struct tboot_mm = {
 	.mmap_sem       = __RWSEM_INITIALIZER(init_mm.mmap_sem),
 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
 	.mmlist         = LIST_HEAD_INIT(init_mm.mmlist),
-	.cpu_vm_mask    = CPU_MASK_ALL,
 };
 
 static inline void switch_to_tboot_pt(void)

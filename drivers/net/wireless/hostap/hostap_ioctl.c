@@ -1945,7 +1945,7 @@ static char * __prism2_translate_scan(local_info_t *local,
 }
 
 
-/* Translate scan data returned from the card to a card independant
+/* Translate scan data returned from the card to a card independent
  * format that the Wireless Tools will understand - Jean II */
 static inline int prism2_translate_scan(local_info_t *local,
 					struct iw_request_info *info,
@@ -2043,7 +2043,7 @@ static inline int prism2_ioctl_giwscan_sta(struct net_device *dev,
 		 * until results are ready for various reasons.
 		 * First, managing wait queues is complex and racy
 		 * (there may be multiple simultaneous callers).
-		 * Second, we grab some rtnetlink lock before comming
+		 * Second, we grab some rtnetlink lock before coming
 		 * here (in dev_ioctl()).
 		 * Third, the caller can wait on the Wireless Event
 		 * - Jean II */

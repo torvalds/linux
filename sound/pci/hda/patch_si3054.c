@@ -130,7 +130,7 @@ static int si3054_switch_put(struct snd_kcontrol *kcontrol,
 }
 		
 
-static struct snd_kcontrol_new si3054_modem_mixer[] = {
+static const struct snd_kcontrol_new si3054_modem_mixer[] = {
 	SI3054_KCONTROL("Off-hook Switch", SI3054_GPIO_CONTROL, SI3054_GPIO_OH),
 	SI3054_KCONTROL("Caller ID Switch", SI3054_GPIO_CONTROL, SI3054_GPIO_CID),
 	{}
@@ -181,7 +181,7 @@ static int si3054_pcm_open(struct hda_pcm_stream *hinfo,
 }
 
 
-static struct hda_pcm_stream si3054_pcm = {
+static const struct hda_pcm_stream si3054_pcm = {
 	.substreams = 1,
 	.channels_min = 1,
 	.channels_max = 1,
@@ -200,12 +200,13 @@ static int si3054_build_pcms(struct hda_codec *codec)
 {
 	struct si3054_spec *spec = codec->spec;
 	struct hda_pcm *info = &spec->pcm;
-	si3054_pcm.nid = codec->mfg;
 	codec->num_pcms = 1;
 	codec->pcm_info = info;
 	info->name = "Si3054 Modem";
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
+	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->mfg;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = codec->mfg;
 	info->pcm_type = HDA_PCM_TYPE_MODEM;
 	return 0;
 }
@@ -263,7 +264,7 @@ static void si3054_free(struct hda_codec *codec)
 /*
  */
 
-static struct hda_codec_ops si3054_patch_ops = {
+static const struct hda_codec_ops si3054_patch_ops = {
 	.build_controls = si3054_build_controls,
 	.build_pcms = si3054_build_pcms,
 	.init = si3054_init,
@@ -283,7 +284,7 @@ static int patch_si3054(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_si3054[] = {
+static const struct hda_codec_preset snd_hda_preset_si3054[] = {
  	{ .id = 0x163c3055, .name = "Si3054", .patch = patch_si3054 },
  	{ .id = 0x163c3155, .name = "Si3054", .patch = patch_si3054 },
  	{ .id = 0x11c13026, .name = "Si3054", .patch = patch_si3054 },

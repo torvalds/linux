@@ -244,13 +244,6 @@ bool init_firmware(struct net_device *dev)
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	bool			rt_status = TRUE;
 
-	u8			*firmware_img_buf[3] = { &rtl8190_fwboot_array[0],
-							 &rtl8190_fwmain_array[0],
-							 &rtl8190_fwdata_array[0]};
-
-	u32			firmware_img_len[3] = { sizeof(rtl8190_fwboot_array),
-							sizeof(rtl8190_fwmain_array),
-							sizeof(rtl8190_fwdata_array)};
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
@@ -284,59 +277,40 @@ bool init_firmware(struct net_device *dev)
 	 * Download boot, main, and data image for System reset.
 	 * Download data image for firmware reseta
 	 */
-	priv->firmware_source = FW_SOURCE_IMG_FILE;
 	for(init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		/*
 		 * Open Image file, and map file to contineous memory if open file success.
 		 * or read image file from array. Default load from IMG file
 		 */
 		if(rst_opt == OPT_SYSTEM_RESET) {
-			switch(priv->firmware_source) {
-				case FW_SOURCE_IMG_FILE:
-					rc = request_firmware(&fw_entry, fw_name[init_step],&priv->udev->dev);
-					if(rc < 0 ) {
-						RT_TRACE(COMP_ERR, "request firmware fail!\n");
-						goto download_firmware_fail;
-					}
-
-					if(fw_entry->size > sizeof(pfirmware->firmware_buf)) {
-						RT_TRACE(COMP_ERR, "img file size exceed the container buffer fail!\n");
-						goto download_firmware_fail;
-					}
-
-					if(init_step != FW_INIT_STEP1_MAIN) {
-						memcpy(pfirmware->firmware_buf,fw_entry->data,fw_entry->size);
-						mapped_file = pfirmware->firmware_buf;
-						file_length = fw_entry->size;
-					} else {
-					#ifdef RTL8190P
-						memcpy(pfirmware->firmware_buf,fw_entry->data,fw_entry->size);
-						mapped_file = pfirmware->firmware_buf;
-						file_length = fw_entry->size;
-					#else
-						memset(pfirmware->firmware_buf,0,128);
-						memcpy(&pfirmware->firmware_buf[128],fw_entry->data,fw_entry->size);
-						mapped_file = pfirmware->firmware_buf;
-						file_length = fw_entry->size + 128;
-					#endif
-					}
-					pfirmware->firmware_buf_size = file_length;
-					break;
-
-				case FW_SOURCE_HEADER_FILE:
-					mapped_file =  firmware_img_buf[init_step];
-					file_length  = firmware_img_len[init_step];
-					if(init_step == FW_INIT_STEP2_DATA) {
-						memcpy(pfirmware->firmware_buf, mapped_file, file_length);
-						pfirmware->firmware_buf_size = file_length;
-					}
-					break;
-
-				default:
-					break;
+			rc = request_firmware(&fw_entry, fw_name[init_step],&priv->udev->dev);
+			if(rc < 0 ) {
+				RT_TRACE(COMP_ERR, "request firmware fail!\n");
+				goto download_firmware_fail;
 			}
 
+			if(fw_entry->size > sizeof(pfirmware->firmware_buf)) {
+				RT_TRACE(COMP_ERR, "img file size exceed the container buffer fail!\n");
+				goto download_firmware_fail;
+			}
 
+			if(init_step != FW_INIT_STEP1_MAIN) {
+				memcpy(pfirmware->firmware_buf,fw_entry->data,fw_entry->size);
+				mapped_file = pfirmware->firmware_buf;
+				file_length = fw_entry->size;
+			} else {
+#ifdef RTL8190P
+				memcpy(pfirmware->firmware_buf,fw_entry->data,fw_entry->size);
+				mapped_file = pfirmware->firmware_buf;
+				file_length = fw_entry->size;
+#else
+				memset(pfirmware->firmware_buf,0,128);
+				memcpy(&pfirmware->firmware_buf[128],fw_entry->data,fw_entry->size);
+				mapped_file = pfirmware->firmware_buf;
+				file_length = fw_entry->size + 128;
+#endif
+			}
+			pfirmware->firmware_buf_size = file_length;
 		}else if(rst_opt == OPT_FIRMWARE_RESET ) {
 			/* we only need to download data.img here */
 			mapped_file = pfirmware->firmware_buf;
@@ -425,10 +399,7 @@ download_firmware_fail:
 
 }
 
-
-
-
-
-
-
+MODULE_FIRMWARE("RTL8192U/boot.img");
+MODULE_FIRMWARE("RTL8192U/main.img");
+MODULE_FIRMWARE("RTL8192U/data.img");
 

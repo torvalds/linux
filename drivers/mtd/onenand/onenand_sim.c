@@ -321,7 +321,7 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 				continue;
 			if (memcmp(dest + off, ffchars, this->subpagesize) &&
 			    onenand_check_overwrite(dest + off, src + off, this->subpagesize))
-				printk(KERN_ERR "over-write happend at 0x%08x\n", offset);
+				printk(KERN_ERR "over-write happened at 0x%08x\n", offset);
 			memcpy(dest + off, src + off, this->subpagesize);
 		}
 		/* Fall through */
@@ -335,7 +335,7 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 		dest = ONENAND_CORE_SPARE(flash, this, offset);
 		if (memcmp(dest, ffchars, mtd->oobsize) &&
 		    onenand_check_overwrite(dest, src, mtd->oobsize))
-			printk(KERN_ERR "OOB: over-write happend at 0x%08x\n",
+			printk(KERN_ERR "OOB: over-write happened at 0x%08x\n",
 			       offset);
 		memcpy(dest, src, mtd->oobsize);
 		break;
@@ -539,7 +539,8 @@ static int __init onenand_sim_init(void)
 		return -ENXIO;
 	}
 
-	add_mtd_partitions(&info->mtd, info->parts, ARRAY_SIZE(os_partitions));
+	mtd_device_register(&info->mtd, info->parts,
+			    ARRAY_SIZE(os_partitions));
 
 	return 0;
 }

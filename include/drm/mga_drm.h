@@ -107,7 +107,7 @@
  */
 #define MGA_NR_SAREA_CLIPRECTS	8
 
-/* 2 heaps (1 for card, 1 for agp), each divided into upto 128
+/* 2 heaps (1 for card, 1 for agp), each divided into up to 128
  * regions, subject to a minimum region size of (1<<16) == 64k.
  *
  * Clients may subdivide regions internally, but when sharing between

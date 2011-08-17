@@ -16,12 +16,10 @@
  *	10/04/2007  MHC    	Create initial version.
  *
  *****************************************************************************/
- /* Check to see if the file has been included already.  */
+
 #ifndef	__R8192UDM_H__
 #define __R8192UDM_H__
 
-
-/*--------------------------Define Parameters-------------------------------*/
 #define 		OFDM_Table_Length	19
 #define		CCK_Table_length	12
 
@@ -65,54 +63,7 @@
 #define 		Initial_Tx_Rate_Reg         0x1e1 //0x1b9
 #define 		Tx_Retry_Count_Reg         0x1ac
 #define		RegC38_TH				 20
-#if 0
-//----------------------------------------------------------------------------
-//       8190 Rate Adaptive Table Register	(offset 0x320, 4 byte)
-//----------------------------------------------------------------------------
 
-//CCK
-#define	RATR_1M					0x00000001
-#define	RATR_2M					0x00000002
-#define	RATR_55M					0x00000004
-#define	RATR_11M					0x00000008
-//OFDM
-#define	RATR_6M					0x00000010
-#define	RATR_9M					0x00000020
-#define	RATR_12M					0x00000040
-#define	RATR_18M					0x00000080
-#define	RATR_24M					0x00000100
-#define	RATR_36M					0x00000200
-#define	RATR_48M					0x00000400
-#define	RATR_54M					0x00000800
-//MCS 1 Spatial Stream
-#define	RATR_MCS0					0x00001000
-#define	RATR_MCS1					0x00002000
-#define	RATR_MCS2					0x00004000
-#define	RATR_MCS3					0x00008000
-#define	RATR_MCS4					0x00010000
-#define	RATR_MCS5					0x00020000
-#define	RATR_MCS6					0x00040000
-#define	RATR_MCS7					0x00080000
-//MCS 2 Spatial Stream
-#define	RATR_MCS8					0x00100000
-#define	RATR_MCS9					0x00200000
-#define	RATR_MCS10					0x00400000
-#define	RATR_MCS11					0x00800000
-#define	RATR_MCS12					0x01000000
-#define	RATR_MCS13					0x02000000
-#define	RATR_MCS14					0x04000000
-#define	RATR_MCS15					0x08000000
-// ALL CCK Rate
-#define RATE_ALL_CCK				RATR_1M|RATR_2M|RATR_55M|RATR_11M
-#define RATE_ALL_OFDM_AG			RATR_6M|RATR_9M|RATR_12M|RATR_18M|RATR_24M\
-									|RATR_36M|RATR_48M|RATR_54M
-#define RATE_ALL_OFDM_2SS			RATR_MCS8|RATR_MCS9	|RATR_MCS10|RATR_MCS11| \
-									RATR_MCS12|RATR_MCS13|RATR_MCS14|RATR_MCS15
-#endif
-/*--------------------------Define Parameters-------------------------------*/
-
-
-/*------------------------------Define structure----------------------------*/
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
 typedef struct _dynamic_initial_gain_threshold_
 {
@@ -256,55 +207,22 @@ typedef struct tag_Tx_Config_Cmd_Format
 	u32	Length;									/* Command packet length. */
 	u32	Value;
 }DCMD_TXCMD_T, *PDCMD_TXCMD_T;
-/*------------------------------Define structure----------------------------*/
 
 
-/*------------------------Export global variable----------------------------*/
-extern	dig_t	dm_digtable;
-extern DRxPathSel      DM_RxPathSelTable;
-/*------------------------Export global variable----------------------------*/
+extern dig_t dm_digtable;
+extern DRxPathSel DM_RxPathSelTable;
 
+void init_hal_dm(struct r8192_priv *priv);
+void deinit_hal_dm(struct r8192_priv *priv);
 
-/*------------------------Export Marco Definition---------------------------*/
+void hal_dm_watchdog(struct r8192_priv *priv);
 
-/*------------------------Export Marco Definition---------------------------*/
-
-
-/*--------------------------Exported Function prototype---------------------*/
-/*--------------------------Exported Function prototype---------------------*/
-extern  void    init_hal_dm(struct net_device *dev);
-extern  void deinit_hal_dm(struct net_device *dev);
-
-extern void hal_dm_watchdog(struct net_device *dev);
-
-
-extern  void    init_rate_adaptive(struct net_device *dev);
-extern  void    dm_txpower_trackingcallback(struct work_struct *work);
-
-extern  void    dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
-extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
-extern  void    dm_backup_dynamic_mechanism_state(struct net_device *dev);
-extern  void    dm_change_dynamic_initgain_thresh(struct net_device *dev,
-                                                                u32             dm_type,
-                                                                u32             dm_value);
-extern  void    DM_ChangeFsyncSetting(struct net_device *dev,
-                                                                                                s32             DM_Type,
-                                                                                                s32             DM_Value);
-extern  void dm_force_tx_fw_info(struct net_device *dev,
-                                                                                u32             force_type,
-                                                                                u32             force_value);
-extern  void    dm_init_edca_turbo(struct net_device *dev);
-extern  void    dm_rf_operation_test_callback(unsigned long data);
-extern  void    dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-extern  void dm_fsync_timer_callback(unsigned long data);
-#if 0
-extern  bool    dm_check_lbus_status(struct net_device *dev);
-#endif
-extern  void dm_check_fsync(struct net_device *dev);
-extern  void dm_initialize_txpower_tracking(struct net_device *dev);
+void init_rate_adaptive(struct r8192_priv *priv);
+void dm_txpower_trackingcallback(struct work_struct *work);
+void dm_rf_pathcheck_workitemcallback(struct work_struct *work);
+void dm_initialize_txpower_tracking(struct r8192_priv *priv);
+void dm_cck_txpower_adjust(struct r8192_priv *priv, bool binch14);
 
 
 #endif	/*__R8192UDM_H__ */
 
-
-/* End of r8192U_dm.h */

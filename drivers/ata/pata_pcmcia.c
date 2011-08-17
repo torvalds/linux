@@ -68,7 +68,7 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 		   the same vendor - check serial */
 		if (memcmp(master->id + ATA_ID_SERNO, slave->id + ATA_ID_SERNO,
 			   ATA_ID_SERNO_LEN) == 0 && master->id[ATA_ID_SERNO] >> 8) {
-			ata_dev_printk(slave, KERN_WARNING, "is a ghost device, ignoring.\n");
+			ata_dev_warn(slave, "is a ghost device, ignoring\n");
 			ata_dev_disable(slave);
 		}
 	}
@@ -124,7 +124,7 @@ static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
  *	reset will recover the device.
  *
  */
- 
+
 static void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
 {
 	int count;
@@ -142,8 +142,7 @@ static void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
 		ioread8(ap->ioaddr.data_addr);
 
 	if (count)
-		ata_port_printk(ap, KERN_WARNING, "drained %d bytes to clear DRQ.\n",
-								count);
+		ata_port_warn(ap, "drained %d bytes to clear DRQ\n", count);
 
 }
 
@@ -309,7 +308,7 @@ static void pcmcia_remove_one(struct pcmcia_device *pdev)
 	pcmcia_disable_device(pdev);
 }
 
-static struct pcmcia_device_id pcmcia_devices[] = {
+static const struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_FUNC_ID(4),
 	PCMCIA_DEVICE_MANF_CARD(0x0000, 0x0000),	/* Corsair */
 	PCMCIA_DEVICE_MANF_CARD(0x0007, 0x0000),	/* Hitachi */

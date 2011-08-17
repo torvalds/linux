@@ -35,7 +35,6 @@ atomic_t irq_err_count;
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc = irq_desc + irq;
 
 	if (irq >= NR_IRQS) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
@@ -57,104 +56,63 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 			       sp - sizeof(struct thread_info));
 	}
 #endif
-	desc->handle_irq(irq, desc);
+	generic_handle_irq(irq);
 
 	irq_exit();
 	set_irq_regs(old_regs);
 }
 
-/*
- * Generic, controller-independent functions:
- */
-
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		seq_printf(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ",i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
-		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "NMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", nmi_count(j));
-		seq_putc(p, '\n');
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-	}
+	seq_printf(p, "%*s: ", prec, "ERR");
+	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
 	return 0;
 }
 
-static void xtensa_irq_mask(unsigned int irq)
+static void xtensa_irq_mask(struct irq_data *d)
 {
-	cached_irq_mask &= ~(1 << irq);
+	cached_irq_mask &= ~(1 << d->irq);
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void xtensa_irq_unmask(unsigned int irq)
+static void xtensa_irq_unmask(struct irq_data *d)
 {
-	cached_irq_mask |= 1 << irq;
+	cached_irq_mask |= 1 << d->irq;
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void xtensa_irq_enable(unsigned int irq)
+static void xtensa_irq_enable(struct irq_data *d)
 {
-	variant_irq_enable(irq);
-	xtensa_irq_unmask(irq);
+	variant_irq_enable(d->irq);
+	xtensa_irq_unmask(d->irq);
 }
 
-static void xtensa_irq_disable(unsigned int irq)
+static void xtensa_irq_disable(struct irq_data *d)
 {
-	xtensa_irq_mask(irq);
-	variant_irq_disable(irq);
+	xtensa_irq_mask(d->irq);
+	variant_irq_disable(d->irq);
 }
 
-static void xtensa_irq_ack(unsigned int irq)
+static void xtensa_irq_ack(struct irq_data *d)
 {
-	set_sr(1 << irq, INTCLEAR);
+	set_sr(1 << d->irq, INTCLEAR);
 }
 
-static int xtensa_irq_retrigger(unsigned int irq)
+static int xtensa_irq_retrigger(struct irq_data *d)
 {
-	set_sr (1 << irq, INTSET);
+	set_sr (1 << d->irq, INTSET);
 	return 1;
 }
 
 
 static struct irq_chip xtensa_irq_chip = {
 	.name		= "xtensa",
-	.enable		= xtensa_irq_enable,
-	.disable	= xtensa_irq_disable,
-	.mask		= xtensa_irq_mask,
-	.unmask		= xtensa_irq_unmask,
-	.ack		= xtensa_irq_ack,
-	.retrigger	= xtensa_irq_retrigger,
+	.irq_enable	= xtensa_irq_enable,
+	.irq_disable	= xtensa_irq_disable,
+	.irq_mask	= xtensa_irq_mask,
+	.irq_unmask	= xtensa_irq_unmask,
+	.irq_ack	= xtensa_irq_ack,
+	.irq_retrigger	= xtensa_irq_retrigger,
 };
 
 void __init init_IRQ(void)
@@ -165,25 +123,25 @@ void __init init_IRQ(void)
 		int mask = 1 << index;
 
 		if (mask & XCHAL_INTTYPE_MASK_SOFTWARE)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_simple_irq);
 
 		else if (mask & XCHAL_INTTYPE_MASK_EXTERN_EDGE)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_edge_irq);
 
 		else if (mask & XCHAL_INTTYPE_MASK_EXTERN_LEVEL)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_level_irq);
 
 		else if (mask & XCHAL_INTTYPE_MASK_TIMER)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_edge_irq);
 
 		else	/* XCHAL_INTTYPE_MASK_WRITE_ERROR */
 			/* XCHAL_INTTYPE_MASK_NMI */
 
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_level_irq);
 	}
 

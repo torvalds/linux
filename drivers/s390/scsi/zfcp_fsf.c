@@ -18,6 +18,8 @@
 #include "zfcp_qdio.h"
 #include "zfcp_reqlist.h"
 
+struct kmem_cache *zfcp_fsf_qtcb_cache;
+
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
@@ -83,7 +85,7 @@ void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 	}
 
 	if (likely(req->qtcb))
-		kmem_cache_free(zfcp_data.qtcb_cache, req->qtcb);
+		kmem_cache_free(zfcp_fsf_qtcb_cache, req->qtcb);
 	kfree(req);
 }
 
@@ -212,7 +214,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 
 	if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
 		zfcp_dbf_hba_fsf_uss("fssrh_1", req);
-		mempool_free(sr_buf, adapter->pool.status_read_data);
+		mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 		zfcp_fsf_req_free(req);
 		return;
 	}
@@ -265,7 +267,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		break;
 	}
 
-	mempool_free(sr_buf, adapter->pool.status_read_data);
+	mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 	zfcp_fsf_req_free(req);
 
 	atomic_inc(&adapter->stat_miss);
@@ -628,7 +630,7 @@ static struct fsf_qtcb *zfcp_qtcb_alloc(mempool_t *pool)
 	if (likely(pool))
 		qtcb = mempool_alloc(pool, GFP_ATOMIC);
 	else
-		qtcb = kmem_cache_alloc(zfcp_data.qtcb_cache, GFP_ATOMIC);
+		qtcb = kmem_cache_alloc(zfcp_fsf_qtcb_cache, GFP_ATOMIC);
 
 	if (unlikely(!qtcb))
 		return NULL;
@@ -638,7 +640,7 @@ static struct fsf_qtcb *zfcp_qtcb_alloc(mempool_t *pool)
 }
 
 static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
-						u32 fsf_cmd, u32 sbtype,
+						u32 fsf_cmd, u8 sbtype,
 						mempool_t *pool)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
@@ -723,6 +725,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	struct zfcp_adapter *adapter = qdio->adapter;
 	struct zfcp_fsf_req *req;
 	struct fsf_status_read_buffer *sr_buf;
+	struct page *page;
 	int retval = -EIO;
 
 	spin_lock_irq(&qdio->req_q_lock);
@@ -736,11 +739,12 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 		goto out;
 	}
 
-	sr_buf = mempool_alloc(adapter->pool.status_read_data, GFP_ATOMIC);
-	if (!sr_buf) {
+	page = mempool_alloc(adapter->pool.sr_data, GFP_ATOMIC);
+	if (!page) {
 		retval = -ENOMEM;
 		goto failed_buf;
 	}
+	sr_buf = page_address(page);
 	memset(sr_buf, 0, sizeof(*sr_buf));
 	req->data = sr_buf;
 
@@ -755,7 +759,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 
 failed_req_send:
 	req->data = NULL;
-	mempool_free(sr_buf, adapter->pool.status_read_data);
+	mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 failed_buf:
 	zfcp_dbf_hba_fsf_uss("fssr__1", req);
 	zfcp_fsf_req_free(req);
@@ -837,7 +841,7 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *scmnd)
 	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_ABORT_FCP_CMND,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.scsi_abort);
 	if (IS_ERR(req)) {
 		req = NULL;
@@ -1008,7 +1012,7 @@ int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_SEND_GENERIC,
-				  SBAL_FLAGS0_TYPE_WRITE_READ, pool);
+				  SBAL_SFLAGS0_TYPE_WRITE_READ, pool);
 
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
@@ -1079,7 +1083,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 		}
 		break;
 	case FSF_SBAL_MISMATCH:
-		/* should never occure, avoided in zfcp_fsf_send_els */
+		/* should never occur, avoided in zfcp_fsf_send_els */
 		/* fall through */
 	default:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -1106,7 +1110,7 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_SEND_ELS,
-				  SBAL_FLAGS0_TYPE_WRITE_READ, NULL);
+				  SBAL_SFLAGS0_TYPE_WRITE_READ, NULL);
 
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
@@ -1152,7 +1156,7 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_CONFIG_DATA,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1194,7 +1198,7 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *qdio,
 		goto out_unlock;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_CONFIG_DATA,
-				  SBAL_FLAGS0_TYPE_READ, NULL);
+				  SBAL_SFLAGS0_TYPE_READ, NULL);
 
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
@@ -1246,7 +1250,7 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_PORT_DATA,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1292,7 +1296,7 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *qdio,
 		goto out_unlock;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_PORT_DATA,
-				  SBAL_FLAGS0_TYPE_READ, NULL);
+				  SBAL_SFLAGS0_TYPE_READ, NULL);
 
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
@@ -1408,7 +1412,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_PORT_WITH_DID,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1474,7 +1478,7 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PORT,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1549,10 +1553,10 @@ int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *wka_port)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_PORT_WITH_DID,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
-	if (unlikely(IS_ERR(req))) {
+	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
 		goto out;
 	}
@@ -1602,10 +1606,10 @@ int zfcp_fsf_close_wka_port(struct zfcp_fc_wka_port *wka_port)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PORT,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
-	if (unlikely(IS_ERR(req))) {
+	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
 		goto out;
 	}
@@ -1694,7 +1698,7 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PHYSICAL_PORT,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1808,7 +1812,7 @@ int zfcp_fsf_open_lun(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_LUN,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1897,7 +1901,7 @@ int zfcp_fsf_close_lun(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_LUN,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -2157,7 +2161,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 {
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd *fcp_cmnd;
-	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
+	u8 sbtype = SBAL_SFLAGS0_TYPE_READ;
 	int real_bytes, retval = -EIO, dix_bytes = 0;
 	struct scsi_device *sdev = scsi_cmnd->device;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
@@ -2177,7 +2181,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	}
 
 	if (scsi_cmnd->sc_data_direction == DMA_TO_DEVICE)
-		sbtype = SBAL_FLAGS0_TYPE_WRITE;
+		sbtype = SBAL_SFLAGS0_TYPE_WRITE;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
 				  sbtype, adapter->pool.scsi_req);
@@ -2206,7 +2210,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction);
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
-	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
+	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd, 0);
 
 	if (scsi_prot_sg_count(scsi_cmnd)) {
 		zfcp_qdio_set_data_div(qdio, &req->qdio_req,
@@ -2276,7 +2280,7 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
-				  SBAL_FLAGS0_TYPE_WRITE,
+				  SBAL_SFLAGS0_TYPE_WRITE,
 				  qdio->adapter->pool.scsi_req);
 
 	if (IS_ERR(req)) {
@@ -2284,7 +2288,6 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 		goto out;
 	}
 
-	req->status |= ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT;
 	req->data = scmnd;
 	req->handler = zfcp_fsf_fcp_task_mgmt_handler;
 	req->qtcb->header.lun_handle = zfcp_sdev->lun_handle;
@@ -2296,7 +2299,7 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
-	zfcp_fc_fcp_tm(fcp_cmnd, scmnd->device, tm_flags);
+	zfcp_fc_scsi_to_fcp(fcp_cmnd, scmnd, tm_flags);
 
 	zfcp_fsf_start_timer(req, ZFCP_SCSI_ER_TIMEOUT);
 	if (!zfcp_fsf_req_send(req))
@@ -2325,17 +2328,18 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct zfcp_fsf_req *req = NULL;
 	struct fsf_qtcb_bottom_support *bottom;
-	int direction, retval = -EIO, bytes;
+	int retval = -EIO, bytes;
+	u8 direction;
 
 	if (!(adapter->adapter_features & FSF_FEATURE_CFDC))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	switch (fsf_cfdc->command) {
 	case FSF_QTCB_DOWNLOAD_CONTROL_FILE:
-		direction = SBAL_FLAGS0_TYPE_WRITE;
+		direction = SBAL_SFLAGS0_TYPE_WRITE;
 		break;
 	case FSF_QTCB_UPLOAD_CONTROL_FILE:
-		direction = SBAL_FLAGS0_TYPE_READ;
+		direction = SBAL_SFLAGS0_TYPE_READ;
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
@@ -2410,7 +2414,7 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 		fsf_req->qdio_req.sbal_response = sbal_idx;
 		zfcp_fsf_req_complete(fsf_req);
 
-		if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
+		if (likely(sbale->eflags & SBAL_EFLAGS_LAST_ENTRY))
 			break;
 	}
 }

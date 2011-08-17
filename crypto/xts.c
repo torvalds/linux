@@ -45,7 +45,7 @@ static int setkey(struct crypto_tfm *parent, const u8 *key,
 		return -EINVAL;
 	}
 
-	/* we need two cipher instances: one to compute the inital 'tweak'
+	/* we need two cipher instances: one to compute the initial 'tweak'
 	 * by encrypting the IV (usually the 'plain' iv) and the other
 	 * one to encrypt and decrypt the data */
 

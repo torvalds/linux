@@ -9,6 +9,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/hardirq.h>
 #include <linux/slab.h>
 
 #include <linux/etherdevice.h>
@@ -225,7 +226,7 @@ static void lbtf_free_adapter(struct lbtf_private *priv)
 	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
-static int lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct lbtf_private *priv = hw->priv;
 
@@ -236,7 +237,6 @@ static int lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * there are no buffered multicast frames to send
 	 */
 	ieee80211_stop_queues(priv->hw);
-	return NETDEV_TX_OK;
 }
 
 static void lbtf_tx_work(struct work_struct *work)
@@ -586,7 +586,7 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	need_padding ^= ieee80211_has_a4(hdr->frame_control);
 	need_padding ^= ieee80211_is_data_qos(hdr->frame_control) &&
 			(*ieee80211_get_qos_ctl(hdr) &
-			 IEEE80211_QOS_CONTROL_A_MSDU_PRESENT);
+			 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
 
 	if (need_padding) {
 		memmove(skb->data + 2, skb->data, skb->len);

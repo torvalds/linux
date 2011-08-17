@@ -29,7 +29,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -76,38 +75,13 @@
 #define A_CPU2BE16(x)      htons(x)
 #define A_CPU2BE32(x)      htonl(x)
 
-#define A_MEMCPY(dst, src, len)         memcpy((A_UINT8 *)(dst), (src), (len))
 #define A_MEMZERO(addr, len)            memset(addr, 0, len)
-#define A_MEMCMP(addr1, addr2, len)     memcmp((addr1), (addr2), (len))
 #define A_MALLOC(size)                  kmalloc((size), GFP_KERNEL)
 #define A_MALLOC_NOWAIT(size)           kmalloc((size), GFP_ATOMIC)
-#define A_FREE(addr)                    kfree(addr)
 
-#if defined(ANDROID_ENV) && defined(CONFIG_ANDROID_LOGGER)
-extern unsigned int enablelogcat;
-extern int android_logger_lv(void* module, int mask);
-enum logidx { LOG_MAIN_IDX = 0 };
-extern int logger_write(const enum logidx idx, 
-                const unsigned char prio,
-                const char __kernel * const tag,
-                const char __kernel * const fmt,
-                ...);
-#define A_ANDROID_PRINTF(mask, module, tags, args...) do {  \
-    if (enablelogcat) \
-        logger_write(LOG_MAIN_IDX, android_logger_lv(module, mask), tags, args); \
-    else \
-        printk(KERN_ALERT args); \
-} while (0)
-#ifdef DEBUG
-#define A_LOGGER_MODULE_NAME(x) #x
-#define A_LOGGER(mask, mod, args...) \
-    A_ANDROID_PRINTF(mask, &GET_ATH_MODULE_DEBUG_VAR_NAME(mod), "ar6k_" A_LOGGER_MODULE_NAME(mod), args);
-#endif 
-#define A_PRINTF(args...) A_ANDROID_PRINTF(ATH_DEBUG_INFO, NULL, "ar6k_driver", args)
-#else
 #define A_LOGGER(mask, mod, args...)    printk(KERN_ALERT args)
 #define A_PRINTF(args...)               printk(KERN_ALERT args)
-#endif /* ANDROID */
+
 #define A_PRINTF_LOG(args...)           printk(args)
 #define A_SPRINTF(buf, args...)			sprintf (buf, args)
 
@@ -116,12 +90,12 @@ typedef spinlock_t                      A_MUTEX_T;
 #define A_MUTEX_INIT(mutex)             spin_lock_init(mutex)
 #define A_MUTEX_LOCK(mutex)             spin_lock_bh(mutex)
 #define A_MUTEX_UNLOCK(mutex)           spin_unlock_bh(mutex)
-#define A_IS_MUTEX_VALID(mutex)         TRUE  /* okay to return true, since A_MUTEX_DELETE does nothing */
+#define A_IS_MUTEX_VALID(mutex)         true  /* okay to return true, since A_MUTEX_DELETE does nothing */
 #define A_MUTEX_DELETE(mutex)           /* spin locks are not kernel resources so nothing to free.. */
 
 /* Get current time in ms adding a constant offset (in ms) */
 #define A_GET_MS(offset)    \
-	(jiffies + ((offset) / 1000) * HZ)
+	(((jiffies / HZ) * 1000) + (offset))
 
 /*
  * Timer Functions
@@ -213,17 +187,8 @@ extern unsigned int panic_on_assert;
 #define A_ASSERT(expr)
 #endif /* DEBUG */
 
-#ifdef ANDROID_ENV
-struct firmware;
-int android_request_firmware(const struct firmware **firmware_p, const char *filename,
-                     struct device *device);
-void android_release_firmware(const struct firmware *firmware);
-#define A_REQUEST_FIRMWARE(_ppf, _pfile, _dev) android_request_firmware(_ppf, _pfile, _dev)
-#define A_RELEASE_FIRMWARE(_pf) android_release_firmware(_pf)
-#else
 #define A_REQUEST_FIRMWARE(_ppf, _pfile, _dev) request_firmware(_ppf, _pfile, _dev)
 #define A_RELEASE_FIRMWARE(_pf) release_firmware(_pf)
-#endif 
 
 /*
  * Initialization of the network buffer subsystem
@@ -247,7 +212,7 @@ typedef struct sk_buff_head A_NETBUF_QUEUE_T;
 #define A_NETBUF_QUEUE_SIZE(q)  \
     a_netbuf_queue_size(q)
 #define A_NETBUF_QUEUE_EMPTY(q) \
-    a_netbuf_queue_empty(q)
+    (a_netbuf_queue_empty(q) ? true : false)
 
 /*
  * Network buffer support
@@ -306,17 +271,17 @@ void *a_netbuf_alloc(int size);
 void *a_netbuf_alloc_raw(int size);
 void a_netbuf_free(void *bufPtr);
 void *a_netbuf_to_data(void *bufPtr);
-A_UINT32 a_netbuf_to_len(void *bufPtr);
-A_STATUS a_netbuf_push(void *bufPtr, A_INT32 len);
-A_STATUS a_netbuf_push_data(void *bufPtr, char *srcPtr, A_INT32 len);
-A_STATUS a_netbuf_put(void *bufPtr, A_INT32 len);
-A_STATUS a_netbuf_put_data(void *bufPtr, char *srcPtr, A_INT32 len);
-A_STATUS a_netbuf_pull(void *bufPtr, A_INT32 len);
-A_STATUS a_netbuf_pull_data(void *bufPtr, char *dstPtr, A_INT32 len);
-A_STATUS a_netbuf_trim(void *bufPtr, A_INT32 len);
-A_STATUS a_netbuf_trim_data(void *bufPtr, char *dstPtr, A_INT32 len);
-A_STATUS a_netbuf_setlen(void *bufPtr, A_INT32 len);
-A_INT32 a_netbuf_headroom(void *bufPtr);
+u32 a_netbuf_to_len(void *bufPtr);
+int a_netbuf_push(void *bufPtr, s32 len);
+int a_netbuf_push_data(void *bufPtr, char *srcPtr, s32 len);
+int a_netbuf_put(void *bufPtr, s32 len);
+int a_netbuf_put_data(void *bufPtr, char *srcPtr, s32 len);
+int a_netbuf_pull(void *bufPtr, s32 len);
+int a_netbuf_pull_data(void *bufPtr, char *dstPtr, s32 len);
+int a_netbuf_trim(void *bufPtr, s32 len);
+int a_netbuf_trim_data(void *bufPtr, char *dstPtr, s32 len);
+int a_netbuf_setlen(void *bufPtr, s32 len);
+s32 a_netbuf_headroom(void *bufPtr);
 void a_netbuf_enqueue(A_NETBUF_QUEUE_T *q, void *pkt);
 void a_netbuf_prequeue(A_NETBUF_QUEUE_T *q, void *pkt);
 void *a_netbuf_dequeue(A_NETBUF_QUEUE_T *q);
@@ -328,8 +293,8 @@ void a_netbuf_queue_init(A_NETBUF_QUEUE_T *q);
 /*
  * Kernel v.s User space functions
  */
-A_UINT32 a_copy_to_user(void *to, const void *from, A_UINT32 n);
-A_UINT32 a_copy_from_user(void *to, const void *from, A_UINT32 n);
+u32 a_copy_to_user(void *to, const void *from, u32 n);
+u32 a_copy_from_user(void *to, const void *from, u32 n);
 
 /* In linux, WLAN Rx and Tx run in different contexts, so no need to check
  * for any commands/data queued for WLAN */
@@ -364,23 +329,10 @@ static inline void *A_ALIGN_TO_CACHE_LINE(void *ptr) {
 #define PREPACK
 #define POSTPACK                __ATTRIB_PACK
 
-#define A_MEMCPY(dst, src, len)         memcpy((dst), (src), (len))
 #define A_MEMZERO(addr, len)            memset((addr), 0, (len))
-#define A_MEMCMP(addr1, addr2, len)     memcmp((addr1), (addr2), (len))
 #define A_MALLOC(size)                  malloc(size)
-#define A_FREE(addr)                    free(addr)
 
-#ifdef ANDROID
-#ifndef err
-#include <errno.h>
-#define err(_s, args...) do { \
-    fprintf(stderr, "%s: line %d ", __FILE__, __LINE__); \
-    fprintf(stderr, args); fprintf(stderr, ": %d\n", errno); \
-    exit(_s); } while (0)
-#endif
-#else
 #include <err.h>
-#endif
 
 #endif /* __KERNEL__ */
 

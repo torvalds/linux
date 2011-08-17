@@ -130,6 +130,7 @@ obj-$(CONFIG_FB_UDL)		  += udlfb.o
 obj-$(CONFIG_FB_XILINX)           += xilinxfb.o
 obj-$(CONFIG_SH_MIPI_DSI)	  += sh_mipi_dsi.o
 obj-$(CONFIG_FB_SH_MOBILE_HDMI)	  += sh_mobile_hdmi.o
+obj-$(CONFIG_FB_SH_MOBILE_MERAM)  += sh_mobile_meram.o
 obj-$(CONFIG_FB_SH_MOBILE_LCDC)	  += sh_mobile_lcdcfb.o
 obj-$(CONFIG_FB_OMAP)             += omap/
 obj-y                             += omap2/
@@ -139,6 +140,7 @@ obj-$(CONFIG_FB_MB862XX)	  += mb862xx/
 obj-$(CONFIG_FB_MSM)              += msm/
 obj-$(CONFIG_FB_NUC900)           += nuc900fb.o
 obj-$(CONFIG_FB_JZ4740)		  += jz4740_fb.o
+obj-$(CONFIG_FB_PUV3_UNIGFX)      += fb-puv3.o
 
 # Platform or fallback drivers go here
 obj-$(CONFIG_FB_UVESA)            += uvesafb.o
@@ -153,6 +155,7 @@ obj-$(CONFIG_FB_BFIN_T350MCQB)	  += bfin-t350mcqb-fb.o
 obj-$(CONFIG_FB_BFIN_7393)        += bfin_adv7393fb.o
 obj-$(CONFIG_FB_MX3)		  += mx3fb.o
 obj-$(CONFIG_FB_DA8XX)		  += da8xx-fb.o
+obj-$(CONFIG_FB_MXS)		  += mxsfb.o
 
 # the test framebuffer is last
 obj-$(CONFIG_FB_VIRTUAL)          += vfb.o

@@ -160,12 +160,13 @@ struct twl4030_usb {
 
 	int			irq;
 	u8			linkstat;
+	bool			vbus_supplied;
 	u8			asleep;
 	bool			irq_enabled;
 };
 
 /* internal define on top of container_of */
-#define xceiv_to_twl(x)		container_of((x), struct twl4030_usb, otg);
+#define xceiv_to_twl(x)		container_of((x), struct twl4030_usb, otg)
 
 /*-------------------------------------------------------------------------*/
 
@@ -250,6 +251,8 @@ static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 	int	status;
 	int	linkstat = USB_EVENT_NONE;
 
+	twl->vbus_supplied = false;
+
 	/*
 	 * For ID/VBUS sensing, see manual section 15.4.8 ...
 	 * except when using only battery backup power, two
@@ -265,6 +268,9 @@ static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 	if (status < 0)
 		dev_err(twl->dev, "USB link status err %d\n", status);
 	else if (status & (BIT(7) | BIT(2))) {
+		if (status & (BIT(7)))
+                        twl->vbus_supplied = true;
+
 		if (status & BIT(2))
 			linkstat = USB_EVENT_ID;
 		else
@@ -274,6 +280,8 @@ static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 
 	dev_dbg(twl->dev, "HW_CONDITIONS 0x%02x/%d; link %d\n",
 			status, status, linkstat);
+
+	twl->otg.last_event = linkstat;
 
 	/* REVISIT this assumes host and peripheral controllers
 	 * are registered, and that both are active...
@@ -482,7 +490,7 @@ static ssize_t twl4030_usb_vbus_show(struct device *dev,
 
 	spin_lock_irqsave(&twl->lock, flags);
 	ret = sprintf(buf, "%s\n",
-			(twl->linkstat == USB_EVENT_VBUS) ? "on" : "off");
+			twl->vbus_supplied ? "on" : "off");
 	spin_unlock_irqrestore(&twl->lock, flags);
 
 	return ret;
@@ -512,7 +520,7 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		else
 			twl4030_phy_resume(twl);
 
-		blocking_notifier_call_chain(&twl->otg.notifier, status,
+		atomic_notifier_call_chain(&twl->otg.notifier, status,
 				twl->otg.gadget);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
@@ -534,7 +542,7 @@ static void twl4030_usb_phy_init(struct twl4030_usb *twl)
 			twl->asleep = 0;
 		}
 
-		blocking_notifier_call_chain(&twl->otg.notifier, status,
+		atomic_notifier_call_chain(&twl->otg.notifier, status,
 				twl->otg.gadget);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
@@ -606,6 +614,7 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	twl->otg.set_peripheral	= twl4030_set_peripheral;
 	twl->otg.set_suspend	= twl4030_set_suspend;
 	twl->usb_mode		= pdata->usb_mode;
+	twl->vbus_supplied	= false;
 	twl->asleep = 1;
 
 	/* init spinlock for workqueue */
@@ -623,7 +632,7 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
 		dev_warn(&pdev->dev, "could not create sysfs file\n");
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
+	ATOMIC_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
 
 	/* Our job is to use irqs and status from the power module
 	 * to keep the transceiver disabled when nothing's connected.

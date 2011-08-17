@@ -1,9 +1,21 @@
 #ifdef CONFIG_CPU_SUP_INTEL
 
 /*
+ * Per core/cpu state
+ *
+ * Used to coordinate shared registers between HT threads or
+ * among events on a single PMU.
+ */
+struct intel_shared_regs {
+	struct er_account       regs[EXTRA_REG_MAX];
+	int                     refcnt;		/* per-core: #HT threads */
+	unsigned                core_id;	/* per-core: core id */
+};
+
+/*
  * Intel PerfMon, used on Core and later.
  */
-static const u64 intel_perfmon_event_map[] =
+static u64 intel_perfmon_event_map[PERF_COUNT_HW_MAX] __read_mostly =
 {
   [PERF_COUNT_HW_CPU_CYCLES]		= 0x003c,
   [PERF_COUNT_HW_INSTRUCTIONS]		= 0x00c0,
@@ -14,7 +26,7 @@ static const u64 intel_perfmon_event_map[] =
   [PERF_COUNT_HW_BUS_CYCLES]		= 0x013c,
 };
 
-static struct event_constraint intel_core_event_constraints[] =
+static struct event_constraint intel_core_event_constraints[] __read_mostly =
 {
 	INTEL_EVENT_CONSTRAINT(0x11, 0x2), /* FP_ASSIST */
 	INTEL_EVENT_CONSTRAINT(0x12, 0x2), /* MUL */
@@ -25,7 +37,7 @@ static struct event_constraint intel_core_event_constraints[] =
 	EVENT_CONSTRAINT_END
 };
 
-static struct event_constraint intel_core2_event_constraints[] =
+static struct event_constraint intel_core2_event_constraints[] __read_mostly =
 {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
@@ -48,7 +60,7 @@ static struct event_constraint intel_core2_event_constraints[] =
 	EVENT_CONSTRAINT_END
 };
 
-static struct event_constraint intel_nehalem_event_constraints[] =
+static struct event_constraint intel_nehalem_event_constraints[] __read_mostly =
 {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
@@ -64,7 +76,13 @@ static struct event_constraint intel_nehalem_event_constraints[] =
 	EVENT_CONSTRAINT_END
 };
 
-static struct event_constraint intel_westmere_event_constraints[] =
+static struct extra_reg intel_nehalem_extra_regs[] __read_mostly =
+{
+	INTEL_EVENT_EXTRA_REG(0xb7, MSR_OFFCORE_RSP_0, 0xffff, RSP_0),
+	EVENT_EXTRA_END
+};
+
+static struct event_constraint intel_westmere_event_constraints[] __read_mostly =
 {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
@@ -76,7 +94,30 @@ static struct event_constraint intel_westmere_event_constraints[] =
 	EVENT_CONSTRAINT_END
 };
 
-static struct event_constraint intel_gen_event_constraints[] =
+static struct event_constraint intel_snb_event_constraints[] __read_mostly =
+{
+	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
+	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
+	/* FIXED_EVENT_CONSTRAINT(0x013c, 2), CPU_CLK_UNHALTED.REF */
+	INTEL_EVENT_CONSTRAINT(0x48, 0x4), /* L1D_PEND_MISS.PENDING */
+	INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PREC_DIST */
+	INTEL_EVENT_CONSTRAINT(0xcd, 0x8), /* MEM_TRANS_RETIRED.LOAD_LATENCY */
+	EVENT_CONSTRAINT_END
+};
+
+static struct extra_reg intel_westmere_extra_regs[] __read_mostly =
+{
+	INTEL_EVENT_EXTRA_REG(0xb7, MSR_OFFCORE_RSP_0, 0xffff, RSP_0),
+	INTEL_EVENT_EXTRA_REG(0xbb, MSR_OFFCORE_RSP_1, 0xffff, RSP_1),
+	EVENT_EXTRA_END
+};
+
+static struct event_constraint intel_v1_event_constraints[] __read_mostly =
+{
+	EVENT_CONSTRAINT_END
+};
+
+static struct event_constraint intel_gen_event_constraints[] __read_mostly =
 {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
@@ -84,10 +125,128 @@ static struct event_constraint intel_gen_event_constraints[] =
 	EVENT_CONSTRAINT_END
 };
 
+static struct extra_reg intel_snb_extra_regs[] __read_mostly = {
+	INTEL_EVENT_EXTRA_REG(0xb7, MSR_OFFCORE_RSP_0, 0x3fffffffffull, RSP_0),
+	INTEL_EVENT_EXTRA_REG(0xbb, MSR_OFFCORE_RSP_1, 0x3fffffffffull, RSP_1),
+	EVENT_EXTRA_END
+};
+
 static u64 intel_pmu_event_map(int hw_event)
 {
 	return intel_perfmon_event_map[hw_event];
 }
+
+static __initconst const u64 snb_hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+ [ C(L1D) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0xf1d0, /* MEM_UOP_RETIRED.LOADS        */
+		[ C(RESULT_MISS)   ] = 0x0151, /* L1D.REPLACEMENT              */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0xf2d0, /* MEM_UOP_RETIRED.STORES       */
+		[ C(RESULT_MISS)   ] = 0x0851, /* L1D.ALL_M_REPLACEMENT        */
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+		[ C(RESULT_MISS)   ] = 0x024e, /* HW_PRE_REQ.DL1_MISS          */
+	},
+ },
+ [ C(L1I ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+		[ C(RESULT_MISS)   ] = 0x0280, /* ICACHE.MISSES */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+		[ C(RESULT_MISS)   ] = 0x0,
+	},
+ },
+ [ C(LL  ) ] = {
+	[ C(OP_READ) ] = {
+		/* OFFCORE_RESPONSE.ANY_DATA.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_DATA.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+	[ C(OP_WRITE) ] = {
+		/* OFFCORE_RESPONSE.ANY_RFO.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_RFO.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+	[ C(OP_PREFETCH) ] = {
+		/* OFFCORE_RESPONSE.PREFETCH.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.PREFETCH.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+ },
+ [ C(DTLB) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x81d0, /* MEM_UOP_RETIRED.ALL_LOADS */
+		[ C(RESULT_MISS)   ] = 0x0108, /* DTLB_LOAD_MISSES.CAUSES_A_WALK */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x82d0, /* MEM_UOP_RETIRED.ALL_STORES */
+		[ C(RESULT_MISS)   ] = 0x0149, /* DTLB_STORE_MISSES.MISS_CAUSES_A_WALK */
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+		[ C(RESULT_MISS)   ] = 0x0,
+	},
+ },
+ [ C(ITLB) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x1085, /* ITLB_MISSES.STLB_HIT         */
+		[ C(RESULT_MISS)   ] = 0x0185, /* ITLB_MISSES.CAUSES_A_WALK    */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+ [ C(BPU ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x00c4, /* BR_INST_RETIRED.ALL_BRANCHES */
+		[ C(RESULT_MISS)   ] = 0x00c5, /* BR_MISP_RETIRED.ALL_BRANCHES */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+ [ C(NODE) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+
+};
 
 static __initconst const u64 westmere_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
@@ -124,16 +283,26 @@ static __initconst const u64 westmere_hw_cache_event_ids
  },
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0324, /* L2_RQSTS.LOADS               */
-		[ C(RESULT_MISS)   ] = 0x0224, /* L2_RQSTS.LD_MISS             */
+		/* OFFCORE_RESPONSE.ANY_DATA.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_DATA.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
+	/*
+	 * Use RFO, not WRITEBACK, because a write miss would typically occur
+	 * on RFO.
+	 */
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0c24, /* L2_RQSTS.RFOS                */
-		[ C(RESULT_MISS)   ] = 0x0824, /* L2_RQSTS.RFO_MISS            */
+		/* OFFCORE_RESPONSE.ANY_RFO.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_RFO.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = 0x4f2e, /* LLC Reference                */
-		[ C(RESULT_MISS)   ] = 0x412e, /* LLC Misses                   */
+		/* OFFCORE_RESPONSE.PREFETCH.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.PREFETCH.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
  },
  [ C(DTLB) ] = {
@@ -178,6 +347,87 @@ static __initconst const u64 westmere_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = -1,
 	},
  },
+ [ C(NODE) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+ },
+};
+
+/*
+ * Nehalem/Westmere MSR_OFFCORE_RESPONSE bits;
+ * See IA32 SDM Vol 3B 30.6.1.3
+ */
+
+#define NHM_DMND_DATA_RD	(1 << 0)
+#define NHM_DMND_RFO		(1 << 1)
+#define NHM_DMND_IFETCH		(1 << 2)
+#define NHM_DMND_WB		(1 << 3)
+#define NHM_PF_DATA_RD		(1 << 4)
+#define NHM_PF_DATA_RFO		(1 << 5)
+#define NHM_PF_IFETCH		(1 << 6)
+#define NHM_OFFCORE_OTHER	(1 << 7)
+#define NHM_UNCORE_HIT		(1 << 8)
+#define NHM_OTHER_CORE_HIT_SNP	(1 << 9)
+#define NHM_OTHER_CORE_HITM	(1 << 10)
+        			/* reserved */
+#define NHM_REMOTE_CACHE_FWD	(1 << 12)
+#define NHM_REMOTE_DRAM		(1 << 13)
+#define NHM_LOCAL_DRAM		(1 << 14)
+#define NHM_NON_DRAM		(1 << 15)
+
+#define NHM_ALL_DRAM		(NHM_REMOTE_DRAM|NHM_LOCAL_DRAM)
+
+#define NHM_DMND_READ		(NHM_DMND_DATA_RD)
+#define NHM_DMND_WRITE		(NHM_DMND_RFO|NHM_DMND_WB)
+#define NHM_DMND_PREFETCH	(NHM_PF_DATA_RD|NHM_PF_DATA_RFO)
+
+#define NHM_L3_HIT	(NHM_UNCORE_HIT|NHM_OTHER_CORE_HIT_SNP|NHM_OTHER_CORE_HITM)
+#define NHM_L3_MISS	(NHM_NON_DRAM|NHM_ALL_DRAM|NHM_REMOTE_CACHE_FWD)
+#define NHM_L3_ACCESS	(NHM_L3_HIT|NHM_L3_MISS)
+
+static __initconst const u64 nehalem_hw_cache_extra_regs
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+ [ C(LL  ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = NHM_DMND_READ|NHM_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = NHM_DMND_READ|NHM_L3_MISS,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = NHM_DMND_WRITE|NHM_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = NHM_DMND_WRITE|NHM_L3_MISS,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = NHM_DMND_PREFETCH|NHM_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = NHM_DMND_PREFETCH|NHM_L3_MISS,
+	},
+ },
+ [ C(NODE) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = NHM_DMND_READ|NHM_ALL_DRAM,
+		[ C(RESULT_MISS)   ] = NHM_DMND_READ|NHM_REMOTE_DRAM,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = NHM_DMND_WRITE|NHM_ALL_DRAM,
+		[ C(RESULT_MISS)   ] = NHM_DMND_WRITE|NHM_REMOTE_DRAM,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = NHM_DMND_PREFETCH|NHM_ALL_DRAM,
+		[ C(RESULT_MISS)   ] = NHM_DMND_PREFETCH|NHM_REMOTE_DRAM,
+	},
+ },
 };
 
 static __initconst const u64 nehalem_hw_cache_event_ids
@@ -187,12 +437,12 @@ static __initconst const u64 nehalem_hw_cache_event_ids
 {
  [ C(L1D) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0f40, /* L1D_CACHE_LD.MESI            */
-		[ C(RESULT_MISS)   ] = 0x0140, /* L1D_CACHE_LD.I_STATE         */
+		[ C(RESULT_ACCESS) ] = 0x010b, /* MEM_INST_RETIRED.LOADS       */
+		[ C(RESULT_MISS)   ] = 0x0151, /* L1D.REPL                     */
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0f41, /* L1D_CACHE_ST.MESI            */
-		[ C(RESULT_MISS)   ] = 0x0141, /* L1D_CACHE_ST.I_STATE         */
+		[ C(RESULT_ACCESS) ] = 0x020b, /* MEM_INST_RETURED.STORES      */
+		[ C(RESULT_MISS)   ] = 0x0251, /* L1D.M_REPL                   */
 	},
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = 0x014e, /* L1D_PREFETCH.REQUESTS        */
@@ -215,16 +465,26 @@ static __initconst const u64 nehalem_hw_cache_event_ids
  },
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0324, /* L2_RQSTS.LOADS               */
-		[ C(RESULT_MISS)   ] = 0x0224, /* L2_RQSTS.LD_MISS             */
+		/* OFFCORE_RESPONSE.ANY_DATA.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_DATA.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
+	/*
+	 * Use RFO, not WRITEBACK, because a write miss would typically occur
+	 * on RFO.
+	 */
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0c24, /* L2_RQSTS.RFOS                */
-		[ C(RESULT_MISS)   ] = 0x0824, /* L2_RQSTS.RFO_MISS            */
+		/* OFFCORE_RESPONSE.ANY_RFO.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_RFO.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = 0x4f2e, /* LLC Reference                */
-		[ C(RESULT_MISS)   ] = 0x412e, /* LLC Misses                   */
+		/* OFFCORE_RESPONSE.PREFETCH.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.PREFETCH.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
  },
  [ C(DTLB) ] = {
@@ -267,6 +527,20 @@ static __initconst const u64 nehalem_hw_cache_event_ids
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = -1,
 		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+ [ C(NODE) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
  },
 };
@@ -691,8 +965,8 @@ static void intel_pmu_reset(void)
 	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		checking_wrmsrl(x86_pmu.eventsel + idx, 0ull);
-		checking_wrmsrl(x86_pmu.perfctr  + idx, 0ull);
+		checking_wrmsrl(x86_pmu_config_addr(idx), 0ull);
+		checking_wrmsrl(x86_pmu_event_addr(idx),  0ull);
 	}
 	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++)
 		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
@@ -718,6 +992,16 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
+
+	/*
+	 * Some chipsets need to unmask the LVTPC in a particular spot
+	 * inside the nmi handler.  As a result, the unmasking was pushed
+	 * into all the nmi handlers.
+	 *
+	 * This handler doesn't seem to have any issues with the unmasking
+	 * so it was left at the top.
+	 */
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
 
 	intel_pmu_disable_all();
 	handled = intel_pmu_drain_bts_buffer();
@@ -762,7 +1046,7 @@ again:
 
 		data.period = event->hw.last_period;
 
-		if (perf_event_overflow(event, 1, &data, regs))
+		if (perf_event_overflow(event, &data, regs))
 			x86_pmu_stop(event, 0);
 	}
 
@@ -784,6 +1068,9 @@ intel_bts_constraints(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned int hw_event, bts_event;
 
+	if (event->attr.freq)
+		return NULL;
+
 	hw_event = hwc->config & INTEL_ARCH_EVENT_MASK;
 	bts_event = x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
 
@@ -791,6 +1078,123 @@ intel_bts_constraints(struct perf_event *event)
 		return &bts_constraint;
 
 	return NULL;
+}
+
+static bool intel_try_alt_er(struct perf_event *event, int orig_idx)
+{
+	if (!(x86_pmu.er_flags & ERF_HAS_RSP_1))
+		return false;
+
+	if (event->hw.extra_reg.idx == EXTRA_REG_RSP_0) {
+		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
+		event->hw.config |= 0x01bb;
+		event->hw.extra_reg.idx = EXTRA_REG_RSP_1;
+		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_1;
+	} else if (event->hw.extra_reg.idx == EXTRA_REG_RSP_1) {
+		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
+		event->hw.config |= 0x01b7;
+		event->hw.extra_reg.idx = EXTRA_REG_RSP_0;
+		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_0;
+	}
+
+	if (event->hw.extra_reg.idx == orig_idx)
+		return false;
+
+	return true;
+}
+
+/*
+ * manage allocation of shared extra msr for certain events
+ *
+ * sharing can be:
+ * per-cpu: to be shared between the various events on a single PMU
+ * per-core: per-cpu + shared by HT threads
+ */
+static struct event_constraint *
+__intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
+				   struct perf_event *event)
+{
+	struct event_constraint *c = &emptyconstraint;
+	struct hw_perf_event_extra *reg = &event->hw.extra_reg;
+	struct er_account *era;
+	unsigned long flags;
+	int orig_idx = reg->idx;
+
+	/* already allocated shared msr */
+	if (reg->alloc)
+		return &unconstrained;
+
+again:
+	era = &cpuc->shared_regs->regs[reg->idx];
+	/*
+	 * we use spin_lock_irqsave() to avoid lockdep issues when
+	 * passing a fake cpuc
+	 */
+	raw_spin_lock_irqsave(&era->lock, flags);
+
+	if (!atomic_read(&era->ref) || era->config == reg->config) {
+
+		/* lock in msr value */
+		era->config = reg->config;
+		era->reg = reg->reg;
+
+		/* one more user */
+		atomic_inc(&era->ref);
+
+		/* no need to reallocate during incremental event scheduling */
+		reg->alloc = 1;
+
+		/*
+		 * All events using extra_reg are unconstrained.
+		 * Avoids calling x86_get_event_constraints()
+		 *
+		 * Must revisit if extra_reg controlling events
+		 * ever have constraints. Worst case we go through
+		 * the regular event constraint table.
+		 */
+		c = &unconstrained;
+	} else if (intel_try_alt_er(event, orig_idx)) {
+		raw_spin_unlock(&era->lock);
+		goto again;
+	}
+	raw_spin_unlock_irqrestore(&era->lock, flags);
+
+	return c;
+}
+
+static void
+__intel_shared_reg_put_constraints(struct cpu_hw_events *cpuc,
+				   struct hw_perf_event_extra *reg)
+{
+	struct er_account *era;
+
+	/*
+	 * only put constraint if extra reg was actually
+	 * allocated. Also takes care of event which do
+	 * not use an extra shared reg
+	 */
+	if (!reg->alloc)
+		return;
+
+	era = &cpuc->shared_regs->regs[reg->idx];
+
+	/* one fewer user */
+	atomic_dec(&era->ref);
+
+	/* allocate again next time */
+	reg->alloc = 0;
+}
+
+static struct event_constraint *
+intel_shared_regs_constraints(struct cpu_hw_events *cpuc,
+			      struct perf_event *event)
+{
+	struct event_constraint *c = NULL;
+
+	if (event->hw.extra_reg.idx != EXTRA_REG_NONE)
+		c = __intel_shared_reg_get_constraints(cpuc, event);
+
+	return c;
 }
 
 static struct event_constraint *
@@ -806,7 +1210,28 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 	if (c)
 		return c;
 
+	c = intel_shared_regs_constraints(cpuc, event);
+	if (c)
+		return c;
+
 	return x86_get_event_constraints(cpuc, event);
+}
+
+static void
+intel_put_shared_regs_event_constraints(struct cpu_hw_events *cpuc,
+					struct perf_event *event)
+{
+	struct hw_perf_event_extra *reg;
+
+	reg = &event->hw.extra_reg;
+	if (reg->idx != EXTRA_REG_NONE)
+		__intel_shared_reg_put_constraints(cpuc, reg);
+}
+
+static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
+					struct perf_event *event)
+{
+	intel_put_shared_regs_event_constraints(cpuc, event);
 }
 
 static int intel_pmu_hw_config(struct perf_event *event)
@@ -880,20 +1305,85 @@ static __initconst const struct x86_pmu core_pmu = {
 	 */
 	.max_period		= (1ULL << 31) - 1,
 	.get_event_constraints	= intel_get_event_constraints,
+	.put_event_constraints	= intel_put_event_constraints,
 	.event_constraints	= intel_core_event_constraints,
 };
 
+static struct intel_shared_regs *allocate_shared_regs(int cpu)
+{
+	struct intel_shared_regs *regs;
+	int i;
+
+	regs = kzalloc_node(sizeof(struct intel_shared_regs),
+			    GFP_KERNEL, cpu_to_node(cpu));
+	if (regs) {
+		/*
+		 * initialize the locks to keep lockdep happy
+		 */
+		for (i = 0; i < EXTRA_REG_MAX; i++)
+			raw_spin_lock_init(&regs->regs[i].lock);
+
+		regs->core_id = -1;
+	}
+	return regs;
+}
+
+static int intel_pmu_cpu_prepare(int cpu)
+{
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+
+	if (!x86_pmu.extra_regs)
+		return NOTIFY_OK;
+
+	cpuc->shared_regs = allocate_shared_regs(cpu);
+	if (!cpuc->shared_regs)
+		return NOTIFY_BAD;
+
+	return NOTIFY_OK;
+}
+
 static void intel_pmu_cpu_starting(int cpu)
 {
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	int core_id = topology_core_id(cpu);
+	int i;
+
 	init_debug_store_on_cpu(cpu);
 	/*
 	 * Deal with CPUs that don't clear their LBRs on power-up.
 	 */
 	intel_pmu_lbr_reset();
+
+	if (!cpuc->shared_regs || (x86_pmu.er_flags & ERF_NO_HT_SHARING))
+		return;
+
+	for_each_cpu(i, topology_thread_cpumask(cpu)) {
+		struct intel_shared_regs *pc;
+
+		pc = per_cpu(cpu_hw_events, i).shared_regs;
+		if (pc && pc->core_id == core_id) {
+			kfree(cpuc->shared_regs);
+			cpuc->shared_regs = pc;
+			break;
+		}
+	}
+
+	cpuc->shared_regs->core_id = core_id;
+	cpuc->shared_regs->refcnt++;
 }
 
 static void intel_pmu_cpu_dying(int cpu)
 {
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	struct intel_shared_regs *pc;
+
+	pc = cpuc->shared_regs;
+	if (pc) {
+		if (pc->core_id == -1 || --pc->refcnt == 0)
+			kfree(pc);
+		cpuc->shared_regs = NULL;
+	}
+
 	fini_debug_store_on_cpu(cpu);
 }
 
@@ -918,7 +1408,9 @@ static __initconst const struct x86_pmu intel_pmu = {
 	 */
 	.max_period		= (1ULL << 31) - 1,
 	.get_event_constraints	= intel_get_event_constraints,
+	.put_event_constraints	= intel_put_event_constraints,
 
+	.cpu_prepare		= intel_pmu_cpu_prepare,
 	.cpu_starting		= intel_pmu_cpu_starting,
 	.cpu_dying		= intel_pmu_cpu_dying,
 };
@@ -939,7 +1431,7 @@ static void intel_clovertown_quirks(void)
 	 * AJ106 could possibly be worked around by not allowing LBR
 	 *       usage from PEBS, including the fixup.
 	 * AJ68  could possibly be worked around by always programming
-	 * 	 a pebs_event_reset[0] value and coping with the lost events.
+	 *	 a pebs_event_reset[0] value and coping with the lost events.
 	 *
 	 * But taken together it might just make sense to not enable PEBS on
 	 * these chips.
@@ -1024,6 +1516,7 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_core();
 
 		x86_pmu.event_constraints = intel_core2_event_constraints;
+		x86_pmu.pebs_constraints = intel_core2_pebs_event_constraints;
 		pr_cont("Core2 events, ");
 		break;
 
@@ -1032,11 +1525,32 @@ static __init int intel_pmu_init(void)
 	case 46: /* 45 nm nehalem-ex, "Beckton" */
 		memcpy(hw_cache_event_ids, nehalem_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, nehalem_hw_cache_extra_regs,
+		       sizeof(hw_cache_extra_regs));
 
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_nehalem_event_constraints;
+		x86_pmu.pebs_constraints = intel_nehalem_pebs_event_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
+		x86_pmu.extra_regs = intel_nehalem_extra_regs;
+
+		/* UOPS_ISSUED.STALLED_CYCLES */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
+		/* UOPS_EXECUTED.CORE_ACTIVE_CYCLES,c=1,i=1 */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x1803fb1;
+
+		if (ebx & 0x40) {
+			/*
+			 * Erratum AAJ80 detected, we work it around by using
+			 * the BR_MISP_EXEC.ANY event. This will over-count
+			 * branch-misses, but it's still much better than the
+			 * architectural event which is often completely bogus:
+			 */
+			intel_perfmon_event_map[PERF_COUNT_HW_BRANCH_MISSES] = 0x7f89;
+
+			pr_cont("erratum AAJ80 worked around, ");
+		}
 		pr_cont("Nehalem events, ");
 		break;
 
@@ -1047,27 +1561,70 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_atom();
 
 		x86_pmu.event_constraints = intel_gen_event_constraints;
+		x86_pmu.pebs_constraints = intel_atom_pebs_event_constraints;
 		pr_cont("Atom events, ");
 		break;
 
 	case 37: /* 32 nm nehalem, "Clarkdale" */
 	case 44: /* 32 nm nehalem, "Gulftown" */
+	case 47: /* 32 nm Xeon E7 */
 		memcpy(hw_cache_event_ids, westmere_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, nehalem_hw_cache_extra_regs,
+		       sizeof(hw_cache_extra_regs));
 
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_westmere_event_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
+		x86_pmu.pebs_constraints = intel_westmere_pebs_event_constraints;
+		x86_pmu.extra_regs = intel_westmere_extra_regs;
+		x86_pmu.er_flags |= ERF_HAS_RSP_1;
+
+		/* UOPS_ISSUED.STALLED_CYCLES */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
+		/* UOPS_EXECUTED.CORE_ACTIVE_CYCLES,c=1,i=1 */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x1803fb1;
+
 		pr_cont("Westmere events, ");
 		break;
 
+	case 42: /* SandyBridge */
+	case 45: /* SandyBridge, "Romely-EP" */
+		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
+		       sizeof(hw_cache_event_ids));
+
+		intel_pmu_lbr_init_nhm();
+
+		x86_pmu.event_constraints = intel_snb_event_constraints;
+		x86_pmu.pebs_constraints = intel_snb_pebs_events;
+		x86_pmu.extra_regs = intel_snb_extra_regs;
+		/* all extra regs are per-cpu when HT is on */
+		x86_pmu.er_flags |= ERF_HAS_RSP_1;
+		x86_pmu.er_flags |= ERF_NO_HT_SHARING;
+
+		/* UOPS_ISSUED.ANY,c=1,i=1 to count stall cycles */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
+		/* UOPS_DISPATCHED.THREAD,c=1,i=1 to count stall cycles*/
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x18001b1;
+
+		pr_cont("SandyBridge events, ");
+		break;
+
 	default:
-		/*
-		 * default constraints for v2 and up
-		 */
-		x86_pmu.event_constraints = intel_gen_event_constraints;
-		pr_cont("generic architected perfmon, ");
+		switch (x86_pmu.version) {
+		case 1:
+			x86_pmu.event_constraints = intel_v1_event_constraints;
+			pr_cont("generic architected perfmon v1, ");
+			break;
+		default:
+			/*
+			 * default constraints for v2 and up
+			 */
+			x86_pmu.event_constraints = intel_gen_event_constraints;
+			pr_cont("generic architected perfmon, ");
+			break;
+		}
 	}
 	return 0;
 }
@@ -1079,4 +1636,8 @@ static int intel_pmu_init(void)
 	return 0;
 }
 
+static struct intel_shared_regs *allocate_shared_regs(int cpu)
+{
+	return NULL;
+}
 #endif /* CONFIG_CPU_SUP_INTEL */

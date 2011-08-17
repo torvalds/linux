@@ -624,8 +624,7 @@ static void make_lowercase(char *s)
 	}
 }
 
-static int __devinit fsl_ssi_probe(struct platform_device *pdev,
-				   const struct of_device_id *match)
+static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 {
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
@@ -679,7 +678,12 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev,
 		kfree(ssi_private);
 		return ret;
 	}
-	ssi_private->ssi = ioremap(res.start, 1 + res.end - res.start);
+	ssi_private->ssi = of_iomap(np, 0);
+	if (!ssi_private->ssi) {
+		dev_err(&pdev->dev, "could not map device resources\n");
+		kfree(ssi_private);
+		return -ENOMEM;
+	}
 	ssi_private->ssi_phys = res.start;
 	ssi_private->irq = irq_of_parse_and_map(np, 0);
 
@@ -692,7 +696,7 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev,
 	/* Determine the FIFO depth. */
 	iprop = of_get_property(np, "fsl,fifo-depth", NULL);
 	if (iprop)
-		ssi_private->fifo_depth = *iprop;
+		ssi_private->fifo_depth = be32_to_cpup(iprop);
 	else
                 /* Older 8610 DTs didn't have the fifo-depth property */
 		ssi_private->fifo_depth = 8;
@@ -774,7 +778,7 @@ static const struct of_device_id fsl_ssi_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_ssi_ids);
 
-static struct of_platform_driver fsl_ssi_driver = {
+static struct platform_driver fsl_ssi_driver = {
 	.driver = {
 		.name = "fsl-ssi-dai",
 		.owner = THIS_MODULE,
@@ -788,12 +792,12 @@ static int __init fsl_ssi_init(void)
 {
 	printk(KERN_INFO "Freescale Synchronous Serial Interface (SSI) ASoC Driver\n");
 
-	return of_register_platform_driver(&fsl_ssi_driver);
+	return platform_driver_register(&fsl_ssi_driver);
 }
 
 static void __exit fsl_ssi_exit(void)
 {
-	of_unregister_platform_driver(&fsl_ssi_driver);
+	platform_driver_unregister(&fsl_ssi_driver);
 }
 
 module_init(fsl_ssi_init);

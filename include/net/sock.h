@@ -40,6 +40,7 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/list_nulls.h>
@@ -52,6 +53,7 @@
 #include <linux/mm.h>
 #include <linux/security.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
@@ -177,7 +179,6 @@ struct sock_common {
   *	@sk_dst_cache: destination cache
   *	@sk_dst_lock: destination cache lock
   *	@sk_policy: flow policy
-  *	@sk_rmem_alloc: receive queue bytes committed
   *	@sk_receive_queue: incoming packets
   *	@sk_wmem_alloc: transmit queue bytes committed
   *	@sk_write_queue: Packet sending queue
@@ -281,7 +282,7 @@ struct sock {
 	int			sk_rcvbuf;
 
 	struct sk_filter __rcu	*sk_filter;
-	struct socket_wq	*sk_wq;
+	struct socket_wq __rcu	*sk_wq;
 
 #ifdef CONFIG_NET_DMA
 	struct sk_buff_head	sk_async_wait_queue;
@@ -562,6 +563,7 @@ enum sock_flags {
 	SOCK_TIMESTAMPING_SYS_HARDWARE, /* %SOF_TIMESTAMPING_SYS_HARDWARE */
 	SOCK_FASYNC, /* fasync() active */
 	SOCK_RXQ_OVFL,
+	SOCK_ZEROCOPY, /* buffers from userspace */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
@@ -1191,7 +1193,7 @@ extern void sk_filter_release_rcu(struct rcu_head *rcu);
 static inline void sk_filter_release(struct sk_filter *fp)
 {
 	if (atomic_dec_and_test(&fp->refcnt))
-		call_rcu_bh(&fp->rcu, sk_filter_release_rcu);
+		call_rcu(&fp->rcu, sk_filter_release_rcu);
 }
 
 static inline void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
@@ -1266,7 +1268,8 @@ static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 
 static inline wait_queue_head_t *sk_sleep(struct sock *sk)
 {
-	return &sk->sk_wq->wait;
+	BUILD_BUG_ON(offsetof(struct socket_wq, wait) != 0);
+	return &rcu_dereference_raw(sk->sk_wq)->wait;
 }
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
@@ -1287,7 +1290,7 @@ static inline void sock_orphan(struct sock *sk)
 static inline void sock_graft(struct sock *sk, struct socket *parent)
 {
 	write_lock_bh(&sk->sk_callback_lock);
-	rcu_assign_pointer(sk->sk_wq, parent->wq);
+	sk->sk_wq = parent->wq;
 	parent->sk = sk;
 	sk_set_socket(sk, parent);
 	security_sock_graft(sk, parent);
@@ -1300,8 +1303,7 @@ extern unsigned long sock_i_ino(struct sock *sk);
 static inline struct dst_entry *
 __sk_dst_get(struct sock *sk)
 {
-	return rcu_dereference_check(sk->sk_dst_cache, rcu_read_lock_held() ||
-						       sock_owned_by_user(sk) ||
+	return rcu_dereference_check(sk->sk_dst_cache, sock_owned_by_user(sk) ||
 						       lockdep_is_held(&sk->sk_lock.slock));
 }
 
@@ -1386,6 +1388,59 @@ static inline void sk_nocaps_add(struct sock *sk, int flags)
 {
 	sk->sk_route_nocaps |= flags;
 	sk->sk_route_caps &= ~flags;
+}
+
+static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
+					   char __user *from, char *to,
+					   int copy, int offset)
+{
+	if (skb->ip_summed == CHECKSUM_NONE) {
+		int err = 0;
+		__wsum csum = csum_and_copy_from_user(from, to, copy, 0, &err);
+		if (err)
+			return err;
+		skb->csum = csum_block_add(skb->csum, csum, offset);
+	} else if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY) {
+		if (!access_ok(VERIFY_READ, from, copy) ||
+		    __copy_from_user_nocache(to, from, copy))
+			return -EFAULT;
+	} else if (copy_from_user(to, from, copy))
+		return -EFAULT;
+
+	return 0;
+}
+
+static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
+				       char __user *from, int copy)
+{
+	int err, offset = skb->len;
+
+	err = skb_do_copy_data_nocache(sk, skb, from, skb_put(skb, copy),
+				       copy, offset);
+	if (err)
+		__skb_trim(skb, offset);
+
+	return err;
+}
+
+static inline int skb_copy_to_page_nocache(struct sock *sk, char __user *from,
+					   struct sk_buff *skb,
+					   struct page *page,
+					   int off, int copy)
+{
+	int err;
+
+	err = skb_do_copy_data_nocache(sk, skb, from, page_address(page) + off,
+				       copy, skb->len);
+	if (err)
+		return err;
+
+	skb->len	     += copy;
+	skb->data_len	     += copy;
+	skb->truesize	     += copy;
+	sk->sk_wmem_queued   += copy;
+	sk_mem_charge(sk, copy);
+	return 0;
 }
 
 static inline int skb_copy_to_page(struct sock *sk, char __user *from,
@@ -1748,7 +1803,7 @@ void sock_net_set(struct sock *sk, struct net *net)
 
 /*
  * Kernel sockets, f.e. rtnl or icmp_socket, are a part of a namespace.
- * They should not hold a referrence to a namespace in order to allow
+ * They should not hold a reference to a namespace in order to allow
  * to stop it.
  * Sockets after sk_change_net should be released using sk_release_kernel
  */

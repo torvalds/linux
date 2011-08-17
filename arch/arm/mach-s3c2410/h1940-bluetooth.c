@@ -22,8 +22,9 @@
 #include <mach/regs-gpio.h>
 #include <mach/hardware.h>
 #include <mach/h1940-latch.h>
+#include <mach/h1940.h>
 
-#define DRV_NAME              "h1940-bt"
+#define DRV_NAME "h1940-bt"
 
 /* Bluetooth control */
 static void h1940bt_enable(int on)
@@ -37,6 +38,8 @@ static void h1940bt_enable(int on)
 		gpio_set_value(S3C2410_GPH(1), 1);
 		mdelay(10);
 		gpio_set_value(S3C2410_GPH(1), 0);
+
+		h1940_led_blink_set(-EINVAL, GPIO_LED_BLINK, NULL, NULL);
 	}
 	else {
 		gpio_set_value(S3C2410_GPH(1), 1);
@@ -44,6 +47,8 @@ static void h1940bt_enable(int on)
 		gpio_set_value(S3C2410_GPH(1), 0);
 		mdelay(10);
 		gpio_set_value(H1940_LATCH_BLUETOOTH_POWER, 0);
+
+		h1940_led_blink_set(-EINVAL, GPIO_LED_NO_BLINK_LOW, NULL, NULL);
 	}
 }
 
@@ -85,15 +90,12 @@ static int __devinit h1940bt_probe(struct platform_device *pdev)
 	s3c_gpio_cfgpin(S3C2410_GPH(3), S3C2410_GPH3_RXD0);
 	s3c_gpio_setpull(S3C2410_GPH(3), S3C_GPIO_PULL_NONE);
 
-
 	rfk = rfkill_alloc(DRV_NAME, &pdev->dev, RFKILL_TYPE_BLUETOOTH,
 			&h1940bt_rfkill_ops, NULL);
 	if (!rfk) {
 		ret = -ENOMEM;
 		goto err_rfk_alloc;
 	}
-
-	rfkill_set_led_trigger_name(rfk, "h1940-bluetooth");
 
 	ret = rfkill_register(rfk);
 	if (ret)

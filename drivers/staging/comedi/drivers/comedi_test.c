@@ -81,7 +81,7 @@ static const struct waveform_board waveform_boards[] = {
 /* Data unique to this driver */
 struct waveform_private {
 	struct timer_list timer;
-	struct timeval last;	/* time at which last timer interrupt occured */
+	struct timeval last;	/* time at which last timer interrupt occurred */
 	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
 	unsigned long usec_period;	/* waveform period in microseconds */
 	unsigned long usec_current;	/* current time (modulo waveform period) */

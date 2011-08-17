@@ -56,6 +56,7 @@ static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
 		goto out;
 	ecryptfs_init_crypt_stat(&inode_info->crypt_stat);
 	mutex_init(&inode_info->lower_file_mutex);
+	atomic_set(&inode_info->lower_file_count, 0);
 	inode_info->lower_file = NULL;
 	inode = &inode_info->vfs_inode;
 out:
@@ -78,8 +79,7 @@ static void ecryptfs_i_callback(struct rcu_head *head)
  *
  * This is used during the final destruction of the inode.  All
  * allocation of memory related to the inode, including allocated
- * memory in the crypt_stat struct, will be released here. This
- * function also fput()'s the persistent file for the lower inode.
+ * memory in the crypt_stat struct, will be released here.
  * There should be no chance that this deallocation will be missed.
  */
 static void ecryptfs_destroy_inode(struct inode *inode)
@@ -87,34 +87,9 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 	struct ecryptfs_inode_info *inode_info;
 
 	inode_info = ecryptfs_inode_to_private(inode);
-	if (inode_info->lower_file) {
-		struct dentry *lower_dentry =
-			inode_info->lower_file->f_dentry;
-
-		BUG_ON(!lower_dentry);
-		if (lower_dentry->d_inode) {
-			fput(inode_info->lower_file);
-			inode_info->lower_file = NULL;
-		}
-	}
+	BUG_ON(inode_info->lower_file);
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
 	call_rcu(&inode->i_rcu, ecryptfs_i_callback);
-}
-
-/**
- * ecryptfs_init_inode
- * @inode: The ecryptfs inode
- *
- * Set up the ecryptfs inode.
- */
-void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
-{
-	ecryptfs_set_inode_lower(inode, lower_inode);
-	inode->i_ino = lower_inode->i_ino;
-	inode->i_version++;
-	inode->i_op = &ecryptfs_main_iops;
-	inode->i_fop = &ecryptfs_main_fops;
-	inode->i_mapping->a_ops = &ecryptfs_aops;
 }
 
 /**
@@ -198,7 +173,7 @@ static int ecryptfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
-	.drop_inode = generic_delete_inode,
+	.drop_inode = generic_drop_inode,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
 	.evict_inode = ecryptfs_evict_inode,

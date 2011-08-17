@@ -493,7 +493,7 @@ uint oid_rt_pro_rf_read_registry_hdl(struct oid_par_priv *poid_par_priv)
 	return status;
 }
 
-enum _CONNECT_STATE_{
+enum _CONNECT_STATE_ {
 	CHECKINGSTATUS,
 	ASSOCIATED,
 	ADHOCMODE,

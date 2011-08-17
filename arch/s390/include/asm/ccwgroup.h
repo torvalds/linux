@@ -29,8 +29,6 @@ struct ccwgroup_device {
 
 /**
  * struct ccwgroup_driver - driver for ccw group devices
- * @owner: driver owner
- * @name: driver name
  * @max_slaves: maximum number of slave devices
  * @driver_id: unique id
  * @probe: function called on probe
@@ -46,8 +44,6 @@ struct ccwgroup_device {
  * @driver: embedded driver structure
  */
 struct ccwgroup_driver {
-	struct module *owner;
-	char *name;
 	int max_slaves;
 	unsigned long driver_id;
 

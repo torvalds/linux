@@ -37,12 +37,6 @@ void arch_reset(char mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
-#ifdef CONFIG_ARCH_MXC91231
-	if (cpu_is_mxc91231()) {
-		mxc91231_arch_reset(mode, cmd);
-		return;
-	}
-#endif
 #ifdef CONFIG_MACH_MX51_EFIKAMX
 	if (machine_is_mx51_efikamx()) {
 		mx51_efikamx_reset();

@@ -93,14 +93,7 @@
  */
 #define in_nmi()	(preempt_count() & NMI_MASK)
 
-#if defined(CONFIG_PREEMPT) && defined(CONFIG_BKL)
-# include <linux/sched.h>
-# define PREEMPT_INATOMIC_BASE (current->lock_depth >= 0)
-#else
-# define PREEMPT_INATOMIC_BASE 0
-#endif
-
-#if defined(CONFIG_PREEMPT)
+#if defined(CONFIG_PREEMPT_COUNT)
 # define PREEMPT_CHECK_OFFSET 1
 #else
 # define PREEMPT_CHECK_OFFSET 0
@@ -113,7 +106,7 @@
  * used in the general case to determine whether sleeping is possible.
  * Do not use in_atomic() in driver code.
  */
-#define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_INATOMIC_BASE)
+#define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != 0)
 
 /*
  * Check whether we were atomic before we did preempt_disable():
@@ -122,7 +115,7 @@
 #define in_atomic_preempt_off() \
 		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_CHECK_OFFSET)
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 # define preemptible()	(preempt_count() == 0 && !irqs_disabled())
 # define IRQ_EXIT_OFFSET (HARDIRQ_OFFSET-1)
 #else

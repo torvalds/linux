@@ -111,6 +111,7 @@ int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation, const nf
 static u32 initiate_file_draining(struct nfs_client *clp,
 				  struct cb_layoutrecallargs *args)
 {
+	struct nfs_server *server;
 	struct pnfs_layout_hdr *lo;
 	struct inode *ino;
 	bool found = false;
@@ -118,28 +119,35 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	LIST_HEAD(free_me_list);
 
 	spin_lock(&clp->cl_lock);
-	list_for_each_entry(lo, &clp->cl_layouts, plh_layouts) {
-		if (nfs_compare_fh(&args->cbl_fh,
-				   &NFS_I(lo->plh_inode)->fh))
-			continue;
-		ino = igrab(lo->plh_inode);
-		if (!ino)
-			continue;
-		found = true;
-		/* Without this, layout can be freed as soon
-		 * as we release cl_lock.
-		 */
-		get_layout_hdr(lo);
-		break;
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
+		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+			if (nfs_compare_fh(&args->cbl_fh,
+					   &NFS_I(lo->plh_inode)->fh))
+				continue;
+			ino = igrab(lo->plh_inode);
+			if (!ino)
+				continue;
+			found = true;
+			/* Without this, layout can be freed as soon
+			 * as we release cl_lock.
+			 */
+			get_layout_hdr(lo);
+			break;
+		}
+		if (found)
+			break;
 	}
+	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
+
 	if (!found)
 		return NFS4ERR_NOMATCHING_LAYOUT;
 
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
 	    mark_matching_lsegs_invalid(lo, &free_me_list,
-					args->cbl_range.iomode))
+					&args->cbl_range))
 		rv = NFS4ERR_DELAY;
 	else
 		rv = NFS4ERR_NOMATCHING_LAYOUT;
@@ -154,6 +162,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 static u32 initiate_bulk_draining(struct nfs_client *clp,
 				  struct cb_layoutrecallargs *args)
 {
+	struct nfs_server *server;
 	struct pnfs_layout_hdr *lo;
 	struct inode *ino;
 	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
@@ -167,31 +176,37 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 	};
 
 	spin_lock(&clp->cl_lock);
-	list_for_each_entry(lo, &clp->cl_layouts, plh_layouts) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		if ((args->cbl_recall_type == RETURN_FSID) &&
-		    memcmp(&NFS_SERVER(lo->plh_inode)->fsid,
-			   &args->cbl_fsid, sizeof(struct nfs_fsid)))
+		    memcmp(&server->fsid, &args->cbl_fsid,
+			   sizeof(struct nfs_fsid)))
 			continue;
-		if (!igrab(lo->plh_inode))
-			continue;
-		get_layout_hdr(lo);
-		BUG_ON(!list_empty(&lo->plh_bulk_recall));
-		list_add(&lo->plh_bulk_recall, &recall_list);
+
+		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+			if (!igrab(lo->plh_inode))
+				continue;
+			get_layout_hdr(lo);
+			BUG_ON(!list_empty(&lo->plh_bulk_recall));
+			list_add(&lo->plh_bulk_recall, &recall_list);
+		}
 	}
+	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
+
 	list_for_each_entry_safe(lo, tmp,
 				 &recall_list, plh_bulk_recall) {
 		ino = lo->plh_inode;
 		spin_lock(&ino->i_lock);
 		set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
-		if (mark_matching_lsegs_invalid(lo, &free_me_list, range.iomode))
+		if (mark_matching_lsegs_invalid(lo, &free_me_list, &range))
 			rv = NFS4ERR_DELAY;
 		list_del_init(&lo->plh_bulk_recall);
 		spin_unlock(&ino->i_lock);
+		pnfs_free_lseg_list(&free_me_list);
 		put_layout_hdr(lo);
 		iput(ino);
 	}
-	pnfs_free_lseg_list(&free_me_list);
 	return rv;
 }
 
@@ -239,6 +254,53 @@ static void pnfs_recall_all_layouts(struct nfs_client *clp)
 	args.cbl_recall_type = RETURN_ALL;
 	/* FIXME we ignore errors, what should we do? */
 	do_callback_layoutrecall(clp, &args);
+}
+
+__be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
+				  void *dummy, struct cb_process_state *cps)
+{
+	int i;
+	__be32 res = 0;
+	struct nfs_client *clp = cps->clp;
+	struct nfs_server *server = NULL;
+
+	dprintk("%s: -->\n", __func__);
+
+	if (!clp) {
+		res = cpu_to_be32(NFS4ERR_OP_NOT_IN_SESSION);
+		goto out;
+	}
+
+	for (i = 0; i < args->ndevs; i++) {
+		struct cb_devicenotifyitem *dev = &args->devs[i];
+
+		if (!server ||
+		    server->pnfs_curr_ld->id != dev->cbd_layout_type) {
+			rcu_read_lock();
+			list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
+				if (server->pnfs_curr_ld &&
+				    server->pnfs_curr_ld->id == dev->cbd_layout_type) {
+					rcu_read_unlock();
+					goto found;
+				}
+			rcu_read_unlock();
+			dprintk("%s: layout type %u not found\n",
+				__func__, dev->cbd_layout_type);
+			continue;
+		}
+
+	found:
+		if (dev->cbd_notify_type == NOTIFY_DEVICEID4_CHANGE)
+			dprintk("%s: NOTIFY_DEVICEID4_CHANGE not supported, "
+				"deleting instead\n", __func__);
+		nfs4_delete_deviceid(server->pnfs_curr_ld, clp, &dev->cbd_dev_id);
+	}
+
+out:
+	kfree(args->devs);
+	dprintk("%s: exit with status = %u\n",
+		__func__, be32_to_cpu(res));
+	return res;
 }
 
 int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)

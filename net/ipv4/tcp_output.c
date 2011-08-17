@@ -73,7 +73,7 @@ static void tcp_event_new_data_sent(struct sock *sk, struct sk_buff *skb)
 	tcp_advance_send_head(sk, skb);
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
 
-	/* Don't override Nagle indefinately with F-RTO */
+	/* Don't override Nagle indefinitely with F-RTO */
 	if (tp->frto_counter == 2)
 		tp->frto_counter = 3;
 
@@ -899,7 +899,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		TCP_ADD_STATS(sock_net(sk), TCP_MIB_OUTSEGS,
 			      tcp_skb_pcount(skb));
 
-	err = icsk->icsk_af_ops->queue_xmit(skb);
+	err = icsk->icsk_af_ops->queue_xmit(skb, &inet->cork.fl);
 	if (likely(err <= 0))
 		return err;
 
@@ -1003,7 +1003,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 	int nlen;
 	u8 flags;
 
-	BUG_ON(len > skb->len);
+	if (WARN_ON(len > skb->len))
+		return -EINVAL;
 
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)

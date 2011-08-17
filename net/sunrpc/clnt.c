@@ -13,10 +13,6 @@
  *	and need to be refreshed, or when a packet was damaged in transit.
  *	This may be have to be moved to the VFS layer.
  *
- *  NB: BSD uses a more intelligent approach to guessing when a request
- *  or reply has been lost by keeping the RTO estimate for each procedure.
- *  We currently make do with a constant timeout value.
- *
  *  Copyright (C) 1992,1993 Rick Sladkey <jrs@world.std.com>
  *  Copyright (C) 1995,1996 Olaf Kirch <okir@monad.swb.de>
  */
@@ -32,7 +28,9 @@
 #include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/workqueue.h>
+#include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/un.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
@@ -66,9 +64,9 @@ static void	call_decode(struct rpc_task *task);
 static void	call_bind(struct rpc_task *task);
 static void	call_bind_status(struct rpc_task *task);
 static void	call_transmit(struct rpc_task *task);
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 static void	call_bc_transmit(struct rpc_task *task);
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 static void	call_status(struct rpc_task *task);
 static void	call_transmit_status(struct rpc_task *task);
 static void	call_refresh(struct rpc_task *task);
@@ -99,8 +97,7 @@ static int
 rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 {
 	static uint32_t clntid;
-	struct nameidata nd;
-	struct path path;
+	struct path path, dir;
 	char name[15];
 	struct qstr q = {
 		.name = name,
@@ -115,7 +112,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	path.mnt = rpc_get_mount();
 	if (IS_ERR(path.mnt))
 		return PTR_ERR(path.mnt);
-	error = vfs_path_lookup(path.mnt->mnt_root, path.mnt, dir_name, 0, &nd);
+	error = vfs_path_lookup(path.mnt->mnt_root, path.mnt, dir_name, 0, &dir);
 	if (error)
 		goto err;
 
@@ -123,7 +120,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 		q.len = snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
 		name[sizeof(name) - 1] = '\0';
 		q.hash = full_name_hash(q.name, q.len);
-		path.dentry = rpc_create_client_dir(nd.path.dentry, &q, clnt);
+		path.dentry = rpc_create_client_dir(dir.dentry, &q, clnt);
 		if (!IS_ERR(path.dentry))
 			break;
 		error = PTR_ERR(path.dentry);
@@ -134,11 +131,11 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 			goto err_path_put;
 		}
 	}
-	path_put(&nd.path);
+	path_put(&dir);
 	clnt->cl_path = path;
 	return 0;
 err_path_put:
-	path_put(&nd.path);
+	path_put(&dir);
 err:
 	rpc_put_mount();
 	return error;
@@ -298,22 +295,27 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	 * up a string representation of the passed-in address.
 	 */
 	if (args->servername == NULL) {
+		struct sockaddr_un *sun =
+				(struct sockaddr_un *)args->address;
+		struct sockaddr_in *sin =
+				(struct sockaddr_in *)args->address;
+		struct sockaddr_in6 *sin6 =
+				(struct sockaddr_in6 *)args->address;
+
 		servername[0] = '\0';
 		switch (args->address->sa_family) {
-		case AF_INET: {
-			struct sockaddr_in *sin =
-					(struct sockaddr_in *)args->address;
+		case AF_LOCAL:
+			snprintf(servername, sizeof(servername), "%s",
+				 sun->sun_path);
+			break;
+		case AF_INET:
 			snprintf(servername, sizeof(servername), "%pI4",
 				 &sin->sin_addr.s_addr);
 			break;
-		}
-		case AF_INET6: {
-			struct sockaddr_in6 *sin =
-					(struct sockaddr_in6 *)args->address;
+		case AF_INET6:
 			snprintf(servername, sizeof(servername), "%pI6",
-				 &sin->sin6_addr);
+				 &sin6->sin6_addr);
 			break;
-		}
 		default:
 			/* caller wants default server name, but
 			 * address family isn't recognized. */
@@ -436,7 +438,9 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
 			rovr->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(rovr, -EIO);
-			rpc_wake_up_queued_task(rovr->tk_waitqueue, rovr);
+			if (RPC_IS_QUEUED(rovr))
+				rpc_wake_up_queued_task(rovr->tk_waitqueue,
+							rovr);
 		}
 	}
 	spin_unlock(&clnt->cl_lock);
@@ -597,6 +601,14 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 	}
 }
 
+void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt)
+{
+	rpc_task_release_client(task);
+	rpc_task_set_client(task, clnt);
+}
+EXPORT_SYMBOL_GPL(rpc_task_reset_client);
+
+
 static void
 rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
 {
@@ -635,12 +647,6 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 
 	rpc_task_set_client(task, task_setup_data->rpc_client);
 	rpc_task_set_rpc_message(task, task_setup_data->rpc_message);
-
-	if (task->tk_status != 0) {
-		int ret = task->tk_status;
-		rpc_put_task(task);
-		return ERR_PTR(ret);
-	}
 
 	if (task->tk_action == NULL)
 		rpc_call_start(task);
@@ -709,7 +715,7 @@ rpc_call_async(struct rpc_clnt *clnt, const struct rpc_message *msg, int flags,
 }
 EXPORT_SYMBOL_GPL(rpc_call_async);
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /**
  * rpc_run_bc_task - Allocate a new RPC task for backchannel use, then run
  * rpc_execute against it
@@ -752,7 +758,7 @@ out:
 	dprintk("RPC: rpc_run_bc_task: task= %p\n", task);
 	return task;
 }
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 void
 rpc_call_start(struct rpc_task *task)
@@ -1054,7 +1060,7 @@ call_allocate(struct rpc_task *task)
 
 	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
 
-	if (RPC_IS_ASYNC(task) || !signalled()) {
+	if (RPC_IS_ASYNC(task) || !fatal_signal_pending(current)) {
 		task->tk_action = call_allocate;
 		rpc_delay(task, HZ>>4);
 		return;
@@ -1168,6 +1174,9 @@ call_bind_status(struct rpc_task *task)
 			status = -EOPNOTSUPP;
 			break;
 		}
+		if (task->tk_rebind_retry == 0)
+			break;
+		task->tk_rebind_retry--;
 		rpc_delay(task, 3*HZ);
 		goto retry_timeout;
 	case -ETIMEDOUT:
@@ -1352,7 +1361,7 @@ call_transmit_status(struct rpc_task *task)
 	}
 }
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /*
  * 5b.	Send the backchannel RPC reply.  On error, drop the reply.  In
  * addition, disconnect on connectivity errors.
@@ -1416,7 +1425,7 @@ call_bc_transmit(struct rpc_task *task)
 	}
 	rpc_wake_up_queued_task(&req->rq_xprt->pending, task);
 }
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 /*
  * 6.	Sort out the RPC call status
@@ -1504,7 +1513,10 @@ call_timeout(struct rpc_task *task)
 		if (clnt->cl_chatty)
 			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
 				clnt->cl_protname, clnt->cl_server);
-		rpc_exit(task, -EIO);
+		if (task->tk_flags & RPC_TASK_TIMEOUT)
+			rpc_exit(task, -ETIMEDOUT);
+		else
+			rpc_exit(task, -EIO);
 		return;
 	}
 
@@ -1538,8 +1550,7 @@ call_decode(struct rpc_task *task)
 	kxdrdproc_t	decode = task->tk_msg.rpc_proc->p_decode;
 	__be32		*p;
 
-	dprintk("RPC: %5u call_decode (status %d)\n",
-			task->tk_pid, task->tk_status);
+	dprint_status(task);
 
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
 		if (clnt->cl_chatty)
@@ -1653,19 +1664,18 @@ rpc_verify_header(struct rpc_task *task)
 		if (--len < 0)
 			goto out_overflow;
 		switch ((n = ntohl(*p++))) {
-			case RPC_AUTH_ERROR:
-				break;
-			case RPC_MISMATCH:
-				dprintk("RPC: %5u %s: RPC call version "
-						"mismatch!\n",
-						task->tk_pid, __func__);
-				error = -EPROTONOSUPPORT;
-				goto out_err;
-			default:
-				dprintk("RPC: %5u %s: RPC call rejected, "
-						"unknown error: %x\n",
-						task->tk_pid, __func__, n);
-				goto out_eio;
+		case RPC_AUTH_ERROR:
+			break;
+		case RPC_MISMATCH:
+			dprintk("RPC: %5u %s: RPC call version mismatch!\n",
+				task->tk_pid, __func__);
+			error = -EPROTONOSUPPORT;
+			goto out_err;
+		default:
+			dprintk("RPC: %5u %s: RPC call rejected, "
+				"unknown error: %x\n",
+				task->tk_pid, __func__, n);
+			goto out_eio;
 		}
 		if (--len < 0)
 			goto out_overflow;

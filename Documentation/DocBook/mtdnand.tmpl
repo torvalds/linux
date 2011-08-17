@@ -189,8 +189,7 @@ static void __iomem *baseaddr;
 		<title>Partition defines</title>
 		<para>
 			If you want to divide your device into partitions, then
-			enable the configuration switch CONFIG_MTD_PARTITIONS and define
-			a partitioning scheme suitable to your board.
+			define a partitioning scheme suitable to your board.
 		</para>
 		<programlisting>
 #define NUM_PARTITIONS 2
@@ -485,7 +484,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				Reed-Solomon library.
 			</para>
 			<para>
-				The ECC bytes must be placed immidiately after the data
+				The ECC bytes must be placed immediately after the data
 				bytes in order to make the syndrome generator work. This
 				is contrary to the usual layout used by software ECC. The
 				separation of data and out of band area is not longer
@@ -629,7 +628,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				holds the bad block table. Store a pointer to the pattern  
 				in the pattern field. Further the length of the pattern has to be 
 				stored in len and the offset in the spare area must be given
-				in the offs member of the nand_bbt_descr stucture. For mirrored
+				in the offs member of the nand_bbt_descr structure. For mirrored
 				bad block tables different patterns are mandatory.</para></listitem>
 				<listitem><para>Table creation</para>
 				<para>Set the option NAND_BBT_CREATE to enable the table creation
@@ -648,7 +647,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				<listitem><para>Table version control</para>
 				<para>Set the option NAND_BBT_VERSION to enable the table version control.
 				It's highly recommended to enable this for mirrored tables with write
-				support. It makes sure that the risk of loosing the bad block
+				support. It makes sure that the risk of losing the bad block
 				table information is reduced to the loss of the information about the
 				one worn out block which should be marked bad. The version is stored in
 				4 consecutive bytes in the spare area of the device. The position of
@@ -1060,19 +1059,19 @@ data in this page</entry>
 <row>
 <entry>0x3D</entry>
 <entry>ECC byte 21</entry>
-<entry>Error correction code byte 0 of the eigth 256 Bytes of data
+<entry>Error correction code byte 0 of the eighth 256 Bytes of data
 in this page</entry>
 </row>
 <row>
 <entry>0x3E</entry>
 <entry>ECC byte 22</entry>
-<entry>Error correction code byte 1 of the eigth 256 Bytes of data
+<entry>Error correction code byte 1 of the eighth 256 Bytes of data
 in this page</entry>
 </row>
 <row>
 <entry>0x3F</entry>
 <entry>ECC byte 23</entry>
-<entry>Error correction code byte 2 of the eigth 256 Bytes of data
+<entry>Error correction code byte 2 of the eighth 256 Bytes of data
 in this page</entry>
 </row>
 </tbody></tgroup></informaltable>

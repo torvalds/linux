@@ -90,23 +90,23 @@
 #define	IPOPT_TS_PRESPEC	3		/* specified modules only */
 
 struct ip_options {
-  __u32		faddr;				/* Saved first hop address */
-  unsigned char	optlen;
-  unsigned char srr;
-  unsigned char rr;
-  unsigned char ts;
-  unsigned char is_setbyuser:1,	/* Set by setsockopt?			*/
-		is_data:1,	/* Options in __data, rather than skb	*/
-		is_strictroute:1, /* Strict source route		*/
-		srr_is_hit:1,	/* Packet destination addr was our one	*/
-		is_changed:1,	/* IP checksum more not valid		*/
-		rr_needaddr:1,	/* Need to record addr of outgoing dev	*/
-		ts_needtime:1,	/* Need to record timestamp		*/
-		ts_needaddr:1;	/* Need to record addr of outgoing dev  */
-  unsigned char router_alert;
-  unsigned char __pad1;
-  unsigned char __pad2;
-  unsigned char __data[0];
+	__u32		faddr;			/* Saved first hop address */
+	unsigned char	optlen;
+	unsigned char srr;
+	unsigned char rr;
+	unsigned char ts;
+	unsigned char is_setbyuser:1,	/* Set by setsockopt?		      */
+		      is_data:1,	/* Options in __data, rather than skb */
+		      is_strictroute:1, /* Strict source route		      */
+		      srr_is_hit:1,	/* Packet destination addr was our one*/
+		      is_changed:1,	/* IP checksum more not valid	      */
+		      rr_needaddr:1,	/* Need to record addr of outgoing dev*/
+		      ts_needtime:1,	/* Need to record timestamp	      */
+		      ts_needaddr:1;	/* Need to record addr of outgoing dev*/
+	unsigned char router_alert;
+	unsigned char __pad1;
+	unsigned char __pad2;
+	unsigned char __data[0];
 };
 
 #define optlength(opt) (sizeof(struct ip_options) + opt->optlen)

@@ -925,7 +925,7 @@ stub_is_stopped(int sigval)
 
 					if (reg.eda >= bp_d_regs[bp * 2] &&
 					    reg.eda <= bp_d_regs[bp * 2 + 1]) {
-						/* EDA withing range for this BP; it must be the one
+						/* EDA within range for this BP; it must be the one
 						   we're looking for. */
 						stopped_data_address = reg.eda;
 						break;

@@ -6,16 +6,11 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
-#include <linux/rtc.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -47,9 +42,7 @@
  */
 
 struct ad7314_chip_info {
-	const char *name;
 	struct spi_device *spi_dev;
-	struct iio_dev *indio_dev;
 	s64 last_timestamp;
 	u8  mode;
 };
@@ -93,7 +86,7 @@ static ssize_t ad7314_show_mode(struct device *dev,
 		char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7314_chip_info *chip = dev_info->dev_data;
+	struct ad7314_chip_info *chip = iio_priv(dev_info);
 
 	if (chip->mode)
 		return sprintf(buf, "power-save\n");
@@ -107,7 +100,7 @@ static ssize_t ad7314_store_mode(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7314_chip_info *chip = dev_info->dev_data;
+	struct ad7314_chip_info *chip = iio_priv(dev_info);
 	u16 mode = 0;
 	int ret;
 
@@ -142,7 +135,7 @@ static ssize_t ad7314_show_temperature(struct device *dev,
 		char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7314_chip_info *chip = dev_info->dev_data;
+	struct ad7314_chip_info *chip = iio_priv(dev_info);
 	u16 data;
 	char sign = ' ';
 	int ret;
@@ -160,7 +153,7 @@ static ssize_t ad7314_show_temperature(struct device *dev,
 	if (chip->mode)
 		ad7314_spi_write(chip, chip->mode);
 
-	if (strcmp(chip->name, "ad7314")) {
+	if (strcmp(dev_info->name, "ad7314")) {
 		data = (data & AD7314_TEMP_MASK) >>
 			AD7314_TEMP_OFFSET;
 		if (data & AD7314_TEMP_SIGN) {
@@ -186,22 +179,10 @@ static ssize_t ad7314_show_temperature(struct device *dev,
 
 static IIO_DEVICE_ATTR(temperature, S_IRUGO, ad7314_show_temperature, NULL, 0);
 
-static ssize_t ad7314_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7314_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7314_show_name, NULL, 0);
-
 static struct attribute *ad7314_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
 	&iio_dev_attr_temperature.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -209,6 +190,10 @@ static const struct attribute_group ad7314_attribute_group = {
 	.attrs = ad7314_attributes,
 };
 
+static const struct iio_info ad7314_info = {
+	.attrs = &ad7314_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 /*
  * device probe and remove
  */
@@ -216,57 +201,45 @@ static const struct attribute_group ad7314_attribute_group = {
 static int __devinit ad7314_probe(struct spi_device *spi_dev)
 {
 	struct ad7314_chip_info *chip;
+	struct iio_dev *indio_dev;
 	int ret = 0;
 
-	chip = kzalloc(sizeof(struct ad7314_chip_info), GFP_KERNEL);
-
-	if (chip == NULL)
-		return -ENOMEM;
-
+	indio_dev = iio_allocate_device(sizeof(*chip));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	dev_set_drvdata(&spi_dev->dev, chip);
 
 	chip->spi_dev = spi_dev;
-	chip->name = spi_dev->modalias;
 
-	chip->indio_dev = iio_allocate_device();
-	if (chip->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_chip;
-	}
+	indio_dev->name = spi_get_device_id(spi_dev)->name;
+	indio_dev->dev.parent = &spi_dev->dev;
+	indio_dev->info = &ad7314_info;
 
-	chip->indio_dev->dev.parent = &spi_dev->dev;
-	chip->indio_dev->attrs = &ad7314_attribute_group;
-	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
-
-	ret = iio_device_register(chip->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
 	dev_info(&spi_dev->dev, "%s temperature sensor registered.\n",
-			 chip->name);
+			 indio_dev->name);
 
 	return 0;
 error_free_dev:
-	iio_free_device(chip->indio_dev);
-error_free_chip:
-	kfree(chip);
-
+	iio_free_device(indio_dev);
+error_ret:
 	return ret;
 }
 
 static int __devexit ad7314_remove(struct spi_device *spi_dev)
 {
-	struct ad7314_chip_info *chip = dev_get_drvdata(&spi_dev->dev);
-	struct iio_dev *indio_dev = chip->indio_dev;
+	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
 
 	dev_set_drvdata(&spi_dev->dev, NULL);
-	if (spi_dev->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
 	iio_device_unregister(indio_dev);
-	iio_free_device(chip->indio_dev);
-	kfree(chip);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

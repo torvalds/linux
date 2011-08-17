@@ -1221,7 +1221,7 @@ static void kaweth_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (!kaweth) {
-		dev_warn(&intf->dev, "unregistering non-existant device\n");
+		dev_warn(&intf->dev, "unregistering non-existent device\n");
 		return;
 	}
 	netdev = kaweth->net;

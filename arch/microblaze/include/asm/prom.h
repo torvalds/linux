@@ -21,28 +21,17 @@
 
 #include <linux/types.h>
 #include <asm/irq.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define HAVE_ARCH_DEVTREE_FIXUPS
 
 /* Other Prototypes */
-extern int early_uartlite_console(void);
-extern int early_uart16550_console(void);
+enum early_consoles {
+	UARTLITE = 1,
+	UART16550 = 2,
+};
 
-#ifdef CONFIG_PCI
-/*
- * PCI <-> OF matching functions
- * (XXX should these be here?)
- */
-struct pci_bus;
-struct pci_dev;
-extern int pci_device_from_OF_node(struct device_node *node,
-					u8 *bus, u8 *devfn);
-extern struct device_node *pci_busdev_to_OF_node(struct pci_bus *bus,
-							int devfn);
-extern struct device_node *pci_device_to_OF_node(struct pci_dev *dev);
-extern void pci_create_OF_bus_map(void);
-#endif
+extern int of_early_console(void *version);
 
 /*
  * OF address retreival & translation
@@ -63,21 +52,6 @@ extern void kdump_move_device_tree(void);
 
 /* CPU OF node matching */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
-
-/**
- * of_irq_map_pci - Resolve the interrupt for a PCI device
- * @pdev:	the device whose interrupt is to be resolved
- * @out_irq:	structure of_irq filled by this function
- *
- * This function resolves the PCI interrupt for a given PCI device. If a
- * device-node exists for a given pci_dev, it will use normal OF tree
- * walking. If not, it will implement standard swizzling and walk up the
- * PCI tree until an device-node is found, at which point it will finish
- * resolving using the OF tree walking.
- */
-struct pci_dev;
-struct of_irq;
-extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

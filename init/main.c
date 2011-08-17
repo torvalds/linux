@@ -129,63 +129,6 @@ static char *static_command_line;
 static char *execute_command;
 static char *ramdisk_execute_command;
 
-#ifdef CONFIG_SMP
-/* Setup configured maximum number of CPUs to activate */
-unsigned int setup_max_cpus = NR_CPUS;
-EXPORT_SYMBOL(setup_max_cpus);
-
-
-/*
- * Setup routine for controlling SMP activation
- *
- * Command-line option of "nosmp" or "maxcpus=0" will disable SMP
- * activation entirely (the MPS table probe still happens, though).
- *
- * Command-line option of "maxcpus=<NUM>", where <NUM> is an integer
- * greater than 0, limits the maximum number of CPUs activated in
- * SMP mode to <NUM>.
- */
-
-void __weak arch_disable_smp_support(void) { }
-
-static int __init nosmp(char *str)
-{
-	setup_max_cpus = 0;
-	arch_disable_smp_support();
-
-	return 0;
-}
-
-early_param("nosmp", nosmp);
-
-/* this is hard limit */
-static int __init nrcpus(char *str)
-{
-	int nr_cpus;
-
-	get_option(&str, &nr_cpus);
-	if (nr_cpus > 0 && nr_cpus < nr_cpu_ids)
-		nr_cpu_ids = nr_cpus;
-
-	return 0;
-}
-
-early_param("nr_cpus", nrcpus);
-
-static int __init maxcpus(char *str)
-{
-	get_option(&str, &setup_max_cpus);
-	if (setup_max_cpus == 0)
-		arch_disable_smp_support();
-
-	return 0;
-}
-
-early_param("maxcpus", maxcpus);
-#else
-static const unsigned int setup_max_cpus = NR_CPUS;
-#endif
-
 /*
  * If set, this is an indication to the drivers that reset the underlying
  * device before going ahead with the initialization otherwise driver might
@@ -362,7 +305,7 @@ static int __init rdinit_setup(char *str)
 __setup("rdinit=", rdinit_setup);
 
 #ifndef CONFIG_SMP
-
+static const unsigned int setup_max_cpus = NR_CPUS;
 #ifdef CONFIG_X86_LOCAL_APIC
 static void __init smp_init(void)
 {
@@ -374,37 +317,6 @@ static void __init smp_init(void)
 
 static inline void setup_nr_cpu_ids(void) { }
 static inline void smp_prepare_cpus(unsigned int maxcpus) { }
-
-#else
-
-/* Setup number of possible processor ids */
-int nr_cpu_ids __read_mostly = NR_CPUS;
-EXPORT_SYMBOL(nr_cpu_ids);
-
-/* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
-static void __init setup_nr_cpu_ids(void)
-{
-	nr_cpu_ids = find_last_bit(cpumask_bits(cpu_possible_mask),NR_CPUS) + 1;
-}
-
-/* Called by boot processor to activate the rest. */
-static void __init smp_init(void)
-{
-	unsigned int cpu;
-
-	/* FIXME: This should be done in userspace --RR */
-	for_each_present_cpu(cpu) {
-		if (num_online_cpus() >= setup_max_cpus)
-			break;
-		if (!cpu_online(cpu))
-			cpu_up(cpu);
-	}
-
-	/* Any cleanup work */
-	printk(KERN_INFO "Brought up %ld CPUs\n", (long)num_online_cpus());
-	smp_cpus_done(setup_max_cpus);
-}
-
 #endif
 
 /*
@@ -457,9 +369,12 @@ static noinline void __init_refok rest_init(void)
 	init_idle_bootup_task(current);
 	preempt_enable_no_resched();
 	schedule();
-	preempt_disable();
+
+	/* At this point, we can enable user mode helper functionality */
+	usermodehelper_enable();
 
 	/* Call into cpu_idle with preempt disabled */
+	preempt_disable();
 	cpu_idle();
 }
 
@@ -575,6 +490,7 @@ asmlinkage void __init start_kernel(void)
 	printk(KERN_NOTICE "%s", linux_banner);
 	setup_arch(&command_line);
 	mm_init_owner(&init_mm, &init_task);
+	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
 	setup_per_cpu_areas();
@@ -592,11 +508,13 @@ asmlinkage void __init start_kernel(void)
 	 * These use large bootmem allocations and must precede
 	 * kmem_cache_init()
 	 */
+	setup_log_buf(0);
 	pidhash_init();
 	vfs_caches_init_early();
 	sort_main_extable();
 	trap_init();
 	mm_init();
+
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()
@@ -627,6 +545,7 @@ asmlinkage void __init start_kernel(void)
 	timekeeping_init();
 	time_init();
 	profile_init();
+	call_function_init();
 	if (!irqs_disabled())
 		printk(KERN_CRIT "start_kernel(): bug: interrupts were "
 				 "enabled early\n");
@@ -668,8 +587,8 @@ asmlinkage void __init start_kernel(void)
 #endif
 	page_cgroup_init();
 	enable_debug_pagealloc();
-	kmemleak_init();
 	debug_objects_mem_init();
+	kmemleak_init();
 	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)
@@ -799,7 +718,7 @@ static void __init do_basic_setup(void)
 {
 	cpuset_init_smp();
 	usermodehelper_init();
-	init_tmpfs();
+	shmem_init();
 	driver_init();
 	init_irq_proc();
 	do_ctors();
@@ -875,15 +794,6 @@ static int __init kernel_init(void * unused)
 	 * init can run on any cpu.
 	 */
 	set_cpus_allowed_ptr(current, cpu_all_mask);
-	/*
-	 * Tell the world that we're going to be the grim
-	 * reaper of innocent orphaned children.
-	 *
-	 * We don't want people to have to make incorrect
-	 * assumptions about where in the task array this
-	 * can be found.
-	 */
-	init_pid_ns.child_reaper = current;
 
 	cad_pid = task_pid(current);
 

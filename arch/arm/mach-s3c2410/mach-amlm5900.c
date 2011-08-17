@@ -58,8 +58,6 @@
 #include <plat/cpu.h>
 #include <plat/gpio-cfg.h>
 
-#ifdef CONFIG_MTD_PARTITIONS
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
@@ -113,7 +111,6 @@ static struct platform_device amlm5900_device_nor = {
 	.num_resources	= 1,
 	.resource	= &amlm5900_nor_resource,
 };
-#endif
 
 static struct map_desc amlm5900_iodesc[] __initdata = {
 };
@@ -158,9 +155,7 @@ static struct platform_device *amlm5900_devices[] __initdata = {
  	&s3c_device_rtc,
 	&s3c_device_usbgadget,
         &s3c_device_sdi,
-#ifdef CONFIG_MTD_PARTITIONS
 	&amlm5900_device_nor,
-#endif
 };
 
 static void __init amlm5900_map_io(void)

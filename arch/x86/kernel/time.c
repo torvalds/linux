@@ -11,19 +11,19 @@
 
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
+#include <linux/i8253.h>
 #include <linux/time.h>
 #include <linux/mca.h>
 
 #include <asm/vsyscall.h>
 #include <asm/x86_init.h>
 #include <asm/i8259.h>
-#include <asm/i8253.h>
 #include <asm/timer.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
 
 #ifdef CONFIG_X86_64
-volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
+DEFINE_VVAR(volatile unsigned long, jiffies) = INITIAL_JIFFIES;
 #endif
 
 unsigned long profile_pc(struct pt_regs *regs)

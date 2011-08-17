@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,6 +16,7 @@
 
 #include <linux/nl80211.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/ath9k_platform.h>
 #include "ath9k.h"
 
@@ -44,7 +45,7 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 	*csz = (int)u8tmp;
 
 	/*
-	 * This check was put in to avoid "unplesant" consequences if
+	 * This check was put in to avoid "unpleasant" consequences if
 	 * the bootrom has not fully initialized all PCI devices.
 	 * Sometimes the cache line size register is not set
 	 */
@@ -115,18 +116,43 @@ static void ath_pci_extn_synch_enable(struct ath_common *common)
 	pci_write_config_byte(pdev, sc->sc_ah->caps.pcie_lcr_offset, lnkctl);
 }
 
+static void ath_pci_aspm_init(struct ath_common *common)
+{
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct pci_dev *pdev = to_pci_dev(sc->dev);
+	struct pci_dev *parent;
+	int pos;
+	u8 aspm;
+
+	if (!pci_is_pcie(pdev))
+		return;
+
+	parent = pdev->bus->self;
+	if (WARN_ON(!parent))
+		return;
+
+	pos = pci_pcie_cap(parent);
+	pci_read_config_byte(parent, pos +  PCI_EXP_LNKCTL, &aspm);
+	if (aspm & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
+		ah->aspm_enabled = true;
+		/* Initialize PCIe PM and SERDES registers. */
+		ath9k_hw_configpcipowersave(ah, 0, 0);
+	}
+}
+
 static const struct ath_bus_ops ath_pci_bus_ops = {
 	.ath_bus_type = ATH_PCI,
 	.read_cachesize = ath_pci_read_cachesize,
 	.eeprom_read = ath_pci_eeprom_read,
 	.bt_coex_prep = ath_pci_bt_coex_prep,
 	.extn_synch_en = ath_pci_extn_synch_enable,
+	.aspm_init = ath_pci_aspm_init,
 };
 
 static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	void __iomem *mem;
-	struct ath_wiphy *aphy;
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
 	u8 csz;
@@ -198,8 +224,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_iomap;
 	}
 
-	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy) +
-				sizeof(struct ath_softc), &ath9k_ops);
+	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (!hw) {
 		dev_err(&pdev->dev, "No memory for ieee80211_hw\n");
 		ret = -ENOMEM;
@@ -209,11 +234,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	pci_set_drvdata(pdev, hw);
 
-	aphy = hw->priv;
-	sc = (struct ath_softc *) (aphy + 1);
-	aphy->sc = sc;
-	aphy->hw = hw;
-	sc->pri_wiphy = aphy;
+	sc = hw->priv;
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
@@ -260,8 +281,7 @@ err_dma:
 static void ath_pci_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	void __iomem *mem = sc->mem;
 
 	if (!is_ath9k_unloaded)
@@ -281,10 +301,15 @@ static int ath_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
+
+	/* The device has to be moved to FULLSLEEP forcibly.
+	 * Otherwise the chip never moved to full sleep,
+	 * when no interface is up.
+	 */
+	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	return 0;
 }
@@ -293,8 +318,7 @@ static int ath_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	u32 val;
 
 	/*
@@ -320,7 +344,6 @@ static int ath_pci_resume(struct device *device)
 	ath9k_ps_restore(sc);
 
 	sc->ps_idle = true;
-	ath9k_set_wiphy_idle(aphy, true);
 	ath_radio_disable(sc, hw);
 
 	return 0;

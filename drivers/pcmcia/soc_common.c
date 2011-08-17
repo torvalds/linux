@@ -155,11 +155,11 @@ static int soc_common_pcmcia_config_skt(
 		 */
 		if (skt->irq_state != 1 && state->io_irq) {
 			skt->irq_state = 1;
-			set_irq_type(skt->socket.pci_irq,
-				IRQ_TYPE_EDGE_FALLING);
+			irq_set_irq_type(skt->socket.pci_irq,
+					 IRQ_TYPE_EDGE_FALLING);
 		} else if (skt->irq_state == 1 && state->io_irq == 0) {
 			skt->irq_state = 0;
-			set_irq_type(skt->socket.pci_irq, IRQ_TYPE_NONE);
+			irq_set_irq_type(skt->socket.pci_irq, IRQ_TYPE_NONE);
 		}
 
 		skt->cs_state = *state;
@@ -186,8 +186,8 @@ static int soc_common_pcmcia_sock_init(struct pcmcia_socket *sock)
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 
 	debug(skt, 2, "initializing socket\n");
-
-	skt->ops->socket_init(skt);
+	if (skt->ops->socket_init)
+		skt->ops->socket_init(skt);
 	return 0;
 }
 
@@ -207,7 +207,8 @@ static int soc_common_pcmcia_suspend(struct pcmcia_socket *sock)
 
 	debug(skt, 2, "suspending socket\n");
 
-	skt->ops->socket_suspend(skt);
+	if (skt->ops->socket_suspend)
+		skt->ops->socket_suspend(skt);
 
 	return 0;
 }
@@ -537,7 +538,7 @@ int soc_pcmcia_request_irqs(struct soc_pcmcia_socket *skt,
 				  IRQF_DISABLED, irqs[i].str, skt);
 		if (res)
 			break;
-		set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
+		irq_set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
 	}
 
 	if (res) {
@@ -570,7 +571,7 @@ void soc_pcmcia_disable_irqs(struct soc_pcmcia_socket *skt,
 
 	for (i = 0; i < nr; i++)
 		if (irqs[i].sock == skt->nr)
-			set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
+			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
 }
 EXPORT_SYMBOL(soc_pcmcia_disable_irqs);
 
@@ -581,8 +582,8 @@ void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt,
 
 	for (i = 0; i < nr; i++)
 		if (irqs[i].sock == skt->nr) {
-			set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_RISING);
-			set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_BOTH);
+			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_RISING);
+			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_BOTH);
 		}
 }
 EXPORT_SYMBOL(soc_pcmcia_enable_irqs);

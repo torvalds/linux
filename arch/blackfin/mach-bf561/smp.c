@@ -24,24 +24,23 @@ static DEFINE_SPINLOCK(boot_lock);
 
 void __init platform_init_cpus(void)
 {
-	cpu_set(0, cpu_possible_map); /* CoreA */
-	cpu_set(1, cpu_possible_map); /* CoreB */
+	struct cpumask mask;
+
+	cpumask_set_cpu(0, &mask); /* CoreA */
+	cpumask_set_cpu(1, &mask); /* CoreB */
+	init_cpu_possible(&mask);
 }
 
 void __init platform_prepare_cpus(unsigned int max_cpus)
 {
-	int len;
+	struct cpumask mask;
 
-	len = &coreb_trampoline_end - &coreb_trampoline_start + 1;
-	BUG_ON(len > L1_CODE_LENGTH);
-
-	dma_memcpy((void *)COREB_L1_CODE_START, &coreb_trampoline_start, len);
+	bfin_relocate_coreb_l1_mem();
 
 	/* Both cores ought to be present on a bf561! */
-	cpu_set(0, cpu_present_map); /* CoreA */
-	cpu_set(1, cpu_present_map); /* CoreB */
-
-	printk(KERN_INFO "CoreB bootstrap code to SRAM %p via DMA.\n", (void *)COREB_L1_CODE_START);
+	cpumask_set_cpu(0, &mask); /* CoreA */
+	cpumask_set_cpu(1, &mask); /* CoreB */
+	init_cpu_present(&mask);
 }
 
 int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
@@ -68,9 +67,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	bfin_write_SICB_IWR0(IWR_DISABLE_ALL);
 	bfin_write_SICB_IWR1(IWR_DISABLE_ALL);
 	SSYNC();
-
-	/* Store CPU-private information to the cpu_data array. */
-	bfin_setup_cpudata(cpu);
 
 	/* We are done with local CPU inits, unblock the boot CPU. */
 	set_cpu_online(cpu, true);
@@ -161,9 +157,13 @@ void platform_clear_ipi(unsigned int cpu, int irq)
 void __cpuinit bfin_local_timer_setup(void)
 {
 #if defined(CONFIG_TICKSOURCE_CORETMR)
+	struct irq_data *data = irq_get_irq_data(IRQ_CORETMR);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+
 	bfin_coretmr_init();
 	bfin_coretmr_clockevent_init();
-	get_irq_chip(IRQ_CORETMR)->unmask(IRQ_CORETMR);
+
+	chip->irq_unmask(data);
 #else
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);

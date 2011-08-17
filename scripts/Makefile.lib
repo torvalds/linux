@@ -160,13 +160,51 @@ ld_flags       = $(LDFLAGS) $(ldflags-y)
 modname-multi = $(sort $(foreach m,$(multi-used),\
 		$(if $(filter $(subst $(obj)/,,$*.o), $($(m:.o=-objs)) $($(m:.o=-y))),$(m:.o=))))
 
+ifdef REGENERATE_PARSERS
+
+# GPERF
+# ---------------------------------------------------------------------------
+quiet_cmd_gperf = GPERF $@
+      cmd_gperf = gperf -t --output-file $@ -a -C -E -g -k 1,3,$$ -p -t $<
+
+$(src)/%.hash.c_shipped: $(src)/%.gperf
+	$(call cmd,gperf)
+
+# LEX
+# ---------------------------------------------------------------------------
+LEX_PREFIX = $(if $(LEX_PREFIX_${baseprereq}),$(LEX_PREFIX_${baseprereq}),yy)
+
+quiet_cmd_flex = LEX     $@
+      cmd_flex = flex -o$@ -L -P $(LEX_PREFIX) $<
+
+$(src)/%.lex.c_shipped: $(src)/%.l
+	$(call cmd,flex)
+
+# YACC
+# ---------------------------------------------------------------------------
+YACC_PREFIX = $(if $(YACC_PREFIX_${baseprereq}),$(YACC_PREFIX_${baseprereq}),yy)
+
+quiet_cmd_bison = YACC    $@
+      cmd_bison = bison -o$@ -t -l -p $(YACC_PREFIX) $<
+
+$(src)/%.tab.c_shipped: $(src)/%.y
+	$(call cmd,bison)
+
+quiet_cmd_bison_h = YACC    $@
+      cmd_bison_h = bison -o/dev/null --defines=$@ -t -l -p $(YACC_PREFIX) $<
+
+$(src)/%.tab.h_shipped: $(src)/%.y
+	$(call cmd,bison_h)
+
+endif
+
 # Shipped files
 # ===========================================================================
 
 quiet_cmd_shipped = SHIPPED $@
 cmd_shipped = cat $< > $@
 
-$(obj)/%:: $(src)/%_shipped
+$(obj)/%: $(src)/%_shipped
 	$(call cmd,shipped)
 
 # Commands useful for building a boot image
@@ -197,7 +235,7 @@ cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
 # ---------------------------------------------------------------------------
 
 quiet_cmd_gzip = GZIP    $@
-cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -f -9 > $@) || \
+cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 	(rm -f $@ ; false)
 
 # DTC

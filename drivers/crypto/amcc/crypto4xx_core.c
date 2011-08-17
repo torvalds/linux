@@ -51,6 +51,7 @@ static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 	union ce_io_threshold io_threshold;
 	u32 rand_num;
 	union ce_pe_dma_cfg pe_dma_cfg;
+	u32 device_ctrl;
 
 	writel(PPC4XX_BYTE_ORDER, dev->ce_base + CRYPTO4XX_BYTE_ORDER_CFG);
 	/* setup pe dma, include reset sg, pdr and pe, then release reset */
@@ -84,7 +85,9 @@ static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 	writel(ring_size.w, dev->ce_base + CRYPTO4XX_RING_SIZE);
 	ring_ctrl.w = 0;
 	writel(ring_ctrl.w, dev->ce_base + CRYPTO4XX_RING_CTRL);
-	writel(PPC4XX_DC_3DES_EN, dev->ce_base + CRYPTO4XX_DEVICE_CTRL);
+	device_ctrl = readl(dev->ce_base + CRYPTO4XX_DEVICE_CTRL);
+	device_ctrl |= PPC4XX_DC_3DES_EN;
+	writel(device_ctrl, dev->ce_base + CRYPTO4XX_DEVICE_CTRL);
 	writel(dev->gdr_pa, dev->ce_base + CRYPTO4XX_GATH_RING_BASE);
 	writel(dev->sdr_pa, dev->ce_base + CRYPTO4XX_SCAT_RING_BASE);
 	part_ring_size.w = 0;
@@ -1150,8 +1153,7 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 /**
  * Module Initialization Routine
  */
-static int __init crypto4xx_probe(struct platform_device *ofdev,
-				  const struct of_device_id *match)
+static int __init crypto4xx_probe(struct platform_device *ofdev)
 {
 	int rc;
 	struct resource res;
@@ -1280,7 +1282,7 @@ static const struct of_device_id crypto4xx_match[] = {
 	{ },
 };
 
-static struct of_platform_driver crypto4xx_driver = {
+static struct platform_driver crypto4xx_driver = {
 	.driver = {
 		.name = "crypto4xx",
 		.owner = THIS_MODULE,
@@ -1292,12 +1294,12 @@ static struct of_platform_driver crypto4xx_driver = {
 
 static int __init crypto4xx_init(void)
 {
-	return of_register_platform_driver(&crypto4xx_driver);
+	return platform_driver_register(&crypto4xx_driver);
 }
 
 static void __exit crypto4xx_exit(void)
 {
-	of_unregister_platform_driver(&crypto4xx_driver);
+	platform_driver_unregister(&crypto4xx_driver);
 }
 
 module_init(crypto4xx_init);

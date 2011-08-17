@@ -62,7 +62,7 @@ static ssize_t adcxx_read(struct device *dev,
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct adcxx *adc = dev_get_drvdata(&spi->dev);
+	struct adcxx *adc = spi_get_drvdata(spi);
 	u8 tx_buf[2];
 	u8 rx_buf[2];
 	int status;
@@ -105,7 +105,7 @@ static ssize_t adcxx_show_max(struct device *dev,
 		struct device_attribute *devattr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adcxx *adc = dev_get_drvdata(&spi->dev);
+	struct adcxx *adc = spi_get_drvdata(spi);
 	u32 reference;
 
 	if (mutex_lock_interruptible(&adc->lock))
@@ -122,7 +122,7 @@ static ssize_t adcxx_set_max(struct device *dev,
 	struct device_attribute *devattr, const char *buf, size_t count)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adcxx *adc = dev_get_drvdata(&spi->dev);
+	struct adcxx *adc = spi_get_drvdata(spi);
 	unsigned long value;
 
 	if (strict_strtoul(buf, 10, &value))
@@ -142,7 +142,7 @@ static ssize_t adcxx_show_name(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adcxx *adc = dev_get_drvdata(&spi->dev);
+	struct adcxx *adc = spi_get_drvdata(spi);
 
 	return sprintf(buf, "adcxx%ds\n", adc->channels);
 }
@@ -182,7 +182,7 @@ static int __devinit adcxx_probe(struct spi_device *spi)
 
 	mutex_lock(&adc->lock);
 
-	dev_set_drvdata(&spi->dev, adc);
+	spi_set_drvdata(spi, adc);
 
 	for (i = 0; i < 3 + adc->channels; i++) {
 		status = device_create_file(&spi->dev, &ad_input[i].dev_attr);
@@ -206,7 +206,7 @@ out_err:
 	for (i--; i >= 0; i--)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
 	kfree(adc);
 	return status;
@@ -214,7 +214,7 @@ out_err:
 
 static int __devexit adcxx_remove(struct spi_device *spi)
 {
-	struct adcxx *adc = dev_get_drvdata(&spi->dev);
+	struct adcxx *adc = spi_get_drvdata(spi);
 	int i;
 
 	mutex_lock(&adc->lock);
@@ -222,7 +222,7 @@ static int __devexit adcxx_remove(struct spi_device *spi)
 	for (i = 0; i < 3 + adc->channels; i++)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
 	kfree(adc);
 

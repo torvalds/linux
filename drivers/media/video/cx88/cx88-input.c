@@ -100,6 +100,8 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		break;
 	case CX88_BOARD_WINFAST_DTV1000:
 	case CX88_BOARD_WINFAST_DTV1800H:
+	case CX88_BOARD_WINFAST_DTV1800H_XC4000:
+	case CX88_BOARD_WINFAST_DTV2000H_PLUS:
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 		gpio = (gpio & 0x6ff) | ((cx_read(MO_GP1_IO) << 8) & 0x900);
 		auxgpio = gpio;
@@ -283,12 +285,14 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PCHDTV_HD3000:
 	case CX88_BOARD_PCHDTV_HD5500:
 	case CX88_BOARD_HAUPPAUGE_IRONLY:
-		ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		ir_codes = RC_MAP_HAUPPAUGE;
 		ir->sampling = 1;
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
 	case CX88_BOARD_WINFAST_DTV2000H_J:
 	case CX88_BOARD_WINFAST_DTV1800H:
+	case CX88_BOARD_WINFAST_DTV1800H_XC4000:
+	case CX88_BOARD_WINFAST_DTV2000H_PLUS:
 		ir_codes = RC_MAP_WINFAST;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
@@ -373,6 +377,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir_codes = RC_MAP_TBS_NEC;
 		ir->sampling = 0xff00; /* address */
 		break;
+	case CX88_BOARD_TEVII_S464:
 	case CX88_BOARD_TEVII_S460:
 	case CX88_BOARD_TEVII_S420:
 		ir_codes = RC_MAP_TEVII_NEC;
@@ -523,7 +528,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	for (todo = 32; todo > 0; todo -= bits) {
 		ev.pulse = samples & 0x80000000 ? false : true;
 		bits = min(todo, 32U - fls(ev.pulse ? samples : ~samples));
-		ev.duration = (bits * NSEC_PER_SEC) / (1000 * ir_samplerate);
+		ev.duration = (bits * (NSEC_PER_SEC / 1000)) / ir_samplerate;
 		ir_raw_event_store_with_filter(ir->dev, &ev);
 		samples <<= bits;
 	}
@@ -603,7 +608,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 		if (*addrp == 0x71) {
 			/* Hauppauge XVR */
 			core->init_data.name = "cx88 Hauppauge XVR remote";
-			core->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
+			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 			core->init_data.type = RC_TYPE_RC5;
 			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 

@@ -80,7 +80,7 @@ static inline struct sctp_ulpevent *sctp_skb2event(struct sk_buff *skb)
 
 void sctp_ulpevent_free(struct sctp_ulpevent *);
 int sctp_ulpevent_is_notification(const struct sctp_ulpevent *);
-void sctp_queue_purge_ulpevents(struct sk_buff_head *list);
+unsigned int sctp_queue_purge_ulpevents(struct sk_buff_head *list);
 
 struct sctp_ulpevent *sctp_ulpevent_make_assoc_change(
 	const struct sctp_association *asoc,
@@ -131,6 +131,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 struct sctp_ulpevent *sctp_ulpevent_make_authkey(
 	const struct sctp_association *asoc, __u16 key_id,
 	__u32 indication, gfp_t gfp);
+
+struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
+	const struct sctp_association *asoc, gfp_t gfp);
 
 void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	struct msghdr *);

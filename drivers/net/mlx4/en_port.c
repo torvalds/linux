@@ -48,7 +48,7 @@ int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
 			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B);
 }
 
-int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, struct vlan_group *grp)
+int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_set_vlan_fltr_mbox *filter;
@@ -63,20 +63,15 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, struct vlan_group *grp)
 		return PTR_ERR(mailbox);
 
 	filter = mailbox->buf;
-	if (grp) {
-		memset(filter, 0, sizeof *filter);
-		for (i = VLAN_FLTR_SIZE - 1; i >= 0; i--) {
-			entry = 0;
-			for (j = 0; j < 32; j++)
-				if (vlan_group_get_device(grp, index++))
-					entry |= 1 << j;
-			filter->entry[i] = cpu_to_be32(entry);
-		}
-	} else {
-		/* When no vlans are configured we block all vlans */
-		memset(filter, 0, sizeof(*filter));
+	memset(filter, 0, sizeof(*filter));
+	for (i = VLAN_FLTR_SIZE - 1; i >= 0; i--) {
+		entry = 0;
+		for (j = 0; j < 32; j++)
+			if (test_bit(index++, priv->active_vlans))
+				entry |= 1 << j;
+		filter->entry[i] = cpu_to_be32(entry);
 	}
-	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_VLAN_FLTR,
+	err = mlx4_cmd(dev, mailbox->dma, priv->port, 0, MLX4_CMD_SET_VLAN_FLTR,
 		       MLX4_CMD_TIME_CLASS_B);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -119,6 +114,12 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	struct mlx4_set_port_rqp_calc_context *context;
 	int err;
 	u32 in_mod;
+	u32 m_promisc = (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) ?
+						MCAST_DIRECT : MCAST_DEFAULT;
+
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER  &&
+			dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER)
+		return 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -127,8 +128,11 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	memset(context, 0, sizeof *context);
 
 	context->base_qpn = cpu_to_be32(base_qpn);
-	context->promisc = cpu_to_be32(promisc << SET_PORT_PROMISC_EN_SHIFT | base_qpn);
-	context->mcast = cpu_to_be32(1 << SET_PORT_PROMISC_MODE_SHIFT | base_qpn);
+	context->n_mac = 0x2;
+	context->promisc = cpu_to_be32(promisc << SET_PORT_PROMISC_SHIFT |
+				       base_qpn);
+	context->mcast = cpu_to_be32(m_promisc << SET_PORT_MC_PROMISC_SHIFT |
+				     base_qpn);
 	context->intra_no_vlan = 0;
 	context->no_vlan = MLX4_NO_VLAN_IDX;
 	context->intra_vlan_miss = 0;
@@ -206,7 +210,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	}
 	stats->tx_packets = 0;
 	stats->tx_bytes = 0;
-	for (i = 0; i <= priv->tx_ring_num; i++) {
+	for (i = 0; i < priv->tx_ring_num; i++) {
 		stats->tx_packets += priv->tx_ring[i].packets;
 		stats->tx_bytes += priv->tx_ring[i].bytes;
 	}

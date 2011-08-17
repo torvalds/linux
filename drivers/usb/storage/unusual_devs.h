@@ -1114,6 +1114,16 @@ UNUSUAL_DEV( 0x090c, 0x1132, 0x0000, 0xffff,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Paul Hartman <paul.hartman+linux@gmail.com>
+ * This card reader returns "Illegal Request, Logical Block Address
+ * Out of Range" for the first READ(10) after a new card is inserted.
+ */
+UNUSUAL_DEV(  0x090c, 0x6000, 0x0100, 0x0100,
+		"Feiya",
+		"SD/SDHC Card Reader",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_INITIAL_READ10 ),
+
 /* This Pentax still camera is not conformant
  * to the USB storage specification: -
  * - It does not like the INQUIRY command. So we must handle this command
@@ -1888,6 +1898,15 @@ UNUSUAL_DEV( 0x1908, 0x3335, 0x0200, 0x0200,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_READ_DISC_INFO ),
 
+/* Reported by Sven Geggus <sven-usbst@geggus.net>
+ * This encrypted pen drive returns bogus data for the initial READ(10).
+ */
+UNUSUAL_DEV(  0x1b1c, 0x1ab5, 0x0200, 0x0200,
+		"Corsair",
+		"Padlock v2",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_INITIAL_READ10 ),
+
 /* Patch by Richard Schütz <r.schtz@t-online.de>
  * This external hard drive enclosure uses a JMicron chip which
  * needs the US_FL_IGNORE_RESIDUE flag to work properly. */
@@ -1968,6 +1987,16 @@ UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,
 		"Iomega",
 		"Micro Mini 1GB",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+
+/*
+ * Nick Bowler <nbowler@elliptictech.com>
+ * SCSI stack spams (otherwise harmless) error messages.
+ */
+UNUSUAL_DEV(  0xc251, 0x4003, 0x0100, 0x0100,
+		"Keil Software, Inc.",
+		"V2M MotherBoard",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NOT_LOCKABLE),
 
 /* Reported by Andrew Simmons <andrew.simmons@gmail.com> */
 UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,

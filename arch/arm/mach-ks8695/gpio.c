@@ -80,7 +80,7 @@ int ks8695_gpio_interrupt(unsigned int pin, unsigned int type)
 	local_irq_restore(flags);
 
 	/* Set IRQ triggering type */
-	set_irq_type(gpio_irq[pin], type);
+	irq_set_irq_type(gpio_irq[pin], type);
 
 	/* enable interrupt mode */
 	ks8695_gpio_mode(pin, 0);

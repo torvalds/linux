@@ -32,33 +32,33 @@
  */
 int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 {
+	struct ath5k_capabilities *caps = &ah->ah_capabilities;
 	u16 ee_header;
 
 	/* Capabilities stored in the EEPROM */
-	ee_header = ah->ah_capabilities.cap_eeprom.ee_header;
+	ee_header = caps->cap_eeprom.ee_header;
 
 	if (ah->ah_version == AR5K_AR5210) {
 		/*
 		 * Set radio capabilities
 		 * (The AR5110 only supports the middle 5GHz band)
 		 */
-		ah->ah_capabilities.cap_range.range_5ghz_min = 5120;
-		ah->ah_capabilities.cap_range.range_5ghz_max = 5430;
-		ah->ah_capabilities.cap_range.range_2ghz_min = 0;
-		ah->ah_capabilities.cap_range.range_2ghz_max = 0;
+		caps->cap_range.range_5ghz_min = 5120;
+		caps->cap_range.range_5ghz_max = 5430;
+		caps->cap_range.range_2ghz_min = 0;
+		caps->cap_range.range_2ghz_max = 0;
 
 		/* Set supported modes */
-		__set_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode);
+		__set_bit(AR5K_MODE_11A, caps->cap_mode);
 	} else {
 		/*
-		 * XXX The tranceiver supports frequencies from 4920 to 6100GHz
-		 * XXX and from 2312 to 2732GHz. There are problems with the
+		 * XXX The transceiver supports frequencies from 4920 to 6100MHz
+		 * XXX and from 2312 to 2732MHz. There are problems with the
 		 * XXX current ieee80211 implementation because the IEEE
 		 * XXX channel mapping does not support negative channel
 		 * XXX numbers (2312MHz is channel -19). Of course, this
-		 * XXX doesn't matter because these channels are out of range
-		 * XXX but some regulation domains like MKK (Japan) will
-		 * XXX support frequencies somewhere around 4.8GHz.
+		 * XXX doesn't matter because these channels are out of the
+		 * XXX legal range.
 		 */
 
 		/*
@@ -66,13 +66,14 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		 */
 
 		if (AR5K_EEPROM_HDR_11A(ee_header)) {
-			/* 4920 */
-			ah->ah_capabilities.cap_range.range_5ghz_min = 5005;
-			ah->ah_capabilities.cap_range.range_5ghz_max = 6100;
+			if (ath_is_49ghz_allowed(caps->cap_eeprom.ee_regdomain))
+				caps->cap_range.range_5ghz_min = 4920;
+			else
+				caps->cap_range.range_5ghz_min = 5005;
+			caps->cap_range.range_5ghz_max = 6100;
 
 			/* Set supported modes */
-			__set_bit(AR5K_MODE_11A,
-					ah->ah_capabilities.cap_mode);
+			__set_bit(AR5K_MODE_11A, caps->cap_mode);
 		}
 
 		/* Enable  802.11b if a 2GHz capable radio (2111/5112) is
@@ -81,78 +82,33 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		    (AR5K_EEPROM_HDR_11G(ee_header) &&
 		     ah->ah_version != AR5K_AR5211)) {
 			/* 2312 */
-			ah->ah_capabilities.cap_range.range_2ghz_min = 2412;
-			ah->ah_capabilities.cap_range.range_2ghz_max = 2732;
+			caps->cap_range.range_2ghz_min = 2412;
+			caps->cap_range.range_2ghz_max = 2732;
 
 			if (AR5K_EEPROM_HDR_11B(ee_header))
-				__set_bit(AR5K_MODE_11B,
-						ah->ah_capabilities.cap_mode);
+				__set_bit(AR5K_MODE_11B, caps->cap_mode);
 
 			if (AR5K_EEPROM_HDR_11G(ee_header) &&
 			    ah->ah_version != AR5K_AR5211)
-				__set_bit(AR5K_MODE_11G,
-						ah->ah_capabilities.cap_mode);
+				__set_bit(AR5K_MODE_11G, caps->cap_mode);
 		}
 	}
+
+	if ((ah->ah_radio_5ghz_revision & 0xf0) == AR5K_SREV_RAD_2112)
+		__clear_bit(AR5K_MODE_11A, caps->cap_mode);
 
 	/* Set number of supported TX queues */
 	if (ah->ah_version == AR5K_AR5210)
-		ah->ah_capabilities.cap_queues.q_tx_num =
-			AR5K_NUM_TX_QUEUES_NOQCU;
+		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES_NOQCU;
 	else
-		ah->ah_capabilities.cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES;
+		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES;
 
 	/* newer hardware has PHY error counters */
 	if (ah->ah_mac_srev >= AR5K_SREV_AR5213A)
-		ah->ah_capabilities.cap_has_phyerr_counters = true;
+		caps->cap_has_phyerr_counters = true;
 	else
-		ah->ah_capabilities.cap_has_phyerr_counters = false;
+		caps->cap_has_phyerr_counters = false;
 
-	return 0;
-}
-
-/* Main function used by the driver part to check caps */
-int ath5k_hw_get_capability(struct ath5k_hw *ah,
-		enum ath5k_capability_type cap_type,
-		u32 capability, u32 *result)
-{
-	switch (cap_type) {
-	case AR5K_CAP_NUM_TXQUEUES:
-		if (result) {
-			if (ah->ah_version == AR5K_AR5210)
-				*result = AR5K_NUM_TX_QUEUES_NOQCU;
-			else
-				*result = AR5K_NUM_TX_QUEUES;
-			goto yes;
-		}
-	case AR5K_CAP_VEOL:
-		goto yes;
-	case AR5K_CAP_COMPRESSION:
-		if (ah->ah_version == AR5K_AR5212)
-			goto yes;
-		else
-			goto no;
-	case AR5K_CAP_BURST:
-		goto yes;
-	case AR5K_CAP_TPC:
-		goto yes;
-	case AR5K_CAP_BSSIDMASK:
-		if (ah->ah_version == AR5K_AR5212)
-			goto yes;
-		else
-			goto no;
-	case AR5K_CAP_XR:
-		if (ah->ah_version == AR5K_AR5212)
-			goto yes;
-		else
-			goto no;
-	default:
-		goto no;
-	}
-
-no:
-	return -EINVAL;
-yes:
 	return 0;
 }
 

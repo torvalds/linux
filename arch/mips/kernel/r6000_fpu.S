@@ -8,7 +8,7 @@
  * Copyright (C) 1996 by Ralf Baechle
  *
  * Multi-arch abstraction and asm macros for easier reading:
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  */
 #include <asm/asm.h>
 #include <asm/fpregdef.h>

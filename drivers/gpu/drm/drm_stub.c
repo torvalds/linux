@@ -62,6 +62,26 @@ struct idr drm_minors_idr;
 struct class *drm_class;
 struct proc_dir_entry *drm_proc_root;
 struct dentry *drm_debugfs_root;
+
+int drm_err(const char *func, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	int r;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	r = printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* %pV", func, &vaf);
+
+	va_end(args);
+
+	return r;
+}
+EXPORT_SYMBOL(drm_err);
+
 void drm_ut_debug_printk(unsigned int request_level,
 			 const char *prefix,
 			 const char *function_name,
@@ -78,6 +98,7 @@ void drm_ut_debug_printk(unsigned int request_level,
 	}
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
+
 static int drm_minor_get_id(struct drm_device *dev, int type)
 {
 	int new_id;
@@ -269,23 +290,12 @@ int drm_fill_in_dev(struct drm_device *dev,
 
 	dev->driver = driver;
 
-	if (drm_core_has_AGP(dev)) {
-		if (drm_device_is_agp(dev))
-			dev->agp = drm_agp_init(dev);
-		if (drm_core_check_feature(dev, DRIVER_REQUIRE_AGP)
-		    && (dev->agp == NULL)) {
-			DRM_ERROR("Cannot initialize the agpgart module.\n");
-			retcode = -EINVAL;
+	if (dev->driver->bus->agp_init) {
+		retcode = dev->driver->bus->agp_init(dev);
+		if (retcode)
 			goto error_out_unreg;
-		}
-		if (drm_core_has_MTRR(dev)) {
-			if (dev->agp)
-				dev->agp->agp_mtrr =
-				    mtrr_add(dev->agp->agp_info.aper_base,
-					     dev->agp->agp_info.aper_size *
-					     1024 * 1024, MTRR_TYPE_WRCOMB, 1);
-		}
 	}
+
 
 
 	retcode = drm_ctxbitmap_init(dev);
@@ -425,7 +435,6 @@ int drm_put_minor(struct drm_minor **minor_p)
  *
  * Cleans up all DRM device, calling drm_lastclose().
  *
- * \sa drm_init
  */
 void drm_put_dev(struct drm_device *dev)
 {
@@ -475,6 +484,7 @@ void drm_put_dev(struct drm_device *dev)
 
 	drm_put_minor(&dev->primary);
 
+	list_del(&dev->driver_item);
 	if (dev->devname) {
 		kfree(dev->devname);
 		dev->devname = NULL;

@@ -19,7 +19,7 @@
 #include "common.h"
 
 /*
- * The Orion has fully programable address map. There's a separate address
+ * The Orion has fully programmable address map. There's a separate address
  * map for each of the device _master_ interfaces, e.g. CPU, PCI, PCIe, USB,
  * Gigabit Ethernet, DMA/XOR engines, etc. Each interface has its own
  * address decode windows that allow it to access any of the Orion resources.

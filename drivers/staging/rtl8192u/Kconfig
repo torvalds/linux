@@ -1,6 +1,7 @@
 config RTL8192U
 	tristate "RealTek RTL8192U Wireless LAN NIC driver"
 	depends on PCI && WLAN && USB
+	depends on m
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select CRYPTO

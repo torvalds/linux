@@ -2,7 +2,7 @@
  * net/tipc/link.h: Include file for TIPC link code
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,7 +122,7 @@ struct link {
 	u32 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	u32 tolerance;
 	u32 continuity_interval;
 	u32 abort_limit;
@@ -196,24 +196,19 @@ struct link {
 		u32 bearer_congs;
 		u32 deferred_recv;
 		u32 duplicates;
-
-		/* for statistical profiling of send queue size */
-
-		u32 max_queue_sz;
-		u32 accu_queue_sz;
-		u32 queue_sz_counts;
-
-		/* for statistical profiling of message lengths */
-
-		u32 msg_length_counts;
-		u32 msg_lengths_total;
-		u32 msg_length_profile[7];
+		u32 max_queue_sz;	/* send queue size high water mark */
+		u32 accu_queue_sz;	/* used for send queue size profiling */
+		u32 queue_sz_counts;	/* used for send queue size profiling */
+		u32 msg_length_counts;	/* used for message length profiling */
+		u32 msg_lengths_total;	/* used for message length profiling */
+		u32 msg_length_profile[7]; /* used for msg. length profiling */
 	} stats;
 };
 
-struct port;
+struct tipc_port;
 
-struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
+struct link *tipc_link_create(struct tipc_node *n_ptr,
+			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
 void tipc_link_delete(struct link *l_ptr);
 void tipc_link_changeover(struct link *l_ptr);
@@ -230,9 +225,10 @@ void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
-int tipc_link_send_sections_fast(struct port *sender,
+int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
 				 const u32 num_sect,
+				 unsigned int total_len,
 				 u32 destnode);
 void tipc_link_recv_bundle(struct sk_buff *buf);
 int  tipc_link_recv_fragment(struct sk_buff **pending,

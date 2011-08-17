@@ -87,7 +87,7 @@ static struct rc_map_table imon_pad[] = {
 
 	{ 0x2b8515b7, KEY_VIDEO },
 	{ 0x299195b7, KEY_AUDIO },
-	{ 0x2ba115b7, KEY_CAMERA },
+	{ 0x2ba115b7, KEY_IMAGES },
 	{ 0x28a515b7, KEY_TV },
 	{ 0x29a395b7, KEY_DVD },
 	{ 0x29a295b7, KEY_DVD },
@@ -97,7 +97,7 @@ static struct rc_map_table imon_pad[] = {
 	{ 0x2ba395b7, KEY_MENU },
 
 	{ 0x288515b7, KEY_BOOKMARKS },
-	{ 0x2ab715b7, KEY_MEDIA }, /* Thumbnail */
+	{ 0x2ab715b7, KEY_CAMERA }, /* Thumbnail */
 	{ 0x298595b7, KEY_SUBTITLE },
 	{ 0x2b8595b7, KEY_LANGUAGE },
 
@@ -125,7 +125,7 @@ static struct rc_map_table imon_pad[] = {
 	{ 0x2b8195b7, KEY_CONTEXT_MENU }, /* Left Menu*/
 	{ 0x02000065, KEY_COMPOSE }, /* RightMenu */
 	{ 0x28b715b7, KEY_COMPOSE }, /* RightMenu */
-	{ 0x2ab195b7, KEY_PROG1 }, /* Go or MultiMon */
+	{ 0x2ab195b7, KEY_MEDIA }, /* Go or MultiMon */
 	{ 0x29b715b7, KEY_DASHBOARD }, /* AppLauncher */
 };
 

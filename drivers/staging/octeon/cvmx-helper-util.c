@@ -362,7 +362,7 @@ int __cvmx_helper_setup_gmx(int interface, int num_ports)
 }
 
 /**
- * Returns the IPD/PKO port number for a port on teh given
+ * Returns the IPD/PKO port number for a port on the given
  * interface.
  *
  * @interface: Interface to use

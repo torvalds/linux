@@ -21,6 +21,9 @@ struct wakeup_header {
 	u32 pmode_efer_low;	/* Protected mode EFER */
 	u32 pmode_efer_high;
 	u64 pmode_gdt;
+	u32 pmode_misc_en_low;	/* Protected mode MISC_ENABLE */
+	u32 pmode_misc_en_high;
+	u32 pmode_behavior;	/* Wakeup routine behavior flags */
 	u32 realmode_flags;
 	u32 real_magic;
 	u16 trampoline_segment;	/* segment with trampoline code, 64-bit only */
@@ -35,7 +38,11 @@ struct wakeup_header {
 extern struct wakeup_header wakeup_header;
 #endif
 
-#define HEADER_OFFSET 0x3f00
-#define WAKEUP_SIZE   0x4000
+#define WAKEUP_HEADER_OFFSET	8
+#define WAKEUP_HEADER_SIGNATURE 0x51ee1111
+#define WAKEUP_END_SIGNATURE	0x65a22c82
+
+/* Wakeup behavior bits */
+#define WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE     0
 
 #endif /* ARCH_X86_KERNEL_ACPI_RM_WAKEUP_H */

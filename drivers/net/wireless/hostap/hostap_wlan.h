@@ -1,6 +1,7 @@
 #ifndef HOSTAP_WLAN_H
 #define HOSTAP_WLAN_H
 
+#include <linux/interrupt.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
@@ -853,7 +854,7 @@ struct local_info {
 	struct work_struct comms_qual_update;
 
 	/* RSSI to dBm adjustment (for RX descriptor fields) */
-	int rssi_to_dBm; /* substract from RSSI to get approximate dBm value */
+	int rssi_to_dBm; /* subtract from RSSI to get approximate dBm value */
 
 	/* BSS list / protected by local->lock */
 	struct list_head bss_list;

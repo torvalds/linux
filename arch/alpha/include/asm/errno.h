@@ -122,4 +122,6 @@
 
 #define	ERFKILL		138	/* Operation not possible due to RF-kill */
 
+#define EHWPOISON	139	/* Memory page has hardware error */
+
 #endif

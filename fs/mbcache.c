@@ -90,7 +90,8 @@ static DEFINE_SPINLOCK(mb_cache_spinlock);
  * What the mbcache registers as to get shrunk dynamically.
  */
 
-static int mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+static int mb_cache_shrink_fn(struct shrinker *shrink,
+			      struct shrink_control *sc);
 
 static struct shrinker mb_cache_shrinker = {
 	.shrink = mb_cache_shrink_fn,
@@ -156,18 +157,19 @@ forget:
  * gets low.
  *
  * @shrink: (ignored)
- * @nr_to_scan: Number of objects to scan
- * @gfp_mask: (ignored)
+ * @sc: shrink_control passed from reclaim
  *
  * Returns the number of objects which are present in the cache.
  */
 static int
-mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
 {
 	LIST_HEAD(free_list);
 	struct mb_cache *cache;
 	struct mb_cache_entry *entry, *tmp;
 	int count = 0;
+	int nr_to_scan = sc->nr_to_scan;
+	gfp_t gfp_mask = sc->gfp_mask;
 
 	mb_debug("trying to free %d entries", nr_to_scan);
 	spin_lock(&mb_cache_spinlock);
@@ -542,7 +544,7 @@ __mb_cache_entry_find(struct list_head *l, struct list_head *head,
  * mb_cache_entry_find_first()
  *
  * Find the first cache entry on a given device with a certain key in
- * an additional index. Additonal matches can be found with
+ * an additional index. Additional matches can be found with
  * mb_cache_entry_find_next(). Returns NULL if no match was found. The
  * returned cache entry is locked for shared access ("multiple readers").
  *

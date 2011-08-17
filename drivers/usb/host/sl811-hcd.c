@@ -47,6 +47,7 @@
 #include <linux/usb/sl811.h>
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
+#include <linux/prefetch.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -70,12 +71,6 @@ MODULE_ALIAS("platform:sl811-hcd");
 
 /* for now, use only one transfer register bank */
 #undef	USE_B
-
-/* this doesn't understand urb->iso_frame_desc[], but if you had a driver
- * that just queued one ISO frame per URB then iso transfers "should" work
- * using the normal urb status fields.
- */
-#define	DISABLE_ISO
 
 // #define	QUIRK2
 #define	QUIRK3
@@ -807,7 +802,7 @@ static int sl811h_urb_enqueue(
 	int			retval;
 	struct usb_host_endpoint	*hep = urb->ep;
 
-#ifdef	DISABLE_ISO
+#ifndef CONFIG_USB_SL811_HCD_ISO
 	if (type == PIPE_ISOCHRONOUS)
 		return -ENOSPC;
 #endif
@@ -1111,9 +1106,9 @@ sl811h_hub_descriptor (
 
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
-	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
-	desc->bitmap[0] = 0 << 1;
-	desc->bitmap[1] = ~0;
+	/* ports removable, and legacy PortPwrCtrlMask */
+	desc->u.hs.DeviceRemovable[0] = 0 << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 }
 
 static void

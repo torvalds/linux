@@ -37,14 +37,16 @@ static struct clk_functions *arch_clock;
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
+	if (!arch_clock || !arch_clock->clk_enable)
+		return -EINVAL;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_enable)
-		ret = arch_clock->clk_enable(clk);
+	ret = arch_clock->clk_enable(clk);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
@@ -58,6 +60,9 @@ void clk_disable(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return;
 
+	if (!arch_clock || !arch_clock->clk_disable)
+		return;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (clk->usecount == 0) {
 		pr_err("Trying disable clock %s with 0 usecount\n",
@@ -66,8 +71,7 @@ void clk_disable(struct clk *clk)
 		goto out;
 	}
 
-	if (arch_clock->clk_disable)
-		arch_clock->clk_disable(clk);
+	arch_clock->clk_disable(clk);
 
 out:
 	spin_unlock_irqrestore(&clockfw_lock, flags);
@@ -77,7 +81,7 @@ EXPORT_SYMBOL(clk_disable);
 unsigned long clk_get_rate(struct clk *clk)
 {
 	unsigned long flags;
-	unsigned long ret = 0;
+	unsigned long ret;
 
 	if (clk == NULL || IS_ERR(clk))
 		return 0;
@@ -97,14 +101,16 @@ EXPORT_SYMBOL(clk_get_rate);
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long flags;
-	long ret = 0;
+	long ret;
 
 	if (clk == NULL || IS_ERR(clk))
-		return ret;
+		return 0;
+
+	if (!arch_clock || !arch_clock->clk_round_rate)
+		return 0;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_round_rate)
-		ret = arch_clock->clk_round_rate(clk, rate);
+	ret = arch_clock->clk_round_rate(clk, rate);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
@@ -119,14 +125,13 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
+	if (!arch_clock || !arch_clock->clk_set_rate)
+		return ret;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_set_rate)
-		ret = arch_clock->clk_set_rate(clk, rate);
-	if (ret == 0) {
-		if (clk->recalc)
-			clk->rate = clk->recalc(clk);
+	ret = arch_clock->clk_set_rate(clk, rate);
+	if (ret == 0)
 		propagate_rate(clk);
-	}
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
@@ -141,15 +146,14 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
+	if (!arch_clock || !arch_clock->clk_set_parent)
+		return ret;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (clk->usecount == 0) {
-		if (arch_clock->clk_set_parent)
-			ret = arch_clock->clk_set_parent(clk, parent);
-		if (ret == 0) {
-			if (clk->recalc)
-				clk->rate = clk->recalc(clk);
+		ret = arch_clock->clk_set_parent(clk, parent);
+		if (ret == 0)
 			propagate_rate(clk);
-		}
 	} else
 		ret = -EBUSY;
 	spin_unlock_irqrestore(&clockfw_lock, flags);
@@ -335,6 +339,38 @@ struct clk *omap_clk_get_by_name(const char *name)
 	return ret;
 }
 
+int omap_clk_enable_autoidle_all(void)
+{
+	struct clk *c;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+
+	list_for_each_entry(c, &clocks, node)
+		if (c->ops->allow_idle)
+			c->ops->allow_idle(c);
+
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+
+	return 0;
+}
+
+int omap_clk_disable_autoidle_all(void)
+{
+	struct clk *c;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+
+	list_for_each_entry(c, &clocks, node)
+		if (c->ops->deny_idle)
+			c->ops->deny_idle(c);
+
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+
+	return 0;
+}
+
 /*
  * Low level helpers
  */
@@ -367,9 +403,11 @@ void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
 	unsigned long flags;
 
+	if (!arch_clock || !arch_clock->clk_init_cpufreq_table)
+		return;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_init_cpufreq_table)
-		arch_clock->clk_init_cpufreq_table(table);
+	arch_clock->clk_init_cpufreq_table(table);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
 
@@ -377,9 +415,11 @@ void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
 {
 	unsigned long flags;
 
+	if (!arch_clock || !arch_clock->clk_exit_cpufreq_table)
+		return;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_exit_cpufreq_table)
-		arch_clock->clk_exit_cpufreq_table(table);
+	arch_clock->clk_exit_cpufreq_table(table);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
 #endif
@@ -397,6 +437,9 @@ static int __init clk_disable_unused(void)
 	struct clk *ck;
 	unsigned long flags;
 
+	if (!arch_clock || !arch_clock->clk_disable_unused)
+		return 0;
+
 	pr_info("clock: disabling unused clocks to save power\n");
 	list_for_each_entry(ck, &clocks, node) {
 		if (ck->ops == &clkops_null)
@@ -406,14 +449,14 @@ static int __init clk_disable_unused(void)
 			continue;
 
 		spin_lock_irqsave(&clockfw_lock, flags);
-		if (arch_clock->clk_disable_unused)
-			arch_clock->clk_disable_unused(ck);
+		arch_clock->clk_disable_unused(ck);
 		spin_unlock_irqrestore(&clockfw_lock, flags);
 	}
 
 	return 0;
 }
 late_initcall(clk_disable_unused);
+late_initcall(omap_clk_enable_autoidle_all);
 #endif
 
 int __init clk_init(struct clk_functions * custom_clocks)
@@ -432,18 +475,48 @@ int __init clk_init(struct clk_functions * custom_clocks)
 /*
  *	debugfs support to trace clock tree hierarchy and attributes
  */
+
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
 static struct dentry *clk_debugfs_root;
+
+static int clk_dbg_show_summary(struct seq_file *s, void *unused)
+{
+	struct clk *c;
+	struct clk *pa;
+
+	seq_printf(s, "%-30s %-30s %-10s %s\n",
+		"clock-name", "parent-name", "rate", "use-count");
+
+	list_for_each_entry(c, &clocks, node) {
+		pa = c->parent;
+		seq_printf(s, "%-30s %-30s %-10lu %d\n",
+			c->name, pa ? pa->name : "none", c->rate, c->usecount);
+	}
+
+	return 0;
+}
+
+static int clk_dbg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_dbg_show_summary, inode->i_private);
+}
+
+static const struct file_operations debug_clock_fops = {
+	.open           = clk_dbg_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
 
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
-	struct dentry *d, *child, *child_tmp;
+	struct dentry *d;
 	struct clk *pa = c->parent;
-	char s[255];
-	char *p = s;
 
-	p += sprintf(p, "%s", c->name);
-	d = debugfs_create_dir(s, pa ? pa->dent : clk_debugfs_root);
+	d = debugfs_create_dir(c->name, pa ? pa->dent : clk_debugfs_root);
 	if (!d)
 		return -ENOMEM;
 	c->dent = d;
@@ -466,10 +539,7 @@ static int clk_debugfs_register_one(struct clk *c)
 	return 0;
 
 err_out:
-	d = c->dent;
-	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
-		debugfs_remove(child);
-	debugfs_remove(c->dent);
+	debugfs_remove_recursive(c->dent);
 	return err;
 }
 
@@ -508,6 +578,12 @@ static int __init clk_debugfs_init(void)
 		if (err)
 			goto err_out;
 	}
+
+	d = debugfs_create_file("summary", S_IRUGO,
+		d, NULL, &debug_clock_fops);
+	if (!d)
+		return -ENOMEM;
+
 	return 0;
 err_out:
 	debugfs_remove_recursive(clk_debugfs_root);

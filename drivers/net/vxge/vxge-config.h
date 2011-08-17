@@ -13,8 +13,10 @@
  ******************************************************************************/
 #ifndef VXGE_CONFIG_H
 #define VXGE_CONFIG_H
+#include <linux/hardirq.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <asm/io.h>
 
 #ifndef VXGE_CACHE_LINE_SIZE
 #define VXGE_CACHE_LINE_SIZE 128
@@ -412,44 +414,48 @@ struct vxge_hw_vp_config {
  * See also: struct vxge_hw_tim_intr_config{}.
  */
 struct vxge_hw_device_config {
-	u32				dma_blockpool_initial;
-	u32				dma_blockpool_max;
-#define VXGE_HW_MIN_DMA_BLOCK_POOL_SIZE			0
-#define VXGE_HW_INITIAL_DMA_BLOCK_POOL_SIZE		0
-#define VXGE_HW_INCR_DMA_BLOCK_POOL_SIZE		4
-#define VXGE_HW_MAX_DMA_BLOCK_POOL_SIZE			4096
+	u32					device_poll_millis;
+#define VXGE_HW_MIN_DEVICE_POLL_MILLIS		1
+#define VXGE_HW_MAX_DEVICE_POLL_MILLIS		100000
+#define VXGE_HW_DEF_DEVICE_POLL_MILLIS		1000
 
-#define        VXGE_HW_MAX_PAYLOAD_SIZE_512		2
+	u32					dma_blockpool_initial;
+	u32					dma_blockpool_max;
+#define VXGE_HW_MIN_DMA_BLOCK_POOL_SIZE		0
+#define VXGE_HW_INITIAL_DMA_BLOCK_POOL_SIZE	0
+#define VXGE_HW_INCR_DMA_BLOCK_POOL_SIZE	4
+#define VXGE_HW_MAX_DMA_BLOCK_POOL_SIZE		4096
 
-	u32				intr_mode;
-#define VXGE_HW_INTR_MODE_IRQLINE			0
-#define VXGE_HW_INTR_MODE_MSIX				1
-#define VXGE_HW_INTR_MODE_MSIX_ONE_SHOT			2
+#define	VXGE_HW_MAX_PAYLOAD_SIZE_512		2
 
-#define VXGE_HW_INTR_MODE_DEF				0
+	u32					intr_mode:2,
+#define VXGE_HW_INTR_MODE_IRQLINE		0
+#define VXGE_HW_INTR_MODE_MSIX			1
+#define VXGE_HW_INTR_MODE_MSIX_ONE_SHOT		2
 
-	u32				rth_en;
-#define VXGE_HW_RTH_DISABLE				0
-#define VXGE_HW_RTH_ENABLE				1
-#define VXGE_HW_RTH_DEFAULT				0
+#define VXGE_HW_INTR_MODE_DEF			0
 
-	u32				rth_it_type;
-#define VXGE_HW_RTH_IT_TYPE_SOLO_IT			0
-#define VXGE_HW_RTH_IT_TYPE_MULTI_IT			1
-#define VXGE_HW_RTH_IT_TYPE_DEFAULT			0
+						rth_en:1,
+#define VXGE_HW_RTH_DISABLE			0
+#define VXGE_HW_RTH_ENABLE			1
+#define VXGE_HW_RTH_DEFAULT			0
 
-	u32				rts_mac_en;
+						rth_it_type:1,
+#define VXGE_HW_RTH_IT_TYPE_SOLO_IT		0
+#define VXGE_HW_RTH_IT_TYPE_MULTI_IT		1
+#define VXGE_HW_RTH_IT_TYPE_DEFAULT		0
+
+						rts_mac_en:1,
 #define VXGE_HW_RTS_MAC_DISABLE			0
 #define VXGE_HW_RTS_MAC_ENABLE			1
 #define VXGE_HW_RTS_MAC_DEFAULT			0
 
-	struct vxge_hw_vp_config	vp_config[VXGE_HW_MAX_VIRTUAL_PATHS];
+						hwts_en:1;
+#define	VXGE_HW_HWTS_DISABLE			0
+#define	VXGE_HW_HWTS_ENABLE			1
+#define	VXGE_HW_HWTS_DEFAULT			1
 
-	u32				device_poll_millis;
-#define VXGE_HW_MIN_DEVICE_POLL_MILLIS			1
-#define VXGE_HW_MAX_DEVICE_POLL_MILLIS			100000
-#define VXGE_HW_DEF_DEVICE_POLL_MILLIS			1000
-
+	struct vxge_hw_vp_config vp_config[VXGE_HW_MAX_VIRTUAL_PATHS];
 };
 
 /**
@@ -682,6 +688,10 @@ struct __vxge_hw_virtualpath {
 	u32				vsport_number;
 	u32				max_kdfc_db;
 	u32				max_nofl_db;
+	u64				tim_tti_cfg1_saved;
+	u64				tim_tti_cfg3_saved;
+	u64				tim_rti_cfg1_saved;
+	u64				tim_rti_cfg3_saved;
 
 	struct __vxge_hw_ring *____cacheline_aligned ringh;
 	struct __vxge_hw_fifo *____cacheline_aligned fifoh;
@@ -921,6 +931,9 @@ struct __vxge_hw_ring {
 	u32					doorbell_cnt;
 	u32					total_db_cnt;
 	u64					rxds_limit;
+	u32					rtimer;
+	u64					tim_rti_cfg1_saved;
+	u64					tim_rti_cfg3_saved;
 
 	enum vxge_hw_status (*callback)(
 			struct __vxge_hw_ring *ringh,
@@ -1000,6 +1013,9 @@ struct __vxge_hw_fifo {
 	u32					per_txdl_space;
 	u32					vp_id;
 	u32					tx_intr_num;
+	u32					rtimer;
+	u64					tim_tti_cfg1_saved;
+	u64					tim_tti_cfg3_saved;
 
 	enum vxge_hw_status (*callback)(
 			struct __vxge_hw_fifo *fifo_handle,

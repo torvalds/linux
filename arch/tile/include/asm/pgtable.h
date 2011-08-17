@@ -233,15 +233,23 @@ static inline void __pte_clear(pte_t *ptep)
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd 0x%016llx.\n", __FILE__, __LINE__, pgd_val(e))
 
+/* Return PA and protection info for a given kernel VA. */
+int va_to_cpa_and_pte(void *va, phys_addr_t *cpa, pte_t *pte);
+
 /*
- * set_pte_order() sets the given PTE and also sanity-checks the
+ * __set_pte() ensures we write the 64-bit PTE with 32-bit words in
+ * the right order on 32-bit platforms and also allows us to write
+ * hooks to check valid PTEs, etc., if we want.
+ */
+void __set_pte(pte_t *ptep, pte_t pte);
+
+/*
+ * set_pte() sets the given PTE and also sanity-checks the
  * requested PTE against the page homecaching.  Unspecified parts
  * of the PTE are filled in when it is written to memory, i.e. all
  * caching attributes if "!forcecache", or the home cpu if "anyhome".
  */
-extern void set_pte_order(pte_t *ptep, pte_t pte, int order);
-
-#define set_pte(ptep, pteval) set_pte_order(ptep, pteval, 0)
+extern void set_pte(pte_t *ptep, pte_t pte);
 #define set_pte_at(mm, addr, ptep, pteval) set_pte(ptep, pteval)
 #define set_pte_atomic(pteptr, pteval) set_pte(pteptr, pteval)
 
@@ -291,21 +299,6 @@ extern void check_mm_caching(struct mm_struct *prev, struct mm_struct *next);
 #define __swp_entry(type, off)	((swp_entry_t) { (type) | ((off) << 5) })
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { (pte).val >> 32 })
 #define __swp_entry_to_pte(swp)	((pte_t) { (((long long) ((swp).val)) << 32) })
-
-/*
- * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
- *
- *  dst - pointer to pgd range anwhere on a pgd page
- *  src - ""
- *  count - the number of pgds to copy.
- *
- * dst and src can be on the same page, but the range must not overlap,
- * and must not cross a page boundary.
- */
-static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
-{
-       memcpy(dst, src, count * sizeof(pgd_t));
-}
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

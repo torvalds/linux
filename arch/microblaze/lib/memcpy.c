@@ -63,8 +63,8 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 	if (likely(c >= 4)) {
 		unsigned  value, buf_hold;
 
-		/* Align the dstination to a word boundry. */
-		/* This is done in an endian independant manner. */
+		/* Align the destination to a word boundary. */
+		/* This is done in an endian independent manner. */
 		switch ((unsigned long)dst & 3) {
 		case 1:
 			*dst++ = *src++;
@@ -80,7 +80,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 		i_dst = (void *)dst;
 
 		/* Choose a copy scheme based on the source */
-		/* alignment relative to dstination. */
+		/* alignment relative to destination. */
 		switch ((unsigned long)src & 3) {
 		case 0x0:	/* Both byte offsets are aligned */
 			i_src  = (const void *)src;
@@ -173,7 +173,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 	}
 
 	/* Finish off any remaining bytes */
-	/* simple fast copy, ... unless a cache boundry is crossed */
+	/* simple fast copy, ... unless a cache boundary is crossed */
 	switch (c) {
 	case 3:
 		*dst++ = *src++;

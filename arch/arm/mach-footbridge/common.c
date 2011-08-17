@@ -102,8 +102,7 @@ static void __init __fb_init_irq(void)
 	*CSR_FIQ_DISABLE = -1;
 
 	for (irq = _DC21285_IRQ(0); irq < _DC21285_IRQ(20); irq++) {
-		set_irq_chip(irq, &fb_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &fb_chip, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }

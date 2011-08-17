@@ -198,6 +198,41 @@ xfs_inode_item_size(
 }
 
 /*
+ * xfs_inode_item_format_extents - convert in-core extents to on-disk form
+ *
+ * For either the data or attr fork in extent format, we need to endian convert
+ * the in-core extent as we place them into the on-disk inode. In this case, we
+ * need to do this conversion before we write the extents into the log. Because
+ * we don't have the disk inode to write into here, we allocate a buffer and
+ * format the extents into it via xfs_iextents_copy(). We free the buffer in
+ * the unlock routine after the copy for the log has been made.
+ *
+ * In the case of the data fork, the in-core and on-disk fork sizes can be
+ * different due to delayed allocation extents. We only log on-disk extents
+ * here, so always use the physical fork size to determine the size of the
+ * buffer we need to allocate.
+ */
+STATIC void
+xfs_inode_item_format_extents(
+	struct xfs_inode	*ip,
+	struct xfs_log_iovec	*vecp,
+	int			whichfork,
+	int			type)
+{
+	xfs_bmbt_rec_t		*ext_buffer;
+
+	ext_buffer = kmem_alloc(XFS_IFORK_SIZE(ip, whichfork), KM_SLEEP);
+	if (whichfork == XFS_DATA_FORK)
+		ip->i_itemp->ili_extents_buf = ext_buffer;
+	else
+		ip->i_itemp->ili_aextents_buf = ext_buffer;
+
+	vecp->i_addr = ext_buffer;
+	vecp->i_len = xfs_iextents_copy(ip, ext_buffer, whichfork);
+	vecp->i_type = type;
+}
+
+/*
  * This is called to fill in the vector of log iovecs for the
  * given inode log item.  It fills the first item with an inode
  * log format structure, the second with the on-disk inode structure,
@@ -213,7 +248,6 @@ xfs_inode_item_format(
 	struct xfs_inode	*ip = iip->ili_inode;
 	uint			nvecs;
 	size_t			data_bytes;
-	xfs_bmbt_rec_t		*ext_buffer;
 	xfs_mount_t		*mp;
 
 	vecp->i_addr = &iip->ili_format;
@@ -320,22 +354,8 @@ xfs_inode_item_format(
 			} else
 #endif
 			{
-				/*
-				 * There are delayed allocation extents
-				 * in the inode, or we need to convert
-				 * the extents to on disk format.
-				 * Use xfs_iextents_copy()
-				 * to copy only the real extents into
-				 * a separate buffer.  We'll free the
-				 * buffer in the unlock routine.
-				 */
-				ext_buffer = kmem_alloc(ip->i_df.if_bytes,
-					KM_SLEEP);
-				iip->ili_extents_buf = ext_buffer;
-				vecp->i_addr = ext_buffer;
-				vecp->i_len = xfs_iextents_copy(ip, ext_buffer,
-						XFS_DATA_FORK);
-				vecp->i_type = XLOG_REG_TYPE_IEXT;
+				xfs_inode_item_format_extents(ip, vecp,
+					XFS_DATA_FORK, XLOG_REG_TYPE_IEXT);
 			}
 			ASSERT(vecp->i_len <= ip->i_df.if_bytes);
 			iip->ili_format.ilf_dsize = vecp->i_len;
@@ -445,19 +465,12 @@ xfs_inode_item_format(
 			 */
 			vecp->i_addr = ip->i_afp->if_u1.if_extents;
 			vecp->i_len = ip->i_afp->if_bytes;
+			vecp->i_type = XLOG_REG_TYPE_IATTR_EXT;
 #else
 			ASSERT(iip->ili_aextents_buf == NULL);
-			/*
-			 * Need to endian flip before logging
-			 */
-			ext_buffer = kmem_alloc(ip->i_afp->if_bytes,
-				KM_SLEEP);
-			iip->ili_aextents_buf = ext_buffer;
-			vecp->i_addr = ext_buffer;
-			vecp->i_len = xfs_iextents_copy(ip, ext_buffer,
-					XFS_ATTR_FORK);
+			xfs_inode_item_format_extents(ip, vecp,
+					XFS_ATTR_FORK, XLOG_REG_TYPE_IATTR_EXT);
 #endif
-			vecp->i_type = XLOG_REG_TYPE_IATTR_EXT;
 			iip->ili_format.ilf_asize = vecp->i_len;
 			vecp++;
 			nvecs++;
@@ -619,13 +632,8 @@ xfs_inode_item_unlock(
 	struct xfs_inode	*ip = iip->ili_inode;
 	unsigned short		lock_flags;
 
-	ASSERT(iip->ili_inode->i_itemp != NULL);
-	ASSERT(xfs_isilocked(iip->ili_inode, XFS_ILOCK_EXCL));
-
-	/*
-	 * Clear the transaction pointer in the inode.
-	 */
-	ip->i_transp = NULL;
+	ASSERT(ip->i_itemp != NULL);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	/*
 	 * If the inode needed a separate buffer with which to log
@@ -651,8 +659,8 @@ xfs_inode_item_unlock(
 	lock_flags = iip->ili_lock_flags;
 	iip->ili_lock_flags = 0;
 	if (lock_flags) {
-		xfs_iunlock(iip->ili_inode, lock_flags);
-		IRELE(iip->ili_inode);
+		xfs_iunlock(ip, lock_flags);
+		IRELE(ip);
 	}
 }
 
@@ -668,15 +676,15 @@ xfs_inode_item_unlock(
  * where the cluster buffer may be unpinned before the inode is inserted into
  * the AIL during transaction committed processing. If the buffer is unpinned
  * before the inode item has been committed and inserted, then it is possible
- * for the buffer to be written and IO completions before the inode is inserted
+ * for the buffer to be written and IO completes before the inode is inserted
  * into the AIL. In that case, we'd be inserting a clean, stale inode into the
  * AIL which will never get removed. It will, however, get reclaimed which
  * triggers an assert in xfs_inode_free() complaining about freein an inode
  * still in the AIL.
  *
- * To avoid this, return a lower LSN than the one passed in so that the
- * transaction committed code will not move the inode forward in the AIL but
- * will still unpin it properly.
+ * To avoid this, just unpin the inode directly and return a LSN of -1 so the
+ * transaction committed code knows that it does not need to do any further
+ * processing on the item.
  */
 STATIC xfs_lsn_t
 xfs_inode_item_committed(
@@ -686,8 +694,10 @@ xfs_inode_item_committed(
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
 
-	if (xfs_iflags_test(ip, XFS_ISTALE))
-		return lsn - 1;
+	if (xfs_iflags_test(ip, XFS_ISTALE)) {
+		xfs_inode_item_unpin(lip, 0);
+		return -1;
+	}
 	return lsn;
 }
 
@@ -760,11 +770,11 @@ xfs_inode_item_push(
 	 * Push the inode to it's backing buffer. This will not remove the
 	 * inode from the AIL - a further push will be required to trigger a
 	 * buffer push. However, this allows all the dirty inodes to be pushed
-	 * to the buffer before it is pushed to disk. THe buffer IO completion
-	 * will pull th einode from the AIL, mark it clean and unlock the flush
+	 * to the buffer before it is pushed to disk. The buffer IO completion
+	 * will pull the inode from the AIL, mark it clean and unlock the flush
 	 * lock.
 	 */
-	(void) xfs_iflush(ip, 0);
+	(void) xfs_iflush(ip, SYNC_TRYLOCK);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 }
 
@@ -864,7 +874,7 @@ xfs_iflush_done(
 	 * Scan the buffer IO completions for other inodes being completed and
 	 * attach them to the current inode log item.
 	 */
-	blip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+	blip = bp->b_fspriv;
 	prev = NULL;
 	while (blip != NULL) {
 		if (lip->li_cb != xfs_iflush_done) {
@@ -876,7 +886,7 @@ xfs_iflush_done(
 		/* remove from list */
 		next = blip->li_bio_list;
 		if (!prev) {
-			XFS_BUF_SET_FSPRIVATE(bp, next);
+			bp->b_fspriv = next;
 		} else {
 			prev->li_bio_list = next;
 		}
@@ -957,7 +967,6 @@ xfs_iflush_abort(
 {
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
 
-	iip = ip->i_itemp;
 	if (iip) {
 		struct xfs_ail	*ailp = iip->ili_item.li_ailp;
 		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {

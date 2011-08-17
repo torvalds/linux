@@ -370,7 +370,7 @@ static void speed_bulk_callback(struct urb *urb)
 	/* urb is now available */
 	//urb->status = 0; -> tested above
 
-	/* New speed and xbof is now commited in hardware */
+	/* New speed and xbof is now committed in hardware */
 	self->new_speed = -1;
 	self->new_xbofs = -1;
 
@@ -602,7 +602,7 @@ static void write_bulk_callback(struct urb *urb)
 			IRDA_DEBUG(1, "%s(), Changing speed now...\n", __func__);
 			irda_usb_change_speed_xbofs(self);
 		} else {
-			/* New speed and xbof is now commited in hardware */
+			/* New speed and xbof is now committed in hardware */
 			self->new_speed = -1;
 			self->new_xbofs = -1;
 			/* Done, waiting for next packet */

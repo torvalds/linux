@@ -12,6 +12,7 @@
 /* setup data types */
 #define SETUP_NONE			0
 #define SETUP_E820_EXT			1
+#define SETUP_DTB			2
 
 /* extensible setup data list node */
 struct setup_data {

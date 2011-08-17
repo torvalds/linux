@@ -388,6 +388,10 @@ static void discard_port_data(struct port *port)
 	unsigned int len;
 	int ret;
 
+	if (!port->portdev) {
+		/* Device has been unplugged.  vqs are already gone. */
+		return;
+	}
 	vq = port->in_vq;
 	if (port->inbuf)
 		buf = port->inbuf;
@@ -470,6 +474,10 @@ static void reclaim_consumed_buffers(struct port *port)
 	void *buf;
 	unsigned int len;
 
+	if (!port->portdev) {
+		/* Device has been unplugged.  vqs are already gone. */
+		return;
+	}
 	while ((buf = virtqueue_get_buf(port->out_vq, &len))) {
 		kfree(buf);
 		port->outvq_full = false;
@@ -1272,18 +1280,7 @@ static void unplug_port(struct port *port)
 		spin_lock_irq(&pdrvdata_lock);
 		list_del(&port->cons.list);
 		spin_unlock_irq(&pdrvdata_lock);
-#if 0
-		/*
-		 * hvc_remove() not called as removing one hvc port
-		 * results in other hvc ports getting frozen.
-		 *
-		 * Once this is resolved in hvc, this functionality
-		 * will be enabled.  Till that is done, the -EPIPE
-		 * return from get_chars() above will help
-		 * hvc_console.c to clean up on ports we remove here.
-		 */
 		hvc_remove(port->cons.hvc);
-#endif
 	}
 
 	/* Remove unused data this port might have received. */
@@ -1680,16 +1677,11 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	portdev->config.max_nr_ports = 1;
 	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT)) {
 		multiport = true;
-		vdev->features[0] |= 1 << VIRTIO_CONSOLE_F_MULTIPORT;
-
 		vdev->config->get(vdev, offsetof(struct virtio_console_config,
 						 max_nr_ports),
 				  &portdev->config.max_nr_ports,
 				  sizeof(portdev->config.max_nr_ports));
 	}
-
-	/* Let the Host know we support multiple ports.*/
-	vdev->config->finalize_features(vdev);
 
 	err = init_vqs(portdev);
 	if (err < 0) {

@@ -66,6 +66,8 @@ struct platform_device *__init mxs_add_platform_device_dmamask(
 	ret = platform_device_add(pdev);
 	if (ret) {
 err:
+		if (dmamask)
+			kfree(pdev->dev.dma_mask);
 		platform_device_put(pdev);
 		return ERR_PTR(ret);
 	}
@@ -86,3 +88,14 @@ int __init mxs_add_amba_device(const struct amba_device *dev)
 
 	return amba_device_register(adev, &iomem_resource);
 }
+
+struct device mxs_apbh_bus = {
+	.init_name	= "mxs_apbh",
+	.parent         = &platform_bus,
+};
+
+static int __init mxs_device_init(void)
+{
+	return device_register(&mxs_apbh_bus);
+}
+core_initcall(mxs_device_init);

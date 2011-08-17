@@ -399,7 +399,7 @@ static void el_timeout(struct net_device *dev)
  * as we may still be attempting to retrieve the last RX packet buffer.
  *
  * When a transmit times out we dump the card into control mode and just
- * start again. It happens enough that it isnt worth logging.
+ * start again. It happens enough that it isn't worth logging.
  *
  * We avoid holding the spin locks when doing the packet load to the board.
  * The device is very slow, and its DMA mode is even slower. If we held the
@@ -499,7 +499,7 @@ static netdev_tx_t el_start_xmit(struct sk_buff *skb, struct net_device *dev)
  *
  * Handle the ether interface interrupts. The 3c501 needs a lot more
  * hand holding than most cards. In particular we get a transmit interrupt
- * with a collision error because the board firmware isnt capable of rewinding
+ * with a collision error because the board firmware isn't capable of rewinding
  * its own transmit buffer pointers. It can however count to 16 for us.
  *
  * On the receive side the card is also very dumb. It has no buffering to
@@ -732,7 +732,7 @@ static void el_receive(struct net_device *dev)
  * el_reset: Reset a 3c501 card
  * @dev: The 3c501 card about to get zapped
  *
- * Even resetting a 3c501 isnt simple. When you activate reset it loses all
+ * Even resetting a 3c501 isn't simple. When you activate reset it loses all
  * its configuration. You must hold the lock when doing this. The function
  * cannot take the lock itself as it is callable from the irq handler.
  */

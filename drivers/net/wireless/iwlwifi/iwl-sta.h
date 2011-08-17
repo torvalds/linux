@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -31,9 +31,6 @@
 
 #include "iwl-dev.h"
 
-#define HW_KEY_DYNAMIC 0
-#define HW_KEY_DEFAULT 1
-
 #define IWL_STA_DRIVER_ACTIVE BIT(0) /* driver entry is active */
 #define IWL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
 #define IWL_STA_UCODE_INPROGRESS  BIT(2) /* ucode entry is in process of
@@ -47,7 +44,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwl_clear_ucode_stations(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx);
 void iwl_dealloc_bcast_stations(struct iwl_priv *priv);
-int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
+int iwl_get_free_ucode_key_offset(struct iwl_priv *priv);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
 int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,

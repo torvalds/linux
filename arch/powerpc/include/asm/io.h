@@ -2,6 +2,8 @@
 #define _ASM_POWERPC_IO_H
 #ifdef __KERNEL__
 
+#define ARCH_HAS_IOREMAP_WC
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -481,10 +483,16 @@ __do_out_asm(_rec_outl, "stwbrx")
 				_memcpy_fromio(dst,PCI_FIX_ADDR(src),n)
 #endif /* !CONFIG_EEH */
 
-#ifdef CONFIG_PPC_INDIRECT_IO
-#define DEF_PCI_HOOK(x)		x
+#ifdef CONFIG_PPC_INDIRECT_PIO
+#define DEF_PCI_HOOK_pio(x)	x
 #else
-#define DEF_PCI_HOOK(x)		NULL
+#define DEF_PCI_HOOK_pio(x)	NULL
+#endif
+
+#ifdef CONFIG_PPC_INDIRECT_MMIO
+#define DEF_PCI_HOOK_mem(x)	x
+#else
+#define DEF_PCI_HOOK_mem(x)	NULL
 #endif
 
 /* Structure containing all the hooks */
@@ -504,7 +512,7 @@ extern struct ppc_pci_io {
 #define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
 static inline ret name at					\
 {								\
-	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
+	if (DEF_PCI_HOOK_##space(ppc_pci_io.name) != NULL)	\
 		return ppc_pci_io.name al;			\
 	return __do_##name al;					\
 }
@@ -512,7 +520,7 @@ static inline ret name at					\
 #define DEF_PCI_AC_NORET(name, at, al, space, aa)		\
 static inline void name at					\
 {								\
-	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
+	if (DEF_PCI_HOOK_##space(ppc_pci_io.name) != NULL)		\
 		ppc_pci_io.name al;				\
 	else							\
 		__do_##name al;					\
@@ -616,11 +624,12 @@ static inline void iosync(void)
  * * ioremap is the standard one and provides non-cacheable guarded mappings
  *   and can be hooked by the platform via ppc_md
  *
- * * ioremap_flags allows to specify the page flags as an argument and can
- *   also be hooked by the platform via ppc_md. ioremap_prot is the exact
- *   same thing as ioremap_flags.
+ * * ioremap_prot allows to specify the page flags as an argument and can
+ *   also be hooked by the platform via ppc_md.
  *
  * * ioremap_nocache is identical to ioremap
+ *
+ * * ioremap_wc enables write combining
  *
  * * iounmap undoes such a mapping and can be hooked
  *
@@ -629,7 +638,7 @@ static inline void iosync(void)
  *   currently be hooked. Must be page aligned.
  *
  * * __ioremap is the low level implementation used by ioremap and
- *   ioremap_flags and cannot be hooked (but can be used by a hook on one
+ *   ioremap_prot and cannot be hooked (but can be used by a hook on one
  *   of the previous ones)
  *
  * * __ioremap_caller is the same as above but takes an explicit caller
@@ -640,10 +649,10 @@ static inline void iosync(void)
  *
  */
 extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
-extern void __iomem *ioremap_flags(phys_addr_t address, unsigned long size,
-				   unsigned long flags);
+extern void __iomem *ioremap_prot(phys_addr_t address, unsigned long size,
+				  unsigned long flags);
+extern void __iomem *ioremap_wc(phys_addr_t address, unsigned long size);
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
-#define ioremap_prot(addr, size, prot)	ioremap_flags((addr), (size), (prot))
 
 extern void iounmap(volatile void __iomem *addr);
 

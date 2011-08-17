@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -449,7 +449,7 @@ static void qt202x_phy_remove(struct efx_nic *efx)
 	efx->phy_data = NULL;
 }
 
-struct efx_phy_operations falcon_qt202x_phy_ops = {
+const struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.probe		 = qt202x_phy_probe,
 	.init		 = qt202x_phy_init,
 	.reconfigure	 = qt202x_phy_reconfigure,

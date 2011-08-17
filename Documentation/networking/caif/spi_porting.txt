@@ -150,7 +150,7 @@ static int sspi_init_xfer(struct cfspi_xfer *xfer, struct cfspi_dev *dev)
 void sspi_sig_xfer(bool xfer, struct cfspi_dev *dev)
 {
 	/* If xfer is true then you should assert the SPI_INT to indicate to
-	 * the master that you are ready to recieve the data from the master
+	 * the master that you are ready to receive the data from the master
 	 * SPI. If xfer is false then you should de-assert SPI_INT to indicate
 	 * that the transfer is done.
 	 */

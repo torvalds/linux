@@ -653,7 +653,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
          }
 
-    };
+    }
 
   kfree(ptempBSS);
 
@@ -679,7 +679,7 @@ static int wpa_get_scan(PSDevice pDevice,
         if (!pBSS->bActive)
             continue;
         count++;
-    };
+    }
 
     pBuf = kcalloc(count, sizeof(struct viawget_scan_result), (int)GFP_ATOMIC);
 
@@ -723,7 +723,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
     if (copy_to_user(param->u.scan_results.buf, pBuf, sizeof(struct viawget_scan_result) * count)) {
 		ret = -EFAULT;
-	};
+	}
 	param->u.scan_results.scan_count = count;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count)
 
@@ -832,7 +832,7 @@ else
 		break;
 	default:
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-	};
+	}
 
 //DavidWang add for WPA_supplicant support open/share mode
 
@@ -875,7 +875,7 @@ if (!((pMgmt->eAuthenMode == WMAC_AUTH_SHAREKEY) ||
     if (pCurr == NULL){
     printk("wpa_set_associate---->hidden mode site survey before associate.......\n");
     bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-  };
+  }
 }
 /****************************************************************/
     bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
@@ -987,8 +987,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	}
 
 out:
-	if (param != NULL)
-		kfree(param);
+	kfree(param);
 
 	return ret;
 }

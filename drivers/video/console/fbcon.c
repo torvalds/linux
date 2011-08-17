@@ -370,7 +370,6 @@ static void fb_flashcursor(struct work_struct *work)
 {
 	struct fb_info *info = container_of(work, struct fb_info, queue);
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *p;
 	struct vc_data *vc = NULL;
 	int c;
 	int mode;
@@ -386,7 +385,6 @@ static void fb_flashcursor(struct work_struct *work)
 		return;
 	}
 
-	p = &fb_display[vc->vc_num];
 	c = scr_readw((u16 *) vc->vc_pos);
 	mode = (!ops->cursor_flash || ops->cursor_state.enable) ?
 		CM_ERASE : CM_DRAW;
@@ -823,10 +821,10 @@ static int set_con2fb_map(int unit, int newidx, int user)
 	if (oldidx == newidx)
 		return 0;
 
-	if (!info || fbcon_has_exited)
+	if (!info)
 		return -EINVAL;
 
- 	if (!err && !search_for_mapped_con()) {
+	if (!search_for_mapped_con() || !con_is_bound(&fb_con)) {
 		info_idx = newidx;
 		return fbcon_takeover(0);
 	}

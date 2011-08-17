@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Video54 Technologies, Inc.
- * Copyright (c) 2004-2009 Atheros Communications, Inc.
+ * Copyright (c) 2004-2011 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -379,7 +379,30 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 };
 
 static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
-				struct ieee80211_tx_rate *rate);
+				struct ieee80211_tx_rate *rate)
+{
+	int rix = 0, i = 0;
+	static const int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
+
+	if (!(rate->flags & IEEE80211_TX_RC_MCS))
+		return rate->idx;
+
+	while (i < ARRAY_SIZE(mcs_rix_off) && rate->idx > mcs_rix_off[i]) {
+		rix++; i++;
+	}
+
+	rix += rate->idx + rate_table->mcs_start;
+
+	if ((rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
+	    (rate->flags & IEEE80211_TX_RC_SHORT_GI))
+		rix = rate_table->info[rix].ht_index;
+	else if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		rix = rate_table->info[rix].sgi_index;
+	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rix = rate_table->info[rix].cw40index;
+
+	return rix;
+}
 
 static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 				   struct ath_rate_priv *ath_rc_priv)
@@ -533,7 +556,7 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 					[valid_rate_count] = j;
 				ath_rc_priv->valid_phy_ratecnt[phy] += 1;
 				ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
-				hi = A_MAX(hi, j);
+				hi = max(hi, j);
 			}
 		}
 	}
@@ -569,7 +592,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 				[ath_rc_priv->valid_phy_ratecnt[phy]] = j;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
 			ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
-			hi = A_MAX(hi, j);
+			hi = max(hi, j);
 		}
 	}
 
@@ -689,7 +712,8 @@ static void ath_rc_rate_set_series(const struct ath_rate_table *rate_table,
 
 	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy)) {
 		rate->flags |= IEEE80211_TX_RC_MCS;
-		if (WLAN_RC_PHY_40(rate_table->info[rix].phy))
+		if (WLAN_RC_PHY_40(rate_table->info[rix].phy) &&
+		    conf_is_ht40(&txrc->hw->conf))
 			rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 		if (WLAN_RC_PHY_SGI(rate_table->info[rix].phy))
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
@@ -792,7 +816,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 		tx_info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 	} else {
-		/* Set the choosen rate. No RTS for first series entry. */
+		/* Set the chosen rate. No RTS for first series entry. */
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, rix, 0);
 	}
@@ -854,14 +878,13 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	ath_rc_rate_set_rtscts(sc, rate_table, tx_info);
 }
 
-static bool ath_rc_update_per(struct ath_softc *sc,
+static void ath_rc_update_per(struct ath_softc *sc,
 			      const struct ath_rate_table *rate_table,
 			      struct ath_rate_priv *ath_rc_priv,
 				  struct ieee80211_tx_info *tx_info,
 			      int tx_rate, int xretries, int retries,
 			      u32 now_msec)
 {
-	bool state_change = false;
 	int count, n_bad_frames;
 	u8 last_per;
 	static const u32 nretry_to_per_lookup[10] = {
@@ -992,8 +1015,6 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 
 		}
 	}
-
-	return state_change;
 }
 
 static void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
@@ -1017,7 +1038,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	u32 now_msec = jiffies_to_msecs(jiffies);
 	int rate;
 	u8 last_per;
-	bool state_change = false;
 	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	int size = ath_rc_priv->rate_table_size;
 
@@ -1027,9 +1047,9 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	last_per = ath_rc_priv->per[tx_rate];
 
 	/* Update PER first */
-	state_change = ath_rc_update_per(sc, rate_table, ath_rc_priv,
-					 tx_info, tx_rate, xretries,
-					 retries, now_msec);
+	ath_rc_update_per(sc, rate_table, ath_rc_priv,
+			  tx_info, tx_rate, xretries,
+			  retries, now_msec);
 
 	/*
 	 * If this rate looks bad (high PER) then stop using it for
@@ -1083,32 +1103,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 
 }
 
-static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
-				struct ieee80211_tx_rate *rate)
-{
-	int rix = 0, i = 0;
-	static const int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
-
-	if (!(rate->flags & IEEE80211_TX_RC_MCS))
-		return rate->idx;
-
-	while (rate->idx > mcs_rix_off[i] &&
-	       i < ARRAY_SIZE(mcs_rix_off)) {
-		rix++; i++;
-	}
-
-	rix += rate->idx + rate_table->mcs_start;
-
-	if ((rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
-	    (rate->flags & IEEE80211_TX_RC_SHORT_GI))
-		rix = rate_table->info[rix].ht_index;
-	else if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-		rix = rate_table->info[rix].sgi_index;
-	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		rix = rate_table->info[rix].cw40index;
-
-	return rix;
-}
 
 static void ath_rc_tx_status(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
@@ -1232,7 +1226,7 @@ static void ath_rc_init(struct ath_softc *sc,
 						       ht_mcs,
 						       ath_rc_priv->ht_cap);
 		}
-		hi = A_MAX(hi, hthi);
+		hi = max(hi, hthi);
 	}
 
 	ath_rc_priv->rate_table_size = hi + 1;
@@ -1328,7 +1322,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+	for (i = 0; i < sc->hw->max_rates; i++) {
 		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
 		if (!rate->count)
 			break;
@@ -1560,8 +1554,7 @@ static void ath_rate_add_sta_debugfs(void *priv, void *priv_sta,
 
 static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	return aphy->sc;
+	return hw->priv;
 }
 
 static void ath_rate_free(void *priv)

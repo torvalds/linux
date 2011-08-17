@@ -63,6 +63,7 @@ typedef enum {
 	SCTP_CMD_ECN_ECNE,	/* Do delayed ECNE processing. */
 	SCTP_CMD_ECN_CWR,	/* Do delayed CWR processing.  */
 	SCTP_CMD_TIMER_START,	/* Start a timer.  */
+	SCTP_CMD_TIMER_START_ONCE, /* Start a timer once */
 	SCTP_CMD_TIMER_RESTART,	/* Restart a timer. */
 	SCTP_CMD_TIMER_STOP,	/* Stop a timer. */
 	SCTP_CMD_INIT_CHOOSE_TRANSPORT, /* Choose transport for an INIT. */
@@ -73,7 +74,6 @@ typedef enum {
 	SCTP_CMD_INIT_FAILED,   /* High level, do init failure work. */
 	SCTP_CMD_REPORT_DUP,	/* Report a duplicate TSN.  */
 	SCTP_CMD_STRIKE,	/* Mark a strike against a transport.  */
-	SCTP_CMD_TRANSMIT,      /* Transmit the outqueue. */
 	SCTP_CMD_HB_TIMERS_START,    /* Start the heartbeat timers. */
 	SCTP_CMD_HB_TIMER_UPDATE,    /* Update a heartbeat timers.  */
 	SCTP_CMD_HB_TIMERS_STOP,     /* Stop the heartbeat timers.  */
@@ -108,6 +108,7 @@ typedef enum {
 	SCTP_CMD_UPDATE_INITTAG, /* Update peer inittag */
 	SCTP_CMD_SEND_MSG,	 /* Send the whole use message */
 	SCTP_CMD_SEND_NEXT_ASCONF, /* Send the next ASCONF after ACK */
+	SCTP_CMD_PURGE_ASCONF_QUEUE, /* Purge all asconf queues.*/
 	SCTP_CMD_LAST
 } sctp_verb_t;
 

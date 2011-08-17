@@ -554,7 +554,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 	memcpy(&ssf->ssf_info, &chunk->sinfo, sizeof(struct sctp_sndrcvinfo));
 
 	/* Per TSVWG discussion with Randy. Allow the application to
-	 * ressemble a fragmented message.
+	 * reassemble a fragmented message.
 	 */
 	ssf->ssf_info.sinfo_flags = chunk->chunk_hdr->flags;
 
@@ -843,7 +843,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_authkey(
 	ak = (struct sctp_authkey_event *)
 		skb_put(skb, sizeof(struct sctp_authkey_event));
 
-	ak->auth_type = SCTP_AUTHENTICATION_INDICATION;
+	ak->auth_type = SCTP_AUTHENTICATION_EVENT;
 	ak->auth_flags = 0;
 	ak->auth_length = sizeof(struct sctp_authkey_event);
 
@@ -862,6 +862,34 @@ fail:
 	return NULL;
 }
 
+/*
+ * Socket Extensions for SCTP
+ * 6.3.10. SCTP_SENDER_DRY_EVENT
+ */
+struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
+	const struct sctp_association *asoc, gfp_t gfp)
+{
+	struct sctp_ulpevent *event;
+	struct sctp_sender_dry_event *sdry;
+	struct sk_buff *skb;
+
+	event = sctp_ulpevent_new(sizeof(struct sctp_sender_dry_event),
+				  MSG_NOTIFICATION, gfp);
+	if (!event)
+		return NULL;
+
+	skb = sctp_event2skb(event);
+	sdry = (struct sctp_sender_dry_event *)
+		skb_put(skb, sizeof(struct sctp_sender_dry_event));
+
+	sdry->sender_dry_type = SCTP_SENDER_DRY_EVENT;
+	sdry->sender_dry_flags = 0;
+	sdry->sender_dry_length = sizeof(struct sctp_sender_dry_event);
+	sctp_ulpevent_set_owner(event, asoc);
+	sdry->sender_dry_assoc_id = sctp_assoc2id(asoc);
+
+	return event;
+}
 
 /* Return the notification type, assuming this is a notification
  * event.
@@ -1053,9 +1081,19 @@ void sctp_ulpevent_free(struct sctp_ulpevent *event)
 }
 
 /* Purge the skb lists holding ulpevents. */
-void sctp_queue_purge_ulpevents(struct sk_buff_head *list)
+unsigned int sctp_queue_purge_ulpevents(struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
-	while ((skb = skb_dequeue(list)) != NULL)
-		sctp_ulpevent_free(sctp_skb2event(skb));
+	unsigned int data_unread = 0;
+
+	while ((skb = skb_dequeue(list)) != NULL) {
+		struct sctp_ulpevent *event = sctp_skb2event(skb);
+
+		if (!sctp_ulpevent_is_notification(event))
+			data_unread += skb->len;
+
+		sctp_ulpevent_free(event);
+	}
+
+	return data_unread;
 }

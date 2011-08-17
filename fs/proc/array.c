@@ -131,7 +131,7 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
  * you can test for combinations of others with
  * simple bit tests.
  */
-static const char *task_state_array[] = {
+static const char * const task_state_array[] = {
 	"R (running)",		/*   0 */
 	"S (sleeping)",		/*   1 */
 	"D (disk sleep)",	/*   2 */
@@ -147,7 +147,7 @@ static const char *task_state_array[] = {
 static inline const char *get_task_state(struct task_struct *tsk)
 {
 	unsigned int state = (tsk->state & TASK_REPORT) | tsk->exit_state;
-	const char **p = &task_state_array[0];
+	const char * const *p = &task_state_array[0];
 
 	BUILD_BUG_ON(1 + ilog2(TASK_STATE_MAX) != ARRAY_SIZE(task_state_array));
 
@@ -172,7 +172,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 		task_tgid_nr_ns(rcu_dereference(p->real_parent), ns) : 0;
 	tpid = 0;
 	if (pid_alive(p)) {
-		struct task_struct *tracer = tracehook_tracer_task(p);
+		struct task_struct *tracer = ptrace_parent(p);
 		if (tracer)
 			tpid = task_pid_nr_ns(tracer, ns);
 	}
@@ -489,8 +489,8 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		vsize,
 		mm ? get_mm_rss(mm) : 0,
 		rsslim,
-		mm ? mm->start_code : 0,
-		mm ? mm->end_code : 0,
+		mm ? (permitted ? mm->start_code : 1) : 0,
+		mm ? (permitted ? mm->end_code : 1) : 0,
 		(permitted && mm) ? mm->start_stack : 0,
 		esp,
 		eip,

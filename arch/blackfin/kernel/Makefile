@@ -21,6 +21,7 @@ obj-$(CONFIG_FUNCTION_TRACER)        += ftrace-entry.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)  += ftrace.o
 CFLAGS_REMOVE_ftrace.o = -pg
 
+obj-$(CONFIG_HAVE_PWM)               += pwm.o
 obj-$(CONFIG_IPIPE)                  += ipipe.o
 obj-$(CONFIG_BFIN_GPTIMERS)          += gptimers.o
 obj-$(CONFIG_CPLB_INFO)              += cplbinfo.o
@@ -33,7 +34,10 @@ obj-$(CONFIG_EARLY_PRINTK)           += shadow_console.o
 obj-$(CONFIG_STACKTRACE)             += stacktrace.o
 obj-$(CONFIG_DEBUG_VERBOSE)          += trace.o
 obj-$(CONFIG_BFIN_PSEUDODBG_INSNS)   += pseudodbg.o
+obj-$(CONFIG_PERF_EVENTS)            += perf_event.o
 
 # the kgdb test puts code into L2 and without linker
 # relaxation, we need to force long calls to/from it
 CFLAGS_kgdb_test.o := -mlong-calls -O0
+
+obj-$(CONFIG_DEBUG_MMRS)             += debug-mmrs.o

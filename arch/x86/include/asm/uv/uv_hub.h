@@ -77,8 +77,9 @@
  *
  *		1111110000000000
  *		5432109876543210
- *		pppppppppplc0cch	Nehalem-EX
- *		ppppppppplcc0cch	Westmere-EX
+ *		pppppppppplc0cch	Nehalem-EX (12 bits in hdw reg)
+ *		ppppppppplcc0cch	Westmere-EX (12 bits in hdw reg)
+ *		pppppppppppcccch	SandyBridge (15 bits in hdw reg)
  *		sssssssssss
  *
  *			p  = pnode bits
@@ -87,7 +88,7 @@
  *			h  = hyperthread
  *			s  = bits that are in the SOCKET_ID CSR
  *
- *	Note: Processor only supports 12 bits in the APICID register. The ACPI
+ *	Note: Processor may support fewer bits in the APICID register. The ACPI
  *	      tables hold all 16 bits. Software needs to be aware of this.
  *
  *	      Unless otherwise specified, all references to APICID refer to
@@ -138,6 +139,8 @@ struct uv_hub_info_s {
 	unsigned long		global_mmr_base;
 	unsigned long		gpa_mask;
 	unsigned int		gnode_extra;
+	unsigned char		hub_revision;
+	unsigned char		apic_pnode_shift;
 	unsigned long		gnode_upper;
 	unsigned long		lowmem_remap_top;
 	unsigned long		lowmem_remap_base;
@@ -149,12 +152,30 @@ struct uv_hub_info_s {
 	unsigned char		m_val;
 	unsigned char		n_val;
 	struct uv_scir_s	scir;
-	unsigned char		apic_pnode_shift;
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define uv_hub_info		(&__get_cpu_var(__uv_hub_info))
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
+
+/*
+ * Hub revisions less than UV2_HUB_REVISION_BASE are UV1 hubs. All UV2
+ * hubs have revision numbers greater than or equal to UV2_HUB_REVISION_BASE.
+ * This is a software convention - NOT the hardware revision numbers in
+ * the hub chip.
+ */
+#define UV1_HUB_REVISION_BASE		1
+#define UV2_HUB_REVISION_BASE		3
+
+static inline int is_uv1_hub(void)
+{
+	return uv_hub_info->hub_revision < UV2_HUB_REVISION_BASE;
+}
+
+static inline int is_uv2_hub(void)
+{
+	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
+}
 
 union uvh_apicid {
     unsigned long       v;
@@ -180,11 +201,25 @@ union uvh_apicid {
 #define UV_PNODE_TO_GNODE(p)		((p) |uv_hub_info->gnode_extra)
 #define UV_PNODE_TO_NASID(p)		(UV_PNODE_TO_GNODE(p) << 1)
 
-#define UV_LOCAL_MMR_BASE		0xf4000000UL
-#define UV_GLOBAL_MMR32_BASE		0xf8000000UL
+#define UV1_LOCAL_MMR_BASE		0xf4000000UL
+#define UV1_GLOBAL_MMR32_BASE		0xf8000000UL
+#define UV1_LOCAL_MMR_SIZE		(64UL * 1024 * 1024)
+#define UV1_GLOBAL_MMR32_SIZE		(64UL * 1024 * 1024)
+
+#define UV2_LOCAL_MMR_BASE		0xfa000000UL
+#define UV2_GLOBAL_MMR32_BASE		0xfc000000UL
+#define UV2_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
+#define UV2_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
+
+#define UV_LOCAL_MMR_BASE		(is_uv1_hub() ? UV1_LOCAL_MMR_BASE     \
+						: UV2_LOCAL_MMR_BASE)
+#define UV_GLOBAL_MMR32_BASE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE  \
+						: UV2_GLOBAL_MMR32_BASE)
+#define UV_LOCAL_MMR_SIZE		(is_uv1_hub() ? UV1_LOCAL_MMR_SIZE :   \
+						UV2_LOCAL_MMR_SIZE)
+#define UV_GLOBAL_MMR32_SIZE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_SIZE :\
+						UV2_GLOBAL_MMR32_SIZE)
 #define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
-#define UV_LOCAL_MMR_SIZE		(64UL * 1024 * 1024)
-#define UV_GLOBAL_MMR32_SIZE		(64UL * 1024 * 1024)
 
 #define UV_GLOBAL_GRU_MMR_BASE		0x4000000
 
@@ -301,6 +336,17 @@ static inline int uv_apicid_to_pnode(int apicid)
 }
 
 /*
+ * Convert an apicid to the socket number on the blade
+ */
+static inline int uv_apicid_to_socket(int apicid)
+{
+	if (is_uv1_hub())
+		return (apicid >> (uv_hub_info->apic_pnode_shift - 1)) & 1;
+	else
+		return 0;
+}
+
+/*
  * Access global MMRs using the low memory MMR32 space. This region supports
  * faster MMR access but not all MMRs are accessible in this space.
  */
@@ -398,6 +444,8 @@ struct uv_blade_info {
 	unsigned short	nr_online_cpus;
 	unsigned short	pnode;
 	short		memory_nid;
+	spinlock_t	nmi_lock;
+	unsigned long	nmi_count;
 };
 extern struct uv_blade_info *uv_blade_info;
 extern short *uv_node_to_blade;
@@ -517,14 +565,13 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
 
 /*
  * Get the minimum revision number of the hub chips within the partition.
- *     1 - initial rev 1.0 silicon
- *     2 - rev 2.0 production silicon
+ *     1 - UV1 rev 1.0 initial silicon
+ *     2 - UV1 rev 2.0 production silicon
+ *     3 - UV2 rev 1.0 initial silicon
  */
 static inline int uv_get_min_hub_revision_id(void)
 {
-	extern int uv_min_hub_revision_id;
-
-	return uv_min_hub_revision_id;
+	return uv_hub_info->hub_revision;
 }
 
 #endif /* CONFIG_X86_64 */

@@ -39,7 +39,7 @@ Optional properties:
 
 - nxp,no-comparator-bypass : Allows to disable the CAN input comperator.
 
-For futher information, please have a look to the SJA1000 data sheet.
+For further information, please have a look to the SJA1000 data sheet.
 
 Examples:
 

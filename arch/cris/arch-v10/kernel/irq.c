@@ -20,6 +20,9 @@
 #define crisv10_mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
 #define crisv10_unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
 
+extern void kgdb_init(void);
+extern void breakpoint(void);
+
 /* don't use set_int_vector, it bypasses the linux interrupt handlers. it is
  * global just so that the kernel gdb can use it.
  */
@@ -199,7 +202,7 @@ init_IRQ(void)
 
 	/* Initialize IRQ handler descriptors. */
 	for(i = 2; i < NR_IRQS; i++) {
-		set_irq_desc_and_handler(i, &crisv10_irq_type,
+		irq_set_chip_and_handler(i, &crisv10_irq_type,
 					 handle_simple_irq);
 		set_int_vector(i, interrupt[i]);
 	}

@@ -18,13 +18,12 @@
 #define _HOST_OS_H_
 
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/syscalls.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/stddef.h>
@@ -57,13 +56,4 @@
 extern struct platform_device *omap_dspbridge_dev;
 extern struct device *bridge;
 
-#if defined(CONFIG_TIDSPBRIDGE) || defined(CONFIG_TIDSPBRIDGE_MODULE)
-extern void dspbridge_reserve_sdram(void);
-#else
-static inline void dspbridge_reserve_sdram(void)
-{
-}
-#endif
-
-extern unsigned long dspbridge_get_mempool_base(void);
 #endif

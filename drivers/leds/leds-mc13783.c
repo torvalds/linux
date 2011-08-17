@@ -234,7 +234,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 							MC13783_LED_Cx_PERIOD;
 
 	if (pdata->flags & MC13783_LED_TRIODE_TC3)
-		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;;
+		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;
 
 	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_5, reg);
 	if (ret)

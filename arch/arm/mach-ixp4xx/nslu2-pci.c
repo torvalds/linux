@@ -32,13 +32,13 @@
 
 void __init nslu2_pci_preinit(void)
 {
-	set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(INTC), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(INTC), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
-static int __init nslu2_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init nslu2_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static int pci_irq_table[IRQ_LINES] = {
 		IXP4XX_GPIO_IRQ(INTA),

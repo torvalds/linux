@@ -1,0 +1,17 @@
+config CLKSRC_I8253
+	bool
+
+config CLKEVT_I8253
+	bool
+
+config I8253_LOCK
+	bool
+
+config CLKBLD_I8253
+	def_bool y if CLKSRC_I8253 || CLKEVT_I8253 || I8253_LOCK
+
+config CLKSRC_MMIO
+	bool
+
+config DW_APB_TIMER
+	bool

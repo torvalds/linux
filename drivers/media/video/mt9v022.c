@@ -95,7 +95,7 @@ static const struct mt9v022_datafmt mt9v022_colour_fmts[] = {
 static const struct mt9v022_datafmt mt9v022_monochrome_fmts[] = {
 	/* Order important - see above */
 	{V4L2_MBUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_GREY8_1X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
 };
 
 struct mt9v022 {
@@ -228,7 +228,7 @@ static int mt9v022_set_bus_param(struct soc_camera_device *icd,
 
 	flags = soc_camera_apply_sensor_flags(icl, flags);
 
-	if (flags & SOCAM_PCLK_SAMPLE_RISING)
+	if (flags & SOCAM_PCLK_SAMPLE_FALLING)
 		pixclk |= 0x10;
 
 	if (!(flags & SOCAM_HSYNC_ACTIVE_HIGH))
@@ -392,7 +392,7 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 	 * icd->try_fmt(), datawidth is from our supported format list
 	 */
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_GREY8_1X8:
+	case V4L2_MBUS_FMT_Y8_1X8:
 	case V4L2_MBUS_FMT_Y10_1X10:
 		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATM)
 			return -EINVAL;
@@ -728,9 +728,9 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 	int ret;
 	unsigned long flags;
 
-	if (!icd->dev.parent ||
-	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
-		return -ENODEV;
+	/* We must have a parent by now. And it cannot be a wrong one. */
+	BUG_ON(!icd->parent ||
+	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/* Read out the chip version register */
 	data = reg_read(client, MT9V022_CHIP_VERSION);
@@ -809,8 +809,8 @@ static void mt9v022_video_remove(struct soc_camera_device *icd)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-	dev_dbg(&icd->dev, "Video removed: %p, %p\n",
-		icd->dev.parent, icd->vdev);
+	dev_dbg(icd->pdev, "Video removed: %p, %p\n",
+		icd->parent, icd->vdev);
 	if (icl->free_bus)
 		icl->free_bus(icl);
 }

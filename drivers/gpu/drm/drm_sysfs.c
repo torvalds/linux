@@ -158,8 +158,15 @@ static ssize_t status_show(struct device *device,
 {
 	struct drm_connector *connector = to_drm_connector(device);
 	enum drm_connector_status status;
+	int ret;
+
+	ret = mutex_lock_interruptible(&connector->dev->mode_config.mutex);
+	if (ret)
+		return ret;
 
 	status = connector->funcs->detect(connector, true);
+	mutex_unlock(&connector->dev->mode_config.mutex);
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			drm_get_connector_status_name(status));
 }

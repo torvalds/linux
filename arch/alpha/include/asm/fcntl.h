@@ -31,6 +31,8 @@
 #define __O_SYNC	020000000
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 
+#define O_PATH		040000000
+
 #define F_GETLK		7
 #define F_SETLK		8
 #define F_SETLKW	9

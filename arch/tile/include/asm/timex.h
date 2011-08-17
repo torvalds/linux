@@ -38,6 +38,9 @@ static inline cycles_t get_cycles(void)
 
 cycles_t get_clock_rate(void);
 
+/* Convert nanoseconds to core clock cycles. */
+cycles_t ns2cycles(unsigned long nsecs);
+
 /* Called at cpu initialization to set some low-level constants. */
 void setup_clock(void);
 

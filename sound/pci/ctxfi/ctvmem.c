@@ -52,8 +52,7 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 
 	if (entry->size == size) {
 		/* Move the vm node from unused list to used list directly */
-		list_del(&entry->list);
-		list_add(&entry->list, &vm->used);
+		list_move(&entry->list, &vm->used);
 		vm->size -= size;
 		block = entry;
 		goto out;

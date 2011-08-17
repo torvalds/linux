@@ -526,7 +526,7 @@ int p54_init_leds(struct p54_common *priv);
 void p54_unregister_leds(struct p54_common *priv);
 
 /* xmit functions */
-int p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb);
+void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb);
 int p54_tx_cancel(struct p54_common *priv, __le32 req_id);
 void p54_tx(struct p54_common *priv, struct sk_buff *skb);
 
@@ -540,6 +540,7 @@ int p54_update_beacon_tim(struct p54_common *priv, u16 aid, bool set);
 int p54_setup_mac(struct p54_common *priv);
 int p54_set_ps(struct p54_common *priv);
 int p54_fetch_statistics(struct p54_common *priv);
+int p54_set_groupfilter(struct p54_common *priv);
 
 /* e/v DCF setup */
 int p54_set_edcf(struct p54_common *priv);
@@ -551,6 +552,7 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot,
 /* eeprom */
 int p54_download_eeprom(struct p54_common *priv, void *buf,
 			u16 offset, u16 len);
+struct p54_rssi_db_entry *p54_rssi_find(struct p54_common *p, const u16 freq);
 
 /* utility */
 u8 *p54_find_ie(struct sk_buff *skb, u8 ie);

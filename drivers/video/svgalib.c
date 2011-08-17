@@ -20,12 +20,12 @@
 
 
 /* Write a CRT register value spread across multiple registers */
-void svga_wcrt_multi(const struct vga_regset *regset, u32 value) {
-
+void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value)
+{
 	u8 regval, bitval, bitnum;
 
 	while (regset->regnum != VGA_REGSET_END_VAL) {
-		regval = vga_rcrt(NULL, regset->regnum);
+		regval = vga_rcrt(regbase, regset->regnum);
 		bitnum = regset->lowbit;
 		while (bitnum <= regset->highbit) {
 			bitval = 1 << bitnum;
@@ -34,18 +34,18 @@ void svga_wcrt_multi(const struct vga_regset *regset, u32 value) {
 			bitnum ++;
 			value = value >> 1;
 		}
-		vga_wcrt(NULL, regset->regnum, regval);
+		vga_wcrt(regbase, regset->regnum, regval);
 		regset ++;
 	}
 }
 
 /* Write a sequencer register value spread across multiple registers */
-void svga_wseq_multi(const struct vga_regset *regset, u32 value) {
-
+void svga_wseq_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value)
+{
 	u8 regval, bitval, bitnum;
 
 	while (regset->regnum != VGA_REGSET_END_VAL) {
-		regval = vga_rseq(NULL, regset->regnum);
+		regval = vga_rseq(regbase, regset->regnum);
 		bitnum = regset->lowbit;
 		while (bitnum <= regset->highbit) {
 			bitval = 1 << bitnum;
@@ -54,7 +54,7 @@ void svga_wseq_multi(const struct vga_regset *regset, u32 value) {
 			bitnum ++;
 			value = value >> 1;
 		}
-		vga_wseq(NULL, regset->regnum, regval);
+		vga_wseq(regbase, regset->regnum, regval);
 		regset ++;
 	}
 }
@@ -75,95 +75,95 @@ static unsigned int svga_regset_size(const struct vga_regset *regset)
 
 
 /* Set graphics controller registers to sane values */
-void svga_set_default_gfx_regs(void)
+void svga_set_default_gfx_regs(void __iomem *regbase)
 {
 	/* All standard GFX registers (GR00 - GR08) */
-	vga_wgfx(NULL, VGA_GFX_SR_VALUE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_SR_ENABLE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_COMPARE_VALUE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_DATA_ROTATE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_PLANE_READ, 0x00);
-	vga_wgfx(NULL, VGA_GFX_MODE, 0x00);
-/*	vga_wgfx(NULL, VGA_GFX_MODE, 0x20); */
-/*	vga_wgfx(NULL, VGA_GFX_MODE, 0x40); */
-	vga_wgfx(NULL, VGA_GFX_MISC, 0x05);
-/*	vga_wgfx(NULL, VGA_GFX_MISC, 0x01); */
-	vga_wgfx(NULL, VGA_GFX_COMPARE_MASK, 0x0F);
-	vga_wgfx(NULL, VGA_GFX_BIT_MASK, 0xFF);
+	vga_wgfx(regbase, VGA_GFX_SR_VALUE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_SR_ENABLE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_COMPARE_VALUE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_DATA_ROTATE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_PLANE_READ, 0x00);
+	vga_wgfx(regbase, VGA_GFX_MODE, 0x00);
+/*	vga_wgfx(regbase, VGA_GFX_MODE, 0x20); */
+/*	vga_wgfx(regbase, VGA_GFX_MODE, 0x40); */
+	vga_wgfx(regbase, VGA_GFX_MISC, 0x05);
+/*	vga_wgfx(regbase, VGA_GFX_MISC, 0x01); */
+	vga_wgfx(regbase, VGA_GFX_COMPARE_MASK, 0x0F);
+	vga_wgfx(regbase, VGA_GFX_BIT_MASK, 0xFF);
 }
 
 /* Set attribute controller registers to sane values */
-void svga_set_default_atc_regs(void)
+void svga_set_default_atc_regs(void __iomem *regbase)
 {
 	u8 count;
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x00);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x00);
 
 	/* All standard ATC registers (AR00 - AR14) */
 	for (count = 0; count <= 0xF; count ++)
-		svga_wattr(count, count);
+		svga_wattr(regbase, count, count);
 
-	svga_wattr(VGA_ATC_MODE, 0x01);
-/*	svga_wattr(VGA_ATC_MODE, 0x41); */
-	svga_wattr(VGA_ATC_OVERSCAN, 0x00);
-	svga_wattr(VGA_ATC_PLANE_ENABLE, 0x0F);
-	svga_wattr(VGA_ATC_PEL, 0x00);
-	svga_wattr(VGA_ATC_COLOR_PAGE, 0x00);
+	svga_wattr(regbase, VGA_ATC_MODE, 0x01);
+/*	svga_wattr(regbase, VGA_ATC_MODE, 0x41); */
+	svga_wattr(regbase, VGA_ATC_OVERSCAN, 0x00);
+	svga_wattr(regbase, VGA_ATC_PLANE_ENABLE, 0x0F);
+	svga_wattr(regbase, VGA_ATC_PEL, 0x00);
+	svga_wattr(regbase, VGA_ATC_COLOR_PAGE, 0x00);
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x20);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x20);
 }
 
 /* Set sequencer registers to sane values */
-void svga_set_default_seq_regs(void)
+void svga_set_default_seq_regs(void __iomem *regbase)
 {
 	/* Standard sequencer registers (SR01 - SR04), SR00 is not set */
-	vga_wseq(NULL, VGA_SEQ_CLOCK_MODE, VGA_SR01_CHAR_CLK_8DOTS);
-	vga_wseq(NULL, VGA_SEQ_PLANE_WRITE, VGA_SR02_ALL_PLANES);
-	vga_wseq(NULL, VGA_SEQ_CHARACTER_MAP, 0x00);
-/*	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE | VGA_SR04_CHN_4M); */
-	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE);
+	vga_wseq(regbase, VGA_SEQ_CLOCK_MODE, VGA_SR01_CHAR_CLK_8DOTS);
+	vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, VGA_SR02_ALL_PLANES);
+	vga_wseq(regbase, VGA_SEQ_CHARACTER_MAP, 0x00);
+/*	vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE | VGA_SR04_CHN_4M); */
+	vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE);
 }
 
 /* Set CRTC registers to sane values */
-void svga_set_default_crt_regs(void)
+void svga_set_default_crt_regs(void __iomem *regbase)
 {
 	/* Standard CRT registers CR03 CR08 CR09 CR14 CR17 */
-	svga_wcrt_mask(0x03, 0x80, 0x80);	/* Enable vertical retrace EVRA */
-	vga_wcrt(NULL, VGA_CRTC_PRESET_ROW, 0);
-	svga_wcrt_mask(VGA_CRTC_MAX_SCAN, 0, 0x1F);
-	vga_wcrt(NULL, VGA_CRTC_UNDERLINE, 0);
-	vga_wcrt(NULL, VGA_CRTC_MODE, 0xE3);
+	svga_wcrt_mask(regbase, 0x03, 0x80, 0x80);	/* Enable vertical retrace EVRA */
+	vga_wcrt(regbase, VGA_CRTC_PRESET_ROW, 0);
+	svga_wcrt_mask(regbase, VGA_CRTC_MAX_SCAN, 0, 0x1F);
+	vga_wcrt(regbase, VGA_CRTC_UNDERLINE, 0);
+	vga_wcrt(regbase, VGA_CRTC_MODE, 0xE3);
 }
 
-void svga_set_textmode_vga_regs(void)
+void svga_set_textmode_vga_regs(void __iomem *regbase)
 {
-	/* svga_wseq_mask(0x1, 0x00, 0x01); */   /* Switch 8/9 pixel per char */
-	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE,	VGA_SR04_EXT_MEM);
-	vga_wseq(NULL, VGA_SEQ_PLANE_WRITE,	0x03);
+	/* svga_wseq_mask(regbase, 0x1, 0x00, 0x01); */   /* Switch 8/9 pixel per char */
+	vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM);
+	vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, 0x03);
 
-	vga_wcrt(NULL, VGA_CRTC_MAX_SCAN,	0x0f); /* 0x4f */
-	vga_wcrt(NULL, VGA_CRTC_UNDERLINE,	0x1f);
-	svga_wcrt_mask(VGA_CRTC_MODE,		0x23, 0x7f);
+	vga_wcrt(regbase, VGA_CRTC_MAX_SCAN, 0x0f); /* 0x4f */
+	vga_wcrt(regbase, VGA_CRTC_UNDERLINE, 0x1f);
+	svga_wcrt_mask(regbase, VGA_CRTC_MODE, 0x23, 0x7f);
 
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_START,	0x0d);
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_END,	0x0e);
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_HI,	0x00);
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_LO,	0x00);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_START, 0x0d);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_END, 0x0e);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_HI, 0x00);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_LO, 0x00);
 
-	vga_wgfx(NULL, VGA_GFX_MODE,		0x10); /* Odd/even memory mode */
-	vga_wgfx(NULL, VGA_GFX_MISC,		0x0E); /* Misc graphics register - text mode enable */
-	vga_wgfx(NULL, VGA_GFX_COMPARE_MASK,	0x00);
+	vga_wgfx(regbase, VGA_GFX_MODE, 0x10); /* Odd/even memory mode */
+	vga_wgfx(regbase, VGA_GFX_MISC, 0x0E); /* Misc graphics register - text mode enable */
+	vga_wgfx(regbase, VGA_GFX_COMPARE_MASK, 0x00);
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x00);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x00);
 
-	svga_wattr(0x10, 0x0C);			/* Attribute Mode Control Register - text mode, blinking and line graphics */
-	svga_wattr(0x13, 0x08);			/* Horizontal Pixel Panning Register  */
+	svga_wattr(regbase, 0x10, 0x0C);			/* Attribute Mode Control Register - text mode, blinking and line graphics */
+	svga_wattr(regbase, 0x13, 0x08);			/* Horizontal Pixel Panning Register  */
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x20);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x20);
 }
 
 #if 0
@@ -299,7 +299,7 @@ void svga_tileblit(struct fb_info *info, struct fb_tileblit *blit)
 }
 
 /* Set cursor in text (tileblit) mode */
-void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
+void svga_tilecursor(void __iomem *regbase, struct fb_info *info, struct fb_tilecursor *cursor)
 {
 	u8 cs = 0x0d;
 	u8 ce = 0x0e;
@@ -310,7 +310,7 @@ void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
 	if (! cursor -> mode)
 		return;
 
-	svga_wcrt_mask(0x0A, 0x20, 0x20); /* disable cursor */
+	svga_wcrt_mask(regbase, 0x0A, 0x20, 0x20); /* disable cursor */
 
 	if (cursor -> shape == FB_TILE_CURSOR_NONE)
 		return;
@@ -334,11 +334,11 @@ void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
 	}
 
 	/* set cursor position */
-	vga_wcrt(NULL, 0x0E, pos >> 8);
-	vga_wcrt(NULL, 0x0F, pos & 0xFF);
+	vga_wcrt(regbase, 0x0E, pos >> 8);
+	vga_wcrt(regbase, 0x0F, pos & 0xFF);
 
-	vga_wcrt(NULL, 0x0B, ce); /* set cursor end */
-	vga_wcrt(NULL, 0x0A, cs); /* set cursor start and enable it */
+	vga_wcrt(regbase, 0x0B, ce); /* set cursor end */
+	vga_wcrt(regbase, 0x0A, cs); /* set cursor start and enable it */
 }
 
 int svga_get_tilemax(struct fb_info *info)
@@ -507,8 +507,9 @@ int svga_check_timings(const struct svga_timing_regs *tm, struct fb_var_screenin
 }
 
 /* Set CRT timing registers */
-void svga_set_timings(const struct svga_timing_regs *tm, struct fb_var_screeninfo *var,
-			u32 hmul, u32 hdiv, u32 vmul, u32 vdiv, u32 hborder, int node)
+void svga_set_timings(void __iomem *regbase, const struct svga_timing_regs *tm,
+		      struct fb_var_screeninfo *var,
+		      u32 hmul, u32 hdiv, u32 vmul, u32 vdiv, u32 hborder, int node)
 {
 	u8 regval;
 	u32 value;
@@ -516,66 +517,66 @@ void svga_set_timings(const struct svga_timing_regs *tm, struct fb_var_screeninf
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal total      : %d\n", node, value);
-	svga_wcrt_multi(tm->h_total_regs, (value / 8) - 5);
+	svga_wcrt_multi(regbase, tm->h_total_regs, (value / 8) - 5);
 
 	value = var->xres;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal display    : %d\n", node, value);
-	svga_wcrt_multi(tm->h_display_regs, (value / 8) - 1);
+	svga_wcrt_multi(regbase, tm->h_display_regs, (value / 8) - 1);
 
 	value = var->xres;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal blank start: %d\n", node, value);
-	svga_wcrt_multi(tm->h_blank_start_regs, (value / 8) - 1 + hborder);
+	svga_wcrt_multi(regbase, tm->h_blank_start_regs, (value / 8) - 1 + hborder);
 
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal blank end  : %d\n", node, value);
-	svga_wcrt_multi(tm->h_blank_end_regs, (value / 8) - 1 - hborder);
+	svga_wcrt_multi(regbase, tm->h_blank_end_regs, (value / 8) - 1 - hborder);
 
 	value = var->xres + var->right_margin;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal sync start : %d\n", node, value);
-	svga_wcrt_multi(tm->h_sync_start_regs, (value / 8));
+	svga_wcrt_multi(regbase, tm->h_sync_start_regs, (value / 8));
 
 	value = var->xres + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal sync end   : %d\n", node, value);
-	svga_wcrt_multi(tm->h_sync_end_regs, (value / 8));
+	svga_wcrt_multi(regbase, tm->h_sync_end_regs, (value / 8));
 
 	value = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical total        : %d\n", node, value);
-	svga_wcrt_multi(tm->v_total_regs, value - 2);
+	svga_wcrt_multi(regbase, tm->v_total_regs, value - 2);
 
 	value = var->yres;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical display      : %d\n", node, value);
-	svga_wcrt_multi(tm->v_display_regs, value - 1);
+	svga_wcrt_multi(regbase, tm->v_display_regs, value - 1);
 
 	value = var->yres;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical blank start  : %d\n", node, value);
-	svga_wcrt_multi(tm->v_blank_start_regs, value);
+	svga_wcrt_multi(regbase, tm->v_blank_start_regs, value);
 
 	value = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical blank end    : %d\n", node, value);
-	svga_wcrt_multi(tm->v_blank_end_regs, value - 2);
+	svga_wcrt_multi(regbase, tm->v_blank_end_regs, value - 2);
 
 	value = var->yres + var->lower_margin;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical sync start   : %d\n", node, value);
-	svga_wcrt_multi(tm->v_sync_start_regs, value);
+	svga_wcrt_multi(regbase, tm->v_sync_start_regs, value);
 
 	value = var->yres + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical sync end     : %d\n", node, value);
-	svga_wcrt_multi(tm->v_sync_end_regs, value);
+	svga_wcrt_multi(regbase, tm->v_sync_end_regs, value);
 
 	/* Set horizontal and vertical sync pulse polarity in misc register */
 
-	regval = vga_r(NULL, VGA_MIS_R);
+	regval = vga_r(regbase, VGA_MIS_R);
 	if (var->sync & FB_SYNC_HOR_HIGH_ACT) {
 		pr_debug("fb%d: positive horizontal sync\n", node);
 		regval = regval & ~0x80;
@@ -590,7 +591,7 @@ void svga_set_timings(const struct svga_timing_regs *tm, struct fb_var_screeninf
 		pr_debug("fb%d: negative vertical sync\n\n", node);
 		regval = regval | 0x40;
 	}
-	vga_w(NULL, VGA_MIS_W, regval);
+	vga_w(regbase, VGA_MIS_W, regval);
 }
 
 

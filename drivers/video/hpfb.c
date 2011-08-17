@@ -321,11 +321,11 @@ static int __devinit hpfb_dio_probe(struct dio_dev * d, const struct dio_device_
 	unsigned long paddr, vaddr;
 
 	paddr = d->resource.start;
-	if (!request_mem_region(d->resource.start, d->resource.end - d->resource.start, d->name))
+	if (!request_mem_region(d->resource.start, resource_size(&d->resource), d->name))
                 return -EBUSY;
 
 	if (d->scode >= DIOII_SCBASE) {
-		vaddr = (unsigned long)ioremap(paddr, d->resource.end - d->resource.start);
+		vaddr = (unsigned long)ioremap(paddr, resource_size(&d->resource));
 	} else {
 		vaddr = paddr + DIO_VIRADDRBASE;
 	}
@@ -344,7 +344,7 @@ static void __devexit hpfb_remove_one(struct dio_dev *d)
 	unregister_framebuffer(&fb_info);
 	if (d->scode >= DIOII_SCBASE)
 		iounmap((void *)fb_regs);
-        release_mem_region(d->resource.start, d->resource.end - d->resource.start);
+	release_mem_region(d->resource.start, resource_size(&d->resource));
 }
 
 static struct dio_device_id hpfb_dio_tbl[] = {

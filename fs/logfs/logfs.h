@@ -506,7 +506,7 @@ extern const struct file_operations logfs_reg_fops;
 extern const struct address_space_operations logfs_reg_aops;
 int logfs_readpage(struct file *file, struct page *page);
 long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-int logfs_fsync(struct file *file, int datasync);
+int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 
 /* gc.c */
 u32 get_best_cand(struct super_block *sb, struct candidate_list *list, u32 *ec);

@@ -77,6 +77,15 @@ config USB_GSPCA_JEILINJ
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_jeilinj.
 
+config USB_GSPCA_KINECT
+	tristate "Kinect sensor device USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for the Microsoft Kinect sensor device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_kinect.
+
 config USB_GSPCA_KONICA
 	tristate "Konica USB Camera V4L2 driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
@@ -103,6 +112,15 @@ config USB_GSPCA_MR97310A
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_mr97310a.
+
+config USB_GSPCA_NW80X
+	tristate "Divio based (NW80x) USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the NW80x chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_nw80x.
 
 config USB_GSPCA_OV519
 	tristate "OV51x / OVFX2 / W996xCF USB Camera Driver"
@@ -160,6 +178,16 @@ config USB_GSPCA_PAC7311
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_pac7311.
+
+config USB_GSPCA_SE401
+	tristate "SE401 USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	 Say Y here if you want support for cameras based on the
+	 Endpoints (formerly known as AOX) se401 chip.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called gspca_se401.
 
 config USB_GSPCA_SN9C2028
 	tristate "SONIX Dual-Mode USB Camera Driver"
@@ -345,6 +373,16 @@ config USB_GSPCA_VC032X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_vc032x.
+
+config USB_GSPCA_VICAM
+	tristate "ViCam USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for the 3com homeconnect camera
+	  (vicam).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_vicam.
 
 config USB_GSPCA_XIRLINK_CIT
 	tristate "Xirlink C-It USB Camera Driver"

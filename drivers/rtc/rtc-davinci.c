@@ -231,10 +231,6 @@ davinci_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	case RTC_WIE_OFF:
 		rtc_ctrl &= ~PRTCSS_RTC_CTRL_WEN;
 		break;
-	case RTC_UIE_OFF:
-	case RTC_UIE_ON:
-		ret = -ENOTTY;
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -473,55 +469,6 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	return 0;
 }
 
-static int davinci_rtc_irq_set_state(struct device *dev, int enabled)
-{
-	struct davinci_rtc *davinci_rtc = dev_get_drvdata(dev);
-	unsigned long flags;
-	u8 rtc_ctrl;
-
-	spin_lock_irqsave(&davinci_rtc_lock, flags);
-
-	rtc_ctrl = rtcss_read(davinci_rtc, PRTCSS_RTC_CTRL);
-
-	if (enabled) {
-		while (rtcss_read(davinci_rtc, PRTCSS_RTC_CTRL)
-		       & PRTCSS_RTC_CTRL_WDTBUS)
-			cpu_relax();
-
-		rtc_ctrl |= PRTCSS_RTC_CTRL_TE;
-		rtcss_write(davinci_rtc, rtc_ctrl, PRTCSS_RTC_CTRL);
-
-		rtcss_write(davinci_rtc, 0x0, PRTCSS_RTC_CLKC_CNT);
-
-		rtc_ctrl |= PRTCSS_RTC_CTRL_TIEN |
-			    PRTCSS_RTC_CTRL_TMMD |
-			    PRTCSS_RTC_CTRL_TMRFLG;
-	} else
-		rtc_ctrl &= ~PRTCSS_RTC_CTRL_TIEN;
-
-	rtcss_write(davinci_rtc, rtc_ctrl, PRTCSS_RTC_CTRL);
-
-	spin_unlock_irqrestore(&davinci_rtc_lock, flags);
-
-	return 0;
-}
-
-static int davinci_rtc_irq_set_freq(struct device *dev, int freq)
-{
-	struct davinci_rtc *davinci_rtc = dev_get_drvdata(dev);
-	unsigned long flags;
-	u16 tmr_counter = (0x8000 >> (ffs(freq) - 1));
-
-	spin_lock_irqsave(&davinci_rtc_lock, flags);
-
-	rtcss_write(davinci_rtc, tmr_counter & 0xFF, PRTCSS_RTC_TMR0);
-	rtcss_write(davinci_rtc, (tmr_counter & 0xFF00) >> 8, PRTCSS_RTC_TMR1);
-
-	spin_unlock_irqrestore(&davinci_rtc_lock, flags);
-
-	return 0;
-}
-
 static struct rtc_class_ops davinci_rtc_ops = {
 	.ioctl			= davinci_rtc_ioctl,
 	.read_time		= davinci_rtc_read_time,
@@ -529,8 +476,6 @@ static struct rtc_class_ops davinci_rtc_ops = {
 	.alarm_irq_enable	= davinci_rtc_alarm_irq_enable,
 	.read_alarm		= davinci_rtc_read_alarm,
 	.set_alarm		= davinci_rtc_set_alarm,
-	.irq_set_state		= davinci_rtc_irq_set_state,
-	.irq_set_freq		= davinci_rtc_irq_set_freq,
 };
 
 static int __init davinci_rtc_probe(struct platform_device *pdev)
@@ -579,6 +524,8 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
+	platform_set_drvdata(pdev, davinci_rtc);
+
 	davinci_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				    &davinci_rtc_ops, THIS_MODULE);
 	if (IS_ERR(davinci_rtc->rtc)) {
@@ -608,8 +555,6 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	rtcss_write(davinci_rtc, PRTCSS_RTC_CCTRL_CAEN, PRTCSS_RTC_CCTRL);
 
-	platform_set_drvdata(pdev, davinci_rtc);
-
 	device_init_wakeup(&pdev->dev, 0);
 
 	return 0;
@@ -617,6 +562,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 fail4:
 	rtc_device_unregister(davinci_rtc->rtc);
 fail3:
+	platform_set_drvdata(pdev, NULL);
 	iounmap(davinci_rtc->base);
 fail2:
 	release_mem_region(davinci_rtc->pbase, davinci_rtc->base_size);

@@ -94,6 +94,7 @@ struct ceph_msg {
 	bool more_to_follow;
 	bool needs_out_seq;
 	int front_max;
+	unsigned long ack_stamp;        /* tx: when we were acked */
 
 	struct ceph_msgpool *pool;
 };
@@ -123,6 +124,7 @@ struct ceph_msg_pos {
 #define SOCK_CLOSED	11 /* socket state changed to closed */
 #define OPENING         13 /* open connection w/ (possibly new) peer */
 #define DEAD            14 /* dead, about to kfree */
+#define BACKOFF         15
 
 /*
  * A single connection with another host.
@@ -160,7 +162,6 @@ struct ceph_connection {
 	struct list_head out_queue;
 	struct list_head out_sent;   /* sending or sent but unacked */
 	u64 out_seq;		     /* last message queued for send */
-	bool out_keepalive_pending;
 
 	u64 in_seq, in_seq_acked;  /* last message received, acked */
 

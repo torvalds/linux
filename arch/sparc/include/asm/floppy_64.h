@@ -111,7 +111,7 @@ static unsigned char sun_82077_fd_inb(unsigned long port)
 	case 7: /* FD_DIR */
 		/* XXX: Is DCL on 0x80 in sun4m? */
 		return sbus_readb(&sun_fdc->dir_82077);
-	};
+	}
 	panic("sun_82072_fd_inb: How did I get here?");
 }
 
@@ -135,7 +135,7 @@ static void sun_82077_fd_outb(unsigned char value, unsigned long port)
 	case 4: /* FD_STATUS */
 		sbus_writeb(value, &sun_fdc->status_82077);
 		break;
-	};
+	}
 	return;
 }
 

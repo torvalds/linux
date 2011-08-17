@@ -24,7 +24,7 @@
  * context needs to be associated with the osd write during writeback.
  *
  * Similarly, struct ceph_inode_info maintains a set of counters to
- * count dirty pages on the inode.  In the absense of snapshots,
+ * count dirty pages on the inode.  In the absence of snapshots,
  * i_wrbuffer_ref == i_wrbuffer_ref_head == the dirty page count.
  *
  * When a snapshot is taken (that is, when the client receives
@@ -92,7 +92,7 @@ static int ceph_set_page_dirty(struct page *page)
 		ci->i_head_snapc = ceph_get_snap_context(snapc);
 	++ci->i_wrbuffer_ref_head;
 	if (ci->i_wrbuffer_ref == 0)
-		igrab(inode);
+		ihold(inode);
 	++ci->i_wrbuffer_ref;
 	dout("%p set_page_dirty %p idx %lu head %d/%d -> %d/%d "
 	     "snapc %p seq %lld (%d snaps)\n",
@@ -453,7 +453,7 @@ static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 	int err;
 	struct inode *inode = page->mapping->host;
 	BUG_ON(!inode);
-	igrab(inode);
+	ihold(inode);
 	err = writepage_nounlock(page, wbc);
 	unlock_page(page);
 	iput(inode);
@@ -775,6 +775,13 @@ get_more_pages:
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
 					    &inode->i_mtime, true, 1, 0);
+
+				if (!req) {
+					rc = -ENOMEM;
+					unlock_page(page);
+					break;
+				}
+
 				max_pages = req->r_num_pages;
 
 				alloc_page_vec(fsc, req);
@@ -841,7 +848,8 @@ get_more_pages:
 		op->payload_len = cpu_to_le32(len);
 		req->r_request->hdr.data_len = cpu_to_le32(len);
 
-		ceph_osdc_start_request(&fsc->client->osdc, req, true);
+		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
+		BUG_ON(rc);
 		req = NULL;
 
 		/* continue? */
@@ -873,8 +881,6 @@ release_pvec_pages:
 out:
 	if (req)
 		ceph_osdc_put_request(req);
-	if (rc > 0)
-		rc = 0;  /* vfs expects us to return 0 */
 	ceph_put_snap_context(snapc);
 	dout("writepages done, rc = %d\n", rc);
 	return rc;

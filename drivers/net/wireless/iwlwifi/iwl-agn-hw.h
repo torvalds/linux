@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,13 +80,6 @@
 
 /* RSSI to dBm */
 #define IWLAGN_RSSI_OFFSET	44
-
-/* PCI registers */
-#define PCI_CFG_RETRY_TIMEOUT	0x041
-
-/* PCI register values */
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
 
 #define IWLAGN_DEFAULT_TX_RETRY  15
 

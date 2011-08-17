@@ -374,7 +374,8 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	unsigned long dvpret = dvpe();
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-	notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs), SIGSEGV);
+	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs), SIGSEGV) == NOTIFY_STOP)
+		sig = 0;
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
@@ -382,9 +383,6 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 #ifdef CONFIG_MIPS_MT_SMTC
 	mips_mt_regdump(dvpret);
 #endif /* CONFIG_MIPS_MT_SMTC */
-
-	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs), SIGSEGV) == NOTIFY_STOP)
-		sig = 0;
 
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
@@ -580,12 +578,12 @@ static int simulate_llsc(struct pt_regs *regs, unsigned int opcode)
 {
 	if ((opcode & OPCODE) == LL) {
 		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
-				1, 0, regs, 0);
+				1, regs, 0);
 		return simulate_ll(regs, opcode);
 	}
 	if ((opcode & OPCODE) == SC) {
 		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
-				1, 0, regs, 0);
+				1, regs, 0);
 		return simulate_sc(regs, opcode);
 	}
 
@@ -604,7 +602,7 @@ static int simulate_rdhwr(struct pt_regs *regs, unsigned int opcode)
 		int rd = (opcode & RD) >> 11;
 		int rt = (opcode & RT) >> 16;
 		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
-				1, 0, regs, 0);
+				1, regs, 0);
 		switch (rd) {
 		case 0:		/* CPU number */
 			regs->regs[rt] = smp_processor_id();
@@ -642,7 +640,7 @@ static int simulate_sync(struct pt_regs *regs, unsigned int opcode)
 {
 	if ((opcode & OPCODE) == SPEC0 && (opcode & FUNC) == SYNC) {
 		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
-				1, 0, regs, 0);
+				1, regs, 0);
 		return 0;
 	}
 

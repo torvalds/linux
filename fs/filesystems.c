@@ -110,13 +110,12 @@ int unregister_filesystem(struct file_system_type * fs)
 			*tmp = fs->next;
 			fs->next = NULL;
 			write_unlock(&file_systems_lock);
+			synchronize_rcu();
 			return 0;
 		}
 		tmp = &(*tmp)->next;
 	}
 	write_unlock(&file_systems_lock);
-
-	synchronize_rcu();
 
 	return -EINVAL;
 }

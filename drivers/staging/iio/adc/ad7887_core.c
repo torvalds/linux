@@ -1,18 +1,15 @@
 /*
  * AD7887 SPI ADC driver
  *
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later.
+ * Licensed under the GPL-2.
  */
 
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
@@ -33,108 +30,75 @@ static int ad7887_scan_direct(struct ad7887_state *st, unsigned ch)
 	return (st->data[(ch * 2)] << 8) | st->data[(ch * 2) + 1];
 }
 
-static ssize_t ad7887_scan(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static int ad7887_read_raw(struct iio_dev *dev_info,
+			   struct iio_chan_spec const *chan,
+			   int *val,
+			   int *val2,
+			   long m)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7887_state *st = dev_info->dev_data;
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
+	struct ad7887_state *st = iio_priv(dev_info);
+	unsigned int scale_uv;
 
-	mutex_lock(&dev_info->mlock);
-	if (iio_ring_enabled(dev_info))
-		ret = ad7887_scan_from_ring(st, 1 << this_attr->address);
-	else
-		ret = ad7887_scan_direct(st, this_attr->address);
-	mutex_unlock(&dev_info->mlock);
+	switch (m) {
+	case 0:
+		mutex_lock(&dev_info->mlock);
+		if (iio_ring_enabled(dev_info))
+			ret = ad7887_scan_from_ring(st, 1 << chan->address);
+		else
+			ret = ad7887_scan_direct(st, chan->address);
+		mutex_unlock(&dev_info->mlock);
 
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d\n", (ret >> st->chip_info->left_shift) &
-		       RES_MASK(st->chip_info->bits));
-}
-static IIO_DEV_ATTR_IN_RAW(0, ad7887_scan, 0);
-static IIO_DEV_ATTR_IN_RAW(1, ad7887_scan, 1);
-
-static ssize_t ad7887_show_scale(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	/* Driver currently only support internal vref */
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7887_state *st = iio_dev_get_devdata(dev_info);
-	/* Corresponds to Vref / 2^(bits) */
-	unsigned int scale_uv = (st->int_vref_mv * 1000) >> st->chip_info->bits;
-
-	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
-}
-static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7887_show_scale, NULL, 0);
-
-static ssize_t ad7887_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7887_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7887_show_name, NULL, 0);
-
-static struct attribute *ad7887_attributes[] = {
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_dev_attr_in1_raw.dev_attr.attr,
-	&iio_dev_attr_in_scale.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
-	NULL,
-};
-
-static mode_t ad7887_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7887_state *st = iio_dev_get_devdata(dev_info);
-
-	mode_t mode = attr->mode;
-
-	if ((attr == &iio_dev_attr_in1_raw.dev_attr.attr) && !st->en_dual)
-			mode = 0;
-
-	return mode;
+		if (ret < 0)
+			return ret;
+		*val = (ret >> st->chip_info->channel[0].scan_type.shift) &
+			RES_MASK(st->chip_info->channel[0].scan_type.realbits);
+		return IIO_VAL_INT;
+	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+		scale_uv = (st->int_vref_mv * 1000)
+			>> st->chip_info->channel[0].scan_type.realbits;
+		*val =  scale_uv/1000;
+		*val2 = (scale_uv%1000)*1000;
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+	return -EINVAL;
 }
 
-static const struct attribute_group ad7887_attribute_group = {
-	.attrs = ad7887_attributes,
-	.is_visible = ad7887_attr_is_visible,
-};
 
 static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 	/*
 	 * More devices added in future
 	 */
 	[ID_AD7887] = {
-		.bits = 12,
-		.storagebits = 16,
-		.left_shift = 0,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       1, 1, IIO_ST('u', 12, 16, 0), 0),
+
+		.channel[1] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+
+		.channel[2] = IIO_CHAN_SOFT_TIMESTAMP(2),
 		.int_vref_mv = 2500,
 	},
+};
+
+static const struct iio_info ad7887_info = {
+	.read_raw = &ad7887_read_raw,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit ad7887_probe(struct spi_device *spi)
 {
 	struct ad7887_platform_data *pdata = spi->dev.platform_data;
 	struct ad7887_state *st;
-	int ret, voltage_uv = 0;
+	int ret, voltage_uv = 0, regdone = 0;
+	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (indio_dev == NULL)
+		return -ENOMEM;
+
+	st = iio_priv(indio_dev);
 
 	st->reg = regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
@@ -148,23 +112,14 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 	st->chip_info =
 		&ad7887_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	spi_set_drvdata(spi, st);
-
-	atomic_set(&st->protect_ring, 0);
+	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
-
 	/* Estabilish that the iio_dev is a child of the spi device */
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ad7887_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->info = &ad7887_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default message */
 
@@ -208,8 +163,6 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 		spi_message_init(&st->msg[AD7887_CH1]);
 		spi_message_add_tail(&st->xfer[3], &st->msg[AD7887_CH1]);
 
-		st->en_dual = true;
-
 		if (pdata && pdata->vref_mv)
 			st->int_vref_mv = pdata->vref_mv;
 		else if (voltage_uv)
@@ -217,6 +170,8 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 		else
 			dev_warn(&spi->dev, "reference voltage unspecified\n");
 
+		indio_dev->channels = st->chip_info->channel;
+		indio_dev->num_channels = 3;
 	} else {
 		if (pdata && pdata->vref_mv)
 			st->int_vref_mv = pdata->vref_mv;
@@ -224,50 +179,56 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 			st->int_vref_mv = st->chip_info->int_vref_mv;
 		else
 			dev_warn(&spi->dev, "reference voltage unspecified\n");
+
+		indio_dev->channels = &st->chip_info->channel[1];
+		indio_dev->num_channels = 2;
 	}
 
-
-	ret = ad7887_register_ring_funcs_and_init(st->indio_dev);
+	ret = ad7887_register_ring_funcs_and_init(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
+	regdone = 1;
 
-	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+					  indio_dev->channels,
+					  indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 	return 0;
 
 error_cleanup_ring:
-	ad7887_ring_cleanup(st->indio_dev);
-	iio_device_unregister(st->indio_dev);
-error_free_device:
-	iio_free_device(st->indio_dev);
+	ad7887_ring_cleanup(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	kfree(st);
-error_ret:
+	if (regdone)
+		iio_device_unregister(indio_dev);
+	else
+		iio_free_device(indio_dev);
+
 	return ret;
 }
 
 static int ad7887_remove(struct spi_device *spi)
 {
-	struct ad7887_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad7887_state *st = iio_priv(indio_dev);
+
 	iio_ring_buffer_unregister(indio_dev->ring);
 	ad7887_ring_cleanup(indio_dev);
-	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	kfree(st);
+	iio_device_unregister(indio_dev);
+
 	return 0;
 }
 

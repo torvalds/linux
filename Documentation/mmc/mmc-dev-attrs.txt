@@ -1,3 +1,13 @@
+SD and MMC Block Device Attributes
+==================================
+
+These attributes are defined for the block devices associated with the
+SD or MMC device.
+
+The following attributes are read/write.
+
+	force_ro		Enforce read-only access even if write protect switch is off.
+
 SD and MMC Device Attributes
 ============================
 

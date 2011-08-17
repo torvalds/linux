@@ -44,7 +44,7 @@
    this for the 64K version would require a lot of heinous bank
    switching, which I'm sure not interested in doing.  If you try to
    implement a bank switching version, you'll basically have to remember
-   what bank is enabled and do a switch everytime you access a memory
+   what bank is enabled and do a switch every time you access a memory
    location that's not current.  You'll also have to remap pointers on
    the driver side, because it only knows about 16K of the memory.
    Anyone desperate or masochistic enough to try?

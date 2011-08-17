@@ -355,7 +355,12 @@ struct cpu_vfs_cap_data {
 
 #define CAP_SYSLOG           34
 
-#define CAP_LAST_CAP         CAP_SYSLOG
+/* Allow triggering something that will wake the system */
+
+#define CAP_WAKE_ALARM            35
+
+
+#define CAP_LAST_CAP         CAP_WAKE_ALARM
 
 #define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
 
@@ -367,6 +372,15 @@ struct cpu_vfs_cap_data {
 #define CAP_TO_MASK(x)      (1 << ((x) & 31)) /* mask for indexed __u32 */
 
 #ifdef __KERNEL__
+
+struct dentry;
+struct user_namespace;
+
+struct user_namespace *current_user_ns(void);
+
+extern const kernel_cap_t __cap_empty_set;
+extern const kernel_cap_t __cap_full_set;
+extern const kernel_cap_t __cap_init_eff_set;
 
 /*
  * Internal kernel functions only
@@ -403,7 +417,6 @@ struct cpu_vfs_cap_data {
 
 # define CAP_EMPTY_SET    ((kernel_cap_t){{ 0, 0 }})
 # define CAP_FULL_SET     ((kernel_cap_t){{ ~0, ~0 }})
-# define CAP_INIT_EFF_SET ((kernel_cap_t){{ ~CAP_TO_MASK(CAP_SETPCAP), ~0 }})
 # define CAP_FS_SET       ((kernel_cap_t){{ CAP_FS_MASK_B0 \
 				    | CAP_TO_MASK(CAP_LINUX_IMMUTABLE), \
 				    CAP_FS_MASK_B1 } })
@@ -413,11 +426,7 @@ struct cpu_vfs_cap_data {
 
 #endif /* _KERNEL_CAPABILITY_U32S != 2 */
 
-#define CAP_INIT_INH_SET    CAP_EMPTY_SET
-
 # define cap_clear(c)         do { (c) = __cap_empty_set; } while (0)
-# define cap_set_full(c)      do { (c) = __cap_full_set; } while (0)
-# define cap_set_init_eff(c)  do { (c) = __cap_init_eff_set; } while (0)
 
 #define cap_raise(c, flag)  ((c).cap[CAP_TO_INDEX(flag)] |= CAP_TO_MASK(flag))
 #define cap_lower(c, flag)  ((c).cap[CAP_TO_INDEX(flag)] &= ~CAP_TO_MASK(flag))
@@ -530,40 +539,16 @@ static inline kernel_cap_t cap_raise_nfsd_set(const kernel_cap_t a,
 			   cap_intersect(permitted, __cap_nfsd_set));
 }
 
-extern const kernel_cap_t __cap_empty_set;
-extern const kernel_cap_t __cap_full_set;
-extern const kernel_cap_t __cap_init_eff_set;
-
-/**
- * has_capability - Determine if a task has a superior capability available
- * @t: The task in question
- * @cap: The capability to be tested for
- *
- * Return true if the specified task has the given superior capability
- * currently in effect, false if not.
- *
- * Note that this does not set PF_SUPERPRIV on the task.
- */
-#define has_capability(t, cap) (security_real_capable((t), (cap)) == 0)
-
-/**
- * has_capability_noaudit - Determine if a task has a superior capability available (unaudited)
- * @t: The task in question
- * @cap: The capability to be tested for
- *
- * Return true if the specified task has the given superior capability
- * currently in effect, false if not, but don't write an audit message for the
- * check.
- *
- * Note that this does not set PF_SUPERPRIV on the task.
- */
-#define has_capability_noaudit(t, cap) \
-	(security_real_capable_noaudit((t), (cap)) == 0)
-
-extern int capable(int cap);
+extern bool has_capability(struct task_struct *t, int cap);
+extern bool has_ns_capability(struct task_struct *t,
+			      struct user_namespace *ns, int cap);
+extern bool has_capability_noaudit(struct task_struct *t, int cap);
+extern bool capable(int cap);
+extern bool ns_capable(struct user_namespace *ns, int cap);
+extern bool task_ns_capable(struct task_struct *t, int cap);
+extern bool nsown_capable(int cap);
 
 /* audit system wants to get cap info from files as well */
-struct dentry;
 extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
 
 #endif /* __KERNEL__ */

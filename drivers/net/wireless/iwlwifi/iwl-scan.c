@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -36,6 +36,8 @@
 #include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
+#include "iwl-agn.h"
+#include "iwl-trans.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses
@@ -60,7 +62,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
-		.flags = CMD_WANT_SKB,
+		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
 
 	/* Exit instantly with error when device is not ready
@@ -73,7 +75,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EIO;
 
-	ret = iwl_send_cmd_sync(priv, &cmd);
+	ret = trans_send_cmd(&priv->trans, &cmd);
 	if (ret)
 		return ret;
 
@@ -101,7 +103,7 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 		ieee80211_scan_completed(priv->hw, aborted);
 	}
 
-	priv->is_internal_short_scan = false;
+	priv->scan_type = IWL_SCAN_NORMAL;
 	priv->scan_vif = NULL;
 	priv->scan_request = NULL;
 }
@@ -143,7 +145,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 		IWL_DEBUG_SCAN(priv, "Send scan abort failed %d\n", ret);
 		iwl_force_scan_end(priv);
 	} else
-		IWL_DEBUG_SCAN(priv, "Sucessfully send scan abort\n");
+		IWL_DEBUG_SCAN(priv, "Successfully send scan abort\n");
 }
 
 /**
@@ -155,7 +157,6 @@ int iwl_scan_cancel(struct iwl_priv *priv)
 	queue_work(priv->workqueue, &priv->abort_scan);
 	return 0;
 }
-EXPORT_SYMBOL(iwl_scan_cancel);
 
 /**
  * iwl_scan_cancel_timeout - Cancel any currently executing HW scan
@@ -180,7 +181,6 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 
 	return test_bit(STATUS_SCAN_HW, &priv->status);
 }
-EXPORT_SYMBOL(iwl_scan_cancel_timeout);
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
@@ -257,8 +257,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	queue_work(priv->workqueue, &priv->scan_completed);
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
-	    priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    iwl_advanced_bt_coexist(priv) &&
 	    priv->bt_status != scan_notif->bt_status) {
 		if (scan_notif->bt_status) {
 			/* BT on */
@@ -289,7 +288,6 @@ void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[SCAN_COMPLETE_NOTIFICATION] =
 					iwl_rx_scan_complete_notif;
 }
-EXPORT_SYMBOL(iwl_setup_rx_scan_handlers);
 
 inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 				     enum ieee80211_band band,
@@ -302,7 +300,6 @@ inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 		return IWL_ACTIVE_DWELL_TIME_24 +
 			IWL_ACTIVE_DWELL_FACTOR_24GHZ * (n_probes + 1);
 }
-EXPORT_SYMBOL(iwl_get_active_dwell_time);
 
 u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 			       enum ieee80211_band band,
@@ -334,7 +331,6 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 
 	return passive;
 }
-EXPORT_SYMBOL(iwl_get_passive_dwell_time);
 
 void iwl_init_scan_params(struct iwl_priv *priv)
 {
@@ -344,19 +340,15 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])
 		priv->scan_tx_ant[IEEE80211_BAND_2GHZ] = ant_idx;
 }
-EXPORT_SYMBOL(iwl_init_scan_params);
 
-static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
-					  struct ieee80211_vif *vif,
-					  bool internal,
-					  enum ieee80211_band band)
+int __must_check iwl_scan_initiate(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif,
+				   enum iwl_scan_type scan_type,
+				   enum ieee80211_band band)
 {
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
-
-	if (WARN_ON(!priv->cfg->ops->utils->request_scan))
-		return -EOPNOTSUPP;
 
 	cancel_delayed_work(&priv->scan_check);
 
@@ -377,17 +369,19 @@ static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	}
 
 	IWL_DEBUG_SCAN(priv, "Starting %sscan...\n",
-			internal ? "internal short " : "");
+			scan_type == IWL_SCAN_NORMAL ? "" :
+			scan_type == IWL_SCAN_OFFCH_TX ? "offchan TX " :
+			"internal short ");
 
 	set_bit(STATUS_SCANNING, &priv->status);
-	priv->is_internal_short_scan = internal;
+	priv->scan_type = scan_type;
 	priv->scan_start = jiffies;
 	priv->scan_band = band;
 
-	ret = priv->cfg->ops->utils->request_scan(priv, vif);
+	ret = iwlagn_request_scan(priv, vif);
 	if (ret) {
 		clear_bit(STATUS_SCANNING, &priv->status);
-		priv->is_internal_short_scan = false;
+		priv->scan_type = IWL_SCAN_NORMAL;
 		return ret;
 	}
 
@@ -412,7 +406,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (test_bit(STATUS_SCANNING, &priv->status) &&
-	    !priv->is_internal_short_scan) {
+	    priv->scan_type != IWL_SCAN_NORMAL) {
 		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
 		ret = -EAGAIN;
 		goto out_unlock;
@@ -426,11 +420,11 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	 * If an internal scan is in progress, just set
 	 * up the scan_request as per above.
 	 */
-	if (priv->is_internal_short_scan) {
+	if (priv->scan_type != IWL_SCAN_NORMAL) {
 		IWL_DEBUG_SCAN(priv, "SCAN request during internal scan\n");
 		ret = 0;
 	} else
-		ret = iwl_scan_initiate(priv, vif, false,
+		ret = iwl_scan_initiate(priv, vif, IWL_SCAN_NORMAL,
 					req->channels[0]->band);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -440,7 +434,6 @@ out_unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_mac_hw_scan);
 
 /*
  * internal short scan, this function should only been called while associated.
@@ -460,7 +453,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->is_internal_short_scan == true) {
+	if (priv->scan_type == IWL_SCAN_RADIO_RESET) {
 		IWL_DEBUG_SCAN(priv, "Internal scan already in progress\n");
 		goto unlock;
 	}
@@ -470,7 +463,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 		goto unlock;
 	}
 
-	if (iwl_scan_initiate(priv, NULL, true, priv->band))
+	if (iwl_scan_initiate(priv, NULL, IWL_SCAN_RADIO_RESET, priv->band))
 		IWL_DEBUG_SCAN(priv, "failed to start internal short scan\n");
  unlock:
 	mutex_unlock(&priv->mutex);
@@ -537,7 +530,6 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 
 	return (u16)len;
 }
-EXPORT_SYMBOL(iwl_fill_probe_req);
 
 static void iwl_bg_abort_scan(struct work_struct *work)
 {
@@ -558,8 +550,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	    container_of(work, struct iwl_priv, scan_completed);
 	bool aborted;
 
-	IWL_DEBUG_SCAN(priv, "Completed %sscan.\n",
-		       priv->is_internal_short_scan ? "internal short " : "");
+	IWL_DEBUG_SCAN(priv, "Completed scan.\n");
 
 	cancel_delayed_work(&priv->scan_check);
 
@@ -574,7 +565,13 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 		goto out_settings;
 	}
 
-	if (priv->is_internal_short_scan && !aborted) {
+	if (priv->scan_type == IWL_SCAN_OFFCH_TX && priv->offchan_tx_skb) {
+		ieee80211_tx_status_irqsafe(priv->hw,
+					    priv->offchan_tx_skb);
+		priv->offchan_tx_skb = NULL;
+	}
+
+	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {
 		int err;
 
 		/* Check if mac80211 requested scan during our internal scan */
@@ -582,7 +579,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 			goto out_complete;
 
 		/* If so request a new scan */
-		err = iwl_scan_initiate(priv, priv->scan_vif, false,
+		err = iwl_scan_initiate(priv, priv->scan_vif, IWL_SCAN_NORMAL,
 					priv->scan_request->channels[0]->band);
 		if (err) {
 			IWL_DEBUG_SCAN(priv,
@@ -602,14 +599,7 @@ out_settings:
 	if (!iwl_is_ready_rf(priv))
 		goto out;
 
-	/*
-	 * We do not commit power settings while scan is pending,
-	 * do it now if the settings changed.
-	 */
-	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
-	iwl_set_tx_power(priv, priv->tx_power_next, false);
-
-	priv->cfg->ops->utils->post_scan(priv);
+	iwlagn_post_scan(priv);
 
 out:
 	mutex_unlock(&priv->mutex);
@@ -622,7 +612,6 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->start_internal_scan, iwl_bg_start_internal_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
 }
-EXPORT_SYMBOL(iwl_setup_scan_deferred_work);
 
 void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 {
@@ -636,4 +625,3 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 		mutex_unlock(&priv->mutex);
 	}
 }
-EXPORT_SYMBOL(iwl_cancel_scan_deferred_work);

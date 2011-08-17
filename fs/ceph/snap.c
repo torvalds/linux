@@ -206,7 +206,7 @@ void ceph_put_snap_realm(struct ceph_mds_client *mdsc,
 		up_write(&mdsc->snap_rwsem);
 	} else {
 		spin_lock(&mdsc->snap_empty_lock);
-		list_add(&mdsc->snap_empty, &realm->empty_item);
+		list_add(&realm->empty_item, &mdsc->snap_empty);
 		spin_unlock(&mdsc->snap_empty_lock);
 	}
 }
@@ -342,7 +342,7 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	num = 0;
 	snapc->seq = realm->seq;
 	if (parent) {
-		/* include any of parent's snaps occuring _after_ my
+		/* include any of parent's snaps occurring _after_ my
 		   parent became my parent */
 		for (i = 0; i < parent->cached_context->num_snaps; i++)
 			if (parent->cached_context->snaps[i] >=
@@ -449,6 +449,15 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	spin_lock(&inode->i_lock);
 	used = __ceph_caps_used(ci);
 	dirty = __ceph_caps_dirty(ci);
+
+	/*
+	 * If there is a write in progress, treat that as a dirty Fw,
+	 * even though it hasn't completed yet; by the time we finish
+	 * up this capsnap it will be.
+	 */
+	if (used & CEPH_CAP_FILE_WR)
+		dirty |= CEPH_CAP_FILE_WR;
+
 	if (__ceph_have_pending_cap_snap(ci)) {
 		/* there is no point in queuing multiple "pending" cap_snaps,
 		   as no new writes are allowed to start when pending, so any
@@ -456,15 +465,21 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
-	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR) ||
-		   (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
-			     CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
+	} else if (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
+			    CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR)) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
 
-		dout("queue_cap_snap %p cap_snap %p queuing under %p\n", inode,
-		     capsnap, snapc);
-		igrab(inode);
-		
+		/*
+		 * if we are a sync write, we may need to go to the snaprealm
+		 * to get the current snapc.
+		 */
+		if (!snapc)
+			snapc = ci->i_snap_realm->cached_context;
+
+		dout("queue_cap_snap %p cap_snap %p queuing under %p %s\n",
+		     inode, capsnap, snapc, ceph_cap_string(dirty));
+		ihold(inode);
+
 		atomic_set(&capsnap->nref, 1);
 		capsnap->ci = ci;
 		INIT_LIST_HEAD(&capsnap->ci_item);
@@ -722,7 +737,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		ci = list_first_entry(&mdsc->snap_flush_list,
 				struct ceph_inode_info, i_snap_flush_item);
 		inode = &ci->vfs_inode;
-		igrab(inode);
+		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
 		spin_lock(&inode->i_lock);
 		__ceph_flush_snaps(ci, &session, 0);

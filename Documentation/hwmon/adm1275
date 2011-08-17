@@ -1,0 +1,64 @@
+Kernel driver adm1275
+=====================
+
+Supported chips:
+  * Analog Devices ADM1275
+    Prefix: 'adm1275'
+    Addresses scanned: -
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1275.pdf
+
+Author: Guenter Roeck <guenter.roeck@ericsson.com>
+
+
+Description
+-----------
+
+This driver supports hardware montoring for Analog Devices ADM1275 Hot-Swap
+Controller and Digital Power Monitor.
+
+The ADM1275 is a hot-swap controller that allows a circuit board to be removed
+from or inserted into a live backplane. It also features current and voltage
+readback via an integrated 12-bit analog-to-digital converter (ADC), accessed
+using a PMBus. interface.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices for
+details.
+
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data. Please see
+Documentation/hwmon/pmbus for details.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported. Limits are read-write, history reset
+attributes are write-only, all other attributes are read-only.
+
+in1_label		"vin1" or "vout1" depending on chip variant and
+			configuration.
+in1_input		Measured voltage. From READ_VOUT register.
+in1_min			Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
+in1_max			Maximum voltage. From VOUT_OV_WARN_LIMIT register.
+in1_min_alarm		Voltage low alarm. From VOLTAGE_UV_WARNING status.
+in1_max_alarm		Voltage high alarm. From VOLTAGE_OV_WARNING status.
+in1_highest		Historical maximum voltage.
+in1_reset_history	Write any value to reset history.
+
+curr1_label		"iout1"
+curr1_input		Measured current. From READ_IOUT register.
+curr1_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
+curr1_max_alarm		Current high alarm. From IOUT_OC_WARN_LIMIT register.
+curr1_highest		Historical maximum current.
+curr1_reset_history	Write any value to reset history.

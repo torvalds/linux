@@ -274,7 +274,7 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	 * edge detector.
 	 */
 	irq = gpio_to_irq(GPIO_CDA);
-	set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
 	ret = request_irq(irq, cdirq, 0, "pcmcia_carddetect", sock);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot setup cd irq\n");

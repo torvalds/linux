@@ -40,10 +40,12 @@ enum rc_driver_type {
  * @driver_name: name of the hardware driver which registered this device
  * @map_name: name of the default keymap
  * @rc_map: current scan/key table
+ * @lock: used to ensure we've filled in all protocol details before
+ *	anyone can call show_protocols or store_protocols
  * @devno: unique remote control device number
  * @raw: additional data for raw pulse/space devices
  * @input_dev: the input child device used to communicate events to userspace
- * @driver_type: specifies if protocol decoding is done in hardware or software 
+ * @driver_type: specifies if protocol decoding is done in hardware or software
  * @idle: used to keep track of RX state
  * @allowed_protos: bitmask with the supported RC_TYPE_* protocols
  * @scanmask: some hardware decoders are not capable of providing the full
@@ -86,7 +88,8 @@ struct rc_dev {
 	struct input_id			input_id;
 	char				*driver_name;
 	const char			*map_name;
-	struct rc_map	rc_map;
+	struct rc_map			rc_map;
+	struct mutex			lock;
 	unsigned long			devno;
 	struct ir_raw_event_ctrl	*raw;
 	struct input_dev		*input_dev;
@@ -114,7 +117,7 @@ struct rc_dev {
 	int				(*s_tx_carrier)(struct rc_dev *dev, u32 carrier);
 	int				(*s_tx_duty_cycle)(struct rc_dev *dev, u32 duty_cycle);
 	int				(*s_rx_carrier_range)(struct rc_dev *dev, u32 min, u32 max);
-	int				(*tx_ir)(struct rc_dev *dev, int *txbuf, u32 n);
+	int				(*tx_ir)(struct rc_dev *dev, unsigned *txbuf, unsigned n);
 	void				(*s_idle)(struct rc_dev *dev, bool enable);
 	int				(*s_learning_mode)(struct rc_dev *dev, int enable);
 	int				(*s_carrier_report) (struct rc_dev *dev, int enable);

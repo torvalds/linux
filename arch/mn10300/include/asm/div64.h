@@ -16,6 +16,19 @@
 extern void ____unhandled_size_in_do_div___(void);
 
 /*
+ * Beginning with gcc 4.6, the MDR register is represented explicitly.  We
+ * must, therefore, at least explicitly clobber the register when we make
+ * changes to it.  The following assembly fragments *could* be rearranged in
+ * order to leave the moves to/from the MDR register to the compiler, but the
+ * gains would be minimal at best.
+ */
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+# define CLOBBER_MDR_CC		"mdr", "cc"
+#else
+# define CLOBBER_MDR_CC		"cc"
+#endif
+
+/*
  * divide n by base, leaving the result in n and returning the remainder
  * - we can do this quite efficiently on the MN10300 by cascading the divides
  *   through the MDR register
@@ -29,7 +42,7 @@ extern void ____unhandled_size_in_do_div___(void);
 		    "mov	mdr,%1	\n"				\
 		    : "+r"(n), "=d"(__rem)				\
 		    : "r"(base), "1"(__rem)				\
-		    : "cc"						\
+		    : CLOBBER_MDR_CC					\
 		    );							\
 	} else if (sizeof(n) <= 8) {					\
 		union {							\
@@ -48,7 +61,7 @@ extern void ____unhandled_size_in_do_div___(void);
 		    : "=d"(__rem), "=r"(__quot.w[1]), "=r"(__quot.w[0])	\
 		    : "r"(base), "0"(__rem), "1"(__quot.w[1]),		\
 		      "2"(__quot.w[0])					\
-		    : "cc"						\
+		    : CLOBBER_MDR_CC					\
 		    );							\
 		n = __quot.l;						\
 	} else {							\
@@ -72,7 +85,7 @@ unsigned __muldiv64u(unsigned val, unsigned mult, unsigned div)
 					 * MDR = MDR:val%div */
 	    : "=r"(result)
 	    : "0"(val), "ir"(mult), "r"(div)
-	    : "cc"
+	    : CLOBBER_MDR_CC
 	    );
 
 	return result;
@@ -93,7 +106,7 @@ signed __muldiv64s(signed val, signed mult, signed div)
 					 * MDR = MDR:val%div */
 	    : "=r"(result)
 	    : "0"(val), "ir"(mult), "r"(div)
-	    : "cc"
+	    : CLOBBER_MDR_CC
 	    );
 
 	return result;

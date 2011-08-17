@@ -126,6 +126,12 @@ u8 ACPI_INIT_GLOBAL(acpi_gbl_copy_dsdt_locally, FALSE);
  */
 u8 ACPI_INIT_GLOBAL(acpi_gbl_truncate_io_addresses, FALSE);
 
+/*
+ * Disable runtime checking and repair of values returned by control methods.
+ * Use only if the repair is causing a problem on a particular machine.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_disable_auto_repair, FALSE);
+
 /* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
 
 struct acpi_table_fadt acpi_gbl_FADT;
@@ -214,24 +220,23 @@ ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 
 /*
  * Global lock mutex is an actual AML mutex object
- * Global lock semaphore works in conjunction with the HW global lock
+ * Global lock semaphore works in conjunction with the actual global lock
+ * Global lock spinlock is used for "pending" handshake
  */
 ACPI_EXTERN union acpi_operand_object *acpi_gbl_global_lock_mutex;
 ACPI_EXTERN acpi_semaphore acpi_gbl_global_lock_semaphore;
+ACPI_EXTERN acpi_spinlock acpi_gbl_global_lock_pending_lock;
 ACPI_EXTERN u16 acpi_gbl_global_lock_handle;
 ACPI_EXTERN u8 acpi_gbl_global_lock_acquired;
 ACPI_EXTERN u8 acpi_gbl_global_lock_present;
+ACPI_EXTERN u8 acpi_gbl_global_lock_pending;
 
 /*
  * Spinlocks are used for interfaces that can be possibly called at
  * interrupt level
  */
-ACPI_EXTERN spinlock_t _acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
-ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
-ACPI_EXTERN spinlock_t _acpi_ev_global_lock_pending_lock; /* For global lock */
-#define acpi_gbl_gpe_lock	&_acpi_gbl_gpe_lock
-#define acpi_gbl_hardware_lock	&_acpi_gbl_hardware_lock
-#define acpi_ev_global_lock_pending_lock &_acpi_ev_global_lock_pending_lock
+ACPI_EXTERN acpi_spinlock acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
+ACPI_EXTERN acpi_spinlock acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
 
 /*****************************************************************************
  *
@@ -272,6 +277,10 @@ ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
 ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
 ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
 ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
+
+/* Initialization sequencing */
+
+ACPI_EXTERN u8 acpi_gbl_reg_methods_executed;
 
 /* Misc */
 

@@ -3,22 +3,29 @@ menu "OMAP2/3 Display Device Drivers"
 
 config PANEL_GENERIC_DPI
         tristate "Generic DPI Panel"
+	depends on OMAP2_DSS_DPI
         help
 	  Generic DPI panel driver.
 	  Supports DVI output for Beagle and OMAP3 SDP.
 	  Supports LCD Panel used in TI SDP3430 and EVM boards,
 	  OMAP3517 EVM boards and CM-T35.
 
+config PANEL_LGPHILIPS_LB035Q02
+	tristate "LG.Philips LB035Q02 LCD Panel"
+	depends on OMAP2_DSS_DPI && SPI
+	help
+	  LCD Panel used on the Gumstix Overo Palo35
+
 config PANEL_SHARP_LS037V7DW01
         tristate "Sharp LS037V7DW01 LCD Panel"
-        depends on OMAP2_DSS
+        depends on OMAP2_DSS_DPI
         select BACKLIGHT_CLASS_DEVICE
         help
           LCD Panel used in TI's SDP3430 and EVM boards
 
 config PANEL_NEC_NL8048HL11_01B
 	tristate "NEC NL8048HL11-01B Panel"
-	depends on OMAP2_DSS
+	depends on OMAP2_DSS_DPI
 	help
 		This NEC NL8048HL11-01B panel is TFT LCD
 		used in the Zoom2/3/3630 sdp boards.
@@ -31,7 +38,7 @@ config PANEL_TAAL
 
 config PANEL_TPO_TD043MTEA1
         tristate "TPO TD043MTEA1 LCD Panel"
-        depends on OMAP2_DSS && SPI
+        depends on OMAP2_DSS_DPI && SPI
         help
           LCD Panel used in OMAP3 Pandora
 

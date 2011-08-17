@@ -346,8 +346,7 @@ static int __devinit cg3_do_default_mode(struct cg3_par *par)
 	return 0;
 }
 
-static int __devinit cg3_probe(struct platform_device *op,
-			       const struct of_device_id *match)
+static int __devinit cg3_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -462,7 +461,7 @@ static const struct of_device_id cg3_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cg3_match);
 
-static struct of_platform_driver cg3_driver = {
+static struct platform_driver cg3_driver = {
 	.driver = {
 		.name = "cg3",
 		.owner = THIS_MODULE,
@@ -477,12 +476,12 @@ static int __init cg3_init(void)
 	if (fb_get_options("cg3fb", NULL))
 		return -ENODEV;
 
-	return of_register_platform_driver(&cg3_driver);
+	return platform_driver_register(&cg3_driver);
 }
 
 static void __exit cg3_exit(void)
 {
-	of_unregister_platform_driver(&cg3_driver);
+	platform_driver_unregister(&cg3_driver);
 }
 
 module_init(cg3_init);

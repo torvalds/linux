@@ -62,6 +62,9 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 	} else
 		obj = -1;
 
+	if (obj != -1)
+		--bitmap->avail;
+
 	spin_unlock(&bitmap->lock);
 
 	return obj;
@@ -101,9 +104,17 @@ u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 	} else
 		obj = -1;
 
+	if (obj != -1)
+		bitmap->avail -= cnt;
+
 	spin_unlock(&bitmap->lock);
 
 	return obj;
+}
+
+u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap)
+{
+	return bitmap->avail;
 }
 
 void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
@@ -115,6 +126,7 @@ void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
 	bitmap->last = min(bitmap->last, obj);
 	bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
 			& bitmap->mask;
+	bitmap->avail += cnt;
 	spin_unlock(&bitmap->lock);
 }
 
@@ -130,6 +142,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 	bitmap->max  = num - reserved_top;
 	bitmap->mask = mask;
 	bitmap->reserved_top = reserved_top;
+	bitmap->avail = num - reserved_top - reserved_bot;
 	spin_lock_init(&bitmap->lock);
 	bitmap->table = kzalloc(BITS_TO_LONGS(bitmap->max) *
 				sizeof (long), GFP_KERNEL);

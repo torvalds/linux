@@ -25,6 +25,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/ip.h>
 #include <linux/filter.h>
 #ifdef __KERNEL__
 #include <linux/in.h>
@@ -57,6 +58,12 @@
 #define OFF_PROTO4	23
 #define OFF_NEXT	6
 #define OFF_UDP_DST	2
+
+#define OFF_PTP_SOURCE_UUID	22 /* PTPv1 only */
+#define OFF_PTP_SEQUENCE_ID	30
+#define OFF_PTP_CONTROL		32 /* PTPv1 only */
+
+#define IPV4_HLEN(data) (((struct iphdr *)(data + OFF_IHL))->ihl << 2)
 
 #define IP6_HLEN	40
 #define UDP_HLEN	8

@@ -397,8 +397,7 @@ static inline void free_req(struct blizzard_request *req)
 
 	spin_lock_irqsave(&blizzard.req_lock, flags);
 
-	list_del(&req->entry);
-	list_add(&req->entry, &blizzard.free_req_list);
+	list_move(&req->entry, &blizzard.free_req_list);
 	if (!(req->flags & REQ_FROM_IRQ_POOL))
 		up(&blizzard.req_sema);
 

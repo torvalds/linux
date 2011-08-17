@@ -33,7 +33,7 @@
 #include <linux/ftrace.h>
 
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/current.h>
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
@@ -155,10 +155,7 @@ ipi_interrupt(int irq, void *dev_id)
 				
 			case IPI_RESCHEDULE:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
-				/*
-				 * Reschedule callback.  Everything to be
-				 * done is done by the interrupt return path.
-				 */
+				scheduler_ipi();
 				break;
 
 			case IPI_CALL_FUNC:

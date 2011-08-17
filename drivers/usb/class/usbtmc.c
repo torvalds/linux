@@ -268,7 +268,7 @@ usbtmc_abort_bulk_in_status:
 				dev_err(dev, "usb_bulk_msg returned %d\n", rv);
 				goto exit;
 			}
-		} while ((actual = max_size) &&
+		} while ((actual == max_size) &&
 			 (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
 
 	if (actual == max_size) {
@@ -483,7 +483,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		}
 
 		done += n_characters;
-		/* Terminate if end-of-message bit recieved from device */
+		/* Terminate if end-of-message bit received from device */
 		if ((buffer[8] &  0x01) && (actual >= n_characters + 12))
 			remaining = 0;
 		else

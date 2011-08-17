@@ -251,9 +251,9 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 {
 	WARN_ON(strcmp((*entry)->name, elem->name) != 0);
 
-	if (elem->regfunc && !elem->state && active)
+	if (elem->regfunc && !jump_label_enabled(&elem->key) && active)
 		elem->regfunc();
-	else if (elem->unregfunc && elem->state && !active)
+	else if (elem->unregfunc && jump_label_enabled(&elem->key) && !active)
 		elem->unregfunc();
 
 	/*
@@ -264,13 +264,10 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 	 * is used.
 	 */
 	rcu_assign_pointer(elem->funcs, (*entry)->funcs);
-	if (!elem->state && active) {
-		jump_label_enable(&elem->state);
-		elem->state = active;
-	} else if (elem->state && !active) {
-		jump_label_disable(&elem->state);
-		elem->state = active;
-	}
+	if (active && !jump_label_enabled(&elem->key))
+		jump_label_inc(&elem->key);
+	else if (!active && jump_label_enabled(&elem->key))
+		jump_label_dec(&elem->key);
 }
 
 /*
@@ -281,13 +278,11 @@ static void set_tracepoint(struct tracepoint_entry **entry,
  */
 static void disable_tracepoint(struct tracepoint *elem)
 {
-	if (elem->unregfunc && elem->state)
+	if (elem->unregfunc && jump_label_enabled(&elem->key))
 		elem->unregfunc();
 
-	if (elem->state) {
-		jump_label_disable(&elem->state);
-		elem->state = 0;
-	}
+	if (jump_label_enabled(&elem->key))
+		jump_label_dec(&elem->key);
 	rcu_assign_pointer(elem->funcs, NULL);
 }
 

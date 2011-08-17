@@ -30,6 +30,7 @@ struct pxa3xx_nand_cmdset {
 };
 
 struct pxa3xx_nand_flash {
+	char		*name;
 	uint32_t	chip_id;
 	unsigned int	page_per_block; /* Pages per block (PG_PER_BLK) */
 	unsigned int	page_size;	/* Page size in bytes (PAGE_SZ) */
@@ -37,7 +38,6 @@ struct pxa3xx_nand_flash {
 	unsigned int	dfc_width;	/* Width of flash controller(DWIDTH_C) */
 	unsigned int	num_blocks;	/* Number of physical blocks in Flash */
 
-	struct pxa3xx_nand_cmdset *cmdset;	/* NAND command set */
 	struct pxa3xx_nand_timing *timing;	/* NAND Flash timing */
 };
 

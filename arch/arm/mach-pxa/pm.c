@@ -42,7 +42,6 @@ int pxa_pm_enter(suspend_state_t state)
 
 	/* *** go zzz *** */
 	pxa_cpu_pm_fns->enter(state);
-	cpu_init();
 
 	if (state != PM_SUSPEND_STANDBY && pxa_cpu_pm_fns->restore) {
 		/* after sleeping, validate the checksum */
@@ -66,11 +65,6 @@ int pxa_pm_enter(suspend_state_t state)
 }
 
 EXPORT_SYMBOL_GPL(pxa_pm_enter);
-
-unsigned long sleep_phys_sp(void *sp)
-{
-	return virt_to_phys(sp);
-}
 
 static int pxa_pm_valid(suspend_state_t state)
 {

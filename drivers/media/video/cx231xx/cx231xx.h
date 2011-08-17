@@ -43,7 +43,7 @@
 #include "cx231xx-conf-reg.h"
 
 #define DRIVER_NAME                     "cx231xx"
-#define PWR_SLEEP_INTERVAL              5
+#define PWR_SLEEP_INTERVAL              10
 
 /* I2C addresses for control block in Cx231xx */
 #define     AFE_DEVICE_ADDRESS		0x60
@@ -64,6 +64,11 @@
 #define CX231XX_BOARD_HAUPPAUGE_EXETER  8
 #define CX231XX_BOARD_HAUPPAUGE_USBLIVE2 9
 #define CX231XX_BOARD_PV_PLAYTV_USB_HYBRID 10
+#define CX231XX_BOARD_PV_XCAPTURE_USB 11
+#define CX231XX_BOARD_KWORLD_UB430_USB_HYBRID 12
+#define CX231XX_BOARD_ICONBIT_U100 13
+#define CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL 14
+#define CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC 15
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -109,7 +114,6 @@
 	V4L2_STD_PAL_BG |  V4L2_STD_PAL_DK    |  V4L2_STD_PAL_I    | \
 	V4L2_STD_PAL_M  |  V4L2_STD_PAL_N     |  V4L2_STD_PAL_Nc   | \
 	V4L2_STD_PAL_60 |  V4L2_STD_SECAM_L   |  V4L2_STD_SECAM_DK)
-#define CX231xx_VERSION_CODE KERNEL_VERSION(0, 0, 2)
 
 #define SLEEP_S5H1432    30
 #define CX23417_OSC_EN   8
@@ -353,7 +357,11 @@ struct cx231xx_board {
 
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
+	unsigned int has_417:1;
 	unsigned int valid:1;
+	unsigned int no_alt_vanc:1;
+	unsigned int external_av:1;
+	unsigned int dont_use_port_3:1;
 
 	unsigned char xclk, i2c_speed;
 
@@ -464,7 +472,7 @@ struct cx231xx_fh {
 #define I2C_STOP                0x0
 /* 1-- do not transmit STOP at end of transaction */
 #define I2C_NOSTOP              0x1
-/* 1--alllow slave to insert clock wait states */
+/* 1--allow slave to insert clock wait states */
 #define I2C_SYNC                0x1
 
 struct cx231xx_i2c {

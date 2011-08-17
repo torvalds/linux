@@ -40,7 +40,7 @@ static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
 static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
 #endif
 
-int page_to_nid(struct page *page)
+int page_to_nid(const struct page *page)
 {
 	return section_to_node_table[page_to_section(page)];
 }
@@ -500,7 +500,7 @@ void __init sparse_init(void)
 	 * so alloc 2M (with 2M align) and 24 bytes in turn will
 	 * make next 2M slip to one more 2M later.
 	 * then in big system, the memory will have a lot of holes...
-	 * here try to allocate 2M pages continously.
+	 * here try to allocate 2M pages continuously.
 	 *
 	 * powerpc need to call sparse_init_one_section right after each
 	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.

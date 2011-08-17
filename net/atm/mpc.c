@@ -1005,7 +1005,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier,
 	struct mpoa_client *mpc;
 	struct lec_priv *priv;
 
-	dev = (struct net_device *)dev_ptr;
+	dev = dev_ptr;
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -1482,7 +1482,7 @@ static __init int atm_mpoa_init(void)
 	if (mpc_proc_init() != 0)
 		pr_info("failed to initialize /proc/mpoa\n");
 
-	pr_info("mpc.c: " __DATE__ " " __TIME__ " initialized\n");
+	pr_info("mpc.c: initialized\n");
 
 	return 0;
 }

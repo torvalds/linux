@@ -1,3 +1,10 @@
+config LEDS_GPIO_REGISTER
+	bool
+	help
+	  This option provides the function gpio_led_register_device.
+	  As this function is used by arch code it must not be compiled as a
+	  module.
+
 menuconfig NEW_LEDS
 	bool "LED Support"
 	help
@@ -7,14 +14,13 @@ menuconfig NEW_LEDS
 	  This is not related to standard keyboard LEDs which are controlled
 	  via the input system.
 
+if NEW_LEDS
+
 config LEDS_CLASS
 	bool "LED Class Support"
-	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
-
-if NEW_LEDS
 
 comment "LED drivers"
 
@@ -33,6 +39,16 @@ config LEDS_ATMEL_PWM
 	help
 	  This option enables support for LEDs driven using outputs
 	  of the dedicated PWM controller found on newer Atmel SOCs.
+
+config LEDS_LM3530
+	tristate "LCD Backlight driver for LM3530"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the LCD backlight using
+	  LM3530 ambient light sensor chip. This ALS chip can be
+	  controlled manually or using PWM input or using ambient
+	  light automatically.
 
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
@@ -76,7 +92,7 @@ config LEDS_NET48XX
 config LEDS_NET5501
 	tristate "LED Support for Soekris net5501 series Error LED"
 	depends on LEDS_TRIGGERS
-	depends on X86 && LEDS_GPIO_PLATFORM && GPIO_CS5535
+	depends on X86 && GPIO_CS5535
 	select LEDS_TRIGGER_DEFAULT_ON
 	default n
 	help
@@ -104,13 +120,6 @@ config LEDS_ALIX2
 	help
 	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
 	  You have to set leds-alix2.force=1 for boards with Award BIOS.
-
-config LEDS_H1940
-	tristate "LED Support for iPAQ H1940 device"
-	depends on LEDS_CLASS
-	depends on ARCH_H1940
-	help
-	  This option enables support for the LEDs on the h1940.
 
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
@@ -152,6 +161,16 @@ config LEDS_PCA9532
 	  LED controller. It is generally only useful
 	  as a platform driver
 
+config LEDS_PCA9532_GPIO
+	bool "Enable GPIO support for PCA9532"
+	depends on LEDS_PCA9532
+	depends on GPIOLIB
+	help
+	  Allow unused pins on PCA9532 to be used as gpio.
+
+	  To use a pin as gpio pca9532_type in pca9532_platform data needs to
+	  set to PCA9532_TYPE_GPIO.
+
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on LEDS_CLASS
@@ -162,23 +181,6 @@ config LEDS_GPIO
 	  and they must be connected to the GPIO lines.  The LEDs must be
 	  defined as platform devices and/or OpenFirmware platform devices.
 	  The code to use these bindings can be selected below.
-
-config LEDS_GPIO_PLATFORM
-	bool "Platform device bindings for GPIO LEDs"
-	depends on LEDS_GPIO
-	default y
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  platform devices.  If you don't know what this means, say yes.
-
-config LEDS_GPIO_OF
-	bool "OpenFirmware platform device bindings for GPIO LEDs"
-	depends on LEDS_GPIO && OF_DEVICE
-	default y
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  of_platform devices.  For instance, LEDs which are listed in a "dts"
-	  file.
 
 config LEDS_LP3944
 	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
@@ -363,11 +365,23 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on MACH_NET2BIG_V2 || MACH_NET5BIG_V2
+	depends on LEDS_CLASS
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
 	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
 	  controlled through a GPIO extension bus.
+
+config LEDS_ASIC3
+	bool "LED support for the HTC ASIC3"
+	depends on LEDS_CLASS
+	depends on MFD_ASIC3
+	default y
+	help
+	  This option enables support for the LEDs on the HTC ASIC3. The HTC
+	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
+	  cannot be used. This driver supports hardware blinking with an on+off
+	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"

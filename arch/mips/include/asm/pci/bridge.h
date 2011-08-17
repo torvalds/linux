@@ -262,7 +262,7 @@ typedef volatile struct bridge_s {
 } bridge_t;
 
 /*
- * Field formats for Error Command Word and Auxillary Error Command Word
+ * Field formats for Error Command Word and Auxiliary Error Command Word
  * of bridge.
  */
 typedef struct bridge_err_cmdword_s {

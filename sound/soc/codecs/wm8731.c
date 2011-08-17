@@ -175,6 +175,7 @@ static const struct snd_kcontrol_new wm8731_input_mux_controls =
 SOC_DAPM_ENUM("Input Select", wm8731_insel_enum);
 
 static const struct snd_soc_dapm_widget wm8731_dapm_widgets[] = {
+SND_SOC_DAPM_SUPPLY("ACTIVE",WM8731_ACTIVE, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OSC", WM8731_PWR, 5, 1, NULL, 0),
 SND_SOC_DAPM_MIXER("Output Mixer", WM8731_PWR, 4, 1,
 	&wm8731_output_mixer_controls[0],
@@ -198,12 +199,14 @@ static int wm8731_check_osc(struct snd_soc_dapm_widget *source,
 {
 	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(source->codec);
 
-	return wm8731->sysclk_type == WM8731_SYSCLK_MCLK;
+	return wm8731->sysclk_type == WM8731_SYSCLK_XTAL;
 }
 
-static const struct snd_soc_dapm_route intercon[] = {
+static const struct snd_soc_dapm_route wm8731_intercon[] = {
 	{"DAC", NULL, "OSC", wm8731_check_osc},
 	{"ADC", NULL, "OSC", wm8731_check_osc},
+	{"DAC", NULL, "ACTIVE"},
+	{"ADC", NULL, "ACTIVE"},
 
 	/* output mixer */
 	{"Output Mixer", "Line Bypass Switch", "Line Input"},
@@ -226,17 +229,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Line Input", NULL, "RLINEIN"},
 	{"Mic Bias", NULL, "MICIN"},
 };
-
-static int wm8731_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8731_dapm_widgets,
-				  ARRAY_SIZE(wm8731_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
 
 struct _coeff_div {
 	u32 mclk;
@@ -324,29 +316,6 @@ static int wm8731_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_write(codec, WM8731_IFACE, iface);
 	return 0;
-}
-
-static int wm8731_pcm_prepare(struct snd_pcm_substream *substream,
-			      struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-
-	/* set active */
-	snd_soc_write(codec, WM8731_ACTIVE, 0x0001);
-
-	return 0;
-}
-
-static void wm8731_shutdown(struct snd_pcm_substream *substream,
-			    struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-
-	/* deactivate */
-	if (!codec->active) {
-		udelay(50);
-		snd_soc_write(codec, WM8731_ACTIVE, 0x0);
-	}
 }
 
 static int wm8731_mute(struct snd_soc_dai *dai, int mute)
@@ -491,7 +460,6 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8731_PWR, reg | 0x0040);
 		break;
 	case SND_SOC_BIAS_OFF:
-		snd_soc_write(codec, WM8731_ACTIVE, 0x0);
 		snd_soc_write(codec, WM8731_PWR, 0xffff);
 		regulator_bulk_disable(ARRAY_SIZE(wm8731->supplies),
 				       wm8731->supplies);
@@ -507,9 +475,7 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 	SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_ops wm8731_dai_ops = {
-	.prepare	= wm8731_pcm_prepare,
 	.hw_params	= wm8731_hw_params,
-	.shutdown	= wm8731_shutdown,
 	.digital_mute	= wm8731_mute,
 	.set_sysclk	= wm8731_set_dai_sysclk,
 	.set_fmt	= wm8731_set_dai_fmt,
@@ -599,7 +565,6 @@ static int wm8731_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, wm8731_snd_controls,
 			     ARRAY_SIZE(wm8731_snd_controls));
-	wm8731_add_widgets(codec);
 
 	/* Regulators will have been enabled by bias management */
 	regulator_bulk_disable(ARRAY_SIZE(wm8731->supplies), wm8731->supplies);
@@ -636,6 +601,10 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8731 = {
 	.reg_cache_size = ARRAY_SIZE(wm8731_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8731_reg,
+	.dapm_widgets = wm8731_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8731_dapm_widgets),
+	.dapm_routes = wm8731_intercon,
+	.num_dapm_routes = ARRAY_SIZE(wm8731_intercon),
 };
 
 #if defined(CONFIG_SPI_MASTER)
@@ -667,7 +636,7 @@ static int __devexit wm8731_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8731_spi_driver = {
 	.driver = {
-		.name	= "wm8731-codec",
+		.name	= "wm8731",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8731_spi_probe,
@@ -711,7 +680,7 @@ MODULE_DEVICE_TABLE(i2c, wm8731_i2c_id);
 
 static struct i2c_driver wm8731_i2c_driver = {
 	.driver = {
-		.name = "wm8731-codec",
+		.name = "wm8731",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8731_i2c_probe,

@@ -61,7 +61,7 @@
  *
  *     Two methods it could be done:
  *
- *     (a) set up a timer everytime an rpipe's use count drops to 1
+ *     (a) set up a timer every time an rpipe's use count drops to 1
  *         (which means unused) or when a transfer ends. Reset the
  *         timer when a xfer is queued. If the timer expires, release
  *         the rpipe [see rpipe_ep_disable()].
@@ -83,6 +83,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/hash.h>
+#include <linux/ratelimit.h>
 
 #include "wa-hc.h"
 #include "wusbhc.h"
@@ -140,7 +141,7 @@ struct wa_xfer {
 
 	struct wahc *wa;		/* Wire adapter we are plugged to */
 	struct usb_host_endpoint *ep;
-	struct urb *urb;		/* URB we are transfering for */
+	struct urb *urb;		/* URB we are transferring for */
 	struct wa_seg **seg;		/* transfer segments */
 	u8 segs, segs_submitted, segs_done;
 	unsigned is_inbound:1;
@@ -161,7 +162,7 @@ static inline void wa_xfer_init(struct wa_xfer *xfer)
 }
 
 /*
- * Destory a transfer structure
+ * Destroy a transfer structure
  *
  * Note that the xfer->seg[index] thingies follow the URB life cycle,
  * so we need to put them, not free them.
@@ -494,7 +495,7 @@ static void __wa_xfer_setup_hdr0(struct wa_xfer *xfer,
  * function does almost the same thing and they work closely
  * together.
  *
- * If the seg request has failed but this DTO phase has suceeded,
+ * If the seg request has failed but this DTO phase has succeeded,
  * wa_seg_cb() has already failed the segment and moved the
  * status to WA_SEG_ERROR, so this will go through 'case 0' and
  * effectively do nothing.
@@ -1217,16 +1218,14 @@ static int wa_xfer_status_to_errno(u8 status)
 	if (status == 0)
 		return 0;
 	if (status >= ARRAY_SIZE(xlat)) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "%s(): BUG? "
+		printk_ratelimited(KERN_ERR "%s(): BUG? "
 			       "Unknown WA transfer status 0x%02x\n",
 			       __func__, real_status);
 		return -EINVAL;
 	}
 	errno = xlat[status];
 	if (unlikely(errno > 0)) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "%s(): BUG? "
+		printk_ratelimited(KERN_ERR "%s(): BUG? "
 			       "Inconsistent WA status: 0x%02x\n",
 			       __func__, real_status);
 		errno = -errno;

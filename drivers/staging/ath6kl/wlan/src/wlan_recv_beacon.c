@@ -25,7 +25,6 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include <wmi.h>
 #include <ieee80211.h>
@@ -49,23 +48,23 @@
 
 /* unaligned little endian access */
 #define LE_READ_2(p)                            \
-    ((A_UINT16)                            \
-     ((((A_UINT8 *)(p))[0]      ) | (((A_UINT8 *)(p))[1] <<  8)))
+    ((u16)                            \
+     ((((u8 *)(p))[0]      ) | (((u8 *)(p))[1] <<  8)))
 
 #define LE_READ_4(p)                            \
-    ((A_UINT32)                            \
-     ((((A_UINT8 *)(p))[0]      ) | (((A_UINT8 *)(p))[1] <<  8) | \
-      (((A_UINT8 *)(p))[2] << 16) | (((A_UINT8 *)(p))[3] << 24)))
+    ((u32)                            \
+     ((((u8 *)(p))[0]      ) | (((u8 *)(p))[1] <<  8) | \
+      (((u8 *)(p))[2] << 16) | (((u8 *)(p))[3] << 24)))
 
 
 static int __inline
-iswpaoui(const A_UINT8 *frm)
+iswpaoui(const u8 *frm)
 {
     return frm[1] > 3 && LE_READ_4(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
 }
 
 static int __inline
-iswmmoui(const A_UINT8 *frm)
+iswmmoui(const u8 *frm)
 {
     return frm[1] > 3 && LE_READ_4(frm+2) == ((WMM_OUI_TYPE<<24)|WMM_OUI);
 }
@@ -73,38 +72,38 @@ iswmmoui(const A_UINT8 *frm)
 /* unused functions for now */
 #if 0
 static int __inline
-iswmmparam(const A_UINT8 *frm)
+iswmmparam(const u8 *frm)
 {
     return frm[1] > 5 && frm[6] == WMM_PARAM_OUI_SUBTYPE;
 }
 
 static int __inline
-iswmminfo(const A_UINT8 *frm)
+iswmminfo(const u8 *frm)
 {
     return frm[1] > 5 && frm[6] == WMM_INFO_OUI_SUBTYPE;
 }
 #endif
 
 static int __inline
-isatherosoui(const A_UINT8 *frm)
+isatherosoui(const u8 *frm)
 {
     return frm[1] > 3 && LE_READ_4(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
 }
 
 static int __inline
-iswscoui(const A_UINT8 *frm)
+iswscoui(const u8 *frm)
 {
     return frm[1] > 3 && LE_READ_4(frm+2) == ((0x04<<24)|WPA_OUI);
 }
 
-A_STATUS
-wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
+int
+wlan_parse_beacon(u8 *buf, int framelen, struct ieee80211_common_ie *cie)
 {
-    A_UINT8 *frm, *efrm;
-    A_UINT8 elemid_ssid = FALSE;
+    u8 *frm, *efrm;
+    u8 elemid_ssid = false;
 
     frm = buf;
-    efrm = (A_UINT8 *) (frm + framelen);
+    efrm = (u8 *) (frm + framelen);
 
     /*
      * beacon/probe response frame format
@@ -125,8 +124,8 @@ wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
     A_MEMZERO(cie, sizeof(*cie));
 
     cie->ie_tstamp = frm; frm += 8;
-    cie->ie_beaconInt = A_LE2CPU16(*(A_UINT16 *)frm);  frm += 2;
-    cie->ie_capInfo = A_LE2CPU16(*(A_UINT16 *)frm);  frm += 2;
+    cie->ie_beaconInt = A_LE2CPU16(*(u16 *)frm);  frm += 2;
+    cie->ie_capInfo = A_LE2CPU16(*(u16 *)frm);  frm += 2;
     cie->ie_chan = 0;
 
     while (frm < efrm) {
@@ -134,7 +133,7 @@ wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
         case IEEE80211_ELEMID_SSID:
             if (!elemid_ssid) {
                 cie->ie_ssid = frm;
-                elemid_ssid = TRUE;
+                elemid_ssid = true;
             }
             break;
         case IEEE80211_ELEMID_RATES:
@@ -196,5 +195,5 @@ wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
     IEEE80211_VERIFY_ELEMENT(cie->ie_rates, IEEE80211_RATE_MAXSIZE);
     IEEE80211_VERIFY_ELEMENT(cie->ie_ssid, IEEE80211_NWID_LEN);
 
-    return A_OK;
+    return 0;
 }

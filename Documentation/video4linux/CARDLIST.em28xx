@@ -54,7 +54,7 @@
  53 -> Pinnacle Hybrid Pro                      (em2881)
  54 -> Kworld VS-DVB-T 323UR                    (em2882)        [eb1a:e323]
  55 -> Terratec Cinnergy Hybrid T USB XS (em2882) (em2882)        [0ccd:005e,0ccd:0042]
- 56 -> Pinnacle Hybrid Pro (2)                  (em2882)        [2304:0226]
+ 56 -> Pinnacle Hybrid Pro (330e)               (em2882)        [2304:0226]
  57 -> Kworld PlusTV HD Hybrid 330              (em2883)        [eb1a:a316]
  58 -> Compro VideoMate ForYou/Stereo           (em2820/em2840) [185b:2041]
  60 -> Hauppauge WinTV HVR 850                  (em2883)        [2040:651f]
@@ -74,3 +74,5 @@
  74 -> Actionmaster/LinXcel/Digitus VC211A      (em2800)
  75 -> Dikom DK300                              (em2882)
  76 -> KWorld PlusTV 340U or UB435-Q (ATSC)     (em2870)        [1b80:a340]
+ 77 -> EM2874 Leadership ISDBT                  (em2874)
+ 78 -> PCTV nanoStick T2 290e                   (em28174)

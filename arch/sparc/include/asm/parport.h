@@ -103,7 +103,7 @@ static inline unsigned int get_dma_residue(unsigned int dmanr)
 	return ebus_dma_residue(&sparc_ebus_dmas[dmanr].info);
 }
 
-static int __devinit ecpp_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit ecpp_probe(struct platform_device *op)
 {
 	unsigned long base = op->resource[0].start;
 	unsigned long config = op->resource[1].start;
@@ -235,7 +235,7 @@ static const struct of_device_id ecpp_match[] = {
 	{},
 };
 
-static struct of_platform_driver ecpp_driver = {
+static struct platform_driver ecpp_driver = {
 	.driver = {
 		.name = "ecpp",
 		.owner = THIS_MODULE,
@@ -247,7 +247,7 @@ static struct of_platform_driver ecpp_driver = {
 
 static int parport_pc_find_nonpci_ports(int autoirq, int autodma)
 {
-	return of_register_platform_driver(&ecpp_driver);
+	return platform_driver_register(&ecpp_driver);
 }
 
 #endif /* !(_ASM_SPARC64_PARPORT_H */

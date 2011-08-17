@@ -114,14 +114,14 @@ struct pppol2tp_ioc_stats {
 	__u16		tunnel_id;	/* redundant */
 	__u16		session_id;	/* if zero, get tunnel stats */
 	__u32		using_ipsec:1;	/* valid only for session_id == 0 */
-	aligned_u64	tx_packets;
-	aligned_u64	tx_bytes;
-	aligned_u64	tx_errors;
-	aligned_u64	rx_packets;
-	aligned_u64	rx_bytes;
-	aligned_u64	rx_seq_discards;
-	aligned_u64	rx_oos_packets;
-	aligned_u64	rx_errors;
+	__aligned_u64	tx_packets;
+	__aligned_u64	tx_bytes;
+	__aligned_u64	tx_errors;
+	__aligned_u64	rx_packets;
+	__aligned_u64	rx_bytes;
+	__aligned_u64	rx_seq_discards;
+	__aligned_u64	rx_oos_packets;
+	__aligned_u64	rx_errors;
 };
 
 #define ifr__name       b.ifr_ifrn.ifrn_name

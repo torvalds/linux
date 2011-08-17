@@ -27,10 +27,31 @@ enum s3c2410_udc_cmd_e {
 struct s3c2410_udc_mach_info {
 	void	(*udc_command)(enum s3c2410_udc_cmd_e);
  	void	(*vbus_draw)(unsigned int ma);
+
+	unsigned int pullup_pin;
+	unsigned int pullup_pin_inverted;
+
 	unsigned int vbus_pin;
 	unsigned char vbus_pin_inverted;
 };
 
 extern void __init s3c24xx_udc_set_platdata(struct s3c2410_udc_mach_info *);
+
+/**
+ * s3c24xx_hsudc_platdata - Platform data for USB High-Speed gadget controller.
+ * @epnum: Number of endpoints to be instantiated by the controller driver.
+ * @gpio_init: Platform specific USB related GPIO initialization.
+ * @gpio_uninit: Platform specific USB releted GPIO uninitialzation.
+ *
+ * Representation of platform data for the S3C24XX USB 2.0 High Speed gadget
+ * controllers.
+ */
+struct s3c24xx_hsudc_platdata {
+	unsigned int	epnum;
+	void		(*gpio_init)(void);
+	void		(*gpio_uninit)(void);
+};
+
+extern void __init s3c24xx_hsudc_set_platdata(struct s3c24xx_hsudc_platdata *pd);
 
 #endif /* __ASM_ARM_ARCH_UDC_H */

@@ -134,20 +134,6 @@ static void nuc900_rtc_bin2bcd(struct device *dev, struct rtc_time *settm,
 	gettm->bcd_hour = bin2bcd(settm->tm_hour) << 16;
 }
 
-static int nuc900_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct nuc900_rtc *rtc = dev_get_drvdata(dev);
-
-	if (enabled)
-		__raw_writel(__raw_readl(rtc->rtc_reg + REG_RTC_RIER)|
-				(TICKINTENB), rtc->rtc_reg + REG_RTC_RIER);
-	else
-		__raw_writel(__raw_readl(rtc->rtc_reg + REG_RTC_RIER)&
-				(~TICKINTENB), rtc->rtc_reg + REG_RTC_RIER);
-
-	return 0;
-}
-
 static int nuc900_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct nuc900_rtc *rtc = dev_get_drvdata(dev);
@@ -234,7 +220,6 @@ static struct rtc_class_ops nuc900_rtc_ops = {
 	.read_alarm = nuc900_rtc_read_alarm,
 	.set_alarm = nuc900_rtc_set_alarm,
 	.alarm_irq_enable = nuc900_alarm_irq_enable,
-	.update_irq_enable = nuc900_update_irq_enable,
 };
 
 static int __devinit nuc900_rtc_probe(struct platform_device *pdev)

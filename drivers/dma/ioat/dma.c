@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
+#include <linux/prefetch.h>
 #include <linux/i7300_idle.h>
 #include "dma.h"
 #include "registers.h"

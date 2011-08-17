@@ -136,9 +136,18 @@ struct ceph_dir_layout {
 
 
 /* osd */
-#define CEPH_MSG_OSD_MAP          41
-#define CEPH_MSG_OSD_OP           42
-#define CEPH_MSG_OSD_OPREPLY      43
+#define CEPH_MSG_OSD_MAP                41
+#define CEPH_MSG_OSD_OP                 42
+#define CEPH_MSG_OSD_OPREPLY            43
+#define CEPH_MSG_WATCH_NOTIFY           44
+
+
+/* watch-notify operations */
+enum {
+  WATCH_NOTIFY				= 1, /* notifying watcher */
+  WATCH_NOTIFY_COMPLETE			= 2, /* notifier notified when done */
+};
+
 
 /* pool operations */
 enum {
@@ -213,8 +222,10 @@ struct ceph_client_mount {
 	struct ceph_mon_request_header monhdr;
 } __attribute__ ((packed));
 
+#define CEPH_SUBSCRIBE_ONETIME    1  /* i want only 1 update after have */
+
 struct ceph_mon_subscribe_item {
-	__le64 have_version;	__le64 have;
+	__le64 have_version;    __le64 have;
 	__u8 onetime;
 } __attribute__ ((packed));
 
@@ -302,6 +313,7 @@ enum {
 	CEPH_MDS_OP_GETATTR    = 0x00101,
 	CEPH_MDS_OP_LOOKUPHASH = 0x00102,
 	CEPH_MDS_OP_LOOKUPPARENT = 0x00103,
+	CEPH_MDS_OP_LOOKUPINO  = 0x00104,
 
 	CEPH_MDS_OP_SETXATTR   = 0x01105,
 	CEPH_MDS_OP_RMXATTR    = 0x01106,

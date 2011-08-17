@@ -53,8 +53,10 @@
 #include "lgdt3305.h"
 #include "tda8290.h"
 #include "mb86a20s.h"
+#include "lgs8gxx.h"
 
 #include "zl10353.h"
+#include "qt1010.h"
 
 #include "zl10036.h"
 #include "zl10039.h"
@@ -938,6 +940,18 @@ static struct zl10353_config behold_x7_config = {
 	.disable_i2c_gate_ctrl = 1,
 };
 
+static struct zl10353_config videomate_t750_zl10353_config = {
+	.demod_address         = 0x0f,
+	.no_tuner              = 1,
+	.parallel_ts           = 1,
+	.disable_i2c_gate_ctrl = 1,
+};
+
+static struct qt1010_config videomate_t750_qt1010_config = {
+	.i2c_address = 0x62
+};
+
+
 /* ==================================================================
  * tda10086 based DVB-S cards, helper functions
  */
@@ -1121,6 +1135,26 @@ static struct tda18271_std_map dtv1000s_tda18271_std_map = {
 static struct tda18271_config dtv1000s_tda18271_config = {
 	.std_map = &dtv1000s_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static struct lgs8gxx_config prohdtv_pro2_lgs8g75_config = {
+	.prod = LGS8GXX_PROD_LGS8G75,
+	.demod_address = 0x1d,
+	.serial_ts = 0,
+	.ts_clk_pol = 1,
+	.ts_clk_gated = 0,
+	.if_clk_freq = 30400, /* 30.4 MHz */
+	.if_freq = 4000, /* 4.00 MHz */
+	.if_neg_center = 0,
+	.ext_adc = 0,
+	.adc_signed = 1,
+	.adc_vpp = 3, /* 2.0 Vpp */
+	.if_neg_edge = 1,
+};
+
+static struct tda18271_config prohdtv_pro2_tda18271_config = {
+	.gate = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 /* ==================================================================
@@ -1629,6 +1663,18 @@ static int dvb_init(struct saa7134_dev *dev)
 					__func__);
 
 		break;
+	case SAA7134_BOARD_VIDEOMATE_T750:
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
+						&videomate_t750_zl10353_config,
+						&dev->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			if (dvb_attach(qt1010_attach,
+					fe0->dvb.frontend,
+					&dev->i2c_adap,
+					&videomate_t750_qt1010_config) == NULL)
+				wprintk("error attaching QT1010\n");
+		}
+		break;
 	case SAA7134_BOARD_ZOLID_HYBRID_PCI:
 		fe0->dvb.frontend = dvb_attach(tda10048_attach,
 					       &zolid_tda10048_config,
@@ -1673,6 +1719,19 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 
 		/* mb86a20s need to use the I2C gateway */
+		break;
+	case SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2:
+		fe0->dvb.frontend = dvb_attach(lgs8gxx_attach,
+					       &prohdtv_pro2_lgs8g75_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &prohdtv_pro2_tda18271_config);
+		}
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");

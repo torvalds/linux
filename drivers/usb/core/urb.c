@@ -366,7 +366,16 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (xfertype == USB_ENDPOINT_XFER_ISOC) {
 		int	n, len;
 
-		/* FIXME SuperSpeed isoc endpoints have up to 16 bursts */
+		/* SuperSpeed isoc endpoints have up to 16 bursts of up to
+		 * 3 packets each
+		 */
+		if (dev->speed == USB_SPEED_SUPER) {
+			int     burst = 1 + ep->ss_ep_comp.bMaxBurst;
+			int     mult = USB_SS_MULT(ep->ss_ep_comp.bmAttributes);
+			max *= burst;
+			max *= mult;
+		}
+
 		/* "high bandwidth" mode, 1-3 packets/uframe? */
 		if (dev->speed == USB_SPEED_HIGH) {
 			int	mult = 1 + ((max >> 11) & 0x03);

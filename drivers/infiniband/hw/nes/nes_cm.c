@@ -34,7 +34,7 @@
 
 #define TCPOPT_TIMESTAMP 8
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -1104,21 +1104,19 @@ static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpindex)
 {
 	struct rtable *rt;
-	struct flowi fl;
 	struct neighbour *neigh;
 	int rc = arpindex;
 	struct net_device *netdev;
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 
-	memset(&fl, 0, sizeof fl);
-	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
-	if (ip_route_output_key(&init_net, &rt, &fl)) {
+	rt = ip_route_output(&init_net, htonl(dst_ip), 0, 0, 0);
+	if (IS_ERR(rt)) {
 		printk(KERN_ERR "%s: ip_route_output_key failed for 0x%08X\n",
 				__func__, dst_ip);
 		return rc;
 	}
 
-	if (nesvnic->netdev->master)
+	if (netif_is_bond_slave(nesvnic->netdev))
 		netdev = nesvnic->netdev->master;
 	else
 		netdev = nesvnic->netdev;
@@ -1153,7 +1151,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	}
 
 	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID)))
-		neigh_event_send(rt->dst.neighbour, NULL);
+		neigh_event_send(dst_get_neighbour(&rt->dst), NULL);
 
 	ip_rt_put(rt);
 	return rc;
@@ -1399,7 +1397,7 @@ static void handle_fin_pkt(struct nes_cm_node *cm_node)
 		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_CLOSING;
 		send_ack(cm_node, NULL);
-		/* Wait for ACK as this is simultanous close..
+		/* Wait for ACK as this is simultaneous close..
 		* After we receive ACK, do not send anything..
 		* Just rm the node.. Done.. */
 		break;
@@ -2565,7 +2563,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 	u16 last_ae;
 	u8 original_hw_tcp_state;
 	u8 original_ibqp_state;
-	enum iw_cm_event_status disconn_status = IW_CM_EVENT_STATUS_OK;
+	int disconn_status = 0;
 	int issue_disconn = 0;
 	int issue_close = 0;
 	int issue_flush = 0;
@@ -2607,7 +2605,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			(last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
 		issue_disconn = 1;
 		if (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET)
-			disconn_status = IW_CM_EVENT_STATUS_RESET;
+			disconn_status = -ECONNRESET;
 	}
 
 	if (((original_hw_tcp_state == NES_AEQE_TCP_STATE_CLOSED) ||
@@ -2668,7 +2666,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			cm_id->provider_data = nesqp;
 			/* Send up the close complete event */
 			cm_event.event = IW_CM_EVENT_CLOSE;
-			cm_event.status = IW_CM_EVENT_STATUS_OK;
+			cm_event.status = 0;
 			cm_event.provider_data = cm_id->provider_data;
 			cm_event.local_addr = cm_id->local_addr;
 			cm_event.remote_addr = cm_id->remote_addr;
@@ -2968,7 +2966,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	nes_add_ref(&nesqp->ibqp);
 
 	cm_event.event = IW_CM_EVENT_ESTABLISHED;
-	cm_event.status = IW_CM_EVENT_STATUS_ACCEPTED;
+	cm_event.status = 0;
 	cm_event.provider_data = (void *)nesqp;
 	cm_event.local_addr = cm_id->local_addr;
 	cm_event.remote_addr = cm_id->remote_addr;
@@ -3379,7 +3377,7 @@ static void cm_event_connected(struct nes_cm_event *event)
 
 	/* notify OF layer we successfully created the requested connection */
 	cm_event.event = IW_CM_EVENT_CONNECT_REPLY;
-	cm_event.status = IW_CM_EVENT_STATUS_ACCEPTED;
+	cm_event.status = 0;
 	cm_event.provider_data = cm_id->provider_data;
 	cm_event.local_addr.sin_family = AF_INET;
 	cm_event.local_addr.sin_port = cm_id->local_addr.sin_port;
@@ -3486,7 +3484,7 @@ static void cm_event_reset(struct nes_cm_event *event)
 	nesqp->cm_id = NULL;
 	/* cm_id->provider_data = NULL; */
 	cm_event.event = IW_CM_EVENT_DISCONNECT;
-	cm_event.status = IW_CM_EVENT_STATUS_RESET;
+	cm_event.status = -ECONNRESET;
 	cm_event.provider_data = cm_id->provider_data;
 	cm_event.local_addr = cm_id->local_addr;
 	cm_event.remote_addr = cm_id->remote_addr;
@@ -3497,7 +3495,7 @@ static void cm_event_reset(struct nes_cm_event *event)
 	ret = cm_id->event_handler(cm_id, &cm_event);
 	atomic_inc(&cm_closes);
 	cm_event.event = IW_CM_EVENT_CLOSE;
-	cm_event.status = IW_CM_EVENT_STATUS_OK;
+	cm_event.status = 0;
 	cm_event.provider_data = cm_id->provider_data;
 	cm_event.local_addr = cm_id->local_addr;
 	cm_event.remote_addr = cm_id->remote_addr;
@@ -3536,7 +3534,7 @@ static void cm_event_mpa_req(struct nes_cm_event *event)
 			cm_node, cm_id, jiffies);
 
 	cm_event.event = IW_CM_EVENT_CONNECT_REQUEST;
-	cm_event.status = IW_CM_EVENT_STATUS_OK;
+	cm_event.status = 0;
 	cm_event.provider_data = (void *)cm_node;
 
 	cm_event.local_addr.sin_family = AF_INET;

@@ -360,7 +360,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	else
 		odiv = 0;
 
-	/* VCO enabled, seach clock off as per LL3.7, 3.4.1 */
+	/* VCO enabled, search clock off as per LL3.7, 3.4.1 */
 	regs[STB6100_VCO] = 0xe0 | (odiv << STB6100_VCO_ODIV_SHIFT);
 
 	/* OSM	*/

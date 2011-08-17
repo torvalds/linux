@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/wm8400-audio.h>
 #include <linux/mfd/wm8400-private.h>
+#include <linux/mfd/core.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

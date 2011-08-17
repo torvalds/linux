@@ -37,7 +37,12 @@
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
+
+#define MAX_MSIX_P_PORT		17
+#define MAX_MSIX		64
+#define MSIX_LEGACY_SZ		4
+#define MIN_MSIX_P_PORT		5
 
 enum {
 	MLX4_FLAG_MSI_X		= 1 << 0,
@@ -53,22 +58,28 @@ enum {
 };
 
 enum {
-	MLX4_DEV_CAP_FLAG_RC		= 1 <<  0,
-	MLX4_DEV_CAP_FLAG_UC		= 1 <<  1,
-	MLX4_DEV_CAP_FLAG_UD		= 1 <<  2,
-	MLX4_DEV_CAP_FLAG_SRQ		= 1 <<  6,
-	MLX4_DEV_CAP_FLAG_IPOIB_CSUM	= 1 <<  7,
-	MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1 <<  8,
-	MLX4_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1 <<  9,
-	MLX4_DEV_CAP_FLAG_DPDP		= 1 << 12,
-	MLX4_DEV_CAP_FLAG_BLH		= 1 << 15,
-	MLX4_DEV_CAP_FLAG_MEM_WINDOW	= 1 << 16,
-	MLX4_DEV_CAP_FLAG_APM		= 1 << 17,
-	MLX4_DEV_CAP_FLAG_ATOMIC	= 1 << 18,
-	MLX4_DEV_CAP_FLAG_RAW_MCAST	= 1 << 19,
-	MLX4_DEV_CAP_FLAG_UD_AV_PORT	= 1 << 20,
-	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1 << 21,
-	MLX4_DEV_CAP_FLAG_IBOE		= 1 << 30
+	MLX4_DEV_CAP_FLAG_RC		= 1LL <<  0,
+	MLX4_DEV_CAP_FLAG_UC		= 1LL <<  1,
+	MLX4_DEV_CAP_FLAG_UD		= 1LL <<  2,
+	MLX4_DEV_CAP_FLAG_SRQ		= 1LL <<  6,
+	MLX4_DEV_CAP_FLAG_IPOIB_CSUM	= 1LL <<  7,
+	MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1LL <<  8,
+	MLX4_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1LL <<  9,
+	MLX4_DEV_CAP_FLAG_DPDP		= 1LL << 12,
+	MLX4_DEV_CAP_FLAG_BLH		= 1LL << 15,
+	MLX4_DEV_CAP_FLAG_MEM_WINDOW	= 1LL << 16,
+	MLX4_DEV_CAP_FLAG_APM		= 1LL << 17,
+	MLX4_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
+	MLX4_DEV_CAP_FLAG_RAW_MCAST	= 1LL << 19,
+	MLX4_DEV_CAP_FLAG_UD_AV_PORT	= 1LL << 20,
+	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1LL << 21,
+	MLX4_DEV_CAP_FLAG_IBOE		= 1LL << 30,
+	MLX4_DEV_CAP_FLAG_UC_LOOPBACK	= 1LL << 32,
+	MLX4_DEV_CAP_FLAG_WOL		= 1LL << 38,
+	MLX4_DEV_CAP_FLAG_UDP_RSS	= 1LL << 40,
+	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
+	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
+	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48
 };
 
 enum {
@@ -145,8 +156,10 @@ enum {
 };
 
 enum mlx4_protocol {
-	MLX4_PROTOCOL_IB,
-	MLX4_PROTOCOL_EN,
+	MLX4_PROT_IB_IPV6 = 0,
+	MLX4_PROT_ETH,
+	MLX4_PROT_IB_IPV4,
+	MLX4_PROT_FCOE
 };
 
 enum {
@@ -171,6 +184,12 @@ enum mlx4_special_vlan_idx {
 	MLX4_NO_VLAN_IDX        = 0,
 	MLX4_VLAN_MISS_IDX,
 	MLX4_VLAN_REGULAR
+};
+
+enum mlx4_steer_type {
+	MLX4_MC_STEER = 0,
+	MLX4_UC_STEER,
+	MLX4_NUM_STEERS
 };
 
 enum {
@@ -223,6 +242,7 @@ struct mlx4_caps {
 	int			num_eqs;
 	int			reserved_eqs;
 	int			num_comp_vectors;
+	int			comp_pool;
 	int			num_mpts;
 	int			num_mtt_segs;
 	int			mtts_per_seg;
@@ -239,12 +259,10 @@ struct mlx4_caps {
 	int			mtt_entry_sz;
 	u32			max_msg_sz;
 	u32			page_size_cap;
-	u32			flags;
+	u64			flags;
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
-	int			udp_rss;
-	int			loopback_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
@@ -257,6 +275,7 @@ struct mlx4_caps {
 	u8			supported_type[MLX4_MAX_PORTS + 1];
 	u32			port_mask;
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
+	u32			max_counters;
 };
 
 struct mlx4_buf_list {
@@ -334,6 +353,17 @@ struct mlx4_fmr {
 struct mlx4_uar {
 	unsigned long		pfn;
 	int			index;
+	struct list_head	bf_list;
+	unsigned		free_bf_bmap;
+	void __iomem	       *map;
+	void __iomem	       *bf_map;
+};
+
+struct mlx4_bf {
+	unsigned long		offset;
+	int			buf_size;
+	struct mlx4_uar	       *uar;
+	void __iomem	       *reg;
 };
 
 struct mlx4_cq {
@@ -410,12 +440,23 @@ union mlx4_ext_av {
 	struct mlx4_eth_av	eth;
 };
 
+struct mlx4_counter {
+	u8	reserved1[3];
+	u8	counter_mode;
+	__be32	num_ifc;
+	u32	reserved2[2];
+	__be64	rx_frames;
+	__be64	rx_bytes;
+	__be64	tx_frames;
+	__be64	tx_bytes;
+};
+
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
 	struct mlx4_caps	caps;
 	struct radix_tree_root	qp_table_tree;
-	u32			rev_id;
+	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
 };
 
@@ -461,6 +502,8 @@ void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn);
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar);
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar);
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf);
+void mlx4_bf_free(struct mlx4_dev *dev, struct mlx4_bf *bf);
 
 int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 		  struct mlx4_mtt *mtt);
@@ -508,9 +551,15 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol protocol);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  enum mlx4_protocol protocol);
+int mlx4_multicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
+int mlx4_multicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
+int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
+int mlx4_unicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
+int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port, u64 mac, u64 clear, u8 mode);
 
-int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *index);
-void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int index);
+int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn, u8 wrap);
+void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int qpn);
+int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac, u8 wrap);
 
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
@@ -526,5 +575,13 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 int mlx4_test_interrupts(struct mlx4_dev *dev);
+int mlx4_assign_eq(struct mlx4_dev *dev, char* name , int* vector);
+void mlx4_release_eq(struct mlx4_dev *dev, int vec);
+
+int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port);
+int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
+
+int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
+void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 
 #endif /* MLX4_DEVICE_H */

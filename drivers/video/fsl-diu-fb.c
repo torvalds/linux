@@ -555,8 +555,6 @@ static void adjust_aoi_size_position(struct fb_var_screeninfo *var,
 static int fsl_diu_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info)
 {
-	unsigned long htotal, vtotal;
-
 	pr_debug("check_var xres: %d\n", var->xres);
 	pr_debug("check_var yres: %d\n", var->yres);
 
@@ -634,20 +632,6 @@ static int fsl_diu_check_var(struct fb_var_screeninfo *var,
 		var->transp.msb_right = 0;
 
 		break;
-	}
-	/* If the pixclock is below the minimum spec'd value then set to
-	 * refresh rate for 60Hz since this is supported by most monitors.
-	 * Refer to Documentation/fb/ for calculations.
-	 */
-	if ((var->pixclock < MIN_PIX_CLK) || (var->pixclock > MAX_PIX_CLK)) {
-		htotal = var->xres + var->right_margin + var->hsync_len +
-		    var->left_margin;
-		vtotal = var->yres + var->lower_margin + var->vsync_len +
-		    var->upper_margin;
-		var->pixclock = (vtotal * htotal * 6UL) / 100UL;
-		var->pixclock = KHZ2PICOS(var->pixclock);
-		pr_debug("pixclock set for 60Hz refresh = %u ps\n",
-			var->pixclock);
 	}
 
 	var->height = -1;
@@ -882,7 +866,7 @@ static inline __u32 CNVT_TOHW(__u32 val, __u32 width)
  * which needs to be scaled in this function for the hardware. Things to take
  * into consideration are how many color registers, if any, are supported with
  * the current color visual. With truecolor mode no color palettes are
- * supported. Here a psuedo palette is created which we store the value in
+ * supported. Here a pseudo palette is created which we store the value in
  * pseudo_palette in struct fb_info. For pseudocolor mode we have a limited
  * color palette.
  */
@@ -1487,8 +1471,7 @@ static ssize_t show_monitor(struct device *device,
 	return diu_ops.show_monitor_port(machine_data->monitor_port, buf);
 }
 
-static int __devinit fsl_diu_probe(struct platform_device *ofdev,
-	const struct of_device_id *match)
+static int __devinit fsl_diu_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct mfb_info *mfbi;
@@ -1735,7 +1718,7 @@ static struct of_device_id fsl_diu_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_diu_match);
 
-static struct of_platform_driver fsl_diu_driver = {
+static struct platform_driver fsl_diu_driver = {
 	.driver = {
 		.name = "fsl_diu",
 		.owner = THIS_MODULE,
@@ -1797,7 +1780,7 @@ static int __init fsl_diu_init(void)
 	if (!coherence_data)
 		return -ENOMEM;
 #endif
-	ret = of_register_platform_driver(&fsl_diu_driver);
+	ret = platform_driver_register(&fsl_diu_driver);
 	if (ret) {
 		printk(KERN_ERR
 			"fsl-diu: failed to register platform driver\n");
@@ -1811,7 +1794,7 @@ static int __init fsl_diu_init(void)
 
 static void __exit fsl_diu_exit(void)
 {
-	of_unregister_platform_driver(&fsl_diu_driver);
+	platform_driver_unregister(&fsl_diu_driver);
 #if defined(CONFIG_NOT_COHERENT_CACHE)
 	vfree(coherence_data);
 #endif

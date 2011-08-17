@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
+ * Name: actbl2.h - ACPI Table Definitions (tables not in ACPI spec)
  *
  *****************************************************************************/
 
@@ -712,6 +712,68 @@ struct acpi_table_mchi {
 	u8 pci_bus;
 	u8 pci_device;
 	u8 pci_function;
+};
+
+/*******************************************************************************
+ *
+ * SLIC - Software Licensing Description Table
+ *        Version 1
+ *
+ * Conforms to "OEM Activation 2.0 for Windows Vista Operating Systems",
+ * Copyright 2006
+ *
+ ******************************************************************************/
+
+/* Basic SLIC table is only the common ACPI header */
+
+struct acpi_table_slic {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+/* Common SLIC subtable header */
+
+struct acpi_slic_header {
+	u32 type;
+	u32 length;
+};
+
+/* Values for Type field above */
+
+enum acpi_slic_type {
+	ACPI_SLIC_TYPE_PUBLIC_KEY = 0,
+	ACPI_SLIC_TYPE_WINDOWS_MARKER = 1,
+	ACPI_SLIC_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
+/*
+ * SLIC Sub-tables, correspond to Type in struct acpi_slic_header
+ */
+
+/* 0: Public Key Structure */
+
+struct acpi_slic_key {
+	struct acpi_slic_header header;
+	u8 key_type;
+	u8 version;
+	u16 reserved;
+	u32 algorithm;
+	char magic[4];
+	u32 bit_length;
+	u32 exponent;
+	u8 modulus[128];
+};
+
+/* 1: Windows Marker Structure */
+
+struct acpi_slic_marker {
+	struct acpi_slic_header header;
+	u32 version;
+	char oem_id[ACPI_OEM_ID_SIZE];	/* ASCII OEM identification */
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE];	/* ASCII OEM table identification */
+	char windows_flag[8];
+	u32 slic_version;
+	u8 reserved[16];
+	u8 signature[128];
 };
 
 /*******************************************************************************

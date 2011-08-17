@@ -30,9 +30,10 @@
 #ifndef __RTL_EFUSE_H_
 #define __RTL_EFUSE_H_
 
+#define EFUSE_IC_ID_OFFSET		506
+
 #define EFUSE_REAL_CONTENT_LEN		512
 #define EFUSE_MAP_LEN			128
-#define EFUSE_MAX_SECTION		16
 #define EFUSE_MAX_WORD_UNIT		4
 
 #define EFUSE_INIT_MAP			0
@@ -52,6 +53,7 @@
 #define _PRE_EXECUTE_READ_CMD_
 
 #define EFUSE_REPEAT_THRESHOLD_		3
+#define EFUSE_ERROE_HANDLE		1
 
 struct efuse_map {
 	u8 offset;
@@ -103,6 +105,7 @@ struct efuse_priv {
 	u8 tx_power_g[14];
 };
 
+extern void read_efuse_byte(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf);
 extern void efuse_initialize(struct ieee80211_hw *hw);
 extern u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address);
 extern void efuse_write_1byte(struct ieee80211_hw *hw, u16 address, u8 value);
@@ -117,8 +120,5 @@ extern bool efuse_shadow_update_chk(struct ieee80211_hw *hw);
 extern void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw);
 extern void efuse_force_write_vendor_Id(struct ieee80211_hw *hw);
 extern void efuse_re_pg_section(struct ieee80211_hw *hw, u8 section_idx);
-extern bool efuse_program_map(struct ieee80211_hw *hw,
-			      char *p_filename, u8 tabletype);
-extern void efuse_reset_loader(struct ieee80211_hw *hw);
 
 #endif

@@ -116,21 +116,6 @@ config S390_TAPE
 	  called tape390 and include all selected interfaces and
 	  hardware drivers.
 
-comment "S/390 tape interface support"
-	depends on S390_TAPE
-
-config S390_TAPE_BLOCK
-	def_bool y
-	prompt "Support for tape block devices"
-	depends on S390_TAPE && BLOCK
-	help
-	  Select this option if you want to access your channel-attached tape
-	  devices using the block device interface.  This interface is similar
-	  to CD-ROM devices on other platforms.  The tapes can only be
-	  accessed read-only when using this interface.  Have a look at
-	  <file:Documentation/s390/TAPE> for further information about creating
-	  volumes for and using this interface.  It is safe to say "Y" here.
-
 comment "S/390 tape hardware support"
 	depends on S390_TAPE
 

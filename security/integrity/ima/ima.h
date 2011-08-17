@@ -110,8 +110,7 @@ struct ima_iint_cache {
 };
 
 /* LIM API function definitions */
-int ima_must_measure(struct ima_iint_cache *iint, struct inode *inode,
-		     int mask, int function);
+int ima_must_measure(struct inode *inode, int mask, int function);
 int ima_collect_measurement(struct ima_iint_cache *iint, struct file *file);
 void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
 			   const unsigned char *filename);

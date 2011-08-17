@@ -185,7 +185,7 @@
 #define BIGMAC_RXCFG_ENABLE    0x00000001 /* Enable the receiver                      */
 #define BIGMAC_RXCFG_FIFO      0x0000000e /* Default rx fthresh...                    */
 #define BIGMAC_RXCFG_PSTRIP    0x00000020 /* Pad byte strip enable                    */
-#define BIGMAC_RXCFG_PMISC     0x00000040 /* Enable promiscous mode                   */
+#define BIGMAC_RXCFG_PMISC     0x00000040 /* Enable promiscuous mode                   */
 #define BIGMAC_RXCFG_DERR      0x00000080 /* Disable error checking                   */
 #define BIGMAC_RXCFG_DCRCS     0x00000100 /* Disable CRC stripping                    */
 #define BIGMAC_RXCFG_ME        0x00000200 /* Receive packets addressed to me          */

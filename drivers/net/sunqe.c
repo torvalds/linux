@@ -628,7 +628,6 @@ static void qe_set_multicast(struct net_device *dev)
 	struct sunqe *qep = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
 	u8 new_mconfig = qep->mconfig;
-	char *addrs;
 	int i;
 	u32 crc;
 
@@ -651,11 +650,7 @@ static void qe_set_multicast(struct net_device *dev)
 
 		memset(hash_table, 0, sizeof(hash_table));
 		netdev_for_each_mc_addr(ha, dev) {
-			addrs = ha->addr;
-
-			if (!(*addrs & 1))
-				continue;
-			crc = ether_crc_le(6, addrs);
+			crc = ether_crc_le(6, ha->addr);
 			crc >>= 26;
 			hash_table[crc >> 4] |= 1 << (crc & 0xf);
 		}
@@ -941,7 +936,7 @@ fail:
 	return res;
 }
 
-static int __devinit qec_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit qec_sbus_probe(struct platform_device *op)
 {
 	return qec_ether_init(op);
 }
@@ -976,7 +971,7 @@ static const struct of_device_id qec_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, qec_sbus_match);
 
-static struct of_platform_driver qec_sbus_driver = {
+static struct platform_driver qec_sbus_driver = {
 	.driver = {
 		.name = "qec",
 		.owner = THIS_MODULE,
@@ -988,12 +983,12 @@ static struct of_platform_driver qec_sbus_driver = {
 
 static int __init qec_init(void)
 {
-	return of_register_platform_driver(&qec_sbus_driver);
+	return platform_driver_register(&qec_sbus_driver);
 }
 
 static void __exit qec_exit(void)
 {
-	of_unregister_platform_driver(&qec_sbus_driver);
+	platform_driver_unregister(&qec_sbus_driver);
 
 	while (root_qec_dev) {
 		struct sunqec *next = root_qec_dev->next_module;

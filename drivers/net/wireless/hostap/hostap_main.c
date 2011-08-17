@@ -79,13 +79,8 @@ struct net_device * hostap_add_interface(struct local_info *local,
 	if (!rtnl_locked)
 		rtnl_lock();
 
-	ret = 0;
-	if (strchr(dev->name, '%'))
-		ret = dev_alloc_name(dev, dev->name);
-
 	SET_NETDEV_DEV(dev, mdev->dev.parent);
-	if (ret >= 0)
-		ret = register_netdevice(dev);
+	ret = register_netdevice(dev);
 
 	if (!rtnl_locked)
 		rtnl_unlock();
@@ -860,6 +855,7 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 
 	iface = netdev_priv(dev);
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	/* kernel callbacks */
 	if (iface) {

@@ -12,78 +12,39 @@
  *   more details.
  */
 
-#ifndef _TILE_BACKTRACE_H
-#define _TILE_BACKTRACE_H
-
-
+#ifndef _ASM_TILE_BACKTRACE_H
+#define _ASM_TILE_BACKTRACE_H
 
 #include <linux/types.h>
 
-#include <arch/chip.h>
-
-#if defined(__tile__)
-typedef unsigned long VirtualAddress;
-#elif CHIP_VA_WIDTH() > 32
-typedef unsigned long long VirtualAddress;
-#else
-typedef unsigned int VirtualAddress;
-#endif
-
-
-/** Reads 'size' bytes from 'address' and writes the data to 'result'.
+/* Reads 'size' bytes from 'address' and writes the data to 'result'.
  * Returns true if successful, else false (e.g. memory not readable).
  */
 typedef bool (*BacktraceMemoryReader)(void *result,
-				      VirtualAddress address,
+				      unsigned long address,
 				      unsigned int size,
 				      void *extra);
 
 typedef struct {
-	/** Current PC. */
-	VirtualAddress pc;
+	/* Current PC. */
+	unsigned long pc;
 
-	/** Current stack pointer value. */
-	VirtualAddress sp;
+	/* Current stack pointer value. */
+	unsigned long sp;
 
-	/** Current frame pointer value (i.e. caller's stack pointer) */
-	VirtualAddress fp;
+	/* Current frame pointer value (i.e. caller's stack pointer) */
+	unsigned long fp;
 
-	/** Internal use only: caller's PC for first frame. */
-	VirtualAddress initial_frame_caller_pc;
+	/* Internal use only: caller's PC for first frame. */
+	unsigned long initial_frame_caller_pc;
 
-	/** Internal use only: callback to read memory. */
+	/* Internal use only: callback to read memory. */
 	BacktraceMemoryReader read_memory_func;
 
-	/** Internal use only: arbitrary argument to read_memory_func. */
+	/* Internal use only: arbitrary argument to read_memory_func. */
 	void *read_memory_func_extra;
 
 } BacktraceIterator;
-
-
-/** Initializes a backtracer to start from the given location.
- *
- * If the frame pointer cannot be determined it is set to -1.
- *
- * @param state The state to be filled in.
- * @param read_memory_func A callback that reads memory. If NULL, a default
- *        value is provided.
- * @param read_memory_func_extra An arbitrary argument to read_memory_func.
- * @param pc The current PC.
- * @param lr The current value of the 'lr' register.
- * @param sp The current value of the 'sp' register.
- * @param r52 The current value of the 'r52' register.
- */
-extern void backtrace_init(BacktraceIterator *state,
-			   BacktraceMemoryReader read_memory_func,
-			   void *read_memory_func_extra,
-			   VirtualAddress pc, VirtualAddress lr,
-			   VirtualAddress sp, VirtualAddress r52);
-
-
-/** Advances the backtracing state to the calling frame, returning
- * true iff successful.
- */
-extern bool backtrace_next(BacktraceIterator *state);
 
 
 typedef enum {
@@ -138,7 +99,7 @@ enum {
 };
 
 
-/** Internal constants used to define 'info' operands. */
+/* Internal constants used to define 'info' operands. */
 enum {
 	/* 0 and 1 are reserved, as are all negative numbers. */
 
@@ -147,13 +108,10 @@ enum {
 	CALLER_SP_IN_R52_BASE = 4,
 
 	CALLER_SP_OFFSET_BASE = 8,
-
-	/* Marks the entry point of certain functions. */
-	ENTRY_POINT_INFO_OP = 16
 };
 
 
-/** Current backtracer state describing where it thinks the caller is. */
+/* Current backtracer state describing where it thinks the caller is. */
 typedef struct {
 	/*
 	 * Public fields
@@ -192,7 +150,13 @@ typedef struct {
 
 } CallerLocation;
 
+extern void backtrace_init(BacktraceIterator *state,
+                          BacktraceMemoryReader read_memory_func,
+                          void *read_memory_func_extra,
+                          unsigned long pc, unsigned long lr,
+                          unsigned long sp, unsigned long r52);
 
 
+extern bool backtrace_next(BacktraceIterator *state);
 
-#endif /* _TILE_BACKTRACE_H */
+#endif /* _ASM_TILE_BACKTRACE_H */

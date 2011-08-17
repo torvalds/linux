@@ -32,13 +32,13 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"1.4.1.10"
-#define DRV_COPYRIGHT		"Copyright 2008-2010 Cisco Systems, Inc"
+#define DRV_VERSION		"2.1.1.24"
+#define DRV_COPYRIGHT		"Copyright 2008-2011 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
 
-#define ENIC_WQ_MAX		8
-#define ENIC_RQ_MAX		8
+#define ENIC_WQ_MAX		1
+#define ENIC_RQ_MAX		1
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
 
@@ -49,7 +49,7 @@ struct enic_msix_entry {
 	void *devid;
 };
 
-#define ENIC_SET_APPLIED		(1 << 0)
+#define ENIC_PORT_REQUEST_APPLIED	(1 << 0)
 #define ENIC_SET_REQUEST		(1 << 1)
 #define ENIC_SET_NAME			(1 << 2)
 #define ENIC_SET_INSTANCE		(1 << 3)
@@ -74,6 +74,7 @@ struct enic {
 	struct vnic_dev *vdev;
 	struct timer_list notify_timer;
 	struct work_struct reset;
+	struct work_struct change_mtu_work;
 	struct msix_entry msix_entry[ENIC_INTR_MAX];
 	struct enic_msix_entry msix[ENIC_INTR_MAX];
 	u32 msg_enable;
@@ -84,7 +85,6 @@ struct enic {
 	unsigned int flags;
 	unsigned int mc_count;
 	unsigned int uc_count;
-	int csum_rx_enabled;
 	u32 port_mtu;
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
@@ -94,14 +94,12 @@ struct enic {
 	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];
 	spinlock_t wq_lock[ENIC_WQ_MAX];
 	unsigned int wq_count;
-	struct vlan_group *vlan_group;
 	u16 loop_enable;
 	u16 loop_tag;
 
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
-	int (*rq_alloc_buf)(struct vnic_rq *rq);
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi[ENIC_RQ_MAX];
@@ -120,5 +118,7 @@ static inline struct device *enic_get_dev(struct enic *enic)
 {
 	return &(enic->pdev->dev);
 }
+
+void enic_reset_addr_lists(struct enic *enic);
 
 #endif /* _ENIC_H_ */

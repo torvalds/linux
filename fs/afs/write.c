@@ -84,23 +84,21 @@ void afs_put_writeback(struct afs_writeback *wb)
  * partly or wholly fill a page that's under preparation for writing
  */
 static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
-			 loff_t pos, unsigned len, struct page *page)
+			 loff_t pos, struct page *page)
 {
 	loff_t i_size;
-	unsigned eof;
 	int ret;
+	int len;
 
-	_enter(",,%llu,%u", (unsigned long long)pos, len);
-
-	ASSERTCMP(len, <=, PAGE_CACHE_SIZE);
+	_enter(",,%llu", (unsigned long long)pos);
 
 	i_size = i_size_read(&vnode->vfs_inode);
-	if (pos + len > i_size)
-		eof = i_size;
+	if (pos + PAGE_CACHE_SIZE > i_size)
+		len = i_size - pos;
 	else
-		eof = PAGE_CACHE_SIZE;
+		len = PAGE_CACHE_SIZE;
 
-	ret = afs_vnode_fetch_data(vnode, key, 0, eof, page);
+	ret = afs_vnode_fetch_data(vnode, key, pos, len, page);
 	if (ret < 0) {
 		if (ret == -ENOENT) {
 			_debug("got NOENT from server"
@@ -153,9 +151,8 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	*pagep = page;
 	/* page won't leak in error case: it eventually gets cleaned off LRU */
 
-	if (!PageUptodate(page)) {
-		_debug("not up to date");
-		ret = afs_fill_page(vnode, key, pos, len, page);
+	if (!PageUptodate(page) && len != PAGE_CACHE_SIZE) {
+		ret = afs_fill_page(vnode, key, index << PAGE_CACHE_SHIFT, page);
 		if (ret < 0) {
 			kfree(candidate);
 			_leave(" = %d [prep]", ret);
@@ -684,9 +681,10 @@ int afs_writeback_all(struct afs_vnode *vnode)
  * - the return status from this call provides a reliable indication of
  *   whether any write errors occurred for this process.
  */
-int afs_fsync(struct file *file, int datasync)
+int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = file->f_mapping->host;
 	struct afs_writeback *wb, *xwb;
 	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
 	int ret;
@@ -695,12 +693,19 @@ int afs_fsync(struct file *file, int datasync)
 	       vnode->fid.vid, vnode->fid.vnode, dentry->d_name.name,
 	       datasync);
 
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	/* use a writeback record as a marker in the queue - when this reaches
 	 * the front of the queue, all the outstanding writes are either
 	 * completed or rejected */
 	wb = kzalloc(sizeof(*wb), GFP_KERNEL);
-	if (!wb)
-		return -ENOMEM;
+	if (!wb) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	wb->vnode = vnode;
 	wb->first = 0;
 	wb->last = -1;
@@ -723,7 +728,7 @@ int afs_fsync(struct file *file, int datasync)
 	if (ret < 0) {
 		afs_put_writeback(wb);
 		_leave(" = %d [wb]", ret);
-		return ret;
+		goto out;
 	}
 
 	/* wait for the preceding writes to actually complete */
@@ -732,6 +737,8 @@ int afs_fsync(struct file *file, int datasync)
 				       vnode->writebacks.next == &wb->link);
 	afs_put_writeback(wb);
 	_leave(" = %d", ret);
+out:
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 

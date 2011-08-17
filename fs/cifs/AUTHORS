@@ -35,7 +35,7 @@ Adrian Bunk (kcalloc cleanups)
 Miklos Szeredi 
 Kazeon team for various fixes especially for 2.4 version.
 Asser Ferno (Change Notify support)
-Shaggy (Dave Kleikamp) for inumerable small fs suggestions and some good cleanup
+Shaggy (Dave Kleikamp) for innumerable small fs suggestions and some good cleanup
 Gunter Kukkukk (testing and suggestions for support of old servers)
 Igor Mammedov (DFS support)
 Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)

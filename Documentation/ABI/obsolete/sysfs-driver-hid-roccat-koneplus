@@ -1,0 +1,10 @@
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/koneplus/roccatkoneplus<minor>/startup_profile
+Date:		October 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	The integer value of this attribute ranges from 0-4.
+                When read, this attribute returns the number of the actual
+                profile. This value is persistent, so its equivalent to the
+                profile that's active when the mouse is powered on next time.
+		When written, this file sets the number of the startup profile
+		and the mouse activates this profile immediately.
+		Please use actual_profile, it does the same thing.

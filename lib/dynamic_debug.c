@@ -7,6 +7,7 @@
  * Copyright (C) 2008 Jason Baron <jbaron@redhat.com>
  * By Greg Banks <gnb@melbourne.sgi.com>
  * Copyright (c) 2008 Silicon Graphics Inc.  All Rights Reserved.
+ * Copyright (C) 2011 Bart Van Assche.  All Rights Reserved.
  */
 
 #include <linux/kernel.h>
@@ -27,6 +28,8 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/jump_label.h>
+#include <linux/hardirq.h>
+#include <linux/sched.h>
 
 extern struct _ddebug __start___verbose[];
 extern struct _ddebug __stop___verbose[];
@@ -63,15 +66,25 @@ static inline const char *basename(const char *path)
 	return tail ? tail+1 : path;
 }
 
+static struct { unsigned flag:8; char opt_char; } opt_array[] = {
+	{ _DPRINTK_FLAGS_PRINT, 'p' },
+	{ _DPRINTK_FLAGS_INCL_MODNAME, 'm' },
+	{ _DPRINTK_FLAGS_INCL_FUNCNAME, 'f' },
+	{ _DPRINTK_FLAGS_INCL_LINENO, 'l' },
+	{ _DPRINTK_FLAGS_INCL_TID, 't' },
+};
+
 /* format a string into buf[] which describes the _ddebug's flags */
 static char *ddebug_describe_flags(struct _ddebug *dp, char *buf,
 				    size_t maxlen)
 {
 	char *p = buf;
+	int i;
 
 	BUG_ON(maxlen < 4);
-	if (dp->flags & _DPRINTK_FLAGS_PRINT)
-		*p++ = 'p';
+	for (i = 0; i < ARRAY_SIZE(opt_array); ++i)
+		if (dp->flags & opt_array[i].flag)
+			*p++ = opt_array[i].opt_char;
 	if (p == buf)
 		*p++ = '-';
 	*p = '\0';
@@ -343,7 +356,7 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 			       unsigned int *maskp)
 {
 	unsigned flags = 0;
-	int op = '=';
+	int op = '=', i;
 
 	switch (*str) {
 	case '+':
@@ -358,13 +371,14 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 		printk(KERN_INFO "%s: op='%c'\n", __func__, op);
 
 	for ( ; *str ; ++str) {
-		switch (*str) {
-		case 'p':
-			flags |= _DPRINTK_FLAGS_PRINT;
-			break;
-		default:
-			return -EINVAL;
+		for (i = ARRAY_SIZE(opt_array) - 1; i >= 0; i--) {
+			if (*str == opt_array[i].opt_char) {
+				flags |= opt_array[i].flag;
+				break;
+			}
 		}
+		if (i < 0)
+			return -EINVAL;
 	}
 	if (flags == 0)
 		return -EINVAL;
@@ -412,6 +426,35 @@ static int ddebug_exec_query(char *query_string)
 	ddebug_change(&query, flags, mask);
 	return 0;
 }
+
+int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+{
+	va_list args;
+	int res;
+
+	BUG_ON(!descriptor);
+	BUG_ON(!fmt);
+
+	va_start(args, fmt);
+	res = printk(KERN_DEBUG);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
+		if (in_interrupt())
+			res += printk(KERN_CONT "<intr> ");
+		else
+			res += printk(KERN_CONT "[%d] ", task_pid_vnr(current));
+	}
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME)
+		res += printk(KERN_CONT "%s:", descriptor->modname);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
+		res += printk(KERN_CONT "%s:", descriptor->function);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
+		res += printk(KERN_CONT "%d ", descriptor->lineno);
+	res += vprintk(fmt, args);
+	va_end(args);
+
+	return res;
+}
+EXPORT_SYMBOL(__dynamic_pr_debug);
 
 static __initdata char ddebug_setup_string[1024];
 static __init int ddebug_setup_query(char *str)

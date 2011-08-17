@@ -34,6 +34,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/ratelimit.h>
 
 #include "rds.h"
 #include "iw.h"
@@ -181,7 +182,7 @@ static int rds_iw_init_qp_attrs(struct ib_qp_init_attr *attr,
 	unsigned int send_size, recv_size;
 	int ret;
 
-	/* The offset of 1 is to accomodate the additional ACK WR. */
+	/* The offset of 1 is to accommodate the additional ACK WR. */
 	send_size = min_t(unsigned int, rds_iwdev->max_wrs, rds_iw_sysctl_max_send_wr + 1);
 	recv_size = min_t(unsigned int, rds_iwdev->max_wrs, rds_iw_sysctl_max_recv_wr + 1);
 	rds_iw_ring_resize(send_ring, send_size - 1);
@@ -258,8 +259,7 @@ static int rds_iw_setup_qp(struct rds_connection *conn)
 	 */
 	rds_iwdev = ib_get_client_data(dev, &rds_iw_client);
 	if (!rds_iwdev) {
-		if (printk_ratelimit())
-			printk(KERN_NOTICE "RDS/IW: No client_data for device %s\n",
+		printk_ratelimited(KERN_NOTICE "RDS/IW: No client_data for device %s\n",
 					dev->name);
 		return -EOPNOTSUPP;
 	}
@@ -365,13 +365,12 @@ static u32 rds_iw_protocol_compatible(const struct rds_iw_connect_private *dp)
 		version = RDS_PROTOCOL_3_0;
 		while ((common >>= 1) != 0)
 			version++;
-	} else if (printk_ratelimit()) {
-		printk(KERN_NOTICE "RDS: Connection from %pI4 using "
+	}
+	printk_ratelimited(KERN_NOTICE "RDS: Connection from %pI4 using "
 			"incompatible protocol version %u.%u\n",
 			&dp->dp_saddr,
 			dp->dp_protocol_major,
 			dp->dp_protocol_minor);
-	}
 	return version;
 }
 
@@ -522,7 +521,7 @@ int rds_iw_conn_connect(struct rds_connection *conn)
 	/* XXX I wonder what affect the port space has */
 	/* delegate cm event handler to rdma_transport */
 	ic->i_cm_id = rdma_create_id(rds_rdma_cm_event_handler, conn,
-				     RDMA_PS_TCP);
+				     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ic->i_cm_id)) {
 		ret = PTR_ERR(ic->i_cm_id);
 		ic->i_cm_id = NULL;

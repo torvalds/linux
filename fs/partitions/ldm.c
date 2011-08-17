@@ -565,7 +565,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 
 	data = read_part_sector(state, 0, &sect);
 	if (!data) {
-		ldm_crit ("Disk read failed.");
+		ldm_info ("Disk read failed.");
 		return false;
 	}
 
@@ -1299,11 +1299,20 @@ static bool ldm_frag_add (const u8 *data, int size, struct list_head *frags)
 
 	BUG_ON (!data || !frags);
 
+	if (size < 2 * VBLK_SIZE_HEAD) {
+		ldm_error("Value of size is to small.");
+		return false;
+	}
+
 	group = get_unaligned_be32(data + 0x08);
 	rec   = get_unaligned_be16(data + 0x0C);
 	num   = get_unaligned_be16(data + 0x0E);
 	if ((num < 1) || (num > 4)) {
 		ldm_error ("A VBLK claims to have %d parts.", num);
+		return false;
+	}
+	if (rec >= num) {
+		ldm_error("REC value (%d) exceeds NUM value (%d)", rec, num);
 		return false;
 	}
 
@@ -1326,6 +1335,11 @@ static bool ldm_frag_add (const u8 *data, int size, struct list_head *frags)
 
 	list_add_tail (&f->list, frags);
 found:
+	if (rec >= f->num) {
+		ldm_error("REC value (%d) exceeds NUM value (%d)", rec, f->num);
+		return false;
+	}
+
 	if (f->map & (1 << rec)) {
 		ldm_error ("Duplicate VBLK, part %d.", rec);
 		f->map &= 0x7F;			/* Mark the group as broken */
@@ -1334,10 +1348,9 @@ found:
 
 	f->map |= (1 << rec);
 
-	if (num > 0) {
-		data += VBLK_SIZE_HEAD;
-		size -= VBLK_SIZE_HEAD;
-	}
+	data += VBLK_SIZE_HEAD;
+	size -= VBLK_SIZE_HEAD;
+
 	memcpy (f->data+rec*(size-VBLK_SIZE_HEAD)+VBLK_SIZE_HEAD, data, size);
 
 	return true;

@@ -895,7 +895,7 @@ typedef struct {
         u8          ldr_no;                 /* log. drive no. */
         u8          rw_attribs;             /* r/w attributes */
         u8          cluster_type;           /* cluster properties */
-        u8          media_changed;          /* Flag:MOUNT/UNMOUNT occured */
+        u8          media_changed;          /* Flag:MOUNT/UNMOUNT occurred */
         u32         start_sec;              /* start sector */
     } hdr[MAX_LDRIVES];                         /* host drives */
     struct {

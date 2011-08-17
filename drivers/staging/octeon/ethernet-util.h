@@ -25,10 +25,6 @@
  * Contact Cavium Networks for more information
 *********************************************************************/
 
-#define DEBUGPRINT(format, ...) do { if (printk_ratelimit()) 		\
-					printk(format, ##__VA_ARGS__);	\
-				} while (0)
-
 /**
  * cvm_oct_get_buffer_ptr - convert packet data address to pointer
  * @packet_ptr: Packet data hardware address
@@ -55,7 +51,7 @@ static inline int INTERFACE(int ipd_port)
 		return 2;
 	else if (ipd_port < 40)	/* Interface 3 for loopback */
 		return 3;
-	else if (ipd_port == 40)	/* Non existant interface for POW0 */
+	else if (ipd_port == 40)	/* Non existent interface for POW0 */
 		return 4;
 	else
 		panic("Illegal ipd_port %d passed to INTERFACE\n", ipd_port);

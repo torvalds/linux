@@ -71,9 +71,6 @@ void tlb_flush(struct mmu_gather *tlb)
 		 */
 		_tlbia();
 	}
-
-	/* Push out batch of freed page tables */
-	pte_free_finish();
 }
 
 /*
@@ -180,3 +177,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	flush_range(vma->vm_mm, start, end);
 }
 EXPORT_SYMBOL(flush_tlb_range);
+
+void __init early_init_mmu(void)
+{
+}

@@ -104,7 +104,7 @@ int wl1251_cmd_test(struct wl1251 *wl, void *buf, size_t buf_len, u8 answer)
  * @wl: wl struct
  * @id: acx id
  * @buf: buffer for the response, including all headers, must work with dma
- * @len: lenght of buf
+ * @len: length of buf
  */
 int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len)
 {
@@ -241,7 +241,7 @@ int wl1251_cmd_data_path(struct wl1251 *wl, u8 channel, bool enable)
 	if (ret < 0) {
 		wl1251_error("tx %s cmd for channel %d failed",
 			     enable ? "start" : "stop", channel);
-		return ret;
+		goto out;
 	}
 
 	wl1251_debug(DEBUG_BOOT, "tx %s cmd channel %d",

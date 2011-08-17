@@ -5,7 +5,7 @@ Supported chips:
   * IDT ICS932S401
     Prefix: 'ics932s401'
     Addresses scanned: I2C 0x69
-    Datasheet: Publically available at the IDT website
+    Datasheet: Publicly available at the IDT website
 
 Author: Darrick J. Wong
 

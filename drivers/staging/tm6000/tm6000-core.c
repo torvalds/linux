@@ -116,6 +116,29 @@ int tm6000_get_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index)
 }
 EXPORT_SYMBOL_GPL(tm6000_get_reg);
 
+int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
+						u16 index, u16 mask)
+{
+	int rc;
+	u8 buf[1];
+	u8 new_index;
+
+	rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR, req,
+					value, index, buf, 1);
+
+	if (rc < 0)
+		return rc;
+
+	new_index = (buf[0] & ~mask) | (index & mask);
+
+	if (new_index == index)
+		return 0;
+
+	return tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,
+				      req, value, new_index, NULL, 0);
+}
+EXPORT_SYMBOL_GPL(tm6000_set_reg_mask);
+
 int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index)
 {
 	int rc;
@@ -245,34 +268,28 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	struct v4l2_frequency f;
 
 	if (dev->dev_type == TM6010) {
-		int val;
-
-		/* Enable video */
-		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0);
-		val |= 0x60;
-		tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
-		val = tm6000_get_reg(dev,
-			TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0);
-		val &= ~0x40;
-		tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, val);
-
-		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc);
-
+		/* Enable video and audio */
+		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF,
+							0x60, 0x60);
+		/* Disable TS input */
+		tm6000_set_reg_mask(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE,
+							0x00, 0x40);
 	} else {
 		/* Enables soft reset */
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x01);
 
 		if (dev->scaler)
+			/* Disable Hfilter and Enable TS Drop err */
 			tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0x20);
 		else	/* Enable Hfilter and disable TS Drop err */
 			tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0x80);
 
 		tm6000_set_reg(dev, TM6010_REQ07_RC3_HSTART1, 0x88);
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_WAKEUP_SEL, 0x23);
+		tm6000_set_reg(dev, TM6000_REQ07_RDA_CLK_SEL, 0x23);
 		tm6000_set_reg(dev, TM6010_REQ07_RD1_ADDR_FOR_REQ1, 0xc0);
 		tm6000_set_reg(dev, TM6010_REQ07_RD2_ADDR_FOR_REQ2, 0xd8);
 		tm6000_set_reg(dev, TM6010_REQ07_RD6_ENDP_REQ1_REQ2, 0x06);
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_PULSE_CNT0, 0x1f);
+		tm6000_set_reg(dev, TM6000_REQ07_RDF_PWDOWN_ACLK, 0x1f);
 
 		/* AP Software reset */
 		tm6000_set_reg(dev, TM6010_REQ07_RFF_SOFT_RESET, 0x08);
@@ -282,14 +299,6 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 
 		/* Disables soft reset */
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x00);
-
-		/* E3: Select input 0 - TV tuner */
-		tm6000_set_reg(dev, TM6010_REQ07_RE3_OUT_SEL1, 0x00);
-		tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0xeb, 0x60);
-
-		/* This controls input */
-		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_2, 0x0);
-		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_3, 0x01);
 	}
 	msleep(20);
 
@@ -309,7 +318,7 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 
 	msleep(100);
-	tm6000_set_standard(dev, &dev->norm);
+	tm6000_set_standard(dev);
 	tm6000_set_vbi(dev);
 	tm6000_set_audio_bitrate(dev, 48000);
 
@@ -325,40 +334,35 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 int tm6000_init_digital_mode(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {
-		int val;
-		u8 buf[2];
-
-		/* digital init */
-		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0);
-		val &= ~0x60;
-		tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
-		val = tm6000_get_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0);
-		val |= 0x40;
-		tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, val);
+		/* Disable video and audio */
+		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF,
+				0x00, 0x60);
+		/* Enable TS input */
+		tm6000_set_reg_mask(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE,
+				0x40, 0x40);
+		/* all power down, but not the digital data port */
 		tm6000_set_reg(dev, TM6010_REQ07_RFE_POWER_DOWN, 0x28);
 		tm6000_set_reg(dev, TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xfc);
 		tm6000_set_reg(dev, TM6010_REQ08_RE6_POWER_DOWN_CTRL2, 0xff);
-		tm6000_read_write_usb(dev, 0xc0, 0x0e, 0x00c2, 0x0008, buf, 2);
-		printk(KERN_INFO"buf %#x %#x\n", buf[0], buf[1]);
 	} else  {
 		tm6000_set_reg(dev, TM6010_REQ07_RFF_SOFT_RESET, 0x08);
 		tm6000_set_reg(dev, TM6010_REQ07_RFF_SOFT_RESET, 0x00);
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x01);
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_PULSE_CNT0, 0x08);
-		tm6000_set_reg(dev, TM6010_REQ07_RE2_OUT_SEL2, 0x0c);
-		tm6000_set_reg(dev, TM6010_REQ07_RE8_TYPESEL_MOS_I2S, 0xff);
-		tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0x00eb, 0xd8);
+		tm6000_set_reg(dev, TM6000_REQ07_RDF_PWDOWN_ACLK, 0x08);
+		tm6000_set_reg(dev, TM6000_REQ07_RE2_VADC_STATUS_CTL, 0x0c);
+		tm6000_set_reg(dev, TM6000_REQ07_RE8_VADC_PWDOWN_CTL, 0xff);
+		tm6000_set_reg(dev, TM6000_REQ07_REB_VADC_AADC_MODE, 0xd8);
 		tm6000_set_reg(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE, 0x40);
 		tm6000_set_reg(dev, TM6010_REQ07_RC1_TRESHOLD, 0xd0);
 		tm6000_set_reg(dev, TM6010_REQ07_RC3_HSTART1, 0x09);
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_WAKEUP_SEL, 0x37);
+		tm6000_set_reg(dev, TM6000_REQ07_RDA_CLK_SEL, 0x37);
 		tm6000_set_reg(dev, TM6010_REQ07_RD1_ADDR_FOR_REQ1, 0xd8);
 		tm6000_set_reg(dev, TM6010_REQ07_RD2_ADDR_FOR_REQ2, 0xc0);
 		tm6000_set_reg(dev, TM6010_REQ07_RD6_ENDP_REQ1_REQ2, 0x60);
 
-		tm6000_set_reg(dev, TM6010_REQ07_RE2_OUT_SEL2, 0x0c);
-		tm6000_set_reg(dev, TM6010_REQ07_RE8_TYPESEL_MOS_I2S, 0xff);
-		tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0x00eb, 0x08);
+		tm6000_set_reg(dev, TM6000_REQ07_RE2_VADC_STATUS_CTL, 0x0c);
+		tm6000_set_reg(dev, TM6000_REQ07_RE8_VADC_PWDOWN_CTL, 0xff);
+		tm6000_set_reg(dev, TM6000_REQ07_REB_VADC_AADC_MODE, 0x08);
 		msleep(50);
 
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
@@ -388,18 +392,19 @@ struct reg_init {
 /* The meaning of those initializations are unknown */
 struct reg_init tm6000_init_tab[] = {
 	/* REG  VALUE */
-	{ TM6010_REQ07_RD8_IR_PULSE_CNT0, 0x1f },
+	{ TM6000_REQ07_RDF_PWDOWN_ACLK, 0x1f },
 	{ TM6010_REQ07_RFF_SOFT_RESET, 0x08 },
 	{ TM6010_REQ07_RFF_SOFT_RESET, 0x00 },
 	{ TM6010_REQ07_RD5_POWERSAVE, 0x4f },
-	{ TM6010_REQ07_RD8_IR_WAKEUP_SEL, 0x23 },
-	{ TM6010_REQ07_RD8_IR_WAKEUP_ADD, 0x08 },
-	{ TM6010_REQ07_RE2_OUT_SEL2, 0x00 },
-	{ TM6010_REQ07_RE3_OUT_SEL1, 0x10 },
-	{ TM6010_REQ07_RE5_REMOTE_WAKEUP, 0x00 },
-	{ TM6010_REQ07_RE8_TYPESEL_MOS_I2S, 0x00 },
-	{ REQ_07_SET_GET_AVREG,  0xeb, 0x64 },		/* 48000 bits/sample, external input */
-	{ REQ_07_SET_GET_AVREG,  0xee, 0xc2 },
+	{ TM6000_REQ07_RDA_CLK_SEL, 0x23 },
+	{ TM6000_REQ07_RDB_OUT_SEL, 0x08 },
+	{ TM6000_REQ07_RE2_VADC_STATUS_CTL, 0x00 },
+	{ TM6000_REQ07_RE3_VADC_INP_LPF_SEL1, 0x10 },
+	{ TM6000_REQ07_RE5_VADC_INP_LPF_SEL2, 0x00 },
+	{ TM6000_REQ07_RE8_VADC_PWDOWN_CTL, 0x00 },
+	{ TM6000_REQ07_REB_VADC_AADC_MODE, 0x64 },	/* 48000 bits/sample, external input */
+	{ TM6000_REQ07_REE_VADC_CTRL_SEL_CONTROL, 0xc2 },
+
 	{ TM6010_REQ07_R3F_RESET, 0x01 },		/* Start of soft reset */
 	{ TM6010_REQ07_R00_VIDEO_CONTROL0, 0x00 },
 	{ TM6010_REQ07_R01_VIDEO_CONTROL1, 0x07 },
@@ -590,38 +595,216 @@ int tm6000_init(struct tm6000_core *dev)
 
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
 {
-	int val;
+	int val = 0;
+	u8 areg_f0 = 0x60; /* ADC MCLK = 250 Fs */
+	u8 areg_0a = 0x91; /* SIF 48KHz */
 
-	if (dev->dev_type == TM6010) {
-		val = tm6000_get_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0);
-		if (val < 0)
-			return val;
-		val = (val & 0xf0) | 0x1; /* 48 kHz, not muted */
-		val = tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, val);
-		if (val < 0)
-			return val;
-	}
-
-	val = tm6000_get_reg(dev, REQ_07_SET_GET_AVREG, 0xeb, 0x0);
-	if (val < 0)
-		return val;
-
-	val &= 0x0f;		/* Preserve the audio input control bits */
 	switch (bitrate) {
-	case 44100:
-		val |= 0xd0;
-		dev->audio_bitrate = bitrate;
-		break;
 	case 48000:
-		val |= 0x60;
+		areg_f0 = 0x60; /* ADC MCLK = 250 Fs */
+		areg_0a = 0x91; /* SIF 48KHz */
 		dev->audio_bitrate = bitrate;
 		break;
+	case 32000:
+		areg_f0 = 0x00; /* ADC MCLK = 375 Fs */
+		areg_0a = 0x90; /* SIF 32KHz */
+		dev->audio_bitrate = bitrate;
+		break;
+	default:
+		return -EINVAL;
 	}
-	val = tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0xeb, val);
 
-	return val;
+
+	/* enable I2S, if we use sif or external I2S device */
+	if (dev->dev_type == TM6010) {
+		val = tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, areg_0a);
+		if (val < 0)
+			return val;
+
+		val = tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
+							areg_f0, 0xf0);
+		if (val < 0)
+			return val;
+	} else {
+		val = tm6000_set_reg_mask(dev, TM6000_REQ07_REB_VADC_AADC_MODE,
+							areg_f0, 0xf0);
+		if (val < 0)
+			return val;
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tm6000_set_audio_bitrate);
+
+int tm6000_set_audio_rinput(struct tm6000_core *dev)
+{
+	if (dev->dev_type == TM6010) {
+		/* Audio crossbar setting, default SIF1 */
+		u8 areg_f0;
+
+		switch (dev->rinput.amux) {
+		case TM6000_AMUX_SIF1:
+		case TM6000_AMUX_SIF2:
+			areg_f0 = 0x03;
+			break;
+		case TM6000_AMUX_ADC1:
+			areg_f0 = 0x00;
+			break;
+		case TM6000_AMUX_ADC2:
+			areg_f0 = 0x08;
+			break;
+		case TM6000_AMUX_I2S:
+			areg_f0 = 0x04;
+			break;
+		default:
+			printk(KERN_INFO "%s: audio input dosn't support\n",
+				dev->name);
+			return 0;
+			break;
+		}
+		/* Set audio input crossbar */
+		tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
+							areg_f0, 0x0f);
+	} else {
+		u8 areg_eb;
+		/* Audio setting, default LINE1 */
+		switch (dev->rinput.amux) {
+		case TM6000_AMUX_ADC1:
+			areg_eb = 0x00;
+			break;
+		case TM6000_AMUX_ADC2:
+			areg_eb = 0x04;
+			break;
+		default:
+			printk(KERN_INFO "%s: audio input dosn't support\n",
+				dev->name);
+			return 0;
+			break;
+		}
+		/* Set audio input */
+		tm6000_set_reg_mask(dev, TM6000_REQ07_REB_VADC_AADC_MODE,
+							areg_eb, 0x0f);
+	}
+	return 0;
+}
+
+void tm6010_set_mute_sif(struct tm6000_core *dev, u8 mute)
+{
+	u8 mute_reg = 0;
+
+	if (mute)
+		mute_reg = 0x08;
+
+	tm6000_set_reg_mask(dev, TM6010_REQ08_R0A_A_I2S_MOD, mute_reg, 0x08);
+}
+
+void tm6010_set_mute_adc(struct tm6000_core *dev, u8 mute)
+{
+	u8 mute_reg = 0;
+
+	if (mute)
+		mute_reg = 0x20;
+
+	if (dev->dev_type == TM6010) {
+		tm6000_set_reg_mask(dev, TM6010_REQ08_RF2_LEFT_CHANNEL_VOL,
+							mute_reg, 0x20);
+		tm6000_set_reg_mask(dev, TM6010_REQ08_RF3_RIGHT_CHANNEL_VOL,
+							mute_reg, 0x20);
+	} else {
+		tm6000_set_reg_mask(dev, TM6000_REQ07_REC_VADC_AADC_LVOL,
+							mute_reg, 0x20);
+		tm6000_set_reg_mask(dev, TM6000_REQ07_RED_VADC_AADC_RVOL,
+							mute_reg, 0x20);
+	}
+}
+
+int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute)
+{
+	enum tm6000_mux mux;
+
+	if (dev->radio)
+		mux = dev->rinput.amux;
+	else
+		mux = dev->vinput[dev->input].amux;
+
+	switch (mux) {
+	case TM6000_AMUX_SIF1:
+	case TM6000_AMUX_SIF2:
+		if (dev->dev_type == TM6010)
+			tm6010_set_mute_sif(dev, mute);
+		else {
+			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has"
+					" SIF audio inputs. Please check the %s"
+					" configuration.\n", dev->name);
+			return -EINVAL;
+		}
+		break;
+	case TM6000_AMUX_ADC1:
+	case TM6000_AMUX_ADC2:
+		tm6010_set_mute_adc(dev, mute);
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 0;
+}
+
+void tm6010_set_volume_sif(struct tm6000_core *dev, int vol)
+{
+	u8 vol_reg;
+
+	vol_reg = vol & 0x0F;
+
+	if (vol < 0)
+		vol_reg |= 0x40;
+
+	tm6000_set_reg(dev, TM6010_REQ08_R07_A_LEFT_VOL, vol_reg);
+	tm6000_set_reg(dev, TM6010_REQ08_R08_A_RIGHT_VOL, vol_reg);
+}
+
+void tm6010_set_volume_adc(struct tm6000_core *dev, int vol)
+{
+	u8 vol_reg;
+
+	vol_reg = (vol + 0x10) & 0x1f;
+
+	if (dev->dev_type == TM6010) {
+		tm6000_set_reg(dev, TM6010_REQ08_RF2_LEFT_CHANNEL_VOL, vol_reg);
+		tm6000_set_reg(dev, TM6010_REQ08_RF3_RIGHT_CHANNEL_VOL, vol_reg);
+	} else {
+		tm6000_set_reg(dev, TM6000_REQ07_REC_VADC_AADC_LVOL, vol_reg);
+		tm6000_set_reg(dev, TM6000_REQ07_RED_VADC_AADC_RVOL, vol_reg);
+	}
+}
+
+void tm6000_set_volume(struct tm6000_core *dev, int vol)
+{
+	enum tm6000_mux mux;
+
+	if (dev->radio) {
+		mux = dev->rinput.amux;
+		vol += 8; /* Offset to 0 dB */
+	} else
+		mux = dev->vinput[dev->input].amux;
+
+	switch (mux) {
+	case TM6000_AMUX_SIF1:
+	case TM6000_AMUX_SIF2:
+		if (dev->dev_type == TM6010)
+			tm6010_set_volume_sif(dev, vol);
+		else
+			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has"
+					" SIF audio inputs. Please check the %s"
+					" configuration.\n", dev->name);
+		break;
+	case TM6000_AMUX_ADC1:
+	case TM6000_AMUX_ADC2:
+		tm6010_set_volume_adc(dev, vol);
+		break;
+	default:
+		break;
+	}
+}
 
 static LIST_HEAD(tm6000_devlist);
 static DEFINE_MUTEX(tm6000_devlist_mutex);

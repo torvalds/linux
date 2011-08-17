@@ -53,6 +53,9 @@
 #define PCI_DEVICE_ID_QLOGIC_ISP8022	0x8022
 #endif
 
+#define ISP4XXX_PCI_FN_1	0x1
+#define ISP4XXX_PCI_FN_2	0x3
+
 #define QLA_SUCCESS			0
 #define QLA_ERROR			1
 
@@ -112,7 +115,7 @@
 #define INVALID_ENTRY		0xFFFF
 #define MAX_CMDS_TO_RISC	1024
 #define MAX_SRBS		MAX_CMDS_TO_RISC
-#define MBOX_AEN_REG_COUNT	5
+#define MBOX_AEN_REG_COUNT	8
 #define MAX_INIT_RETRIES	5
 
 /*
@@ -179,7 +182,7 @@ struct srb {
 	uint16_t flags;		/* (1) Status flags. */
 
 #define SRB_DMA_VALID		BIT_3	/* DMA Buffer mapped. */
-#define SRB_GOT_SENSE		BIT_4	/* sense data recieved. */
+#define SRB_GOT_SENSE		BIT_4	/* sense data received. */
 	uint8_t state;		/* (1) Status flags. */
 
 #define SRB_NO_QUEUE_STATE	 0	/* Request is in between states */
@@ -232,9 +235,6 @@ struct ddb_entry {
 	atomic_t state;		/* DDB State */
 
 	unsigned long flags;	/* DDB Flags */
-
-	unsigned long dev_scan_wait_to_start_relogin;
-	unsigned long dev_scan_wait_to_complete_relogin;
 
 	uint16_t fw_ddb_index;	/* DDB firmware index */
 	uint16_t options;
@@ -289,8 +289,6 @@ struct ddb_entry {
  * DDB flags.
  */
 #define DF_RELOGIN		0	/* Relogin to device */
-#define DF_NO_RELOGIN		1	/* Do not relogin if IOCTL
-					 * logged it out */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
 
@@ -370,13 +368,12 @@ struct scsi_qla_host {
 #define AF_INIT_DONE			1 /* 0x00000002 */
 #define AF_MBOX_COMMAND			2 /* 0x00000004 */
 #define AF_MBOX_COMMAND_DONE		3 /* 0x00000008 */
-#define AF_DPC_SCHEDULED		5 /* 0x00000020 */
 #define AF_INTERRUPTS_ON		6 /* 0x00000040 */
 #define AF_GET_CRASH_RECORD		7 /* 0x00000080 */
 #define AF_LINK_UP			8 /* 0x00000100 */
 #define AF_IRQ_ATTACHED			10 /* 0x00000400 */
 #define AF_DISABLE_ACB_COMPLETE		11 /* 0x00000800 */
-#define AF_HBA_GOING_AWAY		12 /* 0x00001000 */
+#define AF_HA_REMOVAL			12 /* 0x00001000 */
 #define AF_INTx_ENABLED			15 /* 0x00008000 */
 #define AF_MSI_ENABLED			16 /* 0x00010000 */
 #define AF_MSIX_ENABLED			17 /* 0x00020000 */
@@ -479,7 +476,6 @@ struct scsi_qla_host {
 	uint32_t timer_active;
 
 	/* Recovery Timers */
-	uint32_t discovery_wait;
 	atomic_t check_relogin_timeouts;
 	uint32_t retry_reset_ha_cnt;
 	uint32_t isp_reset_timer;	/* reset test timer */
@@ -587,6 +583,14 @@ struct scsi_qla_host {
 	uint32_t nx_reset_timeout;
 
 	struct completion mbx_intr_comp;
+
+	/* --- From About Firmware --- */
+	uint16_t iscsi_major;
+	uint16_t iscsi_minor;
+	uint16_t bootload_major;
+	uint16_t bootload_minor;
+	uint16_t bootload_patch;
+	uint16_t bootload_build;
 };
 
 static inline int is_ipv4_enabled(struct scsi_qla_host *ha)
@@ -765,6 +769,5 @@ static inline void ql4xxx_unlock_drvr(struct scsi_qla_host *a)
 /* Defines for process_aen() */
 #define PROCESS_ALL_AENS	 0
 #define FLUSH_DDB_CHANGED_AENS	 1
-#define RELOGIN_DDB_CHANGED_AENS 2
 
 #endif	/*_QLA4XXX_H */

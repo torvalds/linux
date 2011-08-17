@@ -221,7 +221,7 @@ typedef unsigned long mayday_mask_t;
  * per-CPU workqueues:
  */
 struct workqueue_struct {
-	unsigned int		flags;		/* I: WQ_* flags */
+	unsigned int		flags;		/* W: WQ_* flags */
 	union {
 		struct cpu_workqueue_struct __percpu	*pcpu;
 		struct cpu_workqueue_struct		*single;
@@ -240,6 +240,7 @@ struct workqueue_struct {
 	mayday_mask_t		mayday_mask;	/* cpus requesting rescue */
 	struct worker		*rescuer;	/* I: rescue worker */
 
+	int			nr_drainers;	/* W: drain in progress */
 	int			saved_max_active; /* W: saved cwq max_active */
 	const char		*name;		/* I: workqueue name */
 #ifdef CONFIG_LOCKDEP
@@ -251,10 +252,12 @@ struct workqueue_struct *system_wq __read_mostly;
 struct workqueue_struct *system_long_wq __read_mostly;
 struct workqueue_struct *system_nrt_wq __read_mostly;
 struct workqueue_struct *system_unbound_wq __read_mostly;
+struct workqueue_struct *system_freezable_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
 EXPORT_SYMBOL_GPL(system_unbound_wq);
+EXPORT_SYMBOL_GPL(system_freezable_wq);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
@@ -315,6 +318,11 @@ static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
 static struct debug_obj_descr work_debug_descr;
+
+static void *work_debug_hint(void *addr)
+{
+	return ((struct work_struct *) addr)->func;
+}
 
 /*
  * fixup_init is called when:
@@ -387,6 +395,7 @@ static int work_fixup_free(void *addr, enum debug_obj_state state)
 
 static struct debug_obj_descr work_debug_descr = {
 	.name		= "work_struct",
+	.debug_hint	= work_debug_hint,
 	.fixup_init	= work_fixup_init,
 	.fixup_activate	= work_fixup_activate,
 	.fixup_free	= work_fixup_free,
@@ -982,7 +991,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	debug_work_activate(work);
 
 	/* if dying, only works from the same workqueue are allowed */
-	if (unlikely(wq->flags & WQ_DYING) &&
+	if (unlikely(wq->flags & WQ_DRAINING) &&
 	    WARN_ON_ONCE(!is_chained_work(wq)))
 		return;
 
@@ -1283,8 +1292,14 @@ __acquires(&gcwq->lock)
 			return true;
 		spin_unlock_irq(&gcwq->lock);
 
-		/* CPU has come up inbetween, retry migration */
+		/*
+		 * We've raced with CPU hot[un]plug.  Give it a breather
+		 * and retry migration.  cond_resched() is required here;
+		 * otherwise, we might deadlock against cpu_stop trying to
+		 * bring down the CPU on non-preemptive kernel.
+		 */
 		cpu_relax();
+		cond_resched();
 	}
 }
 
@@ -1358,8 +1373,10 @@ static struct worker *create_worker(struct global_cwq *gcwq, bool bind)
 	worker->id = id;
 
 	if (!on_unbound_cpu)
-		worker->task = kthread_create(worker_thread, worker,
-					      "kworker/%u:%d", gcwq->cpu, id);
+		worker->task = kthread_create_on_node(worker_thread,
+						      worker,
+						      cpu_to_node(gcwq->cpu),
+						      "kworker/%u:%d", gcwq->cpu, id);
 	else
 		worker->task = kthread_create(worker_thread, worker,
 					      "kworker/u:%d", id);
@@ -2365,6 +2382,54 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
+/**
+ * drain_workqueue - drain a workqueue
+ * @wq: workqueue to drain
+ *
+ * Wait until the workqueue becomes empty.  While draining is in progress,
+ * only chain queueing is allowed.  IOW, only currently pending or running
+ * work items on @wq can queue further work items on it.  @wq is flushed
+ * repeatedly until it becomes empty.  The number of flushing is detemined
+ * by the depth of chaining and should be relatively short.  Whine if it
+ * takes too long.
+ */
+void drain_workqueue(struct workqueue_struct *wq)
+{
+	unsigned int flush_cnt = 0;
+	unsigned int cpu;
+
+	/*
+	 * __queue_work() needs to test whether there are drainers, is much
+	 * hotter than drain_workqueue() and already looks at @wq->flags.
+	 * Use WQ_DRAINING so that queue doesn't have to check nr_drainers.
+	 */
+	spin_lock(&workqueue_lock);
+	if (!wq->nr_drainers++)
+		wq->flags |= WQ_DRAINING;
+	spin_unlock(&workqueue_lock);
+reflush:
+	flush_workqueue(wq);
+
+	for_each_cwq_cpu(cpu, wq) {
+		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
+
+		if (!cwq->nr_active && list_empty(&cwq->delayed_works))
+			continue;
+
+		if (++flush_cnt == 10 ||
+		    (flush_cnt % 100 == 0 && flush_cnt <= 1000))
+			pr_warning("workqueue %s: flush on destruction isn't complete after %u tries\n",
+				   wq->name, flush_cnt);
+		goto reflush;
+	}
+
+	spin_lock(&workqueue_lock);
+	if (!--wq->nr_drainers)
+		wq->flags &= ~WQ_DRAINING;
+	spin_unlock(&workqueue_lock);
+}
+EXPORT_SYMBOL_GPL(drain_workqueue);
+
 static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
 			     bool wait_executing)
 {
@@ -2850,9 +2915,7 @@ static int alloc_cwqs(struct workqueue_struct *wq)
 		}
 	}
 
-	/* just in case, make sure it's actually aligned
-	 * - this is affected by PERCPU() alignment in vmlinux.lds.S
-	 */
+	/* just in case, make sure it's actually aligned */
 	BUG_ON(!IS_ALIGNED(wq->cpu_wq.v, align));
 	return wq->cpu_wq.v ? 0 : -ENOMEM;
 }
@@ -2995,34 +3058,10 @@ EXPORT_SYMBOL_GPL(__alloc_workqueue_key);
  */
 void destroy_workqueue(struct workqueue_struct *wq)
 {
-	unsigned int flush_cnt = 0;
 	unsigned int cpu;
 
-	/*
-	 * Mark @wq dying and drain all pending works.  Once WQ_DYING is
-	 * set, only chain queueing is allowed.  IOW, only currently
-	 * pending or running work items on @wq can queue further work
-	 * items on it.  @wq is flushed repeatedly until it becomes empty.
-	 * The number of flushing is detemined by the depth of chaining and
-	 * should be relatively short.  Whine if it takes too long.
-	 */
-	wq->flags |= WQ_DYING;
-reflush:
-	flush_workqueue(wq);
-
-	for_each_cwq_cpu(cpu, wq) {
-		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
-
-		if (!cwq->nr_active && list_empty(&cwq->delayed_works))
-			continue;
-
-		if (++flush_cnt == 10 ||
-		    (flush_cnt % 100 == 0 && flush_cnt <= 1000))
-			printk(KERN_WARNING "workqueue %s: flush on "
-			       "destruction isn't complete after %u tries\n",
-			       wq->name, flush_cnt);
-		goto reflush;
-	}
+	/* drain it before proceeding with destruction */
+	drain_workqueue(wq);
 
 	/*
 	 * wq list is used to freeze wq, remove from list after
@@ -3775,8 +3814,10 @@ static int __init init_workqueues(void)
 	system_nrt_wq = alloc_workqueue("events_nrt", WQ_NON_REENTRANT, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND,
 					    WQ_UNBOUND_MAX_ACTIVE);
+	system_freezable_wq = alloc_workqueue("events_freezable",
+					      WQ_FREEZABLE, 0);
 	BUG_ON(!system_wq || !system_long_wq || !system_nrt_wq ||
-	       !system_unbound_wq);
+	       !system_unbound_wq || !system_freezable_wq);
 	return 0;
 }
 early_initcall(init_workqueues);

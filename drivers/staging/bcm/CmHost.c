@@ -1,6 +1,6 @@
 /************************************************************
 *			CMHOST.C
-*	This file contains the routines for handling Connnection
+*	This file contains the routines for handling Connection
 *	Management.
 ************************************************************/
 
@@ -384,7 +384,7 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter,stConvergenceSLT
 		}
 		if(psfCSType->cCPacketClassificationRule.u8Protocol == 0)
 		{
-			//we didnt get protocol field filled in by the BS
+			//we didn't get protocol field filled in by the BS
 			pstClassifierEntry->ucProtocolLength=0;
 		}
 		else
@@ -879,7 +879,7 @@ static VOID CopyToAdapter( register PMINI_ADAPTER Adapter,		/**<Pointer to the A
 
 						/*
 							Passing the argument u8PHSI instead of clsid. Because for DL with no classifier rule,
-							clsid will be zero hence we cant have multiple PHS rules for the same SF.
+							clsid will be zero hence we can't have multiple PHS rules for the same SF.
 							To support multiple PHS rule, passing u8PHSI.
 						*/
 
@@ -974,11 +974,7 @@ static VOID CopyToAdapter( register PMINI_ADAPTER Adapter,		/**<Pointer to the A
 			!(psfLocalSet->u8RequesttransmissionPolicy &
 				MASK_DISABLE_HEADER_SUPPRESSION);
 
-	if(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication)
-	{
-		kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
-		Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = NULL;
-	}
+	kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
 	Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = pstAddIndication;
 
 	//Re Sort the SF list in PackInfo according to Traffic Priority
@@ -1107,7 +1103,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8TrafficIndicationPreference	: 0x%X",
 		pstAddIndication->sfAuthorizedSet.u8TrafficIndicationPreference);
 
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " Total Classifiers Recieved		: 0x%X",pstAddIndication->sfAuthorizedSet.u8TotalClassifiers);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " Total Classifiers Received		: 0x%X",pstAddIndication->sfAuthorizedSet.u8TotalClassifiers);
 
 	nCurClassifierCnt = pstAddIndication->sfAuthorizedSet.u8TotalClassifiers;
 
@@ -1309,7 +1305,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8TrafficIndicationPreference	: 0x%02X",
 		pstAddIndication->sfAdmittedSet.u8TrafficIndicationPreference);
 
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " Total Classifiers Recieved		: 0x%X",pstAddIndication->sfAdmittedSet.u8TotalClassifiers);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " Total Classifiers Received		: 0x%X",pstAddIndication->sfAdmittedSet.u8TotalClassifiers);
 
 	nCurClassifierCnt = pstAddIndication->sfAdmittedSet.u8TotalClassifiers;
 
@@ -1506,7 +1502,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " u8TrafficIndicationPreference	: 0x%X",
 		pstAddIndication->sfActiveSet.u8TrafficIndicationPreference);
 
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " Total Classifiers Recieved		: 0x%X",pstAddIndication->sfActiveSet.u8TotalClassifiers);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " Total Classifiers Received		: 0x%X",pstAddIndication->sfActiveSet.u8TotalClassifiers);
 
 	nCurClassifierCnt = pstAddIndication->sfActiveSet.u8TotalClassifiers;
 
@@ -1700,7 +1696,7 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter,PVOID pvBuffer,UINT *p
 		//No Special handling send the message as it is
 		return 1;
 	}
-	// For DSA_REQ, only upto "psfAuthorizedSet" parameter should be accessed by driver!
+	// For DSA_REQ, only up to "psfAuthorizedSet" parameter should be accessed by driver!
 
 	pstAddIndication=kmalloc(sizeof(*pstAddIndication), GFP_KERNEL);
 	if(NULL==pstAddIndication)
@@ -1792,7 +1788,7 @@ static inline stLocalSFAddIndicationAlt
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Inside RestoreCmControlResponseMessage ");
 	/*
 	//Need to Allocate memory to contain the SUPER Large structures
-	//Our driver cant create these structures on Stack :(
+	//Our driver can't create these structures on Stack :(
 	*/
 	pstAddIndicationDest=kmalloc(sizeof(stLocalSFAddIndicationAlt), GFP_KERNEL);
 
@@ -1961,7 +1957,7 @@ INT AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 {
 	/*
 	//Need to Allocate memory to contain the SUPER Large structures
-	//Our driver cant create these structures on Stack
+	//Our driver can't create these structures on Stack
 	*/
 	Adapter->caDsxReqResp=kmalloc(sizeof(stLocalSFAddIndicationAlt)+LEADER_SIZE, GFP_KERNEL);
 	if(!Adapter->caDsxReqResp)
@@ -1971,10 +1967,7 @@ INT AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 
 INT FreeAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 {
-	if(Adapter->caDsxReqResp)
-	{
-		kfree(Adapter->caDsxReqResp);
-	}
+	kfree(Adapter->caDsxReqResp);
 	return 0;
 
 }

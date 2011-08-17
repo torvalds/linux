@@ -27,6 +27,7 @@
  ******************************************************************************/
 
 #define _RTL871X_IOCTL_LINUX_C_
+#define _RTL871X_MP_IOCTL_C_
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -280,18 +281,21 @@ static inline char *translate_scan(struct _adapter *padapter,
 	/* parsing WPA/WPA2 IE */
 	{
 		u16 wpa_len = 0, rsn_len = 0;
-		u8 *p;
+		int n;
 		sint out_len = 0;
 		out_len = r8712_get_sec_ie(pnetwork->network.IEs,
 					   pnetwork->network.
 					   IELength, rsn_ie, &rsn_len,
 					   wpa_ie, &wpa_len);
 		if (wpa_len > 0) {
-			p = buf;
 			memset(buf, 0, MAX_WPA_IE_LEN);
-			p += snprintf(p, 7, "wpa_ie=");
-			for (i = 0; i < wpa_len; i++)
-				p += snprintf(p, 2, "%02x", wpa_ie[i]);
+			n = sprintf(buf, "wpa_ie=");
+			for (i = 0; i < wpa_len; i++) {
+				n += snprintf(buf + n, MAX_WPA_IE_LEN - n,
+							"%02x", wpa_ie[i]);
+				if (n >= MAX_WPA_IE_LEN)
+					break;
+			}
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.length = (u16)strlen(buf);
@@ -304,11 +308,14 @@ static inline char *translate_scan(struct _adapter *padapter,
 				&iwe, wpa_ie);
 		}
 		if (rsn_len > 0) {
-			p = buf;
 			memset(buf, 0, MAX_WPA_IE_LEN);
-			p += snprintf(p, 7, "rsn_ie=");
-			for (i = 0; i < rsn_len; i++)
-				p += snprintf(p, 2, "%02x", rsn_ie[i]);
+			n = sprintf(buf, "rsn_ie=");
+			for (i = 0; i < rsn_len; i++) {
+				n += snprintf(buf + n, MAX_WPA_IE_LEN - n,
+							"%02x", rsn_ie[i]);
+				if (n >= MAX_WPA_IE_LEN)
+					break;
+			}
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.length = strlen(buf);
@@ -953,7 +960,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 
 	len = dwrq->length;
 	ext = _malloc(len);
-	if (!_malloc(len))
+	if (!ext)
 		return -ENOMEM;
 	if (copy_from_user(ext, dwrq->pointer, len)) {
 		kfree(ext);
@@ -1727,8 +1734,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 		memcpy(param + 1, pext + 1, pext->key_len);
 	}
 	ret = wpa_set_encryption(dev, param, param_len);
-	if (param)
-		kfree((u8 *)param);
+	kfree(param);
 	return ret;
 }
 
@@ -1868,8 +1874,7 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 		goto _r871x_mp_ioctl_hdl_exit;
 	}
 _r871x_mp_ioctl_hdl_exit:
-	if (pparmbuf != NULL)
-		kfree(pparmbuf);
+	kfree(pparmbuf);
 	return ret;
 }
 
@@ -1965,9 +1970,9 @@ static int r871x_wps_start(struct net_device *dev,
 	struct _adapter *padapter = (struct _adapter *)_netdev_priv(dev);
 	struct iw_point *pdata = &wrqu->data;
 	u32   u32wps_start = 0;
-	unsigned int uintRet = 0;
 
-	uintRet = copy_from_user((void *)&u32wps_start, pdata->pointer, 4);
+	if (copy_from_user((void *)&u32wps_start, pdata->pointer, 4))
+		return -EFAULT;
 	if ((padapter->bDriverStopped) || (pdata == NULL))
 		return -EINVAL;
 	if (u32wps_start == 0)

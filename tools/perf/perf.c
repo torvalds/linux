@@ -313,6 +313,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "buildid-cache", cmd_buildid_cache, 0 },
 		{ "buildid-list", cmd_buildid_list, 0 },
 		{ "diff",	cmd_diff,	0 },
+		{ "evlist",	cmd_evlist,	0 },
 		{ "help",	cmd_help,	0 },
 		{ "list",	cmd_list,	0 },
 		{ "record",	cmd_record,	0 },

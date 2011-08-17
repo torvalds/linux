@@ -53,47 +53,9 @@ atomic_t irq_err_count;
 /*
  * /proc/interrupts printing:
  */
-
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		char cpuname[16];
-		seq_printf(p, "     ");
-		for_each_online_cpu(j) {
-			snprintf(cpuname, 10, "CPU%d", j);
-			seq_printf(p, "%10s ", cpuname);
-		}
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ",i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j) {
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-		}
-#endif
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
-		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS)
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
+	seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
 	return 0;
 }
 
@@ -103,7 +65,7 @@ static char irq_redir [NR_IRQS]; // = { [0 ... NR_IRQS-1] = 1 };
 void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 {
 	if (irq < NR_IRQS) {
-		cpumask_copy(irq_desc[irq].affinity,
+		cpumask_copy(irq_get_irq_data(irq)->affinity,
 			     cpumask_of(cpu_logical_id(hwid)));
 		irq_redir[irq] = (char) (redir & 0xff);
 	}
@@ -130,13 +92,14 @@ unsigned int vectors_in_migration[NR_IRQS];
  */
 static void migrate_irqs(void)
 {
-	struct irq_desc *desc;
 	int 		irq, new_cpu;
 
 	for (irq=0; irq < NR_IRQS; irq++) {
-		desc = irq_desc + irq;
+		struct irq_desc *desc = irq_to_desc(irq);
+		struct irq_data *data = irq_desc_get_irq_data(desc);
+		struct irq_chip *chip = irq_data_get_irq_chip(data);
 
-		if (desc->status == IRQ_DISABLED)
+		if (irqd_irq_disabled(data))
 			continue;
 
 		/*
@@ -145,10 +108,10 @@ static void migrate_irqs(void)
 		 * tell CPU not to respond to these local intr sources.
 		 * such as ITV,CPEI,MCA etc.
 		 */
-		if (desc->status == IRQ_PER_CPU)
+		if (irqd_is_per_cpu(data))
 			continue;
 
-		if (cpumask_any_and(irq_desc[irq].affinity, cpu_online_mask)
+		if (cpumask_any_and(data->affinity, cpu_online_mask)
 		    >= nr_cpu_ids) {
 			/*
 			 * Save it for phase 2 processing
@@ -160,16 +123,16 @@ static void migrate_irqs(void)
 			/*
 			 * Al three are essential, currently WARN_ON.. maybe panic?
 			 */
-			if (desc->chip && desc->chip->disable &&
-				desc->chip->enable && desc->chip->set_affinity) {
-				desc->chip->disable(irq);
-				desc->chip->set_affinity(irq,
-							 cpumask_of(new_cpu));
-				desc->chip->enable(irq);
+			if (chip && chip->irq_disable &&
+				chip->irq_enable && chip->irq_set_affinity) {
+				chip->irq_disable(data);
+				chip->irq_set_affinity(data,
+						       cpumask_of(new_cpu), false);
+				chip->irq_enable(data);
 			} else {
-				WARN_ON((!(desc->chip) || !(desc->chip->disable) ||
-						!(desc->chip->enable) ||
-						!(desc->chip->set_affinity)));
+				WARN_ON((!chip || !chip->irq_disable ||
+					 !chip->irq_enable ||
+					 !chip->irq_set_affinity));
 			}
 		}
 	}

@@ -551,7 +551,7 @@ int dmacHw_calculateDescriptorCount(dmacHw_CONFIG_t *pConfig,	/*   [ IN ] Config
 
 /****************************************************************************/
 /**
-*  @brief   Check the existance of pending descriptor
+*  @brief   Check the existence of pending descriptor
 *
 *  This function confirmes if there is any pending descriptor in the chain
 *  to program the channel
@@ -775,7 +775,7 @@ int dmacHw_setVariableDataDescriptor(dmacHw_HANDLE_t handle,	/*   [ IN ] DMA Cha
 /**
 *  @brief   Read data DMAed to memory
 *
-*  This function will read data that has been DMAed to memory while transfering from:
+*  This function will read data that has been DMAed to memory while transferring from:
 *          - Memory to memory
 *          - Peripheral to memory
 *
@@ -941,7 +941,7 @@ int dmacHw_setControlDescriptor(dmacHw_CONFIG_t *pConfig,	/*   [ IN ] Configurat
 /**
 *  @brief   Sets channel specific user data
 *
-*  This function associates user data to a specif DMA channel
+*  This function associates user data to a specific DMA channel
 *
 */
 /****************************************************************************/

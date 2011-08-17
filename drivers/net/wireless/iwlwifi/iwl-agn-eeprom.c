@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,52 +81,13 @@
  *
 ******************************************************************************/
 
-/*
- * The device's EEPROM semaphore prevents conflicts between driver and uCode
- * when accessing the EEPROM; each access is a series of pulses to/from the
- * EEPROM chip, not a single event, so even reads could conflict if they
- * weren't arbitrated by the semaphore.
- */
-int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
-{
-	u16 count;
-	int ret;
-
-	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
-		/* Request semaphore */
-		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-
-		/* See if we got it */
-		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				EEPROM_SEM_TIMEOUT);
-		if (ret >= 0) {
-			IWL_DEBUG_IO(priv,
-				"Acquired semaphore after %d tries.\n",
-				count+1);
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
-void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv)
-{
-	iwl_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
-		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-
-}
-
 int iwl_eeprom_check_version(struct iwl_priv *priv)
 {
 	u16 eeprom_ver;
 	u16 calib_ver;
 
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
-	calib_ver = priv->cfg->ops->lib->eeprom_ops.calib_version(priv);
+	calib_ver = iwlagn_eeprom_calib_version(priv);
 
 	if (eeprom_ver < priv->cfg->eeprom_ver ||
 	    calib_ver < priv->cfg->eeprom_calib_ver)
@@ -147,18 +108,16 @@ err:
 
 int iwl_eeprom_check_sku(struct iwl_priv *priv)
 {
-	u16 eeprom_sku;
 	u16 radio_cfg;
-
-	eeprom_sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
 
 	if (!priv->cfg->sku) {
 		/* not using sku overwrite */
-		priv->cfg->sku =
-			((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
-			EEPROM_SKU_CAP_BAND_POS);
-		if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
-			priv->cfg->sku |= IWL_SKU_N;
+		priv->cfg->sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
+		if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE &&
+		    !priv->cfg->ht_params) {
+			IWL_ERR(priv, "Invalid 11n configuration\n");
+			return -EINVAL;
+		}
 	}
 	if (!priv->cfg->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
@@ -191,7 +150,7 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac)
 {
-	const u8 *addr = priv->cfg->ops->lib->eeprom_ops.query_addr(priv,
+	const u8 *addr = iwl_eeprom_query_addr(priv,
 					EEPROM_MAC_ADDRESS);
 	memcpy(mac, addr, ETH_ALEN);
 }
@@ -286,10 +245,10 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(struct iwl_eeprom_enhanced_txpwr) != 8);
 
 	/* the length is in 16-bit words, but we want entries */
-	txp_len = (__le16 *) iwlagn_eeprom_query_addr(priv, EEPROM_TXP_SZ_OFFS);
+	txp_len = (__le16 *) iwl_eeprom_query_addr(priv, EEPROM_TXP_SZ_OFFS);
 	entries = le16_to_cpup(txp_len) * 2 / EEPROM_TXP_ENTRY_LEN;
 
-	txp_array = (void *) iwlagn_eeprom_query_addr(priv, EEPROM_TXP_OFFS);
+	txp_array = (void *) iwl_eeprom_query_addr(priv, EEPROM_TXP_OFFS);
 
 	for (idx = 0; idx < entries; idx++) {
 		txp = &txp_array[idx];

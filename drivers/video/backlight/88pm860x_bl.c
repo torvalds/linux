@@ -12,11 +12,11 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/mfd/88pm860x.h>
-#include <linux/slab.h>
 
 #define MAX_BRIGHTNESS		(0xFF)
 #define MIN_BRIGHTNESS		(0)
@@ -161,29 +161,9 @@ static const struct backlight_ops pm860x_backlight_ops = {
 	.get_brightness	= pm860x_backlight_get_brightness,
 };
 
-static int __check_device(struct pm860x_backlight_pdata *pdata, char *name)
-{
-	struct pm860x_backlight_pdata *p = pdata;
-	int ret = -EINVAL;
-
-	while (p && p->id) {
-		if ((p->id != PM8606_ID_BACKLIGHT) || (p->flags < 0))
-			break;
-
-		if (!strncmp(name, pm860x_backlight_name[p->flags],
-			MFD_NAME_SIZE)) {
-			ret = (int)p->flags;
-			break;
-		}
-		p++;
-	}
-	return ret;
-}
-
 static int pm860x_backlight_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_platform_data *pm860x_pdata;
 	struct pm860x_backlight_pdata *pdata = NULL;
 	struct pm860x_backlight_data *data;
 	struct backlight_device *bl;
@@ -199,10 +179,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdev->dev.parent->platform_data) {
-		pm860x_pdata = pdev->dev.parent->platform_data;
-		pdata = pm860x_pdata->backlight;
-	}
+	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "platform data isn't assigned to "
 			"backlight\n");
@@ -219,7 +196,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->current_brightness = MAX_BRIGHTNESS;
 	data->pwm = pdata->pwm;
 	data->iset = pdata->iset;
-	data->port = __check_device(pdata, name);
+	data->port = pdata->flags;
 	if (data->port < 0) {
 		dev_err(&pdev->dev, "wrong platform data is assigned");
 		kfree(data);
@@ -227,6 +204,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = MAX_BRIGHTNESS;
 	bl = backlight_device_register(name, &pdev->dev, data,
 					&pm860x_backlight_ops, &props);

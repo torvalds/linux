@@ -215,7 +215,7 @@ static struct mtd_partition main_partition = {
 };
 #endif
 
-/* Auxilliary partition if we find another flash */
+/* Auxiliary partition if we find another flash */
 static struct mtd_partition aux_partition = {
 	.name = "aux",
 	.size = 0,
@@ -275,7 +275,6 @@ static struct mtd_info *flash_probe(void)
 	}
 
 	if (count > 1) {
-#ifdef CONFIG_MTD_CONCAT
 		/* Since the concatenation layer adds a small overhead we
 		 * could try to figure out if the chips in cse0 and cse1 are
 		 * identical and reprobe the whole cse0+cse1 window. But since
@@ -284,11 +283,6 @@ static struct mtd_info *flash_probe(void)
 		 * complicating the probing procedure.
 		 */
 		mtd_total = mtd_concat_create(mtds, count, "cse0+cse1");
-#else
-		printk(KERN_ERR "%s and %s: Cannot concatenate due to kernel "
-		       "(mis)configuration!\n", map_cse0.name, map_cse1.name);
-		mtd_toal = NULL;
-#endif
 		if (!mtd_total) {
 			printk(KERN_ERR "%s and %s: Concatenation failed!\n",
 				map_cse0.name, map_cse1.name);
@@ -567,7 +561,7 @@ static int __init init_axis_flash(void)
 #ifdef CONFIG_ETRAX_AXISFLASHMAP_MTD0WHOLE
 	if (main_mtd) {
 		main_partition.size = main_mtd->size;
-		err = add_mtd_partitions(main_mtd, &main_partition, 1);
+		err = mtd_device_register(main_mtd, &main_partition, 1);
 		if (err)
 			panic("axisflashmap: Could not initialize "
 			      "partition for whole main mtd device!\n");
@@ -603,7 +597,8 @@ static int __init init_axis_flash(void)
 			mtd_ram->erasesize = (main_mtd ? main_mtd->erasesize :
 				CONFIG_ETRAX_PTABLE_SECTOR);
 		} else {
-			err = add_mtd_partitions(main_mtd, &partition[part], 1);
+			err = mtd_device_register(main_mtd, &partition[part],
+						  1);
 			if (err)
 				panic("axisflashmap: Could not add mtd "
 					"partition %d\n", part);
@@ -639,7 +634,7 @@ static int __init init_axis_flash(void)
 #ifndef CONFIG_ETRAX_VCS_SIM
 	if (aux_mtd) {
 		aux_partition.size = aux_mtd->size;
-		err = add_mtd_partitions(aux_mtd, &aux_partition, 1);
+		err = mtd_device_register(aux_mtd, &aux_partition, 1);
 		if (err)
 			panic("axisflashmap: Could not initialize "
 			      "aux mtd device!\n");

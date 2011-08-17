@@ -119,8 +119,7 @@ xfs_qm_newmount(
 	     (gquotaondisk && !XFS_IS_GQUOTA_ON(mp)) ||
 	    (!gquotaondisk &&  XFS_IS_OQUOTA_ON(mp)))  &&
 	    xfs_dev_is_read_only(mp, "changing quota state")) {
-		cmn_err(CE_WARN,
-			"XFS: please mount with%s%s%s%s.",
+		xfs_warn(mp, "please mount with%s%s%s%s.",
 			(!quotaondisk ? "out quota" : ""),
 			(uquotaondisk ? " usrquota" : ""),
 			(pquotaondisk ? " prjquota" : ""),
@@ -135,7 +134,7 @@ xfs_qm_newmount(
 		 */
 		if (quotaondisk && !XFS_QM_NEED_QUOTACHECK(mp)) {
 			/*
-			 * If an error occured, qm_mount_quotas code
+			 * If an error occurred, qm_mount_quotas code
 			 * has already disabled quotas. So, just finish
 			 * mounting, and get on with the boring life
 			 * without disk quotas.

@@ -548,6 +548,7 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 {
 	int error = 0;
 	int __user *argp = (int __user *)arg;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 
 	switch (cmd) {
 	case FIOCLEX:
@@ -567,13 +568,11 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		break;
 
 	case FIOQSIZE:
-		if (S_ISDIR(filp->f_path.dentry->d_inode->i_mode) ||
-		    S_ISREG(filp->f_path.dentry->d_inode->i_mode) ||
-		    S_ISLNK(filp->f_path.dentry->d_inode->i_mode)) {
-			loff_t res =
-				inode_get_bytes(filp->f_path.dentry->d_inode);
-			error = copy_to_user((loff_t __user *)arg, &res,
-					     sizeof(res)) ? -EFAULT : 0;
+		if (S_ISDIR(inode->i_mode) || S_ISREG(inode->i_mode) ||
+		    S_ISLNK(inode->i_mode)) {
+			loff_t res = inode_get_bytes(inode);
+			error = copy_to_user(argp, &res, sizeof(res)) ?
+					-EFAULT : 0;
 		} else
 			error = -ENOTTY;
 		break;
@@ -590,14 +589,10 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		return ioctl_fiemap(filp, arg);
 
 	case FIGETBSZ:
-	{
-		struct inode *inode = filp->f_path.dentry->d_inode;
-		int __user *p = (int __user *)arg;
-		return put_user(inode->i_sb->s_blocksize, p);
-	}
+		return put_user(inode->i_sb->s_blocksize, argp);
 
 	default:
-		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))
+		if (S_ISREG(inode->i_mode))
 			error = file_ioctl(filp, cmd, arg);
 		else
 			error = vfs_ioctl(filp, cmd, arg);

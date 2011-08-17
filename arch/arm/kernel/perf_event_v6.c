@@ -30,7 +30,7 @@
  * enable the interrupt.
  */
 
-#ifdef CONFIG_CPU_V6
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
 enum armv6_perf_types {
 	ARMV6_PERFCTR_ICACHE_MISS	    = 0x0,
 	ARMV6_PERFCTR_IBUF_STALL	    = 0x1,
@@ -173,6 +173,20 @@ static const unsigned armv6_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 	},
+	[C(NODE)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
 };
 
 enum armv6mpcore_perf_types {
@@ -297,6 +311,20 @@ static const unsigned armv6mpcore_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 		},
 	},
 	[C(BPU)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(NODE)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
@@ -474,12 +502,12 @@ armv6pmu_handle_irq(int irq_num,
 			continue;
 
 		hwc = &event->hw;
-		armpmu_event_update(event, hwc, idx);
+		armpmu_event_update(event, hwc, idx, 1);
 		data.period = event->hw.last_period;
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
 
-		if (perf_event_overflow(event, 0, &data, regs))
+		if (perf_event_overflow(event, &data, regs))
 			armpmu->disable(hwc, idx);
 	}
 
@@ -669,4 +697,4 @@ static const struct arm_pmu *__init armv6mpcore_pmu_init(void)
 {
 	return NULL;
 }
-#endif	/* CONFIG_CPU_V6 */
+#endif	/* CONFIG_CPU_V6 || CONFIG_CPU_V6K */

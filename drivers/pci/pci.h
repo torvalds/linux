@@ -11,7 +11,7 @@
 extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
-#ifndef CONFIG_DMI
+#if !defined(CONFIG_DMI) && !defined(CONFIG_ACPI)
 static inline void pci_create_firmware_label_files(struct pci_dev *pdev)
 { return; }
 static inline void pci_remove_firmware_label_files(struct pci_dev *pdev)
@@ -146,6 +146,8 @@ static inline void pci_no_msi(void) { }
 static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
 
+extern void pci_realloc(void);
+
 static inline int pci_no_d1d2(struct pci_dev *dev)
 {
 	unsigned int parent_dstates = 0;
@@ -156,8 +158,7 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 
 }
 extern struct device_attribute pci_dev_attrs[];
-extern struct device_attribute dev_attr_cpuaffinity;
-extern struct device_attribute dev_attr_cpulistaffinity;
+extern struct device_attribute pcibus_dev_attrs[];
 #ifdef CONFIG_HOTPLUG
 extern struct bus_attribute pci_bus_attrs[];
 #else
@@ -184,8 +185,6 @@ pci_match_one_device(const struct pci_device_id *id, const struct pci_dev *dev)
 		return id;
 	return NULL;
 }
-
-struct pci_dev *pci_find_upstream_pcie_bridge(struct pci_dev *pdev);
 
 /* PCI slot sysfs helper code */
 #define to_pci_slot(s) container_of(s, struct pci_slot, kobj)
@@ -250,15 +249,6 @@ struct pci_sriov {
 	u8 __iomem *mstate;	/* VF Migration State Array */
 };
 
-/* Address Translation Service */
-struct pci_ats {
-	int pos;	/* capability position */
-	int stu;	/* Smallest Translation Unit */
-	int qdep;	/* Invalidate Queue Depth */
-	int ref_cnt;	/* Physical Function reference count */
-	unsigned int is_enabled:1;	/* Enable bit is set */
-};
-
 #ifdef CONFIG_PCI_IOV
 extern int pci_iov_init(struct pci_dev *dev);
 extern void pci_iov_release(struct pci_dev *dev);
@@ -269,19 +259,6 @@ extern resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev,
 extern void pci_restore_iov_state(struct pci_dev *dev);
 extern int pci_iov_bus_range(struct pci_bus *bus);
 
-extern int pci_enable_ats(struct pci_dev *dev, int ps);
-extern void pci_disable_ats(struct pci_dev *dev);
-extern int pci_ats_queue_depth(struct pci_dev *dev);
-/**
- * pci_ats_enabled - query the ATS status
- * @dev: the PCI device
- *
- * Returns 1 if ATS capability is enabled, or 0 if not.
- */
-static inline int pci_ats_enabled(struct pci_dev *dev)
-{
-	return dev->ats && dev->ats->is_enabled;
-}
 #else
 static inline int pci_iov_init(struct pci_dev *dev)
 {
@@ -304,21 +281,6 @@ static inline int pci_iov_bus_range(struct pci_bus *bus)
 	return 0;
 }
 
-static inline int pci_enable_ats(struct pci_dev *dev, int ps)
-{
-	return -ENODEV;
-}
-static inline void pci_disable_ats(struct pci_dev *dev)
-{
-}
-static inline int pci_ats_queue_depth(struct pci_dev *dev)
-{
-	return -ENODEV;
-}
-static inline int pci_ats_enabled(struct pci_dev *dev)
-{
-	return 0;
-}
 #endif /* CONFIG_PCI_IOV */
 
 static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,

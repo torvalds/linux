@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #define DRV_NAME "altera_ps2"
 
@@ -173,6 +174,16 @@ static int __devexit altera_ps2_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id altera_ps2_match[] = {
+	{ .compatible = "ALTR,ps2-1.0", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, altera_ps2_match);
+#else /* CONFIG_OF */
+#define altera_ps2_match NULL
+#endif /* CONFIG_OF */
+
 /*
  * Our device driver structure
  */
@@ -182,6 +193,7 @@ static struct platform_driver altera_ps2_driver = {
 	.driver	= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = altera_ps2_match,
 	},
 };
 
@@ -189,13 +201,12 @@ static int __init altera_ps2_init(void)
 {
 	return platform_driver_register(&altera_ps2_driver);
 }
+module_init(altera_ps2_init);
 
 static void __exit altera_ps2_exit(void)
 {
 	platform_driver_unregister(&altera_ps2_driver);
 }
-
-module_init(altera_ps2_init);
 module_exit(altera_ps2_exit);
 
 MODULE_DESCRIPTION("Altera University Program PS2 controller driver");

@@ -843,10 +843,11 @@ static int rtl8150_get_settings(struct net_device *netdev, struct ethtool_cmd *e
 	get_registers(dev, BMCR, 2, &bmcr);
 	get_registers(dev, ANLP, 2, &lpa);
 	if (bmcr & BMCR_ANENABLE) {
+		u32 speed = ((lpa & (LPA_100HALF | LPA_100FULL)) ?
+			     SPEED_100 : SPEED_10);
+		ethtool_cmd_speed_set(ecmd, speed);
 		ecmd->autoneg = AUTONEG_ENABLE;
-		ecmd->speed = (lpa & (LPA_100HALF | LPA_100FULL)) ?
-			     SPEED_100 : SPEED_10;
-		if (ecmd->speed == SPEED_100)
+		if (speed == SPEED_100)
 			ecmd->duplex = (lpa & LPA_100FULL) ?
 			    DUPLEX_FULL : DUPLEX_HALF;
 		else
@@ -854,8 +855,8 @@ static int rtl8150_get_settings(struct net_device *netdev, struct ethtool_cmd *e
 			    DUPLEX_FULL : DUPLEX_HALF;
 	} else {
 		ecmd->autoneg = AUTONEG_DISABLE;
-		ecmd->speed = (bmcr & BMCR_SPEED100) ?
-		    SPEED_100 : SPEED_10;
+		ethtool_cmd_speed_set(ecmd, ((bmcr & BMCR_SPEED100) ?
+					     SPEED_100 : SPEED_10));
 		ecmd->duplex = (bmcr & BMCR_FULLDPLX) ?
 		    DUPLEX_FULL : DUPLEX_HALF;
 	}
@@ -976,7 +977,6 @@ static void rtl8150_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (dev) {
 		set_bit(RTL8150_UNPLUG, &dev->flags);
-		tasklet_disable(&dev->tl);
 		tasklet_kill(&dev->tl);
 		unregister_netdev(dev->netdev);
 		unlink_all_urbs(dev);

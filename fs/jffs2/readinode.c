@@ -24,7 +24,7 @@
  *
  * Returns: 0 if the data CRC is correct;
  * 	    1 - if incorrect;
- *	    error code if an error occured.
+ *	    error code if an error occurred.
  */
 static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info *tn)
 {
@@ -1041,7 +1041,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		/* FIXME: point() */
 		err = jffs2_flash_read(c, ref_offset(ref), len, &retlen, buf);
 		if (err) {
-			JFFS2_ERROR("can not read %d bytes from 0x%08x, " "error code: %d.\n", len, ref_offset(ref), err);
+			JFFS2_ERROR("can not read %d bytes from 0x%08x, error code: %d.\n", len, ref_offset(ref), err);
 			goto free_out;
 		}
 

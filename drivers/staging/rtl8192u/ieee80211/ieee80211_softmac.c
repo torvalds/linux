@@ -19,7 +19,6 @@
 #include <linux/random.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <asm/uaccess.h>
 #include "dot11d.h"
 
@@ -777,7 +776,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		cpu_to_le16(ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE); //add short preamble here
 
 	if(ieee->short_slot && (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_SLOT))
-		cpu_to_le16((beacon_buf->capability |= WLAN_CAPABILITY_SHORT_SLOT));
+		beacon_buf->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 
 	crypt = ieee->crypt[ieee->tx_keyidx];
 	if (encrypt)
@@ -1973,7 +1972,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 							return 1;
 						}
 						else
-						{	//filling the PeerHTCap. //maybe not neccesary as we can get its info from current_network.
+						{	//filling the PeerHTCap. //maybe not necessary as we can get its info from current_network.
 							memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
 							memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
 						}
@@ -2113,7 +2112,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-/* following are for a simplier TX queue management.
+/* following are for a simpler TX queue management.
  * Instead of using netif_[stop/wake]_queue the driver
  * will uses these two function (plus a reset one), that
  * will internally uses the kernel netif_* and takes
@@ -2726,11 +2725,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	ieee->beacon_timer.data = (unsigned long) ieee;
 	ieee->beacon_timer.function = ieee80211_send_beacon_cb;
 
-#ifdef PF_SYNCTHREAD
-	ieee->wq = create_workqueue(DRV_NAME,0);
-#else
 	ieee->wq = create_workqueue(DRV_NAME);
-#endif
 
 	INIT_DELAYED_WORK(&ieee->start_ibss_wq,ieee80211_start_ibss_wq);
 	INIT_WORK(&ieee->associate_complete_wq, ieee80211_associate_complete_wq);
@@ -2755,11 +2750,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
 {
 	down(&ieee->wx_sem);
-	if(NULL != ieee->pDot11dInfo)
-	{
-		kfree(ieee->pDot11dInfo);
-		ieee->pDot11dInfo = NULL;
-	}
+	kfree(ieee->pDot11dInfo);
+	ieee->pDot11dInfo = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);

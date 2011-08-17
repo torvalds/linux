@@ -19,52 +19,70 @@
 #include <asm/leon_amba.h>
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
+#include <asm/smp.h>
+#include <asm/setup.h>
 
 #include "prom.h"
 #include "irq.h"
 
 struct leon3_irqctrl_regs_map *leon3_irqctrl_regs; /* interrupt controller base address */
 struct leon3_gptimer_regs_map *leon3_gptimer_regs; /* timer controller base address */
-struct amba_apb_device leon_percpu_timer_dev[16];
 
 int leondebug_irq_disable;
 int leon_debug_irqout;
 static int dummy_master_l10_counter;
+unsigned long amba_system_id;
+static DEFINE_SPINLOCK(leon_irq_lock);
 
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
 unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
+int leon3_ticker_irq; /* Timer ticker IRQ */
 unsigned int sparc_leon_eirq;
-#define LEON_IMASK ((&leon3_irqctrl_regs->mask[0]))
+#define LEON_IMASK(cpu) (&leon3_irqctrl_regs->mask[cpu])
+#define LEON_IACK (&leon3_irqctrl_regs->iclear)
+#define LEON_DO_ACK_HW 1
 
-/* Return the IRQ of the pending IRQ on the extended IRQ controller */
-int sparc_leon_eirq_get(int eirq, int cpu)
+/* Return the last ACKed IRQ by the Extended IRQ controller. It has already
+ * been (automatically) ACKed when the CPU takes the trap.
+ */
+static inline unsigned int leon_eirq_get(int cpu)
 {
 	return LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->intid[cpu]) & 0x1f;
 }
 
-irqreturn_t sparc_leon_eirq_isr(int dummy, void *dev_id)
+/* Handle one or multiple IRQs from the extended interrupt controller */
+static void leon_handle_ext_irq(unsigned int irq, struct irq_desc *desc)
 {
-	printk(KERN_ERR "sparc_leon_eirq_isr: ERROR EXTENDED IRQ\n");
-	return IRQ_HANDLED;
+	unsigned int eirq;
+	int cpu = sparc_leon3_cpuid();
+
+	eirq = leon_eirq_get(cpu);
+	if ((eirq & 0x10) && irq_map[eirq]->irq) /* bit4 tells if IRQ happened */
+		generic_handle_irq(irq_map[eirq]->irq);
 }
 
 /* The extended IRQ controller has been found, this function registers it */
-void sparc_leon_eirq_register(int eirq)
+void leon_eirq_setup(unsigned int eirq)
 {
-	int irq;
+	unsigned long mask, oldmask;
+	unsigned int veirq;
 
-	/* Register a "BAD" handler for this interrupt, it should never happen */
-	irq = request_irq(eirq, sparc_leon_eirq_isr,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC), "extirq", NULL);
-
-	if (irq) {
-		printk(KERN_ERR
-		       "sparc_leon_eirq_register: unable to attach IRQ%d\n",
-		       eirq);
-	} else {
-		sparc_leon_eirq = eirq;
+	if (eirq < 1 || eirq > 0xf) {
+		printk(KERN_ERR "LEON EXT IRQ NUMBER BAD: %d\n", eirq);
+		return;
 	}
 
+	veirq = leon_build_device_irq(eirq, leon_handle_ext_irq, "extirq", 0);
+
+	/*
+	 * Unmask the Extended IRQ, the IRQs routed through the Ext-IRQ
+	 * controller have a mask-bit of their own, so this is safe.
+	 */
+	irq_link(veirq);
+	mask = 1 << eirq;
+	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(boot_cpu_id));
+	LEON3_BYPASS_STORE_PA(LEON_IMASK(boot_cpu_id), (oldmask | mask));
+	sparc_leon_eirq = eirq;
 }
 
 static inline unsigned long get_irqmask(unsigned int irq)
@@ -82,45 +100,182 @@ static inline unsigned long get_irqmask(unsigned int irq)
 	return mask;
 }
 
-static void leon_enable_irq(unsigned int irq_nr)
+#ifdef CONFIG_SMP
+static int irq_choose_cpu(const struct cpumask *affinity)
 {
-	unsigned long mask, flags;
-	mask = get_irqmask(irq_nr);
-	local_irq_save(flags);
-	LEON3_BYPASS_STORE_PA(LEON_IMASK,
-			      (LEON3_BYPASS_LOAD_PA(LEON_IMASK) | (mask)));
-	local_irq_restore(flags);
+	cpumask_t mask;
+
+	cpus_and(mask, cpu_online_map, *affinity);
+	if (cpus_equal(mask, cpu_online_map) || cpus_empty(mask))
+		return boot_cpu_id;
+	else
+		return first_cpu(mask);
+}
+#else
+#define irq_choose_cpu(affinity) boot_cpu_id
+#endif
+
+static int leon_set_affinity(struct irq_data *data, const struct cpumask *dest,
+			     bool force)
+{
+	unsigned long mask, oldmask, flags;
+	int oldcpu, newcpu;
+
+	mask = (unsigned long)data->chip_data;
+	oldcpu = irq_choose_cpu(data->affinity);
+	newcpu = irq_choose_cpu(dest);
+
+	if (oldcpu == newcpu)
+		goto out;
+
+	/* unmask on old CPU first before enabling on the selected CPU */
+	spin_lock_irqsave(&leon_irq_lock, flags);
+	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(oldcpu));
+	LEON3_BYPASS_STORE_PA(LEON_IMASK(oldcpu), (oldmask & ~mask));
+	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(newcpu));
+	LEON3_BYPASS_STORE_PA(LEON_IMASK(newcpu), (oldmask | mask));
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
+out:
+	return IRQ_SET_MASK_OK;
 }
 
-static void leon_disable_irq(unsigned int irq_nr)
+static void leon_unmask_irq(struct irq_data *data)
 {
-	unsigned long mask, flags;
-	mask = get_irqmask(irq_nr);
-	local_irq_save(flags);
-	LEON3_BYPASS_STORE_PA(LEON_IMASK,
-			      (LEON3_BYPASS_LOAD_PA(LEON_IMASK) & ~(mask)));
-	local_irq_restore(flags);
+	unsigned long mask, oldmask, flags;
+	int cpu;
 
+	mask = (unsigned long)data->chip_data;
+	cpu = irq_choose_cpu(data->affinity);
+	spin_lock_irqsave(&leon_irq_lock, flags);
+	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(cpu));
+	LEON3_BYPASS_STORE_PA(LEON_IMASK(cpu), (oldmask | mask));
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
+}
+
+static void leon_mask_irq(struct irq_data *data)
+{
+	unsigned long mask, oldmask, flags;
+	int cpu;
+
+	mask = (unsigned long)data->chip_data;
+	cpu = irq_choose_cpu(data->affinity);
+	spin_lock_irqsave(&leon_irq_lock, flags);
+	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(cpu));
+	LEON3_BYPASS_STORE_PA(LEON_IMASK(cpu), (oldmask & ~mask));
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
+}
+
+static unsigned int leon_startup_irq(struct irq_data *data)
+{
+	irq_link(data->irq);
+	leon_unmask_irq(data);
+	return 0;
+}
+
+static void leon_shutdown_irq(struct irq_data *data)
+{
+	leon_mask_irq(data);
+	irq_unlink(data->irq);
+}
+
+/* Used by external level sensitive IRQ handlers on the LEON: ACK IRQ ctrl */
+static void leon_eoi_irq(struct irq_data *data)
+{
+	unsigned long mask = (unsigned long)data->chip_data;
+
+	if (mask & LEON_DO_ACK_HW)
+		LEON3_BYPASS_STORE_PA(LEON_IACK, mask & ~LEON_DO_ACK_HW);
+}
+
+static struct irq_chip leon_irq = {
+	.name			= "leon",
+	.irq_startup		= leon_startup_irq,
+	.irq_shutdown		= leon_shutdown_irq,
+	.irq_mask		= leon_mask_irq,
+	.irq_unmask		= leon_unmask_irq,
+	.irq_eoi		= leon_eoi_irq,
+	.irq_set_affinity	= leon_set_affinity,
+};
+
+/*
+ * Build a LEON IRQ for the edge triggered LEON IRQ controller:
+ *  Edge (normal) IRQ           - handle_simple_irq, ack=DONT-CARE, never ack
+ *  Level IRQ (PCI|Level-GPIO)  - handle_fasteoi_irq, ack=1, ack after ISR
+ *  Per-CPU Edge                - handle_percpu_irq, ack=0
+ */
+unsigned int leon_build_device_irq(unsigned int real_irq,
+				    irq_flow_handler_t flow_handler,
+				    const char *name, int do_ack)
+{
+	unsigned int irq;
+	unsigned long mask;
+
+	irq = 0;
+	mask = get_irqmask(real_irq);
+	if (mask == 0)
+		goto out;
+
+	irq = irq_alloc(real_irq, real_irq);
+	if (irq == 0)
+		goto out;
+
+	if (do_ack)
+		mask |= LEON_DO_ACK_HW;
+
+	irq_set_chip_and_handler_name(irq, &leon_irq,
+				      flow_handler, name);
+	irq_set_chip_data(irq, (void *)mask);
+
+out:
+	return irq;
+}
+
+static unsigned int _leon_build_device_irq(struct platform_device *op,
+					   unsigned int real_irq)
+{
+	return leon_build_device_irq(real_irq, handle_simple_irq, "edge", 0);
+}
+
+void leon_update_virq_handling(unsigned int virq,
+			      irq_flow_handler_t flow_handler,
+			      const char *name, int do_ack)
+{
+	unsigned long mask = (unsigned long)irq_get_chip_data(virq);
+
+	mask &= ~LEON_DO_ACK_HW;
+	if (do_ack)
+		mask |= LEON_DO_ACK_HW;
+
+	irq_set_chip_and_handler_name(virq, &leon_irq,
+				      flow_handler, name);
+	irq_set_chip_data(virq, (void *)mask);
 }
 
 void __init leon_init_timers(irq_handler_t counter_fn)
 {
-	int irq;
+	int irq, eirq;
 	struct device_node *rootnp, *np, *nnp;
 	struct property *pp;
 	int len;
-	int cpu, icsel;
+	int icsel;
 	int ampopts;
+	int err;
 
 	leondebug_irq_disable = 0;
 	leon_debug_irqout = 0;
 	master_l10_counter = (unsigned int *)&dummy_master_l10_counter;
 	dummy_master_l10_counter = 0;
 
-	/*Find IRQMP IRQ Controller Registers base address otherwise bail out.*/
 	rootnp = of_find_node_by_path("/ambapp0");
 	if (!rootnp)
 		goto bad;
+
+	/* Find System ID: GRLIB build ID and optional CHIP ID */
+	pp = of_find_property(rootnp, "systemid", &len);
+	if (pp)
+		amba_system_id = *(unsigned long *)pp->value;
+
+	/* Find IRQMP IRQ Controller Registers base adr otherwise bail out */
 	np = of_find_node_by_name(rootnp, "GAISLER_IRQMP");
 	if (!np) {
 		np = of_find_node_by_name(rootnp, "01_00d");
@@ -166,98 +321,101 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 			leon3_gptimer_irq = *(unsigned int *)pp->value;
 	} while (0);
 
-	if (leon3_gptimer_regs && leon3_irqctrl_regs && leon3_gptimer_irq) {
-		LEON3_BYPASS_STORE_PA(
-			&leon3_gptimer_regs->e[leon3_gptimer_idx].val, 0);
-		LEON3_BYPASS_STORE_PA(
-			&leon3_gptimer_regs->e[leon3_gptimer_idx].rld,
-			(((1000000 / HZ) - 1)));
-		LEON3_BYPASS_STORE_PA(
+	if (!(leon3_gptimer_regs && leon3_irqctrl_regs && leon3_gptimer_irq))
+		goto bad;
+
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].val, 0);
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].rld,
+				(((1000000 / HZ) - 1)));
+	LEON3_BYPASS_STORE_PA(
 			&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl, 0);
 
 #ifdef CONFIG_SMP
-		leon_percpu_timer_dev[0].start = (int)leon3_gptimer_regs;
-		leon_percpu_timer_dev[0].irq = leon3_gptimer_irq + 1 +
-					       leon3_gptimer_idx;
+	leon3_ticker_irq = leon3_gptimer_irq + 1 + leon3_gptimer_idx;
 
-		if (!(LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config) &
-		      (1<<LEON3_GPTIMER_SEPIRQ))) {
-			prom_printf("irq timer not configured with separate irqs\n");
-			BUG();
-		}
-
-		LEON3_BYPASS_STORE_PA(
-			&leon3_gptimer_regs->e[leon3_gptimer_idx+1].val, 0);
-		LEON3_BYPASS_STORE_PA(
-			&leon3_gptimer_regs->e[leon3_gptimer_idx+1].rld,
-			(((1000000/HZ) - 1)));
-		LEON3_BYPASS_STORE_PA(
-			&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl, 0);
-# endif
-
-		/*
-		 * The IRQ controller may (if implemented) consist of multiple
-		 * IRQ controllers, each mapped on a 4Kb boundary.
-		 * Each CPU may be routed to different IRQCTRLs, however
-		 * we assume that all CPUs (in SMP system) is routed to the
-		 * same IRQ Controller, and for non-SMP only one IRQCTRL is
-		 * accessed anyway.
-		 * In AMP systems, Linux must run on CPU0 for the time being.
-		 */
-		cpu = sparc_leon3_cpuid();
-		icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[cpu/8]);
-		icsel = (icsel >> ((7 - (cpu&0x7)) * 4)) & 0xf;
-		leon3_irqctrl_regs += icsel;
-	} else {
-		goto bad;
+	if (!(LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config) &
+	      (1<<LEON3_GPTIMER_SEPIRQ))) {
+		printk(KERN_ERR "timer not configured with separate irqs\n");
+		BUG();
 	}
 
-	irq = request_irq(leon3_gptimer_irq+leon3_gptimer_idx,
-			  counter_fn,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].val,
+				0);
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].rld,
+				(((1000000/HZ) - 1)));
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
+				0);
+#endif
 
-	if (irq) {
-		printk(KERN_ERR "leon_time_init: unable to attach IRQ%d\n",
-		       LEON_INTERRUPT_TIMER1);
+	/*
+	 * The IRQ controller may (if implemented) consist of multiple
+	 * IRQ controllers, each mapped on a 4Kb boundary.
+	 * Each CPU may be routed to different IRQCTRLs, however
+	 * we assume that all CPUs (in SMP system) is routed to the
+	 * same IRQ Controller, and for non-SMP only one IRQCTRL is
+	 * accessed anyway.
+	 * In AMP systems, Linux must run on CPU0 for the time being.
+	 */
+	icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[boot_cpu_id/8]);
+	icsel = (icsel >> ((7 - (boot_cpu_id&0x7)) * 4)) & 0xf;
+	leon3_irqctrl_regs += icsel;
+
+	/* Mask all IRQs on boot-cpu IRQ controller */
+	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->mask[boot_cpu_id], 0);
+
+	/* Probe extended IRQ controller */
+	eirq = (LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->mpstatus)
+		>> 16) & 0xf;
+	if (eirq != 0)
+		leon_eirq_setup(eirq);
+
+	irq = _leon_build_device_irq(NULL, leon3_gptimer_irq+leon3_gptimer_idx);
+	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
+	if (err) {
+		printk(KERN_ERR "unable to attach timer IRQ%d\n", irq);
 		prom_halt();
 	}
 
-# ifdef CONFIG_SMP
+#ifdef CONFIG_SMP
 	{
 		unsigned long flags;
-		struct tt_entry *trap_table = &sparc_ttable[SP_TRAP_IRQ1 + (leon_percpu_timer_dev[0].irq - 1)];
 
-		/* For SMP we use the level 14 ticker, however the bootup code
-		 * has copied the firmwares level 14 vector into boot cpu's
-		 * trap table, we must fix this now or we get squashed.
+		/*
+		 * In SMP, sun4m adds a IPI handler to IRQ trap handler that
+		 * LEON never must take, sun4d and LEON overwrites the branch
+		 * with a NOP.
 		 */
 		local_irq_save(flags);
-
 		patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
-
-		/* Adjust so that we jump directly to smpleon_ticker */
-		trap_table->inst_three += smpleon_ticker - real_irq_entry;
-
 		local_flush_cache_all();
 		local_irq_restore(flags);
 	}
-# endif
-
-	if (leon3_gptimer_regs) {
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
-				      LEON3_GPTIMER_EN |
-				      LEON3_GPTIMER_RL |
-				      LEON3_GPTIMER_LD | LEON3_GPTIMER_IRQEN);
-
-#ifdef CONFIG_SMP
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
-				      LEON3_GPTIMER_EN |
-				      LEON3_GPTIMER_RL |
-				      LEON3_GPTIMER_LD |
-				      LEON3_GPTIMER_IRQEN);
 #endif
 
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
+			      LEON3_GPTIMER_EN |
+			      LEON3_GPTIMER_RL |
+			      LEON3_GPTIMER_LD |
+			      LEON3_GPTIMER_IRQEN);
+
+#ifdef CONFIG_SMP
+	/* Install per-cpu IRQ handler for broadcasted ticker */
+	irq = leon_build_device_irq(leon3_ticker_irq, handle_percpu_irq,
+				    "per-cpu", 0);
+	err = request_irq(irq, leon_percpu_timer_interrupt,
+			  IRQF_PERCPU | IRQF_TIMER, "ticker",
+			  NULL);
+	if (err) {
+		printk(KERN_ERR "unable to attach ticker IRQ%d\n", irq);
+		prom_halt();
 	}
+
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
+			      LEON3_GPTIMER_EN |
+			      LEON3_GPTIMER_RL |
+			      LEON3_GPTIMER_LD |
+			      LEON3_GPTIMER_IRQEN);
+#endif
 	return;
 bad:
 	printk(KERN_ERR "No Timer/irqctrl found\n");
@@ -273,9 +431,6 @@ void leon_load_profile_irq(int cpu, unsigned int limit)
 {
 	BUG();
 }
-
-
-
 
 void __init leon_trans_init(struct device_node *dp)
 {
@@ -330,22 +485,18 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
 {
 	unsigned long mask, flags, *addr;
 	mask = get_irqmask(irq_nr);
-	local_irq_save(flags);
-	addr = (unsigned long *)&(leon3_irqctrl_regs->mask[cpu]);
-	LEON3_BYPASS_STORE_PA(addr, (LEON3_BYPASS_LOAD_PA(addr) | (mask)));
-	local_irq_restore(flags);
+	spin_lock_irqsave(&leon_irq_lock, flags);
+	addr = (unsigned long *)LEON_IMASK(cpu);
+	LEON3_BYPASS_STORE_PA(addr, (LEON3_BYPASS_LOAD_PA(addr) | mask));
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
 }
 
 #endif
 
 void __init leon_init_IRQ(void)
 {
-	sparc_init_timers = leon_init_timers;
-
-	BTFIXUPSET_CALL(enable_irq, leon_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_irq, leon_disable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(enable_pil_irq, leon_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_pil_irq, leon_disable_irq, BTFIXUPCALL_NORM);
+	sparc_irq_config.init_timers      = leon_init_timers;
+	sparc_irq_config.build_device_irq = _leon_build_device_irq;
 
 	BTFIXUPSET_CALL(clear_clock_irq, leon_clear_clock_irq,
 			BTFIXUPCALL_NORM);

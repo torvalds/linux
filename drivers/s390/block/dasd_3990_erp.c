@@ -2207,7 +2207,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
  * DASD_3990_ERP_CONTROL_CHECK
  *
  * DESCRIPTION
- *   Does a generic inspection if a control check occured and sets up
+ *   Does a generic inspection if a control check occurred and sets up
  *   the related error recovery procedure
  *
  * PARAMETER
@@ -2250,7 +2250,7 @@ dasd_3990_erp_inspect(struct dasd_ccw_req *erp)
 	struct dasd_ccw_req *erp_new = NULL;
 	char *sense;
 
-	/* if this problem occured on an alias retry on base */
+	/* if this problem occurred on an alias retry on base */
 	erp_new = dasd_3990_erp_inspect_alias(erp);
 	if (erp_new)
 		return erp_new;
@@ -2282,7 +2282,7 @@ dasd_3990_erp_inspect(struct dasd_ccw_req *erp)
  * DASD_3990_ERP_ADD_ERP
  *
  * DESCRIPTION
- *   This funtion adds an additional request block (ERP) to the head of
+ *   This function adds an additional request block (ERP) to the head of
  *   the given cqr (or erp).
  *   For a command mode cqr the erp is initialized as an default erp
  *   (retry TIC).

@@ -512,12 +512,10 @@ static void process_sctp_notification(struct connection *con,
 			}
 			make_sockaddr(&prim.ssp_addr, 0, &addr_len);
 			if (dlm_addr_to_nodeid(&prim.ssp_addr, &nodeid)) {
-				int i;
 				unsigned char *b=(unsigned char *)&prim.ssp_addr;
 				log_print("reject connect from unknown addr");
-				for (i=0; i<sizeof(struct sockaddr_storage);i++)
-					printk("%02x ", b[i]);
-				printk("\n");
+				print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE, 
+						     b, sizeof(struct sockaddr_storage));
 				sctp_send_shutdown(prim.ssp_assoc_id);
 				return;
 			}
@@ -748,7 +746,10 @@ static int tcp_accept_from_sock(struct connection *con)
 	/* Get the new node's NODEID */
 	make_sockaddr(&peeraddr, 0, &len);
 	if (dlm_addr_to_nodeid(&peeraddr, &nodeid)) {
+		unsigned char *b=(unsigned char *)&peeraddr;
 		log_print("connect from non cluster node");
+		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE, 
+				     b, sizeof(struct sockaddr_storage));
 		sock_release(newsock);
 		mutex_unlock(&con->sock_mutex);
 		return -1;
@@ -810,7 +811,7 @@ static int tcp_accept_from_sock(struct connection *con)
 
 	/*
 	 * Add it to the active queue in case we got data
-	 * beween processing the accept adding the socket
+	 * between processing the accept adding the socket
 	 * to the read_sockets list
 	 */
 	if (!test_and_set_bit(CF_READ_PENDING, &addcon->flags))
@@ -1468,13 +1469,15 @@ static void work_stop(void)
 
 static int work_start(void)
 {
-	recv_workqueue = create_singlethread_workqueue("dlm_recv");
+	recv_workqueue = alloc_workqueue("dlm_recv",
+					 WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!recv_workqueue) {
 		log_print("can't start dlm_recv");
 		return -ENOMEM;
 	}
 
-	send_workqueue = create_singlethread_workqueue("dlm_send");
+	send_workqueue = alloc_workqueue("dlm_send",
+					 WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!send_workqueue) {
 		log_print("can't start dlm_send");
 		destroy_workqueue(recv_workqueue);

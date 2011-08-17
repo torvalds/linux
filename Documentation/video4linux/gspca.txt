@@ -103,6 +103,7 @@ spca561		046d:092d	Logitech QC Elch2
 spca561		046d:092e	Logitech QC Elch2
 spca561		046d:092f	Logitech QuickCam Express Plus
 sunplus		046d:0960	Logitech ClickSmart 420
+nw80x		046d:d001	Logitech QuickCam Pro (dark focus ring)
 sunplus		0471:0322	Philips DMVC1300K
 zc3xx		0471:0325	Philips SPC 200 NC
 zc3xx		0471:0326	Philips SPC 300 NC
@@ -150,10 +151,12 @@ sunplus		04fc:5330	Digitrex 2110
 sunplus		04fc:5360	Sunplus Generic
 spca500		04fc:7333	PalmPixDC85
 sunplus		04fc:ffff	Pure DigitalDakota
+nw80x		0502:d001	DVC V6
 spca501		0506:00df	3Com HomeConnect Lite
 sunplus		052b:1507	Megapixel 5 Pretec DC-1007
 sunplus		052b:1513	Megapix V4
 sunplus		052b:1803	MegaImage VI
+nw80x		052b:d001	EZCam Pro p35u
 tv8532		0545:808b	Veo Stingray
 tv8532		0545:8333	Veo Stingray
 sunplus		0546:3155	Polaroid PDC3070
@@ -177,6 +180,7 @@ sunplus		055f:c530	Mustek Gsmart LCD 3
 sunplus		055f:c540	Gsmart D30
 sunplus		055f:c630	Mustek MDC4000
 sunplus		055f:c650	Mustek MDC5500Z
+nw80x		055f:d001	Mustek Wcam 300 mini
 zc3xx		055f:d003	Mustek WCam300A
 zc3xx		055f:d004	Mustek WCam300 AN
 conex		0572:0041	Creative Notebook cx11646
@@ -195,14 +199,20 @@ gl860		05e3:0503	Genesys Logic PC Camera
 gl860		05e3:f191	Genesys Logic PC Camera
 spca561		060b:a001	Maxell Compact Pc PM3
 zc3xx		0698:2003	CTX M730V built in
+nw80x		06a5:0000	Typhoon Webcam 100 USB
+nw80x		06a5:d001	Divio based webcams
+nw80x		06a5:d800	Divio Chicony TwinkleCam, Trust SpaceCam
 spca500		06bd:0404	Agfa CL20
 spca500		06be:0800	Optimedia
+nw80x		06be:d001	EZCam Pro p35u
 sunplus		06d6:0031	Trust 610 LCD PowerC@m Zoom
 spca506		06e1:a190	ADS Instant VCD
+ov534		06f8:3002	Hercules Blog Webcam
 ov534_9		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
 pac7302		06f8:3009	Hercules Classic Link
+nw80x		0728:d001	AVerMedia Camguard
 spca508		0733:0110	ViewQuest VQ110
 spca501		0733:0401	Intel Create and Share
 spca501		0733:0402	ViewQuest M318B
@@ -265,6 +275,7 @@ pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k
 pac7302		093a:262c	Philips SPC 230 NC
 jeilinj		0979:0280	Sakar 57379
+jeilinj		0979:0280	Sportscam DV15
 zc3xx		0ac8:0302	Z-star Vimicro zc0302
 vc032x		0ac8:0321	Vimicro generic vc0321
 vc032x		0ac8:0323	Vimicro Vc0323

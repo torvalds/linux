@@ -114,7 +114,7 @@ struct sta_info {
  * has passed since last received frame from the station, a nullfunc data
  * frame is sent to the station. If this frame is not acknowledged and no other
  * frames have been received, the station will be disassociated after
- * AP_DISASSOC_DELAY. Similarily, a the station will be deauthenticated after
+ * AP_DISASSOC_DELAY. Similarly, a the station will be deauthenticated after
  * AP_DEAUTH_DELAY. AP_TIMEOUT_RESOLUTION is the resolution that is used with
  * max inactivity timer. */
 #define AP_MAX_INACTIVITY_SEC (5 * 60)

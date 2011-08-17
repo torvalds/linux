@@ -54,7 +54,7 @@
  *
  * Return 1 if the attributes match and 0 if not.
  *
- * NOTE: This function runs with the inode_lock spin lock held so it is not
+ * NOTE: This function runs with the inode->i_lock spin lock held so it is not
  * allowed to sleep.
  */
 int ntfs_test_inode(struct inode *vi, ntfs_attr *na)
@@ -98,7 +98,7 @@ int ntfs_test_inode(struct inode *vi, ntfs_attr *na)
  *
  * Return 0 on success and -errno on error.
  *
- * NOTE: This function runs with the inode_lock spin lock held so it is not
+ * NOTE: This function runs with the inode->i_lock spin lock held so it is not
  * allowed to sleep. (Hence the GFP_ATOMIC allocation.)
  */
 static int ntfs_init_locked_inode(struct inode *vi, ntfs_attr *na)
@@ -622,7 +622,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	 */
 	/* Everyone gets all permissions. */
 	vi->i_mode |= S_IRWXUGO;
-	/* If read-only, noone gets write permissions. */
+	/* If read-only, no one gets write permissions. */
 	if (IS_RDONLY(vi))
 		vi->i_mode &= ~S_IWUGO;
 	if (m->flags & MFT_RECORD_IS_DIRECTORY) {
@@ -2357,12 +2357,7 @@ static const char *es = "  Leaving inconsistent metadata.  Unmount and run "
  *
  * Returns 0 on success or -errno on error.
  *
- * Called with ->i_mutex held.  In all but one case ->i_alloc_sem is held for
- * writing.  The only case in the kernel where ->i_alloc_sem is not held is
- * mm/filemap.c::generic_file_buffered_write() where vmtruncate() is called
- * with the current i_size as the offset.  The analogous place in NTFS is in
- * fs/ntfs/file.c::ntfs_file_buffered_write() where we call vmtruncate() again
- * without holding ->i_alloc_sem.
+ * Called with ->i_mutex held.
  */
 int ntfs_truncate(struct inode *vi)
 {
@@ -2529,7 +2524,7 @@ retry_truncate:
 		 * specifies that the behaviour is unspecified thus we do not
 		 * have to do anything.  This means that in our implementation
 		 * in the rare case that the file is mmap()ped and a write
-		 * occured into the mmap()ped region just beyond the file size
+		 * occurred into the mmap()ped region just beyond the file size
 		 * and writepage has not yet been called to write out the page
 		 * (which would clear the area beyond the file size) and we now
 		 * extend the file size to incorporate this dirty region
@@ -2887,8 +2882,7 @@ void ntfs_truncate_vfs(struct inode *vi) {
  * We also abort all changes of user, group, and mode as we do not implement
  * the NTFS ACLs yet.
  *
- * Called with ->i_mutex held.  For the ATTR_SIZE (i.e. ->truncate) case, also
- * called with ->i_alloc_sem held for writing.
+ * Called with ->i_mutex held.
  */
 int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 {

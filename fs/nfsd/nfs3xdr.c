@@ -702,7 +702,7 @@ nfs3svc_encode_readres(struct svc_rqst *rqstp, __be32 *p,
 		*p++ = htonl(resp->eof);
 		*p++ = htonl(resp->count);	/* xdr opaque count */
 		xdr_ressize_check(rqstp, p);
-		/* now update rqstp->rq_res to reflect data aswell */
+		/* now update rqstp->rq_res to reflect data as well */
 		rqstp->rq_res.page_len = resp->count;
 		if (resp->count & 3) {
 			/* need to pad the tail */
@@ -842,7 +842,7 @@ out:
 	return rv;
 }
 
-__be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen)
+static __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen)
 {
 	struct svc_fh	fh;
 	int err;

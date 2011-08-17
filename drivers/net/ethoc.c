@@ -11,8 +11,10 @@
  * Written by Thierry Reding <thierry.reding@avionic-design.de>
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
@@ -542,7 +544,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 
 	/* Figure out what triggered the interrupt...
 	 * The tricky bit here is that the interrupt source bits get
-	 * set in INT_SOURCE for an event irregardless of whether that
+	 * set in INT_SOURCE for an event regardless of whether that
 	 * event is masked or not.  Thus, in order to figure out what
 	 * triggered the interrupt, we need to remove the sources
 	 * for all events that are currently masked.  This behaviour
@@ -874,6 +876,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_unlock_irq(&priv->lock);
+	skb_tx_timestamp(skb);
 out:
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -965,7 +968,7 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
 	priv->dma_alloc = 0;
-	priv->io_region_size = mmio->end - mmio->start + 1;
+	priv->io_region_size = resource_size(mmio);
 
 	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
 			resource_size(mmio));
@@ -1163,15 +1166,11 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
-#ifdef CONFIG_OF
 static struct of_device_id ethoc_match[] = {
-	{
-		.compatible = "opencores,ethoc",
-	},
+	{ .compatible = "opencores,ethoc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ethoc_match);
-#endif
 
 static struct platform_driver ethoc_driver = {
 	.probe   = ethoc_probe,
@@ -1181,9 +1180,7 @@ static struct platform_driver ethoc_driver = {
 	.driver  = {
 		.name = "ethoc",
 		.owner = THIS_MODULE,
-#ifdef CONFIG_OF
 		.of_match_table = ethoc_match,
-#endif
 	},
 };
 

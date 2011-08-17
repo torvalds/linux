@@ -46,7 +46,7 @@
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/tlbflush.h>
 #include <asm/uncached.h>
 #include <asm/sn/addrs.h>
@@ -271,14 +271,13 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 	pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	vdata_size = sizeof(struct vma_data) + pages * sizeof(long);
 	if (vdata_size <= PAGE_SIZE)
-		vdata = kmalloc(vdata_size, GFP_KERNEL);
+		vdata = kzalloc(vdata_size, GFP_KERNEL);
 	else {
-		vdata = vmalloc(vdata_size);
+		vdata = vzalloc(vdata_size);
 		flags = VMD_VMALLOCED;
 	}
 	if (!vdata)
 		return -ENOMEM;
-	memset(vdata, 0, vdata_size);
 
 	vdata->vm_start = vma->vm_start;
 	vdata->vm_end = vma->vm_end;

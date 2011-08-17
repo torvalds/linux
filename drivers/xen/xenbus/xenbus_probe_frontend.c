@@ -81,8 +81,12 @@ static void backend_changed(struct xenbus_watch *watch,
 	xenbus_otherend_changed(watch, vec, len, 1);
 }
 
-static struct device_attribute xenbus_frontend_dev_attrs[] = {
-	__ATTR_NULL
+static const struct dev_pm_ops xenbus_pm_ops = {
+	.suspend	= xenbus_dev_suspend,
+	.resume		= xenbus_dev_resume,
+	.freeze		= xenbus_dev_suspend,
+	.thaw		= xenbus_dev_cancel,
+	.restore	= xenbus_dev_resume,
 };
 
 static struct xen_bus_type xenbus_frontend = {
@@ -98,10 +102,9 @@ static struct xen_bus_type xenbus_frontend = {
 		.probe		= xenbus_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_frontend_dev_attrs,
+		.dev_attrs	= xenbus_dev_attrs,
 
-		.suspend	= xenbus_dev_suspend,
-		.resume		= xenbus_dev_resume,
+		.pm		= &xenbus_pm_ops,
 	},
 };
 

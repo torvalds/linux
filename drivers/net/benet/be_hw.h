@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2010 ServerEngines
+ * Copyright (C) 2005 - 2011 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,11 +8,11 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@serverengines.com
+ * linux-drivers@emulex.com
  *
- * ServerEngines
- * 209 N. Fair Oaks Ave
- * Sunnyvale, CA 94085
+ * Emulex
+ * 3333 Susan Street
+ * Costa Mesa, CA 92626
  */
 
 /********* Mailbox door bell *************/
@@ -43,6 +43,18 @@
 #define POST_STAGE_HOST_RDY 		0x2 /* Host has given go-ahed to FW */
 #define POST_STAGE_BE_RESET		0x3 /* Host wants to reset chip */
 #define POST_STAGE_ARMFW_RDY		0xc000	/* FW is done with POST */
+
+
+/* Lancer SLIPORT_CONTROL SLIPORT_STATUS registers */
+#define SLIPORT_STATUS_OFFSET		0x404
+#define SLIPORT_CONTROL_OFFSET		0x408
+
+#define SLIPORT_STATUS_ERR_MASK		0x80000000
+#define SLIPORT_STATUS_RN_MASK		0x01000000
+#define SLIPORT_STATUS_RDY_MASK		0x00800000
+
+
+#define SLI_PORT_CONTROL_IP_MASK	0x08000000
 
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
@@ -142,6 +154,10 @@
 
 /********** SRIOV VF PCICFG OFFSET ********/
 #define SRIOV_VF_PCICFG_OFFSET		(4096)
+
+/********** FAT TABLE  ********/
+#define RETRIEVE_FAT	0
+#define QUERY_FAT	1
 
 /* Flashrom related descriptors */
 #define IMAGE_TYPE_FIRMWARE		160
@@ -289,10 +305,10 @@ struct be_eth_rx_d {
 
 /* RX Compl Queue Descriptor */
 
-/* Pseudo amap definition for eth_rx_compl in which each bit of the
- * actual structure is defined as a byte: used to calculate
+/* Pseudo amap definition for BE2 and BE3 legacy mode eth_rx_compl in which
+ * each bit of the actual structure is defined as a byte: used to calculate
  * offset/shift/mask of each field */
-struct amap_eth_rx_compl {
+struct amap_eth_rx_compl_v0 {
 	u8 vlan_tag[16];	/* dword 0 */
 	u8 pktsize[14];		/* dword 0 */
 	u8 port;		/* dword 0 */
@@ -323,8 +339,90 @@ struct amap_eth_rx_compl {
 	u8 rsshash[32];		/* dword 3 */
 } __packed;
 
+/* Pseudo amap definition for BE3 native mode eth_rx_compl in which
+ * each bit of the actual structure is defined as a byte: used to calculate
+ * offset/shift/mask of each field */
+struct amap_eth_rx_compl_v1 {
+	u8 vlan_tag[16];	/* dword 0 */
+	u8 pktsize[14];		/* dword 0 */
+	u8 vtp;			/* dword 0 */
+	u8 ip_opt;		/* dword 0 */
+	u8 err;			/* dword 1 */
+	u8 rsshp;		/* dword 1 */
+	u8 ipf;			/* dword 1 */
+	u8 tcpf;		/* dword 1 */
+	u8 udpf;		/* dword 1 */
+	u8 ipcksm;		/* dword 1 */
+	u8 l4_cksm;		/* dword 1 */
+	u8 ip_version;		/* dword 1 */
+	u8 macdst[7];		/* dword 1 */
+	u8 rsvd0;		/* dword 1 */
+	u8 fragndx[10];		/* dword 1 */
+	u8 ct[2];		/* dword 1 */
+	u8 sw;			/* dword 1 */
+	u8 numfrags[3];		/* dword 1 */
+	u8 rss_flush;		/* dword 2 */
+	u8 cast_enc[2];		/* dword 2 */
+	u8 vtm;			/* dword 2 */
+	u8 rss_bank;		/* dword 2 */
+	u8 port[2];		/* dword 2 */
+	u8 vntagp;		/* dword 2 */
+	u8 header_len[8];	/* dword 2 */
+	u8 header_split[2];	/* dword 2 */
+	u8 rsvd1[13];		/* dword 2 */
+	u8 valid;		/* dword 2 */
+	u8 rsshash[32];		/* dword 3 */
+} __packed;
+
 struct be_eth_rx_compl {
 	u32 dw[4];
+};
+
+struct mgmt_hba_attribs {
+	u8 flashrom_version_string[32];
+	u8 manufacturer_name[32];
+	u32 supported_modes;
+	u32 rsvd0[3];
+	u8 ncsi_ver_string[12];
+	u32 default_extended_timeout;
+	u8 controller_model_number[32];
+	u8 controller_description[64];
+	u8 controller_serial_number[32];
+	u8 ip_version_string[32];
+	u8 firmware_version_string[32];
+	u8 bios_version_string[32];
+	u8 redboot_version_string[32];
+	u8 driver_version_string[32];
+	u8 fw_on_flash_version_string[32];
+	u32 functionalities_supported;
+	u16 max_cdblength;
+	u8 asic_revision;
+	u8 generational_guid[16];
+	u8 hba_port_count;
+	u16 default_link_down_timeout;
+	u8 iscsi_ver_min_max;
+	u8 multifunction_device;
+	u8 cache_valid;
+	u8 hba_status;
+	u8 max_domains_supported;
+	u8 phy_port;
+	u32 firmware_post_status;
+	u32 hba_mtu[8];
+	u32 rsvd1[4];
+};
+
+struct mgmt_controller_attrib {
+	struct mgmt_hba_attribs hba_attribs;
+	u16 pci_vendor_id;
+	u16 pci_device_id;
+	u16 pci_sub_vendor_id;
+	u16 pci_sub_system_id;
+	u8 pci_bus_number;
+	u8 pci_device_number;
+	u8 pci_function_number;
+	u8 interface_type;
+	u64 unique_identifier;
+	u32 rsvd0[5];
 };
 
 struct controller_id {

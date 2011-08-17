@@ -19,7 +19,7 @@
 
 /*
  * implementation specific constants
- * MODIIFY THE FOLLWOING THREE DEFINES
+ * MODIIFY THE FOLLOWING THREE DEFINES
  */
 #define AMDPLC			/* if Amd PLC chip used */
 #ifdef	CONC
@@ -456,7 +456,7 @@ struct s_plc {
 	u_long soft_err ;		/* error counter */
 	u_long parity_err ;		/* error counter */
 	u_long ebuf_err ;		/* error counter */
-	u_long ebuf_cont ;		/* continous error counter */
+	u_long ebuf_cont ;		/* continuous error counter */
 	u_long phyinv ;			/* error counter */
 	u_long vsym_ctr ;		/* error counter */
 	u_long mini_ctr ;		/* error counter */

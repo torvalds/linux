@@ -30,6 +30,10 @@
 struct nouveau_framebuffer {
 	struct drm_framebuffer base;
 	struct nouveau_bo *nvbo;
+	struct nouveau_vma vma;
+	u32 r_dma;
+	u32 r_format;
+	u32 r_pitch;
 };
 
 static inline struct nouveau_framebuffer *

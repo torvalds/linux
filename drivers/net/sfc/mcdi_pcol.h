@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2009 Solarflare Communications Inc.
+ * Copyright 2009-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -103,7 +103,7 @@
  *
  * If Code==CMDDONE, then the fields are further interpreted as:
  *
- *   - LEVEL==INFO    Command succeded
+ *   - LEVEL==INFO    Command succeeded
  *   - LEVEL==ERR     Command failed
  *
  *    0     8         16      24     32
@@ -572,7 +572,7 @@
   (4*(_numwords))
 
 /* MC_CMD_SET_RAND_SEED:
- * Set the 16byte seed for the MC psuedo-random generator
+ * Set the 16byte seed for the MC pseudo-random generator
  */
 #define MC_CMD_SET_RAND_SEED 0x1a
 #define MC_CMD_SET_RAND_SEED_IN_LEN 16
@@ -1162,7 +1162,7 @@
 #define MC_CMD_MAC_STATS_CMD_CLEAR_WIDTH 1
 #define MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE_LBN 2
 #define MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE_WIDTH 1
-/* Remaining PERIOD* fields only relevent when PERIODIC_CHANGE is set */
+/* Remaining PERIOD* fields only relevant when PERIODIC_CHANGE is set */
 #define MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE_LBN 3
 #define MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE_WIDTH 1
 #define MC_CMD_MAC_STATS_CMD_PERIODIC_CLEAR_LBN 4

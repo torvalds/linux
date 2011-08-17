@@ -11,8 +11,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/ab8500.h>
-
-#include <mach/prcmu.h>
+#include <linux/mfd/db8500-prcmu.h>
 
 static int ab8500_i2c_write(struct ab8500 *ab8500, u16 addr, u8 data)
 {
@@ -97,7 +96,7 @@ static void __exit ab8500_i2c_exit(void)
 {
 	platform_driver_unregister(&ab8500_i2c_driver);
 }
-subsys_initcall(ab8500_i2c_init);
+arch_initcall(ab8500_i2c_init);
 module_exit(ab8500_i2c_exit);
 
 MODULE_AUTHOR("Mattias WALLIN <mattias.wallin@stericsson.com");

@@ -31,10 +31,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -55,7 +51,7 @@ config CRIS
 	default y
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_SHOW
 
 config HZ
 	int
@@ -274,8 +270,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_JEDECPROBE if ETRAX_ARCH_V32
 	select MTD_CHAR
 	select MTD_BLOCK
-	select MTD_PARTITIONS
-	select MTD_CONCAT
 	select MTD_COMPLEX_MAPPINGS
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
@@ -296,8 +290,7 @@ config ETRAX_RTC
 choice
 	prompt "RTC chip"
 	depends on ETRAX_RTC
-	default ETRAX_PCF8563 if ETRAX_ARCH_V32
-	default ETRAX_DS1302 if ETRAX_ARCH_V10
+	default ETRAX_DS1302
 
 config ETRAX_DS1302
 	depends on ETRAX_ARCH_V10

@@ -110,7 +110,6 @@ static struct platform_device dm9000_device2 = {
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.enable_dma = 0,		/* if 1 - block!!! */
-	.bits_per_word = 8,
 };
 #endif
 
@@ -289,8 +288,6 @@ static struct platform_device *ip0x_devices[] __initdata = {
 
 static int __init ip0x_init(void)
 {
-	int i;
-
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(ip0x_devices, ARRAY_SIZE(ip0x_devices));
 

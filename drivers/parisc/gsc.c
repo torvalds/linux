@@ -105,13 +105,13 @@ int gsc_find_local_irq(unsigned int irq, int *global_irqs, int limit)
 	return NO_IRQ;
 }
 
-static void gsc_asic_mask_irq(unsigned int irq)
+static void gsc_asic_mask_irq(struct irq_data *d)
 {
-	struct gsc_asic *irq_dev = get_irq_chip_data(irq);
-	int local_irq = gsc_find_local_irq(irq, irq_dev->global_irq, 32);
+	struct gsc_asic *irq_dev = irq_data_get_irq_chip_data(d);
+	int local_irq = gsc_find_local_irq(d->irq, irq_dev->global_irq, 32);
 	u32 imr;
 
-	DEBPRINTK(KERN_DEBUG "%s(%d) %s: IMR 0x%x\n", __func__, irq,
+	DEBPRINTK(KERN_DEBUG "%s(%d) %s: IMR 0x%x\n", __func__, d->irq,
 			irq_dev->name, imr);
 
 	/* Disable the IRQ line by clearing the bit in the IMR */
@@ -120,13 +120,13 @@ static void gsc_asic_mask_irq(unsigned int irq)
 	gsc_writel(imr, irq_dev->hpa + OFFSET_IMR);
 }
 
-static void gsc_asic_unmask_irq(unsigned int irq)
+static void gsc_asic_unmask_irq(struct irq_data *d)
 {
-	struct gsc_asic *irq_dev = get_irq_chip_data(irq);
-	int local_irq = gsc_find_local_irq(irq, irq_dev->global_irq, 32);
+	struct gsc_asic *irq_dev = irq_data_get_irq_chip_data(d);
+	int local_irq = gsc_find_local_irq(d->irq, irq_dev->global_irq, 32);
 	u32 imr;
 
-	DEBPRINTK(KERN_DEBUG "%s(%d) %s: IMR 0x%x\n", __func__, irq,
+	DEBPRINTK(KERN_DEBUG "%s(%d) %s: IMR 0x%x\n", __func__, d->irq,
 			irq_dev->name, imr);
 
 	/* Enable the IRQ line by setting the bit in the IMR */
@@ -140,9 +140,9 @@ static void gsc_asic_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip gsc_asic_interrupt_type = {
-	.name	=	"GSC-ASIC",
-	.unmask	=	gsc_asic_unmask_irq,
-	.mask	=	gsc_asic_mask_irq,
+	.name		=	"GSC-ASIC",
+	.irq_unmask	=	gsc_asic_unmask_irq,
+	.irq_mask	=	gsc_asic_mask_irq,
 };
 
 int gsc_assign_irq(struct irq_chip *type, void *data)
@@ -152,8 +152,8 @@ int gsc_assign_irq(struct irq_chip *type, void *data)
 	if (irq > GSC_IRQ_MAX)
 		return NO_IRQ;
 
-	set_irq_chip_and_handler(irq, type, handle_simple_irq);
-	set_irq_chip_data(irq, data);
+	irq_set_chip_and_handler(irq, type, handle_simple_irq);
+	irq_set_chip_data(irq, data);
 
 	return irq++;
 }

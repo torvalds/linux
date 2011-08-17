@@ -28,6 +28,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/cacheflush.h>
+#include <asm/smp-ops.h>
 #include <asm/traps.h>
 
 #include <asm/gcmpregs.h>
@@ -193,8 +194,6 @@ extern struct plat_smp_ops msmtc_smp_ops;
 
 void __init prom_init(void)
 {
-	int result;
-
 	prom_argc = fw_arg0;
 	_prom_argv = (int *) fw_arg1;
 	_prom_envp = (int *) fw_arg2;
@@ -361,20 +360,13 @@ void __init prom_init(void)
 	console_config();
 #endif
 	/* Early detection of CMP support */
-	result = gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
+	if (gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ))
+		if (!register_cmp_smp_ops())
+			return;
 
-#ifdef CONFIG_MIPS_CMP
-	if (result)
-		register_smp_ops(&cmp_smp_ops);
-#endif
-#ifdef CONFIG_MIPS_MT_SMP
-#ifdef CONFIG_MIPS_CMP
-	if (!result)
-		register_smp_ops(&vsmp_smp_ops);
-#else
-	register_smp_ops(&vsmp_smp_ops);
-#endif
-#endif
+	if (!register_vsmp_smp_ops())
+		return;
+
 #ifdef CONFIG_MIPS_MT_SMTC
 	register_smp_ops(&msmtc_smp_ops);
 #endif

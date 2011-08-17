@@ -53,7 +53,7 @@ History:
 	still work with 2.0.x....
   Jan 28th, 2000
 	in Linux 2.2.13, the version.h file mysteriously didn't get
-	included.  Added a workaround for this.  Futhermore, it now
+	included.  Added a workaround for this.  Furthermore, it now
 	not only compiles as a modules ;-)
   Jan 30th, 2000
 	newer kernels automatically probe more than one board, so the
@@ -481,7 +481,7 @@ static void InitBoard(struct net_device *dev)
 	if ((dev->flags & IFF_ALLMULTI) || netdev_mc_count(dev) > camcnt)
 		rcrval |= RCREG_AMC;
 
-	/* promiscous mode ? */
+	/* promiscuous mode ? */
 
 	if (dev->flags & IFF_PROMISC)
 		rcrval |= RCREG_PRO;
@@ -782,7 +782,8 @@ static int ibmlana_open(struct net_device *dev)
 
 	/* register resources - only necessary for IRQ */
 
-	result = request_irq(priv->realirq, irq_handler, IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
+	result = request_irq(priv->realirq, irq_handler, IRQF_SHARED,
+			     dev->name, dev);
 	if (result != 0) {
 		printk(KERN_ERR "%s: failed to register irq %d\n", dev->name, dev->irq);
 		return result;

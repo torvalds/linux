@@ -24,6 +24,7 @@
 #include "reg.h"
 #include "ps.h"
 #include "io.h"
+#include "tx.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
 
@@ -40,6 +41,10 @@ void wl1271_elp_work(struct work_struct *work)
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	/* our work might have been already cancelled */
+	if (unlikely(!test_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
 		goto out;
 
 	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
@@ -60,21 +65,35 @@ out:
 /* Routines to toggle sleep mode while in ELP */
 void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
-	if (test_bit(WL1271_FLAG_PSM, &wl->flags) ||
-	    test_bit(WL1271_FLAG_IDLE, &wl->flags)) {
-		cancel_delayed_work(&wl->elp_work);
-		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
-					     msecs_to_jiffies(ELP_ENTRY_DELAY));
-	}
+	/* we shouldn't get consecutive sleep requests */
+	if (WARN_ON(test_and_set_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
+		return;
+
+	if (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
+	    !test_bit(WL1271_FLAG_IDLE, &wl->flags))
+		return;
+
+	ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
+				     msecs_to_jiffies(ELP_ENTRY_DELAY));
 }
 
-int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
+int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 {
 	DECLARE_COMPLETION_ONSTACK(compl);
 	unsigned long flags;
 	int ret;
 	u32 start_time = jiffies;
 	bool pending = false;
+
+	/*
+	 * we might try to wake up even if we didn't go to sleep
+	 * before (e.g. on boot)
+	 */
+	if (!test_and_clear_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags))
+		return 0;
+
+	/* don't cancel_sync as it might contend for a mutex and deadlock */
+	cancel_delayed_work(&wl->elp_work);
 
 	if (!test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
 		return 0;
@@ -86,7 +105,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 	 * the completion variable in one entity.
 	 */
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	if (work_pending(&wl->irq_work) || chip_awake)
+	if (test_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
 		pending = true;
 	else
 		wl->elp_compl = &compl;
@@ -99,7 +118,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 			&compl, msecs_to_jiffies(WL1271_WAKEUP_TIMEOUT));
 		if (ret == 0) {
 			wl1271_error("ELP wakeup timeout!");
-			ieee80211_queue_work(wl->hw, &wl->recovery_work);
+			wl12xx_queue_recovery_work(wl);
 			ret = -ETIMEDOUT;
 			goto err;
 		} else if (ret < 0) {
@@ -139,8 +158,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 			return ret;
 		}
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE,
-					 rates, send);
+		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
 
@@ -149,22 +167,20 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_ACTIVE_MODE:
 	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
-		ret = wl1271_ps_elp_wakeup(wl, false);
-		if (ret < 0)
-			return ret;
 
 		/* disable beacon early termination */
-		ret = wl1271_acx_bet_enable(wl, false);
-		if (ret < 0)
-			return ret;
+		if (wl->band == IEEE80211_BAND_2GHZ) {
+			ret = wl1271_acx_bet_enable(wl, false);
+			if (ret < 0)
+				return ret;
+		}
 
 		/* disable beacon filtering */
 		ret = wl1271_acx_beacon_filter_opt(wl, false);
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE,
-					 rates, send);
+		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
 		if (ret < 0)
 			return ret;
 
@@ -175,4 +191,84 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	return ret;
 }
 
+static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
+{
+	int i;
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *info;
+	unsigned long flags;
+	int filtered[NUM_TX_QUEUES];
 
+	/* filter all frames currently the low level queus for this hlid */
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		filtered[i] = 0;
+		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
+			info = IEEE80211_SKB_CB(skb);
+			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+			info->status.rates[0].idx = -1;
+			ieee80211_tx_status_ni(wl->hw, skb);
+			filtered[i]++;
+		}
+	}
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wl->tx_queue_count[i] -= filtered[i];
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	wl1271_handle_tx_low_watermark(wl);
+}
+
+void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues)
+{
+	struct ieee80211_sta *sta;
+
+	if (test_bit(hlid, &wl->ap_ps_map))
+		return;
+
+	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d blks %d "
+		     "clean_queues %d", hlid, wl->links[hlid].allocated_blks,
+		     clean_queues);
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(wl->vif, wl->links[hlid].addr);
+	if (!sta) {
+		wl1271_error("could not find sta %pM for starting ps",
+			     wl->links[hlid].addr);
+		rcu_read_unlock();
+		return;
+	}
+
+	ieee80211_sta_ps_transition_ni(sta, true);
+	rcu_read_unlock();
+
+	/* do we want to filter all frames from this link's queues? */
+	if (clean_queues)
+		wl1271_ps_filter_frames(wl, hlid);
+
+	__set_bit(hlid, &wl->ap_ps_map);
+}
+
+void wl1271_ps_link_end(struct wl1271 *wl, u8 hlid)
+{
+	struct ieee80211_sta *sta;
+
+	if (!test_bit(hlid, &wl->ap_ps_map))
+		return;
+
+	wl1271_debug(DEBUG_PSM, "end mac80211 PSM on hlid %d", hlid);
+
+	__clear_bit(hlid, &wl->ap_ps_map);
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(wl->vif, wl->links[hlid].addr);
+	if (!sta) {
+		wl1271_error("could not find sta %pM for ending ps",
+			     wl->links[hlid].addr);
+		goto end;
+	}
+
+	ieee80211_sta_ps_transition_ni(sta, false);
+end:
+	rcu_read_unlock();
+}

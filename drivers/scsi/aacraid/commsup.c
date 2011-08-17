@@ -5,7 +5,8 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2010 Adaptec, Inc.
+ *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,9 +64,11 @@ static int fib_map_alloc(struct aac_dev *dev)
 	  "allocate hardware fibs pci_alloc_consistent(%p, %d * (%d + %d), %p)\n",
 	  dev->pdev, dev->max_fib_size, dev->scsi_host_ptr->can_queue,
 	  AAC_NUM_MGT_FIB, &dev->hw_fib_pa));
-	if((dev->hw_fib_va = pci_alloc_consistent(dev->pdev, dev->max_fib_size
-	  * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB),
-	  &dev->hw_fib_pa))==NULL)
+	dev->hw_fib_va = pci_alloc_consistent(dev->pdev,
+		(dev->max_fib_size + sizeof(struct aac_fib_xporthdr))
+		* (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) + (ALIGN32 - 1),
+		&dev->hw_fib_pa);
+	if (dev->hw_fib_va == NULL)
 		return -ENOMEM;
 	return 0;
 }
@@ -110,9 +113,22 @@ int aac_fib_setup(struct aac_dev * dev)
 	if (i<0)
 		return -ENOMEM;
 
+	/* 32 byte alignment for PMC */
+	hw_fib_pa = (dev->hw_fib_pa + (ALIGN32 - 1)) & ~(ALIGN32 - 1);
+	dev->hw_fib_va = (struct hw_fib *)((unsigned char *)dev->hw_fib_va +
+		(hw_fib_pa - dev->hw_fib_pa));
+	dev->hw_fib_pa = hw_fib_pa;
+	memset(dev->hw_fib_va, 0,
+		(dev->max_fib_size + sizeof(struct aac_fib_xporthdr)) *
+		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB));
+
+	/* add Xport header */
+	dev->hw_fib_va = (struct hw_fib *)((unsigned char *)dev->hw_fib_va +
+		sizeof(struct aac_fib_xporthdr));
+	dev->hw_fib_pa += sizeof(struct aac_fib_xporthdr);
+
 	hw_fib = dev->hw_fib_va;
 	hw_fib_pa = dev->hw_fib_pa;
-	memset(hw_fib, 0, dev->max_fib_size * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB));
 	/*
 	 *	Initialise the fibs
 	 */
@@ -129,8 +145,10 @@ int aac_fib_setup(struct aac_dev * dev)
 		hw_fib->header.XferState = cpu_to_le32(0xffffffff);
 		hw_fib->header.SenderSize = cpu_to_le16(dev->max_fib_size);
 		fibptr->hw_fib_pa = hw_fib_pa;
-		hw_fib = (struct hw_fib *)((unsigned char *)hw_fib + dev->max_fib_size);
-		hw_fib_pa = hw_fib_pa + dev->max_fib_size;
+		hw_fib = (struct hw_fib *)((unsigned char *)hw_fib +
+			dev->max_fib_size + sizeof(struct aac_fib_xporthdr));
+		hw_fib_pa = hw_fib_pa +
+			dev->max_fib_size + sizeof(struct aac_fib_xporthdr);
 	}
 	/*
 	 *	Add the fib chain to the free list
@@ -403,7 +421,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
 	/*
-	 *	There are 5 cases with the wait and reponse requested flags.
+	 *	There are 5 cases with the wait and response requested flags.
 	 *	The only invalid cases are if the caller requests to wait and
 	 *	does not request a response and if the caller does not want a
 	 *	response and the Fib is not allocated from pool. If a response
@@ -664,9 +682,14 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	unsigned long nointr = 0;
 	unsigned long qflags;
 
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
+		kfree(hw_fib);
+		return 0;
+	}
+
 	if (hw_fib->header.XferState == 0) {
 		if (dev->comm_interface == AAC_COMM_MESSAGE)
-			kfree (hw_fib);
+			kfree(hw_fib);
 		return 0;
 	}
 	/*
@@ -674,7 +697,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	 */
 	if (hw_fib->header.StructType != FIB_MAGIC) {
 		if (dev->comm_interface == AAC_COMM_MESSAGE)
-			kfree (hw_fib);
+			kfree(hw_fib);
 		return -EINVAL;
 	}
 	/*

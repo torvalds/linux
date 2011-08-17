@@ -12,7 +12,7 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8702, IT8712, IT8716, IT8718, IT8720 and IT8726.
+ *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721 and IT8726.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -45,7 +45,7 @@
 
 #include <asm/system.h>
 
-#define WATCHDOG_VERSION	"1.13"
+#define WATCHDOG_VERSION	"1.14"
 #define WATCHDOG_NAME		"IT87 WDT"
 #define PFX			WATCHDOG_NAME ": "
 #define DRIVER_VERSION		WATCHDOG_NAME " driver, v" WATCHDOG_VERSION "\n"
@@ -54,7 +54,7 @@
 /* Defaults for Module Parameter */
 #define DEFAULT_NOGAMEPORT	0
 #define DEFAULT_EXCLUSIVE	1
-#define DEFAULT_TIMEOUT 	60
+#define DEFAULT_TIMEOUT		60
 #define DEFAULT_TESTMODE	0
 #define DEFAULT_NOWAYOUT	WATCHDOG_NOWAYOUT
 
@@ -70,9 +70,9 @@
 /* Configuration Registers and Functions */
 #define LDNREG		0x07
 #define CHIPID		0x20
-#define CHIPREV 	0x22
+#define CHIPREV		0x22
 #define ACTREG		0x30
-#define BASEREG 	0x60
+#define BASEREG		0x60
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
@@ -82,10 +82,11 @@
 #define IT8716_ID	0x8716
 #define IT8718_ID	0x8718
 #define IT8720_ID	0x8720
+#define IT8721_ID	0x8721
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
 
 /* GPIO Configuration Registers LDN=0x07 */
-#define WDTCTRL 	0x71
+#define WDTCTRL		0x71
 #define WDTCFG		0x72
 #define WDTVALLSB	0x73
 #define WDTVALMSB	0x74
@@ -94,7 +95,7 @@
 #define WDT_CIRINT	0x80
 #define WDT_MOUSEINT	0x40
 #define WDT_KYBINT	0x20
-#define WDT_GAMEPORT	0x10 /* not in it8718, it8720 */
+#define WDT_GAMEPORT	0x10 /* not in it8718, it8720, it8721 */
 #define WDT_FORCE	0x02
 #define WDT_ZERO	0x01
 
@@ -102,11 +103,11 @@
 #define WDT_TOV1	0x80
 #define WDT_KRST	0x40
 #define WDT_TOVE	0x20
-#define WDT_PWROK	0x10
+#define WDT_PWROK	0x10 /* not in it8721 */
 #define WDT_INT_MASK	0x0f
 
 /* CIR Configuration Register LDN=0x0a */
-#define CIR_ILS 	0x70
+#define CIR_ILS		0x70
 
 /* The default Base address is not always available, we use this */
 #define CIR_BASE	0x0208
@@ -134,9 +135,8 @@
 #define WDTS_USE_GP	4
 #define WDTS_EXPECTED	5
 
-static	unsigned int base, gpact, ciract, max_units;
+static	unsigned int base, gpact, ciract, max_units, chip_type;
 static	unsigned long wdt_status;
-static	DEFINE_SPINLOCK(spinlock);
 
 static	int nogameport = DEFAULT_NOGAMEPORT;
 static	int exclusive  = DEFAULT_EXCLUSIVE;
@@ -162,18 +162,26 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started, default="
 
 /* Superio Chip */
 
-static inline void superio_enter(void)
+static inline int superio_enter(void)
 {
+	/*
+	 * Try to reserve REG and REG + 1 for exclusive access.
+	 */
+	if (!request_muxed_region(REG, 2, WATCHDOG_NAME))
+		return -EBUSY;
+
 	outb(0x87, REG);
 	outb(0x01, REG);
 	outb(0x55, REG);
 	outb(0x55, REG);
+	return 0;
 }
 
 static inline void superio_exit(void)
 {
 	outb(0x02, REG);
 	outb(0x02, VAL);
+	release_region(REG, 2);
 }
 
 static inline void superio_select(int ldn)
@@ -215,7 +223,7 @@ static inline void superio_outw(int val, int reg)
 /* Internal function, should be called after superio_select(GPIO) */
 static void wdt_update_timeout(void)
 {
-	unsigned char cfg = WDT_KRST | WDT_PWROK;
+	unsigned char cfg = WDT_KRST;
 	int tm = timeout;
 
 	if (testmode)
@@ -225,6 +233,9 @@ static void wdt_update_timeout(void)
 		cfg |= WDT_TOV1;
 	else
 		tm /= 60;
+
+	if (chip_type != IT8721_ID)
+		cfg |= WDT_PWROK;
 
 	superio_outb(cfg, WDTCFG);
 	superio_outb(tm, WDTVALLSB);
@@ -251,12 +262,11 @@ static void wdt_keepalive(void)
 	set_bit(WDTS_KEEPALIVE, &wdt_status);
 }
 
-static void wdt_start(void)
+static int wdt_start(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&spinlock, flags);
-	superio_enter();
+	int ret = superio_enter();
+	if (ret)
+		return ret;
 
 	superio_select(GPIO);
 	if (test_bit(WDTS_USE_GP, &wdt_status))
@@ -266,15 +276,15 @@ static void wdt_start(void)
 	wdt_update_timeout();
 
 	superio_exit();
-	spin_unlock_irqrestore(&spinlock, flags);
+
+	return 0;
 }
 
-static void wdt_stop(void)
+static int wdt_stop(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&spinlock, flags);
-	superio_enter();
+	int ret = superio_enter();
+	if (ret)
+		return ret;
 
 	superio_select(GPIO);
 	superio_outb(0x00, WDTCTRL);
@@ -284,7 +294,7 @@ static void wdt_stop(void)
 		superio_outb(0x00, WDTVALMSB);
 
 	superio_exit();
-	spin_unlock_irqrestore(&spinlock, flags);
+	return 0;
 }
 
 /**
@@ -299,8 +309,6 @@ static void wdt_stop(void)
 
 static int wdt_set_timeout(int t)
 {
-	unsigned long flags;
-
 	if (t < 1 || t > max_units * 60)
 		return -EINVAL;
 
@@ -309,14 +317,15 @@ static int wdt_set_timeout(int t)
 	else
 		timeout = t;
 
-	spin_lock_irqsave(&spinlock, flags);
 	if (test_bit(WDTS_TIMER_RUN, &wdt_status)) {
-		superio_enter();
+		int ret = superio_enter();
+		if (ret)
+			return ret;
+
 		superio_select(GPIO);
 		wdt_update_timeout();
 		superio_exit();
 	}
-	spin_unlock_irqrestore(&spinlock, flags);
 	return 0;
 }
 
@@ -335,12 +344,12 @@ static int wdt_set_timeout(int t)
 
 static int wdt_get_status(int *status)
 {
-	unsigned long flags;
-
 	*status = 0;
 	if (testmode) {
-		spin_lock_irqsave(&spinlock, flags);
-		superio_enter();
+		int ret = superio_enter();
+		if (ret)
+			return ret;
+
 		superio_select(GPIO);
 		if (superio_inb(WDTCTRL) & WDT_ZERO) {
 			superio_outb(0x00, WDTCTRL);
@@ -349,7 +358,6 @@ static int wdt_get_status(int *status)
 		}
 
 		superio_exit();
-		spin_unlock_irqrestore(&spinlock, flags);
 	}
 	if (test_and_clear_bit(WDTS_KEEPALIVE, &wdt_status))
 		*status |= WDIOF_KEEPALIVEPING;
@@ -375,9 +383,17 @@ static int wdt_open(struct inode *inode, struct file *file)
 	if (exclusive && test_and_set_bit(WDTS_DEV_OPEN, &wdt_status))
 		return -EBUSY;
 	if (!test_and_set_bit(WDTS_TIMER_RUN, &wdt_status)) {
+		int ret;
 		if (nowayout && !test_and_set_bit(WDTS_LOCKED, &wdt_status))
 			__module_get(THIS_MODULE);
-		wdt_start();
+
+		ret = wdt_start();
+		if (ret) {
+			clear_bit(WDTS_LOCKED, &wdt_status);
+			clear_bit(WDTS_TIMER_RUN, &wdt_status);
+			clear_bit(WDTS_DEV_OPEN, &wdt_status);
+			return ret;
+		}
 	}
 	return nonseekable_open(inode, file);
 }
@@ -399,7 +415,16 @@ static int wdt_release(struct inode *inode, struct file *file)
 {
 	if (test_bit(WDTS_TIMER_RUN, &wdt_status)) {
 		if (test_and_clear_bit(WDTS_EXPECTED, &wdt_status)) {
-			wdt_stop();
+			int ret = wdt_stop();
+			if (ret) {
+				/*
+				 * Stop failed. Just keep the watchdog alive
+				 * and hope nothing bad happens.
+				 */
+				set_bit(WDTS_EXPECTED, &wdt_status);
+				wdt_keepalive();
+				return ret;
+			}
 			clear_bit(WDTS_TIMER_RUN, &wdt_status);
 		} else {
 			wdt_keepalive();
@@ -480,7 +505,9 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				    &ident, sizeof(ident)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
-		wdt_get_status(&status);
+		rc = wdt_get_status(&status);
+		if (rc)
+			return rc;
 		return put_user(status, uarg.i);
 
 	case WDIOC_GETBOOTSTATUS:
@@ -496,14 +523,22 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		switch (new_options) {
 		case WDIOS_DISABLECARD:
-			if (test_bit(WDTS_TIMER_RUN, &wdt_status))
-				wdt_stop();
+			if (test_bit(WDTS_TIMER_RUN, &wdt_status)) {
+				rc = wdt_stop();
+				if (rc)
+					return rc;
+			}
 			clear_bit(WDTS_TIMER_RUN, &wdt_status);
 			return 0;
 
 		case WDIOS_ENABLECARD:
-			if (!test_and_set_bit(WDTS_TIMER_RUN, &wdt_status))
-				wdt_start();
+			if (!test_and_set_bit(WDTS_TIMER_RUN, &wdt_status)) {
+				rc = wdt_start();
+				if (rc) {
+					clear_bit(WDTS_TIMER_RUN, &wdt_status);
+					return rc;
+				}
+			}
 			return 0;
 
 		default:
@@ -555,18 +590,18 @@ static int __init it87_wdt_init(void)
 {
 	int rc = 0;
 	int try_gameport = !nogameport;
-	u16 chip_type;
 	u8  chip_rev;
-	unsigned long flags;
+	int gp_rreq_fail = 0;
 
 	wdt_status = 0;
 
-	spin_lock_irqsave(&spinlock, flags);
-	superio_enter();
+	rc = superio_enter();
+	if (rc)
+		return rc;
+
 	chip_type = superio_inw(CHIPID);
 	chip_rev  = superio_inb(CHIPREV) & 0x0f;
 	superio_exit();
-	spin_unlock_irqrestore(&spinlock, flags);
 
 	switch (chip_type) {
 	case IT8702_ID:
@@ -581,6 +616,7 @@ static int __init it87_wdt_init(void)
 		break;
 	case IT8718_ID:
 	case IT8720_ID:
+	case IT8721_ID:
 		max_units = 65535;
 		try_gameport = 0;
 		break;
@@ -599,8 +635,9 @@ static int __init it87_wdt_init(void)
 		return -ENODEV;
 	}
 
-	spin_lock_irqsave(&spinlock, flags);
-	superio_enter();
+	rc = superio_enter();
+	if (rc)
+		return rc;
 
 	superio_select(GPIO);
 	superio_outb(WDT_TOV1, WDTCFG);
@@ -616,21 +653,16 @@ static int __init it87_wdt_init(void)
 		}
 		gpact = superio_inb(ACTREG);
 		superio_outb(0x01, ACTREG);
-		superio_exit();
-		spin_unlock_irqrestore(&spinlock, flags);
 		if (request_region(base, 1, WATCHDOG_NAME))
 			set_bit(WDTS_USE_GP, &wdt_status);
 		else
-			rc = -EIO;
-	} else {
-		superio_exit();
-		spin_unlock_irqrestore(&spinlock, flags);
+			gp_rreq_fail = 1;
 	}
 
 	/* If we haven't Gameport support, try to get CIR support */
 	if (!test_bit(WDTS_USE_GP, &wdt_status)) {
 		if (!request_region(CIR_BASE, 8, WATCHDOG_NAME)) {
-			if (rc == -EIO)
+			if (gp_rreq_fail)
 				printk(KERN_ERR PFX
 					"I/O Address 0x%04x and 0x%04x"
 					" already in use\n", base, CIR_BASE);
@@ -642,21 +674,16 @@ static int __init it87_wdt_init(void)
 			goto err_out;
 		}
 		base = CIR_BASE;
-		spin_lock_irqsave(&spinlock, flags);
-		superio_enter();
 
 		superio_select(CIR);
 		superio_outw(base, BASEREG);
 		superio_outb(0x00, CIR_ILS);
 		ciract = superio_inb(ACTREG);
 		superio_outb(0x01, ACTREG);
-		if (rc == -EIO) {
+		if (gp_rreq_fail) {
 			superio_select(GAMEPORT);
 			superio_outb(gpact, ACTREG);
 		}
-
-		superio_exit();
-		spin_unlock_irqrestore(&spinlock, flags);
 	}
 
 	if (timeout < 1 || timeout > max_units * 60) {
@@ -700,6 +727,7 @@ static int __init it87_wdt_init(void)
 		"nogameport=%d)\n", chip_type, chip_rev, timeout,
 		nowayout, testmode, exclusive, nogameport);
 
+	superio_exit();
 	return 0;
 
 err_out_reboot:
@@ -707,49 +735,37 @@ err_out_reboot:
 err_out_region:
 	release_region(base, test_bit(WDTS_USE_GP, &wdt_status) ? 1 : 8);
 	if (!test_bit(WDTS_USE_GP, &wdt_status)) {
-		spin_lock_irqsave(&spinlock, flags);
-		superio_enter();
 		superio_select(CIR);
 		superio_outb(ciract, ACTREG);
-		superio_exit();
-		spin_unlock_irqrestore(&spinlock, flags);
 	}
 err_out:
 	if (try_gameport) {
-		spin_lock_irqsave(&spinlock, flags);
-		superio_enter();
 		superio_select(GAMEPORT);
 		superio_outb(gpact, ACTREG);
-		superio_exit();
-		spin_unlock_irqrestore(&spinlock, flags);
 	}
 
+	superio_exit();
 	return rc;
 }
 
 static void __exit it87_wdt_exit(void)
 {
-	unsigned long flags;
-	int nolock;
-
-	nolock = !spin_trylock_irqsave(&spinlock, flags);
-	superio_enter();
-	superio_select(GPIO);
-	superio_outb(0x00, WDTCTRL);
-	superio_outb(0x00, WDTCFG);
-	superio_outb(0x00, WDTVALLSB);
-	if (max_units > 255)
-		superio_outb(0x00, WDTVALMSB);
-	if (test_bit(WDTS_USE_GP, &wdt_status)) {
-		superio_select(GAMEPORT);
-		superio_outb(gpact, ACTREG);
-	} else {
-		superio_select(CIR);
-		superio_outb(ciract, ACTREG);
+	if (superio_enter() == 0) {
+		superio_select(GPIO);
+		superio_outb(0x00, WDTCTRL);
+		superio_outb(0x00, WDTCFG);
+		superio_outb(0x00, WDTVALLSB);
+		if (max_units > 255)
+			superio_outb(0x00, WDTVALMSB);
+		if (test_bit(WDTS_USE_GP, &wdt_status)) {
+			superio_select(GAMEPORT);
+			superio_outb(gpact, ACTREG);
+		} else {
+			superio_select(CIR);
+			superio_outb(ciract, ACTREG);
+		}
+		superio_exit();
 	}
-	superio_exit();
-	if (!nolock)
-		spin_unlock_irqrestore(&spinlock, flags);
 
 	misc_deregister(&wdt_miscdev);
 	unregister_reboot_notifier(&wdt_notifier);

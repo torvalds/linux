@@ -40,10 +40,12 @@
 #include "cx88.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX88_VERSION);
 
 /* ------------------------------------------------------------------ */
 
@@ -219,7 +221,23 @@ static const struct cx88_ctrl cx8800_ctls[] = {
 		.reg                   = MO_UV_SATURATION,
 		.mask                  = 0x00ff,
 		.shift                 = 0,
-	},{
+	}, {
+		.v = {
+			.id            = V4L2_CID_SHARPNESS,
+			.name          = "Sharpness",
+			.minimum       = 0,
+			.maximum       = 4,
+			.step          = 1,
+			.default_value = 0x0,
+			.type          = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off                   = 0,
+		/* NOTE: the value is converted and written to both even
+		   and odd registers in the code */
+		.reg                   = MO_FILTER_ODD,
+		.mask                  = 7 << 7,
+		.shift                 = 7,
+	}, {
 		.v = {
 			.id            = V4L2_CID_CHROMA_AGC,
 			.name          = "Chroma AGC",
@@ -243,6 +261,20 @@ static const struct cx88_ctrl cx8800_ctls[] = {
 		.reg                   = MO_INPUT_FORMAT,
 		.mask                  = 1 << 9,
 		.shift                 = 9,
+	}, {
+		.v = {
+			.id            = V4L2_CID_BAND_STOP_FILTER,
+			.name          = "Notch filter",
+			.minimum       = 0,
+			.maximum       = 3,
+			.step          = 1,
+			.default_value = 0x0,
+			.type          = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off                   = 0,
+		.reg                   = MO_HTOTAL,
+		.mask                  = 3 << 11,
+		.shift                 = 11,
 	}, {
 	/* --- audio --- */
 		.v = {
@@ -299,8 +331,10 @@ const u32 cx88_user_ctrls[] = {
 	V4L2_CID_AUDIO_VOLUME,
 	V4L2_CID_AUDIO_BALANCE,
 	V4L2_CID_AUDIO_MUTE,
+	V4L2_CID_SHARPNESS,
 	V4L2_CID_CHROMA_AGC,
 	V4L2_CID_COLOR_KILLER,
+	V4L2_CID_BAND_STOP_FILTER,
 	0
 };
 EXPORT_SYMBOL(cx88_user_ctrls);
@@ -823,7 +857,7 @@ static int video_open(struct file *file)
 		call_all(core, tuner, s_radio);
 	}
 
-	atomic_inc(&core->users);
+	core->users++;
 	mutex_unlock(&core->lock);
 
 	return 0;
@@ -921,7 +955,8 @@ static int video_release(struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
-	if(atomic_dec_and_test(&dev->core->users))
+	dev->core->users--;
+	if (!dev->core->users)
 		call_all(dev->core, core, s_power, 0);
 	mutex_unlock(&dev->core->lock);
 
@@ -960,6 +995,10 @@ int cx88_get_control (struct cx88_core  *core, struct v4l2_control *ctl)
 	case V4L2_CID_AUDIO_VOLUME:
 		ctl->value = 0x3f - (value & 0x3f);
 		break;
+	case V4L2_CID_SHARPNESS:
+		ctl->value = ((value & 0x0200) ? (((value & 0x0180) >> 7) + 1)
+						 : 0);
+		break;
 	default:
 		ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
 		break;
@@ -989,6 +1028,32 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		ctl->value = c->v.minimum;
 	if (ctl->value > c->v.maximum)
 		ctl->value = c->v.maximum;
+
+	/* Pass changes onto any WM8775 */
+	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
+		struct v4l2_control client_ctl;
+		memset(&client_ctl, 0, sizeof(client_ctl));
+		client_ctl.id = ctl->id;
+
+		switch (ctl->id) {
+		case V4L2_CID_AUDIO_MUTE:
+			client_ctl.value = ctl->value;
+			break;
+		case V4L2_CID_AUDIO_VOLUME:
+			client_ctl.value = (ctl->value) ?
+				(0x90 + ctl->value) << 8 : 0;
+			break;
+		case V4L2_CID_AUDIO_BALANCE:
+			client_ctl.value = ctl->value << 9;
+			break;
+		default:
+			client_ctl.id = 0;
+			break;
+		}
+		if (client_ctl.id)
+			call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
+	}
+
 	mask=c->mask;
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
@@ -1010,6 +1075,12 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 			value=(value*0x5a)/0x7f<<8|value;
 		}
 		mask=0xffff;
+		break;
+	case V4L2_CID_SHARPNESS:
+		/* 0b000, 0b100, 0b101, 0b110, or 0b111 */
+		value = (ctl->value < 1 ? 0 : ((ctl->value + 3) << 7));
+		/* needs to be set for both fields */
+		cx_andor(MO_FILTER_EVEN, mask, value);
 		break;
 	case V4L2_CID_CHROMA_AGC:
 		/* Do not allow chroma AGC to be enabled for SECAM */
@@ -1133,7 +1204,6 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	strcpy(cap->driver, "cx8800");
 	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
-	cap->version = CX88_VERSION_CODE;
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE     |
@@ -1452,7 +1522,6 @@ static int radio_querycap (struct file *file, void  *priv,
 	strcpy(cap->driver, "cx8800");
 	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
-	cap->version = CX88_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_TUNER;
 	return 0;
 }
@@ -1526,7 +1595,9 @@ static int radio_queryctrl (struct file *file, void *priv,
 	if (c->id <  V4L2_CID_BASE ||
 		c->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE) {
+	if (c->id == V4L2_CID_AUDIO_MUTE ||
+		c->id == V4L2_CID_AUDIO_VOLUME ||
+		c->id == V4L2_CID_AUDIO_BALANCE) {
 		for (i = 0; i < CX8800_CTLS; i++) {
 			if (cx8800_ctls[i].v.id == c->id)
 				break;
@@ -1672,7 +1743,7 @@ static const struct v4l2_file_operations video_fops =
 	.read	       = video_read,
 	.poll          = video_poll,
 	.mmap	       = video_mmap,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1722,7 +1793,7 @@ static const struct v4l2_file_operations radio_fops =
 	.owner         = THIS_MODULE,
 	.open          = video_open,
 	.release       = video_release,
-	.ioctl         = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
@@ -1803,7 +1874,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	dev->core = core;
 
 	/* print pci info */
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
+	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", core->name,
@@ -1856,9 +1927,24 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* load and configure helper modules */
 
-	if (core->board.audio_chip == V4L2_IDENT_WM8775)
-		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				"wm8775", 0x36 >> 1, NULL);
+	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
+		struct i2c_board_info wm8775_info = {
+			.type = "wm8775",
+			.addr = 0x36 >> 1,
+			.platform_data = &core->wm8775_data,
+		};
+		struct v4l2_subdev *sd;
+
+		if (core->boardnr == CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1)
+			core->wm8775_data.is_nova_s = true;
+		else
+			core->wm8775_data.is_nova_s = false;
+
+		sd = v4l2_i2c_new_subdev_board(&core->v4l2_dev, &core->i2c_adap,
+				&wm8775_info, NULL);
+		if (sd != NULL)
+			sd->grp_id = WM8775_GID;
+	}
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
@@ -1881,6 +1967,15 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		request_module("ir-kbd-i2c");
 	}
+
+	/* Sets device info at pci_dev */
+	pci_set_drvdata(pci_dev, dev);
+
+	/* initial device configuration */
+	mutex_lock(&core->lock);
+	cx88_set_tvnorm(core, core->tvnorm);
+	init_controls(core);
+	cx88_video_mux(core, 0);
 
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
@@ -1923,16 +2018,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		       core->name, video_device_node_name(dev->radio_dev));
 	}
 
-	/* everything worked */
-	pci_set_drvdata(pci_dev,dev);
-
-	/* initial device configuration */
-	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,core->tvnorm);
-	init_controls(core);
-	cx88_video_mux(core,0);
-	mutex_unlock(&core->lock);
-
 	/* start tvaudio thread */
 	if (core->board.tuner_type != TUNER_ABSENT) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
@@ -1942,11 +2027,14 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 			       core->name, err);
 		}
 	}
+	mutex_unlock(&core->lock);
+
 	return 0;
 
 fail_unreg:
 	cx8800_unregister_video(dev);
 	free_irq(pci_dev->irq, dev);
+	mutex_unlock(&core->lock);
 fail_core:
 	cx88_core_put(core,dev->pci);
 fail_free:
@@ -2092,14 +2180,8 @@ static struct pci_driver cx8800_pci_driver = {
 
 static int __init cx8800_init(void)
 {
-	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %d.%d.%d loaded\n",
-	       (CX88_VERSION_CODE >> 16) & 0xff,
-	       (CX88_VERSION_CODE >>  8) & 0xff,
-	       CX88_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %s loaded\n",
+	       CX88_VERSION);
 	return pci_register_driver(&cx8800_pci_driver);
 }
 
@@ -2110,11 +2192,3 @@ static void __exit cx8800_fini(void)
 
 module_init(cx8800_init);
 module_exit(cx8800_fini);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */

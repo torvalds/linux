@@ -358,7 +358,7 @@ static irqreturn_t snd_ps3_interrupt(int irq, void *dev_id)
 		 * filling dummy data, serial automatically start to
 		 * consume them and then will generate normal buffer
 		 * empty interrupts.
-		 * If both buffer underflow and buffer empty are occured,
+		 * If both buffer underflow and buffer empty are occurred,
 		 * it is better to do nomal data transfer than empty one
 		 */
 		snd_ps3_program_dma(card,

@@ -101,9 +101,9 @@ int sysfs_create_group(struct kobject *kobj,
 }
 
 /**
- * sysfs_update_group - given a directory kobject, create an attribute group
- * @kobj:	The kobject to create the group on
- * @grp:	The attribute group to create
+ * sysfs_update_group - given a directory kobject, update an attribute group
+ * @kobj:	The kobject to update the group on
+ * @grp:	The attribute group to update
  *
  * This function updates an attribute group.  Unlike
  * sysfs_create_group(), it will explicitly not warn or error if any

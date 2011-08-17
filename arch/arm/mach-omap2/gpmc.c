@@ -14,6 +14,7 @@
  */
 #undef DEBUG
 
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -22,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <plat/gpmc.h>
@@ -58,7 +60,6 @@
 #define GPMC_CHUNK_SHIFT	24		/* 16 MB */
 #define GPMC_SECTION_SHIFT	28		/* 128 MB */
 
-#define PREFETCH_FIFOTHRESHOLD	(0x40 << 8)
 #define CS_NUM_SHIFT		24
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
@@ -99,6 +100,8 @@ static int gpmc_ecc_used = -EINVAL;	/* cs using ecc engine */
 static void __iomem *gpmc_base;
 
 static struct clk *gpmc_l3_clk;
+
+static irqreturn_t gpmc_handle_irq(int irq, void *dev);
 
 static void gpmc_write_reg(int idx, u32 val)
 {
@@ -497,6 +500,10 @@ int gpmc_cs_configure(int cs, int cmd, int wval)
 	u32 regval = 0;
 
 	switch (cmd) {
+	case GPMC_ENABLE_IRQ:
+		gpmc_write_reg(GPMC_IRQENABLE, wval);
+		break;
+
 	case GPMC_SET_IRQ_STATUS:
 		gpmc_write_reg(GPMC_IRQSTATUS, wval);
 		break;
@@ -598,15 +605,19 @@ EXPORT_SYMBOL(gpmc_nand_write);
 /**
  * gpmc_prefetch_enable - configures and starts prefetch transfer
  * @cs: cs (chip select) number
+ * @fifo_th: fifo threshold to be used for read/ write
  * @dma_mode: dma mode enable (1) or disable (0)
  * @u32_count: number of bytes to be transferred
  * @is_write: prefetch read(0) or write post(1) mode
  */
-int gpmc_prefetch_enable(int cs, int dma_mode,
+int gpmc_prefetch_enable(int cs, int fifo_th, int dma_mode,
 				unsigned int u32_count, int is_write)
 {
 
-	if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
+	if (fifo_th > PREFETCH_FIFOTHRESHOLD_MAX) {
+		pr_err("gpmc: fifo threshold is not supported\n");
+		return -1;
+	} else if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
 		/* Set the amount of bytes to be prefetched */
 		gpmc_write_reg(GPMC_PREFETCH_CONFIG2, u32_count);
 
@@ -614,7 +625,7 @@ int gpmc_prefetch_enable(int cs, int dma_mode,
 		 * enable the engine. Set which cs is has requested for.
 		 */
 		gpmc_write_reg(GPMC_PREFETCH_CONFIG1, ((cs << CS_NUM_SHIFT) |
-					PREFETCH_FIFOTHRESHOLD |
+					PREFETCH_FIFOTHRESHOLD(fifo_th) |
 					ENABLE_PREFETCH |
 					(dma_mode << DMA_MPU_MODE) |
 					(0x1 & is_write)));
@@ -678,9 +689,11 @@ static void __init gpmc_mem_init(void)
 	}
 }
 
-void __init gpmc_init(void)
+static int __init gpmc_init(void)
 {
-	u32 l;
+	u32 l, irq;
+	int cs, ret = -EINVAL;
+	int gpmc_irq;
 	char *ck = NULL;
 
 	if (cpu_is_omap24xx()) {
@@ -689,16 +702,19 @@ void __init gpmc_init(void)
 			l = OMAP2420_GPMC_BASE;
 		else
 			l = OMAP34XX_GPMC_BASE;
+		gpmc_irq = INT_34XX_GPMC_IRQ;
 	} else if (cpu_is_omap34xx()) {
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
+		gpmc_irq = INT_34XX_GPMC_IRQ;
 	} else if (cpu_is_omap44xx()) {
 		ck = "gpmc_ck";
 		l = OMAP44XX_GPMC_BASE;
+		gpmc_irq = OMAP44XX_IRQ_GPMC;
 	}
 
 	if (WARN_ON(!ck))
-		return;
+		return ret;
 
 	gpmc_l3_clk = clk_get(NULL, ck);
 	if (IS_ERR(gpmc_l3_clk)) {
@@ -723,6 +739,35 @@ void __init gpmc_init(void)
 	l |= (0x02 << 3) | (1 << 0);
 	gpmc_write_reg(GPMC_SYSCONFIG, l);
 	gpmc_mem_init();
+
+	/* initalize the irq_chained */
+	irq = OMAP_GPMC_IRQ_BASE;
+	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
+		irq_set_chip_and_handler(irq, &dummy_irq_chip,
+						handle_simple_irq);
+		set_irq_flags(irq, IRQF_VALID);
+		irq++;
+	}
+
+	ret = request_irq(gpmc_irq,
+			gpmc_handle_irq, IRQF_SHARED, "gpmc", gpmc_base);
+	if (ret)
+		pr_err("gpmc: irq-%d could not claim: err %d\n",
+						gpmc_irq, ret);
+	return ret;
+}
+postcore_initcall(gpmc_init);
+
+static irqreturn_t gpmc_handle_irq(int irq, void *dev)
+{
+	u8 cs;
+
+	/* check cs to invoke the irq */
+	cs = ((gpmc_read_reg(GPMC_PREFETCH_CONFIG1)) >> CS_NUM_SHIFT) & 0x7;
+	if (OMAP_GPMC_IRQ_BASE+cs <= OMAP_GPMC_IRQ_END)
+		generic_handle_irq(OMAP_GPMC_IRQ_BASE+cs);
+
+	return IRQ_HANDLED;
 }
 
 #ifdef CONFIG_ARCH_OMAP3

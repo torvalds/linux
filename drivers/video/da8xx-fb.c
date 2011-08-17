@@ -763,7 +763,7 @@ static int fb_wait_for_vsync(struct fb_info *info)
 
 	/*
 	 * Set flag to 0 and wait for isr to set to 1. It would seem there is a
-	 * race condition here where the ISR could have occured just before or
+	 * race condition here where the ISR could have occurred just before or
 	 * just after this set. But since we are just coarsely waiting for
 	 * a frame to complete then that's OK. i.e. if the frame completed
 	 * just before this code executed then we have to wait another full
@@ -899,7 +899,7 @@ static struct fb_ops da8xx_fb_ops = {
 	.fb_blank = cfb_blank,
 };
 
-static int __init fb_probe(struct platform_device *device)
+static int __devinit fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
 						device->dev.platform_data;
@@ -1165,7 +1165,7 @@ static int fb_resume(struct platform_device *dev)
 
 static struct platform_driver da8xx_fb_driver = {
 	.probe = fb_probe,
-	.remove = fb_remove,
+	.remove = __devexit_p(fb_remove),
 	.suspend = fb_suspend,
 	.resume = fb_resume,
 	.driver = {

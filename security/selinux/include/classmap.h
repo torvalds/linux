@@ -12,6 +12,10 @@
 #define COMMON_IPC_PERMS "create", "destroy", "getattr", "setattr", "read", \
 	    "write", "associate", "unix_read", "unix_write"
 
+/*
+ * Note: The name for any socket class should be suffixed by "socket",
+ *	 and doesn't contain more than one substr of "socket".
+ */
 struct security_class_mapping secclass_map[] = {
 	{ "security",
 	  { "compute_av", "compute_create", "compute_member",
@@ -132,8 +136,7 @@ struct security_class_mapping secclass_map[] = {
 	{ "appletalk_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "packet",
-	  { "send", "recv", "relabelto", "flow_in", "flow_out",
-	    "forward_in", "forward_out", NULL } },
+	  { "send", "recv", "relabelto", "forward_in", "forward_out", NULL } },
 	{ "key",
 	  { "view", "read", "write", "search", "link", "setattr", "create",
 	    NULL } },

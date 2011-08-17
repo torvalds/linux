@@ -1763,7 +1763,7 @@ as it would be on UP.
 There is a furthur optimization possible here: remember our original
 cache code, where there were no reference counts and the caller simply
 held the lock whenever using the object?  This is still possible: if
-you hold the lock, noone can delete the object, so you don't need to
+you hold the lock, no one can delete the object, so you don't need to
 get and put the reference count.
 </para>
 

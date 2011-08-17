@@ -2,7 +2,7 @@
  * net/tipc/addr.c: TIPC address utility routines
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
  * tipc_addr_domain_valid - validates a network domain address
  *
  * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>,
- * where Z, C, and N are non-zero and do not exceed the configured limits.
+ * where Z, C, and N are non-zero.
  *
  * Returns 1 if domain address is valid, otherwise 0
  */
@@ -51,10 +51,6 @@ int tipc_addr_domain_valid(u32 addr)
 	u32 n = tipc_node(addr);
 	u32 c = tipc_cluster(addr);
 	u32 z = tipc_zone(addr);
-	u32 max_nodes = tipc_max_nodes;
-
-	if (n > max_nodes)
-		return 0;
 
 	if (n && (!z || !c))
 		return 0;
@@ -66,8 +62,7 @@ int tipc_addr_domain_valid(u32 addr)
 /**
  * tipc_addr_node_valid - validates a proposed network address for this node
  *
- * Accepts <Z.C.N>, where Z, C, and N are non-zero and do not exceed
- * the configured limits.
+ * Accepts <Z.C.N>, where Z, C, and N are non-zero.
  *
  * Returns 1 if address can be used, otherwise 0
  */
@@ -81,9 +76,9 @@ int tipc_in_scope(u32 domain, u32 addr)
 {
 	if (!domain || (domain == addr))
 		return 1;
-	if (domain == (addr & 0xfffff000u)) /* domain <Z.C.0> */
+	if (domain == tipc_cluster_mask(addr)) /* domain <Z.C.0> */
 		return 1;
-	if (domain == (addr & 0xff000000u)) /* domain <Z.0.0> */
+	if (domain == tipc_zone_mask(addr)) /* domain <Z.0.0> */
 		return 1;
 	return 0;
 }

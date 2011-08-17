@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -123,11 +123,6 @@ struct tc_configuration {
 	u8 tc; /* Traffic class (TC) */
 };
 
-enum dcb_rx_pba_cfg {
-	pba_equal,     /* PBA[0-7] each use 64KB FIFO */
-	pba_80_48      /* PBA[0-3] each use 80KB, PBA[4-7] each use 48KB */
-};
-
 struct dcb_num_tcs {
 	u8 pg_tcs;
 	u8 pfc_tcs;
@@ -139,21 +134,27 @@ struct ixgbe_dcb_config {
 	struct tc_configuration tc_config[MAX_TRAFFIC_CLASS];
 	u8     bw_percentage[2][MAX_BW_GROUP]; /* One each for Tx/Rx */
 	bool   pfc_mode_enable;
-	bool   round_robin_enable;
-
-	enum dcb_rx_pba_cfg rx_pba_cfg;
 
 	u32  dcb_cfg_version; /* Not used...OS-specific? */
 	u32  link_speed; /* For bandwidth allocation validation purpose */
 };
 
 /* DCB driver APIs */
+void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en);
+void ixgbe_dcb_unpack_refill(struct ixgbe_dcb_config *, int, u16 *);
+void ixgbe_dcb_unpack_max(struct ixgbe_dcb_config *, u16 *);
+void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *, int, u8 *);
+void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *, int, u8 *);
 
 /* DCB credits calculation */
+s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame);
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,
 				   struct ixgbe_dcb_config *, int, u8);
 
 /* DCB hw initialization */
+s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw, u16 *refill, u16 *max,
+			    u8 *bwg_id, u8 *prio_type, u8 *tc_prio);
+s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en);
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *, struct ixgbe_dcb_config *);
 
 /* DCB definitions for credit calculation */

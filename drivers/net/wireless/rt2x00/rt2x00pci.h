@@ -101,8 +101,21 @@ struct queue_entry_priv_pci {
 /**
  * rt2x00pci_rxdone - Handle RX done events
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ *
+ * Returns true if there are still rx frames pending and false if all
+ * pending rx frames were processed.
  */
-void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
+bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00pci_flush_queue - Flush data queue
+ * @queue: Data queue to stop
+ * @drop: True to drop all pending frames.
+ *
+ * This will wait for a maximum of 100ms, waiting for the queues
+ * to become empty.
+ */
+void rt2x00pci_flush_queue(struct data_queue *queue, bool drop);
 
 /*
  * Device initialization handlers.
@@ -113,7 +126,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev);
 /*
  * PCI driver handlers.
  */
-int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id);
+int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops);
 void rt2x00pci_remove(struct pci_dev *pci_dev);
 #ifdef CONFIG_PM
 int rt2x00pci_suspend(struct pci_dev *pci_dev, pm_message_t state);

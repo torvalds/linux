@@ -29,7 +29,6 @@
 #include <asm/mach/map.h>
 #include <linux/gpio.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mxc_nand.h>
 #include <linux/i2c/pca953x.h>
 
 #include "devices-imx27.h"
@@ -234,6 +233,8 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 
 static void __init mxt_td60_board_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mxt_td60_pins, ARRAY_SIZE(mxt_td60_pins),
 			"MXT_TD60");
 
@@ -266,10 +267,10 @@ static struct sys_timer mxt_td60_timer = {
 
 MACHINE_START(MXT_TD60, "Maxtrack i-MXT TD60")
 	/* maintainer: Maxtrack Industrial */
-	.boot_params	= MX27_PHYS_OFFSET + 0x100,
-	.map_io		= mx27_map_io,
-	.init_irq	= mx27_init_irq,
-	.init_machine	= mxt_td60_board_init,
-	.timer		= &mxt_td60_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &mxt_td60_timer,
+	.init_machine = mxt_td60_board_init,
 MACHINE_END
-

@@ -393,8 +393,14 @@
 #define __NR_fanotify_mark	372
 #define __NR_prlimit64		373
 #define __NR_cacheflush		374
+#define __NR_name_to_handle_at	375
+#define __NR_open_by_handle_at	376
+#define __NR_clock_adjtime	377
+#define __NR_syncfs		378
+#define __NR_setns		379
+#define __NR_sendmmsg		380
 
-#define __NR_syscall		375
+#define __NR_syscall		381
 #define NR_syscalls		__NR_syscall
 
 /* Old optional stuff no one actually uses */

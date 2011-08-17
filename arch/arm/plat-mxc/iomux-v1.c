@@ -157,7 +157,7 @@ EXPORT_SYMBOL(mxc_gpio_mode);
 static int imx_iomuxv1_setup_multiple(const int *list, unsigned count)
 {
 	size_t i;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < count; ++i) {
 		ret = mxc_gpio_mode(list[i]);
@@ -172,67 +172,17 @@ static int imx_iomuxv1_setup_multiple(const int *list, unsigned count)
 int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 		const char *label)
 {
-	size_t i;
 	int ret;
 
-	for (i = 0; i < count; ++i) {
-		unsigned gpio = pin_list[i] & (GPIO_PIN_MASK | GPIO_PORT_MASK);
-
-		ret = gpio_request(gpio, label);
-		if (ret)
-			goto err_gpio_request;
-	}
-
 	ret = imx_iomuxv1_setup_multiple(pin_list, count);
-	if (ret)
-		goto err_setup;
-
-	return 0;
-
-err_setup:
-	BUG_ON(i != count);
-
-err_gpio_request:
-	mxc_gpio_release_multiple_pins(pin_list, i);
-
 	return ret;
 }
 EXPORT_SYMBOL(mxc_gpio_setup_multiple_pins);
 
-void mxc_gpio_release_multiple_pins(const int *pin_list, int count)
+int __init imx_iomuxv1_init(void __iomem *base, int numports)
 {
-	size_t i;
-
-	for (i = 0; i < count; ++i) {
-		unsigned gpio = pin_list[i] & (GPIO_PIN_MASK | GPIO_PORT_MASK);
-
-		gpio_free(gpio);
-	}
-}
-EXPORT_SYMBOL(mxc_gpio_release_multiple_pins);
-
-static int imx_iomuxv1_init(void)
-{
-#ifdef CONFIG_ARCH_MX1
-	if (cpu_is_mx1()) {
-		imx_iomuxv1_baseaddr = MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR);
-		imx_iomuxv1_numports = MX1_NUM_GPIO_PORT;
-	} else
-#endif
-#ifdef CONFIG_MACH_MX21
-	if (cpu_is_mx21()) {
-		imx_iomuxv1_baseaddr = MX21_IO_ADDRESS(MX21_GPIO_BASE_ADDR);
-		imx_iomuxv1_numports = MX21_NUM_GPIO_PORT;
-	} else
-#endif
-#ifdef CONFIG_MACH_MX27
-	if (cpu_is_mx27()) {
-		imx_iomuxv1_baseaddr = MX27_IO_ADDRESS(MX27_GPIO_BASE_ADDR);
-		imx_iomuxv1_numports = MX27_NUM_GPIO_PORT;
-	} else
-#endif
-		return -ENODEV;
+	imx_iomuxv1_baseaddr = base;
+	imx_iomuxv1_numports = numports;
 
 	return 0;
 }
-pure_initcall(imx_iomuxv1_init);

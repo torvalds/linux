@@ -24,6 +24,7 @@
 #include <linux/usb/ulpi.h>
 #include <linux/slab.h>
 
+#include <mach/hardware.h>
 #include <mach/mxc_ehci.h>
 
 #include <asm/mach-types.h>
@@ -203,17 +204,12 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		mdelay(10);
 	}
 
-	/* setup specific usb hw */
-	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);
-	if (ret < 0)
-		goto err_init;
-
 	ehci = hcd_to_ehci(hcd);
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100 +
-	    HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 
 	/* set up the PORTSCx register */
 	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);

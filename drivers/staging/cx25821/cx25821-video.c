@@ -27,7 +27,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "cx25821-video.h"
-#include <linux/smp_lock.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
@@ -815,7 +814,7 @@ static int video_open(struct file *file)
        if (NULL == fh)
 	       return -ENOMEM;
 
-       lock_kernel();
+	mutex_lock(&cx25821_devlist_mutex);
 
        list_for_each(list, &cx25821_devlist)
        {
@@ -832,8 +831,9 @@ static int video_open(struct file *file)
        }
 
        if (NULL == dev) {
-	       unlock_kernel();
-	       return -ENODEV;
+		mutex_unlock(&cx25821_devlist_mutex);
+		kfree(fh);
+		return -ENODEV;
        }
 
        file->private_data = fh;
@@ -862,7 +862,7 @@ static int video_open(struct file *file)
 			      sizeof(struct cx25821_buffer), fh, NULL);
 
        dprintk(1, "post videobuf_queue_init()\n");
-       unlock_kernel();
+	mutex_unlock(&cx25821_devlist_mutex);
 
        return 0;
 }
@@ -1574,7 +1574,7 @@ int cx25821_set_control(struct cx25821_dev *dev,
 		break;
 	default:
 		/* nothing */ ;
-	};
+	}
 
 	switch (ctl->id) {
 	case V4L2_CID_BRIGHTNESS:

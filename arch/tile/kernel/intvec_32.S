@@ -21,7 +21,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/irqflags.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/asm-offsets.h>
 #include <hv/hypervisor.h>
 #include <arch/abi.h>
@@ -30,10 +30,6 @@
 
 #ifdef CONFIG_PREEMPT
 # error "No support for kernel preemption currently"
-#endif
-
-#if INT_INTCTRL_K < 32 || INT_INTCTRL_K >= 48
-# error INT_INTCTRL_K coded to set high interrupt mask
 #endif
 
 #define PTREGS_PTR(reg, ptreg) addli reg, sp, C_ABI_SAVE_AREA_SIZE + (ptreg)
@@ -855,14 +851,27 @@ STD_ENTRY(interrupt_return)
 	/* Check to see if there is any work to do before returning to user. */
 	{
 	 addi   r29, r32, THREAD_INFO_FLAGS_OFFSET
-	 moveli r28, lo16(_TIF_ALLWORK_MASK)
+	 moveli r1, lo16(_TIF_ALLWORK_MASK)
 	}
 	{
 	 lw     r29, r29
-	 auli   r28, r28, ha16(_TIF_ALLWORK_MASK)
+	 auli   r1, r1, ha16(_TIF_ALLWORK_MASK)
 	}
-	and     r28, r29, r28
-	bnz     r28, .Lwork_pending
+	and     r1, r29, r1
+	bzt     r1, .Lrestore_all
+
+	/*
+	 * Make sure we have all the registers saved for signal
+	 * handling or single-step.  Call out to C code to figure out
+	 * exactly what we need to do for each flag bit, then if
+	 * necessary, reload the flags and recheck.
+	 */
+	push_extra_callee_saves r0
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_work_pending
+	}
+	bnz     r0, .Lresume_userspace
 
 	/*
 	 * In the NMI case we
@@ -1103,140 +1112,7 @@ STD_ENTRY(interrupt_return)
 	pop_reg r50
 	pop_reg r51, sp, PTREGS_OFFSET_REG(29) - PTREGS_OFFSET_REG(51)
 	j .Lcontinue_restore_regs
-
-.Lwork_pending:
-	/* Mask the reschedule flag */
-	andi    r28, r29, _TIF_NEED_RESCHED
-
-	{
-	 /*
-	  * If the NEED_RESCHED flag is called, we call schedule(), which
-	  * may drop this context right here and go do something else.
-	  * On return, jump back to .Lresume_userspace and recheck.
-	  */
-	 bz     r28, .Lasync_tlb
-
-	 /* Mask the async-tlb flag */
-	 andi   r28, r29, _TIF_ASYNC_TLB
-	}
-
-	jal     schedule
-	FEEDBACK_REENTER(interrupt_return)
-
-	/* Reload the flags and check again */
-	j       .Lresume_userspace
-
-.Lasync_tlb:
-	{
-	 bz     r28, .Lneed_sigpending
-
-	 /* Mask the sigpending flag */
-	 andi   r28, r29, _TIF_SIGPENDING
-	}
-
-	PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	jal     do_async_page_fault
-	FEEDBACK_REENTER(interrupt_return)
-
-	/*
-	 * Go restart the "resume userspace" process.  We may have
-	 * fired a signal, and we need to disable interrupts again.
-	 */
-	j       .Lresume_userspace
-
-.Lneed_sigpending:
-	/*
-	 * At this point we are either doing signal handling or single-step,
-	 * so either way make sure we have all the registers saved.
-	 */
-	push_extra_callee_saves r0
-
-	{
-	 /* If no signal pending, skip to singlestep check */
-	 bz     r28, .Lneed_singlestep
-
-	 /* Mask the singlestep flag */
-	 andi   r28, r29, _TIF_SINGLESTEP
-	}
-
-	jal     do_signal
-	FEEDBACK_REENTER(interrupt_return)
-
-	/* Reload the flags and check again */
-	j       .Lresume_userspace
-
-.Lneed_singlestep:
-	{
-	 /* Get a pointer to the EX1 field */
-	 PTREGS_PTR(r29, PTREGS_OFFSET_EX1)
-
-	 /* If we get here, our bit must be set. */
-	 bz     r28, .Lwork_confusion
-	}
-	/* If we are in priv mode, don't single step */
-	lw      r28, r29
-	andi    r28, r28, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
-	bnz     r28, .Lrestore_all
-
-	/* Allow interrupts within the single step code */
-	TRACE_IRQS_ON  /* Note: clobbers registers r0-r29 */
-	IRQ_ENABLE(r20, r21)
-
-	/* try to single-step the current instruction */
-	PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	jal     single_step_once
-	FEEDBACK_REENTER(interrupt_return)
-
-	/* Re-disable interrupts.  TRACE_IRQS_OFF in .Lrestore_all. */
-	IRQ_DISABLE(r20,r21)
-
-	j       .Lrestore_all
-
-.Lwork_confusion:
-	move    r0, r28
-	panic   "thread_info allwork flags unhandled on userspace resume: %#x"
-
 	STD_ENDPROC(interrupt_return)
-
-	/*
-	 * This interrupt variant clears the INT_INTCTRL_K interrupt mask bit
-	 * before returning, so we can properly get more downcalls.
-	 */
-	.pushsection .text.handle_interrupt_downcall,"ax"
-handle_interrupt_downcall:
-	finish_interrupt_save handle_interrupt_downcall
-	check_single_stepping normal, .Ldispatch_downcall
-.Ldispatch_downcall:
-
-	/* Clear INTCTRL_K from the set of interrupts we ever enable. */
-	GET_INTERRUPTS_ENABLED_MASK_PTR(r30)
-	{
-	 addi   r30, r30, 4
-	 movei  r31, INT_MASK(INT_INTCTRL_K)
-	}
-	{
-	 lw     r20, r30
-	 nor    r21, r31, zero
-	}
-	and     r20, r20, r21
-	sw      r30, r20
-
-	{
-	 jalr   r0
-	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	}
-	FEEDBACK_REENTER(handle_interrupt_downcall)
-
-	/* Allow INTCTRL_K to be enabled next time we enable interrupts. */
-	lw      r20, r30
-	or      r20, r20, r31
-	sw      r30, r20
-
-	{
-	 movei  r30, 0   /* not an NMI */
-	 j      interrupt_return
-	}
-	STD_ENDPROC(handle_interrupt_downcall)
 
 	/*
 	 * Some interrupts don't check for single stepping
@@ -1594,13 +1470,19 @@ STD_ENTRY(_sys_clone)
  * We place it in the __HEAD section to ensure it is relatively
  * near to the intvec_SWINT_1 code (reachable by a conditional branch).
  *
- * Must match register usage in do_page_fault().
+ * Our use of ATOMIC_LOCK_REG here must match do_page_fault_ics().
+ *
+ * As we do in lib/atomic_asm_32.S, we bypass a store if the value we
+ * would store is the same as the value we just loaded.
  */
 	__HEAD
 	.align 64
 	/* Align much later jump on the start of a cache line. */
 #if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	nop; nop
+	nop
+#if PAGE_SIZE >= 0x10000
+	nop
+#endif
 #endif
 ENTRY(sys_cmpxchg)
 
@@ -1628,8 +1510,12 @@ ENTRY(sys_cmpxchg)
 	 * about aliasing among multiple mappings of the same physical page,
 	 * and we ignore the low 3 bits so we have one lock that covers
 	 * both a cmpxchg64() and a cmpxchg() on either its low or high word.
-	 * NOTE: this code must match __atomic_hashed_lock() in lib/atomic.c.
+	 * NOTE: this must match __atomic_hashed_lock() in lib/atomic_32.c.
 	 */
+
+#if (PAGE_OFFSET & 0xffff) != 0
+# error Code here assumes PAGE_OFFSET can be loaded with just hi16()
+#endif
 
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	{
@@ -1648,17 +1534,7 @@ ENTRY(sys_cmpxchg)
 	{
 	 shri	r20, r25, 32 - ATOMIC_HASH_L1_SHIFT
 	 slt_u  r23, r0, r23
-
-	 /*
-	  * Ensure that the TLB is loaded before we take out the lock.
-	  * On TILEPro, this will start fetching the value all the way
-	  * into our L1 as well (and if it gets modified before we
-	  * grab the lock, it will be invalidated from our cache
-	  * before we reload it).  On tile64, we'll start fetching it
-	  * into our L1 if we're the home, and if we're not, we'll
-	  * still at least start fetching it into the home's L2.
-	  */
-	 lw	r26, r0
+	 lw	r26, r0  /* see comment in the "#else" for the "lw r26". */
 	}
 	{
 	 s2a    r21, r20, r21
@@ -1674,18 +1550,9 @@ ENTRY(sys_cmpxchg)
 	 bbs    r23, .Lcmpxchg64
 	 andi   r23, r0, 7       /* Precompute alignment for cmpxchg64. */
 	}
-
 	{
-	 /*
-	  * We very carefully align the code that actually runs with
-	  * the lock held (nine bundles) so that we know it is all in
-	  * the icache when we start.  This instruction (the jump) is
-	  * at the start of the first cache line, address zero mod 64;
-	  * we jump to somewhere in the second cache line to issue the
-	  * tns, then jump back to finish up.
-	  */
 	 s2a	ATOMIC_LOCK_REG_NAME, r25, r21
-	 j      .Lcmpxchg32_tns
+	 j      .Lcmpxchg32_tns   /* see comment in the #else for the jump. */
 	}
 
 #else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
@@ -1723,11 +1590,14 @@ ENTRY(sys_cmpxchg)
 	 lw	r26, r0
 	}
 	{
-	 /* atomic_locks is page aligned so this suffices to get its addr. */
-	 auli	r21, zero, hi16(atomic_locks)
+	 auli	r21, zero, ha16(atomic_locks)
 
 	 bbns   r23, .Lcmpxchg_badaddr
 	}
+#if PAGE_SIZE < 0x10000
+	/* atomic_locks is page-aligned so for big pages we don't need this. */
+	addli   r21, r21, lo16(atomic_locks)
+#endif
 	{
 	 /*
 	  * Insert the hash bits into the page-aligned pointer.
@@ -1747,24 +1617,25 @@ ENTRY(sys_cmpxchg)
 	{
 	 /*
 	  * We very carefully align the code that actually runs with
-	  * the lock held (nine bundles) so that we know it is all in
+	  * the lock held (twelve bundles) so that we know it is all in
 	  * the icache when we start.  This instruction (the jump) is
 	  * at the start of the first cache line, address zero mod 64;
-	  * we jump to somewhere in the second cache line to issue the
-	  * tns, then jump back to finish up.
+	  * we jump to the very end of the second cache line to get that
+	  * line loaded in the icache, then fall through to issue the tns
+	  * in the third cache line, at which point it's all cached.
+	  * Note that is for performance, not correctness.
 	  */
 	 j      .Lcmpxchg32_tns
 	}
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
-	ENTRY(__sys_cmpxchg_grab_lock)
+/* Symbol for do_page_fault_ics() to use to compare against the PC. */
+.global __sys_cmpxchg_grab_lock
+__sys_cmpxchg_grab_lock:
 
 	/*
 	 * Perform the actual cmpxchg or atomic_update.
-	 * Note that __futex_mark_unlocked() in uClibc relies on
-	 * atomic_update() to always perform an "mf", so don't make
-	 * it optional or conditional without modifying that code.
 	 */
 .Ldo_cmpxchg32:
 	{
@@ -1782,10 +1653,13 @@ ENTRY(sys_cmpxchg)
 	}
 	{
 	 mvnz	r24, r23, r25    /* Use atomic_update value if appropriate. */
-	 bbns   r22, .Lcmpxchg32_mismatch
+	 bbns   r22, .Lcmpxchg32_nostore
 	}
+	seq     r22, r24, r21    /* Are we storing the value we loaded? */
+	bbs     r22, .Lcmpxchg32_nostore
 	sw      r0, r24
 
+	/* The following instruction is the start of the second cache line. */
 	/* Do slow mtspr here so the following "mf" waits less. */
 	{
 	 move   sp, r27
@@ -1793,7 +1667,6 @@ ENTRY(sys_cmpxchg)
 	}
 	mf
 
-	/* The following instruction is the start of the second cache line. */
 	{
 	 move   r0, r21
 	 sw     ATOMIC_LOCK_REG_NAME, zero
@@ -1801,7 +1674,7 @@ ENTRY(sys_cmpxchg)
 	iret
 
 	/* Duplicated code here in the case where we don't overlap "mf" */
-.Lcmpxchg32_mismatch:
+.Lcmpxchg32_nostore:
 	{
 	 move   r0, r21
 	 sw     ATOMIC_LOCK_REG_NAME, zero
@@ -1817,8 +1690,6 @@ ENTRY(sys_cmpxchg)
 	 * and for 64-bit cmpxchg.  We provide it as a macro and put
 	 * it into both versions.  We can't share the code literally
 	 * since it depends on having the right branch-back address.
-	 * Note that the first few instructions should share the cache
-	 * line with the second half of the actual locked code.
 	 */
 	.macro  cmpxchg_lock, bitwidth
 
@@ -1844,7 +1715,7 @@ ENTRY(sys_cmpxchg)
 	}
 	/*
 	 * The preceding instruction is the last thing that must be
-	 * on the second cache line.
+	 * hot in the icache before we do the "tns" above.
 	 */
 
 #ifdef CONFIG_SMP
@@ -1875,6 +1746,12 @@ ENTRY(sys_cmpxchg)
 	.endm
 
 .Lcmpxchg32_tns:
+	/*
+	 * This is the last instruction on the second cache line.
+	 * The nop here loads the second line, then we fall through
+	 * to the tns to load the third line before we take the lock.
+	 */
+	nop
 	cmpxchg_lock 32
 
 	/*
@@ -2014,17 +1891,17 @@ int_unalign:
 #endif
 	int_hand     INT_INTCTRL_0, INTCTRL_0, bad_intr
 	int_hand     INT_MESSAGE_RCV_DWNCL, MESSAGE_RCV_DWNCL, \
-		     hv_message_intr, handle_interrupt_downcall
+		     hv_message_intr
 	int_hand     INT_DEV_INTR_DWNCL, DEV_INTR_DWNCL, \
-		     tile_dev_intr, handle_interrupt_downcall
+		     tile_dev_intr
 	int_hand     INT_I_ASID, I_ASID, bad_intr
 	int_hand     INT_D_ASID, D_ASID, bad_intr
 	int_hand     INT_DMATLB_MISS_DWNCL, DMATLB_MISS_DWNCL, \
-		     do_page_fault, handle_interrupt_downcall
+		     do_page_fault
 	int_hand     INT_SNITLB_MISS_DWNCL, SNITLB_MISS_DWNCL, \
-		     do_page_fault, handle_interrupt_downcall
+		     do_page_fault
 	int_hand     INT_DMATLB_ACCESS_DWNCL, DMATLB_ACCESS_DWNCL, \
-		     do_page_fault, handle_interrupt_downcall
+		     do_page_fault
 	int_hand     INT_SN_CPL, SN_CPL, bad_intr
 	int_hand     INT_DOUBLE_FAULT, DOUBLE_FAULT, do_trap
 #if CHIP_HAS_AUX_PERF_COUNTERS()

@@ -28,6 +28,7 @@ config VIDEO_SAA7134_RC
 	bool "Philips SAA7134 Remote Controller support"
 	depends on RC_CORE
 	depends on VIDEO_SAA7134
+	depends on !(RC_CORE=m && VIDEO_SAA7134=y)
 	default y
 	---help---
 	  Enables Remote Controller support on saa7134 driver.

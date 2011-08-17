@@ -38,10 +38,7 @@
 
 #include <linux/string.h>
 #include <linux/compiler.h>
-#include <asm-generic/int-ll64.h>
 #include <asm/page.h>
-
-#include <xen/xen.h>
 
 #define build_mmio_read(name, size, type, reg, barrier) \
 static inline type name(const volatile void __iomem *addr) \
@@ -87,27 +84,6 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 build_mmio_read(readq, "q", unsigned long, "=r", :"memory")
 build_mmio_write(writeq, "q", unsigned long, "r", :"memory")
 
-#else
-
-static inline __u64 readq(const volatile void __iomem *addr)
-{
-	const volatile u32 __iomem *p = addr;
-	u32 low, high;
-
-	low = readl(p);
-	high = readl(p + 1);
-
-	return low + ((u64)high << 32);
-}
-
-static inline void writeq(__u64 val, volatile void __iomem *addr)
-{
-	writel(val, addr);
-	writel(val >> 32, addr+4);
-}
-
-#endif
-
 #define readq_relaxed(a)	readq(a)
 
 #define __raw_readq(a)		readq(a)
@@ -116,6 +92,8 @@ static inline void writeq(__u64 val, volatile void __iomem *addr)
 /* Let people know that we have them */
 #define readq			readq
 #define writeq			writeq
+
+#endif
 
 /**
  *	virt_to_phys	-	map virtual addresses to physical
@@ -354,6 +332,7 @@ extern void fixup_early_ioremap(void);
 extern bool is_early_ioremap_ptep(pte_t *ptep);
 
 #ifdef CONFIG_XEN
+#include <xen/xen.h>
 struct bio_vec;
 
 extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,

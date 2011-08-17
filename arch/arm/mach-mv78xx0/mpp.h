@@ -19,13 +19,7 @@
     /* may be output signal */    ((!!(_out)) << 13) | \
     /* available on A0 */    ((!!(_78100_A0)) << 14))
 
-#define MPP_NUM(x)    ((x) & 0xff)
-#define MPP_SEL(x)    (((x) >> 8) & 0xf)
-
                 /*   num sel  i  o  78100_A0  */
-
-#define MPP_INPUT_MASK        MPP(0, 0x0, 1, 0, 0)
-#define MPP_OUTPUT_MASK        MPP(0, 0x0, 0, 1, 0)
 
 #define MPP_78100_A0_MASK    MPP(0, 0x0, 0, 0, 1)
 

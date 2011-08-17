@@ -49,6 +49,27 @@ config DVB_STV6110x
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+comment "Multistandard (cable + terrestrial) frontends"
+	depends on DVB_CORE
+
+config DVB_DRXK
+	tristate "Micronas DRXK based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Micronas DRX-K DVB-C/T demodulator.
+
+	  Say Y when you want to support this frontend.
+
+config DVB_TDA18271C2DD
+	tristate "NXP TDA18271C2 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  NXP TDA18271 silicon tuner.
+
+	  Say Y when you want to support this tuner.
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
@@ -263,18 +284,16 @@ config DVB_S5H1432
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
-config DVB_DRX397XD
-	tristate "Micronas DRX3975D/DRX3977D based"
+config DVB_DRXD
+	tristate "Micronas DRXD driver"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
-	  TODO:
-	  This driver needs external firmware. Please use the command
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware drx397xD" to
-	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
-	  or /lib/firmware (depending on configuration of firmware hotplug).
+	  Note: this driver was based on vendor driver reference code (released
+	  under the GPL) as opposed to the existing drx397xd driver, which
+	  was written via reverse engineering.
 
 config DVB_L64781
 	tristate "LSI L64781"
@@ -349,6 +368,14 @@ config DVB_DIB7000P
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
 
+config DVB_DIB9000
+	tristate "DiBcom 9000"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
+	  to support this frontend.
+
 config DVB_TDA10048
 	tristate "Philips TDA10048HN based"
 	depends on DVB_CORE && I2C
@@ -365,6 +392,20 @@ config DVB_AF9013
 
 config DVB_EC100
 	tristate "E3C EC100"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
+config DVB_STV0367
+	tristate "ST STV0367 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T/C tuner module. Say Y when you want to support this frontend.
+
+config DVB_CXD2820R
+	tristate "Sony CXD2820R"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help

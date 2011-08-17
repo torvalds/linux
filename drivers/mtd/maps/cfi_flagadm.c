@@ -33,7 +33,7 @@
 
 
 /* We split the flash chip up into four parts.
- * 1: bootloader firts 128k			(0x00000000 - 0x0001FFFF) size 0x020000
+ * 1: bootloader first 128k			(0x00000000 - 0x0001FFFF) size 0x020000
  * 2: kernel 640k					(0x00020000 - 0x000BFFFF) size 0x0A0000
  * 3: compressed 1536k root ramdisk	(0x000C0000 - 0x0023FFFF) size 0x180000
  * 4: writeable diskpartition (jffs)(0x00240000 - 0x003FFFFF) size 0x1C0000
@@ -107,7 +107,7 @@ static int __init init_flagadm(void)
 	mymtd = do_map_probe("cfi_probe", &flagadm_map);
 	if (mymtd) {
 		mymtd->owner = THIS_MODULE;
-		add_mtd_partitions(mymtd, flagadm_parts, PARTITION_COUNT);
+		mtd_device_register(mymtd, flagadm_parts, PARTITION_COUNT);
 		printk(KERN_NOTICE "FlagaDM flash device initialized\n");
 		return 0;
 	}
@@ -119,7 +119,7 @@ static int __init init_flagadm(void)
 static void __exit cleanup_flagadm(void)
 {
 	if (mymtd) {
-		del_mtd_partitions(mymtd);
+		mtd_device_unregister(mymtd);
 		map_destroy(mymtd);
 	}
 	if (flagadm_map.virt) {

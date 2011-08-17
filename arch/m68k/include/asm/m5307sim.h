@@ -16,6 +16,7 @@
 
 #define	CPU_NAME		"COLDFIRE(m5307)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		(MCF_CLK / 2)
 
 #include <asm/m53xxacr.h>
 
@@ -28,7 +29,7 @@
 #define	MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
 #define	MCFSIM_PAR		0x04		/* Pin Assignment reg (r/w) */
 #define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
-#define	MCFSIM_PLLCR		0x08		/* PLL Controll Reg*/
+#define	MCFSIM_PLLCR		0x08		/* PLL Control Reg*/
 #define	MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
 #define	MCFSIM_IPR		0x40		/* Interrupt Pend reg (r/w) */
 #define	MCFSIM_IMR		0x44		/* Interrupt Mask reg (r/w) */
@@ -89,14 +90,28 @@
 #define MCFSIM_CSCR7		0xde		/* CS 7 Control reg (r/w) */
 #endif /* CONFIG_OLDMASK */
 
-#define MCFSIM_DCR		0x100		/* DRAM Control reg (r/w) */
-#define MCFSIM_DACR0		0x108		/* DRAM 0 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR0		0x10c		/* DRAM 0 Mask reg (r/w) */
-#define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
+#define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
+#define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM Addr/Ctrl 0 */
+#define MCFSIM_DMR0		(MCF_MBAR + 0x10c)	/* DRAM Mask 0 */
+#define MCFSIM_DACR1		(MCF_MBAR + 0x110)	/* DRAM Addr/Ctrl 1 */
+#define MCFSIM_DMR1		(MCF_MBAR + 0x114)	/* DRAM Mask 1 */
+
+/*
+ *  Timer module.
+ */
+#define MCFTIMER_BASE1		(MCF_MBAR + 0x140)	/* Base of TIMER1 */
+#define MCFTIMER_BASE2		(MCF_MBAR + 0x180)	/* Base of TIMER2 */
 
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x244)
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
+
+/*
+ *  DMA unit base addresses.
+ */
+#define MCFDMA_BASE0		(MCF_MBAR + 0x300)	/* Base address DMA 0 */
+#define MCFDMA_BASE1		(MCF_MBAR + 0x340)	/* Base address DMA 1 */
+#define MCFDMA_BASE2		(MCF_MBAR + 0x380)	/* Base address DMA 2 */
+#define MCFDMA_BASE3		(MCF_MBAR + 0x3C0)	/* Base address DMA 3 */
 
 /*
  *  UART module.

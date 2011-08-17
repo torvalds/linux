@@ -1,6 +1,7 @@
 /*
  * Opticon USB barcode to serial driver
  *
+ * Copyright (C) 2011 Martin Jansen <martin.jansen@opticon.com>
  * Copyright (C) 2008 - 2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2008 - 2009 Novell Inc.
  *
@@ -20,6 +21,16 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
+
+#define CONTROL_RTS			0x02
+#define RESEND_CTS_STATE	0x03
+
+/* max number of write urbs in flight */
+#define URB_UPPER_LIMIT	8
+
+/* This driver works for the Opticon 1D barcode reader
+ * an examples of 1D barcode types are EAN, UPC, Code39, IATA etc.. */
+#define DRIVER_DESC	"Opticon USB barcode to serial driver (1D)"
 
 static int debug;
 
@@ -42,13 +53,13 @@ struct opticon_private {
 	bool throttled;
 	bool actually_throttled;
 	bool rts;
+	bool cts;
 	int outstanding_urbs;
 };
 
-/* max number of write urbs in flight */
-#define URB_UPPER_LIMIT	4
 
-static void opticon_bulk_callback(struct urb *urb)
+
+static void opticon_read_bulk_callback(struct urb *urb)
 {
 	struct opticon_private *priv = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -57,6 +68,7 @@ static void opticon_bulk_callback(struct urb *urb)
 	struct tty_struct *tty;
 	int result;
 	int data_length;
+	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -87,10 +99,10 @@ static void opticon_bulk_callback(struct urb *urb)
 		 * Data from the device comes with a 2 byte header:
 		 *
 		 * <0x00><0x00>data...
-		 * 	This is real data to be sent to the tty layer
+		 *	This is real data to be sent to the tty layer
 		 * <0x00><0x01)level
-		 * 	This is a RTS level change, the third byte is the RTS
-		 * 	value (0 for low, 1 for high).
+		 *	This is a CTS level change, the third byte is the CTS
+		 *	value (0 for low, 1 for high).
 		 */
 		if ((data[0] == 0x00) && (data[1] == 0x00)) {
 			/* real data, send it to the tty layer */
@@ -103,10 +115,13 @@ static void opticon_bulk_callback(struct urb *urb)
 			}
 		} else {
 			if ((data[0] == 0x00) && (data[1] == 0x01)) {
+				spin_lock_irqsave(&priv->lock, flags);
+				/* CTS status information package */
 				if (data[2] == 0x00)
-					priv->rts = false;
+					priv->cts = false;
 				else
-					priv->rts = true;
+					priv->cts = true;
+				spin_unlock_irqrestore(&priv->lock, flags);
 			} else {
 				dev_dbg(&priv->udev->dev,
 					"Unknown data packet received from the device:"
@@ -129,7 +144,7 @@ exit:
 				  usb_rcvbulkpipe(priv->udev,
 						  priv->bulk_address),
 				  priv->bulk_in_buffer, priv->buffer_size,
-				  opticon_bulk_callback, priv);
+				  opticon_read_bulk_callback, priv);
 		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
@@ -138,6 +153,24 @@ exit:
 	} else
 		priv->actually_throttled = true;
 	spin_unlock(&priv->lock);
+}
+
+static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
+				u8 val)
+{
+	struct usb_serial *serial = port->serial;
+	int retval;
+	u8 buffer[2];
+
+	buffer[0] = val;
+	/* Send the message to the vendor control endpoint
+	 * of the connected device */
+	retval = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+				requesttype,
+				USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
+				0, 0, buffer, 1, 0);
+
+	return retval;
 }
 
 static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -152,19 +185,30 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	priv->throttled = false;
 	priv->actually_throttled = false;
 	priv->port = port;
+	priv->rts = false;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Start reading from the device */
+	/* Clear RTS line */
+	send_control_msg(port, CONTROL_RTS, 0);
+
+	/* Setup the read URB and start reading from the device */
 	usb_fill_bulk_urb(priv->bulk_read_urb, priv->udev,
 			  usb_rcvbulkpipe(priv->udev,
 					  priv->bulk_address),
 			  priv->bulk_in_buffer, priv->buffer_size,
-			  opticon_bulk_callback, priv);
+			  opticon_read_bulk_callback, priv);
+
+	/* clear the halt status of the enpoint */
+	usb_clear_halt(priv->udev, priv->bulk_read_urb->pipe);
+
 	result = usb_submit_urb(priv->bulk_read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
 			__func__, result);
+	/* Request CTS line state, sometimes during opening the current
+	 * CTS state can be missed. */
+	send_control_msg(port, RESEND_CTS_STATE, 1);
 	return result;
 }
 
@@ -178,7 +222,7 @@ static void opticon_close(struct usb_serial_port *port)
 	usb_kill_urb(priv->bulk_read_urb);
 }
 
-static void opticon_write_bulk_callback(struct urb *urb)
+static void opticon_write_control_callback(struct urb *urb)
 {
 	struct opticon_private *priv = urb->context;
 	int status = urb->status;
@@ -210,6 +254,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned char *buffer;
 	unsigned long flags;
 	int status;
+	struct usb_ctrlrequest *dr;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -226,6 +271,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (!buffer) {
 		dev_err(&port->dev, "out of memory\n");
 		count = -ENOMEM;
+
 		goto error_no_buffer;
 	}
 
@@ -240,35 +286,31 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
 
-	if (port->bulk_out_endpointAddress) {
-		usb_fill_bulk_urb(urb, serial->dev,
-				  usb_sndbulkpipe(serial->dev,
-						  port->bulk_out_endpointAddress),
-				  buffer, count, opticon_write_bulk_callback, priv);
-	} else {
-		struct usb_ctrlrequest *dr;
-
-		dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
-		if (!dr)
-			return -ENOMEM;
-
-		dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
-		dr->bRequest = 0x01;
-		dr->wValue = 0;
-		dr->wIndex = 0;
-		dr->wLength = cpu_to_le16(count);
-
-		usb_fill_control_urb(urb, serial->dev,
-			usb_sndctrlpipe(serial->dev, 0),
-			(unsigned char *)dr, buffer, count,
-			opticon_write_bulk_callback, priv);
+	/* The conncected devices do not have a bulk write endpoint,
+	 * to transmit data to de barcode device the control endpoint is used */
+	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+	if (!dr) {
+		dev_err(&port->dev, "out of memory\n");
+		count = -ENOMEM;
+		goto error;
 	}
+
+	dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
+	dr->bRequest = 0x01;
+	dr->wValue = 0;
+	dr->wIndex = 0;
+	dr->wLength = cpu_to_le16(count);
+
+	usb_fill_control_urb(urb, serial->dev,
+		usb_sndctrlpipe(serial->dev, 0),
+		(unsigned char *)dr, buffer, count,
+		opticon_write_control_callback, priv);
 
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		dev_err(&port->dev,
-		   "%s - usb_submit_urb(write bulk) failed with status = %d\n",
+		"%s - usb_submit_urb(write endpoint) failed status = %d\n",
 							__func__, status);
 		count = status;
 		goto error;
@@ -352,7 +394,7 @@ static void opticon_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int opticon_tiocmget(struct tty_struct *tty, struct file *file)
+static int opticon_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
@@ -360,14 +402,47 @@ static int opticon_tiocmget(struct tty_struct *tty, struct file *file)
 	int result = 0;
 
 	dbg("%s - port %d", __func__, port->number);
+	if (!usb_get_intfdata(port->serial->interface))
+		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->rts)
-		result = TIOCM_RTS;
+		result |= TIOCM_RTS;
+	if (priv->cts)
+		result |= TIOCM_CTS;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	dbg("%s - %x", __func__, result);
 	return result;
+}
+
+static int opticon_tiocmset(struct tty_struct *tty,
+			   unsigned int set, unsigned int clear)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	unsigned long flags;
+	bool rts;
+	bool changed = false;
+
+	if (!usb_get_intfdata(port->serial->interface))
+		return -ENODEV;
+	/* We only support RTS so we only handle that */
+	spin_lock_irqsave(&priv->lock, flags);
+
+	rts = priv->rts;
+	if (set & TIOCM_RTS)
+		priv->rts = true;
+	if (clear & TIOCM_RTS)
+		priv->rts = false;
+	changed = rts ^ priv->rts;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!changed)
+		return 0;
+
+	/* Send the new RTS state to the connected device */
+	return send_control_msg(port, CONTROL_RTS, !rts);
 }
 
 static int get_serial_info(struct opticon_private *priv,
@@ -396,7 +471,7 @@ static int get_serial_info(struct opticon_private *priv,
 	return 0;
 }
 
-static int opticon_ioctl(struct tty_struct *tty, struct file *file,
+static int opticon_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -431,6 +506,7 @@ static int opticon_startup(struct usb_serial *serial)
 	priv->serial = serial;
 	priv->port = serial->port[0];
 	priv->udev = serial->dev;
+	priv->outstanding_urbs = 0;	/* Init the outstanding urbs */
 
 	/* find our bulk endpoint */
 	intf = serial->interface->altsetting;
@@ -455,13 +531,6 @@ static int opticon_startup(struct usb_serial *serial)
 		}
 
 		priv->bulk_address = endpoint->bEndpointAddress;
-
-		/* set up our bulk urb */
-		usb_fill_bulk_urb(priv->bulk_read_urb, priv->udev,
-				  usb_rcvbulkpipe(priv->udev,
-						  endpoint->bEndpointAddress),
-				  priv->bulk_in_buffer, priv->buffer_size,
-				  opticon_bulk_callback, priv);
 
 		bulk_in_found = true;
 		break;
@@ -558,6 +627,7 @@ static struct usb_serial_driver opticon_device = {
 	.unthrottle =		opticon_unthrottle,
 	.ioctl =		opticon_ioctl,
 	.tiocmget =		opticon_tiocmget,
+	.tiocmset =		opticon_tiocmset,
 };
 
 static int __init opticon_init(void)
@@ -581,6 +651,7 @@ static void __exit opticon_exit(void)
 
 module_init(opticon_init);
 module_exit(opticon_exit);
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);

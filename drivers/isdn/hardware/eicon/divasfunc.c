@@ -113,9 +113,8 @@ void diva_xdi_didd_remove_adapter(int card)
 static void start_dbg(void)
 {
 	DbgRegister("DIVAS", DRIVERRELEASE_DIVAS, (debugmask) ? debugmask : DBG_DEFAULT);
-	DBG_LOG(("DIVA ISDNXDI BUILD (%s[%s]-%s-%s)",
-		 DIVA_BUILD, diva_xdi_common_code_build, __DATE__,
-		 __TIME__))
+	DBG_LOG(("DIVA ISDNXDI BUILD (%s[%s])",
+		 DIVA_BUILD, diva_xdi_common_code_build))
 }
 
 /*

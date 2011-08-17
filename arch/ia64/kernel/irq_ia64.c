@@ -31,6 +31,7 @@
 #include <linux/irq.h>
 #include <linux/ratelimit.h>
 #include <linux/acpi.h>
+#include <linux/sched.h>
 
 #include <asm/delay.h>
 #include <asm/intrinsics.h>
@@ -343,7 +344,7 @@ static irqreturn_t smp_irq_move_cleanup_interrupt(int irq, void *dev_id)
 		if (irq < 0)
 			continue;
 
-		desc = irq_desc + irq;
+		desc = irq_to_desc(irq);
 		cfg = irq_cfg + irq;
 		raw_spin_lock(&desc->lock);
 		if (!cfg->move_cleanup_count)
@@ -496,6 +497,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			smp_local_flush_tlb();
 			kstat_incr_irqs_this_cpu(irq, desc);
 		} else if (unlikely(IS_RESCHEDULE(vector))) {
+			scheduler_ipi();
 			kstat_incr_irqs_this_cpu(irq, desc);
 		} else {
 			ia64_setreg(_IA64_REG_CR_TPR, vector);
@@ -626,17 +628,15 @@ static struct irqaction tlb_irqaction = {
 void
 ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action)
 {
-	struct irq_desc *desc;
 	unsigned int irq;
 
 	irq = vec;
 	BUG_ON(bind_irq_vector(irq, vec, CPU_MASK_ALL));
-	desc = irq_desc + irq;
-	desc->status |= IRQ_PER_CPU;
-	set_irq_chip(irq, &irq_type_ia64_lsapic);
+	irq_set_status_flags(irq, IRQ_PER_CPU);
+	irq_set_chip(irq, &irq_type_ia64_lsapic);
 	if (action)
 		setup_irq(irq, action);
-	set_irq_handler(irq, handle_percpu_irq);
+	irq_set_handler(irq, handle_percpu_irq);
 }
 
 void __init

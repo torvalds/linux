@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/amba.c
- *
  *  Driver for AMBA serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
@@ -676,7 +674,7 @@ static struct uart_driver amba_reg = {
 	.cons			= AMBA_CONSOLE,
 };
 
-static int pl010_probe(struct amba_device *dev, struct amba_id *id)
+static int pl010_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct uart_amba_port *uap;
 	void __iomem *base;

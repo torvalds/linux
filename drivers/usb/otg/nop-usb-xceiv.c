@@ -132,7 +132,7 @@ static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, nop);
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&nop->otg.notifier);
+	ATOMIC_INIT_NOTIFIER_HEAD(&nop->otg.notifier);
 
 	return 0;
 exit:

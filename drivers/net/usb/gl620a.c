@@ -193,7 +193,7 @@ static int genelink_bind(struct usbnet *dev, struct usb_interface *intf)
 
 static const struct driver_info	genelink_info = {
 	.description =	"Genesys GeneLink",
-	.flags =	FLAG_FRAMING_GL | FLAG_NO_SETINT,
+	.flags =	FLAG_POINTTOPOINT | FLAG_FRAMING_GL | FLAG_NO_SETINT,
 	.bind =		genelink_bind,
 	.rx_fixup =	genelink_rx_fixup,
 	.tx_fixup =	genelink_tx_fixup,

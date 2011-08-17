@@ -174,7 +174,7 @@ struct cs5535_mfgpt_timer *cs5535_mfgpt_alloc_timer(int timer_nr, int domain)
 		timer_nr = t < max ? (int) t : -1;
 	} else {
 		/* check if the requested timer's available */
-		if (test_bit(timer_nr, mfgpt->avail))
+		if (!test_bit(timer_nr, mfgpt->avail))
 			timer_nr = -1;
 	}
 
@@ -329,7 +329,7 @@ done:
 	return err;
 }
 
-static struct platform_driver cs5535_mfgpt_drv = {
+static struct platform_driver cs5535_mfgpt_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
@@ -340,7 +340,7 @@ static struct platform_driver cs5535_mfgpt_drv = {
 
 static int __init cs5535_mfgpt_init(void)
 {
-	return platform_driver_register(&cs5535_mfgpt_drv);
+	return platform_driver_register(&cs5535_mfgpt_driver);
 }
 
 module_init(cs5535_mfgpt_init);

@@ -265,7 +265,7 @@ xfs_open_by_handle(
 		return PTR_ERR(filp);
 	}
 
-	if (inode->i_mode & S_IFREG) {
+	if (S_ISREG(inode->i_mode)) {
 		filp->f_flags |= O_NOATIME;
 		filp->f_mode |= FMODE_NOCMTIME;
 	}
@@ -624,6 +624,10 @@ xfs_ioc_space(
 
 	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 		attr_flags |= XFS_ATTR_NONBLOCK;
+
+	if (filp->f_flags & O_DSYNC)
+		attr_flags |= XFS_ATTR_SYNC;
+
 	if (ioflags & IO_INVIS)
 		attr_flags |= XFS_ATTR_DMI;
 
@@ -695,14 +699,19 @@ xfs_ioc_fsgeometry_v1(
 	xfs_mount_t		*mp,
 	void			__user *arg)
 {
-	xfs_fsop_geom_v1_t	fsgeo;
+	xfs_fsop_geom_t         fsgeo;
 	int			error;
 
-	error = xfs_fs_geometry(mp, (xfs_fsop_geom_t *)&fsgeo, 3);
+	error = xfs_fs_geometry(mp, &fsgeo, 3);
 	if (error)
 		return -error;
 
-	if (copy_to_user(arg, &fsgeo, sizeof(fsgeo)))
+	/*
+	 * Caller should have passed an argument of type
+	 * xfs_fsop_geom_v1_t.  This is a proper subset of the
+	 * xfs_fsop_geom_t that xfs_fs_geometry() fills in.
+	 */
+	if (copy_to_user(arg, &fsgeo, sizeof(xfs_fsop_geom_v1_t)))
 		return -XFS_ERROR(EFAULT);
 	return 0;
 }
@@ -841,14 +850,14 @@ xfs_set_diflags(
 		di_flags |= XFS_DIFLAG_NODEFRAG;
 	if (xflags & XFS_XFLAG_FILESTREAM)
 		di_flags |= XFS_DIFLAG_FILESTREAM;
-	if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(ip->i_d.di_mode)) {
 		if (xflags & XFS_XFLAG_RTINHERIT)
 			di_flags |= XFS_DIFLAG_RTINHERIT;
 		if (xflags & XFS_XFLAG_NOSYMLINKS)
 			di_flags |= XFS_DIFLAG_NOSYMLINKS;
 		if (xflags & XFS_XFLAG_EXTSZINHERIT)
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
-	} else if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
+	} else if (S_ISREG(ip->i_d.di_mode)) {
 		if (xflags & XFS_XFLAG_REALTIME)
 			di_flags |= XFS_DIFLAG_REALTIME;
 		if (xflags & XFS_XFLAG_EXTSIZE)

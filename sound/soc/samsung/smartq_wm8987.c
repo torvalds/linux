@@ -13,20 +13,14 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
 
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
 
-#include "dma.h"
 #include "i2s.h"
-
 #include "../codecs/wm8750.h"
 
 /*

@@ -42,6 +42,9 @@ static struct clk usboh3_clk;
 static struct clk emi_fast_clk;
 static struct clk ipu_clk;
 static struct clk mipi_hsc1_clk;
+static struct clk esdhc1_clk;
+static struct clk esdhc2_clk;
+static struct clk esdhc3_mx53_clk;
 
 #define MAX_DPLL_WAIT_TRIES	1000 /* 1000 * udelay(1) = 1ms */
 
@@ -268,7 +271,11 @@ static int _clk_pll_enable(struct clk *clk)
 	int i = 0;
 
 	pllbase = _get_pll_base(clk);
-	reg = __raw_readl(pllbase + MXC_PLL_DP_CTL) | MXC_PLL_DP_CTL_UPEN;
+	reg = __raw_readl(pllbase + MXC_PLL_DP_CTL);
+	if (reg & MXC_PLL_DP_CTL_UPEN)
+		return 0;
+
+	reg |= MXC_PLL_DP_CTL_UPEN;
 	__raw_writel(reg, pllbase + MXC_PLL_DP_CTL);
 
 	/* Wait for lock */
@@ -862,13 +869,16 @@ static struct clk aips_tz2_clk = {
 	.disable = _clk_ccgr_disable_inwait,
 };
 
+static struct clk gpc_dvfs_clk = {
+	.enable_reg = MXC_CCM_CCGR5,
+	.enable_shift = MXC_CCM_CCGRx_CG12_OFFSET,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable,
+};
+
 static struct clk gpt_32k_clk = {
 	.id = 0,
 	.parent = &ckil_clk,
-};
-
-static struct clk kpp_clk = {
-	.id = 0,
 };
 
 static struct clk dummy_clk = {
@@ -1147,9 +1157,79 @@ CLK_GET_RATE(esdhc1, 1, ESDHC1_MSHC1)
 CLK_SET_PARENT(esdhc1, 1, ESDHC1_MSHC1)
 CLK_SET_RATE(esdhc1, 1, ESDHC1_MSHC1)
 
+/* mx51 specific */
 CLK_GET_RATE(esdhc2, 1, ESDHC2_MSHC2)
 CLK_SET_PARENT(esdhc2, 1, ESDHC2_MSHC2)
 CLK_SET_RATE(esdhc2, 1, ESDHC2_MSHC2)
+
+static int clk_esdhc3_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg;
+
+	reg = __raw_readl(MXC_CCM_CSCMR1);
+	if (parent == &esdhc1_clk)
+		reg &= ~MXC_CCM_CSCMR1_ESDHC3_CLK_SEL;
+	else if (parent == &esdhc2_clk)
+		reg |= MXC_CCM_CSCMR1_ESDHC3_CLK_SEL;
+	else
+		return -EINVAL;
+	__raw_writel(reg, MXC_CCM_CSCMR1);
+
+	return 0;
+}
+
+static int clk_esdhc4_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg;
+
+	reg = __raw_readl(MXC_CCM_CSCMR1);
+	if (parent == &esdhc1_clk)
+		reg &= ~MXC_CCM_CSCMR1_ESDHC4_CLK_SEL;
+	else if (parent == &esdhc2_clk)
+		reg |= MXC_CCM_CSCMR1_ESDHC4_CLK_SEL;
+	else
+		return -EINVAL;
+	__raw_writel(reg, MXC_CCM_CSCMR1);
+
+	return 0;
+}
+
+/* mx53 specific */
+static int clk_esdhc2_mx53_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg;
+
+	reg = __raw_readl(MXC_CCM_CSCMR1);
+	if (parent == &esdhc1_clk)
+		reg &= ~MXC_CCM_CSCMR1_ESDHC2_MSHC2_MX53_CLK_SEL;
+	else if (parent == &esdhc3_mx53_clk)
+		reg |= MXC_CCM_CSCMR1_ESDHC2_MSHC2_MX53_CLK_SEL;
+	else
+		return -EINVAL;
+	__raw_writel(reg, MXC_CCM_CSCMR1);
+
+	return 0;
+}
+
+CLK_GET_RATE(esdhc3_mx53, 1, ESDHC3_MX53)
+CLK_SET_PARENT(esdhc3_mx53, 1, ESDHC3_MX53)
+CLK_SET_RATE(esdhc3_mx53, 1, ESDHC3_MX53)
+
+static int clk_esdhc4_mx53_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg;
+
+	reg = __raw_readl(MXC_CCM_CSCMR1);
+	if (parent == &esdhc1_clk)
+		reg &= ~MXC_CCM_CSCMR1_ESDHC4_CLK_SEL;
+	else if (parent == &esdhc3_mx53_clk)
+		reg |= MXC_CCM_CSCMR1_ESDHC4_CLK_SEL;
+	else
+		return -EINVAL;
+	__raw_writel(reg, MXC_CCM_CSCMR1);
+
+	return 0;
+}
 
 #define DEFINE_CLOCK_FULL(name, i, er, es, gr, sr, e, d, p, s)		\
 	static struct clk name = {					\
@@ -1178,12 +1258,20 @@ DEFINE_CLOCK(uart2_ipg_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG5_OFFSET,
 	NULL,  NULL, &ipg_clk, &aips_tz1_clk);
 DEFINE_CLOCK(uart3_ipg_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG7_OFFSET,
 	NULL,  NULL, &ipg_clk, &spba_clk);
+DEFINE_CLOCK(uart4_ipg_clk, 3, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG4_OFFSET,
+	NULL,  NULL, &ipg_clk, &spba_clk);
+DEFINE_CLOCK(uart5_ipg_clk, 4, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG6_OFFSET,
+	NULL,  NULL, &ipg_clk, &spba_clk);
 DEFINE_CLOCK(uart1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG4_OFFSET,
 	NULL,  NULL, &uart_root_clk, &uart1_ipg_clk);
 DEFINE_CLOCK(uart2_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG6_OFFSET,
 	NULL,  NULL, &uart_root_clk, &uart2_ipg_clk);
 DEFINE_CLOCK(uart3_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG8_OFFSET,
 	NULL,  NULL, &uart_root_clk, &uart3_ipg_clk);
+DEFINE_CLOCK(uart4_clk, 3, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG5_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart4_ipg_clk);
+DEFINE_CLOCK(uart5_clk, 4, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG7_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart5_ipg_clk);
 
 /* GPT */
 DEFINE_CLOCK(gpt_ipg_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG10_OFFSET,
@@ -1198,11 +1286,13 @@ DEFINE_CLOCK(pwm2_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG8_OFFSET,
 
 /* I2C */
 DEFINE_CLOCK(i2c1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG9_OFFSET,
-	NULL, NULL, &ipg_clk, NULL);
+	NULL, NULL, &ipg_perclk, NULL);
 DEFINE_CLOCK(i2c2_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG10_OFFSET,
-	NULL, NULL, &ipg_clk, NULL);
+	NULL, NULL, &ipg_perclk, NULL);
 DEFINE_CLOCK(hsi2c_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG11_OFFSET,
 	NULL, NULL, &ipg_clk, NULL);
+DEFINE_CLOCK(i2c3_mx53_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG11_OFFSET,
+	NULL, NULL, &ipg_perclk, NULL);
 
 /* FEC */
 DEFINE_CLOCK(fec_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG12_OFFSET,
@@ -1255,8 +1345,61 @@ DEFINE_CLOCK_MAX(esdhc1_clk, 0, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG1_OFFSET,
 	clk_esdhc1, &pll2_sw_clk, &esdhc1_ipg_clk);
 DEFINE_CLOCK_FULL(esdhc2_ipg_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG2_OFFSET,
 	NULL,  NULL, _clk_max_enable, _clk_max_disable, &ipg_clk, NULL);
+DEFINE_CLOCK_FULL(esdhc3_ipg_clk, 2, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG4_OFFSET,
+	NULL,  NULL, _clk_max_enable, _clk_max_disable, &ipg_clk, NULL);
+DEFINE_CLOCK_FULL(esdhc4_ipg_clk, 3, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG6_OFFSET,
+	NULL,  NULL, _clk_max_enable, _clk_max_disable, &ipg_clk, NULL);
+
+/* mx51 specific */
 DEFINE_CLOCK_MAX(esdhc2_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG3_OFFSET,
 	clk_esdhc2, &pll2_sw_clk, &esdhc2_ipg_clk);
+
+static struct clk esdhc3_clk = {
+	.id = 2,
+	.parent = &esdhc1_clk,
+	.set_parent = clk_esdhc3_set_parent,
+	.enable_reg = MXC_CCM_CCGR3,
+	.enable_shift = MXC_CCM_CCGRx_CG5_OFFSET,
+	.enable  = _clk_max_enable,
+	.disable = _clk_max_disable,
+	.secondary = &esdhc3_ipg_clk,
+};
+static struct clk esdhc4_clk = {
+	.id = 3,
+	.parent = &esdhc1_clk,
+	.set_parent = clk_esdhc4_set_parent,
+	.enable_reg = MXC_CCM_CCGR3,
+	.enable_shift = MXC_CCM_CCGRx_CG7_OFFSET,
+	.enable  = _clk_max_enable,
+	.disable = _clk_max_disable,
+	.secondary = &esdhc4_ipg_clk,
+};
+
+/* mx53 specific */
+static struct clk esdhc2_mx53_clk = {
+	.id = 2,
+	.parent = &esdhc1_clk,
+	.set_parent = clk_esdhc2_mx53_set_parent,
+	.enable_reg = MXC_CCM_CCGR3,
+	.enable_shift = MXC_CCM_CCGRx_CG3_OFFSET,
+	.enable  = _clk_max_enable,
+	.disable = _clk_max_disable,
+	.secondary = &esdhc3_ipg_clk,
+};
+
+DEFINE_CLOCK_MAX(esdhc3_mx53_clk, 2, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG5_OFFSET,
+	clk_esdhc3_mx53, &pll2_sw_clk, &esdhc2_ipg_clk);
+
+static struct clk esdhc4_mx53_clk = {
+	.id = 3,
+	.parent = &esdhc1_clk,
+	.set_parent = clk_esdhc4_mx53_set_parent,
+	.enable_reg = MXC_CCM_CCGR3,
+	.enable_shift = MXC_CCM_CCGRx_CG7_OFFSET,
+	.enable  = _clk_max_enable,
+	.disable = _clk_max_disable,
+	.secondary = &esdhc4_ipg_clk,
+};
 
 DEFINE_CLOCK(mipi_esc_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG5_OFFSET, NULL, NULL, NULL, &pll2_sw_clk);
 DEFINE_CLOCK(mipi_hsc2_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG4_OFFSET, NULL, NULL, &mipi_esc_clk, &pll2_sw_clk);
@@ -1283,11 +1426,13 @@ DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
        },
 
 static struct clk_lookup mx51_lookups[] = {
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	/* i.mx51 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	/* i.mx51 has the i.mx27 type fec */
+	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK("mxc_pwm.0", "pwm", pwm1_clk)
 	_REGISTER_CLOCK("mxc_pwm.1", "pwm", pwm2_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
@@ -1302,20 +1447,24 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("mxc-ehci.2", "usb_ahb", usb_ahb_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usboh3_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", ahb_clk)
-	_REGISTER_CLOCK("imx-keypad", NULL, kpp_clk)
+	_REGISTER_CLOCK("imx-keypad", NULL, dummy_clk)
 	_REGISTER_CLOCK("mxc_nand", NULL, nfc_clk)
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
-	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk)
+	/* i.mx51 has the i.mx35 type sdma */
+	_REGISTER_CLOCK("imx35-sdma", NULL, sdma_clk)
 	_REGISTER_CLOCK(NULL, "ckih", ckih_clk)
 	_REGISTER_CLOCK(NULL, "ckih2", ckih2_clk)
 	_REGISTER_CLOCK(NULL, "gpt_32k", gpt_32k_clk)
 	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
 	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
-	_REGISTER_CLOCK("imx51-cspi.0", NULL, cspi_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
+	/* i.mx51 has the i.mx35 type cspi */
+	_REGISTER_CLOCK("imx35-cspi.0", NULL, cspi_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx51.0", NULL, esdhc1_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx51.1", NULL, esdhc2_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx51.2", NULL, esdhc3_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx51.3", NULL, esdhc4_clk)
 	_REGISTER_CLOCK(NULL, "cpu_clk", cpu_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
@@ -1324,22 +1473,40 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-ipuv3", NULL, ipu_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di0", ipu_di0_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di1", ipu_di1_clk)
+	_REGISTER_CLOCK(NULL, "gpc_dvfs", gpc_dvfs_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	/* i.mx53 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx21-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx21-uart.4", NULL, uart5_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	/* i.mx53 has the i.mx25 type fec */
+	_REGISTER_CLOCK("imx25-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
-	_REGISTER_CLOCK("imx53-ecspi.0", NULL, ecspi1_clk)
-	_REGISTER_CLOCK("imx53-ecspi.1", NULL, ecspi2_clk)
-	_REGISTER_CLOCK("imx53-cspi.0", NULL, cspi_clk)
+	_REGISTER_CLOCK("imx-i2c.2", NULL, i2c3_mx53_clk)
+	/* i.mx53 has the i.mx51 type ecspi */
+	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
+	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
+	/* i.mx53 has the i.mx25 type cspi */
+	_REGISTER_CLOCK("imx35-cspi.0", NULL, cspi_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx53.0", NULL, esdhc1_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx53.1", NULL, esdhc2_mx53_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx53.2", NULL, esdhc3_mx53_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx53.3", NULL, esdhc4_mx53_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
+	_REGISTER_CLOCK("imx2-wdt.1", NULL, dummy_clk)
+	/* i.mx53 has the i.mx35 type sdma */
+	_REGISTER_CLOCK("imx35-sdma", NULL, sdma_clk)
+	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
+	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
+	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
+	_REGISTER_CLOCK("imx-keypad", NULL, dummy_clk)
 };
 
 static void clk_tree_init(void)
@@ -1383,6 +1550,7 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&iim_clk);
 	mx51_revision();
 	clk_disable(&iim_clk);
+	mx51_display_revision();
 
 	/* move usb_phy_clk to 24MHz */
 	clk_set_parent(&usb_phy1_clk, &osc_clk);
@@ -1426,6 +1594,15 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&iim_clk);
 	mx53_revision();
 	clk_disable(&iim_clk);
+	mx53_display_revision();
+
+	/* Set SDHC parents to be PLL2 */
+	clk_set_parent(&esdhc1_clk, &pll2_sw_clk);
+	clk_set_parent(&esdhc3_mx53_clk, &pll2_sw_clk);
+
+	/* set SDHC root clock as 200MHZ*/
+	clk_set_rate(&esdhc1_clk, 200000000);
+	clk_set_rate(&esdhc3_mx53_clk, 200000000);
 
 	/* System timer */
 	mxc_timer_init(&gpt_clk, MX53_IO_ADDRESS(MX53_GPT1_BASE_ADDR),

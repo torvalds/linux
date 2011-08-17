@@ -68,7 +68,7 @@ static struct irq_chip shirq_chip = {
 static void shirq_handler(unsigned irq, struct irq_desc *desc)
 {
 	u32 i, val, mask;
-	struct spear_shirq *shirq = get_irq_data(irq);
+	struct spear_shirq *shirq = irq_get_handler_data(irq);
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	while ((val = readl(shirq->regs.base + shirq->regs.status_reg) &
@@ -105,14 +105,14 @@ int spear_shirq_register(struct spear_shirq *shirq)
 	if (!shirq->dev_count)
 		return -EINVAL;
 
-	set_irq_chained_handler(shirq->irq, shirq_handler);
+	irq_set_chained_handler(shirq->irq, shirq_handler);
 	for (i = 0; i < shirq->dev_count; i++) {
-		set_irq_chip(shirq->dev_config[i].virq, &shirq_chip);
-		set_irq_handler(shirq->dev_config[i].virq, handle_simple_irq);
+		irq_set_chip_and_handler(shirq->dev_config[i].virq,
+					 &shirq_chip, handle_simple_irq);
 		set_irq_flags(shirq->dev_config[i].virq, IRQF_VALID);
-		set_irq_chip_data(shirq->dev_config[i].virq, shirq);
+		irq_set_chip_data(shirq->dev_config[i].virq, shirq);
 	}
 
-	set_irq_data(shirq->irq, shirq);
+	irq_set_handler_data(shirq->irq, shirq);
 	return 0;
 }

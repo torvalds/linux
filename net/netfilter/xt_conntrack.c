@@ -112,6 +112,54 @@ ct_proto_port_check(const struct xt_conntrack_mtinfo2 *info,
 	return true;
 }
 
+static inline bool
+port_match(u16 min, u16 max, u16 port, bool invert)
+{
+	return (port >= min && port <= max) ^ invert;
+}
+
+static inline bool
+ct_proto_port_check_v3(const struct xt_conntrack_mtinfo3 *info,
+		       const struct nf_conn *ct)
+{
+	const struct nf_conntrack_tuple *tuple;
+
+	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+	if ((info->match_flags & XT_CONNTRACK_PROTO) &&
+	    (nf_ct_protonum(ct) == info->l4proto) ^
+	    !(info->invert_flags & XT_CONNTRACK_PROTO))
+		return false;
+
+	/* Shortcut to match all recognized protocols by using ->src.all. */
+	if ((info->match_flags & XT_CONNTRACK_ORIGSRC_PORT) &&
+	    !port_match(info->origsrc_port, info->origsrc_port_high,
+			ntohs(tuple->src.u.all),
+			info->invert_flags & XT_CONNTRACK_ORIGSRC_PORT))
+		return false;
+
+	if ((info->match_flags & XT_CONNTRACK_ORIGDST_PORT) &&
+	    !port_match(info->origdst_port, info->origdst_port_high,
+			ntohs(tuple->dst.u.all),
+			info->invert_flags & XT_CONNTRACK_ORIGDST_PORT))
+		return false;
+
+	tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+	if ((info->match_flags & XT_CONNTRACK_REPLSRC_PORT) &&
+	    !port_match(info->replsrc_port, info->replsrc_port_high,
+			ntohs(tuple->src.u.all),
+			info->invert_flags & XT_CONNTRACK_REPLSRC_PORT))
+		return false;
+
+	if ((info->match_flags & XT_CONNTRACK_REPLDST_PORT) &&
+	    !port_match(info->repldst_port, info->repldst_port_high,
+			ntohs(tuple->dst.u.all),
+			info->invert_flags & XT_CONNTRACK_REPLDST_PORT))
+		return false;
+
+	return true;
+}
+
 static bool
 conntrack_mt(const struct sk_buff *skb, struct xt_action_param *par,
              u16 state_mask, u16 status_mask)
@@ -147,7 +195,7 @@ conntrack_mt(const struct sk_buff *skb, struct xt_action_param *par,
 		return info->match_flags & XT_CONNTRACK_STATE;
 	if ((info->match_flags & XT_CONNTRACK_DIRECTION) &&
 	    (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) ^
-	    !!(info->invert_flags & XT_CONNTRACK_DIRECTION))
+	    !(info->invert_flags & XT_CONNTRACK_DIRECTION))
 		return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGSRC)
@@ -170,8 +218,13 @@ conntrack_mt(const struct sk_buff *skb, struct xt_action_param *par,
 		    !(info->invert_flags & XT_CONNTRACK_REPLDST))
 			return false;
 
-	if (!ct_proto_port_check(info, ct))
-		return false;
+	if (par->match->revision != 3) {
+		if (!ct_proto_port_check(info, ct))
+			return false;
+	} else {
+		if (!ct_proto_port_check_v3(par->matchinfo, ct))
+			return false;
+	}
 
 	if ((info->match_flags & XT_CONNTRACK_STATUS) &&
 	    (!!(status_mask & ct->status) ^
@@ -203,6 +256,14 @@ static bool
 conntrack_mt_v2(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_conntrack_mtinfo2 *info = par->matchinfo;
+
+	return conntrack_mt(skb, par, info->state_mask, info->status_mask);
+}
+
+static bool
+conntrack_mt_v3(const struct sk_buff *skb, struct xt_action_param *par)
+{
+	const struct xt_conntrack_mtinfo3 *info = par->matchinfo;
 
 	return conntrack_mt(skb, par, info->state_mask, info->status_mask);
 }
@@ -240,6 +301,16 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 		.family     = NFPROTO_UNSPEC,
 		.matchsize  = sizeof(struct xt_conntrack_mtinfo2),
 		.match      = conntrack_mt_v2,
+		.checkentry = conntrack_mt_check,
+		.destroy    = conntrack_mt_destroy,
+		.me         = THIS_MODULE,
+	},
+	{
+		.name       = "conntrack",
+		.revision   = 3,
+		.family     = NFPROTO_UNSPEC,
+		.matchsize  = sizeof(struct xt_conntrack_mtinfo3),
+		.match      = conntrack_mt_v3,
 		.checkentry = conntrack_mt_check,
 		.destroy    = conntrack_mt_destroy,
 		.me         = THIS_MODULE,

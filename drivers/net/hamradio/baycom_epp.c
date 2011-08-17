@@ -69,7 +69,7 @@ static const char paranoia_str[] = KERN_ERR
 
 static const char bc_drvname[] = "baycom_epp";
 static const char bc_drvinfo[] = KERN_INFO "baycom_epp: (C) 1998-2000 Thomas Sailer, HB9JNX/AE4WA\n"
-"baycom_epp: version 0.7 compiled " __TIME__ " " __DATE__ "\n";
+"baycom_epp: version 0.7\n";
 
 /* --------------------------------------------------------------------- */
 

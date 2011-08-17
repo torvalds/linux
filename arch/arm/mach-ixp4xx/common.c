@@ -252,8 +252,8 @@ void __init ixp4xx_init_irq(void)
 
         /* Default to all level triggered */
 	for(i = 0; i < NR_IRQS; i++) {
-		set_irq_chip(i, &ixp4xx_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &ixp4xx_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }
@@ -419,18 +419,11 @@ static void notrace ixp4xx_update_sched_clock(void)
 /*
  * clocksource
  */
-static cycle_t ixp4xx_get_cycles(struct clocksource *cs)
+
+static cycle_t ixp4xx_clocksource_read(struct clocksource *c)
 {
 	return *IXP4XX_OSTS;
 }
-
-static struct clocksource clocksource_ixp4xx = {
-	.name 		= "OSTS",
-	.rating		= 200,
-	.read		= ixp4xx_get_cycles,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
 
 unsigned long ixp4xx_timer_freq = IXP4XX_TIMER_FREQ;
 EXPORT_SYMBOL(ixp4xx_timer_freq);
@@ -438,7 +431,8 @@ static void __init ixp4xx_clocksource_init(void)
 {
 	init_sched_clock(&cd, ixp4xx_update_sched_clock, 32, ixp4xx_timer_freq);
 
-	clocksource_register_hz(&clocksource_ixp4xx, ixp4xx_timer_freq);
+	clocksource_mmio_init(NULL, "OSTS", ixp4xx_timer_freq, 200, 32,
+			ixp4xx_clocksource_read);
 }
 
 /*

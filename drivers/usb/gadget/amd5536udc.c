@@ -60,6 +60,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <asm/system.h>
@@ -278,7 +279,7 @@ static int udc_enable_dev_setup_interrupts(struct udc *dev)
 	return 0;
 }
 
-/* Calculates fifo start of endpoint based on preceeding endpoints */
+/* Calculates fifo start of endpoint based on preceding endpoints */
 static int udc_set_txfifo_addr(struct udc_ep *ep)
 {
 	struct udc	*dev;
@@ -1437,10 +1438,15 @@ static int udc_wakeup(struct usb_gadget *gadget)
 	return 0;
 }
 
+static int amd5536_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int amd5536_stop(struct usb_gadget_driver *driver);
 /* gadget operations */
 static const struct usb_gadget_ops udc_ops = {
 	.wakeup		= udc_wakeup,
 	.get_frame	= udc_get_frame,
+	.start		= amd5536_start,
+	.stop		= amd5536_stop,
 };
 
 /* Setups endpoint parameters, adds endpoints to linked list */
@@ -1954,7 +1960,7 @@ static int setup_ep0(struct udc *dev)
 }
 
 /* Called by gadget driver to register itself */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int amd5536_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct udc		*dev = udc;
@@ -2001,7 +2007,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /* shutdown requests and disconnect from gadget */
 static void
@@ -2026,7 +2031,7 @@ __acquires(dev->lock)
 }
 
 /* Called by gadget driver to unregister itself */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int amd5536_stop(struct usb_gadget_driver *driver)
 {
 	struct udc	*dev = udc;
 	unsigned long	flags;
@@ -2056,8 +2061,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
-
 
 /* Clear pending NAK bits */
 static void udc_process_cnak_queue(struct udc *dev)
@@ -2137,7 +2140,7 @@ static irqreturn_t udc_data_out_isr(struct udc *dev, int ep_ix)
 	if (use_dma) {
 		/* BNA event ? */
 		if (tmp & AMD_BIT(UDC_EPSTS_BNA)) {
-			DBG(dev, "BNA ep%dout occured - DESPTR = %x \n",
+			DBG(dev, "BNA ep%dout occurred - DESPTR = %x \n",
 					ep->num, readl(&ep->regs->desptr));
 			/* clear BNA */
 			writel(tmp | AMD_BIT(UDC_EPSTS_BNA), &ep->regs->sts);
@@ -2151,7 +2154,7 @@ static irqreturn_t udc_data_out_isr(struct udc *dev, int ep_ix)
 	}
 	/* HE event ? */
 	if (tmp & AMD_BIT(UDC_EPSTS_HE)) {
-		dev_err(&dev->pdev->dev, "HE ep%dout occured\n", ep->num);
+		dev_err(&dev->pdev->dev, "HE ep%dout occurred\n", ep->num);
 
 		/* clear HE */
 		writel(tmp | AMD_BIT(UDC_EPSTS_HE), &ep->regs->sts);
@@ -2354,7 +2357,7 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 		/* BNA ? */
 		if (epsts & AMD_BIT(UDC_EPSTS_BNA)) {
 			dev_err(&dev->pdev->dev,
-				"BNA ep%din occured - DESPTR = %08lx \n",
+				"BNA ep%din occurred - DESPTR = %08lx \n",
 				ep->num,
 				(unsigned long) readl(&ep->regs->desptr));
 
@@ -2367,7 +2370,7 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 	/* HE event ? */
 	if (epsts & AMD_BIT(UDC_EPSTS_HE)) {
 		dev_err(&dev->pdev->dev,
-			"HE ep%dn occured - DESPTR = %08lx \n",
+			"HE ep%dn occurred - DESPTR = %08lx \n",
 			ep->num, (unsigned long) readl(&ep->regs->desptr));
 
 		/* clear HE */
@@ -2384,7 +2387,7 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 			req = list_entry(ep->queue.next,
 					struct udc_request, queue);
 			/*
-			 * length bytes transfered
+			 * length bytes transferred
 			 * check dma done of last desc. in PPBDU mode
 			 */
 			if (use_dma_ppb_du) {
@@ -2784,7 +2787,7 @@ static irqreturn_t udc_control_in_isr(struct udc *dev)
 					/* write fifo */
 					udc_txfifo_write(ep, &req->req);
 
-					/* lengh bytes transfered */
+					/* lengh bytes transferred */
 					len = req->req.length - req->req.actual;
 					if (len > ep->ep.maxpacket)
 						len = ep->ep.maxpacket;
@@ -3133,6 +3136,7 @@ static void udc_pci_remove(struct pci_dev *pdev)
 
 	dev = pci_get_drvdata(pdev);
 
+	usb_del_gadget_udc(&udc->gadget);
 	/* gadget driver must not be registered */
 	BUG_ON(dev->driver != NULL);
 
@@ -3381,8 +3385,13 @@ static int udc_probe(struct udc *dev)
 		"driver version: %s(for Geode5536 B1)\n", tmp);
 	udc = dev;
 
+	retval = usb_add_gadget_udc(&udc->pdev->dev, &dev->gadget);
+	if (retval)
+		goto finished;
+
 	retval = device_register(&dev->gadget.dev);
 	if (retval) {
+		usb_del_gadget_udc(&dev->gadget);
 		put_device(&dev->gadget.dev);
 		goto finished;
 	}

@@ -81,7 +81,8 @@ static int gfs2_uuid_valid(const u8 *uuid)
 
 static ssize_t uuid_show(struct gfs2_sbd *sdp, char *buf)
 {
-	const u8 *uuid = sdp->sd_sb.sb_uuid;
+	struct super_block *s = sdp->sd_vfs;
+	const u8 *uuid = s->s_uuid;
 	buf[0] = '\0';
 	if (!gfs2_uuid_valid(uuid))
 		return 0;
@@ -337,6 +338,9 @@ static ssize_t lkfirst_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	rv = sscanf(buf, "%u", &first);
 	if (rv != 1 || first > 1)
 		return -EINVAL;
+	rv = wait_for_completion_killable(&sdp->sd_locking_init);
+	if (rv)
+		return rv;
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
 	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
@@ -413,7 +417,9 @@ static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	rv = sscanf(buf, "%d", &jid);
 	if (rv != 1)
 		return -EINVAL;
-
+	rv = wait_for_completion_killable(&sdp->sd_locking_init);
+	if (rv)
+		return rv;
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EINVAL;
 	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
@@ -616,7 +622,8 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 		       struct kobj_uevent_env *env)
 {
 	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
-	const u8 *uuid = sdp->sd_sb.sb_uuid;
+	struct super_block *s = sdp->sd_vfs;
+	const u8 *uuid = s->s_uuid;
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);

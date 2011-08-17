@@ -61,10 +61,15 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 			 unsigned int hdr_off, unsigned int sg,
 			 unsigned int off)
 {
+	struct scatterlist *sgp = &rm->data.op_sg[sg];
+	int ret = sizeof(struct rds_header) +
+			be32_to_cpu(rm->m_inc.i_hdr.h_len);
+
 	/* Do not send cong updates to loopback */
 	if (rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
 		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
-		return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+		ret = min_t(int, ret, sgp->length - conn->c_xmit_data_off);
+		goto out;
 	}
 
 	BUG_ON(hdr_off || sg || off);
@@ -80,8 +85,8 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 			    NULL);
 
 	rds_inc_put(&rm->m_inc);
-
-	return sizeof(struct rds_header) + be32_to_cpu(rm->m_inc.i_hdr.h_len);
+out:
+	return ret;
 }
 
 /*

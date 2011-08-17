@@ -52,197 +52,6 @@ EXPORT_SYMBOL(plpar_hcall_norets);
 
 extern void pSeries_find_serial_port(void);
 
-
-static int vtermno;	/* virtual terminal# for udbg  */
-
-#define __ALIGNED__ __attribute__((__aligned__(sizeof(long))))
-static void udbg_hvsi_putc(char c)
-{
-	/* packet's seqno isn't used anyways */
-	uint8_t packet[] __ALIGNED__ = { 0xff, 5, 0, 0, c };
-	int rc;
-
-	if (c == '\n')
-		udbg_hvsi_putc('\r');
-
-	do {
-		rc = plpar_put_term_char(vtermno, sizeof(packet), packet);
-	} while (rc == H_BUSY);
-}
-
-static long hvsi_udbg_buf_len;
-static uint8_t hvsi_udbg_buf[256];
-
-static int udbg_hvsi_getc_poll(void)
-{
-	unsigned char ch;
-	int rc, i;
-
-	if (hvsi_udbg_buf_len == 0) {
-		rc = plpar_get_term_char(vtermno, &hvsi_udbg_buf_len, hvsi_udbg_buf);
-		if (rc != H_SUCCESS || hvsi_udbg_buf[0] != 0xff) {
-			/* bad read or non-data packet */
-			hvsi_udbg_buf_len = 0;
-		} else {
-			/* remove the packet header */
-			for (i = 4; i < hvsi_udbg_buf_len; i++)
-				hvsi_udbg_buf[i-4] = hvsi_udbg_buf[i];
-			hvsi_udbg_buf_len -= 4;
-		}
-	}
-
-	if (hvsi_udbg_buf_len <= 0 || hvsi_udbg_buf_len > 256) {
-		/* no data ready */
-		hvsi_udbg_buf_len = 0;
-		return -1;
-	}
-
-	ch = hvsi_udbg_buf[0];
-	/* shift remaining data down */
-	for (i = 1; i < hvsi_udbg_buf_len; i++) {
-		hvsi_udbg_buf[i-1] = hvsi_udbg_buf[i];
-	}
-	hvsi_udbg_buf_len--;
-
-	return ch;
-}
-
-static int udbg_hvsi_getc(void)
-{
-	int ch;
-	for (;;) {
-		ch = udbg_hvsi_getc_poll();
-		if (ch == -1) {
-			/* This shouldn't be needed...but... */
-			volatile unsigned long delay;
-			for (delay=0; delay < 2000000; delay++)
-				;
-		} else {
-			return ch;
-		}
-	}
-}
-
-static void udbg_putcLP(char c)
-{
-	char buf[16];
-	unsigned long rc;
-
-	if (c == '\n')
-		udbg_putcLP('\r');
-
-	buf[0] = c;
-	do {
-		rc = plpar_put_term_char(vtermno, 1, buf);
-	} while(rc == H_BUSY);
-}
-
-/* Buffered chars getc */
-static long inbuflen;
-static long inbuf[2];	/* must be 2 longs */
-
-static int udbg_getc_pollLP(void)
-{
-	/* The interface is tricky because it may return up to 16 chars.
-	 * We save them statically for future calls to udbg_getc().
-	 */
-	char ch, *buf = (char *)inbuf;
-	int i;
-	long rc;
-	if (inbuflen == 0) {
-		/* get some more chars. */
-		inbuflen = 0;
-		rc = plpar_get_term_char(vtermno, &inbuflen, buf);
-		if (rc != H_SUCCESS)
-			inbuflen = 0;	/* otherwise inbuflen is garbage */
-	}
-	if (inbuflen <= 0 || inbuflen > 16) {
-		/* Catch error case as well as other oddities (corruption) */
-		inbuflen = 0;
-		return -1;
-	}
-	ch = buf[0];
-	for (i = 1; i < inbuflen; i++)	/* shuffle them down. */
-		buf[i-1] = buf[i];
-	inbuflen--;
-	return ch;
-}
-
-static int udbg_getcLP(void)
-{
-	int ch;
-	for (;;) {
-		ch = udbg_getc_pollLP();
-		if (ch == -1) {
-			/* This shouldn't be needed...but... */
-			volatile unsigned long delay;
-			for (delay=0; delay < 2000000; delay++)
-				;
-		} else {
-			return ch;
-		}
-	}
-}
-
-/* call this from early_init() for a working debug console on
- * vterm capable LPAR machines
- */
-void __init udbg_init_debug_lpar(void)
-{
-	vtermno = 0;
-	udbg_putc = udbg_putcLP;
-	udbg_getc = udbg_getcLP;
-	udbg_getc_poll = udbg_getc_pollLP;
-
-	register_early_udbg_console();
-}
-
-/* returns 0 if couldn't find or use /chosen/stdout as console */
-void __init find_udbg_vterm(void)
-{
-	struct device_node *stdout_node;
-	const u32 *termno;
-	const char *name;
-
-	/* find the boot console from /chosen/stdout */
-	if (!of_chosen)
-		return;
-	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name == NULL)
-		return;
-	stdout_node = of_find_node_by_path(name);
-	if (!stdout_node)
-		return;
-	name = of_get_property(stdout_node, "name", NULL);
-	if (!name) {
-		printk(KERN_WARNING "stdout node missing 'name' property!\n");
-		goto out;
-	}
-
-	/* Check if it's a virtual terminal */
-	if (strncmp(name, "vty", 3) != 0)
-		goto out;
-	termno = of_get_property(stdout_node, "reg", NULL);
-	if (termno == NULL)
-		goto out;
-	vtermno = termno[0];
-
-	if (of_device_is_compatible(stdout_node, "hvterm1")) {
-		udbg_putc = udbg_putcLP;
-		udbg_getc = udbg_getcLP;
-		udbg_getc_poll = udbg_getc_pollLP;
-		add_preferred_console("hvc", termno[0] & 0xff, NULL);
-	} else if (of_device_is_compatible(stdout_node, "hvterm-protocol")) {
-		vtermno = termno[0];
-		udbg_putc = udbg_hvsi_putc;
-		udbg_getc = udbg_hvsi_getc;
-		udbg_getc_poll = udbg_hvsi_getc_poll;
-		add_preferred_console("hvsi", termno[0] & 0xff, NULL);
-	}
-out:
-	of_node_put(stdout_node);
-}
-
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
@@ -258,9 +67,8 @@ void vpa_init(int cpu)
 	ret = register_vpa(hwcpu, addr);
 
 	if (ret) {
-		printk(KERN_ERR "WARNING: vpa_init: VPA registration for "
-				"cpu %d (hw %d) of area %lx returns %ld\n",
-				cpu, hwcpu, addr, ret);
+		pr_err("WARNING: VPA registration for cpu %d (hw %d) of area "
+		       "%lx failed with %ld\n", cpu, hwcpu, addr, ret);
 		return;
 	}
 	/*
@@ -271,10 +79,9 @@ void vpa_init(int cpu)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
-			printk(KERN_ERR
-			       "WARNING: vpa_init: SLB shadow buffer "
-			       "registration for cpu %d (hw %d) of area %lx "
-			       "returns %ld\n", cpu, hwcpu, addr, ret);
+			pr_err("WARNING: SLB shadow buffer registration for "
+			       "cpu %d (hw %d) of area %lx failed with %ld\n",
+			       cpu, hwcpu, addr, ret);
 	}
 
 	/*
@@ -291,8 +98,9 @@ void vpa_init(int cpu)
 		dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
 		ret = register_dtl(hwcpu, __pa(dtl));
 		if (ret)
-			pr_warn("DTL registration failed for cpu %d (%ld)\n",
-				cpu, ret);
+			pr_err("WARNING: DTL registration of cpu %d (hw %d) "
+			       "failed with %ld\n", smp_processor_id(),
+			       hwcpu, ret);
 		lppaca_of(cpu).dtl_enable_mask = 2;
 	}
 }
@@ -329,6 +137,8 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	/* Make pHyp happy */
 	if ((rflags & _PAGE_NO_CACHE) & !(rflags & _PAGE_WRITETHRU))
 		hpte_r &= ~_PAGE_COHERENT;
+	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
+		flags |= H_COALESCE_CAND;
 
 	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
@@ -393,7 +203,7 @@ static void pSeries_lpar_hptab_clear(void)
 		unsigned long ptel;
 	} ptes[4];
 	long lpar_rc;
-	int i, j;
+	unsigned long i, j;
 
 	/* Read in batches of 4,
 	 * invalidate only valid entries not in the VRMA
@@ -573,7 +383,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
-	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
 	unsigned long va;
 	unsigned long hash, index, shift, hidx, slot;
@@ -771,3 +581,47 @@ out:
 	local_irq_restore(flags);
 }
 #endif
+
+/**
+ * h_get_mpp
+ * H_GET_MPP hcall returns info in 7 parms
+ */
+int h_get_mpp(struct hvcall_mpp_data *mpp_data)
+{
+	int rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+
+	rc = plpar_hcall9(H_GET_MPP, retbuf);
+
+	mpp_data->entitled_mem = retbuf[0];
+	mpp_data->mapped_mem = retbuf[1];
+
+	mpp_data->group_num = (retbuf[2] >> 2 * 8) & 0xffff;
+	mpp_data->pool_num = retbuf[2] & 0xffff;
+
+	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
+	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
+	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
+
+	mpp_data->pool_size = retbuf[4];
+	mpp_data->loan_request = retbuf[5];
+	mpp_data->backing_mem = retbuf[6];
+
+	return rc;
+}
+EXPORT_SYMBOL(h_get_mpp);
+
+int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
+{
+	int rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = { 0 };
+
+	rc = plpar_hcall9(H_GET_MPP_X, retbuf);
+
+	mpp_x_data->coalesced_bytes = retbuf[0];
+	mpp_x_data->pool_coalesced_bytes = retbuf[1];
+	mpp_x_data->pool_purr_cycles = retbuf[2];
+	mpp_x_data->pool_spurr_cycles = retbuf[3];
+
+	return rc;
+}

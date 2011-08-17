@@ -149,7 +149,7 @@ static int __init spia_init(void)
 	}
 
 	/* Register the partitions */
-	add_mtd_partitions(spia_mtd, partition_info, NUM_PARTITIONS);
+	mtd_device_register(spia_mtd, partition_info, NUM_PARTITIONS);
 
 	/* Return happy */
 	return 0;

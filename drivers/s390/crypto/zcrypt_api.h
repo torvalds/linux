@@ -76,7 +76,7 @@ struct ica_z90_status {
 
 /**
  * Large random numbers are pulled in 4096 byte chunks from the crypto cards
- * and stored in a page. Be carefull when increasing this buffer due to size
+ * and stored in a page. Be careful when increasing this buffer due to size
  * limitations for AP requests.
  */
 #define ZCRYPT_RNG_BUFFER_SIZE	4096

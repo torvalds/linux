@@ -41,36 +41,36 @@
  *
  */
 
-static void hlwd_pic_mask_and_ack(unsigned int virq)
+static void hlwd_pic_mask_and_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 	u32 mask = 1 << irq;
 
 	clrbits32(io_base + HW_BROADWAY_IMR, mask);
 	out_be32(io_base + HW_BROADWAY_ICR, mask);
 }
 
-static void hlwd_pic_ack(unsigned int virq)
+static void hlwd_pic_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	out_be32(io_base + HW_BROADWAY_ICR, 1 << irq);
 }
 
-static void hlwd_pic_mask(unsigned int virq)
+static void hlwd_pic_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	clrbits32(io_base + HW_BROADWAY_IMR, 1 << irq);
 }
 
-static void hlwd_pic_unmask(unsigned int virq)
+static void hlwd_pic_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	setbits32(io_base + HW_BROADWAY_IMR, 1 << irq);
 }
@@ -78,10 +78,10 @@ static void hlwd_pic_unmask(unsigned int virq)
 
 static struct irq_chip hlwd_pic = {
 	.name		= "hlwd-pic",
-	.ack		= hlwd_pic_ack,
-	.mask_ack	= hlwd_pic_mask_and_ack,
-	.mask		= hlwd_pic_mask,
-	.unmask		= hlwd_pic_unmask,
+	.irq_ack	= hlwd_pic_ack,
+	.irq_mask_ack	= hlwd_pic_mask_and_ack,
+	.irq_mask	= hlwd_pic_mask,
+	.irq_unmask	= hlwd_pic_unmask,
 };
 
 /*
@@ -94,21 +94,14 @@ static struct irq_host *hlwd_irq_host;
 static int hlwd_pic_map(struct irq_host *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
-	set_irq_chip_data(virq, h->host_data);
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &hlwd_pic, handle_level_irq);
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &hlwd_pic, handle_level_irq);
 	return 0;
-}
-
-static void hlwd_pic_unmap(struct irq_host *h, unsigned int irq)
-{
-	set_irq_chip_data(irq, NULL);
-	set_irq_chip(irq, NULL);
 }
 
 static struct irq_host_ops hlwd_irq_host_ops = {
 	.map = hlwd_pic_map,
-	.unmap = hlwd_pic_unmap,
 };
 
 static unsigned int __hlwd_pic_get_irq(struct irq_host *h)
@@ -129,11 +122,12 @@ static unsigned int __hlwd_pic_get_irq(struct irq_host *h)
 static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 				      struct irq_desc *desc)
 {
-	struct irq_host *irq_host = get_irq_data(cascade_virq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_host *irq_host = irq_get_handler_data(cascade_virq);
 	unsigned int virq;
 
 	raw_spin_lock(&desc->lock);
-	desc->chip->mask(cascade_virq); /* IRQ_LEVEL */
+	chip->irq_mask(&desc->irq_data); /* IRQ_LEVEL */
 	raw_spin_unlock(&desc->lock);
 
 	virq = __hlwd_pic_get_irq(irq_host);
@@ -143,9 +137,9 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 		pr_err("spurious interrupt!\n");
 
 	raw_spin_lock(&desc->lock);
-	desc->chip->ack(cascade_virq); /* IRQ_LEVEL */
-	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
-		desc->chip->unmask(cascade_virq);
+	chip->irq_ack(&desc->irq_data); /* IRQ_LEVEL */
+	if (!irqd_irq_disabled(&desc->irq_data) && chip->irq_unmask)
+		chip->irq_unmask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }
 
@@ -217,8 +211,8 @@ void hlwd_pic_probe(void)
 			host = hlwd_pic_init(np);
 			BUG_ON(!host);
 			cascade_virq = irq_of_parse_and_map(np, 0);
-			set_irq_data(cascade_virq, host);
-			set_irq_chained_handler(cascade_virq,
+			irq_set_handler_data(cascade_virq, host);
+			irq_set_chained_handler(cascade_virq,
 						hlwd_pic_irq_cascade);
 			hlwd_irq_host = host;
 			break;

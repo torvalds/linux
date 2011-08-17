@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/node.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/page.h>
 
 struct notifier_block;
@@ -155,6 +155,15 @@ enum {
 #define SWAP_CLUSTER_MAX 32
 #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
 
+/*
+ * Ratio between the present memory in the zone and the "gap" that
+ * we're allowing kswapd to shrink in addition to the per-zone high
+ * wmark, even for zones that already have the high wmark satisfied,
+ * in order to provide better per-zone lru behavior. We are ok to
+ * spend not more than 1% of the memory for this zone balancing "gap".
+ */
+#define KSWAPD_ZONE_BALANCE_GAP_RATIO 100
+
 #define SWAP_MAP_MAX	0x3e	/* Max duplication count, in first swap_map */
 #define SWAP_MAP_BAD	0x3f	/* Note pageblock is bad, in first swap_map */
 #define SWAP_HAS_CACHE	0x40	/* Flag page is cached, in first swap_map */
@@ -215,6 +224,7 @@ extern void mark_page_accessed(struct page *);
 extern void lru_add_drain(void);
 extern int lru_add_drain_all(void);
 extern void rotate_reclaimable_page(struct page *page);
+extern void deactivate_page(struct page *page);
 extern void swap_setup(void);
 
 extern void add_page_to_unevictable_list(struct page *page);
@@ -241,13 +251,6 @@ static inline void lru_cache_add_file(struct page *page)
 /* linux/mm/vmscan.c */
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 					gfp_t gfp_mask, nodemask_t *mask);
-extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
-						  gfp_t gfp_mask, bool noswap,
-						  unsigned int swappiness);
-extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
-						gfp_t gfp_mask, bool noswap,
-						unsigned int swappiness,
-						struct zone *zone);
 extern int __isolate_lru_page(struct page *page, int mode, int file);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
@@ -288,19 +291,14 @@ static inline void scan_unevictable_unregister_node(struct node *node)
 
 extern int kswapd_run(int nid);
 extern void kswapd_stop(int nid);
-
-#ifdef CONFIG_MMU
-/* linux/mm/shmem.c */
-extern int shmem_unuse(swp_entry_t entry, struct page *page);
-#endif /* CONFIG_MMU */
-
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-extern void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
-					struct page **pagep, swp_entry_t *ent);
+extern int mem_cgroup_swappiness(struct mem_cgroup *mem);
+#else
+static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+{
+	return vm_swappiness;
+}
 #endif
-
-extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
-
 #ifdef CONFIG_SWAP
 /* linux/mm/page_io.c */
 extern int swap_readpage(struct page *);
@@ -349,6 +347,7 @@ struct backing_dev_info;
 extern struct mm_struct *swap_token_mm;
 extern void grab_swap_token(struct mm_struct *);
 extern void __put_swap_token(struct mm_struct *);
+extern void disable_swap_token(struct mem_cgroup *memcg);
 
 static inline int has_swap_token(struct mm_struct *mm)
 {
@@ -359,11 +358,6 @@ static inline void put_swap_token(struct mm_struct *mm)
 {
 	if (has_swap_token(mm))
 		__put_swap_token(mm);
-}
-
-static inline void disable_swap_token(void)
-{
-	put_swap_token(swap_token_mm);
 }
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
@@ -491,7 +485,7 @@ static inline int has_swap_token(struct mm_struct *mm)
 	return 0;
 }
 
-static inline void disable_swap_token(void)
+static inline void disable_swap_token(struct mem_cgroup *memcg)
 {
 }
 

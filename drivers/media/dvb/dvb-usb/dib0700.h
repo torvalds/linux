@@ -32,6 +32,7 @@ extern int dvb_usb_dib0700_debug;
 	// 1 Byte: 4MSB(1 = enable streaming, 0 = disable streaming) 4LSB(Video Mode: 0 = MPEG2 188Bytes, 1 = Analog)
 	// 2 Byte: MPEG2 mode:  4MSB(1 = Master Mode, 0 = Slave Mode) 4LSB(Channel 1 = bit0, Channel 2 = bit1)
 	// 2 Byte: Analog mode: 4MSB(0 = 625 lines, 1 = 525 lines)    4LSB(     "                "           )
+#define REQUEST_SET_I2C_PARAM       0x10
 #define REQUEST_SET_RC              0x11
 #define REQUEST_NEW_I2C_READ        0x12
 #define REQUEST_NEW_I2C_WRITE       0x13
@@ -45,8 +46,9 @@ struct dib0700_state {
 	u8 is_dib7000pc;
 	u8 fw_use_new_i2c_api;
 	u8 disable_streaming_master_mode;
-    u32 fw_version;
-    u32 nb_packet_buffer_size;
+	u32 fw_version;
+	u32 nb_packet_buffer_size;
+	u8 buf[255];
 };
 
 extern int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
@@ -61,6 +63,7 @@ extern struct i2c_algorithm dib0700_i2c_algo;
 extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
 			struct dvb_usb_device_description **desc, int *cold);
 extern int dib0700_change_protocol(struct rc_dev *dev, u64 rc_type);
+extern int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz);
 
 extern int dib0700_device_count;
 extern int dvb_usb_dib0700_ir_proto;

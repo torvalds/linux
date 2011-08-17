@@ -26,29 +26,6 @@
 void __iomem *mtu_base; /* Assigned by machine code */
 
 /*
- * Kernel assumes that sched_clock can be called early
- * but the MTU may not yet be initialized.
- */
-static cycle_t nmdk_read_timer_dummy(struct clocksource *cs)
-{
-	return 0;
-}
-
-/* clocksource: MTU decrements, so we negate the value being read. */
-static cycle_t nmdk_read_timer(struct clocksource *cs)
-{
-	return -readl(mtu_base + MTU_VAL(0));
-}
-
-static struct clocksource nmdk_clksrc = {
-	.name		= "mtu_0",
-	.rating		= 200,
-	.read		= nmdk_read_timer_dummy,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-/*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
  * better resolution when scheduling the kernel.
@@ -172,12 +149,10 @@ void __init nmdk_timer_init(void)
 	writel(0, mtu_base + MTU_BGLR(0));
 	writel(cr | MTU_CRn_ENA, mtu_base + MTU_CR(0));
 
-	/* Now the clock source is ready */
-	nmdk_clksrc.read = nmdk_read_timer;
-
-	if (clocksource_register_hz(&nmdk_clksrc, rate))
+	if (clocksource_mmio_init(mtu_base + MTU_VAL(0), "mtu_0",
+			rate, 200, 32, clocksource_mmio_readl_down))
 		pr_err("timer: failed to initialize clock source %s\n",
-		       nmdk_clksrc.name);
+		       "mtu_0");
 
 	init_sched_clock(&cd, nomadik_update_sched_clock, 32, rate);
 

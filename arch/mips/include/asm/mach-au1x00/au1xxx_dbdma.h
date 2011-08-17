@@ -37,14 +37,6 @@
 
 #ifndef _LANGUAGE_ASSEMBLY
 
-/*
- * The DMA base addresses.
- * The channels are every 256 bytes (0x0100) from the channel 0 base.
- * Interrupt status/enable is bits 15:0 for channels 15 to zero.
- */
-#define DDMA_GLOBAL_BASE	0xb4003000
-#define DDMA_CHANNEL_BASE	0xb4002000
-
 typedef volatile struct dbdma_global {
 	u32	ddma_config;
 	u32	ddma_intstat;

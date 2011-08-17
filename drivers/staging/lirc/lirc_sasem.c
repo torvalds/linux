@@ -364,7 +364,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 	int i;
 	int retval = 0;
 	struct sasem_context *context;
-	int *data_buf;
+	int *data_buf = NULL;
 
 	context = (struct sasem_context *) file->private_data;
 	if (!context) {
@@ -570,6 +570,7 @@ static void incoming_packet(struct sasem_context *context,
 	unsigned char *buf = urb->transfer_buffer;
 	long ms;
 	struct timeval tv;
+	int i;
 
 	if (len != 8) {
 		printk(KERN_WARNING "%s: invalid incoming packet size (%d)\n",
@@ -577,12 +578,12 @@ static void incoming_packet(struct sasem_context *context,
 		return;
 	}
 
-#ifdef DEBUG
-	int i;
-	for (i = 0; i < 8; ++i)
-		printk(KERN_INFO "%02x ", buf[i]);
-	printk(KERN_INFO "\n");
-#endif
+	if (debug) {
+		printk(KERN_INFO "Incoming data: ");
+		for (i = 0; i < 8; ++i)
+			printk(KERN_CONT "%02x ", buf[i]);
+		printk(KERN_CONT "\n");
+	}
 
 	/*
 	 * Lirc could deal with the repeat code, but we really need to block it

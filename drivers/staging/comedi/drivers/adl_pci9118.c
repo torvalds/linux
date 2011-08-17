@@ -23,7 +23,7 @@ For AI:
 - If cmd->scan_begin_src=TRIG_EXT then trigger input is TGIN (pin 46).
 - If cmd->convert_src=TRIG_EXT then trigger input is EXTTRG (pin 44).
 - If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
-- It is not neccessary to have cmd.scan_end_arg=cmd.chanlist_len but
+- It is not necessary to have cmd.scan_end_arg=cmd.chanlist_len but
   cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
 - If return value of cmdtest is 5 then you've bad channel list
   (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
@@ -67,6 +67,7 @@ Configuration options:
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include "amcc_s5933.h"
 #include "8253.h"
@@ -823,7 +824,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		move_block_from_dma(dev, s,
 				    devpriv->dmabuf_virt[devpriv->dma_actbuf],
 				    samplesinbuf);
-		m = m - sampls;		/* m= how many samples was transfered */
+		m = m - sampls;		/* m= how many samples was transferred */
 	}
 /* DPRINTK("YYY\n"); */
 
@@ -1297,7 +1298,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 	DPRINTK("3 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 	/* transfer without TRIG_WAKE_EOS */
 	if (!(devpriv->ai_flags & TRIG_WAKE_EOS)) {
-		/* if it's possible then allign DMA buffers to length of scan */
+		/* if it's possible then align DMA buffers to length of scan */
 		i = dmalen0;
 		dmalen0 =
 		    (dmalen0 / (devpriv->ai_n_realscanlen << 1)) *
@@ -1417,7 +1418,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		comedi_error(dev,
 			     "pci9118_ai_docmd_sampl() mode number bug!\n");
 		return -EIO;
-	};
+	}
 
 	devpriv->int_ai_func = interrupt_pci9118_ai_onesample;
 						/* transfer function */
@@ -1496,7 +1497,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	default:
 		comedi_error(dev, "pci9118_ai_docmd_dma() mode number bug!\n");
 		return -EIO;
-	};
+	}
 
 	if (devpriv->ai12_startstop) {
 		pci9118_exttrg_add(dev, EXTTRG_AI);

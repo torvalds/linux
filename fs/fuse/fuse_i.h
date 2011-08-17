@@ -272,7 +272,6 @@ struct fuse_req {
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
 		struct cuse_init_in cuse_init_in;
-		struct cuse_init_out cuse_init_out;
 		struct {
 			struct fuse_read_in in;
 			u64 attr_ver;
@@ -590,7 +589,8 @@ void fuse_release_common(struct file *file, int opcode);
 /**
  * Send FSYNC or FSYNCDIR request
  */
-int fuse_fsync_common(struct file *file, int datasync, int isdir);
+int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
+		      int datasync, int isdir);
 
 /**
  * Notify poll wakeup

@@ -1,6 +1,6 @@
 /* bnx2.h: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004-2009 Broadcom Corporation
+ * Copyright (c) 2004-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -6207,6 +6207,8 @@ struct l2_fhdr {
 
 #define BNX2_CP_SCRATCH					0x001a0000
 
+#define BNX2_FW_MAX_ISCSI_CONN				 0x001a0080
+
 
 /*
  *  mcp_reg definition
@@ -6752,14 +6754,12 @@ struct bnx2 {
 	u32			rx_max_ring_idx;
 	u32			rx_max_pg_ring_idx;
 
-	u32			rx_csum;
-
 	/* TX constants */
 	int		tx_ring_size;
 	u32		tx_wake_thresh;
 
 #ifdef BCM_CNIC
-	struct cnic_ops		*cnic_ops;
+	struct cnic_ops	__rcu	*cnic_ops;
 	void			*cnic_data;
 #endif
 
@@ -6920,6 +6920,7 @@ struct bnx2 {
 	u8			num_tx_rings;
 	u8			num_rx_rings;
 
+	u32 			leds_save;
 	u32			idle_chk_status_idx;
 
 #ifdef BCM_CNIC
@@ -7367,6 +7368,21 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_RPHY_SERDES_LINK			0x374
 #define BNX2_RPHY_COPPER_LINK			0x378
 
+#define BNX2_ISCSI_INITIATOR			0x3dc
+#define BNX2_ISCSI_INITIATOR_EN			 0x00080000
+
+#define BNX2_ISCSI_MAX_CONN			0x3e4
+#define BNX2_ISCSI_MAX_CONN_MASK		 0xffff0000
+#define BNX2_ISCSI_MAX_CONN_SHIFT		 16
+
 #define HOST_VIEW_SHMEM_BASE			0x167c00
+
+#define DP_SHMEM_LINE(bp, offset)					\
+	netdev_err(bp->dev, "DEBUG: %08x: %08x %08x %08x %08x\n",	\
+		   offset,						\
+		   bnx2_shmem_rd(bp, offset),				\
+		   bnx2_shmem_rd(bp, offset + 4),			\
+		   bnx2_shmem_rd(bp, offset + 8),			\
+		   bnx2_shmem_rd(bp, offset + 12))
 
 #endif

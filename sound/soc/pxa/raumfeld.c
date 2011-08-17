@@ -151,13 +151,13 @@ static struct snd_soc_ops raumfeld_cs4270_ops = {
 	.hw_params = raumfeld_cs4270_hw_params,
 };
 
-static int raumfeld_line_suspend(struct platform_device *pdev, pm_message_t state)
+static int raumfeld_analog_suspend(struct snd_soc_card *card)
 {
 	raumfeld_enable_audio(false);
 	return 0;
 }
 
-static int raumfeld_line_resume(struct platform_device *pdev)
+static int raumfeld_analog_resume(struct snd_soc_card *card)
 {
 	raumfeld_enable_audio(true);
 	return 0;
@@ -225,32 +225,53 @@ static struct snd_soc_ops raumfeld_ak4104_ops = {
 	.hw_params = raumfeld_ak4104_hw_params,
 };
 
-static struct snd_soc_dai_link raumfeld_dai[] = {
-{
-	.name		= "ak4104",
-	.stream_name	= "Playback",
-	.cpu_dai_name = "pxa-ssp-dai.1",
-	.codec_dai_name = "ak4104-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.ops		= &raumfeld_ak4104_ops,
-	.codec_name = "ak4104-codec.0",
-},
-{
-	.name		= "CS4270",
-	.stream_name	= "CS4270",
-	.cpu_dai_name = "pxa-ssp-dai.0",
-	.platform_name = "pxa-pcm-audio",
-	.codec_dai_name = "cs4270-hifi",
-	.codec_name = "cs4270-codec.0-0048",
-	.ops		= &raumfeld_cs4270_ops,
-},};
+#define DAI_LINK_CS4270		\
+{							\
+	.name		= "CS4270",			\
+	.stream_name	= "CS4270",			\
+	.cpu_dai_name	= "pxa-ssp-dai.0",		\
+	.platform_name	= "pxa-pcm-audio",		\
+	.codec_dai_name	= "cs4270-hifi",		\
+	.codec_name	= "cs4270-codec.0-0048",	\
+	.ops		= &raumfeld_cs4270_ops,		\
+}
 
-static struct snd_soc_card snd_soc_raumfeld = {
-	.name		= "Raumfeld",
-	.dai_link	= raumfeld_dai,
-	.suspend_post	= raumfeld_line_suspend,
-	.resume_pre	= raumfeld_line_resume,
-	.num_links	= ARRAY_SIZE(raumfeld_dai),
+#define DAI_LINK_AK4104		\
+{							\
+	.name		= "ak4104",			\
+	.stream_name	= "Playback",			\
+	.cpu_dai_name	= "pxa-ssp-dai.1",		\
+	.codec_dai_name	= "ak4104-hifi",		\
+	.platform_name	= "pxa-pcm-audio",		\
+	.ops		= &raumfeld_ak4104_ops,		\
+	.codec_name	= "spi0.0",			\
+}
+
+static struct snd_soc_dai_link snd_soc_raumfeld_connector_dai[] =
+{
+	DAI_LINK_CS4270,
+	DAI_LINK_AK4104,
+};
+
+static struct snd_soc_dai_link snd_soc_raumfeld_speaker_dai[] =
+{
+	DAI_LINK_CS4270,
+};
+
+static struct snd_soc_card snd_soc_raumfeld_connector = {
+	.name		= "Raumfeld Connector",
+	.dai_link	= snd_soc_raumfeld_connector_dai,
+	.num_links	= ARRAY_SIZE(snd_soc_raumfeld_connector_dai),
+	.suspend_post	= raumfeld_analog_suspend,
+	.resume_pre	= raumfeld_analog_resume,
+};
+
+static struct snd_soc_card snd_soc_raumfeld_speaker = {
+	.name		= "Raumfeld Speaker",
+	.dai_link	= snd_soc_raumfeld_speaker_dai,
+	.num_links	= ARRAY_SIZE(snd_soc_raumfeld_speaker_dai),
+	.suspend_post	= raumfeld_analog_suspend,
+	.resume_pre	= raumfeld_analog_resume,
 };
 
 static struct platform_device *raumfeld_audio_device;
@@ -271,22 +292,25 @@ static int __init raumfeld_audio_init(void)
 
 	set_max9485_clk(MAX9485_MCLK_FREQ_122880);
 
-	/* Register LINE and SPDIF */
+	/* Register analog device */
 	raumfeld_audio_device = platform_device_alloc("soc-audio", 0);
 	if (!raumfeld_audio_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(raumfeld_audio_device,
-			     &snd_soc_raumfeld);
-	ret = platform_device_add(raumfeld_audio_device);
-
-	/* no S/PDIF on Speakers */
 	if (machine_is_raumfeld_speaker())
+		platform_set_drvdata(raumfeld_audio_device,
+				     &snd_soc_raumfeld_speaker);
+
+	if (machine_is_raumfeld_connector())
+		platform_set_drvdata(raumfeld_audio_device,
+				     &snd_soc_raumfeld_connector);
+
+	ret = platform_device_add(raumfeld_audio_device);
+	if (ret < 0)
 		return ret;
 
 	raumfeld_enable_audio(true);
-
-	return ret;
+	return 0;
 }
 
 static void __exit raumfeld_audio_exit(void)

@@ -2,7 +2,7 @@
 #define S390_DEVICE_H
 
 #include <asm/ccwdev.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/wait.h>
 #include <linux/notifier.h>
 #include "io_sch.h"
@@ -133,7 +133,6 @@ void ccw_device_set_notoper(struct ccw_device *cdev);
 /* qdio needs this. */
 void ccw_device_set_timeout(struct ccw_device *, int);
 extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
-extern struct bus_type ccw_bus_type;
 
 /* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);

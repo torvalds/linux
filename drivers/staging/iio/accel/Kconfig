@@ -66,11 +66,32 @@ config LIS3L02DQ
 	tristate "ST Microelectronics LIS3L02DQ Accelerometer Driver"
 	depends on SPI
 	select IIO_TRIGGER if IIO_RING_BUFFER
-	select IIO_SW_RING if IIO_RING_BUFFER
+	depends on !IIO_RING_BUFFER || IIO_KFIFO_BUF || IIO_SW_RING
 	help
 	  Say yes here to build SPI support for the ST microelectronics
 	  accelerometer. The driver supplies direct access via sysfs files
 	  and an event interface via a character device.
+
+choice
+	prompt "Buffer type"
+       	depends on LIS3L02DQ && IIO_RING_BUFFER
+
+config LIS3L02DQ_BUF_KFIFO
+       depends on IIO_KFIFO_BUF
+       bool "Simple FIFO"
+       help
+         Kfifo based FIFO.  Does not provide any events so it is up
+	 to userspace to ensure it reads often enough that data is not
+	 lost.
+
+config LIS3L02DQ_BUF_RING_SW
+       depends on IIO_SW_RING
+       bool "IIO Software Ring"
+       help
+         Original IIO ring buffer implementation.  Provides simple
+	 buffer events, half full etc.
+
+endchoice
 
 config SCA3000
 	depends on IIO_RING_BUFFER

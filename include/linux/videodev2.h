@@ -70,6 +70,7 @@
  * Moved from videodev.h
  */
 #define VIDEO_MAX_FRAME               32
+#define VIDEO_MAX_PLANES               8
 
 #ifndef __KERNEL__
 
@@ -157,8 +158,22 @@ enum v4l2_buf_type {
 	/* Experimental */
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8,
 #endif
+	V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
+	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
+
+#define V4L2_TYPE_IS_MULTIPLANAR(type)			\
+	((type) == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE	\
+	 || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+
+#define V4L2_TYPE_IS_OUTPUT(type)				\
+	((type) == V4L2_BUF_TYPE_VIDEO_OUTPUT			\
+	 || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE		\
+	 || (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY		\
+	 || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY	\
+	 || (type) == V4L2_BUF_TYPE_VBI_OUTPUT			\
+	 || (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
 
 enum v4l2_tuner_type {
 	V4L2_TUNER_RADIO	     = 1,
@@ -245,6 +260,11 @@ struct v4l2_capability {
 #define V4L2_CAP_HW_FREQ_SEEK		0x00000400  /* Can do hardware frequency seek  */
 #define V4L2_CAP_RDS_OUTPUT		0x00000800  /* Is an RDS encoder */
 
+/* Is a video capture device that supports multiplanar formats */
+#define V4L2_CAP_VIDEO_CAPTURE_MPLANE	0x00001000
+/* Is a video output device that supports multiplanar formats */
+#define V4L2_CAP_VIDEO_OUTPUT_MPLANE	0x00002000
+
 #define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
 #define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
 #define V4L2_CAP_RADIO			0x00040000  /* is a radio device */
@@ -288,7 +308,11 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_Y4      v4l2_fourcc('Y', '0', '4', ' ') /*  4  Greyscale     */
 #define V4L2_PIX_FMT_Y6      v4l2_fourcc('Y', '0', '6', ' ') /*  6  Greyscale     */
 #define V4L2_PIX_FMT_Y10     v4l2_fourcc('Y', '1', '0', ' ') /* 10  Greyscale     */
+#define V4L2_PIX_FMT_Y12     v4l2_fourcc('Y', '1', '2', ' ') /* 12  Greyscale     */
 #define V4L2_PIX_FMT_Y16     v4l2_fourcc('Y', '1', '6', ' ') /* 16  Greyscale     */
+
+/* Grey bit-packed formats */
+#define V4L2_PIX_FMT_Y10BPACK    v4l2_fourcc('Y', '1', '0', 'B') /* 10  Greyscale bit-packed */
 
 /* Palette formats */
 #define V4L2_PIX_FMT_PAL8    v4l2_fourcc('P', 'A', 'L', '8') /*  8  8-bit palette */
@@ -312,12 +336,20 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_YUV420  v4l2_fourcc('Y', 'U', '1', '2') /* 12  YUV 4:2:0     */
 #define V4L2_PIX_FMT_HI240   v4l2_fourcc('H', 'I', '2', '4') /*  8  8-bit color   */
 #define V4L2_PIX_FMT_HM12    v4l2_fourcc('H', 'M', '1', '2') /*  8  YUV 4:2:0 16x16 macroblocks */
+#define V4L2_PIX_FMT_M420    v4l2_fourcc('M', '4', '2', '0') /* 12  YUV 4:2:0 2 lines y, 1 line uv interleaved */
 
 /* two planes -- one Y, one Cr + Cb interleaved  */
 #define V4L2_PIX_FMT_NV12    v4l2_fourcc('N', 'V', '1', '2') /* 12  Y/CbCr 4:2:0  */
 #define V4L2_PIX_FMT_NV21    v4l2_fourcc('N', 'V', '2', '1') /* 12  Y/CrCb 4:2:0  */
 #define V4L2_PIX_FMT_NV16    v4l2_fourcc('N', 'V', '1', '6') /* 16  Y/CbCr 4:2:2  */
 #define V4L2_PIX_FMT_NV61    v4l2_fourcc('N', 'V', '6', '1') /* 16  Y/CrCb 4:2:2  */
+
+/* two non contiguous planes - one Y, one Cr + Cb interleaved  */
+#define V4L2_PIX_FMT_NV12M   v4l2_fourcc('N', 'M', '1', '2') /* 12  Y/CbCr 4:2:0  */
+#define V4L2_PIX_FMT_NV12MT  v4l2_fourcc('T', 'M', '1', '2') /* 12  Y/CbCr 4:2:0 64x32 macroblocks */
+
+/* three non contiguous planes - Y, Cb, Cr */
+#define V4L2_PIX_FMT_YUV420M v4l2_fourcc('Y', 'M', '1', '2') /* 12  YUV420 planar */
 
 /* Bayer formats - see http://www.siliconimaging.com/RGB%20Bayer.htm */
 #define V4L2_PIX_FMT_SBGGR8  v4l2_fourcc('B', 'A', '8', '1') /*  8  BGBG.. GRGR.. */
@@ -328,6 +360,10 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_SGBRG10 v4l2_fourcc('G', 'B', '1', '0') /* 10  GBGB.. RGRG.. */
 #define V4L2_PIX_FMT_SGRBG10 v4l2_fourcc('B', 'A', '1', '0') /* 10  GRGR.. BGBG.. */
 #define V4L2_PIX_FMT_SRGGB10 v4l2_fourcc('R', 'G', '1', '0') /* 10  RGRG.. GBGB.. */
+#define V4L2_PIX_FMT_SBGGR12 v4l2_fourcc('B', 'G', '1', '2') /* 12  BGBG.. GRGR.. */
+#define V4L2_PIX_FMT_SGBRG12 v4l2_fourcc('G', 'B', '1', '2') /* 12  GBGB.. RGRG.. */
+#define V4L2_PIX_FMT_SGRBG12 v4l2_fourcc('B', 'A', '1', '2') /* 12  GRGR.. BGBG.. */
+#define V4L2_PIX_FMT_SRGGB12 v4l2_fourcc('R', 'G', '1', '2') /* 12  RGRG.. GBGB.. */
 	/* 10bit raw bayer DPCM compressed to 8 bits */
 #define V4L2_PIX_FMT_SGRBG10DPCM8 v4l2_fourcc('B', 'D', '1', '0')
 	/*
@@ -340,7 +376,16 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_MJPEG    v4l2_fourcc('M', 'J', 'P', 'G') /* Motion-JPEG   */
 #define V4L2_PIX_FMT_JPEG     v4l2_fourcc('J', 'P', 'E', 'G') /* JFIF JPEG     */
 #define V4L2_PIX_FMT_DV       v4l2_fourcc('d', 'v', 's', 'd') /* 1394          */
-#define V4L2_PIX_FMT_MPEG     v4l2_fourcc('M', 'P', 'E', 'G') /* MPEG-1/2/4    */
+#define V4L2_PIX_FMT_MPEG     v4l2_fourcc('M', 'P', 'E', 'G') /* MPEG-1/2/4 Multiplexed */
+#define V4L2_PIX_FMT_H264     v4l2_fourcc('H', '2', '6', '4') /* H264 with start codes */
+#define V4L2_PIX_FMT_H264_NO_SC v4l2_fourcc('A', 'V', 'C', '1') /* H264 without start codes */
+#define V4L2_PIX_FMT_H263     v4l2_fourcc('H', '2', '6', '3') /* H263          */
+#define V4L2_PIX_FMT_MPEG1    v4l2_fourcc('M', 'P', 'G', '1') /* MPEG-1 ES     */
+#define V4L2_PIX_FMT_MPEG2    v4l2_fourcc('M', 'P', 'G', '2') /* MPEG-2 ES     */
+#define V4L2_PIX_FMT_MPEG4    v4l2_fourcc('M', 'P', 'G', '4') /* MPEG-4 ES     */
+#define V4L2_PIX_FMT_XVID     v4l2_fourcc('X', 'V', 'I', 'D') /* Xvid           */
+#define V4L2_PIX_FMT_VC1_ANNEX_G v4l2_fourcc('V', 'C', '1', 'G') /* SMPTE 421M Annex G compliant stream */
+#define V4L2_PIX_FMT_VC1_ANNEX_L v4l2_fourcc('V', 'C', '1', 'L') /* SMPTE 421M Annex L compliant stream */
 
 /*  Vendor-specific formats   */
 #define V4L2_PIX_FMT_CPIA1    v4l2_fourcc('C', 'P', 'I', 'A') /* cpia1 YUV */
@@ -365,6 +410,8 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_TM6000   v4l2_fourcc('T', 'M', '6', '0') /* tm5600/tm60x0 */
 #define V4L2_PIX_FMT_CIT_YYVYUY v4l2_fourcc('C', 'I', 'T', 'V') /* one line of Y then 1 line of VYUY */
 #define V4L2_PIX_FMT_KONICA420  v4l2_fourcc('K', 'O', 'N', 'I') /* YUV420 planar in blocks of 256 pixels */
+#define V4L2_PIX_FMT_JPGL	v4l2_fourcc('J', 'P', 'G', 'L') /* JPEG-Lite */
+#define V4L2_PIX_FMT_SE401      v4l2_fourcc('S', '4', '0', '1') /* se401 janggu compressed rgb */
 
 /*
  *	F O R M A T   E N U M E R A T I O N
@@ -517,6 +564,62 @@ struct v4l2_requestbuffers {
 	__u32			reserved[2];
 };
 
+/**
+ * struct v4l2_plane - plane info for multi-planar buffers
+ * @bytesused:		number of bytes occupied by data in the plane (payload)
+ * @length:		size of this plane (NOT the payload) in bytes
+ * @mem_offset:		when memory in the associated struct v4l2_buffer is
+ *			V4L2_MEMORY_MMAP, equals the offset from the start of
+ *			the device memory for this plane (or is a "cookie" that
+ *			should be passed to mmap() called on the video node)
+ * @userptr:		when memory is V4L2_MEMORY_USERPTR, a userspace pointer
+ *			pointing to this plane
+ * @data_offset:	offset in the plane to the start of data; usually 0,
+ *			unless there is a header in front of the data
+ *
+ * Multi-planar buffers consist of one or more planes, e.g. an YCbCr buffer
+ * with two planes can have one plane for Y, and another for interleaved CbCr
+ * components. Each plane can reside in a separate memory buffer, or even in
+ * a completely separate memory node (e.g. in embedded devices).
+ */
+struct v4l2_plane {
+	__u32			bytesused;
+	__u32			length;
+	union {
+		__u32		mem_offset;
+		unsigned long	userptr;
+	} m;
+	__u32			data_offset;
+	__u32			reserved[11];
+};
+
+/**
+ * struct v4l2_buffer - video buffer info
+ * @index:	id number of the buffer
+ * @type:	buffer type (type == *_MPLANE for multiplanar buffers)
+ * @bytesused:	number of bytes occupied by data in the buffer (payload);
+ *		unused (set to 0) for multiplanar buffers
+ * @flags:	buffer informational flags
+ * @field:	field order of the image in the buffer
+ * @timestamp:	frame timestamp
+ * @timecode:	frame timecode
+ * @sequence:	sequence count of this frame
+ * @memory:	the method, in which the actual video data is passed
+ * @offset:	for non-multiplanar buffers with memory == V4L2_MEMORY_MMAP;
+ *		offset from the start of the device memory for this plane,
+ *		(or a "cookie" that should be passed to mmap() as offset)
+ * @userptr:	for non-multiplanar buffers with memory == V4L2_MEMORY_USERPTR;
+ *		a userspace pointer pointing to this buffer
+ * @planes:	for multiplanar buffers; userspace pointer to the array of plane
+ *		info structs for this buffer
+ * @length:	size in bytes of the buffer (NOT its payload) for single-plane
+ *		buffers (when type != *_MPLANE); number of elements in the
+ *		planes array for multi-plane buffers
+ * @input:	input number from which the video data has has been captured
+ *
+ * Contains data exchanged by application and driver using one of the Streaming
+ * I/O methods.
+ */
 struct v4l2_buffer {
 	__u32			index;
 	enum v4l2_buf_type      type;
@@ -532,6 +635,7 @@ struct v4l2_buffer {
 	union {
 		__u32           offset;
 		unsigned long   userptr;
+		struct v4l2_plane *planes;
 	} m;
 	__u32			length;
 	__u32			input;
@@ -932,6 +1036,7 @@ struct v4l2_ext_controls {
 #define V4L2_CTRL_CLASS_MPEG 0x00990000	/* MPEG-compression controls */
 #define V4L2_CTRL_CLASS_CAMERA 0x009a0000	/* Camera class controls */
 #define V4L2_CTRL_CLASS_FM_TX 0x009b0000	/* FM Modulator control class */
+#define V4L2_CTRL_CLASS_FLASH 0x009c0000	/* Camera flash controls */
 
 #define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
@@ -945,6 +1050,7 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_INTEGER64     = 5,
 	V4L2_CTRL_TYPE_CTRL_CLASS    = 6,
 	V4L2_CTRL_TYPE_STRING        = 7,
+	V4L2_CTRL_TYPE_BITMASK       = 8,
 };
 
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */
@@ -1050,14 +1156,19 @@ enum v4l2_colorfx {
 #define V4L2_CID_ILLUMINATORS_1			(V4L2_CID_BASE+37)
 #define V4L2_CID_ILLUMINATORS_2			(V4L2_CID_BASE+38)
 
+#define V4L2_CID_MIN_BUFFERS_FOR_CAPTURE	(V4L2_CID_BASE+39)
+#define V4L2_CID_MIN_BUFFERS_FOR_OUTPUT		(V4L2_CID_BASE+40)
+
 /* last CID + 1 */
-#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+39)
+#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+41)
+
+/* Minimum number of buffer neede by the device */
 
 /*  MPEG-class control IDs defined by V4L2 */
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
 #define V4L2_CID_MPEG_CLASS 			(V4L2_CTRL_CLASS_MPEG | 1)
 
-/*  MPEG streams */
+/*  MPEG streams, specific to multiplexed streams */
 #define V4L2_CID_MPEG_STREAM_TYPE 		(V4L2_CID_MPEG_BASE+0)
 enum v4l2_mpeg_stream_type {
 	V4L2_MPEG_STREAM_TYPE_MPEG2_PS   = 0, /* MPEG-2 program stream */
@@ -1079,7 +1190,7 @@ enum v4l2_mpeg_stream_vbi_fmt {
 	V4L2_MPEG_STREAM_VBI_FMT_IVTV = 1,  /* VBI in private packets, IVTV format */
 };
 
-/*  MPEG audio */
+/*  MPEG audio controls specific to multiplexed streams  */
 #define V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ 	(V4L2_CID_MPEG_BASE+100)
 enum v4l2_mpeg_audio_sampling_freq {
 	V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100 = 0,
@@ -1195,7 +1306,7 @@ enum v4l2_mpeg_audio_ac3_bitrate {
 	V4L2_MPEG_AUDIO_AC3_BITRATE_640K = 18,
 };
 
-/*  MPEG video */
+/*  MPEG video controls specific to multiplexed streams */
 #define V4L2_CID_MPEG_VIDEO_ENCODING 		(V4L2_CID_MPEG_BASE+200)
 enum v4l2_mpeg_video_encoding {
 	V4L2_MPEG_VIDEO_ENCODING_MPEG_1     = 0,
@@ -1223,6 +1334,141 @@ enum v4l2_mpeg_video_bitrate_mode {
 #define V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION (V4L2_CID_MPEG_BASE+209)
 #define V4L2_CID_MPEG_VIDEO_MUTE 		(V4L2_CID_MPEG_BASE+210)
 #define V4L2_CID_MPEG_VIDEO_MUTE_YUV 		(V4L2_CID_MPEG_BASE+211)
+#define V4L2_CID_MPEG_VIDEO_DECODER_SLICE_INTERFACE		(V4L2_CID_MPEG_BASE+212)
+#define V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER	(V4L2_CID_MPEG_BASE+213)
+#define V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB		(V4L2_CID_MPEG_BASE+214)
+#define V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE			(V4L2_CID_MPEG_BASE+215)
+#define V4L2_CID_MPEG_VIDEO_HEADER_MODE				(V4L2_CID_MPEG_BASE+216)
+enum v4l2_mpeg_video_header_mode {
+	V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE			= 0,
+	V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME	= 1,
+
+};
+#define V4L2_CID_MPEG_VIDEO_MAX_REF_PIC			(V4L2_CID_MPEG_BASE+217)
+#define V4L2_CID_MPEG_VIDEO_MB_RC_ENABLE		(V4L2_CID_MPEG_BASE+218)
+#define V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES	(V4L2_CID_MPEG_BASE+219)
+#define V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB		(V4L2_CID_MPEG_BASE+220)
+#define V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE		(V4L2_CID_MPEG_BASE+221)
+enum v4l2_mpeg_video_multi_slice_mode {
+	V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE		= 0,
+	V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB		= 1,
+	V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES	= 2,
+};
+#define V4L2_CID_MPEG_VIDEO_VBV_SIZE			(V4L2_CID_MPEG_BASE+222)
+#define V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP		(V4L2_CID_MPEG_BASE+300)
+#define V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP		(V4L2_CID_MPEG_BASE+301)
+#define V4L2_CID_MPEG_VIDEO_H263_B_FRAME_QP		(V4L2_CID_MPEG_BASE+302)
+#define V4L2_CID_MPEG_VIDEO_H263_MIN_QP			(V4L2_CID_MPEG_BASE+303)
+#define V4L2_CID_MPEG_VIDEO_H263_MAX_QP			(V4L2_CID_MPEG_BASE+304)
+#define V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP		(V4L2_CID_MPEG_BASE+350)
+#define V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP		(V4L2_CID_MPEG_BASE+351)
+#define V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP		(V4L2_CID_MPEG_BASE+352)
+#define V4L2_CID_MPEG_VIDEO_H264_MIN_QP			(V4L2_CID_MPEG_BASE+353)
+#define V4L2_CID_MPEG_VIDEO_H264_MAX_QP			(V4L2_CID_MPEG_BASE+354)
+#define V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM		(V4L2_CID_MPEG_BASE+355)
+#define V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE		(V4L2_CID_MPEG_BASE+356)
+#define V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE		(V4L2_CID_MPEG_BASE+357)
+enum v4l2_mpeg_video_h264_entropy_mode {
+	V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC	= 0,
+	V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC	= 1,
+};
+#define V4L2_CID_MPEG_VIDEO_H264_I_PERIOD		(V4L2_CID_MPEG_BASE+358)
+#define V4L2_CID_MPEG_VIDEO_H264_LEVEL			(V4L2_CID_MPEG_BASE+359)
+enum v4l2_mpeg_video_h264_level {
+	V4L2_MPEG_VIDEO_H264_LEVEL_1_0	= 0,
+	V4L2_MPEG_VIDEO_H264_LEVEL_1B	= 1,
+	V4L2_MPEG_VIDEO_H264_LEVEL_1_1	= 2,
+	V4L2_MPEG_VIDEO_H264_LEVEL_1_2	= 3,
+	V4L2_MPEG_VIDEO_H264_LEVEL_1_3	= 4,
+	V4L2_MPEG_VIDEO_H264_LEVEL_2_0	= 5,
+	V4L2_MPEG_VIDEO_H264_LEVEL_2_1	= 6,
+	V4L2_MPEG_VIDEO_H264_LEVEL_2_2	= 7,
+	V4L2_MPEG_VIDEO_H264_LEVEL_3_0	= 8,
+	V4L2_MPEG_VIDEO_H264_LEVEL_3_1	= 9,
+	V4L2_MPEG_VIDEO_H264_LEVEL_3_2	= 10,
+	V4L2_MPEG_VIDEO_H264_LEVEL_4_0	= 11,
+	V4L2_MPEG_VIDEO_H264_LEVEL_4_1	= 12,
+	V4L2_MPEG_VIDEO_H264_LEVEL_4_2	= 13,
+	V4L2_MPEG_VIDEO_H264_LEVEL_5_0	= 14,
+	V4L2_MPEG_VIDEO_H264_LEVEL_5_1	= 15,
+};
+#define V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA	(V4L2_CID_MPEG_BASE+360)
+#define V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_BETA	(V4L2_CID_MPEG_BASE+361)
+#define V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE	(V4L2_CID_MPEG_BASE+362)
+enum v4l2_mpeg_video_h264_loop_filter_mode {
+	V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED				= 0,
+	V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED				= 1,
+	V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY	= 2,
+};
+#define V4L2_CID_MPEG_VIDEO_H264_PROFILE		(V4L2_CID_MPEG_BASE+363)
+enum v4l2_mpeg_video_h264_profile {
+	V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE			= 0,
+	V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE	= 1,
+	V4L2_MPEG_VIDEO_H264_PROFILE_MAIN			= 2,
+	V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED			= 3,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH			= 4,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10			= 5,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422			= 6,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE	= 7,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10_INTRA		= 8,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422_INTRA		= 9,
+	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_INTRA		= 10,
+	V4L2_MPEG_VIDEO_H264_PROFILE_CAVLC_444_INTRA		= 11,
+	V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_BASELINE		= 12,
+	V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH		= 13,
+	V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH_INTRA	= 14,
+	V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH		= 15,
+	V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH		= 16,
+};
+#define V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_HEIGHT	(V4L2_CID_MPEG_BASE+364)
+#define V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_WIDTH	(V4L2_CID_MPEG_BASE+365)
+#define V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE		(V4L2_CID_MPEG_BASE+366)
+#define V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC		(V4L2_CID_MPEG_BASE+367)
+enum v4l2_mpeg_video_h264_vui_sar_idc {
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED	= 0,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_1x1		= 1,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_12x11		= 2,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_10x11		= 3,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_16x11		= 4,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_40x33		= 5,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_24x11		= 6,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_20x11		= 7,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_32x11		= 8,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_80x33		= 9,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_18x11		= 10,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_15x11		= 11,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_64x33		= 12,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_160x99		= 13,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_4x3		= 14,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_3x2		= 15,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_2x1		= 16,
+	V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED	= 17,
+};
+#define V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP	(V4L2_CID_MPEG_BASE+400)
+#define V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP	(V4L2_CID_MPEG_BASE+401)
+#define V4L2_CID_MPEG_VIDEO_MPEG4_B_FRAME_QP	(V4L2_CID_MPEG_BASE+402)
+#define V4L2_CID_MPEG_VIDEO_MPEG4_MIN_QP	(V4L2_CID_MPEG_BASE+403)
+#define V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP	(V4L2_CID_MPEG_BASE+404)
+#define V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL		(V4L2_CID_MPEG_BASE+405)
+enum v4l2_mpeg_video_mpeg4_level {
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_0	= 0,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_0B	= 1,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_1	= 2,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_2	= 3,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_3	= 4,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_3B	= 5,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_4	= 6,
+	V4L2_MPEG_VIDEO_MPEG4_LEVEL_5	= 7,
+};
+#define V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE	(V4L2_CID_MPEG_BASE+406)
+enum v4l2_mpeg_video_mpeg4_profile {
+	V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE				= 0,
+	V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE			= 1,
+	V4L2_MPEG_VIDEO_MPEG4_PROFILE_CORE				= 2,
+	V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE_SCALABLE			= 3,
+	V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY	= 4,
+};
+#define V4L2_CID_MPEG_VIDEO_MPEG4_QPEL		(V4L2_CID_MPEG_BASE+407)
 
 /*  MPEG-class control IDs specific to the CX2341x driver as defined by V4L2 */
 #define V4L2_CID_MPEG_CX2341X_BASE 				(V4L2_CTRL_CLASS_MPEG | 0x1000)
@@ -1264,6 +1510,33 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type {
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM	(V4L2_CID_MPEG_CX2341X_BASE+9)
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP 	(V4L2_CID_MPEG_CX2341X_BASE+10)
 #define V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS 	(V4L2_CID_MPEG_CX2341X_BASE+11)
+
+/*  MPEG-class control IDs specific to the Samsung MFC 5.1 driver as defined by V4L2 */
+#define V4L2_CID_MPEG_MFC51_BASE				(V4L2_CTRL_CLASS_MPEG | 0x1100)
+
+#define V4L2_CID_MPEG_MFC51_VIDEO_DECODER_H264_DISPLAY_DELAY		(V4L2_CID_MPEG_MFC51_BASE+0)
+#define V4L2_CID_MPEG_MFC51_VIDEO_DECODER_H264_DISPLAY_DELAY_ENABLE	(V4L2_CID_MPEG_MFC51_BASE+1)
+#define V4L2_CID_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE			(V4L2_CID_MPEG_MFC51_BASE+2)
+enum v4l2_mpeg_mfc51_video_frame_skip_mode {
+	V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_DISABLED		= 0,
+	V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_LEVEL_LIMIT	= 1,
+	V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT		= 2,
+};
+#define V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE			(V4L2_CID_MPEG_MFC51_BASE+3)
+enum v4l2_mpeg_mfc51_video_force_frame_type {
+	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED		= 0,
+	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_I_FRAME		= 1,
+	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_NOT_CODED	= 2,
+};
+#define V4L2_CID_MPEG_MFC51_VIDEO_PADDING				(V4L2_CID_MPEG_MFC51_BASE+4)
+#define V4L2_CID_MPEG_MFC51_VIDEO_PADDING_YUV				(V4L2_CID_MPEG_MFC51_BASE+5)
+#define V4L2_CID_MPEG_MFC51_VIDEO_RC_FIXED_TARGET_BIT			(V4L2_CID_MPEG_MFC51_BASE+6)
+#define V4L2_CID_MPEG_MFC51_VIDEO_RC_REACTION_COEFF			(V4L2_CID_MPEG_MFC51_BASE+7)
+#define V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_ACTIVITY		(V4L2_CID_MPEG_MFC51_BASE+50)
+#define V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_DARK			(V4L2_CID_MPEG_MFC51_BASE+51)
+#define V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_SMOOTH		(V4L2_CID_MPEG_MFC51_BASE+52)
+#define V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_STATIC		(V4L2_CID_MPEG_MFC51_BASE+53)
+#define V4L2_CID_MPEG_MFC51_VIDEO_H264_NUM_REF_PIC_FOR_P		(V4L2_CID_MPEG_MFC51_BASE+54)
 
 /*  Camera class control IDs */
 #define V4L2_CID_CAMERA_CLASS_BASE 	(V4L2_CTRL_CLASS_CAMERA | 0x900)
@@ -1332,6 +1605,41 @@ enum v4l2_preemphasis {
 };
 #define V4L2_CID_TUNE_POWER_LEVEL		(V4L2_CID_FM_TX_CLASS_BASE + 113)
 #define V4L2_CID_TUNE_ANTENNA_CAPACITOR		(V4L2_CID_FM_TX_CLASS_BASE + 114)
+
+/* Flash and privacy (indicator) light controls */
+#define V4L2_CID_FLASH_CLASS_BASE		(V4L2_CTRL_CLASS_FLASH | 0x900)
+#define V4L2_CID_FLASH_CLASS			(V4L2_CTRL_CLASS_FLASH | 1)
+
+#define V4L2_CID_FLASH_LED_MODE			(V4L2_CID_FLASH_CLASS_BASE + 1)
+enum v4l2_flash_led_mode {
+	V4L2_FLASH_LED_MODE_NONE,
+	V4L2_FLASH_LED_MODE_FLASH,
+	V4L2_FLASH_LED_MODE_TORCH,
+};
+
+#define V4L2_CID_FLASH_STROBE_SOURCE		(V4L2_CID_FLASH_CLASS_BASE + 2)
+enum v4l2_flash_strobe_source {
+	V4L2_FLASH_STROBE_SOURCE_SOFTWARE,
+	V4L2_FLASH_STROBE_SOURCE_EXTERNAL,
+};
+
+#define V4L2_CID_FLASH_STROBE			(V4L2_CID_FLASH_CLASS_BASE + 3)
+#define V4L2_CID_FLASH_STROBE_STOP		(V4L2_CID_FLASH_CLASS_BASE + 4)
+#define V4L2_CID_FLASH_STROBE_STATUS		(V4L2_CID_FLASH_CLASS_BASE + 5)
+
+#define V4L2_CID_FLASH_TIMEOUT			(V4L2_CID_FLASH_CLASS_BASE + 6)
+#define V4L2_CID_FLASH_INTENSITY		(V4L2_CID_FLASH_CLASS_BASE + 7)
+#define V4L2_CID_FLASH_TORCH_INTENSITY		(V4L2_CID_FLASH_CLASS_BASE + 8)
+#define V4L2_CID_FLASH_INDICATOR_INTENSITY	(V4L2_CID_FLASH_CLASS_BASE + 9)
+
+#define V4L2_CID_FLASH_FAULT			(V4L2_CID_FLASH_CLASS_BASE + 10)
+#define V4L2_FLASH_FAULT_OVER_VOLTAGE		(1 << 0)
+#define V4L2_FLASH_FAULT_TIMEOUT		(1 << 1)
+#define V4L2_FLASH_FAULT_OVER_TEMPERATURE	(1 << 2)
+#define V4L2_FLASH_FAULT_SHORT_CIRCUIT		(1 << 3)
+
+#define V4L2_CID_FLASH_CHARGE			(V4L2_CID_FLASH_CLASS_BASE + 11)
+#define V4L2_CID_FLASH_READY			(V4L2_CID_FLASH_CLASS_BASE + 12)
 
 /*
  *	T U N I N G
@@ -1622,19 +1930,62 @@ struct v4l2_mpeg_vbi_fmt_ivtv {
  *	A G G R E G A T E   S T R U C T U R E S
  */
 
-/*	Stream data format
+/**
+ * struct v4l2_plane_pix_format - additional, per-plane format definition
+ * @sizeimage:		maximum size in bytes required for data, for which
+ *			this plane will be used
+ * @bytesperline:	distance in bytes between the leftmost pixels in two
+ *			adjacent lines
+ */
+struct v4l2_plane_pix_format {
+	__u32		sizeimage;
+	__u16		bytesperline;
+	__u16		reserved[7];
+} __attribute__ ((packed));
+
+/**
+ * struct v4l2_pix_format_mplane - multiplanar format definition
+ * @width:		image width in pixels
+ * @height:		image height in pixels
+ * @pixelformat:	little endian four character code (fourcc)
+ * @field:		field order (for interlaced video)
+ * @colorspace:		supplemental to pixelformat
+ * @plane_fmt:		per-plane information
+ * @num_planes:		number of planes for this format
+ */
+struct v4l2_pix_format_mplane {
+	__u32				width;
+	__u32				height;
+	__u32				pixelformat;
+	enum v4l2_field			field;
+	enum v4l2_colorspace		colorspace;
+
+	struct v4l2_plane_pix_format	plane_fmt[VIDEO_MAX_PLANES];
+	__u8				num_planes;
+	__u8				reserved[11];
+} __attribute__ ((packed));
+
+/**
+ * struct v4l2_format - stream data format
+ * @type:	type of the data stream
+ * @pix:	definition of an image format
+ * @pix_mp:	definition of a multiplanar image format
+ * @win:	definition of an overlaid image
+ * @vbi:	raw VBI capture or output parameters
+ * @sliced:	sliced VBI capture or output parameters
+ * @raw_data:	placeholder for future extensions and custom formats
  */
 struct v4l2_format {
 	enum v4l2_buf_type type;
 	union {
 		struct v4l2_pix_format		pix;     /* V4L2_BUF_TYPE_VIDEO_CAPTURE */
+		struct v4l2_pix_format_mplane	pix_mp;  /* V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE */
 		struct v4l2_window		win;     /* V4L2_BUF_TYPE_VIDEO_OVERLAY */
 		struct v4l2_vbi_format		vbi;     /* V4L2_BUF_TYPE_VBI_CAPTURE */
 		struct v4l2_sliced_vbi_format	sliced;  /* V4L2_BUF_TYPE_SLICED_VBI_CAPTURE */
 		__u8	raw_data[200];                   /* user-defined */
 	} fmt;
 };
-
 
 /*	Stream type-dependent parameters
  */
@@ -1654,6 +2005,7 @@ struct v4l2_streamparm {
 #define V4L2_EVENT_ALL				0
 #define V4L2_EVENT_VSYNC			1
 #define V4L2_EVENT_EOS				2
+#define V4L2_EVENT_CTRL				3
 #define V4L2_EVENT_PRIVATE_START		0x08000000
 
 /* Payload for V4L2_EVENT_VSYNC */
@@ -1662,21 +2014,46 @@ struct v4l2_event_vsync {
 	__u8 field;
 } __attribute__ ((packed));
 
+/* Payload for V4L2_EVENT_CTRL */
+#define V4L2_EVENT_CTRL_CH_VALUE		(1 << 0)
+#define V4L2_EVENT_CTRL_CH_FLAGS		(1 << 1)
+
+struct v4l2_event_ctrl {
+	__u32 changes;
+	__u32 type;
+	union {
+		__s32 value;
+		__s64 value64;
+	};
+	__u32 flags;
+	__s32 minimum;
+	__s32 maximum;
+	__s32 step;
+	__s32 default_value;
+};
+
 struct v4l2_event {
 	__u32				type;
 	union {
 		struct v4l2_event_vsync vsync;
+		struct v4l2_event_ctrl	ctrl;
 		__u8			data[64];
 	} u;
 	__u32				pending;
 	__u32				sequence;
 	struct timespec			timestamp;
-	__u32				reserved[9];
+	__u32				id;
+	__u32				reserved[8];
 };
+
+#define V4L2_EVENT_SUB_FL_SEND_INITIAL		(1 << 0)
+#define V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK	(1 << 1)
 
 struct v4l2_event_subscription {
 	__u32				type;
-	__u32				reserved[7];
+	__u32				id;
+	__u32				flags;
+	__u32				reserved[5];
 };
 
 /*
@@ -1807,16 +2184,6 @@ struct v4l2_dbg_chip_ident {
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */
-
-#ifdef __OLD_VIDIOC_
-/* for compatibility, will go away some day */
-#define VIDIOC_OVERLAY_OLD     	_IOWR('V', 14, int)
-#define VIDIOC_S_PARM_OLD      	 _IOW('V', 22, struct v4l2_streamparm)
-#define VIDIOC_S_CTRL_OLD      	 _IOW('V', 28, struct v4l2_control)
-#define VIDIOC_G_AUDIO_OLD     	_IOWR('V', 33, struct v4l2_audio)
-#define VIDIOC_G_AUDOUT_OLD    	_IOWR('V', 49, struct v4l2_audioout)
-#define VIDIOC_CROPCAP_OLD     	 _IOR('V', 58, struct v4l2_cropcap)
-#endif
 
 #define BASE_VIDIOC_PRIVATE	192		/* 192-255 are private */
 

@@ -122,9 +122,9 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 			x, y, p);
 
 		/* are samples valid */
-		if ((x & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_X ||
-		    (y & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_Y ||
-		    (p & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_PRES)
+		if ((x & WM97XX_ADCSEL_MASK) != WM97XX_ADCSEL_X ||
+		    (y & WM97XX_ADCSEL_MASK) != WM97XX_ADCSEL_Y ||
+		    (p & WM97XX_ADCSEL_MASK) != WM97XX_ADCSEL_PRES)
 			goto up;
 
 		/* coordinate is good */
@@ -193,7 +193,7 @@ static int zylonite_wm97xx_probe(struct platform_device *pdev)
 		gpio_touch_irq = mfp_to_gpio(MFP_PIN_GPIO26);
 
 	wm->pen_irq = IRQ_GPIO(gpio_touch_irq);
-	set_irq_type(IRQ_GPIO(gpio_touch_irq), IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(IRQ_GPIO(gpio_touch_irq), IRQ_TYPE_EDGE_BOTH);
 
 	wm97xx_config_gpio(wm, WM97XX_GPIO_13, WM97XX_GPIO_IN,
 			   WM97XX_GPIO_POL_HIGH,

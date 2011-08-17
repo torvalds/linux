@@ -251,28 +251,28 @@ static struct platform_device lschl_fan_device = {
  * GPIO Data
  ****************************************************************************/
 
-static struct orion5x_mpp_mode lschl_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO }, /* LED POWER */
-	{  1, MPP_GPIO }, /* HDD POWER */
-	{  2, MPP_GPIO }, /* LED ALARM */
-	{  3, MPP_GPIO }, /* LED INFO */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_GPIO }, /* FAN LOCK */
-	{  7, MPP_GPIO }, /* SW INIT */
-	{  8, MPP_GPIO }, /* SW POWER */
-	{  9, MPP_GPIO }, /* USB POWER */
-	{ 10, MPP_GPIO }, /* SW AUTO POWER */
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_GPIO }, /* FAN HIGH */
-	{ 15, MPP_GPIO }, /* SW FUNC */
-	{ 16, MPP_GPIO }, /* FAN LOW */
-	{ 17, MPP_GPIO }, /* LED FUNC */
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int lschl_mpp_modes[] __initdata = {
+	MPP0_GPIO, /* LED POWER */
+	MPP1_GPIO, /* HDD POWER */
+	MPP2_GPIO, /* LED ALARM */
+	MPP3_GPIO, /* LED INFO */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_GPIO, /* FAN LOCK */
+	MPP7_GPIO, /* SW INIT */
+	MPP8_GPIO, /* SW POWER */
+	MPP9_GPIO, /* USB POWER */
+	MPP10_GPIO, /* SW AUTO POWER */
+	MPP11_UNUSED,
+	MPP12_UNUSED,
+	MPP13_UNUSED,
+	MPP14_GPIO, /* FAN HIGH */
+	MPP15_GPIO, /* SW FUNC */
+	MPP16_GPIO, /* FAN LOW */
+	MPP17_GPIO, /* LED FUNC */
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init lschl_init(void)
@@ -321,6 +321,7 @@ MACHINE_START(LINKSTATION_LSCHL, "Buffalo Linkstation LiveV3 (LS-CHL)")
 	.boot_params	= 0x00000100,
 	.init_machine	= lschl_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

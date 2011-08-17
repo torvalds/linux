@@ -27,7 +27,6 @@
  * processing errors, the last frame header is dump for comparison */
 //#define HTC_CAPTURE_LAST_FRAME
 
-//#define HTC_EP_STAT_PROFILING
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +36,6 @@ extern "C" {
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "htc_debug.h"
 #include "htc.h"
@@ -65,55 +63,48 @@ extern "C" {
 
 #define HTC_SCATTER_REQ_FLAGS_PARTIAL_BUNDLE  (1 << 0)
 
-typedef struct _HTC_ENDPOINT {
+struct htc_endpoint {
     HTC_ENDPOINT_ID             Id;
     HTC_SERVICE_ID              ServiceID;      /* service ID this endpoint is bound to
                                                    non-zero value means this endpoint is in use */
-    HTC_PACKET_QUEUE            TxQueue;        /* HTC frame buffer TX queue */
-    HTC_PACKET_QUEUE            RxBuffers;      /* HTC frame buffer RX list */
-    HTC_ENDPOINT_CREDIT_DIST    CreditDist;     /* credit distribution structure (exposed to driver layer) */
-    HTC_EP_CALLBACKS            EpCallBacks;    /* callbacks associated with this endpoint */
+    struct htc_packet_queue            TxQueue;        /* HTC frame buffer TX queue */
+    struct htc_packet_queue            RxBuffers;      /* HTC frame buffer RX list */
+    struct htc_endpoint_credit_dist    CreditDist;     /* credit distribution structure (exposed to driver layer) */
+    struct htc_ep_callbacks            EpCallBacks;    /* callbacks associated with this endpoint */
     int                         MaxTxQueueDepth;   /* max depth of the TX queue before we need to
                                                       call driver's full handler */
     int                         MaxMsgLength;        /* max length of endpoint message */
     int                         TxProcessCount;  /* reference count to continue tx processing */
-    HTC_PACKET_QUEUE            RecvIndicationQueue;    /* recv packets ready to be indicated */
+    struct htc_packet_queue            RecvIndicationQueue;    /* recv packets ready to be indicated */
     int                         RxProcessCount;         /* reference count to allow single processing context */
-    struct  _HTC_TARGET         *target;                /* back pointer to target */
-    A_UINT8                     SeqNo;                  /* TX seq no (helpful) for debugging */
-    A_UINT32                    LocalConnectionFlags;   /* local connection flags */
-#ifdef HTC_EP_STAT_PROFILING
-    HTC_ENDPOINT_STATS          EndPointStats;          /* endpoint statistics */
-#endif
-} HTC_ENDPOINT;
+    struct htc_target           *target;                /* back pointer to target */
+    u8 SeqNo;                  /* TX seq no (helpful) for debugging */
+    u32 LocalConnectionFlags;   /* local connection flags */
+    struct htc_endpoint_stats          EndPointStats;          /* endpoint statistics */
+};
 
-#ifdef HTC_EP_STAT_PROFILING
 #define INC_HTC_EP_STAT(p,stat,count) (p)->EndPointStats.stat += (count);
-#else
-#define INC_HTC_EP_STAT(p,stat,count)
-#endif
-
 #define HTC_SERVICE_TX_PACKET_TAG  HTC_TX_PACKET_TAG_INTERNAL
 
 #define NUM_CONTROL_BUFFERS     8
 #define NUM_CONTROL_TX_BUFFERS  2
 #define NUM_CONTROL_RX_BUFFERS  (NUM_CONTROL_BUFFERS - NUM_CONTROL_TX_BUFFERS)
 
-typedef struct HTC_CONTROL_BUFFER {
-    HTC_PACKET    HtcPacket;
-    A_UINT8       *Buffer;
-} HTC_CONTROL_BUFFER;
+struct htc_control_buffer {
+    struct htc_packet    HtcPacket;
+    u8 *Buffer;
+};
 
 #define HTC_RECV_WAIT_BUFFERS        (1 << 0)
 #define HTC_OP_STATE_STOPPING        (1 << 0)
 
 /* our HTC target state */
-typedef struct _HTC_TARGET {
-    HTC_ENDPOINT                EndPoint[ENDPOINT_MAX];
-    HTC_CONTROL_BUFFER          HTCControlBuffers[NUM_CONTROL_BUFFERS];
-    HTC_ENDPOINT_CREDIT_DIST   *EpCreditDistributionListHead;
-    HTC_PACKET_QUEUE            ControlBufferTXFreeList;
-    HTC_PACKET_QUEUE            ControlBufferRXFreeList;
+struct htc_target {
+    struct htc_endpoint                EndPoint[ENDPOINT_MAX];
+    struct htc_control_buffer          HTCControlBuffers[NUM_CONTROL_BUFFERS];
+    struct htc_endpoint_credit_dist   *EpCreditDistributionListHead;
+    struct htc_packet_queue            ControlBufferTXFreeList;
+    struct htc_packet_queue            ControlBufferRXFreeList;
     HTC_CREDIT_DIST_CALLBACK    DistributeCredits;
     HTC_CREDIT_INIT_CALLBACK    InitCredits;
     void                       *pCredDistContext;
@@ -122,22 +113,22 @@ typedef struct _HTC_TARGET {
     A_MUTEX_T                   HTCLock;
     A_MUTEX_T                   HTCRxLock;
     A_MUTEX_T                   HTCTxLock;
-    AR6K_DEVICE                 Device;         /* AR6K - specific state */
-    A_UINT32                    OpStateFlags;
-    A_UINT32                    RecvStateFlags;
+    struct ar6k_device                 Device;         /* AR6K - specific state */
+    u32 OpStateFlags;
+    u32 RecvStateFlags;
     HTC_ENDPOINT_ID             EpWaitingForBuffers;
-    A_BOOL                      TargetFailure;
+    bool                      TargetFailure;
 #ifdef HTC_CAPTURE_LAST_FRAME
-    HTC_FRAME_HDR               LastFrameHdr;  /* useful for debugging */
-    A_UINT8                     LastTrailer[256];
-    A_UINT8                     LastTrailerLength;
+    struct htc_frame_hdr               LastFrameHdr;  /* useful for debugging */
+    u8 LastTrailer[256];
+    u8 LastTrailerLength;
 #endif
-    HTC_INIT_INFO               HTCInitInfo;
-    A_UINT8                     HTCTargetVersion;
+    struct htc_init_info               HTCInitInfo;
+    u8 HTCTargetVersion;
     int                         MaxMsgPerBundle;       /* max messages per bundle for HTC */
-    A_BOOL                      SendBundlingEnabled;   /* run time enable for send bundling (dynamic) */
+    bool                      SendBundlingEnabled;   /* run time enable for send bundling (dynamic) */
     int                         RecvBundlingEnabled;   /* run time enable for recv bundling (dynamic) */
-} HTC_TARGET;
+};
 
 #define HTC_STOPPING(t) ((t)->OpStateFlags & HTC_OP_STATE_STOPPING)
 #define LOCK_HTC(t)      A_MUTEX_LOCK(&(t)->HTCLock);
@@ -147,7 +138,7 @@ typedef struct _HTC_TARGET {
 #define LOCK_HTC_TX(t)   A_MUTEX_LOCK(&(t)->HTCTxLock);
 #define UNLOCK_HTC_TX(t) A_MUTEX_UNLOCK(&(t)->HTCTxLock);
 
-#define GET_HTC_TARGET_FROM_HANDLE(hnd) ((HTC_TARGET *)(hnd))
+#define GET_HTC_TARGET_FROM_HANDLE(hnd) ((struct htc_target *)(hnd))
 #define HTC_RECYCLE_RX_PKT(target,p,e)                           \
 {                                                                \
     if ((p)->PktInfo.AsRx.HTCRxFlags & HTC_RX_PKT_NO_RECYCLE) {  \
@@ -162,27 +153,27 @@ typedef struct _HTC_TARGET {
 }
 
 /* internal HTC functions */
-void        HTCControlTxComplete(void *Context, HTC_PACKET *pPacket);
-void        HTCControlRecv(void *Context, HTC_PACKET *pPacket);
-A_STATUS    HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket);
-HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
-void        HTCFreeControlBuffer(HTC_TARGET *target, HTC_PACKET *pPacket, HTC_PACKET_QUEUE *pList);
-A_STATUS    HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket);
-void        HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket);
-A_STATUS    HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int NumLookAheads, A_BOOL *pAsyncProc, int *pNumPktsFetched);
-void        HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint);
-A_STATUS    HTCSendSetupComplete(HTC_TARGET *target);
-void        HTCFlushRecvBuffers(HTC_TARGET *target);
-void        HTCFlushSendPkts(HTC_TARGET *target);
+void        HTCControlTxComplete(void *Context, struct htc_packet *pPacket);
+void        HTCControlRecv(void *Context, struct htc_packet *pPacket);
+int    HTCWaitforControlMessage(struct htc_target *target, struct htc_packet **ppControlPacket);
+struct htc_packet *HTCAllocControlBuffer(struct htc_target *target, struct htc_packet_queue *pList);
+void        HTCFreeControlBuffer(struct htc_target *target, struct htc_packet *pPacket, struct htc_packet_queue *pList);
+int    HTCIssueSend(struct htc_target *target, struct htc_packet *pPacket);
+void        HTCRecvCompleteHandler(void *Context, struct htc_packet *pPacket);
+int    HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched);
+void        HTCProcessCreditRpt(struct htc_target *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint);
+int    HTCSendSetupComplete(struct htc_target *target);
+void        HTCFlushRecvBuffers(struct htc_target *target);
+void        HTCFlushSendPkts(struct htc_target *target);
 
 #ifdef ATH_DEBUG_MODULE
-void        DumpCreditDist(HTC_ENDPOINT_CREDIT_DIST *pEPDist);
-void        DumpCreditDistStates(HTC_TARGET *target);
-void 		DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription);
+void        DumpCreditDist(struct htc_endpoint_credit_dist *pEPDist);
+void        DumpCreditDistStates(struct htc_target *target);
+void 		DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
 #endif
 
-static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
-    HTC_PACKET *pPacket = HTCAllocControlBuffer(target,&target->ControlBufferTXFreeList);
+static INLINE struct htc_packet *HTC_ALLOC_CONTROL_TX(struct htc_target *target) {
+    struct htc_packet *pPacket = HTCAllocControlBuffer(target,&target->ControlBufferTXFreeList);
     if (pPacket != NULL) {
             /* set payload pointer area with some headroom */
         pPacket->pBuffer = pPacket->pBufferStart + HTC_HDR_LENGTH;
@@ -200,14 +191,14 @@ static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
 
 #define HTC_PREPARE_SEND_PKT(pP,sendflags,ctrl0,ctrl1)       \
 {                                                   \
-    A_UINT8 *pHdrBuf;                               \
+    u8 *pHdrBuf;                               \
     (pP)->pBuffer -= HTC_HDR_LENGTH;                \
     pHdrBuf = (pP)->pBuffer;                        \
-    A_SET_UINT16_FIELD(pHdrBuf,HTC_FRAME_HDR,PayloadLen,(A_UINT16)(pP)->ActualLength);  \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,Flags,(sendflags));                         \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,EndpointID, (A_UINT8)(pP)->Endpoint); \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,ControlBytes[0], (A_UINT8)(ctrl0));   \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,ControlBytes[1], (A_UINT8)(ctrl1));   \
+    A_SET_UINT16_FIELD(pHdrBuf,struct htc_frame_hdr,PayloadLen,(u16)(pP)->ActualLength);  \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,Flags,(sendflags));                         \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,EndpointID, (u8)(pP)->Endpoint); \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,ControlBytes[0], (u8)(ctrl0));   \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,ControlBytes[1], (u8)(ctrl1));   \
 }
 
 #define HTC_UNPREPARE_SEND_PKT(pP)     \

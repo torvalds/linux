@@ -38,7 +38,7 @@
  * 2. 0x800/0x900/0xA00/0xC00/0xD00/0xE00
  * 3. RF register 0x00-2E
  * 4. Bit Mask for BB/RF register
- * 5. Other defintion for BB/RF R/W
+ * 5. Other definition for BB/RF R/W
  *
  * 1. PMAC duplicate register due to connection: RF_Mode, TRxRN, NumOf L-STF
  * 1. Page1(0x100)

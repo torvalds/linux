@@ -971,6 +971,22 @@ static struct tuner_params tuner_tena_9533_di_params[] = {
 	},
 };
 
+/* ------------ TUNER_TENA_TNF_5337 - Tena tnf5337MFD STD M/N ------------ */
+
+static struct tuner_range tuner_tena_tnf_5337_ntsc_ranges[] = {
+	{ 16 * 166.25 /*MHz*/, 0x86, 0x01, },
+	{ 16 * 466.25 /*MHz*/, 0x86, 0x02, },
+	{ 16 * 999.99        , 0x86, 0x08, },
+};
+
+static struct tuner_params tuner_tena_tnf_5337_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_tena_tnf_5337_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tena_tnf_5337_ntsc_ranges),
+	},
+};
+
 /* ------------ TUNER_PHILIPS_FMD1216ME(X)_MK3 - Philips PAL ------------ */
 
 static struct tuner_range tuner_philips_fmd1216me_mk3_pal_ranges[] = {
@@ -1789,6 +1805,10 @@ struct tunertype tuners[] = {
 		.name   = "Xceive 5000 tuner",
 		/* see xc5000.c for details */
 	},
+	[TUNER_XC4000] = { /* Xceive 4000 */
+		.name   = "Xceive 4000 tuner",
+		/* see xc4000.c for details */
+	},
 	[TUNER_TCL_MF02GIP_5N] = { /* TCL tuner MF02GIP-5N-E */
 		.name   = "TCL tuner MF02GIP-5N-E",
 		.params = tuner_tcl_mf02gip_5n_params,
@@ -1841,6 +1861,11 @@ struct tunertype tuners[] = {
 		.name   = "Philips FQ1236 MK5",
 		.params = tuner_philips_fq1236_mk5_params,
 		.count  = ARRAY_SIZE(tuner_philips_fq1236_mk5_params),
+	},
+	[TUNER_TENA_TNF_5337] = { /* Tena 5337 MFD */
+		.name   = "Tena TNF5337 MFD",
+		.params = tuner_tena_tnf_5337_params,
+		.count  = ARRAY_SIZE(tuner_tena_tnf_5337_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

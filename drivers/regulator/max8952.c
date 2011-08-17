@@ -139,7 +139,7 @@ static int max8952_set_voltage(struct regulator_dev *rdev,
 	s8 vid = -1, i;
 
 	if (!gpio_is_valid(max8952->pdata->gpio_vid0) ||
-			!gpio_is_valid(max8952->pdata->gpio_vid0)) {
+			!gpio_is_valid(max8952->pdata->gpio_vid1)) {
 		/* DVS not supported */
 		return -EPERM;
 	}
@@ -262,7 +262,7 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 
 	if (err) {
 		dev_warn(max8952->dev, "VID0/1 gpio invalid: "
-				"DVS not avilable.\n");
+				"DVS not available.\n");
 		max8952->vid0 = 0;
 		max8952->vid1 = 0;
 		/* Mark invalid */

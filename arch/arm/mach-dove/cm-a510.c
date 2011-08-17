@@ -90,6 +90,7 @@ MACHINE_START(CM_A510, "Compulab CM-A510 Board")
 	.boot_params	= 0x00000100,
 	.init_machine	= cm_a510_init,
 	.map_io		= dove_map_io,
+	.init_early	= dove_init_early,
 	.init_irq	= dove_init_irq,
 	.timer		= &dove_timer,
 MACHINE_END

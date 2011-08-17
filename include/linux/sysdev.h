@@ -7,13 +7,13 @@
  * We still have a notion of a driver for a system device, because we still
  * want to perform basic operations on these devices. 
  *
- * We also support auxillary drivers binding to devices of a certain class.
+ * We also support auxiliary drivers binding to devices of a certain class.
  * 
  * This allows configurable drivers to register themselves for devices of
  * a certain type. And, it allows class definitions to reside in generic
  * code while arch-specific code can register specific drivers.
  *
- * Auxillary drivers registered with a NULL cls are registered as drivers
+ * Auxiliary drivers registered with a NULL cls are registered as drivers
  * for all system devices, and get notification calls for each device. 
  */
 
@@ -33,11 +33,6 @@ struct sysdev_class {
 	const char *name;
 	struct list_head	drivers;
 	struct sysdev_class_attribute **attrs;
-
-	/* Default operations for these types of devices */
-	int	(*shutdown)(struct sys_device *);
-	int	(*suspend)(struct sys_device *, pm_message_t state);
-	int	(*resume)(struct sys_device *);
 	struct kset		kset;
 };
 
@@ -69,16 +64,13 @@ extern int sysdev_class_create_file(struct sysdev_class *,
 extern void sysdev_class_remove_file(struct sysdev_class *,
 	struct sysdev_class_attribute *);
 /**
- * Auxillary system device drivers.
+ * Auxiliary system device drivers.
  */
 
 struct sysdev_driver {
 	struct list_head	entry;
 	int	(*add)(struct sys_device *);
 	int	(*remove)(struct sys_device *);
-	int	(*shutdown)(struct sys_device *);
-	int	(*suspend)(struct sys_device *, pm_message_t state);
-	int	(*resume)(struct sys_device *);
 };
 
 

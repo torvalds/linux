@@ -21,6 +21,7 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 
 #include <linux/mfd/pcf50633/core.h>
@@ -50,7 +51,7 @@ static int __pcf50633_write(struct pcf50633 *pcf, u8 reg, int num, u8 *data)
 
 }
 
-/* Read a block of upto 32 regs  */
+/* Read a block of up to 32 regs  */
 int pcf50633_read_block(struct pcf50633 *pcf, u8 reg,
 					int nr_regs, u8 *data)
 {
@@ -64,7 +65,7 @@ int pcf50633_read_block(struct pcf50633 *pcf, u8 reg,
 }
 EXPORT_SYMBOL_GPL(pcf50633_read_block);
 
-/* Write a block of upto 32 regs  */
+/* Write a block of up to 32 regs  */
 int pcf50633_write_block(struct pcf50633 *pcf , u8 reg,
 					int nr_regs, u8 *data)
 {
@@ -230,26 +231,25 @@ pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 	}
 }
 
-#ifdef CONFIG_PM
-static int pcf50633_suspend(struct i2c_client *client, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int pcf50633_suspend(struct device *dev)
 {
-	struct pcf50633 *pcf;
-	pcf = i2c_get_clientdata(client);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf50633 *pcf = i2c_get_clientdata(client);
 
 	return pcf50633_irq_suspend(pcf);
 }
 
-static int pcf50633_resume(struct i2c_client *client)
+static int pcf50633_resume(struct device *dev)
 {
-	struct pcf50633 *pcf;
-	pcf = i2c_get_clientdata(client);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf50633 *pcf = i2c_get_clientdata(client);
 
 	return pcf50633_irq_resume(pcf);
 }
-#else
-#define pcf50633_suspend NULL
-#define pcf50633_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(pcf50633_pm, pcf50633_suspend, pcf50633_resume);
 
 static int __devinit pcf50633_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
@@ -356,20 +356,20 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id pcf50633_id_table[] = {
+static const struct i2c_device_id pcf50633_id_table[] = {
 	{"pcf50633", 0x73},
 	{/* end of list */}
 };
+MODULE_DEVICE_TABLE(i2c, pcf50633_id_table);
 
 static struct i2c_driver pcf50633_driver = {
 	.driver = {
 		.name	= "pcf50633",
+		.pm	= &pcf50633_pm,
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
 	.remove = __devexit_p(pcf50633_remove),
-	.suspend = pcf50633_suspend,
-	.resume	= pcf50633_resume,
 };
 
 static int __init pcf50633_init(void)

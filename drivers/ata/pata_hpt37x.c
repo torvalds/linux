@@ -14,6 +14,8 @@
  *	Look into engine reset on timeout errors. Should not be	required.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -24,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.22"
+#define DRV_VERSION	"0.6.23"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -229,8 +231,8 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 
 	while (list[i] != NULL) {
 		if (!strcmp(list[i], model_num)) {
-			pr_warning(DRV_NAME ": %s is not supported for %s.\n",
-				   modestr, list[i]);
+			pr_warn("%s is not supported for %s\n",
+				modestr, list[i]);
 			return 1;
 		}
 		i++;
@@ -863,8 +865,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			chip_table = &hpt372;
 			break;
 		default:
-			pr_err(DRV_NAME ": Unknown HPT366 subtype, "
-			       "please report (%d).\n", rev);
+			pr_err("Unknown HPT366 subtype, please report (%d)\n",
+			       rev);
 			return -ENODEV;
 		}
 		break;
@@ -904,8 +906,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			*ppi = &info_hpt374_fn1;
 		break;
 	default:
-		pr_err(DRV_NAME ": PCI table is bogus, please report (%d).\n",
-		       dev->device);
+		pr_err("PCI table is bogus, please report (%d)\n", dev->device);
 		return -ENODEV;
 	}
 	/* Ok so this is a chip we support */
@@ -953,7 +954,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		u8 sr;
 		u32 total = 0;
 
-		pr_warning(DRV_NAME ": BIOS has not set timing clocks.\n");
+		pr_warn("BIOS has not set timing clocks\n");
 
 		/* This is the process the HPT371 BIOS is reported to use */
 		for (i = 0; i < 128; i++) {
@@ -1009,7 +1010,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 					       (f_high << 16) | f_low | 0x100);
 		}
 		if (adjust == 8) {
-			pr_err(DRV_NAME ": DPLL did not stabilize!\n");
+			pr_err("DPLL did not stabilize!\n");
 			return -ENODEV;
 		}
 		if (dpll == 3)
@@ -1017,7 +1018,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		else
 			private_data = (void *)hpt37x_timings_50;
 
-		pr_info(DRV_NAME ": bus clock %dMHz, using %dMHz DPLL.\n",
+		pr_info("bus clock %dMHz, using %dMHz DPLL\n",
 			MHz[clock_slot], MHz[dpll]);
 	} else {
 		private_data = (void *)chip_table->clocks[clock_slot];
@@ -1032,7 +1033,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		if (clock_slot < 2 && ppi[0] == &info_hpt370a)
 			ppi[0] = &info_hpt370a_33;
 
-		pr_info(DRV_NAME ": %s using %dMHz bus clock.\n",
+		pr_info("%s using %dMHz bus clock\n",
 			chip_table->name, MHz[clock_slot]);
 	}
 

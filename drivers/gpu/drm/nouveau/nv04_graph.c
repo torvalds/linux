@@ -28,9 +28,11 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 #include "nouveau_util.h"
+#include "nouveau_ramht.h"
 
-static int  nv04_graph_register(struct drm_device *dev);
-static void nv04_graph_isr(struct drm_device *dev);
+struct nv04_graph_engine {
+	struct nouveau_exec_engine base;
+};
 
 static uint32_t nv04_graph_ctx_regs[] = {
 	0x0040053c,
@@ -350,7 +352,7 @@ struct graph_state {
 	uint32_t nv04[ARRAY_SIZE(nv04_graph_ctx_regs)];
 };
 
-struct nouveau_channel *
+static struct nouveau_channel *
 nv04_graph_channel(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -365,26 +367,6 @@ nv04_graph_channel(struct drm_device *dev)
 	return dev_priv->channels.ptr[chid];
 }
 
-static void
-nv04_graph_context_switch(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_channel *chan = NULL;
-	int chid;
-
-	nouveau_wait_for_idle(dev);
-
-	/* If previous context is valid, we need to save it */
-	pgraph->unload_context(dev);
-
-	/* Load context for next channel */
-	chid = dev_priv->engine.fifo.channel_id(dev);
-	chan = dev_priv->channels.ptr[chid];
-	if (chan)
-		nv04_graph_load_context(chan);
-}
-
 static uint32_t *ctx_reg(struct graph_state *ctx, uint32_t reg)
 {
 	int i;
@@ -397,48 +379,11 @@ static uint32_t *ctx_reg(struct graph_state *ctx, uint32_t reg)
 	return NULL;
 }
 
-int nv04_graph_create_context(struct nouveau_channel *chan)
+static int
+nv04_graph_load_context(struct nouveau_channel *chan)
 {
-	struct graph_state *pgraph_ctx;
-	NV_DEBUG(chan->dev, "nv04_graph_context_create %d\n", chan->id);
-
-	chan->pgraph_ctx = pgraph_ctx = kzalloc(sizeof(*pgraph_ctx),
-						GFP_KERNEL);
-	if (pgraph_ctx == NULL)
-		return -ENOMEM;
-
-	*ctx_reg(pgraph_ctx, NV04_PGRAPH_DEBUG_3) = 0xfad4ff31;
-
-	return 0;
-}
-
-void nv04_graph_destroy_context(struct nouveau_channel *chan)
-{
+	struct graph_state *pgraph_ctx = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	pgraph->fifo_access(dev, false);
-
-	/* Unload the context if it's the currently active one */
-	if (pgraph->channel(dev) == chan)
-		pgraph->unload_context(dev);
-
-	/* Free the context resources */
-	kfree(pgraph_ctx);
-	chan->pgraph_ctx = NULL;
-
-	pgraph->fifo_access(dev, true);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-}
-
-int nv04_graph_load_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
 	uint32_t tmp;
 	int i;
 
@@ -456,20 +401,19 @@ int nv04_graph_load_context(struct nouveau_channel *chan)
 	return 0;
 }
 
-int
+static int
 nv04_graph_unload_context(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_channel *chan = NULL;
 	struct graph_state *ctx;
 	uint32_t tmp;
 	int i;
 
-	chan = pgraph->channel(dev);
+	chan = nv04_graph_channel(dev);
 	if (!chan)
 		return 0;
-	ctx = chan->pgraph_ctx;
+	ctx = chan->engctx[NVOBJ_ENGINE_GR];
 
 	for (i = 0; i < ARRAY_SIZE(nv04_graph_ctx_regs); i++)
 		ctx->nv04[i] = nv_rd32(dev, nv04_graph_ctx_regs[i]);
@@ -481,23 +425,85 @@ nv04_graph_unload_context(struct drm_device *dev)
 	return 0;
 }
 
-int nv04_graph_init(struct drm_device *dev)
+static int
+nv04_graph_context_new(struct nouveau_channel *chan, int engine)
+{
+	struct graph_state *pgraph_ctx;
+	NV_DEBUG(chan->dev, "nv04_graph_context_create %d\n", chan->id);
+
+	pgraph_ctx = kzalloc(sizeof(*pgraph_ctx), GFP_KERNEL);
+	if (pgraph_ctx == NULL)
+		return -ENOMEM;
+
+	*ctx_reg(pgraph_ctx, NV04_PGRAPH_DEBUG_3) = 0xfad4ff31;
+
+	chan->engctx[engine] = pgraph_ctx;
+	return 0;
+}
+
+static void
+nv04_graph_context_del(struct nouveau_channel *chan, int engine)
+{
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct graph_state *pgraph_ctx = chan->engctx[engine];
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
+
+	/* Unload the context if it's the currently active one */
+	if (nv04_graph_channel(dev) == chan)
+		nv04_graph_unload_context(dev);
+
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the context resources */
+	kfree(pgraph_ctx);
+	chan->engctx[engine] = NULL;
+}
+
+int
+nv04_graph_object_new(struct nouveau_channel *chan, int engine,
+		      u32 handle, u16 class)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 16, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
+		return ret;
+	obj->engine = 1;
+	obj->class  = class;
+
+#ifdef __BIG_ENDIAN
+	nv_wo32(obj, 0x00, 0x00080000 | class);
+#else
+	nv_wo32(obj, 0x00, class);
+#endif
+	nv_wo32(obj, 0x04, 0x00000000);
+	nv_wo32(obj, 0x08, 0x00000000);
+	nv_wo32(obj, 0x0c, 0x00000000);
+
+	ret = nouveau_ramht_insert(chan, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	return ret;
+}
+
+static int
+nv04_graph_init(struct drm_device *dev, int engine)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
-	int ret;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
 			~NV_PMC_ENABLE_PGRAPH);
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) |
 			 NV_PMC_ENABLE_PGRAPH);
 
-	ret = nv04_graph_register(dev);
-	if (ret)
-		return ret;
-
 	/* Enable PGRAPH interrupts */
-	nouveau_irq_register(dev, 12, nv04_graph_isr);
 	nv_wr32(dev, NV03_PGRAPH_INTR, 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
@@ -507,7 +513,7 @@ int nv04_graph_init(struct drm_device *dev)
 	nv_wr32(dev, NV04_PGRAPH_DEBUG_0, 0x001FFFFF);*/
 	nv_wr32(dev, NV04_PGRAPH_DEBUG_0, 0x1231c000);
 	/*1231C000 blob, 001 haiku*/
-	//*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
+	/*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
 	nv_wr32(dev, NV04_PGRAPH_DEBUG_1, 0x72111100);
 	/*0x72111100 blob , 01 haiku*/
 	/*nv_wr32(dev, NV04_PGRAPH_DEBUG_2, 0x11d5f870);*/
@@ -531,21 +537,17 @@ int nv04_graph_init(struct drm_device *dev)
 	return 0;
 }
 
-void nv04_graph_takedown(struct drm_device *dev)
+static int
+nv04_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
+	if (!nv_wait(dev, NV04_PGRAPH_STATUS, ~0, 0) && suspend) {
+		nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
+		return -EBUSY;
+	}
+	nv04_graph_unload_context(dev);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0x00000000);
-	nouveau_irq_unregister(dev, 12);
-}
-
-void
-nv04_graph_fifo_access(struct drm_device *dev, bool enabled)
-{
-	if (enabled)
-		nv_wr32(dev, NV04_PGRAPH_FIFO,
-					nv_rd32(dev, NV04_PGRAPH_FIFO) | 1);
-	else
-		nv_wr32(dev, NV04_PGRAPH_FIFO,
-					nv_rd32(dev, NV04_PGRAPH_FIFO) & ~1);
+	return 0;
 }
 
 static int
@@ -969,13 +971,138 @@ nv04_graph_mthd_bind_chroma(struct nouveau_channel *chan,
 	return 1;
 }
 
-static int
-nv04_graph_register(struct drm_device *dev)
+static struct nouveau_bitfield nv04_graph_intr[] = {
+	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
+	{}
+};
+
+static struct nouveau_bitfield nv04_graph_nstatus[] = {
+	{ NV04_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
+	{ NV04_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
+	{ NV04_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
+	{ NV04_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" },
+	{}
+};
+
+struct nouveau_bitfield nv04_graph_nsource[] = {
+	{ NV03_PGRAPH_NSOURCE_NOTIFICATION,       "NOTIFICATION" },
+	{ NV03_PGRAPH_NSOURCE_DATA_ERROR,         "DATA_ERROR" },
+	{ NV03_PGRAPH_NSOURCE_PROTECTION_ERROR,   "PROTECTION_ERROR" },
+	{ NV03_PGRAPH_NSOURCE_RANGE_EXCEPTION,    "RANGE_EXCEPTION" },
+	{ NV03_PGRAPH_NSOURCE_LIMIT_COLOR,        "LIMIT_COLOR" },
+	{ NV03_PGRAPH_NSOURCE_LIMIT_ZETA,         "LIMIT_ZETA" },
+	{ NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD,       "ILLEGAL_MTHD" },
+	{ NV03_PGRAPH_NSOURCE_DMA_R_PROTECTION,   "DMA_R_PROTECTION" },
+	{ NV03_PGRAPH_NSOURCE_DMA_W_PROTECTION,   "DMA_W_PROTECTION" },
+	{ NV03_PGRAPH_NSOURCE_FORMAT_EXCEPTION,   "FORMAT_EXCEPTION" },
+	{ NV03_PGRAPH_NSOURCE_PATCH_EXCEPTION,    "PATCH_EXCEPTION" },
+	{ NV03_PGRAPH_NSOURCE_STATE_INVALID,      "STATE_INVALID" },
+	{ NV03_PGRAPH_NSOURCE_DOUBLE_NOTIFY,      "DOUBLE_NOTIFY" },
+	{ NV03_PGRAPH_NSOURCE_NOTIFY_IN_USE,      "NOTIFY_IN_USE" },
+	{ NV03_PGRAPH_NSOURCE_METHOD_CNT,         "METHOD_CNT" },
+	{ NV03_PGRAPH_NSOURCE_BFR_NOTIFICATION,   "BFR_NOTIFICATION" },
+	{ NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION, "DMA_VTX_PROTECTION" },
+	{ NV03_PGRAPH_NSOURCE_DMA_WIDTH_A,        "DMA_WIDTH_A" },
+	{ NV03_PGRAPH_NSOURCE_DMA_WIDTH_B,        "DMA_WIDTH_B" },
+	{}
+};
+
+static void
+nv04_graph_context_switch(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan = NULL;
+	int chid;
 
-	if (dev_priv->engine.graph.registered)
-		return 0;
+	nouveau_wait_for_idle(dev);
+
+	/* If previous context is valid, we need to save it */
+	nv04_graph_unload_context(dev);
+
+	/* Load context for next channel */
+	chid = dev_priv->engine.fifo.channel_id(dev);
+	chan = dev_priv->channels.ptr[chid];
+	if (chan)
+		nv04_graph_load_context(chan);
+}
+
+static void
+nv04_graph_isr(struct drm_device *dev)
+{
+	u32 stat;
+
+	while ((stat = nv_rd32(dev, NV03_PGRAPH_INTR))) {
+		u32 nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
+		u32 nstatus = nv_rd32(dev, NV03_PGRAPH_NSTATUS);
+		u32 addr = nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR);
+		u32 chid = (addr & 0x0f000000) >> 24;
+		u32 subc = (addr & 0x0000e000) >> 13;
+		u32 mthd = (addr & 0x00001ffc);
+		u32 data = nv_rd32(dev, NV04_PGRAPH_TRAPPED_DATA);
+		u32 class = nv_rd32(dev, 0x400180 + subc * 4) & 0xff;
+		u32 show = stat;
+
+		if (stat & NV_PGRAPH_INTR_NOTIFY) {
+			if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
+				if (!nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data))
+					show &= ~NV_PGRAPH_INTR_NOTIFY;
+			}
+		}
+
+		if (stat & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
+			nv_wr32(dev, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
+			stat &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+			show &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+			nv04_graph_context_switch(dev);
+		}
+
+		nv_wr32(dev, NV03_PGRAPH_INTR, stat);
+		nv_wr32(dev, NV04_PGRAPH_FIFO, 0x00000001);
+
+		if (show && nouveau_ratelimit()) {
+			NV_INFO(dev, "PGRAPH -");
+			nouveau_bitfield_print(nv04_graph_intr, show);
+			printk(" nsource:");
+			nouveau_bitfield_print(nv04_graph_nsource, nsource);
+			printk(" nstatus:");
+			nouveau_bitfield_print(nv04_graph_nstatus, nstatus);
+			printk("\n");
+			NV_INFO(dev, "PGRAPH - ch %d/%d class 0x%04x "
+				     "mthd 0x%04x data 0x%08x\n",
+				chid, subc, class, mthd, data);
+		}
+	}
+}
+
+static void
+nv04_graph_destroy(struct drm_device *dev, int engine)
+{
+	struct nv04_graph_engine *pgraph = nv_engine(dev, engine);
+
+	nouveau_irq_unregister(dev, 12);
+
+	NVOBJ_ENGINE_DEL(dev, GR);
+	kfree(pgraph);
+}
+
+int
+nv04_graph_create(struct drm_device *dev)
+{
+	struct nv04_graph_engine *pgraph;
+
+	pgraph = kzalloc(sizeof(*pgraph), GFP_KERNEL);
+	if (!pgraph)
+		return -ENOMEM;
+
+	pgraph->base.destroy = nv04_graph_destroy;
+	pgraph->base.init = nv04_graph_init;
+	pgraph->base.fini = nv04_graph_fini;
+	pgraph->base.context_new = nv04_graph_context_new;
+	pgraph->base.context_del = nv04_graph_context_del;
+	pgraph->base.object_new = nv04_graph_object_new;
+
+	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
+	nouveau_irq_register(dev, 12, nv04_graph_isr);
 
 	/* dvd subpicture */
 	NVOBJ_CLASS(dev, 0x0038, GR);
@@ -1222,93 +1349,5 @@ nv04_graph_register(struct drm_device *dev)
 	NVOBJ_CLASS(dev, 0x506e, SW);
 	NVOBJ_MTHD (dev, 0x506e, 0x0150, nv04_graph_mthd_set_ref);
 	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
-
-	dev_priv->engine.graph.registered = true;
 	return 0;
-};
-
-static struct nouveau_bitfield nv04_graph_intr[] = {
-	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
-	{}
-};
-
-static struct nouveau_bitfield nv04_graph_nstatus[] =
-{
-	{ NV04_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
-	{ NV04_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
-	{ NV04_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
-	{ NV04_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" },
-	{}
-};
-
-struct nouveau_bitfield nv04_graph_nsource[] =
-{
-	{ NV03_PGRAPH_NSOURCE_NOTIFICATION,       "NOTIFICATION" },
-	{ NV03_PGRAPH_NSOURCE_DATA_ERROR,         "DATA_ERROR" },
-	{ NV03_PGRAPH_NSOURCE_PROTECTION_ERROR,   "PROTECTION_ERROR" },
-	{ NV03_PGRAPH_NSOURCE_RANGE_EXCEPTION,    "RANGE_EXCEPTION" },
-	{ NV03_PGRAPH_NSOURCE_LIMIT_COLOR,        "LIMIT_COLOR" },
-	{ NV03_PGRAPH_NSOURCE_LIMIT_ZETA,         "LIMIT_ZETA" },
-	{ NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD,       "ILLEGAL_MTHD" },
-	{ NV03_PGRAPH_NSOURCE_DMA_R_PROTECTION,   "DMA_R_PROTECTION" },
-	{ NV03_PGRAPH_NSOURCE_DMA_W_PROTECTION,   "DMA_W_PROTECTION" },
-	{ NV03_PGRAPH_NSOURCE_FORMAT_EXCEPTION,   "FORMAT_EXCEPTION" },
-	{ NV03_PGRAPH_NSOURCE_PATCH_EXCEPTION,    "PATCH_EXCEPTION" },
-	{ NV03_PGRAPH_NSOURCE_STATE_INVALID,      "STATE_INVALID" },
-	{ NV03_PGRAPH_NSOURCE_DOUBLE_NOTIFY,      "DOUBLE_NOTIFY" },
-	{ NV03_PGRAPH_NSOURCE_NOTIFY_IN_USE,      "NOTIFY_IN_USE" },
-	{ NV03_PGRAPH_NSOURCE_METHOD_CNT,         "METHOD_CNT" },
-	{ NV03_PGRAPH_NSOURCE_BFR_NOTIFICATION,   "BFR_NOTIFICATION" },
-	{ NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION, "DMA_VTX_PROTECTION" },
-	{ NV03_PGRAPH_NSOURCE_DMA_WIDTH_A,        "DMA_WIDTH_A" },
-	{ NV03_PGRAPH_NSOURCE_DMA_WIDTH_B,        "DMA_WIDTH_B" },
-	{}
-};
-
-static void
-nv04_graph_isr(struct drm_device *dev)
-{
-	u32 stat;
-
-	while ((stat = nv_rd32(dev, NV03_PGRAPH_INTR))) {
-		u32 nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
-		u32 nstatus = nv_rd32(dev, NV03_PGRAPH_NSTATUS);
-		u32 addr = nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR);
-		u32 chid = (addr & 0x0f000000) >> 24;
-		u32 subc = (addr & 0x0000e000) >> 13;
-		u32 mthd = (addr & 0x00001ffc);
-		u32 data = nv_rd32(dev, NV04_PGRAPH_TRAPPED_DATA);
-		u32 class = nv_rd32(dev, 0x400180 + subc * 4) & 0xff;
-		u32 show = stat;
-
-		if (stat & NV_PGRAPH_INTR_NOTIFY) {
-			if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
-				if (!nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data))
-					show &= ~NV_PGRAPH_INTR_NOTIFY;
-			}
-		}
-
-		if (stat & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
-			nv_wr32(dev, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
-			stat &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
-			show &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
-			nv04_graph_context_switch(dev);
-		}
-
-		nv_wr32(dev, NV03_PGRAPH_INTR, stat);
-		nv_wr32(dev, NV04_PGRAPH_FIFO, 0x00000001);
-
-		if (show && nouveau_ratelimit()) {
-			NV_INFO(dev, "PGRAPH -");
-			nouveau_bitfield_print(nv04_graph_intr, show);
-			printk(" nsource:");
-			nouveau_bitfield_print(nv04_graph_nsource, nsource);
-			printk(" nstatus:");
-			nouveau_bitfield_print(nv04_graph_nstatus, nstatus);
-			printk("\n");
-			NV_INFO(dev, "PGRAPH - ch %d/%d class 0x%04x "
-				     "mthd 0x%04x data 0x%08x\n",
-				chid, subc, class, mthd, data);
-		}
-	}
 }

@@ -16,7 +16,7 @@
 /* ML300/403 reference design framebuffer driver platform data struct */
 struct xilinxfb_platform_data {
 	u32 rotate_screen;	/* Flag to rotate display 180 degrees */
-	u32 screen_height_mm;	/* Physical dimentions of screen in mm */
+	u32 screen_height_mm;	/* Physical dimensions of screen in mm */
 	u32 screen_width_mm;
 	u32 xres, yres;		/* resolution of screen in pixels */
 	u32 xvirt, yvirt;	/* resolution of memory buffer */

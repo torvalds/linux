@@ -43,6 +43,7 @@
 #define SDMMC_USRID		0x068
 #define SDMMC_VERID		0x06c
 #define SDMMC_HCON		0x070
+#define SDMMC_UHS_REG		0x074
 #define SDMMC_BMOD		0x080
 #define SDMMC_PLDMND		0x084
 #define SDMMC_DBADDR		0x088
@@ -51,7 +52,6 @@
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_DATA		0x100
-#define SDMMC_DATA_ADR		0x100
 
 /* shift bit field */
 #define _SBF(f, v)		((v) << (f))
@@ -118,7 +118,6 @@
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
 #define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FF)
-#define SDMMC_FIFO_SZ			32
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
@@ -134,22 +133,22 @@
 
 /* Register access macros */
 #define mci_readl(dev, reg)			\
-	__raw_readl(dev->regs + SDMMC_##reg)
+	__raw_readl((dev)->regs + SDMMC_##reg)
 #define mci_writel(dev, reg, value)			\
-	__raw_writel((value), dev->regs + SDMMC_##reg)
+	__raw_writel((value), (dev)->regs + SDMMC_##reg)
 
 /* 16-bit FIFO access macros */
 #define mci_readw(dev, reg)			\
-	__raw_readw(dev->regs + SDMMC_##reg)
+	__raw_readw((dev)->regs + SDMMC_##reg)
 #define mci_writew(dev, reg, value)			\
-	__raw_writew((value), dev->regs + SDMMC_##reg)
+	__raw_writew((value), (dev)->regs + SDMMC_##reg)
 
 /* 64-bit FIFO access macros */
 #ifdef readq
 #define mci_readq(dev, reg)			\
-	__raw_readq(dev->regs + SDMMC_##reg)
+	__raw_readq((dev)->regs + SDMMC_##reg)
 #define mci_writeq(dev, reg, value)			\
-	__raw_writeq((value), dev->regs + SDMMC_##reg)
+	__raw_writeq((value), (dev)->regs + SDMMC_##reg)
 #else
 /*
  * Dummy readq implementation for architectures that don't define it.
@@ -160,9 +159,9 @@
  * rest of the code free from ifdefs.
  */
 #define mci_readq(dev, reg)			\
-	(*(volatile u64 __force *)(dev->regs + SDMMC_##reg))
+	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg))
 #define mci_writeq(dev, reg, value)			\
-	(*(volatile u64 __force *)(dev->regs + SDMMC_##reg) = value)
+	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
 #endif
 
 #endif /* _DW_MMC_H_ */

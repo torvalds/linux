@@ -17,55 +17,123 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-static DEFINE_SPINLOCK(gpio_lock);
-static unsigned long gpio_valid_input[BITS_TO_LONGS(GPIO_MAX)];
-static unsigned long gpio_valid_output[BITS_TO_LONGS(GPIO_MAX)];
+/*
+ * GPIO unit register offsets.
+ */
+#define GPIO_OUT_OFF		0x0000
+#define GPIO_IO_CONF_OFF	0x0004
+#define GPIO_BLINK_EN_OFF	0x0008
+#define GPIO_IN_POL_OFF		0x000c
+#define GPIO_DATA_IN_OFF	0x0010
+#define GPIO_EDGE_CAUSE_OFF	0x0014
+#define GPIO_EDGE_MASK_OFF	0x0018
+#define GPIO_LEVEL_MASK_OFF	0x001c
 
-static inline void __set_direction(unsigned pin, int input)
+struct orion_gpio_chip {
+	struct gpio_chip	chip;
+	spinlock_t		lock;
+	void __iomem		*base;
+	unsigned long		valid_input;
+	unsigned long		valid_output;
+	int			mask_offset;
+	int			secondary_irq_base;
+};
+
+static void __iomem *GPIO_OUT(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + GPIO_OUT_OFF;
+}
+
+static void __iomem *GPIO_IO_CONF(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + GPIO_IO_CONF_OFF;
+}
+
+static void __iomem *GPIO_BLINK_EN(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + GPIO_BLINK_EN_OFF;
+}
+
+static void __iomem *GPIO_IN_POL(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + GPIO_IN_POL_OFF;
+}
+
+static void __iomem *GPIO_DATA_IN(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + GPIO_DATA_IN_OFF;
+}
+
+static void __iomem *GPIO_EDGE_CAUSE(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + GPIO_EDGE_CAUSE_OFF;
+}
+
+static void __iomem *GPIO_EDGE_MASK(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + ochip->mask_offset + GPIO_EDGE_MASK_OFF;
+}
+
+static void __iomem *GPIO_LEVEL_MASK(struct orion_gpio_chip *ochip)
+{
+	return ochip->base + ochip->mask_offset + GPIO_LEVEL_MASK_OFF;
+}
+
+
+static struct orion_gpio_chip orion_gpio_chips[2];
+static int orion_gpio_chip_count;
+
+static inline void
+__set_direction(struct orion_gpio_chip *ochip, unsigned pin, int input)
 {
 	u32 u;
 
-	u = readl(GPIO_IO_CONF(pin));
+	u = readl(GPIO_IO_CONF(ochip));
 	if (input)
-		u |= 1 << (pin & 31);
+		u |= 1 << pin;
 	else
-		u &= ~(1 << (pin & 31));
-	writel(u, GPIO_IO_CONF(pin));
+		u &= ~(1 << pin);
+	writel(u, GPIO_IO_CONF(ochip));
 }
 
-static void __set_level(unsigned pin, int high)
+static void __set_level(struct orion_gpio_chip *ochip, unsigned pin, int high)
 {
 	u32 u;
 
-	u = readl(GPIO_OUT(pin));
+	u = readl(GPIO_OUT(ochip));
 	if (high)
-		u |= 1 << (pin & 31);
+		u |= 1 << pin;
 	else
-		u &= ~(1 << (pin & 31));
-	writel(u, GPIO_OUT(pin));
+		u &= ~(1 << pin);
+	writel(u, GPIO_OUT(ochip));
 }
 
-static inline void __set_blinking(unsigned pin, int blink)
+static inline void
+__set_blinking(struct orion_gpio_chip *ochip, unsigned pin, int blink)
 {
 	u32 u;
 
-	u = readl(GPIO_BLINK_EN(pin));
+	u = readl(GPIO_BLINK_EN(ochip));
 	if (blink)
-		u |= 1 << (pin & 31);
+		u |= 1 << pin;
 	else
-		u &= ~(1 << (pin & 31));
-	writel(u, GPIO_BLINK_EN(pin));
+		u &= ~(1 << pin);
+	writel(u, GPIO_BLINK_EN(ochip));
 }
 
-static inline int orion_gpio_is_valid(unsigned pin, int mode)
+static inline int
+orion_gpio_is_valid(struct orion_gpio_chip *ochip, unsigned pin, int mode)
 {
-	if (pin < GPIO_MAX) {
-		if ((mode & GPIO_INPUT_OK) && !test_bit(pin, gpio_valid_input))
-			goto err_out;
-		if ((mode & GPIO_OUTPUT_OK) && !test_bit(pin, gpio_valid_output))
-			goto err_out;
-		return true;
-	}
+	if (pin >= ochip->chip.ngpio)
+		goto err_out;
+
+	if ((mode & GPIO_INPUT_OK) && !test_bit(pin, &ochip->valid_input))
+		goto err_out;
+
+	if ((mode & GPIO_OUTPUT_OK) && !test_bit(pin, &ochip->valid_output))
+		goto err_out;
+
+	return 1;
 
 err_out:
 	pr_debug("%s: invalid GPIO %d\n", __func__, pin);
@@ -75,134 +143,155 @@ err_out:
 /*
  * GENERIC_GPIO primitives.
  */
-static int orion_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
-{
-	unsigned long flags;
-
-	if (!orion_gpio_is_valid(pin, GPIO_INPUT_OK))
-		return -EINVAL;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	/* Configure GPIO direction. */
-	__set_direction(pin, 1);
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return 0;
-}
-
-static int orion_gpio_get_value(struct gpio_chip *chip, unsigned pin)
-{
-	int val;
-
-	if (readl(GPIO_IO_CONF(pin)) & (1 << (pin & 31)))
-		val = readl(GPIO_DATA_IN(pin)) ^ readl(GPIO_IN_POL(pin));
-	else
-		val = readl(GPIO_OUT(pin));
-
-	return (val >> (pin & 31)) & 1;
-}
-
-static int orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin,
-	int value)
-{
-	unsigned long flags;
-
-	if (!orion_gpio_is_valid(pin, GPIO_OUTPUT_OK))
-		return -EINVAL;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	/* Disable blinking. */
-	__set_blinking(pin, 0);
-
-	/* Configure GPIO output value. */
-	__set_level(pin, value);
-
-	/* Configure GPIO direction. */
-	__set_direction(pin, 0);
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return 0;
-}
-
-static void orion_gpio_set_value(struct gpio_chip *chip, unsigned pin,
-	int value)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	/* Configure GPIO output value. */
-	__set_level(pin, value);
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-}
-
 static int orion_gpio_request(struct gpio_chip *chip, unsigned pin)
 {
-	if (orion_gpio_is_valid(pin, GPIO_INPUT_OK) ||
-	    orion_gpio_is_valid(pin, GPIO_OUTPUT_OK))
+	struct orion_gpio_chip *ochip =
+		container_of(chip, struct orion_gpio_chip, chip);
+
+	if (orion_gpio_is_valid(ochip, pin, GPIO_INPUT_OK) ||
+	    orion_gpio_is_valid(ochip, pin, GPIO_OUTPUT_OK))
 		return 0;
+
 	return -EINVAL;
 }
 
-static struct gpio_chip orion_gpiochip = {
-	.label			= "orion_gpio",
-	.direction_input	= orion_gpio_direction_input,
-	.get			= orion_gpio_get_value,
-	.direction_output	= orion_gpio_direction_output,
-	.set			= orion_gpio_set_value,
-	.request		= orion_gpio_request,
-	.base			= 0,
-	.ngpio			= GPIO_MAX,
-	.can_sleep		= 0,
-};
-
-void __init orion_gpio_init(void)
+static int orion_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 {
-	gpiochip_add(&orion_gpiochip);
+	struct orion_gpio_chip *ochip =
+		container_of(chip, struct orion_gpio_chip, chip);
+	unsigned long flags;
+
+	if (!orion_gpio_is_valid(ochip, pin, GPIO_INPUT_OK))
+		return -EINVAL;
+
+	spin_lock_irqsave(&ochip->lock, flags);
+	__set_direction(ochip, pin, 1);
+	spin_unlock_irqrestore(&ochip->lock, flags);
+
+	return 0;
 }
+
+static int orion_gpio_get(struct gpio_chip *chip, unsigned pin)
+{
+	struct orion_gpio_chip *ochip =
+		container_of(chip, struct orion_gpio_chip, chip);
+	int val;
+
+	if (readl(GPIO_IO_CONF(ochip)) & (1 << pin)) {
+		val = readl(GPIO_DATA_IN(ochip)) ^ readl(GPIO_IN_POL(ochip));
+	} else {
+		val = readl(GPIO_OUT(ochip));
+	}
+
+	return (val >> pin) & 1;
+}
+
+static int
+orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin, int value)
+{
+	struct orion_gpio_chip *ochip =
+		container_of(chip, struct orion_gpio_chip, chip);
+	unsigned long flags;
+
+	if (!orion_gpio_is_valid(ochip, pin, GPIO_OUTPUT_OK))
+		return -EINVAL;
+
+	spin_lock_irqsave(&ochip->lock, flags);
+	__set_blinking(ochip, pin, 0);
+	__set_level(ochip, pin, value);
+	__set_direction(ochip, pin, 0);
+	spin_unlock_irqrestore(&ochip->lock, flags);
+
+	return 0;
+}
+
+static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
+{
+	struct orion_gpio_chip *ochip =
+		container_of(chip, struct orion_gpio_chip, chip);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ochip->lock, flags);
+	__set_level(ochip, pin, value);
+	spin_unlock_irqrestore(&ochip->lock, flags);
+}
+
+static int orion_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
+{
+	struct orion_gpio_chip *ochip =
+		container_of(chip, struct orion_gpio_chip, chip);
+
+	return ochip->secondary_irq_base + pin;
+}
+
 
 /*
  * Orion-specific GPIO API extensions.
  */
+static struct orion_gpio_chip *orion_gpio_chip_find(int pin)
+{
+	int i;
+
+	for (i = 0; i < orion_gpio_chip_count; i++) {
+		struct orion_gpio_chip *ochip = orion_gpio_chips + i;
+		struct gpio_chip *chip = &ochip->chip;
+
+		if (pin >= chip->base && pin < chip->base + chip->ngpio)
+			return ochip;
+	}
+
+	return NULL;
+}
+
 void __init orion_gpio_set_unused(unsigned pin)
 {
+	struct orion_gpio_chip *ochip = orion_gpio_chip_find(pin);
+
+	if (ochip == NULL)
+		return;
+
+	pin -= ochip->chip.base;
+
 	/* Configure as output, drive low. */
-	__set_level(pin, 0);
-	__set_direction(pin, 0);
+	__set_level(ochip, pin, 0);
+	__set_direction(ochip, pin, 0);
 }
 
 void __init orion_gpio_set_valid(unsigned pin, int mode)
 {
+	struct orion_gpio_chip *ochip = orion_gpio_chip_find(pin);
+
+	if (ochip == NULL)
+		return;
+
+	pin -= ochip->chip.base;
+
 	if (mode == 1)
 		mode = GPIO_INPUT_OK | GPIO_OUTPUT_OK;
+
 	if (mode & GPIO_INPUT_OK)
-		__set_bit(pin, gpio_valid_input);
+		__set_bit(pin, &ochip->valid_input);
 	else
-		__clear_bit(pin, gpio_valid_input);
+		__clear_bit(pin, &ochip->valid_input);
+
 	if (mode & GPIO_OUTPUT_OK)
-		__set_bit(pin, gpio_valid_output);
+		__set_bit(pin, &ochip->valid_output);
 	else
-		__clear_bit(pin, gpio_valid_output);
+		__clear_bit(pin, &ochip->valid_output);
 }
 
 void orion_gpio_set_blink(unsigned pin, int blink)
 {
+	struct orion_gpio_chip *ochip = orion_gpio_chip_find(pin);
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpio_lock, flags);
+	if (ochip == NULL)
+		return;
 
-	/* Set output value to zero. */
-	__set_level(pin, 0);
-
-	/* Set blinking. */
-	__set_blinking(pin, blink);
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	spin_lock_irqsave(&ochip->lock, flags);
+	__set_level(ochip, pin, 0);
+	__set_blinking(ochip, pin, blink);
+	spin_unlock_irqrestore(&ochip->lock, flags);
 }
 EXPORT_SYMBOL(orion_gpio_set_blink);
 
@@ -232,127 +321,157 @@ EXPORT_SYMBOL(orion_gpio_set_blink);
  *        polarity    LEVEL          mask
  *
  ****************************************************************************/
-static void gpio_irq_ack(struct irq_data *d)
-{
-	int type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		int pin = irq_to_gpio(d->irq);
-		writel(~(1 << (pin & 31)), GPIO_EDGE_CAUSE(pin));
-	}
-}
-
-static void gpio_irq_mask(struct irq_data *d)
-{
-	int pin = irq_to_gpio(d->irq);
-	int type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
-	u32 reg = (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) ?
-		GPIO_EDGE_MASK(pin) : GPIO_LEVEL_MASK(pin);
-	u32 u = readl(reg);
-	u &= ~(1 << (pin & 31));
-	writel(u, reg);
-}
-
-static void gpio_irq_unmask(struct irq_data *d)
-{
-	int pin = irq_to_gpio(d->irq);
-	int type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
-	u32 reg = (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) ?
-		GPIO_EDGE_MASK(pin) : GPIO_LEVEL_MASK(pin);
-	u32 u = readl(reg);
-	u |= 1 << (pin & 31);
-	writel(u, reg);
-}
 
 static int gpio_irq_set_type(struct irq_data *d, u32 type)
 {
-	int pin = irq_to_gpio(d->irq);
-	struct irq_desc *desc;
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+	struct orion_gpio_chip *ochip = gc->private;
+	int pin;
 	u32 u;
 
-	u = readl(GPIO_IO_CONF(pin)) & (1 << (pin & 31));
+	pin = d->irq - gc->irq_base;
+
+	u = readl(GPIO_IO_CONF(ochip)) & (1 << pin);
 	if (!u) {
 		printk(KERN_ERR "orion gpio_irq_set_type failed "
 				"(irq %d, pin %d).\n", d->irq, pin);
 		return -EINVAL;
 	}
 
-	desc = irq_desc + d->irq;
-
-	/*
-	 * Set edge/level type.
-	 */
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		desc->handle_irq = handle_edge_irq;
-	} else if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
-		desc->handle_irq = handle_level_irq;
-	} else {
-		printk(KERN_ERR "failed to set irq=%d (type=%d)\n", d->irq, type);
+	type &= IRQ_TYPE_SENSE_MASK;
+	if (type == IRQ_TYPE_NONE)
 		return -EINVAL;
-	}
+
+	/* Check if we need to change chip and handler */
+	if (!(ct->type & type))
+		if (irq_setup_alt_chip(d, type))
+			return -EINVAL;
 
 	/*
 	 * Configure interrupt polarity.
 	 */
 	if (type == IRQ_TYPE_EDGE_RISING || type == IRQ_TYPE_LEVEL_HIGH) {
-		u = readl(GPIO_IN_POL(pin));
-		u &= ~(1 << (pin & 31));
-		writel(u, GPIO_IN_POL(pin));
+		u = readl(GPIO_IN_POL(ochip));
+		u &= ~(1 << pin);
+		writel(u, GPIO_IN_POL(ochip));
 	} else if (type == IRQ_TYPE_EDGE_FALLING || type == IRQ_TYPE_LEVEL_LOW) {
-		u = readl(GPIO_IN_POL(pin));
-		u |= 1 << (pin & 31);
-		writel(u, GPIO_IN_POL(pin));
+		u = readl(GPIO_IN_POL(ochip));
+		u |= 1 << pin;
+		writel(u, GPIO_IN_POL(ochip));
 	} else if (type == IRQ_TYPE_EDGE_BOTH) {
 		u32 v;
 
-		v = readl(GPIO_IN_POL(pin)) ^ readl(GPIO_DATA_IN(pin));
+		v = readl(GPIO_IN_POL(ochip)) ^ readl(GPIO_DATA_IN(ochip));
 
 		/*
 		 * set initial polarity based on current input level
 		 */
-		u = readl(GPIO_IN_POL(pin));
-		if (v & (1 << (pin & 31)))
-			u |= 1 << (pin & 31);		/* falling */
+		u = readl(GPIO_IN_POL(ochip));
+		if (v & (1 << pin))
+			u |= 1 << pin;		/* falling */
 		else
-			u &= ~(1 << (pin & 31));	/* rising */
-		writel(u, GPIO_IN_POL(pin));
+			u &= ~(1 << pin);	/* rising */
+		writel(u, GPIO_IN_POL(ochip));
 	}
-
-	desc->status = (desc->status & ~IRQ_TYPE_SENSE_MASK) | type;
 
 	return 0;
 }
 
-struct irq_chip orion_gpio_irq_chip = {
-	.name		= "orion_gpio_irq",
-	.irq_ack	= gpio_irq_ack,
-	.irq_mask	= gpio_irq_mask,
-	.irq_unmask	= gpio_irq_unmask,
-	.irq_set_type	= gpio_irq_set_type,
-};
+void __init orion_gpio_init(int gpio_base, int ngpio,
+			    u32 base, int mask_offset, int secondary_irq_base)
+{
+	struct orion_gpio_chip *ochip;
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+
+	if (orion_gpio_chip_count == ARRAY_SIZE(orion_gpio_chips))
+		return;
+
+	ochip = orion_gpio_chips + orion_gpio_chip_count;
+	ochip->chip.label = "orion_gpio";
+	ochip->chip.request = orion_gpio_request;
+	ochip->chip.direction_input = orion_gpio_direction_input;
+	ochip->chip.get = orion_gpio_get;
+	ochip->chip.direction_output = orion_gpio_direction_output;
+	ochip->chip.set = orion_gpio_set;
+	ochip->chip.to_irq = orion_gpio_to_irq;
+	ochip->chip.base = gpio_base;
+	ochip->chip.ngpio = ngpio;
+	ochip->chip.can_sleep = 0;
+	spin_lock_init(&ochip->lock);
+	ochip->base = (void __iomem *)base;
+	ochip->valid_input = 0;
+	ochip->valid_output = 0;
+	ochip->mask_offset = mask_offset;
+	ochip->secondary_irq_base = secondary_irq_base;
+
+	gpiochip_add(&ochip->chip);
+
+	orion_gpio_chip_count++;
+
+	/*
+	 * Mask and clear GPIO interrupts.
+	 */
+	writel(0, GPIO_EDGE_CAUSE(ochip));
+	writel(0, GPIO_EDGE_MASK(ochip));
+	writel(0, GPIO_LEVEL_MASK(ochip));
+
+	gc = irq_alloc_generic_chip("orion_gpio_irq", 2, secondary_irq_base,
+				    ochip->base, handle_level_irq);
+	gc->private = ochip;
+
+	ct = gc->chip_types;
+	ct->regs.mask = ochip->mask_offset + GPIO_LEVEL_MASK_OFF;
+	ct->type = IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_set_type = gpio_irq_set_type;
+
+	ct++;
+	ct->regs.mask = ochip->mask_offset + GPIO_EDGE_MASK_OFF;
+	ct->regs.ack = GPIO_EDGE_CAUSE_OFF;
+	ct->type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+	ct->chip.irq_ack = irq_gc_ack_clr_bit;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_set_type = gpio_irq_set_type;
+	ct->handler = handle_edge_irq;
+
+	irq_setup_generic_chip(gc, IRQ_MSK(ngpio), IRQ_GC_INIT_MASK_CACHE,
+			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
+}
 
 void orion_gpio_irq_handler(int pinoff)
 {
-	u32 cause;
-	int pin;
+	struct orion_gpio_chip *ochip;
+	u32 cause, type;
+	int i;
 
-	cause = readl(GPIO_DATA_IN(pinoff)) & readl(GPIO_LEVEL_MASK(pinoff));
-	cause |= readl(GPIO_EDGE_CAUSE(pinoff)) & readl(GPIO_EDGE_MASK(pinoff));
+	ochip = orion_gpio_chip_find(pinoff);
+	if (ochip == NULL)
+		return;
 
-	for (pin = pinoff; pin < pinoff + 8; pin++) {
-		int irq = gpio_to_irq(pin);
-		struct irq_desc *desc = irq_desc + irq;
+	cause = readl(GPIO_DATA_IN(ochip)) & readl(GPIO_LEVEL_MASK(ochip));
+	cause |= readl(GPIO_EDGE_CAUSE(ochip)) & readl(GPIO_EDGE_MASK(ochip));
 
-		if (!(cause & (1 << (pin & 31))))
+	for (i = 0; i < ochip->chip.ngpio; i++) {
+		int irq;
+
+		irq = ochip->secondary_irq_base + i;
+
+		if (!(cause & (1 << i)))
 			continue;
 
-		if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+		type = irqd_get_trigger_type(irq_get_irq_data(irq));
+		if ((type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 			/* Swap polarity (race with GPIO line) */
 			u32 polarity;
 
-			polarity = readl(GPIO_IN_POL(pin));
-			polarity ^= 1 << (pin & 31);
-			writel(polarity, GPIO_IN_POL(pin));
+			polarity = readl(GPIO_IN_POL(ochip));
+			polarity ^= 1 << i;
+			writel(polarity, GPIO_IN_POL(ochip));
 		}
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	}
 }

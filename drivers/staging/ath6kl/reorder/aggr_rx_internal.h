@@ -48,7 +48,7 @@
 #define AGGR_GET_RXTID(_p, _x)    (&(_p->RxTid[(_x)]))
 
 /* Hold q is a function of win_sz, which is negotiated per tid */
-#define HOLD_Q_SZ(_x)   (TID_WINDOW_SZ((_x))*sizeof(OSBUF_HOLD_Q))
+#define HOLD_Q_SZ(_x)   (TID_WINDOW_SZ((_x))*sizeof(struct osbuf_hold_q))
 /* AGGR_RX_TIMEOUT value is important as a (too) small value can cause frames to be 
  * delivered out of order and a (too) large value can cause undesirable latency in
  * certain situations. */
@@ -59,58 +59,59 @@ typedef enum {
     CONTIGUOUS_SEQNO = 1,
 }DELIVERY_ORDER;
 
-typedef struct {
+struct osbuf_hold_q {
     void        *osbuf;
-    A_BOOL      is_amsdu;
-    A_UINT16    seq_no;
-}OSBUF_HOLD_Q;
+    bool      is_amsdu;
+    u16 seq_no;
+};
 
 
 #if 0
-typedef struct {
-    A_UINT16    seqno_st;
-    A_UINT16    seqno_end;
-}WINDOW_SNAPSHOT;
+/* XXX: unused ? */
+struct window_snapshot {
+    u16 seqno_st;
+    u16 seqno_end;
+};
 #endif
 
-typedef struct {
-    A_BOOL              aggr;       /* is it ON or OFF */
-    A_BOOL              progress;   /* TRUE when frames have arrived after a timer start */
-    A_BOOL              timerMon;   /* TRUE if the timer started for the sake of this TID */
-    A_UINT16            win_sz;     /* negotiated window size */
-    A_UINT16            seq_next;   /* Next seq no, in current window */
-    A_UINT32            hold_q_sz;  /* Num of frames that can be held in hold q */
-    OSBUF_HOLD_Q        *hold_q;    /* Hold q for re-order */
+struct rxtid {
+    bool              aggr;       /* is it ON or OFF */
+    bool              progress;   /* true when frames have arrived after a timer start */
+    bool              timerMon;   /* true if the timer started for the sake of this TID */
+    u16 win_sz;     /* negotiated window size */
+    u16 seq_next;   /* Next seq no, in current window */
+    u32 hold_q_sz;  /* Num of frames that can be held in hold q */
+    struct osbuf_hold_q        *hold_q;    /* Hold q for re-order */
 #if 0    
-    WINDOW_SNAPSHOT     old_win;    /* Sliding window snapshot - for timeout */
+    struct window_snapshot     old_win;    /* Sliding window snapshot - for timeout */
 #endif    
     A_NETBUF_QUEUE_T    q;          /* q head for enqueuing frames for dispatch */
     A_MUTEX_T           lock;
-}RXTID;
+};
 
-typedef struct {
-    A_UINT32    num_into_aggr;      /* hitting at the input of this module */
-    A_UINT32    num_dups;           /* duplicate */
-    A_UINT32    num_oow;            /* out of window */
-    A_UINT32    num_mpdu;           /* single payload 802.3/802.11 frame */
-    A_UINT32    num_amsdu;          /* AMSDU */
-    A_UINT32    num_delivered;      /* frames delivered to IP stack */
-    A_UINT32    num_timeouts;       /* num of timeouts, during which frames delivered */
-    A_UINT32    num_hole;           /* frame not present, when window moved over */
-    A_UINT32    num_bar;            /* num of resets of seq_num, via BAR */
-}RXTID_STATS;
+struct rxtid_stats {
+    u32 num_into_aggr;      /* hitting at the input of this module */
+    u32 num_dups;           /* duplicate */
+    u32 num_oow;            /* out of window */
+    u32 num_mpdu;           /* single payload 802.3/802.11 frame */
+    u32 num_amsdu;          /* AMSDU */
+    u32 num_delivered;      /* frames delivered to IP stack */
+    u32 num_timeouts;       /* num of timeouts, during which frames delivered */
+    u32 num_hole;           /* frame not present, when window moved over */
+    u32 num_bar;            /* num of resets of seq_num, via BAR */
+};
 
-typedef struct {
-    A_UINT8             aggr_sz;            /* config value of aggregation size */    
-    A_UINT8             timerScheduled;
+struct aggr_info {
+    u8 aggr_sz;            /* config value of aggregation size */
+    u8 timerScheduled;
     A_TIMER             timer;              /* timer for returning held up pkts in re-order que */    
     void                *dev;               /* dev handle */
     RX_CALLBACK         rx_fn;              /* callback function to return frames; to upper layer */
-    RXTID               RxTid[NUM_OF_TIDS]; /* Per tid window */
+    struct rxtid               RxTid[NUM_OF_TIDS]; /* Per tid window */
     ALLOC_NETBUFS       netbuf_allocator;   /* OS netbuf alloc fn */
     A_NETBUF_QUEUE_T    freeQ;              /* pre-allocated buffers - for A_MSDU slicing */
-    RXTID_STATS         stat[NUM_OF_TIDS];  /* Tid based statistics */
+    struct rxtid_stats         stat[NUM_OF_TIDS];  /* Tid based statistics */
     PACKET_LOG          pkt_log;            /* Log info of the packets */
-}AGGR_INFO;
+};
 
 #endif /* __AGGR_RX_INTERNAL_H__ */

@@ -16,32 +16,24 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y :=			\
-	-DARP_OFFLOAD_SUPPORT	\
-	-DBCMDBG		\
-	-DBCMLXSDMMC		\
-	-DBCMPLATFORM_BUS	\
-	-DBCMSDIO		\
-	-DBDC			\
-	-DBRCM_FULLMAC		\
-	-DDHD_DEBUG		\
-	-DDHD_FIRSTREAD=64	\
-	-DDHD_SCHED		\
-	-DDHD_SDALIGN=64	\
-	-DEMBEDDED_PLATFORM	\
-	-DMAX_HDR_READ=64	\
-	-DMMC_SDIO_ABORT	\
-	-DPKT_FILTER_SUPPORT	\
-	-DSHOW_EVENTS		\
-	-DTOE			\
-	-Idrivers/staging/brcm80211/brcmfmac		\
-	-Idrivers/staging/brcm80211/include		\
-	-Idrivers/staging/brcm80211/util
+	-DBRCMF_FIRSTREAD=64	\
+	-DBRCMF_SDALIGN=64	\
+	-DMAX_HDR_READ=64
 
-DHDOFILES = dhd_linux.o ../util/linux_osl.o ../util/bcmutils.o dhd_common.o dhd_custom_gpio.o	\
-	wl_iw.o wl_cfg80211.o ../util/siutils.o ../util/sbutils.o ../util/aiutils.o ../util/hndpmu.o ../util/bcmwifi.o dhd_sdio.o	\
-	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o	\
-	bcmsdh_sdmmc_linux.o
+ccflags-$(CONFIG_BRCMDBG)	+= -DSHOW_EVENTS
 
-obj-m += brcmfmac.o
+ccflags-y += \
+	-Idrivers/staging/brcm80211/brcmfmac	\
+	-Idrivers/staging/brcm80211/include
+
+DHDOFILES = \
+	wl_cfg80211.o \
+	dhd_cdc.o \
+	dhd_common.o \
+	dhd_sdio.o	\
+	dhd_linux.o \
+	bcmsdh.o \
+	bcmsdh_sdmmc.o
+
+obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
-

@@ -44,9 +44,10 @@ asmlinkage void ret_from_fork(void);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-struct task_struct *alloc_task_struct(void)
+struct task_struct *alloc_task_struct_node(int node)
 {
-	struct task_struct *p = kmalloc(THREAD_SIZE, GFP_KERNEL);
+	struct task_struct *p = kmalloc_node(THREAD_SIZE, GFP_KERNEL, node);
+
 	if (p)
 		atomic_set((atomic_t *)(p+1), 1);
 	return p;
@@ -142,10 +143,7 @@ void machine_power_off(void)
 
 void flush_thread(void)
 {
-#if 0 //ndef NO_FPU
-	unsigned long zero = 0;
-#endif
-	set_fs(USER_DS);
+	/* nothing */
 }
 
 inline unsigned long user_stack(const struct pt_regs *regs)

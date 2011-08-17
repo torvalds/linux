@@ -1449,7 +1449,7 @@ static struct SYM_FWB_SCR SYM_FWB_SCR = {
 		PADDR_B (msg_weird_seen),
 	/*
 	 *  We donnot handle extended messages from SCRIPTS.
-	 *  Read the amount of data correponding to the 
+	 *  Read the amount of data corresponding to the 
 	 *  message length and call the C code.
 	 */
 	SCR_COPY (1),

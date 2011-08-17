@@ -33,19 +33,35 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
 
 	pmd = pmd_offset(pud, addr);
 	do {
+again:
 		next = pmd_addr_end(addr, end);
-		split_huge_page_pmd(walk->mm, pmd);
-		if (pmd_none_or_clear_bad(pmd)) {
+		if (pmd_none(*pmd)) {
 			if (walk->pte_hole)
 				err = walk->pte_hole(addr, next, walk);
 			if (err)
 				break;
 			continue;
 		}
+		/*
+		 * This implies that each ->pmd_entry() handler
+		 * needs to know about pmd_trans_huge() pmds
+		 */
 		if (walk->pmd_entry)
 			err = walk->pmd_entry(pmd, addr, next, walk);
-		if (!err && walk->pte_entry)
-			err = walk_pte_range(pmd, addr, next, walk);
+		if (err)
+			break;
+
+		/*
+		 * Check this here so we only break down trans_huge
+		 * pages when we _need_ to
+		 */
+		if (!walk->pte_entry)
+			continue;
+
+		split_huge_page_pmd(walk->mm, pmd);
+		if (pmd_none_or_clear_bad(pmd))
+			goto again;
+		err = walk_pte_range(pmd, addr, next, walk);
 		if (err)
 			break;
 	} while (pmd++, addr = next, addr != end);
@@ -110,7 +126,39 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
 
 	return 0;
 }
-#endif
+
+static struct vm_area_struct* hugetlb_vma(unsigned long addr, struct mm_walk *walk)
+{
+	struct vm_area_struct *vma;
+
+	/* We don't need vma lookup at all. */
+	if (!walk->hugetlb_entry)
+		return NULL;
+
+	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
+	vma = find_vma(walk->mm, addr);
+	if (vma && vma->vm_start <= addr && is_vm_hugetlb_page(vma))
+		return vma;
+
+	return NULL;
+}
+
+#else /* CONFIG_HUGETLB_PAGE */
+static struct vm_area_struct* hugetlb_vma(unsigned long addr, struct mm_walk *walk)
+{
+	return NULL;
+}
+
+static int walk_hugetlb_range(struct vm_area_struct *vma,
+			      unsigned long addr, unsigned long end,
+			      struct mm_walk *walk)
+{
+	return 0;
+}
+
+#endif /* CONFIG_HUGETLB_PAGE */
+
+
 
 /**
  * walk_page_range - walk a memory map's page tables with a callback
@@ -128,11 +176,15 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
  * associated range, and a copy of the original mm_walk for access to
  * the ->private or ->mm fields.
  *
- * No locks are taken, but the bottom level iterator will map PTE
+ * Usually no locks are taken, but splitting transparent huge page may
+ * take page table lock. And the bottom level iterator will map PTE
  * directories from highmem if necessary.
  *
  * If any callback returns a non-zero value, the walk is aborted and
  * the return value is propagated back to the caller. Otherwise 0 is returned.
+ *
+ * walk->mm->mmap_sem must be held for at least read if walk->hugetlb_entry
+ * is !NULL.
  */
 int walk_page_range(unsigned long addr, unsigned long end,
 		    struct mm_walk *walk)
@@ -149,18 +201,17 @@ int walk_page_range(unsigned long addr, unsigned long end,
 
 	pgd = pgd_offset(walk->mm, addr);
 	do {
-		struct vm_area_struct *uninitialized_var(vma);
+		struct vm_area_struct *vma;
 
 		next = pgd_addr_end(addr, end);
 
-#ifdef CONFIG_HUGETLB_PAGE
 		/*
 		 * handle hugetlb vma individually because pagetable walk for
 		 * the hugetlb page is dependent on the architecture and
 		 * we can't handled it in the same manner as non-huge pages.
 		 */
-		vma = find_vma(walk->mm, addr);
-		if (vma && is_vm_hugetlb_page(vma)) {
+		vma = hugetlb_vma(addr, walk);
+		if (vma) {
 			if (vma->vm_end < next)
 				next = vma->vm_end;
 			/*
@@ -173,7 +224,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
 			pgd = pgd_offset(walk->mm, next);
 			continue;
 		}
-#endif
+
 		if (pgd_none_or_clear_bad(pgd)) {
 			if (walk->pte_hole)
 				err = walk->pte_hole(addr, next, walk);

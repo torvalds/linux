@@ -253,7 +253,7 @@ void init_left_tree(void)
 
 	gtk_tree_view_set_model(view, model1);
 	gtk_tree_view_set_headers_visible(view, TRUE);
-	gtk_tree_view_set_rules_hint(view, FALSE);
+	gtk_tree_view_set_rules_hint(view, TRUE);
 
 	column = gtk_tree_view_column_new();
 	gtk_tree_view_append_column(view, column);
@@ -285,8 +285,6 @@ void init_left_tree(void)
 static void renderer_edited(GtkCellRendererText * cell,
 			    const gchar * path_string,
 			    const gchar * new_text, gpointer user_data);
-static void renderer_toggled(GtkCellRendererToggle * cellrenderertoggle,
-			     gchar * arg1, gpointer user_data);
 
 void init_right_tree(void)
 {
@@ -298,7 +296,7 @@ void init_right_tree(void)
 
 	gtk_tree_view_set_model(view, model2);
 	gtk_tree_view_set_headers_visible(view, TRUE);
-	gtk_tree_view_set_rules_hint(view, FALSE);
+	gtk_tree_view_set_rules_hint(view, TRUE);
 
 	column = gtk_tree_view_column_new();
 	gtk_tree_view_append_column(view, column);
@@ -320,8 +318,6 @@ void init_right_tree(void)
 					    "inconsistent", COL_BTNINC,
 					    "visible", COL_BTNVIS,
 					    "radio", COL_BTNRAD, NULL);
-	/*g_signal_connect(G_OBJECT(renderer), "toggled",
-	   G_CALLBACK(renderer_toggled), NULL); */
 	renderer = gtk_cell_renderer_text_new();
 	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
 					renderer, FALSE);
@@ -756,7 +752,6 @@ void on_load_clicked(GtkButton * button, gpointer user_data)
 void on_single_clicked(GtkButton * button, gpointer user_data)
 {
 	view_mode = SINGLE_VIEW;
-	gtk_paned_set_position(GTK_PANED(hpaned), 0);
 	gtk_widget_hide(tree1_w);
 	current = &rootmenu;
 	display_tree_part();
@@ -782,7 +777,6 @@ void on_split_clicked(GtkButton * button, gpointer user_data)
 void on_full_clicked(GtkButton * button, gpointer user_data)
 {
 	view_mode = FULL_VIEW;
-	gtk_paned_set_position(GTK_PANED(hpaned), 0);
 	gtk_widget_hide(tree1_w);
 	if (tree2)
 		gtk_tree_store_clear(tree2);
@@ -888,35 +882,6 @@ static void toggle_sym_value(struct menu *menu)
 	}
 	else if (view_mode == SINGLE_VIEW)
 		display_tree_part();	//fixme: keep exp/coll
-}
-
-static void renderer_toggled(GtkCellRendererToggle * cell,
-			     gchar * path_string, gpointer user_data)
-{
-	GtkTreePath *path, *sel_path = NULL;
-	GtkTreeIter iter, sel_iter;
-	GtkTreeSelection *sel;
-	struct menu *menu;
-
-	path = gtk_tree_path_new_from_string(path_string);
-	if (!gtk_tree_model_get_iter(model2, &iter, path))
-		return;
-
-	sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree2_w));
-	if (gtk_tree_selection_get_selected(sel, NULL, &sel_iter))
-		sel_path = gtk_tree_model_get_path(model2, &sel_iter);
-	if (!sel_path)
-		goto out1;
-	if (gtk_tree_path_compare(path, sel_path))
-		goto out2;
-
-	gtk_tree_model_get(model2, &iter, COL_MENU, &menu, -1);
-	toggle_sym_value(menu);
-
-      out2:
-	gtk_tree_path_free(sel_path);
-      out1:
-	gtk_tree_path_free(path);
 }
 
 static gint column2index(GtkTreeViewColumn * column)
@@ -1174,6 +1139,7 @@ static gchar **fill_row(struct menu *menu)
 			row[COL_BTNVIS] = GINT_TO_POINTER(TRUE);
 		if (sym_is_choice(sym))
 			break;
+		/* fall through */
 	case S_TRISTATE:
 		val = sym_get_tristate_value(sym);
 		switch (val) {
@@ -1444,6 +1410,12 @@ static void display_tree(struct menu *menu)
                 if (((menu != &rootmenu) && !(menu->flags & MENU_ROOT))
 		    || (view_mode == FULL_VIEW)
 		    || (view_mode == SPLIT_VIEW))*/
+
+		/* Change paned position if the view is not in 'split mode' */
+		if (view_mode == SINGLE_VIEW || view_mode == FULL_VIEW) {
+			gtk_paned_set_position(GTK_PANED(hpaned), 0);
+		}
+
 		if (((view_mode == SINGLE_VIEW) && (menu->flags & MENU_ROOT))
 		    || (view_mode == FULL_VIEW)
 		    || (view_mode == SPLIT_VIEW)) {
@@ -1501,10 +1473,6 @@ int main(int ac, char *av[])
 	const char *name;
 	char *env;
 	gchar *glade_file;
-
-#ifndef LKC_DIRECT_LINK
-	kconfig_load();
-#endif
 
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	bind_textdomain_codeset(PACKAGE, "UTF-8");

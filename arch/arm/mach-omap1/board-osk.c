@@ -276,13 +276,13 @@ static void __init osk_init_cf(void)
 		return;
 	}
 	/* the CF I/O IRQ is really active-low */
-	set_irq_type(gpio_to_irq(62), IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(gpio_to_irq(62), IRQ_TYPE_EDGE_FALLING);
 }
 
 static void __init osk_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct omap_usb_config osk_usb_config __initdata = {
@@ -482,7 +482,7 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(P20_1610_GPIO4);	/* PENIRQ */
 	gpio_request(4, "ts_int");
 	gpio_direction_input(4);
-	set_irq_type(gpio_to_irq(4), IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(gpio_to_irq(4), IRQ_TYPE_EDGE_FALLING);
 
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
@@ -500,7 +500,7 @@ static void __init osk_mistral_init(void)
 		int irq = gpio_to_irq(OMAP_MPUIO(2));
 
 		gpio_direction_input(OMAP_MPUIO(2));
-		set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
+		irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
 #ifdef	CONFIG_PM
 		/* share the IRQ in case someone wants to use the
 		 * button for more than wakeup from system sleep.
@@ -588,5 +588,5 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.reserve	= omap_reserve,
 	.init_irq	= osk_init_irq,
 	.init_machine	= osk_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

@@ -263,7 +263,7 @@ static void disable_i2s0_vcxo(void)
 	val = readw(U300_SYSCON_VBASE + U300_SYSCON_CCR);
 	val &= ~U300_SYSCON_CCR_I2S0_USE_VCXO;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
-	/* Deactivate VCXO if noone else is using VCXO */
+	/* Deactivate VCXO if no one else is using VCXO */
 	if (!(val & U300_SYSCON_CCR_I2S1_USE_VCXO))
 		val &= ~U300_SYSCON_CCR_TURN_VCXO_ON;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
@@ -283,7 +283,7 @@ static void disable_i2s1_vcxo(void)
 	val = readw(U300_SYSCON_VBASE + U300_SYSCON_CCR);
 	val &= ~U300_SYSCON_CCR_I2S1_USE_VCXO;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
-	/* Deactivate VCXO if noone else is using VCXO */
+	/* Deactivate VCXO if no one else is using VCXO */
 	if (!(val & U300_SYSCON_CCR_I2S0_USE_VCXO))
 		val &= ~U300_SYSCON_CCR_TURN_VCXO_ON;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
@@ -649,7 +649,7 @@ static unsigned long clk_round_rate_cpuclk(struct clk *clk, unsigned long rate)
  */
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	/* TODO: get apropriate switches for EMIFCLK, AHBCLK and MCLK */
+	/* TODO: get appropriate switches for EMIFCLK, AHBCLK and MCLK */
 	/* Else default to fixed value */
 
 	if (clk->round_rate) {

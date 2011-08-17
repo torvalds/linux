@@ -318,7 +318,7 @@ ccw_device_sense_id_done(struct ccw_device *cdev, int err)
 
 /**
   * ccw_device_notify() - inform the device's driver about an event
-  * @cdev: device for which an event occured
+  * @cdev: device for which an event occurred
   * @event: event that occurred
   *
   * Returns:
@@ -408,9 +408,10 @@ ccw_device_done(struct ccw_device *cdev, int state)
 		CIO_MSG_EVENT(0, "Disconnected device %04x on subchannel "
 			      "%04x\n", cdev->private->dev_id.devno,
 			      sch->schid.sch_no);
-		if (ccw_device_notify(cdev, CIO_NO_PATH) != NOTIFY_OK)
+		if (ccw_device_notify(cdev, CIO_NO_PATH) != NOTIFY_OK) {
+			cdev->private->state = DEV_STATE_NOT_OPER;
 			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
-		else
+		} else
 			ccw_device_set_disconnected(cdev);
 		cdev->private->flags.donotify = 0;
 		break;
@@ -688,7 +689,7 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	    (scsw_stctl(&cdev->private->irb.scsw) & SCSW_STCTL_STATUS_PEND)) {
 		/*
 		 * No final status yet or final status not yet delivered
-		 * to the device driver. Can't do path verfication now,
+		 * to the device driver. Can't do path verification now,
 		 * delay until final status was delivered.
 		 */
 		cdev->private->flags.doverify = 1;
@@ -840,9 +841,6 @@ call_handler:
 static void
 ccw_device_killing_irq(struct ccw_device *cdev, enum dev_event dev_event)
 {
-	struct subchannel *sch;
-
-	sch = to_subchannel(cdev->dev.parent);
 	ccw_device_set_timeout(cdev, 0);
 	/* Start delayed path verification. */
 	ccw_device_online_verify(cdev, 0);

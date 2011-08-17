@@ -23,19 +23,21 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/usb/msm_hsusb.h>
+#include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/memory.h>
 #include <asm/setup.h>
 
 #include <mach/gpio.h>
 #include <mach/board.h>
-#include <mach/memory.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
 
 #include <mach/vreg.h>
 #include "devices.h"
+#include "gpiomux.h"
 #include "proc_comm.h"
 
 extern struct sys_timer msm_timer;
@@ -50,6 +52,27 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 	.phy_init_seq		= hsusb_phy_init_seq,
 	.mode                   = USB_PERIPHERAL,
 	.otg_control		= OTG_PHY_CONTROL,
+};
+
+struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {
+#ifdef CONFIG_SERIAL_MSM_CONSOLE
+	[49] = { /* UART2 RFR */
+		.suspended = GPIOMUX_DRV_2MA | GPIOMUX_PULL_DOWN |
+			     GPIOMUX_FUNC_2 | GPIOMUX_VALID,
+	},
+	[50] = { /* UART2 CTS */
+		.suspended = GPIOMUX_DRV_2MA | GPIOMUX_PULL_DOWN |
+			     GPIOMUX_FUNC_2 | GPIOMUX_VALID,
+	},
+	[51] = { /* UART2 RX */
+		.suspended = GPIOMUX_DRV_2MA | GPIOMUX_PULL_DOWN |
+			     GPIOMUX_FUNC_2 | GPIOMUX_VALID,
+	},
+	[52] = { /* UART2 TX */
+		.suspended = GPIOMUX_DRV_2MA | GPIOMUX_PULL_DOWN |
+			     GPIOMUX_FUNC_2 | GPIOMUX_VALID,
+	},
+#endif
 };
 
 static struct platform_device *devices[] __initdata = {
@@ -83,9 +106,7 @@ static void __init msm7x30_map_io(void)
 }
 
 MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
-#ifdef CONFIG_MSM_DEBUG_UART
-#endif
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
@@ -93,9 +114,7 @@ MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
 MACHINE_END
 
 MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
-#ifdef CONFIG_MSM_DEBUG_UART
-#endif
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
@@ -103,9 +122,7 @@ MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
 MACHINE_END
 
 MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
-#ifdef CONFIG_MSM_DEBUG_UART
-#endif
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,

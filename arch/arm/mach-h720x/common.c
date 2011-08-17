@@ -199,29 +199,29 @@ void __init h720x_init_irq (void)
 
 	/* Initialize global IRQ's, fast path */
 	for (irq = 0; irq < NR_GLBL_IRQS; irq++) {
-		set_irq_chip(irq, &h720x_global_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &h720x_global_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/* Initialize multiplexed IRQ's, slow path */
 	for (irq = IRQ_CHAINED_GPIOA(0) ; irq <= IRQ_CHAINED_GPIOD(31); irq++) {
-		set_irq_chip(irq, &h720x_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &h720x_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
-	set_irq_chained_handler(IRQ_GPIOA, h720x_gpioa_demux_handler);
-	set_irq_chained_handler(IRQ_GPIOB, h720x_gpiob_demux_handler);
-	set_irq_chained_handler(IRQ_GPIOC, h720x_gpioc_demux_handler);
-	set_irq_chained_handler(IRQ_GPIOD, h720x_gpiod_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOA, h720x_gpioa_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOB, h720x_gpiob_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOC, h720x_gpioc_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOD, h720x_gpiod_demux_handler);
 
 #ifdef CONFIG_CPU_H7202
 	for (irq = IRQ_CHAINED_GPIOE(0) ; irq <= IRQ_CHAINED_GPIOE(31); irq++) {
-		set_irq_chip(irq, &h720x_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &h720x_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
-	set_irq_chained_handler(IRQ_GPIOE, h720x_gpioe_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOE, h720x_gpioe_demux_handler);
 #endif
 
 	/* Enable multiplexed irq's */

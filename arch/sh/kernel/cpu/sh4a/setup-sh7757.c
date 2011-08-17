@@ -1,7 +1,7 @@
 /*
  * SH7757 Setup
  *
- * Copyright (C) 2009  Renesas Solutions Corp.
+ * Copyright (C) 2009, 2011  Renesas Solutions Corp.
  *
  *  based on setup-sh7785.c : Copyright (C) 2007  Paul Mundt
  *
@@ -16,6 +16,10 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/sh_timer.h>
+#include <linux/sh_dma.h>
+
+#include <cpu/dma-register.h>
+#include <cpu/sh7757.h>
 
 static struct plat_sci_port scif2_platform_data = {
 	.mapbase	= 0xfe4b0000,		/* SCIF2 */
@@ -124,12 +128,598 @@ static struct platform_device tmu1_device = {
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
 };
 
+static struct resource spi0_resources[] = {
+	[0] = {
+		.start	= 0xfe002000,
+		.end	= 0xfe0020ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 86,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+/* DMA */
+static const struct sh_dmae_slave_config sh7757_dmae0_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_SDHI_TX,
+		.addr		= 0x1fe50030,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc5,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_SDHI_RX,
+		.addr		= 0x1fe50030,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc6,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
+		.addr		= 0x1fcb0034,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd3,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
+		.addr		= 0x1fcb0034,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd7,
+	},
+};
+
+static const struct sh_dmae_slave_config sh7757_dmae1_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF2_TX,
+		.addr		= 0x1f4b000c,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x21,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF2_RX,
+		.addr		= 0x1f4b0014,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x22,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF3_TX,
+		.addr		= 0x1f4c000c,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x29,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF3_RX,
+		.addr		= 0x1f4c0014,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x2a,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF4_TX,
+		.addr		= 0x1f4d000c,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x41,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF4_RX,
+		.addr		= 0x1f4d0014,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x42,
+	},
+};
+
+static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC0_TX,
+		.addr		= 0x1e500012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x21,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC0_RX,
+		.addr		= 0x1e500013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x22,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC1_TX,
+		.addr		= 0x1e510012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x29,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC1_RX,
+		.addr		= 0x1e510013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x2a,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC2_TX,
+		.addr		= 0x1e520012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0xa1,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC2_RX,
+		.addr		= 0x1e520013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0xa2,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC3_TX,
+		.addr		= 0x1e530012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0xa9,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC3_RX,
+		.addr		= 0x1e530013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0xaf,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC4_TX,
+		.addr		= 0x1e540012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0xc5,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC4_RX,
+		.addr		= 0x1e540013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0xc6,
+	},
+};
+
+static const struct sh_dmae_slave_config sh7757_dmae3_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC5_TX,
+		.addr		= 0x1e550012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x21,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC5_RX,
+		.addr		= 0x1e550013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x22,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC6_TX,
+		.addr		= 0x1e560012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x29,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC6_RX,
+		.addr		= 0x1e560013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x2a,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC7_TX,
+		.addr		= 0x1e570012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x41,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC7_RX,
+		.addr		= 0x1e570013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x42,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC8_TX,
+		.addr		= 0x1e580012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x45,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC8_RX,
+		.addr		= 0x1e580013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x46,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC9_TX,
+		.addr		= 0x1e590012,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x51,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RIIC9_RX,
+		.addr		= 0x1e590013,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x52,
+	},
+};
+
+static const struct sh_dmae_channel sh7757_dmae_channels[] = {
+	{
+		.offset = 0,
+		.dmars = 0,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x10,
+		.dmars = 0,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x20,
+		.dmars = 4,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x30,
+		.dmars = 4,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x50,
+		.dmars = 8,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x60,
+		.dmars = 8,
+		.dmars_bit = 8,
+	}
+};
+
+static const unsigned int ts_shift[] = TS_SHIFT;
+
+static struct sh_dmae_pdata dma0_platform_data = {
+	.slave		= sh7757_dmae0_slaves,
+	.slave_num	= ARRAY_SIZE(sh7757_dmae0_slaves),
+	.channel	= sh7757_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7757_dmae_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
+};
+
+static struct sh_dmae_pdata dma1_platform_data = {
+	.slave		= sh7757_dmae1_slaves,
+	.slave_num	= ARRAY_SIZE(sh7757_dmae1_slaves),
+	.channel	= sh7757_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7757_dmae_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
+};
+
+static struct sh_dmae_pdata dma2_platform_data = {
+	.slave		= sh7757_dmae2_slaves,
+	.slave_num	= ARRAY_SIZE(sh7757_dmae2_slaves),
+	.channel	= sh7757_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7757_dmae_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
+};
+
+static struct sh_dmae_pdata dma3_platform_data = {
+	.slave		= sh7757_dmae3_slaves,
+	.slave_num	= ARRAY_SIZE(sh7757_dmae3_slaves),
+	.channel	= sh7757_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7757_dmae_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
+};
+
+/* channel 0 to 5 */
+static struct resource sh7757_dmae0_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xff608020,
+		.end	= 0xff60808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xff609000,
+		.end	= 0xff60900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= 34,
+		.end	= 34,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+};
+
+/* channel 6 to 11 */
+static struct resource sh7757_dmae1_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xff618020,
+		.end	= 0xff61808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xff619000,
+		.end	= 0xff61900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error */
+		.start	= 34,
+		.end	= 34,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 4 */
+		.start	= 46,
+		.end	= 46,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 5 */
+		.start	= 46,
+		.end	= 46,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 6 */
+		.start	= 88,
+		.end	= 88,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 7 */
+		.start	= 88,
+		.end	= 88,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 8 */
+		.start	= 88,
+		.end	= 88,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 9 */
+		.start	= 88,
+		.end	= 88,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 10 */
+		.start	= 88,
+		.end	= 88,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+	{
+		/* IRQ for channels 11 */
+		.start	= 88,
+		.end	= 88,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+};
+
+/* channel 12 to 17 */
+static struct resource sh7757_dmae2_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xff708020,
+		.end	= 0xff70808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xff709000,
+		.end	= 0xff70900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error */
+		.start	= 323,
+		.end	= 323,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 12 to 16 */
+		.start	= 272,
+		.end	= 276,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channel 17 */
+		.start	= 279,
+		.end	= 279,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+/* channel 18 to 23 */
+static struct resource sh7757_dmae3_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xff718020,
+		.end	= 0xff71808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xff719000,
+		.end	= 0xff71900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error */
+		.start	= 324,
+		.end	= 324,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 18 to 22 */
+		.start	= 280,
+		.end	= 284,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channel 23 */
+		.start	= 288,
+		.end	= 288,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dma0_device = {
+	.name           = "sh-dma-engine",
+	.id             = 0,
+	.resource	= sh7757_dmae0_resources,
+	.num_resources	= ARRAY_SIZE(sh7757_dmae0_resources),
+	.dev            = {
+		.platform_data	= &dma0_platform_data,
+	},
+};
+
+static struct platform_device dma1_device = {
+	.name		= "sh-dma-engine",
+	.id		= 1,
+	.resource	= sh7757_dmae1_resources,
+	.num_resources	= ARRAY_SIZE(sh7757_dmae1_resources),
+	.dev		= {
+		.platform_data	= &dma1_platform_data,
+	},
+};
+
+static struct platform_device dma2_device = {
+	.name		= "sh-dma-engine",
+	.id		= 2,
+	.resource	= sh7757_dmae2_resources,
+	.num_resources	= ARRAY_SIZE(sh7757_dmae2_resources),
+	.dev		= {
+		.platform_data	= &dma2_platform_data,
+	},
+};
+
+static struct platform_device dma3_device = {
+	.name		= "sh-dma-engine",
+	.id		= 3,
+	.resource	= sh7757_dmae3_resources,
+	.num_resources	= ARRAY_SIZE(sh7757_dmae3_resources),
+	.dev		= {
+		.platform_data	= &dma3_platform_data,
+	},
+};
+
+static struct platform_device spi0_device = {
+	.name	= "sh_spi",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(spi0_resources),
+	.resource	= spi0_resources,
+};
+
+static struct resource usb_ehci_resources[] = {
+	[0] = {
+		.start	= 0xfe4f1000,
+		.end	= 0xfe4f10ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 57,
+		.end	= 57,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_ehci_device = {
+	.name		= "sh_ehci",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &usb_ehci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ehci_resources),
+	.resource	= usb_ehci_resources,
+};
+
+static struct resource usb_ohci_resources[] = {
+	[0] = {
+		.start	= 0xfe4f1800,
+		.end	= 0xfe4f18ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 57,
+		.end	= 57,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_ohci_device = {
+	.name		= "sh_ohci",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &usb_ohci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
+	.resource	= usb_ohci_resources,
+};
+
 static struct platform_device *sh7757_devices[] __initdata = {
 	&scif2_device,
 	&scif3_device,
 	&scif4_device,
 	&tmu0_device,
 	&tmu1_device,
+	&dma0_device,
+	&dma1_device,
+	&dma2_device,
+	&dma3_device,
+	&spi0_device,
+	&usb_ehci_device,
+	&usb_ohci_device,
 };
 
 static int __init sh7757_devices_setup(void)
@@ -499,13 +1089,13 @@ static DECLARE_INTC_DESC(intc_desc, "sh7757", vectors, groups,
 
 /* Support for external interrupt pins in IRQ mode */
 static struct intc_vect vectors_irq0123[] __initdata = {
-	INTC_VECT(IRQ0, 0x240), INTC_VECT(IRQ1, 0x280),
-	INTC_VECT(IRQ2, 0x2c0), INTC_VECT(IRQ3, 0x300),
+	INTC_VECT(IRQ0, 0x200), INTC_VECT(IRQ1, 0x240),
+	INTC_VECT(IRQ2, 0x280), INTC_VECT(IRQ3, 0x2c0),
 };
 
 static struct intc_vect vectors_irq4567[] __initdata = {
-	INTC_VECT(IRQ4, 0x340), INTC_VECT(IRQ5, 0x380),
-	INTC_VECT(IRQ6, 0x3c0), INTC_VECT(IRQ7, 0x200),
+	INTC_VECT(IRQ4, 0x300), INTC_VECT(IRQ5, 0x340),
+	INTC_VECT(IRQ6, 0x380), INTC_VECT(IRQ7, 0x3c0),
 };
 
 static struct intc_sense_reg sense_registers[] __initdata = {
@@ -539,14 +1129,14 @@ static struct intc_vect vectors_irl0123[] __initdata = {
 };
 
 static struct intc_vect vectors_irl4567[] __initdata = {
-	INTC_VECT(IRL4_LLLL, 0xb00), INTC_VECT(IRL4_LLLH, 0xb20),
-	INTC_VECT(IRL4_LLHL, 0xb40), INTC_VECT(IRL4_LLHH, 0xb60),
-	INTC_VECT(IRL4_LHLL, 0xb80), INTC_VECT(IRL4_LHLH, 0xba0),
-	INTC_VECT(IRL4_LHHL, 0xbc0), INTC_VECT(IRL4_LHHH, 0xbe0),
-	INTC_VECT(IRL4_HLLL, 0xc00), INTC_VECT(IRL4_HLLH, 0xc20),
-	INTC_VECT(IRL4_HLHL, 0xc40), INTC_VECT(IRL4_HLHH, 0xc60),
-	INTC_VECT(IRL4_HHLL, 0xc80), INTC_VECT(IRL4_HHLH, 0xca0),
-	INTC_VECT(IRL4_HHHL, 0xcc0),
+	INTC_VECT(IRL4_LLLL, 0x200), INTC_VECT(IRL4_LLLH, 0x220),
+	INTC_VECT(IRL4_LLHL, 0x240), INTC_VECT(IRL4_LLHH, 0x260),
+	INTC_VECT(IRL4_LHLL, 0x280), INTC_VECT(IRL4_LHLH, 0x2a0),
+	INTC_VECT(IRL4_LHHL, 0x2c0), INTC_VECT(IRL4_LHHH, 0x2e0),
+	INTC_VECT(IRL4_HLLL, 0x300), INTC_VECT(IRL4_HLLH, 0x320),
+	INTC_VECT(IRL4_HLHL, 0x340), INTC_VECT(IRL4_HLHH, 0x360),
+	INTC_VECT(IRL4_HHLL, 0x380), INTC_VECT(IRL4_HHLH, 0x3a0),
+	INTC_VECT(IRL4_HHHL, 0x3c0),
 };
 
 static DECLARE_INTC_DESC(intc_desc_irl0123, "sh7757-irl0123", vectors_irl0123,

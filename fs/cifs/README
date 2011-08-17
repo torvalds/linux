@@ -457,6 +457,9 @@ A partial list of the supported mount options follows:
 		otherwise - read from the server. All written data are stored
 		in the cache, but if the client doesn't have Exclusive Oplock,
 		it writes the data to the server.
+  rwpidforward  Forward pid of a process who opened a file to any read or write
+		operation on that file. This prevent applications like WINE
+		from failing on read and write if we use mandatory brlock style.
   acl   	Allow setfacl and getfacl to manage posix ACLs if server
 		supports them.  (default)
   noacl 	Do not allow setfacl and getfacl calls on this mount
@@ -685,22 +688,6 @@ LinuxExtensionsEnabled	If set to one then the client will attempt to
 			support and want to map the uid and gid fields 
 			to values supplied at mount (rather than the 
 			actual values, then set this to zero. (default 1)
-Experimental            When set to 1 used to enable certain experimental
-			features (currently enables multipage writes
-			when signing is enabled, the multipage write
-			performance enhancement was disabled when
-			signing turned on in case buffer was modified
-			just before it was sent, also this flag will
-			be used to use the new experimental directory change 
-			notification code).  When set to 2 enables
-			an additional experimental feature, "raw ntlmssp"
-			session establishment support (which allows
-			specifying "sec=ntlmssp" on mount). The Linux cifs
-			module will use ntlmv2 authentication encapsulated
-			in "raw ntlmssp" (not using SPNEGO) when
-			"sec=ntlmssp" is specified on mount.
-			This support also requires building cifs with
-			the CONFIG_CIFS_EXPERIMENTAL configuration flag.
 
 These experimental features and tracing can be enabled by changing flags in 
 /proc/fs/cifs (after the cifs module has been installed or built into the 
@@ -719,18 +706,6 @@ and setting it to seven enables all three.  Finally, tracing
 the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
-
-Two other experimental features are under development. To test these
-requires enabling CONFIG_CIFS_EXPERIMENTAL
-
-	cifsacl support needed to retrieve approximated mode bits based on
-		the contents on the CIFS ACL.
-
-	lease support: cifs will check the oplock state before calling into
-	the vfs to see if we can grant a lease on a file.
-
-	DNOTIFY fcntl: needed for support of directory change 
-			    notification and perhaps later for file leases)
 
 Per share (per client mount) statistics are available in /proc/fs/cifs/Stats
 if the kernel was configured with cifs statistics enabled.  The statistics

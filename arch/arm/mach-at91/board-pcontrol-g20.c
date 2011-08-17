@@ -37,9 +37,9 @@
 #include "generic.h"
 
 
-static void __init pcontrol_g20_map_io(void)
+static void __init pcontrol_g20_init_early(void)
 {
-	stamp9g20_map_io();
+	stamp9g20_init_early();
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) piggyback  A2 */
 	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS
@@ -52,13 +52,6 @@ static void __init pcontrol_g20_map_io(void)
 	/* USART2 on ttyS3. (Rx, Tx)  9bit-Bus  Multidrop-mode  X4 */
 	at91_register_uart(AT91SAM9260_ID_US4, 3, 0);
 }
-
-
-static void __init init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
 
 static struct sam9_smc_config __initdata pcontrol_smc_config[2] = { {
 	.ncs_read_setup		= 16,
@@ -222,9 +215,9 @@ static void __init pcontrol_g20_board_init(void)
 
 MACHINE_START(PCONTROL_G20, "PControl G20")
 	/* Maintainer: pgsellmann@portner-elektronik.at */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= pcontrol_g20_map_io,
-	.init_irq	= init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= pcontrol_g20_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= pcontrol_g20_board_init,
 MACHINE_END

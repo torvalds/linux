@@ -1,7 +1,7 @@
 /*
  * bnx2i_iscsi.c: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2010 Broadcom Corporation
+ * Copyright (c) 2006 - 2011 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -27,6 +27,7 @@ static struct scsi_host_template bnx2i_host_template;
  */
 static DEFINE_SPINLOCK(bnx2i_resc_lock); /* protects global resources */
 
+DECLARE_PER_CPU(struct bnx2i_percpu_s, bnx2i_percpu);
 
 static int bnx2i_adapter_ready(struct bnx2i_hba *hba)
 {
@@ -379,6 +380,7 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 {
 	struct iscsi_endpoint *ep;
 	struct bnx2i_endpoint *bnx2i_ep;
+	u32 ec_div;
 
 	ep = iscsi_create_endpoint(sizeof(*bnx2i_ep));
 	if (!ep) {
@@ -393,6 +395,11 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 	bnx2i_ep->ep_iscsi_cid = (u16) -1;
 	bnx2i_ep->hba = hba;
 	bnx2i_ep->hba_age = hba->age;
+
+	ec_div = event_coal_div;
+	while (ec_div >>= 1)
+		bnx2i_ep->ec_shift += 1;
+
 	hba->ofld_conns_active++;
 	init_waitqueue_head(&bnx2i_ep->ofld_wait);
 	return ep;
@@ -858,7 +865,7 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	mutex_init(&hba->net_dev_lock);
 	init_waitqueue_head(&hba->eh_wait);
 	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type)) {
-		hba->hba_shutdown_tmo = 20 * HZ;
+		hba->hba_shutdown_tmo = 30 * HZ;
 		hba->conn_teardown_tmo = 20 * HZ;
 		hba->conn_ctx_destroy_tmo = 6 * HZ;
 	} else {	/* 5706/5708/5709 */
@@ -1092,6 +1099,9 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 	case ISCSI_OP_SCSI_TMFUNC:
 		rc = bnx2i_send_iscsi_tmf(bnx2i_conn, task);
 		break;
+	case ISCSI_OP_TEXT:
+		rc = bnx2i_send_iscsi_text(bnx2i_conn, task);
+		break;
 	default:
 		iscsi_conn_printk(KERN_ALERT, bnx2i_conn->cls_conn->dd_data,
 				  "send_gen: unsupported op 0x%x\n",
@@ -1203,7 +1213,11 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
 	struct scsi_cmnd *sc = task->sc;
 	struct bnx2i_cmd *cmd = task->dd_data;
-	struct iscsi_cmd *hdr = (struct iscsi_cmd *) task->hdr;
+	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
+
+	if (atomic_read(&bnx2i_conn->ep->num_active_cmds) + 1  >
+	    hba->max_sqes)
+		return -ENOMEM;
 
 	/*
 	 * If there is no scsi_cmnd this must be a mgmt task
@@ -1342,6 +1356,9 @@ bnx2i_conn_create(struct iscsi_cls_session *cls_session, uint32_t cid)
 	bnx2i_conn = conn->dd_data;
 	bnx2i_conn->cls_conn = cls_conn;
 	bnx2i_conn->hba = hba;
+
+	atomic_set(&bnx2i_conn->work_cnt, 0);
+
 	/* 'ep' ptr will be assigned in bind() call */
 	bnx2i_conn->ep = NULL;
 	init_completion(&bnx2i_conn->cmd_cleanup_cmpl);
@@ -1445,52 +1462,73 @@ static void bnx2i_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
 	struct Scsi_Host *shost;
 	struct bnx2i_hba *hba;
+	struct bnx2i_work *work, *tmp;
+	unsigned cpu = 0;
+	struct bnx2i_percpu_s *p;
 
 	shost = iscsi_session_to_shost(iscsi_conn_to_session(cls_conn));
 	hba = iscsi_host_priv(shost);
 
 	bnx2i_conn_free_login_resources(hba, bnx2i_conn);
+
+	if (atomic_read(&bnx2i_conn->work_cnt)) {
+		for_each_online_cpu(cpu) {
+			p = &per_cpu(bnx2i_percpu, cpu);
+			spin_lock_bh(&p->p_work_lock);
+			list_for_each_entry_safe(work, tmp,
+						 &p->work_list, list) {
+				if (work->session == conn->session &&
+				    work->bnx2i_conn == bnx2i_conn) {
+					list_del_init(&work->list);
+					kfree(work);
+					if (!atomic_dec_and_test(
+							&bnx2i_conn->work_cnt))
+						break;
+				}
+			}
+			spin_unlock_bh(&p->p_work_lock);
+		}
+	}
+
 	iscsi_conn_teardown(cls_conn);
 }
 
 
 /**
- * bnx2i_conn_get_param - return iscsi connection parameter to caller
- * @cls_conn:	pointer to iscsi cls conn
+ * bnx2i_ep_get_param - return iscsi ep parameter to caller
+ * @ep:		pointer to iscsi endpoint
  * @param:	parameter type identifier
  * @buf: 	buffer pointer
  *
- * returns iSCSI connection parameters
+ * returns iSCSI ep parameters
  */
-static int bnx2i_conn_get_param(struct iscsi_cls_conn *cls_conn,
-				enum iscsi_param param, char *buf)
+static int bnx2i_ep_get_param(struct iscsi_endpoint *ep,
+			      enum iscsi_param param, char *buf)
 {
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
-	int len = 0;
+	struct bnx2i_endpoint *bnx2i_ep = ep->dd_data;
+	struct bnx2i_hba *hba = bnx2i_ep->hba;
+	int len = -ENOTCONN;
 
-	if (!(bnx2i_conn && bnx2i_conn->ep && bnx2i_conn->ep->hba))
-		goto out;
+	if (!hba)
+		return -ENOTCONN;
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
-		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
-		if (bnx2i_conn->ep->cm_sk)
-			len = sprintf(buf, "%hu\n",
-				      bnx2i_conn->ep->cm_sk->dst_port);
-		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
+		mutex_lock(&hba->net_dev_lock);
+		if (bnx2i_ep->cm_sk)
+			len = sprintf(buf, "%hu\n", bnx2i_ep->cm_sk->dst_port);
+		mutex_unlock(&hba->net_dev_lock);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
-		if (bnx2i_conn->ep->cm_sk)
-			len = sprintf(buf, "%pI4\n",
-				      &bnx2i_conn->ep->cm_sk->dst_ip);
-		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
+		mutex_lock(&hba->net_dev_lock);
+		if (bnx2i_ep->cm_sk)
+			len = sprintf(buf, "%pI4\n", &bnx2i_ep->cm_sk->dst_ip);
+		mutex_unlock(&hba->net_dev_lock);
 		break;
 	default:
-		return iscsi_conn_get_param(cls_conn, param, buf);
+		return -ENOSYS;
 	}
-out:
+
 	return len;
 }
 
@@ -1759,7 +1797,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	}
 	bnx2i_ep = ep->dd_data;
 
-	bnx2i_ep->num_active_cmds = 0;
+	atomic_set(&bnx2i_ep->num_active_cmds, 0);
 	iscsi_cid = bnx2i_alloc_iscsi_cid(hba);
 	if (iscsi_cid == -1) {
 		printk(KERN_ALERT "bnx2i (%s): alloc_ep - unable to allocate "
@@ -1935,13 +1973,13 @@ static int bnx2i_ep_tcp_conn_active(struct bnx2i_endpoint *bnx2i_ep)
 		cnic_dev_10g = 1;
 
 	switch (bnx2i_ep->state) {
-	case EP_STATE_CONNECT_FAILED:
 	case EP_STATE_CLEANUP_FAILED:
 	case EP_STATE_OFLD_FAILED:
 	case EP_STATE_DISCONN_TIMEDOUT:
 		ret = 0;
 		break;
 	case EP_STATE_CONNECT_START:
+	case EP_STATE_CONNECT_FAILED:
 	case EP_STATE_CONNECT_COMPL:
 	case EP_STATE_ULP_UPDATE_START:
 	case EP_STATE_ULP_UPDATE_COMPL:
@@ -2153,9 +2191,9 @@ static struct scsi_host_template bnx2i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.change_queue_depth	= iscsi_change_queue_depth,
-	.can_queue		= 1024,
+	.can_queue		= 2048,
 	.max_sectors		= 127,
-	.cmd_per_lun		= 32,
+	.cmd_per_lun		= 128,
 	.this_id		= -1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= ISCSI_MAX_BDS_PER_CMD,
@@ -2167,7 +2205,8 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.name			= "bnx2i",
 	.caps			= CAP_RECOVERY_L0 | CAP_HDRDGST |
 				  CAP_MULTI_R2T | CAP_DATADGST |
-				  CAP_DATA_PATH_OFFLOAD,
+				  CAP_DATA_PATH_OFFLOAD |
+				  CAP_TEXT_NEGO,
 	.param_mask		= ISCSI_MAX_RECV_DLENGTH |
 				  ISCSI_MAX_XMIT_DLENGTH |
 				  ISCSI_HDRDGST_EN |
@@ -2200,7 +2239,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.bind_conn		= bnx2i_conn_bind,
 	.destroy_conn		= bnx2i_conn_destroy,
 	.set_param		= iscsi_set_param,
-	.get_conn_param		= bnx2i_conn_get_param,
+	.get_conn_param		= iscsi_conn_get_param,
 	.get_session_param	= iscsi_session_get_param,
 	.get_host_param		= bnx2i_host_get_param,
 	.start_conn		= bnx2i_conn_start,
@@ -2209,6 +2248,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.xmit_task		= bnx2i_task_xmit,
 	.get_stats		= bnx2i_conn_get_stats,
 	/* TCP connect - disconnect - option-2 interface calls */
+	.get_ep_param		= bnx2i_ep_get_param,
 	.ep_connect		= bnx2i_ep_connect,
 	.ep_poll		= bnx2i_ep_poll,
 	.ep_disconnect		= bnx2i_ep_disconnect,

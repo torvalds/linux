@@ -34,17 +34,6 @@
 #include "page.h"
 #include "btnode.h"
 
-
-static const struct address_space_operations def_btnode_aops = {
-	.sync_page		= block_sync_page,
-};
-
-void nilfs_btnode_cache_init(struct address_space *btnc,
-			     struct backing_dev_info *bdi)
-{
-	nilfs_mapping_init(btnc, bdi, &def_btnode_aops);
-}
-
 void nilfs_btnode_cache_clear(struct address_space *btnc)
 {
 	invalidate_mapping_pages(btnc, 0, -1);
@@ -67,7 +56,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 		BUG();
 	}
 	memset(bh->b_data, 0, 1 << inode->i_blkbits);
-	bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+	bh->b_bdev = inode->i_sb->s_bdev;
 	bh->b_blocknr = blocknr;
 	set_buffer_mapped(bh);
 	set_buffer_uptodate(bh);
@@ -99,10 +88,11 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	if (pblocknr == 0) {
 		pblocknr = blocknr;
 		if (inode->i_ino != NILFS_DAT_INO) {
-			struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
+			struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 
 			/* blocknr is a virtual block number */
-			err = nilfs_dat_translate(dat, blocknr, &pblocknr);
+			err = nilfs_dat_translate(nilfs->ns_dat, blocknr,
+						  &pblocknr);
 			if (unlikely(err)) {
 				brelse(bh);
 				goto out_locked;
@@ -125,7 +115,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 		goto found;
 	}
 	set_buffer_mapped(bh);
-	bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+	bh->b_bdev = inode->i_sb->s_bdev;
 	bh->b_blocknr = pblocknr; /* set block address for read */
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
@@ -264,7 +254,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
-		nilfs_btnode_mark_dirty(obh);
+		mark_buffer_dirty(obh);
 
 		spin_lock_irq(&btnc->tree_lock);
 		radix_tree_delete(&btnc->page_tree, oldkey);
@@ -276,7 +266,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 		unlock_page(opage);
 	} else {
 		nilfs_copy_buffer(nbh, obh);
-		nilfs_btnode_mark_dirty(nbh);
+		mark_buffer_dirty(nbh);
 
 		nbh->b_blocknr = newkey;
 		ctxt->bh = nbh;

@@ -129,7 +129,7 @@ struct neofb_par {
 	unsigned char CRTC[25];		/* Crtc Controller */
 	unsigned char Sequencer[5];	/* Video Sequencer */
 	unsigned char Graphics[9];	/* Video Graphics */
-	unsigned char Attribute[21];	/* Video Atribute */
+	unsigned char Attribute[21];	/* Video Attribute */
 
 	unsigned char GeneralLockReg;
 	unsigned char ExtCRTDispAddr;

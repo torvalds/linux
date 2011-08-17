@@ -4,18 +4,18 @@
 
 menuconfig IIO
 	tristate "Industrial I/O support"
-	depends on !S390
-	---help---
+	depends on GENERIC_HARDIRQS
+	help
 	  The industrial I/O subsystem provides a unified framework for
 	  drivers for many different types of embedded sensors using a
 	  number of different physical interfaces (i2c, spi, etc). See
-	  Documentation/industrialio for more information.
+	  drivers/staging/iio/Documentation for more information.
 if IIO
 
 config IIO_RING_BUFFER
-	bool "Enable ring buffer support within IIO"
+	bool "Enable buffer support within IIO"
 	help
-	  Provide core support for various ring buffer based data
+	  Provide core support for various buffer based data
 	  acquisition methods.
 
 if IIO_RING_BUFFER
@@ -29,6 +29,15 @@ config IIO_SW_RING
 	  with the intention that some devices would be able to write
 	  in interrupt context.
 
+config IIO_KFIFO_BUF
+	select IIO_TRIGGER
+	tristate "Industrial I/O buffering based on kfifo"
+	help
+	  A simple fifo based on kfifo.  Use this if you want a fifo
+	  rather than a ring buffer. Note that this currently provides
+	  no buffer events so it is up to userspace to work out how
+	  often to read from the buffer.
+
 endif # IIO_RINGBUFFER
 
 config IIO_TRIGGER
@@ -39,6 +48,13 @@ config IIO_TRIGGER
 	  ring buffers.  The triggers are effectively a 'capture
 	  data now' interrupt.
 
+config IIO_CONSUMERS_PER_TRIGGER
+       int "Maximum number of consumers per trigger"
+       depends on IIO_TRIGGER
+       default "2"
+       help
+	This value controls the maximum number of consumers that a
+	given trigger may handle. Default is 2.
 
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"

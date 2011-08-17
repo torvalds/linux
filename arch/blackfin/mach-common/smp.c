@@ -23,8 +23,9 @@
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cacheflush.h>
+#include <asm/irq_handler.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -40,9 +41,11 @@
  */
 struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 
-void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
-	*init_saved_seqstat_coreb, *init_saved_icplb_fault_addr_coreb,
-	*init_saved_dcplb_fault_addr_coreb;
+#ifdef CONFIG_ICACHE_FLUSH_L1
+unsigned long blackfin_iflush_l1_entry[NR_CPUS];
+#endif
+
+struct blackfin_initial_pda __cpuinitdata initial_pda_coreb;
 
 #define BFIN_IPI_RESCHEDULE   0
 #define BFIN_IPI_CALL_FUNC    1
@@ -92,7 +95,7 @@ static void ipi_cpu_stop(unsigned int cpu)
 	dump_stack();
 	spin_unlock(&stop_lock);
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	local_irq_disable();
 
@@ -108,6 +111,19 @@ static void ipi_flush_icache(void *info)
 	blackfin_dcache_invalidate_range((unsigned long)fdata,
 					 (unsigned long)fdata + sizeof(*fdata));
 
+	/* Make sure all write buffers in the data side of the core
+	 * are flushed before trying to invalidate the icache.  This
+	 * needs to be after the data flush and before the icache
+	 * flush so that the SSYNC does the right thing in preventing
+	 * the instruction prefetcher from hitting things in cached
+	 * memory at the wrong time -- it runs much further ahead than
+	 * the pipeline.
+	 */
+	SSYNC();
+
+	/* ipi_flaush_icache is invoked by generic flush_icache_range,
+	 * so call blackfin arch icache flush directly here.
+	 */
 	blackfin_icache_flush_range(fdata->start, fdata->end);
 }
 
@@ -129,7 +145,7 @@ static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)
 		 */
 		resync_core_dcache();
 #endif
-		cpu_clear(cpu, *msg->call_struct.waitmask);
+		cpumask_clear_cpu(cpu, msg->call_struct.waitmask);
 	}
 }
 
@@ -160,6 +176,9 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	while (msg_queue->count) {
 		msg = &msg_queue->ipi_message[msg_queue->head];
 		switch (msg->type) {
+		case BFIN_IPI_RESCHEDULE:
+			scheduler_ipi();
+			break;
 		case BFIN_IPI_CALL_FUNC:
 			spin_unlock_irqrestore(&msg_queue->lock, flags);
 			ipi_call_function(cpu, msg);
@@ -202,9 +221,10 @@ static inline void smp_send_message(cpumask_t callmap, unsigned long type,
 	struct ipi_message_queue *msg_queue;
 	struct ipi_message *msg;
 	unsigned long flags, next_msg;
-	cpumask_t waitmask = callmap; /* waitmask is shared by all cpus */
+	cpumask_t waitmask; /* waitmask is shared by all cpus */
 
-	for_each_cpu_mask(cpu, callmap) {
+	cpumask_copy(&waitmask, &callmap);
+	for_each_cpu(cpu, &callmap) {
 		msg_queue = &per_cpu(ipi_msg_queue, cpu);
 		spin_lock_irqsave(&msg_queue->lock, flags);
 		if (msg_queue->count < BFIN_IPI_MSGQ_LEN) {
@@ -226,7 +246,7 @@ static inline void smp_send_message(cpumask_t callmap, unsigned long type,
 	}
 
 	if (wait) {
-		while (!cpus_empty(waitmask))
+		while (!cpumask_empty(&waitmask))
 			blackfin_dcache_invalidate_range(
 				(unsigned long)(&waitmask),
 				(unsigned long)(&waitmask));
@@ -244,12 +264,13 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 {
 	cpumask_t callmap;
 
-	callmap = cpu_online_map;
-	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		return 0;
+	preempt_disable();
+	cpumask_copy(&callmap, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &callmap);
+	if (!cpumask_empty(&callmap))
+		smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
 
-	smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
+	preempt_enable();
 
 	return 0;
 }
@@ -263,8 +284,8 @@ int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
 
 	if (cpu_is_offline(cpu))
 		return 0;
-	cpus_clear(callmap);
-	cpu_set(cpu, callmap);
+	cpumask_clear(&callmap);
+	cpumask_set_cpu(cpu, &callmap);
 
 	smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
 
@@ -286,12 +307,13 @@ void smp_send_stop(void)
 {
 	cpumask_t callmap;
 
-	callmap = cpu_online_map;
-	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		return;
+	preempt_disable();
+	cpumask_copy(&callmap, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &callmap);
+	if (!cpumask_empty(&callmap))
+		smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
 
-	smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
+	preempt_enable();
 
 	return;
 }
@@ -345,13 +367,16 @@ void __cpuinit secondary_start_kernel(void)
 	if (_bfin_swrst & SWRST_DBL_FAULT_B) {
 		printk(KERN_EMERG "CoreB Recovering from DOUBLE FAULT event\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
-		printk(KERN_EMERG " While handling exception (EXCAUSE = 0x%x) at %pF\n",
-			(int)init_saved_seqstat_coreb & SEQSTAT_EXCAUSE, init_saved_retx_coreb);
-		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n", init_saved_dcplb_fault_addr_coreb);
-		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n", init_saved_icplb_fault_addr_coreb);
+		printk(KERN_EMERG " While handling exception (EXCAUSE = %#x) at %pF\n",
+			initial_pda_coreb.seqstat_doublefault & SEQSTAT_EXCAUSE,
+			initial_pda_coreb.retx_doublefault);
+		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n",
+			initial_pda_coreb.dcplb_doublefault_addr);
+		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n",
+			initial_pda_coreb.icplb_doublefault_addr);
 #endif
 		printk(KERN_NOTICE " The instruction at %pF caused a double exception\n",
-			init_retx_coreb);
+			initial_pda_coreb.retx);
 	}
 
 	/*
@@ -360,8 +385,6 @@ void __cpuinit secondary_start_kernel(void)
 	 * __ARCH_SYNC_CORE_DCACHE).
 	 */
 	init_exception_vectors();
-
-	bfin_setup_caches(cpu);
 
 	local_irq_disable();
 
@@ -380,6 +403,8 @@ void __cpuinit secondary_start_kernel(void)
 	bfin_local_timer_setup();
 
 	local_irq_enable();
+
+	bfin_setup_caches(cpu);
 
 	/*
 	 * Calibrate loops per jiffy value.

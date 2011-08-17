@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/pm.h>
 #include <linux/memblock.h>
+#include <linux/cpuidle.h>
 
 #include <asm/elf.h>
 #include <asm/vdso.h>
@@ -50,8 +51,10 @@ phys_addr_t xen_extra_mem_start, xen_extra_mem_size;
  */
 #define EXTRA_MEM_RATIO		(10)
 
-static __init void xen_add_extra_mem(unsigned long pages)
+static void __init xen_add_extra_mem(unsigned long pages)
 {
+	unsigned long pfn;
+
 	u64 size = (u64)pages * PAGE_SIZE;
 	u64 extra_start = xen_extra_mem_start + xen_extra_mem_size;
 
@@ -66,6 +69,9 @@ static __init void xen_add_extra_mem(unsigned long pages)
 	xen_extra_mem_size += size;
 
 	xen_max_p2m_pfn = PFN_DOWN(extra_start + size);
+
+	for (pfn = PFN_DOWN(extra_start); pfn <= xen_max_p2m_pfn; pfn++)
+		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 }
 
 static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
@@ -87,8 +93,6 @@ static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
 	if (end <= start)
 		return 0;
 
-	printk(KERN_INFO "xen_release_chunk: looking at area pfn %lx-%lx: ",
-	       start, end);
 	for(pfn = start; pfn < end; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
 
@@ -101,14 +105,14 @@ static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
 
 		ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
 					   &reservation);
-		WARN(ret != 1, "Failed to release memory %lx-%lx err=%d\n",
-		     start, end, ret);
+		WARN(ret != 1, "Failed to release pfn %lx err=%d\n", pfn, ret);
 		if (ret == 1) {
-			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+			__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 			len++;
 		}
 	}
-	printk(KERN_CONT "%ld pages freed\n", len);
+	printk(KERN_INFO "Freeing  %lx-%lx pfn range: %lu pages freed\n",
+	       start, end, len);
 
 	return len;
 }
@@ -134,16 +138,59 @@ static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
 	if (last_end < max_addr)
 		released += xen_release_chunk(last_end, max_addr);
 
-	printk(KERN_INFO "released %ld pages of unused memory\n", released);
+	printk(KERN_INFO "released %lu pages of unused memory\n", released);
 	return released;
 }
 
+static unsigned long __init xen_set_identity(const struct e820entry *list,
+					     ssize_t map_size)
+{
+	phys_addr_t last = xen_initial_domain() ? 0 : ISA_END_ADDRESS;
+	phys_addr_t start_pci = last;
+	const struct e820entry *entry;
+	unsigned long identity = 0;
+	int i;
+
+	for (i = 0, entry = list; i < map_size; i++, entry++) {
+		phys_addr_t start = entry->addr;
+		phys_addr_t end = start + entry->size;
+
+		if (start < last)
+			start = last;
+
+		if (end <= start)
+			continue;
+
+		/* Skip over the 1MB region. */
+		if (last > end)
+			continue;
+
+		if ((entry->type == E820_RAM) || (entry->type == E820_UNUSABLE)) {
+			if (start > start_pci)
+				identity += set_phys_range_identity(
+						PFN_UP(start_pci), PFN_DOWN(start));
+
+			/* Without saving 'last' we would gooble RAM too
+			 * at the end of the loop. */
+			last = end;
+			start_pci = end;
+			continue;
+		}
+		start_pci = min(start, start_pci);
+		last = end;
+	}
+	if (last > start_pci)
+		identity += set_phys_range_identity(
+					PFN_UP(start_pci), PFN_DOWN(last));
+	return identity;
+}
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
 char * __init xen_memory_setup(void)
 {
 	static struct e820entry map[E820MAX] __initdata;
+	static struct e820entry map_raw[E820MAX] __initdata;
 
 	unsigned long max_pfn = xen_start_info->nr_pages;
 	unsigned long long mem_end;
@@ -151,6 +198,7 @@ char * __init xen_memory_setup(void)
 	struct xen_memory_map memmap;
 	unsigned long extra_pages = 0;
 	unsigned long extra_limit;
+	unsigned long identity_pages = 0;
 	int i;
 	int op;
 
@@ -176,6 +224,7 @@ char * __init xen_memory_setup(void)
 	}
 	BUG_ON(rc);
 
+	memcpy(map_raw, map, sizeof(map));
 	e820.nr_map = 0;
 	xen_extra_mem_start = mem_end;
 	for (i = 0; i < memmap.nr_entries; i++) {
@@ -194,6 +243,15 @@ char * __init xen_memory_setup(void)
 			end -= delta;
 
 			extra_pages += PFN_DOWN(delta);
+			/*
+			 * Set RAM below 4GB that is not for us to be unusable.
+			 * This prevents "System RAM" address space from being
+			 * used as potential resource for I/O address (happens
+			 * when 'allocate_resource' is called).
+			 */
+			if (delta &&
+				(xen_initial_domain() && end < 0x100000000ULL))
+				e820_add_region(end, delta, E820_UNUSABLE);
 		}
 
 		if (map[i].size > 0 && end > xen_extra_mem_start)
@@ -203,6 +261,12 @@ char * __init xen_memory_setup(void)
 		if (map[i].size > 0)
 			e820_add_region(map[i].addr, map[i].size, map[i].type);
 	}
+	/* Align the balloon area so that max_low_pfn does not get set
+	 * to be at the _end_ of the PCI gap at the far end (fee01000).
+	 * Note that xen_extra_mem_start gets set in the loop above to be
+	 * past the last E820 region. */
+	if (xen_initial_domain() && (xen_extra_mem_start < (1ULL<<32)))
+		xen_extra_mem_start = (1ULL<<32);
 
 	/*
 	 * In domU, the ISA region is normal, usable memory, but we
@@ -251,6 +315,13 @@ char * __init xen_memory_setup(void)
 
 	xen_add_extra_mem(extra_pages);
 
+	/*
+	 * Set P2M for all non-RAM pages and E820 gaps to be identity
+	 * type PFNs. We supply it with the non-sanitized version
+	 * of the E820.
+	 */
+	identity_pages = xen_set_identity(map_raw, memmap.nr_entries);
+	printk(KERN_INFO "Set %ld page(s) to 1-1 mapping.\n", identity_pages);
 	return "Xen";
 }
 
@@ -270,7 +341,7 @@ static void __init fiddle_vdso(void)
 #endif
 }
 
-static __cpuinit int register_callback(unsigned type, const void *func)
+static int __cpuinit register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
 		.type = type,
@@ -354,7 +425,7 @@ void __init xen_arch_setup(void)
 #ifdef CONFIG_X86_32
 	boot_cpu_data.hlt_works_ok = 1;
 #endif
-	pm_idle = default_idle;
+	disable_cpuidle();
 	boot_option_idle_override = IDLE_HALT;
 
 	fiddle_vdso();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -53,6 +53,138 @@ int get_hw_qnum(u16 queue, int *hwq_map)
 	}
 }
 
+void ath9k_htc_check_stop_queues(struct ath9k_htc_priv *priv)
+{
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.queued_cnt++;
+	if ((priv->tx.queued_cnt >= ATH9K_HTC_TX_THRESHOLD) &&
+	    !(priv->tx.flags & ATH9K_HTC_OP_TX_QUEUES_STOP)) {
+		priv->tx.flags |= ATH9K_HTC_OP_TX_QUEUES_STOP;
+		ieee80211_stop_queues(priv->hw);
+	}
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
+void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv)
+{
+	spin_lock_bh(&priv->tx.tx_lock);
+	if ((priv->tx.queued_cnt < ATH9K_HTC_TX_THRESHOLD) &&
+	    (priv->tx.flags & ATH9K_HTC_OP_TX_QUEUES_STOP)) {
+		priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
+		ieee80211_wake_queues(priv->hw);
+	}
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
+int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv)
+{
+	int slot;
+
+	spin_lock_bh(&priv->tx.tx_lock);
+	slot = find_first_zero_bit(priv->tx.tx_slot, MAX_TX_BUF_NUM);
+	if (slot >= MAX_TX_BUF_NUM) {
+		spin_unlock_bh(&priv->tx.tx_lock);
+		return -ENOBUFS;
+	}
+	__set_bit(slot, priv->tx.tx_slot);
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	return slot;
+}
+
+void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot)
+{
+	spin_lock_bh(&priv->tx.tx_lock);
+	__clear_bit(slot, priv->tx.tx_slot);
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
+static inline enum htc_endpoint_id get_htc_epid(struct ath9k_htc_priv *priv,
+						u16 qnum)
+{
+	enum htc_endpoint_id epid;
+
+	switch (qnum) {
+	case 0:
+		TX_QSTAT_INC(WME_AC_VO);
+		epid = priv->data_vo_ep;
+		break;
+	case 1:
+		TX_QSTAT_INC(WME_AC_VI);
+		epid = priv->data_vi_ep;
+		break;
+	case 2:
+		TX_QSTAT_INC(WME_AC_BE);
+		epid = priv->data_be_ep;
+		break;
+	case 3:
+	default:
+		TX_QSTAT_INC(WME_AC_BK);
+		epid = priv->data_bk_ep;
+		break;
+	}
+
+	return epid;
+}
+
+static inline struct sk_buff_head*
+get_htc_epid_queue(struct ath9k_htc_priv *priv, u8 epid)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct sk_buff_head *epid_queue = NULL;
+
+	if (epid == priv->mgmt_ep)
+		epid_queue = &priv->tx.mgmt_ep_queue;
+	else if (epid == priv->cab_ep)
+		epid_queue = &priv->tx.cab_ep_queue;
+	else if (epid == priv->data_be_ep)
+		epid_queue = &priv->tx.data_be_queue;
+	else if (epid == priv->data_bk_ep)
+		epid_queue = &priv->tx.data_bk_queue;
+	else if (epid == priv->data_vi_ep)
+		epid_queue = &priv->tx.data_vi_queue;
+	else if (epid == priv->data_vo_ep)
+		epid_queue = &priv->tx.data_vo_queue;
+	else
+		ath_err(common, "Invalid EPID: %d\n", epid);
+
+	return epid_queue;
+}
+
+/*
+ * Removes the driver header and returns the TX slot number
+ */
+static inline int strip_drv_header(struct ath9k_htc_priv *priv,
+				   struct sk_buff *skb)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	int slot;
+
+	tx_ctl = HTC_SKB_CB(skb);
+
+	if (tx_ctl->epid == priv->mgmt_ep) {
+		struct tx_mgmt_hdr *tx_mhdr =
+			(struct tx_mgmt_hdr *)skb->data;
+		slot = tx_mhdr->cookie;
+		skb_pull(skb, sizeof(struct tx_mgmt_hdr));
+	} else if ((tx_ctl->epid == priv->data_bk_ep) ||
+		   (tx_ctl->epid == priv->data_be_ep) ||
+		   (tx_ctl->epid == priv->data_vi_ep) ||
+		   (tx_ctl->epid == priv->data_vo_ep) ||
+		   (tx_ctl->epid == priv->cab_ep)) {
+		struct tx_frame_hdr *tx_fhdr =
+			(struct tx_frame_hdr *)skb->data;
+		slot = tx_fhdr->cookie;
+		skb_pull(skb, sizeof(struct tx_frame_hdr));
+	} else {
+		ath_err(common, "Unsupported EPID: %d\n", tx_ctl->epid);
+		slot = -EINVAL;
+	}
+
+	return slot;
+}
+
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo)
 {
@@ -79,242 +211,592 @@ int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 	return error;
 }
 
-int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
+static void ath9k_htc_tx_mgmt(struct ath9k_htc_priv *priv,
+			      struct ath9k_htc_vif *avp,
+			      struct sk_buff *skb,
+			      u8 sta_idx, u8 vif_idx, u8 slot)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_mgmt *mgmt;
+	struct ieee80211_hdr *hdr;
+	struct tx_mgmt_hdr mgmt_hdr;
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	u8 *tx_fhdr;
+
+	tx_ctl = HTC_SKB_CB(skb);
+	hdr = (struct ieee80211_hdr *) skb->data;
+
+	memset(tx_ctl, 0, sizeof(*tx_ctl));
+	memset(&mgmt_hdr, 0, sizeof(struct tx_mgmt_hdr));
+
+	/*
+	 * Set the TSF adjust value for probe response
+	 * frame also.
+	 */
+	if (avp && unlikely(ieee80211_is_probe_resp(hdr->frame_control))) {
+		mgmt = (struct ieee80211_mgmt *)skb->data;
+		mgmt->u.probe_resp.timestamp = avp->tsfadjust;
+	}
+
+	tx_ctl->type = ATH9K_HTC_MGMT;
+
+	mgmt_hdr.node_idx = sta_idx;
+	mgmt_hdr.vif_idx = vif_idx;
+	mgmt_hdr.tidno = 0;
+	mgmt_hdr.flags = 0;
+	mgmt_hdr.cookie = slot;
+
+	mgmt_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
+	if (mgmt_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
+		mgmt_hdr.keyix = (u8) ATH9K_TXKEYIX_INVALID;
+	else
+		mgmt_hdr.keyix = tx_info->control.hw_key->hw_key_idx;
+
+	tx_fhdr = skb_push(skb, sizeof(mgmt_hdr));
+	memcpy(tx_fhdr, (u8 *) &mgmt_hdr, sizeof(mgmt_hdr));
+	tx_ctl->epid = priv->mgmt_ep;
+}
+
+static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
+			      struct ieee80211_vif *vif,
+			      struct sk_buff *skb,
+			      u8 sta_idx, u8 vif_idx, u8 slot,
+			      bool is_cab)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr;
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	struct tx_frame_hdr tx_hdr;
+	u32 flags = 0;
+	u8 *qc, *tx_fhdr;
+	u16 qnum;
+
+	tx_ctl = HTC_SKB_CB(skb);
+	hdr = (struct ieee80211_hdr *) skb->data;
+
+	memset(tx_ctl, 0, sizeof(*tx_ctl));
+	memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
+
+	tx_hdr.node_idx = sta_idx;
+	tx_hdr.vif_idx = vif_idx;
+	tx_hdr.cookie = slot;
+
+	/*
+	 * This is a bit redundant but it helps to get
+	 * the per-packet index quickly when draining the
+	 * TX queue in the HIF layer. Otherwise we would
+	 * have to parse the packet contents ...
+	 */
+	tx_ctl->sta_idx = sta_idx;
+
+	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
+		tx_ctl->type = ATH9K_HTC_AMPDU;
+		tx_hdr.data_type = ATH9K_HTC_AMPDU;
+	} else {
+		tx_ctl->type = ATH9K_HTC_NORMAL;
+		tx_hdr.data_type = ATH9K_HTC_NORMAL;
+	}
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		qc = ieee80211_get_qos_ctl(hdr);
+		tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+	}
+
+	/* Check for RTS protection */
+	if (priv->hw->wiphy->rts_threshold != (u32) -1)
+		if (skb->len > priv->hw->wiphy->rts_threshold)
+			flags |= ATH9K_HTC_TX_RTSCTS;
+
+	/* CTS-to-self */
+	if (!(flags & ATH9K_HTC_TX_RTSCTS) &&
+	    (vif && vif->bss_conf.use_cts_prot))
+		flags |= ATH9K_HTC_TX_CTSONLY;
+
+	tx_hdr.flags = cpu_to_be32(flags);
+	tx_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
+	if (tx_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
+		tx_hdr.keyix = (u8) ATH9K_TXKEYIX_INVALID;
+	else
+		tx_hdr.keyix = tx_info->control.hw_key->hw_key_idx;
+
+	tx_fhdr = skb_push(skb, sizeof(tx_hdr));
+	memcpy(tx_fhdr, (u8 *) &tx_hdr, sizeof(tx_hdr));
+
+	if (is_cab) {
+		CAB_STAT_INC;
+		tx_ctl->epid = priv->cab_ep;
+		return;
+	}
+
+	qnum = skb_get_queue_mapping(skb);
+	tx_ctl->epid = get_htc_epid(priv, qnum);
+}
+
+int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
+		       struct sk_buff *skb,
+		       u8 slot, bool is_cab)
 {
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = tx_info->control.sta;
+	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct ath9k_htc_sta *ista;
-	struct ath9k_htc_tx_ctl tx_ctl;
-	enum htc_endpoint_id epid;
-	u16 qnum;
-	__le16 fc;
-	u8 *tx_fhdr;
+	struct ath9k_htc_vif *avp = NULL;
 	u8 sta_idx, vif_idx;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	fc = hdr->frame_control;
 
-	if (tx_info->control.vif &&
-			(struct ath9k_htc_vif *) tx_info->control.vif->drv_priv)
-		vif_idx = ((struct ath9k_htc_vif *)
-				tx_info->control.vif->drv_priv)->index;
-	else
-		vif_idx = priv->nvifs;
+	/*
+	 * Find out on which interface this packet has to be
+	 * sent out.
+	 */
+	if (vif) {
+		avp = (struct ath9k_htc_vif *) vif->drv_priv;
+		vif_idx = avp->index;
+	} else {
+		if (!priv->ah->is_monitoring) {
+			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				"VIF is null, but no monitor interface !\n");
+			return -EINVAL;
+		}
 
+		vif_idx = priv->mon_vif_idx;
+	}
+
+	/*
+	 * Find out which station this packet is destined for.
+	 */
 	if (sta) {
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		sta_idx = ista->index;
 	} else {
-		sta_idx = 0;
+		sta_idx = priv->vif_sta_pos[vif_idx];
 	}
 
-	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
+	if (ieee80211_is_data(hdr->frame_control))
+		ath9k_htc_tx_data(priv, vif, skb,
+				  sta_idx, vif_idx, slot, is_cab);
+	else
+		ath9k_htc_tx_mgmt(priv, avp, skb,
+				  sta_idx, vif_idx, slot);
 
-	if (ieee80211_is_data(fc)) {
-		struct tx_frame_hdr tx_hdr;
-		u32 flags = 0;
-		u8 *qc;
 
-		memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
-
-		tx_hdr.node_idx = sta_idx;
-		tx_hdr.vif_idx = vif_idx;
-
-		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-			tx_ctl.type = ATH9K_HTC_AMPDU;
-			tx_hdr.data_type = ATH9K_HTC_AMPDU;
-		} else {
-			tx_ctl.type = ATH9K_HTC_NORMAL;
-			tx_hdr.data_type = ATH9K_HTC_NORMAL;
-		}
-
-		if (ieee80211_is_data_qos(fc)) {
-			qc = ieee80211_get_qos_ctl(hdr);
-			tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
-		}
-
-		/* Check for RTS protection */
-		if (priv->hw->wiphy->rts_threshold != (u32) -1)
-			if (skb->len > priv->hw->wiphy->rts_threshold)
-				flags |= ATH9K_HTC_TX_RTSCTS;
-
-		/* CTS-to-self */
-		if (!(flags & ATH9K_HTC_TX_RTSCTS) &&
-		    (priv->op_flags & OP_PROTECT_ENABLE))
-			flags |= ATH9K_HTC_TX_CTSONLY;
-
-		tx_hdr.flags = cpu_to_be32(flags);
-		tx_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
-		if (tx_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
-			tx_hdr.keyix = (u8) ATH9K_TXKEYIX_INVALID;
-		else
-			tx_hdr.keyix = tx_info->control.hw_key->hw_key_idx;
-
-		tx_fhdr = skb_push(skb, sizeof(tx_hdr));
-		memcpy(tx_fhdr, (u8 *) &tx_hdr, sizeof(tx_hdr));
-
-		qnum = skb_get_queue_mapping(skb);
-
-		switch (qnum) {
-		case 0:
-			TX_QSTAT_INC(WME_AC_VO);
-			epid = priv->data_vo_ep;
-			break;
-		case 1:
-			TX_QSTAT_INC(WME_AC_VI);
-			epid = priv->data_vi_ep;
-			break;
-		case 2:
-			TX_QSTAT_INC(WME_AC_BE);
-			epid = priv->data_be_ep;
-			break;
-		case 3:
-		default:
-			TX_QSTAT_INC(WME_AC_BK);
-			epid = priv->data_bk_ep;
-			break;
-		}
-	} else {
-		struct tx_mgmt_hdr mgmt_hdr;
-
-		memset(&mgmt_hdr, 0, sizeof(struct tx_mgmt_hdr));
-
-		tx_ctl.type = ATH9K_HTC_NORMAL;
-
-		mgmt_hdr.node_idx = sta_idx;
-		mgmt_hdr.vif_idx = vif_idx;
-		mgmt_hdr.tidno = 0;
-		mgmt_hdr.flags = 0;
-
-		mgmt_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
-		if (mgmt_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
-			mgmt_hdr.keyix = (u8) ATH9K_TXKEYIX_INVALID;
-		else
-			mgmt_hdr.keyix = tx_info->control.hw_key->hw_key_idx;
-
-		tx_fhdr = skb_push(skb, sizeof(mgmt_hdr));
-		memcpy(tx_fhdr, (u8 *) &mgmt_hdr, sizeof(mgmt_hdr));
-		epid = priv->mgmt_ep;
-	}
-
-	return htc_send(priv->htc, skb, epid, &tx_ctl);
+	return htc_send(priv->htc, skb);
 }
 
-static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
-				    struct ath9k_htc_sta *ista, u8 tid)
+static inline bool __ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
+					     struct ath9k_htc_sta *ista, u8 tid)
 {
 	bool ret = false;
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
 	if ((tid < ATH9K_HTC_MAX_TID) && (ista->tid_state[tid] == AGGR_STOP))
 		ret = true;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock_bh(&priv->tx.tx_lock);
 
 	return ret;
 }
 
-void ath9k_tx_tasklet(unsigned long data)
+static void ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
+				    struct ieee80211_vif *vif,
+				    struct sk_buff *skb)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
-	struct ieee80211_tx_info *tx_info;
-	struct sk_buff *skb = NULL;
 	__le16 fc;
 
-	while ((skb = skb_dequeue(&priv->tx_queue)) != NULL) {
+	hdr = (struct ieee80211_hdr *) skb->data;
+	fc = hdr->frame_control;
 
-		hdr = (struct ieee80211_hdr *) skb->data;
-		fc = hdr->frame_control;
-		tx_info = IEEE80211_SKB_CB(skb);
+	rcu_read_lock();
 
-		memset(&tx_info->status, 0, sizeof(tx_info->status));
+	sta = ieee80211_find_sta(vif, hdr->addr1);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
 
-		rcu_read_lock();
+	if (sta && conf_is_ht(&priv->hw->conf) &&
+	    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
+		if (ieee80211_is_data_qos(fc)) {
+			u8 *qc, tid;
+			struct ath9k_htc_sta *ista;
 
-		sta = ieee80211_find_sta(priv->vif, hdr->addr1);
-		if (!sta) {
-			rcu_read_unlock();
-			ieee80211_tx_status(priv->hw, skb);
+			qc = ieee80211_get_qos_ctl(hdr);
+			tid = qc[0] & 0xf;
+			ista = (struct ath9k_htc_sta *)sta->drv_priv;
+			if (__ath9k_htc_check_tx_aggr(priv, ista, tid)) {
+				ieee80211_start_tx_ba_session(sta, tid, 0);
+				spin_lock_bh(&priv->tx.tx_lock);
+				ista->tid_state[tid] = AGGR_PROGRESS;
+				spin_unlock_bh(&priv->tx.tx_lock);
+			}
+		}
+	}
+
+	rcu_read_unlock();
+}
+
+static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
+				 struct sk_buff *skb,
+				 struct __wmi_event_txstatus *txs)
+{
+	struct ieee80211_vif *vif;
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	struct ieee80211_tx_info *tx_info;
+	struct ieee80211_tx_rate *rate;
+	struct ieee80211_conf *cur_conf = &priv->hw->conf;
+	bool txok;
+	int slot;
+
+	slot = strip_drv_header(priv, skb);
+	if (slot < 0) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	tx_ctl = HTC_SKB_CB(skb);
+	txok = tx_ctl->txok;
+	tx_info = IEEE80211_SKB_CB(skb);
+	vif = tx_info->control.vif;
+	rate = &tx_info->status.rates[0];
+
+	memset(&tx_info->status, 0, sizeof(tx_info->status));
+
+	/*
+	 * URB submission failed for this frame, it never reached
+	 * the target.
+	 */
+	if (!txok || !vif || !txs)
+		goto send_mac80211;
+
+	if (txs->ts_flags & ATH9K_HTC_TXSTAT_ACK)
+		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+
+	if (txs->ts_flags & ATH9K_HTC_TXSTAT_FILT)
+		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+
+	if (txs->ts_flags & ATH9K_HTC_TXSTAT_RTC_CTS)
+		rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
+
+	rate->count = 1;
+	rate->idx = MS(txs->ts_rate, ATH9K_HTC_TXSTAT_RATE);
+
+	if (txs->ts_flags & ATH9K_HTC_TXSTAT_MCS) {
+		rate->flags |= IEEE80211_TX_RC_MCS;
+
+		if (txs->ts_flags & ATH9K_HTC_TXSTAT_CW40)
+			rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+		if (txs->ts_flags & ATH9K_HTC_TXSTAT_SGI)
+			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
+	} else {
+		if (cur_conf->channel->band == IEEE80211_BAND_5GHZ)
+			rate->idx += 4; /* No CCK rates */
+	}
+
+	ath9k_htc_check_tx_aggr(priv, vif, skb);
+
+send_mac80211:
+	spin_lock_bh(&priv->tx.tx_lock);
+	if (WARN_ON(--priv->tx.queued_cnt < 0))
+		priv->tx.queued_cnt = 0;
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	ath9k_htc_tx_clear_slot(priv, slot);
+
+	/* Send status to mac80211 */
+	ieee80211_tx_status(priv->hw, skb);
+}
+
+static inline void ath9k_htc_tx_drainq(struct ath9k_htc_priv *priv,
+				       struct sk_buff_head *queue)
+{
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(queue)) != NULL) {
+		ath9k_htc_tx_process(priv, skb, NULL);
+	}
+}
+
+void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv)
+{
+	struct ath9k_htc_tx_event *event, *tmp;
+
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.flags |= ATH9K_HTC_OP_TX_DRAIN;
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	/*
+	 * Ensure that all pending TX frames are flushed,
+	 * and that the TX completion/failed tasklets is killed.
+	 */
+	htc_stop(priv->htc);
+	tasklet_kill(&priv->wmi->wmi_event_tasklet);
+	tasklet_kill(&priv->tx_failed_tasklet);
+
+	ath9k_htc_tx_drainq(priv, &priv->tx.mgmt_ep_queue);
+	ath9k_htc_tx_drainq(priv, &priv->tx.cab_ep_queue);
+	ath9k_htc_tx_drainq(priv, &priv->tx.data_be_queue);
+	ath9k_htc_tx_drainq(priv, &priv->tx.data_bk_queue);
+	ath9k_htc_tx_drainq(priv, &priv->tx.data_vi_queue);
+	ath9k_htc_tx_drainq(priv, &priv->tx.data_vo_queue);
+	ath9k_htc_tx_drainq(priv, &priv->tx.tx_failed);
+
+	/*
+	 * The TX cleanup timer has already been killed.
+	 */
+	spin_lock_bh(&priv->wmi->event_lock);
+	list_for_each_entry_safe(event, tmp, &priv->wmi->pending_tx_events, list) {
+		list_del(&event->list);
+		kfree(event);
+	}
+	spin_unlock_bh(&priv->wmi->event_lock);
+
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.flags &= ~ATH9K_HTC_OP_TX_DRAIN;
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
+void ath9k_tx_failed_tasklet(unsigned long data)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+
+	spin_lock_bh(&priv->tx.tx_lock);
+	if (priv->tx.flags & ATH9K_HTC_OP_TX_DRAIN) {
+		spin_unlock_bh(&priv->tx.tx_lock);
+		return;
+	}
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	ath9k_htc_tx_drainq(priv, &priv->tx.tx_failed);
+}
+
+static inline bool check_cookie(struct ath9k_htc_priv *priv,
+				struct sk_buff *skb,
+				u8 cookie, u8 epid)
+{
+	u8 fcookie = 0;
+
+	if (epid == priv->mgmt_ep) {
+		struct tx_mgmt_hdr *hdr;
+		hdr = (struct tx_mgmt_hdr *) skb->data;
+		fcookie = hdr->cookie;
+	} else if ((epid == priv->data_bk_ep) ||
+		   (epid == priv->data_be_ep) ||
+		   (epid == priv->data_vi_ep) ||
+		   (epid == priv->data_vo_ep) ||
+		   (epid == priv->cab_ep)) {
+		struct tx_frame_hdr *hdr;
+		hdr = (struct tx_frame_hdr *) skb->data;
+		fcookie = hdr->cookie;
+	}
+
+	if (fcookie == cookie)
+		return true;
+
+	return false;
+}
+
+static struct sk_buff* ath9k_htc_tx_get_packet(struct ath9k_htc_priv *priv,
+					       struct __wmi_event_txstatus *txs)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct sk_buff_head *epid_queue;
+	struct sk_buff *skb, *tmp;
+	unsigned long flags;
+	u8 epid = MS(txs->ts_rate, ATH9K_HTC_TXSTAT_EPID);
+
+	epid_queue = get_htc_epid_queue(priv, epid);
+	if (!epid_queue)
+		return NULL;
+
+	spin_lock_irqsave(&epid_queue->lock, flags);
+	skb_queue_walk_safe(epid_queue, skb, tmp) {
+		if (check_cookie(priv, skb, txs->cookie, epid)) {
+			__skb_unlink(skb, epid_queue);
+			spin_unlock_irqrestore(&epid_queue->lock, flags);
+			return skb;
+		}
+	}
+	spin_unlock_irqrestore(&epid_queue->lock, flags);
+
+	ath_dbg(common, ATH_DBG_XMIT,
+		"No matching packet for cookie: %d, epid: %d\n",
+		txs->cookie, epid);
+
+	return NULL;
+}
+
+void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event)
+{
+	struct wmi_event_txstatus *txs = (struct wmi_event_txstatus *)wmi_event;
+	struct __wmi_event_txstatus *__txs;
+	struct sk_buff *skb;
+	struct ath9k_htc_tx_event *tx_pend;
+	int i;
+
+	for (i = 0; i < txs->cnt; i++) {
+		WARN_ON(txs->cnt > HTC_MAX_TX_STATUS);
+
+		__txs = &txs->txstatus[i];
+
+		skb = ath9k_htc_tx_get_packet(priv, __txs);
+		if (!skb) {
+			/*
+			 * Store this event, so that the TX cleanup
+			 * routine can check later for the needed packet.
+			 */
+			tx_pend = kzalloc(sizeof(struct ath9k_htc_tx_event),
+					  GFP_ATOMIC);
+			if (!tx_pend)
+				continue;
+
+			memcpy(&tx_pend->txs, __txs,
+			       sizeof(struct __wmi_event_txstatus));
+
+			spin_lock(&priv->wmi->event_lock);
+			list_add_tail(&tx_pend->list,
+				      &priv->wmi->pending_tx_events);
+			spin_unlock(&priv->wmi->event_lock);
+
 			continue;
 		}
 
-		/* Check if we need to start aggregation */
-
-		if (sta && conf_is_ht(&priv->hw->conf) &&
-		    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
-			if (ieee80211_is_data_qos(fc)) {
-				u8 *qc, tid;
-				struct ath9k_htc_sta *ista;
-
-				qc = ieee80211_get_qos_ctl(hdr);
-				tid = qc[0] & 0xf;
-				ista = (struct ath9k_htc_sta *)sta->drv_priv;
-
-				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
-					ieee80211_start_tx_ba_session(sta, tid, 0);
-					spin_lock_bh(&priv->tx_lock);
-					ista->tid_state[tid] = AGGR_PROGRESS;
-					spin_unlock_bh(&priv->tx_lock);
-				}
-			}
-		}
-
-		rcu_read_unlock();
-
-		/* Send status to mac80211 */
-		ieee80211_tx_status(priv->hw, skb);
+		ath9k_htc_tx_process(priv, skb, __txs);
 	}
 
 	/* Wake TX queues if needed */
-	spin_lock_bh(&priv->tx_lock);
-	if (priv->tx_queues_stop) {
-		priv->tx_queues_stop = false;
-		spin_unlock_bh(&priv->tx_lock);
-		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-			"Waking up TX queues\n");
-		ieee80211_wake_queues(priv->hw);
-		return;
-	}
-	spin_unlock_bh(&priv->tx_lock);
+	ath9k_htc_check_wake_queues(priv);
 }
 
 void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id, bool txok)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) drv_priv;
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-	struct ieee80211_tx_info *tx_info;
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	struct sk_buff_head *epid_queue;
 
-	if (!skb)
+	tx_ctl = HTC_SKB_CB(skb);
+	tx_ctl->txok = txok;
+	tx_ctl->timestamp = jiffies;
+
+	if (!txok) {
+		skb_queue_tail(&priv->tx.tx_failed, skb);
+		tasklet_schedule(&priv->tx_failed_tasklet);
 		return;
+	}
 
-	if (ep_id == priv->mgmt_ep) {
-		skb_pull(skb, sizeof(struct tx_mgmt_hdr));
-	} else if ((ep_id == priv->data_bk_ep) ||
-		   (ep_id == priv->data_be_ep) ||
-		   (ep_id == priv->data_vi_ep) ||
-		   (ep_id == priv->data_vo_ep)) {
-		skb_pull(skb, sizeof(struct tx_frame_hdr));
-	} else {
-		ath_err(common, "Unsupported TX EPID: %d\n", ep_id);
+	epid_queue = get_htc_epid_queue(priv, ep_id);
+	if (!epid_queue) {
 		dev_kfree_skb_any(skb);
 		return;
 	}
 
-	tx_info = IEEE80211_SKB_CB(skb);
+	skb_queue_tail(epid_queue, skb);
+}
 
-	if (txok)
-		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+static inline bool check_packet(struct ath9k_htc_priv *priv, struct sk_buff *skb)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_tx_ctl *tx_ctl;
 
-	skb_queue_tail(&priv->tx_queue, skb);
-	tasklet_schedule(&priv->tx_tasklet);
+	tx_ctl = HTC_SKB_CB(skb);
+
+	if (time_after(jiffies,
+		       tx_ctl->timestamp +
+		       msecs_to_jiffies(ATH9K_HTC_TX_TIMEOUT_INTERVAL))) {
+		ath_dbg(common, ATH_DBG_XMIT,
+			"Dropping a packet due to TX timeout\n");
+		return true;
+	}
+
+	return false;
+}
+
+static void ath9k_htc_tx_cleanup_queue(struct ath9k_htc_priv *priv,
+				       struct sk_buff_head *epid_queue)
+{
+	bool process = false;
+	unsigned long flags;
+	struct sk_buff *skb, *tmp;
+	struct sk_buff_head queue;
+
+	skb_queue_head_init(&queue);
+
+	spin_lock_irqsave(&epid_queue->lock, flags);
+	skb_queue_walk_safe(epid_queue, skb, tmp) {
+		if (check_packet(priv, skb)) {
+			__skb_unlink(skb, epid_queue);
+			__skb_queue_tail(&queue, skb);
+			process = true;
+		}
+	}
+	spin_unlock_irqrestore(&epid_queue->lock, flags);
+
+	if (process) {
+		skb_queue_walk_safe(&queue, skb, tmp) {
+			__skb_unlink(skb, &queue);
+			ath9k_htc_tx_process(priv, skb, NULL);
+		}
+	}
+}
+
+void ath9k_htc_tx_cleanup_timer(unsigned long data)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_tx_event *event, *tmp;
+	struct sk_buff *skb;
+
+	spin_lock(&priv->wmi->event_lock);
+	list_for_each_entry_safe(event, tmp, &priv->wmi->pending_tx_events, list) {
+
+		skb = ath9k_htc_tx_get_packet(priv, &event->txs);
+		if (skb) {
+			ath_dbg(common, ATH_DBG_XMIT,
+				"Found packet for cookie: %d, epid: %d\n",
+				event->txs.cookie,
+				MS(event->txs.ts_rate, ATH9K_HTC_TXSTAT_EPID));
+
+			ath9k_htc_tx_process(priv, skb, &event->txs);
+			list_del(&event->list);
+			kfree(event);
+			continue;
+		}
+
+		if (++event->count >= ATH9K_HTC_TX_TIMEOUT_COUNT) {
+			list_del(&event->list);
+			kfree(event);
+		}
+	}
+	spin_unlock(&priv->wmi->event_lock);
+
+	/*
+	 * Check if status-pending packets have to be cleaned up.
+	 */
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.mgmt_ep_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.cab_ep_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_be_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_bk_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_vi_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_vo_queue);
+
+	/* Wake TX queues if needed */
+	ath9k_htc_check_wake_queues(priv);
+
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 }
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv)
 {
-	skb_queue_head_init(&priv->tx_queue);
+	skb_queue_head_init(&priv->tx.mgmt_ep_queue);
+	skb_queue_head_init(&priv->tx.cab_ep_queue);
+	skb_queue_head_init(&priv->tx.data_be_queue);
+	skb_queue_head_init(&priv->tx.data_bk_queue);
+	skb_queue_head_init(&priv->tx.data_vi_queue);
+	skb_queue_head_init(&priv->tx.data_vo_queue);
+	skb_queue_head_init(&priv->tx.tx_failed);
 	return 0;
 }
 
@@ -386,20 +868,29 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	 */
 	if (((ah->opmode != NL80211_IFTYPE_AP) &&
 	     (priv->rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (ah->opmode == NL80211_IFTYPE_MONITOR))
+	    ah->is_monitoring)
 		rfilt |= ATH9K_RX_FILTER_PROM;
 
 	if (priv->rxfilter & FIF_CONTROL)
 		rfilt |= ATH9K_RX_FILTER_CONTROL;
 
 	if ((ah->opmode == NL80211_IFTYPE_STATION) &&
+	    (priv->nvifs <= 1) &&
 	    !(priv->rxfilter & FIF_BCN_PRBRESP_PROMISC))
 		rfilt |= ATH9K_RX_FILTER_MYBEACON;
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (conf_is_ht(&priv->hw->conf))
+	if (conf_is_ht(&priv->hw->conf)) {
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+		rfilt |= ATH9K_RX_FILTER_UNCOMP_BA_BAR;
+	}
+
+	if (priv->rxfilter & FIF_PSPOLL)
+		rfilt |= ATH9K_RX_FILTER_PSPOLL;
+
+	if (priv->nvifs > 1)
+		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 
 	return rfilt;
 
@@ -412,19 +903,11 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
 	rfilt = ath9k_htc_calcrxfilter(priv);
 	ath9k_hw_setrxfilter(ah, rfilt);
-
-	/* configure bssid mask */
-	ath_hw_setbssidmask(common);
-
-	/* configure operational mode */
-	ath9k_hw_setopmode(ah);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -489,8 +972,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
 
-	if (skb->len <= HTC_RX_FRAME_HEADER_SIZE) {
-		ath_err(common, "Corrupted RX frame, dropping\n");
+	if (skb->len < HTC_RX_FRAME_HEADER_SIZE) {
+		ath_err(common, "Corrupted RX frame, dropping (len: %d)\n",
+			skb->len);
 		goto rx_next;
 	}
 
@@ -503,6 +987,8 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 			rxstatus->rs_datalen, skb->len);
 		goto rx_next;
 	}
+
+	ath9k_htc_err_stat_rx(priv, rxstatus);
 
 	/* Get the RX status information */
 	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
@@ -576,31 +1062,29 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	ath9k_process_rate(hw, rx_status, rxbuf->rxstatus.rs_rate,
 			   rxbuf->rxstatus.rs_flags);
 
-	if (priv->op_flags & OP_ASSOCIATED) {
-		if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
-		    !rxbuf->rxstatus.rs_moreaggr)
-			ATH_RSSI_LPF(priv->rx.last_rssi,
-				     rxbuf->rxstatus.rs_rssi);
+	if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
+	    !rxbuf->rxstatus.rs_moreaggr)
+		ATH_RSSI_LPF(priv->rx.last_rssi,
+			     rxbuf->rxstatus.rs_rssi);
 
-		last_rssi = priv->rx.last_rssi;
+	last_rssi = priv->rx.last_rssi;
 
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
-							     ATH_RSSI_EP_MULTIPLIER);
+	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+		rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
+						     ATH_RSSI_EP_MULTIPLIER);
 
-		if (rxbuf->rxstatus.rs_rssi < 0)
-			rxbuf->rxstatus.rs_rssi = 0;
+	if (rxbuf->rxstatus.rs_rssi < 0)
+		rxbuf->rxstatus.rs_rssi = 0;
 
-		if (ieee80211_is_beacon(fc))
-			priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
-	}
+	if (ieee80211_is_beacon(fc))
+		priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
 	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
-	rx_status->flag |= RX_FLAG_TSFT;
+	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
 
 	return true;
 

@@ -155,14 +155,6 @@
 #define S3C2410_UFSTAT_RXMASK	  (15<<0)
 #define S3C2410_UFSTAT_RXSHIFT	  (0)
 
-/* UFSTAT S3C24A0 */
-#define S3C24A0_UFSTAT_TXFULL	  (1 << 14)
-#define S3C24A0_UFSTAT_RXFULL	  (1 << 6)
-#define S3C24A0_UFSTAT_TXMASK	  (63 << 8)
-#define S3C24A0_UFSTAT_TXSHIFT	  (8)
-#define S3C24A0_UFSTAT_RXMASK	  (63)
-#define S3C24A0_UFSTAT_RXSHIFT	  (0)
-
 /* UFSTAT S3C2443 same as S3C2440 */
 #define S3C2440_UFSTAT_TXFULL	  (1<<14)
 #define S3C2440_UFSTAT_RXFULL	  (1<<6)
@@ -194,7 +186,7 @@
 #define S3C64XX_UINTSP		0x34
 #define S3C64XX_UINTM		0x38
 
-/* Following are specific to S5PV210 and S5P6442 */
+/* Following are specific to S5PV210 */
 #define S5PV210_UCON_CLKMASK	(1<<10)
 #define S5PV210_UCON_PCLK	(0<<10)
 #define S5PV210_UCON_UCLK	(1<<10)
@@ -223,6 +215,8 @@
 #define S5PV210_UFSTAT_TXSHIFT	(16)
 #define S5PV210_UFSTAT_RXMASK	(255<<0)
 #define S5PV210_UFSTAT_RXSHIFT	(0)
+
+#define NO_NEED_CHECK_CLKSRC	1
 
 #ifndef __ASSEMBLY__
 

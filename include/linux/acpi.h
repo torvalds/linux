@@ -150,8 +150,7 @@ extern int ec_read(u8 addr, u8 *val);
 extern int ec_write(u8 addr, u8 val);
 extern int ec_transaction(u8 command,
                           const u8 *wdata, unsigned wdata_len,
-                          u8 *rdata, unsigned rdata_len,
-			  int force_poll);
+                          u8 *rdata, unsigned rdata_len);
 
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
@@ -239,7 +238,6 @@ extern int acpi_paddr_to_node(u64 start_addr, u64 size);
 extern int pnpacpi_disabled;
 
 #define PXM_INVAL	(-1)
-#define NID_INVAL	(-1)
 
 int acpi_check_resource_conflict(const struct resource *res);
 
@@ -280,6 +278,8 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_PR3_SUPPORT		4
 #define OSC_SB_CPUHP_OST_SUPPORT	8
 #define OSC_SB_APEI_SUPPORT		16
+
+extern bool osc_sb_apei_support_acked;
 
 /* PCI defined _OSC bits */
 /* _OSC DW1 Definition (OS Support Fields) */

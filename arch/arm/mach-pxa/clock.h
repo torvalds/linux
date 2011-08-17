@@ -1,10 +1,11 @@
 #include <linux/clkdev.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 struct clkops {
 	void			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
 	unsigned long		(*getrate)(struct clk *);
+	int			(*setrate)(struct clk *, unsigned long);
 };
 
 struct clk {
@@ -54,7 +55,7 @@ extern const struct clkops clk_pxa2xx_cken_ops;
 void clk_pxa2xx_cken_enable(struct clk *clk);
 void clk_pxa2xx_cken_disable(struct clk *clk);
 
-extern struct sysdev_class pxa2xx_clock_sysclass;
+extern struct syscore_ops pxa2xx_clock_syscore_ops;
 
 #if defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x)
 #define DEFINE_PXA3_CKEN(_name, _cken, _rate, _delay)	\
@@ -74,5 +75,6 @@ extern const struct clkops clk_pxa3xx_smemc_ops;
 extern void clk_pxa3xx_cken_enable(struct clk *);
 extern void clk_pxa3xx_cken_disable(struct clk *);
 
-extern struct sysdev_class pxa3xx_clock_sysclass;
+extern struct syscore_ops pxa3xx_clock_syscore_ops;
+
 #endif

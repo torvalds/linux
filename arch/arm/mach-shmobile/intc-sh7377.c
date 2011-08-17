@@ -626,7 +626,7 @@ static struct intc_desc intcs_desc __initdata = {
 
 static void intcs_demux(unsigned int irq, struct irq_desc *desc)
 {
-	void __iomem *reg = (void *)get_irq_data(irq);
+	void __iomem *reg = (void *)irq_get_handler_data(irq);
 	unsigned int evtcodeas = ioread32(reg);
 
 	generic_handle_irq(intcs_evt2irq(evtcodeas));
@@ -641,6 +641,6 @@ void __init sh7377_init_irq(void)
 	register_intc_controller(&intcs_desc);
 
 	/* demux using INTEVTSA */
-	set_irq_data(evt2irq(INTCS_INTVECT), (void *)intevtsa);
-	set_irq_chained_handler(evt2irq(INTCS_INTVECT), intcs_demux);
+	irq_set_handler_data(evt2irq(INTCS_INTVECT), (void *)intevtsa);
+	irq_set_chained_handler(evt2irq(INTCS_INTVECT), intcs_demux);
 }

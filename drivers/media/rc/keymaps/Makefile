@@ -37,7 +37,6 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-gadmei-rm008z.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
-			rc-hauppauge-new.o \
 			rc-imon-mce.o \
 			rc-imon-pad.o \
 			rc-iodata-bctv7e.o \
@@ -68,15 +67,17 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-proteus-2309.o \
 			rc-purpletv.o \
 			rc-pv951.o \
-			rc-rc5-hauppauge-new.o \
-			rc-rc5-tv.o \
+			rc-hauppauge.o \
 			rc-rc6-mce.o \
 			rc-real-audio-220-32-keys.o \
 			rc-streamzap.o \
 			rc-tbs-nec.o \
+			rc-technisat-usb2.o \
 			rc-terratec-cinergy-xs.o \
 			rc-terratec-slim.o \
+			rc-terratec-slim-2.o \
 			rc-tevii-nec.o \
+			rc-tivo.o \
 			rc-total-media-in-hand.o \
 			rc-trekstor.o \
 			rc-tt-1500.o \

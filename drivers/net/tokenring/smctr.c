@@ -393,7 +393,7 @@ static int smctr_alloc_shared_memory(struct net_device *dev)
         tp->rx_bdb_end[NON_MAC_QUEUE] = (BDBlock *)smctr_malloc(dev, 0);
 
         /* Allocate MAC transmit buffers.
-         * MAC Tx Buffers doen't have to be on an ODD Boundry.
+         * MAC Tx Buffers doen't have to be on an ODD Boundary.
          */
         tp->tx_buff_head[MAC_QUEUE]
                 = (__u16 *)smctr_malloc(dev, tp->tx_buff_size[MAC_QUEUE]);
@@ -415,7 +415,7 @@ static int smctr_alloc_shared_memory(struct net_device *dev)
 
         /* Allocate Non-MAC transmit buffers.
          * ?? For maximum Netware performance, put Tx Buffers on
-         * ODD Boundry and then restore malloc to Even Boundrys.
+         * ODD Boundary and then restore malloc to Even Boundrys.
          */
         smctr_malloc(dev, 1L);
         tp->tx_buff_head[NON_MAC_QUEUE]
@@ -1311,7 +1311,7 @@ static unsigned int smctr_get_num_rx_bdbs(struct net_device *dev)
         mem_used += sizeof(BDBlock) * tp->num_rx_bdbs[MAC_QUEUE];
 
         /* Allocate MAC transmit buffers.
-         * MAC transmit buffers don't have to be on an ODD Boundry.
+         * MAC transmit buffers don't have to be on an ODD Boundary.
          */
         mem_used += tp->tx_buff_size[MAC_QUEUE];
 
@@ -1325,7 +1325,7 @@ static unsigned int smctr_get_num_rx_bdbs(struct net_device *dev)
 
         /* Allocate Non-MAC transmit buffers.
          * For maximum Netware performance, put Tx Buffers on
-         * ODD Boundry,and then restore malloc to Even Boundrys.
+         * ODD Boundary,and then restore malloc to Even Boundrys.
          */
         mem_used += 1L;
         mem_used += tp->tx_buff_size[NON_MAC_QUEUE];
@@ -3069,8 +3069,8 @@ static int smctr_load_node_addr(struct net_device *dev)
  * disabled.!?
  *
  * NOTE 2: If the monitor_state is MS_BEACON_TEST_STATE and the receive_mask
- * has any multi-cast or promiscous bits set, the receive_mask needs to
- * be changed to clear the multi-cast or promiscous mode bits, the lobe_test
+ * has any multi-cast or promiscuous bits set, the receive_mask needs to
+ * be changed to clear the multi-cast or promiscuous mode bits, the lobe_test
  * run, and then the receive mask set back to its original value if the test
  * is successful.
  */

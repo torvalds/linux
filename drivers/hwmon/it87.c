@@ -77,15 +77,13 @@ static struct platform_device *pdev;
 #define	DEVID	0x20	/* Register: Device ID */
 #define	DEVREV	0x22	/* Register: Device Revision */
 
-static inline int
-superio_inb(int reg)
+static inline int superio_inb(int reg)
 {
 	outb(reg, REG);
 	return inb(VAL);
 }
 
-static inline void
-superio_outb(int reg, int val)
+static inline void superio_outb(int reg, int val)
 {
 	outb(reg, REG);
 	outb(val, VAL);
@@ -101,27 +99,32 @@ static int superio_inw(int reg)
 	return val;
 }
 
-static inline void
-superio_select(int ldn)
+static inline void superio_select(int ldn)
 {
 	outb(DEV, REG);
 	outb(ldn, VAL);
 }
 
-static inline void
-superio_enter(void)
+static inline int superio_enter(void)
 {
+	/*
+	 * Try to reserve REG and REG + 1 for exclusive access.
+	 */
+	if (!request_muxed_region(REG, 2, DRVNAME))
+		return -EBUSY;
+
 	outb(0x87, REG);
 	outb(0x01, REG);
 	outb(0x55, REG);
 	outb(0x55, REG);
+	return 0;
 }
 
-static inline void
-superio_exit(void)
+static inline void superio_exit(void)
 {
 	outb(0x02, REG);
 	outb(0x02, VAL);
+	release_region(REG, 2);
 }
 
 /* Logical device 4 registers */
@@ -1169,6 +1172,32 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = it87_update_device(dev);
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
+
+static ssize_t clear_intrusion(struct device *dev, struct device_attribute
+		*attr, const char *buf, size_t count)
+{
+	struct it87_data *data = dev_get_drvdata(dev);
+	long val;
+	int config;
+
+	if (strict_strtol(buf, 10, &val) < 0 || val != 0)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	config = it87_read_value(data, IT87_REG_CONFIG);
+	if (config < 0) {
+		count = config;
+	} else {
+		config |= 1 << 5;
+		it87_write_value(data, IT87_REG_CONFIG, config);
+		/* Invalidate cache to force re-read */
+		data->valid = 0;
+	}
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
 static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 8);
 static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 9);
 static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 10);
@@ -1185,6 +1214,8 @@ static SENSOR_DEVICE_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 6);
 static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 16);
 static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 17);
 static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 18);
+static SENSOR_DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR,
+			  show_alarm, clear_intrusion, 4);
 
 static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -1347,6 +1378,7 @@ static struct attribute *it87_attributes[] = {
 	&sensor_dev_attr_temp3_alarm.dev_attr.attr,
 
 	&dev_attr_alarms.attr,
+	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
 	&dev_attr_name.attr,
 	NULL
 };
@@ -1535,18 +1567,22 @@ static struct attribute *it87_attributes_label[] = {
 };
 
 static const struct attribute_group it87_group_label = {
-	.attrs = it87_attributes_vid,
+	.attrs = it87_attributes_label,
 };
 
 /* SuperIO detection - will change isa_address if a chip is found */
 static int __init it87_find(unsigned short *address,
 	struct it87_sio_data *sio_data)
 {
-	int err = -ENODEV;
+	int err;
 	u16 chip_type;
 	const char *board_vendor, *board_name;
 
-	superio_enter();
+	err = superio_enter();
+	if (err)
+		return err;
+
+	err = -ENODEV;
 	chip_type = force_id ? force_id : superio_inw(DEVID);
 
 	switch (chip_type) {

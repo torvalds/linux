@@ -13,12 +13,12 @@
 #include <net/caif/cfsrvl.h>
 #include <net/caif/cfpkt.h>
 
+
 #define container_obj(layr) ((struct cfsrvl *) layr)
 
 #define DGM_CMD_BIT  0x80
 #define DGM_FLOW_OFF 0x81
 #define DGM_FLOW_ON  0x80
-#define DGM_CTRL_PKT_SIZE 1
 #define DGM_MTU 1500
 
 static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt);
@@ -84,6 +84,7 @@ static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt)
 
 static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 {
+	u8 packet_type;
 	u32 zero = 0;
 	struct caif_payload_info *info;
 	struct cfsrvl *service = container_obj(layr);
@@ -95,7 +96,9 @@ static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	if (cfpkt_getlen(pkt) > DGM_MTU)
 		return -EMSGSIZE;
 
-	cfpkt_add_head(pkt, &zero, 4);
+	cfpkt_add_head(pkt, &zero, 3);
+	packet_type = 0x08; /* B9 set - UNCLASSIFIED */
+	cfpkt_add_head(pkt, &packet_type, 1);
 
 	/* Add info for MUX-layer to route the packet out. */
 	info = cfpkt_info(pkt);
@@ -105,10 +108,5 @@ static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	 */
 	info->hdr_len = 4;
 	info->dev_info = &service->dev_info;
-	ret = layr->dn->transmit(layr->dn, pkt);
-	if (ret < 0) {
-		u32 tmp32;
-		cfpkt_extr_head(pkt, &tmp32, 4);
-	}
-	return ret;
+	return layr->dn->transmit(layr->dn, pkt);
 }

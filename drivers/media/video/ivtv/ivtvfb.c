@@ -247,7 +247,7 @@ static int ivtvfb_set_osd_coords(struct ivtv *itv, const struct ivtv_osd_coords 
 
 static int ivtvfb_set_display_window(struct ivtv *itv, struct v4l2_rect *ivtv_window)
 {
-	int osd_height_limit = itv->is_50hz ? 576 : 480;
+	int osd_height_limit = itv->is_out_50hz ? 576 : 480;
 
 	/* Only fail if resolution too high, otherwise fudge the start coords. */
 	if ((ivtv_window->height > osd_height_limit) || (ivtv_window->width > IVTV_OSD_MAX_WIDTH))
@@ -471,9 +471,9 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 			vblank.flags = FB_VBLANK_HAVE_COUNT |FB_VBLANK_HAVE_VCOUNT |
 					FB_VBLANK_HAVE_VSYNC;
 			trace = read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16;
-			if (itv->is_50hz && trace > 312)
+			if (itv->is_out_50hz && trace > 312)
 				trace -= 312;
-			else if (itv->is_60hz && trace > 262)
+			else if (itv->is_out_60hz && trace > 262)
 				trace -= 262;
 			if (trace == 1)
 				vblank.flags |= FB_VBLANK_VSYNCING;
@@ -656,7 +656,7 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	IVTVFB_DEBUG_INFO("ivtvfb_check_var\n");
 
 	/* Set base references for mode calcs. */
-	if (itv->is_50hz) {
+	if (itv->is_out_50hz) {
 		pixclock = 84316;
 		hlimit = 776;
 		vlimit = 591;
@@ -784,12 +784,12 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	   If the margins are too large, just center the screen
 	   (enforcing margins causes too many problems) */
 
-	if (var->left_margin + var->xres > IVTV_OSD_MAX_WIDTH + 1) {
+	if (var->left_margin + var->xres > IVTV_OSD_MAX_WIDTH + 1)
 		var->left_margin = 1 + ((IVTV_OSD_MAX_WIDTH - var->xres) / 2);
-	}
-	if (var->upper_margin + var->yres > (itv->is_50hz ? 577 : 481)) {
-		var->upper_margin = 1 + (((itv->is_50hz ? 576 : 480) - var->yres) / 2);
-	}
+
+	if (var->upper_margin + var->yres > (itv->is_out_50hz ? 577 : 481))
+		var->upper_margin = 1 + (((itv->is_out_50hz ? 576 : 480) -
+			var->yres) / 2);
 
 	/* Maintain overall 'size' for a constant refresh rate */
 	var->right_margin = hlimit - var->left_margin - var->xres;
@@ -836,7 +836,12 @@ static int ivtvfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 	u32 osd_pan_index;
 	struct ivtv *itv = (struct ivtv *) info->par;
 
-	osd_pan_index = (var->xoffset + (var->yoffset * var->xres_virtual))*var->bits_per_pixel/8;
+	if (var->yoffset + info->var.yres > info->var.yres_virtual ||
+	    var->xoffset + info->var.xres > info->var.xres_virtual)
+		return -EINVAL;
+
+	osd_pan_index = var->yoffset * info->fix.line_length
+		      + var->xoffset * info->var.bits_per_pixel / 8;
 	write_reg(osd_pan_index, 0x02A0C);
 
 	/* Pass this info back the yuv handler */
@@ -1003,19 +1008,21 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	/* Hardware coords start at 0, user coords start at 1. */
 	osd_left--;
 
-	start_window.left = osd_left >= 0 ? osd_left : ((IVTV_OSD_MAX_WIDTH - start_window.width) / 2);
+	start_window.left = osd_left >= 0 ?
+		 osd_left : ((IVTV_OSD_MAX_WIDTH - start_window.width) / 2);
 
 	oi->display_byte_stride =
 			start_window.width * oi->bytes_per_pixel;
 
 	/* Vertical size & position */
 
-	max_height = itv->is_50hz ? 576 : 480;
+	max_height = itv->is_out_50hz ? 576 : 480;
 
 	if (osd_yres > max_height)
 		osd_yres = max_height;
 
-	start_window.height = osd_yres ? osd_yres : itv->is_50hz ? 480 : 400;
+	start_window.height = osd_yres ?
+		osd_yres : itv->is_out_50hz ? 480 : 400;
 
 	/* Check vertical start (osd_upper). */
 	if (osd_upper + start_window.height > max_height + 1) {
@@ -1080,7 +1087,7 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 		kmalloc(sizeof(u32) * 16, GFP_KERNEL|__GFP_NOWARN);
 
 	if (!oi->ivtvfb_info.pseudo_palette) {
-		IVTVFB_ERR("abort, unable to alloc pseudo pallete\n");
+		IVTVFB_ERR("abort, unable to alloc pseudo palette\n");
 		return -ENOMEM;
 	}
 

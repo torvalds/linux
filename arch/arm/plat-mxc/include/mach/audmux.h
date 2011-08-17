@@ -15,6 +15,14 @@
 #define MX31_AUDMUX_PORT5_SSI_PINS_5	4
 #define MX31_AUDMUX_PORT6_SSI_PINS_6	5
 
+#define MX51_AUDMUX_PORT1_SSI0		0
+#define MX51_AUDMUX_PORT2_SSI1		1
+#define MX51_AUDMUX_PORT3		2
+#define MX51_AUDMUX_PORT4		3
+#define MX51_AUDMUX_PORT5		4
+#define MX51_AUDMUX_PORT6		5
+#define MX51_AUDMUX_PORT7		6
+
 /* Register definitions for the i.MX21/27 Digital Audio Multiplexer */
 #define MXC_AUDMUX_V1_PCR_INMMASK(x)	((x) & 0xff)
 #define MXC_AUDMUX_V1_PCR_INMEN		(1 << 8)
@@ -28,7 +36,7 @@
 #define MXC_AUDMUX_V1_PCR_TCLKDIR	(1 << 30)
 #define MXC_AUDMUX_V1_PCR_TFSDIR	(1 << 31)
 
-/* Register definitions for the i.MX25/31/35 Digital Audio Multiplexer */
+/* Register definitions for the i.MX25/31/35/51 Digital Audio Multiplexer */
 #define MXC_AUDMUX_V2_PTCR_TFSDIR	(1 << 31)
 #define MXC_AUDMUX_V2_PTCR_TFSEL(x)	(((x) & 0xf) << 27)
 #define MXC_AUDMUX_V2_PTCR_TCLKDIR	(1 << 26)

@@ -251,7 +251,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 		recvframe_put(prframe, pnfhdr->len);
 		pfhdr->attrib.icv_len = pnfhdr->attrib.icv_len;
 		plist = get_next(plist);
-	};
+	}
 exit:
 	/* free the defrag_q queue and return the prframe */
 	r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);

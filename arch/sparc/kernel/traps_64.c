@@ -1804,7 +1804,7 @@ static const char *sun4v_err_type_to_str(u32 type)
 		return "warning resumable";
 	default:
 		return "unknown";
-	};
+	}
 }
 
 static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
@@ -2152,7 +2152,7 @@ static void user_instruction_dump(unsigned int __user *pc)
 
 void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 {
-	unsigned long fp, thread_base, ksp;
+	unsigned long fp, ksp;
 	struct thread_info *tp;
 	int count = 0;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -2173,7 +2173,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		flushw_all();
 
 	fp = ksp + STACK_BIAS;
-	thread_base = (unsigned long) tp;
 
 	printk("Call Trace:\n");
 	do {

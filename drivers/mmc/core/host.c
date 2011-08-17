@@ -160,10 +160,7 @@ static bool mmc_host_may_gate_card(struct mmc_card *card)
 	 * gate the clock, because there is somebody out there that may still
 	 * be using it.
 	 */
-	if (mmc_card_sdio(card))
-		return false;
-
-	return true;
+	return !(card->quirks & MMC_QUIRK_BROKEN_CLK_GATING);
 }
 
 /**
@@ -328,11 +325,11 @@ int mmc_add_host(struct mmc_host *host)
 	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
 		!host->ops->enable_sdio_irq);
 
-	led_trigger_register_simple(dev_name(&host->class_dev), &host->led);
-
 	err = device_add(&host->class_dev);
 	if (err)
 		return err;
+
+	led_trigger_register_simple(dev_name(&host->class_dev), &host->led);
 
 #ifdef CONFIG_DEBUG_FS
 	mmc_add_host_debugfs(host);

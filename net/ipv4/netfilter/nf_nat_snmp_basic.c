@@ -54,6 +54,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_nat_helper.h>
+#include <linux/netfilter/nf_conntrack_snmp.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@intercode.com.au>");
@@ -718,117 +719,115 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 
 	l = 0;
 	switch (type) {
-		case SNMP_INTEGER:
-			len = sizeof(long);
-			if (!asn1_long_decode(ctx, end, &l)) {
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len,
-				       GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			(*obj)->syntax.l[0] = l;
-			break;
-		case SNMP_OCTETSTR:
-		case SNMP_OPAQUE:
-			if (!asn1_octets_decode(ctx, end, &p, &len)) {
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len,
-				       GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(p);
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			memcpy((*obj)->syntax.c, p, len);
-			kfree(p);
-			break;
-		case SNMP_NULL:
-		case SNMP_NOSUCHOBJECT:
-		case SNMP_NOSUCHINSTANCE:
-		case SNMP_ENDOFMIBVIEW:
-			len = 0;
-			*obj = kmalloc(sizeof(struct snmp_object), GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			if (!asn1_null_decode(ctx, end)) {
-				kfree(id);
-				kfree(*obj);
-				*obj = NULL;
-				return 0;
-			}
-			break;
-		case SNMP_OBJECTID:
-			if (!asn1_oid_decode(ctx, end, (unsigned long **)&lp, &len)) {
-				kfree(id);
-				return 0;
-			}
-			len *= sizeof(unsigned long);
-			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(lp);
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			memcpy((*obj)->syntax.ul, lp, len);
-			kfree(lp);
-			break;
-		case SNMP_IPADDR:
-			if (!asn1_octets_decode(ctx, end, &p, &len)) {
-				kfree(id);
-				return 0;
-			}
-			if (len != 4) {
-				kfree(p);
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(p);
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			memcpy((*obj)->syntax.uc, p, len);
-			kfree(p);
-			break;
-		case SNMP_COUNTER:
-		case SNMP_GAUGE:
-		case SNMP_TIMETICKS:
-			len = sizeof(unsigned long);
-			if (!asn1_ulong_decode(ctx, end, &ul)) {
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			(*obj)->syntax.ul[0] = ul;
-			break;
-		default:
+	case SNMP_INTEGER:
+		len = sizeof(long);
+		if (!asn1_long_decode(ctx, end, &l)) {
 			kfree(id);
 			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(id);
+			if (net_ratelimit())
+				pr_notice("OOM in bsalg (%d)\n", __LINE__);
+			return 0;
+		}
+		(*obj)->syntax.l[0] = l;
+		break;
+	case SNMP_OCTETSTR:
+	case SNMP_OPAQUE:
+		if (!asn1_octets_decode(ctx, end, &p, &len)) {
+			kfree(id);
+			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(p);
+			kfree(id);
+			if (net_ratelimit())
+				pr_notice("OOM in bsalg (%d)\n", __LINE__);
+			return 0;
+		}
+		memcpy((*obj)->syntax.c, p, len);
+		kfree(p);
+		break;
+	case SNMP_NULL:
+	case SNMP_NOSUCHOBJECT:
+	case SNMP_NOSUCHINSTANCE:
+	case SNMP_ENDOFMIBVIEW:
+		len = 0;
+		*obj = kmalloc(sizeof(struct snmp_object), GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(id);
+			if (net_ratelimit())
+				pr_notice("OOM in bsalg (%d)\n", __LINE__);
+			return 0;
+		}
+		if (!asn1_null_decode(ctx, end)) {
+			kfree(id);
+			kfree(*obj);
+			*obj = NULL;
+			return 0;
+		}
+		break;
+	case SNMP_OBJECTID:
+		if (!asn1_oid_decode(ctx, end, (unsigned long **)&lp, &len)) {
+			kfree(id);
+			return 0;
+		}
+		len *= sizeof(unsigned long);
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(lp);
+			kfree(id);
+			if (net_ratelimit())
+				pr_notice("OOM in bsalg (%d)\n", __LINE__);
+			return 0;
+		}
+		memcpy((*obj)->syntax.ul, lp, len);
+		kfree(lp);
+		break;
+	case SNMP_IPADDR:
+		if (!asn1_octets_decode(ctx, end, &p, &len)) {
+			kfree(id);
+			return 0;
+		}
+		if (len != 4) {
+			kfree(p);
+			kfree(id);
+			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(p);
+			kfree(id);
+			if (net_ratelimit())
+				pr_notice("OOM in bsalg (%d)\n", __LINE__);
+			return 0;
+		}
+		memcpy((*obj)->syntax.uc, p, len);
+		kfree(p);
+		break;
+	case SNMP_COUNTER:
+	case SNMP_GAUGE:
+	case SNMP_TIMETICKS:
+		len = sizeof(unsigned long);
+		if (!asn1_ulong_decode(ctx, end, &ul)) {
+			kfree(id);
+			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(id);
+			if (net_ratelimit())
+				pr_notice("OOM in bsalg (%d)\n", __LINE__);
+			return 0;
+		}
+		(*obj)->syntax.ul[0] = ul;
+		break;
+	default:
+		kfree(id);
+		return 0;
 	}
 
 	(*obj)->syntax_len = len;
@@ -1310,9 +1309,9 @@ static int __init nf_nat_snmp_basic_init(void)
 {
 	int ret = 0;
 
-	ret = nf_conntrack_helper_register(&snmp_helper);
-	if (ret < 0)
-		return ret;
+	BUG_ON(nf_nat_snmp_hook != NULL);
+	rcu_assign_pointer(nf_nat_snmp_hook, help);
+
 	ret = nf_conntrack_helper_register(&snmp_trap_helper);
 	if (ret < 0) {
 		nf_conntrack_helper_unregister(&snmp_helper);
@@ -1323,7 +1322,7 @@ static int __init nf_nat_snmp_basic_init(void)
 
 static void __exit nf_nat_snmp_basic_fini(void)
 {
-	nf_conntrack_helper_unregister(&snmp_helper);
+	rcu_assign_pointer(nf_nat_snmp_hook, NULL);
 	nf_conntrack_helper_unregister(&snmp_trap_helper);
 }
 

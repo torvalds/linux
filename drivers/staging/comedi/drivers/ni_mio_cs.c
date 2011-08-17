@@ -416,7 +416,7 @@ static int ni_getboardtype(struct comedi_device *dev,
 
 #ifdef MODULE
 
-static struct pcmcia_device_id ni_mio_cs_ids[] = {
+static const struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d),	/* DAQCard-ai-16xe-50 */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010c),	/* DAQCard-ai-16e-4 */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x02c4),	/* DAQCard-6062E */

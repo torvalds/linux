@@ -40,6 +40,12 @@
 #define	RED_INACTIVE	0x09F911029D74E35BULL	/* when obj is inactive */
 #define	RED_ACTIVE	0xD84156C5635688C0ULL	/* when obj is active */
 
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+#define MEMBLOCK_INACTIVE	0x3a84fb0144c9e71bULL
+#else
+#define MEMBLOCK_INACTIVE	0x44c9e71bUL
+#endif
+
 #define SLUB_RED_INACTIVE	0xbb
 #define SLUB_RED_ACTIVE		0xcc
 

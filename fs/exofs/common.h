@@ -53,10 +53,14 @@
 #define EXOFS_ROOT_ID	0x10002	/* object ID for root directory */
 
 /* exofs Application specific page/attribute */
+/* Inode attrs */
 # define EXOFS_APAGE_FS_DATA	(OSD_APAGE_APP_DEFINED_FIRST + 3)
 # define EXOFS_ATTR_INODE_DATA	1
 # define EXOFS_ATTR_INODE_FILE_LAYOUT	2
 # define EXOFS_ATTR_INODE_DIR_LAYOUT	3
+/* Partition attrs */
+# define EXOFS_APAGE_SB_DATA	(0xF0000000U + 3)
+# define EXOFS_ATTR_SB_STATS	1
 
 /*
  * The maximum number of files we can have is limited by the size of the
@@ -86,8 +90,8 @@ enum {
  */
 enum {EXOFS_FSCB_VER = 1, EXOFS_DT_VER = 1};
 struct exofs_fscb {
-	__le64  s_nextid;	/* Highest object ID used */
-	__le64  s_numfiles;	/* Number of files on fs */
+	__le64  s_nextid;	/* Only used after mkfs */
+	__le64  s_numfiles;	/* Only used after mkfs */
 	__le32	s_version;	/* == EXOFS_FSCB_VER */
 	__le16  s_magic;	/* Magic signature */
 	__le16  s_newfs;	/* Non-zero if this is a new fs */
@@ -98,10 +102,20 @@ struct exofs_fscb {
 } __packed;
 
 /*
+ * This struct is set on the FS partition's attributes.
+ * [EXOFS_APAGE_SB_DATA, EXOFS_ATTR_SB_STATS] and is written together
+ * with the create command, to atomically persist the sb writeable information.
+ */
+struct exofs_sb_stats {
+	__le64  s_nextid;	/* Highest object ID used */
+	__le64  s_numfiles;	/* Number of files on fs */
+} __packed;
+
+/*
  * Describes the raid used in the FS. It is part of the device table.
  * This here is taken from the pNFS-objects definition. In exofs we
  * use one raid policy through-out the filesystem. (NOTE: the funny
- * alignment at begining. We take care of it at exofs_device_table.
+ * alignment at beginning. We take care of it at exofs_device_table.
  */
 struct exofs_dt_data_map {
 	__le32	cb_num_comps;
@@ -122,7 +136,7 @@ struct exofs_dt_device_info {
 	u8	systemid[OSD_SYSTEMID_LEN];
 	__le64	long_name_offset;	/* If !0 then offset-in-file */
 	__le32	osdname_len;		/* */
-	u8	osdname[44];		/* Embbeded, Ususally an asci uuid */
+	u8	osdname[44];		/* Embbeded, Usually an asci uuid */
 } __packed;
 
 /*

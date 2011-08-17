@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,13 +41,6 @@ static void ar9003_hw_set_desc_link(void *ds, u32 ds_link)
 	ads->link = ds_link;
 	ads->ctl10 &= ~AR_TxPtrChkSum;
 	ads->ctl10 |= ar9003_calc_ptr_chksum(ads);
-}
-
-static void ar9003_hw_get_desc_link(void *ds, u32 **ds_link)
-{
-	struct ar9003_txc *ads = ds;
-
-	*ds_link = &ads->link;
 }
 
 static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
@@ -236,6 +229,7 @@ static void ar9003_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
 static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
+	struct ar9003_txc *txc = (struct ar9003_txc *) ds;
 	struct ar9003_txs *ads;
 	u32 status;
 
@@ -245,7 +239,11 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	if ((status & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
+	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
+	if (!txc || (MS(txc->info, AR_TxQcuNum) == ts->qid))
+		ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
+	else
+		return -ENOENT;
 
 	if ((MS(ads->ds_info, AR_DescId) != ATHEROS_VENDOR_ID) ||
 	    (MS(ads->ds_info, AR_TxRxDesc) != 1)) {
@@ -261,7 +259,6 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_seqnum = MS(status, AR_SeqNum);
 	ts->tid = MS(status, AR_TxTid);
 
-	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
 	ts->desc_id = MS(ads->status1, AR_TxDescId);
 	ts->ts_tstamp = ads->status4;
 	ts->ts_status = 0;
@@ -329,7 +326,6 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
 		| SM(txpower, AR_XmitPower)
 		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
 		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
 		| (flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0);
 
@@ -348,6 +344,16 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 	ads->ctl20 = 0;
 	ads->ctl21 = 0;
 	ads->ctl22 = 0;
+}
+
+static void ar9003_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
+{
+	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
+
+	if (val)
+		ads->ctl11 |= AR_ClrDestMask;
+	else
+		ads->ctl11 &= ~AR_ClrDestMask;
 }
 
 static void ar9003_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
@@ -475,27 +481,6 @@ static void ar9003_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
 	ads->ctl12 &= (~AR_IsAggr & ~AR_MoreAggr);
 }
 
-static void ar9003_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
-					   u32 burstDuration)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	ads->ctl13 &= ~AR_BurstDur;
-	ads->ctl13 |= SM(burstDuration, AR_BurstDur);
-
-}
-
-static void ar9003_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
-					     u32 vmf)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	if (vmf)
-		ads->ctl11 |=  AR_VirtMoreFrag;
-	else
-		ads->ctl11 &= ~AR_VirtMoreFrag;
-}
-
 void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains)
 {
 	struct ar9003_txc *ads = ds;
@@ -510,7 +495,6 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 
 	ops->rx_enable = ar9003_hw_rx_enable;
 	ops->set_desc_link = ar9003_hw_set_desc_link;
-	ops->get_desc_link = ar9003_hw_get_desc_link;
 	ops->get_isr = ar9003_hw_get_isr;
 	ops->fill_txdesc = ar9003_hw_fill_txdesc;
 	ops->proc_txdesc = ar9003_hw_proc_txdesc;
@@ -520,8 +504,7 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->set11n_aggr_middle = ar9003_hw_set11n_aggr_middle;
 	ops->set11n_aggr_last = ar9003_hw_set11n_aggr_last;
 	ops->clr11n_aggr = ar9003_hw_clr11n_aggr;
-	ops->set11n_burstduration = ar9003_hw_set11n_burstduration;
-	ops->set11n_virtualmorefrag = ar9003_hw_set11n_virtualmorefrag;
+	ops->set_clrdmask = ar9003_hw_set_clrdmask;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)
@@ -615,7 +598,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 		 */
 		if (rxsp->status11 & AR_CRCErr)
 			rxs->rs_status |= ATH9K_RXERR_CRC;
-		if (rxsp->status11 & AR_PHYErr) {
+		else if (rxsp->status11 & AR_PHYErr) {
 			phyerr = MS(rxsp->status11, AR_PHYErrCode);
 			/*
 			 * If we reach a point here where AR_PostDelimCRCErr is
@@ -638,12 +621,11 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 				rxs->rs_phyerr = phyerr;
 			}
 
-		}
-		if (rxsp->status11 & AR_DecryptCRCErr)
+		} else if (rxsp->status11 & AR_DecryptCRCErr)
 			rxs->rs_status |= ATH9K_RXERR_DECRYPT;
-		if (rxsp->status11 & AR_MichaelErr)
+		else if (rxsp->status11 & AR_MichaelErr)
 			rxs->rs_status |= ATH9K_RXERR_MIC;
-		if (rxsp->status11 & AR_KeyMiss)
+		else if (rxsp->status11 & AR_KeyMiss)
 			rxs->rs_status |= ATH9K_RXERR_DECRYPT;
 	}
 

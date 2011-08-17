@@ -37,20 +37,74 @@
 #include "phy.h"
 #include "dm.h"
 #include "hw.h"
+#include "rf.h"
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
 
-int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
+static void rtl92c_init_aspm_vars(struct ieee80211_hw *hw)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	rtlpriv->dm.b_dm_initialgain_enable = 1;
+	/*close ASPM for AMD defaultly */
+	rtlpci->const_amdpci_aspm = 0;
+
+	/*
+	 * ASPM PS mode.
+	 * 0 - Disable ASPM,
+	 * 1 - Enable ASPM without Clock Req,
+	 * 2 - Enable ASPM with Clock Req,
+	 * 3 - Alwyas Enable ASPM with Clock Req,
+	 * 4 - Always Enable ASPM without Clock Req.
+	 * set defult to RTL8192CE:3 RTL8192E:2
+	 * */
+	rtlpci->const_pci_aspm = 3;
+
+	/*Setting for PCI-E device */
+	rtlpci->const_devicepci_aspm_setting = 0x03;
+
+	/*Setting for PCI-E bridge */
+	rtlpci->const_hostpci_aspm_setting = 0x02;
+
+	/*
+	 * In Hw/Sw Radio Off situation.
+	 * 0 - Default,
+	 * 1 - From ASPM setting without low Mac Pwr,
+	 * 2 - From ASPM setting with low Mac Pwr,
+	 * 3 - Bus D3
+	 * set default to RTL8192CE:0 RTL8192SE:2
+	 */
+	rtlpci->const_hwsw_rfoff_d3 = 0;
+
+	/*
+	 * This setting works for those device with
+	 * backdoor ASPM setting such as EPHY setting.
+	 * 0 - Not support ASPM,
+	 * 1 - Support ASPM,
+	 * 2 - According to chipset.
+	 */
+	rtlpci->const_support_pciaspm = 1;
+}
+
+int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
+{
+	int err;
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	const struct firmware *firmware;
+
+	rtl8192ce_bt_reg_init(hw);
+
+	rtlpriv->dm.dm_initialgain_enable = 1;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.b_disable_framebursting = 0;;
+	rtlpriv->dm.disable_framebursting = 0;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpci->transmit_config = CFENDFORM | BIT(12) | BIT(13);
+
+	/* compatible 5G band 88ce just 2.4G band & smsp */
+	rtlpriv->rtlhal.current_bandtype = BAND_ON_2_4G;
+	rtlpriv->rtlhal.bandset = BAND_ON_2_4G;
+	rtlpriv->rtlhal.macphymode = SINGLEMAC_SINGLEPHY;
 
 	rtlpci->receive_config = (RCR_APPFCS |
 				  RCR_AMF |
@@ -75,12 +129,48 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 
 	rtlpci->irq_mask[1] = (u32) (IMR_CPWM | IMR_C2HCMD | 0);
 
-	rtlpriv->rtlhal.pfirmware = (u8 *) vmalloc(0x4000);
+	/* for LPS & IPS */
+	rtlpriv->psc.inactiveps = rtlpriv->cfg->mod_params->inactiveps;
+	rtlpriv->psc.swctrl_lps = rtlpriv->cfg->mod_params->swctrl_lps;
+	rtlpriv->psc.fwctrl_lps = rtlpriv->cfg->mod_params->fwctrl_lps;
+	rtlpriv->psc.reg_fwctrl_lps = 3;
+	rtlpriv->psc.reg_max_lps_awakeintvl = 5;
+	/* for ASPM, you can close aspm through
+	 * set const_support_pciaspm = 0 */
+	rtl92c_init_aspm_vars(hw);
+
+	if (rtlpriv->psc.reg_fwctrl_lps == 1)
+		rtlpriv->psc.fwctrl_psmode = FW_PS_MIN_MODE;
+	else if (rtlpriv->psc.reg_fwctrl_lps == 2)
+		rtlpriv->psc.fwctrl_psmode = FW_PS_MAX_MODE;
+	else if (rtlpriv->psc.reg_fwctrl_lps == 3)
+		rtlpriv->psc.fwctrl_psmode = FW_PS_DTIM_MODE;
+
+	/* for firmware buf */
+	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 ("Can't alloc buffer for fw.\n"));
 		return 1;
 	}
+
+	/* request fw */
+	err = request_firmware(&firmware, rtlpriv->cfg->fw_name,
+			rtlpriv->io.dev);
+	if (err) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 ("Failed to request firmware!\n"));
+		return 1;
+	}
+	if (firmware->size > 0x4000) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 ("Firmware is too big!\n"));
+		release_firmware(firmware);
+		return 1;
+	}
+	memcpy(rtlpriv->rtlhal.pfirmware, firmware->data, firmware->size);
+	rtlpriv->rtlhal.fwsize = firmware->size;
+	release_firmware(firmware);
 
 	return 0;
 }
@@ -102,17 +192,19 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.interrupt_recognized = rtl92ce_interrupt_recognized,
 	.hw_init = rtl92ce_hw_init,
 	.hw_disable = rtl92ce_card_disable,
+	.hw_suspend = rtl92ce_suspend,
+	.hw_resume = rtl92ce_resume,
 	.enable_interrupt = rtl92ce_enable_interrupt,
 	.disable_interrupt = rtl92ce_disable_interrupt,
 	.set_network_type = rtl92ce_set_network_type,
+	.set_chk_bssid = rtl92ce_set_check_bssid,
 	.set_qos = rtl92ce_set_qos,
 	.set_bcn_reg = rtl92ce_set_beacon_related_registers,
 	.set_bcn_intv = rtl92ce_set_beacon_interval,
 	.update_interrupt_mask = rtl92ce_update_interrupt_mask,
 	.get_hw_reg = rtl92ce_get_hw_reg,
 	.set_hw_reg = rtl92ce_set_hw_reg,
-	.update_rate_table = rtl92ce_update_hal_rate_table,
-	.update_rate_mask = rtl92ce_update_hal_rate_mask,
+	.update_rate_tbl = rtl92ce_update_hal_rate_tbl,
 	.fill_tx_desc = rtl92ce_tx_fill_desc,
 	.fill_tx_cmddesc = rtl92ce_tx_fill_cmddesc,
 	.query_rx_desc = rtl92ce_rx_query_desc,
@@ -130,18 +222,30 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.enable_hw_sec = rtl92ce_enable_hw_security_config,
 	.set_key = rtl92ce_set_key,
 	.init_sw_leds = rtl92ce_init_sw_leds,
-	.deinit_sw_leds = rtl92ce_deinit_sw_leds,
 	.get_bbreg = rtl92c_phy_query_bb_reg,
 	.set_bbreg = rtl92c_phy_set_bb_reg,
+	.set_rfreg = rtl92ce_phy_set_rf_reg,
 	.get_rfreg = rtl92c_phy_query_rf_reg,
-	.set_rfreg = rtl92c_phy_set_rf_reg,
+	.phy_rf6052_config = rtl92ce_phy_rf6052_config,
+	.phy_rf6052_set_cck_txpower = rtl92ce_phy_rf6052_set_cck_txpower,
+	.phy_rf6052_set_ofdm_txpower = rtl92ce_phy_rf6052_set_ofdm_txpower,
+	.config_bb_with_headerfile = _rtl92ce_phy_config_bb_with_headerfile,
+	.config_bb_with_pgheaderfile = _rtl92ce_phy_config_bb_with_pgheaderfile,
+	.phy_lc_calibrate = _rtl92ce_phy_lc_calibrate,
+	.phy_set_bw_mode_callback = rtl92ce_phy_set_bw_mode_callback,
+	.dm_dynamic_txpower = rtl92ce_dm_dynamic_txpower,
 };
 
 static struct rtl_mod_params rtl92ce_mod_params = {
-	.sw_crypto = 0,
+	.sw_crypto = false,
+	.inactiveps = true,
+	.swctrl_lps = false,
+	.fwctrl_lps = true,
 };
 
 static struct rtl_hal_cfg rtl92ce_hal_cfg = {
+	.bar_id = 2,
+	.write_readback = true,
 	.name = "rtl92c_pci",
 	.fw_name = "rtlwifi/rtl8192cfw.bin",
 	.ops = &rtl8192ce_hal_ops,
@@ -165,6 +269,8 @@ static struct rtl_hal_cfg rtl92ce_hal_cfg = {
 	.maps[EFUSE_LOADER_CLK_EN] = LOADER_CLK_EN,
 	.maps[EFUSE_ANA8M] = EFUSE_ANA8M,
 	.maps[EFUSE_HWSET_MAX_SIZE] = HWSET_MAX_SIZE,
+	.maps[EFUSE_MAX_SECTION_MAP] = EFUSE_MAX_SECTION,
+	.maps[EFUSE_REAL_CONTENT_SIZE] = EFUSE_REAL_CONTENT_LEN,
 
 	.maps[RWCAM] = REG_CAMCMD,
 	.maps[WCAMI] = REG_CAMWRITE,
@@ -229,7 +335,7 @@ static struct rtl_hal_cfg rtl92ce_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92C_RATEMCS15,
 };
 
-static struct pci_device_id rtl92ce_pci_ids[] __devinitdata = {
+DEFINE_PCI_DEVICE_TABLE(rtl92ce_pci_ids) = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8191, rtl92ce_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8178, rtl92ce_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8177, rtl92ce_hal_cfg)},
@@ -247,7 +353,13 @@ MODULE_DESCRIPTION("Realtek 8192C/8188C 802.11n PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8192cfw.bin");
 
 module_param_named(swenc, rtl92ce_mod_params.sw_crypto, bool, 0444);
+module_param_named(ips, rtl92ce_mod_params.inactiveps, bool, 0444);
+module_param_named(swlps, rtl92ce_mod_params.swctrl_lps, bool, 0444);
+module_param_named(fwlps, rtl92ce_mod_params.fwctrl_lps, bool, 0444);
 MODULE_PARM_DESC(swenc, "using hardware crypto (default 0 [hardware])\n");
+MODULE_PARM_DESC(ips, "using no link power save (default 1 is open)\n");
+MODULE_PARM_DESC(fwlps, "using linked fw control power save "
+		 "(default 1 is open)\n");
 
 static struct pci_driver rtl92ce_driver = {
 	.name = KBUILD_MODNAME,

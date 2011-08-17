@@ -2,7 +2,7 @@
  * Author: Andy Fleming <afleming@freescale.com>
  * 	   Kumar Gala <galak@kernel.crashing.org>
  *
- * Copyright 2006-2008 Freescale Semiconductor Inc.
+ * Copyright 2006-2008, 2011 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -41,7 +41,7 @@ extern void __early_start(void);
 #define NUM_BOOT_ENTRY		8
 #define SIZE_BOOT_ENTRY		(NUM_BOOT_ENTRY * sizeof(u32))
 
-static void __init
+static int __init
 smp_85xx_kick_cpu(int nr)
 {
 	unsigned long flags;
@@ -60,7 +60,7 @@ smp_85xx_kick_cpu(int nr)
 
 	if (cpu_rel_addr == NULL) {
 		printk(KERN_ERR "No cpu-release-addr for cpu %d\n", nr);
-		return;
+		return -ENOENT;
 	}
 
 	/*
@@ -91,10 +91,14 @@ smp_85xx_kick_cpu(int nr)
 	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
 		mdelay(1);
 #else
+	smp_generic_kick_cpu(nr);
+
 	out_be64((u64 *)(bptr_vaddr + BOOT_ENTRY_ADDR_UPPER),
 		__pa((u64)*((unsigned long long *) generic_secondary_smp_init)));
 
-	smp_generic_kick_cpu(nr);
+	if (!ioremappable)
+		flush_dcache_range((ulong)bptr_vaddr,
+				(ulong)(bptr_vaddr + SIZE_BOOT_ENTRY));
 #endif
 
 	local_irq_restore(flags);
@@ -103,14 +107,8 @@ smp_85xx_kick_cpu(int nr)
 		iounmap(bptr_vaddr);
 
 	pr_debug("waited %d msecs for CPU #%d.\n", n, nr);
-}
 
-static void __init
-smp_85xx_setup_cpu(int cpu_nr)
-{
-	mpic_setup_this_cpu();
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		doorbell_setup_this_cpu();
+	return 0;
 }
 
 struct smp_ops_t smp_85xx_ops = {
@@ -218,21 +216,35 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 }
 #endif /* CONFIG_KEXEC */
 
+static void __init
+smp_85xx_setup_cpu(int cpu_nr)
+{
+	if (smp_85xx_ops.probe == smp_mpic_probe)
+		mpic_setup_this_cpu();
+
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		doorbell_setup_this_cpu();
+}
+
 void __init mpc85xx_smp_init(void)
 {
 	struct device_node *np;
 
+	smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
+
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np) {
 		smp_85xx_ops.probe = smp_mpic_probe;
-		smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
 		smp_85xx_ops.message_pass = smp_mpic_message_pass;
 	}
 
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		smp_85xx_ops.message_pass = doorbell_message_pass;
-
-	BUG_ON(!smp_85xx_ops.message_pass);
+	if (cpu_has_feature(CPU_FTR_DBELL)) {
+		/*
+		 * If left NULL, .message_pass defaults to
+		 * smp_muxed_ipi_message_pass
+		 */
+		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
+	}
 
 	smp_ops = &smp_85xx_ops;
 

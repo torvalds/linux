@@ -66,7 +66,7 @@
 #define IF_SPI_HOST_INT_CTRL_REG 0x40	/* Host interrupt controller reg */
 
 #define IF_SPI_CARD_INT_CAUSE_REG 0x44	/* Card interrupt cause reg */
-#define IF_SPI_CARD_INT_STATUS_REG 0x48 /* Card interupt status reg */
+#define IF_SPI_CARD_INT_STATUS_REG 0x48 /* Card interrupt status reg */
 #define IF_SPI_CARD_INT_EVENT_MASK_REG 0x4C /* Card interrupt event mask */
 #define IF_SPI_CARD_INT_STATUS_MASK_REG	0x50 /* Card interrupt status mask */
 
@@ -86,34 +86,34 @@
 #define IF_SPI_DEVICEID_CTRL_REG_TO_CARD_REV(dc) (dc & 0x000000ff)
 
 /***************** IF_SPI_HOST_INT_CTRL_REG *****************/
-/** Host Interrupt Control bit : Wake up */
+/* Host Interrupt Control bit : Wake up */
 #define IF_SPI_HICT_WAKE_UP				(1<<0)
-/** Host Interrupt Control bit : WLAN ready */
+/* Host Interrupt Control bit : WLAN ready */
 #define IF_SPI_HICT_WLAN_READY				(1<<1)
 /*#define IF_SPI_HICT_FIFO_FIRST_HALF_EMPTY		(1<<2) */
 /*#define IF_SPI_HICT_FIFO_SECOND_HALF_EMPTY		(1<<3) */
 /*#define IF_SPI_HICT_IRQSRC_WLAN			(1<<4) */
-/** Host Interrupt Control bit : Tx auto download */
+/* Host Interrupt Control bit : Tx auto download */
 #define IF_SPI_HICT_TX_DOWNLOAD_OVER_AUTO		(1<<5)
-/** Host Interrupt Control bit : Rx auto upload */
+/* Host Interrupt Control bit : Rx auto upload */
 #define IF_SPI_HICT_RX_UPLOAD_OVER_AUTO			(1<<6)
-/** Host Interrupt Control bit : Command auto download */
+/* Host Interrupt Control bit : Command auto download */
 #define IF_SPI_HICT_CMD_DOWNLOAD_OVER_AUTO		(1<<7)
-/** Host Interrupt Control bit : Command auto upload */
+/* Host Interrupt Control bit : Command auto upload */
 #define IF_SPI_HICT_CMD_UPLOAD_OVER_AUTO		(1<<8)
 
 /***************** IF_SPI_CARD_INT_CAUSE_REG *****************/
-/** Card Interrupt Case bit : Tx download over */
+/* Card Interrupt Case bit : Tx download over */
 #define IF_SPI_CIC_TX_DOWNLOAD_OVER			(1<<0)
-/** Card Interrupt Case bit : Rx upload over */
+/* Card Interrupt Case bit : Rx upload over */
 #define IF_SPI_CIC_RX_UPLOAD_OVER			(1<<1)
-/** Card Interrupt Case bit : Command download over */
+/* Card Interrupt Case bit : Command download over */
 #define IF_SPI_CIC_CMD_DOWNLOAD_OVER			(1<<2)
-/** Card Interrupt Case bit : Host event */
+/* Card Interrupt Case bit : Host event */
 #define IF_SPI_CIC_HOST_EVENT				(1<<3)
-/** Card Interrupt Case bit : Command upload over */
+/* Card Interrupt Case bit : Command upload over */
 #define IF_SPI_CIC_CMD_UPLOAD_OVER			(1<<4)
-/** Card Interrupt Case bit : Power down */
+/* Card Interrupt Case bit : Power down */
 #define IF_SPI_CIC_POWER_DOWN				(1<<5)
 
 /***************** IF_SPI_CARD_INT_STATUS_REG *****************/
@@ -138,51 +138,51 @@
 #define IF_SPI_HICU_CMD_RD_FIFO_UNDERFLOW		(1<<10)
 
 /***************** IF_SPI_HOST_INT_STATUS_REG *****************/
-/** Host Interrupt Status bit : Tx download ready */
+/* Host Interrupt Status bit : Tx download ready */
 #define IF_SPI_HIST_TX_DOWNLOAD_RDY			(1<<0)
-/** Host Interrupt Status bit : Rx upload ready */
+/* Host Interrupt Status bit : Rx upload ready */
 #define IF_SPI_HIST_RX_UPLOAD_RDY			(1<<1)
-/** Host Interrupt Status bit : Command download ready */
+/* Host Interrupt Status bit : Command download ready */
 #define IF_SPI_HIST_CMD_DOWNLOAD_RDY			(1<<2)
-/** Host Interrupt Status bit : Card event */
+/* Host Interrupt Status bit : Card event */
 #define IF_SPI_HIST_CARD_EVENT				(1<<3)
-/** Host Interrupt Status bit : Command upload ready */
+/* Host Interrupt Status bit : Command upload ready */
 #define IF_SPI_HIST_CMD_UPLOAD_RDY			(1<<4)
-/** Host Interrupt Status bit : I/O write FIFO overflow */
+/* Host Interrupt Status bit : I/O write FIFO overflow */
 #define IF_SPI_HIST_IO_WR_FIFO_OVERFLOW			(1<<5)
-/** Host Interrupt Status bit : I/O read FIFO underflow */
+/* Host Interrupt Status bit : I/O read FIFO underflow */
 #define IF_SPI_HIST_IO_RD_FIFO_UNDRFLOW			(1<<6)
-/** Host Interrupt Status bit : Data write FIFO overflow */
+/* Host Interrupt Status bit : Data write FIFO overflow */
 #define IF_SPI_HIST_DATA_WR_FIFO_OVERFLOW		(1<<7)
-/** Host Interrupt Status bit : Data read FIFO underflow */
+/* Host Interrupt Status bit : Data read FIFO underflow */
 #define IF_SPI_HIST_DATA_RD_FIFO_UNDERFLOW		(1<<8)
-/** Host Interrupt Status bit : Command write FIFO overflow */
+/* Host Interrupt Status bit : Command write FIFO overflow */
 #define IF_SPI_HIST_CMD_WR_FIFO_OVERFLOW		(1<<9)
-/** Host Interrupt Status bit : Command read FIFO underflow */
+/* Host Interrupt Status bit : Command read FIFO underflow */
 #define IF_SPI_HIST_CMD_RD_FIFO_UNDERFLOW		(1<<10)
 
 /***************** IF_SPI_HOST_INT_STATUS_MASK_REG *****************/
-/** Host Interrupt Status Mask bit : Tx download ready */
+/* Host Interrupt Status Mask bit : Tx download ready */
 #define IF_SPI_HISM_TX_DOWNLOAD_RDY			(1<<0)
-/** Host Interrupt Status Mask bit : Rx upload ready */
+/* Host Interrupt Status Mask bit : Rx upload ready */
 #define IF_SPI_HISM_RX_UPLOAD_RDY			(1<<1)
-/** Host Interrupt Status Mask bit : Command download ready */
+/* Host Interrupt Status Mask bit : Command download ready */
 #define IF_SPI_HISM_CMD_DOWNLOAD_RDY			(1<<2)
-/** Host Interrupt Status Mask bit : Card event */
+/* Host Interrupt Status Mask bit : Card event */
 #define IF_SPI_HISM_CARDEVENT				(1<<3)
-/** Host Interrupt Status Mask bit : Command upload ready */
+/* Host Interrupt Status Mask bit : Command upload ready */
 #define IF_SPI_HISM_CMD_UPLOAD_RDY			(1<<4)
-/** Host Interrupt Status Mask bit : I/O write FIFO overflow */
+/* Host Interrupt Status Mask bit : I/O write FIFO overflow */
 #define IF_SPI_HISM_IO_WR_FIFO_OVERFLOW			(1<<5)
-/** Host Interrupt Status Mask bit : I/O read FIFO underflow */
+/* Host Interrupt Status Mask bit : I/O read FIFO underflow */
 #define IF_SPI_HISM_IO_RD_FIFO_UNDERFLOW		(1<<6)
-/** Host Interrupt Status Mask bit : Data write FIFO overflow */
+/* Host Interrupt Status Mask bit : Data write FIFO overflow */
 #define IF_SPI_HISM_DATA_WR_FIFO_OVERFLOW		(1<<7)
-/** Host Interrupt Status Mask bit : Data write FIFO underflow */
+/* Host Interrupt Status Mask bit : Data write FIFO underflow */
 #define IF_SPI_HISM_DATA_RD_FIFO_UNDERFLOW		(1<<8)
-/** Host Interrupt Status Mask bit : Command write FIFO overflow */
+/* Host Interrupt Status Mask bit : Command write FIFO overflow */
 #define IF_SPI_HISM_CMD_WR_FIFO_OVERFLOW		(1<<9)
-/** Host Interrupt Status Mask bit : Command write FIFO underflow */
+/* Host Interrupt Status Mask bit : Command write FIFO underflow */
 #define IF_SPI_HISM_CMD_RD_FIFO_UNDERFLOW		(1<<10)
 
 /***************** IF_SPI_SPU_BUS_MODE_REG *****************/

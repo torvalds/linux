@@ -131,18 +131,12 @@ static int pcap_rtc_alarm_irq_enable(struct device *dev, unsigned int en)
 	return pcap_rtc_irq_enable(dev, PCAP_IRQ_TODA, en);
 }
 
-static int pcap_rtc_update_irq_enable(struct device *dev, unsigned int en)
-{
-	return pcap_rtc_irq_enable(dev, PCAP_IRQ_1HZ, en);
-}
-
 static const struct rtc_class_ops pcap_rtc_ops = {
 	.read_time = pcap_rtc_read_time,
 	.read_alarm = pcap_rtc_read_alarm,
 	.set_alarm = pcap_rtc_set_alarm,
 	.set_mmss = pcap_rtc_set_mmss,
 	.alarm_irq_enable = pcap_rtc_alarm_irq_enable,
-	.update_irq_enable = pcap_rtc_update_irq_enable,
 };
 
 static int __devinit pcap_rtc_probe(struct platform_device *pdev)
@@ -157,6 +151,8 @@ static int __devinit pcap_rtc_probe(struct platform_device *pdev)
 
 	pcap_rtc->pcap = dev_get_drvdata(pdev->dev.parent);
 
+	platform_set_drvdata(pdev, pcap_rtc);
+
 	pcap_rtc->rtc = rtc_device_register("pcap", &pdev->dev,
 				  &pcap_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pcap_rtc->rtc)) {
@@ -164,7 +160,6 @@ static int __devinit pcap_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc;
 	}
 
-	platform_set_drvdata(pdev, pcap_rtc);
 
 	timer_irq = pcap_to_irq(pcap_rtc->pcap, PCAP_IRQ_1HZ);
 	alarm_irq = pcap_to_irq(pcap_rtc->pcap, PCAP_IRQ_TODA);
@@ -183,6 +178,7 @@ fail_alarm:
 fail_timer:
 	rtc_device_unregister(pcap_rtc->rtc);
 fail_rtc:
+	platform_set_drvdata(pdev, NULL);
 	kfree(pcap_rtc);
 	return err;
 }

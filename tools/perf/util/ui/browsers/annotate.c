@@ -1,9 +1,11 @@
 #include "../browser.h"
 #include "../helpline.h"
 #include "../libslang.h"
+#include "../../annotate.h"
 #include "../../hist.h"
 #include "../../sort.h"
 #include "../../symbol.h"
+#include <pthread.h>
 
 static void ui__error_window(const char *fmt, ...)
 {
@@ -42,8 +44,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		struct objdump_line_rb_node *olrb = objdump_line__rb(ol);
 		ui_browser__set_percent_color(self, olrb->percent, current_entry);
 		slsmg_printf(" %7.2f ", olrb->percent);
-		if (!current_entry)
-			ui_browser__set_color(self, HE_COLORSET_CODE);
 	} else {
 		ui_browser__set_percent_color(self, 0, current_entry);
 		slsmg_write_nstring(" ", 9);
@@ -55,35 +55,40 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(" ", width - 18);
 	else
 		slsmg_write_nstring(ol->line, width - 18);
+
+	if (!current_entry)
+		ui_browser__set_color(self, HE_COLORSET_CODE);
 }
 
 static double objdump_line__calc_percent(struct objdump_line *self,
-					 struct list_head *head,
-					 struct symbol *sym)
+					 struct symbol *sym, int evidx)
 {
 	double percent = 0.0;
 
 	if (self->offset != -1) {
 		int len = sym->end - sym->start;
 		unsigned int hits = 0;
-		struct sym_priv *priv = symbol__priv(sym);
-		struct sym_ext *sym_ext = priv->ext;
-		struct sym_hist *h = priv->hist;
+		struct annotation *notes = symbol__annotation(sym);
+		struct source_line *src_line = notes->src->lines;
+		struct sym_hist *h = annotation__histogram(notes, evidx);
 		s64 offset = self->offset;
-		struct objdump_line *next = objdump__get_next_ip_line(head, self);
+		struct objdump_line *next;
 
-
+		next = objdump__get_next_ip_line(&notes->src->source, self);
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
-			if (sym_ext) {
-				percent += sym_ext[offset].percent;
+			if (src_line) {
+				percent += src_line[offset].percent;
 			} else
-				hits += h->ip[offset];
+				hits += h->addr[offset];
 
 			++offset;
 		}
-
-		if (sym_ext == NULL && h->sum)
+		/*
+ 		 * If the percentage wasn't already calculated in
+ 		 * symbol__get_source_line, do it now:
+ 		 */
+		if (src_line == NULL && h->sum)
 			percent = 100.0 * hits / h->sum;
 	}
 
@@ -133,103 +138,163 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 	self->curr_hot = nd;
 }
 
-static int annotate_browser__run(struct annotate_browser *self)
+static void annotate_browser__calc_percent(struct annotate_browser *browser,
+					   int evidx)
 {
-	struct rb_node *nd;
-	struct hist_entry *he = self->b.priv;
-	int key;
+	struct symbol *sym = browser->b.priv;
+	struct annotation *notes = symbol__annotation(sym);
+	struct objdump_line *pos;
 
-	if (ui_browser__show(&self->b, he->ms.sym->name,
-			     "<-, -> or ESC: exit, TAB/shift+TAB: cycle thru samples") < 0)
-		return -1;
+	browser->entries = RB_ROOT;
+
+	pthread_mutex_lock(&notes->lock);
+
+	list_for_each_entry(pos, &notes->src->source, node) {
+		struct objdump_line_rb_node *rbpos = objdump_line__rb(pos);
+		rbpos->percent = objdump_line__calc_percent(pos, sym, evidx);
+		if (rbpos->percent < 0.01) {
+			RB_CLEAR_NODE(&rbpos->rb_node);
+			continue;
+		}
+		objdump__insert_line(&browser->entries, rbpos);
+	}
+	pthread_mutex_unlock(&notes->lock);
+
+	browser->curr_hot = rb_last(&browser->entries);
+}
+
+static int annotate_browser__run(struct annotate_browser *self, int evidx,
+				 int refresh)
+{
+	struct rb_node *nd = NULL;
+	struct symbol *sym = self->b.priv;
 	/*
-	 * To allow builtin-annotate to cycle thru multiple symbols by
+	 * RIGHT To allow builtin-annotate to cycle thru multiple symbols by
 	 * examining the exit key for this function.
 	 */
-	ui_browser__add_exit_key(&self->b, NEWT_KEY_RIGHT);
+	int exit_keys[] = { 'H', NEWT_KEY_TAB, NEWT_KEY_UNTAB,
+			    NEWT_KEY_RIGHT, 0 };
+	int key;
+
+	if (ui_browser__show(&self->b, sym->name,
+			     "<-, -> or ESC: exit, TAB/shift+TAB: "
+			     "cycle hottest lines, H: Hottest") < 0)
+		return -1;
+
+	ui_browser__add_exit_keys(&self->b, exit_keys);
+	annotate_browser__calc_percent(self, evidx);
+
+	if (self->curr_hot)
+		annotate_browser__set_top(self, self->curr_hot);
 
 	nd = self->curr_hot;
-	if (nd) {
-		int tabs[] = { NEWT_KEY_TAB, NEWT_KEY_UNTAB, 0 };
-		ui_browser__add_exit_keys(&self->b, tabs);
-	}
+
+	if (refresh != 0)
+		newtFormSetTimer(self->b.form, refresh);
 
 	while (1) {
 		key = ui_browser__run(&self->b);
 
+		if (refresh != 0) {
+			annotate_browser__calc_percent(self, evidx);
+			/*
+			 * Current line focus got out of the list of most active
+			 * lines, NULL it so that if TAB|UNTAB is pressed, we
+			 * move to curr_hot (current hottest line).
+			 */
+			if (nd != NULL && RB_EMPTY_NODE(nd))
+				nd = NULL;
+		}
+
 		switch (key) {
+		case -1:
+			/*
+ 			 * FIXME we need to check if it was
+ 			 * es.reason == NEWT_EXIT_TIMER
+ 			 */
+			if (refresh != 0)
+				symbol__annotate_decay_histogram(sym, evidx);
+			continue;
 		case NEWT_KEY_TAB:
-			nd = rb_prev(nd);
-			if (nd == NULL)
-				nd = rb_last(&self->entries);
-			annotate_browser__set_top(self, nd);
+			if (nd != NULL) {
+				nd = rb_prev(nd);
+				if (nd == NULL)
+					nd = rb_last(&self->entries);
+			} else
+				nd = self->curr_hot;
 			break;
 		case NEWT_KEY_UNTAB:
-			nd = rb_next(nd);
-			if (nd == NULL)
-				nd = rb_first(&self->entries);
-			annotate_browser__set_top(self, nd);
+			if (nd != NULL)
+				nd = rb_next(nd);
+				if (nd == NULL)
+					nd = rb_first(&self->entries);
+			else
+				nd = self->curr_hot;
+			break;
+		case 'H':
+			nd = self->curr_hot;
 			break;
 		default:
 			goto out;
 		}
+
+		if (nd != NULL)
+			annotate_browser__set_top(self, nd);
 	}
 out:
 	ui_browser__hide(&self->b);
 	return key;
 }
 
-int hist_entry__tui_annotate(struct hist_entry *self)
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx)
+{
+	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx, 0);
+}
+
+int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
+			 int refresh)
 {
 	struct objdump_line *pos, *n;
-	struct objdump_line_rb_node *rbpos;
-	LIST_HEAD(head);
+	struct annotation *notes;
 	struct annotate_browser browser = {
 		.b = {
-			.entries = &head,
 			.refresh = ui_browser__list_head_refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
-			.priv	 = self,
+			.priv	 = sym,
 		},
 	};
 	int ret;
 
-	if (self->ms.sym == NULL)
+	if (sym == NULL)
 		return -1;
 
-	if (self->ms.map->dso->annotate_warned)
+	if (map->dso->annotate_warned)
 		return -1;
 
-	if (hist_entry__annotate(self, &head, sizeof(*rbpos)) < 0) {
+	if (symbol__annotate(sym, map, sizeof(struct objdump_line_rb_node)) < 0) {
 		ui__error_window(ui_helpline__last_msg);
 		return -1;
 	}
 
 	ui_helpline__push("Press <- or ESC to exit");
 
-	list_for_each_entry(pos, &head, node) {
+	notes = symbol__annotation(sym);
+
+	list_for_each_entry(pos, &notes->src->source, node) {
+		struct objdump_line_rb_node *rbpos;
 		size_t line_len = strlen(pos->line);
+
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
 		rbpos = objdump_line__rb(pos);
 		rbpos->idx = browser.b.nr_entries++;
-		rbpos->percent = objdump_line__calc_percent(pos, &head, self->ms.sym);
-		if (rbpos->percent < 0.01)
-			continue;
-		objdump__insert_line(&browser.entries, rbpos);
 	}
 
-	/*
-	 * Position the browser at the hottest line.
-	 */
-	browser.curr_hot = rb_last(&browser.entries);
-	if (browser.curr_hot)
-		annotate_browser__set_top(&browser, browser.curr_hot);
-
+	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
-	ret = annotate_browser__run(&browser);
-	list_for_each_entry_safe(pos, n, &head, node) {
+	ret = annotate_browser__run(&browser, evidx, refresh);
+	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
 		objdump_line__free(pos);
 	}

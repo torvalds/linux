@@ -55,6 +55,10 @@ struct iscsi_sw_tcp_conn {
 	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 };
 
+struct iscsi_sw_tcp_host {
+	struct iscsi_session	*session;
+};
+
 struct iscsi_sw_tcp_hdrbuf {
 	struct iscsi_hdr	hdrbuf;
 	char			hdrextbuf[ISCSI_MAX_AHS_SIZE +

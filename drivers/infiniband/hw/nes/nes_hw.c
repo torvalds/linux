@@ -80,7 +80,7 @@ static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
 static unsigned char *nes_iwarp_state_str[] = {
-	"Non-Existant",
+	"Non-Existent",
 	"Idle",
 	"RTS",
 	"Closing",
@@ -91,7 +91,7 @@ static unsigned char *nes_iwarp_state_str[] = {
 };
 
 static unsigned char *nes_tcp_state_str[] = {
-	"Non-Existant",
+	"Non-Existent",
 	"Closed",
 	"Listen",
 	"SYN Sent",
@@ -2885,9 +2885,8 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 					if ((cqe_errv &
 							(NES_NIC_ERRV_BITS_IPV4_CSUM_ERR | NES_NIC_ERRV_BITS_TCPUDP_CSUM_ERR |
 							NES_NIC_ERRV_BITS_IPH_ERR | NES_NIC_ERRV_BITS_WQE_OVERRUN)) == 0) {
-						if (nesvnic->rx_checksum_disabled == 0) {
+						if (nesvnic->netdev->features & NETIF_F_RXCSUM)
 							rx_skb->ip_summed = CHECKSUM_UNNECESSARY;
-						}
 					} else
 						nes_debug(NES_DBG_CQ, "%s: unsuccessfully checksummed TCP or UDP packet."
 								" errv = 0x%X, pkt_type = 0x%X.\n",
@@ -2897,7 +2896,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 					if ((cqe_errv &
 							(NES_NIC_ERRV_BITS_IPV4_CSUM_ERR | NES_NIC_ERRV_BITS_IPH_ERR |
 							NES_NIC_ERRV_BITS_WQE_OVERRUN)) == 0) {
-						if (nesvnic->rx_checksum_disabled == 0) {
+						if (nesvnic->netdev->features & NETIF_F_RXCSUM) {
 							rx_skb->ip_summed = CHECKSUM_UNNECESSARY;
 							/* nes_debug(NES_DBG_CQ, "%s: Reporting successfully checksummed IPv4 packet.\n",
 								  nesvnic->netdev->name); */
@@ -2918,24 +2917,19 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 					goto skip_rx_indicate0;
 
 
-				if ((cqe_misc & NES_NIC_CQE_TAG_VALID) &&
-				    (nesvnic->vlan_grp != NULL)) {
+				if (cqe_misc & NES_NIC_CQE_TAG_VALID) {
 					vlan_tag = (u16)(le32_to_cpu(
 							cq->cq_vbase[head].cqe_words[NES_NIC_CQE_TAG_PKT_TYPE_IDX])
 							>> 16);
 					nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
 							nesvnic->netdev->name, vlan_tag);
-					if (nes_use_lro)
-						lro_vlan_hwaccel_receive_skb(&nesvnic->lro_mgr, rx_skb,
-								nesvnic->vlan_grp, vlan_tag, NULL);
-					else
-						nes_vlan_rx(rx_skb, nesvnic->vlan_grp, vlan_tag);
-				} else {
-					if (nes_use_lro)
-						lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
-					else
-						nes_netif_rx(rx_skb);
+
+					__vlan_hwaccel_put_tag(rx_skb, vlan_tag);
 				}
+				if (nes_use_lro)
+					lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
+				else
+					netif_receive_skb(rx_skb);
 
 skip_rx_indicate0:
 				;

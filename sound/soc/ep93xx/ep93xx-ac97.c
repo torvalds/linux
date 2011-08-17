@@ -106,12 +106,12 @@ static struct ep93xx_ac97_info *ep93xx_ac97_info;
 
 static struct ep93xx_pcm_dma_params ep93xx_ac97_pcm_out = {
 	.name		= "ac97-pcm-out",
-	.dma_port	= EP93XX_DMA_M2P_PORT_AAC1,
+	.dma_port	= EP93XX_DMA_AAC1,
 };
 
 static struct ep93xx_pcm_dma_params ep93xx_ac97_pcm_in = {
 	.name		= "ac97-pcm-in",
-	.dma_port	= EP93XX_DMA_M2P_PORT_AAC1,
+	.dma_port	= EP93XX_DMA_AAC1,
 };
 
 static inline unsigned ep93xx_ac97_read_reg(struct ep93xx_ac97_info *info,
@@ -252,7 +252,6 @@ static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 {
 	struct ep93xx_ac97_info *info = snd_soc_dai_get_drvdata(dai);
 	unsigned v = 0;
-
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:

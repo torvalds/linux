@@ -63,9 +63,9 @@ static struct {
 	unsigned char mode;
 } txx9irq[TXx9_MAX_IR] __read_mostly;
 
-static void txx9_irq_unmask(unsigned int irq)
+static void txx9_irq_unmask(struct irq_data *d)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 	u32 __iomem *ilrp = &txx9_ircptr->ilr[(irq_nr % 16 ) / 2];
 	int ofs = irq_nr / 16 * 16 + (irq_nr & 1) * 8;
 
@@ -79,9 +79,9 @@ static void txx9_irq_unmask(unsigned int irq)
 #endif
 }
 
-static inline void txx9_irq_mask(unsigned int irq)
+static inline void txx9_irq_mask(struct irq_data *d)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 	u32 __iomem *ilrp = &txx9_ircptr->ilr[(irq_nr % 16) / 2];
 	int ofs = irq_nr / 16 * 16 + (irq_nr & 1) * 8;
 
@@ -99,19 +99,19 @@ static inline void txx9_irq_mask(unsigned int irq)
 #endif
 }
 
-static void txx9_irq_mask_ack(unsigned int irq)
+static void txx9_irq_mask_ack(struct irq_data *d)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 
-	txx9_irq_mask(irq);
+	txx9_irq_mask(d);
 	/* clear edge detection */
 	if (unlikely(TXx9_IRCR_EDGE(txx9irq[irq_nr].mode)))
 		__raw_writel(TXx9_IRSCR_EIClrE | irq_nr, &txx9_ircptr->scr);
 }
 
-static int txx9_irq_set_type(unsigned int irq, unsigned int flow_type)
+static int txx9_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 	u32 cr;
 	u32 __iomem *crp;
 	int ofs;
@@ -139,11 +139,11 @@ static int txx9_irq_set_type(unsigned int irq, unsigned int flow_type)
 
 static struct irq_chip txx9_irq_chip = {
 	.name		= "TXX9",
-	.ack		= txx9_irq_mask_ack,
-	.mask		= txx9_irq_mask,
-	.mask_ack	= txx9_irq_mask_ack,
-	.unmask		= txx9_irq_unmask,
-	.set_type	= txx9_irq_set_type,
+	.irq_ack	= txx9_irq_mask_ack,
+	.irq_mask	= txx9_irq_mask,
+	.irq_mask_ack	= txx9_irq_mask_ack,
+	.irq_unmask	= txx9_irq_unmask,
+	.irq_set_type	= txx9_irq_set_type,
 };
 
 void __init txx9_irq_init(unsigned long baseaddr)
@@ -154,8 +154,8 @@ void __init txx9_irq_init(unsigned long baseaddr)
 	for (i = 0; i < TXx9_MAX_IR; i++) {
 		txx9irq[i].level = 4; /* middle level */
 		txx9irq[i].mode = TXx9_IRCR_LOW;
-		set_irq_chip_and_handler(TXX9_IRQ_BASE + i,
-					 &txx9_irq_chip, handle_level_irq);
+		irq_set_chip_and_handler(TXX9_IRQ_BASE + i, &txx9_irq_chip,
+					 handle_level_irq);
 	}
 
 	/* mask all IRC interrupts */

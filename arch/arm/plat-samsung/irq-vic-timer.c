@@ -28,63 +28,50 @@ static void s3c_irq_demux_vic_timer(unsigned int irq, struct irq_desc *desc)
 }
 
 /* We assume the IRQ_TIMER0..IRQ_TIMER4 range is continuous. */
-
-static void s3c_irq_timer_mask(struct irq_data *data)
+static void s3c_irq_timer_ack(struct irq_data *d)
 {
-	u32 reg = __raw_readl(S3C64XX_TINT_CSTAT);
-	u32 mask = (u32)data->chip_data;
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	u32 mask = (1 << 5) << (d->irq - gc->irq_base);
 
-	reg &= 0x1f;  /* mask out pending interrupts */
-	reg &= ~mask;
-	__raw_writel(reg, S3C64XX_TINT_CSTAT);
+	irq_reg_writel(mask | gc->mask_cache, gc->reg_base);
 }
-
-static void s3c_irq_timer_unmask(struct irq_data *data)
-{
-	u32 reg = __raw_readl(S3C64XX_TINT_CSTAT);
-	u32 mask = (u32)data->chip_data;
-
-	reg &= 0x1f;  /* mask out pending interrupts */
-	reg |= mask;
-	__raw_writel(reg, S3C64XX_TINT_CSTAT);
-}
-
-static void s3c_irq_timer_ack(struct irq_data *data)
-{
-	u32 reg = __raw_readl(S3C64XX_TINT_CSTAT);
-	u32 mask = (u32)data->chip_data;
-
-	reg &= 0x1f;
-	reg |= mask << 5;
-	__raw_writel(reg, S3C64XX_TINT_CSTAT);
-}
-
-static struct irq_chip s3c_irq_timer = {
-	.name		= "s3c-timer",
-	.irq_mask	= s3c_irq_timer_mask,
-	.irq_unmask	= s3c_irq_timer_unmask,
-	.irq_ack	= s3c_irq_timer_ack,
-};
 
 /**
  * s3c_init_vic_timer_irq() - initialise timer irq chanined off VIC.\
- * @parent_irq: The parent IRQ on the VIC for the timer.
- * @timer_irq: The IRQ to be used for the timer.
+ * @num: Number of timers to initialize
+ * @timer_irq: Base IRQ number to be used for the timers.
  *
  * Register the necessary IRQ chaining and support for the timer IRQs
  * chained of the VIC.
  */
-void __init s3c_init_vic_timer_irq(unsigned int parent_irq,
-				   unsigned int timer_irq)
+void __init s3c_init_vic_timer_irq(unsigned int num, unsigned int timer_irq)
 {
-	struct irq_desc *desc = irq_to_desc(parent_irq);
+	unsigned int pirq[5] = { IRQ_TIMER0_VIC, IRQ_TIMER1_VIC, IRQ_TIMER2_VIC,
+				 IRQ_TIMER3_VIC, IRQ_TIMER4_VIC };
+	struct irq_chip_generic *s3c_tgc;
+	struct irq_chip_type *ct;
+	unsigned int i;
 
-	set_irq_chained_handler(parent_irq, s3c_irq_demux_vic_timer);
+	s3c_tgc = irq_alloc_generic_chip("s3c-timer", 1, timer_irq,
+					 S3C64XX_TINT_CSTAT, handle_level_irq);
 
-	set_irq_chip(timer_irq, &s3c_irq_timer);
-	set_irq_chip_data(timer_irq, (void *)(1 << (timer_irq - IRQ_TIMER0)));
-	set_irq_handler(timer_irq, handle_level_irq);
-	set_irq_flags(timer_irq, IRQF_VALID);
+	if (!s3c_tgc) {
+		pr_err("%s: irq_alloc_generic_chip for IRQ %d failed\n",
+		       __func__, timer_irq);
+		return;
+	}
 
-	desc->irq_data.handler_data = (void *)timer_irq;
+	ct = s3c_tgc->chip_types;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_ack = s3c_irq_timer_ack;
+	irq_setup_generic_chip(s3c_tgc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
+			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+	/* Clear the upper bits of the mask_cache*/
+	s3c_tgc->mask_cache &= 0x1f;
+
+	for (i = 0; i < num; i++, timer_irq++) {
+		irq_set_chained_handler(pirq[i], s3c_irq_demux_vic_timer);
+		irq_set_handler_data(pirq[i], (void *)timer_irq);
+	}
 }

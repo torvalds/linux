@@ -1,11 +1,15 @@
 #ifndef _ASM_GENERIC_BITOPS_EXT2_ATOMIC_H_
 #define _ASM_GENERIC_BITOPS_EXT2_ATOMIC_H_
 
+/*
+ * Spinlock based version of ext2 atomic bitops
+ */
+
 #define ext2_set_bit_atomic(lock, nr, addr)		\
 	({						\
 		int ret;				\
 		spin_lock(lock);			\
-		ret = ext2_set_bit((nr), (unsigned long *)(addr)); \
+		ret = __test_and_set_bit_le(nr, addr);	\
 		spin_unlock(lock);			\
 		ret;					\
 	})
@@ -14,7 +18,7 @@
 	({						\
 		int ret;				\
 		spin_lock(lock);			\
-		ret = ext2_clear_bit((nr), (unsigned long *)(addr)); \
+		ret = __test_and_clear_bit_le(nr, addr);	\
 		spin_unlock(lock);			\
 		ret;					\
 	})

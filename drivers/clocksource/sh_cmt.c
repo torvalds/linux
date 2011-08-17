@@ -416,11 +416,15 @@ static cycle_t sh_cmt_clocksource_read(struct clocksource *cs)
 
 static int sh_cmt_clocksource_enable(struct clocksource *cs)
 {
+	int ret;
 	struct sh_cmt_priv *p = cs_to_sh_cmt(cs);
 
 	p->total_cycles = 0;
 
-	return sh_cmt_start(p, FLAG_CLOCKSOURCE);
+	ret = sh_cmt_start(p, FLAG_CLOCKSOURCE);
+	if (!ret)
+		__clocksource_updatefreq_hz(cs, p->rate);
+	return ret;
 }
 
 static void sh_cmt_clocksource_disable(struct clocksource *cs)
@@ -448,19 +452,10 @@ static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 	cs->mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
-	/* clk_get_rate() needs an enabled clock */
-	clk_enable(p->clk);
-	p->rate = clk_get_rate(p->clk) / ((p->width == 16) ? 512 : 8);
-	clk_disable(p->clk);
-
-	/* TODO: calculate good shift from rate and counter bit width */
-	cs->shift = 0;
-	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
-
 	dev_info(&p->pdev->dev, "used as clock source\n");
 
-	clocksource_register(cs);
-
+	/* Register with dummy 1 Hz value, gets updated in ->enable() */
+	clocksource_register_hz(cs, 1);
 	return 0;
 }
 

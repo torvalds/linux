@@ -236,6 +236,9 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 			fp++;
 			dp++;
 		}
+		/* Wasteful, but simple to understand: ISO 'C' is sparse. */
+		if (ev_type == 'C')
+			ep->length = urb->transfer_buffer_length;
 	}
 
 	ep->setup_flag = mon_text_get_setup(ep, urb, ev_type, rp->r.m_bus);
@@ -667,6 +670,9 @@ int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 	int busnum = ubus? ubus->busnum: 0;
 	int rc;
 
+	if (mon_dir == NULL)
+		return 0;
+
 	if (ubus != NULL) {
 		rc = snprintf(name, NAMESZ, "%dt", busnum);
 		if (rc <= 0 || rc >= NAMESZ)
@@ -737,12 +743,12 @@ int __init mon_text_init(void)
 
 	mondir = debugfs_create_dir("usbmon", usb_debug_root);
 	if (IS_ERR(mondir)) {
-		printk(KERN_NOTICE TAG ": debugfs is not available\n");
-		return -ENODEV;
+		/* debugfs not available, but we can use usbmon without it */
+		return 0;
 	}
 	if (mondir == NULL) {
 		printk(KERN_NOTICE TAG ": unable to create usbmon directory\n");
-		return -ENODEV;
+		return -ENOMEM;
 	}
 	mon_dir = mondir;
 	return 0;

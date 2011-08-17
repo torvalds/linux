@@ -109,6 +109,22 @@ config LCD_S6E63M0
 	  If you have an S6E63M0 LCD Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_LD9040
+	tristate "LD9040 AMOLED LCD Driver"
+	depends on SPI && BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an LD9040 Panel, say Y to enable its
+	  control driver.
+
+config LCD_AMS369FG06
+	tristate "AMS369FG06 AMOLED LCD Driver"
+	depends on SPI && BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
+	  LCD control driver.
+
 endif # LCD_CLASS_DEVICE
 
 #
@@ -236,12 +252,12 @@ config BACKLIGHT_MAX8925
 	  If you have a LCD backlight connected to the WLED output of MAX8925
 	  WLED output, say Y here to enable this driver.
 
-config BACKLIGHT_MBP_NVIDIA
-       tristate "MacBook Pro Nvidia Backlight Driver"
-       depends on X86
+config BACKLIGHT_APPLE
+       tristate "Apple Backlight Driver"
+       depends on X86 && ACPI
        help
-         If you have an Apple Macbook Pro with Nvidia graphics hardware say Y
-	 to enable a driver for its backlight
+         If you have an Intel-based Apple say Y to enable a driver for its
+	 backlight.
 
 config BACKLIGHT_TOSA
 	tristate "Sharp SL-6000 Backlight Driver"
@@ -294,6 +310,18 @@ config BACKLIGHT_ADP8860
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp8860_bl.
 
+config BACKLIGHT_ADP8870
+	tristate "Backlight Driver for ADP8870 using WLED"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  If you have a LCD backlight connected to the ADP8870,
+	  say Y here to enable this driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp8870_bl.
+
 config BACKLIGHT_88PM860X
 	tristate "Backlight Driver for 88PM8606 using WLED"
 	depends on MFD_88PM860X
@@ -306,6 +334,13 @@ config BACKLIGHT_PCF50633
 	help
 	  If you have a backlight driven by a NXP PCF50633 MFD, say Y here to
 	  enable its driver.
+
+config BACKLIGHT_AAT2870
+	tristate "AnalogicTech AAT2870 Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_AAT2870_CORE
+	help
+	  If you have a AnalogicTech AAT2870 say Y to enable the
+	  backlight driver.
 
 endif # BACKLIGHT_CLASS_DEVICE
 

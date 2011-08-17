@@ -105,6 +105,7 @@
 #include <net/route.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
+#include <trace/events/udp.h>
 #include "udp_impl.h"
 
 struct udp_table udp_table __read_mostly;
@@ -189,7 +190,7 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
  *  @sk:          socket struct in question
  *  @snum:        port number to look up
  *  @saddr_comp:  AF-dependent comparison of bound local IP addresses
- *  @hash2_nulladdr: AF-dependant hash value in secondary hash chains,
+ *  @hash2_nulladdr: AF-dependent hash value in secondary hash chains,
  *                   with NULL address
  */
 int udp_lib_get_port(struct sock *sk, unsigned short snum,
@@ -578,7 +579,7 @@ found:
 void __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 {
 	struct inet_sock *inet;
-	struct iphdr *iph = (struct iphdr *)skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	struct udphdr *uh = (struct udphdr *)(skb->data+(iph->ihl<<2));
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
@@ -663,39 +664,42 @@ void udp_flush_pending_frames(struct sock *sk)
 EXPORT_SYMBOL(udp_flush_pending_frames);
 
 /**
- * 	udp4_hwcsum_outgoing  -  handle outgoing HW checksumming
- * 	@sk: 	socket we are sending on
+ * 	udp4_hwcsum  -  handle outgoing HW checksumming
  * 	@skb: 	sk_buff containing the filled-in UDP header
  * 	        (checksum field must be zeroed out)
+ *	@src:	source IP address
+ *	@dst:	destination IP address
  */
-static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
-				 __be32 src, __be32 dst, int len)
+static void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst)
 {
-	unsigned int offset;
 	struct udphdr *uh = udp_hdr(skb);
+	struct sk_buff *frags = skb_shinfo(skb)->frag_list;
+	int offset = skb_transport_offset(skb);
+	int len = skb->len - offset;
+	int hlen = len;
 	__wsum csum = 0;
 
-	if (skb_queue_len(&sk->sk_write_queue) == 1) {
+	if (!frags) {
 		/*
 		 * Only one fragment on the socket.
 		 */
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_tcpudp_magic(src, dst, len, IPPROTO_UDP, 0);
+		uh->check = ~csum_tcpudp_magic(src, dst, len,
+					       IPPROTO_UDP, 0);
 	} else {
 		/*
 		 * HW-checksum won't work as there are two or more
 		 * fragments on the socket so that all csums of sk_buffs
 		 * should be together
 		 */
-		offset = skb_transport_offset(skb);
-		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		do {
+			csum = csum_add(csum, frags->csum);
+			hlen -= frags->len;
+		} while ((frags = frags->next));
 
+		csum = skb_checksum(skb, offset, hlen, csum);
 		skb->ip_summed = CHECKSUM_NONE;
-
-		skb_queue_walk(&sk->sk_write_queue, skb) {
-			csum = csum_add(csum, skb->csum);
-		}
 
 		uh->check = csum_tcpudp_magic(src, dst, len, IPPROTO_UDP, csum);
 		if (uh->check == 0)
@@ -703,35 +707,28 @@ static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 	}
 }
 
-/*
- * Push out all pending data as one UDP datagram. Socket is locked.
- */
-static int udp_push_pending_frames(struct sock *sk)
+static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4)
 {
-	struct udp_sock  *up = udp_sk(sk);
+	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
-	struct flowi *fl = &inet->cork.fl;
-	struct sk_buff *skb;
 	struct udphdr *uh;
 	int err = 0;
 	int is_udplite = IS_UDPLITE(sk);
+	int offset = skb_transport_offset(skb);
+	int len = skb->len - offset;
 	__wsum csum = 0;
-
-	/* Grab the skbuff where UDP header space exists. */
-	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
-		goto out;
 
 	/*
 	 * Create a UDP header
 	 */
 	uh = udp_hdr(skb);
-	uh->source = fl->fl_ip_sport;
-	uh->dest = fl->fl_ip_dport;
-	uh->len = htons(up->len);
+	uh->source = inet->inet_sport;
+	uh->dest = fl4->fl4_dport;
+	uh->len = htons(len);
 	uh->check = 0;
 
 	if (is_udplite)  				 /*     UDP-Lite      */
-		csum  = udplite_csum_outgoing(sk, skb);
+		csum = udplite_csum(skb);
 
 	else if (sk->sk_no_check == UDP_CSUM_NOXMIT) {   /* UDP csum disabled */
 
@@ -740,20 +737,20 @@ static int udp_push_pending_frames(struct sock *sk)
 
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
 
-		udp4_hwcsum_outgoing(sk, skb, fl->fl4_src, fl->fl4_dst, up->len);
+		udp4_hwcsum(skb, fl4->saddr, fl4->daddr);
 		goto send;
 
-	} else						 /*   `normal' UDP    */
-		csum = udp_csum_outgoing(sk, skb);
+	} else
+		csum = udp_csum(skb);
 
 	/* add protocol-dependent pseudo-header */
-	uh->check = csum_tcpudp_magic(fl->fl4_src, fl->fl4_dst, up->len,
+	uh->check = csum_tcpudp_magic(fl4->saddr, fl4->daddr, len,
 				      sk->sk_protocol, csum);
 	if (uh->check == 0)
 		uh->check = CSUM_MANGLED_0;
 
 send:
-	err = ip_push_pending_frames(sk);
+	err = ip_send_skb(skb);
 	if (err) {
 		if (err == -ENOBUFS && !inet->recverr) {
 			UDP_INC_STATS_USER(sock_net(sk),
@@ -763,6 +760,26 @@ send:
 	} else
 		UDP_INC_STATS_USER(sock_net(sk),
 				   UDP_MIB_OUTDATAGRAMS, is_udplite);
+	return err;
+}
+
+/*
+ * Push out all pending data as one UDP datagram. Socket is locked.
+ */
+static int udp_push_pending_frames(struct sock *sk)
+{
+	struct udp_sock  *up = udp_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
+	struct flowi4 *fl4 = &inet->cork.fl.u.ip4;
+	struct sk_buff *skb;
+	int err = 0;
+
+	skb = ip_finish_skb(sk, fl4);
+	if (!skb)
+		goto out;
+
+	err = udp_send_skb(skb, fl4);
+
 out:
 	up->len = 0;
 	up->pending = 0;
@@ -774,6 +791,8 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct udp_sock *up = udp_sk(sk);
+	struct flowi4 fl4_stack;
+	struct flowi4 *fl4;
 	int ulen = len;
 	struct ipcm_cookie ipc;
 	struct rtable *rt = NULL;
@@ -785,6 +804,8 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int err, is_udplite = IS_UDPLITE(sk);
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
+	struct sk_buff *skb;
+	struct ip_options_data opt_copy;
 
 	if (len > 0xFFFF)
 		return -EMSGSIZE;
@@ -799,6 +820,9 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	ipc.opt = NULL;
 	ipc.tx_flags = 0;
 
+	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
+
+	fl4 = &inet->cork.fl.u.ip4;
 	if (up->pending) {
 		/*
 		 * There are pending frames.
@@ -856,22 +880,32 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			free = 1;
 		connected = 0;
 	}
-	if (!ipc.opt)
-		ipc.opt = inet->opt;
+	if (!ipc.opt) {
+		struct ip_options_rcu *inet_opt;
+
+		rcu_read_lock();
+		inet_opt = rcu_dereference(inet->inet_opt);
+		if (inet_opt) {
+			memcpy(&opt_copy, inet_opt,
+			       sizeof(*inet_opt) + inet_opt->opt.optlen);
+			ipc.opt = &opt_copy.opt;
+		}
+		rcu_read_unlock();
+	}
 
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;
 
-	if (ipc.opt && ipc.opt->srr) {
+	if (ipc.opt && ipc.opt->opt.srr) {
 		if (!daddr)
 			return -EINVAL;
-		faddr = ipc.opt->faddr;
+		faddr = ipc.opt->opt.faddr;
 		connected = 0;
 	}
 	tos = RT_TOS(inet->tos);
 	if (sock_flag(sk, SOCK_LOCALROUTE) ||
 	    (msg->msg_flags & MSG_DONTROUTE) ||
-	    (ipc.opt && ipc.opt->is_strictroute)) {
+	    (ipc.opt && ipc.opt->opt.is_strictroute)) {
 		tos |= RTO_ONLINK;
 		connected = 0;
 	}
@@ -888,20 +922,19 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		rt = (struct rtable *)sk_dst_check(sk, 0);
 
 	if (rt == NULL) {
-		struct flowi fl = { .oif = ipc.oif,
-				    .mark = sk->sk_mark,
-				    .fl4_dst = faddr,
-				    .fl4_src = saddr,
-				    .fl4_tos = tos,
-				    .proto = sk->sk_protocol,
-				    .flags = inet_sk_flowi_flags(sk),
-				    .fl_ip_sport = inet->inet_sport,
-				    .fl_ip_dport = dport };
 		struct net *net = sock_net(sk);
 
-		security_sk_classify_flow(sk, &fl);
-		err = ip_route_output_flow(net, &rt, &fl, sk, 1);
-		if (err) {
+		fl4 = &fl4_stack;
+		flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
+				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
+				   inet_sk_flowi_flags(sk)|FLOWI_FLAG_CAN_SLEEP,
+				   faddr, saddr, dport, inet->inet_sport);
+
+		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
+		rt = ip_route_output_flow(net, fl4, sk);
+		if (IS_ERR(rt)) {
+			err = PTR_ERR(rt);
+			rt = NULL;
 			if (err == -ENETUNREACH)
 				IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 			goto out;
@@ -919,9 +952,20 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		goto do_confirm;
 back_from_confirm:
 
-	saddr = rt->rt_src;
+	saddr = fl4->saddr;
 	if (!ipc.addr)
-		daddr = ipc.addr = rt->rt_dst;
+		daddr = ipc.addr = fl4->daddr;
+
+	/* Lockless fast path for the non-corking case. */
+	if (!corkreq) {
+		skb = ip_make_skb(sk, fl4, getfrag, msg->msg_iov, ulen,
+				  sizeof(struct udphdr), &ipc, &rt,
+				  msg->msg_flags);
+		err = PTR_ERR(skb);
+		if (skb && !IS_ERR(skb))
+			err = udp_send_skb(skb, fl4);
+		goto out;
+	}
 
 	lock_sock(sk);
 	if (unlikely(up->pending)) {
@@ -936,18 +980,18 @@ back_from_confirm:
 	/*
 	 *	Now cork the socket to pend data.
 	 */
-	inet->cork.fl.fl4_dst = daddr;
-	inet->cork.fl.fl_ip_dport = dport;
-	inet->cork.fl.fl4_src = saddr;
-	inet->cork.fl.fl_ip_sport = inet->inet_sport;
+	fl4 = &inet->cork.fl.u.ip4;
+	fl4->daddr = daddr;
+	fl4->saddr = saddr;
+	fl4->fl4_dport = dport;
+	fl4->fl4_sport = inet->inet_sport;
 	up->pending = AF_INET;
 
 do_append_data:
 	up->len += ulen;
-	getfrag  =  is_udplite ?  udplite_getfrag : ip_generic_getfrag;
-	err = ip_append_data(sk, getfrag, msg->msg_iov, ulen,
-			sizeof(struct udphdr), &ipc, &rt,
-			corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
+	err = ip_append_data(sk, fl4, getfrag, msg->msg_iov, ulen,
+			     sizeof(struct udphdr), &ipc, &rt,
+			     corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
 	if (err)
 		udp_flush_pending_frames(sk);
 	else if (!corkreq)
@@ -987,6 +1031,7 @@ EXPORT_SYMBOL(udp_sendmsg);
 int udp_sendpage(struct sock *sk, struct page *page, int offset,
 		 size_t size, int flags)
 {
+	struct inet_sock *inet = inet_sk(sk);
 	struct udp_sock *up = udp_sk(sk);
 	int ret;
 
@@ -1011,7 +1056,8 @@ int udp_sendpage(struct sock *sk, struct page *page, int offset,
 		return -EINVAL;
 	}
 
-	ret = ip_append_page(sk, page, offset, size, flags);
+	ret = ip_append_page(sk, &inet->cork.fl.u.ip4,
+			     page, offset, size, flags);
 	if (ret == -EOPNOTSUPP) {
 		release_sock(sk);
 		return sock_no_sendpage(sk->sk_socket, page, offset,
@@ -1204,6 +1250,9 @@ csum_copy_err:
 
 	if (noblock)
 		return -EAGAIN;
+
+	/* starting over for a new packet */
+	msg->msg_flags &= ~MSG_TRUNC;
 	goto try_again;
 }
 
@@ -1318,6 +1367,7 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 					 is_udplite);
 		UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 		kfree_skb(skb);
+		trace_udp_fail_queue_rcv_skb(rc, sk);
 		return -1;
 	}
 
@@ -2045,7 +2095,7 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 	__u16 srcp	  = ntohs(inet->inet_sport);
 
 	seq_printf(f, "%5d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d%n",
+		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %pK %d%n",
 		bucket, src, srcp, dest, destp, sp->sk_state,
 		sk_wmem_alloc_get(sp),
 		sk_rmem_alloc_get(sp),
@@ -2161,16 +2211,10 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 
 void __init udp_init(void)
 {
-	unsigned long nr_pages, limit;
+	unsigned long limit;
 
 	udp_table_init(&udp_table, "UDP");
-	/* Set the pressure threshold up by the same strategy of TCP. It is a
-	 * fraction of global memory that is up to 1/2 at 256 MB, decreasing
-	 * toward zero with the amount of memory, with a floor of 128 pages.
-	 */
-	nr_pages = totalram_pages - totalhigh_pages;
-	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
-	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = nr_free_buffer_pages() / 8;
 	limit = max(limit, 128UL);
 	sysctl_udp_mem[0] = limit / 4 * 3;
 	sysctl_udp_mem[1] = limit;
@@ -2199,7 +2243,7 @@ int udp4_ufo_send_check(struct sk_buff *skb)
 	return 0;
 }
 
-struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, int features)
+struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, u32 features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	unsigned int mss;

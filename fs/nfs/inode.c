@@ -37,6 +37,7 @@
 #include <linux/inet.h>
 #include <linux/nfs_xdr.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -89,7 +90,11 @@ int nfs_wait_bit_killable(void *word)
  */
 u64 nfs_compat_user_ino64(u64 fileid)
 {
-	int ino;
+#ifdef CONFIG_COMPAT
+	compat_ulong_t ino;
+#else	
+	unsigned long ino;
+#endif
 
 	if (enable_ino64)
 		return fileid;
@@ -249,7 +254,10 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 	struct inode *inode = ERR_PTR(-ENOENT);
 	unsigned long hash;
 
-	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) == 0)
+	nfs_attr_check_mountpoint(sb, fattr);
+
+	if (((fattr->valid & NFS_ATTR_FATTR_FILEID) == 0) &&
+	    !nfs_attr_use_mounted_on_fileid(fattr))
 		goto out_no_inode;
 	if ((fattr->valid & NFS_ATTR_FATTR_TYPE) == 0)
 		goto out_no_inode;
@@ -293,8 +301,8 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS))
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			/* Deal with crossing mountpoints */
-			if ((fattr->valid & NFS_ATTR_FATTR_FSID)
-					&& !nfs_fsid_equal(&NFS_SB(sb)->fsid, &fattr->fsid)) {
+			if (fattr->valid & NFS_ATTR_FATTR_MOUNTPOINT ||
+					fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) {
 				if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
 					inode->i_op = &nfs_referral_inode_operations;
 				else
@@ -559,7 +567,7 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 {
 	struct nfs_lock_context *res, *new = NULL;
-	struct inode *inode = ctx->path.dentry->d_inode;
+	struct inode *inode = ctx->dentry->d_inode;
 
 	spin_lock(&inode->i_lock);
 	res = __nfs_find_lock_context(ctx);
@@ -586,7 +594,7 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 {
 	struct nfs_open_context *ctx = l_ctx->open_context;
-	struct inode *inode = ctx->path.dentry->d_inode;
+	struct inode *inode = ctx->dentry->d_inode;
 
 	if (!atomic_dec_and_lock(&l_ctx->count, &inode->i_lock))
 		return;
@@ -612,7 +620,7 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 		return;
 	if (!is_sync)
 		return;
-	inode = ctx->path.dentry->d_inode;
+	inode = ctx->dentry->d_inode;
 	if (!list_empty(&NFS_I(inode)->open_files))
 		return;
 	server = NFS_SERVER(inode);
@@ -621,20 +629,19 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 	nfs_revalidate_inode(server, inode);
 }
 
-struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct rpc_cred *cred, fmode_t f_mode)
+struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rpc_cred *cred, fmode_t f_mode)
 {
 	struct nfs_open_context *ctx;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
-		ctx->path = *path;
-		path_get(&ctx->path);
+		nfs_sb_active(dentry->d_sb);
+		ctx->dentry = dget(dentry);
 		ctx->cred = get_rpccred(cred);
 		ctx->state = NULL;
 		ctx->mode = f_mode;
 		ctx->flags = 0;
 		ctx->error = 0;
-		ctx->dir_cookie = 0;
 		nfs_init_lock_context(&ctx->lock_context);
 		ctx->lock_context.open_context = ctx;
 		INIT_LIST_HEAD(&ctx->list);
@@ -651,7 +658,8 @@ struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 
 static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
-	struct inode *inode = ctx->path.dentry->d_inode;
+	struct inode *inode = ctx->dentry->d_inode;
+	struct super_block *sb = ctx->dentry->d_sb;
 
 	if (!list_empty(&ctx->list)) {
 		if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
@@ -664,7 +672,8 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 		NFS_PROTO(inode)->close_context(ctx, is_sync);
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
-	path_put(&ctx->path);
+	dput(ctx->dentry);
+	nfs_sb_deactive(sb);
 	kfree(ctx);
 }
 
@@ -734,7 +743,7 @@ int nfs_open(struct inode *inode, struct file *filp)
 	cred = rpc_lookup_cred();
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_context(&filp->f_path, cred, filp->f_mode);
+	ctx = alloc_nfs_open_context(filp->f_path.dentry, cred, filp->f_mode);
 	put_rpccred(cred);
 	if (ctx == NULL)
 		return -ENOMEM;
@@ -1288,12 +1297,17 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if (new_isize != cur_isize) {
 			/* Do we perhaps have any outstanding writes, or has
 			 * the file grown beyond our last write? */
-			if (nfsi->npages == 0 || new_isize > cur_isize) {
+			if ((nfsi->npages == 0 && !test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) ||
+			     new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 			}
-			dprintk("NFS: isize change on server for file %s/%ld\n",
-					inode->i_sb->s_id, inode->i_ino);
+			dprintk("NFS: isize change on server for file %s/%ld "
+					"(%Ld to %Ld)\n",
+					inode->i_sb->s_id,
+					inode->i_ino,
+					(long long)cur_isize,
+					(long long)new_isize);
 		}
 	} else
 		invalid |= save_cache_validity & (NFS_INO_INVALID_ATTR
@@ -1418,9 +1432,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 void nfs4_evict_inode(struct inode *inode)
 {
-	pnfs_destroy_layout(NFS_I(inode));
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
+	pnfs_return_layout(inode);
+	pnfs_destroy_layout(NFS_I(inode));
 	/* If we are holding a delegation, return it! */
 	nfs_inode_return_delegation_noreclaim(inode);
 	/* First call standard NFS clear_inode() code */
@@ -1466,6 +1481,7 @@ static inline void nfs4_init_once(struct nfs_inode *nfsi)
 	nfsi->delegation_state = 0;
 	init_rwsem(&nfsi->rwsem);
 	nfsi->layout = NULL;
+	atomic_set(&nfsi->commits_outstanding, 0);
 #endif
 }
 
@@ -1513,7 +1529,7 @@ static int nfsiod_start(void)
 {
 	struct workqueue_struct *wq;
 	dprintk("RPC:       creating workqueue nfsiod\n");
-	wq = alloc_workqueue("nfsiod", WQ_RESCUER, 0);
+	wq = alloc_workqueue("nfsiod", WQ_MEM_RECLAIM, 0);
 	if (wq == NULL)
 		return -ENOMEM;
 	nfsiod_workqueue = wq;

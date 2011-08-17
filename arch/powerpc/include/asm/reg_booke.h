@@ -2,7 +2,7 @@
  * Contains register definitions common to the Book E PowerPC
  * specification.  Notice that while the IBM-40x series of CPUs
  * are not true Book E PowerPCs, they borrowed a number of features
- * before Book E was finalized, and are included here as well.  Unfortunatly,
+ * before Book E was finalized, and are included here as well.  Unfortunately,
  * they sometimes used different locations than true Book E CPUs did.
  *
  * This program is free software; you can redistribute it and/or
@@ -27,10 +27,12 @@
 #define MSR_CM		(1<<31) /* Computation Mode (0=32-bit, 1=64-bit) */
 
 #if defined(CONFIG_PPC_BOOK3E_64)
+#define MSR_64BIT	MSR_CM
+
 #define MSR_		MSR_ME | MSR_CE
-#define MSR_KERNEL      MSR_ | MSR_CM
+#define MSR_KERNEL	MSR_ | MSR_64BIT
 #define MSR_USER32	MSR_ | MSR_PR | MSR_EE | MSR_DE
-#define MSR_USER64	MSR_USER32 | MSR_CM | MSR_DE
+#define MSR_USER64	MSR_USER32 | MSR_64BIT
 #elif defined (CONFIG_40x)
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR|MSR_CE)
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -81,6 +83,10 @@
 #define SPRN_IVOR13	0x19D	/* Interrupt Vector Offset Register 13 */
 #define SPRN_IVOR14	0x19E	/* Interrupt Vector Offset Register 14 */
 #define SPRN_IVOR15	0x19F	/* Interrupt Vector Offset Register 15 */
+#define SPRN_IVOR38	0x1B0	/* Interrupt Vector Offset Register 38 */
+#define SPRN_IVOR39	0x1B1	/* Interrupt Vector Offset Register 39 */
+#define SPRN_IVOR40	0x1B2	/* Interrupt Vector Offset Register 40 */
+#define SPRN_IVOR41	0x1B3	/* Interrupt Vector Offset Register 41 */
 #define SPRN_SPEFSCR	0x200	/* SPE & Embedded FP Status & Control */
 #define SPRN_BBEAR	0x201	/* Branch Buffer Entry Address Register */
 #define SPRN_BBTAR	0x202	/* Branch Buffer Target Address Register */
@@ -110,7 +116,7 @@
 #define SPRN_MAS2	0x272	/* MMU Assist Register 2 */
 #define SPRN_MAS3	0x273	/* MMU Assist Register 3 */
 #define SPRN_MAS4	0x274	/* MMU Assist Register 4 */
-#define SPRN_MAS5	0x275	/* MMU Assist Register 5 */
+#define SPRN_MAS5	0x153	/* MMU Assist Register 5 */
 #define SPRN_MAS6	0x276	/* MMU Assist Register 6 */
 #define SPRN_PID1	0x279	/* Process ID Register 1 */
 #define SPRN_PID2	0x27A	/* Process ID Register 2 */
@@ -150,8 +156,6 @@
  * or IBM 40x.
  */
 #ifdef CONFIG_BOOKE
-#define SPRN_PID	0x030	/* Process ID */
-#define SPRN_PID0	SPRN_PID/* Process ID Register 0 */
 #define SPRN_CSRR0	0x03A	/* Critical Save and Restore Register 0 */
 #define SPRN_CSRR1	0x03B	/* Critical Save and Restore Register 1 */
 #define SPRN_DEAR	0x03D	/* Data Error Address Register */
@@ -168,7 +172,6 @@
 #define SPRN_TCR	0x154	/* Timer Control Register */
 #endif /* Book E */
 #ifdef CONFIG_40x
-#define SPRN_PID	0x3B1	/* Process ID */
 #define SPRN_DBCR1	0x3BD	/* Debug Control Register 1 */		
 #define SPRN_ESR	0x3D4	/* Exception Syndrome Register */
 #define SPRN_DEAR	0x3D5	/* Data Error Address Register */
@@ -315,6 +318,7 @@
 #define ESR_ILK		0x00100000	/* Instr. Cache Locking */
 #define ESR_PUO		0x00040000	/* Unimplemented Operation exception */
 #define ESR_BO		0x00020000	/* Byte Ordering */
+#define ESR_SPV		0x00000080	/* Signal Processing operation */
 
 /* Bit definitions related to the DBCR0. */
 #if defined(CONFIG_40x)

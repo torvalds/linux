@@ -49,8 +49,6 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
-#ifdef CONFIG_MTD_PARTITIONS
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
@@ -90,8 +88,6 @@ static struct platform_device tct_hammer_device_nor = {
 	.num_resources	= 1,
 	.resource	= &tct_hammer_nor_resource,
 };
-
-#endif
 
 static struct map_desc tct_hammer_iodesc[] __initdata = {
 };
@@ -133,9 +129,7 @@ static struct platform_device *tct_hammer_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
 	&s3c_device_sdi,
-#ifdef CONFIG_MTD_PARTITIONS
 	&tct_hammer_device_nor,
-#endif
 };
 
 static void __init tct_hammer_map_io(void)

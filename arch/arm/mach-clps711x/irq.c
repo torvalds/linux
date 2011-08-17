@@ -112,13 +112,13 @@ void __init clps711x_init_irq(void)
 
 	for (i = 0; i < NR_IRQS; i++) {
 	        if (INT1_IRQS & (1 << i)) {
-	        	set_irq_handler(i, handle_level_irq);
-	        	set_irq_chip(i, &int1_chip);
+	        	irq_set_chip_and_handler(i, &int1_chip,
+						 handle_level_irq);
 	        	set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		}
 		if (INT2_IRQS & (1 << i)) {
-			set_irq_handler(i, handle_level_irq);
-			set_irq_chip(i, &int2_chip);
+			irq_set_chip_and_handler(i, &int2_chip,
+						 handle_level_irq);
 			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		}			
 	}

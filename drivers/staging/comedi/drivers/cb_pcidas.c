@@ -53,6 +53,15 @@ Configuration options:
 For commands, the scanned channels must be consecutive
 (i.e. 4-5-6-7, 2-3-4,...), and must all have the same
 range and aref.
+
+AI Triggering:
+   For start_src == TRIG_EXT, the A/D EXTERNAL TRIGGER IN (pin 45) is used.
+   For 1602 series, the start_arg is interpreted as follows:
+     start_arg == 0                   => gated triger (level high)
+     start_arg == CR_INVERT           => gated triger (level low)
+     start_arg == CR_EDGE             => Rising edge
+     start_arg == CR_EDGE | CR_INVERT => Falling edge
+   For the other boards the trigger will be done on rising edge
 */
 /*
 
@@ -106,7 +115,7 @@ analog triggering on 1602 series
 #define   INT_MASK 0x3		/*  mask of interrupt select bits */
 #define   INTE 0x4		/*  interrupt enable */
 #define   DAHFIE 0x8		/*  dac half full interrupt enable */
-#define   EOAIE	0x10		/*  end of aquisition interrupt enable */
+#define   EOAIE	0x10		/*  end of acquisition interrupt enable */
 #define   DAHFI	0x20		/*  dac half full read status / write interrupt clear */
 #define   EOAI 0x40		/*  read end of acq. interrupt status / write clear */
 #define   INT 0x80		/*  read interrupt status / write clear */
@@ -135,6 +144,8 @@ analog triggering on 1602 series
 #define   EXT_TRIGGER 0x2	/*  external start trigger */
 #define   ANALOG_TRIGGER 0x3	/*  external analog trigger */
 #define   TRIGGER_MASK	0x3	/*  mask of bits that determine start trigger */
+#define   TGPOL	0x04		/*  invert the edge/level of the external trigger (1602 only) */
+#define   TGSEL	0x08		/*  if set edge triggered, otherwise level trigerred (1602 only) */
 #define   TGEN	0x10		/*  enable external start trigger */
 #define   BURSTE 0x20		/*  burst mode enable */
 #define   XTRCL	0x80		/*  clear external trigger */
@@ -257,6 +268,8 @@ struct cb_pcidas_board {
 	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
 	unsigned has_dac08:1;
+	unsigned has_ai_trig_gated:1;	/* Tells if the AI trigger can be gated */
+	unsigned has_ai_trig_invert:1;	/* Tells if the AI trigger can be inverted */
 };
 
 static const struct cb_pcidas_board cb_pcidas_boards[] = {
@@ -274,6 +287,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD8402,
 	 .has_dac08 = 1,
+	 .has_ai_trig_gated = 1,
+	 .has_ai_trig_invert = 1,
 	 },
 	{
 	 .name = "pci-das1200",
@@ -288,6 +303,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
+	 .has_ai_trig_gated = 0,
+	 .has_ai_trig_invert = 0,
 	 },
 	{
 	 .name = "pci-das1602/12",
@@ -303,6 +320,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
+	 .has_ai_trig_gated = 1,
+	 .has_ai_trig_invert = 1,
 	 },
 	{
 	 .name = "pci-das1200/jr",
@@ -317,6 +336,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
+	 .has_ai_trig_gated = 0,
+	 .has_ai_trig_invert = 0,
 	 },
 	{
 	 .name = "pci-das1602/16/jr",
@@ -331,6 +352,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD8402,
 	 .has_dac08 = 1,
+	 .has_ai_trig_gated = 1,
+	 .has_ai_trig_invert = 1,
 	 },
 	{
 	 .name = "pci-das1000",
@@ -345,6 +368,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
+	 .has_ai_trig_gated = 0,
+	 .has_ai_trig_invert = 0,
 	 },
 	{
 	 .name = "pci-das1001",
@@ -359,6 +384,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_alt_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
+	 .has_ai_trig_gated = 0,
+	 .has_ai_trig_invert = 0,
 	 },
 	{
 	 .name = "pci-das1002",
@@ -373,6 +400,8 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
+	 .has_ai_trig_gated = 0,
+	 .has_ai_trig_invert = 0,
 	 },
 };
 
@@ -411,7 +440,7 @@ struct cb_pcidas_private {
 	unsigned int divisor1;
 	unsigned int divisor2;
 	volatile unsigned int count;	/*  number of analog input samples remaining */
-	volatile unsigned int adc_fifo_bits;	/*  bits to write to interupt/adcfifo register */
+	volatile unsigned int adc_fifo_bits;	/*  bits to write to interrupt/adcfifo register */
 	volatile unsigned int s5933_intcsr_bits;	/*  bits to write to amcc s5933 interrupt control/status register */
 	volatile unsigned int ao_control_bits;	/*  bits to write to ao control and status register */
 	short ai_buffer[AI_BUFFER_SIZE];
@@ -1113,9 +1142,27 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
+	switch (cmd->start_src) {
+	case TRIG_EXT:
+		/* External trigger, only CR_EDGE and CR_INVERT flags allowed */
+		if ((cmd->start_arg
+		     & (CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT))) != 0) {
+			cmd->start_arg &=
+			    ~(CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT));
+			err++;
+		}
+		if (!thisboard->has_ai_trig_invert &&
+		    (cmd->start_arg & CR_INVERT)) {
+			cmd->start_arg &= (CR_FLAGS_MASK & ~CR_INVERT);
+			err++;
+		}
+		break;
+	default:
+		if (cmd->start_arg != 0) {
+			cmd->start_arg = 0;
+			err++;
+		}
+		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -1270,9 +1317,14 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	bits = 0;
 	if (cmd->start_src == TRIG_NOW)
 		bits |= SW_TRIGGER;
-	else if (cmd->start_src == TRIG_EXT)
+	else if (cmd->start_src == TRIG_EXT) {
 		bits |= EXT_TRIGGER | TGEN | XTRCL;
-	else {
+		if (thisboard->has_ai_trig_invert
+		    && (cmd->start_arg & CR_INVERT))
+			bits |= TGPOL;
+		if (thisboard->has_ai_trig_gated && (cmd->start_arg & CR_EDGE))
+			bits |= TGSEL;
+	} else {
 		comedi_error(dev, "bug!");
 		return -1;
 	}
@@ -1601,7 +1653,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	} else if (status & EOAI) {
 		comedi_error(dev,
-			     "bug! encountered end of aquisition interrupt?");
+			     "bug! encountered end of acquisition interrupt?");
 		/*  clear EOA interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
 		outw(devpriv->adc_fifo_bits | EOAI,

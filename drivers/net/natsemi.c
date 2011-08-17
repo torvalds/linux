@@ -140,7 +140,7 @@ MODULE_LICENSE("GPL");
 module_param(mtu, int, 0);
 module_param(debug, int, 0);
 module_param(rx_copybreak, int, 0);
-module_param(dspcfg_workaround, int, 1);
+module_param(dspcfg_workaround, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 MODULE_PARM_DESC(mtu, "DP8381x MTU (all boards)");
@@ -203,7 +203,7 @@ skbuff at an offset of "+2", 16-byte aligning the IP header.
 IIId. Synchronization
 
 Most operations are synchronized on the np->lock irq spinlock, except the
-recieve and transmit paths which are synchronised using a combination of
+receive and transmit paths which are synchronised using a combination of
 hardware descriptor ownership, disabling interrupts and NAPI poll scheduling.
 
 IVb. References
@@ -726,7 +726,7 @@ static void move_int_phy(struct net_device *dev, int addr)
 	 * There are two addresses we must avoid:
 	 * - the address on the external phy that is used for transmission.
 	 * - the address that we want to access. User space can access phys
-	 *   on the mii bus with SIOCGMIIREG/SIOCSMIIREG, independant from the
+	 *   on the mii bus with SIOCGMIIREG/SIOCSMIIREG, independent from the
 	 *   phy that is used for transmission.
 	 */
 
@@ -859,6 +859,9 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		dev->dev_addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
+
+	/* Store MAC Address in perm_addr */
+	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 	dev->base_addr = (unsigned long __force) ioaddr;
 	dev->irq = irq;
@@ -1379,7 +1382,7 @@ static int find_mii(struct net_device *dev)
 /* WCSR bits [0:4] [9:10] */
 #define WCSR_RESET_SAVE 0x61f
 /* RFCR bits [20] [22] [27:31] */
-#define RFCR_RESET_SAVE 0xf8500000;
+#define RFCR_RESET_SAVE 0xf8500000
 
 static void natsemi_reset(struct net_device *dev)
 {
@@ -1982,7 +1985,7 @@ static void init_ring(struct net_device *dev)
 
 	np->rx_head_desc = &np->rx_ring[0];
 
-	/* Please be carefull before changing this loop - at least gcc-2.95.1
+	/* Please be careful before changing this loop - at least gcc-2.95.1
 	 * miscompiles it otherwise.
 	 */
 	/* Initialize all Rx descriptors. */
@@ -2025,8 +2028,8 @@ static void drain_rx(struct net_device *dev)
 		np->rx_ring[i].cmd_status = 0;
 		np->rx_ring[i].addr = cpu_to_le32(0xBADF00D0); /* An invalid address. */
 		if (np->rx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev,
-				np->rx_dma[i], buflen,
+			pci_unmap_single(np->pci_dev, np->rx_dma[i],
+				buflen + NATSEMI_PADDING,
 				PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(np->rx_skbuff[i]);
 		}
@@ -2357,7 +2360,8 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 					PCI_DMA_FROMDEVICE);
 			} else {
 				pci_unmap_single(np->pci_dev, np->rx_dma[entry],
-					buflen, PCI_DMA_FROMDEVICE);
+						 buflen + NATSEMI_PADDING,
+						 PCI_DMA_FROMDEVICE);
 				skb_put(skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			}
@@ -2817,7 +2821,7 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 	u32 tmp;
 
 	ecmd->port        = dev->if_port;
-	ecmd->speed       = np->speed;
+	ethtool_cmd_speed_set(ecmd, np->speed);
 	ecmd->duplex      = np->duplex;
 	ecmd->autoneg     = np->autoneg;
 	ecmd->advertising = 0;
@@ -2875,9 +2879,9 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 		tmp = mii_nway_result(
 			np->advertising & mdio_read(dev, MII_LPA));
 		if (tmp == LPA_100FULL || tmp == LPA_100HALF)
-			ecmd->speed  = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed  = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 		if (tmp == LPA_100FULL || tmp == LPA_10FULL)
 			ecmd->duplex = DUPLEX_FULL;
 		else
@@ -2905,7 +2909,8 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 			return -EINVAL;
 		}
 	} else if (ecmd->autoneg == AUTONEG_DISABLE) {
-		if (ecmd->speed != SPEED_10 && ecmd->speed != SPEED_100)
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (speed != SPEED_10 && speed != SPEED_100)
 			return -EINVAL;
 		if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 			return -EINVAL;
@@ -2915,7 +2920,7 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	/*
 	 * If we're ignoring the PHY then autoneg and the internal
-	 * transciever are really not going to work so don't let the
+	 * transceiver are really not going to work so don't let the
 	 * user select them.
 	 */
 	if (np->ignore_phy && (ecmd->autoneg == AUTONEG_ENABLE ||
@@ -2953,7 +2958,7 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
 			np->advertising |= ADVERTISE_100FULL;
 	} else {
-		np->speed  = ecmd->speed;
+		np->speed  = ethtool_cmd_speed(ecmd);
 		np->duplex = ecmd->duplex;
 		/* user overriding the initial full duplex parm? */
 		if (np->duplex == DUPLEX_HALF)

@@ -236,6 +236,27 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int origin)
 		}
 		offset += file->f_pos;
 		break;
+	case SEEK_DATA:
+		/*
+		 * In the generic case the entire file is data, so as long as
+		 * offset isn't at the end of the file then the offset is data.
+		 */
+		if (offset >= inode->i_size) {
+			mutex_unlock(&inode->i_mutex);
+			return -ENXIO;
+		}
+		break;
+	case SEEK_HOLE:
+		/*
+		 * There is a virtual hole at the end of the file, so as long as
+		 * offset isn't i_size or larger, return i_size.
+		 */
+		if (offset >= inode->i_size) {
+			mutex_unlock(&inode->i_mutex);
+			return -ENXIO;
+		}
+		offset = inode->i_size;
+		break;
 	}
 
 	if (offset < 0 || offset > maxbytes) {
@@ -272,7 +293,6 @@ const struct file_operations ext4_file_operations = {
 };
 
 const struct inode_operations ext4_file_inode_operations = {
-	.truncate	= ext4_truncate,
 	.setattr	= ext4_setattr,
 	.getattr	= ext4_getattr,
 #ifdef CONFIG_EXT4_FS_XATTR
@@ -281,7 +301,7 @@ const struct inode_operations ext4_file_inode_operations = {
 	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.check_acl	= ext4_check_acl,
+	.get_acl	= ext4_get_acl,
 	.fiemap		= ext4_fiemap,
 };
 

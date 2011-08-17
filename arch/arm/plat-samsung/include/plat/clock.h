@@ -10,6 +10,7 @@
 */
 
 #include <linux/spinlock.h>
+#include <linux/clkdev.h>
 
 struct clk;
 
@@ -21,7 +22,7 @@ struct clk;
  * @set_parent: set the clock's parent, see clk_set_parent().
  *
  * Group the common clock implementations together so that we
- * don't have to keep setting the same fiels again. We leave
+ * don't have to keep setting the same fields again. We leave
  * enable in struct clk.
  *
  * Adding an extra layer of indirection into the process should
@@ -40,6 +41,7 @@ struct clk {
 	struct module        *owner;
 	struct clk           *parent;
 	const char           *name;
+	const char		*devname;
 	int		      id;
 	int		      usage;
 	unsigned long         rate;
@@ -47,6 +49,7 @@ struct clk {
 
 	struct clk_ops		*ops;
 	int		    (*enable)(struct clk *, int enable);
+	struct clk_lookup	lookup;
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 	struct dentry		*dent;	/* For visible tree hierarchy */
 #endif

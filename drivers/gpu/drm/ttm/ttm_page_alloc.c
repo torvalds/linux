@@ -38,8 +38,9 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h> /* for seq_printf */
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_page_alloc.h"
@@ -354,7 +355,7 @@ restart:
 			if (nr_free)
 				goto restart;
 
-			/* Not allowed to fall tough or break because
+			/* Not allowed to fall through or break because
 			 * following context is inside spinlock while we are
 			 * outside here.
 			 */
@@ -394,12 +395,14 @@ static int ttm_pool_get_num_unused_pages(void)
 /**
  * Callback for mm to request pool to reduce number of page held.
  */
-static int ttm_pool_mm_shrink(struct shrinker *shrink, int shrink_pages, gfp_t gfp_mask)
+static int ttm_pool_mm_shrink(struct shrinker *shrink,
+			      struct shrink_control *sc)
 {
 	static atomic_t start_pool = ATOMIC_INIT(0);
 	unsigned i;
 	unsigned pool_offset = atomic_add_return(1, &start_pool);
 	struct ttm_page_pool *pool;
+	int shrink_pages = sc->nr_to_scan;
 
 	pool_offset = pool_offset % NUM_POOLS;
 	/* select start pool in round robin fashion */
@@ -553,7 +556,7 @@ out:
 }
 
 /**
- * Fill the given pool if there isn't enough pages and requested number of
+ * Fill the given pool if there aren't enough pages and the requested number of
  * pages is small.
  */
 static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
@@ -573,8 +576,8 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 
 	pool->fill_lock = true;
 
-	/* If allocation request is small and there is not enough
-	 * pages in pool we fill the pool first */
+	/* If allocation request is small and there are not enough
+	 * pages in a pool we fill the pool up first. */
 	if (count < _manager->options.small
 		&& count > pool->npages) {
 		struct list_head new_pages;
@@ -611,9 +614,9 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 }
 
 /**
- * Cut count nubmer of pages from the pool and put them to return list
+ * Cut 'count' number of pages from the pool and put them on the return list.
  *
- * @return count of pages still to allocate to fill the request.
+ * @return count of pages still required to fulfill the request.
  */
 static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 		struct list_head *pages, int ttm_flags,
@@ -634,7 +637,7 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 		goto out;
 	}
 	/* find the last pages to include for requested number of pages. Split
-	 * pool to begin and halves to reduce search space. */
+	 * pool to begin and halve it to reduce search space. */
 	if (count <= pool->npages/2) {
 		i = 0;
 		list_for_each(p, &pool->list) {
@@ -648,7 +651,7 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 				break;
 		}
 	}
-	/* Cut count number of pages from pool */
+	/* Cut 'count' number of pages from the pool */
 	list_cut_position(pages, &pool->list, p);
 	pool->npages -= count;
 	count = 0;
@@ -662,7 +665,8 @@ out:
  * cached pages.
  */
 int ttm_get_pages(struct list_head *pages, int flags,
-		enum ttm_caching_state cstate, unsigned count)
+		  enum ttm_caching_state cstate, unsigned count,
+		  dma_addr_t *dma_address)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct page *p = NULL;
@@ -720,7 +724,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 			printk(KERN_ERR TTM_PFX
 			       "Failed to allocate extra pages "
 			       "for large request.");
-			ttm_put_pages(pages, 0, flags, cstate);
+			ttm_put_pages(pages, 0, flags, cstate, NULL);
 			return r;
 		}
 	}
@@ -731,7 +735,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 
 /* Put all pages in pages list to correct pool to wait for reuse */
 void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
-		enum ttm_caching_state cstate)
+		   enum ttm_caching_state cstate, dma_addr_t *dma_address)
 {
 	unsigned long irq_flags;
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);

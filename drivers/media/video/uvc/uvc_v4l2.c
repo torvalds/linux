@@ -21,7 +21,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -83,7 +83,7 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 	default:
 		uvc_trace(UVC_TRACE_CONTROL, "Unsupported V4L2 control type "
 			  "%u.\n", xmap->v4l2_type);
-		ret = -EINVAL;
+		ret = -ENOTTY;
 		goto done;
 	}
 
@@ -538,6 +538,20 @@ static int uvc_v4l2_release(struct file *file)
 	return 0;
 }
 
+static void uvc_v4l2_ioctl_warn(void)
+{
+	static int warned;
+
+	if (warned)
+		return;
+
+	uvc_printk(KERN_INFO, "Deprecated UVCIOC_CTRL_{ADD,MAP_OLD,GET,SET} "
+		   "ioctls will be removed in 2.6.42.\n");
+	uvc_printk(KERN_INFO, "See http://www.ideasonboard.org/uvc/upgrade/ "
+		   "for upgrade instructions.\n");
+	warned = 1;
+}
+
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -557,7 +571,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		strlcpy(cap->card, vdev->name, sizeof cap->card);
 		usb_make_path(stream->dev->udev,
 			      cap->bus_info, sizeof(cap->bus_info));
-		cap->version = DRIVER_VERSION_NUMBER;
+		cap->version = LINUX_VERSION_CODE;
 		if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 					  | V4L2_CAP_STREAMING;
@@ -1018,21 +1032,40 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		uvc_trace(UVC_TRACE_IOCTL, "Unsupported ioctl 0x%08x\n", cmd);
 		return -EINVAL;
 
-	/* Dynamic controls. */
-	case UVCIOC_CTRL_ADD:
-		/* Legacy ioctl, kept for API compatibility reasons */
+	/* Dynamic controls. UVCIOC_CTRL_ADD, UVCIOC_CTRL_MAP_OLD,
+	 * UVCIOC_CTRL_GET and UVCIOC_CTRL_SET are deprecated and scheduled for
+	 * removal in 2.6.42.
+	 */
+	case __UVCIOC_CTRL_ADD:
+		uvc_v4l2_ioctl_warn();
 		return -EEXIST;
 
-	case UVCIOC_CTRL_MAP_OLD:
+	case __UVCIOC_CTRL_MAP_OLD:
+		uvc_v4l2_ioctl_warn();
+	case __UVCIOC_CTRL_MAP:
 	case UVCIOC_CTRL_MAP:
 		return uvc_ioctl_ctrl_map(chain, arg,
-					  cmd == UVCIOC_CTRL_MAP_OLD);
+					  cmd == __UVCIOC_CTRL_MAP_OLD);
 
-	case UVCIOC_CTRL_GET:
-		return uvc_xu_ctrl_query(chain, arg, 0);
+	case __UVCIOC_CTRL_GET:
+	case __UVCIOC_CTRL_SET:
+	{
+		struct uvc_xu_control *xctrl = arg;
+		struct uvc_xu_control_query xqry = {
+			.unit		= xctrl->unit,
+			.selector	= xctrl->selector,
+			.query		= cmd == __UVCIOC_CTRL_GET
+					? UVC_GET_CUR : UVC_SET_CUR,
+			.size		= xctrl->size,
+			.data		= xctrl->data,
+		};
 
-	case UVCIOC_CTRL_SET:
-		return uvc_xu_ctrl_query(chain, arg, 1);
+		uvc_v4l2_ioctl_warn();
+		return uvc_xu_ctrl_query(chain, &xqry);
+	}
+
+	case UVCIOC_CTRL_QUERY:
+		return uvc_xu_ctrl_query(chain, arg);
 
 	default:
 		uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n", cmd);
@@ -1081,6 +1114,20 @@ static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 	return uvc_queue_poll(&stream->queue, file, wait);
 }
 
+#ifndef CONFIG_MMU
+static unsigned long uvc_v4l2_get_unmapped_area(struct file *file,
+		unsigned long addr, unsigned long len, unsigned long pgoff,
+		unsigned long flags)
+{
+	struct uvc_fh *handle = file->private_data;
+	struct uvc_streaming *stream = handle->stream;
+
+	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_get_unmapped_area\n");
+
+	return uvc_queue_get_unmapped_area(&stream->queue, pgoff);
+}
+#endif
+
 const struct v4l2_file_operations uvc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
@@ -1089,5 +1136,8 @@ const struct v4l2_file_operations uvc_fops = {
 	.read		= uvc_v4l2_read,
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = uvc_v4l2_get_unmapped_area,
+#endif
 };
 

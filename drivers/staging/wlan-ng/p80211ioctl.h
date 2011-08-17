@@ -84,6 +84,6 @@ struct p80211ioctl_req {
 	u32 magic;
 	u16 len;
 	u32 result;
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* _P80211IOCTL_H */

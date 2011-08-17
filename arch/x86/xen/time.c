@@ -26,8 +26,6 @@
 
 #include "xen-ops.h"
 
-#define XEN_SHIFT 22
-
 /* Xen may fire a timer up to this many ns early */
 #define TIMER_SLOP	100000
 #define NS_PER_TICK	(1000000000LL / HZ)
@@ -211,8 +209,6 @@ static struct clocksource xen_clocksource __read_mostly = {
 	.rating = 400,
 	.read = xen_clocksource_get_cycles,
 	.mask = ~0,
-	.mult = 1<<XEN_SHIFT,		/* time directly in nanoseconds */
-	.shift = XEN_SHIFT,
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -397,7 +393,9 @@ void xen_setup_timer(int cpu)
 		name = "<timer kasprintf failed>";
 
 	irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, xen_timer_interrupt,
-				      IRQF_DISABLED|IRQF_PERCPU|IRQF_NOBALANCING|IRQF_TIMER,
+				      IRQF_DISABLED|IRQF_PERCPU|
+				      IRQF_NOBALANCING|IRQF_TIMER|
+				      IRQF_FORCE_RESUME,
 				      name, NULL);
 
 	evt = &per_cpu(xen_clock_events, cpu);
@@ -437,16 +435,16 @@ void xen_timer_resume(void)
 	}
 }
 
-static const struct pv_time_ops xen_time_ops __initdata = {
+static const struct pv_time_ops xen_time_ops __initconst = {
 	.sched_clock = xen_clocksource_read,
 };
 
-static __init void xen_time_init(void)
+static void __init xen_time_init(void)
 {
 	int cpu = smp_processor_id();
 	struct timespec tp;
 
-	clocksource_register(&xen_clocksource);
+	clocksource_register_hz(&xen_clocksource, NSEC_PER_SEC);
 
 	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL) == 0) {
 		/* Successfully turned off 100Hz tick, so we have the
@@ -466,7 +464,7 @@ static __init void xen_time_init(void)
 	xen_setup_cpu_clockevents();
 }
 
-__init void xen_init_time_ops(void)
+void __init xen_init_time_ops(void)
 {
 	pv_time_ops = xen_time_ops;
 
@@ -488,7 +486,7 @@ static void xen_hvm_setup_cpu_clockevents(void)
 	xen_setup_cpu_clockevents();
 }
 
-__init void xen_hvm_init_time_ops(void)
+void __init xen_hvm_init_time_ops(void)
 {
 	/* vector callback is needed otherwise we cannot receive interrupts
 	 * on cpu > 0 and at this point we don't know how many cpus are

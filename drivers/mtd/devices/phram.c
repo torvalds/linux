@@ -115,8 +115,9 @@ static void unregister_devices(void)
 	struct phram_mtd_list *this, *safe;
 
 	list_for_each_entry_safe(this, safe, &phram_list, list) {
-		del_mtd_device(&this->mtd);
+		mtd_device_unregister(&this->mtd);
 		iounmap(this->mtd.priv);
+		kfree(this->mtd.name);
 		kfree(this);
 	}
 }
@@ -152,7 +153,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	new->mtd.writesize = 1;
 
 	ret = -EAGAIN;
-	if (add_mtd_device(&new->mtd)) {
+	if (mtd_device_register(&new->mtd, NULL, 0)) {
 		pr_err("Failed to register new device\n");
 		goto out2;
 	}
@@ -275,6 +276,8 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 	ret = register_device(name, start, len);
 	if (!ret)
 		pr_info("%s device: %#x at %#x\n", name, len, start);
+	else
+		kfree(name);
 
 	return ret;
 }

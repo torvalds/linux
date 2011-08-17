@@ -6,7 +6,7 @@
 #include <linux/io.h>
 #include "pci-sh4.h"
 
-int __init pcibios_map_platform_irq(u8 slot, u8 pin)
+int __init pcibios_map_platform_irq(const struct pci_dev *, u8 slot, u8 pin)
 {
         switch (slot) {
         case 0: return 13;

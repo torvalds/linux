@@ -46,10 +46,10 @@
  *
  */
 
-static void flipper_pic_mask_and_ack(unsigned int virq)
+static void flipper_pic_mask_and_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 	u32 mask = 1 << irq;
 
 	clrbits32(io_base + FLIPPER_IMR, mask);
@@ -57,27 +57,27 @@ static void flipper_pic_mask_and_ack(unsigned int virq)
 	out_be32(io_base + FLIPPER_ICR, mask);
 }
 
-static void flipper_pic_ack(unsigned int virq)
+static void flipper_pic_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	/* this is at least needed for RSW */
 	out_be32(io_base + FLIPPER_ICR, 1 << irq);
 }
 
-static void flipper_pic_mask(unsigned int virq)
+static void flipper_pic_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	clrbits32(io_base + FLIPPER_IMR, 1 << irq);
 }
 
-static void flipper_pic_unmask(unsigned int virq)
+static void flipper_pic_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	setbits32(io_base + FLIPPER_IMR, 1 << irq);
 }
@@ -85,10 +85,10 @@ static void flipper_pic_unmask(unsigned int virq)
 
 static struct irq_chip flipper_pic = {
 	.name		= "flipper-pic",
-	.ack		= flipper_pic_ack,
-	.mask_ack	= flipper_pic_mask_and_ack,
-	.mask		= flipper_pic_mask,
-	.unmask		= flipper_pic_unmask,
+	.irq_ack	= flipper_pic_ack,
+	.irq_mask_ack	= flipper_pic_mask_and_ack,
+	.irq_mask	= flipper_pic_mask,
+	.irq_unmask	= flipper_pic_unmask,
 };
 
 /*
@@ -101,16 +101,10 @@ static struct irq_host *flipper_irq_host;
 static int flipper_pic_map(struct irq_host *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
-	set_irq_chip_data(virq, h->host_data);
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &flipper_pic, handle_level_irq);
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &flipper_pic, handle_level_irq);
 	return 0;
-}
-
-static void flipper_pic_unmap(struct irq_host *h, unsigned int irq)
-{
-	set_irq_chip_data(irq, NULL);
-	set_irq_chip(irq, NULL);
 }
 
 static int flipper_pic_match(struct irq_host *h, struct device_node *np)
@@ -121,7 +115,6 @@ static int flipper_pic_match(struct irq_host *h, struct device_node *np)
 
 static struct irq_host_ops flipper_irq_host_ops = {
 	.map = flipper_pic_map,
-	.unmap = flipper_pic_unmap,
 	.match = flipper_pic_match,
 };
 

@@ -250,7 +250,6 @@
 
 #ifndef __NET__WIMAX_H__
 #define __NET__WIMAX_H__
-#ifdef __KERNEL__
 
 #include <linux/wimax.h>
 #include <net/genetlink.h>
@@ -286,7 +285,7 @@ struct wimax_dev;
  *     does not disconnect the device from the bus and return 0.
  *     If that fails, it should resort to some sort of cold or bus
  *     reset (even if it implies a bus disconnection and device
- *     dissapearance). In that case, -ENODEV should be returned to
+ *     disappearance). In that case, -ENODEV should be returned to
  *     indicate the device is gone.
  *     This operation has to be synchronous, and return only when the
  *     reset is complete. In case of having had to resort to bus/cold
@@ -424,7 +423,6 @@ struct wimax_dev {
 	int (*op_reset)(struct wimax_dev *wimax_dev);
 
 	struct rfkill *rfkill;
-	struct input_dev *rfkill_input;
 	unsigned rf_hw;
 	unsigned rf_sw;
 	char name[32];
@@ -518,8 +516,4 @@ extern ssize_t wimax_msg_len(struct sk_buff *);
 extern int wimax_rfkill(struct wimax_dev *, enum wimax_rf_state);
 extern int wimax_reset(struct wimax_dev *);
 
-#else
-/* You might be looking for linux/wimax.h */
-#error This file should not be included from user space.
-#endif /* #ifdef __KERNEL__ */
 #endif /* #ifndef __NET__WIMAX_H__ */

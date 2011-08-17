@@ -45,10 +45,10 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include "stmmac.h"
 
 #define STMMAC_RESOURCE_NAME	"stmmaceth"
-#define PHY_RESOURCE_NAME	"stmmacphy"
 
 #undef STMMAC_DEBUG
 /*#define STMMAC_DEBUG*/
@@ -116,9 +116,6 @@ static int tc = TC_DEFAULT;
 module_param(tc, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tc, "DMA threshold control value");
 
-#define RX_NO_COALESCE	1	/* Always interrupt on completion */
-#define TX_NO_COALESCE	-1	/* No moderation by default */
-
 /* Pay attention to tune this parameter; take care of both
  * hardware capability and network stabitily/performance impact.
  * Many tests showed that ~4ms latency seems to be good enough. */
@@ -139,7 +136,6 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 				      NETIF_MSG_IFDOWN | NETIF_MSG_TIMER);
 
 static irqreturn_t stmmac_interrupt(int irq, void *dev_id);
-static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /**
  * stmmac_verify_args - verify the driver parameters.
@@ -308,18 +304,13 @@ static int stmmac_init_phy(struct net_device *dev)
 	priv->speed = 0;
 	priv->oldduplex = -1;
 
-	if (priv->phy_addr == -1) {
-		/* We don't have a PHY, so do nothing */
-		return 0;
-	}
-
 	snprintf(bus_id, MII_BUS_ID_SIZE, "%x", priv->plat->bus_id);
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
-		 priv->phy_addr);
+		 priv->plat->phy_addr);
 	pr_debug("stmmac_init_phy:  trying to attach to %s\n", phy_id);
 
 	phydev = phy_connect(dev, phy_id, &stmmac_adjust_link, 0,
-			priv->phy_interface);
+			     priv->plat->interface);
 
 	if (IS_ERR(phydev)) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);
@@ -338,7 +329,7 @@ static int stmmac_init_phy(struct net_device *dev)
 		return -ENODEV;
 	}
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
-	       " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
+		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
 
@@ -560,9 +551,11 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
  */
 static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
-	if (likely((priv->plat->tx_coe) && (!priv->no_csum_insertion))) {
-		/* In case of GMAC, SF mode has to be enabled
-		 * to perform the TX COE. This depends on:
+	if (likely(priv->plat->force_sf_dma_mode ||
+		((priv->plat->tx_coe) && (!priv->no_csum_insertion)))) {
+		/*
+		 * In case of GMAC, SF mode can be enabled
+		 * to perform the TX COE in HW. This depends on:
 		 * 1) TX COE if actually supported
 		 * 2) There is no bugged Jumbo frame support
 		 *    that needs to not insert csum in the TDES.
@@ -750,7 +743,6 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 			priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
 			priv->xstats.threshold = tc;
 		}
-		stmmac_tx_err(priv);
 	} else if (unlikely(status == tx_hard_error))
 		stmmac_tx_err(priv);
 }
@@ -781,21 +773,6 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_verify_args();
 
-	ret = stmmac_init_phy(dev);
-	if (unlikely(ret)) {
-		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
-		return ret;
-	}
-
-	/* Request the IRQ lines */
-	ret = request_irq(dev->irq, stmmac_interrupt,
-			  IRQF_SHARED, dev->name, dev);
-	if (unlikely(ret < 0)) {
-		pr_err("%s: ERROR: allocating the IRQ %d (error: %d)\n",
-		       __func__, dev->irq, ret);
-		return ret;
-	}
-
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
 	if (unlikely(priv->tm == NULL)) {
@@ -814,6 +791,11 @@ static int stmmac_open(struct net_device *dev)
 	} else
 		priv->tm->enable = 1;
 #endif
+	ret = stmmac_init_phy(dev);
+	if (unlikely(ret)) {
+		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
+		goto open_error;
+	}
 
 	/* Create and initialize the TX/RX descriptors chains. */
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
@@ -822,12 +804,11 @@ static int stmmac_open(struct net_device *dev)
 	init_dma_desc_rings(dev);
 
 	/* DMA initialization and SW reset */
-	if (unlikely(priv->hw->dma->init(priv->ioaddr, priv->plat->pbl,
-					 priv->dma_tx_phy,
-					 priv->dma_rx_phy) < 0)) {
-
+	ret = priv->hw->dma->init(priv->ioaddr, priv->plat->pbl,
+				  priv->dma_tx_phy, priv->dma_rx_phy);
+	if (ret < 0) {
 		pr_err("%s: DMA initialization failed\n", __func__);
-		return -1;
+		goto open_error;
 	}
 
 	/* Copy the MAC addr into the HW  */
@@ -843,10 +824,20 @@ static int stmmac_open(struct net_device *dev)
 		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
 	if (priv->plat->tx_coe)
 		pr_info("\tTX Checksum insertion supported\n");
+	netdev_update_features(dev);
 
 	/* Initialise the MMC (if present) to disable all interrupts. */
 	writel(0xffffffff, priv->ioaddr + MMC_HIGH_INTR_MASK);
 	writel(0xffffffff, priv->ioaddr + MMC_LOW_INTR_MASK);
+
+	/* Request the IRQ lines */
+	ret = request_irq(dev->irq, stmmac_interrupt,
+			 IRQF_SHARED, dev->name, dev);
+	if (unlikely(ret < 0)) {
+		pr_err("%s: ERROR: allocating the IRQ %d (error: %d)\n",
+		       __func__, dev->irq, ret);
+		goto open_error;
+	}
 
 	/* Enable the MAC Rx/Tx */
 	stmmac_enable_mac(priv->ioaddr);
@@ -878,7 +869,17 @@ static int stmmac_open(struct net_device *dev)
 	napi_enable(&priv->napi);
 	skb_queue_head_init(&priv->rx_recycle);
 	netif_start_queue(dev);
+
 	return 0;
+
+open_error:
+#ifdef CONFIG_STMMAC_TIMER
+	kfree(priv->tm);
+#endif
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
+
+	return ret;
 }
 
 /**
@@ -925,46 +926,6 @@ static int stmmac_release(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	return 0;
-}
-
-/*
- * To perform emulated hardware segmentation on skb.
- */
-static int stmmac_sw_tso(struct stmmac_priv *priv, struct sk_buff *skb)
-{
-	struct sk_buff *segs, *curr_skb;
-	int gso_segs = skb_shinfo(skb)->gso_segs;
-
-	/* Estimate the number of fragments in the worst case */
-	if (unlikely(stmmac_tx_avail(priv) < gso_segs)) {
-		netif_stop_queue(priv->dev);
-		TX_DBG(KERN_ERR "%s: TSO BUG! Tx Ring full when queue awake\n",
-		       __func__);
-		if (stmmac_tx_avail(priv) < gso_segs)
-			return NETDEV_TX_BUSY;
-
-		netif_wake_queue(priv->dev);
-	}
-	TX_DBG("\tstmmac_sw_tso: segmenting: skb %p (len %d)\n",
-	       skb, skb->len);
-
-	segs = skb_gso_segment(skb, priv->dev->features & ~NETIF_F_TSO);
-	if (IS_ERR(segs))
-		goto sw_tso_end;
-
-	do {
-		curr_skb = segs;
-		segs = segs->next;
-		TX_DBG("\t\tcurrent skb->len: %d, *curr %p,"
-		       "*next %p\n", curr_skb->len, curr_skb, segs);
-		curr_skb->next = NULL;
-		stmmac_xmit(curr_skb, priv->dev);
-	} while (segs);
-
-sw_tso_end:
-	dev_kfree_skb(skb);
-
-	return NETDEV_TX_OK;
 }
 
 static unsigned int stmmac_handle_jumbo_frames(struct sk_buff *skb,
@@ -1044,16 +1005,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		       !skb_is_gso(skb) ? "isn't" : "is");
 #endif
 
-	if (unlikely(skb_is_gso(skb)))
-		return stmmac_sw_tso(priv, skb);
-
-	if (likely((skb->ip_summed == CHECKSUM_PARTIAL))) {
-		if (unlikely((!priv->plat->tx_coe) ||
-			     (priv->no_csum_insertion)))
-			skb_checksum_help(skb);
-		else
-			csum_insertion = 1;
-	}
+	csum_insertion = (skb->ip_summed == CHECKSUM_PARTIAL);
 
 	desc = priv->dma_tx + entry;
 	first = desc;
@@ -1089,6 +1041,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 					  len, DMA_TO_DEVICE);
 		priv->tx_skbuff[entry] = NULL;
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion);
+		wmb();
 		priv->hw->desc->set_tx_owner(desc);
 	}
 
@@ -1100,6 +1053,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(priv->tm->enable))
 		priv->hw->desc->clear_tx_ic(desc);
 #endif
+
+	wmb();
+
 	/* To avoid raise condition */
 	priv->hw->desc->set_tx_owner(first);
 
@@ -1122,6 +1078,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dev->stats.tx_bytes += skb->len;
+
+	skb_tx_timestamp(skb);
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
 
@@ -1160,6 +1118,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			}
 			RX_DBG(KERN_INFO "\trefill entry #%d\n", entry);
 		}
+		wmb();
 		priv->hw->desc->set_rx_owner(p + entry);
 	}
 }
@@ -1373,18 +1332,29 @@ static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
+	dev->mtu = new_mtu;
+	netdev_update_features(dev);
+
+	return 0;
+}
+
+static u32 stmmac_fix_features(struct net_device *dev, u32 features)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	if (!priv->rx_coe)
+		features &= ~NETIF_F_RXCSUM;
+	if (!priv->plat->tx_coe)
+		features &= ~NETIF_F_ALL_CSUM;
+
 	/* Some GMAC devices have a bugged Jumbo frame support that
 	 * needs to have the Tx COE disabled for oversized frames
 	 * (due to limited buffer sizes). In this case we disable
 	 * the TX csum insertionin the TDES and not use SF. */
-	if ((priv->plat->bugged_jumbo) && (priv->dev->mtu > ETH_DATA_LEN))
-		priv->no_csum_insertion = 1;
-	else
-		priv->no_csum_insertion = 0;
+	if (priv->plat->bugged_jumbo && (dev->mtu > ETH_DATA_LEN))
+		features &= ~NETIF_F_ALL_CSUM;
 
-	dev->mtu = new_mtu;
-
-	return 0;
+	return features;
 }
 
 static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
@@ -1445,32 +1415,16 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return ret;
 }
 
-#ifdef STMMAC_VLAN_TAG_USED
-static void stmmac_vlan_rx_register(struct net_device *dev,
-				    struct vlan_group *grp)
-{
-	struct stmmac_priv *priv = netdev_priv(dev);
-
-	DBG(probe, INFO, "%s: Setting vlgrp to %p\n", dev->name, grp);
-
-	spin_lock(&priv->lock);
-	priv->vlgrp = grp;
-	spin_unlock(&priv->lock);
-}
-#endif
-
 static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_open = stmmac_open,
 	.ndo_start_xmit = stmmac_xmit,
 	.ndo_stop = stmmac_release,
 	.ndo_change_mtu = stmmac_change_mtu,
+	.ndo_fix_features = stmmac_fix_features,
 	.ndo_set_multicast_list = stmmac_multicast_list,
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_do_ioctl = stmmac_ioctl,
 	.ndo_set_config = stmmac_config,
-#ifdef STMMAC_VLAN_TAG_USED
-	.ndo_vlan_rx_register = stmmac_vlan_rx_register,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = stmmac_poll_controller,
 #endif
@@ -1494,8 +1448,8 @@ static int stmmac_probe(struct net_device *dev)
 	dev->netdev_ops = &stmmac_netdev_ops;
 	stmmac_set_ethtool_ops(dev);
 
-	dev->features |= NETIF_F_SG | NETIF_F_HIGHDMA |
-		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
@@ -1566,71 +1520,6 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	}
 
 	return 0;
-}
-
-static int stmmacphy_dvr_probe(struct platform_device *pdev)
-{
-	struct plat_stmmacphy_data *plat_dat = pdev->dev.platform_data;
-
-	pr_debug("stmmacphy_dvr_probe: added phy for bus %d\n",
-	       plat_dat->bus_id);
-
-	return 0;
-}
-
-static int stmmacphy_dvr_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static struct platform_driver stmmacphy_driver = {
-	.driver = {
-		   .name = PHY_RESOURCE_NAME,
-		   },
-	.probe = stmmacphy_dvr_probe,
-	.remove = stmmacphy_dvr_remove,
-};
-
-/**
- * stmmac_associate_phy
- * @dev: pointer to device structure
- * @data: points to the private structure.
- * Description: Scans through all the PHYs we have registered and checks if
- * any are associated with our MAC.  If so, then just fill in
- * the blanks in our local context structure
- */
-static int stmmac_associate_phy(struct device *dev, void *data)
-{
-	struct stmmac_priv *priv = (struct stmmac_priv *)data;
-	struct plat_stmmacphy_data *plat_dat = dev->platform_data;
-
-	DBG(probe, DEBUG, "%s: checking phy for bus %d\n", __func__,
-		plat_dat->bus_id);
-
-	/* Check that this phy is for the MAC being initialised */
-	if (priv->plat->bus_id != plat_dat->bus_id)
-		return 0;
-
-	/* OK, this PHY is connected to the MAC.
-	   Go ahead and get the parameters */
-	DBG(probe, DEBUG, "%s: OK. Found PHY config\n", __func__);
-	priv->phy_irq =
-	    platform_get_irq_byname(to_platform_device(dev), "phyirq");
-	DBG(probe, DEBUG, "%s: PHY irq on bus %d is %d\n", __func__,
-	    plat_dat->bus_id, priv->phy_irq);
-
-	/* Override with kernel parameters if supplied XXX CRS XXX
-	 * this needs to have multiple instances */
-	if ((phyaddr >= 0) && (phyaddr <= 31))
-		plat_dat->phy_addr = phyaddr;
-
-	priv->phy_addr = plat_dat->phy_addr;
-	priv->phy_mask = plat_dat->phy_mask;
-	priv->phy_interface = plat_dat->interface;
-	priv->phy_reset = plat_dat->phy_reset;
-
-	DBG(probe, DEBUG, "%s: exiting\n", __func__);
-	return 1;	/* forces exit of driver_for_each_device() */
 }
 
 /**
@@ -1723,14 +1612,10 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto out_plat_exit;
 
-	/* associate a PHY - it is provided by another platform bus */
-	if (!driver_for_each_device
-	    (&(stmmacphy_driver.driver), NULL, (void *)priv,
-	     stmmac_associate_phy)) {
-		pr_err("No PHY device is associated with this MAC!\n");
-		ret = -ENODEV;
-		goto out_unregister;
-	}
+	/* Override with kernel parameters if supplied XXX CRS XXX
+	 * this needs to have multiple instances */
+	if ((phyaddr >= 0) && (phyaddr <= 31))
+		priv->plat->phy_addr = phyaddr;
 
 	pr_info("\t%s - (dev. name: %s - id: %d, IRQ #%d\n"
 	       "\tIO base addr: 0x%p)\n", ndev->name, pdev->name,
@@ -1930,11 +1815,6 @@ static int __init stmmac_init_module(void)
 {
 	int ret;
 
-	if (platform_driver_register(&stmmacphy_driver)) {
-		pr_err("No PHY devices registered!\n");
-		return -ENODEV;
-	}
-
 	ret = platform_driver_register(&stmmac_driver);
 	return ret;
 }
@@ -1945,7 +1825,6 @@ static int __init stmmac_init_module(void)
  */
 static void __exit stmmac_cleanup_module(void)
 {
-	platform_driver_unregister(&stmmacphy_driver);
 	platform_driver_unregister(&stmmac_driver);
 }
 
@@ -1957,33 +1836,52 @@ static int __init stmmac_cmdline_opt(char *str)
 	if (!str || !*str)
 		return -EINVAL;
 	while ((opt = strsep(&str, ",")) != NULL) {
-		if (!strncmp(opt, "debug:", 6))
-			strict_strtoul(opt + 6, 0, (unsigned long *)&debug);
-		else if (!strncmp(opt, "phyaddr:", 8))
-			strict_strtoul(opt + 8, 0, (unsigned long *)&phyaddr);
-		else if (!strncmp(opt, "dma_txsize:", 11))
-			strict_strtoul(opt + 11, 0,
-				       (unsigned long *)&dma_txsize);
-		else if (!strncmp(opt, "dma_rxsize:", 11))
-			strict_strtoul(opt + 11, 0,
-				       (unsigned long *)&dma_rxsize);
-		else if (!strncmp(opt, "buf_sz:", 7))
-			strict_strtoul(opt + 7, 0, (unsigned long *)&buf_sz);
-		else if (!strncmp(opt, "tc:", 3))
-			strict_strtoul(opt + 3, 0, (unsigned long *)&tc);
-		else if (!strncmp(opt, "watchdog:", 9))
-			strict_strtoul(opt + 9, 0, (unsigned long *)&watchdog);
-		else if (!strncmp(opt, "flow_ctrl:", 10))
-			strict_strtoul(opt + 10, 0,
-				       (unsigned long *)&flow_ctrl);
-		else if (!strncmp(opt, "pause:", 6))
-			strict_strtoul(opt + 6, 0, (unsigned long *)&pause);
+		if (!strncmp(opt, "debug:", 6)) {
+			if (strict_strtoul(opt + 6, 0, (unsigned long *)&debug))
+				goto err;
+		} else if (!strncmp(opt, "phyaddr:", 8)) {
+			if (strict_strtoul(opt + 8, 0,
+					   (unsigned long *)&phyaddr))
+				goto err;
+		} else if (!strncmp(opt, "dma_txsize:", 11)) {
+			if (strict_strtoul(opt + 11, 0,
+					   (unsigned long *)&dma_txsize))
+				goto err;
+		} else if (!strncmp(opt, "dma_rxsize:", 11)) {
+			if (strict_strtoul(opt + 11, 0,
+					   (unsigned long *)&dma_rxsize))
+				goto err;
+		} else if (!strncmp(opt, "buf_sz:", 7)) {
+			if (strict_strtoul(opt + 7, 0,
+					   (unsigned long *)&buf_sz))
+				goto err;
+		} else if (!strncmp(opt, "tc:", 3)) {
+			if (strict_strtoul(opt + 3, 0, (unsigned long *)&tc))
+				goto err;
+		} else if (!strncmp(opt, "watchdog:", 9)) {
+			if (strict_strtoul(opt + 9, 0,
+					   (unsigned long *)&watchdog))
+				goto err;
+		} else if (!strncmp(opt, "flow_ctrl:", 10)) {
+			if (strict_strtoul(opt + 10, 0,
+					   (unsigned long *)&flow_ctrl))
+				goto err;
+		} else if (!strncmp(opt, "pause:", 6)) {
+			if (strict_strtoul(opt + 6, 0, (unsigned long *)&pause))
+				goto err;
 #ifdef CONFIG_STMMAC_TIMER
-		else if (!strncmp(opt, "tmrate:", 7))
-			strict_strtoul(opt + 7, 0, (unsigned long *)&tmrate);
+		} else if (!strncmp(opt, "tmrate:", 7)) {
+			if (strict_strtoul(opt + 7, 0,
+					   (unsigned long *)&tmrate))
+				goto err;
 #endif
+		}
 	}
 	return 0;
+
+err:
+	pr_err("%s: ERROR broken module parameter conversion", __func__);
+	return -EINVAL;
 }
 
 __setup("stmmaceth=", stmmac_cmdline_opt);

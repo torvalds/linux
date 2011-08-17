@@ -2,7 +2,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,19 +26,19 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include <linux/zlib.h>
+#include <linux/vmalloc.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
 #include "squashfs.h"
 #include "decompressor.h"
 
-static void *zlib_init(struct squashfs_sb_info *dummy)
+static void *zlib_init(struct squashfs_sb_info *dummy, void *buff, int len)
 {
 	z_stream *stream = kmalloc(sizeof(z_stream), GFP_KERNEL);
 	if (stream == NULL)
 		goto failed;
-	stream->workspace = kmalloc(zlib_inflate_workspacesize(),
-		GFP_KERNEL);
+	stream->workspace = vmalloc(zlib_inflate_workspacesize());
 	if (stream->workspace == NULL)
 		goto failed;
 
@@ -47,7 +47,7 @@ static void *zlib_init(struct squashfs_sb_info *dummy)
 failed:
 	ERROR("Failed to allocate zlib workspace\n");
 	kfree(stream);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 
@@ -56,7 +56,7 @@ static void zlib_free(void *strm)
 	z_stream *stream = strm;
 
 	if (stream)
-		kfree(stream->workspace);
+		vfree(stream->workspace);
 	kfree(stream);
 }
 

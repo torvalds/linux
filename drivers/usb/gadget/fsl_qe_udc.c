@@ -1148,6 +1148,12 @@ static int qe_ep_tx(struct qe_ep *ep, struct qe_frame *frame)
 static int txcomplete(struct qe_ep *ep, unsigned char restart)
 {
 	if (ep->tx_req != NULL) {
+		struct qe_req *req = ep->tx_req;
+		unsigned zlp = 0, last_len = 0;
+
+		last_len = min_t(unsigned, req->req.length - ep->sent,
+				ep->ep.maxpacket);
+
 		if (!restart) {
 			int asent = ep->last;
 			ep->sent += asent;
@@ -1156,9 +1162,18 @@ static int txcomplete(struct qe_ep *ep, unsigned char restart)
 			ep->last = 0;
 		}
 
+		/* zlp needed when req->re.zero is set */
+		if (req->req.zero) {
+			if (last_len == 0 ||
+				(req->req.length % ep->ep.maxpacket) != 0)
+				zlp = 0;
+			else
+				zlp = 1;
+		} else
+			zlp = 0;
+
 		/* a request already were transmitted completely */
-		if ((ep->tx_req->req.length - ep->sent) <= 0) {
-			ep->tx_req->req.actual = (unsigned int)ep->sent;
+		if (((ep->tx_req->req.length - ep->sent) <= 0) && !zlp) {
 			done(ep, ep->tx_req, 0);
 			ep->tx_req = NULL;
 			ep->last = 0;
@@ -1191,6 +1206,7 @@ static int qe_usb_senddata(struct qe_ep *ep, struct qe_frame *frame)
 	buf = (u8 *)ep->tx_req->req.buf + ep->sent;
 	if (buf && size) {
 		ep->last = size;
+		ep->tx_req->req.actual += size;
 		frame_set_data(frame, buf);
 		frame_set_length(frame, size);
 		frame_set_status(frame, FRAME_OK);
@@ -1911,6 +1927,10 @@ static int qe_pullup(struct usb_gadget *gadget, int is_on)
 	return -ENOTSUPP;
 }
 
+static int fsl_qe_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int fsl_qe_stop(struct usb_gadget_driver *driver);
+
 /* defined in usb_gadget.h */
 static struct usb_gadget_ops qe_gadget_ops = {
 	.get_frame = qe_get_frame,
@@ -1919,6 +1939,8 @@ static struct usb_gadget_ops qe_gadget_ops = {
 	.vbus_session = qe_vbus_session,
 	.vbus_draw = qe_vbus_draw,
 	.pullup = qe_pullup,
+	.start = fsl_qe_start,
+	.stop = fsl_qe_stop,
 };
 
 /*-------------------------------------------------------------------------
@@ -2304,7 +2326,7 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 /*-------------------------------------------------------------------------
 	Gadget driver probe and unregister.
  --------------------------------------------------------------------------*/
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int fsl_qe_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	int retval;
@@ -2353,9 +2375,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		udc_controller->gadget.name, driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int fsl_qe_stop(struct usb_gadget_driver *driver)
 {
 	struct qe_ep *loop_ep;
 	unsigned long flags;
@@ -2395,7 +2416,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 			driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /* udc structure's alloc and setup, include ep-param alloc */
 static struct qe_udc __devinit *qe_udc_config(struct platform_device *ofdev)
@@ -2523,14 +2543,19 @@ static void qe_udc_release(struct device *dev)
 }
 
 /* Driver probe functions */
-static int __devinit qe_udc_probe(struct platform_device *ofdev,
-			const struct of_device_id *match)
+static const struct of_device_id qe_udc_match[];
+static int __devinit qe_udc_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct qe_ep *ep;
 	unsigned int ret = 0;
 	unsigned int i;
 	const void *prop;
+
+	match = of_match_device(qe_udc_match, &ofdev->dev);
+	if (!match)
+		return -EINVAL;
 
 	prop = of_get_property(np, "mode", NULL);
 	if (!prop || strcmp(prop, "peripheral"))
@@ -2641,11 +2666,17 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev,
 	if (ret)
 		goto err6;
 
+	ret = usb_add_gadget_udc(&ofdev->dev, &udc_controller->gadget);
+	if (ret)
+		goto err7;
+
 	dev_info(udc_controller->dev,
 			"%s USB controller initialized as device\n",
 			(udc_controller->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
+err7:
+	device_unregister(&udc_controller->gadget.dev);
 err6:
 	free_irq(udc_controller->usb_irq, udc_controller);
 err5:
@@ -2699,6 +2730,8 @@ static int __devexit qe_udc_remove(struct platform_device *ofdev)
 
 	if (!udc_controller)
 		return -ENODEV;
+
+	usb_del_gadget_udc(&udc_controller->gadget);
 
 	udc_controller->done = &done;
 	tasklet_disable(&udc_controller->rx_tasklet);
@@ -2768,7 +2801,7 @@ static const struct of_device_id qe_udc_match[] __devinitconst = {
 
 MODULE_DEVICE_TABLE(of, qe_udc_match);
 
-static struct of_platform_driver udc_driver = {
+static struct platform_driver udc_driver = {
 	.driver = {
 		.name = (char *)driver_name,
 		.owner = THIS_MODULE,
@@ -2786,12 +2819,12 @@ static int __init qe_udc_init(void)
 {
 	printk(KERN_INFO "%s: %s, %s\n", driver_name, driver_desc,
 			DRIVER_VERSION);
-	return of_register_platform_driver(&udc_driver);
+	return platform_driver_register(&udc_driver);
 }
 
 static void __exit qe_udc_exit(void)
 {
-	of_unregister_platform_driver(&udc_driver);
+	platform_driver_unregister(&udc_driver);
 }
 
 module_init(qe_udc_init);

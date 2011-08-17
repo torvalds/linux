@@ -1,6 +1,6 @@
 /* bnx2x_stats.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2010 Broadcom Corporation
+ * Copyright (c) 2007-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,47 +14,10 @@
  * Statistics and Link management by Yitchak Gertner
  *
  */
-
 #ifndef BNX2X_STATS_H
 #define BNX2X_STATS_H
 
 #include <linux/types.h>
-
-struct bnx2x_eth_q_stats {
-	u32 total_bytes_received_hi;
-	u32 total_bytes_received_lo;
-	u32 total_bytes_transmitted_hi;
-	u32 total_bytes_transmitted_lo;
-	u32 total_unicast_packets_received_hi;
-	u32 total_unicast_packets_received_lo;
-	u32 total_multicast_packets_received_hi;
-	u32 total_multicast_packets_received_lo;
-	u32 total_broadcast_packets_received_hi;
-	u32 total_broadcast_packets_received_lo;
-	u32 total_unicast_packets_transmitted_hi;
-	u32 total_unicast_packets_transmitted_lo;
-	u32 total_multicast_packets_transmitted_hi;
-	u32 total_multicast_packets_transmitted_lo;
-	u32 total_broadcast_packets_transmitted_hi;
-	u32 total_broadcast_packets_transmitted_lo;
-	u32 valid_bytes_received_hi;
-	u32 valid_bytes_received_lo;
-
-	u32 error_bytes_received_hi;
-	u32 error_bytes_received_lo;
-	u32 etherstatsoverrsizepkts_hi;
-	u32 etherstatsoverrsizepkts_lo;
-	u32 no_buff_discard_hi;
-	u32 no_buff_discard_lo;
-
-	u32 driver_xoff;
-	u32 rx_err_discard_pkt;
-	u32 rx_skb_alloc_failed;
-	u32 hw_csum_err;
-};
-
-#define Q_STATS_OFFSET32(stat_name) \
-			(offsetof(struct bnx2x_eth_q_stats, stat_name) / 4)
 
 struct nig_stats {
 	u32 brb_discard;
@@ -212,7 +175,7 @@ struct bnx2x_eth_stats {
 	u32 brb_truncate_lo;
 
 	u32 mac_filter_discard;
-	u32 xxoverflow_discard;
+	u32 mf_tag_discard;
 	u32 brb_truncate_discard;
 	u32 mac_discard;
 
@@ -222,16 +185,197 @@ struct bnx2x_eth_stats {
 	u32 hw_csum_err;
 
 	u32 nig_timer_max;
+
+	/* TPA */
+	u32 total_tpa_aggregations_hi;
+	u32 total_tpa_aggregations_lo;
+	u32 total_tpa_aggregated_frames_hi;
+	u32 total_tpa_aggregated_frames_lo;
+	u32 total_tpa_bytes_hi;
+	u32 total_tpa_bytes_lo;
 };
 
-#define STATS_OFFSET32(stat_name) \
-			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
-/* Forward declaration */
+struct bnx2x_eth_q_stats {
+	u32 total_unicast_bytes_received_hi;
+	u32 total_unicast_bytes_received_lo;
+	u32 total_broadcast_bytes_received_hi;
+	u32 total_broadcast_bytes_received_lo;
+	u32 total_multicast_bytes_received_hi;
+	u32 total_multicast_bytes_received_lo;
+	u32 total_bytes_received_hi;
+	u32 total_bytes_received_lo;
+	u32 total_unicast_bytes_transmitted_hi;
+	u32 total_unicast_bytes_transmitted_lo;
+	u32 total_broadcast_bytes_transmitted_hi;
+	u32 total_broadcast_bytes_transmitted_lo;
+	u32 total_multicast_bytes_transmitted_hi;
+	u32 total_multicast_bytes_transmitted_lo;
+	u32 total_bytes_transmitted_hi;
+	u32 total_bytes_transmitted_lo;
+	u32 total_unicast_packets_received_hi;
+	u32 total_unicast_packets_received_lo;
+	u32 total_multicast_packets_received_hi;
+	u32 total_multicast_packets_received_lo;
+	u32 total_broadcast_packets_received_hi;
+	u32 total_broadcast_packets_received_lo;
+	u32 total_unicast_packets_transmitted_hi;
+	u32 total_unicast_packets_transmitted_lo;
+	u32 total_multicast_packets_transmitted_hi;
+	u32 total_multicast_packets_transmitted_lo;
+	u32 total_broadcast_packets_transmitted_hi;
+	u32 total_broadcast_packets_transmitted_lo;
+	u32 valid_bytes_received_hi;
+	u32 valid_bytes_received_lo;
+
+	u32 etherstatsoverrsizepkts_hi;
+	u32 etherstatsoverrsizepkts_lo;
+	u32 no_buff_discard_hi;
+	u32 no_buff_discard_lo;
+
+	u32 driver_xoff;
+	u32 rx_err_discard_pkt;
+	u32 rx_skb_alloc_failed;
+	u32 hw_csum_err;
+
+	u32 total_packets_received_checksum_discarded_hi;
+	u32 total_packets_received_checksum_discarded_lo;
+	u32 total_packets_received_ttl0_discarded_hi;
+	u32 total_packets_received_ttl0_discarded_lo;
+	u32 total_transmitted_dropped_packets_error_hi;
+	u32 total_transmitted_dropped_packets_error_lo;
+
+	/* TPA */
+	u32 total_tpa_aggregations_hi;
+	u32 total_tpa_aggregations_lo;
+	u32 total_tpa_aggregated_frames_hi;
+	u32 total_tpa_aggregated_frames_lo;
+	u32 total_tpa_bytes_hi;
+	u32 total_tpa_bytes_lo;
+};
+
+/****************************************************************************
+* Macros
+****************************************************************************/
+
+/* sum[hi:lo] += add[hi:lo] */
+#define ADD_64(s_hi, a_hi, s_lo, a_lo) \
+	do { \
+		s_lo += a_lo; \
+		s_hi += a_hi + ((s_lo < a_lo) ? 1 : 0); \
+	} while (0)
+
+/* difference = minuend - subtrahend */
+#define DIFF_64(d_hi, m_hi, s_hi, d_lo, m_lo, s_lo) \
+	do { \
+		if (m_lo < s_lo) { \
+			/* underflow */ \
+			d_hi = m_hi - s_hi; \
+			if (d_hi > 0) { \
+				/* we can 'loan' 1 */ \
+				d_hi--; \
+				d_lo = m_lo + (UINT_MAX - s_lo) + 1; \
+			} else { \
+				/* m_hi <= s_hi */ \
+				d_hi = 0; \
+				d_lo = 0; \
+			} \
+		} else { \
+			/* m_lo >= s_lo */ \
+			if (m_hi < s_hi) { \
+				d_hi = 0; \
+				d_lo = 0; \
+			} else { \
+				/* m_hi >= s_hi */ \
+				d_hi = m_hi - s_hi; \
+				d_lo = m_lo - s_lo; \
+			} \
+		} \
+	} while (0)
+
+#define UPDATE_STAT64(s, t) \
+	do { \
+		DIFF_64(diff.hi, new->s##_hi, pstats->mac_stx[0].t##_hi, \
+			diff.lo, new->s##_lo, pstats->mac_stx[0].t##_lo); \
+		pstats->mac_stx[0].t##_hi = new->s##_hi; \
+		pstats->mac_stx[0].t##_lo = new->s##_lo; \
+		ADD_64(pstats->mac_stx[1].t##_hi, diff.hi, \
+		       pstats->mac_stx[1].t##_lo, diff.lo); \
+	} while (0)
+
+#define UPDATE_STAT64_NIG(s, t) \
+	do { \
+		DIFF_64(diff.hi, new->s##_hi, old->s##_hi, \
+			diff.lo, new->s##_lo, old->s##_lo); \
+		ADD_64(estats->t##_hi, diff.hi, \
+		       estats->t##_lo, diff.lo); \
+	} while (0)
+
+/* sum[hi:lo] += add */
+#define ADD_EXTEND_64(s_hi, s_lo, a) \
+	do { \
+		s_lo += a; \
+		s_hi += (s_lo < a) ? 1 : 0; \
+	} while (0)
+
+#define ADD_STAT64(diff, t) \
+	do { \
+		ADD_64(pstats->mac_stx[1].t##_hi, new->diff##_hi, \
+		       pstats->mac_stx[1].t##_lo, new->diff##_lo); \
+	} while (0)
+
+#define UPDATE_EXTEND_STAT(s) \
+	do { \
+		ADD_EXTEND_64(pstats->mac_stx[1].s##_hi, \
+			      pstats->mac_stx[1].s##_lo, \
+			      new->s); \
+	} while (0)
+
+#define UPDATE_EXTEND_TSTAT(s, t) \
+	do { \
+		diff = le32_to_cpu(tclient->s) - le32_to_cpu(old_tclient->s); \
+		old_tclient->s = tclient->s; \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
+	} while (0)
+
+#define UPDATE_EXTEND_USTAT(s, t) \
+	do { \
+		diff = le32_to_cpu(uclient->s) - le32_to_cpu(old_uclient->s); \
+		old_uclient->s = uclient->s; \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
+	} while (0)
+
+#define UPDATE_EXTEND_XSTAT(s, t) \
+	do { \
+		diff = le32_to_cpu(xclient->s) - le32_to_cpu(old_xclient->s); \
+		old_xclient->s = xclient->s; \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
+	} while (0)
+
+/* minuend -= subtrahend */
+#define SUB_64(m_hi, s_hi, m_lo, s_lo) \
+	do { \
+		DIFF_64(m_hi, m_hi, s_hi, m_lo, m_lo, s_lo); \
+	} while (0)
+
+/* minuend[hi:lo] -= subtrahend */
+#define SUB_EXTEND_64(m_hi, m_lo, s) \
+	do { \
+		SUB_64(m_hi, 0, m_lo, s); \
+	} while (0)
+
+#define SUB_EXTEND_USTAT(s, t) \
+	do { \
+		diff = le32_to_cpu(uclient->s) - le32_to_cpu(old_uclient->s); \
+		SUB_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
+	} while (0)
+
+
+/* forward */
 struct bnx2x;
 
 void bnx2x_stats_init(struct bnx2x *bp);
 
-extern const u32 dmae_reg_go_c[];
+void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event);
 
 #endif /* BNX2X_STATS_H */

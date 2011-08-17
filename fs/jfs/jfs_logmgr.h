@@ -288,7 +288,7 @@ struct lrd {
 		/*
 		 *	SYNCPT: log sync point
 		 *
-		 * replay log upto syncpt address specified;
+		 * replay log up to syncpt address specified;
 		 */
 		struct {
 			__le32 sync;	/* 4: syncpt address (0 = here) */

@@ -22,7 +22,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <trace/events/power.h>
 
+#include <asm/cpu.h>
 #include <plat/clock.h>
 #include "clockdomain.h"
 #include <plat/cpu.h>
@@ -34,6 +36,14 @@
 #include "cm-regbits-34xx.h"
 
 u8 cpu_mask;
+
+/*
+ * clkdm_control: if true, then when a clock is enabled in the
+ * hardware, its clockdomain will first be enabled; and when a clock
+ * is disabled in the hardware, its clockdomain will be disabled
+ * afterwards.
+ */
+static bool clkdm_control = true;
 
 /*
  * OMAP2+ specific clock functions
@@ -95,6 +105,19 @@ void omap2_init_clk_clkdm(struct clk *clk)
 		pr_debug("clock: could not associate clk %s to "
 			 "clkdm %s\n", clk->name, clk->clkdm_name);
 	}
+}
+
+/**
+ * omap2_clk_disable_clkdm_control - disable clkdm control on clk enable/disable
+ *
+ * Prevent the OMAP clock code from calling into the clockdomain code
+ * when a hardware clock in that clockdomain is enabled or disabled.
+ * Intended to be called at init time from omap*_clk_init().  No
+ * return value.
+ */
+void __init omap2_clk_disable_clkdm_control(void)
+{
+	clkdm_control = false;
 }
 
 /**
@@ -261,10 +284,13 @@ void omap2_clk_disable(struct clk *clk)
 
 	pr_debug("clock: %s: disabling in hardware\n", clk->name);
 
-	clk->ops->disable(clk);
+	if (clk->ops && clk->ops->disable) {
+		trace_clock_disable(clk->name, 0, smp_processor_id());
+		clk->ops->disable(clk);
+	}
 
-	if (clk->clkdm)
-		omap2_clkdm_clk_disable(clk->clkdm, clk);
+	if (clkdm_control && clk->clkdm)
+		clkdm_clk_disable(clk->clkdm, clk);
 
 	if (clk->parent)
 		omap2_clk_disable(clk->parent);
@@ -303,8 +329,8 @@ int omap2_clk_enable(struct clk *clk)
 		}
 	}
 
-	if (clk->clkdm) {
-		ret = omap2_clkdm_clk_enable(clk->clkdm, clk);
+	if (clkdm_control && clk->clkdm) {
+		ret = clkdm_clk_enable(clk->clkdm, clk);
 		if (ret) {
 			WARN(1, "clock: %s: could not enable clockdomain %s: "
 			     "%d\n", clk->name, clk->clkdm->name, ret);
@@ -312,17 +338,21 @@ int omap2_clk_enable(struct clk *clk)
 		}
 	}
 
-	ret = clk->ops->enable(clk);
-	if (ret) {
-		WARN(1, "clock: %s: could not enable: %d\n", clk->name, ret);
-		goto oce_err3;
+	if (clk->ops && clk->ops->enable) {
+		trace_clock_enable(clk->name, 1, smp_processor_id());
+		ret = clk->ops->enable(clk);
+		if (ret) {
+			WARN(1, "clock: %s: could not enable: %d\n",
+			     clk->name, ret);
+			goto oce_err3;
+		}
 	}
 
 	return 0;
 
 oce_err3:
-	if (clk->clkdm)
-		omap2_clkdm_clk_disable(clk->clkdm, clk);
+	if (clkdm_control && clk->clkdm)
+		clkdm_clk_disable(clk->clkdm, clk);
 oce_err2:
 	if (clk->parent)
 		omap2_clk_disable(clk->parent);
@@ -349,8 +379,10 @@ int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 	pr_debug("clock: set_rate for clock %s to rate %ld\n", clk->name, rate);
 
 	/* dpll_ck, core_ck, virt_prcm_set; plus all clksel clocks */
-	if (clk->set_rate)
+	if (clk->set_rate) {
+		trace_clock_set_rate(clk->name, rate, smp_processor_id());
 		ret = clk->set_rate(clk, rate);
+	}
 
 	return ret;
 }
@@ -373,10 +405,16 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 const struct clkops clkops_omap3_noncore_dpll_ops = {
 	.enable		= omap3_noncore_dpll_enable,
 	.disable	= omap3_noncore_dpll_disable,
+	.allow_idle	= omap3_dpll_allow_idle,
+	.deny_idle	= omap3_dpll_deny_idle,
+};
+
+const struct clkops clkops_omap3_core_dpll_ops = {
+	.allow_idle	= omap3_dpll_allow_idle,
+	.deny_idle	= omap3_dpll_deny_idle,
 };
 
 #endif
-
 
 /*
  * OMAP2+ clock reset and init functions
@@ -436,6 +474,7 @@ int __init omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name)
 	if (IS_ERR_VALUE(r)) {
 		WARN(1, "clock: %s: unable to set MPU rate to %d: %d\n",
 		     mpurate_ck->name, mpurate, r);
+		clk_put(mpurate_ck);
 		return -EINVAL;
 	}
 

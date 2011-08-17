@@ -11,9 +11,6 @@
 #include "transport.h"
 #include "init.h"
 
-BYTE IsSSFDCCompliance;
-BYTE IsXDCompliance;
-
 /*
  * ENE_InitMedia():
  */
@@ -30,21 +27,11 @@ int ENE_InitMedia(struct us_data *us)
 	}
 	printk(KERN_INFO "MiscReg03 = %x\n", MiscReg03);
 
-	if (MiscReg03 & 0x01) {
-		if (!us->SD_Status.Ready) {
-			result = ENE_SDInit(us);
-			if (result != USB_STOR_XFER_GOOD)
-				return USB_STOR_TRANSPORT_ERROR;
-		}
-	}
-
 	if (MiscReg03 & 0x02) {
 		if (!us->SM_Status.Ready && !us->MS_Status.Ready) {
 			result = ENE_SMInit(us);
 			if (result != USB_STOR_XFER_GOOD) {
-				result = ENE_MSInit(us);
-				if (result != USB_STOR_XFER_GOOD)
-					return USB_STOR_TRANSPORT_ERROR;
+				return USB_STOR_TRANSPORT_ERROR;
 			}
 		}
 
@@ -70,123 +57,6 @@ int ENE_Read_BYTE(struct us_data *us, WORD index, void *buf)
 
 	result = ENE_SendScsiCmd(us, FDIR_READ, buf, 0);
 	return result;
-}
-
-/*
- * ENE_SDInit():
- */
-int ENE_SDInit(struct us_data *us)
-{
-	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
-	int	result;
-	BYTE	buf[0x200];
-
-	printk(KERN_INFO "transport --- ENE_SDInit\n");
-	/* SD Init Part-1 */
-	result = ENE_LoadBinCode(us, SD_INIT1_PATTERN);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Load SD Init Code Part-1 Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
-	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
-	bcb->Flags = 0x80;
-	bcb->CDB[0] = 0xF2;
-
-	result = ENE_SendScsiCmd(us, FDIR_READ, NULL, 0);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Exection SD Init Code Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	/* SD Init Part-2 */
-	result = ENE_LoadBinCode(us, SD_INIT2_PATTERN);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Load SD Init Code Part-2 Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
-	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
-	bcb->DataTransferLength	= 0x200;
-	bcb->Flags			= 0x80;
-	bcb->CDB[0]			= 0xF1;
-
-	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Exection SD Init Code Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	us->SD_Status =  *(PSD_STATUS)&buf[0];
-	if (us->SD_Status.Insert && us->SD_Status.Ready) {
-		ENE_ReadSDReg(us, (PBYTE)&buf);
-		printk(KERN_INFO "Insert     = %x\n", us->SD_Status.Insert);
-		printk(KERN_INFO "Ready      = %x\n", us->SD_Status.Ready);
-		printk(KERN_INFO "IsMMC      = %x\n", us->SD_Status.IsMMC);
-		printk(KERN_INFO "HiCapacity = %x\n", us->SD_Status.HiCapacity);
-		printk(KERN_INFO "HiSpeed    = %x\n", us->SD_Status.HiSpeed);
-		printk(KERN_INFO "WtP        = %x\n", us->SD_Status.WtP);
-	} else {
-		printk(KERN_ERR "SD Card Not Ready --- %x\n", buf[0]);
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-	return USB_STOR_TRANSPORT_GOOD;
-}
-
-/*
- * ENE_MSInit():
- */
-int ENE_MSInit(struct us_data *us)
-{
-	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
-	int	result;
-	BYTE	buf[0x200];
-	WORD	MSP_BlockSize, MSP_UserAreaBlocks;
-
-	printk(KERN_INFO "transport --- ENE_MSInit\n");
-	result = ENE_LoadBinCode(us, MS_INIT_PATTERN);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Load MS Init Code Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
-	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
-	bcb->DataTransferLength	= 0x200;
-	bcb->Flags			= 0x80;
-	bcb->CDB[0]			= 0xF1;
-	bcb->CDB[1]			= 0x01;
-
-	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Exection MS Init Code Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	us->MS_Status = *(PMS_STATUS)&buf[0];
-
-	if (us->MS_Status.Insert && us->MS_Status.Ready) {
-		printk(KERN_INFO "Insert     = %x\n", us->MS_Status.Insert);
-		printk(KERN_INFO "Ready      = %x\n", us->MS_Status.Ready);
-		printk(KERN_INFO "IsMSPro    = %x\n", us->MS_Status.IsMSPro);
-		printk(KERN_INFO "IsMSPHG    = %x\n", us->MS_Status.IsMSPHG);
-		printk(KERN_INFO "WtP        = %x\n", us->MS_Status.WtP);
-		if (us->MS_Status.IsMSPro) {
-			MSP_BlockSize      = (buf[6] << 8) | buf[7];
-			MSP_UserAreaBlocks = (buf[10] << 8) | buf[11];
-			us->MSP_TotalBlock = MSP_BlockSize * MSP_UserAreaBlocks;
-		} else {
-			MS_CardInit(us);
-		}
-		printk(KERN_INFO "MS Init Code OK !!\n");
-	} else {
-		printk(KERN_INFO "MS Card Not Ready --- %x\n", buf[0]);
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	return USB_STOR_TRANSPORT_GOOD;
 }
 
 /*
@@ -216,7 +86,7 @@ int ENE_SMInit(struct us_data *us)
 	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
 		printk(KERN_ERR
-		       "Exection SM Init Code Fail !! result = %x\n", result);
+		       "Execution SM Init Code Fail !! result = %x\n", result);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -242,38 +112,6 @@ int ENE_SMInit(struct us_data *us)
 }
 
 /*
- * ENE_ReadSDReg()
- */
-int ENE_ReadSDReg(struct us_data *us, u8 *RdBuf)
-{
-	WORD	tmpreg;
-	DWORD	reg4b;
-
-	/* printk(KERN_INFO "transport --- ENE_ReadSDReg\n"); */
-	reg4b = *(PDWORD)&RdBuf[0x18];
-	us->SD_READ_BL_LEN = (BYTE)((reg4b >> 8) & 0x0f);
-
-	tmpreg = (WORD) reg4b;
-	reg4b = *(PDWORD)(&RdBuf[0x14]);
-	if (us->SD_Status.HiCapacity && !us->SD_Status.IsMMC)
-		us->HC_C_SIZE = (reg4b >> 8) & 0x3fffff;
-
-	us->SD_C_SIZE = ((tmpreg & 0x03) << 10) | (WORD)(reg4b >> 22);
-	us->SD_C_SIZE_MULT = (BYTE)(reg4b >> 7)  & 0x07;
-	if (us->SD_Status.HiCapacity && us->SD_Status.IsMMC)
-		us->HC_C_SIZE = *(PDWORD)(&RdBuf[0x100]);
-
-	if (us->SD_READ_BL_LEN > SD_BLOCK_LEN) {
-		us->SD_Block_Mult =
-			1 << (us->SD_READ_BL_LEN - SD_BLOCK_LEN);
-		us->SD_READ_BL_LEN = SD_BLOCK_LEN;
-	} else {
-		us->SD_Block_Mult = 1;
-	}
-	return USB_STOR_TRANSPORT_GOOD;
-}
-
-/*
  * ENE_LoadBinCode()
  */
 int ENE_LoadBinCode(struct us_data *us, BYTE flag)
@@ -291,32 +129,6 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 	if (buf == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
 	switch (flag) {
-	/* For SD */
-	case SD_INIT1_PATTERN:
-		printk(KERN_INFO "SD_INIT1_PATTERN\n");
-		memcpy(buf, SD_Init1, 0x800);
-		break;
-	case SD_INIT2_PATTERN:
-		printk(KERN_INFO "SD_INIT2_PATTERN\n");
-		memcpy(buf, SD_Init2, 0x800);
-		break;
-	case SD_RW_PATTERN:
-		printk(KERN_INFO "SD_RW_PATTERN\n");
-		memcpy(buf, SD_Rdwr, 0x800);
-		break;
-	/* For MS */
-	case MS_INIT_PATTERN:
-		printk(KERN_INFO "MS_INIT_PATTERN\n");
-		memcpy(buf, MS_Init, 0x800);
-		break;
-	case MSP_RW_PATTERN:
-		printk(KERN_INFO "MSP_RW_PATTERN\n");
-		memcpy(buf, MSP_Rdwr, 0x800);
-		break;
-	case MS_RW_PATTERN:
-		printk(KERN_INFO "MS_RW_PATTERN\n");
-		memcpy(buf, MS_Rdwr, 0x800);
-		break;
 	/* For SS */
 	case SM_INIT_PATTERN:
 		printk(KERN_INFO "SM_INIT_PATTERN\n");
@@ -412,8 +224,9 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 	 */
 	if (residue && !(us->fflags & US_FL_IGNORE_RESIDUE)) {
 		residue = min(residue, transfer_length);
-		scsi_set_resid(us->srb, max(scsi_get_resid(us->srb),
-							(int) residue));
+		if (us->srb)
+			scsi_set_resid(us->srb, max(scsi_get_resid(us->srb),
+					(int) residue));
 	}
 
 	if (bcs->Status != US_BULK_STAT_OK)
@@ -557,5 +370,4 @@ void usb_stor_print_cmd(struct scsi_cmnd *srb)
 	bn = 0;
 	blen = 0;
 }
-
 

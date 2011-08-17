@@ -25,7 +25,6 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
 #include <mach/iomux-mx1.h>
 #include <mach/irqs.h>
 
@@ -116,6 +115,8 @@ static struct i2c_board_info mx1ads_i2c_devices[] = {
  */
 static void __init mx1ads_init(void)
 {
+	imx1_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx1ads_pins,
 		ARRAY_SIZE(mx1ads_pins), "mx1ads");
 
@@ -144,17 +145,19 @@ struct sys_timer mx1ads_timer = {
 
 MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	/* Maintainer: Sascha Hauer, Pengutronix */
-	.boot_params	= MX1_PHYS_OFFSET + 0x100,
-	.map_io		= mx1_map_io,
-	.init_irq	= mx1_init_irq,
-	.timer		= &mx1ads_timer,
-	.init_machine	= mx1ads_init,
+	.boot_params = MX1_PHYS_OFFSET + 0x100,
+	.map_io = mx1_map_io,
+	.init_early = imx1_init_early,
+	.init_irq = mx1_init_irq,
+	.timer = &mx1ads_timer,
+	.init_machine = mx1ads_init,
 MACHINE_END
 
 MACHINE_START(MXLADS, "Freescale MXLADS")
-	.boot_params	= MX1_PHYS_OFFSET + 0x100,
-	.map_io		= mx1_map_io,
-	.init_irq	= mx1_init_irq,
-	.timer		= &mx1ads_timer,
-	.init_machine	= mx1ads_init,
+	.boot_params = MX1_PHYS_OFFSET + 0x100,
+	.map_io = mx1_map_io,
+	.init_early = imx1_init_early,
+	.init_irq = mx1_init_irq,
+	.timer = &mx1ads_timer,
+	.init_machine = mx1ads_init,
 MACHINE_END

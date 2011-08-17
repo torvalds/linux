@@ -63,7 +63,7 @@ static DEFINE_SPINLOCK(bfin_wdt_spinlock);
 /**
  *	bfin_wdt_keepalive - Keep the Userspace Watchdog Alive
  *
- * 	The Userspace watchdog got a KeepAlive: schedule the next timeout.
+ *	The Userspace watchdog got a KeepAlive: schedule the next timeout.
  */
 static int bfin_wdt_keepalive(void)
 {
@@ -337,7 +337,7 @@ static int bfin_wdt_resume(struct platform_device *pdev)
 static const struct file_operations bfin_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.write    	= bfin_wdt_write,
+	.write		= bfin_wdt_write,
 	.unlocked_ioctl	= bfin_wdt_ioctl,
 	.open		= bfin_wdt_open,
 	.release	= bfin_wdt_release,

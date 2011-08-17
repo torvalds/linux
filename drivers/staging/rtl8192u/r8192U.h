@@ -37,7 +37,6 @@
 #include <linux/proc_fs.h>	// Necessary because we use the proc fs
 #include <linux/if_arp.h>
 #include <linux/random.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include "ieee80211/ieee80211.h"
 
@@ -460,11 +459,6 @@ typedef enum _desc_packet_type_e{
 	DESC_PACKET_TYPE_INIT = 0,
 	DESC_PACKET_TYPE_NORMAL = 1,
 }desc_packet_type_e;
-
-typedef enum _firmware_source{
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,		//from header file
-}firmware_source_e, *pfirmware_source_e;
 
 typedef enum _firmware_status{
 	FW_STATUS_0_INIT = 0,
@@ -1026,7 +1020,6 @@ typedef struct r8192_priv
 	u8 Rf_Mode; //add for Firmware RF -R/W switch
 	prt_firmware		pFirmware;
 	rtl819xUsb_loopback_e	LoopbackMode;
-	firmware_source_e	firmware_source;
 	u16 EEPROMTxPowerDiff;
 	u8 EEPROMThermalMeter;
 	u8 EEPROMPwDiff;

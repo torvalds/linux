@@ -6,7 +6,7 @@
  * GPL v2
  *
  * This driver assumes single CPU. That's okay, because collie is
- * slightly old hardware, and noone is going to retrofit second CPU to
+ * slightly old hardware, and no one is going to retrofit second CPU to
  * old PDA.
  */
 
@@ -184,6 +184,7 @@ static int locomolcd_probe(struct locomo_dev *ldev)
 	local_irq_restore(flags);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 4;
 	locomolcd_bl_device = backlight_device_register("locomo-bl",
 							&ldev->dev, NULL,

@@ -72,7 +72,7 @@ static void s3c_pm_run_sysram(run_fn_t fn, u32 *arg)
 
 static u32 *s3c_pm_countram(struct resource *res, u32 *val)
 {
-	u32 size = (u32)(res->end - res->start)+1;
+	u32 size = (u32)resource_size(res);
 
 	size += CHECK_CHUNKSIZE-1;
 	size /= CHECK_CHUNKSIZE;
@@ -164,7 +164,6 @@ static inline int in_region(void *ptr, int size, void *what, size_t whatsz)
  */
 static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 {
-	void *save_at = phys_to_virt(s3c_sleep_save_phys);
 	unsigned long addr;
 	unsigned long left;
 	void *stkpage;
@@ -189,11 +188,6 @@ static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 
 		if (in_region(ptr, left, crcs, crc_size)) {
 			S3C_PMDBG("skipping %08lx, has crc block in\n", addr);
-			goto skip_check;
-		}
-
-		if (in_region(ptr, left, save_at, 32*4 )) {
-			S3C_PMDBG("skipping %08lx, has save block in\n", addr);
 			goto skip_check;
 		}
 

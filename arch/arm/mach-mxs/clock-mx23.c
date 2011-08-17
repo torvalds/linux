@@ -442,11 +442,20 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("duart", "apb_pclk", xbus_clk)
 	/* for amba-pl011 driver */
 	_REGISTER_CLOCK("duart", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.0", NULL, uart_clk)
 	_REGISTER_CLOCK("rtc", NULL, rtc_clk)
-	_REGISTER_CLOCK(NULL, "hclk", hbus_clk)
+	_REGISTER_CLOCK("mxs-dma-apbh", NULL, hbus_clk)
+	_REGISTER_CLOCK("mxs-dma-apbx", NULL, xbus_clk)
+	_REGISTER_CLOCK("mxs-mmc.0", NULL, ssp_clk)
+	_REGISTER_CLOCK("mxs-mmc.1", NULL, ssp_clk)
 	_REGISTER_CLOCK(NULL, "usb", usb_clk)
 	_REGISTER_CLOCK(NULL, "audio", audio_clk)
-	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.0", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.1", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.2", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.3", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.4", NULL, pwm_clk)
+	_REGISTER_CLOCK("imx23-fb", NULL, lcdif_clk)
 };
 
 static int clk_misc_init(void)
@@ -514,12 +523,27 @@ static int clk_misc_init(void)
 	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
 			CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU_SET);
 
+	/*
+	 * 480 MHz seems too high to be ssp clock source directly,
+	 * so set frac to get a 288 MHz ref_io.
+	 */
+	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC);
+	reg &= ~BM_CLKCTRL_FRAC_IOFRAC;
+	reg |= 30 << BP_CLKCTRL_FRAC_IOFRAC;
+	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC);
+
 	return 0;
 }
 
 int __init mx23_clocks_init(void)
 {
 	clk_misc_init();
+
+	/*
+	 * source ssp clock from ref_io than ref_xtal,
+	 * as ref_xtal only provides 24 MHz as maximum.
+	 */
+	clk_set_parent(&ssp_clk, &ref_io_clk);
 
 	clk_enable(&cpu_clk);
 	clk_enable(&hbus_clk);

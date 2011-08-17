@@ -31,7 +31,7 @@
  * x25_parse_facilities - Parse facilities from skb into the facilities structs
  *
  * @skb: sk_buff to parse
- * @facilities: Regular facilites, updated as facilities are found
+ * @facilities: Regular facilities, updated as facilities are found
  * @dte_facs: ITU DTE facilities, updated as DTE facilities are found
  * @vc_fac_mask: mask is updated with all facilities found
  *

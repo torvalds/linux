@@ -578,7 +578,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 	switch (hdw->ir_scheme_active) {
 	case PVR2_IR_SCHEME_24XXX: /* FX2-controlled IR */
 	case PVR2_IR_SCHEME_29XXX: /* Original 29xxx device */
-		init_data->ir_codes              = RC_MAP_HAUPPAUGE_NEW;
+		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
 		init_data->type                  = RC_TYPE_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
@@ -593,7 +593,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		break;
 	case PVR2_IR_SCHEME_ZILOG:     /* HVR-1950 style */
 	case PVR2_IR_SCHEME_24XXX_MCE: /* 24xxx MCE device */
-		init_data->ir_codes              = RC_MAP_HAUPPAUGE_NEW;
+		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 		init_data->type                  = RC_TYPE_RC5;
 		init_data->name                  = hdw->hdw_desc->description;

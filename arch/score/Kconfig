@@ -3,6 +3,7 @@ menu "Machine selection"
 config SCORE
        def_bool y
        select HAVE_GENERIC_HARDIRQS
+       select GENERIC_IRQ_SHOW
 
 choice
 	prompt "System type"
@@ -40,9 +41,6 @@ config NO_DMA
 	default y
 
 config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-config GENERIC_FIND_NEXT_BIT
 	def_bool y
 
 config GENERIC_HWEIGHT

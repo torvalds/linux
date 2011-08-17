@@ -237,8 +237,8 @@ struct s_smt_fp {
  */
 #define RX_ENABLE_ALLMULTI	1	/* enable all multicasts */
 #define RX_DISABLE_ALLMULTI	2	/* disable "enable all multicasts" */
-#define RX_ENABLE_PROMISC	3	/* enable promiscous */
-#define RX_DISABLE_PROMISC	4	/* disable promiscous */
+#define RX_ENABLE_PROMISC	3	/* enable promiscuous */
+#define RX_DISABLE_PROMISC	4	/* disable promiscuous */
 #define RX_ENABLE_NSA		5	/* enable reception of NSA frames */
 #define RX_DISABLE_NSA		6	/* disable reception of NSA frames */
 

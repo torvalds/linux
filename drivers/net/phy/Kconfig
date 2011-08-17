@@ -58,6 +58,7 @@ config BROADCOM_PHY
 
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
+	depends on BCM63XX
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 
@@ -77,7 +78,6 @@ config NATIONAL_PHY
 	  Currently supports the DP83865 PHY.
 
 config STE10XP
-	depends on PHYLIB
 	tristate "Driver for STMicroelectronics STe10Xp PHYs"
 	---help---
 	  This is the driver for the STe100p and STe101p PHYs.

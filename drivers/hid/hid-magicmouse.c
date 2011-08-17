@@ -76,7 +76,7 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
  * This is true when single_touch_id is equal to NO_TOUCHES. If multiple touches
  * are down and the touch providing for single touch emulation is lifted,
  * single_touch_id is equal to SINGLE_TOUCH_UP. While single touch emulation is
- * occuring, single_touch_id corresponds with the tracking id of the touch used.
+ * occurring, single_touch_id corresponds with the tracking id of the touch used.
  */
 #define NO_TOUCHES -1
 #define SINGLE_TOUCH_UP -2
@@ -258,7 +258,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		input_report_abs(input, ABS_MT_TRACKING_ID, id);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, touch_major << 2);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, touch_minor << 2);
-		input_report_abs(input, ABS_MT_ORIENTATION, orientation);
+		input_report_abs(input, ABS_MT_ORIENTATION, -orientation);
 		input_report_abs(input, ABS_MT_POSITION_X, x);
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
 
@@ -397,7 +397,7 @@ static void magicmouse_setup_input(struct input_dev *input, struct hid_device *h
 		input_set_abs_params(input, ABS_MT_TRACKING_ID, 0, 15, 0, 0);
 		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 4, 0);
 		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 255, 4, 0);
-		input_set_abs_params(input, ABS_MT_ORIENTATION, -32, 31, 1, 0);
+		input_set_abs_params(input, ABS_MT_ORIENTATION, -31, 32, 1, 0);
 
 		/* Note: Touch Y position from the device is inverted relative
 		 * to how pointer motion is reported (and relative to how USB
@@ -418,6 +418,8 @@ static void magicmouse_setup_input(struct input_dev *input, struct hid_device *h
 			input_set_abs_params(input, ABS_MT_POSITION_Y, -2456,
 				2565, 4, 0);
 		}
+
+		input_set_events_per_packet(input, 60);
 	}
 
 	if (report_undeciphered) {

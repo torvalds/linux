@@ -24,7 +24,6 @@
 //==============================================================================
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "../htc_debug.h"
 #include "hif.h"
@@ -54,18 +53,18 @@
 
 
     /* external APIs for allocating and freeing internal I/O packets to handle ASYNC I/O */ 
-extern void AR6KFreeIOPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket);
-extern HTC_PACKET *AR6KAllocIOPacket(AR6K_DEVICE *pDev);
+extern void AR6KFreeIOPacket(struct ar6k_device *pDev, struct htc_packet *pPacket);
+extern struct htc_packet *AR6KAllocIOPacket(struct ar6k_device *pDev);
 
 
 /* callback when our fetch to enable/disable completes */
-static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevGMboxIRQActionAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
-    AR6K_DEVICE *pDev = (AR6K_DEVICE *)Context;
+    struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGMboxIRQActionAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("IRQAction Operation (%d) failed! status:%d \n", pPacket->PktInfo.AsRx.HTCRxFlags,pPacket->Status));
     }
@@ -74,26 +73,26 @@ static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("-DevGMboxIRQActionAsyncHandler \n"));
 }
 
-static A_STATUS DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL AsyncMode)
+static int DevGMboxCounterEnableDisable(struct ar6k_device *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
-    A_STATUS                  status = A_OK;
-    AR6K_IRQ_ENABLE_REGISTERS regs;
-    HTC_PACKET                *pIOPacket = NULL;  
+    int                  status = 0;
+    struct ar6k_irq_enable_registers regs;
+    struct htc_packet                *pIOPacket = NULL;  
     
     LOCK_AR6K(pDev);
     
     if (GMBOX_CREDIT_IRQ_ENABLE == IrqAction) {
-        pDev->GMboxInfo.CreditCountIRQEnabled = TRUE;
+        pDev->GMboxInfo.CreditCountIRQEnabled = true;
         pDev->IrqEnableRegisters.counter_int_status_enable |=
             COUNTER_INT_STATUS_ENABLE_BIT_SET(1 << AR6K_GMBOX_CREDIT_COUNTER);
         pDev->IrqEnableRegisters.int_status_enable |= INT_STATUS_ENABLE_COUNTER_SET(0x01);
     } else {
-        pDev->GMboxInfo.CreditCountIRQEnabled = FALSE;
+        pDev->GMboxInfo.CreditCountIRQEnabled = false;
         pDev->IrqEnableRegisters.counter_int_status_enable &=
             ~(COUNTER_INT_STATUS_ENABLE_BIT_SET(1 << AR6K_GMBOX_CREDIT_COUNTER));    
     }
         /* copy into our temp area */
-    A_MEMCPY(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+    memcpy(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
 
     UNLOCK_AR6K(pDev);
 
@@ -105,12 +104,12 @@ static A_STATUS DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION
 
             if (NULL == pIOPacket) {
                 status = A_NO_MEMORY;
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
                 break;
             }
 
                 /* copy values to write to our async I/O buffer */
-            A_MEMCPY(pIOPacket->pBuffer,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+            memcpy(pIOPacket->pBuffer,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
 
                 /* stick in our completion routine when the I/O operation completes */
             pIOPacket->Completion = DevGMboxIRQActionAsyncHandler;
@@ -135,9 +134,9 @@ static A_STATUS DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION
                               AR6K_IRQ_ENABLE_REGS_SIZE,
                               HIF_WR_SYNC_BYTE_INC,
                               NULL);    
-    } while (FALSE);
+    } while (false);
     
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" IRQAction Operation (%d) failed! status:%d \n", IrqAction, status));    
     } else {
@@ -155,11 +154,11 @@ static A_STATUS DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION
 }
 
 
-A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL AsyncMode)
+int DevGMboxIRQAction(struct ar6k_device *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
-    A_STATUS      status = A_OK;
-    HTC_PACKET    *pIOPacket = NULL;   
-    A_UINT8       GMboxIntControl[4];
+    int      status = 0;
+    struct htc_packet    *pIOPacket = NULL;   
+    u8 GMboxIntControl[4];
 
     if (GMBOX_CREDIT_IRQ_ENABLE == IrqAction) {
         return DevGMboxCounterEnableDisable(pDev, GMBOX_CREDIT_IRQ_ENABLE, AsyncMode);
@@ -192,7 +191,7 @@ A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A
             break;
         case GMBOX_ACTION_NONE:
         default:
-            A_ASSERT(FALSE);    
+            A_ASSERT(false);
             break;
     }
     
@@ -211,12 +210,12 @@ A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A
 
             if (NULL == pIOPacket) {
                 status = A_NO_MEMORY;
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
                 break;
             }
 
                 /* copy values to write to our async I/O buffer */
-            A_MEMCPY(pIOPacket->pBuffer,GMboxIntControl,sizeof(GMboxIntControl));
+            memcpy(pIOPacket->pBuffer,GMboxIntControl,sizeof(GMboxIntControl));
 
                 /* stick in our completion routine when the I/O operation completes */
             pIOPacket->Completion = DevGMboxIRQActionAsyncHandler;
@@ -242,9 +241,9 @@ A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A
                               HIF_WR_SYNC_BYTE_FIX,
                               NULL);
 
-    } while (FALSE);
+    } while (false);
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" IRQAction Operation (%d) failed! status:%d \n", IrqAction, status));    
     } else {
@@ -261,18 +260,18 @@ A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A
     return status;
 }
 
-void DevCleanupGMbox(AR6K_DEVICE *pDev)
+void DevCleanupGMbox(struct ar6k_device *pDev)
 {
     if (pDev->GMboxEnabled) {
-        pDev->GMboxEnabled = FALSE;
+        pDev->GMboxEnabled = false;
         GMboxProtocolUninstall(pDev);        
     }
 }
 
-A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev)
+int DevSetupGMbox(struct ar6k_device *pDev)
 {
-    A_STATUS    status = A_OK;
-    A_UINT8     muxControl[4];
+    int    status = 0;
+    u8 muxControl[4];
     
     do {
         
@@ -285,7 +284,7 @@ A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev)
                     
         status = DevGMboxIRQAction(pDev, GMBOX_DISABLE_ALL, PROC_IO_SYNC);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
        
@@ -305,29 +304,29 @@ A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev)
                               HIF_WR_SYNC_BYTE_FIX,  /* hit this register 4 times */
                               NULL);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
         status = GMboxProtocolInstall(pDev);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
-        pDev->GMboxEnabled = TRUE;
+        pDev->GMboxEnabled = true;
         
-    } while (FALSE);
+    } while (false);
     
     return status;
 }
 
-A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
+int DevCheckGMboxInterrupts(struct ar6k_device *pDev)
 {
-    A_STATUS status = A_OK;
-    A_UINT8  counter_int_status;
+    int status = 0;
+    u8 counter_int_status;
     int      credits;
-    A_UINT8  host_int_status2;
+    u8 host_int_status2;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ, ("+DevCheckGMboxInterrupts \n"));
      
@@ -348,7 +347,7 @@ A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
             status = A_ECOMM;    
         }
         
-        if (A_FAILED(status)) {
+        if (status) {
             if (pDev->GMboxInfo.pTargetFailureCallback != NULL) {
                 pDev->GMboxInfo.pTargetFailureCallback(pDev->GMboxInfo.pProtocolContext, status);        
             }
@@ -360,12 +359,12 @@ A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
                 A_ASSERT(pDev->GMboxInfo.pMessagePendingCallBack != NULL);
                 status = pDev->GMboxInfo.pMessagePendingCallBack(
                                 pDev->GMboxInfo.pProtocolContext,
-                                (A_UINT8 *)&pDev->IrqProcRegisters.rx_gmbox_lookahead_alias[0],
+                                (u8 *)&pDev->IrqProcRegisters.rx_gmbox_lookahead_alias[0],
                                 pDev->IrqProcRegisters.gmbox_rx_avail);
             }
         } 
         
-        if (A_FAILED(status)) {
+        if (status) {
            break;                
         }
         
@@ -378,7 +377,7 @@ A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
                 /* do synchronous read */
             status = DevGMboxReadCreditCounter(pDev, PROC_IO_SYNC, &credits);
             
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
             
@@ -388,7 +387,7 @@ A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
                                                              pDev->GMboxInfo.CreditCountIRQEnabled);
         }
         
-    } while (FALSE);
+    } while (false);
     
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ, ("-DevCheckGMboxInterrupts (%d) \n",status));
     
@@ -396,12 +395,12 @@ A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 }
 
 
-A_STATUS DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength) 
+int DevGMboxWrite(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 WriteLength)
 {
-    A_UINT32 paddedLength;
-    A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
-    A_STATUS status;
-    A_UINT32 address;
+    u32 paddedLength;
+    bool   sync = (pPacket->Completion == NULL) ? true : false;
+    int status;
+    u32 address;
     
        /* adjust the length to be a multiple of block size if appropriate */
     paddedLength = DEV_CALC_SEND_PADDED_LEN(pDev, WriteLength);
@@ -426,31 +425,31 @@ A_STATUS DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLen
         pPacket->Status = status;
     } else {
         if (status == A_PENDING) {
-            status = A_OK;    
+            status = 0;
         }    
     }
 
     return status;
 }
 
-A_STATUS DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength) 
+int DevGMboxRead(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 ReadLength)
 {
     
-    A_UINT32 paddedLength;
-    A_STATUS status;
-    A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
+    u32 paddedLength;
+    int status;
+    bool   sync = (pPacket->Completion == NULL) ? true : false;
 
         /* adjust the length to be a multiple of block size if appropriate */
     paddedLength = DEV_CALC_RECV_PADDED_LEN(pDev, ReadLength);
                     
     if (paddedLength > pPacket->BufferLength) {
-        A_ASSERT(FALSE);
+        A_ASSERT(false);
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("DevGMboxRead, Not enough space for padlen:%d recvlen:%d bufferlen:%d \n",
                     paddedLength,ReadLength,pPacket->BufferLength));
         if (pPacket->Completion != NULL) {
             COMPLETE_HTC_PACKET(pPacket,A_EINVAL);
-            return A_OK;
+            return 0;
         }
         return A_EINVAL;
     }
@@ -477,7 +476,7 @@ A_STATUS DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLengt
 }
 
 
-static int ProcessCreditCounterReadBuffer(A_UINT8 *pBuffer, int Length)
+static int ProcessCreditCounterReadBuffer(u8 *pBuffer, int Length)
 {
     int     credits = 0;
     
@@ -516,13 +515,13 @@ static int ProcessCreditCounterReadBuffer(A_UINT8 *pBuffer, int Length)
    
 
 /* callback when our fetch to enable/disable completes */
-static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevGMboxReadCreditsAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
-    AR6K_DEVICE *pDev = (AR6K_DEVICE *)Context;
+    struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGMboxReadCreditsAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("Read Credit Operation failed! status:%d \n", pPacket->Status));
     } else {
@@ -539,10 +538,10 @@ static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("-DevGMboxReadCreditsAsyncHandler \n"));
 }
 
-A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits)
+int DevGMboxReadCreditCounter(struct ar6k_device *pDev, bool AsyncMode, int *pCredits)
 {
-    A_STATUS    status = A_OK;
-    HTC_PACKET  *pIOPacket = NULL;  
+    int    status = 0;
+    struct htc_packet  *pIOPacket = NULL;  
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+DevGMboxReadCreditCounter (%s) \n", AsyncMode ? "ASYNC" : "SYNC"));
                                             
@@ -552,7 +551,7 @@ A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCr
 
         if (NULL == pIOPacket) {
             status = A_NO_MEMORY;
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
         
@@ -581,15 +580,15 @@ A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCr
                               AR6K_REG_IO_BUFFER_SIZE,
                               HIF_RD_SYNC_BYTE_FIX,
                               NULL);    
-    } while (FALSE);
+    } while (false);
     
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" DevGMboxReadCreditCounter failed! status:%d \n", status));          
     }
     
     if (pIOPacket != NULL) {
-        if (A_SUCCESS(status)) {
+        if (!status) {
                 /* sync mode processing */
             *pCredits = ProcessCreditCounterReadBuffer(pIOPacket->pBuffer, AR6K_REG_IO_BUFFER_SIZE);     
         }
@@ -602,10 +601,10 @@ A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCr
     return status;
 }
 
-A_STATUS DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
+int DevGMboxReadCreditSize(struct ar6k_device *pDev, int *pCreditSize)
 {
-    A_STATUS    status;
-    A_UINT8     buffer[4];
+    int    status;
+    u8 buffer[4];
        
     status = HIFReadWrite(pDev->HIFDevice,
                           AR6K_GMBOX_CREDIT_SIZE_ADDRESS,
@@ -614,7 +613,7 @@ A_STATUS DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
                           HIF_RD_SYNC_BYTE_FIX, /* hit the register 4 times to align the I/O */
                           NULL);    
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         if (buffer[0] == 0) {
             *pCreditSize = 256;    
         } else {   
@@ -626,7 +625,7 @@ A_STATUS DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
     return status;
 }
 
-void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
+void DevNotifyGMboxTargetFailure(struct ar6k_device *pDev)
 {
         /* Target ASSERTED!!! */
     if (pDev->GMboxInfo.pTargetFailureCallback != NULL) {
@@ -634,17 +633,17 @@ void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
     }
 }
 
-A_STATUS DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes)
+int DevGMboxRecvLookAheadPeek(struct ar6k_device *pDev, u8 *pLookAheadBuffer, int *pLookAheadBytes)
 {
 
-    A_STATUS                    status = A_OK;
-    AR6K_IRQ_PROC_REGISTERS     procRegs;
+    int                    status = 0;
+    struct ar6k_irq_proc_registers     procRegs;
     int                         maxCopy;
   
     do {
             /* on entry the caller provides the length of the lookahead buffer */
         if (*pLookAheadBytes > sizeof(procRegs.rx_gmbox_lookahead_alias)) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             status = A_EINVAL;
             break;    
         }
@@ -654,12 +653,12 @@ A_STATUS DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer,
             /* load the register table from the device */
         status = HIFReadWrite(pDev->HIFDevice,
                               HOST_INT_STATUS_ADDRESS,
-                              (A_UINT8 *)&procRegs,
+                              (u8 *)&procRegs,
                               AR6K_IRQ_PROC_REGS_SIZE,
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("DevGMboxRecvLookAheadPeek : Failed to read register table (%d) \n",status));
             break;
@@ -667,20 +666,20 @@ A_STATUS DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer,
         
         if (procRegs.gmbox_rx_avail > 0) {
             int bytes = procRegs.gmbox_rx_avail > maxCopy ? maxCopy : procRegs.gmbox_rx_avail;
-            A_MEMCPY(pLookAheadBuffer,&procRegs.rx_gmbox_lookahead_alias[0],bytes);
+            memcpy(pLookAheadBuffer,&procRegs.rx_gmbox_lookahead_alias[0],bytes);
             *pLookAheadBytes = bytes;
         }
         
-    } while (FALSE);
+    } while (false);
        
     return status; 
 }
 
-A_STATUS DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
+int DevGMboxSetTargetInterrupt(struct ar6k_device *pDev, int Signal, int AckTimeoutMS)
 {
-    A_STATUS status = A_OK;
+    int status = 0;
     int      i;
-    A_UINT8  buffer[4];
+    u8 buffer[4];
     
     A_MEMZERO(buffer, sizeof(buffer));
     
@@ -701,14 +700,14 @@ A_STATUS DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeou
                               HIF_WR_SYNC_BYTE_FIX, /* hit the register 4 times to align the I/O */
                               NULL);    
                           
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
-    } while (FALSE);
+    } while (false);
     
     
-    if (A_SUCCESS(status)) {        
+    if (!status) {
             /* now read back the register to see if the bit cleared */
         while (AckTimeoutMS) {        
             status = HIFReadWrite(pDev->HIFDevice,
@@ -718,7 +717,7 @@ A_STATUS DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeou
                                   HIF_RD_SYNC_BYTE_FIX,
                                   NULL);    
                           
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
                             

@@ -55,6 +55,9 @@ static void w1_send_slave(struct w1_master *dev, u64 rn)
 	struct w1_netlink_cmd *cmd = (struct w1_netlink_cmd *)(hdr + 1);
 	int avail;
 
+	/* update kernel slave list */
+	w1_slave_found(dev, rn);
+
 	avail = dev->priv_size - cmd->len;
 
 	if (avail > 8) {
@@ -85,7 +88,7 @@ static int w1_process_search_command(struct w1_master *dev, struct cn_msg *msg,
 	dev->priv = msg;
 	dev->priv_size = avail;
 
-	w1_search_devices(dev, search_type, w1_send_slave);
+	w1_search_process_cb(dev, search_type, w1_send_slave);
 
 	msg->ack = 0;
 	cn_netlink_send(msg, 0, GFP_KERNEL);

@@ -108,12 +108,12 @@ void et131x_setphy_normal(struct et131x_adapter *adapter);
 int PhyMiRead(struct et131x_adapter *adapter, u8 xcvrAddr,
 	      u8 xcvrReg, u16 *value);
 #define MiRead(adapter, xcvrReg, value) \
-	PhyMiRead((adapter), (adapter)->Stats.xcvr_addr, (xcvrReg), (value))
+	PhyMiRead((adapter), (adapter)->stats.xcvr_addr, (xcvrReg), (value))
 
 int32_t MiWrite(struct et131x_adapter *adapter,
 		u8 xcvReg, u16 value);
 void et131x_Mii_check(struct et131x_adapter *pAdapter,
-		      MI_BMSR_t bmsr, MI_BMSR_t bmsr_ints);
+		      u16 bmsr, u16 bmsr_ints);
 
 /* This last is not strictly required (the driver could call the TPAL
  * version instead), but this sets the adapter up correctly, and calls the
@@ -126,9 +126,9 @@ void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
 int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter);
 void et131x_rx_dma_memory_free(struct et131x_adapter *adapter);
 int et131x_rfd_resources_alloc(struct et131x_adapter *adapter,
-			       struct _MP_RFD *pMpRfd);
+			       struct rfd *rfd);
 void et131x_rfd_resources_free(struct et131x_adapter *adapter,
-			       struct _MP_RFD *pMpRfd);
+			       struct rfd *rfd);
 int et131x_init_recv(struct et131x_adapter *adapter);
 
 void ConfigRxDmaRegs(struct et131x_adapter *adapter);

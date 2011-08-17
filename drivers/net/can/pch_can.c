@@ -653,7 +653,7 @@ static int pch_can_rx_normal(struct net_device *ndev, u32 obj_num, int quota)
 	u16 data_reg;
 
 	do {
-		/* Reading the messsage object from the Message RAM */
+		/* Reading the message object from the Message RAM */
 		iowrite32(PCH_CMASK_RX_TX_GET, &priv->regs->ifregs[0].cmask);
 		pch_can_rw_msg_obj(&priv->regs->ifregs[0].creq, obj_num);
 

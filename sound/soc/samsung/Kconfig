@@ -1,6 +1,6 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PV310
+	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_EXYNOS4
 	select S3C64XX_DMA if ARCH_S3C64XX
 	select S3C2410_DMA if ARCH_S3C2410
 	help
@@ -35,23 +35,16 @@ config SND_SAMSUNG_I2S
 	tristate
 
 config SND_SOC_SAMSUNG_NEO1973_WM8753
-	tristate "SoC I2S Audio support for NEO1973 - WM8753"
-	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA01
+	tristate "Audio support for Openmoko Neo1973 Smartphones (GTA01/GTA02)"
+	depends on SND_SOC_SAMSUNG && (MACH_NEO1973_GTA01 || MACH_NEO1973_GTA02)
 	select SND_S3C24XX_I2S
 	select SND_SOC_WM8753
+	select SND_SOC_LM4857 if MACH_NEO1973_GTA01
+	select SND_SOC_DFBMCS320
 	help
-	  Say Y if you want to add support for SoC audio on smdk2440
-	  with the WM8753.
+	  Say Y here to enable audio support for the Openmoko Neo1973
+	  Smartphones.
 
-config SND_SOC_SAMSUNG_NEO1973_GTA02_WM8753
-	tristate "Audio support for the Openmoko Neo FreeRunner (GTA02)"
-	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA02
-	select SND_S3C24XX_I2S
-	select SND_SOC_WM8753
-	help
-	  This driver provides audio support for the Openmoko Neo FreeRunner
-	  smartphone.
-	  
 config SND_SOC_SAMSUNG_JIVE_WM8750
 	tristate "SoC I2S Audio support for Jive"
 	depends on SND_SOC_SAMSUNG && MACH_JIVE
@@ -62,7 +55,7 @@ config SND_SOC_SAMSUNG_JIVE_WM8750
 
 config SND_SOC_SAMSUNG_SMDK_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDK6440 || MACH_SMDK6450 || MACH_SMDK6442 || MACH_SMDKV210 || MACH_SMDKC110)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDK6440 || MACH_SMDK6450 || MACH_SMDKV210 || MACH_SMDKC110)
 	select SND_SOC_WM8580
 	select SND_SAMSUNG_I2S
 	help
@@ -165,7 +158,36 @@ config SND_SOC_GONI_AQUILA_WM8994
 
 config SND_SOC_SAMSUNG_SMDK_SPDIF
 	tristate "SoC S/PDIF Audio support for SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210 || MACH_SMDKV310)
 	select SND_SAMSUNG_SPDIF
 	help
 	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.
+
+config SND_SOC_SMDK_WM8580_PCM
+	tristate "SoC PCM Audio support for WM8580 on SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDK6450 || MACH_SMDKV210 || MACH_SMDKC110)
+	select SND_SOC_WM8580
+	select SND_SAMSUNG_PCM
+	help
+	  Say Y if you want to add support for SoC audio on the SMDK.
+
+config SND_SOC_SMDK_WM8994_PCM
+	tristate "SoC PCM Audio support for WM8994 on SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC210 || MACH_SMDKV310)
+	select SND_SOC_WM8994
+	select SND_SAMSUNG_PCM
+	help
+	  Say Y if you want to add support for SoC audio on the SMDK
+
+config SND_SOC_SPEYSIDE
+	tristate "Audio support for Wolfson Speyside"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8996
+	select SND_SOC_WM9081
+
+config SND_SOC_SPEYSIDE_WM8962
+	tristate "Audio support for Wolfson Speyside with WM8962"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8962

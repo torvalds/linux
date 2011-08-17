@@ -1,16 +1,15 @@
 config SQUASHFS
 	tristate "SquashFS 4.0 - Squashed file system support"
 	depends on BLOCK
-	select ZLIB_INFLATE
 	help
 	  Saying Y here includes support for SquashFS 4.0 (a Compressed
 	  Read-Only File System).  Squashfs is a highly compressed read-only
-	  filesystem for Linux.  It uses zlib/lzo compression to compress both
-	  files, inodes and directories.  Inodes in the system are very small
-	  and all blocks are packed to minimise data overhead. Block sizes
-	  greater than 4K are supported up to a maximum of 1 Mbytes (default
-	  block size 128K).  SquashFS 4.0 supports 64 bit filesystems and files
-	  (larger than 4GB), full uid/gid information, hard links and
+	  filesystem for Linux.  It uses zlib, lzo or xz compression to
+	  compress both files, inodes and directories.  Inodes in the system
+	  are very small and all blocks are packed to minimise data overhead.
+	  Block sizes greater than 4K are supported up to a maximum of 1 Mbytes
+	  (default block size 128K).  SquashFS 4.0 supports 64 bit filesystems
+	  and files (larger than 4GB), full uid/gid information, hard links and
 	  timestamps.
 
 	  Squashfs is intended for general read-only filesystem use, for
@@ -36,13 +35,26 @@ config SQUASHFS_XATTR
 
 	  If unsure, say N.
 
+config SQUASHFS_ZLIB
+	bool "Include support for ZLIB compressed file systems"
+	depends on SQUASHFS
+	select ZLIB_INFLATE
+	default y
+	help
+	  ZLIB compression is the standard compression used by Squashfs
+	  file systems.  It offers a good trade-off between compression
+	  achieved and the amount of CPU time and memory necessary to
+	  compress and decompress.
+
+	  If unsure, say Y.
+
 config SQUASHFS_LZO
 	bool "Include support for LZO compressed file systems"
 	depends on SQUASHFS
 	select LZO_DECOMPRESS
 	help
 	  Saying Y here includes support for reading Squashfs file systems
-	  compressed with LZO compresssion.  LZO compression is mainly
+	  compressed with LZO compression.  LZO compression is mainly
 	  aimed at embedded systems with slower CPUs where the overheads
 	  of zlib are too high.
 
@@ -57,7 +69,7 @@ config SQUASHFS_XZ
 	select XZ_DEC
 	help
 	  Saying Y here includes support for reading Squashfs file systems
-	  compressed with XZ compresssion.  XZ gives better compression than
+	  compressed with XZ compression.  XZ gives better compression than
 	  the default zlib compression, at the expense of greater CPU and
 	  memory overhead.
 

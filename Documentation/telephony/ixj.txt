@@ -51,7 +51,7 @@ be removed to protect the rights of others.
 Specifically, very old Internet PhoneJACK cards have non-standard
 G.723.1 codecs (due to the early nature of the DSPs in those days).
 The auto-conversion code to bring those cards into compliance with
-todays standards is available as a binary only module to those people
+today's standards is available as a binary only module to those people
 needing it.  If you bought your card after 1997 or so, you are OK -
 it's only the very old cards that are affected.
 

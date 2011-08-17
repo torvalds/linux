@@ -7,16 +7,18 @@
 #ifndef _QLGE_H_
 #define _QLGE_H_
 
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_vlan.h>
 
 /*
  * General definitions...
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"v1.00.00.27.00.00-01"
+#define DRV_VERSION	"v1.00.00.29.00.00-01"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
@@ -1996,6 +1998,7 @@ enum {
 	QL_LB_LINK_UP = 10,
 	QL_FRC_COREDUMP = 11,
 	QL_EEH_FATAL = 12,
+	QL_ASIC_RECOVERY = 14, /* We are in ascic recovery. */
 };
 
 /* link_status bit definitions */
@@ -2050,7 +2053,7 @@ struct ql_adapter {
 
 	struct nic_stats nic_stats;
 
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	/* PCI Configuration information for this device */
 	struct pci_dev *pdev;
@@ -2134,7 +2137,7 @@ struct ql_adapter {
 	struct delayed_work mpi_idc_work;
 	struct delayed_work mpi_core_to_log;
 	struct completion ide_completion;
-	struct nic_operations *nic_ops;
+	const struct nic_operations *nic_ops;
 	u16 device_id;
 	struct timer_list timer;
 	atomic_t lb_count;

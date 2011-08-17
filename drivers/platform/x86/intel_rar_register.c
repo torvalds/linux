@@ -485,7 +485,7 @@ EXPORT_SYMBOL(rar_lock);
  *
  *	The register_rar function is to used by other device drivers
  *	to ensure that this driver is ready. As we cannot be sure of
- *	the compile/execute order of drivers in ther kernel, it is
+ *	the compile/execute order of drivers in the kernel, it is
  *	best to give this driver a callback function to call when
  *	it is ready to give out addresses. The callback function
  *	would have those steps that continue the initialization of
@@ -637,14 +637,12 @@ end_function:
 	return error;
 }
 
-const struct pci_device_id rar_pci_id_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(rar_pci_id_tbl) = {
 	{ PCI_VDEVICE(INTEL, 0x4110) },
 	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, rar_pci_id_tbl);
-
-const struct pci_device_id *my_id_table = rar_pci_id_tbl;
 
 /* field for registering driver to PCI device */
 static struct pci_driver rar_pci_driver = {

@@ -105,13 +105,11 @@ static int __init omap4_pm_init(void)
 
 	pr_err("Power Management for TI OMAP4.\n");
 
-#ifdef CONFIG_PM
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		pr_err("Failed to setup powerdomains\n");
 		goto err2;
 	}
-#endif
 
 #ifdef CONFIG_SUSPEND
 	suspend_set_ops(&omap_pm_ops);

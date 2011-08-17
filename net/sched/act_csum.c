@@ -63,7 +63,7 @@ static int tcf_csum_init(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CSUM_MAX, nla,csum_policy);
+	err = nla_parse_nested(tb, TCA_CSUM_MAX, nla, csum_policy);
 	if (err < 0)
 		return err;
 
@@ -500,7 +500,7 @@ fail:
 }
 
 static int tcf_csum(struct sk_buff *skb,
-		    struct tc_action *a, struct tcf_result *res)
+		    const struct tc_action *a, struct tcf_result *res)
 {
 	struct tcf_csum *p = a->priv;
 	int action;

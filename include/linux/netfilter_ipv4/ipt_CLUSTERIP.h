@@ -1,6 +1,8 @@
 #ifndef _IPT_CLUSTERIP_H_target
 #define _IPT_CLUSTERIP_H_target
 
+#include <linux/types.h>
+
 enum clusterip_hashmode {
     CLUSTERIP_HASHMODE_SIP = 0,
     CLUSTERIP_HASHMODE_SIP_SPT,
@@ -17,15 +19,15 @@ struct clusterip_config;
 
 struct ipt_clusterip_tgt_info {
 
-	u_int32_t flags;
+	__u32 flags;
 
 	/* only relevant for new ones */
-	u_int8_t clustermac[6];
-	u_int16_t num_total_nodes;
-	u_int16_t num_local_nodes;
-	u_int16_t local_nodes[CLUSTERIP_MAX_NODES];
-	u_int32_t hash_mode;
-	u_int32_t hash_initval;
+	__u8 clustermac[6];
+	__u16 num_total_nodes;
+	__u16 num_local_nodes;
+	__u16 local_nodes[CLUSTERIP_MAX_NODES];
+	__u32 hash_mode;
+	__u32 hash_initval;
 
 	/* Used internally by the kernel */
 	struct clusterip_config *config;

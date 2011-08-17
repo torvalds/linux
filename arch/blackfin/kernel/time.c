@@ -51,7 +51,7 @@ void __init setup_core_timer(void)
 	u32 tcount;
 
 	/* power up the timer, but don't enable it just yet */
-	bfin_write_TCNTL(1);
+	bfin_write_TCNTL(TMPWR);
 	CSYNC();
 
 	/* the TSCALE prescaler counter */
@@ -64,7 +64,7 @@ void __init setup_core_timer(void)
 	/* now enable the timer */
 	CSYNC();
 
-	bfin_write_TCNTL(7);
+	bfin_write_TCNTL(TAUTORLD | TMREN | TMPWR);
 }
 #endif
 
@@ -114,16 +114,14 @@ u32 arch_gettimeoffset(void)
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
+ * as well as call the "xtime_update()" routine every clocktick
  */
 #ifdef CONFIG_CORE_TIMER_IRQ_L1
 __attribute__((l1_text))
 #endif
 irqreturn_t timer_interrupt(int irq, void *dummy)
 {
-	write_seqlock(&xtime_lock);
-	do_timer(1);
-	write_sequnlock(&xtime_lock);
+	xtime_update(1);
 
 #ifdef CONFIG_IPIPE
 	update_root_process_times(get_irq_regs());

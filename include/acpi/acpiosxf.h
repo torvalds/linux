@@ -98,6 +98,12 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 /*
  * Spinlock primitives
  */
+
+#ifndef acpi_os_create_lock
+acpi_status
+acpi_os_create_lock(acpi_spinlock *out_handle);
+#endif
+
 void acpi_os_delete_lock(acpi_spinlock handle);
 
 acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock handle);

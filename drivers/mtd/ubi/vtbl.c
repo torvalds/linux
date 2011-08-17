@@ -62,7 +62,7 @@
 #include <asm/div64.h>
 #include "ubi.h"
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+#ifdef CONFIG_MTD_UBI_DEBUG
 static void paranoid_vtbl_check(const struct ubi_device *ubi);
 #else
 #define paranoid_vtbl_check(ubi)
@@ -307,23 +307,13 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_scan_info *si,
 {
 	int err, tries = 0;
 	static struct ubi_vid_hdr *vid_hdr;
-	struct ubi_scan_volume *sv;
-	struct ubi_scan_leb *new_seb, *old_seb = NULL;
+	struct ubi_scan_leb *new_seb;
 
 	ubi_msg("create volume table (copy #%d)", copy + 1);
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vid_hdr)
 		return -ENOMEM;
-
-	/*
-	 * Check if there is a logical eraseblock which would have to contain
-	 * this volume table copy was found during scanning. It has to be wiped
-	 * out.
-	 */
-	sv = ubi_scan_find_sv(si, UBI_LAYOUT_VOLUME_ID);
-	if (sv)
-		old_seb = ubi_scan_find_seb(sv, copy);
 
 retry:
 	new_seb = ubi_scan_get_free_peb(ubi, si);
@@ -351,8 +341,8 @@ retry:
 		goto write_error;
 
 	/*
-	 * And add it to the scanning information. Don't delete the old
-	 * @old_seb as it will be deleted and freed in 'ubi_scan_add_used()'.
+	 * And add it to the scanning information. Don't delete the old version
+	 * of this LEB as it will be deleted and freed in 'ubi_scan_add_used()'.
 	 */
 	err = ubi_scan_add_used(ubi, si, new_seb->pnum, new_seb->ec,
 				vid_hdr, 0);
@@ -868,7 +858,7 @@ out_free:
 	return err;
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+#ifdef CONFIG_MTD_UBI_DEBUG
 
 /**
  * paranoid_vtbl_check - check volume table.
@@ -876,10 +866,13 @@ out_free:
  */
 static void paranoid_vtbl_check(const struct ubi_device *ubi)
 {
+	if (!ubi->dbg->chk_gen)
+		return;
+
 	if (vtbl_check(ubi, ubi->vtbl)) {
 		ubi_err("paranoid check failed");
 		BUG();
 	}
 }
 
-#endif /* CONFIG_MTD_UBI_DEBUG_PARANOID */
+#endif /* CONFIG_MTD_UBI_DEBUG */

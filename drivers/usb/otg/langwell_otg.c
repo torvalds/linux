@@ -82,40 +82,6 @@ static struct pci_driver otg_pci_driver = {
 	.resume =	langwell_otg_resume,
 };
 
-static const char *state_string(enum usb_otg_state state)
-{
-	switch (state) {
-	case OTG_STATE_A_IDLE:
-		return "a_idle";
-	case OTG_STATE_A_WAIT_VRISE:
-		return "a_wait_vrise";
-	case OTG_STATE_A_WAIT_BCON:
-		return "a_wait_bcon";
-	case OTG_STATE_A_HOST:
-		return "a_host";
-	case OTG_STATE_A_SUSPEND:
-		return "a_suspend";
-	case OTG_STATE_A_PERIPHERAL:
-		return "a_peripheral";
-	case OTG_STATE_A_WAIT_VFALL:
-		return "a_wait_vfall";
-	case OTG_STATE_A_VBUS_ERR:
-		return "a_vbus_err";
-	case OTG_STATE_B_IDLE:
-		return "b_idle";
-	case OTG_STATE_B_SRP_INIT:
-		return "b_srp_init";
-	case OTG_STATE_B_PERIPHERAL:
-		return "b_peripheral";
-	case OTG_STATE_B_WAIT_ACON:
-		return "b_wait_acon";
-	case OTG_STATE_B_HOST:
-		return "b_host";
-	default:
-		return "UNDEFINED";
-	}
-}
-
 /* HSM timers */
 static inline struct langwell_otg_timer *otg_timer_initializer
 (void (*function)(unsigned long), unsigned long expires, unsigned long data)
@@ -174,49 +140,23 @@ static int langwell_otg_set_power(struct otg_transceiver *otg,
 	return 0;
 }
 
-/* A-device drives vbus, controlled through PMIC CHRGCNTL register*/
+/* A-device drives vbus, controlled through IPC commands */
 static int langwell_otg_set_vbus(struct otg_transceiver *otg, bool enabled)
 {
 	struct langwell_otg		*lnw = the_transceiver;
-	u8 r;
+	u8				sub_id;
 
 	dev_dbg(lnw->dev, "%s <--- %s\n", __func__, enabled ? "on" : "off");
 
-	/* FIXME: surely we should cache this on the first read. If not use
-	   readv to avoid two transactions */
-	if (intel_scu_ipc_ioread8(0x00, &r) < 0) {
-		dev_dbg(lnw->dev, "Failed to read PMIC register 0xD2");
+	if (enabled)
+		sub_id = 0x8; /* Turn on the VBus */
+	else
+		sub_id = 0x9; /* Turn off the VBus */
+
+	if (intel_scu_ipc_simple_command(0xef, sub_id)) {
+		dev_dbg(lnw->dev, "Failed to set Vbus via IPC commands\n");
 		return -EBUSY;
 	}
-	if ((r & 0x03) != 0x02) {
-		dev_dbg(lnw->dev, "not NEC PMIC attached\n");
-		return -EBUSY;
-	}
-
-	if (intel_scu_ipc_ioread8(0x20, &r) < 0) {
-		dev_dbg(lnw->dev, "Failed to read PMIC register 0xD2");
-		return -EBUSY;
-	}
-
-	if ((r & 0x20) == 0) {
-		dev_dbg(lnw->dev, "no battery attached\n");
-		return -EBUSY;
-	}
-
-	/* Workaround for battery attachment issue */
-	if (r == 0x34) {
-		dev_dbg(lnw->dev, "no battery attached on SH\n");
-		return -EBUSY;
-	}
-
-	dev_dbg(lnw->dev, "battery attached. 2 reg = %x\n", r);
-
-	/* workaround: FW detect writing 0x20/0xc0 to d4 event.
-	 * this is only for NEC PMIC.
-	 */
-
-	if (intel_scu_ipc_iowrite8(0xD4, enabled ? 0x20 : 0xC0))
-		dev_dbg(lnw->dev, "Failed to write PMIC.\n");
 
 	dev_dbg(lnw->dev, "%s --->\n", __func__);
 
@@ -394,14 +334,14 @@ static void langwell_otg_phy_low_power(int on)
 	dev_dbg(lnw->dev, "%s <--- done\n", __func__);
 }
 
-/* After drv vbus, add 2 ms delay to set PHCD */
+/* After drv vbus, add 5 ms delay to set PHCD */
 static void langwell_otg_phy_low_power_wait(int on)
 {
 	struct langwell_otg	*lnw = the_transceiver;
 
-	dev_dbg(lnw->dev, "add 2ms delay before programing PHCD\n");
+	dev_dbg(lnw->dev, "add 5ms delay before programing PHCD\n");
 
-	mdelay(2);
+	mdelay(5);
 	langwell_otg_phy_low_power(on);
 }
 
@@ -606,7 +546,7 @@ static void langwell_otg_add_ktimer(enum langwell_otg_timer_type timers)
 		time = TB_BUS_SUSPEND;
 		break;
 	default:
-		dev_dbg(lnw->dev, "unkown timer, cannot enable it\n");
+		dev_dbg(lnw->dev, "unknown timer, cannot enable it\n");
 		return;
 	}
 
@@ -994,7 +934,7 @@ static void langwell_otg_work(struct work_struct *work)
 	pdev = to_pci_dev(lnw->dev);
 
 	dev_dbg(lnw->dev, "%s: old state = %s\n", __func__,
-			state_string(iotg->otg.state));
+			otg_state_string(iotg->otg.state));
 
 	switch (iotg->otg.state) {
 	case OTG_STATE_UNDEFINED:
@@ -1407,7 +1347,7 @@ static void langwell_otg_work(struct work_struct *work)
 			} else if (!iotg->hsm.a_bus_req && iotg->otg.host &&
 					iotg->otg.host->b_hnp_enable) {
 				/* It is not safe enough to do a fast
-				 * transistion from A_WAIT_BCON to
+				 * transition from A_WAIT_BCON to
 				 * A_SUSPEND */
 				msleep(10000);
 				if (iotg->hsm.a_bus_req)
@@ -1729,7 +1669,7 @@ static void langwell_otg_work(struct work_struct *work)
 	}
 
 	dev_dbg(lnw->dev, "%s: new state = %s\n", __func__,
-			state_string(iotg->otg.state));
+			otg_state_string(iotg->otg.state));
 }
 
 static ssize_t
@@ -1815,7 +1755,7 @@ show_hsm(struct device *_dev, struct device_attribute *attr, char *buf)
 		"b_bus_req = \t%d\n"
 		"b_bus_suspend_tmout = \t%d\n"
 		"b_bus_suspend_vld = \t%d\n",
-		state_string(iotg->otg.state),
+		otg_state_string(iotg->otg.state),
 		iotg->hsm.a_bus_resume,
 		iotg->hsm.a_bus_suspend,
 		iotg->hsm.a_conn,

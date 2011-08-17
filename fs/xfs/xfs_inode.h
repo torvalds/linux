@@ -67,7 +67,6 @@ typedef struct xfs_ifork {
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
 	unsigned char		if_ext_max;	/* max # of extent records */
-	xfs_extnum_t		if_lastex;	/* last if_extents used */
 	union {
 		xfs_bmbt_rec_host_t *if_extents;/* linear map file exts */
 		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
@@ -111,7 +110,7 @@ struct xfs_imap {
  * Generally, we do not want to hold the i_rlock while holding the
  * i_ilock. Hierarchy is i_iolock followed by i_rlock.
  *
- * xfs_iptr_t contains all the inode fields upto and including the
+ * xfs_iptr_t contains all the inode fields up to and including the
  * i_mnext and i_mprev fields, it is used as a marker in the inode
  * chain off the mount structure by xfs_sync calls.
  */
@@ -242,7 +241,6 @@ typedef struct xfs_inode {
 	xfs_ifork_t		i_df;		/* data fork */
 
 	/* Transaction and locking information. */
-	struct xfs_trans	*i_transp;	/* ptr to owning transaction*/
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_iolock;	/* inode IO lock */
@@ -265,7 +263,7 @@ typedef struct xfs_inode {
 	struct inode		i_vnode;	/* embedded VFS inode */
 } xfs_inode_t;
 
-#define XFS_ISIZE(ip)	(((ip)->i_d.di_mode & S_IFMT) == S_IFREG) ? \
+#define XFS_ISIZE(ip)	S_ISREG((ip)->i_d.di_mode) ? \
 				(ip)->i_size : (ip)->i_d.di_size;
 
 /* Convert from vfs inode to xfs inode */
@@ -336,7 +334,7 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 
 /*
  * Project quota id helpers (previously projid was 16bit only
- * and using two 16bit values to hold new 32bit projid was choosen
+ * and using two 16bit values to hold new 32bit projid was chosen
  * to retain compatibility with "old" filesystems).
  */
 static inline prid_t
@@ -385,6 +383,16 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 #define XFS_IDIRTY_RELEASE	0x0040	/* dirty release already seen */
 
 /*
+ * Per-lifetime flags need to be reset when re-using a reclaimable inode during
+ * inode lookup. Thi prevents unintended behaviour on the new inode from
+ * ocurring.
+ */
+#define XFS_IRECLAIM_RESET_FLAGS	\
+	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
+	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
+	 XFS_IFILESTREAM);
+
+/*
  * Flags for inode locking.
  * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
  *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
@@ -409,28 +417,35 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * Flags for lockdep annotations.
  *
- * XFS_I[O]LOCK_PARENT - for operations that require locking two inodes
- * (ie directory operations that require locking a directory inode and
- * an entry inode).  The first inode gets locked with this flag so it
- * gets a lockdep subclass of 1 and the second lock will have a lockdep
- * subclass of 0.
+ * XFS_LOCK_PARENT - for directory operations that require locking a
+ * parent directory inode and a child entry inode.  The parent gets locked
+ * with this flag so it gets a lockdep subclass of 1 and the child entry
+ * lock will have a lockdep subclass of 0.
+ *
+ * XFS_LOCK_RTBITMAP/XFS_LOCK_RTSUM - the realtime device bitmap and summary
+ * inodes do not participate in the normal lock order, and thus have their
+ * own subclasses.
  *
  * XFS_LOCK_INUMORDER - for locking several inodes at the some time
  * with xfs_lock_inodes().  This flag is used as the starting subclass
  * and each subsequent lock acquired will increment the subclass by one.
- * So the first lock acquired will have a lockdep subclass of 2, the
- * second lock will have a lockdep subclass of 3, and so on. It is
+ * So the first lock acquired will have a lockdep subclass of 4, the
+ * second lock will have a lockdep subclass of 5, and so on. It is
  * the responsibility of the class builder to shift this to the correct
  * portion of the lock_mode lockdep mask.
  */
 #define XFS_LOCK_PARENT		1
-#define XFS_LOCK_INUMORDER	2
+#define XFS_LOCK_RTBITMAP	2
+#define XFS_LOCK_RTSUM		3
+#define XFS_LOCK_INUMORDER	4
 
 #define XFS_IOLOCK_SHIFT	16
 #define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
 
 #define XFS_ILOCK_SHIFT		24
 #define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTBITMAP	(XFS_LOCK_RTBITMAP << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTSUM		(XFS_LOCK_RTSUM << XFS_ILOCK_SHIFT)
 
 #define XFS_IOLOCK_DEP_MASK	0x00ff0000
 #define XFS_ILOCK_DEP_MASK	0xff000000
@@ -440,16 +455,6 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 #define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
 
 extern struct lock_class_key xfs_iolock_reclaimable;
-
-/*
- * Flags for xfs_itruncate_start().
- */
-#define	XFS_ITRUNC_DEFINITE	0x1
-#define	XFS_ITRUNC_MAYBE	0x2
-
-#define XFS_ITRUNC_FLAGS \
-	{ XFS_ITRUNC_DEFINITE,	"DEFINITE" }, \
-	{ XFS_ITRUNC_MAYBE,	"MAYBE" }
 
 /*
  * For multiple groups support: if S_ISGID bit is set in the parent
@@ -485,9 +490,10 @@ uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
-int		xfs_itruncate_start(xfs_inode_t *, uint, xfs_fsize_t);
-int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
-				     xfs_fsize_t, int, int);
+int		xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
+				      int, xfs_fsize_t);
+int		xfs_itruncate_data(struct xfs_trans **, struct xfs_inode *,
+				   xfs_fsize_t);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
@@ -562,13 +568,6 @@ void		xfs_iext_irec_compact_full(xfs_ifork_t *);
 void		xfs_iext_irec_update_extoffs(xfs_ifork_t *, int, int);
 
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
-
-#ifdef DEBUG
-void		xfs_isize_check(struct xfs_mount *, struct xfs_inode *,
-				xfs_fsize_t);
-#else	/* DEBUG */
-#define xfs_isize_check(mp, ip, isize)
-#endif	/* DEBUG */
 
 #if defined(DEBUG)
 void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);

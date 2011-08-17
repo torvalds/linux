@@ -146,7 +146,7 @@ static inline void cpuset_cpus_allowed(struct task_struct *p,
 
 static inline int cpuset_cpus_allowed_fallback(struct task_struct *p)
 {
-	cpumask_copy(&p->cpus_allowed, cpu_possible_mask);
+	do_set_cpus_allowed(p, cpu_possible_mask);
 	return cpumask_any(cpu_active_mask);
 }
 

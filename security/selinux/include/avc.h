@@ -41,7 +41,6 @@ struct sk_buff;
  */
 struct avc_cache_stats {
 	unsigned int lookups;
-	unsigned int hits;
 	unsigned int misses;
 	unsigned int allocations;
 	unsigned int reclaims;
@@ -54,11 +53,11 @@ struct avc_cache_stats {
 
 void __init avc_init(void);
 
-void avc_audit(u32 ssid, u32 tsid,
+int avc_audit(u32 ssid, u32 tsid,
 	       u16 tclass, u32 requested,
 	       struct av_decision *avd,
 	       int result,
-	       struct common_audit_data *a);
+	      struct common_audit_data *a, unsigned flags);
 
 #define AVC_STRICT 1 /* Ignore permissive mode. */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid,
@@ -66,9 +65,17 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 			 unsigned flags,
 			 struct av_decision *avd);
 
-int avc_has_perm(u32 ssid, u32 tsid,
-		 u16 tclass, u32 requested,
-		 struct common_audit_data *auditdata);
+int avc_has_perm_flags(u32 ssid, u32 tsid,
+		       u16 tclass, u32 requested,
+		       struct common_audit_data *auditdata,
+		       unsigned);
+
+static inline int avc_has_perm(u32 ssid, u32 tsid,
+			       u16 tclass, u32 requested,
+			       struct common_audit_data *auditdata)
+{
+	return avc_has_perm_flags(ssid, tsid, tclass, requested, auditdata, 0);
+}
 
 u32 avc_policy_seqno(void);
 

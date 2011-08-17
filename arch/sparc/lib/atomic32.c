@@ -7,7 +7,7 @@
  * Based on asm-parisc/atomic.h Copyright (C) 2000 Philipp Rumpf
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
@@ -16,7 +16,7 @@
 #define ATOMIC_HASH(a)	(&__atomic_hash[(((unsigned long)a)>>8) & (ATOMIC_HASH_SIZE-1)])
 
 spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] = {
-	[0 ... (ATOMIC_HASH_SIZE-1)] = SPIN_LOCK_UNLOCKED
+	[0 ... (ATOMIC_HASH_SIZE-1)] = __SPIN_LOCK_UNLOCKED(__atomic_hash)
 };
 
 #else /* SMP */
@@ -55,7 +55,7 @@ int atomic_cmpxchg(atomic_t *v, int old, int new)
 }
 EXPORT_SYMBOL(atomic_cmpxchg);
 
-int atomic_add_unless(atomic_t *v, int a, int u)
+int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int ret;
 	unsigned long flags;
@@ -65,9 +65,9 @@ int atomic_add_unless(atomic_t *v, int a, int u)
 	if (ret != u)
 		v->counter += a;
 	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
-	return ret != u;
+	return ret;
 }
-EXPORT_SYMBOL(atomic_add_unless);
+EXPORT_SYMBOL(__atomic_add_unless);
 
 /* Atomic operations are already serializing */
 void atomic_set(atomic_t *v, int i)

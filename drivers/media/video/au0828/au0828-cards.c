@@ -185,8 +185,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 	static u8 eeprom[256];
 	struct tuner_setup tun_setup;
 	struct v4l2_subdev *sd;
-	unsigned int mode_mask = T_ANALOG_TV |
-				 T_DIGITAL_TV;
+	unsigned int mode_mask = T_ANALOG_TV;
 
 	dprintk(1, "%s()\n", __func__);
 

@@ -237,7 +237,7 @@ with the previous write.
       |written  |
       +---------+
       |written  |
-      +---------+  <--- next positon for write (current commit)
+      +---------+  <--- next position for write (current commit)
       | empty   |
       +---------+
 

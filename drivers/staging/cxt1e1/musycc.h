@@ -74,7 +74,7 @@ extern      "C"
 
 #define INT_QUEUE_SIZE    MUSYCC_NIQD
 
-/* RAM image of MUSYCC registers layed out as a C structure */
+/* RAM image of MUSYCC registers laid out as a C structure */
     struct musycc_groupr
     {
         VINT32      thp[32];    /* Transmit Head Pointer [5-29]           */
@@ -96,7 +96,7 @@ extern      "C"
         VINT32      pcd;        /* Port Configuration Descriptor [5-19]   */
     };
 
-/* hardware MUSYCC registers layed out as a C structure */
+/* hardware MUSYCC registers laid out as a C structure */
     struct musycc_globalr
     {
         VINT32      gbp;        /* Group Base Pointer                     */

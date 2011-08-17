@@ -174,7 +174,7 @@ int __init trout_init_mmc(unsigned int sys_rev)
 	if (IS_ERR(vreg_sdslot))
 		return PTR_ERR(vreg_sdslot);
 
-	set_irq_wake(TROUT_GPIO_TO_INT(TROUT_GPIO_SDMC_CD_N), 1);
+	irq_set_irq_wake(TROUT_GPIO_TO_INT(TROUT_GPIO_SDMC_CD_N), 1);
 
 	if (!opt_disable_sdcard)
 		msm_add_sdcc(2, &trout_sdslot_data,

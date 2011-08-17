@@ -2,7 +2,7 @@
  * net/tipc/subscr.c: TIPC network topology service
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2007, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,7 @@ static void subscr_send_event(struct subscription *sub,
 	sub->evt.found_upper = htohl(found_upper, sub->swap);
 	sub->evt.port.ref = htohl(port_ref, sub->swap);
 	sub->evt.port.node = htohl(node, sub->swap);
-	tipc_send(sub->server_ref, 1, &msg_sect);
+	tipc_send(sub->server_ref, 1, &msg_sect, msg_sect.iov_len);
 }
 
 /**
@@ -160,7 +160,7 @@ void tipc_subscr_report_overlap(struct subscription *sub,
 
 static void subscr_timeout(struct subscription *sub)
 {
-	struct port *server_port;
+	struct tipc_port *server_port;
 
 	/* Validate server port reference (in case subscriber is terminating) */
 
@@ -472,8 +472,6 @@ static void subscr_named_msg_event(void *usr_handle,
 				   struct tipc_portid const *orig,
 				   struct tipc_name_seq const *dest)
 {
-	static struct iovec msg_sect = {NULL, 0};
-
 	struct subscriber *subscriber;
 	u32 server_port_ref;
 
@@ -508,7 +506,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Lock server port (& save lock address for future use) */
 
-	subscriber->lock = tipc_port_lock(subscriber->port_ref)->publ.lock;
+	subscriber->lock = tipc_port_lock(subscriber->port_ref)->lock;
 
 	/* Add subscriber to topology server's subscriber list */
 
@@ -523,7 +521,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Send an ACK- to complete connection handshaking */
 
-	tipc_send(server_port_ref, 1, &msg_sect);
+	tipc_send(server_port_ref, 0, NULL, 0);
 
 	/* Handle optional subscription request */
 
@@ -542,7 +540,6 @@ int tipc_subscr_start(void)
 	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
-	spin_lock_bh(&topsrv.lock);
 	res = tipc_createport(NULL,
 			      TIPC_CRITICAL_IMPORTANCE,
 			      NULL,
@@ -563,12 +560,10 @@ int tipc_subscr_start(void)
 		goto failed;
 	}
 
-	spin_unlock_bh(&topsrv.lock);
 	return 0;
 
 failed:
 	err("Failed to create subscription service\n");
-	spin_unlock_bh(&topsrv.lock);
 	return res;
 }
 

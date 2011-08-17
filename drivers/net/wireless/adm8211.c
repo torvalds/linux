@@ -16,6 +16,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -1658,7 +1659,7 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 }
 
 /* Put adm8211_tx_hdr on skb and transmit */
-static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct adm8211_tx_hdr *txhdr;
 	size_t payload_len, hdrlen;
@@ -1707,8 +1708,6 @@ static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->retry_limit = info->control.rates[0].count;
 
 	adm8211_tx_raw(dev, skb, plcp_signal, hdrlen);
-
-	return NETDEV_TX_OK;
 }
 
 static int adm8211_alloc_rings(struct ieee80211_hw *dev)

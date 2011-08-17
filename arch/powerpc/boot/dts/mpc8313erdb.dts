@@ -176,6 +176,19 @@
 			sleep = <&pmc 0x00300000>;
 		};
 
+		ptp_clock@24E00 {
+			compatible = "fsl,etsec-ptp";
+			reg = <0x24E00 0xB0>;
+			interrupts = <12 0x8 13 0x8>;
+			interrupt-parent = < &ipic >;
+			fsl,tclk-period = <10>;
+			fsl,tmr-prsc    = <100>;
+			fsl,tmr-add     = <0x999999A4>;
+			fsl,tmr-fiper1  = <0x3B9AC9F6>;
+			fsl,tmr-fiper2  = <0x00018696>;
+			fsl,max-adj     = <659999998>;
+		};
+
 		enet0: ethernet@24000 {
 			#address-cells = <1>;
 			#size-cells = <1>;

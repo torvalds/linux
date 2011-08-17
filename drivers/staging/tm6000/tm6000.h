@@ -30,8 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/v4l2-device.h>
-
-
+#include <linux/version.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
@@ -40,17 +39,38 @@
 #define TM6000_VERSION KERNEL_VERSION(0, 0, 2)
 
 /* Inputs */
-
 enum tm6000_itype {
-	TM6000_INPUT_TV	= 0,
-	TM6000_INPUT_COMPOSITE,
+	TM6000_INPUT_TV	= 1,
+	TM6000_INPUT_COMPOSITE1,
+	TM6000_INPUT_COMPOSITE2,
 	TM6000_INPUT_SVIDEO,
+	TM6000_INPUT_DVB,
+	TM6000_INPUT_RADIO,
+};
+
+enum tm6000_mux {
+	TM6000_VMUX_VIDEO_A = 1,
+	TM6000_VMUX_VIDEO_B,
+	TM6000_VMUX_VIDEO_AB,
+	TM6000_AMUX_ADC1,
+	TM6000_AMUX_ADC2,
+	TM6000_AMUX_SIF1,
+	TM6000_AMUX_SIF2,
+	TM6000_AMUX_I2S,
 };
 
 enum tm6000_devtype {
 	TM6000 = 0,
 	TM5600,
 	TM6010,
+};
+
+struct tm6000_input {
+	enum tm6000_itype	type;
+	enum tm6000_mux		vmux;
+	enum tm6000_mux		amux;
+	unsigned int		v_gpio;
+	unsigned int		a_gpio;
 };
 
 /* ------------------------------------------------------------------
@@ -121,6 +141,7 @@ struct tm6000_capabilities {
 	unsigned int    has_zl10353:1;
 	unsigned int    has_eeprom:1;
 	unsigned int    has_remote:1;
+	unsigned int    has_radio:1;
 };
 
 struct tm6000_dvb {
@@ -157,6 +178,8 @@ struct tm6000_core {
 	int				model;		/* index in the device_data struct */
 	int				devno;		/* marks the number of this device */
 	enum tm6000_devtype		dev_type;	/* type of device */
+	unsigned char			eedata[256];	/* Eeprom data */
+	unsigned			eedata_size;	/* Size of the eeprom info */
 
 	v4l2_std_id                     norm;           /* Current norm */
 	int				width, height;	/* Selected resolution */
@@ -173,6 +196,8 @@ struct tm6000_core {
 	struct tm6000_gpio		gpio;
 
 	char				*ir_codes;
+
+	__u8				radio;
 
 	/* Demodulator configuration */
 	int				demod_addr;	/* demodulator address */
@@ -194,14 +219,22 @@ struct tm6000_core {
 	bool				is_res_read;
 
 	struct video_device		*vfd;
+	struct video_device		*radio_dev;
 	struct tm6000_dmaqueue		vidq;
 	struct v4l2_device		v4l2_dev;
 
 	int				input;
+	struct tm6000_input		vinput[3];	/* video input */
+	struct tm6000_input		rinput;		/* radio input */
+
 	int				freq;
 	unsigned int			fourcc;
 
 	enum tm6000_mode		mode;
+
+	int				ctl_mute;             /* audio */
+	int				ctl_volume;
+	int				amode;
 
 	/* DVB-T support */
 	struct tm6000_dvb		*dvb;
@@ -210,7 +243,6 @@ struct tm6000_core {
 	struct snd_tm6000_card		*adev;
 	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
 	atomic_t			stream_started;  /* stream should be running if true */
-
 
 	struct tm6000_IR		*ir;
 
@@ -248,6 +280,7 @@ struct tm6000_ops {
 
 struct tm6000_fh {
 	struct tm6000_core           *dev;
+	unsigned int                 radio;
 
 	/* video capture */
 	struct tm6000_fmt            *fmt;
@@ -276,12 +309,17 @@ int tm6000_get_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg32(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index);
+int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
+						u16 index, u16 mask);
 int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep);
 int tm6000_init(struct tm6000_core *dev);
 
 int tm6000_init_analog_mode(struct tm6000_core *dev);
 int tm6000_init_digital_mode(struct tm6000_core *dev);
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate);
+int tm6000_set_audio_rinput(struct tm6000_core *dev);
+int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute);
+void tm6000_set_volume(struct tm6000_core *dev, int vol);
 
 int tm6000_v4l2_register(struct tm6000_core *dev);
 int tm6000_v4l2_unregister(struct tm6000_core *dev);
@@ -300,7 +338,7 @@ int tm6000_call_fillbuf(struct tm6000_core *dev, enum tm6000_ops_type type,
 
 /* In tm6000-stds.c */
 void tm6000_get_std_res(struct tm6000_core *dev);
-int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id *norm);
+int tm6000_set_standard(struct tm6000_core *dev);
 
 /* In tm6000-i2c.c */
 int tm6000_i2c_register(struct tm6000_core *dev);

@@ -23,6 +23,7 @@
 #include <linux/backing-dev.h>
 #include "time.h"
 #include "kmem.h"
+#include "xfs_message.h"
 
 /*
  * Greedy allocation.  May fail and may return vmalloced memory.
@@ -56,8 +57,8 @@ kmem_alloc(size_t size, unsigned int __nocast flags)
 		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
 			return ptr;
 		if (!(++retries % 100))
-			printk(KERN_ERR "XFS: possible memory allocation "
-					"deadlock in %s (mode:0x%x)\n",
+			xfs_err(NULL,
+		"possible memory allocation deadlock in %s (mode:0x%x)",
 					__func__, lflags);
 		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	} while (1);
@@ -112,8 +113,8 @@ kmem_zone_alloc(kmem_zone_t *zone, unsigned int __nocast flags)
 		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
 			return ptr;
 		if (!(++retries % 100))
-			printk(KERN_ERR "XFS: possible memory allocation "
-					"deadlock in %s (mode:0x%x)\n",
+			xfs_err(NULL,
+		"possible memory allocation deadlock in %s (mode:0x%x)",
 					__func__, lflags);
 		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	} while (1);

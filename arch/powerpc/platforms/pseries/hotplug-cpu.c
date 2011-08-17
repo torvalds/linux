@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <asm/system.h>
@@ -28,7 +29,7 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/pSeries_reconfig.h>
-#include "xics.h"
+#include <asm/xics.h>
 #include "plpar_wrappers.h"
 #include "offline_states.h"
 
@@ -134,7 +135,7 @@ static void pseries_mach_cpu_die(void)
 		get_lppaca()->idle = 0;
 
 		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
-			unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+			unregister_slb_shadow(hwcpu);
 
 			/*
 			 * Call to start_secondary_resume() will not return.
@@ -149,7 +150,7 @@ static void pseries_mach_cpu_die(void)
 	WARN_ON(get_preferred_offline_state(cpu) != CPU_STATE_OFFLINE);
 
 	set_cpu_current_state(cpu, CPU_STATE_OFFLINE);
-	unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+	unregister_slb_shadow(hwcpu);
 	rtas_stop_self();
 
 	/* Should never get here... */
@@ -216,7 +217,7 @@ static void pseries_cpu_die(unsigned int cpu)
 		       cpu, pcpu, cpu_status);
 	}
 
-	/* Isolation and deallocation are definatly done by
+	/* Isolation and deallocation are definitely done by
 	 * drslot_chrp_cpu.  If they were not they would be
 	 * done here.  Change isolate state to Isolate and
 	 * change allocation-state to Unusable.
@@ -280,7 +281,7 @@ static int pseries_add_processor(struct device_node *np)
 	}
 
 	for_each_cpu(cpu, tmp) {
-		BUG_ON(cpumask_test_cpu(cpu, cpu_present_mask));
+		BUG_ON(cpu_present(cpu));
 		set_cpu_present(cpu, true);
 		set_hard_smp_processor_id(cpu, *intserv++);
 	}
@@ -329,21 +330,17 @@ static void pseries_remove_processor(struct device_node *np)
 static int pseries_smp_notifier(struct notifier_block *nb,
 				unsigned long action, void *node)
 {
-	int err = NOTIFY_OK;
+	int err = 0;
 
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
-		if (pseries_add_processor(node))
-			err = NOTIFY_BAD;
+		err = pseries_add_processor(node);
 		break;
 	case PSERIES_RECONFIG_REMOVE:
 		pseries_remove_processor(node);
 		break;
-	default:
-		err = NOTIFY_DONE;
-		break;
 	}
-	return err;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block pseries_smp_nb = {

@@ -31,7 +31,6 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_btree_trace.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
@@ -95,6 +94,8 @@ xfs_allocbt_alloc_block(
 		return 0;
 	}
 
+	xfs_alloc_busy_reuse(cur->bc_mp, cur->bc_private.a.agno, bno, 1, false);
+
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
 
@@ -118,18 +119,8 @@ xfs_allocbt_free_block(
 	if (error)
 		return error;
 
-	/*
-	 * Since blocks move to the free list without the coordination used in
-	 * xfs_bmap_finish, we can't allow block to be available for
-	 * reallocation and non-transaction writing (user data) until we know
-	 * that the transaction that moved it to the free list is permanently
-	 * on disk. We track the blocks by declaring these blocks as "busy";
-	 * the busy list is maintained on a per-ag basis and each transaction
-	 * records which entries should be removed when the iclog commits to
-	 * disk. If a busy block is allocated, the iclog is pushed up to the
-	 * LSN that freed the block.
-	 */
-	xfs_alloc_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1);
+	xfs_alloc_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
+			      XFS_ALLOC_BUSY_SKIP_DISCARD);
 	xfs_trans_agbtree_delta(cur->bc_tp, -1);
 	return 0;
 }
@@ -319,72 +310,6 @@ xfs_allocbt_recs_inorder(
 }
 #endif	/* DEBUG */
 
-#ifdef XFS_BTREE_TRACE
-ktrace_t	*xfs_allocbt_trace_buf;
-
-STATIC void
-xfs_allocbt_trace_enter(
-	struct xfs_btree_cur	*cur,
-	const char		*func,
-	char			*s,
-	int			type,
-	int			line,
-	__psunsigned_t		a0,
-	__psunsigned_t		a1,
-	__psunsigned_t		a2,
-	__psunsigned_t		a3,
-	__psunsigned_t		a4,
-	__psunsigned_t		a5,
-	__psunsigned_t		a6,
-	__psunsigned_t		a7,
-	__psunsigned_t		a8,
-	__psunsigned_t		a9,
-	__psunsigned_t		a10)
-{
-	ktrace_enter(xfs_allocbt_trace_buf, (void *)(__psint_t)type,
-		(void *)func, (void *)s, NULL, (void *)cur,
-		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
-		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
-		(void *)a8, (void *)a9, (void *)a10);
-}
-
-STATIC void
-xfs_allocbt_trace_cursor(
-	struct xfs_btree_cur	*cur,
-	__uint32_t		*s0,
-	__uint64_t		*l0,
-	__uint64_t		*l1)
-{
-	*s0 = cur->bc_private.a.agno;
-	*l0 = cur->bc_rec.a.ar_startblock;
-	*l1 = cur->bc_rec.a.ar_blockcount;
-}
-
-STATIC void
-xfs_allocbt_trace_key(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key,
-	__uint64_t		*l0,
-	__uint64_t		*l1)
-{
-	*l0 = be32_to_cpu(key->alloc.ar_startblock);
-	*l1 = be32_to_cpu(key->alloc.ar_blockcount);
-}
-
-STATIC void
-xfs_allocbt_trace_record(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*rec,
-	__uint64_t		*l0,
-	__uint64_t		*l1,
-	__uint64_t		*l2)
-{
-	*l0 = be32_to_cpu(rec->alloc.ar_startblock);
-	*l1 = be32_to_cpu(rec->alloc.ar_blockcount);
-	*l2 = 0;
-}
-#endif /* XFS_BTREE_TRACE */
-
 static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.rec_len		= sizeof(xfs_alloc_rec_t),
 	.key_len		= sizeof(xfs_alloc_key_t),
@@ -401,17 +326,9 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_allocbt_key_diff,
-
 #ifdef DEBUG
 	.keys_inorder		= xfs_allocbt_keys_inorder,
 	.recs_inorder		= xfs_allocbt_recs_inorder,
-#endif
-
-#ifdef XFS_BTREE_TRACE
-	.trace_enter		= xfs_allocbt_trace_enter,
-	.trace_cursor		= xfs_allocbt_trace_cursor,
-	.trace_key		= xfs_allocbt_trace_key,
-	.trace_record		= xfs_allocbt_trace_record,
 #endif
 };
 
@@ -435,13 +352,16 @@ xfs_allocbt_init_cursor(
 
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
-	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[btnum]);
 	cur->bc_btnum = btnum;
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
-
 	cur->bc_ops = &xfs_allocbt_ops;
-	if (btnum == XFS_BTNUM_CNT)
+
+	if (btnum == XFS_BTNUM_CNT) {
+		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
 		cur->bc_flags = XFS_BTREE_LASTREC_UPDATE;
+	} else {
+		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
+	}
 
 	cur->bc_private.a.agbp = agbp;
 	cur->bc_private.a.agno = agno;

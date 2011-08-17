@@ -112,12 +112,16 @@ static struct usb_device_id carl9170_usb_ids[] = {
 	{ USB_DEVICE(0x04bb, 0x093f) },
 	/* NEC WL300NU-G */
 	{ USB_DEVICE(0x0409, 0x0249) },
+	/* NEC WL300NU-AG */
+	{ USB_DEVICE(0x0409, 0x02b4) },
 	/* AVM FRITZ!WLAN USB Stick N */
 	{ USB_DEVICE(0x057c, 0x8401) },
 	/* AVM FRITZ!WLAN USB Stick N 2.4 */
 	{ USB_DEVICE(0x057c, 0x8402) },
 	/* Qwest/Actiontec 802AIN Wireless N USB Network Adapter */
 	{ USB_DEVICE(0x1668, 0x1200) },
+	/* Airlive X.USB a/b/g/n */
+	{ USB_DEVICE(0x1b75, 0x9170) },
 
 	/* terminate */
 	{}
@@ -428,7 +432,7 @@ static void carl9170_usb_rx_complete(struct urb *urb)
 			 * The system is too slow to cope with
 			 * the enormous workload. We have simply
 			 * run out of active rx urbs and this
-			 * unfortunatly leads to an unpredictable
+			 * unfortunately leads to an unpredictable
 			 * device.
 			 */
 

@@ -227,9 +227,9 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 	}
 
 	if (status != 0xff && (status & ATA_BUSY))
-		ata_port_printk(ap, KERN_WARNING,
-				"port is slow to respond, please be patient "
-				"(Status 0x%x)\n", status);
+		ata_port_warn(ap,
+			      "port is slow to respond, please be patient (Status 0x%x)\n",
+			      status);
 
 	timeout = ata_deadline(timer_start, tmout);
 	while (status != 0xff && (status & ATA_BUSY) &&
@@ -242,9 +242,9 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 		return -ENODEV;
 
 	if (status & ATA_BUSY) {
-		ata_port_printk(ap, KERN_ERR, "port failed to respond "
-				"(%lu secs, Status 0x%x)\n",
-				DIV_ROUND_UP(tmout, 1000), status);
+		ata_port_err(ap,
+			     "port failed to respond (%lu secs, Status 0x%x)\n",
+			     DIV_ROUND_UP(tmout, 1000), status);
 		return -EBUSY;
 	}
 
@@ -350,8 +350,8 @@ static void ata_dev_select(struct ata_port *ap, unsigned int device,
 			   unsigned int wait, unsigned int can_sleep)
 {
 	if (ata_msg_probe(ap))
-		ata_port_printk(ap, KERN_INFO, "ata_dev_select: ENTER, "
-				"device %u, wait %u\n", device, wait);
+		ata_port_info(ap, "ata_dev_select: ENTER, device %u, wait %u\n",
+			      device, wait);
 
 	if (wait)
 		ata_wait_idle(ap);
@@ -1302,6 +1302,18 @@ fsm_start:
 }
 EXPORT_SYMBOL_GPL(ata_sff_hsm_move);
 
+void ata_sff_queue_work(struct work_struct *work)
+{
+	queue_work(ata_sff_wq, work);
+}
+EXPORT_SYMBOL_GPL(ata_sff_queue_work);
+
+void ata_sff_queue_delayed_work(struct delayed_work *dwork, unsigned long delay)
+{
+	queue_delayed_work(ata_sff_wq, dwork, delay);
+}
+EXPORT_SYMBOL_GPL(ata_sff_queue_delayed_work);
+
 void ata_sff_queue_pio_task(struct ata_link *link, unsigned long delay)
 {
 	struct ata_port *ap = link->ap;
@@ -1311,8 +1323,7 @@ void ata_sff_queue_pio_task(struct ata_link *link, unsigned long delay)
 	ap->sff_pio_task_link = link;
 
 	/* may fail if ata_sff_flush_pio_task() in progress */
-	queue_delayed_work(ata_sff_wq, &ap->sff_pio_task,
-			   msecs_to_jiffies(delay));
+	ata_sff_queue_delayed_work(&ap->sff_pio_task, msecs_to_jiffies(delay));
 }
 EXPORT_SYMBOL_GPL(ata_sff_queue_pio_task);
 
@@ -1322,9 +1333,10 @@ void ata_sff_flush_pio_task(struct ata_port *ap)
 
 	cancel_delayed_work_sync(&ap->sff_pio_task);
 	ap->hsm_task_state = HSM_ST_IDLE;
+	ap->sff_pio_task_link = NULL;
 
 	if (ata_msg_ctl(ap))
-		ata_port_printk(ap, KERN_DEBUG, "%s: EXIT\n", __func__);
+		ata_port_dbg(ap, "%s: EXIT\n", __func__);
 }
 
 static void ata_sff_pio_task(struct work_struct *work)
@@ -1336,7 +1348,7 @@ static void ata_sff_pio_task(struct work_struct *work)
 	u8 status;
 	int poll_next;
 
-	BUG_ON(ap->sff_pio_task_link == NULL); 
+	BUG_ON(ap->sff_pio_task_link == NULL);
 	/* qc can be NULL if timeout occurred */
 	qc = ata_qc_from_tag(ap, link->active_tag);
 	if (!qc) {
@@ -1502,7 +1514,7 @@ static unsigned int ata_sff_idle_irq(struct ata_port *ap)
 		ap->ops->sff_check_status(ap);
 		if (ap->ops->sff_irq_clear)
 			ap->ops->sff_irq_clear(ap);
-		ata_port_printk(ap, KERN_WARNING, "irq trap\n");
+		ata_port_warn(ap, "irq trap\n");
 		return 1;
 	}
 #endif
@@ -1700,7 +1712,7 @@ void ata_sff_lost_interrupt(struct ata_port *ap)
 
 	/* There was a command running, we are no longer busy and we have
 	   no interrupt. */
-	ata_port_printk(ap, KERN_WARNING, "lost interrupt (Status 0x%x)\n",
+	ata_port_warn(ap, "lost interrupt (Status 0x%x)\n",
 								status);
 	/* Run the host interrupt logic as if the interrupt had not been
 	   lost */
@@ -1787,8 +1799,9 @@ int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
 	if (!ata_link_offline(link)) {
 		rc = ata_sff_wait_ready(link, deadline);
 		if (rc && rc != -ENODEV) {
-			ata_link_printk(link, KERN_WARNING, "device not ready "
-					"(errno=%d), forcing hardreset\n", rc);
+			ata_link_warn(link,
+				      "device not ready (errno=%d), forcing hardreset\n",
+				      rc);
 			ehc->i.action |= ATA_EH_HARDRESET;
 		}
 	}
@@ -2045,7 +2058,7 @@ int ata_sff_softreset(struct ata_link *link, unsigned int *classes,
 	rc = ata_bus_softreset(ap, devmask, deadline);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && (rc != -ENODEV || sata_scr_valid(link))) {
-		ata_link_printk(link, KERN_ERR, "SRST failed (errno=%d)\n", rc);
+		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
 		return rc;
 	}
 
@@ -2159,8 +2172,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 
 	/* Can become DEBUG later */
 	if (count)
-		ata_port_printk(ap, KERN_DEBUG,
-			"drained %d bytes to clear DRQ.\n", count);
+		ata_port_dbg(ap, "drained %d bytes to clear DRQ\n", count);
 
 }
 EXPORT_SYMBOL_GPL(ata_sff_drain_fifo);
@@ -2305,9 +2317,9 @@ int ata_pci_sff_init_host(struct ata_host *host)
 		rc = pcim_iomap_regions(pdev, 0x3 << base,
 					dev_driver_string(gdev));
 		if (rc) {
-			dev_printk(KERN_WARNING, gdev,
-				   "failed to request/iomap BARs for port %d "
-				   "(errno=%d)\n", i, rc);
+			dev_warn(gdev,
+				 "failed to request/iomap BARs for port %d (errno=%d)\n",
+				 i, rc);
 			if (rc == -EBUSY)
 				pcim_pin_device(pdev);
 			ap->ops = &ata_dummy_port_ops;
@@ -2329,7 +2341,7 @@ int ata_pci_sff_init_host(struct ata_host *host)
 	}
 
 	if (!mask) {
-		dev_printk(KERN_ERR, gdev, "no available native port\n");
+		dev_err(gdev, "no available native port\n");
 		return -ENODEV;
 	}
 
@@ -2364,8 +2376,7 @@ int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
 	if (!host) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "failed to allocate ATA host\n");
+		dev_err(&pdev->dev, "failed to allocate ATA host\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -2436,13 +2447,18 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 		return -ENOMEM;
 
 	if (!legacy_mode && pdev->irq) {
+		int i;
+
 		rc = devm_request_irq(dev, pdev->irq, irq_handler,
 				      IRQF_SHARED, drv_name, host);
 		if (rc)
 			goto out;
 
-		ata_port_desc(host->ports[0], "irq %d", pdev->irq);
-		ata_port_desc(host->ports[1], "irq %d", pdev->irq);
+		for (i = 0; i < 2; i++) {
+			if (ata_port_is_dummy(host->ports[i]))
+				continue;
+			ata_port_desc(host->ports[i], "irq %d", pdev->irq);
+		}
 	} else if (legacy_mode) {
 		if (!ata_port_is_dummy(host->ports[0])) {
 			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
@@ -2526,8 +2542,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 
 	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "no valid port_info specified\n");
+		dev_err(&pdev->dev, "no valid port_info specified\n");
 		return -EINVAL;
 	}
 
@@ -2828,7 +2843,7 @@ unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		bmdma_stopped = true;
 
 		if (unlikely(host_stat & ATA_DMA_ERR)) {
-			/* error when transfering data to/from memory */
+			/* error when transferring data to/from memory */
 			qc->err_mask |= AC_ERR_HOST_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 		}
@@ -3021,7 +3036,7 @@ void ata_bmdma_start(struct ata_queued_cmd *qc)
 	 * Or maybe I'm just being paranoid.
 	 *
 	 * FIXME: The posting of this write means I/O starts are
-	 * unneccessarily delayed for MMIO
+	 * unnecessarily delayed for MMIO
 	 */
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_start);
@@ -3148,8 +3163,7 @@ static void ata_bmdma_nodma(struct ata_host *host, const char *reason)
 {
 	int i;
 
-	dev_printk(KERN_ERR, host->dev, "BMDMA: %s, falling back to PIO\n",
-		   reason);
+	dev_err(host->dev, "BMDMA: %s, falling back to PIO\n", reason);
 
 	for (i = 0; i < 2; i++) {
 		host->ports[i]->mwdma_mask = 0;
@@ -3281,8 +3295,7 @@ int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 
 	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "no valid port_info specified\n");
+		dev_err(&pdev->dev, "no valid port_info specified\n");
 		return -EINVAL;
 	}
 

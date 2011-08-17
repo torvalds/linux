@@ -142,7 +142,7 @@ EXPORT_SYMBOL(finish_wait);
  * woken up through the queue.
  *
  * This prevents waiter starvation where an exclusive waiter
- * aborts and is woken up concurrently and noone wakes up
+ * aborts and is woken up concurrently and no one wakes up
  * the next waiter.
  */
 void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,

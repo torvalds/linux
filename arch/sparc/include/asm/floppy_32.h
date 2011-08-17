@@ -138,7 +138,7 @@ static unsigned char sun_82072_fd_inb(int port)
 		return sun_fdc->data_82072;
 	case 7: /* FD_DIR */
 		return sun_read_dir();
-	};
+	}
 	panic("sun_82072_fd_inb: How did I get here?");
 }
 
@@ -161,7 +161,7 @@ static void sun_82072_fd_outb(unsigned char value, int port)
 	case 4: /* FD_STATUS */
 		sun_fdc->status_82072 = value;
 		break;
-	};
+	}
 	return;
 }
 
@@ -186,7 +186,7 @@ static unsigned char sun_82077_fd_inb(int port)
 		return sun_fdc->data_82077;
 	case 7: /* FD_DIR */
 		return sun_read_dir();
-	};
+	}
 	panic("sun_82077_fd_inb: How did I get here?");
 }
 
@@ -212,7 +212,7 @@ static void sun_82077_fd_outb(unsigned char value, int port)
 	case 3: /* FD_TDR */
 		sun_fdc->tapectl_82077 = value;
 		break;
-	};
+	}
 	return;
 }
 
@@ -281,28 +281,27 @@ static inline void sun_fd_enable_dma(void)
 	pdma_areasize = pdma_size;
 }
 
-/* Our low-level entry point in arch/sparc/kernel/entry.S */
-extern int sparc_floppy_request_irq(int irq, unsigned long flags,
-				    irq_handler_t irq_handler);
+extern int sparc_floppy_request_irq(unsigned int irq,
+                                    irq_handler_t irq_handler);
 
 static int sun_fd_request_irq(void)
 {
 	static int once = 0;
-	int error;
 
-	if(!once) {
+	if (!once) {
 		once = 1;
-		error = sparc_floppy_request_irq(FLOPPY_IRQ,
-						 IRQF_DISABLED,
-						 floppy_interrupt);
-		return ((error == 0) ? 0 : -1);
-	} else return 0;
+		return sparc_floppy_request_irq(FLOPPY_IRQ, floppy_interrupt);
+	} else {
+		return 0;
+	}
 }
 
 static struct linux_prom_registers fd_regs[2];
 
 static int sun_floppy_init(void)
 {
+	struct platform_device *op;
+	struct device_node *dp;
 	char state[128];
 	phandle tnode, fd_node;
 	int num_regs;
@@ -310,7 +309,6 @@ static int sun_floppy_init(void)
 
 	use_virtual_dma = 1;
 
-	FLOPPY_IRQ = 11;
 	/* Forget it if we aren't on a machine that could possibly
 	 * ever have a floppy drive.
 	 */
@@ -348,6 +346,26 @@ static int sun_floppy_init(void)
 	r.start = fd_regs[0].phys_addr;
 	sun_fdc = (struct sun_flpy_controller *)
 	    of_ioremap(&r, 0, fd_regs[0].reg_size, "floppy");
+
+	/* Look up irq in platform_device.
+	 * We try "SUNW,fdtwo" and "fd"
+	 */
+	for_each_node_by_name(dp, "SUNW,fdtwo") {
+		op = of_find_device_by_node(dp);
+		if (op)
+			break;
+	}
+	if (!op) {
+		for_each_node_by_name(dp, "fd") {
+			op = of_find_device_by_node(dp);
+			if (op)
+				break;
+		}
+	}
+	if (!op)
+		goto no_sun_fdc;
+
+	FLOPPY_IRQ = op->archdata.irqs[0];
 
 	/* Last minute sanity check... */
 	if(sun_fdc->status_82072 == 0xff) {

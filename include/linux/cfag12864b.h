@@ -44,7 +44,7 @@ extern unsigned char * cfag12864b_buffer;
 /*
  * Get the refresh rate of the LCD
  *
- * Returns the refresh rate (hertzs).
+ * Returns the refresh rate (hertz).
  */
 extern unsigned int cfag12864b_getrate(void);
 

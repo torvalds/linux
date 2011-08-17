@@ -608,6 +608,130 @@ ENTRY(__clear_user_page_asm)
 	.procend
 ENDPROC(__clear_user_page_asm)
 
+ENTRY(flush_dcache_page_asm)
+	.proc
+	.callinfo NO_CALLS
+	.entry
+
+	ldil		L%(TMPALIAS_MAP_START), %r28
+#ifdef CONFIG_64BIT
+#if (TMPALIAS_MAP_START >= 0x80000000)
+	depdi		0, 31,32, %r28		/* clear any sign extension */
+	/* FIXME: page size dependend */
+#endif
+	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
+	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
+	depdi		0, 63,12, %r28		/* Clear any offset bits */
+#else
+	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
+	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
+	depwi		0, 31,12, %r28		/* Clear any offset bits */
+#endif
+
+	/* Purge any old translation */
+
+	pdtlb		0(%r28)
+
+	ldil		L%dcache_stride, %r1
+	ldw		R%dcache_stride(%r1), %r1
+
+#ifdef CONFIG_64BIT
+	depdi,z		1, 63-PAGE_SHIFT,1, %r25
+#else
+	depwi,z		1, 31-PAGE_SHIFT,1, %r25
+#endif
+	add		%r28, %r25, %r25
+	sub		%r25, %r1, %r25
+
+
+1:      fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	fdc,m		%r1(%r28)
+	cmpb,COND(<<)		%r28, %r25,1b
+	fdc,m		%r1(%r28)
+
+	sync
+	bv		%r0(%r2)
+	pdtlb		(%r25)
+	.exit
+
+	.procend
+ENDPROC(flush_dcache_page_asm)
+
+ENTRY(flush_icache_page_asm)
+	.proc
+	.callinfo NO_CALLS
+	.entry
+
+	ldil		L%(TMPALIAS_MAP_START), %r28
+#ifdef CONFIG_64BIT
+#if (TMPALIAS_MAP_START >= 0x80000000)
+	depdi		0, 31,32, %r28		/* clear any sign extension */
+	/* FIXME: page size dependend */
+#endif
+	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
+	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
+	depdi		0, 63,12, %r28		/* Clear any offset bits */
+#else
+	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
+	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
+	depwi		0, 31,12, %r28		/* Clear any offset bits */
+#endif
+
+	/* Purge any old translation */
+
+	pitlb		(%sr0,%r28)
+
+	ldil		L%icache_stride, %r1
+	ldw		R%icache_stride(%r1), %r1
+
+#ifdef CONFIG_64BIT
+	depdi,z		1, 63-PAGE_SHIFT,1, %r25
+#else
+	depwi,z		1, 31-PAGE_SHIFT,1, %r25
+#endif
+	add		%r28, %r25, %r25
+	sub		%r25, %r1, %r25
+
+
+1:      fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	fic,m		%r1(%r28)
+	cmpb,COND(<<)		%r28, %r25,1b
+	fic,m		%r1(%r28)
+
+	sync
+	bv		%r0(%r2)
+	pitlb		(%sr0,%r25)
+	.exit
+
+	.procend
+ENDPROC(flush_icache_page_asm)
+
 ENTRY(flush_kernel_dcache_page_asm)
 	.proc
 	.callinfo NO_CALLS
@@ -650,93 +774,6 @@ ENTRY(flush_kernel_dcache_page_asm)
 
 	.procend
 ENDPROC(flush_kernel_dcache_page_asm)
-	
-ENTRY(flush_user_dcache_page)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
-	ldil		L%dcache_stride, %r1
-	ldw		R%dcache_stride(%r1), %r23
-
-#ifdef CONFIG_64BIT
-	depdi,z		1,63-PAGE_SHIFT,1, %r25
-#else
-	depwi,z		1,31-PAGE_SHIFT,1, %r25
-#endif
-	add		%r26, %r25, %r25
-	sub		%r25, %r23, %r25
-
-
-1:      fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	fdc,m		%r23(%sr3, %r26)
-	cmpb,COND(<<)		%r26, %r25,1b
-	fdc,m		%r23(%sr3, %r26)
-
-	sync
-	bv		%r0(%r2)
-	nop
-	.exit
-
-	.procend
-ENDPROC(flush_user_dcache_page)
-
-ENTRY(flush_user_icache_page)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
-	ldil		L%dcache_stride, %r1
-	ldw		R%dcache_stride(%r1), %r23
-
-#ifdef CONFIG_64BIT
-	depdi,z		1, 63-PAGE_SHIFT,1, %r25
-#else
-	depwi,z		1, 31-PAGE_SHIFT,1, %r25
-#endif
-	add		%r26, %r25, %r25
-	sub		%r25, %r23, %r25
-
-
-1:      fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	fic,m		%r23(%sr3, %r26)
-	cmpb,COND(<<)		%r26, %r25,1b
-	fic,m		%r23(%sr3, %r26)
-
-	sync
-	bv		%r0(%r2)
-	nop
-	.exit
-
-	.procend
-ENDPROC(flush_user_icache_page)
-
 
 ENTRY(purge_kernel_dcache_page)
 	.proc
@@ -780,73 +817,7 @@ ENTRY(purge_kernel_dcache_page)
 	.procend
 ENDPROC(purge_kernel_dcache_page)
 
-#if 0
-	/* Currently not used, but it still is a possible alternate
-	 * solution.
-	 */
-
-ENTRY(flush_alias_page)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
-	tophys_r1		%r26
-
-	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef CONFIG_64BIT
-	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
-	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,12, %r28		/* Clear any offset bits */
-#else
-	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
-	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
-#endif
-
-	/* Purge any old translation */
-
-	pdtlb		0(%r28)
-
-	ldil		L%dcache_stride, %r1
-	ldw		R%dcache_stride(%r1), %r23
-
-#ifdef CONFIG_64BIT
-	depdi,z		1, 63-PAGE_SHIFT,1, %r29
-#else
-	depwi,z		1, 31-PAGE_SHIFT,1, %r29
-#endif
-	add		%r28, %r29, %r29
-	sub		%r29, %r23, %r29
-
-1:      fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	fdc,m		%r23(%r28)
-	cmpb,COND(<<)		%r28, %r29, 1b
-	fdc,m		%r23(%r28)
-
-	sync
-	bv		%r0(%r2)
-	nop
-	.exit
-
-	.procend
-#endif
-
-	.export flush_user_dcache_range_asm
-
-flush_user_dcache_range_asm:
+ENTRY(flush_user_dcache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -865,7 +836,7 @@ flush_user_dcache_range_asm:
 	.exit
 
 	.procend
-ENDPROC(flush_alias_page)
+ENDPROC(flush_user_dcache_range_asm)
 
 ENTRY(flush_kernel_dcache_range_asm)
 	.proc

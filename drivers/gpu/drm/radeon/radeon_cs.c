@@ -75,7 +75,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				return -ENOENT;
 			}
 			p->relocs_ptr[i] = &p->relocs[i];
-			p->relocs[i].robj = p->relocs[i].gobj->driver_private;
+			p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
 			p->relocs[i].lobj.bo = p->relocs[i].robj;
 			p->relocs[i].lobj.wdomain = r->write_domain;
 			p->relocs[i].lobj.rdomain = r->read_domains;
@@ -228,6 +228,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	parser.filp = filp;
 	parser.rdev = rdev;
 	parser.dev = rdev->dev;
+	parser.family = rdev->family;
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");

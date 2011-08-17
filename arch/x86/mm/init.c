@@ -16,11 +16,9 @@
 #include <asm/tlb.h>
 #include <asm/proto.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
-unsigned long __initdata e820_table_start;
-unsigned long __meminitdata e820_table_end;
-unsigned long __meminitdata e820_table_top;
+unsigned long __initdata pgt_buf_start;
+unsigned long __meminitdata pgt_buf_end;
+unsigned long __meminitdata pgt_buf_top;
 
 int after_bootmem;
 
@@ -33,7 +31,7 @@ int direct_gbpages
 static void __init find_early_table_space(unsigned long end, int use_pse,
 					  int use_gbpages)
 {
-	unsigned long puds, pmds, ptes, tables, start;
+	unsigned long puds, pmds, ptes, tables, start = 0, good_end = end;
 	phys_addr_t base;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
@@ -65,29 +63,25 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 #ifdef CONFIG_X86_32
 	/* for fixmap */
 	tables += roundup(__end_of_fixed_addresses * sizeof(pte_t), PAGE_SIZE);
+
+	good_end = max_pfn_mapped << PAGE_SHIFT;
 #endif
 
-	/*
-	 * RED-PEN putting page tables only on node 0 could
-	 * cause a hotspot and fill up ZONE_DMA. The page tables
-	 * need roughly 0.5KB per GB.
-	 */
-#ifdef CONFIG_X86_32
-	start = 0x7000;
-#else
-	start = 0x8000;
-#endif
-	base = memblock_find_in_range(start, max_pfn_mapped<<PAGE_SHIFT,
-					tables, PAGE_SIZE);
+	base = memblock_find_in_range(start, good_end, tables, PAGE_SIZE);
 	if (base == MEMBLOCK_ERROR)
 		panic("Cannot find space for the kernel page tables");
 
-	e820_table_start = base >> PAGE_SHIFT;
-	e820_table_end = e820_table_start;
-	e820_table_top = e820_table_start + (tables >> PAGE_SHIFT);
+	pgt_buf_start = base >> PAGE_SHIFT;
+	pgt_buf_end = pgt_buf_start;
+	pgt_buf_top = pgt_buf_start + (tables >> PAGE_SHIFT);
 
 	printk(KERN_DEBUG "kernel direct mapping tables up to %lx @ %lx-%lx\n",
-		end, e820_table_start << PAGE_SHIFT, e820_table_top << PAGE_SHIFT);
+		end, pgt_buf_start << PAGE_SHIFT, pgt_buf_top << PAGE_SHIFT);
+}
+
+void __init native_pagetable_reserve(u64 start, u64 end)
+{
+	memblock_x86_reserve_range(start, end, "PGTABLE");
 }
 
 struct map_range {
@@ -279,30 +273,26 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	load_cr3(swapper_pg_dir);
 #endif
 
-#ifdef CONFIG_X86_64
-	if (!after_bootmem && !start) {
-		pud_t *pud;
-		pmd_t *pmd;
-
-		mmu_cr4_features = read_cr4();
-
-		/*
-		 * _brk_end cannot change anymore, but it and _end may be
-		 * located on different 2M pages. cleanup_highmap(), however,
-		 * can only consider _end when it runs, so destroy any
-		 * mappings beyond _brk_end here.
-		 */
-		pud = pud_offset(pgd_offset_k(_brk_end), _brk_end);
-		pmd = pmd_offset(pud, _brk_end - 1);
-		while (++pmd <= pmd_offset(pud, (unsigned long)_end - 1))
-			pmd_clear(pmd);
-	}
-#endif
 	__flush_tlb_all();
 
-	if (!after_bootmem && e820_table_end > e820_table_start)
-		memblock_x86_reserve_range(e820_table_start << PAGE_SHIFT,
-				 e820_table_end << PAGE_SHIFT, "PGTABLE");
+	/*
+	 * Reserve the kernel pagetable pages we used (pgt_buf_start -
+	 * pgt_buf_end) and free the other ones (pgt_buf_end - pgt_buf_top)
+	 * so that they can be reused for other purposes.
+	 *
+	 * On native it just means calling memblock_x86_reserve_range, on Xen it
+	 * also means marking RW the pagetable pages that we allocated before
+	 * but that haven't been used.
+	 *
+	 * In fact on xen we mark RO the whole range pgt_buf_start -
+	 * pgt_buf_top, because we have to make sure that when
+	 * init_memory_mapping reaches the pagetable pages area, it maps
+	 * RO all the pagetable pages, including the ones that are beyond
+	 * pgt_buf_end at that time.
+	 */
+	if (!after_bootmem && pgt_buf_end > pgt_buf_start)
+		x86_init.mapping.pagetable_reserve(PFN_PHYS(pgt_buf_start),
+				PFN_PHYS(pgt_buf_end));
 
 	if (!after_bootmem)
 		early_memtest(start, end);

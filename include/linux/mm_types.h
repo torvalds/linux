@@ -30,23 +30,61 @@ struct address_space;
  * moment. Note that we have no way to track which tasks are using
  * a page, though if it is a pagecache page, rmap structures can tell us
  * who is mapping it.
+ *
+ * The objects in struct page are organized in double word blocks in
+ * order to allows us to use atomic double word operations on portions
+ * of struct page. That is currently only used by slub but the arrangement
+ * allows the use of atomic double word operations on the flags/mapping
+ * and lru list pointers also.
  */
 struct page {
+	/* First double word block */
 	unsigned long flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
-	atomic_t _count;		/* Usage count, see below. */
-	union {
-		atomic_t _mapcount;	/* Count of ptes mapped in mms,
-					 * to show when page is mapped
-					 * & limit reverse map searches.
+	struct address_space *mapping;	/* If low bit clear, points to
+					 * inode address_space, or NULL.
+					 * If page mapped as anonymous
+					 * memory, low bit is set, and
+					 * it points to anon_vma object:
+					 * see PAGE_MAPPING_ANON below.
 					 */
-		struct {		/* SLUB */
-			u16 inuse;
-			u16 objects;
+	/* Second double word */
+	struct {
+		union {
+			pgoff_t index;		/* Our offset within mapping. */
+			void *freelist;		/* slub first free object */
+		};
+
+		union {
+			/* Used for cmpxchg_double in slub */
+			unsigned long counters;
+
+			struct {
+
+				union {
+					atomic_t _mapcount;	/* Count of ptes mapped in mms,
+							 * to show when page is mapped
+							 * & limit reverse map searches.
+							 */
+
+					struct {
+						unsigned inuse:16;
+						unsigned objects:15;
+						unsigned frozen:1;
+					};
+				};
+				atomic_t _count;		/* Usage count, see below. */
+			};
 		};
 	};
+
+	/* Third double word block */
+	struct list_head lru;		/* Pageout list, eg. active_list
+					 * protected by zone->lru_lock !
+					 */
+
+	/* Remainder is not double word aligned */
 	union {
-	    struct {
 		unsigned long private;		/* Mapping-private opaque data:
 					 	 * usually used for buffer_heads
 						 * if PagePrivate set; used for
@@ -54,27 +92,13 @@ struct page {
 						 * indicates order in the buddy
 						 * system if PG_buddy is set.
 						 */
-		struct address_space *mapping;	/* If low bit clear, points to
-						 * inode address_space, or NULL.
-						 * If page mapped as anonymous
-						 * memory, low bit is set, and
-						 * it points to anon_vma object:
-						 * see PAGE_MAPPING_ANON below.
-						 */
-	    };
 #if USE_SPLIT_PTLOCKS
-	    spinlock_t ptl;
+		spinlock_t ptl;
 #endif
-	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
-	    struct page *first_page;	/* Compound tail pages */
+		struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+		struct page *first_page;	/* Compound tail pages */
 	};
-	union {
-		pgoff_t index;		/* Our offset within mapping. */
-		void *freelist;		/* SLUB: freelist req. slab lock */
-	};
-	struct list_head lru;		/* Pageout list, eg. active_list
-					 * protected by zone->lru_lock !
-					 */
+
 	/*
 	 * On machines where all RAM is mapped into kernel address space,
 	 * we can simply calculate the virtual address. On machines with
@@ -100,7 +124,18 @@ struct page {
 	 */
 	void *shadow;
 #endif
-};
+}
+/*
+ * If another subsystem starts using the double word pairing for atomic
+ * operations on struct page then it must change the #if to ensure
+ * proper alignment of the page struct.
+ */
+#if defined(CONFIG_SLUB) && defined(CONFIG_CMPXCHG_LOCAL)
+	__attribute__((__aligned__(2*sizeof(unsigned long))))
+#endif
+;
+
+typedef unsigned long __nocast vm_flags_t;
 
 /*
  * A region containing a mapping of a non-memory backed file under NOMMU
@@ -109,7 +144,7 @@ struct page {
  */
 struct vm_region {
 	struct rb_node	vm_rb;		/* link in global region tree */
-	unsigned long	vm_flags;	/* VMA vm_flags */
+	vm_flags_t	vm_flags;	/* VMA vm_flags */
 	unsigned long	vm_start;	/* start address of region */
 	unsigned long	vm_end;		/* region initialised to here */
 	unsigned long	vm_top;		/* region allocated to here */
@@ -175,7 +210,6 @@ struct vm_area_struct {
 					   units, *not* PAGE_CACHE_SIZE */
 	struct file * vm_file;		/* File we map to (can be NULL). */
 	void * vm_private_data;		/* was vm_pte (shared mem) */
-	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
 
 #ifndef CONFIG_MMU
 	struct vm_region *vm_region;	/* NOMMU mapping region */
@@ -205,19 +239,16 @@ enum {
 
 #if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
 #define SPLIT_RSS_COUNTING
-struct mm_rss_stat {
-	atomic_long_t count[NR_MM_COUNTERS];
-};
 /* per-thread cached information, */
 struct task_rss_stat {
 	int events;	/* for synchronization threshold */
 	int count[NR_MM_COUNTERS];
 };
-#else  /* !USE_SPLIT_PTLOCKS */
+#endif /* USE_SPLIT_PTLOCKS */
+
 struct mm_rss_stat {
-	unsigned long count[NR_MM_COUNTERS];
+	atomic_long_t count[NR_MM_COUNTERS];
 };
-#endif /* !USE_SPLIT_PTLOCKS */
 
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
@@ -237,8 +268,9 @@ struct mm_struct {
 	atomic_t mm_users;			/* How many users with user space? */
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
 	int map_count;				/* number of VMAs */
-	struct rw_semaphore mmap_sem;
+
 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
+	struct rw_semaphore mmap_sem;
 
 	struct list_head mmlist;		/* List of maybe swapped mm's.	These are globally strung
 						 * together off init_mm.mmlist, and are protected
@@ -265,7 +297,7 @@ struct mm_struct {
 
 	struct linux_binfmt *binfmt;
 
-	cpumask_t cpu_vm_mask;
+	cpumask_var_t cpu_vm_mask_var;
 
 	/* Architecture-specific MM context */
 	mm_context_t context;
@@ -280,6 +312,9 @@ struct mm_struct {
 	unsigned int faultstamp;
 	unsigned int token_priority;
 	unsigned int last_interval;
+
+	/* How many tasks sharing this mm are OOM_DISABLE */
+	atomic_t oom_disable_count;
 
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 
@@ -302,22 +337,31 @@ struct mm_struct {
 	struct task_struct __rcu *owner;
 #endif
 
-#ifdef CONFIG_PROC_FS
 	/* store ref to file /proc/<pid>/exe symlink points to */
 	struct file *exe_file;
 	unsigned long num_exe_file_vmas;
-#endif
 #ifdef CONFIG_MMU_NOTIFIER
 	struct mmu_notifier_mm *mmu_notifier_mm;
 #endif
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 #endif
-	/* How many tasks sharing this mm are OOM_DISABLE */
-	atomic_t oom_disable_count;
+#ifdef CONFIG_CPUMASK_OFFSTACK
+	struct cpumask cpumask_allocation;
+#endif
 };
 
+static inline void mm_init_cpumask(struct mm_struct *mm)
+{
+#ifdef CONFIG_CPUMASK_OFFSTACK
+	mm->cpu_vm_mask_var = &mm->cpumask_allocation;
+#endif
+}
+
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-#define mm_cpumask(mm) (&(mm)->cpu_vm_mask)
+static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
+{
+	return mm->cpu_vm_mask_var;
+}
 
 #endif /* _LINUX_MM_TYPES_H */

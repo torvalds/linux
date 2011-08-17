@@ -134,7 +134,7 @@ int caif_shmdrv_rx_cb(u32 mbx_msg, void *priv)
 	u32 avail_emptybuff = 0;
 	unsigned long flags = 0;
 
-	pshm_drv = (struct shmdrv_layer *)priv;
+	pshm_drv = priv;
 
 	/* Check for received buffers. */
 	if (mbx_msg & SHM_FULL_MASK) {
@@ -591,7 +591,7 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 			(NR_TX_BUF * TX_BUF_SZ + NR_RX_BUF * RX_BUF_SZ)) {
 
 		pr_warn("ERROR, Amount of available"
-				" Phys. SHM cannot accomodate current SHM "
+				" Phys. SHM cannot accommodate current SHM "
 				"driver configuration, Bailing out ...\n");
 		free_netdev(pshm_dev->pshm_netdev);
 		return -ENOMEM;

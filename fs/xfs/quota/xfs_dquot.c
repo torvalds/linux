@@ -220,7 +220,7 @@ xfs_qm_adjust_dqtimers(
 {
 	ASSERT(d->d_id);
 
-#ifdef QUOTADEBUG
+#ifdef DEBUG
 	if (d->d_blk_hardlimit)
 		ASSERT(be64_to_cpu(d->d_blk_softlimit) <=
 		       be64_to_cpu(d->d_blk_hardlimit));
@@ -231,6 +231,7 @@ xfs_qm_adjust_dqtimers(
 		ASSERT(be64_to_cpu(d->d_rtb_softlimit) <=
 		       be64_to_cpu(d->d_rtb_hardlimit));
 #endif
+
 	if (!d->d_btimer) {
 		if ((d->d_blk_softlimit &&
 		     (be64_to_cpu(d->d_bcount) >=
@@ -317,10 +318,9 @@ xfs_qm_init_dquot_blk(
 	int		curid, i;
 
 	ASSERT(tp);
-	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
-	d = (xfs_dqblk_t *)XFS_BUF_PTR(bp);
+	d = bp->b_addr;
 
 	/*
 	 * ID of the first dquot in the block - id's are zero based.
@@ -402,7 +402,7 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-	if (!bp || (error = XFS_BUF_GETERROR(bp)))
+	if (!bp || (error = xfs_buf_geterror(bp)))
 		goto error1;
 	/*
 	 * Make a chunk of dquots out of this buffer and log
@@ -533,25 +533,24 @@ xfs_qm_dqtobp(
 			return XFS_ERROR(error);
 	}
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
 	/*
 	 * calculate the location of the dquot inside the buffer.
 	 */
-	ddq = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddq = bp->b_addr + dqp->q_bufoffset;
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
 	 */
-	if (xfs_qm_dqcheck(ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
+	error = xfs_qm_dqcheck(mp, ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
 			   flags & (XFS_QMOPT_DQREPAIR|XFS_QMOPT_DOWARN),
-			   "dqtobp")) {
+			   "dqtobp");
+	if (error) {
 		if (!(flags & XFS_QMOPT_DQREPAIR)) {
 			xfs_trans_brelse(tp, bp);
 			return XFS_ERROR(EIO);
 		}
-		XFS_BUF_BUSY(bp); /* We dirtied this */
 	}
 
 	*O_bpp = bp;
@@ -599,7 +598,7 @@ xfs_qm_dqread(
 
 	/*
 	 * Reservation counters are defined as reservation plus current usage
-	 * to avoid having to add everytime.
+	 * to avoid having to add every time.
 	 */
 	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
 	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);
@@ -620,8 +619,7 @@ xfs_qm_dqread(
 	 * this particular dquot was repaired. We still aren't afraid to
 	 * brelse it because we have the changes incore.
 	 */
-	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 	xfs_trans_brelse(tp, bp);
 
 	return (error);
@@ -827,7 +825,7 @@ xfs_qm_dqget(
 	if (xfs_do_dqerror) {
 		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
 		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
-			cmn_err(CE_DEBUG, "Returning error in dqget");
+			xfs_debug(mp, "Returning error in dqget");
 			return (EIO);
 		}
 	}
@@ -1202,13 +1200,14 @@ xfs_qm_dqflush(
 	/*
 	 * Calculate the location of the dquot inside the buffer.
 	 */
-	ddqp = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddqp = bp->b_addr + dqp->q_bufoffset;
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
 	 */
-	if (xfs_qm_dqcheck(&dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
-			   XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
+	error = xfs_qm_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
+			   XFS_QMOPT_DOWARN, "dqflush (incore copy)");
+	if (error) {
 		xfs_buf_relse(bp);
 		xfs_dqfunlock(dqp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
@@ -1237,7 +1236,7 @@ xfs_qm_dqflush(
 	 * If the buffer is pinned then push on the log so we won't
 	 * get stuck waiting in the write for too long.
 	 */
-	if (XFS_BUF_ISPINNED(bp)) {
+	if (xfs_buf_ispinned(bp)) {
 		trace_xfs_dqflush_force(dqp);
 		xfs_log_force(mp, 0);
 	}
@@ -1391,8 +1390,8 @@ xfs_qm_dqpurge(
 		 */
 		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
 		if (error)
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
+			xfs_warn(mp, "%s: dquot %p flush failed",
+				__func__, dqp);
 		xfs_dqflock(dqp);
 	}
 	ASSERT(atomic_read(&dqp->q_pincount) == 0);
@@ -1421,43 +1420,6 @@ xfs_qm_dqpurge(
 }
 
 
-#ifdef QUOTADEBUG
-void
-xfs_qm_dqprint(xfs_dquot_t *dqp)
-{
-	cmn_err(CE_DEBUG, "-----------KERNEL DQUOT----------------");
-	cmn_err(CE_DEBUG, "---- dquotID =  %d",
-		(int)be32_to_cpu(dqp->q_core.d_id));
-	cmn_err(CE_DEBUG, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
-	cmn_err(CE_DEBUG, "---- fs      =  0x%p", dqp->q_mount);
-	cmn_err(CE_DEBUG, "---- blkno   =  0x%x", (int) dqp->q_blkno);
-	cmn_err(CE_DEBUG, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
-	cmn_err(CE_DEBUG, "---- blkhlimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_blk_hardlimit),
-		(int)be64_to_cpu(dqp->q_core.d_blk_hardlimit));
-	cmn_err(CE_DEBUG, "---- blkslimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_blk_softlimit),
-		(int)be64_to_cpu(dqp->q_core.d_blk_softlimit));
-	cmn_err(CE_DEBUG, "---- inohlimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_ino_hardlimit),
-		(int)be64_to_cpu(dqp->q_core.d_ino_hardlimit));
-	cmn_err(CE_DEBUG, "---- inoslimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_ino_softlimit),
-		(int)be64_to_cpu(dqp->q_core.d_ino_softlimit));
-	cmn_err(CE_DEBUG, "---- bcount  =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_bcount),
-		(int)be64_to_cpu(dqp->q_core.d_bcount));
-	cmn_err(CE_DEBUG, "---- icount  =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_icount),
-		(int)be64_to_cpu(dqp->q_core.d_icount));
-	cmn_err(CE_DEBUG, "---- btimer  =  %d",
-		(int)be32_to_cpu(dqp->q_core.d_btimer));
-	cmn_err(CE_DEBUG, "---- itimer  =  %d",
-		(int)be32_to_cpu(dqp->q_core.d_itimer));
-	cmn_err(CE_DEBUG, "---------------------------");
-}
-#endif
-
 /*
  * Give the buffer a little push if it is incore and
  * wait on the flush lock.
@@ -1481,7 +1443,7 @@ xfs_qm_dqflock_pushbuf_wait(
 		goto out_lock;
 
 	if (XFS_BUF_ISDELAYWRITE(bp)) {
-		if (XFS_BUF_ISPINNED(bp))
+		if (xfs_buf_ispinned(bp))
 			xfs_log_force(mp, 0);
 		xfs_buf_delwri_promote(bp);
 		wake_up_process(bp->b_target->bt_task);

@@ -7,6 +7,8 @@ config ZONE_DMA
 config XTENSA
 	def_bool y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -18,13 +20,7 @@ config XTENSA
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_HARDIRQS
 	def_bool y
 
 config GENERIC_GPIO
@@ -84,18 +80,7 @@ config XTENSA_UNALIGNED_USER
 
 	  Say Y here to enable unaligned memory access in user space.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-          This option reduces the latency of the kernel when reacting to
-          real-time or interactive events by allowing a low priority process to
-          be preempted even if it is in kernel mode executing a system call.
-          Unfortunately the kernel code has some race conditions if both
-          CONFIG_SMP and CONFIG_PREEMPT are enabled, so this option is
-          currently disabled if you are building an SMP kernel.
-
-          Say Y here if you are building a kernel for a desktop, embedded
-          or real-time system.  Say N if you are unsure.
+source "kernel/Kconfig.preempt"
 
 config MATH_EMULATION
 	bool "Math emulation"

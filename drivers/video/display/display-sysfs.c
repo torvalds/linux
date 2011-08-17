@@ -182,7 +182,7 @@ void display_device_unregister(struct display_device *ddev)
 	mutex_lock(&ddev->lock);
 	device_unregister(ddev->dev);
 	mutex_unlock(&ddev->lock);
-	// Mark device index as avaliable
+	// Mark device index as available
 	mutex_lock(&allocated_dsp_lock);
 	idr_remove(&allocated_dsp, ddev->idx);
 	mutex_unlock(&allocated_dsp_lock);

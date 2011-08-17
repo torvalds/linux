@@ -20,7 +20,8 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
-#include <asm/atomic.h>
+#include <linux/sched.h>
+#include <linux/atomic.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
@@ -323,6 +324,7 @@ void smp_message_recv(unsigned int msg)
 		generic_smp_call_function_interrupt();
 		break;
 	case SMP_MSG_RESCHEDULE:
+		scheduler_ipi();
 		break;
 	case SMP_MSG_FUNCTION_SINGLE:
 		generic_smp_call_function_single_interrupt();

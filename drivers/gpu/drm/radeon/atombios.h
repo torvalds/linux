@@ -726,6 +726,7 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V2
 #define ATOM_ENCODER_CMD_DP_VIDEO_ON                  0x0d
 #define ATOM_ENCODER_CMD_QUERY_DP_LINK_TRAINING_STATUS    0x0e
 #define ATOM_ENCODER_CMD_SETUP                        0x0f
+#define ATOM_ENCODER_CMD_SETUP_PANEL_MODE             0x10
 
 // ucStatus
 #define ATOM_ENCODER_STATUS_LINK_TRAINING_COMPLETE    0x10
@@ -738,13 +739,13 @@ typedef struct _ATOM_DIG_ENCODER_CONFIG_V3
 {
 #if ATOM_BIG_ENDIAN
     UCHAR ucReserved1:1;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved:3;
     UCHAR ucDPLinkRate:1;         // =0: 1.62Ghz, =1: 2.7Ghz
 #else
     UCHAR ucDPLinkRate:1;         // =0: 1.62Ghz, =1: 2.7Ghz
     UCHAR ucReserved:3;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved1:1;
 #endif
 }ATOM_DIG_ENCODER_CONFIG_V3;
@@ -765,13 +766,19 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V3
   USHORT usPixelClock;      // in 10KHz; for bios convenient
   ATOM_DIG_ENCODER_CONFIG_V3 acConfig;
   UCHAR ucAction;                              
-  UCHAR ucEncoderMode;
+  union {
+    UCHAR ucEncoderMode;
                             // =0: DP   encoder      
                             // =1: LVDS encoder          
                             // =2: DVI  encoder  
                             // =3: HDMI encoder
                             // =4: SDVO encoder
                             // =5: DP audio
+    UCHAR ucPanelMode;      // only valid when ucAction == ATOM_ENCODER_CMD_SETUP_PANEL_MODE
+	                    // =0:     external DP
+	                    // =1:     internal DP2
+	                    // =0x11:  internal DP1 for NutMeg/Travis DP translator
+  };
   UCHAR ucLaneNum;          // how many lanes to enable
   UCHAR ucBitPerColor;      // only valid for DP mode when ucAction = ATOM_ENCODER_CMD_SETUP
   UCHAR ucReserved;
@@ -785,13 +792,13 @@ typedef struct _ATOM_DIG_ENCODER_CONFIG_V4
 {
 #if ATOM_BIG_ENDIAN
     UCHAR ucReserved1:1;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved:2;
     UCHAR ucDPLinkRate:2;         // =0: 1.62Ghz, =1: 2.7Ghz, 2=5.4Ghz    <= Changed comparing to previous version
 #else
     UCHAR ucDPLinkRate:2;         // =0: 1.62Ghz, =1: 2.7Ghz, 2=5.4Ghz    <= Changed comparing to previous version
     UCHAR ucReserved:2;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved1:1;
 #endif
 }ATOM_DIG_ENCODER_CONFIG_V4;
@@ -816,13 +823,19 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V4
   UCHAR ucConfig;
   };
   UCHAR ucAction;                              
-  UCHAR ucEncoderMode;
+  union {
+    UCHAR ucEncoderMode;
                             // =0: DP   encoder      
                             // =1: LVDS encoder          
                             // =2: DVI  encoder  
                             // =3: HDMI encoder
                             // =4: SDVO encoder
                             // =5: DP audio
+    UCHAR ucPanelMode;      // only valid when ucAction == ATOM_ENCODER_CMD_SETUP_PANEL_MODE
+	                    // =0:     external DP
+	                    // =1:     internal DP2
+	                    // =0x11:  internal DP1 for NutMeg/Travis DP translator
+  };
   UCHAR ucLaneNum;          // how many lanes to enable
   UCHAR ucBitPerColor;      // only valid for DP mode when ucAction = ATOM_ENCODER_CMD_SETUP
   UCHAR ucHPD_ID;           // HPD ID (1-6). =0 means to skip HDP programming. New comparing to previous version
@@ -835,6 +848,11 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V4
 #define PANEL_10BIT_PER_COLOR                            0x03
 #define PANEL_12BIT_PER_COLOR                            0x04
 #define PANEL_16BIT_PER_COLOR                            0x05
+
+//define ucPanelMode
+#define DP_PANEL_MODE_EXTERNAL_DP_MODE                   0x00
+#define DP_PANEL_MODE_INTERNAL_DP2_MODE                  0x01
+#define DP_PANEL_MODE_INTERNAL_DP1_MODE                  0x11
 
 /****************************************************************************/	
 // Structures used by UNIPHYTransmitterControlTable
@@ -1182,6 +1200,7 @@ typedef struct _EXTERNAL_ENCODER_CONTROL_PARAMETERS_V3
 #define EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING_OFF   0x10
 #define EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING       0x11
 #define EXTERNAL_ENCODER_ACTION_V3_DACLOAD_DETECTION      0x12
+#define EXTERNAL_ENCODER_ACTION_V3_DDC_SETUP              0x14
 
 // ucConfig
 #define EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_MASK				0x03
@@ -2126,7 +2145,7 @@ typedef struct _ATOM_MULTIMEDIA_CONFIG_INFO
 // Structures used in FirmwareInfoTable
 /****************************************************************************/	
 
-// usBIOSCapability Defintion:
+// usBIOSCapability Definition:
 // Bit 0 = 0: Bios image is not Posted, =1:Bios image is Posted; 
 // Bit 1 = 0: Dual CRTC is not supported, =1: Dual CRTC is supported; 
 // Bit 2 = 0: Extended Desktop is not supported, =1: Extended Desktop is supported; 
@@ -3341,7 +3360,7 @@ typedef struct _ATOM_SPREAD_SPECTRUM_INFO
 /****************************************************************************/	
 // Structure used in AnalogTV_InfoTable (Top level)
 /****************************************************************************/	
-//ucTVBootUpDefaultStd definiton:
+//ucTVBootUpDefaultStd definition:
 
 //ATOM_TV_NTSC                1
 //ATOM_TV_NTSCJ               2
@@ -3816,7 +3835,7 @@ typedef  struct _ATOM_EXTERNAL_DISPLAY_CONNECTION_INFO
   UCHAR                    Reserved [6];                          // for potential expansion
 }ATOM_EXTERNAL_DISPLAY_CONNECTION_INFO;
 
-//Related definitions, all records are differnt but they have a commond header
+//Related definitions, all records are different but they have a commond header
 typedef struct _ATOM_COMMON_RECORD_HEADER
 {
   UCHAR               ucRecordType;                      //An emun to indicate the record type
@@ -4365,14 +4384,14 @@ ucUMAChannelNumber:      	        System memory channel numbers.
 ulCSR_M3_ARB_CNTL_DEFAULT[10]:    Arrays with values for CSR M3 arbiter for default
 ulCSR_M3_ARB_CNTL_UVD[10]:        Arrays with values for CSR M3 arbiter for UVD playback.
 ulCSR_M3_ARB_CNTL_FS3D[10]:       Arrays with values for CSR M3 arbiter for Full Screen 3D applications.
-sAvail_SCLK[5]:                   Arrays to provide availabe list of SLCK and corresponding voltage, order from low to high  
+sAvail_SCLK[5]:                   Arrays to provide available list of SLCK and corresponding voltage, order from low to high  
 ulGMCRestoreResetTime:            GMC power restore and GMC reset time to calculate data reconnection latency. Unit in ns. 
 ulMinimumNClk:                    Minimum NCLK speed among all NB-Pstates to calcualte data reconnection latency. Unit in 10kHz. 
 ulIdleNClk:                       NCLK speed while memory runs in self-refresh state. Unit in 10kHz.
 ulDDR_DLL_PowerUpTime:            DDR PHY DLL power up time. Unit in ns.
 ulDDR_PLL_PowerUpTime:            DDR PHY PLL power up time. Unit in ns.
-usPCIEClkSSPercentage:            PCIE Clock Spred Spectrum Percentage in unit 0.01%; 100 mean 1%.
-usPCIEClkSSType:                  PCIE Clock Spred Spectrum Type. 0 for Down spread(default); 1 for Center spread.
+usPCIEClkSSPercentage:            PCIE Clock Spread Spectrum Percentage in unit 0.01%; 100 mean 1%.
+usPCIEClkSSType:                  PCIE Clock Spread Spectrum Type. 0 for Down spread(default); 1 for Center spread.
 usLvdsSSPercentage:               LVDS panel ( not include eDP ) Spread Spectrum Percentage in unit of 0.01%, =0, use VBIOS default setting. 
 usLvdsSSpreadRateIn10Hz:          LVDS panel ( not include eDP ) Spread Spectrum frequency in unit of 10Hz, =0, use VBIOS default setting. 
 usHDMISSPercentage:               HDMI Spread Spectrum Percentage in unit 0.01%; 100 mean 1%,  =0, use VBIOS default setting. 
@@ -4555,7 +4574,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S0_SYSTEM_POWER_STATE_VALUE_LITEAC 3
 #define ATOM_S0_SYSTEM_POWER_STATE_VALUE_LIT2AC 4
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S0_CRT1_MONOb0             0x01
 #define ATOM_S0_CRT1_COLORb0            0x02
 #define ATOM_S0_CRT1_MASKb0             (ATOM_S0_CRT1_MONOb0+ATOM_S0_CRT1_COLORb0)
@@ -4621,7 +4640,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S2_DISPLAY_ROTATION_ANGLE_MASK   0xC0000000L
 
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S2_TV1_STANDARD_MASKb0     0x0F
 #define ATOM_S2_CURRENT_BL_LEVEL_MASKb1 0xFF
 #define ATOM_S2_DEVICE_DPMS_STATEb2     0x01
@@ -4671,7 +4690,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S3_ALLOW_FAST_PWR_SWITCH   0x40000000L
 #define ATOM_S3_RQST_GPU_USE_MIN_PWR    0x80000000L
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S3_CRT1_ACTIVEb0           0x01
 #define ATOM_S3_LCD1_ACTIVEb0           0x02
 #define ATOM_S3_TV1_ACTIVEb0            0x04
@@ -4707,7 +4726,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S4_LCD1_REFRESH_MASK       0x0000FF00L
 #define ATOM_S4_LCD1_REFRESH_SHIFT      8
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S4_LCD1_PANEL_ID_MASKb0	  0x0FF
 #define ATOM_S4_LCD1_REFRESH_MASKb1		  ATOM_S4_LCD1_PANEL_ID_MASKb0
 #define ATOM_S4_VRAM_INFO_MASKb2        ATOM_S4_LCD1_PANEL_ID_MASKb0
@@ -4786,7 +4805,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S6_VRI_BRIGHTNESS_CHANGE       0x40000000L
 #define ATOM_S6_CONFIG_DISPLAY_CHANGE_MASK  0x80000000L
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S6_DEVICE_CHANGEb0         0x01
 #define ATOM_S6_SCALER_CHANGEb0         0x02
 #define ATOM_S6_LID_CHANGEb0            0x04
@@ -5027,7 +5046,7 @@ typedef struct _ENABLE_GRAPH_SURFACE_PS_ALLOCATION
 
 typedef struct _MEMORY_CLEAN_UP_PARAMETERS
 {
-  USHORT  usMemoryStart;                //in 8Kb boundry, offset from memory base address
+  USHORT  usMemoryStart;                //in 8Kb boundary, offset from memory base address
   USHORT  usMemorySize;                 //8Kb blocks aligned
 }MEMORY_CLEAN_UP_PARAMETERS;
 #define MEMORY_CLEAN_UP_PS_ALLOCATION MEMORY_CLEAN_UP_PARAMETERS
@@ -6855,7 +6874,7 @@ typedef struct _ATOM_PPLIB_Clock_Voltage_Limit_Table
 /**************************************************************************/
 
 
-// Following definitions are for compatiblity issue in different SW components. 
+// Following definitions are for compatibility issue in different SW components. 
 #define ATOM_MASTER_DATA_TABLE_REVISION   0x01
 #define Object_Info												Object_Header			
 #define	AdjustARB_SEQ											MC_InitParameter

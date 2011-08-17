@@ -98,6 +98,10 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *  (b) always process RX events before TX status events if ordering
 	 *      can be unknown, for example with different interrupt status
 	 *	bits.
+	 *  (c) if PS mode transitions are manual (i.e. the flag
+	 *      %IEEE80211_HW_AP_LINK_PS is set), always process PS state
+	 *      changes before calling TX status events if ordering can be
+	 *	unknown.
 	 */
 	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
@@ -185,16 +189,19 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool acked;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		/* the HW cannot have attempted that rate */
-		if (i >= hw->max_report_rates) {
+		if (info->status.rates[i].idx < 0) {
+			break;
+		} else if (i >= hw->max_report_rates) {
+			/* the HW cannot have attempted that rate */
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
-		} else if (info->status.rates[i].idx >= 0) {
-			rates_idx = i;
+			break;
 		}
 
 		retry_count += info->status.rates[i].count;
 	}
+	rates_idx = i - 1;
+
 	if (retry_count < 0)
 		retry_count = 0;
 
@@ -314,8 +321,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (info->flags & IEEE80211_TX_STAT_ACK) {
 			local->ps_sdata->u.mgd.flags |=
 					IEEE80211_STA_NULLFUNC_ACKED;
-			ieee80211_queue_work(&local->hw,
-					&local->dynamic_ps_enable_work);
 		} else
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 					msecs_to_jiffies(10));
@@ -339,6 +344,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			cookie = local->hw_roc_cookie ^ 2;
 			local->hw_roc_skb_for_status = NULL;
 		}
+
+		if (cookie == local->hw_offchan_tx_cookie)
+			local->hw_offchan_tx_cookie = 0;
+
 		cfg80211_mgmt_tx_status(
 			skb->dev, cookie, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
@@ -437,3 +446,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
+
+void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
+				    num_packets, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(ieee80211_report_low_ack);

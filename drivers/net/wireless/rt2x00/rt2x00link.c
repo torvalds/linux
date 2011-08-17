@@ -192,17 +192,7 @@ static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Determine if software diversity is enabled for
 	 * either the TX or RX antenna (or both).
-	 * Always perform this check since within the link
-	 * tuner interval the configuration might have changed.
 	 */
-	ant->flags &= ~ANTENNA_RX_DIVERSITY;
-	ant->flags &= ~ANTENNA_TX_DIVERSITY;
-
-	if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
-		ant->flags |= ANTENNA_RX_DIVERSITY;
-	if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
-		ant->flags |= ANTENNA_TX_DIVERSITY;
-
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY) &&
 	    !(ant->flags & ANTENNA_TX_DIVERSITY)) {
 		ant->flags = 0;
@@ -283,7 +273,7 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 	/**
 	 * While scanning, link tuning is disabled. By default
 	 * the most sensitive settings will be used to make sure
-	 * that all beacons and probe responses will be recieved
+	 * that all beacons and probe responses will be received
 	 * during the scan.
 	 */
 	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
@@ -383,7 +373,7 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 * do not support link tuning at all, while other devices can disable
 	 * the feature from the EEPROM.
 	 */
-	if (test_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev, qual, link->count);
 
 	/*
@@ -413,11 +403,11 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev)
 {
 	struct link *link = &rt2x00dev->link;
 
-	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
-	    !test_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags))
-		return;
-
-	schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    rt2x00dev->ops->lib->watchdog)
+		ieee80211_queue_delayed_work(rt2x00dev->hw,
+					     &link->watchdog_work,
+					     WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev)
@@ -441,11 +431,51 @@ static void rt2x00link_watchdog(struct work_struct *work)
 	rt2x00dev->ops->lib->watchdog(rt2x00dev);
 
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
+		ieee80211_queue_delayed_work(rt2x00dev->hw,
+					     &link->watchdog_work,
+					     WATCHDOG_INTERVAL);
+}
+
+void rt2x00link_start_agc(struct rt2x00_dev *rt2x00dev)
+{
+	struct link *link = &rt2x00dev->link;
+
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    rt2x00dev->ops->lib->gain_calibration)
+		ieee80211_queue_delayed_work(rt2x00dev->hw,
+					     &link->agc_work,
+					     AGC_INTERVAL);
+}
+
+void rt2x00link_stop_agc(struct rt2x00_dev *rt2x00dev)
+{
+	cancel_delayed_work_sync(&rt2x00dev->link.agc_work);
+}
+
+static void rt2x00link_agc(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, link.agc_work.work);
+	struct link *link = &rt2x00dev->link;
+
+	/*
+	 * When the radio is shutting down we should
+	 * immediately cease the watchdog monitoring.
+	 */
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
+	rt2x00dev->ops->lib->gain_calibration(rt2x00dev);
+
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		ieee80211_queue_delayed_work(rt2x00dev->hw,
+					     &link->agc_work,
+					     AGC_INTERVAL);
 }
 
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)
 {
+	INIT_DELAYED_WORK(&rt2x00dev->link.agc_work, rt2x00link_agc);
 	INIT_DELAYED_WORK(&rt2x00dev->link.watchdog_work, rt2x00link_watchdog);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00link_tuner);
 }

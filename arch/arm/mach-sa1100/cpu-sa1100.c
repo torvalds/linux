@@ -68,7 +68,7 @@
  * clock change in ROM and jump to that code from the kernel. The main
  * disadvantage is that the ROM has to be modified, which is not
  * possible on all SA-1100 platforms. Another disadvantage is that
- * jumping to ROM makes clock switching unecessary complicated.
+ * jumping to ROM makes clock switching unnecessary complicated.
  *
  * The idea behind this driver is that the memory configuration can be
  * changed while running from DRAM (even with interrupts turned on!)

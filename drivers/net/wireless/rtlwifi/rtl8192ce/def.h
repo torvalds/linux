@@ -126,6 +126,19 @@ enum version_8192c {
 	VERSION_A_CHIP_88C = 0x00,
 	VERSION_B_CHIP_92C = 0x11,
 	VERSION_B_CHIP_88C = 0x10,
+	VERSION_TEST_CHIP_88C = 0x00,
+	VERSION_TEST_CHIP_92C = 0x01,
+	VERSION_NORMAL_TSMC_CHIP_88C = 0x10,
+	VERSION_NORMAL_TSMC_CHIP_92C = 0x11,
+	VERSION_NORMAL_TSMC_CHIP_92C_1T2R = 0x13,
+	VERSION_NORMAL_UMC_CHIP_88C_A_CUT = 0x30,
+	VERSION_NORMAL_UMC_CHIP_92C_A_CUT = 0x31,
+	VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT = 0x33,
+	VERSION_NORMA_UMC_CHIP_8723_1T1R_A_CUT = 0x34,
+	VERSION_NORMA_UMC_CHIP_8723_1T1R_B_CUT = 0x3c,
+	VERSION_NORMAL_UMC_CHIP_88C_B_CUT = 0x70,
+	VERSION_NORMAL_UMC_CHIP_92C_B_CUT = 0x71,
+	VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT = 0x73,
 	VERSION_UNKNOWN = 0x88,
 };
 
@@ -253,5 +266,109 @@ struct h2c_cmd_8192c {
 	u32 cmd_len;
 	u8 *p_cmdbuffer;
 };
+
+/* NOTE: reference to rtl8192c_rates struct */
+static inline int _rtl92c_rate_mapping(struct ieee80211_hw *hw, bool isHT,
+				       u8 desc_rate, bool first_ampdu)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	int rate_idx = 0;
+
+	if (first_ampdu) {
+		if (false == isHT) {
+			switch (desc_rate) {
+			case DESC92C_RATE1M:
+				rate_idx = 0;
+				break;
+			case DESC92C_RATE2M:
+				rate_idx = 1;
+				break;
+			case DESC92C_RATE5_5M:
+				rate_idx = 2;
+				break;
+			case DESC92C_RATE11M:
+				rate_idx = 3;
+				break;
+			case DESC92C_RATE6M:
+				rate_idx = 4;
+				break;
+			case DESC92C_RATE9M:
+				rate_idx = 5;
+				break;
+			case DESC92C_RATE12M:
+				rate_idx = 6;
+				break;
+			case DESC92C_RATE18M:
+				rate_idx = 7;
+				break;
+			case DESC92C_RATE24M:
+				rate_idx = 8;
+				break;
+			case DESC92C_RATE36M:
+				rate_idx = 9;
+				break;
+			case DESC92C_RATE48M:
+				rate_idx = 10;
+				break;
+			case DESC92C_RATE54M:
+				rate_idx = 11;
+				break;
+			default:
+				RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
+					 ("Rate %d is not support, set to "
+					"1M rate.\n", desc_rate));
+				rate_idx = 0;
+				break;
+			}
+		} else {
+			rate_idx = 11;
+		}
+		return rate_idx;
+	}
+	switch (desc_rate) {
+	case DESC92C_RATE1M:
+		rate_idx = 0;
+		break;
+	case DESC92C_RATE2M:
+		rate_idx = 1;
+		break;
+	case DESC92C_RATE5_5M:
+		rate_idx = 2;
+		break;
+	case DESC92C_RATE11M:
+		rate_idx = 3;
+		break;
+	case DESC92C_RATE6M:
+		rate_idx = 4;
+		break;
+	case DESC92C_RATE9M:
+		rate_idx = 5;
+		break;
+	case DESC92C_RATE12M:
+		rate_idx = 6;
+		break;
+	case DESC92C_RATE18M:
+		rate_idx = 7;
+		break;
+	case DESC92C_RATE24M:
+		rate_idx = 8;
+		break;
+	case DESC92C_RATE36M:
+		rate_idx = 9;
+		break;
+	case DESC92C_RATE48M:
+		rate_idx = 10;
+		break;
+	case DESC92C_RATE54M:
+		rate_idx = 11;
+		break;
+	/* TODO: How to mapping MCS rate? */
+	/*  NOTE: referenc to __ieee80211_rx */
+	default:
+		rate_idx = 11;
+		break;
+	}
+	return rate_idx;
+}
 
 #endif

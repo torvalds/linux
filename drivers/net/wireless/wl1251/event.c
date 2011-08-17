@@ -68,14 +68,16 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 	if (vector & BSS_LOSE_EVENT_ID) {
 		wl1251_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
 
-		if (wl->psm_requested && wl->psm) {
+		if (wl->psm_requested &&
+		    wl->station_mode != STATION_ACTIVE_MODE) {
 			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID && wl->psm) {
+	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID &&
+	    wl->station_mode != STATION_ACTIVE_MODE) {
 		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
@@ -87,6 +89,24 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 			ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 			if (ret < 0)
 				return ret;
+		}
+	}
+
+	if (wl->vif && wl->rssi_thold) {
+		if (vector & ROAMING_TRIGGER_LOW_RSSI_EVENT_ID) {
+			wl1251_debug(DEBUG_EVENT,
+				     "ROAMING_TRIGGER_LOW_RSSI_EVENT");
+			ieee80211_cqm_rssi_notify(wl->vif,
+				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+				GFP_KERNEL);
+		}
+
+		if (vector & ROAMING_TRIGGER_REGAINED_RSSI_EVENT_ID) {
+			wl1251_debug(DEBUG_EVENT,
+				     "ROAMING_TRIGGER_REGAINED_RSSI_EVENT");
+			ieee80211_cqm_rssi_notify(wl->vif,
+				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+				GFP_KERNEL);
 		}
 	}
 

@@ -352,6 +352,8 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
 	icmd->ulpContext = ndlp->nlp_rpi;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		icmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 
 	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 		/* For GEN_REQUEST64_CR, use the RPI */
@@ -1736,6 +1738,55 @@ fdmi_cmd_exit:
 			 "0244 Issue FDMI request failed Data: x%x\n",
 			 cmdcode);
 	return 1;
+}
+
+/**
+ * lpfc_delayed_disc_tmo - Timeout handler for delayed discovery timer.
+ * @ptr - Context object of the timer.
+ *
+ * This function set the WORKER_DELAYED_DISC_TMO flag and wake up
+ * the worker thread.
+ **/
+void
+lpfc_delayed_disc_tmo(unsigned long ptr)
+{
+	struct lpfc_vport *vport = (struct lpfc_vport *)ptr;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t tmo_posted;
+	unsigned long iflag;
+
+	spin_lock_irqsave(&vport->work_port_lock, iflag);
+	tmo_posted = vport->work_port_events & WORKER_DELAYED_DISC_TMO;
+	if (!tmo_posted)
+		vport->work_port_events |= WORKER_DELAYED_DISC_TMO;
+	spin_unlock_irqrestore(&vport->work_port_lock, iflag);
+
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
+	return;
+}
+
+/**
+ * lpfc_delayed_disc_timeout_handler - Function called by worker thread to
+ *      handle delayed discovery.
+ * @vport: pointer to a host virtual N_Port data structure.
+ *
+ * This function start nport discovery of the vport.
+ **/
+void
+lpfc_delayed_disc_timeout_handler(struct lpfc_vport *vport)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	spin_lock_irq(shost->host_lock);
+	if (!(vport->fc_flag & FC_DISC_DELAYED)) {
+		spin_unlock_irq(shost->host_lock);
+		return;
+	}
+	vport->fc_flag &= ~FC_DISC_DELAYED;
+	spin_unlock_irq(shost->host_lock);
+
+	lpfc_do_scr_ns_plogi(vport->phba, vport);
 }
 
 void

@@ -123,7 +123,7 @@ nouveau_mm_get(struct nouveau_mm *rmm, int type, u32 size, u32 size_nc,
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -ENOSPC;
 }
 
 int
@@ -158,11 +158,18 @@ int
 nouveau_mm_fini(struct nouveau_mm **prmm)
 {
 	struct nouveau_mm *rmm = *prmm;
-	struct nouveau_mm_node *heap =
+	struct nouveau_mm_node *node, *heap =
 		list_first_entry(&rmm->nodes, struct nouveau_mm_node, nl_entry);
 
-	if (!list_is_singular(&rmm->nodes))
+	if (!list_is_singular(&rmm->nodes)) {
+		printk(KERN_ERR "nouveau_mm not empty at destroy time!\n");
+		list_for_each_entry(node, &rmm->nodes, nl_entry) {
+			printk(KERN_ERR "0x%02x: 0x%08x 0x%08x\n",
+			       node->type, node->offset, node->length);
+		}
+		WARN_ON(1);
 		return -EBUSY;
+	}
 
 	kfree(heap);
 	kfree(rmm);

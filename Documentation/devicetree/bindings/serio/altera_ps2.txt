@@ -1,0 +1,4 @@
+Altera UP PS/2 controller
+
+Required properties:
+- compatible : should be "ALTR,ps2-1.0".

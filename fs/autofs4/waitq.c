@@ -104,7 +104,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	size_t pktsz;
 
 	DPRINTK("wait id = 0x%08lx, name = %.*s, type=%d",
-		wq->wait_queue_token, wq->name.len, wq->name.name, type);
+		(unsigned long) wq->wait_queue_token, wq->name.len, wq->name.name, type);
 
 	memset(&pkt,0,sizeof pkt); /* For security reasons */
 
@@ -197,12 +197,12 @@ rename_retry:
 
 	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
-	spin_lock(&autofs4_lock);
+	spin_lock(&sbi->fs_lock);
 	for (tmp = dentry ; tmp != root ; tmp = tmp->d_parent)
 		len += tmp->d_name.len + 1;
 
 	if (!len || --len > NAME_MAX) {
-		spin_unlock(&autofs4_lock);
+		spin_unlock(&sbi->fs_lock);
 		rcu_read_unlock();
 		if (read_seqretry(&rename_lock, seq))
 			goto rename_retry;
@@ -218,7 +218,7 @@ rename_retry:
 		p -= tmp->d_name.len;
 		strncpy(p, tmp->d_name.name, tmp->d_name.len);
 	}
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->fs_lock);
 	rcu_read_unlock();
 	if (read_seqretry(&rename_lock, seq))
 		goto rename_retry;

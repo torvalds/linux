@@ -1123,7 +1123,7 @@ list_modified:
 	list_for_each_entry_safe(ipm, tmp, &card->ipm_list, list){
 		switch (ipm->ipm_state) {
 		case LCS_IPM_STATE_SET_REQUIRED:
-			/* del from ipm_list so noone else can tamper with
+			/* del from ipm_list so no one else can tamper with
 			 * this entry */
 			list_del_init(&ipm->list);
 			spin_unlock_irqrestore(&card->ipm_lock, flags);
@@ -1483,7 +1483,6 @@ lcs_tasklet(unsigned long data)
 	struct lcs_channel *channel;
 	struct lcs_buffer *iob;
 	int buf_idx;
-	int rc;
 
 	channel = (struct lcs_channel *) data;
 	LCS_DBF_TEXT_(5, trace, "tlet%s", dev_name(&channel->ccwdev->dev));
@@ -1500,14 +1499,11 @@ lcs_tasklet(unsigned long data)
 	channel->buf_idx = buf_idx;
 
 	if (channel->state == LCS_CH_STATE_STOPPED)
-		// FIXME: what if rc != 0 ??
-		rc = lcs_start_channel(channel);
+		lcs_start_channel(channel);
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	if (channel->state == LCS_CH_STATE_SUSPENDED &&
-	    channel->iob[channel->io_idx].state == LCS_BUF_STATE_READY) {
-		// FIXME: what if rc != 0 ??
-		rc = __lcs_resume_channel(channel);
-	}
+	    channel->iob[channel->io_idx].state == LCS_BUF_STATE_READY)
+		__lcs_resume_channel(channel);
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 
 	/* Something happened on the channel. Wake up waiters. */
@@ -2396,8 +2392,10 @@ static struct ccw_device_id lcs_ids[] = {
 MODULE_DEVICE_TABLE(ccw, lcs_ids);
 
 static struct ccw_driver lcs_ccw_driver = {
-	.owner	= THIS_MODULE,
-	.name	= "lcs",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "lcs",
+	},
 	.ids	= lcs_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
@@ -2407,8 +2405,10 @@ static struct ccw_driver lcs_ccw_driver = {
  * LCS ccwgroup driver registration
  */
 static struct ccwgroup_driver lcs_group_driver = {
-	.owner       = THIS_MODULE,
-	.name        = "lcs",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "lcs",
+	},
 	.max_slaves  = 2,
 	.driver_id   = 0xD3C3E2,
 	.probe       = lcs_probe_device,

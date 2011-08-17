@@ -338,23 +338,12 @@ static struct rtable *find_route(struct t3cdev *dev, __be32 local_ip,
 				 __be16 peer_port, u8 tos)
 {
 	struct rtable *rt;
-	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			 .ip4_u = {
-				   .daddr = peer_ip,
-				   .saddr = local_ip,
-				   .tos = tos}
-			 },
-		.proto = IPPROTO_TCP,
-		.uli_u = {
-			  .ports = {
-				    .sport = local_port,
-				    .dport = peer_port}
-			  }
-	};
+	struct flowi4 fl4;
 
-	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, 0))
+	rt = ip_route_output_ports(&init_net, &fl4, NULL, peer_ip, local_ip,
+				   peer_port, local_port, IPPROTO_TCP,
+				   tos, 0);
+	if (IS_ERR(rt))
 		return NULL;
 	return rt;
 }
@@ -925,7 +914,7 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 		goto err;
 
 	if (peer2peer && iwch_rqes_posted(ep->com.qp) == 0) {
-		iwch_post_zb_read(ep->com.qp);
+		iwch_post_zb_read(ep);
 	}
 
 	goto out;
@@ -1089,6 +1078,8 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_ep *ep = ctx;
 	struct cpl_wr_ack *hdr = cplhdr(skb);
 	unsigned int credits = ntohs(hdr->credits);
+	unsigned long flags;
+	int post_zb = 0;
 
 	PDBG("%s ep %p credits %u\n", __func__, ep, credits);
 
@@ -1098,28 +1089,34 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		return CPL_RET_BUF_DONE;
 	}
 
+	spin_lock_irqsave(&ep->com.lock, flags);
 	BUG_ON(credits != 1);
 	dst_confirm(ep->dst);
 	if (!ep->mpa_skb) {
 		PDBG("%s rdma_init wr_ack ep %p state %u\n",
-			__func__, ep, state_read(&ep->com));
+			__func__, ep, ep->com.state);
 		if (ep->mpa_attr.initiator) {
 			PDBG("%s initiator ep %p state %u\n",
-				__func__, ep, state_read(&ep->com));
-			if (peer2peer)
-				iwch_post_zb_read(ep->com.qp);
+				__func__, ep, ep->com.state);
+			if (peer2peer && ep->com.state == FPDU_MODE)
+				post_zb = 1;
 		} else {
 			PDBG("%s responder ep %p state %u\n",
-				__func__, ep, state_read(&ep->com));
-			ep->com.rpl_done = 1;
-			wake_up(&ep->com.waitq);
+				__func__, ep, ep->com.state);
+			if (ep->com.state == MPA_REQ_RCVD) {
+				ep->com.rpl_done = 1;
+				wake_up(&ep->com.waitq);
+			}
 		}
 	} else {
 		PDBG("%s lsm ack ep %p state %u freeing skb\n",
-			__func__, ep, state_read(&ep->com));
+			__func__, ep, ep->com.state);
 		kfree_skb(ep->mpa_skb);
 		ep->mpa_skb = NULL;
 	}
+	spin_unlock_irqrestore(&ep->com.lock, flags);
+	if (post_zb)
+		iwch_post_zb_read(ep);
 	return CPL_RET_BUF_DONE;
 }
 
@@ -1331,6 +1328,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_ep *child_ep, *parent_ep = ctx;
 	struct cpl_pass_accept_req *req = cplhdr(skb);
 	unsigned int hwtid = GET_TID(req);
+	struct neighbour *neigh;
 	struct dst_entry *dst;
 	struct l2t_entry *l2t;
 	struct rtable *rt;
@@ -1367,7 +1365,8 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		goto reject;
 	}
 	dst = &rt->dst;
-	l2t = t3_l2t_get(tdev, dst->neighbour, dst->neighbour->dev);
+	neigh = dst_get_neighbour(dst);
+	l2t = t3_l2t_get(tdev, neigh, neigh->dev);
 	if (!l2t) {
 		printk(KERN_ERR MOD "%s - failed to allocate l2t entry!\n",
 		       __func__);
@@ -1877,10 +1876,11 @@ static int is_loopback_dst(struct iw_cm_id *cm_id)
 
 int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 {
-	int err = 0;
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
+	struct neighbour *neigh;
 	struct iwch_ep *ep;
 	struct rtable *rt;
+	int err = 0;
 
 	if (is_loopback_dst(cm_id)) {
 		err = -ENOSYS;
@@ -1936,9 +1936,10 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	ep->dst = &rt->dst;
 
+	neigh = dst_get_neighbour(ep->dst);
+
 	/* get a l2t entry */
-	ep->l2t = t3_l2t_get(ep->com.tdev, ep->dst->neighbour,
-			     ep->dst->neighbour->dev);
+	ep->l2t = t3_l2t_get(ep->com.tdev, neigh, neigh->dev);
 	if (!ep->l2t) {
 		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
 		err = -ENOMEM;

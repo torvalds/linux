@@ -239,7 +239,6 @@ struct analog_demod_ops {
 	void (*set_params)(struct dvb_frontend *fe,
 			   struct analog_parameters *params);
 	int  (*has_signal)(struct dvb_frontend *fe);
-	int  (*is_stereo)(struct dvb_frontend *fe);
 	int  (*get_afc)(struct dvb_frontend *fe);
 	void (*tuner_status)(struct dvb_frontend *fe);
 	void (*standby)(struct dvb_frontend *fe);
@@ -359,6 +358,9 @@ struct dtv_frontend_properties {
 
 	/* ISDB-T specifics */
 	u32			isdbs_ts_id;
+
+	/* DVB-T2 specifics */
+	u32                     dvbt2_plp_id;
 };
 
 struct dvb_frontend {

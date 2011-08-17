@@ -197,15 +197,21 @@ EXPORT_SYMBOL(dm_dirty_log_destroy);
 #define MIRROR_DISK_VERSION 2
 #define LOG_OFFSET 2
 
-struct log_header {
-	uint32_t magic;
+struct log_header_disk {
+	__le32 magic;
 
 	/*
 	 * Simple, incrementing version. no backward
 	 * compatibility.
 	 */
+	__le32 version;
+	__le64 nr_regions;
+} __packed;
+
+struct log_header_core {
+	uint32_t magic;
 	uint32_t version;
-	sector_t nr_regions;
+	uint64_t nr_regions;
 };
 
 struct log_c {
@@ -239,10 +245,10 @@ struct log_c {
 	int log_dev_failed;
 	int log_dev_flush_failed;
 	struct dm_dev *log_dev;
-	struct log_header header;
+	struct log_header_core header;
 
 	struct dm_io_region header_location;
-	struct log_header *disk_header;
+	struct log_header_disk *disk_header;
 };
 
 /*
@@ -251,34 +257,34 @@ struct log_c {
  */
 static inline int log_test_bit(uint32_t *bs, unsigned bit)
 {
-	return ext2_test_bit(bit, (unsigned long *) bs) ? 1 : 0;
+	return test_bit_le(bit, bs) ? 1 : 0;
 }
 
 static inline void log_set_bit(struct log_c *l,
 			       uint32_t *bs, unsigned bit)
 {
-	ext2_set_bit(bit, (unsigned long *) bs);
+	__set_bit_le(bit, bs);
 	l->touched_cleaned = 1;
 }
 
 static inline void log_clear_bit(struct log_c *l,
 				 uint32_t *bs, unsigned bit)
 {
-	ext2_clear_bit(bit, (unsigned long *) bs);
+	__clear_bit_le(bit, bs);
 	l->touched_dirtied = 1;
 }
 
 /*----------------------------------------------------------------
  * Header IO
  *--------------------------------------------------------------*/
-static void header_to_disk(struct log_header *core, struct log_header *disk)
+static void header_to_disk(struct log_header_core *core, struct log_header_disk *disk)
 {
 	disk->magic = cpu_to_le32(core->magic);
 	disk->version = cpu_to_le32(core->version);
 	disk->nr_regions = cpu_to_le64(core->nr_regions);
 }
 
-static void header_from_disk(struct log_header *core, struct log_header *disk)
+static void header_from_disk(struct log_header_core *core, struct log_header_disk *disk)
 {
 	core->magic = le32_to_cpu(disk->magic);
 	core->version = le32_to_cpu(disk->version);
@@ -449,8 +455,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 
 		lc->io_req.mem.type = DM_IO_VMA;
 		lc->io_req.notify.fn = NULL;
-		lc->io_req.client = dm_io_client_create(dm_div_up(buf_size,
-								   PAGE_SIZE));
+		lc->io_req.client = dm_io_client_create();
 		if (IS_ERR(lc->io_req.client)) {
 			r = PTR_ERR(lc->io_req.client);
 			DMWARN("couldn't allocate disk io client");
@@ -487,7 +492,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	memset(lc->sync_bits, (sync == NOSYNC) ? -1 : 0, bitset_size);
 	lc->sync_count = (sync == NOSYNC) ? region_count : 0;
 
-	lc->recovering_bits = vmalloc(bitset_size);
+	lc->recovering_bits = vzalloc(bitset_size);
 	if (!lc->recovering_bits) {
 		DMWARN("couldn't allocate sync bitset");
 		vfree(lc->sync_bits);
@@ -499,7 +504,6 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		kfree(lc);
 		return -ENOMEM;
 	}
-	memset(lc->recovering_bits, 0, bitset_size);
 	lc->sync_search = 0;
 	log->context = lc;
 
@@ -543,7 +547,7 @@ static int disk_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	r = dm_get_device(ti, argv[0], FMODE_READ | FMODE_WRITE, &dev);
+	r = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &dev);
 	if (r)
 		return r;
 
@@ -740,8 +744,7 @@ static int core_get_resync_work(struct dm_dirty_log *log, region_t *region)
 		return 0;
 
 	do {
-		*region = ext2_find_next_zero_bit(
-					     (unsigned long *) lc->sync_bits,
+		*region = find_next_zero_bit_le(lc->sync_bits,
 					     lc->region_count,
 					     lc->sync_search);
 		lc->sync_search = *region + 1;

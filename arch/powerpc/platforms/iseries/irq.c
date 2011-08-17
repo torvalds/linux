@@ -42,7 +42,6 @@
 #include "irq.h"
 #include "pci.h"
 #include "call_pci.h"
-#include "smp.h"
 
 #ifdef CONFIG_PCI
 
@@ -167,11 +166,11 @@ static void pci_event_handler(struct HvLpEvent *event)
  * This will be called by device drivers (via enable_IRQ)
  * to enable INTA in the bridge interrupt status register.
  */
-static void iseries_enable_IRQ(unsigned int irq)
+static void iseries_enable_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -184,23 +183,23 @@ static void iseries_enable_IRQ(unsigned int irq)
 }
 
 /* This is called by iseries_activate_IRQs */
-static unsigned int iseries_startup_IRQ(unsigned int irq)
+static unsigned int iseries_startup_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
 	dev_id = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
 
 	/* Link the IRQ number to the bridge */
-	HvCallXm_connectBusUnit(bus, sub_bus, dev_id, irq);
+	HvCallXm_connectBusUnit(bus, sub_bus, dev_id, d->irq);
 
 	/* Unmask bridge interrupts in the FISR */
 	mask = 0x01010000 << function;
 	HvCallPci_unmaskFisr(bus, sub_bus, dev_id, mask);
-	iseries_enable_IRQ(irq);
+	iseries_enable_IRQ(d);
 	return 0;
 }
 
@@ -215,21 +214,26 @@ void __init iSeries_activate_IRQs()
 
 	for_each_irq (irq) {
 		struct irq_desc *desc = irq_to_desc(irq);
+		struct irq_chip *chip;
 
-		if (desc && desc->chip && desc->chip->startup) {
+		if (!desc)
+			continue;
+
+		chip = irq_desc_get_chip(desc);
+		if (chip && chip->irq_startup) {
 			raw_spin_lock_irqsave(&desc->lock, flags);
-			desc->chip->startup(irq);
+			chip->irq_startup(&desc->irq_data);
 			raw_spin_unlock_irqrestore(&desc->lock, flags);
 		}
 	}
 }
 
 /*  this is not called anywhere currently */
-static void iseries_shutdown_IRQ(unsigned int irq)
+static void iseries_shutdown_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	/* irq should be locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -248,11 +252,11 @@ static void iseries_shutdown_IRQ(unsigned int irq)
  * This will be called by device drivers (via disable_IRQ)
  * to disable INTA in the bridge interrupt status register.
  */
-static void iseries_disable_IRQ(unsigned int irq)
+static void iseries_disable_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -264,9 +268,9 @@ static void iseries_disable_IRQ(unsigned int irq)
 	HvCallPci_maskInterrupts(bus, sub_bus, dev_id, mask);
 }
 
-static void iseries_end_IRQ(unsigned int irq)
+static void iseries_end_IRQ(struct irq_data *d)
 {
-	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	HvCallPci_eoi(REAL_IRQ_TO_BUS(rirq), REAL_IRQ_TO_SUBBUS(rirq),
 		(REAL_IRQ_TO_IDSEL(rirq) << 4) + REAL_IRQ_TO_FUNC(rirq));
@@ -274,11 +278,11 @@ static void iseries_end_IRQ(unsigned int irq)
 
 static struct irq_chip iseries_pic = {
 	.name		= "iSeries",
-	.startup	= iseries_startup_IRQ,
-	.shutdown	= iseries_shutdown_IRQ,
-	.unmask		= iseries_enable_IRQ,
-	.mask		= iseries_disable_IRQ,
-	.eoi		= iseries_end_IRQ
+	.irq_startup	= iseries_startup_IRQ,
+	.irq_shutdown	= iseries_shutdown_IRQ,
+	.irq_unmask	= iseries_enable_IRQ,
+	.irq_mask	= iseries_disable_IRQ,
+	.irq_eoi	= iseries_end_IRQ
 };
 
 /*
@@ -311,7 +315,7 @@ unsigned int iSeries_get_irq(void)
 #ifdef CONFIG_SMP
 	if (get_lppaca()->int_dword.fields.ipi_cnt) {
 		get_lppaca()->int_dword.fields.ipi_cnt = 0;
-		iSeries_smp_message_recv();
+		smp_ipi_demux();
 	}
 #endif /* CONFIG_SMP */
 	if (hvlpevent_is_pending())
@@ -341,7 +345,7 @@ unsigned int iSeries_get_irq(void)
 static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
-	set_irq_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
+	irq_set_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
 
 	return 0;
 }

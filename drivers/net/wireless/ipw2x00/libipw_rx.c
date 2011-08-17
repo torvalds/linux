@@ -442,7 +442,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 		 * 802.11, but makes it easier to use different keys with
 		 * stations that do not support WEP key mapping). */
 
-		if (!(hdr->addr1[0] & 0x01) || local->bcrx_sta_key)
+		if (is_unicast_ether_addr(hdr->addr1) || local->bcrx_sta_key)
 			(void)hostap_handle_sta_crypto(local, hdr, &crypt,
 						       &sta);
 #endif
@@ -772,7 +772,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 
 #ifdef NOT_YET
 	if (ieee->iw_mode == IW_MODE_MASTER && !wds && ieee->ap->bridge_packets) {
-		if (dst[0] & 0x01) {
+		if (is_multicast_ether_addr(dst)) {
 			/* copy multicast frame both to the higher layers and
 			 * to the wireless media */
 			ieee->ap->bridged_multicast++;
@@ -925,7 +925,7 @@ drop_free:
 static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };
 
 /*
-* Make ther structure we read from the beacon packet has
+* Make the structure we read from the beacon packet to have
 * the right values
 */
 static int libipw_verify_qos_info(struct libipw_qos_information_element

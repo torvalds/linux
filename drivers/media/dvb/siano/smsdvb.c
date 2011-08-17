@@ -650,7 +650,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
 		if (status & FE_HAS_LOCK)
 			return ret;
 
-		/* previous tune didnt lock - enable LNA and tune again */
+		/* previous tune didn't lock - enable LNA and tune again */
 		sms_board_lna_control(client->coredev, 1);
 	}
 

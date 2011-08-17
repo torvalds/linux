@@ -47,15 +47,16 @@
 #include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91_shdwc.h>
+#include <mach/system_rev.h>
 
 #include "sam9_smc.h"
 #include "generic.h"
 
 
-static void __init ek_map_io(void)
+static void __init ek_init_early(void)
 {
 	/* Initialize processor: 16.367 MHz crystal */
-	at91sam9263_initialize(16367660);
+	at91_initialize(16367660);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -66,12 +67,6 @@ static void __init ek_map_io(void)
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
 }
-
-static void __init ek_init_irq(void)
-{
-	at91sam9263_init_interrupts(NULL);
-}
-
 
 /*
  * USB Host port
@@ -198,11 +193,6 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 	.rdy_pin	= AT91_PIN_PA22,
 	.enable_pin	= AT91_PIN_PD15,
 	.partition_info	= nand_partitions,
-#if defined(CONFIG_MTD_NAND_ATMEL_BUSWIDTH_16)
-	.bus_width_16	= 1,
-#else
-	.bus_width_16	= 0,
-#endif
 };
 
 static struct sam9_smc_config __initdata ek_nand_smc_config = {
@@ -225,6 +215,7 @@ static struct sam9_smc_config __initdata ek_nand_smc_config = {
 
 static void __init ek_add_device_nand(void)
 {
+	ek_nand_data.bus_width_16 = board_have_nand_16bit();
 	/* setup bus-width (8 or 16) */
 	if (ek_nand_data.bus_width_16)
 		ek_nand_smc_config.mode |= AT91_SMC_DBW_16;
@@ -454,9 +445,9 @@ static void __init ek_board_init(void)
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")
 	/* Maintainer: Atmel */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= ek_map_io,
-	.init_irq	= ek_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= ek_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,
 MACHINE_END

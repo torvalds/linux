@@ -157,7 +157,8 @@ static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
 static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
@@ -225,11 +226,13 @@ static const char *aic3x_adc_hpf[] =
 #define RDAC_ENUM	1
 #define LHPCOM_ENUM	2
 #define RHPCOM_ENUM	3
-#define LINE1L_ENUM	4
-#define LINE1R_ENUM	5
-#define LINE2L_ENUM	6
-#define LINE2R_ENUM	7
-#define ADC_HPF_ENUM	8
+#define LINE1L_2_L_ENUM	4
+#define LINE1L_2_R_ENUM	5
+#define LINE1R_2_L_ENUM	6
+#define LINE1R_2_R_ENUM	7
+#define LINE2L_ENUM	8
+#define LINE2R_ENUM	9
+#define ADC_HPF_ENUM	10
 
 static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(DAC_LINE_MUX, 6, 3, aic3x_left_dac_mux),
@@ -237,6 +240,8 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(HPLCOM_CFG, 4, 3, aic3x_left_hpcom_mux),
 	SOC_ENUM_SINGLE(HPRCOM_CFG, 3, 5, aic3x_right_hpcom_mux),
 	SOC_ENUM_SINGLE(LINE1L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
+	SOC_ENUM_SINGLE(LINE1L_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
+	SOC_ENUM_SINGLE(LINE1R_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE1R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
@@ -489,12 +494,16 @@ static const struct snd_kcontrol_new aic3x_right_pga_mixer_controls[] = {
 };
 
 /* Left Line1 Mux */
-static const struct snd_kcontrol_new aic3x_left_line1_mux_controls =
-SOC_DAPM_ENUM("Route", aic3x_enum[LINE1L_ENUM]);
+static const struct snd_kcontrol_new aic3x_left_line1l_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1L_2_L_ENUM]);
+static const struct snd_kcontrol_new aic3x_right_line1l_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1L_2_R_ENUM]);
 
 /* Right Line1 Mux */
-static const struct snd_kcontrol_new aic3x_right_line1_mux_controls =
-SOC_DAPM_ENUM("Route", aic3x_enum[LINE1R_ENUM]);
+static const struct snd_kcontrol_new aic3x_right_line1r_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1R_2_R_ENUM]);
+static const struct snd_kcontrol_new aic3x_left_line1r_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1R_2_L_ENUM]);
 
 /* Left Line2 Mux */
 static const struct snd_kcontrol_new aic3x_left_line2_mux_controls =
@@ -534,9 +543,9 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 			   &aic3x_left_pga_mixer_controls[0],
 			   ARRAY_SIZE(aic3x_left_pga_mixer_controls)),
 	SND_SOC_DAPM_MUX("Left Line1L Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_left_line1_mux_controls),
+			 &aic3x_left_line1l_mux_controls),
 	SND_SOC_DAPM_MUX("Left Line1R Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_left_line1_mux_controls),
+			 &aic3x_left_line1r_mux_controls),
 	SND_SOC_DAPM_MUX("Left Line2L Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_left_line2_mux_controls),
 
@@ -547,9 +556,9 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 			   &aic3x_right_pga_mixer_controls[0],
 			   ARRAY_SIZE(aic3x_right_pga_mixer_controls)),
 	SND_SOC_DAPM_MUX("Right Line1L Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_right_line1_mux_controls),
+			 &aic3x_right_line1l_mux_controls),
 	SND_SOC_DAPM_MUX("Right Line1R Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_right_line1_mux_controls),
+			 &aic3x_right_line1r_mux_controls),
 	SND_SOC_DAPM_MUX("Right Line2R Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_right_line2_mux_controls),
 
@@ -884,7 +893,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	if (bypass_pll)
 		return 0;
 
-	/* Use PLL, compute apropriate setup for j, d, r and p, the closest
+	/* Use PLL, compute appropriate setup for j, d, r and p, the closest
 	 * one wins the game. Try with d==0 first, next with d!=0.
 	 * Constraints for j are according to the datasheet.
 	 * The sysclk is divided by 1000 to prevent integer overflows.
@@ -1113,12 +1122,19 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 
 		/* Sync reg_cache with the hardware */
 		codec->cache_only = 0;
-		for (i = 0; i < ARRAY_SIZE(aic3x_reg); i++)
+		for (i = AIC3X_SAMPLE_RATE_SEL_REG; i < ARRAY_SIZE(aic3x_reg); i++)
 			snd_soc_write(codec, i, cache[i]);
 		if (aic3x->model == AIC3X_MODEL_3007)
 			aic3x_init_3007(codec);
 		codec->cache_sync = 0;
 	} else {
+		/*
+		 * Do soft reset to this codec instance in order to clear
+		 * possible VDD leakage currents in case the supply regulators
+		 * remain on
+		 */
+		snd_soc_write(codec, AIC3X_RESET, SOFT_RESET);
+		codec->cache_sync = 1;
 		aic3x->power = 0;
 		/* HW writes are needless when bias is off */
 		codec->cache_only = 1;

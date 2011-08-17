@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 
+#include <asm/ce4100.h>
 #include <asm/pci_x86.h>
 
 struct sim_reg {
@@ -254,8 +255,9 @@ int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
 static int ce4100_conf_read(unsigned int seg, unsigned int bus,
 			    unsigned int devfn, int reg, int len, u32 *value)
 {
-	int i, retval = 1;
+	int i;
 
+	WARN_ON(seg);
 	if (bus == 1) {
 		for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
 			if (bus1_fixups[i].dev_func == devfn &&
@@ -281,6 +283,7 @@ static int ce4100_conf_write(unsigned int seg, unsigned int bus,
 {
 	int i;
 
+	WARN_ON(seg);
 	if (bus == 1) {
 		for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
 			if (bus1_fixups[i].dev_func == devfn &&
@@ -306,10 +309,10 @@ struct pci_raw_ops ce4100_pci_conf = {
 	.write = ce4100_conf_write,
 };
 
-static int __init ce4100_pci_init(void)
+int __init ce4100_pci_init(void)
 {
 	init_sim_regs();
 	raw_pci_ops = &ce4100_pci_conf;
-	return 0;
+	/* Indicate caller that it should invoke pci_legacy_init() */
+	return 1;
 }
-subsys_initcall(ce4100_pci_init);

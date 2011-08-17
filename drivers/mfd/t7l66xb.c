@@ -170,7 +170,8 @@ static struct mfd_cell t7l66xb_cells[] = {
 		.name = "tmio-mmc",
 		.enable = t7l66xb_mmc_enable,
 		.disable = t7l66xb_mmc_disable,
-		.driver_data = &t7166xb_mmc_data,
+		.platform_data = &t7166xb_mmc_data,
+		.pdata_size    = sizeof(t7166xb_mmc_data),
 		.num_resources = ARRAY_SIZE(t7l66xb_mmc_resources),
 		.resources = t7l66xb_mmc_resources,
 	},
@@ -186,7 +187,7 @@ static struct mfd_cell t7l66xb_cells[] = {
 /* Handle the T7L66XB interrupt mux */
 static void t7l66xb_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct t7l66xb *t7l66xb = get_irq_data(irq);
+	struct t7l66xb *t7l66xb = irq_get_handler_data(irq);
 	unsigned int isr;
 	unsigned int i, irq_base;
 
@@ -243,17 +244,16 @@ static void t7l66xb_attach_irq(struct platform_device *dev)
 	irq_base = t7l66xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + T7L66XB_NR_IRQS; irq++) {
-		set_irq_chip(irq, &t7l66xb_chip);
-		set_irq_chip_data(irq, t7l66xb);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &t7l66xb_chip, handle_level_irq);
+		irq_set_chip_data(irq, t7l66xb);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 #endif
 	}
 
-	set_irq_type(t7l66xb->irq, IRQ_TYPE_EDGE_FALLING);
-	set_irq_data(t7l66xb->irq, t7l66xb);
-	set_irq_chained_handler(t7l66xb->irq, t7l66xb_irq);
+	irq_set_irq_type(t7l66xb->irq, IRQ_TYPE_EDGE_FALLING);
+	irq_set_handler_data(t7l66xb->irq, t7l66xb);
+	irq_set_chained_handler(t7l66xb->irq, t7l66xb_irq);
 }
 
 static void t7l66xb_detach_irq(struct platform_device *dev)
@@ -263,15 +263,15 @@ static void t7l66xb_detach_irq(struct platform_device *dev)
 
 	irq_base = t7l66xb->irq_base;
 
-	set_irq_chained_handler(t7l66xb->irq, NULL);
-	set_irq_data(t7l66xb->irq, NULL);
+	irq_set_chained_handler(t7l66xb->irq, NULL);
+	irq_set_handler_data(t7l66xb->irq, NULL);
 
 	for (irq = irq_base; irq < irq_base + T7L66XB_NR_IRQS; irq++) {
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
-		set_irq_chip(irq, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip(irq, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 
@@ -383,16 +383,8 @@ static int t7l66xb_probe(struct platform_device *dev)
 
 	t7l66xb_attach_irq(dev);
 
-	t7l66xb_cells[T7L66XB_CELL_NAND].driver_data = pdata->nand_data;
-	t7l66xb_cells[T7L66XB_CELL_NAND].platform_data =
-		&t7l66xb_cells[T7L66XB_CELL_NAND];
-	t7l66xb_cells[T7L66XB_CELL_NAND].data_size =
-		sizeof(t7l66xb_cells[T7L66XB_CELL_NAND]);
-
-	t7l66xb_cells[T7L66XB_CELL_MMC].platform_data =
-		&t7l66xb_cells[T7L66XB_CELL_MMC];
-	t7l66xb_cells[T7L66XB_CELL_MMC].data_size =
-		sizeof(t7l66xb_cells[T7L66XB_CELL_MMC]);
+	t7l66xb_cells[T7L66XB_CELL_NAND].platform_data = pdata->nand_data;
+	t7l66xb_cells[T7L66XB_CELL_NAND].pdata_size = sizeof(*pdata->nand_data);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
 			      t7l66xb_cells, ARRAY_SIZE(t7l66xb_cells),

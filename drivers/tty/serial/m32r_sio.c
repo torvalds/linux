@@ -892,7 +892,7 @@ static int m32r_sio_request_port(struct uart_port *port)
 	 * If we have a mapbase, then request that as well.
 	 */
 	if (ret == 0 && up->port.flags & UPF_IOREMAP) {
-		int size = res->end - res->start + 1;
+		int size = resource_size(res);
 
 		up->port.membase = ioremap(up->port.mapbase, size);
 		if (!up->port.membase)
@@ -907,9 +907,10 @@ static int m32r_sio_request_port(struct uart_port *port)
 	return ret;
 }
 
-static void m32r_sio_config_port(struct uart_port *port, int flags)
+static void m32r_sio_config_port(struct uart_port *port, int unused)
 {
 	struct uart_sio_port *up = (struct uart_sio_port *)port;
+	unsigned long flags;
 
 	spin_lock_irqsave(&up->port.lock, flags);
 

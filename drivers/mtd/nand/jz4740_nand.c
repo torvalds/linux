@@ -299,10 +299,8 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
 	struct jz_nand_platform_data *pdata = pdev->dev.platform_data;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *partition_info;
 	int num_partitions = 0;
-#endif
 
 	nand = kzalloc(sizeof(*nand), GFP_KERNEL);
 	if (!nand) {
@@ -375,7 +373,6 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 		goto err_gpio_free;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 	num_partitions = parse_mtd_partitions(mtd, part_probes,
 						&partition_info, 0);
@@ -384,12 +381,7 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 		num_partitions = pdata->num_partitions;
 		partition_info = pdata->partitions;
 	}
-
-	if (num_partitions > 0)
-		ret = add_mtd_partitions(mtd, partition_info, num_partitions);
-	else
-#endif
-	ret = add_mtd_device(mtd);
+	ret = mtd_device_register(mtd, partition_info, num_partitions);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add mtd device\n");

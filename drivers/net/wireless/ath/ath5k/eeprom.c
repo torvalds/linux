@@ -72,7 +72,6 @@ static int
 ath5k_eeprom_init_header(struct ath5k_hw *ah)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	int ret;
 	u16 val;
 	u32 cksum, offset, eep_max = AR5K_EEPROM_INFO_MAX;
 
@@ -106,7 +105,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		 * big still, waiting on a better value.
 		 */
 		if (eep_max > (3 * AR5K_EEPROM_INFO_MAX)) {
-			ATH5K_ERR(ah->ah_sc, "Invalid max custom EEPROM size: "
+			ATH5K_ERR(ah, "Invalid max custom EEPROM size: "
 				  "%d (0x%04x) max expected: %d (0x%04x)\n",
 				  eep_max, eep_max,
 				  3 * AR5K_EEPROM_INFO_MAX,
@@ -120,7 +119,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		cksum ^= val;
 	}
 	if (cksum != AR5K_EEPROM_INFO_CKSUM) {
-		ATH5K_ERR(ah->ah_sc, "Invalid EEPROM "
+		ATH5K_ERR(ah, "Invalid EEPROM "
 			  "checksum: 0x%04x eep_max: 0x%04x (%s)\n",
 			  cksum, eep_max,
 			  eep_max == AR5K_EEPROM_INFO_MAX ?
@@ -192,7 +191,7 @@ static int ath5k_eeprom_read_ants(struct ath5k_hw *ah, u32 *offset,
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 o = *offset;
 	u16 val;
-	int ret, i = 0;
+	int i = 0;
 
 	AR5K_EEPROM_READ(o++, val);
 	ee->ee_switch_settling[mode]	= (val >> 8) & 0x7f;
@@ -224,14 +223,14 @@ static int ath5k_eeprom_read_ants(struct ath5k_hw *ah, u32 *offset,
 	ah->ah_ant_ctl[mode][AR5K_ANT_CTL] =
 	    (ee->ee_ant_control[mode][0] << 4);
 	ah->ah_ant_ctl[mode][AR5K_ANT_SWTABLE_A] =
-	     ee->ee_ant_control[mode][1] 	|
-	    (ee->ee_ant_control[mode][2] << 6) 	|
+	     ee->ee_ant_control[mode][1]	|
+	    (ee->ee_ant_control[mode][2] << 6)	|
 	    (ee->ee_ant_control[mode][3] << 12) |
 	    (ee->ee_ant_control[mode][4] << 18) |
 	    (ee->ee_ant_control[mode][5] << 24);
 	ah->ah_ant_ctl[mode][AR5K_ANT_SWTABLE_B] =
-	     ee->ee_ant_control[mode][6] 	|
-	    (ee->ee_ant_control[mode][7] << 6) 	|
+	     ee->ee_ant_control[mode][6]	|
+	    (ee->ee_ant_control[mode][7] << 6)	|
 	    (ee->ee_ant_control[mode][8] << 12) |
 	    (ee->ee_ant_control[mode][9] << 18) |
 	    (ee->ee_ant_control[mode][10] << 24);
@@ -252,12 +251,11 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 o = *offset;
 	u16 val;
-	int ret;
 
 	ee->ee_n_piers[mode] = 0;
 	AR5K_EEPROM_READ(o++, val);
 	ee->ee_adc_desired_size[mode]	= (s8)((val >> 8) & 0xff);
-	switch(mode) {
+	switch (mode) {
 	case AR5K_EEPROM_MODE_11A:
 		ee->ee_ob[mode][3]	= (val >> 5) & 0x7;
 		ee->ee_db[mode][3]	= (val >> 2) & 0x7;
@@ -351,7 +349,7 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	/* Note: >= v5 have bg freq piers on another location
 	 * so these freq piers are ignored for >= v5 (should be 0xff
 	 * anyway) */
-	switch(mode) {
+	switch (mode) {
 	case AR5K_EEPROM_MODE_11A:
 		if (ah->ah_ee_version < AR5K_EEPROM_VERSION_4_1)
 			break;
@@ -424,7 +422,7 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	if (ee->ee_version < AR5K_EEPROM_VERSION_5_0)
 		goto done;
 
-	switch (mode){
+	switch (mode) {
 	case AR5K_EEPROM_MODE_11A:
 		ee->ee_switch_settling_turbo[mode] = (val >> 6) & 0x7f;
 
@@ -438,7 +436,7 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 		ee->ee_adc_desired_size_turbo[mode] |= (val & 0x1) << 7;
 		ee->ee_pga_desired_size_turbo[mode] = (val >> 1) & 0xff;
 
-		if (AR5K_EEPROM_EEMAP(ee->ee_misc0) >=2)
+		if (AR5K_EEPROM_EEMAP(ee->ee_misc0) >= 2)
 			ee->ee_pd_gain_overlap = (val >> 9) & 0xf;
 		break;
 	case AR5K_EEPROM_MODE_11G:
@@ -515,11 +513,10 @@ ath5k_eeprom_read_freq_list(struct ath5k_hw *ah, int *offset, int max,
 	int o = *offset;
 	int i = 0;
 	u8 freq1, freq2;
-	int ret;
 	u16 val;
 
 	ee->ee_n_piers[mode] = 0;
-	while(i < max) {
+	while (i < max) {
 		AR5K_EEPROM_READ(o++, val);
 
 		freq1 = val & 0xff;
@@ -551,7 +548,7 @@ ath5k_eeprom_init_11a_pcal_freq(struct ath5k_hw *ah, int offset)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	struct ath5k_chan_pcal_info *pcal = ee->ee_pwr_cal_a;
-	int i, ret;
+	int i;
 	u16 val;
 	u8 mask;
 
@@ -605,7 +602,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	struct ath5k_chan_pcal_info *pcal;
 
-	switch(mode) {
+	switch (mode) {
 	case AR5K_EEPROM_MODE_11B:
 		pcal = ee->ee_pwr_cal_b;
 		break;
@@ -637,7 +634,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 /* Used to match PCDAC steps with power values on RF5111 chips
  * (eeprom versions < 4). For RF5111 we have 11 pre-defined PCDAC
  * steps that match with the power values we read from eeprom. On
- * older eeprom versions (< 3.2) these steps are equaly spaced at
+ * older eeprom versions (< 3.2) these steps are equally spaced at
  * 10% of the pcdac curve -until the curve reaches its maximum-
  * (11 steps from 0 to 100%) but on newer eeprom versions (>= 3.2)
  * these 11 steps are spaced in a different way. This function returns
@@ -647,10 +644,12 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 static inline void
 ath5k_get_pcdac_intercepts(struct ath5k_hw *ah, u8 min, u8 max, u8 *vp)
 {
-	static const u16 intercepts3[] =
-		{ 0, 5, 10, 20, 30, 50, 70, 85, 90, 95, 100 };
-	static const u16 intercepts3_2[] =
-		{ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
+	static const u16 intercepts3[] = {
+		0, 5, 10, 20, 30, 50, 70, 85, 90, 95, 100
+	};
+	static const u16 intercepts3_2[] = {
+		0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100
+	};
 	const u16 *ip;
 	int i;
 
@@ -661,6 +660,51 @@ ath5k_get_pcdac_intercepts(struct ath5k_hw *ah, u8 min, u8 max, u8 *vp)
 
 	for (i = 0; i < ARRAY_SIZE(intercepts3); i++)
 		vp[i] = (ip[i] * max + (100 - ip[i]) * min) / 100;
+}
+
+static int
+ath5k_eeprom_free_pcal_info(struct ath5k_hw *ah, int mode)
+{
+	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+	struct ath5k_chan_pcal_info *chinfo;
+	u8 pier, pdg;
+
+	switch (mode) {
+	case AR5K_EEPROM_MODE_11A:
+		if (!AR5K_EEPROM_HDR_11A(ee->ee_header))
+			return 0;
+		chinfo = ee->ee_pwr_cal_a;
+		break;
+	case AR5K_EEPROM_MODE_11B:
+		if (!AR5K_EEPROM_HDR_11B(ee->ee_header))
+			return 0;
+		chinfo = ee->ee_pwr_cal_b;
+		break;
+	case AR5K_EEPROM_MODE_11G:
+		if (!AR5K_EEPROM_HDR_11G(ee->ee_header))
+			return 0;
+		chinfo = ee->ee_pwr_cal_g;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (pier = 0; pier < ee->ee_n_piers[mode]; pier++) {
+		if (!chinfo[pier].pd_curves)
+			continue;
+
+		for (pdg = 0; pdg < AR5K_EEPROM_N_PD_CURVES; pdg++) {
+			struct ath5k_pdgain_info *pd =
+					&chinfo[pier].pd_curves[pdg];
+
+			kfree(pd->pd_step);
+			kfree(pd->pd_pwr);
+		}
+
+		kfree(chinfo[pier].pd_curves);
+	}
+
+	return 0;
 }
 
 /* Convert RF5111 specific data to generic raw data
@@ -687,7 +731,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 				GFP_KERNEL);
 
 		if (!chinfo[pier].pd_curves)
-			return -ENOMEM;
+			goto err_out;
 
 		/* Only one curve for RF5111
 		 * find out which one and place
@@ -711,16 +755,16 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 		pd->pd_step = kcalloc(AR5K_EEPROM_N_PWR_POINTS_5111,
 					sizeof(u8), GFP_KERNEL);
 		if (!pd->pd_step)
-			return -ENOMEM;
+			goto err_out;
 
 		pd->pd_pwr = kcalloc(AR5K_EEPROM_N_PWR_POINTS_5111,
 					sizeof(s16), GFP_KERNEL);
 		if (!pd->pd_pwr)
-			return -ENOMEM;
+			goto err_out;
 
 		/* Fill raw dataset
 		 * (convert power to 0.25dB units
-		 * for RF5112 combatibility) */
+		 * for RF5112 compatibility) */
 		for (point = 0; point < pd->pd_points; point++) {
 
 			/* Absolute values */
@@ -737,6 +781,10 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 	}
 
 	return 0;
+
+err_out:
+	ath5k_eeprom_free_pcal_info(ah, mode);
+	return -ENOMEM;
 }
 
 /* Parse EEPROM data */
@@ -750,7 +798,7 @@ ath5k_eeprom_read_pcal_info_5111(struct ath5k_hw *ah, int mode)
 	u16 val;
 
 	offset = AR5K_EEPROM_GROUPS_START(ee->ee_version);
-	switch(mode) {
+	switch (mode) {
 	case AR5K_EEPROM_MODE_11A:
 		if (!AR5K_EEPROM_HDR_11A(ee->ee_header))
 			return 0;
@@ -836,7 +884,7 @@ ath5k_eeprom_read_pcal_info_5111(struct ath5k_hw *ah, int mode)
  * Read power calibration for RF5112 chips
  *
  * For RF5112 we have 4 XPD -eXternal Power Detector- curves
- * for each calibrated channel on 0, -6, -12 and -18dbm but we only
+ * for each calibrated channel on 0, -6, -12 and -18dBm but we only
  * use the higher (3) and the lower (0) curves. Each curve has 0.5dB
  * power steps on x axis and PCDAC steps on y axis and looks like a
  * linear function. To recreate the curve and pass the power values
@@ -870,7 +918,7 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 					GFP_KERNEL);
 
 		if (!chinfo[pier].pd_curves)
-			return -ENOMEM;
+			goto err_out;
 
 		/* Fill pd_curves */
 		for (pdg = 0; pdg < ee->ee_pd_gains[mode]; pdg++) {
@@ -889,14 +937,13 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 						sizeof(u8), GFP_KERNEL);
 
 				if (!pd->pd_step)
-					return -ENOMEM;
+					goto err_out;
 
 				pd->pd_pwr = kcalloc(pd->pd_points,
 						sizeof(s16), GFP_KERNEL);
 
 				if (!pd->pd_pwr)
-					return -ENOMEM;
-
+					goto err_out;
 
 				/* Fill raw dataset
 				 * (all power levels are in 0.25dB units) */
@@ -928,13 +975,13 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 						sizeof(u8), GFP_KERNEL);
 
 				if (!pd->pd_step)
-					return -ENOMEM;
+					goto err_out;
 
 				pd->pd_pwr = kcalloc(pd->pd_points,
 						sizeof(s16), GFP_KERNEL);
 
 				if (!pd->pd_pwr)
-					return -ENOMEM;
+					goto err_out;
 
 				/* Fill raw dataset
 				 * (all power levels are in 0.25dB units) */
@@ -957,6 +1004,10 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 	}
 
 	return 0;
+
+err_out:
+	ath5k_eeprom_free_pcal_info(ah, mode);
+	return -ENOMEM;
 }
 
 /* Parse EEPROM data */
@@ -970,7 +1021,6 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
 	u32 offset;
 	u8 i, c;
 	u16 val;
-	int ret;
 	u8 pd_gains = 0;
 
 	/* Count how many curves we have and
@@ -1084,7 +1134,7 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
  *
  * To recreate the curves we read here the points and interpolate
  * later. Note that in most cases only 2 (higher and lower) curves are
- * used (like RF5112) but vendors have the oportunity to include all
+ * used (like RF5112) but vendors have the opportunity to include all
  * 4 curves on eeprom. The final curve (higher power) has an extra
  * point for better accuracy like RF5112.
  */
@@ -1115,7 +1165,7 @@ ath5k_cal_data_offset_2413(struct ath5k_eeprom_info *ee, int mode)
 {
 	u32 offset = AR5K_EEPROM_CAL_DATA_START(ee->ee_misc4);
 
-	switch(mode) {
+	switch (mode) {
 	case AR5K_EEPROM_MODE_11G:
 		if (AR5K_EEPROM_HDR_11B(ee->ee_header))
 			offset += ath5k_pdgains_size_2413(ee,
@@ -1160,7 +1210,7 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 					GFP_KERNEL);
 
 		if (!chinfo[pier].pd_curves)
-			return -ENOMEM;
+			goto err_out;
 
 		/* Fill pd_curves */
 		for (pdg = 0; pdg < ee->ee_pd_gains[mode]; pdg++) {
@@ -1181,17 +1231,17 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 					sizeof(u8), GFP_KERNEL);
 
 			if (!pd->pd_step)
-				return -ENOMEM;
+				goto err_out;
 
 			pd->pd_pwr = kcalloc(pd->pd_points,
 					sizeof(s16), GFP_KERNEL);
 
 			if (!pd->pd_pwr)
-				return -ENOMEM;
+				goto err_out;
 
 			/* Fill raw dataset
 			 * convert all pwr levels to
-			 * quarter dB for RF5112 combatibility */
+			 * quarter dB for RF5112 compatibility */
 			pd->pd_step[0] = pcinfo->pddac_i[pdg];
 			pd->pd_pwr[0] = 4 * pcinfo->pwr_i[pdg];
 
@@ -1217,6 +1267,10 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 	}
 
 	return 0;
+
+err_out:
+	ath5k_eeprom_free_pcal_info(ah, mode);
+	return -ENOMEM;
 }
 
 /* Parse EEPROM data */
@@ -1228,7 +1282,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 	struct ath5k_chan_pcal_info *chinfo;
 	u8 *pdgain_idx = ee->ee_pdc_to_idx[mode];
 	u32 offset;
-	int idx, i, ret;
+	int idx, i;
 	u16 val;
 	u8 pd_gains = 0;
 
@@ -1306,7 +1360,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 			/*
 			 * Pd gain 0 is not the last pd gain
 			 * so it only has 2 pd points.
-			 * Continue wih pd gain 1.
+			 * Continue with pd gain 1.
 			 */
 			pcinfo->pwr_i[1] = (val >> 10) & 0x1f;
 
@@ -1419,7 +1473,7 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
 	u8 *rate_target_pwr_num;
 	u32 offset;
 	u16 val;
-	int ret, i;
+	int i;
 
 	offset = AR5K_EEPROM_TARGET_PWRSTART(ee->ee_misc1);
 	rate_target_pwr_num = &ee->ee_rate_target_pwr_num[mode];
@@ -1538,53 +1592,6 @@ ath5k_eeprom_read_pcal_info(struct ath5k_hw *ah)
 	return 0;
 }
 
-static int
-ath5k_eeprom_free_pcal_info(struct ath5k_hw *ah, int mode)
-{
-	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	struct ath5k_chan_pcal_info *chinfo;
-	u8 pier, pdg;
-
-	switch (mode) {
-	case AR5K_EEPROM_MODE_11A:
-		if (!AR5K_EEPROM_HDR_11A(ee->ee_header))
-			return 0;
-		chinfo = ee->ee_pwr_cal_a;
-		break;
-	case AR5K_EEPROM_MODE_11B:
-		if (!AR5K_EEPROM_HDR_11B(ee->ee_header))
-			return 0;
-		chinfo = ee->ee_pwr_cal_b;
-		break;
-	case AR5K_EEPROM_MODE_11G:
-		if (!AR5K_EEPROM_HDR_11G(ee->ee_header))
-			return 0;
-		chinfo = ee->ee_pwr_cal_g;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	for (pier = 0; pier < ee->ee_n_piers[mode]; pier++) {
-		if (!chinfo[pier].pd_curves)
-			continue;
-
-		for (pdg = 0; pdg < ee->ee_pd_gains[mode]; pdg++) {
-			struct ath5k_pdgain_info *pd =
-					&chinfo[pier].pd_curves[pdg];
-
-			if (pd != NULL) {
-				kfree(pd->pd_step);
-				kfree(pd->pd_pwr);
-			}
-		}
-
-		kfree(chinfo[pier].pd_curves);
-	}
-
-	return 0;
-}
-
 /* Read conformance test limits used for regulatory control */
 static int
 ath5k_eeprom_read_ctl_info(struct ath5k_hw *ah)
@@ -1593,7 +1600,7 @@ ath5k_eeprom_read_ctl_info(struct ath5k_hw *ah)
 	struct ath5k_edge_power *rep;
 	unsigned int fmask, pmask;
 	unsigned int ctl_mode;
-	int ret, i, j;
+	int i, j;
 	u32 offset;
 	u16 val;
 
@@ -1615,8 +1622,8 @@ ath5k_eeprom_read_ctl_info(struct ath5k_hw *ah)
 		offset += AR5K_EEPROM_GROUPS_START(ee->ee_version);
 
 	rep = ee->ee_ctl_pwr;
-	for(i = 0; i < ee->ee_ctls; i++) {
-		switch(ee->ee_ctl[i] & AR5K_CTL_MODE_M) {
+	for (i = 0; i < ee->ee_ctls; i++) {
+		switch (ee->ee_ctl[i] & AR5K_CTL_MODE_M) {
 		case AR5K_CTL_11A:
 		case AR5K_CTL_TURBO:
 			ctl_mode = AR5K_EEPROM_MODE_11A;
@@ -1723,39 +1730,6 @@ ath5k_eeprom_read_spur_chans(struct ath5k_hw *ah)
 	}
 
 	return ret;
-}
-
-/*
- * Read the MAC address from eeprom
- */
-int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
-{
-	u8 mac_d[ETH_ALEN] = {};
-	u32 total, offset;
-	u16 data;
-	int octet, ret;
-
-	ret = ath5k_hw_nvram_read(ah, 0x20, &data);
-	if (ret)
-		return ret;
-
-	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
-		ret = ath5k_hw_nvram_read(ah, offset, &data);
-		if (ret)
-			return ret;
-
-		total += data;
-		mac_d[octet + 1] = data & 0xff;
-		mac_d[octet] = data >> 8;
-		octet += 2;
-	}
-
-	if (!total || total == 3 * 0xffff)
-		return -EINVAL;
-
-	memcpy(mac, mac_d, ETH_ALEN);
-
-	return 0;
 }
 
 

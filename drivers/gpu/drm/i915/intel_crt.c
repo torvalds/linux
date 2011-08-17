@@ -129,10 +129,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	u32 adpa, dpll_md;
 	u32 adpa_reg;
 
-	if (intel_crtc->pipe == 0)
-		dpll_md_reg = DPLL_A_MD;
-	else
-		dpll_md_reg = DPLL_B_MD;
+	dpll_md_reg = DPLL_MD(intel_crtc->pipe);
 
 	if (HAS_PCH_SPLIT(dev))
 		adpa_reg = PCH_ADPA;
@@ -160,16 +157,15 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 			adpa |= PORT_TRANS_A_SEL_CPT;
 		else
 			adpa |= ADPA_PIPE_A_SELECT;
-		if (!HAS_PCH_SPLIT(dev))
-			I915_WRITE(BCLRPAT_A, 0);
 	} else {
 		if (HAS_PCH_CPT(dev))
 			adpa |= PORT_TRANS_B_SEL_CPT;
 		else
 			adpa |= ADPA_PIPE_B_SELECT;
-		if (!HAS_PCH_SPLIT(dev))
-			I915_WRITE(BCLRPAT_B, 0);
 	}
+
+	if (!HAS_PCH_SPLIT(dev))
+		I915_WRITE(BCLRPAT(intel_crtc->pipe), 0);
 
 	I915_WRITE(adpa_reg, adpa);
 }
@@ -273,21 +269,6 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
-static bool intel_crt_ddc_probe(struct drm_i915_private *dev_priv, int ddc_bus)
-{
-	u8 buf;
-	struct i2c_msg msgs[] = {
-		{
-			.addr = 0xA0,
-			.flags = 0,
-			.len = 1,
-			.buf = &buf,
-		},
-	};
-	/* DDC monitor detect: Does it ACK a write to 0xA0? */
-	return i2c_transfer(&dev_priv->gmbus[ddc_bus].adapter, msgs, 1) == 1;
-}
-
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
 	struct intel_crt *crt = intel_attached_crt(connector);
@@ -296,11 +277,6 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	/* CRT should always be at 0, but check anyway */
 	if (crt->base.type != INTEL_OUTPUT_ANALOG)
 		return false;
-
-	if (intel_crt_ddc_probe(dev_priv, dev_priv->crt_ddc_pin)) {
-		DRM_DEBUG_KMS("CRT detected via DDC:0xa0\n");
-		return true;
-	}
 
 	if (intel_ddc_probe(&crt->base, dev_priv->crt_ddc_pin)) {
 		struct edid *edid;
@@ -312,6 +288,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 * This may be a DVI-I connector with a shared DDC
 		 * link between analog and digital outputs, so we
 		 * have to check the EDID input spec of the attached device.
+		 *
+		 * On the other hand, what should we do if it is a broken EDID?
 		 */
 		if (edid != NULL) {
 			is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
@@ -322,6 +300,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		if (!is_digital) {
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
 			return true;
+		} else {
+			DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
 	}
 
@@ -329,13 +309,11 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct drm_crtc *crtc, struct intel_crt *crt)
+intel_crt_load_detect(struct intel_crt *crt)
 {
-	struct drm_encoder *encoder = &crt->base.base;
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t pipe = intel_crtc->pipe;
+	uint32_t pipe = to_intel_crtc(crt->base.base.crtc)->pipe;
 	uint32_t save_bclrpat;
 	uint32_t save_vtotal;
 	uint32_t vtotal, vactive;
@@ -353,21 +331,12 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_crt *crt)
 
 	DRM_DEBUG_KMS("starting load-detect on CRT\n");
 
-	if (pipe == 0) {
-		bclrpat_reg = BCLRPAT_A;
-		vtotal_reg = VTOTAL_A;
-		vblank_reg = VBLANK_A;
-		vsync_reg = VSYNC_A;
-		pipeconf_reg = PIPEACONF;
-		pipe_dsl_reg = PIPEADSL;
-	} else {
-		bclrpat_reg = BCLRPAT_B;
-		vtotal_reg = VTOTAL_B;
-		vblank_reg = VBLANK_B;
-		vsync_reg = VSYNC_B;
-		pipeconf_reg = PIPEBCONF;
-		pipe_dsl_reg = PIPEBDSL;
-	}
+	bclrpat_reg = BCLRPAT(pipe);
+	vtotal_reg = VTOTAL(pipe);
+	vblank_reg = VBLANK(pipe);
+	vsync_reg = VSYNC(pipe);
+	pipeconf_reg = PIPECONF(pipe);
+	pipe_dsl_reg = PIPEDSL(pipe);
 
 	save_bclrpat = I915_READ(bclrpat_reg);
 	save_vtotal = I915_READ(vtotal_reg);
@@ -465,7 +434,6 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_crtc *crtc;
-	int dpms_mode;
 	enum drm_connector_status status;
 
 	if (I915_HAS_HOTPLUG(dev)) {
@@ -487,17 +455,18 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	/* for pre-945g platforms use load detect */
 	crtc = crt->base.base.crtc;
 	if (crtc && crtc->enabled) {
-		status = intel_crt_load_detect(crtc, crt);
+		status = intel_crt_load_detect(crt);
 	} else {
-		crtc = intel_get_load_detect_pipe(&crt->base, connector,
-						  NULL, &dpms_mode);
-		if (crtc) {
+		struct intel_load_detect_pipe tmp;
+
+		if (intel_get_load_detect_pipe(&crt->base, connector, NULL,
+					       &tmp)) {
 			if (intel_crt_detect_ddc(connector))
 				status = connector_status_connected;
 			else
-				status = intel_crt_load_detect(crtc, crt);
-			intel_release_load_detect_pipe(&crt->base,
-						       connector, dpms_mode);
+				status = intel_crt_load_detect(crt);
+			intel_release_load_detect_pipe(&crt->base, connector,
+						       &tmp);
 		} else
 			status = connector_status_unknown;
 	}

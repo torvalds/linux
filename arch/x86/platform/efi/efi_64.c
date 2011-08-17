@@ -41,22 +41,7 @@
 static pgd_t save_pgd __initdata;
 static unsigned long efi_flags __initdata;
 
-static void __init early_mapping_set_exec(unsigned long start,
-					  unsigned long end,
-					  int executable)
-{
-	unsigned long num_pages;
-
-	start &= PMD_MASK;
-	end = (end + PMD_SIZE - 1) & PMD_MASK;
-	num_pages = (end - start) >> PAGE_SHIFT;
-	if (executable)
-		set_memory_x((unsigned long)__va(start), num_pages);
-	else
-		set_memory_nx((unsigned long)__va(start), num_pages);
-}
-
-static void __init early_runtime_code_mapping_set_exec(int executable)
+static void __init early_code_mapping_set_exec(int executable)
 {
 	efi_memory_desc_t *md;
 	void *p;
@@ -64,14 +49,12 @@ static void __init early_runtime_code_mapping_set_exec(int executable)
 	if (!(__supported_pte_mask & _PAGE_NX))
 		return;
 
-	/* Make EFI runtime service code area executable */
+	/* Make EFI service code area executable */
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
-		if (md->type == EFI_RUNTIME_SERVICES_CODE) {
-			unsigned long end;
-			end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
-			early_mapping_set_exec(md->phys_addr, end, executable);
-		}
+		if (md->type == EFI_RUNTIME_SERVICES_CODE ||
+		    md->type == EFI_BOOT_SERVICES_CODE)
+			efi_set_executable(md, executable);
 	}
 }
 
@@ -79,7 +62,7 @@ void __init efi_call_phys_prelog(void)
 {
 	unsigned long vaddress;
 
-	early_runtime_code_mapping_set_exec(1);
+	early_code_mapping_set_exec(1);
 	local_irq_save(efi_flags);
 	vaddress = (unsigned long)__va(0x0UL);
 	save_pgd = *pgd_offset_k(0x0UL);
@@ -95,7 +78,7 @@ void __init efi_call_phys_epilog(void)
 	set_pgd(pgd_offset_k(0x0UL), save_pgd);
 	__flush_tlb_all();
 	local_irq_restore(efi_flags);
-	early_runtime_code_mapping_set_exec(0);
+	early_code_mapping_set_exec(0);
 }
 
 void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
@@ -107,8 +90,10 @@ void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
 		return ioremap(phys_addr, size);
 
 	last_map_pfn = init_memory_mapping(phys_addr, phys_addr + size);
-	if ((last_map_pfn << PAGE_SHIFT) < phys_addr + size)
-		return NULL;
+	if ((last_map_pfn << PAGE_SHIFT) < phys_addr + size) {
+		unsigned long top = last_map_pfn << PAGE_SHIFT;
+		efi_ioremap(top, size - (top - phys_addr), type);
+	}
 
 	return (void __iomem *)__va(phys_addr);
 }

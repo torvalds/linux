@@ -18,8 +18,6 @@
 /*
  * Peripheral identifiers/interrupts.
  */
-#define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */
-#define AT91_ID_SYS		1	/* System Peripherals */
 #define AT91SAM9261_ID_PIOA	2	/* Parallel IO Controller A */
 #define AT91SAM9261_ID_PIOB	3	/* Parallel IO Controller B */
 #define AT91SAM9261_ID_PIOC	4	/* Parallel IO Controller C */
@@ -62,7 +60,6 @@
 #define AT91SAM9261_BASE_SSC2		0xfffc4000
 #define AT91SAM9261_BASE_SPI0		0xfffc8000
 #define AT91SAM9261_BASE_SPI1		0xfffcc000
-#define AT91_BASE_SYS			0xffffea00
 
 
 /*

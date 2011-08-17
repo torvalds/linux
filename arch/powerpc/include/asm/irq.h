@@ -14,7 +14,7 @@
 #include <linux/radix-tree.h>
 
 #include <asm/types.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 
 /* Define a way to iterate across irqs. */
@@ -88,9 +88,6 @@ struct irq_host_ops {
 	/* Dispose of such a mapping */
 	void (*unmap)(struct irq_host *h, unsigned int virq);
 
-	/* Update of such a mapping  */
-	void (*remap)(struct irq_host *h, unsigned int virq, irq_hw_number_t hw);
-
 	/* Translate device-tree interrupt specifier from raw format coming
 	 * from the firmware to a irq_hw_number_t (interrupt line number) and
 	 * type (sense) that can be passed to set_irq_type(). In the absence
@@ -128,19 +125,10 @@ struct irq_host {
 	struct device_node	*of_node;
 };
 
-/* The main irq map itself is an array of NR_IRQ entries containing the
- * associate host and irq number. An entry with a host of NULL is free.
- * An entry can be allocated if it's free, the allocator always then sets
- * hwirq first to the host's invalid irq number and then fills ops.
- */
-struct irq_map_entry {
-	irq_hw_number_t	hwirq;
-	struct irq_host	*host;
-};
-
-extern struct irq_map_entry irq_map[NR_IRQS];
-
+struct irq_data;
+extern irq_hw_number_t irqd_to_hwirq(struct irq_data *d);
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
+extern bool virq_is_host(unsigned int virq, struct irq_host *host);
 
 /**
  * irq_alloc_host - Allocate a new irq_host data structure
@@ -341,6 +329,8 @@ extern void call_do_softirq(struct thread_info *tp);
 extern int call_handle_irq(int irq, void *p1,
 			   struct thread_info *tp, void *func);
 extern void do_IRQ(struct pt_regs *regs);
+
+int irq_choose_cpu(const struct cpumask *mask);
 
 #endif /* _ASM_IRQ_H */
 #endif /* __KERNEL__ */

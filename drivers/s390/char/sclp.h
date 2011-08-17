@@ -28,6 +28,7 @@
 #define EVTYP_CONFMGMDATA	0x04
 #define EVTYP_SDIAS		0x1C
 #define EVTYP_ASYNC		0x0A
+#define EVTYP_OCF		0x1E
 
 #define EVTYP_OPCMD_MASK	0x80000000
 #define EVTYP_MSG_MASK		0x40000000
@@ -40,6 +41,7 @@
 #define EVTYP_CONFMGMDATA_MASK	0x10000000
 #define EVTYP_SDIAS_MASK	0x00000010
 #define EVTYP_ASYNC_MASK	0x00400000
+#define EVTYP_OCF_MASK		0x00000004
 
 #define GNRLMSGFLGS_DOM		0x8000
 #define GNRLMSGFLGS_SNDALRM	0x4000
@@ -184,6 +186,28 @@ static inline void
 sclp_ascebc_str(unsigned char *str, int nr)
 {
 	(MACHINE_IS_VM) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
+}
+
+static inline struct gds_vector *
+sclp_find_gds_vector(void *start, void *end, u16 id)
+{
+	struct gds_vector *v;
+
+	for (v = start; (void *) v < end; v = (void *) v + v->length)
+		if (v->gds_id == id)
+			return v;
+	return NULL;
+}
+
+static inline struct gds_subvector *
+sclp_find_gds_subvector(void *start, void *end, u8 key)
+{
+	struct gds_subvector *sv;
+
+	for (sv = start; (void *) sv < end; sv = (void *) sv + sv->length)
+		if (sv->key == key)
+			return sv;
+	return NULL;
 }
 
 #endif	 /* __SCLP_H__ */

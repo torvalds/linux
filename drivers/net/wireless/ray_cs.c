@@ -2781,7 +2781,7 @@ static const struct file_operations int_proc_fops = {
 };
 #endif
 
-static struct pcmcia_device_id ray_ids[] = {
+static const struct pcmcia_device_id ray_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01a6, 0x0000),
 	PCMCIA_DEVICE_NULL,
 };

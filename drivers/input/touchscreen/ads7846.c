@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/pm.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -108,6 +109,7 @@ struct ads7846 {
 	u16			pressure_max;
 
 	bool			swap_xy;
+	bool			use_internal;
 
 	struct ads7846_packet	*packet;
 
@@ -280,17 +282,24 @@ struct ser_req {
 	u8			command;
 	u8			ref_off;
 	u16			scratch;
-	__be16			sample;
 	struct spi_message	msg;
 	struct spi_transfer	xfer[6];
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	__be16 sample ____cacheline_aligned;
 };
 
 struct ads7845_ser_req {
 	u8			command[3];
-	u8			pwrdown[3];
-	u8			sample[3];
 	struct spi_message	msg;
 	struct spi_transfer	xfer[2];
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u8 sample[3] ____cacheline_aligned;
 };
 
 static int ads7846_read12_ser(struct device *dev, unsigned command)
@@ -299,7 +308,6 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	struct ads7846 *ts = dev_get_drvdata(dev);
 	struct ser_req *req;
 	int status;
-	int use_internal;
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
@@ -307,11 +315,8 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	spi_message_init(&req->msg);
 
-	/* FIXME boards with ads7846 might use external vref instead ... */
-	use_internal = (ts->model == 7846);
-
 	/* maybe turn on internal vREF, and let it settle */
-	if (use_internal) {
+	if (ts->use_internal) {
 		req->ref_on = REF_ON;
 		req->xfer[0].tx_buf = &req->ref_on;
 		req->xfer[0].len = 1;
@@ -323,7 +328,13 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 		/* for 1uF, settle for 800 usec; no cap, 100 usec.  */
 		req->xfer[1].delay_usecs = ts->vref_delay_usecs;
 		spi_message_add_tail(&req->xfer[1], &req->msg);
+
+		/* Enable reference voltage */
+		command |= ADS_PD10_REF_ON;
 	}
+
+	/* Enable ADC in every case */
+	command |= ADS_PD10_ADC_ON;
 
 	/* take sample */
 	req->command = (u8) command;
@@ -408,7 +419,7 @@ name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct ads7846 *ts = dev_get_drvdata(dev); \
 	ssize_t v = ads7846_read12_ser(dev, \
-			READ_12BIT_SER(var) | ADS_PD10_ALL_ON); \
+			READ_12BIT_SER(var)); \
 	if (v < 0) \
 		return v; \
 	return sprintf(buf, "%u\n", adjust(ts, v)); \
@@ -501,6 +512,7 @@ static int ads784x_hwmon_register(struct spi_device *spi, struct ads7846 *ts)
 		if (!ts->vref_mv) {
 			dev_dbg(&spi->dev, "assuming 2.5V internal vREF\n");
 			ts->vref_mv = 2500;
+			ts->use_internal = true;
 		}
 		break;
 	case 7845:
@@ -892,9 +904,10 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
+#ifdef CONFIG_PM_SLEEP
+static int ads7846_suspend(struct device *dev)
 {
-	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+	struct ads7846 *ts = dev_get_drvdata(dev);
 
 	mutex_lock(&ts->lock);
 
@@ -914,9 +927,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 	return 0;
 }
 
-static int ads7846_resume(struct spi_device *spi)
+static int ads7846_resume(struct device *dev)
 {
-	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+	struct ads7846 *ts = dev_get_drvdata(dev);
 
 	mutex_lock(&ts->lock);
 
@@ -935,6 +948,9 @@ static int ads7846_resume(struct spi_device *spi)
 
 	return 0;
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(ads7846_pm, ads7846_suspend, ads7846_resume);
 
 static int __devinit ads7846_setup_pendown(struct spi_device *spi, struct ads7846 *ts)
 {
@@ -951,10 +967,12 @@ static int __devinit ads7846_setup_pendown(struct spi_device *spi, struct ads784
 		ts->get_pendown_state = pdata->get_pendown_state;
 	} else if (gpio_is_valid(pdata->gpio_pendown)) {
 
-		err = gpio_request(pdata->gpio_pendown, "ads7846_pendown");
+		err = gpio_request_one(pdata->gpio_pendown, GPIOF_IN,
+				       "ads7846_pendown");
 		if (err) {
-			dev_err(&spi->dev, "failed to request pendown GPIO%d\n",
-				pdata->gpio_pendown);
+			dev_err(&spi->dev,
+				"failed to request/setup pendown GPIO%d: %d\n",
+				pdata->gpio_pendown, err);
 			return err;
 		}
 
@@ -1328,8 +1346,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	if (ts->model == 7845)
 		ads7845_read12_ser(&spi->dev, PWRDOWN);
 	else
-		(void) ads7846_read12_ser(&spi->dev,
-				READ_12BIT_SER(vaux) | ADS_PD10_ALL_ON);
+		(void) ads7846_read12_ser(&spi->dev, READ_12BIT_SER(vaux));
 
 	err = sysfs_create_group(&spi->dev.kobj, &ads784x_attr_group);
 	if (err)
@@ -1408,11 +1425,10 @@ static struct spi_driver ads7846_driver = {
 		.name	= "ads7846",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &ads7846_pm,
 	},
 	.probe		= ads7846_probe,
 	.remove		= __devexit_p(ads7846_remove),
-	.suspend	= ads7846_suspend,
-	.resume		= ads7846_resume,
 };
 
 static int __init ads7846_init(void)

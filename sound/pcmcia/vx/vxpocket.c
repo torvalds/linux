@@ -229,7 +229,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_exclusive_irq(link, snd_vx_irq_handler);
+	ret = pcmcia_request_irq(link, snd_vx_irq_handler);
 	if (ret)
 		goto failed;
 
@@ -350,7 +350,7 @@ static void vxpocket_detach(struct pcmcia_device *link)
  * Module entry points
  */
 
-static struct pcmcia_device_id vxp_ids[] = {
+static const struct pcmcia_device_id vxp_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01f1, 0x0100),
 	PCMCIA_DEVICE_NULL
 };

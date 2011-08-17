@@ -34,6 +34,12 @@
 #include "sdrc.h"
 #include "cm2xxx_3xxx.h"
 
+/*
+ * This file needs be built unconditionally as ARM to interoperate correctly
+ * with non-Thumb-2-capable firmware.
+ */
+	.arm
+
 	.text
 
 /* r1 parameters */
@@ -111,29 +117,42 @@
  * since it will cause the ARM MMU to attempt to walk the page tables.
  * These crashes may be intermittent.
  */
+	.align	3
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack
 
 					@ pull the extra args off the stack
 					@  and store them in SRAM
+
+/*
+ * PC-relative stores are deprecated in ARMv7 and lead to undefined behaviour
+ * in Thumb-2: use a r7 as a base instead.
+ * Be careful not to clobber r7 when maintaing this file.
+ */
+ THUMB(	adr	r7, omap3_sram_configure_core_dpll			)
+	.macro strtext Rt:req, label:req
+ ARM(	str	\Rt, \label						)
+ THUMB(	str	\Rt, [r7, \label - omap3_sram_configure_core_dpll]	)
+	.endm
+
 	ldr	r4, [sp, #52]
-	str     r4, omap_sdrc_rfr_ctrl_0_val
+	strtext	r4, omap_sdrc_rfr_ctrl_0_val
 	ldr	r4, [sp, #56]
-	str     r4, omap_sdrc_actim_ctrl_a_0_val
+	strtext	r4, omap_sdrc_actim_ctrl_a_0_val
 	ldr	r4, [sp, #60]
-	str     r4, omap_sdrc_actim_ctrl_b_0_val
+	strtext	r4, omap_sdrc_actim_ctrl_b_0_val
 	ldr	r4, [sp, #64]
-	str     r4, omap_sdrc_mr_0_val
+	strtext	r4, omap_sdrc_mr_0_val
 	ldr	r4, [sp, #68]
-	str     r4, omap_sdrc_rfr_ctrl_1_val
+	strtext	r4, omap_sdrc_rfr_ctrl_1_val
 	cmp	r4, #0			@ if SDRC_RFR_CTRL_1 is 0,
 	beq	skip_cs1_params		@  do not use cs1 params
 	ldr	r4, [sp, #72]
-	str     r4, omap_sdrc_actim_ctrl_a_1_val
+	strtext	r4, omap_sdrc_actim_ctrl_a_1_val
 	ldr	r4, [sp, #76]
-	str     r4, omap_sdrc_actim_ctrl_b_1_val
+	strtext	r4, omap_sdrc_actim_ctrl_b_1_val
 	ldr	r4, [sp, #80]
-	str     r4, omap_sdrc_mr_1_val
+	strtext	r4, omap_sdrc_mr_1_val
 skip_cs1_params:
 	mrc	p15, 0, r8, c1, c0, 0	@ read ctrl register
 	bic	r10, r8, #0x800		@ clear Z-bit, disable branch prediction
@@ -271,6 +290,7 @@ skip_cs1_prog:
 	ldr	r12, [r11]		@ posted-write barrier for SDRC
 	bx	lr
 
+	.align
 omap3_sdrc_power:
 	.word OMAP34XX_SDRC_REGADDR(SDRC_POWER)
 omap3_cm_clksel1_pll:
@@ -319,6 +339,7 @@ omap3_sdrc_dlla_ctrl:
 	.word OMAP34XX_SDRC_REGADDR(SDRC_DLLA_CTRL)
 core_m2_mask_val:
 	.word 0x07FFFFFF
+ENDPROC(omap3_sram_configure_core_dpll)
 
 ENTRY(omap3_sram_configure_core_dpll_sz)
 	.word	. - omap3_sram_configure_core_dpll

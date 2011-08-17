@@ -1,7 +1,7 @@
-/**
-  * This file function prototypes, data structure
-  * and  definitions for all the host/station commands
-  */
+/*
+ * This file function prototypes, data structure
+ * and  definitions for all the host/station commands
+ */
 
 #ifndef _LBS_HOST_H_
 #define _LBS_HOST_H_
@@ -13,9 +13,10 @@
 
 #define CMD_OPTION_WAITFORRSP                   0x0002
 
-/** Host command IDs */
+/* Host command IDs */
 
-/* Return command are almost always the same as the host command, but with
+/*
+ * Return command are almost always the same as the host command, but with
  * bit 15 set high.  There are a few exceptions, though...
  */
 #define CMD_RET(cmd)                            (0x8000 | cmd)
@@ -251,7 +252,7 @@ enum cmd_mesh_config_types {
 	CMD_TYPE_MESH_GET_MESH_IE, /* GET_DEFAULTS is superset of GET_MESHIE */
 };
 
-/** Card Event definition */
+/* Card Event definition */
 #define MACREG_INT_CODE_TX_PPA_FREE		0
 #define MACREG_INT_CODE_TX_DMA_DONE		1
 #define MACREG_INT_CODE_LINK_LOST_W_SCAN	2
@@ -387,7 +388,7 @@ struct lbs_offset_value {
 struct mrvl_ie_domain_param_set {
 	struct mrvl_ie_header header;
 
-	u8 country_code[3];
+	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct ieee80211_country_ie_triplet triplet[MAX_11D_TRIPLETS];
 } __packed;
 
@@ -624,12 +625,14 @@ struct cmd_ds_802_11_rf_channel {
 struct cmd_ds_802_11_rssi {
 	struct cmd_header hdr;
 
-	/* request:  number of beacons (N) to average the SNR and NF over
+	/*
+	 * request:  number of beacons (N) to average the SNR and NF over
 	 * response: SNR of most recent beacon
 	 */
 	__le16 n_or_snr;
 
-	/* The following fields are only set in the response.
+	/*
+	 * The following fields are only set in the response.
 	 * In the request these are reserved and should be set to 0.
 	 */
 	__le16 nf;       /* most recent beacon noise floor */
@@ -680,14 +683,16 @@ struct cmd_ds_802_11_ps_mode {
 
 	__le16 action;
 
-	/* Interval for keepalive in PS mode:
+	/*
+	 * Interval for keepalive in PS mode:
 	 * 0x0000 = don't change
 	 * 0x001E = firmware default
 	 * 0xFFFF = disable
 	 */
 	__le16 nullpktinterval;
 
-	/* Number of DTIM intervals to wake up for:
+	/*
+	 * Number of DTIM intervals to wake up for:
 	 * 0 = don't change
 	 * 1 = firmware default
 	 * 5 = max
@@ -697,7 +702,8 @@ struct cmd_ds_802_11_ps_mode {
 	__le16 reserved;
 	__le16 locallisteninterval;
 
-	/* AdHoc awake period (FW v9+ only):
+	/*
+	 * AdHoc awake period (FW v9+ only):
 	 * 0 = don't change
 	 * 1 = always awake (IEEE standard behavior)
 	 * 2 - 31 = sleep for (n - 1) periods and awake for 1 period
@@ -771,7 +777,8 @@ struct adhoc_bssdesc {
 	__le16 capability;
 	u8 rates[MAX_RATES];
 
-	/* DO NOT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
+	/*
+	 * DO NOT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
 	 * Adhoc join command and will cause a binary layout mismatch with
 	 * the firmware
 	 */

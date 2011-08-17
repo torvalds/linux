@@ -78,7 +78,7 @@ extern void vga_set_legacy_decoding(struct pci_dev *pdev,
  *     wether the card is doing legacy decoding for that type of resource. If
  *     yes, the lock is "converted" into a legacy resource lock.
  *     The arbiter will first look for all VGA cards that might conflict
- *     and disable their IOs and/or Memory access, inlcuding VGA forwarding
+ *     and disable their IOs and/or Memory access, including VGA forwarding
  *     on P2P bridges if necessary, so that the requested resources can
  *     be used. Then, the card is marked as locking these resources and
  *     the IO and/or Memory accesse are enabled on the card (including
@@ -187,7 +187,7 @@ extern struct pci_dev *vga_default_device(void);
  *     vga_conflicts
  *
  *     Architectures should define this if they have several
- *     independant PCI domains that can afford concurrent VGA
+ *     independent PCI domains that can afford concurrent VGA
  *     decoding
  */
 

@@ -15,7 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -149,40 +149,32 @@ static void __init lpd270_init_irq(void)
 
 	/* setup extra LogicPD PXA270 irqs */
 	for (irq = LPD270_IRQ(2); irq <= LPD270_IRQ(4); irq++) {
-		set_irq_chip(irq, &lpd270_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &lpd270_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
-	set_irq_chained_handler(IRQ_GPIO(0), lpd270_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
+	irq_set_chained_handler(IRQ_GPIO(0), lpd270_irq_handler);
+	irq_set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 
 #ifdef CONFIG_PM
-static int lpd270_irq_resume(struct sys_device *dev)
+static void lpd270_irq_resume(void)
 {
 	__raw_writew(lpd270_irq_enabled, LPD270_INT_MASK);
-	return 0;
 }
 
-static struct sysdev_class lpd270_irq_sysclass = {
-	.name = "cpld_irq",
+static struct syscore_ops lpd270_irq_syscore_ops = {
 	.resume = lpd270_irq_resume,
-};
-
-static struct sys_device lpd270_irq_device = {
-	.cls = &lpd270_irq_sysclass,
 };
 
 static int __init lpd270_irq_device_init(void)
 {
-	int ret = -ENODEV;
 	if (machine_is_logicpd_pxa270()) {
-		ret = sysdev_class_register(&lpd270_irq_sysclass);
-		if (ret == 0)
-			ret = sysdev_register(&lpd270_irq_device);
+		register_syscore_ops(&lpd270_irq_syscore_ops);
+		return 0;
 	}
-	return ret;
+	return -ENODEV;
 }
 
 device_initcall(lpd270_irq_device_init);
@@ -480,7 +472,7 @@ static void __init lpd270_init(void)
 	pxa_set_ac97_info(NULL);
 
 	if (lpd270_lcd_to_use != NULL)
-		set_pxa_fb_info(lpd270_lcd_to_use);
+		pxa_set_fb_info(NULL, lpd270_lcd_to_use);
 
 	pxa_set_ohci_info(&lpd270_ohci_platform_data);
 }
@@ -511,6 +503,7 @@ MACHINE_START(LOGICPD_PXA270, "LogicPD PXA270 Card Engine")
 	.map_io		= lpd270_map_io,
 	.nr_irqs	= LPD270_NR_IRQS,
 	.init_irq	= lpd270_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= lpd270_init,
 MACHINE_END

@@ -60,7 +60,7 @@ typedef struct _diva_xdi_capi_cfg {
   -------------------------------------------------------------------------- */
 struct _ISDN_ADAPTER {
  void             (* DIRequest)(PISDN_ADAPTER, ENTITY *) ;
- int                 State ; /* from NT4 1.srv, a good idea, but  a poor achievment */
+ int                 State ; /* from NT4 1.srv, a good idea, but  a poor achievement */
  int                 Initialized ;
  int         RegisteredWithDidd ;
  int                 Unavailable ;  /* callback function possible? */

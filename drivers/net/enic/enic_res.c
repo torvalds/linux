@@ -90,18 +90,30 @@ int enic_get_vnic_config(struct enic *enic)
 		max_t(u16, ENIC_MIN_MTU,
 		c->mtu));
 
-	c->intr_timer_usec = min_t(u32,
-		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
-		c->intr_timer_usec);
+	c->intr_timer_usec = min_t(u32, c->intr_timer_usec,
+		vnic_dev_get_intr_coal_timer_max(enic->vdev));
 
 	dev_info(enic_get_dev(enic),
 		"vNIC MAC addr %pM wq/rq %d/%d mtu %d\n",
 		enic->mac_addr, c->wq_desc_count, c->rq_desc_count, c->mtu);
-	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %d/%d "
-		"tso/lro %d/%d intr timer %d usec rss %d\n",
-		ENIC_SETTING(enic, TXCSUM), ENIC_SETTING(enic, RXCSUM),
-		ENIC_SETTING(enic, TSO), ENIC_SETTING(enic, LRO),
-		c->intr_timer_usec, ENIC_SETTING(enic, RSS));
+
+	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
+		"tso/lro %s/%s rss %s intr mode %s type %s timer %d usec "
+		"loopback tag 0x%04x\n",
+		ENIC_SETTING(enic, TXCSUM) ? "yes" : "no",
+		ENIC_SETTING(enic, RXCSUM) ? "yes" : "no",
+		ENIC_SETTING(enic, TSO) ? "yes" : "no",
+		ENIC_SETTING(enic, LRO) ? "yes" : "no",
+		ENIC_SETTING(enic, RSS) ? "yes" : "no",
+		c->intr_mode == VENET_INTR_MODE_INTX ? "INTx" :
+		c->intr_mode == VENET_INTR_MODE_MSI ? "MSI" :
+		c->intr_mode == VENET_INTR_MODE_ANY ? "any" :
+		"unknown",
+		c->intr_timer_type == VENET_INTR_TYPE_MIN ? "min" :
+		c->intr_timer_type == VENET_INTR_TYPE_IDLE ? "idle" :
+		"unknown",
+		c->intr_timer_usec,
+		c->loop_tag);
 
 	return 0;
 }
@@ -290,7 +302,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	for (i = 0; i < enic->intr_count; i++) {
 		vnic_intr_init(&enic->intr[i],
-			INTR_COALESCE_USEC_TO_HW(enic->config.intr_timer_usec),
+			enic->config.intr_timer_usec,
 			enic->config.intr_timer_type,
 			mask_on_assertion);
 	}

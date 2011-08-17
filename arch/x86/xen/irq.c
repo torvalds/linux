@@ -113,7 +113,7 @@ static void xen_halt(void)
 		xen_safe_halt();
 }
 
-static const struct pv_irq_ops xen_irq_ops __initdata = {
+static const struct pv_irq_ops xen_irq_ops __initconst = {
 	.save_fl = PV_CALLEE_SAVE(xen_save_fl),
 	.restore_fl = PV_CALLEE_SAVE(xen_restore_fl),
 	.irq_disable = PV_CALLEE_SAVE(xen_irq_disable),

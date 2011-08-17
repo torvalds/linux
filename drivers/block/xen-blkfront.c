@@ -97,6 +97,7 @@ struct blkfront_info
 	struct blk_shadow shadow[BLK_RING_SIZE];
 	unsigned long shadow_free;
 	unsigned int feature_flush;
+	unsigned int flush_op;
 	int is_ready;
 };
 
@@ -120,6 +121,10 @@ static DEFINE_SPINLOCK(minor_lock);
 #define EXTENDED (1<<EXT_SHIFT)
 #define VDEV_IS_EXTENDED(dev) ((dev)&(EXTENDED))
 #define BLKIF_MINOR_EXT(dev) ((dev)&(~EXTENDED))
+#define EMULATED_HD_DISK_MINOR_OFFSET (0)
+#define EMULATED_HD_DISK_NAME_OFFSET (EMULATED_HD_DISK_MINOR_OFFSET / 256)
+#define EMULATED_SD_DISK_MINOR_OFFSET (EMULATED_HD_DISK_MINOR_OFFSET + (4 * 16))
+#define EMULATED_SD_DISK_NAME_OFFSET (EMULATED_HD_DISK_NAME_OFFSET + 4)
 
 #define DEV_NAME	"xvd"	/* name in /dev */
 
@@ -246,8 +251,7 @@ static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 
 /*
  * Generate a Xen blkfront IO request from a blk layer request.  Reads
- * and writes are handled as expected.  Since we lack a loose flush
- * request, we map flushes into a full ordered barrier.
+ * and writes are handled as expected.
  *
  * @req: a request struct
  */
@@ -281,7 +285,7 @@ static int blkif_queue_request(struct request *req)
 	info->shadow[id].request = req;
 
 	ring_req->id = id;
-	ring_req->sector_number = (blkif_sector_t)blk_rq_pos(req);
+	ring_req->u.rw.sector_number = (blkif_sector_t)blk_rq_pos(req);
 	ring_req->handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
@@ -289,14 +293,13 @@ static int blkif_queue_request(struct request *req)
 
 	if (req->cmd_flags & (REQ_FLUSH | REQ_FUA)) {
 		/*
-		 * Ideally we could just do an unordered
-		 * flush-to-disk, but all we have is a full write
-		 * barrier at the moment.  However, a barrier write is
+		 * Ideally we can do an unordered flush-to-disk. In case the
+		 * backend onlysupports barriers, use that. A barrier request
 		 * a superset of FUA, so we can implement it the same
 		 * way.  (It's also a FLUSH+FUA, since it is
 		 * guaranteed ordered WRT previous writes.)
 		 */
-		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
+		ring_req->operation = info->flush_op;
 	}
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
@@ -317,7 +320,7 @@ static int blkif_queue_request(struct request *req)
 				rq_data_dir(req) );
 
 		info->shadow[id].frame[i] = mfn_to_pfn(buffer_mfn);
-		ring_req->seg[i] =
+		ring_req->u.rw.seg[i] =
 				(struct blkif_request_segment) {
 					.gref       = ref,
 					.first_sect = fsect,
@@ -429,11 +432,73 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 static void xlvbd_flush(struct blkfront_info *info)
 {
 	blk_queue_flush(info->rq, info->feature_flush);
-	printk(KERN_INFO "blkfront: %s: barriers %s\n",
+	printk(KERN_INFO "blkfront: %s: %s: %s\n",
 	       info->gd->disk_name,
+	       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
+		"barrier" : (info->flush_op == BLKIF_OP_FLUSH_DISKCACHE ?
+		"flush diskcache" : "barrier or flush"),
 	       info->feature_flush ? "enabled" : "disabled");
 }
 
+static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
+{
+	int major;
+	major = BLKIF_MAJOR(vdevice);
+	*minor = BLKIF_MINOR(vdevice);
+	switch (major) {
+		case XEN_IDE0_MAJOR:
+			*offset = (*minor / 64) + EMULATED_HD_DISK_NAME_OFFSET;
+			*minor = ((*minor / 64) * PARTS_PER_DISK) +
+				EMULATED_HD_DISK_MINOR_OFFSET;
+			break;
+		case XEN_IDE1_MAJOR:
+			*offset = (*minor / 64) + 2 + EMULATED_HD_DISK_NAME_OFFSET;
+			*minor = (((*minor / 64) + 2) * PARTS_PER_DISK) +
+				EMULATED_HD_DISK_MINOR_OFFSET;
+			break;
+		case XEN_SCSI_DISK0_MAJOR:
+			*offset = (*minor / PARTS_PER_DISK) + EMULATED_SD_DISK_NAME_OFFSET;
+			*minor = *minor + EMULATED_SD_DISK_MINOR_OFFSET;
+			break;
+		case XEN_SCSI_DISK1_MAJOR:
+		case XEN_SCSI_DISK2_MAJOR:
+		case XEN_SCSI_DISK3_MAJOR:
+		case XEN_SCSI_DISK4_MAJOR:
+		case XEN_SCSI_DISK5_MAJOR:
+		case XEN_SCSI_DISK6_MAJOR:
+		case XEN_SCSI_DISK7_MAJOR:
+			*offset = (*minor / PARTS_PER_DISK) + 
+				((major - XEN_SCSI_DISK1_MAJOR + 1) * 16) +
+				EMULATED_SD_DISK_NAME_OFFSET;
+			*minor = *minor +
+				((major - XEN_SCSI_DISK1_MAJOR + 1) * 16 * PARTS_PER_DISK) +
+				EMULATED_SD_DISK_MINOR_OFFSET;
+			break;
+		case XEN_SCSI_DISK8_MAJOR:
+		case XEN_SCSI_DISK9_MAJOR:
+		case XEN_SCSI_DISK10_MAJOR:
+		case XEN_SCSI_DISK11_MAJOR:
+		case XEN_SCSI_DISK12_MAJOR:
+		case XEN_SCSI_DISK13_MAJOR:
+		case XEN_SCSI_DISK14_MAJOR:
+		case XEN_SCSI_DISK15_MAJOR:
+			*offset = (*minor / PARTS_PER_DISK) + 
+				((major - XEN_SCSI_DISK8_MAJOR + 8) * 16) +
+				EMULATED_SD_DISK_NAME_OFFSET;
+			*minor = *minor +
+				((major - XEN_SCSI_DISK8_MAJOR + 8) * 16 * PARTS_PER_DISK) +
+				EMULATED_SD_DISK_MINOR_OFFSET;
+			break;
+		case XENVBD_MAJOR:
+			*offset = *minor / PARTS_PER_DISK;
+			break;
+		default:
+			printk(KERN_WARNING "blkfront: your disk configuration is "
+					"incorrect, please use an xvd device instead\n");
+			return -ENODEV;
+	}
+	return 0;
+}
 
 static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 			       struct blkfront_info *info,
@@ -441,7 +506,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 {
 	struct gendisk *gd;
 	int nr_minors = 1;
-	int err = -ENODEV;
+	int err;
 	unsigned int offset;
 	int minor;
 	int nr_parts;
@@ -456,12 +521,20 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	}
 
 	if (!VDEV_IS_EXTENDED(info->vdevice)) {
-		minor = BLKIF_MINOR(info->vdevice);
-		nr_parts = PARTS_PER_DISK;
+		err = xen_translate_vdev(info->vdevice, &minor, &offset);
+		if (err)
+			return err;		
+ 		nr_parts = PARTS_PER_DISK;
 	} else {
 		minor = BLKIF_MINOR_EXT(info->vdevice);
 		nr_parts = PARTS_PER_EXT_DISK;
+		offset = minor / nr_parts;
+		if (xen_hvm_domain() && offset <= EMULATED_HD_DISK_NAME_OFFSET + 4)
+			printk(KERN_WARNING "blkfront: vdevice 0x%x might conflict with "
+					"emulated IDE disks,\n\t choose an xvd device name"
+					"from xvde on\n", info->vdevice);
 	}
+	err = -ENODEV;
 
 	if ((minor % nr_parts) == 0)
 		nr_minors = nr_parts;
@@ -474,8 +547,6 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	gd = alloc_disk(nr_minors);
 	if (gd == NULL)
 		goto release;
-
-	offset = minor / nr_parts;
 
 	if (nr_minors > 1) {
 		if (offset < 26)
@@ -615,7 +686,7 @@ static void blkif_completion(struct blk_shadow *s)
 {
 	int i;
 	for (i = 0; i < s->req.nr_segments; i++)
-		gnttab_end_foreign_access(s->req.seg[i].gref, 0, 0UL);
+		gnttab_end_foreign_access(s->req.u.rw.seg[i].gref, 0, 0UL);
 }
 
 static irqreturn_t blkif_interrupt(int irq, void *dev_id)
@@ -651,15 +722,20 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 		error = (bret->status == BLKIF_RSP_OKAY) ? 0 : -EIO;
 		switch (bret->operation) {
+		case BLKIF_OP_FLUSH_DISKCACHE:
 		case BLKIF_OP_WRITE_BARRIER:
 			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
-				printk(KERN_WARNING "blkfront: %s: write barrier op failed\n",
+				printk(KERN_WARNING "blkfront: %s: write %s op failed\n",
+				       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
+				       "barrier" :  "flush disk cache",
 				       info->gd->disk_name);
 				error = -EOPNOTSUPP;
 			}
 			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
 				     info->shadow[id].req.nr_segments == 0)) {
-				printk(KERN_WARNING "blkfront: %s: empty write barrier op failed\n",
+				printk(KERN_WARNING "blkfront: %s: empty write %s op failed\n",
+				       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
+				       "barrier" :  "flush disk cache",
 				       info->gd->disk_name);
 				error = -EOPNOTSUPP;
 			}
@@ -667,6 +743,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				if (error == -EOPNOTSUPP)
 					error = 0;
 				info->feature_flush = 0;
+				info->flush_op = 0;
 				xlvbd_flush(info);
 			}
 			/* fall through */
@@ -932,7 +1009,7 @@ static int blkif_recover(struct blkfront_info *info)
 		/* Rewrite any grant references invalidated by susp/resume. */
 		for (j = 0; j < req->nr_segments; j++)
 			gnttab_grant_foreign_access_ref(
-				req->seg[j].gref,
+				req->u.rw.seg[j].gref,
 				info->xbdev->otherend_id,
 				pfn_to_mfn(info->shadow[req->id].frame[j]),
 				rq_data_dir(info->shadow[req->id].request));
@@ -1031,7 +1108,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	unsigned long sector_size;
 	unsigned int binfo;
 	int err;
-	int barrier;
+	int barrier, flush;
 
 	switch (info->connected) {
 	case BLKIF_STATE_CONNECTED:
@@ -1071,8 +1148,11 @@ static void blkfront_connect(struct blkfront_info *info)
 		return;
 	}
 
+	info->feature_flush = 0;
+	info->flush_op = 0;
+
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-barrier", "%lu", &barrier,
+			    "feature-barrier", "%d", &barrier,
 			    NULL);
 
 	/*
@@ -1082,11 +1162,23 @@ static void blkfront_connect(struct blkfront_info *info)
 	 *
 	 * If there are barriers, then we use flush.
 	 */
-	info->feature_flush = 0;
-
-	if (!err && barrier)
+	if (!err && barrier) {
 		info->feature_flush = REQ_FLUSH | REQ_FUA;
+		info->flush_op = BLKIF_OP_WRITE_BARRIER;
+	}
+	/*
+	 * And if there is "feature-flush-cache" use that above
+	 * barriers.
+	 */
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			    "feature-flush-cache", "%d", &flush,
+			    NULL);
 
+	if (!err && flush) {
+		info->feature_flush = REQ_FLUSH;
+		info->flush_op = BLKIF_OP_FLUSH_DISKCACHE;
+	}
+		
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
 		xenbus_dev_fatal(info->xbdev, err, "xlvbd_add at %s",

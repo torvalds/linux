@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/mfd/88pm860x.h>
 
 #include <asm/mach-types.h>
@@ -23,8 +24,6 @@
 #include <mach/mfp.h>
 #include <mach/mfp-pxa930.h>
 #include <mach/gpio.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 
@@ -105,9 +104,10 @@ static void __init saarb_init(void)
 
 MACHINE_START(SAARB, "PXA955 Handheld Platform (aka SAARB)")
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa3xx_map_io,
 	.nr_irqs	= SAARB_NR_IRQS,
 	.init_irq       = pxa95x_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saarb_init,
 MACHINE_END

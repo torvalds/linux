@@ -133,7 +133,7 @@ struct net_local {
 /* Run-time register bank 2 definitions. */
 #define DATAPORT		8		/* Word-wide DMA or programmed-I/O dataport. */
 #define TX_START		10
-#define COL16CNTL		11		/* Controll Reg for 16 collisions */
+#define COL16CNTL		11		/* Control Reg for 16 collisions */
 #define MODE13			13
 #define RX_CTRL			14
 /* Configuration registers only on the '865A/B chips. */

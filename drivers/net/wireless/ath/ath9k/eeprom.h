@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -436,7 +436,11 @@ struct modal_eep_4k_header {
 	u8 db2_2:4, db2_3:4;
 	u8 db2_4:4, reserved:4;
 #endif
-	u8 futureModal[4];
+	u8 tx_diversity;
+	u8 flc_pwr_thresh;
+	u8 bb_scale_smrt_antenna;
+#define EEP_4K_BB_DESIRED_SCALE_MASK	0x1f
+	u8 futureModal[1];
 	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
@@ -665,6 +669,8 @@ int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,
 bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList, u16 listSize,
 				    u16 *indexL, u16 *indexR);
 bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data);
+void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
+				  int eep_start_loc, int size);
 void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,
 			     u8 *pVpdList, u16 numIntercepts,
 			     u8 *pRetVpdList);

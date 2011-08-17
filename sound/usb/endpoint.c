@@ -352,7 +352,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			continue;
 		}
 		if (((protocol == UAC_VERSION_1) && (fmt->bLength < 8)) ||
-		    ((protocol == UAC_VERSION_2) && (fmt->bLength != 6))) {
+		    ((protocol == UAC_VERSION_2) && (fmt->bLength < 6))) {
 			snd_printk(KERN_ERR "%d:%u:%d : invalid UAC_FORMAT_TYPE desc\n",
 				   dev->devnum, iface_no, altno);
 			continue;
@@ -408,6 +408,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			/* doesn't set the sample rate attribute, but supports it */
 			fp->attributes |= UAC_EP_CS_ATTR_SAMPLE_RATE;
 			break;
+		case USB_ID(0x0763, 0x2001):  /* M-Audio Quattro USB */
+		case USB_ID(0x0763, 0x2012):  /* M-Audio Fast Track Pro USB */
 		case USB_ID(0x047f, 0x0ca1): /* plantronics headset */
 		case USB_ID(0x077d, 0x07af): /* Griffin iMic (note that there is
 						an older model 77d:223) */

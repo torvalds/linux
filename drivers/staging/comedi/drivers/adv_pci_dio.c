@@ -117,6 +117,7 @@ enum hw_io_access {
 
 /*  Advantech PCI-1751/3/3E */
 #define PCI1751_DIO	   0	/* R/W: begin of 8255 registers block */
+#define PCI1751_CNT	  24	/* R/W: begin of 8254 registers block */
 #define PCI1751_ICR	  32	/* W:   Interrupt control register */
 #define PCI1751_ISR	  32	/* R:   Interrupt status register */
 #define PCI1753_DIO	   0	/* R/W: begin of 8255 registers block */
@@ -329,7 +330,7 @@ static const struct dio_boardtype boardtypes[] = {
 	 { {0, 0, 0, 0}, {0, 0, 0, 0} },
 	 { {48, PCI1751_DIO, 2, 0}, {0, 0, 0, 0} },
 	 {0, 0, 0, 0},
-	 { {0, 0, 0, 0} },
+	 { {3, PCI1751_CNT, 1, 0} },
 	 IO_8b},
 	{"pci1752", PCI_VENDOR_ID_ADVANTECH, 0x1752, PCIDIO_MAINREG,
 	 TYPE_PCI1752,

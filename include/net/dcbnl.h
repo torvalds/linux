@@ -28,8 +28,16 @@ struct dcb_app_type {
 	struct list_head  list;
 };
 
-u8 dcb_setapp(struct net_device *, struct dcb_app *);
+int dcb_setapp(struct net_device *, struct dcb_app *);
 u8 dcb_getapp(struct net_device *, struct dcb_app *);
+int dcb_ieee_setapp(struct net_device *, struct dcb_app *);
+int dcb_ieee_delapp(struct net_device *, struct dcb_app *);
+u8 dcb_ieee_getapp_mask(struct net_device *, struct dcb_app *);
+
+int dcbnl_ieee_notify(struct net_device *dev, int event, int cmd,
+		      u32 seq, u32 pid);
+int dcbnl_cee_notify(struct net_device *dev, int event, int cmd,
+		     u32 seq, u32 pid);
 
 /*
  * Ops struct for the netlink callbacks.  Used by DCB-enabled drivers through
@@ -43,6 +51,9 @@ struct dcbnl_rtnl_ops {
 	int (*ieee_setpfc) (struct net_device *, struct ieee_pfc *);
 	int (*ieee_getapp) (struct net_device *, struct dcb_app *);
 	int (*ieee_setapp) (struct net_device *, struct dcb_app *);
+	int (*ieee_delapp) (struct net_device *, struct dcb_app *);
+	int (*ieee_peer_getets) (struct net_device *, struct ieee_ets *);
+	int (*ieee_peer_getpfc) (struct net_device *, struct ieee_pfc *);
 
 	/* CEE std */
 	u8   (*getstate)(struct net_device *);
@@ -77,7 +88,14 @@ struct dcbnl_rtnl_ops {
 	u8   (*getdcbx)(struct net_device *);
 	u8   (*setdcbx)(struct net_device *, u8);
 
+	/* peer apps */
+	int (*peer_getappinfo)(struct net_device *, struct dcb_peer_app_info *,
+			       u16 *);
+	int (*peer_getapptable)(struct net_device *, struct dcb_app *);
 
+	/* CEE peer */
+	int (*cee_peer_getpg) (struct net_device *, struct cee_pg *);
+	int (*cee_peer_getpfc) (struct net_device *, struct cee_pfc *);
 };
 
 #endif /* __NET_DCBNL_H__ */

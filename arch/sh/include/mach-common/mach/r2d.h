@@ -18,18 +18,18 @@
 #define PA_DISPCTL	0xa4000008	/* Display Timing control */
 #define PA_SDMPOW	0xa400000a	/* SD Power control */
 #define PA_RTCCE	0xa400000c	/* RTC(9701) Enable control */
-#define PA_PCICD	0xa400000e	/* PCI Extention detect control */
+#define PA_PCICD	0xa400000e	/* PCI Extension detect control */
 #define PA_VOYAGERRTS	0xa4000020	/* VOYAGER Reset control */
 
 #define PA_R2D1_AXRST		0xa4000022	/* AX_LAN Reset control */
 #define PA_R2D1_CFRST		0xa4000024	/* CF Reset control */
 #define PA_R2D1_ADMRTS		0xa4000026	/* SD Reset control */
-#define PA_R2D1_EXTRST		0xa4000028	/* Extention Reset control */
+#define PA_R2D1_EXTRST		0xa4000028	/* Extension Reset control */
 #define PA_R2D1_CFCDINTCLR	0xa400002a	/* CF Insert Interrupt clear */
 
 #define PA_R2DPLUS_CFRST	0xa4000022	/* CF Reset control */
 #define PA_R2DPLUS_ADMRTS	0xa4000024	/* SD Reset control */
-#define PA_R2DPLUS_EXTRST	0xa4000026	/* Extention Reset control */
+#define PA_R2DPLUS_EXTRST	0xa4000026	/* Extension Reset control */
 #define PA_R2DPLUS_CFCDINTCLR	0xa4000028	/* CF Insert Interrupt clear */
 #define PA_R2DPLUS_KEYCTLCLR	0xa400002a	/* Key Interrupt clear */
 

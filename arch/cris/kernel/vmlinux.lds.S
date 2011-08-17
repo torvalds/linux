@@ -102,7 +102,7 @@ SECTIONS
 #endif
 	__vmlinux_end = .;		/* Last address of the physical file. */
 #ifdef CONFIG_ETRAX_ARCH_V32
-	PERCPU(PAGE_SIZE)
+	PERCPU_SECTION(32)
 
 	.init.ramfs : {
 		INIT_RAM_FS

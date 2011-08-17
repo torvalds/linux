@@ -375,13 +375,16 @@ void __init check_for_initrd(void)
 
 int threads_per_core, threads_shift;
 cpumask_t threads_core_mask;
+EXPORT_SYMBOL_GPL(threads_per_core);
+EXPORT_SYMBOL_GPL(threads_shift);
+EXPORT_SYMBOL_GPL(threads_core_mask);
 
 static void __init cpu_init_thread_core_maps(int tpc)
 {
 	int i;
 
 	threads_per_core = tpc;
-	threads_core_mask = CPU_MASK_NONE;
+	cpumask_clear(&threads_core_mask);
 
 	/* This implementation only supports power of 2 number of threads
 	 * for simplicity and performance
@@ -390,7 +393,7 @@ static void __init cpu_init_thread_core_maps(int tpc)
 	BUG_ON(tpc != (1 << threads_shift));
 
 	for (i = 0; i < tpc; i++)
-		cpu_set(i, threads_core_mask);
+		cpumask_set_cpu(i, &threads_core_mask);
 
 	printk(KERN_INFO "CPU maps initialized for %d thread%s per core\n",
 	       tpc, tpc > 1 ? "s" : "");
@@ -404,7 +407,7 @@ static void __init cpu_init_thread_core_maps(int tpc)
  *                  cpu_present_mask
  *
  * Having the possible map set up early allows us to restrict allocations
- * of things like irqstacks to num_possible_cpus() rather than NR_CPUS.
+ * of things like irqstacks to nr_cpu_ids rather than NR_CPUS.
  *
  * We do not initialize the online map here; cpus set their own bits in
  * cpu_online_mask as they come up.
@@ -424,7 +427,7 @@ void __init smp_setup_cpu_maps(void)
 
 	DBG("smp_setup_cpu_maps()\n");
 
-	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < NR_CPUS) {
+	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < nr_cpu_ids) {
 		const int *intserv;
 		int j, len;
 
@@ -443,7 +446,7 @@ void __init smp_setup_cpu_maps(void)
 				intserv = &cpu;	/* assume logical == phys */
 		}
 
-		for (j = 0; j < nthreads && cpu < NR_CPUS; j++) {
+		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
 			DBG("    thread %d -> cpu %d (hard id %d)\n",
 			    j, cpu, intserv[j]);
 			set_cpu_present(cpu, true);
@@ -483,12 +486,12 @@ void __init smp_setup_cpu_maps(void)
 		if (cpu_has_feature(CPU_FTR_SMT))
 			maxcpus *= nthreads;
 
-		if (maxcpus > NR_CPUS) {
+		if (maxcpus > nr_cpu_ids) {
 			printk(KERN_WARNING
 			       "Partition configured for %d cpus, "
 			       "operating system maximum is %d.\n",
-			       maxcpus, NR_CPUS);
-			maxcpus = NR_CPUS;
+			       maxcpus, nr_cpu_ids);
+			maxcpus = nr_cpu_ids;
 		} else
 			printk(KERN_INFO "Partition configured for %d cpus.\n",
 			       maxcpus);
@@ -508,6 +511,9 @@ void __init smp_setup_cpu_maps(void)
 	 * here will have to be reworked
 	 */
 	cpu_init_thread_core_maps(nthreads);
+
+	/* Now that possible cpus are set, set nr_cpu_ids for later use */
+	setup_nr_cpu_ids();
 
 	free_unused_pacas();
 }
@@ -599,6 +605,10 @@ int check_legacy_ioport(unsigned long base_port)
 		 * name instead */
 		if (!np)
 			np = of_find_node_by_name(NULL, "8042");
+		if (np) {
+			of_i8042_kbd_irq = 1;
+			of_i8042_aux_irq = 12;
+		}
 		break;
 	case FDC_BASE: /* FDC1 */
 		np = of_find_node_by_type(NULL, "fdc");
@@ -697,29 +707,14 @@ static int powerpc_debugfs_init(void)
 arch_initcall(powerpc_debugfs_init);
 #endif
 
-static int ppc_dflt_bus_notify(struct notifier_block *nb,
-				unsigned long action, void *data)
+void ppc_printk_progress(char *s, unsigned short hex)
 {
-	struct device *dev = data;
-
-	/* We are only intereted in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	set_dma_ops(dev, &dma_direct_ops);
-
-	return NOTIFY_DONE;
+	pr_info("%s\n", s);
 }
 
-static struct notifier_block ppc_dflt_plat_bus_notifier = {
-	.notifier_call = ppc_dflt_bus_notify,
-	.priority = INT_MAX,
-};
-
-static int __init setup_bus_notifier(void)
+void arch_setup_pdev_archdata(struct platform_device *pdev)
 {
-	bus_register_notifier(&platform_bus_type, &ppc_dflt_plat_bus_notifier);
-	return 0;
+	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
+ 	set_dma_ops(&pdev->dev, &dma_direct_ops);
 }
-
-arch_initcall(setup_bus_notifier);

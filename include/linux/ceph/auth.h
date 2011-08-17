@@ -67,12 +67,12 @@ struct ceph_auth_client {
 	bool negotiating;       /* true if negotiating protocol */
 	const char *name;       /* entity name */
 	u64 global_id;          /* our unique id in system */
-	const char *secret;     /* our secret key */
+	const struct ceph_crypto_key *key;     /* our secret key */
 	unsigned want_keys;     /* which services we want */
 };
 
 extern struct ceph_auth_client *ceph_auth_init(const char *name,
-					       const char *secret);
+					       const struct ceph_crypto_key *key);
 extern void ceph_auth_destroy(struct ceph_auth_client *ac);
 
 extern void ceph_auth_reset(struct ceph_auth_client *ac);

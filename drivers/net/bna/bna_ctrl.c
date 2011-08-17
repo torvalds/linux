@@ -16,8 +16,7 @@
  * www.brocade.com
  */
 #include "bna.h"
-#include "bfa_sm.h"
-#include "bfa_wc.h"
+#include "bfa_cs.h"
 
 static void bna_device_cb_port_stopped(void *arg, enum bna_cb_status status);
 
@@ -246,7 +245,6 @@ static void
 bna_mbox_flush_q(struct bna *bna, struct list_head *q)
 {
 	struct bna_mbox_qe *mb_qe = NULL;
-	struct bfi_mhdr *cmd_h;
 	struct list_head			*mb_q;
 	void 			(*cbfn)(void *arg, int status);
 	void 			*cbarg;
@@ -260,7 +258,6 @@ bna_mbox_flush_q(struct bna *bna, struct list_head *q)
 		bfa_q_qe_init(mb_qe);
 		bna->mbox_mod.msg_pending--;
 
-		cmd_h = (struct bfi_mhdr *)(&mb_qe->cmd.msg[0]);
 		if (cbfn)
 			cbfn(cbarg, BNA_CB_NOT_EXEC);
 	}
@@ -382,7 +379,7 @@ bna_llport_sm_stopped(struct bna_llport *llport,
 		break;
 
 	default:
-		bfa_sm_fault(llport->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -411,7 +408,7 @@ bna_llport_sm_down(struct bna_llport *llport,
 		break;
 
 	default:
-		bfa_sm_fault(llport->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -457,7 +454,7 @@ bna_llport_sm_up_resp_wait(struct bna_llport *llport,
 		break;
 
 	default:
-		bfa_sm_fault(llport->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -499,7 +496,7 @@ bna_llport_sm_down_resp_wait(struct bna_llport *llport,
 		break;
 
 	default:
-		bfa_sm_fault(llport->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -528,7 +525,7 @@ bna_llport_sm_up(struct bna_llport *llport,
 		break;
 
 	default:
-		bfa_sm_fault(llport->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -565,7 +562,7 @@ bna_llport_sm_last_resp_wait(struct bna_llport *llport,
 		break;
 
 	default:
-		bfa_sm_fault(llport->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -918,7 +915,7 @@ bna_port_sm_stopped(struct bna_port *port, enum bna_port_event event)
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -958,7 +955,7 @@ bna_port_sm_mtu_init_wait(struct bna_port *port, enum bna_port_event event)
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1003,7 +1000,7 @@ bna_port_sm_pause_init_wait(struct bna_port *port,
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1024,7 +1021,7 @@ bna_port_sm_last_resp_wait(struct bna_port *port,
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1063,7 +1060,7 @@ bna_port_sm_started(struct bna_port *port,
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1088,7 +1085,7 @@ bna_port_sm_pause_cfg_wait(struct bna_port *port,
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1113,7 +1110,7 @@ bna_port_sm_rx_stop_wait(struct bna_port *port,
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1138,7 +1135,7 @@ bna_port_sm_mtu_cfg_wait(struct bna_port *port, enum bna_port_event event)
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1163,7 +1160,7 @@ bna_port_sm_chld_stop_wait(struct bna_port *port,
 		break;
 
 	default:
-		bfa_sm_fault(port->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1474,7 +1471,7 @@ bna_device_sm_stopped(struct bna_device *device,
 		break;
 
 	default:
-		bfa_sm_fault(device->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1514,7 +1511,7 @@ bna_device_sm_ioc_ready_wait(struct bna_device *device,
 		break;
 
 	default:
-		bfa_sm_fault(device->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1544,7 +1541,7 @@ bna_device_sm_ready(struct bna_device *device, enum bna_device_event event)
 		break;
 
 	default:
-		bfa_sm_fault(device->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1570,7 +1567,7 @@ bna_device_sm_port_stop_wait(struct bna_device *device,
 		break;
 
 	default:
-		bfa_sm_fault(device->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1591,7 +1588,7 @@ bna_device_sm_ioc_disable_wait(struct bna_device *device,
 		break;
 
 	default:
-		bfa_sm_fault(device->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1624,7 +1621,7 @@ bna_device_sm_failed(struct bna_device *device,
 		break;
 
 	default:
-		bfa_sm_fault(device->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -2774,23 +2771,6 @@ bna_rit_mod_init(struct bna_rit_mod *rit_mod,
 	}
 }
 
-static void
-bna_rit_mod_uninit(struct bna_rit_mod *rit_mod)
-{
-	struct bna_rit_segment *rit_segment;
-	struct list_head *qe;
-	int i;
-	int j;
-
-	for (i = 0; i < BFI_RIT_SEG_TOTAL_POOLS; i++) {
-		j = 0;
-		list_for_each(qe, &rit_mod->rit_seg_pool[i]) {
-			rit_segment = (struct bna_rit_segment *)qe;
-			j++;
-		}
-	}
-}
-
 /*
  * Public functions
  */
@@ -2976,8 +2956,6 @@ bna_uninit(struct bna *bna)
 	bna_mcam_mod_uninit(&bna->mcam_mod);
 
 	bna_ucam_mod_uninit(&bna->ucam_mod);
-
-	bna_rit_mod_uninit(&bna->rit_mod);
 
 	bna_ib_mod_uninit(&bna->ib_mod);
 

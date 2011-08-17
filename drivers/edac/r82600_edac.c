@@ -22,7 +22,7 @@
 #include <linux/edac.h>
 #include "edac_core.h"
 
-#define R82600_REVISION	" Ver: 2.0.2 " __DATE__
+#define R82600_REVISION	" Ver: 2.0.2"
 #define EDAC_MOD_STR	"r82600_edac"
 
 #define r82600_printk(level, fmt, arg...) \
@@ -120,7 +120,7 @@
 				 *        write 0=NOP
 				 */
 
-#define R82600_DRBA	0x60	/* + 0x60..0x63 SDRAM Row Boundry Address
+#define R82600_DRBA	0x60	/* + 0x60..0x63 SDRAM Row Boundary Address
 				 *  Registers
 				 *
 				 * 7:0  Address lines 30:24 - upper limit of
@@ -217,7 +217,7 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 {
 	struct csrow_info *csrow;
 	int index;
-	u8 drbar;		/* SDRAM Row Boundry Address Register */
+	u8 drbar;		/* SDRAM Row Boundary Address Register */
 	u32 row_high_limit, row_high_limit_last;
 	u32 reg_sdram, ecc_on, row_base;
 
@@ -236,7 +236,7 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		row_high_limit = ((u32) drbar << 24);
 /*		row_high_limit = ((u32)drbar << 24) | 0xffffffUL; */
 
-		debugf1("%s() Row=%d, Boundry Address=%#0x, Last = %#0x\n",
+		debugf1("%s() Row=%d, Boundary Address=%#0x, Last = %#0x\n",
 			__func__, index, row_high_limit, row_high_limit_last);
 
 		/* Empty row [p.57] */

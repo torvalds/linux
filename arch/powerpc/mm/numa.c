@@ -311,14 +311,13 @@ EXPORT_SYMBOL_GPL(of_node_to_nid);
 static int __init find_min_common_depth(void)
 {
 	int depth;
-	struct device_node *rtas_root;
 	struct device_node *chosen;
+	struct device_node *root;
 	const char *vec5;
 
-	rtas_root = of_find_node_by_path("/rtas");
-
-	if (!rtas_root)
-		return -1;
+	root = of_find_node_by_path("/rtas");
+	if (!root)
+		root = of_find_node_by_path("/");
 
 	/*
 	 * This property is a set of 32-bit integers, each representing
@@ -332,7 +331,7 @@ static int __init find_min_common_depth(void)
 	 * NUMA boundary and the following are progressively less significant
 	 * boundaries. There can be more than one level of NUMA.
 	 */
-	distance_ref_points = of_get_property(rtas_root,
+	distance_ref_points = of_get_property(root,
 					"ibm,associativity-reference-points",
 					&distance_ref_points_depth);
 
@@ -376,11 +375,11 @@ static int __init find_min_common_depth(void)
 		distance_ref_points_depth = MAX_DISTANCE_REF_POINTS;
 	}
 
-	of_node_put(rtas_root);
+	of_node_put(root);
 	return depth;
 
 err:
-	of_node_put(rtas_root);
+	of_node_put(root);
 	return -1;
 }
 
@@ -440,11 +439,11 @@ static void read_drconf_cell(struct of_drconf_cell *drmem, const u32 **cellp)
 }
 
 /*
- * Retreive and validate the ibm,dynamic-memory property of the device tree.
+ * Retrieve and validate the ibm,dynamic-memory property of the device tree.
  *
  * The layout of the ibm,dynamic-memory property is a number N of memblock
  * list entries followed by N memblock list entries.  Each memblock list entry
- * contains information as layed out in the of_drconf_cell struct above.
+ * contains information as laid out in the of_drconf_cell struct above.
  */
 static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 {
@@ -468,7 +467,7 @@ static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 }
 
 /*
- * Retreive and validate the ibm,lmb-size property for drconf memory
+ * Retrieve and validate the ibm,lmb-size property for drconf memory
  * from the device tree.
  */
 static u64 of_get_lmb_size(struct device_node *memory)
@@ -490,7 +489,7 @@ struct assoc_arrays {
 };
 
 /*
- * Retreive and validate the list of associativity arrays for drconf
+ * Retrieve and validate the list of associativity arrays for drconf
  * memory from the ibm,associativity-lookup-arrays property of the
  * device tree..
  *
@@ -604,7 +603,7 @@ static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
  * Returns the size the region should have to enforce the memory limit.
  * This will either be the original value of size, a truncated value,
  * or zero. If the returned value of size is 0 the region should be
- * discarded as it lies wholy above the memory limit.
+ * discarded as it lies wholly above the memory limit.
  */
 static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 						      unsigned long size)
@@ -1453,7 +1452,7 @@ int arch_update_cpu_topology(void)
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	struct sys_device *sysdev;
 
-	for_each_cpu_mask(cpu, cpu_associativity_changes_mask) {
+	for_each_cpu(cpu,&cpu_associativity_changes_mask) {
 		vphn_get_associativity(cpu, associativity);
 		nid = associativity_to_nid(associativity);
 
@@ -1516,7 +1515,8 @@ int start_topology_update(void)
 {
 	int rc = 0;
 
-	if (firmware_has_feature(FW_FEATURE_VPHN) &&
+	/* Disabled until races with load balancing are fixed */
+	if (0 && firmware_has_feature(FW_FEATURE_VPHN) &&
 	    get_lppaca()->shared_proc) {
 		vphn_enabled = 1;
 		setup_cpu_associativity_change_counters();

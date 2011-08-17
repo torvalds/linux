@@ -2,7 +2,7 @@
  * net/tipc/core.c: TIPC module code
  *
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,6 @@
 #include "config.h"
 
 
-#ifndef CONFIG_TIPC_NODES
-#define CONFIG_TIPC_NODES 255
-#endif
-
 #ifndef CONFIG_TIPC_PORTS
 #define CONFIG_TIPC_PORTS 8191
 #endif
@@ -57,7 +53,6 @@
 
 int tipc_mode = TIPC_NOT_RUNNING;
 int tipc_random;
-atomic_t tipc_user_count = ATOMIC_INIT(0);
 
 const char tipc_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
@@ -65,7 +60,6 @@ const char tipc_alphabet[] =
 /* configurable TIPC parameters */
 
 u32 tipc_own_addr;
-int tipc_max_nodes;
 int tipc_max_ports;
 int tipc_max_subscriptions;
 int tipc_max_publications;
@@ -185,15 +179,13 @@ static int __init tipc_init(void)
 	if (tipc_log_resize(CONFIG_TIPC_LOG) != 0)
 		warn("Unable to create log buffer\n");
 
-	info("Activated (version " TIPC_MOD_VER
-	     " compiled " __DATE__ " " __TIME__ ")\n");
+	info("Activated (version " TIPC_MOD_VER ")\n");
 
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
-	tipc_max_nodes = CONFIG_TIPC_NODES;
 	tipc_net_id = 4711;
 
 	res = tipc_core_start();

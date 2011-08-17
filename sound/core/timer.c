@@ -186,9 +186,8 @@ static void snd_timer_check_slave(struct snd_timer_instance *slave)
 		list_for_each_entry(master, &timer->open_list_head, open_list) {
 			if (slave->slave_class == master->slave_class &&
 			    slave->slave_id == master->slave_id) {
-				list_del(&slave->open_list);
-				list_add_tail(&slave->open_list,
-					      &master->slave_list_head);
+				list_move_tail(&slave->open_list,
+					       &master->slave_list_head);
 				spin_lock_irq(&slave_active_lock);
 				slave->master = master;
 				slave->timer = master->timer;
@@ -329,6 +328,8 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 		mutex_unlock(&register_mutex);
 	} else {
 		timer = timeri->timer;
+		if (snd_BUG_ON(!timer))
+			goto out;
 		/* wait, until the active callback is finished */
 		spin_lock_irq(&timer->lock);
 		while (timeri->flags & SNDRV_TIMER_IFLG_CALLBACK) {
@@ -354,6 +355,7 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 		}
 		mutex_unlock(&register_mutex);
 	}
+ out:
 	if (timeri->private_free)
 		timeri->private_free(timeri);
 	kfree(timeri->owner);
@@ -414,8 +416,7 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 static int snd_timer_start1(struct snd_timer *timer, struct snd_timer_instance *timeri,
 			    unsigned long sticks)
 {
-	list_del(&timeri->active_list);
-	list_add_tail(&timeri->active_list, &timer->active_list_head);
+	list_move_tail(&timeri->active_list, &timer->active_list_head);
 	if (timer->running) {
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 			goto __start_now;
@@ -533,6 +534,8 @@ int snd_timer_stop(struct snd_timer_instance *timeri)
 	if (err < 0)
 		return err;
 	timer = timeri->timer;
+	if (!timer)
+		return -EINVAL;
 	spin_lock_irqsave(&timer->lock, flags);
 	timeri->cticks = timeri->ticks;
 	timeri->pticks = 0;

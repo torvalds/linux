@@ -46,9 +46,15 @@ errors=panic		Panic and halt the machine if an error occurs.
 intr		(*)	Allow signals to interrupt cluster operations.
 nointr			Do not allow signals to interrupt cluster
 			operations.
+noatime			Do not update access time.
+relatime(*)		Update atime if the previous atime is older than
+			mtime or ctime
+strictatime		Always update atime, but the minimum update interval
+			is specified by atime_quantum.
 atime_quantum=60(*)	OCFS2 will not update atime unless this number
 			of seconds has passed since the last update.
-			Set to zero to always update atime.
+			Set to zero to always update atime. This option need
+			work with strictatime.
 data=ordered	(*)	All data are forced directly out to the main file
 			system prior to its metadata being committed to the
 			journal.
@@ -80,7 +86,7 @@ user_xattr	(*)	Enables Extended User Attributes.
 nouser_xattr		Disables Extended User Attributes.
 acl			Enables POSIX Access Control Lists support.
 noacl		(*)	Disables POSIX Access Control Lists support.
-resv_level=2	(*)	Set how agressive allocation reservations will be.
+resv_level=2	(*)	Set how aggressive allocation reservations will be.
 			Valid values are between 0 (reservations off) to 8
 			(maximum space for reservations).
 dir_resv_level=	(*)	By default, directory reservations will scale with file

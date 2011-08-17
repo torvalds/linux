@@ -27,6 +27,7 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
+#include <linux/cleancache.h>
 
 /*
  * I/O completion handler for multipage BIOs.
@@ -271,6 +272,12 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 		SetPageMappedToDisk(page);
 	}
 
+	if (fully_mapped && blocks_per_page == 1 && !PageUptodate(page) &&
+	    cleancache_get_page(page) == 0) {
+		SetPageUptodate(page);
+		goto confused;
+	}
+
 	/*
 	 * This page will go to BIO.  Do we need to send this BIO off first?
 	 */
@@ -364,6 +371,9 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	sector_t last_block_in_bio = 0;
 	struct buffer_head map_bh;
 	unsigned long first_logical_block = 0;
+	struct blk_plug plug;
+
+	blk_start_plug(&plug);
 
 	map_bh.b_state = 0;
 	map_bh.b_size = 0;
@@ -385,6 +395,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	BUG_ON(!list_empty(pages));
 	if (bio)
 		mpage_bio_submit(READ, bio);
+	blk_finish_plug(&plug);
 	return 0;
 }
 EXPORT_SYMBOL(mpage_readpages);
@@ -666,7 +677,10 @@ int
 mpage_writepages(struct address_space *mapping,
 		struct writeback_control *wbc, get_block_t get_block)
 {
+	struct blk_plug plug;
 	int ret;
+
+	blk_start_plug(&plug);
 
 	if (!get_block)
 		ret = generic_writepages(mapping, wbc);
@@ -682,6 +696,7 @@ mpage_writepages(struct address_space *mapping,
 		if (mpd.bio)
 			mpage_bio_submit(WRITE, mpd.bio);
 	}
+	blk_finish_plug(&plug);
 	return ret;
 }
 EXPORT_SYMBOL(mpage_writepages);

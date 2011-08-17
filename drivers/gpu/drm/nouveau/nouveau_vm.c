@@ -28,7 +28,7 @@
 #include "nouveau_vm.h"
 
 void
-nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
+nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 {
 	struct nouveau_vm *vm = vma->vm;
 	struct nouveau_mm_node *r;
@@ -40,7 +40,8 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 	u32 max  = 1 << (vm->pgt_bits - bits);
 	u32 end, len;
 
-	list_for_each_entry(r, &vram->regions, rl_entry) {
+	delta = 0;
+	list_for_each_entry(r, &node->regions, rl_entry) {
 		u64 phys = (u64)r->offset << 12;
 		u32 num  = r->length >> bits;
 
@@ -52,14 +53,17 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 				end = max;
 			len = end - pte;
 
-			vm->map(vma, pgt, vram, pte, len, phys);
+			vm->map(vma, pgt, node, pte, len, phys, delta);
 
 			num -= len;
 			pte += len;
 			if (unlikely(end >= max)) {
+				phys += len << (bits + 12);
 				pde++;
 				pte = 0;
 			}
+
+			delta += (u64)len << vma->node->type;
 		}
 	}
 
@@ -67,14 +71,14 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 }
 
 void
-nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_vram *vram)
+nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
 {
-	nouveau_vm_map_at(vma, 0, vram);
+	nouveau_vm_map_at(vma, 0, node);
 }
 
 void
 nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
-		  dma_addr_t *list)
+		  struct nouveau_mem *mem, dma_addr_t *list)
 {
 	struct nouveau_vm *vm = vma->vm;
 	int big = vma->node->type != vm->spg_shift;
@@ -94,7 +98,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 			end = max;
 		len = end - pte;
 
-		vm->map_sg(vma, pgt, pte, list, len);
+		vm->map_sg(vma, pgt, mem, pte, len, list);
 
 		num  -= len;
 		pte  += len;
@@ -311,18 +315,7 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 		vm->spg_shift = 12;
 		vm->lpg_shift = 17;
 		pgt_bits = 27;
-
-		/* Should be 4096 everywhere, this is a hack that's
-		 * currently necessary to avoid an elusive bug that
-		 * causes corruption when mixing small/large pages
-		 */
-		if (length < (1ULL << 40))
-			block = 4096;
-		else {
-			block = (1 << pgt_bits);
-			if (length < block)
-				block = length;
-		}
+		block = 4096;
 	} else {
 		kfree(vm);
 		return -ENOSYS;
@@ -376,23 +369,26 @@ nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 }
 
 static void
-nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
+nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *mpgd)
 {
 	struct nouveau_vm_pgd *vpgd, *tmp;
+	struct nouveau_gpuobj *pgd = NULL;
 
-	if (!pgd)
+	if (!mpgd)
 		return;
 
 	mutex_lock(&vm->mm->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
-		if (vpgd->obj != pgd)
-			continue;
-
-		list_del(&vpgd->head);
-		nouveau_gpuobj_ref(NULL, &vpgd->obj);
-		kfree(vpgd);
+		if (vpgd->obj == mpgd) {
+			pgd = vpgd->obj;
+			list_del(&vpgd->head);
+			kfree(vpgd);
+			break;
+		}
 	}
 	mutex_unlock(&vm->mm->mutex);
+
+	nouveau_gpuobj_ref(NULL, &pgd);
 }
 
 static void
@@ -403,8 +399,8 @@ nouveau_vm_del(struct nouveau_vm *vm)
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		nouveau_vm_unlink(vm, vpgd->obj);
 	}
-	WARN_ON(nouveau_mm_fini(&vm->mm) != 0);
 
+	nouveau_mm_fini(&vm->mm);
 	kfree(vm->pgt);
 	kfree(vm);
 }

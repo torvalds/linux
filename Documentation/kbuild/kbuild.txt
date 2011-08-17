@@ -26,11 +26,11 @@ Additional options to the assembler (for built-in and modules).
 
 AFLAGS_MODULE
 --------------------------------------------------
-Addtional module specific options to use for $(AS).
+Additional module specific options to use for $(AS).
 
 AFLAGS_KERNEL
 --------------------------------------------------
-Addtional options for $(AS) when used for assembler
+Additional options for $(AS) when used for assembler
 code for code that is compiled as built-in.
 
 KCFLAGS
@@ -39,12 +39,12 @@ Additional options to the C compiler (for built-in and modules).
 
 CFLAGS_KERNEL
 --------------------------------------------------
-Addtional options for $(CC) when used to compile
+Additional options for $(CC) when used to compile
 code that is compiled as built-in.
 
 CFLAGS_MODULE
 --------------------------------------------------
-Addtional module specific options to use for $(CC).
+Additional module specific options to use for $(CC).
 
 LDFLAGS_MODULE
 --------------------------------------------------
@@ -146,7 +146,7 @@ INSTALL_MOD_STRIP
 INSTALL_MOD_STRIP, if defined, will cause modules to be
 stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
 the default option --strip-debug will be used.  Otherwise,
-INSTALL_MOD_STRIP will used as the options to the strip command.
+INSTALL_MOD_STRIP value will be used as the options to the strip command.
 
 INSTALL_FW_PATH
 --------------------------------------------------
@@ -196,3 +196,21 @@ to be included in the databases, separated by blank space. E.g.:
 To get all available archs you can also specify all. E.g.:
 
     $ make ALLSOURCE_ARCHS=all tags
+
+KBUILD_ENABLE_EXTRA_GCC_CHECKS
+--------------------------------------------------
+If enabled over the make command line with "W=1", it turns on additional
+gcc -W... options for more extensive build-time checking.
+
+KBUILD_BUILD_TIMESTAMP
+--------------------------------------------------
+Setting this to a date string overrides the timestamp used in the
+UTS_VERSION definition (uname -v in the running kernel). The value has to
+be a string that can be passed to date -d. The default value
+is the output of the date command at one point during build.
+
+KBUILD_BUILD_USER, KBUILD_BUILD_HOST
+--------------------------------------------------
+These two variables allow to override the user@host string displayed during
+boot and in /proc/version. The default value is the output of the commands
+whoami and host, respectively.

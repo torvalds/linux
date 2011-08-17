@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <rdma/rdma_netlink.h>
 
 #include "core_priv.h"
 
@@ -626,6 +627,9 @@ int ib_modify_device(struct ib_device *device,
 		     int device_modify_mask,
 		     struct ib_device_modify *device_modify)
 {
+	if (!device->modify_device)
+		return -ENOSYS;
+
 	return device->modify_device(device, device_modify_mask,
 				     device_modify);
 }
@@ -646,6 +650,9 @@ int ib_modify_port(struct ib_device *device,
 		   u8 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify)
 {
+	if (!device->modify_port)
+		return -ENOSYS;
+
 	if (port_num < start_port(device) || port_num > end_port(device))
 		return -EINVAL;
 
@@ -725,22 +732,40 @@ static int __init ib_core_init(void)
 		return -ENOMEM;
 
 	ret = ib_sysfs_setup();
-	if (ret)
+	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
+		goto err;
+	}
+
+	ret = ibnl_init();
+	if (ret) {
+		printk(KERN_WARNING "Couldn't init IB netlink interface\n");
+		goto err_sysfs;
+	}
 
 	ret = ib_cache_setup();
 	if (ret) {
 		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
-		ib_sysfs_cleanup();
-		destroy_workqueue(ib_wq);
+		goto err_nl;
 	}
 
+	return 0;
+
+err_nl:
+	ibnl_cleanup();
+
+err_sysfs:
+	ib_sysfs_cleanup();
+
+err:
+	destroy_workqueue(ib_wq);
 	return ret;
 }
 
 static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
+	ibnl_cleanup();
 	ib_sysfs_cleanup();
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);

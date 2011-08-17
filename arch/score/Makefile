@@ -40,5 +40,5 @@ archclean:
 define archhelp
 	echo '  vmlinux.bin          - Raw binary boot image'
 	echo
-	echo '  These will be default as apropriate for a configured platform.'
+	echo '  These will be default as appropriate for a configured platform.'
 endef

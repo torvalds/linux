@@ -660,7 +660,7 @@ typedef struct {
  * @lparam	: logical drives parameters
  * @span	: span
  *
- * 8-LD logical drive with upto 8 spans
+ * 8-LD logical drive with up to 8 spans
  */
 typedef struct {
 	logdrv_param_t	lparam;
@@ -673,7 +673,7 @@ typedef struct {
  * @lparam	: logical drives parameters
  * @span	: span
  *
- * 8-LD logical drive with upto 4 spans
+ * 8-LD logical drive with up to 4 spans
  */
 typedef struct {
 	logdrv_param_t	lparam;
@@ -720,7 +720,7 @@ typedef struct {
  * @ldrv	: logical drives information
  * @pdrv	: physical drives information
  *
- * Disk array for 8LD logical drives with upto 8 spans
+ * Disk array for 8LD logical drives with up to 8 spans
  */
 typedef struct {
 	uint8_t			numldrv;
@@ -737,7 +737,7 @@ typedef struct {
  * @ldrv	: logical drives information
  * @pdrv	: physical drives information
  *
- * Disk array for 8LD logical drives with upto 4 spans
+ * Disk array for 8LD logical drives with up to 4 spans
  */
 typedef struct {
 	uint8_t			numldrv;

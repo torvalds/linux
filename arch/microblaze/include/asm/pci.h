@@ -40,8 +40,7 @@ struct pci_dev;
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers (don't do that on ppc64 yet !)
  */
-#define pcibios_assign_all_busses() \
-	(pci_has_flag(PCI_REASSIGN_ALL_BUS))
+#define pcibios_assign_all_busses()	0
 
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
@@ -158,7 +157,7 @@ extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 extern void pcibios_setup_bus_devices(struct pci_bus *bus);
 extern void pcibios_setup_bus_self(struct pci_bus *bus);
 
-/* This part of code was originaly in xilinx-pci.h */
+/* This part of code was originally in xilinx-pci.h */
 #ifdef CONFIG_PCI_XILINX
 extern void __init xilinx_pci_init(void);
 #else

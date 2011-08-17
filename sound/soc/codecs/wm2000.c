@@ -836,23 +836,24 @@ static void wm2000_i2c_shutdown(struct i2c_client *i2c)
 }
 
 #ifdef CONFIG_PM
-static int wm2000_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int wm2000_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct wm2000_priv *wm2000 = dev_get_drvdata(&i2c->dev);
 
 	return wm2000_anc_transition(wm2000, ANC_OFF);
 }
 
-static int wm2000_i2c_resume(struct i2c_client *i2c)
+static int wm2000_i2c_resume(struct device *dev)
 {
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct wm2000_priv *wm2000 = dev_get_drvdata(&i2c->dev);
 
 	return wm2000_anc_set_mode(wm2000);
 }
-#else
-#define wm2000_i2c_suspend NULL
-#define wm2000_i2c_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(wm2000_pm, wm2000_i2c_suspend, wm2000_i2c_resume);
 
 static const struct i2c_device_id wm2000_i2c_id[] = {
 	{ "wm2000", 0 },
@@ -864,11 +865,10 @@ static struct i2c_driver wm2000_i2c_driver = {
 	.driver = {
 		.name = "wm2000",
 		.owner = THIS_MODULE,
+		.pm = &wm2000_pm,
 	},
 	.probe = wm2000_i2c_probe,
 	.remove = __devexit_p(wm2000_i2c_remove),
-	.suspend = wm2000_i2c_suspend,
-	.resume = wm2000_i2c_resume,
 	.shutdown = wm2000_i2c_shutdown,
 	.id_table = wm2000_i2c_id,
 };

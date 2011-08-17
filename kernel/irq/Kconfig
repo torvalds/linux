@@ -1,5 +1,6 @@
+# Select this to activate the generic irq options below
 config HAVE_GENERIC_HARDIRQS
-	def_bool n
+	bool
 
 if HAVE_GENERIC_HARDIRQS
 menu "IRQ subsystem"
@@ -9,28 +10,55 @@ menu "IRQ subsystem"
 config GENERIC_HARDIRQS
        def_bool y
 
-# Select this to disable the deprecated stuff
-config GENERIC_HARDIRQS_NO_DEPRECATED
-       def_bool n
-
 # Options selectable by the architecture code
+
+# Make sparse irq Kconfig switch below available
 config HAVE_SPARSE_IRQ
-       def_bool n
+       bool
 
+# Enable the generic irq autoprobe mechanism
 config GENERIC_IRQ_PROBE
-	def_bool n
+	bool
 
+# Use the generic /proc/interrupts implementation
+config GENERIC_IRQ_SHOW
+       bool
+
+# Print level/edge extra information
+config GENERIC_IRQ_SHOW_LEVEL
+       bool
+
+# Support for delayed migration from interrupt context
 config GENERIC_PENDING_IRQ
-	def_bool n
+	bool
 
+# Alpha specific irq affinity mechanism
 config AUTO_IRQ_AFFINITY
-       def_bool n
+       bool
 
-config IRQ_PER_CPU
-       def_bool n
-
+# Tasklet based software resend for pending interrupts on enable_irq()
 config HARDIRQS_SW_RESEND
-       def_bool n
+       bool
+
+# Preflow handler support for fasteoi (sparc64)
+config IRQ_PREFLOW_FASTEOI
+       bool
+
+# Edge style eoi based handler (cell)
+config IRQ_EDGE_EOI_HANDLER
+       bool
+
+# Generic configurable interrupt chip implementation
+config GENERIC_IRQ_CHIP
+       bool
+
+# Generic irq_domain hw <--> linux irq number translation
+config IRQ_DOMAIN
+	bool
+
+# Support forced irq threading
+config IRQ_FORCED_THREADING
+       bool
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"

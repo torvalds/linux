@@ -78,10 +78,11 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 
 static inline void gfs2_setbit(struct gfs2_rgrpd *rgd, unsigned char *buf1,
 			       unsigned char *buf2, unsigned int offset,
-			       unsigned int buflen, u32 block,
+			       struct gfs2_bitmap *bi, u32 block,
 			       unsigned char new_state)
 {
 	unsigned char *byte1, *byte2, *end, cur_state;
+	unsigned int buflen = bi->bi_len;
 	const unsigned int bit = (block % GFS2_NBBY) * GFS2_BIT_SIZE;
 
 	byte1 = buf1 + offset + (block / GFS2_NBBY);
@@ -92,6 +93,16 @@ static inline void gfs2_setbit(struct gfs2_rgrpd *rgd, unsigned char *buf1,
 	cur_state = (*byte1 >> bit) & GFS2_BIT_MASK;
 
 	if (unlikely(!valid_change[new_state * 4 + cur_state])) {
+		printk(KERN_WARNING "GFS2: buf_blk = 0x%llx old_state=%d, "
+		       "new_state=%d\n",
+		       (unsigned long long)block, cur_state, new_state);
+		printk(KERN_WARNING "GFS2: rgrp=0x%llx bi_start=0x%lx\n",
+		       (unsigned long long)rgd->rd_addr,
+		       (unsigned long)bi->bi_start);
+		printk(KERN_WARNING "GFS2: bi_offset=0x%lx bi_len=0x%lx\n",
+		       (unsigned long)bi->bi_offset,
+		       (unsigned long)bi->bi_len);
+		dump_stack();
 		gfs2_consist_rgrpd(rgd);
 		return;
 	}
@@ -381,6 +392,7 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 
 		if (gl) {
 			gl->gl_object = NULL;
+			gfs2_glock_add_to_lru(gl);
 			gfs2_glock_put(gl);
 		}
 
@@ -945,7 +957,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 		/* rgblk_search can return a block < goal, so we need to
 		   keep it marching forward. */
 		no_addr = block + rgd->rd_data0;
-		goal++;
+		goal = max(block + 1, goal + 1);
 		if (*last_unlinked != NO_BLOCK && no_addr <= *last_unlinked)
 			continue;
 		if (no_addr == skip)
@@ -971,7 +983,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 			found++;
 
 		/* Limit reclaim to sensible number of tasks */
-		if (found > 2*NR_CPUS)
+		if (found > NR_CPUS)
 			return;
 	}
 
@@ -1365,7 +1377,7 @@ skip:
 
 	gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
 	gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
-		    bi->bi_len, blk, new_state);
+		    bi, blk, new_state);
 	goal = blk;
 	while (*n < elen) {
 		goal++;
@@ -1375,7 +1387,7 @@ skip:
 		    GFS2_BLKST_FREE)
 			break;
 		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
-			    bi->bi_len, goal, new_state);
+			    bi, goal, new_state);
 		(*n)++;
 	}
 out:
@@ -1432,7 +1444,7 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 		}
 		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
 		gfs2_setbit(rgd, bi->bi_bh->b_data, NULL, bi->bi_offset,
-			    bi->bi_len, buf_blk, new_state);
+			    bi, buf_blk, new_state);
 	}
 
 	return rgd;
@@ -1595,14 +1607,15 @@ rgrp_error:
 }
 
 /**
- * gfs2_free_data - free a contiguous run of data block(s)
+ * __gfs2_free_blocks - free a contiguous run of block(s)
  * @ip: the inode these blocks are being freed from
  * @bstart: first block of a run of contiguous blocks
  * @blen: the length of the block run
+ * @meta: 1 if the blocks represent metadata
  *
  */
 
-void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
+void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
@@ -1618,8 +1631,9 @@ void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 
 	gfs2_trans_add_rg(rgd);
 
-	gfs2_statfs_change(sdp, 0, +blen, 0);
-	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
+	/* Directories keep their data in the metadata address space */
+	if (meta || ip->i_depth)
+		gfs2_meta_wipe(ip, bstart, blen);
 }
 
 /**
@@ -1633,22 +1647,10 @@ void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_rgrpd *rgd;
 
-	rgd = rgblk_free(sdp, bstart, blen, GFS2_BLKST_FREE);
-	if (!rgd)
-		return;
-	trace_gfs2_block_alloc(ip, bstart, blen, GFS2_BLKST_FREE);
-	rgd->rd_free += blen;
-
-	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-
-	gfs2_trans_add_rg(rgd);
-
+	__gfs2_free_blocks(ip, bstart, blen, 1);
 	gfs2_statfs_change(sdp, 0, +blen, 0);
 	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	gfs2_meta_wipe(ip, bstart, blen);
 }
 
 void gfs2_unlink_di(struct inode *inode)

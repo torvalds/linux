@@ -87,14 +87,14 @@ accumulator. ALSA uses accumulators 0 and 1 for left and right PCM.
 The result is forwarded to the ADC capture FIFO (thus to the standard capture
 PCM device).
 
-name='Music Playback Volume',index=0
+name='Synth Playback Volume',index=0
 
 This control is used to attenuate samples for left and right MIDI FX-bus
 accumulators. ALSA uses accumulators 4 and 5 for left and right MIDI samples.
 The result samples are forwarded to the front DAC PCM slots of the AC97 codec.
 
-name='Music Capture Volume',index=0
-name='Music Capture Switch',index=0
+name='Synth Capture Volume',index=0
+name='Synth Capture Switch',index=0
 
 These controls are used to attenuate samples for left and right MIDI FX-bus
 accumulator. ALSA uses accumulators 4 and 5 for left and right PCM.

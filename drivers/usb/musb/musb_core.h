@@ -72,10 +72,6 @@ struct musb_ep;
 #include <linux/usb/hcd.h>
 #include "musb_host.h"
 
-
-
-#ifdef CONFIG_USB_MUSB_OTG
-
 #define	is_peripheral_enabled(musb)	((musb)->board_mode != MUSB_HOST)
 #define	is_host_enabled(musb)		((musb)->board_mode != MUSB_PERIPHERAL)
 #define	is_otg_enabled(musb)		((musb)->board_mode == MUSB_OTG)
@@ -85,24 +81,6 @@ struct musb_ep;
  */
 #define is_peripheral_active(m)		(!(m)->is_host)
 #define is_host_active(m)		((m)->is_host)
-
-#else
-#define	is_peripheral_enabled(musb)	is_peripheral_capable()
-#define	is_host_enabled(musb)		is_host_capable()
-#define	is_otg_enabled(musb)		0
-
-#define	is_peripheral_active(musb)	is_peripheral_capable()
-#define	is_host_active(musb)		is_host_capable()
-#endif
-
-#if defined(CONFIG_USB_MUSB_OTG) || defined(CONFIG_USB_MUSB_PERIPHERAL)
-/* for some reason, the "select USB_GADGET_MUSB_HDRC" doesn't always
- * override that choice selection (often USB_GADGET_DUMMY_HCD).
- */
-#ifndef CONFIG_USB_GADGET_MUSB_HDRC
-#error bogus Kconfig output ... select CONFIG_USB_GADGET_MUSB_HDRC
-#endif
-#endif	/* need MUSB gadget selection */
 
 #ifndef CONFIG_HAVE_CLK
 /* Dummy stub for clk framework */
@@ -119,8 +97,6 @@ struct musb_ep;
 
 /****************************** PERIPHERAL ROLE *****************************/
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-
 #define	is_peripheral_capable()	(1)
 
 extern irqreturn_t musb_g_ep0_irq(struct musb *);
@@ -132,39 +108,13 @@ extern void musb_g_resume(struct musb *);
 extern void musb_g_wakeup(struct musb *);
 extern void musb_g_disconnect(struct musb *);
 
-#else
-
-#define	is_peripheral_capable()	(0)
-
-static inline irqreturn_t musb_g_ep0_irq(struct musb *m) { return IRQ_NONE; }
-static inline void musb_g_reset(struct musb *m) {}
-static inline void musb_g_suspend(struct musb *m) {}
-static inline void musb_g_resume(struct musb *m) {}
-static inline void musb_g_wakeup(struct musb *m) {}
-static inline void musb_g_disconnect(struct musb *m) {}
-
-#endif
-
 /****************************** HOST ROLE ***********************************/
-
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 
 #define	is_host_capable()	(1)
 
 extern irqreturn_t musb_h_ep0_irq(struct musb *);
 extern void musb_host_tx(struct musb *, u8);
 extern void musb_host_rx(struct musb *, u8);
-
-#else
-
-#define	is_host_capable()	(0)
-
-static inline irqreturn_t musb_h_ep0_irq(struct musb *m) { return IRQ_NONE; }
-static inline void musb_host_tx(struct musb *m, u8 e) {}
-static inline void musb_host_rx(struct musb *m, u8 e) {}
-
-#endif
-
 
 /****************************** CONSTANTS ********************************/
 
@@ -212,8 +162,8 @@ enum musb_g_ep0_state {
  * directly with the "flat" model, or after setting up an index register.
  */
 
-#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_ARCH_OMAP2430) \
-		|| defined(CONFIG_ARCH_OMAP3430) || defined(CONFIG_BLACKFIN) \
+#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_SOC_OMAP2430) \
+		|| defined(CONFIG_SOC_OMAP3430) || defined(CONFIG_BLACKFIN) \
 		|| defined(CONFIG_ARCH_OMAP4)
 /* REVISIT indexed access seemed to
  * misbehave (on DaVinci) for at least peripheral IN ...
@@ -261,6 +211,7 @@ enum musb_g_ep0_state {
  * @try_ilde:	tries to idle the IP
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
+ * @adjust_channel_params: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
 	int	(*init)(struct musb *musb);
@@ -274,6 +225,10 @@ struct musb_platform_ops {
 
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
+
+	int	(*adjust_channel_params)(struct dma_channel *channel,
+				u16 packet_sz, u8 *mode,
+				dma_addr_t *dma_addr, u32 *len);
 };
 
 /*
@@ -310,7 +265,6 @@ struct musb_hw_ep {
 	void __iomem		*fifo_sync_va;
 #endif
 
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	void __iomem		*target_regs;
 
 	/* currently scheduled peripheral endpoint */
@@ -319,31 +273,20 @@ struct musb_hw_ep {
 
 	u8			rx_reinit;
 	u8			tx_reinit;
-#endif
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	/* peripheral side */
 	struct musb_ep		ep_in;			/* TX */
 	struct musb_ep		ep_out;			/* RX */
-#endif
 };
 
-static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_in_request(struct musb_hw_ep *hw_ep)
 {
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_in);
-#else
-	return NULL;
-#endif
 }
 
-static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_out_request(struct musb_hw_ep *hw_ep)
 {
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_out);
-#else
-	return NULL;
-#endif
 }
 
 struct musb_csr_regs {
@@ -358,10 +301,6 @@ struct musb_csr_regs {
 
 struct musb_context_registers {
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
-#endif
 	u8 power;
 	u16 intrtxe, intrrxe;
 	u8 intrusbe;
@@ -392,7 +331,6 @@ struct musb {
 
 	u32			port1_status;
 
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	unsigned long		rh_timer;
 
 	enum musb_h_ep0_state	ep0_stage;
@@ -410,7 +348,6 @@ struct musb {
 	struct list_head	out_bulk;	/* of musb_qh */
 
 	struct timer_list	otg_timer;
-#endif
 	struct notifier_block	nb;
 
 	struct dma_controller	*dma_controller;
@@ -471,7 +408,6 @@ struct musb {
 #define	can_bulk_combine(musb,type) \
 	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	/* is_suspended means USB B_PERIPHERAL suspend */
 	unsigned		is_suspended:1;
 
@@ -495,7 +431,6 @@ struct musb {
 	enum musb_g_ep0_state	ep0_state;
 	struct usb_gadget	g;			/* the gadget */
 	struct usb_gadget_driver *gadget_driver;	/* its driver */
-#endif
 
 	/*
 	 * FIXME: Remove this flag.
@@ -517,12 +452,10 @@ struct musb {
 #endif
 };
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
 {
 	return container_of(g, struct musb, g);
 }
-#endif
 
 #ifdef CONFIG_BLACKFIN
 static inline int musb_read_fifosize(struct musb *musb,

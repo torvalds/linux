@@ -343,7 +343,7 @@ static int __devinit ds1286_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->size = res->end - res->start + 1;
+	priv->size = resource_size(res);
 	if (!request_mem_region(res->start, priv->size, pdev->name)) {
 		ret = -EBUSY;
 		goto out;
@@ -355,6 +355,7 @@ static int __devinit ds1286_probe(struct platform_device *pdev)
 		goto out;
 	}
 	spin_lock_init(&priv->lock);
+	platform_set_drvdata(pdev, priv);
 	rtc = rtc_device_register("ds1286", &pdev->dev,
 				  &ds1286_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
@@ -362,7 +363,6 @@ static int __devinit ds1286_probe(struct platform_device *pdev)
 		goto out;
 	}
 	priv->rtc = rtc;
-	platform_set_drvdata(pdev, priv);
 	return 0;
 
 out:

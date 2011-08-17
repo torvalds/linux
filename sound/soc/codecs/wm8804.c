@@ -175,7 +175,7 @@ static int txsrc_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int wm8804_volatile(unsigned int reg)
+static int wm8804_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8804_RST_DEVID1:
@@ -680,20 +680,25 @@ static struct snd_soc_dai_ops wm8804_dai_ops = {
 #define WM8804_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE)
 
+#define WM8804_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
+		      SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_64000 | \
+		      SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | \
+		      SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000)
+
 static struct snd_soc_dai_driver wm8804_dai = {
 	.name = "wm8804-spdif",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000,
+		.rates = WM8804_RATES,
 		.formats = WM8804_FORMATS,
 	},
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000,
+		.rates = WM8804_RATES,
 		.formats = WM8804_FORMATS,
 	},
 	.ops = &wm8804_dai_ops,

@@ -429,7 +429,6 @@ static sector_t _affs_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations affs_aops = {
 	.readpage = affs_readpage,
 	.writepage = affs_writepage,
-	.sync_page = block_sync_page,
 	.write_begin = affs_write_begin,
 	.write_end = generic_write_end,
 	.bmap = _affs_bmap
@@ -786,7 +785,6 @@ out:
 const struct address_space_operations affs_aops_ofs = {
 	.readpage = affs_readpage_ofs,
 	//.writepage = affs_writepage_ofs,
-	//.sync_page = affs_sync_page_ofs,
 	.write_begin = affs_write_begin_ofs,
 	.write_end = affs_write_end_ofs
 };
@@ -925,14 +923,20 @@ affs_truncate(struct inode *inode)
 	affs_free_prealloc(inode);
 }
 
-int affs_file_fsync(struct file *filp, int datasync)
+int affs_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = filp->f_mapping->host;
 	int ret, err;
 
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (err)
+		return err;
+
+	mutex_lock(&inode->i_mutex);
 	ret = write_inode_now(inode, 0);
 	err = sync_blockdev(inode->i_sb->s_bdev);
 	if (!ret)
 		ret = err;
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }

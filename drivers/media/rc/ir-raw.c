@@ -112,21 +112,22 @@ int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
 {
 	ktime_t			now;
 	s64			delta; /* ns */
-	struct ir_raw_event	ev;
+	DEFINE_IR_RAW_EVENT(ev);
 	int			rc = 0;
+	int			delay;
 
 	if (!dev->raw)
 		return -EINVAL;
 
 	now = ktime_get();
 	delta = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
+	delay = MS_TO_NS(dev->input_dev->rep[REP_DELAY]);
 
 	/* Check for a long duration since last event or if we're
 	 * being called for the first time, note that delta can't
 	 * possibly be negative.
 	 */
-	ev.duration = 0;
-	if (delta > IR_MAX_DURATION || !dev->raw->last_type)
+	if (delta > delay || !dev->raw->last_type)
 		type |= IR_START_EVENT;
 	else
 		ev.duration = delta;
@@ -154,7 +155,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
  * @type:	the type of the event that has occurred
  *
  * This routine (which may be called from an interrupt context) works
- * in similiar manner to ir_raw_event_store_edge.
+ * in similar manner to ir_raw_event_store_edge.
  * This routine is intended for devices with limited internal buffer
  * It automerges samples of same type, and handles timeouts
  */
@@ -354,6 +355,7 @@ static void init_decoders(struct work_struct *work)
 	load_rc6_decode();
 	load_jvc_decode();
 	load_sony_decode();
+	load_mce_kbd_decode();
 	load_lirc_codec();
 
 	/* If needed, we may later add some init code. In this case,

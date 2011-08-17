@@ -81,6 +81,7 @@ static const char version[] =
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -1424,11 +1425,6 @@ static void smc_set_multicast_list(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			int position;
 
-			/* make sure this is a multicast address -
-		   	   shouldn't this be a given if we have it here ? */
-			if (!(*ha->addr & 1))
-				continue;
-
 			/* only use the low order bits */
 			position = crc32_le(~0, ha->addr, 6) & 0x3f;
 
@@ -1564,9 +1560,9 @@ smc_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 				 SUPPORTED_TP | SUPPORTED_AUI;
 
 		if (lp->ctl_rspeed == 10)
-			cmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(cmd, SPEED_10);
 		else if (lp->ctl_rspeed == 100)
-			cmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(cmd, SPEED_100);
 
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->transceiver = XCVR_INTERNAL;
@@ -2394,6 +2390,17 @@ static int smc_drv_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id smc91x_match[] = {
+	{ .compatible = "smsc,lan91c94", },
+	{ .compatible = "smsc,lan91c111", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, smc91x_match);
+#else
+#define smc91x_match NULL
+#endif
+
 static struct dev_pm_ops smc_drv_pm_ops = {
 	.suspend	= smc_drv_suspend,
 	.resume		= smc_drv_resume,
@@ -2406,6 +2413,7 @@ static struct platform_driver smc_driver = {
 		.name	= CARDNAME,
 		.owner	= THIS_MODULE,
 		.pm	= &smc_drv_pm_ops,
+		.of_match_table = smc91x_match,
 	},
 };
 

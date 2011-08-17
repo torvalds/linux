@@ -43,6 +43,7 @@
 #include <linux/moduleparam.h>
 #include <asm/system.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
@@ -66,13 +67,10 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/pnp.h>
-
-#ifdef CONFIG_PPC_OF
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#endif
 
 #define PFX "ipmi_si: "
 
@@ -116,13 +114,7 @@ static char *ipmi_addr_src_to_str[] = { NULL, "hotmod", "hardcoded", "SPMI",
 
 #define DEVICE_NAME "ipmi_si"
 
-static struct platform_driver ipmi_driver = {
-	.driver = {
-		.name = DEVICE_NAME,
-		.bus = &platform_bus_type
-	}
-};
-
+static struct platform_driver ipmi_driver;
 
 /*
  * Indexes into stats[] in smi_info below.
@@ -308,9 +300,6 @@ static int pci_registered;
 #ifdef CONFIG_ACPI
 static int pnp_registered;
 #endif
-#ifdef CONFIG_PPC_OF
-static int of_registered;
-#endif
 
 static unsigned int kipmid_max_busy_us[SI_MAX_PARMS];
 static int num_max_busy_us;
@@ -351,7 +340,7 @@ static void return_hosed_msg(struct smi_info *smi_info, int cCode)
 		cCode = IPMI_ERR_UNSPECIFIED;
 	/* else use it as is */
 
-	/* Make it a reponse */
+	/* Make it a response */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
 	msg->rsp[2] = cCode;
@@ -899,6 +888,14 @@ static void sender(void                *send_info,
 	do_gettimeofday(&t);
 	printk("**Enqueue: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
+
+	/*
+	 * last_timeout_jiffies is updated here to avoid
+	 * smi_timeout() handler passing very large time_diff
+	 * value to smi_event_handler() that causes
+	 * the send command to abort.
+	 */
+	smi_info->last_timeout_jiffies = jiffies;
 
 	mod_timer(&smi_info->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
 
@@ -1860,8 +1857,9 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 	return rv;
 }
 
-static void __devinit hardcode_find_bmc(void)
+static int __devinit hardcode_find_bmc(void)
 {
+	int ret = -ENODEV;
 	int             i;
 	struct smi_info *info;
 
@@ -1871,7 +1869,7 @@ static void __devinit hardcode_find_bmc(void)
 
 		info = smi_info_alloc();
 		if (!info)
-			return;
+			return -ENOMEM;
 
 		info->addr_source = SI_HARDCODED;
 		printk(KERN_INFO PFX "probing via hardcoded address\n");
@@ -1924,10 +1922,12 @@ static void __devinit hardcode_find_bmc(void)
 		if (!add_smi(info)) {
 			if (try_smi_init(info))
 				cleanup_one_si(info);
+			ret = 0;
 		} else {
 			kfree(info);
 		}
 	}
+	return ret;
 }
 
 #ifdef CONFIG_ACPI
@@ -2555,11 +2555,11 @@ static struct pci_driver ipmi_pci_driver = {
 };
 #endif /* CONFIG_PCI */
 
-
-#ifdef CONFIG_PPC_OF
-static int __devinit ipmi_of_probe(struct platform_device *dev,
-			 const struct of_device_id *match)
+static struct of_device_id ipmi_match[];
+static int __devinit ipmi_probe(struct platform_device *dev)
 {
+#ifdef CONFIG_OF
+	const struct of_device_id *match;
 	struct smi_info *info;
 	struct resource resource;
 	const __be32 *regsize, *regspacing, *regshift;
@@ -2568,6 +2568,10 @@ static int __devinit ipmi_of_probe(struct platform_device *dev,
 	int proplen;
 
 	dev_info(&dev->dev, "probing via device tree\n");
+
+	match = of_match_device(ipmi_match, &dev->dev);
+	if (!match)
+		return -EINVAL;
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
@@ -2632,13 +2636,15 @@ static int __devinit ipmi_of_probe(struct platform_device *dev,
 		kfree(info);
 		return -EBUSY;
 	}
-
+#endif
 	return 0;
 }
 
-static int __devexit ipmi_of_remove(struct platform_device *dev)
+static int __devexit ipmi_remove(struct platform_device *dev)
 {
+#ifdef CONFIG_OF
 	cleanup_one_si(dev_get_drvdata(&dev->dev));
+#endif
 	return 0;
 }
 
@@ -2653,16 +2659,15 @@ static struct of_device_id ipmi_match[] =
 	{},
 };
 
-static struct of_platform_driver ipmi_of_platform_driver = {
+static struct platform_driver ipmi_driver = {
 	.driver = {
-		.name = "ipmi",
+		.name = DEVICE_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = ipmi_match,
 	},
-	.probe		= ipmi_of_probe,
-	.remove		= __devexit_p(ipmi_of_remove),
+	.probe		= ipmi_probe,
+	.remove		= __devexit_p(ipmi_remove),
 };
-#endif /* CONFIG_PPC_OF */
 
 static int wait_for_msg_done(struct smi_info *smi_info)
 {
@@ -2801,54 +2806,73 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 	return rv;
 }
 
-static int type_file_read_proc(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+static int smi_type_proc_show(struct seq_file *m, void *v)
 {
-	struct smi_info *smi = data;
+	struct smi_info *smi = m->private;
 
-	return sprintf(page, "%s\n", si_to_str[smi->si_type]);
+	return seq_printf(m, "%s\n", si_to_str[smi->si_type]);
 }
 
-static int stat_file_read_proc(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+static int smi_type_proc_open(struct inode *inode, struct file *file)
 {
-	char            *out = (char *) page;
-	struct smi_info *smi = data;
+	return single_open(file, smi_type_proc_show, PDE(inode)->data);
+}
 
-	out += sprintf(out, "interrupts_enabled:    %d\n",
+static const struct file_operations smi_type_proc_ops = {
+	.open		= smi_type_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int smi_si_stats_proc_show(struct seq_file *m, void *v)
+{
+	struct smi_info *smi = m->private;
+
+	seq_printf(m, "interrupts_enabled:    %d\n",
 		       smi->irq && !smi->interrupt_disabled);
-	out += sprintf(out, "short_timeouts:        %u\n",
+	seq_printf(m, "short_timeouts:        %u\n",
 		       smi_get_stat(smi, short_timeouts));
-	out += sprintf(out, "long_timeouts:         %u\n",
+	seq_printf(m, "long_timeouts:         %u\n",
 		       smi_get_stat(smi, long_timeouts));
-	out += sprintf(out, "idles:                 %u\n",
+	seq_printf(m, "idles:                 %u\n",
 		       smi_get_stat(smi, idles));
-	out += sprintf(out, "interrupts:            %u\n",
+	seq_printf(m, "interrupts:            %u\n",
 		       smi_get_stat(smi, interrupts));
-	out += sprintf(out, "attentions:            %u\n",
+	seq_printf(m, "attentions:            %u\n",
 		       smi_get_stat(smi, attentions));
-	out += sprintf(out, "flag_fetches:          %u\n",
+	seq_printf(m, "flag_fetches:          %u\n",
 		       smi_get_stat(smi, flag_fetches));
-	out += sprintf(out, "hosed_count:           %u\n",
+	seq_printf(m, "hosed_count:           %u\n",
 		       smi_get_stat(smi, hosed_count));
-	out += sprintf(out, "complete_transactions: %u\n",
+	seq_printf(m, "complete_transactions: %u\n",
 		       smi_get_stat(smi, complete_transactions));
-	out += sprintf(out, "events:                %u\n",
+	seq_printf(m, "events:                %u\n",
 		       smi_get_stat(smi, events));
-	out += sprintf(out, "watchdog_pretimeouts:  %u\n",
+	seq_printf(m, "watchdog_pretimeouts:  %u\n",
 		       smi_get_stat(smi, watchdog_pretimeouts));
-	out += sprintf(out, "incoming_messages:     %u\n",
+	seq_printf(m, "incoming_messages:     %u\n",
 		       smi_get_stat(smi, incoming_messages));
-
-	return out - page;
+	return 0;
 }
 
-static int param_read_proc(char *page, char **start, off_t off,
-			   int count, int *eof, void *data)
+static int smi_si_stats_proc_open(struct inode *inode, struct file *file)
 {
-	struct smi_info *smi = data;
+	return single_open(file, smi_si_stats_proc_show, PDE(inode)->data);
+}
 
-	return sprintf(page,
+static const struct file_operations smi_si_stats_proc_ops = {
+	.open		= smi_si_stats_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int smi_params_proc_show(struct seq_file *m, void *v)
+{
+	struct smi_info *smi = m->private;
+
+	return seq_printf(m,
 		       "%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
 		       si_to_str[smi->si_type],
 		       addr_space_to_str[smi->io.addr_type],
@@ -2859,6 +2883,18 @@ static int param_read_proc(char *page, char **start, off_t off,
 		       smi->irq,
 		       smi->slave_addr);
 }
+
+static int smi_params_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, smi_params_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations smi_params_proc_ops = {
+	.open		= smi_params_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*
  * oem_data_avail_to_receive_msg_avail
@@ -2926,7 +2962,7 @@ static void return_hosed_msg_badsize(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg = smi_info->curr_msg;
 
-	/* Make it a reponse */
+	/* Make it a response */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
 	msg->rsp[2] = CANNOT_RETURN_REQUESTED_LENGTH;
@@ -3253,7 +3289,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
-				     type_file_read_proc,
+				     &smi_type_proc_ops,
 				     new_smi);
 	if (rv) {
 		dev_err(new_smi->dev, "Unable to create proc entry: %d\n", rv);
@@ -3261,7 +3297,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "si_stats",
-				     stat_file_read_proc,
+				     &smi_si_stats_proc_ops,
 				     new_smi);
 	if (rv) {
 		dev_err(new_smi->dev, "Unable to create proc entry: %d\n", rv);
@@ -3269,7 +3305,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "params",
-				     param_read_proc,
+				     &smi_params_proc_ops,
 				     new_smi);
 	if (rv) {
 		dev_err(new_smi->dev, "Unable to create proc entry: %d\n", rv);
@@ -3340,8 +3376,7 @@ static int __devinit init_ipmi_si(void)
 		return 0;
 	initialized = 1;
 
-	/* Register the device drivers. */
-	rv = driver_register(&ipmi_driver.driver);
+	rv = platform_driver_register(&ipmi_driver);
 	if (rv) {
 		printk(KERN_ERR PFX "Unable to register driver: %d\n", rv);
 		return rv;
@@ -3365,15 +3400,9 @@ static int __devinit init_ipmi_si(void)
 
 	printk(KERN_INFO "IPMI System Interface driver.\n");
 
-	hardcode_find_bmc();
-
 	/* If the user gave us a device, they presumably want us to use it */
-	mutex_lock(&smi_infos_lock);
-	if (!list_empty(&smi_infos)) {
-		mutex_unlock(&smi_infos_lock);
+	if (!hardcode_find_bmc())
 		return 0;
-	}
-	mutex_unlock(&smi_infos_lock);
 
 #ifdef CONFIG_PCI
 	rv = pci_register_driver(&ipmi_pci_driver);
@@ -3394,11 +3423,6 @@ static int __devinit init_ipmi_si(void)
 
 #ifdef CONFIG_ACPI
 	spmi_find_bmc();
-#endif
-
-#ifdef CONFIG_PPC_OF
-	of_register_platform_driver(&ipmi_of_platform_driver);
-	of_registered = 1;
 #endif
 
 	/* We prefer devices with interrupts, but in the case of a machine
@@ -3532,7 +3556,7 @@ static void cleanup_one_si(struct smi_info *to_clean)
 	kfree(to_clean);
 }
 
-static void __exit cleanup_ipmi_si(void)
+static void cleanup_ipmi_si(void)
 {
 	struct smi_info *e, *tmp_e;
 
@@ -3548,17 +3572,12 @@ static void __exit cleanup_ipmi_si(void)
 		pnp_unregister_driver(&ipmi_pnp_driver);
 #endif
 
-#ifdef CONFIG_PPC_OF
-	if (of_registered)
-		of_unregister_platform_driver(&ipmi_of_platform_driver);
-#endif
+	platform_driver_unregister(&ipmi_driver);
 
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link)
 		cleanup_one_si(e);
 	mutex_unlock(&smi_infos_lock);
-
-	driver_unregister(&ipmi_driver.driver);
 }
 module_exit(cleanup_ipmi_si);
 

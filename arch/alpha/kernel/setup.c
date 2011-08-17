@@ -1257,7 +1257,7 @@ show_cpuinfo(struct seq_file *f, void *slot)
 #ifdef CONFIG_SMP
 	seq_printf(f, "cpus active\t\t: %u\n"
 		      "cpu active mask\t\t: %016lx\n",
-		       num_online_cpus(), cpus_addr(cpu_possible_map)[0]);
+		       num_online_cpus(), cpumask_bits(cpu_possible_mask)[0]);
 #endif
 
 	show_cache_size (f, "L1 Icache", alpha_l1i_cacheshape);
@@ -1404,8 +1404,6 @@ determine_cpu_caches (unsigned int cpu_type)
 	case PCA56_CPU:
 	case PCA57_CPU:
 	  {
-		unsigned long cbox_config, size;
-
 		if (cpu_type == PCA56_CPU) {
 			L1I = CSHAPE(16*1024, 6, 1);
 			L1D = CSHAPE(8*1024, 5, 1);
@@ -1415,10 +1413,12 @@ determine_cpu_caches (unsigned int cpu_type)
 		}
 		L3 = -1;
 
+#if 0
+		unsigned long cbox_config, size;
+
 		cbox_config = *(vulp) phys_to_virt (0xfffff00008UL);
 		size = 512*1024 * (1 << ((cbox_config >> 12) & 3));
 
-#if 0
 		L2 = ((cbox_config >> 31) & 1 ? CSHAPE (size, 6, 1) : -1);
 #else
 		L2 = external_cache_probe(512*1024, 6);

@@ -21,10 +21,7 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "mbox_wlan_reg.h"
-
 
 #ifndef BT_HEADERS
 
@@ -552,9 +549,4 @@
 #define HOST_IF_WINDOW_DATA_GET(x) WLAN_HOST_IF_WINDOW_DATA_GET(x)
 #define HOST_IF_WINDOW_DATA_SET(x) WLAN_HOST_IF_WINDOW_DATA_SET(x)
 
-
 #endif
-#endif
-
-
-

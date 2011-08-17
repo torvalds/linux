@@ -47,10 +47,10 @@
 #include "sam9_smc.h"
 #include "generic.h"
 
-static void __init cpu9krea_map_io(void)
+static void __init cpu9krea_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* DGBU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -79,11 +79,6 @@ static void __init cpu9krea_map_io(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init cpu9krea_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
 }
 
 /*
@@ -375,9 +370,9 @@ MACHINE_START(CPUAT9260, "Eukrea CPU9260")
 MACHINE_START(CPUAT9G20, "Eukrea CPU9G20")
 #endif
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= cpu9krea_map_io,
-	.init_irq	= cpu9krea_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= cpu9krea_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= cpu9krea_board_init,
 MACHINE_END

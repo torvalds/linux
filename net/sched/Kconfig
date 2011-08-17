@@ -126,6 +126,17 @@ config NET_SCH_RED
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_red.
 
+config NET_SCH_SFB
+	tristate "Stochastic Fair Blue (SFB)"
+	---help---
+	  Say Y here if you want to use the Stochastic Fair Blue (SFB)
+	  packet scheduling algorithm.
+
+	  See the top of <file:net/sched/sch_sfb.c> for more details.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_sfb.
+
 config NET_SCH_SFQ
 	tristate "Stochastic Fairness Queueing (SFQ)"
 	---help---
@@ -205,6 +216,40 @@ config NET_SCH_DRR
 
 	  If unsure, say N.
 
+config NET_SCH_MQPRIO
+	tristate "Multi-queue priority scheduler (MQPRIO)"
+	help
+	  Say Y here if you want to use the Multi-queue Priority scheduler.
+	  This scheduler allows QOS to be offloaded on NICs that have support
+	  for offloading QOS schedulers.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sch_mqprio.
+
+	  If unsure, say N.
+
+config NET_SCH_CHOKE
+	tristate "CHOose and Keep responsive flow scheduler (CHOKE)"
+	help
+	  Say Y here if you want to use the CHOKe packet scheduler (CHOose
+	  and Keep for responsive flows, CHOose and Kill for unresponsive
+	  flows). This is a variation of RED which trys to penalize flows
+	  that monopolize the queue.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_choke.
+
+config NET_SCH_QFQ
+	tristate "Quick Fair Queueing scheduler (QFQ)"
+	help
+	  Say Y here if you want to use the Quick Fair Queueing Scheduler (QFQ)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_qfq.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
@@ -243,7 +288,8 @@ config NET_CLS_TCINDEX
 
 config NET_CLS_ROUTE4
 	tristate "Routing decision (ROUTE)"
-	select NET_CLS_ROUTE
+	depends on INET
+	select IP_ROUTE_CLASSID
 	select NET_CLS
 	---help---
 	  If you say Y here, you will be able to classify packets
@@ -251,9 +297,6 @@ config NET_CLS_ROUTE4
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_route.
-
-config NET_CLS_ROUTE
-	bool
 
 config NET_CLS_FW
 	tristate "Netfilter mark (FW)"

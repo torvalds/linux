@@ -37,16 +37,16 @@ extern cpumask_t threads_core_mask;
  * This can typically be used for things like IPI for tlb invalidations
  * since those need to be done only once per core/TLB
  */
-static inline cpumask_t cpu_thread_mask_to_cores(cpumask_t threads)
+static inline cpumask_t cpu_thread_mask_to_cores(const struct cpumask *threads)
 {
 	cpumask_t	tmp, res;
 	int		i;
 
-	res = CPU_MASK_NONE;
+	cpumask_clear(&res);
 	for (i = 0; i < NR_CPUS; i += threads_per_core) {
-		cpus_shift_left(tmp, threads_core_mask, i);
-		if (cpus_intersects(threads, tmp))
-			cpu_set(i, res);
+		cpumask_shift_left(&tmp, &threads_core_mask, i);
+		if (cpumask_intersects(threads, &tmp))
+			cpumask_set_cpu(i, &res);
 	}
 	return res;
 }
@@ -58,7 +58,7 @@ static inline int cpu_nr_cores(void)
 
 static inline cpumask_t cpu_online_cores_map(void)
 {
-	return cpu_thread_mask_to_cores(cpu_online_map);
+	return cpu_thread_mask_to_cores(cpu_online_mask);
 }
 
 #ifdef CONFIG_SMP

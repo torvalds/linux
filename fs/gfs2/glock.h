@@ -113,12 +113,18 @@ enum {
 
 #define GLR_TRYFAILED		13
 
+#define GL_GLOCK_MAX_HOLD        (long)(HZ / 5)
+#define GL_GLOCK_DFT_HOLD        (long)(HZ / 5)
+#define GL_GLOCK_MIN_HOLD        (long)(10)
+#define GL_GLOCK_HOLD_INCR       (long)(HZ / 20)
+#define GL_GLOCK_HOLD_DECR       (long)(HZ / 40)
+
 struct lm_lockops {
 	const char *lm_proto_name;
 	int (*lm_mount) (struct gfs2_sbd *sdp, const char *fsname);
  	void (*lm_unmount) (struct gfs2_sbd *sdp);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
-	void (*lm_put_lock) (struct kmem_cache *cachep, struct gfs2_glock *gl);
+	void (*lm_put_lock) (struct gfs2_glock *gl);
 	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,
 			unsigned int flags);
 	void (*lm_cancel) (struct gfs2_glock *gl);
@@ -174,7 +180,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp,
 		   int create, struct gfs2_glock **glp);
 void gfs2_glock_hold(struct gfs2_glock *gl);
 void gfs2_glock_put_nolock(struct gfs2_glock *gl);
-int gfs2_glock_put(struct gfs2_glock *gl);
+void gfs2_glock_put(struct gfs2_glock *gl);
 void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 		      struct gfs2_holder *gh);
 void gfs2_holder_reinit(unsigned int state, unsigned flags,
@@ -223,25 +229,21 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 	return error;
 }
 
-/*  Lock Value Block functions  */
+extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
+extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
+extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
+extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
+extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
+extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
+extern void gfs2_glock_free(struct gfs2_glock *gl);
 
-int gfs2_lvb_hold(struct gfs2_glock *gl);
-void gfs2_lvb_unhold(struct gfs2_glock *gl);
+extern int __init gfs2_glock_init(void);
+extern void gfs2_glock_exit(void);
 
-void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
-void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
-void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
-void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
-void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
-void gfs2_glock_thaw(struct gfs2_sbd *sdp);
-
-int __init gfs2_glock_init(void);
-void gfs2_glock_exit(void);
-
-int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
-void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
-int gfs2_register_debugfs(void);
-void gfs2_unregister_debugfs(void);
+extern int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
+extern void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
+extern int gfs2_register_debugfs(void);
+extern void gfs2_unregister_debugfs(void);
 
 extern const struct lm_lockops gfs2_dlm_ops;
 

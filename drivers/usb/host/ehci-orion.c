@@ -105,7 +105,8 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	ehci_reset(ehci);
+	hcd->has_tt = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -117,7 +118,7 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	hcd->has_tt = 1;
+	ehci_reset(ehci);
 
 	ehci_port_power(ehci, 0);
 
@@ -250,7 +251,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 	hcd->has_tt = 1;
 	ehci->sbrn = 0x20;

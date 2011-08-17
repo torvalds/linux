@@ -6,7 +6,7 @@
  * system manages static and dynamic label mappings for network protocols such
  * as CIPSO and RIPSO.
  *
- * Author: Paul Moore <paul.moore@hp.com>
+ * Author: Paul Moore <paul@paul-moore.com>
  *
  */
 
@@ -55,8 +55,7 @@ struct netlbl_domhsh_tbl {
  * should be okay */
 static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 #define netlbl_domhsh_rcu_deref(p) \
-	rcu_dereference_check(p, rcu_read_lock_held() || \
-				 lockdep_is_held(&netlbl_domhsh_lock))
+	rcu_dereference_check(p, lockdep_is_held(&netlbl_domhsh_lock))
 static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
 static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
 
@@ -109,7 +108,7 @@ static void netlbl_domhsh_free_entry(struct rcu_head *entry)
  *
  * Description:
  * This is the hashing function for the domain hash table, it returns the
- * correct bucket number for the domain.  The caller is responsibile for
+ * correct bucket number for the domain.  The caller is responsible for
  * ensuring that the hash table is protected with either a RCU read lock or the
  * hash table lock.
  *
@@ -134,7 +133,7 @@ static u32 netlbl_domhsh_hash(const char *key)
  *
  * Description:
  * Searches the domain hash table and returns a pointer to the hash table
- * entry if found, otherwise NULL is returned.  The caller is responsibile for
+ * entry if found, otherwise NULL is returned.  The caller is responsible for
  * ensuring that the hash table is protected with either a RCU read lock or the
  * hash table lock.
  *
@@ -165,7 +164,7 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain)
  * Searches the domain hash table and returns a pointer to the hash table
  * entry if an exact match is found, if an exact match is not present in the
  * hash table then the default entry is returned if valid otherwise NULL is
- * returned.  The caller is responsibile ensuring that the hash table is
+ * returned.  The caller is responsible ensuring that the hash table is
  * protected with either a RCU read lock or the hash table lock.
  *
  */
@@ -193,7 +192,7 @@ static struct netlbl_dom_map *netlbl_domhsh_search_def(const char *domain)
  *
  * Description:
  * Generate an audit record for adding a new NetLabel/LSM mapping entry with
- * the given information.  Caller is responsibile for holding the necessary
+ * the given information.  Caller is responsible for holding the necessary
  * locks.
  *
  */
@@ -605,7 +604,7 @@ int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info)
  *
  * Description:
  * Look through the domain hash table searching for an entry to match @domain,
- * return a pointer to a copy of the entry or NULL.  The caller is responsibile
+ * return a pointer to a copy of the entry or NULL.  The caller is responsible
  * for ensuring that rcu_read_[un]lock() is called.
  *
  */

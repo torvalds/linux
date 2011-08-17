@@ -185,14 +185,6 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	},
 };
 
-void __init sa1111_adjust_zones(unsigned long *size, unsigned long *holes)
-{
-	unsigned int sz = SZ_1M >> PAGE_SHIFT;
-
-	size[1] = size[0] - sz;
-	size[0] = sz;
-}
-
 /*
  * SA1111 interrupt support.  Since clearing an IRQ while there are
  * active IRQs causes the interrupt output to pulse, the upper levels
@@ -202,7 +194,7 @@ static void
 sa1111_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int stat0, stat1, i;
-	struct sa1111 *sachip = get_irq_data(irq);
+	struct sa1111 *sachip = irq_get_handler_data(irq);
 	void __iomem *mapbase = sachip->base + SA1111_INTC;
 
 	stat0 = sa1111_readl(mapbase + SA1111_INTSTATCLR0);
@@ -472,25 +464,25 @@ static void sa1111_setup_irq(struct sa1111 *sachip)
 	sa1111_writel(~0, irqbase + SA1111_INTSTATCLR1);
 
 	for (irq = IRQ_GPAIN0; irq <= SSPROR; irq++) {
-		set_irq_chip(irq, &sa1111_low_chip);
-		set_irq_chip_data(irq, sachip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1111_low_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, sachip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	for (irq = AUDXMTDMADONEA; irq <= IRQ_S1_BVD1_STSCHG; irq++) {
-		set_irq_chip(irq, &sa1111_high_chip);
-		set_irq_chip_data(irq, sachip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1111_high_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, sachip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/*
 	 * Register SA1111 interrupt
 	 */
-	set_irq_type(sachip->irq, IRQ_TYPE_EDGE_RISING);
-	set_irq_data(sachip->irq, sachip);
-	set_irq_chained_handler(sachip->irq, sa1111_irq_handler);
+	irq_set_irq_type(sachip->irq, IRQ_TYPE_EDGE_RISING);
+	irq_set_handler_data(sachip->irq, sachip);
+	irq_set_chained_handler(sachip->irq, sa1111_irq_handler);
 }
 
 /*
@@ -587,7 +579,36 @@ sa1111_configure_smc(struct sa1111 *sachip, int sdram, unsigned int drac,
 
 	sachip->dev->coherent_dma_mask &= sa1111_dma_mask[drac >> 2];
 }
+#endif
 
+#ifdef CONFIG_DMABOUNCE
+/*
+ * According to the "Intel StrongARM SA-1111 Microprocessor Companion
+ * Chip Specification Update" (June 2000), erratum #7, there is a
+ * significant bug in the SA1111 SDRAM shared memory controller.  If
+ * an access to a region of memory above 1MB relative to the bank base,
+ * it is important that address bit 10 _NOT_ be asserted. Depending
+ * on the configuration of the RAM, bit 10 may correspond to one
+ * of several different (processor-relative) address bits.
+ *
+ * This routine only identifies whether or not a given DMA address
+ * is susceptible to the bug.
+ *
+ * This should only get called for sa1111_device types due to the
+ * way we configure our device dma_masks.
+ */
+static int sa1111_needs_bounce(struct device *dev, dma_addr_t addr, size_t size)
+{
+	/*
+	 * Section 4.6 of the "Intel StrongARM SA-1111 Development Module
+	 * User's Guide" mentions that jumpers R51 and R52 control the
+	 * target of SA-1111 DMA (either SDRAM bank 0 on Assabet, or
+	 * SDRAM bank 1 on Neponset). The default configuration selects
+	 * Assabet, so any address in bank 1 is necessarily invalid.
+	 */
+	return (machine_is_assabet() || machine_is_pfs168()) &&
+		(addr >= 0xc8000000 || (addr + size) >= 0xc8000000);
+}
 #endif
 
 static void sa1111_dev_release(struct device *_dev)
@@ -652,7 +673,8 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 		dev->dev.dma_mask = &dev->dma_mask;
 
 		if (dev->dma_mask != 0xffffffffUL) {
-			ret = dmabounce_register_dev(&dev->dev, 1024, 4096);
+			ret = dmabounce_register_dev(&dev->dev, 1024, 4096,
+					sa1111_needs_bounce);
 			if (ret) {
 				dev_err(&dev->dev, "SA1111: Failed to register"
 					" with dmabounce\n");
@@ -815,8 +837,8 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	clk_disable(sachip->clk);
 
 	if (sachip->irq != NO_IRQ) {
-		set_irq_chained_handler(sachip->irq, NULL);
-		set_irq_data(sachip->irq, NULL);
+		irq_set_chained_handler(sachip->irq, NULL);
+		irq_set_handler_data(sachip->irq, NULL);
 
 		release_mem_region(sachip->phys + SA1111_INTC, 512);
 	}
@@ -824,34 +846,6 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	iounmap(sachip->base);
 	clk_put(sachip->clk);
 	kfree(sachip);
-}
-
-/*
- * According to the "Intel StrongARM SA-1111 Microprocessor Companion
- * Chip Specification Update" (June 2000), erratum #7, there is a
- * significant bug in the SA1111 SDRAM shared memory controller.  If
- * an access to a region of memory above 1MB relative to the bank base,
- * it is important that address bit 10 _NOT_ be asserted. Depending
- * on the configuration of the RAM, bit 10 may correspond to one
- * of several different (processor-relative) address bits.
- *
- * This routine only identifies whether or not a given DMA address
- * is susceptible to the bug.
- *
- * This should only get called for sa1111_device types due to the
- * way we configure our device dma_masks.
- */
-int dma_needs_bounce(struct device *dev, dma_addr_t addr, size_t size)
-{
-	/*
-	 * Section 4.6 of the "Intel StrongARM SA-1111 Development Module
-	 * User's Guide" mentions that jumpers R51 and R52 control the
-	 * target of SA-1111 DMA (either SDRAM bank 0 on Assabet, or
-	 * SDRAM bank 1 on Neponset). The default configuration selects
-	 * Assabet, so any address in bank 1 is necessarily invalid.
-	 */
-	return ((machine_is_assabet() || machine_is_pfs168()) &&
-		(addr >= 0xc8000000 || (addr + size) >= 0xc8000000));
 }
 
 struct sa1111_save_data {

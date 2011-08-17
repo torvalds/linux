@@ -325,7 +325,7 @@ static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 		}
 	}
 
-	adapter->work_event |= ATL1C_WORK_EVENT_LINK_CHANGE;
+	set_bit(ATL1C_WORK_EVENT_LINK_CHANGE, &adapter->work_event);
 	schedule_work(&adapter->common_task);
 }
 
@@ -337,20 +337,16 @@ static void atl1c_common_task(struct work_struct *work)
 	adapter = container_of(work, struct atl1c_adapter, common_task);
 	netdev = adapter->netdev;
 
-	if (adapter->work_event & ATL1C_WORK_EVENT_RESET) {
-		adapter->work_event &= ~ATL1C_WORK_EVENT_RESET;
+	if (test_and_clear_bit(ATL1C_WORK_EVENT_RESET, &adapter->work_event)) {
 		netif_device_detach(netdev);
 		atl1c_down(adapter);
 		atl1c_up(adapter);
 		netif_device_attach(netdev);
-		return;
 	}
 
-	if (adapter->work_event & ATL1C_WORK_EVENT_LINK_CHANGE) {
-		adapter->work_event &= ~ATL1C_WORK_EVENT_LINK_CHANGE;
+	if (test_and_clear_bit(ATL1C_WORK_EVENT_LINK_CHANGE,
+		&adapter->work_event))
 		atl1c_check_link_status(adapter);
-	}
-	return;
 }
 
 
@@ -369,7 +365,7 @@ static void atl1c_tx_timeout(struct net_device *netdev)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	/* Do the reset outside of interrupt context */
-	adapter->work_event |= ATL1C_WORK_EVENT_RESET;
+	set_bit(ATL1C_WORK_EVENT_RESET, &adapter->work_event);
 	schedule_work(&adapter->common_task);
 }
 
@@ -415,29 +411,29 @@ static void atl1c_set_multi(struct net_device *netdev)
 	}
 }
 
-static void atl1c_vlan_rx_register(struct net_device *netdev,
-				   struct vlan_group *grp)
+static void __atl1c_vlan_mode(u32 features, u32 *mac_ctrl_data)
+{
+	if (features & NETIF_F_HW_VLAN_RX) {
+		/* enable VLAN tag insert/strip */
+		*mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
+	} else {
+		/* disable VLAN tag insert/strip */
+		*mac_ctrl_data &= ~MAC_CTRL_RMV_VLAN;
+	}
+}
+
+static void atl1c_vlan_mode(struct net_device *netdev, u32 features)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	struct pci_dev *pdev = adapter->pdev;
 	u32 mac_ctrl_data = 0;
 
 	if (netif_msg_pktdata(adapter))
-		dev_dbg(&pdev->dev, "atl1c_vlan_rx_register\n");
+		dev_dbg(&pdev->dev, "atl1c_vlan_mode\n");
 
 	atl1c_irq_disable(adapter);
-
-	adapter->vlgrp = grp;
 	AT_READ_REG(&adapter->hw, REG_MAC_CTRL, &mac_ctrl_data);
-
-	if (grp) {
-		/* enable VLAN tag insert/strip */
-		mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
-	} else {
-		/* disable VLAN tag insert/strip */
-		mac_ctrl_data &= ~MAC_CTRL_RMV_VLAN;
-	}
-
+	__atl1c_vlan_mode(features, &mac_ctrl_data);
 	AT_WRITE_REG(&adapter->hw, REG_MAC_CTRL, mac_ctrl_data);
 	atl1c_irq_enable(adapter);
 }
@@ -447,9 +443,10 @@ static void atl1c_restore_vlan(struct atl1c_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 
 	if (netif_msg_pktdata(adapter))
-		dev_dbg(&pdev->dev, "atl1c_restore_vlan !");
-	atl1c_vlan_rx_register(adapter->netdev, adapter->vlgrp);
+		dev_dbg(&pdev->dev, "atl1c_restore_vlan\n");
+	atl1c_vlan_mode(adapter->netdev, adapter->netdev->features);
 }
+
 /*
  * atl1c_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
@@ -484,6 +481,34 @@ static void atl1c_set_rxbufsize(struct atl1c_adapter *adapter,
 	adapter->rx_buffer_len = mtu > AT_RX_BUF_SIZE ?
 		roundup(mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN, 8) : AT_RX_BUF_SIZE;
 }
+
+static u32 atl1c_fix_features(struct net_device *netdev, u32 features)
+{
+	/*
+	 * Since there is no support for separate rx/tx vlan accel
+	 * enable/disable make sure tx flag is always in same state as rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_RX)
+		features |= NETIF_F_HW_VLAN_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	if (netdev->mtu > MAX_TSO_FRAME_SIZE)
+		features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+
+	return features;
+}
+
+static int atl1c_set_features(struct net_device *netdev, u32 features)
+{
+	u32 changed = netdev->features ^ features;
+
+	if (changed & NETIF_F_HW_VLAN_RX)
+		atl1c_vlan_mode(netdev, features);
+
+	return 0;
+}
+
 /*
  * atl1c_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
@@ -510,14 +535,8 @@ static int atl1c_change_mtu(struct net_device *netdev, int new_mtu)
 		netdev->mtu = new_mtu;
 		adapter->hw.max_frame_size = new_mtu;
 		atl1c_set_rxbufsize(adapter, netdev);
-		if (new_mtu > MAX_TSO_FRAME_SIZE) {
-			adapter->netdev->features &= ~NETIF_F_TSO;
-			adapter->netdev->features &= ~NETIF_F_TSO6;
-		} else {
-			adapter->netdev->features |= NETIF_F_TSO;
-			adapter->netdev->features |= NETIF_F_TSO6;
-		}
 		atl1c_down(adapter);
+		netdev_update_features(netdev);
 		atl1c_up(adapter);
 		clear_bit(__AT_RESETTING, &adapter->flags);
 		if (adapter->hw.ctrl_flags & ATL1C_FPGA_VERSION) {
@@ -1092,20 +1111,18 @@ static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 	u32 max_pay_load;
 	u16 tx_offload_thresh;
 	u32 txq_ctrl_data;
-	u32 extra_size = 0;     /* Jumbo frame threshold in QWORD unit */
 	u32 max_pay_load_data;
 
-	extra_size = ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
 	tx_offload_thresh = MAX_TX_OFFLOAD_THRESH;
 	AT_WRITE_REG(hw, REG_TX_TSO_OFFLOAD_THRESH,
 		(tx_offload_thresh >> 3) & TX_TSO_OFFLOAD_THRESH_MASK);
 	AT_READ_REG(hw, REG_DEVICE_CTRL, &dev_ctrl_data);
 	max_pay_load  = (dev_ctrl_data >> DEVICE_CTRL_MAX_PAYLOAD_SHIFT) &
 			DEVICE_CTRL_MAX_PAYLOAD_MASK;
-	hw->dmaw_block = min(max_pay_load, hw->dmaw_block);
+	hw->dmaw_block = min_t(u32, max_pay_load, hw->dmaw_block);
 	max_pay_load  = (dev_ctrl_data >> DEVICE_CTRL_MAX_RREQ_SZ_SHIFT) &
 			DEVICE_CTRL_MAX_RREQ_SZ_MASK;
-	hw->dmar_block = min(max_pay_load, hw->dmar_block);
+	hw->dmar_block = min_t(u32, max_pay_load, hw->dmar_block);
 
 	txq_ctrl_data = (hw->tpd_burst & TXQ_NUM_TPD_BURST_MASK) <<
 			TXQ_NUM_TPD_BURST_SHIFT;
@@ -1436,8 +1453,7 @@ static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter)
 	mac_ctrl_data |= ((hw->preamble_len & MAC_CTRL_PRMLEN_MASK) <<
 			MAC_CTRL_PRMLEN_SHIFT);
 
-	if (adapter->vlgrp)
-		mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
+	__atl1c_vlan_mode(netdev->features, &mac_ctrl_data);
 
 	mac_ctrl_data |= MAC_CTRL_BC_EN;
 	if (netdev->flags & IFF_PROMISC)
@@ -1881,14 +1897,14 @@ rrs_checked:
 		skb_put(skb, length - ETH_FCS_LEN);
 		skb->protocol = eth_type_trans(skb, netdev);
 		atl1c_rx_checksum(adapter, skb, rrs);
-		if (unlikely(adapter->vlgrp) && rrs->word3 & RRS_VLAN_INS) {
+		if (rrs->word3 & RRS_VLAN_INS) {
 			u16 vlan;
 
 			AT_TAG_TO_VLAN(rrs->vlan_tag, vlan);
 			vlan = le16_to_cpu(vlan);
-			vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vlan);
-		} else
-			netif_receive_skb(skb);
+			__vlan_hwaccel_put_tag(skb, vlan);
+		}
+		netif_receive_skb(skb);
 
 		(*work_done)++;
 		count++;
@@ -2510,8 +2526,7 @@ static int atl1c_suspend(struct device *dev)
 		/* clear phy interrupt */
 		atl1c_read_phy_reg(hw, MII_ISR, &mii_intr_status_data);
 		/* Config MAC Ctrl register */
-		if (adapter->vlgrp)
-			mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
+		__atl1c_vlan_mode(netdev->features, &mac_ctrl_data);
 
 		/* magic packet maybe Broadcast&multicast&Unicast frame */
 		if (wufc & AT_WUFC_MAG)
@@ -2540,6 +2555,7 @@ static int atl1c_suspend(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int atl1c_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -2566,6 +2582,7 @@ static int atl1c_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static void atl1c_shutdown(struct pci_dev *pdev)
 {
@@ -2582,13 +2599,14 @@ static const struct net_device_ops atl1c_netdev_ops = {
 	.ndo_stop		= atl1c_close,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_start_xmit		= atl1c_xmit_frame,
-	.ndo_set_mac_address 	= atl1c_set_mac_addr,
+	.ndo_set_mac_address	= atl1c_set_mac_addr,
 	.ndo_set_multicast_list = atl1c_set_multi,
 	.ndo_change_mtu		= atl1c_change_mtu,
+	.ndo_fix_features	= atl1c_fix_features,
+	.ndo_set_features	= atl1c_set_features,
 	.ndo_do_ioctl		= atl1c_ioctl,
 	.ndo_tx_timeout		= atl1c_tx_timeout,
 	.ndo_get_stats		= atl1c_get_stats,
-	.ndo_vlan_rx_register	= atl1c_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl1c_netpoll,
 #endif
@@ -2605,12 +2623,13 @@ static int atl1c_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	atl1c_set_ethtool_ops(netdev);
 
 	/* TODO: add when ready */
-	netdev->features =	NETIF_F_SG	   |
+	netdev->hw_features =	NETIF_F_SG	   |
 				NETIF_F_HW_CSUM	   |
-				NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |
 				NETIF_F_TSO	   |
 				NETIF_F_TSO6;
+	netdev->features =	netdev->hw_features |
+				NETIF_F_HW_VLAN_TX;
 	return 0;
 }
 
@@ -2718,7 +2737,6 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 		goto err_reset;
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
 	/* reset the controller to
 	 * put the device in a known good starting state */
 	err = atl1c_phy_init(&adapter->hw);

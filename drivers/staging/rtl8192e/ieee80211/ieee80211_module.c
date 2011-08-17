@@ -45,7 +45,6 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
@@ -195,11 +194,8 @@ void free_ieee80211(struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	int i;
-	if (ieee->pHTInfo != NULL)
-	{
-		kfree(ieee->pHTInfo);
-		ieee->pHTInfo = NULL;
-	}
+	kfree(ieee->pHTInfo);
+	ieee->pHTInfo = NULL;
 	RemoveAllTS(ieee);
 	ieee80211_softmac_free(ieee);
 	del_timer_sync(&ieee->crypt_deinit_timer);
@@ -222,7 +218,7 @@ void free_ieee80211(struct net_device *dev)
 #ifdef CONFIG_IEEE80211_DEBUG
 
 u32 ieee80211_debug_level = 0;
-static int debug = \
+static int debug =
 	/* IEEE80211_DL_INFO	| */
 	/* IEEE80211_DL_WX	| */
 	/* IEEE80211_DL_SCAN	| */
@@ -314,7 +310,7 @@ int __init ieee80211_rtl_init(void)
 	}
 
 	ieee80211_debug_level = debug;
-	ieee80211_proc = create_proc_entry(DRV_NAME, S_IFDIR, init_net.proc_net);
+	ieee80211_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
 	if (ieee80211_proc == NULL) {
 		IEEE80211_ERROR("Unable to create " DRV_NAME
 				" proc directory\n");

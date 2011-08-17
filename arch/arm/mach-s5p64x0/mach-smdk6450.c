@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,6 +33,7 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/i2c.h>
+#include <mach/regs-gpio.h>
 
 #include <plat/regs-serial.h>
 #include <plat/gpio-cfg.h>
@@ -43,6 +45,8 @@
 #include <plat/pll.h>
 #include <plat/adc.h>
 #include <plat/ts.h>
+#include <plat/s5p-time.h>
+#include <plat/backlight.h>
 
 #define SMDK6450_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -150,11 +154,22 @@ static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
 	.oversampling_shift	= 2,
 };
 
+/* LCD Backlight data */
+static struct samsung_bl_gpio_info smdk6450_bl_gpio_info = {
+	.no = S5P6450_GPF(15),
+	.func = S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data smdk6450_bl_data = {
+	.pwm_id = 1,
+};
+
 static void __init smdk6450_map_io(void)
 {
 	s5p_init_io(NULL, 0, S5P64X0_SYS_ID);
 	s3c24xx_init_clocks(19200000);
 	s3c24xx_init_uarts(smdk6450_uartcfgs, ARRAY_SIZE(smdk6450_uartcfgs));
+	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
 
 static void __init smdk6450_machine_init(void)
@@ -168,6 +183,8 @@ static void __init smdk6450_machine_init(void)
 	i2c_register_board_info(1, smdk6450_i2c_devs1,
 			ARRAY_SIZE(smdk6450_i2c_devs1));
 
+	samsung_bl_set(&smdk6450_bl_gpio_info, &smdk6450_bl_data);
+
 	platform_add_devices(smdk6450_devices, ARRAY_SIZE(smdk6450_devices));
 }
 
@@ -178,5 +195,5 @@ MACHINE_START(SMDK6450, "SMDK6450")
 	.init_irq	= s5p6450_init_irq,
 	.map_io		= smdk6450_map_io,
 	.init_machine	= smdk6450_machine_init,
-	.timer		= &s3c24xx_timer,
+	.timer		= &s5p_timer,
 MACHINE_END

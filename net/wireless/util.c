@@ -29,29 +29,37 @@ ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
 }
 EXPORT_SYMBOL(ieee80211_get_response_rate);
 
-int ieee80211_channel_to_frequency(int chan)
+int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band)
 {
-	if (chan < 14)
-		return 2407 + chan * 5;
-
-	if (chan == 14)
-		return 2484;
-
-	/* FIXME: 802.11j 17.3.8.3.2 */
-	return (chan + 1000) * 5;
+	/* see 802.11 17.3.8.3.2 and Annex J
+	 * there are overlapping channel numbers in 5GHz and 2GHz bands */
+	if (band == IEEE80211_BAND_5GHZ) {
+		if (chan >= 182 && chan <= 196)
+			return 4000 + chan * 5;
+		else
+			return 5000 + chan * 5;
+	} else { /* IEEE80211_BAND_2GHZ */
+		if (chan == 14)
+			return 2484;
+		else if (chan < 14)
+			return 2407 + chan * 5;
+		else
+			return 0; /* not supported */
+	}
 }
 EXPORT_SYMBOL(ieee80211_channel_to_frequency);
 
 int ieee80211_frequency_to_channel(int freq)
 {
+	/* see 802.11 17.3.8.3.2 and Annex J */
 	if (freq == 2484)
 		return 14;
-
-	if (freq < 2484)
+	else if (freq < 2484)
 		return (freq - 2407) / 5;
-
-	/* FIXME: 802.11j 17.3.8.3.2 */
-	return freq/5 - 1000;
+	else if (freq >= 4910 && freq <= 4980)
+		return (freq - 4000) / 5;
+	else
+		return (freq - 5000) / 5;
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
@@ -159,12 +167,15 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 
 	/*
 	 * Disallow pairwise keys with non-zero index unless it's WEP
-	 * (because current deployments use pairwise WEP keys with
-	 * non-zero indizes but 802.11i clearly specifies to use zero)
+	 * or a vendor specific cipher (because current deployments use
+	 * pairwise WEP keys with non-zero indices and for vendor specific
+	 * ciphers this should be validated in the driver or hardware level
+	 * - but 802.11i clearly specifies to use zero)
 	 */
 	if (pairwise && key_idx &&
-	    params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
-	    params->cipher != WLAN_CIPHER_SUITE_WEP104)
+	    ((params->cipher == WLAN_CIPHER_SUITE_TKIP) ||
+	     (params->cipher == WLAN_CIPHER_SUITE_CCMP) ||
+	     (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC)))
 		return -EINVAL;
 
 	switch (params->cipher) {
@@ -533,7 +544,8 @@ EXPORT_SYMBOL(ieee80211_data_from_8023);
 
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
-			      const unsigned int extra_headroom)
+			      const unsigned int extra_headroom,
+			      bool has_80211_header)
 {
 	struct sk_buff *frame = NULL;
 	u16 ethertype;
@@ -542,14 +554,18 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 	int remaining, err;
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
 
-	err = ieee80211_data_to_8023(skb, addr, iftype);
-	if (err)
-		goto out;
+	if (has_80211_header) {
+		err = ieee80211_data_to_8023(skb, addr, iftype);
+		if (err)
+			goto out;
 
-	/* skip the wrapping header */
-	eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
-	if (!eth)
-		goto out;
+		/* skip the wrapping header */
+		eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
+		if (!eth)
+			goto out;
+	} else {
+		eth = (struct ethhdr *) skb->data;
+	}
 
 	while (skb != frame) {
 		u8 padding;
@@ -730,7 +746,7 @@ static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 				NULL);
 			break;
 		case EVENT_ROAMED:
-			__cfg80211_roamed(wdev, ev->rm.bssid,
+			__cfg80211_roamed(wdev, ev->rm.channel, ev->rm.bssid,
 					  ev->rm.req_ie, ev->rm.req_ie_len,
 					  ev->rm.resp_ie, ev->rm.resp_ie_len);
 			break;
@@ -792,6 +808,11 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EBUSY;
 
 	if (ntype != otype) {
+		err = cfg80211_can_change_interface(rdev, dev->ieee80211_ptr,
+						    ntype);
+		if (err)
+			return err;
+
 		dev->ieee80211_ptr->use_4addr = false;
 		dev->ieee80211_ptr->mesh_id_up_len = 0;
 
@@ -884,4 +905,142 @@ u16 cfg80211_calculate_bitrate(struct rate_info *rate)
 
 	/* do NOT round down here */
 	return (bitrate + 50000) / 100000;
+}
+
+int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
+				 u32 beacon_int)
+{
+	struct wireless_dev *wdev;
+	int res = 0;
+
+	if (!beacon_int)
+		return -EINVAL;
+
+	mutex_lock(&rdev->devlist_mtx);
+
+	list_for_each_entry(wdev, &rdev->netdev_list, list) {
+		if (!wdev->beacon_interval)
+			continue;
+		if (wdev->beacon_interval != beacon_int) {
+			res = -EINVAL;
+			break;
+		}
+	}
+
+	mutex_unlock(&rdev->devlist_mtx);
+
+	return res;
+}
+
+int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
+				  struct wireless_dev *wdev,
+				  enum nl80211_iftype iftype)
+{
+	struct wireless_dev *wdev_iter;
+	int num[NUM_NL80211_IFTYPES];
+	int total = 1;
+	int i, j;
+
+	ASSERT_RTNL();
+
+	/* Always allow software iftypes */
+	if (rdev->wiphy.software_iftypes & BIT(iftype))
+		return 0;
+
+	/*
+	 * Drivers will gradually all set this flag, until all
+	 * have it we only enforce for those that set it.
+	 */
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_ENFORCE_COMBINATIONS))
+		return 0;
+
+	memset(num, 0, sizeof(num));
+
+	num[iftype] = 1;
+
+	mutex_lock(&rdev->devlist_mtx);
+	list_for_each_entry(wdev_iter, &rdev->netdev_list, list) {
+		if (wdev_iter == wdev)
+			continue;
+		if (!netif_running(wdev_iter->netdev))
+			continue;
+
+		if (rdev->wiphy.software_iftypes & BIT(wdev_iter->iftype))
+			continue;
+
+		num[wdev_iter->iftype]++;
+		total++;
+	}
+	mutex_unlock(&rdev->devlist_mtx);
+
+	for (i = 0; i < rdev->wiphy.n_iface_combinations; i++) {
+		const struct ieee80211_iface_combination *c;
+		struct ieee80211_iface_limit *limits;
+
+		c = &rdev->wiphy.iface_combinations[i];
+
+		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
+				 GFP_KERNEL);
+		if (!limits)
+			return -ENOMEM;
+		if (total > c->max_interfaces)
+			goto cont;
+
+		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
+			if (rdev->wiphy.software_iftypes & BIT(iftype))
+				continue;
+			for (j = 0; j < c->n_limits; j++) {
+				if (!(limits[j].types & iftype))
+					continue;
+				if (limits[j].max < num[iftype])
+					goto cont;
+				limits[j].max -= num[iftype];
+			}
+		}
+		/* yay, it fits */
+		kfree(limits);
+		return 0;
+ cont:
+		kfree(limits);
+	}
+
+	return -EBUSY;
+}
+
+int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
+			   const u8 *rates, unsigned int n_rates,
+			   u32 *mask)
+{
+	int i, j;
+
+	if (!sband)
+		return -EINVAL;
+
+	if (n_rates == 0 || n_rates > NL80211_MAX_SUPP_RATES)
+		return -EINVAL;
+
+	*mask = 0;
+
+	for (i = 0; i < n_rates; i++) {
+		int rate = (rates[i] & 0x7f) * 5;
+		bool found = false;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			if (sband->bitrates[j].bitrate == rate) {
+				found = true;
+				*mask |= BIT(j);
+				break;
+			}
+		}
+		if (!found)
+			return -EINVAL;
+	}
+
+	/*
+	 * mask must have at least one bit set here since we
+	 * didn't accept a 0-length rates array nor allowed
+	 * entries in the array that didn't exist
+	 */
+
+	return 0;
 }

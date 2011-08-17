@@ -7,38 +7,9 @@
 #ifndef _BF548_IRQ_H_
 #define _BF548_IRQ_H_
 
-/*
- * Interrupt source definitions
-            Event Source    Core Event Name
-Core        Emulation               **
-Events         (highest priority)  EMU         0
-            Reset                   RST         1
-            NMI                     NMI         2
-            Exception               EVX         3
-            Reserved                --          4
-            Hardware Error          IVHW        5
-            Core Timer              IVTMR       6 *
+#include <mach-common/irq.h>
 
-.....
-
-            Software Interrupt 1    IVG14       31
-            Software Interrupt 2    --
-                 (lowest priority)  IVG15       32 *
- */
-
-#define NR_PERI_INTS    (32 * 3)
-
-/* The ABSTRACT IRQ definitions */
-/** the first seven of the following are fixed, the rest you change if you need to **/
-#define IRQ_EMU			0	/* Emulation */
-#define IRQ_RST			1	/* reset */
-#define IRQ_NMI			2	/* Non Maskable */
-#define IRQ_EVX			3	/* Exception */
-#define IRQ_UNUSED		4	/* - unused interrupt*/
-#define IRQ_HWERR		5	/* Hardware Error */
-#define IRQ_CORETMR		6	/* Core timer */
-
-#define BFIN_IRQ(x)		((x) + 7)
+#define NR_PERI_INTS		(3 * 32)
 
 #define IRQ_PLL_WAKEUP		BFIN_IRQ(0)	/* PLL Wakeup Interrupt */
 #define IRQ_DMAC0_ERROR		BFIN_IRQ(1)	/* DMAC0 Status Interrupt */
@@ -74,13 +45,9 @@ Events         (highest priority)  EMU         0
 #define IRQ_UART2_ERROR		BFIN_IRQ(31)	/* UART2 Status (Error) Interrupt */
 #define IRQ_CAN0_ERROR		BFIN_IRQ(32)	/* CAN0 Status (Error) Interrupt */
 #define IRQ_SPORT2_RX		BFIN_IRQ(33)	/* SPORT2 RX (DMA18) Interrupt */
-#define IRQ_UART2_RX		BFIN_IRQ(33)	/* UART2 RX (DMA18) Interrupt */
 #define IRQ_SPORT2_TX		BFIN_IRQ(34)	/* SPORT2 TX (DMA19) Interrupt */
-#define IRQ_UART2_TX		BFIN_IRQ(34)	/* UART2 TX (DMA19) Interrupt */
 #define IRQ_SPORT3_RX		BFIN_IRQ(35)	/* SPORT3 RX (DMA20) Interrupt */
-#define IRQ_UART3_RX		BFIN_IRQ(35)	/* UART3 RX (DMA20) Interrupt */
 #define IRQ_SPORT3_TX		BFIN_IRQ(36)	/* SPORT3 TX (DMA21) Interrupt */
-#define IRQ_UART3_TX		BFIN_IRQ(36)	/* UART3 TX (DMA21) Interrupt */
 #define IRQ_EPPI1		BFIN_IRQ(37)	/* EPP1 (DMA13) Interrupt */
 #define IRQ_EPPI2		BFIN_IRQ(38)	/* EPP2 (DMA14) Interrupt */
 #define IRQ_SPI1		BFIN_IRQ(39)	/* SPI1 (DMA5) Interrupt */
@@ -315,48 +282,36 @@ Events         (highest priority)  EMU         0
 #define IRQ_PJ14		BFIN_PJ_IRQ(14)		/* N/A */
 #define IRQ_PJ15		BFIN_PJ_IRQ(15)		/* N/A */
 
-#define GPIO_IRQ_BASE	IRQ_PA0
+#define GPIO_IRQ_BASE		IRQ_PA0
 
-#define NR_MACH_IRQS	(IRQ_PJ15 + 1)
-#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
+#define NR_MACH_IRQS		(IRQ_PJ15 + 1)
 
 /* For compatibility reasons with existing code */
 
-#define IRQ_DMAC0_ERR 		IRQ_DMAC0_ERROR
-#define IRQ_EPPI0_ERR 		IRQ_EPPI0_ERROR
+#define IRQ_DMAC0_ERR		IRQ_DMAC0_ERROR
+#define IRQ_EPPI0_ERR		IRQ_EPPI0_ERROR
 #define IRQ_SPORT0_ERR		IRQ_SPORT0_ERROR
 #define IRQ_SPORT1_ERR		IRQ_SPORT1_ERROR
-#define IRQ_SPI0_ERR  		IRQ_SPI0_ERROR
-#define IRQ_UART0_ERR 		IRQ_UART0_ERROR
-#define IRQ_DMAC1_ERR 		IRQ_DMAC1_ERROR
+#define IRQ_SPI0_ERR		IRQ_SPI0_ERROR
+#define IRQ_UART0_ERR		IRQ_UART0_ERROR
+#define IRQ_DMAC1_ERR		IRQ_DMAC1_ERROR
 #define IRQ_SPORT2_ERR		IRQ_SPORT2_ERROR
 #define IRQ_SPORT3_ERR		IRQ_SPORT3_ERROR
-#define IRQ_SPI1_ERR  		IRQ_SPI1_ERROR
-#define IRQ_SPI2_ERR  		IRQ_SPI2_ERROR
-#define IRQ_UART1_ERR 		IRQ_UART1_ERROR
-#define IRQ_UART2_ERR 		IRQ_UART2_ERROR
-#define IRQ_CAN0_ERR  		IRQ_CAN0_ERROR
-#define IRQ_MXVR_ERR  		IRQ_MXVR_ERROR
-#define IRQ_EPPI1_ERR  		IRQ_EPPI1_ERROR
-#define IRQ_EPPI2_ERR  		IRQ_EPPI2_ERROR
-#define IRQ_UART3_ERR 		IRQ_UART3_ERROR
-#define IRQ_HOST_ERR  		IRQ_HOST_ERROR
-#define IRQ_PIXC_ERR  		IRQ_PIXC_ERROR
-#define IRQ_NFC_ERR   		IRQ_NFC_ERROR
-#define IRQ_ATAPI_ERR 		IRQ_ATAPI_ERROR
-#define IRQ_CAN1_ERR  		IRQ_CAN1_ERROR
+#define IRQ_SPI1_ERR		IRQ_SPI1_ERROR
+#define IRQ_SPI2_ERR		IRQ_SPI2_ERROR
+#define IRQ_UART1_ERR		IRQ_UART1_ERROR
+#define IRQ_UART2_ERR		IRQ_UART2_ERROR
+#define IRQ_CAN0_ERR		IRQ_CAN0_ERROR
+#define IRQ_MXVR_ERR		IRQ_MXVR_ERROR
+#define IRQ_EPPI1_ERR		IRQ_EPPI1_ERROR
+#define IRQ_EPPI2_ERR		IRQ_EPPI2_ERROR
+#define IRQ_UART3_ERR		IRQ_UART3_ERROR
+#define IRQ_HOST_ERR		IRQ_HOST_ERROR
+#define IRQ_PIXC_ERR		IRQ_PIXC_ERROR
+#define IRQ_NFC_ERR		IRQ_NFC_ERROR
+#define IRQ_ATAPI_ERR		IRQ_ATAPI_ERROR
+#define IRQ_CAN1_ERR		IRQ_CAN1_ERROR
 #define IRQ_HS_DMA_ERR		IRQ_HS_DMA_ERROR
-
-
-#define IVG7            7
-#define IVG8            8
-#define IVG9            9
-#define IVG10           10
-#define IVG11           11
-#define IVG12           12
-#define IVG13           13
-#define IVG14           14
-#define IVG15           15
 
 /* IAR0 BIT FIELDS */
 #define IRQ_PLL_WAKEUP_POS	0
@@ -483,7 +438,7 @@ Events         (highest priority)  EMU         0
 struct bfin_pint_regs {
 	u32 mask_set;
 	u32 mask_clear;
-	u32 irq;
+	u32 request;
 	u32 assign;
 	u32 edge_set;
 	u32 edge_clear;
@@ -496,4 +451,4 @@ struct bfin_pint_regs {
 
 #endif
 
-#endif /* _BF548_IRQ_H_ */
+#endif

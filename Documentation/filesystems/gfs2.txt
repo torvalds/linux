@@ -11,7 +11,7 @@ their I/O so file system consistency is maintained.  One of the nifty
 features of GFS is perfect consistency -- changes made to the file system
 on one machine show up immediately on all other machines in the cluster.
 
-GFS uses interchangable inter-node locking mechanisms, the currently
+GFS uses interchangeable inter-node locking mechanisms, the currently
 supported mechanisms are:
 
   lock_nolock -- allows gfs to be used as a local file system

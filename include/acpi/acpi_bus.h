@@ -210,7 +210,7 @@ struct acpi_device_power_state {
 struct acpi_device_power {
 	int state;		/* Current state */
 	struct acpi_device_power_flags flags;
-	struct acpi_device_power_state states[4];	/* Power states (D0-D3) */
+	struct acpi_device_power_state states[ACPI_D_STATE_COUNT];	/* Power states (D0-D3Cold) */
 };
 
 /* Performance Management */
@@ -250,7 +250,6 @@ struct acpi_device_wakeup {
 	struct acpi_handle_list resources;
 	struct acpi_device_wakeup_flags flags;
 	int prepare_count;
-	int run_wake_count;
 };
 
 /* Device */
@@ -381,7 +380,7 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 int acpi_pm_device_sleep_state(struct device *, int *);
 #else
 static inline int acpi_pm_device_sleep_state(struct device *d, int *p)

@@ -727,7 +727,6 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 	if (destroy)
 		dlm_destroy_recovery_area(dlm, dead_node);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1496,9 +1495,9 @@ leave:
 			kfree(buf);
 		if (item)
 			kfree(item);
+		mlog_errno(ret);
 	}
 
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1567,7 +1566,6 @@ leave:
 		dlm_lockres_put(res);
 	}
 	kfree(data);
-	mlog_exit(ret);
 }
 
 
@@ -1986,7 +1984,6 @@ leave:
 			dlm_lock_put(newlock);
 	}
 
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -2082,8 +2079,6 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 	struct hlist_node *hash_iter;
 	struct hlist_head *bucket;
 	struct dlm_lock_resource *res, *next;
-
-	mlog_entry_void();
 
 	assert_spin_locked(&dlm->spinlock);
 
@@ -2398,6 +2393,7 @@ static void __dlm_hb_node_down(struct dlm_ctxt *dlm, int idx)
 
 	mlog(0, "node %u being removed from domain map!\n", idx);
 	clear_bit(idx, dlm->domain_map);
+	clear_bit(idx, dlm->exit_domain_map);
 	/* wake up migration waiters if a node goes down.
 	 * perhaps later we can genericize this for other waiters. */
 	wake_up(&dlm->migration_wq);
@@ -2606,8 +2602,6 @@ static int dlm_send_begin_reco_message(struct dlm_ctxt *dlm, u8 dead_node)
 	struct dlm_node_iter iter;
 	int nodenum;
 	int status;
-
-	mlog_entry("%u\n", dead_node);
 
 	mlog(0, "%s: dead node is %u\n", dlm->name, dead_node);
 

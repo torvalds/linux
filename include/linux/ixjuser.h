@@ -50,7 +50,7 @@
 * IOCTL's used for the Quicknet Telephony Cards
 *
 * If you use the IXJCTL_TESTRAM command, the card must be power cycled to
-* reset the SRAM values before futher use.
+* reset the SRAM values before further use.
 *
 ******************************************************************************/
 

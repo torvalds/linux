@@ -25,22 +25,21 @@ struct mfd_cell {
 	const char		*name;
 	int			id;
 
+	/* refcounting for multiple drivers to use a single cell */
+	atomic_t		*usage_count;
 	int			(*enable)(struct platform_device *dev);
 	int			(*disable)(struct platform_device *dev);
+
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
-	/* driver-specific data for MFD-aware "cell" drivers */
-	void			*driver_data;
-
-	/* platform_data can be used to either pass data to "generic"
-	   driver or as a hook to mfd_cell for the "cell" drivers */
+	/* platform data passed to the sub devices drivers */
 	void			*platform_data;
-	size_t			data_size;
+	size_t			pdata_size;
 
 	/*
-	 * This resources can be specified relatively to the parent device.
-	 * For accessing device you should use resources from device
+	 * These resources can be specified relative to the parent device.
+	 * For accessing hardware you should use resources from the platform dev
 	 */
 	int			num_resources;
 	const struct resource	*resources;
@@ -55,8 +54,44 @@ struct mfd_cell {
 	bool			pm_runtime_no_callbacks;
 };
 
+/*
+ * Convenience functions for clients using shared cells.  Refcounting
+ * happens automatically, with the cell's enable/disable callbacks
+ * being called only when a device is first being enabled or no other
+ * clients are making use of it.
+ */
+extern int mfd_cell_enable(struct platform_device *pdev);
+extern int mfd_cell_disable(struct platform_device *pdev);
+
+/*
+ * "Clone" multiple platform devices for a single cell. This is to be used
+ * for devices that have multiple users of a cell.  For example, if an mfd
+ * driver wants the cell "foo" to be used by a GPIO driver, an MTD driver,
+ * and a platform driver, the following bit of code would be use after first
+ * calling mfd_add_devices():
+ *
+ * const char *fclones[] = { "foo-gpio", "foo-mtd" };
+ * err = mfd_clone_cells("foo", fclones, ARRAY_SIZE(fclones));
+ *
+ * Each driver (MTD, GPIO, and platform driver) would then register
+ * platform_drivers for "foo-mtd", "foo-gpio", and "foo", respectively.
+ * The cell's .enable/.disable hooks should be used to deal with hardware
+ * resource contention.
+ */
+extern int mfd_clone_cell(const char *cell, const char **clones,
+		size_t n_clones);
+
+/*
+ * Given a platform device that's been created by mfd_add_devices(), fetch
+ * the mfd_cell that created it.
+ */
+static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
+{
+	return pdev->mfd_cell;
+}
+
 extern int mfd_add_devices(struct device *parent, int id,
-			   const struct mfd_cell *cells, int n_devs,
+			   struct mfd_cell *cells, int n_devs,
 			   struct resource *mem_base,
 			   int irq_base);
 

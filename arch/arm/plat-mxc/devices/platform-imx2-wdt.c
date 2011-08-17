@@ -53,6 +53,15 @@ const struct imx_imx2_wdt_data imx51_imx2_wdt_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
+#ifdef CONFIG_SOC_IMX53
+const struct imx_imx2_wdt_data imx53_imx2_wdt_data[] __initconst = {
+#define imx53_imx2_wdt_data_entry(_id, _hwid)				\
+	imx_imx2_wdt_data_entry(MX53, _id, _hwid, SZ_16K)
+	imx53_imx2_wdt_data_entry(0, 1),
+	imx53_imx2_wdt_data_entry(1, 2),
+};
+#endif /* ifdef CONFIG_SOC_IMX53 */
+
 struct platform_device *__init imx_add_imx2_wdt(
 		const struct imx_imx2_wdt_data *data)
 {

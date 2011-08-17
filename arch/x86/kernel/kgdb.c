@@ -121,8 +121,8 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
 		       dbg_reg_def[regno].size);
 
-	switch (regno) {
 #ifdef CONFIG_X86_32
+	switch (regno) {
 	case GDB_SS:
 		if (!user_mode_vm(regs))
 			*(unsigned long *)mem = __KERNEL_DS;
@@ -135,8 +135,8 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 	case GDB_FS:
 		*(unsigned long *)mem = 0xFFFF;
 		break;
-#endif
 	}
+#endif
 	return dbg_reg_def[regno].name;
 }
 
@@ -278,7 +278,7 @@ static int hw_break_release_slot(int breakno)
 		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
 		if (dbg_release_bp_slot(*pevent))
 			/*
-			 * The debugger is responisble for handing the retry on
+			 * The debugger is responsible for handing the retry on
 			 * remove failure.
 			 */
 			return -1;
@@ -533,15 +533,6 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 		}
 		return NOTIFY_DONE;
 
-	case DIE_NMIWATCHDOG:
-		if (atomic_read(&kgdb_active) != -1) {
-			/* KGDB CPU roundup: */
-			kgdb_nmicallback(raw_smp_processor_id(), regs);
-			return NOTIFY_STOP;
-		}
-		/* Enter debugger: */
-		break;
-
 	case DIE_DEBUG:
 		if (atomic_read(&kgdb_cpu_doing_single_step) != -1) {
 			if (user_mode(regs))
@@ -617,7 +608,7 @@ int kgdb_arch_init(void)
 	return register_die_notifier(&kgdb_notifier);
 }
 
-static void kgdb_hw_overflow_handler(struct perf_event *event, int nmi,
+static void kgdb_hw_overflow_handler(struct perf_event *event,
 		struct perf_sample_data *data, struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
@@ -647,7 +638,7 @@ void kgdb_arch_late(void)
 	for (i = 0; i < HBP_NUM; i++) {
 		if (breakinfo[i].pev)
 			continue;
-		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL);
+		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL, NULL);
 		if (IS_ERR((void * __force)breakinfo[i].pev)) {
 			printk(KERN_ERR "kgdb: Could not allocate hw"
 			       "breakpoints\nDisabling the kernel debugger\n");

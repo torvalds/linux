@@ -128,7 +128,7 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 	int call_ast = 0, kick_thread = 0;
 	enum dlm_status status = DLM_NORMAL;
 
-	mlog_entry("type=%d\n", lock->ml.type);
+	mlog(0, "type=%d\n", lock->ml.type);
 
 	spin_lock(&res->spinlock);
 	/* if called from dlm_create_lock_handler, need to
@@ -227,8 +227,8 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	enum dlm_status status = DLM_DENIED;
 	int lockres_changed = 1;
 
-	mlog_entry("type=%d\n", lock->ml.type);
-	mlog(0, "lockres %.*s, flags = 0x%x\n", res->lockname.len,
+	mlog(0, "type=%d, lockres %.*s, flags = 0x%x\n",
+	     lock->ml.type, res->lockname.len,
 	     res->lockname.name, flags);
 
 	spin_lock(&res->spinlock);
@@ -307,8 +307,6 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	struct dlm_create_lock create;
 	int tmpret, status = 0;
 	enum dlm_status ret;
-
-	mlog_entry_void();
 
 	memset(&create, 0, sizeof(create));
 	create.node_idx = dlm->node_num;
@@ -476,8 +474,6 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	unsigned int namelen;
 
 	BUG_ON(!dlm);
-
-	mlog_entry_void();
 
 	if (!dlm_grab(dlm))
 		return DLM_REJECTED;

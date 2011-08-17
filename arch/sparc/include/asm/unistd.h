@@ -400,8 +400,14 @@
 #define __NR_fanotify_init	329
 #define __NR_fanotify_mark	330
 #define __NR_prlimit64		331
+#define __NR_name_to_handle_at	332
+#define __NR_open_by_handle_at	333
+#define __NR_clock_adjtime	334
+#define __NR_syncfs		335
+#define __NR_sendmmsg		336
+#define __NR_setns		337
 
-#define NR_syscalls		332
+#define NR_syscalls		338
 
 #ifdef __32bit_syscall_numbers__
 /* Sparc 32-bit only has the "setresuid32", "getresuid32" variants,

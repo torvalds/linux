@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "u_audio.h"
 
@@ -177,7 +177,7 @@ static struct uac_format_type_i_discrete_descriptor_1 as_type_i_desc = {
 };
 
 /* Standard ISO OUT Endpoint Descriptor */
-static struct usb_endpoint_descriptor as_out_ep_desc __initdata = {
+static struct usb_endpoint_descriptor as_out_ep_desc  = {
 	.bLength =		USB_DT_ENDPOINT_AUDIO_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_OUT,
@@ -279,7 +279,6 @@ struct f_audio {
 
 	/* endpoints handle full and/or high speeds */
 	struct usb_ep			*out_ep;
-	struct usb_endpoint_descriptor	*out_desc;
 
 	spinlock_t			lock;
 	struct f_audio_buf *copy_buf;
@@ -575,7 +574,7 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	if (intf == 1) {
 		if (alt == 1) {
-			usb_ep_enable(out_ep, audio->out_desc);
+			usb_ep_enable(out_ep);
 			out_ep->driver_data = audio;
 			audio->copy_buf = f_audio_buffer_alloc(audio_buf_size);
 			if (IS_ERR(audio->copy_buf))
@@ -677,6 +676,7 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	audio->out_ep = ep;
+	audio->out_ep->desc = &as_out_ep_desc;
 	ep->driver_data = cdev;	/* claim */
 
 	status = -ENOMEM;
@@ -706,6 +706,7 @@ f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct f_audio		*audio = func_to_audio(f);
 
 	usb_free_descriptors(f->descriptors);
+	usb_free_descriptors(f->hs_descriptors);
 	kfree(audio);
 }
 
@@ -742,7 +743,7 @@ int __init control_selector_init(struct f_audio *audio)
 }
 
 /**
- * audio_bind_config - add USB audio fucntion to a configuration
+ * audio_bind_config - add USB audio function to a configuration
  * @c: the configuration to supcard the USB audio function
  * Context: single threaded during gadget setup
  *
@@ -775,7 +776,6 @@ int __init audio_bind_config(struct usb_configuration *c)
 	audio->card.func.set_alt = f_audio_set_alt;
 	audio->card.func.setup = f_audio_setup;
 	audio->card.func.disable = f_audio_disable;
-	audio->out_desc = &as_out_ep_desc;
 
 	control_selector_init(audio);
 

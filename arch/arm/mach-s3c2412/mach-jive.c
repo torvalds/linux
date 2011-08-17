@@ -17,7 +17,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -25,6 +25,7 @@
 #include <video/ili9320.h>
 
 #include <linux/spi/spi.h>
+#include <linux/spi/spi_gpio.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -38,7 +39,6 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
-#include <mach/spi-gpio.h>
 #include <mach/fb.h>
 
 #include <asm/mach-types.h>
@@ -389,45 +389,30 @@ static struct ili9320_platdata jive_lcm_config = {
 
 /* LCD SPI support */
 
-static void jive_lcd_spi_chipselect(struct s3c2410_spigpio_info *spi, int cs)
-{
-	gpio_set_value(S3C2410_GPB(7), cs ? 0 : 1);
-}
-
-static struct s3c2410_spigpio_info jive_lcd_spi = {
-	.bus_num	= 1,
-	.pin_clk	= S3C2410_GPG(8),
-	.pin_mosi	= S3C2410_GPB(8),
-	.num_chipselect	= 1,
-	.chip_select	= jive_lcd_spi_chipselect,
+static struct spi_gpio_platform_data jive_lcd_spi = {
+	.sck		= S3C2410_GPG(8),
+	.mosi		= S3C2410_GPB(8),
+	.miso		= SPI_GPIO_NO_MISO,
 };
 
 static struct platform_device jive_device_lcdspi = {
-	.name		= "spi_s3c24xx_gpio",
+	.name		= "spi-gpio",
 	.id		= 1,
-	.num_resources  = 0,
 	.dev.platform_data = &jive_lcd_spi,
 };
 
+
 /* WM8750 audio code SPI definition */
 
-static void jive_wm8750_chipselect(struct s3c2410_spigpio_info *spi, int cs)
-{
-	gpio_set_value(S3C2410_GPH(10), cs ? 0 : 1);
-}
-
-static struct s3c2410_spigpio_info jive_wm8750_spi = {
-	.bus_num	= 2,
-	.pin_clk	= S3C2410_GPB(4),
-	.pin_mosi	= S3C2410_GPB(9),
-	.num_chipselect	= 1,
-	.chip_select	= jive_wm8750_chipselect,
+static struct spi_gpio_platform_data jive_wm8750_spi = {
+	.sck		= S3C2410_GPB(4),
+	.mosi		= S3C2410_GPB(9),
+	.miso		= SPI_GPIO_NO_MISO,
 };
 
 static struct platform_device jive_device_wm8750 = {
-	.name		= "spi_s3c24xx_gpio",
+	.name		= "spi-gpio",
 	.id		= 2,
-	.num_resources  = 0,
 	.dev.platform_data = &jive_wm8750_spi,
 };
 
@@ -441,12 +426,14 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 		.mode		= SPI_MODE_3,	/* CPOL=1, CPHA=1 */
 		.max_speed_hz	= 100000,
 		.platform_data	= &jive_lcm_config,
+		.controller_data = (void *)S3C2410_GPB(7),
 	}, {
 		.modalias	= "WM8750",
 		.bus_num	= 2,
 		.chip_select	= 0,
 		.mode		= SPI_MODE_0,	/* CPOL=0, CPHA=0 */
 		.max_speed_hz	= 100000,
+		.controller_data = (void *)S3C2410_GPH(10),
 	},
 };
 
@@ -486,7 +473,7 @@ static struct s3c2410_udc_mach_info jive_udc_cfg __initdata = {
 /* Jive power management device */
 
 #ifdef CONFIG_PM
-static int jive_pm_suspend(struct sys_device *sd, pm_message_t state)
+static int jive_pm_suspend(void)
 {
 	/* Write the magic value u-boot uses to check for resume into
 	 * the INFORM0 register, and ensure INFORM1 is set to the
@@ -498,10 +485,9 @@ static int jive_pm_suspend(struct sys_device *sd, pm_message_t state)
 	return 0;
 }
 
-static int jive_pm_resume(struct sys_device *sd)
+static void jive_pm_resume(void)
 {
 	__raw_writel(0x0, S3C2412_INFORM0);
-	return 0;
 }
 
 #else
@@ -509,14 +495,9 @@ static int jive_pm_resume(struct sys_device *sd)
 #define jive_pm_resume NULL
 #endif
 
-static struct sysdev_class jive_pm_sysclass = {
-	.name		= "jive-pm",
+static struct syscore_ops jive_pm_syscore_ops = {
 	.suspend	= jive_pm_suspend,
 	.resume		= jive_pm_resume,
-};
-
-static struct sys_device jive_pm_sysdev = {
-	.cls		= &jive_pm_sysclass,
 };
 
 static void __init jive_map_io(void)
@@ -536,10 +517,9 @@ static void jive_power_off(void)
 
 static void __init jive_machine_init(void)
 {
-	/* register system devices for managing low level suspend */
+	/* register system core operations for managing low level suspend */
 
-	sysdev_class_register(&jive_pm_sysclass);
-	sysdev_register(&jive_pm_sysdev);
+	register_syscore_ops(&jive_pm_syscore_ops);
 
 	/* write our sleep configurations for the IO. Pull down all unused
 	 * IO, ensure that we have turned off all peripherals we do not

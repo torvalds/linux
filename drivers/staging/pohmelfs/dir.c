@@ -512,7 +512,7 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 	int err, lock_type = POHMELFS_READ_LOCK, need_lock = 1;
 	struct qstr str = dentry->d_name;
 
-	if ((nd->intent.open.flags & O_ACCMODE) > 1)
+	if ((nd->intent.open.flags & O_ACCMODE) != O_RDONLY)
 		lock_type = POHMELFS_WRITE_LOCK;
 
 	if (test_bit(NETFS_INODE_OWNED, &parent->state)) {
@@ -1082,7 +1082,6 @@ err_out_exit:
 
 	clear_bit(NETFS_INODE_REMOTE_SYNCED, &pi->state);
 
-	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 

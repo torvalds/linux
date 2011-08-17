@@ -30,9 +30,10 @@
 
 #include <linux/pci.h>
 #include <linux/file.h>
+#include <sound/control.h>
 #include "intel_sst.h"
 #include "intelmid_snd_control.h"
-
+#include "intelmid.h"
 
 enum _reg_v1 {
 	VOICEPORT1 = 0x180,
@@ -64,11 +65,12 @@ enum _reg_v1 {
 };
 
 int rev_id = 0x20;
+static bool jack_det_enabled;
 
 /****
  * fs_init_card - initialize the sound card
  *
- * This initilizes the audio paths to know values in case of this sound card
+ * This initializes the audio paths to know values in case of this sound card
  */
 static int fs_init_card(void)
 {
@@ -157,7 +159,7 @@ static int fs_power_up_pb(unsigned int port)
 	return fs_enable_audiodac(UNMUTE);
 }
 
-static int fs_power_down_pb(void)
+static int fs_power_down_pb(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{POWERCTRL1, 0x00, 0xC6},
@@ -195,7 +197,7 @@ static int fs_power_up_cp(unsigned int port)
 	return sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 2);
 }
 
-static int fs_power_down_cp(void)
+static int fs_power_down_cp(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{POWERCTRL2, 0x00, 0x03},
@@ -753,6 +755,90 @@ static int fs_get_vol(int dev_id, int *value)
 	return retval;
 }
 
+static void fs_pmic_irq_enable(void *data)
+{
+	struct snd_intelmad *intelmaddata = data;
+	struct sc_reg_access sc_access[] = {
+				{0x187, 0x00, MASK7},
+				{0x188, 0x10, MASK4},
+				{0x18b, 0x10, MASK4},
+	};
+
+	struct sc_reg_access sc_access_write[] = {
+				{0x198, 0x00, 0x0},
+	};
+	pr_debug("Audio interrupt enable\n");
+	sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 3);
+	sst_sc_reg_access(sc_access_write, PMIC_WRITE, 1);
+
+	intelmaddata->jack[0].jack_status = 0;
+	/*intelmaddata->jack[1].jack_status = 0;*/
+
+	jack_det_enabled = true;
+	return;
+}
+
+static void fs_pmic_irq_cb(void *cb_data, u8 value)
+{
+	struct mad_jack *mjack = NULL;
+	struct snd_intelmad *intelmaddata = cb_data;
+	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
+
+	mjack = &intelmaddata->jack[0];
+
+	if (value & 0x4) {
+		if (!jack_det_enabled)
+			fs_pmic_irq_enable(intelmaddata);
+
+		/* send headphone detect */
+		pr_debug(":MAD headphone %d\n", value & 0x4);
+		present = !(mjack->jack_status);
+		mjack->jack_status = present;
+		jack_event_flag = 1;
+		mjack->jack.type = SND_JACK_HEADPHONE;
+	}
+
+	if (value & 0x2) {
+		/* send short push */
+		pr_debug(":MAD short push %d\n", value & 0x2);
+		present = 1;
+		jack_event_flag = 1;
+		buttonpressflag = 1;
+		mjack->jack.type = MID_JACK_HS_SHORT_PRESS;
+	}
+
+	if (value & 0x1) {
+		/* send long push */
+		pr_debug(":MAD long push %d\n", value & 0x1);
+		present = 1;
+		jack_event_flag = 1;
+		buttonpressflag = 1;
+		mjack->jack.type = MID_JACK_HS_LONG_PRESS;
+	}
+
+	if (value & 0x8) {
+		if (!jack_det_enabled)
+			fs_pmic_irq_enable(intelmaddata);
+		/* send headset detect */
+		pr_debug(":MAD headset = %d\n", value & 0x8);
+		present = !(mjack->jack_status);
+		mjack->jack_status = present;
+		jack_event_flag = 1;
+		mjack->jack.type = SND_JACK_HEADSET;
+	}
+
+
+	if (jack_event_flag)
+		sst_mad_send_jack_report(&mjack->jack,
+						buttonpressflag, present);
+
+	return;
+}
+static int fs_jack_enable(void)
+{
+	return 0;
+}
+
 struct snd_pmic_ops snd_pmic_ops_fs = {
 	.set_input_dev = fs_set_selected_input_dev,
 	.set_output_dev = fs_set_selected_output_dev,
@@ -765,9 +851,16 @@ struct snd_pmic_ops snd_pmic_ops_fs = {
 	.set_pcm_voice_params = fs_set_pcm_voice_params,
 	.set_voice_port = fs_set_voice_port,
 	.set_audio_port = fs_set_audio_port,
-	.power_up_pmic_pb = fs_power_up_pb,
-	.power_up_pmic_cp = fs_power_up_cp,
-	.power_down_pmic_pb = fs_power_down_pb,
-	.power_down_pmic_cp = fs_power_down_cp,
-	.power_down_pmic = fs_power_down,
+	.power_up_pmic_pb =	fs_power_up_pb,
+	.power_up_pmic_cp =	fs_power_up_cp,
+	.power_down_pmic_pb =	fs_power_down_pb,
+	.power_down_pmic_cp =	fs_power_down_cp,
+	.power_down_pmic	=	fs_power_down,
+	.pmic_irq_cb	=	fs_pmic_irq_cb,
+	/*
+	 * Jack detection enabling
+	 * need be delayed till first IRQ happen.
+	 */
+	.pmic_irq_enable =	NULL,
+	.pmic_jack_enable = fs_jack_enable,
 };

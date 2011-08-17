@@ -495,7 +495,7 @@ static void catc_ctrl_run(struct catc *catc)
 	if (!q->dir && q->buf && q->len)
 		memcpy(catc->ctrl_buf, q->buf, q->len);
 
-	if ((status = usb_submit_urb(catc->ctrl_urb, GFP_KERNEL)))
+	if ((status = usb_submit_urb(catc->ctrl_urb, GFP_ATOMIC)))
 		err("submit(ctrl_urb) status %d", status);
 }
 
@@ -686,7 +686,7 @@ static int catc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	cmd->supported = SUPPORTED_10baseT_Half | SUPPORTED_TP;
 	cmd->advertising = ADVERTISED_10baseT_Half | ADVERTISED_TP;
-	cmd->speed = SPEED_10;
+	ethtool_cmd_speed_set(cmd, SPEED_10);
 	cmd->duplex = DUPLEX_HALF;
 	cmd->port = PORT_TP; 
 	cmd->phy_address = 0;

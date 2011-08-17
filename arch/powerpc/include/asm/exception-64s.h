@@ -46,6 +46,7 @@
 #define EX_CCR		60
 #define EX_R3		64
 #define EX_LR		72
+#define EX_CFAR		80
 
 /*
  * We're short on space and time in the exception prolog, so we can't
@@ -56,30 +57,95 @@
 #define LOAD_HANDLER(reg, label)					\
 	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
-#define EXCEPTION_PROLOG_1(area)				\
-	mfspr	r13,SPRN_SPRG_PACA;	/* get paca address into r13 */	\
+/* Exception register prefixes */
+#define EXC_HV	H
+#define EXC_STD
+
+#define __EXCEPTION_PROLOG_1(area, extra, vec)				\
+	GET_PACA(r13);							\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
+	BEGIN_FTR_SECTION_NESTED(66);					\
+	mfspr	r10,SPRN_CFAR;						\
+	std	r10,area+EX_CFAR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		\
+	mfcr	r9;							\
+	extra(vec);							\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG_SCRATCH0;					\
-	std	r9,area+EX_R13(r13);					\
-	mfcr	r9
+	GET_SCRATCH0(r10);						\
+	std	r10,area+EX_R13(r13)
+#define EXCEPTION_PROLOG_1(area, extra, vec)				\
+	__EXCEPTION_PROLOG_1(area, extra, vec)
 
-#define EXCEPTION_PROLOG_PSERIES_1(label)				\
+#define __EXCEPTION_PROLOG_PSERIES_1(label, h)				\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
 	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
-	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
+	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	LOAD_HANDLER(r12,label)						\
-	mtspr	SPRN_SRR0,r12;						\
-	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
-	mtspr	SPRN_SRR1,r10;						\
-	rfid;								\
+	mtspr	SPRN_##h##SRR0,r12;					\
+	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
+	mtspr	SPRN_##h##SRR1,r10;					\
+	h##rfid;							\
 	b	.	/* prevent speculative execution */
+#define EXCEPTION_PROLOG_PSERIES_1(label, h)				\
+	__EXCEPTION_PROLOG_PSERIES_1(label, h)
 
-#define EXCEPTION_PROLOG_PSERIES(area, label)				\
-	EXCEPTION_PROLOG_1(area);					\
-	EXCEPTION_PROLOG_PSERIES_1(label);
+#define EXCEPTION_PROLOG_PSERIES(area, label, h, extra, vec)		\
+	EXCEPTION_PROLOG_1(area, extra, vec);				\
+	EXCEPTION_PROLOG_PSERIES_1(label, h);
+
+#define __KVMTEST(n)							\
+	lbz	r10,HSTATE_IN_GUEST(r13);			\
+	cmpwi	r10,0;							\
+	bne	do_kvm_##n
+
+#define __KVM_HANDLER(area, h, n)					\
+do_kvm_##n:								\
+	ld	r10,area+EX_R10(r13);					\
+	stw	r9,HSTATE_SCRATCH1(r13);			\
+	ld	r9,area+EX_R9(r13);					\
+	std	r12,HSTATE_SCRATCH0(r13);			\
+	li	r12,n;							\
+	b	kvmppc_interrupt
+
+#define __KVM_HANDLER_SKIP(area, h, n)					\
+do_kvm_##n:								\
+	cmpwi	r10,KVM_GUEST_MODE_SKIP;				\
+	ld	r10,area+EX_R10(r13);					\
+	beq	89f;							\
+	stw	r9,HSTATE_SCRATCH1(r13);			\
+	ld	r9,area+EX_R9(r13);					\
+	std	r12,HSTATE_SCRATCH0(r13);			\
+	li	r12,n;							\
+	b	kvmppc_interrupt;					\
+89:	mtocrf	0x80,r9;						\
+	ld	r9,area+EX_R9(r13);					\
+	b	kvmppc_skip_##h##interrupt
+
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#define KVMTEST(n)			__KVMTEST(n)
+#define KVM_HANDLER(area, h, n)		__KVM_HANDLER(area, h, n)
+#define KVM_HANDLER_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
+
+#else
+#define KVMTEST(n)
+#define KVM_HANDLER(area, h, n)
+#define KVM_HANDLER_SKIP(area, h, n)
+#endif
+
+#ifdef CONFIG_KVM_BOOK3S_PR
+#define KVMTEST_PR(n)			__KVMTEST(n)
+#define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
+#define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
+
+#else
+#define KVMTEST_PR(n)
+#define KVM_HANDLER_PR(area, h, n)
+#define KVM_HANDLER_PR_SKIP(area, h, n)
+#endif
+
+#define NOTEST(n)
 
 /*
  * The common exception prolog is used for all except a few exceptions
@@ -98,10 +164,11 @@
 	beq-	1f;							   \
 	ld	r1,PACAKSAVE(r13);	/* kernel stack to use		*/ \
 1:	cmpdi	cr1,r1,0;		/* check if r1 is in userspace	*/ \
-	bge-	cr1,2f;			/* abort if it is		*/ \
-	b	3f;							   \
-2:	li	r1,(n);			/* will be reloaded later	*/ \
+	blt+	cr1,3f;			/* abort if it is		*/ \
+	li	r1,(n);			/* will be reloaded later	*/ \
 	sth	r1,PACA_TRAP_SAVE(r13);					   \
+	std	r3,area+EX_R3(r13);					   \
+	addi	r3,r13,area;		/* r3 -> where regs are saved*/	   \
 	b	bad_stack;						   \
 3:	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
 	std	r11,_NIP(r1);		/* save SRR0 in stackframe	*/ \
@@ -123,6 +190,10 @@
 	std	r9,GPR11(r1);						   \
 	std	r10,GPR12(r1);						   \
 	std	r11,GPR13(r1);						   \
+	BEGIN_FTR_SECTION_NESTED(66);					   \
+	ld	r10,area+EX_CFAR(r13);					   \
+	std	r10,ORIG_GPR3(r1);					   \
+	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		   \
 	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
 	mflr	r9;			/* save LR in stackframe	*/ \
 	std	r9,_LINK(r1);						   \
@@ -143,57 +214,63 @@
 /*
  * Exception vectors.
  */
-#define STD_EXCEPTION_PSERIES(n, label)			\
-	. = n;						\
+#define STD_EXCEPTION_PSERIES(loc, vec, label)		\
+	. = loc;					\
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	HMT_MEDIUM;					\
-	DO_KVM	n;					\
-	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+	SET_SCRATCH0(r13);		/* save r13 */		\
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
+				 EXC_STD, KVMTEST_PR, vec)
 
-#define HSTD_EXCEPTION_PSERIES(n, label)		\
-	. = n;						\
-	.globl label##_pSeries;				\
-label##_pSeries:					\
+#define STD_EXCEPTION_HV(loc, vec, label)		\
+	. = loc;					\
+	.globl label##_hv;				\
+label##_hv:						\
 	HMT_MEDIUM;					\
-	mtspr	SPRN_SPRG_SCRATCH0,r20;	/* save r20 */	\
-	mfspr	r20,SPRN_HSRR0;		/* copy HSRR0 to SRR0 */ \
-	mtspr	SPRN_SRR0,r20;				\
-	mfspr	r20,SPRN_HSRR1;		/* copy HSRR0 to SRR0 */ \
-	mtspr	SPRN_SRR1,r20;				\
-	mfspr	r20,SPRN_SPRG_SCRATCH0;	/* restore r20 */ \
-	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+	SET_SCRATCH0(r13);	/* save r13 */			\
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
+				 EXC_HV, KVMTEST, vec)
 
+#define __SOFTEN_TEST(h)						\
+	lbz	r10,PACASOFTIRQEN(r13);					\
+	cmpwi	r10,0;							\
+	beq	masked_##h##interrupt
+#define _SOFTEN_TEST(h)	__SOFTEN_TEST(h)
 
-#define MASKABLE_EXCEPTION_PSERIES(n, label)				\
-	. = n;								\
+#define SOFTEN_TEST_PR(vec)						\
+	KVMTEST_PR(vec);						\
+	_SOFTEN_TEST(EXC_STD)
+
+#define SOFTEN_TEST_HV(vec)						\
+	KVMTEST(vec);							\
+	_SOFTEN_TEST(EXC_HV)
+
+#define SOFTEN_TEST_HV_201(vec)						\
+	KVMTEST(vec);							\
+	_SOFTEN_TEST(EXC_STD)
+
+#define __MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
+	HMT_MEDIUM;							\
+	SET_SCRATCH0(r13);    /* save r13 */				\
+	__EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec);		\
+	EXCEPTION_PROLOG_PSERIES_1(label##_common, h);
+#define _MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
+	__MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)
+
+#define MASKABLE_EXCEPTION_PSERIES(loc, vec, label)			\
+	. = loc;							\
 	.globl label##_pSeries;						\
 label##_pSeries:							\
-	HMT_MEDIUM;							\
-	DO_KVM	n;							\
-	mtspr	SPRN_SPRG_SCRATCH0,r13;	/* save r13 */			\
-	mfspr	r13,SPRN_SPRG_PACA;	/* get paca address into r13 */	\
-	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
-	std	r10,PACA_EXGEN+EX_R10(r13);				\
-	lbz	r10,PACASOFTIRQEN(r13);					\
-	mfcr	r9;							\
-	cmpwi	r10,0;							\
-	beq	masked_interrupt;					\
-	mfspr	r10,SPRN_SPRG_SCRATCH0;					\
-	std	r10,PACA_EXGEN+EX_R13(r13);				\
-	std	r11,PACA_EXGEN+EX_R11(r13);				\
-	std	r12,PACA_EXGEN+EX_R12(r13);				\
-	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
-	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
-	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
-	LOAD_HANDLER(r12,label##_common)				\
-	mtspr	SPRN_SRR0,r12;						\
-	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
-	mtspr	SPRN_SRR1,r10;						\
-	rfid;								\
-	b	.	/* prevent speculative execution */
+	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
+				    EXC_STD, SOFTEN_TEST_PR)
+
+#define MASKABLE_EXCEPTION_HV(loc, vec, label)				\
+	. = loc;							\
+	.globl label##_hv;						\
+label##_hv:								\
+	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
+				    EXC_HV, SOFTEN_TEST_HV)
 
 #ifdef CONFIG_PPC_ISERIES
 #define DISABLE_INTS				\

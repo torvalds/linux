@@ -124,11 +124,7 @@ static void am35x_musb_disable(struct musb *musb)
 	musb_writel(reg_base, USB_END_OF_INTR_REG, 0);
 }
 
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 #define portstate(stmt)		stmt
-#else
-#define portstate(stmt)
-#endif
 
 static void am35x_musb_set_vbus(struct musb *musb, int is_on)
 {
@@ -151,7 +147,8 @@ static void otg_timer(unsigned long _musb)
 	 * status change events (from the transceiver) otherwise.
 	 */
 	devctl = musb_readb(mregs, MUSB_DEVCTL);
-	DBG(7, "Poll devctl %02x (%s)\n", devctl, otg_state_string(musb));
+	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
+		otg_state_string(musb->xceiv->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
@@ -202,20 +199,22 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 	/* Never idle if active, or when VBUS timeout is not set as host */
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
 				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
-		DBG(4, "%s active, deleting timer\n", otg_state_string(musb));
+		dev_dbg(musb->controller, "%s active, deleting timer\n",
+			otg_state_string(musb->xceiv->state));
 		del_timer(&otg_workaround);
 		last_timer = jiffies;
 		return;
 	}
 
 	if (time_after(last_timer, timeout) && timer_pending(&otg_workaround)) {
-		DBG(4, "Longer idle timer already pending, ignoring...\n");
+		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
 		return;
 	}
 	last_timer = timeout;
 
-	DBG(4, "%s inactive, starting idle timer for %u ms\n",
-	    otg_state_string(musb), jiffies_to_msecs(timeout - jiffies));
+	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
+		otg_state_string(musb->xceiv->state),
+		jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&otg_workaround, timeout);
 }
 
@@ -302,9 +301,9 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 		}
 
 		/* NOTE: this must complete power-on within 100 ms. */
-		DBG(2, "VBUS %s (%s)%s, devctl %02x\n",
+		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				otg_state_string(musb),
+				otg_state_string(musb->xceiv->state),
 				err ? " ERROR" : "",
 				devctl);
 		ret = IRQ_HANDLED;

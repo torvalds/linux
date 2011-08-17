@@ -29,7 +29,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/input/matrix_keypad.h>
 #include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
@@ -103,14 +102,20 @@ static iomux_v3_cfg_t mx25pdk_pads[] = {
 	MX25_PAD_SD1_DATA1__SD1_DATA1,
 	MX25_PAD_SD1_DATA2__SD1_DATA2,
 	MX25_PAD_SD1_DATA3__SD1_DATA3,
+	MX25_PAD_A14__GPIO_2_0, /* WriteProtect */
+	MX25_PAD_A15__GPIO_2_1, /* CardDetect */
+
+	/* I2C1 */
+	MX25_PAD_I2C1_CLK__I2C1_CLK,
+	MX25_PAD_I2C1_DAT__I2C1_DAT,
 };
 
 static const struct fec_platform_data mx25_fec_pdata __initconst = {
 	.phy    = PHY_INTERFACE_MODE_RMII,
 };
 
-#define FEC_ENABLE_GPIO		35
-#define FEC_RESET_B_GPIO	104
+#define FEC_ENABLE_GPIO		IMX_GPIO_NR(2, 3)
+#define FEC_RESET_B_GPIO	IMX_GPIO_NR(4, 8)
 
 static void __init mx25pdk_fec_reset(void)
 {
@@ -185,9 +190,14 @@ static const struct matrix_keymap_data mx25pdk_keymap_data __initconst = {
 	.keymap_size	= ARRAY_SIZE(mx25pdk_keymap),
 };
 
+static int mx25pdk_usbh2_init(struct platform_device *pdev)
+{
+	return mx25_initialize_usb_hw(pdev->id, MXC_EHCI_INTERNAL_PHY);
+}
+
 static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
+	.init	= mx25pdk_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_SERIAL,
-	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
@@ -195,8 +205,24 @@ static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.phy_mode       = FSL_USB2_PHY_UTMI,
 };
 
+static const struct imxi2c_platform_data mx25_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
+
+#define SD1_GPIO_WP	IMX_GPIO_NR(2, 0)
+#define SD1_GPIO_CD	IMX_GPIO_NR(2, 1)
+
+static const struct esdhc_platform_data mx25pdk_esdhc_pdata __initconst = {
+	.wp_gpio = SD1_GPIO_WP,
+	.cd_gpio = SD1_GPIO_CD,
+	.wp_type = ESDHC_WP_GPIO,
+	.cd_type = ESDHC_CD_GPIO,
+};
+
 static void __init mx25pdk_init(void)
 {
+	imx25_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
 			ARRAY_SIZE(mx25pdk_pads));
 
@@ -212,7 +238,8 @@ static void __init mx25pdk_init(void)
 	imx25_add_fec(&mx25_fec_pdata);
 	imx25_add_imx_keypad(&mx25pdk_keymap_data);
 
-	imx25_add_sdhci_esdhc_imx(0, NULL);
+	imx25_add_sdhci_esdhc_imx(0, &mx25pdk_esdhc_pdata);
+	imx25_add_imx_i2c0(&mx25_3ds_i2c0_data);
 }
 
 static void __init mx25pdk_timer_init(void)
@@ -226,10 +253,10 @@ static struct sys_timer mx25pdk_timer = {
 
 MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params    = MX25_PHYS_OFFSET + 0x100,
-	.map_io         = mx25_map_io,
-	.init_irq       = mx25_init_irq,
-	.init_machine   = mx25pdk_init,
-	.timer          = &mx25pdk_timer,
+	.boot_params = MX25_PHYS_OFFSET + 0x100,
+	.map_io = mx25_map_io,
+	.init_early = imx25_init_early,
+	.init_irq = mx25_init_irq,
+	.timer = &mx25pdk_timer,
+	.init_machine = mx25pdk_init,
 MACHINE_END
-

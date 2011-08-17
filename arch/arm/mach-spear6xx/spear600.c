@@ -14,7 +14,7 @@
 #include <linux/ptrace.h>
 #include <asm/irq.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 /* Add spear600 specific devices here */
 

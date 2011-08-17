@@ -53,7 +53,7 @@ cpu_enter_idle:
 	st.w	r8[TI_flags], r9
 	unmask_interrupts
 	sleep	CPU_SLEEP_IDLE
-	.size	cpu_idle_sleep, . - cpu_idle_sleep
+	.size	cpu_enter_idle, . - cpu_enter_idle
 
 	/*
 	 * Common return path for PM functions that don't run from

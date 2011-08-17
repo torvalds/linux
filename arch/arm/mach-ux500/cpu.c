@@ -8,6 +8,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/mfd/db8500-prcmu.h>
+#include <linux/mfd/db5500-prcmu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -19,9 +21,10 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
-#include <mach/prcmu.h>
 
 #include "clock.h"
+
+void __iomem *_PRCMU_BASE;
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2x0_base;
@@ -47,6 +50,8 @@ void __init ux500_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
+	if (cpu_is_u5500())
+		db5500_prcmu_early_init();
 	if (cpu_is_u8500())
 		prcmu_early_init();
 	clk_init();

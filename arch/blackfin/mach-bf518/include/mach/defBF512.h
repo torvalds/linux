@@ -561,12 +561,12 @@
 #define PORTF_SLEW              0xFFC03230      /* Port F slew control */
 #define PORTG_SLEW              0xFFC03234      /* Port G slew control */
 #define PORTH_SLEW              0xFFC03238      /* Port H slew control */
-#define PORTF_HYSTERISIS        0xFFC03240      /* Port F Schmitt trigger control */
-#define PORTG_HYSTERISIS        0xFFC03244      /* Port G Schmitt trigger control */
-#define PORTH_HYSTERISIS        0xFFC03248      /* Port H Schmitt trigger control */
+#define PORTF_HYSTERESIS        0xFFC03240      /* Port F Schmitt trigger control */
+#define PORTG_HYSTERESIS        0xFFC03244      /* Port G Schmitt trigger control */
+#define PORTH_HYSTERESIS        0xFFC03248      /* Port H Schmitt trigger control */
 #define MISCPORT_DRIVE          0xFFC03280      /* Misc Port drive strength control */
 #define MISCPORT_SLEW           0xFFC03284      /* Misc Port slew control */
-#define MISCPORT_HYSTERISIS     0xFFC03288      /* Misc Port Schmitt trigger control */
+#define MISCPORT_HYSTERESIS     0xFFC03288      /* Misc Port Schmitt trigger control */
 
 
 /***********************************************************************************
@@ -1200,25 +1200,6 @@
 #define	PGTE			0x0800			/* Port G SPORT1 Transmit Enable	*/
 #define	PGTE_PPI		0x0000			/* 		Enable PPI D15:13			*/
 #define	PGTE_SPORT		0x0800			/* 		Enable DT1PRI/TFS1/TSCLK1	*/
-
-
-/*  ******************  HANDSHAKE DMA (HDMA) MASKS  *********************/
-/* HDMAx_CTL Masks														*/
-#define	HMDMAEN		0x0001	/* Enable Handshake DMA 0/1					*/
-#define	REP			0x0002	/* HDMA Request Polarity					*/
-#define	UTE			0x0004	/* Urgency Threshold Enable					*/
-#define	OIE			0x0010	/* Overflow Interrupt Enable				*/
-#define	BDIE		0x0020	/* Block Done Interrupt Enable				*/
-#define	MBDI		0x0040	/* Mask Block Done IRQ If Pending ECNT		*/
-#define	DRQ			0x0300	/* HDMA Request Type						*/
-#define	DRQ_NONE	0x0000	/* 		No Request							*/
-#define	DRQ_SINGLE	0x0100	/* 		Channels Request Single				*/
-#define	DRQ_MULTI	0x0200	/* 		Channels Request Multi (Default)	*/
-#define	DRQ_URGENT	0x0300	/* 		Channels Request Multi Urgent		*/
-#define	RBC			0x1000	/* Reload BCNT With IBCNT					*/
-#define	PS			0x2000	/* HDMA Pin Status							*/
-#define	OI			0x4000	/* Overflow Interrupt Generated				*/
-#define	BDI			0x8000	/* Block Done Interrupt Generated			*/
 
 /* entry addresses of the user-callable Boot ROM functions */
 

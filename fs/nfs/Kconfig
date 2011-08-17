@@ -77,6 +77,7 @@ config NFS_V4
 config NFS_V4_1
 	bool "NFS client support for NFSv4.1 (EXPERIMENTAL)"
 	depends on NFS_FS && NFS_V4 && EXPERIMENTAL
+	select SUNRPC_BACKCHANNEL
 	select PNFS_FILE_LAYOUT
 	help
 	  This option enables support for minor version 1 of the NFSv4 protocol
@@ -86,6 +87,16 @@ config NFS_V4_1
 
 config PNFS_FILE_LAYOUT
 	tristate
+
+config PNFS_BLOCK
+	tristate
+	depends on NFS_FS && NFS_V4_1 && BLK_DEV_DM
+	default m
+
+config PNFS_OBJLAYOUT
+	tristate
+	depends on NFS_FS && NFS_V4_1 && SCSI_OSD_ULD
+	default m
 
 config ROOT_NFS
 	bool "Root file system on NFS"

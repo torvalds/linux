@@ -234,13 +234,10 @@ void cx25821_stop_upstream_video_ch2(struct cx25821_dev *dev)
 	dev->_frame_count_ch2 = 0;
 	dev->_file_status_ch2 = END_OF_FILE;
 
-	if (dev->_irq_queues_ch2) {
-		kfree(dev->_irq_queues_ch2);
-		dev->_irq_queues_ch2 = NULL;
-	}
+	kfree(dev->_irq_queues_ch2);
+	dev->_irq_queues_ch2 = NULL;
 
-	if (dev->_filename_ch2 != NULL)
-		kfree(dev->_filename_ch2);
+	kfree(dev->_filename_ch2);
 
 	tmp = cx_read(VID_CH_MODE_SEL);
 	cx_write(VID_CH_MODE_SEL, tmp & 0xFFFFFE00);

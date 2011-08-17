@@ -396,12 +396,43 @@ enum {
 	CONF_SG_TEMP_PARAM_3,
 	CONF_SG_TEMP_PARAM_4,
 	CONF_SG_TEMP_PARAM_5,
-	CONF_SG_PARAMS_MAX,
+
+	/*
+	 * AP beacon miss
+	 *
+	 * Range: 0 - 255
+	 */
+	CONF_SG_AP_BEACON_MISS_TX,
+
+	/*
+	 * AP RX window length
+	 *
+	 * Range: 0 - 50
+	 */
+	CONF_SG_RX_WINDOW_LENGTH,
+
+	/*
+	 * AP connection protection time
+	 *
+	 * Range: 0 - 5000
+	 */
+	CONF_SG_AP_CONNECTION_PROTECTION_TIME,
+
+	CONF_SG_TEMP_PARAM_6,
+	CONF_SG_TEMP_PARAM_7,
+	CONF_SG_TEMP_PARAM_8,
+	CONF_SG_TEMP_PARAM_9,
+	CONF_SG_TEMP_PARAM_10,
+
+	CONF_SG_STA_PARAMS_MAX = CONF_SG_TEMP_PARAM_5 + 1,
+	CONF_SG_AP_PARAMS_MAX = CONF_SG_TEMP_PARAM_10 + 1,
+
 	CONF_SG_PARAMS_ALL = 0xff
 };
 
 struct conf_sg_settings {
-	u32 params[CONF_SG_PARAMS_MAX];
+	u32 sta_params[CONF_SG_STA_PARAMS_MAX];
+	u32 ap_params[CONF_SG_AP_PARAMS_MAX];
 	u8 state;
 };
 
@@ -496,6 +527,39 @@ struct conf_rx_settings {
 					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
+/*
+ * Rates supported for data packets when operating as AP. Note the absence
+ * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
+ * one. The rate dropped is not mandatory under any operating mode.
+ */
+#define CONF_TX_AP_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS | \
+	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS |      \
+	CONF_HW_BIT_RATE_6MBPS | CONF_HW_BIT_RATE_9MBPS |        \
+	CONF_HW_BIT_RATE_11MBPS | CONF_HW_BIT_RATE_12MBPS |      \
+	CONF_HW_BIT_RATE_18MBPS | CONF_HW_BIT_RATE_24MBPS |      \
+	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
+	CONF_HW_BIT_RATE_54MBPS)
+
+#define CONF_TX_OFDM_RATES (CONF_HW_BIT_RATE_6MBPS |             \
+	CONF_HW_BIT_RATE_12MBPS | CONF_HW_BIT_RATE_24MBPS |      \
+	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
+	CONF_HW_BIT_RATE_54MBPS)
+
+
+/*
+ * Default rates for management traffic when operating in AP mode. This
+ * should be configured according to the basic rate set of the AP
+ */
+#define CONF_TX_AP_DEFAULT_MGMT_RATES  (CONF_HW_BIT_RATE_1MBPS | \
+	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS)
+
+/*
+ * Default rates for working as IBSS. use 11b rates
+ */
+#define CONF_TX_IBSS_DEFAULT_RATES  (CONF_HW_BIT_RATE_1MBPS |       \
+		CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS | \
+		CONF_HW_BIT_RATE_11MBPS);
+
 struct conf_tx_rate_class {
 
 	/*
@@ -552,7 +616,7 @@ enum conf_tx_ac {
 	CONF_TX_AC_BK = 1,         /* background */
 	CONF_TX_AC_VI = 2,         /* video */
 	CONF_TX_AC_VO = 3,         /* voice */
-	CONF_TX_AC_CTS2SELF = 4,   /* fictious AC, follows AC_VO */
+	CONF_TX_AC_CTS2SELF = 4,   /* fictitious AC, follows AC_VO */
 	CONF_TX_AC_ANY_TID = 0x1f
 };
 
@@ -636,15 +700,29 @@ struct conf_tx_settings {
 
 	/*
 	 * Configuration for rate classes for TX (currently only one
-	 * rate class supported.)
+	 * rate class supported). Used in non-AP mode.
 	 */
-	struct conf_tx_rate_class rc_conf;
+	struct conf_tx_rate_class sta_rc_conf;
 
 	/*
 	 * Configuration for access categories for TX rate control.
 	 */
 	u8 ac_conf_count;
 	struct conf_tx_ac_category ac_conf[CONF_TX_MAX_AC_COUNT];
+
+	/*
+	 * AP-mode - allow this number of TX retries to a station before an
+	 * event is triggered from FW.
+	 * In AP-mode the hlids of unreachable stations are given in the
+	 * "sta_tx_retry_exceeded" member in the event mailbox.
+	 */
+	u8 max_tx_retries;
+
+	/*
+	 * AP-mode - after this number of seconds a connected station is
+	 * considered inactive.
+	 */
+	u16 ap_aging_period;
 
 	/*
 	 * Configuration for TID parameters.
@@ -687,6 +765,12 @@ struct conf_tx_settings {
 	 * Range: CONF_HW_BIT_RATE_* bit mask
 	 */
 	u32 basic_rate_5;
+
+	/*
+	 * TX retry limits for templates
+	 */
+	u8 tmpl_short_retry_limit;
+	u8 tmpl_long_retry_limit;
 };
 
 enum {
@@ -912,6 +996,14 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 
 	/*
+	 * Specifies the maximum number of times to try PSM exit if it fails
+	 * (if sending the appropriate null-func message fails.)
+	 *
+	 * Range 0 - 255
+	 */
+	u8 psm_exit_retries;
+
+	/*
 	 * Specifies the maximum number of times to try transmit the PSM entry
 	 * null-func frame for each PSM entry attempt
 	 *
@@ -948,7 +1040,9 @@ enum {
 	CONF_REF_CLK_19_2_E,
 	CONF_REF_CLK_26_E,
 	CONF_REF_CLK_38_4_E,
-	CONF_REF_CLK_52_E
+	CONF_REF_CLK_52_E,
+	CONF_REF_CLK_38_4_M_XTAL,
+	CONF_REF_CLK_26_M_XTAL,
 };
 
 enum single_dual_band_enum {
@@ -961,15 +1055,6 @@ enum single_dual_band_enum {
 #define CONF_NUMBER_OF_RATE_GROUPS  6
 #define CONF_NUMBER_OF_CHANNELS_2_4 14
 #define CONF_NUMBER_OF_CHANNELS_5   35
-
-struct conf_radio_parms {
-	/*
-	 * FEM parameter set to use
-	 *
-	 * Range: 0 or 1
-	 */
-	u8 fem;
-};
 
 struct conf_itrim_settings {
 	/* enable dco itrim */
@@ -1036,30 +1121,30 @@ struct conf_scan_settings {
 	/*
 	 * The minimum time to wait on each channel for active scans
 	 *
-	 * Range: 0 - 65536 tu
+	 * Range: u32 tu/1000
 	 */
-	u16 min_dwell_time_active;
+	u32 min_dwell_time_active;
 
 	/*
 	 * The maximum time to wait on each channel for active scans
 	 *
-	 * Range: 0 - 65536 tu
+	 * Range: u32 tu/1000
 	 */
-	u16 max_dwell_time_active;
+	u32 max_dwell_time_active;
+
+	/*
+	 * The minimum time to wait on each channel for passive scans
+	 *
+	 * Range: u32 tu/1000
+	 */
+	u32 min_dwell_time_passive;
 
 	/*
 	 * The maximum time to wait on each channel for passive scans
 	 *
-	 * Range: 0 - 65536 tu
+	 * Range: u32 tu/1000
 	 */
-	u16 min_dwell_time_passive;
-
-	/*
-	 * The maximum time to wait on each channel for passive scans
-	 *
-	 * Range: 0 - 65536 tu
-	 */
-	u16 max_dwell_time_passive;
+	u32 max_dwell_time_passive;
 
 	/*
 	 * Number of probe requests to transmit on each active scan channel
@@ -1068,6 +1153,29 @@ struct conf_scan_settings {
 	 */
 	u16 num_probe_reqs;
 
+};
+
+struct conf_sched_scan_settings {
+	/* minimum time to wait on the channel for active scans (in TUs) */
+	u16 min_dwell_time_active;
+
+	/* maximum time to wait on the channel for active scans (in TUs) */
+	u16 max_dwell_time_active;
+
+	/* time to wait on the channel for passive scans (in TUs) */
+	u32 dwell_time_passive;
+
+	/* time to wait on the channel for DFS scans (in TUs) */
+	u32 dwell_time_dfs;
+
+	/* number of probe requests to send on each channel in active scans */
+	u8 num_probe_reqs;
+
+	/* RSSI threshold to be used for filtering */
+	s8 rssi_threshold;
+
+	/* SNR threshold to be used for filtering */
+	s8 snr_threshold;
 };
 
 /* these are number of channels on the band divided by two, rounded up */
@@ -1090,6 +1198,117 @@ struct conf_rf_settings {
 	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
 };
 
+struct conf_ht_setting {
+	u16 tx_ba_win_size;
+	u16 inactivity_timeout;
+};
+
+struct conf_memory_settings {
+	/* Number of stations supported in IBSS mode */
+	u8 num_stations;
+
+	/* Number of ssid profiles used in IBSS mode */
+	u8 ssid_profiles;
+
+	/* Number of memory buffers allocated to rx pool */
+	u8 rx_block_num;
+
+	/* Minimum number of blocks allocated to tx pool */
+	u8 tx_min_block_num;
+
+	/* Disable/Enable dynamic memory */
+	u8 dynamic_memory;
+
+	/*
+	 * Minimum required free tx memory blocks in order to assure optimum
+	 * performance
+	 *
+	 * Range: 0-120
+	 */
+	u8 min_req_tx_blocks;
+
+	/*
+	 * Minimum required free rx memory blocks in order to assure optimum
+	 * performance
+	 *
+	 * Range: 0-120
+	 */
+	u8 min_req_rx_blocks;
+
+	/*
+	 * Minimum number of mem blocks (free+used) guaranteed for TX
+	 *
+	 * Range: 0-120
+	 */
+	u8 tx_min;
+};
+
+struct conf_fm_coex {
+	u8 enable;
+	u8 swallow_period;
+	u8 n_divider_fref_set_1;
+	u8 n_divider_fref_set_2;
+	u16 m_divider_fref_set_1;
+	u16 m_divider_fref_set_2;
+	u32 coex_pll_stabilization_time;
+	u16 ldo_stabilization_time;
+	u8 fm_disturbed_band_margin;
+	u8 swallow_clk_diff;
+};
+
+struct conf_rx_streaming_settings {
+	/*
+	 * RX Streaming duration (in msec) from last tx/rx
+	 *
+	 * Range: u32
+	 */
+	u32 duration;
+
+	/*
+	 * Bitmap of tids to be polled during RX streaming.
+	 * (Note: it doesn't look like it really matters)
+	 *
+	 * Range: 0x1-0xff
+	 */
+	u8 queues;
+
+	/*
+	 * RX Streaming interval.
+	 * (Note:this value is also used as the rx streaming timeout)
+	 * Range: 0 (disabled), 10 - 100
+	 */
+	u8 interval;
+
+	/*
+	 * enable rx streaming also when there is no coex activity
+	 */
+	u8 always;
+};
+
+struct conf_fwlog {
+	/* Continuous or on-demand */
+	u8 mode;
+
+	/*
+	 * Number of memory blocks dedicated for the FW logger
+	 *
+	 * Range: 1-3, or 0 to disable the FW logger
+	 */
+	u8 mem_blocks;
+
+	/* Minimum log level threshold */
+	u8 severity;
+
+	/* Include/exclude timestamps from the log messages */
+	u8 timestamp;
+
+	/* See enum wl1271_fwlogger_output */
+	u8 output;
+
+	/* Regulates the frequency of log messages */
+	u8 threshold;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1099,7 +1318,15 @@ struct conf_drv_settings {
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;
 	struct conf_scan_settings scan;
+	struct conf_sched_scan_settings sched_scan;
 	struct conf_rf_settings rf;
+	struct conf_ht_setting ht;
+	struct conf_memory_settings mem_wl127x;
+	struct conf_memory_settings mem_wl128x;
+	struct conf_fm_coex fm_coex;
+	struct conf_rx_streaming_settings rx_streaming;
+	struct conf_fwlog fwlog;
+	u8 hci_io_ds;
 };
 
 #endif

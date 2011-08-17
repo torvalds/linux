@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2006-2010 Solarflare Communications Inc.
+ * Copyright 2006-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -193,7 +193,7 @@ static int txc_reset_phy(struct efx_nic *efx)
 		goto fail;
 
 	/* Check that all the MMDs we expect are present and responding. */
-	rc = efx_mdio_check_mmds(efx, TXC_REQUIRED_DEVS, 0);
+	rc = efx_mdio_check_mmds(efx, TXC_REQUIRED_DEVS);
 	if (rc < 0)
 		goto fail;
 
@@ -545,7 +545,7 @@ static void txc43128_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	mdio45_ethtool_gset(&efx->mdio, ecmd);
 }
 
-struct efx_phy_operations falcon_txc_phy_ops = {
+const struct efx_phy_operations falcon_txc_phy_ops = {
 	.probe		= txc43128_phy_probe,
 	.init		= txc43128_phy_init,
 	.reconfigure	= txc43128_phy_reconfigure,

@@ -24,8 +24,8 @@ typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 
 /* uart setup */
 
-static unsigned int fifo_mask;
-static unsigned int fifo_max;
+unsigned int fifo_mask;
+unsigned int fifo_max;
 
 /* forward declerations */
 
@@ -43,7 +43,7 @@ static void arch_detect_cpu(void);
 /* how many bytes we allow into the FIFO at a time in FIFO mode */
 #define FIFO_MAX	 (14)
 
-static unsigned long uart_base;
+unsigned long uart_base;
 
 static __inline__ void get_uart_base(void)
 {

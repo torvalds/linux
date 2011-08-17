@@ -178,7 +178,7 @@ opp_find_freq_ceil - Search for an available OPP which is *at least* the
 		if (!IS_ERR(opp))
 			soc_switch_to_freq_voltage(freq);
 		else
-			/* do something when we cant satisfy the req */
+			/* do something when we can't satisfy the req */
 		/* do other stuff */
 	 }
 
@@ -320,6 +320,8 @@ opp_init_cpufreq_table - cpufreq framework typically is initialized with
 	NOTE: This function is available only if CONFIG_CPU_FREQ is enabled in
 	addition to CONFIG_PM as power management feature is required to
 	dynamically scale voltage and frequency in a system.
+
+opp_free_cpufreq_table - Free up the table allocated by opp_init_cpufreq_table
 
 7. Data Structures
 ==================

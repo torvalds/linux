@@ -5,7 +5,7 @@ config ATH9K_COMMON
 
 config ATH9K
 	tristate "Atheros 802.11n wireless cards support"
-	depends on PCI && MAC80211
+	depends on MAC80211
 	select ATH9K_HW
 	select MAC80211_LEDS
 	select LEDS_CLASS
@@ -22,6 +22,24 @@ config ATH9K
 	  http://wireless.kernel.org/en/users/Drivers/ath9k/products
 
 	  If you choose to build a module, it'll be called ath9k.
+
+config ATH9K_PCI
+	bool "Atheros ath9k PCI/PCIe bus support"
+	depends on ATH9K && PCI
+	---help---
+	  This option enables the PCI bus support in ath9k.
+
+	  Say Y, if you have a compatible PCI/PCIe wireless card.
+
+config ATH9K_AHB
+	bool "Atheros ath9k AHB bus support"
+	depends on ATH9K
+	default n
+	---help---
+	  This option enables the AHB bus support in ath9k.
+
+	  Say Y, if you have a SoC with a compatible built-in
+	  wireless MAC. Say N if unsure.
 
 config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"

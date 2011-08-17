@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -22,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/crc32.h>
 #include <linux/hardirq.h>
 #include <linux/delay.h>
@@ -335,6 +337,7 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bd->skb_pa = dma_map_single(dev->dev.parent, skb->data, skb->len,
 				    DMA_TO_DEVICE);
 
+	skb_tx_timestamp(skb);
 	bcom_submit_next_buffer(priv->tx_dmatsk, skb);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -434,7 +437,8 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
 		rskb->protocol = eth_type_trans(rskb, dev);
-		netif_rx(rskb);
+		if (!skb_defer_rx_timestamp(skb))
+			netif_rx(rskb);
 
 		spin_lock(&priv->lock);
 	}
@@ -840,8 +844,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 /* OF Driver                                                                */
 /* ======================================================================== */
 
-static int __devinit
-mpc52xx_fec_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit mpc52xx_fec_probe(struct platform_device *op)
 {
 	int rv;
 	struct net_device *ndev;
@@ -868,10 +871,11 @@ mpc52xx_fec_probe(struct platform_device *op, const struct of_device_id *match)
 				"Error while parsing device node resource\n" );
 		goto err_netdev;
 	}
-	if ((mem.end - mem.start + 1) < sizeof(struct mpc52xx_fec)) {
+	if (resource_size(&mem) < sizeof(struct mpc52xx_fec)) {
 		printk(KERN_ERR DRIVER_NAME
-			" - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
-			(unsigned long)(mem.end - mem.start + 1), sizeof(struct mpc52xx_fec));
+		       " - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
+		       (unsigned long)resource_size(&mem),
+		       sizeof(struct mpc52xx_fec));
 		rv = -EINVAL;
 		goto err_netdev;
 	}
@@ -1049,7 +1053,7 @@ static struct of_device_id mpc52xx_fec_match[] = {
 
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
-static struct of_platform_driver mpc52xx_fec_driver = {
+static struct platform_driver mpc52xx_fec_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1073,21 +1077,21 @@ mpc52xx_fec_init(void)
 {
 #ifdef CONFIG_FEC_MPC52xx_MDIO
 	int ret;
-	ret = of_register_platform_driver(&mpc52xx_fec_mdio_driver);
+	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
 	if (ret) {
 		printk(KERN_ERR DRIVER_NAME ": failed to register mdio driver\n");
 		return ret;
 	}
 #endif
-	return of_register_platform_driver(&mpc52xx_fec_driver);
+	return platform_driver_register(&mpc52xx_fec_driver);
 }
 
 static void __exit
 mpc52xx_fec_exit(void)
 {
-	of_unregister_platform_driver(&mpc52xx_fec_driver);
+	platform_driver_unregister(&mpc52xx_fec_driver);
 #ifdef CONFIG_FEC_MPC52xx_MDIO
-	of_unregister_platform_driver(&mpc52xx_fec_mdio_driver);
+	platform_driver_unregister(&mpc52xx_fec_mdio_driver);
 #endif
 }
 

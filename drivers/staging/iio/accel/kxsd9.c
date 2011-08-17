@@ -56,17 +56,15 @@
 /**
  * struct kxsd9_state - device related storage
  * @buf_lock:	protect the rx and tx buffers.
- * @indio_dev:	associated industrial IO device
  * @us:		spi device
  * @rx:		single rx buffer storage
  * @tx:		single tx buffer storage
  **/
 struct kxsd9_state {
 	struct mutex buf_lock;
-	struct iio_dev *indio_dev;
 	struct spi_device *us;
-	u8 *rx;
-	u8 *tx;
+	u8 rx[KXSD9_STATE_RX_SIZE] ____cacheline_aligned;
+	u8 tx[KXSD9_STATE_TX_SIZE];
 };
 
 /* This may want to move to mili g to allow for non integer ranges */
@@ -77,7 +75,7 @@ static ssize_t kxsd9_read_scale(struct device *dev,
 	int ret;
 	ssize_t len = 0;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct kxsd9_state *st = indio_dev->dev_data;
+	struct kxsd9_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfer = {
 		.bits_per_word = 8,
 		.len = 2,
@@ -125,7 +123,7 @@ static ssize_t kxsd9_write_scale(struct device *dev,
 	struct spi_message msg;
 	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct kxsd9_state *st = indio_dev->dev_data;
+	struct kxsd9_state *st = iio_priv(indio_dev);
 	u8 val;
 	struct spi_transfer xfers[] = {
 		{
@@ -190,7 +188,7 @@ static ssize_t kxsd9_read_accel(struct device *dev,
 	u16 val;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct kxsd9_state *st = indio_dev->dev_data;
+	struct kxsd9_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
 		{
 			.bits_per_word = 8,
@@ -253,127 +251,79 @@ static const struct attribute_group kxsd9_attribute_group = {
 	.attrs = kxsd9_attributes,
 };
 
-static int __devinit kxsd9_power_up(struct spi_device *spi)
+static int __devinit kxsd9_power_up(struct kxsd9_state *st)
 {
-	int ret;
 	struct spi_transfer xfers[2] = {
 		{
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
+			.tx_buf = st->tx,
 		}, {
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
+			.tx_buf = st->tx + 2,
 		},
 	};
 	struct spi_message msg;
-	u8 *tx2;
-	u8 *tx = kmalloc(2, GFP_KERNEL);
+	st->tx[0] = 0x0d;
+	st->tx[1] = 0x40;
+	st->tx[2] = 0x0c;
+	st->tx[3] = 0x9b;
 
-	if (tx == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	tx2 = kmalloc(2, GFP_KERNEL);
-	if (tx2 == NULL) {
-		ret = -ENOMEM;
-		goto error_free_tx;
-	}
-	tx[0] = 0x0d;
-	tx[1] = 0x40;
-
-	tx2[0] = 0x0c;
-	tx2[1] = 0x9b;
-
-	xfers[0].tx_buf = tx;
-	xfers[1].tx_buf = tx2;
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
 	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(spi, &msg);
 
-	kfree(tx2);
-error_free_tx:
-	kfree(tx);
-error_ret:
-	return ret;
+	return spi_sync(st->us, &msg);
+};
 
+static const struct iio_info kxsd9_info = {
+	.attrs = &kxsd9_attribute_group,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit kxsd9_probe(struct spi_device *spi)
 {
-
+	struct iio_dev *indio_dev;
 	struct kxsd9_state *st;
 	int ret = 0;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
+	indio_dev = iio_allocate_device(sizeof(*st));
+	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	spi_set_drvdata(spi, st);
-
-	st->rx = kmalloc(sizeof(*st->rx)*KXSD9_STATE_RX_SIZE,
-			 GFP_KERNEL);
-	if (st->rx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_st;
-	}
-	st->tx = kmalloc(sizeof(*st->tx)*KXSD9_STATE_TX_SIZE,
-			 GFP_KERNEL);
-	if (st->tx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_rx;
-	}
+	st = iio_priv(indio_dev);
+	spi_set_drvdata(spi, indio_dev);
 
 	st->us = spi;
 	mutex_init(&st->buf_lock);
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_tx;
-	}
-	st->indio_dev->dev.parent = &spi->dev;
-	/* for now */
-	st->indio_dev->num_interrupt_lines = 0;
-	st->indio_dev->event_attrs = NULL;
 
-	st->indio_dev->attrs = &kxsd9_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->info = &kxsd9_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
 	spi->mode = SPI_MODE_0;
 	spi_setup(spi);
-	kxsd9_power_up(spi);
+	kxsd9_power_up(st);
 
 	return 0;
 
 error_free_dev:
-	iio_free_device(st->indio_dev);
-error_free_tx:
-	kfree(st->tx);
-error_free_rx:
-	kfree(st->rx);
-error_free_st:
-	kfree(st);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
 
 static int __devexit kxsd9_remove(struct spi_device *spi)
 {
-	struct kxsd9_state *st = spi_get_drvdata(spi);
-
-	iio_device_unregister(st->indio_dev);
-	kfree(st->tx);
-	kfree(st->rx);
-	kfree(st);
+	iio_device_unregister(spi_get_drvdata(spi));
 
 	return 0;
 }

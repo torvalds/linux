@@ -1,6 +1,7 @@
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/hardirq.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -151,13 +152,14 @@ static ssize_t lbs_host_sleep_write(struct file *file,
 		ret = lbs_set_host_sleep(priv, 0);
 	else if (host_sleep == 1) {
 		if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
-			lbs_pr_info("wake parameters not configured");
+			netdev_info(priv->dev,
+				    "wake parameters not configured\n");
 			ret = -EINVAL;
 			goto out_unlock;
 		}
 		ret = lbs_set_host_sleep(priv, 1);
 	} else {
-		lbs_pr_err("invalid option\n");
+		netdev_err(priv->dev, "invalid option\n");
 		ret = -EINVAL;
 	}
 
@@ -849,15 +851,14 @@ static struct debug_data items[] = {
 static int num_of_items = ARRAY_SIZE(items);
 
 /**
- *  @brief proc read function
+ * lbs_debugfs_read - proc read function
  *
- *  @param page	   pointer to buffer
- *  @param s       read data starting position
- *  @param off     offset
- *  @param cnt     counter
- *  @param eof     end of file flag
- *  @param data    data to output
- *  @return 	   number of output data
+ * @file:	file to read
+ * @userbuf:	pointer to buffer
+ * @count:	number of bytes to read
+ * @ppos:	read data starting position
+ *
+ * returns:	amount of data read or negative error code
  */
 static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 			size_t count, loff_t *ppos)
@@ -897,13 +898,14 @@ static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 }
 
 /**
- *  @brief proc write function
+ * lbs_debugfs_write - proc write function
  *
- *  @param f	   file pointer
- *  @param buf     pointer to data buffer
- *  @param cnt     data number to write
- *  @param data    data to write
- *  @return 	   number of data
+ * @f:		file pointer
+ * @buf:	pointer to data buffer
+ * @cnt:	data number to write
+ * @ppos:	file position
+ *
+ * returns:	amount of data written
  */
 static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 			    size_t cnt, loff_t *ppos)
@@ -966,11 +968,11 @@ static const struct file_operations lbs_debug_fops = {
 };
 
 /**
- *  @brief create debug proc file
+ * lbs_debug_init - create debug proc file
  *
- *  @param priv	   pointer struct lbs_private
- *  @param dev     pointer net_device
- *  @return 	   N/A
+ * @priv:	pointer to &struct lbs_private
+ *
+ * returns:	N/A
  */
 static void lbs_debug_init(struct lbs_private *priv)
 {

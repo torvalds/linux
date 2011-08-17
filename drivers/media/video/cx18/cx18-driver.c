@@ -36,6 +36,7 @@
 #include "cx18-scb.h"
 #include "cx18-mailbox.h"
 #include "cx18-ioctl.h"
+#include "cx18-controls.h"
 #include "tuner-xc2028.h"
 
 #include <media/tveeprom.h>
@@ -157,6 +158,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 7 = Leadtek WinFast PVR2100\n"
 		 "\t\t\t 8 = Leadtek WinFast DVR3100 H\n"
 		 "\t\t\t 9 = GoTView PCI DVD3 Hybrid\n"
+		 "\t\t\t 10 = Hauppauge HVR 1600 (S5H1411)\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -337,6 +339,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 	switch (cx->card->type) {
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
+	case CX18_CARD_HVR_1600_S5H1411:
 		tveeprom_hauppauge_analog(&c, tv, eedata);
 		break;
 	case CX18_CARD_YUAN_MPC718:
@@ -365,7 +368,25 @@ static void cx18_process_eeprom(struct cx18 *cx)
 	   from the model number. Use the cardtype module option if you
 	   have one of these preproduction models. */
 	switch (tv.model) {
-	case 74000 ... 74999:
+	case 74301: /* Retail models */
+	case 74321:
+	case 74351: /* OEM models */
+	case 74361:
+		/* Digital side is s5h1411/tda18271 */
+		cx->card = cx18_get_card(CX18_CARD_HVR_1600_S5H1411);
+		break;
+	case 74021: /* Retail models */
+	case 74031:
+	case 74041:
+	case 74141:
+	case 74541: /* OEM models */
+	case 74551:
+	case 74591:
+	case 74651:
+	case 74691:
+	case 74751:
+	case 74891:
+		/* Digital side is s5h1409/mxl5005s */
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 		break;
 	case 0x718:
@@ -377,7 +398,8 @@ static void cx18_process_eeprom(struct cx18 *cx)
 		CX18_ERR("Invalid EEPROM\n");
 		return;
 	default:
-		CX18_ERR("Unknown model %d, defaulting to HVR-1600\n", tv.model);
+		CX18_ERR("Unknown model %d, defaulting to original HVR-1600 "
+			 "(cardtype=1)\n", tv.model);
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 		break;
 	}
@@ -401,7 +423,16 @@ static void cx18_process_eeprom(struct cx18 *cx)
 		return;
 
 	/* autodetect tuner standard */
-	if (tv.tuner_formats & V4L2_STD_PAL) {
+#define TVEEPROM_TUNER_FORMAT_ALL (V4L2_STD_B  | V4L2_STD_GH | \
+				   V4L2_STD_MN | \
+				   V4L2_STD_PAL_I | \
+				   V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC | \
+				   V4L2_STD_DK)
+	if ((tv.tuner_formats & TVEEPROM_TUNER_FORMAT_ALL)
+					== TVEEPROM_TUNER_FORMAT_ALL) {
+		CX18_DEBUG_INFO("Worldwide tuner detected\n");
+		cx->std = V4L2_STD_ALL;
+	} else if (tv.tuner_formats & V4L2_STD_PAL) {
 		CX18_DEBUG_INFO("PAL tuner detected\n");
 		cx->std |= V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 	} else if (tv.tuner_formats & V4L2_STD_NTSC) {
@@ -708,15 +739,22 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	cx->open_id = 1;
 
 	/* Initial settings */
-	cx2341x_fill_defaults(&cx->params);
-	cx->temporal_strength = cx->params.video_temporal_filter;
-	cx->spatial_strength = cx->params.video_spatial_filter;
-	cx->filter_mode = cx->params.video_spatial_filter_mode |
-		(cx->params.video_temporal_filter_mode << 1) |
-		(cx->params.video_median_filter_type << 2);
-	cx->params.port = CX2341X_PORT_MEMORY;
-	cx->params.capabilities =
-				CX2341X_CAP_HAS_TS | CX2341X_CAP_HAS_SLICED_VBI;
+	cx->cxhdl.port = CX2341X_PORT_MEMORY;
+	cx->cxhdl.capabilities = CX2341X_CAP_HAS_TS | CX2341X_CAP_HAS_SLICED_VBI;
+	cx->cxhdl.ops = &cx18_cxhdl_ops;
+	cx->cxhdl.func = cx18_api_func;
+	cx->cxhdl.priv = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];
+	ret = cx2341x_handler_init(&cx->cxhdl, 50);
+	if (ret)
+		return ret;
+	cx->v4l2_dev.ctrl_handler = &cx->cxhdl.hdl;
+
+	cx->temporal_strength = cx->cxhdl.video_temporal_filter->cur.val;
+	cx->spatial_strength = cx->cxhdl.video_spatial_filter->cur.val;
+	cx->filter_mode = cx->cxhdl.video_spatial_filter_mode->cur.val |
+		(cx->cxhdl.video_temporal_filter_mode->cur.val << 1) |
+		(cx->cxhdl.video_median_filter_type->cur.val << 2);
+
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);
@@ -789,7 +827,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
 	pci_write_config_word(pci_dev, PCI_COMMAND, cmd);
 
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &cx->card_rev);
+	cx->card_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && cx18_pci_latency) {
@@ -972,7 +1010,15 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	if (cx->card->hw_all & CX18_HW_TVEEPROM) {
 		/* Based on the model number the cardtype may be changed.
 		   The PCI IDs are not always reliable. */
+		const struct cx18_card *orig_card = cx->card;
 		cx18_process_eeprom(cx);
+
+		if (cx->card != orig_card) {
+			/* Changed the cardtype; re-reset the I2C chips */
+			cx18_gpio_init(cx);
+			cx18_call_hw(cx, CX18_HW_GPIO_RESET_CTRL,
+					core, reset, (u32) CX18_GPIO_RESET_I2C);
+		}
 	}
 	if (cx->card->comment)
 		CX18_INFO("%s", cx->card->comment);
@@ -1028,7 +1074,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	else
 		cx->is_50hz = 1;
 
-	cx->params.video_gop_size = cx->is_60hz ? 15 : 12;
+	cx2341x_handler_set_50hz(&cx->cxhdl, !cx->is_60hz);
 
 	if (cx->options.radio > 0)
 		cx->v4l2_cap |= V4L2_CAP_RADIO;
@@ -1058,6 +1104,8 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	/* The tuner is fixed to the standard. The other inputs (e.g. S-Video)
 	   are not. */
 	cx->tuner_std = cx->std;
+	if (cx->std == V4L2_STD_ALL)
+		cx->std = V4L2_STD_NTSC_M;
 
 	retval = cx18_streams_setup(cx);
 	if (retval) {
@@ -1074,7 +1122,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 
 	/* Load cx18 submodules (cx18-alsa) */
 	request_modules(cx);
-
 	return 0;
 
 free_streams:
@@ -1105,6 +1152,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	int fw_retry_count = 3;
 	struct v4l2_frequency vf;
 	struct cx18_open_id fh;
+	v4l2_std_id std;
 
 	fh.cx = cx;
 
@@ -1192,7 +1240,8 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
-	cx18_s_std(NULL, &fh, &cx->tuner_std);
+	std = (cx->tuner_std == V4L2_STD_ALL) ? V4L2_STD_NTSC_M : cx->tuner_std;
+	cx18_s_std(NULL, &fh, &std);
 	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }
@@ -1256,6 +1305,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	if (cx->vbi.sliced_mpeg_data[0] != NULL)
 		for (i = 0; i < CX18_VBI_FRAMES; i++)
 			kfree(cx->vbi.sliced_mpeg_data[i]);
+
+	v4l2_ctrl_handler_free(&cx->av_state.hdl);
 
 	CX18_INFO("Removed %s\n", cx->card_name);
 

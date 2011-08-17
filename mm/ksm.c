@@ -35,6 +35,7 @@
 #include <linux/ksm.h>
 #include <linux/hash.h>
 #include <linux/freezer.h>
+#include <linux/oom.h>
 
 #include <asm/tlbflush.h>
 #include "internal.h"
@@ -301,20 +302,6 @@ static inline int in_stable_tree(struct rmap_item *rmap_item)
 	return rmap_item->address & STABLE_FLAG;
 }
 
-static void hold_anon_vma(struct rmap_item *rmap_item,
-			  struct anon_vma *anon_vma)
-{
-	rmap_item->anon_vma = anon_vma;
-	get_anon_vma(anon_vma);
-}
-
-static void ksm_drop_anon_vma(struct rmap_item *rmap_item)
-{
-	struct anon_vma *anon_vma = rmap_item->anon_vma;
-
-	drop_anon_vma(anon_vma);
-}
-
 /*
  * ksmd, and unmerge_and_remove_all_rmap_items(), must not touch an mm's
  * page tables after it has passed through ksm_exit() - which, if necessary,
@@ -397,7 +384,7 @@ static void break_cow(struct rmap_item *rmap_item)
 	 * It is not an accident that whenever we want to break COW
 	 * to undo, we also need to drop a reference to the anon_vma.
 	 */
-	ksm_drop_anon_vma(rmap_item);
+	put_anon_vma(rmap_item->anon_vma);
 
 	down_read(&mm->mmap_sem);
 	if (ksm_test_exit(mm))
@@ -466,7 +453,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 			ksm_pages_sharing--;
 		else
 			ksm_pages_shared--;
-		ksm_drop_anon_vma(rmap_item);
+		put_anon_vma(rmap_item->anon_vma);
 		rmap_item->address &= PAGE_MASK;
 		cond_resched();
 	}
@@ -554,7 +541,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		else
 			ksm_pages_shared--;
 
-		ksm_drop_anon_vma(rmap_item);
+		put_anon_vma(rmap_item->anon_vma);
 		rmap_item->address &= PAGE_MASK;
 
 	} else if (rmap_item->address & UNSTABLE_FLAG) {
@@ -734,7 +721,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		swapped = PageSwapCache(page);
 		flush_cache_page(vma, addr, page_to_pfn(page));
 		/*
-		 * Ok this is tricky, when get_user_pages_fast() run it doesnt
+		 * Ok this is tricky, when get_user_pages_fast() run it doesn't
 		 * take any lock, therefore the check that we are going to make
 		 * with the pagecount against the mapcount is racey and
 		 * O_DIRECT can happen right after the check.
@@ -949,7 +936,8 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
 		goto out;
 
 	/* Must get reference to anon_vma while still holding mmap_sem */
-	hold_anon_vma(rmap_item, vma->anon_vma);
+	rmap_item->anon_vma = vma->anon_vma;
+	get_anon_vma(vma->anon_vma);
 out:
 	up_read(&mm->mmap_sem);
 	return err;
@@ -1314,6 +1302,12 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
 		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
 		ksm_scan.mm_slot = slot;
 		spin_unlock(&ksm_mmlist_lock);
+		/*
+		 * Although we tested list_empty() above, a racing __ksm_exit
+		 * of the last mm on the list may have removed it since then.
+		 */
+		if (slot == &ksm_mm_head)
+			return NULL;
 next_mm:
 		ksm_scan.address = 0;
 		ksm_scan.rmap_list = &slot->rmap_list;
@@ -1907,9 +1901,11 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (ksm_run != flags) {
 		ksm_run = flags;
 		if (flags & KSM_RUN_UNMERGE) {
-			current->flags |= PF_OOM_ORIGIN;
+			int oom_score_adj;
+
+			oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
 			err = unmerge_and_remove_all_rmap_items();
-			current->flags &= ~PF_OOM_ORIGIN;
+			test_set_oom_score_adj(oom_score_adj);
 			if (err) {
 				ksm_run = KSM_RUN_STOP;
 				count = err;

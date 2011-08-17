@@ -2,96 +2,7 @@
 The Basic Device Structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-struct device {
-        struct list_head g_list;
-        struct list_head node;
-        struct list_head bus_list;
-        struct list_head driver_list;
-        struct list_head intf_list;
-        struct list_head children;
-        struct device   * parent;
-
-        char    name[DEVICE_NAME_SIZE];
-        char    bus_id[BUS_ID_SIZE];
-
-        spinlock_t      lock;
-        atomic_t        refcount;
-
-        struct bus_type * bus;
-        struct driver_dir_entry dir;
-
-	u32		class_num;
-
-        struct device_driver *driver;
-        void            *driver_data;
-        void            *platform_data;
-
-        u32             current_state;
-        unsigned char *saved_state;
-
-        void    (*release)(struct device * dev);
-};
-
-Fields 
-~~~~~~
-g_list:	Node in the global device list.
-
-node:	Node in device's parent's children list.
-
-bus_list: Node in device's bus's devices list.
-
-driver_list:   Node in device's driver's devices list.
-
-intf_list:     List of intf_data. There is one structure allocated for
-	       each interface that the device supports.
-
-children:      List of child devices.
-
-parent:        *** FIXME ***
-
-name:	       ASCII description of device. 
-	       Example: " 3Com Corporation 3c905 100BaseTX [Boomerang]"
-
-bus_id:	       ASCII representation of device's bus position. This 
-	       field should be a name unique across all devices on the
-	       bus type the device belongs to. 
-
-	       Example: PCI bus_ids are in the form of
-	       <bus number>:<slot number>.<function number> 
-	       This name is unique across all PCI devices in the system.
-
-lock:	       Spinlock for the device. 
-
-refcount:      Reference count on the device.
-
-bus:	       Pointer to struct bus_type that device belongs to.
-
-dir:	       Device's sysfs directory.
-
-class_num:     Class-enumerated value of the device.
-
-driver:	       Pointer to struct device_driver that controls the device.
-
-driver_data:   Driver-specific data.
-
-platform_data: Platform data specific to the device.
-
-	       Example:  for devices on custom boards, as typical of embedded
-	       and SOC based hardware, Linux often uses platform_data to point
-	       to board-specific structures describing devices and how they
-	       are wired.  That can include what ports are available, chip
-	       variants, which GPIO pins act in what additional roles, and so
-	       on.  This shrinks the "Board Support Packages" (BSPs) and
-	       minimizes board-specific #ifdefs in drivers.
-
-current_state: Current power state of the device.
-
-saved_state:   Pointer to saved state of the device. This is usable by
-	       the device driver controlling the device.
-
-release:       Callback to free the device after all references have 
-	       gone away. This should be set by the allocator of the 
-	       device (i.e. the bus driver that discovered the device).
+See the kerneldoc for the struct device.
 
 
 Programming Interface
@@ -193,4 +104,4 @@ Then in the module init function is would do:
 
 And assuming 'dev' is the struct device passed into the probe hook, the driver
 probe function would do something like:
-	create_device(&mydriver_class, dev, chrdev, &private_data, "my_name");
+	device_create(&mydriver_class, dev, chrdev, &private_data, "my_name");

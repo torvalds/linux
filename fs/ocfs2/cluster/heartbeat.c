@@ -367,11 +367,7 @@ static inline void o2hb_bio_wait_dec(struct o2hb_bio_wait_ctxt *wc,
 static void o2hb_wait_on_io(struct o2hb_region *reg,
 			    struct o2hb_bio_wait_ctxt *wc)
 {
-	struct address_space *mapping = reg->hr_bdev->bd_inode->i_mapping;
-
-	blk_run_address_space(mapping);
 	o2hb_bio_wait_dec(wc, 1);
-
 	wait_for_completion(&wc->wc_io_complete);
 }
 
@@ -543,25 +539,41 @@ static int o2hb_verify_crc(struct o2hb_region *reg,
 
 /* We want to make sure that nobody is heartbeating on top of us --
  * this will help detect an invalid configuration. */
-static int o2hb_check_last_timestamp(struct o2hb_region *reg)
+static void o2hb_check_last_timestamp(struct o2hb_region *reg)
 {
-	int node_num, ret;
 	struct o2hb_disk_slot *slot;
 	struct o2hb_disk_heartbeat_block *hb_block;
+	char *errstr;
 
-	node_num = o2nm_this_node();
-
-	ret = 1;
-	slot = &reg->hr_slots[node_num];
+	slot = &reg->hr_slots[o2nm_this_node()];
 	/* Don't check on our 1st timestamp */
-	if (slot->ds_last_time) {
-		hb_block = slot->ds_raw_block;
+	if (!slot->ds_last_time)
+		return;
 
-		if (le64_to_cpu(hb_block->hb_seq) != slot->ds_last_time)
-			ret = 0;
-	}
+	hb_block = slot->ds_raw_block;
+	if (le64_to_cpu(hb_block->hb_seq) == slot->ds_last_time &&
+	    le64_to_cpu(hb_block->hb_generation) == slot->ds_last_generation &&
+	    hb_block->hb_node == slot->ds_node_num)
+		return;
 
-	return ret;
+#define ERRSTR1		"Another node is heartbeating on device"
+#define ERRSTR2		"Heartbeat generation mismatch on device"
+#define ERRSTR3		"Heartbeat sequence mismatch on device"
+
+	if (hb_block->hb_node != slot->ds_node_num)
+		errstr = ERRSTR1;
+	else if (le64_to_cpu(hb_block->hb_generation) !=
+		 slot->ds_last_generation)
+		errstr = ERRSTR2;
+	else
+		errstr = ERRSTR3;
+
+	mlog(ML_ERROR, "%s (%s): expected(%u:0x%llx, 0x%llx), "
+	     "ondisk(%u:0x%llx, 0x%llx)\n", errstr, reg->hr_dev_name,
+	     slot->ds_node_num, (unsigned long long)slot->ds_last_generation,
+	     (unsigned long long)slot->ds_last_time, hb_block->hb_node,
+	     (unsigned long long)le64_to_cpu(hb_block->hb_generation),
+	     (unsigned long long)le64_to_cpu(hb_block->hb_seq));
 }
 
 static inline void o2hb_prepare_block(struct o2hb_region *reg,
@@ -987,9 +999,7 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	/* With an up to date view of the slots, we can check that no
 	 * other node has been improperly configured to heartbeat in
 	 * our slot. */
-	if (!o2hb_check_last_timestamp(reg))
-		mlog(ML_ERROR, "Device \"%s\": another node is heartbeating "
-		     "in our slot!\n", reg->hr_dev_name);
+	o2hb_check_last_timestamp(reg);
 
 	/* fill in the proper info for our next heartbeat */
 	o2hb_prepare_block(reg, reg->hr_generation);
@@ -1003,8 +1013,8 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	}
 
 	i = -1;
-	while((i = find_next_bit(configured_nodes, O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES) {
-
+	while((i = find_next_bit(configured_nodes,
+				 O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES) {
 		change |= o2hb_check_slot(reg, &reg->hr_slots[i]);
 	}
 
@@ -1658,8 +1668,6 @@ static int o2hb_populate_slot_data(struct o2hb_region *reg)
 	struct o2hb_disk_slot *slot;
 	struct o2hb_disk_heartbeat_block *hb_block;
 
-	mlog_entry_void();
-
 	ret = o2hb_read_slots(reg, reg->hr_blocks);
 	if (ret) {
 		mlog_errno(ret);
@@ -1681,7 +1689,6 @@ static int o2hb_populate_slot_data(struct o2hb_region *reg)
 	}
 
 out:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1697,6 +1704,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	struct file *filp = NULL;
 	struct inode *inode = NULL;
 	ssize_t ret = -EINVAL;
+	int live_threshold;
 
 	if (reg->hr_bdev)
 		goto out;
@@ -1773,8 +1781,18 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	 * A node is considered live after it has beat LIVE_THRESHOLD
 	 * times.  We're not steady until we've given them a chance
 	 * _after_ our first read.
+	 * The default threshold is bare minimum so as to limit the delay
+	 * during mounts. For global heartbeat, the threshold doubled for the
+	 * first region.
 	 */
-	atomic_set(&reg->hr_steady_iterations, O2HB_LIVE_THRESHOLD + 1);
+	live_threshold = O2HB_LIVE_THRESHOLD;
+	if (o2hb_global_heartbeat_active()) {
+		spin_lock(&o2hb_live_lock);
+		if (o2hb_pop_count(&o2hb_region_bitmap, O2NM_MAX_REGIONS) == 1)
+			live_threshold <<= 1;
+		spin_unlock(&o2hb_live_lock);
+	}
+	atomic_set(&reg->hr_steady_iterations, live_threshold + 1);
 
 	hb_task = kthread_run(o2hb_thread, reg, "o2hb-%s",
 			      reg->hr_item.ci_name);
@@ -2282,7 +2300,7 @@ void o2hb_free_hb_set(struct config_group *group)
 	kfree(hs);
 }
 
-/* hb callback registration and issueing */
+/* hb callback registration and issuing */
 
 static struct o2hb_callback *hbcall_from_type(enum o2hb_callback_type type)
 {

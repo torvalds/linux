@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -58,6 +58,10 @@
 #define IXGBE_I2C_EEPROM_STATUS_FAIL         0x2
 #define IXGBE_I2C_EEPROM_STATUS_IN_PROGRESS  0x3
 
+/* Flow control defines */
+#define IXGBE_TAF_SYM_PAUSE                  0x400
+#define IXGBE_TAF_ASM_PAUSE                  0x800
+
 /* Bit-shift macros */
 #define IXGBE_SFF_VENDOR_OUI_BYTE0_SHIFT    24
 #define IXGBE_SFF_VENDOR_OUI_BYTE1_SHIFT    16
@@ -104,6 +108,7 @@ s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
 s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
                              ixgbe_link_speed *speed,
                              bool *link_up);
+s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw);
 s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
                                        u16 *firmware_version);
 s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,

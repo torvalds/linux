@@ -51,11 +51,11 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/cell-regs.h>
+#include <asm/io-workarounds.h>
 
 #include "interrupt.h"
 #include "pervasive.h"
 #include "ras.h"
-#include "io-workarounds.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -136,8 +136,6 @@ static int __devinit cell_setup_phb(struct pci_controller *phb)
 
 	iowa_register_bus(phb, &spiderpci_ops, &spiderpci_iowa_init,
 				  (void *)SPIDER_PCI_REG_BASE);
-	io_workaround_init();
-
 	return 0;
 }
 
@@ -187,13 +185,15 @@ machine_subsys_initcall(cell, cell_publish_devices);
 
 static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct mpic *mpic = desc->handler_data;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct mpic *mpic = irq_desc_get_handler_data(desc);
 	unsigned int virq;
 
 	virq = mpic_get_one_irq(mpic);
 	if (virq != NO_IRQ)
 		generic_handle_irq(virq);
-	desc->chip->eoi(irq);
+
+	chip->irq_eoi(&desc->irq_data);
 }
 
 static void __init mpic_init_IRQ(void)
@@ -221,8 +221,8 @@ static void __init mpic_init_IRQ(void)
 
 		printk(KERN_INFO "%s : hooking up to IRQ %d\n",
 		       dn->full_name, virq);
-		set_irq_data(virq, mpic);
-		set_irq_chained_handler(virq, cell_mpic_cascade);
+		irq_set_handler_data(virq, mpic);
+		irq_set_chained_handler(virq, cell_mpic_cascade);
 	}
 }
 

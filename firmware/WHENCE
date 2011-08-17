@@ -679,14 +679,15 @@ Found in hex form in kernel source.
 
 Driver: bnx2x: Broadcom Everest
 
-File: bnx2x/bnx2x-e1-5.2.13.0.fw
-File: bnx2x/bnx2x-e1h-5.2.13.0.fw
+File: bnx2x/bnx2x-e1-6.2.9.0.fw
+File: bnx2x/bnx2x-e1h-6.2.9.0.fw
+File: bnx2x/bnx2x-e2-6.2.9.0.fw
 
 License:
-  Copyright (c) 2007-2010 Broadcom Corporation
+  Copyright (c) 2007-2011 Broadcom Corporation
 
   This file contains firmware data derived from proprietary unpublished
-  source code, Copyright (c) 2007-2009 Broadcom Corporation.
+  source code, Copyright (c) 2007-2011 Broadcom Corporation.
 
   Permission is hereby granted for the distribution of this firmware data
   in hexadecimal or equivalent format, provided this copyright notice is
@@ -701,7 +702,7 @@ Driver: BNX2 - Broadcom NetXtremeII
 
 File: bnx2/bnx2-mips-06-6.2.1.fw
 File: bnx2/bnx2-rv2p-06-6.0.15.fw
-File: bnx2/bnx2-mips-09-6.2.1.fw
+File: bnx2/bnx2-mips-09-6.2.1a.fw
 File: bnx2/bnx2-rv2p-09-6.0.17.fw
 File: bnx2/bnx2-rv2p-09ax-6.0.17.fw
 

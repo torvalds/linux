@@ -1738,7 +1738,7 @@ do_stop(struct net_device *dev)
     return 0;
 }
 
-static struct pcmcia_device_id xirc2ps_ids[] = {
+static const struct pcmcia_device_id xirc2ps_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0089, 0x110a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0138, 0x110a),
 	PCMCIA_PFC_DEVICE_PROD_ID13(0, "Xircom", "CEM28", 0x2e3ee845, 0x0ea978ea),

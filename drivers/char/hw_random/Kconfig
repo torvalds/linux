@@ -49,7 +49,7 @@ config HW_RANDOM_INTEL
 
 config HW_RANDOM_AMD
 	tristate "AMD HW Random Number Generator support"
-	depends on HW_RANDOM && X86 && PCI
+	depends on HW_RANDOM && (X86 || PPC_MAPLE) && PCI
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -198,3 +198,27 @@ config HW_RANDOM_NOMADIK
 	  module will be called nomadik-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_PICOXCELL
+	tristate "Picochip picoXcell true random number generator support"
+	depends on HW_RANDOM && ARCH_PICOXCELL && PICOXCELL_PC3X3
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Picochip PC3x3 and later devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called picoxcell-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_PPC4XX
+	tristate "PowerPC 4xx generic true random number generator support"
+	depends on HW_RANDOM && PPC && 4xx
+	---help---
+	 This driver provides the kernel-side support for the TRNG hardware
+	 found in the security function of some PowerPC 4xx SoCs.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called ppc4xx-rng.
+
+	 If unsure, say N.

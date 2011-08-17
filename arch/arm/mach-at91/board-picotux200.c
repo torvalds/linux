@@ -43,10 +43,10 @@
 #include "generic.h"
 
 
-static void __init picotux200_map_io(void)
+static void __init picotux200_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_BGA);
+	at91_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -58,11 +58,6 @@ static void __init picotux200_map_io(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init picotux200_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata picotux200_eth_data = {
@@ -123,9 +118,9 @@ static void __init picotux200_board_init(void)
 
 MACHINE_START(PICOTUX2XX, "picotux 200")
 	/* Maintainer: Kleinhenz Elektronik GmbH */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= picotux200_map_io,
-	.init_irq	= picotux200_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= picotux200_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= picotux200_board_init,
 MACHINE_END

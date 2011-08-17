@@ -690,7 +690,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 
 	struct mfd_cell cell = {
 		.platform_data = pdata,
-		.data_size = pdata_size,
+		.pdata_size = pdata_size,
 	};
 
 	/* there is no asnprintf in the kernel :-( */
@@ -764,13 +764,8 @@ err_revision:
 		mc13xxx_add_subdevice(mc13xxx, "%s-codec");
 
 	if (pdata->flags & MC13XXX_USE_REGULATOR) {
-		struct mc13xxx_regulator_platform_data regulator_pdata = {
-			.num_regulators = pdata->num_regulators,
-			.regulators = pdata->regulators,
-		};
-
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",
-				&regulator_pdata, sizeof(regulator_pdata));
+				&pdata->regulators, sizeof(pdata->regulators));
 	}
 
 	if (pdata->flags & MC13XXX_USE_RTC)
@@ -779,10 +774,9 @@ err_revision:
 	if (pdata->flags & MC13XXX_USE_TOUCHSCREEN)
 		mc13xxx_add_subdevice(mc13xxx, "%s-ts");
 
-	if (pdata->flags & MC13XXX_USE_LED) {
+	if (pdata->flags & MC13XXX_USE_LED)
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led",
-					pdata->leds, sizeof(*pdata->leds));
-	}
+				pdata->leds, sizeof(*pdata->leds));
 
 	return 0;
 }
@@ -811,6 +805,7 @@ static const struct spi_device_id mc13xxx_device_id[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(spi, mc13xxx_device_id);
 
 static struct spi_driver mc13xxx_driver = {
 	.id_table = mc13xxx_device_id,

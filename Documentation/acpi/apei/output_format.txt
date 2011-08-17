@@ -92,12 +92,37 @@ vendor_id: <integer>, device_id: <integer>
 class_code: <integer>]
 [serial number: <integer>, <integer>]
 [bridge: secondary_status: <integer>, control: <integer>]
+[aer_status: <integer>, aer_mask: <integer>
+<aer status string>
+[aer_uncor_severity: <integer>]
+aer_layer=<aer layer string>, aer_agent=<aer agent string>
+aer_tlp_header: <integer> <integer> <integer> <integer>]
 
 <pcie port type string>* := PCIe end point | legacy PCI end point | \
 unknown | unknown | root port | upstream switch port | \
 downstream switch port | PCIe to PCI/PCI-X bridge | \
 PCI/PCI-X to PCIe bridge | root complex integrated endpoint device | \
 root complex event collector
+
+if section severity is fatal or recoverable
+<aer status string># :=
+unknown | unknown | unknown | unknown | Data Link Protocol | \
+unknown | unknown | unknown | unknown | unknown | unknown | unknown | \
+Poisoned TLP | Flow Control Protocol | Completion Timeout | \
+Completer Abort | Unexpected Completion | Receiver Overflow | \
+Malformed TLP | ECRC | Unsupported Request
+else
+<aer status string># :=
+Receiver Error | unknown | unknown | unknown | unknown | unknown | \
+Bad TLP | Bad DLLP | RELAY_NUM Rollover | unknown | unknown | unknown | \
+Replay Timer Timeout | Advisory Non-Fatal
+fi
+
+<aer layer string> :=
+Physical Layer | Data Link Layer | Transaction Layer
+
+<aer agent string> :=
+Receiver ID | Requester ID | Completer ID | Transmitter ID
 
 Where, [] designate corresponding content is optional
 

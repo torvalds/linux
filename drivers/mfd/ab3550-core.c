@@ -668,7 +668,7 @@ static int ab3550_startup_irq_enabled(struct device *dev, unsigned int irq)
 	struct ab3550_platform_data *plf_data;
 	bool val;
 
-	ab = get_irq_chip_data(irq);
+	ab = irq_get_chip_data(irq);
 	plf_data = ab->i2c_client[0]->dev.platform_data;
 	irq -= plf_data->irq.base;
 	val = ((ab->startup_events[irq / 8] & BIT(irq % 8)) != 0);
@@ -879,20 +879,13 @@ static ssize_t ab3550_bank_write(struct file *file,
 	size_t count, loff_t *ppos)
 {
 	struct ab3550 *ab = ((struct seq_file *)(file->private_data))->private;
-	char buf[32];
-	int buf_size;
 	unsigned long user_bank;
 	int err;
 
 	/* Get userspace string and assure termination */
-	buf_size = min(count, (sizeof(buf) - 1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	buf[buf_size] = 0;
-
-	err = strict_strtoul(buf, 0, &user_bank);
+	err = kstrtoul_from_user(user_buf, count, 0, &user_bank);
 	if (err)
-		return -EINVAL;
+		return err;
 
 	if (user_bank >= AB3550_NUM_BANKS) {
 		dev_err(&ab->i2c_client[0]->dev,
@@ -902,7 +895,7 @@ static ssize_t ab3550_bank_write(struct file *file,
 
 	ab->debug_bank = user_bank;
 
-	return buf_size;
+	return count;
 }
 
 static int ab3550_address_print(struct seq_file *s, void *p)
@@ -923,27 +916,21 @@ static ssize_t ab3550_address_write(struct file *file,
 	size_t count, loff_t *ppos)
 {
 	struct ab3550 *ab = ((struct seq_file *)(file->private_data))->private;
-	char buf[32];
-	int buf_size;
 	unsigned long user_address;
 	int err;
 
 	/* Get userspace string and assure termination */
-	buf_size = min(count, (sizeof(buf) - 1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	buf[buf_size] = 0;
-
-	err = strict_strtoul(buf, 0, &user_address);
+	err = kstrtoul_from_user(user_buf, count, 0, &user_address);
 	if (err)
-		return -EINVAL;
+		return err;
+
 	if (user_address > 0xff) {
 		dev_err(&ab->i2c_client[0]->dev,
 			"debugfs error input > 0xff\n");
 		return -EINVAL;
 	}
 	ab->debug_address = user_address;
-	return buf_size;
+	return count;
 }
 
 static int ab3550_val_print(struct seq_file *s, void *p)
@@ -971,21 +958,15 @@ static ssize_t ab3550_val_write(struct file *file,
 	size_t count, loff_t *ppos)
 {
 	struct ab3550 *ab = ((struct seq_file *)(file->private_data))->private;
-	char buf[32];
-	int buf_size;
 	unsigned long user_val;
 	int err;
 	u8 regvalue;
 
 	/* Get userspace string and assure termination */
-	buf_size = min(count, (sizeof(buf)-1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	buf[buf_size] = 0;
-
-	err = strict_strtoul(buf, 0, &user_val);
+	err = kstrtoul_from_user(user_buf, count, 0, &user_val);
 	if (err)
-		return -EINVAL;
+		return err;
+
 	if (user_val > 0xff) {
 		dev_err(&ab->i2c_client[0]->dev,
 			"debugfs error input > 0xff\n");
@@ -1002,7 +983,7 @@ static ssize_t ab3550_val_write(struct file *file,
 	if (err)
 		return -EINVAL;
 
-	return buf_size;
+	return count;
 }
 
 static const struct file_operations ab3550_bank_fops = {
@@ -1053,17 +1034,17 @@ static inline void ab3550_setup_debugfs(struct ab3550 *ab)
 		goto exit_destroy_dir;
 
 	ab3550_bank_file = debugfs_create_file("register-bank",
-		(S_IRUGO | S_IWUGO), ab3550_dir, ab, &ab3550_bank_fops);
+		(S_IRUGO | S_IWUSR), ab3550_dir, ab, &ab3550_bank_fops);
 	if (!ab3550_bank_file)
 		goto exit_destroy_reg;
 
 	ab3550_address_file = debugfs_create_file("register-address",
-		(S_IRUGO | S_IWUGO), ab3550_dir, ab, &ab3550_address_fops);
+		(S_IRUGO | S_IWUSR), ab3550_dir, ab, &ab3550_address_fops);
 	if (!ab3550_address_file)
 		goto exit_destroy_bank;
 
 	ab3550_val_file = debugfs_create_file("register-value",
-		(S_IRUGO | S_IWUGO), ab3550_dir, ab, &ab3550_val_fops);
+		(S_IRUGO | S_IWUSR), ab3550_dir, ab, &ab3550_val_fops);
 	if (!ab3550_val_file)
 		goto exit_destroy_address;
 
@@ -1296,14 +1277,14 @@ static int __init ab3550_probe(struct i2c_client *client,
 		unsigned int irq;
 
 		irq = ab3550_plf_data->irq.base + i;
-		set_irq_chip_data(irq, ab);
-		set_irq_chip_and_handler(irq, &ab3550_irq_chip,
-			handle_simple_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_chip_data(irq, ab);
+		irq_set_chip_and_handler(irq, &ab3550_irq_chip,
+					 handle_simple_irq);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -1322,7 +1303,7 @@ static int __init ab3550_probe(struct i2c_client *client,
 	/* Set up and register the platform devices. */
 	for (i = 0; i < AB3550_NUM_DEVICES; i++) {
 		ab3550_devs[i].platform_data = ab3550_plf_data->dev_data[i];
-		ab3550_devs[i].data_size = ab3550_plf_data->dev_data_sz[i];
+		ab3550_devs[i].pdata_size = ab3550_plf_data->dev_data_sz[i];
 	}
 
 	err = mfd_add_devices(&client->dev, 0, ab3550_devs,

@@ -48,7 +48,7 @@
             (((address) & 0x1FFFF) << 9)        | \
             ((bytes_blocks) & 0x1FF)
             
-static void FreeScatterReq(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
+static void FreeScatterReq(struct hif_device *device, struct hif_scatter_req *pReq)
 {   
     unsigned long flag;
 
@@ -60,9 +60,9 @@ static void FreeScatterReq(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
         
 }
 
-static HIF_SCATTER_REQ *AllocScatterReq(HIF_DEVICE *device) 
+static struct hif_scatter_req *AllocScatterReq(struct hif_device *device) 
 {
-    DL_LIST       *pItem; 
+    struct dl_list       *pItem; 
     unsigned long flag;
 
     spin_lock_irqsave(&device->lock, flag);
@@ -72,24 +72,24 @@ static HIF_SCATTER_REQ *AllocScatterReq(HIF_DEVICE *device)
     spin_unlock_irqrestore(&device->lock, flag);
     
     if (pItem != NULL) {
-        return A_CONTAINING_STRUCT(pItem, HIF_SCATTER_REQ, ListLink);
+        return A_CONTAINING_STRUCT(pItem, struct hif_scatter_req, ListLink);
     }
     
     return NULL;   
 }
 
     /* called by async task to perform the operation synchronously using direct MMC APIs  */
-A_STATUS DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
+int DoHifReadWriteScatter(struct hif_device *device, BUS_REQUEST *busrequest)
 {
     int                     i;
-    A_UINT8                 rw;
-    A_UINT8                 opcode;
+    u8 rw;
+    u8 opcode;
     struct mmc_request      mmcreq;
     struct mmc_command      cmd;
     struct mmc_data         data;
-    HIF_SCATTER_REQ_PRIV   *pReqPriv;   
-    HIF_SCATTER_REQ        *pReq;       
-    A_STATUS                status = A_OK;
+    struct hif_scatter_req_priv   *pReqPriv;   
+    struct hif_scatter_req        *pReq;       
+    int                status = 0;
     struct                  scatterlist *pSg;
     
     pReqPriv = busrequest->pScatterReq;
@@ -176,7 +176,7 @@ A_STATUS DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("HIF-SCATTER: data error: %d \n",data.error));   
     }
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("HIF-SCATTER: FAILED!!! (%s) Address: 0x%X, Block mode (BlockLen: %d, BlockCount: %d)\n",
               (pReq->Request & HIF_WRITE) ? "WRITE":"READ",pReq->Address, data.blksz, data.blocks));        
     }
@@ -199,11 +199,11 @@ A_STATUS DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 }
 
     /* callback to issue a read-write scatter request */
-static A_STATUS HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
+static int HifReadWriteScatter(struct hif_device *device, struct hif_scatter_req *pReq)
 {
-    A_STATUS             status = A_EINVAL;
-    A_UINT32             request = pReq->Request;
-    HIF_SCATTER_REQ_PRIV *pReqPriv = (HIF_SCATTER_REQ_PRIV *)pReq->HIFPrivate[0];
+    int             status = A_EINVAL;
+    u32 request = pReq->Request;
+    struct hif_scatter_req_priv *pReqPriv = (struct hif_scatter_req_priv *)pReq->HIFPrivate[0];
     
     do {
         
@@ -237,7 +237,7 @@ static A_STATUS HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
         }
         
         if (pReq->TotalLength == 0) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;    
         }
         
@@ -260,26 +260,26 @@ static A_STATUS HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
             AR_DEBUG_PRINTF(ATH_DEBUG_SCATTER, ("HIF-SCATTER: queued async req: 0x%lX\n", (unsigned long)pReqPriv->busrequest));
                 /* wake thread, it will process and then take care of the async callback */
             up(&device->sem_async);
-            status = A_OK;
+            status = 0;
         }           
        
-    } while (FALSE);
+    } while (false);
 
-    if (A_FAILED(status) && (request & HIF_ASYNCHRONOUS)) {
+    if (status && (request & HIF_ASYNCHRONOUS)) {
         pReq->CompletionStatus = status;
         pReq->CompletionRoutine(pReq);
-        status = A_OK;
+        status = 0;
     }
         
     return status;  
 }
 
     /* setup of HIF scatter resources */
-A_STATUS SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo)
+int SetupHIFScatterSupport(struct hif_device *device, struct hif_device_scatter_support_info *pInfo)
 {
-    A_STATUS              status = A_ERROR;   
+    int              status = A_ERROR;
     int                   i;
-    HIF_SCATTER_REQ_PRIV *pReqPriv;
+    struct hif_scatter_req_priv *pReqPriv;
     BUS_REQUEST          *busrequest;
         
     do {
@@ -297,30 +297,30 @@ A_STATUS SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_I
         
         for (i = 0; i < MAX_SCATTER_REQUESTS; i++) {    
                 /* allocate the private request blob */
-            pReqPriv = (HIF_SCATTER_REQ_PRIV *)A_MALLOC(sizeof(HIF_SCATTER_REQ_PRIV));
+            pReqPriv = (struct hif_scatter_req_priv *)A_MALLOC(sizeof(struct hif_scatter_req_priv));
             if (NULL == pReqPriv) {
                 break;    
             }
-            A_MEMZERO(pReqPriv, sizeof(HIF_SCATTER_REQ_PRIV));
+            A_MEMZERO(pReqPriv, sizeof(struct hif_scatter_req_priv));
                 /* save the device instance*/
             pReqPriv->device = device;      
                 /* allocate the scatter request */
-            pReqPriv->pHifScatterReq = (HIF_SCATTER_REQ *)A_MALLOC(sizeof(HIF_SCATTER_REQ) + 
-                                         (MAX_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(HIF_SCATTER_ITEM))); 
+            pReqPriv->pHifScatterReq = (struct hif_scatter_req *)A_MALLOC(sizeof(struct hif_scatter_req) + 
+                                         (MAX_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(struct hif_scatter_item))); 
            
             if (NULL == pReqPriv->pHifScatterReq) {
-                A_FREE(pReqPriv);
+                kfree(pReqPriv);
                 break;      
             }           
                 /* just zero the main part of the scatter request */
-            A_MEMZERO(pReqPriv->pHifScatterReq, sizeof(HIF_SCATTER_REQ));
+            A_MEMZERO(pReqPriv->pHifScatterReq, sizeof(struct hif_scatter_req));
                 /* back pointer to the private struct */
             pReqPriv->pHifScatterReq->HIFPrivate[0] = pReqPriv;
                 /* allocate a bus request for this scatter request */
             busrequest = hifAllocateBusRequest(device);
             if (NULL == busrequest) {
-                A_FREE(pReqPriv->pHifScatterReq);
-                A_FREE(pReqPriv);
+                kfree(pReqPriv->pHifScatterReq);
+                kfree(pReqPriv);
                 break;    
             }
                 /* assign the scatter request to this bus request */
@@ -344,11 +344,11 @@ A_STATUS SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_I
         pInfo->MaxScatterEntries = MAX_SCATTER_ENTRIES_PER_REQ;
         pInfo->MaxTransferSizePerScatterReq = MAX_SCATTER_REQ_TRANSFER_SIZE;
      
-        status = A_OK;
+        status = 0;
         
-    } while (FALSE);
+    } while (false);
     
-    if (A_FAILED(status)) {
+    if (status) {
         CleanupHIFScatterResources(device);   
     }
     
@@ -356,10 +356,10 @@ A_STATUS SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_I
 }
 
     /* clean up scatter support */
-void CleanupHIFScatterResources(HIF_DEVICE *device)
+void CleanupHIFScatterResources(struct hif_device *device)
 {
-    HIF_SCATTER_REQ_PRIV    *pReqPriv;
-    HIF_SCATTER_REQ         *pReq;
+    struct hif_scatter_req_priv    *pReqPriv;
+    struct hif_scatter_req         *pReq;
     
         /* empty the free list */
         
@@ -371,7 +371,7 @@ void CleanupHIFScatterResources(HIF_DEVICE *device)
             break;    
         }   
         
-        pReqPriv = (HIF_SCATTER_REQ_PRIV *)pReq->HIFPrivate[0];
+        pReqPriv = (struct hif_scatter_req_priv *)pReq->HIFPrivate[0];
         A_ASSERT(pReqPriv != NULL);
         
         if (pReqPriv->busrequest != NULL) {
@@ -382,11 +382,11 @@ void CleanupHIFScatterResources(HIF_DEVICE *device)
         }
         
         if (pReqPriv->pHifScatterReq != NULL) {
-            A_FREE(pReqPriv->pHifScatterReq);   
+            kfree(pReqPriv->pHifScatterReq);   
             pReqPriv->pHifScatterReq = NULL; 
         }
                 
-        A_FREE(pReqPriv);       
+        kfree(pReqPriv);       
     }
 }
 

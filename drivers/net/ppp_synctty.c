@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
@@ -178,7 +179,7 @@ ppp_print_buffer (const char *name, const __u8 *buf, int count)
  * way to fix this is to use a rwlock in the tty struct, but for now
  * we use a single global rwlock for all ttys in ppp line discipline.
  *
- * FIXME: Fixed in tty_io nowdays.
+ * FIXME: Fixed in tty_io nowadays.
  */
 static DEFINE_RWLOCK(disc_data_lock);
 

@@ -45,15 +45,9 @@
 #include "t3cdev.h"
 #include <asm/io.h>
 
-struct vlan_group;
 struct adapter;
 struct sge_qset;
 struct port_info;
-
-enum {			/* rx_offload flags */
-	T3_RX_CSUM	= 1 << 0,
-	T3_LRO		= 1 << 1,
-};
 
 enum mac_idx_types {
 	LAN_MAC_IDX	= 0,
@@ -71,10 +65,8 @@ struct iscsi_config {
 
 struct port_info {
 	struct adapter *adapter;
-	struct vlan_group *vlan_grp;
 	struct sge_qset *qs;
 	u8 port_id;
-	u8 rx_offload;
 	u8 nqsets;
 	u8 first_qset;
 	struct cphy phy;
@@ -212,7 +204,6 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
 	int nomem;
-	int lro_enabled;
 	void *lro_va;
 	struct net_device *netdev;
 	struct netdev_queue *tx_q;	/* associated netdev TX queue */

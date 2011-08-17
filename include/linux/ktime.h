@@ -35,7 +35,7 @@
  *
  * On 32-bit CPUs an optimized representation of the timespec structure
  * is used to avoid expensive conversions from and to timespecs. The
- * endian-aware order of the tv struct members is choosen to allow
+ * endian-aware order of the tv struct members is chosen to allow
  * mathematical operations on the tv64 member of the union too, which
  * for certain operations produces better code.
  *
@@ -158,7 +158,7 @@ static inline ktime_t ktime_set(const long secs, const unsigned long nsecs)
  * @lhs:	minuend
  * @rhs:	subtrahend
  *
- * Returns the remainder of the substraction
+ * Returns the remainder of the subtraction
  */
 static inline ktime_t ktime_sub(const ktime_t lhs, const ktime_t rhs)
 {

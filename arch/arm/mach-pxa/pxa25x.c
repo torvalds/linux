@@ -21,10 +21,11 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/irq.h>
 
 #include <asm/mach/map.h>
+#include <asm/suspend.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
@@ -244,7 +245,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
-		pxa25x_cpu_suspend(PWRMODE_SLEEP);
+		cpu_suspend(PWRMODE_SLEEP, pxa25x_finish_suspend);
 		break;
 	}
 }
@@ -252,7 +253,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 static int pxa25x_cpu_pm_prepare(void)
 {
 	/* set resume return address */
-	PSPR = virt_to_phys(pxa_cpu_resume);
+	PSPR = virt_to_phys(cpu_resume);
 	return 0;
 }
 
@@ -285,7 +286,7 @@ static inline void pxa25x_init_pm(void) {}
 
 static int pxa25x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(d->irq);
+	int gpio = irq_to_gpio(d->irq);
 	uint32_t mask = 0;
 
 	if (gpio >= 0 && gpio < 85)
@@ -347,23 +348,12 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_assp,
 	&pxa25x_device_pwm0,
 	&pxa25x_device_pwm1,
-};
-
-static struct sys_device pxa25x_sysdev[] = {
-	{
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.cls	= &pxa2xx_mfp_sysclass,
-	}, {
-		.cls	= &pxa_gpio_sysclass,
-	}, {
-		.cls	= &pxa2xx_clock_sysclass,
-	}
+	&pxa_device_asoc_platform,
 };
 
 static int __init pxa25x_init(void)
 {
-	int i, ret = 0;
+	int ret = 0;
 
 	if (cpu_is_pxa25x()) {
 
@@ -376,11 +366,10 @@ static int __init pxa25x_init(void)
 
 		pxa25x_init_pm();
 
-		for (i = 0; i < ARRAY_SIZE(pxa25x_sysdev); i++) {
-			ret = sysdev_register(&pxa25x_sysdev[i]);
-			if (ret)
-				pr_err("failed to register sysdev[%d]\n", i);
-		}
+		register_syscore_ops(&pxa_irq_syscore_ops);
+		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
+		register_syscore_ops(&pxa_gpio_syscore_ops);
+		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));

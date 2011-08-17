@@ -56,7 +56,7 @@
 /* do_probe module parameter Enable this code */
 /* Probe code is very useful for understanding how the hardware works */
 /* Use it with various combinations of TT_LEN, RX_LEN */
-/* Strongly recomended, disable if the probe fails on your machine */
+/* Strongly recommended, disable if the probe fails on your machine */
 /* and send me <james@fishsoup.dhs.org> the output of dmesg */
 #define USE_PROBE 1
 #undef  USE_PROBE
@@ -152,6 +152,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/rtnetlink.h>
 

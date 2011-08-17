@@ -68,14 +68,6 @@ static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
 	return __hw_addr_add_ex(list, addr, addr_len, addr_type, false);
 }
 
-static void ha_rcu_free(struct rcu_head *head)
-{
-	struct netdev_hw_addr *ha;
-
-	ha = container_of(head, struct netdev_hw_addr, rcu_head);
-	kfree(ha);
-}
-
 static int __hw_addr_del_ex(struct netdev_hw_addr_list *list,
 			    unsigned char *addr, int addr_len,
 			    unsigned char addr_type, bool global)
@@ -94,7 +86,7 @@ static int __hw_addr_del_ex(struct netdev_hw_addr_list *list,
 			if (--ha->refcount)
 				return 0;
 			list_del_rcu(&ha->list);
-			call_rcu(&ha->rcu_head, ha_rcu_free);
+			kfree_rcu(ha, rcu_head);
 			list->count--;
 			return 0;
 		}
@@ -144,7 +136,7 @@ void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
 
 	list_for_each_entry(ha, &from_list->list, list) {
 		type = addr_type ? addr_type : ha->type;
-		__hw_addr_del(to_list, ha->addr, addr_len, addr_type);
+		__hw_addr_del(to_list, ha->addr, addr_len, type);
 	}
 }
 EXPORT_SYMBOL(__hw_addr_del_multiple);
@@ -197,7 +189,7 @@ void __hw_addr_flush(struct netdev_hw_addr_list *list)
 
 	list_for_each_entry_safe(ha, tmp, &list->list, list) {
 		list_del_rcu(&ha->list);
-		call_rcu(&ha->rcu_head, ha_rcu_free);
+		kfree_rcu(ha, rcu_head);
 	}
 	list->count = 0;
 }
@@ -357,8 +349,8 @@ EXPORT_SYMBOL(dev_addr_add_multiple);
 /**
  *	dev_addr_del_multiple - Delete device addresses by another device
  *	@to_dev: device where the addresses will be deleted
- *	@from_dev: device by which addresses the addresses will be deleted
- *	@addr_type: address type - 0 means type will used from from_dev
+ *	@from_dev: device supplying the addresses to be deleted
+ *	@addr_type: address type - 0 means type will be used from from_dev
  *
  *	Deletes addresses in to device by the list of addresses in from device.
  *

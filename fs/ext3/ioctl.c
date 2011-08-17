@@ -38,7 +38,7 @@ long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		unsigned int oldflags;
 		unsigned int jflag;
 
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
 		if (get_user(flags, (int __user *) arg))
@@ -123,7 +123,7 @@ flags_out:
 		__u32 generation;
 		int err;
 
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
 		err = mnt_want_write(filp->f_path.mnt);
@@ -192,7 +192,7 @@ setversion_out:
 		if (err)
 			return err;
 
-		if (!is_owner_or_cap(inode)) {
+		if (!inode_owner_or_capable(inode)) {
 			err = -EACCES;
 			goto setrsvsz_out;
 		}
@@ -285,7 +285,7 @@ group_add_out:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		if (copy_from_user(&range, (struct fstrim_range *)arg,
+		if (copy_from_user(&range, (struct fstrim_range __user *)arg,
 				   sizeof(range)))
 			return -EFAULT;
 
@@ -293,7 +293,7 @@ group_add_out:
 		if (ret < 0)
 			return ret;
 
-		if (copy_to_user((struct fstrim_range *)arg, &range,
+		if (copy_to_user((struct fstrim_range __user *)arg, &range,
 				 sizeof(range)))
 			return -EFAULT;
 

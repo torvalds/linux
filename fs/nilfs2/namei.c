@@ -72,12 +72,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	ino = nilfs_inode_by_name(dir, &dentry->d_name);
-	inode = NULL;
-	if (ino) {
-		inode = nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
-	}
+	inode = ino ? nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino) : NULL;
 	return d_splice_alias(inode, dentry);
 }
 
@@ -397,7 +392,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_de = nilfs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
-		inc_nlink(old_inode);
 		nilfs_set_link(new_dir, new_de, new_page, old_inode);
 		nilfs_mark_inode_dirty(new_dir);
 		new_inode->i_ctime = CURRENT_TIME;
@@ -411,13 +405,9 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			if (new_dir->i_nlink >= NILFS_LINK_MAX)
 				goto out_dir;
 		}
-		inc_nlink(old_inode);
 		err = nilfs_add_link(new_dentry, old_inode);
-		if (err) {
-			drop_nlink(old_inode);
-			nilfs_mark_inode_dirty(old_inode);
+		if (err)
 			goto out_dir;
-		}
 		if (dir_de) {
 			inc_nlink(new_dir);
 			nilfs_mark_inode_dirty(new_dir);
@@ -431,7 +421,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_inode->i_ctime = CURRENT_TIME;
 
 	nilfs_delete_entry(old_de, old_page);
-	drop_nlink(old_inode);
 
 	if (dir_de) {
 		nilfs_set_link(old_inode, dir_de, dir_page, new_dir);
@@ -488,7 +477,7 @@ static struct dentry *nilfs_get_dentry(struct super_block *sb, u64 cno,
 	if (ino < NILFS_FIRST_INO(sb) && ino != NILFS_ROOT_INO)
 		return ERR_PTR(-ESTALE);
 
-	root = nilfs_lookup_root(NILFS_SB(sb)->s_nilfs, cno);
+	root = nilfs_lookup_root(sb->s_fs_info, cno);
 	if (!root)
 		return ERR_PTR(-ESTALE);
 

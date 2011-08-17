@@ -92,7 +92,7 @@ struct xenbus_driver {
 	void (*otherend_changed)(struct xenbus_device *dev,
 				 enum xenbus_state backend_state);
 	int (*remove)(struct xenbus_device *dev);
-	int (*suspend)(struct xenbus_device *dev, pm_message_t state);
+	int (*suspend)(struct xenbus_device *dev);
 	int (*resume)(struct xenbus_device *dev);
 	int (*uevent)(struct xenbus_device *, struct kobj_uevent_env *);
 	struct device_driver driver;
@@ -223,7 +223,9 @@ int xenbus_free_evtchn(struct xenbus_device *dev, int port);
 
 enum xenbus_state xenbus_read_driver_state(const char *path);
 
+__attribute__((format(printf, 3, 4)))
 void xenbus_dev_error(struct xenbus_device *dev, int err, const char *fmt, ...);
+__attribute__((format(printf, 3, 4)))
 void xenbus_dev_fatal(struct xenbus_device *dev, int err, const char *fmt, ...);
 
 const char *xenbus_strstate(enum xenbus_state state);

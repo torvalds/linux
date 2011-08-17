@@ -53,6 +53,7 @@
 
 #define DP_MAX_LANE_COUNT                   0x002
 # define DP_MAX_LANE_COUNT_MASK		    0x1f
+# define DP_TPS3_SUPPORTED		    (1 << 6)
 # define DP_ENHANCED_FRAME_CAP		    (1 << 7)
 
 #define DP_MAX_DOWNSPREAD                   0x003
@@ -71,10 +72,13 @@
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 
+#define DP_TRAINING_AUX_RD_INTERVAL         0x00e
+
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
+# define DP_LINK_BW_5_4			    0x14
 
 #define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
@@ -84,6 +88,7 @@
 # define DP_TRAINING_PATTERN_DISABLE	    0
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
+# define DP_TRAINING_PATTERN_3		    3
 # define DP_TRAINING_PATTERN_MASK	    0x3
 
 # define DP_LINK_QUAL_PATTERN_DISABLE	    (0 << 2)

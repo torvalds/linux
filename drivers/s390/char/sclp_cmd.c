@@ -518,6 +518,8 @@ static void __init insert_increment(u16 rn, int standby, int assigned)
 		return;
 	new_incr->rn = rn;
 	new_incr->standby = standby;
+	if (!standby)
+		new_incr->usecount = 1;
 	last_rn = 0;
 	prev = &sclp_mem_list;
 	list_for_each_entry(incr, &sclp_mem_list, list) {

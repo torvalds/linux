@@ -1,7 +1,7 @@
 /*
     abituguru3.c
 
-    Copyright (c) 2006-2008 Hans de Goede <j.w.r.degoede@hhs.nl>
+    Copyright (c) 2006-2008 Hans de Goede <hdegoede@redhat.com>
     Copyright (c) 2008 Alistair John Strachan <alistair@devzero.co.uk>
 
     This program is free software; you can redistribute it and/or modify
@@ -151,7 +151,7 @@ struct abituguru3_data {
 	/* Pointer to the sensors info for the detected motherboard */
 	const struct abituguru3_sensor_info *sensors;
 
-	/* The abituguru3 supports upto 48 sensors, and thus has registers
+	/* The abituguru3 supports up to 48 sensors, and thus has registers
 	   sets for 48 sensors, for convienence reasons / simplicity of the
 	   code we always read and store all registers for all 48 sensors */
 
@@ -1119,8 +1119,6 @@ static struct platform_driver abituguru3_driver = {
 	.resume = abituguru3_resume
 };
 
-#ifdef CONFIG_DMI
-
 static int __init abituguru3_dmi_detect(void)
 {
 	const char *board_vendor, *board_name;
@@ -1158,15 +1156,6 @@ static int __init abituguru3_dmi_detect(void)
 	/* No match found */
 	return 1;
 }
-
-#else /* !CONFIG_DMI */
-
-static inline int abituguru3_dmi_detect(void)
-{
-	return 1;
-}
-
-#endif /* CONFIG_DMI */
 
 /* FIXME: Manual detection should die eventually; we need to collect stable
  *        DMI model names first before we can rely entirely on CONFIG_DMI.
@@ -1216,10 +1205,8 @@ static int __init abituguru3_init(void)
 		if (err)
 			return err;
 
-#ifdef CONFIG_DMI
 		pr_warn("this motherboard was not detected using DMI. "
 			"Please send the output of \"dmidecode\" to the abituguru3 maintainer (see MAINTAINERS)\n");
-#endif
 	}
 
 	err = platform_driver_register(&abituguru3_driver);
@@ -1266,7 +1253,7 @@ static void __exit abituguru3_exit(void)
 	platform_driver_unregister(&abituguru3_driver);
 }
 
-MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Abit uGuru3 Sensor device");
 MODULE_LICENSE("GPL");
 

@@ -150,7 +150,7 @@ MODULE_PARM_DESC(enable, "Enable RME Digi96 soundcard.");
 #define RME96_RCR_BITPOS_F1 28
 #define RME96_RCR_BITPOS_F2 29
 
-/* Additonal register bits */
+/* Additional register bits */
 #define RME96_AR_WSEL       (1 << 0)
 #define RME96_AR_ANALOG     (1 << 1)
 #define RME96_AR_FREQPAD_0  (1 << 2)
@@ -1561,7 +1561,7 @@ snd_rme96_create(struct rme96 *rme96)
 	}
 
 	if (request_irq(pci->irq, snd_rme96_interrupt, IRQF_SHARED,
-			"RME96", rme96)) {
+			KBUILD_MODNAME, rme96)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
@@ -2396,7 +2396,7 @@ static void __devexit snd_rme96_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "RME Digi96",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_rme96_ids,
 	.probe = snd_rme96_probe,
 	.remove = __devexit_p(snd_rme96_remove),

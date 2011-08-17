@@ -2,7 +2,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,26 +71,29 @@ int squashfs_frag_lookup(struct super_block *sb, unsigned int fragment,
  * Read the uncompressed fragment lookup table indexes off disk into memory
  */
 __le64 *squashfs_read_fragment_index_table(struct super_block *sb,
-	u64 fragment_table_start, unsigned int fragments)
+	u64 fragment_table_start, u64 next_table, unsigned int fragments)
 {
 	unsigned int length = SQUASHFS_FRAGMENT_INDEX_BYTES(fragments);
-	__le64 *fragment_index;
-	int err;
+	__le64 *table;
 
-	/* Allocate fragment lookup table indexes */
-	fragment_index = kmalloc(length, GFP_KERNEL);
-	if (fragment_index == NULL) {
-		ERROR("Failed to allocate fragment index table\n");
-		return ERR_PTR(-ENOMEM);
+	/*
+	 * Sanity check, length bytes should not extend into the next table -
+	 * this check also traps instances where fragment_table_start is
+	 * incorrectly larger than the next table start
+	 */
+	if (fragment_table_start + length > next_table)
+		return ERR_PTR(-EINVAL);
+
+	table = squashfs_read_table(sb, fragment_table_start, length);
+
+	/*
+	 * table[0] points to the first fragment table metadata block, this
+	 * should be less than fragment_table_start
+	 */
+	if (!IS_ERR(table) && le64_to_cpu(table[0]) >= fragment_table_start) {
+		kfree(table);
+		return ERR_PTR(-EINVAL);
 	}
 
-	err = squashfs_read_table(sb, fragment_index, fragment_table_start,
-			length);
-	if (err < 0) {
-		ERROR("unable to read fragment index table\n");
-		kfree(fragment_index);
-		return ERR_PTR(err);
-	}
-
-	return fragment_index;
+	return table;
 }

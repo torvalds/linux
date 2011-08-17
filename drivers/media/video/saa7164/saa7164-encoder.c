@@ -152,8 +152,8 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 	/* Init and establish defaults */
 	params->bitspersample = 8;
 	params->linethreshold = 0;
-	params->pagetablelistvirt = 0;
-	params->pagetablelistphys = 0;
+	params->pagetablelistvirt = NULL;
+	params->pagetablelistphys = NULL;
 	params->numpagetableentries = port->hwcfg.buffercount;
 
 	/* Allocate the PCI resources, buffers (hard) */
@@ -177,7 +177,7 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 		}
 	}
 
-	/* Allocate some kenrel kernel buffers for copying
+	/* Allocate some kernel buffers for copying
 	 * to userpsace.
 	 */
 	len = params->numberoflines * params->pitch;
@@ -1108,7 +1108,7 @@ static int fops_release(struct file *file)
 
 struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 {
-	struct saa7164_user_buffer *ubuf = 0;
+	struct saa7164_user_buffer *ubuf = NULL;
 	struct saa7164_dev *dev = port->dev;
 	u32 crc;
 
@@ -1246,7 +1246,6 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	struct saa7164_encoder_fh *fh =
 		(struct saa7164_encoder_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
-	struct saa7164_user_buffer *ubuf;
 	unsigned int mask = 0;
 
 	port->last_poll_msecs_diff = port->last_poll_msecs;
@@ -1278,10 +1277,7 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	}
 
 	/* Pull the first buffer from the used list */
-	ubuf = list_first_entry(&port->list_buf_used.list,
-		struct saa7164_user_buffer, list);
-
-	if (ubuf)
+	if (!list_empty(&port->list_buf_used.list))
 		mask |= POLLIN | POLLRDNORM;
 
 	return mask;
@@ -1443,7 +1439,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	port->v4l_device = saa7164_encoder_alloc(port,
 		dev->pci, &saa7164_mpeg_template, "mpeg");
 
-	if (port->v4l_device == NULL) {
+	if (!port->v4l_device) {
 		printk(KERN_INFO "%s: can't allocate mpeg device\n",
 			dev->name);
 		result = -ENOMEM;

@@ -181,10 +181,10 @@ Syntax:         <n>
 Description:    Debugging information level, from 0 to 3:
 		0 = none (use carefully)
 		1 = critical errors
-		2 = significant informations
+		2 = significant information
 		3 = more verbose messages
 		Level 3 is useful for testing only, when only one device
-		is used at the same time. It also shows some more informations
+		is used at the same time. It also shows some information
 		about the hardware being detected. This module parameter can be
 		changed at runtime thanks to the /sys filesystem interface.
 Default:        2
@@ -261,7 +261,7 @@ the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
 
 11. Credits
 ===========
-- Informations about the chip internals needed to enable the I2C protocol have
+- Information about the chip internals needed to enable the I2C protocol have
   been taken from the documentation of the ZC030x Video4Linux1 driver written
   by Andrew Birkett <andy@nobugs.org>;
 - The initialization values of the ZC0301 controller connected to the PAS202BCB

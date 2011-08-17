@@ -305,7 +305,8 @@ acpi_ex_create_region(u8 * aml_start,
 	 * range
 	 */
 	if ((region_space >= ACPI_NUM_PREDEFINED_REGIONS) &&
-	    (region_space < ACPI_USER_REGION_BEGIN)) {
+	    (region_space < ACPI_USER_REGION_BEGIN) &&
+	    (region_space != ACPI_ADR_SPACE_DATA_TABLE)) {
 		ACPI_ERROR((AE_INFO, "Invalid AddressSpace type 0x%X",
 			    region_space));
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);

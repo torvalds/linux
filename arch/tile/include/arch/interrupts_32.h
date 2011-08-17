@@ -16,10 +16,11 @@
 #define __ARCH_INTERRUPTS_H__
 
 /** Mask for an interrupt. */
-#ifdef __ASSEMBLER__
 /* Note: must handle breaking interrupts into high and low words manually. */
-#define INT_MASK(intno) (1 << (intno))
-#else
+#define INT_MASK_LO(intno) (1 << (intno))
+#define INT_MASK_HI(intno) (1 << ((intno) - 32))
+
+#ifndef __ASSEMBLER__
 #define INT_MASK(intno) (1ULL << (intno))
 #endif
 
@@ -89,6 +90,7 @@
 
 #define NUM_INTERRUPTS 49
 
+#ifndef __ASSEMBLER__
 #define QUEUED_INTERRUPTS ( \
     INT_MASK(INT_MEM_ERROR) | \
     INT_MASK(INT_DMATLB_MISS) | \
@@ -301,4 +303,5 @@
     INT_MASK(INT_DOUBLE_FAULT) | \
     INT_MASK(INT_AUX_PERF_COUNT) | \
     0)
+#endif /* !__ASSEMBLER__ */
 #endif /* !__ARCH_INTERRUPTS_H__ */

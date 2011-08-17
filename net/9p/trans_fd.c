@@ -153,10 +153,11 @@ struct p9_conn {
 	unsigned long wsched;
 };
 
+static void p9_poll_workfn(struct work_struct *work);
+
 static DEFINE_SPINLOCK(p9_poll_lock);
 static LIST_HEAD(p9_poll_pending_list);
-static struct workqueue_struct *p9_mux_wq;
-static struct task_struct *p9_poll_task;
+static DECLARE_WORK(p9_poll_work, p9_poll_workfn);
 
 static void p9_mux_poll_stop(struct p9_conn *m)
 {
@@ -349,7 +350,7 @@ static void p9_read_work(struct work_struct *work)
 
 		if (m->req->rc == NULL) {
 			m->req->rc = kmalloc(sizeof(struct p9_fcall) +
-						m->client->msize, GFP_KERNEL);
+						m->client->msize, GFP_NOFS);
 			if (!m->req->rc) {
 				m->req = NULL;
 				err = -ENOMEM;
@@ -384,7 +385,7 @@ static void p9_read_work(struct work_struct *work)
 
 		if (n & POLLIN) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched read work %p\n", m);
-			queue_work(p9_mux_wq, &m->rq);
+			schedule_work(&m->rq);
 		} else
 			clear_bit(Rworksched, &m->wsched);
 	} else
@@ -497,7 +498,7 @@ static void p9_write_work(struct work_struct *work)
 
 		if (n & POLLOUT) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched write work %p\n", m);
-			queue_work(p9_mux_wq, &m->wq);
+			schedule_work(&m->wq);
 		} else
 			clear_bit(Wworksched, &m->wsched);
 	} else
@@ -516,15 +517,14 @@ static int p9_pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
 		container_of(wait, struct p9_poll_wait, wait);
 	struct p9_conn *m = pwait->conn;
 	unsigned long flags;
-	DECLARE_WAITQUEUE(dummy_wait, p9_poll_task);
 
 	spin_lock_irqsave(&p9_poll_lock, flags);
 	if (list_empty(&m->poll_pending_link))
 		list_add_tail(&m->poll_pending_link, &p9_poll_pending_list);
 	spin_unlock_irqrestore(&p9_poll_lock, flags);
 
-	/* perform the default wake up operation */
-	return default_wake_function(&dummy_wait, mode, sync, key);
+	schedule_work(&p9_poll_work);
+	return 1;
 }
 
 /**
@@ -629,7 +629,7 @@ static void p9_poll_mux(struct p9_conn *m)
 		P9_DPRINTK(P9_DEBUG_TRANS, "mux %p can read\n", m);
 		if (!test_and_set_bit(Rworksched, &m->wsched)) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched read work %p\n", m);
-			queue_work(p9_mux_wq, &m->rq);
+			schedule_work(&m->rq);
 		}
 	}
 
@@ -639,7 +639,7 @@ static void p9_poll_mux(struct p9_conn *m)
 		if ((m->wsize || !list_empty(&m->unsent_req_list)) &&
 		    !test_and_set_bit(Wworksched, &m->wsched)) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched write work %p\n", m);
-			queue_work(p9_mux_wq, &m->wq);
+			schedule_work(&m->wq);
 		}
 	}
 }
@@ -677,7 +677,7 @@ static int p9_fd_request(struct p9_client *client, struct p9_req_t *req)
 		n = p9_fd_poll(m->client, NULL);
 
 	if (n & POLLOUT && !test_and_set_bit(Wworksched, &m->wsched))
-		queue_work(p9_mux_wq, &m->wq);
+		schedule_work(&m->wq);
 
 	return 0;
 }
@@ -716,7 +716,6 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	substring_t args[MAX_OPT_ARGS];
 	int option;
 	char *options, *tmp_options;
-	int ret;
 
 	opts->port = P9_PORT;
 	opts->rfd = ~0;
@@ -744,7 +743,6 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 				"integer field, but no integer?\n");
-				ret = r;
 				continue;
 			}
 		}
@@ -918,8 +916,8 @@ p9_fd_create_tcp(struct p9_client *client, const char *addr, char *args)
 	sin_server.sin_family = AF_INET;
 	sin_server.sin_addr.s_addr = in_aton(addr);
 	sin_server.sin_port = htons(opts.port);
-	err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &csocket);
-
+	err = __sock_create(read_pnet(&current->nsproxy->net_ns), PF_INET,
+			    SOCK_STREAM, IPPROTO_TCP, &csocket, 1);
 	if (err) {
 		P9_EPRINTK(KERN_ERR, "p9_trans_tcp: problem creating socket\n");
 		return err;
@@ -956,7 +954,8 @@ p9_fd_create_unix(struct p9_client *client, const char *addr, char *args)
 
 	sun_server.sun_family = PF_UNIX;
 	strcpy(sun_server.sun_path, addr);
-	err = sock_create_kern(PF_UNIX, SOCK_STREAM, 0, &csocket);
+	err = __sock_create(read_pnet(&current->nsproxy->net_ns), PF_UNIX,
+			    SOCK_STREAM, 0, &csocket, 1);
 	if (err < 0) {
 		P9_EPRINTK(KERN_ERR, "p9_trans_unix: problem creating socket\n");
 		return err;
@@ -1047,12 +1046,12 @@ static struct p9_trans_module p9_fd_trans = {
  *
  */
 
-static int p9_poll_proc(void *a)
+static void p9_poll_workfn(struct work_struct *work)
 {
 	unsigned long flags;
 
 	P9_DPRINTK(P9_DEBUG_TRANS, "start %p\n", current);
- repeat:
+
 	spin_lock_irqsave(&p9_poll_lock, flags);
 	while (!list_empty(&p9_poll_pending_list)) {
 		struct p9_conn *conn = list_first_entry(&p9_poll_pending_list,
@@ -1067,35 +1066,11 @@ static int p9_poll_proc(void *a)
 	}
 	spin_unlock_irqrestore(&p9_poll_lock, flags);
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (list_empty(&p9_poll_pending_list)) {
-		P9_DPRINTK(P9_DEBUG_TRANS, "sleeping...\n");
-		schedule();
-	}
-	__set_current_state(TASK_RUNNING);
-
-	if (!kthread_should_stop())
-		goto repeat;
-
 	P9_DPRINTK(P9_DEBUG_TRANS, "finish\n");
-	return 0;
 }
 
 int p9_trans_fd_init(void)
 {
-	p9_mux_wq = create_workqueue("v9fs");
-	if (!p9_mux_wq) {
-		printk(KERN_WARNING "v9fs: mux: creating workqueue failed\n");
-		return -ENOMEM;
-	}
-
-	p9_poll_task = kthread_run(p9_poll_proc, NULL, "v9fs-poll");
-	if (IS_ERR(p9_poll_task)) {
-		destroy_workqueue(p9_mux_wq);
-		printk(KERN_WARNING "v9fs: mux: creating poll task failed\n");
-		return PTR_ERR(p9_poll_task);
-	}
-
 	v9fs_register_trans(&p9_tcp_trans);
 	v9fs_register_trans(&p9_unix_trans);
 	v9fs_register_trans(&p9_fd_trans);
@@ -1105,10 +1080,8 @@ int p9_trans_fd_init(void)
 
 void p9_trans_fd_exit(void)
 {
-	kthread_stop(p9_poll_task);
+	flush_work_sync(&p9_poll_work);
 	v9fs_unregister_trans(&p9_tcp_trans);
 	v9fs_unregister_trans(&p9_unix_trans);
 	v9fs_unregister_trans(&p9_fd_trans);
-
-	destroy_workqueue(p9_mux_wq);
 }

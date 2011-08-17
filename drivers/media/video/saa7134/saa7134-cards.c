@@ -3620,6 +3620,38 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = 0,
 		},
 	},
+	[SAA7134_BOARD_ENCORE_ENLTV_FM3] = {
+		.name           = "Encore ENLTV-FM 3",
+		.audio_clock    = 0x02187de7,
+		.tuner_type     = TUNER_TENA_TNF_5337,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr	= 0x61,
+		.radio_addr	= 0x60,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.vmux = 1,
+			.amux = LINE1,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+			.gpio = 0x43000,
+		},
+	},
 	[SAA7134_BOARD_CINERGY_HT_PCI] = {
 		.name           = "Terratec Cinergy HT PCI",
 		.audio_clock    = 0x00187de7,
@@ -4919,8 +4951,9 @@ struct saa7134_board saa7134_boards[] = {
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_XC2028,
 		.radio_type     = UNSET,
-		.tuner_addr	= ADDR_UNSET,
+		.tuner_addr	= 0x61,
 		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs = {{
 			.name   = name_tv,
 			.vmux   = 3,
@@ -5557,6 +5590,105 @@ struct saa7134_board saa7134_boards[] = {
 		.mute = {
 			.name = name_mute,
 			.amux = TV,
+		},
+	},
+	[SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2] = {
+		/* Timothy Lee <timothy.lee@siriushk.com> */
+		.name		= "MagicPro ProHDTV Pro2 DMB-TH/Hybrid",
+		.audio_clock	= 0x00187de7,
+		.tuner_type	= TUNER_PHILIPS_TDA8290,
+		.radio_type	= UNSET,
+		.tuner_config	= 3,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask	= 0x02050000,
+		.mpeg		= SAA7134_MPEG_DVB,
+		.ts_type	= SAA7134_MPEG_TS_PARALLEL,
+		.inputs		= { {
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+			.gpio   = 0x00050000,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+			.gpio   = 0x00050000,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+			.gpio   = 0x00050000,
+		} },
+		.radio = {
+			.name   = name_radio,
+			.amux   = TV,
+			.gpio   = 0x00050000,
+		},
+		.mute = {
+			.name   = name_mute,
+			.vmux   = 0,
+			.amux   = TV,
+			.gpio   = 0x00050000,
+		},
+	},
+	[SAA7134_BOARD_BEHOLD_501] = {
+		/*       Beholder Intl. Ltd. 2010       */
+		/* Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV 501",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0x00008000,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 3,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+		},
+	},
+	[SAA7134_BOARD_BEHOLD_503FM] = {
+		/*       Beholder Intl. Ltd. 2010       */
+		/* Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV 503 FM",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0x00008000,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 3,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
 		},
 	},
 
@@ -6387,6 +6519,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM53,
 	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1a7f,
+		.subdevice    = 0x2108,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM3,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1175,
@@ -6758,6 +6896,24 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0xc900,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_M1F,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace,
+		.subdevice    = 0x5030,
+		.driver_data  = SAA7134_BOARD_BEHOLD_503FM,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x5ace,
+		.subdevice    = 0x5010,
+		.driver_data  = SAA7134_BOARD_BEHOLD_501,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x17de,
+		.subdevice    = 0xd136,
+		.driver_data  = SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -6836,6 +6992,11 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 			saa7134_set_gpio(dev, 18, 0);
 			msleep(10);
 			saa7134_set_gpio(dev, 18, 1);
+		break;
+		case SAA7134_BOARD_VIDEOMATE_T750:
+			saa7134_set_gpio(dev, 20, 0);
+			msleep(10);
+			saa7134_set_gpio(dev, 20, 1);
 		break;
 		}
 	return 0;
@@ -6950,6 +7111,7 @@ static int saa7134_tda8290_18271_callback(struct saa7134_dev *dev,
 		switch (dev->board) {
 		case SAA7134_BOARD_HAUPPAUGE_HVR1150:
 		case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+		case SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2:
 			ret = saa7134_tda18271_hvr11x0_toggle_agc(dev, arg);
 			break;
 		case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
@@ -6976,6 +7138,7 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
 	case SAA7134_BOARD_AVERMEDIA_M733A:
 	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
+	case SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2:
 		/* tda8290 + tda18271 */
 		ret = saa7134_tda8290_18271_callback(dev, command, arg);
 		break;
@@ -7102,6 +7265,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_ENCORE_ENLTV:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM3:
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 	case SAA7134_BOARD_BEHOLD_401:
 	case SAA7134_BOARD_BEHOLD_403:
@@ -7225,6 +7389,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
 	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+		dev->has_remote = SAA7134_REMOTE_GPIO;
 		/* GPIO 26 high for digital, low for analog */
 		saa7134_set_gpio(dev, 26, 0);
 		msleep(1);
@@ -7287,6 +7452,16 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa7134_set_gpio(dev, 1, 1);
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
+	case SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2:
+		/* enable LGS-8G75 */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x0e050000, 0x0c050000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0e050000, 0x0c050000);
+		break;
+	case SAA7134_BOARD_VIDEOMATE_T750:
+		/* enable the analog tuner */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x00008000, 0x00008000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00008000, 0x00008000);
+		break;
 	}
 	return 0;
 }
@@ -7294,9 +7469,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 static void saa7134_tuner_setup(struct saa7134_dev *dev)
 {
 	struct tuner_setup tun_setup;
-	unsigned int mode_mask = T_RADIO     |
-				 T_ANALOG_TV |
-				 T_DIGITAL_TV;
+	unsigned int mode_mask = T_RADIO | T_ANALOG_TV;
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 	tun_setup.tuner_callback = saa7134_tuner_callback;
@@ -7423,7 +7596,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				dev->tuner_type = TUNER_PHILIPS_FM1216ME_MK3;
 				break;
 			default:
-				printk(KERN_ERR "%s Cant determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
 			}
 		} else if ((data[1] != 0) && (data[1] != 0xff)) {
 			/* new config structure */
@@ -7443,7 +7616,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 					printk(KERN_INFO "%s Board has DVB-T\n", dev->name);
 				break;
 			default:
-				printk(KERN_ERR "%s Cant determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
 			}
 		} else {
 			printk(KERN_ERR "%s unexpected config structure\n", dev->name);

@@ -1,5 +1,5 @@
 /*
- * SH7750/SH7751 Setup
+ * SH7091/SH7750/SH7750S/SH7750R/SH7751/SH7751R Setup
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2006  Jamie Lenehan
@@ -14,7 +14,7 @@
 #include <linux/io.h>
 #include <linux/sh_timer.h>
 #include <linux/serial_sci.h>
-#include <asm/machtypes.h>
+#include <generated/machtypes.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {
@@ -38,11 +38,13 @@ static struct platform_device rtc_device = {
 
 static struct plat_sci_port sci_platform_data = {
 	.mapbase	= 0xffe00000,
+	.port_reg	= 0xffe0001C,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_TE | SCSCR_RE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCI,
 	.irqs		= { 23, 23, 23, 0 },
+	.regshift	= 2,
 };
 
 static struct platform_device sci_device = {
@@ -255,12 +257,17 @@ static struct platform_device *sh7750_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
+	struct platform_device *dev[1];
+
 	if (mach_is_rts7751r2d()) {
 		scif_platform_data.scscr |= SCSCR_CKE1;
-		early_platform_add_devices(&scif_device, 1);
+		dev[0] = &scif_device;
+		early_platform_add_devices(dev, 1);
 	} else {
-		early_platform_add_devices(&sci_device, 1);
-		early_platform_add_devices(&scif_device, 1);
+		dev[0] = &sci_device;
+		early_platform_add_devices(dev, 1);
+		dev[0] = &scif_device;
+		early_platform_add_devices(dev, 1);
 	}
 
 	early_platform_add_devices(sh7750_early_devices,

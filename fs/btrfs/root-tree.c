@@ -22,53 +22,6 @@
 #include "print-tree.h"
 
 /*
- *  search forward for a root, starting with objectid 'search_start'
- *  if a root key is found, the objectid we find is filled into 'found_objectid'
- *  and 0 is returned.  < 0 is returned on error, 1 if there is nothing
- *  left in the tree.
- */
-int btrfs_search_root(struct btrfs_root *root, u64 search_start,
-		      u64 *found_objectid)
-{
-	struct btrfs_path *path;
-	struct btrfs_key search_key;
-	int ret;
-
-	root = root->fs_info->tree_root;
-	search_key.objectid = search_start;
-	search_key.type = (u8)-1;
-	search_key.offset = (u64)-1;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-again:
-	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-	if (ret == 0) {
-		ret = 1;
-		goto out;
-	}
-	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-		ret = btrfs_next_leaf(root, path);
-		if (ret)
-			goto out;
-	}
-	btrfs_item_key_to_cpu(path->nodes[0], &search_key, path->slots[0]);
-	if (search_key.type != BTRFS_ROOT_ITEM_KEY) {
-		search_key.offset++;
-		btrfs_release_path(root, path);
-		goto again;
-	}
-	ret = 0;
-	*found_objectid = search_key.objectid;
-
-out:
-	btrfs_free_path(path);
-	return ret;
-}
-
-/*
  * lookup the root with the highest offset for a given objectid.  The key we do
  * find is copied into 'key'.  If we find something return 0, otherwise 1, < 0
  * on error.
@@ -88,7 +41,8 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	search_key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto out;
@@ -117,13 +71,12 @@ out:
 	return ret;
 }
 
-int btrfs_set_root_node(struct btrfs_root_item *item,
-			struct extent_buffer *node)
+void btrfs_set_root_node(struct btrfs_root_item *item,
+			 struct extent_buffer *node)
 {
 	btrfs_set_root_bytenr(item, node->start);
 	btrfs_set_root_level(item, btrfs_header_level(node));
 	btrfs_set_root_generation(item, btrfs_header_generation(node));
-	return 0;
 }
 
 /*
@@ -229,7 +182,7 @@ again:
 
 		memcpy(&found_key, &key, sizeof(key));
 		key.offset++;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		dead_root =
 			btrfs_read_fs_root_no_radix(root->fs_info->tree_root,
 						    &found_key);
@@ -291,7 +244,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 		}
 
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		btrfs_release_path(tree_root, path);
+		btrfs_release_path(path);
 
 		if (key.objectid != BTRFS_ORPHAN_OBJECTID ||
 		    key.type != BTRFS_ORPHAN_ITEM_KEY)
@@ -332,7 +285,8 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct extent_buffer *leaf;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
 		goto out;
@@ -383,18 +337,22 @@ again:
 		*sequence = btrfs_root_ref_sequence(leaf, ref);
 
 		ret = btrfs_del_item(trans, tree_root, path);
-		BUG_ON(ret);
+		if (ret) {
+			err = ret;
+			goto out;
+		}
 	} else
 		err = -ENOENT;
 
 	if (key.type == BTRFS_ROOT_BACKREF_KEY) {
-		btrfs_release_path(tree_root, path);
+		btrfs_release_path(path);
 		key.objectid = ref_id;
 		key.type = BTRFS_ROOT_REF_KEY;
 		key.offset = root_id;
 		goto again;
 	}
 
+out:
 	btrfs_free_path(path);
 	return err;
 }
@@ -461,7 +419,7 @@ again:
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (key.type == BTRFS_ROOT_BACKREF_KEY) {
-		btrfs_release_path(tree_root, path);
+		btrfs_release_path(path);
 		key.objectid = ref_id;
 		key.type = BTRFS_ROOT_REF_KEY;
 		key.offset = root_id;
@@ -470,4 +428,22 @@ again:
 
 	btrfs_free_path(path);
 	return 0;
+}
+
+/*
+ * Old btrfs forgets to init root_item->flags and root_item->byte_limit
+ * for subvolumes. To work around this problem, we steal a bit from
+ * root_item->inode_item->flags, and use it to indicate if those fields
+ * have been properly initialized.
+ */
+void btrfs_check_and_init_root_item(struct btrfs_root_item *root_item)
+{
+	u64 inode_flags = le64_to_cpu(root_item->inode.flags);
+
+	if (!(inode_flags & BTRFS_INODE_ROOT_ITEM_INIT)) {
+		inode_flags |= BTRFS_INODE_ROOT_ITEM_INIT;
+		root_item->inode.flags = cpu_to_le64(inode_flags);
+		root_item->flags = 0;
+		root_item->byte_limit = 0;
+	}
 }

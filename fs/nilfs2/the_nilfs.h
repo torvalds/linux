@@ -31,7 +31,8 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/slab.h>
-#include "sb.h"
+
+struct nilfs_sc_info;
 
 /* the_nilfs struct */
 enum {
@@ -65,13 +66,23 @@ enum {
  * @ns_last_cno: checkpoint number of the latest segment
  * @ns_prot_seq: least sequence number of segments which must not be reclaimed
  * @ns_prev_seq: base sequence number used to decide if advance log cursor
- * @ns_segctor_sem: segment constructor semaphore
+ * @ns_writer: log writer
+ * @ns_segctor_sem: semaphore protecting log write
  * @ns_dat: DAT file inode
  * @ns_cpfile: checkpoint file inode
  * @ns_sufile: segusage file inode
  * @ns_cptree: rb-tree of all mounted checkpoints (nilfs_root)
  * @ns_cptree_lock: lock protecting @ns_cptree
+ * @ns_dirty_files: list of dirty files
+ * @ns_inode_lock: lock protecting @ns_dirty_files
  * @ns_gc_inodes: dummy inodes to keep live blocks
+ * @ns_next_generation: next generation number for inodes
+ * @ns_next_gen_lock: lock protecting @ns_next_generation
+ * @ns_mount_opt: mount options
+ * @ns_resuid: uid for reserved blocks
+ * @ns_resgid: gid for reserved blocks
+ * @ns_interval: checkpoint creation interval
+ * @ns_watermark: watermark for the number of dirty buffers
  * @ns_blocksize_bits: bit length of block size
  * @ns_blocksize: block size
  * @ns_nsegments: number of segments in filesystem
@@ -131,6 +142,7 @@ struct the_nilfs {
 	u64			ns_prot_seq;
 	u64			ns_prev_seq;
 
+	struct nilfs_sc_info   *ns_writer;
 	struct rw_semaphore	ns_segctor_sem;
 
 	/*
@@ -145,8 +157,24 @@ struct the_nilfs {
 	struct rb_root		ns_cptree;
 	spinlock_t		ns_cptree_lock;
 
+	/* Dirty inode list */
+	struct list_head	ns_dirty_files;
+	spinlock_t		ns_inode_lock;
+
 	/* GC inode list */
 	struct list_head	ns_gc_inodes;
+
+	/* Inode allocator */
+	u32			ns_next_generation;
+	spinlock_t		ns_next_gen_lock;
+
+	/* Mount options */
+	unsigned long		ns_mount_opt;
+
+	uid_t			ns_resuid;
+	gid_t			ns_resgid;
+	unsigned long		ns_interval;
+	unsigned long		ns_watermark;
 
 	/* Disk layout information (static) */
 	unsigned int		ns_blocksize_bits;
@@ -179,6 +207,20 @@ THE_NILFS_FNS(INIT, init)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
 THE_NILFS_FNS(GC_RUNNING, gc_running)
 THE_NILFS_FNS(SB_DIRTY, sb_dirty)
+
+/*
+ * Mount option operations
+ */
+#define nilfs_clear_opt(nilfs, opt)  \
+	do { (nilfs)->ns_mount_opt &= ~NILFS_MOUNT_##opt; } while (0)
+#define nilfs_set_opt(nilfs, opt)  \
+	do { (nilfs)->ns_mount_opt |= NILFS_MOUNT_##opt; } while (0)
+#define nilfs_test_opt(nilfs, opt) ((nilfs)->ns_mount_opt & NILFS_MOUNT_##opt)
+#define nilfs_write_opt(nilfs, mask, opt)				\
+	do { (nilfs)->ns_mount_opt =					\
+		(((nilfs)->ns_mount_opt & ~NILFS_MOUNT_##mask) |	\
+		 NILFS_MOUNT_##opt);					\
+	} while (0)
 
 /**
  * struct nilfs_root - nilfs root object
@@ -224,15 +266,16 @@ static inline int nilfs_sb_will_flip(struct the_nilfs *nilfs)
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);
 struct the_nilfs *alloc_nilfs(struct block_device *bdev);
 void destroy_nilfs(struct the_nilfs *nilfs);
-int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
-int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
+int init_nilfs(struct the_nilfs *nilfs, struct super_block *sb, char *data);
+int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb);
+unsigned long nilfs_nrsvsegs(struct the_nilfs *nilfs, unsigned long nsegs);
+void nilfs_set_nsegments(struct the_nilfs *nilfs, unsigned long nsegs);
 int nilfs_discard_segments(struct the_nilfs *, __u64 *, size_t);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
 struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno);
 struct nilfs_root *nilfs_find_or_create_root(struct the_nilfs *nilfs,
 					     __u64 cno);
 void nilfs_put_root(struct nilfs_root *root);
-struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *, int, __u64);
 int nilfs_near_disk_full(struct the_nilfs *);
 void nilfs_fall_back_super_block(struct the_nilfs *);
 void nilfs_swap_super_block(struct the_nilfs *);

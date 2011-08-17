@@ -6,19 +6,55 @@
 #include "driver-ops.h"
 #include "led.h"
 
-int __ieee80211_suspend(struct ieee80211_hw *hw)
+/* return value indicates whether the driver should be further notified */
+static bool ieee80211_quiesce(struct ieee80211_sub_if_data *sdata)
+{
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		ieee80211_sta_quiesce(sdata);
+		return true;
+	case NL80211_IFTYPE_ADHOC:
+		ieee80211_ibss_quiesce(sdata);
+		return true;
+	case NL80211_IFTYPE_MESH_POINT:
+		ieee80211_mesh_quiesce(sdata);
+		return true;
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_MONITOR:
+		/* don't tell driver about this */
+		return false;
+	default:
+		return true;
+	}
+}
+
+int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
+	if (!local->open_count)
+		goto suspend;
+
 	ieee80211_scan_cancel(local);
+
+	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+		mutex_lock(&local->sta_mtx);
+		list_for_each_entry(sta, &local->sta_list, list) {
+			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
+			ieee80211_sta_tear_down_BA_sessions(sta, true);
+		}
+		mutex_unlock(&local->sta_mtx);
+	}
 
 	ieee80211_stop_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	/* flush out all packets */
 	synchronize_net();
+
+	drv_flush(local, false);
 
 	local->quiescing = true;
 	/* make quiescing visible to timers everywhere */
@@ -36,6 +72,24 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 	del_timer_sync(&local->dynamic_ps_timer);
 
+	local->wowlan = wowlan && local->open_count;
+	if (local->wowlan) {
+		int err = drv_suspend(local, wowlan);
+		if (err < 0) {
+			local->quiescing = false;
+			return err;
+		} else if (err > 0) {
+			WARN_ON(err != 1);
+			local->wowlan = false;
+		} else {
+			list_for_each_entry(sdata, &local->interfaces, list) {
+				cancel_work_sync(&sdata->work);
+				ieee80211_quiesce(sdata);
+			}
+			goto suspend;
+		}
+	}
+
 	/* disable keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
 		ieee80211_disable_keys(sdata);
@@ -43,11 +97,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	/* tear down aggregation sessions and remove STAs */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
-			ieee80211_sta_tear_down_BA_sessions(sta, true);
-		}
-
 		if (sta->uploaded) {
 			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -66,23 +115,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		cancel_work_sync(&sdata->work);
 
-		switch(sdata->vif.type) {
-		case NL80211_IFTYPE_STATION:
-			ieee80211_sta_quiesce(sdata);
-			break;
-		case NL80211_IFTYPE_ADHOC:
-			ieee80211_ibss_quiesce(sdata);
-			break;
-		case NL80211_IFTYPE_MESH_POINT:
-			ieee80211_mesh_quiesce(sdata);
-			break;
-		case NL80211_IFTYPE_AP_VLAN:
-		case NL80211_IFTYPE_MONITOR:
-			/* don't tell driver about this */
+		if (!ieee80211_quiesce(sdata))
 			continue;
-		default:
-			break;
-		}
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
@@ -98,6 +132,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	if (local->open_count)
 		ieee80211_stop_device(local);
 
+ suspend:
 	local->suspended = true;
 	/* need suspended to be visible before quiescing is false */
 	barrier();

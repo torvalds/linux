@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <asm/processor.h>
+#include <arch/spr_def.h>
 
 #include "spinlock_common.h"
 
@@ -91,75 +92,75 @@ EXPORT_SYMBOL(arch_spin_unlock_wait);
 #define RD_COUNT_MASK   ((1 << RD_COUNT_WIDTH) - 1)
 
 
-/* Lock the word, spinning until there are no tns-ers. */
-static inline u32 get_rwlock(arch_rwlock_t *rwlock)
+/*
+ * We can get the read lock if everything but the reader bits (which
+ * are in the high part of the word) is zero, i.e. no active or
+ * waiting writers, no tns.
+ *
+ * We guard the tns/store-back with an interrupt critical section to
+ * preserve the semantic that the same read lock can be acquired in an
+ * interrupt context.
+ */
+inline int arch_read_trylock(arch_rwlock_t *rwlock)
 {
-	u32 iterations = 0;
-	for (;;) {
-		u32 val = __insn_tns((int *)&rwlock->lock);
-		if (unlikely(val & 1)) {
-			delay_backoff(iterations++);
-			continue;
-		}
-		return val;
+	u32 val;
+	__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 1);
+	val = __insn_tns((int *)&rwlock->lock);
+	if (likely((val << _RD_COUNT_WIDTH) == 0)) {
+		val += 1 << RD_COUNT_SHIFT;
+		rwlock->lock = val;
+		__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0);
+		BUG_ON(val == 0);  /* we don't expect wraparound */
+		return 1;
 	}
+	if ((val & 1) == 0)
+		rwlock->lock = val;
+	__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0);
+	return 0;
 }
-
-int arch_read_trylock_slow(arch_rwlock_t *rwlock)
-{
-	u32 val = get_rwlock(rwlock);
-	int locked = (val << RD_COUNT_WIDTH) == 0;
-	rwlock->lock = val + (locked << RD_COUNT_SHIFT);
-	return locked;
-}
-EXPORT_SYMBOL(arch_read_trylock_slow);
-
-void arch_read_unlock_slow(arch_rwlock_t *rwlock)
-{
-	u32 val = get_rwlock(rwlock);
-	rwlock->lock = val - (1 << RD_COUNT_SHIFT);
-}
-EXPORT_SYMBOL(arch_read_unlock_slow);
-
-void arch_write_unlock_slow(arch_rwlock_t *rwlock, u32 val)
-{
-	u32 eq, mask = 1 << WR_CURR_SHIFT;
-	while (unlikely(val & 1)) {
-		/* Limited backoff since we are the highest-priority task. */
-		relax(4);
-		val = __insn_tns((int *)&rwlock->lock);
-	}
-	val = __insn_addb(val, mask);
-	eq = __insn_seqb(val, val << (WR_CURR_SHIFT - WR_NEXT_SHIFT));
-	val = __insn_mz(eq & mask, val);
-	rwlock->lock = val;
-}
-EXPORT_SYMBOL(arch_write_unlock_slow);
+EXPORT_SYMBOL(arch_read_trylock);
 
 /*
- * We spin until everything but the reader bits (which are in the high
- * part of the word) are zero, i.e. no active or waiting writers, no tns.
- *
+ * Spin doing arch_read_trylock() until we acquire the lock.
  * ISSUE: This approach can permanently starve readers.  A reader who sees
  * a writer could instead take a ticket lock (just like a writer would),
  * and atomically enter read mode (with 1 reader) when it gets the ticket.
- * This way both readers and writers will always make forward progress
+ * This way both readers and writers would always make forward progress
  * in a finite time.
  */
-void arch_read_lock_slow(arch_rwlock_t *rwlock, u32 val)
+void arch_read_lock(arch_rwlock_t *rwlock)
 {
 	u32 iterations = 0;
-	do {
-		if (!(val & 1))
-			rwlock->lock = val;
+	while (unlikely(!arch_read_trylock(rwlock)))
 		delay_backoff(iterations++);
-		val = __insn_tns((int *)&rwlock->lock);
-	} while ((val << RD_COUNT_WIDTH) != 0);
-	rwlock->lock = val + (1 << RD_COUNT_SHIFT);
 }
-EXPORT_SYMBOL(arch_read_lock_slow);
+EXPORT_SYMBOL(arch_read_lock);
 
-void arch_write_lock_slow(arch_rwlock_t *rwlock, u32 val)
+void arch_read_unlock(arch_rwlock_t *rwlock)
+{
+	u32 val, iterations = 0;
+
+	mb();  /* guarantee anything modified under the lock is visible */
+	for (;;) {
+		__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 1);
+		val = __insn_tns((int *)&rwlock->lock);
+		if (likely(val & 1) == 0) {
+			rwlock->lock = val - (1 << _RD_COUNT_SHIFT);
+			__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0);
+			break;
+		}
+		__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0);
+		delay_backoff(iterations++);
+	}
+}
+EXPORT_SYMBOL(arch_read_unlock);
+
+/*
+ * We don't need an interrupt critical section here (unlike for
+ * arch_read_lock) since we should never use a bare write lock where
+ * it could be interrupted by code that could try to re-acquire it.
+ */
+void arch_write_lock(arch_rwlock_t *rwlock)
 {
 	/*
 	 * The trailing underscore on this variable (and curr_ below)
@@ -168,6 +169,12 @@ void arch_write_lock_slow(arch_rwlock_t *rwlock, u32 val)
 	 */
 	u32 my_ticket_;
 	u32 iterations = 0;
+	u32 val = __insn_tns((int *)&rwlock->lock);
+
+	if (likely(val == 0)) {
+		rwlock->lock = 1 << _WR_NEXT_SHIFT;
+		return;
+	}
 
 	/*
 	 * Wait until there are no readers, then bump up the next
@@ -206,23 +213,47 @@ void arch_write_lock_slow(arch_rwlock_t *rwlock, u32 val)
 			relax(4);
 	}
 }
-EXPORT_SYMBOL(arch_write_lock_slow);
+EXPORT_SYMBOL(arch_write_lock);
 
-int __tns_atomic_acquire(atomic_t *lock)
+int arch_write_trylock(arch_rwlock_t *rwlock)
 {
-	int ret;
-	u32 iterations = 0;
+	u32 val = __insn_tns((int *)&rwlock->lock);
 
-	BUG_ON(__insn_mfspr(SPR_INTERRUPT_CRITICAL_SECTION));
-	__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 1);
+	/*
+	 * If a tns is in progress, or there's a waiting or active locker,
+	 * or active readers, we can't take the lock, so give up.
+	 */
+	if (unlikely(val != 0)) {
+		if (!(val & 1))
+			rwlock->lock = val;
+		return 0;
+	}
 
-	while ((ret = __insn_tns((void *)&lock->counter)) == 1)
-		delay_backoff(iterations++);
-	return ret;
+	/* Set the "next" field to mark it locked. */
+	rwlock->lock = 1 << _WR_NEXT_SHIFT;
+	return 1;
 }
+EXPORT_SYMBOL(arch_write_trylock);
 
-void __tns_atomic_release(atomic_t *p, int v)
+void arch_write_unlock(arch_rwlock_t *rwlock)
 {
-	p->counter = v;
-	__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0);
+	u32 val, eq, mask;
+
+	mb();  /* guarantee anything modified under the lock is visible */
+	val = __insn_tns((int *)&rwlock->lock);
+	if (likely(val == (1 << _WR_NEXT_SHIFT))) {
+		rwlock->lock = 0;
+		return;
+	}
+	while (unlikely(val & 1)) {
+		/* Limited backoff since we are the highest-priority task. */
+		relax(4);
+		val = __insn_tns((int *)&rwlock->lock);
+	}
+	mask = 1 << WR_CURR_SHIFT;
+	val = __insn_addb(val, mask);
+	eq = __insn_seqb(val, val << (WR_CURR_SHIFT - WR_NEXT_SHIFT));
+	val = __insn_mz(eq & mask, val);
+	rwlock->lock = val;
 }
+EXPORT_SYMBOL(arch_write_unlock);

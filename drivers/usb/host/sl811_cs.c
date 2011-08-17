@@ -187,7 +187,7 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 	return sl811_cs_config(link);
 }
 
-static struct pcmcia_device_id sl811_ids[] = {
+static const struct pcmcia_device_id sl811_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0xc015, 0x0001), /* RATOC USB HOST CF+ Card */
 	PCMCIA_DEVICE_NULL,
 };

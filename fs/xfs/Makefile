@@ -16,13 +16,10 @@
 # Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
-EXTRA_CFLAGS +=	 -I$(src) -I$(src)/linux-2.6
+ccflags-y := -I$(src) -I$(src)/linux-2.6
+ccflags-$(CONFIG_XFS_DEBUG) += -g
 
 XFS_LINUX := linux-2.6
-
-ifeq ($(CONFIG_XFS_DEBUG),y)
-	EXTRA_CFLAGS += -g
-endif
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
 
@@ -91,8 +88,6 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_vnodeops.o \
 				   xfs_rw.o
 
-xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o
-
 # Objects in linux/
 xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   kmem.o \
@@ -105,11 +100,10 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_globals.o \
 				   xfs_ioctl.o \
 				   xfs_iops.o \
+				   xfs_message.o \
 				   xfs_super.o \
 				   xfs_sync.o \
 				   xfs_xattr.o)
 
 # Objects in support/
-xfs-y				+= $(addprefix support/, \
-				   debug.o \
-				   uuid.o)
+xfs-y				+= support/uuid.o

@@ -81,6 +81,7 @@ config DVB_USB_DIB0700
 	select MEDIA_TUNER_MT2266 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC5000 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_XC4000 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MXL5007T if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
@@ -292,6 +293,11 @@ config DVB_USB_ANYSEE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_TDA18212 if !MEDIA_TUNER_CUSTOMISE
+	select DVB_CX24116 if !DVB_FE_CUSTOMISE
+	select DVB_STV0900 if !DVB_FE_CUSTOMISE
+	select DVB_STV6110 if !DVB_FE_CUSTOMISE
+	select DVB_ISL6423 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Anysee E30, Anysee E30 Plus or
 	  Anysee E30 C Plus DVB USB2.0 receiver.
@@ -356,5 +362,15 @@ config DVB_USB_LME2510
 	select DVB_TDA826X if !DVB_FE_CUSTOMISE
 	select DVB_STV0288 if !DVB_FE_CUSTOMISE
 	select DVB_IX2505V if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0 .
+
+config DVB_USB_TECHNISAT_USB2
+	tristate "Technisat DVB-S/S2 USB2.0 support"
+	depends on DVB_USB
+	select DVB_STV090x if !DVB_FE_CUSTOMISE
+	select DVB_STV6110x if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Technisat USB2 DVB-S/S2 device

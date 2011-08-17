@@ -237,22 +237,45 @@ static unsigned char __init nvram_checksum(struct nvram_header *p)
 	return c_sum;
 }
 
+/*
+ * Per the criteria passed via nvram_remove_partition(), should this
+ * partition be removed?  1=remove, 0=keep
+ */
+static int nvram_can_remove_partition(struct nvram_partition *part,
+		const char *name, int sig, const char *exceptions[])
+{
+	if (part->header.signature != sig)
+		return 0;
+	if (name) {
+		if (strncmp(name, part->header.name, 12))
+			return 0;
+	} else if (exceptions) {
+		const char **except;
+		for (except = exceptions; *except; except++) {
+			if (!strncmp(*except, part->header.name, 12))
+				return 0;
+		}
+	}
+	return 1;
+}
+
 /**
  * nvram_remove_partition - Remove one or more partitions in nvram
  * @name: name of the partition to remove, or NULL for a
  *        signature only match
  * @sig: signature of the partition(s) to remove
+ * @exceptions: When removing all partitions with a matching signature,
+ *        leave these alone.
  */
 
-int __init nvram_remove_partition(const char *name, int sig)
+int __init nvram_remove_partition(const char *name, int sig,
+						const char *exceptions[])
 {
 	struct nvram_partition *part, *prev, *tmp;
 	int rc;
 
 	list_for_each_entry(part, &nvram_partitions, partition) {
-		if (part->header.signature != sig)
-			continue;
-		if (name && strncmp(name, part->header.name, 12))
+		if (!nvram_can_remove_partition(part, name, sig, exceptions))
 			continue;
 
 		/* Make partition a free partition */

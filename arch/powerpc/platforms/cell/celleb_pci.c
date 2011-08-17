@@ -41,7 +41,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#include "io-workarounds.h"
 #include "celleb_pci.h"
 
 #define MAX_PCI_DEVICES    32
@@ -320,7 +319,7 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 
 	size = 256;
 	config = &private->fake_config[devno][fn];
-	*config = alloc_maybe_bootmem(size, GFP_KERNEL);
+	*config = zalloc_maybe_bootmem(size, GFP_KERNEL);
 	if (*config == NULL) {
 		printk(KERN_ERR "PCI: "
 		       "not enough memory for fake configuration space\n");
@@ -331,7 +330,7 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 
 	size = sizeof(struct celleb_pci_resource);
 	res = &private->res[devno][fn];
-	*res = alloc_maybe_bootmem(size, GFP_KERNEL);
+	*res = zalloc_maybe_bootmem(size, GFP_KERNEL);
 	if (*res == NULL) {
 		printk(KERN_ERR
 		       "PCI: not enough memory for resource data space\n");
@@ -432,7 +431,7 @@ static int __init phb_set_bus_ranges(struct device_node *dev,
 static void __init celleb_alloc_private_mem(struct pci_controller *hose)
 {
 	hose->private_data =
-		alloc_maybe_bootmem(sizeof(struct celleb_pci_private),
+		zalloc_maybe_bootmem(sizeof(struct celleb_pci_private),
 			GFP_KERNEL);
 }
 
@@ -469,18 +468,6 @@ static struct of_device_id celleb_phb_match[] __initdata = {
 	},
 };
 
-static int __init celleb_io_workaround_init(struct pci_controller *phb,
-					    struct celleb_phb_spec *phb_spec)
-{
-	if (phb_spec->ops) {
-		iowa_register_bus(phb, phb_spec->ops, phb_spec->iowa_init,
-				  phb_spec->iowa_data);
-		io_workaround_init();
-	}
-
-	return 0;
-}
-
 int __init celleb_setup_phb(struct pci_controller *phb)
 {
 	struct device_node *dev = phb->dn;
@@ -500,7 +487,11 @@ int __init celleb_setup_phb(struct pci_controller *phb)
 	if (rc)
 		return 1;
 
-	return celleb_io_workaround_init(phb, phb_spec);
+	if (phb_spec->ops)
+		iowa_register_bus(phb, phb_spec->ops,
+				  phb_spec->iowa_init,
+				  phb_spec->iowa_data);
+	return 0;
 }
 
 int celleb_pci_probe_mode(struct pci_bus *bus)

@@ -33,7 +33,7 @@ state is stuck.
 
 I've seen reports that bttv 0.7.x crashes whereas 0.8.x works rock solid
 for some people.  Thus probably a small buglet left somewhere in bttv
-0.7.x.  I have no idea where exactly, it works stable for me and alot of
+0.7.x.  I have no idea where exactly, it works stable for me and a lot of
 other people.  But in case you have problems with the 0.7.x versions you
 can give 0.8.x a try ...
 

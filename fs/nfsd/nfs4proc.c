@@ -196,9 +196,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 
 		/*
 		 * Note: create modes (UNCHECKED,GUARDED...) are the same
-		 * in NFSv4 as in v3.
+		 * in NFSv4 as in v3 except EXCLUSIVE4_1.
 		 */
-		status = nfsd_create_v3(rqstp, current_fh, open->op_fname.data,
+		status = do_nfsd_create(rqstp, current_fh, open->op_fname.data,
 					open->op_fname.len, &open->op_iattr,
 					&resfh, open->op_createmode,
 					(u32 *)open->op_verf.data,
@@ -290,6 +290,15 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* This check required by spec. */
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
+
+	/*
+	 * RFC5661 18.51.3
+	 * Before RECLAIM_COMPLETE done, server should deny new lock
+	 */
+	if (nfsd4_has_session(cstate) &&
+	    !cstate->session->se_client->cl_firststate &&
+	    open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
+		return nfserr_grace;
 
 	if (nfsd4_has_session(cstate))
 		copy_clientid(&open->op_clientid, cstate->session);
@@ -403,7 +412,7 @@ nfsd4_putfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	cstate->current_fh.fh_handle.fh_size = putfh->pf_fhlen;
 	memcpy(&cstate->current_fh.fh_handle.fh_base, putfh->pf_fhval,
 	       putfh->pf_fhlen);
-	return fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
+	return fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_BYPASS_GSS);
 }
 
 static __be32
@@ -762,6 +771,9 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 err;
 
 	fh_init(&resfh, NFS4_FHSIZE);
+	err = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, NFSD_MAY_EXEC);
+	if (err)
+		return err;
 	err = nfsd_lookup_dentry(rqstp, &cstate->current_fh,
 				    secinfo->si_name, secinfo->si_namelen,
 				    &exp, &dentry);
@@ -984,14 +996,26 @@ typedef __be32(*nfsd4op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
 			      void *);
 enum nfsd4_op_flags {
 	ALLOWED_WITHOUT_FH = 1 << 0,	/* No current filehandle required */
-	ALLOWED_ON_ABSENT_FS = 2 << 0,	/* ops processed on absent fs */
-	ALLOWED_AS_FIRST_OP = 3 << 0,	/* ops reqired first in compound */
+	ALLOWED_ON_ABSENT_FS = 1 << 1,	/* ops processed on absent fs */
+	ALLOWED_AS_FIRST_OP = 1 << 2,	/* ops reqired first in compound */
+	/* For rfc 5661 section 2.6.3.1.1: */
+	OP_HANDLES_WRONGSEC = 1 << 3,
+	OP_IS_PUTFH_LIKE = 1 << 4,
 };
 
 struct nfsd4_operation {
 	nfsd4op_func op_func;
 	u32 op_flags;
 	char *op_name;
+	/*
+	 * We use the DRC for compounds containing non-idempotent
+	 * operations, *except* those that are 4.1-specific (since
+	 * sessions provide their own EOS), and except for stateful
+	 * operations other than setclientid and setclientid_confirm
+	 * (since sequence numbers provide EOS for open, lock, etc in
+	 * the v4.0 case).
+	 */
+	bool op_cacheresult;
 };
 
 static struct nfsd4_operation nfsd4_ops[];
@@ -1029,6 +1053,49 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	if (args->opcnt != 1)
 		return nfserr_not_only_op;
 	return nfs_ok;
+}
+
+static inline struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
+{
+	return &nfsd4_ops[op->opnum];
+}
+
+bool nfsd4_cache_this_op(struct nfsd4_op *op)
+{
+	return OPDESC(op)->op_cacheresult;
+}
+
+static bool need_wrongsec_check(struct svc_rqst *rqstp)
+{
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
+	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
+	struct nfsd4_op *this = &argp->ops[resp->opcnt - 1];
+	struct nfsd4_op *next = &argp->ops[resp->opcnt];
+	struct nfsd4_operation *thisd;
+	struct nfsd4_operation *nextd;
+
+	thisd = OPDESC(this);
+	/*
+	 * Most ops check wronsec on our own; only the putfh-like ops
+	 * have special rules.
+	 */
+	if (!(thisd->op_flags & OP_IS_PUTFH_LIKE))
+		return false;
+	/*
+	 * rfc 5661 2.6.3.1.1.6: don't bother erroring out a
+	 * put-filehandle operation if we're not going to use the
+	 * result:
+	 */
+	if (argp->opcnt == resp->opcnt)
+		return false;
+
+	nextd = OPDESC(next);
+	/*
+	 * Rest of 2.6.3.1.1: certain operations will return WRONGSEC
+	 * errors themselves as necessary; others should check for them
+	 * now:
+	 */
+	return !(nextd->op_flags & OP_HANDLES_WRONGSEC);
 }
 
 /*
@@ -1108,7 +1175,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			goto encode_op;
 		}
 
-		opdesc = &nfsd4_ops[op->opnum];
+		opdesc = OPDESC(op);
 
 		if (!cstate->current_fh.fh_dentry) {
 			if (!(opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
@@ -1125,6 +1192,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			op->status = opdesc->op_func(rqstp, cstate, &op->u);
 		else
 			BUG_ON(op->status == nfs_ok);
+
+		if (!op->status && need_wrongsec_check(rqstp))
+			op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
 
 encode_op:
 		/* Only from SEQUENCE */
@@ -1162,7 +1232,6 @@ encode_op:
 	fh_put(&resp->cstate.save_fh);
 	BUG_ON(resp->cstate.replay_owner);
 out:
-	nfsd4_release_compoundargs(args);
 	/* Reset deferral mechanism for RPC deferrals */
 	rqstp->rq_usedeferral = 1;
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
@@ -1185,6 +1254,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_CREATE] = {
 		.op_func = (nfsd4op_func)nfsd4_create,
 		.op_name = "OP_CREATE",
+		.op_cacheresult = true,
 	},
 	[OP_DELEGRETURN] = {
 		.op_func = (nfsd4op_func)nfsd4_delegreturn,
@@ -1202,6 +1272,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_LINK] = {
 		.op_func = (nfsd4op_func)nfsd4_link,
 		.op_name = "OP_LINK",
+		.op_cacheresult = true,
 	},
 	[OP_LOCK] = {
 		.op_func = (nfsd4op_func)nfsd4_lock,
@@ -1217,10 +1288,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_LOOKUP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookup,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_LOOKUP",
 	},
 	[OP_LOOKUPP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookupp,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_LOOKUPP",
 	},
 	[OP_NVERIFY] = {
@@ -1229,6 +1302,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_OPEN] = {
 		.op_func = (nfsd4op_func)nfsd4_open,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_OPEN",
 	},
 	[OP_OPEN_CONFIRM] = {
@@ -1241,17 +1315,20 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_PUTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putfh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_PUTFH",
 	},
 	[OP_PUTPUBFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_PUTPUBFH",
 	},
 	[OP_PUTROOTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_PUTROOTFH",
 	},
 	[OP_READ] = {
@@ -1269,10 +1346,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_REMOVE] = {
 		.op_func = (nfsd4op_func)nfsd4_remove,
 		.op_name = "OP_REMOVE",
+		.op_cacheresult = true,
 	},
 	[OP_RENAME] = {
 		.op_name = "OP_RENAME",
 		.op_func = (nfsd4op_func)nfsd4_rename,
+		.op_cacheresult = true,
 	},
 	[OP_RENEW] = {
 		.op_func = (nfsd4op_func)nfsd4_renew,
@@ -1281,30 +1360,36 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_RESTOREFH] = {
 		.op_func = (nfsd4op_func)nfsd4_restorefh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_RESTOREFH",
 	},
 	[OP_SAVEFH] = {
 		.op_func = (nfsd4op_func)nfsd4_savefh,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SAVEFH",
 	},
 	[OP_SECINFO] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO",
 	},
 	[OP_SETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_setattr,
 		.op_name = "OP_SETATTR",
+		.op_cacheresult = true,
 	},
 	[OP_SETCLIENTID] = {
 		.op_func = (nfsd4op_func)nfsd4_setclientid,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
 		.op_name = "OP_SETCLIENTID",
+		.op_cacheresult = true,
 	},
 	[OP_SETCLIENTID_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_setclientid_confirm,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
 		.op_name = "OP_SETCLIENTID_CONFIRM",
+		.op_cacheresult = true,
 	},
 	[OP_VERIFY] = {
 		.op_func = (nfsd4op_func)nfsd4_verify,
@@ -1313,6 +1398,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_WRITE] = {
 		.op_func = (nfsd4op_func)nfsd4_write,
 		.op_name = "OP_WRITE",
+		.op_cacheresult = true,
 	},
 	[OP_RELEASE_LOCKOWNER] = {
 		.op_func = (nfsd4op_func)nfsd4_release_lockowner,
@@ -1346,6 +1432,11 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_SEQUENCE",
 	},
+	[OP_DESTROY_CLIENTID] = {
+		.op_func = NULL,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_name = "OP_DESTROY_CLIENTID",
+	},
 	[OP_RECLAIM_COMPLETE] = {
 		.op_func = (nfsd4op_func)nfsd4_reclaim_complete,
 		.op_flags = ALLOWED_WITHOUT_FH,
@@ -1353,7 +1444,18 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_SECINFO_NO_NAME] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo_no_name,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO_NO_NAME",
+	},
+	[OP_TEST_STATEID] = {
+		.op_func = (nfsd4op_func)nfsd4_test_stateid,
+		.op_flags = ALLOWED_WITHOUT_FH,
+		.op_name = "OP_TEST_STATEID",
+	},
+	[OP_FREE_STATEID] = {
+		.op_func = (nfsd4op_func)nfsd4_free_stateid,
+		.op_flags = ALLOWED_WITHOUT_FH,
+		.op_name = "OP_FREE_STATEID",
 	},
 };
 
@@ -1367,16 +1469,6 @@ static const char *nfsd4_op_name(unsigned opnum)
 #define nfsd4_voidres			nfsd4_voidargs
 struct nfsd4_voidargs { int dummy; };
 
-/*
- * TODO: At the present time, the NFSv4 server does not do XID caching
- * of requests.  Implementing XID caching would not be a serious problem,
- * although it would require a mild change in interfaces since one
- * doesn't know whether an NFSv4 request is idempotent until after the
- * XDR decode.  However, XID caching totally confuses pynfs (Peter
- * Astrand's regression testsuite for NFSv4 servers), which reuses
- * XID's liberally, so I've left it unimplemented until pynfs generates
- * better XID's.
- */
 static struct svc_procedure		nfsd_procedures4[2] = {
 	[NFSPROC4_NULL] = {
 		.pc_func = (svc_procfunc) nfsd4_proc_null,
@@ -1392,6 +1484,7 @@ static struct svc_procedure		nfsd_procedures4[2] = {
 		.pc_encode = (kxdrproc_t) nfs4svc_encode_compoundres,
 		.pc_argsize = sizeof(struct nfsd4_compoundargs),
 		.pc_ressize = sizeof(struct nfsd4_compoundres),
+		.pc_release = nfsd4_release_compoundargs,
 		.pc_cachetype = RC_NOCACHE,
 		.pc_xdrressize = NFSD_BUFSIZE/4,
 	},

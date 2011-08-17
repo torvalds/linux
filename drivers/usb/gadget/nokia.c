@@ -203,7 +203,7 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 		goto err_usb;
 	}
 
-	/* finaly register the configuration */
+	/* finally register the configuration */
 	status = usb_add_config(cdev, &nokia_config_500ma_driver,
 			nokia_bind_config);
 	if (status < 0)
@@ -241,6 +241,7 @@ static struct usb_composite_driver nokia_driver = {
 	.name		= "g_nokia",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
+	.max_speed	= USB_SPEED_HIGH,
 	.unbind		= __exit_p(nokia_unbind),
 };
 

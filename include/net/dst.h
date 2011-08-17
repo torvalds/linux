@@ -16,13 +16,6 @@
 #include <net/neighbour.h>
 #include <asm/processor.h>
 
-/*
- * 0 - no debugging messages
- * 1 - rare events and bugs (default)
- * 2 - trace mode.
- */
-#define RT_CACHE_DEBUG		0
-
 #define DST_GC_MIN	(HZ/10)
 #define DST_GC_INC	(HZ/2)
 #define DST_GC_MAX	(120*HZ)
@@ -40,26 +33,11 @@ struct dst_entry {
 	struct rcu_head		rcu_head;
 	struct dst_entry	*child;
 	struct net_device       *dev;
-	short			error;
-	short			obsolete;
-	int			flags;
-#define DST_HOST		0x0001
-#define DST_NOXFRM		0x0002
-#define DST_NOPOLICY		0x0004
-#define DST_NOHASH		0x0008
-#define DST_NOCACHE		0x0010
+	struct  dst_ops	        *ops;
+	unsigned long		_metrics;
 	unsigned long		expires;
-
-	unsigned short		header_len;	/* more space at head required */
-	unsigned short		trailer_len;	/* space to reserve at tail */
-
-	unsigned int		rate_tokens;
-	unsigned long		rate_last;	/* rate limiting for ICMP */
-
 	struct dst_entry	*path;
-
-	struct neighbour	*neighbour;
-	struct hh_cache		*hh;
+	struct neighbour __rcu	*_neighbour;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -68,23 +46,30 @@ struct dst_entry {
 	int			(*input)(struct sk_buff*);
 	int			(*output)(struct sk_buff*);
 
-	struct  dst_ops	        *ops;
+	int			flags;
+#define DST_HOST		0x0001
+#define DST_NOXFRM		0x0002
+#define DST_NOPOLICY		0x0004
+#define DST_NOHASH		0x0008
+#define DST_NOCACHE		0x0010
+#define DST_NOCOUNT		0x0020
 
-	u32			_metrics[RTAX_MAX];
-
-#ifdef CONFIG_NET_CLS_ROUTE
+	short			error;
+	short			obsolete;
+	unsigned short		header_len;	/* more space at head required */
+	unsigned short		trailer_len;	/* space to reserve at tail */
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			tclassid;
 #else
 	__u32			__pad2;
 #endif
-
 
 	/*
 	 * Align __refcnt to a 64 bytes alignment
 	 * (L1_CACHE_SIZE would be too much)
 	 */
 #ifdef CONFIG_64BIT
-	long			__pad_to_align_refcnt[1];
+	long			__pad_to_align_refcnt[2];
 #endif
 	/*
 	 * __refcnt wants to be on a different cache line from
@@ -101,12 +86,87 @@ struct dst_entry {
 	};
 };
 
-#ifdef __KERNEL__
+static inline struct neighbour *dst_get_neighbour(struct dst_entry *dst)
+{
+	return rcu_dereference(dst->_neighbour);
+}
+
+static inline struct neighbour *dst_get_neighbour_raw(struct dst_entry *dst)
+{
+	return rcu_dereference_raw(dst->_neighbour);
+}
+
+static inline void dst_set_neighbour(struct dst_entry *dst, struct neighbour *neigh)
+{
+	rcu_assign_pointer(dst->_neighbour, neigh);
+}
+
+extern u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
+extern const u32 dst_default_metrics[RTAX_MAX];
+
+#define DST_METRICS_READ_ONLY	0x1UL
+#define __DST_METRICS_PTR(Y)	\
+	((u32 *)((Y) & ~DST_METRICS_READ_ONLY))
+#define DST_METRICS_PTR(X)	__DST_METRICS_PTR((X)->_metrics)
+
+static inline bool dst_metrics_read_only(const struct dst_entry *dst)
+{
+	return dst->_metrics & DST_METRICS_READ_ONLY;
+}
+
+extern void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old);
+
+static inline void dst_destroy_metrics_generic(struct dst_entry *dst)
+{
+	unsigned long val = dst->_metrics;
+	if (!(val & DST_METRICS_READ_ONLY))
+		__dst_destroy_metrics_generic(dst, val);
+}
+
+static inline u32 *dst_metrics_write_ptr(struct dst_entry *dst)
+{
+	unsigned long p = dst->_metrics;
+
+	BUG_ON(!p);
+
+	if (p & DST_METRICS_READ_ONLY)
+		return dst->ops->cow_metrics(dst, p);
+	return __DST_METRICS_PTR(p);
+}
+
+/* This may only be invoked before the entry has reached global
+ * visibility.
+ */
+static inline void dst_init_metrics(struct dst_entry *dst,
+				    const u32 *src_metrics,
+				    bool read_only)
+{
+	dst->_metrics = ((unsigned long) src_metrics) |
+		(read_only ? DST_METRICS_READ_ONLY : 0);
+}
+
+static inline void dst_copy_metrics(struct dst_entry *dest, const struct dst_entry *src)
+{
+	u32 *dst_metrics = dst_metrics_write_ptr(dest);
+
+	if (dst_metrics) {
+		u32 *src_metrics = DST_METRICS_PTR(src);
+
+		memcpy(dst_metrics, src_metrics, RTAX_MAX * sizeof(u32));
+	}
+}
+
+static inline u32 *dst_metrics_ptr(struct dst_entry *dst)
+{
+	return DST_METRICS_PTR(dst);
+}
 
 static inline u32
 dst_metric_raw(const struct dst_entry *dst, const int metric)
 {
-	return dst->_metrics[metric-1];
+	u32 *p = DST_METRICS_PTR(dst);
+
+	return p[metric-1];
 }
 
 static inline u32
@@ -131,22 +191,10 @@ dst_metric_advmss(const struct dst_entry *dst)
 
 static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
 {
-	dst->_metrics[metric-1] = val;
-}
+	u32 *p = dst_metrics_write_ptr(dst);
 
-static inline void dst_import_metrics(struct dst_entry *dst, const u32 *src_metrics)
-{
-	memcpy(dst->_metrics, src_metrics, RTAX_MAX * sizeof(u32));
-}
-
-static inline void dst_copy_metrics(struct dst_entry *dest, const struct dst_entry *src)
-{
-	dst_import_metrics(dest, src->_metrics);
-}
-
-static inline u32 *dst_metrics_ptr(struct dst_entry *dst)
-{
-	return dst->_metrics;
+	if (p)
+		p[metric-1] = val;
 }
 
 static inline u32
@@ -181,8 +229,6 @@ static inline u32
 dst_allfrag(const struct dst_entry *dst)
 {
 	int ret = dst_feature(dst,  RTAX_FEATURE_ALLFRAG);
-	/* Yes, _exactly_. This is paranoia. */
-	barrier();
 	return ret;
 }
 
@@ -308,14 +354,15 @@ static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 
 static inline struct dst_entry *skb_dst_pop(struct sk_buff *skb)
 {
-	struct dst_entry *child = skb_dst(skb)->child;
+	struct dst_entry *child = dst_clone(skb_dst(skb)->child);
 
 	skb_dst_drop(skb);
 	return child;
 }
 
 extern int dst_discard(struct sk_buff *skb);
-extern void * dst_alloc(struct dst_ops * ops);
+extern void *dst_alloc(struct dst_ops * ops, struct net_device *dev,
+		       int initial_ref, int initial_obsolete, int flags);
 extern void __dst_free(struct dst_entry * dst);
 extern struct dst_entry *dst_destroy(struct dst_entry * dst);
 
@@ -339,8 +386,19 @@ static inline void dst_rcu_free(struct rcu_head *head)
 
 static inline void dst_confirm(struct dst_entry *dst)
 {
-	if (dst)
-		neigh_confirm(dst->neighbour);
+	if (dst) {
+		struct neighbour *n;
+
+		rcu_read_lock();
+		n = dst_get_neighbour(dst);
+		neigh_confirm(n);
+		rcu_read_unlock();
+	}
+}
+
+static inline struct neighbour *dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+{
+	return dst->ops->neigh_lookup(dst, daddr);
 }
 
 static inline void dst_link_failure(struct sk_buff *skb)
@@ -384,28 +442,22 @@ extern void		dst_init(void);
 
 /* Flags for xfrm_lookup flags argument. */
 enum {
-	XFRM_LOOKUP_WAIT = 1 << 0,
-	XFRM_LOOKUP_ICMP = 1 << 1,
+	XFRM_LOOKUP_ICMP = 1 << 0,
 };
 
 struct flowi;
 #ifndef CONFIG_XFRM
-static inline int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-			      struct flowi *fl, struct sock *sk, int flags)
+static inline struct dst_entry *xfrm_lookup(struct net *net,
+					    struct dst_entry *dst_orig,
+					    const struct flowi *fl, struct sock *sk,
+					    int flags)
 {
-	return 0;
+	return dst_orig;
 } 
-static inline int __xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-				struct flowi *fl, struct sock *sk, int flags)
-{
-	return 0;
-}
 #else
-extern int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-		       struct flowi *fl, struct sock *sk, int flags);
-extern int __xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-			 struct flowi *fl, struct sock *sk, int flags);
-#endif
+extern struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
+				     const struct flowi *fl, struct sock *sk,
+				     int flags);
 #endif
 
 #endif /* _NET_DST_H */

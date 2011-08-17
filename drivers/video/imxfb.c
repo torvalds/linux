@@ -65,12 +65,6 @@
 #define CPOS_OP		(1<<28)
 #define CPOS_CXP(x)	(((x) & 3ff) << 16)
 
-#ifdef CONFIG_ARCH_MX1
-#define CPOS_CYP(y)	((y) & 0x1ff)
-#else
-#define CPOS_CYP(y)	((y) & 0x3ff)
-#endif
-
 #define LCDC_LCWHB	0x10
 #define LCWHB_BK_EN	(1<<31)
 #define LCWHB_CW(w)	(((w) & 0x1f) << 24)
@@ -78,16 +72,6 @@
 #define LCWHB_BD(x)	((x) & 0xff)
 
 #define LCDC_LCHCC	0x14
-
-#ifdef CONFIG_ARCH_MX1
-#define LCHCC_CUR_COL_R(r) (((r) & 0x1f) << 11)
-#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 5)
-#define LCHCC_CUR_COL_B(b) ((b) & 0x1f)
-#else
-#define LCHCC_CUR_COL_R(r) (((r) & 0x3f) << 12)
-#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 6)
-#define LCHCC_CUR_COL_B(b) ((b) & 0x3f)
-#endif
 
 #define LCDC_PCR	0x18
 
@@ -115,11 +99,7 @@
 
 #define LCDC_RMCR	0x34
 
-#ifdef CONFIG_ARCH_MX1
-#define RMCR_LCDC_EN	(1<<1)
-#else
-#define RMCR_LCDC_EN	0
-#endif
+#define RMCR_LCDC_EN_MX1	(1<<1)
 
 #define RMCR_SELF_REF	(1<<0)
 
@@ -499,6 +479,7 @@ static void imxfb_init_backlight(struct imxfb_info *fbi)
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = 0xff;
+	props.type = BACKLIGHT_RAW;
 	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
 
 	bl = backlight_device_register("imxfb-bl", &fbi->pdev->dev, fbi,
@@ -535,7 +516,11 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	writel(readl(fbi->regs + LCDC_CPOS) & ~(CPOS_CC0 | CPOS_CC1),
 		fbi->regs + LCDC_CPOS);
 
-	writel(RMCR_LCDC_EN, fbi->regs + LCDC_RMCR);
+	/*
+	 * RMCR_LCDC_EN_MX1 is present on i.MX1 only, but doesn't hurt
+	 * on other SoCs
+	 */
+	writel(RMCR_LCDC_EN_MX1, fbi->regs + LCDC_RMCR);
 
 	clk_enable(fbi->clk);
 
@@ -871,10 +856,10 @@ failed_platform_init:
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
 failed_map:
-	clk_put(fbi->clk);
-failed_getclock:
 	iounmap(fbi->regs);
 failed_ioremap:
+	clk_put(fbi->clk);
+failed_getclock:
 	release_mem_region(res->start, resource_size(res));
 failed_req:
 	kfree(info->pseudo_palette);

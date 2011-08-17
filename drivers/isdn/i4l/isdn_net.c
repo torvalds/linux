@@ -1530,7 +1530,7 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 		printk (KERN_WARNING
 				"UPDOWN: Line protocol on Interface %s,"
 				" changed state to down\n", lp->netdev->dev->name);
-		/* should stop routing higher-level data accross */
+		/* should stop routing higher-level data across */
 	} else if ((!lp->cisco_line_state) &&
 		(myseq_diff >= 0) && (myseq_diff <= 2)) {
 		/* line down -> up */
@@ -1538,7 +1538,7 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 		printk (KERN_WARNING
 				"UPDOWN: Line protocol on Interface %s,"
 				" changed state to up\n", lp->netdev->dev->name);
-		/* restart routing higher-level data accross */
+		/* restart routing higher-level data across */
 	}
 
 	if (lp->cisco_debserint)
@@ -1678,7 +1678,6 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 	u32 your_seq;
 	__be32 local;
 	__be32 *addr, *mask;
-	u16 unused;
 
 	if (skb->len < 14)
 		return;
@@ -1722,7 +1721,6 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 		lp->cisco_last_slarp_in = jiffies;
 		my_seq = be32_to_cpup((__be32 *)(p + 0));
 		your_seq = be32_to_cpup((__be32 *)(p + 4));
-		unused = be16_to_cpup((__be16 *)(p + 8));
 		p += 10;
 		lp->cisco_yourseq = my_seq;
 		lp->cisco_mineseen = your_seq;
@@ -1985,13 +1983,14 @@ isdn_net_rebuild_header(struct sk_buff *skb)
 	return ret;
 }
 
-static int isdn_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
+static int isdn_header_cache(const struct neighbour *neigh, struct hh_cache *hh,
+			     __be16 type)
 {
 	const struct net_device *dev = neigh->dev;
 	isdn_net_local *lp = netdev_priv(dev);
 
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER)
-		return eth_header_cache(neigh, hh);
+		return eth_header_cache(neigh, hh, type);
 	return -1;
 }
 
@@ -2533,6 +2532,9 @@ static void _isdn_setup(struct net_device *dev)
 
 	/* Setup the generic properties */
 	dev->flags = IFF_NOARP|IFF_POINTOPOINT;
+
+	/* isdn prepends a header in the tx path, can't share skbs */
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->header_ops = NULL;
 	dev->netdev_ops = &isdn_netdev_ops;
 

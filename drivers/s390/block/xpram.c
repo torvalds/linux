@@ -62,8 +62,8 @@ static int xpram_devs;
 /*
  * Parameter parsing functions.
  */
-static int __initdata devs = XPRAM_DEVS;
-static char __initdata *sizes[XPRAM_MAX_DEVS];
+static int devs = XPRAM_DEVS;
+static char *sizes[XPRAM_MAX_DEVS];
 
 module_param(devs, int, 0);
 module_param_array(sizes, charp, NULL, 0);

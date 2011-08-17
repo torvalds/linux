@@ -319,7 +319,7 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
-	ops->retlen = 0;
+	ops->retlen = ops->oobretlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
@@ -334,7 +334,7 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 			devops.len = subdev->size - to;
 
 		err = subdev->write_oob(subdev, to, &devops);
-		ops->retlen += devops.retlen;
+		ops->retlen += devops.oobretlen;
 		if (err)
 			return err;
 
@@ -750,6 +750,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	struct mtd_concat *concat;
 	uint32_t max_erasesize, curr_erasesize;
 	int num_erase_region;
+	int max_writebufsize = 0;
 
 	printk(KERN_NOTICE "Concatenating MTD devices:\n");
 	for (i = 0; i < num_devs; i++)
@@ -776,7 +777,12 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd.size = subdev[0]->size;
 	concat->mtd.erasesize = subdev[0]->erasesize;
 	concat->mtd.writesize = subdev[0]->writesize;
-	concat->mtd.writebufsize = subdev[0]->writebufsize;
+
+	for (i = 0; i < num_devs; i++)
+		if (max_writebufsize < subdev[i]->writebufsize)
+			max_writebufsize = subdev[i]->writebufsize;
+	concat->mtd.writebufsize = max_writebufsize;
+
 	concat->mtd.subpage_sft = subdev[0]->subpage_sft;
 	concat->mtd.oobsize = subdev[0]->oobsize;
 	concat->mtd.oobavail = subdev[0]->oobavail;

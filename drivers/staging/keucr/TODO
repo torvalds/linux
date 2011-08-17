@@ -6,9 +6,7 @@ TODO:
 	  be merged into the drivers/usb/storage/ directory and
 	  infrastructure instead.
 	- review by the USB developer community
-	- common.h: use kernel swap, le, & be functions
-	- smcommon.h & smilsub.c: use kernel hweight8(), hweight16(),
-		strcmp(), & strcpy()
+	- smcommon.h & smilsub.c: use kernel hweight8(), hweight16()
 
 Please send any patches for this driver to Al Cho <acho@novell.com> and
 Greg Kroah-Hartman <gregkh@suse.de>.

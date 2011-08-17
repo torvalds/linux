@@ -478,9 +478,7 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
 
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
 		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, conf->sync);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 	}
 
@@ -1056,9 +1054,7 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_disable_radio(rt2x00dev);
 		break;
 	case STATE_RADIO_IRQ_ON:
-	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
-	case STATE_RADIO_IRQ_OFF_ISR:
 		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
@@ -1104,7 +1100,7 @@ static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 			   (txdesc->rate_mode == RATE_MODE_OFDM));
 	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
 			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER, !!txdesc->cipher);
 	rt2x00_set_field32(&word, TXD_W0_KEY_ID, txdesc->key_idx);
@@ -1118,10 +1114,12 @@ static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->signal);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->service);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, txdesc->length_low);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_desc_write(txd, 2, word);
 
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags)) {
@@ -1521,7 +1519,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Read the RSSI <-> dBm offset information.
@@ -1792,13 +1790,14 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires the atim queue
 	 */
-	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
+	__set_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags);
 	if (!modparam_nohwcrypt) {
-		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
-		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
+		__set_bit(REQUIRE_COPY_IV, &rt2x00dev->cap_flags);
 	}
-	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
+	__set_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1825,6 +1824,10 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.flush			= rt2x00mac_flush,
+	.set_antenna		= rt2x00mac_set_antenna,
+	.get_antenna		= rt2x00mac_get_antenna,
+	.get_ringparam		= rt2x00mac_get_ringparam,
+	.tx_frames_pending	= rt2x00mac_tx_frames_pending,
 };
 
 static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
@@ -1906,58 +1909,54 @@ static const struct rt2x00_ops rt2500usb_ops = {
  */
 static struct usb_device_id rt2500usb_device_table[] = {
 	/* ASUS */
-	{ USB_DEVICE(0x0b05, 0x1706), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0b05, 0x1707), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0b05, 0x1706) },
+	{ USB_DEVICE(0x0b05, 0x1707) },
 	/* Belkin */
-	{ USB_DEVICE(0x050d, 0x7050), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x050d, 0x7051), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x050d, 0x705a), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x050d, 0x7050) },
+	{ USB_DEVICE(0x050d, 0x7051) },
 	/* Cisco Systems */
-	{ USB_DEVICE(0x13b1, 0x000d), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x13b1, 0x0011), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x13b1, 0x001a), USB_DEVICE_DATA(&rt2500usb_ops) },
-	/* CNet */
-	{ USB_DEVICE(0x1371, 0x9022), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x13b1, 0x000d) },
+	{ USB_DEVICE(0x13b1, 0x0011) },
+	{ USB_DEVICE(0x13b1, 0x001a) },
 	/* Conceptronic */
-	{ USB_DEVICE(0x14b2, 0x3c02), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x14b2, 0x3c02) },
 	/* D-LINK */
-	{ USB_DEVICE(0x2001, 0x3c00), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x2001, 0x3c00) },
 	/* Gigabyte */
-	{ USB_DEVICE(0x1044, 0x8001), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x1044, 0x8007), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x1044, 0x8001) },
+	{ USB_DEVICE(0x1044, 0x8007) },
 	/* Hercules */
-	{ USB_DEVICE(0x06f8, 0xe000), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x06f8, 0xe000) },
 	/* Melco */
-	{ USB_DEVICE(0x0411, 0x005e), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0066), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0067), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x008b), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0097), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0411, 0x005e) },
+	{ USB_DEVICE(0x0411, 0x0066) },
+	{ USB_DEVICE(0x0411, 0x0067) },
+	{ USB_DEVICE(0x0411, 0x008b) },
+	{ USB_DEVICE(0x0411, 0x0097) },
 	/* MSI */
-	{ USB_DEVICE(0x0db0, 0x6861), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0db0, 0x6865), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0db0, 0x6869), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0db0, 0x6861) },
+	{ USB_DEVICE(0x0db0, 0x6865) },
+	{ USB_DEVICE(0x0db0, 0x6869) },
 	/* Ralink */
-	{ USB_DEVICE(0x148f, 0x1706), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x148f, 0x2570), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x148f, 0x2573), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x148f, 0x9020), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x148f, 0x1706) },
+	{ USB_DEVICE(0x148f, 0x2570) },
+	{ USB_DEVICE(0x148f, 0x9020) },
 	/* Sagem */
-	{ USB_DEVICE(0x079b, 0x004b), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x079b, 0x004b) },
 	/* Siemens */
-	{ USB_DEVICE(0x0681, 0x3c06), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0681, 0x3c06) },
 	/* SMC */
-	{ USB_DEVICE(0x0707, 0xee13), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0707, 0xee13) },
 	/* Spairon */
-	{ USB_DEVICE(0x114b, 0x0110), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x114b, 0x0110) },
 	/* SURECOM */
-	{ USB_DEVICE(0x0769, 0x11f3), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0769, 0x11f3) },
 	/* Trust */
-	{ USB_DEVICE(0x0eb0, 0x9020), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0eb0, 0x9020) },
 	/* VTech */
-	{ USB_DEVICE(0x0f88, 0x3012), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0f88, 0x3012) },
 	/* Zinwell */
-	{ USB_DEVICE(0x5a57, 0x0260), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x5a57, 0x0260) },
 	{ 0, }
 };
 
@@ -1968,10 +1967,16 @@ MODULE_SUPPORTED_DEVICE("Ralink RT2570 USB chipset based cards");
 MODULE_DEVICE_TABLE(usb, rt2500usb_device_table);
 MODULE_LICENSE("GPL");
 
+static int rt2500usb_probe(struct usb_interface *usb_intf,
+			   const struct usb_device_id *id)
+{
+	return rt2x00usb_probe(usb_intf, &rt2500usb_ops);
+}
+
 static struct usb_driver rt2500usb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt2500usb_device_table,
-	.probe		= rt2x00usb_probe,
+	.probe		= rt2500usb_probe,
 	.disconnect	= rt2x00usb_disconnect,
 	.suspend	= rt2x00usb_suspend,
 	.resume		= rt2x00usb_resume,

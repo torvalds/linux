@@ -6,6 +6,12 @@ Description:
 		Corresponds to a grouping of sensor channels. X is the IIO
 		index of the device.
 
+What:		/sys/bus/iio/devices/device[n]/power_state
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This property gets/sets the device power state.
+
 What:		/sys/bus/iio/devices/triggerX
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
@@ -53,6 +59,31 @@ Description:
 		When the internal sampling clock can only take a small
 		discrete set of values, this file lists those available.
 
+What:		/sys/bus/iio/devices/deviceX/range
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent ADC Full Scale Range in mVolt.
+
+What:		/sys/bus/iio/devices/deviceX/range_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent supported vales for ADC Full Scale Range.
+
+What:		/sys/bus/iio/devices/deviceX/oversampling_ratio
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent ADC oversampling. Controls the sampling ratio
+		of the digital filter if available.
+
+What:		/sys/bus/iio/devices/deviceX/oversampling_ratio_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent values supported by the oversampling filter.
+
 What:		/sys/bus/iio/devices/deviceX/inY_raw
 What:		/sys/bus/iio/devices/deviceX/inY_supply_raw
 KernelVersion:	2.6.35
@@ -85,6 +116,12 @@ Description:
 		It an axis is specified it generally means that the temperature
 		sensor is associated with one part of a compound device (e.g.
 		a gyroscope axis).
+
+What:		/sys/bus/iio/devices/deviceX/tempX_input
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scaled temperature measurement in milli degrees Celsius.
 
 What:		/sys/bus/iio/devices/deviceX/accel_x_raw
 What:		/sys/bus/iio/devices/deviceX/accel_y_raw
@@ -168,6 +205,7 @@ Description:
 What:		/sys/bus/iio/devices/deviceX/inY_scale
 What:		/sys/bus/iio/devices/deviceX/inY_supply_scale
 What:		/sys/bus/iio/devices/deviceX/in_scale
+What:		/sys/bus/iio/devices/deviceX/outY_scale
 What:		/sys/bus/iio/devices/deviceX/accel_scale
 What:		/sys/bus/iio/devices/deviceX/accel_peak_scale
 What:		/sys/bus/iio/devices/deviceX/gyro_scale
@@ -221,6 +259,55 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		If a discrete set of scale values are available, they
 		are listed in this attribute.
+
+What:		/sys/bus/iio/devices/deviceX/outY_raw
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled, no bias etc.) output voltage for
+		channel Y.  The number must always be specified and
+		unique if the output corresponds to a single channel.
+
+What:		/sys/bus/iio/devices/deviceX/outY&Z_raw
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled, no bias etc.) output voltage for an aggregate of
+		channel Y, channel Z, etc.  This interface is available in cases
+		where a single output sets the value for multiple channels
+		simultaneously.
+
+What:		/sys/bus/iio/devices/deviceX/outY_powerdown_mode
+What:		/sys/bus/iio/devices/deviceX/out_powerdown_mode
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the output powerdown mode.
+		DAC output stage is disconnected from the amplifier and
+		1kohm_to_gnd: connected to ground via an 1kOhm resistor
+		100kohm_to_gnd: connected to ground via an 100kOhm resistor
+		three_state: left floating
+		For a list of available output power down options read
+		outX_powerdown_mode_available. If Y is not present the
+		mode is shared across all outputs.
+
+What:		/sys/bus/iio/devices/deviceX/outY_powerdown_mode_available
+What:		/sys/bus/iio/devices/deviceX/out_powerdown_mode_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available output power down modes.
+		If Y is not present the mode is shared across all outputs.
+
+What:		/sys/bus/iio/devices/deviceX/outY_powerdown
+What:		/sys/bus/iio/devices/deviceX/out_powerdown
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing 1 causes output Y to enter the power down mode specified
+		by the corresponding outY_powerdown_mode. Clearing returns to
+		normal operation. Y may be suppressed if all outputs are
+		controlled together.
 
 What:		/sys/bus/iio/devices/deviceX/deviceX:eventY
 KernelVersion:	2.6.35
@@ -617,3 +704,10 @@ Description:
 		with all _en attributes to establish which channels are present,
 		and the relevant _type attributes to establish the data storage
 		format.
+
+What:		/sys/bus/iio/devices/deviceX/gyro_z_quadrature_correction_raw
+KernelVersion:	2.6.38
+Contact:	linux-iio@xxxxxxxxxxxxxxx
+Description:
+		This attribute is used to read the amount of quadrature error
+		present in the device at a given time.

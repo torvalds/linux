@@ -26,6 +26,7 @@
 #define HUB_RESET_TT		9
 #define HUB_GET_TT_STATE	10
 #define HUB_STOP_TT		11
+#define HUB_SET_DEPTH		12
 
 /*
  * Hub class additional requests defined by USB 3.0 spec
@@ -61,6 +62,12 @@
 #define USB_PORT_FEAT_TEST              21
 #define USB_PORT_FEAT_INDICATOR         22
 #define USB_PORT_FEAT_C_PORT_L1         23
+#define USB_PORT_FEAT_C_PORT_LINK_STATE	25
+#define USB_PORT_FEAT_C_PORT_CONFIG_ERROR 26
+#define USB_PORT_FEAT_PORT_REMOTE_WAKE_MASK 27
+#define USB_PORT_FEAT_BH_PORT_RESET     28
+#define USB_PORT_FEAT_C_BH_PORT_RESET   29
+#define USB_PORT_FEAT_FORCE_LINKPM_ACCEPT 30
 
 /*
  * Port feature selectors added by USB 3.0 spec.
@@ -102,7 +109,6 @@ struct usb_port_status {
 #define USB_PORT_STAT_TEST              0x0800
 #define USB_PORT_STAT_INDICATOR         0x1000
 /* bits 13 to 15 are reserved */
-#define USB_PORT_STAT_SUPER_SPEED	0x8000	/* Linux-internal */
 
 /*
  * Additions to wPortStatus bit field from USB 3.0
@@ -110,8 +116,14 @@ struct usb_port_status {
  */
 #define USB_PORT_STAT_LINK_STATE	0x01e0
 #define USB_SS_PORT_STAT_POWER		0x0200
+#define USB_SS_PORT_STAT_SPEED		0x1c00
 #define USB_PORT_STAT_SPEED_5GBPS	0x0000
 /* Valid only if port is enabled */
+/* Bits that are the same from USB 2.0 */
+#define USB_SS_PORT_STAT_MASK (USB_PORT_STAT_CONNECTION |	    \
+				USB_PORT_STAT_ENABLE |	    \
+				USB_PORT_STAT_OVERCURRENT | \
+				USB_PORT_STAT_RESET)
 
 /*
  * Definitions for PORT_LINK_STATE values
@@ -132,8 +144,8 @@ struct usb_port_status {
 
 /*
  * wPortChange bit field
- * See USB 2.0 spec Table 11-22
- * Bits 0 to 4 shown, bits 5 to 15 are reserved
+ * See USB 2.0 spec Table 11-22 and USB 2.0 LPM ECN Table-4.10
+ * Bits 0 to 5 shown, bits 6 to 15 are reserved
  */
 #define USB_PORT_STAT_C_CONNECTION	0x0001
 #define USB_PORT_STAT_C_ENABLE		0x0002
@@ -141,6 +153,13 @@ struct usb_port_status {
 #define USB_PORT_STAT_C_OVERCURRENT	0x0008
 #define USB_PORT_STAT_C_RESET		0x0010
 #define USB_PORT_STAT_C_L1		0x0020
+/*
+ * USB 3.0 wPortChange bit fields
+ * See USB 3.0 spec Table 10-11
+ */
+#define USB_PORT_STAT_C_BH_RESET	0x0020
+#define USB_PORT_STAT_C_LINK_STATE	0x0040
+#define USB_PORT_STAT_C_CONFIG_ERROR	0x0080
 
 /*
  * wHubCharacteristics (masks)
@@ -175,7 +194,9 @@ struct usb_hub_status {
  */
 
 #define USB_DT_HUB			(USB_TYPE_CLASS | 0x09)
+#define USB_DT_SS_HUB			(USB_TYPE_CLASS | 0x0a)
 #define USB_DT_HUB_NONVAR_SIZE		7
+#define USB_DT_SS_HUB_SIZE              12
 
 struct usb_hub_descriptor {
 	__u8  bDescLength;
@@ -184,11 +205,22 @@ struct usb_hub_descriptor {
 	__le16 wHubCharacteristics;
 	__u8  bPwrOn2PwrGood;
 	__u8  bHubContrCurrent;
-		/* add 1 bit for hub status change; round to bytes */
-	__u8  DeviceRemovable[(USB_MAXCHILDREN + 1 + 7) / 8];
-	__u8  PortPwrCtrlMask[(USB_MAXCHILDREN + 1 + 7) / 8];
-} __attribute__ ((packed));
 
+	/* 2.0 and 3.0 hubs differ here */
+	union {
+		struct {
+			/* add 1 bit for hub status change; round to bytes */
+			__u8  DeviceRemovable[(USB_MAXCHILDREN + 1 + 7) / 8];
+			__u8  PortPwrCtrlMask[(USB_MAXCHILDREN + 1 + 7) / 8];
+		}  __attribute__ ((packed)) hs;
+
+		struct {
+			__u8 bHubHdrDecLat;
+			__u16 wHubDelay;
+			__u16 DeviceRemovable;
+		}  __attribute__ ((packed)) ss;
+	} u;
+} __attribute__ ((packed));
 
 /* port indicator status selectors, tables 11-7 and 11-25 */
 #define HUB_LED_AUTO	0

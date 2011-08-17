@@ -83,8 +83,8 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 	if (c >= 4) {
 		unsigned  value, buf_hold;
 
-		/* Align the destination to a word boundry. */
-		/* This is done in an endian independant manner. */
+		/* Align the destination to a word boundary. */
+		/* This is done in an endian independent manner. */
 
 		switch ((unsigned long)dst & 3) {
 		case 3:
@@ -193,7 +193,7 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 		dst = (void *)i_dst;
 	}
 
-	/* simple fast copy, ... unless a cache boundry is crossed */
+	/* simple fast copy, ... unless a cache boundary is crossed */
 	/* Finish off any remaining bytes */
 	switch (c) {
 	case 4:

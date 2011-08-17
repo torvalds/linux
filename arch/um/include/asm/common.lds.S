@@ -42,7 +42,7 @@
 	INIT_SETUP(0)
   }
 
-  PERCPU(32)
+  PERCPU_SECTION(32)
 	
   .initcall.init : {
 	INIT_CALLS

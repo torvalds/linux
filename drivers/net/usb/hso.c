@@ -324,7 +324,7 @@ struct hso_device {
 /* Prototypes                                                                */
 /*****************************************************************************/
 /* Serial driver functions */
-static int hso_serial_tiocmset(struct tty_struct *tty, struct file *file,
+static int hso_serial_tiocmset(struct tty_struct *tty,
 			       unsigned int set, unsigned int clear);
 static void ctrl_callback(struct urb *urb);
 static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial);
@@ -1335,7 +1335,7 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 
 	/* done */
 	if (result)
-		hso_serial_tiocmset(tty, NULL, TIOCM_RTS | TIOCM_DTR, 0);
+		hso_serial_tiocmset(tty, TIOCM_RTS | TIOCM_DTR, 0);
 err_out:
 	mutex_unlock(&serial->parent->mutex);
 	return result;
@@ -1656,7 +1656,7 @@ static int hso_get_count(struct tty_struct *tty,
 }
 
 
-static int hso_serial_tiocmget(struct tty_struct *tty, struct file *file)
+static int hso_serial_tiocmget(struct tty_struct *tty)
 {
 	int retval;
 	struct hso_serial *serial = get_serial_by_tty(tty);
@@ -1687,7 +1687,7 @@ static int hso_serial_tiocmget(struct tty_struct *tty, struct file *file)
 	return retval;
 }
 
-static int hso_serial_tiocmset(struct tty_struct *tty, struct file *file,
+static int hso_serial_tiocmset(struct tty_struct *tty,
 			       unsigned int set, unsigned int clear)
 {
 	int val = 0;
@@ -1730,7 +1730,7 @@ static int hso_serial_tiocmset(struct tty_struct *tty, struct file *file,
 			       USB_CTRL_SET_TIMEOUT);
 }
 
-static int hso_serial_ioctl(struct tty_struct *tty, struct file *file,
+static int hso_serial_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct hso_serial *serial =  get_serial_by_tty(tty);
@@ -2421,10 +2421,8 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 
 	remove_net_device(hso_net->parent);
 
-	if (hso_net->net) {
+	if (hso_net->net)
 		unregister_netdev(hso_net->net);
-		free_netdev(hso_net->net);
-	}
 
 	/* start freeing */
 	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
@@ -2435,6 +2433,9 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 	usb_free_urb(hso_net->mux_bulk_tx_urb);
 	kfree(hso_net->mux_bulk_tx_buf);
 	hso_net->mux_bulk_tx_buf = NULL;
+
+	if (hso_net->net)
+		free_netdev(hso_net->net);
 
 	kfree(hso_dev);
 }

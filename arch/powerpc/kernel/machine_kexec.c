@@ -26,20 +26,23 @@ void machine_kexec_mask_interrupts(void) {
 
 	for_each_irq(i) {
 		struct irq_desc *desc = irq_to_desc(i);
+		struct irq_chip *chip;
 
-		if (!desc || !desc->chip)
+		if (!desc)
 			continue;
 
-		if (desc->chip->eoi &&
-		    desc->status & IRQ_INPROGRESS)
-			desc->chip->eoi(i);
+		chip = irq_desc_get_chip(desc);
+		if (!chip)
+			continue;
 
-		if (desc->chip->mask)
-			desc->chip->mask(i);
+		if (chip->irq_eoi && irqd_irq_inprogress(&desc->irq_data))
+			chip->irq_eoi(&desc->irq_data);
 
-		if (desc->chip->disable &&
-		    !(desc->status & IRQ_DISABLED))
-			desc->chip->disable(i);
+		if (chip->irq_mask)
+			chip->irq_mask(&desc->irq_data);
+
+		if (chip->irq_disable && !irqd_irq_disabled(&desc->irq_data))
+			chip->irq_disable(&desc->irq_data);
 	}
 }
 
@@ -87,7 +90,10 @@ void machine_kexec(struct kimage *image)
 
 	save_ftrace_enabled = __ftrace_enabled_save();
 
-	default_machine_kexec(image);
+	if (ppc_md.machine_kexec)
+		ppc_md.machine_kexec(image);
+	else
+		default_machine_kexec(image);
 
 	__ftrace_enabled_restore(save_ftrace_enabled);
 
@@ -120,7 +126,7 @@ void __init reserve_crashkernel(void)
 	/* We might have got these values via the command line or the
 	 * device tree, either way sanitise them now. */
 
-	crash_size = crashk_res.end - crashk_res.start + 1;
+	crash_size = resource_size(&crashk_res);
 
 #ifndef CONFIG_RELOCATABLE
 	if (crashk_res.start != KDUMP_KERNELBASE)
@@ -130,12 +136,16 @@ void __init reserve_crashkernel(void)
 	crashk_res.start = KDUMP_KERNELBASE;
 #else
 	if (!crashk_res.start) {
+#ifdef CONFIG_PPC64
 		/*
-		 * unspecified address, choose a region of specified size
-		 * can overlap with initrd (ignoring corruption when retained)
-		 * ppc64 requires kernel and some stacks to be in first segemnt
+		 * On 64bit we split the RMO in half but cap it at half of
+		 * a small SLB (128MB) since the crash kernel needs to place
+		 * itself and some stacks to be in the first segment.
 		 */
+		crashk_res.start = min(0x80000000ULL, (ppc64_rma_size / 2));
+#else
 		crashk_res.start = KDUMP_KERNELBASE;
+#endif
 	}
 
 	crash_base = PAGE_ALIGN(crashk_res.start);
@@ -216,7 +226,7 @@ static void __init export_crashk_values(struct device_node *node)
 
 	if (crashk_res.start != 0) {
 		prom_add_property(node, &crashk_base_prop);
-		crashk_size = crashk_res.end - crashk_res.start + 1;
+		crashk_size = resource_size(&crashk_res);
 		prom_add_property(node, &crashk_size_prop);
 	}
 }

@@ -111,7 +111,7 @@ struct ipmi_ipmb_addr {
  * A LAN Address.  This is an address to/from a LAN interface bridged
  * by the BMC, not an address actually out on the LAN.
  *
- * A concious decision was made here to deviate slightly from the IPMI
+ * A conscious decision was made here to deviate slightly from the IPMI
  * spec.  We do not use rqSWID and rsSWID like it shows in the
  * message.  Instead, we use remote_SWID and local_SWID.  This means
  * that any message (a request or response) from another device will
@@ -259,7 +259,7 @@ struct ipmi_recv_msg {
 	void (*done)(struct ipmi_recv_msg *msg);
 
 	/* Place-holder for the data, don't make any assumptions about
-	   the size or existance of this, since it may change. */
+	   the size or existence of this, since it may change. */
 	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
 };
 

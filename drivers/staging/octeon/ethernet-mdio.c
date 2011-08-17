@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/ratelimit.h>
 
 #include <net/dst.h>
 
@@ -91,8 +92,6 @@ const struct ethtool_ops cvm_oct_ethtool_ops = {
 	.set_settings = cvm_oct_set_settings,
 	.nway_reset = cvm_oct_nway_reset,
 	.get_link = ethtool_op_get_link,
-	.get_sg = ethtool_op_get_sg,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 };
 
 /**
@@ -131,22 +130,22 @@ static void cvm_oct_adjust_link(struct net_device *dev)
 		if (priv->last_link) {
 			netif_carrier_on(dev);
 			if (priv->queue != -1)
-				DEBUGPRINT("%s: %u Mbps %s duplex, "
-					   "port %2d, queue %2d\n",
-					   dev->name, priv->phydev->speed,
-					   priv->phydev->duplex ?
-						"Full" : "Half",
-					   priv->port, priv->queue);
+				printk_ratelimited("%s: %u Mbps %s duplex, "
+						   "port %2d, queue %2d\n",
+						   dev->name, priv->phydev->speed,
+						   priv->phydev->duplex ?
+						   "Full" : "Half",
+						   priv->port, priv->queue);
 			else
-				DEBUGPRINT("%s: %u Mbps %s duplex, "
-					   "port %2d, POW\n",
-					   dev->name, priv->phydev->speed,
-					   priv->phydev->duplex ?
-						"Full" : "Half",
-					   priv->port);
+				printk_ratelimited("%s: %u Mbps %s duplex, "
+						   "port %2d, POW\n",
+						   dev->name, priv->phydev->speed,
+						   priv->phydev->duplex ?
+						   "Full" : "Half",
+						   priv->port);
 		} else {
 			netif_carrier_off(dev);
-			DEBUGPRINT("%s: Link down\n", dev->name);
+			printk_ratelimited("%s: Link down\n", dev->name);
 		}
 	}
 }

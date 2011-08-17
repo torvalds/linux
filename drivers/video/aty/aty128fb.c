@@ -1818,6 +1818,7 @@ static void aty128_bl_init(struct aty128fb_par *par)
 	snprintf(name, sizeof(name), "aty128bl%d", info->node);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd = backlight_device_register(name, info->dev, par, &aty128_bl_data,
 				       &props);

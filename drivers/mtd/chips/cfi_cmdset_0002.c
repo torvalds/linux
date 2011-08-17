@@ -263,7 +263,7 @@ static void fixup_old_sst_eraseregion(struct mtd_info *mtd)
 	struct cfi_private *cfi = map->fldrv_priv;
 
 	/*
-	 * These flashes report two seperate eraseblock regions based on the
+	 * These flashes report two separate eraseblock regions based on the
 	 * sector_erase-size and block_erase-size, although they both operate on the
 	 * same memory. This is not allowed according to CFI, so we just pick the
 	 * sector_erase-size.
@@ -349,6 +349,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri },
 #ifdef AMD_BOOTLOC_BUG
 	{ CFI_MFR_AMD, CFI_ID_ANY, fixup_amd_bootblock },
+	{ CFI_MFR_AMIC, CFI_ID_ANY, fixup_amd_bootblock },
 	{ CFI_MFR_MACRONIX, CFI_ID_ANY, fixup_amd_bootblock },
 #endif
 	{ CFI_MFR_AMD, 0x0050, fixup_use_secsi },
@@ -440,7 +441,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
-	mtd->writebufsize = 1 << cfi->cfiq->MaxBufWriteSize;
+	mtd->writebufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "MTD %s(): write buffer size %d\n",
 		__func__, mtd->writebufsize);
@@ -461,13 +462,14 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 			cfi_fixup_major_minor(cfi, extp);
 
 			/*
-			 * Valid primary extension versions are: 1.0, 1.1, 1.2, 1.3, 1.4
+			 * Valid primary extension versions are: 1.0, 1.1, 1.2, 1.3, 1.4, 1.5
 			 * see: http://cs.ozerki.net/zap/pub/axim-x5/docs/cfi_r20.pdf, page 19 
 			 *      http://www.spansion.com/Support/AppNotes/cfi_100_20011201.pdf
 			 *      http://www.spansion.com/Support/Datasheets/s29ws-p_00_a12_e.pdf
+			 *      http://www.spansion.com/Support/Datasheets/S29GL_128S_01GS_00_02_e.pdf
 			 */
 			if (extp->MajorVersion != '1' ||
-			    (extp->MajorVersion == '1' && (extp->MinorVersion < '0' || extp->MinorVersion > '4'))) {
+			    (extp->MajorVersion == '1' && (extp->MinorVersion < '0' || extp->MinorVersion > '5'))) {
 				printk(KERN_ERR "  Unknown Amd/Fujitsu Extended Query "
 				       "version %c.%c (%#02x/%#02x).\n",
 				       extp->MajorVersion, extp->MinorVersion,
@@ -610,8 +612,8 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
  *
  * Note that anything more complicated than checking if no bits are toggling
  * (including checking DQ5 for an error status) is tricky to get working
- * correctly and is therefore not done	(particulary with interleaved chips
- * as each chip must be checked independantly of the others).
+ * correctly and is therefore not done	(particularly with interleaved chips
+ * as each chip must be checked independently of the others).
  */
 static int __xipram chip_ready(struct map_info *map, unsigned long addr)
 {
@@ -634,8 +636,8 @@ static int __xipram chip_ready(struct map_info *map, unsigned long addr)
  *
  * Note that anything more complicated than checking if no bits are toggling
  * (including checking DQ5 for an error status) is tricky to get working
- * correctly and is therefore not done	(particulary with interleaved chips
- * as each chip must be checked independantly of the others).
+ * correctly and is therefore not done	(particularly with interleaved chips
+ * as each chip must be checked independently of the others).
  *
  */
 static int __xipram chip_good(struct map_info *map, unsigned long addr, map_word expected)
@@ -709,9 +711,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 				 * there was an error (so leave the erase
 				 * routine to recover from it) or we trying to
 				 * use the erase-in-progress sector. */
-				map_write(map, cfi->sector_erase_cmd, chip->in_progress_block_addr);
-				chip->state = FL_ERASING;
-				chip->oldstate = FL_READY;
+				put_chip(map, chip, adr);
 				printk(KERN_ERR "MTD %s(): chip not ready after erase suspend\n", __func__);
 				return -EIO;
 			}
@@ -761,7 +761,6 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 
 	switch(chip->oldstate) {
 	case FL_ERASING:
-		chip->state = chip->oldstate;
 		map_write(map, cfi->sector_erase_cmd, chip->in_progress_block_addr);
 		chip->oldstate = FL_READY;
 		chip->state = FL_ERASING;

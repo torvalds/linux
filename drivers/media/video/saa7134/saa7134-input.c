@@ -414,6 +414,41 @@ static int __saa7134_ir_start(void *priv)
 	if (ir->running)
 		return 0;
 
+	/* Moved here from saa7134_input_init1() because the latter
+	 * is not called on device resume */
+	switch (dev->board) {
+	case SAA7134_BOARD_MD2819:
+	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
+	case SAA7134_BOARD_AVERMEDIA_305:
+	case SAA7134_BOARD_AVERMEDIA_307:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_305:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_505:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_507UA:
+	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
+	case SAA7134_BOARD_AVERMEDIA_M102:
+	case SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS:
+		/* Without this we won't receive key up events */
+		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
+		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_777:
+	case SAA7134_BOARD_AVERMEDIA_A16AR:
+		/* Without this we won't receive key up events */
+		saa_setb(SAA7134_GPIO_GPMODE1, 0x1);
+		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x1);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_A16D:
+		/* Without this we won't receive key up events */
+		saa_setb(SAA7134_GPIO_GPMODE1, 0x1);
+		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x1);
+		break;
+	case SAA7134_BOARD_GOTVIEW_7135:
+		saa_setb(SAA7134_GPIO_GPMODE1, 0x80);
+		break;
+	}
+
 	ir->running = true;
 	ir->active = false;
 
@@ -548,9 +583,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
 		polling      = 50; // ms
-		/* Set GPIO pin2 to high to enable the IR controller */
-		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
-		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
+		/* GPIO stuff moved to __saa7134_ir_start() */
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M135A:
 		ir_codes     = RC_MAP_AVERMEDIA_M135A;
@@ -572,18 +605,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; // ms
-		/* Without this we won't receive key up events */
-		saa_setb(SAA7134_GPIO_GPMODE1, 0x1);
-		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x1);
+		/* GPIO stuff moved to __saa7134_ir_start() */
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
 		ir_codes     = RC_MAP_AVERMEDIA_A16D;
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; /* ms */
-		/* Without this we won't receive key up events */
-		saa_setb(SAA7134_GPIO_GPMODE1, 0x1);
-		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x1);
+		/* GPIO stuff moved to __saa7134_ir_start() */
 		break;
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
 		ir_codes     = RC_MAP_PIXELVIEW;
@@ -635,7 +664,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x0003CC;
 		mask_keydown = 0x000010;
 		polling	     = 5; /* ms */
-		saa_setb(SAA7134_GPIO_GPMODE1, 0x80);
+		/* GPIO stuff moved to __saa7134_ir_start() */
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
@@ -681,6 +710,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM3:
 		ir_codes     = RC_MAP_ENCORE_ENLTV_FM53;
 		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
 		mask_keyup   = 0x0040000;
@@ -725,6 +755,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		ir_codes     = RC_MAP_VIDEOMATE_M1F;
 		mask_keycode = 0x0ff00;
 		mask_keyup   = 0x040000;
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+		ir_codes     = RC_MAP_HAUPPAUGE;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = true;
 		break;
 	}
 	if (NULL == ir_codes) {
@@ -863,7 +901,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->init_data.name = "HVR 1110";
 		dev->init_data.get_key = get_key_hvr1110;
-		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 		info.addr = 0x71;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:
@@ -925,7 +963,7 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	 * to work with other protocols.
 	 */
 	if (!ir->active) {
-		timeout = jiffies + jiffies_to_msecs(15);
+		timeout = jiffies + msecs_to_jiffies(15);
 		mod_timer(&ir->timer, timeout);
 		ir->active = true;
 	}

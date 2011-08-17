@@ -33,40 +33,6 @@ struct vmxnet3_stat_desc {
 };
 
 
-static u32
-vmxnet3_get_rx_csum(struct net_device *netdev)
-{
-	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	return adapter->rxcsum;
-}
-
-
-static int
-vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
-{
-	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	unsigned long flags;
-
-	if (adapter->rxcsum != val) {
-		adapter->rxcsum = val;
-		if (netif_running(netdev)) {
-			if (val)
-				adapter->shared->devRead.misc.uptFeatures |=
-				UPT1_F_RXCSUM;
-			else
-				adapter->shared->devRead.misc.uptFeatures &=
-				~UPT1_F_RXCSUM;
-
-			spin_lock_irqsave(&adapter->cmd_lock, flags);
-			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
-					       VMXNET3_CMD_UPDATE_FEATURE);
-			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
-		}
-	}
-	return 0;
-}
-
-
 /* per tq stats maintained by the device */
 static const struct vmxnet3_stat_desc
 vmxnet3_tq_dev_stats[] = {
@@ -147,15 +113,15 @@ vmxnet3_global_stats[] = {
 };
 
 
-struct net_device_stats *
-vmxnet3_get_stats(struct net_device *netdev)
+struct rtnl_link_stats64 *
+vmxnet3_get_stats64(struct net_device *netdev,
+		   struct rtnl_link_stats64 *stats)
 {
 	struct vmxnet3_adapter *adapter;
 	struct vmxnet3_tq_driver_stats *drvTxStats;
 	struct vmxnet3_rq_driver_stats *drvRxStats;
 	struct UPT1_TxStats *devTxStats;
 	struct UPT1_RxStats *devRxStats;
-	struct net_device_stats *net_stats = &netdev->stats;
 	unsigned long flags;
 	int i;
 
@@ -166,36 +132,36 @@ vmxnet3_get_stats(struct net_device *netdev)
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
 	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
-	memset(net_stats, 0, sizeof(*net_stats));
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		devTxStats = &adapter->tqd_start[i].stats;
 		drvTxStats = &adapter->tx_queue[i].stats;
-		net_stats->tx_packets += devTxStats->ucastPktsTxOK +
-					devTxStats->mcastPktsTxOK +
-					devTxStats->bcastPktsTxOK;
-		net_stats->tx_bytes += devTxStats->ucastBytesTxOK +
-				      devTxStats->mcastBytesTxOK +
-				      devTxStats->bcastBytesTxOK;
-		net_stats->tx_errors += devTxStats->pktsTxError;
-		net_stats->tx_dropped += drvTxStats->drop_total;
+		stats->tx_packets += devTxStats->ucastPktsTxOK +
+				     devTxStats->mcastPktsTxOK +
+				     devTxStats->bcastPktsTxOK;
+		stats->tx_bytes += devTxStats->ucastBytesTxOK +
+				   devTxStats->mcastBytesTxOK +
+				   devTxStats->bcastBytesTxOK;
+		stats->tx_errors += devTxStats->pktsTxError;
+		stats->tx_dropped += drvTxStats->drop_total;
 	}
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		devRxStats = &adapter->rqd_start[i].stats;
 		drvRxStats = &adapter->rx_queue[i].stats;
-		net_stats->rx_packets += devRxStats->ucastPktsRxOK +
-					devRxStats->mcastPktsRxOK +
-					devRxStats->bcastPktsRxOK;
+		stats->rx_packets += devRxStats->ucastPktsRxOK +
+				     devRxStats->mcastPktsRxOK +
+				     devRxStats->bcastPktsRxOK;
 
-		net_stats->rx_bytes += devRxStats->ucastBytesRxOK +
-				      devRxStats->mcastBytesRxOK +
-				      devRxStats->bcastBytesRxOK;
+		stats->rx_bytes += devRxStats->ucastBytesRxOK +
+				   devRxStats->mcastBytesRxOK +
+				   devRxStats->bcastBytesRxOK;
 
-		net_stats->rx_errors += devRxStats->pktsRxError;
-		net_stats->rx_dropped += drvRxStats->drop_total;
-		net_stats->multicast +=  devRxStats->mcastPktsRxOK;
+		stats->rx_errors += devRxStats->pktsRxError;
+		stats->rx_dropped += drvRxStats->drop_total;
+		stats->multicast +=  devRxStats->mcastPktsRxOK;
 	}
-	return net_stats;
+
+	return stats;
 }
 
 static int
@@ -296,28 +262,35 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 	}
 }
 
-static int
-vmxnet3_set_flags(struct net_device *netdev, u32 data)
+int vmxnet3_set_features(struct net_device *netdev, u32 features)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	u8 lro_requested = (data & ETH_FLAG_LRO) == 0 ? 0 : 1;
-	u8 lro_present = (netdev->features & NETIF_F_LRO) == 0 ? 0 : 1;
 	unsigned long flags;
+	u32 changed = features ^ netdev->features;
 
-	if (data & ~ETH_FLAG_LRO)
-		return -EOPNOTSUPP;
-
-	if (lro_requested ^ lro_present) {
-		/* toggle the LRO feature*/
-		netdev->features ^= NETIF_F_LRO;
+	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_HW_VLAN_RX)) {
+		if (features & NETIF_F_RXCSUM)
+			adapter->shared->devRead.misc.uptFeatures |=
+			UPT1_F_RXCSUM;
+		else
+			adapter->shared->devRead.misc.uptFeatures &=
+			~UPT1_F_RXCSUM;
 
 		/* update harware LRO capability accordingly */
-		if (lro_requested)
+		if (features & NETIF_F_LRO)
 			adapter->shared->devRead.misc.uptFeatures |=
 							UPT1_F_LRO;
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
 							~UPT1_F_LRO;
+
+		if (features & NETIF_F_HW_VLAN_RX)
+			adapter->shared->devRead.misc.uptFeatures |=
+			UPT1_F_RXVLAN;
+		else
+			adapter->shared->devRead.misc.uptFeatures &=
+			~UPT1_F_RXVLAN;
+
 		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_FEATURE);
@@ -459,10 +432,10 @@ vmxnet3_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	ecmd->transceiver = XCVR_INTERNAL;
 
 	if (adapter->link_speed) {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 	return 0;
@@ -654,17 +627,7 @@ static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_wol           = vmxnet3_get_wol,
 	.set_wol           = vmxnet3_set_wol,
 	.get_link          = ethtool_op_get_link,
-	.get_rx_csum       = vmxnet3_get_rx_csum,
-	.set_rx_csum       = vmxnet3_set_rx_csum,
-	.get_tx_csum       = ethtool_op_get_tx_csum,
-	.set_tx_csum       = ethtool_op_set_tx_hw_csum,
-	.get_sg            = ethtool_op_get_sg,
-	.set_sg            = ethtool_op_set_sg,
-	.get_tso           = ethtool_op_get_tso,
-	.set_tso           = ethtool_op_set_tso,
 	.get_strings       = vmxnet3_get_strings,
-	.get_flags	   = ethtool_op_get_flags,
-	.set_flags	   = vmxnet3_set_flags,
 	.get_sset_count	   = vmxnet3_get_sset_count,
 	.get_ethtool_stats = vmxnet3_get_ethtool_stats,
 	.get_ringparam     = vmxnet3_get_ringparam,

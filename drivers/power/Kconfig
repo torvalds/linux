@@ -68,6 +68,13 @@ config BATTERY_DS2760
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
 
+config BATTERY_DS2780
+	tristate "DS2780 battery driver"
+	select W1
+	select W1_SLAVE_DS2780
+	help
+	  Say Y here to enable support for batteries with ds2780 chip.
+
 config BATTERY_DS2782
 	tristate "DS2782/DS2786 standalone gas-gauge"
 	depends on I2C
@@ -117,9 +124,23 @@ config BATTERY_BQ20Z75
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
+	help
+	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
+
+config BATTERY_BQ27X00_I2C
+	bool "BQ27200/BQ27500 support"
+	depends on BATTERY_BQ27x00
 	depends on I2C
+	default y
 	help
 	  Say Y here to enable support for batteries with BQ27x00 (I2C) chips.
+
+config BATTERY_BQ27X00_PLATFORM
+	bool "BQ27000 support"
+	depends on BATTERY_BQ27x00
+	default y
+	help
+	  Say Y here to enable support for batteries with BQ27000 (HDQ) chips.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
@@ -189,6 +210,15 @@ config CHARGER_ISP1704
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
 
+config CHARGER_MAX8903
+	tristate "MAX8903 Battery DC-DC Charger for USB and Adapter Power"
+	depends on GENERIC_HARDIRQS
+	help
+	  Say Y to enable support for the MAX8903 DC-DC charger and sysfs.
+	  The driver supports controlling charger-enable and current-limit
+	  pins based on the status of charger connections with interrupt
+	  handlers.
+
 config CHARGER_TWL4030
 	tristate "OMAP TWL4030 BCI charger driver"
 	depends on TWL4030_CORE
@@ -204,5 +234,19 @@ config CHARGER_GPIO
 
 	  This driver can be build as a module. If so, the module will be
 	  called gpio-charger.
+
+config CHARGER_MAX8997
+	tristate "Maxim MAX8997/MAX8966 PMIC battery charger driver"
+	depends on MFD_MAX8997 && REGULATOR_MAX8997
+	help
+	  Say Y to enable support for the battery charger control sysfs and
+	  platform data of MAX8997/LP3974 PMICs.
+
+config CHARGER_MAX8998
+	tristate "Maxim MAX8998/LP3974 PMIC battery charger driver"
+	depends on MFD_MAX8998 && REGULATOR_MAX8998
+	help
+	  Say Y to enable support for the battery charger control sysfs and
+	  platform data of MAX8998/LP3974 PMICs.
 
 endif # POWER_SUPPLY

@@ -230,7 +230,7 @@ struct intel_sdvo_set_target_input_args {
 } __attribute__((packed));
 
 /**
- * Takes a struct intel_sdvo_output_flags of which outputs are targetted by
+ * Takes a struct intel_sdvo_output_flags of which outputs are targeted by
  * future output commands.
  *
  * Affected commands inclue SET_OUTPUT_TIMINGS_PART[12],

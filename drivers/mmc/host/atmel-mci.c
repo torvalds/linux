@@ -127,7 +127,7 @@ struct atmel_mci_dma {
  * EVENT_DATA_COMPLETE is set in @pending_events, all data-related
  * interrupts must be disabled and @data_status updated with a
  * snapshot of SR. Similarly, before EVENT_CMD_COMPLETE is set, the
- * CMDRDY interupt must be disabled and @cmd_status updated with a
+ * CMDRDY interrupt must be disabled and @cmd_status updated with a
  * snapshot of SR, and before EVENT_XFER_COMPLETE can be set, the
  * bytes_xfered field of @data must be written. This is ensured by
  * using barriers.
@@ -203,6 +203,7 @@ struct atmel_mci_slot {
 #define ATMCI_CARD_PRESENT	0
 #define ATMCI_CARD_NEED_INIT	1
 #define ATMCI_SHUTDOWN		2
+#define ATMCI_SUSPENDED		3
 
 	int			detect_pin;
 	int			wp_pin;
@@ -578,7 +579,8 @@ static void atmci_dma_cleanup(struct atmel_mci *host)
 	struct mmc_data			*data = host->data;
 
 	if (data)
-		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
+		dma_unmap_sg(host->dma.chan->device->dev,
+			     data->sg, data->sg_len,
 			     ((data->flags & MMC_DATA_WRITE)
 			      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
 }
@@ -588,7 +590,7 @@ static void atmci_stop_dma(struct atmel_mci *host)
 	struct dma_chan *chan = host->data_chan;
 
 	if (chan) {
-	  chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		atmci_dma_cleanup(host);
 	} else {
 		/* Data transfer was stopped by the interrupt handler */
@@ -684,11 +686,11 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	else
 		direction = DMA_TO_DEVICE;
 
-	sglen = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, direction);
-	if (sglen != data->sg_len)
-		goto unmap_exit;
+	sglen = dma_map_sg(chan->device->dev, data->sg,
+			   data->sg_len, direction);
+
 	desc = chan->device->device_prep_slave_sg(chan,
-			data->sg, data->sg_len, direction,
+			data->sg, sglen, direction,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		goto unmap_exit;
@@ -699,7 +701,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	return 0;
 unmap_exit:
-	dma_unmap_sg(&host->pdev->dev, data->sg, sglen, direction);
+	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, direction);
 	return -ENOMEM;
 }
 
@@ -709,8 +711,8 @@ static void atmci_submit_data(struct atmel_mci *host)
 	struct dma_async_tx_descriptor	*desc = host->dma.data_desc;
 
 	if (chan) {
-		desc->tx_submit(desc);
-		chan->device->device_issue_pending(chan);
+		dmaengine_submit(desc);
+		dma_async_issue_pending(chan);
 	}
 }
 
@@ -1081,7 +1083,7 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 	/*
 	 * Update the MMC clock rate if necessary. This may be
 	 * necessary if set_ios() is called when a different slot is
-	 * busy transfering data.
+	 * busy transferring data.
 	 */
 	if (host->need_clock_update) {
 		mci_writel(host, MR, host->mode_reg);
@@ -1877,10 +1879,72 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int atmci_suspend(struct device *dev)
+{
+	struct atmel_mci *host = dev_get_drvdata(dev);
+	int i;
+
+	 for (i = 0; i < ATMEL_MCI_MAX_NR_SLOTS; i++) {
+		struct atmel_mci_slot *slot = host->slot[i];
+		int ret;
+
+		if (!slot)
+			continue;
+		ret = mmc_suspend_host(slot->mmc);
+		if (ret < 0) {
+			while (--i >= 0) {
+				slot = host->slot[i];
+				if (slot
+				&& test_bit(ATMCI_SUSPENDED, &slot->flags)) {
+					mmc_resume_host(host->slot[i]->mmc);
+					clear_bit(ATMCI_SUSPENDED, &slot->flags);
+				}
+			}
+			return ret;
+		} else {
+			set_bit(ATMCI_SUSPENDED, &slot->flags);
+		}
+	}
+
+	return 0;
+}
+
+static int atmci_resume(struct device *dev)
+{
+	struct atmel_mci *host = dev_get_drvdata(dev);
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < ATMEL_MCI_MAX_NR_SLOTS; i++) {
+		struct atmel_mci_slot *slot = host->slot[i];
+		int err;
+
+		slot = host->slot[i];
+		if (!slot)
+			continue;
+		if (!test_bit(ATMCI_SUSPENDED, &slot->flags))
+			continue;
+		err = mmc_resume_host(slot->mmc);
+		if (err < 0)
+			ret = err;
+		else
+			clear_bit(ATMCI_SUSPENDED, &slot->flags);
+	}
+
+	return ret;
+}
+static SIMPLE_DEV_PM_OPS(atmci_pm, atmci_suspend, atmci_resume);
+#define ATMCI_PM_OPS	(&atmci_pm)
+#else
+#define ATMCI_PM_OPS	NULL
+#endif
+
 static struct platform_driver atmci_driver = {
 	.remove		= __exit_p(atmci_remove),
 	.driver		= {
 		.name		= "atmel_mci",
+		.pm		= ATMCI_PM_OPS,
 	},
 };
 
@@ -1898,5 +1962,5 @@ late_initcall(atmci_init); /* try to load after dma driver when built-in */
 module_exit(atmci_exit);
 
 MODULE_DESCRIPTION("Atmel Multimedia Card Interface driver");
-MODULE_AUTHOR("Haavard Skinnemoen <haavard.skinnemoen@atmel.com>");
+MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_LICENSE("GPL v2");

@@ -25,7 +25,6 @@
 #ifndef CX18_DRIVER_H
 #define CX18_DRIVER_H
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -50,6 +49,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
@@ -63,6 +63,10 @@
 #include "dvb_frontend.h"
 #include "dvb_net.h"
 #include "dvbdev.h"
+
+/* Videobuf / YUV support */
+#include <media/videobuf-core.h>
+#include <media/videobuf-vmalloc.h>
 
 #ifndef CONFIG_PCI
 #  error "This driver requires kernel PCI support."
@@ -85,7 +89,8 @@
 #define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
 #define CX18_CARD_LEADTEK_DVR3100H    7 /* Leadtek WinFast DVR3100 H */
 #define CX18_CARD_GOTVIEW_PCI_DVD3    8 /* GoTView PCI DVD3 Hybrid */
-#define CX18_CARD_LAST		      8
+#define CX18_CARD_HVR_1600_S5H1411    9 /* Hauppauge HVR 1600 s5h1411/tda18271*/
+#define CX18_CARD_LAST		      9
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
@@ -401,14 +406,45 @@ struct cx18_stream {
 	struct cx18_queue q_idle;	/* idle - not in rotation */
 
 	struct work_struct out_work_order;
+
+	/* Videobuf for YUV video */
+	u32 pixelformat;
+	struct list_head vb_capture;    /* video capture queue */
+	spinlock_t vb_lock;
+	struct timer_list vb_timeout;
+
+	struct videobuf_queue vbuf_q;
+	spinlock_t vbuf_q_lock; /* Protect vbuf_q */
+	enum v4l2_buf_type vb_type;
+};
+
+struct cx18_videobuf_buffer {
+	/* Common video buffer sub-system struct */
+	struct videobuf_buffer vb;
+	v4l2_std_id tvnorm; /* selected tv norm */
+	u32 bytes_used;
 };
 
 struct cx18_open_id {
+	struct v4l2_fh fh;
 	u32 open_id;
 	int type;
-	enum v4l2_priority prio;
 	struct cx18 *cx;
+
+	struct videobuf_queue vbuf_q;
+	spinlock_t s_lock; /* Protect vbuf_q */
+	enum v4l2_buf_type vb_type;
 };
+
+static inline struct cx18_open_id *fh2id(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct cx18_open_id, fh);
+}
+
+static inline struct cx18_open_id *file2id(struct file *file)
+{
+	return fh2id(file->private_data);
+}
 
 /* forward declaration of struct defined in cx18-cards.h */
 struct cx18_card;
@@ -564,7 +600,7 @@ struct cx18 {
 	struct cx18_av_state av_state;
 
 	/* codec settings */
-	struct cx2341x_mpeg_params params;
+	struct cx2341x_handler cxhdl;
 	u32 filter_mode;
 	u32 temporal_strength;
 	u32 spatial_strength;
@@ -592,7 +628,6 @@ struct cx18 {
 				   uninitialized value in the stream->id. */
 
 	u32 base_addr;
-	struct v4l2_prio_state prio;
 
 	u8 card_rev;
 	void __iomem *enc_mem, *reg_mem;

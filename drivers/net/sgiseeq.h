@@ -1,7 +1,7 @@
 /*
  * sgiseeq.h: Defines for the Seeq8003 ethernet controller.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  */
 #ifndef _SGISEEQ_H
 #define _SGISEEQ_H

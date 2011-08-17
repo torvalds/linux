@@ -42,7 +42,7 @@ static void __exit ca91cx42_exit(void);
 /* Module parameters */
 static int geoid;
 
-static char driver_name[] = "vme_ca91cx42";
+static const char driver_name[] = "vme_ca91cx42";
 
 static DEFINE_PCI_DEVICE_TABLE(ca91cx42_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_CA91C142) },
@@ -190,7 +190,7 @@ static irqreturn_t ca91cx42_irqhandler(int irq, void *ptr)
 		serviced |= ca91cx42_VIRQ_irqhandler(ca91cx42_bridge, stat);
 
 	/* Clear serviced interrupts */
-	iowrite32(stat, bridge->base + LINT_STAT);
+	iowrite32(serviced, bridge->base + LINT_STAT);
 
 	return IRQ_HANDLED;
 }
@@ -256,6 +256,18 @@ static void ca91cx42_irq_exit(struct ca91cx42_driver *bridge,
 	free_irq(pdev->irq, pdev);
 }
 
+static int ca91cx42_iack_received(struct ca91cx42_driver *bridge, int level)
+{
+	u32 tmp;
+
+	tmp = ioread32(bridge->base + LINT_STAT);
+
+	if (tmp & (1 << level))
+		return 0;
+	else
+		return 1;
+}
+
 /*
  * Set up an VME interrupt
  */
@@ -311,7 +323,8 @@ static int ca91cx42_irq_generate(struct vme_bridge *ca91cx42_bridge, int level,
 	iowrite32(tmp, bridge->base + VINT_EN);
 
 	/* Wait for IACK */
-	wait_event_interruptible(bridge->iack_queue, 0);
+	wait_event_interruptible(bridge->iack_queue,
+				 ca91cx42_iack_received(bridge, level));
 
 	/* Return interrupt to low state */
 	tmp = ioread32(bridge->base + VINT_EN);
@@ -516,8 +529,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	if (existing_size != 0) {
 		iounmap(image->kern_base);
 		image->kern_base = NULL;
-		if (image->bus_resource.name != NULL)
-			kfree(image->bus_resource.name);
+		kfree(image->bus_resource.name);
 		release_resource(&image->bus_resource);
 		memset(&image->bus_resource, 0, sizeof(struct resource));
 	}
@@ -560,8 +572,6 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 
 	return 0;
 
-	iounmap(image->kern_base);
-	image->kern_base = NULL;
 err_remap:
 	release_resource(&image->bus_resource);
 err_resource:
@@ -624,7 +634,7 @@ static int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 
 	/*
 	 * Let's allocate the resource here rather than further up the stack as
-	 * it avoids pushing loads of bus dependant stuff up the stack
+	 * it avoids pushing loads of bus dependent stuff up the stack
 	 */
 	retval = ca91cx42_alloc_resource(image, size);
 	if (retval) {
@@ -1055,7 +1065,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 		pci_attr = dest->private;
 	}
 
-	/* Check we can do fullfill required attributes */
+	/* Check we can do fulfill required attributes */
 	if ((vme_attr->aspace & ~(VME_A16 | VME_A24 | VME_A32 | VME_USER1 |
 		VME_USER2)) != 0) {
 
@@ -1072,7 +1082,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 		goto err_cycle;
 	}
 
-	/* Check to see if we can fullfill source and destination */
+	/* Check to see if we can fulfill source and destination */
 	if (!(((src->type == VME_DMA_PCI) && (dest->type == VME_DMA_VME)) ||
 		((src->type == VME_DMA_VME) && (dest->type == VME_DMA_PCI)))) {
 
@@ -1782,7 +1792,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-	vme_unregister_bridge(ca91cx42_bridge);
 err_reg:
 	ca91cx42_crcsr_exit(ca91cx42_bridge, pdev);
 err_lm:

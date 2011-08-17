@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/vt.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
@@ -89,7 +87,6 @@
 #include <linux/mutex.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
-#include <linux/smp_lock.h>
 #include <linux/tiocl.h>
 #include <linux/kbd_kern.h>
 #include <linux/consolemap.h>
@@ -859,7 +856,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned long end;
-	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
+	unsigned int old_rows, old_row_size;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
 	unsigned int user;
 	unsigned short *newscreen;
@@ -888,9 +885,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 		return -ENOMEM;
 
 	old_rows = vc->vc_rows;
-	old_cols = vc->vc_cols;
 	old_row_size = vc->vc_size_row;
-	old_screen_size = vc->vc_screenbuf_size;
 
 	err = resize_screen(vc, new_cols, new_rows, user);
 	if (err) {
@@ -1198,6 +1193,13 @@ static void csi_J(struct vc_data *vc, int vpar)
 					      vc->vc_x + 1);
 			}
 			break;
+		case 3: /* erase scroll-back buffer (and whole display) */
+			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
+				    vc->vc_screenbuf_size >> 1);
+			set_origin(vc);
+			if (CON_IS_VISIBLE(vc))
+				update_screen(vc);
+			/* fall through */
 		case 2: /* erase whole display */
 			count = vc->vc_cols * vc->vc_rows;
 			start = (unsigned short *)vc->vc_origin;
@@ -2068,18 +2070,6 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 	}
 }
 
-/* This is a temporary buffer used to prepare a tty console write
- * so that we can easily avoid touching user space while holding the
- * console spinlock.  It is allocated in con_init and is shared by
- * this code and the vc_screen read/write tty calls.
- *
- * We have to allocate this statically in the kernel data section
- * since console_init (and thus con_init) are called before any
- * kernel memory allocation is available.
- */
-char con_buf[CON_BUF_SIZE];
-DEFINE_MUTEX(con_buf_mtx);
-
 /* is_double_width() is based on the wcwidth() implementation by
  * Markus Kuhn -- 2007-05-26 (Unicode 5.0)
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
@@ -2157,10 +2147,10 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	currcons = vc->vc_num;
 	if (!vc_cons_allocated(currcons)) {
-	    /* could this happen? */
-		printk_once("con_write: tty %d not allocated\n", currcons+1);
-	    console_unlock();
-	    return 0;
+		/* could this happen? */
+		pr_warn_once("con_write: tty %d not allocated\n", currcons+1);
+		console_unlock();
+		return 0;
 	}
 
 	himask = vc->vc_hi_font_mask;
@@ -2940,7 +2930,7 @@ static int __init con_init(void)
 	gotoxy(vc, vc->vc_x, vc->vc_y);
 	csi_J(vc, 0);
 	update_screen(vc);
-	printk("Console: %s %s %dx%d",
+	pr_info("Console: %s %s %dx%d",
 		vc->vc_can_do_color ? "colour" : "mono",
 		display_desc, vc->vc_cols, vc->vc_rows);
 	printable = 1;
@@ -3103,7 +3093,7 @@ static int bind_con_driver(const struct consw *csw, int first, int last,
 			clear_buffer_attributes(vc);
 	}
 
-	printk("Console: switching ");
+	pr_info("Console: switching ");
 	if (!deflt)
 		printk("consoles %d-%d ", first+1, last+1);
 	if (j >= 0) {
@@ -3809,7 +3799,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		printk("unblank_screen: tty %d not allocated ??\n", fg_console+1);
+		pr_warning("unblank_screen: tty %d not allocated ??\n",
+			   fg_console+1);
 		return;
 	}
 	vc = vc_cons[fg_console].d;
@@ -3975,7 +3966,7 @@ void reset_palette(struct vc_data *vc)
  *  of 32 pixels. Userspace fontdata is stored with 32 bytes (shorts/ints, 
  *  depending on width) reserved for each character which is kinda wasty, but 
  *  this is done in order to maintain compatibility with the EGA/VGA fonts. It 
- *  is upto the actual low-level console-driver convert data into its favorite
+ *  is up to the actual low-level console-driver convert data into its favorite
  *  format (maybe we should add a `fontoffset' field to the `display'
  *  structure so we won't have to convert the fontdata all the time.
  *  /Jes

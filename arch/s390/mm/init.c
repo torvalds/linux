@@ -119,9 +119,7 @@ void __init paging_init(void)
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-#ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
-#endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(max_zone_pfns);
 	fault_init();
@@ -175,7 +173,8 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
 		if (!enable) {
-			ptep_invalidate(&init_mm, address, pte);
+			__ptep_ipte(address, pte);
+			pte_val(*pte) = _PAGE_TYPE_EMPTY;
 			continue;
 		}
 		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));

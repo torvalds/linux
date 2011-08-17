@@ -47,6 +47,86 @@
 #define SSVALX(buf,pos,val) (CVAL(buf,pos)=(val)&0xFF,CVAL(buf,pos+1)=(val)>>8)
 #define SSVAL(buf,pos,val) SSVALX((buf),(pos),((__u16)(val)))
 
+static void
+str_to_key(unsigned char *str, unsigned char *key)
+{
+	int i;
+
+	key[0] = str[0] >> 1;
+	key[1] = ((str[0] & 0x01) << 6) | (str[1] >> 2);
+	key[2] = ((str[1] & 0x03) << 5) | (str[2] >> 3);
+	key[3] = ((str[2] & 0x07) << 4) | (str[3] >> 4);
+	key[4] = ((str[3] & 0x0F) << 3) | (str[4] >> 5);
+	key[5] = ((str[4] & 0x1F) << 2) | (str[5] >> 6);
+	key[6] = ((str[5] & 0x3F) << 1) | (str[6] >> 7);
+	key[7] = str[6] & 0x7F;
+	for (i = 0; i < 8; i++)
+		key[i] = (key[i] << 1);
+}
+
+static int
+smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
+{
+	int rc;
+	unsigned char key2[8];
+	struct crypto_blkcipher *tfm_des;
+	struct scatterlist sgin, sgout;
+	struct blkcipher_desc desc;
+
+	str_to_key(key, key2);
+
+	tfm_des = crypto_alloc_blkcipher("ecb(des)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_des)) {
+		rc = PTR_ERR(tfm_des);
+		cERROR(1, "could not allocate des crypto API\n");
+		goto smbhash_err;
+	}
+
+	desc.tfm = tfm_des;
+
+	crypto_blkcipher_setkey(tfm_des, key2, 8);
+
+	sg_init_one(&sgin, in, 8);
+	sg_init_one(&sgout, out, 8);
+
+	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, 8);
+	if (rc)
+		cERROR(1, "could not encrypt crypt key rc: %d\n", rc);
+
+	crypto_free_blkcipher(tfm_des);
+smbhash_err:
+	return rc;
+}
+
+static int
+E_P16(unsigned char *p14, unsigned char *p16)
+{
+	int rc;
+	unsigned char sp8[8] =
+	    { 0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25 };
+
+	rc = smbhash(p16, sp8, p14);
+	if (rc)
+		return rc;
+	rc = smbhash(p16 + 8, sp8, p14 + 7);
+	return rc;
+}
+
+static int
+E_P24(unsigned char *p21, const unsigned char *c8, unsigned char *p24)
+{
+	int rc;
+
+	rc = smbhash(p24, c8, p21);
+	if (rc)
+		return rc;
+	rc = smbhash(p24 + 8, c8, p21 + 7);
+	if (rc)
+		return rc;
+	rc = smbhash(p24 + 16, c8, p21 + 14);
+	return rc;
+}
+
 /* produce a md4 message digest from data of length n bytes */
 int
 mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
@@ -77,8 +157,14 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 		cERROR(1, "%s: Could not init md4 shash\n", __func__);
 		goto mdfour_err;
 	}
-	crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	rc = crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	if (rc) {
+		cERROR(1, "%s: Could not update with link_str\n", __func__);
+		goto mdfour_err;
+	}
 	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
+	if (rc)
+		cERROR(1, "%s: Could not genereate md4 hash\n", __func__);
 
 mdfour_err:
 	crypto_free_shash(md4);
@@ -87,40 +173,30 @@ mdfour_err:
 	return rc;
 }
 
-/* Does the des encryption from the NT or LM MD4 hash. */
-static void
-SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
-	      unsigned char p24[24])
-{
-	unsigned char p21[21];
-
-	memset(p21, '\0', 21);
-
-	memcpy(p21, passwd, 16);
-	E_P24(p21, c8, p24);
-}
-
 /*
    This implements the X/Open SMB password encryption
    It takes a password, a 8 byte "crypt key" and puts 24 bytes of
    encrypted password into p24 */
 /* Note that password must be uppercased and null terminated */
-void
+int
 SMBencrypt(unsigned char *passwd, const unsigned char *c8, unsigned char *p24)
 {
-	unsigned char p14[15], p21[21];
+	int rc;
+	unsigned char p14[14], p16[16], p21[21];
 
-	memset(p21, '\0', 21);
 	memset(p14, '\0', 14);
-	strncpy((char *) p14, (char *) passwd, 14);
+	memset(p16, '\0', 16);
+	memset(p21, '\0', 21);
 
-/*	strupper((char *)p14); *//* BB at least uppercase the easy range */
-	E_P16(p14, p21);
+	memcpy(p14, passwd, 14);
+	rc = E_P16(p14, p16);
+	if (rc)
+		return rc;
 
-	SMBOWFencrypt(p21, c8, p24);
+	memcpy(p21, p16, 16);
+	rc = E_P24(p21, c8, p24);
 
-	memset(p14, 0, 15);
-	memset(p21, 0, 21);
+	return rc;
 }
 
 /* Routines for Windows NT MD4 Hash functions. */
@@ -279,16 +355,18 @@ int
 SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 {
 	int rc;
-	unsigned char p21[21];
+	unsigned char p16[16], p21[21];
 
+	memset(p16, '\0', 16);
 	memset(p21, '\0', 21);
 
-	rc = E_md4hash(passwd, p21);
+	rc = E_md4hash(passwd, p16);
 	if (rc) {
 		cFYI(1, "%s Can't generate NT hash, error: %d", __func__, rc);
 		return rc;
 	}
-	SMBOWFencrypt(p21, c8, p24);
+	memcpy(p21, p16, 16);
+	rc = E_P24(p21, c8, p24);
 	return rc;
 }
 

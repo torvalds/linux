@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -239,7 +239,6 @@ struct ath_desc {
 	void *ds_vdata;
 } __packed __aligned(4);
 
-#define ATH9K_TXDESC_CLRDMASK		0x0001
 #define ATH9K_TXDESC_NOACK		0x0002
 #define ATH9K_TXDESC_RTSENA		0x0004
 #define ATH9K_TXDESC_CTSENA		0x0008
@@ -639,6 +638,8 @@ enum ath9k_rx_filter {
 	ATH9K_RX_FILTER_PHYERR = 0x00000100,
 	ATH9K_RX_FILTER_MYBEACON = 0x00000200,
 	ATH9K_RX_FILTER_COMP_BAR = 0x00000400,
+	ATH9K_RX_FILTER_COMP_BA = 0x00000800,
+	ATH9K_RX_FILTER_UNCOMP_BA_BAR = 0x00001000,
 	ATH9K_RX_FILTER_PSPOLL = 0x00004000,
 	ATH9K_RX_FILTER_PHYRADAR = 0x00002000,
 	ATH9K_RX_FILTER_MCAST_BCAST_ALL = 0x00008000,
@@ -674,7 +675,8 @@ void ath9k_hw_txstart(struct ath_hw *ah, u32 q);
 void ath9k_hw_cleartxdesc(struct ath_hw *ah, void *ds);
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q);
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel);
-bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q);
+bool ath9k_hw_stop_dma_queue(struct ath_hw *ah, u32 q);
+void ath9k_hw_abort_tx_dma(struct ath_hw *ah);
 void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs);
 bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo);
@@ -692,7 +694,7 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
 void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp);
 void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_abortpcurecv(struct ath_hw *ah);
-bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
+bool ath9k_hw_stopdmarecv(struct ath_hw *ah, bool *reset);
 int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
 /* Interrupt Handling */

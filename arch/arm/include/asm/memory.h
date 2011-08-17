@@ -15,6 +15,7 @@
 
 #include <linux/compiler.h>
 #include <linux/const.h>
+#include <linux/types.h>
 #include <mach/memory.h>
 #include <asm/sizes.h>
 
@@ -133,20 +134,10 @@
 #endif
 
 /*
- * Physical vs virtual RAM address space conversion.  These are
- * private definitions which should NOT be used outside memory.h
- * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
- */
-#ifndef __virt_to_phys
-#define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
-#define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
-#endif
-
-/*
  * Convert a physical address to a Page Frame Number and back
  */
-#define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
-#define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
+#define	__pfn_to_phys(pfn)	((phys_addr_t)(pfn) << PAGE_SHIFT)
 
 /*
  * Convert a page to/from a physical address
@@ -157,19 +148,59 @@
 #ifndef __ASSEMBLY__
 
 /*
- * The DMA mask corresponding to the maximum bus address allocatable
- * using GFP_DMA.  The default here places no restriction on DMA
- * allocations.  This must be the smallest DMA mask in the system,
- * so a successful GFP_DMA allocation will always satisfy this.
+ * Physical vs virtual RAM address space conversion.  These are
+ * private definitions which should NOT be used outside memory.h
+ * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  */
-#ifndef ISA_DMA_THRESHOLD
-#define ISA_DMA_THRESHOLD	(0xffffffffULL)
+#ifndef __virt_to_phys
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+
+/*
+ * Constants used to force the right instruction encodings and shifts
+ * so that all we need to do is modify the 8-bit constant field.
+ */
+#define __PV_BITS_31_24	0x81000000
+#define __PV_BITS_23_16	0x00810000
+
+extern unsigned long __pv_phys_offset;
+#define PHYS_OFFSET __pv_phys_offset
+
+#define __pv_stub(from,to,instr,type)			\
+	__asm__("@ __pv_stub\n"				\
+	"1:	" instr "	%0, %1, %2\n"		\
+	"	.pushsection .pv_table,\"a\"\n"		\
+	"	.long	1b\n"				\
+	"	.popsection\n"				\
+	: "=r" (to)					\
+	: "r" (from), "I" (type))
+
+static inline unsigned long __virt_to_phys(unsigned long x)
+{
+	unsigned long t;
+	__pv_stub(x, t, "add", __PV_BITS_31_24);
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	__pv_stub(t, t, "add", __PV_BITS_23_16);
+#endif
+	return t;
+}
+
+static inline unsigned long __phys_to_virt(unsigned long x)
+{
+	unsigned long t;
+	__pv_stub(x, t, "sub", __PV_BITS_31_24);
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	__pv_stub(t, t, "sub", __PV_BITS_23_16);
+#endif
+	return t;
+}
+#else
+#define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
+#endif
 #endif
 
-#ifndef arch_adjust_zones
-#define arch_adjust_zones(size,holes) do { } while (0)
-#elif !defined(CONFIG_ZONE_DMA)
-#error "custom arch_adjust_zones() requires CONFIG_ZONE_DMA"
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET	PLAT_PHYS_OFFSET
 #endif
 
 /*
@@ -188,12 +219,12 @@
  * translation for translating DMA addresses.  Use the driver
  * DMA support - see dma-mapping.h.
  */
-static inline unsigned long virt_to_phys(const volatile void *x)
+static inline phys_addr_t virt_to_phys(const volatile void *x)
 {
 	return __virt_to_phys((unsigned long)(x));
 }
 
-static inline void *phys_to_virt(unsigned long x)
+static inline void *phys_to_virt(phys_addr_t x)
 {
 	return (void *)(__phys_to_virt((unsigned long)(x)));
 }

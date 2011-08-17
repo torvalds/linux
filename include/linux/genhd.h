@@ -109,7 +109,7 @@ struct hd_struct {
 	int make_it_fail;
 #endif
 	unsigned long stamp;
-	int in_flight[2];
+	atomic_t in_flight[2];
 #ifdef	CONFIG_SMP
 	struct disk_stats __percpu *dkstats;
 #else
@@ -127,6 +127,7 @@ struct hd_struct {
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	32
 #define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
 #define GENHD_FL_NATIVE_CAPACITY		128
+#define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	256
 
 enum {
 	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
@@ -370,21 +371,21 @@ static inline void free_part_stats(struct hd_struct *part)
 
 static inline void part_inc_in_flight(struct hd_struct *part, int rw)
 {
-	part->in_flight[rw]++;
+	atomic_inc(&part->in_flight[rw]);
 	if (part->partno)
-		part_to_disk(part)->part0.in_flight[rw]++;
+		atomic_inc(&part_to_disk(part)->part0.in_flight[rw]);
 }
 
 static inline void part_dec_in_flight(struct hd_struct *part, int rw)
 {
-	part->in_flight[rw]--;
+	atomic_dec(&part->in_flight[rw]);
 	if (part->partno)
-		part_to_disk(part)->part0.in_flight[rw]--;
+		atomic_dec(&part_to_disk(part)->part0.in_flight[rw]);
 }
 
 static inline int part_in_flight(struct hd_struct *part)
 {
-	return part->in_flight[0] + part->in_flight[1];
+	return atomic_read(&part->in_flight[0]) + atomic_read(&part->in_flight[1]);
 }
 
 static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
@@ -419,7 +420,7 @@ static inline int get_disk_ro(struct gendisk *disk)
 
 extern void disk_block_events(struct gendisk *disk);
 extern void disk_unblock_events(struct gendisk *disk);
-extern void disk_check_events(struct gendisk *disk);
+extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
 extern unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask);
 
 /* drivers/char/random.c */

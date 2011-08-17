@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
 /* module parameters */
 static int opmode   = OPMODE_AUTO;
 int msp_debug;		 /* msp_debug output */
-int msp_once;		 /* no continous stereo monitoring */
+int msp_once;		 /* no continuous stereo monitoring */
 int msp_amsound;	 /* hard-wire AM sound at 6.5 Hz (france),
 			    the autoscan seems work well only with FM... */
 int msp_standard = 1;    /* Override auto detect of audio msp_standard,
@@ -96,7 +96,7 @@ MODULE_PARM_DESC(debug, "Enable debug messages [0-3]");
 MODULE_PARM_DESC(stereo_threshold, "Sets signal threshold to activate stereo");
 MODULE_PARM_DESC(standard, "Specify audio standard: 32 = NTSC, 64 = radio, Default: Autodetect");
 MODULE_PARM_DESC(amsound, "Hardwire AM sound at 6.5Hz (France), FM can autoscan");
-MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
+MODULE_PARM_DESC(dolby, "Activates Dolby processing");
 
 /* ---------------------------------------------------------------------- */
 
@@ -480,12 +480,14 @@ static int msp_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (state->radio)
+	if (vt->type != V4L2_TUNER_ANALOG_TV)
 		return 0;
-	if (state->opmode == OPMODE_AUTOSELECT)
-		msp_detect_stereo(client);
-	vt->audmode    = state->audmode;
-	vt->rxsubchans = state->rxsubchans;
+	if (!state->radio) {
+		if (state->opmode == OPMODE_AUTOSELECT)
+			msp_detect_stereo(client);
+		vt->rxsubchans = state->rxsubchans;
+	}
+	vt->audmode = state->audmode;
 	vt->capability |= V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 	return 0;
@@ -551,7 +553,7 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	switch (state->mode) {
 		case MSP_MODE_AM_DETECT: p = "AM (for carrier detect)"; break;
 		case MSP_MODE_FM_RADIO: p = "FM Radio"; break;
-		case MSP_MODE_FM_TERRA: p = "Terrestial FM-mono/stereo"; break;
+		case MSP_MODE_FM_TERRA: p = "Terrestrial FM-mono/stereo"; break;
 		case MSP_MODE_FM_SAT: p = "Satellite FM-mono"; break;
 		case MSP_MODE_FM_NICAM1: p = "NICAM/FM (B/G, D/K)"; break;
 		case MSP_MODE_FM_NICAM2: p = "NICAM/FM (I)"; break;

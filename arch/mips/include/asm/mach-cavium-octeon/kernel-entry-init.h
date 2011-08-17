@@ -63,6 +63,11 @@
 	# CN30XX Disable instruction prefetching
 	or  v0, v0, 0x2000
 skip:
+	# First clear off CvmCtl[IPPCI] bit and move the performance
+	# counters interrupt to IRQ 6
+	li	v1, ~(7 << 7)
+	and	v0, v0, v1
+	ori	v0, v0, (6 << 7)
 	# Write the cavium control register
 	dmtc0   v0, CP0_CVMCTL_REG
 	sync

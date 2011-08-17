@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
@@ -1233,7 +1234,7 @@ static int link_status_1g_rgmii(struct niu *np, int *link_up_p)
 
 	bmsr = err;
 	if (bmsr & BMSR_LSTATUS) {
-		u16 adv, lpa, common, estat;
+		u16 adv, lpa;
 
 		err = mii_read(np, np->phy_addr, MII_ADVERTISE);
 		if (err < 0)
@@ -1245,12 +1246,9 @@ static int link_status_1g_rgmii(struct niu *np, int *link_up_p)
 			goto out;
 		lpa = err;
 
-		common = adv & lpa;
-
 		err = mii_read(np, np->phy_addr, MII_ESTATUS);
 		if (err < 0)
 			goto out;
-		estat = err;
 		link_up = 1;
 		current_speed = SPEED_1000;
 		current_duplex = DUPLEX_FULL;
@@ -1650,7 +1648,7 @@ static int xcvr_init_10g(struct niu *np)
 		break;
 	}
 
-	return 0;
+	return err;
 }
 
 static int mii_reset(struct niu *np)
@@ -2381,17 +2379,14 @@ static int serdes_init_10g_serdes(struct niu *np)
 	struct niu_link_config *lp = &np->link_config;
 	unsigned long ctrl_reg, test_cfg_reg, pll_cfg, i;
 	u64 ctrl_val, test_cfg_val, sig, mask, val;
-	u64 reset_val;
 
 	switch (np->port) {
 	case 0:
-		reset_val =  ENET_SERDES_RESET_0;
 		ctrl_reg = ENET_SERDES_0_CTRL_CFG;
 		test_cfg_reg = ENET_SERDES_0_TEST_CFG;
 		pll_cfg = ENET_SERDES_0_PLL_CFG;
 		break;
 	case 1:
-		reset_val =  ENET_SERDES_RESET_1;
 		ctrl_reg = ENET_SERDES_1_CTRL_CFG;
 		test_cfg_reg = ENET_SERDES_1_TEST_CFG;
 		pll_cfg = ENET_SERDES_1_PLL_CFG;
@@ -6071,8 +6066,7 @@ static int niu_request_irq(struct niu *np)
 	for (i = 0; i < np->num_ldg; i++) {
 		struct niu_ldg *lp = &np->ldg[i];
 
-		err = request_irq(lp->irq, niu_interrupt,
-				  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+		err = request_irq(lp->irq, niu_interrupt, IRQF_SHARED,
 				  np->irq_name[i], lp);
 		if (err)
 			goto out_free_irqs;
@@ -6255,9 +6249,10 @@ static void niu_sync_mac_stats(struct niu *np)
 		niu_sync_bmac_stats(np);
 }
 
-static void niu_get_rx_stats(struct niu *np)
+static void niu_get_rx_stats(struct niu *np,
+			     struct rtnl_link_stats64 *stats)
 {
-	unsigned long pkts, dropped, errors, bytes;
+	u64 pkts, dropped, errors, bytes;
 	struct rx_ring_info *rx_rings;
 	int i;
 
@@ -6279,15 +6274,16 @@ static void niu_get_rx_stats(struct niu *np)
 	}
 
 no_rings:
-	np->dev->stats.rx_packets = pkts;
-	np->dev->stats.rx_bytes = bytes;
-	np->dev->stats.rx_dropped = dropped;
-	np->dev->stats.rx_errors = errors;
+	stats->rx_packets = pkts;
+	stats->rx_bytes = bytes;
+	stats->rx_dropped = dropped;
+	stats->rx_errors = errors;
 }
 
-static void niu_get_tx_stats(struct niu *np)
+static void niu_get_tx_stats(struct niu *np,
+			     struct rtnl_link_stats64 *stats)
 {
-	unsigned long pkts, errors, bytes;
+	u64 pkts, errors, bytes;
 	struct tx_ring_info *tx_rings;
 	int i;
 
@@ -6306,20 +6302,22 @@ static void niu_get_tx_stats(struct niu *np)
 	}
 
 no_rings:
-	np->dev->stats.tx_packets = pkts;
-	np->dev->stats.tx_bytes = bytes;
-	np->dev->stats.tx_errors = errors;
+	stats->tx_packets = pkts;
+	stats->tx_bytes = bytes;
+	stats->tx_errors = errors;
 }
 
-static struct net_device_stats *niu_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *niu_get_stats(struct net_device *dev,
+					       struct rtnl_link_stats64 *stats)
 {
 	struct niu *np = netdev_priv(dev);
 
 	if (netif_running(dev)) {
-		niu_get_rx_stats(np);
-		niu_get_tx_stats(np);
+		niu_get_rx_stats(np, stats);
+		niu_get_tx_stats(np, stats);
 	}
-	return &dev->stats;
+
+	return stats;
 }
 
 static void niu_load_hash_xmac(struct niu *np, u16 *hash)
@@ -6851,7 +6849,7 @@ static int niu_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->supported = lp->supported;
 	cmd->advertising = lp->active_advertising;
 	cmd->autoneg = lp->active_autoneg;
-	cmd->speed = lp->active_speed;
+	ethtool_cmd_speed_set(cmd, lp->active_speed);
 	cmd->duplex = lp->active_duplex;
 	cmd->port = (np->flags & NIU_FLAGS_FIBER) ? PORT_FIBRE : PORT_TP;
 	cmd->transceiver = (np->flags & NIU_FLAGS_XCVR_SERDES) ?
@@ -6866,7 +6864,7 @@ static int niu_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct niu_link_config *lp = &np->link_config;
 
 	lp->advertising = cmd->advertising;
-	lp->speed = cmd->speed;
+	lp->speed = ethtool_cmd_speed(cmd);
 	lp->duplex = cmd->duplex;
 	lp->autoneg = cmd->autoneg;
 	return niu_init_link(np);
@@ -7023,6 +7021,7 @@ static int niu_ethflow_to_class(int flow_type, u64 *class)
 	case UDP_V4_FLOW:
 		*class = CLASS_CODE_UDP_IPV4;
 		break;
+	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:
 	case ESP_V4_FLOW:
 		*class = CLASS_CODE_AH_ESP_IPV4;
@@ -7036,6 +7035,7 @@ static int niu_ethflow_to_class(int flow_type, u64 *class)
 	case UDP_V6_FLOW:
 		*class = CLASS_CODE_UDP_IPV6;
 		break;
+	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 		*class = CLASS_CODE_AH_ESP_IPV6;
@@ -7889,35 +7889,33 @@ static void niu_force_led(struct niu *np, int on)
 	nw64_mac(reg, val);
 }
 
-static int niu_phys_id(struct net_device *dev, u32 data)
+static int niu_set_phys_id(struct net_device *dev,
+			   enum ethtool_phys_id_state state)
+
 {
 	struct niu *np = netdev_priv(dev);
-	u64 orig_led_state;
-	int i;
 
 	if (!netif_running(dev))
 		return -EAGAIN;
 
-	if (data == 0)
-		data = 2;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		np->orig_led_state = niu_led_state_save(np);
+		return 1;	/* cycle on/off once per second */
 
-	orig_led_state = niu_led_state_save(np);
-	for (i = 0; i < (data * 2); i++) {
-		int on = ((i % 2) == 0);
+	case ETHTOOL_ID_ON:
+		niu_force_led(np, 1);
+		break;
 
-		niu_force_led(np, on);
+	case ETHTOOL_ID_OFF:
+		niu_force_led(np, 0);
+		break;
 
-		if (msleep_interruptible(500))
-			break;
+	case ETHTOOL_ID_INACTIVE:
+		niu_led_state_restore(np, np->orig_led_state);
 	}
-	niu_led_state_restore(np, orig_led_state);
 
 	return 0;
-}
-
-static int niu_set_flags(struct net_device *dev, u32 data)
-{
-	return ethtool_op_set_flags(dev, data, ETH_FLAG_RXHASH);
 }
 
 static const struct ethtool_ops niu_ethtool_ops = {
@@ -7933,11 +7931,9 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.get_strings		= niu_get_strings,
 	.get_sset_count		= niu_get_sset_count,
 	.get_ethtool_stats	= niu_get_ethtool_stats,
-	.phys_id		= niu_phys_id,
+	.set_phys_id		= niu_set_phys_id,
 	.get_rxnfc		= niu_get_nfc,
 	.set_rxnfc		= niu_set_nfc,
-	.set_flags		= niu_set_flags,
-	.get_flags		= ethtool_op_get_flags,
 };
 
 static int niu_ldg_assign_ldn(struct niu *np, struct niu_parent *parent,
@@ -8131,7 +8127,7 @@ static int __devinit niu_pci_vpd_scan_props(struct niu *np,
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "VPD_SCAN: start[%x] end[%x]\n", start, end);
 	while (start < end) {
-		int len, err, instance, type, prop_len;
+		int len, err, prop_len;
 		char namebuf[64];
 		u8 *prop_buf;
 		int max_len;
@@ -8147,8 +8143,6 @@ static int __devinit niu_pci_vpd_scan_props(struct niu *np,
 		len = err;
 		start += 3;
 
-		instance = niu_pci_eeprom_read(np, start);
-		type = niu_pci_eeprom_read(np, start + 3);
 		prop_len = niu_pci_eeprom_read(np, start + 4);
 		err = niu_pci_vpd_get_propname(np, start + 5, namebuf, 64);
 		if (err < 0)
@@ -9207,7 +9201,7 @@ static int __devinit niu_ldg_init(struct niu *np)
 
 	first_chan = 0;
 	for (i = 0; i < port; i++)
-		first_chan += parent->rxchan_per_port[port];
+		first_chan += parent->rxchan_per_port[i];
 	num_chan = parent->rxchan_per_port[port];
 
 	for (i = first_chan; i < (first_chan + num_chan); i++) {
@@ -9223,7 +9217,7 @@ static int __devinit niu_ldg_init(struct niu *np)
 
 	first_chan = 0;
 	for (i = 0; i < port; i++)
-		first_chan += parent->txchan_per_port[port];
+		first_chan += parent->txchan_per_port[i];
 	num_chan = parent->txchan_per_port[port];
 	for (i = first_chan; i < (first_chan + num_chan); i++) {
 		err = niu_ldg_assign_ldn(np, parent,
@@ -9501,7 +9495,7 @@ static struct niu_parent * __devinit niu_new_parent(struct niu *np,
 	struct niu_parent *p;
 	int i;
 
-	plat_dev = platform_device_register_simple("niu", niu_parent_index,
+	plat_dev = platform_device_register_simple("niu-board", niu_parent_index,
 						   NULL, 0);
 	if (IS_ERR(plat_dev))
 		return NULL;
@@ -9721,7 +9715,7 @@ static const struct net_device_ops niu_netdev_ops = {
 	.ndo_open		= niu_open,
 	.ndo_stop		= niu_close,
 	.ndo_start_xmit		= niu_start_xmit,
-	.ndo_get_stats		= niu_get_stats,
+	.ndo_get_stats64	= niu_get_stats,
 	.ndo_set_multicast_list	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= niu_set_mac_addr,
@@ -9768,8 +9762,8 @@ static void __devinit niu_device_announce(struct niu *np)
 
 static void __devinit niu_set_basic_features(struct net_device *dev)
 {
-	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM |
-			  NETIF_F_GRO | NETIF_F_RXHASH);
+	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXHASH;
+	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
 }
 
 static int __devinit niu_pci_init_one(struct pci_dev *pdev,
@@ -9803,7 +9797,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		goto err_out_disable_pdev;
 	}
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pdev);
 	if (pos <= 0) {
 		dev_err(&pdev->dev, "Cannot find PCI Express capability, aborting\n");
 		goto err_out_free_res;
@@ -10062,8 +10056,7 @@ static const struct niu_ops niu_phys_ops = {
 	.unmap_single	= niu_phys_unmap_single,
 };
 
-static int __devinit niu_of_probe(struct platform_device *op,
-				  const struct of_device_id *match)
+static int __devinit niu_of_probe(struct platform_device *op)
 {
 	union niu_parent_id parent_id;
 	struct net_device *dev;
@@ -10223,7 +10216,7 @@ static const struct of_device_id niu_match[] = {
 };
 MODULE_DEVICE_TABLE(of, niu_match);
 
-static struct of_platform_driver niu_of_driver = {
+static struct platform_driver niu_of_driver = {
 	.driver = {
 		.name = "niu",
 		.owner = THIS_MODULE,
@@ -10244,14 +10237,14 @@ static int __init niu_init(void)
 	niu_debug = netif_msg_init(debug, NIU_MSG_DEFAULT);
 
 #ifdef CONFIG_SPARC64
-	err = of_register_platform_driver(&niu_of_driver);
+	err = platform_driver_register(&niu_of_driver);
 #endif
 
 	if (!err) {
 		err = pci_register_driver(&niu_pci_driver);
 #ifdef CONFIG_SPARC64
 		if (err)
-			of_unregister_platform_driver(&niu_of_driver);
+			platform_driver_unregister(&niu_of_driver);
 #endif
 	}
 
@@ -10262,7 +10255,7 @@ static void __exit niu_exit(void)
 {
 	pci_unregister_driver(&niu_pci_driver);
 #ifdef CONFIG_SPARC64
-	of_unregister_platform_driver(&niu_of_driver);
+	platform_driver_unregister(&niu_of_driver);
 #endif
 }
 

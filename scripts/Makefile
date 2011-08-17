@@ -6,6 +6,7 @@
 # pnmttologo:    Convert pnm files to logo files
 # conmakehash:   Create chartable
 # conmakehash:	 Create arrays for initializing the kernel console tables
+# docproc:       Used in Documentation/DocBook
 
 hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
 hostprogs-$(CONFIG_LOGO)         += pnmtologo
@@ -16,7 +17,14 @@ hostprogs-$(BUILD_C_RECORDMCOUNT) += recordmcount
 always		:= $(hostprogs-y) $(hostprogs-m)
 
 # The following hostprogs-y programs are only build on demand
-hostprogs-y += unifdef
+hostprogs-y += unifdef docproc
+
+# These targets are used internally to avoid "is up to date" messages
+PHONY += build_unifdef
+build_unifdef: scripts/unifdef FORCE
+	@:
+build_docproc: scripts/docproc FORCE
+	@:
 
 subdir-$(CONFIG_MODVERSIONS) += genksyms
 subdir-y                     += mod

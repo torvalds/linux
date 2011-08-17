@@ -1658,12 +1658,12 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 }
 
 /*
- * floppy-change is never called from an interrupt, so we can relax a bit
+ * check_events is never called from an interrupt, so we can relax a bit
  * here, sleep etc. Note that floppy-on tries to set current_DOR to point
  * to the desired drive, but it will probably not survive the sleep if
  * several floppies are used at the same time: thus the loop.
  */
-static int amiga_floppy_change(struct gendisk *disk)
+static unsigned amiga_check_events(struct gendisk *disk, unsigned int clearing)
 {
 	struct amiga_floppy_struct *p = disk->private_data;
 	int drive = p - unit;
@@ -1686,7 +1686,7 @@ static int amiga_floppy_change(struct gendisk *disk)
 		p->dirty = 0;
 		writepending = 0; /* if this was true before, too bad! */
 		writefromint = 0;
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 	}
 	return 0;
 }
@@ -1697,7 +1697,7 @@ static const struct block_device_operations floppy_fops = {
 	.release	= floppy_release,
 	.ioctl		= fd_ioctl,
 	.getgeo		= fd_getgeo,
-	.media_changed	= amiga_floppy_change,
+	.check_events	= amiga_check_events,
 };
 
 static int __init fd_probe_drives(void)
@@ -1768,8 +1768,8 @@ static int __init amiga_floppy_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	ret = -ENOMEM;
-	if ((raw_buf = (char *)amiga_chip_alloc (RAW_BUF_SIZE, "Floppy")) ==
-	    NULL) {
+	raw_buf = amiga_chip_alloc(RAW_BUF_SIZE, "Floppy");
+	if (!raw_buf) {
 		printk("fd: cannot get chip mem buffer\n");
 		goto out_blkdev;
 	}

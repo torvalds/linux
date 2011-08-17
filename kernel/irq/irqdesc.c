@@ -22,7 +22,7 @@
  */
 static struct lock_class_key irq_desc_lock_class;
 
-#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
+#if defined(CONFIG_SMP)
 static void __init init_irq_default_affinity(void)
 {
 	alloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
@@ -79,7 +79,8 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 	desc->irq_data.chip_data = NULL;
 	desc->irq_data.handler_data = NULL;
 	desc->irq_data.msi_desc = NULL;
-	desc->status = IRQ_DEFAULT_INIT_FLAGS;
+	irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
+	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
 	desc->irq_count = 0;
@@ -197,13 +198,12 @@ err:
 	return -ENOMEM;
 }
 
-struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
+static int irq_expand_nr_irqs(unsigned int nr)
 {
-	int res = irq_alloc_descs(irq, irq, 1, node);
-
-	if (res == -EEXIST || res == irq)
-		return irq_to_desc(irq);
-	return NULL;
+	if (nr > IRQ_BITMAP_BITS)
+		return -ENOMEM;
+	nr_irqs = nr;
+	return 0;
 }
 
 int __init early_irq_init(void)
@@ -238,7 +238,6 @@ int __init early_irq_init(void)
 
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
-		.status		= IRQ_DEFAULT_INIT_FLAGS,
 		.handle_irq	= handle_bad_irq,
 		.depth		= 1,
 		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc->lock),
@@ -258,13 +257,11 @@ int __init early_irq_init(void)
 	count = ARRAY_SIZE(irq_desc);
 
 	for (i = 0; i < count; i++) {
-		desc[i].irq_data.irq = i;
-		desc[i].irq_data.chip = &no_irq_chip;
-		/* TODO : do this allocation on-demand ... */
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
-		alloc_masks(desc + i, GFP_KERNEL, node);
-		desc_smp_init(desc + i, node);
+		alloc_masks(&desc[i], GFP_KERNEL, node);
+		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
+		desc_set_defaults(i, &desc[i], node);
 	}
 	return arch_early_irq_init();
 }
@@ -274,11 +271,6 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
 }
 
-struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node)
-{
-	return irq_to_desc(irq);
-}
-
 static void free_desc(unsigned int irq)
 {
 	dynamic_irq_cleanup(irq);
@@ -286,25 +278,31 @@ static void free_desc(unsigned int irq)
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
 {
-#if defined(CONFIG_KSTAT_IRQS_ONDEMAND)
-	struct irq_desc *desc;
-	unsigned int i;
-
-	for (i = 0; i < cnt; i++) {
-		desc = irq_to_desc(start + i);
-		if (desc && !desc->kstat_irqs) {
-			unsigned int __percpu *stats = alloc_percpu(unsigned int);
-
-			if (!stats)
-				return -1;
-			if (cmpxchg(&desc->kstat_irqs, NULL, stats) != NULL)
-				free_percpu(stats);
-		}
-	}
-#endif
 	return start;
 }
+
+static int irq_expand_nr_irqs(unsigned int nr)
+{
+	return -ENOMEM;
+}
+
 #endif /* !CONFIG_SPARSE_IRQ */
+
+/**
+ * generic_handle_irq - Invoke the handler for a particular irq
+ * @irq:	The irq number to handle
+ *
+ */
+int generic_handle_irq(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc)
+		return -EINVAL;
+	generic_handle_irq_desc(irq, desc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(generic_handle_irq);
 
 /* Dynamic interrupt handling */
 
@@ -327,6 +325,7 @@ void irq_free_descs(unsigned int from, unsigned int cnt)
 	bitmap_clear(allocated_irqs, from, cnt);
 	mutex_unlock(&sparse_irq_lock);
 }
+EXPORT_SYMBOL_GPL(irq_free_descs);
 
 /**
  * irq_alloc_descs - allocate and initialize a range of irq descriptors
@@ -345,16 +344,25 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 	if (!cnt)
 		return -EINVAL;
 
+	if (irq >= 0) {
+		if (from > irq)
+			return -EINVAL;
+		from = irq;
+	}
+
 	mutex_lock(&sparse_irq_lock);
 
-	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
+	start = bitmap_find_next_zero_area(allocated_irqs, IRQ_BITMAP_BITS,
+					   from, cnt, 0);
 	ret = -EEXIST;
 	if (irq >=0 && start != irq)
 		goto err;
 
-	ret = -ENOMEM;
-	if (start >= nr_irqs)
-		goto err;
+	if (start + cnt > nr_irqs) {
+		ret = irq_expand_nr_irqs(start + cnt);
+		if (ret)
+			goto err;
+	}
 
 	bitmap_set(allocated_irqs, start, cnt);
 	mutex_unlock(&sparse_irq_lock);
@@ -364,6 +372,7 @@ err:
 	mutex_unlock(&sparse_irq_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(irq_alloc_descs);
 
 /**
  * irq_reserve_irqs - mark irqs allocated
@@ -401,6 +410,26 @@ unsigned int irq_get_next_irq(unsigned int offset)
 	return find_next_bit(allocated_irqs, nr_irqs, offset);
 }
 
+struct irq_desc *
+__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (desc) {
+		if (bus)
+			chip_bus_lock(desc);
+		raw_spin_lock_irqsave(&desc->lock, *flags);
+	}
+	return desc;
+}
+
+void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus)
+{
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	if (bus)
+		chip_bus_sync_unlock(desc);
+}
+
 /**
  * dynamic_irq_cleanup - cleanup a dynamically allocated irq
  * @irq:	irq number to initialize
@@ -423,7 +452,6 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 			*per_cpu_ptr(desc->kstat_irqs, cpu) : 0;
 }
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 unsigned int kstat_irqs(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -436,4 +464,3 @@ unsigned int kstat_irqs(unsigned int irq)
 		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
 	return sum;
 }
-#endif /* CONFIG_GENERIC_HARDIRQS */

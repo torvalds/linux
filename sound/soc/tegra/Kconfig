@@ -1,0 +1,49 @@
+config SND_SOC_TEGRA
+	tristate "SoC Audio for the Tegra System-on-Chip"
+	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
+	help
+	  Say Y or M here if you want support for SoC audio on Tegra.
+
+config SND_SOC_TEGRA_I2S
+	tristate
+	depends on SND_SOC_TEGRA
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  Tegra I2S interface. You will also need to select the individual
+	  machine drivers to support below.
+
+config SND_SOC_TEGRA_SPDIF
+	tristate
+	depends on SND_SOC_TEGRA
+	default m
+	help
+	  Say Y or M if you want to add support for the SPDIF interface.
+	  You will also need to select the individual machine drivers to support
+	  below.
+
+config MACH_HAS_SND_SOC_TEGRA_WM8903
+	bool
+	help
+	  Machines that use the SND_SOC_TEGRA_WM8903 driver should select
+	  this config option, in order to allow the user to enable
+	  SND_SOC_TEGRA_WM8903.
+
+config SND_SOC_TEGRA_WM8903
+	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
+	depends on SND_SOC_TEGRA && I2C
+	depends on MACH_HAS_SND_SOC_TEGRA_WM8903
+	select SND_SOC_TEGRA_I2S
+	select SND_SOC_WM8903
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM8093 codec. Currently, the supported boards are
+	  Harmony, Ventana, Seaboard, Kaen, and Aebl.
+
+config SND_SOC_TEGRA_TRIMSLICE
+	tristate "SoC Audio support for TrimSlice board"
+	depends on SND_SOC_TEGRA && MACH_TRIMSLICE && I2C
+	select SND_SOC_TEGRA_I2S
+	select SND_SOC_TLV320AIC23
+	help
+	  Say Y or M here if you want to add support for SoC audio on the
+	  TrimSlice platform.

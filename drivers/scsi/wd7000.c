@@ -837,7 +837,7 @@ static inline Scb *alloc_scbs(struct Scsi_Host *host, int needed)
 		}
 	}
 
-	/* Take the lock, then check we didnt get beaten, if so try again */
+	/* Take the lock, then check we didn't get beaten, if so try again */
 	spin_lock_irqsave(&scbpool_lock, flags);
 	if (freescbs < needed) {
 		spin_unlock_irqrestore(&scbpool_lock, flags);

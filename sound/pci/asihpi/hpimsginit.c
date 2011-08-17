@@ -32,21 +32,6 @@ static u16 res_size[HPI_OBJ_MAXINDEX + 1] = HPI_RESPONSE_SIZE_BY_OBJECT;
 static u16 gwSSX2_bypass;
 
 /** \internal
-  * Used by ASIO driver to disable SSX2 for a single process
-  * \param phSubSys Pointer to HPI subsystem handle.
-  * \param wBypass New bypass setting 0 = off, nonzero = on
-  * \return Previous bypass setting.
-  */
-u16 hpi_subsys_ssx2_bypass(const struct hpi_hsubsys *ph_subsys, u16 bypass)
-{
-	u16 old_value = gwSSX2_bypass;
-
-	gwSSX2_bypass = bypass;
-
-	return old_value;
-}
-
-/** \internal
   * initialize the HPI message structure
   */
 static void hpi_init_message(struct hpi_message *phm, u16 object,
@@ -61,11 +46,12 @@ static void hpi_init_message(struct hpi_message *phm, u16 object,
 	if (gwSSX2_bypass)
 		phm->type = HPI_TYPE_SSX2BYPASS_MESSAGE;
 	else
-		phm->type = HPI_TYPE_MESSAGE;
+		phm->type = HPI_TYPE_REQUEST;
 	phm->object = object;
 	phm->function = function;
 	phm->version = 0;
-	/* Expect adapter index to be set by caller */
+	phm->adapter_index = HPI_ADAPTER_INDEX_INVALID;
+	/* Expect actual adapter index to be set by caller */
 }
 
 /** \internal
@@ -103,7 +89,7 @@ static void hpi_init_messageV1(struct hpi_message_header *phm, u16 size,
 	memset(phm, 0, sizeof(*phm));
 	if ((object > 0) && (object <= HPI_OBJ_MAXINDEX)) {
 		phm->size = size;
-		phm->type = HPI_TYPE_MESSAGE;
+		phm->type = HPI_TYPE_REQUEST;
 		phm->object = object;
 		phm->function = function;
 		phm->version = 1;

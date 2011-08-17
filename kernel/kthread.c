@@ -27,6 +27,7 @@ struct kthread_create_info
 	/* Information passed to kthread() from kthreadd. */
 	int (*threadfn)(void *data);
 	void *data;
+	int node;
 
 	/* Result passed back to kthread_create() from kthreadd. */
 	struct task_struct *result;
@@ -98,10 +99,23 @@ static int kthread(void *_create)
 	do_exit(ret);
 }
 
+/* called from do_fork() to get node information for about to be created task */
+int tsk_fork_get_node(struct task_struct *tsk)
+{
+#ifdef CONFIG_NUMA
+	if (tsk == kthreadd_task)
+		return tsk->pref_node_fork;
+#endif
+	return numa_node_id();
+}
+
 static void create_kthread(struct kthread_create_info *create)
 {
 	int pid;
 
+#ifdef CONFIG_NUMA
+	current->pref_node_fork = create->node;
+#endif
 	/* We want our own signal handler (we take no signals by default). */
 	pid = kernel_thread(kthread, create, CLONE_FS | CLONE_FILES | SIGCHLD);
 	if (pid < 0) {
@@ -111,33 +125,38 @@ static void create_kthread(struct kthread_create_info *create)
 }
 
 /**
- * kthread_create - create a kthread.
+ * kthread_create_on_node - create a kthread.
  * @threadfn: the function to run until signal_pending(current).
  * @data: data ptr for @threadfn.
+ * @node: memory node number.
  * @namefmt: printf-style name for the thread.
  *
  * Description: This helper function creates and names a kernel
  * thread.  The thread will be stopped: use wake_up_process() to start
  * it.  See also kthread_run().
  *
+ * If thread is going to be bound on a particular cpu, give its node
+ * in @node, to get NUMA affinity for kthread stack, or else give -1.
  * When woken, the thread will run @threadfn() with @data as its
  * argument. @threadfn() can either call do_exit() directly if it is a
- * standalone thread for which noone will call kthread_stop(), or
+ * standalone thread for which no one will call kthread_stop(), or
  * return when 'kthread_should_stop()' is true (which means
  * kthread_stop() has been called).  The return value should be zero
  * or a negative error number; it will be passed to kthread_stop().
  *
  * Returns a task_struct or ERR_PTR(-ENOMEM).
  */
-struct task_struct *kthread_create(int (*threadfn)(void *data),
-				   void *data,
-				   const char namefmt[],
-				   ...)
+struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
+					   void *data,
+					   int node,
+					   const char namefmt[],
+					   ...)
 {
 	struct kthread_create_info create;
 
 	create.threadfn = threadfn;
 	create.data = data;
+	create.node = node;
 	init_completion(&create.done);
 
 	spin_lock(&kthread_create_lock);
@@ -164,7 +183,7 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 	}
 	return create.result;
 }
-EXPORT_SYMBOL(kthread_create);
+EXPORT_SYMBOL(kthread_create_on_node);
 
 /**
  * kthread_bind - bind a just-created kthread to a cpu.
@@ -183,8 +202,8 @@ void kthread_bind(struct task_struct *p, unsigned int cpu)
 		return;
 	}
 
-	p->cpus_allowed = cpumask_of_cpu(cpu);
-	p->rt.nr_cpus_allowed = 1;
+	/* It's safe because the task is inactive. */
+	do_set_cpus_allowed(p, cpumask_of(cpu));
 	p->flags |= PF_THREAD_BOUND;
 }
 EXPORT_SYMBOL(kthread_bind);

@@ -652,7 +652,7 @@ static irqreturn_t znet_interrupt(int irq, void *dev_id)
 					dev->stats.tx_errors++;
 
 				/* Transceiver may be stuck if cable
-				 * was removed while emiting a
+				 * was removed while emitting a
 				 * packet. Flip it off, then on to
 				 * reset it. This is very empirical,
 				 * but it seems to work. */
@@ -731,7 +731,7 @@ static void znet_rx(struct net_device *dev)
 		cur_frame_end_offset -= ((count + 1)>>1) + 3;
 		if (cur_frame_end_offset < 0)
 		  cur_frame_end_offset += RX_BUF_SIZE/2;
-	};
+	}
 
 	/* Now step  forward through the list. */
 	do {

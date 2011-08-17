@@ -455,6 +455,7 @@ struct addr_ctrl_blk {
 	uint8_t res0;	/* 07 */
 	uint16_t eth_mtu_size;	/* 08-09 */
 	uint16_t add_fw_options;	/* 0A-0B */
+#define SERIALIZE_TASK_MGMT		0x0400
 
 	uint8_t hb_interval;	/* 0C */
 	uint8_t inst_num; /* 0D */
@@ -687,6 +688,29 @@ struct mbx_sys_info {
 	uint32_t pci_func;	      /* 20-23 this PCI function */
 	unsigned char serial_number[16];  /* 24-33 serial number string */
 	uint8_t reserved[12];		  /* 34-3f */
+};
+
+struct about_fw_info {
+	uint16_t fw_major;		/* 00 - 01 */
+	uint16_t fw_minor;		/* 02 - 03 */
+	uint16_t fw_patch;		/* 04 - 05 */
+	uint16_t fw_build;		/* 06 - 07 */
+	uint8_t fw_build_date[16];	/* 08 - 17 ASCII String */
+	uint8_t fw_build_time[16];	/* 18 - 27 ASCII String */
+	uint8_t fw_build_user[16];	/* 28 - 37 ASCII String */
+	uint16_t fw_load_source;	/* 38 - 39 */
+					/* 1 = Flash Primary,
+					   2 = Flash Secondary,
+					   3 = Host Download
+					*/
+	uint8_t reserved1[6];		/* 3A - 3F */
+	uint16_t iscsi_major;		/* 40 - 41 */
+	uint16_t iscsi_minor;		/* 42 - 43 */
+	uint16_t bootload_major;	/* 44 - 45 */
+	uint16_t bootload_minor;	/* 46 - 47 */
+	uint16_t bootload_patch;	/* 48 - 49 */
+	uint16_t bootload_build;	/* 4A - 4B */
+	uint8_t reserved2[180];		/* 4C - FF */
 };
 
 struct crash_record {

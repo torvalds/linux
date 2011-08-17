@@ -31,7 +31,7 @@ ABSOLUTE	StatusAddress = 0	; Addr to receive status return
 ABSOLUTE	ReceiveMsgAddress = 0	; Addr to receive msg
 ;
 ; This is the magic component for handling scatter-gather.  Each of the
-; SG components is preceeded by a script fragment which moves the
+; SG components is preceded by a script fragment which moves the
 ; necessary amount of data and jumps to the next SG segment.  The final
 ; SG segment jumps back to .  However, this address is the first SG script
 ; segment.

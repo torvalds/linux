@@ -25,13 +25,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
-#include <linux/list.h>
 #include <linux/platform_device.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include "dss.h"
-
-static LIST_HEAD(display_list);
+#include "dss_features.h"
 
 static ssize_t display_enabled_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -47,9 +45,13 @@ static ssize_t display_enabled_store(struct device *dev,
 		const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	bool enabled, r;
+	int r, enabled;
 
-	enabled = simple_strtoul(buf, NULL, 10);
+	r = kstrtoint(buf, 0, &enabled);
+	if (r)
+		return r;
+
+	enabled = !!enabled;
 
 	if (enabled != (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)) {
 		if (enabled) {
@@ -60,46 +62,6 @@ static ssize_t display_enabled_store(struct device *dev,
 			dssdev->driver->disable(dssdev);
 		}
 	}
-
-	return size;
-}
-
-static ssize_t display_upd_mode_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	enum omap_dss_update_mode mode = OMAP_DSS_UPDATE_AUTO;
-	if (dssdev->driver->get_update_mode)
-		mode = dssdev->driver->get_update_mode(dssdev);
-	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
-}
-
-static ssize_t display_upd_mode_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t size)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	int val, r;
-	enum omap_dss_update_mode mode;
-
-	if (!dssdev->driver->set_update_mode)
-		return -EINVAL;
-
-	val = simple_strtoul(buf, NULL, 10);
-
-	switch (val) {
-	case OMAP_DSS_UPDATE_DISABLED:
-	case OMAP_DSS_UPDATE_AUTO:
-	case OMAP_DSS_UPDATE_MANUAL:
-		mode = (enum omap_dss_update_mode)val;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	r = dssdev->driver->set_update_mode(dssdev, mode);
-	if (r)
-		return r;
 
 	return size;
 }
@@ -117,13 +79,16 @@ static ssize_t display_tear_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long te;
-	int r;
+	int te, r;
 
 	if (!dssdev->driver->enable_te || !dssdev->driver->get_te)
 		return -ENOENT;
 
-	te = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &te);
+	if (r)
+		return r;
+
+	te = !!te;
 
 	r = dssdev->driver->enable_te(dssdev, te);
 	if (r)
@@ -199,13 +164,14 @@ static ssize_t display_rotate_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long rot;
-	int r;
+	int rot, r;
 
 	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
 		return -ENOENT;
 
-	rot = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &rot);
+	if (r)
+		return r;
 
 	r = dssdev->driver->set_rotate(dssdev, rot);
 	if (r)
@@ -229,13 +195,16 @@ static ssize_t display_mirror_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long mirror;
-	int r;
+	int mirror, r;
 
 	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
 		return -ENOENT;
 
-	mirror = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &mirror);
+	if (r)
+		return r;
+
+	mirror = !!mirror;
 
 	r = dssdev->driver->set_mirror(dssdev, mirror);
 	if (r)
@@ -262,14 +231,15 @@ static ssize_t display_wss_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long wss;
+	u32 wss;
 	int r;
 
 	if (!dssdev->driver->get_wss || !dssdev->driver->set_wss)
 		return -ENOENT;
 
-	if (strict_strtoul(buf, 0, &wss))
-		return -EINVAL;
+	r = kstrtou32(buf, 0, &wss);
+	if (r)
+		return r;
 
 	if (wss > 0xfffff)
 		return -EINVAL;
@@ -283,8 +253,6 @@ static ssize_t display_wss_store(struct device *dev,
 
 static DEVICE_ATTR(enabled, S_IRUGO|S_IWUSR,
 		display_enabled_show, display_enabled_store);
-static DEVICE_ATTR(update_mode, S_IRUGO|S_IWUSR,
-		display_upd_mode_show, display_upd_mode_store);
 static DEVICE_ATTR(tear_elim, S_IRUGO|S_IWUSR,
 		display_tear_show, display_tear_store);
 static DEVICE_ATTR(timings, S_IRUGO|S_IWUSR,
@@ -298,7 +266,6 @@ static DEVICE_ATTR(wss, S_IRUGO|S_IWUSR,
 
 static struct device_attribute *display_sysfs_attrs[] = {
 	&dev_attr_enabled,
-	&dev_attr_update_mode,
 	&dev_attr_tear_elim,
 	&dev_attr_timings,
 	&dev_attr_rotate,
@@ -316,16 +283,13 @@ void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 EXPORT_SYMBOL(omapdss_default_get_resolution);
 
 void default_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, enum omap_burst_size *burst_size,
+		u32 fifo_size, u32 burst_size,
 		u32 *fifo_low, u32 *fifo_high)
 {
-	unsigned burst_size_bytes;
+	unsigned buf_unit = dss_feat_get_buffer_size_unit();
 
-	*burst_size = OMAP_DSS_BURST_16x32;
-	burst_size_bytes = 16 * 32 / 8;
-
-	*fifo_high = fifo_size - 1;
-	*fifo_low = fifo_size - burst_size_bytes;
+	*fifo_high = fifo_size - buf_unit;
+	*fifo_low = fifo_size - burst_size;
 }
 
 int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
@@ -345,6 +309,7 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 			return 16;
 	case OMAP_DISPLAY_TYPE_VENC:
 	case OMAP_DISPLAY_TYPE_SDI:
+	case OMAP_DISPLAY_TYPE_HDMI:
 		return 24;
 	default:
 		BUG();
@@ -371,6 +336,7 @@ bool dss_use_replication(struct omap_dss_device *dssdev,
 	case OMAP_DISPLAY_TYPE_DPI:
 		bpp = dssdev->phy.dpi.data_lines;
 		break;
+	case OMAP_DISPLAY_TYPE_HDMI:
 	case OMAP_DISPLAY_TYPE_VENC:
 	case OMAP_DISPLAY_TYPE_SDI:
 		bpp = 24;
@@ -392,29 +358,6 @@ void dss_init_device(struct platform_device *pdev,
 	struct device_attribute *attr;
 	int i;
 	int r;
-
-	switch (dssdev->type) {
-#ifdef CONFIG_OMAP2_DSS_DPI
-	case OMAP_DISPLAY_TYPE_DPI:
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	case OMAP_DISPLAY_TYPE_DBI:
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	case OMAP_DISPLAY_TYPE_SDI:
-#endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	case OMAP_DISPLAY_TYPE_DSI:
-#endif
-#ifdef CONFIG_OMAP2_DSS_VENC
-	case OMAP_DISPLAY_TYPE_VENC:
-#endif
-		break;
-	default:
-		DSSERR("Support for display '%s' not compiled in.\n",
-				dssdev->name);
-		return;
-	}
 
 	switch (dssdev->type) {
 #ifdef CONFIG_OMAP2_DSS_DPI
@@ -442,8 +385,13 @@ void dss_init_device(struct platform_device *pdev,
 		r = dsi_init_display(dssdev);
 		break;
 #endif
+	case OMAP_DISPLAY_TYPE_HDMI:
+		r = hdmi_init_display(dssdev);
+		break;
 	default:
-		BUG();
+		DSSERR("Support for display '%s' not compiled in.\n",
+				dssdev->name);
+		return;
 	}
 
 	if (r) {

@@ -16,27 +16,38 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD193X if SND_SOC_I2C_AND_SPI
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
+	select SND_SOC_AD73311
+	select SND_SOC_ADAV80X
 	select SND_SOC_ADS117X
-	select SND_SOC_AD73311 if I2C
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
+	select SND_SOC_AK4641 if I2C
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
 	select SND_SOC_CS4270 if I2C
+	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CX20442
 	select SND_SOC_DA7210 if I2C
+	select SND_SOC_DFBMCS320
 	select SND_SOC_JZ4740_CODEC if SOC_JZ4740
+	select SND_SOC_LM4857 if I2C
 	select SND_SOC_MAX98088 if I2C
+	select SND_SOC_MAX98095 if I2C
+	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
+	select SND_SOC_SGTL5000 if I2C
+	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
-	select SND_SOC_SSM2602 if I2C
+	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_STA32X if I2C
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
+	select SND_SOC_TVL320AIC32X4 if I2C
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
@@ -44,7 +55,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TWL6040 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
-	select SND_SOC_WL1273 if RADIO_WL1273
+	select SND_SOC_WL1273 if MFD_WL1273_CORE
+	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
@@ -61,6 +73,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8770 if SPI_MASTER
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8782
 	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_WM8903 if I2C
@@ -73,12 +86,15 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8971 if I2C
 	select SND_SOC_WM8974 if I2C
 	select SND_SOC_WM8978 if I2C
+	select SND_SOC_WM8983 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8985 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8988 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM8991 if I2C
 	select SND_SOC_WM8993 if I2C
 	select SND_SOC_WM8994 if MFD_WM8994
 	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8996 if I2C
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
@@ -118,7 +134,14 @@ config SND_SOC_AD1980
 
 config SND_SOC_AD73311
 	tristate
-	
+
+config SND_SOC_ADAU1701
+	select SIGMA
+	tristate
+
+config SND_SOC_ADAV80X
+	tristate
+
 config SND_SOC_ADS117X
 	tristate
 
@@ -126,6 +149,9 @@ config SND_SOC_AK4104
 	tristate
 
 config SND_SOC_AK4535
+	tristate
+
+config SND_SOC_AK4641
 	tristate
 
 config SND_SOC_AK4642
@@ -155,6 +181,9 @@ config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
 
+config SND_SOC_CS4271
+	tristate
+
 config SND_SOC_CX20442
 	tristate
 
@@ -167,19 +196,38 @@ config SND_SOC_L3
 config SND_SOC_DA7210
         tristate
 
+config SND_SOC_DFBMCS320
+	tristate
+
 config SND_SOC_DMIC
 	tristate
 
 config SND_SOC_MAX98088
        tristate
 
+config SND_SOC_MAX98095
+       tristate
+
+config SND_SOC_MAX9850
+	tristate
+
 config SND_SOC_PCM3008
        tristate
+
+#Freescale sgtl5000 codec
+config SND_SOC_SGTL5000
+	tristate
+
+config SND_SOC_SN95031
+	tristate
 
 config SND_SOC_SPDIF
 	tristate
 
 config SND_SOC_SSM2602
+	tristate
+
+config SND_SOC_STA32X
 	tristate
 
 config SND_SOC_STAC9766
@@ -192,6 +240,9 @@ config SND_SOC_TLV320AIC26
 	tristate "TI TLV320AIC26 Codec support" if SND_SOC_OF_SIMPLE
 	depends on SPI
 
+config SND_SOC_TVL320AIC32X4
+	tristate
+
 config SND_SOC_TLV320AIC3X
 	tristate
 
@@ -199,10 +250,11 @@ config SND_SOC_TLV320DAC33
 	tristate
 
 config SND_SOC_TWL4030
-	select TWL4030_CODEC
+	select MFD_TWL4030_AUDIO
 	tristate
 
 config SND_SOC_TWL6040
+	select TWL6040_CORE
 	tristate
 
 config SND_SOC_UDA134X
@@ -212,6 +264,9 @@ config SND_SOC_UDA1380
         tristate
 
 config SND_SOC_WL1273
+	tristate
+
+config SND_SOC_WM1250_EV1
 	tristate
 
 config SND_SOC_WM8350
@@ -259,6 +314,9 @@ config SND_SOC_WM8770
 config SND_SOC_WM8776
 	tristate
 
+config SND_SOC_WM8782
+	tristate
+
 config SND_SOC_WM8804
 	tristate
 
@@ -295,6 +353,9 @@ config SND_SOC_WM8974
 config SND_SOC_WM8978
 	tristate
 
+config SND_SOC_WM8983
+	tristate
+
 config SND_SOC_WM8985
 	tristate
 
@@ -304,6 +365,9 @@ config SND_SOC_WM8988
 config SND_SOC_WM8990
 	tristate
 
+config SND_SOC_WM8991
+	tristate
+
 config SND_SOC_WM8993
 	tristate
 
@@ -311,6 +375,9 @@ config SND_SOC_WM8994
 	tristate
 
 config SND_SOC_WM8995
+	tristate
+
+config SND_SOC_WM8996
 	tristate
 
 config SND_SOC_WM9081
@@ -326,6 +393,9 @@ config SND_SOC_WM9713
 	tristate
 
 # Amp
+config SND_SOC_LM4857
+	tristate
+
 config SND_SOC_MAX9877
 	tristate
 
@@ -337,4 +407,3 @@ config SND_SOC_WM2000
 
 config SND_SOC_WM9090
 	tristate
-

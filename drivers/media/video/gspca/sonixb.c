@@ -1,9 +1,9 @@
 /*
  *		sonix sn9c102 (bayer) library
- *		Copyright (C) 2003 2004 Michel Xhaard mxhaard@magic.fr
- * Add Pas106 Stefano Mozzi (C) 2004
  *
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2009-2011 Jean-François Moine <http://moinejf.free.fr>
+ * Copyright (C) 2003 2004 Michel Xhaard mxhaard@magic.fr
+ * Add Pas106 Stefano Mozzi (C) 2004
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,13 +52,26 @@ all:
 #include <linux/input.h>
 #include "gspca.h"
 
-MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
+MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA/SN9C102 USB Camera Driver");
 MODULE_LICENSE("GPL");
+
+/* controls */
+enum e_ctrl {
+	BRIGHTNESS,
+	GAIN,
+	EXPOSURE,
+	AUTOGAIN,
+	FREQ,
+	NCTRLS		/* number of controls */
+};
 
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
+
+	struct gspca_ctrl ctrls[NCTRLS];
+
 	atomic_t avg_lum;
 	int prev_avg_lum;
 	int exp_too_low_cnt;
@@ -66,13 +79,8 @@ struct sd {
 	int header_read;
 	u8 header[12]; /* Header without sof marker */
 
-	unsigned short exposure;
-	unsigned char gain;
-	unsigned char brightness;
-	unsigned char autogain;
 	unsigned char autogain_ignore_frames;
 	unsigned char frames_to_drop;
-	unsigned char freq;		/* light freq filter setting */
 
 	__u8 bridge;			/* Type of bridge */
 #define BRIDGE_101 0
@@ -113,10 +121,9 @@ struct sensor_data {
 #define MODE_REDUCED_SIF 0x20	/* vga mode (320x240 / 160x120) on sif cam */
 
 /* ctrl_dis helper macros */
-#define NO_EXPO ((1 << EXPOSURE_IDX) | (1 << COARSE_EXPOSURE_IDX) | \
-		 (1 << AUTOGAIN_IDX))
-#define NO_FREQ (1 << FREQ_IDX)
-#define NO_BRIGHTNESS (1 << BRIGHTNESS_IDX)
+#define NO_EXPO ((1 << EXPOSURE) | (1 << AUTOGAIN))
+#define NO_FREQ (1 << FREQ)
+#define NO_BRIGHTNESS (1 << BRIGHTNESS)
 
 #define COMP 0xc7		/* 0x87 //0x07 */
 #define COMP1 0xc9		/* 0x89 //0x09 */
@@ -141,20 +148,14 @@ struct sensor_data {
 #define AUTOGAIN_IGNORE_FRAMES 1
 
 /* V4L2 controls supported by the driver */
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
+static void setbrightness(struct gspca_dev *gspca_dev);
+static void setgain(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
+static void setfreq(struct gspca_dev *gspca_dev);
 
-static const struct ctrl sd_ctrls[] = {
-#define BRIGHTNESS_IDX 0
-	{
+static const struct ctrl sd_ctrls[NCTRLS] = {
+[BRIGHTNESS] = {
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -162,14 +163,11 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-#define BRIGHTNESS_DEF 127
-		.default_value = BRIGHTNESS_DEF,
+		.default_value = 127,
 	    },
-	    .set = sd_setbrightness,
-	    .get = sd_getbrightness,
+	    .set_control = setbrightness
 	},
-#define GAIN_IDX 1
-	{
+[GAIN] = {
 	    {
 		.id      = V4L2_CID_GAIN,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -177,48 +175,31 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-#define GAIN_DEF 127
 #define GAIN_KNEE 230
-		.default_value = GAIN_DEF,
+		.default_value = 127,
 	    },
-	    .set = sd_setgain,
-	    .get = sd_getgain,
+	    .set_control = setgain
 	},
-#define EXPOSURE_IDX 2
-	{
+[EXPOSURE] = {
 		{
 			.id = V4L2_CID_EXPOSURE,
 			.type = V4L2_CTRL_TYPE_INTEGER,
 			.name = "Exposure",
-#define EXPOSURE_DEF  66 /*  33 ms / 30 fps (except on PASXXX) */
-#define EXPOSURE_KNEE 200 /* 100 ms / 10 fps (except on PASXXX) */
 			.minimum = 0,
 			.maximum = 1023,
 			.step = 1,
-			.default_value = EXPOSURE_DEF,
+			.default_value = 66,
+				/*  33 ms / 30 fps (except on PASXXX) */
+#define EXPOSURE_KNEE 200	/* 100 ms / 10 fps (except on PASXXX) */
 			.flags = 0,
 		},
-		.set = sd_setexposure,
-		.get = sd_getexposure,
+		.set_control = setexposure
 	},
-#define COARSE_EXPOSURE_IDX 3
-	{
-		{
-			.id = V4L2_CID_EXPOSURE,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Exposure",
+/* for coarse exposure */
+#define COARSE_EXPOSURE_MIN 2
+#define COARSE_EXPOSURE_MAX 15
 #define COARSE_EXPOSURE_DEF  2 /* 30 fps */
-			.minimum = 2,
-			.maximum = 15,
-			.step = 1,
-			.default_value = COARSE_EXPOSURE_DEF,
-			.flags = 0,
-		},
-		.set = sd_setexposure,
-		.get = sd_getexposure,
-	},
-#define AUTOGAIN_IDX 4
-	{
+[AUTOGAIN] = {
 		{
 			.id = V4L2_CID_AUTOGAIN,
 			.type = V4L2_CTRL_TYPE_BOOLEAN,
@@ -228,13 +209,11 @@ static const struct ctrl sd_ctrls[] = {
 			.step = 1,
 #define AUTOGAIN_DEF 1
 			.default_value = AUTOGAIN_DEF,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_UPDATE
 		},
 		.set = sd_setautogain,
-		.get = sd_getautogain,
 	},
-#define FREQ_IDX 5
-	{
+[FREQ] = {
 		{
 			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
 			.type    = V4L2_CTRL_TYPE_MENU,
@@ -245,8 +224,7 @@ static const struct ctrl sd_ctrls[] = {
 #define FREQ_DEF 0
 			.default_value = FREQ_DEF,
 		},
-		.set = sd_setfreq,
-		.get = sd_getfreq,
+		.set_control = setfreq
 	},
 };
 
@@ -553,7 +531,7 @@ static const __u8 tas5130_sensor_init[][8] = {
 	{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10},
 };
 
-static struct sensor_data sensor_data[] = {
+static const struct sensor_data sensor_data[] = {
 SENS(initHv7131d, hv7131d_sensor_init, F_GAIN, NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initHv7131r, hv7131r_sensor_init, 0, NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, ov6650_sensor_init, F_GAIN|F_SIF, 0, 0x60),
@@ -646,7 +624,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 
 		/* change reg 0x06 */
 		i2cOV[1] = sensor_data[sd->sensor].sensor_addr;
-		i2cOV[3] = sd->brightness;
+		i2cOV[3] = sd->ctrls[BRIGHTNESS].val;
 		if (i2c_w(gspca_dev, i2cOV) < 0)
 			goto err;
 		break;
@@ -664,13 +642,13 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			i2cpdoit[2] = 0x13;
 		}
 
-		if (sd->brightness < 127) {
+		if (sd->ctrls[BRIGHTNESS].val < 127) {
 			/* change reg 0x0b, signreg */
 			i2cpbright[3] = 0x01;
 			/* set reg 0x0c, offset */
-			i2cpbright[4] = 127 - sd->brightness;
+			i2cpbright[4] = 127 - sd->ctrls[BRIGHTNESS].val;
 		} else
-			i2cpbright[4] = sd->brightness - 127;
+			i2cpbright[4] = sd->ctrls[BRIGHTNESS].val - 127;
 
 		if (i2c_w(gspca_dev, i2cpbright) < 0)
 			goto err;
@@ -687,16 +665,16 @@ err:
 static void setsensorgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned char gain = sd->gain;
+	u8 gain = sd->ctrls[GAIN].val;
 
 	switch (sd->sensor) {
 	case SENSOR_HV7131D: {
 		__u8 i2c[] =
 			{0xc0, 0x11, 0x31, 0x00, 0x00, 0x00, 0x00, 0x17};
 
-		i2c[3] = 0x3f - (sd->gain / 4);
-		i2c[4] = 0x3f - (sd->gain / 4);
-		i2c[5] = 0x3f - (sd->gain / 4);
+		i2c[3] = 0x3f - (gain / 4);
+		i2c[4] = 0x3f - (gain / 4);
+		i2c[5] = 0x3f - (gain / 4);
 
 		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
@@ -759,11 +737,11 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 			i2cpdoit[2] = 0x13;
 		}
 
-		i2cpgain[3] = sd->gain >> 3;
-		i2cpcolorgain[3] = sd->gain >> 4;
-		i2cpcolorgain[4] = sd->gain >> 4;
-		i2cpcolorgain[5] = sd->gain >> 4;
-		i2cpcolorgain[6] = sd->gain >> 4;
+		i2cpgain[3] = gain >> 3;
+		i2cpcolorgain[3] = gain >> 4;
+		i2cpcolorgain[4] = gain >> 4;
+		i2cpcolorgain[5] = gain >> 4;
+		i2cpcolorgain[6] = gain >> 4;
 
 		if (i2c_w(gspca_dev, i2cpgain) < 0)
 			goto err;
@@ -792,13 +770,13 @@ static void setgain(struct gspca_dev *gspca_dev)
 	}
 
 	if (sd->bridge == BRIDGE_103) {
-		gain = sd->gain >> 1;
+		gain = sd->ctrls[GAIN].val >> 1;
 		buf[0] = gain; /* Red */
 		buf[1] = gain; /* Green */
 		buf[2] = gain; /* Blue */
 		reg_w(gspca_dev, 0x05, buf, 3);
 	} else {
-		gain = sd->gain >> 4;
+		gain = sd->ctrls[GAIN].val >> 4;
 		buf[0] = gain << 4 | gain; /* Red and blue */
 		buf[1] = gain; /* Green */
 		reg_w(gspca_dev, 0x10, buf, 2);
@@ -820,7 +798,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		      where the framerate starts dropping
 		   2) At 6138 the framerate has already dropped to 2 fps,
 		      going any lower makes little sense */
-		__u16 reg = sd->exposure * 6;
+		u16 reg = sd->ctrls[EXPOSURE].val * 6;
+
 		i2c[3] = reg >> 8;
 		i2c[4] = reg & 0xff;
 		if (i2c_w(gspca_dev, i2c) != 0)
@@ -832,7 +811,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		/* register 19's high nibble contains the sn9c10x clock divider
 		   The high nibble configures the no fps according to the
 		   formula: 60 / high_nibble. With a maximum of 30 fps */
-		__u8 reg = sd->exposure;
+		u8 reg = sd->ctrls[EXPOSURE].val;
+
 		reg = (reg << 4) | 0x0b;
 		reg_w(gspca_dev, 0x19, &reg, 1);
 		break;
@@ -847,7 +827,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		   possible to use less exposure then what the fps maximum
 		   allows by setting register 10. register 10 configures the
 		   actual exposure as quotient of the full exposure, with 0
-		   being no exposure at all (not very usefull) and reg10_max
+		   being no exposure at all (not very useful) and reg10_max
 		   being max exposure possible at that framerate.
 
 		   The code maps our 0 - 510 ms exposure ctrl to these 2
@@ -868,7 +848,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		} else
 			reg10_max = 0x41;
 
-		reg11 = (15 * sd->exposure + 999) / 1000;
+		reg11 = (15 * sd->ctrls[EXPOSURE].val + 999) / 1000;
 		if (reg11 < 1)
 			reg11 = 1;
 		else if (reg11 > 16)
@@ -881,14 +861,16 @@ static void setexposure(struct gspca_dev *gspca_dev)
 			reg11 = 4;
 
 		/* frame exposure time in ms = 1000 * reg11 / 30    ->
-		reg10 = (sd->exposure / 2) * reg10_max / (1000 * reg11 / 30) */
-		reg10 = (sd->exposure * 15 * reg10_max) / (1000 * reg11);
+		reg10 = (sd->ctrls[EXPOSURE].val / 2) * reg10_max
+				/ (1000 * reg11 / 30) */
+		reg10 = (sd->ctrls[EXPOSURE].val * 15 * reg10_max)
+				/ (1000 * reg11);
 
 		/* Don't allow this to get below 10 when using autogain, the
 		   steps become very large (relatively) when below 10 causing
 		   the image to oscilate from much too dark, to much too bright
 		   and back again. */
-		if (sd->autogain && reg10 < 10)
+		if (sd->ctrls[AUTOGAIN].val && reg10 < 10)
 			reg10 = 10;
 		else if (reg10 > reg10_max)
 			reg10 = reg10_max;
@@ -927,15 +909,16 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		   frame exposure times (like we are doing with the ov chips),
 		   as that sometimes leads to jumps in the exposure control,
 		   which are bad for auto exposure. */
-		if (sd->exposure < 200) {
-			i2cpexpo[3] = 255 - (sd->exposure * 255) / 200;
+		if (sd->ctrls[EXPOSURE].val < 200) {
+			i2cpexpo[3] = 255 - (sd->ctrls[EXPOSURE].val * 255)
+						/ 200;
 			framerate_ctrl = 500;
 		} else {
 			/* The PAS202's exposure control goes from 0 - 4095,
 			   but anything below 500 causes vsync issues, so scale
 			   our 200-1023 to 500-4095 */
-			framerate_ctrl = (sd->exposure - 200) * 1000 / 229 +
-					 500;
+			framerate_ctrl = (sd->ctrls[EXPOSURE].val - 200)
+							* 1000 / 229 +  500;
 		}
 
 		i2cpframerate[3] = framerate_ctrl >> 6;
@@ -959,15 +942,15 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		/* For values below 150 use partial frame exposure, above
 		   that use framerate ctrl */
-		if (sd->exposure < 150) {
-			i2cpexpo[3] = 150 - sd->exposure;
+		if (sd->ctrls[EXPOSURE].val < 150) {
+			i2cpexpo[3] = 150 - sd->ctrls[EXPOSURE].val;
 			framerate_ctrl = 300;
 		} else {
 			/* The PAS106's exposure control goes from 0 - 4095,
 			   but anything below 300 causes vsync issues, so scale
 			   our 150-1023 to 300-4095 */
-			framerate_ctrl = (sd->exposure - 150) * 1000 / 230 +
-					 300;
+			framerate_ctrl = (sd->ctrls[EXPOSURE].val - 150)
+						* 1000 / 230 + 300;
 		}
 
 		i2cpframerate[3] = framerate_ctrl >> 4;
@@ -998,7 +981,7 @@ static void setfreq(struct gspca_dev *gspca_dev)
 		   0x2b register, see ov6630 datasheet.
 		   0x4f / 0x8a -> (30 fps -> 25 fps), 0x00 -> no adjustment */
 		__u8 i2c[] = {0xa0, 0x00, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x10};
-		switch (sd->freq) {
+		switch (sd->ctrls[FREQ].val) {
 		default:
 /*		case 0:			 * no filter*/
 /*		case 2:			 * 60 hz */
@@ -1017,7 +1000,7 @@ static void setfreq(struct gspca_dev *gspca_dev)
 	}
 }
 
-#include "coarse_expo_autogain.h"
+#include "autogain_functions.h"
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
@@ -1025,7 +1008,8 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum = atomic_read(&sd->avg_lum);
 
-	if (avg_lum == -1 || !sd->autogain)
+	if ((gspca_dev->ctrl_dis & (1 << AUTOGAIN)) ||
+	    avg_lum == -1 || !sd->ctrls[AUTOGAIN].val)
 		return;
 
 	if (sd->autogain_ignore_frames > 0) {
@@ -1045,17 +1029,20 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	}
 
 	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO)
-		result = gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
-				sd->brightness * desired_avg_lum / 127,
+		result = coarse_grained_expo_autogain(gspca_dev, avg_lum,
+				sd->ctrls[BRIGHTNESS].val
+						* desired_avg_lum / 127,
 				deadzone);
 	else
-		result = gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
-				sd->brightness * desired_avg_lum / 127,
+		result = auto_gain_n_exposure(gspca_dev, avg_lum,
+				sd->ctrls[BRIGHTNESS].val
+						* desired_avg_lum / 127,
 				deadzone, GAIN_KNEE, EXPOSURE_KNEE);
 
 	if (result) {
 		PDEBUG(D_FRAM, "autogain: gain changed: gain: %d expo: %d",
-			(int)sd->gain, (int)sd->exposure);
+			(int) sd->ctrls[GAIN].val,
+			(int) sd->ctrls[EXPOSURE].val);
 		sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
 	}
 }
@@ -1074,9 +1061,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	/* copy the webcam info from the device id */
 	sd->sensor = id->driver_info >> 8;
 	sd->bridge = id->driver_info & 0xff;
+
 	gspca_dev->ctrl_dis = sensor_data[sd->sensor].ctrl_dis;
+#if AUTOGAIN_DEF
+	if (!(gspca_dev->ctrl_dis & (1 << AUTOGAIN)))
+		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
+#endif
 
 	cam = &gspca_dev->cam;
+	cam->ctrls = sd->ctrls;
 	if (!(sensor_data[sd->sensor].flags & F_SIF)) {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -1086,20 +1079,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	cam->npkt = 36;			/* 36 packets per ISOC message */
 
-	sd->brightness = BRIGHTNESS_DEF;
-	sd->gain = GAIN_DEF;
 	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO) {
-		sd->exposure = COARSE_EXPOSURE_DEF;
-		gspca_dev->ctrl_dis |= (1 << EXPOSURE_IDX);
-	} else {
-		sd->exposure = EXPOSURE_DEF;
-		gspca_dev->ctrl_dis |= (1 << COARSE_EXPOSURE_IDX);
+		sd->ctrls[EXPOSURE].min = COARSE_EXPOSURE_MIN;
+		sd->ctrls[EXPOSURE].max = COARSE_EXPOSURE_MAX;
+		sd->ctrls[EXPOSURE].def = COARSE_EXPOSURE_DEF;
 	}
-	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN_IDX))
-		sd->autogain = 0; /* Disable do_autogain callback */
-	else
-		sd->autogain = AUTOGAIN_DEF;
-	sd->freq = FREQ_DEF;
 
 	return 0;
 }
@@ -1398,65 +1382,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 }
 
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
-	return 0;
-}
-
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->brightness;
-	return 0;
-}
-
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->gain = val;
-	if (gspca_dev->streaming)
-		setgain(gspca_dev);
-	return 0;
-}
-
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->gain;
-	return 0;
-}
-
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->exposure = val;
-	if (gspca_dev->streaming)
-		setexposure(gspca_dev);
-	return 0;
-}
-
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->exposure;
-	return 0;
-}
-
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->autogain = val;
+	sd->ctrls[AUTOGAIN].val = val;
 	sd->exp_too_high_cnt = 0;
 	sd->exp_too_low_cnt = 0;
 
@@ -1464,9 +1394,10 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	   we are on a valid point of the autogain gain /
 	   exposure knee graph, and give this change time to
 	   take effect before doing autogain. */
-	if (sd->autogain && !(sensor_data[sd->sensor].flags & F_COARSE_EXPO)) {
-		sd->exposure = EXPOSURE_DEF;
-		sd->gain = GAIN_DEF;
+	if (sd->ctrls[AUTOGAIN].val
+	 && !(sensor_data[sd->sensor].flags & F_COARSE_EXPO)) {
+		sd->ctrls[EXPOSURE].val = sd->ctrls[EXPOSURE].def;
+		sd->ctrls[GAIN].val = sd->ctrls[GAIN].def;
 		if (gspca_dev->streaming) {
 			sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
 			setexposure(gspca_dev);
@@ -1474,32 +1405,11 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 		}
 	}
 
-	return 0;
-}
+	if (sd->ctrls[AUTOGAIN].val)
+		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
+	else
+		gspca_dev->ctrl_inac = 0;
 
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->autogain;
-	return 0;
-}
-
-static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->freq = val;
-	if (gspca_dev->streaming)
-		setfreq(gspca_dev);
-	return 0;
-}
-
-static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->freq;
 	return 0;
 }
 

@@ -1,14 +1,52 @@
-config IWLWIFI
-	tristate "Intel Wireless Wifi"
+config IWLAGN
+	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlagn) "
 	depends on PCI && MAC80211
 	select FW_LOADER
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+	---help---
+	  Select to build the driver supporting the:
+
+	  Intel Wireless WiFi Link Next-Gen AGN
+
+	  This option enables support for use with the following hardware:
+		Intel Wireless WiFi Link 6250AGN Adapter
+		Intel 6000 Series Wi-Fi Adapters (6200AGN and 6300AGN)
+		Intel WiFi Link 1000BGN
+		Intel Wireless WiFi 5150AGN
+		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
+		Intel 6005 Series Wi-Fi Adapters
+		Intel 6030 Series Wi-Fi Adapters
+		Intel Wireless WiFi Link 6150BGN 2 Adapter
+		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
+		Intel 2000 Series Wi-Fi Adapters
+
+
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  In order to use this driver, you will need a microcode (uCode)
+	  image for it. You can obtain the microcode from:
+
+	          <http://intellinuxwireless.org/>.
+
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
+
+	  If you want to compile the driver as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  module will be called iwlagn.
 
 menu "Debugging Options"
-	depends on IWLWIFI
+	depends on IWLAGN
 
 config IWLWIFI_DEBUG
-	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
-	depends on IWLWIFI
+	bool "Enable full debugging output in the iwlagn driver"
+	depends on IWLAGN
 	---help---
 	  This option will enable debug tracing output for the iwlwifi drivers
 
@@ -33,7 +71,7 @@ config IWLWIFI_DEBUG
 
 config IWLWIFI_DEBUGFS
         bool "iwlagn debugfs support"
-        depends on IWLWIFI && MAC80211_DEBUGFS
+        depends on IWLAGN && MAC80211_DEBUGFS
         ---help---
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
@@ -41,13 +79,13 @@ config IWLWIFI_DEBUGFS
 
 config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
         bool "Experimental uCode support"
-        depends on IWLWIFI && IWLWIFI_DEBUG
+        depends on IWLAGN && IWLWIFI_DEBUG
         ---help---
 	  Enable use of experimental ucode for testing and debugging.
 
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
-	depends on IWLWIFI
+	depends on IWLAGN
 	depends on EVENT_TRACING
 	help
 	  Say Y here to trace all commands, including TX frames and IO
@@ -64,73 +102,29 @@ config IWLWIFI_DEVICE_TRACING
 	  occur.
 endmenu
 
-config IWLAGN
-	tristate "Intel Wireless WiFi Next Gen AGN (iwlagn)"
-	depends on IWLWIFI
-	---help---
-	  Select to build the driver supporting the:
-
-	  Intel Wireless WiFi Link Next-Gen AGN
-
-	  This driver uses the kernel's mac80211 subsystem.
-
-	  In order to use this driver, you will need a microcode (uCode)
-	  image for it. You can obtain the microcode from:
-
-	          <http://intellinuxwireless.org/>.
-
-	  The microcode is typically installed in /lib/firmware. You can
-	  look in the hotplug script /etc/hotplug/firmware.agent to
-	  determine which directory FIRMWARE_DIR is set to when the script
-	  runs.
-
-	  If you want to compile the driver as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwlagn.
-
-
-config IWL4965
-	bool "Intel Wireless WiFi 4965AGN"
+config IWLWIFI_DEVICE_SVTOOL
+	bool "iwlwifi device svtool support"
 	depends on IWLAGN
-	---help---
-	  This option enables support for Intel Wireless WiFi Link 4965AGN
+	select NL80211_TESTMODE
+	help
+	  This option enables the svtool support for iwlwifi device through
+	  NL80211_TESTMODE. svtool is a software validation tool that runs in
+	  the user space and interacts with the device in the kernel space
+	  through the generic netlink message via NL80211_TESTMODE channel.
 
-config IWL5000
-	bool "Intel Wireless-N/Advanced-N/Ultimate-N WiFi Link"
+config IWL_P2P
+	bool "iwlwifi experimental P2P support"
 	depends on IWLAGN
-	---help---
-	  This option enables support for use with the following hardware:
-		Intel Wireless WiFi Link 6250AGN Adapter
-		Intel 6000 Series Wi-Fi Adapters (6200AGN and 6300AGN)
-		Intel WiFi Link 1000BGN
-		Intel Wireless WiFi 5150AGN
-		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
-		Intel 6000 Gen 2 Series Wi-Fi Adapters (6000G2A and 6000G2B)
-		Intel WIreless WiFi Link 6050BGN Gen 2 Adapter
-		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
+	help
+	  This option enables experimental P2P support for some devices
+	  based on microcode support. Since P2P support is still under
+	  development, this option may even enable it for some devices
+	  now that turn out to not support it in the future due to
+	  microcode restrictions.
 
-config IWL3945
-	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
-	depends on IWLWIFI
-	---help---
-	  Select to build the driver supporting the:
+	  To determine if your microcode supports the experimental P2P
+	  offered by this option, check if the driver advertises AP
+	  support when it is loaded.
 
-	  Intel PRO/Wireless 3945ABG/BG Network Connection
+	  Say Y only if you want to experiment with P2P.
 
-	  This driver uses the kernel's mac80211 subsystem.
-
-	  In order to use this driver, you will need a microcode (uCode)
-	  image for it. You can obtain the microcode from:
-
-	          <http://intellinuxwireless.org/>.
-
-	  The microcode is typically installed in /lib/firmware. You can
-	  look in the hotplug script /etc/hotplug/firmware.agent to
-	  determine which directory FIRMWARE_DIR is set to when the script
-	  runs.
-
-	  If you want to compile the driver as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwl3945.

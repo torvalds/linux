@@ -189,13 +189,13 @@ ACPI
 
 PCI
 
-  pci=off	Don't use PCI
-  pci=conf1	Use conf1 access.
-  pci=conf2	Use conf2 access.
-  pci=rom	Assign ROMs.
-  pci=assign-busses    Assign busses
-  pci=irqmask=MASK	       Set PCI interrupt mask to MASK
-  pci=lastbus=NUMBER	       Scan upto NUMBER busses, no matter what the mptable says.
+  pci=off		Don't use PCI
+  pci=conf1		Use conf1 access.
+  pci=conf2		Use conf2 access.
+  pci=rom		Assign ROMs.
+  pci=assign-busses	Assign busses
+  pci=irqmask=MASK	Set PCI interrupt mask to MASK
+  pci=lastbus=NUMBER	Scan up to NUMBER busses, no matter what the mptable says.
   pci=noacpi		Don't use ACPI to set up PCI interrupt routing.
 
 IOMMU (input/output memory management unit)
@@ -206,7 +206,7 @@ IOMMU (input/output memory management unit)
       (e.g. because you have < 3 GB memory).
       Kernel boot message: "PCI-DMA: Disabling IOMMU"
 
-   2. <arch/x86_64/kernel/pci-gart.c>: AMD GART based hardware IOMMU.
+   2. <arch/x86/kernel/amd_gart_64.c>: AMD GART based hardware IOMMU.
       Kernel boot message: "PCI-DMA: using GART IOMMU"
 
    3. <arch/x86_64/kernel/pci-swiotlb.c> : Software IOMMU implementation. Used
@@ -292,11 +292,6 @@ IOMMU (input/output memory management unit)
     are accessed from userspace directly on some PCI host bridge.
 
 Debugging
-
-  oops=panic	Always panic on oopses. Default is to just kill the process,
-		but there is a small probability of deadlocking the machine.
-		This will also cause panics on machine check exceptions.
-		Useful together with panic=30 to trigger a reboot.
 
   kstack=N	Print N words from the kernel stack in oops dumps.
 

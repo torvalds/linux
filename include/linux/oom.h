@@ -40,6 +40,8 @@ enum oom_constraint {
 	CONSTRAINT_MEMCG,
 };
 
+extern int test_set_oom_score_adj(int new_val);
+
 extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 			const nodemask_t *nodemask, unsigned long totalpages);
 extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
@@ -61,10 +63,6 @@ static inline void oom_killer_enable(void)
 {
 	oom_killer_disabled = false;
 }
-
-/* The badness from the OOM killer */
-extern unsigned long badness(struct task_struct *p, struct mem_cgroup *mem,
-		      const nodemask_t *nodemask, unsigned long uptime);
 
 extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 

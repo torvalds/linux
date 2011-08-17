@@ -95,7 +95,7 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 		int fd = fdp[i];
 		struct file *file;
 
-		if (fd < 0 || !(file = fget(fd)))
+		if (fd < 0 || !(file = fget_raw(fd)))
 			return -EBADF;
 		*fpp++ = file;
 		fpl->count++;
@@ -192,7 +192,7 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 					goto error;
 
 				cred->uid = cred->euid = p->creds.uid;
-				cred->gid = cred->egid = p->creds.uid;
+				cred->gid = cred->egid = p->creds.gid;
 				put_cred(p->cred);
 				p->cred = cred;
 			}

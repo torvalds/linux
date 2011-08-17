@@ -7,7 +7,7 @@
 extern unsigned char cpu_core_id[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
 
-static inline const struct cpumask *cpu_coregroup_mask(unsigned int cpu)
+static inline const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	return &cpu_core_map[cpu];
 }
@@ -21,7 +21,7 @@ static inline const struct cpumask *cpu_coregroup_mask(unsigned int cpu)
 extern unsigned char cpu_book_id[NR_CPUS];
 extern cpumask_t cpu_book_map[NR_CPUS];
 
-static inline const struct cpumask *cpu_book_mask(unsigned int cpu)
+static inline const struct cpumask *cpu_book_mask(int cpu)
 {
 	return &cpu_book_map[cpu];
 }

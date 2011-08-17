@@ -328,7 +328,8 @@ sub read_mailmap {
 	# name1 <mail1> <mail2>
 	# name1 <mail1> name2 <mail2>
 	# (see man git-shortlog)
-	if (/^(.+)<(.+)>$/) {
+
+	if (/^([^<]+)<([^>]+)>$/) {
 	    my $real_name = $1;
 	    my $address = $2;
 
@@ -336,13 +337,13 @@ sub read_mailmap {
 	    ($real_name, $address) = parse_email("$real_name <$address>");
 	    $mailmap->{names}->{$address} = $real_name;
 
-	} elsif (/^<([^\s]+)>\s*<([^\s]+)>$/) {
+	} elsif (/^<([^>]+)>\s*<([^>]+)>$/) {
 	    my $real_address = $1;
 	    my $wrong_address = $2;
 
 	    $mailmap->{addresses}->{$wrong_address} = $real_address;
 
-	} elsif (/^(.+)<([^\s]+)>\s*<([^\s]+)>$/) {
+	} elsif (/^(.+)<([^>]+)>\s*<([^>]+)>$/) {
 	    my $real_name = $1;
 	    my $real_address = $2;
 	    my $wrong_address = $3;
@@ -353,7 +354,7 @@ sub read_mailmap {
 	    $mailmap->{names}->{$wrong_address} = $real_name;
 	    $mailmap->{addresses}->{$wrong_address} = $real_address;
 
-	} elsif (/^(.+)<([^\s]+)>\s*([^\s].*)<([^\s]+)>$/) {
+	} elsif (/^(.+)<([^>]+)>\s*(.+)\s*<([^>]+)>$/) {
 	    my $real_name = $1;
 	    my $real_address = $2;
 	    my $wrong_name = $3;
@@ -420,6 +421,14 @@ foreach my $file (@ARGV) {
 
 	open(my $patch, "< $file")
 	    or die "$P: Can't open $file: $!\n";
+
+	# We can check arbitrary information before the patch
+	# like the commit message, mail headers, etc...
+	# This allows us to match arbitrary keywords against any part
+	# of a git format-patch generated file (subject tags, etc...)
+
+	my $patch_prefix = "";			#Parsing the intro
+
 	while (<$patch>) {
 	    my $patch_line = $_;
 	    if (m/^\+\+\+\s+(\S+)/) {
@@ -428,13 +437,14 @@ foreach my $file (@ARGV) {
 		$filename =~ s@\n@@;
 		$lastfile = $filename;
 		push(@files, $filename);
+		$patch_prefix = "^[+-].*";	#Now parsing the actual patch
 	    } elsif (m/^\@\@ -(\d+),(\d+)/) {
 		if ($email_git_blame) {
 		    push(@range, "$lastfile:$1:$2");
 		}
 	    } elsif ($keywords) {
 		foreach my $line (keys %keyword_hash) {
-		    if ($patch_line =~ m/^[+-].*$keyword_hash{$line}/x) {
+		    if ($patch_line =~ m/${patch_prefix}$keyword_hash{$line}/x) {
 			push(@keyword_tvi, $line);
 		    }
 		}

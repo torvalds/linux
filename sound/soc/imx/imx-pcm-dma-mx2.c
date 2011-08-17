@@ -303,6 +303,11 @@ static struct snd_soc_platform_driver imx_soc_platform_mx2 = {
 
 static int __devinit imx_soc_platform_probe(struct platform_device *pdev)
 {
+	struct imx_ssi *ssi = platform_get_drvdata(pdev);
+
+	ssi->dma_params_tx.burstsize = 6;
+	ssi->dma_params_rx.burstsize = 4;
+
 	return snd_soc_register_platform(&pdev->dev, &imx_soc_platform_mx2);
 }
 
@@ -332,3 +337,5 @@ static void __exit snd_imx_pcm_exit(void)
 	platform_driver_unregister(&imx_pcm_driver);
 }
 module_exit(snd_imx_pcm_exit);
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-pcm-audio");

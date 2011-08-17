@@ -50,6 +50,11 @@ struct dib7000m_state {
 	u16 revision;
 
 	u8 agc_state;
+
+	/* for the I2C transfer */
+	struct i2c_msg msg[2];
+	u8 i2c_write_buffer[4];
+	u8 i2c_read_buffer[2];
 };
 
 enum dib7000m_power_mode {
@@ -64,29 +69,39 @@ enum dib7000m_power_mode {
 
 static u16 dib7000m_read_word(struct dib7000m_state *state, u16 reg)
 {
-	u8 wb[2] = { (reg >> 8) | 0x80, reg & 0xff };
-	u8 rb[2];
-	struct i2c_msg msg[2] = {
-		{ .addr = state->i2c_addr >> 1, .flags = 0,        .buf = wb, .len = 2 },
-		{ .addr = state->i2c_addr >> 1, .flags = I2C_M_RD, .buf = rb, .len = 2 },
-	};
+	state->i2c_write_buffer[0] = (reg >> 8) | 0x80;
+	state->i2c_write_buffer[1] = reg & 0xff;
 
-	if (i2c_transfer(state->i2c_adap, msg, 2) != 2)
+	memset(state->msg, 0, 2 * sizeof(struct i2c_msg));
+	state->msg[0].addr = state->i2c_addr >> 1;
+	state->msg[0].flags = 0;
+	state->msg[0].buf = state->i2c_write_buffer;
+	state->msg[0].len = 2;
+	state->msg[1].addr = state->i2c_addr >> 1;
+	state->msg[1].flags = I2C_M_RD;
+	state->msg[1].buf = state->i2c_read_buffer;
+	state->msg[1].len = 2;
+
+	if (i2c_transfer(state->i2c_adap, state->msg, 2) != 2)
 		dprintk("i2c read error on %d",reg);
 
-	return (rb[0] << 8) | rb[1];
+	return (state->i2c_read_buffer[0] << 8) | state->i2c_read_buffer[1];
 }
 
 static int dib7000m_write_word(struct dib7000m_state *state, u16 reg, u16 val)
 {
-	u8 b[4] = {
-		(reg >> 8) & 0xff, reg & 0xff,
-		(val >> 8) & 0xff, val & 0xff,
-	};
-	struct i2c_msg msg = {
-		.addr = state->i2c_addr >> 1, .flags = 0, .buf = b, .len = 4
-	};
-	return i2c_transfer(state->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
+	state->i2c_write_buffer[0] = (reg >> 8) & 0xff;
+	state->i2c_write_buffer[1] = reg & 0xff;
+	state->i2c_write_buffer[2] = (val >> 8) & 0xff;
+	state->i2c_write_buffer[3] = val & 0xff;
+
+	memset(&state->msg[0], 0, sizeof(struct i2c_msg));
+	state->msg[0].addr = state->i2c_addr >> 1;
+	state->msg[0].flags = 0;
+	state->msg[0].buf = state->i2c_write_buffer;
+	state->msg[0].len = 4;
+
+	return i2c_transfer(state->i2c_adap, state->msg, 1) != 1 ? -EREMOTEIO : 0;
 }
 static void dib7000m_write_tab(struct dib7000m_state *state, u16 *buf)
 {
@@ -1284,6 +1299,25 @@ struct i2c_adapter * dib7000m_get_i2c_master(struct dvb_frontend *demod, enum di
 	return dibx000_get_i2c_adapter(&st->i2c_master, intf, gating);
 }
 EXPORT_SYMBOL(dib7000m_get_i2c_master);
+
+int dib7000m_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+	struct dib7000m_state *state = fe->demodulator_priv;
+	u16 val = dib7000m_read_word(state, 294 + state->reg_offs) & 0xffef;
+	val |= (onoff & 0x1) << 4;
+	dprintk("PID filter enabled %d", onoff);
+	return dib7000m_write_word(state, 294 + state->reg_offs, val);
+}
+EXPORT_SYMBOL(dib7000m_pid_filter_ctrl);
+
+int dib7000m_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+	struct dib7000m_state *state = fe->demodulator_priv;
+	dprintk("PID filter: index %x, PID %d, OnOff %d", id, pid, onoff);
+	return dib7000m_write_word(state, 300 + state->reg_offs + id,
+			onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib7000m_pid_filter);
 
 #if 0
 /* used with some prototype boards */

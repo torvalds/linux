@@ -41,7 +41,7 @@ static int nowayout  = WATCHDOG_NOWAYOUT;
  * to ping the watchdog.
  */
 #define MAX6369_WDSET	(7 << 0)
-#define MAX6369_WDI   	(1 << 3)
+#define MAX6369_WDI	(1 << 3)
 
 static DEFINE_SPINLOCK(io_lock);
 
@@ -270,7 +270,6 @@ static int __devinit max63xx_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int size;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct max63xx_timeout *table;
 
@@ -294,21 +293,19 @@ static int __devinit max63xx_wdt_probe(struct platform_device *pdev)
 
 	max63xx_pdev = pdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
+	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (wdt_mem == NULL) {
 		dev_err(dev, "failed to get memory region resource\n");
 		return -ENOENT;
 	}
 
-	size = resource_size(res);
-	wdt_mem = request_mem_region(res->start, size, pdev->name);
-
-	if (wdt_mem == NULL) {
+	size = resource_size(wdt_mem);
+	if (!request_mem_region(wdt_mem->start, size, pdev->name)) {
 		dev_err(dev, "failed to get memory region\n");
 		return -ENOENT;
 	}
 
-	wdt_base = ioremap(res->start, size);
+	wdt_base = ioremap(wdt_mem->start, size);
 	if (!wdt_base) {
 		dev_err(dev, "failed to map memory region\n");
 		ret = -ENOMEM;
@@ -326,8 +323,8 @@ static int __devinit max63xx_wdt_probe(struct platform_device *pdev)
 out_unmap:
 	iounmap(wdt_base);
 out_request:
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
+	release_mem_region(wdt_mem->start, size);
+	wdt_mem = NULL;
 
 	return ret;
 }
@@ -336,8 +333,7 @@ static int __devexit max63xx_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&max63xx_wdt_miscdev);
 	if (wdt_mem) {
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
+		release_mem_region(wdt_mem->start, resource_size(wdt_mem));
 		wdt_mem = NULL;
 	}
 

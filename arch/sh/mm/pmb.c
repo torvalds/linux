@@ -3,7 +3,7 @@
  *
  * Privileged Space Mapping Buffer (PMB) Support.
  *
- * Copyright (C) 2005 - 2010  Paul Mundt
+ * Copyright (C) 2005 - 2011  Paul Mundt
  * Copyright (C) 2010  Matt Fleming
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
@@ -874,46 +874,31 @@ static int __init pmb_debugfs_init(void)
 subsys_initcall(pmb_debugfs_init);
 
 #ifdef CONFIG_PM
-static int pmb_sysdev_suspend(struct sys_device *dev, pm_message_t state)
+static void pmb_syscore_resume(void)
 {
-	static pm_message_t prev_state;
+	struct pmb_entry *pmbe;
 	int i;
 
-	/* Restore the PMB after a resume from hibernation */
-	if (state.event == PM_EVENT_ON &&
-	    prev_state.event == PM_EVENT_FREEZE) {
-		struct pmb_entry *pmbe;
+	read_lock(&pmb_rwlock);
 
-		read_lock(&pmb_rwlock);
-
-		for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
-			if (test_bit(i, pmb_map)) {
-				pmbe = &pmb_entry_list[i];
-				set_pmb_entry(pmbe);
-			}
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		if (test_bit(i, pmb_map)) {
+			pmbe = &pmb_entry_list[i];
+			set_pmb_entry(pmbe);
 		}
-
-		read_unlock(&pmb_rwlock);
 	}
 
-	prev_state = state;
-
-	return 0;
+	read_unlock(&pmb_rwlock);
 }
 
-static int pmb_sysdev_resume(struct sys_device *dev)
-{
-	return pmb_sysdev_suspend(dev, PMSG_ON);
-}
-
-static struct sysdev_driver pmb_sysdev_driver = {
-	.suspend = pmb_sysdev_suspend,
-	.resume = pmb_sysdev_resume,
+static struct syscore_ops pmb_syscore_ops = {
+	.resume = pmb_syscore_resume,
 };
 
 static int __init pmb_sysdev_init(void)
 {
-	return sysdev_driver_register(&cpu_sysdev_class, &pmb_sysdev_driver);
+	register_syscore_ops(&pmb_syscore_ops);
+	return 0;
 }
 subsys_initcall(pmb_sysdev_init);
 #endif

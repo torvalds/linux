@@ -84,29 +84,14 @@ out_unregister:
 
 arch_initcall (cio_debug_init);
 
-int
-cio_set_options (struct subchannel *sch, int flags)
+int cio_set_options(struct subchannel *sch, int flags)
 {
-       sch->options.suspend = (flags & DOIO_ALLOW_SUSPEND) != 0;
-       sch->options.prefetch = (flags & DOIO_DENY_PREFETCH) != 0;
-       sch->options.inter = (flags & DOIO_SUPPRESS_INTER) != 0;
-       return 0;
-}
+	struct io_subchannel_private *priv = to_io_private(sch);
 
-/* FIXME: who wants to use this? */
-int
-cio_get_options (struct subchannel *sch)
-{
-       int flags;
-
-       flags = 0;
-       if (sch->options.suspend)
-		flags |= DOIO_ALLOW_SUSPEND;
-       if (sch->options.prefetch)
-		flags |= DOIO_DENY_PREFETCH;
-       if (sch->options.inter)
-		flags |= DOIO_SUPPRESS_INTER;
-       return flags;
+	priv->options.suspend = (flags & DOIO_ALLOW_SUSPEND) != 0;
+	priv->options.prefetch = (flags & DOIO_DENY_PREFETCH) != 0;
+	priv->options.inter = (flags & DOIO_SUPPRESS_INTER) != 0;
+	return 0;
 }
 
 static int
@@ -139,21 +124,21 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	       __u8 lpm,		/* logical path mask */
 	       __u8 key)                /* storage key */
 {
+	struct io_subchannel_private *priv = to_io_private(sch);
+	union orb *orb = &priv->orb;
 	int ccode;
-	union orb *orb;
 
 	CIO_TRACE_EVENT(5, "stIO");
 	CIO_TRACE_EVENT(5, dev_name(&sch->dev));
 
-	orb = &to_io_private(sch)->orb;
 	memset(orb, 0, sizeof(union orb));
 	/* sch is always under 2G. */
 	orb->cmd.intparm = (u32)(addr_t)sch;
 	orb->cmd.fmt = 1;
 
-	orb->cmd.pfch = sch->options.prefetch == 0;
-	orb->cmd.spnd = sch->options.suspend;
-	orb->cmd.ssic = sch->options.suspend && sch->options.inter;
+	orb->cmd.pfch = priv->options.prefetch == 0;
+	orb->cmd.spnd = priv->options.suspend;
+	orb->cmd.ssic = priv->options.suspend && priv->options.inter;
 	orb->cmd.lpm = (lpm != 0) ? lpm : sch->lpm;
 #ifdef CONFIG_64BIT
 	/*
@@ -630,11 +615,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 	irb = (struct irb *)&S390_lowcore.irb;
 	do {
 		kstat_cpu(smp_processor_id()).irqs[IO_INTERRUPT]++;
-		/*
-		 * Non I/O-subchannel thin interrupts are processed differently
-		 */
-		if (tpi_info->adapter_IO == 1 &&
-		    tpi_info->int_type == IO_INTERRUPT_TYPE) {
+		if (tpi_info->adapter_IO) {
 			do_adapter_IO(tpi_info->isc);
 			continue;
 		}

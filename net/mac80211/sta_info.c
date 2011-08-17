@@ -47,9 +47,9 @@
  * Station entries are added by mac80211 when you establish a link with a
  * peer. This means different things for the different type of interfaces
  * we support. For a regular station this mean we add the AP sta when we
- * receive an assocation response from the AP. For IBSS this occurs when
+ * receive an association response from the AP. For IBSS this occurs when
  * get to know about a peer on the same IBSS. For WDS we add the sta for
- * the peer imediately upon device open. When using AP mode we add stations
+ * the peer immediately upon device open. When using AP mode we add stations
  * for each respective station upon request from userspace through nl80211.
  *
  * In order to remove a STA info structure, various sta_info_destroy_*()
@@ -67,7 +67,8 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 {
 	struct sta_info *s;
 
-	s = local->sta_hash[STA_HASH(sta->sta.addr)];
+	s = rcu_dereference_protected(local->sta_hash[STA_HASH(sta->sta.addr)],
+				      lockdep_is_held(&local->sta_lock));
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
@@ -76,9 +77,11 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 		return 0;
 	}
 
-	while (s->hnext && s->hnext != sta)
-		s = s->hnext;
-	if (s->hnext) {
+	while (rcu_access_pointer(s->hnext) &&
+	       rcu_access_pointer(s->hnext) != sta)
+		s = rcu_dereference_protected(s->hnext,
+					lockdep_is_held(&local->sta_lock));
+	if (rcu_access_pointer(s->hnext)) {
 		rcu_assign_pointer(s->hnext, sta->hnext);
 		return 0;
 	}
@@ -94,7 +97,6 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    rcu_read_lock_held() ||
 				    lockdep_is_held(&local->sta_lock) ||
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
@@ -102,7 +104,6 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
-					    rcu_read_lock_held() ||
 					    lockdep_is_held(&local->sta_lock) ||
 					    lockdep_is_held(&local->sta_mtx));
 	}
@@ -120,7 +121,6 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    rcu_read_lock_held() ||
 				    lockdep_is_held(&local->sta_lock) ||
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
@@ -129,7 +129,6 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
-					    rcu_read_lock_held() ||
 					    lockdep_is_held(&local->sta_lock) ||
 					    lockdep_is_held(&local->sta_mtx));
 	}
@@ -228,6 +227,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
+	struct timespec uptime;
 	int i;
 
 	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
@@ -243,7 +243,10 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->sdata = sdata;
+	sta->last_rx = jiffies;
 
+	do_posix_clock_monotonic_gettime(&uptime);
+	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
 
 	if (sta_prepare_rate_control(local, sta, gfp)) {
@@ -270,7 +273,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_MESH
-	sta->plink_state = PLINK_LISTEN;
+	sta->plink_state = NL80211_PLINK_LISTEN;
 	init_timer(&sta->plink_timer);
 #endif
 
@@ -583,7 +586,6 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 {
 	unsigned long flags;
 	struct sk_buff *skb;
-	struct ieee80211_sub_if_data *sdata;
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
 		return false;
@@ -600,7 +602,6 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		if (!skb)
 			break;
 
-		sdata = sta->sdata;
 		local->total_ps_buffered--;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "Buffered frame expired (STA %pM)\n",
@@ -608,7 +609,8 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 #endif
 		dev_kfree_skb(skb);
 
-		if (skb_queue_empty(&sta->ps_tx_buf))
+		if (skb_queue_empty(&sta->ps_tx_buf) &&
+		    !test_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF))
 			sta_info_clear_tim_bit(sta);
 	}
 
@@ -649,10 +651,12 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	if (ret)
 		return ret;
 
+	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-		ieee80211_key_free(local, sta->gtk[i]);
+		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]));
 	if (sta->ptk)
-		ieee80211_key_free(local, sta->ptk);
+		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk));
+	mutex_unlock(&local->key_mtx);
 
 	sta->dead = true;
 
@@ -696,6 +700,8 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	wiphy_debug(local->hw.wiphy, "Removed STA %pM\n", sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 	cancel_work_sync(&sta->drv_unblock_wk);
+
+	cfg80211_del_sta(sdata->dev, sta->sta.addr, GFP_KERNEL);
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
@@ -765,9 +771,8 @@ static void sta_info_cleanup(unsigned long data)
 	if (!timer_needed)
 		return;
 
-	local->sta_cleanup.expires =
-		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
-	add_timer(&local->sta_cleanup);
+	mod_timer(&local->sta_cleanup,
+		  round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL));
 }
 
 void sta_info_init(struct ieee80211_local *local)
@@ -780,14 +785,6 @@ void sta_info_init(struct ieee80211_local *local)
 
 	setup_timer(&local->sta_cleanup, sta_info_cleanup,
 		    (unsigned long)local);
-	local->sta_cleanup.expires =
-		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
-}
-
-int sta_info_start(struct ieee80211_local *local)
-{
-	add_timer(&local->sta_cleanup);
-	return 0;
 }
 
 void sta_info_stop(struct ieee80211_local *local)
@@ -899,7 +896,9 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 	int sent, buffered;
 
-	drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
+	clear_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
+	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
+		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
 	if (!skb_queue_empty(&sta->ps_tx_buf))
 		sta_info_clear_tim_bit(sta);
@@ -990,3 +989,12 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
+
+void ieee80211_sta_set_tim(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	set_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
+	sta_info_set_tim_bit(sta);
+}
+EXPORT_SYMBOL(ieee80211_sta_set_tim);

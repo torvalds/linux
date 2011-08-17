@@ -83,7 +83,7 @@
  *    safety_margin = 128 + uncompressed_size * 8 / 32768 + 65536
  *                  = 128 + (uncompressed_size >> 12) + 65536
  *
- * For comparision, according to arch/x86/boot/compressed/misc.c, the
+ * For comparison, according to arch/x86/boot/compressed/misc.c, the
  * equivalent formula for Deflate is this:
  *
  *    safety_margin = 18 + (uncompressed_size >> 12) + 32768

@@ -19,6 +19,8 @@
  * Moorestown platform PMIC chip
  */
 
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -74,11 +76,23 @@ struct pmic_gpio {
 	u32			trigger_type;
 };
 
+static void pmic_program_irqtype(int gpio, int type)
+{
+	if (type & IRQ_TYPE_EDGE_RISING)
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x20, 0x20);
+	else
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x00, 0x20);
+
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x10, 0x10);
+	else
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x00, 0x10);
+};
+
 static int pmic_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	if (offset > 8) {
-		printk(KERN_ERR
-			"%s: only pin 0-7 support input\n", __func__);
+		pr_err("only pin 0-7 support input\n");
 		return -1;/* we only have 8 GPIO can use as input */
 	}
 	return intel_scu_ipc_update_register(GPIO0 + offset,
@@ -103,8 +117,7 @@ static int pmic_gpio_direction_output(struct gpio_chip *chip,
 				value ? 1 << (offset - 16) : 0,
 				1 << (offset - 16));
 	else {
-		printk(KERN_ERR
-			"%s: invalid PMIC GPIO pin %d!\n", __func__, offset);
+		pr_err("invalid PMIC GPIO pin %d!\n", offset);
 		WARN_ON(1);
 	}
 
@@ -166,16 +179,38 @@ static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return pg->irq_base + offset;
 }
 
+static void pmic_bus_lock(struct irq_data *data)
+{
+	struct pmic_gpio *pg = irq_data_get_irq_chip_data(data);
+
+	mutex_lock(&pg->buslock);
+}
+
+static void pmic_bus_sync_unlock(struct irq_data *data)
+{
+	struct pmic_gpio *pg = irq_data_get_irq_chip_data(data);
+
+	if (pg->update_type) {
+		unsigned int gpio = pg->update_type & ~GPIO_UPDATE_TYPE;
+
+		pmic_program_irqtype(gpio, pg->trigger_type);
+		pg->update_type = 0;
+	}
+	mutex_unlock(&pg->buslock);
+}
+
 /* the gpiointr register is read-clear, so just do nothing. */
 static void pmic_irq_unmask(struct irq_data *data) { }
 
 static void pmic_irq_mask(struct irq_data *data) { }
 
 static struct irq_chip pmic_irqchip = {
-	.name		= "PMIC-GPIO",
-	.irq_mask	= pmic_irq_mask,
-	.irq_unmask	= pmic_irq_unmask,
-	.irq_set_type	= pmic_irq_type,
+	.name			= "PMIC-GPIO",
+	.irq_mask		= pmic_irq_mask,
+	.irq_unmask		= pmic_irq_unmask,
+	.irq_set_type		= pmic_irq_type,
+	.irq_bus_lock		= pmic_bus_lock,
+	.irq_bus_sync_unlock	= pmic_bus_sync_unlock,
 };
 
 static irqreturn_t pmic_irq_handler(int irq, void *data)
@@ -225,7 +260,7 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	/* setting up SRAM mapping for GPIOINT register */
 	pg->gpiointr = ioremap_nocache(pdata->gpiointr, 8);
 	if (!pg->gpiointr) {
-		printk(KERN_ERR "%s: Can not map GPIOINT.\n", __func__);
+		pr_err("Can not map GPIOINT\n");
 		retval = -EINVAL;
 		goto err2;
 	}
@@ -246,20 +281,22 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	pg->chip.dev = dev;
 	retval = gpiochip_add(&pg->chip);
 	if (retval) {
-		printk(KERN_ERR "%s: Can not add pmic gpio chip.\n", __func__);
+		pr_err("Can not add pmic gpio chip\n");
 		goto err;
 	}
 
 	retval = request_irq(pg->irq, pmic_irq_handler, 0, "pmic", pg);
 	if (retval) {
-		printk(KERN_WARNING "pmic: Interrupt request failed\n");
+		pr_warn("Interrupt request failed\n");
 		goto err;
 	}
 
 	for (i = 0; i < 8; i++) {
-		set_irq_chip_and_handler_name(i + pg->irq_base, &pmic_irqchip,
-					handle_simple_irq, "demux");
-		set_irq_chip_data(i + pg->irq_base, pg);
+		irq_set_chip_and_handler_name(i + pg->irq_base,
+					      &pmic_irqchip,
+					      handle_simple_irq,
+					      "demux");
+		irq_set_chip_data(i + pg->irq_base, pg);
 	}
 	return 0;
 err:

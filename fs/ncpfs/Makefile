@@ -11,6 +11,6 @@ ncpfs-$(CONFIG_NCPFS_EXTRAS)   += symlink.o
 ncpfs-$(CONFIG_NCPFS_NFS_NS)   += symlink.o
 
 # If you want debugging output, please uncomment the following line
-# EXTRA_CFLAGS += -DDEBUG_NCP=1
+# ccflags-y := -DDEBUG_NCP=1
 
 CFLAGS_ncplib_kernel.o := -finline-functions

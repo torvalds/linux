@@ -27,9 +27,12 @@
 
 #define RES_MASK(bits)	((1 << (bits)) - 1)
 
+#define MODE_PWRDWN_1k		0x1
+#define MODE_PWRDWN_100k	0x2
+#define MODE_PWRDWN_TRISTATE	0x3
+
 /**
  * struct ad5446_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
  * @spi:		spi_device
  * @chip_info:		chip model specific constants, available modes etc
  * @reg:		supply regulator
@@ -41,12 +44,14 @@
  */
 
 struct ad5446_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	const struct ad5446_chip_info	*chip_info;
 	struct regulator		*reg;
 	struct work_struct		poll_work;
 	unsigned short			vref_mv;
+	unsigned			cached_val;
+	unsigned			pwr_down_mode;
+	unsigned			pwr_down;
 	struct spi_transfer		xfer;
 	struct spi_message		msg;
 	union {
@@ -62,14 +67,16 @@ struct ad5446_state {
  * @left_shift:		number of bits the datum must be shifted
  * @int_vref_mv:	AD5620/40/60: the internal reference voltage
  * @store_sample:	chip specific helper function to store the datum
+ * @store_sample:	chip specific helper function to store the powerpown cmd
  */
 
 struct ad5446_chip_info {
-	u8				bits;
-	u8				storagebits;
-	u8				left_shift;
-	u16				int_vref_mv;
-	void (*store_sample)		(struct ad5446_state *st, unsigned val);
+	u8			bits;
+	u8			storagebits;
+	u8			left_shift;
+	u16			int_vref_mv;
+	void (*store_sample)	(struct ad5446_state *st, unsigned val);
+	void (*store_pwr_down)	(struct ad5446_state *st, unsigned mode);
 };
 
 /**
@@ -83,8 +90,14 @@ struct ad5446_chip_info {
 enum ad5446_supported_device_ids {
 	ID_AD5444,
 	ID_AD5446,
+	ID_AD5541A,
 	ID_AD5542A,
+	ID_AD5543,
 	ID_AD5512A,
+	ID_AD5553,
+	ID_AD5601,
+	ID_AD5611,
+	ID_AD5621,
 	ID_AD5620_2500,
 	ID_AD5620_1250,
 	ID_AD5640_2500,

@@ -141,7 +141,8 @@ extern int ptrace_set_watch_regs(struct task_struct *child,
 #define instruction_pointer(regs) ((regs)->cp0_epc)
 #define profile_pc(regs) instruction_pointer(regs)
 
-extern asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit);
+extern asmlinkage void syscall_trace_enter(struct pt_regs *regs);
+extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
 
 extern NORET_TYPE void die(const char *, struct pt_regs *) ATTRIB_NORET;
 

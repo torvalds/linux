@@ -80,7 +80,6 @@ struct ipx_route {
 	atomic_t		refcnt;
 };
 
-#ifdef __KERNEL__
 struct ipx_cb {
 	u8	ipx_tctrl;
 	__be32	ipx_dest_net;
@@ -116,7 +115,6 @@ static inline struct ipx_sock *ipx_sk(struct sock *sk)
 }
 
 #define IPX_SKB_CB(__skb) ((struct ipx_cb *)&((__skb)->cb[0]))
-#endif
 
 #define IPX_MIN_EPHEMERAL_SOCKET	0x4000
 #define IPX_MAX_EPHEMERAL_SOCKET	0x7fff

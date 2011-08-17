@@ -62,7 +62,7 @@ static inline struct davinci_gpio_regs __iomem *irq2regs(int irq)
 {
 	struct davinci_gpio_regs __iomem *g;
 
-	g = (__force struct davinci_gpio_regs __iomem *)get_irq_chip_data(irq);
+	g = (__force struct davinci_gpio_regs __iomem *)irq_get_chip_data(irq);
 
 	return g;
 }
@@ -208,7 +208,7 @@ pure_initcall(davinci_gpio_setup);
 static void gpio_irq_disable(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
-	u32 mask = (u32) irq_data_get_irq_data(d);
+	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 
 	__raw_writel(mask, &g->clr_falling);
 	__raw_writel(mask, &g->clr_rising);
@@ -217,8 +217,8 @@ static void gpio_irq_disable(struct irq_data *d)
 static void gpio_irq_enable(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
-	u32 mask = (u32) irq_data_get_irq_data(d);
-	unsigned status = irq_desc[d->irq].status;
+	u32 mask = (u32) irq_data_get_irq_handler_data(d);
+	unsigned status = irqd_get_trigger_type(d);
 
 	status &= IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING;
 	if (!status)
@@ -233,21 +233,11 @@ static void gpio_irq_enable(struct irq_data *d)
 static int gpio_irq_type(struct irq_data *d, unsigned trigger)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
-	u32 mask = (u32) irq_data_get_irq_data(d);
+	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
 
-	irq_desc[d->irq].status &= ~IRQ_TYPE_SENSE_MASK;
-	irq_desc[d->irq].status |= trigger;
-
-	/* don't enable the IRQ if it's currently disabled */
-	if (irq_desc[d->irq].depth == 0) {
-		__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_FALLING)
-			     ? &g->set_falling : &g->clr_falling);
-		__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_RISING)
-			     ? &g->set_rising : &g->clr_rising);
-	}
 	return 0;
 }
 
@@ -256,13 +246,18 @@ static struct irq_chip gpio_irqchip = {
 	.irq_enable	= gpio_irq_enable,
 	.irq_disable	= gpio_irq_disable,
 	.irq_set_type	= gpio_irq_type,
+	.flags		= IRQCHIP_SET_TYPE_MASKED,
 };
 
 static void
 gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(irq);
+	struct davinci_gpio_regs __iomem *g;
 	u32 mask = 0xffff;
+	struct davinci_gpio_controller *d;
+
+	d = (struct davinci_gpio_controller *)irq_desc_get_handler_data(desc);
+	g = (struct davinci_gpio_regs __iomem *)d->regs;
 
 	/* we only care about one bank */
 	if (irq & 1)
@@ -281,11 +276,14 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		if (!status)
 			break;
 		__raw_writel(status, &g->intstat);
-		if (irq & 1)
-			status >>= 16;
 
 		/* now demux them to the right lowlevel handler */
-		n = (int)get_irq_data(irq);
+		n = d->irq_base;
+		if (irq & 1) {
+			n += 16;
+			status >>= 16;
+		}
+
 		while (status) {
 			res = ffs(status);
 			n += res;
@@ -323,7 +321,7 @@ static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
 static int gpio_irq_type_unbanked(struct irq_data *d, unsigned trigger)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
-	u32 mask = (u32) irq_data_get_irq_data(d);
+	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
@@ -395,7 +393,7 @@ static int __init davinci_gpio_irq_setup(void)
 
 		/* AINTC handles mask/unmask; GPIO handles triggering */
 		irq = bank_irq;
-		gpio_irqchip_unbanked = *get_irq_desc_chip(irq_to_desc(irq));
+		gpio_irqchip_unbanked = *irq_get_chip(irq);
 		gpio_irqchip_unbanked.name = "GPIO-AINTC";
 		gpio_irqchip_unbanked.irq_set_type = gpio_irq_type_unbanked;
 
@@ -406,10 +404,10 @@ static int __init davinci_gpio_irq_setup(void)
 
 		/* set the direct IRQs up to use that irqchip */
 		for (gpio = 0; gpio < soc_info->gpio_unbanked; gpio++, irq++) {
-			set_irq_chip(irq, &gpio_irqchip_unbanked);
-			set_irq_data(irq, (void *) __gpio_mask(gpio));
-			set_irq_chip_data(irq, (__force void *) g);
-			irq_desc[irq].status |= IRQ_TYPE_EDGE_BOTH;
+			irq_set_chip(irq, &gpio_irqchip_unbanked);
+			irq_set_handler_data(irq, (void *)__gpio_mask(gpio));
+			irq_set_chip_data(irq, (__force void *)g);
+			irq_set_status_flags(irq, IRQ_TYPE_EDGE_BOTH);
 		}
 
 		goto done;
@@ -430,15 +428,20 @@ static int __init davinci_gpio_irq_setup(void)
 		__raw_writel(~0, &g->clr_rising);
 
 		/* set up all irqs in this bank */
-		set_irq_chained_handler(bank_irq, gpio_irq_handler);
-		set_irq_chip_data(bank_irq, (__force void *) g);
-		set_irq_data(bank_irq, (void *) irq);
+		irq_set_chained_handler(bank_irq, gpio_irq_handler);
+
+		/*
+		 * Each chip handles 32 gpios, and each irq bank consists of 16
+		 * gpio irqs. Pass the irq bank's corresponding controller to
+		 * the chained irq handler.
+		 */
+		irq_set_handler_data(bank_irq, &chips[gpio / 32]);
 
 		for (i = 0; i < 16 && gpio < ngpio; i++, irq++, gpio++) {
-			set_irq_chip(irq, &gpio_irqchip);
-			set_irq_chip_data(irq, (__force void *) g);
-			set_irq_data(irq, (void *) __gpio_mask(gpio));
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_chip(irq, &gpio_irqchip);
+			irq_set_chip_data(irq, (__force void *)g);
+			irq_set_handler_data(irq, (void *)__gpio_mask(gpio));
+			irq_set_handler(irq, handle_simple_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		}
 

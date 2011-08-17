@@ -36,8 +36,10 @@ int audit_classify_arch(int arch)
 int audit_classify_syscall(int abi, unsigned syscall)
 {
 	switch(syscall) {
+#ifdef __NR_open
 	case __NR_open:
 		return 2;
+#endif
 #ifdef __NR_openat
 	case __NR_openat:
 		return 3;

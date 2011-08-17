@@ -24,7 +24,6 @@
 //==============================================================================
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "../htc_debug.h"
 #include "hif.h"
@@ -56,17 +55,17 @@
 #define BAUD_TIMEOUT_MS           1
 #define BTPWRSAV_TIMEOUT_MS       1  
 
-typedef struct {
-    HCI_TRANSPORT_CONFIG_INFO   HCIConfig;
-    A_BOOL                      HCIAttached;
-    A_BOOL                      HCIStopped;
-    A_UINT32                    RecvStateFlags;
-    A_UINT32                    SendStateFlags;
+struct gmbox_proto_hci_uart {
+    struct hci_transport_config_info   HCIConfig;
+    bool                      HCIAttached;
+    bool                      HCIStopped;
+    u32 RecvStateFlags;
+    u32 SendStateFlags;
     HCI_TRANSPORT_PACKET_TYPE   WaitBufferType;
-    HTC_PACKET_QUEUE            SendQueue;         /* write queue holding HCI Command and ACL packets */
-    HTC_PACKET_QUEUE            HCIACLRecvBuffers;  /* recv queue holding buffers for incomming ACL packets */
-    HTC_PACKET_QUEUE            HCIEventBuffers;    /* recv queue holding buffers for incomming event packets */
-    AR6K_DEVICE                 *pDev;
+    struct htc_packet_queue            SendQueue;         /* write queue holding HCI Command and ACL packets */
+    struct htc_packet_queue            HCIACLRecvBuffers;  /* recv queue holding buffers for incomming ACL packets */
+    struct htc_packet_queue            HCIEventBuffers;    /* recv queue holding buffers for incomming event packets */
+    struct ar6k_device                 *pDev;
     A_MUTEX_T                   HCIRxLock;
     A_MUTEX_T                   HCITxLock;
     int                         CreditsMax;
@@ -75,18 +74,23 @@ typedef struct {
     int                         CreditSize;
     int                         CreditsCurrentSeek;
     int                         SendProcessCount;
-} GMBOX_PROTO_HCI_UART;
+};
 
 #define LOCK_HCI_RX(t)   A_MUTEX_LOCK(&(t)->HCIRxLock);
 #define UNLOCK_HCI_RX(t) A_MUTEX_UNLOCK(&(t)->HCIRxLock);
 #define LOCK_HCI_TX(t)   A_MUTEX_LOCK(&(t)->HCITxLock);
 #define UNLOCK_HCI_TX(t) A_MUTEX_UNLOCK(&(t)->HCITxLock);
 
-#define DO_HCI_RECV_INDICATION(p,pt) \
-{   AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("HCI: Indicate Recv on packet:0x%lX status:%d len:%d type:%d \n",  \
-      (unsigned long)(pt),(pt)->Status, A_SUCCESS((pt)->Status) ? (pt)->ActualLength : 0, HCI_GET_PACKET_TYPE(pt))); \
-    (p)->HCIConfig.pHCIPktRecv((p)->HCIConfig.pContext, (pt));                                 \
-}
+#define DO_HCI_RECV_INDICATION(p, pt)				\
+do {								\
+	AR_DEBUG_PRINTF(ATH_DEBUG_RECV,					\
+			("HCI: Indicate Recv on packet:0x%lX status:%d len:%d type:%d \n", \
+			 (unsigned long)(pt),				\
+			 (pt)->Status,					\
+			 !(pt)->Status ? (pt)->ActualLength : 0,	\
+			 HCI_GET_PACKET_TYPE(pt)));			\
+	(p)->HCIConfig.pHCIPktRecv((p)->HCIConfig.pContext, (pt));	\
+} while (0)
 
 #define DO_HCI_SEND_INDICATION(p,pt) \
 {   AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("HCI: Indicate Send on packet:0x%lX status:%d type:%d \n",  \
@@ -94,24 +98,24 @@ typedef struct {
     (p)->HCIConfig.pHCISendComplete((p)->HCIConfig.pContext, (pt));                            \
 }
     
-static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_BOOL Synchronous);
+static int HCITrySend(struct gmbox_proto_hci_uart *pProt, struct htc_packet *pPacket, bool Synchronous);
 
-static void HCIUartCleanup(GMBOX_PROTO_HCI_UART *pProtocol)
+static void HCIUartCleanup(struct gmbox_proto_hci_uart *pProtocol)
 {
     A_ASSERT(pProtocol != NULL);
     
     A_MUTEX_DELETE(&pProtocol->HCIRxLock);
     A_MUTEX_DELETE(&pProtocol->HCITxLock);
         
-    A_FREE(pProtocol);    
+    kfree(pProtocol);    
 }
 
-static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
+static int InitTxCreditState(struct gmbox_proto_hci_uart *pProt)
 {
-    A_STATUS    status;
+    int    status;
     int         credits;
     int         creditPollCount = CREDIT_POLL_COUNT;
-    A_BOOL      gotCredits = FALSE;
+    bool      gotCredits = false;
 
     pProt->CreditsConsumed = 0;
     
@@ -120,7 +124,7 @@ static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
         if (pProt->CreditsMax != 0) {
             /* we can only call this only once per target reset */
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("HCI: InitTxCreditState - already called!  \n"));
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             status = A_EINVAL;
             break; 
         }
@@ -135,7 +139,7 @@ static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
 
             status = DevGMboxReadCreditCounter(pProt->pDev, PROC_IO_SYNC, &credits);
     
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
             
@@ -145,7 +149,7 @@ static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
                 A_MDELAY(HCI_DELAY_PER_INTERVAL_MS);
                 continue;  
             } else {
-                gotCredits = TRUE;    
+                gotCredits = true;
             }
             
             if (0 == credits) {
@@ -155,7 +159,7 @@ static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
             pProt->CreditsMax += credits;
         }
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
@@ -169,13 +173,13 @@ static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
             /* now get the size */
         status = DevGMboxReadCreditSize(pProt->pDev, &pProt->CreditSize);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
                
-    } while (FALSE);
+    } while (false);
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         pProt->CreditsAvailable = pProt->CreditsMax;
         AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("HCI : InitTxCreditState - credits avail: %d, size: %d \n",
             pProt->CreditsAvailable, pProt->CreditSize));    
@@ -184,13 +188,13 @@ static A_STATUS InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
     return status;
 }
 
-static A_STATUS CreditsAvailableCallback(void *pContext, int Credits, A_BOOL CreditIRQEnabled)
+static int CreditsAvailableCallback(void *pContext, int Credits, bool CreditIRQEnabled)
 {
-    GMBOX_PROTO_HCI_UART *pProt = (GMBOX_PROTO_HCI_UART *)pContext;    
-    A_BOOL               enableCreditIrq = FALSE;   
-    A_BOOL               disableCreditIrq = FALSE;
-    A_BOOL               doPendingSends = FALSE;
-    A_STATUS             status = A_OK;
+    struct gmbox_proto_hci_uart *pProt = (struct gmbox_proto_hci_uart *)pContext;    
+    bool               enableCreditIrq = false;
+    bool               disableCreditIrq = false;
+    bool               doPendingSends = false;
+    int             status = 0;
     
     /** this callback is called under 2 conditions:
      *   1. The credit IRQ interrupt was enabled and signaled.
@@ -209,7 +213,7 @@ static A_STATUS CreditsAvailableCallback(void *pContext, int Credits, A_BOOL Cre
         if (0 == Credits) {
             if (!CreditIRQEnabled) {
                     /* enable credit IRQ */
-                enableCreditIrq = TRUE;    
+                enableCreditIrq = true;
             }
             break;
         }
@@ -232,22 +236,22 @@ static A_STATUS CreditsAvailableCallback(void *pContext, int Credits, A_BOOL Cre
                          pProt->CreditsCurrentSeek));
         
         if (pProt->CreditsAvailable >= pProt->CreditsCurrentSeek) {
-                /* we have enough credits to fullfill at least 1 packet waiting in the queue */
+                /* we have enough credits to fulfill at least 1 packet waiting in the queue */
             pProt->CreditsCurrentSeek = 0;
             pProt->SendStateFlags &= ~HCI_SEND_WAIT_CREDITS;  
-            doPendingSends = TRUE;  
+            doPendingSends = true;
             if (CreditIRQEnabled) {
                     /* credit IRQ was enabled, we shouldn't need it anymore */
-                disableCreditIrq = TRUE;    
+                disableCreditIrq = true;
             }      
         } else {
                 /* not enough credits yet, enable credit IRQ if we haven't already */
             if (!CreditIRQEnabled) {               
-                enableCreditIrq = TRUE;    
+                enableCreditIrq = true;
             }    
         }
                       
-    } while (FALSE);
+    } while (false);
     
     UNLOCK_HCI_TX(pProt);
 
@@ -262,31 +266,31 @@ static A_STATUS CreditsAvailableCallback(void *pContext, int Credits, A_BOOL Cre
     }
        
     if (doPendingSends) {
-        HCITrySend(pProt, NULL, FALSE);
+        HCITrySend(pProt, NULL, false);
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+CreditsAvailableCallback \n"));
     return status;
 }
 
-static INLINE void NotifyTransportFailure(GMBOX_PROTO_HCI_UART  *pProt, A_STATUS status)
+static INLINE void NotifyTransportFailure(struct gmbox_proto_hci_uart  *pProt, int status)
 {
     if (pProt->HCIConfig.TransportFailure != NULL) {
         pProt->HCIConfig.TransportFailure(pProt->HCIConfig.pContext, status);
     }
 }
 
-static void FailureCallback(void *pContext, A_STATUS Status)
+static void FailureCallback(void *pContext, int Status)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)pContext; 
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)pContext; 
     
-        /* target assertion occured */           
+        /* target assertion occurred */           
     NotifyTransportFailure(pProt, Status);  
 }
 
 static void StateDumpCallback(void *pContext)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)pContext;
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)pContext;
    
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("============ HCIUart State ======================\n"));    
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("RecvStateFlags   :  0x%X \n",pProt->RecvStateFlags));
@@ -299,15 +303,15 @@ static void StateDumpCallback(void *pContext)
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("==================================================\n"));
 }
 
-static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], int ValidBytes)
+static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidBytes)
 {
-    GMBOX_PROTO_HCI_UART        *pProt = (GMBOX_PROTO_HCI_UART *)pContext;
-    A_STATUS                    status = A_OK;
+    struct gmbox_proto_hci_uart        *pProt = (struct gmbox_proto_hci_uart *)pContext;
+    int                    status = 0;
     int                         totalRecvLength = 0;
     HCI_TRANSPORT_PACKET_TYPE   pktType = HCI_PACKET_INVALID;
-    A_BOOL                      recvRefillCalled = FALSE;
-    A_BOOL                      blockRecv = FALSE;
-    HTC_PACKET                  *pPacket = NULL;
+    bool                      recvRefillCalled = false;
+    bool                      blockRecv = false;
+    struct htc_packet                  *pPacket = NULL;
     
     /** caller guarantees that this is a fully block-able context (synch I/O is allowed) */
     
@@ -348,7 +352,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
                 break;
         }
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
                 
@@ -361,7 +365,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
             LOCK_HCI_RX(pProt);
     
         } else {
-            HTC_PACKET_QUEUE *pQueue;
+            struct htc_packet_queue *pQueue;
                 /* user is using a refill handler that can refill multiple HTC buffers */
             
                 /* select buffer queue */
@@ -377,7 +381,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
                     pktType));
                     /* check for refill handler */
                 if (pProt->HCIConfig.pHCIPktRecvRefill != NULL) {
-                    recvRefillCalled = TRUE;
+                    recvRefillCalled = true;
                     UNLOCK_HCI_RX(pProt);
                         /* call the re-fill handler */
                     pProt->HCIConfig.pHCIPktRecvRefill(pProt->HCIConfig.pContext,
@@ -402,7 +406,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
                 /* this is not an error, we simply need to mark that we are waiting for buffers.*/
             pProt->RecvStateFlags |= HCI_RECV_WAIT_BUFFERS;
             pProt->WaitBufferType = pktType;
-            blockRecv = TRUE;
+            blockRecv = true;
             break;
         }
         
@@ -413,7 +417,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
             break;
         }
         
-    } while (FALSE);
+    } while (false);
     
     UNLOCK_HCI_RX(pProt);
     
@@ -421,7 +425,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
         
     do {
         
-        if (A_FAILED(status) || (NULL == pPacket)) {
+        if (status || (NULL == pPacket)) {
             break;    
         } 
         
@@ -433,7 +437,7 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
                 
         status = DevGMboxRead(pProt->pDev, pPacket, totalRecvLength);     
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
@@ -471,14 +475,14 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
             /* adjust buffer to move past packet ID */
         pPacket->pBuffer++;
         pPacket->ActualLength = totalRecvLength - 1;
-        pPacket->Status = A_OK;
+        pPacket->Status = 0;
             /* indicate packet */
         DO_HCI_RECV_INDICATION(pProt,pPacket);
         pPacket = NULL;
         
             /* check if we need to refill recv buffers */        
         if ((pProt->HCIConfig.pHCIPktRecvRefill != NULL) && !recvRefillCalled) {           
-            HTC_PACKET_QUEUE *pQueue;
+            struct htc_packet_queue *pQueue;
             int              watermark;
 
             if (pktType == HCI_ACL_TYPE) {
@@ -500,16 +504,16 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
             }
         }   
         
-    } while (FALSE);
+    } while (false);
         
-        /* check if we need to disable the reciever */
-    if (A_FAILED(status) || blockRecv) {
+        /* check if we need to disable the receiver */
+    if (status || blockRecv) {
         DevGMboxIRQAction(pProt->pDev, GMBOX_RECV_IRQ_DISABLE, PROC_IO_SYNC); 
     }
     
         /* see if we need to recycle the recv buffer */    
-    if (A_FAILED(status) && (pPacket != NULL)) {
-        HTC_PACKET_QUEUE queue;
+    if (status && (pPacket != NULL)) {
+        struct htc_packet_queue queue;
         
         if (A_EPROTO == status) {
             DebugDumpBytes(pPacket->pBuffer, totalRecvLength, "Bad HCI-UART Recv packet");    
@@ -527,12 +531,12 @@ static A_STATUS HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], 
     return status;
 }
 
-static void HCISendPacketCompletion(void *Context, HTC_PACKET *pPacket)
+static void HCISendPacketCompletion(void *Context, struct htc_packet *pPacket)
 {
-    GMBOX_PROTO_HCI_UART *pProt = (GMBOX_PROTO_HCI_UART *)Context;
+    struct gmbox_proto_hci_uart *pProt = (struct gmbox_proto_hci_uart *)Context;
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+HCISendPacketCompletion (pPacket:0x%lX) \n",(unsigned long)pPacket));
     
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,(" Send Packet (0x%lX) failed: %d , len:%d \n",
             (unsigned long)pPacket, pPacket->Status, pPacket->ActualLength));        
     }
@@ -542,16 +546,16 @@ static void HCISendPacketCompletion(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+HCISendPacketCompletion \n"));
 }
 
-static A_STATUS SeekCreditsSynch(GMBOX_PROTO_HCI_UART *pProt)
+static int SeekCreditsSynch(struct gmbox_proto_hci_uart *pProt)
 {
-    A_STATUS status = A_OK;
+    int status = 0;
     int      credits;
     int      retry = 100;
     
-    while (TRUE) {                
+    while (true) {
         credits = 0;
         status =  DevGMboxReadCreditCounter(pProt->pDev, PROC_IO_SYNC, &credits);   
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         LOCK_HCI_TX(pProt);
@@ -574,13 +578,13 @@ static A_STATUS SeekCreditsSynch(GMBOX_PROTO_HCI_UART *pProt)
     return status;
 }
 
-static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_BOOL Synchronous)
+static int HCITrySend(struct gmbox_proto_hci_uart *pProt, struct htc_packet *pPacket, bool Synchronous)
 {   
-    A_STATUS    status = A_OK;
+    int    status = 0;
     int         transferLength;
     int         creditsRequired, remainder;
-    A_UINT8     hciUartType;
-    A_BOOL      synchSendComplete = FALSE;
+    u8 hciUartType;
+    bool      synchSendComplete = false;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+HCITrySend (pPacket:0x%lX) %s \n",(unsigned long)pPacket,
             Synchronous ? "SYNC" :"ASYNC"));
@@ -603,14 +607,14 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
                     /* in synchronous mode, the send queue can only hold 1 packet */
                 if (!HTC_QUEUE_EMPTY(&pProt->SendQueue)) {
                     status = A_EBUSY;
-                    A_ASSERT(FALSE);
+                    A_ASSERT(false);
                     break;    
                 }             
                 
                 if (pProt->SendProcessCount > 1) {
                         /* another thread or task is draining the TX queues  */
                     status = A_EBUSY;
-                    A_ASSERT(FALSE);
+                    A_ASSERT(false);
                     break;
                 } 
                   
@@ -667,11 +671,11 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
                     break;
                 default:
                     status = A_EINVAL;
-                    A_ASSERT(FALSE);
+                    A_ASSERT(false);
                     break;
             }
                        
-            if (A_FAILED(status)) {
+            if (status) {
                 break;   
             }
             
@@ -701,7 +705,7 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
                     UNLOCK_HCI_TX(pProt);
                     status = SeekCreditsSynch(pProt);
                     LOCK_HCI_TX(pProt);
-                    if (A_FAILED(status)) {
+                    if (status) {
                         break;    
                     }                    
                     /* fall through and continue processing this send op */                    
@@ -751,7 +755,7 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
             
             status = DevGMboxWrite(pProt->pDev,pPacket,transferLength);            
             if (Synchronous) {            
-                synchSendComplete = TRUE;
+                synchSendComplete = true;
             } else {
                 pPacket = NULL;    
             }
@@ -760,7 +764,7 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
               
         }
         
-    } while (FALSE);
+    } while (false);
         
     pProt->SendProcessCount--;
     A_ASSERT(pProt->SendProcessCount >= 0);
@@ -768,9 +772,9 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
     
     if (Synchronous) {
         A_ASSERT(pPacket != NULL);
-        if (A_SUCCESS(status) && (!synchSendComplete)) {
+        if (!status && (!synchSendComplete)) {
             status = A_EBUSY;
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             LOCK_HCI_TX(pProt);
             if (pPacket->ListLink.pNext != NULL) {
                     /* remove from the queue */
@@ -779,7 +783,7 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
             UNLOCK_HCI_TX(pProt);
         }
     } else {   
-        if (A_FAILED(status) && (pPacket != NULL)) {
+        if (status && (pPacket != NULL)) {
             pPacket->Status = status;
             DO_HCI_SEND_INDICATION(pProt,pPacket); 
         }
@@ -789,10 +793,10 @@ static A_STATUS HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_B
     return status;    
 }
 
-static void FlushSendQueue(GMBOX_PROTO_HCI_UART *pProt)
+static void FlushSendQueue(struct gmbox_proto_hci_uart *pProt)
 {
-    HTC_PACKET          *pPacket;
-    HTC_PACKET_QUEUE    discardQueue;
+    struct htc_packet          *pPacket;
+    struct htc_packet_queue    discardQueue;
     
     INIT_HTC_PACKET_QUEUE(&discardQueue);
     
@@ -813,10 +817,10 @@ static void FlushSendQueue(GMBOX_PROTO_HCI_UART *pProt)
     
 }
 
-static void FlushRecvBuffers(GMBOX_PROTO_HCI_UART *pProt)
+static void FlushRecvBuffers(struct gmbox_proto_hci_uart *pProt)
 {
-    HTC_PACKET_QUEUE discardQueue;
-    HTC_PACKET *pPacket;
+    struct htc_packet_queue discardQueue;
+    struct htc_packet *pPacket;
     
     INIT_HTC_PACKET_QUEUE(&discardQueue);
     
@@ -841,14 +845,14 @@ static void FlushRecvBuffers(GMBOX_PROTO_HCI_UART *pProt)
 
 /*** protocol module install entry point ***/
 
-A_STATUS GMboxProtocolInstall(AR6K_DEVICE *pDev)
+int GMboxProtocolInstall(struct ar6k_device *pDev)
 {
-    A_STATUS                status = A_OK;
-    GMBOX_PROTO_HCI_UART    *pProtocol = NULL;
+    int                status = 0;
+    struct gmbox_proto_hci_uart    *pProtocol = NULL;
         
     do {
         
-        pProtocol = A_MALLOC(sizeof(GMBOX_PROTO_HCI_UART));
+        pProtocol = A_MALLOC(sizeof(struct gmbox_proto_hci_uart));
         
         if (NULL == pProtocol) {
             status = A_NO_MEMORY;
@@ -863,9 +867,9 @@ A_STATUS GMboxProtocolInstall(AR6K_DEVICE *pDev)
         A_MUTEX_INIT(&pProtocol->HCIRxLock);
         A_MUTEX_INIT(&pProtocol->HCITxLock);
      
-    } while (FALSE);
+    } while (false);
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         LOCK_AR6K(pDev);
         DEV_GMBOX_SET_PROTOCOL(pDev,
                                HCIUartMessagePending,
@@ -884,9 +888,9 @@ A_STATUS GMboxProtocolInstall(AR6K_DEVICE *pDev)
 }
 
 /*** protocol module uninstall entry point ***/
-void GMboxProtocolUninstall(AR6K_DEVICE *pDev)
+void GMboxProtocolUninstall(struct ar6k_device *pDev)
 {
-    GMBOX_PROTO_HCI_UART *pProtocol = (GMBOX_PROTO_HCI_UART *)DEV_GMBOX_GET_PROTOCOL(pDev);
+    struct gmbox_proto_hci_uart *pProtocol = (struct gmbox_proto_hci_uart *)DEV_GMBOX_GET_PROTOCOL(pDev);
     
     if (pProtocol != NULL) {
         
@@ -894,7 +898,7 @@ void GMboxProtocolUninstall(AR6K_DEVICE *pDev)
         if (pProtocol->HCIAttached) {
             A_ASSERT(pProtocol->HCIConfig.TransportRemoved != NULL);
             pProtocol->HCIConfig.TransportRemoved(pProtocol->HCIConfig.pContext);
-            pProtocol->HCIAttached = FALSE;    
+            pProtocol->HCIAttached = false;
         }
         
         HCIUartCleanup(pProtocol);
@@ -903,10 +907,10 @@ void GMboxProtocolUninstall(AR6K_DEVICE *pDev)
     
 }
 
-static A_STATUS NotifyTransportReady(GMBOX_PROTO_HCI_UART  *pProt)
+static int NotifyTransportReady(struct gmbox_proto_hci_uart  *pProt)
 {
-    HCI_TRANSPORT_PROPERTIES props;
-    A_STATUS                 status = A_OK;
+    struct hci_transport_properties props;
+    int                 status = 0;
     
     do {
         
@@ -924,17 +928,17 @@ static A_STATUS NotifyTransportReady(GMBOX_PROTO_HCI_UART  *pProt)
                                                     pProt->HCIConfig.pContext);
         }
         
-    } while (FALSE);
+    } while (false);
     
     return status;
 }
 
 /***********  HCI UART protocol implementation ************************************************/
 
-HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_INFO *pInfo)
+HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, struct hci_transport_config_info *pInfo)
 {
-    GMBOX_PROTO_HCI_UART  *pProtocol = NULL; 
-    AR6K_DEVICE           *pDev;
+    struct gmbox_proto_hci_uart  *pProtocol = NULL; 
+    struct ar6k_device           *pDev;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HCI_TransportAttach \n"));
     
@@ -944,7 +948,7 @@ HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_I
     
     do {
         
-        pProtocol = (GMBOX_PROTO_HCI_UART *)DEV_GMBOX_GET_PROTOCOL(pDev);
+        pProtocol = (struct gmbox_proto_hci_uart *)DEV_GMBOX_GET_PROTOCOL(pDev);
         
         if (NULL == pProtocol) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("GMBOX protocol not installed! \n"));
@@ -956,14 +960,14 @@ HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_I
             break;    
         }
         
-        A_MEMCPY(&pProtocol->HCIConfig, pInfo, sizeof(HCI_TRANSPORT_CONFIG_INFO));
+        memcpy(&pProtocol->HCIConfig, pInfo, sizeof(struct hci_transport_config_info));
         
         A_ASSERT(pProtocol->HCIConfig.pHCIPktRecv != NULL);
         A_ASSERT(pProtocol->HCIConfig.pHCISendComplete != NULL);
         
-        pProtocol->HCIAttached = TRUE;
+        pProtocol->HCIAttached = true;
         
-    } while (FALSE);
+    } while (false);
     
     UNLOCK_AR6K(pDev);
     
@@ -978,8 +982,8 @@ HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_I
 
 void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans)
 {
-    GMBOX_PROTO_HCI_UART  *pProtocol = (GMBOX_PROTO_HCI_UART *)HciTrans; 
-    AR6K_DEVICE           *pDev = pProtocol->pDev;
+    struct gmbox_proto_hci_uart  *pProtocol = (struct gmbox_proto_hci_uart *)HciTrans; 
+    struct ar6k_device           *pDev = pProtocol->pDev;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HCI_TransportDetach \n"));
     
@@ -989,19 +993,19 @@ void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans)
         UNLOCK_AR6K(pDev);
         return;
     }
-    pProtocol->HCIAttached = FALSE;
+    pProtocol->HCIAttached = false;
     UNLOCK_AR6K(pDev);
     
     HCI_TransportStop(HciTrans);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("-HCI_TransportAttach \n"));
 }
 
-A_STATUS HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue)
+int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, struct htc_packet_queue *pQueue)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans; 
-    A_STATUS              status = A_OK;
-    A_BOOL                unblockRecv = FALSE;
-    HTC_PACKET            *pPacket;
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans; 
+    int              status = 0;
+    bool                unblockRecv = false;
+    struct htc_packet            *pPacket;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+HCI_TransportAddReceivePkt \n"));
     
@@ -1039,15 +1043,15 @@ A_STATUS HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_Q
                         pProt->WaitBufferType));
                 pProt->RecvStateFlags &= ~HCI_RECV_WAIT_BUFFERS;
                 pProt->WaitBufferType = HCI_PACKET_INVALID;
-                unblockRecv = TRUE;
+                unblockRecv = true;
             }
         }
         
-    } while (FALSE);
+    } while (false);
     
     UNLOCK_HCI_RX(pProt);
     
-    if (A_FAILED(status)) {
+    if (status) {
         while (!HTC_QUEUE_EMPTY(pQueue)) {
             pPacket = HTC_PACKET_DEQUEUE(pQueue);      
             pPacket->Status = A_ECANCELED;
@@ -1061,19 +1065,19 @@ A_STATUS HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_Q
     
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("-HCI_TransportAddReceivePkt \n"));
     
-    return A_OK;    
+    return 0;
 }
 
-A_STATUS HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, A_BOOL Synchronous)
+int HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, struct htc_packet *pPacket, bool Synchronous)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;  
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;  
     
     return HCITrySend(pProt,pPacket,Synchronous);
 }
 
 void HCI_TransportStop(HCI_TRANSPORT_HANDLE HciTrans)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans; 
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans; 
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HCI_TransportStop \n"));
      
@@ -1083,7 +1087,7 @@ void HCI_TransportStop(HCI_TRANSPORT_HANDLE HciTrans)
         AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("-HCI_TransportStop \n"));
         return;    
     }
-    pProt->HCIStopped = TRUE;
+    pProt->HCIStopped = true;
     UNLOCK_AR6K(pProt->pDev);
      
         /* disable interrupts */
@@ -1097,69 +1101,69 @@ void HCI_TransportStop(HCI_TRANSPORT_HANDLE HciTrans)
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("-HCI_TransportStop \n"));
 }
 
-A_STATUS HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans)
+int HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans)
 {
-    A_STATUS              status;
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
+    int              status;
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HCI_TransportStart \n"));
     
         /* set stopped in case we have a problem in starting */
-    pProt->HCIStopped = TRUE;
+    pProt->HCIStopped = true;
     
     do {
         
         status = InitTxCreditState(pProt);   
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }     
         
         status = DevGMboxIRQAction(pProt->pDev, GMBOX_ERRORS_IRQ_ENABLE, PROC_IO_SYNC);   
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;   
         } 
             /* enable recv */   
         status = DevGMboxIRQAction(pProt->pDev, GMBOX_RECV_IRQ_ENABLE, PROC_IO_SYNC);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;   
         } 
             /* signal bridge side to power up BT */
         status = DevGMboxSetTargetInterrupt(pProt->pDev, MBOX_SIG_HCI_BRIDGE_BT_ON, BTON_TIMEOUT_MS);
         
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("HCI_TransportStart : Failed to trigger BT ON \n"));
             break;   
         } 
         
             /* we made it */
-        pProt->HCIStopped = FALSE;
+        pProt->HCIStopped = false;
         
-    } while (FALSE);
+    } while (false);
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("-HCI_TransportStart \n"));
     
     return status;
 }
 
-A_STATUS HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable)
+int HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, bool Enable)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;
     return DevGMboxIRQAction(pProt->pDev, 
                              Enable ? GMBOX_RECV_IRQ_ENABLE : GMBOX_RECV_IRQ_DISABLE, 
                              PROC_IO_SYNC);
                              
 }
 
-A_STATUS HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
-                                       HTC_PACKET           *pPacket,
+int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
+                                       struct htc_packet           *pPacket,
                                        int                  MaxPollMS)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
-    A_STATUS              status = A_OK;
-    A_UINT8               lookAhead[8];
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;
+    int              status = 0;
+    u8 lookAhead[8];
     int                   bytes;
     int                   totalRecvLength;
     
@@ -1173,7 +1177,7 @@ A_STATUS HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
         
         bytes = sizeof(lookAhead);
         status = DevGMboxRecvLookAheadPeek(pProt->pDev,lookAhead,&bytes);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }        
                 
@@ -1199,19 +1203,19 @@ A_STATUS HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
                 break;
         }
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
         pPacket->Completion = NULL;
         status = DevGMboxRead(pProt->pDev,pPacket,totalRecvLength); 
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
         pPacket->pBuffer++;
         pPacket->ActualLength = totalRecvLength - 1;
-        pPacket->Status = A_OK;        
+        pPacket->Status = 0;
         break; 
     }
     
@@ -1225,12 +1229,12 @@ A_STATUS HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
 
 #define LSB_SCRATCH_IDX     4
 #define MSB_SCRATCH_IDX     5
-A_STATUS HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud)
+int HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud)
 {
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
-    HIF_DEVICE *pHIFDevice = (HIF_DEVICE *)(pProt->pDev->HIFDevice);
-    A_UINT32 scaledBaud, scratchAddr;
-    A_STATUS status = A_OK;
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;
+    struct hif_device *pHIFDevice = (struct hif_device *)(pProt->pDev->HIFDevice);
+    u32 scaledBaud, scratchAddr;
+    int status = 0;
 
     /* Divide the desired baud rate by 100
      * Store the LSB in the local scratch register 4 and the MSB in the local
@@ -1242,24 +1246,24 @@ A_STATUS HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud)
     scratchAddr = MBOX_BASE_ADDRESS | (LOCAL_SCRATCH_ADDRESS + 4 * MSB_SCRATCH_IDX);
     scaledBaud = ((Baud / 100) >> (LOCAL_SCRATCH_VALUE_MSB+1)) & LOCAL_SCRATCH_VALUE_MASK;
     status |= ar6000_WriteRegDiag(pHIFDevice, &scratchAddr, &scaledBaud);                     
-    if (A_OK != status) {
+    if (0 != status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to set up baud rate in scratch register!"));            
         return status;
     }
 
     /* Now interrupt the target to tell it about the baud rate */
     status = DevGMboxSetTargetInterrupt(pProt->pDev, MBOX_SIG_HCI_BRIDGE_BAUD_SET, BAUD_TIMEOUT_MS);
-    if (A_OK != status) {
+    if (0 != status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to tell target to change baud rate!"));            
     }
     
     return status;
 }
 
-A_STATUS HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable)
+int HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, bool Enable)
 {
-    A_STATUS status;
-    GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
+    int status;
+    struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;
                              
     if (Enable) {
         status = DevGMboxSetTargetInterrupt(pProt->pDev, MBOX_SIG_HCI_BRIDGE_PWR_SAV_ON, BTPWRSAV_TIMEOUT_MS);
@@ -1267,7 +1271,7 @@ A_STATUS HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enab
         status = DevGMboxSetTargetInterrupt(pProt->pDev, MBOX_SIG_HCI_BRIDGE_PWR_SAV_OFF, BTPWRSAV_TIMEOUT_MS);
     }
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Failed to enable/disable HCI power management!\n"));
     } else {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("HCI power management enabled/disabled!\n"));

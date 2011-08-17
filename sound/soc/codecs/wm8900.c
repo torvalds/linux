@@ -180,7 +180,7 @@ static const u16 wm8900_reg_defaults[WM8900_MAXREG] = {
 	/* Remaining registers all zero */
 };
 
-static int wm8900_volatile_register(unsigned int reg)
+static int wm8900_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8900_REG_ID:
@@ -1167,6 +1167,7 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 		ret = wm8900_set_fll(codec, 0, fll_in, fll_out);
 		if (ret != 0) {
 			dev_err(codec->dev, "Failed to restart FLL\n");
+			kfree(cache);
 			return ret;
 		}
 	}

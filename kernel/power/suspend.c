@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/syscore_ops.h>
 #include <trace/events/power.h>
 
 #include "power.h"
@@ -43,6 +44,7 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 	suspend_ops = ops;
 	mutex_unlock(&pm_mutex);
 }
+EXPORT_SYMBOL_GPL(suspend_set_ops);
 
 bool valid_state(suspend_state_t state)
 {
@@ -64,6 +66,7 @@ int suspend_valid_only_mem(suspend_state_t state)
 {
 	return state == PM_SUSPEND_MEM;
 }
+EXPORT_SYMBOL_GPL(suspend_valid_only_mem);
 
 static int suspend_test(int level)
 {
@@ -125,12 +128,13 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
 }
 
 /**
- *	suspend_enter - enter the desired system sleep state.
- *	@state:		state to enter
+ * suspend_enter - enter the desired system sleep state.
+ * @state: State to enter
+ * @wakeup: Returns information that suspend should not be entered again.
  *
- *	This function should be called after devices have been suspended.
+ * This function should be called after devices have been suspended.
  */
-static int suspend_enter(suspend_state_t state)
+static int suspend_enter(suspend_state_t state, bool *wakeup)
 {
 	int error;
 
@@ -162,13 +166,14 @@ static int suspend_enter(suspend_state_t state)
 	arch_suspend_disable_irqs();
 	BUG_ON(!irqs_disabled());
 
-	error = sysdev_suspend(PMSG_SUSPEND);
+	error = syscore_suspend();
 	if (!error) {
-		if (!(suspend_test(TEST_CORE) || pm_wakeup_pending())) {
+		*wakeup = pm_wakeup_pending();
+		if (!(suspend_test(TEST_CORE) || *wakeup)) {
 			error = suspend_ops->enter(state);
 			events_check_enabled = false;
 		}
-		sysdev_resume();
+		syscore_resume();
 	}
 
 	arch_suspend_enable_irqs();
@@ -198,6 +203,7 @@ static int suspend_enter(suspend_state_t state)
 int suspend_devices_and_enter(suspend_state_t state)
 {
 	int error;
+	bool wakeup = false;
 
 	if (!suspend_ops)
 		return -ENOSYS;
@@ -209,7 +215,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 			goto Close;
 	}
 	suspend_console();
-	pm_restrict_gfp_mask();
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
@@ -220,13 +225,15 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_test(TEST_DEVICES))
 		goto Recover_platform;
 
-	suspend_enter(state);
+	do {
+		error = suspend_enter(state, &wakeup);
+	} while (!error && !wakeup
+		&& suspend_ops->suspend_again && suspend_ops->suspend_again());
 
  Resume_devices:
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
 	suspend_test_finish("resume devices");
-	pm_restore_gfp_mask();
 	resume_console();
  Close:
 	if (suspend_ops->end)
@@ -287,7 +294,9 @@ int enter_state(suspend_state_t state)
 		goto Finish;
 
 	pr_debug("PM: Entering %s sleep\n", pm_states[state]);
+	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
+	pm_restore_gfp_mask();
 
  Finish:
 	pr_debug("PM: Finishing wakeup.\n");

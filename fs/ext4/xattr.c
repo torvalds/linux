@@ -735,7 +735,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			int offset = (char *)s->here - bs->bh->b_data;
 
 			unlock_buffer(bs->bh);
-			jbd2_journal_release_buffer(handle, bs->bh);
+			ext4_handle_release_buffer(handle, bs->bh);
 			if (ce) {
 				mb_cache_entry_release(ce);
 				ce = NULL;
@@ -820,8 +820,8 @@ inserted:
 			if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 				goal = goal & EXT4_MAX_BLOCK_FILE_PHYS;
 
-			block = ext4_new_meta_blocks(handle, inode,
-						  goal, NULL, &error);
+			block = ext4_new_meta_blocks(handle, inode, goal, 0,
+						     NULL, &error);
 			if (error)
 				goto cleanup;
 
@@ -833,7 +833,7 @@ inserted:
 			new_bh = sb_getblk(sb, block);
 			if (!new_bh) {
 getblk_failed:
-				ext4_free_blocks(handle, inode, 0, block, 1,
+				ext4_free_blocks(handle, inode, NULL, block, 1,
 						 EXT4_FREE_BLOCKS_METADATA);
 				error = -EIO;
 				goto cleanup;

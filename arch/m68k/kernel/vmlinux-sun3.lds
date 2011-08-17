@@ -25,6 +25,7 @@ SECTIONS
   _etext = .;			/* End of text section */
 
   EXCEPTION_TABLE(16) :data
+  _sdata = .;			/* Start of rw data section */
   RW_DATA_SECTION(16, PAGE_SIZE, THREAD_SIZE) :data
   /* End of data goes *here* so that freeing init code works properly. */
   _edata = .;

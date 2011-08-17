@@ -310,10 +310,16 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
-	int id = pdev->id % ARRAY_SIZE(pdata->ldo);
+	int id;
 	struct wm831x_ldo *ldo;
 	struct resource *res;
 	int ret, irq;
+
+	if (pdata && pdata->wm831x_num)
+		id = (pdata->wm831x_num * 10) + 1;
+	else
+		id = 0;
+	id = pdev->id - id;
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
@@ -354,9 +360,9 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq_byname(pdev, "UV");
-	ret = wm831x_request_irq(wm831x, irq, wm831x_ldo_uv_irq,
-				 IRQF_TRIGGER_RISING, ldo->name,
-				 ldo);
+	ret = request_threaded_irq(irq, NULL, wm831x_ldo_uv_irq,
+				   IRQF_TRIGGER_RISING, ldo->name,
+				   ldo);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -377,11 +383,10 @@ err:
 static __devexit int wm831x_gp_ldo_remove(struct platform_device *pdev)
 {
 	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
-	struct wm831x *wm831x = ldo->wm831x;
 
 	platform_set_drvdata(pdev, NULL);
 
-	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), ldo);
+	free_irq(platform_get_irq_byname(pdev, "UV"), ldo);
 	regulator_unregister(ldo->regulator);
 	kfree(ldo);
 
@@ -575,10 +580,16 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
-	int id = pdev->id % ARRAY_SIZE(pdata->ldo);
+	int id;
 	struct wm831x_ldo *ldo;
 	struct resource *res;
 	int ret, irq;
+
+	if (pdata && pdata->wm831x_num)
+		id = (pdata->wm831x_num * 10) + 1;
+	else
+		id = 0;
+	id = pdev->id - id;
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
@@ -619,9 +630,8 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq_byname(pdev, "UV");
-	ret = wm831x_request_irq(wm831x, irq, wm831x_ldo_uv_irq,
-				 IRQF_TRIGGER_RISING, ldo->name,
-				 ldo);
+	ret = request_threaded_irq(irq, NULL, wm831x_ldo_uv_irq,
+				   IRQF_TRIGGER_RISING, ldo->name, ldo);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -642,9 +652,8 @@ err:
 static __devexit int wm831x_aldo_remove(struct platform_device *pdev)
 {
 	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
-	struct wm831x *wm831x = ldo->wm831x;
 
-	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), ldo);
+	free_irq(platform_get_irq_byname(pdev, "UV"), ldo);
 	regulator_unregister(ldo->regulator);
 	kfree(ldo);
 
@@ -767,10 +776,17 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
-	int id = pdev->id % ARRAY_SIZE(pdata->ldo);
+	int id;
 	struct wm831x_ldo *ldo;
 	struct resource *res;
 	int ret;
+
+	if (pdata && pdata->wm831x_num)
+		id = (pdata->wm831x_num * 10) + 1;
+	else
+		id = 0;
+	id = pdev->id - id;
+
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 

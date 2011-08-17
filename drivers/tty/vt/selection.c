@@ -1,6 +1,4 @@
 /*
- * linux/drivers/char/selection.c
- *
  * This module exports the functions:
  *
  *     'int set_selection(struct tiocl_selection __user *, struct tty_struct *)'
@@ -26,7 +24,6 @@
 #include <linux/selection.h>
 #include <linux/tiocl.h>
 #include <linux/console.h>
-#include <linux/smp_lock.h>
 
 /* Don't take this from <ctype.h>: 011-015 on the screen aren't spaces */
 #define isspace(c)	((c) == ' ')

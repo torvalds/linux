@@ -102,7 +102,7 @@ Trouble?
 
 If you insmod the driver with "insmod debug=1", it will be verbose and
 prints a lot of stuff to the syslog.  Compiling the kernel with
-CONFIG_SCSI_CONSTANTS=y improves the quality of the error messages alot
+CONFIG_SCSI_CONSTANTS=y improves the quality of the error messages a lot
 because the kernel will translate the error codes into human-readable
 strings then.
 

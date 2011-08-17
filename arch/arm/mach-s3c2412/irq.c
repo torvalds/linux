@@ -175,18 +175,18 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 	unsigned int irqno;
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
-		set_irq_chip(irqno, &s3c2412_irq_eint0t4);
-		set_irq_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c2412_irq_eint0t4,
+					 handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	/* add demux support for CF/SDI */
 
-	set_irq_chained_handler(IRQ_S3C2412_CFSDI, s3c2412_irq_demux_cfsdi);
+	irq_set_chained_handler(IRQ_S3C2412_CFSDI, s3c2412_irq_demux_cfsdi);
 
 	for (irqno = IRQ_S3C2412_SDI; irqno <= IRQ_S3C2412_CF; irqno++) {
-		set_irq_chip(irqno, &s3c2412_irq_cfsdi);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c2412_irq_cfsdi,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -195,15 +195,13 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 	s3c2412_irq_rtc_chip = s3c_irq_chip;
 	s3c2412_irq_rtc_chip.irq_set_wake = s3c2412_irq_rtc_wake;
 
-	set_irq_chip(IRQ_RTC, &s3c2412_irq_rtc_chip);
+	irq_set_chip(IRQ_RTC, &s3c2412_irq_rtc_chip);
 
 	return 0;
 }
 
 static struct sysdev_driver s3c2412_irq_driver = {
 	.add		= s3c2412_irq_add,
-	.suspend	= s3c24xx_irq_suspend,
-	.resume		= s3c24xx_irq_resume,
 };
 
 static int s3c2412_irq_init(void)

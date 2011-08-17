@@ -66,7 +66,7 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 	kunmap_atomic(kaddr, KM_USER0);
 
 	set_buffer_uptodate(bh);
-	nilfs_mark_buffer_dirty(bh);
+	mark_buffer_dirty(bh);
 	nilfs_mdt_mark_dirty(inode);
 	return 0;
 }
@@ -355,7 +355,7 @@ int nilfs_mdt_mark_block_dirty(struct inode *inode, unsigned long block)
 	err = nilfs_mdt_read_block(inode, block, 0, &bh);
 	if (unlikely(err))
 		return err;
-	nilfs_mark_buffer_dirty(bh);
+	mark_buffer_dirty(bh);
 	nilfs_mdt_mark_dirty(inode);
 	brelse(bh);
 	return 0;
@@ -399,7 +399,6 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 
 static const struct address_space_operations def_mdt_aops = {
 	.writepage		= nilfs_mdt_write_page,
-	.sync_page		= block_sync_page,
 };
 
 static const struct inode_operations def_mdt_iops;
@@ -438,10 +437,6 @@ void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
 	mi->mi_first_entry_offset = DIV_ROUND_UP(header_size, entry_size);
 }
 
-static const struct address_space_operations shadow_map_aops = {
-	.sync_page		= block_sync_page,
-};
-
 /**
  * nilfs_mdt_setup_shadow_map - setup shadow map and bind it to metadata file
  * @inode: inode of the metadata file
@@ -455,9 +450,9 @@ int nilfs_mdt_setup_shadow_map(struct inode *inode,
 
 	INIT_LIST_HEAD(&shadow->frozen_buffers);
 	address_space_init_once(&shadow->frozen_data);
-	nilfs_mapping_init(&shadow->frozen_data, bdi, &shadow_map_aops);
+	nilfs_mapping_init(&shadow->frozen_data, inode, bdi);
 	address_space_init_once(&shadow->frozen_btnodes);
-	nilfs_mapping_init(&shadow->frozen_btnodes, bdi, &shadow_map_aops);
+	nilfs_mapping_init(&shadow->frozen_btnodes, inode, bdi);
 	mi->mi_shadow = shadow;
 	return 0;
 }

@@ -45,7 +45,7 @@
  *	buffer needs an amount of memory of 1.769.472 bytes which
  *	is near to 2 MByte (the allocated address space of Zorro2).
  *	The memory is channel interleaved. That means every channel
- *	owns four VRAMs. Unfortunatly most FrameMasters II are
+ *	owns four VRAMs. Unfortunately most FrameMasters II are
  *	not assembled with memory for the alpha channel. In this
  *	case it could be possible to add the frame buffer into the
  *	normal memory pool.

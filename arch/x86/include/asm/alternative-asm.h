@@ -15,4 +15,13 @@
 	.endm
 #endif
 
+.macro altinstruction_entry orig alt feature orig_len alt_len
+	.align 8
+	.long \orig - .
+	.long \alt - .
+	.word \feature
+	.byte \orig_len
+	.byte \alt_len
+.endm
+
 #endif  /*  __ASSEMBLY__  */

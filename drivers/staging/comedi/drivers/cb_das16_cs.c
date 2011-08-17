@@ -772,7 +772,7 @@ static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static struct pcmcia_device_id das16cs_id_table[] = {
+static const struct pcmcia_device_id das16cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x0039),
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4009),
 	PCMCIA_DEVICE_NULL

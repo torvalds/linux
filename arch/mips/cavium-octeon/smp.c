@@ -37,13 +37,15 @@ static irqreturn_t mailbox_interrupt(int irq, void *dev_id)
 	uint64_t action;
 
 	/* Load the mailbox register to figure out what we're supposed to do */
-	action = cvmx_read_csr(CVMX_CIU_MBOX_CLRX(coreid));
+	action = cvmx_read_csr(CVMX_CIU_MBOX_CLRX(coreid)) & 0xffff;
 
 	/* Clear the mailbox to clear the interrupt */
 	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(coreid), action);
 
 	if (action & SMP_CALL_FUNCTION)
 		smp_call_function_interrupt();
+	if (action & SMP_RESCHEDULE_YOURSELF)
+		scheduler_ipi();
 
 	/* Check if we've been told to flush the icache */
 	if (action & SMP_ICACHE_FLUSH)
@@ -171,20 +173,9 @@ static void octeon_boot_secondary(int cpu, struct task_struct *idle)
  * After we've done initial boot, this function is called to allow the
  * board code to clean up state, if needed
  */
-static void octeon_init_secondary(void)
+static void __cpuinit octeon_init_secondary(void)
 {
-	const int coreid = cvmx_get_core_num();
-	union cvmx_ciu_intx_sum0 interrupt_enable;
 	unsigned int sr;
-
-#ifdef CONFIG_HOTPLUG_CPU
-	struct linux_app_boot_info *labi;
-
-	labi = (struct linux_app_boot_info *)PHYS_TO_XKSEG_CACHED(LABI_ADDR_IN_BOOTLOADER);
-
-	if (labi->labi_signature != LABI_SIGNATURE)
-		panic("The bootloader version on this board is incorrect.");
-#endif
 
 	sr = set_c0_status(ST0_BEV);
 	write_c0_ebase((u32)ebase);
@@ -192,20 +183,9 @@ static void octeon_init_secondary(void)
 
 	octeon_check_cpu_bist();
 	octeon_init_cvmcount();
-	/*
-	pr_info("SMP: CPU%d (CoreId %lu) started\n", cpu, coreid);
-	*/
-	/* Enable Mailbox interrupts to this core. These are the only
-	   interrupts allowed on line 3 */
-	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(coreid), 0xffffffff);
-	interrupt_enable.u64 = 0;
-	interrupt_enable.s.mbox = 0x3;
-	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2)), interrupt_enable.u64);
-	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2 + 1)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1((coreid * 2)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1((coreid * 2 + 1)), 0);
-	/* Enable core interrupt processing for 2,3 and 7 */
-	set_c0_status(0x8c01);
+
+	octeon_irq_setup_secondary();
+	raw_local_irq_enable();
 }
 
 /**
@@ -214,14 +194,22 @@ static void octeon_init_secondary(void)
  */
 void octeon_prepare_cpus(unsigned int max_cpus)
 {
-	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cvmx_get_core_num()), 0xffffffff);
+#ifdef CONFIG_HOTPLUG_CPU
+	struct linux_app_boot_info *labi;
+
+	labi = (struct linux_app_boot_info *)PHYS_TO_XKSEG_CACHED(LABI_ADDR_IN_BOOTLOADER);
+
+	if (labi->labi_signature != LABI_SIGNATURE)
+		panic("The bootloader version on this board is incorrect.");
+#endif
+	/*
+	 * Only the low order mailbox bits are used for IPIs, leave
+	 * the other bits alone.
+	 */
+	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cvmx_get_core_num()), 0xffff);
 	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt, IRQF_DISABLED,
-			"mailbox0", mailbox_interrupt)) {
+			"SMP-IPI", mailbox_interrupt)) {
 		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)\n");
-	}
-	if (request_irq(OCTEON_IRQ_MBOX1, mailbox_interrupt, IRQF_DISABLED,
-			"mailbox1", mailbox_interrupt)) {
-		panic("Cannot request_irq(OCTEON_IRQ_MBOX1)\n");
 	}
 }
 

@@ -84,7 +84,6 @@ static struct sys_timer wbd111_timer = {
 	.init	= gemini_timer_init,
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition wbd111_partitions[] = {
 	{
 		.name		= "RedBoot",
@@ -116,11 +115,7 @@ static struct mtd_partition wbd111_partitions[] = {
 		.mask_flags	= MTD_WRITEABLE,
 	}
 };
-#define wbd111_num_partitions	ARRAY_SIZE(wbd111_partitions)
-#else
-#define wbd111_partitions	NULL
-#define wbd111_num_partitions	0
-#endif /* CONFIG_MTD_PARTITIONS */
+#define wbd111_num_partitions  ARRAY_SIZE(wbd111_partitions)
 
 static void __init wbd111_init(void)
 {
@@ -130,6 +125,7 @@ static void __init wbd111_init(void)
 				 wbd111_num_partitions);
 	platform_device_register(&wbd111_leds_device);
 	platform_device_register(&wbd111_keys_device);
+	platform_register_rtc();
 }
 
 MACHINE_START(WBD111, "Wiliboard WBD-111")

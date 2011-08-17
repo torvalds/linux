@@ -209,7 +209,7 @@ enum vlsi_pio_irintr {
 	IRINTR_ACTEN	= 0x80,	/* activity interrupt enable */
 	IRINTR_ACTIVITY	= 0x40,	/* activity monitor (traffic detected) */
 	IRINTR_RPKTEN	= 0x20,	/* receive packet interrupt enable*/
-	IRINTR_RPKTINT	= 0x10,	/* rx-packet transfered from fifo to memory finished */
+	IRINTR_RPKTINT	= 0x10,	/* rx-packet transferred from fifo to memory finished */
 	IRINTR_TPKTEN	= 0x08,	/* transmit packet interrupt enable */
 	IRINTR_TPKTINT	= 0x04,	/* last bit of tx-packet+crc shifted to ir-pulser */
 	IRINTR_OE_EN	= 0x02,	/* UART rx fifo overrun error interrupt enable */
@@ -739,7 +739,7 @@ typedef struct vlsi_irda_dev {
 /* the remapped error flags we use for returning from frame
  * post-processing in vlsi_process_tx/rx() after it was completed
  * by the hardware. These functions either return the >=0 number
- * of transfered bytes in case of success or the negative (-)
+ * of transferred bytes in case of success or the negative (-)
  * of the or'ed error flags.
  */
 

@@ -147,23 +147,33 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 
 	alias = d_lookup(parent, &data->args.name);
 	if (alias != NULL) {
-		int ret = 0;
+		int ret;
+		void *devname_garbage = NULL;
 
 		/*
 		 * Hey, we raced with lookup... See if we need to transfer
 		 * the sillyrename information to the aliased dentry.
 		 */
 		nfs_free_dname(data);
+		ret = nfs_copy_dname(alias, data);
 		spin_lock(&alias->d_lock);
-		if (alias->d_inode != NULL &&
+		if (ret == 0 && alias->d_inode != NULL &&
 		    !(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
+			devname_garbage = alias->d_fsdata;
 			alias->d_fsdata = data;
 			alias->d_flags |= DCACHE_NFSFS_RENAMED;
 			ret = 1;
-		}
+		} else
+			ret = 0;
 		spin_unlock(&alias->d_lock);
 		nfs_dec_sillycount(dir);
 		dput(alias);
+		/*
+		 * If we'd displaced old cached devname, free it.  At that
+		 * point dentry is definitely not a root, so we won't need
+		 * that anymore.
+		 */
+		kfree(devname_garbage);
 		return ret;
 	}
 	data->dir = igrab(dir);
@@ -180,7 +190,7 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 	task_setup_data.rpc_client = NFS_CLIENT(dir);
 	task = rpc_run_task(&task_setup_data);
 	if (!IS_ERR(task))
-		rpc_put_task(task);
+		rpc_put_task_async(task);
 	return 1;
 }
 
@@ -195,8 +205,6 @@ static int nfs_call_unlink(struct dentry *dentry, struct nfs_unlinkdata *data)
 	if (parent == NULL)
 		goto out_free;
 	dir = parent->d_inode;
-	if (nfs_copy_dname(dentry, data) != 0)
-		goto out_dput;
 	/* Non-exclusive lock protects against concurrent lookup() calls */
 	spin_lock(&dir->i_lock);
 	if (atomic_inc_not_zero(&NFS_I(dir)->silly_count) == 0) {
@@ -252,6 +260,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_unlinkdata *data;
 	int status = -ENOMEM;
+	void *devname_garbage = NULL;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
@@ -269,8 +278,16 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out_unlock;
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
+	devname_garbage = dentry->d_fsdata;
 	dentry->d_fsdata = data;
 	spin_unlock(&dentry->d_lock);
+	/*
+	 * If we'd displaced old cached devname, free it.  At that
+	 * point dentry is definitely not a root, so we won't need
+	 * that anymore.
+	 */
+	if (devname_garbage)
+		kfree(devname_garbage);
 	return 0;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
@@ -299,6 +316,7 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		dentry->d_flags &= ~DCACHE_NFSFS_RENAMED;
 		data = dentry->d_fsdata;
+		dentry->d_fsdata = NULL;
 	}
 	spin_unlock(&dentry->d_lock);
 
@@ -315,6 +333,7 @@ nfs_cancel_async_unlink(struct dentry *dentry)
 		struct nfs_unlinkdata *data = dentry->d_fsdata;
 
 		dentry->d_flags &= ~DCACHE_NFSFS_RENAMED;
+		dentry->d_fsdata = NULL;
 		spin_unlock(&dentry->d_lock);
 		nfs_free_unlinkdata(data);
 		return;
@@ -346,6 +365,8 @@ static void nfs_async_rename_done(struct rpc_task *task, void *calldata)
 	struct nfs_renamedata *data = calldata;
 	struct inode *old_dir = data->old_dir;
 	struct inode *new_dir = data->new_dir;
+	struct dentry *old_dentry = data->old_dentry;
+	struct dentry *new_dentry = data->new_dentry;
 
 	if (!NFS_PROTO(old_dir)->rename_done(task, old_dir, new_dir)) {
 		nfs_restart_rpc(task, NFS_SERVER(old_dir)->nfs_client);
@@ -353,12 +374,12 @@ static void nfs_async_rename_done(struct rpc_task *task, void *calldata)
 	}
 
 	if (task->tk_status != 0) {
-		nfs_cancel_async_unlink(data->old_dentry);
+		nfs_cancel_async_unlink(old_dentry);
 		return;
 	}
 
-	nfs_set_verifier(data->old_dentry, nfs_save_change_attribute(old_dir));
-	d_move(data->old_dentry, data->new_dentry);
+	d_drop(old_dentry);
+	d_drop(new_dentry);
 }
 
 /**
@@ -481,6 +502,14 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
  * and only performs the unlink once the last reference to it is put.
  *
  * The final cleanup is done during dentry_iput.
+ *
+ * (Note: NFSv4 is stateful, and has opens, so in theory an NFSv4 server
+ * could take responsibility for keeping open files referenced.  The server
+ * would also need to ensure that opened-but-deleted files were kept over
+ * reboots.  However, we may not assume a server does so.  (RFC 5661
+ * does provide an OPEN4_RESULT_PRESERVE_UNLINKED flag that a server can
+ * use to advertise that it does this; some day we may take advantage of
+ * it.))
  */
 int
 nfs_sillyrename(struct inode *dir, struct dentry *dentry)
@@ -539,6 +568,14 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	error = nfs_async_unlink(dir, dentry);
 	if (error)
 		goto out_dput;
+
+	/* populate unlinkdata with the right dname */
+	error = nfs_copy_dname(sdentry,
+				(struct nfs_unlinkdata *)dentry->d_fsdata);
+	if (error) {
+		nfs_cancel_async_unlink(dentry);
+		goto out_dput;
+	}
 
 	/* run the rename task, undo unlink if it fails */
 	task = nfs_async_rename(dir, dir, dentry, sdentry);

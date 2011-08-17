@@ -400,7 +400,7 @@ static void device_remove_groups(struct device *dev,
 static int device_add_attrs(struct device *dev)
 {
 	struct class *class = dev->class;
-	struct device_type *type = dev->type;
+	const struct device_type *type = dev->type;
 	int error;
 
 	if (class) {
@@ -440,7 +440,7 @@ static int device_add_attrs(struct device *dev)
 static void device_remove_attrs(struct device *dev)
 {
 	struct class *class = dev->class;
-	struct device_type *type = dev->type;
+	const struct device_type *type = dev->type;
 
 	device_remove_groups(dev, dev->groups);
 
@@ -1314,13 +1314,15 @@ EXPORT_SYMBOL_GPL(put_device);
 EXPORT_SYMBOL_GPL(device_create_file);
 EXPORT_SYMBOL_GPL(device_remove_file);
 
-struct root_device
-{
+struct root_device {
 	struct device dev;
 	struct module *owner;
 };
 
-#define to_root_device(dev) container_of(dev, struct root_device, dev)
+inline struct root_device *to_root_device(struct device *d)
+{
+	return container_of(d, struct root_device, dev);
+}
 
 static void root_device_release(struct device *dev)
 {
@@ -1551,7 +1553,34 @@ EXPORT_SYMBOL_GPL(device_destroy);
  * on the same device to ensure that new_name is valid and
  * won't conflict with other devices.
  *
- * "Never use this function, bad things will happen" - gregkh
+ * Note: Don't call this function.  Currently, the networking layer calls this
+ * function, but that will change.  The following text from Kay Sievers offers
+ * some insight:
+ *
+ * Renaming devices is racy at many levels, symlinks and other stuff are not
+ * replaced atomically, and you get a "move" uevent, but it's not easy to
+ * connect the event to the old and new device. Device nodes are not renamed at
+ * all, there isn't even support for that in the kernel now.
+ *
+ * In the meantime, during renaming, your target name might be taken by another
+ * driver, creating conflicts. Or the old name is taken directly after you
+ * renamed it -- then you get events for the same DEVPATH, before you even see
+ * the "move" event. It's just a mess, and nothing new should ever rely on
+ * kernel device renaming. Besides that, it's not even implemented now for
+ * other things than (driver-core wise very simple) network devices.
+ *
+ * We are currently about to change network renaming in udev to completely
+ * disallow renaming of devices in the same namespace as the kernel uses,
+ * because we can't solve the problems properly, that arise with swapping names
+ * of multiple interfaces without races. Means, renaming of eth[0-9]* will only
+ * be allowed to some other name than eth[0-9]*, for the aforementioned
+ * reasons.
+ *
+ * Make up a "real" name in the driver before you register anything, or add
+ * some other attributes for userspace to find the device, or use udev to add
+ * symlinks -- but never rename kernel devices later, it's a complete mess. We
+ * don't even want to get into that and try to implement the missing pieces in
+ * the core. We really have other pieces to fix in the driver core mess. :)
  */
 int device_rename(struct device *dev, const char *new_name)
 {

@@ -285,7 +285,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	intsrc.type = MP_INTSRC;
 	intsrc.irqflag = 0;	/* conforming */
 	intsrc.srcbus = 0;
-	intsrc.dstapic = mp_ioapics[0].apicid;
+	intsrc.dstapic = mpc_ioapic_id(0);
 
 	intsrc.irqtype = mp_INT;
 
@@ -714,23 +714,21 @@ static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 		*nr_m_spare += 1;
 	}
 }
-#else /* CONFIG_X86_IO_APIC */
-static
-inline void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
-#endif /* CONFIG_X86_IO_APIC */
 
-static int
+static int __init
 check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
 {
-	int ret = 0;
-
 	if (!mpc_new_phys || count <= mpc_new_length) {
 		WARN(1, "update_mptable: No spare slots (length: %x)\n", count);
 		return -1;
 	}
 
-	return ret;
+	return 0;
 }
+#else /* CONFIG_X86_IO_APIC */
+static
+inline void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
+#endif /* CONFIG_X86_IO_APIC */
 
 static int  __init replace_intsrc_all(struct mpc_table *mpc,
 					unsigned long mpc_new_phys,
@@ -883,7 +881,7 @@ static int __init update_mp_table(void)
 
 	if (!mpc_new_phys) {
 		unsigned char old, new;
-		/* check if we can change the postion */
+		/* check if we can change the position */
 		mpc->checksum = 0;
 		old = mpf_checksum((unsigned char *)mpc, mpc->length);
 		mpc->checksum = 0xff;
@@ -892,7 +890,7 @@ static int __init update_mp_table(void)
 			printk(KERN_INFO "mpc is readonly, please try alloc_mptable instead\n");
 			return 0;
 		}
-		printk(KERN_INFO "use in-positon replacing\n");
+		printk(KERN_INFO "use in-position replacing\n");
 	} else {
 		mpf->physptr = mpc_new_phys;
 		mpc_new = phys_to_virt(mpc_new_phys);

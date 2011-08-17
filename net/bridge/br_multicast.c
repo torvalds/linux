@@ -413,7 +413,7 @@ out:
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
-						    struct in6_addr *group)
+						    const struct in6_addr *group)
 {
 	struct sk_buff *skb;
 	struct ipv6hdr *ip6h;
@@ -445,9 +445,9 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	ip6h->payload_len = htons(8 + sizeof(*mldq));
 	ip6h->nexthdr = IPPROTO_HOPOPTS;
 	ip6h->hop_limit = 1;
+	ipv6_addr_set(&ip6h->daddr, htonl(0xff020000), 0, 0, htonl(1));
 	ipv6_dev_get_saddr(dev_net(br->dev), br->dev, &ip6h->daddr, 0,
 			   &ip6h->saddr);
-	ipv6_addr_set(&ip6h->daddr, htonl(0xff020000), 0, 0, htonl(1));
 	ipv6_eth_mc_map(&ip6h->daddr, eth->h_dest);
 
 	hopopt = (u8 *)(ip6h + 1);
@@ -1115,7 +1115,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 	struct igmphdr *ih = igmp_hdr(skb);
 	struct net_bridge_mdb_entry *mp;
 	struct igmpv3_query *ih3;
@@ -1190,7 +1190,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct sk_buff *skb)
 {
-	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct mld_msg *mld = (struct mld_msg *) icmp6_hdr(skb);
 	struct net_bridge_mdb_entry *mp;
 	struct mld2_query *mld2q;
@@ -1198,7 +1198,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	struct net_bridge_port_group __rcu **pp;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
-	struct in6_addr *group = NULL;
+	const struct in6_addr *group = NULL;
 	int err = 0;
 
 	spin_lock(&br->multicast_lock);
@@ -1356,7 +1356,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 				 struct sk_buff *skb)
 {
 	struct sk_buff *skb2 = skb;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct igmphdr *ih;
 	unsigned len;
 	unsigned offset;
@@ -1379,8 +1379,11 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		return -EINVAL;
 
-	if (iph->protocol != IPPROTO_IGMP)
+	if (iph->protocol != IPPROTO_IGMP) {
+		if ((iph->daddr & IGMP_LOCAL_GROUP_MASK) != IGMP_LOCAL_GROUP)
+			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		return 0;
+	}
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len || len < ip_hdrlen(skb))
@@ -1424,7 +1427,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	switch (ih->type) {
 	case IGMP_HOST_MEMBERSHIP_REPORT:
 	case IGMPV2_HOST_MEMBERSHIP_REPORT:
-		BR_INPUT_SKB_CB(skb2)->mrouters_only = 1;
+		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		err = br_ip4_multicast_add_group(br, port, ih->group);
 		break;
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
@@ -1452,7 +1455,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
-	struct ipv6hdr *ip6h;
+	const struct ipv6hdr *ip6h;
 	struct icmp6hdr *icmp6h;
 	u8 nexthdr;
 	unsigned len;
@@ -1475,7 +1478,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	    ip6h->payload_len == 0)
 		return 0;
 
-	len = ntohs(ip6h->payload_len);
+	len = ntohs(ip6h->payload_len) + sizeof(*ip6h);
 	if (skb->len < len)
 		return -EINVAL;
 
@@ -1543,7 +1546,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 			goto out;
 		}
 		mld = (struct mld_msg *)skb_transport_header(skb2);
-		BR_INPUT_SKB_CB(skb2)->mrouters_only = 1;
+		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		err = br_ip6_multicast_add_group(br, port, &mld->mld_mca);
 		break;
 	    }

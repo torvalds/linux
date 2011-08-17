@@ -747,7 +747,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 				gr_def(ctx, offset + 0x64, 0x0000001f);
 				gr_def(ctx, offset + 0x68, 0x0000000f);
 				gr_def(ctx, offset + 0x6c, 0x0000000f);
-			} else if(dev_priv->chipset < 0xa0) {
+			} else if (dev_priv->chipset < 0xa0) {
 				cp_ctx(ctx, offset + 0x50, 1);
 				cp_ctx(ctx, offset + 0x70, 1);
 			} else {
@@ -924,7 +924,7 @@ nv50_graph_construct_mmio_ddata(struct nouveau_grctx *ctx)
 		dd_emit(ctx, 1, 0);	/* 0000007f MULTISAMPLE_SAMPLES_LOG2 */
 	} else {
 		dd_emit(ctx, 1, 0);	/* 0000000f MULTISAMPLE_SAMPLES_LOG2 */
-	} 
+	}
 	dd_emit(ctx, 1, 0xc);		/* 000000ff SEMANTIC_COLOR.BFC0_ID */
 	if (dev_priv->chipset != 0x50)
 		dd_emit(ctx, 1, 0);	/* 00000001 SEMANTIC_COLOR.CLMP_EN */
@@ -1803,9 +1803,7 @@ nv50_graph_construct_gene_unk24xx(struct nouveau_grctx *ctx)
 		xf_emit(ctx, 1, 0);	/* 1ff */
 		xf_emit(ctx, 8, 0);	/* 0? */
 		xf_emit(ctx, 9, 0);	/* ffffffff, 7ff */
-	}
-	else
-	{
+	} else {
 		xf_emit(ctx, 0xc, 0);	/* RO */
 		/* SEEK */
 		xf_emit(ctx, 0xe10, 0); /* 190 * 9: 8*ffffffff, 7ff */
@@ -2836,7 +2834,7 @@ nv50_graph_construct_xfer_tprop(struct nouveau_grctx *ctx)
 	xf_emit(ctx, 1, 1);		/* 00000001 DST_LINEAR */
 	if (IS_NVA3F(dev_priv->chipset))
 		xf_emit(ctx, 1, 1);	/* 0000001f tesla UNK169C */
-	if(dev_priv->chipset == 0x50)
+	if (dev_priv->chipset == 0x50)
 		xf_emit(ctx, 1, 0);	/* ff */
 	else
 		xf_emit(ctx, 3, 0);	/* 1, 7, 3ff */

@@ -49,10 +49,13 @@
  * chips, but support three temperature sensors instead of two. MAX6695
  * and MAX6696 only differ in the pinout so they can be treated identically.
  *
- * This driver also supports the ADT7461 chip from Analog Devices.
- * It's supported in both compatibility and extended mode. It is mostly
- * compatible with LM90 except for a data format difference for the
- * temperature value registers.
+ * This driver also supports ADT7461 and ADT7461A from Analog Devices as well as
+ * NCT1008 from ON Semiconductor. The chips are supported in both compatibility
+ * and extended mode. They are mostly compatible with LM90 except for a data
+ * format difference for the temperature value registers.
+ *
+ * This driver also supports the SA56004 from Philips. This device is
+ * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
  *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
@@ -88,20 +91,23 @@
  * Addresses to scan
  * Address is fully defined internally and cannot be changed except for
  * MAX6659, MAX6680 and MAX6681.
- * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, MAX6649, MAX6657,
- * MAX6658 and W83L771 have address 0x4c.
- * ADM1032-2, ADT7461-2, LM89-1, LM99-1 and MAX6646 have address 0x4d.
+ * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, ADT7461A, MAX6649,
+ * MAX6657, MAX6658, NCT1008 and W83L771 have address 0x4c.
+ * ADM1032-2, ADT7461-2, ADT7461A-2, LM89-1, LM99-1, MAX6646, and NCT1008D
+ * have address 0x4d.
  * MAX6647 has address 0x4e.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e.
  * MAX6680 and MAX6681 can have address 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
  * 0x4c, 0x4d or 0x4e.
+ * SA56004 can have address 0x48 through 0x4F.
  */
 
 static const unsigned short normal_i2c[] = {
-	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
+	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
+	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696 };
+	max6646, w83l771, max6696, sa56004 };
 
 /*
  * The LM90 registers
@@ -151,6 +157,10 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define MAX6659_REG_R_LOCAL_EMERG	0x17
 #define MAX6659_REG_W_LOCAL_EMERG	0x17
 
+/*  SA56004 registers */
+
+#define SA56004_REG_R_LOCAL_TEMPL 0x22
+
 #define LM90_DEF_CONVRATE_RVAL	6	/* Def conversion rate register value */
 #define LM90_MAX_CONVRATE_MS	16000	/* Maximum conversion rate in ms */
 
@@ -160,7 +170,6 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_FLAG_ADT7461_EXT	(1 << 0) /* ADT7461 extended mode	*/
 /* Device features */
 #define LM90_HAVE_OFFSET	(1 << 1) /* temperature offset register	*/
-#define LM90_HAVE_LOCAL_EXT	(1 << 2) /* extended local temperature	*/
 #define LM90_HAVE_REM_LIMIT_EXT	(1 << 3) /* extended remote limit	*/
 #define LM90_HAVE_EMERGENCY	(1 << 4) /* 3rd upper (emergency) limit	*/
 #define LM90_HAVE_EMERGENCY_ALARM (1 << 5)/* emergency alarm		*/
@@ -174,6 +183,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 static const struct i2c_device_id lm90_id[] = {
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
+	{ "adt7461a", adt7461 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
 	{ "lm89", lm86 },
@@ -188,7 +198,9 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6681", max6680 },
 	{ "max6695", max6696 },
 	{ "max6696", max6696 },
+	{ "nct1008", adt7461 },
 	{ "w83l771", w83l771 },
+	{ "sa56004", sa56004 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
@@ -201,6 +213,7 @@ struct lm90_params {
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
 				/* Upper 8 bits for max6695/96 */
 	u8 max_convrate;	/* Maximum conversion rate register value */
+	u8 reg_local_ext;	/* Extended local temp register (optional) */
 };
 
 static const struct lm90_params lm90_params[] = {
@@ -232,19 +245,20 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 9,
 	},
 	[max6646] = {
-		.flags = LM90_HAVE_LOCAL_EXT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6657] = {
-		.flags = LM90_HAVE_LOCAL_EXT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6659] = {
-		.flags = LM90_HAVE_LOCAL_EXT | LM90_HAVE_EMERGENCY,
+		.flags = LM90_HAVE_EMERGENCY,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6680] = {
 		.flags = LM90_HAVE_OFFSET,
@@ -252,15 +266,22 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 7,
 	},
 	[max6696] = {
-		.flags = LM90_HAVE_LOCAL_EXT | LM90_HAVE_EMERGENCY
+		.flags = LM90_HAVE_EMERGENCY
 		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3,
 		.alert_alarms = 0x187c,
 		.max_convrate = 6,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[w83l771] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
+	},
+	[sa56004] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7b,
+		.max_convrate = 9,
+		.reg_local_ext = SA56004_REG_R_LOCAL_TEMPL,
 	},
 };
 
@@ -283,6 +304,7 @@ struct lm90_data {
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
 				/* Upper 8 bits for max6695/96 */
 	u8 max_convrate;	/* Maximum conversion rate */
+	u8 reg_local_ext;	/* local extension register offset */
 
 	/* registers values */
 	s8 temp8[8];	/* 0: local low limit
@@ -356,7 +378,7 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
 	/*
 	 * There is a trick here. We have to read two registers to have the
 	 * sensor temperature, but we have to beware a conversion could occur
-	 * inbetween the readings. The datasheet says we should either use
+	 * between the readings. The datasheet says we should either use
 	 * the one-shot conversion register, which we don't want to do
 	 * (disables hardware monitoring) or monitor the busy bit, which is
 	 * impossible (we can't read the values and monitor that bit at the
@@ -449,9 +471,9 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 		lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT, &data->temp8[3]);
 		lm90_read_reg(client, LM90_REG_R_TCRIT_HYST, &data->temp_hyst);
 
-		if (data->flags & LM90_HAVE_LOCAL_EXT) {
+		if (data->reg_local_ext) {
 			lm90_read16(client, LM90_REG_R_LOCAL_TEMP,
-				    MAX6657_REG_R_LOCAL_TEMPL,
+				    data->reg_local_ext,
 				    &data->temp11[4]);
 		} else {
 			if (lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP,
@@ -1089,7 +1111,7 @@ static int lm90_detect(struct i2c_client *new_client,
 	struct i2c_adapter *adapter = new_client->adapter;
 	int address = new_client->addr;
 	const char *name = NULL;
-	int man_id, chip_id, reg_config1, reg_convrate;
+	int man_id, chip_id, reg_config1, reg_config2, reg_convrate;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -1105,15 +1127,16 @@ static int lm90_detect(struct i2c_client *new_client,
 						LM90_REG_R_CONVRATE)) < 0)
 		return -ENODEV;
 
-	if ((address == 0x4C || address == 0x4D)
-	 && man_id == 0x01) { /* National Semiconductor */
-		int reg_config2;
-
+	if (man_id == 0x01 || man_id == 0x5C || man_id == 0x41) {
 		reg_config2 = i2c_smbus_read_byte_data(new_client,
 						LM90_REG_R_CONFIG2);
 		if (reg_config2 < 0)
 			return -ENODEV;
+	} else
+		reg_config2 = 0;	/* Make compiler happy */
 
+	if ((address == 0x4C || address == 0x4D)
+	 && man_id == 0x01) { /* National Semiconductor */
 		if ((reg_config1 & 0x2A) == 0x00
 		 && (reg_config2 & 0xF8) == 0x00
 		 && reg_convrate <= 0x09) {
@@ -1153,6 +1176,11 @@ static int lm90_detect(struct i2c_client *new_client,
 		 && (reg_config1 & 0x1B) == 0x00
 		 && reg_convrate <= 0x0A) {
 			name = "adt7461";
+		} else
+		if (chip_id == 0x57 /* ADT7461A, NCT1008 */
+		 && (reg_config1 & 0x1B) == 0x00
+		 && reg_convrate <= 0x0A) {
+			name = "adt7461a";
 		}
 	} else
 	if (man_id == 0x4D) { /* Maxim */
@@ -1237,13 +1265,6 @@ static int lm90_detect(struct i2c_client *new_client,
 	} else
 	if (address == 0x4C
 	 && man_id == 0x5C) { /* Winbond/Nuvoton */
-		int reg_config2;
-
-		reg_config2 = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_CONFIG2);
-		if (reg_config2 < 0)
-			return -ENODEV;
-
 		if ((reg_config1 & 0x2A) == 0x00
 		 && (reg_config2 & 0xF8) == 0x00) {
 			if (chip_id == 0x01 /* W83L771W/G */
@@ -1254,6 +1275,15 @@ static int lm90_detect(struct i2c_client *new_client,
 			 && reg_convrate <= 0x08) {
 				name = "w83l771";
 			}
+		}
+	} else
+	if (address >= 0x48 && address <= 0x4F
+	 && man_id == 0xA1) { /*  NXP Semiconductor/Philips */
+		if (chip_id == 0x00
+		 && (reg_config1 & 0x2A) == 0x00
+		 && (reg_config2 & 0xFE) == 0x00
+		 && reg_convrate <= 0x09) {
+			name = "sa56004";
 		}
 	}
 
@@ -1360,6 +1390,7 @@ static int lm90_probe(struct i2c_client *new_client,
 
 	/* Set chip capabilities */
 	data->flags = lm90_params[data->kind].flags;
+	data->reg_local_ext = lm90_params[data->kind].reg_local_ext;
 
 	/* Set maximum conversion rate */
 	data->max_convrate = lm90_params[data->kind].max_convrate;

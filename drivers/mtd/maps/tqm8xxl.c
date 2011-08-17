@@ -62,8 +62,7 @@ static void __iomem *start_scan_addr;
  * "struct map_desc *_io_desc" for the corresponding machine.
  */
 
-#ifdef CONFIG_MTD_PARTITIONS
-/* Currently, TQM8xxL has upto 8MiB flash */
+/* Currently, TQM8xxL has up to 8MiB flash */
 static unsigned long tqm8xxl_max_flash_size = 0x00800000;
 
 /* partition definition for first flash bank
@@ -107,7 +106,6 @@ static struct mtd_partition tqm8xxl_fs_partitions[] = {
 	  //.size = MTDPART_SIZ_FULL,
 	}
 };
-#endif
 
 static int __init init_tqm_mtd(void)
 {
@@ -188,7 +186,6 @@ static int __init init_tqm_mtd(void)
 		goto error_mem;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
 	/*
 	 * Select Static partition definitions
 	 */
@@ -201,21 +198,14 @@ static int __init init_tqm_mtd(void)
 	part_banks[1].nums = ARRAY_SIZE(tqm8xxl_fs_partitions);
 
 	for(idx = 0; idx < num_banks ; idx++) {
-		if (part_banks[idx].nums == 0) {
+		if (part_banks[idx].nums == 0)
 			printk(KERN_NOTICE "TQM flash%d: no partition info available, registering whole flash at once\n", idx);
-			add_mtd_device(mtd_banks[idx]);
-		} else {
+		else
 			printk(KERN_NOTICE "TQM flash%d: Using %s partition definition\n",
 					idx, part_banks[idx].type);
-			add_mtd_partitions(mtd_banks[idx], part_banks[idx].mtd_part,
-								part_banks[idx].nums);
-		}
+		mtd_device_register(mtd_banks[idx], part_banks[idx].mtd_part,
+		part_banks[idx].nums);
 	}
-#else
-	printk(KERN_NOTICE "TQM flash: registering %d whole flash banks at once\n", num_banks);
-	for(idx = 0 ; idx < num_banks ; idx++)
-		add_mtd_device(mtd_banks[idx]);
-#endif
 	return 0;
 error_mem:
 	for(idx = 0 ; idx < FLASH_BANK_MAX ; idx++) {
@@ -237,7 +227,7 @@ static void __exit cleanup_tqm_mtd(void)
 	for(idx = 0 ; idx < num_banks ; idx++) {
 		/* destroy mtd_info previously allocated */
 		if (mtd_banks[idx]) {
-			del_mtd_partitions(mtd_banks[idx]);
+			mtd_device_unregister(mtd_banks[idx]);
 			map_destroy(mtd_banks[idx]);
 		}
 		/* release map_info not used anymore */

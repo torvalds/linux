@@ -24,12 +24,26 @@
  */
 bool events_check_enabled;
 
-/* The counter of registered wakeup events. */
-static atomic_t event_count = ATOMIC_INIT(0);
-/* A preserved old value of event_count. */
+/*
+ * Combined counters of registered wakeup events and wakeup events in progress.
+ * They need to be modified together atomically, so it's better to use one
+ * atomic variable to hold them both.
+ */
+static atomic_t combined_event_count = ATOMIC_INIT(0);
+
+#define IN_PROGRESS_BITS	(sizeof(int) * 4)
+#define MAX_IN_PROGRESS		((1 << IN_PROGRESS_BITS) - 1)
+
+static void split_counters(unsigned int *cnt, unsigned int *inpr)
+{
+	unsigned int comb = atomic_read(&combined_event_count);
+
+	*cnt = (comb >> IN_PROGRESS_BITS);
+	*inpr = comb & MAX_IN_PROGRESS;
+}
+
+/* A preserved old value of the events counter. */
 static unsigned int saved_count;
-/* The counter of wakeup events being processed. */
-static atomic_t events_in_progress = ATOMIC_INIT(0);
 
 static DEFINE_SPINLOCK(events_lock);
 
@@ -96,7 +110,6 @@ void wakeup_source_add(struct wakeup_source *ws)
 	spin_lock_irq(&events_lock);
 	list_add_rcu(&ws->entry, &wakeup_sources);
 	spin_unlock_irq(&events_lock);
-	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(wakeup_source_add);
 
@@ -228,6 +241,35 @@ int device_wakeup_disable(struct device *dev)
 EXPORT_SYMBOL_GPL(device_wakeup_disable);
 
 /**
+ * device_set_wakeup_capable - Set/reset device wakeup capability flag.
+ * @dev: Device to handle.
+ * @capable: Whether or not @dev is capable of waking up the system from sleep.
+ *
+ * If @capable is set, set the @dev's power.can_wakeup flag and add its
+ * wakeup-related attributes to sysfs.  Otherwise, unset the @dev's
+ * power.can_wakeup flag and remove its wakeup-related attributes from sysfs.
+ *
+ * This function may sleep and it can't be called from any context where
+ * sleeping is not allowed.
+ */
+void device_set_wakeup_capable(struct device *dev, bool capable)
+{
+	if (!!dev->power.can_wakeup == !!capable)
+		return;
+
+	if (device_is_registered(dev) && !list_empty(&dev->power.entry)) {
+		if (capable) {
+			if (wakeup_sysfs_add(dev))
+				return;
+		} else {
+			wakeup_sysfs_remove(dev);
+		}
+	}
+	dev->power.can_wakeup = capable;
+}
+EXPORT_SYMBOL_GPL(device_set_wakeup_capable);
+
+/**
  * device_init_wakeup - Device wakeup initialization.
  * @dev: Device to handle.
  * @enable: Whether or not to enable @dev as a wakeup device.
@@ -307,7 +349,8 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	ws->timer_expires = jiffies;
 	ws->last_time = ktime_get();
 
-	atomic_inc(&events_in_progress);
+	/* Increment the counter of events in progress. */
+	atomic_inc(&combined_event_count);
 }
 
 /**
@@ -394,14 +437,10 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 	del_timer(&ws->timer);
 
 	/*
-	 * event_count has to be incremented before events_in_progress is
-	 * modified, so that the callers of pm_check_wakeup_events() and
-	 * pm_save_wakeup_count() don't see the old value of event_count and
-	 * events_in_progress equal to zero at the same time.
+	 * Increment the counter of registered wakeup events and decrement the
+	 * couter of wakeup events in progress simultaneously.
 	 */
-	atomic_inc(&event_count);
-	smp_mb__before_atomic_dec();
-	atomic_dec(&events_in_progress);
+	atomic_add(MAX_IN_PROGRESS, &combined_event_count);
 }
 
 /**
@@ -556,8 +595,10 @@ bool pm_wakeup_pending(void)
 
 	spin_lock_irqsave(&events_lock, flags);
 	if (events_check_enabled) {
-		ret = ((unsigned int)atomic_read(&event_count) != saved_count)
-			|| atomic_read(&events_in_progress);
+		unsigned int cnt, inpr;
+
+		split_counters(&cnt, &inpr);
+		ret = (cnt != saved_count || inpr > 0);
 		events_check_enabled = !ret;
 	}
 	spin_unlock_irqrestore(&events_lock, flags);
@@ -573,25 +614,25 @@ bool pm_wakeup_pending(void)
  * Store the number of registered wakeup events at the address in @count.  Block
  * if the current number of wakeup events being processed is nonzero.
  *
- * Return false if the wait for the number of wakeup events being processed to
+ * Return 'false' if the wait for the number of wakeup events being processed to
  * drop down to zero has been interrupted by a signal (and the current number
- * of wakeup events being processed is still nonzero).  Otherwise return true.
+ * of wakeup events being processed is still nonzero).  Otherwise return 'true'.
  */
 bool pm_get_wakeup_count(unsigned int *count)
 {
-	bool ret;
+	unsigned int cnt, inpr;
 
-	if (capable(CAP_SYS_ADMIN))
-		events_check_enabled = false;
-
-	while (atomic_read(&events_in_progress) && !signal_pending(current)) {
+	for (;;) {
+		split_counters(&cnt, &inpr);
+		if (inpr == 0 || signal_pending(current))
+			break;
 		pm_wakeup_update_hit_counts();
 		schedule_timeout_interruptible(msecs_to_jiffies(TIMEOUT));
 	}
 
-	ret = !atomic_read(&events_in_progress);
-	*count = atomic_read(&event_count);
-	return ret;
+	split_counters(&cnt, &inpr);
+	*count = cnt;
+	return !inpr;
 }
 
 /**
@@ -600,24 +641,25 @@ bool pm_get_wakeup_count(unsigned int *count)
  *
  * If @count is equal to the current number of registered wakeup events and the
  * current number of wakeup events being processed is zero, store @count as the
- * old number of registered wakeup events to be used by pm_check_wakeup_events()
- * and return true.  Otherwise return false.
+ * old number of registered wakeup events for pm_check_wakeup_events(), enable
+ * wakeup events detection and return 'true'.  Otherwise disable wakeup events
+ * detection and return 'false'.
  */
 bool pm_save_wakeup_count(unsigned int count)
 {
-	bool ret = false;
+	unsigned int cnt, inpr;
 
+	events_check_enabled = false;
 	spin_lock_irq(&events_lock);
-	if (count == (unsigned int)atomic_read(&event_count)
-	    && !atomic_read(&events_in_progress)) {
+	split_counters(&cnt, &inpr);
+	if (cnt == count && inpr == 0) {
 		saved_count = count;
 		events_check_enabled = true;
-		ret = true;
 	}
 	spin_unlock_irq(&events_lock);
-	if (!ret)
+	if (!events_check_enabled)
 		pm_wakeup_update_hit_counts();
-	return ret;
+	return events_check_enabled;
 }
 
 static struct dentry *wakeup_sources_stats_dentry;

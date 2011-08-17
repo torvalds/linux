@@ -228,7 +228,7 @@ static const char *arxescsi_info(struct Scsi_Host *host)
  * Params  : buffer - a buffer to write information to
  *	     start  - a pointer into this buffer set by this routine to the start
  *		      of the required information.
- *	     offset - offset into information that we have read upto.
+ *	     offset - offset into information that we have read up to.
  *	     length - length of buffer
  *	     host_no - host number to return information for
  *	     inout  - 0 for reading, 1 for writing.

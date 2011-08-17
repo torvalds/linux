@@ -285,7 +285,7 @@ from the driver.
 
 7. Profiling information
 
-This driver does not provide profiling informations as did its predecessors.
+This driver does not provide profiling information as did its predecessors.
 This feature was not this useful and added complexity to the code. 
 As the driver code got more complex, I have decided to remove everything 
 that didn't seem actually useful.

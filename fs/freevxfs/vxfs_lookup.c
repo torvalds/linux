@@ -162,7 +162,7 @@ vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 /**
  * vxfs_inode_by_name - find inode number for dentry
  * @dip:	directory to search in
- * @dp:		dentry we seach for
+ * @dp:		dentry we search for
  *
  * Description:
  *   vxfs_inode_by_name finds out the inode number of

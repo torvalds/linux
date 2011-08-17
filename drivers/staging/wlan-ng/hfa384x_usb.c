@@ -612,10 +612,8 @@ void hfa384x_destroy(hfa384x_t *hw)
 		hfa384x_drvr_stop(hw);
 	hw->state = HFA384x_STATE_PREINIT;
 
-	if (hw->scanresults) {
-		kfree(hw->scanresults);
-		hw->scanresults = NULL;
-	}
+	kfree(hw->scanresults);
+	hw->scanresults = NULL;
 
 	/* Now to clean out the auth queue */
 	while ((skb = skb_dequeue(&hw->authq)))

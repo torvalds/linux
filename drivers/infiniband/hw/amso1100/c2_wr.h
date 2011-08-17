@@ -131,7 +131,7 @@ enum c2wr_ids {
 	 *          All the preceding IDs are fixed, and must not change.
 	 *          You can add new IDs, but must not remove or reorder
 	 *          any IDs. If you do, YOU will ruin any hope of
-	 *          compatability between versions.
+	 *          compatibility between versions.
 	 */
 	CCWR_LAST,
 
@@ -242,7 +242,7 @@ enum c2_acf {
 /*
  *  to fix bug 1815 we define the max size allowable of the
  *  terminate message (per the IETF spec).Refer to the IETF
- *  protocal specification, section 12.1.6, page 64)
+ *  protocol specification, section 12.1.6, page 64)
  *  The message is prefixed by 20 types of DDP info.
  *
  *  Then the message has 6 bytes for the terminate control

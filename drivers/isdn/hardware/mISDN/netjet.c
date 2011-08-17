@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -1069,6 +1070,12 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pdev->subsystem_vendor == 0x55 &&
 	    pdev->subsystem_device == 0x02) {
 		pr_notice("Netjet: Enter!Now not handled yet\n");
+		return -ENODEV;
+	}
+
+	if (pdev->subsystem_vendor == 0xb100 &&
+	    pdev->subsystem_device == 0x0003 ) {
+		pr_notice("Netjet: Digium TDM400P not handled yet\n");
 		return -ENODEV;
 	}
 

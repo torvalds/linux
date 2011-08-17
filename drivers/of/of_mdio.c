@@ -136,7 +136,7 @@ EXPORT_SYMBOL(of_phy_find_device);
  * @hndlr: Link state callback for the network device
  * @iface: PHY data interface type
  *
- * Returns a pointer to the phy_device if successfull.  NULL otherwise
+ * Returns a pointer to the phy_device if successful.  NULL otherwise
  */
 struct phy_device *of_phy_connect(struct net_device *dev,
 				  struct device_node *phy_np,

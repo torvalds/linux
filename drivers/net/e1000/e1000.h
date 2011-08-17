@@ -215,7 +215,7 @@ struct e1000_adapter {
 	struct timer_list tx_fifo_stall_timer;
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 mng_vlan_id;
 	u32 bd_number;
 	u32 rx_buffer_len;
@@ -237,9 +237,6 @@ struct e1000_adapter {
 
 	struct work_struct reset_task;
 	u8 fc_autoneg;
-
-	struct timer_list blink_timer;
-	unsigned long led_status;
 
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
@@ -349,7 +346,7 @@ extern int e1000_up(struct e1000_adapter *adapter);
 extern void e1000_down(struct e1000_adapter *adapter);
 extern void e1000_reinit_locked(struct e1000_adapter *adapter);
 extern void e1000_reset(struct e1000_adapter *adapter);
-extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx);
+extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx);
 extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
 extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
 extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);

@@ -35,7 +35,7 @@ or perhaps this...
 
 (kernel versions later than 2.4.18 may fill in the "Unknown"s)
 
-If you cant see it please look on quirk_sis_96x_smbus
+If you can't see it please look on quirk_sis_96x_smbus
 (drivers/pci/quirks.c) (also if southbridge detection fails)
 
 I suspect that this driver could be made to work for the following SiS

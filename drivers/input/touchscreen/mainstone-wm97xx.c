@@ -157,9 +157,9 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 			x, y, p);
 
 		/* are samples valid */
-		if ((x & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_X ||
-		    (y & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_Y ||
-		    (p & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_PRES)
+		if ((x & WM97XX_ADCSEL_MASK) != WM97XX_ADCSEL_X ||
+		    (y & WM97XX_ADCSEL_MASK) != WM97XX_ADCSEL_Y ||
+		    (p & WM97XX_ADCSEL_MASK) != WM97XX_ADCSEL_PRES)
 			goto up;
 
 		/* coordinate is good */
@@ -219,7 +219,7 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 		}
 
 		wm->pen_irq = gpio_to_irq(irq);
-		set_irq_type(wm->pen_irq, IRQ_TYPE_EDGE_BOTH);
+		irq_set_irq_type(wm->pen_irq, IRQ_TYPE_EDGE_BOTH);
 	} else /* pen irq not supported */
 		pen_int = 0;
 

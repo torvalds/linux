@@ -15,9 +15,10 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/hardware.h>
 #include <mach/gpio.h>
@@ -26,8 +27,6 @@
 #include <mach/reset.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/regs-intc.h>
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -260,16 +259,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_pwm1,
 };
 
-static struct sys_device pxa95x_sysdev[] = {
-	{
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.cls	= &pxa_gpio_sysclass,
-	}, {
-		.cls	= &pxa3xx_clock_sysclass,
-	}
-};
-
 static int __init pxa95x_init(void)
 {
 	int ret = 0, i;
@@ -293,11 +282,9 @@ static int __init pxa95x_init(void)
 		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;
 
-		for (i = 0; i < ARRAY_SIZE(pxa95x_sysdev); i++) {
-			ret = sysdev_register(&pxa95x_sysdev[i]);
-			if (ret)
-				pr_err("failed to register sysdev[%d]\n", i);
-		}
+		register_syscore_ops(&pxa_irq_syscore_ops);
+		register_syscore_ops(&pxa_gpio_syscore_ops);
+		register_syscore_ops(&pxa3xx_clock_syscore_ops);
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}

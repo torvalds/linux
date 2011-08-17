@@ -120,7 +120,7 @@ static int __init init_svme182(void)
 		   this_mtd->size >> 20, FLASH_BASE_ADDR);
 
 	this_mtd->owner = THIS_MODULE;
-	add_mtd_partitions(this_mtd, partitions, num_parts);
+	mtd_device_register(this_mtd, partitions, num_parts);
 
 	return 0;
 }
@@ -129,7 +129,7 @@ static void __exit cleanup_svme182(void)
 {
 	if (this_mtd)
 	{
-		del_mtd_partitions(this_mtd);
+		mtd_device_unregister(this_mtd);
 		map_destroy(this_mtd);
 	}
 

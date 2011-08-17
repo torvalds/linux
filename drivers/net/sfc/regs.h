@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -2906,6 +2906,12 @@
 #define FRF_CZ_TMFT_SRC_MAC_LO_WIDTH 32
 #define FRF_CZ_TMFT_SRC_MAC_HI_LBN 44
 #define FRF_CZ_TMFT_SRC_MAC_HI_WIDTH 16
+
+/* TX_PACE_TBL */
+/* Values >20 are documented as reserved, but will result in a queue going
+ * into the fast bin with a pace value of zero. */
+#define FFE_BZ_TX_PACE_OFF 0
+#define FFE_BZ_TX_PACE_RESERVED 21
 
 /* DRIVER_EV */
 /* Sub-fields of an RX flush completion event */

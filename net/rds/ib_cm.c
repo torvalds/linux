@@ -34,6 +34,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/ratelimit.h>
 
 #include "rds.h"
 #include "ib.h"
@@ -435,13 +436,12 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event)
 		version = RDS_PROTOCOL_3_0;
 		while ((common >>= 1) != 0)
 			version++;
-	} else if (printk_ratelimit()) {
-		printk(KERN_NOTICE "RDS: Connection from %pI4 using "
+	}
+	printk_ratelimited(KERN_NOTICE "RDS: Connection from %pI4 using "
 			"incompatible protocol version %u.%u\n",
 			&dp->dp_saddr,
 			dp->dp_protocol_major,
 			dp->dp_protocol_minor);
-	}
 	return version;
 }
 
@@ -587,7 +587,7 @@ int rds_ib_conn_connect(struct rds_connection *conn)
 	/* XXX I wonder what affect the port space has */
 	/* delegate cm event handler to rdma_transport */
 	ic->i_cm_id = rdma_create_id(rds_rdma_cm_event_handler, conn,
-				     RDMA_PS_TCP);
+				     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ic->i_cm_id)) {
 		ret = PTR_ERR(ic->i_cm_id);
 		ic->i_cm_id = NULL;

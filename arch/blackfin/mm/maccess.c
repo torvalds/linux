@@ -16,7 +16,7 @@ static int validate_memory_access_address(unsigned long addr, int size)
 	return bfin_mem_access_type(addr, size);
 }
 
-long probe_kernel_read(void *dst, void *src, size_t size)
+long probe_kernel_read(void *dst, const void *src, size_t size)
 {
 	unsigned long lsrc = (unsigned long)src;
 	int mem_type;
@@ -55,7 +55,7 @@ long probe_kernel_read(void *dst, void *src, size_t size)
 	return -EFAULT;
 }
 
-long probe_kernel_write(void *dst, void *src, size_t size)
+long probe_kernel_write(void *dst, const void *src, size_t size)
 {
 	unsigned long ldst = (unsigned long)dst;
 	int mem_type;

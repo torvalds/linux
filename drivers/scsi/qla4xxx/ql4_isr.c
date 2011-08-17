@@ -25,9 +25,14 @@ static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
 
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	sense_len = le16_to_cpu(sts_entry->senseDataByteCnt);
-	if (sense_len == 0)
+	if (sense_len == 0) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "scsi%ld:%d:%d:%d: %s:"
+				  " sense len 0\n", ha->host_no,
+				  cmd->device->channel, cmd->device->id,
+				  cmd->device->lun, __func__));
+		ha->status_srb = NULL;
 		return;
-
+	}
 	/* Save total available sense length,
 	 * not to exceed cmd's sense buffer size */
 	sense_len = min_t(uint16_t, sense_len, SCSI_SENSE_BUFFERSIZE);
@@ -541,6 +546,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_UNSOLICITED_PDU_RECEIVED:  /* Connection mode */
 		case MBOX_ASTS_IPSEC_SYSTEM_FATAL_ERROR:
 		case MBOX_ASTS_SUBNET_STATE_CHANGE:
+		case MBOX_ASTS_DUPLICATE_IP:
 			/* No action */
 			DEBUG2(printk("scsi%ld: AEN %04x\n", ha->host_no,
 				      mbox_status));
@@ -593,11 +599,13 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 					    mbox_sts[i];
 
 				/* print debug message */
-				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued"
-				    " mb1:0x%x mb2:0x%x mb3:0x%x mb4:0x%x\n",
-				    ha->host_no, ha->aen_in, mbox_sts[0],
-				    mbox_sts[1], mbox_sts[2],  mbox_sts[3],
-				    mbox_sts[4]));
+				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued "
+					      "mb1:0x%x mb2:0x%x mb3:0x%x "
+					      "mb4:0x%x mb5:0x%x\n",
+					      ha->host_no, ha->aen_in,
+					      mbox_sts[0], mbox_sts[1],
+					      mbox_sts[2], mbox_sts[3],
+					      mbox_sts[4], mbox_sts[5]));
 
 				/* advance pointer */
 				ha->aen_in++;
@@ -801,7 +809,7 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 			       &ha->reg->ctrl_status);
 			readl(&ha->reg->ctrl_status);
 
-			if (!test_bit(AF_HBA_GOING_AWAY, &ha->flags))
+			if (!test_bit(AF_HA_REMOVAL, &ha->flags))
 				set_bit(DPC_RESET_HA_INTR, &ha->dpc_flags);
 
 			break;
@@ -1008,34 +1016,9 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 					      mbox_sts[0], mbox_sts[2],
 					      mbox_sts[3]));
 				break;
-			} else if (process_aen == RELOGIN_DDB_CHANGED_AENS) {
-				/* for use during init time, we only want to
-				 * relogin non-active ddbs */
-				struct ddb_entry *ddb_entry;
-
-				ddb_entry =
-					/* FIXME: name length? */
-					qla4xxx_lookup_ddb_by_fw_index(ha,
-								       mbox_sts[2]);
-				if (!ddb_entry)
-					break;
-
-				ddb_entry->dev_scan_wait_to_complete_relogin =
-					0;
-				ddb_entry->dev_scan_wait_to_start_relogin =
-					jiffies +
-					((ddb_entry->default_time2wait +
-					  4) * HZ);
-
-				DEBUG2(printk("scsi%ld: ddb [%d] initate"
-					      " RELOGIN after %d seconds\n",
-					      ha->host_no,
-					      ddb_entry->fw_ddb_index,
-					      ddb_entry->default_time2wait +
-					      4));
-				break;
 			}
-
+		case PROCESS_ALL_AENS:
+		default:
 			if (mbox_sts[1] == 0) {	/* Global DB change. */
 				qla4xxx_reinitialize_ddb_list(ha);
 			} else if (mbox_sts[1] == 1) {	/* Specific device. */

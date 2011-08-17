@@ -14,7 +14,7 @@
  *
  * Copyright (C) 2003 Tresys Technology, LLC
  *	This program is free software; you can redistribute it and/or modify
- *  	it under the terms of the GNU General Public License as published by
+ *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
  *
  * Updated: Yuichi Nakamura <ynakam@hitachisoft.jp>
@@ -27,16 +27,16 @@ struct avtab_key {
 	u16 source_type;	/* source type */
 	u16 target_type;	/* target type */
 	u16 target_class;	/* target object class */
-#define AVTAB_ALLOWED     1
-#define AVTAB_AUDITALLOW  2
-#define AVTAB_AUDITDENY   4
-#define AVTAB_AV         (AVTAB_ALLOWED | AVTAB_AUDITALLOW | AVTAB_AUDITDENY)
-#define AVTAB_TRANSITION 16
-#define AVTAB_MEMBER     32
-#define AVTAB_CHANGE     64
-#define AVTAB_TYPE       (AVTAB_TRANSITION | AVTAB_MEMBER | AVTAB_CHANGE)
-#define AVTAB_ENABLED_OLD    0x80000000 /* reserved for used in cond_avtab */
-#define AVTAB_ENABLED    0x8000 /* reserved for used in cond_avtab */
+#define AVTAB_ALLOWED		0x0001
+#define AVTAB_AUDITALLOW	0x0002
+#define AVTAB_AUDITDENY		0x0004
+#define AVTAB_AV		(AVTAB_ALLOWED | AVTAB_AUDITALLOW | AVTAB_AUDITDENY)
+#define AVTAB_TRANSITION	0x0010
+#define AVTAB_MEMBER		0x0020
+#define AVTAB_CHANGE		0x0040
+#define AVTAB_TYPE		(AVTAB_TRANSITION | AVTAB_MEMBER | AVTAB_CHANGE)
+#define AVTAB_ENABLED_OLD   0x80000000 /* reserved for used in cond_avtab */
+#define AVTAB_ENABLED		0x8000 /* reserved for used in cond_avtab */
 	u16 specified;	/* what field is specified */
 };
 
@@ -86,7 +86,6 @@ void avtab_cache_destroy(void);
 
 #define MAX_AVTAB_HASH_BITS 11
 #define MAX_AVTAB_HASH_BUCKETS (1 << MAX_AVTAB_HASH_BITS)
-#define MAX_AVTAB_HASH_MASK (MAX_AVTAB_HASH_BUCKETS-1)
 
 #endif	/* _SS_AVTAB_H_ */
 

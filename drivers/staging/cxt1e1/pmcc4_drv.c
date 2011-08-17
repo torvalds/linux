@@ -44,7 +44,7 @@
  * Code cleanup.  Default channel config to HDLC_FCS16.
  *
  * Revision 2.7  2005/10/18 18:16:30  rickd
- * Further NCOMM code repairs - (1) interrupt matrix usage inconsistant
+ * Further NCOMM code repairs - (1) interrupt matrix usage inconsistent
  * for indexing into nciInterrupt[][], code missing double parameters.
  * (2) check input of ncomm interrupt registration cardID for correct
  * boundary values.

@@ -384,8 +384,11 @@ static void acpi_tb_convert_fadt(void)
 	 *
 	 * The ACPI 1.0 reserved fields that will be zeroed are the bytes located at
 	 * offset 45, 55, 95, and the word located at offset 109, 110.
+	 *
+	 * Note: The FADT revision value is unreliable. Only the length can be
+	 * trusted.
 	 */
-	if (acpi_gbl_FADT.header.revision < FADT2_REVISION_ID) {
+	if (acpi_gbl_FADT.header.length <= ACPI_FADT_V2_SIZE) {
 		acpi_gbl_FADT.preferred_profile = 0;
 		acpi_gbl_FADT.pstate_control = 0;
 		acpi_gbl_FADT.cst_control = 0;

@@ -537,7 +537,7 @@ snd_wavefront_midi_start (snd_wavefront_card_t *card)
 	}
 
 	/* Turn on Virtual MIDI, but first *always* turn it off,
-	   since otherwise consectutive reloads of the driver will
+	   since otherwise consecutive reloads of the driver will
 	   never cause the hardware to generate the initial "internal" or 
 	   "external" source bytes in the MIDI data stream. This
 	   is pretty important, since the internal hardware generally will

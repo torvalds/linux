@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,9 @@
 #ifndef HTC_USB_H
 #define HTC_USB_H
 
+#define MAJOR_VERSION_REQ 1
+#define MINOR_VERSION_REQ 3
+
 #define IS_AR7010_DEVICE(_v) (((_v) == AR9280_USB) || ((_v) == AR9287_USB))
 
 #define AR9271_FIRMWARE       0x501000
@@ -31,7 +34,7 @@
 
 /* FIXME: Verify these numbers (with Windows) */
 #define MAX_TX_URB_NUM  8
-#define MAX_TX_BUF_NUM  1024
+#define MAX_TX_BUF_NUM  256
 #define MAX_TX_BUF_SIZE 32768
 #define MAX_TX_AGGR_NUM 20
 
@@ -40,7 +43,7 @@
 #define MAX_PKT_NUM_IN_TRANSFER 10
 
 #define MAX_REG_OUT_URB_NUM  1
-#define MAX_REG_OUT_BUF_NUM  8
+#define MAX_REG_IN_URB_NUM   64
 
 #define MAX_REG_IN_BUF_SIZE 64
 
@@ -90,9 +93,10 @@ struct hif_device_usb {
 	const struct firmware *firmware;
 	struct htc_target *htc_handle;
 	struct hif_usb_tx tx;
-	struct urb *reg_in_urb;
 	struct usb_anchor regout_submitted;
 	struct usb_anchor rx_submitted;
+	struct usb_anchor reg_in_submitted;
+	struct usb_anchor mgmt_submitted;
 	struct sk_buff *remain_skb;
 	const char *fw_name;
 	int rx_remain_len;

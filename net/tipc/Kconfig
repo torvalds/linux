@@ -29,18 +29,6 @@ config TIPC_ADVANCED
 	  Saying Y here will open some advanced configuration for TIPC.
 	  Most users do not need to bother; if unsure, just say N.
 
-config TIPC_NODES
-	int "Maximum number of nodes in a cluster"
-	depends on TIPC_ADVANCED
-	range 8 2047
-	default "255"
-	help
-	  Specifies how many nodes can be supported in a TIPC cluster.
-	  Can range from 8 to 2047 nodes; default is 255.
-
-	  Setting this to a smaller value saves some memory;
-	  setting it to higher allows for more nodes.
-
 config TIPC_PORTS
 	int "Maximum number of ports in a node"
 	depends on TIPC_ADVANCED

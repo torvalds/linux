@@ -90,7 +90,7 @@ static void wdt_setload(unsigned int timeout)
 	/*
 	 * sp805 runs counter with given value twice, after the end of first
 	 * counter it gives an interrupt and then starts counter again. If
-	 * interrupt already occured then it resets the system. This is why
+	 * interrupt already occurred then it resets the system. This is why
 	 * load is half of what should be required.
 	 */
 	load = div_u64(rate, 2) * timeout - 1;
@@ -134,6 +134,8 @@ static void wdt_enable(void)
 	writel(INT_ENABLE | RESET_ENABLE, wdt->base + WDTCONTROL);
 	writel(LOCK, wdt->base + WDTLOCK);
 
+	/* Flush posted writes. */
+	readl(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 }
 
@@ -144,9 +146,10 @@ static void wdt_disable(void)
 
 	writel(UNLOCK, wdt->base + WDTLOCK);
 	writel(0, wdt->base + WDTCONTROL);
-	writel(0, wdt->base + WDTLOAD);
 	writel(LOCK, wdt->base + WDTLOCK);
 
+	/* Flush posted writes. */
+	readl(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 }
 
@@ -278,7 +281,7 @@ static struct miscdevice sp805_wdt_miscdev = {
 };
 
 static int __devinit
-sp805_wdt_probe(struct amba_device *adev, struct amba_id *id)
+sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
 

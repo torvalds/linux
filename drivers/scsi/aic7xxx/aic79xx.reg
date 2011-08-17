@@ -305,7 +305,7 @@ register HS_MAILBOX {
 }
 
 /*
- * Sequencer Interupt Status
+ * Sequencer Interrupt Status
  */
 register SEQINTSTAT {
 	address			0x00C
@@ -685,7 +685,7 @@ register DCHRXMSG0 {
 }
 
 /*
- * CMC Recieve Message 0
+ * CMC Receive Message 0
  */
 register CMCRXMSG0 {
 	address			0x090
@@ -696,7 +696,7 @@ register CMCRXMSG0 {
 }
 
 /*
- * Overlay Recieve Message 0
+ * Overlay Receive Message 0
  */
 register OVLYRXMSG0 {
 	address			0x090
@@ -732,7 +732,7 @@ register DCHRXMSG1 {
 }
 
 /*
- * CMC Recieve Message 1
+ * CMC Receive Message 1
  */
 register CMCRXMSG1 {
 	address			0x091
@@ -742,7 +742,7 @@ register CMCRXMSG1 {
 }
 
 /*
- * Overlay Recieve Message 1
+ * Overlay Receive Message 1
  */
 register OVLYRXMSG1 {
 	address			0x091
@@ -777,7 +777,7 @@ register DCHRXMSG2 {
 }
 
 /*
- * CMC Recieve Message 2
+ * CMC Receive Message 2
  */
 register CMCRXMSG2 {
 	address			0x092
@@ -787,7 +787,7 @@ register CMCRXMSG2 {
 }
 
 /*
- * Overlay Recieve Message 2
+ * Overlay Receive Message 2
  */
 register OVLYRXMSG2 {
 	address			0x092
@@ -816,7 +816,7 @@ register DCHRXMSG3 {
 }
 
 /*
- * CMC Recieve Message 3
+ * CMC Receive Message 3
  */
 register CMCRXMSG3 {
 	address			0x093
@@ -826,7 +826,7 @@ register CMCRXMSG3 {
 }
 
 /*
- * Overlay Recieve Message 3
+ * Overlay Receive Message 3
  */
 register OVLYRXMSG3 {
 	address			0x093
@@ -1249,7 +1249,7 @@ register TARGPCISTAT {
 
 /*
  * LQ Packet In
- * The last LQ Packet recieved
+ * The last LQ Packet received
  */
 register LQIN {
 	address			0x020
@@ -2573,7 +2573,7 @@ register IOPDNCTL {
 }
 
 /*
- * Shaddow Host Address.
+ * Shadow Host Address.
  */
 register SHADDR {
 	address			0x060
@@ -3983,7 +3983,7 @@ scratch_ram {
 
 	/*
 	 * The maximum amount of time to wait, when interrupt coalescing
-	 * is enabled, before issueing a CMDCMPLT interrupt for a completed
+	 * is enabled, before issuing a CMDCMPLT interrupt for a completed
 	 * command.
 	 */
 	INT_COALESCING_TIMER {

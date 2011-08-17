@@ -10,7 +10,6 @@
  */
 
 //#include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -319,11 +318,6 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (memcmp(pn, key->rx_pn, CCMP_PN_LEN) <= 0) {
-		if (net_ratelimit()) {
-			//printk(KERN_DEBUG "CCMP: replay detected: STA=%pM"
-			//       " previous PN %pm received PN %pm\n",
-			//       hdr->addr2, key->rx_pn, pn);
-		}
 		key->dot11RSNAStatsCCMPReplays++;
 		return -4;
 	}
@@ -456,7 +450,6 @@ static char * ieee80211_ccmp_print_stats(char *p, void *priv)
 
 void ieee80211_ccmp_null(void)
 {
-//    printk("============>%s()\n", __FUNCTION__);
 	return;
 }
 

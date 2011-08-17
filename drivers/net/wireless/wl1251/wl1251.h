@@ -129,6 +129,12 @@ enum wl1251_partition_type {
 	PART_TABLE_LEN
 };
 
+enum wl1251_station_mode {
+	STATION_ACTIVE_MODE,
+	STATION_POWER_SAVE_MODE,
+	STATION_IDLE,
+};
+
 struct wl1251_partition {
 	u32 size;
 	u32 start;
@@ -358,8 +364,7 @@ struct wl1251 {
 
 	struct delayed_work elp_work;
 
-	/* we can be in psm, but not in elp, we have to differentiate */
-	bool psm;
+	enum wl1251_station_mode station_mode;
 
 	/* PSM mode requested */
 	bool psm_requested;
@@ -369,6 +374,8 @@ struct wl1251 {
 
 	/* in dBm */
 	int power_level;
+
+	int rssi_thold;
 
 	struct wl1251_stats stats;
 	struct wl1251_debugfs debugfs;
@@ -410,6 +417,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 
 #define WL1251_DEFAULT_CHANNEL 0
 
+#define WL1251_DEFAULT_BET_CONSECUTIVE 10
+
 #define CHIP_ID_1251_PG10	           (0x7010101)
 #define CHIP_ID_1251_PG11	           (0x7020101)
 #define CHIP_ID_1251_PG12	           (0x7030101)
@@ -430,5 +439,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define WL1251_PART_WORK_MEM_SIZE	0x14000
 #define WL1251_PART_WORK_REG_START	REGISTERS_BASE
 #define WL1251_PART_WORK_REG_SIZE	REGISTERS_WORK_SIZE
+
+#define WL1251_DEFAULT_LOW_RSSI_WEIGHT          10
+#define WL1251_DEFAULT_LOW_RSSI_DEPTH           10
 
 #endif

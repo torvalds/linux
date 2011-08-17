@@ -31,7 +31,7 @@
 
 #include <asm/hwrpb.h>
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -451,7 +451,7 @@ setup_smp(void)
 	}
 
 	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_map = %lx\n",
-	       smp_num_probed, cpu_present_map.bits[0]);
+	       smp_num_probed, cpumask_bits(cpu_present_mask)[0]);
 }
 
 /*
@@ -585,8 +585,7 @@ handle_ipi(struct pt_regs *regs)
 
 		switch (which) {
 		case IPI_RESCHEDULE:
-			/* Reschedule callback.  Everything to be done
-			   is done by the interrupt return path.  */
+			scheduler_ipi();
 			break;
 
 		case IPI_CALL_FUNC:
@@ -630,8 +629,9 @@ smp_send_reschedule(int cpu)
 void
 smp_send_stop(void)
 {
-	cpumask_t to_whom = cpu_possible_map;
-	cpu_clear(smp_processor_id(), to_whom);
+	cpumask_t to_whom;
+	cpumask_copy(&to_whom, cpu_possible_mask);
+	cpumask_clear_cpu(smp_processor_id(), &to_whom);
 #ifdef DEBUG_IPI_MSG
 	if (hard_smp_processor_id() != boot_cpu_id)
 		printk(KERN_WARNING "smp_send_stop: Not on boot cpu.\n");

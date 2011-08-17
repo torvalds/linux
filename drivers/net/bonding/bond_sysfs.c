@@ -118,7 +118,10 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		pr_info("%s is being created...\n", ifname);
 		rv = bond_create(net, ifname);
 		if (rv) {
-			pr_info("Bond creation failed.\n");
+			if (rv == -EEXIST)
+				pr_info("%s already exists.\n", ifname);
+			else
+				pr_info("%s creation failed.\n", ifname);
 			res = rv;
 		}
 	} else if (command[0] == '-') {
@@ -224,12 +227,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
-	/* Quick sanity check -- is the bond interface up? */
-	if (!(bond->dev->flags & IFF_UP)) {
-		pr_warning("%s: doing slave updates when interface is down.\n",
-			   bond->dev->name);
-	}
-
 	if (!rtnl_trylock())
 		return restart_syscall();
 
@@ -322,11 +319,6 @@ static ssize_t bonding_store_mode(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (bond->params.mode == BOND_MODE_8023AD)
-		bond_unset_master_3ad_flags(bond);
-
-	if (bond->params.mode == BOND_MODE_ALB)
-		bond_unset_master_alb_flags(bond);
 
 	bond->params.mode = new_value;
 	bond_set_mode_ops(bond, bond->params.mode);
@@ -423,11 +415,6 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	pr_info("%s: setting arp_validate to %s (%d).\n",
 		bond->dev->name, arp_validate_tbl[new_value].modename,
 		new_value);
-
-	if (!bond->params.arp_validate && new_value)
-		bond_register_arp(bond);
-	else if (bond->params.arp_validate && !new_value)
-		bond_unregister_arp(bond);
 
 	bond->params.arp_validate = new_value;
 
@@ -527,8 +514,6 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	pr_info("%s: Setting ARP monitoring interval to %d.\n",
 		bond->dev->name, new_value);
 	bond->params.arp_interval = new_value;
-	if (bond->params.arp_interval)
-		bond->dev->priv_flags |= IFF_MASTER_ARPMON;
 	if (bond->params.miimon) {
 		pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
 			bond->dev->name, bond->dev->name);
@@ -819,6 +804,7 @@ static ssize_t bonding_store_lacp(struct device *d,
 
 	if ((new_value == 1) || (new_value == 0)) {
 		bond->params.lacp_fast = new_value;
+		bond_3ad_update_lacp_rate(bond);
 		pr_info("%s: Setting LACP rate to %s (%d).\n",
 			bond->dev->name, bond_lacp_tbl[new_value].modename,
 			new_value);
@@ -832,6 +818,38 @@ out:
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,
 		   bonding_show_lacp, bonding_store_lacp);
+
+static ssize_t bonding_show_min_links(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.min_links);
+}
+
+static ssize_t bonding_store_min_links(struct device *d,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret;
+	unsigned int new_value;
+
+	ret = kstrtouint(buf, 0, &new_value);
+	if (ret < 0) {
+		pr_err("%s: Ignoring invalid min links value %s.\n",
+		       bond->dev->name, buf);
+		return ret;
+	}
+
+	pr_info("%s: Setting min links value to %u\n",
+		bond->dev->name, new_value);
+	bond->params.min_links = new_value;
+	return count;
+}
+static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
+		   bonding_show_min_links, bonding_store_min_links);
 
 static ssize_t bonding_show_ad_select(struct device *d,
 				      struct device_attribute *attr,
@@ -878,82 +896,28 @@ static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_store_ad_select);
 
 /*
- * Show and set the number of grat ARP to send after a failover event.
+ * Show and set the number of peer notifications to send after a failover event.
  */
-static ssize_t bonding_show_n_grat_arp(struct device *d,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t bonding_show_num_peer_notif(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct bonding *bond = to_bond(d);
-
-	return sprintf(buf, "%d\n", bond->params.num_grat_arp);
+	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
 
-static ssize_t bonding_store_n_grat_arp(struct device *d,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t bonding_store_num_peer_notif(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
-
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no num_grat_arp value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid num_grat_arp value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	} else {
-		bond->params.num_grat_arp = new_value;
-	}
-out:
-	return ret;
+	int err = kstrtou8(buf, 10, &bond->params.num_peer_notif);
+	return err ? err : count;
 }
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
-		   bonding_show_n_grat_arp, bonding_store_n_grat_arp);
-
-/*
- * Show and set the number of unsolicited NA's to send after a failover event.
- */
-static ssize_t bonding_show_n_unsol_na(struct device *d,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct bonding *bond = to_bond(d);
-
-	return sprintf(buf, "%d\n", bond->params.num_unsol_na);
-}
-
-static ssize_t bonding_store_n_unsol_na(struct device *d,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	int new_value, ret = count;
-	struct bonding *bond = to_bond(d);
-
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no num_unsol_na value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid num_unsol_na value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	} else
-		bond->params.num_unsol_na = new_value;
-out:
-	return ret;
-}
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
 static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
-		   bonding_show_n_unsol_na, bonding_store_n_unsol_na);
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
 
 /*
  * Show and set the MII monitor interval.  There are two tricky bits
@@ -1004,9 +968,7 @@ static ssize_t bonding_store_miimon(struct device *d,
 			pr_info("%s: MII monitoring cannot be used with ARP monitoring. Disabling ARP monitoring...\n",
 				bond->dev->name);
 			bond->params.arp_interval = 0;
-			bond->dev->priv_flags &= ~IFF_MASTER_ARPMON;
 			if (bond->params.arp_validate) {
-				bond_unregister_arp(bond);
 				bond->params.arp_validate =
 					BOND_ARP_VALIDATE_NONE;
 			}
@@ -1063,6 +1025,7 @@ static ssize_t bonding_store_primary(struct device *d,
 	int i;
 	struct slave *slave;
 	struct bonding *bond = to_bond(d);
+	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1073,32 +1036,33 @@ static ssize_t bonding_store_primary(struct device *d,
 	if (!USES_PRIMARY(bond->params.mode)) {
 		pr_info("%s: Unable to set primary slave; %s is in mode %d\n",
 			bond->dev->name, bond->dev->name, bond->params.mode);
-	} else {
-		bond_for_each_slave(bond, slave, i) {
-			if (strnicmp
-			    (slave->dev->name, buf,
-			     strlen(slave->dev->name)) == 0) {
-				pr_info("%s: Setting %s as primary slave.\n",
-					bond->dev->name, slave->dev->name);
-				bond->primary_slave = slave;
-				strcpy(bond->params.primary, slave->dev->name);
-				bond_select_active_slave(bond);
-				goto out;
-			}
-		}
+		goto out;
+	}
 
-		/* if we got here, then we didn't match the name of any slave */
+	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
 
-		if (strlen(buf) == 0 || buf[0] == '\n') {
-			pr_info("%s: Setting primary slave to None.\n",
-				bond->dev->name);
-			bond->primary_slave = NULL;
-				bond_select_active_slave(bond);
-		} else {
-			pr_info("%s: Unable to set %.*s as primary slave as it is not a slave.\n",
-				bond->dev->name, (int)strlen(buf) - 1, buf);
+	/* check to see if we are clearing primary */
+	if (!strlen(ifname) || buf[0] == '\n') {
+		pr_info("%s: Setting primary slave to None.\n",
+			bond->dev->name);
+		bond->primary_slave = NULL;
+		bond_select_active_slave(bond);
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, i) {
+		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
+			pr_info("%s: Setting %s as primary slave.\n",
+				bond->dev->name, slave->dev->name);
+			bond->primary_slave = slave;
+			strcpy(bond->params.primary, slave->dev->name);
+			bond_select_active_slave(bond);
+			goto out;
 		}
 	}
+
+	pr_info("%s: Unable to set %.*s as primary slave.\n",
+		bond->dev->name, (int)strlen(buf) - 1, buf);
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1198,7 +1162,7 @@ static ssize_t bonding_store_carrier(struct device *d,
 			bond->dev->name, new_value);
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,
 		   bonding_show_carrier, bonding_store_carrier);
@@ -1233,6 +1197,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	struct slave *old_active = NULL;
 	struct slave *new_active = NULL;
 	struct bonding *bond = to_bond(d);
+	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1241,56 +1206,62 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
-	if (!USES_PRIMARY(bond->params.mode))
+	if (!USES_PRIMARY(bond->params.mode)) {
 		pr_info("%s: Unable to change active slave; %s is in mode %d\n",
 			bond->dev->name, bond->dev->name, bond->params.mode);
-	else {
-		bond_for_each_slave(bond, slave, i) {
-			if (strnicmp
-			    (slave->dev->name, buf,
-			     strlen(slave->dev->name)) == 0) {
-        			old_active = bond->curr_active_slave;
-        			new_active = slave;
-        			if (new_active == old_active) {
-					/* do nothing */
-					pr_info("%s: %s is already the current active slave.\n",
+		goto out;
+	}
+
+	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
+
+	/* check to see if we are clearing active */
+	if (!strlen(ifname) || buf[0] == '\n') {
+		pr_info("%s: Clearing current active slave.\n",
+			bond->dev->name);
+		bond->curr_active_slave = NULL;
+		bond_select_active_slave(bond);
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, i) {
+		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
+			old_active = bond->curr_active_slave;
+			new_active = slave;
+			if (new_active == old_active) {
+				/* do nothing */
+				pr_info("%s: %s is already the current"
+					" active slave.\n",
+					bond->dev->name,
+					slave->dev->name);
+				goto out;
+			}
+			else {
+				if ((new_active) &&
+				    (old_active) &&
+				    (new_active->link == BOND_LINK_UP) &&
+				    IS_UP(new_active->dev)) {
+					pr_info("%s: Setting %s as active"
+						" slave.\n",
 						bond->dev->name,
 						slave->dev->name);
-					goto out;
+					bond_change_active_slave(bond,
+								 new_active);
 				}
 				else {
-        				if ((new_active) &&
-            				    (old_active) &&
-				            (new_active->link == BOND_LINK_UP) &&
-				            IS_UP(new_active->dev)) {
-						pr_info("%s: Setting %s as active slave.\n",
-							bond->dev->name,
-							slave->dev->name);
-							bond_change_active_slave(bond, new_active);
-        				}
-					else {
-						pr_info("%s: Could not set %s as active slave; either %s is down or the link is down.\n",
-							bond->dev->name,
-							slave->dev->name,
-							slave->dev->name);
-					}
-					goto out;
+					pr_info("%s: Could not set %s as"
+						" active slave; either %s is"
+						" down or the link is down.\n",
+						bond->dev->name,
+						slave->dev->name,
+						slave->dev->name);
 				}
+				goto out;
 			}
 		}
-
-		/* if we got here, then we didn't match the name of any slave */
-
-		if (strlen(buf) == 0 || buf[0] == '\n') {
-			pr_info("%s: Setting active slave to None.\n",
-				bond->dev->name);
-			bond->primary_slave = NULL;
-			bond_select_active_slave(bond);
-		} else {
-			pr_info("%s: Unable to set %.*s as active slave as it is not a slave.\n",
-				bond->dev->name, (int)strlen(buf) - 1, buf);
-		}
 	}
+
+	pr_info("%s: Unable to set %.*s as active slave.\n",
+		bond->dev->name, (int)strlen(buf) - 1, buf);
  out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1587,15 +1558,15 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 	}
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->state == BOND_STATE_BACKUP) {
+		if (!bond_is_active_slave(slave)) {
 			if (new_value)
-				slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+				slave->inactive = 0;
 			else
-				slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+				slave->inactive = 1;
 		}
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
 		   bonding_show_slaves_active, bonding_store_slaves_active);
@@ -1604,8 +1575,8 @@ static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
  * Show and set the number of IGMP membership reports to send on link failure
  */
 static ssize_t bonding_show_resend_igmp(struct device *d,
-					 struct device_attribute *attr,
-					 char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct bonding *bond = to_bond(d);
 
@@ -1613,8 +1584,8 @@ static ssize_t bonding_show_resend_igmp(struct device *d,
 }
 
 static ssize_t bonding_store_resend_igmp(struct device *d,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
@@ -1626,7 +1597,7 @@ static ssize_t bonding_store_resend_igmp(struct device *d,
 		goto out;
 	}
 
-	if (new_value < 0) {
+	if (new_value < 0 || new_value > 255) {
 		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
 		       bond->dev->name, new_value);
 		ret = -EINVAL;
@@ -1671,6 +1642,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_queue_id.attr,
 	&dev_attr_all_slaves_active.attr,
 	&dev_attr_resend_igmp.attr,
+	&dev_attr_min_links.attr,
 	NULL,
 };
 

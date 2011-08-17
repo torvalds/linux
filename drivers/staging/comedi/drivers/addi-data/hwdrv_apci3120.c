@@ -90,7 +90,8 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev, struct comedi_su
 		/* Test the number of the channel */
 		for (i = 0; i < data[3]; i++) {
 
-			if (CR_CHAN(data[4 + i]) >= this_board->i_NbrAiChannel) {
+			if (CR_CHAN(data[4 + i]) >=
+				devpriv->s_EeParameters.i_NbrAiChannel) {
 				printk("bad channel list\n");
 				return -2;
 			}
@@ -148,7 +149,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subd
 	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
 
-	/*  fix convertion time to 10 us */
+	/*  fix conversion time to 10 us */
 	if (!devpriv->ui_EocEosConversionTime) {
 		printk("No timer0 Value using 10 us\n");
 		us_ConvertTiming = 10;
@@ -251,7 +252,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subd
 				APCI3120_SELECT_TIMER_0_WORD;
 			outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-			/* Set the convertion time */
+			/* Set the conversion time */
 			outw(us_ConvertTiming,
 				devpriv->iobase + APCI3120_TIMER_VALUE);
 
@@ -311,7 +312,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subd
 				APCI3120_SELECT_TIMER_0_WORD;
 			outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-			/* Set the convertion time */
+			/* Set the conversion time */
 			outw(us_ConvertTiming,
 				devpriv->iobase + APCI3120_TIMER_VALUE);
 
@@ -354,9 +355,9 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subd
 			/* Start conversion */
 			outw(0, devpriv->iobase + APCI3120_START_CONVERSION);
 
-			/* Waiting of end of convertion if interrupt is not installed */
+			/* Waiting of end of conversion if interrupt is not installed */
 			if (devpriv->b_EocEosInterrupt == APCI3120_DISABLE) {
-				/* Waiting the end of convertion */
+				/* Waiting the end of conversion */
 				do {
 					us_TmpValue =
 						inw(devpriv->iobase +
@@ -541,8 +542,10 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {	/*  Test Delay timing */
-		if (cmd->scan_begin_arg < this_board->ui_MinDelaytimeNs) {
-			cmd->scan_begin_arg = this_board->ui_MinDelaytimeNs;
+		if (cmd->scan_begin_arg <
+				devpriv->s_EeParameters.ui_MinDelaytimeNs) {
+			cmd->scan_begin_arg =
+				devpriv->s_EeParameters.ui_MinDelaytimeNs;
 			err++;
 		}
 	}
@@ -551,16 +554,18 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			if ((cmd->convert_arg)
 				&& (cmd->convert_arg <
-					this_board->ui_MinAcquisitiontimeNs)) {
-				cmd->convert_arg =
-					this_board->ui_MinAcquisitiontimeNs;
+					devpriv->s_EeParameters.
+						ui_MinAcquisitiontimeNs)) {
+				cmd->convert_arg = devpriv->s_EeParameters.
+					ui_MinAcquisitiontimeNs;
 				err++;
 			}
 		} else {
 			if (cmd->convert_arg <
-				this_board->ui_MinAcquisitiontimeNs) {
-				cmd->convert_arg =
-					this_board->ui_MinAcquisitiontimeNs;
+				devpriv->s_EeParameters.ui_MinAcquisitiontimeNs
+				) {
+				cmd->convert_arg = devpriv->s_EeParameters.
+					ui_MinAcquisitiontimeNs;
 				err++;
 
 			}
@@ -854,7 +859,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		/* Set the convertion time */
+		/* Set the conversion time */
 		outw(((unsigned short) ui_TimerValue0),
 			dev->iobase + APCI3120_TIMER_VALUE);
 		break;
@@ -872,7 +877,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_1_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		/* Set the convertion time */
+		/* Set the conversion time */
 		outw(((unsigned short) ui_TimerValue1),
 			dev->iobase + APCI3120_TIMER_VALUE);
 
@@ -889,7 +894,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
-		/* Set the convertion time */
+		/* Set the conversion time */
 		outw(((unsigned short) ui_TimerValue0),
 			dev->iobase + APCI3120_TIMER_VALUE);
 		break;
@@ -1104,7 +1109,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 
 /*
  * 4
- * amount of bytes to be transfered set transfer count used ADDON
+ * amount of bytes to be transferred set transfer count used ADDON
  * MWTC register commented testing
  * outl(devpriv->ui_DmaBufferUsesize[0],
  * devpriv->i_IobaseAddon+AMCC_OP_REG_AMWTC);
@@ -2452,7 +2457,7 @@ int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	if ((data[0] > this_board->i_DoMaxdata) || (data[0] < 0)) {
+	if ((data[0] > devpriv->s_EeParameters.i_DoMaxdata) || (data[0] < 0)) {
 
 		comedi_error(dev, "Data is not valid !!! \n");
 		return -EINVAL;
@@ -2515,7 +2520,7 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
 	}
-	if (ui_NoOfChannel > this_board->i_NbrDoChannel - 1) {
+	if (ui_NoOfChannel > devpriv->s_EeParameters.i_NbrDoChannel - 1) {
 		comedi_error(dev,
 			"This board doesn't have specified channel !!! \n");
 		return -EINVAL;

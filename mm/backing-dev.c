@@ -14,17 +14,11 @@
 
 static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 
-void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
-{
-}
-EXPORT_SYMBOL(default_unplug_io_fn);
-
 struct backing_dev_info default_backing_dev_info = {
 	.name		= "default",
 	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
 	.state		= 0,
 	.capabilities	= BDI_CAP_MAP_COPY,
-	.unplug_io_fn	= default_unplug_io_fn,
 };
 EXPORT_SYMBOL_GPL(default_backing_dev_info);
 
@@ -51,6 +45,17 @@ static struct timer_list sync_supers_timer;
 static int bdi_sync_supers(void *);
 static void sync_supers_timer_fn(unsigned long);
 
+void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
+{
+	if (wb1 < wb2) {
+		spin_lock(&wb1->list_lock);
+		spin_lock_nested(&wb2->list_lock, 1);
+	} else {
+		spin_lock(&wb2->list_lock);
+		spin_lock_nested(&wb1->list_lock, 1);
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -69,38 +74,46 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
 	unsigned long bdi_thresh;
-	unsigned long nr_dirty, nr_io, nr_more_io, nr_wb;
+	unsigned long nr_dirty, nr_io, nr_more_io;
 	struct inode *inode;
 
-	nr_wb = nr_dirty = nr_io = nr_more_io = 0;
-	spin_lock(&inode_lock);
+	nr_dirty = nr_io = nr_more_io = 0;
+	spin_lock(&wb->list_lock);
 	list_for_each_entry(inode, &wb->b_dirty, i_wb_list)
 		nr_dirty++;
 	list_for_each_entry(inode, &wb->b_io, i_wb_list)
 		nr_io++;
 	list_for_each_entry(inode, &wb->b_more_io, i_wb_list)
 		nr_more_io++;
-	spin_unlock(&inode_lock);
+	spin_unlock(&wb->list_lock);
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
 	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	seq_printf(m,
-		   "BdiWriteback:     %8lu kB\n"
-		   "BdiReclaimable:   %8lu kB\n"
-		   "BdiDirtyThresh:   %8lu kB\n"
-		   "DirtyThresh:      %8lu kB\n"
-		   "BackgroundThresh: %8lu kB\n"
-		   "b_dirty:          %8lu\n"
-		   "b_io:             %8lu\n"
-		   "b_more_io:        %8lu\n"
-		   "bdi_list:         %8u\n"
-		   "state:            %8lx\n",
+		   "BdiWriteback:       %10lu kB\n"
+		   "BdiReclaimable:     %10lu kB\n"
+		   "BdiDirtyThresh:     %10lu kB\n"
+		   "DirtyThresh:        %10lu kB\n"
+		   "BackgroundThresh:   %10lu kB\n"
+		   "BdiWritten:         %10lu kB\n"
+		   "BdiWriteBandwidth:  %10lu kBps\n"
+		   "b_dirty:            %10lu\n"
+		   "b_io:               %10lu\n"
+		   "b_more_io:          %10lu\n"
+		   "bdi_list:           %10u\n"
+		   "state:              %10lx\n",
 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
-		   K(bdi_thresh), K(dirty_thresh),
-		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
+		   K(bdi_thresh),
+		   K(dirty_thresh),
+		   K(background_thresh),
+		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
+		   (unsigned long) K(bdi->write_bandwidth),
+		   nr_dirty,
+		   nr_io,
+		   nr_more_io,
 		   !list_empty(&bdi->bdi_list), bdi->state);
 #undef K
 
@@ -253,18 +266,6 @@ subsys_initcall(default_bdi_init);
 int bdi_has_dirty_io(struct backing_dev_info *bdi)
 {
 	return wb_has_dirty_io(&bdi->wb);
-}
-
-static void bdi_flush_io(struct backing_dev_info *bdi)
-{
-	struct writeback_control wbc = {
-		.sync_mode		= WB_SYNC_NONE,
-		.older_than_this	= NULL,
-		.range_cyclic		= 1,
-		.nr_to_write		= 1024,
-	};
-
-	writeback_inodes_wb(&bdi->wb, &wbc);
 }
 
 /*
@@ -452,9 +453,10 @@ static int bdi_forker_thread(void *ptr)
 			if (IS_ERR(task)) {
 				/*
 				 * If thread creation fails, force writeout of
-				 * the bdi from the thread.
+				 * the bdi from the thread. Hopefully 1024 is
+				 * large enough for efficient IO.
 				 */
-				bdi_flush_io(bdi);
+				writeback_inodes_wb(&bdi->wb, 1024);
 			} else {
 				/*
 				 * The spinlock makes sure we do not lose
@@ -511,7 +513,7 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
 	list_del_rcu(&bdi->bdi_list);
 	spin_unlock_bh(&bdi_lock);
 
-	synchronize_rcu();
+	synchronize_rcu_expedited();
 }
 
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
@@ -604,7 +606,7 @@ static void bdi_prune_sb(struct backing_dev_info *bdi)
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (sb->s_bdi == bdi)
-			sb->s_bdi = NULL;
+			sb->s_bdi = &default_backing_dev_info;
 	}
 	spin_unlock(&sb_lock);
 }
@@ -612,6 +614,7 @@ static void bdi_prune_sb(struct backing_dev_info *bdi)
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
+		bdi_set_min_ratio(bdi, 0);
 		trace_writeback_bdi_unregister(bdi);
 		bdi_prune_sb(bdi);
 		del_timer_sync(&bdi->wb.wakeup_timer);
@@ -634,8 +637,14 @@ static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&wb->b_dirty);
 	INIT_LIST_HEAD(&wb->b_io);
 	INIT_LIST_HEAD(&wb->b_more_io);
+	spin_lock_init(&wb->list_lock);
 	setup_timer(&wb->wakeup_timer, wakeup_timer_fn, (unsigned long)bdi);
 }
+
+/*
+ * Initial write bandwidth: 100 MB/s
+ */
+#define INIT_BW		(100 << (20 - PAGE_SHIFT))
 
 int bdi_init(struct backing_dev_info *bdi)
 {
@@ -659,6 +668,13 @@ int bdi_init(struct backing_dev_info *bdi)
 	}
 
 	bdi->dirty_exceeded = 0;
+
+	bdi->bw_time_stamp = jiffies;
+	bdi->written_stamp = 0;
+
+	bdi->write_bandwidth = INIT_BW;
+	bdi->avg_write_bandwidth = INIT_BW;
+
 	err = prop_local_init_percpu(&bdi->completions);
 
 	if (err) {
@@ -682,11 +698,12 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	if (bdi_has_dirty_io(bdi)) {
 		struct bdi_writeback *dst = &default_backing_dev_info.wb;
 
-		spin_lock(&inode_lock);
+		bdi_lock_two(&bdi->wb, dst);
 		list_splice(&bdi->wb.b_dirty, &dst->b_dirty);
 		list_splice(&bdi->wb.b_io, &dst->b_io);
 		list_splice(&bdi->wb.b_more_io, &dst->b_more_io);
-		spin_unlock(&inode_lock);
+		spin_unlock(&bdi->wb.list_lock);
+		spin_unlock(&dst->list_lock);
 	}
 
 	bdi_unregister(bdi);
@@ -793,7 +810,7 @@ EXPORT_SYMBOL(congestion_wait);
  * jiffies for either a BDI to exit congestion of the given @sync queue
  * or a write to complete.
  *
- * In the absense of zone congestion, cond_resched() is called to yield
+ * In the absence of zone congestion, cond_resched() is called to yield
  * the processor if necessary but otherwise does not sleep.
  *
  * The return value is 0 if the sleep is for the full timeout. Otherwise,

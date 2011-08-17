@@ -26,9 +26,9 @@
 #include <linux/pm_runtime.h>
 
 #include <plat/common.h>
-#include <plat/smartreflex.h>
 
 #include "pm.h"
+#include "smartreflex.h"
 
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40
@@ -54,6 +54,7 @@ struct omap_sr {
 	struct list_head		node;
 	struct omap_sr_nvalue_table	*nvalue_table;
 	struct voltagedomain		*voltdm;
+	struct dentry			*dbg_dir;
 };
 
 /* sr_list contains all the instances of smartreflex module */
@@ -142,7 +143,7 @@ static irqreturn_t sr_interrupt(int irq, void *data)
 		sr_write_reg(sr_info, IRQSTATUS, status);
 	}
 
-	if (sr_class->class_type == SR_CLASS2 && sr_class->notify)
+	if (sr_class->notify)
 		sr_class->notify(sr_info->voltdm, status);
 
 	return IRQ_HANDLED;
@@ -246,7 +247,7 @@ static void sr_stop_vddautocomp(struct omap_sr *sr)
  * driver register and sr device intializtion API's. Only one call
  * will ultimately succeed.
  *
- * Currenly this function registers interrrupt handler for a particular SR
+ * Currently this function registers interrrupt handler for a particular SR
  * if smartreflex class driver is already registered and has
  * requested for interrupts and the SR interrupt line in present.
  */
@@ -257,16 +258,17 @@ static int sr_late_init(struct omap_sr *sr_info)
 	struct resource *mem;
 	int ret = 0;
 
-	if (sr_class->class_type == SR_CLASS2 &&
-		sr_class->notify_flags && sr_info->irq) {
-
-		name = kzalloc(SMARTREFLEX_NAME_LEN + 1, GFP_KERNEL);
-		strcpy(name, "sr_");
-		strcat(name, sr_info->voltdm->name);
+	if (sr_class->notify && sr_class->notify_flags && sr_info->irq) {
+		name = kasprintf(GFP_KERNEL, "sr_%s", sr_info->voltdm->name);
+		if (name == NULL) {
+			ret = -ENOMEM;
+			goto error;
+		}
 		ret = request_irq(sr_info->irq, sr_interrupt,
 				0, name, (void *)sr_info);
 		if (ret)
 			goto error;
+		disable_irq(sr_info->irq);
 	}
 
 	if (pdata && pdata->enable_on_init)
@@ -275,15 +277,16 @@ static int sr_late_init(struct omap_sr *sr_info)
 	return ret;
 
 error:
-		iounmap(sr_info->base);
-		mem = platform_get_resource(sr_info->pdev, IORESOURCE_MEM, 0);
-		release_mem_region(mem->start, resource_size(mem));
-		list_del(&sr_info->node);
-		dev_err(&sr_info->pdev->dev, "%s: ERROR in registering"
-			"interrupt handler. Smartreflex will"
-			"not function as desired\n", __func__);
-		kfree(sr_info);
-		return ret;
+	iounmap(sr_info->base);
+	mem = platform_get_resource(sr_info->pdev, IORESOURCE_MEM, 0);
+	release_mem_region(mem->start, resource_size(mem));
+	list_del(&sr_info->node);
+	dev_err(&sr_info->pdev->dev, "%s: ERROR in registering"
+		"interrupt handler. Smartreflex will"
+		"not function as desired\n", __func__);
+	kfree(name);
+	kfree(sr_info);
+	return ret;
 }
 
 static void sr_v1_disable(struct omap_sr *sr)
@@ -618,7 +621,7 @@ void sr_disable(struct voltagedomain *voltdm)
 			sr_v2_disable(sr);
 	}
 
-	pm_runtime_put_sync(&sr->pdev->dev);
+	pm_runtime_put_sync_suspend(&sr->pdev->dev);
 }
 
 /**
@@ -804,10 +807,13 @@ static int omap_sr_autocomp_store(void *data, u64 val)
 		return -EINVAL;
 	}
 
-	if (!val)
-		sr_stop_vddautocomp(sr_info);
-	else
-		sr_start_vddautocomp(sr_info);
+	/* control enable/disable only if there is a delta in value */
+	if (sr_info->autocomp_active != val) {
+		if (!val)
+			sr_stop_vddautocomp(sr_info);
+		else
+			sr_start_vddautocomp(sr_info);
+	}
 
 	return 0;
 }
@@ -820,7 +826,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	struct omap_sr *sr_info = kzalloc(sizeof(struct omap_sr), GFP_KERNEL);
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct resource *mem, *irq;
-	struct dentry *vdd_dbg_dir, *dbg_dir, *nvalue_dir;
+	struct dentry *vdd_dbg_dir, *nvalue_dir;
 	struct omap_volt_data *volt_data;
 	int i, ret = 0;
 
@@ -843,9 +849,18 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		goto err_free_devinfo;
 	}
 
+	mem = request_mem_region(mem->start, resource_size(mem),
+					dev_name(&pdev->dev));
+	if (!mem) {
+		dev_err(&pdev->dev, "%s: no mem region\n", __func__);
+		ret = -EBUSY;
+		goto err_free_devinfo;
+	}
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_irq_safe(&pdev->dev);
 
 	sr_info->pdev = pdev;
 	sr_info->srid = pdev->id;
@@ -890,30 +905,34 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	 * not try to create rest of the debugfs entries.
 	 */
 	vdd_dbg_dir = omap_voltage_get_dbgdir(sr_info->voltdm);
-	if (!vdd_dbg_dir)
-		return -EINVAL;
-
-	dbg_dir = debugfs_create_dir("smartreflex", vdd_dbg_dir);
-	if (IS_ERR(dbg_dir)) {
-		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
-			__func__);
-		return PTR_ERR(dbg_dir);
+	if (!vdd_dbg_dir) {
+		ret = -EINVAL;
+		goto err_iounmap;
 	}
 
-	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR, dbg_dir,
-				(void *)sr_info, &pm_sr_fops);
-	(void) debugfs_create_x32("errweight", S_IRUGO, dbg_dir,
+	sr_info->dbg_dir = debugfs_create_dir("smartreflex", vdd_dbg_dir);
+	if (IS_ERR(sr_info->dbg_dir)) {
+		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
+			__func__);
+		ret = PTR_ERR(sr_info->dbg_dir);
+		goto err_iounmap;
+	}
+
+	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR,
+			sr_info->dbg_dir, (void *)sr_info, &pm_sr_fops);
+	(void) debugfs_create_x32("errweight", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_weight);
-	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, dbg_dir,
+	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_maxlimit);
-	(void) debugfs_create_x32("errminlimit", S_IRUGO, dbg_dir,
+	(void) debugfs_create_x32("errminlimit", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_minlimit);
 
-	nvalue_dir = debugfs_create_dir("nvalue", dbg_dir);
+	nvalue_dir = debugfs_create_dir("nvalue", sr_info->dbg_dir);
 	if (IS_ERR(nvalue_dir)) {
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory"
 			"for n-values\n", __func__);
-		return PTR_ERR(nvalue_dir);
+		ret = PTR_ERR(nvalue_dir);
+		goto err_debugfs;
 	}
 
 	omap_voltage_get_volttable(sr_info->voltdm, &volt_data);
@@ -922,29 +941,26 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 			" corresponding vdd vdd_%s. Cannot create debugfs"
 			"entries for n-values\n",
 			__func__, sr_info->voltdm->name);
-		return -ENODATA;
+		ret = -ENODATA;
+		goto err_debugfs;
 	}
 
 	for (i = 0; i < sr_info->nvalue_count; i++) {
-		char *name;
-		char volt_name[32];
+		char name[NVALUE_NAME_LEN + 1];
 
-		name = kzalloc(NVALUE_NAME_LEN + 1, GFP_KERNEL);
-		if (!name) {
-			dev_err(&pdev->dev, "%s: Unable to allocate memory"
-				" for n-value directory name\n",  __func__);
-			return -ENOMEM;
-		}
-
-		strcpy(name, "volt_");
-		sprintf(volt_name, "%d", volt_data[i].volt_nominal);
-		strcat(name, volt_name);
+		snprintf(name, sizeof(name), "volt_%d",
+			 volt_data[i].volt_nominal);
 		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 	}
 
 	return ret;
 
+err_debugfs:
+	debugfs_remove_recursive(sr_info->dbg_dir);
+err_iounmap:
+	list_del(&sr_info->node);
+	iounmap(sr_info->base);
 err_release_region:
 	release_mem_region(mem->start, resource_size(mem));
 err_free_devinfo:
@@ -973,6 +989,8 @@ static int __devexit omap_sr_remove(struct platform_device *pdev)
 
 	if (sr_info->autocomp_active)
 		sr_stop_vddautocomp(sr_info);
+	if (sr_info->dbg_dir)
+		debugfs_remove_recursive(sr_info->dbg_dir);
 
 	list_del(&sr_info->node);
 	iounmap(sr_info->base);

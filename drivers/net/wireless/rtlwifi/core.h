@@ -24,10 +24,13 @@
  * Hsinchu 300, Taiwan.
  *
  * Larry Finger <Larry.Finger@lwfinger.net>
+ *
  *****************************************************************************/
 
 #ifndef __RTL_CORE_H__
 #define __RTL_CORE_H__
+
+#include <net/mac80211.h>
 
 #define RTL_SUPPORTED_FILTERS		\
 	(FIF_PROMISC_IN_BSS | \

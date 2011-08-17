@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2009 Intel Corporation.
+  Copyright(c) 2007-2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -37,6 +37,8 @@
 #include <linux/clocksource.h>
 #include <linux/timecompare.h>
 #include <linux/net_tstamp.h>
+#include <linux/bitops.h>
+#include <linux/if_vlan.h>
 
 struct igb_adapter;
 
@@ -77,6 +79,7 @@ struct vf_data_storage {
 	unsigned long last_nack;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
+	u16 tx_rate;
 };
 
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
@@ -251,7 +254,7 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 struct igb_adapter {
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 mng_vlan_id;
 	u32 bd_number;
 	u32 wol;
@@ -323,6 +326,7 @@ struct igb_adapter {
 	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;
 	struct vf_data_storage *vf_data;
+	int vf_rate_link_speed;
 	u32 rss_queues;
 	u32 wvbr;
 };
@@ -331,6 +335,12 @@ struct igb_adapter {
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
 #define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
+#define IGB_FLAG_DMAC              (1 << 4)
+
+/* DMA Coalescing defines */
+#define IGB_MIN_TXPBSIZE           20408
+#define IGB_TX_BUF_4096            4096
+#define IGB_DMCTLX_DCFLUSH_DIS     0x80000000  /* Disable DMA Coal Flush */
 
 #define IGB_82576_TSYNC_SHIFT 19
 #define IGB_82580_TSYNC_SHIFT 24
@@ -352,7 +362,7 @@ extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
-extern int igb_set_spd_dplx(struct igb_adapter *, u16);
+extern int igb_set_spd_dplx(struct igb_adapter *, u32, u8);
 extern int igb_setup_tx_resources(struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_ring *);
 extern void igb_free_tx_resources(struct igb_ring *);

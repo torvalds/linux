@@ -33,28 +33,6 @@ config MTD_TESTS
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
 
-config MTD_CONCAT
-	tristate "MTD concatenating support"
-	help
-	  Support for concatenating several MTD devices into a single
-	  (virtual) one. This allows you to have -for example- a JFFS(2)
-	  file system spanning multiple physical flash chips. If unsure,
-	  say 'Y'.
-
-config MTD_PARTITIONS
-	bool "MTD partitioning support"
-	help
-	  If you have a device which needs to divide its flash chip(s) up
-	  into multiple 'partitions', each of which appears to the user as
-	  a separate MTD device, you require this option to be enabled. If
-	  unsure, say 'Y'.
-
-	  Note, however, that you don't need this option for the DiskOnChip
-	  devices. Partitioning on NFTL 'devices' is a different - that's the
-	  'normal' form of partitioning used on a block device.
-
-if MTD_PARTITIONS
-
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
 	---help---
@@ -107,7 +85,7 @@ endif # MTD_REDBOOT_PARTS
 
 config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
-	depends on MTD_PARTITIONS = "y" && MTD = "y"
+	depends on MTD = "y"
 	---help---
 	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
@@ -156,8 +134,7 @@ config MTD_AFS_PARTS
 
 	  You will still need the parsing functions to be called by the driver
 	  for your particular device. It won't happen automatically. The
-	  'armflash' map driver (CONFIG_MTD_ARM_INTEGRATOR) does this, for
-	  example.
+	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
 config MTD_OF_PARTS
 	def_bool y
@@ -171,8 +148,6 @@ config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
 	---help---
 	  TI AR7 partitioning support
-
-endif # MTD_PARTITIONS
 
 comment "User Modules And Translation Layers"
 
@@ -332,6 +307,16 @@ config MTD_OOPS
 
 	  To use, add console=ttyMTDx to the kernel command line,
 	  where x is the MTD device number to use.
+
+config MTD_SWAP
+	tristate "Swap on MTD device support"
+	depends on MTD && SWAP
+	select MTD_BLKDEVS
+	help
+	  Provides volatile block device driver on top of mtd partition
+          suitable for swapping.  The mapping of written blocks is not saved.
+	  The driver provides wear leveling by storing erase counter into the
+	  OOB.
 
 source "drivers/mtd/chips/Kconfig"
 

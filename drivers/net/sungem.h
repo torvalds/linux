@@ -843,7 +843,7 @@ struct gem_txd {
 
 /* GEM requires that RX descriptors are provided four at a time,
  * aligned.  Also, the RX ring may not wrap around.  This means that
- * there will be at least 4 unused desciptor entries in the middle
+ * there will be at least 4 unused descriptor entries in the middle
  * of the RX ring at all times.
  *
  * Similar to HME, GEM assumes that it can write garbage bytes before
@@ -973,28 +973,18 @@ enum link_state {
 };
 
 struct gem {
-	spinlock_t		lock;
-	spinlock_t		tx_lock;
 	void __iomem		*regs;
 	int			rx_new, rx_old;
 	int			tx_new, tx_old;
 
 	unsigned int has_wol : 1;	/* chip supports wake-on-lan */
-	unsigned int asleep : 1;	/* chip asleep, protected by pm_mutex */
 	unsigned int asleep_wol : 1;	/* was asleep with WOL enabled */
-	unsigned int opened : 1;	/* driver opened, protected by pm_mutex */
-	unsigned int running : 1;	/* chip running, protected by lock */
 
-	/* cell enable count, protected by lock */
 	int			cell_enabled;
-
-	struct mutex		pm_mutex;
-
 	u32			msg_enable;
 	u32			status;
 
 	struct napi_struct	napi;
-	struct net_device_stats net_stats;
 
 	int			tx_fifo_sz;
 	int			rx_fifo_sz;
@@ -1033,21 +1023,5 @@ struct gem {
 
 #define found_mii_phy(gp) ((gp->phy_type == phy_mii_mdio0 || gp->phy_type == phy_mii_mdio1) && \
 			   gp->phy_mii.def && gp->phy_mii.def->ops)
-
-#define ALIGNED_RX_SKB_ADDR(addr) \
-        ((((unsigned long)(addr) + (64UL - 1UL)) & ~(64UL - 1UL)) - (unsigned long)(addr))
-static __inline__ struct sk_buff *gem_alloc_skb(int size,
-						gfp_t gfp_flags)
-{
-	struct sk_buff *skb = alloc_skb(size + 64, gfp_flags);
-
-	if (skb) {
-		int offset = (int) ALIGNED_RX_SKB_ADDR(skb->data);
-		if (offset)
-			skb_reserve(skb, offset);
-	}
-
-	return skb;
-}
 
 #endif /* _SUNGEM_H */

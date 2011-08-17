@@ -87,6 +87,7 @@ static int __init ep93xxbl_probe(struct platform_device *dev)
 	ep93xxbl->mmio = EP93XX_RASTER_BRIGHTNESS;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = EP93XX_MAX_BRIGHT;
 	bl = backlight_device_register(dev->name, &dev->dev, ep93xxbl,
 				       &ep93xxbl_ops, &props);

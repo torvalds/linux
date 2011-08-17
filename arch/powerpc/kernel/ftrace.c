@@ -22,6 +22,7 @@
 #include <asm/cacheflush.h>
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
+#include <asm/syscall.h>
 
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -600,3 +601,10 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#if defined(CONFIG_FTRACE_SYSCALLS) && defined(CONFIG_PPC64)
+unsigned long __init arch_syscall_addr(int nr)
+{
+	return sys_call_table[nr*2];
+}
+#endif /* CONFIG_FTRACE_SYSCALLS && CONFIG_PPC64 */

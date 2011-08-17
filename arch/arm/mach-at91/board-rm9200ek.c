@@ -45,10 +45,10 @@
 #include "generic.h"
 
 
-static void __init ek_map_io(void)
+static void __init ek_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_BGA);
+	at91_initialize(18432000);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB1, AT91_PIN_PB2);
@@ -63,11 +63,6 @@ static void __init ek_map_io(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init ek_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata ek_eth_data = {
@@ -193,9 +188,9 @@ static void __init ek_board_init(void)
 
 MACHINE_START(AT91RM9200EK, "Atmel AT91RM9200-EK")
 	/* Maintainer: SAN People/Atmel */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= ek_map_io,
-	.init_irq	= ek_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= ek_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,
 MACHINE_END

@@ -24,13 +24,14 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -43,10 +44,11 @@
 #include <mach/lm.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+
+#include <plat/fpga-irq.h>
 
 #include "common.h"
 
@@ -57,10 +59,10 @@
  * Setup a VA for the Integrator interrupt controller (for header #0,
  * just for now).
  */
-#define VA_IC_BASE	IO_ADDRESS(INTEGRATOR_IC_BASE) 
-#define VA_SC_BASE	IO_ADDRESS(INTEGRATOR_SC_BASE)
-#define VA_EBI_BASE	IO_ADDRESS(INTEGRATOR_EBI_BASE)
-#define VA_CMIC_BASE	IO_ADDRESS(INTEGRATOR_HDR_IC)
+#define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
+#define VA_SC_BASE	__io_address(INTEGRATOR_SC_BASE)
+#define VA_EBI_BASE	__io_address(INTEGRATOR_EBI_BASE)
+#define VA_CMIC_BASE	__io_address(INTEGRATOR_HDR_IC)
 
 /*
  * Logical      Physical
@@ -156,27 +158,14 @@ static void __init ap_map_io(void)
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
-static void sc_mask_irq(struct irq_data *d)
-{
-	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void sc_unmask_irq(struct irq_data *d)
-{
-	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip sc_chip = {
-	.name		= "SC",
-	.irq_ack	= sc_mask_irq,
-	.irq_mask	= sc_mask_irq,
-	.irq_unmask	= sc_unmask_irq,
+static struct fpga_irq_data sc_irq_data = {
+	.base		= VA_IC_BASE,
+	.irq_start	= 0,
+	.chip.name	= "SC",
 };
 
 static void __init ap_init_irq(void)
 {
-	unsigned int i;
-
 	/* Disable all interrupts initially. */
 	/* Do the core module ones */
 	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
@@ -185,25 +174,19 @@ static void __init ap_init_irq(void)
 	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
 
-	for (i = 0; i < NR_IRQS; i++) {
-		if (((1 << i) & INTEGRATOR_SC_VALID_INT) != 0) {
-			set_irq_chip(i, &sc_chip);
-			set_irq_handler(i, handle_level_irq);
-			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-		}
-	}
+	fpga_irq_init(-1, INTEGRATOR_SC_VALID_INT, &sc_irq_data);
 }
 
 #ifdef CONFIG_PM
 static unsigned long ic_irq_enable;
 
-static int irq_suspend(struct sys_device *dev, pm_message_t state)
+static int irq_suspend(void)
 {
 	ic_irq_enable = readl(VA_IC_BASE + IRQ_ENABLE);
 	return 0;
 }
 
-static int irq_resume(struct sys_device *dev)
+static void irq_resume(void)
 {
 	/* disable all irq sources */
 	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
@@ -211,33 +194,25 @@ static int irq_resume(struct sys_device *dev)
 	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
 
 	writel(ic_irq_enable, VA_IC_BASE + IRQ_ENABLE_SET);
-	return 0;
 }
 #else
 #define irq_suspend NULL
 #define irq_resume NULL
 #endif
 
-static struct sysdev_class irq_class = {
-	.name		= "irq",
+static struct syscore_ops irq_syscore_ops = {
 	.suspend	= irq_suspend,
 	.resume		= irq_resume,
 };
 
-static struct sys_device irq_device = {
-	.id	= 0,
-	.cls	= &irq_class,
-};
-
-static int __init irq_init_sysfs(void)
+static int __init irq_syscore_init(void)
 {
-	int ret = sysdev_class_register(&irq_class);
-	if (ret == 0)
-		ret = sysdev_register(&irq_device);
-	return ret;
+	register_syscore_ops(&irq_syscore_ops);
+
+	return 0;
 }
 
-device_initcall(irq_init_sysfs);
+device_initcall(irq_syscore_init);
 
 /*
  * Flash handling.
@@ -247,7 +222,7 @@ device_initcall(irq_init_sysfs);
 #define EBI_CSR1 (VA_EBI_BASE + INTEGRATOR_EBI_CSR1_OFFSET)
 #define EBI_LOCK (VA_EBI_BASE + INTEGRATOR_EBI_LOCK_OFFSET)
 
-static int ap_flash_init(void)
+static int ap_flash_init(struct platform_device *dev)
 {
 	u32 tmp;
 
@@ -264,7 +239,7 @@ static int ap_flash_init(void)
 	return 0;
 }
 
-static void ap_flash_exit(void)
+static void ap_flash_exit(struct platform_device *dev)
 {
 	u32 tmp;
 
@@ -280,15 +255,14 @@ static void ap_flash_exit(void)
 	}
 }
 
-static void ap_flash_set_vpp(int on)
+static void ap_flash_set_vpp(struct platform_device *pdev, int on)
 {
-	unsigned long reg = on ? SC_CTRLS : SC_CTRLC;
+	void __iomem *reg = on ? SC_CTRLS : SC_CTRLC;
 
 	writel(INTEGRATOR_SC_CTRL_nFLVPPEN, reg);
 }
 
-static struct flash_platform_data ap_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data ap_flash_data = {
 	.width		= 4,
 	.init		= ap_flash_init,
 	.exit		= ap_flash_exit,
@@ -302,7 +276,7 @@ static struct resource cfi_flash_resource = {
 };
 
 static struct platform_device cfi_flash_device = {
-	.name		= "armflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &ap_flash_data,
@@ -360,25 +334,9 @@ static void __init ap_init(void)
 
 static unsigned long timer_reload;
 
-static void __iomem * const clksrc_base = (void __iomem *)TIMER2_VA_BASE;
-
-static cycle_t timersp_read(struct clocksource *cs)
-{
-	return ~(readl(clksrc_base + TIMER_VALUE) & 0xffff);
-}
-
-static struct clocksource clocksource_timersp = {
-	.name		= "timer2",
-	.rating		= 200,
-	.read		= timersp_read,
-	.mask		= CLOCKSOURCE_MASK(16),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static void integrator_clocksource_init(u32 khz)
 {
-	struct clocksource *cs = &clocksource_timersp;
-	void __iomem *base = clksrc_base;
+	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
 	u32 ctrl = TIMER_CTRL_ENABLE;
 
 	if (khz >= 1500) {
@@ -389,7 +347,8 @@ static void integrator_clocksource_init(u32 khz)
 	writel(ctrl, base + TIMER_CTRL);
 	writel(0xffff, base + TIMER_LOAD);
 
-	clocksource_register_khz(cs, khz);
+	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
+		khz * 1000, 200, 16, clocksource_mmio_readl_down);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;
@@ -499,8 +458,9 @@ static struct sys_timer ap_timer = {
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.boot_params	= 0x00000100,
-	.map_io		= ap_map_io,
 	.reserve	= integrator_reserve,
+	.map_io		= ap_map_io,
+	.init_early	= integrator_init_early,
 	.init_irq	= ap_init_irq,
 	.timer		= &ap_timer,
 	.init_machine	= ap_init,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2010 ServerEngines
+ * Copyright (C) 2005 - 2011 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,11 +8,11 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@serverengines.com
+ * linux-drivers@emulex.com
  *
- * ServerEngines
- * 209 N. Fair Oaks Ave
- * Sunnyvale, CA 94085
+ * Emulex
+ * 3333 Susan Street
+ * Costa Mesa, CA 92626
  */
 
 /*
@@ -51,17 +51,12 @@ struct be_mcc_wrb {
 
 /* Completion Status */
 enum {
-	MCC_STATUS_SUCCESS = 0x0,
-/* The client does not have sufficient privileges to execute the command */
-	MCC_STATUS_INSUFFICIENT_PRIVILEGES = 0x1,
-/* A parameter in the command was invalid. */
-	MCC_STATUS_INVALID_PARAMETER = 0x2,
-/* There are insufficient chip resources to execute the command */
-	MCC_STATUS_INSUFFICIENT_RESOURCES = 0x3,
-/* The command is completing because the queue was getting flushed */
-	MCC_STATUS_QUEUE_FLUSHING = 0x4,
-/* The command is completing with a DMA error */
-	MCC_STATUS_DMA_FAILED = 0x5,
+	MCC_STATUS_SUCCESS = 0,
+	MCC_STATUS_FAILED = 1,
+	MCC_STATUS_ILLEGAL_REQUEST = 2,
+	MCC_STATUS_ILLEGAL_FIELD = 3,
+	MCC_STATUS_INSUFFICIENT_BUFFER = 4,
+	MCC_STATUS_UNAUTHORIZED_REQUEST = 5,
 	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
@@ -88,6 +83,7 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_CODE_GRP_5		0x5
 #define ASYNC_EVENT_QOS_SPEED		0x1
 #define ASYNC_EVENT_COS_PRIORITY	0x2
+#define ASYNC_EVENT_PVID_STATE		0x3
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -134,6 +130,18 @@ struct be_async_event_grp5_cos_priority {
 	struct be_async_event_trailer trailer;
 } __packed;
 
+/* When the event code of an async trailer is GRP5 and event type is
+ * PVID state, the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_pvid_state {
+	u8 enabled;
+	u8 rsvd0;
+	u16 tag;
+	u32 event_tag;
+	u32 rsvd1;
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_compl compl;
@@ -156,6 +164,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_SET_QOS				28
 #define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_SEEPROM_READ			30
+#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES               32
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_SET_FLOW_CONTROL			36
@@ -172,10 +181,14 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_PMAC_ADD			59
 #define OPCODE_COMMON_NTWK_PMAC_DEL			60
 #define OPCODE_COMMON_FUNCTION_RESET			61
+#define OPCODE_COMMON_MANAGE_FAT			68
 #define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
+#define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
+#define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_WRITE_OBJECT			172
 
 #define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
@@ -186,6 +199,7 @@ struct be_mcc_mailbox {
 #define OPCODE_ETH_TX_DESTROY           		9
 #define OPCODE_ETH_RX_DESTROY           		10
 #define OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG		12
+#define OPCODE_ETH_GET_PPORT_STATS			18
 
 #define OPCODE_LOWLEVEL_HOST_DDR_DMA                    17
 #define OPCODE_LOWLEVEL_LOOPBACK_TEST                   18
@@ -364,6 +378,24 @@ struct be_cmd_resp_cq_create {
 	u16 rsvd0;
 } __packed;
 
+struct be_cmd_req_get_fat {
+	struct be_cmd_req_hdr hdr;
+	u32 fat_operation;
+	u32 read_log_offset;
+	u32 read_log_length;
+	u32 data_buffer_size;
+	u32 data_buffer[1];
+} __packed;
+
+struct be_cmd_resp_get_fat {
+	struct be_cmd_resp_hdr hdr;
+	u32 log_size;
+	u32 read_log_length;
+	u32 rsvd[2];
+	u32 data_buffer[1];
+} __packed;
+
+
 /******************** Create MCCQ ***************************/
 /* Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field */
@@ -397,6 +429,14 @@ struct be_cmd_req_mcc_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 cq_id;
+	u8 context[sizeof(struct amap_mcc_context_be) / 8];
+	struct phys_addr pages[8];
+} __packed;
+
+struct be_cmd_req_mcc_ext_create {
+	struct be_cmd_req_hdr hdr;
+	u16 num_pages;
+	u16 cq_id;
 	u32 async_event_bitmap[1];
 	u8 context[sizeof(struct amap_mcc_context_be) / 8];
 	struct phys_addr pages[8];
@@ -415,7 +455,7 @@ struct be_cmd_resp_mcc_create {
 /* Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field */
 struct amap_tx_context {
-	u8 rsvd0[16];		/* dword 0 */
+	u8 if_id[16];		/* dword 0 */
 	u8 tx_ring_size[4];	/* dword 0 */
 	u8 rsvd1[26];		/* dword 0 */
 	u8 pci_func_id[8];	/* dword 1 */
@@ -503,7 +543,8 @@ enum be_if_flags {
 	BE_IF_FLAGS_VLAN = 0x100,
 	BE_IF_FLAGS_MCAST_PROMISCUOUS = 0x200,
 	BE_IF_FLAGS_PASS_L2_ERRORS = 0x400,
-	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800
+	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800,
+	BE_IF_FLAGS_MULTICAST = 0x1000
 };
 
 /* An RX interface is an object with one or more MAC addresses and
@@ -532,7 +573,7 @@ struct be_cmd_req_if_destroy {
 };
 
 /*************** HW Stats Get **********************************/
-struct be_port_rxf_stats {
+struct be_port_rxf_stats_v0 {
 	u32 rx_bytes_lsd;	/* dword 0*/
 	u32 rx_bytes_msd;	/* dword 1*/
 	u32 rx_total_frames;	/* dword 2*/
@@ -601,8 +642,8 @@ struct be_port_rxf_stats {
 	u32 rx_input_fifo_overflow;	/* dword 65*/
 };
 
-struct be_rxf_stats {
-	struct be_port_rxf_stats port[2];
+struct be_rxf_stats_v0 {
+	struct be_port_rxf_stats_v0 port[2];
 	u32 rx_drops_no_pbuf;	/* dword 132*/
 	u32 rx_drops_no_txpb;	/* dword 133*/
 	u32 rx_drops_no_erx_descr;	/* dword 134*/
@@ -619,32 +660,245 @@ struct be_rxf_stats {
 	u32 rx_drops_invalid_ring;	/* dword 145*/
 	u32 forwarded_packets;	/* dword 146*/
 	u32 rx_drops_mtu;	/* dword 147*/
-	u32 rsvd0[15];
-};
-
-struct be_erx_stats {
-	u32 rx_drops_no_fragments[44];     /* dwordS 0 to 43*/
-	u32 debug_wdma_sent_hold;          /* dword 44*/
-	u32 debug_wdma_pbfree_sent_hold;   /* dword 45*/
-	u32 debug_wdma_zerobyte_pbfree_sent_hold; /* dword 46*/
-	u32 debug_pmem_pbuf_dealloc;       /* dword 47*/
-};
-
-struct be_hw_stats {
-	struct be_rxf_stats rxf;
-	u32 rsvd[48];
-	struct be_erx_stats erx;
+	u32 rsvd0[7];
+	u32 port0_jabber_events;
+	u32 port1_jabber_events;
 	u32 rsvd1[6];
 };
 
-struct be_cmd_req_get_stats {
-	struct be_cmd_req_hdr hdr;
-	u8 rsvd[sizeof(struct be_hw_stats)];
+struct be_erx_stats_v0 {
+	u32 rx_drops_no_fragments[44];     /* dwordS 0 to 43*/
+	u32 rsvd[4];
 };
 
-struct be_cmd_resp_get_stats {
+struct be_pmem_stats {
+	u32 eth_red_drops;
+	u32 rsvd[5];
+};
+
+struct be_hw_stats_v0 {
+	struct be_rxf_stats_v0 rxf;
+	u32 rsvd[48];
+	struct be_erx_stats_v0 erx;
+	struct be_pmem_stats pmem;
+};
+
+struct be_cmd_req_get_stats_v0 {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[sizeof(struct be_hw_stats_v0)];
+};
+
+struct be_cmd_resp_get_stats_v0 {
 	struct be_cmd_resp_hdr hdr;
-	struct be_hw_stats hw_stats;
+	struct be_hw_stats_v0 hw_stats;
+};
+
+#define make_64bit_val(hi_32, lo_32)	(((u64)hi_32<<32) | lo_32)
+struct lancer_cmd_pport_stats {
+	u32 tx_packets_lo;
+	u32 tx_packets_hi;
+	u32 tx_unicast_packets_lo;
+	u32 tx_unicast_packets_hi;
+	u32 tx_multicast_packets_lo;
+	u32 tx_multicast_packets_hi;
+	u32 tx_broadcast_packets_lo;
+	u32 tx_broadcast_packets_hi;
+	u32 tx_bytes_lo;
+	u32 tx_bytes_hi;
+	u32 tx_unicast_bytes_lo;
+	u32 tx_unicast_bytes_hi;
+	u32 tx_multicast_bytes_lo;
+	u32 tx_multicast_bytes_hi;
+	u32 tx_broadcast_bytes_lo;
+	u32 tx_broadcast_bytes_hi;
+	u32 tx_discards_lo;
+	u32 tx_discards_hi;
+	u32 tx_errors_lo;
+	u32 tx_errors_hi;
+	u32 tx_pause_frames_lo;
+	u32 tx_pause_frames_hi;
+	u32 tx_pause_on_frames_lo;
+	u32 tx_pause_on_frames_hi;
+	u32 tx_pause_off_frames_lo;
+	u32 tx_pause_off_frames_hi;
+	u32 tx_internal_mac_errors_lo;
+	u32 tx_internal_mac_errors_hi;
+	u32 tx_control_frames_lo;
+	u32 tx_control_frames_hi;
+	u32 tx_packets_64_bytes_lo;
+	u32 tx_packets_64_bytes_hi;
+	u32 tx_packets_65_to_127_bytes_lo;
+	u32 tx_packets_65_to_127_bytes_hi;
+	u32 tx_packets_128_to_255_bytes_lo;
+	u32 tx_packets_128_to_255_bytes_hi;
+	u32 tx_packets_256_to_511_bytes_lo;
+	u32 tx_packets_256_to_511_bytes_hi;
+	u32 tx_packets_512_to_1023_bytes_lo;
+	u32 tx_packets_512_to_1023_bytes_hi;
+	u32 tx_packets_1024_to_1518_bytes_lo;
+	u32 tx_packets_1024_to_1518_bytes_hi;
+	u32 tx_packets_1519_to_2047_bytes_lo;
+	u32 tx_packets_1519_to_2047_bytes_hi;
+	u32 tx_packets_2048_to_4095_bytes_lo;
+	u32 tx_packets_2048_to_4095_bytes_hi;
+	u32 tx_packets_4096_to_8191_bytes_lo;
+	u32 tx_packets_4096_to_8191_bytes_hi;
+	u32 tx_packets_8192_to_9216_bytes_lo;
+	u32 tx_packets_8192_to_9216_bytes_hi;
+	u32 tx_lso_packets_lo;
+	u32 tx_lso_packets_hi;
+	u32 rx_packets_lo;
+	u32 rx_packets_hi;
+	u32 rx_unicast_packets_lo;
+	u32 rx_unicast_packets_hi;
+	u32 rx_multicast_packets_lo;
+	u32 rx_multicast_packets_hi;
+	u32 rx_broadcast_packets_lo;
+	u32 rx_broadcast_packets_hi;
+	u32 rx_bytes_lo;
+	u32 rx_bytes_hi;
+	u32 rx_unicast_bytes_lo;
+	u32 rx_unicast_bytes_hi;
+	u32 rx_multicast_bytes_lo;
+	u32 rx_multicast_bytes_hi;
+	u32 rx_broadcast_bytes_lo;
+	u32 rx_broadcast_bytes_hi;
+	u32 rx_unknown_protos;
+	u32 rsvd_69; /* Word 69 is reserved */
+	u32 rx_discards_lo;
+	u32 rx_discards_hi;
+	u32 rx_errors_lo;
+	u32 rx_errors_hi;
+	u32 rx_crc_errors_lo;
+	u32 rx_crc_errors_hi;
+	u32 rx_alignment_errors_lo;
+	u32 rx_alignment_errors_hi;
+	u32 rx_symbol_errors_lo;
+	u32 rx_symbol_errors_hi;
+	u32 rx_pause_frames_lo;
+	u32 rx_pause_frames_hi;
+	u32 rx_pause_on_frames_lo;
+	u32 rx_pause_on_frames_hi;
+	u32 rx_pause_off_frames_lo;
+	u32 rx_pause_off_frames_hi;
+	u32 rx_frames_too_long_lo;
+	u32 rx_frames_too_long_hi;
+	u32 rx_internal_mac_errors_lo;
+	u32 rx_internal_mac_errors_hi;
+	u32 rx_undersize_packets;
+	u32 rx_oversize_packets;
+	u32 rx_fragment_packets;
+	u32 rx_jabbers;
+	u32 rx_control_frames_lo;
+	u32 rx_control_frames_hi;
+	u32 rx_control_frames_unknown_opcode_lo;
+	u32 rx_control_frames_unknown_opcode_hi;
+	u32 rx_in_range_errors;
+	u32 rx_out_of_range_errors;
+	u32 rx_address_match_errors;
+	u32 rx_vlan_mismatch_errors;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_invalid_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rx_ip_checksum_errors;
+	u32 rx_tcp_checksum_errors;
+	u32 rx_udp_checksum_errors;
+	u32 rx_non_rss_packets;
+	u32 rsvd_111;
+	u32 rx_ipv4_packets_lo;
+	u32 rx_ipv4_packets_hi;
+	u32 rx_ipv6_packets_lo;
+	u32 rx_ipv6_packets_hi;
+	u32 rx_ipv4_bytes_lo;
+	u32 rx_ipv4_bytes_hi;
+	u32 rx_ipv6_bytes_lo;
+	u32 rx_ipv6_bytes_hi;
+	u32 rx_nic_packets_lo;
+	u32 rx_nic_packets_hi;
+	u32 rx_tcp_packets_lo;
+	u32 rx_tcp_packets_hi;
+	u32 rx_iscsi_packets_lo;
+	u32 rx_iscsi_packets_hi;
+	u32 rx_management_packets_lo;
+	u32 rx_management_packets_hi;
+	u32 rx_switched_unicast_packets_lo;
+	u32 rx_switched_unicast_packets_hi;
+	u32 rx_switched_multicast_packets_lo;
+	u32 rx_switched_multicast_packets_hi;
+	u32 rx_switched_broadcast_packets_lo;
+	u32 rx_switched_broadcast_packets_hi;
+	u32 num_forwards_lo;
+	u32 num_forwards_hi;
+	u32 rx_fifo_overflow;
+	u32 rx_input_fifo_overflow;
+	u32 rx_drops_too_many_frags_lo;
+	u32 rx_drops_too_many_frags_hi;
+	u32 rx_drops_invalid_queue;
+	u32 rsvd_141;
+	u32 rx_drops_mtu_lo;
+	u32 rx_drops_mtu_hi;
+	u32 rx_packets_64_bytes_lo;
+	u32 rx_packets_64_bytes_hi;
+	u32 rx_packets_65_to_127_bytes_lo;
+	u32 rx_packets_65_to_127_bytes_hi;
+	u32 rx_packets_128_to_255_bytes_lo;
+	u32 rx_packets_128_to_255_bytes_hi;
+	u32 rx_packets_256_to_511_bytes_lo;
+	u32 rx_packets_256_to_511_bytes_hi;
+	u32 rx_packets_512_to_1023_bytes_lo;
+	u32 rx_packets_512_to_1023_bytes_hi;
+	u32 rx_packets_1024_to_1518_bytes_lo;
+	u32 rx_packets_1024_to_1518_bytes_hi;
+	u32 rx_packets_1519_to_2047_bytes_lo;
+	u32 rx_packets_1519_to_2047_bytes_hi;
+	u32 rx_packets_2048_to_4095_bytes_lo;
+	u32 rx_packets_2048_to_4095_bytes_hi;
+	u32 rx_packets_4096_to_8191_bytes_lo;
+	u32 rx_packets_4096_to_8191_bytes_hi;
+	u32 rx_packets_8192_to_9216_bytes_lo;
+	u32 rx_packets_8192_to_9216_bytes_hi;
+};
+
+struct pport_stats_params {
+	u16 pport_num;
+	u8 rsvd;
+	u8 reset_stats;
+};
+
+struct lancer_cmd_req_pport_stats {
+	struct be_cmd_req_hdr hdr;
+	union {
+		struct pport_stats_params params;
+		u8 rsvd[sizeof(struct lancer_cmd_pport_stats)];
+	} cmd_params;
+};
+
+struct lancer_cmd_resp_pport_stats {
+	struct be_cmd_resp_hdr hdr;
+	struct lancer_cmd_pport_stats pport_stats;
+};
+
+static inline  struct lancer_cmd_pport_stats*
+	pport_stats_from_cmd(struct be_adapter *adapter)
+{
+	struct lancer_cmd_resp_pport_stats *cmd = adapter->stats_cmd.va;
+	return &cmd->pport_stats;
+}
+
+struct be_cmd_req_get_cntl_addnl_attribs {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[8];
+};
+
+struct be_cmd_resp_get_cntl_addnl_attribs {
+	struct be_cmd_resp_hdr hdr;
+	u16 ipl_file_number;
+	u8 ipl_file_version;
+	u8 rsvd0;
+	u8 on_die_temperature; /* in degrees centigrade*/
+	u8 rsvd1[3];
 };
 
 struct be_cmd_req_vlan_config {
@@ -654,13 +908,6 @@ struct be_cmd_req_vlan_config {
 	u8 untagged;
 	u8 num_vlan;
 	u16 normal_vlan[64];
-} __packed;
-
-struct be_cmd_req_promiscuous_config {
-	struct be_cmd_req_hdr hdr;
-	u8 port0_promiscuous;
-	u8 port1_promiscuous;
-	u16 rsvd0;
 } __packed;
 
 /******************** Multicast MAC Config *******************/
@@ -677,11 +924,18 @@ struct be_cmd_req_mcast_mac_config {
 	struct macaddr mac[BE_MAX_MC];
 } __packed;
 
-static inline struct be_hw_stats *
-hw_stats_from_cmd(struct be_cmd_resp_get_stats *cmd)
-{
-	return &cmd->hw_stats;
-}
+/******************* RX FILTER ******************************/
+struct be_cmd_req_rx_filter {
+	struct be_cmd_req_hdr hdr;
+	u32 global_flags_mask;
+	u32 global_flags;
+	u32 if_flags_mask;
+	u32 if_flags;
+	u32 if_id;
+	u32 multicast_num;
+	struct macaddr mac[BE_MAX_MC];
+};
+
 
 /******************** Link Status Query *******************/
 struct be_cmd_req_link_status {
@@ -881,6 +1135,36 @@ struct be_cmd_write_flashrom {
 	struct flashrom_params params;
 };
 
+/**************** Lancer Firmware Flash ************/
+struct amap_lancer_write_obj_context {
+	u8 write_length[24];
+	u8 reserved1[7];
+	u8 eof;
+} __packed;
+
+struct lancer_cmd_req_write_object {
+	struct be_cmd_req_hdr hdr;
+	u8 context[sizeof(struct amap_lancer_write_obj_context) / 8];
+	u32 write_offset;
+	u8 object_name[104];
+	u32 descriptor_count;
+	u32 buf_len;
+	u32 addr_low;
+	u32 addr_high;
+};
+
+struct lancer_cmd_resp_write_object {
+	u8 opcode;
+	u8 subsystem;
+	u8 rsvd1[2];
+	u8 status;
+	u8 additional_status;
+	u8 rsvd2[2];
+	u32 resp_len;
+	u32 actual_resp_len;
+	u32 actual_write_len;
+};
+
 /************************ WOL *******************************/
 struct be_cmd_req_acpi_wol_magic_config{
 	struct be_cmd_req_hdr hdr;
@@ -994,17 +1278,192 @@ struct be_cmd_resp_set_qos {
 	u32 rsvd;
 };
 
+/*********************** Controller Attributes ***********************/
+struct be_cmd_req_cntl_attribs {
+	struct be_cmd_req_hdr hdr;
+};
+
+struct be_cmd_resp_cntl_attribs {
+	struct be_cmd_resp_hdr hdr;
+	struct mgmt_controller_attrib attribs;
+};
+
+/*********************** Set driver function ***********************/
+#define CAPABILITY_SW_TIMESTAMPS	2
+#define CAPABILITY_BE3_NATIVE_ERX_API	4
+
+struct be_cmd_req_set_func_cap {
+	struct be_cmd_req_hdr hdr;
+	u32 valid_cap_flags;
+	u32 cap_flags;
+	u8 rsvd[212];
+};
+
+struct be_cmd_resp_set_func_cap {
+	struct be_cmd_resp_hdr hdr;
+	u32 valid_cap_flags;
+	u32 cap_flags;
+	u8 rsvd[212];
+};
+
+/*************** HW Stats Get v1 **********************************/
+#define BE_TXP_SW_SZ			48
+struct be_port_rxf_stats_v1 {
+	u32 rsvd0[12];
+	u32 rx_crc_errors;
+	u32 rx_alignment_symbol_errors;
+	u32 rx_pause_frames;
+	u32 rx_priority_pause_frames;
+	u32 rx_control_frames;
+	u32 rx_in_range_errors;
+	u32 rx_out_range_errors;
+	u32 rx_frame_too_long;
+	u32 rx_address_match_errors;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rsvd1[10];
+	u32 rx_ip_checksum_errs;
+	u32 rx_tcp_checksum_errs;
+	u32 rx_udp_checksum_errs;
+	u32 rsvd2[7];
+	u32 rx_switched_unicast_packets;
+	u32 rx_switched_multicast_packets;
+	u32 rx_switched_broadcast_packets;
+	u32 rsvd3[3];
+	u32 tx_pauseframes;
+	u32 tx_priority_pauseframes;
+	u32 tx_controlframes;
+	u32 rsvd4[10];
+	u32 rxpp_fifo_overflow_drop;
+	u32 rx_input_fifo_overflow_drop;
+	u32 pmem_fifo_overflow_drop;
+	u32 jabber_events;
+	u32 rsvd5[3];
+};
+
+
+struct be_rxf_stats_v1 {
+	struct be_port_rxf_stats_v1 port[4];
+	u32 rsvd0[2];
+	u32 rx_drops_no_pbuf;
+	u32 rx_drops_no_txpb;
+	u32 rx_drops_no_erx_descr;
+	u32 rx_drops_no_tpre_descr;
+	u32 rsvd1[6];
+	u32 rx_drops_too_many_frags;
+	u32 rx_drops_invalid_ring;
+	u32 forwarded_packets;
+	u32 rx_drops_mtu;
+	u32 rsvd2[14];
+};
+
+struct be_erx_stats_v1 {
+	u32 rx_drops_no_fragments[68];     /* dwordS 0 to 67*/
+	u32 rsvd[4];
+};
+
+struct be_hw_stats_v1 {
+	struct be_rxf_stats_v1 rxf;
+	u32 rsvd0[BE_TXP_SW_SZ];
+	struct be_erx_stats_v1 erx;
+	struct be_pmem_stats pmem;
+	u32 rsvd1[3];
+};
+
+struct be_cmd_req_get_stats_v1 {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[sizeof(struct be_hw_stats_v1)];
+};
+
+struct be_cmd_resp_get_stats_v1 {
+	struct be_cmd_resp_hdr hdr;
+	struct be_hw_stats_v1 hw_stats;
+};
+
+static inline void *
+hw_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	} else {
+		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	}
+}
+
+static inline void *be_port_rxf_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+		struct be_rxf_stats_v1 *rxf_stats = &hw_stats->rxf;
+
+		return &rxf_stats->port[adapter->port_num];
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+		struct be_rxf_stats_v0 *rxf_stats = &hw_stats->rxf;
+
+		return &rxf_stats->port[adapter->port_num];
+	}
+}
+
+static inline void *be_rxf_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->rxf;
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->rxf;
+	}
+}
+
+static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	}
+}
+
+static inline void *be_pmem_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->pmem;
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->pmem;
+	}
+}
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
-			u32 if_id, u32 *pmac_id);
-extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id);
+			u32 if_id, u32 *pmac_id, u32 domain);
+extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
+			u32 pmac_id, u32 domain);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
 			u32 en_flags, u8 *mac, bool pmac_invalid,
 			u32 *if_handle, u32 *pmac_id, u32 domain);
-extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle);
+extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle,
+			u32 domain);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
 extern int be_cmd_cq_create(struct be_adapter *adapter,
@@ -1023,10 +1482,14 @@ extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			u32 rss, u8 *rss_id);
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
+extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
+			struct be_queue_info *q);
 extern int be_cmd_link_status_query(struct be_adapter *adapter,
-			bool *link_up, u8 *mac_speed, u16 *link_speed);
+			bool *link_up, u8 *mac_speed, u16 *link_speed, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
+			struct be_dma_mem *nonemb_cmd);
+extern int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver);
 
@@ -1034,8 +1497,7 @@ extern int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd);
 extern int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id,
 			u16 *vtag_array, u32 num, bool untagged,
 			bool promiscuous);
-extern int be_cmd_promiscuous_config(struct be_adapter *adapter,
-			u8 port_num, bool en);
+extern int be_cmd_promiscuous_config(struct be_adapter *adapter, bool en);
 extern int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 			struct net_device *netdev, struct be_dma_mem *mem);
 extern int be_cmd_set_flow_control(struct be_adapter *adapter,
@@ -1055,6 +1517,11 @@ extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
+extern int lancer_cmd_write_object(struct be_adapter *adapter,
+				struct be_dma_mem *cmd,
+				u32 data_size, u32 data_offset,
+				const char *obj_name,
+				u32 *data_written, u8 *addn_status);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 				int offset);
 extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
@@ -1076,4 +1543,9 @@ extern int be_cmd_get_phy_info(struct be_adapter *adapter,
 		struct be_dma_mem *cmd);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
+extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
+extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
+extern int be_cmd_req_native_mode(struct be_adapter *adapter);
+extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
+extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 

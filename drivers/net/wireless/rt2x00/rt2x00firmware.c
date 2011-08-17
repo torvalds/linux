@@ -99,7 +99,7 @@ int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	if (!test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags))
+	if (!test_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags))
 		return 0;
 
 	if (!rt2x00dev->fw) {

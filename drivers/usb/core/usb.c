@@ -315,6 +315,11 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 	.thaw =		usb_dev_thaw,
 	.poweroff =	usb_dev_poweroff,
 	.restore =	usb_dev_restore,
+#ifdef CONFIG_USB_SUSPEND
+	.runtime_suspend =	usb_runtime_suspend,
+	.runtime_resume =	usb_runtime_resume,
+	.runtime_idle =		usb_runtime_idle,
+#endif
 };
 
 #endif	/* CONFIG_PM */
@@ -948,8 +953,7 @@ static int usb_bus_notify(struct notifier_block *nb, unsigned long action,
 		if (dev->type == &usb_device_type)
 			(void) usb_create_sysfs_dev_files(to_usb_device(dev));
 		else if (dev->type == &usb_if_device_type)
-			(void) usb_create_sysfs_intf_files(
-					to_usb_interface(dev));
+			usb_create_sysfs_intf_files(to_usb_interface(dev));
 		break;
 
 	case BUS_NOTIFY_DEL_DEVICE:

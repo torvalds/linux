@@ -68,6 +68,8 @@
  * only enabled on a JHL90 board until it is verified that they work on the
  * other boards too.  See the extra_features variable. */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -200,8 +202,8 @@ static bool extra_features;
  * watching the output of address 0x4F (do an ec_transaction writing 0x33
  * into 0x4F and read a few bytes from the output, like so:
  *	u8 writeData = 0x33;
- *	ec_transaction(0x4F, &writeData, 1, buffer, 32, 0);
- * That address is labled "fan1 table information" in the service manual.
+ *	ec_transaction(0x4F, &writeData, 1, buffer, 32);
+ * That address is labeled "fan1 table information" in the service manual.
  * It should be clear which value in 'buffer' changes). This seems to be
  * related to fan speed. It isn't a proper 'realtime' fan speed value
  * though, because physically stopping or speeding up the fan doesn't
@@ -275,7 +277,7 @@ static int set_backlight_level(int level)
 
 	ec_write(BACKLIGHT_LEVEL_ADDR, level);
 
-	return 1;
+	return 0;
 }
 
 static int get_backlight_level(void)
@@ -286,7 +288,7 @@ static int get_backlight_level(void)
 static void set_backlight_state(bool on)
 {
 	u8 data = on ? BACKLIGHT_STATE_ON_DATA : BACKLIGHT_STATE_OFF_DATA;
-	ec_transaction(BACKLIGHT_STATE_ADDR, &data, 1, NULL, 0, 0);
+	ec_transaction(BACKLIGHT_STATE_ADDR, &data, 1, NULL, 0);
 }
 
 
@@ -294,24 +296,24 @@ static void set_backlight_state(bool on)
 static void pwm_enable_control(void)
 {
 	unsigned char writeData = PWM_ENABLE_DATA;
-	ec_transaction(PWM_ENABLE_ADDR, &writeData, 1, NULL, 0, 0);
+	ec_transaction(PWM_ENABLE_ADDR, &writeData, 1, NULL, 0);
 }
 
 static void pwm_disable_control(void)
 {
 	unsigned char writeData = PWM_DISABLE_DATA;
-	ec_transaction(PWM_DISABLE_ADDR, &writeData, 1, NULL, 0, 0);
+	ec_transaction(PWM_DISABLE_ADDR, &writeData, 1, NULL, 0);
 }
 
 static void set_pwm(int pwm)
 {
-	ec_transaction(PWM_ADDRESS, &pwm_lookup_table[pwm], 1, NULL, 0, 0);
+	ec_transaction(PWM_ADDRESS, &pwm_lookup_table[pwm], 1, NULL, 0);
 }
 
 static int get_fan_rpm(void)
 {
 	u8 value, data = FAN_DATA;
-	ec_transaction(FAN_ADDRESS, &data, 1, &value, 1, 0);
+	ec_transaction(FAN_ADDRESS, &data, 1, &value, 1);
 	return 100 * (int)value;
 }
 
@@ -760,19 +762,17 @@ static struct rfkill *bt_rfkill;
 
 static int dmi_check_cb(const struct dmi_system_id *id)
 {
-	printk(KERN_INFO DRIVER_NAME": Identified laptop model '%s'\n",
-		id->ident);
+	pr_info("Identified laptop model '%s'\n", id->ident);
 	extra_features = false;
-	return 0;
+	return 1;
 }
 
 static int dmi_check_cb_extra(const struct dmi_system_id *id)
 {
-	printk(KERN_INFO DRIVER_NAME": Identified laptop model '%s', "
-		"enabling extra features\n",
+	pr_info("Identified laptop model '%s', enabling extra features\n",
 		id->ident);
 	extra_features = true;
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id __initdata compal_dmi_table[] = {
@@ -956,20 +956,19 @@ static int __init compal_init(void)
 	int ret;
 
 	if (acpi_disabled) {
-		printk(KERN_ERR DRIVER_NAME": ACPI needs to be enabled for "
-						"this driver to work!\n");
+		pr_err("ACPI needs to be enabled for this driver to work!\n");
 		return -ENODEV;
 	}
 
 	if (!force && !dmi_check_system(compal_dmi_table)) {
-		printk(KERN_ERR DRIVER_NAME": Motherboard not recognized (You "
-				"could try the module's force-parameter)");
+		pr_err("Motherboard not recognized (You could try the module's force-parameter)\n");
 		return -ENODEV;
 	}
 
 	if (!acpi_video_backlight_support()) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_PLATFORM;
 		props.max_brightness = BACKLIGHT_LEVEL_MAX;
 		compalbl_device = backlight_device_register(DRIVER_NAME,
 							    NULL, NULL,
@@ -997,8 +996,7 @@ static int __init compal_init(void)
 	if (ret)
 		goto err_rfkill;
 
-	printk(KERN_INFO DRIVER_NAME": Driver "DRIVER_VERSION
-						" successfully loaded\n");
+	pr_info("Driver " DRIVER_VERSION " successfully loaded\n");
 	return 0;
 
 err_rfkill:
@@ -1032,8 +1030,10 @@ static int __devinit compal_probe(struct platform_device *pdev)
 	initialize_fan_control_data(data);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &compal_attribute_group);
-	if (err)
+	if (err) {
+		kfree(data);
 		return err;
+	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -1063,7 +1063,7 @@ static void __exit compal_cleanup(void)
 	rfkill_destroy(wifi_rfkill);
 	rfkill_destroy(bt_rfkill);
 
-	printk(KERN_INFO DRIVER_NAME": Driver unloaded\n");
+	pr_info("Driver unloaded\n");
 }
 
 static int __devexit compal_remove(struct platform_device *pdev)
@@ -1073,8 +1073,7 @@ static int __devexit compal_remove(struct platform_device *pdev)
 	if (!extra_features)
 		return 0;
 
-	printk(KERN_INFO DRIVER_NAME": Unloading: resetting fan control "
-							"to motherboard\n");
+	pr_info("Unloading: resetting fan control to motherboard\n");
 	pwm_disable_control();
 
 	data = platform_get_drvdata(pdev);

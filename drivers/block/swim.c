@@ -741,11 +741,12 @@ static int floppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int floppy_check_change(struct gendisk *disk)
+static unsigned int floppy_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	struct floppy_state *fs = disk->private_data;
 
-	return fs->ejected;
+	return fs->ejected ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static int floppy_revalidate(struct gendisk *disk)
@@ -772,7 +773,7 @@ static const struct block_device_operations floppy_fops = {
 	.release	 = floppy_release,
 	.ioctl		 = floppy_ioctl,
 	.getgeo		 = floppy_getgeo,
-	.media_changed	 = floppy_check_change,
+	.check_events	 = floppy_check_events,
 	.revalidate_disk = floppy_revalidate,
 };
 

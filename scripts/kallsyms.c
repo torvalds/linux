@@ -500,6 +500,8 @@ static void optimize_result(void)
 
 			/* find the token with the breates profit value */
 			best = find_best_token();
+			if (token_profit[best] == 0)
+				break;
 
 			/* place it in the "best" table */
 			best_table_len[i] = 2;

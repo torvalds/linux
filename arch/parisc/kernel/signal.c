@@ -291,7 +291,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		DBG(1,"setup_rt_frame: frame->uc = 0x%p\n", &frame->uc);
 		DBG(1,"setup_rt_frame: frame->uc.uc_mcontext = 0x%p\n", &frame->uc.uc_mcontext);
 		err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, in_syscall);
-		/* FIXME: Should probably be converted aswell for the compat case */
+		/* FIXME: Should probably be converted as well for the compat case */
 		err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	}
 	

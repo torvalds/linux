@@ -85,7 +85,8 @@ static struct bt_sock_list hci_sk_list = {
 };
 
 /* Send frame to RAW socket */
-void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
+void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
+							struct sock *skip_sk)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -96,6 +97,9 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 	sk_for_each(sk, node, &hci_sk_list.head) {
 		struct hci_filter *flt;
 		struct sk_buff *nskb;
+
+		if (sk == skip_sk)
+			continue;
 
 		if (sk->sk_state != BT_BOUND || hci_pi(sk)->hdev != hdev)
 			continue;
@@ -176,82 +180,24 @@ static int hci_sock_release(struct socket *sock)
 	return 0;
 }
 
-struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
-{
-	struct list_head *p;
-
-	list_for_each(p, &hdev->blacklist) {
-		struct bdaddr_list *b;
-
-		b = list_entry(p, struct bdaddr_list, list);
-
-		if (bacmp(bdaddr, &b->bdaddr) == 0)
-			return b;
-	}
-
-	return NULL;
-}
-
-static int hci_blacklist_add(struct hci_dev *hdev, void __user *arg)
+static int hci_sock_blacklist_add(struct hci_dev *hdev, void __user *arg)
 {
 	bdaddr_t bdaddr;
-	struct bdaddr_list *entry;
 
 	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
 		return -EFAULT;
 
-	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
-		return -EBADF;
-
-	if (hci_blacklist_lookup(hdev, &bdaddr))
-		return -EEXIST;
-
-	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
-
-	bacpy(&entry->bdaddr, &bdaddr);
-
-	list_add(&entry->list, &hdev->blacklist);
-
-	return 0;
+	return hci_blacklist_add(hdev, &bdaddr);
 }
 
-int hci_blacklist_clear(struct hci_dev *hdev)
-{
-	struct list_head *p, *n;
-
-	list_for_each_safe(p, n, &hdev->blacklist) {
-		struct bdaddr_list *b;
-
-		b = list_entry(p, struct bdaddr_list, list);
-
-		list_del(p);
-		kfree(b);
-	}
-
-	return 0;
-}
-
-static int hci_blacklist_del(struct hci_dev *hdev, void __user *arg)
+static int hci_sock_blacklist_del(struct hci_dev *hdev, void __user *arg)
 {
 	bdaddr_t bdaddr;
-	struct bdaddr_list *entry;
 
 	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
 		return -EFAULT;
 
-	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
-		return hci_blacklist_clear(hdev);
-
-	entry = hci_blacklist_lookup(hdev, &bdaddr);
-	if (!entry)
-		return -ENOENT;
-
-	list_del(&entry->list);
-	kfree(entry);
-
-	return 0;
+	return hci_blacklist_del(hdev, &bdaddr);
 }
 
 /* Ioctls that require bound socket */
@@ -286,12 +232,12 @@ static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsign
 	case HCIBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
-		return hci_blacklist_add(hdev, (void __user *) arg);
+		return hci_sock_blacklist_add(hdev, (void __user *) arg);
 
 	case HCIUNBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
-		return hci_blacklist_del(hdev, (void __user *) arg);
+		return hci_sock_blacklist_del(hdev, (void __user *) arg);
 
 	default:
 		if (hdev->ioctl)
@@ -857,7 +803,7 @@ error:
 	return err;
 }
 
-void __exit hci_sock_cleanup(void)
+void hci_sock_cleanup(void)
 {
 	if (bt_sock_unregister(BTPROTO_HCI) < 0)
 		BT_ERR("HCI socket unregistration failed");

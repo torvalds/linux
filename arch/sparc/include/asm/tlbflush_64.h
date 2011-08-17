@@ -5,9 +5,17 @@
 #include <asm/mmu_context.h>
 
 /* TSB flush operations. */
-struct mmu_gather;
+
+#define TLB_BATCH_NR	192
+
+struct tlb_batch {
+	struct mm_struct *mm;
+	unsigned long tlb_nr;
+	unsigned long vaddrs[TLB_BATCH_NR];
+};
+
 extern void flush_tsb_kernel_range(unsigned long start, unsigned long end);
-extern void flush_tsb_user(struct mmu_gather *mp);
+extern void flush_tsb_user(struct tlb_batch *tb);
 
 /* TLB flush operations. */
 

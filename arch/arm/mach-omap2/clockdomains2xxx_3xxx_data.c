@@ -89,6 +89,8 @@ static struct clkdm_dep gfx_sgx_wkdeps[] = {
 
 /* 24XX-specific possible dependencies */
 
+#ifdef CONFIG_ARCH_OMAP2
+
 /* Wakeup dependency source arrays */
 
 /* 2420/2430 PM_WKDEP_DSP: CORE, MPU, WKUP */
@@ -168,10 +170,11 @@ static struct clkdm_dep core_24xx_wkdeps[] = {
 	{ NULL },
 };
 
+#endif /* CONFIG_ARCH_OMAP2 */
 
 /* 2430-specific possible wakeup dependencies */
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 
 /* 2430 PM_WKDEP_MDM: CORE, MPU, WKUP */
 static struct clkdm_dep mdm_2430_wkdeps[] = {
@@ -194,7 +197,7 @@ static struct clkdm_dep mdm_2430_wkdeps[] = {
 	{ NULL },
 };
 
-#endif /* CONFIG_ARCH_OMAP2430 */
+#endif /* CONFIG_SOC_OMAP2430 */
 
 
 /* OMAP3-specific possible dependencies */
@@ -450,7 +453,7 @@ static struct clockdomain cm_clkdm = {
  * 2420-only clockdomains
  */
 
-#if defined(CONFIG_ARCH_OMAP2420)
+#if defined(CONFIG_SOC_OMAP2420)
 
 static struct clockdomain mpu_2420_clkdm = {
 	.name		= "mpu_clkdm",
@@ -514,14 +517,14 @@ static struct clockdomain dss_2420_clkdm = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2420),
 };
 
-#endif   /* CONFIG_ARCH_OMAP2420 */
+#endif   /* CONFIG_SOC_OMAP2420 */
 
 
 /*
  * 2430-only clockdomains
  */
 
-#if defined(CONFIG_ARCH_OMAP2430)
+#if defined(CONFIG_SOC_OMAP2430)
 
 static struct clockdomain mpu_2430_clkdm = {
 	.name		= "mpu_clkdm",
@@ -600,7 +603,7 @@ static struct clockdomain dss_2430_clkdm = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
 };
 
-#endif    /* CONFIG_ARCH_OMAP2430 */
+#endif    /* CONFIG_SOC_OMAP2430 */
 
 
 /*
@@ -811,7 +814,7 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 	&cm_clkdm,
 	&prm_clkdm,
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 	&mpu_2420_clkdm,
 	&iva1_2420_clkdm,
 	&dsp_2420_clkdm,
@@ -821,7 +824,7 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 	&dss_2420_clkdm,
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 	&mpu_2430_clkdm,
 	&mdm_clkdm,
 	&dsp_2430_clkdm,
@@ -854,7 +857,12 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 	NULL,
 };
 
-void __init omap2_clockdomains_init(void)
+void __init omap2xxx_clockdomains_init(void)
 {
-	clkdm_init(clockdomains_omap2, clkdm_autodeps);
+	clkdm_init(clockdomains_omap2, clkdm_autodeps, &omap2_clkdm_operations);
+}
+
+void __init omap3xxx_clockdomains_init(void)
+{
+	clkdm_init(clockdomains_omap2, clkdm_autodeps, &omap3_clkdm_operations);
 }

@@ -6,7 +6,7 @@ Driver registration
 
 As with other subsystems within the Linux kernel, VME device drivers register
 with the VME subsystem, typically called from the devices init routine.  This is
-achieved via a call to the follwoing function:
+achieved via a call to the following function:
 
 	int vme_register_driver (struct vme_driver *driver);
 
@@ -108,7 +108,7 @@ Master windows
 ==============
 
 Master windows provide access from the local processor[s] out onto the VME bus.
-The number of windows available and the available access modes is dependant on
+The number of windows available and the available access modes is dependent on
 the underlying chipset. A window must be configured before it can be used.
 
 
@@ -163,7 +163,7 @@ Slave windows
 
 Slave windows provide devices on the VME bus access into mapped portions of the
 local memory. The number of windows available and the access modes that can be
-used is dependant on the underlying chipset. A window must be configured before
+used is dependent on the underlying chipset. A window must be configured before
 it can be used.
 
 

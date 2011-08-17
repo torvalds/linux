@@ -84,12 +84,13 @@ do { \
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-
 #define flush_cache_dup_mm(mm)				do { } while (0)
 #define flush_cache_vmap(start, end)			do { } while (0)
 #define flush_cache_vunmap(start, end)			do { } while (0)
 #define flush_cache_mm(mm)			do { } while (0)
-#define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
+
+#define flush_cache_page(vma, vmaddr, pfn) \
+	flush_dcache_range(pfn << PAGE_SHIFT, (pfn << PAGE_SHIFT) + PAGE_SIZE);
 
 /* MS: kgdb code use this macro, wrong len with FLASH */
 #if 0
@@ -104,9 +105,13 @@ do { \
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 do {									\
 	u32 addr = virt_to_phys(dst);					\
-	invalidate_icache_range((unsigned) (addr), (unsigned) (addr) + (len));\
 	memcpy((dst), (src), (len));					\
-	flush_dcache_range((unsigned) (addr), (unsigned) (addr) + (len));\
+	if (vma->vm_flags & VM_EXEC) {					\
+		invalidate_icache_range((unsigned) (addr),		\
+					(unsigned) (addr) + PAGE_SIZE);	\
+		flush_dcache_range((unsigned) (addr),			\
+					(unsigned) (addr) + PAGE_SIZE);	\
+	}								\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\

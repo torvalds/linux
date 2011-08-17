@@ -473,14 +473,10 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 {
 	int ret, cur_irq, i;
 	int flags = IRQF_ONESHOT;
+	int irq_base = -1;
 
 	if (!irq) {
 		dev_warn(wm8350->dev, "No interrupt support, no core IRQ\n");
-		return 0;
-	}
-
-	if (!pdata || !pdata->irq_base) {
-		dev_warn(wm8350->dev, "No interrupt support, no IRQ base\n");
 		return 0;
 	}
 
@@ -502,7 +498,17 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 	wm8350->chip_irq = irq;
 	wm8350->irq_base = pdata->irq_base;
 
-	if (pdata->irq_high) {
+	if (pdata && pdata->irq_base > 0)
+		irq_base = pdata->irq_base;
+
+	wm8350->irq_base = irq_alloc_descs(irq_base, 0, ARRAY_SIZE(wm8350_irqs), 0);
+	if (wm8350->irq_base < 0) {
+		dev_warn(wm8350->dev, "Allocating irqs failed with %d\n",
+			wm8350->irq_base);
+		return 0;
+	}
+
+	if (pdata && pdata->irq_high) {
 		flags |= IRQF_TRIGGER_HIGH;
 
 		wm8350_set_bits(wm8350, WM8350_SYSTEM_CONTROL_1,
@@ -518,17 +524,17 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 	for (cur_irq = wm8350->irq_base;
 	     cur_irq < ARRAY_SIZE(wm8350_irqs) + wm8350->irq_base;
 	     cur_irq++) {
-		set_irq_chip_data(cur_irq, wm8350);
-		set_irq_chip_and_handler(cur_irq, &wm8350_irq_chip,
+		irq_set_chip_data(cur_irq, wm8350);
+		irq_set_chip_and_handler(cur_irq, &wm8350_irq_chip,
 					 handle_edge_irq);
-		set_irq_nested_thread(cur_irq, 1);
+		irq_set_nested_thread(cur_irq, 1);
 
 		/* ARM needs us to explicitly flag the IRQ as valid
 		 * and will set them noprobe when we do so. */
 #ifdef CONFIG_ARM
 		set_irq_flags(cur_irq, IRQF_VALID);
 #else
-		set_irq_noprobe(cur_irq);
+		irq_set_noprobe(cur_irq);
 #endif
 	}
 

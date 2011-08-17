@@ -45,7 +45,7 @@ debugging messages on, that must be done by modified the source code.
 
 Variable MTU size:
 
-The driver can handle a MTU size upto either 4500 or 18000 depending upon 
+The driver can handle a MTU size up to either 4500 or 18000 depending upon 
 ring speed.  The driver also changes the size of the receive buffers as part
 of the mtu re-sizing, so if you set mtu = 18000, you will need to be able
 to allocate 16 * (sk_buff with 18000 buffer size) call it 18500 bytes per ring 

@@ -36,6 +36,8 @@
 #include <linux/file.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/mutex.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 
 #include <linux/input.h>
@@ -54,22 +56,24 @@ static DECLARE_RWSEM(hidp_session_sem);
 static LIST_HEAD(hidp_session_list);
 
 static unsigned char hidp_keycode[256] = {
-	  0,  0,  0,  0, 30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38,
-	 50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,  2,  3,
-	  4,  5,  6,  7,  8,  9, 10, 11, 28,  1, 14, 15, 57, 12, 13, 26,
-	 27, 43, 43, 39, 40, 41, 51, 52, 53, 58, 59, 60, 61, 62, 63, 64,
-	 65, 66, 67, 68, 87, 88, 99, 70,119,110,102,104,111,107,109,106,
-	105,108,103, 69, 98, 55, 74, 78, 96, 79, 80, 81, 75, 76, 77, 71,
-	 72, 73, 82, 83, 86,127,116,117,183,184,185,186,187,188,189,190,
-	191,192,193,194,134,138,130,132,128,129,131,137,133,135,136,113,
-	115,114,  0,  0,  0,121,  0, 89, 93,124, 92, 94, 95,  0,  0,  0,
-	122,123, 90, 91, 85,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	 29, 42, 56,125, 97, 54,100,126,164,166,165,163,161,115,114,113,
-	150,158,159,128,136,177,178,176,142,152,173,140
+	  0,   0,   0,   0,  30,  48,  46,  32,  18,  33,  34,  35,  23,  36,
+	 37,  38,  50,  49,  24,  25,  16,  19,  31,  20,  22,  47,  17,  45,
+	 21,  44,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  28,   1,
+	 14,  15,  57,  12,  13,  26,  27,  43,  43,  39,  40,  41,  51,  52,
+	 53,  58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  87,  88,
+	 99,  70, 119, 110, 102, 104, 111, 107, 109, 106, 105, 108, 103,  69,
+	 98,  55,  74,  78,  96,  79,  80,  81,  75,  76,  77,  71,  72,  73,
+	 82,  83,  86, 127, 116, 117, 183, 184, 185, 186, 187, 188, 189, 190,
+	191, 192, 193, 194, 134, 138, 130, 132, 128, 129, 131, 137, 133, 135,
+	136, 113, 115, 114,   0,   0,   0, 121,   0,  89,  93, 124,  92,  94,
+	 95,   0,   0,   0, 122, 123,  90,  91,  85,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	 29,  42,  56, 125,  97,  54, 100, 126, 164, 166, 165, 163, 161, 115,
+	114, 113, 150, 158, 159, 128, 136, 177, 178, 176, 142, 152, 173, 140
 };
 
 static unsigned char hidp_mkeyspat[] = { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 };
@@ -157,7 +161,8 @@ static int hidp_queue_event(struct hidp_session *session, struct input_dev *dev,
 
 	session->leds = newleds;
 
-	if (!(skb = alloc_skb(3, GFP_ATOMIC))) {
+	skb = alloc_skb(3, GFP_ATOMIC);
+	if (!skb) {
 		BT_ERR("Can't allocate memory for new frame");
 		return -ENOMEM;
 	}
@@ -250,7 +255,8 @@ static int __hidp_send_ctrl_message(struct hidp_session *session,
 
 	BT_DBG("session %p data %p size %d", session, data, size);
 
-	if (!(skb = alloc_skb(size + 1, GFP_ATOMIC))) {
+	skb = alloc_skb(size + 1, GFP_ATOMIC);
+	if (!skb) {
 		BT_ERR("Can't allocate memory for new frame");
 		return -ENOMEM;
 	}
@@ -283,7 +289,8 @@ static int hidp_queue_report(struct hidp_session *session,
 
 	BT_DBG("session %p hid %p data %p size %d", session, session->hid, data, size);
 
-	if (!(skb = alloc_skb(size + 1, GFP_ATOMIC))) {
+	skb = alloc_skb(size + 1, GFP_ATOMIC);
+	if (!skb) {
 		BT_ERR("Can't allocate memory for new frame");
 		return -ENOMEM;
 	}
@@ -313,24 +320,144 @@ static int hidp_send_report(struct hidp_session *session, struct hid_report *rep
 	return hidp_queue_report(session, buf, rsize);
 }
 
-static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, size_t count,
+static int hidp_get_raw_report(struct hid_device *hid,
+		unsigned char report_number,
+		unsigned char *data, size_t count,
 		unsigned char report_type)
 {
+	struct hidp_session *session = hid->driver_data;
+	struct sk_buff *skb;
+	size_t len;
+	int numbered_reports = hid->report_enum[report_type].numbered;
+
 	switch (report_type) {
 	case HID_FEATURE_REPORT:
-		report_type = HIDP_TRANS_SET_REPORT | HIDP_DATA_RTYPE_FEATURE;
+		report_type = HIDP_TRANS_GET_REPORT | HIDP_DATA_RTYPE_FEATURE;
+		break;
+	case HID_INPUT_REPORT:
+		report_type = HIDP_TRANS_GET_REPORT | HIDP_DATA_RTYPE_INPUT;
 		break;
 	case HID_OUTPUT_REPORT:
-		report_type = HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT;
+		report_type = HIDP_TRANS_GET_REPORT | HIDP_DATA_RTYPE_OUPUT;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	if (mutex_lock_interruptible(&session->report_mutex))
+		return -ERESTARTSYS;
+
+	/* Set up our wait, and send the report request to the device. */
+	session->waiting_report_type = report_type & HIDP_DATA_RTYPE_MASK;
+	session->waiting_report_number = numbered_reports ? report_number : -1;
+	set_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+	data[0] = report_number;
+	if (hidp_send_ctrl_message(hid->driver_data, report_type, data, 1))
+		goto err_eio;
+
+	/* Wait for the return of the report. The returned report
+	   gets put in session->report_return.  */
+	while (test_bit(HIDP_WAITING_FOR_RETURN, &session->flags)) {
+		int res;
+
+		res = wait_event_interruptible_timeout(session->report_queue,
+			!test_bit(HIDP_WAITING_FOR_RETURN, &session->flags),
+			5*HZ);
+		if (res == 0) {
+			/* timeout */
+			goto err_eio;
+		}
+		if (res < 0) {
+			/* signal */
+			goto err_restartsys;
+		}
+	}
+
+	skb = session->report_return;
+	if (skb) {
+		len = skb->len < count ? skb->len : count;
+		memcpy(data, skb->data, len);
+
+		kfree_skb(skb);
+		session->report_return = NULL;
+	} else {
+		/* Device returned a HANDSHAKE, indicating  protocol error. */
+		len = -EIO;
+	}
+
+	clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+	mutex_unlock(&session->report_mutex);
+
+	return len;
+
+err_restartsys:
+	clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+	mutex_unlock(&session->report_mutex);
+	return -ERESTARTSYS;
+err_eio:
+	clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+	mutex_unlock(&session->report_mutex);
+	return -EIO;
+}
+
+static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, size_t count,
+		unsigned char report_type)
+{
+	struct hidp_session *session = hid->driver_data;
+	int ret;
+
+	switch (report_type) {
+	case HID_FEATURE_REPORT:
+		report_type = HIDP_TRANS_SET_REPORT | HIDP_DATA_RTYPE_FEATURE;
+		break;
+	case HID_OUTPUT_REPORT:
+		report_type = HIDP_TRANS_SET_REPORT | HIDP_DATA_RTYPE_OUPUT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (mutex_lock_interruptible(&session->report_mutex))
+		return -ERESTARTSYS;
+
+	/* Set up our wait, and send the report request to the device. */
+	set_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
 	if (hidp_send_ctrl_message(hid->driver_data, report_type,
-			data, count))
-		return -ENOMEM;
-	return count;
+			data, count)) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	/* Wait for the ACK from the device. */
+	while (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)) {
+		int res;
+
+		res = wait_event_interruptible_timeout(session->report_queue,
+			!test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags),
+			10*HZ);
+		if (res == 0) {
+			/* timeout */
+			ret = -EIO;
+			goto err;
+		}
+		if (res < 0) {
+			/* signal */
+			ret = -ERESTARTSYS;
+			goto err;
+		}
+	}
+
+	if (!session->output_report_success) {
+		ret = -EIO;
+		goto err;
+	}
+
+	ret = count;
+
+err:
+	clear_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
+	mutex_unlock(&session->report_mutex);
+	return ret;
 }
 
 static void hidp_idle_timeout(unsigned long arg)
@@ -338,7 +465,7 @@ static void hidp_idle_timeout(unsigned long arg)
 	struct hidp_session *session = (struct hidp_session *) arg;
 
 	atomic_inc(&session->terminate);
-	hidp_schedule(session);
+	wake_up_process(session->task);
 }
 
 static void hidp_set_timer(struct hidp_session *session)
@@ -357,16 +484,22 @@ static void hidp_process_handshake(struct hidp_session *session,
 					unsigned char param)
 {
 	BT_DBG("session %p param 0x%02x", session, param);
+	session->output_report_success = 0; /* default condition */
 
 	switch (param) {
 	case HIDP_HSHK_SUCCESSFUL:
 		/* FIXME: Call into SET_ GET_ handlers here */
+		session->output_report_success = 1;
 		break;
 
 	case HIDP_HSHK_NOT_READY:
 	case HIDP_HSHK_ERR_INVALID_REPORT_ID:
 	case HIDP_HSHK_ERR_UNSUPPORTED_REQUEST:
 	case HIDP_HSHK_ERR_INVALID_PARAMETER:
+		if (test_bit(HIDP_WAITING_FOR_RETURN, &session->flags)) {
+			clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+			wake_up_interruptible(&session->report_queue);
+		}
 		/* FIXME: Call into SET_ GET_ handlers here */
 		break;
 
@@ -385,6 +518,12 @@ static void hidp_process_handshake(struct hidp_session *session,
 			HIDP_TRANS_HANDSHAKE | HIDP_HSHK_ERR_INVALID_PARAMETER, NULL, 0);
 		break;
 	}
+
+	/* Wake up the waiting thread. */
+	if (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)) {
+		clear_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
+		wake_up_interruptible(&session->report_queue);
+	}
 }
 
 static void hidp_process_hid_control(struct hidp_session *session,
@@ -397,15 +536,16 @@ static void hidp_process_hid_control(struct hidp_session *session,
 		skb_queue_purge(&session->ctrl_transmit);
 		skb_queue_purge(&session->intr_transmit);
 
-		/* Kill session thread */
 		atomic_inc(&session->terminate);
-		hidp_schedule(session);
+		wake_up_process(current);
 	}
 }
 
-static void hidp_process_data(struct hidp_session *session, struct sk_buff *skb,
+/* Returns true if the passed-in skb should be freed by the caller. */
+static int hidp_process_data(struct hidp_session *session, struct sk_buff *skb,
 				unsigned char param)
 {
+	int done_with_skb = 1;
 	BT_DBG("session %p skb %p len %d param 0x%02x", session, skb, skb->len, param);
 
 	switch (param) {
@@ -417,7 +557,6 @@ static void hidp_process_data(struct hidp_session *session, struct sk_buff *skb,
 
 		if (session->hid)
 			hid_input_report(session->hid, HID_INPUT_REPORT, skb->data, skb->len, 0);
-
 		break;
 
 	case HIDP_DATA_RTYPE_OTHER:
@@ -429,12 +568,27 @@ static void hidp_process_data(struct hidp_session *session, struct sk_buff *skb,
 		__hidp_send_ctrl_message(session,
 			HIDP_TRANS_HANDSHAKE | HIDP_HSHK_ERR_INVALID_PARAMETER, NULL, 0);
 	}
+
+	if (test_bit(HIDP_WAITING_FOR_RETURN, &session->flags) &&
+				param == session->waiting_report_type) {
+		if (session->waiting_report_number < 0 ||
+		    session->waiting_report_number == skb->data[0]) {
+			/* hidp_get_raw_report() is waiting on this report. */
+			session->report_return = skb;
+			done_with_skb = 0;
+			clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+			wake_up_interruptible(&session->report_queue);
+		}
+	}
+
+	return done_with_skb;
 }
 
 static void hidp_recv_ctrl_frame(struct hidp_session *session,
 					struct sk_buff *skb)
 {
 	unsigned char hdr, type, param;
+	int free_skb = 1;
 
 	BT_DBG("session %p skb %p len %d", session, skb, skb->len);
 
@@ -454,7 +608,7 @@ static void hidp_recv_ctrl_frame(struct hidp_session *session,
 		break;
 
 	case HIDP_TRANS_DATA:
-		hidp_process_data(session, skb, param);
+		free_skb = hidp_process_data(session, skb, param);
 		break;
 
 	default:
@@ -463,7 +617,8 @@ static void hidp_recv_ctrl_frame(struct hidp_session *session,
 		break;
 	}
 
-	kfree_skb(skb);
+	if (free_skb)
+		kfree_skb(skb);
 }
 
 static void hidp_recv_intr_frame(struct hidp_session *session,
@@ -541,32 +696,22 @@ static int hidp_session(void *arg)
 	struct sock *ctrl_sk = session->ctrl_sock->sk;
 	struct sock *intr_sk = session->intr_sock->sk;
 	struct sk_buff *skb;
-	int vendor = 0x0000, product = 0x0000;
 	wait_queue_t ctrl_wait, intr_wait;
 
 	BT_DBG("session %p", session);
 
-	if (session->input) {
-		vendor  = session->input->id.vendor;
-		product = session->input->id.product;
-	}
-
-	if (session->hid) {
-		vendor  = session->hid->vendor;
-		product = session->hid->product;
-	}
-
-	daemonize("khidpd_%04x%04x", vendor, product);
 	set_user_nice(current, -15);
 
 	init_waitqueue_entry(&ctrl_wait, current);
 	init_waitqueue_entry(&intr_wait, current);
 	add_wait_queue(sk_sleep(ctrl_sk), &ctrl_wait);
 	add_wait_queue(sk_sleep(intr_sk), &intr_wait);
+	session->waiting_for_startup = 0;
+	wake_up_interruptible(&session->startup_queue);
+	set_current_state(TASK_INTERRUPTIBLE);
 	while (!atomic_read(&session->terminate)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (ctrl_sk->sk_state != BT_CONNECTED || intr_sk->sk_state != BT_CONNECTED)
+		if (ctrl_sk->sk_state != BT_CONNECTED ||
+				intr_sk->sk_state != BT_CONNECTED)
 			break;
 
 		while ((skb = skb_dequeue(&ctrl_sk->sk_receive_queue))) {
@@ -582,6 +727,7 @@ static int hidp_session(void *arg)
 		hidp_process_transmit(session);
 
 		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(intr_sk), &intr_wait);
@@ -754,6 +900,8 @@ static struct hid_ll_driver hidp_hid_driver = {
 	.hidinput_input_event = hidp_hidinput_event,
 };
 
+/* This function sets up the hid device. It does not add it
+   to the HID system. That is done in hidp_add_connection(). */
 static int hidp_setup_hid(struct hidp_session *session,
 				struct hidp_connadd_req *req)
 {
@@ -793,17 +941,10 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->dev.parent = hidp_get_device(session);
 	hid->ll_driver = &hidp_hid_driver;
 
+	hid->hid_get_raw_report = hidp_get_raw_report;
 	hid->hid_output_raw_report = hidp_output_raw_report;
 
-	err = hid_add_device(hid);
-	if (err < 0)
-		goto failed;
-
 	return 0;
-
-failed:
-	hid_destroy_device(hid);
-	session->hid = NULL;
 
 fault:
 	kfree(session->rd_data);
@@ -815,6 +956,7 @@ fault:
 int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock)
 {
 	struct hidp_session *session, *s;
+	int vendor, product;
 	int err;
 
 	BT_DBG("");
@@ -839,8 +981,10 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	bacpy(&session->bdaddr, &bt_sk(ctrl_sock->sk)->dst);
 
-	session->ctrl_mtu = min_t(uint, l2cap_pi(ctrl_sock->sk)->omtu, l2cap_pi(ctrl_sock->sk)->imtu);
-	session->intr_mtu = min_t(uint, l2cap_pi(intr_sock->sk)->omtu, l2cap_pi(intr_sock->sk)->imtu);
+	session->ctrl_mtu = min_t(uint, l2cap_pi(ctrl_sock->sk)->chan->omtu,
+					l2cap_pi(ctrl_sock->sk)->chan->imtu);
+	session->intr_mtu = min_t(uint, l2cap_pi(intr_sock->sk)->chan->omtu,
+					l2cap_pi(intr_sock->sk)->chan->imtu);
 
 	BT_DBG("ctrl mtu %d intr mtu %d", session->ctrl_mtu, session->intr_mtu);
 
@@ -853,6 +997,10 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	skb_queue_head_init(&session->ctrl_transmit);
 	skb_queue_head_init(&session->intr_transmit);
 
+	mutex_init(&session->report_mutex);
+	init_waitqueue_head(&session->report_queue);
+	init_waitqueue_head(&session->startup_queue);
+	session->waiting_for_startup = 1;
 	session->flags   = req->flags & (1 << HIDP_BLUETOOTH_VENDOR_ID);
 	session->idle_to = req->idle_to;
 
@@ -872,9 +1020,32 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	hidp_set_timer(session);
 
-	err = kernel_thread(hidp_session, session, CLONE_KERNEL);
-	if (err < 0)
+	if (session->hid) {
+		vendor  = session->hid->vendor;
+		product = session->hid->product;
+	} else if (session->input) {
+		vendor  = session->input->id.vendor;
+		product = session->input->id.product;
+	} else {
+		vendor = 0x0000;
+		product = 0x0000;
+	}
+
+	session->task = kthread_run(hidp_session, session, "khidpd_%04x%04x",
+							vendor, product);
+	if (IS_ERR(session->task)) {
+		err = PTR_ERR(session->task);
 		goto unlink;
+	}
+
+	while (session->waiting_for_startup) {
+		wait_event_interruptible(session->startup_queue,
+			!session->waiting_for_startup);
+	}
+
+	err = hid_add_device(session->hid);
+	if (err < 0)
+		goto err_add_device;
 
 	if (session->input) {
 		hidp_send_ctrl_message(session,
@@ -887,6 +1058,12 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	up_write(&hidp_session_sem);
 	return 0;
+
+err_add_device:
+	hid_destroy_device(session->hid);
+	session->hid = NULL;
+	atomic_inc(&session->terminate);
+	wake_up_process(session->task);
 
 unlink:
 	hidp_del_timer(session);
@@ -937,13 +1114,8 @@ int hidp_del_connection(struct hidp_conndel_req *req)
 			skb_queue_purge(&session->ctrl_transmit);
 			skb_queue_purge(&session->intr_transmit);
 
-			/* Wakeup user-space polling for socket errors */
-			session->intr_sock->sk->sk_err = EUNATCH;
-			session->ctrl_sock->sk->sk_err = EUNATCH;
-
-			/* Kill session thread */
 			atomic_inc(&session->terminate);
-			hidp_schedule(session);
+			wake_up_process(session->task);
 		}
 	} else
 		err = -ENOENT;
@@ -1015,8 +1187,6 @@ static struct hid_driver hidp_driver = {
 static int __init hidp_init(void)
 {
 	int ret;
-
-	l2cap_load();
 
 	BT_INFO("HIDP (Human Interface Emulation) ver %s", VERSION);
 

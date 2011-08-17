@@ -20,7 +20,7 @@
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/bitmap.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
@@ -32,12 +32,11 @@ static const struct {
 	[SH_KEYSC_MODE_3] = { 2, 4, 7 },
 	[SH_KEYSC_MODE_4] = { 3, 6, 6 },
 	[SH_KEYSC_MODE_5] = { 4, 6, 7 },
-	[SH_KEYSC_MODE_6] = { 5, 7, 7 },
+	[SH_KEYSC_MODE_6] = { 5, 8, 8 },
 };
 
 struct sh_keysc_priv {
 	void __iomem *iomem_base;
-	struct clk *clk;
 	DECLARE_BITMAP(last_keys, SH_KEYSC_MAXKEYS);
 	struct input_dev *input;
 	struct sh_keysc_info pdata;
@@ -169,7 +168,6 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 	struct sh_keysc_info *pdata;
 	struct resource *res;
 	struct input_dev *input;
-	char clk_name[8];
 	int i;
 	int irq, error;
 
@@ -210,19 +208,11 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	snprintf(clk_name, sizeof(clk_name), "keysc%d", pdev->id);
-	priv->clk = clk_get(&pdev->dev, clk_name);
-	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
-		error = PTR_ERR(priv->clk);
-		goto err2;
-	}
-
 	priv->input = input_allocate_device();
 	if (!priv->input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
 		error = -ENOMEM;
-		goto err3;
+		goto err2;
 	}
 
 	input = priv->input;
@@ -241,10 +231,11 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 	input->keycodesize = sizeof(pdata->keycodes[0]);
 	input->keycodemax = ARRAY_SIZE(pdata->keycodes);
 
-	error = request_irq(irq, sh_keysc_isr, 0, pdev->name, pdev);
+	error = request_threaded_irq(irq, NULL, sh_keysc_isr, IRQF_ONESHOT,
+				     dev_name(&pdev->dev), pdev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
-		goto err4;
+		goto err3;
 	}
 
 	for (i = 0; i < SH_KEYSC_MAXKEYS; i++)
@@ -254,10 +245,11 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 	error = input_register_device(input);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto err5;
+		goto err4;
 	}
 
-	clk_enable(priv->clk);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	sh_keysc_write(priv, KYCR1, (sh_keysc_mode[pdata->mode].kymd << 8) |
 		       pdata->scan_timing);
@@ -267,12 +259,10 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 
 	return 0;
 
- err5:
-	free_irq(irq, pdev);
  err4:
-	input_free_device(input);
+	free_irq(irq, pdev);
  err3:
-	clk_put(priv->clk);
+	input_free_device(input);
  err2:
 	iounmap(priv->iomem_base);
  err1:
@@ -292,8 +282,8 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 	free_irq(platform_get_irq(pdev, 0), pdev);
 	iounmap(priv->iomem_base);
 
-	clk_disable(priv->clk);
-	clk_put(priv->clk);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
@@ -301,6 +291,7 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sh_keysc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -311,13 +302,12 @@ static int sh_keysc_suspend(struct device *dev)
 	value = sh_keysc_read(priv, KYCR1);
 
 	if (device_may_wakeup(dev)) {
-		value |= 0x80;
+		sh_keysc_write(priv, KYCR1, value | 0x80);
 		enable_irq_wake(irq);
 	} else {
-		value &= ~0x80;
+		sh_keysc_write(priv, KYCR1, value & ~0x80);
+		pm_runtime_put_sync(dev);
 	}
-
-	sh_keysc_write(priv, KYCR1, value);
 
 	return 0;
 }
@@ -329,16 +319,17 @@ static int sh_keysc_resume(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(irq);
+	else
+		pm_runtime_get_sync(dev);
 
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops sh_keysc_dev_pm_ops = {
-	.suspend = sh_keysc_suspend,
-	.resume = sh_keysc_resume,
-};
+static SIMPLE_DEV_PM_OPS(sh_keysc_dev_pm_ops,
+			 sh_keysc_suspend, sh_keysc_resume);
 
-struct platform_driver sh_keysc_device_driver = {
+static struct platform_driver sh_keysc_device_driver = {
 	.probe		= sh_keysc_probe,
 	.remove		= __devexit_p(sh_keysc_remove),
 	.driver		= {

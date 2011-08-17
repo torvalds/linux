@@ -432,13 +432,15 @@ static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 	aem_send_message(ipmi);
 
 	res = wait_for_completion_timeout(&ipmi->read_complete, IPMI_TIMEOUT);
-	if (!res)
-		return -ETIMEDOUT;
+	if (!res) {
+		res = -ETIMEDOUT;
+		goto out;
+	}
 
 	if (ipmi->rx_result || ipmi->rx_msg_len != rs_size ||
 	    memcmp(&rs_resp->id, &system_x_id, sizeof(system_x_id))) {
-		kfree(rs_resp);
-		return -ENOENT;
+		res = -ENOENT;
+		goto out;
 	}
 
 	switch (size) {
@@ -463,8 +465,11 @@ static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 		break;
 	}
 	}
+	res = 0;
 
-	return 0;
+out:
+	kfree(rs_resp);
+	return res;
 }
 
 /* Update AEM energy registers */
@@ -523,7 +528,7 @@ static void aem_delete(struct aem_data *data)
 	aem_remove_sensors(data);
 	hwmon_device_unregister(data->hwmon_dev);
 	ipmi_destroy_user(data->ipmi.user);
-	dev_set_drvdata(&data->pdev->dev, NULL);
+	platform_set_drvdata(data->pdev, NULL);
 	platform_device_unregister(data->pdev);
 	aem_idr_put(data->id);
 	kfree(data);
@@ -594,7 +599,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	if (res)
 		goto ipmi_err;
 
-	dev_set_drvdata(&data->pdev->dev, data);
+	platform_set_drvdata(data->pdev, data);
 
 	/* Set up IPMI interface */
 	if (aem_init_ipmi_data(&data->ipmi, probe->interface,
@@ -630,7 +635,7 @@ sensor_err:
 hwmon_reg_err:
 	ipmi_destroy_user(data->ipmi.user);
 ipmi_err:
-	dev_set_drvdata(&data->pdev->dev, NULL);
+	platform_set_drvdata(data->pdev, NULL);
 	platform_device_unregister(data->pdev);
 dev_err:
 	aem_idr_put(data->id);
@@ -727,7 +732,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	if (res)
 		goto ipmi_err;
 
-	dev_set_drvdata(&data->pdev->dev, data);
+	platform_set_drvdata(data->pdev, data);
 
 	/* Set up IPMI interface */
 	if (aem_init_ipmi_data(&data->ipmi, probe->interface,
@@ -763,7 +768,7 @@ sensor_err:
 hwmon_reg_err:
 	ipmi_destroy_user(data->ipmi.user);
 ipmi_err:
-	dev_set_drvdata(&data->pdev->dev, NULL);
+	platform_set_drvdata(data->pdev, NULL);
 	platform_device_unregister(data->pdev);
 dev_err:
 	aem_idr_put(data->id);
@@ -947,6 +952,7 @@ static int aem_register_sensors(struct aem_data *data,
 
 	/* Set up read-only sensors */
 	while (ro->label) {
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		sensors->dev_attr.attr.name = ro->label;
 		sensors->dev_attr.attr.mode = S_IRUGO;
 		sensors->dev_attr.show = ro->show;
@@ -963,6 +969,7 @@ static int aem_register_sensors(struct aem_data *data,
 
 	/* Set up read-write sensors */
 	while (rw->label) {
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		sensors->dev_attr.attr.name = rw->label;
 		sensors->dev_attr.attr.mode = S_IRUGO | S_IWUSR;
 		sensors->dev_attr.show = rw->show;

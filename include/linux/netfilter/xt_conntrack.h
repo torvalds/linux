@@ -58,4 +58,19 @@ struct xt_conntrack_mtinfo2 {
 	__u16 state_mask, status_mask;
 };
 
+struct xt_conntrack_mtinfo3 {
+	union nf_inet_addr origsrc_addr, origsrc_mask;
+	union nf_inet_addr origdst_addr, origdst_mask;
+	union nf_inet_addr replsrc_addr, replsrc_mask;
+	union nf_inet_addr repldst_addr, repldst_mask;
+	__u32 expires_min, expires_max;
+	__u16 l4proto;
+	__u16 origsrc_port, origdst_port;
+	__u16 replsrc_port, repldst_port;
+	__u16 match_flags, invert_flags;
+	__u16 state_mask, status_mask;
+	__u16 origsrc_port_high, origdst_port_high;
+	__u16 replsrc_port_high, repldst_port_high;
+};
+
 #endif /*_XT_CONNTRACK_H*/

@@ -77,9 +77,10 @@ struct clk div4_clks[DIV4_NR] = {
 
 #define MSTPCR0		0xffc80030
 #define MSTPCR1		0xffc80034
+#define MSTPCR2		0xffc10028
 
 enum { MSTP004, MSTP000, MSTP114, MSTP113, MSTP112,
-       MSTP111, MSTP110, MSTP103, MSTP102,
+       MSTP111, MSTP110, MSTP103, MSTP102, MSTP220,
        MSTP_NR };
 
 static struct clk mstp_clks[MSTP_NR] = {
@@ -95,9 +96,10 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP110] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR1, 10, 0),
 	[MSTP103] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR1, 3, 0),
 	[MSTP102] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR1, 2, 0),
-};
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+	/* MSTPCR2 */
+	[MSTP220] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR2, 20, 0),
+};
 
 static struct clk_lookup lookups[] = {
 	/* main clocks */
@@ -112,34 +114,15 @@ static struct clk_lookup lookups[] = {
 	/* MSTP32 clocks */
 	CLKDEV_CON_ID("sdhi0", &mstp_clks[MSTP004]),
 	CLKDEV_CON_ID("riic", &mstp_clks[MSTP000]),
-	{
-		/* TMU0 */
-		.dev_id		= "sh_tmu.0",
-		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[MSTP113],
-	}, {
-		/* TMU1 */
-		.dev_id		= "sh_tmu.1",
-		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[MSTP114],
-	},
-	{
-		/* SCIF4 (But, ID is 2) */
-		.dev_id		= "sh-sci.2",
-		.con_id		= "sci_fck",
-		.clk		= &mstp_clks[MSTP112],
-	}, {
-		/* SCIF3 */
-		.dev_id		= "sh-sci.1",
-		.con_id		= "sci_fck",
-		.clk		= &mstp_clks[MSTP111],
-	}, {
-		/* SCIF2 */
-		.dev_id		= "sh-sci.0",
-		.con_id		= "sci_fck",
-		.clk		= &mstp_clks[MSTP110],
-	},
+
+	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.0", &mstp_clks[MSTP113]),
+	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.1", &mstp_clks[MSTP114]),
+	CLKDEV_ICK_ID("sci_fck", "sh-sci.2", &mstp_clks[MSTP112]),
+	CLKDEV_ICK_ID("sci_fck", "sh-sci.1", &mstp_clks[MSTP111]),
+	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP110]),
+
 	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP102]),
+	CLKDEV_CON_ID("mmc0", &mstp_clks[MSTP220]),
 };
 
 int __init arch_clk_init(void)

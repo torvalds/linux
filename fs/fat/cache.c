@@ -151,6 +151,13 @@ static void fat_cache_add(struct inode *inode, struct fat_cache_id *new)
 			spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
 
 			tmp = fat_cache_alloc(inode);
+			if (!tmp) {
+				spin_lock(&MSDOS_I(inode)->cache_lru_lock);
+				MSDOS_I(inode)->nr_caches--;
+				spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
+				return;
+			}
+
 			spin_lock(&MSDOS_I(inode)->cache_lru_lock);
 			cache = fat_cache_merge(inode, new);
 			if (cache != NULL) {

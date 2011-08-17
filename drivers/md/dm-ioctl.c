@@ -128,6 +128,24 @@ static struct hash_cell *__get_uuid_cell(const char *str)
 	return NULL;
 }
 
+static struct hash_cell *__get_dev_cell(uint64_t dev)
+{
+	struct mapped_device *md;
+	struct hash_cell *hc;
+
+	md = dm_get_md(huge_decode_dev(dev));
+	if (!md)
+		return NULL;
+
+	hc = dm_get_mdptr(md);
+	if (!hc) {
+		dm_put(md);
+		return NULL;
+	}
+
+	return hc;
+}
+
 /*-----------------------------------------------------------------
  * Inserting, removing and renaming a device.
  *---------------------------------------------------------------*/
@@ -718,25 +736,45 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
  */
 static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 {
-	struct mapped_device *md;
-	void *mdptr = NULL;
+	struct hash_cell *hc = NULL;
 
-	if (*param->uuid)
-		return __get_uuid_cell(param->uuid);
+	if (*param->uuid) {
+		if (*param->name || param->dev)
+			return NULL;
 
-	if (*param->name)
-		return __get_name_cell(param->name);
+		hc = __get_uuid_cell(param->uuid);
+		if (!hc)
+			return NULL;
+	} else if (*param->name) {
+		if (param->dev)
+			return NULL;
 
-	md = dm_get_md(huge_decode_dev(param->dev));
-	if (!md)
-		goto out;
+		hc = __get_name_cell(param->name);
+		if (!hc)
+			return NULL;
+	} else if (param->dev) {
+		hc = __get_dev_cell(param->dev);
+		if (!hc)
+			return NULL;
+	} else
+		return NULL;
 
-	mdptr = dm_get_mdptr(md);
-	if (!mdptr)
-		dm_put(md);
+	/*
+	 * Sneakily write in both the name and the uuid
+	 * while we have the cell.
+	 */
+	strlcpy(param->name, hc->name, sizeof(param->name));
+	if (hc->uuid)
+		strlcpy(param->uuid, hc->uuid, sizeof(param->uuid));
+	else
+		param->uuid[0] = '\0';
 
-out:
-	return mdptr;
+	if (hc->new_map)
+		param->flags |= DM_INACTIVE_PRESENT_FLAG;
+	else
+		param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
+
+	return hc;
 }
 
 static struct mapped_device *find_device(struct dm_ioctl *param)
@@ -746,24 +784,8 @@ static struct mapped_device *find_device(struct dm_ioctl *param)
 
 	down_read(&_hash_lock);
 	hc = __find_device_hash_cell(param);
-	if (hc) {
+	if (hc)
 		md = hc->md;
-
-		/*
-		 * Sneakily write in both the name and the uuid
-		 * while we have the cell.
-		 */
-		strlcpy(param->name, hc->name, sizeof(param->name));
-		if (hc->uuid)
-			strlcpy(param->uuid, hc->uuid, sizeof(param->uuid));
-		else
-			param->uuid[0] = '\0';
-
-		if (hc->new_map)
-			param->flags |= DM_INACTIVE_PRESENT_FLAG;
-		else
-			param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
-	}
 	up_read(&_hash_lock);
 
 	return md;
@@ -1402,6 +1424,11 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 		goto out;
 	}
 
+	if (!argc) {
+		DMWARN("Empty message received.");
+		goto out;
+	}
+
 	table = dm_get_live_table(md);
 	if (!table)
 		goto out_argv;
@@ -1501,14 +1528,10 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 	return r;
 }
 
-static void free_params(struct dm_ioctl *param)
-{
-	vfree(param);
-}
-
 static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 {
 	struct dm_ioctl tmp, *dmi;
+	int secure_data;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp) - sizeof(tmp.data)))
 		return -EFAULT;
@@ -1516,17 +1539,30 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 	if (tmp.data_size < (sizeof(tmp) - sizeof(tmp.data)))
 		return -EINVAL;
 
-	dmi = vmalloc(tmp.data_size);
-	if (!dmi)
-		return -ENOMEM;
+	secure_data = tmp.flags & DM_SECURE_DATA_FLAG;
 
-	if (copy_from_user(dmi, user, tmp.data_size)) {
-		vfree(dmi);
-		return -EFAULT;
+	dmi = vmalloc(tmp.data_size);
+	if (!dmi) {
+		if (secure_data && clear_user(user, tmp.data_size))
+			return -EFAULT;
+		return -ENOMEM;
 	}
+
+	if (copy_from_user(dmi, user, tmp.data_size))
+		goto bad;
+
+	/* Wipe the user buffer so we do not return it to userspace */
+	if (secure_data && clear_user(user, tmp.data_size))
+		goto bad;
 
 	*param = dmi;
 	return 0;
+
+bad:
+	if (secure_data)
+		memset(dmi, 0, tmp.data_size);
+	vfree(dmi);
+	return -EFAULT;
 }
 
 static int validate_params(uint cmd, struct dm_ioctl *param)
@@ -1534,6 +1570,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 	/* Always clear this flag */
 	param->flags &= ~DM_BUFFER_FULL_FLAG;
 	param->flags &= ~DM_UEVENT_GENERATED_FLAG;
+	param->flags &= ~DM_SECURE_DATA_FLAG;
 
 	/* Ignores parameters */
 	if (cmd == DM_REMOVE_ALL_CMD ||
@@ -1561,10 +1598,11 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 {
 	int r = 0;
+	int wipe_buffer;
 	unsigned int cmd;
 	struct dm_ioctl *uninitialized_var(param);
 	ioctl_fn fn = NULL;
-	size_t param_size;
+	size_t input_param_size;
 
 	/* only root can play with this */
 	if (!capable(CAP_SYS_ADMIN))
@@ -1611,13 +1649,15 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	if (r)
 		return r;
 
+	input_param_size = param->data_size;
+	wipe_buffer = param->flags & DM_SECURE_DATA_FLAG;
+
 	r = validate_params(cmd, param);
 	if (r)
 		goto out;
 
-	param_size = param->data_size;
 	param->data_size = sizeof(*param);
-	r = fn(param, param_size);
+	r = fn(param, input_param_size);
 
 	/*
 	 * Copy the results back to userland.
@@ -1625,8 +1665,11 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	if (!r && copy_to_user(user, param, param->data_size))
 		r = -EFAULT;
 
- out:
-	free_params(param);
+out:
+	if (wipe_buffer)
+		memset(param, 0, input_param_size);
+
+	vfree(param);
 	return r;
 }
 

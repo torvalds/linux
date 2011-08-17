@@ -296,8 +296,7 @@ static int sport_startup(struct uart_port *port)
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 			IRQF_DISABLED, "BFIN_SPORT_UART_CTS", up)) {
 			up->cts_pin = -1;
-			dev_info(port->dev, "Unable to attach BlackFin UART \
-				over SPORT CTS interrupt. So, disable it.\n");
+			dev_info(port->dev, "Unable to attach BlackFin UART over SPORT CTS interrupt. So, disable it.\n");
 		}
 	}
 	if (up->rts_pin >= 0)
@@ -788,7 +787,7 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 		sport->port.mapbase = res->start;
 
 		sport->port.irq = platform_get_irq(pdev, 0);
-		if (sport->port.irq < 0) {
+		if ((int)sport->port.irq < 0) {
 			dev_err(&pdev->dev, "No sport RX/TX IRQ specified\n");
 			ret = -ENOENT;
 			goto out_error_unmap;

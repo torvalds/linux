@@ -369,7 +369,7 @@ static void irda_getvalue_confirm(int result, __u16 obj_id,
 {
 	struct irda_sock *self;
 
-	self = (struct irda_sock *) priv;
+	self = priv;
 	if (!self) {
 		IRDA_WARNING("%s: lost myself!\n", __func__);
 		return;
@@ -418,7 +418,7 @@ static void irda_selective_discovery_indication(discinfo_t *discovery,
 
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
-	self = (struct irda_sock *) priv;
+	self = priv;
 	if (!self) {
 		IRDA_WARNING("%s: lost myself!\n", __func__);
 		return;
@@ -1297,8 +1297,7 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 	/* Note : socket.c set MSG_EOR on SEQPACKET sockets */
 	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_EOR | MSG_CMSG_COMPAT |
 			       MSG_NOSIGNAL)) {
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	lock_sock(sk);

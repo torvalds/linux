@@ -2,6 +2,7 @@
 #define _WIFI_H_
 
 #include "rtl871x_byteorder.h"
+#include <linux/compiler.h>
 
 #ifdef BIT
 #undef BIT
@@ -39,38 +40,35 @@ enum WIFI_FRAME_TYPE {
 };
 
 enum WIFI_FRAME_SUBTYPE {
-
-    /* below is for mgt frame */
-    WIFI_ASSOCREQ       = (0 | WIFI_MGT_TYPE),
-    WIFI_ASSOCRSP       = (BIT(4) | WIFI_MGT_TYPE),
-    WIFI_REASSOCREQ     = (BIT(5) | WIFI_MGT_TYPE),
-    WIFI_REASSOCRSP     = (BIT(5) | BIT(4) | WIFI_MGT_TYPE),
-    WIFI_PROBEREQ       = (BIT(6) | WIFI_MGT_TYPE),
-    WIFI_PROBERSP       = (BIT(6) | BIT(4) | WIFI_MGT_TYPE),
-    WIFI_BEACON         = (BIT(7) | WIFI_MGT_TYPE),
-    WIFI_ATIM           = (BIT(7) | BIT(4) | WIFI_MGT_TYPE),
-    WIFI_DISASSOC       = (BIT(7) | BIT(5) | WIFI_MGT_TYPE),
-    WIFI_AUTH           = (BIT(7) | BIT(5) | BIT(4) | WIFI_MGT_TYPE),
-    WIFI_DEAUTH         = (BIT(7) | BIT(6) | WIFI_MGT_TYPE),
-    WIFI_ACTION         = (BIT(7) | BIT(6) | BIT(4) | WIFI_MGT_TYPE),
-
-    /* below is for control frame */
-    WIFI_PSPOLL         = (BIT(7) | BIT(5) | WIFI_CTRL_TYPE),
-    WIFI_RTS            = (BIT(7) | BIT(5) | BIT(4) | WIFI_CTRL_TYPE),
-    WIFI_CTS            = (BIT(7) | BIT(6) | WIFI_CTRL_TYPE),
-    WIFI_ACK            = (BIT(7) | BIT(6) | BIT(4) | WIFI_CTRL_TYPE),
-    WIFI_CFEND          = (BIT(7) | BIT(6) | BIT(5) | WIFI_CTRL_TYPE),
-    WIFI_CFEND_CFACK    = (BIT(7) | BIT(6) | BIT(5) | BIT(4) | WIFI_CTRL_TYPE),
-
-    /* below is for data frame */
-    WIFI_DATA           = (0 | WIFI_DATA_TYPE),
-    WIFI_DATA_CFACK     = (BIT(4) | WIFI_DATA_TYPE),
-    WIFI_DATA_CFPOLL    = (BIT(5) | WIFI_DATA_TYPE),
-    WIFI_DATA_CFACKPOLL = (BIT(5) | BIT(4) | WIFI_DATA_TYPE),
-    WIFI_DATA_NULL      = (BIT(6) | WIFI_DATA_TYPE),
-    WIFI_CF_ACK         = (BIT(6) | BIT(4) | WIFI_DATA_TYPE),
-    WIFI_CF_POLL        = (BIT(6) | BIT(5) | WIFI_DATA_TYPE),
-    WIFI_CF_ACKPOLL     = (BIT(6) | BIT(5) | BIT(4) | WIFI_DATA_TYPE),
+	/* below is for mgt frame */
+	WIFI_ASSOCREQ       = (0 | WIFI_MGT_TYPE),
+	WIFI_ASSOCRSP       = (BIT(4) | WIFI_MGT_TYPE),
+	WIFI_REASSOCREQ     = (BIT(5) | WIFI_MGT_TYPE),
+	WIFI_REASSOCRSP     = (BIT(5) | BIT(4) | WIFI_MGT_TYPE),
+	WIFI_PROBEREQ       = (BIT(6) | WIFI_MGT_TYPE),
+	WIFI_PROBERSP       = (BIT(6) | BIT(4) | WIFI_MGT_TYPE),
+	WIFI_BEACON         = (BIT(7) | WIFI_MGT_TYPE),
+	WIFI_ATIM           = (BIT(7) | BIT(4) | WIFI_MGT_TYPE),
+	WIFI_DISASSOC       = (BIT(7) | BIT(5) | WIFI_MGT_TYPE),
+	WIFI_AUTH           = (BIT(7) | BIT(5) | BIT(4) | WIFI_MGT_TYPE),
+	WIFI_DEAUTH         = (BIT(7) | BIT(6) | WIFI_MGT_TYPE),
+	WIFI_ACTION         = (BIT(7) | BIT(6) | BIT(4) | WIFI_MGT_TYPE),
+	/* below is for control frame */
+	WIFI_PSPOLL         = (BIT(7) | BIT(5) | WIFI_CTRL_TYPE),
+	WIFI_RTS            = (BIT(7) | BIT(5) | BIT(4) | WIFI_CTRL_TYPE),
+	WIFI_CTS            = (BIT(7) | BIT(6) | WIFI_CTRL_TYPE),
+	WIFI_ACK            = (BIT(7) | BIT(6) | BIT(4) | WIFI_CTRL_TYPE),
+	WIFI_CFEND          = (BIT(7) | BIT(6) | BIT(5) | WIFI_CTRL_TYPE),
+	WIFI_CFEND_CFACK = (BIT(7) | BIT(6) | BIT(5) | BIT(4) | WIFI_CTRL_TYPE),
+	/* below is for data frame */
+	WIFI_DATA           = (0 | WIFI_DATA_TYPE),
+	WIFI_DATA_CFACK     = (BIT(4) | WIFI_DATA_TYPE),
+	WIFI_DATA_CFPOLL    = (BIT(5) | WIFI_DATA_TYPE),
+	WIFI_DATA_CFACKPOLL = (BIT(5) | BIT(4) | WIFI_DATA_TYPE),
+	WIFI_DATA_NULL      = (BIT(6) | WIFI_DATA_TYPE),
+	WIFI_CF_ACK         = (BIT(6) | BIT(4) | WIFI_DATA_TYPE),
+	WIFI_CF_POLL        = (BIT(6) | BIT(5) | WIFI_DATA_TYPE),
+	WIFI_CF_ACKPOLL     = (BIT(6) | BIT(5) | BIT(4) | WIFI_DATA_TYPE),
 };
 
 enum WIFI_REASON_CODE	{
@@ -84,7 +82,6 @@ enum WIFI_REASON_CODE	{
 	_RSON_CLS3_			= 7,
 	_RSON_DISAOC_STA_LEAVING_	= 8,
 	_RSON_ASOC_NOT_AUTH_		= 9,
-
 	/* WPA reason */
 	_RSON_INVALID_IE_		= 13,
 	_RSON_MIC_FAILURE_		= 14,
@@ -97,7 +94,6 @@ enum WIFI_REASON_CODE	{
 	_RSON_UNSUPPORT_RSNE_VER_	= 21,
 	_RSON_INVALID_RSNE_CAP_		= 22,
 	_RSON_IEEE_802DOT1X_AUTH_FAIL_	= 23,
-
 	/* below are Realtek definitions */
 	_RSON_PMK_NOT_AVAILABLE_	= 24,
 };
@@ -528,7 +524,7 @@ struct ieee80211_bar {
 	unsigned char ta[6];
 	unsigned short control;
 	unsigned short start_seq_num;
-} __attribute__((packed));
+} __packed;
 
 /* 802.11 BAR control masks */
 #define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
@@ -549,7 +545,7 @@ struct ieee80211_ht_cap {
 	unsigned short	extended_ht_cap_info;
 	unsigned int		tx_BF_cap_info;
 	unsigned char	       antenna_selection_info;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * struct ieee80211_ht_cap - HT additional information
@@ -563,7 +559,7 @@ struct ieee80211_ht_addt_info {
 	unsigned short	operation_mode;
 	unsigned short	stbc_param;
 	unsigned char		basic_set[16];
-} __attribute__ ((packed));
+} __packed;
 
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_SUP_WIDTH		0x0002

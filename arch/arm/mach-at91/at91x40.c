@@ -37,11 +37,6 @@ unsigned long clk_get_rate(struct clk *clk)
 	return AT91X40_MASTER_CLOCK;
 }
 
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	return NULL;
-}
-
 void __init at91x40_initialize(unsigned long main_clock)
 {
 	at91_extern_irq = (1 << AT91X40_ID_IRQ0) | (1 << AT91X40_ID_IRQ1)

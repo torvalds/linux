@@ -103,7 +103,7 @@ static struct net_device_ops l2tp_eth_netdev_ops = {
 static void l2tp_eth_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops		= &l2tp_eth_netdev_ops;
 	dev->destructor		= free_netdev;
 }
@@ -283,7 +283,7 @@ static __net_init int l2tp_eth_init_net(struct net *net)
 	return 0;
 }
 
-static __net_initdata struct pernet_operations l2tp_eth_net_ops = {
+static struct pernet_operations l2tp_eth_net_ops = {
 	.init = l2tp_eth_init_net,
 	.id   = &l2tp_eth_net_id,
 	.size = sizeof(struct l2tp_eth_net),

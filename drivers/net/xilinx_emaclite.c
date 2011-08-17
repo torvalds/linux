@@ -26,6 +26,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
+#include <linux/interrupt.h>
 
 #define DRIVER_NAME "xilinx_emaclite"
 
@@ -251,11 +252,11 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
 	u16 *from_u16_ptr, *to_u16_ptr;
 
 	to_u32_ptr = dest_ptr;
-	from_u16_ptr = (u16 *) src_ptr;
+	from_u16_ptr = src_ptr;
 	align_buffer = 0;
 
 	for (; length > 3; length -= 4) {
-		to_u16_ptr = (u16 *) ((void *) &align_buffer);
+		to_u16_ptr = (u16 *)&align_buffer;
 		*to_u16_ptr++ = *from_u16_ptr++;
 		*to_u16_ptr++ = *from_u16_ptr++;
 
@@ -647,7 +648,8 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
 
-	netif_rx(skb);		/* Send the packet upstream */
+	if (!skb_defer_rx_timestamp(skb))
+		netif_rx(skb);	/* Send the packet upstream */
 }
 
 /**
@@ -786,7 +788,7 @@ static int xemaclite_mdio_read(struct mii_bus *bus, int phy_id, int reg)
  * @reg:	register number to write to
  * @val:	value to write to the register number specified by reg
  *
- * This fucntion waits till the device is ready to accept a new MDIO
+ * This function waits till the device is ready to accept a new MDIO
  * request and then writes the val to the MDIO Write Data register.
  */
 static int xemaclite_mdio_write(struct mii_bus *bus, int phy_id, int reg,
@@ -1029,14 +1031,18 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 	spin_lock_irqsave(&lp->reset_lock, flags);
 	if (xemaclite_send_data(lp, (u8 *) new_skb->data, len) != 0) {
 		/* If the Emaclite Tx buffer is busy, stop the Tx queue and
-		 * defer the skb for transmission at a later point when the
+		 * defer the skb for transmission during the ISR, after the
 		 * current transmission is complete */
 		netif_stop_queue(dev);
 		lp->deferred_skb = new_skb;
+		/* Take the time stamp now, since we can't do this in an ISR. */
+		skb_tx_timestamp(new_skb);
 		spin_unlock_irqrestore(&lp->reset_lock, flags);
 		return 0;
 	}
 	spin_unlock_irqrestore(&lp->reset_lock, flags);
+
+	skb_tx_timestamp(new_skb);
 
 	dev->stats.tx_bytes += len;
 	dev_kfree_skb(new_skb);
@@ -1101,8 +1107,7 @@ static struct net_device_ops xemaclite_netdev_ops;
  * Return:	0, if the driver is bound to the Emaclite device, or
  *		a negative error if there is failure.
  */
-static int __devinit xemaclite_of_probe(struct platform_device *ofdev,
-					const struct of_device_id *match)
+static int __devinit xemaclite_of_probe(struct platform_device *ofdev)
 {
 	struct resource r_irq; /* Interrupt resources */
 	struct resource r_mem; /* IO mem resources */
@@ -1288,7 +1293,7 @@ static struct of_device_id xemaclite_of_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, xemaclite_of_match);
 
-static struct of_platform_driver xemaclite_of_driver = {
+static struct platform_driver xemaclite_of_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1306,7 +1311,7 @@ static struct of_platform_driver xemaclite_of_driver = {
 static int __init xemaclite_init(void)
 {
 	/* No kernel boot options used, we just need to register the driver */
-	return of_register_platform_driver(&xemaclite_of_driver);
+	return platform_driver_register(&xemaclite_of_driver);
 }
 
 /**
@@ -1314,7 +1319,7 @@ static int __init xemaclite_init(void)
  */
 static void __exit xemaclite_cleanup(void)
 {
-	of_unregister_platform_driver(&xemaclite_of_driver);
+	platform_driver_unregister(&xemaclite_of_driver);
 }
 
 module_init(xemaclite_init);

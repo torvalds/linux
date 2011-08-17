@@ -243,7 +243,6 @@ static struct platform_device bfin_uart0_device = {
 
 #if defined(CONFIG_MTD_NAND_PLATFORM) || defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
 
-#ifdef CONFIG_MTD_PARTITIONS
 const char *part_probes[] = { "cmdlinepart", NULL };
 
 static struct mtd_partition bfin_plat_nand_partitions[] = {
@@ -257,7 +256,6 @@ static struct mtd_partition bfin_plat_nand_partitions[] = {
 	     .offset = MTDPART_OFS_APPEND,
 	     },
 };
-#endif
 
 #define BFIN_NAND_PLAT_CLE 2
 #define BFIN_NAND_PLAT_ALE 3
@@ -286,11 +284,9 @@ static struct platform_nand_data bfin_plat_nand_data = {
 	.chip = {
 		 .nr_chips = 1,
 		 .chip_delay = 30,
-#ifdef CONFIG_MTD_PARTITIONS
 		 .part_probe_types = part_probes,
 		 .partitions = bfin_plat_nand_partitions,
 		 .nr_partitions = ARRAY_SIZE(bfin_plat_nand_partitions),
-#endif
 		 },
 	.ctrl = {
 		 .cmd_ctrl = bfin_plat_nand_cmd_ctrl,
@@ -368,14 +364,6 @@ static struct flash_platform_data bfin_spi_dataflash_data = {
 /* DataFlash chip */
 static struct bfin5xx_spi_chip data_flash_chip_info = {
 	.enable_dma = 0,	/* use dma transfer with this chip */
-	.bits_per_word = 8,
-};
-#endif
-
-#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
-static struct bfin5xx_spi_chip spidev_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 8,
 };
 #endif
 
@@ -424,7 +412,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	 .max_speed_hz = 3125000,	/* max spi clock (SCK) speed in HZ */
 	 .bus_num = 0,
 	 .chip_select = 3,
-	 .controller_data = &spidev_chip_info,
 	 },
 #endif
 #if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_DATAFLASH_MODULE)

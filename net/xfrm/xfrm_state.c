@@ -42,16 +42,9 @@ static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
-#ifdef CONFIG_AUDITSYSCALL
-static void xfrm_audit_state_replay(struct xfrm_state *x,
-				    struct sk_buff *skb, __be32 net_seq);
-#else
-#define xfrm_audit_state_replay(x, s, sq)	do { ; } while (0)
-#endif /* CONFIG_AUDITSYSCALL */
-
 static inline unsigned int xfrm_dst_hash(struct net *net,
-					 xfrm_address_t *daddr,
-					 xfrm_address_t *saddr,
+					 const xfrm_address_t *daddr,
+					 const xfrm_address_t *saddr,
 					 u32 reqid,
 					 unsigned short family)
 {
@@ -59,15 +52,16 @@ static inline unsigned int xfrm_dst_hash(struct net *net,
 }
 
 static inline unsigned int xfrm_src_hash(struct net *net,
-					 xfrm_address_t *daddr,
-					 xfrm_address_t *saddr,
+					 const xfrm_address_t *daddr,
+					 const xfrm_address_t *saddr,
 					 unsigned short family)
 {
 	return __xfrm_src_hash(daddr, saddr, family, net->xfrm.state_hmask);
 }
 
 static inline unsigned int
-xfrm_spi_hash(struct net *net, xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
+xfrm_spi_hash(struct net *net, const xfrm_address_t *daddr,
+	      __be32 spi, u8 proto, unsigned short family)
 {
 	return __xfrm_spi_hash(daddr, spi, proto, family, net->xfrm.state_hmask);
 }
@@ -362,6 +356,8 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x->calg);
 	kfree(x->encap);
 	kfree(x->coaddr);
+	kfree(x->replay_esn);
+	kfree(x->preplay_esn);
 	if (x->inner_mode)
 		xfrm_put_mode(x->inner_mode);
 	if (x->inner_mode_iaf)
@@ -656,9 +652,9 @@ void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 EXPORT_SYMBOL(xfrm_sad_getinfo);
 
 static int
-xfrm_init_tempstate(struct xfrm_state *x, struct flowi *fl,
-		    struct xfrm_tmpl *tmpl,
-		    xfrm_address_t *daddr, xfrm_address_t *saddr,
+xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
+		    const struct xfrm_tmpl *tmpl,
+		    const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		    unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
@@ -677,7 +673,10 @@ xfrm_init_tempstate(struct xfrm_state *x, struct flowi *fl,
 	return 0;
 }
 
-static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark, xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
+static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
+					      const xfrm_address_t *daddr,
+					      __be32 spi, u8 proto,
+					      unsigned short family)
 {
 	unsigned int h = xfrm_spi_hash(net, daddr, spi, proto, family);
 	struct xfrm_state *x;
@@ -699,7 +698,10 @@ static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark, xfrm_ad
 	return NULL;
 }
 
-static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, u32 mark, xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family)
+static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, u32 mark,
+						     const xfrm_address_t *daddr,
+						     const xfrm_address_t *saddr,
+						     u8 proto, unsigned short family)
 {
 	unsigned int h = xfrm_src_hash(net, daddr, saddr, family);
 	struct xfrm_state *x;
@@ -746,8 +748,7 @@ static void xfrm_hash_grow_check(struct net *net, int have_hash_collision)
 }
 
 static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
-			       struct flowi *fl, unsigned short family,
-			       xfrm_address_t *daddr, xfrm_address_t *saddr,
+			       const struct flowi *fl, unsigned short family,
 			       struct xfrm_state **best, int *acq_in_progress,
 			       int *error)
 {
@@ -784,8 +785,8 @@ static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 }
 
 struct xfrm_state *
-xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
-		struct flowi *fl, struct xfrm_tmpl *tmpl,
+xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
+		const struct flowi *fl, struct xfrm_tmpl *tmpl,
 		struct xfrm_policy *pol, int *err,
 		unsigned short family)
 {
@@ -813,7 +814,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
 		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
-			xfrm_state_look_at(pol, x, fl, encap_family, daddr, saddr,
+			xfrm_state_look_at(pol, x, fl, encap_family,
 					   &best, &acquire_in_progress, &error);
 	}
 	if (best)
@@ -829,7 +830,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
 		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
-			xfrm_state_look_at(pol, x, fl, encap_family, daddr, saddr,
+			xfrm_state_look_at(pol, x, fl, encap_family,
 					   &best, &acquire_in_progress, &error);
 	}
 
@@ -853,7 +854,7 @@ found:
 		xfrm_init_tempstate(x, fl, tmpl, daddr, saddr, family);
 		memcpy(&x->mark, &pol->mark, sizeof(x->mark));
 
-		error = security_xfrm_state_alloc_acquire(x, pol->security, fl->secid);
+		error = security_xfrm_state_alloc_acquire(x, pol->security, fl->flowi_secid);
 		if (error) {
 			x->km.state = XFRM_STATE_DEAD;
 			to_put = x;
@@ -991,7 +992,11 @@ void xfrm_state_insert(struct xfrm_state *x)
 EXPORT_SYMBOL(xfrm_state_insert);
 
 /* xfrm_state_lock is held */
-static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m, unsigned short family, u8 mode, u32 reqid, u8 proto, xfrm_address_t *daddr, xfrm_address_t *saddr, int create)
+static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m,
+					  unsigned short family, u8 mode,
+					  u32 reqid, u8 proto,
+					  const xfrm_address_t *daddr,
+					  const xfrm_address_t *saddr, int create)
 {
 	unsigned int h = xfrm_dst_hash(net, daddr, saddr, reqid, family);
 	struct hlist_node *entry;
@@ -1031,15 +1036,15 @@ static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m, 
 
 		case AF_INET6:
 			ipv6_addr_copy((struct in6_addr *)x->sel.daddr.a6,
-				       (struct in6_addr *)daddr);
+				       (const struct in6_addr *)daddr);
 			ipv6_addr_copy((struct in6_addr *)x->sel.saddr.a6,
-				       (struct in6_addr *)saddr);
+				       (const struct in6_addr *)saddr);
 			x->sel.prefixlen_d = 128;
 			x->sel.prefixlen_s = 128;
 			ipv6_addr_copy((struct in6_addr *)x->props.saddr.a6,
-				       (struct in6_addr *)saddr);
+				       (const struct in6_addr *)saddr);
 			ipv6_addr_copy((struct in6_addr *)x->id.daddr.a6,
-				       (struct in6_addr *)daddr);
+				       (const struct in6_addr *)daddr);
 			break;
 		}
 
@@ -1173,6 +1178,12 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 		x->coaddr = kmemdup(orig->coaddr, sizeof(*x->coaddr),
 				    GFP_KERNEL);
 		if (!x->coaddr)
+			goto error;
+	}
+
+	if (orig->replay_esn) {
+		err = xfrm_replay_clone(x, orig);
+		if (err)
 			goto error;
 	}
 
@@ -1334,6 +1345,8 @@ out:
 			xfrm_state_check_expire(x1);
 
 		err = 0;
+		x->km.state = XFRM_STATE_DEAD;
+		__xfrm_state_put(x);
 	}
 	spin_unlock_bh(&x1->lock);
 
@@ -1369,7 +1382,7 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 EXPORT_SYMBOL(xfrm_state_check_expire);
 
 struct xfrm_state *
-xfrm_state_lookup(struct net *net, u32 mark, xfrm_address_t *daddr, __be32 spi,
+xfrm_state_lookup(struct net *net, u32 mark, const xfrm_address_t *daddr, __be32 spi,
 		  u8 proto, unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1383,7 +1396,7 @@ EXPORT_SYMBOL(xfrm_state_lookup);
 
 struct xfrm_state *
 xfrm_state_lookup_byaddr(struct net *net, u32 mark,
-			 xfrm_address_t *daddr, xfrm_address_t *saddr,
+			 const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 			 u8 proto, unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1397,7 +1410,7 @@ EXPORT_SYMBOL(xfrm_state_lookup_byaddr);
 
 struct xfrm_state *
 xfrm_find_acq(struct net *net, struct xfrm_mark *mark, u8 mode, u32 reqid, u8 proto,
-	      xfrm_address_t *daddr, xfrm_address_t *saddr,
+	      const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	      int create, unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1609,54 +1622,6 @@ void xfrm_state_walk_done(struct xfrm_state_walk *walk)
 }
 EXPORT_SYMBOL(xfrm_state_walk_done);
 
-
-void xfrm_replay_notify(struct xfrm_state *x, int event)
-{
-	struct km_event c;
-	/* we send notify messages in case
-	 *  1. we updated on of the sequence numbers, and the seqno difference
-	 *     is at least x->replay_maxdiff, in this case we also update the
-	 *     timeout of our timer function
-	 *  2. if x->replay_maxage has elapsed since last update,
-	 *     and there were changes
-	 *
-	 *  The state structure must be locked!
-	 */
-
-	switch (event) {
-	case XFRM_REPLAY_UPDATE:
-		if (x->replay_maxdiff &&
-		    (x->replay.seq - x->preplay.seq < x->replay_maxdiff) &&
-		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff)) {
-			if (x->xflags & XFRM_TIME_DEFER)
-				event = XFRM_REPLAY_TIMEOUT;
-			else
-				return;
-		}
-
-		break;
-
-	case XFRM_REPLAY_TIMEOUT:
-		if ((x->replay.seq == x->preplay.seq) &&
-		    (x->replay.bitmap == x->preplay.bitmap) &&
-		    (x->replay.oseq == x->preplay.oseq)) {
-			x->xflags |= XFRM_TIME_DEFER;
-			return;
-		}
-
-		break;
-	}
-
-	memcpy(&x->preplay, &x->replay, sizeof(struct xfrm_replay_state));
-	c.event = XFRM_MSG_NEWAE;
-	c.data.aevent = event;
-	km_state_notify(x, &c);
-
-	if (x->replay_maxage &&
-	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
-		x->xflags &= ~XFRM_TIME_DEFER;
-}
-
 static void xfrm_replay_timer_handler(unsigned long data)
 {
 	struct xfrm_state *x = (struct xfrm_state*)data;
@@ -1665,7 +1630,7 @@ static void xfrm_replay_timer_handler(unsigned long data)
 
 	if (x->km.state == XFRM_STATE_VALID) {
 		if (xfrm_aevent_is_on(xs_net(x)))
-			xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
+			x->repl->notify(x, XFRM_REPLAY_TIMEOUT);
 		else
 			x->xflags |= XFRM_TIME_DEFER;
 	}
@@ -1673,61 +1638,10 @@ static void xfrm_replay_timer_handler(unsigned long data)
 	spin_unlock(&x->lock);
 }
 
-int xfrm_replay_check(struct xfrm_state *x,
-		      struct sk_buff *skb, __be32 net_seq)
-{
-	u32 diff;
-	u32 seq = ntohl(net_seq);
-
-	if (unlikely(seq == 0))
-		goto err;
-
-	if (likely(seq > x->replay.seq))
-		return 0;
-
-	diff = x->replay.seq - seq;
-	if (diff >= min_t(unsigned int, x->props.replay_window,
-			  sizeof(x->replay.bitmap) * 8)) {
-		x->stats.replay_window++;
-		goto err;
-	}
-
-	if (x->replay.bitmap & (1U << diff)) {
-		x->stats.replay++;
-		goto err;
-	}
-	return 0;
-
-err:
-	xfrm_audit_state_replay(x, skb, net_seq);
-	return -EINVAL;
-}
-
-void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
-{
-	u32 diff;
-	u32 seq = ntohl(net_seq);
-
-	if (seq > x->replay.seq) {
-		diff = seq - x->replay.seq;
-		if (diff < x->props.replay_window)
-			x->replay.bitmap = ((x->replay.bitmap) << diff) | 1;
-		else
-			x->replay.bitmap = 1;
-		x->replay.seq = seq;
-	} else {
-		diff = x->replay.seq - seq;
-		x->replay.bitmap |= (1U << diff);
-	}
-
-	if (xfrm_aevent_is_on(xs_net(x)))
-		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
-}
-
 static LIST_HEAD(xfrm_km_list);
 static DEFINE_RWLOCK(xfrm_km_lock);
 
-void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
+void km_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 
@@ -1738,7 +1652,7 @@ void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
 	read_unlock(&xfrm_km_lock);
 }
 
-void km_state_notify(struct xfrm_state *x, struct km_event *c)
+void km_state_notify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 	read_lock(&xfrm_km_lock);
@@ -1819,9 +1733,9 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 EXPORT_SYMBOL(km_policy_expired);
 
 #ifdef CONFIG_XFRM_MIGRATE
-int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-	       struct xfrm_migrate *m, int num_migrate,
-	       struct xfrm_kmaddress *k)
+int km_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
+	       const struct xfrm_migrate *m, int num_migrate,
+	       const struct xfrm_kmaddress *k)
 {
 	int err = -EINVAL;
 	int ret;
@@ -2001,7 +1915,7 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	return res;
 }
 
-int xfrm_init_state(struct xfrm_state *x)
+int __xfrm_init_state(struct xfrm_state *x, bool init_replay)
 {
 	struct xfrm_state_afinfo *afinfo;
 	struct xfrm_mode *inner_mode;
@@ -2074,10 +1988,23 @@ int xfrm_init_state(struct xfrm_state *x)
 	if (x->outer_mode == NULL)
 		goto error;
 
+	if (init_replay) {
+		err = xfrm_init_replay(x);
+		if (err)
+			goto error;
+	}
+
 	x->km.state = XFRM_STATE_VALID;
 
 error:
 	return err;
+}
+
+EXPORT_SYMBOL(__xfrm_init_state);
+
+int xfrm_init_state(struct xfrm_state *x)
+{
+	return __xfrm_init_state(x, true);
 }
 
 EXPORT_SYMBOL(xfrm_init_state);
@@ -2167,8 +2094,8 @@ static void xfrm_audit_helper_sainfo(struct xfrm_state *x,
 static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
 				      struct audit_buffer *audit_buf)
 {
-	struct iphdr *iph4;
-	struct ipv6hdr *iph6;
+	const struct iphdr *iph4;
+	const struct ipv6hdr *iph6;
 
 	switch (family) {
 	case AF_INET:
@@ -2236,7 +2163,7 @@ void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_replay_overflow);
 
-static void xfrm_audit_state_replay(struct xfrm_state *x,
+void xfrm_audit_state_replay(struct xfrm_state *x,
 			     struct sk_buff *skb, __be32 net_seq)
 {
 	struct audit_buffer *audit_buf;
@@ -2251,6 +2178,7 @@ static void xfrm_audit_state_replay(struct xfrm_state *x,
 			 spi, spi, ntohl(net_seq));
 	audit_log_end(audit_buf);
 }
+EXPORT_SYMBOL_GPL(xfrm_audit_state_replay);
 
 void xfrm_audit_state_notfound_simple(struct sk_buff *skb, u16 family)
 {

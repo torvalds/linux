@@ -33,7 +33,6 @@
  * SOFTWARE.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -210,18 +209,8 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
  * ======================
  */
 
-/*
- * Record our new VLAN Group and enable/disable hardware VLAN Tag extraction
- * based on whether the specified VLAN Group pointer is NULL or not.
- */
-static void cxgb4vf_vlan_rx_register(struct net_device *dev,
-				     struct vlan_group *grp)
-{
-	struct port_info *pi = netdev_priv(dev);
 
-	pi->vlan_grp = grp;
-	t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1, grp != NULL, 0);
-}
+
 
 /*
  * Perform the MAC and PHY actions needed to enable a "port" (Virtual
@@ -234,9 +223,9 @@ static int link_start(struct net_device *dev)
 
 	/*
 	 * We do not set address filters and promiscuity here, the stack does
-	 * that step explicitly.
+	 * that step explicitly. Enable vlan accel.
 	 */
-	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, -1,
+	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, 1,
 			      true);
 	if (ret == 0) {
 		ret = t4vf_change_mac(pi->adapter, pi->viid,
@@ -1103,6 +1092,32 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
+static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
+{
+	/*
+	 * Since there is no support for separate rx/tx vlan accel
+	 * enable/disable make sure tx flag is always in same state as rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_RX)
+		features |= NETIF_F_HW_VLAN_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	return features;
+}
+
+static int cxgb4vf_set_features(struct net_device *dev, u32 features)
+{
+	struct port_info *pi = netdev_priv(dev);
+	u32 changed = dev->features ^ features;
+
+	if (changed & NETIF_F_HW_VLAN_RX)
+		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,
+				features & NETIF_F_HW_VLAN_TX, 0);
+
+	return 0;
+}
+
 /*
  * Change the devices MAC address.
  */
@@ -1167,7 +1182,8 @@ static int cxgb4vf_get_settings(struct net_device *dev,
 
 	cmd->supported = pi->link_cfg.supported;
 	cmd->advertising = pi->link_cfg.advertising;
-	cmd->speed = netif_carrier_ok(dev) ? pi->link_cfg.speed : -1;
+	ethtool_cmd_speed_set(cmd,
+			      netif_carrier_ok(dev) ? pi->link_cfg.speed : -1);
 	cmd->duplex = DUPLEX_FULL;
 
 	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
@@ -1326,37 +1342,22 @@ static void cxgb4vf_get_pauseparam(struct net_device *dev,
 }
 
 /*
- * Return whether RX Checksum Offloading is currently enabled for the device.
- */
-static u32 cxgb4vf_get_rx_csum(struct net_device *dev)
-{
-	struct port_info *pi = netdev_priv(dev);
-
-	return (pi->rx_offload & RX_CSO) != 0;
-}
-
-/*
- * Turn RX Checksum Offloading on or off for the device.
- */
-static int cxgb4vf_set_rx_csum(struct net_device *dev, u32 csum)
-{
-	struct port_info *pi = netdev_priv(dev);
-
-	if (csum)
-		pi->rx_offload |= RX_CSO;
-	else
-		pi->rx_offload &= ~RX_CSO;
-	return 0;
-}
-
-/*
  * Identify the port by blinking the port's LED.
  */
-static int cxgb4vf_phys_id(struct net_device *dev, u32 id)
+static int cxgb4vf_phys_id(struct net_device *dev,
+			   enum ethtool_phys_id_state state)
 {
+	unsigned int val;
 	struct port_info *pi = netdev_priv(dev);
 
-	return t4vf_identify_port(pi->adapter, pi->viid, 5);
+	if (state == ETHTOOL_ID_ACTIVE)
+		val = 0xffff;
+	else if (state == ETHTOOL_ID_INACTIVE)
+		val = 0;
+	else
+		return -EINVAL;
+
+	return t4vf_identify_port(pi->adapter, pi->viid, val);
 }
 
 /*
@@ -1560,18 +1561,6 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
-/*
- * Set TCP Segmentation Offloading feature capabilities.
- */
-static int cxgb4vf_set_tso(struct net_device *dev, u32 tso)
-{
-	if (tso)
-		dev->features |= TSO_FLAGS;
-	else
-		dev->features &= ~TSO_FLAGS;
-	return 0;
-}
-
 static struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_settings		= cxgb4vf_get_settings,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
@@ -1582,19 +1571,14 @@ static struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_coalesce		= cxgb4vf_get_coalesce,
 	.set_coalesce		= cxgb4vf_set_coalesce,
 	.get_pauseparam		= cxgb4vf_get_pauseparam,
-	.get_rx_csum		= cxgb4vf_get_rx_csum,
-	.set_rx_csum		= cxgb4vf_set_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_ipv6_csum,
-	.set_sg			= ethtool_op_set_sg,
 	.get_link		= ethtool_op_get_link,
 	.get_strings		= cxgb4vf_get_strings,
-	.phys_id		= cxgb4vf_phys_id,
+	.set_phys_id		= cxgb4vf_phys_id,
 	.get_sset_count		= cxgb4vf_get_sset_count,
 	.get_ethtool_stats	= cxgb4vf_get_ethtool_stats,
 	.get_regs_len		= cxgb4vf_get_regs_len,
 	.get_regs		= cxgb4vf_get_regs,
 	.get_wol		= cxgb4vf_get_wol,
-	.set_tso		= cxgb4vf_set_tso,
 };
 
 /*
@@ -2453,7 +2437,6 @@ static int __devinit enable_msix(struct adapter *adapter)
 	return err;
 }
 
-#ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_open		= cxgb4vf_open,
 	.ndo_stop		= cxgb4vf_stop,
@@ -2464,12 +2447,12 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= cxgb4vf_do_ioctl,
 	.ndo_change_mtu		= cxgb4vf_change_mtu,
-	.ndo_vlan_rx_register	= cxgb4vf_vlan_rx_register,
+	.ndo_fix_features	= cxgb4vf_fix_features,
+	.ndo_set_features	= cxgb4vf_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cxgb4vf_poll_controller,
 #endif
 };
-#endif
 
 /*
  * "Probe" a device: initialize a device and construct all kernel and driver
@@ -2629,36 +2612,20 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		 * it.
 		 */
 		pi->xact_addr_filt = -1;
-		pi->rx_offload = RX_CSO;
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->features = (NETIF_F_SG | TSO_FLAGS |
-				    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				    NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-				    NETIF_F_GRO);
+		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
+		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_HIGHDMA;
+		netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_TX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features =
-			(netdev->features &
-			 ~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX));
 
-#ifdef HAVE_NET_DEVICE_OPS
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
-#else
-		netdev->vlan_rx_register = cxgb4vf_vlan_rx_register;
-		netdev->open = cxgb4vf_open;
-		netdev->stop = cxgb4vf_stop;
-		netdev->hard_start_xmit = t4vf_eth_xmit;
-		netdev->get_stats = cxgb4vf_get_stats;
-		netdev->set_rx_mode = cxgb4vf_set_rxmode;
-		netdev->do_ioctl = cxgb4vf_do_ioctl;
-		netdev->change_mtu = cxgb4vf_change_mtu;
-		netdev->set_mac_address = cxgb4vf_set_mac_addr;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		netdev->poll_controller = cxgb4vf_poll_controller;
-#endif
-#endif
 		SET_ETHTOOL_OPS(netdev, &cxgb4vf_ethtool_ops);
 
 		/*
@@ -2738,7 +2705,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	cfg_queues(adapter);
 
 	/*
-	 * Print a short notice on the existance and configuration of the new
+	 * Print a short notice on the existence and configuration of the new
 	 * VF network device ...
 	 */
 	for_each_port(adapter, pidx) {

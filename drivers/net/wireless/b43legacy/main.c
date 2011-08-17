@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
  *  Copyright (c) 2005-2008 Stefano Brivio <stefano.brivio@polimi.it>
- *  Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+ *  Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
  *  Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
  *  Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  *  Copyright (c) 2007 Larry Finger <Larry.Finger@lwfinger.net>
@@ -1564,10 +1564,10 @@ static int b43legacy_request_firmware(struct b43legacy_wldev *dev)
 	struct b43legacy_firmware *fw = &dev->fw;
 	const u8 rev = dev->dev->id.revision;
 	const char *filename;
-	u32 tmshigh;
 	int err;
 
-	tmshigh = ssb_read32(dev->dev, SSB_TMSHIGH);
+	/* do dummy read */
+	ssb_read32(dev->dev, SSB_TMSHIGH);
 	if (!fw->ucode) {
 		if (rev == 2)
 			filename = "ucode2";
@@ -2234,7 +2234,7 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	b43legacy_write32(dev, B43legacy_MMIO_DMA5_IRQ_MASK, 0x0000DC00);
 
 	value32 = ssb_read32(dev->dev, SSB_TMSLOW);
-	value32 |= 0x00100000;
+	value32 |= B43legacy_TMSLOW_MACPHYCLKEN;
 	ssb_write32(dev->dev, SSB_TMSLOW, value32);
 
 	b43legacy_write16(dev, B43legacy_MMIO_POWERUP_DELAY,
@@ -2442,8 +2442,8 @@ static int b43legacy_rng_init(struct b43legacy_wl *wl)
 	return err;
 }
 
-static int b43legacy_op_tx(struct ieee80211_hw *hw,
-			   struct sk_buff *skb)
+static void b43legacy_op_tx(struct ieee80211_hw *hw,
+			    struct sk_buff *skb)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
@@ -2466,7 +2466,6 @@ out:
 		/* Drop the packet. */
 		dev_kfree_skb_any(skb);
 	}
-	return NETDEV_TX_OK;
 }
 
 static int b43legacy_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
@@ -2635,11 +2634,9 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	unsigned long flags;
 	unsigned int new_phymode = 0xFFFF;
 	int antenna_tx;
-	int antenna_rx;
 	int err = 0;
 
 	antenna_tx = B43legacy_ANTENNA_DEFAULT;
-	antenna_rx = B43legacy_ANTENNA_DEFAULT;
 
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
@@ -2776,14 +2773,12 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev;
-	struct b43legacy_phy *phy;
 	unsigned long flags;
 
 	mutex_lock(&wl->mutex);
 	B43legacy_WARN_ON(wl->vif != vif);
 
 	dev = wl->current_dev;
-	phy = &dev->phy;
 
 	/* Disable IRQs while reconfiguring the device.
 	 * This makes it possible to drop the spinlock throughout
@@ -2975,7 +2970,7 @@ static int b43legacy_phy_versioning(struct b43legacy_wldev *dev)
 		break;
 	default:
 		unsupported = 1;
-	};
+	}
 	if (unsupported) {
 		b43legacyerr(dev->wl, "FOUND UNSUPPORTED PHY "
 		       "(Analog %u, Type %u, Revision %u)\n",
@@ -3103,37 +3098,6 @@ static void setup_struct_wldev_for_init(struct b43legacy_wldev *dev)
 
 	/* Noise calculation context */
 	memset(&dev->noisecalc, 0, sizeof(dev->noisecalc));
-}
-
-static void b43legacy_imcfglo_timeouts_workaround(struct b43legacy_wldev *dev)
-{
-#ifdef CONFIG_SSB_DRIVER_PCICORE
-	struct ssb_bus *bus = dev->dev->bus;
-	u32 tmp;
-
-	if (bus->pcicore.dev &&
-	    bus->pcicore.dev->id.coreid == SSB_DEV_PCI &&
-	    bus->pcicore.dev->id.revision <= 5) {
-		/* IMCFGLO timeouts workaround. */
-		tmp = ssb_read32(dev->dev, SSB_IMCFGLO);
-		switch (bus->bustype) {
-		case SSB_BUSTYPE_PCI:
-		case SSB_BUSTYPE_PCMCIA:
-			tmp &= ~SSB_IMCFGLO_REQTO;
-			tmp &= ~SSB_IMCFGLO_SERTO;
-			tmp |= 0x32;
-			break;
-		case SSB_BUSTYPE_SSB:
-			tmp &= ~SSB_IMCFGLO_REQTO;
-			tmp &= ~SSB_IMCFGLO_SERTO;
-			tmp |= 0x53;
-			break;
-		default:
-			break;
-		}
-		ssb_write32(dev->dev, SSB_IMCFGLO, tmp);
-	}
-#endif /* CONFIG_SSB_DRIVER_PCICORE */
 }
 
 static void b43legacy_set_synth_pu_delay(struct b43legacy_wldev *dev,
@@ -3279,7 +3243,6 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
 	/* Enable IRQ routing to this device. */
 	ssb_pcicore_dev_irqvecs_enable(&bus->pcicore, dev->dev);
 
-	b43legacy_imcfglo_timeouts_workaround(dev);
 	prepare_phy_data_for_init(dev);
 	b43legacy_phy_calibrate(dev);
 	err = b43legacy_chip_init(dev);
@@ -3729,25 +3692,7 @@ static int b43legacy_one_core_attach(struct ssb_device *dev,
 				     struct b43legacy_wl *wl)
 {
 	struct b43legacy_wldev *wldev;
-	struct pci_dev *pdev;
 	int err = -ENOMEM;
-
-	if (!list_empty(&wl->devlist)) {
-		/* We are not the first core on this chip. */
-		pdev = (dev->bus->bustype == SSB_BUSTYPE_PCI) ? dev->bus->host_pci : NULL;
-		/* Only special chips support more than one wireless
-		 * core, although some of the other chips have more than
-		 * one wireless core as well. Check for this and
-		 * bail out early.
-		 */
-		if (!pdev ||
-		    ((pdev->device != 0x4321) &&
-		     (pdev->device != 0x4313) &&
-		     (pdev->device != 0x431A))) {
-			b43legacydbg(wl, "Ignoring unconnected 802.11 core\n");
-			return -ENODEV;
-		}
-	}
 
 	wldev = kzalloc(sizeof(*wldev), GFP_KERNEL);
 	if (!wldev)

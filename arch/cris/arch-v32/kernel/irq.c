@@ -266,11 +266,11 @@ static int irq_cpu(int irq)
 
 
 	/* Let the interrupt stay if possible */
-	if (cpu_isset(cpu, irq_allocations[irq - FIRST_IRQ].mask))
+	if (cpumask_test_cpu(cpu, &irq_allocations[irq - FIRST_IRQ].mask))
 		goto out;
 
 	/* IRQ must be moved to another CPU. */
-	cpu = first_cpu(irq_allocations[irq - FIRST_IRQ].mask);
+	cpu = cpumask_first(&irq_allocations[irq - FIRST_IRQ].mask);
 	irq_allocations[irq - FIRST_IRQ].cpu = cpu;
 out:
 	spin_unlock_irqrestore(&irq_lock, flags);
@@ -374,7 +374,7 @@ crisv32_do_multiple(struct pt_regs* regs)
 	irq_enter();
 
 	for (i = 0; i < NBR_REGS; i++) {
-		/* Get which IRQs that happend. */
+		/* Get which IRQs that happened. */
 		masked[i] = REG_RD_INT_VECT(intr_vect, irq_regs[cpu],
 			r_masked_vect, i);
 
@@ -451,16 +451,16 @@ init_IRQ(void)
 
 	/* Point all IRQ's to bad handlers. */
 	for (i = FIRST_IRQ, j = 0; j < NR_IRQS; i++, j++) {
-		set_irq_chip_and_handler(j, &crisv32_irq_type,
+		irq_set_chip_and_handler(j, &crisv32_irq_type,
 					 handle_simple_irq);
 		set_exception_vector(i, interrupt[j]);
 	}
 
-        /* Mark Timer and IPI IRQs as CPU local */
+	/* Mark Timer and IPI IRQs as CPU local */
 	irq_allocations[TIMER0_INTR_VECT - FIRST_IRQ].cpu = CPU_FIXED;
-	irq_desc[TIMER0_INTR_VECT].status |= IRQ_PER_CPU;
+	irq_set_status_flags(TIMER0_INTR_VECT, IRQ_PER_CPU);
 	irq_allocations[IPI_INTR_VECT - FIRST_IRQ].cpu = CPU_FIXED;
-	irq_desc[IPI_INTR_VECT].status |= IRQ_PER_CPU;
+	irq_set_status_flags(IPI_INTR_VECT, IRQ_PER_CPU);
 
 	set_exception_vector(0x00, nmi_interrupt);
 	set_exception_vector(0x30, multiple_interrupt);

@@ -29,26 +29,6 @@ ccflags-y += -I$(obj)/os
 ccflags-y += -I$(obj)/bmi/include
 ccflags-y += -I$(obj)/include/common/AR6002/hw4.0
 
-ifeq ($(CONFIG_AR600x_SD31_XXX),y)
-ccflags-y += -DAR600x_SD31_XXX
-endif
-
-ifeq ($(CONFIG_AR600x_WB31_XXX),y)
-ccflags-y += -DAR600x_WB31_XXX
-endif
-
-ifeq ($(CONFIG_AR600x_SD32_XXX),y)
-ccflags-y += -DAR600x_SD32_XXX
-endif
-
-ifeq ($(CONFIG_AR600x_CUSTOM_XXX),y)
-ccflags-y += -DAR600x_CUSTOM_XXX
-endif
-
-ifeq ($(CONFIG_ATH6KL_ENABLE_COEXISTENCE),y)
-ccflags-y += -DENABLE_COEXISTENCE
-endif
-
 ifeq ($(CONFIG_AR600x_DUAL_ANTENNA),y)
 ccflags-y += -DAR600x_DUAL_ANTENNA
 endif
@@ -85,11 +65,6 @@ ifeq ($(CONFIG_ATH6KL_CONFIG_GPIO_BT_RESET),y)
 ccflags-y += -DATH6KL_CONFIG_GPIO_BT_RESET
 endif
 
-ifeq ($(CONFIG_ATH6KL_CFG80211),y)
-ccflags-y += -DATH6K_CONFIG_CFG80211
-ath6kl-y += os/linux/cfg80211.o
-endif
-
 ifeq ($(CONFIG_ATH6KL_HTC_RAW_INTERFACE),y)
 ccflags-y += -DHTC_RAW_INTERFACE
 endif
@@ -115,18 +90,8 @@ ifeq ($(CONFIG_ATH6KL_SKIP_ABI_VERSION_CHECK),y)
 ccflags-y += -DATH6KL_SKIP_ABI_VERSION_CHECK
 endif
 
-ccflags-y += -DLINUX -DKERNEL_2_6
-ccflags-y += -DTCMD
-ccflags-y += -DSEND_EVENT_TO_APP
-ccflags-y += -DUSER_KEYS
-ccflags-y += -DNO_SYNC_FLUSH
-ccflags-y += -DHTC_EP_STAT_PROFILING
-ccflags-y += -DATH_AR6K_11N_SUPPORT
 ccflags-y += -DWAPI_ENABLE
 ccflags-y += -DCHECKSUM_OFFLOAD
-ccflags-y += -DWLAN_HEADERS
-ccflags-y += -DINIT_MODE_DRV_ENABLED
-ccflags-y += -DBMIENABLE_SET
 
 obj-$(CONFIG_ATH6K_LEGACY) := ath6kl.o
 ath6kl-y += htc2/AR6000/ar6k.o
@@ -136,14 +101,12 @@ ath6kl-y += htc2/htc_recv.o
 ath6kl-y += htc2/htc_services.o
 ath6kl-y += htc2/htc.o
 ath6kl-y += bmi/src/bmi.o
+ath6kl-y += os/linux/cfg80211.o
 ath6kl-y += os/linux/ar6000_drv.o
 ath6kl-y += os/linux/ar6000_raw_if.o
 ath6kl-y += os/linux/ar6000_pm.o
 ath6kl-y += os/linux/netbuf.o
-ath6kl-y += os/linux/wireless_ext.o
-ath6kl-y += os/linux/ioctl.o
 ath6kl-y += os/linux/hci_bridge.o
-ath6kl-y += os/linux/ar6k_pal.o
 ath6kl-y += miscdrv/common_drv.o
 ath6kl-y += miscdrv/credit_dist.o
 ath6kl-y += wmi/wmi.o

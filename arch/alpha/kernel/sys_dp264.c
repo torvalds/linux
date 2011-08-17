@@ -98,37 +98,37 @@ tsunami_update_irq_hw(unsigned long mask)
 }
 
 static void
-dp264_enable_irq(unsigned int irq)
+dp264_enable_irq(struct irq_data *d)
 {
 	spin_lock(&dp264_irq_lock);
-	cached_irq_mask |= 1UL << irq;
+	cached_irq_mask |= 1UL << d->irq;
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 }
 
 static void
-dp264_disable_irq(unsigned int irq)
+dp264_disable_irq(struct irq_data *d)
 {
 	spin_lock(&dp264_irq_lock);
-	cached_irq_mask &= ~(1UL << irq);
+	cached_irq_mask &= ~(1UL << d->irq);
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 }
 
 static void
-clipper_enable_irq(unsigned int irq)
+clipper_enable_irq(struct irq_data *d)
 {
 	spin_lock(&dp264_irq_lock);
-	cached_irq_mask |= 1UL << (irq - 16);
+	cached_irq_mask |= 1UL << (d->irq - 16);
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 }
 
 static void
-clipper_disable_irq(unsigned int irq)
+clipper_disable_irq(struct irq_data *d)
 {
 	spin_lock(&dp264_irq_lock);
-	cached_irq_mask &= ~(1UL << (irq - 16));
+	cached_irq_mask &= ~(1UL << (d->irq - 16));
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 }
@@ -140,7 +140,7 @@ cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 
 	for (cpu = 0; cpu < 4; cpu++) {
 		unsigned long aff = cpu_irq_affinity[cpu];
-		if (cpu_isset(cpu, affinity))
+		if (cpumask_test_cpu(cpu, &affinity))
 			aff |= 1UL << irq;
 		else
 			aff &= ~(1UL << irq);
@@ -149,10 +149,11 @@ cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 }
 
 static int
-dp264_set_affinity(unsigned int irq, const struct cpumask *affinity)
-{ 
+dp264_set_affinity(struct irq_data *d, const struct cpumask *affinity,
+		   bool force)
+{
 	spin_lock(&dp264_irq_lock);
-	cpu_set_irq_affinity(irq, *affinity);
+	cpu_set_irq_affinity(d->irq, *affinity);
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 
@@ -160,10 +161,11 @@ dp264_set_affinity(unsigned int irq, const struct cpumask *affinity)
 }
 
 static int
-clipper_set_affinity(unsigned int irq, const struct cpumask *affinity)
-{ 
+clipper_set_affinity(struct irq_data *d, const struct cpumask *affinity,
+		     bool force)
+{
 	spin_lock(&dp264_irq_lock);
-	cpu_set_irq_affinity(irq - 16, *affinity);
+	cpu_set_irq_affinity(d->irq - 16, *affinity);
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
 
@@ -171,19 +173,19 @@ clipper_set_affinity(unsigned int irq, const struct cpumask *affinity)
 }
 
 static struct irq_chip dp264_irq_type = {
-	.name		= "DP264",
-	.unmask		= dp264_enable_irq,
-	.mask		= dp264_disable_irq,
-	.mask_ack	= dp264_disable_irq,
-	.set_affinity	= dp264_set_affinity,
+	.name			= "DP264",
+	.irq_unmask		= dp264_enable_irq,
+	.irq_mask		= dp264_disable_irq,
+	.irq_mask_ack		= dp264_disable_irq,
+	.irq_set_affinity	= dp264_set_affinity,
 };
 
 static struct irq_chip clipper_irq_type = {
-	.name		= "CLIPPER",
-	.unmask		= clipper_enable_irq,
-	.mask		= clipper_disable_irq,
-	.mask_ack	= clipper_disable_irq,
-	.set_affinity	= clipper_set_affinity,
+	.name			= "CLIPPER",
+	.irq_unmask		= clipper_enable_irq,
+	.irq_mask		= clipper_disable_irq,
+	.irq_mask_ack		= clipper_disable_irq,
+	.irq_set_affinity	= clipper_set_affinity,
 };
 
 static void
@@ -268,8 +270,8 @@ init_tsunami_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
-		irq_to_desc(i)->status |= IRQ_LEVEL;
-		set_irq_chip_and_handler(i, ops, handle_level_irq);
+		irq_set_chip_and_handler(i, ops, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 }
 
@@ -380,7 +382,7 @@ isa_irq_fixup(struct pci_dev *dev, int irq)
 }
 
 static int __init
-dp264_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+dp264_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[6][5] __initdata = {
 		/*INT    INTA   INTB   INTC   INTD */
@@ -402,7 +404,7 @@ dp264_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static int __init
-monet_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+monet_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[13][5] __initdata = {
 		/*INT    INTA   INTB   INTC   INTD */
@@ -464,7 +466,7 @@ monet_swizzle(struct pci_dev *dev, u8 *pinp)
 }
 
 static int __init
-webbrick_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+webbrick_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[13][5] __initdata = {
 		/*INT    INTA   INTB   INTC   INTD */
@@ -486,7 +488,7 @@ webbrick_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static int __init
-clipper_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+clipper_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[7][5] __initdata = {
 		/*INT    INTA   INTB   INTC   INTD */

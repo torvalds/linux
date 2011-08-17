@@ -63,6 +63,7 @@
 #include "iostat.h"
 #include "internal.h"
 #include "fscache.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -263,8 +264,11 @@ static match_table_t nfs_local_lock_tokens = {
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
+static int  nfs_show_devname(struct seq_file *, struct vfsmount *);
+static int  nfs_show_path(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
-static int nfs_get_sb(struct file_system_type *, int, const char *, void *, struct vfsmount *);
+static struct dentry *nfs_fs_mount(struct file_system_type *,
+		int, const char *, void *);
 static struct dentry *nfs_xdev_mount(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data);
 static void nfs_put_super(struct super_block *);
@@ -274,7 +278,7 @@ static int nfs_remount(struct super_block *sb, int *flags, char *raw_data);
 static struct file_system_type nfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs",
-	.get_sb		= nfs_get_sb,
+	.mount		= nfs_fs_mount,
 	.kill_sb	= nfs_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -296,6 +300,8 @@ static const struct super_operations nfs_sops = {
 	.evict_inode	= nfs_evict_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
+	.show_devname	= nfs_show_devname,
+	.show_path	= nfs_show_path,
 	.show_stats	= nfs_show_stats,
 	.remount_fs	= nfs_remount,
 };
@@ -303,16 +309,16 @@ static const struct super_operations nfs_sops = {
 #ifdef CONFIG_NFS_V4
 static int nfs4_validate_text_mount_data(void *options,
 	struct nfs_parsed_mount_data *args, const char *dev_name);
-static int nfs4_try_mount(int flags, const char *dev_name,
-	struct nfs_parsed_mount_data *data, struct vfsmount *mnt);
-static int nfs4_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
+	struct nfs_parsed_mount_data *data);
+static struct dentry *nfs4_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data);
 static struct dentry *nfs4_remote_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data);
 static struct dentry *nfs4_xdev_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data);
-static int nfs4_referral_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data);
 static struct dentry *nfs4_remote_referral_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data);
 static void nfs4_kill_super(struct super_block *sb);
@@ -320,7 +326,7 @@ static void nfs4_kill_super(struct super_block *sb);
 static struct file_system_type nfs4_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs4_get_sb,
+	.mount		= nfs4_mount,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -352,7 +358,7 @@ static struct file_system_type nfs4_remote_referral_fs_type = {
 struct file_system_type nfs4_referral_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs4_referral_get_sb,
+	.mount		= nfs4_referral_mount,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -366,6 +372,8 @@ static const struct super_operations nfs4_sops = {
 	.evict_inode	= nfs4_evict_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
+	.show_devname	= nfs_show_devname,
+	.show_path	= nfs_show_path,
 	.show_stats	= nfs_show_stats,
 	.remount_fs	= nfs_remount,
 };
@@ -725,6 +733,50 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	return 0;
 }
+#ifdef CONFIG_NFS_V4_1
+void show_sessions(struct seq_file *m, struct nfs_server *server)
+{
+	if (nfs4_has_session(server->nfs_client))
+		seq_printf(m, ",sessions");
+}
+#else
+void show_sessions(struct seq_file *m, struct nfs_server *server) {}
+#endif
+
+#ifdef CONFIG_NFS_V4_1
+void show_pnfs(struct seq_file *m, struct nfs_server *server)
+{
+	seq_printf(m, ",pnfs=");
+	if (server->pnfs_curr_ld)
+		seq_printf(m, "%s", server->pnfs_curr_ld->name);
+	else
+		seq_printf(m, "not configured");
+}
+#else  /* CONFIG_NFS_V4_1 */
+void show_pnfs(struct seq_file *m, struct nfs_server *server) {}
+#endif /* CONFIG_NFS_V4_1 */
+
+static int nfs_show_devname(struct seq_file *m, struct vfsmount *mnt)
+{
+	char *page = (char *) __get_free_page(GFP_KERNEL);
+	char *devname, *dummy;
+	int err = 0;
+	if (!page)
+		return -ENOMEM;
+	devname = nfs_path(&dummy, mnt->mnt_root, page, PAGE_SIZE);
+	if (IS_ERR(devname))
+		err = PTR_ERR(devname);
+	else
+		seq_escape(m, devname, " \t\n\\");
+	free_page((unsigned long)page);
+	return err;
+}
+
+static int nfs_show_path(struct seq_file *m, struct vfsmount *mnt)
+{
+	seq_puts(m, "/");
+	return 0;
+}
 
 /*
  * Present statistical information for this VFS mountpoint
@@ -763,6 +815,8 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
 		seq_printf(m, ",bm1=0x%x", nfss->attr_bitmask[1]);
 		seq_printf(m, ",acl=0x%x", nfss->acl_bitmask);
+		show_sessions(m, nfss);
+		show_pnfs(m, nfss);
 	}
 #endif
 
@@ -975,8 +1029,30 @@ static int nfs_parse_security_flavors(char *value,
 		return 0;
 	}
 
+	mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 	mnt->auth_flavor_len = 1;
 	return 1;
+}
+
+static int nfs_get_option_str(substring_t args[], char **option)
+{
+	kfree(*option);
+	*option = match_strdup(args);
+	return !option;
+}
+
+static int nfs_get_option_ul(substring_t args[], unsigned long *option)
+{
+	int rc;
+	char *string;
+
+	string = match_strdup(args);
+	if (string == NULL)
+		return -ENOMEM;
+	rc = strict_strtoul(string, 10, option);
+	kfree(string);
+
+	return rc;
 }
 
 /*
@@ -1127,155 +1203,82 @@ static int nfs_parse_mount_options(char *raw,
 		 * options that take numeric values
 		 */
 		case Opt_port:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option > USHRT_MAX)
+			if (nfs_get_option_ul(args, &option) ||
+			    option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->nfs_server.port = option;
 			break;
 		case Opt_rsize:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->rsize = option;
 			break;
 		case Opt_wsize:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->wsize = option;
 			break;
 		case Opt_bsize:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->bsize = option;
 			break;
 		case Opt_timeo:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option == 0)
+			if (nfs_get_option_ul(args, &option) || option == 0)
 				goto out_invalid_value;
 			mnt->timeo = option;
 			break;
 		case Opt_retrans:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option == 0)
+			if (nfs_get_option_ul(args, &option) || option == 0)
 				goto out_invalid_value;
 			mnt->retrans = option;
 			break;
 		case Opt_acregmin:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acregmin = option;
 			break;
 		case Opt_acregmax:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acregmax = option;
 			break;
 		case Opt_acdirmin:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acdirmin = option;
 			break;
 		case Opt_acdirmax:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acdirmax = option;
 			break;
 		case Opt_actimeo:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acregmin = mnt->acregmax =
 			mnt->acdirmin = mnt->acdirmax = option;
 			break;
 		case Opt_namelen:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->namlen = option;
 			break;
 		case Opt_mountport:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option > USHRT_MAX)
+			if (nfs_get_option_ul(args, &option) ||
+			    option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->mount_server.port = option;
 			break;
 		case Opt_mountvers:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 ||
+			if (nfs_get_option_ul(args, &option) ||
 			    option < NFS_MNT_VERSION ||
 			    option > NFS_MNT3_VERSION)
 				goto out_invalid_value;
 			mnt->mount_server.version = option;
 			break;
 		case Opt_nfsvers:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			switch (option) {
 			case NFS2_VERSION:
@@ -1295,12 +1298,7 @@ static int nfs_parse_mount_options(char *raw,
 			}
 			break;
 		case Opt_minorversion:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			if (option > NFS4_MAX_MINOR_VERSION)
 				goto out_invalid_value;
@@ -1336,21 +1334,18 @@ static int nfs_parse_mount_options(char *raw,
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
-				kfree(string);
 				break;
 			case Opt_xprt_tcp6:
 				protofamily = AF_INET6;
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-				kfree(string);
 				break;
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
 				xprt_load_transport(string);
-				kfree(string);
 				break;
 			default:
 				dfprintk(MOUNT, "NFS:   unrecognized "
@@ -1358,6 +1353,7 @@ static int nfs_parse_mount_options(char *raw,
 				kfree(string);
 				return 0;
 			}
+			kfree(string);
 			break;
 		case Opt_mountproto:
 			string = match_strdup(args);
@@ -1400,18 +1396,13 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_invalid_address;
 			break;
 		case Opt_clientaddr:
-			string = match_strdup(args);
-			if (string == NULL)
+			if (nfs_get_option_str(args, &mnt->client_address))
 				goto out_nomem;
-			kfree(mnt->client_address);
-			mnt->client_address = string;
 			break;
 		case Opt_mounthost:
-			string = match_strdup(args);
-			if (string == NULL)
+			if (nfs_get_option_str(args,
+					       &mnt->mount_server.hostname))
 				goto out_nomem;
-			kfree(mnt->mount_server.hostname);
-			mnt->mount_server.hostname = string;
 			break;
 		case Opt_mountaddr:
 			string = match_strdup(args);
@@ -1451,11 +1442,8 @@ static int nfs_parse_mount_options(char *raw,
 			};
 			break;
 		case Opt_fscache_uniq:
-			string = match_strdup(args);
-			if (string == NULL)
+			if (nfs_get_option_str(args, &mnt->fscache_uniq))
 				goto out_nomem;
-			kfree(mnt->fscache_uniq);
-			mnt->fscache_uniq = string;
 			mnt->options |= NFS_OPTION_FSCACHE;
 			break;
 		case Opt_local_lock:
@@ -1665,39 +1653,55 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	return nfs_walk_authlist(args, &request);
 }
 
-static int nfs_parse_simple_hostname(const char *dev_name,
-				     char **hostname, size_t maxnamlen,
-				     char **export_path, size_t maxpathlen)
+/*
+ * Split "dev_name" into "hostname:export_path".
+ *
+ * The leftmost colon demarks the split between the server's hostname
+ * and the export path.  If the hostname starts with a left square
+ * bracket, then it may contain colons.
+ *
+ * Note: caller frees hostname and export path, even on error.
+ */
+static int nfs_parse_devname(const char *dev_name,
+			     char **hostname, size_t maxnamlen,
+			     char **export_path, size_t maxpathlen)
 {
 	size_t len;
-	char *colon, *comma;
+	char *end;
 
-	colon = strchr(dev_name, ':');
-	if (colon == NULL)
-		goto out_bad_devname;
+	/* Is the host name protected with square brakcets? */
+	if (*dev_name == '[') {
+		end = strchr(++dev_name, ']');
+		if (end == NULL || end[1] != ':')
+			goto out_bad_devname;
 
-	len = colon - dev_name;
+		len = end - dev_name;
+		end++;
+	} else {
+		char *comma;
+
+		end = strchr(dev_name, ':');
+		if (end == NULL)
+			goto out_bad_devname;
+		len = end - dev_name;
+
+		/* kill possible hostname list: not supported */
+		comma = strchr(dev_name, ',');
+		if (comma != NULL && comma < end)
+			*comma = 0;
+	}
+
 	if (len > maxnamlen)
 		goto out_hostname;
 
 	/* N.B. caller will free nfs_server.hostname in all cases */
 	*hostname = kstrndup(dev_name, len, GFP_KERNEL);
-	if (!*hostname)
+	if (*hostname == NULL)
 		goto out_nomem;
-
-	/* kill possible hostname list: not supported */
-	comma = strchr(*hostname, ',');
-	if (comma != NULL) {
-		if (comma == *hostname)
-			goto out_bad_devname;
-		*comma = '\0';
-	}
-
-	colon++;
-	len = strlen(colon);
+	len = strlen(++end);
 	if (len > maxpathlen)
 		goto out_path;
-	*export_path = kstrndup(colon, len, GFP_KERNEL);
+	*export_path = kstrndup(end, len, GFP_KERNEL);
 	if (!*export_path)
 		goto out_nomem;
 
@@ -1719,85 +1723,6 @@ out_hostname:
 out_path:
 	dfprintk(MOUNT, "NFS: export pathname too long\n");
 	return -ENAMETOOLONG;
-}
-
-/*
- * Hostname has square brackets around it because it contains one or
- * more colons.  We look for the first closing square bracket, and a
- * colon must follow it.
- */
-static int nfs_parse_protected_hostname(const char *dev_name,
-					char **hostname, size_t maxnamlen,
-					char **export_path, size_t maxpathlen)
-{
-	size_t len;
-	char *start, *end;
-
-	start = (char *)(dev_name + 1);
-
-	end = strchr(start, ']');
-	if (end == NULL)
-		goto out_bad_devname;
-	if (*(end + 1) != ':')
-		goto out_bad_devname;
-
-	len = end - start;
-	if (len > maxnamlen)
-		goto out_hostname;
-
-	/* N.B. caller will free nfs_server.hostname in all cases */
-	*hostname = kstrndup(start, len, GFP_KERNEL);
-	if (*hostname == NULL)
-		goto out_nomem;
-
-	end += 2;
-	len = strlen(end);
-	if (len > maxpathlen)
-		goto out_path;
-	*export_path = kstrndup(end, len, GFP_KERNEL);
-	if (!*export_path)
-		goto out_nomem;
-
-	return 0;
-
-out_bad_devname:
-	dfprintk(MOUNT, "NFS: device name not in host:path format\n");
-	return -EINVAL;
-
-out_nomem:
-	dfprintk(MOUNT, "NFS: not enough memory to parse device name\n");
-	return -ENOMEM;
-
-out_hostname:
-	dfprintk(MOUNT, "NFS: server hostname too long\n");
-	return -ENAMETOOLONG;
-
-out_path:
-	dfprintk(MOUNT, "NFS: export pathname too long\n");
-	return -ENAMETOOLONG;
-}
-
-/*
- * Split "dev_name" into "hostname:export_path".
- *
- * The leftmost colon demarks the split between the server's hostname
- * and the export path.  If the hostname starts with a left square
- * bracket, then it may contain colons.
- *
- * Note: caller frees hostname and export path, even on error.
- */
-static int nfs_parse_devname(const char *dev_name,
-			     char **hostname, size_t maxnamlen,
-			     char **export_path, size_t maxpathlen)
-{
-	if (*dev_name == '[')
-		return nfs_parse_protected_hostname(dev_name,
-						    hostname, maxnamlen,
-						    export_path, maxpathlen);
-
-	return nfs_parse_simple_hostname(dev_name,
-					 hostname, maxnamlen,
-					 export_path, maxpathlen);
 }
 
 /*
@@ -2077,6 +2002,15 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	if (error < 0)
 		goto out;
 
+	/*
+	 * noac is a special case. It implies -o sync, but that's not
+	 * necessarily reflected in the mtab options. do_remount_sb
+	 * will clear MS_SYNCHRONOUS if -o sync wasn't specified in the
+	 * remount options, so we have to explicitly reset it.
+	 */
+	if (data->flags & NFS_MOUNT_NOAC)
+		*flags |= MS_SYNCHRONOUS;
+
 	/* compare new mount options with old ones */
 	error = nfs_compare_remount_data(nfss, data);
 out:
@@ -2267,19 +2201,19 @@ static int nfs_bdi_register(struct nfs_server *server)
 	return bdi_register_dev(&server->backing_dev_info, server->s_dev);
 }
 
-static int nfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+static struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_server *server = NULL;
 	struct super_block *s;
 	struct nfs_parsed_mount_data *data;
 	struct nfs_fh *mntfh;
-	struct dentry *mntroot;
+	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 	};
-	int error = -ENOMEM;
+	int error;
 
 	data = nfs_alloc_parsed_mount_data(NFS_DEFAULT_VERSION);
 	mntfh = nfs_alloc_fhandle();
@@ -2290,12 +2224,14 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 
 	/* Validate the mount data */
 	error = nfs_validate_mount_data(raw_data, data, mntfh, dev_name);
-	if (error < 0)
+	if (error < 0) {
+		mntroot = ERR_PTR(error);
 		goto out;
+	}
 
 #ifdef CONFIG_NFS_V4
 	if (data->version == 4) {
-		error = nfs4_try_mount(flags, dev_name, data, mnt);
+		mntroot = nfs4_try_mount(flags, dev_name, data);
 		kfree(data->client_address);
 		kfree(data->nfs_server.export_path);
 		goto out;
@@ -2305,7 +2241,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	/* Get a volume representation */
 	server = nfs_create_server(data, mntfh);
 	if (IS_ERR(server)) {
-		error = PTR_ERR(server);
+		mntroot = ERR_CAST(server);
 		goto out;
 	}
 	sb_mntdata.server = server;
@@ -2316,7 +2252,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(fs_type, compare_super, nfs_set_super, &sb_mntdata);
 	if (IS_ERR(s)) {
-		error = PTR_ERR(s);
+		mntroot = ERR_CAST(s);
 		goto out_err_nosb;
 	}
 
@@ -2325,31 +2261,27 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 		server = NULL;
 	} else {
 		error = nfs_bdi_register(server);
-		if (error)
+		if (error) {
+			mntroot = ERR_PTR(error);
 			goto error_splat_bdi;
+		}
 	}
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs_fill_super(s, data);
-		nfs_fscache_get_super_cookie(
-			s, data ? data->fscache_uniq : NULL, NULL);
+		nfs_fscache_get_super_cookie(s, data->fscache_uniq, NULL);
 	}
 
-	mntroot = nfs_get_root(s, mntfh);
-	if (IS_ERR(mntroot)) {
-		error = PTR_ERR(mntroot);
+	mntroot = nfs_get_root(s, mntfh, dev_name);
+	if (IS_ERR(mntroot))
 		goto error_splat_super;
-	}
 
 	error = security_sb_set_mnt_opts(s, &data->lsm_opts);
 	if (error)
 		goto error_splat_root;
 
 	s->s_flags |= MS_ACTIVE;
-	mnt->mnt_sb = s;
-	mnt->mnt_root = mntroot;
-	error = 0;
 
 out:
 	kfree(data->nfs_server.hostname);
@@ -2359,7 +2291,7 @@ out:
 out_free_fh:
 	nfs_free_fhandle(mntfh);
 	kfree(data);
-	return error;
+	return mntroot;
 
 out_err_nosb:
 	nfs_free_server(server);
@@ -2367,6 +2299,7 @@ out_err_nosb:
 
 error_splat_root:
 	dput(mntroot);
+	mntroot = ERR_PTR(error);
 error_splat_super:
 	if (server && !s->s_root)
 		bdi_unregister(&server->backing_dev_info);
@@ -2450,7 +2383,7 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs_get_root(s, data->fh);
+	mntroot = nfs_get_root(s, data->fh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -2718,7 +2651,7 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 			s, data ? data->fscache_uniq : NULL, NULL);
 	}
 
-	mntroot = nfs4_get_root(s, mntfh);
+	mntroot = nfs4_get_root(s, mntfh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -2769,27 +2702,6 @@ static struct vfsmount *nfs_do_root_mount(struct file_system_type *fs_type,
 	root_mnt = vfs_kern_mount(fs_type, flags, root_devname, data);
 	kfree(root_devname);
 	return root_mnt;
-}
-
-static void nfs_fix_devname(const struct path *path, struct vfsmount *mnt)
-{
-	char *page = (char *) __get_free_page(GFP_KERNEL);
-	char *devname, *tmp;
-
-	if (page == NULL)
-		return;
-	devname = nfs_path(path->mnt->mnt_devname,
-			path->mnt->mnt_root, path->dentry,
-			page, PAGE_SIZE);
-	if (IS_ERR(devname))
-		goto out_freepage;
-	tmp = kstrdup(devname, GFP_KERNEL);
-	if (tmp == NULL)
-		goto out_freepage;
-	kfree(mnt->mnt_devname);
-	mnt->mnt_devname = tmp;
-out_freepage:
-	free_page((unsigned long)page);
 }
 
 struct nfs_referral_count {
@@ -2858,17 +2770,14 @@ static void nfs_referral_loop_unprotect(void)
 	kfree(p);
 }
 
-static int nfs_follow_remote_path(struct vfsmount *root_mnt,
-		const char *export_path, struct vfsmount *mnt_target)
+static struct dentry *nfs_follow_remote_path(struct vfsmount *root_mnt,
+		const char *export_path)
 {
-	struct nameidata *nd = NULL;
 	struct mnt_namespace *ns_private;
 	struct super_block *s;
+	struct dentry *dentry;
+	struct path path;
 	int ret;
-
-	nd = kmalloc(sizeof(*nd), GFP_KERNEL);
-	if (nd == NULL)
-		return -ENOMEM;
 
 	ns_private = create_mnt_ns(root_mnt);
 	ret = PTR_ERR(ns_private);
@@ -2880,7 +2789,7 @@ static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 		goto out_put_mnt_ns;
 
 	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
-			export_path, LOOKUP_FOLLOW, nd);
+			export_path, LOOKUP_FOLLOW, &path);
 
 	nfs_referral_loop_unprotect();
 	put_mnt_ns(ns_private);
@@ -2888,34 +2797,27 @@ static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 	if (ret != 0)
 		goto out_err;
 
-	s = nd->path.mnt->mnt_sb;
+	s = path.mnt->mnt_sb;
 	atomic_inc(&s->s_active);
-	mnt_target->mnt_sb = s;
-	mnt_target->mnt_root = dget(nd->path.dentry);
+	dentry = dget(path.dentry);
 
-	/* Correct the device pathname */
-	nfs_fix_devname(&nd->path, mnt_target);
-
-	path_put(&nd->path);
-	kfree(nd);
+	path_put(&path);
 	down_write(&s->s_umount);
-	return 0;
+	return dentry;
 out_put_mnt_ns:
 	put_mnt_ns(ns_private);
 out_mntput:
 	mntput(root_mnt);
 out_err:
-	kfree(nd);
-	return ret;
+	return ERR_PTR(ret);
 }
 
-static int nfs4_try_mount(int flags, const char *dev_name,
-			 struct nfs_parsed_mount_data *data,
-			 struct vfsmount *mnt)
+static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
+			 struct nfs_parsed_mount_data *data)
 {
 	char *export_path;
 	struct vfsmount *root_mnt;
-	int error;
+	struct dentry *res;
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
@@ -2925,26 +2827,25 @@ static int nfs4_try_mount(int flags, const char *dev_name,
 			data->nfs_server.hostname);
 	data->nfs_server.export_path = export_path;
 
-	error = PTR_ERR(root_mnt);
-	if (IS_ERR(root_mnt))
-		goto out;
+	res = ERR_CAST(root_mnt);
+	if (!IS_ERR(root_mnt))
+		res = nfs_follow_remote_path(root_mnt, export_path);
 
-	error = nfs_follow_remote_path(root_mnt, export_path, mnt);
-
-out:
-	dfprintk(MOUNT, "<-- nfs4_try_mount() = %d%s\n", error,
-			error != 0 ? " [error]" : "");
-	return error;
+	dfprintk(MOUNT, "<-- nfs4_try_mount() = %ld%s\n",
+			IS_ERR(res) ? PTR_ERR(res) : 0,
+			IS_ERR(res) ? " [error]" : "");
+	return res;
 }
 
 /*
  * Get the superblock for an NFS4 mountpoint
  */
-static int nfs4_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+static struct dentry *nfs4_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_parsed_mount_data *data;
 	int error = -ENOMEM;
+	struct dentry *res = ERR_PTR(-ENOMEM);
 
 	data = nfs_alloc_parsed_mount_data(4);
 	if (data == NULL)
@@ -2952,10 +2853,14 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 
 	/* Validate the mount data */
 	error = nfs4_validate_mount_data(raw_data, data, dev_name);
-	if (error < 0)
+	if (error < 0) {
+		res = ERR_PTR(error);
 		goto out;
+	}
 
-	error = nfs4_try_mount(flags, dev_name, data, mnt);
+	res = nfs4_try_mount(flags, dev_name, data);
+	if (IS_ERR(res))
+		error = PTR_ERR(res);
 
 out:
 	kfree(data->client_address);
@@ -2964,9 +2869,9 @@ out:
 	kfree(data->fscache_uniq);
 out_free_data:
 	kfree(data);
-	dprintk("<-- nfs4_get_sb() = %d%s\n", error,
+	dprintk("<-- nfs4_mount() = %d%s\n", error,
 			error != 0 ? " [error]" : "");
-	return error;
+	return res;
 }
 
 static void nfs4_kill_super(struct super_block *sb)
@@ -3033,7 +2938,7 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs4_get_root(s, data->fh);
+	mntroot = nfs4_get_root(s, data->fh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -3120,7 +3025,7 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs4_get_root(s, mntfh);
+	mntroot = nfs4_get_root(s, mntfh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -3160,16 +3065,15 @@ error_splat_bdi:
 /*
  * Create an NFS4 server record on referral traversal
  */
-static int nfs4_referral_get_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data,
-		struct vfsmount *mnt)
+static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
 	char *export_path;
 	struct vfsmount *root_mnt;
-	int error;
+	struct dentry *res;
 
-	dprintk("--> nfs4_referral_get_sb()\n");
+	dprintk("--> nfs4_referral_mount()\n");
 
 	export_path = data->mnt_path;
 	data->mnt_path = "/";
@@ -3178,15 +3082,13 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type,
 			flags, data, data->hostname);
 	data->mnt_path = export_path;
 
-	error = PTR_ERR(root_mnt);
-	if (IS_ERR(root_mnt))
-		goto out;
-
-	error = nfs_follow_remote_path(root_mnt, export_path, mnt);
-out:
-	dprintk("<-- nfs4_referral_get_sb() = %d%s\n", error,
-			error != 0 ? " [error]" : "");
-	return error;
+	res = ERR_CAST(root_mnt);
+	if (!IS_ERR(root_mnt))
+		res = nfs_follow_remote_path(root_mnt, export_path);
+	dprintk("<-- nfs4_referral_mount() = %ld%s\n",
+			IS_ERR(res) ? PTR_ERR(res) : 0,
+			IS_ERR(res) ? " [error]" : "");
+	return res;
 }
 
 #endif /* CONFIG_NFS_V4 */

@@ -33,15 +33,6 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #endif /* !ASSEMBLY */
 
-/*
- *	This magic constant controls our willingness to transfer
- *      a process across CPUs. Such a transfer incurs cache and tlb
- *      misses. The current value is inherited from i386. Still needs
- *      to be tuned for parisc.
- */
- 
-#define PROC_CHANGE_PENALTY	15		/* Schedule penalty */
-
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 #else /* CONFIG_SMP */

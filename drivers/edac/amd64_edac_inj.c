@@ -117,13 +117,13 @@ static ssize_t amd64_inject_read_store(struct mem_ctl_info *mci,
 		/* Form value to choose 16-byte section of cacheline */
 		section = F10_NB_ARRAY_DRAM_ECC |
 				SET_NB_ARRAY_ADDRESS(pvt->injection.section);
-		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_ADDR, section);
+		amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_ADDR, section);
 
 		word_bits = SET_NB_DRAM_INJECTION_READ(pvt->injection.word,
 						pvt->injection.bit_map);
 
 		/* Issue 'word' and 'bit' along with the READ request */
-		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
+		amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
 
 		debugf0("section=0x%x word_bits=0x%x\n", section, word_bits);
 
@@ -150,13 +150,13 @@ static ssize_t amd64_inject_write_store(struct mem_ctl_info *mci,
 		/* Form value to choose 16-byte section of cacheline */
 		section = F10_NB_ARRAY_DRAM_ECC |
 				SET_NB_ARRAY_ADDRESS(pvt->injection.section);
-		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_ADDR, section);
+		amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_ADDR, section);
 
 		word_bits = SET_NB_DRAM_INJECTION_WRITE(pvt->injection.word,
 						pvt->injection.bit_map);
 
 		/* Issue 'word' and 'bit' along with the READ request */
-		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
+		amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
 
 		debugf0("section=0x%x word_bits=0x%x\n", section, word_bits);
 

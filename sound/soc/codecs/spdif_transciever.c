@@ -21,7 +21,7 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 
-MODULE_LICENSE("GPL");
+#define DRV_NAME "spdif-dit"
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_96000
 #define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
@@ -56,7 +56,7 @@ static struct platform_driver spdif_dit_driver = {
 	.probe		= spdif_dit_probe,
 	.remove		= spdif_dit_remove,
 	.driver		= {
-		.name	= "spdif-dit",
+		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
 };
@@ -74,3 +74,7 @@ static void __exit dit_exit(void)
 module_init(dit_modinit);
 module_exit(dit_exit);
 
+MODULE_AUTHOR("Steve Chen <schen@mvista.com>");
+MODULE_DESCRIPTION("SPDIF dummy codec driver");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRV_NAME);

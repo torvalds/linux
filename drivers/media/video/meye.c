@@ -1547,7 +1547,8 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 	return 0;
 }
 
-static long vidioc_default(struct file *file, void *fh, int cmd, void *arg)
+static long vidioc_default(struct file *file, void *fh, bool valid_prio,
+						int cmd, void *arg)
 {
 	switch (cmd) {
 	case MEYEIOC_G_PARAMS:

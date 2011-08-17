@@ -1,8 +1,9 @@
-/**
-  * This file contains the handling of command.
-  * It prepares command and sends it to firmware when it is ready.
-  */
+/*
+ * This file contains the handling of command.
+ * It prepares command and sends it to firmware when it is ready.
+ */
 
+#include <linux/hardirq.h>
 #include <linux/kfifo.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -16,14 +17,14 @@
 #define CAL_RSSI(snr, nf)	((s32)((s32)(snr) + CAL_NF(nf)))
 
 /**
- *  @brief Simple callback that copies response back into command
+ * lbs_cmd_copyback - Simple callback that copies response back into command
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param extra  	A pointer to the original command structure for which
- *                      'resp' is a response
- *  @param resp         A pointer to the command response
+ * @priv:	A pointer to &struct lbs_private structure
+ * @extra:	A pointer to the original command structure for which
+ *		'resp' is a response
+ * @resp:	A pointer to the command response
  *
- *  @return 	   	0 on success, error on failure
+ * returns:	0 on success, error on failure
  */
 int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 		     struct cmd_header *resp)
@@ -38,15 +39,15 @@ int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
 
 /**
- *  @brief Simple callback that ignores the result. Use this if
- *  you just want to send a command to the hardware, but don't
+ *  lbs_cmd_async_callback - Simple callback that ignores the result.
+ *  Use this if you just want to send a command to the hardware, but don't
  *  care for the result.
  *
- *  @param priv         ignored
- *  @param extra        ignored
- *  @param resp         ignored
+ *  @priv:	ignored
+ *  @extra:	ignored
+ *  @resp:	ignored
  *
- *  @return 	   	0 for success
+ *  returns:	0 for success
  */
 static int lbs_cmd_async_callback(struct lbs_private *priv, unsigned long extra,
 		     struct cmd_header *resp)
@@ -56,10 +57,11 @@ static int lbs_cmd_async_callback(struct lbs_private *priv, unsigned long extra,
 
 
 /**
- *  @brief Checks whether a command is allowed in Power Save mode
+ *  is_command_allowed_in_ps - tests if a command is allowed in Power Save mode
  *
- *  @param command the command ID
- *  @return 	   1 if allowed, 0 if not allowed
+ *  @cmd:	the command ID
+ *
+ *  returns:	1 if allowed, 0 if not allowed
  */
 static u8 is_command_allowed_in_ps(u16 cmd)
 {
@@ -75,11 +77,12 @@ static u8 is_command_allowed_in_ps(u16 cmd)
 }
 
 /**
- *  @brief Updates the hardware details like MAC address and regulatory region
+ *  lbs_update_hw_spec - Updates the hardware details like MAC address
+ *  and regulatory region
  *
- *  @param priv    	A pointer to struct lbs_private structure
+ *  @priv:	A pointer to &struct lbs_private structure
  *
- *  @return 	   	0 on success, error on failure
+ *  returns:	0 on success, error on failure
  */
 int lbs_update_hw_spec(struct lbs_private *priv)
 {
@@ -108,7 +111,7 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	 * CF card    firmware 5.0.16p0:   cap 0x00000303
 	 * USB dongle firmware 5.110.17p2: cap 0x00000303
 	 */
-	lbs_pr_info("%pM, fw %u.%u.%up%u, cap 0x%08x\n",
+	netdev_info(priv->dev, "%pM, fw %u.%u.%up%u, cap 0x%08x\n",
 		cmd.permanentaddr,
 		priv->fwrelease >> 24 & 0xff,
 		priv->fwrelease >> 16 & 0xff,
@@ -139,15 +142,20 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	/* if it's unidentified region code, use the default (USA) */
 	if (i >= MRVDRV_MAX_REGION_CODE) {
 		priv->regioncode = 0x10;
-		lbs_pr_info("unidentified region code; using the default (USA)\n");
+		netdev_info(priv->dev,
+			    "unidentified region code; using the default (USA)\n");
 	}
 
 	if (priv->current_addr[0] == 0xff)
 		memmove(priv->current_addr, cmd.permanentaddr, ETH_ALEN);
 
-	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
-	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
+	if (!priv->copied_hwaddr) {
+		memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
+		if (priv->mesh_dev)
+			memcpy(priv->mesh_dev->dev_addr,
+				priv->current_addr, ETH_ALEN);
+		priv->copied_hwaddr = 1;
+	}
 
 out:
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -205,7 +213,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 					(uint8_t *)&cmd_config.wol_conf,
 					sizeof(struct wol_config));
 	} else {
-		lbs_pr_info("HOST_SLEEP_CFG failed %d\n", ret);
+		netdev_info(priv->dev, "HOST_SLEEP_CFG failed %d\n", ret);
 	}
 
 	return ret;
@@ -213,14 +221,14 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 EXPORT_SYMBOL_GPL(lbs_host_sleep_cfg);
 
 /**
- *  @brief Sets the Power Save mode
+ *  lbs_set_ps_mode - Sets the Power Save mode
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param cmd_action	The Power Save operation (PS_MODE_ACTION_ENTER_PS or
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @cmd_action: The Power Save operation (PS_MODE_ACTION_ENTER_PS or
  *                         PS_MODE_ACTION_EXIT_PS)
- *  @param block	Whether to block on a response or not
+ *  @block:	Whether to block on a response or not
  *
- *  @return 	   	0 on success, error on failure
+ *  returns:	0 on success, error on failure
  */
 int lbs_set_ps_mode(struct lbs_private *priv, u16 cmd_action, bool block)
 {
@@ -308,7 +316,7 @@ static int lbs_wait_for_ds_awake(struct lbs_private *priv)
 	if (priv->is_deep_sleep) {
 		if (!wait_event_interruptible_timeout(priv->ds_awake_q,
 					!priv->is_deep_sleep, (10 * HZ))) {
-			lbs_pr_err("ds_awake_q: timer expired\n");
+			netdev_err(priv->dev, "ds_awake_q: timer expired\n");
 			ret = -1;
 		}
 	}
@@ -333,7 +341,7 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 				netif_carrier_off(priv->dev);
 			}
 		} else {
-			lbs_pr_err("deep sleep: already enabled\n");
+			netdev_err(priv->dev, "deep sleep: already enabled\n");
 		}
 	} else {
 		if (priv->is_deep_sleep) {
@@ -343,8 +351,8 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 			if (!ret) {
 				ret = lbs_wait_for_ds_awake(priv);
 				if (ret)
-					lbs_pr_err("deep sleep: wakeup"
-							"failed\n");
+					netdev_err(priv->dev,
+						   "deep sleep: wakeup failed\n");
 			}
 		}
 	}
@@ -378,8 +386,9 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep)
 			ret = lbs_host_sleep_cfg(priv, priv->wol_criteria,
 					(struct wol_config *)NULL);
 			if (ret) {
-				lbs_pr_info("Host sleep configuration failed: "
-						"%d\n", ret);
+				netdev_info(priv->dev,
+					    "Host sleep configuration failed: %d\n",
+					    ret);
 				return ret;
 			}
 			if (priv->psstate == PS_STATE_FULL_POWER) {
@@ -389,19 +398,21 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep)
 						sizeof(cmd),
 						lbs_ret_host_sleep_activate, 0);
 				if (ret)
-					lbs_pr_info("HOST_SLEEP_ACTIVATE "
-							"failed: %d\n", ret);
+					netdev_info(priv->dev,
+						    "HOST_SLEEP_ACTIVATE failed: %d\n",
+						    ret);
 			}
 
 			if (!wait_event_interruptible_timeout(
 						priv->host_sleep_q,
 						priv->is_host_sleep_activated,
 						(10 * HZ))) {
-				lbs_pr_err("host_sleep_q: timer expired\n");
+				netdev_err(priv->dev,
+					   "host_sleep_q: timer expired\n");
 				ret = -1;
 			}
 		} else {
-			lbs_pr_err("host sleep: already enabled\n");
+			netdev_err(priv->dev, "host sleep: already enabled\n");
 		}
 	} else {
 		if (priv->is_host_sleep_activated)
@@ -413,13 +424,13 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep)
 }
 
 /**
- *  @brief Set an SNMP MIB value
+ *  lbs_set_snmp_mib - Set an SNMP MIB value
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param oid  	The OID to set in the firmware
- *  @param val  	Value to set the OID to
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @oid:	The OID to set in the firmware
+ *  @val:	Value to set the OID to
  *
- *  @return 	   	0 on success, error on failure
+ *  returns: 	   	0 on success, error on failure
  */
 int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val)
 {
@@ -463,13 +474,13 @@ out:
 }
 
 /**
- *  @brief Get an SNMP MIB value
+ *  lbs_get_snmp_mib - Get an SNMP MIB value
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param oid  	The OID to retrieve from the firmware
- *  @param out_val  	Location for the returned value
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @oid:	The OID to retrieve from the firmware
+ *  @out_val:	Location for the returned value
  *
- *  @return 	   	0 on success, error on failure
+ *  returns:	0 on success, error on failure
  */
 int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val)
 {
@@ -506,14 +517,14 @@ out:
 }
 
 /**
- *  @brief Get the min, max, and current TX power
+ *  lbs_get_tx_power - Get the min, max, and current TX power
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param curlevel  	Current power level in dBm
- *  @param minlevel  	Minimum supported power level in dBm (optional)
- *  @param maxlevel  	Maximum supported power level in dBm (optional)
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @curlevel:	Current power level in dBm
+ *  @minlevel:	Minimum supported power level in dBm (optional)
+ *  @maxlevel:	Maximum supported power level in dBm (optional)
  *
- *  @return 	   	0 on success, error on failure
+ *  returns:	0 on success, error on failure
  */
 int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 		     s16 *maxlevel)
@@ -541,12 +552,12 @@ int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 }
 
 /**
- *  @brief Set the TX power
+ *  lbs_set_tx_power - Set the TX power
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param dbm  	The desired power level in dBm
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @dbm:	The desired power level in dBm
  *
- *  @return 	   	0 on success, error on failure
+ *  returns: 	   	0 on success, error on failure
  */
 int lbs_set_tx_power(struct lbs_private *priv, s16 dbm)
 {
@@ -569,12 +580,13 @@ int lbs_set_tx_power(struct lbs_private *priv, s16 dbm)
 }
 
 /**
- *  @brief Enable or disable monitor mode (only implemented on OLPC usb8388 FW)
+ *  lbs_set_monitor_mode - Enable or disable monitor mode
+ *  (only implemented on OLPC usb8388 FW)
  *
- *  @param priv        A pointer to struct lbs_private structure
- *  @param enable      1 to enable monitor mode, 0 to disable
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @enable:	1 to enable monitor mode, 0 to disable
  *
- *  @return            0 on success, error on failure
+ *  returns:	0 on success, error on failure
  */
 int lbs_set_monitor_mode(struct lbs_private *priv, int enable)
 {
@@ -600,11 +612,11 @@ int lbs_set_monitor_mode(struct lbs_private *priv, int enable)
 }
 
 /**
- *  @brief Get the radio channel
+ *  lbs_get_channel - Get the radio channel
  *
- *  @param priv    	A pointer to struct lbs_private structure
+ *  @priv:	A pointer to &struct lbs_private structure
  *
- *  @return 	   	The channel on success, error on failure
+ *  returns:	The channel on success, error on failure
  */
 static int lbs_get_channel(struct lbs_private *priv)
 {
@@ -646,12 +658,12 @@ int lbs_update_channel(struct lbs_private *priv)
 }
 
 /**
- *  @brief Set the radio channel
+ *  lbs_set_channel - Set the radio channel
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param channel  	The desired channel, or 0 to clear a locked channel
+ *  @priv:	A pointer to &struct lbs_private structure
+ *  @channel:	The desired channel, or 0 to clear a locked channel
  *
- *  @return 	   	0 on success, error on failure
+ *  returns:	0 on success, error on failure
  */
 int lbs_set_channel(struct lbs_private *priv, u8 channel)
 {
@@ -682,12 +694,13 @@ out:
 }
 
 /**
- *  @brief Get current RSSI and noise floor
+ * lbs_get_rssi - Get current RSSI and noise floor
  *
- *  @param priv		A pointer to struct lbs_private structure
- *  @param rssi		On successful return, signal level in mBm
+ * @priv:	A pointer to &struct lbs_private structure
+ * @rssi:	On successful return, signal level in mBm
+ * @nf:		On successful return, Noise floor
  *
- *  @return 	   	The channel on success, error on failure
+ * returns:	The channel on success, error on failure
  */
 int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
 {
@@ -715,13 +728,14 @@ int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
 }
 
 /**
- *  @brief Send regulatory and 802.11d domain information to the firmware
+ *  lbs_set_11d_domain_info - Send regulatory and 802.11d domain information
+ *  to the firmware
  *
- *  @param priv		pointer to struct lbs_private
- *  @param request	cfg80211 regulatory request structure
- *  @param bands	the device's supported bands and channels
+ *  @priv:	pointer to &struct lbs_private
+ *  @request:	cfg80211 regulatory request structure
+ *  @bands:	the device's supported bands and channels
  *
- *  @return		0 on success, error code on failure
+ *  returns:	0 on success, error code on failure
 */
 int lbs_set_11d_domain_info(struct lbs_private *priv,
 			    struct regulatory_request *request,
@@ -838,15 +852,15 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 }
 
 /**
- *  @brief Read a MAC, Baseband, or RF register
+ *  lbs_get_reg - Read a MAC, Baseband, or RF register
  *
- *  @param priv		pointer to struct lbs_private
- *  @param cmd		register command, one of CMD_MAC_REG_ACCESS,
- *                        CMD_BBP_REG_ACCESS, or CMD_RF_REG_ACCESS
- *  @param offset       byte offset of the register to get
- *  @param value        on success, the value of the register at 'offset'
+ *  @priv:	pointer to &struct lbs_private
+ *  @reg:	register command, one of CMD_MAC_REG_ACCESS,
+ *		CMD_BBP_REG_ACCESS, or CMD_RF_REG_ACCESS
+ *  @offset:	byte offset of the register to get
+ *  @value:	on success, the value of the register at 'offset'
  *
- *  @return		0 on success, error code on failure
+ *  returns:	0 on success, error code on failure
 */
 int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 {
@@ -860,6 +874,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_GET);
+	cmd.offset = cpu_to_le16(offset);
 
 	if (reg != CMD_MAC_REG_ACCESS &&
 	    reg != CMD_BBP_REG_ACCESS &&
@@ -869,7 +884,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	}
 
 	ret = lbs_cmd_with_response(priv, reg, &cmd);
-	if (ret) {
+	if (!ret) {
 		if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
 			*value = cmd.value.bbp_rf;
 		else if (reg == CMD_MAC_REG_ACCESS)
@@ -882,15 +897,15 @@ out:
 }
 
 /**
- *  @brief Write a MAC, Baseband, or RF register
+ *  lbs_set_reg - Write a MAC, Baseband, or RF register
  *
- *  @param priv		pointer to struct lbs_private
- *  @param cmd		register command, one of CMD_MAC_REG_ACCESS,
- *                        CMD_BBP_REG_ACCESS, or CMD_RF_REG_ACCESS
- *  @param offset       byte offset of the register to set
- *  @param value        the value to write to the register at 'offset'
+ *  @priv:	pointer to &struct lbs_private
+ *  @reg:	register command, one of CMD_MAC_REG_ACCESS,
+ *		CMD_BBP_REG_ACCESS, or CMD_RF_REG_ACCESS
+ *  @offset:	byte offset of the register to set
+ *  @value:	the value to write to the register at 'offset'
  *
- *  @return		0 on success, error code on failure
+ *  returns:	0 on success, error code on failure
 */
 int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value)
 {
@@ -902,6 +917,7 @@ int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.offset = cpu_to_le16(offset);
 
 	if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
 		cmd.value.bbp_rf = (u8) (value & 0xFF);
@@ -981,6 +997,8 @@ static void lbs_submit_command(struct lbs_private *priv,
 	cmd = cmdnode->cmdbuf;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
+	priv->seqnum++;
+	cmd->seqnum = cpu_to_le16(priv->seqnum);
 	priv->cur_cmd = cmdnode;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -998,7 +1016,8 @@ static void lbs_submit_command(struct lbs_private *priv,
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
 
 	if (ret) {
-		lbs_pr_info("DNLD_CMD: hw_host_to_card failed: %d\n", ret);
+		netdev_info(priv->dev, "DNLD_CMD: hw_host_to_card failed: %d\n",
+			    ret);
 		/* Let the timer kick in and retry, and potentially reset
 		   the whole thing if the condition persists */
 		timeo = HZ/4;
@@ -1019,7 +1038,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	lbs_deb_leave(LBS_DEB_HOST);
 }
 
-/**
+/*
  *  This function inserts command node to cmdfreeq
  *  after cleans it. Requires priv->driver_lock held.
  */
@@ -1051,16 +1070,34 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
-void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
-			  int result)
+void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			    int result)
 {
+	/*
+	 * Normally, commands are removed from cmdpendingq before being
+	 * submitted. However, we can arrive here on alternative codepaths
+	 * where the command is still pending. Make sure the command really
+	 * isn't part of a list at this point.
+	 */
+	list_del_init(&cmd->list);
+
 	cmd->result = result;
 	cmd->cmdwaitqwoken = 1;
-	wake_up_interruptible(&cmd->cmdwait_q);
+	wake_up(&cmd->cmdwait_q);
 
 	if (!cmd->callback || cmd->callback == lbs_cmd_async_callback)
 		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
+	wake_up_interruptible(&priv->waitq);
+}
+
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			  int result)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	__lbs_complete_command(priv, cmd, result);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on)
@@ -1121,11 +1158,12 @@ void lbs_set_mac_control(struct lbs_private *priv)
 }
 
 /**
- *  @brief This function allocates the command buffer and link
- *  it to command free queue.
+ *  lbs_allocate_cmd_buffer - allocates the command buffer and links
+ *  it to command free queue
  *
- *  @param priv		A pointer to struct lbs_private structure
- *  @return 		0 or -1
+ *  @priv:	A pointer to &struct lbs_private structure
+ *
+ *  returns:	0 for success or -1 on error
  */
 int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 {
@@ -1167,10 +1205,11 @@ done:
 }
 
 /**
- *  @brief This function frees the command buffer.
+ *  lbs_free_cmd_buffer - free the command buffer
  *
- *  @param priv		A pointer to struct lbs_private structure
- *  @return 		0 or -1
+ *  @priv:	A pointer to &struct lbs_private structure
+ *
+ *  returns:	0 for success
  */
 int lbs_free_cmd_buffer(struct lbs_private *priv)
 {
@@ -1207,11 +1246,13 @@ done:
 }
 
 /**
- *  @brief This function gets a free command node if available in
- *  command free queue.
+ *  lbs_get_free_cmd_node - gets a free command node if available in
+ *  command free queue
  *
- *  @param priv		A pointer to struct lbs_private structure
- *  @return cmd_ctrl_node A pointer to cmd_ctrl_node structure or NULL
+ *  @priv:	A pointer to &struct lbs_private structure
+ *
+ *  returns:	A pointer to &cmd_ctrl_node structure on success
+ *		or %NULL on error
  */
 static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 {
@@ -1228,7 +1269,7 @@ static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 	if (!list_empty(&priv->cmdfreeq)) {
 		tempnode = list_first_entry(&priv->cmdfreeq,
 					    struct cmd_ctrl_node, list);
-		list_del(&tempnode->list);
+		list_del_init(&tempnode->list);
 	} else {
 		lbs_deb_host("GET_CMD_NODE: cmd_ctrl_node is not available\n");
 		tempnode = NULL;
@@ -1241,12 +1282,12 @@ static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 }
 
 /**
- *  @brief This function executes next command in command
- *  pending queue. It will put firmware back to PS mode
- *  if applicable.
+ *  lbs_execute_next_command - execute next command in command
+ *  pending queue. Will put firmware back to PS mode if applicable.
  *
- *  @param priv     A pointer to struct lbs_private structure
- *  @return 	   0 or -1
+ *  @priv:	A pointer to &struct lbs_private structure
+ *
+ *  returns:	0 on success or -1 on error
  */
 int lbs_execute_next_command(struct lbs_private *priv)
 {
@@ -1263,7 +1304,8 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (priv->cur_cmd) {
-		lbs_pr_alert( "EXEC_NEXT_CMD: already processing command!\n");
+		netdev_alert(priv->dev,
+			     "EXEC_NEXT_CMD: already processing command!\n");
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;
 		goto done;
@@ -1335,10 +1377,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				    cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore ENTER_PS cmd\n");
-					list_del(&cmdnode->list);
-					spin_lock_irqsave(&priv->driver_lock, flags);
 					lbs_complete_command(priv, cmdnode, 0);
-					spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 					ret = 0;
 					goto done;
@@ -1348,10 +1387,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore EXIT_PS cmd in sleep\n");
-					list_del(&cmdnode->list);
-					spin_lock_irqsave(&priv->driver_lock, flags);
 					lbs_complete_command(priv, cmdnode, 0);
-					spin_unlock_irqrestore(&priv->driver_lock, flags);
 					priv->needtowakeup = 1;
 
 					ret = 0;
@@ -1362,7 +1398,9 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				       "EXEC_NEXT_CMD: sending EXIT_PS\n");
 			}
 		}
-		list_del(&cmdnode->list);
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		list_del_init(&cmdnode->list);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		lbs_deb_host("EXEC_NEXT_CMD: sending command 0x%04x\n",
 			    le16_to_cpu(cmd->command));
 		lbs_submit_command(priv, cmdnode);
@@ -1425,7 +1463,7 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) &confirm_sleep,
 		sizeof(confirm_sleep));
 	if (ret) {
-		lbs_pr_alert("confirm_sleep failed\n");
+		netdev_alert(priv->dev, "confirm_sleep failed\n");
 		goto out;
 	}
 
@@ -1450,12 +1488,12 @@ out:
 }
 
 /**
- *  @brief This function checks condition and prepares to
- *  send sleep confirm command to firmware if ok.
+ * lbs_ps_confirm_sleep - checks condition and prepares to
+ * send sleep confirm command to firmware if ok
  *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param psmode  	Power Saving mode
- *  @return 	   	n/a
+ * @priv:	A pointer to &struct lbs_private structure
+ *
+ * returns:	n/a
  */
 void lbs_ps_confirm_sleep(struct lbs_private *priv)
 {
@@ -1495,16 +1533,16 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 
 
 /**
- * @brief Configures the transmission power control functionality.
+ * lbs_set_tpc_cfg - Configures the transmission power control functionality
  *
- * @param priv		A pointer to struct lbs_private structure
- * @param enable	Transmission power control enable
- * @param p0		Power level when link quality is good (dBm).
- * @param p1		Power level when link quality is fair (dBm).
- * @param p2		Power level when link quality is poor (dBm).
- * @param usesnr	Use Signal to Noise Ratio in TPC
+ * @priv:	A pointer to &struct lbs_private structure
+ * @enable:	Transmission power control enable
+ * @p0:		Power level when link quality is good (dBm).
+ * @p1:		Power level when link quality is fair (dBm).
+ * @p2:		Power level when link quality is poor (dBm).
+ * @usesnr:	Use Signal to Noise Ratio in TPC
  *
- * @return 0 on success
+ * returns:	0 on success
  */
 int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
 		int8_t p2, int usesnr)
@@ -1527,15 +1565,15 @@ int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
 }
 
 /**
- * @brief Configures the power adaptation settings.
+ * lbs_set_power_adapt_cfg - Configures the power adaptation settings
  *
- * @param priv		A pointer to struct lbs_private structure
- * @param enable	Power adaptation enable
- * @param p0		Power level for 1, 2, 5.5 and 11 Mbps (dBm).
- * @param p1		Power level for 6, 9, 12, 18, 22, 24 and 36 Mbps (dBm).
- * @param p2		Power level for 48 and 54 Mbps (dBm).
+ * @priv:	A pointer to &struct lbs_private structure
+ * @enable:	Power adaptation enable
+ * @p0:		Power level for 1, 2, 5.5 and 11 Mbps (dBm).
+ * @p1:		Power level for 6, 9, 12, 18, 22, 24 and 36 Mbps (dBm).
+ * @p2:		Power level for 48 and 54 Mbps (dBm).
  *
- * @return 0 on Success
+ * returns:	0 on Success
  */
 
 int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,
@@ -1600,11 +1638,9 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	/* Copy the incoming command to the buffer */
 	memcpy(cmdnode->cmdbuf, in_cmd, in_cmd_size);
 
-	/* Set sequence number, clean result, move to buffer */
-	priv->seqnum++;
+	/* Set command, clean result, move to buffer */
 	cmdnode->cmdbuf->command = cpu_to_le16(command);
 	cmdnode->cmdbuf->size    = cpu_to_le16(in_cmd_size);
-	cmdnode->cmdbuf->seqnum  = cpu_to_le16(priv->seqnum);
 	cmdnode->cmdbuf->result  = 0;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
@@ -1646,12 +1682,18 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	}
 
 	might_sleep();
-	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
+
+	/*
+	 * Be careful with signals here. A signal may be received as the system
+	 * goes into suspend or resume. We do not want this to interrupt the
+	 * command, so we perform an uninterruptible sleep.
+	 */
+	wait_event(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	ret = cmdnode->result;
 	if (ret)
-		lbs_pr_info("PREP_CMD: command 0x%04x failed: %d\n",
+		netdev_info(priv->dev, "PREP_CMD: command 0x%04x failed: %d\n",
 			    command, ret);
 
 	__lbs_cleanup_and_insert_cmd(priv, cmdnode);

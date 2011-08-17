@@ -69,8 +69,7 @@ struct dm_io_request {
  *
  * Create/destroy may block.
  */
-struct dm_io_client *dm_io_client_create(unsigned num_pages);
-int dm_io_client_resize(unsigned num_pages, struct dm_io_client *client);
+struct dm_io_client *dm_io_client_create(void);
 void dm_io_client_destroy(struct dm_io_client *client);
 
 /*

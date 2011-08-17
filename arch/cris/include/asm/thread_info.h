@@ -11,8 +11,6 @@
 
 #ifdef __KERNEL__
 
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
 #include <asm/processor.h>
@@ -67,8 +65,10 @@ struct thread_info {
 
 #define init_thread_info	(init_thread_union.thread_info)
 
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 /* thread information allocation */
-#define alloc_thread_info(tsk) ((struct thread_info *) __get_free_pages(GFP_KERNEL,1))
+#define alloc_thread_info_node(tsk, node)	\
+	((struct thread_info *) __get_free_pages(GFP_KERNEL, 1))
 #define free_thread_info(ti) free_pages((unsigned long) (ti), 1)
 
 #endif /* !__ASSEMBLY__ */

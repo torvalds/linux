@@ -5,7 +5,7 @@
  *
  * PROM component device tree code.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1999 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999 Silicon Graphics, Inc.
  */

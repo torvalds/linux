@@ -405,8 +405,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_JEDECPROBE
 	select MTD_CHAR
 	select MTD_BLOCK
-	select MTD_PARTITIONS
-	select MTD_CONCAT
 	select MTD_COMPLEX_MAPPINGS
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use

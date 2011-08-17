@@ -54,11 +54,6 @@ static u64 noop_apic_icr_read(void)
 	return 0;
 }
 
-static int noop_cpu_to_logical_apicid(int cpu)
-{
-	return 0;
-}
-
 static int noop_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return 0;
@@ -113,12 +108,6 @@ static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask)
 	cpumask_set_cpu(cpu, retmask);
 }
 
-int noop_apicid_to_node(int logical_apicid)
-{
-	/* we're always on node 0 */
-	return 0;
-}
-
 static u32 noop_apic_read(u32 reg)
 {
 	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
@@ -153,9 +142,7 @@ struct apic apic_noop = {
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
 	.multi_timer_check		= NULL,
-	.apicid_to_node			= noop_apicid_to_node,
 
-	.cpu_to_logical_apicid		= noop_cpu_to_logical_apicid,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
 	.apicid_to_cpu_present		= physid_set_mask_of_physid,
 
@@ -197,4 +184,8 @@ struct apic apic_noop = {
 	.icr_write			= noop_apic_icr_write,
 	.wait_icr_idle			= noop_apic_wait_icr_idle,
 	.safe_wait_icr_idle		= noop_safe_apic_wait_icr_idle,
+
+#ifdef CONFIG_X86_32
+	.x86_32_early_logical_apicid	= noop_x86_32_early_logical_apicid,
+#endif
 };

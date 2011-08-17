@@ -450,27 +450,15 @@ static struct cxgbi_sock *cxgbi_sock_create(struct cxgbi_device *cdev)
 	return csk;
 }
 
-static struct rtable *find_route_ipv4(__be32 saddr, __be32 daddr,
-					__be16 sport, __be16 dport, u8 tos)
+static struct rtable *find_route_ipv4(struct flowi4 *fl4,
+				      __be32 saddr, __be32 daddr,
+				      __be16 sport, __be16 dport, u8 tos)
 {
 	struct rtable *rt;
-	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			.ip4_u = {
-				.daddr = daddr,
-				.saddr = saddr,
-				.tos = tos }
-			},
-		.proto = IPPROTO_TCP,
-		.uli_u = {
-			.ports = {
-				.sport = sport,
-				.dport = dport }
-			}
-	};
 
-	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, 0))
+	rt = ip_route_output_ports(&init_net, fl4, NULL, daddr, saddr,
+				   dport, sport, IPPROTO_TCP, tos, 0);
+	if (IS_ERR(rt))
 		return NULL;
 
 	return rt;
@@ -483,6 +471,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	struct net_device *ndev;
 	struct cxgbi_device *cdev;
 	struct rtable *rt = NULL;
+	struct flowi4 fl4;
 	struct cxgbi_sock *csk = NULL;
 	unsigned int mtu = 0;
 	int port = 0xFFFF;
@@ -495,7 +484,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		goto err_out;
 	}
 
-	rt = find_route_ipv4(0, daddr->sin_addr.s_addr, 0, daddr->sin_port, 0);
+	rt = find_route_ipv4(&fl4, 0, daddr->sin_addr.s_addr, 0, daddr->sin_port, 0);
 	if (!rt) {
 		pr_info("no route to ipv4 0x%x, port %u.\n",
 			daddr->sin_addr.s_addr, daddr->sin_port);
@@ -503,7 +492,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		goto err_out;
 	}
 	dst = &rt->dst;
-	ndev = dst->neighbour->dev;
+	ndev = dst_get_neighbour(dst)->dev;
 
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		pr_info("multi-cast route %pI4, port %u, dev %s.\n",
@@ -517,7 +506,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		ndev = ip_dev_find(&init_net, daddr->sin_addr.s_addr);
 		mtu = ndev->mtu;
 		pr_info("rt dev %s, loopback -> %s, mtu %u.\n",
-			dst->neighbour->dev->name, ndev->name, mtu);
+			dst_get_neighbour(dst)->dev->name, ndev->name, mtu);
 	}
 
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
@@ -543,7 +532,8 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	csk->dst = dst;
 	csk->daddr.sin_addr.s_addr = daddr->sin_addr.s_addr;
 	csk->daddr.sin_port = daddr->sin_port;
-	csk->saddr.sin_addr.s_addr = rt->rt_src;
+	csk->daddr.sin_family = daddr->sin_family;
+	csk->saddr.sin_addr.s_addr = fl4.saddr;
 
 	return csk;
 
@@ -1277,12 +1267,6 @@ static int ddp_tag_reserve(struct cxgbi_sock *csk, unsigned int tid,
 		return idx;
 	}
 
-	if (cdev->csk_ddp_alloc_gl_skb) {
-		err = cdev->csk_ddp_alloc_gl_skb(ddp, idx, npods, gfp);
-		if (err < 0)
-			goto unmark_entries;
-	}
-
 	tag = cxgbi_ddp_tag_base(tformat, sw_tag);
 	tag |= idx << PPOD_IDX_SHIFT;
 
@@ -1293,11 +1277,8 @@ static int ddp_tag_reserve(struct cxgbi_sock *csk, unsigned int tid,
 	hdr.page_offset = htonl(gl->offset);
 
 	err = cdev->csk_ddp_set(csk, &hdr, idx, npods, gl);
-	if (err < 0) {
-		if (cdev->csk_ddp_free_gl_skb)
-			cdev->csk_ddp_free_gl_skb(ddp, idx, npods);
+	if (err < 0)
 		goto unmark_entries;
-	}
 
 	ddp->idx_last = idx;
 	log_debug(1 << CXGBI_DBG_DDP,
@@ -1363,8 +1344,6 @@ static void ddp_destroy(struct kref *kref)
 					>> PPOD_PAGES_SHIFT;
 			pr_info("cdev 0x%p, ddp %d + %d.\n", cdev, i, npods);
 			kfree(gl);
-			if (cdev->csk_ddp_free_gl_skb)
-				cdev->csk_ddp_free_gl_skb(ddp, i, npods);
 			i += npods;
 		} else
 			i++;
@@ -1407,8 +1386,6 @@ int cxgbi_ddp_init(struct cxgbi_device *cdev,
 		return -ENOMEM;
 	}
 	ddp->gl_map = (struct cxgbi_gather_list **)(ddp + 1);
-	ddp->gl_skb = (struct sk_buff **)(((char *)ddp->gl_map) +
-				ppmax * sizeof(struct cxgbi_gather_list *));
 	cdev->ddp = ddp;
 
 	spin_lock_init(&ddp->map_lock);
@@ -1908,13 +1885,16 @@ EXPORT_SYMBOL_GPL(cxgbi_conn_alloc_pdu);
 
 static inline void tx_skb_setmode(struct sk_buff *skb, int hcrc, int dcrc)
 {
-	u8 submode = 0;
+	if (hcrc || dcrc) {
+		u8 submode = 0;
 
-	if (hcrc)
-		submode |= 1;
-	if (dcrc)
-		submode |= 2;
-	cxgbi_skcb_ulp_mode(skb) = (ULP2_MODE_ISCSI << 4) | submode;
+		if (hcrc)
+			submode |= 1;
+		if (dcrc)
+			submode |= 2;
+		cxgbi_skcb_ulp_mode(skb) = (ULP2_MODE_ISCSI << 4) | submode;
+	} else
+		cxgbi_skcb_ulp_mode(skb) = 0;
 }
 
 int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
@@ -2210,32 +2190,34 @@ int cxgbi_set_conn_param(struct iscsi_cls_conn *cls_conn,
 }
 EXPORT_SYMBOL_GPL(cxgbi_set_conn_param);
 
-int cxgbi_get_conn_param(struct iscsi_cls_conn *cls_conn,
-			enum iscsi_param param, char *buf)
+int cxgbi_get_ep_param(struct iscsi_endpoint *ep, enum iscsi_param param,
+		       char *buf)
 {
-	struct iscsi_conn *iconn = cls_conn->dd_data;
+	struct cxgbi_endpoint *cep = ep->dd_data;
+	struct cxgbi_sock *csk;
 	int len;
 
 	log_debug(1 << CXGBI_DBG_ISCSI,
-		"cls_conn 0x%p, param %d.\n", cls_conn, param);
+		"cls_conn 0x%p, param %d.\n", ep, param);
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
-		spin_lock_bh(&iconn->session->lock);
-		len = sprintf(buf, "%hu\n", iconn->portal_port);
-		spin_unlock_bh(&iconn->session->lock);
-		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		spin_lock_bh(&iconn->session->lock);
-		len = sprintf(buf, "%s\n", iconn->portal_address);
-		spin_unlock_bh(&iconn->session->lock);
-		break;
+		if (!cep)
+			return -ENOTCONN;
+
+		csk = cep->csk;
+		if (!csk)
+			return -ENOTCONN;
+
+		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
+						 &csk->daddr, param, buf);
 	default:
-		return iscsi_conn_get_param(cls_conn, param, buf);
+		return -ENOSYS;
 	}
 	return len;
 }
-EXPORT_SYMBOL_GPL(cxgbi_get_conn_param);
+EXPORT_SYMBOL_GPL(cxgbi_get_ep_param);
 
 struct iscsi_cls_conn *
 cxgbi_create_conn(struct iscsi_cls_session *cls_session, u32 cid)
@@ -2301,11 +2283,6 @@ int cxgbi_bind_conn(struct iscsi_cls_session *cls_session,
 
 	cxgbi_conn_max_xmit_dlength(conn);
 	cxgbi_conn_max_recv_dlength(conn);
-
-	spin_lock_bh(&conn->session->lock);
-	sprintf(conn->portal_address, "%pI4", &csk->daddr.sin_addr.s_addr);
-	conn->portal_port = ntohs(csk->daddr.sin_port);
-	spin_unlock_bh(&conn->session->lock);
 
 	log_debug(1 << CXGBI_DBG_ISCSI,
 		"cls 0x%p,0x%p, ep 0x%p, cconn 0x%p, csk 0x%p.\n",

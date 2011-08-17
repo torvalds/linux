@@ -157,6 +157,28 @@ static const struct pvr2_device_desc pvr2_device_gotview_2d = {
 
 
 /*------------------------------------------------------------------------*/
+/* Terratec Grabster AV400 */
+
+static const struct pvr2_device_client_desc pvr2_cli_av400[] = {
+	{ .module_id = PVR2_CLIENT_ID_CX25840 },
+};
+
+static const struct pvr2_device_desc pvr2_device_av400 = {
+		.description = "Terratec Grabster AV400",
+		.shortname = "av400",
+		.flag_is_experimental = 1,
+		.client_table.lst = pvr2_cli_av400,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_av400),
+		.flag_has_cx25840 = !0,
+		.flag_has_analogtuner = 0,
+		.flag_has_composite = !0,
+		.flag_has_svideo = !0,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_AV400,
+};
+
+
+
+/*------------------------------------------------------------------------*/
 /* OnAir Creator */
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
@@ -517,6 +539,8 @@ struct usb_device_id pvr2_device_table[] = {
 	  .driver_info = (kernel_ulong_t)&pvr2_device_750xx},
 	{ USB_DEVICE(0x2040, 0x7501),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_751xx},
+	{ USB_DEVICE(0x0ccd, 0x0039),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_av400},
 	{ }
 };
 

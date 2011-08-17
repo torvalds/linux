@@ -2,13 +2,13 @@
  * i2c-parport-light.c I2C bus over parallel port                           *
  * ------------------------------------------------------------------------ *
    Copyright (C) 2003-2010 Jean Delvare <khali@linux-fr.org>
-   
+
    Based on older i2c-velleman.c driver
    Copyright (C) 1995-2000 Simon G. Vogl
    With some changes from:
    Frodo Looijaard <frodol@dds.nl>
    Kyösti Mälkki <kmalkki@cc.hut.fi>
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -114,7 +114,7 @@ static struct i2c_algo_bit_data parport_algo_data = {
 	.getscl		= parport_getscl,
 	.udelay		= 50,
 	.timeout	= HZ,
-}; 
+};
 
 /* ----- Driver registration ---------------------------------------------- */
 
@@ -132,7 +132,7 @@ static struct i2c_smbus_alert_setup alert_data = {
 static struct i2c_client *ara;
 static struct lineop parport_ctrl_irq = {
 	.val		= (1 << 4),
-	.port		= CTRL,
+	.port		= PORT_CTRL,
 };
 
 static int __devinit i2c_parport_probe(struct platform_device *pdev)
@@ -245,7 +245,7 @@ static int __init i2c_parport_init(void)
 	if (irq != 0)
 		pr_info(DRVNAME ": using irq %d\n", irq);
 
-        if (!adapter_parm[type].getscl.val)
+	if (!adapter_parm[type].getscl.val)
 		parport_algo_data.getscl = NULL;
 
 	/* Sets global pdev as a side effect */

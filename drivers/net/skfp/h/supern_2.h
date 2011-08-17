@@ -14,7 +14,7 @@
 
 /*
 	defines for AMD Supernet II chip set
-	the chips are refered to as
+	the chips are referred to as
 		FPLUS	Formac Plus
 		PLC	Physical Layer
 
@@ -386,7 +386,7 @@ struct tx_queue {
 #define	FM_MDISRCV	(4<<8)		/* disable receive function */
 #define	FM_MRES0	(5<<8)		/* reserve */
 #define	FM_MLIMPROM	(6<<8)		/* limited-promiscuous mode */
-#define FM_MPROMISCOUS	(7<<8)		/* address detection : promiscous */
+#define FM_MPROMISCOUS	(7<<8)		/* address detection : promiscuous */
 
 #define FM_SELSA	0x0800		/* select-short-address bit */
 

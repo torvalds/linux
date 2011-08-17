@@ -240,7 +240,7 @@ static int __devinit lpc32xx_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&rtc->lock);
 
 	/*
-	 * The RTC is on a seperate power domain and can keep it's state
+	 * The RTC is on a separate power domain and can keep it's state
 	 * across a chip power cycle. If the RTC has never been previously
 	 * setup, then set it up now for the first time.
 	 */

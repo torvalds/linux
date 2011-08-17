@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/ftrace.h>
 #include <linux/delay.h>
+#include <linux/ratelimit.h>
 #include <asm/processor.h>
 #include <asm/machvec.h>
 #include <asm/uaccess.h>
@@ -34,9 +35,9 @@ void ack_bad_irq(unsigned int irq)
 
 #if defined(CONFIG_PROC_FS)
 /*
- * /proc/interrupts printing:
+ * /proc/interrupts printing for arch specific interrupts
  */
-static int show_other_interrupts(struct seq_file *p, int prec)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
 
@@ -47,63 +48,6 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 
-	return 0;
-}
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	unsigned long flags, any_count = 0;
-	int i = *(loff_t *)v, j, prec;
-	struct irqaction *action;
-	struct irq_desc *desc;
-	struct irq_data *data;
-	struct irq_chip *chip;
-
-	if (i > nr_irqs)
-		return 0;
-
-	for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
-		j *= 10;
-
-	if (i == nr_irqs)
-		return show_other_interrupts(p, prec);
-
-	if (i == 0) {
-		seq_printf(p, "%*s", prec + 8, "");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%-8d", j);
-		seq_putc(p, '\n');
-	}
-
-	desc = irq_to_desc(i);
-	if (!desc)
-		return 0;
-
-	data = irq_get_irq_data(i);
-	chip = irq_data_get_irq_chip(data);
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	for_each_online_cpu(j)
-		any_count |= kstat_irqs_cpu(i, j);
-	action = desc->action;
-	if (!action && !any_count)
-		goto out;
-
-	seq_printf(p, "%*d: ", prec, i);
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-	seq_printf(p, " %14s", chip->name);
-	seq_printf(p, "-%-8s", desc->name);
-
-	if (action) {
-		seq_printf(p, "  %s", action->name);
-		while ((action = action->next) != NULL)
-			seq_printf(p, ", %s", action->name);
-	}
-
-	seq_putc(p, '\n');
-out:
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 #endif
@@ -240,7 +184,7 @@ asmlinkage void do_softirq(void)
 		);
 
 		/*
-		 * Shouldnt happen, we returned above if in_interrupt():
+		 * Shouldn't happen, we returned above if in_interrupt():
 		 */
 		WARN_ON_ONCE(softirq_count());
 	}
@@ -325,9 +269,8 @@ void migrate_irqs(void)
 			unsigned int newcpu = cpumask_any_and(data->affinity,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
-				if (printk_ratelimit())
-					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
-					       irq, cpu);
+				pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
+						    irq, cpu);
 
 				cpumask_setall(data->affinity);
 				newcpu = cpumask_any_and(data->affinity,

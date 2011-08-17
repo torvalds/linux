@@ -166,24 +166,9 @@ config RADIO_MAXIRADIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maxiradio.
 
-config RADIO_MAESTRO
-	tristate "Maestro on board radio"
-	depends on VIDEO_V4L2 && PCI
-	---help---
-	  Say Y here to directly support the on-board radio tuner on the
-	  Maestro 2 or 2E sound card.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-maestro.
-
 config RADIO_MIROPCM20
 	tristate "miroSOUND PCM20 radio"
-	depends on ISA && VIDEO_V4L2 && SND
+	depends on ISA && ISA_DMA_API && VIDEO_V4L2 && SND
 	select SND_ISA
 	select SND_MIRO
 	---help---
@@ -216,7 +201,7 @@ config RADIO_SF16FMI
 
 config RADIO_SF16FMR2
 	tristate "SF16FMR2 Radio"
-	depends on ISA && VIDEO_V4L2
+	depends on ISA && VIDEO_V4L2 && SND
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
 
@@ -441,6 +426,7 @@ config RADIO_TIMBERDALE
 config RADIO_WL1273
 	tristate "Texas Instruments WL1273 I2C FM Radio"
 	depends on I2C && VIDEO_V4L2
+	select MFD_CORE
 	select MFD_WL1273_CORE
 	select FW_LOADER
 	---help---
@@ -453,5 +439,8 @@ config RADIO_WL1273
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-wl1273.
+
+# TI's ST based wl128x FM radio
+source "drivers/media/radio/wl128x/Kconfig"
 
 endif # RADIO_ADAPTERS

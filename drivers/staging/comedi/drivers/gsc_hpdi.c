@@ -1031,7 +1031,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 		writel(hpdi_intr_status,
 		       priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG);
 	}
-	/*  spin lock makes sure noone else changes plx dma control reg */
+	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
@@ -1045,7 +1045,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/*  spin lock makes sure noone else changes plx dma control reg */
+	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	if (plx_status & ICS_DMA1_A) {	/*  XXX *//*  dma chan 1 interrupt */

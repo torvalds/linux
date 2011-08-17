@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2009 Solarflare Communications Inc.
+ * Copyright 2005-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -205,7 +205,9 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 					goto unwind;
 				}
 				smp_mb();
-				netif_tx_start_queue(tx_queue->core_txq);
+				if (likely(!efx->loopback_selftest))
+					netif_tx_start_queue(
+						tx_queue->core_txq);
 			}
 
 			insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
@@ -336,15 +338,88 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
+	unsigned index, type;
 
-	if (unlikely(efx->port_inhibited))
-		return NETDEV_TX_BUSY;
+	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
 
-	tx_queue = efx_get_tx_queue(efx, skb_get_queue_mapping(skb),
-				    skb->ip_summed == CHECKSUM_PARTIAL ?
-				    EFX_TXQ_TYPE_OFFLOAD : 0);
+	index = skb_get_queue_mapping(skb);
+	type = skb->ip_summed == CHECKSUM_PARTIAL ? EFX_TXQ_TYPE_OFFLOAD : 0;
+	if (index >= efx->n_tx_channels) {
+		index -= efx->n_tx_channels;
+		type |= EFX_TXQ_TYPE_HIGHPRI;
+	}
+	tx_queue = efx_get_tx_queue(efx, index, type);
 
 	return efx_enqueue_skb(tx_queue, skb);
+}
+
+void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
+{
+	struct efx_nic *efx = tx_queue->efx;
+
+	/* Must be inverse of queue lookup in efx_hard_start_xmit() */
+	tx_queue->core_txq =
+		netdev_get_tx_queue(efx->net_dev,
+				    tx_queue->queue / EFX_TXQ_TYPES +
+				    ((tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
+				     efx->n_tx_channels : 0));
+}
+
+int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_channel *channel;
+	struct efx_tx_queue *tx_queue;
+	unsigned tc;
+	int rc;
+
+	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0 || num_tc > EFX_MAX_TX_TC)
+		return -EINVAL;
+
+	if (num_tc == net_dev->num_tc)
+		return 0;
+
+	for (tc = 0; tc < num_tc; tc++) {
+		net_dev->tc_to_txq[tc].offset = tc * efx->n_tx_channels;
+		net_dev->tc_to_txq[tc].count = efx->n_tx_channels;
+	}
+
+	if (num_tc > net_dev->num_tc) {
+		/* Initialise high-priority queues as necessary */
+		efx_for_each_channel(channel, efx) {
+			efx_for_each_possible_channel_tx_queue(tx_queue,
+							       channel) {
+				if (!(tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI))
+					continue;
+				if (!tx_queue->buffer) {
+					rc = efx_probe_tx_queue(tx_queue);
+					if (rc)
+						return rc;
+				}
+				if (!tx_queue->initialised)
+					efx_init_tx_queue(tx_queue);
+				efx_init_tx_queue_core_txq(tx_queue);
+			}
+		}
+	} else {
+		/* Reduce number of classes before number of queues */
+		net_dev->num_tc = num_tc;
+	}
+
+	rc = netif_set_real_num_tx_queues(net_dev,
+					  max_t(int, num_tc, 1) *
+					  efx->n_tx_channels);
+	if (rc)
+		return rc;
+
+	/* Do not destroy high-priority queues when they become
+	 * unused.  We would have to flush them first, and it is
+	 * fairly difficult to flush a subset of TX queues.  Leave
+	 * it to efx_fini_channels().
+	 */
+
+	net_dev->num_tc = num_tc;
+	return 0;
 }
 
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
@@ -361,7 +436,8 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	 * queue state. */
 	smp_mb();
 	if (unlikely(netif_tx_queue_stopped(tx_queue->core_txq)) &&
-	    likely(efx->port_enabled)) {
+	    likely(efx->port_enabled) &&
+	    likely(netif_device_present(efx->net_dev))) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
 		if (fill_level < EFX_TXQ_THRESHOLD(efx)) {
 			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));
@@ -430,6 +506,8 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 
 	/* Set up TX descriptor ring */
 	efx_nic_init_tx(tx_queue);
+
+	tx_queue->initialised = true;
 }
 
 void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
@@ -452,8 +530,13 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 
 void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 {
+	if (!tx_queue->initialised)
+		return;
+
 	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
 		  "shutting down TX queue %d\n", tx_queue->queue);
+
+	tx_queue->initialised = false;
 
 	/* Flush TX queue, remove descriptor ring */
 	efx_nic_fini_tx(tx_queue);
@@ -466,6 +549,9 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 {
+	if (!tx_queue->buffer)
+		return;
+
 	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
 		  "destroying TX queue %d\n", tx_queue->queue);
 	efx_nic_remove_tx(tx_queue);

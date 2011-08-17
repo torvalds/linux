@@ -37,6 +37,10 @@ struct v4l2_ioctl_ops {
 					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_vid_out)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
+	int (*vidioc_enum_fmt_vid_cap_mplane)(struct file *file, void *fh,
+					      struct v4l2_fmtdesc *f);
+	int (*vidioc_enum_fmt_vid_out_mplane)(struct file *file, void *fh,
+					      struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_type_private)(struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
 
@@ -57,6 +61,10 @@ struct v4l2_ioctl_ops {
 					struct v4l2_format *f);
 	int (*vidioc_g_fmt_sliced_vbi_out)(struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_g_fmt_vid_cap_mplane)(struct file *file, void *fh,
+					   struct v4l2_format *f);
+	int (*vidioc_g_fmt_vid_out_mplane)(struct file *file, void *fh,
+					   struct v4l2_format *f);
 	int (*vidioc_g_fmt_type_private)(struct file *file, void *fh,
 					struct v4l2_format *f);
 
@@ -77,6 +85,10 @@ struct v4l2_ioctl_ops {
 					struct v4l2_format *f);
 	int (*vidioc_s_fmt_sliced_vbi_out)(struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_s_fmt_vid_cap_mplane)(struct file *file, void *fh,
+					   struct v4l2_format *f);
+	int (*vidioc_s_fmt_vid_out_mplane)(struct file *file, void *fh,
+					   struct v4l2_format *f);
 	int (*vidioc_s_fmt_type_private)(struct file *file, void *fh,
 					struct v4l2_format *f);
 
@@ -97,6 +109,10 @@ struct v4l2_ioctl_ops {
 					  struct v4l2_format *f);
 	int (*vidioc_try_fmt_sliced_vbi_out)(struct file *file, void *fh,
 					  struct v4l2_format *f);
+	int (*vidioc_try_fmt_vid_cap_mplane)(struct file *file, void *fh,
+					     struct v4l2_format *f);
+	int (*vidioc_try_fmt_vid_out_mplane)(struct file *file, void *fh,
+					     struct v4l2_format *f);
 	int (*vidioc_try_fmt_type_private)(struct file *file, void *fh,
 					  struct v4l2_format *f);
 
@@ -254,7 +270,7 @@ struct v4l2_ioctl_ops {
 
 	/* For other private ioctls */
 	long (*vidioc_default)	       (struct file *file, void *fh,
-					int cmd, void *arg);
+					bool valid_prio, int cmd, void *arg);
 };
 
 

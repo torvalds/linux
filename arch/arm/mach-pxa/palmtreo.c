@@ -25,7 +25,6 @@
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
 #include <linux/power_supply.h>
-#include <linux/sysdev.h>
 #include <linux/w1-gpio.h>
 
 #include <asm/mach-types.h>
@@ -445,6 +444,7 @@ MACHINE_START(TREO680, "Palm Treo 680")
 	.map_io         = pxa27x_map_io,
 	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
+	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = treo680_init,
 MACHINE_END
@@ -454,6 +454,7 @@ MACHINE_START(CENTRO, "Palm Centro 685")
 	.map_io         = pxa27x_map_io,
 	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
+	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine	= centro_init,
 MACHINE_END

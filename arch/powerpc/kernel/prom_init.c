@@ -335,6 +335,7 @@ static void __init prom_printf(const char *format, ...)
 	const char *p, *q, *s;
 	va_list args;
 	unsigned long v;
+	long vs;
 	struct prom_t *_prom = &RELOC(prom);
 
 	va_start(args, format);
@@ -368,12 +369,35 @@ static void __init prom_printf(const char *format, ...)
 			v = va_arg(args, unsigned long);
 			prom_print_hex(v);
 			break;
+		case 'd':
+			++q;
+			vs = va_arg(args, int);
+			if (vs < 0) {
+				prom_print(RELOC("-"));
+				vs = -vs;
+			}
+			prom_print_dec(vs);
+			break;
 		case 'l':
 			++q;
-			if (*q == 'u') { /* '%lu' */
+			if (*q == 0)
+				break;
+			else if (*q == 'x') {
+				++q;
+				v = va_arg(args, unsigned long);
+				prom_print_hex(v);
+			} else if (*q == 'u') { /* '%lu' */
 				++q;
 				v = va_arg(args, unsigned long);
 				prom_print_dec(v);
+			} else if (*q == 'd') { /* %ld */
+				++q;
+				vs = va_arg(args, long);
+				if (vs < 0) {
+					prom_print(RELOC("-"));
+					vs = -vs;
+				}
+				prom_print_dec(vs);
 			}
 			break;
 		}
@@ -676,8 +700,10 @@ static void __init early_cmdline_parse(void)
 #endif /* CONFIG_PCI_MSI */
 #ifdef CONFIG_PPC_SMLPAR
 #define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
+#define OV5_XCMO			0x40	/* Page Coalescing */
 #else
 #define OV5_CMO			0x00
+#define OV5_XCMO			0x00
 #endif
 #define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
 
@@ -732,7 +758,7 @@ static unsigned char ibm_architecture_vec[] = {
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
 	0,
-	OV5_CMO,
+	OV5_CMO | OV5_XCMO,
 	OV5_TYPE1_AFFINITY,
 	0,
 	0,
@@ -994,7 +1020,7 @@ static unsigned long __init alloc_up(unsigned long size, unsigned long align)
 	}
 	if (addr == 0)
 		return 0;
-	RELOC(alloc_bottom) = addr;
+	RELOC(alloc_bottom) = addr + size;
 
 	prom_debug(" -> %x\n", addr);
 	prom_debug("  alloc_bottom : %x\n", RELOC(alloc_bottom));
@@ -1804,11 +1830,13 @@ static void __init *make_room(unsigned long *mem_start, unsigned long *mem_end,
 		if (room > DEVTREE_CHUNK_SIZE)
 			room = DEVTREE_CHUNK_SIZE;
 		if (room < PAGE_SIZE)
-			prom_panic("No memory for flatten_device_tree (no room)");
+			prom_panic("No memory for flatten_device_tree "
+				   "(no room)\n");
 		chunk = alloc_up(room, 0);
 		if (chunk == 0)
-			prom_panic("No memory for flatten_device_tree (claim failed)");
-		*mem_end = RELOC(alloc_top);
+			prom_panic("No memory for flatten_device_tree "
+				   "(claim failed)\n");
+		*mem_end = chunk + room;
 	}
 
 	ret = (void *)*mem_start;
@@ -2016,7 +2044,7 @@ static void __init flatten_device_tree(void)
 
 	/*
 	 * Check how much room we have between alloc top & bottom (+/- a
-	 * few pages), crop to 4Mb, as this is our "chuck" size
+	 * few pages), crop to 1MB, as this is our "chunk" size
 	 */
 	room = RELOC(alloc_top) - RELOC(alloc_bottom) - 0x4000;
 	if (room > DEVTREE_CHUNK_SIZE)
@@ -2027,7 +2055,7 @@ static void __init flatten_device_tree(void)
 	mem_start = (unsigned long)alloc_up(room, PAGE_SIZE);
 	if (mem_start == 0)
 		prom_panic("Can't allocate initial device-tree chunk\n");
-	mem_end = RELOC(alloc_top);
+	mem_end = mem_start + room;
 
 	/* Get root of tree */
 	root = call_prom("peer", 1, 1, (phandle)0);

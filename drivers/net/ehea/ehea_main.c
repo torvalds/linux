@@ -41,6 +41,7 @@
 #include <linux/memory.h>
 #include <asm/kexec.h>
 #include <linux/mutex.h>
+#include <linux/prefetch.h>
 
 #include <net/ip.h>
 
@@ -682,24 +683,13 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 static void ehea_proc_skb(struct ehea_port_res *pr, struct ehea_cqe *cqe,
 			  struct sk_buff *skb)
 {
-	int vlan_extracted = ((cqe->status & EHEA_CQE_VLAN_TAG_XTRACT) &&
-			      pr->port->vgrp);
+	if (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
+		__vlan_hwaccel_put_tag(skb, cqe->vlan_tag);
 
-	if (skb->dev->features & NETIF_F_LRO) {
-		if (vlan_extracted)
-			lro_vlan_hwaccel_receive_skb(&pr->lro_mgr, skb,
-						     pr->port->vgrp,
-						     cqe->vlan_tag,
-						     cqe);
-		else
-			lro_receive_skb(&pr->lro_mgr, skb, cqe);
-	} else {
-		if (vlan_extracted)
-			vlan_hwaccel_receive_skb(skb, pr->port->vgrp,
-						 cqe->vlan_tag);
-		else
-			netif_receive_skb(skb);
-	}
+	if (skb->dev->features & NETIF_F_LRO)
+		lro_receive_skb(&pr->lro_mgr, skb, cqe);
+	else
+		netif_receive_skb(skb);
 }
 
 static int ehea_proc_rwqes(struct net_device *dev,
@@ -2082,7 +2072,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int ret;
 
-	if (dev->flags & IFF_PROMISC) {
+	if (port->promisc) {
 		ehea_promiscuous(dev, 1);
 		return;
 	}
@@ -2338,32 +2328,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void ehea_vlan_rx_register(struct net_device *dev,
-				  struct vlan_group *grp)
-{
-	struct ehea_port *port = netdev_priv(dev);
-	struct ehea_adapter *adapter = port->adapter;
-	struct hcp_ehea_port_cb1 *cb1;
-	u64 hret;
-
-	port->vgrp = grp;
-
-	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!cb1) {
-		pr_err("no mem for cb1\n");
-		goto out;
-	}
-
-	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
-				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
-	if (hret != H_SUCCESS)
-		pr_err("modify_ehea_port failed\n");
-
-	free_page((unsigned long)cb1);
-out:
-	return;
-}
-
 static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
@@ -2404,8 +2368,6 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct hcp_ehea_port_cb1 *cb1;
 	int index;
 	u64 hret;
-
-	vlan_group_set_device(port->vgrp, vid, NULL);
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
@@ -2687,9 +2649,6 @@ static int ehea_open(struct net_device *dev)
 		port_napi_enable(port);
 		netif_start_queue(dev);
 	}
-
-	init_waitqueue_head(&port->swqe_avail_wq);
-	init_waitqueue_head(&port->restart_wq);
 
 	mutex_unlock(&port->port_lock);
 
@@ -3040,11 +2999,14 @@ static void ehea_rereg_mrs(void)
 
 					if (dev->flags & IFF_UP) {
 						mutex_lock(&port->port_lock);
-						port_napi_enable(port);
 						ret = ehea_restart_qps(dev);
-						check_sqs(port);
-						if (!ret)
+						if (!ret) {
+							check_sqs(port);
+							port_napi_enable(port);
 							netif_wake_queue(dev);
+						} else {
+							netdev_err(dev, "Unable to restart QPS\n");
+						}
 						mutex_unlock(&port->port_lock);
 					}
 				}
@@ -3201,7 +3163,6 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= ehea_set_multicast_list,
 	.ndo_change_mtu		= ehea_change_mtu,
-	.ndo_vlan_rx_register	= ehea_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= ehea_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ehea_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= ehea_tx_watchdog,
@@ -3262,16 +3223,21 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	dev->netdev_ops = &ehea_netdev_ops;
 	ehea_set_ethtool_ops(dev);
 
+	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
+		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX | NETIF_F_LRO;
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
-		      | NETIF_F_LLTX;
+		      | NETIF_F_LLTX | NETIF_F_RXCSUM;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
 	if (use_lro)
 		dev->features |= NETIF_F_LRO;
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
+
+	init_waitqueue_head(&port->swqe_avail_wq);
+	init_waitqueue_head(&port->restart_wq);
 
 	ret = register_netdev(dev);
 	if (ret) {

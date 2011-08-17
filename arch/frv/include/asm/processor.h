@@ -97,7 +97,6 @@ extern struct task_struct *__kernel_current_task;
  */
 #define start_thread(_regs, _pc, _usp)			\
 do {							\
-	set_fs(USER_DS); /* reads from user space */	\
 	__frame = __kernel_frame0_ptr;			\
 	__frame->pc	= (_pc);			\
 	__frame->psr	&= ~PSR_S;			\
@@ -137,7 +136,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk)->thread.frame0->sp)
 
 /* Allocation and freeing of basic task resources. */
-extern struct task_struct *alloc_task_struct(void);
+extern struct task_struct *alloc_task_struct_node(int node);
 extern void free_task_struct(struct task_struct *p);
 
 #define cpu_relax()    barrier()

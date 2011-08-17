@@ -212,7 +212,7 @@ static void release_new_page_budget(struct ubifs_info *c)
  */
 static void release_existing_page_budget(struct ubifs_info *c)
 {
-	struct ubifs_budget_req req = { .dd_growth = c->page_budget};
+	struct ubifs_budget_req req = { .dd_growth = c->bi.page_budget};
 
 	ubifs_release_budget(c, &req);
 }
@@ -448,10 +448,12 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE) {
 			/*
 			 * We change whole page so no need to load it. But we
-			 * have to set the @PG_checked flag to make the further
-			 * code know that the page is new. This might be not
-			 * true, but it is better to budget more than to read
-			 * the page from the media.
+			 * do not know whether this page exists on the media or
+			 * not, so we assume the latter because it requires
+			 * larger budget. The assumption is that it is better
+			 * to budget a bit more than to read the page from the
+			 * media. Thus, we are setting the @PG_checked flag
+			 * here.
 			 */
 			SetPageChecked(page);
 			skipped_read = 1;
@@ -559,6 +561,7 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 		dbg_gen("copied %d instead of %d, read page and repeat",
 			copied, len);
 		cancel_budget(c, page, ui, appending);
+		ClearPageChecked(page);
 
 		/*
 		 * Return 0 to force VFS to repeat the whole operation, or the
@@ -968,11 +971,11 @@ static int do_writepage(struct page *page, int len)
  * the page locked, and it locks @ui_mutex. However, write-back does take inode
  * @i_mutex, which means other VFS operations may be run on this inode at the
  * same time. And the problematic one is truncation to smaller size, from where
- * we have to call 'truncate_setsize()', which first changes @inode->i_size, then
- * drops the truncated pages. And while dropping the pages, it takes the page
- * lock. This means that 'do_truncation()' cannot call 'truncate_setsize()' with
- * @ui_mutex locked, because it would deadlock with 'ubifs_writepage()'. This
- * means that @inode->i_size is changed while @ui_mutex is unlocked.
+ * we have to call 'truncate_setsize()', which first changes @inode->i_size,
+ * then drops the truncated pages. And while dropping the pages, it takes the
+ * page lock. This means that 'do_truncation()' cannot call 'truncate_setsize()'
+ * with @ui_mutex locked, because it would deadlock with 'ubifs_writepage()'.
+ * This means that @inode->i_size is changed while @ui_mutex is unlocked.
  *
  * XXX(truncate): with the new truncate sequence this is not true anymore,
  * and the calls to truncate_setsize can be move around freely.  They should
@@ -1186,7 +1189,7 @@ out_budg:
 	if (budgeted)
 		ubifs_release_budget(c, &req);
 	else {
-		c->nospace = c->nospace_rp = 0;
+		c->bi.nospace = c->bi.nospace_rp = 0;
 		smp_wmb();
 	}
 	return err;
@@ -1260,7 +1263,7 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
-	err = dbg_check_synced_i_size(inode);
+	err = dbg_check_synced_i_size(c, inode);
 	if (err)
 		return err;
 
@@ -1301,7 +1304,7 @@ static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-int ubifs_fsync(struct file *file, int datasync)
+int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -1309,14 +1312,23 @@ int ubifs_fsync(struct file *file, int datasync)
 
 	dbg_gen("syncing inode %lu", inode->i_ino);
 
-	/*
-	 * VFS has already synchronized dirty pages for this inode. Synchronize
-	 * the inode unless this is a 'datasync()' call.
-	 */
+	if (c->ro_mount)
+		/*
+		 * For some really strange reasons VFS does not filter out
+		 * 'fsync()' for R/O mounted file-systems as per 2.6.39.
+		 */
+		return 0;
+
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (err)
+		return err;
+	mutex_lock(&inode->i_mutex);
+
+	/* Synchronize the inode unless this is a 'datasync()' call. */
 	if (!datasync || (inode->i_state & I_DIRTY_DATASYNC)) {
 		err = inode->i_sb->s_op->write_inode(inode, NULL);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	/*
@@ -1324,10 +1336,9 @@ int ubifs_fsync(struct file *file, int datasync)
 	 * them.
 	 */
 	err = ubifs_sync_wbufs_by_inode(c, inode);
-	if (err)
-		return err;
-
-	return 0;
+out:
+	mutex_unlock(&inode->i_mutex);
+	return err;
 }
 
 /**
@@ -1426,10 +1437,11 @@ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
 }
 
 /*
- * mmap()d file has taken write protection fault and is being made
- * writable. UBIFS must ensure page is budgeted for.
+ * mmap()d file has taken write protection fault and is being made writable.
+ * UBIFS must ensure page is budgeted for.
  */
-static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
+				 struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
@@ -1530,7 +1542,6 @@ static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err;
 
-	/* 'generic_file_mmap()' takes care of NOMMU case */
 	err = generic_file_mmap(file, vma);
 	if (err)
 		return err;

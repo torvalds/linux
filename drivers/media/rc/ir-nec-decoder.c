@@ -49,6 +49,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct nec_dec *data = &dev->raw->nec;
 	u32 scancode;
 	u8 address, not_address, command, not_command;
+	bool send_32bits = false;
 
 	if (!(dev->raw->enabled_protocols & RC_TYPE_NEC))
 		return 0;
@@ -164,10 +165,15 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if ((command ^ not_command) != 0xff) {
 			IR_dprintk(1, "NEC checksum error: received 0x%08x\n",
 				   data->bits);
-			break;
+			send_32bits = true;
 		}
 
-		if ((address ^ not_address) != 0xff) {
+		if (send_32bits) {
+			/* NEC transport, but modified protocol, used by at
+			 * least Apple and TiVo remotes */
+			scancode = data->bits;
+			IR_dprintk(1, "NEC (modified) scancode 0x%08x\n", scancode);
+		} else if ((address ^ not_address) != 0xff) {
 			/* Extended NEC */
 			scancode = address     << 16 |
 				   not_address <<  8 |

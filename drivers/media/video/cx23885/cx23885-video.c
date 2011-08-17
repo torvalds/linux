@@ -1000,7 +1000,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strlcpy(cap->card, cx23885_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
-	cap->version = CX23885_VERSION_CODE;
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE     |
@@ -1468,16 +1467,17 @@ int cx23885_video_register(struct cx23885_dev *dev)
 
 	cx23885_irq_add_enable(dev, 0x01);
 
-	if (TUNER_ABSENT != dev->tuner_type) {
+	if ((TUNER_ABSENT != dev->tuner_type) &&
+			((dev->tuner_bus == 0) || (dev->tuner_bus == 1))) {
 		struct v4l2_subdev *sd = NULL;
 
 		if (dev->tuner_addr)
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_bus[1].i2c_adap,
+				&dev->i2c_bus[dev->tuner_bus].i2c_adap,
 				"tuner", dev->tuner_addr, NULL);
 		else
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_bus[1].i2c_adap,
+				&dev->i2c_bus[dev->tuner_bus].i2c_adap,
 				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_TV));
 		if (sd) {
 			struct tuner_setup tun_setup;

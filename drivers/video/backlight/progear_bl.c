@@ -84,6 +84,7 @@ static int progearbl_probe(struct platform_device *pdev)
 	pci_write_config_byte(sb_dev, SB_MPS1, temp | 0x20);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
 	progear_backlight_device = backlight_device_register("progear-bl",
 							     &pdev->dev, NULL,

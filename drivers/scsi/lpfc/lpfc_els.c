@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -89,7 +89,8 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 		return 0;
 
 	/* Read the HBA Host Attention Register */
-	ha_copy = readl(phba->HAregaddr);
+	if (lpfc_readl(phba->HAregaddr, &ha_copy))
+		return 1;
 
 	if (!(ha_copy & HA_LATT))
 		return 0;
@@ -101,7 +102,7 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 			 phba->pport->port_state);
 
 	/* CLEAR_LA should re-enable link attention events and
-	 * we should then imediately take a LATT event. The
+	 * we should then immediately take a LATT event. The
 	 * LATT processing should call lpfc_linkdown() which
 	 * will cleanup any left over in-progress discovery
 	 * events.
@@ -249,7 +250,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		icmd->un.elsreq64.myID = vport->fc_myDID;
 
 		/* For ELS_REQUEST64_CR, use the VPI by default */
-		icmd->ulpContext = vport->vpi + phba->vpi_base;
+		icmd->ulpContext = phba->vpi_ids[vport->vpi];
 		icmd->ulpCt_h = 0;
 		/* The CT field must be 0=INVALID_RPI for the ECHO cmd */
 		if (elscmd == ELS_CMD_ECHO)
@@ -453,6 +454,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 		rc = -ENOMEM;
 		goto fail_free_dmabuf;
 	}
+
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		rc = -ENOMEM;
@@ -485,6 +487,59 @@ fail:
 }
 
 /**
+ * lpfc_check_clean_addr_bit - Check whether assigned FCID is clean.
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @sp: pointer to service parameter data structure.
+ *
+ * This routine is called from FLOGI/FDISC completion handler functions.
+ * lpfc_check_clean_addr_bit return 1 when FCID/Fabric portname/ Fabric
+ * node nodename is changed in the completion service parameter else return
+ * 0. This function also set flag in the vport data structure to delay
+ * NP_Port discovery after the FLOGI/FDISC completion if Clean address bit
+ * in FLOGI/FDISC response is cleared and FCID/Fabric portname/ Fabric
+ * node nodename is changed in the completion service parameter.
+ *
+ * Return code
+ *   0 - FCID and Fabric Nodename and Fabric portname is not changed.
+ *   1 - FCID or Fabric Nodename or Fabric portname is changed.
+ *
+ **/
+static uint8_t
+lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
+		struct serv_parm *sp)
+{
+	uint8_t fabric_param_changed = 0;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	if ((vport->fc_prevDID != vport->fc_myDID) ||
+		memcmp(&vport->fabric_portname, &sp->portName,
+			sizeof(struct lpfc_name)) ||
+		memcmp(&vport->fabric_nodename, &sp->nodeName,
+			sizeof(struct lpfc_name)))
+		fabric_param_changed = 1;
+
+	/*
+	 * Word 1 Bit 31 in common service parameter is overloaded.
+	 * Word 1 Bit 31 in FLOGI request is multiple NPort request
+	 * Word 1 Bit 31 in FLOGI response is clean address bit
+	 *
+	 * If fabric parameter is changed and clean address bit is
+	 * cleared delay nport discovery if
+	 * - vport->fc_prevDID != 0 (not initial discovery) OR
+	 * - lpfc_delay_discovery module parameter is set.
+	 */
+	if (fabric_param_changed && !sp->cmn.clean_address_bit &&
+	    (vport->fc_prevDID || lpfc_delay_discovery)) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= FC_DISC_DELAYED;
+		spin_unlock_irq(shost->host_lock);
+	}
+
+	return fabric_param_changed;
+}
+
+
+/**
  * lpfc_cmpl_els_flogi_fabric - Completion function for flogi to a fabric port
  * @vport: pointer to a host virtual N_Port data structure.
  * @ndlp: pointer to a node-list data structure.
@@ -512,6 +567,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *np;
 	struct lpfc_nodelist *next_np;
+	uint8_t fabric_param_changed;
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_FABRIC;
@@ -544,6 +600,12 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe = ((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) |
 				sp->cmn.bbRcvSizeLsb;
+
+	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
+	memcpy(&vport->fabric_portname, &sp->portName,
+			sizeof(struct lpfc_name));
+	memcpy(&vport->fabric_nodename, &sp->nodeName,
+			sizeof(struct lpfc_name));
 	memcpy(&phba->fc_fabparam, sp, sizeof(struct serv_parm));
 
 	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
@@ -565,7 +627,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 	}
 
-	if ((vport->fc_prevDID != vport->fc_myDID) &&
+	if (fabric_param_changed &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
 
 		/* If our NportID changed, we need to ensure all
@@ -585,21 +647,15 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		lpfc_cleanup_pending_mbox(vport);
 
-		if (phba->sli_rev == LPFC_SLI_REV4)
+		if (phba->sli_rev == LPFC_SLI_REV4) {
 			lpfc_sli4_unreg_all_rpis(vport);
-
-		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			spin_unlock_irq(shost->host_lock);
-		}
-		/*
-		 * If VPI is unreged, driver need to do INIT_VPI
-		 * before re-registering
-		 */
-		if (phba->sli_rev == LPFC_SLI_REV4) {
-			spin_lock_irq(shost->host_lock);
+			/*
+			* If VPI is unreged, driver need to do INIT_VPI
+			* before re-registering
+			*/
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
@@ -609,6 +665,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 * Driver needs to re-reg VPI in order for f/w
 			 * to update the MAC address.
 			 */
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 			lpfc_register_new_vport(phba, vport, ndlp);
 			return 0;
 	}
@@ -808,8 +865,8 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
 		    (phba->fcf.fcf_flag & FCF_DISCOVERY) &&
-		    (irsp->ulpStatus != IOSTAT_LOCAL_REJECT) &&
-		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
+		    !((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
+		     (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED))) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on FCF (x%x), "
 					"status:x%x/x%x, tmo:x%x, perform "
@@ -817,6 +874,8 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					phba->fcf.current_rec.fcf_indx,
 					irsp->ulpStatus, irsp->un.ulpWord[4],
 					irsp->ulpTimeout);
+			lpfc_sli4_set_fcf_flogi_fail(phba,
+					phba->fcf.current_rec.fcf_indx);
 			fcf_index = lpfc_sli4_fcf_rr_next_index_get(phba);
 			rc = lpfc_sli4_fcf_rr_next_proc(vport, fcf_index);
 			if (rc)
@@ -1024,19 +1083,23 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.fcphHigh < FC_PH3)
 		sp->cmn.fcphHigh = FC_PH3;
 
-	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
-	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	      LPFC_SLI_INTF_IF_TYPE_0)) {
-		elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
-		elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
-		/* FLOGI needs to be 3 for WQE FCFI */
-		/* Set the fcfi to the fcfi we registered with */
-		elsiocb->iocb.ulpContext = phba->fcf.fcfi;
-	} else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
-		sp->cmn.request_multiple_Nport = 1;
-		/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
-		icmd->ulpCt_h = 1;
-		icmd->ulpCt_l = 0;
+	if  (phba->sli_rev == LPFC_SLI_REV4) {
+		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_IF_TYPE_0) {
+			elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
+			elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
+			/* FLOGI needs to be 3 for WQE FCFI */
+			/* Set the fcfi to the fcfi we registered with */
+			elsiocb->iocb.ulpContext = phba->fcf.fcfi;
+		}
+	} else {
+		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
+			sp->cmn.request_multiple_Nport = 1;
+			/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
+			icmd->ulpCt_h = 1;
+			icmd->ulpCt_l = 0;
+		} else
+			sp->cmn.request_multiple_Nport = 0;
 	}
 
 	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
@@ -1538,7 +1601,7 @@ out:
  * This routine is the completion callback function for issuing the Port
  * Login (PLOGI) command. For PLOGI completion, there must be an active
  * ndlp on the vport node list that matches the remote node ID from the
- * PLOGI reponse IOCB. If such ndlp does not exist, the PLOGI is simply
+ * PLOGI response IOCB. If such ndlp does not exist, the PLOGI is simply
  * ignored and command IOCB released. The PLOGI response IOCB status is
  * checked for error conditons. If there is error status reported, PLOGI
  * retry shall be attempted by invoking the lpfc_els_retry() routine.
@@ -2203,6 +2266,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
 	struct lpfc_sli *psli;
+	struct lpfcMboxq *mbox;
 
 	psli = &phba->sli;
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
@@ -2260,6 +2324,21 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					NLP_EVT_CMPL_LOGO);
 out:
 	lpfc_els_free_iocb(phba, cmdiocb);
+	/* If we are in pt2pt mode, we could rcv new S_ID on PLOGI */
+	if ((vport->fc_flag & FC_PT2PT) &&
+		!(vport->fc_flag & FC_PT2PT_PLOGI)) {
+		phba->pport->fc_myDID = 0;
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (mbox) {
+			lpfc_config_link(phba, mbox);
+			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			mbox->vport = vport;
+			if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) ==
+				MBX_NOT_FINISHED) {
+				mempool_free(mbox, phba->mbox_mem_pool);
+			}
+		}
+	}
 	return;
 }
 
@@ -2745,7 +2824,8 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 		}
 		break;
 	case ELS_CMD_FDISC:
-		lpfc_issue_els_fdisc(vport, ndlp, retry);
+		if (!(vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI))
+			lpfc_issue_els_fdisc(vport, ndlp, retry);
 		break;
 	}
 	return;
@@ -2815,9 +2895,17 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	switch (irsp->ulpStatus) {
 	case IOSTAT_FCP_RSP_ERROR:
-	case IOSTAT_REMOTE_STOP:
 		break;
-
+	case IOSTAT_REMOTE_STOP:
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			/* This IO was aborted by the target, we don't
+			 * know the rxid and because we did not send the
+			 * ABTS we cannot generate and RRQ.
+			 */
+			lpfc_set_rrq_active(phba, ndlp,
+					 cmdiocb->sli4_xritag, 0, 0);
+		}
+		break;
 	case IOSTAT_LOCAL_REJECT:
 		switch ((irsp->un.ulpWord[4] & 0xff)) {
 		case IOERR_LOOP_OPEN_FAILURE:
@@ -3567,7 +3655,8 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 		}
 
 		icmd = &elsiocb->iocb;
-		icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+		icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+		icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
 		pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 		*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 		pcmd += sizeof(uint32_t);
@@ -3584,7 +3673,8 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			return 1;
 
 		icmd = &elsiocb->iocb;
-		icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+		icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+		icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
 		pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
 		if (mbox)
@@ -3606,7 +3696,8 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			return 1;
 
 		icmd = &elsiocb->iocb;
-		icmd->ulpContext = oldcmd->ulpContext; /* Xri */
+		icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+		icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
 		pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
 		memcpy(pcmd, ((struct lpfc_dmabuf *) oldiocb->context2)->virt,
@@ -3692,7 +3783,8 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
-	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+	icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+	icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
 	*((uint32_t *) (pcmd)) = ELS_CMD_LS_RJT;
@@ -3764,7 +3856,8 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
-	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+	icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+	icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
 
 	/* Xmit ADISC ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -3842,7 +3935,9 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
-	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+	icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+	icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
+
 	/* Xmit PRLI ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0131 Xmit PRLI ACC response tag x%x xri x%x, "
@@ -3946,7 +4041,9 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
-	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+	icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+	icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
+
 	/* Xmit RNID ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0132 Xmit RNID ACC response tag x%x xri x%x\n",
@@ -4013,18 +4110,20 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	uint8_t *pcmd;
 	struct RRQ *rrq;
 	uint16_t rxid;
+	uint16_t xri;
 	struct lpfc_node_rrq *prrq;
 
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) iocb->context2)->virt);
 	pcmd += sizeof(uint32_t);
 	rrq = (struct RRQ *)pcmd;
-	rxid = bf_get(rrq_oxid, rrq);
+	rrq->rrq_exchg = be32_to_cpu(rrq->rrq_exchg);
+	rxid = bf_get(rrq_rxid, rrq);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			"2883 Clear RRQ for SID:x%x OXID:x%x RXID:x%x"
 			" x%x x%x\n",
-			bf_get(rrq_did, rrq),
+			be32_to_cpu(bf_get(rrq_did, rrq)),
 			bf_get(rrq_oxid, rrq),
 			rxid,
 			iocb->iotag, iocb->iocb.ulpContext);
@@ -4032,9 +4131,13 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
-	prrq = lpfc_get_active_rrq(vport, rxid, ndlp->nlp_DID);
+	if (vport->fc_myDID == be32_to_cpu(bf_get(rrq_did, rrq)))
+		xri = bf_get(rrq_oxid, rrq);
+	else
+		xri = rxid;
+	prrq = lpfc_get_active_rrq(vport, xri, ndlp->nlp_DID);
 	if (prrq)
-		lpfc_clr_rrq_active(phba, rxid, prrq);
+		lpfc_clr_rrq_active(phba, xri, prrq);
 	return;
 }
 
@@ -4068,7 +4171,9 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 	if (!elsiocb)
 		return 1;
 
-	elsiocb->iocb.ulpContext = oldiocb->iocb.ulpContext;	/* Xri */
+	elsiocb->iocb.ulpContext = oldiocb->iocb.ulpContext;  /* Xri / rx_id */
+	elsiocb->iocb.unsli3.rcvsli3.ox_id = oldiocb->iocb.unsli3.rcvsli3.ox_id;
+
 	/* Xmit ECHO ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "2876 Xmit ECHO ACC response tag x%x xri x%x\n",
@@ -4959,13 +5064,15 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	uint8_t *pcmd;
 	struct lpfc_iocbq *elsiocb;
 	struct lpfc_nodelist *ndlp;
-	uint16_t xri;
+	uint16_t oxid;
+	uint16_t rxid;
 	uint32_t cmdsize;
 
 	mb = &pmb->u.mb;
 
 	ndlp = (struct lpfc_nodelist *) pmb->context2;
-	xri = (uint16_t) ((unsigned long)(pmb->context1));
+	rxid = (uint16_t) ((unsigned long)(pmb->context1) & 0xffff);
+	oxid = (uint16_t) (((unsigned long)(pmb->context1) >> 16) & 0xffff);
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
 
@@ -4987,7 +5094,8 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		return;
 
 	icmd = &elsiocb->iocb;
-	icmd->ulpContext = xri;
+	icmd->ulpContext = rxid;
+	icmd->unsli3.rcvsli3.ox_id = oxid;
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
@@ -5042,13 +5150,16 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	uint8_t *pcmd;
 	struct lpfc_iocbq *elsiocb;
 	struct lpfc_nodelist *ndlp;
-	uint16_t xri, status;
+	uint16_t status;
+	uint16_t oxid;
+	uint16_t rxid;
 	uint32_t cmdsize;
 
 	mb = &pmb->u.mb;
 
 	ndlp = (struct lpfc_nodelist *) pmb->context2;
-	xri = (uint16_t) ((unsigned long)(pmb->context1));
+	rxid = (uint16_t) ((unsigned long)(pmb->context1) & 0xffff);
+	oxid = (uint16_t) (((unsigned long)(pmb->context1) >> 16) & 0xffff);
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
 
@@ -5070,7 +5181,8 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		return;
 
 	icmd = &elsiocb->iocb;
-	icmd->ulpContext = xri;
+	icmd->ulpContext = rxid;
+	icmd->unsli3.rcvsli3.ox_id = oxid;
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
@@ -5143,8 +5255,9 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 	if (mbox) {
 		lpfc_read_lnk_stat(phba, mbox);
-		mbox->context1 =
-		    (void *)((unsigned long) cmdiocb->iocb.ulpContext);
+		mbox->context1 = (void *)((unsigned long)
+			((cmdiocb->iocb.unsli3.rcvsli3.ox_id << 16) |
+			cmdiocb->iocb.ulpContext)); /* rx_id */
 		mbox->context2 = lpfc_nlp_get(ndlp);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_els_rsp_rls_acc;
@@ -5219,7 +5332,8 @@ lpfc_els_rcv_rtv(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	pcmd += sizeof(uint32_t); /* Skip past command */
 
 	/* use the command's xri in the response */
-	elsiocb->iocb.ulpContext = cmdiocb->iocb.ulpContext;
+	elsiocb->iocb.ulpContext = cmdiocb->iocb.ulpContext;  /* Xri / rx_id */
+	elsiocb->iocb.unsli3.rcvsli3.ox_id = cmdiocb->iocb.unsli3.rcvsli3.ox_id;
 
 	rtv_rsp = (struct RTV_RSP *)pcmd;
 
@@ -5304,8 +5418,9 @@ lpfc_els_rcv_rps(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 		if (mbox) {
 			lpfc_read_lnk_stat(phba, mbox);
-			mbox->context1 =
-			    (void *)((unsigned long) cmdiocb->iocb.ulpContext);
+			mbox->context1 = (void *)((unsigned long)
+				((cmdiocb->iocb.unsli3.rcvsli3.ox_id << 16) |
+				cmdiocb->iocb.ulpContext)); /* rx_id */
 			mbox->context2 = lpfc_nlp_get(ndlp);
 			mbox->vport = vport;
 			mbox->mbox_cmpl = lpfc_els_rsp_rps_acc;
@@ -5459,7 +5574,8 @@ lpfc_els_rsp_rpl_acc(struct lpfc_vport *vport, uint16_t cmdsize,
 
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
-	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+	icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+	icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
 
 	pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
@@ -6166,6 +6282,11 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (vport->load_flag & FC_UNLOADING)
 		goto dropit;
 
+	/* If NPort discovery is delayed drop incoming ELS */
+	if ((vport->fc_flag & FC_DISC_DELAYED) &&
+			(cmd != ELS_CMD_PLOGI))
+		goto dropit;
+
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
 		/* Cannot find existing Fabric ndlp, so allocate a new one */
@@ -6218,6 +6339,12 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
 
 		lpfc_send_els_event(vport, ndlp, payload);
+
+		/* If Nport discovery is delayed, reject PLOGIs */
+		if (vport->fc_flag & FC_DISC_DELAYED) {
+			rjt_err = LSRJT_UNABLE_TPC;
+			break;
+		}
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			if (!(phba->pport->fc_flag & FC_PT2PT) ||
 				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
@@ -6480,10 +6607,30 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 {
 	struct lpfc_vport *vport;
 	unsigned long flags;
+	int i = 0;
+
+	/* The physical ports are always vpi 0 - translate is unnecessary. */
+	if (vpi > 0) {
+		/*
+		 * Translate the physical vpi to the logical vpi.  The
+		 * vport stores the logical vpi.
+		 */
+		for (i = 0; i < phba->max_vpi; i++) {
+			if (vpi == phba->vpi_ids[i])
+				break;
+		}
+
+		if (i >= phba->max_vpi) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+					 "2936 Could not find Vport mapped "
+					 "to vpi %d\n", vpi);
+			return NULL;
+		}
+	}
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
-		if (vport->vpi == vpi) {
+		if (vport->vpi == i) {
 			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return vport;
 		}
@@ -6536,8 +6683,9 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			vport = phba->pport;
 		else
 			vport = lpfc_find_vport_by_vpid(phba,
-				icmd->unsli3.rcvsli3.vpi - phba->vpi_base);
+						icmd->unsli3.rcvsli3.vpi);
 	}
+
 	/* If there are no BDEs associated
 	 * with this IOCB, there is nothing to do.
 	 */
@@ -6596,6 +6744,21 @@ void
 lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp, *ndlp_fdmi;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	/*
+	 * If lpfc_delay_discovery parameter is set and the clean address
+	 * bit is cleared and fc fabric parameters chenged, delay FC NPort
+	 * discovery.
+	 */
+	spin_lock_irq(shost->host_lock);
+	if (vport->fc_flag & FC_DISC_DELAYED) {
+		spin_unlock_irq(shost->host_lock);
+		mod_timer(&vport->delayed_disc_tmo,
+			jiffies + HZ * phba->fc_ratov);
+		return;
+	}
+	spin_unlock_irq(shost->host_lock);
 
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
 	if (!ndlp) {
@@ -6938,6 +7101,9 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *next_np;
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_iocbq *piocb;
+	struct lpfc_dmabuf *pcmd = cmdiocb->context2, *prsp;
+	struct serv_parm *sp;
+	uint8_t fabric_param_changed;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0123 FDISC completes. x%x/x%x prevDID: x%x\n",
@@ -6981,7 +7147,14 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
 	lpfc_vport_set_state(vport, FC_VPORT_ACTIVE);
-	if ((vport->fc_prevDID != vport->fc_myDID) &&
+	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
+	sp = prsp->virt + sizeof(uint32_t);
+	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
+	memcpy(&vport->fabric_portname, &sp->portName,
+		sizeof(struct lpfc_name));
+	memcpy(&vport->fabric_nodename, &sp->nodeName,
+		sizeof(struct lpfc_name));
+	if (fabric_param_changed &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
 		/* If our NportID changed, we need to ensure all
 		 * remaining NPORTs get unreg_login'ed so we can
@@ -7092,7 +7265,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
 		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;
 		/* Set the ulpContext to the vpi */
-		elsiocb->iocb.ulpContext = vport->vpi + phba->vpi_base;
+		elsiocb->iocb.ulpContext = phba->vpi_ids[vport->vpi];
 	} else {
 		/* For FDISC, Let FDISC rsp set the NPortID for this VPI */
 		icmd->ulpCt_h = 1;
@@ -7162,8 +7335,9 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
-	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
+	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
 	irsp = &rspiocb->iocb;
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
@@ -7174,6 +7348,19 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Trigger the release of the ndlp after logo */
 	lpfc_nlp_put(ndlp);
+
+	/* NPIV LOGO completes to NPort <nlp_DID> */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "2928 NPIV LOGO completes to NPort x%x "
+			 "Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
+			 irsp->ulpTimeout, vport->num_disc_nodes);
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag &= ~FC_FABRIC;
+		spin_unlock_irq(shost->host_lock);
+	}
 }
 
 /**
@@ -7582,6 +7769,32 @@ void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_vport_delete_els_xri_aborted -Remove all ndlp references for vport
+ * @vport: pointer to lpfc vport data structure.
+ *
+ * This routine is invoked by the vport cleanup for deletions and the cleanup
+ * for an ndlp on removal.
+ **/
+void
+lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
+	unsigned long iflag = 0;
+
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	spin_lock(&phba->sli4_hba.abts_sgl_list_lock);
+	list_for_each_entry_safe(sglq_entry, sglq_next,
+			&phba->sli4_hba.lpfc_abts_els_sgl_list, list) {
+		if (sglq_entry->ndlp && sglq_entry->ndlp->vport == vport)
+			sglq_entry->ndlp = NULL;
+	}
+	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	return;
+}
+
+/**
  * lpfc_sli4_els_xri_aborted - Slow-path process of els xri abort
  * @phba: pointer to lpfc hba data structure.
  * @axri: pointer to the els xri abort wcqe structure.
@@ -7595,6 +7808,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	uint16_t lxri = 0;
 
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	unsigned long iflag = 0;
@@ -7623,7 +7837,12 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 		}
 	}
 	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
-	sglq_entry = __lpfc_get_active_sglq(phba, xri);
+	lxri = lpfc_sli4_xri_inrange(phba, xri);
+	if (lxri == NO_XRI) {
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
+		return;
+	}
+	sglq_entry = __lpfc_get_active_sglq(phba, lxri);
 	if (!sglq_entry || (sglq_entry->sli4_xritag != xri)) {
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return;

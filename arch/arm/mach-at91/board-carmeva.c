@@ -40,10 +40,10 @@
 #include "generic.h"
 
 
-static void __init carmeva_map_io(void)
+static void __init carmeva_init_early(void)
 {
 	/* Initialize processor: 20.000 MHz crystal */
-	at91rm9200_initialize(20000000, AT91RM9200_BGA);
+	at91_initialize(20000000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -55,11 +55,6 @@ static void __init carmeva_map_io(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init carmeva_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata carmeva_eth_data = {
@@ -76,7 +71,7 @@ static struct at91_udc_data __initdata carmeva_udc_data = {
 	.pullup_pin	= AT91_PIN_PD9,
 };
 
-/* FIXME: user dependant */
+/* FIXME: user dependent */
 // static struct at91_cf_data __initdata carmeva_cf_data = {
 //	.det_pin	= AT91_PIN_PB0,
 //	.rst_pin	= AT91_PIN_PC5,
@@ -162,9 +157,9 @@ static void __init carmeva_board_init(void)
 
 MACHINE_START(CARMEVA, "Carmeva")
 	/* Maintainer: Conitec Datasystems */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= carmeva_map_io,
-	.init_irq	= carmeva_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= carmeva_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= carmeva_board_init,
 MACHINE_END

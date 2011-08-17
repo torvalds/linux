@@ -114,7 +114,7 @@ extern unsigned s3c_gpio_getcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
  * of control per GPIO, generally in the form of:
  *	0000 = Input
  *	0001 = Output
- *	others = Special functions (dependant on bank)
+ *	others = Special functions (dependent on bank)
  *
  * Note, since the code to deal with the case where there are two control
  * registers instead of one, we do not have a separate set of functions for
@@ -140,7 +140,7 @@ extern unsigned s3c_gpio_getcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
 
 /* Pull-{up,down} resistor controls.
  *
- * S3C2410,S3C2440,S3C24A0 = Pull-UP,
+ * S3C2410,S3C2440 = Pull-UP,
  * S3C2412,S3C2413 = Pull-Down
  * S3C6400,S3C6410 = Pull-Both [None,Down,Up,Undef]
  * S3C2443 = Pull-Both [not same as S3C6400]

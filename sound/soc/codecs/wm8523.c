@@ -58,7 +58,7 @@ static const u16 wm8523_reg[WM8523_REGISTER_COUNT] = {
 	0x0000,     /* R8 - ZERO_DETECT */
 };
 
-static int wm8523_volatile_register(unsigned int reg)
+static int wm8523_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8523_DEVICE_ID:
@@ -414,7 +414,6 @@ static int wm8523_resume(struct snd_soc_codec *codec)
 static int wm8523_probe(struct snd_soc_codec *codec)
 {
 	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
-	u16 *reg_cache = codec->reg_cache;
 	int ret, i;
 
 	codec->hw_write = (hw_write_t)i2c_master_send;
@@ -471,8 +470,9 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Change some default settings - latch VU and enable ZC */
-	reg_cache[WM8523_DAC_GAINR] |= WM8523_DACR_VU;
-	reg_cache[WM8523_DAC_CTRL3] |= WM8523_ZC;
+	snd_soc_update_bits(codec, WM8523_DAC_GAINR,
+			    WM8523_DACR_VU, WM8523_DACR_VU);
+	snd_soc_update_bits(codec, WM8523_DAC_CTRL3, WM8523_ZC, WM8523_ZC);
 
 	wm8523_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 

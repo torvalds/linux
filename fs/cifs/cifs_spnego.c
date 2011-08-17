@@ -95,7 +95,7 @@ struct key_type cifs_spnego_key_type = {
 
 /* get a key struct with a SPNEGO security blob, suitable for session setup */
 struct key *
-cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
+cifs_get_spnego_key(struct cifs_ses *sesInfo)
 {
 	struct TCP_Server_Info *server = sesInfo->server;
 	struct sockaddr_in *sa = (struct sockaddr_in *) &server->dstaddr;
@@ -113,7 +113,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 		   MAX_MECH_STR_LEN +
 		   UID_KEY_LEN + (sizeof(uid_t) * 2) +
 		   CREDUID_KEY_LEN + (sizeof(uid_t) * 2) +
-		   USER_KEY_LEN + strlen(sesInfo->userName) +
+		   USER_KEY_LEN + strlen(sesInfo->user_name) +
 		   PID_KEY_LEN + (sizeof(pid_t) * 2) + 1;
 
 	spnego_key = ERR_PTR(-ENOMEM);
@@ -153,7 +153,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	sprintf(dp, ";creduid=0x%x", sesInfo->cred_uid);
 
 	dp = description + strlen(description);
-	sprintf(dp, ";user=%s", sesInfo->userName);
+	sprintf(dp, ";user=%s", sesInfo->user_name);
 
 	dp = description + strlen(description);
 	sprintf(dp, ";pid=0x%x", current->pid);

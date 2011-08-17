@@ -1461,6 +1461,15 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 				"Read device characteristic failed, rc=%d", rc);
 		goto out_err3;
 	}
+
+	if ((device->features & DASD_FEATURE_USERAW) &&
+	    !(private->rdc_data.facilities.RT_in_LR)) {
+		dev_err(&device->cdev->dev, "The storage server does not "
+			"support raw-track access\n");
+		rc = -EINVAL;
+		goto out_err3;
+	}
+
 	/* find the valid cylinder size */
 	if (private->rdc_data.no_cyl == LV_COMPAT_CYL &&
 	    private->rdc_data.long_no_cyl)
@@ -1611,10 +1620,8 @@ static void dasd_eckd_analysis_callback(struct dasd_ccw_req *init_cqr,
 
 static int dasd_eckd_start_analysis(struct dasd_block *block)
 {
-	struct dasd_eckd_private *private;
 	struct dasd_ccw_req *init_cqr;
 
-	private = (struct dasd_eckd_private *) block->base->private;
 	init_cqr = dasd_eckd_analysis_ccw(block->base);
 	if (IS_ERR(init_cqr))
 		return PTR_ERR(init_cqr);
@@ -2037,7 +2044,7 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 		return;
 
 	/* summary unit check */
-	if ((sense[7] == 0x0D) &&
+	if ((sense[27] & DASD_SENSE_BIT_0) && (sense[7] == 0x0D) &&
 	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK)) {
 		dasd_alias_handle_summary_unit_check(device, irb);
 		return;
@@ -2053,7 +2060,8 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 	/* loss of device reservation is handled via base devices only
 	 * as alias devices may be used with several bases
 	 */
-	if (device->block && (sense[7] == 0x3F) &&
+	if (device->block && (sense[27] & DASD_SENSE_BIT_0) &&
+	    (sense[7] == 0x3F) &&
 	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
 	    test_bit(DASD_FLAG_IS_RESERVED, &device->flags)) {
 		if (device->features & DASD_FEATURE_FAILONSLCK)
@@ -2263,7 +2271,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 					       unsigned int blk_per_trk,
 					       unsigned int blksize)
 {
-	struct dasd_eckd_private *private;
 	unsigned long *idaws;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -2282,7 +2289,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	unsigned int recoffs;
 
 	basedev = block->base;
-	private = (struct dasd_eckd_private *) basedev->private;
 	if (rq_data_dir(req) == READ)
 		cmd = DASD_ECKD_CCW_READ_TRACK_DATA;
 	else if (rq_data_dir(req) == WRITE)
@@ -2555,8 +2561,7 @@ static int prepare_itcw(struct itcw *itcw,
 
 	dcw = itcw_add_dcw(itcw, pfx_cmd, 0,
 		     &pfxdata, sizeof(pfxdata), total_data_size);
-
-	return rc;
+	return IS_ERR(dcw) ? PTR_ERR(dcw) : 0;
 }
 
 static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
@@ -2572,7 +2577,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 					       unsigned int blk_per_trk,
 					       unsigned int blksize)
 {
-	struct dasd_eckd_private *private;
 	struct dasd_ccw_req *cqr;
 	struct req_iterator iter;
 	struct bio_vec *bv;
@@ -2593,7 +2597,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	unsigned int count, count_to_trk_end;
 
 	basedev = block->base;
-	private = (struct dasd_eckd_private *) basedev->private;
 	if (rq_data_dir(req) == READ) {
 		cmd = DASD_ECKD_CCW_READ_TRACK_DATA;
 		itcw_op = ITCW_OP_READ;
@@ -2648,6 +2651,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		dasd_sfree_request(cqr, startdev);
 		return ERR_PTR(-EAGAIN);
 	}
+	len_to_track_end = 0;
 	/*
 	 * A tidaw can address 4k of memory, but must not cross page boundaries
 	 * We can let the block layer handle this by setting
@@ -2799,7 +2803,6 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 					       struct dasd_block *block,
 					       struct request *req)
 {
-	struct dasd_eckd_private *private;
 	unsigned long *idaws;
 	struct dasd_device *basedev;
 	struct dasd_ccw_req *cqr;
@@ -2834,7 +2837,6 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	trkcount = last_trk - first_trk + 1;
 	first_offs = 0;
 	basedev = block->base;
-	private = (struct dasd_eckd_private *) basedev->private;
 
 	if (rq_data_dir(req) == READ)
 		cmd = DASD_ECKD_CCW_READ_TRACK;
@@ -2857,7 +2859,7 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	/*
 	 * struct PFX_eckd_data has up to 2 byte as extended parameter
 	 * this is needed for write full track and has to be mentioned
-	 * seperately
+	 * separately
 	 * add 8 instead of 2 to keep 8 byte boundary
 	 */
 	pfx_datasize = sizeof(struct PFX_eckd_data) + 8;
@@ -3981,8 +3983,10 @@ out_err:
 }
 
 static struct ccw_driver dasd_eckd_driver = {
-	.name	     = "dasd-eckd",
-	.owner	     = THIS_MODULE,
+	.driver = {
+		.name	= "dasd-eckd",
+		.owner	= THIS_MODULE,
+	},
 	.ids	     = dasd_eckd_ids,
 	.probe	     = dasd_eckd_probe,
 	.remove      = dasd_generic_remove,

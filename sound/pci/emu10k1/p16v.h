@@ -59,7 +59,7 @@
  *    ADC: Philips 1361T (Stereo 24bit)
  *    DAC: CS4382-K (8-channel, 24bit, 192Khz)
  *
- *  This code was initally based on code from ALSA's emu10k1x.c which is:
+ *  This code was initially based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -86,7 +86,7 @@
  * The sample rate is also controlled by the same registers that control the rate of the EMU10K2 sample rate converters.
  */
 
-/* Initally all registers from 0x00 to 0x3f have zero contents. */
+/* Initially all registers from 0x00 to 0x3f have zero contents. */
 #define PLAYBACK_LIST_ADDR	0x00		/* Base DMA address of a list of pointers to each period/size */
 						/* One list entry: 4 bytes for DMA address, 
 						 * 4 bytes for period_size << 16.

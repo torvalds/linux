@@ -153,14 +153,14 @@ void nf_nat_set_seq_adjust(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 }
 EXPORT_SYMBOL_GPL(nf_nat_set_seq_adjust);
 
-static void nf_nat_csum(struct sk_buff *skb, struct iphdr *iph, void *data,
+static void nf_nat_csum(struct sk_buff *skb, const struct iphdr *iph, void *data,
 			int datalen, __sum16 *check, int oldlen)
 {
 	struct rtable *rt = skb_rtable(skb);
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    skb->dev->features & NETIF_F_V4_CSUM) {
+		    (!skb->dev || skb->dev->features & NETIF_F_V4_CSUM)) {
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			skb->csum_start = skb_headroom(skb) +
 					  skb_network_offset(skb) +

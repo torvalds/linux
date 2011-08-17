@@ -6,6 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
+#include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/devices-common.h>
 
@@ -15,6 +16,11 @@
 		.iosize = _size,					\
 		.irq = soc ## _INT_LCDC,				\
 	}
+
+#ifdef CONFIG_SOC_IMX1
+const struct imx_imx_fb_data imx1_imx_fb_data __initconst =
+	imx_imx_fb_data_entry_single(MX1, SZ_4K);
+#endif /* ifdef CONFIG_SOC_IMX1 */
 
 #ifdef CONFIG_SOC_IMX21
 const struct imx_imx_fb_data imx21_imx_fb_data __initconst =

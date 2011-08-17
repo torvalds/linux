@@ -83,7 +83,7 @@ inline void lpfc_vport_set_state(struct lpfc_vport *vport,
 static int
 lpfc_alloc_vpi(struct lpfc_hba *phba)
 {
-	int  vpi;
+	unsigned long vpi;
 
 	spin_lock_irq(&phba->hbalock);
 	/* Start at bit 1 because vpi zero is reserved for the physical port */
@@ -464,6 +464,7 @@ disable_vport(struct fc_vport *fc_vport)
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 	long timeout;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
@@ -498,6 +499,9 @@ disable_vport(struct fc_vport *fc_vport)
 	 * scsi_host_put() to release the vport.
 	 */
 	lpfc_mbx_unreg_vpi(vport);
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+	spin_unlock_irq(shost->host_lock);
 
 	lpfc_vport_set_state(vport, FC_VPORT_DISABLED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,

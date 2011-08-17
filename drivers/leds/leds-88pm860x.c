@@ -118,7 +118,8 @@ static void pm860x_led_work(struct work_struct *work)
 
 	struct pm860x_led *led;
 	struct pm860x_chip *chip;
-	int mask;
+	unsigned char buf[3];
+	int mask, ret;
 
 	led = container_of(work, struct pm860x_led, work);
 	chip = led->chip;
@@ -128,16 +129,27 @@ static void pm860x_led_work(struct work_struct *work)
 			pm860x_set_bits(led->i2c, __led_off(led->port),
 					LED_CURRENT_MASK, led->iset);
 		}
+		pm860x_set_bits(led->i2c, __blink_off(led->port),
+				LED_BLINK_MASK, LED_ON_CONTINUOUS);
 		mask = __blink_ctl_mask(led->port);
 		pm860x_set_bits(led->i2c, PM8606_WLED3B, mask, mask);
-	} else if (led->brightness == 0) {
-		pm860x_set_bits(led->i2c, __led_off(led->port),
-				LED_CURRENT_MASK, 0);
-		mask = __blink_ctl_mask(led->port);
-		pm860x_set_bits(led->i2c, PM8606_WLED3B, mask, 0);
 	}
 	pm860x_set_bits(led->i2c, __led_off(led->port), LED_PWM_MASK,
 			led->brightness);
+
+	if (led->brightness == 0) {
+		pm860x_bulk_read(led->i2c, __led_off(led->port), 3, buf);
+		ret = buf[0] & LED_PWM_MASK;
+		ret |= buf[1] & LED_PWM_MASK;
+		ret |= buf[2] & LED_PWM_MASK;
+		if (ret == 0) {
+			/* unset current since no led is lighting */
+			pm860x_set_bits(led->i2c, __led_off(led->port),
+					LED_CURRENT_MASK, 0);
+			mask = __blink_ctl_mask(led->port);
+			pm860x_set_bits(led->i2c, PM8606_WLED3B, mask, 0);
+		}
+	}
 	led->current_brightness = led->brightness;
 	dev_dbg(chip->dev, "Update LED. (reg:%d, brightness:%d)\n",
 		__led_off(led->port), led->brightness);
@@ -153,29 +165,9 @@ static void pm860x_led_set(struct led_classdev *cdev,
 	schedule_work(&data->work);
 }
 
-static int __check_device(struct pm860x_led_pdata *pdata, char *name)
-{
-	struct pm860x_led_pdata *p = pdata;
-	int ret = -EINVAL;
-
-	while (p && p->id) {
-		if ((p->id != PM8606_ID_LED) || (p->flags < 0))
-			break;
-
-		if (!strncmp(name, pm860x_led_name[p->flags],
-			MFD_NAME_SIZE)) {
-			ret = (int)p->flags;
-			break;
-		}
-		p++;
-	}
-	return ret;
-}
-
 static int pm860x_led_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_platform_data *pm860x_pdata;
 	struct pm860x_led_pdata *pdata;
 	struct pm860x_led *data;
 	struct resource *res;
@@ -187,10 +179,8 @@ static int pm860x_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdev->dev.parent->platform_data) {
-		pm860x_pdata = pdev->dev.parent->platform_data;
-		pdata = pm860x_pdata->led;
-	} else {
+	pdata = pdev->dev.platform_data;
+	if (pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data!\n");
 		return -EINVAL;
 	}
@@ -198,12 +188,12 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	data = kzalloc(sizeof(struct pm860x_led), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
-	strncpy(data->name, res->name, MFD_NAME_SIZE);
+	strncpy(data->name, res->name, MFD_NAME_SIZE - 1);
 	dev_set_drvdata(&pdev->dev, data);
 	data->chip = chip;
 	data->i2c = (chip->id == CHIP_PM8606) ? chip->client : chip->companion;
 	data->iset = pdata->iset;
-	data->port = __check_device(pdata, data->name);
+	data->port = pdata->flags;
 	if (data->port < 0) {
 		dev_err(&pdev->dev, "check device failed\n");
 		kfree(data);
@@ -221,6 +211,7 @@ static int pm860x_led_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register LED: %d\n", ret);
 		goto out;
 	}
+	pm860x_led_set(&data->cdev, 0);
 	return 0;
 out:
 	kfree(data);

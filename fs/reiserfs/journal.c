@@ -1,7 +1,7 @@
 /*
 ** Write ahead logging implementation copyright Chris Mason 2000
 **
-** The background commits make this code very interelated, and
+** The background commits make this code very interrelated, and
 ** overly complex.  I need to rethink things a bit....The major players:
 **
 ** journal_begin -- call with the number of blocks you expect to log.
@@ -678,23 +678,19 @@ struct buffer_chunk {
 static void write_chunk(struct buffer_chunk *chunk)
 {
 	int i;
-	get_fs_excl();
 	for (i = 0; i < chunk->nr; i++) {
 		submit_logged_buffer(chunk->bh[i]);
 	}
 	chunk->nr = 0;
-	put_fs_excl();
 }
 
 static void write_ordered_chunk(struct buffer_chunk *chunk)
 {
 	int i;
-	get_fs_excl();
 	for (i = 0; i < chunk->nr; i++) {
 		submit_ordered_buffer(chunk->bh[i]);
 	}
 	chunk->nr = 0;
-	put_fs_excl();
 }
 
 static int add_to_chunk(struct buffer_chunk *chunk, struct buffer_head *bh,
@@ -986,8 +982,6 @@ static int flush_commit_list(struct super_block *s,
 		return 0;
 	}
 
-	get_fs_excl();
-
 	/* before we can put our commit blocks on disk, we have to make sure everyone older than
 	 ** us is on disk too
 	 */
@@ -1145,7 +1139,6 @@ static int flush_commit_list(struct super_block *s,
 	if (retval)
 		reiserfs_abort(s, retval, "Journal write error in %s",
 			       __func__);
-	put_fs_excl();
 	return retval;
 }
 
@@ -1374,8 +1367,6 @@ static int flush_journal_list(struct super_block *s,
 		return 0;
 	}
 
-	get_fs_excl();
-
 	/* if all the work is already done, get out of here */
 	if (atomic_read(&(jl->j_nonzerolen)) <= 0 &&
 	    atomic_read(&(jl->j_commit_left)) <= 0) {
@@ -1597,7 +1588,6 @@ static int flush_journal_list(struct super_block *s,
 	put_journal_list(s, jl);
 	if (flushall)
 		mutex_unlock(&journal->j_flush_mutex);
-	put_fs_excl();
 	return err;
 }
 
@@ -2725,7 +2715,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 						 REISERFS_DISK_OFFSET_IN_BYTES /
 						 sb->s_blocksize + 2);
 
-	/* Sanity check to see is the standard journal fitting withing first bitmap
+	/* Sanity check to see is the standard journal fitting within first bitmap
 	   (actual for small blocksizes) */
 	if (!SB_ONDISK_JOURNAL_DEVICE(sb) &&
 	    (SB_JOURNAL_1st_RESERVED_BLOCK(sb) +
@@ -2876,7 +2866,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	reiserfs_mounted_fs_count++;
 	if (reiserfs_mounted_fs_count <= 1) {
 		reiserfs_write_unlock(sb);
-		commit_wq = create_workqueue("reiserfs");
+		commit_wq = alloc_workqueue("reiserfs", WQ_MEM_RECLAIM, 0);
 		reiserfs_write_lock(sb);
 	}
 
@@ -3108,7 +3098,6 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th,
 	th->t_trans_id = journal->j_trans_id;
 	unlock_journal(sb);
 	INIT_LIST_HEAD(&th->t_list);
-	get_fs_excl();
 	return 0;
 
       out_fail:
@@ -3964,7 +3953,6 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	flush = flags & FLUSH_ALL;
 	wait_on_commit = flags & WAIT;
 
-	put_fs_excl();
 	current->journal_info = th->t_handle_save;
 	reiserfs_check_lock_depth(sb, "journal end");
 	if (journal->j_len == 0) {
@@ -4316,4 +4304,3 @@ void reiserfs_abort_journal(struct super_block *sb, int errno)
 	dump_stack();
 #endif
 }
-

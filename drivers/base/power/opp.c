@@ -222,7 +222,7 @@ int opp_get_opp_count(struct device *dev)
  * opp_find_freq_exact() - search for an exact frequency
  * @dev:		device for which we do this operation
  * @freq:		frequency to search for
- * @is_available:	true/false - match for available opp
+ * @available:		true/false - match for available opp
  *
  * Searches for exact match in the opp list and returns pointer to the matching
  * opp if found, else returns ERR_PTR in case of error and should be handled
@@ -453,7 +453,7 @@ int opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 static int opp_set_availability(struct device *dev, unsigned long freq,
 		bool availability_req)
 {
-	struct device_opp *tmp_dev_opp, *dev_opp = NULL;
+	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
 	struct opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
 
@@ -624,5 +624,22 @@ int opp_init_cpufreq_table(struct device *dev,
 	*table = &freq_table[0];
 
 	return 0;
+}
+
+/**
+ * opp_free_cpufreq_table() - free the cpufreq table
+ * @dev:	device for which we do this operation
+ * @table:	table to free
+ *
+ * Free up the table allocated by opp_init_cpufreq_table
+ */
+void opp_free_cpufreq_table(struct device *dev,
+				struct cpufreq_frequency_table **table)
+{
+	if (!table)
+		return;
+
+	kfree(*table);
+	*table = NULL;
 }
 #endif		/* CONFIG_CPU_FREQ */

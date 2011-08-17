@@ -8,7 +8,7 @@ struct target_core_fabric_ops {
 	 * for scatterlist chaining using transport_do_task_sg_link(),
 	 * disabled by default
 	 */
-	int task_sg_chaining:1;
+	bool task_sg_chaining;
 	char *(*get_fabric_name)(void);
 	u8 (*get_fabric_proto_ident)(struct se_portal_group *);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
@@ -35,21 +35,15 @@ struct target_core_fabric_ops {
 	/*
 	 * Optional function pointer for TCM to perform command map
 	 * from TCM processing thread context, for those struct se_cmd
-	 * initally allocated in interrupt context.
+	 * initially allocated in interrupt context.
 	 */
 	int (*new_cmd_map)(struct se_cmd *);
-	/*
-	 * Optional function pointer for TCM fabric modules that use
-	 * Linux/NET sockets to allocate struct iovec array to struct se_cmd
-	 */
-	int (*alloc_cmd_iovecs)(struct se_cmd *);
 	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
 	 * I/O descriptor in transport_cmd_check_stop()
 	 */
 	void (*check_stop_free)(struct se_cmd *);
-	void (*release_cmd_to_pool)(struct se_cmd *);
-	void (*release_cmd_direct)(struct se_cmd *);
+	void (*release_cmd)(struct se_cmd *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
 	 */
@@ -70,14 +64,12 @@ struct target_core_fabric_ops {
 	void (*set_default_node_attributes)(struct se_node_acl *);
 	u32 (*get_task_tag)(struct se_cmd *);
 	int (*get_cmd_state)(struct se_cmd *);
-	void (*new_cmd_failure)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
 	int (*queue_tm_rsp)(struct se_cmd *);
 	u16 (*set_fabric_sense_len)(struct se_cmd *, u32);
 	u16 (*get_fabric_sense_len)(void);
 	int (*is_state_remove)(struct se_cmd *);
-	u64 (*pack_lun)(unsigned int);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */

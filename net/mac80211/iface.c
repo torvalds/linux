@@ -363,8 +363,7 @@ static int ieee80211_open(struct net_device *dev)
 	int err;
 
 	/* fail early if user set an invalid address */
-	if (!is_zero_ether_addr(dev->dev_addr) &&
-	    !is_valid_ether_addr(dev->dev_addr))
+	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
@@ -382,11 +381,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
 	int i;
+	enum nl80211_channel_type orig_ct;
+
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (local->scan_sdata == sdata)
 		ieee80211_scan_cancel(local);
-
-	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	/*
 	 * Stop TX on this interface first.
@@ -448,7 +448,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
-		struct beacon_data *old_beacon = sdata->u.ap.beacon;
+		struct beacon_data *old_beacon =
+			rtnl_dereference(sdata->u.ap.beacon);
 
 		/* sdata_running will return false, so this will disable */
 		ieee80211_bss_info_change_notify(sdata,
@@ -542,8 +543,14 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		hw_reconf_flags = 0;
 	}
 
+	/* Re-calculate channel-type, in case there are multiple vifs
+	 * on different channel types.
+	 */
+	orig_ct = local->_oper_channel_type;
+	ieee80211_set_channel_type(local, NULL, NL80211_CHAN_NO_HT);
+
 	/* do after stop to avoid reconfiguring when we stop anyway */
-	if (hw_reconf_flags)
+	if (hw_reconf_flags || (orig_ct != local->_oper_channel_type))
 		ieee80211_hw_config(local, hw_reconf_flags);
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
@@ -691,6 +698,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
 	dev->destructor = free_netdev;
 }
@@ -1122,8 +1130,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev_mq(sizeof(*sdata) + local->hw.vif_data_size,
-			       name, ieee80211_if_setup, local->hw.queues);
+	ndev = alloc_netdev_mqs(sizeof(*sdata) + local->hw.vif_data_size,
+				name, ieee80211_if_setup, local->hw.queues, 1);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));

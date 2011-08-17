@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-samsung/include/plat/pd.h
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@ struct samsung_pd_info {
 	void __iomem *base;
 };
 
-enum s5pv310_pd_block {
+enum exynos4_pd_block {
 	PD_MFC,
 	PD_G3D,
 	PD_LCD0,

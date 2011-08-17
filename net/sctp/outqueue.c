@@ -131,7 +131,8 @@ static inline int sctp_cacc_skip_3_1_d(struct sctp_transport *primary,
 static inline int sctp_cacc_skip_3_1_f(struct sctp_transport *transport,
 				       int count_of_newacks)
 {
-	if (count_of_newacks < 2 && !transport->cacc.cacc_saw_newack)
+	if (count_of_newacks < 2 &&
+			(transport && !transport->cacc.cacc_saw_newack))
 		return 1;
 	return 0;
 }
@@ -177,13 +178,13 @@ static inline int sctp_cacc_skip_3_2(struct sctp_transport *primary, __u32 tsn)
  * 3) If the missing report count for TSN t is to be
  * incremented according to [RFC2960] and
  * [SCTP_STEWART-2002], and CHANGEOVER_ACTIVE is set,
- * then the sender MUST futher execute steps 3.1 and
+ * then the sender MUST further execute steps 3.1 and
  * 3.2 to determine if the missing report count for
  * TSN t SHOULD NOT be incremented.
  *
  * 3.3) If 3.1 and 3.2 do not dictate that the missing
  * report count for t should not be incremented, then
- * the sender SOULD increment missing report count for
+ * the sender SHOULD increment missing report count for
  * t (according to [RFC2960] and [SCTP_STEWART_2002]).
  */
 static inline int sctp_cacc_skip(struct sctp_transport *primary,
@@ -319,7 +320,6 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 		 * chunk.
 		 */
 		switch (q->asoc->state) {
-		case SCTP_STATE_EMPTY:
 		case SCTP_STATE_CLOSED:
 		case SCTP_STATE_SHUTDOWN_PENDING:
 		case SCTP_STATE_SHUTDOWN_SENT:
@@ -545,13 +545,11 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	struct sctp_transport *transport = pkt->transport;
 	sctp_xmit_t status;
 	struct sctp_chunk *chunk, *chunk1;
-	struct sctp_association *asoc;
 	int fast_rtx;
 	int error = 0;
 	int timer = 0;
 	int done = 0;
 
-	asoc = q->asoc;
 	lqueue = &q->retransmit;
 	fast_rtx = q->fast_rtx;
 
@@ -579,6 +577,13 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	 * try to send as much as possible.
 	 */
 	list_for_each_entry_safe(chunk, chunk1, lqueue, transmitted_list) {
+		/* If the chunk is abandoned, move it to abandoned list. */
+		if (sctp_chunk_abandoned(chunk)) {
+			list_del_init(&chunk->transmitted_list);
+			sctp_insert_list(&q->abandoned,
+					 &chunk->transmitted_list);
+			continue;
+		}
 
 		/* Make sure that Gap Acked TSNs are not retransmitted.  A
 		 * simple approach is just to move such TSNs out of the
@@ -620,9 +625,12 @@ redo:
 
 			/* If we are retransmitting, we should only
 			 * send a single packet.
+			 * Otherwise, try appending this chunk again.
 			 */
 			if (rtx_timeout || fast_rtx)
 				done = 1;
+			else
+				goto redo;
 
 			/* Bundle next chunk in the next round.  */
 			break;
@@ -746,6 +754,16 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 	 */
 
 	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
+		/* RFC 5061, 5.3
+		 * F1) This means that until such time as the ASCONF
+		 * containing the add is acknowledged, the sender MUST
+		 * NOT use the new IP address as a source for ANY SCTP
+		 * packet except on carrying an ASCONF Chunk.
+		 */
+		if (asoc->src_out_of_asoc_ok &&
+		    chunk->chunk_hdr->type != SCTP_CID_ASCONF)
+			continue;
+
 		list_del_init(&chunk->list);
 
 		/* Pick the right transport to use. */
@@ -845,7 +863,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		case SCTP_CID_ECN_CWR:
 		case SCTP_CID_ASCONF_ACK:
 			one_packet = 1;
-			/* Fall throught */
+			/* Fall through */
 
 		case SCTP_CID_SACK:
 		case SCTP_CID_HEARTBEAT:
@@ -872,6 +890,9 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			BUG();
 		}
 	}
+
+	if (q->asoc->src_out_of_asoc_ok)
+		goto sctp_flush_out;
 
 	/* Is it OK to send data chunks?  */
 	switch (asoc->state) {
@@ -1574,6 +1595,8 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 #endif /* SCTP_DEBUG */
 	if (transport) {
 		if (bytes_acked) {
+			struct sctp_association *asoc = transport->asoc;
+
 			/* We may have counted DATA that was migrated
 			 * to this transport due to DEL-IP operation.
 			 * Subtract those bytes, since the were never
@@ -1591,6 +1614,17 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 */
 			transport->error_count = 0;
 			transport->asoc->overall_error_count = 0;
+
+			/*
+			 * While in SHUTDOWN PENDING, we may have started
+			 * the T5 shutdown guard timer after reaching the
+			 * retransmission limit. Stop that timer as soon
+			 * as the receiver acknowledged any data.
+			 */
+			if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING &&
+			    del_timer(&asoc->timers
+				[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]))
+					sctp_association_put(asoc);
 
 			/* Mark the destination transport address as
 			 * active if it is not so marked.
@@ -1621,10 +1655,15 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 * A sender is doing zero window probing when the
 			 * receiver's advertised window is zero, and there is
 			 * only one data chunk in flight to the receiver.
+			 *
+			 * Allow the association to timeout while in SHUTDOWN
+			 * PENDING or SHUTDOWN RECEIVED in case the receiver
+			 * stays in zero window mode forever.
 			 */
 			if (!q->asoc->peer.rwnd &&
 			    !list_empty(&tlist) &&
-			    (sack_ctsn+2 == q->asoc->next_tsn)) {
+			    (sack_ctsn+2 == q->asoc->next_tsn) &&
+			    q->asoc->state < SCTP_STATE_SHUTDOWN_PENDING) {
 				SCTP_DEBUG_PRINTK("%s: SACK received for zero "
 						  "window probe: %u\n",
 						  __func__, sack_ctsn);
@@ -1685,8 +1724,9 @@ static void sctp_mark_missing(struct sctp_outq *q,
 			/* SFR-CACC may require us to skip marking
 			 * this chunk as missing.
 			 */
-			if (!transport || !sctp_cacc_skip(primary, transport,
-					    count_of_newacks, tsn)) {
+			if (!transport || !sctp_cacc_skip(primary,
+						chunk->transport,
+						count_of_newacks, tsn)) {
 				chunk->tsn_missing_report++;
 
 				SCTP_DEBUG_PRINTK(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -75,16 +75,54 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	freq = centers.synth_center;
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
-		if (AR_SREV_9485(ah))
-			channelSel = CHANSEL_2G_9485(freq);
-		else
+		if (AR_SREV_9330(ah)) {
+			u32 chan_frac;
+			u32 div;
+
+			if (ah->is_clk_25mhz)
+				div = 75;
+			else
+				div = 120;
+
+			channelSel = (freq * 4) / div;
+			chan_frac = (((freq * 4) % div) * 0x20000) / div;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else if (AR_SREV_9485(ah)) {
+			u32 chan_frac;
+
+			/*
+			 * freq_ref = 40 / (refdiva >> amoderefsel); where refdiva=1 and amoderefsel=0
+			 * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
+			 * chansel = int(ndiv), chanfrac = (ndiv - chansel) * 0x20000
+			 */
+			channelSel = (freq * 4) / 120;
+			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else if (AR_SREV_9340(ah)) {
+			if (ah->is_clk_25mhz) {
+				u32 chan_frac;
+
+				channelSel = (freq * 2) / 75;
+				chan_frac = (((freq * 2) % 75) * 0x20000) / 75;
+				channelSel = (channelSel << 17) | chan_frac;
+			} else
+				channelSel = CHANSEL_2G(freq) >> 1;
+		} else
 			channelSel = CHANSEL_2G(freq);
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
-		channelSel = CHANSEL_5G(freq);
-		/* Doubler is ON, so, divide channelSel by 2. */
-		channelSel >>= 1;
+		if (AR_SREV_9340(ah) && ah->is_clk_25mhz) {
+			u32 chan_frac;
+
+			channelSel = (freq * 2) / 75;
+			chan_frac = (((freq * 2) % 75) * 0x20000) / 75;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else {
+			channelSel = CHANSEL_5G(freq);
+			/* Doubler is ON, so, divide channelSel by 2. */
+			channelSel >>= 1;
+		}
 		/* Set to 5G mode */
 		bMode = 0;
 	}
@@ -142,7 +180,7 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	 * is out-of-band and can be ignored.
 	 */
 
-	if (AR_SREV_9485(ah)) {
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah)) {
 		spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah,
 							 IS_CHAN_2GHZ(chan));
 		if (spur_fbin_ptr[0] == 0) /* No spur */
@@ -167,7 +205,7 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 
 	for (i = 0; i < max_spur_cnts; i++) {
 		negative = 0;
-		if (AR_SREV_9485(ah))
+		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
 			cur_bb_spur = FBIN2FREQ(spur_fbin_ptr[i],
 					IS_CHAN_2GHZ(chan)) - synth_freq;
 		else
@@ -401,7 +439,7 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 
 	ar9003_hw_spur_ofdm_clear(ah);
 
-	for (i = 0; spurChansPtr[i] && i < 5; i++) {
+	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
 		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);
@@ -590,29 +628,25 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	unsigned int regWrites = 0, i;
 	struct ieee80211_channel *channel = chan->chan;
-	u32 modesIndex, freqIndex;
+	u32 modesIndex;
 
 	switch (chan->chanmode) {
 	case CHANNEL_A:
 	case CHANNEL_A_HT20:
 		modesIndex = 1;
-		freqIndex = 1;
 		break;
 	case CHANNEL_A_HT40PLUS:
 	case CHANNEL_A_HT40MINUS:
 		modesIndex = 2;
-		freqIndex = 1;
 		break;
 	case CHANNEL_G:
 	case CHANNEL_G_HT20:
 	case CHANNEL_B:
 		modesIndex = 4;
-		freqIndex = 2;
 		break;
 	case CHANNEL_G_HT40PLUS:
 	case CHANNEL_G_HT40MINUS:
 		modesIndex = 3;
-		freqIndex = 2;
 		break;
 
 	default:
@@ -636,6 +670,12 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		REG_WRITE_ARRAY(&ah->iniModesAdditional,
 				modesIndex, regWrites);
+
+	if (AR_SREV_9300(ah))
+		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
+
+	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
+		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
 
 	ar9003_hw_override_ini(ah);
 	ar9003_hw_set_channel_regs(ah, chan);
@@ -1020,35 +1060,39 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 static void ar9003_hw_do_getnf(struct ath_hw *ah,
 			      int16_t nfarray[NUM_NF_READINGS])
 {
+#define AR_PHY_CH_MINCCA_PWR	0x1FF00000
+#define AR_PHY_CH_MINCCA_PWR_S	20
+#define AR_PHY_CH_EXT_MINCCA_PWR 0x01FF0000
+#define AR_PHY_CH_EXT_MINCCA_PWR_S 16
+
 	int16_t nf;
+	int i;
 
-	nf = MS(REG_READ(ah, AR_PHY_CCA_0), AR_PHY_MINCCA_PWR);
-	nfarray[0] = sign_extend32(nf, 8);
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (ah->rxchainmask & BIT(i)) {
+			nf = MS(REG_READ(ah, ah->nf_regs[i]),
+					 AR_PHY_CH_MINCCA_PWR);
+			nfarray[i] = sign_extend32(nf, 8);
 
-	nf = MS(REG_READ(ah, AR_PHY_CCA_1), AR_PHY_CH1_MINCCA_PWR);
-	nfarray[1] = sign_extend32(nf, 8);
+			if (IS_CHAN_HT40(ah->curchan)) {
+				u8 ext_idx = AR9300_MAX_CHAINS + i;
 
-	nf = MS(REG_READ(ah, AR_PHY_CCA_2), AR_PHY_CH2_MINCCA_PWR);
-	nfarray[2] = sign_extend32(nf, 8);
-
-	if (!IS_CHAN_HT40(ah->curchan))
-		return;
-
-	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
-	nfarray[3] = sign_extend32(nf, 8);
-
-	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_1), AR_PHY_CH1_EXT_MINCCA_PWR);
-	nfarray[4] = sign_extend32(nf, 8);
-
-	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_2), AR_PHY_CH2_EXT_MINCCA_PWR);
-	nfarray[5] = sign_extend32(nf, 8);
+				nf = MS(REG_READ(ah, ah->nf_regs[ext_idx]),
+						 AR_PHY_CH_EXT_MINCCA_PWR);
+				nfarray[ext_idx] = sign_extend32(nf, 8);
+			}
+		}
+	}
 }
 
 static void ar9003_hw_set_nf_limits(struct ath_hw *ah)
 {
 	ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
 	ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
-	ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
+	if (AR_SREV_9330(ah))
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
+	else
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
 	ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9300_5GHZ;
@@ -1158,9 +1202,61 @@ static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
 	conf->radar_inband = 8;
 }
 
+static void ar9003_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf)
+{
+	u32 regval;
+
+	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+	antconf->main_lna_conf = (regval & AR_PHY_9485_ANT_DIV_MAIN_LNACONF) >>
+				  AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S;
+	antconf->alt_lna_conf = (regval & AR_PHY_9485_ANT_DIV_ALT_LNACONF) >>
+				 AR_PHY_9485_ANT_DIV_ALT_LNACONF_S;
+	antconf->fast_div_bias = (regval & AR_PHY_9485_ANT_FAST_DIV_BIAS) >>
+				  AR_PHY_9485_ANT_FAST_DIV_BIAS_S;
+
+	if (AR_SREV_9330_11(ah)) {
+		antconf->lna1_lna2_delta = -9;
+		antconf->div_group = 1;
+	} else if (AR_SREV_9485(ah)) {
+		antconf->lna1_lna2_delta = -9;
+		antconf->div_group = 2;
+	} else {
+		antconf->lna1_lna2_delta = -3;
+		antconf->div_group = 0;
+	}
+}
+
+static void ar9003_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf)
+{
+	u32 regval;
+
+	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+	regval &= ~(AR_PHY_9485_ANT_DIV_MAIN_LNACONF |
+		    AR_PHY_9485_ANT_DIV_ALT_LNACONF |
+		    AR_PHY_9485_ANT_FAST_DIV_BIAS |
+		    AR_PHY_9485_ANT_DIV_MAIN_GAINTB |
+		    AR_PHY_9485_ANT_DIV_ALT_GAINTB);
+	regval |= ((antconf->main_lna_conf <<
+					AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S)
+		   & AR_PHY_9485_ANT_DIV_MAIN_LNACONF);
+	regval |= ((antconf->alt_lna_conf << AR_PHY_9485_ANT_DIV_ALT_LNACONF_S)
+		   & AR_PHY_9485_ANT_DIV_ALT_LNACONF);
+	regval |= ((antconf->fast_div_bias << AR_PHY_9485_ANT_FAST_DIV_BIAS_S)
+		   & AR_PHY_9485_ANT_FAST_DIV_BIAS);
+	regval |= ((antconf->main_gaintb << AR_PHY_9485_ANT_DIV_MAIN_GAINTB_S)
+		   & AR_PHY_9485_ANT_DIV_MAIN_GAINTB);
+	regval |= ((antconf->alt_gaintb << AR_PHY_9485_ANT_DIV_ALT_GAINTB_S)
+		   & AR_PHY_9485_ANT_DIV_ALT_GAINTB);
+
+	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 	static const u32 ar9300_cca_regs[6] = {
 		AR_PHY_CCA_0,
 		AR_PHY_CCA_1,
@@ -1186,6 +1282,9 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->do_getnf = ar9003_hw_do_getnf;
 	priv_ops->ani_cache_ini_regs = ar9003_hw_ani_cache_ini_regs;
 	priv_ops->set_radar_params = ar9003_hw_set_radar_params;
+
+	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
+	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
 
 	ar9003_hw_set_nf_limits(ah);
 	ar9003_hw_set_radar_conf(ah);
@@ -1309,3 +1408,25 @@ void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 		"==== BB update: done ====\n\n");
 }
 EXPORT_SYMBOL(ar9003_hw_bb_watchdog_dbg_info);
+
+void ar9003_hw_disable_phy_restart(struct ath_hw *ah)
+{
+	u32 val;
+
+	/* While receiving unsupported rate frame rx state machine
+	 * gets into a state 0xb and if phy_restart happens in that
+	 * state, BB would go hang. If RXSM is in 0xb state after
+	 * first bb panic, ensure to disable the phy_restart.
+	 */
+	if (!((MS(ah->bb_watchdog_last_status,
+		  AR_PHY_WATCHDOG_RX_OFDM_SM) == 0xb) ||
+	    ah->bb_hang_rx_ofdm))
+		return;
+
+	ah->bb_hang_rx_ofdm = true;
+	val = REG_READ(ah, AR_PHY_RESTART);
+	val &= ~AR_PHY_RESTART_ENA;
+
+	REG_WRITE(ah, AR_PHY_RESTART, val);
+}
+EXPORT_SYMBOL(ar9003_hw_disable_phy_restart);

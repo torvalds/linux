@@ -104,11 +104,13 @@ static int ixgbevf_get_settings(struct net_device *netdev,
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 
 	if (link_up) {
-		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-			       SPEED_10000 : SPEED_1000;
+		ethtool_cmd_speed_set(
+			ecmd,
+			(link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
+			SPEED_10000 : SPEED_1000);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -172,7 +174,7 @@ static char *ixgbevf_reg_names[] = {
 	"IXGBE_VFSTATUS",
 	"IXGBE_VFLINKS",
 	"IXGBE_VFRXMEMWRAP",
-	"IXGBE_VFRTIMER",
+	"IXGBE_VFFRTIMER",
 	"IXGBE_VTEICR",
 	"IXGBE_VTEICS",
 	"IXGBE_VTEIMS",
@@ -240,7 +242,7 @@ static void ixgbevf_get_regs(struct net_device *netdev,
 	regs_buff[1] = IXGBE_READ_REG(hw, IXGBE_VFSTATUS);
 	regs_buff[2] = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
 	regs_buff[3] = IXGBE_READ_REG(hw, IXGBE_VFRXMEMWRAP);
-	regs_buff[4] = IXGBE_READ_REG(hw, IXGBE_VFRTIMER);
+	regs_buff[4] = IXGBE_READ_REG(hw, IXGBE_VFFRTIMER);
 
 	/* Interrupt */
 	/* don't read EICR because it can clear interrupt causes, instead

@@ -181,7 +181,7 @@ static int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 		return -ENOSPC;
 	}
 
-	/* Becasue hardware data watchpoint impelemented in current
+	/* Because hardware data watchpoint impelemented in current
 	 * Blackfin can not trigger an exception event as the hardware
 	 * instrction watchpoint does, we ignaore all data watch point here.
 	 * They can be turned on easily after future blackfin design
@@ -422,11 +422,7 @@ int kgdb_arch_handle_exception(int vector, int signo,
 
 struct kgdb_arch arch_kgdb_ops = {
 	.gdb_bpt_instr = {0xa1},
-#ifdef CONFIG_SMP
-	.flags = KGDB_HW_BREAKPOINT|KGDB_THR_PROC_SWAP,
-#else
 	.flags = KGDB_HW_BREAKPOINT,
-#endif
 	.set_hw_breakpoint = bfin_set_hw_break,
 	.remove_hw_breakpoint = bfin_remove_hw_break,
 	.disable_hw_break = bfin_disable_hw_debug,

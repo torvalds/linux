@@ -7,10 +7,12 @@
 
 #include "util/cache.h"
 #include "util/debug.h"
+#include "util/evlist.h"
 #include "util/parse-options.h"
-#include "util/session.h"
+#include "util/parse-events.h"
 #include "util/symbol.h"
-#include "util/thread.h"
+#include "util/thread_map.h"
+#include "../../include/linux/hw_breakpoint.h"
 
 static long page_size;
 
@@ -238,14 +240,14 @@ out:
 #include "util/evsel.h"
 #include <sys/types.h>
 
-static int trace_event__id(const char *event_name)
+static int trace_event__id(const char *evname)
 {
 	char *filename;
 	int err = -1, fd;
 
 	if (asprintf(&filename,
-		     "/sys/kernel/debug/tracing/events/syscalls/%s/id",
-		     event_name) < 0)
+		     "%s/syscalls/%s/id",
+		     debugfs_path, evname) < 0)
 		return -1;
 
 	fd = open(filename, O_RDONLY);
@@ -289,7 +291,7 @@ static int test__open_syscall_event(void)
 		goto out_thread_map_delete;
 	}
 
-	if (perf_evsel__open_per_thread(evsel, threads) < 0) {
+	if (perf_evsel__open_per_thread(evsel, threads, false) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 strerror(errno));
@@ -302,7 +304,7 @@ static int test__open_syscall_event(void)
 	}
 
 	if (perf_evsel__read_on_cpu(evsel, 0, 0) < 0) {
-		pr_debug("perf_evsel__open_read_on_cpu\n");
+		pr_debug("perf_evsel__read_on_cpu\n");
 		goto out_close_fd;
 	}
 
@@ -347,9 +349,9 @@ static int test__open_syscall_event_on_all_cpus(void)
 	}
 
 	cpus = cpu_map__new(NULL);
-	if (threads == NULL) {
-		pr_debug("thread_map__new\n");
-		return -1;
+	if (cpus == NULL) {
+		pr_debug("cpu_map__new\n");
+		goto out_thread_map_delete;
 	}
 
 
@@ -364,7 +366,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 		goto out_thread_map_delete;
 	}
 
-	if (perf_evsel__open(evsel, cpus, threads) < 0) {
+	if (perf_evsel__open(evsel, cpus, threads, false) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 strerror(errno));
@@ -408,6 +410,8 @@ static int test__open_syscall_event_on_all_cpus(void)
 		goto out_close_fd;
 	}
 
+	err = 0;
+
 	for (cpu = 0; cpu < cpus->nr; ++cpu) {
 		unsigned int expected;
 
@@ -415,19 +419,19 @@ static int test__open_syscall_event_on_all_cpus(void)
 			continue;
 
 		if (perf_evsel__read_on_cpu(evsel, cpu, 0) < 0) {
-			pr_debug("perf_evsel__open_read_on_cpu\n");
-			goto out_close_fd;
+			pr_debug("perf_evsel__read_on_cpu\n");
+			err = -1;
+			break;
 		}
 
 		expected = nr_open_calls + cpu;
 		if (evsel->counts->cpu[cpu].val != expected) {
 			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
 				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
-			goto out_close_fd;
+			err = -1;
 		}
 	}
 
-	err = 0;
 out_close_fd:
 	perf_evsel__close_fd(evsel, 1, threads->nr);
 out_evsel_delete:
@@ -437,6 +441,406 @@ out_thread_map_delete:
 	return err;
 }
 
+/*
+ * This test will generate random numbers of calls to some getpid syscalls,
+ * then establish an mmap for a group of events that are created to monitor
+ * the syscalls.
+ *
+ * It will receive the events, using mmap, use its PERF_SAMPLE_ID generated
+ * sample.id field to map back to its respective perf_evsel instance.
+ *
+ * Then it checks if the number of syscalls reported as perf events by
+ * the kernel corresponds to the number of syscalls made.
+ */
+static int test__basic_mmap(void)
+{
+	int err = -1;
+	union perf_event *event;
+	struct thread_map *threads;
+	struct cpu_map *cpus;
+	struct perf_evlist *evlist;
+	struct perf_event_attr attr = {
+		.type		= PERF_TYPE_TRACEPOINT,
+		.read_format	= PERF_FORMAT_ID,
+		.sample_type	= PERF_SAMPLE_ID,
+		.watermark	= 0,
+	};
+	cpu_set_t cpu_set;
+	const char *syscall_names[] = { "getsid", "getppid", "getpgrp",
+					"getpgid", };
+	pid_t (*syscalls[])(void) = { (void *)getsid, getppid, getpgrp,
+				      (void*)getpgid };
+#define nsyscalls ARRAY_SIZE(syscall_names)
+	int ids[nsyscalls];
+	unsigned int nr_events[nsyscalls],
+		     expected_nr_events[nsyscalls], i, j;
+	struct perf_evsel *evsels[nsyscalls], *evsel;
+	int sample_size = __perf_evsel__sample_size(attr.sample_type);
+
+	for (i = 0; i < nsyscalls; ++i) {
+		char name[64];
+
+		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
+		ids[i] = trace_event__id(name);
+		if (ids[i] < 0) {
+			pr_debug("Is debugfs mounted on /sys/kernel/debug?\n");
+			return -1;
+		}
+		nr_events[i] = 0;
+		expected_nr_events[i] = random() % 257;
+	}
+
+	threads = thread_map__new(-1, getpid());
+	if (threads == NULL) {
+		pr_debug("thread_map__new\n");
+		return -1;
+	}
+
+	cpus = cpu_map__new(NULL);
+	if (cpus == NULL) {
+		pr_debug("cpu_map__new\n");
+		goto out_free_threads;
+	}
+
+	CPU_ZERO(&cpu_set);
+	CPU_SET(cpus->map[0], &cpu_set);
+	sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
+	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
+		pr_debug("sched_setaffinity() failed on CPU %d: %s ",
+			 cpus->map[0], strerror(errno));
+		goto out_free_cpus;
+	}
+
+	evlist = perf_evlist__new(cpus, threads);
+	if (evlist == NULL) {
+		pr_debug("perf_evlist__new\n");
+		goto out_free_cpus;
+	}
+
+	/* anonymous union fields, can't be initialized above */
+	attr.wakeup_events = 1;
+	attr.sample_period = 1;
+
+	for (i = 0; i < nsyscalls; ++i) {
+		attr.config = ids[i];
+		evsels[i] = perf_evsel__new(&attr, i);
+		if (evsels[i] == NULL) {
+			pr_debug("perf_evsel__new\n");
+			goto out_free_evlist;
+		}
+
+		perf_evlist__add(evlist, evsels[i]);
+
+		if (perf_evsel__open(evsels[i], cpus, threads, false) < 0) {
+			pr_debug("failed to open counter: %s, "
+				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
+				 strerror(errno));
+			goto out_close_fd;
+		}
+	}
+
+	if (perf_evlist__mmap(evlist, 128, true) < 0) {
+		pr_debug("failed to mmap events: %d (%s)\n", errno,
+			 strerror(errno));
+		goto out_close_fd;
+	}
+
+	for (i = 0; i < nsyscalls; ++i)
+		for (j = 0; j < expected_nr_events[i]; ++j) {
+			int foo = syscalls[i]();
+			++foo;
+		}
+
+	while ((event = perf_evlist__mmap_read(evlist, 0)) != NULL) {
+		struct perf_sample sample;
+
+		if (event->header.type != PERF_RECORD_SAMPLE) {
+			pr_debug("unexpected %s event\n",
+				 perf_event__name(event->header.type));
+			goto out_munmap;
+		}
+
+		err = perf_event__parse_sample(event, attr.sample_type, sample_size,
+					       false, &sample);
+		if (err) {
+			pr_err("Can't parse sample, err = %d\n", err);
+			goto out_munmap;
+		}
+
+		evsel = perf_evlist__id2evsel(evlist, sample.id);
+		if (evsel == NULL) {
+			pr_debug("event with id %" PRIu64
+				 " doesn't map to an evsel\n", sample.id);
+			goto out_munmap;
+		}
+		nr_events[evsel->idx]++;
+	}
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
+			pr_debug("expected %d %s events, got %d\n",
+				 expected_nr_events[evsel->idx],
+				 event_name(evsel), nr_events[evsel->idx]);
+			goto out_munmap;
+		}
+	}
+
+	err = 0;
+out_munmap:
+	perf_evlist__munmap(evlist);
+out_close_fd:
+	for (i = 0; i < nsyscalls; ++i)
+		perf_evsel__close_fd(evsels[i], 1, threads->nr);
+out_free_evlist:
+	perf_evlist__delete(evlist);
+out_free_cpus:
+	cpu_map__delete(cpus);
+out_free_threads:
+	thread_map__delete(threads);
+	return err;
+#undef nsyscalls
+}
+
+#define TEST_ASSERT_VAL(text, cond) \
+do { \
+	if (!cond) { \
+		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
+		return -1; \
+	} \
+} while (0)
+
+static int test__checkevent_tracepoint(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_TRACEPOINT == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong sample_type",
+		(PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | PERF_SAMPLE_CPU) ==
+		evsel->attr.sample_type);
+	TEST_ASSERT_VAL("wrong sample_period", 1 == evsel->attr.sample_period);
+	return 0;
+}
+
+static int test__checkevent_tracepoint_multi(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	TEST_ASSERT_VAL("wrong number of entries", evlist->nr_entries > 1);
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		TEST_ASSERT_VAL("wrong type",
+			PERF_TYPE_TRACEPOINT == evsel->attr.type);
+		TEST_ASSERT_VAL("wrong sample_type",
+			(PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | PERF_SAMPLE_CPU)
+			== evsel->attr.sample_type);
+		TEST_ASSERT_VAL("wrong sample_period",
+			1 == evsel->attr.sample_period);
+	}
+	return 0;
+}
+
+static int test__checkevent_raw(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", 1 == evsel->attr.config);
+	return 0;
+}
+
+static int test__checkevent_numeric(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", 1 == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", 1 == evsel->attr.config);
+	return 0;
+}
+
+static int test__checkevent_symbolic_name(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_HW_INSTRUCTIONS == evsel->attr.config);
+	return 0;
+}
+
+static int test__checkevent_symbolic_alias(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_SOFTWARE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_SW_PAGE_FAULTS == evsel->attr.config);
+	return 0;
+}
+
+static int test__checkevent_genhw(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HW_CACHE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", (1 << 16) == evsel->attr.config);
+	return 0;
+}
+
+static int test__checkevent_breakpoint(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_BREAKPOINT == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", 0 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong bp_type", (HW_BREAKPOINT_R | HW_BREAKPOINT_W) ==
+					 evsel->attr.bp_type);
+	TEST_ASSERT_VAL("wrong bp_len", HW_BREAKPOINT_LEN_4 ==
+					evsel->attr.bp_len);
+	return 0;
+}
+
+static int test__checkevent_breakpoint_x(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_BREAKPOINT == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", 0 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong bp_type",
+			HW_BREAKPOINT_X == evsel->attr.bp_type);
+	TEST_ASSERT_VAL("wrong bp_len", sizeof(long) == evsel->attr.bp_len);
+	return 0;
+}
+
+static int test__checkevent_breakpoint_r(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type",
+			PERF_TYPE_BREAKPOINT == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", 0 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong bp_type",
+			HW_BREAKPOINT_R == evsel->attr.bp_type);
+	TEST_ASSERT_VAL("wrong bp_len",
+			HW_BREAKPOINT_LEN_4 == evsel->attr.bp_len);
+	return 0;
+}
+
+static int test__checkevent_breakpoint_w(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type",
+			PERF_TYPE_BREAKPOINT == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config", 0 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong bp_type",
+			HW_BREAKPOINT_W == evsel->attr.bp_type);
+	TEST_ASSERT_VAL("wrong bp_len",
+			HW_BREAKPOINT_LEN_4 == evsel->attr.bp_len);
+	return 0;
+}
+
+static struct test__event_st {
+	const char *name;
+	__u32 type;
+	int (*check)(struct perf_evlist *evlist);
+} test__events[] = {
+	{
+		.name  = "syscalls:sys_enter_open",
+		.check = test__checkevent_tracepoint,
+	},
+	{
+		.name  = "syscalls:*",
+		.check = test__checkevent_tracepoint_multi,
+	},
+	{
+		.name  = "r1",
+		.check = test__checkevent_raw,
+	},
+	{
+		.name  = "1:1",
+		.check = test__checkevent_numeric,
+	},
+	{
+		.name  = "instructions",
+		.check = test__checkevent_symbolic_name,
+	},
+	{
+		.name  = "faults",
+		.check = test__checkevent_symbolic_alias,
+	},
+	{
+		.name  = "L1-dcache-load-miss",
+		.check = test__checkevent_genhw,
+	},
+	{
+		.name  = "mem:0",
+		.check = test__checkevent_breakpoint,
+	},
+	{
+		.name  = "mem:0:x",
+		.check = test__checkevent_breakpoint_x,
+	},
+	{
+		.name  = "mem:0:r",
+		.check = test__checkevent_breakpoint_r,
+	},
+	{
+		.name  = "mem:0:w",
+		.check = test__checkevent_breakpoint_w,
+	},
+};
+
+#define TEST__EVENTS_CNT (sizeof(test__events) / sizeof(struct test__event_st))
+
+static int test__parse_events(void)
+{
+	struct perf_evlist *evlist;
+	u_int i;
+	int ret = 0;
+
+	for (i = 0; i < TEST__EVENTS_CNT; i++) {
+		struct test__event_st *e = &test__events[i];
+
+		evlist = perf_evlist__new(NULL, NULL);
+		if (evlist == NULL)
+			break;
+
+		ret = parse_events(evlist, e->name, 0);
+		if (ret) {
+			pr_debug("failed to parse event '%s', err %d\n",
+				 e->name, ret);
+			break;
+		}
+
+		ret = e->check(evlist);
+		if (ret)
+			break;
+
+		perf_evlist__delete(evlist);
+	}
+
+	return ret;
+}
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -452,6 +856,14 @@ static struct test {
 	{
 		.desc = "detect open syscall event on all cpus",
 		.func = test__open_syscall_event_on_all_cpus,
+	},
+	{
+		.desc = "read samples using the mmap interface",
+		.func = test__basic_mmap,
+	},
+	{
+		.desc = "parse events tests",
+		.func = test__parse_events,
 	},
 	{
 		.func = NULL,

@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/clkdev.h>
 
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
@@ -24,8 +25,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-
 #include "clock.h"
+#include "clock-pcom.h"
 #include <mach/mmc.h>
 
 static struct resource resources_uart1[] = {
@@ -38,6 +39,7 @@ static struct resource resources_uart1[] = {
 		.start	= MSM_UART1_PHYS,
 		.end	= MSM_UART1_PHYS + MSM_UART1_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
+		.name  = "uart_resource"
 	},
 };
 
@@ -51,6 +53,7 @@ static struct resource resources_uart2[] = {
 		.start	= MSM_UART2_PHYS,
 		.end	= MSM_UART2_PHYS + MSM_UART2_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
+		.name  = "uart_resource"
 	},
 };
 
@@ -64,6 +67,7 @@ static struct resource resources_uart3[] = {
 		.start	= MSM_UART3_PHYS,
 		.end	= MSM_UART3_PHYS + MSM_UART3_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
+		.name  = "uart_resource"
 	},
 };
 
@@ -414,7 +418,7 @@ struct platform_device msm_device_mdp = {
 	.resource = resources_mdp,
 };
 
-struct clk msm_clocks_7x01a[] = {
+struct clk_lookup msm_clocks_7x01a[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("ebi1_clk",	EBI1_CLK,	NULL, 0),
@@ -423,7 +427,7 @@ struct clk msm_clocks_7x01a[] = {
 	CLK_PCOM("emdh_clk",	EMDH_CLK,	NULL, OFF),
 	CLK_PCOM("gp_clk",		GP_CLK,		NULL, 0),
 	CLK_PCOM("grp_clk",	GRP_3D_CLK,	NULL, OFF),
-	CLK_PCOM("i2c_clk",	I2C_CLK,	&msm_device_i2c.dev, 0),
+	CLK_PCOM("i2c_clk",	I2C_CLK,	"msm_i2c.0", 0),
 	CLK_PCOM("icodec_rx_clk",	ICODEC_RX_CLK,	NULL, 0),
 	CLK_PCOM("icodec_tx_clk",	ICODEC_TX_CLK,	NULL, 0),
 	CLK_PCOM("imem_clk",	IMEM_CLK,	NULL, OFF),
@@ -433,25 +437,25 @@ struct clk msm_clocks_7x01a[] = {
 	CLK_PCOM("pcm_clk",	PCM_CLK,	NULL, 0),
 	CLK_PCOM("mddi_clk",	PMDH_CLK,	NULL, OFF | CLK_MINMAX),
 	CLK_PCOM("sdac_clk",	SDAC_CLK,	NULL, OFF),
-	CLK_PCOM("sdc_clk",	SDC1_CLK,	&msm_device_sdc1.dev, OFF),
-	CLK_PCOM("sdc_pclk",	SDC1_P_CLK,	&msm_device_sdc1.dev, OFF),
-	CLK_PCOM("sdc_clk",	SDC2_CLK,	&msm_device_sdc2.dev, OFF),
-	CLK_PCOM("sdc_pclk",	SDC2_P_CLK,	&msm_device_sdc2.dev, OFF),
-	CLK_PCOM("sdc_clk",	SDC3_CLK,	&msm_device_sdc3.dev, OFF),
-	CLK_PCOM("sdc_pclk",	SDC3_P_CLK,	&msm_device_sdc3.dev, OFF),
-	CLK_PCOM("sdc_clk",	SDC4_CLK,	&msm_device_sdc4.dev, OFF),
-	CLK_PCOM("sdc_pclk",	SDC4_P_CLK,	&msm_device_sdc4.dev, OFF),
+	CLK_PCOM("sdc_clk",	SDC1_CLK,	"msm_sdcc.1", OFF),
+	CLK_PCOM("sdc_pclk",	SDC1_P_CLK,	"msm_sdcc.1", OFF),
+	CLK_PCOM("sdc_clk",	SDC2_CLK,	"msm_sdcc.2", OFF),
+	CLK_PCOM("sdc_pclk",	SDC2_P_CLK,	"msm_sdcc.2", OFF),
+	CLK_PCOM("sdc_clk",	SDC3_CLK,	"msm_sdcc.3", OFF),
+	CLK_PCOM("sdc_pclk",	SDC3_P_CLK,	"msm_sdcc.3", OFF),
+	CLK_PCOM("sdc_clk",	SDC4_CLK,	"msm_sdcc.4", OFF),
+	CLK_PCOM("sdc_pclk",	SDC4_P_CLK,	"msm_sdcc.4", OFF),
 	CLK_PCOM("tsif_clk",	TSIF_CLK,	NULL, 0),
 	CLK_PCOM("tsif_ref_clk",	TSIF_REF_CLK,	NULL, 0),
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART1_CLK,	&msm_device_uart1.dev, OFF),
-	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
-	CLK_PCOM("uart_clk",	UART3_CLK,	&msm_device_uart3.dev, OFF),
+	CLK_PCOM("uart_clk",	UART1_CLK,	"msm_serial.0", OFF),
+	CLK_PCOM("uart_clk",	UART2_CLK,	"msm_serial.1", 0),
+	CLK_PCOM("uart_clk",	UART3_CLK,	"msm_serial.2", OFF),
 	CLK_PCOM("uart1dm_clk",	UART1DM_CLK,	NULL, OFF),
 	CLK_PCOM("uart2dm_clk",	UART2DM_CLK,	NULL, 0),
-	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	&msm_device_hsusb.dev, OFF),
-	CLK_PCOM("usb_hs_pclk",	USB_HS_P_CLK,	&msm_device_hsusb.dev, OFF),
+	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	"msm_hsusb", OFF),
+	CLK_PCOM("usb_hs_pclk",	USB_HS_P_CLK,	"msm_hsusb", OFF),
 	CLK_PCOM("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),
 	CLK_PCOM("vdc_clk",	VDC_CLK,	NULL, OFF ),
 	CLK_PCOM("vfe_clk",	VFE_CLK,	NULL, OFF),

@@ -43,7 +43,7 @@ int __ref arch_register_cpu(int num)
 {
 #ifdef CONFIG_ACPI
 	/*
-	 * If CPEI can be re-targetted or if this is not
+	 * If CPEI can be re-targeted or if this is not
 	 * CPEI target, then it is hotpluggable
 	 */
 	if (can_cpei_retarget() || !is_cpu_cpei_target(num))

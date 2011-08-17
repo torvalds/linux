@@ -264,7 +264,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 		default:
 			type_string = "ECC Error";
 			break;
-		};
+		}
 		printk("%s: IOMMU Error, type[%s]\n",
 		       pbm->name, type_string);
 
@@ -319,7 +319,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 			default:
 				type_string = "ECC Error";
 				break;
-			};
+			}
 			printk("%s: IOMMU TAG(%d)[error(%s) ctx(%x) wr(%d) str(%d) "
 			       "sz(%dK) vpg(%08lx)]\n",
 			       pbm->name, i, type_string,
@@ -1313,7 +1313,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->dev.of_node;
 	const char *chipset_name;
-	int is_pbm_a, err;
+	int err;
 
 	switch (chip_type) {
 	case PBM_CHIP_TYPE_TOMATILLO:
@@ -1328,7 +1328,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	default:
 		chipset_name = "SCHIZO";
 		break;
-	};
+	}
 
 	/* For SCHIZO, three OBP regs:
 	 * 1) PBM controller regs
@@ -1342,8 +1342,6 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	 * 4) Ichip regs
 	 */
 	regs = of_get_property(dp, "reg", NULL);
-
-	is_pbm_a = ((regs[0].phys_addr & 0x00700000) == 0x00600000);
 
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
@@ -1460,10 +1458,15 @@ out_err:
 	return err;
 }
 
-static int __devinit schizo_probe(struct platform_device *op,
-				  const struct of_device_id *match)
+static const struct of_device_id schizo_match[];
+static int __devinit schizo_probe(struct platform_device *op)
 {
-	return __schizo_init(op, (unsigned long) match->data);
+	const struct of_device_id *match;
+
+	match = of_match_device(schizo_match, &op->dev);
+	if (!match)
+		return -EINVAL;
+	return __schizo_init(op, (unsigned long)match->data);
 }
 
 /* The ordering of this table is very important.  Some Tomatillo
@@ -1471,7 +1474,7 @@ static int __devinit schizo_probe(struct platform_device *op,
  * and pci108e,8001.  So list the chips in reverse chronological
  * order.
  */
-static struct of_device_id __initdata schizo_match[] = {
+static const struct of_device_id schizo_match[] = {
 	{
 		.name = "pci",
 		.compatible = "pci108e,a801",
@@ -1490,7 +1493,7 @@ static struct of_device_id __initdata schizo_match[] = {
 	{},
 };
 
-static struct of_platform_driver schizo_driver = {
+static struct platform_driver schizo_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1501,7 +1504,7 @@ static struct of_platform_driver schizo_driver = {
 
 static int __init schizo_init(void)
 {
-	return of_register_platform_driver(&schizo_driver);
+	return platform_driver_register(&schizo_driver);
 }
 
 subsys_initcall(schizo_init);

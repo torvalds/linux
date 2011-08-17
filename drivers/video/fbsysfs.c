@@ -33,7 +33,7 @@
  * for driver private data (info->par). info->par (if any) will be
  * aligned to sizeof(long).
  *
- * Returns the new structure, or NULL if an error occured.
+ * Returns the new structure, or NULL if an error occurred.
  *
  */
 struct fb_info *framebuffer_alloc(size_t size, struct device *dev)

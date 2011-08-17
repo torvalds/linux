@@ -17,7 +17,7 @@
 #include <asm/sgi/pi1.h>
 
 /*
- * All registers are 8-bit wide alligned on 32-bit boundary. Bad things
+ * All registers are 8-bit wide aligned on 32-bit boundary. Bad things
  * happen if you try word access them. You have been warned.
  */
 

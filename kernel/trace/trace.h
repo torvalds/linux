@@ -2,7 +2,7 @@
 #define _LINUX_KERNEL_TRACE_H
 
 #include <linux/fs.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/ring_buffer.h>
@@ -272,11 +272,34 @@ struct tracer {
 	/* If you handled the flag setting, return 0 */
 	int			(*set_flag)(u32 old_flags, u32 bit, int set);
 	struct tracer		*next;
-	int			print_max;
 	struct tracer_flags	*flags;
+	int			print_max;
 	int			use_max_tr;
 };
 
+
+/* Only current can touch trace_recursion */
+#define trace_recursion_inc() do { (current)->trace_recursion++; } while (0)
+#define trace_recursion_dec() do { (current)->trace_recursion--; } while (0)
+
+/* Ring buffer has the 10 LSB bits to count */
+#define trace_recursion_buffer() ((current)->trace_recursion & 0x3ff)
+
+/* for function tracing recursion */
+#define TRACE_INTERNAL_BIT		(1<<11)
+#define TRACE_GLOBAL_BIT		(1<<12)
+/*
+ * Abuse of the trace_recursion.
+ * As we need a way to maintain state if we are tracing the function
+ * graph in irq because we want to trace a particular function that
+ * was called in irq context but we have irq tracing off. Since this
+ * can only be modified by current, we can reuse trace_recursion.
+ */
+#define TRACE_IRQ_BIT			(1<<13)
+
+#define trace_recursion_set(bit)	do { (current)->trace_recursion |= (bit); } while (0)
+#define trace_recursion_clear(bit)	do { (current)->trace_recursion &= ~(bit); } while (0)
+#define trace_recursion_test(bit)	((current)->trace_recursion & (bit))
 
 #define TRACE_PIPE_ALL_CPU	-1
 
@@ -389,6 +412,9 @@ void update_max_tr_single(struct trace_array *tr,
 void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
 			int skip, int pc);
 
+void ftrace_trace_stack_regs(struct ring_buffer *buffer, unsigned long flags,
+			     int skip, int pc, struct pt_regs *regs);
+
 void ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags,
 			    int pc);
 
@@ -397,6 +423,12 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 #else
 static inline void ftrace_trace_stack(struct ring_buffer *buffer,
 				      unsigned long flags, int skip, int pc)
+{
+}
+
+static inline void ftrace_trace_stack_regs(struct ring_buffer *buffer,
+					   unsigned long flags, int skip,
+					   int pc, struct pt_regs *regs)
 {
 }
 
@@ -419,6 +451,8 @@ extern void trace_find_cmdline(int pid, char comm[]);
 extern unsigned long ftrace_update_tot_cnt;
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
+#define DYN_FTRACE_TEST_NAME2 trace_selftest_dynamic_test_func2
+extern int DYN_FTRACE_TEST_NAME2(void);
 #endif
 
 extern int ring_buffer_expanded;
@@ -505,8 +539,18 @@ static inline int ftrace_graph_addr(unsigned long addr)
 		return 1;
 
 	for (i = 0; i < ftrace_graph_count; i++) {
-		if (addr == ftrace_graph_funcs[i])
+		if (addr == ftrace_graph_funcs[i]) {
+			/*
+			 * If no irqs are to be traced, but a set_graph_function
+			 * is set, and called by an interrupt handler, we still
+			 * want to trace it.
+			 */
+			if (in_irq())
+				trace_recursion_set(TRACE_IRQ_BIT);
+			else
+				trace_recursion_clear(TRACE_IRQ_BIT);
 			return 1;
+		}
 	}
 
 	return 0;
@@ -606,6 +650,8 @@ enum trace_iterator_flags {
 	TRACE_ITER_SLEEP_TIME		= 0x40000,
 	TRACE_ITER_GRAPH_TIME		= 0x80000,
 	TRACE_ITER_RECORD_CMD		= 0x100000,
+	TRACE_ITER_OVERWRITE		= 0x200000,
+	TRACE_ITER_STOP_ON_FREE		= 0x400000,
 };
 
 /*
@@ -661,8 +707,10 @@ struct ftrace_event_field {
 };
 
 struct event_filter {
-	int			n_preds;
-	struct filter_pred	**preds;
+	int			n_preds;	/* Number assigned */
+	int			a_preds;	/* allocated */
+	struct filter_pred	*preds;
+	struct filter_pred	*root;
 	char			*filter_string;
 };
 
@@ -672,13 +720,26 @@ struct event_subsystem {
 	struct dentry		*entry;
 	struct event_filter	*filter;
 	int			nr_events;
+	int			ref_count;
 };
+
+#define FILTER_PRED_INVALID	((unsigned short)-1)
+#define FILTER_PRED_IS_RIGHT	(1 << 15)
+#define FILTER_PRED_FOLD	(1 << 15)
+
+/*
+ * The max preds is the size of unsigned short with
+ * two flags at the MSBs. One bit is used for both the IS_RIGHT
+ * and FOLD flags. The other is reserved.
+ *
+ * 2^14 preds is way more than enough.
+ */
+#define MAX_FILTER_PRED		16384
 
 struct filter_pred;
 struct regex;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
-				 int val1, int val2);
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
 
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
@@ -700,11 +761,23 @@ struct filter_pred {
 	filter_pred_fn_t 	fn;
 	u64 			val;
 	struct regex		regex;
-	char 			*field_name;
+	/*
+	 * Leaf nodes use field_name, ops is used by AND and OR
+	 * nodes. The field_name is always freed when freeing a pred.
+	 * We can overload field_name for ops and have it freed
+	 * as well.
+	 */
+	union {
+		char		*field_name;
+		unsigned short	*ops;
+	};
 	int 			offset;
 	int 			not;
 	int 			op;
-	int 			pop_n;
+	unsigned short		index;
+	unsigned short		parent;
+	unsigned short		left;
+	unsigned short		right;
 };
 
 extern struct list_head ftrace_common_fields;

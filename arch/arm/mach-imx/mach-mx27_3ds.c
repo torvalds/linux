@@ -29,6 +29,7 @@
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
+#include <linux/spi/l4f00242t03.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -42,10 +43,15 @@
 
 #include "devices-imx27.h"
 
-#define SD1_EN_GPIO (GPIO_PORTB + 25)
-#define OTG_PHY_RESET_GPIO (GPIO_PORTB + 23)
-#define SPI2_SS0 (GPIO_PORTD + 21)
-#define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTC + 28)
+#define SD1_EN_GPIO		IMX_GPIO_NR(2, 25)
+#define OTG_PHY_RESET_GPIO	IMX_GPIO_NR(2, 23)
+#define SPI2_SS0		IMX_GPIO_NR(4, 21)
+#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(3, 28))
+#define PMIC_INT		IMX_GPIO_NR(3, 14)
+#define SPI1_SS0		IMX_GPIO_NR(4, 28)
+#define SD1_CD			IMX_GPIO_NR(2, 26)
+#define LCD_RESET		IMX_GPIO_NR(1, 3)
+#define LCD_ENABLE		IMX_GPIO_NR(1, 31)
 
 static const int mx27pdk_pins[] __initconst = {
 	/* UART1 */
@@ -94,10 +100,47 @@ static const int mx27pdk_pins[] __initconst = {
 	PE2_PF_USBOTG_DIR,
 	PE24_PF_USBOTG_CLK,
 	PE25_PF_USBOTG_DATA7,
+	/* CSPI1 */
+	PD31_PF_CSPI1_MOSI,
+	PD30_PF_CSPI1_MISO,
+	PD29_PF_CSPI1_SCLK,
+	PD25_PF_CSPI1_RDY,
+	SPI1_SS0 | GPIO_GPIO | GPIO_OUT,
 	/* CSPI2 */
 	PD22_PF_CSPI2_SCLK,
 	PD23_PF_CSPI2_MISO,
 	PD24_PF_CSPI2_MOSI,
+	SPI2_SS0 | GPIO_GPIO | GPIO_OUT,
+	/* I2C1 */
+	PD17_PF_I2C_DATA,
+	PD18_PF_I2C_CLK,
+	/* PMIC INT */
+	PMIC_INT | GPIO_GPIO | GPIO_IN,
+	/* LCD */
+	PA5_PF_LSCLK,
+	PA6_PF_LD0,
+	PA7_PF_LD1,
+	PA8_PF_LD2,
+	PA9_PF_LD3,
+	PA10_PF_LD4,
+	PA11_PF_LD5,
+	PA12_PF_LD6,
+	PA13_PF_LD7,
+	PA14_PF_LD8,
+	PA15_PF_LD9,
+	PA16_PF_LD10,
+	PA17_PF_LD11,
+	PA18_PF_LD12,
+	PA19_PF_LD13,
+	PA20_PF_LD14,
+	PA21_PF_LD15,
+	PA22_PF_LD16,
+	PA23_PF_LD17,
+	PA28_PF_HSYNC,
+	PA29_PF_VSYNC,
+	PA30_PF_CONTRAST,
+	LCD_ENABLE | GPIO_GPIO | GPIO_OUT,
+	LCD_RESET | GPIO_GPIO | GPIO_OUT,
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -128,13 +171,13 @@ static const struct matrix_keymap_data mx27_3ds_keymap_data __initconst = {
 static int mx27_3ds_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 				void *data)
 {
-	return request_irq(IRQ_GPIOB(26), detect_irq, IRQF_TRIGGER_FALLING |
-			IRQF_TRIGGER_RISING, "sdhc1-card-detect", data);
+	return request_irq(gpio_to_irq(SD1_CD), detect_irq,
+	IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING, "sdhc1-card-detect", data);
 }
 
 static void mx27_3ds_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOB(26), data);
+	free_irq(gpio_to_irq(SD1_CD), data);
 }
 
 static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
@@ -159,13 +202,15 @@ static int otg_phy_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_USB_ULPI)
+static int mx27_3ds_otg_init(struct platform_device *pdev)
+{
+	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
 
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= mx27_3ds_otg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
-#endif
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -188,6 +233,13 @@ static int __init mx27_3ds_otg_mode(char *options)
 __setup("otg_mode=", mx27_3ds_otg_mode);
 
 /* Regulators */
+static struct regulator_init_data gpo_init = {
+	.constraints = {
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
 static struct regulator_consumer_supply vmmc1_consumers[] = {
 	REGULATOR_SUPPLY("lcd_2v8", NULL),
 };
@@ -196,7 +248,9 @@ static struct regulator_init_data vmmc1_init = {
 	.constraints = {
 		.min_uV	= 2800000,
 		.max_uV = 2800000,
-		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(vmmc1_consumers),
 	.consumer_supplies = vmmc1_consumers,
@@ -216,29 +270,86 @@ static struct regulator_init_data vgen_init = {
 	.consumer_supplies = vgen_consumers,
 };
 
-static struct mc13783_regulator_init_data mx27_3ds_regulators[] = {
+static struct mc13xxx_regulator_init_data mx27_3ds_regulators[] = {
 	{
 		.id = MC13783_REG_VMMC1,
 		.init_data = &vmmc1_init,
 	}, {
 		.id = MC13783_REG_VGEN,
 		.init_data = &vgen_init,
+	}, {
+		.id = MC13783_REG_GPO1, /* Turn on 1.8V */
+		.init_data = &gpo_init,
+	}, {
+		.id = MC13783_REG_GPO3, /* Turn on 3.3V */
+		.init_data = &gpo_init,
 	},
 };
 
 /* MC13783 */
-static struct mc13783_platform_data mc13783_pdata __initdata = {
-	.regulators = mx27_3ds_regulators,
-	.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
-	.flags  = MC13783_USE_REGULATOR,
+static struct mc13xxx_platform_data mc13783_pdata = {
+	.regulators = {
+		.regulators = mx27_3ds_regulators,
+		.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
+
+	},
+	.flags  = MC13783_USE_REGULATOR | MC13783_USE_TOUCHSCREEN |
+	MC13783_USE_RTC,
 };
 
 /* SPI */
-static int spi2_internal_chipselect[] = {SPI2_SS0};
+static int spi1_chipselect[] = {SPI1_SS0};
+
+static const struct spi_imx_master spi1_pdata __initconst = {
+	.chipselect	= spi1_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi1_chipselect),
+};
+
+static int spi2_chipselect[] = {SPI2_SS0};
 
 static const struct spi_imx_master spi2_pdata __initconst = {
-	.chipselect	= spi2_internal_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi2_internal_chipselect),
+	.chipselect	= spi2_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi2_chipselect),
+};
+
+static struct imx_fb_videomode mx27_3ds_modes[] = {
+	{	/* 480x640 @ 60 Hz */
+		.mode = {
+			.name		= "Epson-VGA",
+			.refresh	= 60,
+			.xres		= 480,
+			.yres		= 640,
+			.pixclock	= 41701,
+			.left_margin	= 20,
+			.right_margin	= 41,
+			.upper_margin	= 10,
+			.lower_margin	= 5,
+			.hsync_len	= 20,
+			.vsync_len	= 10,
+			.sync		= FB_SYNC_OE_ACT_HIGH |
+						FB_SYNC_CLK_INVERT,
+			.vmode		= FB_VMODE_NONINTERLACED,
+			.flag		= 0,
+		},
+		.bpp		= 16,
+		.pcr		= 0xFAC08B82,
+	},
+};
+
+static const struct imx_fb_platform_data mx27_3ds_fb_data __initconst = {
+	.mode = mx27_3ds_modes,
+	.num_modes = ARRAY_SIZE(mx27_3ds_modes),
+	.pwmr		= 0x00A903FF,
+	.lscr1		= 0x00120300,
+	.dmacr		= 0x00020010,
+};
+
+/* LCD */
+static struct l4f00242t03_pdata mx27_3ds_lcd_pdata = {
+	.reset_gpio		= LCD_RESET,
+	.data_enable_gpio	= LCD_ENABLE,
+	.core_supply		= "lcd_2v8",
+	.io_supply		= "vdd_lcdio",
 };
 
 static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
@@ -248,14 +359,25 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 0, /* SS0 */
 		.platform_data	= &mc13783_pdata,
-		.irq = IRQ_GPIOC(14),
+		.irq = gpio_to_irq(PMIC_INT),
 		.mode = SPI_CS_HIGH,
+	}, {
+		.modalias	= "l4f00242t03",
+		.max_speed_hz	= 5000000,
+		.bus_num	= 0,
+		.chip_select	= 0, /* SS0 */
+		.platform_data	= &mx27_3ds_lcd_pdata,
 	},
 };
 
+static const struct imxi2c_platform_data mx27_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
 
 static void __init mx27pdk_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx27pdk_pins, ARRAY_SIZE(mx27pdk_pins),
 		"mx27pdk");
 	mx27_3ds_sdhc1_enable_level_translator();
@@ -265,23 +387,27 @@ static void __init mx27pdk_init(void)
 	imx27_add_mxc_mmc(0, &sdhc1_pdata);
 	imx27_add_imx2_wdt(NULL);
 	otg_phy_init();
-#if defined(CONFIG_USB_ULPI)
-	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		imx27_add_mxc_ehci_otg(&otg_pdata);
+	if (otg_mode_host) {
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+
+		if (otg_pdata.otg)
+			imx27_add_mxc_ehci_otg(&otg_pdata);
 	}
-#endif
+
 	if (!otg_mode_host)
 		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx27_add_spi_imx1(&spi2_pdata);
+	imx27_add_spi_imx0(&spi1_pdata);
 	spi_register_board_info(mx27_3ds_spi_devs,
 						ARRAY_SIZE(mx27_3ds_spi_devs));
 
 	if (mxc_expio_init(MX27_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		pr_warn("Init of the debugboard failed, all devices on the debugboard are unusable.\n");
+	imx27_add_imx_i2c(0, &mx27_3ds_i2c0_data);
+	imx27_add_imx_fb(&mx27_3ds_fb_data);
 }
 
 static void __init mx27pdk_timer_init(void)
@@ -295,9 +421,10 @@ static struct sys_timer mx27pdk_timer = {
 
 MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = mx27pdk_init,
-	.timer          = &mx27pdk_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &mx27pdk_timer,
+	.init_machine = mx27pdk_init,
 MACHINE_END

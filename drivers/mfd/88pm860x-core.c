@@ -17,229 +17,140 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/regulator/machine.h>
 
 #define INT_STATUS_NUM			3
 
-char pm860x_backlight_name[][MFD_NAME_SIZE] = {
-	"backlight-0",
-	"backlight-1",
-	"backlight-2",
-};
-EXPORT_SYMBOL(pm860x_backlight_name);
-
-char pm860x_led_name[][MFD_NAME_SIZE] = {
-	"led0-red",
-	"led0-green",
-	"led0-blue",
-	"led1-red",
-	"led1-green",
-	"led1-blue",
-};
-EXPORT_SYMBOL(pm860x_led_name);
-
-#define PM8606_BACKLIGHT_RESOURCE(_i, _x)		\
-{							\
-	.name	= pm860x_backlight_name[_i],		\
-	.start	= PM8606_##_x,				\
-	.end	= PM8606_##_x,				\
-	.flags	= IORESOURCE_IO,			\
-}
-
-static struct resource backlight_resources[] = {
-	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT1, WLED1A),
-	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT2, WLED2A),
-	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT3, WLED3A),
+static struct resource bk_resources[] __devinitdata = {
+	{PM8606_BACKLIGHT1, PM8606_BACKLIGHT1, "backlight-0", IORESOURCE_IO,},
+	{PM8606_BACKLIGHT2, PM8606_BACKLIGHT2, "backlight-1", IORESOURCE_IO,},
+	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_IO,},
 };
 
-#define PM8606_BACKLIGHT_DEVS(_i)			\
-{							\
-	.name		= "88pm860x-backlight",		\
-	.num_resources	= 1,				\
-	.resources	= &backlight_resources[_i],	\
-	.id		= _i,				\
-}
-
-static struct mfd_cell backlight_devs[] = {
-	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT1),
-	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT2),
-	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT3),
+static struct resource led_resources[] __devinitdata = {
+	{PM8606_LED1_RED,   PM8606_LED1_RED,   "led0-red",   IORESOURCE_IO,},
+	{PM8606_LED1_GREEN, PM8606_LED1_GREEN, "led0-green", IORESOURCE_IO,},
+	{PM8606_LED1_BLUE,  PM8606_LED1_BLUE,  "led0-blue",  IORESOURCE_IO,},
+	{PM8606_LED2_RED,   PM8606_LED2_RED,   "led1-red",   IORESOURCE_IO,},
+	{PM8606_LED2_GREEN, PM8606_LED2_GREEN, "led1-green", IORESOURCE_IO,},
+	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_IO,},
 };
 
-#define PM8606_LED_RESOURCE(_i, _x)			\
-{							\
-	.name	= pm860x_led_name[_i],			\
-	.start	= PM8606_##_x,				\
-	.end	= PM8606_##_x,				\
-	.flags	= IORESOURCE_IO,			\
-}
-
-static struct resource led_resources[] = {
-	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB1B),
-	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB1C),
-	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB1D),
-	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB2B),
-	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB2C),
-	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB2D),
+static struct resource regulator_resources[] __devinitdata = {
+	{PM8607_ID_BUCK1, PM8607_ID_BUCK1, "buck-1", IORESOURCE_IO,},
+	{PM8607_ID_BUCK2, PM8607_ID_BUCK2, "buck-2", IORESOURCE_IO,},
+	{PM8607_ID_BUCK3, PM8607_ID_BUCK3, "buck-3", IORESOURCE_IO,},
+	{PM8607_ID_LDO1,  PM8607_ID_LDO1,  "ldo-01", IORESOURCE_IO,},
+	{PM8607_ID_LDO2,  PM8607_ID_LDO2,  "ldo-02", IORESOURCE_IO,},
+	{PM8607_ID_LDO3,  PM8607_ID_LDO3,  "ldo-03", IORESOURCE_IO,},
+	{PM8607_ID_LDO4,  PM8607_ID_LDO4,  "ldo-04", IORESOURCE_IO,},
+	{PM8607_ID_LDO5,  PM8607_ID_LDO5,  "ldo-05", IORESOURCE_IO,},
+	{PM8607_ID_LDO6,  PM8607_ID_LDO6,  "ldo-06", IORESOURCE_IO,},
+	{PM8607_ID_LDO7,  PM8607_ID_LDO7,  "ldo-07", IORESOURCE_IO,},
+	{PM8607_ID_LDO8,  PM8607_ID_LDO8,  "ldo-08", IORESOURCE_IO,},
+	{PM8607_ID_LDO9,  PM8607_ID_LDO9,  "ldo-09", IORESOURCE_IO,},
+	{PM8607_ID_LDO10, PM8607_ID_LDO10, "ldo-10", IORESOURCE_IO,},
+	{PM8607_ID_LDO11, PM8607_ID_LDO11, "ldo-11", IORESOURCE_IO,},
+	{PM8607_ID_LDO12, PM8607_ID_LDO12, "ldo-12", IORESOURCE_IO,},
+	{PM8607_ID_LDO13, PM8607_ID_LDO13, "ldo-13", IORESOURCE_IO,},
+	{PM8607_ID_LDO14, PM8607_ID_LDO14, "ldo-14", IORESOURCE_IO,},
+	{PM8607_ID_LDO15, PM8607_ID_LDO15, "ldo-15", IORESOURCE_IO,},
 };
 
-#define PM8606_LED_DEVS(_i)				\
-{							\
-	.name		= "88pm860x-led",		\
-	.num_resources	= 1,				\
-	.resources	= &led_resources[_i],		\
-	.id		= _i,				\
-}
+static struct resource touch_resources[] __devinitdata = {
+	{PM8607_IRQ_PEN, PM8607_IRQ_PEN, "touch", IORESOURCE_IRQ,},
+};
+
+static struct resource onkey_resources[] __devinitdata = {
+	{PM8607_IRQ_ONKEY, PM8607_IRQ_ONKEY, "onkey", IORESOURCE_IRQ,},
+};
+
+static struct resource codec_resources[] __devinitdata = {
+	/* Headset microphone insertion or removal */
+	{PM8607_IRQ_MICIN,   PM8607_IRQ_MICIN,   "micin",   IORESOURCE_IRQ,},
+	/* Hook-switch press or release */
+	{PM8607_IRQ_HOOK,    PM8607_IRQ_HOOK,    "hook",    IORESOURCE_IRQ,},
+	/* Headset insertion or removal */
+	{PM8607_IRQ_HEADSET, PM8607_IRQ_HEADSET, "headset", IORESOURCE_IRQ,},
+	/* Audio short */
+	{PM8607_IRQ_AUDIO_SHORT, PM8607_IRQ_AUDIO_SHORT, "audio-short", IORESOURCE_IRQ,},
+};
+
+static struct resource battery_resources[] __devinitdata = {
+	{PM8607_IRQ_CC,  PM8607_IRQ_CC,  "columb counter", IORESOURCE_IRQ,},
+	{PM8607_IRQ_BAT, PM8607_IRQ_BAT, "battery",        IORESOURCE_IRQ,},
+};
+
+static struct resource charger_resources[] __devinitdata = {
+	{PM8607_IRQ_CHG,  PM8607_IRQ_CHG,  "charger detect",  IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_DONE,  PM8607_IRQ_CHG_DONE,  "charging done",       IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_FAULT, PM8607_IRQ_CHG_FAULT, "charging timeout",    IORESOURCE_IRQ,},
+	{PM8607_IRQ_GPADC1,    PM8607_IRQ_GPADC1,    "battery temperature", IORESOURCE_IRQ,},
+	{PM8607_IRQ_VBAT, PM8607_IRQ_VBAT, "battery voltage", IORESOURCE_IRQ,},
+	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
+};
+
+static struct resource rtc_resources[] __devinitdata = {
+	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
+};
+
+static struct mfd_cell bk_devs[] = {
+	{"88pm860x-backlight", 0,},
+	{"88pm860x-backlight", 1,},
+	{"88pm860x-backlight", 2,},
+};
 
 static struct mfd_cell led_devs[] = {
-	PM8606_LED_DEVS(PM8606_LED1_RED),
-	PM8606_LED_DEVS(PM8606_LED1_GREEN),
-	PM8606_LED_DEVS(PM8606_LED1_BLUE),
-	PM8606_LED_DEVS(PM8606_LED2_RED),
-	PM8606_LED_DEVS(PM8606_LED2_GREEN),
-	PM8606_LED_DEVS(PM8606_LED2_BLUE),
+	{"88pm860x-led", 0,},
+	{"88pm860x-led", 1,},
+	{"88pm860x-led", 2,},
+	{"88pm860x-led", 3,},
+	{"88pm860x-led", 4,},
+	{"88pm860x-led", 5,},
 };
 
-static struct resource touch_resources[] = {
-	{
-		.start	= PM8607_IRQ_PEN,
-		.end	= PM8607_IRQ_PEN,
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct mfd_cell regulator_devs[] = {
+	{"88pm860x-regulator", 0,},
+	{"88pm860x-regulator", 1,},
+	{"88pm860x-regulator", 2,},
+	{"88pm860x-regulator", 3,},
+	{"88pm860x-regulator", 4,},
+	{"88pm860x-regulator", 5,},
+	{"88pm860x-regulator", 6,},
+	{"88pm860x-regulator", 7,},
+	{"88pm860x-regulator", 8,},
+	{"88pm860x-regulator", 9,},
+	{"88pm860x-regulator", 10,},
+	{"88pm860x-regulator", 11,},
+	{"88pm860x-regulator", 12,},
+	{"88pm860x-regulator", 13,},
+	{"88pm860x-regulator", 14,},
+	{"88pm860x-regulator", 15,},
+	{"88pm860x-regulator", 16,},
+	{"88pm860x-regulator", 17,},
 };
 
 static struct mfd_cell touch_devs[] = {
-	{
-		.name		= "88pm860x-touch",
-		.num_resources	= 1,
-		.resources	= &touch_resources[0],
-	},
-};
-
-#define PM8607_REG_RESOURCE(_start, _end)		\
-{							\
-	.start	= PM8607_##_start,			\
-	.end	= PM8607_##_end,			\
-	.flags	= IORESOURCE_IO,			\
-}
-
-static struct resource power_supply_resources[] = {
-	{
-		.name		= "88pm860x-power",
-		.start		= PM8607_IRQ_CHG,
-		.end		= PM8607_IRQ_CHG,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct mfd_cell power_devs[] = {
-	{
-		.name		= "88pm860x-power",
-		.num_resources	= 1,
-		.resources	= &power_supply_resources[0],
-		.id		= -1,
-	},
-};
-
-static struct resource onkey_resources[] = {
-	{
-		.name		= "88pm860x-onkey",
-		.start		= PM8607_IRQ_ONKEY,
-		.end		= PM8607_IRQ_ONKEY,
-		.flags		= IORESOURCE_IRQ,
-	},
+	{"88pm860x-touch", -1,},
 };
 
 static struct mfd_cell onkey_devs[] = {
-	{
-		.name		= "88pm860x-onkey",
-		.num_resources	= 1,
-		.resources	= &onkey_resources[0],
-		.id		= -1,
-	},
-};
-
-static struct resource codec_resources[] = {
-	{
-		/* Headset microphone insertion or removal */
-		.name		= "micin",
-		.start		= PM8607_IRQ_MICIN,
-		.end		= PM8607_IRQ_MICIN,
-		.flags		= IORESOURCE_IRQ,
-	}, {
-		/* Hook-switch press or release */
-		.name		= "hook",
-		.start		= PM8607_IRQ_HOOK,
-		.end		= PM8607_IRQ_HOOK,
-		.flags		= IORESOURCE_IRQ,
-	}, {
-		/* Headset insertion or removal */
-		.name		= "headset",
-		.start		= PM8607_IRQ_HEADSET,
-		.end		= PM8607_IRQ_HEADSET,
-		.flags		= IORESOURCE_IRQ,
-	}, {
-		/* Audio short */
-		.name		= "audio-short",
-		.start		= PM8607_IRQ_AUDIO_SHORT,
-		.end		= PM8607_IRQ_AUDIO_SHORT,
-		.flags		= IORESOURCE_IRQ,
-	},
+	{"88pm860x-onkey", -1,},
 };
 
 static struct mfd_cell codec_devs[] = {
-	{
-		.name		= "88pm860x-codec",
-		.num_resources	= ARRAY_SIZE(codec_resources),
-		.resources	= &codec_resources[0],
-		.id		= -1,
-	},
+	{"88pm860x-codec", -1,},
 };
 
-static struct resource regulator_resources[] = {
-	PM8607_REG_RESOURCE(BUCK1, BUCK1),
-	PM8607_REG_RESOURCE(BUCK2, BUCK2),
-	PM8607_REG_RESOURCE(BUCK3, BUCK3),
-	PM8607_REG_RESOURCE(LDO1,  LDO1),
-	PM8607_REG_RESOURCE(LDO2,  LDO2),
-	PM8607_REG_RESOURCE(LDO3,  LDO3),
-	PM8607_REG_RESOURCE(LDO4,  LDO4),
-	PM8607_REG_RESOURCE(LDO5,  LDO5),
-	PM8607_REG_RESOURCE(LDO6,  LDO6),
-	PM8607_REG_RESOURCE(LDO7,  LDO7),
-	PM8607_REG_RESOURCE(LDO8,  LDO8),
-	PM8607_REG_RESOURCE(LDO9,  LDO9),
-	PM8607_REG_RESOURCE(LDO10, LDO10),
-	PM8607_REG_RESOURCE(LDO12, LDO12),
-	PM8607_REG_RESOURCE(VIBRATOR_SET, VIBRATOR_SET),
-	PM8607_REG_RESOURCE(LDO14, LDO14),
+static struct mfd_cell power_devs[] = {
+	{"88pm860x-battery", -1,},
+	{"88pm860x-charger", -1,},
 };
 
-#define PM8607_REG_DEVS(_id)						\
-{									\
-	.name		= "88pm860x-regulator",				\
-	.num_resources	= 1,						\
-	.resources	= &regulator_resources[PM8607_ID_##_id],	\
-	.id		= PM8607_ID_##_id,				\
-}
-
-static struct mfd_cell regulator_devs[] = {
-	PM8607_REG_DEVS(BUCK1),
-	PM8607_REG_DEVS(BUCK2),
-	PM8607_REG_DEVS(BUCK3),
-	PM8607_REG_DEVS(LDO1),
-	PM8607_REG_DEVS(LDO2),
-	PM8607_REG_DEVS(LDO3),
-	PM8607_REG_DEVS(LDO4),
-	PM8607_REG_DEVS(LDO5),
-	PM8607_REG_DEVS(LDO6),
-	PM8607_REG_DEVS(LDO7),
-	PM8607_REG_DEVS(LDO8),
-	PM8607_REG_DEVS(LDO9),
-	PM8607_REG_DEVS(LDO10),
-	PM8607_REG_DEVS(LDO12),
-	PM8607_REG_DEVS(LDO13),
-	PM8607_REG_DEVS(LDO14),
+static struct mfd_cell rtc_devs[] = {
+	{"88pm860x-rtc", -1,},
 };
+
 
 struct pm860x_irq_data {
 	int	reg;
@@ -508,7 +419,6 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 				: chip->companion;
 	unsigned char status_buf[INT_STATUS_NUM];
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
-	struct irq_desc *desc;
 	int i, data, mask, ret = -EINVAL;
 	int __irq;
 
@@ -560,19 +470,17 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 	if (!chip->core_irq)
 		goto out;
 
-	desc = irq_to_desc(chip->core_irq);
-
 	/* register IRQ by genirq */
 	for (i = 0; i < ARRAY_SIZE(pm860x_irqs); i++) {
 		__irq = i + chip->irq_base;
-		set_irq_chip_data(__irq, chip);
-		set_irq_chip_and_handler(__irq, &pm860x_irq_chip,
+		irq_set_chip_data(__irq, chip);
+		irq_set_chip_and_handler(__irq, &pm860x_irq_chip,
 					 handle_edge_irq);
-		set_irq_nested_thread(__irq, 1);
+		irq_set_nested_thread(__irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(__irq, IRQF_VALID);
 #else
-		set_irq_noprobe(__irq);
+		irq_set_noprobe(__irq);
 #endif
 	}
 
@@ -595,37 +503,203 @@ static void device_irq_exit(struct pm860x_chip *chip)
 		free_irq(chip->core_irq, chip);
 }
 
-static void __devinit device_8606_init(struct pm860x_chip *chip,
-				       struct i2c_client *i2c,
-				       struct pm860x_platform_data *pdata)
+static void __devinit device_bk_init(struct pm860x_chip *chip,
+				     struct pm860x_platform_data *pdata)
+{
+	int ret;
+	int i, j, id;
+
+	if ((pdata == NULL) || (pdata->backlight == NULL))
+		return;
+
+	if (pdata->num_backlights > ARRAY_SIZE(bk_devs))
+		pdata->num_backlights = ARRAY_SIZE(bk_devs);
+
+	for (i = 0; i < pdata->num_backlights; i++) {
+		bk_devs[i].platform_data = &pdata->backlight[i];
+		bk_devs[i].pdata_size = sizeof(struct pm860x_backlight_pdata);
+
+		for (j = 0; j < ARRAY_SIZE(bk_devs); j++) {
+			id = bk_resources[j].start;
+			if (pdata->backlight[i].flags != id)
+				continue;
+
+			bk_devs[i].num_resources = 1;
+			bk_devs[i].resources = &bk_resources[j];
+			ret = mfd_add_devices(chip->dev, 0,
+					      &bk_devs[i], 1,
+					      &bk_resources[j], 0);
+			if (ret < 0) {
+				dev_err(chip->dev, "Failed to add "
+					"backlight subdev\n");
+				return;
+			}
+		}
+	}
+}
+
+static void __devinit device_led_init(struct pm860x_chip *chip,
+				      struct pm860x_platform_data *pdata)
+{
+	int ret;
+	int i, j, id;
+
+	if ((pdata == NULL) || (pdata->led == NULL))
+		return;
+
+	if (pdata->num_leds > ARRAY_SIZE(led_devs))
+		pdata->num_leds = ARRAY_SIZE(led_devs);
+
+	for (i = 0; i < pdata->num_leds; i++) {
+		led_devs[i].platform_data = &pdata->led[i];
+		led_devs[i].pdata_size = sizeof(struct pm860x_led_pdata);
+
+		for (j = 0; j < ARRAY_SIZE(led_devs); j++) {
+			id = led_resources[j].start;
+			if (pdata->led[i].flags != id)
+				continue;
+
+			led_devs[i].num_resources = 1;
+			led_devs[i].resources = &led_resources[j],
+			ret = mfd_add_devices(chip->dev, 0,
+					      &led_devs[i], 1,
+					      &led_resources[j], 0);
+			if (ret < 0) {
+				dev_err(chip->dev, "Failed to add "
+					"led subdev\n");
+				return;
+			}
+		}
+	}
+}
+
+static void __devinit device_regulator_init(struct pm860x_chip *chip,
+					    struct pm860x_platform_data *pdata)
+{
+	struct regulator_init_data *initdata;
+	int ret;
+	int i, seq;
+
+	if ((pdata == NULL) || (pdata->regulator == NULL))
+		return;
+
+	if (pdata->num_regulators > ARRAY_SIZE(regulator_devs))
+		pdata->num_regulators = ARRAY_SIZE(regulator_devs);
+
+	for (i = 0, seq = -1; i < pdata->num_regulators; i++) {
+		initdata = &pdata->regulator[i];
+		seq = *(unsigned int *)initdata->driver_data;
+		if ((seq < 0) || (seq > PM8607_ID_RG_MAX)) {
+			dev_err(chip->dev, "Wrong ID(%d) on regulator(%s)\n",
+				seq, initdata->constraints.name);
+			goto out;
+		}
+		regulator_devs[i].platform_data = &pdata->regulator[i];
+		regulator_devs[i].pdata_size = sizeof(struct regulator_init_data);
+		regulator_devs[i].num_resources = 1;
+		regulator_devs[i].resources = &regulator_resources[seq];
+
+		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[i], 1,
+				      &regulator_resources[seq], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add regulator subdev\n");
+			goto out;
+		}
+	}
+out:
+	return;
+}
+
+static void __devinit device_rtc_init(struct pm860x_chip *chip,
+				      struct pm860x_platform_data *pdata)
 {
 	int ret;
 
-	if (pdata && pdata->backlight) {
-		ret = mfd_add_devices(chip->dev, 0, &backlight_devs[0],
-				      ARRAY_SIZE(backlight_devs),
-				      &backlight_resources[0], 0);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add backlight "
-				"subdev\n");
-			goto out_dev;
-		}
-	}
+	if ((pdata == NULL))
+		return;
 
-	if (pdata && pdata->led) {
-		ret = mfd_add_devices(chip->dev, 0, &led_devs[0],
-				      ARRAY_SIZE(led_devs),
-				      &led_resources[0], 0);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add led "
-				"subdev\n");
-			goto out_dev;
-		}
-	}
-	return;
-out_dev:
-	mfd_remove_devices(chip->dev);
-	device_irq_exit(chip);
+	rtc_devs[0].platform_data = pdata->rtc;
+	rtc_devs[0].pdata_size = sizeof(struct pm860x_rtc_pdata);
+	rtc_devs[0].num_resources = ARRAY_SIZE(rtc_resources);
+	rtc_devs[0].resources = &rtc_resources[0];
+	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
+			      ARRAY_SIZE(rtc_devs), &rtc_resources[0],
+			      chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add rtc subdev\n");
+}
+
+static void __devinit device_touch_init(struct pm860x_chip *chip,
+					struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	if (pdata == NULL)
+		return;
+
+	touch_devs[0].platform_data = pdata->touch;
+	touch_devs[0].pdata_size = sizeof(struct pm860x_touch_pdata);
+	touch_devs[0].num_resources = ARRAY_SIZE(touch_resources);
+	touch_devs[0].resources = &touch_resources[0];
+	ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
+			      ARRAY_SIZE(touch_devs), &touch_resources[0],
+			      chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add touch subdev\n");
+}
+
+static void __devinit device_power_init(struct pm860x_chip *chip,
+					struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	if (pdata == NULL)
+		return;
+
+	power_devs[0].platform_data = pdata->power;
+	power_devs[0].pdata_size = sizeof(struct pm860x_power_pdata);
+	power_devs[0].num_resources = ARRAY_SIZE(battery_resources);
+	power_devs[0].resources = &battery_resources[0],
+	ret = mfd_add_devices(chip->dev, 0, &power_devs[0], 1,
+			      &battery_resources[0], chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add battery subdev\n");
+
+	power_devs[1].platform_data = pdata->power;
+	power_devs[1].pdata_size = sizeof(struct pm860x_power_pdata);
+	power_devs[1].num_resources = ARRAY_SIZE(charger_resources);
+	power_devs[1].resources = &charger_resources[0],
+	ret = mfd_add_devices(chip->dev, 0, &power_devs[1], 1,
+			      &charger_resources[0], chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add charger subdev\n");
+}
+
+static void __devinit device_onkey_init(struct pm860x_chip *chip,
+					struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	onkey_devs[0].num_resources = ARRAY_SIZE(onkey_resources);
+	onkey_devs[0].resources = &onkey_resources[0],
+	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
+			      ARRAY_SIZE(onkey_devs), &onkey_resources[0],
+			      chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add onkey subdev\n");
+}
+
+static void __devinit device_codec_init(struct pm860x_chip *chip,
+					struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	codec_devs[0].num_resources = ARRAY_SIZE(codec_resources);
+	codec_devs[0].resources = &codec_resources[0],
+	ret = mfd_add_devices(chip->dev, 0, &codec_devs[0],
+			      ARRAY_SIZE(codec_devs), &codec_resources[0], 0);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add codec subdev\n");
 }
 
 static void __devinit device_8607_init(struct pm860x_chip *chip,
@@ -683,55 +757,12 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		goto out;
 
-	ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
-			      ARRAY_SIZE(regulator_devs),
-			      &regulator_resources[0], 0);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to add regulator subdev\n");
-		goto out_dev;
-	}
-
-	if (pdata && pdata->touch) {
-		ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
-				      ARRAY_SIZE(touch_devs),
-				      &touch_resources[0], 0);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add touch "
-				"subdev\n");
-			goto out_dev;
-		}
-	}
-
-	if (pdata && pdata->power) {
-		ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
-				      ARRAY_SIZE(power_devs),
-				      &power_supply_resources[0], 0);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add power supply "
-				"subdev\n");
-			goto out_dev;
-		}
-	}
-
-	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
-			      ARRAY_SIZE(onkey_devs),
-			      &onkey_resources[0], 0);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to add onkey subdev\n");
-		goto out_dev;
-	}
-
-	ret = mfd_add_devices(chip->dev, 0, &codec_devs[0],
-			      ARRAY_SIZE(codec_devs),
-			      &codec_resources[0], 0);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to add codec subdev\n");
-		goto out_dev;
-	}
-	return;
-out_dev:
-	mfd_remove_devices(chip->dev);
-	device_irq_exit(chip);
+	device_regulator_init(chip, pdata);
+	device_rtc_init(chip, pdata);
+	device_onkey_init(chip, pdata);
+	device_touch_init(chip, pdata);
+	device_power_init(chip, pdata);
+	device_codec_init(chip, pdata);
 out:
 	return;
 }
@@ -743,7 +774,8 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 
 	switch (chip->id) {
 	case CHIP_PM8606:
-		device_8606_init(chip, chip->client, pdata);
+		device_bk_init(chip, pdata);
+		device_led_init(chip, pdata);
 		break;
 	case CHIP_PM8607:
 		device_8607_init(chip, chip->client, pdata);
@@ -753,7 +785,8 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	if (chip->companion) {
 		switch (chip->id) {
 		case CHIP_PM8607:
-			device_8606_init(chip, chip->companion, pdata);
+			device_bk_init(chip, pdata);
+			device_led_init(chip, pdata);
 			break;
 		case CHIP_PM8606:
 			device_8607_init(chip, chip->companion, pdata);

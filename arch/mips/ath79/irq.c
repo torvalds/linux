@@ -62,12 +62,11 @@ static void ath79_misc_irq_handler(unsigned int irq, struct irq_desc *desc)
 		spurious_interrupt();
 }
 
-static void ar71xx_misc_irq_unmask(unsigned int irq)
+static void ar71xx_misc_irq_unmask(struct irq_data *d)
 {
+	unsigned int irq = d->irq - ATH79_MISC_IRQ_BASE;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
-
-	irq -= ATH79_MISC_IRQ_BASE;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_MISC_INT_ENABLE);
 	__raw_writel(t | (1 << irq), base + AR71XX_RESET_REG_MISC_INT_ENABLE);
@@ -76,12 +75,11 @@ static void ar71xx_misc_irq_unmask(unsigned int irq)
 	__raw_readl(base + AR71XX_RESET_REG_MISC_INT_ENABLE);
 }
 
-static void ar71xx_misc_irq_mask(unsigned int irq)
+static void ar71xx_misc_irq_mask(struct irq_data *d)
 {
+	unsigned int irq = d->irq - ATH79_MISC_IRQ_BASE;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
-
-	irq -= ATH79_MISC_IRQ_BASE;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_MISC_INT_ENABLE);
 	__raw_writel(t & ~(1 << irq), base + AR71XX_RESET_REG_MISC_INT_ENABLE);
@@ -90,12 +88,11 @@ static void ar71xx_misc_irq_mask(unsigned int irq)
 	__raw_readl(base + AR71XX_RESET_REG_MISC_INT_ENABLE);
 }
 
-static void ar724x_misc_irq_ack(unsigned int irq)
+static void ar724x_misc_irq_ack(struct irq_data *d)
 {
+	unsigned int irq = d->irq - ATH79_MISC_IRQ_BASE;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
-
-	irq -= ATH79_MISC_IRQ_BASE;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_MISC_INT_STATUS);
 	__raw_writel(t & ~(1 << irq), base + AR71XX_RESET_REG_MISC_INT_STATUS);
@@ -106,8 +103,8 @@ static void ar724x_misc_irq_ack(unsigned int irq)
 
 static struct irq_chip ath79_misc_irq_chip = {
 	.name		= "MISC",
-	.unmask		= ar71xx_misc_irq_unmask,
-	.mask		= ar71xx_misc_irq_mask,
+	.irq_unmask	= ar71xx_misc_irq_unmask,
+	.irq_mask	= ar71xx_misc_irq_mask,
 };
 
 static void __init ath79_misc_irq_init(void)
@@ -119,20 +116,19 @@ static void __init ath79_misc_irq_init(void)
 	__raw_writel(0, base + AR71XX_RESET_REG_MISC_INT_STATUS);
 
 	if (soc_is_ar71xx() || soc_is_ar913x())
-		ath79_misc_irq_chip.mask_ack = ar71xx_misc_irq_mask;
+		ath79_misc_irq_chip.irq_mask_ack = ar71xx_misc_irq_mask;
 	else if (soc_is_ar724x())
-		ath79_misc_irq_chip.ack = ar724x_misc_irq_ack;
+		ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
 	else
 		BUG();
 
 	for (i = ATH79_MISC_IRQ_BASE;
 	     i < ATH79_MISC_IRQ_BASE + ATH79_MISC_IRQ_COUNT; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		set_irq_chip_and_handler(i, &ath79_misc_irq_chip,
+		irq_set_chip_and_handler(i, &ath79_misc_irq_chip,
 					 handle_level_irq);
 	}
 
-	set_irq_chained_handler(ATH79_CPU_IRQ_MISC, ath79_misc_irq_handler);
+	irq_set_chained_handler(ATH79_CPU_IRQ_MISC, ath79_misc_irq_handler);
 }
 
 asmlinkage void plat_irq_dispatch(void)

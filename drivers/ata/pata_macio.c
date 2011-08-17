@@ -772,8 +772,9 @@ static void pata_macio_reset_hw(struct pata_macio_priv *priv, int resume)
 		pci_restore_state(priv->pdev);
 		rc = pcim_enable_device(priv->pdev);
 		if (rc)
-			dev_printk(KERN_ERR, &priv->pdev->dev,
-				   "Failed to enable device after resume (%d)\n", rc);
+			dev_err(&priv->pdev->dev,
+				"Failed to enable device after resume (%d)\n",
+				rc);
 		else
 			pci_set_master(priv->pdev);
 	}
@@ -812,7 +813,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 		blk_queue_update_dma_pad(sdev->request_queue, 31);
 
 		/* Tell the world about it */
-		ata_dev_printk(dev, KERN_INFO, "OHare alignment limits applied\n");
+		ata_dev_info(dev, "OHare alignment limits applied\n");
 		return 0;
 	}
 
@@ -838,8 +839,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 				      cmd | PCI_COMMAND_INVALIDATE);
 
 		/* Tell the world about it */
-		ata_dev_printk(dev, KERN_INFO,
-			       "K2/Shasta alignment limits applied\n");
+		ata_dev_info(dev, "K2/Shasta alignment limits applied\n");
 	}
 
 	return 0;
@@ -1053,8 +1053,7 @@ static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
 	/* Allocate libata host for 1 port */
 	memset(&pinfo, 0, sizeof(struct ata_port_info));
 	pmac_macio_calc_timing_masks(priv, &pinfo);
-	pinfo.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_MMIO |
-				  ATA_FLAG_NO_LEGACY;
+	pinfo.flags		= ATA_FLAG_SLAVE_POSS;
 	pinfo.port_ops		= &pata_macio_ops;
 	pinfo.private_data	= priv;
 

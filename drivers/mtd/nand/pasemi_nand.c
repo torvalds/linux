@@ -89,8 +89,7 @@ int pasemi_device_ready(struct mtd_info *mtd)
 	return !!(inl(lpcctl) & LBICTRL_LPCCTL_NR);
 }
 
-static int __devinit pasemi_nand_probe(struct platform_device *ofdev,
-				      const struct of_device_id *match)
+static int __devinit pasemi_nand_probe(struct platform_device *ofdev)
 {
 	struct pci_dev *pdev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -158,13 +157,13 @@ static int __devinit pasemi_nand_probe(struct platform_device *ofdev,
 	/* Enable the following for a flash based bad block table */
 	chip->options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR;
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan(pasemi_nand_mtd, 1)) {
 		err = -ENXIO;
 		goto out_lpc;
 	}
 
-	if (add_mtd_device(pasemi_nand_mtd)) {
+	if (mtd_device_register(pasemi_nand_mtd, NULL, 0)) {
 		printk(KERN_ERR "pasemi_nand: Unable to register MTD device\n");
 		err = -ENODEV;
 		goto out_lpc;
@@ -219,7 +218,7 @@ static const struct of_device_id pasemi_nand_match[] =
 
 MODULE_DEVICE_TABLE(of, pasemi_nand_match);
 
-static struct of_platform_driver pasemi_nand_driver =
+static struct platform_driver pasemi_nand_driver =
 {
 	.driver = {
 		.name = (char*)driver_name,
@@ -232,13 +231,13 @@ static struct of_platform_driver pasemi_nand_driver =
 
 static int __init pasemi_nand_init(void)
 {
-	return of_register_platform_driver(&pasemi_nand_driver);
+	return platform_driver_register(&pasemi_nand_driver);
 }
 module_init(pasemi_nand_init);
 
 static void __exit pasemi_nand_exit(void)
 {
-	of_unregister_platform_driver(&pasemi_nand_driver);
+	platform_driver_unregister(&pasemi_nand_driver);
 }
 module_exit(pasemi_nand_exit);
 

@@ -28,10 +28,10 @@
  * mount -t debugfs none /sys/kernel/debug
  *
  * BFA Hierarchy:
- *	- bfa/host#
- * where the host number corresponds to the one under /sys/class/scsi_host/host#
+ *	- bfa/pci_dev:<pci_name>
+ * where the pci_name corresponds to the one under /sys/bus/pci/drivers/bfa
  *
- * Debugging service available per host:
+ * Debugging service available per pci_dev:
  * fwtrc:  To collect current firmware trace.
  * drvtrc: To collect current driver trace
  * fwsave: To collect last saved fw trace as a result of firmware crash.
@@ -214,10 +214,10 @@ bfad_debugfs_read(struct file *file, char __user *buf,
 
 #define BFA_REG_CT_ADDRSZ	(0x40000)
 #define BFA_REG_CB_ADDRSZ	(0x20000)
-#define BFA_REG_ADDRSZ(__bfa)	\
-	((bfa_ioc_devid(&(__bfa)->ioc) == BFA_PCI_DEVICE_ID_CT) ?	\
-		BFA_REG_CT_ADDRSZ : BFA_REG_CB_ADDRSZ)
-#define BFA_REG_ADDRMSK(__bfa)  ((u32)(BFA_REG_ADDRSZ(__bfa) - 1))
+#define BFA_REG_ADDRSZ(__ioc)	\
+	((u32)(bfa_asic_id_ctc(bfa_ioc_devid(__ioc)) ?	\
+	 BFA_REG_CT_ADDRSZ : BFA_REG_CB_ADDRSZ))
+#define BFA_REG_ADDRMSK(__ioc)	(BFA_REG_ADDRSZ(__ioc) - 1)
 
 static bfa_status_t
 bfad_reg_offset_check(struct bfa_s *bfa, u32 offset, u32 len)
@@ -236,7 +236,7 @@ bfad_reg_offset_check(struct bfa_s *bfa, u32 offset, u32 len)
 			return BFA_STATUS_EINVAL;
 	} else {
 		/* CB register space 64KB */
-		if ((offset + (len<<2)) > BFA_REG_ADDRMSK(bfa))
+		if ((offset + (len<<2)) > BFA_REG_ADDRMSK(&bfa->ioc))
 			return BFA_STATUS_EINVAL;
 	}
 	return BFA_STATUS_OK;
@@ -317,7 +317,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 
 	bfad->reglen = len << 2;
 	rb = bfa_ioc_bar0(ioc);
-	addr &= BFA_REG_ADDRMSK(bfa);
+	addr &= BFA_REG_ADDRMSK(ioc);
 
 	/* offset and len sanity check */
 	rc = bfad_reg_offset_check(bfa, addr, len);
@@ -380,7 +380,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	}
 	kfree(kern_buf);
 
-	addr &= BFA_REG_ADDRMSK(bfa); /* offset only 17 bit and word align */
+	addr &= BFA_REG_ADDRMSK(ioc); /* offset only 17 bit and word align */
 
 	/* offset and len sanity check */
 	rc = bfad_reg_offset_check(bfa, addr, 1);
@@ -489,11 +489,9 @@ static atomic_t bfa_debugfs_port_count;
 inline void
 bfad_debugfs_init(struct bfad_port_s *port)
 {
-	struct bfad_im_port_s *im_port = port->im_port;
-	struct bfad_s *bfad = im_port->bfad;
-	struct Scsi_Host *shost = im_port->shost;
+	struct bfad_s *bfad = port->bfad;
 	const struct bfad_debugfs_entry *file;
-	char name[16];
+	char name[64];
 	int i;
 
 	if (!bfa_debugfs_enable)
@@ -510,17 +508,15 @@ bfad_debugfs_init(struct bfad_port_s *port)
 		}
 	}
 
-	/*
-	 * Setup the host# directory for the port,
-	 * corresponds to the scsi_host num of this port.
-	 */
-	snprintf(name, sizeof(name), "host%d", shost->host_no);
+	/* Setup the pci_dev debugfs directory for the port */
+	snprintf(name, sizeof(name), "pci_dev:%s", bfad->pci_name);
 	if (!port->port_debugfs_root) {
 		port->port_debugfs_root =
 			debugfs_create_dir(name, bfa_debugfs_root);
 		if (!port->port_debugfs_root) {
 			printk(KERN_WARNING
-				"BFA host root dir creation failed\n");
+				"bfa %s: debugfs root creation failed\n",
+				bfad->pci_name);
 			goto err;
 		}
 
@@ -536,8 +532,8 @@ bfad_debugfs_init(struct bfad_port_s *port)
 							file->fops);
 			if (!bfad->bfad_dentry_files[i]) {
 				printk(KERN_WARNING
-					"BFA host%d: create %s entry failed\n",
-					shost->host_no, file->name);
+					"bfa %s: debugfs %s creation failed\n",
+					bfad->pci_name, file->name);
 				goto err;
 			}
 		}
@@ -550,8 +546,7 @@ err:
 inline void
 bfad_debugfs_exit(struct bfad_port_s *port)
 {
-	struct bfad_im_port_s *im_port = port->im_port;
-	struct bfad_s *bfad = im_port->bfad;
+	struct bfad_s *bfad = port->bfad;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(bfad_debugfs_files); i++) {
@@ -562,9 +557,7 @@ bfad_debugfs_exit(struct bfad_port_s *port)
 	}
 
 	/*
-	 * Remove the host# directory for the port,
-	 * corresponds to the scsi_host num of this port.
-	*/
+	 * Remove the pci_dev debugfs directory for the port */
 	if (port->port_debugfs_root) {
 		debugfs_remove(port->port_debugfs_root);
 		port->port_debugfs_root = NULL;

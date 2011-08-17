@@ -66,3 +66,8 @@ Note: We can use a kernel with multiple custom ACPI method running,
       But each individual write to debugfs can implement a SINGLE
       method override. i.e. if we want to insert/override multiple
       ACPI methods, we need to redo step c) ~ g) for multiple times.
+
+Note: Be aware that root can mis-use this driver to modify arbitrary
+      memory and gain additional rights, if root's privileges got
+      restricted (for example if root is not allowed to load additional
+      modules after boot).

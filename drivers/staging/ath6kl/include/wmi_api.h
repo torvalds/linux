@@ -69,26 +69,26 @@ void wmi_qos_state_init(struct wmi_t *wmip);
 void wmi_shutdown(struct wmi_t *wmip);
 HTC_ENDPOINT_ID wmi_get_control_ep(struct wmi_t * wmip);
 void wmi_set_control_ep(struct wmi_t * wmip, HTC_ENDPOINT_ID eid);
-A_UINT16  wmi_get_mapped_qos_queue(struct wmi_t *, A_UINT8);
-A_STATUS wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf);
-A_STATUS wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, A_UINT8 msgType, A_BOOL bMoreData, WMI_DATA_HDR_DATA_TYPE data_type,A_UINT8 metaVersion, void *pTxMetaS);
-A_STATUS wmi_dot3_2_dix(void *osbuf);
+u16 wmi_get_mapped_qos_queue(struct wmi_t *, u8 );
+int wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf);
+int wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, u8 msgType, bool bMoreData, WMI_DATA_HDR_DATA_TYPE data_type,u8 metaVersion, void *pTxMetaS);
+int wmi_dot3_2_dix(void *osbuf);
 
-A_STATUS wmi_dot11_hdr_remove (struct wmi_t *wmip, void *osbuf);
-A_STATUS wmi_dot11_hdr_add(struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode);
+int wmi_dot11_hdr_remove (struct wmi_t *wmip, void *osbuf);
+int wmi_dot11_hdr_add(struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode);
 
-A_STATUS wmi_data_hdr_remove(struct wmi_t *wmip, void *osbuf);
-A_STATUS wmi_syncpoint(struct wmi_t *wmip);
-A_STATUS wmi_syncpoint_reset(struct wmi_t *wmip);
-A_UINT8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2Priority, A_BOOL wmmEnabled);
+int wmi_data_hdr_remove(struct wmi_t *wmip, void *osbuf);
+int wmi_syncpoint(struct wmi_t *wmip);
+int wmi_syncpoint_reset(struct wmi_t *wmip);
+u8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, u32 layer2Priority, bool wmmEnabled);
 
-A_UINT8 wmi_determine_userPriority (A_UINT8 *pkt, A_UINT32 layer2Pri);
+u8 wmi_determine_userPriority (u8 *pkt, u32 layer2Pri);
 
-A_STATUS wmi_control_rx(struct wmi_t *wmip, void *osbuf);
+int wmi_control_rx(struct wmi_t *wmip, void *osbuf);
 void wmi_iterate_nodes(struct wmi_t *wmip, wlan_node_iter_func *f, void *arg);
 void wmi_free_allnodes(struct wmi_t *wmip);
-bss_t *wmi_find_node(struct wmi_t *wmip, const A_UINT8 *macaddr);
-void wmi_free_node(struct wmi_t *wmip, const A_UINT8 *macaddr);
+bss_t *wmi_find_node(struct wmi_t *wmip, const u8 *macaddr);
+void wmi_free_node(struct wmi_t *wmip, const u8 *macaddr);
 
 
 typedef enum {
@@ -99,340 +99,340 @@ typedef enum {
     END_WMIFLAG                     /* end marker */
 } WMI_SYNC_FLAG;
 
-A_STATUS wmi_cmd_send(struct wmi_t *wmip, void *osbuf, WMI_COMMAND_ID cmdId,
+int wmi_cmd_send(struct wmi_t *wmip, void *osbuf, WMI_COMMAND_ID cmdId,
                       WMI_SYNC_FLAG flag);
 
-A_STATUS wmi_connect_cmd(struct wmi_t *wmip,
+int wmi_connect_cmd(struct wmi_t *wmip,
                          NETWORK_TYPE netType,
                          DOT11_AUTH_MODE dot11AuthMode,
                          AUTH_MODE authMode,
                          CRYPTO_TYPE pairwiseCrypto,
-                         A_UINT8 pairwiseCryptoLen,
+                         u8 pairwiseCryptoLen,
                          CRYPTO_TYPE groupCrypto,
-                         A_UINT8 groupCryptoLen,
+                         u8 groupCryptoLen,
                          int ssidLength,
-                         A_UCHAR *ssid,
-                         A_UINT8 *bssid,
-                         A_UINT16 channel,
-                         A_UINT32 ctrl_flags);
+                         u8 *ssid,
+                         u8 *bssid,
+                         u16 channel,
+                         u32 ctrl_flags);
 
-A_STATUS wmi_reconnect_cmd(struct wmi_t *wmip,
-                           A_UINT8 *bssid,
-                           A_UINT16 channel);
-A_STATUS wmi_disconnect_cmd(struct wmi_t *wmip);
-A_STATUS wmi_getrev_cmd(struct wmi_t *wmip);
-A_STATUS wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
-                           A_BOOL forceFgScan, A_BOOL isLegacy,
-                           A_UINT32 homeDwellTime, A_UINT32 forceScanInterval,
-                           A_INT8 numChan, A_UINT16 *channelList);
-A_STATUS wmi_scanparams_cmd(struct wmi_t *wmip, A_UINT16 fg_start_sec,
-                            A_UINT16 fg_end_sec, A_UINT16 bg_sec,
-                            A_UINT16 minact_chdw_msec,
-                            A_UINT16 maxact_chdw_msec, A_UINT16 pas_chdw_msec,
-                            A_UINT8 shScanRatio, A_UINT8 scanCtrlFlags,
-                            A_UINT32 max_dfsch_act_time,
-                            A_UINT16 maxact_scan_per_ssid);
-A_STATUS wmi_bssfilter_cmd(struct wmi_t *wmip, A_UINT8 filter, A_UINT32 ieMask);
-A_STATUS wmi_probedSsid_cmd(struct wmi_t *wmip, A_UINT8 index, A_UINT8 flag,
-                            A_UINT8 ssidLength, A_UCHAR *ssid);
-A_STATUS wmi_listeninterval_cmd(struct wmi_t *wmip, A_UINT16 listenInterval, A_UINT16 listenBeacons);
-A_STATUS wmi_bmisstime_cmd(struct wmi_t *wmip, A_UINT16 bmisstime, A_UINT16 bmissbeacons);
-A_STATUS wmi_associnfo_cmd(struct wmi_t *wmip, A_UINT8 ieType,
-                           A_UINT8 ieLen, A_UINT8 *ieInfo);
-A_STATUS wmi_powermode_cmd(struct wmi_t *wmip, A_UINT8 powerMode);
-A_STATUS wmi_ibsspmcaps_cmd(struct wmi_t *wmip, A_UINT8 pmEnable, A_UINT8 ttl,
-                            A_UINT16 atim_windows, A_UINT16 timeout_value);
-A_STATUS wmi_apps_cmd(struct wmi_t *wmip, A_UINT8 psType, A_UINT32 idle_time,
-                   A_UINT32 ps_period, A_UINT8 sleep_period);
-A_STATUS wmi_pmparams_cmd(struct wmi_t *wmip, A_UINT16 idlePeriod,
-                           A_UINT16 psPollNum, A_UINT16 dtimPolicy,
-                           A_UINT16 wakup_tx_policy, A_UINT16 num_tx_to_wakeup,
-                           A_UINT16 ps_fail_event_policy);
-A_STATUS wmi_disctimeout_cmd(struct wmi_t *wmip, A_UINT8 timeout);
-A_STATUS wmi_sync_cmd(struct wmi_t *wmip, A_UINT8 syncNumber);
-A_STATUS wmi_create_pstream_cmd(struct wmi_t *wmip, WMI_CREATE_PSTREAM_CMD *pstream);
-A_STATUS wmi_delete_pstream_cmd(struct wmi_t *wmip, A_UINT8 trafficClass, A_UINT8 streamID);
-A_STATUS wmi_set_framerate_cmd(struct wmi_t *wmip, A_UINT8 bEnable, A_UINT8 type, A_UINT8 subType, A_UINT16 rateMask);
-A_STATUS wmi_set_bitrate_cmd(struct wmi_t *wmip, A_INT32 dataRate, A_INT32 mgmtRate, A_INT32 ctlRate);
-A_STATUS wmi_get_bitrate_cmd(struct wmi_t *wmip);
-A_INT8   wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, A_INT8 *rate_idx);
-A_STATUS wmi_get_regDomain_cmd(struct wmi_t *wmip);
-A_STATUS wmi_get_channelList_cmd(struct wmi_t *wmip);
-A_STATUS wmi_set_channelParams_cmd(struct wmi_t *wmip, A_UINT8 scanParam,
-                                   WMI_PHY_MODE mode, A_INT8 numChan,
-                                   A_UINT16 *channelList);
+int wmi_reconnect_cmd(struct wmi_t *wmip,
+                           u8 *bssid,
+                           u16 channel);
+int wmi_disconnect_cmd(struct wmi_t *wmip);
+int wmi_getrev_cmd(struct wmi_t *wmip);
+int wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
+                           u32 forceFgScan, u32 isLegacy,
+                           u32 homeDwellTime, u32 forceScanInterval,
+                           s8 numChan, u16 *channelList);
+int wmi_scanparams_cmd(struct wmi_t *wmip, u16 fg_start_sec,
+                            u16 fg_end_sec, u16 bg_sec,
+                            u16 minact_chdw_msec,
+                            u16 maxact_chdw_msec, u16 pas_chdw_msec,
+                            u8 shScanRatio, u8 scanCtrlFlags,
+                            u32 max_dfsch_act_time,
+                            u16 maxact_scan_per_ssid);
+int wmi_bssfilter_cmd(struct wmi_t *wmip, u8 filter, u32 ieMask);
+int wmi_probedSsid_cmd(struct wmi_t *wmip, u8 index, u8 flag,
+                            u8 ssidLength, u8 *ssid);
+int wmi_listeninterval_cmd(struct wmi_t *wmip, u16 listenInterval, u16 listenBeacons);
+int wmi_bmisstime_cmd(struct wmi_t *wmip, u16 bmisstime, u16 bmissbeacons);
+int wmi_associnfo_cmd(struct wmi_t *wmip, u8 ieType,
+                           u8 ieLen, u8 *ieInfo);
+int wmi_powermode_cmd(struct wmi_t *wmip, u8 powerMode);
+int wmi_ibsspmcaps_cmd(struct wmi_t *wmip, u8 pmEnable, u8 ttl,
+                            u16 atim_windows, u16 timeout_value);
+int wmi_apps_cmd(struct wmi_t *wmip, u8 psType, u32 idle_time,
+                   u32 ps_period, u8 sleep_period);
+int wmi_pmparams_cmd(struct wmi_t *wmip, u16 idlePeriod,
+                           u16 psPollNum, u16 dtimPolicy,
+                           u16 wakup_tx_policy, u16 num_tx_to_wakeup,
+                           u16 ps_fail_event_policy);
+int wmi_disctimeout_cmd(struct wmi_t *wmip, u8 timeout);
+int wmi_sync_cmd(struct wmi_t *wmip, u8 syncNumber);
+int wmi_create_pstream_cmd(struct wmi_t *wmip, WMI_CREATE_PSTREAM_CMD *pstream);
+int wmi_delete_pstream_cmd(struct wmi_t *wmip, u8 trafficClass, u8 streamID);
+int wmi_set_framerate_cmd(struct wmi_t *wmip, u8 bEnable, u8 type, u8 subType, u16 rateMask);
+int wmi_set_bitrate_cmd(struct wmi_t *wmip, s32 dataRate, s32 mgmtRate, s32 ctlRate);
+int wmi_get_bitrate_cmd(struct wmi_t *wmip);
+s8 wmi_validate_bitrate(struct wmi_t *wmip, s32 rate, s8 *rate_idx);
+int wmi_get_regDomain_cmd(struct wmi_t *wmip);
+int wmi_get_channelList_cmd(struct wmi_t *wmip);
+int wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
+                                   WMI_PHY_MODE mode, s8 numChan,
+                                   u16 *channelList);
 
-A_STATUS wmi_set_snr_threshold_params(struct wmi_t *wmip,
+int wmi_set_snr_threshold_params(struct wmi_t *wmip,
                                        WMI_SNR_THRESHOLD_PARAMS_CMD *snrCmd);
-A_STATUS wmi_set_rssi_threshold_params(struct wmi_t *wmip,
+int wmi_set_rssi_threshold_params(struct wmi_t *wmip,
                                         WMI_RSSI_THRESHOLD_PARAMS_CMD *rssiCmd);
-A_STATUS wmi_clr_rssi_snr(struct wmi_t *wmip);
-A_STATUS wmi_set_lq_threshold_params(struct wmi_t *wmip,
+int wmi_clr_rssi_snr(struct wmi_t *wmip);
+int wmi_set_lq_threshold_params(struct wmi_t *wmip,
                                       WMI_LQ_THRESHOLD_PARAMS_CMD *lqCmd);
-A_STATUS wmi_set_rts_cmd(struct wmi_t *wmip, A_UINT16 threshold);
-A_STATUS wmi_set_lpreamble_cmd(struct wmi_t *wmip, A_UINT8 status, A_UINT8 preamblePolicy);
+int wmi_set_rts_cmd(struct wmi_t *wmip, u16 threshold);
+int wmi_set_lpreamble_cmd(struct wmi_t *wmip, u8 status, u8 preamblePolicy);
 
-A_STATUS wmi_set_error_report_bitmask(struct wmi_t *wmip, A_UINT32 bitmask);
+int wmi_set_error_report_bitmask(struct wmi_t *wmip, u32 bitmask);
 
-A_STATUS wmi_get_challenge_resp_cmd(struct wmi_t *wmip, A_UINT32 cookie,
-                                    A_UINT32 source);
+int wmi_get_challenge_resp_cmd(struct wmi_t *wmip, u32 cookie,
+                                    u32 source);
 
-A_STATUS wmi_config_debug_module_cmd(struct wmi_t *wmip, A_UINT16 mmask,
-                                     A_UINT16 tsr, A_BOOL rep, A_UINT16 size,
-                                     A_UINT32 valid);
+int wmi_config_debug_module_cmd(struct wmi_t *wmip, u16 mmask,
+                                     u16 tsr, bool rep, u16 size,
+                                     u32 valid);
 
-A_STATUS wmi_get_stats_cmd(struct wmi_t *wmip);
+int wmi_get_stats_cmd(struct wmi_t *wmip);
 
-A_STATUS wmi_addKey_cmd(struct wmi_t *wmip, A_UINT8 keyIndex,
-                        CRYPTO_TYPE keyType, A_UINT8 keyUsage,
-                        A_UINT8 keyLength,A_UINT8 *keyRSC,
-                        A_UINT8 *keyMaterial, A_UINT8 key_op_ctrl, A_UINT8 *mac,
+int wmi_addKey_cmd(struct wmi_t *wmip, u8 keyIndex,
+                        CRYPTO_TYPE keyType, u8 keyUsage,
+                        u8 keyLength,u8 *keyRSC,
+                        u8 *keyMaterial, u8 key_op_ctrl, u8 *mac,
                         WMI_SYNC_FLAG sync_flag);
-A_STATUS wmi_add_krk_cmd(struct wmi_t *wmip, A_UINT8 *krk);
-A_STATUS wmi_delete_krk_cmd(struct wmi_t *wmip);
-A_STATUS wmi_deleteKey_cmd(struct wmi_t *wmip, A_UINT8 keyIndex);
-A_STATUS wmi_set_akmp_params_cmd(struct wmi_t *wmip,
+int wmi_add_krk_cmd(struct wmi_t *wmip, u8 *krk);
+int wmi_delete_krk_cmd(struct wmi_t *wmip);
+int wmi_deleteKey_cmd(struct wmi_t *wmip, u8 keyIndex);
+int wmi_set_akmp_params_cmd(struct wmi_t *wmip,
                                  WMI_SET_AKMP_PARAMS_CMD *akmpParams);
-A_STATUS wmi_get_pmkid_list_cmd(struct wmi_t *wmip);
-A_STATUS wmi_set_pmkid_list_cmd(struct wmi_t *wmip,
+int wmi_get_pmkid_list_cmd(struct wmi_t *wmip);
+int wmi_set_pmkid_list_cmd(struct wmi_t *wmip,
                                 WMI_SET_PMKID_LIST_CMD *pmkInfo);
-A_STATUS wmi_abort_scan_cmd(struct wmi_t *wmip);
-A_STATUS wmi_set_txPwr_cmd(struct wmi_t *wmip, A_UINT8 dbM);
-A_STATUS wmi_get_txPwr_cmd(struct wmi_t *wmip);
-A_STATUS wmi_addBadAp_cmd(struct wmi_t *wmip, A_UINT8 apIndex, A_UINT8 *bssid);
-A_STATUS wmi_deleteBadAp_cmd(struct wmi_t *wmip, A_UINT8 apIndex);
-A_STATUS wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, A_BOOL en);
-A_STATUS wmi_setPmkid_cmd(struct wmi_t *wmip, A_UINT8 *bssid, A_UINT8 *pmkId,
-                          A_BOOL set);
-A_STATUS wmi_set_access_params_cmd(struct wmi_t *wmip, A_UINT8 ac, A_UINT16 txop,
-                                   A_UINT8 eCWmin, A_UINT8 eCWmax,
-                                   A_UINT8 aifsn);
-A_STATUS wmi_set_retry_limits_cmd(struct wmi_t *wmip, A_UINT8 frameType,
-                                  A_UINT8 trafficClass, A_UINT8 maxRetries,
-                                  A_UINT8 enableNotify);
+int wmi_abort_scan_cmd(struct wmi_t *wmip);
+int wmi_set_txPwr_cmd(struct wmi_t *wmip, u8 dbM);
+int wmi_get_txPwr_cmd(struct wmi_t *wmip);
+int wmi_addBadAp_cmd(struct wmi_t *wmip, u8 apIndex, u8 *bssid);
+int wmi_deleteBadAp_cmd(struct wmi_t *wmip, u8 apIndex);
+int wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, bool en);
+int wmi_setPmkid_cmd(struct wmi_t *wmip, u8 *bssid, u8 *pmkId,
+                          bool set);
+int wmi_set_access_params_cmd(struct wmi_t *wmip, u8 ac, u16 txop,
+                                   u8 eCWmin, u8 eCWmax,
+                                   u8 aifsn);
+int wmi_set_retry_limits_cmd(struct wmi_t *wmip, u8 frameType,
+                                  u8 trafficClass, u8 maxRetries,
+                                  u8 enableNotify);
 
-void wmi_get_current_bssid(struct wmi_t *wmip, A_UINT8 *bssid);
+void wmi_get_current_bssid(struct wmi_t *wmip, u8 *bssid);
 
-A_STATUS wmi_get_roam_tbl_cmd(struct wmi_t *wmip);
-A_STATUS wmi_get_roam_data_cmd(struct wmi_t *wmip, A_UINT8 roamDataType);
-A_STATUS wmi_set_roam_ctrl_cmd(struct wmi_t *wmip, WMI_SET_ROAM_CTRL_CMD *p,
-                               A_UINT8 size);
-A_STATUS wmi_set_powersave_timers_cmd(struct wmi_t *wmip,
+int wmi_get_roam_tbl_cmd(struct wmi_t *wmip);
+int wmi_get_roam_data_cmd(struct wmi_t *wmip, u8 roamDataType);
+int wmi_set_roam_ctrl_cmd(struct wmi_t *wmip, WMI_SET_ROAM_CTRL_CMD *p,
+                               u8 size);
+int wmi_set_powersave_timers_cmd(struct wmi_t *wmip,
                             WMI_POWERSAVE_TIMERS_POLICY_CMD *pCmd,
-                            A_UINT8 size);
+                            u8 size);
 
-A_STATUS wmi_set_opt_mode_cmd(struct wmi_t *wmip, A_UINT8 optMode);
-A_STATUS wmi_opt_tx_frame_cmd(struct wmi_t *wmip,
-                              A_UINT8 frmType,
-                              A_UINT8 *dstMacAddr,
-                              A_UINT8 *bssid,
-                              A_UINT16 optIEDataLen,
-                              A_UINT8 *optIEData);
+int wmi_set_opt_mode_cmd(struct wmi_t *wmip, u8 optMode);
+int wmi_opt_tx_frame_cmd(struct wmi_t *wmip,
+                              u8 frmType,
+                              u8 *dstMacAddr,
+                              u8 *bssid,
+                              u16 optIEDataLen,
+                              u8 *optIEData);
 
-A_STATUS wmi_set_adhoc_bconIntvl_cmd(struct wmi_t *wmip, A_UINT16 intvl);
-A_STATUS wmi_set_voice_pkt_size_cmd(struct wmi_t *wmip, A_UINT16 voicePktSize);
-A_STATUS wmi_set_max_sp_len_cmd(struct wmi_t *wmip, A_UINT8 maxSpLen);
-A_UINT8  convert_userPriority_to_trafficClass(A_UINT8 userPriority);
-A_UINT8 wmi_get_power_mode_cmd(struct wmi_t *wmip);
-A_STATUS wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, A_BOOL tspecCompliance);
+int wmi_set_adhoc_bconIntvl_cmd(struct wmi_t *wmip, u16 intvl);
+int wmi_set_voice_pkt_size_cmd(struct wmi_t *wmip, u16 voicePktSize);
+int wmi_set_max_sp_len_cmd(struct wmi_t *wmip, u8 maxSpLen);
+u8 convert_userPriority_to_trafficClass(u8 userPriority);
+u8 wmi_get_power_mode_cmd(struct wmi_t *wmip);
+int wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, int tspecCompliance);
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
-A_STATUS wmi_test_cmd(struct wmi_t *wmip, A_UINT8 *buf, A_UINT32  len);
+int wmi_test_cmd(struct wmi_t *wmip, u8 *buf, u32 len);
 #endif
 
-A_STATUS wmi_set_bt_status_cmd(struct wmi_t *wmip, A_UINT8 streamType, A_UINT8 status);
-A_STATUS wmi_set_bt_params_cmd(struct wmi_t *wmip, WMI_SET_BT_PARAMS_CMD* cmd);
+int wmi_set_bt_status_cmd(struct wmi_t *wmip, u8 streamType, u8 status);
+int wmi_set_bt_params_cmd(struct wmi_t *wmip, WMI_SET_BT_PARAMS_CMD* cmd);
 
-A_STATUS wmi_set_btcoex_fe_ant_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_FE_ANT_CMD * cmd);
+int wmi_set_btcoex_fe_ant_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_FE_ANT_CMD * cmd);
 
-A_STATUS wmi_set_btcoex_colocated_bt_dev_cmd(struct wmi_t *wmip,
+int wmi_set_btcoex_colocated_bt_dev_cmd(struct wmi_t *wmip,
 		                                WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD * cmd);
 
-A_STATUS wmi_set_btcoex_btinquiry_page_config_cmd(struct wmi_t *wmip,
+int wmi_set_btcoex_btinquiry_page_config_cmd(struct wmi_t *wmip,
                                			WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD *cmd);
 
-A_STATUS wmi_set_btcoex_sco_config_cmd(struct wmi_t *wmip,
+int wmi_set_btcoex_sco_config_cmd(struct wmi_t *wmip,
                    		              WMI_SET_BTCOEX_SCO_CONFIG_CMD * cmd);
 
-A_STATUS wmi_set_btcoex_a2dp_config_cmd(struct wmi_t *wmip,
+int wmi_set_btcoex_a2dp_config_cmd(struct wmi_t *wmip,
 		                                 WMI_SET_BTCOEX_A2DP_CONFIG_CMD* cmd);
 
 
-A_STATUS wmi_set_btcoex_aclcoex_config_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD* cmd);
+int wmi_set_btcoex_aclcoex_config_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD* cmd);
 
-A_STATUS wmi_set_btcoex_debug_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_DEBUG_CMD * cmd);
+int wmi_set_btcoex_debug_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_DEBUG_CMD * cmd);
 
-A_STATUS wmi_set_btcoex_bt_operating_status_cmd(struct wmi_t * wmip,
+int wmi_set_btcoex_bt_operating_status_cmd(struct wmi_t * wmip,
 							WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD * cmd);
 
-A_STATUS wmi_get_btcoex_config_cmd(struct wmi_t * wmip, WMI_GET_BTCOEX_CONFIG_CMD * cmd);
+int wmi_get_btcoex_config_cmd(struct wmi_t * wmip, WMI_GET_BTCOEX_CONFIG_CMD * cmd);
 
-A_STATUS wmi_get_btcoex_stats_cmd(struct wmi_t * wmip);
+int wmi_get_btcoex_stats_cmd(struct wmi_t * wmip);
 
-A_STATUS wmi_SGI_cmd(struct wmi_t *wmip, A_UINT32 sgiMask, A_UINT8 sgiPERThreshold);
+int wmi_SGI_cmd(struct wmi_t *wmip, u32 sgiMask, u8 sgiPERThreshold);
 
 /*
  *  This function is used to configure the fix rates mask to the target.
  */
-A_STATUS wmi_set_fixrates_cmd(struct wmi_t *wmip, A_UINT32 fixRatesMask);
-A_STATUS wmi_get_ratemask_cmd(struct wmi_t *wmip);
+int wmi_set_fixrates_cmd(struct wmi_t *wmip, u32 fixRatesMask);
+int wmi_get_ratemask_cmd(struct wmi_t *wmip);
 
-A_STATUS wmi_set_authmode_cmd(struct wmi_t *wmip, A_UINT8 mode);
+int wmi_set_authmode_cmd(struct wmi_t *wmip, u8 mode);
 
-A_STATUS wmi_set_reassocmode_cmd(struct wmi_t *wmip, A_UINT8 mode);
+int wmi_set_reassocmode_cmd(struct wmi_t *wmip, u8 mode);
 
-A_STATUS wmi_set_qos_supp_cmd(struct wmi_t *wmip,A_UINT8 status);
-A_STATUS wmi_set_wmm_cmd(struct wmi_t *wmip, WMI_WMM_STATUS status);
-A_STATUS wmi_set_wmm_txop(struct wmi_t *wmip, WMI_TXOP_CFG txEnable);
-A_STATUS wmi_set_country(struct wmi_t *wmip, A_UCHAR *countryCode);
+int wmi_set_qos_supp_cmd(struct wmi_t *wmip,u8 status);
+int wmi_set_wmm_cmd(struct wmi_t *wmip, WMI_WMM_STATUS status);
+int wmi_set_wmm_txop(struct wmi_t *wmip, WMI_TXOP_CFG txEnable);
+int wmi_set_country(struct wmi_t *wmip, u8 *countryCode);
 
-A_STATUS wmi_get_keepalive_configured(struct wmi_t *wmip);
-A_UINT8 wmi_get_keepalive_cmd(struct wmi_t *wmip);
-A_STATUS wmi_set_keepalive_cmd(struct wmi_t *wmip, A_UINT8 keepaliveInterval);
+int wmi_get_keepalive_configured(struct wmi_t *wmip);
+u8 wmi_get_keepalive_cmd(struct wmi_t *wmip);
+int wmi_set_keepalive_cmd(struct wmi_t *wmip, u8 keepaliveInterval);
 
-A_STATUS wmi_set_appie_cmd(struct wmi_t *wmip, A_UINT8 mgmtFrmType,
-                           A_UINT8 ieLen,A_UINT8 *ieInfo);
+int wmi_set_appie_cmd(struct wmi_t *wmip, u8 mgmtFrmType,
+                           u8 ieLen,u8 *ieInfo);
 
-A_STATUS wmi_set_halparam_cmd(struct wmi_t *wmip, A_UINT8 *cmd, A_UINT16 dataLen);
+int wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, u16 dataLen);
 
-A_INT32 wmi_get_rate(A_INT8 rateindex);
+s32 wmi_get_rate(s8 rateindex);
 
-A_STATUS wmi_set_ip_cmd(struct wmi_t *wmip, WMI_SET_IP_CMD *cmd);
+int wmi_set_ip_cmd(struct wmi_t *wmip, WMI_SET_IP_CMD *cmd);
 
 /*Wake on Wireless WMI commands*/
-A_STATUS wmi_set_host_sleep_mode_cmd(struct wmi_t *wmip, WMI_SET_HOST_SLEEP_MODE_CMD *cmd);
-A_STATUS wmi_set_wow_mode_cmd(struct wmi_t *wmip, WMI_SET_WOW_MODE_CMD *cmd);
-A_STATUS wmi_get_wow_list_cmd(struct wmi_t *wmip, WMI_GET_WOW_LIST_CMD *cmd);
-A_STATUS wmi_add_wow_pattern_cmd(struct wmi_t *wmip,
-                                 WMI_ADD_WOW_PATTERN_CMD *cmd, A_UINT8* pattern, A_UINT8* mask, A_UINT8 pattern_size);
-A_STATUS wmi_del_wow_pattern_cmd(struct wmi_t *wmip,
+int wmi_set_host_sleep_mode_cmd(struct wmi_t *wmip, WMI_SET_HOST_SLEEP_MODE_CMD *cmd);
+int wmi_set_wow_mode_cmd(struct wmi_t *wmip, WMI_SET_WOW_MODE_CMD *cmd);
+int wmi_get_wow_list_cmd(struct wmi_t *wmip, WMI_GET_WOW_LIST_CMD *cmd);
+int wmi_add_wow_pattern_cmd(struct wmi_t *wmip,
+                                 WMI_ADD_WOW_PATTERN_CMD *cmd, u8 *pattern, u8 *mask, u8 pattern_size);
+int wmi_del_wow_pattern_cmd(struct wmi_t *wmip,
                                  WMI_DEL_WOW_PATTERN_CMD *cmd);
-A_STATUS wmi_set_wsc_status_cmd(struct wmi_t *wmip, A_UINT32 status);
+int wmi_set_wsc_status_cmd(struct wmi_t *wmip, u32 status);
 
-A_STATUS
-wmi_set_params_cmd(struct wmi_t *wmip, A_UINT32 opcode, A_UINT32 length, A_CHAR* buffer);
+int
+wmi_set_params_cmd(struct wmi_t *wmip, u32 opcode, u32 length, char *buffer);
 
-A_STATUS
-wmi_set_mcast_filter_cmd(struct wmi_t *wmip, A_UINT8 dot1, A_UINT8 dot2, A_UINT8 dot3, A_UINT8 dot4);
+int
+wmi_set_mcast_filter_cmd(struct wmi_t *wmip, u8 dot1, u8 dot2, u8 dot3, u8 dot4);
 
-A_STATUS
-wmi_del_mcast_filter_cmd(struct wmi_t *wmip, A_UINT8 dot1, A_UINT8 dot2, A_UINT8 dot3, A_UINT8 dot4);
+int
+wmi_del_mcast_filter_cmd(struct wmi_t *wmip, u8 dot1, u8 dot2, u8 dot3, u8 dot4);
 
-A_STATUS
-wmi_mcast_filter_cmd(struct wmi_t *wmip, A_UINT8 enable);
+int
+wmi_mcast_filter_cmd(struct wmi_t *wmip, u8 enable);
 
 bss_t *
-wmi_find_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
-                   A_UINT32 ssidLength, A_BOOL bIsWPA2, A_BOOL bMatchSSID);
+wmi_find_Ssidnode (struct wmi_t *wmip, u8 *pSsid,
+                   u32 ssidLength, bool bIsWPA2, bool bMatchSSID);
 
 
 void
 wmi_node_return (struct wmi_t *wmip, bss_t *bss);
 
 void
-wmi_set_nodeage(struct wmi_t *wmip, A_UINT32 nodeAge);
+wmi_set_nodeage(struct wmi_t *wmip, u32 nodeAge);
 
 #if defined(CONFIG_TARGET_PROFILE_SUPPORT)
-A_STATUS wmi_prof_cfg_cmd(struct wmi_t *wmip, A_UINT32 period, A_UINT32 nbins);
-A_STATUS wmi_prof_addr_set_cmd(struct wmi_t *wmip, A_UINT32 addr);
-A_STATUS wmi_prof_start_cmd(struct wmi_t *wmip);
-A_STATUS wmi_prof_stop_cmd(struct wmi_t *wmip);
-A_STATUS wmi_prof_count_get_cmd(struct wmi_t *wmip);
+int wmi_prof_cfg_cmd(struct wmi_t *wmip, u32 period, u32 nbins);
+int wmi_prof_addr_set_cmd(struct wmi_t *wmip, u32 addr);
+int wmi_prof_start_cmd(struct wmi_t *wmip);
+int wmi_prof_stop_cmd(struct wmi_t *wmip);
+int wmi_prof_count_get_cmd(struct wmi_t *wmip);
 #endif /* CONFIG_TARGET_PROFILE_SUPPORT */
 #ifdef OS_ROAM_MANAGEMENT
 void wmi_scan_indication (struct wmi_t *wmip);
 #endif
 
-A_STATUS
+int
 wmi_set_target_event_report_cmd(struct wmi_t *wmip, WMI_SET_TARGET_EVENT_REPORT_CMD* cmd);
 
-bss_t   *wmi_rm_current_bss (struct wmi_t *wmip, A_UINT8 *id);
-A_STATUS wmi_add_current_bss (struct wmi_t *wmip, A_UINT8 *id, bss_t *bss);
+bss_t   *wmi_rm_current_bss (struct wmi_t *wmip, u8 *id);
+int wmi_add_current_bss (struct wmi_t *wmip, u8 *id, bss_t *bss);
 
 
 /*
  * AP mode
  */
-A_STATUS
+int
 wmi_ap_profile_commit(struct wmi_t *wmip, WMI_CONNECT_CMD *p);
 
-A_STATUS
-wmi_ap_set_hidden_ssid(struct wmi_t *wmip, A_UINT8 hidden_ssid);
+int
+wmi_ap_set_hidden_ssid(struct wmi_t *wmip, u8 hidden_ssid);
 
-A_STATUS
-wmi_ap_set_num_sta(struct wmi_t *wmip, A_UINT8 num_sta);
+int
+wmi_ap_set_num_sta(struct wmi_t *wmip, u8 num_sta);
 
-A_STATUS
-wmi_ap_set_acl_policy(struct wmi_t *wmip, A_UINT8 policy);
+int
+wmi_ap_set_acl_policy(struct wmi_t *wmip, u8 policy);
 
-A_STATUS
+int
 wmi_ap_acl_mac_list(struct wmi_t *wmip, WMI_AP_ACL_MAC_CMD *a);
 
-A_UINT8
-acl_add_del_mac(WMI_AP_ACL *a, WMI_AP_ACL_MAC_CMD *acl);
+u8 acl_add_del_mac(WMI_AP_ACL *a, WMI_AP_ACL_MAC_CMD *acl);
 
-A_STATUS
-wmi_ap_set_mlme(struct wmi_t *wmip, A_UINT8 cmd, A_UINT8 *mac, A_UINT16 reason);
+int
+wmi_ap_set_mlme(struct wmi_t *wmip, u8 cmd, u8 *mac, u16 reason);
 
-A_STATUS
-wmi_set_pvb_cmd(struct wmi_t *wmip, A_UINT16 aid, A_BOOL flag);
+int
+wmi_set_pvb_cmd(struct wmi_t *wmip, u16 aid, bool flag);
 
-A_STATUS
-wmi_ap_conn_inact_time(struct wmi_t *wmip, A_UINT32 period);
+int
+wmi_ap_conn_inact_time(struct wmi_t *wmip, u32 period);
 
-A_STATUS
-wmi_ap_bgscan_time(struct wmi_t *wmip, A_UINT32 period, A_UINT32 dwell);
+int
+wmi_ap_bgscan_time(struct wmi_t *wmip, u32 period, u32 dwell);
 
-A_STATUS
-wmi_ap_set_dtim(struct wmi_t *wmip, A_UINT8 dtim);
+int
+wmi_ap_set_dtim(struct wmi_t *wmip, u8 dtim);
 
-A_STATUS
-wmi_ap_set_rateset(struct wmi_t *wmip, A_UINT8 rateset);
+int
+wmi_ap_set_rateset(struct wmi_t *wmip, u8 rateset);
 
-A_STATUS
+int
 wmi_set_ht_cap_cmd(struct wmi_t *wmip, WMI_SET_HT_CAP_CMD *cmd);
 
-A_STATUS
-wmi_set_ht_op_cmd(struct wmi_t *wmip, A_UINT8 sta_chan_width);
+int
+wmi_set_ht_op_cmd(struct wmi_t *wmip, u8 sta_chan_width);
 
-A_STATUS
-wmi_send_hci_cmd(struct wmi_t *wmip, A_UINT8 *buf, A_UINT16 sz);
+int
+wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, u16 sz);
 
-A_STATUS
-wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, A_UINT32 *pMaskArray);
+int
+wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, u32 *pMaskArray);
 
-A_STATUS
-wmi_setup_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid);
+int
+wmi_setup_aggr_cmd(struct wmi_t *wmip, u8 tid);
 
-A_STATUS
-wmi_delete_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid, A_BOOL uplink);
+int
+wmi_delete_aggr_cmd(struct wmi_t *wmip, u8 tid, bool uplink);
 
-A_STATUS
-wmi_allow_aggr_cmd(struct wmi_t *wmip, A_UINT16 tx_tidmask, A_UINT16 rx_tidmask);
+int
+wmi_allow_aggr_cmd(struct wmi_t *wmip, u16 tx_tidmask, u16 rx_tidmask);
 
-A_STATUS 
-wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, A_UINT8 rxMetaVersion, A_BOOL rxDot11Hdr, A_BOOL defragOnHost);
+int
+wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, u8 rxMetaVersion, bool rxDot11Hdr, bool defragOnHost);
 
-A_STATUS 
-wmi_set_thin_mode_cmd(struct wmi_t *wmip, A_BOOL bThinMode);
+int
+wmi_set_thin_mode_cmd(struct wmi_t *wmip, bool bThinMode);
 
-A_STATUS
+int
 wmi_set_wlan_conn_precedence_cmd(struct wmi_t *wmip, BT_WLAN_CONN_PRECEDENCE precedence);
 
-A_STATUS
-wmi_set_pmk_cmd(struct wmi_t *wmip, A_UINT8 *pmk);
+int
+wmi_set_pmk_cmd(struct wmi_t *wmip, u8 *pmk);
 
-A_UINT16
-wmi_ieee2freq (int chan);
+int
+wmi_set_excess_tx_retry_thres_cmd(struct wmi_t *wmip, WMI_SET_EXCESS_TX_RETRY_THRES_CMD *cmd);
 
-A_UINT32
-wmi_freq2ieee (A_UINT16 freq);
+u16 wmi_ieee2freq (int chan);
+
+u32 wmi_freq2ieee (u16 freq);
 
 bss_t *
-wmi_find_matching_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
-                   A_UINT32 ssidLength,
-                   A_UINT32 dot11AuthMode, A_UINT32 authMode,
-                   A_UINT32 pairwiseCryptoType, A_UINT32 grpwiseCryptoTyp);
+wmi_find_matching_Ssidnode (struct wmi_t *wmip, u8 *pSsid,
+                   u32 ssidLength,
+                   u32 dot11AuthMode, u32 authMode,
+                   u32 pairwiseCryptoType, u32 grpwiseCryptoTyp);
 
 #ifdef __cplusplus
 }

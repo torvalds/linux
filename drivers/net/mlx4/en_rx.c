@@ -345,6 +345,8 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		err = mlx4_en_init_allocator(priv, ring);
 		if (err) {
 			en_err(priv, "Failed initializing ring allocator\n");
+			if (ring->stride <= TXBB_SIZE)
+				ring->buf -= TXBB_SIZE;
 			ring_ind--;
 			goto err_allocator;
 		}
@@ -369,6 +371,8 @@ err_buffers:
 	ring_ind = priv->rx_ring_num - 1;
 err_allocator:
 	while (ring_ind >= 0) {
+		if (priv->rx_ring[ring_ind].stride <= TXBB_SIZE)
+			priv->rx_ring[ring_ind].buf -= TXBB_SIZE;
 		mlx4_en_destroy_allocator(priv, &priv->rx_ring[ring_ind]);
 		ring_ind--;
 	}
@@ -580,7 +584,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		ring->bytes += length;
 		ring->packets++;
 
-		if (likely(priv->rx_csum)) {
+		if (likely(dev->features & NETIF_F_RXCSUM)) {
 			if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
 			    (cqe->checksum == cpu_to_be16(0xffff))) {
 				priv->port_stats.rx_chksum_good++;
@@ -607,11 +611,14 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					gro_skb->truesize += length;
 					gro_skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-					if (priv->vlgrp && (cqe->vlan_my_qpn &
-							    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)))
-						vlan_gro_frags(&cq->napi, priv->vlgrp, be16_to_cpu(cqe->sl_vid));
-					else
-						napi_gro_frags(&cq->napi);
+					if (cqe->vlan_my_qpn &
+					    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) {
+						u16 vid = be16_to_cpu(cqe->sl_vid);
+
+						__vlan_hwaccel_put_tag(gro_skb, vid);
+					}
+
+					napi_gro_frags(&cq->napi);
 
 					goto next;
 				}
@@ -643,13 +650,12 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_record_rx_queue(skb, cq->ring);
 
+		if (be32_to_cpu(cqe->vlan_my_qpn) &
+		    MLX4_CQE_VLAN_PRESENT_MASK)
+			__vlan_hwaccel_put_tag(skb, be16_to_cpu(cqe->sl_vid));
+
 		/* Push it up the stack */
-		if (priv->vlgrp && (be32_to_cpu(cqe->vlan_my_qpn) &
-				    MLX4_CQE_VLAN_PRESENT_MASK)) {
-			vlan_hwaccel_receive_skb(skb, priv->vlgrp,
-						be16_to_cpu(cqe->sl_vid));
-		} else
-			netif_receive_skb(skb);
+		netif_receive_skb(skb);
 
 next:
 		++cq->mcq.cons_index;
@@ -706,7 +712,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 }
 
 
-/* Calculate the last offset position that accomodates a full fragment
+/* Calculate the last offset position that accommodates a full fragment
  * (assuming fagment size = stride-align) */
 static int mlx4_en_last_alloc_offset(struct mlx4_en_priv *priv, u16 stride, u16 align)
 {
@@ -845,23 +851,17 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &priv->base_qpn);
-	if (err) {
-		en_err(priv, "Failed to reserve range for RSS "
-			     "indirection qp\n");
-		goto rss_err;
-	}
 	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp);
 	if (err) {
 		en_err(priv, "Failed to allocate RSS indirection QP\n");
-		goto reserve_err;
+		goto rss_err;
 	}
 	rss_map->indir_qp.event = mlx4_en_sqp_event;
 	mlx4_en_fill_qp_context(priv, 0, 0, 0, 1, priv->base_qpn,
 				priv->rx_ring[0].cqn, &context);
 
 	ptr = ((void *) &context) + 0x3c;
-	rss_context = (struct mlx4_en_rss_context *) ptr;
+	rss_context = ptr;
 	rss_context->base_qpn = cpu_to_be32(ilog2(priv->rx_ring_num) << 24 |
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);
@@ -881,8 +881,6 @@ indir_err:
 		       MLX4_QP_STATE_RST, NULL, 0, 0, &rss_map->indir_qp);
 	mlx4_qp_remove(mdev->dev, &rss_map->indir_qp);
 	mlx4_qp_free(mdev->dev, &rss_map->indir_qp);
-reserve_err:
-	mlx4_qp_release_range(mdev->dev, priv->base_qpn, 1);
 rss_err:
 	for (i = 0; i < good_qps; i++) {
 		mlx4_qp_modify(mdev->dev, NULL, rss_map->state[i],
@@ -904,7 +902,6 @@ void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv)
 		       MLX4_QP_STATE_RST, NULL, 0, 0, &rss_map->indir_qp);
 	mlx4_qp_remove(mdev->dev, &rss_map->indir_qp);
 	mlx4_qp_free(mdev->dev, &rss_map->indir_qp);
-	mlx4_qp_release_range(mdev->dev, priv->base_qpn, 1);
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		mlx4_qp_modify(mdev->dev, NULL, rss_map->state[i],

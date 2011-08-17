@@ -108,28 +108,28 @@ static struct platform_device mv2120_button_device = {
 /****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode mv2120_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* Sys status LED */
-	{  1, MPP_GPIO },		/* Sys error LED */
-	{  2, MPP_GPIO },		/* OverTemp interrupt */
-	{  3, MPP_GPIO },		/* RTC interrupt */
-	{  4, MPP_GPIO },		/* V_LED 5V */
-	{  5, MPP_GPIO },		/* V_LED 3.3V */
-	{  6, MPP_UNUSED },
-	{  7, MPP_UNUSED },
-	{  8, MPP_GPIO },		/* SATA 0 fail LED */
-	{  9, MPP_GPIO },		/* SATA 1 fail LED */
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
-	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
-	{ 14, MPP_SATA_LED },		/* SATA 0 active */
-	{ 15, MPP_SATA_LED },		/* SATA 1 active */
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_GPIO },		/* Reset button */
-	{ 18, MPP_GPIO },		/* Power button */
-	{ 19, MPP_GPIO },		/* Power off */
-	{ -1 },
+static unsigned int mv2120_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* Sys status LED */
+	MPP1_GPIO,		/* Sys error LED */
+	MPP2_GPIO,		/* OverTemp interrupt */
+	MPP3_GPIO,		/* RTC interrupt */
+	MPP4_GPIO,		/* V_LED 5V */
+	MPP5_GPIO,		/* V_LED 3.3V */
+	MPP6_UNUSED,
+	MPP7_UNUSED,
+	MPP8_GPIO,		/* SATA 0 fail LED */
+	MPP9_GPIO,		/* SATA 1 fail LED */
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_SATA_LED,		/* SATA 0 presence */
+	MPP13_SATA_LED,		/* SATA 1 presence */
+	MPP14_SATA_LED,		/* SATA 0 active */
+	MPP15_SATA_LED,		/* SATA 1 active */
+	MPP16_UNUSED,
+	MPP17_GPIO,		/* Reset button */
+	MPP18_GPIO,		/* Power button */
+	MPP19_GPIO,		/* Power off */
+	0,
 };
 
 static struct i2c_board_info __initdata mv2120_i2c_rtc = {
@@ -232,6 +232,7 @@ MACHINE_START(MV2120, "HP Media Vault mv2120")
 	.boot_params	= 0x00000100,
 	.init_machine	= mv2120_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32

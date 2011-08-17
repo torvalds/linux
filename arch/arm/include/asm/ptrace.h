@@ -69,8 +69,9 @@
 #define PSR_c		0x000000ff	/* Control		*/
 
 /*
- * ARMv7 groups of APSR bits
+ * ARMv7 groups of PSR bits
  */
+#define APSR_MASK	0xf80f0000	/* N, Z, C, V, Q and GE flags */
 #define PSR_ISET_MASK	0x01000010	/* ISA state (J, T) mask */
 #define PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
 #define PSR_ENDIAN_MASK	0x00000200	/* Endianness state mask */
@@ -128,9 +129,13 @@ struct pt_regs {
 #define ARM_r0		uregs[0]
 #define ARM_ORIG_r0	uregs[17]
 
-#ifdef __KERNEL__
+/*
+ * The size of the user-visible VFP state as seen by PTRACE_GET/SETVFPREGS
+ * and core dumps.
+ */
+#define ARM_VFPREGS_SIZE ( 32 * 8 /*fpregs*/ + 4 /*fpscr*/ )
 
-#define arch_has_single_step()	(1)
+#ifdef __KERNEL__
 
 #define user_mode(regs)	\
 	(((regs)->ARM_cpsr & 0xf) == 0)
@@ -194,6 +199,14 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 
 #define predicate(x)		((x) & 0xf0000000)
 #define PREDICATE_ALWAYS	0xe0000000
+
+/*
+ * True if instr is a 32-bit thumb instruction. This works if instr
+ * is the first or only half-word of a thumb instruction. It also works
+ * when instr holds all 32-bits of a wide thumb instruction if stored
+ * in the form (first_half<<16)|(second_half)
+ */
+#define is_wide_instruction(instr)	((unsigned)(instr) >= 0xe800)
 
 /*
  * kprobe-based event tracer support

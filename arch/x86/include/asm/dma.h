@@ -10,7 +10,6 @@
 
 #include <linux/spinlock.h>	/* And spinlocks */
 #include <asm/io.h>		/* need byte IO */
-#include <linux/delay.h>
 
 #ifdef HAVE_REALLY_SLOW_DMA_CONTROLLER
 #define dma_outb	outb_p
@@ -70,22 +69,18 @@
 
 #define MAX_DMA_CHANNELS	8
 
-#ifdef CONFIG_X86_32
-
-/* The maximum address that we can perform a DMA transfer to on this platform */
-#define MAX_DMA_ADDRESS      (PAGE_OFFSET + 0x1000000)
-
-#else
-
 /* 16MB ISA DMA zone */
 #define MAX_DMA_PFN   ((16 * 1024 * 1024) >> PAGE_SHIFT)
 
 /* 4GB broken PCI/AGP hardware bus master zone */
 #define MAX_DMA32_PFN ((4UL * 1024 * 1024 * 1024) >> PAGE_SHIFT)
 
+#ifdef CONFIG_X86_32
+/* The maximum address that we can perform a DMA transfer to on this platform */
+#define MAX_DMA_ADDRESS      (PAGE_OFFSET + 0x1000000)
+#else
 /* Compat define for old dma zone */
 #define MAX_DMA_ADDRESS ((unsigned long)__va(MAX_DMA_PFN << PAGE_SHIFT))
-
 #endif
 
 /* 8237 DMA controllers */
@@ -151,6 +146,7 @@
 #define DMA_AUTOINIT		0x10
 
 
+#ifdef CONFIG_ISA_DMA_API
 extern spinlock_t  dma_spin_lock;
 
 static inline unsigned long claim_dma_lock(void)
@@ -164,6 +160,7 @@ static inline void release_dma_lock(unsigned long flags)
 {
 	spin_unlock_irqrestore(&dma_spin_lock, flags);
 }
+#endif /* CONFIG_ISA_DMA_API */
 
 /* enable/disable a specific DMA channel */
 static inline void enable_dma(unsigned int dmanr)
@@ -303,9 +300,11 @@ static inline int get_dma_residue(unsigned int dmanr)
 }
 
 
-/* These are in kernel/dma.c: */
+/* These are in kernel/dma.c because x86 uses CONFIG_GENERIC_ISA_DMA */
+#ifdef CONFIG_ISA_DMA_API
 extern int request_dma(unsigned int dmanr, const char *device_id);
 extern void free_dma(unsigned int dmanr);
+#endif
 
 /* From PCI */
 

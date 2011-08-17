@@ -53,6 +53,13 @@ int sst_download_fw(void)
 	if (sst_drv_ctx->sst_state != SST_UN_INIT)
 		return -EPERM;
 
+	/* Reload firmware is not needed for MRST */
+	if ( (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) && sst_drv_ctx->fw_downloaded) {
+		pr_debug("FW already downloaded, skip for MRST platform\n");
+		sst_drv_ctx->sst_state = SST_FW_RUNNING;
+		return 0;
+	}
+
 	snprintf(name, sizeof(name), "%s%04x%s", "fw_sst_",
 					sst_drv_ctx->pci_id, ".bin");
 
@@ -71,6 +78,9 @@ int sst_download_fw(void)
 	retval = sst_wait_timeout(sst_drv_ctx, &sst_drv_ctx->alloc_block[0]);
 	if (retval)
 		pr_err("fw download failed %d\n" , retval);
+	else
+		sst_drv_ctx->fw_downloaded = 1;
+
 end_restore:
 	release_firmware(fw_sst);
 	sst_drv_ctx->alloc_block[0].sst_id = BLOCK_UNINIT;
@@ -105,21 +115,28 @@ void free_stream_context(unsigned int str_id)
 	if (!sst_validate_strid(str_id)) {
 		/* str_id is valid, so stream is alloacted */
 		stream = &sst_drv_ctx->streams[str_id];
+		if (sst_free_stream(str_id))
+			sst_clean_stream(&sst_drv_ctx->streams[str_id]);
 		if (stream->ops == STREAM_OPS_PLAYBACK ||
 				stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 			sst_drv_ctx->pb_streams--;
-			if (sst_drv_ctx->pb_streams == 0)
-				sst_drv_ctx->scard_ops->power_down_pmic_pb();
+			if (sst_drv_ctx->pci_id == SST_MFLD_PCI_ID)
+				sst_drv_ctx->scard_ops->power_down_pmic_pb(
+						stream->device);
+			else {
+				if (sst_drv_ctx->pb_streams == 0)
+					sst_drv_ctx->scard_ops->
+					power_down_pmic_pb(stream->device);
+			}
 		} else if (stream->ops == STREAM_OPS_CAPTURE) {
 			sst_drv_ctx->cp_streams--;
 			if (sst_drv_ctx->cp_streams == 0)
-				sst_drv_ctx->scard_ops->power_down_pmic_cp();
+				sst_drv_ctx->scard_ops->power_down_pmic_cp(
+						stream->device);
 		}
 		if (sst_drv_ctx->pb_streams == 0
 				&& sst_drv_ctx->cp_streams == 0)
 			sst_drv_ctx->scard_ops->power_down_pmic();
-		if (sst_free_stream(str_id))
-			sst_clean_stream(&sst_drv_ctx->streams[str_id]);
 	}
 }
 
@@ -276,8 +293,8 @@ void sst_process_mad_ops(struct work_struct *work)
 		retval = sst_resume_stream(mad_ops->stream_id);
 		break;
 	case SST_SND_DROP:
-/*		retval = sst_drop_stream(mad_ops->stream_id);
-*/		break;
+		retval = sst_drop_stream(mad_ops->stream_id);
+		break;
 	case SST_SND_START:
 			pr_debug("SST Debug: start stream\n");
 		retval = sst_start_stream(mad_ops->stream_id);
@@ -315,7 +332,7 @@ int sst_open_pcm_stream(struct snd_sst_params *str_param)
 	pm_runtime_get_sync(&sst_drv_ctx->pci->dev);
 
 	if (sst_drv_ctx->sst_state == SST_SUSPENDED) {
-		/* LPE is suspended, resume it before proceding*/
+		/* LPE is suspended, resume it before proceeding*/
 		pr_debug("Resuming from Suspended state\n");
 		retval = intel_sst_resume(sst_drv_ctx->pci);
 		if (retval) {
@@ -508,7 +525,6 @@ int register_sst_card(struct intel_sst_card_ops *card)
 			sst_drv_ctx->pmic_state = SND_MAD_INIT_DONE;
 			sst_drv_ctx->rx_time_slot_status = 0; /*default AMIC*/
 			card->pcm_control = sst_pmic_ops.pcm_control;
-			sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 			return 0;
 		} else {
 			pr_err("strcmp fail %s\n", card->module_name);
@@ -520,6 +536,9 @@ int register_sst_card(struct intel_sst_card_ops *card)
 		pr_err("Repeat for registration..denied\n");
 		return -EBADRQC;
 	}
+	/* The ASoC code doesn't set scard_ops */
+	if (sst_drv_ctx->scard_ops)
+		sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(register_sst_card);

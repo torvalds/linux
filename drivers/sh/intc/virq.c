@@ -110,7 +110,7 @@ static void intc_virq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
-	struct intc_virq_list *entry, *vlist = irq_data_get_irq_data(data);
+	struct intc_virq_list *entry, *vlist = irq_data_get_irq_handler_data(data);
 	struct intc_desc_int *d = get_intc_desc(irq);
 
 	chip->irq_mask_ack(data);
@@ -118,7 +118,7 @@ static void intc_virq_handler(unsigned int irq, struct irq_desc *desc)
 	for_each_virq(entry, vlist) {
 		unsigned long addr, handle;
 
-		handle = (unsigned long)get_irq_data(entry->irq);
+		handle = (unsigned long)irq_get_handler_data(entry->irq);
 		addr = INTC_REG(d, _INTC_ADDR_E(handle), 0);
 
 		if (intc_reg_fns[_INTC_FN(handle)](addr, handle, 0))
@@ -229,13 +229,18 @@ restart:
 
 		intc_irq_xlate_set(irq, entry->enum_id, d);
 
-		set_irq_chip_and_handler_name(irq, get_irq_chip(entry->pirq),
+		irq_set_chip_and_handler_name(irq, irq_get_chip(entry->pirq),
 					      handle_simple_irq, "virq");
-		set_irq_chip_data(irq, get_irq_chip_data(entry->pirq));
+		irq_set_chip_data(irq, irq_get_chip_data(entry->pirq));
 
-		set_irq_data(irq, (void *)entry->handle);
+		irq_set_handler_data(irq, (void *)entry->handle);
 
-		set_irq_chained_handler(entry->pirq, intc_virq_handler);
+		/*
+		 * Set the virtual IRQ as non-threadable.
+		 */
+		irq_set_nothread(irq);
+
+		irq_set_chained_handler(entry->pirq, intc_virq_handler);
 		add_virq_to_pirq(entry->pirq, irq);
 
 		radix_tree_tag_clear(&d->tree, entry->enum_id,

@@ -427,10 +427,10 @@ static void or51211_reset(struct dvb_frontend * fe)
 	struct dvb_bt8xx_card *bt = fe->dvb->priv;
 
 	/* RESET DEVICE
-	 * reset is controled by GPIO-0
+	 * reset is controlled by GPIO-0
 	 * when set to 0 causes reset and when to 1 for normal op
 	 * must remain reset for 128 clock cycles on a 50Mhz clock
-	 * also PRM1 PRM2 & PRM4 are controled by GPIO-1,GPIO-2 & GPIO-4
+	 * also PRM1 PRM2 & PRM4 are controlled by GPIO-1,GPIO-2 & GPIO-4
 	 * We assume that the reset has be held low long enough or we
 	 * have been reset by a power on.  When the driver is unloaded
 	 * reset set to 0 so if reloaded we have been reset.
@@ -892,7 +892,7 @@ static int __devinit dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	if (!(bttv_pci_dev = bttv_get_pcidev(card->bttv_nr))) {
 		printk("dvb_bt8xx: no pci device for card %d\n", card->bttv_nr);
 		kfree(card);
-		return -EFAULT;
+		return -ENODEV;
 	}
 
 	if (!(card->bt = dvb_bt8xx_878_match(card->bttv_nr, bttv_pci_dev))) {
@@ -902,7 +902,7 @@ static int __devinit dvb_bt8xx_probe(struct bttv_sub_device *sub)
 		       "installed, try removing it.\n");
 
 		kfree(card);
-		return -EFAULT;
+		return -ENODEV;
 	}
 
 	mutex_init(&card->bt->gpio_lock);

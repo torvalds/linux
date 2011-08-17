@@ -413,7 +413,7 @@ Syntax:         <n>
 Description:    Debugging information level, from 0 to 6:
 		0 = none (use carefully)
 		1 = critical errors
-		2 = significant informations
+		2 = significant information
 		3 = configuration or general messages
 		4 = warnings
 		5 = called functions

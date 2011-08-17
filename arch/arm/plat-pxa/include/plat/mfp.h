@@ -434,7 +434,7 @@ typedef unsigned long mfp_cfg_t;
  *
  * mfp_init_addr() - accepts a table of "mfp_addr_map" structure, which
  * represents a range of MFP pins from "start" to "end", with the offset
- * begining at "offset", to define a single pin, let "end" = -1.
+ * beginning at "offset", to define a single pin, let "end" = -1.
  *
  * use
  *

@@ -10,49 +10,47 @@
 #ifndef ASM_ARCH_IRQS_H
 #define ASM_ARCH_IRQS_H
 
-#include <mach/irqs-db5500.h>
-#include <mach/irqs-db8500.h>
+#include <mach/hardware.h>
 
-#define IRQ_LOCALTIMER                  29
-#define IRQ_LOCALWDOG                   30
+#define IRQ_LOCALTIMER			29
+#define IRQ_LOCALWDOG			30
 
 /* Shared Peripheral Interrupt (SHPI) */
 #define IRQ_SHPI_START			32
 
-/* Interrupt numbers generic for shared peripheral */
+/*
+ * MTU0 preserved for now until plat-nomadik is taught not to use it.  Don't
+ * add any other IRQs here, use the irqs-dbx500.h files.
+ */
 #define IRQ_MTU0		(IRQ_SHPI_START + 4)
 
-/* There are 128 shared peripheral interrupts assigned to
- * INTID[160:32]. The first 32 interrupts are reserved.
- */
-#define DBX500_NR_INTERNAL_IRQS		161
+#define DBX500_NR_INTERNAL_IRQS		160
 
 /* After chip-specific IRQ numbers we have the GPIO ones */
 #define NOMADIK_NR_GPIO			288
 #define NOMADIK_GPIO_TO_IRQ(gpio)	((gpio) + DBX500_NR_INTERNAL_IRQS)
 #define NOMADIK_IRQ_TO_GPIO(irq)	((irq) - DBX500_NR_INTERNAL_IRQS)
-#define IRQ_BOARD_START			NOMADIK_GPIO_TO_IRQ(NOMADIK_NR_GPIO)
+#define IRQ_GPIO_END			NOMADIK_GPIO_TO_IRQ(NOMADIK_NR_GPIO)
 
+#define IRQ_SOC_START		IRQ_GPIO_END
+/* This will be overridden by SoC-specific irq headers */
+#define IRQ_SOC_END		IRQ_SOC_START
+
+#include <mach/irqs-db5500.h>
+#include <mach/irqs-db8500.h>
+
+#define IRQ_BOARD_START		IRQ_SOC_END
 /* This will be overridden by board-specific irq headers */
-#define IRQ_BOARD_END			IRQ_BOARD_START
+#define IRQ_BOARD_END		IRQ_BOARD_START
 
 #ifdef CONFIG_MACH_U8500
 #include <mach/irqs-board-mop500.h>
 #endif
 
-/*
- * After the board specific IRQ:s we reserve a range of IRQ:s in which virtual
- * IRQ:s representing modem IRQ:s can be allocated
- */
-#define IRQ_MODEM_EVENTS_BASE (IRQ_BOARD_END + 1)
-#define IRQ_MODEM_EVENTS_NBR 72
-#define IRQ_MODEM_EVENTS_END (IRQ_MODEM_EVENTS_BASE + IRQ_MODEM_EVENTS_NBR)
+#ifdef CONFIG_MACH_U5500
+#include <mach/irqs-board-u5500.h>
+#endif
 
-/* List of virtual IRQ:s that are allocated from the range above */
-#define MBOX_PAIR0_VIRT_IRQ (IRQ_MODEM_EVENTS_BASE + 43)
-#define MBOX_PAIR1_VIRT_IRQ (IRQ_MODEM_EVENTS_BASE + 45)
-#define MBOX_PAIR2_VIRT_IRQ (IRQ_MODEM_EVENTS_BASE + 41)
-
-#define NR_IRQS				IRQ_MODEM_EVENTS_END
+#define NR_IRQS			IRQ_BOARD_END
 
 #endif /* ASM_ARCH_IRQS_H */

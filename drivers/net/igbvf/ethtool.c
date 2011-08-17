@@ -90,18 +90,18 @@ static int igbvf_get_settings(struct net_device *netdev,
 	status = er32(STATUS);
 	if (status & E1000_STATUS_LU) {
 		if (status & E1000_STATUS_SPEED_1000)
-			ecmd->speed = 1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = 100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed = 10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 
 		if (status & E1000_STATUS_FD)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -201,13 +201,11 @@ static void igbvf_get_regs(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 *regs_buff = p;
-	u8 revision_id;
 
 	memset(p, 0, IGBVF_REGS_LEN * sizeof(u32));
 
-	pci_read_config_byte(adapter->pdev, PCI_REVISION_ID, &revision_id);
-
-	regs->version = (1 << 24) | (revision_id << 16) | adapter->pdev->device;
+	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+			adapter->pdev->device;
 
 	regs_buff[0] = er32(CTRL);
 	regs_buff[1] = er32(STATUS);
@@ -393,11 +391,6 @@ static int igbvf_set_wol(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
-static int igbvf_phys_id(struct net_device *netdev, u32 data)
-{
-	return 0;
-}
-
 static int igbvf_get_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
@@ -529,7 +522,6 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.self_test		= igbvf_diag_test,
 	.get_sset_count		= igbvf_get_sset_count,
 	.get_strings		= igbvf_get_strings,
-	.phys_id		= igbvf_phys_id,
 	.get_ethtool_stats	= igbvf_get_ethtool_stats,
 	.get_coalesce		= igbvf_get_coalesce,
 	.set_coalesce		= igbvf_set_coalesce,

@@ -451,7 +451,7 @@ nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p,
 	*p++ = htonl(resp->count);
 	xdr_ressize_check(rqstp, p);
 
-	/* now update rqstp->rq_res to reflect data aswell */
+	/* now update rqstp->rq_res to reflect data as well */
 	rqstp->rq_res.page_len = resp->count;
 	if (resp->count & 3) {
 		/* need to pad the tail */

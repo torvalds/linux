@@ -149,11 +149,13 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = function_trace_call,
+	.flags = FTRACE_OPS_FL_GLOBAL,
 };
 
 static struct ftrace_ops trace_stack_ops __read_mostly =
 {
 	.func = function_stack_trace_call,
+	.flags = FTRACE_OPS_FL_GLOBAL,
 };
 
 /* Our two options */
@@ -322,7 +324,8 @@ ftrace_trace_onoff_unreg(char *glob, char *cmd, char *param)
 }
 
 static int
-ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
+ftrace_trace_onoff_callback(struct ftrace_hash *hash,
+			    char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
 	void *count = (void *)-1;

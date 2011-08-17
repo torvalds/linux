@@ -45,4 +45,6 @@
 #define IRQ_CT_CA9X4_PMU_CPU2	94
 #define IRQ_CT_CA9X4_PMU_CPU3	95
 
+extern struct ct_desc ct_ca9x4_desc;
+
 #endif

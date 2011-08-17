@@ -123,6 +123,8 @@ const struct imx_imx_uart_1irq_data imx53_imx_uart_data[] __initconst = {
 	imx53_imx_uart_data_entry(0, 1),
 	imx53_imx_uart_data_entry(1, 2),
 	imx53_imx_uart_data_entry(2, 3),
+	imx53_imx_uart_data_entry(3, 4),
+	imx53_imx_uart_data_entry(4, 5),
 };
 #endif /* ifdef CONFIG_SOC_IMX53 */
 
@@ -150,7 +152,7 @@ struct platform_device *__init imx_add_imx_uart_3irq(
 		},
 	};
 
-	return imx_add_platform_device("imx-uart", data->id, res,
+	return imx_add_platform_device("imx1-uart", data->id, res,
 			ARRAY_SIZE(res), pdata, sizeof(*pdata));
 }
 
@@ -170,6 +172,7 @@ struct platform_device *__init imx_add_imx_uart_1irq(
 		},
 	};
 
-	return imx_add_platform_device("imx-uart", data->id, res, ARRAY_SIZE(res),
-			pdata, sizeof(*pdata));
+	/* i.mx21 type uart runs on all i.mx except i.mx1 */
+	return imx_add_platform_device("imx21-uart", data->id,
+			res, ARRAY_SIZE(res), pdata, sizeof(*pdata));
 }

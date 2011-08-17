@@ -112,7 +112,7 @@ static int v2_read_file_info(struct super_block *sb, int type)
 	if (!info->dqi_priv) {
 		printk(KERN_WARNING
 		       "Not enough memory for quota information structure.\n");
-		return -1;
+		return -ENOMEM;
 	}
 	qinfo = info->dqi_priv;
 	if (version == 0) {

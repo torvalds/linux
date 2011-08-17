@@ -250,11 +250,6 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 
 	dev_net_set(dev, net);
 
-	if (strchr(name, '%')) {
-		if (dev_alloc_name(dev, name) < 0)
-			goto failed_free;
-	}
-
 	nt = netdev_priv(dev);
 
 	nt->parms = *parms;
@@ -401,18 +396,13 @@ out:
 	return err;
 }
 
-static void prl_entry_destroy_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct ip_tunnel_prl_entry, rcu_head));
-}
-
 static void prl_list_destroy_rcu(struct rcu_head *head)
 {
 	struct ip_tunnel_prl_entry *p, *n;
 
 	p = container_of(head, struct ip_tunnel_prl_entry, rcu_head);
 	do {
-		n = p->next;
+		n = rcu_dereference_protected(p->next, 1);
 		kfree(p);
 		p = n;
 	} while (p);
@@ -421,26 +411,28 @@ static void prl_list_destroy_rcu(struct rcu_head *head)
 static int
 ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 {
-	struct ip_tunnel_prl_entry *x, **p;
+	struct ip_tunnel_prl_entry *x;
+	struct ip_tunnel_prl_entry __rcu **p;
 	int err = 0;
 
 	ASSERT_RTNL();
 
 	if (a && a->addr != htonl(INADDR_ANY)) {
-		for (p = &t->prl; *p; p = &(*p)->next) {
-			if ((*p)->addr == a->addr) {
-				x = *p;
+		for (p = &t->prl;
+		     (x = rtnl_dereference(*p)) != NULL;
+		     p = &x->next) {
+			if (x->addr == a->addr) {
 				*p = x->next;
-				call_rcu(&x->rcu_head, prl_entry_destroy_rcu);
+				kfree_rcu(x, rcu_head);
 				t->prl_count--;
 				goto out;
 			}
 		}
 		err = -ENXIO;
 	} else {
-		if (t->prl) {
+		x = rtnl_dereference(t->prl);
+		if (x) {
 			t->prl_count = 0;
-			x = t->prl;
 			call_rcu(&x->rcu_head, prl_list_destroy_rcu);
 			t->prl = NULL;
 		}
@@ -450,7 +442,7 @@ out:
 }
 
 static int
-isatap_chksrc(struct sk_buff *skb, struct iphdr *iph, struct ip_tunnel *t)
+isatap_chksrc(struct sk_buff *skb, const struct iphdr *iph, struct ip_tunnel *t)
 {
 	struct ip_tunnel_prl_entry *p;
 	int ok = 1;
@@ -463,7 +455,8 @@ isatap_chksrc(struct sk_buff *skb, struct iphdr *iph, struct ip_tunnel *t)
 		else
 			skb->ndisc_nodetype = NDISC_NODETYPE_NODEFAULT;
 	} else {
-		struct in6_addr *addr6 = &ipv6_hdr(skb)->saddr;
+		const struct in6_addr *addr6 = &ipv6_hdr(skb)->saddr;
+
 		if (ipv6_addr_is_isatap(addr6) &&
 		    (addr6->s6_addr32[3] == iph->saddr) &&
 		    ipv6_chk_prefix(addr6, t->dev))
@@ -497,7 +490,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
    8 bytes of packet payload. It means, that precise relaying of
    ICMP in the real Internet is absolutely infeasible.
  */
-	struct iphdr *iph = (struct iphdr*)skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
@@ -555,7 +548,7 @@ out:
 	return err;
 }
 
-static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
+static inline void ipip6_ecn_decapsulate(const struct iphdr *iph, struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(iph->tos))
 		IP6_ECN_set_ce(ipv6_hdr(skb));
@@ -563,7 +556,7 @@ static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 
 static int ipip6_rcv(struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct ip_tunnel *tunnel;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
@@ -619,7 +612,7 @@ out:
  * comes from 6rd / 6to4 (RFC 3056) addr space.
  */
 static inline
-__be32 try_6rd(struct in6_addr *v6dst, struct ip_tunnel *tunnel)
+__be32 try_6rd(const struct in6_addr *v6dst, struct ip_tunnel *tunnel)
 {
 	__be32 dst = 0;
 
@@ -662,8 +655,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct pcpu_tstats *tstats;
-	struct iphdr  *tiph = &tunnel->parms.iph;
-	struct ipv6hdr *iph6 = ipv6_hdr(skb);
+	const struct iphdr  *tiph = &tunnel->parms.iph;
+	const struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
 	__be16 df = tiph->frag_off;
 	struct rtable *rt;     			/* Route to the other host */
@@ -671,8 +664,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	__be32 dst = tiph->daddr;
+	struct flowi4 fl4;
 	int    mtu;
-	struct in6_addr *addr6;
+	const struct in6_addr *addr6;
 	int addr_type;
 
 	if (skb->protocol != htons(ETH_P_IPV6))
@@ -683,7 +677,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		struct neighbour *neigh = NULL;
 
 		if (skb_dst(skb))
-			neigh = skb_dst(skb)->neighbour;
+			neigh = dst_get_neighbour(skb_dst(skb));
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -691,7 +685,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			goto tx_error;
 		}
 
-		addr6 = (struct in6_addr*)&neigh->primary_key;
+		addr6 = (const struct in6_addr*)&neigh->primary_key;
 		addr_type = ipv6_addr_type(addr6);
 
 		if ((addr_type & IPV6_ADDR_UNICAST) &&
@@ -708,7 +702,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		struct neighbour *neigh = NULL;
 
 		if (skb_dst(skb))
-			neigh = skb_dst(skb)->neighbour;
+			neigh = dst_get_neighbour(skb_dst(skb));
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -716,7 +710,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			goto tx_error;
 		}
 
-		addr6 = (struct in6_addr*)&neigh->primary_key;
+		addr6 = (const struct in6_addr*)&neigh->primary_key;
 		addr_type = ipv6_addr_type(addr6);
 
 		if (addr_type == IPV6_ADDR_ANY) {
@@ -730,16 +724,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		dst = addr6->s6_addr32[3];
 	}
 
-	{
-		struct flowi fl = { .fl4_dst = dst,
-				    .fl4_src = tiph->saddr,
-				    .fl4_tos = RT_TOS(tos),
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			dev->stats.tx_carrier_errors++;
-			goto tx_error_icmp;
-		}
+	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
+				   dst, tiph->saddr,
+				   0, 0,
+				   IPPROTO_IPV6, RT_TOS(tos),
+				   tunnel->parms.link);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error_icmp;
 	}
 	if (rt->rt_type != RTN_UNICAST) {
 		ip_rt_put(rt);
@@ -826,8 +818,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	iph->frag_off		=	df;
 	iph->protocol		=	IPPROTO_IPV6;
 	iph->tos		=	INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
-	iph->daddr		=	rt->rt_dst;
-	iph->saddr		=	rt->rt_src;
+	iph->daddr		=	fl4.daddr;
+	iph->saddr		=	fl4.saddr;
 
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	iph6->hop_limit;
@@ -849,19 +841,21 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 {
 	struct net_device *tdev = NULL;
 	struct ip_tunnel *tunnel;
-	struct iphdr *iph;
+	const struct iphdr *iph;
+	struct flowi4 fl4;
 
 	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct flowi fl = { .fl4_dst = iph->daddr,
-				    .fl4_src = iph->saddr,
-				    .fl4_tos = RT_TOS(iph->tos),
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		struct rtable *rt;
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		struct rtable *rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
+							  iph->daddr, iph->saddr,
+							  0, 0,
+							  IPPROTO_IPV6,
+							  RT_TOS(iph->tos),
+							  tunnel->parms.link);
+
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
@@ -1179,7 +1173,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 	dev_hold(dev);
-	sitn->tunnels_wc[0]	= tunnel;
+	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 	return 0;
 }
 
@@ -1196,11 +1190,12 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 	for (prio = 1; prio < 4; prio++) {
 		int h;
 		for (h = 0; h < HASH_SIZE; h++) {
-			struct ip_tunnel *t = sitn->tunnels[prio][h];
+			struct ip_tunnel *t;
 
+			t = rtnl_dereference(sitn->tunnels[prio][h]);
 			while (t != NULL) {
 				unregister_netdevice_queue(t->dev, head);
-				t = t->next;
+				t = rtnl_dereference(t->next);
 			}
 		}
 	}
@@ -1290,4 +1285,4 @@ static int __init sit_init(void)
 module_init(sit_init);
 module_exit(sit_cleanup);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("sit0");
+MODULE_ALIAS_NETDEV("sit0");

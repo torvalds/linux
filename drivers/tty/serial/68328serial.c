@@ -281,7 +281,7 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 #ifdef CONFIG_MAGIC_SYSRQ
 			} else if (ch == 0x10) { /* ^P */
 				show_state();
-				show_free_areas();
+				show_free_areas(0);
 				show_buffers();
 /*				show_net_buffers(); */
 				return;
@@ -392,28 +392,6 @@ static void do_softint(struct work_struct *work)
 	}
 #endif   
 }
-
-/*
- * This routine is called from the scheduler tqueue when the interrupt
- * routine has signalled that a hangup has occurred.  The path of
- * hangup processing is:
- *
- * 	serial interrupt routine -> (scheduler tqueue) ->
- * 	do_serial_hangup() -> tty->hangup() -> rs_hangup()
- * 
- */
-static void do_serial_hangup(struct work_struct *work)
-{
-	struct m68k_serial	*info = container_of(work, struct m68k_serial, tqueue_hangup);
-	struct tty_struct	*tty;
-	
-	tty = info->tty;
-	if (!tty)
-		return;
-
-	tty_hangup(tty);
-}
-
 
 static int startup(struct m68k_serial * info)
 {
@@ -967,7 +945,7 @@ static void send_break(struct m68k_serial * info, unsigned int duration)
         local_irq_restore(flags);
 }
 
-static int rs_ioctl(struct tty_struct *tty, struct file * file,
+static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct m68k_serial * info = (struct m68k_serial *)tty->driver_data;
@@ -1347,7 +1325,6 @@ rs68328_init(void)
 	    info->count = 0;
 	    info->blocked_open = 0;
 	    INIT_WORK(&info->tqueue, do_softint);
-	    INIT_WORK(&info->tqueue_hangup, do_serial_hangup);
 	    init_waitqueue_head(&info->open_wait);
 	    init_waitqueue_head(&info->close_wait);
 	    info->line = i;

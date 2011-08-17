@@ -543,7 +543,7 @@ just those considered 'most important'.  The new vectors are:
   their statistics are used by kernel developers and interested users to
   determine the occurrence of interrupts of the given type.
 
-The above IRQ vectors are displayed only when relevent.  For example,
+The above IRQ vectors are displayed only when relevant.  For example,
 the threshold vector does not exist on x86_64 platforms.  Others are
 suppressed when the system is a uniprocessor.  As of this writing, only
 i386 and x86_64 platforms support the new IRQ vector displays.
@@ -574,6 +574,12 @@ The contents of each smp_affinity file is the same by default:
   > cat /proc/irq/0/smp_affinity
   ffffffff
 
+There is an alternate interface, smp_affinity_list which allows specifying
+a cpu range instead of a bitmask:
+
+  > cat /proc/irq/0/smp_affinity_list
+  1024-1031
+
 The default_smp_affinity mask applies to all non-active IRQs, which are the
 IRQs which have not yet been allocated/activated, and hence which lack a
 /proc/irq/[0-9]* directory.
@@ -583,12 +589,13 @@ reports itself as being attached. This hardware locality information does not
 include information about any possible driver locality preference.
 
 prof_cpu_mask specifies which CPUs are to be profiled by the system wide
-profiler. Default value is ffffffff (all cpus).
+profiler. Default value is ffffffff (all cpus if there are only 32 of them).
 
 The way IRQs are routed is handled by the IO-APIC, and it's Round Robin
 between all the CPUs which are allowed to handle it. As usual the kernel has
 more info than you and does a better job than you, so the defaults are the
-best choice for almost everyone.
+best choice for almost everyone.  [Note this applies only to those IO-APIC's
+that support "Round Robin" interrupt distribution.]
 
 There are  three  more  important subdirectories in /proc: net, scsi, and sys.
 The general  rule  is  that  the  contents,  or  even  the  existence of these
@@ -1202,7 +1209,7 @@ The columns are:
                        W = can do write operations
                        U = can do unblank
   flags                E = it is enabled
-                       C = it is prefered console
+                       C = it is preferred console
                        B = it is primary boot console
                        p = it is used for printk buffer
                        b = it is not a TTY but a Braille device
@@ -1331,7 +1338,7 @@ NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
 Documentation/feature-removal-schedule.txt.
 
 Caveat: when a parent task is selected, the oom killer will sacrifice any first
-generation children with seperate address spaces instead, if possible.  This
+generation children with separate address spaces instead, if possible.  This
 avoids servers and important system daemons from being killed and loses the
 minimal amount of work.
 

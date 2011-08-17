@@ -128,6 +128,7 @@
  * 	void add_input_randomness(unsigned int type, unsigned int code,
  *                                unsigned int value);
  * 	void add_interrupt_randomness(int irq);
+ * 	void add_disk_randomness(struct gendisk *disk);
  *
  * add_input_randomness() uses the input layer interrupt timing, as well as
  * the event type information from the hardware.
@@ -136,9 +137,15 @@
  * inputs to the entropy pool.  Note that not all interrupts are good
  * sources of randomness!  For example, the timer interrupts is not a
  * good choice, because the periodicity of the interrupts is too
- * regular, and hence predictable to an attacker.  Disk interrupts are
- * a better measure, since the timing of the disk interrupts are more
- * unpredictable.
+ * regular, and hence predictable to an attacker.  Network Interface
+ * Controller interrupts are a better measure, since the timing of the
+ * NIC interrupts are more unpredictable.
+ *
+ * add_disk_randomness() uses what amounts to the seek time of block
+ * layer request events, on a per-disk_devt basis, as input to the
+ * entropy pool. Note that high-speed solid state drives with very low
+ * seek times do not make for good sources of entropy, as their seek
+ * times are usually fairly consistent.
  *
  * All of these routines try to estimate how many bits of randomness a
  * particular randomness source.  They do this by keeping track of the
@@ -725,7 +732,7 @@ static ssize_t extract_entropy(struct entropy_store *r, void *buf,
 			       size_t nbytes, int min, int rsvd);
 
 /*
- * This utility inline function is responsible for transfering entropy
+ * This utility inline function is responsible for transferring entropy
  * from the primary pool to the secondary extraction pool. We make
  * sure we pull enough for a 'catastrophic reseed'.
  */
@@ -1293,330 +1300,14 @@ ctl_table random_table[] = {
 };
 #endif 	/* CONFIG_SYSCTL */
 
-/********************************************************************
- *
- * Random functions for networking
- *
- ********************************************************************/
+static u32 random_int_secret[MD5_MESSAGE_BYTES / 4] ____cacheline_aligned;
 
-/*
- * TCP initial sequence number picking.  This uses the random number
- * generator to pick an initial secret value.  This value is hashed
- * along with the TCP endpoint information to provide a unique
- * starting point for each pair of TCP endpoints.  This defeats
- * attacks which rely on guessing the initial TCP sequence number.
- * This algorithm was suggested by Steve Bellovin.
- *
- * Using a very strong hash was taking an appreciable amount of the total
- * TCP connection establishment time, so this is a weaker hash,
- * compensated for by changing the secret periodically.
- */
-
-/* F, G and H are basic MD4 functions: selection, majority, parity */
-#define F(x, y, z) ((z) ^ ((x) & ((y) ^ (z))))
-#define G(x, y, z) (((x) & (y)) + (((x) ^ (y)) & (z)))
-#define H(x, y, z) ((x) ^ (y) ^ (z))
-
-/*
- * The generic round function.  The application is so specific that
- * we don't bother protecting all the arguments with parens, as is generally
- * good macro practice, in favor of extra legibility.
- * Rotation is separate from addition to prevent recomputation
- */
-#define ROUND(f, a, b, c, d, x, s)	\
-	(a += f(b, c, d) + x, a = (a << s) | (a >> (32 - s)))
-#define K1 0
-#define K2 013240474631UL
-#define K3 015666365641UL
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-
-static __u32 twothirdsMD4Transform(__u32 const buf[4], __u32 const in[12])
+static int __init random_int_secret_init(void)
 {
-	__u32 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
-
-	/* Round 1 */
-	ROUND(F, a, b, c, d, in[ 0] + K1,  3);
-	ROUND(F, d, a, b, c, in[ 1] + K1,  7);
-	ROUND(F, c, d, a, b, in[ 2] + K1, 11);
-	ROUND(F, b, c, d, a, in[ 3] + K1, 19);
-	ROUND(F, a, b, c, d, in[ 4] + K1,  3);
-	ROUND(F, d, a, b, c, in[ 5] + K1,  7);
-	ROUND(F, c, d, a, b, in[ 6] + K1, 11);
-	ROUND(F, b, c, d, a, in[ 7] + K1, 19);
-	ROUND(F, a, b, c, d, in[ 8] + K1,  3);
-	ROUND(F, d, a, b, c, in[ 9] + K1,  7);
-	ROUND(F, c, d, a, b, in[10] + K1, 11);
-	ROUND(F, b, c, d, a, in[11] + K1, 19);
-
-	/* Round 2 */
-	ROUND(G, a, b, c, d, in[ 1] + K2,  3);
-	ROUND(G, d, a, b, c, in[ 3] + K2,  5);
-	ROUND(G, c, d, a, b, in[ 5] + K2,  9);
-	ROUND(G, b, c, d, a, in[ 7] + K2, 13);
-	ROUND(G, a, b, c, d, in[ 9] + K2,  3);
-	ROUND(G, d, a, b, c, in[11] + K2,  5);
-	ROUND(G, c, d, a, b, in[ 0] + K2,  9);
-	ROUND(G, b, c, d, a, in[ 2] + K2, 13);
-	ROUND(G, a, b, c, d, in[ 4] + K2,  3);
-	ROUND(G, d, a, b, c, in[ 6] + K2,  5);
-	ROUND(G, c, d, a, b, in[ 8] + K2,  9);
-	ROUND(G, b, c, d, a, in[10] + K2, 13);
-
-	/* Round 3 */
-	ROUND(H, a, b, c, d, in[ 3] + K3,  3);
-	ROUND(H, d, a, b, c, in[ 7] + K3,  9);
-	ROUND(H, c, d, a, b, in[11] + K3, 11);
-	ROUND(H, b, c, d, a, in[ 2] + K3, 15);
-	ROUND(H, a, b, c, d, in[ 6] + K3,  3);
-	ROUND(H, d, a, b, c, in[10] + K3,  9);
-	ROUND(H, c, d, a, b, in[ 1] + K3, 11);
-	ROUND(H, b, c, d, a, in[ 5] + K3, 15);
-	ROUND(H, a, b, c, d, in[ 9] + K3,  3);
-	ROUND(H, d, a, b, c, in[ 0] + K3,  9);
-	ROUND(H, c, d, a, b, in[ 4] + K3, 11);
-	ROUND(H, b, c, d, a, in[ 8] + K3, 15);
-
-	return buf[1] + b; /* "most hashed" word */
-	/* Alternative: return sum of all words? */
-}
-#endif
-
-#undef ROUND
-#undef F
-#undef G
-#undef H
-#undef K1
-#undef K2
-#undef K3
-
-/* This should not be decreased so low that ISNs wrap too fast. */
-#define REKEY_INTERVAL (300 * HZ)
-/*
- * Bit layout of the tcp sequence numbers (before adding current time):
- * bit 24-31: increased after every key exchange
- * bit 0-23: hash(source,dest)
- *
- * The implementation is similar to the algorithm described
- * in the Appendix of RFC 1185, except that
- * - it uses a 1 MHz clock instead of a 250 kHz clock
- * - it performs a rekey every 5 minutes, which is equivalent
- * 	to a (source,dest) tulple dependent forward jump of the
- * 	clock by 0..2^(HASH_BITS+1)
- *
- * Thus the average ISN wraparound time is 68 minutes instead of
- * 4.55 hours.
- *
- * SMP cleanup and lock avoidance with poor man's RCU.
- * 			Manfred Spraul <manfred@colorfullife.com>
- *
- */
-#define COUNT_BITS 8
-#define COUNT_MASK ((1 << COUNT_BITS) - 1)
-#define HASH_BITS 24
-#define HASH_MASK ((1 << HASH_BITS) - 1)
-
-static struct keydata {
-	__u32 count; /* already shifted to the final position */
-	__u32 secret[12];
-} ____cacheline_aligned ip_keydata[2];
-
-static unsigned int ip_cnt;
-
-static void rekey_seq_generator(struct work_struct *work);
-
-static DECLARE_DELAYED_WORK(rekey_work, rekey_seq_generator);
-
-/*
- * Lock avoidance:
- * The ISN generation runs lockless - it's just a hash over random data.
- * State changes happen every 5 minutes when the random key is replaced.
- * Synchronization is performed by having two copies of the hash function
- * state and rekey_seq_generator always updates the inactive copy.
- * The copy is then activated by updating ip_cnt.
- * The implementation breaks down if someone blocks the thread
- * that processes SYN requests for more than 5 minutes. Should never
- * happen, and even if that happens only a not perfectly compliant
- * ISN is generated, nothing fatal.
- */
-static void rekey_seq_generator(struct work_struct *work)
-{
-	struct keydata *keyptr = &ip_keydata[1 ^ (ip_cnt & 1)];
-
-	get_random_bytes(keyptr->secret, sizeof(keyptr->secret));
-	keyptr->count = (ip_cnt & COUNT_MASK) << HASH_BITS;
-	smp_wmb();
-	ip_cnt++;
-	schedule_delayed_work(&rekey_work,
-			      round_jiffies_relative(REKEY_INTERVAL));
-}
-
-static inline struct keydata *get_keyptr(void)
-{
-	struct keydata *keyptr = &ip_keydata[ip_cnt & 1];
-
-	smp_rmb();
-
-	return keyptr;
-}
-
-static __init int seqgen_init(void)
-{
-	rekey_seq_generator(NULL);
+	get_random_bytes(random_int_secret, sizeof(random_int_secret));
 	return 0;
 }
-late_initcall(seqgen_init);
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-__u32 secure_tcpv6_sequence_number(__be32 *saddr, __be32 *daddr,
-				   __be16 sport, __be16 dport)
-{
-	__u32 seq;
-	__u32 hash[12];
-	struct keydata *keyptr = get_keyptr();
-
-	/* The procedure is the same as for IPv4, but addresses are longer.
-	 * Thus we must use twothirdsMD4Transform.
-	 */
-
-	memcpy(hash, saddr, 16);
-	hash[4] = ((__force u16)sport << 16) + (__force u16)dport;
-	memcpy(&hash[5], keyptr->secret, sizeof(__u32) * 7);
-
-	seq = twothirdsMD4Transform((const __u32 *)daddr, hash) & HASH_MASK;
-	seq += keyptr->count;
-
-	seq += ktime_to_ns(ktime_get_real());
-
-	return seq;
-}
-EXPORT_SYMBOL(secure_tcpv6_sequence_number);
-#endif
-
-/*  The code below is shamelessly stolen from secure_tcp_sequence_number().
- *  All blames to Andrey V. Savochkin <saw@msu.ru>.
- */
-__u32 secure_ip_id(__be32 daddr)
-{
-	struct keydata *keyptr;
-	__u32 hash[4];
-
-	keyptr = get_keyptr();
-
-	/*
-	 *  Pick a unique starting offset for each IP destination.
-	 *  The dest ip address is placed in the starting vector,
-	 *  which is then hashed with random data.
-	 */
-	hash[0] = (__force __u32)daddr;
-	hash[1] = keyptr->secret[9];
-	hash[2] = keyptr->secret[10];
-	hash[3] = keyptr->secret[11];
-
-	return half_md4_transform(hash, keyptr->secret);
-}
-
-#ifdef CONFIG_INET
-
-__u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
-				 __be16 sport, __be16 dport)
-{
-	__u32 seq;
-	__u32 hash[4];
-	struct keydata *keyptr = get_keyptr();
-
-	/*
-	 *  Pick a unique starting offset for each TCP connection endpoints
-	 *  (saddr, daddr, sport, dport).
-	 *  Note that the words are placed into the starting vector, which is
-	 *  then mixed with a partial MD4 over random data.
-	 */
-	hash[0] = (__force u32)saddr;
-	hash[1] = (__force u32)daddr;
-	hash[2] = ((__force u16)sport << 16) + (__force u16)dport;
-	hash[3] = keyptr->secret[11];
-
-	seq = half_md4_transform(hash, keyptr->secret) & HASH_MASK;
-	seq += keyptr->count;
-	/*
-	 *	As close as possible to RFC 793, which
-	 *	suggests using a 250 kHz clock.
-	 *	Further reading shows this assumes 2 Mb/s networks.
-	 *	For 10 Mb/s Ethernet, a 1 MHz clock is appropriate.
-	 *	For 10 Gb/s Ethernet, a 1 GHz clock should be ok, but
-	 *	we also need to limit the resolution so that the u32 seq
-	 *	overlaps less than one time per MSL (2 minutes).
-	 *	Choosing a clock of 64 ns period is OK. (period of 274 s)
-	 */
-	seq += ktime_to_ns(ktime_get_real()) >> 6;
-
-	return seq;
-}
-
-/* Generate secure starting point for ephemeral IPV4 transport port search */
-u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
-{
-	struct keydata *keyptr = get_keyptr();
-	u32 hash[4];
-
-	/*
-	 *  Pick a unique starting offset for each ephemeral port search
-	 *  (saddr, daddr, dport) and 48bits of random data.
-	 */
-	hash[0] = (__force u32)saddr;
-	hash[1] = (__force u32)daddr;
-	hash[2] = (__force u32)dport ^ keyptr->secret[10];
-	hash[3] = keyptr->secret[11];
-
-	return half_md4_transform(hash, keyptr->secret);
-}
-EXPORT_SYMBOL_GPL(secure_ipv4_port_ephemeral);
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,
-			       __be16 dport)
-{
-	struct keydata *keyptr = get_keyptr();
-	u32 hash[12];
-
-	memcpy(hash, saddr, 16);
-	hash[4] = (__force u32)dport;
-	memcpy(&hash[5], keyptr->secret, sizeof(__u32) * 7);
-
-	return twothirdsMD4Transform((const __u32 *)daddr, hash);
-}
-#endif
-
-#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
-/* Similar to secure_tcp_sequence_number but generate a 48 bit value
- * bit's 32-47 increase every key exchange
- *       0-31  hash(source, dest)
- */
-u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
-				__be16 sport, __be16 dport)
-{
-	u64 seq;
-	__u32 hash[4];
-	struct keydata *keyptr = get_keyptr();
-
-	hash[0] = (__force u32)saddr;
-	hash[1] = (__force u32)daddr;
-	hash[2] = ((__force u16)sport << 16) + (__force u16)dport;
-	hash[3] = keyptr->secret[11];
-
-	seq = half_md4_transform(hash, keyptr->secret);
-	seq |= ((u64)keyptr->count) << (32 - HASH_BITS);
-
-	seq += ktime_to_ns(ktime_get_real());
-	seq &= (1ull << 48) - 1;
-
-	return seq;
-}
-EXPORT_SYMBOL(secure_dccp_sequence_number);
-#endif
-
-#endif /* CONFIG_INET */
-
+late_initcall(random_int_secret_init);
 
 /*
  * Get a random word for internal kernel use only. Similar to urandom but
@@ -1624,17 +1315,15 @@ EXPORT_SYMBOL(secure_dccp_sequence_number);
  * value is not cryptographically secure but for several uses the cost of
  * depleting entropy is too high
  */
-DEFINE_PER_CPU(__u32 [4], get_random_int_hash);
+DEFINE_PER_CPU(__u32 [MD5_DIGEST_WORDS], get_random_int_hash);
 unsigned int get_random_int(void)
 {
-	struct keydata *keyptr;
 	__u32 *hash = get_cpu_var(get_random_int_hash);
-	int ret;
+	unsigned int ret;
 
-	keyptr = get_keyptr();
 	hash[0] += current->pid + jiffies + get_cycles();
-
-	ret = half_md4_transform(hash, keyptr->secret);
+	md5_transform(hash, random_int_secret);
+	ret = hash[0];
 	put_cpu_var(get_random_int_hash);
 
 	return ret;

@@ -33,10 +33,7 @@ struct fsl_upm_nand {
 	struct mtd_info mtd;
 	struct nand_chip chip;
 	int last_ctrl;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts;
-#endif
-
 	struct fsl_upm upm;
 	uint8_t upm_addr_offset;
 	uint8_t upm_cmd_offset;
@@ -161,9 +158,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 {
 	int ret;
 	struct device_node *flash_np;
-#ifdef CONFIG_MTD_PARTITIONS
 	static const char *part_types[] = { "cmdlinepart", NULL, };
-#endif
 
 	fun->chip.IO_ADDR_R = fun->io_base;
 	fun->chip.IO_ADDR_W = fun->io_base;
@@ -197,7 +192,6 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	if (ret)
 		goto err;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	ret = parse_mtd_partitions(&fun->mtd, part_types, &fun->parts, 0);
 
 #ifdef CONFIG_MTD_OF_PARTS
@@ -207,18 +201,13 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 			goto err;
 	}
 #endif
-	if (ret > 0)
-		ret = add_mtd_partitions(&fun->mtd, fun->parts, ret);
-	else
-#endif
-		ret = add_mtd_device(&fun->mtd);
+	ret = mtd_device_register(&fun->mtd, fun->parts, ret);
 err:
 	of_node_put(flash_np);
 	return ret;
 }
 
-static int __devinit fun_probe(struct platform_device *ofdev,
-			       const struct of_device_id *ofid)
+static int __devinit fun_probe(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun;
 	struct resource io_res;
@@ -360,7 +349,7 @@ static const struct of_device_id of_fun_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_fun_match);
 
-static struct of_platform_driver of_fun_driver = {
+static struct platform_driver of_fun_driver = {
 	.driver = {
 		.name = "fsl,upm-nand",
 		.owner = THIS_MODULE,
@@ -372,13 +361,13 @@ static struct of_platform_driver of_fun_driver = {
 
 static int __init fun_module_init(void)
 {
-	return of_register_platform_driver(&of_fun_driver);
+	return platform_driver_register(&of_fun_driver);
 }
 module_init(fun_module_init);
 
 static void __exit fun_module_exit(void)
 {
-	of_unregister_platform_driver(&of_fun_driver);
+	platform_driver_unregister(&of_fun_driver);
 }
 module_exit(fun_module_exit);
 

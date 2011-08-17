@@ -10,17 +10,12 @@
  *  option) any later version.
  */
 
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 
 #include <asm/mach-types.h>
 
 #include "../codecs/wm8580.h"
-#include "dma.h"
 #include "i2s.h"
 
 /*
@@ -254,7 +249,7 @@ static int __init smdk_audio_init(void)
 	int ret;
 	char *str;
 
-	if (machine_is_smdkc100() || machine_is_smdk6442()
+	if (machine_is_smdkc100()
 			|| machine_is_smdkv210() || machine_is_smdkc110()) {
 		smdk.num_links = 3;
 		/* Secondary is at offset SAMSUNG_I2S_SECOFF from Primary */

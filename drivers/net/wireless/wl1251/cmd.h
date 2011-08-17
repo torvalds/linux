@@ -313,8 +313,8 @@ struct wl1251_cmd_vbm_update {
 } __packed;
 
 enum wl1251_cmd_ps_mode {
-	STATION_ACTIVE_MODE,
-	STATION_POWER_SAVE_MODE
+	CHIP_ACTIVE_MODE,
+	CHIP_POWER_SAVE_MODE
 };
 
 struct wl1251_cmd_ps_params {

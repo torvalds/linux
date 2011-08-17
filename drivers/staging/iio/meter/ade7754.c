@@ -29,7 +29,7 @@ static int ade7754_spi_write_reg_8(struct device *dev,
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7754_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7754_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7754_WRITE_REG(reg_address);
@@ -46,25 +46,14 @@ static int ade7754_spi_write_reg_16(struct device *dev,
 		u16 value)
 {
 	int ret;
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7754_state *st = iio_dev_get_devdata(indio_dev);
-	struct spi_transfer xfers[] = {
-		{
-			.tx_buf = st->tx,
-			.bits_per_word = 8,
-			.len = 3,
-		}
-	};
+	struct ade7754_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7754_WRITE_REG(reg_address);
 	st->tx[1] = (value >> 8) & 0xFF;
 	st->tx[2] = value & 0xFF;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_write(st->us, st->tx, 3);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -74,73 +63,40 @@ static int ade7754_spi_read_reg_8(struct device *dev,
 		u8 reg_address,
 		u8 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7754_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7754_state *st = iio_priv(indio_dev);
 	int ret;
-	struct spi_transfer xfers[] = {
-		{
-			.tx_buf = st->tx,
-			.rx_buf = st->rx,
-			.bits_per_word = 8,
-			.len = 2,
-		},
-	};
 
-	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADE7754_READ_REG(reg_address);
-	st->tx[1] = 0;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
-	ret = spi_sync(st->us, &msg);
-	if (ret) {
+	ret = spi_w8r8(st->us, ADE7754_READ_REG(reg_address));
+	if (ret < 0) {
 		dev_err(&st->us->dev, "problem when reading 8 bit register 0x%02X",
 				reg_address);
-		goto error_ret;
+		return ret;
 	}
-	*val = st->rx[1];
+	*val = ret;
 
-error_ret:
-	mutex_unlock(&st->buf_lock);
-	return ret;
+	return 0;
 }
 
 static int ade7754_spi_read_reg_16(struct device *dev,
 		u8 reg_address,
 		u16 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7754_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7754_state *st = iio_priv(indio_dev);
 	int ret;
-	struct spi_transfer xfers[] = {
-		{
-			.tx_buf = st->tx,
-			.rx_buf = st->rx,
-			.bits_per_word = 8,
-			.len = 3,
-		},
-	};
 
-	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADE7754_READ_REG(reg_address);
-	st->tx[1] = 0;
-	st->tx[2] = 0;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
-	ret = spi_sync(st->us, &msg);
-	if (ret) {
+	ret = spi_w8r16(st->us, ADE7754_READ_REG(reg_address));
+	if (ret < 0) {
 		dev_err(&st->us->dev, "problem when reading 16 bit register 0x%02X",
-				reg_address);
-		goto error_ret;
+			reg_address);
+		return ret;
 	}
-	*val = (st->rx[1] << 8) | st->rx[2];
 
-error_ret:
-	mutex_unlock(&st->buf_lock);
-	return ret;
+	*val = ret;
+	*val = be16_to_cpup(val);
+
+	return 0;
 }
 
 static int ade7754_spi_read_reg_24(struct device *dev,
@@ -149,7 +105,7 @@ static int ade7754_spi_read_reg_24(struct device *dev,
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7754_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7754_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
@@ -264,17 +220,11 @@ error_ret:
 
 static int ade7754_reset(struct device *dev)
 {
-	int ret;
 	u8 val;
-	ade7754_spi_read_reg_8(dev,
-			ADE7754_OPMODE,
-			&val);
-	val |= 1 << 6; /* Software Chip Reset */
-	ret = ade7754_spi_write_reg_8(dev,
-			ADE7754_OPMODE,
-			val);
 
-	return ret;
+	ade7754_spi_read_reg_8(dev, ADE7754_OPMODE, &val);
+	val |= 1 << 6; /* Software Chip Reset */
+	return ade7754_spi_write_reg_8(dev, ADE7754_OPMODE, val);
 }
 
 
@@ -431,23 +381,18 @@ error_ret:
 /* Power down the device */
 static int ade7754_stop_device(struct device *dev)
 {
-	int ret;
 	u8 val;
-	ade7754_spi_read_reg_8(dev,
-			ADE7754_OPMODE,
-			&val);
-	val |= 7 << 3;  /* ADE7754 powered down */
-	ret = ade7754_spi_write_reg_8(dev,
-			ADE7754_OPMODE,
-			val);
 
-	return ret;
+	ade7754_spi_read_reg_8(dev, ADE7754_OPMODE, &val);
+	val |= 7 << 3;  /* ADE7754 powered down */
+	return ade7754_spi_write_reg_8(dev, ADE7754_OPMODE, val);
 }
 
-static int ade7754_initial_setup(struct ade7754_state *st)
+static int ade7754_initial_setup(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct device *dev = &st->indio_dev->dev;
+	struct ade7754_state *st = iio_priv(indio_dev);
+	struct device *dev = &indio_dev->dev;
 
 	/* use low spi speed for init */
 	st->us->mode = SPI_MODE_3;
@@ -471,7 +416,7 @@ static ssize_t ade7754_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	int ret, len = 0;
+	int ret;
 	u8 t;
 	int sps;
 	ret = ade7754_spi_read_reg_8(dev,
@@ -483,8 +428,7 @@ static ssize_t ade7754_read_frequency(struct device *dev,
 	t = (t >> 3) & 0x3;
 	sps = 26000 / (1 + t);
 
-	len = sprintf(buf, "%d SPS\n", sps);
-	return len;
+	return sprintf(buf, "%d\n", sps);
 }
 
 static ssize_t ade7754_write_frequency(struct device *dev,
@@ -493,7 +437,7 @@ static ssize_t ade7754_write_frequency(struct device *dev,
 		size_t len)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7754_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7754_state *st = iio_priv(indio_dev);
 	unsigned long val;
 	int ret;
 	u8 reg, t;
@@ -513,18 +457,14 @@ static ssize_t ade7754_write_frequency(struct device *dev,
 	else
 		st->us->max_speed_hz = ADE7754_SPI_FAST;
 
-	ret = ade7754_spi_read_reg_8(dev,
-			ADE7754_WAVMODE,
-			&reg);
+	ret = ade7754_spi_read_reg_8(dev, ADE7754_WAVMODE, &reg);
 	if (ret)
 		goto out;
 
 	reg &= ~(3 << 3);
 	reg |= t << 3;
 
-	ret = ade7754_spi_write_reg_8(dev,
-			ADE7754_WAVMODE,
-			reg);
+	ret = ade7754_spi_write_reg_8(dev, ADE7754_WAVMODE, reg);
 
 out:
 	mutex_unlock(&indio_dev->mlock);
@@ -543,16 +483,6 @@ static IIO_DEV_ATTR_RESET(ade7754_write_reset);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("26000 13000 65000 33000");
 
-static IIO_CONST_ATTR(name, "ade7754");
-
-static struct attribute *ade7754_event_attributes[] = {
-	NULL
-};
-
-static struct attribute_group ade7754_event_attribute_group = {
-	.attrs = ade7754_event_attributes,
-};
-
 static struct attribute *ade7754_attributes[] = {
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
@@ -560,7 +490,6 @@ static struct attribute *ade7754_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	&iio_dev_attr_aenergy.dev_attr.attr,
 	&iio_dev_attr_laenergy.dev_attr.attr,
 	&iio_dev_attr_vaenergy.dev_attr.attr,
@@ -599,103 +528,52 @@ static const struct attribute_group ade7754_attribute_group = {
 	.attrs = ade7754_attributes,
 };
 
-
+static const struct iio_info ade7754_info = {
+	.attrs = &ade7754_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 
 static int __devinit ade7754_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
-	struct ade7754_state *st = kzalloc(sizeof *st, GFP_KERNEL);
-	if (!st) {
-		ret =  -ENOMEM;
+	struct ade7754_state *st;
+	struct iio_dev *indio_dev;
+
+	/* setup the industrialio driver allocated elements */
+	indio_dev = iio_allocate_device(sizeof(*st));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
 		goto error_ret;
 	}
 	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
-	/* Allocate the comms buffers */
-	st->rx = kzalloc(sizeof(*st->rx)*ADE7754_MAX_RX, GFP_KERNEL);
-	if (st->rx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_st;
-	}
-	st->tx = kzalloc(sizeof(*st->tx)*ADE7754_MAX_TX, GFP_KERNEL);
-	if (st->tx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_rx;
-	}
+	st = iio_priv(indio_dev);
 	st->us = spi;
 	mutex_init(&st->buf_lock);
-	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_tx;
-	}
 
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &ade7754_event_attribute_group;
-	st->indio_dev->attrs = &ade7754_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = spi->dev.driver->name;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->info = &ade7754_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = ade7754_configure_ring(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
-
-	ret = iio_device_register(st->indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = ade7754_initialize_ring(st->indio_dev->ring);
-	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
-		goto error_unreg_ring_funcs;
-	}
-
-	if (spi->irq) {
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_FALLING,
-				"ade7754");
-		if (ret)
-			goto error_uninitialize_ring;
-
-		ret = ade7754_probe_trigger(st->indio_dev);
-		if (ret)
-			goto error_unregister_line;
-	}
-
 	/* Get the device into a sane initial state */
-	ret = ade7754_initial_setup(st);
+	ret = ade7754_initial_setup(indio_dev);
 	if (ret)
-		goto error_remove_trigger;
+		goto error_free_dev;
 	return 0;
 
-error_remove_trigger:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		ade7754_remove_trigger(st->indio_dev);
-error_unregister_line:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
-error_uninitialize_ring:
-	ade7754_uninitialize_ring(st->indio_dev->ring);
-error_unreg_ring_funcs:
-	ade7754_unconfigure_ring(st->indio_dev);
 error_free_dev:
 	if (regdone)
-		iio_device_unregister(st->indio_dev);
+		iio_device_unregister(indio_dev);
 	else
-		iio_free_device(st->indio_dev);
-error_free_tx:
-	kfree(st->tx);
-error_free_rx:
-	kfree(st->rx);
-error_free_st:
-	kfree(st);
+		iio_free_device(indio_dev);
+
 error_ret:
 	return ret;
 }
@@ -704,30 +582,17 @@ error_ret:
 static int ade7754_remove(struct spi_device *spi)
 {
 	int ret;
-	struct ade7754_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	ret = ade7754_stop_device(&(indio_dev->dev));
 	if (ret)
 		goto err_ret;
 
-	flush_scheduled_work();
-
-	ade7754_remove_trigger(indio_dev);
-	if (spi->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
-
-	ade7754_uninitialize_ring(indio_dev->ring);
-	ade7754_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
-	kfree(st->tx);
-	kfree(st->rx);
-	kfree(st);
-
-	return 0;
 
 err_ret:
 	return ret;
+
 }
 
 static struct spi_driver ade7754_driver = {

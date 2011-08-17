@@ -19,7 +19,7 @@
  * using the stura instruction.
  * Returns the number of bytes copied or -EFAULT.
  */
-static long probe_kernel_write_odd(void *dst, void *src, size_t size)
+static long probe_kernel_write_odd(void *dst, const void *src, size_t size)
 {
 	unsigned long count, aligned;
 	int offset, mask;
@@ -45,7 +45,7 @@ static long probe_kernel_write_odd(void *dst, void *src, size_t size)
 	return rc ? rc : count;
 }
 
-long probe_kernel_write(void *dst, void *src, size_t size)
+long probe_kernel_write(void *dst, const void *src, size_t size)
 {
 	long copied = 0;
 
@@ -84,4 +84,20 @@ int memcpy_real(void *dest, void *src, size_t count)
 		: "cc", "memory");
 	arch_local_irq_restore(flags);
 	return rc;
+}
+
+/*
+ * Copy memory to absolute zero
+ */
+void copy_to_absolute_zero(void *dest, void *src, size_t count)
+{
+	unsigned long cr0;
+
+	BUG_ON((unsigned long) dest + count >= sizeof(struct _lowcore));
+	preempt_disable();
+	__ctl_store(cr0, 0, 0);
+	__ctl_clear_bit(0, 28); /* disable lowcore protection */
+	memcpy_real(dest + store_prefix(), src, count);
+	__ctl_load(cr0, 0, 0);
+	preempt_enable();
 }

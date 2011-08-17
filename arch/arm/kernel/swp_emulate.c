@@ -158,7 +158,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	if (res == 0) {
 		/*
-		 * Barrier also required between aquiring a lock for a
+		 * Barrier also required between acquiring a lock for a
 		 * protected resource and accessing the resource. Inserted for
 		 * same reason as above.
 		 */
@@ -183,7 +183,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 	unsigned int address, destreg, data, type;
 	unsigned int res = 0;
 
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, regs->ARM_pc);
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->ARM_pc);
 
 	if (current->pid != previous_pid) {
 		pr_debug("\"%s\" (%ld) uses deprecated SWP{B} instruction\n",

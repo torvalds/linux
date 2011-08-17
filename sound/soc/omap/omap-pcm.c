@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2008 Nokia Corporation
  *
- * Contact: Jarkko Nikula <jhnikula@gmail.com>
- *          Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
+ *          Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,8 @@ static const struct snd_pcm_hardware omap_pcm_hardware = {
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE |
-				  SNDRV_PCM_INFO_RESUME,
+				  SNDRV_PCM_INFO_RESUME |
+				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= 32,
@@ -195,7 +196,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	if ((cpu_is_omap1510()))
 		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ |
 			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
-	else
+	else if (!substream->runtime->no_period_wakeup)
 		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
 
 	if (!(cpu_class_is_omap1())) {
@@ -365,9 +366,11 @@ static void omap_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-static int omap_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
-		 struct snd_pcm *pcm)
+static int omap_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
 	if (!card->dev->dma_mask)
@@ -433,6 +436,6 @@ static void __exit snd_omap_pcm_exit(void)
 }
 module_exit(snd_omap_pcm_exit);
 
-MODULE_AUTHOR("Jarkko Nikula <jhnikula@gmail.com>");
+MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");
 MODULE_LICENSE("GPL");

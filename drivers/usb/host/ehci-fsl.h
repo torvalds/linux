@@ -27,6 +27,10 @@
 #define	PORT_PTS_SERIAL		(3<<30)
 #define PORT_PTS_PTW		(1<<28)
 #define FSL_SOC_USB_PORTSC2	0x188
+#define FSL_SOC_USB_USBMODE	0x1a8
+#define USBMODE_CM_MASK		(3 << 0)	/* controller mode mask */
+#define USBMODE_CM_HOST		(3 << 0)	/* controller mode: host */
+#define USBMODE_ES		(1 << 2)	/* (Big) Endian Select */
 
 #define FSL_SOC_USB_USBGENCTRL	0x200
 #define USBGENCTRL_PPP		(1 << 3)

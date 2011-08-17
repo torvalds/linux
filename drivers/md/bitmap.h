@@ -45,7 +45,7 @@
  *
  * The counter counts pending write requests, plus the on-disk bit.
  * When the counter is '1' and the resync bits are clear, the on-disk
- * bit can be cleared aswell, thus setting the counter to 0.
+ * bit can be cleared as well, thus setting the counter to 0.
  * When we set a bit, or in the counter (to start a write), if the fields is
  * 0, we first set the disk bit and set the counter to 1.
  *
@@ -85,7 +85,6 @@
 typedef __u16 bitmap_counter_t;
 #define COUNTER_BITS 16
 #define COUNTER_BIT_SHIFT 4
-#define COUNTER_BYTE_RATIO (COUNTER_BITS / 8)
 #define COUNTER_BYTE_SHIFT (COUNTER_BIT_SHIFT - 3)
 
 #define NEEDED_MASK ((bitmap_counter_t) (1 << (COUNTER_BITS - 1)))
@@ -196,18 +195,9 @@ struct bitmap {
 
 	mddev_t *mddev; /* the md device that the bitmap is for */
 
-	int counter_bits; /* how many bits per block counter */
-
 	/* bitmap chunksize -- how much data does each bit represent? */
 	unsigned long chunkshift; /* chunksize = 2^chunkshift (for bitops) */
 	unsigned long chunks; /* total number of data chunks for the array */
-
-	/* We hold a count on the chunk currently being synced, and drop
-	 * it when the last block is started.  If the resync is aborted
-	 * midway, we need to be able to drop that count, so we remember
-	 * the counted chunk..
-	 */
-	unsigned long syncchunk;
 
 	__u64	events_cleared;
 	int need_sync;
@@ -221,10 +211,6 @@ struct bitmap {
 	unsigned long *filemap_attr; /* attributes associated w/ filemap pages */
 	unsigned long file_pages; /* number of pages in the file */
 	int last_page_size; /* bytes in the last page */
-
-	unsigned long logattrs; /* used when filemap_attr doesn't exist
-				 * because we are working with a dirty_log
-				 */
 
 	unsigned long flags;
 
@@ -247,7 +233,6 @@ struct bitmap {
 	wait_queue_head_t behind_wait;
 
 	struct sysfs_dirent *sysfs_can_clear;
-
 };
 
 /* the bitmap API */

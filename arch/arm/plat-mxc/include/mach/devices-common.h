@@ -9,6 +9,10 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <mach/sdma.h>
+
+extern struct device mxc_aips_bus;
+extern struct device mxc_ahb_bus;
 
 struct platform_device *imx_add_platform_device_dmamask(
 		const char *name, int id,
@@ -26,6 +30,7 @@ static inline struct platform_device *imx_add_platform_device(
 
 #include <linux/fec.h>
 struct imx_fec_data {
+	const char *devid;
 	resource_size_t iobase;
 	resource_size_t irq;
 };
@@ -166,6 +171,24 @@ struct platform_device *__init imx_add_imx_udc(
 		const struct imx_imx_udc_data *data,
 		const struct imxusb_platform_data *pdata);
 
+#include <mach/ipu.h>
+#include <mach/mx3fb.h>
+#include <mach/mx3_camera.h>
+struct imx_ipu_core_data {
+	resource_size_t iobase;
+	resource_size_t synirq;
+	resource_size_t errirq;
+};
+struct platform_device *__init imx_add_ipu_core(
+		const struct imx_ipu_core_data *data,
+		const struct ipu_platform_data *pdata);
+struct platform_device *__init imx_alloc_mx3_camera(
+		const struct imx_ipu_core_data *data,
+		const struct mx3_camera_pdata *pdata);
+struct platform_device *__init imx_add_mx3_sdc_fb(
+		const struct imx_ipu_core_data *data,
+		struct mx3fb_platform_data *pdata);
+
 #include <mach/mx1_camera.h>
 struct imx_mx1_camera_data {
 	resource_size_t iobase;
@@ -237,6 +260,15 @@ struct imx_mxc_pwm_data {
 struct platform_device *__init imx_add_mxc_pwm(
 		const struct imx_mxc_pwm_data *data);
 
+/* mxc_rtc */
+struct imx_mxc_rtc_data {
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_mxc_rtc(
+		const struct imx_mxc_rtc_data *data);
+
+/* mxc_w1 */
 struct imx_mxc_w1_data {
 	resource_size_t iobase;
 };
@@ -245,6 +277,7 @@ struct platform_device *__init imx_add_mxc_w1(
 
 #include <mach/esdhc.h>
 struct imx_sdhci_esdhc_imx_data {
+	const char *devid;
 	int id;
 	resource_size_t iobase;
 	resource_size_t irq;
@@ -264,3 +297,7 @@ struct imx_spi_imx_data {
 struct platform_device *__init imx_add_spi_imx(
 		const struct imx_spi_imx_data *data,
 		const struct spi_imx_master *pdata);
+
+struct platform_device *imx_add_imx_dma(void);
+struct platform_device *imx_add_imx_sdma(char *name,
+	resource_size_t iobase, int irq, struct sdma_platform_data *pdata);

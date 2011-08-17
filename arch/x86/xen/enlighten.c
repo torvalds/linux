@@ -235,9 +235,10 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	*dx &= maskedx;
 }
 
-static __init void xen_init_cpuid_mask(void)
+static void __init xen_init_cpuid_mask(void)
 {
 	unsigned int ax, bx, cx, dx;
+	unsigned int xsave_mask;
 
 	cpuid_leaf1_edx_mask =
 		~((1 << X86_FEATURE_MCE)  |  /* disable MCE */
@@ -249,24 +250,16 @@ static __init void xen_init_cpuid_mask(void)
 		cpuid_leaf1_edx_mask &=
 			~((1 << X86_FEATURE_APIC) |  /* disable local APIC */
 			  (1 << X86_FEATURE_ACPI));  /* disable ACPI */
-
 	ax = 1;
-	cx = 0;
 	xen_cpuid(&ax, &bx, &cx, &dx);
 
-	/* cpuid claims we support xsave; try enabling it to see what happens */
-	if (cx & (1 << (X86_FEATURE_XSAVE % 32))) {
-		unsigned long cr4;
+	xsave_mask =
+		(1 << (X86_FEATURE_XSAVE % 32)) |
+		(1 << (X86_FEATURE_OSXSAVE % 32));
 
-		set_in_cr4(X86_CR4_OSXSAVE);
-		
-		cr4 = read_cr4();
-
-		if ((cr4 & X86_CR4_OSXSAVE) == 0)
-			cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_XSAVE % 32));
-
-		clear_in_cr4(X86_CR4_OSXSAVE);
-	}
+	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
+	if ((cx & xsave_mask) != xsave_mask)
+		cpuid_leaf1_ecx_mask &= ~xsave_mask; /* disable XSAVE & OSXSAVE */
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
@@ -348,6 +341,8 @@ static void xen_set_ldt(const void *addr, unsigned entries)
 	struct mmuext_op *op;
 	struct multicall_space mcs = xen_mc_entry(sizeof(*op));
 
+	trace_xen_cpu_set_ldt(addr, entries);
+
 	op = mcs.args;
 	op->cmd = MMUEXT_SET_LDT;
 	op->arg1.linear_addr = (unsigned long)addr;
@@ -407,7 +402,7 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 /*
  * load_gdt for early boot, when the gdt is only mapped once
  */
-static __init void xen_load_gdt_boot(const struct desc_ptr *dtr)
+static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 {
 	unsigned long va = dtr->address;
 	unsigned int size = dtr->size + 1;
@@ -503,6 +498,8 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 	xmaddr_t mach_lp = arbitrary_virt_to_machine(&dt[entrynum]);
 	u64 entry = *(u64 *)ptr;
 
+	trace_xen_cpu_write_ldt_entry(dt, entrynum, entry);
+
 	preempt_disable();
 
 	xen_mc_flush();
@@ -572,6 +569,8 @@ static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 	unsigned long p = (unsigned long)&dt[entrynum];
 	unsigned long start, end;
 
+	trace_xen_cpu_write_idt_entry(dt, entrynum, g);
+
 	preempt_disable();
 
 	start = __this_cpu_read(idt_desc.address);
@@ -626,6 +625,8 @@ static void xen_load_idt(const struct desc_ptr *desc)
 	static DEFINE_SPINLOCK(lock);
 	static struct trap_info traps[257];
 
+	trace_xen_cpu_load_idt(desc);
+
 	spin_lock(&lock);
 
 	__get_cpu_var(idt_desc) = *desc;
@@ -644,6 +645,8 @@ static void xen_load_idt(const struct desc_ptr *desc)
 static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 				const void *desc, int type)
 {
+	trace_xen_cpu_write_gdt_entry(dt, entry, desc, type);
+
 	preempt_disable();
 
 	switch (type) {
@@ -669,9 +672,11 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
  * Version of write_gdt_entry for use at early boot-time needed to
  * update an entry as simply as possible.
  */
-static __init void xen_write_gdt_entry_boot(struct desc_struct *dt, int entry,
+static void __init xen_write_gdt_entry_boot(struct desc_struct *dt, int entry,
 					    const void *desc, int type)
 {
+	trace_xen_cpu_write_gdt_entry(dt, entry, desc, type);
+
 	switch (type) {
 	case DESC_LDT:
 	case DESC_TSS:
@@ -691,7 +696,9 @@ static __init void xen_write_gdt_entry_boot(struct desc_struct *dt, int entry,
 static void xen_load_sp0(struct tss_struct *tss,
 			 struct thread_struct *thread)
 {
-	struct multicall_space mcs = xen_mc_entry(0);
+	struct multicall_space mcs;
+
+	mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->sp0);
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 }
@@ -940,18 +947,22 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
 	return ret;
 }
 
-static const struct pv_info xen_info __initdata = {
+static const struct pv_info xen_info __initconst = {
 	.paravirt_enabled = 1,
 	.shared_kernel_pmd = 0,
+
+#ifdef CONFIG_X86_64
+	.extra_user_64bit_cs = FLAT_USER_CS64,
+#endif
 
 	.name = "Xen",
 };
 
-static const struct pv_init_ops xen_init_ops __initdata = {
+static const struct pv_init_ops xen_init_ops __initconst = {
 	.patch = xen_patch,
 };
 
-static const struct pv_cpu_ops xen_cpu_ops __initdata = {
+static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.cpuid = xen_cpuid,
 
 	.set_debugreg = xen_set_debugreg,
@@ -1011,7 +1022,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.end_context_switch = xen_end_context_switch,
 };
 
-static const struct pv_apic_ops xen_apic_ops __initdata = {
+static const struct pv_apic_ops xen_apic_ops __initconst = {
 #ifdef CONFIG_X86_LOCAL_APIC
 	.startup_ipi_hook = paravirt_nop,
 #endif
@@ -1040,6 +1051,13 @@ static void xen_machine_halt(void)
 	xen_reboot(SHUTDOWN_poweroff);
 }
 
+static void xen_machine_power_off(void)
+{
+	if (pm_power_off)
+		pm_power_off();
+	xen_reboot(SHUTDOWN_poweroff);
+}
+
 static void xen_crash_shutdown(struct pt_regs *regs)
 {
 	xen_reboot(SHUTDOWN_crash);
@@ -1062,10 +1080,10 @@ int xen_panic_handler_init(void)
 	return 0;
 }
 
-static const struct machine_ops __initdata xen_machine_ops = {
+static const struct machine_ops xen_machine_ops __initconst = {
 	.restart = xen_restart,
 	.halt = xen_machine_halt,
-	.power_off = xen_machine_halt,
+	.power_off = xen_machine_power_off,
 	.shutdown = xen_machine_halt,
 	.crash_shutdown = xen_crash_shutdown,
 	.emergency_restart = xen_emergency_restart,
@@ -1248,6 +1266,14 @@ asmlinkage void __init xen_start_kernel(void)
 		if (pci_xen)
 			x86_init.pci.arch_init = pci_xen_init;
 	} else {
+		const struct dom0_vga_console_info *info =
+			(void *)((char *)xen_start_info +
+				 xen_start_info->console.dom0.info_off);
+
+		xen_init_vga(info, xen_start_info->console.dom0.info_size);
+		xen_start_info->console.domU.mfn = 0;
+		xen_start_info->console.domU.evtchn = 0;
+
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
@@ -1284,15 +1310,14 @@ static int init_hvm_pv_info(int *major, int *minor)
 
 	xen_setup_features();
 
-	pv_info = xen_info;
-	pv_info.kernel_rpl = 0;
+	pv_info.name = "Xen HVM";
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
 	return 0;
 }
 
-void xen_hvm_init_shared_info(void)
+void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
 	struct xen_add_to_physmap xatp;
@@ -1331,6 +1356,8 @@ static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 	switch (action) {
 	case CPU_UP_PREPARE:
 		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
+		if (xen_have_vector_callback)
+			xen_init_lock_cpu(cpu);
 		break;
 	default:
 		break;
@@ -1338,7 +1365,7 @@ static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata xen_hvm_cpu_notifier = {
+static struct notifier_block xen_hvm_cpu_notifier __cpuinitdata = {
 	.notifier_call	= xen_hvm_cpu_notify,
 };
 
@@ -1355,6 +1382,7 @@ static void __init xen_hvm_guest_init(void)
 
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
+	xen_hvm_smp_init();
 	register_cpu_notifier(&xen_hvm_cpu_notifier);
 	xen_unplug_emulated_devices();
 	have_vcpu_info_placement = 0;
@@ -1386,7 +1414,7 @@ bool xen_hvm_need_lapic(void)
 }
 EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
-const __refconst struct hypervisor_x86 x86_hyper_xen_hvm = {
+const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
 	.name			= "Xen HVM",
 	.detect			= xen_hvm_platform,
 	.init_platform		= xen_hvm_guest_init,

@@ -223,7 +223,7 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	    || !(dest->flags & IP_VS_DEST_F_AVAILABLE)
 	    || atomic_read(&dest->weight) <= 0
 	    || is_overloaded(dest)) {
-		IP_VS_ERR_RL("SH: no destination available\n");
+		ip_vs_scheduler_err(svc, "no destination available");
 		return NULL;
 	}
 

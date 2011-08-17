@@ -149,12 +149,12 @@ static int param_get_debug_level(char *buffer, const struct kernel_param *kp)
 	return result;
 }
 
-static struct kernel_param_ops param_ops_debug_layer = {
+static const struct kernel_param_ops param_ops_debug_layer = {
 	.set = param_set_uint,
 	.get = param_get_debug_layer,
 };
 
-static struct kernel_param_ops param_ops_debug_level = {
+static const struct kernel_param_ops param_ops_debug_level = {
 	.set = param_set_uint,
 	.get = param_get_debug_level,
 };
@@ -219,6 +219,14 @@ static int param_get_trace_state(char *buffer, struct kernel_param *kp)
 module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
 		  NULL, 0644);
 #endif /* CONFIG_ACPI_DEBUG */
+
+
+/* /sys/modules/acpi/parameters/aml_debug_output */
+
+module_param_named(aml_debug_output, acpi_gbl_enable_aml_debug_object,
+		   bool, 0644);
+MODULE_PARM_DESC(aml_debug_output,
+		 "To enable/disable the ACPI Debug Object output.");
 
 /* /sys/module/acpi/parameters/acpica_version */
 static int param_get_acpica_version(char *buffer, struct kernel_param *kp)

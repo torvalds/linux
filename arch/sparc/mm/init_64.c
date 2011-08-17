@@ -862,7 +862,7 @@ static void init_node_masks_nonnuma(void)
 	for (i = 0; i < NR_CPUS; i++)
 		numa_cpu_lookup_table[i] = 0;
 
-	numa_cpumask_lookup_table[0] = CPU_MASK_ALL;
+	cpumask_setall(&numa_cpumask_lookup_table[0]);
 }
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -1080,7 +1080,7 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 {
 	u64 arc;
 
-	cpus_clear(*mask);
+	cpumask_clear(mask);
 
 	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(md, arc);
@@ -1091,7 +1091,7 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 			continue;
 		id = mdesc_get_property(md, target, "id", NULL);
 		if (*id < nr_cpu_ids)
-			cpu_set(*id, *mask);
+			cpumask_set_cpu(*id, mask);
 	}
 }
 
@@ -1153,13 +1153,13 @@ static int __init numa_parse_mdesc_group(struct mdesc_handle *md, u64 grp,
 
 	numa_parse_mdesc_group_cpus(md, grp, &mask);
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, &mask)
 		numa_cpu_lookup_table[cpu] = index;
-	numa_cpumask_lookup_table[index] = mask;
+	cpumask_copy(&numa_cpumask_lookup_table[index], &mask);
 
 	if (numa_debug) {
 		printk(KERN_INFO "NUMA GROUP[%d]: cpus [ ", index);
-		for_each_cpu_mask(cpu, mask)
+		for_each_cpu(cpu, &mask)
 			printk("%d ", cpu);
 		printk("]\n");
 	}
@@ -1218,7 +1218,7 @@ static int __init numa_parse_jbus(void)
 	index = 0;
 	for_each_present_cpu(cpu) {
 		numa_cpu_lookup_table[cpu] = index;
-		numa_cpumask_lookup_table[index] = cpumask_of_cpu(cpu);
+		cpumask_copy(&numa_cpumask_lookup_table[index], cpumask_of(cpu));
 		node_masks[index].mask = ~((1UL << 36UL) - 1UL);
 		node_masks[index].val = cpu << 36UL;
 
@@ -1597,6 +1597,44 @@ static void __init tsb_phys_patch(void)
 static struct hv_tsb_descr ktsb_descr[NUM_KTSB_DESCR];
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
+static void patch_one_ktsb_phys(unsigned int *start, unsigned int *end, unsigned long pa)
+{
+	pa >>= KTSB_PHYS_SHIFT;
+
+	while (start < end) {
+		unsigned int *ia = (unsigned int *)(unsigned long)*start;
+
+		ia[0] = (ia[0] & ~0x3fffff) | (pa >> 10);
+		__asm__ __volatile__("flush	%0" : : "r" (ia));
+
+		ia[1] = (ia[1] & ~0x3ff) | (pa & 0x3ff);
+		__asm__ __volatile__("flush	%0" : : "r" (ia + 1));
+
+		start++;
+	}
+}
+
+static void ktsb_phys_patch(void)
+{
+	extern unsigned int __swapper_tsb_phys_patch;
+	extern unsigned int __swapper_tsb_phys_patch_end;
+	unsigned long ktsb_pa;
+
+	ktsb_pa = kern_base + ((unsigned long)&swapper_tsb[0] - KERNBASE);
+	patch_one_ktsb_phys(&__swapper_tsb_phys_patch,
+			    &__swapper_tsb_phys_patch_end, ktsb_pa);
+#ifndef CONFIG_DEBUG_PAGEALLOC
+	{
+	extern unsigned int __swapper_4m_tsb_phys_patch;
+	extern unsigned int __swapper_4m_tsb_phys_patch_end;
+	ktsb_pa = (kern_base +
+		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
+	patch_one_ktsb_phys(&__swapper_4m_tsb_phys_patch,
+			    &__swapper_4m_tsb_phys_patch_end, ktsb_pa);
+	}
+#endif
+}
+
 static void __init sun4v_ktsb_init(void)
 {
 	unsigned long ktsb_pa;
@@ -1625,7 +1663,7 @@ static void __init sun4v_ktsb_init(void)
 		ktsb_descr[0].pgsz_idx = HV_PGSZ_IDX_4MB;
 		ktsb_descr[0].pgsz_mask = HV_PGSZ_MASK_4MB;
 		break;
-	};
+	}
 
 	ktsb_descr[0].assoc = 1;
 	ktsb_descr[0].num_ttes = KERNEL_TSB_NENTRIES;
@@ -1716,8 +1754,10 @@ void __init paging_init(void)
 		sun4u_pgprot_init();
 
 	if (tlb_type == cheetah_plus ||
-	    tlb_type == hypervisor)
+	    tlb_type == hypervisor) {
 		tsb_phys_patch();
+		ktsb_phys_patch();
+	}
 
 	if (tlb_type == hypervisor) {
 		sun4v_patch_tlb_handlers();
@@ -2266,7 +2306,7 @@ unsigned long pte_sz_bits(unsigned long sz)
 			return _PAGE_SZ512K_4V;
 		case 4 * 1024 * 1024:
 			return _PAGE_SZ4MB_4V;
-		};
+		}
 	} else {
 		switch (sz) {
 		case 8 * 1024:
@@ -2278,7 +2318,7 @@ unsigned long pte_sz_bits(unsigned long sz)
 			return _PAGE_SZ512K_4U;
 		case 4 * 1024 * 1024:
 			return _PAGE_SZ4MB_4U;
-		};
+		}
 	}
 }
 

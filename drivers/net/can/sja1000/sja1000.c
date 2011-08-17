@@ -346,10 +346,10 @@ static void sja1000_rx(struct net_device *dev)
 		    | (priv->read_reg(priv, REG_ID2) >> 5);
 	}
 
+	cf->can_dlc = get_can_dlc(fi & 0x0F);
 	if (fi & FI_RTR) {
 		id |= CAN_RTR_FLAG;
 	} else {
-		cf->can_dlc = get_can_dlc(fi & 0x0F);
 		for (i = 0; i < cf->can_dlc; i++)
 			cf->data[i] = priv->read_reg(priv, dreg++);
 	}
@@ -425,7 +425,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 			cf->data[3] = ecc & ECC_SEG;
 			break;
 		}
-		/* Error occured during transmission? */
+		/* Error occurred during transmission? */
 		if ((ecc & ECC_DIR) == 0)
 			cf->data[2] |= CAN_ERR_PROT_TX;
 	}

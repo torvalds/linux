@@ -156,7 +156,7 @@ static struct my_data *get_entry()
 	struct my_data *entry = NULL;
 	mutex_lock(&mutex);
 	if (!list_empty(&q)) {
-		entry = container_of(q.next, struct my_q_entry, link);
+		entry = container_of(q.next, struct my_data, link);
 		kref_get(&entry->refcount);
 	}
 	mutex_unlock(&mutex);

@@ -225,7 +225,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 		      nr_irq_read_safe = 0, nr_irq_read_unsafe = 0,
 		      nr_softirq_read_safe = 0, nr_softirq_read_unsafe = 0,
 		      nr_hardirq_read_safe = 0, nr_hardirq_read_unsafe = 0,
-		      sum_forward_deps = 0, factor = 0;
+		      sum_forward_deps = 0;
 
 	list_for_each_entry(class, &all_lock_classes, lock_entry) {
 
@@ -282,13 +282,6 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			nr_irq_unsafe * nr_irq_safe +
 			nr_hardirq_unsafe * nr_hardirq_safe +
 			nr_list_entries);
-
-	/*
-	 * Estimated factor between direct and indirect
-	 * dependencies:
-	 */
-	if (nr_list_entries)
-		factor = sum_forward_deps / nr_list_entries;
 
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " dependency chains:             %11lu [max: %lu]\n",

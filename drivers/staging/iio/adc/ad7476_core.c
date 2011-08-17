@@ -6,13 +6,10 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
@@ -35,138 +32,121 @@ static int ad7476_scan_direct(struct ad7476_state *st)
 	return (st->data[0] << 8) | st->data[1];
 }
 
-static ssize_t ad7476_scan(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static int ad7476_read_raw(struct iio_dev *dev_info,
+			   struct iio_chan_spec const *chan,
+			   int *val,
+			   int *val2,
+			   long m)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7476_state *st = dev_info->dev_data;
 	int ret;
+	struct ad7476_state *st = iio_priv(dev_info);
+	unsigned int scale_uv;
 
-	mutex_lock(&dev_info->mlock);
-	if (iio_ring_enabled(dev_info))
-		ret = ad7476_scan_from_ring(st);
-	else
-		ret = ad7476_scan_direct(st);
-	mutex_unlock(&dev_info->mlock);
+	switch (m) {
+	case 0:
+		mutex_lock(&dev_info->mlock);
+		if (iio_ring_enabled(dev_info))
+			ret = ad7476_scan_from_ring(dev_info);
+		else
+			ret = ad7476_scan_direct(st);
+		mutex_unlock(&dev_info->mlock);
 
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d\n", (ret >> st->chip_info->res_shift) &
-		       RES_MASK(st->chip_info->bits));
+		if (ret < 0)
+			return ret;
+		*val = (ret >> st->chip_info->channel[0].scan_type.shift) &
+			RES_MASK(st->chip_info->channel[0].scan_type.realbits);
+		return IIO_VAL_INT;
+	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+		scale_uv = (st->int_vref_mv * 1000)
+			>> st->chip_info->channel[0].scan_type.realbits;
+		*val =  scale_uv/1000;
+		*val2 = (scale_uv%1000)*1000;
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+	return -EINVAL;
 }
-static IIO_DEV_ATTR_IN_RAW(0, ad7476_scan, 0);
-
-static ssize_t ad7476_show_scale(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	/* Driver currently only support internal vref */
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7476_state *st = iio_dev_get_devdata(dev_info);
-	/* Corresponds to Vref / 2^(bits) */
-	unsigned int scale_uv = (st->int_vref_mv * 1000) >> st->chip_info->bits;
-
-	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
-}
-static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7476_show_scale, NULL, 0);
-
-static ssize_t ad7476_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7476_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7476_show_name, NULL, 0);
-
-static struct attribute *ad7476_attributes[] = {
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_dev_attr_in_scale.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad7476_attribute_group = {
-	.attrs = ad7476_attributes,
-};
 
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7466] = {
-		.bits = 12,
-		.storagebits = 16,
-		.res_shift = 0,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7467] = {
-		.bits = 10,
-		.storagebits = 16,
-		.res_shift = 2,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 10, 16, 2), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7468] = {
-		.bits = 8,
-		.storagebits = 16,
-		.res_shift = 4,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1 , 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 8, 16, 4), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7475] = {
-		.bits = 12,
-		.storagebits = 16,
-		.res_shift = 0,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7476] = {
-		.bits = 12,
-		.storagebits = 16,
-		.res_shift = 0,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7477] = {
-		.bits = 10,
-		.storagebits = 16,
-		.res_shift = 2,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 10, 16, 2), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7478] = {
-		.bits = 8,
-		.storagebits = 16,
-		.res_shift = 4,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 8, 16, 4), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7495] = {
-		.bits = 12,
-		.storagebits = 16,
-		.res_shift = 0,
+		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.int_vref_mv = 2500,
-		.sign = IIO_SCAN_EL_TYPE_UNSIGNED,
 	},
+};
+
+static const struct iio_info ad7476_info = {
+	.driver_module = THIS_MODULE,
+	.read_raw = &ad7476_read_raw,
 };
 
 static int __devinit ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_platform_data *pdata = spi->dev.platform_data;
 	struct ad7476_state *st;
+	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
+	bool reg_done = false;
+	struct regulator *reg;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
+	indio_dev = iio_allocate_device(sizeof(*st));
+	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
+	st = iio_priv(indio_dev);
+	reg = regulator_get(&spi->dev, "vcc");
+	if (!IS_ERR(reg)) {
+		ret = regulator_enable(reg);
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(st->reg);
+		voltage_uv = regulator_get_voltage(reg);
 	}
-
+	st->reg = reg;
 	st->chip_info =
 		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
@@ -179,73 +159,70 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	else
 		dev_warn(&spi->dev, "reference voltage unspecified\n");
 
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
-	atomic_set(&st->protect_ring, 0);
 	st->spi = spi;
 
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
-
-	/* Estabilish that the iio_dev is a child of the i2c device */
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ad7476_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
-
+	/* Establish that the iio_dev is a child of the spi device */
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = st->chip_info->channel;
+	indio_dev->num_channels = 2;
+	indio_dev->info = &ad7476_info;
 	/* Setup default message */
 
 	st->xfer.rx_buf = &st->data;
-	st->xfer.len = st->chip_info->storagebits / 8;
+	st->xfer.len = st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	spi_message_init(&st->msg);
 	spi_message_add_tail(&st->xfer, &st->msg);
 
-	ret = ad7476_register_ring_funcs_and_init(st->indio_dev);
+	ret = ad7476_register_ring_funcs_and_init(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+					  st->chip_info->channel,
+					  ARRAY_SIZE(st->chip_info->channel));
 	if (ret)
 		goto error_cleanup_ring;
 	return 0;
 
 error_cleanup_ring:
-	ad7476_ring_cleanup(st->indio_dev);
-	iio_device_unregister(st->indio_dev);
-error_free_device:
-	iio_free_device(st->indio_dev);
+	ad7476_ring_cleanup(indio_dev);
+	iio_device_unregister(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
+	if (!IS_ERR(reg))
 		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-	kfree(st);
+	if (!IS_ERR(reg))
+		regulator_put(reg);
+	if (!reg_done)
+		iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
 
 static int ad7476_remove(struct spi_device *spi)
 {
-	struct ad7476_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad7476_state *st = iio_priv(indio_dev);
+	/* copy needed as st will have been freed */
+	struct regulator *reg = st->reg;
+
 	iio_ring_buffer_unregister(indio_dev->ring);
 	ad7476_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
-	if (!IS_ERR(st->reg)) {
-		regulator_disable(st->reg);
-		regulator_put(st->reg);
+	if (!IS_ERR(reg)) {
+		regulator_disable(reg);
+		regulator_put(reg);
 	}
-	kfree(st);
+
 	return 0;
 }
 

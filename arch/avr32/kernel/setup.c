@@ -391,6 +391,21 @@ static int __init parse_tag_clock(struct tag *tag)
 __tagtable(ATAG_CLOCK, parse_tag_clock);
 
 /*
+ * The board_number correspond to the bd->bi_board_number in U-Boot. This
+ * parameter is only available during initialisation and can be used in some
+ * kind of board identification.
+ */
+u32 __initdata board_number;
+
+static int __init parse_tag_boardinfo(struct tag *tag)
+{
+	board_number = tag->u.boardinfo.board_number;
+
+	return 0;
+}
+__tagtable(ATAG_BOARDINFO, parse_tag_boardinfo);
+
+/*
  * Scan the tag table for this tag, and call its parse function. The
  * tag table is built by the linker from all the __tagtable
  * declarations.
@@ -429,7 +444,7 @@ static unsigned long __init
 find_bootmap_pfn(const struct resource *mem)
 {
 	unsigned long bootmap_pages, bootmap_len;
-	unsigned long node_pages = PFN_UP(mem->end - mem->start + 1);
+	unsigned long node_pages = PFN_UP(resource_size(mem));
 	unsigned long bootmap_start;
 
 	bootmap_pages = bootmem_bootmap_pages(node_pages);
@@ -526,10 +541,10 @@ static void __init setup_bootmem(void)
 			 */
 			if (res->start >= PFN_PHYS(first_pfn)
 			    && res->end < PFN_PHYS(max_pfn))
-				reserve_bootmem_node(
-					NODE_DATA(node), res->start,
-					res->end - res->start + 1,
-					BOOTMEM_DEFAULT);
+				reserve_bootmem_node(NODE_DATA(node),
+						     res->start,
+						     resource_size(res),
+						     BOOTMEM_DEFAULT);
 		}
 
 		node_set_online(node);

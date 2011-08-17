@@ -43,7 +43,7 @@
 
 int __init pcmcia_collie_init(struct device *dev);
 
-static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
+static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) __devinitdata = {
 #ifdef CONFIG_SA1100_ASSABET
 	pcmcia_assabet_init,
 #endif

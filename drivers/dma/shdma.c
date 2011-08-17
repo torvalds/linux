@@ -48,7 +48,7 @@ enum sh_dmae_desc_status {
 
 /*
  * Used for write-side mutual exclusion for the global device list,
- * read-side synchronization by way of RCU.
+ * read-side synchronization by way of RCU, and per-controller data.
  */
 static DEFINE_SPINLOCK(sh_dmae_lock);
 static LIST_HEAD(sh_dmae_devices);
@@ -70,12 +70,36 @@ static u32 sh_dmae_readl(struct sh_dmae_chan *sh_dc, u32 reg)
 
 static u16 dmaor_read(struct sh_dmae_device *shdev)
 {
-	return __raw_readw(shdev->chan_reg + DMAOR / sizeof(u32));
+	u32 __iomem *addr = shdev->chan_reg + DMAOR / sizeof(u32);
+
+	if (shdev->pdata->dmaor_is_32bit)
+		return __raw_readl(addr);
+	else
+		return __raw_readw(addr);
 }
 
 static void dmaor_write(struct sh_dmae_device *shdev, u16 data)
 {
-	__raw_writew(data, shdev->chan_reg + DMAOR / sizeof(u32));
+	u32 __iomem *addr = shdev->chan_reg + DMAOR / sizeof(u32);
+
+	if (shdev->pdata->dmaor_is_32bit)
+		__raw_writel(data, addr);
+	else
+		__raw_writew(data, addr);
+}
+
+static void chcr_write(struct sh_dmae_chan *sh_dc, u32 data)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+
+	__raw_writel(data, sh_dc->base + shdev->chcr_offset / sizeof(u32));
+}
+
+static u32 chcr_read(struct sh_dmae_chan *sh_dc)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+
+	return __raw_readl(sh_dc->base + shdev->chcr_offset / sizeof(u32));
 }
 
 /*
@@ -85,29 +109,42 @@ static void dmaor_write(struct sh_dmae_device *shdev, u16 data)
  */
 static void sh_dmae_ctl_stop(struct sh_dmae_device *shdev)
 {
-	unsigned short dmaor = dmaor_read(shdev);
+	unsigned short dmaor;
+	unsigned long flags;
 
+	spin_lock_irqsave(&sh_dmae_lock, flags);
+
+	dmaor = dmaor_read(shdev);
 	dmaor_write(shdev, dmaor & ~(DMAOR_NMIF | DMAOR_AE | DMAOR_DME));
+
+	spin_unlock_irqrestore(&sh_dmae_lock, flags);
 }
 
 static int sh_dmae_rst(struct sh_dmae_device *shdev)
 {
 	unsigned short dmaor;
+	unsigned long flags;
 
-	sh_dmae_ctl_stop(shdev);
-	dmaor = dmaor_read(shdev) | shdev->pdata->dmaor_init;
+	spin_lock_irqsave(&sh_dmae_lock, flags);
 
-	dmaor_write(shdev, dmaor);
-	if (dmaor_read(shdev) & (DMAOR_AE | DMAOR_NMIF)) {
-		pr_warning("dma-sh: Can't initialize DMAOR.\n");
-		return -EINVAL;
+	dmaor = dmaor_read(shdev) & ~(DMAOR_NMIF | DMAOR_AE | DMAOR_DME);
+
+	dmaor_write(shdev, dmaor | shdev->pdata->dmaor_init);
+
+	dmaor = dmaor_read(shdev);
+
+	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+
+	if (dmaor & (DMAOR_AE | DMAOR_NMIF)) {
+		dev_warn(shdev->common.dev, "Can't initialize DMAOR.\n");
+		return -EIO;
 	}
 	return 0;
 }
 
 static bool dmae_is_busy(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	u32 chcr = chcr_read(sh_chan);
 
 	if ((chcr & (CHCR_DE | CHCR_TE)) == CHCR_DE)
 		return true; /* working */
@@ -117,8 +154,7 @@ static bool dmae_is_busy(struct sh_dmae_chan *sh_chan)
 
 static unsigned int calc_xmit_shift(struct sh_dmae_chan *sh_chan, u32 chcr)
 {
-	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
-						struct sh_dmae_device, common);
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int cnt = ((chcr & pdata->ts_low_mask) >> pdata->ts_low_shift) |
 		((chcr & pdata->ts_high_mask) >> pdata->ts_high_shift);
@@ -131,8 +167,7 @@ static unsigned int calc_xmit_shift(struct sh_dmae_chan *sh_chan, u32 chcr)
 
 static u32 log2size_to_chcr(struct sh_dmae_chan *sh_chan, int l2size)
 {
-	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
-						struct sh_dmae_device, common);
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int i;
 
@@ -156,18 +191,23 @@ static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)
 
 static void dmae_start(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
+	u32 chcr = chcr_read(sh_chan);
 
-	chcr |= CHCR_DE | CHCR_IE;
-	sh_dmae_writel(sh_chan, chcr & ~CHCR_TE, CHCR);
+	if (shdev->pdata->needs_tend_set)
+		sh_dmae_writel(sh_chan, 0xFFFFFFFF, TEND);
+
+	chcr |= CHCR_DE | shdev->chcr_ie_bit;
+	chcr_write(sh_chan, chcr & ~CHCR_TE);
 }
 
 static void dmae_halt(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
+	u32 chcr = chcr_read(sh_chan);
 
-	chcr &= ~(CHCR_DE | CHCR_TE | CHCR_IE);
-	sh_dmae_writel(sh_chan, chcr, CHCR);
+	chcr &= ~(CHCR_DE | CHCR_TE | shdev->chcr_ie_bit);
+	chcr_write(sh_chan, chcr);
 }
 
 static void dmae_init(struct sh_dmae_chan *sh_chan)
@@ -179,32 +219,39 @@ static void dmae_init(struct sh_dmae_chan *sh_chan)
 	u32 chcr = DM_INC | SM_INC | 0x400 | log2size_to_chcr(sh_chan,
 						   LOG2_DEFAULT_XFER_SIZE);
 	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, chcr);
-	sh_dmae_writel(sh_chan, chcr, CHCR);
+	chcr_write(sh_chan, chcr);
 }
 
 static int dmae_set_chcr(struct sh_dmae_chan *sh_chan, u32 val)
 {
-	/* When DMA was working, can not set data to CHCR */
+	/* If DMA is active, cannot set CHCR. TODO: remove this superfluous check */
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
 
 	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, val);
-	sh_dmae_writel(sh_chan, val, CHCR);
+	chcr_write(sh_chan, val);
 
 	return 0;
 }
 
 static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 {
-	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
-						struct sh_dmae_device, common);
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	const struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
-	u16 __iomem *addr = shdev->dmars + chan_pdata->dmars / sizeof(u16);
-	int shift = chan_pdata->dmars_bit;
+	u16 __iomem *addr = shdev->dmars;
+	unsigned int shift = chan_pdata->dmars_bit;
 
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
+
+	if (pdata->no_dmars)
+		return 0;
+
+	/* in the case of a missing DMARS resource use first memory window */
+	if (!addr)
+		addr = (u16 __iomem *)shdev->chan_reg;
+	addr += chan_pdata->dmars / sizeof(u16);
 
 	__raw_writew((__raw_readw(addr) & (0xff00 >> shift)) | (val << shift),
 		     addr);
@@ -278,9 +325,7 @@ static struct sh_desc *sh_dmae_get_desc(struct sh_dmae_chan *sh_chan)
 static const struct sh_dmae_slave_config *sh_dmae_find_slave(
 	struct sh_dmae_chan *sh_chan, struct sh_dmae_slave *param)
 {
-	struct dma_device *dma_dev = sh_chan->common.device;
-	struct sh_dmae_device *shdev = container_of(dma_dev,
-					struct sh_dmae_device, common);
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int i;
 
@@ -325,7 +370,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 
 		dmae_set_dmars(sh_chan, cfg->mid_rid);
 		dmae_set_chcr(sh_chan, cfg->chcr);
-	} else if ((sh_dmae_readl(sh_chan, CHCR) & 0xf00) != 0x400) {
+	} else {
 		dmae_init(sh_chan);
 	}
 
@@ -374,7 +419,12 @@ static void sh_dmae_free_chan_resources(struct dma_chan *chan)
 	LIST_HEAD(list);
 	int descs = sh_chan->descs_allocated;
 
+	/* Protect against ISR */
+	spin_lock_irq(&sh_chan->desc_lock);
 	dmae_halt(sh_chan);
+	spin_unlock_irq(&sh_chan->desc_lock);
+
+	/* Now no new interrupts will occur */
 
 	/* Prepared and not submitted descriptors can still be on the queue */
 	if (!list_empty(&sh_chan->ld_queue))
@@ -384,6 +434,7 @@ static void sh_dmae_free_chan_resources(struct dma_chan *chan)
 		/* The caller is holding dma_list_mutex */
 		struct sh_dmae_slave *param = chan->private;
 		clear_bit(param->slave_id, sh_dmae_slave_used);
+		chan->private = NULL;
 	}
 
 	spin_lock_bh(&sh_chan->desc_lock);
@@ -563,8 +614,6 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_memcpy(
 	if (!chan || !len)
 		return NULL;
 
-	chan->private = NULL;
-
 	sh_chan = to_sh_chan(chan);
 
 	sg_init_table(&sg, 1);
@@ -620,9 +669,9 @@ static int sh_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	if (!chan)
 		return -EINVAL;
 
+	spin_lock_bh(&sh_chan->desc_lock);
 	dmae_halt(sh_chan);
 
-	spin_lock_bh(&sh_chan->desc_lock);
 	if (!list_empty(&sh_chan->ld_queue)) {
 		/* Record partial transfer */
 		struct sh_desc *desc = list_entry(sh_chan->ld_queue.next,
@@ -716,6 +765,14 @@ static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all
 			list_move(&desc->node, &sh_chan->ld_free);
 		}
 	}
+
+	if (all && !callback)
+		/*
+		 * Terminating and the loop completed normally: forgive
+		 * uncompleted cookies
+		 */
+		sh_chan->completed_cookie = sh_chan->common.cookie;
+
 	spin_unlock_bh(&sh_chan->desc_lock);
 
 	if (callback)
@@ -733,10 +790,6 @@ static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all)
 {
 	while (__ld_cleanup(sh_chan, all))
 		;
-
-	if (all)
-		/* Terminating - forgive uncompleted cookies */
-		sh_chan->completed_cookie = sh_chan->common.cookie;
 }
 
 static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
@@ -745,12 +798,10 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 
 	spin_lock_bh(&sh_chan->desc_lock);
 	/* DMA work check */
-	if (dmae_is_busy(sh_chan)) {
-		spin_unlock_bh(&sh_chan->desc_lock);
-		return;
-	}
+	if (dmae_is_busy(sh_chan))
+		goto sh_chan_xfer_ld_queue_end;
 
-	/* Find the first not transferred desciptor */
+	/* Find the first not transferred descriptor */
 	list_for_each_entry(desc, &sh_chan->ld_queue, node)
 		if (desc->mark == DESC_SUBMITTED) {
 			dev_dbg(sh_chan->dev, "Queue #%d to %d: %u@%x -> %x\n",
@@ -762,6 +813,7 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 			break;
 		}
 
+sh_chan_xfer_ld_queue_end:
 	spin_unlock_bh(&sh_chan->desc_lock);
 }
 
@@ -782,8 +834,10 @@ static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 
 	sh_dmae_chan_ld_cleanup(sh_chan, false);
 
-	last_used = chan->cookie;
+	/* First read completed cookie to avoid a skew */
 	last_complete = sh_chan->completed_cookie;
+	rmb();
+	last_used = chan->cookie;
 	BUG_ON(last_complete < 0);
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
@@ -813,8 +867,12 @@ static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 static irqreturn_t sh_dmae_interrupt(int irq, void *data)
 {
 	irqreturn_t ret = IRQ_NONE;
-	struct sh_dmae_chan *sh_chan = (struct sh_dmae_chan *)data;
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	struct sh_dmae_chan *sh_chan = data;
+	u32 chcr;
+
+	spin_lock(&sh_chan->desc_lock);
+
+	chcr = chcr_read(sh_chan);
 
 	if (chcr & CHCR_TE) {
 		/* DMA stop */
@@ -824,10 +882,13 @@ static irqreturn_t sh_dmae_interrupt(int irq, void *data)
 		tasklet_schedule(&sh_chan->tasklet);
 	}
 
+	spin_unlock(&sh_chan->desc_lock);
+
 	return ret;
 }
 
-static unsigned int sh_dmae_reset(struct sh_dmae_device *shdev)
+/* Called from error IRQ or NMI */
+static bool sh_dmae_reset(struct sh_dmae_device *shdev)
 {
 	unsigned int handled = 0;
 	int i;
@@ -839,22 +900,32 @@ static unsigned int sh_dmae_reset(struct sh_dmae_device *shdev)
 	for (i = 0; i < SH_DMAC_MAX_CHANNELS; i++) {
 		struct sh_dmae_chan *sh_chan = shdev->chan[i];
 		struct sh_desc *desc;
+		LIST_HEAD(dl);
 
 		if (!sh_chan)
 			continue;
 
+		spin_lock(&sh_chan->desc_lock);
+
 		/* Stop the channel */
 		dmae_halt(sh_chan);
 
+		list_splice_init(&sh_chan->ld_queue, &dl);
+
+		spin_unlock(&sh_chan->desc_lock);
+
 		/* Complete all  */
-		list_for_each_entry(desc, &sh_chan->ld_queue, node) {
+		list_for_each_entry(desc, &dl, node) {
 			struct dma_async_tx_descriptor *tx = &desc->async_tx;
 			desc->mark = DESC_IDLE;
 			if (tx->callback)
 				tx->callback(tx->callback_param);
 		}
 
-		list_splice_init(&sh_chan->ld_queue, &sh_chan->ld_free);
+		spin_lock(&sh_chan->desc_lock);
+		list_splice(&dl, &sh_chan->ld_free);
+		spin_unlock(&sh_chan->desc_lock);
+
 		handled++;
 	}
 
@@ -865,7 +936,13 @@ static unsigned int sh_dmae_reset(struct sh_dmae_device *shdev)
 
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
-	return IRQ_RETVAL(sh_dmae_reset(data));
+	struct sh_dmae_device *shdev = data;
+
+	if (!(dmaor_read(shdev) & DMAOR_AE))
+		return IRQ_NONE;
+
+	sh_dmae_reset(data);
+	return IRQ_HANDLED;
 }
 
 static void dmae_do_tasklet(unsigned long data)
@@ -897,17 +974,11 @@ static void dmae_do_tasklet(unsigned long data)
 
 static bool sh_dmae_nmi_notify(struct sh_dmae_device *shdev)
 {
-	unsigned int handled;
-
 	/* Fast path out if NMIF is not asserted for this controller */
 	if ((dmaor_read(shdev) & DMAOR_NMIF) == 0)
 		return false;
 
-	handled = sh_dmae_reset(shdev);
-	if (handled)
-		return true;
-
-	return false;
+	return sh_dmae_reset(shdev);
 }
 
 static int sh_dmae_nmi_handler(struct notifier_block *self,
@@ -977,9 +1048,6 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 	tasklet_init(&new_sh_chan->tasklet, dmae_do_tasklet,
 			(unsigned long)new_sh_chan);
 
-	/* Init the channel */
-	dmae_init(new_sh_chan);
-
 	spin_lock_init(&new_sh_chan->desc_lock);
 
 	/* Init descripter manage list */
@@ -1040,9 +1108,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	struct sh_dmae_pdata *pdata = pdev->dev.platform_data;
 	unsigned long irqflags = IRQF_DISABLED,
 		chan_flag[SH_DMAC_MAX_CHANNELS] = {};
-	unsigned long flags;
 	int errirq, chan_irq[SH_DMAC_MAX_CHANNELS];
-	int err, i, irq_cnt = 0, irqres = 0;
+	int err, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
 	struct sh_dmae_device *shdev;
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
 
@@ -1051,7 +1118,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	chan = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* DMARS area is optional, if absent, this controller cannot do slave DMA */
+	/* DMARS area is optional */
 	dmars = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	/*
 	 * IRQ resources:
@@ -1103,14 +1170,26 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	/* platform data */
 	shdev->pdata = pdata;
 
+	if (pdata->chcr_offset)
+		shdev->chcr_offset = pdata->chcr_offset;
+	else
+		shdev->chcr_offset = CHCR;
+
+	if (pdata->chcr_ie_bit)
+		shdev->chcr_ie_bit = pdata->chcr_ie_bit;
+	else
+		shdev->chcr_ie_bit = CHCR_IE;
+
+	platform_set_drvdata(pdev, shdev);
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	spin_lock_irqsave(&sh_dmae_lock, flags);
+	spin_lock_irq(&sh_dmae_lock);
 	list_add_tail_rcu(&shdev->node, &sh_dmae_devices);
-	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+	spin_unlock_irq(&sh_dmae_lock);
 
-	/* reset dma controller */
+	/* reset dma controller - only needed as a test */
 	err = sh_dmae_rst(shdev);
 	if (err)
 		goto rst_err;
@@ -1118,7 +1197,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&shdev->common.channels);
 
 	dma_cap_set(DMA_MEMCPY, shdev->common.cap_mask);
-	if (dmars)
+	if (pdata->slave && pdata->slave_num)
 		dma_cap_set(DMA_SLAVE, shdev->common.cap_mask);
 
 	shdev->common.device_alloc_chan_resources
@@ -1167,12 +1246,22 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	    !platform_get_resource(pdev, IORESOURCE_IRQ, 1)) {
 		/* Special case - all multiplexed */
 		for (; irq_cnt < pdata->channel_num; irq_cnt++) {
-			chan_irq[irq_cnt] = chanirq_res->start;
-			chan_flag[irq_cnt] = IRQF_SHARED;
+			if (irq_cnt < SH_DMAC_MAX_CHANNELS) {
+				chan_irq[irq_cnt] = chanirq_res->start;
+				chan_flag[irq_cnt] = IRQF_SHARED;
+			} else {
+				irq_cap = 1;
+				break;
+			}
 		}
 	} else {
 		do {
 			for (i = chanirq_res->start; i <= chanirq_res->end; i++) {
+				if (irq_cnt >= SH_DMAC_MAX_CHANNELS) {
+					irq_cap = 1;
+					break;
+				}
+
 				if ((errirq_res->flags & IORESOURCE_BITS) ==
 				    IORESOURCE_IRQ_SHAREABLE)
 					chan_flag[irq_cnt] = IRQF_SHARED;
@@ -1183,45 +1272,55 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 					i, irq_cnt);
 				chan_irq[irq_cnt++] = i;
 			}
+
+			if (irq_cnt >= SH_DMAC_MAX_CHANNELS)
+				break;
+
 			chanirq_res = platform_get_resource(pdev,
 						IORESOURCE_IRQ, ++irqres);
 		} while (irq_cnt < pdata->channel_num && chanirq_res);
 	}
 
-	if (irq_cnt < pdata->channel_num)
-		goto eirqres;
-
 	/* Create DMA Channel */
-	for (i = 0; i < pdata->channel_num; i++) {
+	for (i = 0; i < irq_cnt; i++) {
 		err = sh_dmae_chan_probe(shdev, i, chan_irq[i], chan_flag[i]);
 		if (err)
 			goto chan_probe_err;
 	}
 
+	if (irq_cap)
+		dev_notice(&pdev->dev, "Attempting to register %d DMA "
+			   "channels when a maximum of %d are supported.\n",
+			   pdata->channel_num, SH_DMAC_MAX_CHANNELS);
+
 	pm_runtime_put(&pdev->dev);
 
-	platform_set_drvdata(pdev, shdev);
 	dma_async_device_register(&shdev->common);
 
 	return err;
 
 chan_probe_err:
 	sh_dmae_chan_remove(shdev);
-eirqres:
+
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 	free_irq(errirq, shdev);
 eirq_err:
 #endif
 rst_err:
-	spin_lock_irqsave(&sh_dmae_lock, flags);
+	spin_lock_irq(&sh_dmae_lock);
 	list_del_rcu(&shdev->node);
-	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+	spin_unlock_irq(&sh_dmae_lock);
 
 	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	if (dmars)
 		iounmap(shdev->dmars);
+
+	platform_set_drvdata(pdev, NULL);
 emapdmars:
 	iounmap(shdev->chan_reg);
+	synchronize_rcu();
 emapchan:
 	kfree(shdev);
 ealloc:
@@ -1237,7 +1336,6 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 {
 	struct sh_dmae_device *shdev = platform_get_drvdata(pdev);
 	struct resource *res;
-	unsigned long flags;
 	int errirq = platform_get_irq(pdev, 0);
 
 	dma_async_device_unregister(&shdev->common);
@@ -1245,9 +1343,9 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 	if (errirq > 0)
 		free_irq(errirq, shdev);
 
-	spin_lock_irqsave(&sh_dmae_lock, flags);
+	spin_lock_irq(&sh_dmae_lock);
 	list_del_rcu(&shdev->node);
-	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+	spin_unlock_irq(&sh_dmae_lock);
 
 	/* channel data remove */
 	sh_dmae_chan_remove(shdev);
@@ -1258,6 +1356,9 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 		iounmap(shdev->dmars);
 	iounmap(shdev->chan_reg);
 
+	platform_set_drvdata(pdev, NULL);
+
+	synchronize_rcu();
 	kfree(shdev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1276,12 +1377,78 @@ static void sh_dmae_shutdown(struct platform_device *pdev)
 	sh_dmae_ctl_stop(shdev);
 }
 
+static int sh_dmae_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int sh_dmae_runtime_resume(struct device *dev)
+{
+	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
+
+	return sh_dmae_rst(shdev);
+}
+
+#ifdef CONFIG_PM
+static int sh_dmae_suspend(struct device *dev)
+{
+	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < shdev->pdata->channel_num; i++) {
+		struct sh_dmae_chan *sh_chan = shdev->chan[i];
+		if (sh_chan->descs_allocated)
+			sh_chan->pm_error = pm_runtime_put_sync(dev);
+	}
+
+	return 0;
+}
+
+static int sh_dmae_resume(struct device *dev)
+{
+	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < shdev->pdata->channel_num; i++) {
+		struct sh_dmae_chan *sh_chan = shdev->chan[i];
+		struct sh_dmae_slave *param = sh_chan->common.private;
+
+		if (!sh_chan->descs_allocated)
+			continue;
+
+		if (!sh_chan->pm_error)
+			pm_runtime_get_sync(dev);
+
+		if (param) {
+			const struct sh_dmae_slave_config *cfg = param->config;
+			dmae_set_dmars(sh_chan, cfg->mid_rid);
+			dmae_set_chcr(sh_chan, cfg->chcr);
+		} else {
+			dmae_init(sh_chan);
+		}
+	}
+
+	return 0;
+}
+#else
+#define sh_dmae_suspend NULL
+#define sh_dmae_resume NULL
+#endif
+
+const struct dev_pm_ops sh_dmae_pm = {
+	.suspend		= sh_dmae_suspend,
+	.resume			= sh_dmae_resume,
+	.runtime_suspend	= sh_dmae_runtime_suspend,
+	.runtime_resume		= sh_dmae_runtime_resume,
+};
+
 static struct platform_driver sh_dmae_driver = {
 	.remove		= __exit_p(sh_dmae_remove),
 	.shutdown	= sh_dmae_shutdown,
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "sh-dma-engine",
+		.pm	= &sh_dmae_pm,
 	},
 };
 

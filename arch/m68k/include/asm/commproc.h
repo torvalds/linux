@@ -88,7 +88,7 @@ typedef struct cpm_buf_desc {
 
 
 /* rx bd status/control bits */
-#define BD_SC_EMPTY	((ushort)0x8000)	/* Recieve is empty */
+#define BD_SC_EMPTY	((ushort)0x8000)	/* Receive is empty */
 #define BD_SC_WRAP	((ushort)0x2000)	/* Last buffer descriptor in table */
 #define BD_SC_INTRPT	((ushort)0x1000)	/* Interrupt on change */
 #define BD_SC_LAST	((ushort)0x0800)	/* Last buffer in frame OR control char */
@@ -96,7 +96,7 @@ typedef struct cpm_buf_desc {
 #define BD_SC_FIRST	((ushort)0x0400)	/* 1st buffer in an HDLC frame */
 #define BD_SC_ADDR	((ushort)0x0400)	/* 1st byte is a multidrop address */
 
-#define BD_SC_CM	((ushort)0x0200)	/* Continous mode */
+#define BD_SC_CM	((ushort)0x0200)	/* Continuous mode */
 #define BD_SC_ID	((ushort)0x0100)	/* Received too many idles */
 
 #define BD_SC_AM	((ushort)0x0080)	/* Multidrop address match */

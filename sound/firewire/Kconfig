@@ -1,0 +1,36 @@
+menuconfig SND_FIREWIRE
+	bool "FireWire sound devices"
+	depends on FIREWIRE
+	default y
+	help
+	  Support for IEEE-1394/FireWire/iLink sound devices.
+
+if SND_FIREWIRE && FIREWIRE
+
+config SND_FIREWIRE_LIB
+	tristate
+	depends on SND_PCM
+
+config SND_FIREWIRE_SPEAKERS
+	tristate "FireWire speakers"
+	select SND_PCM
+	select SND_FIREWIRE_LIB
+	help
+	  Say Y here to include support for the Griffin FireWave Surround
+	  and the LaCie FireWire Speakers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-firewire-speakers.
+
+config SND_ISIGHT
+	tristate "Apple iSight microphone"
+	select SND_PCM
+	select SND_FIREWIRE_LIB
+	help
+	  Say Y here to include support for the front and rear microphones
+	  of the Apple iSight web camera.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-isight.
+
+endif # SND_FIREWIRE

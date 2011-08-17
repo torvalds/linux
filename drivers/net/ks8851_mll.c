@@ -23,6 +23,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -34,6 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <asm/io.h>
 
 #define	DRV_NAME	"ks8851_mll"
 
@@ -470,7 +472,7 @@ static int msg_enable;
  *
  * All these calls issue transactions to access the chip's registers. They
  * all require that the necessary lock is held to prevent accesses when the
- * chip is busy transfering packet data (RX/TX FIFO accesses).
+ * chip is busy transferring packet data (RX/TX FIFO accesses).
  */
 
 /**
@@ -1188,8 +1190,6 @@ static void ks_set_rx_mode(struct net_device *netdev)
 			int i = 0;
 
 			netdev_for_each_mc_addr(ha, netdev) {
-				if (!(*ha->addr & 1))
-					continue;
 				if (i >= MAX_MCAST_LST)
 					break;
 				memcpy(ks->mcast_lst[i++], ha->addr, ETH_ALEN);
@@ -1364,7 +1364,7 @@ static int ks_phy_reg(int reg)
  * @reg: The register to read.
  *
  * This call reads data from the PHY register specified in @reg. Since the
- * device does not support all the MII registers, the non-existant values
+ * device does not support all the MII registers, the non-existent values
  * are always returned as zero.
  *
  * We return zero for unsupported registers as the MII code does not check

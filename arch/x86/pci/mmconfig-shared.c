@@ -519,7 +519,8 @@ static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 	if (cfg->address < 0xFFFFFFFF)
 		return 0;
 
-	if (!strcmp(mcfg->header.oem_id, "SGI"))
+	if (!strcmp(mcfg->header.oem_id, "SGI") ||
+			!strcmp(mcfg->header.oem_id, "SGI2"))
 		return 0;
 
 	if (mcfg->header.revision >= 1) {
@@ -605,6 +606,16 @@ static void __init __pci_mmcfg_init(int early)
 
 	if (list_empty(&pci_mmcfg_list))
 		return;
+
+	if (pcibios_last_bus < 0) {
+		const struct pci_mmcfg_region *cfg;
+
+		list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+			if (cfg->segment)
+				break;
+			pcibios_last_bus = cfg->end_bus;
+		}
+	}
 
 	if (pci_mmcfg_arch_init())
 		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;

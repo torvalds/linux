@@ -293,7 +293,7 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		__entry->buffer_length = bp->b_buffer_length;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
 	),
@@ -323,7 +323,7 @@ DEFINE_BUF_EVENT(xfs_buf_bawrite);
 DEFINE_BUF_EVENT(xfs_buf_bdwrite);
 DEFINE_BUF_EVENT(xfs_buf_lock);
 DEFINE_BUF_EVENT(xfs_buf_lock_done);
-DEFINE_BUF_EVENT(xfs_buf_cond_lock);
+DEFINE_BUF_EVENT(xfs_buf_trylock);
 DEFINE_BUF_EVENT(xfs_buf_unlock);
 DEFINE_BUF_EVENT(xfs_buf_iowait);
 DEFINE_BUF_EVENT(xfs_buf_iowait_done);
@@ -366,7 +366,7 @@ DECLARE_EVENT_CLASS(xfs_buf_flags_class,
 		__entry->flags = flags;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
@@ -409,7 +409,7 @@ TRACE_EVENT(xfs_buf_ioerror,
 		__entry->buffer_length = bp->b_buffer_length;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->error = error;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
@@ -454,7 +454,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->buf_flags = bip->bli_buf->b_flags;
 		__entry->buf_hold = atomic_read(&bip->bli_buf->b_hold);
 		__entry->buf_pincount = atomic_read(&bip->bli_buf->b_pin_count);
-		__entry->buf_lockval = xfs_buf_lock_value(bip->bli_buf);
+		__entry->buf_lockval = bip->bli_buf->b_sema.count;
 		__entry->li_desc = bip->bli_item.li_desc;
 		__entry->li_flags = bip->bli_item.li_flags;
 	),
@@ -571,7 +571,7 @@ DEFINE_INODE_EVENT(xfs_alloc_file_space);
 DEFINE_INODE_EVENT(xfs_free_file_space);
 DEFINE_INODE_EVENT(xfs_readdir);
 #ifdef CONFIG_XFS_POSIX_ACL
-DEFINE_INODE_EVENT(xfs_check_acl);
+DEFINE_INODE_EVENT(xfs_get_acl);
 #endif
 DEFINE_INODE_EVENT(xfs_vm_bmap);
 DEFINE_INODE_EVENT(xfs_file_ioctl);
@@ -998,7 +998,8 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
-		__field(loff_t, size)
+		__field(loff_t, isize)
+		__field(loff_t, disize)
 		__field(loff_t, new_size)
 		__field(loff_t, offset)
 		__field(size_t, count)
@@ -1006,16 +1007,18 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->isize = ip->i_size;
+		__entry->disize = ip->i_d.di_size;
 		__entry->new_size = ip->i_new_size;
 		__entry->offset = offset;
 		__entry->count = count;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx "
+	TP_printk("dev %d:%d ino 0x%llx isize 0x%llx disize 0x%llx new_size 0x%llx "
 		  "offset 0x%llx count %zd",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __entry->size,
+		  __entry->isize,
+		  __entry->disize,
 		  __entry->new_size,
 		  __entry->offset,
 		  __entry->count)
@@ -1028,40 +1031,7 @@ DEFINE_EVENT(xfs_simple_io_class, name,	\
 DEFINE_SIMPLE_IO_EVENT(xfs_delalloc_enospc);
 DEFINE_SIMPLE_IO_EVENT(xfs_unwritten_convert);
 DEFINE_SIMPLE_IO_EVENT(xfs_get_blocks_notfound);
-
-
-TRACE_EVENT(xfs_itruncate_start,
-	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size, int flag,
-		 xfs_off_t toss_start, xfs_off_t toss_finish),
-	TP_ARGS(ip, new_size, flag, toss_start, toss_finish),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_ino_t, ino)
-		__field(xfs_fsize_t, size)
-		__field(xfs_fsize_t, new_size)
-		__field(xfs_off_t, toss_start)
-		__field(xfs_off_t, toss_finish)
-		__field(int, flag)
-	),
-	TP_fast_assign(
-		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
-		__entry->new_size = new_size;
-		__entry->toss_start = toss_start;
-		__entry->toss_finish = toss_finish;
-		__entry->flag = flag;
-	),
-	TP_printk("dev %d:%d ino 0x%llx %s size 0x%llx new_size 0x%llx "
-		  "toss start 0x%llx toss finish 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
-		  __print_flags(__entry->flag, "|", XFS_ITRUNC_FLAGS),
-		  __entry->size,
-		  __entry->new_size,
-		  __entry->toss_start,
-		  __entry->toss_finish)
-);
+DEFINE_SIMPLE_IO_EVENT(xfs_setfilesize);
 
 DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size),
@@ -1089,8 +1059,8 @@ DECLARE_EVENT_CLASS(xfs_itrunc_class,
 DEFINE_EVENT(xfs_itrunc_class, name, \
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size), \
 	TP_ARGS(ip, new_size))
-DEFINE_ITRUNC_EVENT(xfs_itruncate_finish_start);
-DEFINE_ITRUNC_EVENT(xfs_itruncate_finish_end);
+DEFINE_ITRUNC_EVENT(xfs_itruncate_data_start);
+DEFINE_ITRUNC_EVENT(xfs_itruncate_data_end);
 
 TRACE_EVENT(xfs_pagecache_inval,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t start, xfs_off_t finish),
@@ -1151,44 +1121,7 @@ TRACE_EVENT(xfs_bunmap,
 
 );
 
-#define XFS_BUSY_SYNC \
-	{ 0,	"async" }, \
-	{ 1,	"sync" }
-
-TRACE_EVENT(xfs_alloc_busy,
-	TP_PROTO(struct xfs_trans *trans, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len, int sync),
-	TP_ARGS(trans, agno, agbno, len, sync),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(struct xfs_trans *, tp)
-		__field(int, tid)
-		__field(xfs_agnumber_t, agno)
-		__field(xfs_agblock_t, agbno)
-		__field(xfs_extlen_t, len)
-		__field(int, sync)
-	),
-	TP_fast_assign(
-		__entry->dev = trans->t_mountp->m_super->s_dev;
-		__entry->tp = trans;
-		__entry->tid = trans->t_ticket->t_tid;
-		__entry->agno = agno;
-		__entry->agbno = agbno;
-		__entry->len = len;
-		__entry->sync = sync;
-	),
-	TP_printk("dev %d:%d trans 0x%p tid 0x%x agno %u agbno %u len %u %s",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->tp,
-		  __entry->tid,
-		  __entry->agno,
-		  __entry->agbno,
-		  __entry->len,
-		  __print_symbolic(__entry->sync, XFS_BUSY_SYNC))
-
-);
-
-TRACE_EVENT(xfs_alloc_unbusy,
+DECLARE_EVENT_CLASS(xfs_busy_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len),
 	TP_ARGS(mp, agno, agbno, len),
@@ -1210,35 +1143,45 @@ TRACE_EVENT(xfs_alloc_unbusy,
 		  __entry->agbno,
 		  __entry->len)
 );
+#define DEFINE_BUSY_EVENT(name) \
+DEFINE_EVENT(xfs_busy_class, name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+		 xfs_agblock_t agbno, xfs_extlen_t len), \
+	TP_ARGS(mp, agno, agbno, len))
+DEFINE_BUSY_EVENT(xfs_alloc_busy);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_enomem);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_force);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_reuse);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_clear);
 
-#define XFS_BUSY_STATES \
-	{ 0,	"missing" }, \
-	{ 1,	"found" }
-
-TRACE_EVENT(xfs_alloc_busysearch,
+TRACE_EVENT(xfs_alloc_busy_trim,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len, int found),
-	TP_ARGS(mp, agno, agbno, len, found),
+		 xfs_agblock_t agbno, xfs_extlen_t len,
+		 xfs_agblock_t tbno, xfs_extlen_t tlen),
+	TP_ARGS(mp, agno, agbno, len, tbno, tlen),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, agbno)
 		__field(xfs_extlen_t, len)
-		__field(int, found)
+		__field(xfs_agblock_t, tbno)
+		__field(xfs_extlen_t, tlen)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->agno = agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
-		__entry->found = found;
+		__entry->tbno = tbno;
+		__entry->tlen = tlen;
 	),
-	TP_printk("dev %d:%d agno %u agbno %u len %u %s",
+	TP_printk("dev %d:%d agno %u agbno %u len %u tbno %u tlen %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
 		  __entry->agbno,
 		  __entry->len,
-		  __print_symbolic(__entry->found, XFS_BUSY_STATES))
+		  __entry->tbno,
+		  __entry->tlen)
 );
 
 TRACE_EVENT(xfs_trans_commit_lsn,
@@ -1418,7 +1361,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		  __entry->wasfromfl,
 		  __entry->isfl,
 		  __entry->userdata,
-		  __entry->firstblock)
+		  (unsigned long long)__entry->firstblock)
 )
 
 #define DEFINE_ALLOC_EVENT(name) \
@@ -1433,11 +1376,14 @@ DEFINE_ALLOC_EVENT(xfs_alloc_near_first);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_greater);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_lesser);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_error);
+DEFINE_ALLOC_EVENT(xfs_alloc_near_noentry);
+DEFINE_ALLOC_EVENT(xfs_alloc_near_busy);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_neither);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_noentry);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_nominleft);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_done);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_error);
+DEFINE_ALLOC_EVENT(xfs_alloc_size_busy);
 DEFINE_ALLOC_EVENT(xfs_alloc_small_freelist);
 DEFINE_ALLOC_EVENT(xfs_alloc_small_notenough);
 DEFINE_ALLOC_EVENT(xfs_alloc_small_done);

@@ -9,7 +9,7 @@
     Also inspired by ELSA PCMCIA driver 
     by Klaus Lichtenwalder <Lichtenwalder@ACM.org>
     
-    Extentions to new hisax_pcmcia by Karsten Keil
+    Extensions to new hisax_pcmcia by Karsten Keil
 
     minor changes to be compatible with kernel 2.4.x
     by Jan.Schubert@GMX.li
@@ -111,12 +111,10 @@ static int teles_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 
 static int __devinit teles_cs_config(struct pcmcia_device *link)
 {
-    local_info_t *dev;
     int i;
     IsdnCard_t icard;
 
     dev_dbg(&link->dev, "teles_config(0x%p)\n", link);
-    dev = link->priv;
 
     i = pcmcia_loop_config(link, teles_cs_configcheck, NULL);
     if (i != 0)
@@ -185,7 +183,7 @@ static int teles_resume(struct pcmcia_device *link)
 }
 
 
-static struct pcmcia_device_id teles_ids[] = {
+static const struct pcmcia_device_id teles_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("TELES", "S0/PC", 0x67b50eae, 0xe9e70119),
 	PCMCIA_DEVICE_NULL,
 };

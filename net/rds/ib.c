@@ -325,7 +325,7 @@ static int rds_ib_laddr_check(__be32 addr)
 	/* Create a CMA ID and try to bind it. This catches both
 	 * IB and iWARP capable NICs.
 	 */
-	cm_id = rdma_create_id(NULL, NULL, RDMA_PS_TCP);
+	cm_id = rdma_create_id(NULL, NULL, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
@@ -364,7 +364,6 @@ void rds_ib_exit(void)
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();
 	rds_trans_unregister(&rds_ib_transport);
-	rds_ib_fmr_exit();
 }
 
 struct rds_transport rds_ib_transport = {
@@ -400,13 +399,9 @@ int rds_ib_init(void)
 
 	INIT_LIST_HEAD(&rds_ib_devices);
 
-	ret = rds_ib_fmr_init();
-	if (ret)
-		goto out;
-
 	ret = ib_register_client(&rds_ib_client);
 	if (ret)
-		goto out_fmr_exit;
+		goto out;
 
 	ret = rds_ib_sysctl_init();
 	if (ret)
@@ -430,8 +425,6 @@ out_sysctl:
 	rds_ib_sysctl_exit();
 out_ibreg:
 	rds_ib_unregister_client();
-out_fmr_exit:
-	rds_ib_fmr_exit();
 out:
 	return ret;
 }

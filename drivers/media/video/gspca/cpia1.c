@@ -1,7 +1,7 @@
 /*
  * cpia CPiA (1) gspca driver
  *
- * Copyright (C) 2010 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2010-2011 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 cpia driver which is :
  *
@@ -28,6 +28,7 @@
 
 #define MODULE_NAME "cpia1"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
@@ -653,10 +654,15 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 		break;
 
 	case CPIA_COMMAND_ReadMCPorts:
-		if (!sd->params.qx3.qx3_detected)
-			break;
 		/* test button press */
-		sd->params.qx3.button = ((gspca_dev->usb_buf[1] & 0x02) == 0);
+		a = ((gspca_dev->usb_buf[1] & 0x02) == 0);
+		if (a != sd->params.qx3.button) {
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, a);
+			input_sync(gspca_dev->input_dev);
+#endif
+	        	sd->params.qx3.button = a;
+		}
 		if (sd->params.qx3.button) {
 			/* button pressed - unlock the latch */
 			do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
@@ -1256,7 +1262,7 @@ static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)
 static void monitor_exposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 exp_acc, bcomp, gain, coarseL, cmd[8];
+	u8 exp_acc, bcomp, cmd[8];
 	int ret, light_exp, dark_exp, very_dark_exp;
 	int old_exposure, new_exposure, framerate;
 	int setfps = 0, setexp = 0, setflicker = 0;
@@ -1278,8 +1284,6 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 	}
 	exp_acc = gspca_dev->usb_buf[0];
 	bcomp = gspca_dev->usb_buf[1];
-	gain = gspca_dev->usb_buf[2];
-	coarseL = gspca_dev->usb_buf[3];
 
 	light_exp = sd->params.colourParams.brightness +
 		    TC - 50 + EXP_ACC_LIGHT;
@@ -1400,7 +1404,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 		if ((sd->exposure_status == EXPOSURE_VERY_DARK ||
 		     sd->exposure_status == EXPOSURE_DARK) &&
 		    sd->exposure_count >= DARK_TIME * framerate &&
-		    sd->params.sensorFps.divisor < 3) {
+		    sd->params.sensorFps.divisor < 2) {
 
 			/* dark for too long */
 			++sd->params.sensorFps.divisor;
@@ -1456,7 +1460,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 		if ((sd->exposure_status == EXPOSURE_VERY_DARK ||
 		     sd->exposure_status == EXPOSURE_DARK) &&
 		    sd->exposure_count >= DARK_TIME * framerate &&
-		    sd->params.sensorFps.divisor < 3) {
+		    sd->params.sensorFps.divisor < 2) {
 
 			/* dark for too long */
 			++sd->params.sensorFps.divisor;
@@ -1738,6 +1742,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
 	command_pause(gspca_dev);
 
 	/* save camera state for later open (developers guide ch 3.5.3) */
@@ -1748,14 +1754,23 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	/* Update the camera status */
 	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
+
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	/* If the last button state is pressed, release it now! */
+	if (sd->params.qx3.button) {
+		/* The camera latch will hold the pressed state until we reset
+		   the latch, so we do not reset sd->params.qx3.button now, to
+		   avoid a false keypress being reported the next sd_start */
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+	}
+#endif
 }
 
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-#ifdef GSPCA_DEBUG
 	struct sd *sd = (struct sd *) gspca_dev;
-#endif
 	int ret;
 
 	/* Start / Stop the camera to make sure we are talking to
@@ -1852,8 +1867,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 
 	/* Update our knowledge of the camera state */
 	do_command(gspca_dev, CPIA_COMMAND_GetExposure, 0, 0, 0, 0);
-	if (sd->params.qx3.qx3_detected)
-		do_command(gspca_dev, CPIA_COMMAND_ReadMCPorts, 0, 0, 0, 0);
+	do_command(gspca_dev, CPIA_COMMAND_ReadMCPorts, 0, 0, 0, 0);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -2085,6 +2099,9 @@ static const struct sd_desc sd_desc = {
 	.dq_callback = sd_dq_callback,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	.other_input = 1,
+#endif
 };
 
 /* -- module initialisation -- */

@@ -440,7 +440,6 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 	nilfs_commit_chunk(page, mapping, from, to);
 	nilfs_put_page(page);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
-/*	NILFS_I(dir)->i_flags &= ~NILFS_BTREE_FL; */
 }
 
 /*
@@ -531,7 +530,6 @@ got_it:
 	nilfs_set_de_type(de, inode);
 	nilfs_commit_chunk(page, page->mapping, from, to);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
-/*	NILFS_I(dir)->i_flags &= ~NILFS_BTREE_FL; */
 	nilfs_mark_inode_dirty(dir);
 	/* OFFSET_CACHE */
 out_put:
@@ -579,7 +577,6 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	dir->inode = 0;
 	nilfs_commit_chunk(page, mapping, from, to);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
-/*	NILFS_I(inode)->i_flags &= ~NILFS_BTREE_FL; */
 out:
 	nilfs_put_page(page);
 	return err;
@@ -684,7 +681,7 @@ const struct file_operations nilfs_dir_operations = {
 	.readdir	= nilfs_readdir,
 	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= nilfs_ioctl,
+	.compat_ioctl	= nilfs_compat_ioctl,
 #endif	/* CONFIG_COMPAT */
 	.fsync		= nilfs_sync_file,
 

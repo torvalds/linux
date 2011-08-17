@@ -281,7 +281,7 @@ static int sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	case 4:
 		*value = ret & 0xffffffff;
 		break;
-	};
+	}
 
 
 	return PCIBIOS_SUCCESSFUL;
@@ -295,14 +295,17 @@ static int sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned int bus = bus_dev->number;
 	unsigned int device = PCI_SLOT(devfn);
 	unsigned int func = PCI_FUNC(devfn);
-	unsigned long ret;
 
 	if (config_out_of_range(pbm, bus, devfn, where)) {
 		/* Do nothing. */
 	} else {
-		ret = pci_sun4v_config_put(devhandle,
-				HV_PCI_DEVICE_BUILD(bus, device, func),
-				where, size, value);
+		/* We don't check for hypervisor errors here, but perhaps
+		 * we should and influence our return value depending upon
+		 * what kind of error is thrown.
+		 */
+		pci_sun4v_config_put(devhandle,
+				     HV_PCI_DEVICE_BUILD(bus, device, func),
+				     where, size, value);
 	}
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -453,7 +456,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 
 		default:
 			break;
-		};
+		}
 	}
 
 	if (!saw_io || !saw_mem) {

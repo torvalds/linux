@@ -62,6 +62,7 @@ config SND_USB_CAIAQ
 	    * Native Instruments Audio 2 DJ
 	    * Native Instruments Audio 4 DJ
 	    * Native Instruments Audio 8 DJ
+	    * Native Instruments Traktor Audio 2
 	    * Native Instruments Guitar Rig Session I/O
 	    * Native Instruments Guitar Rig mobile
 	    * Native Instruments Traktor Kontrol X1
@@ -96,6 +97,20 @@ config SND_USB_US122L
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-us122l.
+
+config SND_USB_6FIRE
+        tristate "TerraTec DMX 6Fire USB"
+        select FW_LOADER
+        select BITREVERSE
+        select SND_RAWMIDI
+        select SND_PCM
+        help
+          Say Y here to include support for TerraTec 6fire DMX USB interface.
+
+          You will need firmware files in order to be able to use the device
+          after it has been coldstarted. An install script for the firmware
+          and further help can be found at
+          http://sixfireusb.sourceforge.net
 
 endif	# SND_USB
 

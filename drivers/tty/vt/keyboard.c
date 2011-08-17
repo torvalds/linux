@@ -1,6 +1,4 @@
 /*
- * linux/drivers/char/keyboard.c
- *
  * Written for linux by Johan Myreen as a translation from
  * the assembly version by Linus (with diacriticals added)
  *
@@ -600,7 +598,7 @@ static void fn_scroll_back(struct vc_data *vc)
 
 static void fn_show_mem(struct vc_data *vc)
 {
-	show_mem();
+	show_mem(0);
 }
 
 static void fn_show_state(struct vc_data *vc)
@@ -654,7 +652,8 @@ static void k_spec(struct vc_data *vc, unsigned char value, char up_flag)
 	if (value >= ARRAY_SIZE(fn_handler))
 		return;
 	if ((kbd->kbdmode == VC_RAW ||
-	     kbd->kbdmode == VC_MEDIUMRAW) &&
+	     kbd->kbdmode == VC_MEDIUMRAW ||
+	     kbd->kbdmode == VC_OFF) &&
 	     value != KVAL(K_SAK))
 		return;		/* SAK is allowed even in raw mode */
 	fn_handler[value](vc);
@@ -1295,7 +1294,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 	if (rc == NOTIFY_STOP)
 		return;
 
-	if (raw_mode && type != KT_SPEC && type != KT_SHIFT)
+	if ((raw_mode || kbd->kbdmode == VC_OFF) && type != KT_SPEC && type != KT_SHIFT)
 		return;
 
 	(*k_handler[type])(vc, keysym & 0xff, !down);

@@ -71,7 +71,7 @@ struct user{
 				/* the registers. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
-  int u_debugreg[8];
+  int u_debugreg[8];		/* No longer used */
   struct user_fp u_fp;		/* FP state */
   struct user_fp_struct * u_fp0;/* Used by gdb to help find the values for */
   				/* the FP registers. */

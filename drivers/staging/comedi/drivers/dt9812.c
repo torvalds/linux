@@ -773,7 +773,7 @@ static int dt9812_probe(struct usb_interface *interface,
 			retval = dt9812_read_info(dev, 1, &fw, sizeof(fw));
 			if (retval == 0) {
 				dev_info(&interface->dev,
-					 "usb_reset_configuration succeded "
+					 "usb_reset_configuration succeeded "
 					 "after %d iterations\n", i);
 				break;
 			}

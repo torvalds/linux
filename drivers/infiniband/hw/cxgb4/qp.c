@@ -31,9 +31,9 @@
  */
 #include "iw_cxgb4.h"
 
-static int ocqp_support;
+static int ocqp_support = 1;
 module_param(ocqp_support, int, 0644);
-MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=0)");
+MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=1)");
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
@@ -214,7 +214,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
 		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
 		V_FW_RI_RES_WR_PCIECHN(0) |	/* set by uP at ri_init time */
-		t4_sq_onchip(&wq->sq) ? F_FW_RI_RES_WR_ONCHIP : 0 |
+		(t4_sq_onchip(&wq->sq) ? F_FW_RI_RES_WR_ONCHIP : 0) |
 		V_FW_RI_RES_WR_IQID(scq->cqid));
 	res->u.sqrq.dcaen_to_eqsize = cpu_to_be32(
 		V_FW_RI_RES_WR_DCAEN(0) |
@@ -1207,12 +1207,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				c4iw_get_ep(&qhp->ep->com);
 			}
 			ret = rdma_fini(rhp, qhp, ep);
-			if (ret) {
-				if (internal)
-					c4iw_get_ep(&qhp->ep->com);
-				disconnect = abort = 1;
+			if (ret)
 				goto err;
-			}
 			break;
 		case C4IW_QP_STATE_TERMINATE:
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);

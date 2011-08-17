@@ -290,7 +290,7 @@ static inline int nlmsg_padlen(int payload)
 
 /**
  * nlmsg_data - head of message payload
- * @nlh: netlink messsage header
+ * @nlh: netlink message header
  */
 static inline void *nlmsg_data(const struct nlmsghdr *nlh)
 {
@@ -638,6 +638,30 @@ static inline int nlmsg_unicast(struct sock *sk, struct sk_buff *skb, u32 pid)
 	     nlmsg_ok(pos, rem); \
 	     pos = nlmsg_next(pos, &(rem)))
 
+/**
+ * nl_dump_check_consistent - check if sequence is consistent and advertise if not
+ * @cb: netlink callback structure that stores the sequence number
+ * @nlh: netlink message header to write the flag to
+ *
+ * This function checks if the sequence (generation) number changed during dump
+ * and if it did, advertises it in the netlink message header.
+ *
+ * The correct way to use it is to set cb->seq to the generation counter when
+ * all locks for dumping have been acquired, and then call this function for
+ * each message that is generated.
+ *
+ * Note that due to initialisation concerns, 0 is an invalid sequence number
+ * and must not be used by code that uses this functionality.
+ */
+static inline void
+nl_dump_check_consistent(struct netlink_callback *cb,
+			 struct nlmsghdr *nlh)
+{
+	if (cb->prev_seq && cb->seq != cb->prev_seq)
+		nlh->nlmsg_flags |= NLM_F_DUMP_INTR;
+	cb->prev_seq = cb->seq;
+}
+
 /**************************************************************************
  * Netlink Attributes
  **************************************************************************/
@@ -856,17 +880,26 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 #define NLA_PUT_BE16(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __be16, attrtype, value)
 
+#define NLA_PUT_NET16(skb, attrtype, value) \
+	NLA_PUT_BE16(skb, attrtype | NLA_F_NET_BYTEORDER, value)
+
 #define NLA_PUT_U32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u32, attrtype, value)
 
 #define NLA_PUT_BE32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __be32, attrtype, value)
 
+#define NLA_PUT_NET32(skb, attrtype, value) \
+	NLA_PUT_BE32(skb, attrtype | NLA_F_NET_BYTEORDER, value)
+
 #define NLA_PUT_U64(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u64, attrtype, value)
 
 #define NLA_PUT_BE64(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __be64, attrtype, value)
+
+#define NLA_PUT_NET64(skb, attrtype, value) \
+	NLA_PUT_BE64(skb, attrtype | NLA_F_NET_BYTEORDER, value)
 
 #define NLA_PUT_STRING(skb, attrtype, value) \
 	NLA_PUT(skb, attrtype, strlen(value) + 1, value)

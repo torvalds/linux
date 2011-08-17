@@ -46,7 +46,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/hwrpb.h>
-#include <asm/8253pit.h>
 #include <asm/rtc.h>
 
 #include <linux/mc146818rtc.h>
@@ -91,7 +90,7 @@ DEFINE_PER_CPU(u8, irq_work_pending);
 #define test_irq_work_pending()      __get_cpu_var(irq_work_pending)
 #define clear_irq_work_pending()     __get_cpu_var(irq_work_pending) = 0
 
-void set_irq_work_pending(void)
+void arch_irq_work_raise(void)
 {
 	set_irq_work_pending_flag();
 }
@@ -153,13 +152,14 @@ void read_persistent_clock(struct timespec *ts)
 		year += 100;
 
 	ts->tv_sec = mktime(year, mon, day, hour, min, sec);
+	ts->tv_nsec = 0;
 }
 
 
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
+ * as well as call the "xtime_update()" routine every clocktick
  */
 irqreturn_t timer_interrupt(int irq, void *dev)
 {
@@ -171,8 +171,6 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 	/* Not SMP, do kernel PC profiling here.  */
 	profile_tick(CPU_PROFILING);
 #endif
-
-	write_seqlock(&xtime_lock);
 
 	/*
 	 * Calculate how many ticks have passed since the last update,
@@ -187,9 +185,7 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 	nticks = delta >> FIX_SHIFT;
 
 	if (nticks)
-		do_timer(nticks);
-
-	write_sequnlock(&xtime_lock);
+		xtime_update(nticks);
 
 	if (test_irq_work_pending()) {
 		clear_irq_work_pending();
@@ -378,8 +374,7 @@ static struct clocksource clocksource_rpcc = {
 
 static inline void register_rpcc_clocksource(long cycle_freq)
 {
-	clocksource_calc_mult_shift(&clocksource_rpcc, cycle_freq, 4);
-	clocksource_register(&clocksource_rpcc);
+	clocksource_register_hz(&clocksource_rpcc, cycle_freq);
 }
 #else /* !CONFIG_SMP */
 static inline void register_rpcc_clocksource(long cycle_freq)

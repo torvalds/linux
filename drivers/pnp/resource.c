@@ -409,9 +409,9 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 	return 1;
 }
 
+#ifdef CONFIG_ISA_DMA_API
 int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 {
-#ifndef CONFIG_IA64
 	int i;
 	struct pnp_dev *tdev;
 	struct resource *tres;
@@ -466,11 +466,8 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 	}
 
 	return 1;
-#else
-	/* IA64 does not have legacy DMA */
-	return 0;
-#endif
 }
+#endif /* CONFIG_ISA_DMA_API */
 
 unsigned long pnp_resource_type(struct resource *res)
 {

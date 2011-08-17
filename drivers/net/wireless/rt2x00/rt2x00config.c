@@ -60,7 +60,7 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	 * Note that when NULL is passed as address we will send
 	 * 00:00:00:00:00 to the device to clear the address.
 	 * This will prevent the device being confused when it wants
-	 * to ACK frames or consideres itself associated.
+	 * to ACK frames or considers itself associated.
 	 */
 	memset(conf.mac, 0, sizeof(conf.mac));
 	if (mac)
@@ -100,6 +100,10 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	erp.basic_rates = bss_conf->basic_rates;
 	erp.beacon_int = bss_conf->beacon_int;
 
+	/* Update the AID, this is needed for dynamic PS support */
+	rt2x00dev->aid = bss_conf->assoc ? bss_conf->aid : 0;
+	rt2x00dev->last_beacon = bss_conf->timestamp;
+
 	/* Update global beacon interval time, this is needed for PS support */
 	rt2x00dev->beacon_int = bss_conf->beacon_int;
 
@@ -107,15 +111,6 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 		erp.ht_opmode = bss_conf->ht_operation_mode;
 
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp, changed);
-}
-
-static inline
-enum antenna rt2x00lib_config_antenna_check(enum antenna current_ant,
-					    enum antenna default_ant)
-{
-	if (current_ant != ANTENNA_SW_DIVERSITY)
-		return current_ant;
-	return (default_ant != ANTENNA_SW_DIVERSITY) ? default_ant : ANTENNA_B;
 }
 
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
@@ -126,19 +121,35 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	struct antenna_setup *active = &rt2x00dev->link.ant.active;
 
 	/*
-	 * Failsafe: Make sure we are not sending the
-	 * ANTENNA_SW_DIVERSITY state to the driver.
-	 * If that happens, fallback to hardware defaults,
-	 * or our own default.
+	 * When the caller tries to send the SW diversity,
+	 * we must update the ANTENNA_RX_DIVERSITY flag to
+	 * enable the antenna diversity in the link tuner.
+	 *
+	 * Secondly, we must guarentee we never send the
+	 * software antenna diversity command to the driver.
 	 */
-	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
-		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
-	else if (config.rx == ANTENNA_SW_DIVERSITY)
+	if (!(ant->flags & ANTENNA_RX_DIVERSITY)) {
+		if (config.rx == ANTENNA_SW_DIVERSITY) {
+			ant->flags |= ANTENNA_RX_DIVERSITY;
+
+			if (def->rx == ANTENNA_SW_DIVERSITY)
+				config.rx = ANTENNA_B;
+			else
+				config.rx = def->rx;
+		}
+	} else if (config.rx == ANTENNA_SW_DIVERSITY)
 		config.rx = active->rx;
 
-	if (!(ant->flags & ANTENNA_TX_DIVERSITY))
-		config.tx = rt2x00lib_config_antenna_check(config.tx, def->tx);
-	else if (config.tx == ANTENNA_SW_DIVERSITY)
+	if (!(ant->flags & ANTENNA_TX_DIVERSITY)) {
+		if (config.tx == ANTENNA_SW_DIVERSITY) {
+			ant->flags |= ANTENNA_TX_DIVERSITY;
+
+			if (def->tx == ANTENNA_SW_DIVERSITY)
+				config.tx = ANTENNA_B;
+			else
+				config.tx = def->tx;
+		}
+	} else if (config.tx == ANTENNA_SW_DIVERSITY)
 		config.tx = active->tx;
 
 	/*
@@ -163,12 +174,43 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00queue_start_queue(rt2x00dev->rx);
 }
 
+static u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
+				   struct ieee80211_conf *conf)
+{
+	struct hw_mode_spec *spec = &rt2x00dev->spec;
+	int center_channel;
+	u16 i;
+
+	/*
+	 * Initialize center channel to current channel.
+	 */
+	center_channel = spec->channels[conf->channel->hw_value].channel;
+
+	/*
+	 * Adjust center channel to HT40+ and HT40- operation.
+	 */
+	if (conf_is_ht40_plus(conf))
+		center_channel += 2;
+	else if (conf_is_ht40_minus(conf))
+		center_channel -= (center_channel == 14) ? 1 : 2;
+
+	for (i = 0; i < spec->num_channels; i++)
+		if (spec->channels[i].channel == center_channel)
+			return i;
+
+	WARN_ON(1);
+	return conf->channel->hw_value;
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf,
 		      unsigned int ieee80211_flags)
 {
 	struct rt2x00lib_conf libconf;
 	u16 hw_value;
+	u16 autowake_timeout;
+	u16 beacon_int;
+	u16 beacon_diff;
 
 	memset(&libconf, 0, sizeof(libconf));
 
@@ -176,10 +218,10 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		if (conf_is_ht40(conf)) {
-			__set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = rt2x00ht_center_channel(rt2x00dev, conf);
 		} else {
-			__clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = conf->channel->hw_value;
 		}
 
@@ -192,6 +234,10 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		       sizeof(libconf.channel));
 	}
 
+	if (test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&
+	    (ieee80211_flags & IEEE80211_CONF_CHANGE_PS))
+		cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
+
 	/*
 	 * Start configuration.
 	 */
@@ -203,6 +249,27 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	 */
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL)
 		rt2x00link_reset_tuner(rt2x00dev, false);
+
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&
+	    (ieee80211_flags & IEEE80211_CONF_CHANGE_PS) &&
+	    (conf->flags & IEEE80211_CONF_PS)) {
+		beacon_diff = (long)jiffies - (long)rt2x00dev->last_beacon;
+		beacon_int = msecs_to_jiffies(rt2x00dev->beacon_int);
+
+		if (beacon_diff > beacon_int)
+			beacon_diff = 0;
+
+		autowake_timeout = (conf->max_sleep_period * beacon_int) - beacon_diff;
+		queue_delayed_work(rt2x00dev->workqueue,
+				   &rt2x00dev->autowakeup_work,
+				   autowake_timeout - 15);
+	}
+
+	if (conf->flags & IEEE80211_CONF_PS)
+		set_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
+	else
+		clear_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
 
 	rt2x00dev->curr_band = conf->channel->band;
 	rt2x00dev->curr_freq = conf->channel->center_freq;

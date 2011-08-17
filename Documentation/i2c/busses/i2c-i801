@@ -16,8 +16,10 @@ Supported adapters:
   * Intel EP80579 (Tolapai)
   * Intel 82801JI (ICH10)
   * Intel 5/3400 Series (PCH)
-  * Intel Cougar Point (PCH)
+  * Intel 6 Series (PCH)
   * Intel Patsburg (PCH)
+  * Intel DH89xxCC (PCH)
+  * Intel Panther Point (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller

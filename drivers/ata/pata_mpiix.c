@@ -15,7 +15,7 @@
  * with PCI IDE and also that we do not disable the device when our driver is
  * unloaded (as it has many other functions).
  *
- * The driver conciously keeps this logic internally to avoid pushing quirky
+ * The driver consciously keeps this logic internally to avoid pushing quirky
  * PATA history into the clean libata layer.
  *
  * Thinkpad specific note: If you boot an MPIIX using a thinkpad with a PCMCIA
@@ -152,15 +152,13 @@ static struct ata_port_operations mpiix_port_ops = {
 static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* Single threaded by the PCI probe logic */
-	static int printed_version;
 	struct ata_host *host;
 	struct ata_port *ap;
 	void __iomem *cmd_addr, *ctl_addr;
 	u16 idetim;
 	int cmd, ctl, irq;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&dev->dev, DRV_VERSION);
 
 	host = ata_host_alloc(&dev->dev, 1);
 	if (!host)

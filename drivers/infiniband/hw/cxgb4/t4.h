@@ -269,11 +269,8 @@ struct t4_swsqe {
 
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
 	return pgprot_writecombine(prot);
-#elif defined(CONFIG_PPC64)
-	return __pgprot((pgprot_val(prot) | _PAGE_NO_CACHE) &
-			~(pgprot_t)_PAGE_GUARDED);
 #else
 	return pgprot_noncached(prot);
 #endif
@@ -507,8 +504,14 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	if (++cq->cidx_inc == cq->size)
+	if (++cq->cidx_inc == (cq->size >> 4)) {
+		u32 val;
+
+		val = SEINTARM(0) | CIDXINC(cq->cidx_inc) | TIMERREG(7) |
+		      INGRESSQID(cq->cqid);
+		writel(val, cq->gts);
 		cq->cidx_inc = 0;
+	}
 	if (++cq->cidx == cq->size) {
 		cq->cidx = 0;
 		cq->gen ^= 1;

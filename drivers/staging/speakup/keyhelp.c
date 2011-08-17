@@ -69,7 +69,7 @@ static void build_key_data(void)
 	memset(key_offsets, 0, sizeof(key_offsets));
 	kp = state_tbl + nstates + 1;
 	while (*kp++) {
-		/* count occurrances of each function */
+		/* count occurrences of each function */
 		for (i = 0; i < nstates; i++, kp++) {
 			if (!*kp)
 				continue;
@@ -161,7 +161,9 @@ int handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		}
 	cur_item = letter_offsets[ch-'a'];
 	} else if (type == KT_CUR) {
-		if (ch == 0 && (cur_item + 1) <= MSG_FUNCNAMES_END)
+		if (ch == 0
+		    && (MSG_FUNCNAMES_START + cur_item + 1) <=
+		    MSG_FUNCNAMES_END)
 			cur_item++;
 		else if (ch == 3 && cur_item > 0)
 			cur_item--;

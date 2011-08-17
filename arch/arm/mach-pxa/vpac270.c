@@ -16,7 +16,6 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
-#include <linux/sysdev.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -26,6 +25,7 @@
 #include <linux/ucb1400.h>
 #include <linux/ata_platform.h>
 #include <linux/regulator/max1586.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,8 +39,6 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
 #include <mach/pata_pxa.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -573,7 +571,7 @@ static void __init vpac270_lcd_init(void)
 	}
 
 	vpac270_lcd_screen.pxafb_lcd_power = vpac270_lcd_power;
-	set_pxa_fb_info(&vpac270_lcd_screen);
+	pxa_set_fb_info(NULL, &vpac270_lcd_screen);
 	return;
 
 err2:
@@ -721,6 +719,7 @@ MACHINE_START(VPAC270, "Voipac PXA270")
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= vpac270_init
 MACHINE_END

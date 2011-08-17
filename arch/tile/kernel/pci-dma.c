@@ -86,6 +86,21 @@ EXPORT_SYMBOL(dma_free_coherent);
  * can count on nothing having been touched.
  */
 
+/* Flush a PA range from cache page by page. */
+static void __dma_map_pa_range(dma_addr_t dma_addr, size_t size)
+{
+	struct page *page = pfn_to_page(PFN_DOWN(dma_addr));
+	size_t bytesleft = PAGE_SIZE - (dma_addr & (PAGE_SIZE - 1));
+
+	while ((ssize_t)size > 0) {
+		/* Flush the page. */
+		homecache_flush_cache(page++, 0);
+
+		/* Figure out if we need to continue on the next page. */
+		size -= bytesleft;
+		bytesleft = PAGE_SIZE;
+	}
+}
 
 /*
  * dma_map_single can be passed any memory address, and there appear
@@ -97,26 +112,12 @@ EXPORT_SYMBOL(dma_free_coherent);
 dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 	       enum dma_data_direction direction)
 {
-	struct page *page;
-	dma_addr_t dma_addr;
-	int thispage;
+	dma_addr_t dma_addr = __pa(ptr);
 
 	BUG_ON(!valid_dma_direction(direction));
 	WARN_ON(size == 0);
 
-	dma_addr = __pa(ptr);
-
-	/* We might have been handed a buffer that wraps a page boundary */
-	while ((int)size > 0) {
-		/* The amount to flush that's on this page */
-		thispage = PAGE_SIZE - ((unsigned long)ptr & (PAGE_SIZE - 1));
-		thispage = min((int)thispage, (int)size);
-		/* Is this valid for any page we could be handed? */
-		page = pfn_to_page(kaddr_to_pfn(ptr));
-		homecache_flush_cache(page, 0);
-		ptr += thispage;
-		size -= thispage;
-	}
+	__dma_map_pa_range(dma_addr, size);
 
 	return dma_addr;
 }
@@ -140,10 +141,8 @@ int dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	WARN_ON(nents == 0 || sglist->length == 0);
 
 	for_each_sg(sglist, sg, nents, i) {
-		struct page *page;
 		sg->dma_address = sg_phys(sg);
-		page = pfn_to_page(sg->dma_address >> PAGE_SHIFT);
-		homecache_flush_cache(page, 0);
+		__dma_map_pa_range(sg->dma_address, sg->length);
 	}
 
 	return nents;
@@ -163,6 +162,7 @@ dma_addr_t dma_map_page(struct device *dev, struct page *page,
 {
 	BUG_ON(!valid_dma_direction(direction));
 
+	BUG_ON(offset + size > PAGE_SIZE);
 	homecache_flush_cache(page, 0);
 
 	return page_to_pa(page) + offset;
@@ -244,7 +244,7 @@ EXPORT_SYMBOL(dma_sync_single_range_for_device);
  * dma_alloc_noncoherent() returns non-cacheable memory, so there's no
  * need to do any flushing here.
  */
-void dma_cache_sync(void *vaddr, size_t size,
+void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction direction)
 {
 }

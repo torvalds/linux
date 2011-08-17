@@ -346,7 +346,7 @@ done:
  * @dd: the qlogic_ib device
  *
  * sanity check at least some of the values after reset, and
- * ensure no receive or transmit (explictly, in case reset
+ * ensure no receive or transmit (explicitly, in case reset
  * failed
  */
 static int init_after_reset(struct qib_devdata *dd)

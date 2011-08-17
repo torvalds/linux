@@ -36,12 +36,16 @@
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
 #include <linux/log2.h>
+#include <linux/cleancache.h>
 
 #include <asm/uaccess.h>
 
 #include "xattr.h"
 #include "acl.h"
 #include "namei.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/ext3.h>
 
 #ifdef CONFIG_EXT3_DEFAULTS_TO_ORDERED
   #define EXT3_MOUNT_DEFAULT_DATA_MODE EXT3_MOUNT_ORDERED_DATA
@@ -496,6 +500,14 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static int ext3_drop_inode(struct inode *inode)
+{
+	int drop = generic_drop_inode(inode);
+
+	trace_ext3_drop_inode(inode, drop);
+	return drop;
+}
+
 static void ext3_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
@@ -787,6 +799,7 @@ static const struct super_operations ext3_sops = {
 	.destroy_inode	= ext3_destroy_inode,
 	.write_inode	= ext3_write_inode,
 	.dirty_inode	= ext3_dirty_inode,
+	.drop_inode	= ext3_drop_inode,
 	.evict_inode	= ext3_evict_inode,
 	.put_super	= ext3_put_super,
 	.sync_fs	= ext3_sync_fs,
@@ -1367,6 +1380,7 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 	} else {
 		ext3_msg(sb, KERN_INFO, "using internal journal");
 	}
+	cleancache_init_fs(sb);
 	return res;
 }
 
@@ -1461,6 +1475,13 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 	if (bdev_read_only(sb->s_bdev)) {
 		ext3_msg(sb, KERN_ERR, "error: write access "
 			"unavailable, skipping orphan cleanup.");
+		return;
+	}
+
+	/* Check if feature set allows readwrite operations */
+	if (EXT3_HAS_RO_COMPAT_FEATURE(sb, ~EXT3_FEATURE_RO_COMPAT_SUPP)) {
+		ext3_msg(sb, KERN_INFO, "Skipping orphan cleanup due to "
+			 "unknown ROCOMPAT features");
 		return;
 	}
 
@@ -1709,6 +1730,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
 
+	/* enable barriers by default */
+	set_opt(sbi->s_mount_opt, BARRIER);
 	set_opt(sbi->s_mount_opt, RESERVATION);
 
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
@@ -1936,6 +1959,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sb->s_qcop = &ext3_qctl_operations;
 	sb->dq_op = &ext3_quota_operations;
 #endif
+	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
 	mutex_init(&sbi->s_orphan_lock);
 	mutex_init(&sbi->s_resize_lock);
@@ -2497,6 +2521,7 @@ static int ext3_sync_fs(struct super_block *sb, int wait)
 {
 	tid_t target;
 
+	trace_ext3_sync_fs(sb, wait);
 	if (journal_start_commit(EXT3_SB(sb)->s_journal, &target)) {
 		if (wait)
 			log_wait_commit(EXT3_SB(sb)->s_journal, target);
@@ -2917,7 +2942,7 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t ext3_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off)

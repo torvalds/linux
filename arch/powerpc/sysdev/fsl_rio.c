@@ -10,7 +10,7 @@
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
  *
- * Copyright (C) 2007, 2008 Freescale Semiconductor, Inc.
+ * Copyright (C) 2007, 2008, 2010 Freescale Semiconductor, Inc.
  * Zhang Wei <wei.zhang@freescale.com>
  *
  * Copyright 2005 MontaVista Software, Inc.
@@ -47,15 +47,33 @@
 #define IRQ_RIO_RX(m)		(((struct rio_priv *)(m->priv))->rxirq)
 #define IRQ_RIO_PW(m)		(((struct rio_priv *)(m->priv))->pwirq)
 
+#define IPWSR_CLEAR		0x98
+#define OMSR_CLEAR		0x1cb3
+#define IMSR_CLEAR		0x491
+#define IDSR_CLEAR		0x91
+#define ODSR_CLEAR		0x1c00
+#define LTLEECSR_ENABLE_ALL	0xFFC000FC
+#define ESCSR_CLEAR		0x07120204
+
+#define RIO_PORT1_EDCSR		0x0640
+#define RIO_PORT2_EDCSR		0x0680
+#define RIO_PORT1_IECSR		0x10130
+#define RIO_PORT2_IECSR		0x101B0
+#define RIO_IM0SR		0x13064
+#define RIO_IM1SR		0x13164
+#define RIO_OM0SR		0x13004
+#define RIO_OM1SR		0x13104
+
 #define RIO_ATMU_REGS_OFFSET	0x10c00
 #define RIO_P_MSG_REGS_OFFSET	0x11000
 #define RIO_S_MSG_REGS_OFFSET	0x13000
 #define RIO_GCCSR		0x13c
 #define RIO_ESCSR		0x158
+#define RIO_PORT2_ESCSR		0x178
 #define RIO_CCSR		0x15c
 #define RIO_LTLEDCSR		0x0608
-#define  RIO_LTLEDCSR_IER	0x80000000
-#define  RIO_LTLEDCSR_PRT	0x01000000
+#define RIO_LTLEDCSR_IER	0x80000000
+#define RIO_LTLEDCSR_PRT	0x01000000
 #define RIO_LTLEECSR		0x060c
 #define RIO_EPWISR		0x10010
 #define RIO_ISR_AACR		0x10120
@@ -88,7 +106,10 @@
 #define RIO_IPWSR_PWD		0x00000008
 #define RIO_IPWSR_PWB		0x00000004
 
-#define RIO_EPWISR_PINT		0x80000000
+/* EPWISR Error match value */
+#define RIO_EPWISR_PINT1	0x80000000
+#define RIO_EPWISR_PINT2	0x40000000
+#define RIO_EPWISR_MU		0x00000002
 #define RIO_EPWISR_PW		0x00000001
 
 #define RIO_MSG_DESC_SIZE	32
@@ -260,35 +281,32 @@ struct rio_priv {
 static void __iomem *rio_regs_win;
 
 #ifdef CONFIG_E500
-static int (*saved_mcheck_exception)(struct pt_regs *regs);
-
-static int fsl_rio_mcheck_exception(struct pt_regs *regs)
+int fsl_rio_mcheck_exception(struct pt_regs *regs)
 {
-	const struct exception_table_entry *entry = NULL;
-	unsigned long reason = mfspr(SPRN_MCSR);
+	const struct exception_table_entry *entry;
+	unsigned long reason;
 
-	if (reason & MCSR_BUS_RBERR) {
-		reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
-		if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
-			/* Check if we are prepared to handle this fault */
-			entry = search_exception_tables(regs->nip);
-			if (entry) {
-				pr_debug("RIO: %s - MC Exception handled\n",
-					 __func__);
-				out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
-					 0);
-				regs->msr |= MSR_RI;
-				regs->nip = entry->fixup;
-				return 1;
-			}
+	if (!rio_regs_win)
+		return 0;
+
+	reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
+	if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
+		/* Check if we are prepared to handle this fault */
+		entry = search_exception_tables(regs->nip);
+		if (entry) {
+			pr_debug("RIO: %s - MC Exception handled\n",
+				 __func__);
+			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
+				 0);
+			regs->msr |= MSR_RI;
+			regs->nip = entry->fixup;
+			return 1;
 		}
 	}
 
-	if (saved_mcheck_exception)
-		return saved_mcheck_exception(regs);
-	else
-		return cur_cpu_spec->machine_check(regs);
+	return 0;
 }
+EXPORT_SYMBOL_GPL(fsl_rio_mcheck_exception);
 #endif
 
 /**
@@ -482,7 +500,7 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 }
 
 /**
- * rio_hw_add_outb_message - Add message to the MPC85xx outbound message queue
+ * fsl_add_outb_message - Add message to the MPC85xx outbound message queue
  * @mport: Master port with outbound message queue
  * @rdev: Target of outbound message
  * @mbox: Outbound mailbox
@@ -492,8 +510,8 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
  * Adds the @buffer message to the MPC85xx outbound message queue. Returns
  * %0 on success or %-EINVAL on failure.
  */
-int
-rio_hw_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
+static int
+fsl_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 			void *buffer, size_t len)
 {
 	struct rio_priv *priv = mport->priv;
@@ -502,9 +520,8 @@ rio_hw_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 					+ priv->msg_tx_ring.tx_slot;
 	int ret = 0;
 
-	pr_debug
-	    ("RIO: rio_hw_add_outb_message(): destid %4.4x mbox %d buffer %8.8x len %8.8x\n",
-	     rdev->destid, mbox, (int)buffer, len);
+	pr_debug("RIO: fsl_add_outb_message(): destid %4.4x mbox %d buffer " \
+		 "%8.8x len %8.8x\n", rdev->destid, mbox, (int)buffer, len);
 
 	if ((len < 8) || (len > RIO_MAX_MSG_SIZE)) {
 		ret = -EINVAL;
@@ -554,8 +571,6 @@ rio_hw_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(rio_hw_add_outb_message);
-
 /**
  * fsl_rio_tx_handler - MPC85xx outbound message interrupt handler
  * @irq: Linux interrupt number
@@ -600,7 +615,7 @@ fsl_rio_tx_handler(int irq, void *dev_instance)
 }
 
 /**
- * rio_open_outb_mbox - Initialize MPC85xx outbound mailbox
+ * fsl_open_outb_mbox - Initialize MPC85xx outbound mailbox
  * @mport: Master port implementing the outbound message unit
  * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
@@ -610,7 +625,8 @@ fsl_rio_tx_handler(int irq, void *dev_instance)
  * and enables the outbound message unit. Returns %0 on success and
  * %-EINVAL or %-ENOMEM on failure.
  */
-int rio_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
+static int
+fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 {
 	int i, j, rc = 0;
 	struct rio_priv *priv = mport->priv;
@@ -706,14 +722,14 @@ int rio_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entr
 }
 
 /**
- * rio_close_outb_mbox - Shut down MPC85xx outbound mailbox
+ * fsl_close_outb_mbox - Shut down MPC85xx outbound mailbox
  * @mport: Master port implementing the outbound message unit
  * @mbox: Mailbox to close
  *
  * Disables the outbound message unit, free all buffers, and
  * frees the outbound message interrupt.
  */
-void rio_close_outb_mbox(struct rio_mport *mport, int mbox)
+static void fsl_close_outb_mbox(struct rio_mport *mport, int mbox)
 {
 	struct rio_priv *priv = mport->priv;
 	/* Disable inbound message unit */
@@ -770,7 +786,7 @@ fsl_rio_rx_handler(int irq, void *dev_instance)
 }
 
 /**
- * rio_open_inb_mbox - Initialize MPC85xx inbound mailbox
+ * fsl_open_inb_mbox - Initialize MPC85xx inbound mailbox
  * @mport: Master port implementing the inbound message unit
  * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
@@ -780,7 +796,8 @@ fsl_rio_rx_handler(int irq, void *dev_instance)
  * and enables the inbound message unit. Returns %0 on success
  * and %-EINVAL or %-ENOMEM on failure.
  */
-int rio_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
+static int
+fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 {
 	int i, rc = 0;
 	struct rio_priv *priv = mport->priv;
@@ -844,14 +861,14 @@ int rio_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entri
 }
 
 /**
- * rio_close_inb_mbox - Shut down MPC85xx inbound mailbox
+ * fsl_close_inb_mbox - Shut down MPC85xx inbound mailbox
  * @mport: Master port implementing the inbound message unit
  * @mbox: Mailbox to close
  *
  * Disables the inbound message unit, free all buffers, and
  * frees the inbound message interrupt.
  */
-void rio_close_inb_mbox(struct rio_mport *mport, int mbox)
+static void fsl_close_inb_mbox(struct rio_mport *mport, int mbox)
 {
 	struct rio_priv *priv = mport->priv;
 	/* Disable inbound message unit */
@@ -866,7 +883,7 @@ void rio_close_inb_mbox(struct rio_mport *mport, int mbox)
 }
 
 /**
- * rio_hw_add_inb_buffer - Add buffer to the MPC85xx inbound message queue
+ * fsl_add_inb_buffer - Add buffer to the MPC85xx inbound message queue
  * @mport: Master port implementing the inbound message unit
  * @mbox: Inbound mailbox number
  * @buf: Buffer to add to inbound queue
@@ -874,12 +891,12 @@ void rio_close_inb_mbox(struct rio_mport *mport, int mbox)
  * Adds the @buf buffer to the MPC85xx inbound message queue. Returns
  * %0 on success or %-EINVAL on failure.
  */
-int rio_hw_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
+static int fsl_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 {
 	int rc = 0;
 	struct rio_priv *priv = mport->priv;
 
-	pr_debug("RIO: rio_hw_add_inb_buffer(), msg_rx_ring.rx_slot %d\n",
+	pr_debug("RIO: fsl_add_inb_buffer(), msg_rx_ring.rx_slot %d\n",
 		 priv->msg_rx_ring.rx_slot);
 
 	if (priv->msg_rx_ring.virt_buffer[priv->msg_rx_ring.rx_slot]) {
@@ -898,17 +915,15 @@ int rio_hw_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 	return rc;
 }
 
-EXPORT_SYMBOL_GPL(rio_hw_add_inb_buffer);
-
 /**
- * rio_hw_get_inb_message - Fetch inbound message from the MPC85xx message unit
+ * fsl_get_inb_message - Fetch inbound message from the MPC85xx message unit
  * @mport: Master port implementing the inbound message unit
  * @mbox: Inbound mailbox number
  *
  * Gets the next available inbound message from the inbound message queue.
  * A pointer to the message is returned on success or NULL on failure.
  */
-void *rio_hw_get_inb_message(struct rio_mport *mport, int mbox)
+static void *fsl_get_inb_message(struct rio_mport *mport, int mbox)
 {
 	struct rio_priv *priv = mport->priv;
 	u32 phys_buf, virt_buf;
@@ -944,8 +959,6 @@ void *rio_hw_get_inb_message(struct rio_mport *mport, int mbox)
       out2:
 	return buf;
 }
-
-EXPORT_SYMBOL_GPL(rio_hw_get_inb_message);
 
 /**
  * fsl_rio_dbell_handler - MPC85xx doorbell interrupt handler
@@ -1069,6 +1082,40 @@ static int fsl_rio_doorbell_init(struct rio_mport *mport)
 	return rc;
 }
 
+static void port_error_handler(struct rio_mport *port, int offset)
+{
+	/*XXX: Error recovery is not implemented, we just clear errors */
+	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
+
+	if (offset == 0) {
+		out_be32((u32 *)(rio_regs_win + RIO_PORT1_EDCSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT1_IECSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_ESCSR), ESCSR_CLEAR);
+	} else {
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_EDCSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_IECSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_ESCSR), ESCSR_CLEAR);
+	}
+}
+
+static void msg_unit_error_handler(struct rio_mport *port)
+{
+	struct rio_priv *priv = port->priv;
+
+	/*XXX: Error recovery is not implemented, we just clear errors */
+	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
+
+	out_be32((u32 *)(rio_regs_win + RIO_IM0SR), IMSR_CLEAR);
+	out_be32((u32 *)(rio_regs_win + RIO_IM1SR), IMSR_CLEAR);
+	out_be32((u32 *)(rio_regs_win + RIO_OM0SR), OMSR_CLEAR);
+	out_be32((u32 *)(rio_regs_win + RIO_OM1SR), OMSR_CLEAR);
+
+	out_be32(&priv->msg_regs->odsr, ODSR_CLEAR);
+	out_be32(&priv->msg_regs->dsr, IDSR_CLEAR);
+
+	out_be32(&priv->msg_regs->pwsr, IPWSR_CLEAR);
+}
+
 /**
  * fsl_rio_port_write_handler - MPC85xx port write interrupt handler
  * @irq: Linux interrupt number
@@ -1149,10 +1196,22 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 	}
 
 pw_done:
-	if (epwisr & RIO_EPWISR_PINT) {
+	if (epwisr & RIO_EPWISR_PINT1) {
 		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
 		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
-		out_be32(priv->regs_win + RIO_LTLEDCSR, 0);
+		port_error_handler(port, 0);
+	}
+
+	if (epwisr & RIO_EPWISR_PINT2) {
+		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
+		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		port_error_handler(port, 1);
+	}
+
+	if (epwisr & RIO_EPWISR_MU) {
+		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
+		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		msg_unit_error_handler(port);
 	}
 
 	return IRQ_HANDLED;
@@ -1263,12 +1322,14 @@ static int fsl_rio_port_write_init(struct rio_mport *mport)
 
 
 	/* Hook up port-write handler */
-	rc = request_irq(IRQ_RIO_PW(mport), fsl_rio_port_write_handler, 0,
-			 "port-write", (void *)mport);
+	rc = request_irq(IRQ_RIO_PW(mport), fsl_rio_port_write_handler,
+			IRQF_SHARED, "port-write", (void *)mport);
 	if (rc < 0) {
 		pr_err("MPC85xx RIO: unable to request inbound doorbell irq");
 		goto err_out;
 	}
+	/* Enable Error Interrupt */
+	out_be32((u32 *)(rio_regs_win + RIO_LTLEECSR), LTLEECSR_ENABLE_ALL);
 
 	INIT_WORK(&priv->pw_work, fsl_pw_dpc);
 	spin_lock_init(&priv->pw_fifo_lock);
@@ -1292,28 +1353,6 @@ err_out:
 			  priv->port_write_msg.phys);
 	return rc;
 }
-
-static char *cmdline = NULL;
-
-static int fsl_rio_get_hdid(int index)
-{
-	/* XXX Need to parse multiple entries in some format */
-	if (!cmdline)
-		return -1;
-
-	return simple_strtol(cmdline, NULL, 0);
-}
-
-static int fsl_rio_get_cmdline(char *s)
-{
-	if (!s)
-		return 0;
-
-	cmdline = s;
-	return 1;
-}
-
-__setup("riohdid=", fsl_rio_get_cmdline);
 
 static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 {
@@ -1431,13 +1470,19 @@ int fsl_rio_setup(struct platform_device *dev)
 	ops->cwrite = fsl_rio_config_write;
 	ops->dsend = fsl_rio_doorbell_send;
 	ops->pwenable = fsl_rio_pw_enable;
+	ops->open_outb_mbox = fsl_open_outb_mbox;
+	ops->open_inb_mbox = fsl_open_inb_mbox;
+	ops->close_outb_mbox = fsl_close_outb_mbox;
+	ops->close_inb_mbox = fsl_close_inb_mbox;
+	ops->add_outb_message = fsl_add_outb_message;
+	ops->add_inb_buffer = fsl_add_inb_buffer;
+	ops->get_inb_message = fsl_get_inb_message;
 
 	port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
 	if (!port) {
 		rc = -ENOMEM;
 		goto err_port;
 	}
-	port->id = 0;
 	port->index = 0;
 
 	priv = kzalloc(sizeof(struct rio_priv), GFP_KERNEL);
@@ -1452,6 +1497,14 @@ int fsl_rio_setup(struct platform_device *dev)
 	port->iores.end = law_start + law_size - 1;
 	port->iores.flags = IORESOURCE_MEM;
 	port->iores.name = "rio_io_win";
+
+	if (request_resource(&iomem_resource, &port->iores) < 0) {
+		dev_err(&dev->dev, "RIO: Error requesting master port region"
+			" 0x%016llx-0x%016llx\n",
+			(u64)port->iores.start, (u64)port->iores.end);
+			rc = -ENOMEM;
+			goto err_res;
+	}
 
 	priv->pwirq   = irq_of_parse_and_map(dev->dev.of_node, 0);
 	priv->bellirq = irq_of_parse_and_map(dev->dev.of_node, 2);
@@ -1468,13 +1521,10 @@ int fsl_rio_setup(struct platform_device *dev)
 	priv->dev = &dev->dev;
 
 	port->ops = ops;
-	port->host_deviceid = fsl_rio_get_hdid(port->id);
-
 	port->priv = priv;
 	port->phys_efptr = 0x100;
-	rio_register_mport(port);
 
-	priv->regs_win = ioremap(regs.start, regs.end - regs.start + 1);
+	priv->regs_win = ioremap(regs.start, resource_size(&regs));
 	rio_regs_win = priv->regs_win;
 
 	/* Probe the master port phy type */
@@ -1519,6 +1569,9 @@ int fsl_rio_setup(struct platform_device *dev)
 	dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
 			port->sys_size ? 65536 : 256);
 
+	if (rio_register_mport(port))
+		goto err;
+
 	if (port->host_deviceid >= 0)
 		out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |
 			RIO_PORT_GEN_MASTER | RIO_PORT_GEN_DISCOVERED);
@@ -1551,14 +1604,10 @@ int fsl_rio_setup(struct platform_device *dev)
 	fsl_rio_doorbell_init(port);
 	fsl_rio_port_write_init(port);
 
-#ifdef CONFIG_E500
-	saved_mcheck_exception = ppc_md.machine_check_exception;
-	ppc_md.machine_check_exception = fsl_rio_mcheck_exception;
-#endif
-
 	return 0;
 err:
 	iounmap(priv->regs_win);
+err_res:
 	kfree(priv);
 err_priv:
 	kfree(port);
@@ -1570,21 +1619,12 @@ err_ops:
 
 /* The probe function for RapidIO peer-to-peer network.
  */
-static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev,
-				     const struct of_device_id *match)
+static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev)
 {
-	int rc;
 	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %s\n",
 			dev->dev.of_node->full_name);
 
-	rc = fsl_rio_setup(dev);
-	if (rc)
-		goto out;
-
-	/* Enumerate all registered ports */
-	rc = rio_init_mports();
-out:
-	return rc;
+	return fsl_rio_setup(dev);
 };
 
 static const struct of_device_id fsl_of_rio_rpn_ids[] = {
@@ -1594,7 +1634,7 @@ static const struct of_device_id fsl_of_rio_rpn_ids[] = {
 	{},
 };
 
-static struct of_platform_driver fsl_of_rio_rpn_driver = {
+static struct platform_driver fsl_of_rio_rpn_driver = {
 	.driver = {
 		.name = "fsl-of-rio",
 		.owner = THIS_MODULE,
@@ -1605,7 +1645,7 @@ static struct of_platform_driver fsl_of_rio_rpn_driver = {
 
 static __init int fsl_of_rio_rpn_init(void)
 {
-	return of_register_platform_driver(&fsl_of_rio_rpn_driver);
+	return platform_driver_register(&fsl_of_rio_rpn_driver);
 }
 
 subsys_initcall(fsl_of_rio_rpn_init);

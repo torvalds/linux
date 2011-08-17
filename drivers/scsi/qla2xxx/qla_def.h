@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1717,6 +1717,14 @@ typedef struct fc_port {
 #define FCS_DEVICE_LOST		3
 #define FCS_ONLINE		4
 
+static const char * const port_state_str[] = {
+	"Unknown",
+	"UNCONFIGURED",
+	"DEAD",
+	"LOST",
+	"ONLINE"
+};
+
 /*
  * FC port flags.
  */
@@ -2086,7 +2094,7 @@ struct ct_sns_pkt {
 };
 
 /*
- * SNS command structures -- for 2200 compatability.
+ * SNS command structures -- for 2200 compatibility.
  */
 #define	RFT_ID_SNS_SCMD_LEN	22
 #define	RFT_ID_SNS_CMD_SIZE	60
@@ -2402,13 +2410,13 @@ struct qla_hw_data {
 	volatile struct {
 		uint32_t	mbox_int		:1;
 		uint32_t	mbox_busy		:1;
-
 		uint32_t	disable_risc_code_load	:1;
 		uint32_t	enable_64bit_addressing	:1;
 		uint32_t	enable_lip_reset	:1;
 		uint32_t	enable_target_reset	:1;
 		uint32_t	enable_lip_full_login	:1;
 		uint32_t	enable_led_scheme	:1;
+
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
@@ -2417,6 +2425,7 @@ struct qla_hw_data {
 		uint32_t	pci_channel_io_perm_failure	:1;
 		uint32_t	fce_enabled		:1;
 		uint32_t	fac_supported		:1;
+
 		uint32_t	chip_reset_done		:1;
 		uint32_t	port0			:1;
 		uint32_t	running_gold_fw		:1;
@@ -2424,9 +2433,11 @@ struct qla_hw_data {
 		uint32_t	cpu_affinity_enabled	:1;
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
-		uint32_t	fw_hung	:1;
-		uint32_t        quiesce_owner:1;
+		uint32_t	isp82xx_fw_hung:1;
+
+		uint32_t	quiesce_owner:1;
 		uint32_t	thermal_supported:1;
+		uint32_t	isp82xx_reset_hdlr_active:1;
 		/* 26 bits */
 	} flags;
 

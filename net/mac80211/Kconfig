@@ -2,7 +2,6 @@ config MAC80211
 	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
 	depends on CFG80211
 	select CRYPTO
-	select CRYPTO_ECB
 	select CRYPTO_ARC4
 	select CRYPTO_AES
 	select CRC32
@@ -17,7 +16,7 @@ comment "CFG80211 needs to be enabled for MAC80211"
 if MAC80211 != n
 
 config MAC80211_HAS_RC
-	def_bool n
+	bool
 
 config MAC80211_RC_PID
 	bool "PID controller based rate control algorithm" if EXPERT
@@ -78,7 +77,7 @@ config MAC80211_RC_DEFAULT
 endif
 
 comment "Some wireless drivers require a rate control algorithm"
-	depends on MAC80211_HAS_RC=n
+	depends on MAC80211 && MAC80211_HAS_RC=n
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"

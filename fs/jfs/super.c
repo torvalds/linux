@@ -644,7 +644,7 @@ static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t jfs_quota_read(struct super_block *sb, int type, char *data,
 			      size_t len, loff_t off)

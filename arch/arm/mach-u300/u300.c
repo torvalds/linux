@@ -19,9 +19,9 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/memory.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/memory.h>
 
 static void __init u300_reserve(void)
 {

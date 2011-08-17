@@ -69,32 +69,26 @@ static unsigned char xilinx_intc_map_senses[] = {
  *
  * IRQ Chip common (across level and edge) operations
  */
-static void xilinx_intc_mask(unsigned int virq)
+static void xilinx_intc_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void * regs = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void * regs = irq_data_get_irq_chip_data(d);
 	pr_debug("mask: %d\n", irq);
 	out_be32(regs + XINTC_CIE, 1 << irq);
 }
 
-static int xilinx_intc_set_type(unsigned int virq, unsigned int flow_type)
+static int xilinx_intc_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
-
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		desc->status |= IRQ_LEVEL;
 	return 0;
 }
 
 /*
  * IRQ Chip level operations
  */
-static void xilinx_intc_level_unmask(unsigned int virq)
+static void xilinx_intc_level_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void * regs = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void * regs = irq_data_get_irq_chip_data(d);
 	pr_debug("unmask: %d\n", irq);
 	out_be32(regs + XINTC_SIE, 1 << irq);
 
@@ -107,37 +101,37 @@ static void xilinx_intc_level_unmask(unsigned int virq)
 
 static struct irq_chip xilinx_intc_level_irqchip = {
 	.name = "Xilinx Level INTC",
-	.mask = xilinx_intc_mask,
-	.mask_ack = xilinx_intc_mask,
-	.unmask = xilinx_intc_level_unmask,
-	.set_type = xilinx_intc_set_type,
+	.irq_mask = xilinx_intc_mask,
+	.irq_mask_ack = xilinx_intc_mask,
+	.irq_unmask = xilinx_intc_level_unmask,
+	.irq_set_type = xilinx_intc_set_type,
 };
 
 /*
  * IRQ Chip edge operations
  */
-static void xilinx_intc_edge_unmask(unsigned int virq)
+static void xilinx_intc_edge_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void *regs = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void *regs = irq_data_get_irq_chip_data(d);
 	pr_debug("unmask: %d\n", irq);
 	out_be32(regs + XINTC_SIE, 1 << irq);
 }
 
-static void xilinx_intc_edge_ack(unsigned int virq)
+static void xilinx_intc_edge_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void * regs = get_irq_chip_data(virq);
+	int irq = irqd_to_hwirq(d);
+	void * regs = irq_data_get_irq_chip_data(d);
 	pr_debug("ack: %d\n", irq);
 	out_be32(regs + XINTC_IAR, 1 << irq);
 }
 
 static struct irq_chip xilinx_intc_edge_irqchip = {
 	.name = "Xilinx Edge  INTC",
-	.mask = xilinx_intc_mask,
-	.unmask = xilinx_intc_edge_unmask,
-	.ack = xilinx_intc_edge_ack,
-	.set_type = xilinx_intc_set_type,
+	.irq_mask = xilinx_intc_mask,
+	.irq_unmask = xilinx_intc_edge_unmask,
+	.irq_ack = xilinx_intc_edge_ack,
+	.irq_set_type = xilinx_intc_set_type,
 };
 
 /*
@@ -170,15 +164,15 @@ static int xilinx_intc_xlate(struct irq_host *h, struct device_node *ct,
 static int xilinx_intc_map(struct irq_host *h, unsigned int virq,
 				  irq_hw_number_t irq)
 {
-	set_irq_chip_data(virq, h->host_data);
+	irq_set_chip_data(virq, h->host_data);
 
 	if (xilinx_intc_typetable[irq] == IRQ_TYPE_LEVEL_HIGH ||
 	    xilinx_intc_typetable[irq] == IRQ_TYPE_LEVEL_LOW) {
-		set_irq_chip_and_handler(virq, &xilinx_intc_level_irqchip,
-			handle_level_irq);
+		irq_set_chip_and_handler(virq, &xilinx_intc_level_irqchip,
+					 handle_level_irq);
 	} else {
-		set_irq_chip_and_handler(virq, &xilinx_intc_edge_irqchip,
-			handle_edge_irq);
+		irq_set_chip_and_handler(virq, &xilinx_intc_edge_irqchip,
+					 handle_edge_irq);
 	}
 	return 0;
 }
@@ -229,12 +223,14 @@ int xilinx_intc_get_irq(void)
  */
 static void xilinx_i8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
+
 	if (cascade_irq)
 		generic_handle_irq(cascade_irq);
 
 	/* Let xilinx_intc end the interrupt */
-	desc->chip->unmask(irq);
+	chip->irq_unmask(&desc->irq_data);
 }
 
 static void __init xilinx_i8259_setup_cascade(void)
@@ -254,7 +250,7 @@ static void __init xilinx_i8259_setup_cascade(void)
 	}
 
 	i8259_init(cascade_node, 0);
-	set_irq_chained_handler(cascade_irq, xilinx_i8259_cascade);
+	irq_set_chained_handler(cascade_irq, xilinx_i8259_cascade);
 
 	/* Program irq 7 (usb/audio), 14/15 (ide) to level sensitive */
 	/* This looks like a dirty hack to me --gcl */

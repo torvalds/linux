@@ -31,7 +31,7 @@
 #endif
 
 /*
- * These are the offsets from the begining of the fiq_buffer. They are put here
+ * These are the offsets from the beginning of the fiq_buffer. They are put here
  * since the buffer and header need to be accessed by drivers servicing devices
  * which generate GPIO interrupts - e.g. keyboard, modem, hook switch.
  */

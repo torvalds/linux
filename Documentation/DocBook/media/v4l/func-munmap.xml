@@ -1,0 +1,84 @@
+<refentry id="func-munmap">
+  <refmeta>
+    <refentrytitle>V4L2 munmap()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>v4l2-munmap</refname>
+    <refpurpose>Unmap device memory</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>
+#include &lt;unistd.h&gt;
+#include &lt;sys/mman.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>munmap</function></funcdef>
+	<paramdef>void *<parameter>start</parameter></paramdef>
+	<paramdef>size_t <parameter>length</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+  <refsect1>
+    <title>Arguments</title>
+    <variablelist>
+      <varlistentry>
+	<term><parameter>start</parameter></term>
+	<listitem>
+	  <para>Address of the mapped buffer as returned by the
+&func-mmap; function.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>length</parameter></term>
+	<listitem>
+	  <para>Length of the mapped buffer. This must be the same
+value as given to <function>mmap()</function> and returned by the
+driver in the &v4l2-buffer; <structfield>length</structfield>
+field for the single-planar API and in the &v4l2-plane;
+<structfield>length</structfield> field for the multi-planar API.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Unmaps a previously with the &func-mmap; function mapped
+buffer and frees it, if possible. <!-- ? This function (not freeing)
+has no impact on I/O in progress, specifically it does not imply
+&VIDIOC-STREAMOFF; to terminate I/O. Unmapped buffers can still be
+enqueued, dequeued or queried, they are just not accessible by the
+application.--></para>
+  </refsect1>
+
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success <function>munmap()</function> returns 0, on
+failure -1 and the <varname>errno</varname> variable is set
+appropriately:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <parameter>start</parameter> or
+<parameter>length</parameter> is incorrect, or no buffers have been
+mapped yet.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

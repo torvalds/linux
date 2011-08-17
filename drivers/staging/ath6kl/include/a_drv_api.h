@@ -130,34 +130,6 @@ extern "C" {
 #define A_WMI_PEER_EVENT(devt, eventCode, bssid)    \
     ar6000_peer_event ((devt), (eventCode), (bssid))
 
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-
-#define A_WMI_GPIO_INTR_RX(intr_mask, input_values) \
-    ar6000_gpio_intr_rx((intr_mask), (input_values))
-
-#define A_WMI_GPIO_DATA_RX(reg_id, value) \
-    ar6000_gpio_data_rx((reg_id), (value))
-
-#define A_WMI_GPIO_ACK_RX() \
-    ar6000_gpio_ack_rx()
-
-#endif
-
-#ifdef SEND_EVENT_TO_APP
-
-#define A_WMI_SEND_EVENT_TO_APP(ar, eventId, datap, len) \
-    ar6000_send_event_to_app((ar), (eventId), (datap), (len))
-
-#define A_WMI_SEND_GENERIC_EVENT_TO_APP(ar, eventId, datap, len) \
-    ar6000_send_generic_event_to_app((ar), (eventId), (datap), (len))
-
-#else
-
-#define A_WMI_SEND_EVENT_TO_APP(ar, eventId, datap, len)
-#define A_WMI_SEND_GENERIC_EVENT_TO_APP(ar, eventId, datap, len)
-
-#endif
-
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 #define A_WMI_TCMD_RX_REPORT_EVENT(devt, results, len) \
     ar6000_tcmd_rx_report_event((devt), (results), (len))
@@ -188,10 +160,10 @@ extern "C" {
     ar6000_dbglog_event((ar), (dropped), (buffer), (length));
 
 #define A_WMI_STREAM_TX_ACTIVE(devt,trafficClass) \
-    ar6000_indicate_tx_activity((devt),(trafficClass), TRUE)
+    ar6000_indicate_tx_activity((devt),(trafficClass), true)
 
 #define A_WMI_STREAM_TX_INACTIVE(devt,trafficClass) \
-    ar6000_indicate_tx_activity((devt),(trafficClass), FALSE)
+    ar6000_indicate_tx_activity((devt),(trafficClass), false)
 #define A_WMI_Ac2EndpointID(devht, ac)\
     ar6000_ac2_endpoint_id((devht), (ac))
 

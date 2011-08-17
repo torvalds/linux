@@ -192,7 +192,7 @@ Q: There don't seem to be any generally useful behavioral
 distinctions between SUSPEND and FREEZE.
 
 A: Doing SUSPEND when you are asked to do FREEZE is always correct,
-but it may be unneccessarily slow. If you want your driver to stay simple,
+but it may be unnecessarily slow. If you want your driver to stay simple,
 slowness may not matter to you. It can always be fixed later.
 
 For devices like disk it does matter, you do not want to spindown for
@@ -237,7 +237,7 @@ disk. Whole sequence goes like
 
       running system, user asks for suspend-to-disk
 
-      user processes are stopped (in common case there are none, but with resume-from-initrd, noone knows)
+      user processes are stopped (in common case there are none, but with resume-from-initrd, no one knows)
 
       read image from disk
 

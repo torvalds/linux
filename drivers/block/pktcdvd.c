@@ -1206,7 +1206,7 @@ static int pkt_start_recovery(struct packet_data *pkt)
 	if (!sb)
 		return 0;
 
-	if (!sb->s_op || !sb->s_op->relocate_blocks)
+	if (!sb->s_op->relocate_blocks)
 		goto out;
 
 	old_block = pkt->sector / (CD_FRAMESIZE >> 9);
@@ -1605,8 +1605,6 @@ static int kcdrwd(void *foobar)
 				if (pkt->sleep_time && pkt->sleep_time < min_sleep_time)
 					min_sleep_time = pkt->sleep_time;
 			}
-
-			generic_unplug_device(bdev_get_queue(pd->bdev));
 
 			VPRINTK("kcdrwd: sleeping\n");
 			residue = schedule_timeout(min_sleep_time);
@@ -2796,7 +2794,8 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 	return ret;
 }
 
-static int pkt_media_changed(struct gendisk *disk)
+static unsigned int pkt_check_events(struct gendisk *disk,
+				     unsigned int clearing)
 {
 	struct pktcdvd_device *pd = disk->private_data;
 	struct gendisk *attached_disk;
@@ -2806,9 +2805,9 @@ static int pkt_media_changed(struct gendisk *disk)
 	if (!pd->bdev)
 		return 0;
 	attached_disk = pd->bdev->bd_disk;
-	if (!attached_disk)
+	if (!attached_disk || !attached_disk->fops->check_events)
 		return 0;
-	return attached_disk->fops->media_changed(attached_disk);
+	return attached_disk->fops->check_events(attached_disk, clearing);
 }
 
 static const struct block_device_operations pktcdvd_ops = {
@@ -2816,7 +2815,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.open =			pkt_open,
 	.release =		pkt_close,
 	.ioctl =		pkt_ioctl,
-	.media_changed =	pkt_media_changed,
+	.check_events =		pkt_check_events,
 };
 
 static char *pktcdvd_devnode(struct gendisk *gd, mode_t *mode)
@@ -2888,6 +2887,10 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	ret = pkt_new_dev(pd, dev);
 	if (ret)
 		goto out_new_dev;
+
+	/* inherit events of the host device */
+	disk->events = pd->bdev->bd_disk->events;
+	disk->async_events = pd->bdev->bd_disk->async_events;
 
 	add_disk(disk);
 

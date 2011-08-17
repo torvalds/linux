@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Atheros Communications Inc.
+ * Copyright (c) 2009-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,9 +19,13 @@
 
 #include "hw.h"
 
-#define ATH_WLANACTIVE_GPIO	5
-#define ATH_BTACTIVE_GPIO	6
-#define ATH_BTPRIORITY_GPIO	7
+#define ATH_WLANACTIVE_GPIO_9280     5
+#define ATH_BTACTIVE_GPIO_9280       6
+#define ATH_BTPRIORITY_GPIO_9285     7
+
+#define ATH_WLANACTIVE_GPIO_9300     5
+#define ATH_BTACTIVE_GPIO_9300       4
+#define ATH_BTPRIORITY_GPIO_9300     8
 
 #define ATH_BTCOEX_DEF_BT_PERIOD  45
 #define ATH_BTCOEX_DEF_DUTY_CYCLE 55
@@ -31,6 +35,14 @@
 #define ATH_BT_PRIORITY_TIME_THRESHOLD 1000 /* ms */
 #define ATH_BT_CNT_THRESHOLD	       3
 #define ATH_BT_CNT_SCAN_THRESHOLD      15
+
+/* Defines the BT AR_BT_COEX_WGHT used */
+enum ath_stomp_type {
+	ATH_BTCOEX_NO_STOMP,
+	ATH_BTCOEX_STOMP_ALL,
+	ATH_BTCOEX_STOMP_LOW,
+	ATH_BTCOEX_STOMP_NONE
+};
 
 enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_NONE,
@@ -57,5 +69,7 @@ void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
 				u32 wlan_weight);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
+void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
+			      enum ath_stomp_type stomp_type);
 
 #endif

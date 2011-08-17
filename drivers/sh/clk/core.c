@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -33,6 +33,9 @@
 static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
 static DEFINE_MUTEX(clock_list_sem);
+
+/* clock disable operations are not passed on to hardware during boot */
+static int allow_disable;
 
 void clk_rate_table_build(struct clk *clk,
 			  struct cpufreq_frequency_table *freq_table,
@@ -228,7 +231,7 @@ static void __clk_disable(struct clk *clk)
 		return;
 
 	if (!(--clk->usecount)) {
-		if (likely(clk->ops && clk->ops->disable))
+		if (likely(allow_disable && clk->ops && clk->ops->disable))
 			clk->ops->disable(clk);
 		if (likely(clk->parent))
 			__clk_disable(clk->parent);
@@ -393,7 +396,7 @@ int clk_register(struct clk *clk)
 {
 	int ret;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	/*
@@ -630,68 +633,36 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 EXPORT_SYMBOL_GPL(clk_round_parent);
 
 #ifdef CONFIG_PM
-static int clks_sysdev_suspend(struct sys_device *dev, pm_message_t state)
+static void clks_core_resume(void)
 {
-	static pm_message_t prev_state;
 	struct clk *clkp;
 
-	switch (state.event) {
-	case PM_EVENT_ON:
-		/* Resumeing from hibernation */
-		if (prev_state.event != PM_EVENT_FREEZE)
-			break;
+	list_for_each_entry(clkp, &clock_list, node) {
+		if (likely(clkp->usecount && clkp->ops)) {
+			unsigned long rate = clkp->rate;
 
-		list_for_each_entry(clkp, &clock_list, node) {
-			if (likely(clkp->ops)) {
-				unsigned long rate = clkp->rate;
-
-				if (likely(clkp->ops->set_parent))
-					clkp->ops->set_parent(clkp,
-						clkp->parent);
-				if (likely(clkp->ops->set_rate))
-					clkp->ops->set_rate(clkp, rate);
-				else if (likely(clkp->ops->recalc))
-					clkp->rate = clkp->ops->recalc(clkp);
-			}
+			if (likely(clkp->ops->set_parent))
+				clkp->ops->set_parent(clkp,
+					clkp->parent);
+			if (likely(clkp->ops->set_rate))
+				clkp->ops->set_rate(clkp, rate);
+			else if (likely(clkp->ops->recalc))
+				clkp->rate = clkp->ops->recalc(clkp);
 		}
-		break;
-	case PM_EVENT_FREEZE:
-		break;
-	case PM_EVENT_SUSPEND:
-		break;
 	}
-
-	prev_state = state;
-	return 0;
 }
 
-static int clks_sysdev_resume(struct sys_device *dev)
+static struct syscore_ops clks_syscore_ops = {
+	.resume = clks_core_resume,
+};
+
+static int __init clk_syscore_init(void)
 {
-	return clks_sysdev_suspend(dev, PMSG_ON);
-}
-
-static struct sysdev_class clks_sysdev_class = {
-	.name = "clks",
-};
-
-static struct sysdev_driver clks_sysdev_driver = {
-	.suspend = clks_sysdev_suspend,
-	.resume = clks_sysdev_resume,
-};
-
-static struct sys_device clks_sysdev_dev = {
-	.cls = &clks_sysdev_class,
-};
-
-static int __init clk_sysdev_init(void)
-{
-	sysdev_class_register(&clks_sysdev_class);
-	sysdev_driver_register(&clks_sysdev_class, &clks_sysdev_driver);
-	sysdev_register(&clks_sysdev_dev);
+	register_syscore_ops(&clks_syscore_ops);
 
 	return 0;
 }
-subsys_initcall(clk_sysdev_init);
+subsys_initcall(clk_syscore_init);
 #endif
 
 /*
@@ -702,7 +673,7 @@ static struct dentry *clk_debugfs_root;
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
-	struct dentry *d, *child, *child_tmp;
+	struct dentry *d;
 	struct clk *pa = c->parent;
 	char s[255];
 	char *p = s;
@@ -731,10 +702,7 @@ static int clk_debugfs_register_one(struct clk *c)
 	return 0;
 
 err_out:
-	d = c->dentry;
-	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
-		debugfs_remove(child);
-	debugfs_remove(c->dentry);
+	debugfs_remove_recursive(c->dentry);
 	return err;
 }
 
@@ -779,3 +747,25 @@ err_out:
 	return err;
 }
 late_initcall(clk_debugfs_init);
+
+static int __init clk_late_init(void)
+{
+	unsigned long flags;
+	struct clk *clk;
+
+	/* disable all clocks with zero use count */
+	mutex_lock(&clock_list_sem);
+	spin_lock_irqsave(&clock_lock, flags);
+
+	list_for_each_entry(clk, &clock_list, node)
+		if (!clk->usecount && clk->ops && clk->ops->disable)
+			clk->ops->disable(clk);
+
+	/* from now on allow clock disable operations */
+	allow_disable = 1;
+
+	spin_unlock_irqrestore(&clock_lock, flags);
+	mutex_unlock(&clock_list_sem);
+	return 0;
+}
+late_initcall(clk_late_init);

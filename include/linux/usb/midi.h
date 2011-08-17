@@ -70,7 +70,7 @@ struct usb_midi_out_jack_descriptor {
 	__u8  bJackID;
 	__u8  bNrInputPins;		/* p */
 	struct usb_midi_source_pin pins[]; /* [p] */
-	/*__u8  iJack;  -- ommitted due to variable-sized pins[] */
+	/*__u8  iJack;  -- omitted due to variable-sized pins[] */
 } __attribute__ ((packed));
 
 #define USB_DT_MIDI_OUT_SIZE(p)	(7 + 2 * (p))

@@ -1334,7 +1334,7 @@ out_free_pmif:
 static int
 pmac_ide_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	pmac_ide_hwif_t *pmif = (pmac_ide_hwif_t *)pci_get_drvdata(pdev);
+	pmac_ide_hwif_t *pmif = pci_get_drvdata(pdev);
 	int rc = 0;
 
 	if (mesg.event != pdev->dev.power.power_state.event
@@ -1350,7 +1350,7 @@ pmac_ide_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 static int
 pmac_ide_pci_resume(struct pci_dev *pdev)
 {
-	pmac_ide_hwif_t *pmif = (pmac_ide_hwif_t *)pci_get_drvdata(pdev);
+	pmac_ide_hwif_t *pmif = pci_get_drvdata(pdev);
 	int rc = 0;
 
 	if (pdev->dev.power.power_state.event != PM_EVENT_ON) {

@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/kernel_stat.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
 
@@ -313,7 +313,7 @@ static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit)
 	unsigned long schid = *((u32 *) &q->irq_ptr->schid);
 	unsigned int fc = QDIO_SIGA_WRITE;
 	u64 start_time = 0;
-	int cc;
+	int retries = 0, cc;
 
 	if (is_qebsm(q)) {
 		schid = q->irq_ptr->sch_token;
@@ -325,6 +325,7 @@ again:
 	/* hipersocket busy condition */
 	if (unlikely(*busy_bit)) {
 		WARN_ON(queue_type(q) != QDIO_IQDIO_QFMT || cc != 2);
+		retries++;
 
 		if (!start_time) {
 			start_time = get_clock();
@@ -332,6 +333,11 @@ again:
 		}
 		if ((get_clock() - start_time) < QDIO_BUSY_BIT_PATIENCE)
 			goto again;
+	}
+	if (retries) {
+		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr,
+			      "%4x cc2 BB1:%1d", SCH_NO(q), q->nr);
+		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "count:%u", retries);
 	}
 	return cc;
 }
@@ -407,13 +413,16 @@ static inline void account_sbals(struct qdio_q *q, int count)
 	q->q_stats.nr_sbals[pos]++;
 }
 
-static void announce_buffer_error(struct qdio_q *q, int count)
+static void process_buffer_error(struct qdio_q *q, int count)
 {
+	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
+					SLSB_P_OUTPUT_NOT_INIT;
+
 	q->qdio_error |= QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
 	if ((!q->is_input_q &&
-	    (q->sbal[q->first_to_check]->element[15].flags & 0xff) == 0x10)) {
+	    (q->sbal[q->first_to_check]->element[15].sflags) == 0x10)) {
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
@@ -424,8 +433,14 @@ static void announce_buffer_error(struct qdio_q *q, int count)
 	DBF_ERROR((q->is_input_q) ? "IN:%2d" : "OUT:%2d", q->nr);
 	DBF_ERROR("FTC:%3d C:%3d", q->first_to_check, count);
 	DBF_ERROR("F14:%2x F15:%2x",
-		  q->sbal[q->first_to_check]->element[14].flags & 0xff,
-		  q->sbal[q->first_to_check]->element[15].flags & 0xff);
+		  q->sbal[q->first_to_check]->element[14].sflags,
+		  q->sbal[q->first_to_check]->element[15].sflags);
+
+	/*
+	 * Interrupts may be avoided as long as the error is present
+	 * so change the buffer state immediately to avoid starvation.
+	 */
+	set_buf_states(q, q->first_to_check, state, count);
 }
 
 static inline void inbound_primed(struct qdio_q *q, int count)
@@ -506,8 +521,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 			account_sbals(q, count);
 		break;
 	case SLSB_P_INPUT_ERROR:
-		announce_buffer_error(q, count);
-		/* process the buffer, the upper layer will take care of it */
+		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -677,8 +691,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 			account_sbals(q, count);
 		break;
 	case SLSB_P_OUTPUT_ERROR:
-		announce_buffer_error(q, count);
-		/* process the buffer, the upper layer will take care of it */
+		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -721,13 +734,14 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q)
 
 static int qdio_kick_outbound_q(struct qdio_q *q)
 {
+	int retries = 0, cc;
 	unsigned int busy_bit;
-	int cc;
 
 	if (!need_siga_out(q))
 		return 0;
 
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w:%1d", q->nr);
+retry:
 	qperf_inc(q, siga_write);
 
 	cc = qdio_siga_output(q, &busy_bit);
@@ -736,7 +750,11 @@ static int qdio_kick_outbound_q(struct qdio_q *q)
 		break;
 	case 2:
 		if (busy_bit) {
-			DBF_ERROR("%4x cc2 REP:%1d", SCH_NO(q), q->nr);
+			while (++retries < QDIO_BUSY_BIT_RETRIES) {
+				mdelay(QDIO_BUSY_BIT_RETRY_DELAY);
+				goto retry;
+			}
+			DBF_ERROR("%4x cc2 BBC:%1d", SCH_NO(q), q->nr);
 			cc |= QDIO_ERROR_SIGA_BUSY;
 		} else
 			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w cc2:%1d", q->nr);
@@ -745,6 +763,10 @@ static int qdio_kick_outbound_q(struct qdio_q *q)
 	case 3:
 		DBF_ERROR("%4x SIGA-W:%1d", SCH_NO(q), cc);
 		break;
+	}
+	if (retries) {
+		DBF_ERROR("%4x cc2 BB2:%1d", SCH_NO(q), q->nr);
+		DBF_ERROR("count:%u", retries);
 	}
 	return cc;
 }
@@ -1439,7 +1461,7 @@ set:
 static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 			   int bufnr, int count)
 {
-	unsigned char state;
+	unsigned char state = 0;
 	int used, rc = 0;
 
 	qperf_inc(q, outbound_call);
@@ -1508,7 +1530,8 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EBUSY;
-
+	if (!count)
+		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
 		return handle_inbound(irq_ptr->input_qs[q_nr],
 				      callflags, bufnr, count);
@@ -1648,26 +1671,26 @@ static int __init init_QDIO(void)
 {
 	int rc;
 
-	rc = qdio_setup_init();
+	rc = qdio_debug_init();
 	if (rc)
 		return rc;
+	rc = qdio_setup_init();
+	if (rc)
+		goto out_debug;
 	rc = tiqdio_allocate_memory();
 	if (rc)
 		goto out_cache;
-	rc = qdio_debug_init();
-	if (rc)
-		goto out_ti;
 	rc = tiqdio_register_thinints();
 	if (rc)
-		goto out_debug;
+		goto out_ti;
 	return 0;
 
-out_debug:
-	qdio_debug_exit();
 out_ti:
 	tiqdio_free_memory();
 out_cache:
 	qdio_setup_exit();
+out_debug:
+	qdio_debug_exit();
 	return rc;
 }
 
@@ -1675,8 +1698,8 @@ static void __exit exit_QDIO(void)
 {
 	tiqdio_unregister_thinints();
 	tiqdio_free_memory();
-	qdio_debug_exit();
 	qdio_setup_exit();
+	qdio_debug_exit();
 }
 
 module_init(init_QDIO);

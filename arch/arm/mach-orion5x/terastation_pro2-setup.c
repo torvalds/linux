@@ -88,7 +88,7 @@ void __init tsp2_pci_preinit(void)
 	pin = TSP2_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "tsp2_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
@@ -100,7 +100,7 @@ void __init tsp2_pci_preinit(void)
 	}
 }
 
-static int __init tsp2_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init tsp2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -295,28 +295,28 @@ static void tsp2_power_off(void)
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode tsp2_mpp_modes[] __initdata = {
-	{  0, MPP_PCIE_RST_OUTn },
-	{  1, MPP_UNUSED },
-	{  2, MPP_UNUSED },
-	{  3, MPP_UNUSED },
-	{  4, MPP_NAND },		/* BOOT NAND Flash REn */
-	{  5, MPP_NAND },		/* BOOT NAND Flash WEn */
-	{  6, MPP_NAND },		/* BOOT NAND Flash HREn[0] */
-	{  7, MPP_NAND },		/* BOOT NAND Flash WEn[0] */
-	{  8, MPP_GPIO },		/* MICON int */
-	{  9, MPP_GPIO },		/* RTC int */
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_GPIO },		/* PCI Int A */
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_GPIO },		/* UPS on UART0 enable */
-	{ 14, MPP_GPIO },		/* UPS low battery detection */
-	{ 15, MPP_UNUSED },
-	{ 16, MPP_UART },		/* UART1 RXD */
-	{ 17, MPP_UART },		/* UART1 TXD */
-	{ 18, MPP_UART },		/* UART1 CTSn */
-	{ 19, MPP_UART },		/* UART1 RTSn */
-	{ -1 },
+static unsigned int tsp2_mpp_modes[] __initdata = {
+	MPP0_PCIE_RST_OUTn,
+	MPP1_UNUSED,
+	MPP2_UNUSED,
+	MPP3_UNUSED,
+	MPP4_NAND,		/* BOOT NAND Flash REn */
+	MPP5_NAND,		/* BOOT NAND Flash WEn */
+	MPP6_NAND,		/* BOOT NAND Flash HREn[0] */
+	MPP7_NAND,		/* BOOT NAND Flash WEn[0] */
+	MPP8_GPIO,		/* MICON int */
+	MPP9_GPIO,		/* RTC int */
+	MPP10_UNUSED,
+	MPP11_GPIO,		/* PCI Int A */
+	MPP12_UNUSED,
+	MPP13_GPIO,		/* UPS on UART0 enable */
+	MPP14_GPIO,		/* UPS low battery detection */
+	MPP15_UNUSED,
+	MPP16_UART,		/* UART1 RXD */
+	MPP17_UART,		/* UART1 TXD */
+	MPP18_UART,		/* UART1 CTSn */
+	MPP19_UART,		/* UART1 RTSn */
+	0,
 };
 
 static void __init tsp2_init(void)
@@ -361,6 +361,7 @@ MACHINE_START(TERASTATION_PRO2, "Buffalo Terastation Pro II/Live")
 	.boot_params	= 0x00000100,
 	.init_machine	= tsp2_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

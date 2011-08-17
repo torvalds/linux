@@ -77,7 +77,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(0x100)
 
-	PERCPU(PAGE_SIZE)
+	PERCPU_SECTION(0x100)
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
 

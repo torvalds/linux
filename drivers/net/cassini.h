@@ -772,7 +772,7 @@
 #define    RX_DEBUG_INTR_WRITE_PTR_MASK    0xC0000000 /* interrupt write pointer
 							 of the interrupt queue */
 
-/* flow control frames are emmitted using two PAUSE thresholds:
+/* flow control frames are emitted using two PAUSE thresholds:
  * XOFF PAUSE uses pause time value pre-programmed in the Send PAUSE MAC reg
  * XON PAUSE uses a pause time of 0. granularity of threshold is 64bytes.
  * PAUSE thresholds defined in terms of FIFO occupancy and may be translated

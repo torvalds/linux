@@ -202,13 +202,11 @@ static int __init s3c2416_add_sub(unsigned int base,
 {
 	unsigned int irqno;
 
-	set_irq_chip(base, &s3c_irq_level_chip);
-	set_irq_handler(base, handle_level_irq);
-	set_irq_chained_handler(base, demux);
+	irq_set_chip_and_handler(base, &s3c_irq_level_chip, handle_level_irq);
+	irq_set_chained_handler(base, demux);
 
 	for (irqno = start; irqno <= end; irqno++) {
-		set_irq_chip(irqno, chip);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, chip, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -238,8 +236,6 @@ static int __init s3c2416_irq_add(struct sys_device *sysdev)
 
 static struct sysdev_driver s3c2416_irq_driver = {
 	.add		= s3c2416_irq_add,
-	.suspend	= s3c24xx_irq_suspend,
-	.resume		= s3c24xx_irq_resume,
 };
 
 static int __init s3c2416_irq_init(void)

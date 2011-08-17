@@ -36,7 +36,6 @@
 #define PCI_CHIP_SAVAGE_IX    0x8c13
 #define PCI_CHIP_PROSAVAGE_PM 0x8a25
 #define PCI_CHIP_PROSAVAGE_KM 0x8a26
- /* Twister is a code name; hope I get the real name soon. */
 #define PCI_CHIP_S3TWISTER_P  0x8d01
 #define PCI_CHIP_S3TWISTER_K  0x8d02
 #define PCI_CHIP_PROSAVAGE_DDR          0x8d03
@@ -52,14 +51,15 @@
 #define PCI_CHIP_SUPSAV_IXCDDR		0x8c2f
 
 
+#define S3_SAVAGE_SERIES(chip)    ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE2000))
 
 #define S3_SAVAGE3D_SERIES(chip)  ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE_MX))
 
-#define S3_SAVAGE4_SERIES(chip)   ((chip==S3_SAVAGE4) || (chip==S3_PROSAVAGE))
+#define S3_SAVAGE4_SERIES(chip)   ((chip>=S3_SAVAGE4) && (chip<=S3_PROSAVAGEDDR))
 
 #define S3_SAVAGE_MOBILE_SERIES(chip)  ((chip==S3_SAVAGE_MX) || (chip==S3_SUPERSAVAGE))
 
-#define S3_SAVAGE_SERIES(chip)    ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE2000))
+#define S3_MOBILE_TWISTER_SERIES(chip) ((chip==S3_TWISTER) || (chip==S3_PROSAVAGEDDR))
 
 /* Chip tags.  These are used to group the adapters into
  * related families.
@@ -71,6 +71,8 @@ typedef enum {
   S3_SAVAGE_MX,
   S3_SAVAGE4,
   S3_PROSAVAGE,
+  S3_TWISTER,
+  S3_PROSAVAGEDDR,
   S3_SUPERSAVAGE,
   S3_SAVAGE2000,
   S3_LAST
@@ -153,7 +155,7 @@ struct savage_reg {
 	unsigned char CRTC[25];       /* Crtc Controller */
 	unsigned char Sequencer[5];   /* Video Sequencer */
 	unsigned char Graphics[9];    /* Video Graphics */
-	unsigned char Attribute[21];  /* Video Atribute */
+	unsigned char Attribute[21];  /* Video Attribute */
 
 	unsigned int mode, refresh;
 	unsigned char SR08, SR0E, SR0F;

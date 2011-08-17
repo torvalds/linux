@@ -288,7 +288,6 @@ void octeon_user_io_init(void)
 	union octeon_cvmemctl cvmmemctl;
 	union cvmx_iob_fau_timeout fau_timeout;
 	union cvmx_pow_nw_tim nm_tim;
-	uint64_t cvmctl;
 
 	/* Get the current settings for CP0_CVMMEMCTL_REG */
 	cvmmemctl.u64 = read_c0_cvmmemctl();
@@ -392,12 +391,6 @@ void octeon_user_io_init(void)
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
 
-	/* Move the performance counter interrupts to IRQ 6 */
-	cvmctl = read_c0_cvmctl();
-	cvmctl &= ~(7 << 7);
-	cvmctl |= 6 << 7;
-	write_c0_cvmctl(cvmctl);
-
 	/* Set a default for the hardware timeouts */
 	fau_timeout.u64 = 0;
 	fau_timeout.s.tout_val = 0xfff;
@@ -420,7 +413,6 @@ void octeon_user_io_init(void)
 void __init prom_init(void)
 {
 	struct cvmx_sysinfo *sysinfo;
-	const int coreid = cvmx_get_core_num();
 	int i;
 	int argc;
 #ifdef CONFIG_CAVIUM_RESERVE32
@@ -536,17 +528,6 @@ void __init prom_init(void)
 	octeon_check_cpu_bist();
 
 	octeon_uart = octeon_get_boot_uart();
-
-	/*
-	 * Disable All CIU Interrupts. The ones we need will be
-	 * enabled later.  Read the SUM register so we know the write
-	 * completed.
-	 */
-	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2 + 1)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1((coreid * 2)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1((coreid * 2 + 1)), 0);
-	cvmx_read_csr(CVMX_CIU_INTX_SUM0((coreid * 2)));
 
 #ifdef CONFIG_SMP
 	octeon_write_lcd("LinuxSMP");
@@ -674,7 +655,7 @@ void __init plat_mem_setup(void)
 	 * some memory vectors. When SPARSEMEM is in use, it doesn't
 	 * verify that the size is big enough for the final
 	 * vectors. Making the smallest chuck 4MB seems to be enough
-	 * to consistantly work.
+	 * to consistently work.
 	 */
 	mem_alloc_size = 4 << 20;
 	if (mem_alloc_size > MAX_MEMORY)

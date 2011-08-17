@@ -32,12 +32,12 @@
 
 void __init coyote_pci_preinit(void)
 {
-	set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTA), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTA), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTA), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTA), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
-static int __init coyote_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init coyote_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (slot == SLOT0_DEVID)
 		return IXP4XX_GPIO_IRQ(SLOT0_INTA);

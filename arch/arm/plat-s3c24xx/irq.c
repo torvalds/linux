@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
@@ -592,8 +593,8 @@ void __init s3c24xx_init_irq(void)
 		case IRQ_UART1:
 		case IRQ_UART2:
 		case IRQ_ADCPARENT:
-			set_irq_chip(irqno, &s3c_irq_level_chip);
-			set_irq_handler(irqno, handle_level_irq);
+			irq_set_chip_and_handler(irqno, &s3c_irq_level_chip,
+						 handle_level_irq);
 			break;
 
 		case IRQ_RESERVED6:
@@ -603,35 +604,35 @@ void __init s3c24xx_init_irq(void)
 
 		default:
 			//irqdbf("registering irq %d (s3c irq)\n", irqno);
-			set_irq_chip(irqno, &s3c_irq_chip);
-			set_irq_handler(irqno, handle_edge_irq);
+			irq_set_chip_and_handler(irqno, &s3c_irq_chip,
+						 handle_edge_irq);
 			set_irq_flags(irqno, IRQF_VALID);
 		}
 	}
 
 	/* setup the cascade irq handlers */
 
-	set_irq_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint4t7);
-	set_irq_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint8);
+	irq_set_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint4t7);
+	irq_set_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint8);
 
-	set_irq_chained_handler(IRQ_UART0, s3c_irq_demux_uart0);
-	set_irq_chained_handler(IRQ_UART1, s3c_irq_demux_uart1);
-	set_irq_chained_handler(IRQ_UART2, s3c_irq_demux_uart2);
-	set_irq_chained_handler(IRQ_ADCPARENT, s3c_irq_demux_adc);
+	irq_set_chained_handler(IRQ_UART0, s3c_irq_demux_uart0);
+	irq_set_chained_handler(IRQ_UART1, s3c_irq_demux_uart1);
+	irq_set_chained_handler(IRQ_UART2, s3c_irq_demux_uart2);
+	irq_set_chained_handler(IRQ_ADCPARENT, s3c_irq_demux_adc);
 
 	/* external interrupts */
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
 		irqdbf("registering irq %d (ext int)\n", irqno);
-		set_irq_chip(irqno, &s3c_irq_eint0t4);
-		set_irq_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_eint0t4,
+					 handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_EINT4; irqno <= IRQ_EINT23; irqno++) {
 		irqdbf("registering irq %d (extended s3c irq)\n", irqno);
-		set_irq_chip(irqno, &s3c_irqext_chip);
-		set_irq_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irqext_chip,
+					 handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -641,31 +642,35 @@ void __init s3c24xx_init_irq(void)
 
 	for (irqno = IRQ_S3CUART_RX0; irqno <= IRQ_S3CUART_ERR0; irqno++) {
 		irqdbf("registering irq %d (s3c uart0 irq)\n", irqno);
-		set_irq_chip(irqno, &s3c_irq_uart0);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_uart0,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_S3CUART_RX1; irqno <= IRQ_S3CUART_ERR1; irqno++) {
 		irqdbf("registering irq %d (s3c uart1 irq)\n", irqno);
-		set_irq_chip(irqno, &s3c_irq_uart1);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_uart1,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_S3CUART_RX2; irqno <= IRQ_S3CUART_ERR2; irqno++) {
 		irqdbf("registering irq %d (s3c uart2 irq)\n", irqno);
-		set_irq_chip(irqno, &s3c_irq_uart2);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_uart2,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_TC; irqno <= IRQ_ADC; irqno++) {
 		irqdbf("registering irq %d (s3c adc irq)\n", irqno);
-		set_irq_chip(irqno, &s3c_irq_adc);
-		set_irq_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_adc, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	irqdbf("s3c2410: registered interrupt handlers\n");
 }
+
+struct syscore_ops s3c24xx_irq_syscore_ops = {
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
+};

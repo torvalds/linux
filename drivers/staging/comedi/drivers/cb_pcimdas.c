@@ -264,7 +264,7 @@ found:
 	default:
 		printk("THIS CARD IS UNSUPPORTED.\n"
 		       "PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
-	};
+	}
 
 	if (comedi_pci_enable(pcidev, "cb_pcimdas")) {
 		printk(" Failed to enable PCI device and request regions\n");

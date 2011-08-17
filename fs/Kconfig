@@ -124,15 +124,39 @@ config TMPFS
 config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
 	depends on TMPFS
+	select TMPFS_XATTR
 	select GENERIC_ACL
 	help
-	  POSIX Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.
+	  POSIX Access Control Lists (ACLs) support additional access rights
+	  for users and groups beyond the standard owner/group/world scheme,
+	  and this option selects support for ACLs specifically for tmpfs
+	  filesystems.
+
+	  If you've selected TMPFS, it's possible that you'll also need
+	  this option as there are a number of Linux distros that require
+	  POSIX ACL support under /dev for certain features to work properly.
+	  For example, some distros need this feature for ALSA-related /dev
+	  files for sound to work properly.  In short, if you're not sure,
+	  say Y.
 
 	  To learn more about Access Control Lists, visit the POSIX ACLs for
 	  Linux website <http://acl.bestbits.at/>.
 
-	  If you don't know what Access Control Lists are, say N.
+config TMPFS_XATTR
+	bool "Tmpfs extended attributes"
+	depends on TMPFS
+	default n
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  Currently this enables support for the trusted.* and
+	  security.* namespaces.
+
+	  You need this for POSIX ACL support on tmpfs.
+
+	  If unsure, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
@@ -187,6 +211,7 @@ source "fs/omfs/Kconfig"
 source "fs/hpfs/Kconfig"
 source "fs/qnx4/Kconfig"
 source "fs/romfs/Kconfig"
+source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"

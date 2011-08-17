@@ -378,7 +378,7 @@ int wl_adapter_close(struct net_device *dev)
 } /* wl_adapter_close */
 /*============================================================================*/
 
-static struct pcmcia_device_id wl_adapter_ids[] = {
+static const struct pcmcia_device_id wl_adapter_ids[] = {
 #if !((HCF_TYPE) & HCF_TYPE_HII5)
 	PCMCIA_DEVICE_MANF_CARD(0x0156, 0x0003),
 	PCMCIA_DEVICE_PROD_ID12("Agere Systems", "Wireless PC Card Model 0110",

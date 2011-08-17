@@ -19,7 +19,6 @@
 #include <linux/suspend.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>
-#include <asm/s390_ext.h>
 #include <asm/types.h>
 #include <asm/irq.h>
 
@@ -885,12 +884,12 @@ sclp_check_interface(void)
 		spin_unlock_irqrestore(&sclp_lock, flags);
 		/* Enable service-signal interruption - needs to happen
 		 * with IRQs enabled. */
-		ctl_set_bit(0, 9);
+		service_subclass_irq_register();
 		/* Wait for signal from interrupt or timeout */
 		sclp_sync_wait();
 		/* Disable service-signal interruption - needs to happen
 		 * with IRQs enabled. */
-		ctl_clear_bit(0,9);
+		service_subclass_irq_unregister();
 		spin_lock_irqsave(&sclp_lock, flags);
 		del_timer(&sclp_request_timer);
 		if (sclp_init_req.status == SCLP_REQ_DONE &&
@@ -1070,7 +1069,7 @@ sclp_init(void)
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	/* Enable service-signal external interruption - needs to happen with
 	 * IRQs enabled. */
-	ctl_set_bit(0, 9);
+	service_subclass_irq_register();
 	sclp_init_mask(1);
 	return 0;
 

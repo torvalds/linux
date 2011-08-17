@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -36,9 +36,6 @@
 #define IXGBE_VFMAILBOX             0x002FC
 #define IXGBE_VFMBMEM               0x00200
 
-#define IXGBE_PFMAILBOX(x)          (0x04B00 + (4 * x))
-#define IXGBE_PFMBMEM(vfn)          (0x13000 + (64 * vfn))
-
 #define IXGBE_PFMAILBOX_STS   0x00000001 /* Initiate message send to VF */
 #define IXGBE_PFMAILBOX_ACK   0x00000002 /* Ack message recv'd from VF */
 #define IXGBE_PFMAILBOX_VFU   0x00000004 /* VF owns the mailbox buffer */
@@ -70,6 +67,7 @@
 #define IXGBE_VF_SET_MULTICAST    0x03 /* VF requests PF to set MC addr */
 #define IXGBE_VF_SET_VLAN         0x04 /* VF requests PF to set VLAN */
 #define IXGBE_VF_SET_LPE          0x05 /* VF requests PF to set VMOLR.LPE */
+#define IXGBE_VF_SET_MACVLAN      0x06 /* VF requests PF for unicast filter */
 
 /* length of permanent address message returned from PF */
 #define IXGBE_VF_PERMADDR_MSG_LEN 4
@@ -86,7 +84,9 @@ s32 ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
 s32 ixgbe_check_for_msg(struct ixgbe_hw *, u16);
 s32 ixgbe_check_for_ack(struct ixgbe_hw *, u16);
 s32 ixgbe_check_for_rst(struct ixgbe_hw *, u16);
+#ifdef CONFIG_PCI_IOV
 void ixgbe_init_mbx_params_pf(struct ixgbe_hw *);
+#endif /* CONFIG_PCI_IOV */
 
 extern struct ixgbe_mbx_operations mbx_ops_generic;
 

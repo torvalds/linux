@@ -20,6 +20,9 @@
  *  Boston, MA  02111-1301  USA
  *
  */
+#ifndef FS_9P_V9FS_H
+#define FS_9P_V9FS_H
+
 #include <linux/backing-dev.h>
 
 /**
@@ -28,8 +31,10 @@
  * @V9FS_PROTO_2000L: whether or not to use 9P2000.l extensions
  * @V9FS_ACCESS_SINGLE: only the mounting user can access the hierarchy
  * @V9FS_ACCESS_USER: a new attach will be issued for every user (default)
+ * @V9FS_ACCESS_CLIENT: Just like user, but access check is performed on client.
  * @V9FS_ACCESS_ANY: use a single attach for all users
  * @V9FS_ACCESS_MASK: bit mask of different ACCESS options
+ * @V9FS_POSIX_ACL: POSIX ACLs are enforced
  *
  * Session flags reflect options selected by users at mount time
  */
@@ -37,13 +42,15 @@
 			 V9FS_ACCESS_USER |   \
 			 V9FS_ACCESS_CLIENT)
 #define V9FS_ACCESS_MASK V9FS_ACCESS_ANY
+#define V9FS_ACL_MASK V9FS_POSIX_ACL
 
 enum p9_session_flags {
 	V9FS_PROTO_2000U	= 0x01,
 	V9FS_PROTO_2000L	= 0x02,
 	V9FS_ACCESS_SINGLE	= 0x04,
 	V9FS_ACCESS_USER	= 0x08,
-	V9FS_ACCESS_CLIENT	= 0x10
+	V9FS_ACCESS_CLIENT	= 0x10,
+	V9FS_POSIX_ACL		= 0x20
 };
 
 /* possible values of ->cache */
@@ -111,6 +118,26 @@ struct v9fs_session_info {
 	struct rw_semaphore rename_sem;
 };
 
+/* cache_validity flags */
+#define V9FS_INO_INVALID_ATTR 0x01
+
+struct v9fs_inode {
+#ifdef CONFIG_9P_FSCACHE
+	spinlock_t fscache_lock;
+	struct fscache_cookie *fscache;
+#endif
+	struct p9_qid qid;
+	unsigned int cache_validity;
+	struct p9_fid *writeback_fid;
+	struct mutex v_mutex;
+	struct inode vfs_inode;
+};
+
+static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
+{
+	return container_of(inode, struct v9fs_inode, vfs_inode);
+}
+
 struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
 									char *);
 extern void v9fs_session_close(struct v9fs_session_info *v9ses);
@@ -124,16 +151,15 @@ extern int v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry);
 extern void v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd,
 			void *p);
-extern struct inode *v9fs_inode(struct v9fs_session_info *v9ses,
-			struct p9_fid *fid,
-			struct super_block *sb);
-
+extern struct inode *v9fs_inode_from_fid(struct v9fs_session_info *v9ses,
+					 struct p9_fid *fid,
+					 struct super_block *sb, int new);
 extern const struct inode_operations v9fs_dir_inode_operations_dotl;
 extern const struct inode_operations v9fs_file_inode_operations_dotl;
 extern const struct inode_operations v9fs_symlink_inode_operations_dotl;
-extern struct inode *v9fs_inode_dotl(struct v9fs_session_info *v9ses,
-			struct p9_fid *fid,
-			struct super_block *sb);
+extern struct inode *v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses,
+					      struct p9_fid *fid,
+					      struct super_block *sb, int new);
 
 /* other default globals */
 #define V9FS_PORT	564
@@ -147,6 +173,11 @@ static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 	return (inode->i_sb->s_fs_info);
 }
 
+static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)
+{
+	return dentry->d_sb->s_fs_info;
+}
+
 static inline int v9fs_proto_dotu(struct v9fs_session_info *v9ses)
 {
 	return v9ses->flags & V9FS_PROTO_2000U;
@@ -158,7 +189,7 @@ static inline int v9fs_proto_dotl(struct v9fs_session_info *v9ses)
 }
 
 /**
- * v9fs_inode_from_fid - Helper routine to populate an inode by
+ * v9fs_get_inode_from_fid - Helper routine to populate an inode by
  * issuing a attribute request
  * @v9ses: session information
  * @fid: fid to issue attribute request for
@@ -166,11 +197,31 @@ static inline int v9fs_proto_dotl(struct v9fs_session_info *v9ses)
  *
  */
 static inline struct inode *
-v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-				struct super_block *sb)
+v9fs_get_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+			struct super_block *sb)
 {
 	if (v9fs_proto_dotl(v9ses))
-		return v9fs_inode_dotl(v9ses, fid, sb);
+		return v9fs_inode_from_fid_dotl(v9ses, fid, sb, 0);
 	else
-		return v9fs_inode(v9ses, fid, sb);
+		return v9fs_inode_from_fid(v9ses, fid, sb, 0);
 }
+
+/**
+ * v9fs_get_new_inode_from_fid - Helper routine to populate an inode by
+ * issuing a attribute request
+ * @v9ses: session information
+ * @fid: fid to issue attribute request for
+ * @sb: superblock on which to create inode
+ *
+ */
+static inline struct inode *
+v9fs_get_new_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+			    struct super_block *sb)
+{
+	if (v9fs_proto_dotl(v9ses))
+		return v9fs_inode_from_fid_dotl(v9ses, fid, sb, 1);
+	else
+		return v9fs_inode_from_fid(v9ses, fid, sb, 1);
+}
+
+#endif

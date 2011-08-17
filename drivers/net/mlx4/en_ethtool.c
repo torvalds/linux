@@ -45,7 +45,7 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	sprintf(drvinfo->driver, DRV_NAME " (%s)", mdev->dev->board_id);
+	strncpy(drvinfo->driver, DRV_NAME, 32);
 	strncpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")", 32);
 	sprintf(drvinfo->fw_version, "%d.%d.%d",
 		(u16) (mdev->dev->caps.fw_ver >> 32),
@@ -55,37 +55,6 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	drvinfo->n_stats = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
-}
-
-static u32 mlx4_en_get_tso(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_TSO) != 0;
-}
-
-static int mlx4_en_set_tso(struct net_device *dev, u32 data)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-
-	if (data) {
-		if (!priv->mdev->LSO_support)
-			return -EPERM;
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	} else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-	return 0;
-}
-
-static u32 mlx4_en_get_rx_csum(struct net_device *dev)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	return priv->rx_csum;
-}
-
-static int mlx4_en_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	priv->rx_csum = (data != 0);
-	return 0;
 }
 
 static const char main_strings[][ETH_GSTRING_LEN] = {
@@ -131,8 +100,65 @@ static void mlx4_en_set_msglevel(struct net_device *dev, u32 val)
 static void mlx4_en_get_wol(struct net_device *netdev,
 			    struct ethtool_wolinfo *wol)
 {
-	wol->supported = 0;
-	wol->wolopts = 0;
+	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	int err = 0;
+	u64 config = 0;
+
+	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL)) {
+		wol->supported = 0;
+		wol->wolopts = 0;
+		return;
+	}
+
+	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
+	if (err) {
+		en_err(priv, "Failed to get WoL information\n");
+		return;
+	}
+
+	if (config & MLX4_EN_WOL_MAGIC)
+		wol->supported = WAKE_MAGIC;
+	else
+		wol->supported = 0;
+
+	if (config & MLX4_EN_WOL_ENABLED)
+		wol->wolopts = WAKE_MAGIC;
+	else
+		wol->wolopts = 0;
+}
+
+static int mlx4_en_set_wol(struct net_device *netdev,
+			    struct ethtool_wolinfo *wol)
+{
+	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	u64 config = 0;
+	int err = 0;
+
+	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL))
+		return -EOPNOTSUPP;
+
+	if (wol->supported & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
+	if (err) {
+		en_err(priv, "Failed to get WoL info, unable to modify\n");
+		return err;
+	}
+
+	if (wol->wolopts & WAKE_MAGIC) {
+		config |= MLX4_EN_WOL_DO_MODIFY | MLX4_EN_WOL_ENABLED |
+				MLX4_EN_WOL_MAGIC;
+	} else {
+		config &= ~(MLX4_EN_WOL_ENABLED | MLX4_EN_WOL_MAGIC);
+		config |= MLX4_EN_WOL_DO_MODIFY;
+	}
+
+	err = mlx4_wol_write(priv->mdev->dev, config, priv->port);
+	if (err)
+		en_err(priv, "Failed to set WoL information\n");
+
+	return err;
 }
 
 static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
@@ -144,7 +170,8 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 		return NUM_ALL_STATS +
 			(priv->tx_ring_num + priv->rx_ring_num) * 2;
 	case ETH_SS_TEST:
-		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.loopback_support) * 2;
+		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.flags
+					& MLX4_DEV_CAP_FLAG_UC_LOOPBACK) * 2;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -194,7 +221,7 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	case ETH_SS_TEST:
 		for (i = 0; i < MLX4_EN_NUM_SELF_TEST - 2; i++)
 			strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
-		if (priv->mdev->dev->caps.loopback_support)
+		if (priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_UC_LOOPBACK)
 			for (; i < MLX4_EN_NUM_SELF_TEST; i++)
 				strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
 		break;
@@ -239,10 +266,10 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	trans_type = priv->port_state.transciver;
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = priv->port_state.link_speed;
+		ethtool_cmd_speed_set(cmd, priv->port_state.link_speed);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 
@@ -266,7 +293,8 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int mlx4_en_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	if ((cmd->autoneg == AUTONEG_ENABLE) ||
-	    (cmd->speed != SPEED_10000) || (cmd->duplex != DUPLEX_FULL))
+	    (ethtool_cmd_speed(cmd) != SPEED_10000) ||
+	    (cmd->duplex != DUPLEX_FULL))
 		return -EINVAL;
 
 	/* Nothing to change */
@@ -388,7 +416,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 		mlx4_en_stop_port(dev);
 	}
 
-	mlx4_en_free_resources(priv);
+	mlx4_en_free_resources(priv, true);
 
 	priv->prof->tx_ring_size = tx_size;
 	priv->prof->rx_ring_size = rx_size;
@@ -426,22 +454,13 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
 	.set_settings = mlx4_en_set_settings,
-#ifdef NETIF_F_TSO
-	.get_tso = mlx4_en_get_tso,
-	.set_tso = mlx4_en_set_tso,
-#endif
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
 	.get_link = ethtool_op_get_link,
-	.get_rx_csum = mlx4_en_get_rx_csum,
-	.set_rx_csum = mlx4_en_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_ipv6_csum,
 	.get_strings = mlx4_en_get_strings,
 	.get_sset_count = mlx4_en_get_sset_count,
 	.get_ethtool_stats = mlx4_en_get_ethtool_stats,
 	.self_test = mlx4_en_self_test,
 	.get_wol = mlx4_en_get_wol,
+	.set_wol = mlx4_en_set_wol,
 	.get_msglevel = mlx4_en_get_msglevel,
 	.set_msglevel = mlx4_en_set_msglevel,
 	.get_coalesce = mlx4_en_get_coalesce,
@@ -450,7 +469,6 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.set_pauseparam = mlx4_en_set_pauseparam,
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
-	.get_flags = ethtool_op_get_flags,
 };
 
 

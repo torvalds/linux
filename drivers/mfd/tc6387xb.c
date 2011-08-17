@@ -131,7 +131,8 @@ static struct mfd_cell tc6387xb_cells[] = {
 		.name = "tmio-mmc",
 		.enable = tc6387xb_mmc_enable,
 		.disable = tc6387xb_mmc_disable,
-		.driver_data = &tc6387xb_mmc_data,
+		.platform_data = &tc6387xb_mmc_data,
+		.pdata_size    = sizeof(tc6387xb_mmc_data),
 		.num_resources = ARRAY_SIZE(tc6387xb_mmc_resources),
 		.resources = tc6387xb_mmc_resources,
 	},
@@ -176,7 +177,7 @@ static int __devinit tc6387xb_probe(struct platform_device *dev)
 	if (ret)
 		goto err_resource;
 
-	tc6387xb->scr = ioremap(rscr->start, rscr->end - rscr->start + 1);
+	tc6387xb->scr = ioremap(rscr->start, resource_size(rscr));
 	if (!tc6387xb->scr) {
 		ret = -ENOMEM;
 		goto err_ioremap;
@@ -189,11 +190,6 @@ static int __devinit tc6387xb_probe(struct platform_device *dev)
 		pdata->enable(dev);
 
 	printk(KERN_INFO "Toshiba tc6387xb initialised\n");
-
-	tc6387xb_cells[TC6387XB_CELL_MMC].platform_data =
-		&tc6387xb_cells[TC6387XB_CELL_MMC];
-	tc6387xb_cells[TC6387XB_CELL_MMC].data_size =
-		sizeof(tc6387xb_cells[TC6387XB_CELL_MMC]);
 
 	ret = mfd_add_devices(&dev->dev, dev->id, tc6387xb_cells,
 			      ARRAY_SIZE(tc6387xb_cells), iomem, irq);

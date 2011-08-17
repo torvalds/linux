@@ -28,6 +28,7 @@
 #define AB8500_INTERRUPT	0xE
 #define AB8500_RTC		0xF
 #define AB8500_MISC		0x10
+#define AB8500_DEVELOPMENT	0x11
 #define AB8500_DEBUG		0x12
 #define AB8500_PROD_TEST	0x13
 #define AB8500_OTP_EMUL		0x15
@@ -74,6 +75,38 @@
 #define AB8500_INT_ACC_DETECT_21DB_F	37
 #define AB8500_INT_ACC_DETECT_21DB_R	38
 #define AB8500_INT_GP_SW_ADC_CONV_END	39
+#define AB8500_INT_GPIO6R		40
+#define AB8500_INT_GPIO7R		41
+#define AB8500_INT_GPIO8R		42
+#define AB8500_INT_GPIO9R		43
+#define AB8500_INT_GPIO10R		44
+#define AB8500_INT_GPIO11R		45
+#define AB8500_INT_GPIO12R		46
+#define AB8500_INT_GPIO13R		47
+#define AB8500_INT_GPIO24R		48
+#define AB8500_INT_GPIO25R		49
+#define AB8500_INT_GPIO36R		50
+#define AB8500_INT_GPIO37R		51
+#define AB8500_INT_GPIO38R		52
+#define AB8500_INT_GPIO39R		53
+#define AB8500_INT_GPIO40R		54
+#define AB8500_INT_GPIO41R		55
+#define AB8500_INT_GPIO6F		56
+#define AB8500_INT_GPIO7F		57
+#define AB8500_INT_GPIO8F		58
+#define AB8500_INT_GPIO9F		59
+#define AB8500_INT_GPIO10F		60
+#define AB8500_INT_GPIO11F		61
+#define AB8500_INT_GPIO12F		62
+#define AB8500_INT_GPIO13F		63
+#define AB8500_INT_GPIO24F		64
+#define AB8500_INT_GPIO25F		65
+#define AB8500_INT_GPIO36F		66
+#define AB8500_INT_GPIO37F		67
+#define AB8500_INT_GPIO38F		68
+#define AB8500_INT_GPIO39F		69
+#define AB8500_INT_GPIO40F		70
+#define AB8500_INT_GPIO41F		71
 #define AB8500_INT_ADP_SOURCE_ERROR	72
 #define AB8500_INT_ADP_SINK_ERROR	73
 #define AB8500_INT_ADP_PROBE_PLUG	74
@@ -111,8 +144,8 @@
  * @dev: parent device
  * @lock: read/write operations lock
  * @irq_lock: genirq bus lock
- * @revision: chip revision
  * @irq: irq line
+ * @chip_id: chip revision id
  * @write: register write
  * @read: register read
  * @rx_buf: rx buf for SPI
@@ -124,7 +157,7 @@ struct ab8500 {
 	struct device	*dev;
 	struct mutex	lock;
 	struct mutex	irq_lock;
-	int		revision;
+
 	int		irq_base;
 	int		irq;
 	u8		chip_id;
@@ -139,19 +172,27 @@ struct ab8500 {
 	u8 oldmask[AB8500_NUM_IRQ_REGS];
 };
 
+struct regulator_reg_init;
 struct regulator_init_data;
+struct ab8500_gpio_platform_data;
 
 /**
  * struct ab8500_platform_data - AB8500 platform data
  * @irq_base: start of AB8500 IRQs, AB8500_NR_IRQS will be used
  * @init: board-specific initialization after detection of ab8500
+ * @num_regulator_reg_init: number of regulator init registers
+ * @regulator_reg_init: regulator init registers
+ * @num_regulator: number of regulators
  * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
 	int irq_base;
 	void (*init) (struct ab8500 *);
+	int num_regulator_reg_init;
+	struct ab8500_regulator_reg_init *regulator_reg_init;
 	int num_regulator;
 	struct regulator_init_data *regulator;
+	struct ab8500_gpio_platform_data *gpio;
 };
 
 extern int __devinit ab8500_init(struct ab8500 *ab8500);

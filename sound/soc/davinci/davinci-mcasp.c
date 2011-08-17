@@ -434,17 +434,21 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_set_bits(base + DAVINCI_MCASP_ACLKRCTL_REG, ACLKRE);
 		mcasp_set_bits(base + DAVINCI_MCASP_RXFMCTL_REG, AFSRE);
 
-		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG, (0x7 << 26));
+		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG,
+				ACLKX | AHCLKX | AFSX);
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		/* codec is clock master and frame slave */
-		mcasp_set_bits(base + DAVINCI_MCASP_ACLKXCTL_REG, ACLKXE);
+		mcasp_clr_bits(base + DAVINCI_MCASP_ACLKXCTL_REG, ACLKXE);
 		mcasp_set_bits(base + DAVINCI_MCASP_TXFMCTL_REG, AFSXE);
 
-		mcasp_set_bits(base + DAVINCI_MCASP_ACLKRCTL_REG, ACLKRE);
+		mcasp_clr_bits(base + DAVINCI_MCASP_ACLKRCTL_REG, ACLKRE);
 		mcasp_set_bits(base + DAVINCI_MCASP_RXFMCTL_REG, AFSRE);
 
-		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG, (0x2d << 26));
+		mcasp_clr_bits(base + DAVINCI_MCASP_PDIR_REG,
+				ACLKX | ACLKR);
+		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG,
+				AFSX | AFSR);
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* codec is clock and frame master */
@@ -454,7 +458,8 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_clr_bits(base + DAVINCI_MCASP_ACLKRCTL_REG, ACLKRE);
 		mcasp_clr_bits(base + DAVINCI_MCASP_RXFMCTL_REG, AFSRE);
 
-		mcasp_clr_bits(base + DAVINCI_MCASP_PDIR_REG, (0x3f << 26));
+		mcasp_clr_bits(base + DAVINCI_MCASP_PDIR_REG,
+				ACLKX | AHCLKX | AFSX | ACLKR | AHCLKR | AFSR);
 		break;
 
 	default:
@@ -644,7 +649,7 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 		mcasp_set_reg(dev->base + DAVINCI_MCASP_TXTDM_REG, mask);
 		mcasp_set_bits(dev->base + DAVINCI_MCASP_TXFMT_REG, TXORD);
 
-		if ((dev->tdm_slots >= 2) || (dev->tdm_slots <= 32))
+		if ((dev->tdm_slots >= 2) && (dev->tdm_slots <= 32))
 			mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMCTL_REG,
 					FSXMOD(dev->tdm_slots), FSXMOD(0x1FF));
 		else
@@ -660,7 +665,7 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 				AHCLKRE);
 		mcasp_set_reg(dev->base + DAVINCI_MCASP_RXTDM_REG, mask);
 
-		if ((dev->tdm_slots >= 2) || (dev->tdm_slots <= 32))
+		if ((dev->tdm_slots >= 2) && (dev->tdm_slots <= 32))
 			mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMCTL_REG,
 					FSRMOD(dev->tdm_slots), FSRMOD(0x1FF));
 		else
@@ -868,7 +873,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	ioarea = request_mem_region(mem->start,
-			(mem->end - mem->start) + 1, pdev->name);
+			resource_size(mem), pdev->name);
 	if (!ioarea) {
 		dev_err(&pdev->dev, "Audio region already claimed\n");
 		ret = -EBUSY;
@@ -885,7 +890,13 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	clk_enable(dev->clk);
 	dev->clk_active = 1;
 
-	dev->base = (void __iomem *)IO_ADDRESS(mem->start);
+	dev->base = ioremap(mem->start, resource_size(mem));
+	if (!dev->base) {
+		dev_err(&pdev->dev, "ioremap failed\n");
+		ret = -ENOMEM;
+		goto err_release_clk;
+	}
+
 	dev->op_mode = pdata->op_mode;
 	dev->tdm_slots = pdata->tdm_slots;
 	dev->num_serializer = pdata->num_serializer;
@@ -898,15 +909,16 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
+	dma_data->sram_size = pdata->sram_size_playback;
 	dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset +
-							io_v2p(dev->base));
+							mem->start);
 
 	/* first TX, then RX */
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENODEV;
-		goto err_release_region;
+		goto err_iounmap;
 	}
 
 	dma_data->channel = res->start;
@@ -914,14 +926,15 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_CAPTURE];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
+	dma_data->sram_size = pdata->sram_size_capture;
 	dma_data->dma_addr = (dma_addr_t)(pdata->rx_dma_offset +
-							io_v2p(dev->base));
+							mem->start);
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENODEV;
-		goto err_release_region;
+		goto err_iounmap;
 	}
 
 	dma_data->channel = res->start;
@@ -929,11 +942,16 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &davinci_mcasp_dai[pdata->op_mode]);
 
 	if (ret != 0)
-		goto err_release_region;
+		goto err_iounmap;
 	return 0;
 
+err_iounmap:
+	iounmap(dev->base);
+err_release_clk:
+	clk_disable(dev->clk);
+	clk_put(dev->clk);
 err_release_region:
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 err_release_data:
 	kfree(dev);
 
@@ -951,7 +969,7 @@ static int davinci_mcasp_remove(struct platform_device *pdev)
 	dev->clk = NULL;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 
 	kfree(dev);
 

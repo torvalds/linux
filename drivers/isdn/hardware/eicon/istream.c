@@ -62,7 +62,7 @@ void diva_xdi_provide_istream_info (ADAPTER* a,
   stream interface.
   If synchronous service was requested, then function
   does return amount of data written to stream.
-  'final' does indicate that pice of data to be written is
+  'final' does indicate that piece of data to be written is
   final part of frame (necessary only by structured datatransfer)
   return  0 if zero lengh packet was written
   return -1 if stream is full

@@ -42,14 +42,12 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/nand_bch.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/leds.h>
 #include <linux/io.h>
-
-#ifdef CONFIG_MTD_PARTITIONS
 #include <linux/mtd/partitions.h>
-#endif
 
 /* Define default oob placement schemes for large and small page devices */
 static struct nand_ecclayout nand_oob_8 = {
@@ -975,9 +973,6 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = __nand_unlock(mtd, ofs, len, 0);
 
 out:
-	/* de-select the NAND device */
-	chip->select_chip(mtd, -1);
-
 	nand_release_device(mtd);
 
 	return ret;
@@ -1045,9 +1040,6 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = __nand_unlock(mtd, ofs, len, 0x1);
 
 out:
-	/* de-select the NAND device */
-	chip->select_chip(mtd, -1);
-
 	nand_release_device(mtd);
 
 	return ret;
@@ -1581,7 +1573,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 }
 
 /**
- * nand_read - [MTD Interface] MTD compability function for nand_do_read_ecc
+ * nand_read - [MTD Interface] MTD compatibility function for nand_do_read_ecc
  * @mtd:	MTD device structure
  * @from:	offset to read from
  * @len:	number of bytes to read
@@ -2377,7 +2369,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
-	/* Do not allow reads past end of device */
+	/* Do not allow write past end of device */
 	if (unlikely(to >= mtd->size ||
 		     ops->ooboffs + ops->ooblen >
 			((mtd->size >> chip->page_shift) -
@@ -3111,6 +3103,8 @@ ident_done:
 		chip->chip_shift += 32 - 1;
 	}
 
+	chip->badblockbits = 8;
+
 	/* Set the bad block position */
 	if (mtd->writesize > 512 || (busw & NAND_BUSWIDTH_16))
 		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
@@ -3248,7 +3242,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	/*
 	 * If no default placement scheme is given, select an appropriate one
 	 */
-	if (!chip->ecc.layout) {
+	if (!chip->ecc.layout && (chip->ecc.mode != NAND_ECC_SOFT_BCH)) {
 		switch (mtd->oobsize) {
 		case 8:
 			chip->ecc.layout = &nand_oob_8;
@@ -3349,6 +3343,40 @@ int nand_scan_tail(struct mtd_info *mtd)
 		if (!chip->ecc.size)
 			chip->ecc.size = 256;
 		chip->ecc.bytes = 3;
+		break;
+
+	case NAND_ECC_SOFT_BCH:
+		if (!mtd_nand_has_bch()) {
+			printk(KERN_WARNING "CONFIG_MTD_ECC_BCH not enabled\n");
+			BUG();
+		}
+		chip->ecc.calculate = nand_bch_calculate_ecc;
+		chip->ecc.correct = nand_bch_correct_data;
+		chip->ecc.read_page = nand_read_page_swecc;
+		chip->ecc.read_subpage = nand_read_subpage;
+		chip->ecc.write_page = nand_write_page_swecc;
+		chip->ecc.read_page_raw = nand_read_page_raw;
+		chip->ecc.write_page_raw = nand_write_page_raw;
+		chip->ecc.read_oob = nand_read_oob_std;
+		chip->ecc.write_oob = nand_write_oob_std;
+		/*
+		 * Board driver should supply ecc.size and ecc.bytes values to
+		 * select how many bits are correctable; see nand_bch_init()
+		 * for details.
+		 * Otherwise, default to 4 bits for large page devices
+		 */
+		if (!chip->ecc.size && (mtd->oobsize >= 64)) {
+			chip->ecc.size = 512;
+			chip->ecc.bytes = 7;
+		}
+		chip->ecc.priv = nand_bch_init(mtd,
+					       chip->ecc.size,
+					       chip->ecc.bytes,
+					       &chip->ecc.layout);
+		if (!chip->ecc.priv) {
+			printk(KERN_WARNING "BCH ECC initialization failed!\n");
+			BUG();
+		}
 		break;
 
 	case NAND_ECC_NONE:
@@ -3501,12 +3529,10 @@ void nand_release(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 
-#ifdef CONFIG_MTD_PARTITIONS
-	/* Deregister partitions */
-	del_mtd_partitions(mtd);
-#endif
-	/* Deregister the device */
-	del_mtd_device(mtd);
+	if (chip->ecc.mode == NAND_ECC_SOFT_BCH)
+		nand_bch_free((struct nand_bch_control *)chip->ecc.priv);
+
+	mtd_device_unregister(mtd);
 
 	/* Free bad block table memory */
 	kfree(chip->bbt);

@@ -15,34 +15,17 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
+#include <linux/sched.h>
 #ifdef CONFIG_IPIPE
 #include <linux/ipipe.h>
-#endif
-#ifdef CONFIG_KGDB
-#include <linux/kgdb.h>
 #endif
 #include <asm/traps.h>
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 #include <asm/irq_handler.h>
 #include <asm/dpmc.h>
-#include <asm/bfin5xx_spi.h>
-#include <asm/bfin_sport.h>
-#include <asm/bfin_can.h>
 
 #define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
-
-#ifdef BF537_FAMILY
-# define BF537_GENERIC_ERROR_INT_DEMUX
-# define SPI_ERR_MASK   (BIT_STAT_TXCOL | BIT_STAT_RBSY | BIT_STAT_MODF | BIT_STAT_TXE)	/* SPI_STAT */
-# define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORT_STAT */
-# define PPI_ERR_MASK   (0xFFFF & ~FLD)	/* PPI_STATUS */
-# define EMAC_ERR_MASK  (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
-# define UART_ERR_MASK  (0x6)	/* UART_IIR */
-# define CAN_ERR_MASK   (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
-#else
-# undef BF537_GENERIC_ERROR_INT_DEMUX
-#endif
 
 /*
  * NOTES:
@@ -62,22 +45,19 @@ unsigned long bfin_irq_flags = 0x1f;
 EXPORT_SYMBOL(bfin_irq_flags);
 #endif
 
-/* The number of spurious interrupts */
-atomic_t num_spurious;
-
 #ifdef CONFIG_PM
 unsigned long bfin_sic_iwr[3];	/* Up to 3 SIC_IWRx registers */
 unsigned vr_wakeup;
 #endif
 
-struct ivgx {
+static struct ivgx {
 	/* irq number for request_irq, available in mach-bf5xx/irq.h */
 	unsigned int irqno;
 	/* corresponding bit in the SIC_ISR register */
 	unsigned int isrflag;
 } ivg_table[NR_PERI_INTS];
 
-struct ivg_slice {
+static struct ivg_slice {
 	/* position of first irq in ivg_table for given ivg */
 	struct ivgx *ifirst;
 	struct ivgx *istop;
@@ -124,21 +104,21 @@ static void __init search_IAR(void)
  * This is for core internal IRQs
  */
 
-static void bfin_ack_noop(unsigned int irq)
+void bfin_ack_noop(struct irq_data *d)
 {
 	/* Dummy function.  */
 }
 
-static void bfin_core_mask_irq(unsigned int irq)
+static void bfin_core_mask_irq(struct irq_data *d)
 {
-	bfin_irq_flags &= ~(1 << irq);
+	bfin_irq_flags &= ~(1 << d->irq);
 	if (!hard_irqs_disabled())
 		hard_local_irq_enable();
 }
 
-static void bfin_core_unmask_irq(unsigned int irq)
+static void bfin_core_unmask_irq(struct irq_data *d)
 {
-	bfin_irq_flags |= 1 << irq;
+	bfin_irq_flags |= 1 << d->irq;
 	/*
 	 * If interrupts are enabled, IMASK must contain the same value
 	 * as bfin_irq_flags.  Make sure that invariant holds.  If interrupts
@@ -153,76 +133,82 @@ static void bfin_core_unmask_irq(unsigned int irq)
 	return;
 }
 
-static void bfin_internal_mask_irq(unsigned int irq)
+void bfin_internal_mask_irq(unsigned int irq)
 {
-	unsigned long flags;
+	unsigned long flags = hard_local_irq_save();
 
-#ifdef CONFIG_BF53x
-	flags = hard_local_irq_save();
-	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
-			     ~(1 << SIC_SYSIRQ(irq)));
-#else
-	unsigned mask_bank, mask_bit;
-	flags = hard_local_irq_save();
-	mask_bank = SIC_SYSIRQ(irq) / 32;
-	mask_bit = SIC_SYSIRQ(irq) % 32;
+#ifdef SIC_IMASK0
+	unsigned mask_bank = SIC_SYSIRQ(irq) / 32;
+	unsigned mask_bit = SIC_SYSIRQ(irq) % 32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) &
 			     ~(1 << mask_bit));
-#ifdef CONFIG_SMP
+# ifdef CONFIG_SMP
 	bfin_write_SICB_IMASK(mask_bank, bfin_read_SICB_IMASK(mask_bank) &
 			     ~(1 << mask_bit));
+# endif
+#else
+	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
+			     ~(1 << SIC_SYSIRQ(irq)));
 #endif
-#endif
+
 	hard_local_irq_restore(flags);
+}
+
+static void bfin_internal_mask_irq_chip(struct irq_data *d)
+{
+	bfin_internal_mask_irq(d->irq);
 }
 
 #ifdef CONFIG_SMP
 static void bfin_internal_unmask_irq_affinity(unsigned int irq,
 		const struct cpumask *affinity)
 #else
-static void bfin_internal_unmask_irq(unsigned int irq)
+void bfin_internal_unmask_irq(unsigned int irq)
 #endif
 {
-	unsigned long flags;
+	unsigned long flags = hard_local_irq_save();
 
-#ifdef CONFIG_BF53x
-	flags = hard_local_irq_save();
-	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
-			     (1 << SIC_SYSIRQ(irq)));
-#else
-	unsigned mask_bank, mask_bit;
-	flags = hard_local_irq_save();
-	mask_bank = SIC_SYSIRQ(irq) / 32;
-	mask_bit = SIC_SYSIRQ(irq) % 32;
-#ifdef CONFIG_SMP
+#ifdef SIC_IMASK0
+	unsigned mask_bank = SIC_SYSIRQ(irq) / 32;
+	unsigned mask_bit = SIC_SYSIRQ(irq) % 32;
+# ifdef CONFIG_SMP
 	if (cpumask_test_cpu(0, affinity))
-#endif
+# endif
 		bfin_write_SIC_IMASK(mask_bank,
 			bfin_read_SIC_IMASK(mask_bank) |
 			(1 << mask_bit));
-#ifdef CONFIG_SMP
+# ifdef CONFIG_SMP
 	if (cpumask_test_cpu(1, affinity))
 		bfin_write_SICB_IMASK(mask_bank,
 			bfin_read_SICB_IMASK(mask_bank) |
 			(1 << mask_bit));
+# endif
+#else
+	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
+			     (1 << SIC_SYSIRQ(irq)));
 #endif
-#endif
+
 	hard_local_irq_restore(flags);
 }
 
 #ifdef CONFIG_SMP
-static void bfin_internal_unmask_irq(unsigned int irq)
+static void bfin_internal_unmask_irq_chip(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	bfin_internal_unmask_irq_affinity(irq, desc->affinity);
+	bfin_internal_unmask_irq_affinity(d->irq, d->affinity);
 }
 
-static int bfin_internal_set_affinity(unsigned int irq, const struct cpumask *mask)
+static int bfin_internal_set_affinity(struct irq_data *d,
+				      const struct cpumask *mask, bool force)
 {
-	bfin_internal_mask_irq(irq);
-	bfin_internal_unmask_irq_affinity(irq, mask);
+	bfin_internal_mask_irq(d->irq);
+	bfin_internal_unmask_irq_affinity(d->irq, mask);
 
 	return 0;
+}
+#else
+static void bfin_internal_unmask_irq_chip(struct irq_data *d)
+{
+	bfin_internal_unmask_irq(d->irq);
 }
 #endif
 
@@ -279,32 +265,37 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 
 	return 0;
 }
+
+static int bfin_internal_set_wake_chip(struct irq_data *d, unsigned int state)
+{
+	return bfin_internal_set_wake(d->irq, state);
+}
+#else
+# define bfin_internal_set_wake_chip NULL
 #endif
 
 static struct irq_chip bfin_core_irqchip = {
 	.name = "CORE",
-	.ack = bfin_ack_noop,
-	.mask = bfin_core_mask_irq,
-	.unmask = bfin_core_unmask_irq,
+	.irq_ack = bfin_ack_noop,
+	.irq_mask = bfin_core_mask_irq,
+	.irq_unmask = bfin_core_unmask_irq,
 };
 
 static struct irq_chip bfin_internal_irqchip = {
 	.name = "INTN",
-	.ack = bfin_ack_noop,
-	.mask = bfin_internal_mask_irq,
-	.unmask = bfin_internal_unmask_irq,
-	.mask_ack = bfin_internal_mask_irq,
-	.disable = bfin_internal_mask_irq,
-	.enable = bfin_internal_unmask_irq,
+	.irq_ack = bfin_ack_noop,
+	.irq_mask = bfin_internal_mask_irq_chip,
+	.irq_unmask = bfin_internal_unmask_irq_chip,
+	.irq_mask_ack = bfin_internal_mask_irq_chip,
+	.irq_disable = bfin_internal_mask_irq_chip,
+	.irq_enable = bfin_internal_unmask_irq_chip,
 #ifdef CONFIG_SMP
-	.set_affinity = bfin_internal_set_affinity,
+	.irq_set_affinity = bfin_internal_set_affinity,
 #endif
-#ifdef CONFIG_PM
-	.set_wake = bfin_internal_set_wake,
-#endif
+	.irq_set_wake = bfin_internal_set_wake_chip,
 };
 
-static void bfin_handle_irq(unsigned irq)
+void bfin_handle_irq(unsigned irq)
 {
 #ifdef CONFIG_IPIPE
 	struct pt_regs regs;    /* Contents not used. */
@@ -312,106 +303,9 @@ static void bfin_handle_irq(unsigned irq)
 	__ipipe_handle_irq(irq, &regs);
 	ipipe_trace_irq_exit(irq);
 #else /* !CONFIG_IPIPE */
-	struct irq_desc *desc = irq_desc + irq;
-	desc->handle_irq(irq, desc);
+	generic_handle_irq(irq);
 #endif  /* !CONFIG_IPIPE */
 }
-
-#ifdef BF537_GENERIC_ERROR_INT_DEMUX
-static int error_int_mask;
-
-static void bfin_generic_error_mask_irq(unsigned int irq)
-{
-	error_int_mask &= ~(1L << (irq - IRQ_PPI_ERROR));
-	if (!error_int_mask)
-		bfin_internal_mask_irq(IRQ_GENERIC_ERROR);
-}
-
-static void bfin_generic_error_unmask_irq(unsigned int irq)
-{
-	bfin_internal_unmask_irq(IRQ_GENERIC_ERROR);
-	error_int_mask |= 1L << (irq - IRQ_PPI_ERROR);
-}
-
-static struct irq_chip bfin_generic_error_irqchip = {
-	.name = "ERROR",
-	.ack = bfin_ack_noop,
-	.mask_ack = bfin_generic_error_mask_irq,
-	.mask = bfin_generic_error_mask_irq,
-	.unmask = bfin_generic_error_unmask_irq,
-};
-
-static void bfin_demux_error_irq(unsigned int int_err_irq,
-				 struct irq_desc *inta_desc)
-{
-	int irq = 0;
-
-#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
-	if (bfin_read_EMAC_SYSTAT() & EMAC_ERR_MASK)
-		irq = IRQ_MAC_ERROR;
-	else
-#endif
-	if (bfin_read_SPORT0_STAT() & SPORT_ERR_MASK)
-		irq = IRQ_SPORT0_ERROR;
-	else if (bfin_read_SPORT1_STAT() & SPORT_ERR_MASK)
-		irq = IRQ_SPORT1_ERROR;
-	else if (bfin_read_PPI_STATUS() & PPI_ERR_MASK)
-		irq = IRQ_PPI_ERROR;
-	else if (bfin_read_CAN_GIF() & CAN_ERR_MASK)
-		irq = IRQ_CAN_ERROR;
-	else if (bfin_read_SPI_STAT() & SPI_ERR_MASK)
-		irq = IRQ_SPI_ERROR;
-	else if ((bfin_read_UART0_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
-		irq = IRQ_UART0_ERROR;
-	else if ((bfin_read_UART1_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
-		irq = IRQ_UART1_ERROR;
-
-	if (irq) {
-		if (error_int_mask & (1L << (irq - IRQ_PPI_ERROR)))
-			bfin_handle_irq(irq);
-		else {
-
-			switch (irq) {
-			case IRQ_PPI_ERROR:
-				bfin_write_PPI_STATUS(PPI_ERR_MASK);
-				break;
-#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
-			case IRQ_MAC_ERROR:
-				bfin_write_EMAC_SYSTAT(EMAC_ERR_MASK);
-				break;
-#endif
-			case IRQ_SPORT0_ERROR:
-				bfin_write_SPORT0_STAT(SPORT_ERR_MASK);
-				break;
-
-			case IRQ_SPORT1_ERROR:
-				bfin_write_SPORT1_STAT(SPORT_ERR_MASK);
-				break;
-
-			case IRQ_CAN_ERROR:
-				bfin_write_CAN_GIS(CAN_ERR_MASK);
-				break;
-
-			case IRQ_SPI_ERROR:
-				bfin_write_SPI_STAT(SPI_ERR_MASK);
-				break;
-
-			default:
-				break;
-			}
-
-			pr_debug("IRQ %d:"
-				 " MASKED PERIPHERAL ERROR INTERRUPT ASSERTED\n",
-				 irq);
-		}
-	} else
-		printk(KERN_ERR
-		       "%s : %s : LINE %d :\nIRQ ?: PERIPHERAL ERROR"
-		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
-		       __func__, __FILE__, __LINE__);
-
-}
-#endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 static int mac_stat_int_mask;
@@ -448,10 +342,12 @@ static void bfin_mac_status_ack_irq(unsigned int irq)
 	}
 }
 
-static void bfin_mac_status_mask_irq(unsigned int irq)
+static void bfin_mac_status_mask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	mac_stat_int_mask &= ~(1L << (irq - IRQ_MAC_PHYINT));
-#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+#ifdef BF537_FAMILY
 	switch (irq) {
 	case IRQ_MAC_PHYINT:
 		bfin_write_EMAC_SYSCTL(bfin_read_EMAC_SYSCTL() & ~PHYIE);
@@ -466,9 +362,11 @@ static void bfin_mac_status_mask_irq(unsigned int irq)
 	bfin_mac_status_ack_irq(irq);
 }
 
-static void bfin_mac_status_unmask_irq(unsigned int irq)
+static void bfin_mac_status_unmask_irq(struct irq_data *d)
 {
-#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+	unsigned int irq = d->irq;
+
+#ifdef BF537_FAMILY
 	switch (irq) {
 	case IRQ_MAC_PHYINT:
 		bfin_write_EMAC_SYSCTL(bfin_read_EMAC_SYSCTL() | PHYIE);
@@ -484,29 +382,29 @@ static void bfin_mac_status_unmask_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_PM
-int bfin_mac_status_set_wake(unsigned int irq, unsigned int state)
+int bfin_mac_status_set_wake(struct irq_data *d, unsigned int state)
 {
-#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+#ifdef BF537_FAMILY
 	return bfin_internal_set_wake(IRQ_GENERIC_ERROR, state);
 #else
 	return bfin_internal_set_wake(IRQ_MAC_ERROR, state);
 #endif
 }
+#else
+# define bfin_mac_status_set_wake NULL
 #endif
 
 static struct irq_chip bfin_mac_status_irqchip = {
 	.name = "MACST",
-	.ack = bfin_ack_noop,
-	.mask_ack = bfin_mac_status_mask_irq,
-	.mask = bfin_mac_status_mask_irq,
-	.unmask = bfin_mac_status_unmask_irq,
-#ifdef CONFIG_PM
-	.set_wake = bfin_mac_status_set_wake,
-#endif
+	.irq_ack = bfin_ack_noop,
+	.irq_mask_ack = bfin_mac_status_mask_irq,
+	.irq_mask = bfin_mac_status_mask_irq,
+	.irq_unmask = bfin_mac_status_unmask_irq,
+	.irq_set_wake = bfin_mac_status_set_wake,
 };
 
-static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
-				 struct irq_desc *inta_desc)
+void bfin_demux_mac_status_irq(unsigned int int_err_irq,
+			       struct irq_desc *inta_desc)
 {
 	int i, irq = 0;
 	u32 status = bfin_read_EMAC_SYSTAT();
@@ -538,72 +436,69 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 {
 #ifdef CONFIG_IPIPE
-	_set_irq_handler(irq, handle_level_irq);
-#else
-	struct irq_desc *desc = irq_desc + irq;
-	/* May not call generic set_irq_handler() due to spinlock
-	   recursion. */
-	desc->handle_irq = handle;
+	handle = handle_level_irq;
 #endif
+	__irq_set_handler_locked(irq, handle);
 }
 
 static DECLARE_BITMAP(gpio_enabled, MAX_BLACKFIN_GPIOS);
 extern void bfin_gpio_irq_prepare(unsigned gpio);
 
-#if !defined(CONFIG_BF54x)
+#if !BFIN_GPIO_PINT
 
-static void bfin_gpio_ack_irq(unsigned int irq)
+static void bfin_gpio_ack_irq(struct irq_data *d)
 {
 	/* AFAIK ack_irq in case mask_ack is provided
 	 * get's only called for edge sense irqs
 	 */
-	set_gpio_data(irq_to_gpio(irq), 0);
+	set_gpio_data(irq_to_gpio(d->irq), 0);
 }
 
-static void bfin_gpio_mask_ack_irq(unsigned int irq)
+static void bfin_gpio_mask_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	unsigned int irq = d->irq;
 	u32 gpionr = irq_to_gpio(irq);
 
-	if (desc->handle_irq == handle_edge_irq)
+	if (!irqd_is_level_type(d))
 		set_gpio_data(gpionr, 0);
 
 	set_gpio_maska(gpionr, 0);
 }
 
-static void bfin_gpio_mask_irq(unsigned int irq)
+static void bfin_gpio_mask_irq(struct irq_data *d)
 {
-	set_gpio_maska(irq_to_gpio(irq), 0);
+	set_gpio_maska(irq_to_gpio(d->irq), 0);
 }
 
-static void bfin_gpio_unmask_irq(unsigned int irq)
+static void bfin_gpio_unmask_irq(struct irq_data *d)
 {
-	set_gpio_maska(irq_to_gpio(irq), 1);
+	set_gpio_maska(irq_to_gpio(d->irq), 1);
 }
 
-static unsigned int bfin_gpio_irq_startup(unsigned int irq)
+static unsigned int bfin_gpio_irq_startup(struct irq_data *d)
 {
-	u32 gpionr = irq_to_gpio(irq);
+	u32 gpionr = irq_to_gpio(d->irq);
 
 	if (__test_and_set_bit(gpionr, gpio_enabled))
 		bfin_gpio_irq_prepare(gpionr);
 
-	bfin_gpio_unmask_irq(irq);
+	bfin_gpio_unmask_irq(d);
 
 	return 0;
 }
 
-static void bfin_gpio_irq_shutdown(unsigned int irq)
+static void bfin_gpio_irq_shutdown(struct irq_data *d)
 {
-	u32 gpionr = irq_to_gpio(irq);
+	u32 gpionr = irq_to_gpio(d->irq);
 
-	bfin_gpio_mask_irq(irq);
+	bfin_gpio_mask_irq(d);
 	__clear_bit(gpionr, gpio_enabled);
 	bfin_gpio_irq_free(gpionr);
 }
 
-static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
+static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
+	unsigned int irq = d->irq;
 	int ret;
 	char buf[16];
 	u32 gpionr = irq_to_gpio(irq);
@@ -664,29 +559,48 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 }
 
 #ifdef CONFIG_PM
-int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
+static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 {
-	return gpio_pm_wakeup_ctrl(irq_to_gpio(irq), state);
+	return gpio_pm_wakeup_ctrl(irq_to_gpio(d->irq), state);
 }
+#else
+# define bfin_gpio_set_wake NULL
 #endif
 
-static void bfin_demux_gpio_irq(unsigned int inta_irq,
-				struct irq_desc *desc)
+static void bfin_demux_gpio_block(unsigned int irq)
 {
-	unsigned int i, gpio, mask, irq, search = 0;
+	unsigned int gpio, mask;
+
+	gpio = irq_to_gpio(irq);
+	mask = get_gpiop_data(gpio) & get_gpiop_maska(gpio);
+
+	while (mask) {
+		if (mask & 1)
+			bfin_handle_irq(irq);
+		irq++;
+		mask >>= 1;
+	}
+}
+
+void bfin_demux_gpio_irq(unsigned int inta_irq,
+			 struct irq_desc *desc)
+{
+	unsigned int irq;
 
 	switch (inta_irq) {
-#if defined(CONFIG_BF53x)
-	case IRQ_PROG_INTA:
-		irq = IRQ_PF0;
-		search = 1;
+#if defined(BF537_FAMILY)
+	case IRQ_PF_INTA_PG_INTA:
+		bfin_demux_gpio_block(IRQ_PF0);
+		irq = IRQ_PG0;
 		break;
-# if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
-	case IRQ_MAC_RX:
+	case IRQ_PH_INTA_MAC_RX:
 		irq = IRQ_PH0;
 		break;
-# endif
-#elif defined(CONFIG_BF538) || defined(CONFIG_BF539)
+#elif defined(BF533_FAMILY)
+	case IRQ_PROG_INTA:
+		irq = IRQ_PF0;
+		break;
+#elif defined(BF538_FAMILY)
 	case IRQ_PORTF_INTA:
 		irq = IRQ_PF0;
 		break;
@@ -716,34 +630,10 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 		return;
 	}
 
-	if (search) {
-		for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
-			irq += i;
-
-			mask = get_gpiop_data(i) & get_gpiop_maska(i);
-
-			while (mask) {
-				if (mask & 1)
-					bfin_handle_irq(irq);
-				irq++;
-				mask >>= 1;
-			}
-		}
-	} else {
-			gpio = irq_to_gpio(irq);
-			mask = get_gpiop_data(gpio) & get_gpiop_maska(gpio);
-
-			do {
-				if (mask & 1)
-					bfin_handle_irq(irq);
-				irq++;
-				mask >>= 1;
-			} while (mask);
-	}
-
+	bfin_demux_gpio_block(irq);
 }
 
-#else				/* CONFIG_BF54x */
+#else
 
 #define NR_PINT_SYS_IRQS	4
 #define NR_PINT_BITS		32
@@ -757,24 +647,11 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 static unsigned char irq2pint_lut[NR_PINTS];
 static unsigned char pint2irq_lut[NR_PINT_SYS_IRQS * NR_PINT_BITS];
 
-struct pin_int_t {
-	unsigned int mask_set;
-	unsigned int mask_clear;
-	unsigned int request;
-	unsigned int assign;
-	unsigned int edge_set;
-	unsigned int edge_clear;
-	unsigned int invert_set;
-	unsigned int invert_clear;
-	unsigned int pinstate;
-	unsigned int latch;
-};
-
-static struct pin_int_t *pint[NR_PINT_SYS_IRQS] = {
-	(struct pin_int_t *)PINT0_MASK_SET,
-	(struct pin_int_t *)PINT1_MASK_SET,
-	(struct pin_int_t *)PINT2_MASK_SET,
-	(struct pin_int_t *)PINT3_MASK_SET,
+static struct bfin_pint_regs * const pint[NR_PINT_SYS_IRQS] = {
+	(struct bfin_pint_regs *)PINT0_MASK_SET,
+	(struct bfin_pint_regs *)PINT1_MASK_SET,
+	(struct bfin_pint_regs *)PINT2_MASK_SET,
+	(struct bfin_pint_regs *)PINT3_MASK_SET,
 };
 
 inline unsigned int get_irq_base(u32 bank, u8 bmap)
@@ -818,14 +695,13 @@ void init_pint_lut(void)
 	}
 }
 
-static void bfin_gpio_ack_irq(unsigned int irq)
+static void bfin_gpio_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_desc + irq;
-	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
+	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (pint[bank]->invert_set & pintbit)
 			pint[bank]->invert_clear = pintbit;
 		else
@@ -835,14 +711,13 @@ static void bfin_gpio_ack_irq(unsigned int irq)
 
 }
 
-static void bfin_gpio_mask_ack_irq(unsigned int irq)
+static void bfin_gpio_mask_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_desc + irq;
-	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
+	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (pint[bank]->invert_set & pintbit)
 			pint[bank]->invert_clear = pintbit;
 		else
@@ -853,24 +728,25 @@ static void bfin_gpio_mask_ack_irq(unsigned int irq)
 	pint[bank]->mask_clear = pintbit;
 }
 
-static void bfin_gpio_mask_irq(unsigned int irq)
+static void bfin_gpio_mask_irq(struct irq_data *d)
 {
-	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
+	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 
 	pint[PINT_2_BANK(pint_val)]->mask_clear = PINT_BIT(pint_val);
 }
 
-static void bfin_gpio_unmask_irq(unsigned int irq)
+static void bfin_gpio_unmask_irq(struct irq_data *d)
 {
-	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
+	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
 	pint[bank]->mask_set = pintbit;
 }
 
-static unsigned int bfin_gpio_irq_startup(unsigned int irq)
+static unsigned int bfin_gpio_irq_startup(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	u32 gpionr = irq_to_gpio(irq);
 	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
 
@@ -884,22 +760,23 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	if (__test_and_set_bit(gpionr, gpio_enabled))
 		bfin_gpio_irq_prepare(gpionr);
 
-	bfin_gpio_unmask_irq(irq);
+	bfin_gpio_unmask_irq(d);
 
 	return 0;
 }
 
-static void bfin_gpio_irq_shutdown(unsigned int irq)
+static void bfin_gpio_irq_shutdown(struct irq_data *d)
 {
-	u32 gpionr = irq_to_gpio(irq);
+	u32 gpionr = irq_to_gpio(d->irq);
 
-	bfin_gpio_mask_irq(irq);
+	bfin_gpio_mask_irq(d);
 	__clear_bit(gpionr, gpio_enabled);
 	bfin_gpio_irq_free(gpionr);
 }
 
-static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
+static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
+	unsigned int irq = d->irq;
 	int ret;
 	char buf[16];
 	u32 gpionr = irq_to_gpio(irq);
@@ -958,15 +835,11 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 }
 
 #ifdef CONFIG_PM
-u32 pint_saved_masks[NR_PINT_SYS_IRQS];
-u32 pint_wakeup_masks[NR_PINT_SYS_IRQS];
-
-int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
+static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 {
 	u32 pint_irq;
-	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
+	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 bank = PINT_2_BANK(pint_val);
-	u32 pintbit = PINT_BIT(pint_val);
 
 	switch (bank) {
 	case 0:
@@ -987,46 +860,14 @@ int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
 
 	bfin_internal_set_wake(pint_irq, state);
 
-	if (state)
-		pint_wakeup_masks[bank] |= pintbit;
-	else
-		pint_wakeup_masks[bank] &= ~pintbit;
-
 	return 0;
 }
-
-u32 bfin_pm_setup(void)
-{
-	u32 val, i;
-
-	for (i = 0; i < NR_PINT_SYS_IRQS; i++) {
-		val = pint[i]->mask_clear;
-		pint_saved_masks[i] = val;
-		if (val ^ pint_wakeup_masks[i]) {
-			pint[i]->mask_clear = val;
-			pint[i]->mask_set = pint_wakeup_masks[i];
-		}
-	}
-
-	return 0;
-}
-
-void bfin_pm_restore(void)
-{
-	u32 i, val;
-
-	for (i = 0; i < NR_PINT_SYS_IRQS; i++) {
-		val = pint_saved_masks[i];
-		if (val ^ pint_wakeup_masks[i]) {
-			pint[i]->mask_clear = pint[i]->mask_clear;
-			pint[i]->mask_set = val;
-		}
-	}
-}
+#else
+# define bfin_gpio_set_wake NULL
 #endif
 
-static void bfin_demux_gpio_irq(unsigned int inta_irq,
-				struct irq_desc *desc)
+void bfin_demux_gpio_irq(unsigned int inta_irq,
+			 struct irq_desc *desc)
 {
 	u32 bank, pint_val;
 	u32 request, irq;
@@ -1066,18 +907,16 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 
 static struct irq_chip bfin_gpio_irqchip = {
 	.name = "GPIO",
-	.ack = bfin_gpio_ack_irq,
-	.mask = bfin_gpio_mask_irq,
-	.mask_ack = bfin_gpio_mask_ack_irq,
-	.unmask = bfin_gpio_unmask_irq,
-	.disable = bfin_gpio_mask_irq,
-	.enable = bfin_gpio_unmask_irq,
-	.set_type = bfin_gpio_irq_type,
-	.startup = bfin_gpio_irq_startup,
-	.shutdown = bfin_gpio_irq_shutdown,
-#ifdef CONFIG_PM
-	.set_wake = bfin_gpio_set_wake,
-#endif
+	.irq_ack = bfin_gpio_ack_irq,
+	.irq_mask = bfin_gpio_mask_irq,
+	.irq_mask_ack = bfin_gpio_mask_ack_irq,
+	.irq_unmask = bfin_gpio_unmask_irq,
+	.irq_disable = bfin_gpio_mask_irq,
+	.irq_enable = bfin_gpio_unmask_irq,
+	.irq_set_type = bfin_gpio_irq_type,
+	.irq_startup = bfin_gpio_irq_startup,
+	.irq_shutdown = bfin_gpio_irq_shutdown,
+	.irq_set_wake = bfin_gpio_set_wake,
 };
 
 void __cpuinit init_exception_vectors(void)
@@ -1111,12 +950,12 @@ int __init init_arch_irq(void)
 {
 	int irq;
 	unsigned long ilat = 0;
+
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
-	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
+#ifdef SIC_IMASK0
 	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
-# ifdef CONFIG_BF54x
+# ifdef SIC_IMASK2
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
 # endif
 # ifdef CONFIG_SMP
@@ -1129,12 +968,7 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
-	/* Clear EMAC Interrupt Status bits so we can demux it later */
-	bfin_write_EMAC_SYSTAT(-1);
-#endif
-
-#ifdef CONFIG_BF54x
+#if BFIN_GPIO_PINT
 # ifdef CONFIG_PINTx_REASSIGN
 	pint[0]->assign = CONFIG_PINT0_ASSIGN;
 	pint[1]->assign = CONFIG_PINT1_ASSIGN;
@@ -1147,21 +981,21 @@ int __init init_arch_irq(void)
 
 	for (irq = 0; irq <= SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
-			set_irq_chip(irq, &bfin_core_irqchip);
+			irq_set_chip(irq, &bfin_core_irqchip);
 		else
-			set_irq_chip(irq, &bfin_internal_irqchip);
+			irq_set_chip(irq, &bfin_internal_irqchip);
 
 		switch (irq) {
-#if defined(CONFIG_BF53x)
-		case IRQ_PROG_INTA:
-# if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
-		case IRQ_MAC_RX:
-# endif
-#elif defined(CONFIG_BF54x)
+#if BFIN_GPIO_PINT
 		case IRQ_PINT0:
 		case IRQ_PINT1:
 		case IRQ_PINT2:
 		case IRQ_PINT3:
+#elif defined(BF537_FAMILY)
+		case IRQ_PH_INTA_MAC_RX:
+		case IRQ_PF_INTA_PG_INTA:
+#elif defined(BF533_FAMILY)
+		case IRQ_PROG_INTA:
 #elif defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
 		case IRQ_PORTF_INTA:
 		case IRQ_PORTG_INTA:
@@ -1170,76 +1004,61 @@ int __init init_arch_irq(void)
 		case IRQ_PROG0_INTA:
 		case IRQ_PROG1_INTA:
 		case IRQ_PROG2_INTA:
-#elif defined(CONFIG_BF538) || defined(CONFIG_BF539)
+#elif defined(BF538_FAMILY)
 		case IRQ_PORTF_INTA:
 #endif
-			set_irq_chained_handler(irq,
-						bfin_demux_gpio_irq);
+			irq_set_chained_handler(irq, bfin_demux_gpio_irq);
 			break;
-#ifdef BF537_GENERIC_ERROR_INT_DEMUX
-		case IRQ_GENERIC_ERROR:
-			set_irq_chained_handler(irq, bfin_demux_error_irq);
-			break;
-#endif
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 		case IRQ_MAC_ERROR:
-			set_irq_chained_handler(irq, bfin_demux_mac_status_irq);
+			irq_set_chained_handler(irq,
+						bfin_demux_mac_status_irq);
 			break;
 #endif
 #ifdef CONFIG_SMP
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
-			set_irq_handler(irq, handle_percpu_irq);
+			irq_set_handler(irq, handle_percpu_irq);
 			break;
 #endif
 
 #ifdef CONFIG_TICKSOURCE_CORETMR
 		case IRQ_CORETMR:
 # ifdef CONFIG_SMP
-			set_irq_handler(irq, handle_percpu_irq);
-			break;
+			irq_set_handler(irq, handle_percpu_irq);
 # else
-			set_irq_handler(irq, handle_simple_irq);
-			break;
+			irq_set_handler(irq, handle_simple_irq);
 # endif
+			break;
 #endif
 
 #ifdef CONFIG_TICKSOURCE_GPTMR0
 		case IRQ_TIMER0:
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_handler(irq, handle_simple_irq);
 			break;
 #endif
 
+		default:
 #ifdef CONFIG_IPIPE
-		default:
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_handler(irq, handle_level_irq);
+#else
+			irq_set_handler(irq, handle_simple_irq);
+#endif
 			break;
-#else /* !CONFIG_IPIPE */
-		default:
-			set_irq_handler(irq, handle_simple_irq);
-			break;
-#endif /* !CONFIG_IPIPE */
 		}
 	}
 
-#ifdef BF537_GENERIC_ERROR_INT_DEMUX
-	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++)
-		set_irq_chip_and_handler(irq, &bfin_generic_error_irqchip,
-					 handle_level_irq);
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
-	set_irq_chained_handler(IRQ_MAC_ERROR, bfin_demux_mac_status_irq);
-#endif
-#endif
+	init_mach_irq();
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 	for (irq = IRQ_MAC_PHYINT; irq <= IRQ_MAC_STMDONE; irq++)
-		set_irq_chip_and_handler(irq, &bfin_mac_status_irqchip,
+		irq_set_chip_and_handler(irq, &bfin_mac_status_irqchip,
 					 handle_level_irq);
 #endif
 	/* if configured as edge, then will be changed to do_edge_IRQ */
 	for (irq = GPIO_IRQ_BASE;
 		irq < (GPIO_IRQ_BASE + MAX_BLACKFIN_GPIOS); irq++)
-		set_irq_chip_and_handler(irq, &bfin_gpio_irqchip,
+		irq_set_chip_and_handler(irq, &bfin_gpio_irqchip,
 					 handle_level_irq);
 
 	bfin_write_IMASK(0);
@@ -1291,53 +1110,54 @@ int __init init_arch_irq(void)
 #ifdef CONFIG_DO_IRQ_L1
 __attribute__((l1_text))
 #endif
+static int vec_to_irq(int vec)
+{
+	struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
+	struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
+	unsigned long sic_status[3];
+
+	if (likely(vec == EVT_IVTMR_P))
+		return IRQ_CORETMR;
+
+#ifdef SIC_ISR
+	sic_status[0] = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
+#else
+	if (smp_processor_id()) {
+# ifdef SICB_ISR0
+		/* This will be optimized out in UP mode. */
+		sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
+		sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
+# endif
+	} else {
+		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
+		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
+	}
+#endif
+#ifdef SIC_ISR2
+	sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
+#endif
+
+	for (;; ivg++) {
+		if (ivg >= ivg_stop)
+			return -1;
+#ifdef SIC_ISR
+		if (sic_status[0] & ivg->isrflag)
+#else
+		if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
+#endif
+			return ivg->irqno;
+	}
+}
+
+#ifdef CONFIG_DO_IRQ_L1
+__attribute__((l1_text))
+#endif
 void do_irq(int vec, struct pt_regs *fp)
 {
-	if (vec == EVT_IVTMR_P) {
-		vec = IRQ_CORETMR;
-	} else {
-		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
-		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(SIC_ISR0)
-		unsigned long sic_status[3];
-
-		if (smp_processor_id()) {
-# ifdef SICB_ISR0
-			/* This will be optimized out in UP mode. */
-			sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
-			sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
-# endif
-		} else {
-			sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
-			sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
-		}
-# ifdef SIC_ISR2
-		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-# endif
-		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
-				return;
-			}
-			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
-				break;
-		}
-#else
-		unsigned long sic_status;
-
-		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
-
-		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
-				return;
-			} else if (sic_status & ivg->isrflag)
-				break;
-		}
-#endif
-		vec = ivg->irqno;
-	}
-	asm_do_IRQ(vec, fp);
+	int irq = vec_to_irq(vec);
+	if (irq == -1)
+		return;
+	asm_do_IRQ(irq, fp);
 }
 
 #ifdef CONFIG_IPIPE
@@ -1373,42 +1193,11 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	struct ipipe_domain *this_domain = __ipipe_current_domain;
 	struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
-	int irq, s;
+	int irq, s = 0;
 
-	if (likely(vec == EVT_IVTMR_P))
-		irq = IRQ_CORETMR;
-	else {
-#if defined(SIC_ISR0)
-		unsigned long sic_status[3];
-
-		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
-		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
-# ifdef SIC_ISR2
-		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-# endif
-		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
-				return 0;
-			}
-			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
-				break;
-		}
-#else
-		unsigned long sic_status;
-
-		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
-
-		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
-				return 0;
-			} else if (sic_status & ivg->isrflag)
-				break;
-		}
-#endif
-		irq = ivg->irqno;
-	}
+	irq = vec_to_irq(vec);
+	if (irq == -1)
+		return 0;
 
 	if (irq == IRQ_SYSTMR) {
 #if !defined(CONFIG_GENERIC_CLOCKEVENTS) || defined(CONFIG_TICKSOURCE_GPTMR0)
@@ -1423,6 +1212,21 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
 	}
 
+	/*
+	 * We don't want Linux interrupt handlers to run at the
+	 * current core priority level (i.e. < EVT15), since this
+	 * might delay other interrupts handled by a high priority
+	 * domain. Here is what we do instead:
+	 *
+	 * - we raise the SYNCDEFER bit to prevent
+	 * __ipipe_handle_irq() to sync the pipeline for the root
+	 * stage for the incoming interrupt. Upon return, that IRQ is
+	 * pending in the interrupt log.
+	 *
+	 * - we raise the TIF_IRQ_SYNC bit for the current thread, so
+	 * that _schedule_and_signal_from_int will eventually sync the
+	 * pipeline from EVT15.
+	 */
 	if (this_domain == ipipe_root_domain) {
 		s = __test_and_set_bit(IPIPE_SYNCDEFER_FLAG, &p->status);
 		barrier();
@@ -1431,6 +1235,24 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	ipipe_trace_irq_entry(irq);
 	__ipipe_handle_irq(irq, regs);
 	ipipe_trace_irq_exit(irq);
+
+	if (user_mode(regs) &&
+	    !ipipe_test_foreign_stack() &&
+	    (current->ipipe_flags & PF_EVTRET) != 0) {
+		/*
+		 * Testing for user_regs() does NOT fully eliminate
+		 * foreign stack contexts, because of the forged
+		 * interrupt returns we do through
+		 * __ipipe_call_irqtail. In that case, we might have
+		 * preempted a foreign stack context in a high
+		 * priority domain, with a single interrupt level now
+		 * pending after the irqtail unwinding is done. In
+		 * which case user_mode() is now true, and the event
+		 * gets dispatched spuriously.
+		 */
+		current->ipipe_flags &= ~PF_EVTRET;
+		__ipipe_dispatch_event(IPIPE_EVENT_RETURN, regs);
+	}
 
 	if (this_domain == ipipe_root_domain) {
 		set_thread_flag(TIF_IRQ_SYNC);

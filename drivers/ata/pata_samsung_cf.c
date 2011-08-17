@@ -376,7 +376,7 @@ static int pata_s3c_softreset(struct ata_link *link, unsigned int *classes,
 	rc = pata_s3c_bus_softreset(ap, deadline);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && rc != -ENODEV) {
-		ata_link_printk(link, KERN_ERR, "SRST failed (errno=%d)\n", rc);
+		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
 		return rc;
 	}
 
@@ -531,7 +531,6 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	}
 
 	ap = host->ports[0];
-	ap->flags |= ATA_FLAG_MMIO;
 	ap->pio_mask = ATA_PIO4;
 
 	if (cpu_type == TYPE_S3C64XX) {

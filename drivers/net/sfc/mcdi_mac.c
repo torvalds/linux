@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2009 Solarflare Communications Inc.
+ * Copyright 2009-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -138,7 +138,7 @@ static bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 }
 
 
-struct efx_mac_operations efx_mcdi_mac_operations = {
+const struct efx_mac_operations efx_mcdi_mac_operations = {
 	.reconfigure	= efx_mcdi_mac_reconfigure,
 	.update_stats	= efx_port_dummy_op_void,
 	.check_fault 	= efx_mcdi_mac_check_fault,

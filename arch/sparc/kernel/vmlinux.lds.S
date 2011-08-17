@@ -107,8 +107,27 @@ SECTIONS
 		*(.sun4v_2insn_patch)
 		__sun4v_2insn_patch_end = .;
 	}
-
-	PERCPU(PAGE_SIZE)
+	.swapper_tsb_phys_patch : {
+		__swapper_tsb_phys_patch = .;
+		*(.swapper_tsb_phys_patch)
+		__swapper_tsb_phys_patch_end = .;
+	}
+	.swapper_4m_tsb_phys_patch : {
+		__swapper_4m_tsb_phys_patch = .;
+		*(.swapper_4m_tsb_phys_patch)
+		__swapper_4m_tsb_phys_patch_end = .;
+	}
+	.popc_3insn_patch : {
+		__popc_3insn_patch = .;
+		*(.popc_3insn_patch)
+		__popc_3insn_patch_end = .;
+	}
+	.popc_6insn_patch : {
+		__popc_6insn_patch = .;
+		*(.popc_6insn_patch)
+		__popc_6insn_patch_end = .;
+	}
+	PERCPU_SECTION(SMP_CACHE_BYTES)
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;

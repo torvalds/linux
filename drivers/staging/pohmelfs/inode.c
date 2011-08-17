@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/writeback.h>
+#include <linux/prefetch.h>
 
 #include "netfs.h"
 
@@ -834,7 +835,7 @@ static void pohmelfs_i_callback(struct rcu_head *head)
 }
 
 /*
- * ->detroy_inode() callback. Deletes inode from the caches
+ * ->destroy_inode() callback. Deletes inode from the caches
  *  and frees private data.
  */
 static void pohmelfs_destroy_inode(struct inode *inode)
@@ -886,11 +887,16 @@ static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 /*
  * We want fsync() to work on POHMELFS.
  */
-static int pohmelfs_fsync(struct file *file, int datasync)
+static int pohmelfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
-
-	return sync_inode_metadata(inode, 1);
+	int err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (!err) {
+		mutex_lock(&inode->i_mutex);
+		err = sync_inode_metadata(inode, 1);
+		mutex_unlock(&inode->i_mutex);
+	}
+	return err;
 }
 
 ssize_t pohmelfs_write(struct file *file, const char __user *buf,
@@ -1127,18 +1133,18 @@ static ssize_t pohmelfs_getxattr(struct dentry *dentry, const char *name,
 
 		/*
 		 * This loop is a bit ugly, since it waits until reference counter
-		 * hits 1 and then put object here. Main goal is to prevent race with
-		 * network thread, when it can start processing given request, i.e.
+		 * hits 1 and then puts the object here. Main goal is to prevent race with
+		 * the network thread, when it can start processing the given request, i.e.
 		 * increase its reference counter but yet not complete it, while
 		 * we will exit from ->getxattr() with timeout, and although request
 		 * will not be freed (its reference counter was increased by network
 		 * thread), data pointer provided by user may be released, so we will
-		 * overwrite already freed area in network thread.
+		 * overwrite an already freed area in the network thread.
 		 *
 		 * Now after timeout we remove request from the cache, so it can not be
 		 * found by network thread, and wait for its reference counter to hit 1,
 		 * i.e. if network thread already started to process this request, we wait
-		 * it to finish, and then free object locally. If reference counter is
+		 * for it to finish, and then free object locally. If reference counter is
 		 * already 1, i.e. request is not used by anyone else, we can free it without
 		 * problem.
 		 */

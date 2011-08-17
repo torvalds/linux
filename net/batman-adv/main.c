@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -30,11 +30,13 @@
 #include "translation-table.h"
 #include "hard-interface.h"
 #include "gateway_client.h"
-#include "types.h"
 #include "vis.h"
 #include "hash.h"
 
-struct list_head if_list;
+
+/* List manipulations on hardif_list have to be rtnl_lock()'ed,
+ * list traversals just rcu-locked */
+struct list_head hardif_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -42,7 +44,7 @@ struct workqueue_struct *bat_event_workqueue;
 
 static int __init batman_init(void)
 {
-	INIT_LIST_HEAD(&if_list);
+	INIT_LIST_HEAD(&hardif_list);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
@@ -56,9 +58,8 @@ static int __init batman_init(void)
 
 	register_netdevice_notifier(&hard_if_notifier);
 
-	pr_info("B.A.T.M.A.N. advanced %s%s (compatibility version %i) "
-		"loaded\n", SOURCE_VERSION, REVISION_VERSION_STR,
-		COMPAT_VERSION);
+	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) "
+		"loaded\n", SOURCE_VERSION, COMPAT_VERSION);
 
 	return 0;
 }
@@ -80,35 +81,38 @@ int mesh_init(struct net_device *soft_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 
-	spin_lock_init(&bat_priv->orig_hash_lock);
 	spin_lock_init(&bat_priv->forw_bat_list_lock);
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
-	spin_lock_init(&bat_priv->hna_lhash_lock);
-	spin_lock_init(&bat_priv->hna_ghash_lock);
+	spin_lock_init(&bat_priv->tt_changes_list_lock);
+	spin_lock_init(&bat_priv->tt_req_list_lock);
+	spin_lock_init(&bat_priv->tt_roam_list_lock);
+	spin_lock_init(&bat_priv->tt_buff_lock);
 	spin_lock_init(&bat_priv->gw_list_lock);
 	spin_lock_init(&bat_priv->vis_hash_lock);
 	spin_lock_init(&bat_priv->vis_list_lock);
 	spin_lock_init(&bat_priv->softif_neigh_lock);
+	spin_lock_init(&bat_priv->softif_neigh_vid_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
 	INIT_HLIST_HEAD(&bat_priv->gw_list);
-	INIT_HLIST_HEAD(&bat_priv->softif_neigh_list);
+	INIT_HLIST_HEAD(&bat_priv->softif_neigh_vids);
+	INIT_LIST_HEAD(&bat_priv->tt_changes_list);
+	INIT_LIST_HEAD(&bat_priv->tt_req_list);
+	INIT_LIST_HEAD(&bat_priv->tt_roam_list);
 
 	if (originator_init(bat_priv) < 1)
 		goto err;
 
-	if (hna_local_init(bat_priv) < 1)
+	if (tt_init(bat_priv) < 1)
 		goto err;
 
-	if (hna_global_init(bat_priv) < 1)
-		goto err;
-
-	hna_local_add(soft_iface, soft_iface->dev_addr);
+	tt_local_add(soft_iface, soft_iface->dev_addr);
 
 	if (vis_init(bat_priv) < 1)
 		goto err;
 
+	atomic_set(&bat_priv->gw_reselect, 0);
 	atomic_set(&bat_priv->mesh_state, MESH_ACTIVE);
 	goto end;
 
@@ -135,8 +139,7 @@ void mesh_free(struct net_device *soft_iface)
 	gw_node_purge(bat_priv);
 	originator_free(bat_priv);
 
-	hna_local_free(bat_priv);
-	hna_global_free(bat_priv);
+	tt_free(bat_priv);
 
 	softif_neigh_purge(bat_priv);
 
@@ -153,16 +156,16 @@ void dec_module_count(void)
 	module_put(THIS_MODULE);
 }
 
-int is_my_mac(uint8_t *addr)
+int is_my_mac(const uint8_t *addr)
 {
-	struct batman_if *batman_if;
+	const struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if (batman_if->if_status != IF_ACTIVE)
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->if_status != IF_ACTIVE)
 			continue;
 
-		if (compare_orig(batman_if->net_dev->dev_addr, addr)) {
+		if (compare_eth(hard_iface->net_dev->dev_addr, addr)) {
 			rcu_read_unlock();
 			return 1;
 		}
@@ -180,8 +183,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_SUPPORTED_DEVICE(DRIVER_DEVICE);
-#ifdef REVISION_VERSION
-MODULE_VERSION(SOURCE_VERSION "-" REVISION_VERSION);
-#else
 MODULE_VERSION(SOURCE_VERSION);
-#endif

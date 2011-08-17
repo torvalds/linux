@@ -29,6 +29,7 @@
 
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 
 /**
  * ehci_xilinx_of_setup - Initialize the device for ehci_reset()
@@ -142,15 +143,13 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 /**
  * ehci_hcd_xilinx_of_probe - Probe method for the USB host controller
  * @op:		pointer to the platform_device bound to the host controller
- * @match:	pointer to of_device_id structure, not used
  *
  * This function requests resources and sets up appropriate properties for the
  * host controller. Because the Xilinx USB host controller can be configured
  * as HS only or HS/FS only, it checks the configuration in the device tree
  * entry, and sets an appropriate value for hcd->has_tt.
  */
-static int __devinit
-ehci_hcd_xilinx_of_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit ehci_hcd_xilinx_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -175,7 +174,7 @@ ehci_hcd_xilinx_of_probe(struct platform_device *op, const struct of_device_id *
 		return -ENOMEM;
 
 	hcd->rsrc_start = res.start;
-	hcd->rsrc_len = res.end - res.start + 1;
+	hcd->rsrc_len = resource_size(&res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
@@ -221,7 +220,7 @@ ehci_hcd_xilinx_of_probe(struct platform_device *op, const struct of_device_id *
 	 */
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100 +
-			HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
@@ -288,7 +287,7 @@ static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ehci_hcd_xilinx_of_match);
 
-static struct of_platform_driver ehci_hcd_xilinx_of_driver = {
+static struct platform_driver ehci_hcd_xilinx_of_driver = {
 	.probe		= ehci_hcd_xilinx_of_probe,
 	.remove		= ehci_hcd_xilinx_of_remove,
 	.shutdown	= ehci_hcd_xilinx_of_shutdown,

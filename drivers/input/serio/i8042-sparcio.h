@@ -49,7 +49,7 @@ static inline void i8042_write_command(int val)
 #define OBP_PS2MS_NAME1		"kdmouse"
 #define OBP_PS2MS_NAME2		"mouse"
 
-static int __devinit sparc_i8042_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit sparc_i8042_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 
@@ -95,7 +95,7 @@ static const struct of_device_id sparc_i8042_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sparc_i8042_match);
 
-static struct of_platform_driver sparc_i8042_driver = {
+static struct platform_driver sparc_i8042_driver = {
 	.driver = {
 		.name = "i8042",
 		.owner = THIS_MODULE,
@@ -116,7 +116,7 @@ static int __init i8042_platform_init(void)
 		if (!kbd_iobase)
 			return -ENODEV;
 	} else {
-		int err = of_register_platform_driver(&sparc_i8042_driver);
+		int err = platform_driver_register(&sparc_i8042_driver);
 		if (err)
 			return err;
 
@@ -140,7 +140,7 @@ static inline void i8042_platform_exit(void)
 	struct device_node *root = of_find_node_by_path("/");
 
 	if (strcmp(root->name, "SUNW,JavaStation-1"))
-		of_unregister_platform_driver(&sparc_i8042_driver);
+		platform_driver_unregister(&sparc_i8042_driver);
 }
 
 #else /* !CONFIG_PCI */

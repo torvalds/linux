@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/serial/pxa.c
- *
  *  Based on drivers/serial/8250.c by Russell King.
  *
  *  Author:	Nicolas Pitre
@@ -805,7 +803,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 		break;
 	}
 
-	sport->port.membase = ioremap(mmres->start, mmres->end - mmres->start + 1);
+	sport->port.membase = ioremap(mmres->start, resource_size(mmres));
 	if (!sport->port.membase) {
 		ret = -ENOMEM;
 		goto err_clk;

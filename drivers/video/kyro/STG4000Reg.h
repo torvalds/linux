@@ -16,7 +16,7 @@
 
 /*
  * Macros that access memory mapped card registers in PCI space
- * Add an appropraite section for your OS or processor architecture.
+ * Add an appropriate section for your OS or processor architecture.
  */
 #if defined(__KERNEL__)
 #include <asm/page.h>

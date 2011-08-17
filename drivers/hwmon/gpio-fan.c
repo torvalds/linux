@@ -116,7 +116,7 @@ static int fan_alarm_init(struct gpio_fan_data *fan_data,
 		return 0;
 
 	INIT_WORK(&fan_data->alarm_work, fan_alarm_notify);
-	set_irq_type(alarm_irq, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(alarm_irq, IRQ_TYPE_EDGE_BOTH);
 	err = request_irq(alarm_irq, fan_alarm_irq_handler, IRQF_SHARED,
 			  "GPIO fan alarm", fan_data);
 	if (err)

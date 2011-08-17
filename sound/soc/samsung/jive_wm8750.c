@@ -11,22 +11,11 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-
-#include <sound/core.h>
-#include <sound/pcm.h>
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
 
-#include "dma.h"
 #include "s3c2412-i2s.h"
-
 #include "../codecs/wm8750.h"
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -142,7 +131,7 @@ static struct snd_soc_dai_link jive_dai = {
 	.cpu_dai_name	= "s3c2412-i2s",
 	.codec_dai_name = "wm8750-hifi",
 	.platform_name	= "samsung-audio",
-	.codec_name	= "wm8750-codec.0-0x1a",
+	.codec_name	= "wm8750-codec.0-001a",
 	.init		= jive_wm8750_init,
 	.ops		= &jive_ops,
 };

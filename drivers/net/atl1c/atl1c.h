@@ -22,8 +22,8 @@
 #ifndef _ATL1C_H_
 #define _ATL1C_H_
 
-#include <linux/version.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -265,7 +265,7 @@ struct atl1c_recv_ret_status {
 	__le32	word3;
 };
 
-/* RFD desciptor */
+/* RFD descriptor */
 struct atl1c_rx_free_desc {
 	__le64	buffer_addr;
 };
@@ -531,7 +531,7 @@ struct atl1c_rfd_ring {
 	struct atl1c_buffer *buffer_info;
 };
 
-/* receive return desciptor (rrd) ring */
+/* receive return descriptor (rrd) ring */
 struct atl1c_rrd_ring {
 	void *desc;		/* descriptor ring virtual address */
 	dma_addr_t dma;		/* descriptor ring physical address */
@@ -555,7 +555,6 @@ struct atl1c_smb {
 struct atl1c_adapter {
 	struct net_device   *netdev;
 	struct pci_dev      *pdev;
-	struct vlan_group   *vlgrp;
 	struct napi_struct  napi;
 	struct atl1c_hw        hw;
 	struct atl1c_hw_stats  hw_stats;
@@ -566,9 +565,9 @@ struct atl1c_adapter {
 #define __AT_TESTING        0x0001
 #define __AT_RESETTING      0x0002
 #define __AT_DOWN           0x0003
-	u8 work_event;
-#define ATL1C_WORK_EVENT_RESET 		0x01
-#define ATL1C_WORK_EVENT_LINK_CHANGE	0x02
+	unsigned long work_event;
+#define	ATL1C_WORK_EVENT_RESET		0
+#define	ATL1C_WORK_EVENT_LINK_CHANGE	1
 	u32 msg_enable;
 
 	bool have_msi;

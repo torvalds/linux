@@ -39,6 +39,7 @@ struct s3c64xx_spi_csinfo {
  * @fifo_lvl_mask: All tx fifo_lvl fields start at offset-6
  * @rx_lvl_offset: Depends on tx fifo_lvl field and bus number
  * @high_speed: If the controller supports HIGH_SPEED_EN bit
+ * @tx_st_done: Depends on tx fifo_lvl field
  */
 struct s3c64xx_spi_info {
 	int src_clk_nr;
@@ -53,6 +54,7 @@ struct s3c64xx_spi_info {
 	int fifo_lvl_mask;
 	int rx_lvl_offset;
 	int high_speed;
+	int tx_st_done;
 };
 
 /**
@@ -69,6 +71,5 @@ extern void s3c64xx_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
 extern void s5pc100_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
 extern void s5pv210_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
 extern void s5p64x0_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
-extern void s5p6442_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
 
 #endif /* __S3C64XX_PLAT_SPI_H */

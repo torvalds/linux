@@ -44,7 +44,6 @@ static struct resource docmem = {
 
 static struct mtd_info *mymtd;
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition partition_info[] = {
 	{
 		.name   = "DOCCS Boot kernel",
@@ -68,8 +67,6 @@ static struct mtd_partition partition_info[] = {
 	},
 };
 #define NUM_PARTITIONS ARRAY_SIZE(partition_info)
-#endif
-
 
 static struct map_info scx200_docflash_map = {
 	.name      = "NatSemi SCx200 DOCCS Flash",
@@ -198,24 +195,17 @@ static int __init init_scx200_docflash(void)
 
 	mymtd->owner = THIS_MODULE;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	partition_info[3].offset = mymtd->size-partition_info[3].size;
 	partition_info[2].size = partition_info[3].offset-partition_info[2].offset;
-	add_mtd_partitions(mymtd, partition_info, NUM_PARTITIONS);
-#else
-	add_mtd_device(mymtd);
-#endif
+	mtd_device_register(mymtd, partition_info, NUM_PARTITIONS);
+
 	return 0;
 }
 
 static void __exit cleanup_scx200_docflash(void)
 {
 	if (mymtd) {
-#ifdef CONFIG_MTD_PARTITIONS
-		del_mtd_partitions(mymtd);
-#else
-		del_mtd_device(mymtd);
-#endif
+		mtd_device_unregister(mymtd);
 		map_destroy(mymtd);
 	}
 	if (scx200_docflash_map.virt) {

@@ -126,7 +126,7 @@ struct ocfs2_stack_operations {
 	 *
 	 * ->connect() must not return until it is guaranteed that
 	 *
-	 *  - Node down notifications for the filesystem will be recieved
+	 *  - Node down notifications for the filesystem will be received
 	 *    and passed to conn->cc_recovery_handler().
 	 *  - Locking requests for the filesystem will be processed.
 	 */

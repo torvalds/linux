@@ -8,12 +8,12 @@
 #ifndef __ASM_HW_IRQ_H
 #define __ASM_HW_IRQ_H
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 extern atomic_t irq_err_count;
 
 /*
- * interrupt-retrigger: NOP for now. This may not be apropriate for all
+ * interrupt-retrigger: NOP for now. This may not be appropriate for all
  * machines, we'll see ...
  */
 

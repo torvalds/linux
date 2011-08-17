@@ -31,7 +31,6 @@
 #include <linux/signal.h>
 #include <linux/rbtree.h>
 
-#define MLOG_MASK_PREFIX ML_FILE_IO
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -42,6 +41,7 @@
 #include "inode.h"
 #include "mmap.h"
 #include "super.h"
+#include "ocfs2_trace.h"
 
 
 static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
@@ -49,13 +49,12 @@ static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	sigset_t oldset;
 	int ret;
 
-	mlog_entry("(area=%p, page offset=%lu)\n", area, vmf->pgoff);
-
 	ocfs2_block_signals(&oldset);
 	ret = filemap_fault(area, vmf);
 	ocfs2_unblock_signals(&oldset);
 
-	mlog_exit_ptr(vmf->page);
+	trace_ocfs2_fault(OCFS2_I(area->vm_file->f_mapping->host)->ip_blkno,
+			  area, vmf->page, vmf->pgoff);
 	return ret;
 }
 

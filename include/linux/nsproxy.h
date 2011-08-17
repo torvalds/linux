@@ -68,6 +68,7 @@ void switch_task_namespaces(struct task_struct *tsk, struct nsproxy *new);
 void free_nsproxy(struct nsproxy *ns);
 int unshare_nsproxy_namespaces(unsigned long, struct nsproxy **,
 	struct fs_struct *);
+int __init nsproxy_cache_init(void);
 
 static inline void put_nsproxy(struct nsproxy *ns)
 {
@@ -80,14 +81,5 @@ static inline void get_nsproxy(struct nsproxy *ns)
 {
 	atomic_inc(&ns->count);
 }
-
-#ifdef CONFIG_CGROUP_NS
-int ns_cgroup_clone(struct task_struct *tsk, struct pid *pid);
-#else
-static inline int ns_cgroup_clone(struct task_struct *tsk, struct pid *pid)
-{
-	return 0;
-}
-#endif
 
 #endif

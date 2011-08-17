@@ -55,6 +55,17 @@ static struct ieee80211_rate p54_arates[] = {
 	{ .bitrate = 540, .hw_value = 11, },
 };
 
+static struct p54_rssi_db_entry p54_rssi_default = {
+	/*
+	 * The defaults are taken from usb-logs of the
+	 * vendor driver. So, they should be safe to
+	 * use in case we can't get a match from the
+	 * rssi <-> dBm conversion database.
+	 */
+	.mul = 130,
+	.add = -398,
+};
+
 #define CHAN_HAS_CAL		BIT(0)
 #define CHAN_HAS_LIMIT		BIT(1)
 #define CHAN_HAS_CURVE		BIT(2)
@@ -87,13 +98,27 @@ static int p54_get_band_from_freq(u16 freq)
 	return -1;
 }
 
+static int same_band(u16 freq, u16 freq2)
+{
+	return p54_get_band_from_freq(freq) == p54_get_band_from_freq(freq2);
+}
+
 static int p54_compare_channels(const void *_a,
 				const void *_b)
 {
 	const struct p54_channel_entry *a = _a;
 	const struct p54_channel_entry *b = _b;
 
-	return a->index - b->index;
+	return a->freq - b->freq;
+}
+
+static int p54_compare_rssichan(const void *_a,
+				const void *_b)
+{
+	const struct p54_rssi_db_entry *a = _a;
+	const struct p54_rssi_db_entry *b = _b;
+
+	return a->freq - b->freq;
 }
 
 static int p54_fill_band_bitrates(struct ieee80211_hw *dev,
@@ -145,25 +170,26 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 
 	for (i = 0, j = 0; (j < list->band_channel_num[band]) &&
 			   (i < list->entries); i++) {
+		struct p54_channel_entry *chan = &list->channels[i];
 
-		if (list->channels[i].band != band)
+		if (chan->band != band)
 			continue;
 
-		if (list->channels[i].data != CHAN_HAS_ALL) {
-			wiphy_err(dev->wiphy,
-				  "%s%s%s is/are missing for channel:%d [%d MHz].\n",
-				  (list->channels[i].data & CHAN_HAS_CAL ? "" :
+		if (chan->data != CHAN_HAS_ALL) {
+			wiphy_err(dev->wiphy, "%s%s%s is/are missing for "
+				  "channel:%d [%d MHz].\n",
+				  (chan->data & CHAN_HAS_CAL ? "" :
 				   " [iqauto calibration data]"),
-				  (list->channels[i].data & CHAN_HAS_LIMIT ? "" :
+				  (chan->data & CHAN_HAS_LIMIT ? "" :
 				   " [output power limits]"),
-				  (list->channels[i].data & CHAN_HAS_CURVE ? "" :
+				  (chan->data & CHAN_HAS_CURVE ? "" :
 				   " [curve data]"),
-				  list->channels[i].index, list->channels[i].freq);
+				  chan->index, chan->freq);
 			continue;
 		}
 
-		tmp->channels[j].band = list->channels[i].band;
-		tmp->channels[j].center_freq = list->channels[i].freq;
+		tmp->channels[j].band = chan->band;
+		tmp->channels[j].center_freq = chan->freq;
 		j++;
 	}
 
@@ -291,7 +317,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 		}
 	}
 
-	/* sort the list by the channel index */
+	/* sort the channel list by frequency */
 	sort(list->channels, list->entries, sizeof(struct p54_channel_entry),
 	     p54_compare_channels, NULL);
 
@@ -410,33 +436,121 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 static const char *p54_rf_chips[] = { "INVALID-0", "Duette3", "Duette2",
 	"Frisbee", "Xbow", "Longbow", "INVALID-6", "INVALID-7" };
 
-static void p54_parse_rssical(struct ieee80211_hw *dev, void *data, int len,
-			     u16 type)
+static int p54_parse_rssical(struct ieee80211_hw *dev,
+			     u8 *data, int len, u16 type)
 {
 	struct p54_common *priv = dev->priv;
-	int offset = (type == PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED) ? 2 : 0;
-	int entry_size = sizeof(struct pda_rssi_cal_entry) + offset;
-	int num_entries = (type == PDR_RSSI_LINEAR_APPROXIMATION) ? 1 : 2;
-	int i;
+	struct p54_rssi_db_entry *entry;
+	size_t db_len, entries;
+	int offset = 0, i;
 
-	if (len != (entry_size * num_entries)) {
-		wiphy_err(dev->wiphy,
-			  "unknown rssi calibration data packing type:(%x) len:%d.\n",
-			  type, len);
+	if (type != PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED) {
+		entries = (type == PDR_RSSI_LINEAR_APPROXIMATION) ? 1 : 2;
+		if (len != sizeof(struct pda_rssi_cal_entry) * entries) {
+			wiphy_err(dev->wiphy, "rssical size mismatch.\n");
+			goto err_data;
+		}
+	} else {
+		/*
+		 * Some devices (Dell 1450 USB, Xbow 5GHz card, etc...)
+		 * have an empty two byte header.
+		 */
+		if (*((__le16 *)&data[offset]) == cpu_to_le16(0))
+			offset += 2;
 
-		print_hex_dump_bytes("rssical:", DUMP_PREFIX_NONE,
-				     data, len);
+		entries = (len - offset) /
+			sizeof(struct pda_rssi_cal_ext_entry);
 
-		wiphy_err(dev->wiphy, "please report this issue.\n");
-		return;
+		if ((len - offset) % sizeof(struct pda_rssi_cal_ext_entry) ||
+		    entries <= 0) {
+			wiphy_err(dev->wiphy, "invalid rssi database.\n");
+			goto err_data;
+		}
 	}
 
-	for (i = 0; i < num_entries; i++) {
-		struct pda_rssi_cal_entry *cal = data +
-						 (offset + i * entry_size);
-		priv->rssical_db[i].mul = (s16) le16_to_cpu(cal->mul);
-		priv->rssical_db[i].add = (s16) le16_to_cpu(cal->add);
+	db_len = sizeof(*entry) * entries;
+	priv->rssi_db = kzalloc(db_len + sizeof(*priv->rssi_db), GFP_KERNEL);
+	if (!priv->rssi_db)
+		return -ENOMEM;
+
+	priv->rssi_db->offset = 0;
+	priv->rssi_db->entries = entries;
+	priv->rssi_db->entry_size = sizeof(*entry);
+	priv->rssi_db->len = db_len;
+
+	entry = (void *)((unsigned long)priv->rssi_db->data + priv->rssi_db->offset);
+	if (type == PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED) {
+		struct pda_rssi_cal_ext_entry *cal = (void *) &data[offset];
+
+		for (i = 0; i < entries; i++) {
+			entry[i].freq = le16_to_cpu(cal[i].freq);
+			entry[i].mul = (s16) le16_to_cpu(cal[i].mul);
+			entry[i].add = (s16) le16_to_cpu(cal[i].add);
+		}
+	} else {
+		struct pda_rssi_cal_entry *cal = (void *) &data[offset];
+
+		for (i = 0; i < entries; i++) {
+			u16 freq = 0;
+			switch (i) {
+			case IEEE80211_BAND_2GHZ:
+				freq = 2437;
+				break;
+			case IEEE80211_BAND_5GHZ:
+				freq = 5240;
+				break;
+			}
+
+			entry[i].freq = freq;
+			entry[i].mul = (s16) le16_to_cpu(cal[i].mul);
+			entry[i].add = (s16) le16_to_cpu(cal[i].add);
+		}
 	}
+
+	/* sort the list by channel frequency */
+	sort(entry, entries, sizeof(*entry), p54_compare_rssichan, NULL);
+	return 0;
+
+err_data:
+	wiphy_err(dev->wiphy,
+		  "rssi calibration data packing type:(%x) len:%d.\n",
+		  type, len);
+
+	print_hex_dump_bytes("rssical:", DUMP_PREFIX_NONE, data, len);
+
+	wiphy_err(dev->wiphy, "please report this issue.\n");
+	return -EINVAL;
+}
+
+struct p54_rssi_db_entry *p54_rssi_find(struct p54_common *priv, const u16 freq)
+{
+	struct p54_rssi_db_entry *entry;
+	int i, found = -1;
+
+	if (!priv->rssi_db)
+		return &p54_rssi_default;
+
+	entry = (void *)(priv->rssi_db->data + priv->rssi_db->offset);
+	for (i = 0; i < priv->rssi_db->entries; i++) {
+		if (!same_band(freq, entry[i].freq))
+			continue;
+
+		if (found == -1) {
+			found = i;
+			continue;
+		}
+
+		/* nearest match */
+		if (abs(freq - entry[i].freq) <
+		    abs(freq - entry[found].freq)) {
+			found = i;
+			continue;
+		} else {
+			break;
+		}
+	}
+
+	return found < 0 ? &p54_rssi_default : &entry[found];
 }
 
 static void p54_parse_default_country(struct ieee80211_hw *dev,
@@ -627,21 +741,30 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_RSSI_LINEAR_APPROXIMATION:
 		case PDR_RSSI_LINEAR_APPROXIMATION_DUAL_BAND:
 		case PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED:
-			p54_parse_rssical(dev, entry->data, data_len,
-					  le16_to_cpu(entry->code));
+			err = p54_parse_rssical(dev, entry->data, data_len,
+						le16_to_cpu(entry->code));
+			if (err)
+				goto err;
 			break;
-		case PDR_RSSI_LINEAR_APPROXIMATION_CUSTOM: {
-			__le16 *src = (void *) entry->data;
-			s16 *dst = (void *) &priv->rssical_db;
+		case PDR_RSSI_LINEAR_APPROXIMATION_CUSTOMV2: {
+			struct pda_custom_wrapper *pda = (void *) entry->data;
+			__le16 *src;
+			u16 *dst;
 			int i;
 
-			if (data_len != sizeof(priv->rssical_db)) {
-				err = -EINVAL;
-				goto err;
-			}
-			for (i = 0; i < sizeof(priv->rssical_db) /
-					sizeof(*src); i++)
+			if (priv->rssi_db || data_len < sizeof(*pda))
+				break;
+
+			priv->rssi_db = p54_convert_db(pda, data_len);
+			if (!priv->rssi_db)
+				break;
+
+			src = (void *) priv->rssi_db->data;
+			dst = (void *) priv->rssi_db->data;
+
+			for (i = 0; i < priv->rssi_db->entries; i++)
 				*(dst++) = (s16) le16_to_cpu(*(src++));
+
 			}
 			break;
 		case PDR_PRISM_PA_CAL_OUTPUT_POWER_LIMITS_CUSTOM: {
@@ -717,6 +840,8 @@ good_eeprom:
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
 
+	priv->cur_rssi = &p54_rssi_default;
+
 	wiphy_info(dev->wiphy, "hwaddr %pM, MAC:isl38%02x RF:%s\n",
 		   dev->wiphy->perm_addr, priv->version,
 		   p54_rf_chips[priv->rxhw]);
@@ -727,9 +852,11 @@ err:
 	kfree(priv->iq_autocal);
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
+	kfree(priv->rssi_db);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;
 	priv->curve_data = NULL;
+	priv->rssi_db = NULL;
 
 	wiphy_err(dev->wiphy, "eeprom parse failed!\n");
 	return err;

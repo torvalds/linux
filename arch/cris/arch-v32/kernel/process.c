@@ -149,7 +149,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
         childregs->r10 = 0;	/* Child returns 0 after a fork/clone. */
 
 	/* Set a new TLS ?
-	 * The TLS is in $mof beacuse it is the 5th argument to sys_clone.
+	 * The TLS is in $mof because it is the 5th argument to sys_clone.
 	 */
 	if (p->mm && (clone_flags & CLONE_SETTLS)) {
 		task_thread_info(p)->tls = regs->mof;

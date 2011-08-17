@@ -145,6 +145,9 @@ extern void led_trigger_register_simple(const char *name,
 extern void led_trigger_unregister_simple(struct led_trigger *trigger);
 extern void led_trigger_event(struct led_trigger *trigger,
 				enum led_brightness event);
+extern void led_trigger_blink(struct led_trigger *trigger,
+			      unsigned long *delay_on,
+			      unsigned long *delay_off);
 
 #else
 
@@ -194,15 +197,17 @@ struct gpio_led {
 
 struct gpio_led_platform_data {
 	int 		num_leds;
-	struct gpio_led *leds;
+	const struct gpio_led *leds;
 
 #define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
 #define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
-#define GPIO_LED_BLINK		2	/* Plase, blink */
+#define GPIO_LED_BLINK		2	/* Please, blink */
 	int		(*gpio_blink_set)(unsigned gpio, int state,
 					unsigned long *delay_on,
 					unsigned long *delay_off);
 };
 
+struct platform_device *gpio_led_register_device(
+		int id, const struct gpio_led_platform_data *pdata);
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

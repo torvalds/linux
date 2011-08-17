@@ -48,10 +48,6 @@
 #include "dat.h"
 #include "ifile.h"
 
-static const struct address_space_operations def_gcinode_aops = {
-	.sync_page		= block_sync_page,
-};
-
 /*
  * nilfs_gccache_submit_read_data() - add data buffer and submit read request
  * @inode - gc inode
@@ -88,9 +84,9 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 		goto out;
 
 	if (pbn == 0) {
-		struct inode *dat_inode = NILFS_I_NILFS(inode)->ns_dat;
-					  /* use original dat, not gc dat. */
-		err = nilfs_dat_translate(dat_inode, vbn, &pbn);
+		struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+
+		err = nilfs_dat_translate(nilfs->ns_dat, vbn, &pbn);
 		if (unlikely(err)) { /* -EIO, -ENOMEM, -ENOENT */
 			brelse(bh);
 			goto failed;
@@ -104,7 +100,7 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 	}
 
 	if (!buffer_mapped(bh)) {
-		bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+		bh->b_bdev = inode->i_sb->s_bdev;
 		set_buffer_mapped(bh);
 	}
 	bh->b_blocknr = pbn;
@@ -161,15 +157,11 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 	if (buffer_dirty(bh))
 		return -EEXIST;
 
-	if (buffer_nilfs_node(bh)) {
-		if (nilfs_btree_broken_node_block(bh)) {
-			clear_buffer_uptodate(bh);
-			return -EIO;
-		}
-		nilfs_btnode_mark_dirty(bh);
-	} else {
-		nilfs_mark_buffer_dirty(bh);
+	if (buffer_nilfs_node(bh) && nilfs_btree_broken_node_block(bh)) {
+		clear_buffer_uptodate(bh);
+		return -EIO;
 	}
+	mark_buffer_dirty(bh);
 	return 0;
 }
 
@@ -179,7 +171,7 @@ int nilfs_init_gcinode(struct inode *inode)
 
 	inode->i_mode = S_IFREG;
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-	inode->i_mapping->a_ops = &def_gcinode_aops;
+	inode->i_mapping->a_ops = &empty_aops;
 	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
 	ii->i_flags = 0;

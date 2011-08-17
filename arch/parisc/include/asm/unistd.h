@@ -814,8 +814,16 @@
 #define __NR_recvmmsg		(__NR_Linux + 319)
 #define __NR_accept4		(__NR_Linux + 320)
 #define __NR_prlimit64		(__NR_Linux + 321)
+#define __NR_fanotify_init	(__NR_Linux + 322)
+#define __NR_fanotify_mark	(__NR_Linux + 323)
+#define __NR_clock_adjtime	(__NR_Linux + 324)
+#define __NR_name_to_handle_at	(__NR_Linux + 325)
+#define __NR_open_by_handle_at	(__NR_Linux + 326)
+#define __NR_syncfs		(__NR_Linux + 327)
+#define __NR_setns		(__NR_Linux + 328)
+#define __NR_sendmmsg		(__NR_Linux + 329)
 
-#define __NR_Linux_syscalls	(__NR_prlimit64 + 1)
+#define __NR_Linux_syscalls	(__NR_sendmmsg + 1)
 
 
 #define __IGNORE_select		/* newselect */

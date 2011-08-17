@@ -30,6 +30,8 @@
 
 #include "intel_drv.h"
 
+#define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
+
 void
 intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
@@ -81,11 +83,15 @@ intel_pch_panel_fitting(struct drm_device *dev,
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
 			if (scaled_width > scaled_height) { /* pillar */
 				width = scaled_height / mode->vdisplay;
+				if (width & 1)
+				    	width++;
 				x = (adjusted_mode->hdisplay - width + 1) / 2;
 				y = 0;
 				height = adjusted_mode->vdisplay;
 			} else if (scaled_width < scaled_height) { /* letter */
 				height = scaled_width / mode->hdisplay;
+				if (height & 1)
+				    height++;
 				y = (adjusted_mode->vdisplay - height + 1) / 2;
 				x = 0;
 				width = adjusted_mode->hdisplay;
@@ -108,6 +114,19 @@ intel_pch_panel_fitting(struct drm_device *dev,
 done:
 	dev_priv->pch_pf_pos = (x << 16) | y;
 	dev_priv->pch_pf_size = (width << 16) | height;
+}
+
+static int is_backlight_combination_mode(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (INTEL_INFO(dev)->gen >= 4)
+		return I915_READ(BLC_PWM_CTL2) & BLM_COMBINATION_MODE;
+
+	if (IS_GEN2(dev))
+		return I915_READ(BLC_PWM_CTL) & BLM_LEGACY_MODE;
+
+	return 0;
 }
 
 static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
@@ -166,6 +185,9 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 			if (INTEL_INFO(dev)->gen < 4)
 				max &= ~1;
 		}
+
+		if (is_backlight_combination_mode(dev))
+			max *= 0xff;
 	}
 
 	DRM_DEBUG_DRIVER("max backlight PWM = %d\n", max);
@@ -183,6 +205,14 @@ u32 intel_panel_get_backlight(struct drm_device *dev)
 		val = I915_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
 		if (IS_PINEVIEW(dev))
 			val >>= 1;
+
+		if (is_backlight_combination_mode(dev)){
+			u8 lbpc;
+
+			val &= ~1;
+			pci_read_config_byte(dev->pdev, PCI_LBPC, &lbpc);
+			val *= lbpc;
+		}
 	}
 
 	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
@@ -205,6 +235,16 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level)
 
 	if (HAS_PCH_SPLIT(dev))
 		return intel_pch_panel_set_backlight(dev, level);
+
+	if (is_backlight_combination_mode(dev)){
+		u32 max = intel_panel_get_max_backlight(dev);
+		u8 lbpc;
+
+		lbpc = level * 0xfe / max + 1;
+		level /= lbpc;
+		pci_write_config_byte(dev->pdev, PCI_LBPC, lbpc);
+	}
+
 	tmp = I915_READ(BLC_PWM_CTL);
 	if (IS_PINEVIEW(dev)) {
 		tmp &= ~(BACKLIGHT_DUTY_CYCLE_MASK - 1);
@@ -243,4 +283,29 @@ void intel_panel_setup_backlight(struct drm_device *dev)
 
 	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 	dev_priv->backlight_enabled = dev_priv->backlight_level != 0;
+}
+
+enum drm_connector_status
+intel_panel_detect(struct drm_device *dev)
+{
+#if 0
+	struct drm_i915_private *dev_priv = dev->dev_private;
+#endif
+
+	if (i915_panel_ignore_lid)
+		return i915_panel_ignore_lid > 0 ?
+			connector_status_connected :
+			connector_status_disconnected;
+
+	/* opregion lid state on HP 2540p is wrong at boot up,
+	 * appears to be either the BIOS or Linux ACPI fault */
+#if 0
+	/* Assume that the BIOS does not lie through the OpRegion... */
+	if (dev_priv->opregion.lid_state)
+		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
+			connector_status_connected :
+			connector_status_disconnected;
+#endif
+
+	return connector_status_unknown;
 }

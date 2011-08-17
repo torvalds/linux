@@ -176,10 +176,9 @@ void line_flush_buffer(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
 	unsigned long flags;
-	int err;
 
 	spin_lock_irqsave(&line->lock, flags);
-	err = flush_buffer(line);
+	flush_buffer(line);
 	spin_unlock_irqrestore(&line->lock, flags);
 }
 
@@ -255,8 +254,8 @@ static const struct {
 	{ KDSIGACCEPT, KERN_INFO,  "KDSIGACCEPT" },
 };
 
-int line_ioctl(struct tty_struct *tty, struct file * file,
-	       unsigned int cmd, unsigned long arg)
+int line_ioctl(struct tty_struct *tty, unsigned int cmd,
+				unsigned long arg)
 {
 	int ret;
 	int i;

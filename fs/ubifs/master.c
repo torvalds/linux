@@ -148,7 +148,7 @@ static int validate_master(const struct ubifs_info *c)
 	}
 
 	main_sz = (long long)c->main_lebs * c->leb_size;
-	if (c->old_idx_sz & 7 || c->old_idx_sz >= main_sz) {
+	if (c->bi.old_idx_sz & 7 || c->bi.old_idx_sz >= main_sz) {
 		err = 9;
 		goto out;
 	}
@@ -218,7 +218,7 @@ static int validate_master(const struct ubifs_info *c)
 	}
 
 	if (c->lst.total_dead + c->lst.total_dark +
-	    c->lst.total_used + c->old_idx_sz > main_sz) {
+	    c->lst.total_used + c->bi.old_idx_sz > main_sz) {
 		err = 21;
 		goto out;
 	}
@@ -286,7 +286,7 @@ int ubifs_read_master(struct ubifs_info *c)
 	c->gc_lnum         = le32_to_cpu(c->mst_node->gc_lnum);
 	c->ihead_lnum      = le32_to_cpu(c->mst_node->ihead_lnum);
 	c->ihead_offs      = le32_to_cpu(c->mst_node->ihead_offs);
-	c->old_idx_sz      = le64_to_cpu(c->mst_node->index_size);
+	c->bi.old_idx_sz   = le64_to_cpu(c->mst_node->index_size);
 	c->lpt_lnum        = le32_to_cpu(c->mst_node->lpt_lnum);
 	c->lpt_offs        = le32_to_cpu(c->mst_node->lpt_offs);
 	c->nhead_lnum      = le32_to_cpu(c->mst_node->nhead_lnum);
@@ -305,7 +305,7 @@ int ubifs_read_master(struct ubifs_info *c)
 	c->lst.total_dead  = le64_to_cpu(c->mst_node->total_dead);
 	c->lst.total_dark  = le64_to_cpu(c->mst_node->total_dark);
 
-	c->calc_idx_sz = c->old_idx_sz;
+	c->calc_idx_sz = c->bi.old_idx_sz;
 
 	if (c->mst_node->flags & cpu_to_le32(UBIFS_MST_NO_ORPHS))
 		c->no_orphs = 1;

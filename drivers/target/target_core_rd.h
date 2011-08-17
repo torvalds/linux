@@ -7,14 +7,10 @@
 
 /* Largest piece of memory kmalloc can allocate */
 #define RD_MAX_ALLOCATION_SIZE	65536
-/* Maximum queuedepth for the Ramdisk HBA */
-#define RD_HBA_QUEUE_DEPTH	256
 #define RD_DEVICE_QUEUE_DEPTH	32
 #define RD_MAX_DEVICE_QUEUE_DEPTH 128
 #define RD_BLOCKSIZE		512
 #define RD_MAX_SECTORS		1024
-
-extern struct kmem_cache *se_mem_cache;
 
 /* Used in target_core_init_configfs() for virtual LUN 0 access */
 int __init rd_module_init(void);
@@ -36,8 +32,6 @@ struct rd_request {
 	u32		rd_page_count;
 	/* Scatterlist count */
 	u32		rd_size;
-	/* Ramdisk device */
-	struct rd_dev	*rd_dev;
 } ____cacheline_aligned;
 
 struct rd_dev_sg_table {

@@ -37,6 +37,14 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
+/*
+ * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
+ * wish to delay the data/status stages of the control transfer till they
+ * are ready. The control transfer will then be kept from completing till
+ * all the function drivers that requested for USB_GADGET_DELAYED_STAUS
+ * invoke usb_composite_setup_continue().
+ */
+#define USB_GADGET_DELAYED_STATUS       0x7fff	/* Impossibly large value */
 
 struct usb_configuration;
 
@@ -51,6 +59,10 @@ struct usb_configuration;
  * @hs_descriptors: Table of high speed descriptors, using interface and
  *	string identifiers assigned during @bind().  If this pointer is null,
  *	the function will not be available at high speed.
+ * @ss_descriptors: Table of super speed descriptors, using interface and
+ *	string identifiers assigned during @bind(). If this
+ *	pointer is null after initiation, the function will not
+ *	be available at super speed.
  * @config: assigned when @usb_add_function() is called; this is the
  *	configuration with which this function is associated.
  * @bind: Before the gadget can register, all of its functions bind() to the
@@ -69,6 +81,10 @@ struct usb_configuration;
  * @setup: Used for interface-specific control requests.
  * @suspend: Notifies functions when the host stops sending USB traffic.
  * @resume: Notifies functions when the host restarts USB traffic.
+ * @get_status: Returns function status as a reply to
+ *	GetStatus() request when the recepient is Interface.
+ * @func_suspend: callback to be called when
+ *	SetFeature(FUNCTION_SUSPEND) is reseived
  *
  * A single USB function uses one or more interfaces, and should in most
  * cases support operation at both full and high speeds.  Each function is
@@ -98,6 +114,7 @@ struct usb_function {
 	struct usb_gadget_strings	**strings;
 	struct usb_descriptor_header	**descriptors;
 	struct usb_descriptor_header	**hs_descriptors;
+	struct usb_descriptor_header	**ss_descriptors;
 
 	struct usb_configuration	*config;
 
@@ -124,6 +141,10 @@ struct usb_function {
 	void			(*suspend)(struct usb_function *);
 	void			(*resume)(struct usb_function *);
 
+	/* USB 3.0 additions */
+	int			(*get_status)(struct usb_function *);
+	int			(*func_suspend)(struct usb_function *,
+						u8 suspend_opt);
 	/* private: */
 	/* internals */
 	struct list_head		list;
@@ -137,20 +158,8 @@ int usb_function_activate(struct usb_function *);
 
 int usb_interface_id(struct usb_configuration *, struct usb_function *);
 
-/**
- * ep_choose - select descriptor endpoint at current device speed
- * @g: gadget, connected and running at some speed
- * @hs: descriptor to use for high speed operation
- * @fs: descriptor to use for full or low speed operation
- */
-static inline struct usb_endpoint_descriptor *
-ep_choose(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
-		struct usb_endpoint_descriptor *fs)
-{
-	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
-		return hs;
-	return fs;
-}
+int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
+			struct usb_ep *_ep);
 
 #define	MAX_CONFIG_INTERFACES		16	/* arbitrary; max 255 */
 
@@ -188,7 +197,7 @@ ep_choose(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
  * @bind() method is then used to initialize all the functions and then
  * call @usb_add_function() for them.
  *
- * Those functions would normally be independant of each other, but that's
+ * Those functions would normally be independent of each other, but that's
  * not mandatory.  CDC WMC devices are an example where functions often
  * depend on other functions, with some functions subsidiary to others.
  * Such interdependency may be managed in any way, so long as all of the
@@ -223,6 +232,7 @@ struct usb_configuration {
 	struct list_head	list;
 	struct list_head	functions;
 	u8			next_interface_id;
+	unsigned		superspeed:1;
 	unsigned		highspeed:1;
 	unsigned		fullspeed:1;
 	struct usb_function	*interface[MAX_CONFIG_INTERFACES];
@@ -244,6 +254,7 @@ int usb_add_config(struct usb_composite_dev *,
  *	identifiers.
  * @strings: tables of strings, keyed by identifiers assigned during bind()
  *	and language IDs provided in control requests
+ * @max_speed: Highest speed the driver supports.
  * @needs_serial: set to 1 if the gadget needs userspace to provide
  * 	a serial number.  If one is not provided, warning will be printed.
  * @unbind: Reverses bind; called as a side effect of unregistering
@@ -271,6 +282,7 @@ struct usb_composite_driver {
 	const char				*iManufacturer;
 	const struct usb_device_descriptor	*dev;
 	struct usb_gadget_strings		**strings;
+	enum usb_device_speed			max_speed;
 	unsigned		needs_serial:1;
 
 	int			(*unbind)(struct usb_composite_dev *);
@@ -285,6 +297,7 @@ struct usb_composite_driver {
 extern int usb_composite_probe(struct usb_composite_driver *driver,
 			       int (*bind)(struct usb_composite_dev *cdev));
 extern void usb_composite_unregister(struct usb_composite_driver *driver);
+extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
 
 
 /**
@@ -342,7 +355,12 @@ struct usb_composite_dev {
 	 */
 	unsigned			deactivations;
 
-	/* protects at least deactivation count */
+	/* the composite driver won't complete the control transfer's
+	 * data/status stages till delayed_status is zero.
+	 */
+	int				delayed_status;
+
+	/* protects deactivations and delayed_status counts*/
 	spinlock_t			lock;
 };
 

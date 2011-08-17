@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/wl12xx.h>
@@ -31,6 +30,7 @@
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -42,22 +42,20 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/nand.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define PANDORA_WIFI_IRQ_GPIO		21
 #define PANDORA_WIFI_NRESET_GPIO	23
 #define OMAP3_PANDORA_TS_GPIO		94
-
-#define NAND_BLOCK_SIZE			SZ_128K
 
 static struct mtd_partition omap3pandora_nand_partitions[] = {
 	{
@@ -86,7 +84,8 @@ static struct mtd_partition omap3pandora_nand_partitions[] = {
 
 static struct omap_nand_platform_data pandora_nand_data = {
 	.cs		= 0,
-	.devsize	= 1,	/* '0' for 8-bit, '1' for 16-bit device */
+	.devsize	= NAND_BUSWIDTH_16,
+	.xfer_type	= NAND_OMAP_PREFETCH_DMA,
 	.parts		= omap3pandora_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(omap3pandora_nand_partitions),
 };
@@ -253,14 +252,6 @@ static struct omap_dss_board_info pandora_dss_data = {
 	.default_device	= &pandora_lcd_device,
 };
 
-static struct platform_device pandora_dss_device = {
-	.name		= "omapdss",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &pandora_dss_data,
-	},
-};
-
 static void pandora_wl1251_init_card(struct mmc_card *card)
 {
 	/*
@@ -313,24 +304,13 @@ static int omap3pandora_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 13 drives 32kHz buffer for wifi module */
 	gpio_32khz = gpio + 13;
-	ret = gpio_request(gpio_32khz, "wifi 32kHz");
+	ret = gpio_request_one(gpio_32khz, GPIOF_OUT_INIT_HIGH, "wifi 32kHz");
 	if (ret < 0) {
 		pr_err("Cannot get GPIO line %d, ret=%d\n", gpio_32khz, ret);
-		goto fail;
-	}
-
-	ret = gpio_direction_output(gpio_32khz, 1);
-	if (ret < 0) {
-		pr_err("Cannot set GPIO line %d, ret=%d\n", gpio_32khz, ret);
-		goto fail_direction;
+		return -ENODEV;
 	}
 
 	return 0;
-
-fail_direction:
-	gpio_free(gpio_32khz);
-fail:
-	return -ENODEV;
 }
 
 static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
@@ -340,28 +320,31 @@ static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
 	.setup		= omap3pandora_twl_gpio_setup,
 };
 
-static struct regulator_consumer_supply pandora_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+static struct regulator_consumer_supply pandora_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
+};
 
-static struct regulator_consumer_supply pandora_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+static struct regulator_consumer_supply pandora_vmmc2_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1")
+};
 
-static struct regulator_consumer_supply pandora_vmmc3_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.2");
-
-static struct regulator_consumer_supply pandora_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss");
+static struct regulator_consumer_supply pandora_vmmc3_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
+};
 
 static struct regulator_consumer_supply pandora_vdds_supplies[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
 };
 
-static struct regulator_consumer_supply pandora_vcc_lcd_supply =
-	REGULATOR_SUPPLY("vcc", "display0");
+static struct regulator_consumer_supply pandora_vcc_lcd_supply[] = {
+	REGULATOR_SUPPLY("vcc", "display0"),
+};
 
-static struct regulator_consumer_supply pandora_usb_phy_supply =
-	REGULATOR_SUPPLY("hsusb0", "ehci-omap.0");
+static struct regulator_consumer_supply pandora_usb_phy_supply[] = {
+	REGULATOR_SUPPLY("hsusb0", "ehci-omap.0"),
+};
 
 /* ads7846 on SPI and 2 nub controllers on I2C */
 static struct regulator_consumer_supply pandora_vaux4_supplies[] = {
@@ -370,8 +353,9 @@ static struct regulator_consumer_supply pandora_vaux4_supplies[] = {
 	REGULATOR_SUPPLY("vcc", "3-0067"),
 };
 
-static struct regulator_consumer_supply pandora_adac_supply =
-	REGULATOR_SUPPLY("vcc", "soc-audio");
+static struct regulator_consumer_supply pandora_adac_supply[] = {
+	REGULATOR_SUPPLY("vcc", "soc-audio"),
+};
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
 static struct regulator_init_data pandora_vmmc1 = {
@@ -384,8 +368,8 @@ static struct regulator_init_data pandora_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc1_supply),
+	.consumer_supplies	= pandora_vmmc1_supply,
 };
 
 /* VMMC2 for MMC2 pins CMD, CLK, DAT0..DAT3 (max 100 mA) */
@@ -399,38 +383,8 @@ static struct regulator_init_data pandora_vmmc2 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vmmc2_supply,
-};
-
-/* VDAC for DSS driving S-Video */
-static struct regulator_init_data pandora_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vdda_dac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data pandora_vpll2 = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(pandora_vdds_supplies),
-	.consumer_supplies	= pandora_vdds_supplies,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc2_supply),
+	.consumer_supplies	= pandora_vmmc2_supply,
 };
 
 /* VAUX1 for LCD */
@@ -444,8 +398,8 @@ static struct regulator_init_data pandora_vaux1 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vcc_lcd_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vcc_lcd_supply),
+	.consumer_supplies	= pandora_vcc_lcd_supply,
 };
 
 /* VAUX2 for USB host PHY */
@@ -459,8 +413,8 @@ static struct regulator_init_data pandora_vaux2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_usb_phy_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_usb_phy_supply),
+	.consumer_supplies	= pandora_usb_phy_supply,
 };
 
 /* VAUX4 for ads7846 and nubs */
@@ -489,8 +443,8 @@ static struct regulator_init_data pandora_vsim = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_adac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_adac_supply),
+	.consumer_supplies	= pandora_adac_supply,
 };
 
 /* Fixed regulator internal to Wifi module */
@@ -498,8 +452,8 @@ static struct regulator_init_data pandora_vmmc3 = {
 	.constraints = {
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vmmc3_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc3_supply),
+	.consumer_supplies	= pandora_vmmc3_supply,
 };
 
 static struct fixed_voltage_config pandora_vwlan = {
@@ -520,46 +474,18 @@ static struct platform_device pandora_vwlan_device = {
 	},
 };
 
-static struct twl4030_usb_data omap3pandora_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
-static struct twl4030_codec_audio_data omap3pandora_audio_data = {
-	.audio_mclk = 26000000,
-};
-
-static struct twl4030_codec_data omap3pandora_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &omap3pandora_audio_data,
-};
-
 static struct twl4030_bci_platform_data pandora_bci_data;
 
 static struct twl4030_platform_data omap3pandora_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
 	.gpio		= &omap3pandora_gpio_data,
-	.usb		= &omap3pandora_usb_data,
-	.codec		= &omap3pandora_codec_data,
 	.vmmc1		= &pandora_vmmc1,
 	.vmmc2		= &pandora_vmmc2,
-	.vdac		= &pandora_vdac,
-	.vpll2		= &pandora_vpll2,
 	.vaux1		= &pandora_vaux1,
 	.vaux2		= &pandora_vaux2,
 	.vaux4		= &pandora_vaux4,
 	.vsim		= &pandora_vsim,
 	.keypad		= &pandora_kp_data,
 	.bci		= &pandora_bci_data,
-};
-
-static struct i2c_board_info __initdata omap3pandora_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65950", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &omap3pandora_twldata,
-	},
 };
 
 static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
@@ -571,61 +497,26 @@ static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 
 static int __init omap3pandora_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, omap3pandora_i2c_boardinfo,
-			ARRAY_SIZE(omap3pandora_i2c_boardinfo));
+	omap3_pmic_get_config(&omap3pandora_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	omap3pandora_twldata.vdac->constraints.apply_uV = true;
+
+	omap3pandora_twldata.vpll2->constraints.apply_uV = true;
+	omap3pandora_twldata.vpll2->num_consumer_supplies =
+					ARRAY_SIZE(pandora_vdds_supplies);
+	omap3pandora_twldata.vpll2->consumer_supplies = pandora_vdds_supplies;
+
+	omap3_pmic_init("tps65950", &omap3pandora_twldata);
 	/* i2c2 pins are not connected */
 	omap_register_i2c_bus(3, 100, omap3pandora_i2c3_boardinfo,
 			ARRAY_SIZE(omap3pandora_i2c3_boardinfo));
 	return 0;
 }
 
-static void __init omap3pandora_ads7846_init(void)
-{
-	int gpio = OMAP3_PANDORA_TS_GPIO;
-	int ret;
-
-	ret = gpio_request(gpio, "ads7846_pen_down");
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to request GPIO %d for "
-				"ads7846 pen down IRQ\n", gpio);
-		return;
-	}
-
-	gpio_direction_input(gpio);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_PANDORA_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
 static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 	{
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_PANDORA_TS_GPIO),
-		.platform_data		= &ads7846_config,
-	}, {
 		.modalias		= "tpo_td043mtea1_panel_spi",
 		.bus_num		= 1,
 		.chip_select		= 1,
@@ -634,12 +525,11 @@ static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 	}
 };
 
-static void __init omap3pandora_init_irq(void)
+static void __init omap3pandora_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
 }
 
 static void __init pandora_wl1251_init(void)
@@ -649,13 +539,9 @@ static void __init pandora_wl1251_init(void)
 
 	memset(&pandora_wl1251_pdata, 0, sizeof(pandora_wl1251_pdata));
 
-	ret = gpio_request(PANDORA_WIFI_IRQ_GPIO, "wl1251 irq");
+	ret = gpio_request_one(PANDORA_WIFI_IRQ_GPIO, GPIOF_IN, "wl1251 irq");
 	if (ret < 0)
 		goto fail;
-
-	ret = gpio_direction_input(PANDORA_WIFI_IRQ_GPIO);
-	if (ret < 0)
-		goto fail_irq;
 
 	pandora_wl1251_pdata.irq = gpio_to_irq(PANDORA_WIFI_IRQ_GPIO);
 	if (pandora_wl1251_pdata.irq < 0)
@@ -677,15 +563,14 @@ fail:
 static struct platform_device *omap3pandora_devices[] __initdata = {
 	&pandora_leds_gpio,
 	&pandora_keys_gpio,
-	&pandora_dss_device,
 	&pandora_vwlan_device,
 };
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset  = true,
 	.reset_gpio_port[0]  = 16,
@@ -699,12 +584,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
-
 static void __init omap3pandora_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -712,12 +591,13 @@ static void __init omap3pandora_init(void)
 	pandora_wl1251_init();
 	platform_add_devices(omap3pandora_devices,
 			ARRAY_SIZE(omap3pandora_devices));
+	omap_display_init(&pandora_dss_data);
 	omap_serial_init();
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
-	omap3pandora_ads7846_init();
-	usb_ehci_init(&ehci_pdata);
-	usb_musb_init(&musb_board_data);
+	omap_ads7846_init(1, OMAP3_PANDORA_TS_GPIO, 0, NULL);
+	usbhs_init(&usbhs_bdata);
+	usb_musb_init(NULL);
 	gpmc_nand_init(&pandora_nand_data);
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
@@ -727,9 +607,10 @@ static void __init omap3pandora_init(void)
 
 MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap3pandora_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3pandora_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3pandora_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

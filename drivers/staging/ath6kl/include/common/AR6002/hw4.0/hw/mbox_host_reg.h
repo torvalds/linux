@@ -21,17 +21,4 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "mbox_wlan_host_reg.h"
-
-
-#ifndef BT_HEADERS
-
-
-
-#endif
-#endif
-
-
-

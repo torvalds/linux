@@ -29,7 +29,6 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mxc_nand.h>
 
 #include "devices-imx27.h"
 
@@ -289,6 +288,8 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 
 static void __init mx27ads_board_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx27ads_pins, ARRAY_SIZE(mx27ads_pins),
 			"mx27ads");
 
@@ -344,9 +345,10 @@ static void __init mx27ads_map_io(void)
 
 MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27ads_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = mx27ads_board_init,
-	.timer          = &mx27ads_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27ads_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &mx27ads_timer,
+	.init_machine = mx27ads_board_init,
 MACHINE_END

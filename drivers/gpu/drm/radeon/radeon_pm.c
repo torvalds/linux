@@ -23,6 +23,7 @@
 #include "drmP.h"
 #include "radeon.h"
 #include "avivod.h"
+#include "atom.h"
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 #endif
@@ -365,12 +366,14 @@ static ssize_t radeon_set_pm_profile(struct device *dev,
 		else if (strncmp("high", buf, strlen("high")) == 0)
 			rdev->pm.profile = PM_PROFILE_HIGH;
 		else {
-			DRM_ERROR("invalid power profile!\n");
+			count = -EINVAL;
 			goto fail;
 		}
 		radeon_pm_update_profile(rdev);
 		radeon_pm_set_clocks(rdev);
-	}
+	} else
+		count = -EINVAL;
+
 fail:
 	mutex_unlock(&rdev->pm.mutex);
 
@@ -413,7 +416,7 @@ static ssize_t radeon_set_pm_method(struct device *dev,
 		mutex_unlock(&rdev->pm.mutex);
 		cancel_delayed_work_sync(&rdev->pm.dynpm_idle_work);
 	} else {
-		DRM_ERROR("invalid power method!\n");
+		count = -EINVAL;
 		goto fail;
 	}
 	radeon_pm_compute_clocks(rdev);
@@ -484,6 +487,7 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_RV6XX:
 	case THERMAL_TYPE_RV770:
 	case THERMAL_TYPE_EVERGREEN:
+	case THERMAL_TYPE_NI:
 	case THERMAL_TYPE_SUMO:
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
 		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
@@ -533,7 +537,11 @@ void radeon_pm_resume(struct radeon_device *rdev)
 	/* set up the default clocks if the MC ucode is loaded */
 	if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
 		if (rdev->pm.default_vddc)
-			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+						SET_VOLTAGE_TYPE_ASIC_VDDC);
+		if (rdev->pm.default_vddci)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+						SET_VOLTAGE_TYPE_ASIC_VDDCI);
 		if (rdev->pm.default_sclk)
 			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
 		if (rdev->pm.default_mclk)
@@ -546,6 +554,7 @@ void radeon_pm_resume(struct radeon_device *rdev)
 	rdev->pm.current_sclk = rdev->pm.default_sclk;
 	rdev->pm.current_mclk = rdev->pm.default_mclk;
 	rdev->pm.current_vddc = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.voltage;
+	rdev->pm.current_vddci = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.vddci;
 	if (rdev->pm.pm_method == PM_METHOD_DYNPM
 	    && rdev->pm.dynpm_state == DYNPM_STATE_SUSPENDED) {
 		rdev->pm.dynpm_state = DYNPM_STATE_ACTIVE;
@@ -583,7 +592,11 @@ int radeon_pm_init(struct radeon_device *rdev)
 		/* set up the default clocks if the MC ucode is loaded */
 		if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
-				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+							SET_VOLTAGE_TYPE_ASIC_VDDC);
+			if (rdev->pm.default_vddci)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+							SET_VOLTAGE_TYPE_ASIC_VDDCI);
 			if (rdev->pm.default_sclk)
 				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
 			if (rdev->pm.default_mclk)

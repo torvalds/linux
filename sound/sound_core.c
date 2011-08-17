@@ -384,6 +384,9 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 	    case 4:
 		name = "audio";
 		break;
+	    case 5:
+		name = "dspW";
+		break;
 	    case 8:
 		name = "sequencer2";
 		if (unit >= SOUND_STEP)

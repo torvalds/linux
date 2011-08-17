@@ -92,6 +92,8 @@ static unsigned short saved_irq_cnt;
 static int xen_slab_ready;
 
 #ifdef CONFIG_SMP
+#include <linux/sched.h>
+
 /* Dummy stub. Though we may check XEN_RESCHEDULE_VECTOR before __do_IRQ,
  * it ends up to issue several memory accesses upon percpu data and
  * thus adds unnecessary traffic to other paths.
@@ -99,7 +101,13 @@ static int xen_slab_ready;
 static irqreturn_t
 xen_dummy_handler(int irq, void *dev_id)
 {
+	return IRQ_HANDLED;
+}
 
+static irqreturn_t
+xen_resched_handler(int irq, void *dev_id)
+{
+	scheduler_ipi();
 	return IRQ_HANDLED;
 }
 
@@ -110,7 +118,7 @@ static struct irqaction xen_ipi_irqaction = {
 };
 
 static struct irqaction xen_resched_irqaction = {
-	.handler =	xen_dummy_handler,
+	.handler =	xen_resched_handler,
 	.flags =	IRQF_DISABLED,
 	.name =		"resched"
 };
@@ -138,7 +146,6 @@ static void
 __xen_register_percpu_irq(unsigned int cpu, unsigned int vec,
 			struct irqaction *action, int save)
 {
-	struct irq_desc *desc;
 	int irq = 0;
 
 	if (xen_slab_ready) {
@@ -223,8 +230,7 @@ __xen_register_percpu_irq(unsigned int cpu, unsigned int vec,
 			 * mark the interrupt for migrations and trigger it
 			 * on cpu hotplug.
 			 */
-			desc = irq_desc + irq;
-			desc->status |= IRQ_PER_CPU;
+			irq_set_status_flags(irq, IRQ_PER_CPU);
 		}
 	}
 

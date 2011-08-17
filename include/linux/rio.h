@@ -24,6 +24,7 @@
 #define RIO_NO_HOPCOUNT		-1
 #define RIO_INVALID_DESTID	0xffff
 
+#define RIO_MAX_MPORTS		8
 #define RIO_MAX_MPORT_RESOURCES	16
 #define RIO_MAX_DEV_RESOURCES	16
 
@@ -241,7 +242,7 @@ struct rio_mport {
 	struct rio_msg inb_msg[RIO_MAX_MBOX];
 	struct rio_msg outb_msg[RIO_MAX_MBOX];
 	int host_deviceid;	/* Host device ID */
-	struct rio_ops *ops;	/* maintenance transaction functions */
+	struct rio_ops *ops;	/* low-level architecture-dependent routines */
 	unsigned char id;	/* port ID, unique among all ports */
 	unsigned char index;	/* port index, unique among all port
 				   interfaces of the same type */
@@ -285,6 +286,13 @@ struct rio_net {
  * @cwrite: Callback to perform network write of config space.
  * @dsend: Callback to send a doorbell message.
  * @pwenable: Callback to enable/disable port-write message handling.
+ * @open_outb_mbox: Callback to initialize outbound mailbox.
+ * @close_outb_mbox: Callback to shut down outbound mailbox.
+ * @open_inb_mbox: Callback to initialize inbound mailbox.
+ * @close_inb_mbox: Callback to	shut down inbound mailbox.
+ * @add_outb_message: Callback to add a message to an outbound mailbox queue.
+ * @add_inb_buffer: Callback to	add a buffer to an inbound mailbox queue.
+ * @get_inb_message: Callback to get a message from an inbound mailbox queue.
  */
 struct rio_ops {
 	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
@@ -297,6 +305,16 @@ struct rio_ops {
 			u8 hopcount, u32 offset, int len, u32 data);
 	int (*dsend) (struct rio_mport *mport, int index, u16 destid, u16 data);
 	int (*pwenable) (struct rio_mport *mport, int enable);
+	int (*open_outb_mbox)(struct rio_mport *mport, void *dev_id,
+			      int mbox, int entries);
+	void (*close_outb_mbox)(struct rio_mport *mport, int mbox);
+	int  (*open_inb_mbox)(struct rio_mport *mport, void *dev_id,
+			     int mbox, int entries);
+	void (*close_inb_mbox)(struct rio_mport *mport, int mbox);
+	int  (*add_outb_message)(struct rio_mport *mport, struct rio_dev *rdev,
+				 int mbox, void *buffer, size_t len);
+	int (*add_inb_buffer)(struct rio_mport *mport, int mbox, void *buf);
+	void *(*get_inb_message)(struct rio_mport *mport, int mbox);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
@@ -378,12 +396,7 @@ union rio_pw_msg {
 };
 
 /* Architecture and hardware-specific functions */
-extern int rio_init_mports(void);
-extern void rio_register_mport(struct rio_mport *);
-extern int rio_hw_add_outb_message(struct rio_mport *, struct rio_dev *, int,
-				   void *, size_t);
-extern int rio_hw_add_inb_buffer(struct rio_mport *, int, void *);
-extern void *rio_hw_get_inb_message(struct rio_mport *, int);
+extern int rio_register_mport(struct rio_mport *);
 extern int rio_open_inb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_inb_mbox(struct rio_mport *, int);
 extern int rio_open_outb_mbox(struct rio_mport *, void *, int, int);

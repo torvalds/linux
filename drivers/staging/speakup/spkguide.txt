@@ -1091,7 +1091,7 @@ screen that is constantly changing, such as a clock or status line.
 
 There is no way to save these window settings, and you can only have one
 window defined for each virtual console.  There is also no way to have
-windows automaticly defined for specific applications.
+windows automatically defined for specific applications.
 
 In order to define a window, use the review keys to move your reading
 cursor to the beginning of the area you want to define.  Then press

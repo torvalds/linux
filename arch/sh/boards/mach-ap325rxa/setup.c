@@ -14,8 +14,8 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/delay.h>
@@ -156,29 +156,39 @@ static struct platform_device nand_flash_device = {
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
 
+static int ap320_wvga_set_brightness(void *board_data, int brightness)
+{
+	if (brightness) {
+		gpio_set_value(GPIO_PTS3, 0);
+		__raw_writew(0x100, FPGA_BKLREG);
+	} else {
+		__raw_writew(0, FPGA_BKLREG);
+		gpio_set_value(GPIO_PTS3, 1);
+	}
+	
+	return 0;
+}
+
+static int ap320_wvga_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PTS3);
+}
+
 static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
 {
 	msleep(100);
 
 	/* ASD AP-320/325 LCD ON */
 	__raw_writew(FPGA_LCDREG_VAL, FPGA_LCDREG);
-
-	/* backlight */
-	gpio_set_value(GPIO_PTS3, 0);
-	__raw_writew(0x100, FPGA_BKLREG);
 }
 
 static void ap320_wvga_power_off(void *board_data)
 {
-	/* backlight */
-	__raw_writew(0, FPGA_BKLREG);
-	gpio_set_value(GPIO_PTS3, 1);
-
 	/* ASD AP-320/325 LCD OFF */
 	__raw_writew(0, FPGA_LCDREG);
 }
 
-const static struct fb_videomode ap325rxa_lcdc_modes[] = {
+static const struct fb_videomode ap325rxa_lcdc_modes[] = {
 	{
 		.name = "LB070WV1",
 		.xres = 800,
@@ -209,6 +219,12 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
 			.display_off = ap320_wvga_power_off,
+			.set_brightness = ap320_wvga_set_brightness,
+			.get_brightness = ap320_wvga_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
 		},
 	}
 };
@@ -316,8 +332,8 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	return ret;
 }
 
-static int ap325rxa_camera_add(struct soc_camera_link *icl, struct device *dev);
-static void ap325rxa_camera_del(struct soc_camera_link *icl);
+static int ap325rxa_camera_add(struct soc_camera_device *icd);
+static void ap325rxa_camera_del(struct soc_camera_device *icd);
 
 static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
@@ -343,37 +359,30 @@ static struct soc_camera_link camera_link = {
 	.priv		= &camera_info,
 };
 
-static void dummy_release(struct device *dev)
+static struct platform_device *camera_device;
+
+static void ap325rxa_camera_release(struct device *dev)
 {
+	soc_camera_platform_release(&camera_device);
 }
 
-static struct platform_device camera_device = {
-	.name		= "soc_camera_platform",
-	.dev		= {
-		.platform_data	= &camera_info,
-		.release	= dummy_release,
-	},
-};
-
-static int ap325rxa_camera_add(struct soc_camera_link *icl,
-			       struct device *dev)
+static int ap325rxa_camera_add(struct soc_camera_device *icd)
 {
-	if (icl != &camera_link || camera_probe() <= 0)
-		return -ENODEV;
+	int ret = soc_camera_platform_add(icd, &camera_device, &camera_link,
+					  ap325rxa_camera_release, 0);
+	if (ret < 0)
+		return ret;
 
-	camera_info.dev = dev;
+	ret = camera_probe();
+	if (ret < 0)
+		soc_camera_platform_del(icd, camera_device, &camera_link);
 
-	return platform_device_register(&camera_device);
+	return ret;
 }
 
-static void ap325rxa_camera_del(struct soc_camera_link *icl)
+static void ap325rxa_camera_del(struct soc_camera_device *icd)
 {
-	if (icl != &camera_link)
-		return;
-
-	platform_device_unregister(&camera_device);
-	memset(&camera_device.dev.kobj, 0,
-	       sizeof(camera_device.dev.kobj));
+	soc_camera_platform_del(icd, camera_device, &camera_link);
 }
 #endif /* CONFIG_I2C */
 
@@ -423,7 +432,7 @@ static struct resource sdhi0_cn3_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start	= 0x04ce0000,
-		.end	= 0x04ce01ff,
+		.end	= 0x04ce00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -453,7 +462,7 @@ static struct resource sdhi1_cn7_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start	= 0x04cf0000,
-		.end	= 0x04cf01ff,
+		.end	= 0x04cf00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {

@@ -2,7 +2,7 @@
  * include/linux/tipc.h: Include file for TIPC socket interface
  *
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,7 +101,7 @@ static inline unsigned int tipc_node(__u32 addr)
  * Limiting values for messages
  */
 
-#define TIPC_MAX_USER_MSG_SIZE	66000
+#define TIPC_MAX_USER_MSG_SIZE	66000U
 
 /*
  * Message importance levels
@@ -130,12 +130,6 @@ static inline unsigned int tipc_node(__u32 addr)
 #define TIPC_SUB_PORTS		0x01	/* filter for port availability */
 #define TIPC_SUB_SERVICE	0x02	/* filter for service availability */
 #define TIPC_SUB_CANCEL		0x04	/* cancel a subscription */
-#if 0
-/* The following filter options are not currently implemented */
-#define TIPC_SUB_NO_BIND_EVTS	0x04	/* filter out "publish" events */
-#define TIPC_SUB_NO_UNBIND_EVTS	0x08	/* filter out "withdraw" events */
-#define TIPC_SUB_SINGLE_EVT	0x10	/* expire after first event */
-#endif
 
 #define TIPC_WAIT_FOREVER	(~0)	/* timeout for permanent subscription */
 

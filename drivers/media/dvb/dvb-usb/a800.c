@@ -38,8 +38,8 @@ static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_pr
 }
 
 static struct rc_map_table rc_map_a800_table[] = {
-	{ 0x0201, KEY_PROG1 },       /* SOURCE */
-	{ 0x0200, KEY_POWER },       /* POWER */
+	{ 0x0201, KEY_MODE },      /* SOURCE */
+	{ 0x0200, KEY_POWER2 },      /* POWER */
 	{ 0x0205, KEY_1 },           /* 1 */
 	{ 0x0206, KEY_2 },           /* 2 */
 	{ 0x0207, KEY_3 },           /* 3 */
@@ -52,8 +52,8 @@ static struct rc_map_table rc_map_a800_table[] = {
 	{ 0x0212, KEY_LEFT },        /* L / DISPLAY */
 	{ 0x0211, KEY_0 },           /* 0 */
 	{ 0x0213, KEY_RIGHT },       /* R / CH RTN */
-	{ 0x0217, KEY_PROG2 },       /* SNAP SHOT */
-	{ 0x0210, KEY_PROG3 },       /* 16-CH PREV */
+	{ 0x0217, KEY_CAMERA },      /* SNAP SHOT */
+	{ 0x0210, KEY_LAST },        /* 16-CH PREV */
 	{ 0x021e, KEY_VOLUMEDOWN },  /* VOL DOWN */
 	{ 0x020c, KEY_ZOOM },        /* FULL SCREEN */
 	{ 0x021f, KEY_VOLUMEUP },    /* VOL UP */
@@ -78,17 +78,26 @@ static struct rc_map_table rc_map_a800_table[] = {
 
 static int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[5];
+	int ret;
+	u8 *key = kmalloc(5, GFP_KERNEL);
+	if (!key)
+		return -ENOMEM;
+
 	if (usb_control_msg(d->udev,usb_rcvctrlpipe(d->udev,0),
 				0x04, USB_TYPE_VENDOR | USB_DIR_IN, 0, 0, key, 5,
-				2000) != 5)
-		return -ENODEV;
+				2000) != 5) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	/* call the universal NEC remote processor, to find out the key's state and event */
 	dvb_usb_nec_rc_key_to_event(d,key,event,state);
 	if (key[0] != 0)
 		deb_rc("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
-	return 0;
+	ret = 0;
+out:
+	kfree(key);
+	return ret;
 }
 
 /* USB Driver stuff */

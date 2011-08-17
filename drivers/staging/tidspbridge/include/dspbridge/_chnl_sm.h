@@ -26,7 +26,7 @@
 #include <dspbridge/dspapi.h>
 #include <dspbridge/dspdefs.h>
 
-#include <dspbridge/list.h>
+#include <linux/list.h>
 #include <dspbridge/ntfy.h>
 
 /*
@@ -114,20 +114,20 @@ struct shm {
 struct chnl_mgr {
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
-	struct io_mgr *hio_mgr;	/* IO manager */
+	struct io_mgr *iomgr;	/* IO manager */
 	/* Device this board represents */
-	struct dev_object *hdev_obj;
+	struct dev_object *dev_obj;
 
 	/* These fields initialized in bridge_chnl_create(): */
-	u32 dw_output_mask;	/* Host output channels w/ full buffers */
-	u32 dw_last_output;	/* Last output channel fired from DPC */
+	u32 output_mask;	/* Host output channels w/ full buffers */
+	u32 last_output;	/* Last output channel fired from DPC */
 	/* Critical section object handle */
 	spinlock_t chnl_mgr_lock;
 	u32 word_size;		/* Size in bytes of DSP word */
 	u8 max_channels;	/* Total number of channels */
 	u8 open_channels;	/* Total number of open channels */
-	struct chnl_object **ap_channel;	/* Array of channels */
-	u8 dw_type;		/* Type of channel class library */
+	struct chnl_object **channels;		/* Array of channels */
+	u8 type;		/* Type of channel class library */
 	/* If no shm syms, return for CHNL_Open */
 	int chnl_open_status;
 };
@@ -140,23 +140,23 @@ struct chnl_object {
 	/* Pointer back to channel manager */
 	struct chnl_mgr *chnl_mgr_obj;
 	u32 chnl_id;		/* Channel id */
-	u8 dw_state;		/* Current channel state */
+	u8 state;		/* Current channel state */
 	s8 chnl_mode;		/* Chnl mode and attributes */
 	/* Chnl I/O completion event (user mode) */
 	void *user_event;
-	/* Abstract syncronization object */
+	/* Abstract synchronization object */
 	struct sync_object *sync_event;
 	u32 process;		/* Process which created this channel */
-	u32 pcb_arg;		/* Argument to use with callback */
-	struct lst_list *pio_requests;	/* List of IOR's to driver */
+	u32 cb_arg;		/* Argument to use with callback */
+	struct list_head io_requests;	/* List of IOR's to driver */
 	s32 cio_cs;		/* Number of IOC's in queue */
 	s32 cio_reqs;		/* Number of IORequests in queue */
 	s32 chnl_packets;	/* Initial number of free Irps */
 	/* List of IOC's from driver */
-	struct lst_list *pio_completions;
-	struct lst_list *free_packets_list;	/* List of free Irps */
+	struct list_head io_completions;
+	struct list_head free_packets_list;	/* List of free Irps */
 	struct ntfy_object *ntfy_obj;
-	u32 bytes_moved;	/* Total number of bytes transfered */
+	u32 bytes_moved;	/* Total number of bytes transferred */
 
 	/* For DSP-DMA */
 
@@ -171,7 +171,7 @@ struct chnl_irp {
 	u8 *host_user_buf;
 	/* Buffer to be filled/emptied. (System) */
 	u8 *host_sys_buf;
-	u32 dw_arg;		/* Issue/Reclaim argument. */
+	u32 arg;		/* Issue/Reclaim argument. */
 	u32 dsp_tx_addr;	/* Transfer address on DSP side. */
 	u32 byte_size;		/* Bytes transferred. */
 	u32 buf_size;		/* Actual buffer size when allocated. */

@@ -171,6 +171,7 @@ struct ceph_mds_request {
 	struct inode *r_inode;              /* arg1 */
 	struct dentry *r_dentry;            /* arg1 */
 	struct dentry *r_old_dentry;        /* arg2: rename from or link from */
+	struct inode *r_old_dentry_dir;     /* arg2: old dentry's parent dir */
 	char *r_path1, *r_path2;
 	struct ceph_vino r_ino1, r_ino2;
 
@@ -278,6 +279,7 @@ struct ceph_mds_client {
 
 	u64               cap_flush_seq;
 	struct list_head  cap_dirty;        /* inodes with dirty caps */
+	struct list_head  cap_dirty_migrating; /* ...that are migration... */
 	int               num_cap_flushing; /* # caps we are flushing */
 	spinlock_t        cap_dirty_lock;   /* protects above items */
 	wait_queue_head_t cap_flushing_wq;
@@ -332,7 +334,7 @@ extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);
 
 extern void ceph_mdsc_lease_release(struct ceph_mds_client *mdsc,
 				    struct inode *inode,
-				    struct dentry *dn, int mask);
+				    struct dentry *dn);
 
 extern void ceph_invalidate_dir_request(struct ceph_mds_request *req);
 

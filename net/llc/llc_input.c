@@ -121,8 +121,7 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
 		s32 data_size = ntohs(pdulen) - llc_len;
 
 		if (data_size < 0 ||
-		    ((skb_tail_pointer(skb) -
-		      (u8 *)pdu) - llc_len) < data_size)
+		    !pskb_may_pull(skb, data_size))
 			return 0;
 		if (unlikely(pskb_trim_rcsum(skb, data_size)))
 			return 0;
@@ -181,25 +180,26 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * LLC functionality
 	 */
 	rcv = rcu_dereference(sap->rcv_func);
-	if (rcv) {
-		struct sk_buff *cskb = skb_clone(skb, GFP_ATOMIC);
-		if (cskb)
-			rcv(cskb, dev, pt, orig_dev);
-	}
 	dest = llc_pdu_type(skb);
-	if (unlikely(!dest || !llc_type_handlers[dest - 1]))
-		goto drop_put;
-	llc_type_handlers[dest - 1](sap, skb);
-out_put:
+	if (unlikely(!dest || !llc_type_handlers[dest - 1])) {
+		if (rcv)
+			rcv(skb, dev, pt, orig_dev);
+		else
+			kfree_skb(skb);
+	} else {
+		if (rcv) {
+			struct sk_buff *cskb = skb_clone(skb, GFP_ATOMIC);
+			if (cskb)
+				rcv(cskb, dev, pt, orig_dev);
+		}
+		llc_type_handlers[dest - 1](sap, skb);
+	}
 	llc_sap_put(sap);
 out:
 	return 0;
 drop:
 	kfree_skb(skb);
 	goto out;
-drop_put:
-	kfree_skb(skb);
-	goto out_put;
 handle_station:
 	if (!llc_station_handler)
 		goto drop;

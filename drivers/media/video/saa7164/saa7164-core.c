@@ -277,8 +277,8 @@ static void saa7164_histogram_print(struct saa7164_port *port,
 static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 {
 	struct saa7164_dev *dev = port->dev;
-	struct saa7164_buffer *buf = 0;
-	struct saa7164_user_buffer *ubuf = 0;
+	struct saa7164_buffer *buf = NULL;
+	struct saa7164_user_buffer *ubuf = NULL;
 	struct list_head *c, *n;
 	int i = 0;
 	u8 __iomem *p;
@@ -649,7 +649,7 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 	u32 intid, intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
 
-	if (dev == 0) {
+	if (dev == NULL) {
 		printk(KERN_ERR "%s() No device specified\n", __func__);
 		handled = 0;
 		goto out;
@@ -945,7 +945,7 @@ static int get_resources(struct saa7164_dev *dev)
 
 static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 {
-	struct saa7164_port *port = 0;
+	struct saa7164_port *port = NULL;
 
 	if ((portnr < 0) || (portnr >= SAA7164_MAX_PORTS))
 		BUG();
@@ -1247,7 +1247,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* print pci info */
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
+	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", dev->name,

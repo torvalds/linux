@@ -35,10 +35,26 @@
 #define MOP500_STMPE1601_IRQBASE        MOP500_EGPIO_IRQ_END
 #define MOP500_STMPE1601_IRQ(x)         (MOP500_STMPE1601_IRQBASE + (x))
 
-#define MOP500_NR_IRQS          MOP500_STMPE1601_IRQ(STMPE_NR_INTERNAL_IRQS)
+#define MOP500_STMPE1601_IRQ_END	\
+	MOP500_STMPE1601_IRQ(STMPE_NR_INTERNAL_IRQS)
 
-#define MOP500_IRQ_END          MOP500_NR_IRQS
+/* AB8500 virtual gpio IRQ */
+#define AB8500_VIR_GPIO_NR_IRQS			16
 
+#define MOP500_AB8500_VIR_GPIO_IRQ_BASE		\
+	MOP500_STMPE1601_IRQ_END
+#define MOP500_AB8500_VIR_GPIO_IRQ_END		\
+	(MOP500_AB8500_VIR_GPIO_IRQ_BASE + AB8500_VIR_GPIO_NR_IRQS)
+
+#define MOP500_NR_IRQS		MOP500_AB8500_VIR_GPIO_IRQ_END
+
+#define MOP500_IRQ_END		MOP500_NR_IRQS
+
+/*
+ * We may have several boards, but only one will run at a
+ * time, so the one with most IRQs will bump this ahead,
+ * but the IRQ_BOARD_START remains the same for either board.
+ */
 #if MOP500_IRQ_END > IRQ_BOARD_END
 #undef IRQ_BOARD_END
 #define IRQ_BOARD_END	MOP500_IRQ_END

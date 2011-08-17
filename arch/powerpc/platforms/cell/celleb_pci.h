@@ -26,8 +26,9 @@
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/ppc-pci.h>
+#include <asm/io-workarounds.h>
 
-#include "io-workarounds.h"
+struct iowa_bus;
 
 struct celleb_phb_spec {
 	int (*setup)(struct device_node *, struct pci_controller *);

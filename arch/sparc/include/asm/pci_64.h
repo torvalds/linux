@@ -91,9 +91,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 	return PCI_IRQ_NONE;
 }
 
-struct device_node;
-extern struct device_node *pci_device_to_OF_node(struct pci_dev *pdev);
-
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
 extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 				 const struct resource *rsrc,

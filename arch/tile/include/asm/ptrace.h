@@ -112,8 +112,6 @@ struct pt_regs *get_pt_regs(struct pt_regs *);
 /* Trace the current syscall. */
 extern void do_syscall_trace(void);
 
-extern void show_regs(struct pt_regs *);
-
 #define arch_has_single_step()	(1)
 
 /*
@@ -140,6 +138,9 @@ struct single_step_state {
 
 /* Single-step the instruction at regs->pc */
 extern void single_step_once(struct pt_regs *regs);
+
+/* Clean up after execve(). */
+extern void single_step_execve(void);
 
 struct task_struct;
 

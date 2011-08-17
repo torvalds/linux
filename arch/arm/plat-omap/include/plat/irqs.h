@@ -315,9 +315,12 @@
 #define INT_34XX_SSM_ABORT_IRQ	6
 #define INT_34XX_SYS_NIRQ	7
 #define INT_34XX_D2D_FW_IRQ	8
+#define INT_34XX_L3_DBG_IRQ     9
+#define INT_34XX_L3_APP_IRQ     10
 #define INT_34XX_PRCM_MPU_IRQ	11
 #define INT_34XX_MCBSP1_IRQ	16
 #define INT_34XX_MCBSP2_IRQ	17
+#define INT_34XX_GPMC_IRQ	20
 #define INT_34XX_MCBSP3_IRQ	22
 #define INT_34XX_MCBSP4_IRQ	23
 #define INT_34XX_CAM_IRQ	24
@@ -354,6 +357,7 @@
 #define INT_35XX_EMAC_C0_TX_PULSE_IRQ	69
 #define INT_35XX_EMAC_C0_MISC_PULSE_IRQ	70
 #define INT_35XX_USBOTG_IRQ		71
+#define INT_35XX_UART4			84
 #define INT_35XX_CCDC_VD0_IRQ		88
 #define INT_35XX_CCDC_VD1_IRQ		92
 #define INT_35XX_CCDC_VD2_IRQ		93
@@ -404,14 +408,28 @@
 #endif
 #define TWL6030_IRQ_END		(TWL6030_IRQ_BASE + TWL6030_BASE_NR_IRQS)
 
+#define TWL6040_CODEC_IRQ_BASE	TWL6030_IRQ_END
+#ifdef CONFIG_TWL6040_CODEC
+#define TWL6040_CODEC_NR_IRQS	6
+#else
+#define TWL6040_CODEC_NR_IRQS	0
+#endif
+#define TWL6040_CODEC_IRQ_END	(TWL6040_CODEC_IRQ_BASE + TWL6040_CODEC_NR_IRQS)
+
 /* Total number of interrupts depends on the enabled blocks above */
-#if (TWL4030_GPIO_IRQ_END > TWL6030_IRQ_END)
+#if (TWL4030_GPIO_IRQ_END > TWL6040_CODEC_IRQ_END)
 #define TWL_IRQ_END 		TWL4030_GPIO_IRQ_END
 #else
-#define TWL_IRQ_END		TWL6030_IRQ_END
+#define TWL_IRQ_END		TWL6040_CODEC_IRQ_END
 #endif
 
-#define NR_IRQS			TWL_IRQ_END
+/* GPMC related */
+#define OMAP_GPMC_IRQ_BASE	(TWL_IRQ_END)
+#define OMAP_GPMC_NR_IRQS	8
+#define OMAP_GPMC_IRQ_END	(OMAP_GPMC_IRQ_BASE + OMAP_GPMC_NR_IRQS)
+
+
+#define NR_IRQS			OMAP_GPMC_IRQ_END
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
@@ -419,7 +437,11 @@
 #define INTCPS_NR_IRQS		96
 
 #ifndef __ASSEMBLY__
-extern void omap_init_irq(void);
+extern void __iomem *omap_irq_base;
+void omap1_init_irq(void);
+void omap2_init_irq(void);
+void omap3_init_irq(void);
+void ti816x_init_irq(void);
 extern int omap_irq_pending(void);
 void omap_intc_save_context(void);
 void omap_intc_restore_context(void);

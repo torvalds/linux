@@ -421,7 +421,7 @@ void vRunCommand(void *hDeviceContext)
                     pMgmt->eScanState = WMAC_IS_SCANNING;
                     pDevice->byScanBBType = pDevice->byBBType;  //lucas
                     pDevice->bStopDataPkt = TRUE;
-                    // Turn off RCR_BSSID filter everytime
+                    // Turn off RCR_BSSID filter every time
                     MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_BSSID);
                     pDevice->byRxMode &= ~RCR_BSSID;
 
@@ -604,7 +604,7 @@ void vRunCommand(void *hDeviceContext)
             // if Infra mode
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED)) {
                 // Call mgr to begin the deauthentication
-                // reason = (3) beacuse sta has left ESS
+                // reason = (3) because sta has left ESS
 	      if (pMgmt->eCurrState >= WMAC_STATE_AUTH) {
 		vMgrDeAuthenBeginSta((void *)pDevice,
 				     pMgmt,
@@ -642,7 +642,7 @@ void vRunCommand(void *hDeviceContext)
                     if (Status != CMD_STATUS_SUCCESS){
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "WLAN_CMD_IBSS_CREATE fail!\n");
-                    };
+                    }
                     BSSvAddMulticastNode(pDevice);
                 }
                 s_bClearBSSID_SCAN(pDevice);
@@ -658,7 +658,7 @@ void vRunCommand(void *hDeviceContext)
                     if (Status != CMD_STATUS_SUCCESS){
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "WLAN_CMD_IBSS_CREATE fail!\n");
-                    };
+                    }
                     BSSvAddMulticastNode(pDevice);
                     s_bClearBSSID_SCAN(pDevice);
 /*
@@ -793,7 +793,7 @@ void vRunCommand(void *hDeviceContext)
 		if (Status != CMD_STATUS_SUCCESS) {
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "vMgrCreateOwnIBSS fail!\n");
-                };
+                }
                 // alway turn off unicast bit
                 MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_UNICAST);
                 pDevice->byRxMode &= ~RCR_UNICAST;
@@ -827,7 +827,7 @@ void vRunCommand(void *hDeviceContext)
 
                     pMgmt->sNodeDBTable[0].wEnQueueCnt--;
                 }
-            };
+            }
 
             // PS nodes tx
             for (ii = 1; ii < (MAX_NODE_NUM + 1); ii++) {

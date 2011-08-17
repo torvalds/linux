@@ -67,7 +67,7 @@
  * Do not change these values: if changed, then change also in respective
  * TXdma and Rxdma engines
  */
-#define NUM_DESC_PER_RING_TX         512	/* TX Do not change these values */
+#define NUM_DESC_PER_RING_TX         512    /* TX Do not change these values */
 #define NUM_TCB                      64
 
 /*
@@ -83,28 +83,22 @@
 #define LO_MARK_PERCENT_FOR_RX      15
 
 /* RFD (Receive Frame Descriptor) */
-typedef struct _MP_RFD {
+struct rfd {
 	struct list_head list_node;
-	struct sk_buff *Packet;
-	u32 PacketSize;	/* total size of receive frame */
+	struct sk_buff *skb;
+	u32 len;	/* total size of receive frame */
 	u16 bufferindex;
 	u8 ringindex;
-} MP_RFD, *PMP_RFD;
+};
 
-/* Enum for Flow Control */
-typedef enum _eflow_control_t {
-	Both = 0,
-	TxOnly = 1,
-	RxOnly = 2,
-	None = 3
-} eFLOW_CONTROL_t, *PeFLOW_CONTROL_t;
+/* Flow Control */
+#define FLOW_BOTH	0
+#define FLOW_TXONLY	1
+#define FLOW_RXONLY	2
+#define FLOW_NONE	3
 
 /* Struct to define some device statistics */
-typedef struct _ce_stats_t {
-	/* Link Input/Output stats */
-	uint64_t ipackets;	/* # of in packets */
-	uint64_t opackets;	/* # of out packets */
-
+struct ce_stats {
 	/* MIB II variables
 	 *
 	 * NOTE: atomic_t types are only guaranteed to store 24-bits; if we
@@ -120,7 +114,7 @@ typedef struct _ce_stats_t {
 	u32 norcvbuf;	/* # Rx packets discarded */
 	u32 noxmtbuf;	/* # Tx packets discarded */
 
-	/* Transciever state informations. */
+	/* Transceiver state informations. */
 	u8 xcvr_addr;
 	u32 xcvr_id;
 
@@ -145,21 +139,8 @@ typedef struct _ce_stats_t {
 
 	u32 SynchrounousIterations;
 	u32 InterruptStatus;
-} CE_STATS_t, *PCE_STATS_t;
+};
 
-typedef struct _MP_POWER_MGMT {
-	/* variable putting the phy into coma mode when boot up with no cable
-	 * plugged in after 5 seconds
-	 */
-	u8 TransPhyComaModeOnBoot;
-
-	/* Next two used to save power information at power down. This
-	 * information will be used during power up to set up parts of Power
-	 * Management in JAGCore
-	 */
-	u16 PowerDownSpeed;
-	u8 PowerDownDuplex;
-} MP_POWER_MGMT, *PMP_POWER_MGMT;
 
 /* The private adapter structure */
 struct et131x_adapter {
@@ -169,23 +150,23 @@ struct et131x_adapter {
 	struct work_struct task;
 
 	/* Flags that indicate current state of the adapter */
-	u32 Flags;
+	u32 flags;
 	u32 HwErrCount;
 
 	/* Configuration  */
-	u8 PermanentAddress[ETH_ALEN];
-	u8 CurrentAddress[ETH_ALEN];
+	u8 rom_addr[ETH_ALEN];
+	u8 addr[ETH_ALEN];
 	bool has_eeprom;
-	u8 eepromData[2];
+	u8 eeprom_data[2];
 
 	/* Spinlocks */
 	spinlock_t Lock;
 
 	spinlock_t TCBSendQLock;
 	spinlock_t TCBReadyQLock;
-	spinlock_t SendHWLock;
+	spinlock_t send_hw_lock;
 
-	spinlock_t RcvLock;
+	spinlock_t rcv_lock;
 	spinlock_t RcvPendLock;
 	spinlock_t FbrLock;
 
@@ -201,11 +182,11 @@ struct et131x_adapter {
 	u8 MCList[NIC_MAX_MCAST_LIST][ETH_ALEN];
 
 	/* Pointer to the device's PCI register space */
-	ADDRESS_MAP_t __iomem *regs;
+	struct address_map __iomem *regs;
 
 	/* Registry parameters */
 	u8 SpeedDuplex;		/* speed/duplex */
-	eFLOW_CONTROL_t RegistryFlowControl;	/* for 802.3x flow control */
+	u8 wanted_flow;		/* Flow we want for 802.3x flow control */
 	u8 RegistryPhyComa;	/* Phy Coma mode enable/disable */
 
 	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
@@ -214,8 +195,8 @@ struct et131x_adapter {
 
 	/* Derived from the registry: */
 	u8 AiForceDpx;		/* duplex setting */
-	u16 AiForceSpeed;		/* 'Speed', user over-ride of line speed */
-	eFLOW_CONTROL_t FlowControl;	/* flow control validated by the far-end */
+	u16 AiForceSpeed;	/* 'Speed', user over-ride of line speed */
+	u8 flowcontrol;		/* flow control validated by the far-end */
 	enum {
 		NETIF_STATUS_INVALID = 0,
 		NETIF_STATUS_MEDIA_CONNECT,
@@ -225,11 +206,23 @@ struct et131x_adapter {
 
 	/* Minimize init-time */
 	struct timer_list ErrorTimer;
-	MP_POWER_MGMT PoMgmt;
+
+	/* variable putting the phy into coma mode when boot up with no cable
+	 * plugged in after 5 seconds
+	 */
+	u8 boot_coma;
+
+	/* Next two used to save power information at power down. This
+	 * information will be used during power up to set up parts of Power
+	 * Management in JAGCore
+	 */
+	u16 pdown_speed;
+	u8 pdown_duplex;
+
 	u32 CachedMaskValue;
 
 	/* Xcvr status at last poll */
-	MI_BMSR_t Bmsr;
+	u16 bmsr;
 
 	/* Tx Memory Variables */
 	struct tx_ring tx_ring;
@@ -242,10 +235,9 @@ struct et131x_adapter {
 	u8 ReplicaPhyLoopbkPF;	/* Replica Enable Pass/Fail */
 
 	/* Stats */
-	CE_STATS_t Stats;
+	struct ce_stats stats;
 
 	struct net_device_stats net_stats;
-	struct net_device_stats net_stats_prev;
 };
 
 #endif /* __ET131X_ADAPTER_H__ */

@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1996 David S. Miller (dm@sgi.com)
- * Compability with board caches, Ulf Carlsson
+ * Compatibility with board caches, Ulf Carlsson
  */
 #include <linux/kernel.h>
 #include <asm/sgialib.h>

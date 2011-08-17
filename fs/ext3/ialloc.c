@@ -23,6 +23,7 @@
 #include <linux/buffer_head.h>
 #include <linux/random.h>
 #include <linux/bitops.h>
+#include <trace/events/ext3.h>
 
 #include <asm/byteorder.h>
 
@@ -118,6 +119,7 @@ void ext3_free_inode (handle_t *handle, struct inode * inode)
 
 	ino = inode->i_ino;
 	ext3_debug ("freeing inode %lu\n", ino);
+	trace_ext3_free_inode(inode);
 
 	is_directory = S_ISDIR(inode->i_mode);
 
@@ -404,7 +406,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent)
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode *ext3_new_inode(handle_t *handle, struct inode * dir, int mode)
+struct inode *ext3_new_inode(handle_t *handle, struct inode * dir,
+			     const struct qstr *qstr, int mode)
 {
 	struct super_block *sb;
 	struct buffer_head *bitmap_bh = NULL;
@@ -425,6 +428,7 @@ struct inode *ext3_new_inode(handle_t *handle, struct inode * dir, int mode)
 		return ERR_PTR(-EPERM);
 
 	sb = dir->i_sb;
+	trace_ext3_request_inode(dir, mode);
 	inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
@@ -589,7 +593,7 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	err = ext3_init_security(handle,inode, dir);
+	err = ext3_init_security(handle, inode, dir, qstr);
 	if (err)
 		goto fail_free_drop;
 
@@ -600,6 +604,7 @@ got:
 	}
 
 	ext3_debug("allocating inode %lu\n", inode->i_ino);
+	trace_ext3_allocate_inode(inode, dir, mode);
 	goto really_out;
 fail:
 	ext3_std_error(sb, err);

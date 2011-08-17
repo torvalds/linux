@@ -1420,6 +1420,16 @@ static const struct intel_gtt_driver_description {
 	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG,
 	    "Sandybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_GT1_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_GT2_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT1_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT2_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
 	{ 0, NULL, NULL }
 };
 

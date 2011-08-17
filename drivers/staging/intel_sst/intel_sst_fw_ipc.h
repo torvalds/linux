@@ -56,6 +56,8 @@
 #define IPC_IA_GET_FW_VERSION 0x04
 #define IPC_IA_GET_FW_BUILD_INF 0x05
 #define IPC_IA_GET_FW_INFO 0x06
+#define IPC_IA_GET_FW_CTXT 0x07
+#define IPC_IA_SET_FW_CTXT 0x08
 
 /* I2L Codec Config/control msgs */
 #define IPC_IA_SET_CODEC_PARAMS 0x10
@@ -69,6 +71,7 @@
 #define IPC_IA_DECODE_FRAMES 0x18
 
 #define IPC_IA_ALG_PARAMS 0x1A
+#define IPC_IA_TUNING_PARAMS 0x1B
 
 /* I2L Stream config/control msgs */
 #define IPC_IA_ALLOC_STREAM 0x20 /* Allocate a stream ID */
@@ -111,7 +114,7 @@
 #define IPC_SST_PERIOD_ELAPSED 0x97 /* period elapsed */
 #define IPC_IA_TARGET_DEV_CHNGD 0x98 /* error in processing a stream */
 
-#define IPC_SST_ERROR_EVENT 0x99 /* Buffer over run occured */
+#define IPC_SST_ERROR_EVENT 0x99 /* Buffer over run occurred */
 /* L2S messages */
 #define IPC_SC_DDR_LINK_UP 0xC0
 #define IPC_SC_DDR_LINK_DOWN 0xC1
@@ -406,4 +409,8 @@ struct ipc_post {
 	char *mailbox_data;
 };
 
+struct snd_sst_ctxt_params {
+	u32 address; /* Physical Address in DDR where the context is stored */
+	u32 size; /* size of the context */
+};
 #endif /* __INTEL_SST_FW_IPC_H__ */

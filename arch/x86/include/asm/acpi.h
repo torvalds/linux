@@ -29,6 +29,7 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mpspec.h>
+#include <asm/trampoline.h>
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
@@ -113,11 +114,11 @@ static inline void acpi_disable_pci(void)
 	acpi_noirq_set();
 }
 
-/* routines for saving/restoring kernel state */
-extern int acpi_save_state_mem(void);
-extern void acpi_restore_state_mem(void);
+/* Low-level suspend routine. */
+extern int acpi_suspend_lowlevel(void);
 
-extern unsigned long acpi_wakeup_address;
+extern const unsigned char acpi_wakeup_code[];
+#define acpi_wakeup_address (__pa(TRAMPOLINE_SYM(acpi_wakeup_code)))
 
 /* early initialization routine */
 extern void acpi_reserve_wakeup_memory(void);
@@ -138,7 +139,7 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 	    boot_cpu_data.x86_model <= 0x05 &&
 	    boot_cpu_data.x86_mask < 0x0A)
 		return 1;
-	else if (c1e_detected)
+	else if (amd_e400_c1e_detected)
 		return 1;
 	else
 		return max_cstate;
@@ -182,19 +183,9 @@ static inline void disable_acpi(void) { }
 
 #define ARCH_HAS_POWER_INIT	1
 
-struct bootnode;
-
 #ifdef CONFIG_ACPI_NUMA
 extern int acpi_numa;
-extern void acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
-				unsigned long end);
-extern int acpi_scan_nodes(unsigned long start, unsigned long end);
-#define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
-
-#ifdef CONFIG_NUMA_EMU
-extern void acpi_fake_nodes(const struct bootnode *fake_nodes,
-				   int num_nodes);
-#endif
+extern int x86_acpi_numa_init(void);
 #endif /* CONFIG_ACPI_NUMA */
 
 #define acpi_unlazy_tlb(x)	leave_mm(x)

@@ -13,6 +13,15 @@ cacheflush-$(CONFIG_MN10300_CACHE_INV_BY_REG) += cache-inv-by-reg.o
 cacheflush-$(CONFIG_MN10300_CACHE_FLUSH_BY_TAG) += cache-flush-by-tag.o
 cacheflush-$(CONFIG_MN10300_CACHE_FLUSH_BY_REG) += cache-flush-by-reg.o
 
+cacheflush-$(CONFIG_MN10300_DEBUGGER_CACHE_FLUSH_BY_TAG) += \
+	cache-dbg-flush-by-tag.o cache-dbg-inv-by-tag.o
+cacheflush-$(CONFIG_MN10300_DEBUGGER_CACHE_FLUSH_BY_REG) += \
+	cache-dbg-flush-by-reg.o
+cacheflush-$(CONFIG_MN10300_DEBUGGER_CACHE_INV_BY_TAG) += \
+	cache-dbg-inv-by-tag.o cache-dbg-inv.o
+cacheflush-$(CONFIG_MN10300_DEBUGGER_CACHE_INV_BY_REG) += \
+	cache-dbg-inv-by-reg.o cache-dbg-inv.o
+
 cacheflush-$(CONFIG_MN10300_CACHE_DISABLED) := cache-disabled.o
 
 obj-y := \

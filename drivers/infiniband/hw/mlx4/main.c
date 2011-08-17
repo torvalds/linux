@@ -625,7 +625,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
 				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
-				    MLX4_PROTOCOL_IB);
+				    MLX4_PROT_IB_IPV6);
 	if (err)
 		return err;
 
@@ -636,7 +636,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROTOCOL_IB);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
 	return err;
 }
 
@@ -666,7 +666,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_gid_entry *ge;
 
 	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw, MLX4_PROTOCOL_IB);
+				    &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
 	if (err)
 		return err;
 
@@ -721,7 +721,6 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 	if (err)
 		goto out;
 
-	dev->dev->rev_id = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
 
 out:
@@ -817,7 +816,7 @@ static void update_gids_task(struct work_struct *work)
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
 		event.device = &gw->dev->ib_dev;
 		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_LID_CHANGE;
+		event.event    = IB_EVENT_GID_CHANGE;
 		ib_dispatch_event(&event);
 	}
 
@@ -954,7 +953,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	mlx4_foreach_ib_transport_port(port, ibdev->dev) {
 		oldnd = iboe->netdevs[port - 1];
 		iboe->netdevs[port - 1] =
-			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROTOCOL_EN, port);
+			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port);
 		if (oldnd != iboe->netdevs[port - 1]) {
 			if (iboe->netdevs[port - 1])
 				netdev_added(ibdev, port);
@@ -1099,11 +1098,21 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (init_node_data(ibdev))
 		goto err_map;
 
+	for (i = 0; i < ibdev->num_ports; ++i) {
+		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
+						IB_LINK_LAYER_ETHERNET) {
+			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
+			if (err)
+				ibdev->counters[i] = -1;
+		} else
+				ibdev->counters[i] = -1;
+	}
+
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
 	if (ib_register_device(&ibdev->ib_dev, NULL))
-		goto err_map;
+		goto err_counter;
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
@@ -1133,6 +1142,10 @@ err_notif:
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
 
+err_counter:
+	for (; i; --i)
+		mlx4_counter_free(ibdev->dev, ibdev->counters[i - 1]);
+
 err_map:
 	iounmap(ibdev->uar_map);
 
@@ -1161,7 +1174,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 	iounmap(ibdev->uar_map);
-
+	for (p = 0; p < ibdev->num_ports; ++p)
+		mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 
@@ -1207,7 +1221,7 @@ static struct mlx4_interface mlx4_ib_interface = {
 	.add		= mlx4_ib_add,
 	.remove		= mlx4_ib_remove,
 	.event		= mlx4_ib_event,
-	.protocol	= MLX4_PROTOCOL_IB
+	.protocol	= MLX4_PROT_IB_IPV6
 };
 
 static int __init mlx4_ib_init(void)

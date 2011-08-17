@@ -47,12 +47,13 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 	}
 }
 
-static void __flush_tsb_one(struct mmu_gather *mp, unsigned long hash_shift, unsigned long tsb, unsigned long nentries)
+static void __flush_tsb_one(struct tlb_batch *tb, unsigned long hash_shift,
+			    unsigned long tsb, unsigned long nentries)
 {
 	unsigned long i;
 
-	for (i = 0; i < mp->tlb_nr; i++) {
-		unsigned long v = mp->vaddrs[i];
+	for (i = 0; i < tb->tlb_nr; i++) {
+		unsigned long v = tb->vaddrs[i];
 		unsigned long tag, ent, hash;
 
 		v &= ~0x1UL;
@@ -65,9 +66,9 @@ static void __flush_tsb_one(struct mmu_gather *mp, unsigned long hash_shift, uns
 	}
 }
 
-void flush_tsb_user(struct mmu_gather *mp)
+void flush_tsb_user(struct tlb_batch *tb)
 {
-	struct mm_struct *mm = mp->mm;
+	struct mm_struct *mm = tb->mm;
 	unsigned long nentries, base, flags;
 
 	spin_lock_irqsave(&mm->context.lock, flags);
@@ -76,7 +77,7 @@ void flush_tsb_user(struct mmu_gather *mp)
 	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 		base = __pa(base);
-	__flush_tsb_one(mp, PAGE_SHIFT, base, nentries);
+	__flush_tsb_one(tb, PAGE_SHIFT, base, nentries);
 
 #ifdef CONFIG_HUGETLB_PAGE
 	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
@@ -84,7 +85,7 @@ void flush_tsb_user(struct mmu_gather *mp)
 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 			base = __pa(base);
-		__flush_tsb_one(mp, HPAGE_SHIFT, base, nentries);
+		__flush_tsb_one(tb, HPAGE_SHIFT, base, nentries);
 	}
 #endif
 	spin_unlock_irqrestore(&mm->context.lock, flags);
@@ -179,7 +180,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 		printk(KERN_ERR "TSB[%s:%d]: Impossible TSB size %lu, killing process.\n",
 		       current->comm, current->pid, tsb_bytes);
 		do_exit(SIGSEGV);
-	};
+	}
 	tte |= pte_sz_bits(page_sz);
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
@@ -214,7 +215,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 #endif
 		default:
 			BUG();
-		};
+		}
 		hp->assoc = 1;
 		hp->num_ttes = tsb_bytes / 16;
 		hp->ctx_idx = 0;
@@ -229,11 +230,13 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 #endif
 		default:
 			BUG();
-		};
+		}
 		hp->tsb_base = tsb_paddr;
 		hp->resv = 0;
 	}
 }
+
+struct kmem_cache *pgtable_cache __read_mostly;
 
 static struct kmem_cache *tsb_caches[8] __read_mostly;
 
@@ -251,6 +254,15 @@ static const char *tsb_cache_names[8] = {
 void __init pgtable_cache_init(void)
 {
 	unsigned long i;
+
+	pgtable_cache = kmem_cache_create("pgtable_cache",
+					  PAGE_SIZE, PAGE_SIZE,
+					  0,
+					  _clear_page);
+	if (!pgtable_cache) {
+		prom_printf("pgtable_cache_init(): Could not create!\n");
+		prom_halt();
+	}
 
 	for (i = 0; i < 8; i++) {
 		unsigned long size = 8192 << i;

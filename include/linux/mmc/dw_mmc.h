@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _LINUX_MMC_DW_MMC_H_
-#define _LINUX_MMC_DW_MMC_H_
+#ifndef LINUX_MMC_DW_MMC_H
+#define LINUX_MMC_DW_MMC_H
 
 #define MAX_MCI_SLOTS	2
 
@@ -48,6 +48,7 @@ struct mmc_data;
  * @data: The data currently being transferred, or NULL if no data
  *	transfer is in progress.
  * @use_dma: Whether DMA channel is initialized or not.
+ * @using_dma: Whether DMA is in use for the current transfer.
  * @sg_dma: Bus address of DMA buffer.
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to platform-specific DMA callbacks.
@@ -74,7 +75,11 @@ struct mmc_data;
  * @pdev: Platform device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @slot: Slots sharing this MMC controller.
+ * @fifo_depth: depth of FIFO.
  * @data_shift: log2 of FIFO item size.
+ * @part_buf_start: Start index in part_buf.
+ * @part_buf_count: Bytes of partial data in part_buf.
+ * @part_buf: Simple buffer for partial fifo reads/writes.
  * @push_data: Pointer to FIFO push function.
  * @pull_data: Pointer to FIFO pull function.
  * @quirks: Set of quirks that apply to specific versions of the IP.
@@ -98,7 +103,7 @@ struct mmc_data;
  * EVENT_DATA_COMPLETE is set in @pending_events, all data-related
  * interrupts must be disabled and @data_status updated with a
  * snapshot of SR. Similarly, before EVENT_CMD_COMPLETE is set, the
- * CMDRDY interupt must be disabled and @cmd_status updated with a
+ * CMDRDY interrupt must be disabled and @cmd_status updated with a
  * snapshot of SR, and before EVENT_XFER_COMPLETE can be set, the
  * bytes_xfered field of @data must be written. This is ensured by
  * using barriers.
@@ -117,6 +122,7 @@ struct dw_mci {
 
 	/* DMA interface members*/
 	int			use_dma;
+	int			using_dma;
 
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
@@ -131,7 +137,7 @@ struct dw_mci {
 	u32			stop_cmdr;
 	u32			dir_status;
 	struct tasklet_struct	tasklet;
-	struct tasklet_struct	card_tasklet;
+	struct work_struct	card_work;
 	unsigned long		pending_events;
 	unsigned long		completed_events;
 	enum dw_mci_state	state;
@@ -140,17 +146,28 @@ struct dw_mci {
 	u32			bus_hz;
 	u32			current_speed;
 	u32			num_slots;
+	u32			fifoth_val;
 	struct platform_device	*pdev;
 	struct dw_mci_board	*pdata;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 
 	/* FIFO push and pull */
+	int			fifo_depth;
 	int			data_shift;
+	u8			part_buf_start;
+	u8			part_buf_count;
+	union {
+		u16		part_buf16;
+		u32		part_buf32;
+		u64		part_buf;
+	};
 	void (*push_data)(struct dw_mci *host, void *buf, int cnt);
 	void (*pull_data)(struct dw_mci *host, void *buf, int cnt);
 
 	/* Workaround flags */
 	u32			quirks;
+
+	struct regulator	*vmmc;	/* Power regulator */
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -165,14 +182,14 @@ struct dw_mci_dma_ops {
 };
 
 /* IP Quirks/flags. */
-/* No special quirks or flags to cater for */
-#define DW_MCI_QUIRK_NONE		0
 /* DTO fix for command transmission with IDMAC configured */
-#define DW_MCI_QUIRK_IDMAC_DTO		1
+#define DW_MCI_QUIRK_IDMAC_DTO			BIT(0)
 /* delay needed between retries on some 2.11a implementations */
-#define DW_MCI_QUIRK_RETRY_DELAY	2
-/* High Speed Capable - Supports HS cards (upto 50MHz) */
-#define DW_MCI_QUIRK_HIGHSPEED		4
+#define DW_MCI_QUIRK_RETRY_DELAY		BIT(1)
+/* High Speed Capable - Supports HS cards (up to 50MHz) */
+#define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
+/* Unreliable card detection */
+#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
 
 
 struct dma_pdata;
@@ -191,6 +208,14 @@ struct dw_mci_board {
 
 	u32 quirks; /* Workaround / Quirk flags */
 	unsigned int bus_hz; /* Bus speed */
+
+	unsigned int caps;	/* Capabilities */
+	/*
+	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
+	 * but note that this may not be reliable after a bootloader has used
+	 * it.
+	 */
+	unsigned int fifo_depth;
 
 	/* delay in mS before detecting cards after interrupt */
 	u32 detect_delay_ms;
@@ -214,4 +239,4 @@ struct dw_mci_board {
 	struct block_settings *blk_settings;
 };
 
-#endif /* _LINUX_MMC_DW_MMC_H_ */
+#endif /* LINUX_MMC_DW_MMC_H */

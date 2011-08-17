@@ -92,8 +92,6 @@ static int sd_setmirror(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getmirror(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_seteffect(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_geteffect(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu);
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -1379,20 +1377,17 @@ static int sd_getlowlight(struct gspca_dev *gspca_dev, __s32 *val)
 static int sd_querymenu(struct gspca_dev *gspca_dev,
 			struct v4l2_querymenu *menu)
 {
+	static const char *freq_nm[3] = {"NoFliker", "50 Hz", "60 Hz"};
+
 	switch (menu->id) {
 	case V4L2_CID_POWER_LINE_FREQUENCY:
-		switch (menu->index) {
-		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy((char *) menu->name, "50 Hz");
-			return 0;
-		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy((char *) menu->name, "60 Hz");
-			return 0;
-		}
-		break;
+		if ((unsigned) menu->index >= ARRAY_SIZE(freq_nm))
+			break;
+		strcpy((char *) menu->name, freq_nm[menu->index]);
+		return 0;
 	case V4L2_CID_EFFECTS:
 		if ((unsigned) menu->index < ARRAY_SIZE(effects_control)) {
-			strncpy((char *) menu->name,
+			strlcpy((char *) menu->name,
 				effects_control[menu->index],
 				sizeof menu->name);
 			return 0;

@@ -18,6 +18,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -46,13 +48,6 @@ int vlan_net_id __read_mostly;
 
 const char vlan_fullname[] = "802.1Q VLAN Support";
 const char vlan_version[] = DRV_VERSION;
-static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
-static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
-
-static struct packet_type vlan_packet_type __read_mostly = {
-	.type = cpu_to_be16(ETH_P_8021Q),
-	.func = vlan_skb_recv, /* VLAN receive method */
-};
 
 /* End of global variables definitions. */
 
@@ -124,10 +119,14 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	grp->nr_vlans--;
 
-	vlan_group_set_device(grp, vlan_id, NULL);
-	if (!grp->killall)
-		synchronize_net();
+	if (vlan->flags & VLAN_FLAG_GVRP)
+		vlan_gvrp_request_leave(dev);
 
+	vlan_group_set_device(grp, vlan_id, NULL);
+	/* Because unregister_netdevice_queue() makes sure at least one rcu
+	 * grace period is respected before device freeing,
+	 * we dont need to call synchronize_net() here.
+	 */
 	unregister_netdevice_queue(dev, head);
 
 	/* If the group is now empty, kill off the group. */
@@ -135,8 +134,6 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 		vlan_gvrp_uninit_applicant(real_dev);
 
 		rcu_assign_pointer(real_dev->vlgrp, NULL);
-		if (ops->ndo_vlan_rx_register)
-			ops->ndo_vlan_rx_register(real_dev, NULL);
 
 		/* Free the group, after all cpu's are done. */
 		call_rcu(&grp->rcu, vlan_rcu_free);
@@ -152,13 +149,13 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 	const struct net_device_ops *ops = real_dev->netdev_ops;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		pr_info("8021q: VLANs not supported on %s\n", name);
+		pr_info("VLANs not supported on %s\n", name);
 		return -EOPNOTSUPP;
 	}
 
 	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
 	    (!ops->ndo_vlan_rx_add_vid || !ops->ndo_vlan_rx_kill_vid)) {
-		pr_info("8021q: Device %s has buggy VLAN hw accel\n", name);
+		pr_info("Device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
@@ -208,8 +205,6 @@ int register_vlan_dev(struct net_device *dev)
 	grp->nr_vlans++;
 
 	if (ngrp) {
-		if (ops->ndo_vlan_rx_register)
-			ops->ndo_vlan_rx_register(real_dev, ngrp);
 		rcu_assign_pointer(real_dev->vlgrp, ngrp);
 	}
 	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
@@ -327,10 +322,6 @@ static void vlan_sync_address(struct net_device *dev,
 static void vlan_transfer_features(struct net_device *dev,
 				   struct net_device *vlandev)
 {
-	unsigned long old_features = vlandev->features;
-
-	vlandev->features &= ~dev->vlan_features;
-	vlandev->features |= dev->features & dev->vlan_features;
 	vlandev->gso_max_size = dev->gso_max_size;
 
 	if (dev->features & NETIF_F_HW_VLAN_TX)
@@ -341,8 +332,8 @@ static void vlan_transfer_features(struct net_device *dev,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
 #endif
-	if (old_features != vlandev->features)
-		netdev_features_change(vlandev);
+
+	netdev_update_features(vlandev);
 }
 
 static void __vlan_device_event(struct net_device *dev, unsigned long event)
@@ -351,13 +342,12 @@ static void __vlan_device_event(struct net_device *dev, unsigned long event)
 	case NETDEV_CHANGENAME:
 		vlan_proc_rem_dev(dev);
 		if (vlan_proc_add_dev(dev) < 0)
-			pr_warning("8021q: failed to change proc name for %s\n",
-					dev->name);
+			pr_warn("failed to change proc name for %s\n",
+				dev->name);
 		break;
 	case NETDEV_REGISTER:
 		if (vlan_proc_add_dev(dev) < 0)
-			pr_warning("8021q: failed to add proc entry for %s\n",
-					dev->name);
+			pr_warn("failed to add proc entry for %s\n", dev->name);
 		break;
 	case NETDEV_UNREGISTER:
 		vlan_proc_rem_dev(dev);
@@ -381,7 +371,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	if ((event == NETDEV_UP) &&
 	    (dev->features & NETIF_F_HW_VLAN_FILTER) &&
 	    dev->netdev_ops->ndo_vlan_rx_add_vid) {
-		pr_info("8021q: adding VLAN 0 to HW filter on device %s\n",
+		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
 		dev->netdev_ops->ndo_vlan_rx_add_vid(dev, 0);
 	}
@@ -487,9 +477,6 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		if (dev->reg_state != NETREG_UNREGISTERING)
 			break;
 
-		/* Delete all VLANs for this dev. */
-		grp->killall = 1;
-
 		for (i = 0; i < VLAN_N_VID; i++) {
 			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
@@ -508,6 +495,18 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlaying device to change its type. */
 		return NOTIFY_BAD;
+
+	case NETDEV_NOTIFY_PEERS:
+	case NETDEV_BONDING_FAILOVER:
+		/* Propagate to vlan devices */
+		for (i = 0; i < VLAN_N_VID; i++) {
+			vlandev = vlan_group_get_device(grp, i);
+			if (!vlandev)
+				continue;
+
+			call_netdevice_notifiers(event, vlandev);
+		}
+		break;
 	}
 
 out:
@@ -669,8 +668,7 @@ static int __init vlan_proto_init(void)
 {
 	int err;
 
-	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
-	pr_info("All bugs added by %s\n", vlan_buggyright);
+	pr_info("%s v%s\n", vlan_fullname, vlan_version);
 
 	err = register_pernet_subsys(&vlan_net_ops);
 	if (err < 0)
@@ -688,7 +686,6 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err4;
 
-	dev_add_pack(&vlan_packet_type);
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
@@ -708,8 +705,6 @@ static void __exit vlan_cleanup_module(void)
 	vlan_netlink_fini();
 
 	unregister_netdevice_notifier(&vlan_notifier_block);
-
-	dev_remove_pack(&vlan_packet_type);
 
 	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

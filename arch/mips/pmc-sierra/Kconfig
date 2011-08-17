@@ -4,15 +4,11 @@ choice
 
 config PMC_MSP4200_EVAL
 	bool "PMC-Sierra MSP4200 Eval Board"
-	select CEVT_R4K
-	select CSRC_R4K
 	select IRQ_MSP_SLP
 	select HW_HAS_PCI
 
 config PMC_MSP4200_GW
 	bool "PMC-Sierra MSP4200 VoIP Gateway"
-	select CEVT_R4K
-	select CSRC_R4K
 	select IRQ_MSP_SLP
 	select HW_HAS_PCI
 
@@ -27,6 +23,8 @@ config PMC_MSP7120_GW
 	select SYS_SUPPORTS_MULTITHREADING
 	select IRQ_MSP_CIC
 	select HW_HAS_PCI
+	select MSP_HAS_USB
+	select MSP_ETH
 
 config PMC_MSP7120_FPGA
 	bool "PMC-Sierra MSP7120 FPGA"
@@ -39,3 +37,16 @@ endchoice
 config HYPERTRANSPORT
 	bool "Hypertransport Support for PMC-Sierra Yosemite"
 	depends on PMC_YOSEMITE
+
+config MSP_HAS_USB
+	boolean
+	depends on PMC_MSP
+
+config MSP_ETH
+	boolean
+	select MSP_HAS_MAC
+	depends on PMC_MSP
+
+config MSP_HAS_MAC
+	boolean
+	depends on PMC_MSP

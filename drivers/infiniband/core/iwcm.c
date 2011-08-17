@@ -725,7 +725,7 @@ static int cm_conn_rep_handler(struct iwcm_id_private *cm_id_priv,
 	 */
 	clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
 	BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_SENT);
-	if (iw_event->status == IW_CM_EVENT_STATUS_ACCEPTED) {
+	if (iw_event->status == 0) {
 		cm_id_priv->id.local_addr = iw_event->local_addr;
 		cm_id_priv->id.remote_addr = iw_event->remote_addr;
 		cm_id_priv->state = IW_CM_STATE_ESTABLISHED;

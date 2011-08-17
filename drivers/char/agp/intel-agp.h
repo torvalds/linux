@@ -90,9 +90,10 @@
 #define G4x_GMCH_SIZE_MASK	(0xf << 8)
 #define G4x_GMCH_SIZE_1M	(0x1 << 8)
 #define G4x_GMCH_SIZE_2M	(0x3 << 8)
-#define G4x_GMCH_SIZE_VT_1M	(0x9 << 8)
-#define G4x_GMCH_SIZE_VT_1_5M	(0xa << 8)
-#define G4x_GMCH_SIZE_VT_2M	(0xc << 8)
+#define G4x_GMCH_SIZE_VT_EN	(0x8 << 8)
+#define G4x_GMCH_SIZE_VT_1M	(G4x_GMCH_SIZE_1M | G4x_GMCH_SIZE_VT_EN)
+#define G4x_GMCH_SIZE_VT_1_5M	((0x2 << 8) | G4x_GMCH_SIZE_VT_EN)
+#define G4x_GMCH_SIZE_VT_2M	(G4x_GMCH_SIZE_2M | G4x_GMCH_SIZE_VT_EN)
 
 #define GFX_FLSH_CNTL		0x2170 /* 915+ */
 
@@ -225,6 +226,14 @@
 #define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_PLUS_IG	0x0126
 #define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB		0x0108  /* Server */
 #define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG		0x010A
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_HB		0x0150  /* Desktop */
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_GT1_IG		0x0152
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_GT2_IG		0x0162
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_HB		0x0154  /* Mobile */
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT1_IG		0x0156
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT2_IG		0x0166
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_HB		0x0158  /* Server */
+#define PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG		0x015A
 
 int intel_gmch_probe(struct pci_dev *pdev,
 			       struct agp_bridge_data *bridge);

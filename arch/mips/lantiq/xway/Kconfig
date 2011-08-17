@@ -1,0 +1,23 @@
+if SOC_XWAY
+
+menu "MIPS Machine"
+
+config LANTIQ_MACH_EASY50712
+	bool "Easy50712 - Danube"
+	default y
+
+endmenu
+
+endif
+
+if SOC_AMAZON_SE
+
+menu "MIPS Machine"
+
+config LANTIQ_MACH_EASY50601
+	bool "Easy50601 - Amazon SE"
+	default y
+
+endmenu
+
+endif

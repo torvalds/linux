@@ -399,6 +399,49 @@ struct acx_rts_threshold {
 	u8 pad[2];
 } __packed;
 
+enum wl1251_acx_low_rssi_type {
+	/*
+	 * The event is a "Level" indication which keeps triggering
+	 * as long as the average RSSI is below the threshold.
+	 */
+	WL1251_ACX_LOW_RSSI_TYPE_LEVEL = 0,
+
+	/*
+	 * The event is an "Edge" indication which triggers
+	 * only when the RSSI threshold is crossed from above.
+	 */
+	WL1251_ACX_LOW_RSSI_TYPE_EDGE = 1,
+};
+
+struct acx_low_rssi {
+	struct acx_header header;
+
+	/*
+	 * The threshold (in dBm) below (or above after low rssi
+	 * indication) which the firmware generates an interrupt to the
+	 * host. This parameter is signed.
+	 */
+	s8 threshold;
+
+	/*
+	 * The weight of the current RSSI sample, before adding the new
+	 * sample, that is used to calculate the average RSSI.
+	 */
+	u8 weight;
+
+	/*
+	 * The number of Beacons/Probe response frames that will be
+	 * received before issuing the Low or Regained RSSI event.
+	 */
+	u8 depth;
+
+	/*
+	 * Configures how the Low RSSI Event is triggered. Refer to
+	 * enum wl1251_acx_low_rssi_type for more.
+	 */
+	u8 type;
+} __packed;
+
 struct acx_beacon_filter_option {
 	struct acx_header header;
 
@@ -1164,6 +1207,31 @@ struct wl1251_acx_wr_tbtt_and_dtim {
 	u8  padding;
 } __packed;
 
+enum wl1251_acx_bet_mode {
+	WL1251_ACX_BET_DISABLE = 0,
+	WL1251_ACX_BET_ENABLE = 1,
+};
+
+struct wl1251_acx_bet_enable {
+	struct acx_header header;
+
+	/*
+	 * Specifies if beacon early termination procedure is enabled or
+	 * disabled, see enum wl1251_acx_bet_mode.
+	 */
+	u8 enable;
+
+	/*
+	 * Specifies the maximum number of consecutive beacons that may be
+	 * early terminated. After this number is reached at least one full
+	 * beacon must be correctly received in FW before beacon ET
+	 * resumes. Range 0 - 255.
+	 */
+	u8 max_consecutive;
+
+	u8 padding[2];
+} __packed;
+
 struct wl1251_acx_ac_cfg {
 	struct acx_header header;
 
@@ -1393,6 +1461,8 @@ int wl1251_acx_cca_threshold(struct wl1251 *wl);
 int wl1251_acx_bcn_dtim_options(struct wl1251 *wl);
 int wl1251_acx_aid(struct wl1251 *wl, u16 aid);
 int wl1251_acx_event_mbox_mask(struct wl1251 *wl, u32 event_mask);
+int wl1251_acx_low_rssi(struct wl1251 *wl, s8 threshold, u8 weight,
+			u8 depth, enum wl1251_acx_low_rssi_type type);
 int wl1251_acx_set_preamble(struct wl1251 *wl, enum acx_preamble_type preamble);
 int wl1251_acx_cts_protect(struct wl1251 *wl,
 			    enum acx_ctsprotect_type ctsprotect);
@@ -1401,6 +1471,8 @@ int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 int wl1251_acx_rate_policies(struct wl1251 *wl);
 int wl1251_acx_mem_cfg(struct wl1251 *wl);
 int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim);
+int wl1251_acx_bet_enable(struct wl1251 *wl, enum wl1251_acx_bet_mode mode,
+			  u8 max_consecutive);
 int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		      u8 aifs, u16 txop);
 int wl1251_acx_tid_cfg(struct wl1251 *wl, u8 queue,

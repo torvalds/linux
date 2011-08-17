@@ -129,7 +129,7 @@ do {									\
  * to use for simple wdc or wic.
  *
  * start address is cache aligned
- * end address is not aligned, if end is aligned then I have to substract
+ * end address is not aligned, if end is aligned then I have to subtract
  * cacheline length because I can't flush/invalidate the next cacheline.
  * If is not, I align it because I will flush/invalidate whole line.
  */
@@ -519,7 +519,7 @@ static void __flush_dcache_range_wb(unsigned long start, unsigned long end)
 struct scache *mbc;
 
 /* new wb cache model */
-const struct scache wb_msr = {
+static const struct scache wb_msr = {
 	.ie = __enable_icache_msr,
 	.id = __disable_icache_msr,
 	.ifl = __flush_icache_all_noirq,
@@ -535,7 +535,7 @@ const struct scache wb_msr = {
 };
 
 /* There is only difference in ie, id, de, dd functions */
-const struct scache wb_nomsr = {
+static const struct scache wb_nomsr = {
 	.ie = __enable_icache_nomsr,
 	.id = __disable_icache_nomsr,
 	.ifl = __flush_icache_all_noirq,
@@ -551,7 +551,7 @@ const struct scache wb_nomsr = {
 };
 
 /* Old wt cache model with disabling irq and turn off cache */
-const struct scache wt_msr = {
+static const struct scache wt_msr = {
 	.ie = __enable_icache_msr,
 	.id = __disable_icache_msr,
 	.ifl = __flush_icache_all_msr_irq,
@@ -566,7 +566,7 @@ const struct scache wt_msr = {
 	.dinr = __invalidate_dcache_range_msr_irq_wt,
 };
 
-const struct scache wt_nomsr = {
+static const struct scache wt_nomsr = {
 	.ie = __enable_icache_nomsr,
 	.id = __disable_icache_nomsr,
 	.ifl = __flush_icache_all_nomsr_irq,
@@ -582,7 +582,7 @@ const struct scache wt_nomsr = {
 };
 
 /* New wt cache model for newer Microblaze versions */
-const struct scache wt_msr_noirq = {
+static const struct scache wt_msr_noirq = {
 	.ie = __enable_icache_msr,
 	.id = __disable_icache_msr,
 	.ifl = __flush_icache_all_noirq,
@@ -597,7 +597,7 @@ const struct scache wt_msr_noirq = {
 	.dinr = __invalidate_dcache_range_nomsr_wt,
 };
 
-const struct scache wt_nomsr_noirq = {
+static const struct scache wt_nomsr_noirq = {
 	.ie = __enable_icache_nomsr,
 	.id = __disable_icache_nomsr,
 	.ifl = __flush_icache_all_noirq,
@@ -624,7 +624,7 @@ void microblaze_cache_init(void)
 		if (cpuinfo.dcache_wb) {
 			INFO("wb_msr");
 			mbc = (struct scache *)&wb_msr;
-			if (cpuinfo.ver_code < CPUVER_7_20_D) {
+			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
 				/* MS: problem with signal handling - hw bug */
 				INFO("WB won't work properly");
 			}
@@ -641,7 +641,7 @@ void microblaze_cache_init(void)
 		if (cpuinfo.dcache_wb) {
 			INFO("wb_nomsr");
 			mbc = (struct scache *)&wb_nomsr;
-			if (cpuinfo.ver_code < CPUVER_7_20_D) {
+			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
 				/* MS: problem with signal handling - hw bug */
 				INFO("WB won't work properly");
 			}

@@ -201,7 +201,7 @@ static void sch311x_wdt_get_status(int *status)
 	spin_lock(&sch311x_wdt_data.io_lock);
 
 	/* -- Watchdog timer control --
-	 * Bit 0   Status Bit: 0 = Timer counting, 1 = Timeout occured
+	 * Bit 0   Status Bit: 0 = Timer counting, 1 = Timeout occurred
 	 * Bit 1   Reserved
 	 * Bit 2   Force Timeout: 1 = Forces WD timeout event (self-cleaning)
 	 * Bit 3   P20 Force Timeout enabled:
@@ -472,15 +472,10 @@ static void sch311x_wdt_shutdown(struct platform_device *dev)
 	sch311x_wdt_stop();
 }
 
-#define sch311x_wdt_suspend NULL
-#define sch311x_wdt_resume  NULL
-
 static struct platform_driver sch311x_wdt_driver = {
 	.probe		= sch311x_wdt_probe,
 	.remove		= __devexit_p(sch311x_wdt_remove),
 	.shutdown	= sch311x_wdt_shutdown,
-	.suspend	= sch311x_wdt_suspend,
-	.resume		= sch311x_wdt_resume,
 	.driver		= {
 		.owner = THIS_MODULE,
 		.name = DRV_NAME,
@@ -508,7 +503,7 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 	sch311x_sio_outb(sio_config_port, 0x07, 0x0a);
 
 	/* Check if Logical Device Register is currently active */
-	if (sch311x_sio_inb(sio_config_port, 0x30) && 0x01 == 0)
+	if ((sch311x_sio_inb(sio_config_port, 0x30) & 0x01) == 0)
 		printk(KERN_INFO PFX "Seems that LDN 0x0a is not active...\n");
 
 	/* Get the base address of the runtime registers */

@@ -533,8 +533,7 @@ static int __init platinumfb_setup(char *options)
 #define invalidate_cache(addr)
 #endif
 
-static int __devinit platinumfb_probe(struct platform_device* odev,
-				      const struct of_device_id *match)
+static int __devinit platinumfb_probe(struct platform_device* odev)
 {
 	struct device_node	*dp = odev->dev.of_node;
 	struct fb_info		*info;
@@ -568,7 +567,7 @@ static int __devinit platinumfb_probe(struct platform_device* odev,
 	 * northbridge and that can fail. Only request framebuffer
 	 */
 	if (!request_mem_region(pinfo->rsrc_fb.start,
-				pinfo->rsrc_fb.end - pinfo->rsrc_fb.start + 1,
+				resource_size(&pinfo->rsrc_fb),
 				"platinumfb framebuffer")) {
 		printk(KERN_ERR "platinumfb: Can't request framebuffer !\n");
 		framebuffer_release(info);
@@ -659,8 +658,7 @@ static int __devexit platinumfb_remove(struct platform_device* odev)
 	iounmap(pinfo->cmap_regs);
 
 	release_mem_region(pinfo->rsrc_fb.start,
-			   pinfo->rsrc_fb.end -
-			   pinfo->rsrc_fb.start + 1);
+			   resource_size(&pinfo->rsrc_fb));
 
 	release_mem_region(pinfo->cmap_regs_phys, 0x1000);
 
@@ -677,7 +675,7 @@ static struct of_device_id platinumfb_match[] =
 	{},
 };
 
-static struct of_platform_driver platinum_driver = 
+static struct platform_driver platinum_driver = 
 {
 	.driver = {
 		.name = "platinumfb",
@@ -697,14 +695,14 @@ static int __init platinumfb_init(void)
 		return -ENODEV;
 	platinumfb_setup(option);
 #endif
-	of_register_platform_driver(&platinum_driver);
+	platform_driver_register(&platinum_driver);
 
 	return 0;
 }
 
 static void __exit platinumfb_exit(void)
 {
-	of_unregister_platform_driver(&platinum_driver);
+	platform_driver_unregister(&platinum_driver);
 }
 
 MODULE_LICENSE("GPL");

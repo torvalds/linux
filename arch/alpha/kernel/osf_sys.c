@@ -230,44 +230,24 @@ linux_to_osf_statfs(struct kstatfs *linux_stat, struct osf_statfs __user *osf_st
 	return copy_to_user(osf_stat, &tmp_stat, bufsiz) ? -EFAULT : 0;
 }
 
-static int
-do_osf_statfs(struct path *path, struct osf_statfs __user *buffer,
-	      unsigned long bufsiz)
+SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
+		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
 	struct kstatfs linux_stat;
-	int error = vfs_statfs(path, &linux_stat);
+	int error = user_statfs(pathname, &linux_stat);
 	if (!error)
 		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
 	return error;	
 }
 
-SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
-		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
-{
-	struct path path;
-	int retval;
-
-	retval = user_path(pathname, &path);
-	if (!retval) {
-		retval = do_osf_statfs(&path, buffer, bufsiz);
-		path_put(&path);
-	}
-	return retval;
-}
-
 SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
 		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
-	struct file *file;
-	int retval;
-
-	retval = -EBADF;
-	file = fget(fd);
-	if (file) {
-		retval = do_osf_statfs(&file->f_path, buffer, bufsiz);
-		fput(file);
-	}
-	return retval;
+	struct kstatfs linux_stat;
+	int error = fd_statfs(fd, &linux_stat);
+	if (!error)
+		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
+	return error;
 }
 
 /*
@@ -429,7 +409,7 @@ SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 		return -EFAULT;
 
 	len = namelen;
-	if (namelen > 32)
+	if (len > 32)
 		len = 32;
 
 	down_read(&uts_sem);
@@ -614,7 +594,7 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 	down_read(&uts_sem);
 	res = sysinfo_table[offset];
 	len = strlen(res)+1;
-	if (len > count)
+	if ((unsigned long)len > (unsigned long)count)
 		len = count;
 	if (copy_to_user(buf, res, len))
 		err = -EFAULT;
@@ -669,7 +649,7 @@ SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
 		return 1;
 
 	case GSI_GET_HWRPB:
-		if (nbytes < sizeof(*hwrpb))
+		if (nbytes > sizeof(*hwrpb))
 			return -EINVAL;
 		if (copy_to_user(buffer, hwrpb, nbytes) != 0)
 			return -EFAULT;
@@ -1028,6 +1008,7 @@ SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 {
 	struct rusage r;
 	long ret, err;
+	unsigned int status = 0;
 	mm_segment_t old_fs;
 
 	if (!ur)
@@ -1036,13 +1017,15 @@ SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 	old_fs = get_fs();
 		
 	set_fs (KERNEL_DS);
-	ret = sys_wait4(pid, ustatus, options, (struct rusage __user *) &r);
+	ret = sys_wait4(pid, (unsigned int __user *) &status, options,
+			(struct rusage __user *) &r);
 	set_fs (old_fs);
 
 	if (!access_ok(VERIFY_WRITE, ur, sizeof(*ur)))
 		return -EFAULT;
 
 	err = 0;
+	err |= put_user(status, ustatus);
 	err |= __put_user(r.ru_utime.tv_sec, &ur->ru_utime.tv_sec);
 	err |= __put_user(r.ru_utime.tv_usec, &ur->ru_utime.tv_usec);
 	err |= __put_user(r.ru_stime.tv_sec, &ur->ru_stime.tv_sec);

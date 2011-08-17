@@ -381,17 +381,58 @@ static ssize_t proc_scsi_write(struct file *file, const char __user *buf,
 	return err;
 }
 
-/**
- * proc_scsi_show - show contents of /proc/scsi/scsi (attached devices)
- * @s: output goes here
- * @p: not used
- */
-static int proc_scsi_show(struct seq_file *s, void *p)
+static int always_match(struct device *dev, void *data)
 {
-	seq_printf(s, "Attached devices:\n");
-	bus_for_each_dev(&scsi_bus_type, NULL, s, proc_print_scsidevice);
-	return 0;
+	return 1;
 }
+
+static inline struct device *next_scsi_device(struct device *start)
+{
+	struct device *next = bus_find_device(&scsi_bus_type, start, NULL,
+					      always_match);
+	put_device(start);
+	return next;
+}
+
+static void *scsi_seq_start(struct seq_file *sfile, loff_t *pos)
+{
+	struct device *dev = NULL;
+	loff_t n = *pos;
+
+	while ((dev = next_scsi_device(dev))) {
+		if (!n--)
+			break;
+		sfile->private++;
+	}
+	return dev;
+}
+
+static void *scsi_seq_next(struct seq_file *sfile, void *v, loff_t *pos)
+{
+	(*pos)++;
+	sfile->private++;
+	return next_scsi_device(v);
+}
+
+static void scsi_seq_stop(struct seq_file *sfile, void *v)
+{
+	put_device(v);
+}
+
+static int scsi_seq_show(struct seq_file *sfile, void *dev)
+{
+	if (!sfile->private)
+		seq_puts(sfile, "Attached devices:\n");
+
+	return proc_print_scsidevice(dev, sfile);
+}
+
+static const struct seq_operations scsi_seq_ops = {
+	.start	= scsi_seq_start,
+	.next	= scsi_seq_next,
+	.stop	= scsi_seq_stop,
+	.show	= scsi_seq_show
+};
 
 /**
  * proc_scsi_open - glue function
@@ -406,7 +447,7 @@ static int proc_scsi_open(struct inode *inode, struct file *file)
 	 * We don't really need this for the write case but it doesn't
 	 * harm either.
 	 */
-	return single_open(file, proc_scsi_show, NULL);
+	return seq_open(file, &scsi_seq_ops);
 }
 
 static const struct file_operations proc_scsi_operations = {
@@ -415,7 +456,7 @@ static const struct file_operations proc_scsi_operations = {
 	.read		= seq_read,
 	.write		= proc_scsi_write,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= seq_release,
 };
 
 /**

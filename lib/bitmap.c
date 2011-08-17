@@ -271,8 +271,6 @@ int __bitmap_weight(const unsigned long *bitmap, int bits)
 }
 EXPORT_SYMBOL(__bitmap_weight);
 
-#define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) % BITS_PER_LONG))
-
 void bitmap_set(unsigned long *map, int start, int nr)
 {
 	unsigned long *p = map + BIT_WORD(start);
@@ -571,8 +569,11 @@ int bitmap_scnlistprintf(char *buf, unsigned int buflen,
 EXPORT_SYMBOL(bitmap_scnlistprintf);
 
 /**
- * bitmap_parselist - convert list format ASCII string to bitmap
- * @bp: read nul-terminated user string from this buffer
+ * __bitmap_parselist - convert list format ASCII string to bitmap
+ * @buf: read nul-terminated user string from this buffer
+ * @buflen: buffer size in bytes.  If string is smaller than this
+ *    then it must be terminated with a \0.
+ * @is_user: location of buffer, 0 indicates kernel space
  * @maskp: write resulting mask here
  * @nmaskbits: number of bits in mask to be written
  *
@@ -587,20 +588,63 @@ EXPORT_SYMBOL(bitmap_scnlistprintf);
  *    %-EINVAL: invalid character in string
  *    %-ERANGE: bit number specified too large for mask
  */
-int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
+static int __bitmap_parselist(const char *buf, unsigned int buflen,
+		int is_user, unsigned long *maskp,
+		int nmaskbits)
 {
 	unsigned a, b;
+	int c, old_c, totaldigits;
+	const char __user *ubuf = buf;
+	int exp_digit, in_range;
 
+	totaldigits = c = 0;
 	bitmap_zero(maskp, nmaskbits);
 	do {
-		if (!isdigit(*bp))
-			return -EINVAL;
-		b = a = simple_strtoul(bp, (char **)&bp, BASEDEC);
-		if (*bp == '-') {
-			bp++;
-			if (!isdigit(*bp))
+		exp_digit = 1;
+		in_range = 0;
+		a = b = 0;
+
+		/* Get the next cpu# or a range of cpu#'s */
+		while (buflen) {
+			old_c = c;
+			if (is_user) {
+				if (__get_user(c, ubuf++))
+					return -EFAULT;
+			} else
+				c = *buf++;
+			buflen--;
+			if (isspace(c))
+				continue;
+
+			/*
+			 * If the last character was a space and the current
+			 * character isn't '\0', we've got embedded whitespace.
+			 * This is a no-no, so throw an error.
+			 */
+			if (totaldigits && c && isspace(old_c))
 				return -EINVAL;
-			b = simple_strtoul(bp, (char **)&bp, BASEDEC);
+
+			/* A '\0' or a ',' signal the end of a cpu# or range */
+			if (c == '\0' || c == ',')
+				break;
+
+			if (c == '-') {
+				if (exp_digit || in_range)
+					return -EINVAL;
+				b = 0;
+				in_range = 1;
+				exp_digit = 1;
+				continue;
+			}
+
+			if (!isdigit(c))
+				return -EINVAL;
+
+			b = b * 10 + (c - '0');
+			if (!in_range)
+				a = b;
+			exp_digit = 0;
+			totaldigits++;
 		}
 		if (!(a <= b))
 			return -EINVAL;
@@ -610,12 +654,51 @@ int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
 			set_bit(a, maskp);
 			a++;
 		}
-		if (*bp == ',')
-			bp++;
-	} while (*bp != '\0' && *bp != '\n');
+	} while (buflen && c == ',');
 	return 0;
 }
+
+int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
+{
+	char *nl  = strchr(bp, '\n');
+	int len;
+
+	if (nl)
+		len = nl - bp;
+	else
+		len = strlen(bp);
+
+	return __bitmap_parselist(bp, len, 0, maskp, nmaskbits);
+}
 EXPORT_SYMBOL(bitmap_parselist);
+
+
+/**
+ * bitmap_parselist_user()
+ *
+ * @ubuf: pointer to user buffer containing string.
+ * @ulen: buffer size in bytes.  If string is smaller than this
+ *    then it must be terminated with a \0.
+ * @maskp: pointer to bitmap array that will contain result.
+ * @nmaskbits: size of bitmap, in bits.
+ *
+ * Wrapper for bitmap_parselist(), providing it with user buffer.
+ *
+ * We cannot have this as an inline function in bitmap.h because it needs
+ * linux/uaccess.h to get the access_ok() declaration and this causes
+ * cyclic dependencies.
+ */
+int bitmap_parselist_user(const char __user *ubuf,
+			unsigned int ulen, unsigned long *maskp,
+			int nmaskbits)
+{
+	if (!access_ok(VERIFY_READ, ubuf, ulen))
+		return -EFAULT;
+	return __bitmap_parselist((const char *)ubuf,
+					ulen, 1, maskp, nmaskbits);
+}
+EXPORT_SYMBOL(bitmap_parselist_user);
+
 
 /**
  * bitmap_pos_to_ord - find ordinal of set bit at given position in bitmap
@@ -671,7 +754,7 @@ static int bitmap_pos_to_ord(const unsigned long *buf, int pos, int bits)
  *
  * The bit positions 0 through @bits are valid positions in @buf.
  */
-static int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
+int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
 {
 	int pos = 0;
 
@@ -830,7 +913,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *  @orig (i.e. bits 3, 5, 7 and 9) were also set.
  *
  *  When bit 11 is set in @orig, it means turn on the bit in
- *  @dst corresponding to whatever is the twelth bit that is
+ *  @dst corresponding to whatever is the twelfth bit that is
  *  turned on in @relmap.  In the above example, there were
  *  only ten bits turned on in @relmap (30..39), so that bit
  *  11 was set in @orig had no affect on @dst.

@@ -38,8 +38,8 @@ static unsigned int timer_baseaddr;
 #define TIMER_BASE	timer_baseaddr
 #endif
 
-unsigned int freq_div_hz;
-unsigned int timer_clock_freq;
+static unsigned int freq_div_hz;
+static unsigned int timer_clock_freq;
 
 #define TCSR0	(0x00)
 #define TLR0	(0x04)
@@ -202,7 +202,7 @@ static struct cyclecounter microblaze_cc = {
 	.shift = 8,
 };
 
-int __init init_microblaze_timecounter(void)
+static int __init init_microblaze_timecounter(void)
 {
 	microblaze_cc.mult = div_sc(timer_clock_freq, NSEC_PER_SEC,
 				microblaze_cc.shift);
@@ -217,16 +217,12 @@ static struct clocksource clocksource_microblaze = {
 	.rating		= 300,
 	.read		= microblaze_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 8, /* I can shift it */
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static int __init microblaze_clocksource_init(void)
 {
-	clocksource_microblaze.mult =
-			clocksource_hz2mult(timer_clock_freq,
-						clocksource_microblaze.shift);
-	if (clocksource_register(&clocksource_microblaze))
+	if (clocksource_register_hz(&clocksource_microblaze, timer_clock_freq))
 		panic("failed to register clocksource");
 
 	/* stop timer1 */

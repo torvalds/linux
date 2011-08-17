@@ -17,8 +17,3 @@ struct amba_device name##_device = {		\
 	.irq		= IRQ_##base,		\
 	/* .dma		= DMA_##base,*/		\
 }
-
-struct map_desc;
-
-void v2m_map_io(struct map_desc *tile, size_t num);
-extern struct sys_timer v2m_timer;

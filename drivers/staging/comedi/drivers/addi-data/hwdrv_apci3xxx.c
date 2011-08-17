@@ -141,8 +141,7 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 		/* Test the time base */
 	   /**********************/
 
-		if ((devpriv->ps_BoardInfo->
-				b_AvailableConvertUnit & (1 << b_TimeBase)) !=
+		if ((this_board->b_AvailableConvertUnit & (1 << b_TimeBase)) !=
 			0) {
 	      /*******************************/
 			/* Test the convert time value */
@@ -165,12 +164,16 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 		 /*******************************/
 
 				if (dw_TestReloadValue >=
-					devpriv->ps_BoardInfo->
+					devpriv->s_EeParameters.
 					ui_MinAcquisitiontimeNs) {
 					if ((b_SingleDiff == APCI3XXX_SINGLE)
 						|| (b_SingleDiff ==
 							APCI3XXX_DIFF)) {
-						if (((b_SingleDiff == APCI3XXX_SINGLE) && (devpriv->ps_BoardInfo->i_NbrAiChannel == 0)) || ((b_SingleDiff == APCI3XXX_DIFF) && (devpriv->ps_BoardInfo->i_NbrAiChannelDiff == 0))) {
+						if (((b_SingleDiff == APCI3XXX_SINGLE)
+						        && (devpriv->s_EeParameters.i_NbrAiChannel == 0))
+						    || ((b_SingleDiff == APCI3XXX_DIFF)
+							&& (this_board->i_NbrAiChannelDiff == 0))
+						    ) {
 			   /*******************************/
 							/* Single/Diff selection error */
 			   /*******************************/
@@ -372,10 +375,9 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 		/* Test the channel number */
 	   /***************************/
 
-		if (((b_Channel < devpriv->ps_BoardInfo->i_NbrAiChannel)
+		if (((b_Channel < devpriv->s_EeParameters.i_NbrAiChannel)
 				&& (devpriv->b_SingelDiff == APCI3XXX_SINGLE))
-			|| ((b_Channel < devpriv->ps_BoardInfo->
-					i_NbrAiChannelDiff)
+			|| ((b_Channel < this_board->i_NbrAiChannelDiff)
 				&& (devpriv->b_SingelDiff == APCI3XXX_DIFF))) {
 	      /**********************************/
 			/* Test the channel configuration */
@@ -663,7 +665,7 @@ static int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 		/* Test the channel number */
 	   /***************************/
 
-		if (b_Channel < devpriv->ps_BoardInfo->i_NbrAoChannel) {
+		if (b_Channel < devpriv->s_EeParameters.i_NbrAoChannel) {
 	      /**********************************/
 			/* Test the channel configuration */
 	      /**********************************/
@@ -1273,7 +1275,7 @@ static int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device *dev,
 	/* Test the channel number */
 	/***************************/
 
-	if (b_Channel <= devpriv->ps_BoardInfo->i_NbrDiChannel) {
+	if (b_Channel <= devpriv->s_EeParameters.i_NbrDiChannel) {
 	   /************************/
 		/* Test the buffer size */
 	   /************************/
@@ -1492,7 +1494,7 @@ static int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device *dev,
 		/* Test the channel number */
 	   /***************************/
 
-		if (b_Channel < devpriv->ps_BoardInfo->i_NbrDoChannel) {
+		if (b_Channel < devpriv->s_EeParameters.i_NbrDoChannel) {
 	      /*******************/
 			/* Get the command */
 	      /*******************/
@@ -1568,7 +1570,7 @@ static int i_APCI3XXX_InsnReadDigitalOutput(struct comedi_device *dev,
 		/* Test the channel number */
 	   /***************************/
 
-		if (b_Channel < devpriv->ps_BoardInfo->i_NbrDoChannel) {
+		if (b_Channel < devpriv->s_EeParameters.i_NbrDoChannel) {
 	      /********************************/
 			/* Read the digital output port */
 	      /********************************/

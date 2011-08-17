@@ -342,7 +342,7 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
  * @chunk: chunk of interest
  *
  * Determine whether area map of @chunk needs to be extended to
- * accomodate a new allocation.
+ * accommodate a new allocation.
  *
  * CONTEXT:
  * pcpu_lock.
@@ -431,7 +431,7 @@ out_unlock:
  * depending on @head, is reduced by @tail bytes and @tail byte block
  * is inserted after the target block.
  *
- * @chunk->map must have enough free slots to accomodate the split.
+ * @chunk->map must have enough free slots to accommodate the split.
  *
  * CONTEXT:
  * pcpu_lock.
@@ -1008,8 +1008,7 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
 	}
 
 	if (in_first_chunk) {
-		if ((unsigned long)addr < VMALLOC_START ||
-		    (unsigned long)addr >= VMALLOC_END)
+		if (!is_vmalloc_addr(addr))
 			return __pa(addr);
 		else
 			return page_to_phys(vmalloc_to_page(addr));
@@ -1216,8 +1215,10 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
 #ifdef CONFIG_SMP
 	PCPU_SETUP_BUG_ON(!ai->static_size);
+	PCPU_SETUP_BUG_ON((unsigned long)__per_cpu_start & ~PAGE_MASK);
 #endif
 	PCPU_SETUP_BUG_ON(!base_addr);
+	PCPU_SETUP_BUG_ON((unsigned long)base_addr & ~PAGE_MASK);
 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
 	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
@@ -1436,7 +1437,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
 	 * alloc_size is multiple of atom_size and is the smallest
-	 * which can accomodate 4k aligned segments which are equal to
+	 * which can accommodate 4k aligned segments which are equal to
 	 * or larger than min_unit_size.
 	 */
 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
@@ -1551,7 +1552,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
  * @atom_size: allocation atom size
  * @cpu_distance_fn: callback to determine distance between cpus, optional
  * @alloc_fn: function to allocate percpu page
- * @free_fn: funtion to free percpu page
+ * @free_fn: function to free percpu page
  *
  * This is a helper to ease setting up embedded first percpu chunk and
  * can be called where pcpu_setup_first_chunk() is expected.
@@ -1646,8 +1647,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 	/* warn if maximum distance is further than 75% of vmalloc space */
 	if (max_distance > (VMALLOC_END - VMALLOC_START) * 3 / 4) {
 		pr_warning("PERCPU: max_distance=0x%zx too large for vmalloc "
-			   "space 0x%lx\n",
-			   max_distance, VMALLOC_END - VMALLOC_START);
+			   "space 0x%lx\n", max_distance,
+			   (unsigned long)(VMALLOC_END - VMALLOC_START));
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 		/* and fail if we have fallback */
 		rc = -EINVAL;
@@ -1679,7 +1680,7 @@ out_free:
  * pcpu_page_first_chunk - map the first chunk using PAGE_SIZE pages
  * @reserved_size: the size of reserved percpu area in bytes
  * @alloc_fn: function to allocate percpu page, always called with PAGE_SIZE
- * @free_fn: funtion to free percpu page, always called with PAGE_SIZE
+ * @free_fn: function to free percpu page, always called with PAGE_SIZE
  * @populate_pte_fn: function to populate pte
  *
  * This is a helper to ease setting up page-remapped first percpu

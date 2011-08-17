@@ -26,11 +26,10 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #define ATH_MODULE_NAME bmi
 #include "a_debug.h"
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
+#include "hw/mbox_host_reg.h"
 #include "bmi_msg.h"
 
 #define ATH_DEBUG_BMI  ATH_DEBUG_MAKE_MODULE_MASK(0)
@@ -39,17 +38,17 @@
 #define BMI_COMMUNICATION_TIMEOUT       100000
 
 /* ------ Global Variable Declarations ------- */
-static A_BOOL bmiDone;
+static bool bmiDone;
 
-A_STATUS
-bmiBufferSend(HIF_DEVICE *device,
-              A_UCHAR *buffer,
-              A_UINT32 length);
+int
+bmiBufferSend(struct hif_device *device,
+              u8 *buffer,
+              u32 length);
 
-A_STATUS
-bmiBufferReceive(HIF_DEVICE *device,
-                 A_UCHAR *buffer,
-                 A_UINT32 length,
-                 A_BOOL want_timeout);
+int
+bmiBufferReceive(struct hif_device *device,
+                 u8 *buffer,
+                 u32 length,
+                 bool want_timeout);
 
 #endif

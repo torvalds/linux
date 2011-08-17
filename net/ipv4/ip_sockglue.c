@@ -131,7 +131,7 @@ static void ip_cmsg_recv_security(struct msghdr *msg, struct sk_buff *skb)
 static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 {
 	struct sockaddr_in sin;
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 	__be16 *ports = (__be16 *)skb_transport_header(skb);
 
 	if (skb_transport_offset(skb) + 4 > skb->len)
@@ -451,6 +451,11 @@ out:
 }
 
 
+static void opt_kfree_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct ip_options_rcu, rcu));
+}
+
 /*
  *	Socket option code for IP. This is the end of the line after any
  *	TCP,UDP etc options on an IP socket.
@@ -497,13 +502,16 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	switch (optname) {
 	case IP_OPTIONS:
 	{
-		struct ip_options *opt = NULL;
+		struct ip_options_rcu *old, *opt = NULL;
+
 		if (optlen > 40)
 			goto e_inval;
 		err = ip_options_get_from_user(sock_net(sk), &opt,
 					       optval, optlen);
 		if (err)
 			break;
+		old = rcu_dereference_protected(inet->inet_opt,
+						sock_owned_by_user(sk));
 		if (inet->is_icsk) {
 			struct inet_connection_sock *icsk = inet_csk(sk);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -512,17 +520,18 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			       (TCPF_LISTEN | TCPF_CLOSE)) &&
 			     inet->inet_daddr != LOOPBACK4_IPV6)) {
 #endif
-				if (inet->opt)
-					icsk->icsk_ext_hdr_len -= inet->opt->optlen;
+				if (old)
+					icsk->icsk_ext_hdr_len -= old->opt.optlen;
 				if (opt)
-					icsk->icsk_ext_hdr_len += opt->optlen;
+					icsk->icsk_ext_hdr_len += opt->opt.optlen;
 				icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 			}
 #endif
 		}
-		opt = xchg(&inet->opt, opt);
-		kfree(opt);
+		rcu_assign_pointer(inet->inet_opt, opt);
+		if (old)
+			call_rcu(&old->rcu, opt_kfree_rcu);
 		break;
 	}
 	case IP_PKTINFO:
@@ -1058,7 +1067,7 @@ EXPORT_SYMBOL(compat_ip_setsockopt);
  */
 
 static int do_ip_getsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, int __user *optlen)
+			    char __user *optval, int __user *optlen, unsigned flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val;
@@ -1081,12 +1090,16 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_OPTIONS:
 	{
 		unsigned char optbuf[sizeof(struct ip_options)+40];
-		struct ip_options * opt = (struct ip_options *)optbuf;
+		struct ip_options *opt = (struct ip_options *)optbuf;
+		struct ip_options_rcu *inet_opt;
+
+		inet_opt = rcu_dereference_protected(inet->inet_opt,
+						     sock_owned_by_user(sk));
 		opt->optlen = 0;
-		if (inet->opt)
-			memcpy(optbuf, inet->opt,
-			       sizeof(struct ip_options)+
-			       inet->opt->optlen);
+		if (inet_opt)
+			memcpy(optbuf, &inet_opt->opt,
+			       sizeof(struct ip_options) +
+			       inet_opt->opt.optlen);
 		release_sock(sk);
 
 		if (opt->optlen == 0)
@@ -1227,7 +1240,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 
 		msg.msg_control = optval;
 		msg.msg_controllen = len;
-		msg.msg_flags = 0;
+		msg.msg_flags = flags;
 
 		if (inet->cmsg_flags & IP_CMSG_PKTINFO) {
 			struct in_pktinfo info;
@@ -1281,7 +1294,7 @@ int ip_getsockopt(struct sock *sk, int level,
 {
 	int err;
 
-	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+	err = do_ip_getsockopt(sk, level, optname, optval, optlen, 0);
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS &&
@@ -1314,7 +1327,8 @@ int compat_ip_getsockopt(struct sock *sk, int level, int optname,
 		return compat_mc_getsockopt(sk, level, optname, optval, optlen,
 			ip_getsockopt);
 
-	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+	err = do_ip_getsockopt(sk, level, optname, optval, optlen,
+		MSG_CMSG_COMPAT);
 
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */

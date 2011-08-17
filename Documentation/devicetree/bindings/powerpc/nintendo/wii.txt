@@ -127,7 +127,7 @@ Nintendo Wii device tree
    - reg : should contain the SDHCI registers location and length
    - interrupts : should contain the SDHCI interrupt
 
-1.j) The Inter-Processsor Communication (IPC) node
+1.j) The Inter-Processor Communication (IPC) node
 
   Represent the Inter-Processor Communication interface. This interface
   enables communications between the Broadway and the Starlet processors.

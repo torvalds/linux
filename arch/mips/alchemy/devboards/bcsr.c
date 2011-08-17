@@ -97,26 +97,26 @@ static void bcsr_csc_handler(unsigned int irq, struct irq_desc *d)
  * CPLD generates tons of spurious interrupts (at least on my DB1200).
  *	-- mlau
  */
-static void bcsr_irq_mask(unsigned int irq_nr)
+static void bcsr_irq_mask(struct irq_data *d)
 {
-	unsigned short v = 1 << (irq_nr - bcsr_csc_base);
+	unsigned short v = 1 << (d->irq - bcsr_csc_base);
 	__raw_writew(v, bcsr_virt + BCSR_REG_INTCLR);
 	__raw_writew(v, bcsr_virt + BCSR_REG_MASKCLR);
 	wmb();
 }
 
-static void bcsr_irq_maskack(unsigned int irq_nr)
+static void bcsr_irq_maskack(struct irq_data *d)
 {
-	unsigned short v = 1 << (irq_nr - bcsr_csc_base);
+	unsigned short v = 1 << (d->irq - bcsr_csc_base);
 	__raw_writew(v, bcsr_virt + BCSR_REG_INTCLR);
 	__raw_writew(v, bcsr_virt + BCSR_REG_MASKCLR);
 	__raw_writew(v, bcsr_virt + BCSR_REG_INTSTAT);	/* ack */
 	wmb();
 }
 
-static void bcsr_irq_unmask(unsigned int irq_nr)
+static void bcsr_irq_unmask(struct irq_data *d)
 {
-	unsigned short v = 1 << (irq_nr - bcsr_csc_base);
+	unsigned short v = 1 << (d->irq - bcsr_csc_base);
 	__raw_writew(v, bcsr_virt + BCSR_REG_INTSET);
 	__raw_writew(v, bcsr_virt + BCSR_REG_MASKSET);
 	wmb();
@@ -124,9 +124,9 @@ static void bcsr_irq_unmask(unsigned int irq_nr)
 
 static struct irq_chip bcsr_irq_type = {
 	.name		= "CPLD",
-	.mask		= bcsr_irq_mask,
-	.mask_ack	= bcsr_irq_maskack,
-	.unmask		= bcsr_irq_unmask,
+	.irq_mask	= bcsr_irq_mask,
+	.irq_mask_ack	= bcsr_irq_maskack,
+	.irq_unmask	= bcsr_irq_unmask,
 };
 
 void __init bcsr_init_irq(int csc_start, int csc_end, int hook_irq)
@@ -142,8 +142,8 @@ void __init bcsr_init_irq(int csc_start, int csc_end, int hook_irq)
 	bcsr_csc_base = csc_start;
 
 	for (irq = csc_start; irq <= csc_end; irq++)
-		set_irq_chip_and_handler_name(irq, &bcsr_irq_type,
-			handle_level_irq, "level");
+		irq_set_chip_and_handler_name(irq, &bcsr_irq_type,
+					      handle_level_irq, "level");
 
-	set_irq_chained_handler(hook_irq, bcsr_csc_handler);
+	irq_set_chained_handler(hook_irq, bcsr_csc_handler);
 }

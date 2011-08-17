@@ -166,9 +166,7 @@ static struct ata_port_operations adma_ata_ops = {
 static struct ata_port_info adma_port_info[] = {
 	/* board_1841_idx */
 	{
-		.flags		= ATA_FLAG_SLAVE_POSS |
-				  ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_POLLING,
+		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= ATA_PIO4_ONLY,
 		.udma_mask	= ATA_UDMA4,
 		.port_ops	= &adma_ata_ops,
@@ -598,14 +596,12 @@ static int adma_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 
 	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			"32-bit DMA enable failed\n");
+		dev_err(&pdev->dev, "32-bit DMA enable failed\n");
 		return rc;
 	}
 	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			"32-bit consistent DMA enable failed\n");
+		dev_err(&pdev->dev, "32-bit consistent DMA enable failed\n");
 		return rc;
 	}
 	return 0;
@@ -614,15 +610,13 @@ static int adma_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 static int adma_ata_init_one(struct pci_dev *pdev,
 			     const struct pci_device_id *ent)
 {
-	static int printed_version;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	const struct ata_port_info *ppi[] = { &adma_port_info[board_idx], NULL };
 	struct ata_host *host;
 	void __iomem *mmio_base;
 	int rc, port_no;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* alloc host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, ADMA_PORTS);

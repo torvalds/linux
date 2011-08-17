@@ -38,7 +38,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -82,6 +81,10 @@ u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
 struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 
 u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
+
+void
+megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
+
 u8 MR_ValidateMapInfo(struct MR_FW_RAID_MAP_ALL *map,
 		      struct LD_LOAD_BALANCE_INFO *lbInfo);
 u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
@@ -693,22 +696,6 @@ fail_get_cmd:
 }
 
 /*
- * megasas_return_cmd_for_smid -	Returns a cmd_fusion for a SMID
- * @instance:				Adapter soft state
- *
- */
-void
-megasas_return_cmd_for_smid(struct megasas_instance *instance, u16 smid)
-{
-	struct fusion_context *fusion;
-	struct megasas_cmd_fusion *cmd;
-
-	fusion = instance->ctrl_context;
-	cmd = fusion->cmd_list[smid - 1];
-	megasas_return_cmd_fusion(instance, cmd);
-}
-
-/*
  * megasas_get_ld_map_info -	Returns FW's ld_map structure
  * @instance:				Adapter soft state
  * @pend:				Pend the command or not
@@ -984,13 +971,15 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	return 0;
 
-fail_alloc_cmds:
-fail_alloc_mfi_cmds:
 fail_map_info:
 	if (i == 1)
 		dma_free_coherent(&instance->pdev->dev, fusion->map_sz,
 				  fusion->ld_map[0], fusion->ld_map_phys[0]);
 fail_ioc_init:
+	megasas_free_cmds_fusion(instance);
+fail_alloc_cmds:
+	megasas_free_cmds(instance);
+fail_alloc_mfi_cmds:
 	return 1;
 }
 
@@ -1148,7 +1137,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 	u64 start_blk = io_info->pdBlock;
 	u8 *cdb = io_request->CDB.CDB32;
 	u32 num_blocks = io_info->numBlocks;
-	u8 opcode, flagvals, groupnum, control;
+	u8 opcode = 0, flagvals = 0, groupnum = 0, control = 0;
 
 	/* Check if T10 PI (DIF) is enabled for this LD */
 	ld = MR_TargetIdToLdGet(io_info->ldTgtId, local_map_ptr);
@@ -1230,7 +1219,46 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 			cdb[8] = (u8)(num_blocks & 0xff);
 			cdb[7] = (u8)((num_blocks >> 8) & 0xff);
 
+			io_request->IoFlags = 10; /* Specify 10-byte cdb */
 			cdb_len = 10;
+		} else if ((cdb_len < 16) && (start_blk > 0xffffffff)) {
+			/* Convert to 16 byte CDB for large LBA's */
+			switch (cdb_len) {
+			case 6:
+				opcode = cdb[0] == READ_6 ? READ_16 : WRITE_16;
+				control = cdb[5];
+				break;
+			case 10:
+				opcode =
+					cdb[0] == READ_10 ? READ_16 : WRITE_16;
+				flagvals = cdb[1];
+				groupnum = cdb[6];
+				control = cdb[9];
+				break;
+			case 12:
+				opcode =
+					cdb[0] == READ_12 ? READ_16 : WRITE_16;
+				flagvals = cdb[1];
+				groupnum = cdb[10];
+				control = cdb[11];
+				break;
+			}
+
+			memset(cdb, 0, sizeof(io_request->CDB.CDB32));
+
+			cdb[0] = opcode;
+			cdb[1] = flagvals;
+			cdb[14] = groupnum;
+			cdb[15] = control;
+
+			/* Transfer length */
+			cdb[13] = (u8)(num_blocks & 0xff);
+			cdb[12] = (u8)((num_blocks >> 8) & 0xff);
+			cdb[11] = (u8)((num_blocks >> 16) & 0xff);
+			cdb[10] = (u8)((num_blocks >> 24) & 0xff);
+
+			io_request->IoFlags = 16; /* Specify 16-byte cdb */
+			cdb_len = 16;
 		}
 
 		/* Normal case, just load LBA here */
@@ -1432,8 +1460,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
 
 	/* Check if this is a system PD I/O */
-	if ((instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) &&
-	    (instance->pd_list[pd_index].driveType == TYPE_DISK)) {
+	if (instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
 		io_request->Function = 0;
 		io_request->DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
@@ -1456,7 +1483,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
-	io_request->LUN[0] = scmd->device->lun;
+	io_request->LUN[1] = scmd->device->lun;
 	io_request->DataLength = scsi_bufflen(scmd);
 }
 
@@ -1480,7 +1507,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	device_id = MEGASAS_DEV_INDEX(instance, scp);
 
 	/* Zero out some fields so they don't get reused */
-	io_request->LUN[0] = 0;
+	io_request->LUN[1] = 0;
 	io_request->CDB.EEDP32.PrimaryReferenceTag = 0;
 	io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0;
 	io_request->EEDPFlags = 0;
@@ -1744,7 +1771,7 @@ complete_cmd_fusion(struct megasas_instance *instance)
 	wmb();
 	writel(fusion->last_reply_idx,
 	       &instance->reg_set->reply_post_host_index);
-
+	megasas_check_and_restore_queue_depth(instance);
 	return IRQ_HANDLED;
 }
 
@@ -2022,16 +2049,10 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 	struct fusion_context *fusion;
 	struct megasas_cmd *cmd_mfi;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
-	u32 host_diag, abs_state;
+	u32 host_diag, abs_state, status_reg, reset_adapter;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
-
-	mutex_lock(&instance->reset_mutex);
-	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
-	instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
-	instance->instancet->disable_intr(instance->reg_set);
-	msleep(1000);
 
 	if (instance->adprecovery == MEGASAS_HW_CRITICAL_ERROR) {
 		printk(KERN_WARNING "megaraid_sas: Hardware critical error, "
@@ -2039,6 +2060,12 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 		retval = FAILED;
 		goto out;
 	}
+
+	mutex_lock(&instance->reset_mutex);
+	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
+	instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
+	instance->instancet->disable_intr(instance->reg_set);
+	msleep(1000);
 
 	/* First try waiting for commands to complete */
 	if (megasas_wait_for_outstanding_fusion(instance)) {
@@ -2056,7 +2083,12 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 			}
 		}
 
-		if (instance->disableOnlineCtrlReset == 1) {
+		status_reg = instance->instancet->read_fw_status_reg(
+			instance->reg_set);
+		abs_state = status_reg & MFI_STATE_MASK;
+		reset_adapter = status_reg & MFI_RESET_ADAPTER;
+		if (instance->disableOnlineCtrlReset ||
+		    (abs_state == MFI_STATE_FAULT && !reset_adapter)) {
 			/* Reset not supported, kill adapter */
 			printk(KERN_WARNING "megaraid_sas: Reset not supported"
 			       ", killing adapter.\n");
@@ -2085,6 +2117,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 
 			/* Check that the diag write enable (DRWE) bit is on */
 			host_diag = readl(&instance->reg_set->fusion_host_diag);
+			retry = 0;
 			while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
 				msleep(100);
 				host_diag =
@@ -2122,7 +2155,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 
 			abs_state =
 				instance->instancet->read_fw_status_reg(
-					instance->reg_set);
+					instance->reg_set) & MFI_STATE_MASK;
 			retry = 0;
 
 			while ((abs_state <= MFI_STATE_FW_INIT) &&
@@ -2130,7 +2163,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 				msleep(100);
 				abs_state =
 				instance->instancet->read_fw_status_reg(
-					instance->reg_set);
+					instance->reg_set) & MFI_STATE_MASK;
 			}
 			if (abs_state <= MFI_STATE_FW_INIT) {
 				printk(KERN_WARNING "megaraid_sas: firmware "

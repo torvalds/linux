@@ -153,7 +153,6 @@ config MACH_XCEP
 	bool "Iskratel Electronics XCEP"
 	select PXA25x
 	select MTD
-	select MTD_PARTITIONS
 	select MTD_PHYSMAP
 	select MTD_CFI_INTELEXT
 	select MTD_CFI

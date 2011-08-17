@@ -48,23 +48,23 @@ struct ad7887_platform_data {
 	bool				use_onchip_ref;
 };
 
+/**
+ * struct ad7887_chip_info - chip specifc information
+ * @int_vref_mv:	the internal reference voltage
+ * @channel:		channel specification
+ */
+
 struct ad7887_chip_info {
-	u8				bits;		/* number of ADC bits */
-	u8				storagebits;	/* number of bits read from the ADC */
-	u8				left_shift;	/* number of bits the sample must be shifted */
-	char				sign;		/* [s]igned or [u]nsigned */
-	u16				int_vref_mv;	/* internal reference voltage */
+	u16				int_vref_mv;
+	struct iio_chan_spec		channel[3];
 };
 
 struct ad7887_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	const struct ad7887_chip_info	*chip_info;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
-	atomic_t			protect_ring;
+	size_t				d_size;
 	u16				int_vref_mv;
-	bool				en_dual;
 	struct spi_transfer		xfer[4];
 	struct spi_message		msg[3];
 	struct spi_message		*ring_msg;

@@ -29,6 +29,7 @@
 #define ECRYPTFS_KERNEL_H
 
 #include <keys/user-type.h>
+#include <keys/encrypted-type.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
 #include <linux/namei.h>
@@ -36,124 +37,17 @@
 #include <linux/hash.h>
 #include <linux/nsproxy.h>
 #include <linux/backing-dev.h>
+#include <linux/ecryptfs.h>
 
-/* Version verification for shared data structures w/ userspace */
-#define ECRYPTFS_VERSION_MAJOR 0x00
-#define ECRYPTFS_VERSION_MINOR 0x04
-#define ECRYPTFS_SUPPORTED_FILE_VERSION 0x03
-/* These flags indicate which features are supported by the kernel
- * module; userspace tools such as the mount helper read
- * ECRYPTFS_VERSIONING_MASK from a sysfs handle in order to determine
- * how to behave. */
-#define ECRYPTFS_VERSIONING_PASSPHRASE            0x00000001
-#define ECRYPTFS_VERSIONING_PUBKEY                0x00000002
-#define ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH 0x00000004
-#define ECRYPTFS_VERSIONING_POLICY                0x00000008
-#define ECRYPTFS_VERSIONING_XATTR                 0x00000010
-#define ECRYPTFS_VERSIONING_MULTKEY               0x00000020
-#define ECRYPTFS_VERSIONING_DEVMISC               0x00000040
-#define ECRYPTFS_VERSIONING_HMAC                  0x00000080
-#define ECRYPTFS_VERSIONING_FILENAME_ENCRYPTION   0x00000100
-#define ECRYPTFS_VERSIONING_GCM                   0x00000200
-#define ECRYPTFS_VERSIONING_MASK (ECRYPTFS_VERSIONING_PASSPHRASE \
-				  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
-				  | ECRYPTFS_VERSIONING_PUBKEY \
-				  | ECRYPTFS_VERSIONING_XATTR \
-				  | ECRYPTFS_VERSIONING_MULTKEY \
-				  | ECRYPTFS_VERSIONING_DEVMISC \
-				  | ECRYPTFS_VERSIONING_FILENAME_ENCRYPTION)
-#define ECRYPTFS_MAX_PASSWORD_LENGTH 64
-#define ECRYPTFS_MAX_PASSPHRASE_BYTES ECRYPTFS_MAX_PASSWORD_LENGTH
-#define ECRYPTFS_SALT_SIZE 8
-#define ECRYPTFS_SALT_SIZE_HEX (ECRYPTFS_SALT_SIZE*2)
-/* The original signature size is only for what is stored on disk; all
- * in-memory representations are expanded hex, so it better adapted to
- * be passed around or referenced on the command line */
-#define ECRYPTFS_SIG_SIZE 8
-#define ECRYPTFS_SIG_SIZE_HEX (ECRYPTFS_SIG_SIZE*2)
-#define ECRYPTFS_PASSWORD_SIG_SIZE ECRYPTFS_SIG_SIZE_HEX
-#define ECRYPTFS_MAX_KEY_BYTES 64
-#define ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES 512
 #define ECRYPTFS_DEFAULT_IV_BYTES 16
-#define ECRYPTFS_FILE_VERSION 0x03
 #define ECRYPTFS_DEFAULT_EXTENT_SIZE 4096
 #define ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE 8192
 #define ECRYPTFS_DEFAULT_MSG_CTX_ELEMS 32
 #define ECRYPTFS_DEFAULT_SEND_TIMEOUT HZ
 #define ECRYPTFS_MAX_MSG_CTX_TTL (HZ*3)
-#define ECRYPTFS_MAX_PKI_NAME_BYTES 16
 #define ECRYPTFS_DEFAULT_NUM_USERS 4
 #define ECRYPTFS_MAX_NUM_USERS 32768
 #define ECRYPTFS_XATTR_NAME "user.ecryptfs"
-
-#define RFC2440_CIPHER_DES3_EDE 0x02
-#define RFC2440_CIPHER_CAST_5 0x03
-#define RFC2440_CIPHER_BLOWFISH 0x04
-#define RFC2440_CIPHER_AES_128 0x07
-#define RFC2440_CIPHER_AES_192 0x08
-#define RFC2440_CIPHER_AES_256 0x09
-#define RFC2440_CIPHER_TWOFISH 0x0a
-#define RFC2440_CIPHER_CAST_6 0x0b
-
-#define RFC2440_CIPHER_RSA 0x01
-
-/**
- * For convenience, we may need to pass around the encrypted session
- * key between kernel and userspace because the authentication token
- * may not be extractable.  For example, the TPM may not release the
- * private key, instead requiring the encrypted data and returning the
- * decrypted data.
- */
-struct ecryptfs_session_key {
-#define ECRYPTFS_USERSPACE_SHOULD_TRY_TO_DECRYPT 0x00000001
-#define ECRYPTFS_USERSPACE_SHOULD_TRY_TO_ENCRYPT 0x00000002
-#define ECRYPTFS_CONTAINS_DECRYPTED_KEY 0x00000004
-#define ECRYPTFS_CONTAINS_ENCRYPTED_KEY 0x00000008
-	u32 flags;
-	u32 encrypted_key_size;
-	u32 decrypted_key_size;
-	u8 encrypted_key[ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES];
-	u8 decrypted_key[ECRYPTFS_MAX_KEY_BYTES];
-};
-
-struct ecryptfs_password {
-	u32 password_bytes;
-	s32 hash_algo;
-	u32 hash_iterations;
-	u32 session_key_encryption_key_bytes;
-#define ECRYPTFS_PERSISTENT_PASSWORD 0x01
-#define ECRYPTFS_SESSION_KEY_ENCRYPTION_KEY_SET 0x02
-	u32 flags;
-	/* Iterated-hash concatenation of salt and passphrase */
-	u8 session_key_encryption_key[ECRYPTFS_MAX_KEY_BYTES];
-	u8 signature[ECRYPTFS_PASSWORD_SIG_SIZE + 1];
-	/* Always in expanded hex */
-	u8 salt[ECRYPTFS_SALT_SIZE];
-};
-
-enum ecryptfs_token_types {ECRYPTFS_PASSWORD, ECRYPTFS_PRIVATE_KEY};
-
-struct ecryptfs_private_key {
-	u32 key_size;
-	u32 data_len;
-	u8 signature[ECRYPTFS_PASSWORD_SIG_SIZE + 1];
-	char pki_type[ECRYPTFS_MAX_PKI_NAME_BYTES + 1];
-	u8 data[];
-};
-
-/* May be a password or a private key */
-struct ecryptfs_auth_tok {
-	u16 version; /* 8-bit major and 8-bit minor */
-	u16 token_type;
-#define ECRYPTFS_ENCRYPT_ONLY 0x00000001
-	u32 flags;
-	struct ecryptfs_session_key session_key;
-	u8 reserved[32];
-	union {
-		struct ecryptfs_password password;
-		struct ecryptfs_private_key private_key;
-	} token;
-} __attribute__ ((packed));
 
 void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok);
 extern void ecryptfs_to_hex(char *dst, char *src, size_t src_size);
@@ -185,11 +79,47 @@ struct ecryptfs_page_crypt_context {
 	} param;
 };
 
+#if defined(CONFIG_ENCRYPTED_KEYS) || defined(CONFIG_ENCRYPTED_KEYS_MODULE)
+static inline struct ecryptfs_auth_tok *
+ecryptfs_get_encrypted_key_payload_data(struct key *key)
+{
+	if (key->type == &key_type_encrypted)
+		return (struct ecryptfs_auth_tok *)
+			(&((struct encrypted_key_payload *)key->payload.data)->payload_data);
+	else
+		return NULL;
+}
+
+static inline struct key *ecryptfs_get_encrypted_key(char *sig)
+{
+	return request_key(&key_type_encrypted, sig, NULL);
+}
+
+#else
+static inline struct ecryptfs_auth_tok *
+ecryptfs_get_encrypted_key_payload_data(struct key *key)
+{
+	return NULL;
+}
+
+static inline struct key *ecryptfs_get_encrypted_key(char *sig)
+{
+	return ERR_PTR(-ENOKEY);
+}
+
+#endif /* CONFIG_ENCRYPTED_KEYS */
+
 static inline struct ecryptfs_auth_tok *
 ecryptfs_get_key_payload_data(struct key *key)
 {
-	return (struct ecryptfs_auth_tok *)
-		(((struct user_key_payload*)key->payload.data)->data);
+	struct ecryptfs_auth_tok *auth_tok;
+
+	auth_tok = ecryptfs_get_encrypted_key_payload_data(key);
+	if (!auth_tok)
+		return (struct ecryptfs_auth_tok *)
+			(((struct user_key_payload *)key->payload.data)->data);
+	else
+		return auth_tok;
 }
 
 #define ECRYPTFS_MAX_KEYSET_SIZE 1024
@@ -200,6 +130,8 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define MAGIC_ECRYPTFS_MARKER 0x3c81b7f5
 #define MAGIC_ECRYPTFS_MARKER_SIZE_BYTES 8	/* 4*2 */
 #define ECRYPTFS_FILE_SIZE_BYTES (sizeof(u64))
+#define ECRYPTFS_SIZE_AND_MARKER_BYTES (ECRYPTFS_FILE_SIZE_BYTES \
+					+ MAGIC_ECRYPTFS_MARKER_SIZE_BYTES)
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
 #define ECRYPTFS_DEFAULT_HASH "md5"
@@ -233,7 +165,7 @@ ecryptfs_get_key_payload_data(struct key *key)
 
 struct ecryptfs_key_sig {
 	struct list_head crypt_stat_list;
-	char keysig[ECRYPTFS_SIG_SIZE_HEX];
+	char keysig[ECRYPTFS_SIG_SIZE_HEX + 1];
 };
 
 struct ecryptfs_filename {
@@ -257,19 +189,19 @@ struct ecryptfs_filename {
 struct ecryptfs_crypt_stat {
 #define ECRYPTFS_STRUCT_INITIALIZED   0x00000001
 #define ECRYPTFS_POLICY_APPLIED       0x00000002
-#define ECRYPTFS_NEW_FILE             0x00000004
-#define ECRYPTFS_ENCRYPTED            0x00000008
-#define ECRYPTFS_SECURITY_WARNING     0x00000010
-#define ECRYPTFS_ENABLE_HMAC          0x00000020
-#define ECRYPTFS_ENCRYPT_IV_PAGES     0x00000040
-#define ECRYPTFS_KEY_VALID            0x00000080
-#define ECRYPTFS_METADATA_IN_XATTR    0x00000100
-#define ECRYPTFS_VIEW_AS_ENCRYPTED    0x00000200
-#define ECRYPTFS_KEY_SET              0x00000400
-#define ECRYPTFS_ENCRYPT_FILENAMES    0x00000800
-#define ECRYPTFS_ENCFN_USE_MOUNT_FNEK 0x00001000
-#define ECRYPTFS_ENCFN_USE_FEK        0x00002000
-#define ECRYPTFS_UNLINK_SIGS	      0x00004000
+#define ECRYPTFS_ENCRYPTED            0x00000004
+#define ECRYPTFS_SECURITY_WARNING     0x00000008
+#define ECRYPTFS_ENABLE_HMAC          0x00000010
+#define ECRYPTFS_ENCRYPT_IV_PAGES     0x00000020
+#define ECRYPTFS_KEY_VALID            0x00000040
+#define ECRYPTFS_METADATA_IN_XATTR    0x00000080
+#define ECRYPTFS_VIEW_AS_ENCRYPTED    0x00000100
+#define ECRYPTFS_KEY_SET              0x00000200
+#define ECRYPTFS_ENCRYPT_FILENAMES    0x00000400
+#define ECRYPTFS_ENCFN_USE_MOUNT_FNEK 0x00000800
+#define ECRYPTFS_ENCFN_USE_FEK        0x00001000
+#define ECRYPTFS_UNLINK_SIGS          0x00002000
+#define ECRYPTFS_I_SIZE_INITIALIZED   0x00004000
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
@@ -296,8 +228,9 @@ struct ecryptfs_crypt_stat {
 struct ecryptfs_inode_info {
 	struct inode vfs_inode;
 	struct inode *wii_inode;
-	struct file *lower_file;
 	struct mutex lower_file_mutex;
+	atomic_t lower_file_count;
+	struct file *lower_file;
 	struct ecryptfs_crypt_stat crypt_stat;
 };
 
@@ -333,7 +266,6 @@ struct ecryptfs_global_auth_tok {
 	u32 flags;
 	struct list_head mount_crypt_stat_list;
 	struct key *global_auth_tok_key;
-	struct ecryptfs_auth_tok *global_auth_tok;
 	unsigned char sig[ECRYPTFS_SIG_SIZE_HEX + 1];
 };
 
@@ -380,7 +312,6 @@ struct ecryptfs_mount_crypt_stat {
 	u32 flags;
 	struct list_head global_auth_tok_list;
 	struct mutex global_auth_tok_list_mutex;
-	size_t num_global_auth_toks;
 	size_t global_default_cipher_key_size;
 	size_t global_default_fn_cipher_key_bytes;
 	unsigned char global_default_cipher_name[ECRYPTFS_MAX_CIPHER_NAME_SIZE
@@ -604,8 +535,7 @@ extern struct kmem_cache *ecryptfs_file_info_cache;
 extern struct kmem_cache *ecryptfs_dentry_info_cache;
 extern struct kmem_cache *ecryptfs_inode_info_cache;
 extern struct kmem_cache *ecryptfs_sb_info_cache;
-extern struct kmem_cache *ecryptfs_header_cache_1;
-extern struct kmem_cache *ecryptfs_header_cache_2;
+extern struct kmem_cache *ecryptfs_header_cache;
 extern struct kmem_cache *ecryptfs_xattr_cache;
 extern struct kmem_cache *ecryptfs_key_record_cache;
 extern struct kmem_cache *ecryptfs_key_sig_cache;
@@ -626,13 +556,9 @@ struct ecryptfs_open_req {
 	struct list_head kthread_ctl_list;
 };
 
-#define ECRYPTFS_INTERPOSE_FLAG_D_ADD                 0x00000001
-int ecryptfs_interpose(struct dentry *hidden_dentry,
-		       struct dentry *this_dentry, struct super_block *sb,
-		       u32 flags);
-int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
-					struct dentry *lower_dentry,
-					struct inode *ecryptfs_dir_inode);
+struct inode *ecryptfs_get_inode(struct inode *lower_inode,
+				 struct super_block *sb);
+void ecryptfs_i_size_init(const char *page_virt, struct inode *inode);
 int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,
 					 size_t *decrypted_name_size,
 					 struct dentry *ecryptfs_dentry,
@@ -664,10 +590,9 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
 void ecryptfs_write_crypt_stat_flags(char *page_virt,
 				     struct ecryptfs_crypt_stat *crypt_stat,
 				     size_t *written);
-int ecryptfs_read_and_validate_header_region(char *data,
-					     struct inode *ecryptfs_inode);
-int ecryptfs_read_and_validate_xattr_region(char *page_virt,
-					    struct dentry *ecryptfs_dentry);
+int ecryptfs_read_and_validate_header_region(struct inode *inode);
+int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
+					    struct inode *inode);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
 int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
 void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat);
@@ -679,9 +604,6 @@ int
 ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
-int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
-int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
-void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);
 ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
 			void *value, size_t size);
@@ -761,7 +683,8 @@ int ecryptfs_privileged_open(struct file **lower_file,
 			     struct dentry *lower_dentry,
 			     struct vfsmount *lower_mnt,
 			     const struct cred *cred);
-int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry);
+int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode);
+void ecryptfs_put_lower_file(struct inode *inode);
 int
 ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 			     size_t *packet_size,

@@ -40,10 +40,10 @@
 #include "generic.h"
 
 
-static void __init eb9200_map_io(void)
+static void __init eb9200_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_BGA);
+	at91_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -58,11 +58,6 @@ static void __init eb9200_map_io(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init eb9200_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata eb9200_eth_data = {
@@ -120,9 +115,9 @@ static void __init eb9200_board_init(void)
 }
 
 MACHINE_START(ATEB9200, "Embest ATEB9200")
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= eb9200_map_io,
-	.init_irq	= eb9200_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= eb9200_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= eb9200_board_init,
 MACHINE_END

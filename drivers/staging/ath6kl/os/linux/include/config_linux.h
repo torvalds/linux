@@ -28,15 +28,6 @@
 extern "C" {
 #endif
 
-#include <linux/version.h>
-
-/*
- * Host-side GPIO support is optional.
- * If run-time access to GPIO pins is not required, then
- * this should be changed to #undef.
- */
-#define CONFIG_HOST_GPIO_SUPPORT
-
 /*
  * Host side Test Command support
  */

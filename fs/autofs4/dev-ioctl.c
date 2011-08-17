@@ -372,6 +372,10 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		return -EBUSY;
 	} else {
 		struct file *pipe = fget(pipefd);
+		if (!pipe) {
+			err = -EBADF;
+			goto out;
+		}
 		if (!pipe->f_op || !pipe->f_op->write) {
 			err = -EPIPE;
 			fput(pipe);

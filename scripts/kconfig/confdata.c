@@ -7,13 +7,13 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 
 static void conf_warning(const char *fmt, ...)
@@ -128,6 +128,7 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 			sym->flags |= def_flags;
 			break;
 		}
+		/* fall through */
 	case S_BOOLEAN:
 		if (p[0] == 'y') {
 			sym->def[def].tri = yes;
@@ -140,7 +141,7 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 			break;
 		}
 		conf_warning("symbol value '%s' invalid for %s", p, sym->name);
-		break;
+		return 1;
 	case S_OTHER:
 		if (*p != '"') {
 			for (p2 = p; *p2 && !isspace(*p2); p2++)
@@ -148,6 +149,7 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 			sym->type = S_STRING;
 			goto done;
 		}
+		/* fall through */
 	case S_STRING:
 		if (*p++ != '"')
 			break;
@@ -162,6 +164,7 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 			conf_warning("invalid string found");
 			return 1;
 		}
+		/* fall through */
 	case S_INT:
 	case S_HEX:
 	done:
@@ -237,6 +240,7 @@ load:
 		case S_STRING:
 			if (sym->def[def].val)
 				free(sym->def[def].val);
+			/* fall through */
 		default:
 			sym->def[def].val = NULL;
 			sym->def[def].tri = no;
@@ -363,6 +367,7 @@ int conf_read(const char *name)
 					break;
 				if (!sym_is_choice(sym))
 					goto sym_ok;
+				/* fall through */
 			default:
 				if (!strcmp(sym->curr.val, sym->def[S_DEF_USER].val))
 					goto sym_ok;
@@ -417,62 +422,200 @@ int conf_read(const char *name)
 	return 0;
 }
 
-/* Write a S_STRING */
-static void conf_write_string(bool headerfile, const char *name,
-                              const char *str, FILE *out)
+/*
+ * Kconfig configuration printer
+ *
+ * This printer is used when generating the resulting configuration after
+ * kconfig invocation and `defconfig' files. Unset symbol might be omitted by
+ * passing a non-NULL argument to the printer.
+ *
+ */
+static void
+kconfig_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
 {
-	int l;
-	if (headerfile)
-		fprintf(out, "#define %s%s \"", CONFIG_, name);
-	else
-		fprintf(out, "%s%s=\"", CONFIG_, name);
-
-	while (1) {
-		l = strcspn(str, "\"\\");
-		if (l) {
-			xfwrite(str, l, 1, out);
-			str += l;
-		}
-		if (!*str)
-			break;
-		fprintf(out, "\\%c", *str++);
-	}
-	fputs("\"\n", out);
-}
-
-static void conf_write_symbol(struct symbol *sym, FILE *out, bool write_no)
-{
-	const char *str;
 
 	switch (sym->type) {
 	case S_BOOLEAN:
 	case S_TRISTATE:
-		switch (sym_get_tristate_value(sym)) {
-		case no:
-			if (write_no)
-				fprintf(out, "# %s%s is not set\n",
+		if (*value == 'n') {
+			bool skip_unset = (arg != NULL);
+
+			if (!skip_unset)
+				fprintf(fp, "# %s%s is not set\n",
 				    CONFIG_, sym->name);
-			break;
-		case mod:
-			fprintf(out, "%s%s=m\n", CONFIG_, sym->name);
-			break;
-		case yes:
-			fprintf(out, "%s%s=y\n", CONFIG_, sym->name);
-			break;
+			return;
 		}
 		break;
+	default:
+		break;
+	}
+
+	fprintf(fp, "%s%s=%s\n", CONFIG_, sym->name, value);
+}
+
+static void
+kconfig_print_comment(FILE *fp, const char *value, void *arg)
+{
+	const char *p = value;
+	size_t l;
+
+	for (;;) {
+		l = strcspn(p, "\n");
+		fprintf(fp, "#");
+		if (l) {
+			fprintf(fp, " ");
+			fwrite(p, l, 1, fp);
+			p += l;
+		}
+		fprintf(fp, "\n");
+		if (*p++ == '\0')
+			break;
+	}
+}
+
+static struct conf_printer kconfig_printer_cb =
+{
+	.print_symbol = kconfig_print_symbol,
+	.print_comment = kconfig_print_comment,
+};
+
+/*
+ * Header printer
+ *
+ * This printer is used when generating the `include/generated/autoconf.h' file.
+ */
+static void
+header_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
+{
+
+	switch (sym->type) {
+	case S_BOOLEAN:
+	case S_TRISTATE: {
+		const char *suffix = "";
+
+		switch (*value) {
+		case 'n':
+			break;
+		case 'm':
+			suffix = "_MODULE";
+			/* fall through */
+		default:
+			fprintf(fp, "#define %s%s%s 1\n",
+			    CONFIG_, sym->name, suffix);
+		}
+		/*
+		 * Generate the __enabled_CONFIG_* and
+		 * __enabled_CONFIG_*_MODULE macros for use by the
+		 * IS_{ENABLED,BUILTIN,MODULE} macros. The _MODULE variant is
+		 * generated even for booleans so that the IS_ENABLED() macro
+		 * works.
+		 */
+		fprintf(fp, "#define __enabled_" CONFIG_ "%s %d\n",
+				sym->name, (*value == 'y'));
+		fprintf(fp, "#define __enabled_" CONFIG_ "%s_MODULE %d\n",
+				sym->name, (*value == 'm'));
+		break;
+	}
+	case S_HEX: {
+		const char *prefix = "";
+
+		if (value[0] != '0' || (value[1] != 'x' && value[1] != 'X'))
+			prefix = "0x";
+		fprintf(fp, "#define %s%s %s%s\n",
+		    CONFIG_, sym->name, prefix, value);
+		break;
+	}
 	case S_STRING:
-		conf_write_string(false, sym->name, sym_get_string_value(sym), out);
-		break;
-	case S_HEX:
 	case S_INT:
-		str = sym_get_string_value(sym);
-		fprintf(out, "%s%s=%s\n", CONFIG_, sym->name, str);
+		fprintf(fp, "#define %s%s %s\n",
+		    CONFIG_, sym->name, value);
 		break;
+	default:
+		break;
+	}
+
+}
+
+static void
+header_print_comment(FILE *fp, const char *value, void *arg)
+{
+	const char *p = value;
+	size_t l;
+
+	fprintf(fp, "/*\n");
+	for (;;) {
+		l = strcspn(p, "\n");
+		fprintf(fp, " *");
+		if (l) {
+			fprintf(fp, " ");
+			fwrite(p, l, 1, fp);
+			p += l;
+		}
+		fprintf(fp, "\n");
+		if (*p++ == '\0')
+			break;
+	}
+	fprintf(fp, " */\n");
+}
+
+static struct conf_printer header_printer_cb =
+{
+	.print_symbol = header_print_symbol,
+	.print_comment = header_print_comment,
+};
+
+/*
+ * Tristate printer
+ *
+ * This printer is used when generating the `include/config/tristate.conf' file.
+ */
+static void
+tristate_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
+{
+
+	if (sym->type == S_TRISTATE && *value != 'n')
+		fprintf(fp, "%s%s=%c\n", CONFIG_, sym->name, (char)toupper(*value));
+}
+
+static struct conf_printer tristate_printer_cb =
+{
+	.print_symbol = tristate_print_symbol,
+	.print_comment = kconfig_print_comment,
+};
+
+static void conf_write_symbol(FILE *fp, struct symbol *sym,
+			      struct conf_printer *printer, void *printer_arg)
+{
+	const char *str;
+
+	switch (sym->type) {
 	case S_OTHER:
 	case S_UNKNOWN:
 		break;
+	case S_STRING:
+		str = sym_get_string_value(sym);
+		str = sym_escape_string_value(str);
+		printer->print_symbol(fp, sym, str, printer_arg);
+		free((void *)str);
+		break;
+	default:
+		str = sym_get_string_value(sym);
+		printer->print_symbol(fp, sym, str, printer_arg);
 	}
+}
+
+static void
+conf_write_heading(FILE *fp, struct conf_printer *printer, void *printer_arg)
+{
+	char buf[256];
+
+	snprintf(buf, sizeof(buf),
+	    "\n"
+	    "Automatically generated file; DO NOT EDIT.\n"
+	    "%s\n",
+	    rootmenu.prompt->text);
+
+	printer->print_comment(fp, buf, printer_arg);
 }
 
 /*
@@ -531,7 +674,7 @@ int conf_write_defconfig(const char *filename)
 						goto next_menu;
 				}
 			}
-			conf_write_symbol(sym, out, true);
+			conf_write_symbol(out, sym, &kconfig_printer_cb, NULL);
 		}
 next_menu:
 		if (menu->list != NULL) {
@@ -560,8 +703,6 @@ int conf_write(const char *name)
 	const char *basename;
 	const char *str;
 	char dirname[PATH_MAX+1], tmpname[PATH_MAX+1], newname[PATH_MAX+1];
-	time_t now;
-	int use_timestamp = 1;
 	char *env;
 
 	dirname[0] = 0;
@@ -598,19 +739,7 @@ int conf_write(const char *name)
 	if (!out)
 		return 1;
 
-	time(&now);
-	env = getenv("KCONFIG_NOTIMESTAMP");
-	if (env && *env)
-		use_timestamp = 0;
-
-	fprintf(out, _("#\n"
-		       "# Automatically generated make config: don't edit\n"
-		       "# %s\n"
-		       "%s%s"
-		       "#\n"),
-		     rootmenu.prompt->text,
-		     use_timestamp ? "# " : "",
-		     use_timestamp ? ctime(&now) : "");
+	conf_write_heading(out, &kconfig_printer_cb, NULL);
 
 	if (!conf_get_changed())
 		sym_clear_all_valid();
@@ -631,8 +760,8 @@ int conf_write(const char *name)
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next;
 			sym->flags &= ~SYMBOL_WRITE;
-			/* Write config symbol to file */
-			conf_write_symbol(sym, out, true);
+
+			conf_write_symbol(out, sym, &kconfig_printer_cb, NULL);
 		}
 
 next:
@@ -781,10 +910,8 @@ out:
 int conf_write_autoconf(void)
 {
 	struct symbol *sym;
-	const char *str;
 	const char *name;
 	FILE *out, *tristate, *out_h;
-	time_t now;
 	int i;
 
 	sym_clear_all_valid();
@@ -811,71 +938,23 @@ int conf_write_autoconf(void)
 		return 1;
 	}
 
-	time(&now);
-	fprintf(out, "#\n"
-		     "# Automatically generated make config: don't edit\n"
-		     "# %s\n"
-		     "# %s"
-		     "#\n",
-		     rootmenu.prompt->text, ctime(&now));
-	fprintf(tristate, "#\n"
-			  "# Automatically generated - do not edit\n"
-			  "\n");
-	fprintf(out_h, "/*\n"
-		       " * Automatically generated C config: don't edit\n"
-		       " * %s\n"
-		       " * %s"
-		       " */\n",
-		       rootmenu.prompt->text, ctime(&now));
+	conf_write_heading(out, &kconfig_printer_cb, NULL);
+
+	conf_write_heading(tristate, &tristate_printer_cb, NULL);
+
+	conf_write_heading(out_h, &header_printer_cb, NULL);
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
 		if (!(sym->flags & SYMBOL_WRITE) || !sym->name)
 			continue;
 
-		/* write symbol to config file */
-		conf_write_symbol(sym, out, false);
+		/* write symbol to auto.conf, tristate and header files */
+		conf_write_symbol(out, sym, &kconfig_printer_cb, (void *)1);
 
-		/* update autoconf and tristate files */
-		switch (sym->type) {
-		case S_BOOLEAN:
-		case S_TRISTATE:
-			switch (sym_get_tristate_value(sym)) {
-			case no:
-				break;
-			case mod:
-				fprintf(tristate, "%s%s=M\n",
-				    CONFIG_, sym->name);
-				fprintf(out_h, "#define %s%s_MODULE 1\n",
-				    CONFIG_, sym->name);
-				break;
-			case yes:
-				if (sym->type == S_TRISTATE)
-					fprintf(tristate,"%s%s=Y\n",
-					    CONFIG_, sym->name);
-				fprintf(out_h, "#define %s%s 1\n",
-				    CONFIG_, sym->name);
-				break;
-			}
-			break;
-		case S_STRING:
-			conf_write_string(true, sym->name, sym_get_string_value(sym), out_h);
-			break;
-		case S_HEX:
-			str = sym_get_string_value(sym);
-			if (str[0] != '0' || (str[1] != 'x' && str[1] != 'X')) {
-				fprintf(out_h, "#define %s%s 0x%s\n",
-				    CONFIG_, sym->name, str);
-				break;
-			}
-		case S_INT:
-			str = sym_get_string_value(sym);
-			fprintf(out_h, "#define %s%s %s\n",
-			    CONFIG_, sym->name, str);
-			break;
-		default:
-			break;
-		}
+		conf_write_symbol(tristate, sym, &tristate_printer_cb, (void *)1);
+
+		conf_write_symbol(out_h, sym, &header_printer_cb, NULL);
 	}
 	fclose(out);
 	fclose(tristate);

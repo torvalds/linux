@@ -24,6 +24,8 @@
 #include <sound/seq_kernel.h>
 #include <linux/poll.h>
 
+struct snd_info_buffer;
+
 /* container for sequencer event (internal use) */
 struct snd_seq_event_cell {
 	struct snd_seq_event event;
@@ -99,5 +101,7 @@ void snd_sequencer_memory_done(void);
 /* polling */
 int snd_seq_pool_poll_wait(struct snd_seq_pool *pool, struct file *file, poll_table *wait);
 
+void snd_seq_info_pool(struct snd_info_buffer *buffer,
+		       struct snd_seq_pool *pool, char *space);
 
 #endif

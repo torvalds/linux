@@ -8,6 +8,8 @@
  *  Copyright (C) 1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
+#include <linux/const.h>
+
 #ifndef __ASSEMBLY__
 #include <asm-generic/4level-fixup.h>
 
@@ -456,9 +458,9 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma,
 
 #endif /* !(__ASSEMBLY__) */
 
-#define VMALLOC_START           0xfe600000
+#define VMALLOC_START           _AC(0xfe600000,UL)
 /* XXX Alter this when I get around to fixing sun4c - Anton */
-#define VMALLOC_END             0xffc00000
+#define VMALLOC_END             _AC(0xffc00000,UL)
 
 
 /* We provide our own get_unmapped_area to cope with VA holes for userland */

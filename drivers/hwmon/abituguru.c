@@ -1,5 +1,5 @@
 /*
-    abituguru.c Copyright (c) 2005-2006 Hans de Goede <j.w.r.degoede@hhs.nl>
+    abituguru.c Copyright (c) 2005-2006 Hans de Goede <hdegoede@redhat.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1422,7 +1422,7 @@ static int __init abituguru_detect(void)
 	   at DATA and 0xAC, when this driver has already been loaded once
 	   DATA will hold 0x08. For most uGuru's CMD will hold 0xAC in either
 	   scenario but some will hold 0x00.
-	   Some uGuru's initally hold 0x09 at DATA and will only hold 0x08
+	   Some uGuru's initially hold 0x09 at DATA and will only hold 0x08
 	   after reading CMD first, so CMD must be read first! */
 	u8 cmd_val = inb_p(ABIT_UGURU_BASE + ABIT_UGURU_CMD);
 	u8 data_val = inb_p(ABIT_UGURU_BASE + ABIT_UGURU_DATA);
@@ -1448,15 +1448,12 @@ static int __init abituguru_init(void)
 {
 	int address, err;
 	struct resource res = { .flags = IORESOURCE_IO };
-
-#ifdef CONFIG_DMI
 	const char *board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 
 	/* safety check, refuse to load on non Abit motherboards */
 	if (!force && (!board_vendor ||
 			strcmp(board_vendor, "http://www.abit.com.tw/")))
 		return -ENODEV;
-#endif
 
 	address = abituguru_detect();
 	if (address < 0)
@@ -1505,7 +1502,7 @@ static void __exit abituguru_exit(void)
 	platform_driver_unregister(&abituguru_driver);
 }
 
-MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Abit uGuru Sensor device");
 MODULE_LICENSE("GPL");
 

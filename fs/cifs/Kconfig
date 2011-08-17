@@ -7,6 +7,8 @@ config CIFS
 	select CRYPTO_MD5
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4
+	select CRYPTO_ECB
+	select CRYPTO_DES
 	help
 	  This is the client VFS module for the Common Internet File System
 	  (CIFS) protocol which is the successor to the Server Message Block
@@ -147,21 +149,13 @@ config CIFS_FSCACHE
 
 config CIFS_ACL
 	  bool "Provide CIFS ACL support (EXPERIMENTAL)"
-	  depends on EXPERIMENTAL && CIFS_XATTR
+	  depends on EXPERIMENTAL && CIFS_XATTR && KEYS
 	  help
 	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.
 
-config CIFS_EXPERIMENTAL
-	  bool "CIFS Experimental Features (EXPERIMENTAL)"
-	  depends on CIFS && EXPERIMENTAL
+config CIFS_NFSD_EXPORT
+	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
+	  depends on CIFS && EXPERIMENTAL && BROKEN
 	  help
-	    Enables cifs features under testing. These features are
-	    experimental and currently include DFS support and directory
-	    change notification ie fcntl(F_DNOTIFY), as well as the upcall
-	    mechanism which will be used for Kerberos session negotiation
-	    and uid remapping.  Some of these features also may depend on
-	    setting a value of 1 to the pseudo-file /proc/fs/cifs/Experimental
-	    (which is disabled by default). See the file fs/cifs/README
-	    for more details.  If unsure, say N.
-
+	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)

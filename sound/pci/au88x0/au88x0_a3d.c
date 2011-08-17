@@ -53,7 +53,7 @@ a3dsrc_GetTimeConsts(a3dsrc_t * a, short *HrtfTrack, short *ItdTrack,
 }
 
 #endif
-/* Atmospheric absorbtion. */
+/* Atmospheric absorption. */
 
 static void
 a3dsrc_SetAtmosTarget(a3dsrc_t * a, short aa, short b, short c, short d,
@@ -835,7 +835,7 @@ snd_vortex_a3d_filter_put(struct snd_kcontrol *kcontrol,
 		params[i] = ucontrol->value.integer.value[i];
 	/* Translate generic filter params to a3d filter params. */
 	vortex_a3d_translate_filter(a->filter, params);
-	/* Atmospheric absorbtion and filtering. */
+	/* Atmospheric absorption and filtering. */
 	a3dsrc_SetAtmosTarget(a, a->filter[0],
 			      a->filter[1], a->filter[2],
 			      a->filter[3], a->filter[4]);

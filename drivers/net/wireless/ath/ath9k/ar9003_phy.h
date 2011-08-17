@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2010 Atheros Communications, Inc.
+ * Copyright (c) 2010-2011 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -261,11 +261,33 @@
 #define AR_PHY_EXT_CCA0         (AR_AGC_BASE + 0x20)
 #define AR_PHY_RESTART          (AR_AGC_BASE + 0x24)
 
+/*
+ * Antenna Diversity  settings
+ */
 #define AR_PHY_MC_GAIN_CTRL     (AR_AGC_BASE + 0x28)
 #define AR_ANT_DIV_CTRL_ALL	0x7e000000
 #define AR_ANT_DIV_CTRL_ALL_S	25
 #define AR_ANT_DIV_ENABLE	0x1000000
 #define AR_ANT_DIV_ENABLE_S	24
+
+
+#define AR_PHY_9485_ANT_FAST_DIV_BIAS			0x00007e00
+#define AR_PHY_9485_ANT_FAST_DIV_BIAS_S                  9
+#define AR_PHY_9485_ANT_DIV_LNADIV			0x01000000
+#define AR_PHY_9485_ANT_DIV_LNADIV_S			24
+#define AR_PHY_9485_ANT_DIV_ALT_LNACONF			0x06000000
+#define AR_PHY_9485_ANT_DIV_ALT_LNACONF_S		25
+#define AR_PHY_9485_ANT_DIV_MAIN_LNACONF		0x18000000
+#define AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S		27
+#define AR_PHY_9485_ANT_DIV_ALT_GAINTB			0x20000000
+#define AR_PHY_9485_ANT_DIV_ALT_GAINTB_S		29
+#define AR_PHY_9485_ANT_DIV_MAIN_GAINTB			0x40000000
+#define AR_PHY_9485_ANT_DIV_MAIN_GAINTB_S		30
+
+#define AR_PHY_9485_ANT_DIV_LNA1_MINUS_LNA2		0x0
+#define AR_PHY_9485_ANT_DIV_LNA2			0x1
+#define AR_PHY_9485_ANT_DIV_LNA1			0x2
+#define AR_PHY_9485_ANT_DIV_LNA1_PLUS_LNA2		0x3
 
 #define AR_PHY_EXTCHN_PWRTHR1   (AR_AGC_BASE + 0x2c)
 #define AR_PHY_EXT_CHN_WIN      (AR_AGC_BASE + 0x30)
@@ -309,6 +331,8 @@
 #define AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ     -125
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ     -95
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ     -100
+
+#define AR_PHY_CCA_NOM_VAL_9330_2GHZ          -118
 
 /*
  * AGC Field Definitions
@@ -486,6 +510,8 @@
 #define AR_PHY_HEAVYCLIP_40      (AR_SM_BASE + 0x1ac)
 #define AR_PHY_ILLEGAL_TXRATE    (AR_SM_BASE + 0x1b0)
 
+#define AR_PHY_POWER_TX_RATE(_d) (AR_SM_BASE + 0x1c0 + ((_d) << 2))
+
 #define AR_PHY_PWRTX_MAX         (AR_SM_BASE + 0x1f0)
 #define AR_PHY_POWER_TX_SUB      (AR_SM_BASE + 0x1f4)
 
@@ -546,15 +572,12 @@
 
 #define AR_PHY_TXGAIN_TABLE      (AR_SM_BASE + 0x300)
 
-#define AR_PHY_TX_IQCAL_START_9485		(AR_SM_BASE + 0x3c4)
-#define AR_PHY_TX_IQCAL_START_DO_CAL_9485	0x80000000
-#define AR_PHY_TX_IQCAL_START_DO_CAL_9485_S	31
-#define AR_PHY_TX_IQCAL_CONTROL_1_9485		(AR_SM_BASE + 0x3c8)
-#define AR_PHY_TX_IQCAL_STATUS_B0_9485		(AR_SM_BASE + 0x3f0)
-
-#define AR_PHY_TX_IQCAL_CONTROL_1   (AR_SM_BASE + 0x448)
-#define AR_PHY_TX_IQCAL_START       (AR_SM_BASE + 0x440)
-#define AR_PHY_TX_IQCAL_STATUS_B0   (AR_SM_BASE + 0x48c)
+#define AR_PHY_TX_IQCAL_CONTROL_1   (AR_SM_BASE + AR_SREV_9485(ah) ? \
+						 0x3c8 : 0x448)
+#define AR_PHY_TX_IQCAL_START       (AR_SM_BASE + AR_SREV_9485(ah) ? \
+						 0x3c4 : 0x440)
+#define AR_PHY_TX_IQCAL_STATUS_B0   (AR_SM_BASE + AR_SREV_9485(ah) ? \
+						 0x3f0 : 0x48c)
 #define AR_PHY_TX_IQCAL_CORR_COEFF_B0(_i)    (AR_SM_BASE + \
 					     (AR_SREV_9485(ah) ? \
 					      0x3d0 : 0x450) + ((_i) << 2))
@@ -586,7 +609,7 @@
 #define AR_PHY_65NM_CH0_BIAS2       0x160c4
 #define AR_PHY_65NM_CH0_BIAS4       0x160cc
 #define AR_PHY_65NM_CH0_RXTX4       0x1610c
-#define AR_PHY_65NM_CH0_THERM       (AR_SREV_9485(ah) ? 0x1628c : 0x16290)
+#define AR_PHY_65NM_CH0_THERM       (AR_SREV_9300(ah) ? 0x16290 : 0x1628c)
 
 #define AR_PHY_65NM_CH0_THERM_LOCAL   0x80000000
 #define AR_PHY_65NM_CH0_THERM_LOCAL_S 31
@@ -602,11 +625,11 @@
 #define AR_PHY_65NM_CH2_RXTX1       0x16900
 #define AR_PHY_65NM_CH2_RXTX2       0x16904
 
-#define AR_CH0_TOP2 (AR_SREV_9485(ah) ? 0x00016284 : 0x0001628c)
+#define AR_CH0_TOP2		(AR_SREV_9300(ah) ? 0x1628c : 0x16284)
 #define AR_CH0_TOP2_XPABIASLVL		0xf000
 #define AR_CH0_TOP2_XPABIASLVL_S	12
 
-#define AR_CH0_XTAL		(AR_SREV_9485(ah) ? 0x16290 : 0x16294)
+#define AR_CH0_XTAL		(AR_SREV_9300(ah) ? 0x16294 : 0x16290)
 #define AR_CH0_XTAL_CAPINDAC	0x7f000000
 #define AR_CH0_XTAL_CAPINDAC_S	24
 #define AR_CH0_XTAL_CAPOUTDAC	0x00fe0000
@@ -756,10 +779,10 @@
 #define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT   0x01000000
 #define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_S 24
 #define AR_PHY_CHANNEL_STATUS_RX_CLEAR      0x00000004
-#define AR_PHY_TX_IQCAQL_CONTROL_1_IQCORR_I_Q_COFF_DELPT             0x01fc0000
-#define AR_PHY_TX_IQCAQL_CONTROL_1_IQCORR_I_Q_COFF_DELPT_S                   18
-#define AR_PHY_TX_IQCAL_START_DO_CAL        0x00000001
-#define AR_PHY_TX_IQCAL_START_DO_CAL_S      0
+#define AR_PHY_TX_IQCAL_CONTROL_1_IQCORR_I_Q_COFF_DELPT             0x01fc0000
+#define AR_PHY_TX_IQCAL_CONTROL_1_IQCORR_I_Q_COFF_DELPT_S                   18
+#define AR_PHY_TX_IQCAL_START_DO_CAL	    0x00000001
+#define AR_PHY_TX_IQCAL_START_DO_CAL_S	    0
 
 #define AR_PHY_TX_IQCAL_STATUS_FAILED    0x00000001
 #define AR_PHY_CALIBRATED_GAINS_0	 0x3e
@@ -827,7 +850,7 @@
 #define AR_PHY_TPC_11_B1         (AR_SM1_BASE + 0x220)
 #define AR_PHY_PDADC_TAB_1       (AR_SM1_BASE + 0x240)
 #define AR_PHY_TX_IQCAL_STATUS_B1   (AR_SM1_BASE + 0x48c)
-#define AR_PHY_TX_IQCAL_CORR_COEFF_B1(_i)    (AR_SM_BASE + 0x450 + ((_i) << 2))
+#define AR_PHY_TX_IQCAL_CORR_COEFF_B1(_i)    (AR_SM1_BASE + 0x450 + ((_i) << 2))
 
 /*
  * Channel 2 Register Map
@@ -1097,6 +1120,9 @@
 #define AR_PHY_POWERTX_RATE8			(AR_SM_BASE + 0x1dc)
 #define AR_PHY_POWERTX_RATE8_POWERTXHT40_5	0x3F00
 #define AR_PHY_POWERTX_RATE8_POWERTXHT40_5_S	8
+
+#define AR_PHY_CL_TAB_CL_GAIN_MOD		0x1f
+#define AR_PHY_CL_TAB_CL_GAIN_MOD_S		0
 
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 

@@ -31,19 +31,6 @@
 #include <mach/platform.h>
 #include "common.h"
 
-static cycle_t lpc32xx_clksrc_read(struct clocksource *cs)
-{
-	return (cycle_t)__raw_readl(LCP32XX_TIMER_TC(LPC32XX_TIMER1_BASE));
-}
-
-static struct clocksource lpc32xx_clksrc = {
-	.name	= "lpc32xx_clksrc",
-	.rating	= 300,
-	.read	= lpc32xx_clksrc_read,
-	.mask	= CLOCKSOURCE_MASK(32),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static int lpc32xx_clkevt_next_event(unsigned long delta,
     struct clock_event_device *dev)
 {
@@ -170,7 +157,9 @@ static void __init lpc32xx_timer_init(void)
 	__raw_writel(0, LCP32XX_TIMER_MCR(LPC32XX_TIMER1_BASE));
 	__raw_writel(LCP32XX_TIMER_CNTR_TCR_EN,
 		LCP32XX_TIMER_TCR(LPC32XX_TIMER1_BASE));
-	clocksource_register_hz(&lpc32xx_clksrc, clkrate);
+
+	clocksource_mmio_init(LCP32XX_TIMER_TC(LPC32XX_TIMER1_BASE),
+		"lpc32xx_clksrc", clkrate, 300, 32, clocksource_mmio_readl_up);
 }
 
 struct sys_timer lpc32xx_timer = {

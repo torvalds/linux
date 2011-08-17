@@ -14,6 +14,12 @@
 
 #include <linux/types.h>
 
+struct koneplus_talk {
+	uint8_t command; /* KONEPLUS_COMMAND_TALK */
+	uint8_t size; /* always 0x10 */
+	uint8_t data[14];
+} __packed;
+
 /*
  * case 1: writes request 80 and reads value 1
  *
@@ -40,10 +46,10 @@ enum koneplus_control_values {
 	KONEPLUS_CONTROL_REQUEST_STATUS_WAIT = 3,
 };
 
-struct koneplus_startup_profile {
-	uint8_t command; /* KONEPLUS_COMMAND_STARTUP_PROFILE */
+struct koneplus_actual_profile {
+	uint8_t command; /* KONEPLUS_COMMAND_ACTUAL_PROFILE */
 	uint8_t size; /* always 3 */
-	uint8_t startup_profile; /* Range 0-4! */
+	uint8_t actual_profile; /* Range 0-4! */
 } __attribute__ ((__packed__));
 
 struct koneplus_profile_settings {
@@ -132,29 +138,17 @@ struct koneplus_tcu_image {
 
 enum koneplus_commands {
 	KONEPLUS_COMMAND_CONTROL = 0x4,
-	KONEPLUS_COMMAND_STARTUP_PROFILE = 0x5,
+	KONEPLUS_COMMAND_ACTUAL_PROFILE = 0x5,
 	KONEPLUS_COMMAND_PROFILE_SETTINGS = 0x6,
 	KONEPLUS_COMMAND_PROFILE_BUTTONS = 0x7,
 	KONEPLUS_COMMAND_MACRO = 0x8,
 	KONEPLUS_COMMAND_INFO = 0x9,
+	KONEPLUS_COMMAND_TCU = 0xc,
 	KONEPLUS_COMMAND_E = 0xe,
 	KONEPLUS_COMMAND_SENSOR = 0xf,
+	KONEPLUS_COMMAND_TALK = 0x10,
 	KONEPLUS_COMMAND_FIRMWARE_WRITE = 0x1b,
 	KONEPLUS_COMMAND_FIRMWARE_WRITE_CONTROL = 0x1c,
-};
-
-enum koneplus_usb_commands {
-	KONEPLUS_USB_COMMAND_CONTROL = 0x304,
-	KONEPLUS_USB_COMMAND_STARTUP_PROFILE = 0x305,
-	KONEPLUS_USB_COMMAND_PROFILE_SETTINGS = 0x306,
-	KONEPLUS_USB_COMMAND_PROFILE_BUTTONS = 0x307,
-	KONEPLUS_USB_COMMAND_MACRO = 0x308,
-	KONEPLUS_USB_COMMAND_INFO = 0x309,
-	KONEPLUS_USB_COMMAND_TCU = 0x30c,
-	KONEPLUS_USB_COMMAND_E = 0x30e,
-	KONEPLUS_USB_COMMAND_SENSOR = 0x30f,
-	KONEPLUS_USB_COMMAND_FIRMWARE_WRITE = 0x31b,
-	KONEPLUS_USB_COMMAND_FIRMWARE_WRITE_CONTROL = 0x31c,
 };
 
 enum koneplus_mouse_report_numbers {
@@ -193,6 +187,7 @@ enum koneplus_mouse_report_button_types {
 	 * data2 = action
 	 */
 	KONEPLUS_MOUSE_REPORT_BUTTON_TYPE_MULTIMEDIA = 0xf0,
+	KONEPLUS_MOUSE_REPORT_TALK = 0xff,
 };
 
 enum koneplus_mouse_report_button_action {
@@ -215,7 +210,6 @@ struct koneplus_device {
 
 	struct mutex koneplus_lock;
 
-	int startup_profile;
 	struct koneplus_info info;
 	struct koneplus_profile_settings profile_settings[5];
 	struct koneplus_profile_buttons profile_buttons[5];

@@ -18,9 +18,6 @@ struct compat_timespec;
 struct restart_block {
 	long (*fn)(struct restart_block *);
 	union {
-		struct {
-			unsigned long arg0, arg1, arg2, arg3;
-		};
 		/* For futex_wait and futex_wait_requeue_pi */
 		struct {
 			u32 __user *uaddr;
@@ -32,7 +29,7 @@ struct restart_block {
 		} futex;
 		/* For nanosleep */
 		struct {
-			clockid_t index;
+			clockid_t clockid;
 			struct timespec __user *rmtp;
 #ifdef CONFIG_COMPAT
 			struct compat_timespec __user *compat_rmtp;

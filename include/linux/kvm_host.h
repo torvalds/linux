@@ -27,6 +27,10 @@
 
 #include <asm/kvm_host.h>
 
+#ifndef KVM_MMIO_SIZE
+#define KVM_MMIO_SIZE 8
+#endif
+
 /*
  * vcpu->requests bit members
  */
@@ -43,6 +47,7 @@
 #define KVM_REQ_DEACTIVATE_FPU    10
 #define KVM_REQ_EVENT             11
 #define KVM_REQ_APF_HALT          12
+#define KVM_REQ_STEAL_UPDATE      13
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
@@ -98,23 +103,31 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 #endif
 
+enum {
+	OUTSIDE_GUEST_MODE,
+	IN_GUEST_MODE,
+	EXITING_GUEST_MODE
+};
+
 struct kvm_vcpu {
 	struct kvm *kvm;
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	struct preempt_notifier preempt_notifier;
 #endif
+	int cpu;
 	int vcpu_id;
-	struct mutex mutex;
-	int   cpu;
-	atomic_t guest_mode;
-	struct kvm_run *run;
+	int srcu_idx;
+	int mode;
 	unsigned long requests;
 	unsigned long guest_debug;
-	int srcu_idx;
+
+	struct mutex mutex;
+	struct kvm_run *run;
 
 	int fpu_active;
 	int guest_fpu_loaded, guest_xcr0_loaded;
 	wait_queue_head_t wq;
+	struct pid *pid;
 	int sigset_active;
 	sigset_t sigset;
 	struct kvm_vcpu_stat stat;
@@ -124,7 +137,8 @@ struct kvm_vcpu {
 	int mmio_read_completed;
 	int mmio_is_write;
 	int mmio_size;
-	unsigned char mmio_data[8];
+	int mmio_index;
+	unsigned char mmio_data[KVM_MMIO_SIZE];
 	gpa_t mmio_phys_addr;
 #endif
 
@@ -139,6 +153,11 @@ struct kvm_vcpu {
 
 	struct kvm_vcpu_arch arch;
 };
+
+static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
+{
+	return cmpxchg(&vcpu->mode, IN_GUEST_MODE, EXITING_GUEST_MODE);
+}
 
 /*
  * Some of the bitops functions do not support too long bitmaps.
@@ -212,7 +231,6 @@ struct kvm_memslots {
 
 struct kvm {
 	spinlock_t mmu_lock;
-	raw_spinlock_t requests_lock;
 	struct mutex slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
 	struct kvm_memslots *memslots;
@@ -223,6 +241,7 @@ struct kvm {
 #endif
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	atomic_t online_vcpus;
+	int last_boosted_vcpu;
 	struct list_head vm_list;
 	struct mutex lock;
 	struct kvm_io_bus *buses[KVM_NR_BUSES];
@@ -278,9 +297,10 @@ static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 }
 
 #define kvm_for_each_vcpu(idx, vcpup, kvm) \
-	for (idx = 0, vcpup = kvm_get_vcpu(kvm, idx); \
-	     idx < atomic_read(&kvm->online_vcpus) && vcpup; \
-	     vcpup = kvm_get_vcpu(kvm, ++idx))
+	for (idx = 0; \
+	     idx < atomic_read(&kvm->online_vcpus) && \
+	     (vcpup = kvm_get_vcpu(kvm, idx)) != NULL; \
+	     idx++)
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
@@ -307,12 +327,17 @@ static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
 static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 
 extern struct page *bad_page;
+extern struct page *fault_page;
+
 extern pfn_t bad_pfn;
+extern pfn_t fault_pfn;
 
 int is_error_page(struct page *page);
 int is_error_pfn(pfn_t pfn);
 int is_hwpoison_pfn(pfn_t pfn);
 int is_fault_pfn(pfn_t pfn);
+int is_noslot_pfn(pfn_t pfn);
+int is_invalid_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
@@ -351,7 +376,6 @@ pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
 		      bool *writable);
 pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn);
-int memslot_id(struct kvm *kvm, gfn_t gfn);
 void kvm_release_pfn_dirty(pfn_t);
 void kvm_release_pfn_clean(pfn_t pfn);
 void kvm_set_pfn_dirty(pfn_t pfn);
@@ -363,6 +387,8 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
 			  unsigned long len);
 int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len);
+int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			   void *data, unsigned long len);
 int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
 			 int offset, int len);
 int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
@@ -499,6 +525,7 @@ struct kvm_assigned_dev_kernel {
 	struct kvm *kvm;
 	spinlock_t intx_lock;
 	char irq_name[32];
+	struct pci_saved_state *pci_saved_state;
 };
 
 struct kvm_irq_mask_notifier {
@@ -573,14 +600,28 @@ static inline int kvm_deassign_device(struct kvm *kvm,
 
 static inline void kvm_guest_enter(void)
 {
+	BUG_ON(preemptible());
 	account_system_vtime(current);
 	current->flags |= PF_VCPU;
+	/* KVM does not hold any references to rcu protected data when it
+	 * switches CPU into a guest mode. In fact switching to a guest mode
+	 * is very similar to exiting to userspase from rcu point of view. In
+	 * addition CPU may stay in a guest mode for quite a long time (up to
+	 * one time slice). Lets treat guest mode as quiescent state, just like
+	 * we do with user-mode execution.
+	 */
+	rcu_virt_note_context_switch(smp_processor_id());
 }
 
 static inline void kvm_guest_exit(void)
 {
 	account_system_vtime(current);
 	current->flags &= ~PF_VCPU;
+}
+
+static inline int memslot_id(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_memslot(kvm, gfn)->id;
 }
 
 static inline unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,
@@ -717,11 +758,6 @@ static inline long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 {
 	set_bit(req, &vcpu->requests);
-}
-
-static inline bool kvm_make_check_request(int req, struct kvm_vcpu *vcpu)
-{
-	return test_and_set_bit(req, &vcpu->requests);
 }
 
 static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)

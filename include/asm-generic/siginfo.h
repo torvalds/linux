@@ -192,7 +192,7 @@ typedef struct siginfo {
  * SIGBUS si_codes
  */
 #define BUS_ADRALN	(__SI_FAULT|1)	/* invalid address alignment */
-#define BUS_ADRERR	(__SI_FAULT|2)	/* non-existant physical address */
+#define BUS_ADRERR	(__SI_FAULT|2)	/* non-existent physical address */
 #define BUS_OBJERR	(__SI_FAULT|3)	/* object specific hardware error */
 /* hardware memory error consumed on a machine check: action required */
 #define BUS_MCEERR_AR	(__SI_FAULT|4)

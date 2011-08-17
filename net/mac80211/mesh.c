@@ -279,55 +279,12 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ = 0x00;
 
-	if (sdata->u.mesh.vendor_ie) {
-		int len = sdata->u.mesh.vendor_ie_len;
-		const u8 *data = sdata->u.mesh.vendor_ie;
+	if (sdata->u.mesh.ie) {
+		int len = sdata->u.mesh.ie_len;
+		const u8 *data = sdata->u.mesh.ie;
 		if (skb_tailroom(skb) > len)
 			memcpy(skb_put(skb, len), data, len);
 	}
-}
-
-u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_table *tbl)
-{
-	/* Use last four bytes of hw addr and interface index as hash index */
-	return jhash_2words(*(u32 *)(addr+2), sdata->dev->ifindex, tbl->hash_rnd)
-		& tbl->hash_mask;
-}
-
-struct mesh_table *mesh_table_alloc(int size_order)
-{
-	int i;
-	struct mesh_table *newtbl;
-
-	newtbl = kmalloc(sizeof(struct mesh_table), GFP_KERNEL);
-	if (!newtbl)
-		return NULL;
-
-	newtbl->hash_buckets = kzalloc(sizeof(struct hlist_head) *
-			(1 << size_order), GFP_KERNEL);
-
-	if (!newtbl->hash_buckets) {
-		kfree(newtbl);
-		return NULL;
-	}
-
-	newtbl->hashwlock = kmalloc(sizeof(spinlock_t) *
-			(1 << size_order), GFP_KERNEL);
-	if (!newtbl->hashwlock) {
-		kfree(newtbl->hash_buckets);
-		kfree(newtbl);
-		return NULL;
-	}
-
-	newtbl->size_order = size_order;
-	newtbl->hash_mask = (1 << size_order) - 1;
-	atomic_set(&newtbl->entries,  0);
-	get_random_bytes(&newtbl->hash_rnd,
-			sizeof(newtbl->hash_rnd));
-	for (i = 0; i <= newtbl->hash_mask; i++)
-		spin_lock_init(&newtbl->hashwlock[i]);
-
-	return newtbl;
 }
 
 
@@ -573,8 +530,12 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
 			       &elems);
 
+	/* ignore beacons from secure mesh peers if our security is off */
+	if (elems.rsn_len && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE)
+		return;
+
 	if (elems.ds_params && elems.ds_params_len == 1)
-		freq = ieee80211_channel_to_frequency(elems.ds_params[0]);
+		freq = ieee80211_channel_to_frequency(elems.ds_params[0], band);
 	else
 		freq = rx_status->freq;
 
@@ -586,9 +547,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (elems.mesh_id && elems.mesh_config &&
 	    mesh_matches_local(&elems, sdata)) {
 		supp_rates = ieee80211_sta_get_rates(local, &elems, band);
-
-		mesh_neighbour_update(mgmt->sa, supp_rates, sdata,
-				      mesh_peer_accepts_plinks(&elems));
+		mesh_neighbour_update(mgmt->sa, supp_rates, sdata, &elems);
 	}
 }
 
@@ -598,7 +557,7 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_rx_status *rx_status)
 {
 	switch (mgmt->u.action.category) {
-	case WLAN_CATEGORY_MESH_PLINK:
+	case WLAN_CATEGORY_MESH_ACTION:
 		mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
 		break;
 	case WLAN_CATEGORY_MESH_PATH_SEL:
@@ -611,11 +570,8 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status;
-	struct ieee80211_if_mesh *ifmsh;
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
-
-	ifmsh = &sdata->u.mesh;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -645,7 +601,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
 		mesh_mpath_table_grow();
 
-	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
+	if (test_and_clear_bit(MESH_WORK_GROW_MPP_TABLE, &ifmsh->wrkq_flags))
 		mesh_mpp_table_grow();
 
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))

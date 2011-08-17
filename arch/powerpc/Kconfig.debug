@@ -35,27 +35,6 @@ config DEBUG_STACKOVERFLOW
 	  This option will cause messages to be printed if free stack space
 	  drops below a certain limit.
 
-config DEBUG_STACK_USAGE
-	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
-
-config DEBUG_PER_CPU_MAPS
-	bool "Debug access to per_cpu maps"
-	depends on DEBUG_KERNEL
-	depends on SMP
-	default n
-	---help---
-	  Say Y to verify that the per_cpu map being accessed has
-	  been setup.  Adds a fair amount of code to kernel memory
-	  and decreases performance.
-
-	  Say N if unsure.
-
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
 	depends on PPC_PSERIES && DEBUG_FS && TRACEPOINTS
@@ -188,6 +167,13 @@ config PPC_EARLY_DEBUG_LPAR
 	  Select this to enable early debugging for a machine with a HVC
 	  console on vterm 0.
 
+config PPC_EARLY_DEBUG_LPAR_HVSI
+	bool "LPAR HVSI Console"
+	depends on PPC_PSERIES
+	help
+	  Select this to enable early debugging for a machine with a HVSI
+	  console on a specified vterm.
+
 config PPC_EARLY_DEBUG_G5
 	bool "Apple G5"
 	depends on PPC_PMAC64
@@ -267,7 +253,20 @@ config PPC_EARLY_DEBUG_USBGECKO
 	  Select this to enable early debugging for Nintendo GameCube/Wii
 	  consoles via an external USB Gecko adapter.
 
+config PPC_EARLY_DEBUG_WSP
+	bool "Early debugging via WSP's internal UART"
+	depends on PPC_WSP
+	select PPC_UDBG_16550
+
 endchoice
+
+config PPC_EARLY_DEBUG_HVSI_VTERMNO
+	hex "vterm number to use with early debug HVSI"
+	depends on PPC_EARLY_DEBUG_LPAR_HVSI
+	default "0x30000000"
+	help
+	  You probably want 0x30000000 for your first serial port and
+	  0x30000001 for your second one
 
 config PPC_EARLY_DEBUG_44x_PHYSLOW
 	hex "Low 32 bits of early debug UART physical address"

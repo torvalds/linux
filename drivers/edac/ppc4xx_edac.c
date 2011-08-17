@@ -113,7 +113,7 @@
 #define EDAC_OPSTATE_UNKNOWN_STR	"unknown"
 
 #define PPC4XX_EDAC_MODULE_NAME		"ppc4xx_edac"
-#define PPC4XX_EDAC_MODULE_REVISION	"v1.0.0 " __DATE__
+#define PPC4XX_EDAC_MODULE_REVISION	"v1.0.0"
 
 #define PPC4XX_EDAC_MESSAGE_SIZE	256
 
@@ -184,8 +184,7 @@ struct ppc4xx_ecc_status {
 
 /* Function Prototypes */
 
-static int ppc4xx_edac_probe(struct platform_device *device,
-			     const struct of_device_id *device_id);
+static int ppc4xx_edac_probe(struct platform_device *device)
 static int ppc4xx_edac_remove(struct platform_device *device);
 
 /* Global Variables */
@@ -201,7 +200,7 @@ static struct of_device_id ppc4xx_edac_match[] = {
 	{ }
 };
 
-static struct of_platform_driver ppc4xx_edac_driver = {
+static struct platform_driver ppc4xx_edac_driver = {
 	.probe			= ppc4xx_edac_probe,
 	.remove			= ppc4xx_edac_remove,
 	.driver = {
@@ -997,9 +996,6 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
  *       initialized.
  * @op: A pointer to the OpenFirmware device tree node associated
  *      with the controller this EDAC instance is bound to.
- * @match: A pointer to the OpenFirmware device tree match
- *         information associated with the controller this EDAC instance
- *         is bound to.
  * @dcr_host: A pointer to the DCR data containing the DCR mapping
  *            for this controller instance.
  * @mcopt1: The 32-bit Memory Controller Option 1 register value
@@ -1015,7 +1011,6 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 static int __devinit
 ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 		    struct platform_device *op,
-		    const struct of_device_id *match,
 		    const dcr_host_t *dcr_host,
 		    u32 mcopt1)
 {
@@ -1024,7 +1019,7 @@ ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	struct ppc4xx_edac_pdata *pdata = NULL;
 	const struct device_node *np = op->dev.of_node;
 
-	if (match == NULL)
+	if (of_match_device(ppc4xx_edac_match, &op->dev) == NULL)
 		return -EINVAL;
 
 	/* Initial driver pointers and private data */
@@ -1227,9 +1222,6 @@ ppc4xx_edac_map_dcrs(const struct device_node *np, dcr_host_t *dcr_host)
  * ppc4xx_edac_probe - check controller and bind driver
  * @op: A pointer to the OpenFirmware device tree node associated
  *      with the controller being probed for driver binding.
- * @match: A pointer to the OpenFirmware device tree match
- *         information associated with the controller being probed
- *         for driver binding.
  *
  * This routine probes a specific ibm,sdram-4xx-ddr2 controller
  * instance for binding with the driver.
@@ -1237,8 +1229,7 @@ ppc4xx_edac_map_dcrs(const struct device_node *np, dcr_host_t *dcr_host)
  * Returns 0 if the controller instance was successfully bound to the
  * driver; otherwise, < 0 on error.
  */
-static int __devinit
-ppc4xx_edac_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit ppc4xx_edac_probe(struct platform_device *op)
 {
 	int status = 0;
 	u32 mcopt1, memcheck;
@@ -1304,7 +1295,7 @@ ppc4xx_edac_probe(struct platform_device *op, const struct of_device_id *match)
 		goto done;
 	}
 
-	status = ppc4xx_edac_mc_init(mci, op, match, &dcr_host, mcopt1);
+	status = ppc4xx_edac_mc_init(mci, op, &dcr_host, mcopt1);
 
 	if (status) {
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
@@ -1421,7 +1412,7 @@ ppc4xx_edac_init(void)
 
 	ppc4xx_edac_opstate_init();
 
-	return of_register_platform_driver(&ppc4xx_edac_driver);
+	return platform_driver_register(&ppc4xx_edac_driver);
 }
 
 /**
@@ -1434,7 +1425,7 @@ ppc4xx_edac_init(void)
 static void __exit
 ppc4xx_edac_exit(void)
 {
-	of_unregister_platform_driver(&ppc4xx_edac_driver);
+	platform_driver_unregister(&ppc4xx_edac_driver);
 }
 
 module_init(ppc4xx_edac_init);

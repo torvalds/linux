@@ -54,6 +54,8 @@ source "drivers/spi/Kconfig"
 
 source "drivers/pps/Kconfig"
 
+source "drivers/ptp/Kconfig"
+
 source "drivers/gpio/Kconfig"
 
 source "drivers/w1/Kconfig"
@@ -67,6 +69,8 @@ source "drivers/thermal/Kconfig"
 source "drivers/watchdog/Kconfig"
 
 source "drivers/ssb/Kconfig"
+
+source "drivers/bcma/Kconfig"
 
 source "drivers/mfd/Kconfig"
 
@@ -90,8 +94,6 @@ source "drivers/memstick/Kconfig"
 
 source "drivers/leds/Kconfig"
 
-source "drivers/nfc/Kconfig"
-
 source "drivers/accessibility/Kconfig"
 
 source "drivers/infiniband/Kconfig"
@@ -110,6 +112,8 @@ source "drivers/uio/Kconfig"
 
 source "drivers/vlynq/Kconfig"
 
+source "drivers/virtio/Kconfig"
+
 source "drivers/xen/Kconfig"
 
 source "drivers/staging/Kconfig"
@@ -117,4 +121,13 @@ source "drivers/staging/Kconfig"
 source "drivers/platform/Kconfig"
 
 source "drivers/clk/Kconfig"
+
+source "drivers/hwspinlock/Kconfig"
+
+source "drivers/clocksource/Kconfig"
+
+source "drivers/iommu/Kconfig"
+
+source "drivers/virt/Kconfig"
+
 endmenu

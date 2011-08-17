@@ -146,6 +146,8 @@ void __init plat_mem_setup(void)
 	pm_power_off = msp_power_off;
 }
 
+extern struct plat_smp_ops msp_smtc_smp_ops;
+
 void __init prom_init(void)
 {
 	unsigned long family;
@@ -226,10 +228,16 @@ void __init prom_init(void)
 	 */
 	msp_serial_setup();
 
+	if (register_vsmp_smp_ops()) {
+#ifdef CONFIG_MIPS_MT_SMTC
+		register_smp_ops(&msp_smtc_smp_ops);
+#endif
+	}
+
 #ifdef CONFIG_PMCTWILED
 	/*
 	 * Setup LED states before the subsys_initcall loads other
-	 * dependant drivers/modules.
+	 * dependent drivers/modules.
 	 */
 	pmctwiled_setup();
 #endif

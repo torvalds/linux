@@ -2,6 +2,7 @@
    USB and Video4Linux interface part.
    (C) 1999-2004 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
+   (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
    driver and thus may have bugs that are not present in the original version.
@@ -31,184 +32,330 @@
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 #include "pwc.h"
 
-static struct v4l2_queryctrl pwc_controls[] = {
-	{
-	    .id      = V4L2_CID_BRIGHTNESS,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Brightness",
-	    .minimum = 0,
-	    .maximum = 128,
-	    .step    = 1,
-	    .default_value = 64,
-	},
-	{
-	    .id      = V4L2_CID_CONTRAST,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Contrast",
-	    .minimum = 0,
-	    .maximum = 64,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_SATURATION,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Saturation",
-	    .minimum = -100,
-	    .maximum = 100,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_GAMMA,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Gamma",
-	    .minimum = 0,
-	    .maximum = 32,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_RED_BALANCE,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Red Gain",
-	    .minimum = 0,
-	    .maximum = 256,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_BLUE_BALANCE,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Blue Gain",
-	    .minimum = 0,
-	    .maximum = 256,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_AUTO_WHITE_BALANCE,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Auto White Balance",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_EXPOSURE,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Shutter Speed (Exposure)",
-	    .minimum = 0,
-	    .maximum = 256,
-	    .step    = 1,
-	    .default_value = 200,
-	},
-	{
-	    .id      = V4L2_CID_AUTOGAIN,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Auto Gain Enabled",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
-	    .default_value = 1,
-	},
-	{
-	    .id      = V4L2_CID_GAIN,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Gain Level",
-	    .minimum = 0,
-	    .maximum = 256,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_SAVE_USER,
-	    .type    = V4L2_CTRL_TYPE_BUTTON,
-	    .name    = "Save User Settings",
-	    .minimum = 0,
-	    .maximum = 0,
-	    .step    = 0,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_RESTORE_USER,
-	    .type    = V4L2_CTRL_TYPE_BUTTON,
-	    .name    = "Restore User Settings",
-	    .minimum = 0,
-	    .maximum = 0,
-	    .step    = 0,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_RESTORE_FACTORY,
-	    .type    = V4L2_CTRL_TYPE_BUTTON,
-	    .name    = "Restore Factory Settings",
-	    .minimum = 0,
-	    .maximum = 0,
-	    .step    = 0,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_COLOUR_MODE,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Colour mode",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_AUTOCONTOUR,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Auto contour",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_CONTOUR,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Contour",
-	    .minimum = 0,
-	    .maximum = 63,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_BACKLIGHT,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Backlight compensation",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	  .id      = V4L2_CID_PRIVATE_FLICKERLESS,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Flickerless",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
-	    .default_value = 0,
-	},
-	{
-	    .id      = V4L2_CID_PRIVATE_NOISE_REDUCTION,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Noise reduction",
-	    .minimum = 0,
-	    .maximum = 3,
-	    .step    = 1,
-	    .default_value = 0,
-	},
+#define PWC_CID_CUSTOM(ctrl) ((V4L2_CID_USER_BASE | 0xf000) + custom_ ## ctrl)
+
+static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl);
+static int pwc_s_ctrl(struct v4l2_ctrl *ctrl);
+
+static const struct v4l2_ctrl_ops pwc_ctrl_ops = {
+	.g_volatile_ctrl = pwc_g_volatile_ctrl,
+	.s_ctrl = pwc_s_ctrl,
 };
 
+enum { awb_indoor, awb_outdoor, awb_fl, awb_manual, awb_auto };
+enum { custom_autocontour, custom_contour, custom_noise_reduction,
+	custom_save_user, custom_restore_user, custom_restore_factory };
+
+const char * const pwc_auto_whitebal_qmenu[] = {
+	"Indoor (Incandescant Lighting) Mode",
+	"Outdoor (Sunlight) Mode",
+	"Indoor (Fluorescent Lighting) Mode",
+	"Manual Mode",
+	"Auto Mode",
+	NULL
+};
+
+static const struct v4l2_ctrl_config pwc_auto_white_balance_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= V4L2_CID_AUTO_WHITE_BALANCE,
+	.type	= V4L2_CTRL_TYPE_MENU,
+	.max	= awb_auto,
+	.qmenu	= pwc_auto_whitebal_qmenu,
+};
+
+static const struct v4l2_ctrl_config pwc_autocontour_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(autocontour),
+	.type	= V4L2_CTRL_TYPE_BOOLEAN,
+	.name	= "Auto contour",
+	.min	= 0,
+	.max	= 1,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_contour_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(contour),
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.name	= "Contour",
+	.min	= 0,
+	.max	= 63,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_backlight_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= V4L2_CID_BACKLIGHT_COMPENSATION,
+	.type	= V4L2_CTRL_TYPE_BOOLEAN,
+	.min	= 0,
+	.max	= 1,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_flicker_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= V4L2_CID_BAND_STOP_FILTER,
+	.type	= V4L2_CTRL_TYPE_BOOLEAN,
+	.min	= 0,
+	.max	= 1,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_noise_reduction_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(noise_reduction),
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.name	= "Dynamic Noise Reduction",
+	.min	= 0,
+	.max	= 3,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_save_user_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(save_user),
+	.type	= V4L2_CTRL_TYPE_BUTTON,
+	.name    = "Save User Settings",
+};
+
+static const struct v4l2_ctrl_config pwc_restore_user_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(restore_user),
+	.type	= V4L2_CTRL_TYPE_BUTTON,
+	.name    = "Restore User Settings",
+};
+
+static const struct v4l2_ctrl_config pwc_restore_factory_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(restore_factory),
+	.type	= V4L2_CTRL_TYPE_BUTTON,
+	.name    = "Restore Factory Settings",
+};
+
+int pwc_init_controls(struct pwc_device *pdev)
+{
+	struct v4l2_ctrl_handler *hdl;
+	struct v4l2_ctrl_config cfg;
+	int r, def;
+
+	hdl = &pdev->ctrl_handler;
+	r = v4l2_ctrl_handler_init(hdl, 20);
+	if (r)
+		return r;
+
+	/* Brightness, contrast, saturation, gamma */
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, BRIGHTNESS_FORMATTER, &def);
+	if (r || def > 127)
+		def = 63;
+	pdev->brightness = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_BRIGHTNESS, 0, 127, 1, def);
+
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, CONTRAST_FORMATTER, &def);
+	if (r || def > 63)
+		def = 31;
+	pdev->contrast = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_CONTRAST, 0, 63, 1, def);
+
+	if (pdev->type >= 675) {
+		if (pdev->type < 730)
+			pdev->saturation_fmt = SATURATION_MODE_FORMATTER2;
+		else
+			pdev->saturation_fmt = SATURATION_MODE_FORMATTER1;
+		r = pwc_get_s8_ctrl(pdev, GET_CHROM_CTL, pdev->saturation_fmt,
+				    &def);
+		if (r || def < -100 || def > 100)
+			def = 0;
+		pdev->saturation = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				      V4L2_CID_SATURATION, -100, 100, 1, def);
+	}
+
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, GAMMA_FORMATTER, &def);
+	if (r || def > 31)
+		def = 15;
+	pdev->gamma = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_GAMMA, 0, 31, 1, def);
+
+	/* auto white balance, red gain, blue gain */
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL, WB_MODE_FORMATTER, &def);
+	if (r || def > awb_auto)
+		def = awb_auto;
+	cfg = pwc_auto_white_balance_cfg;
+	cfg.name = v4l2_ctrl_get_name(cfg.id);
+	cfg.def = def;
+	pdev->auto_white_balance = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+	/* check auto controls to avoid NULL deref in v4l2_ctrl_auto_cluster */
+	if (!pdev->auto_white_balance)
+		return hdl->error;
+
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL,
+			    PRESET_MANUAL_RED_GAIN_FORMATTER, &def);
+	if (r)
+		def = 127;
+	pdev->red_balance = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_RED_BALANCE, 0, 255, 1, def);
+
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL,
+			    PRESET_MANUAL_BLUE_GAIN_FORMATTER, &def);
+	if (r)
+		def = 127;
+	pdev->blue_balance = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_BLUE_BALANCE, 0, 255, 1, def);
+
+	v4l2_ctrl_auto_cluster(3, &pdev->auto_white_balance, awb_manual,
+			       pdev->auto_white_balance->cur.val == awb_auto);
+
+	/* autogain, gain */
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, AGC_MODE_FORMATTER, &def);
+	if (r || (def != 0 && def != 0xff))
+		def = 0;
+	/* Note a register value if 0 means auto gain is on */
+	pdev->autogain = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_AUTOGAIN, 0, 1, 1, def == 0);
+	if (!pdev->autogain)
+		return hdl->error;
+
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, PRESET_AGC_FORMATTER, &def);
+	if (r || def > 63)
+		def = 31;
+	pdev->gain = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_GAIN, 0, 63, 1, def);
+
+	/* auto exposure, exposure */
+	if (DEVICE_USE_CODEC2(pdev->type)) {
+		r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, SHUTTER_MODE_FORMATTER,
+				    &def);
+		if (r || (def != 0 && def != 0xff))
+			def = 0;
+		/*
+		 * def = 0 auto, def = ff manual
+		 * menu idx 0 = auto, idx 1 = manual
+		 */
+		pdev->exposure_auto = v4l2_ctrl_new_std_menu(hdl,
+					&pwc_ctrl_ops,
+					V4L2_CID_EXPOSURE_AUTO,
+					1, 0, def != 0);
+		if (!pdev->exposure_auto)
+			return hdl->error;
+
+		/* GET_LUM_CTL, PRESET_SHUTTER_FORMATTER is unreliable */
+		r = pwc_get_u16_ctrl(pdev, GET_STATUS_CTL,
+				     READ_SHUTTER_FORMATTER, &def);
+		if (r || def > 655)
+			def = 655;
+		pdev->exposure = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+					V4L2_CID_EXPOSURE, 0, 655, 1, def);
+		/* CODEC2: separate auto gain & auto exposure */
+		v4l2_ctrl_auto_cluster(2, &pdev->autogain, 0, true);
+		v4l2_ctrl_auto_cluster(2, &pdev->exposure_auto,
+				       V4L2_EXPOSURE_MANUAL, true);
+	} else if (DEVICE_USE_CODEC3(pdev->type)) {
+		/* GET_LUM_CTL, PRESET_SHUTTER_FORMATTER is unreliable */
+		r = pwc_get_u16_ctrl(pdev, GET_STATUS_CTL,
+				     READ_SHUTTER_FORMATTER, &def);
+		if (r || def > 255)
+			def = 255;
+		pdev->exposure = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+					V4L2_CID_EXPOSURE, 0, 255, 1, def);
+		/* CODEC3: both gain and exposure controlled by autogain */
+		pdev->autogain_expo_cluster[0] = pdev->autogain;
+		pdev->autogain_expo_cluster[1] = pdev->gain;
+		pdev->autogain_expo_cluster[2] = pdev->exposure;
+		v4l2_ctrl_auto_cluster(3, pdev->autogain_expo_cluster,
+				       0, true);
+	}
+
+	/* color / bw setting */
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL, COLOUR_MODE_FORMATTER,
+			 &def);
+	if (r || (def != 0 && def != 0xff))
+		def = 0xff;
+	/* def = 0 bw, def = ff color, menu idx 0 = color, idx 1 = bw */
+	pdev->colorfx = v4l2_ctrl_new_std_menu(hdl, &pwc_ctrl_ops,
+				V4L2_CID_COLORFX, 1, 0, def == 0);
+
+	/* autocontour, contour */
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, AUTO_CONTOUR_FORMATTER, &def);
+	if (r || (def != 0 && def != 0xff))
+		def = 0;
+	cfg = pwc_autocontour_cfg;
+	cfg.def = def == 0;
+	pdev->autocontour = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+	if (!pdev->autocontour)
+		return hdl->error;
+
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, PRESET_CONTOUR_FORMATTER, &def);
+	if (r || def > 63)
+		def = 31;
+	cfg = pwc_contour_cfg;
+	cfg.def = def;
+	pdev->contour = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
+	v4l2_ctrl_auto_cluster(2, &pdev->autocontour, 0, false);
+
+	/* backlight */
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL,
+			    BACK_LIGHT_COMPENSATION_FORMATTER, &def);
+	if (r || (def != 0 && def != 0xff))
+		def = 0;
+	cfg = pwc_backlight_cfg;
+	cfg.name = v4l2_ctrl_get_name(cfg.id);
+	cfg.def = def == 0;
+	pdev->backlight = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
+	/* flikker rediction */
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL,
+			    FLICKERLESS_MODE_FORMATTER, &def);
+	if (r || (def != 0 && def != 0xff))
+		def = 0;
+	cfg = pwc_flicker_cfg;
+	cfg.name = v4l2_ctrl_get_name(cfg.id);
+	cfg.def = def == 0;
+	pdev->flicker = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
+	/* Dynamic noise reduction */
+	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL,
+			    DYNAMIC_NOISE_CONTROL_FORMATTER, &def);
+	if (r || def > 3)
+		def = 2;
+	cfg = pwc_noise_reduction_cfg;
+	cfg.def = def;
+	pdev->noise_reduction = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
+	/* Save / Restore User / Factory Settings */
+	pdev->save_user = v4l2_ctrl_new_custom(hdl, &pwc_save_user_cfg, NULL);
+	pdev->restore_user = v4l2_ctrl_new_custom(hdl, &pwc_restore_user_cfg,
+						  NULL);
+	if (pdev->restore_user)
+		pdev->restore_user->flags = V4L2_CTRL_FLAG_UPDATE;
+	pdev->restore_factory = v4l2_ctrl_new_custom(hdl,
+						     &pwc_restore_factory_cfg,
+						     NULL);
+	if (pdev->restore_factory)
+		pdev->restore_factory->flags = V4L2_CTRL_FLAG_UPDATE;
+
+	if (!pdev->features & FEATURE_MOTOR_PANTILT)
+		return hdl->error;
+
+	/* Motor pan / tilt / reset */
+	pdev->motor_pan = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_PAN_RELATIVE, -4480, 4480, 64, 0);
+	if (!pdev->motor_pan)
+		return hdl->error;
+	pdev->motor_tilt = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_TILT_RELATIVE, -1920, 1920, 64, 0);
+	pdev->motor_pan_reset = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_PAN_RESET, 0, 0, 0, 0);
+	pdev->motor_tilt_reset = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_TILT_RESET, 0, 0, 0, 0);
+	v4l2_ctrl_cluster(4, &pdev->motor_pan);
+
+	return hdl->error;
+}
 
 static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_format *f)
 {
@@ -284,9 +431,20 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 }
 
 /* ioctl(VIDIOC_SET_FMT) */
-static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
+
+static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
+	struct pwc_device *pdev = video_drvdata(file);
 	int ret, fps, snapshot, compression, pixelformat;
+
+	if (!pdev->udev)
+		return -ENODEV;
+
+	if (pdev->capt_file != NULL &&
+	    pdev->capt_file != file)
+		return -EBUSY;
+
+	pdev->capt_file = file;
 
 	ret = pwc_vidioc_try_fmt(pdev, f);
 	if (ret<0)
@@ -309,7 +467,7 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 	    pixelformat != V4L2_PIX_FMT_PWC2)
 		return -EINVAL;
 
-	if (pdev->iso_init)
+	if (vb2_is_streaming(&pdev->vb_queue))
 		return -EBUSY;
 
 	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
@@ -341,604 +499,633 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 
 }
 
-long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct pwc_device *pdev;
-	DECLARE_WAITQUEUE(wait, current);
+	struct pwc_device *pdev = video_drvdata(file);
 
-	if (vdev == NULL)
-		return -EFAULT;
-	pdev = video_get_drvdata(vdev);
-	if (pdev == NULL)
-		return -EFAULT;
+	if (!pdev->udev)
+		return -ENODEV;
 
-#ifdef CONFIG_USB_PWC_DEBUG
-	if (PWC_DEBUG_LEVEL_IOCTL & pwc_trace) {
-		v4l_printk_ioctl(cmd);
-		printk("\n");
-	}
-#endif
-
-
-	switch (cmd) {
-		/* V4L2 Layer */
-		case VIDIOC_QUERYCAP:
-		{
-		    struct v4l2_capability *cap = arg;
-
-		    PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYCAP) This application "\
-				       "try to use the v4l2 layer\n");
-		    strcpy(cap->driver,PWC_NAME);
-		    strlcpy(cap->card, vdev->name, sizeof(cap->card));
-		    usb_make_path(pdev->udev,cap->bus_info,sizeof(cap->bus_info));
-		    cap->version = PWC_VERSION_CODE;
-		    cap->capabilities =
-			V4L2_CAP_VIDEO_CAPTURE	|
-			V4L2_CAP_STREAMING	|
-			V4L2_CAP_READWRITE;
-		    return 0;
-		}
-
-		case VIDIOC_ENUMINPUT:
-		{
-		    struct v4l2_input *i = arg;
-
-		    if ( i->index )	/* Only one INPUT is supported */
-			  return -EINVAL;
-
-		    memset(i, 0, sizeof(struct v4l2_input));
-		    strcpy(i->name, "usb");
-		    return 0;
-		}
-
-		case VIDIOC_G_INPUT:
-		{
-		    int *i = arg;
-		    *i = 0;	/* Only one INPUT is supported */
-		    return 0;
-		}
-		case VIDIOC_S_INPUT:
-		{
-			int *i = arg;
-
-			if ( *i ) {	/* Only one INPUT is supported */
-				PWC_DEBUG_IOCTL("Only one input source is"\
-					" supported with this webcam.\n");
-				return -EINVAL;
-			}
-			return 0;
-		}
-
-		/* TODO: */
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *c = arg;
-			int i;
-
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYCTRL) query id=%d\n", c->id);
-			for (i=0; i<sizeof(pwc_controls)/sizeof(struct v4l2_queryctrl); i++) {
-				if (pwc_controls[i].id == c->id) {
-					PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYCTRL) found\n");
-					memcpy(c,&pwc_controls[i],sizeof(struct v4l2_queryctrl));
-					return 0;
-				}
-			}
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYCTRL) not found\n");
-
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *c = arg;
-			int ret;
-
-			switch (c->id)
-			{
-				case V4L2_CID_BRIGHTNESS:
-					c->value = pwc_get_brightness(pdev);
-					if (c->value<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_CONTRAST:
-					c->value = pwc_get_contrast(pdev);
-					if (c->value<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_SATURATION:
-					ret = pwc_get_saturation(pdev, &c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_GAMMA:
-					c->value = pwc_get_gamma(pdev);
-					if (c->value<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_RED_BALANCE:
-					ret = pwc_get_red_gain(pdev, &c->value);
-					if (ret<0)
-						return -EINVAL;
-					c->value >>= 8;
-					return 0;
-				case V4L2_CID_BLUE_BALANCE:
-					ret = pwc_get_blue_gain(pdev, &c->value);
-					if (ret<0)
-						return -EINVAL;
-					c->value >>= 8;
-					return 0;
-				case V4L2_CID_AUTO_WHITE_BALANCE:
-					ret = pwc_get_awb(pdev);
-					if (ret<0)
-						return -EINVAL;
-					c->value = (ret == PWC_WB_MANUAL)?0:1;
-					return 0;
-				case V4L2_CID_GAIN:
-					ret = pwc_get_agc(pdev, &c->value);
-					if (ret<0)
-						return -EINVAL;
-					c->value >>= 8;
-					return 0;
-				case V4L2_CID_AUTOGAIN:
-					ret = pwc_get_agc(pdev, &c->value);
-					if (ret<0)
-						return -EINVAL;
-					c->value = (c->value < 0)?1:0;
-					return 0;
-				case V4L2_CID_EXPOSURE:
-					ret = pwc_get_shutter_speed(pdev, &c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_COLOUR_MODE:
-					ret = pwc_get_colour_mode(pdev, &c->value);
-					if (ret < 0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_AUTOCONTOUR:
-					ret = pwc_get_contour(pdev, &c->value);
-					if (ret < 0)
-						return -EINVAL;
-					c->value=(c->value == -1?1:0);
-					return 0;
-				case V4L2_CID_PRIVATE_CONTOUR:
-					ret = pwc_get_contour(pdev, &c->value);
-					if (ret < 0)
-						return -EINVAL;
-					c->value >>= 10;
-					return 0;
-				case V4L2_CID_PRIVATE_BACKLIGHT:
-					ret = pwc_get_backlight(pdev, &c->value);
-					if (ret < 0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_FLICKERLESS:
-					ret = pwc_get_flicker(pdev, &c->value);
-					if (ret < 0)
-						return -EINVAL;
-					c->value=(c->value?1:0);
-					return 0;
-				case V4L2_CID_PRIVATE_NOISE_REDUCTION:
-					ret = pwc_get_dynamic_noise(pdev, &c->value);
-					if (ret < 0)
-						return -EINVAL;
-					return 0;
-
-				case V4L2_CID_PRIVATE_SAVE_USER:
-				case V4L2_CID_PRIVATE_RESTORE_USER:
-				case V4L2_CID_PRIVATE_RESTORE_FACTORY:
-					return -EINVAL;
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *c = arg;
-			int ret;
-
-			switch (c->id)
-			{
-				case V4L2_CID_BRIGHTNESS:
-					c->value <<= 9;
-					ret = pwc_set_brightness(pdev, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_CONTRAST:
-					c->value <<= 10;
-					ret = pwc_set_contrast(pdev, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_SATURATION:
-					ret = pwc_set_saturation(pdev, c->value);
-					if (ret<0)
-					  return -EINVAL;
-					return 0;
-				case V4L2_CID_GAMMA:
-					c->value <<= 11;
-					ret = pwc_set_gamma(pdev, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_RED_BALANCE:
-					c->value <<= 8;
-					ret = pwc_set_red_gain(pdev, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_BLUE_BALANCE:
-					c->value <<= 8;
-					ret = pwc_set_blue_gain(pdev, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_AUTO_WHITE_BALANCE:
-					c->value = (c->value == 0)?PWC_WB_MANUAL:PWC_WB_AUTO;
-					ret = pwc_set_awb(pdev, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_EXPOSURE:
-					c->value <<= 8;
-					ret = pwc_set_shutter_speed(pdev, c->value?0:1, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_AUTOGAIN:
-					/* autogain off means nothing without a gain */
-					if (c->value == 0)
-						return 0;
-					ret = pwc_set_agc(pdev, c->value, 0);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_GAIN:
-					c->value <<= 8;
-					ret = pwc_set_agc(pdev, 0, c->value);
-					if (ret<0)
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_SAVE_USER:
-					if (pwc_save_user(pdev))
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_RESTORE_USER:
-					if (pwc_restore_user(pdev))
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_RESTORE_FACTORY:
-					if (pwc_restore_factory(pdev))
-						return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_COLOUR_MODE:
-					ret = pwc_set_colour_mode(pdev, c->value);
-					if (ret < 0)
-					  return -EINVAL;
-					return 0;
-				case V4L2_CID_PRIVATE_AUTOCONTOUR:
-				  c->value=(c->value == 1)?-1:0;
-				  ret = pwc_set_contour(pdev, c->value);
-				  if (ret < 0)
-				    return -EINVAL;
-				  return 0;
-				case V4L2_CID_PRIVATE_CONTOUR:
-				  c->value <<= 10;
-				  ret = pwc_set_contour(pdev, c->value);
-				  if (ret < 0)
-				    return -EINVAL;
-				  return 0;
-				case V4L2_CID_PRIVATE_BACKLIGHT:
-				  ret = pwc_set_backlight(pdev, c->value);
-				  if (ret < 0)
-				    return -EINVAL;
-				  return 0;
-				case V4L2_CID_PRIVATE_FLICKERLESS:
-				  ret = pwc_set_flicker(pdev, c->value);
-				  if (ret < 0)
-				    return -EINVAL;
-				case V4L2_CID_PRIVATE_NOISE_REDUCTION:
-				  ret = pwc_set_dynamic_noise(pdev, c->value);
-				  if (ret < 0)
-				    return -EINVAL;
-				  return 0;
-
-			}
-			return -EINVAL;
-		}
-
-		case VIDIOC_ENUM_FMT:
-		{
-			struct v4l2_fmtdesc *f = arg;
-			int index;
-
-			if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			      return -EINVAL;
-
-			/* We only support two format: the raw format, and YUV */
-			index = f->index;
-			memset(f,0,sizeof(struct v4l2_fmtdesc));
-			f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			f->index = index;
-			switch(index)
-			{
-				case 0:
-					/* RAW format */
-					f->pixelformat = pdev->type<=646?V4L2_PIX_FMT_PWC1:V4L2_PIX_FMT_PWC2;
-					f->flags = V4L2_FMT_FLAG_COMPRESSED;
-					strlcpy(f->description,"Raw Philips Webcam",sizeof(f->description));
-					break;
-				case 1:
-					f->pixelformat = V4L2_PIX_FMT_YUV420;
-					strlcpy(f->description,"4:2:0, planar, Y-Cb-Cr",sizeof(f->description));
-					break;
-				default:
-					return -EINVAL;
-			}
-			return 0;
-		}
-
-		case VIDIOC_G_FMT:
-		{
-			struct v4l2_format *f = arg;
-
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",pdev->image.x,pdev->image.y);
-			if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			      return -EINVAL;
-
-			pwc_vidioc_fill_fmt(pdev, f);
-
-			return 0;
-		}
-
-		case VIDIOC_TRY_FMT:
-			return pwc_vidioc_try_fmt(pdev, arg);
-
-		case VIDIOC_S_FMT:
-			return pwc_vidioc_set_fmt(pdev, arg);
-
-		case VIDIOC_G_STD:
-		{
-			v4l2_std_id *std = arg;
-			*std = V4L2_STD_UNKNOWN;
-			return 0;
-		}
-
-		case VIDIOC_S_STD:
-		{
-			v4l2_std_id *std = arg;
-			if (*std != V4L2_STD_UNKNOWN)
-				return -EINVAL;
-			return 0;
-		}
-
-		case VIDIOC_ENUMSTD:
-		{
-			struct v4l2_standard *std = arg;
-			if (std->index != 0)
-				return -EINVAL;
-			std->id = V4L2_STD_UNKNOWN;
-			strlcpy(std->name, "webcam", sizeof(std->name));
-			return 0;
-		}
-
-		case VIDIOC_REQBUFS:
-		{
-			struct v4l2_requestbuffers *rb = arg;
-			int nbuffers;
-
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_REQBUFS) count=%d\n",rb->count);
-			if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return -EINVAL;
-			if (rb->memory != V4L2_MEMORY_MMAP)
-				return -EINVAL;
-
-			nbuffers = rb->count;
-			if (nbuffers < 2)
-				nbuffers = 2;
-			else if (nbuffers > pwc_mbufs)
-				nbuffers = pwc_mbufs;
-			/* Force to use our # of buffers */
-			rb->count = pwc_mbufs;
-			return 0;
-		}
-
-		case VIDIOC_QUERYBUF:
-		{
-			struct v4l2_buffer *buf = arg;
-			int index;
-
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) index=%d\n",buf->index);
-			if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-				PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) Bad type\n");
-				return -EINVAL;
-			}
-			if (buf->memory != V4L2_MEMORY_MMAP) {
-				PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) Bad memory type\n");
-				return -EINVAL;
-			}
-			index = buf->index;
-			if (index < 0 || index >= pwc_mbufs) {
-				PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) Bad index %d\n", buf->index);
-				return -EINVAL;
-			}
-
-			memset(buf, 0, sizeof(struct v4l2_buffer));
-			buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			buf->index = index;
-			buf->m.offset = index * pdev->len_per_image;
-			if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
-				buf->bytesused = pdev->frame_size + sizeof(struct pwc_raw_frame);
-			else
-				buf->bytesused = pdev->view.size;
-			buf->field = V4L2_FIELD_NONE;
-			buf->memory = V4L2_MEMORY_MMAP;
-			//buf->flags = V4L2_BUF_FLAG_MAPPED;
-			buf->length = pdev->len_per_image;
-
-			PWC_DEBUG_READ("VIDIOC_QUERYBUF: index=%d\n",buf->index);
-			PWC_DEBUG_READ("VIDIOC_QUERYBUF: m.offset=%d\n",buf->m.offset);
-			PWC_DEBUG_READ("VIDIOC_QUERYBUF: bytesused=%d\n",buf->bytesused);
-
-			return 0;
-		}
-
-		case VIDIOC_QBUF:
-		{
-			struct v4l2_buffer *buf = arg;
-
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_QBUF) index=%d\n",buf->index);
-			if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return -EINVAL;
-			if (buf->memory != V4L2_MEMORY_MMAP)
-				return -EINVAL;
-			if (buf->index >= pwc_mbufs)
-				return -EINVAL;
-
-			buf->flags |= V4L2_BUF_FLAG_QUEUED;
-			buf->flags &= ~V4L2_BUF_FLAG_DONE;
-
-			return 0;
-		}
-
-		case VIDIOC_DQBUF:
-		{
-			struct v4l2_buffer *buf = arg;
-			int ret;
-
-			PWC_DEBUG_IOCTL("ioctl(VIDIOC_DQBUF)\n");
-
-			if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return -EINVAL;
-
-			/* Add ourselves to the frame wait-queue.
-
-			   FIXME: needs auditing for safety.
-			   QUESTION: In what respect? I think that using the
-				     frameq is safe now.
-			 */
-			add_wait_queue(&pdev->frameq, &wait);
-			while (pdev->full_frames == NULL) {
-				if (pdev->error_status) {
-					remove_wait_queue(&pdev->frameq, &wait);
-					set_current_state(TASK_RUNNING);
-					return -pdev->error_status;
-				}
-
-				if (signal_pending(current)) {
-					remove_wait_queue(&pdev->frameq, &wait);
-					set_current_state(TASK_RUNNING);
-					return -ERESTARTSYS;
-				}
-				schedule();
-				set_current_state(TASK_INTERRUPTIBLE);
-			}
-			remove_wait_queue(&pdev->frameq, &wait);
-			set_current_state(TASK_RUNNING);
-
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: frame ready.\n");
-			/* Decompress data in pdev->images[pdev->fill_image] */
-			ret = pwc_handle_frame(pdev);
-			if (ret)
-				return -EFAULT;
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: after pwc_handle_frame\n");
-
-			buf->index = pdev->fill_image;
-			if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
-				buf->bytesused = pdev->frame_size + sizeof(struct pwc_raw_frame);
-			else
-				buf->bytesused = pdev->view.size;
-			buf->flags = V4L2_BUF_FLAG_MAPPED;
-			buf->field = V4L2_FIELD_NONE;
-			do_gettimeofday(&buf->timestamp);
-			buf->sequence = 0;
-			buf->memory = V4L2_MEMORY_MMAP;
-			buf->m.offset = pdev->fill_image * pdev->len_per_image;
-			buf->length = pdev->len_per_image;
-			pwc_next_image(pdev);
-
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: buf->index=%d\n",buf->index);
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: buf->length=%d\n",buf->length);
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: m.offset=%d\n",buf->m.offset);
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: bytesused=%d\n",buf->bytesused);
-			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: leaving\n");
-			return 0;
-
-		}
-
-		case VIDIOC_STREAMON:
-		{
-			return pwc_isoc_init(pdev);
-		}
-
-		case VIDIOC_STREAMOFF:
-		{
-			pwc_isoc_cleanup(pdev);
-			return 0;
-		}
-
-		case VIDIOC_ENUM_FRAMESIZES:
-		{
-			struct v4l2_frmsizeenum *fsize = arg;
-			unsigned int i = 0, index = fsize->index;
-
-			if (fsize->pixel_format == V4L2_PIX_FMT_YUV420) {
-				for (i = 0; i < PSZ_MAX; i++) {
-					if (pdev->image_mask & (1UL << i)) {
-						if (!index--) {
-							fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-							fsize->discrete.width = pwc_image_sizes[i].x;
-							fsize->discrete.height = pwc_image_sizes[i].y;
-							return 0;
-						}
-					}
-				}
-			} else if (fsize->index == 0 &&
-				   ((fsize->pixel_format == V4L2_PIX_FMT_PWC1 && DEVICE_USE_CODEC1(pdev->type)) ||
-				    (fsize->pixel_format == V4L2_PIX_FMT_PWC2 && DEVICE_USE_CODEC23(pdev->type)))) {
-
-				fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-				fsize->discrete.width = pdev->abs_max.x;
-				fsize->discrete.height = pdev->abs_max.y;
-				return 0;
-			}
-			return -EINVAL;
-		}
-
-		case VIDIOC_ENUM_FRAMEINTERVALS:
-		{
-			struct v4l2_frmivalenum *fival = arg;
-			int size = -1;
-			unsigned int i;
-
-			for (i = 0; i < PSZ_MAX; i++) {
-				if (pwc_image_sizes[i].x == fival->width &&
-				    pwc_image_sizes[i].y == fival->height) {
-					size = i;
-					break;
-				}
-			}
-
-			/* TODO: Support raw format */
-			if (size < 0 || fival->pixel_format != V4L2_PIX_FMT_YUV420) {
-				return -EINVAL;
-			}
-
-			i = pwc_get_fps(pdev, fival->index, size);
-			if (!i)
-				return -EINVAL;
-
-			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-			fival->discrete.numerator = 1;
-			fival->discrete.denominator = i;
-
-			return 0;
-		}
-
-		default:
-			return pwc_ioctl(pdev, cmd, arg);
-	} /* ..switch */
+	strcpy(cap->driver, PWC_NAME);
+	strlcpy(cap->card, pdev->vdev.name, sizeof(cap->card));
+	usb_make_path(pdev->udev, cap->bus_info, sizeof(cap->bus_info));
+	cap->capabilities =
+		V4L2_CAP_VIDEO_CAPTURE	|
+		V4L2_CAP_STREAMING	|
+		V4L2_CAP_READWRITE;
 	return 0;
 }
+
+static int pwc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
+{
+	if (i->index)	/* Only one INPUT is supported */
+		return -EINVAL;
+
+	strcpy(i->name, "usb");
+	return 0;
+}
+
+static int pwc_g_input(struct file *file, void *fh, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int pwc_s_input(struct file *file, void *fh, unsigned int i)
+{
+	return i ? -EINVAL : 0;
+}
+
+static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct pwc_device *pdev =
+		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
+	int ret = 0;
+
+	/*
+	 * Sometimes it can take quite long for the pwc to complete usb control
+	 * transfers, so release the modlock to give streaming by another
+	 * process / thread the chance to continue with a dqbuf.
+	 */
+	mutex_unlock(&pdev->modlock);
+
+	/*
+	 * Take the udev-lock to protect against the disconnect handler
+	 * completing and setting dev->udev to NULL underneath us. Other code
+	 * does not need to do this since it is protected by the modlock.
+	 */
+	mutex_lock(&pdev->udevlock);
+
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		if (pdev->color_bal_valid && time_before(jiffies,
+				pdev->last_color_bal_update + HZ / 4)) {
+			pdev->red_balance->val  = pdev->last_red_balance;
+			pdev->blue_balance->val = pdev->last_blue_balance;
+			break;
+		}
+		ret = pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+				      READ_RED_GAIN_FORMATTER,
+				      &pdev->red_balance->val);
+		if (ret)
+			break;
+		ret = pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+				      READ_BLUE_GAIN_FORMATTER,
+				      &pdev->blue_balance->val);
+		if (ret)
+			break;
+		pdev->last_red_balance  = pdev->red_balance->val;
+		pdev->last_blue_balance = pdev->blue_balance->val;
+		pdev->last_color_bal_update = jiffies;
+		pdev->color_bal_valid = true;
+		break;
+	case V4L2_CID_AUTOGAIN:
+		if (pdev->gain_valid && time_before(jiffies,
+				pdev->last_gain_update + HZ / 4)) {
+			pdev->gain->val = pdev->last_gain;
+			break;
+		}
+		ret = pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+				      READ_AGC_FORMATTER, &pdev->gain->val);
+		if (ret)
+			break;
+		pdev->last_gain = pdev->gain->val;
+		pdev->last_gain_update = jiffies;
+		pdev->gain_valid = true;
+		if (!DEVICE_USE_CODEC3(pdev->type))
+			break;
+		/* Fall through for CODEC3 where autogain also controls expo */
+	case V4L2_CID_EXPOSURE_AUTO:
+		if (pdev->exposure_valid && time_before(jiffies,
+				pdev->last_exposure_update + HZ / 4)) {
+			pdev->exposure->val = pdev->last_exposure;
+			break;
+		}
+		ret = pwc_get_u16_ctrl(pdev, GET_STATUS_CTL,
+				       READ_SHUTTER_FORMATTER,
+				       &pdev->exposure->val);
+		if (ret)
+			break;
+		pdev->last_exposure = pdev->exposure->val;
+		pdev->last_exposure_update = jiffies;
+		pdev->exposure_valid = true;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		PWC_ERROR("g_ctrl %s error %d\n", ctrl->name, ret);
+
+leave:
+	mutex_unlock(&pdev->udevlock);
+	mutex_lock(&pdev->modlock);
+	return ret;
+}
+
+static int pwc_set_awb(struct pwc_device *pdev)
+{
+	int ret = 0;
+
+	if (pdev->auto_white_balance->is_new) {
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      WB_MODE_FORMATTER,
+				      pdev->auto_white_balance->val);
+		if (ret)
+			return ret;
+
+		/* Update val when coming from auto or going to a preset */
+		if (pdev->red_balance->is_volatile ||
+		    pdev->auto_white_balance->val == awb_indoor ||
+		    pdev->auto_white_balance->val == awb_outdoor ||
+		    pdev->auto_white_balance->val == awb_fl) {
+			if (!pdev->red_balance->is_new)
+				pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+					READ_RED_GAIN_FORMATTER,
+					&pdev->red_balance->val);
+			if (!pdev->blue_balance->is_new)
+				pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+					READ_BLUE_GAIN_FORMATTER,
+					&pdev->blue_balance->val);
+		}
+		if (pdev->auto_white_balance->val == awb_auto) {
+			pdev->red_balance->is_volatile = true;
+			pdev->blue_balance->is_volatile = true;
+			pdev->color_bal_valid = false; /* Force cache update */
+		} else {
+			pdev->red_balance->is_volatile = false;
+			pdev->blue_balance->is_volatile = false;
+		}
+	}
+
+	if (ret == 0 && pdev->red_balance->is_new) {
+		if (pdev->auto_white_balance->val != awb_manual)
+			return -EBUSY;
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      PRESET_MANUAL_RED_GAIN_FORMATTER,
+				      pdev->red_balance->val);
+	}
+
+	if (ret == 0 && pdev->blue_balance->is_new) {
+		if (pdev->auto_white_balance->val != awb_manual)
+			return -EBUSY;
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      PRESET_MANUAL_BLUE_GAIN_FORMATTER,
+				      pdev->blue_balance->val);
+	}
+	return ret;
+}
+
+/* For CODEC2 models which have separate autogain and auto exposure */
+static int pwc_set_autogain(struct pwc_device *pdev)
+{
+	int ret = 0;
+
+	if (pdev->autogain->is_new) {
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      AGC_MODE_FORMATTER,
+				      pdev->autogain->val ? 0 : 0xff);
+		if (ret)
+			return ret;
+		if (pdev->autogain->val)
+			pdev->gain_valid = false; /* Force cache update */
+		else if (!pdev->gain->is_new)
+			pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+					READ_AGC_FORMATTER,
+					&pdev->gain->val);
+	}
+	if (ret == 0 && pdev->gain->is_new) {
+		if (pdev->autogain->val)
+			return -EBUSY;
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      PRESET_AGC_FORMATTER,
+				      pdev->gain->val);
+	}
+	return ret;
+}
+
+/* For CODEC2 models which have separate autogain and auto exposure */
+static int pwc_set_exposure_auto(struct pwc_device *pdev)
+{
+	int ret = 0;
+	int is_auto = pdev->exposure_auto->val == V4L2_EXPOSURE_AUTO;
+
+	if (pdev->exposure_auto->is_new) {
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      SHUTTER_MODE_FORMATTER,
+				      is_auto ? 0 : 0xff);
+		if (ret)
+			return ret;
+		if (is_auto)
+			pdev->exposure_valid = false; /* Force cache update */
+		else if (!pdev->exposure->is_new)
+			pwc_get_u16_ctrl(pdev, GET_STATUS_CTL,
+					 READ_SHUTTER_FORMATTER,
+					 &pdev->exposure->val);
+	}
+	if (ret == 0 && pdev->exposure->is_new) {
+		if (is_auto)
+			return -EBUSY;
+		ret = pwc_set_u16_ctrl(pdev, SET_LUM_CTL,
+				       PRESET_SHUTTER_FORMATTER,
+				       pdev->exposure->val);
+	}
+	return ret;
+}
+
+/* For CODEC3 models which have autogain controlling both gain and exposure */
+static int pwc_set_autogain_expo(struct pwc_device *pdev)
+{
+	int ret = 0;
+
+	if (pdev->autogain->is_new) {
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      AGC_MODE_FORMATTER,
+				      pdev->autogain->val ? 0 : 0xff);
+		if (ret)
+			return ret;
+		if (pdev->autogain->val) {
+			pdev->gain_valid     = false; /* Force cache update */
+			pdev->exposure_valid = false; /* Force cache update */
+		} else {
+			if (!pdev->gain->is_new)
+				pwc_get_u8_ctrl(pdev, GET_STATUS_CTL,
+						READ_AGC_FORMATTER,
+						&pdev->gain->val);
+			if (!pdev->exposure->is_new)
+				pwc_get_u16_ctrl(pdev, GET_STATUS_CTL,
+						 READ_SHUTTER_FORMATTER,
+						 &pdev->exposure->val);
+		}
+	}
+	if (ret == 0 && pdev->gain->is_new) {
+		if (pdev->autogain->val)
+			return -EBUSY;
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      PRESET_AGC_FORMATTER,
+				      pdev->gain->val);
+	}
+	if (ret == 0 && pdev->exposure->is_new) {
+		if (pdev->autogain->val)
+			return -EBUSY;
+		ret = pwc_set_u16_ctrl(pdev, SET_LUM_CTL,
+				       PRESET_SHUTTER_FORMATTER,
+				       pdev->exposure->val);
+	}
+	return ret;
+}
+
+static int pwc_set_motor(struct pwc_device *pdev)
+{
+	int ret;
+	u8 buf[4];
+
+	buf[0] = 0;
+	if (pdev->motor_pan_reset->is_new)
+		buf[0] |= 0x01;
+	if (pdev->motor_tilt_reset->is_new)
+		buf[0] |= 0x02;
+	if (pdev->motor_pan_reset->is_new || pdev->motor_tilt_reset->is_new) {
+		ret = send_control_msg(pdev, SET_MPT_CTL,
+				       PT_RESET_CONTROL_FORMATTER, buf, 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	memset(buf, 0, sizeof(buf));
+	if (pdev->motor_pan->is_new) {
+		buf[0] = pdev->motor_pan->val & 0xFF;
+		buf[1] = (pdev->motor_pan->val >> 8);
+	}
+	if (pdev->motor_tilt->is_new) {
+		buf[2] = pdev->motor_tilt->val & 0xFF;
+		buf[3] = (pdev->motor_tilt->val >> 8);
+	}
+	if (pdev->motor_pan->is_new || pdev->motor_tilt->is_new) {
+		ret = send_control_msg(pdev, SET_MPT_CTL,
+				       PT_RELATIVE_CONTROL_FORMATTER,
+				       buf, sizeof(buf));
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct pwc_device *pdev =
+		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
+	int ret = 0;
+
+	/* See the comments on locking in pwc_g_volatile_ctrl */
+	mutex_unlock(&pdev->modlock);
+	mutex_lock(&pdev->udevlock);
+
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      BRIGHTNESS_FORMATTER, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      CONTRAST_FORMATTER, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		ret = pwc_set_s8_ctrl(pdev, SET_CHROM_CTL,
+				      pdev->saturation_fmt, ctrl->val);
+		break;
+	case V4L2_CID_GAMMA:
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      GAMMA_FORMATTER, ctrl->val);
+		break;
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		ret = pwc_set_awb(pdev);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		if (DEVICE_USE_CODEC2(pdev->type))
+			ret = pwc_set_autogain(pdev);
+		else if (DEVICE_USE_CODEC3(pdev->type))
+			ret = pwc_set_autogain_expo(pdev);
+		else
+			ret = -EINVAL;
+		break;
+	case V4L2_CID_EXPOSURE_AUTO:
+		if (DEVICE_USE_CODEC2(pdev->type))
+			ret = pwc_set_exposure_auto(pdev);
+		else
+			ret = -EINVAL;
+		break;
+	case V4L2_CID_COLORFX:
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      COLOUR_MODE_FORMATTER,
+				      ctrl->val ? 0 : 0xff);
+		break;
+	case PWC_CID_CUSTOM(autocontour):
+		if (pdev->autocontour->is_new) {
+			ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+					AUTO_CONTOUR_FORMATTER,
+					pdev->autocontour->val ? 0 : 0xff);
+		}
+		if (ret == 0 && pdev->contour->is_new) {
+			if (pdev->autocontour->val) {
+				ret = -EBUSY;
+				break;
+			}
+			ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+					      PRESET_CONTOUR_FORMATTER,
+					      pdev->contour->val);
+		}
+		break;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      BACK_LIGHT_COMPENSATION_FORMATTER,
+				      ctrl->val ? 0 : 0xff);
+		break;
+	case V4L2_CID_BAND_STOP_FILTER:
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      FLICKERLESS_MODE_FORMATTER,
+				      ctrl->val ? 0 : 0xff);
+		break;
+	case PWC_CID_CUSTOM(noise_reduction):
+		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
+				      DYNAMIC_NOISE_CONTROL_FORMATTER,
+				      ctrl->val);
+		break;
+	case PWC_CID_CUSTOM(save_user):
+		ret = pwc_button_ctrl(pdev, SAVE_USER_DEFAULTS_FORMATTER);
+		break;
+	case PWC_CID_CUSTOM(restore_user):
+		ret = pwc_button_ctrl(pdev, RESTORE_USER_DEFAULTS_FORMATTER);
+		break;
+	case PWC_CID_CUSTOM(restore_factory):
+		ret = pwc_button_ctrl(pdev,
+				      RESTORE_FACTORY_DEFAULTS_FORMATTER);
+		break;
+	case V4L2_CID_PAN_RELATIVE:
+		ret = pwc_set_motor(pdev);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		PWC_ERROR("s_ctrl %s error %d\n", ctrl->name, ret);
+
+leave:
+	mutex_unlock(&pdev->udevlock);
+	mutex_lock(&pdev->modlock);
+	return ret;
+}
+
+static int pwc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	/* We only support two format: the raw format, and YUV */
+	switch (f->index) {
+	case 0:
+		/* RAW format */
+		f->pixelformat = pdev->type <= 646 ? V4L2_PIX_FMT_PWC1 : V4L2_PIX_FMT_PWC2;
+		f->flags = V4L2_FMT_FLAG_COMPRESSED;
+		strlcpy(f->description, "Raw Philips Webcam", sizeof(f->description));
+		break;
+	case 1:
+		f->pixelformat = V4L2_PIX_FMT_YUV420;
+		strlcpy(f->description, "4:2:0, planar, Y-Cb-Cr", sizeof(f->description));
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
+			pdev->image.x, pdev->image.y);
+	pwc_vidioc_fill_fmt(pdev, f);
+	return 0;
+}
+
+static int pwc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	return pwc_vidioc_try_fmt(pdev, f);
+}
+
+static int pwc_reqbufs(struct file *file, void *fh,
+		       struct v4l2_requestbuffers *rb)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (pdev->capt_file != NULL &&
+	    pdev->capt_file != file)
+		return -EBUSY;
+
+	pdev->capt_file = file;
+
+	return vb2_reqbufs(&pdev->vb_queue, rb);
+}
+
+static int pwc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	return vb2_querybuf(&pdev->vb_queue, buf);
+}
+
+static int pwc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
+
+	return vb2_qbuf(&pdev->vb_queue, buf);
+}
+
+static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
+
+	return vb2_dqbuf(&pdev->vb_queue, buf, file->f_flags & O_NONBLOCK);
+}
+
+static int pwc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
+
+	return vb2_streamon(&pdev->vb_queue, i);
+}
+
+static int pwc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
+
+	return vb2_streamoff(&pdev->vb_queue, i);
+}
+
+static int pwc_enum_framesizes(struct file *file, void *fh,
+					 struct v4l2_frmsizeenum *fsize)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+	unsigned int i = 0, index = fsize->index;
+
+	if (fsize->pixel_format == V4L2_PIX_FMT_YUV420) {
+		for (i = 0; i < PSZ_MAX; i++) {
+			if (pdev->image_mask & (1UL << i)) {
+				if (!index--) {
+					fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+					fsize->discrete.width = pwc_image_sizes[i].x;
+					fsize->discrete.height = pwc_image_sizes[i].y;
+					return 0;
+				}
+			}
+		}
+	} else if (fsize->index == 0 &&
+			((fsize->pixel_format == V4L2_PIX_FMT_PWC1 && DEVICE_USE_CODEC1(pdev->type)) ||
+			 (fsize->pixel_format == V4L2_PIX_FMT_PWC2 && DEVICE_USE_CODEC23(pdev->type)))) {
+
+		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		fsize->discrete.width = pdev->abs_max.x;
+		fsize->discrete.height = pdev->abs_max.y;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int pwc_enum_frameintervals(struct file *file, void *fh,
+					   struct v4l2_frmivalenum *fival)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+	int size = -1;
+	unsigned int i;
+
+	for (i = 0; i < PSZ_MAX; i++) {
+		if (pwc_image_sizes[i].x == fival->width &&
+				pwc_image_sizes[i].y == fival->height) {
+			size = i;
+			break;
+		}
+	}
+
+	/* TODO: Support raw format */
+	if (size < 0 || fival->pixel_format != V4L2_PIX_FMT_YUV420)
+		return -EINVAL;
+
+	i = pwc_get_fps(pdev, fival->index, size);
+	if (!i)
+		return -EINVAL;
+
+	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	fival->discrete.numerator = 1;
+	fival->discrete.denominator = i;
+
+	return 0;
+}
+
+static long pwc_default(struct file *file, void *fh, bool valid_prio,
+			int cmd, void *arg)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	return pwc_ioctl(pdev, cmd, arg);
+}
+
+const struct v4l2_ioctl_ops pwc_ioctl_ops = {
+	.vidioc_querycap		    = pwc_querycap,
+	.vidioc_enum_input		    = pwc_enum_input,
+	.vidioc_g_input			    = pwc_g_input,
+	.vidioc_s_input			    = pwc_s_input,
+	.vidioc_enum_fmt_vid_cap	    = pwc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap		    = pwc_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		    = pwc_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		    = pwc_try_fmt_vid_cap,
+	.vidioc_reqbufs			    = pwc_reqbufs,
+	.vidioc_querybuf		    = pwc_querybuf,
+	.vidioc_qbuf			    = pwc_qbuf,
+	.vidioc_dqbuf			    = pwc_dqbuf,
+	.vidioc_streamon		    = pwc_streamon,
+	.vidioc_streamoff		    = pwc_streamoff,
+	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
+	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
+	.vidioc_default		    = pwc_default,
+};
+
 
 /* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */

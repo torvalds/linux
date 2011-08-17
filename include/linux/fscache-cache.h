@@ -100,17 +100,6 @@ struct fscache_operation {
 
 	/* operation releaser */
 	fscache_operation_release_t release;
-
-#ifdef CONFIG_WORKQUEUE_DEBUGFS
-	struct work_struct put_work;	/* work to delay operation put */
-	const char *name;		/* operation name */
-	const char *state;		/* operation state */
-#define fscache_set_op_name(OP, N)	do { (OP)->name  = (N); } while(0)
-#define fscache_set_op_state(OP, S)	do { (OP)->state = (S); } while(0)
-#else
-#define fscache_set_op_name(OP, N)	do { } while(0)
-#define fscache_set_op_state(OP, S)	do { } while(0)
-#endif
 };
 
 extern atomic_t fscache_op_debug_id;
@@ -137,7 +126,6 @@ static inline void fscache_operation_init(struct fscache_operation *op,
 	op->processor = processor;
 	op->release = release;
 	INIT_LIST_HEAD(&op->pend_link);
-	fscache_set_op_state(op, "Init");
 }
 
 /*
@@ -236,7 +224,7 @@ struct fscache_cache_ops {
 	/* unpin an object in the cache */
 	void (*unpin_object)(struct fscache_object *object);
 
-	/* store the updated auxilliary data on an object */
+	/* store the updated auxiliary data on an object */
 	void (*update_object)(struct fscache_object *object);
 
 	/* discard the resources pinned by an object and effect retirement if

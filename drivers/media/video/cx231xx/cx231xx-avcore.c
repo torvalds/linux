@@ -355,6 +355,8 @@ int cx231xx_afe_update_power_control(struct cx231xx *dev,
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 	case CX231XX_BOARD_HAUPPAUGE_USBLIVE2:
 	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
+	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
+	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
 			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
@@ -759,11 +761,8 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 	case CX231XX_VMUX_TELEVISION:
 	case CX231XX_VMUX_CABLE:
 	default:
-		switch (dev->model) {
-		case CX231XX_BOARD_CNXT_CARRAERA:
-		case CX231XX_BOARD_CNXT_RDE_250:
-		case CX231XX_BOARD_CNXT_SHELBY:
-		case CX231XX_BOARD_CNXT_RDU_250:
+		/* TODO: Test if this is also needed for xc2028/xc3028 */
+		if (dev->board.tuner_type == TUNER_XC5000) {
 			/* Disable the use of  DIF   */
 
 			status = vid_blk_read_word(dev, AFE_CTRL, &value);
@@ -820,8 +819,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 				MODE_CTRL, FLD_INPUT_MODE,
 				cx231xx_set_field(FLD_INPUT_MODE,
 						INPUT_MODE_CVBS_0));
-			break;
-		default:
+		} else {
 			/* Enable the DIF for the tuner */
 
 			/* Reinitialize the DIF */
@@ -1275,6 +1273,8 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 	int status = 0;
 	bool current_is_port_3;
 
+	if (dev->board.dont_use_port_3)
+		is_port_3 = false;
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER,
 				       PWR_CTL_EN, value, 4);
 	if (status < 0)
@@ -1356,7 +1356,7 @@ void cx231xx_dump_SC_reg(struct cx231xx *dev)
 {
 	u8 value[4] = { 0, 0, 0, 0 };
 	int status = 0;
-	cx231xx_info("cx231xx_dump_SC_reg %s!\n", __TIME__);
+	cx231xx_info("cx231xx_dump_SC_reg!\n");
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT,
 				 value, 4);
@@ -1735,6 +1735,8 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		break;
 	case CX231XX_BOARD_CNXT_RDE_253S:
 	case CX231XX_BOARD_CNXT_RDU_253S:
+	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
+	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
 		func_mode = 0x01;
 		break;
 	default:
@@ -2550,7 +2552,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 		case 4:	/* ts1 */
 			cx231xx_info("%s: set ts1 registers", __func__);
 
-		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+		if (dev->board.has_417) {
 			cx231xx_info(" MPEG\n");
 			value &= 0xFFFFFFFC;
 			value |= 0x3;
@@ -2579,7 +2581,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 			break;
 
 		case 6:	/* ts1 parallel mode */
-			cx231xx_info("%s: set ts1 parrallel mode registers\n",
+			cx231xx_info("%s: set ts1 parallel mode registers\n",
 				     __func__);
 			status = cx231xx_mode_register(dev, TS_MODE_REG, 0x100);
 			status = cx231xx_mode_register(dev, TS1_CFG_REG, 0x400);

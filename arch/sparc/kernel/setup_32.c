@@ -82,7 +82,7 @@ static void prom_sync_me(void)
 			     "nop\n\t" : : "r" (&trapbase));
 
 	prom_printf("PROM SYNC COMMAND...\n");
-	show_free_areas();
+	show_free_areas(0);
 	if(current->pid != 0) {
 		local_irq_enable();
 		sys_sync();
@@ -103,16 +103,20 @@ static unsigned int boot_flags __initdata = 0;
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size __initdata = 0;
 
+/* which CPU booted us (0xff = not set) */
+unsigned char boot_cpu_id = 0xff; /* 0xff will make it into DATA section... */
+unsigned char boot_cpu_id4; /* boot_cpu_id << 2 */
+
 static void
 prom_console_write(struct console *con, const char *s, unsigned n)
 {
 	prom_write(s, n);
 }
 
-static struct console prom_debug_console = {
-	.name =		"debug",
+static struct console prom_early_console = {
+	.name =		"earlyprom",
 	.write =	prom_console_write,
-	.flags =	CON_PRINTBUFFER,
+	.flags =	CON_PRINTBUFFER | CON_BOOT,
 	.index =	-1,
 };
 
@@ -133,8 +137,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Use PROM debug console. */
-		register_console(&prom_debug_console);
+		/* Just ignore, this behavior is now the default.  */
 		break;
 	default:
 		printk("Unknown boot switch (-%c)\n", c);
@@ -184,7 +187,6 @@ static void __init boot_flags_init(char *commands)
  */
 
 extern void sun4c_probe_vac(void);
-extern char cputypval;
 
 extern unsigned short root_flags;
 extern unsigned short root_dev;
@@ -216,23 +218,27 @@ void __init setup_arch(char **cmdline_p)
 	strcpy(boot_command_line, *cmdline_p);
 	parse_early_param();
 
+	boot_flags_init(*cmdline_p);
+
+	register_console(&prom_early_console);
+
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
-	if (!strcmp(&cputypval,"sun4 "))
+	if (!strcmp(&cputypval[0], "sun4 "))
 		sparc_cpu_model = sun4;
-	if (!strcmp(&cputypval,"sun4c"))
+	if (!strcmp(&cputypval[0], "sun4c"))
 		sparc_cpu_model = sun4c;
-	if (!strcmp(&cputypval,"sun4m"))
+	if (!strcmp(&cputypval[0], "sun4m"))
 		sparc_cpu_model = sun4m;
-	if (!strcmp(&cputypval,"sun4s"))
+	if (!strcmp(&cputypval[0], "sun4s"))
 		sparc_cpu_model = sun4m; /* CP-1200 with PROM 2.30 -E */
-	if (!strcmp(&cputypval,"sun4d"))
+	if (!strcmp(&cputypval[0], "sun4d"))
 		sparc_cpu_model = sun4d;
-	if (!strcmp(&cputypval,"sun4e"))
+	if (!strcmp(&cputypval[0], "sun4e"))
 		sparc_cpu_model = sun4e;
-	if (!strcmp(&cputypval,"sun4u"))
+	if (!strcmp(&cputypval[0], "sun4u"))
 		sparc_cpu_model = sun4u;
-	if (!strncmp(&cputypval, "leon" , 4))
+	if (!strncmp(&cputypval[0], "leon" , 4))
 		sparc_cpu_model = sparc_leon;
 
 	printk("ARCH: ");
@@ -261,12 +267,11 @@ void __init setup_arch(char **cmdline_p)
 	default:
 		printk("UNKNOWN!\n");
 		break;
-	};
+	}
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
-	boot_flags_init(*cmdline_p);
 
 	idprom_init();
 	if (ARCH_SUN4C)
@@ -311,75 +316,6 @@ void __init setup_arch(char **cmdline_p)
 
 	smp_setup_cpu_possible_map();
 }
-
-static int ncpus_probed;
-
-static int show_cpuinfo(struct seq_file *m, void *__unused)
-{
-	seq_printf(m,
-		   "cpu\t\t: %s\n"
-		   "fpu\t\t: %s\n"
-		   "promlib\t\t: Version %d Revision %d\n"
-		   "prom\t\t: %d.%d\n"
-		   "type\t\t: %s\n"
-		   "ncpus probed\t: %d\n"
-		   "ncpus active\t: %d\n"
-#ifndef CONFIG_SMP
-		   "CPU0Bogo\t: %lu.%02lu\n"
-		   "CPU0ClkTck\t: %ld\n"
-#endif
-		   ,
-		   sparc_cpu_type,
-		   sparc_fpu_type ,
-		   romvec->pv_romvers,
-		   prom_rev,
-		   romvec->pv_printrev >> 16,
-		   romvec->pv_printrev & 0xffff,
-		   &cputypval,
-		   ncpus_probed,
-		   num_online_cpus()
-#ifndef CONFIG_SMP
-		   , cpu_data(0).udelay_val/(500000/HZ),
-		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,
-		   cpu_data(0).clock_tick
-#endif
-		);
-
-#ifdef CONFIG_SMP
-	smp_bogo(m);
-#endif
-	mmu_info(m);
-#ifdef CONFIG_SMP
-	smp_info(m);
-#endif
-	return 0;
-}
-
-static void *c_start(struct seq_file *m, loff_t *pos)
-{
-	/* The pointer we are returning is arbitrary,
-	 * it just has to be non-NULL and not IS_ERR
-	 * in the success case.
-	 */
-	return *pos == 0 ? &c_start : NULL;
-}
-
-static void *c_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	++*pos;
-	return c_start(m, pos);
-}
-
-static void c_stop(struct seq_file *m, void *v)
-{
-}
-
-const struct seq_operations cpuinfo_op = {
-	.start =c_start,
-	.next =	c_next,
-	.stop =	c_stop,
-	.show =	show_cpuinfo,
-};
 
 extern int stop_a_enabled;
 

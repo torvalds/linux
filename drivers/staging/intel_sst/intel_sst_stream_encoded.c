@@ -171,7 +171,7 @@ int sst_set_stream_param(int str_id, struct snd_sst_params *str_param)
 }
 
 /**
-* sst_get_vol - This fuction allows to get the premix gain or gain of a stream
+* sst_get_vol - This function allows to get the premix gain or gain of a stream
 *
 * @get_vol: this is an output param through which the volume
 *	structure is passed back to user
@@ -221,7 +221,7 @@ int sst_get_vol(struct snd_sst_vol *get_vol)
 }
 
 /**
-* sst_set_vol - This fuction allows to set the premix gain or gain of a stream
+* sst_set_vol - This function allows to set the premix gain or gain of a stream
 *
 * @set_vol:	this holds the volume structure that needs to be set
 *
@@ -263,7 +263,7 @@ int sst_set_vol(struct snd_sst_vol *set_vol)
 }
 
 /**
-* sst_set_mute - This fuction sets premix mute or soft mute of a stream
+* sst_set_mute - This function sets premix mute or soft mute of a stream
 *
 * @set_mute:	this holds the mute structure that needs to be set
 *
@@ -363,7 +363,6 @@ int sst_parse_target(struct snd_sst_slot_info *slot)
 				pr_err("SST_Activate_target_fail\n");
 			else
 				pr_err("SST_Activate_target_pass\n");
-		return retval;
 	} else if (slot->action == SND_SST_PORT_PREPARE &&
 			slot->device_type == SND_SST_DEVICE_PCM) {
 				retval = sst_prepare_target(slot);
@@ -371,12 +370,11 @@ int sst_parse_target(struct snd_sst_slot_info *slot)
 				pr_err("SST_prepare_target_fail\n");
 			else
 				pr_err("SST_prepare_target_pass\n");
-			return retval;
 	} else {
 		pr_err("slot_action : %d, device_type: %d\n",
 				slot->action, slot->device_type);
-		return retval;
 	}
+	return retval;
 }
 
 int sst_send_target(struct snd_sst_target_device *target)
@@ -450,7 +448,7 @@ err:
 }
 
 /**
- * sst_target_device_select - This fuction sets the target device configurations
+ * sst_target_device_select - This function sets the target device configurations
  *
  * @target: this parameter holds the configurations to be set
  *
@@ -886,8 +884,7 @@ static int sst_prepare_input_buffers_rar(struct stream_info *str_info,
 			int *input_index, int *in_copied,
 			int *input_index_valid_size, int *new_entry_flag)
 {
-	int retval = 0;
-	int i;
+	int retval = 0, i;
 
 	if (str_info->ops == STREAM_OPS_PLAYBACK_DRM) {
 		struct RAR_buffer rar_buffers;
@@ -914,7 +911,7 @@ static int sst_prepare_input_buffers_rar(struct stream_info *str_info,
 		(void *) ((unsigned long) rar_buffers.bus_address);
 		pr_debug("RAR buf addr in DnR (input buffer function)0x%lu",
 				 (unsigned long) str_info->decode_ibuf);
-		pr_debug("rar in DnR decode funtion/output b_add rar =0x%lu",
+		pr_debug("rar in DnR decode function/output b_add rar =0x%lu",
 				(unsigned long) rar_buffers.bus_address);
 		*input_index = i + 1;
 		str_info->decode_isize = dbufs->ibufs->buff_entry[i].size;
@@ -924,7 +921,6 @@ static int sst_prepare_input_buffers_rar(struct stream_info *str_info,
 	return retval;
 }
 #endif
-
 /*This function is used to prepare the kernel input buffers with contents
 before sending for decode*/
 static int sst_prepare_input_buffers(struct stream_info *str_info,

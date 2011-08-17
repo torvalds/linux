@@ -47,6 +47,64 @@
 /* COMMAND API interface ****************************************************/
 /****************************************************************************/
 
+static ssize_t ts_write(struct file *file, const char *buf,
+			size_t count, loff_t *ppos)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ngene_channel *chan = dvbdev->priv;
+	struct ngene *dev = chan->dev;
+
+	if (wait_event_interruptible(dev->tsout_rbuf.queue,
+				     dvb_ringbuffer_free
+				     (&dev->tsout_rbuf) >= count) < 0)
+		return 0;
+
+	dvb_ringbuffer_write(&dev->tsout_rbuf, buf, count);
+
+	return count;
+}
+
+static ssize_t ts_read(struct file *file, char *buf,
+		       size_t count, loff_t *ppos)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ngene_channel *chan = dvbdev->priv;
+	struct ngene *dev = chan->dev;
+	int left, avail;
+
+	left = count;
+	while (left) {
+		if (wait_event_interruptible(
+			    dev->tsin_rbuf.queue,
+			    dvb_ringbuffer_avail(&dev->tsin_rbuf) > 0) < 0)
+			return -EAGAIN;
+		avail = dvb_ringbuffer_avail(&dev->tsin_rbuf);
+		if (avail > left)
+			avail = left;
+		dvb_ringbuffer_read_user(&dev->tsin_rbuf, buf, avail);
+		left -= avail;
+		buf += avail;
+	}
+	return count;
+}
+
+static const struct file_operations ci_fops = {
+	.owner   = THIS_MODULE,
+	.read    = ts_read,
+	.write   = ts_write,
+	.open    = dvb_generic_open,
+	.release = dvb_generic_release,
+};
+
+struct dvb_device ngene_dvbdev_ci = {
+	.priv    = 0,
+	.readers = -1,
+	.writers = -1,
+	.users   = -1,
+	.fops    = &ci_fops,
+};
+
+
 /****************************************************************************/
 /* DVB functions and API interface ******************************************/
 /****************************************************************************/
@@ -60,17 +118,58 @@ static void swap_buffer(u32 *p, u32 len)
 	}
 }
 
+/* start of filler packet */
+static u8 fill_ts[] = { 0x47, 0x1f, 0xff, 0x10, TS_FILLER };
+
+/* #define DEBUG_CI_XFER */
+#ifdef DEBUG_CI_XFER
+static u32 ok;
+static u32 overflow;
+static u32 stripped;
+#endif
+
 void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {
 	struct ngene_channel *chan = priv;
+	struct ngene *dev = chan->dev;
 
+
+	if (flags & DF_SWAP32)
+		swap_buffer(buf, len);
+
+	if (dev->ci.en && chan->number == 2) {
+		while (len >= 188) {
+			if (memcmp(buf, fill_ts, sizeof fill_ts) != 0) {
+				if (dvb_ringbuffer_free(&dev->tsin_rbuf) >= 188) {
+					dvb_ringbuffer_write(&dev->tsin_rbuf, buf, 188);
+					wake_up(&dev->tsin_rbuf.queue);
+#ifdef DEBUG_CI_XFER
+					ok++;
+#endif
+				}
+#ifdef DEBUG_CI_XFER
+				else
+					overflow++;
+#endif
+			}
+#ifdef DEBUG_CI_XFER
+			else
+				stripped++;
+
+			if (ok % 100 == 0 && overflow)
+				printk(KERN_WARNING "%s: ok %u overflow %u dropped %u\n", __func__, ok, overflow, stripped);
+#endif
+			buf += 188;
+			len -= 188;
+		}
+		return NULL;
+	}
 
 	if (chan->users > 0)
 		dvb_dmx_swfilter(&chan->demux, buf, len);
+
 	return NULL;
 }
-
-u8 fill_ts[188] = { 0x47, 0x1f, 0xff, 0x10 };
 
 void *tsout_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {

@@ -62,7 +62,7 @@
 static void __init omap_palmte_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static const unsigned int palmte_keymap[] = {
@@ -230,19 +230,6 @@ static struct spi_board_info palmte_spi_info[] __initdata = {
 	},
 };
 
-static void palmte_headphones_detect(void *data, int state)
-{
-	if (state) {
-		/* Headphones connected, disable speaker */
-		gpio_set_value(PALMTE_SPEAKER_GPIO, 0);
-		printk(KERN_INFO "PM: speaker off\n");
-	} else {
-		/* Headphones unplugged, re-enable speaker */
-		gpio_set_value(PALMTE_SPEAKER_GPIO, 1);
-		printk(KERN_INFO "PM: speaker on\n");
-	}
-}
-
 static void __init palmte_misc_gpio_setup(void)
 {
 	/* Set TSC2102 PINTDAV pin as input (used by TSC2102 driver) */
@@ -293,5 +280,5 @@ MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_palmte_init_irq,
 	.init_machine	= omap_palmte_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

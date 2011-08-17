@@ -331,7 +331,7 @@ static struct resource htcpld_resources[] = {
 	},
 };
 
-struct htcpld_chip_platform_data htcpld_chips[] = {
+static struct htcpld_chip_platform_data htcpld_chips[] = {
 	[0] = {
 		.addr		= 0x03,
 		.reset		= 0x04,
@@ -366,7 +366,7 @@ struct htcpld_chip_platform_data htcpld_chips[] = {
 	},
 };
 
-struct htcpld_core_platform_data htcpld_pfdata = {
+static struct htcpld_core_platform_data htcpld_pfdata = {
 	.int_reset_gpio_hi = HTCPLD_GPIO_INT_RESET_HI,
 	.int_reset_gpio_lo = HTCPLD_GPIO_INT_RESET_LO,
 	.i2c_adapter_id	   = 1,
@@ -605,7 +605,7 @@ static void __init htcherald_init_irq(void)
 {
 	printk(KERN_INFO "htcherald_init_irq.\n");
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 MACHINE_START(HERALD, "HTC Herald")
@@ -616,5 +616,5 @@ MACHINE_START(HERALD, "HTC Herald")
 	.reserve	= omap_reserve,
 	.init_irq       = htcherald_init_irq,
 	.init_machine   = htcherald_init,
-	.timer          = &omap_timer,
+	.timer          = &omap1_timer,
 MACHINE_END

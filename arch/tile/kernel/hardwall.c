@@ -40,15 +40,24 @@
 struct hardwall_info {
 	struct list_head list;             /* "rectangles" list */
 	struct list_head task_head;        /* head of tasks in this hardwall */
+	struct cpumask cpumask;            /* cpus in the rectangle */
 	int ulhc_x;                        /* upper left hand corner x coord */
 	int ulhc_y;                        /* upper left hand corner y coord */
 	int width;                         /* rectangle width */
 	int height;                        /* rectangle height */
+	int id;                            /* integer id for this hardwall */
 	int teardown_in_progress;          /* are we tearing this one down? */
 };
 
 /* Currently allocated hardwall rectangles */
 static LIST_HEAD(rectangles);
+
+/* /proc/tile/hardwall */
+static struct proc_dir_entry *hardwall_proc_dir;
+
+/* Functions to manage files in /proc/tile/hardwall. */
+static void hardwall_add_proc(struct hardwall_info *rect);
+static void hardwall_remove_proc(struct hardwall_info *rect);
 
 /*
  * Guard changes to the hardwall data structures.
@@ -105,6 +114,8 @@ static int setup_rectangle(struct hardwall_info *r, struct cpumask *mask)
 	r->ulhc_y = cpu_y(ulhc);
 	r->width = cpu_x(lrhc) - r->ulhc_x + 1;
 	r->height = cpu_y(lrhc) - r->ulhc_y + 1;
+	cpumask_copy(&r->cpumask, mask);
+	r->id = ulhc;   /* The ulhc cpu id can be the hardwall id. */
 
 	/* Width and height must be positive */
 	if (r->width <= 0 || r->height <= 0)
@@ -268,12 +279,10 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 	found_processes = 0;
 	list_for_each_entry(p, &rect->task_head, thread.hardwall_list) {
 		BUG_ON(p->thread.hardwall != rect);
-		if (p->sighand) {
+		if (!(p->flags & PF_EXITING)) {
 			found_processes = 1;
 			pr_notice("hardwall: killing %d\n", p->pid);
-			spin_lock(&p->sighand->siglock);
-			__group_send_sig_info(info.si_signo, &info, p);
-			spin_unlock(&p->sighand->siglock);
+			do_send_sig_info(info.si_signo, &info, p, false);
 		}
 	}
 	if (!found_processes)
@@ -389,6 +398,9 @@ static struct hardwall_info *hardwall_create(
 
 	/* Set up appropriate hardwalling on all affected cpus. */
 	hardwall_setup(rect);
+
+	/* Create a /proc/tile/hardwall entry. */
+	hardwall_add_proc(rect);
 
 	return rect;
 }
@@ -647,6 +659,9 @@ static void hardwall_destroy(struct hardwall_info *rect)
 	/* Restart switch and disable firewall. */
 	on_each_cpu_mask(&mask, restart_udn_switch, NULL, 1);
 
+	/* Remove the /proc/tile/hardwall entry. */
+	hardwall_remove_proc(rect);
+
 	/* Now free the rectangle from the list. */
 	spin_lock_irqsave(&hardwall_lock, flags);
 	BUG_ON(!list_empty(&rect->task_head));
@@ -656,33 +671,55 @@ static void hardwall_destroy(struct hardwall_info *rect)
 }
 
 
-/*
- * Dump hardwall state via /proc; initialized in arch/tile/sys/proc.c.
- */
-int proc_tile_hardwall_show(struct seq_file *sf, void *v)
+static int hardwall_proc_show(struct seq_file *sf, void *v)
 {
-	struct hardwall_info *r;
+	struct hardwall_info *rect = sf->private;
+	char buf[256];
 
-	if (udn_disabled) {
-		seq_printf(sf, "%dx%d 0,0 pids:\n", smp_width, smp_height);
-		return 0;
-	}
-
-	spin_lock_irq(&hardwall_lock);
-	list_for_each_entry(r, &rectangles, list) {
-		struct task_struct *p;
-		seq_printf(sf, "%dx%d %d,%d pids:",
-			   r->width, r->height, r->ulhc_x, r->ulhc_y);
-		list_for_each_entry(p, &r->task_head, thread.hardwall_list) {
-			unsigned int cpu = cpumask_first(&p->cpus_allowed);
-			unsigned int x = cpu % smp_width;
-			unsigned int y = cpu / smp_width;
-			seq_printf(sf, " %d@%d,%d", p->pid, x, y);
-		}
-		seq_printf(sf, "\n");
-	}
-	spin_unlock_irq(&hardwall_lock);
+	int rc = cpulist_scnprintf(buf, sizeof(buf), &rect->cpumask);
+	buf[rc++] = '\n';
+	seq_write(sf, buf, rc);
 	return 0;
+}
+
+static int hardwall_proc_open(struct inode *inode,
+			      struct file *file)
+{
+	return single_open(file, hardwall_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations hardwall_proc_fops = {
+	.open		= hardwall_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void hardwall_add_proc(struct hardwall_info *rect)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf), "%d", rect->id);
+	proc_create_data(buf, 0444, hardwall_proc_dir,
+			 &hardwall_proc_fops, rect);
+}
+
+static void hardwall_remove_proc(struct hardwall_info *rect)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf), "%d", rect->id);
+	remove_proc_entry(buf, hardwall_proc_dir);
+}
+
+int proc_pid_hardwall(struct task_struct *task, char *buffer)
+{
+	struct hardwall_info *rect = task->thread.hardwall;
+	return rect ? sprintf(buffer, "%d\n", rect->id) : 0;
+}
+
+void proc_tile_hardwall_init(struct proc_dir_entry *root)
+{
+	if (!udn_disabled)
+		hardwall_proc_dir = proc_mkdir("hardwall", root);
 }
 
 
@@ -717,6 +754,9 @@ static long hardwall_ioctl(struct file *file, unsigned int a, unsigned long b)
 		if (current->thread.hardwall != rect)
 			return -EINVAL;
 		return hardwall_deactivate(current);
+
+	case _HARDWALL_GET_ID:
+		return rect ? rect->id : -EINVAL;
 
 	default:
 		return -EINVAL;

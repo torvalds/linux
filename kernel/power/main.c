@@ -17,9 +17,6 @@
 
 DEFINE_MUTEX(pm_mutex);
 
-unsigned int pm_flags;
-EXPORT_SYMBOL(pm_flags);
-
 #ifdef CONFIG_PM_SLEEP
 
 /* Routines for PM-transition notifications */
@@ -40,8 +37,9 @@ EXPORT_SYMBOL_GPL(unregister_pm_notifier);
 
 int pm_notifier_call_chain(unsigned long val)
 {
-	return (blocking_notifier_call_chain(&pm_chain_head, val, NULL)
-			== NOTIFY_BAD) ? -EINVAL : 0;
+	int ret = blocking_notifier_call_chain(&pm_chain_head, val, NULL);
+
+	return notifier_to_errno(ret);
 }
 
 /* If set, devices may be suspended and resumed asynchronously. */
@@ -227,7 +225,7 @@ power_attr(state);
  * writing to 'state'.  It first should read from 'wakeup_count' and store
  * the read value.  Then, after carrying out its own preparations for the system
  * transition to a sleep state, it should write the stored value to
- * 'wakeup_count'.  If that fails, at least one wakeup event has occured since
+ * 'wakeup_count'.  If that fails, at least one wakeup event has occurred since
  * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
  * is allowed to write to 'state', but the transition will be aborted if there
  * are any wakeup events detected after 'wakeup_count' was written to.
@@ -340,6 +338,7 @@ static int __init pm_init(void)
 	if (error)
 		return error;
 	hibernate_image_size_init();
+	hibernate_reserved_size_init();
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
 		return -ENOMEM;

@@ -39,20 +39,17 @@
 int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 			 loff_t offset, size_t size)
 {
-	struct ecryptfs_inode_info *inode_info;
+	struct file *lower_file;
 	mm_segment_t fs_save;
 	ssize_t rc;
 
-	inode_info = ecryptfs_inode_to_private(ecryptfs_inode);
-	mutex_lock(&inode_info->lower_file_mutex);
-	BUG_ON(!inode_info->lower_file);
-	inode_info->lower_file->f_pos = offset;
+	lower_file = ecryptfs_inode_to_private(ecryptfs_inode)->lower_file;
+	if (!lower_file)
+		return -EIO;
 	fs_save = get_fs();
 	set_fs(get_ds());
-	rc = vfs_write(inode_info->lower_file, data, size,
-		       &inode_info->lower_file->f_pos);
+	rc = vfs_write(lower_file, data, size, &offset);
 	set_fs(fs_save);
-	mutex_unlock(&inode_info->lower_file_mutex);
 	mark_inode_dirty_sync(ecryptfs_inode);
 	return rc;
 }
@@ -229,20 +226,17 @@ out:
 int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 			struct inode *ecryptfs_inode)
 {
-	struct ecryptfs_inode_info *inode_info =
-		ecryptfs_inode_to_private(ecryptfs_inode);
+	struct file *lower_file;
 	mm_segment_t fs_save;
 	ssize_t rc;
 
-	mutex_lock(&inode_info->lower_file_mutex);
-	BUG_ON(!inode_info->lower_file);
-	inode_info->lower_file->f_pos = offset;
+	lower_file = ecryptfs_inode_to_private(ecryptfs_inode)->lower_file;
+	if (!lower_file)
+		return -EIO;
 	fs_save = get_fs();
 	set_fs(get_ds());
-	rc = vfs_read(inode_info->lower_file, data, size,
-		      &inode_info->lower_file->f_pos);
+	rc = vfs_read(lower_file, data, size, &offset);
 	set_fs(fs_save);
-	mutex_unlock(&inode_info->lower_file_mutex);
 	return rc;
 }
 

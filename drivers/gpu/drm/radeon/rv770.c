@@ -105,8 +105,11 @@ void rv770_pm_misc(struct radeon_device *rdev)
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		/* 0xff01 is a flag rather then an actual voltage */
+		if (voltage->voltage == 0xff01)
+			return;
 		if (voltage->voltage != rdev->pm.current_vddc) {
-			radeon_atom_set_voltage(rdev, voltage->voltage);
+			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
 			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
 		}
@@ -307,7 +310,7 @@ static void rv770_mc_program(struct radeon_device *rdev)
  */
 void r700_cp_stop(struct radeon_device *rdev)
 {
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 	WREG32(SCRATCH_UMSK, 0);
 }
@@ -572,6 +575,12 @@ static void rv770_program_channel_remap(struct radeon_device *rdev)
 	else
 		tcp_chan_steer = 0x00fac688;
 
+	/* RV770 CE has special chremap setup */
+	if (rdev->pdev->device == 0x944e) {
+		tcp_chan_steer = 0x00b08b08;
+		mc_shared_chremap = 0x00b08b08;
+	}
+
 	WREG32(TCP_CHAN_STEER, tcp_chan_steer);
 	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);
 }
@@ -769,6 +778,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 								(cc_rb_backend_disable >> 16));
 
 	rdev->config.rv770.tile_config = gb_tiling_config;
+	rdev->config.rv770.backend_map = backend_map;
 	gb_tiling_config |= BACKEND_MAP(backend_map);
 
 	WREG32(GB_TILING_CONFIG, gb_tiling_config);
@@ -1003,7 +1013,7 @@ static int rv770_vram_scratch_init(struct radeon_device *rdev)
 	u64 gpu_addr;
 
 	if (rdev->vram_scratch.robj == NULL) {
-		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
+		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
 				     &rdev->vram_scratch.robj);
 		if (r) {
@@ -1123,7 +1133,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r700_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
@@ -1210,7 +1219,7 @@ int rv770_resume(struct radeon_device *rdev)
 
 	r = r600_ib_test(rdev);
 	if (r) {
-		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
+		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
 	}
 
@@ -1256,9 +1265,6 @@ int rv770_init(struct radeon_device *rdev)
 {
 	int r;
 
-	r = radeon_dummy_page_init(rdev);
-	if (r)
-		return r;
 	/* This don't do much */
 	r = radeon_gem_init(rdev);
 	if (r)
@@ -1363,6 +1369,7 @@ void rv770_fini(struct radeon_device *rdev)
 	r700_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	rv770_vram_scratch_fini(rdev);
@@ -1373,7 +1380,6 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
-	radeon_dummy_page_fini(rdev);
 }
 
 static void rv770_pcie_gen2_enable(struct radeon_device *rdev)

@@ -4,7 +4,7 @@
  * Squashfs
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,6 +57,7 @@
 #define SQUASHFS_ALWAYS_FRAG		5
 #define SQUASHFS_DUPLICATE		6
 #define SQUASHFS_EXPORT			7
+#define SQUASHFS_COMP_OPT		10
 
 #define SQUASHFS_BIT(flag, bit)		((flag >> bit) & 1)
 
@@ -80,6 +81,9 @@
 
 #define SQUASHFS_EXPORTABLE(flags)		SQUASHFS_BIT(flags, \
 						SQUASHFS_EXPORT)
+
+#define SQUASHFS_COMP_OPTS(flags)		SQUASHFS_BIT(flags, \
+						SQUASHFS_COMP_OPT)
 
 /* Max number of types and file types */
 #define SQUASHFS_DIR_TYPE		1

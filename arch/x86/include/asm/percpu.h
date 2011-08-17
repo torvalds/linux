@@ -45,7 +45,7 @@
 #include <linux/stringify.h>
 
 #ifdef CONFIG_SMP
-#define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
+#define __percpu_prefix		"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		percpu_read(this_cpu_off)
 
 /*
@@ -62,8 +62,10 @@
 	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;	\
 })
 #else
-#define __percpu_arg(x)		"%P" #x
+#define __percpu_prefix		""
 #endif
+
+#define __percpu_arg(x)		__percpu_prefix "%P" #x
 
 /*
  * Initialized pointers to per-cpu variables needed for the boot
@@ -386,12 +388,9 @@ do {									\
 #define __this_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define __this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define __this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
-/*
- * Generic fallback operations for __this_cpu_xchg_[1-4] are okay and much
- * faster than an xchg with forced lock semantics.
- */
-#define __this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
-#define __this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
+#define __this_cpu_xchg_1(pcp, val)	percpu_xchg_op(pcp, val)
+#define __this_cpu_xchg_2(pcp, val)	percpu_xchg_op(pcp, val)
+#define __this_cpu_xchg_4(pcp, val)	percpu_xchg_op(pcp, val)
 
 #define this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
@@ -451,6 +450,26 @@ do {									\
 #define irqsafe_cpu_cmpxchg_4(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
 #endif /* !CONFIG_M386 */
 
+#ifdef CONFIG_X86_CMPXCHG64
+#define percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)			\
+({									\
+	char __ret;							\
+	typeof(o1) __o1 = o1;						\
+	typeof(o1) __n1 = n1;						\
+	typeof(o2) __o2 = o2;						\
+	typeof(o2) __n2 = n2;						\
+	typeof(o2) __dummy = n2;					\
+	asm volatile("cmpxchg8b "__percpu_arg(1)"\n\tsetz %0\n\t"	\
+		    : "=a"(__ret), "=m" (pcp1), "=d"(__dummy)		\
+		    :  "b"(__n1), "c"(__n2), "a"(__o1), "d"(__o2));	\
+	__ret;								\
+})
+
+#define __this_cpu_cmpxchg_double_4(pcp1, pcp2, o1, o2, n1, n2)		percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)
+#define this_cpu_cmpxchg_double_4(pcp1, pcp2, o1, o2, n1, n2)		percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)
+#define irqsafe_cpu_cmpxchg_double_4(pcp1, pcp2, o1, o2, n1, n2)	percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)
+#endif /* CONFIG_X86_CMPXCHG64 */
+
 /*
  * Per cpu atomic 64 bit operations are only available under 64 bit.
  * 32 bit must fall back to generic operations.
@@ -463,6 +482,8 @@ do {									\
 #define __this_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
 #define __this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define __this_cpu_add_return_8(pcp, val) percpu_add_return_op(pcp, val)
+#define __this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
+#define __this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
 
 #define this_cpu_read_8(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define this_cpu_write_8(pcp, val)	percpu_to_op("mov", (pcp), val)
@@ -480,6 +501,39 @@ do {									\
 #define irqsafe_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define irqsafe_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define irqsafe_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
+
+/*
+ * Pretty complex macro to generate cmpxchg16 instruction.  The instruction
+ * is not supported on early AMD64 processors so we must be able to emulate
+ * it in software.  The address used in the cmpxchg16 instruction must be
+ * aligned to a 16 byte boundary.
+ */
+#ifdef CONFIG_SMP
+#define CMPXCHG16B_EMU_CALL "call this_cpu_cmpxchg16b_emu\n\t" ASM_NOP3
+#else
+#define CMPXCHG16B_EMU_CALL "call this_cpu_cmpxchg16b_emu\n\t" ASM_NOP2
+#endif
+#define percpu_cmpxchg16b_double(pcp1, o1, o2, n1, n2)			\
+({									\
+	char __ret;							\
+	typeof(o1) __o1 = o1;						\
+	typeof(o1) __n1 = n1;						\
+	typeof(o2) __o2 = o2;						\
+	typeof(o2) __n2 = n2;						\
+	typeof(o2) __dummy;						\
+	alternative_io(CMPXCHG16B_EMU_CALL,				\
+		       "cmpxchg16b " __percpu_prefix "(%%rsi)\n\tsetz %0\n\t",	\
+		       X86_FEATURE_CX16,				\
+		       ASM_OUTPUT2("=a"(__ret), "=d"(__dummy)),		\
+		       "S" (&pcp1), "b"(__n1), "c"(__n2),		\
+		       "a"(__o1), "d"(__o2) : "memory");		\
+	__ret;								\
+})
+
+#define __this_cpu_cmpxchg_double_8(pcp1, pcp2, o1, o2, n1, n2)		percpu_cmpxchg16b_double(pcp1, o1, o2, n1, n2)
+#define this_cpu_cmpxchg_double_8(pcp1, pcp2, o1, o2, n1, n2)		percpu_cmpxchg16b_double(pcp1, o1, o2, n1, n2)
+#define irqsafe_cpu_cmpxchg_double_8(pcp1, pcp2, o1, o2, n1, n2)	percpu_cmpxchg16b_double(pcp1, o1, o2, n1, n2)
+
 #endif
 
 /* This is not atomic against other CPUs -- CPU preemption needs to be off */
@@ -491,6 +545,33 @@ do {									\
 		     : "dIr" (bit));					\
 	old__;								\
 })
+
+static __always_inline int x86_this_cpu_constant_test_bit(unsigned int nr,
+                        const unsigned long __percpu *addr)
+{
+	unsigned long __percpu *a = (unsigned long *)addr + nr / BITS_PER_LONG;
+
+	return ((1UL << (nr % BITS_PER_LONG)) & percpu_read(*a)) != 0;
+}
+
+static inline int x86_this_cpu_variable_test_bit(int nr,
+                        const unsigned long __percpu *addr)
+{
+	int oldbit;
+
+	asm volatile("bt "__percpu_arg(2)",%1\n\t"
+			"sbb %0,%0"
+			: "=r" (oldbit)
+			: "m" (*(unsigned long *)addr), "Ir" (nr));
+
+	return oldbit;
+}
+
+#define x86_this_cpu_test_bit(nr, addr)			\
+	(__builtin_constant_p((nr))			\
+	 ? x86_this_cpu_constant_test_bit((nr), (addr))	\
+	 : x86_this_cpu_variable_test_bit((nr), (addr)))
+
 
 #include <asm-generic/percpu.h>
 

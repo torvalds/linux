@@ -339,7 +339,7 @@ update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
 
 /**
  * bar4_shift - function is called to shift BAR base address
- * @pm8001_ha : our hba card infomation
+ * @pm8001_ha : our hba card information
  * @shiftValue : shifting value in memory bar.
  */
 static int bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
@@ -1382,53 +1382,50 @@ static u32 mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
 	return MPI_IO_STATUS_BUSY;
 }
 
-static void pm8001_work_queue(struct work_struct *work)
+static void pm8001_work_fn(struct work_struct *work)
 {
-	struct delayed_work *dw = container_of(work, struct delayed_work, work);
-	struct pm8001_wq *wq = container_of(dw, struct pm8001_wq, work_q);
+	struct pm8001_work *pw = container_of(work, struct pm8001_work, work);
 	struct pm8001_device *pm8001_dev;
-	struct domain_device	*dev;
+	struct domain_device *dev;
 
-	switch (wq->handler) {
+	switch (pw->handler) {
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_DS_IN_ERROR:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_DS_NON_OPERATIONAL:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	}
-	list_del(&wq->entry);
-	kfree(wq);
+	kfree(pw);
 }
 
 static int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha, void *data,
 			       int handler)
 {
-	struct pm8001_wq *wq;
+	struct pm8001_work *pw;
 	int ret = 0;
 
-	wq = kmalloc(sizeof(struct pm8001_wq), GFP_ATOMIC);
-	if (wq) {
-		wq->pm8001_ha = pm8001_ha;
-		wq->data = data;
-		wq->handler = handler;
-		INIT_DELAYED_WORK(&wq->work_q, pm8001_work_queue);
-		list_add_tail(&wq->entry, &pm8001_ha->wq_list);
-		schedule_delayed_work(&wq->work_q, 0);
+	pw = kmalloc(sizeof(struct pm8001_work), GFP_ATOMIC);
+	if (pw) {
+		pw->pm8001_ha = pm8001_ha;
+		pw->data = data;
+		pw->handler = handler;
+		INIT_WORK(&pw->work, pm8001_work_fn);
+		queue_work(pm8001_wq, &pw->work);
 	} else
 		ret = -ENOMEM;
 

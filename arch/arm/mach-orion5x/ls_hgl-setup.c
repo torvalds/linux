@@ -200,28 +200,28 @@ static void ls_hgl_power_off(void)
 
 #define LS_HGL_GPIO_HDD_POWER	1
 
-static struct orion5x_mpp_mode ls_hgl_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO }, /* LED_PWR */
-	{  1, MPP_GPIO }, /* HDD_PWR */
-	{  2, MPP_GPIO }, /* LED_ALARM */
-	{  3, MPP_GPIO }, /* LED_INFO */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_GPIO }, /* FAN_LCK */
-	{  7, MPP_GPIO }, /* INIT */
-	{  8, MPP_GPIO }, /* POWER */
-	{  9, MPP_GPIO }, /* USB_PWR */
-	{ 10, MPP_GPIO }, /* AUTO_POWER */
-	{ 11, MPP_UNUSED }, /* LED_ETH (dummy) */
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_UNUSED },
-	{ 15, MPP_GPIO }, /* FUNC */
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_GPIO }, /* LED_FUNC */
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int ls_hgl_mpp_modes[] __initdata = {
+	MPP0_GPIO, /* LED_PWR */
+	MPP1_GPIO, /* HDD_PWR */
+	MPP2_GPIO, /* LED_ALARM */
+	MPP3_GPIO, /* LED_INFO */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_GPIO, /* FAN_LCK */
+	MPP7_GPIO, /* INIT */
+	MPP8_GPIO, /* POWER */
+	MPP9_GPIO, /* USB_PWR */
+	MPP10_GPIO, /* AUTO_POWER */
+	MPP11_UNUSED, /* LED_ETH (dummy) */
+	MPP12_UNUSED,
+	MPP13_UNUSED,
+	MPP14_UNUSED,
+	MPP15_GPIO, /* FUNC */
+	MPP16_UNUSED,
+	MPP17_GPIO, /* LED_FUNC */
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init ls_hgl_init(void)
@@ -268,6 +268,7 @@ MACHINE_START(LINKSTATION_LS_HGL, "Buffalo Linkstation LS-HGL")
 	.boot_params	= 0x00000100,
 	.init_machine	= ls_hgl_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

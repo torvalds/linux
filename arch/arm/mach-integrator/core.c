@@ -144,11 +144,14 @@ static struct clk_lookup lookups[] = {
 	}
 };
 
+void __init integrator_init_early(void)
+{
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+}
+
 static int __init integrator_init(void)
 {
 	int i;
-
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

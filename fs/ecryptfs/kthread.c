@@ -44,7 +44,7 @@ static struct task_struct *ecryptfs_kthread;
  * @ignored: ignored
  *
  * The eCryptfs kernel thread that has the responsibility of getting
- * the lower persistent file with RW permissions.
+ * the lower file with RW permissions.
  *
  * Returns zero on success; non-zero otherwise
  */
@@ -141,8 +141,8 @@ int ecryptfs_privileged_open(struct file **lower_file,
 	int rc = 0;
 
 	/* Corresponding dput() and mntput() are done when the
-	 * persistent file is fput() when the eCryptfs inode is
-	 * destroyed. */
+	 * lower file is fput() when all eCryptfs files for the inode are
+	 * released. */
 	dget(lower_dentry);
 	mntget(lower_mnt);
 	flags |= IS_RDONLY(lower_dentry->d_inode) ? O_RDONLY : O_RDWR;

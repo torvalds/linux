@@ -234,7 +234,6 @@ static struct mtd_info *flash_probe(void)
 	}
 
 	if (mtd_cse0 && mtd_cse1) {
-#ifdef CONFIG_MTD_CONCAT
 		struct mtd_info *mtds[] = { mtd_cse0, mtd_cse1 };
 
 		/* Since the concatenation layer adds a small overhead we
@@ -246,11 +245,6 @@ static struct mtd_info *flash_probe(void)
 		 */
 		mtd_cse = mtd_concat_create(mtds, ARRAY_SIZE(mtds),
 					    "cse0+cse1");
-#else
-		printk(KERN_ERR "%s and %s: Cannot concatenate due to kernel "
-		       "(mis)configuration!\n", map_cse0.name, map_cse1.name);
-		mtd_cse = NULL;
-#endif
 		if (!mtd_cse) {
 			printk(KERN_ERR "%s and %s: Concatenation failed!\n",
 			       map_cse0.name, map_cse1.name);
@@ -378,7 +372,7 @@ static int __init init_axis_flash(void)
 #ifdef CONFIG_ETRAX_AXISFLASHMAP_MTD0WHOLE
 	if (mymtd) {
 		main_partition.size = mymtd->size;
-		err = add_mtd_partitions(mymtd, &main_partition, 1);
+		err = mtd_device_register(mymtd, &main_partition, 1);
 		if (err)
 			panic("axisflashmap: Could not initialize "
 			      "partition for whole main mtd device!\n");
@@ -388,10 +382,12 @@ static int __init init_axis_flash(void)
         if (mymtd) {
 		if (use_default_ptable) {
 			printk(KERN_INFO " Using default partition table.\n");
-			err = add_mtd_partitions(mymtd, axis_default_partitions,
-						 NUM_DEFAULT_PARTITIONS);
+			err = mtd_device_register(mymtd,
+						  axis_default_partitions,
+						  NUM_DEFAULT_PARTITIONS);
 		} else {
-			err = add_mtd_partitions(mymtd, axis_partitions, pidx);
+			err = mtd_device_register(mymtd, axis_partitions,
+						  pidx);
 		}
 
 		if (err)

@@ -29,6 +29,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,8 +40,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <plat/pxa27x_keypad.h>
-
-#include <plat/i2c.h>
+#include <mach/pm.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -92,13 +92,13 @@ static unsigned long z2_pin_config[] = {
 	GPIO47_STUART_TXD,
 
 	/* Keypad */
-	GPIO100_KP_MKIN_0	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO101_KP_MKIN_1	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO102_KP_MKIN_2	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO34_KP_MKIN_3	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO38_KP_MKIN_4	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO16_KP_MKIN_5	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO17_KP_MKIN_6	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO100_KP_MKIN_0,
+	GPIO101_KP_MKIN_1,
+	GPIO102_KP_MKIN_2,
+	GPIO34_KP_MKIN_3,
+	GPIO38_KP_MKIN_4,
+	GPIO16_KP_MKIN_5,
+	GPIO17_KP_MKIN_6,
 	GPIO103_KP_MKOUT_0,
 	GPIO104_KP_MKOUT_1,
 	GPIO105_KP_MKOUT_2,
@@ -139,8 +139,7 @@ static unsigned long z2_pin_config[] = {
 	GPIO1_GPIO,		/* Power button */
 	GPIO37_GPIO,		/* Headphone detect */
 	GPIO98_GPIO,		/* Lid switch */
-	GPIO14_GPIO,		/* WiFi Reset */
-	GPIO15_GPIO,		/* WiFi Power */
+	GPIO14_GPIO,		/* WiFi Power */
 	GPIO24_GPIO,		/* WiFi CS */
 	GPIO36_GPIO,		/* WiFi IRQ */
 	GPIO88_GPIO,		/* LCD CS */
@@ -205,7 +204,7 @@ static struct platform_pwm_backlight_data z2_backlight_data[] = {
 		/* Keypad Backlight */
 		.pwm_id		= 1,
 		.max_brightness	= 1023,
-		.dft_brightness	= 512,
+		.dft_brightness	= 0,
 		.pwm_period_ns	= 1260320,
 	},
 	[1] = {
@@ -272,7 +271,7 @@ static struct pxafb_mach_info z2_lcd_screen = {
 
 static void __init z2_lcd_init(void)
 {
-	set_pxa_fb_info(&z2_lcd_screen);
+	pxa_set_fb_info(NULL, &z2_lcd_screen);
 }
 #else
 static inline void z2_lcd_init(void) {}
@@ -310,12 +309,12 @@ struct gpio_led z2_gpio_leds[] = {
 	.active_low		= 1,
 }, {
 	.name			= "z2:green:charged",
-	.default_trigger	= "none",
+	.default_trigger	= "mmc0",
 	.gpio			= GPIO85_ZIPITZ2_LED_CHARGED,
 	.active_low		= 1,
 }, {
 	.name			= "z2:amber:charging",
-	.default_trigger	= "none",
+	.default_trigger	= "Z2-charging-or-full",
 	.gpio			= GPIO83_ZIPITZ2_LED_CHARGING,
 	.active_low		= 1,
 },
@@ -428,8 +427,22 @@ static inline void z2_mkp_init(void) {}
  ******************************************************************************/
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 static struct gpio_keys_button z2_pxa_buttons[] = {
-	{KEY_POWER, GPIO1_ZIPITZ2_POWER_BUTTON, 0, "Power Button" },
-	{KEY_CLOSE, GPIO98_ZIPITZ2_LID_BUTTON, 0, "Lid Button" },
+	{
+		.code		= KEY_POWER,
+		.gpio		= GPIO1_ZIPITZ2_POWER_BUTTON,
+		.active_low	= 0,
+		.desc		= "Power Button",
+		.wakeup		= 1,
+		.type		= EV_KEY,
+	},
+	{
+		.code		= SW_LID,
+		.gpio		= GPIO98_ZIPITZ2_LID_BUTTON,
+		.active_low	= 1,
+		.desc		= "Lid Switch",
+		.wakeup		= 0,
+		.type		= EV_SW,
+	},
 };
 
 static struct gpio_keys_platform_data z2_pxa_keys_data = {
@@ -462,9 +475,9 @@ static struct z2_battery_info batt_chip_info = {
 	.batt_I2C_addr	= 0x55,
 	.batt_I2C_reg	= 2,
 	.charge_gpio	= GPIO0_ZIPITZ2_AC_DETECT,
-	.min_voltage	= 2400000,
-	.max_voltage	= 3700000,
-	.batt_div	= 69,
+	.min_voltage	= 3475000,
+	.max_voltage	= 4190000,
+	.batt_div	= 59,
 	.batt_mult	= 1000000,
 	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LION,
 	.batt_name	= "Z2",
@@ -498,26 +511,16 @@ static int z2_lbs_spi_setup(struct spi_device *spi)
 {
 	int ret = 0;
 
-	ret = gpio_request(GPIO15_ZIPITZ2_WIFI_POWER, "WiFi Power");
+	ret = gpio_request(GPIO14_ZIPITZ2_WIFI_POWER, "WiFi Power");
 	if (ret)
 		goto err;
 
-	ret = gpio_direction_output(GPIO15_ZIPITZ2_WIFI_POWER, 1);
+	ret = gpio_direction_output(GPIO14_ZIPITZ2_WIFI_POWER, 1);
 	if (ret)
 		goto err2;
 
-	ret = gpio_request(GPIO14_ZIPITZ2_WIFI_RESET, "WiFi Reset");
-	if (ret)
-		goto err2;
-
-	ret = gpio_direction_output(GPIO14_ZIPITZ2_WIFI_RESET, 0);
-	if (ret)
-		goto err3;
-
-	/* Reset the card */
+	/* Wait until card is powered on */
 	mdelay(180);
-	gpio_set_value(GPIO14_ZIPITZ2_WIFI_RESET, 1);
-	mdelay(20);
 
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_2,
@@ -526,22 +529,18 @@ static int z2_lbs_spi_setup(struct spi_device *spi)
 
 	return 0;
 
-err3:
-	gpio_free(GPIO14_ZIPITZ2_WIFI_RESET);
 err2:
-	gpio_free(GPIO15_ZIPITZ2_WIFI_POWER);
+	gpio_free(GPIO14_ZIPITZ2_WIFI_POWER);
 err:
 	return ret;
 };
 
 static int z2_lbs_spi_teardown(struct spi_device *spi)
 {
-	gpio_set_value(GPIO14_ZIPITZ2_WIFI_RESET, 0);
-	gpio_set_value(GPIO15_ZIPITZ2_WIFI_POWER, 0);
-	gpio_free(GPIO14_ZIPITZ2_WIFI_RESET);
-	gpio_free(GPIO15_ZIPITZ2_WIFI_POWER);
-	return 0;
+	gpio_set_value(GPIO14_ZIPITZ2_WIFI_POWER, 0);
+	gpio_free(GPIO14_ZIPITZ2_WIFI_POWER);
 
+	return 0;
 };
 
 static struct pxa2xx_spi_chip z2_lbs_chip_info = {
@@ -679,6 +678,20 @@ static void __init z2_pmic_init(void)
 static inline void z2_pmic_init(void) {}
 #endif
 
+#ifdef CONFIG_PM
+static void z2_power_off(void)
+{
+	/* We're using deep sleep as poweroff, so clear PSPR to ensure that
+	 * bootloader will jump to its entry point in resume handler
+	 */
+	PSPR = 0x0;
+	local_irq_disable();
+	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+}
+#else
+#define z2_power_off   NULL
+#endif
+
 /******************************************************************************
  * Machine init
  ******************************************************************************/
@@ -700,12 +713,15 @@ static void __init z2_init(void)
 	z2_leds_init();
 	z2_keys_init();
 	z2_pmic_init();
+
+	pm_power_off = z2_power_off;
 }
 
 MACHINE_START(ZIPIT2, "Zipit Z2")
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= z2_init,
 MACHINE_END

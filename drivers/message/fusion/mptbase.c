@@ -83,19 +83,18 @@ MODULE_VERSION(my_VERSION);
 
 static int mpt_msi_enable_spi;
 module_param(mpt_msi_enable_spi, int, 0);
-MODULE_PARM_DESC(mpt_msi_enable_spi, " Enable MSI Support for SPI \
-		controllers (default=0)");
+MODULE_PARM_DESC(mpt_msi_enable_spi,
+		 " Enable MSI Support for SPI controllers (default=0)");
 
 static int mpt_msi_enable_fc;
 module_param(mpt_msi_enable_fc, int, 0);
-MODULE_PARM_DESC(mpt_msi_enable_fc, " Enable MSI Support for FC \
-		controllers (default=0)");
+MODULE_PARM_DESC(mpt_msi_enable_fc,
+		 " Enable MSI Support for FC controllers (default=0)");
 
 static int mpt_msi_enable_sas;
 module_param(mpt_msi_enable_sas, int, 0);
-MODULE_PARM_DESC(mpt_msi_enable_sas, " Enable MSI Support for SAS \
-		controllers (default=0)");
-
+MODULE_PARM_DESC(mpt_msi_enable_sas,
+		 " Enable MSI Support for SAS controllers (default=0)");
 
 static int mpt_channel_mapping;
 module_param(mpt_channel_mapping, int, 0);
@@ -105,15 +104,14 @@ static int mpt_debug_level;
 static int mpt_set_debug_level(const char *val, struct kernel_param *kp);
 module_param_call(mpt_debug_level, mpt_set_debug_level, param_get_int,
 		  &mpt_debug_level, 0600);
-MODULE_PARM_DESC(mpt_debug_level, " debug level - refer to mptdebug.h \
-	- (default=0)");
+MODULE_PARM_DESC(mpt_debug_level,
+		 " debug level - refer to mptdebug.h - (default=0)");
 
 int mpt_fwfault_debug;
 EXPORT_SYMBOL(mpt_fwfault_debug);
 module_param(mpt_fwfault_debug, int, 0600);
-MODULE_PARM_DESC(mpt_fwfault_debug, "Enable detection of Firmware fault"
-	" and halt Firmware on fault - (default=0)");
-
+MODULE_PARM_DESC(mpt_fwfault_debug,
+		 "Enable detection of Firmware fault and halt Firmware on fault - (default=0)");
 
 static char	MptCallbacksName[MPT_MAX_PROTOCOL_DRIVERS][50];
 
@@ -3435,7 +3433,7 @@ SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
  *	If memory has already been allocated, the same (cached) value
  *	is returned.
  *
- *	Return 0 if successfull, or non-zero for failure
+ *	Return 0 if successful, or non-zero for failure
  **/
 int
 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size)
@@ -6932,7 +6930,7 @@ EXPORT_SYMBOL(mpt_halt_firmware);
  *	Message Unit Reset - instructs the IOC to reset the Reply Post and
  *	Free FIFO's. All the Message Frames on Reply Free FIFO are discarded.
  *	All posted buffers are freed, and event notification is turned off.
- *	IOC doesnt reply to any outstanding request. This will transfer IOC
+ *	IOC doesn't reply to any outstanding request. This will transfer IOC
  *	to READY state.
  **/
 int
@@ -7418,7 +7416,12 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 		case MPI_EVENT_SAS_PLS_LR_RATE_3_0:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
 			   "SAS PHY Link Status: Phy=%d:"
-			   " Rate 3.0 Gpbs",PhyNumber);
+			   " Rate 3.0 Gbps", PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_6_0:
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
+			   " Rate 6.0 Gbps", PhyNumber);
 			break;
 		default:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
@@ -7900,7 +7903,7 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 		    "Owner", 					/* 15h */
 		"Open Transmit DMA Abort",			/* 16h */
 		"IO Device Missing Delay Retry",		/* 17h */
-		"IO Cancelled Due to Recieve Error",		/* 18h */
+		"IO Cancelled Due to Receive Error",		/* 18h */
 		NULL,						/* 19h */
 		NULL,						/* 1Ah */
 		NULL,						/* 1Bh */

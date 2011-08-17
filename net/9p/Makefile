@@ -9,6 +9,7 @@ obj-$(CONFIG_NET_9P_RDMA) += 9pnet_rdma.o
 	util.o \
 	protocol.o \
 	trans_fd.o \
+	trans_common.o \
 
 9pnet_virtio-objs := \
 	trans_virtio.o \

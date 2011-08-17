@@ -24,7 +24,7 @@
  *
  * RPIPE
  *
- *   Targetted at different downstream endpoints
+ *   Targeted at different downstream endpoints
  *
  *   Descriptor: use to config the remote pipe.
  *
@@ -58,7 +58,7 @@
  *  destination address.
  */
 #include <linux/init.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
 

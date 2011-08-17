@@ -22,6 +22,7 @@
  */
 
 #include <linux/gfp.h>
+#include <linux/sched.h>
 
 #include "wl12xx.h"
 #include "acx.h"
@@ -29,14 +30,14 @@
 #include "rx.h"
 #include "io.h"
 
-static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,
+static u8 wl1271_rx_get_mem_block(struct wl1271_fw_common_status *status,
 				  u32 drv_rx_counter)
 {
 	return le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
 		RX_MEM_BLOCK_MASK;
 }
 
-static u32 wl1271_rx_get_buf_size(struct wl1271_fw_status *status,
+static u32 wl1271_rx_get_buf_size(struct wl1271_fw_common_status *status,
 				 u32 drv_rx_counter)
 {
 	return (le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
@@ -48,18 +49,14 @@ static void wl1271_rx_status(struct wl1271 *wl,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
-	enum ieee80211_band desc_band;
-
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
-	status->band = wl->band;
-
 	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
-		desc_band = IEEE80211_BAND_2GHZ;
+		status->band = IEEE80211_BAND_2GHZ;
 	else
-		desc_band = IEEE80211_BAND_5GHZ;
+		status->band = IEEE80211_BAND_5GHZ;
 
-	status->rate_idx = wl1271_rate_to_idx(desc->rate, desc_band);
+	status->rate_idx = wl1271_rate_to_idx(desc->rate, status->band);
 
 #ifdef CONFIG_WL12XX_HT
 	/* 11n support */
@@ -76,15 +73,19 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	 */
 	wl->noise = desc->rssi - (desc->snr >> 1);
 
-	status->freq = ieee80211_channel_to_frequency(desc->channel);
+	status->freq = ieee80211_channel_to_frequency(desc->channel,
+						      status->band);
 
 	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
-		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
+		u8 desc_err_code = desc->status & WL1271_RX_DESC_STATUS_MASK;
 
-		if (likely(!(desc->status & WL1271_RX_DESC_DECRYPT_FAIL)))
-			status->flag |= RX_FLAG_DECRYPTED;
-		if (unlikely(desc->status & WL1271_RX_DESC_MIC_FAIL))
+		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED |
+				RX_FLAG_DECRYPTED;
+
+		if (unlikely(desc_err_code == WL1271_RX_DESC_MIC_FAIL)) {
 			status->flag |= RX_FLAG_MMIC_ERROR;
+			wl1271_warning("Michael MIC error");
+		}
 	}
 }
 
@@ -92,9 +93,10 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 {
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
-	u16 *fc;
+	struct ieee80211_hdr *hdr;
 	u8 *buf;
 	u8 beacon = 0;
+	u8 is_data = 0;
 
 	/*
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
@@ -102,6 +104,32 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	 */
 	if (unlikely(wl->state == WL1271_STATE_PLT))
 		return -EINVAL;
+
+	/* the data read starts with the descriptor */
+	desc = (struct wl1271_rx_descriptor *) data;
+
+	if (desc->packet_class == WL12XX_RX_CLASS_LOGGER) {
+		size_t len = length - sizeof(*desc);
+		wl12xx_copy_fwlog(wl, data + sizeof(*desc), len);
+		wake_up_interruptible(&wl->fwlog_waitq);
+		return 0;
+	}
+
+	switch (desc->status & WL1271_RX_DESC_STATUS_MASK) {
+	/* discard corrupted packets */
+	case WL1271_RX_DESC_DRIVER_RX_Q_FAIL:
+	case WL1271_RX_DESC_DECRYPT_FAIL:
+		wl1271_warning("corrupted packet in RX with status: 0x%x",
+			       desc->status & WL1271_RX_DESC_STATUS_MASK);
+		return -EINVAL;
+	case WL1271_RX_DESC_SUCCESS:
+	case WL1271_RX_DESC_MIC_FAIL:
+		break;
+	default:
+		wl1271_error("invalid RX descriptor status: 0x%x",
+			     desc->status & WL1271_RX_DESC_STATUS_MASK);
+		return -EINVAL;
+	}
 
 	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
@@ -112,29 +140,30 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	buf = skb_put(skb, length);
 	memcpy(buf, data, length);
 
-	/* the data read starts with the descriptor */
-	desc = (struct wl1271_rx_descriptor *) buf;
-
 	/* now we pull the descriptor out of the buffer */
 	skb_pull(skb, sizeof(*desc));
 
-	fc = (u16 *)skb->data;
-	if ((*fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (ieee80211_is_beacon(hdr->frame_control))
 		beacon = 1;
+	if (ieee80211_is_data_present(hdr->frame_control))
+		is_data = 1;
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
-	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
+	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb,
+		     skb->len - desc->pad_len,
 		     beacon ? "beacon" : "");
 
 	skb_trim(skb, skb->len - desc->pad_len);
 
-	ieee80211_rx_ni(wl->hw, skb);
+	skb_queue_tail(&wl->deferred_rx_queue, skb);
+	queue_work(wl->freezable_wq, &wl->netstack_work);
 
-	return 0;
+	return is_data;
 }
 
-void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
+void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 {
 	struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
 	u32 buf_size;
@@ -144,6 +173,8 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 	u32 mem_block;
 	u32 pkt_length;
 	u32 pkt_offset;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool had_data = false;
 
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;
@@ -162,18 +193,25 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 			break;
 		}
 
-		/*
-		 * Choose the block we want to read
-		 * For aggregated packets, only the first memory block should
-		 * be retrieved. The FW takes care of the rest.
-		 */
-		mem_block = wl1271_rx_get_mem_block(status, drv_rx_counter);
-		wl->rx_mem_pool_addr.addr = (mem_block << 8) +
-			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
-		wl->rx_mem_pool_addr.addr_extra =
-			wl->rx_mem_pool_addr.addr + 4;
-		wl1271_write(wl, WL1271_SLV_REG_DATA, &wl->rx_mem_pool_addr,
-				sizeof(wl->rx_mem_pool_addr), false);
+		if (wl->chip.id != CHIP_ID_1283_PG20) {
+			/*
+			 * Choose the block we want to read
+			 * For aggregated packets, only the first memory block
+			 * should be retrieved. The FW takes care of the rest.
+			 */
+			mem_block = wl1271_rx_get_mem_block(status,
+							    drv_rx_counter);
+
+			wl->rx_mem_pool_addr.addr = (mem_block << 8) +
+			   le32_to_cpu(wl_mem_map->packet_memory_pool_start);
+
+			wl->rx_mem_pool_addr.addr_extra =
+				wl->rx_mem_pool_addr.addr + 4;
+
+			wl1271_write(wl, WL1271_SLV_REG_DATA,
+				     &wl->rx_mem_pool_addr,
+				     sizeof(wl->rx_mem_pool_addr), false);
+		}
 
 		/* Read all available packets at once */
 		wl1271_read(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
@@ -189,15 +227,47 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 			 * conditions, in that case the received frame will just
 			 * be dropped.
 			 */
-			wl1271_rx_handle_data(wl,
-					      wl->aggr_buf + pkt_offset,
-					      pkt_length);
+			if (wl1271_rx_handle_data(wl,
+						  wl->aggr_buf + pkt_offset,
+						  pkt_length) == 1)
+				had_data = true;
+
 			wl->rx_counter++;
 			drv_rx_counter++;
 			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
 			pkt_offset += pkt_length;
 		}
 	}
-	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS,
-			cpu_to_le32(wl->rx_counter));
+
+	/*
+	 * Write the driver's packet counter to the FW. This is only required
+	 * for older hardware revisions
+	 */
+	if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
+		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
+
+	if (!is_ap && wl->conf.rx_streaming.interval && had_data &&
+	    (wl->conf.rx_streaming.always ||
+	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
+		u32 timeout = wl->conf.rx_streaming.duration;
+
+		/* restart rx streaming */
+		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+			ieee80211_queue_work(wl->hw,
+					     &wl->rx_streaming_enable_work);
+
+		mod_timer(&wl->rx_streaming_timer,
+			  jiffies + msecs_to_jiffies(timeout));
+	}
+}
+
+void wl1271_set_default_filters(struct wl1271 *wl)
+{
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		wl->rx_config = WL1271_DEFAULT_AP_RX_CONFIG;
+		wl->rx_filter = WL1271_DEFAULT_AP_RX_FILTER;
+	} else {
+		wl->rx_config = WL1271_DEFAULT_STA_RX_CONFIG;
+		wl->rx_filter = WL1271_DEFAULT_STA_RX_FILTER;
+	}
 }

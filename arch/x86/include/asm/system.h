@@ -98,8 +98,6 @@ do {									\
  */
 #define HAVE_DISABLE_HLT
 #else
-#define __SAVE(reg, offset) "movq %%" #reg ",(14-" #offset ")*8(%%rsp)\n\t"
-#define __RESTORE(reg, offset) "movq (14-" #offset ")*8(%%rsp),%%" #reg "\n\t"
 
 /* frame pointer must be last for get_wchan */
 #define SAVE_CONTEXT    "pushf ; pushq %%rbp ; movq %%rsi,%%rbp\n\t"
@@ -305,24 +303,81 @@ static inline void native_wbinvd(void)
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define read_cr0()	(native_read_cr0())
-#define write_cr0(x)	(native_write_cr0(x))
-#define read_cr2()	(native_read_cr2())
-#define write_cr2(x)	(native_write_cr2(x))
-#define read_cr3()	(native_read_cr3())
-#define write_cr3(x)	(native_write_cr3(x))
-#define read_cr4()	(native_read_cr4())
-#define read_cr4_safe()	(native_read_cr4_safe())
-#define write_cr4(x)	(native_write_cr4(x))
-#define wbinvd()	(native_wbinvd())
+
+static inline unsigned long read_cr0(void)
+{
+	return native_read_cr0();
+}
+
+static inline void write_cr0(unsigned long x)
+{
+	native_write_cr0(x);
+}
+
+static inline unsigned long read_cr2(void)
+{
+	return native_read_cr2();
+}
+
+static inline void write_cr2(unsigned long x)
+{
+	native_write_cr2(x);
+}
+
+static inline unsigned long read_cr3(void)
+{
+	return native_read_cr3();
+}
+
+static inline void write_cr3(unsigned long x)
+{
+	native_write_cr3(x);
+}
+
+static inline unsigned long read_cr4(void)
+{
+	return native_read_cr4();
+}
+
+static inline unsigned long read_cr4_safe(void)
+{
+	return native_read_cr4_safe();
+}
+
+static inline void write_cr4(unsigned long x)
+{
+	native_write_cr4(x);
+}
+
+static inline void wbinvd(void)
+{
+	native_wbinvd();
+}
+
 #ifdef CONFIG_X86_64
-#define read_cr8()	(native_read_cr8())
-#define write_cr8(x)	(native_write_cr8(x))
-#define load_gs_index   native_load_gs_index
+
+static inline unsigned long read_cr8(void)
+{
+	return native_read_cr8();
+}
+
+static inline void write_cr8(unsigned long x)
+{
+	native_write_cr8(x);
+}
+
+static inline void load_gs_index(unsigned selector)
+{
+	native_load_gs_index(selector);
+}
+
 #endif
 
 /* Clear the 'TS' bit */
-#define clts()		(native_clts())
+static inline void clts(void)
+{
+	native_clts();
+}
 
 #endif/* CONFIG_PARAVIRT */
 

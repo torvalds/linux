@@ -29,12 +29,20 @@
 #include <linux/list.h>
 
 struct video_device;
-struct v4l2_events;
+struct v4l2_ctrl_handler;
 
 struct v4l2_fh {
 	struct list_head	list;
 	struct video_device	*vdev;
-	struct v4l2_events      *events; /* events, pending and subscribed */
+	struct v4l2_ctrl_handler *ctrl_handler;
+	enum v4l2_priority	prio;
+
+	/* Events */
+	wait_queue_head_t	wait;
+	struct list_head	subscribed; /* Subscribed events */
+	struct list_head	available; /* Dequeueable event */
+	unsigned int		navailable;
+	u32			sequence;
 };
 
 /*
@@ -43,15 +51,23 @@ struct v4l2_fh {
  * from driver's v4l2_file_operations->open() handler if the driver
  * uses v4l2_fh.
  */
-int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
+void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
 /*
  * Add the fh to the list of file handles on a video_device. The file
  * handle must be initialised first.
  */
 void v4l2_fh_add(struct v4l2_fh *fh);
 /*
+ * Can be used as the open() op of v4l2_file_operations.
+ * It allocates a v4l2_fh and inits and adds it to the video_device associated
+ * with the file pointer.
+ */
+int v4l2_fh_open(struct file *filp);
+/*
  * Remove file handle from the list of file handles. Must be called in
  * v4l2_file_operations->release() handler if the driver uses v4l2_fh.
+ * On error filp->private_data will be NULL, otherwise it will point to
+ * the v4l2_fh struct.
  */
 void v4l2_fh_del(struct v4l2_fh *fh);
 /*
@@ -61,5 +77,25 @@ void v4l2_fh_del(struct v4l2_fh *fh);
  * driver uses v4l2_fh.
  */
 void v4l2_fh_exit(struct v4l2_fh *fh);
+/*
+ * Can be used as the release() op of v4l2_file_operations.
+ * It deletes and exits the v4l2_fh associated with the file pointer and
+ * frees it. It will do nothing if filp->private_data (the pointer to the
+ * v4l2_fh struct) is NULL. This function always returns 0.
+ */
+int v4l2_fh_release(struct file *filp);
+/*
+ * Returns 1 if this filehandle is the only filehandle opened for the
+ * associated video_device. If fh is NULL, then it returns 0.
+ */
+int v4l2_fh_is_singular(struct v4l2_fh *fh);
+/*
+ * Helper function with struct file as argument. If filp->private_data is
+ * NULL, then it will return 0.
+ */
+static inline int v4l2_fh_is_singular_file(struct file *filp)
+{
+	return v4l2_fh_is_singular(filp->private_data);
+}
 
 #endif /* V4L2_EVENT_H */

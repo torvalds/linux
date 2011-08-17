@@ -45,7 +45,7 @@
 
 #include <net/neighbour.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -91,7 +91,6 @@ enum {
 	IPOIB_STOP_REAPER	  = 7,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
-	IPOIB_FLAG_CSUM		  = 11,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 

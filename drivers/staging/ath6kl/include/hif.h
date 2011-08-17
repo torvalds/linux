@@ -32,13 +32,12 @@ extern "C" {
 /* Header files */
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "dl_list.h"
 
 
 typedef struct htc_callbacks HTC_CALLBACKS;
-typedef struct hif_device HIF_DEVICE;
+struct hif_device;
 
 /*
  * direction - Direction of transfer (HIF_READ/HIF_WRITE).
@@ -148,12 +147,12 @@ typedef enum {
  *
  *   HIF_DEVICE_GET_MBOX_BLOCK_SIZE
  *   input : none
- *   output : array of 4 A_UINT32s
+ *   output : array of 4 u32s
  *   notes: block size is returned for each mailbox (4)
  *
  *   HIF_DEVICE_GET_MBOX_ADDR
  *   input : none
- *   output : HIF_DEVICE_MBOX_INFO
+ *   output : struct hif_device_mbox_info
  *   notes: 
  *
  *   HIF_DEVICE_GET_PENDING_EVENTS_FUNC
@@ -190,7 +189,7 @@ typedef enum {
  *   HIF_DEVICE_GET_IRQ_YIELD_PARAMS
  * 
  *   input : none
- *   output : HIF_DEVICE_IRQ_YIELD_PARAMS
+ *   output : struct hif_device_irq_yield_params
  *   note: This query checks if the HIF layer wishes to impose a processing yield count for the DSR handler.
  *   The DSR callback handler will exit after a fixed number of RX packets or events are processed.  
  *   This query is only made if the device reports an IRQ processing mode of HIF_DEVICE_IRQ_SYNC_ONLY. 
@@ -203,7 +202,7 @@ typedef enum {
  *   
  *   HIF_CONFIGURE_QUERY_SCATTER_REQUEST_SUPPORT
  *   input : none
- *   output : HIF_DEVICE_SCATTER_SUPPORT_INFO
+ *   output : struct hif_device_scatter_support_info
  *   note:  This query checks if the HIF layer implements the SCATTER request interface.  Scatter requests
  *   allows upper layers to submit mailbox I/O operations using a list of buffers.  This is useful for
  *   multi-message transfers that can better utilize the bus interconnect.
@@ -211,7 +210,7 @@ typedef enum {
  * 
  *   HIF_DEVICE_GET_OS_DEVICE
  *   intput : none
- *   output : HIF_DEVICE_OS_DEVICE_INFO;
+ *   output : struct hif_device_os_device_info;
  *   note: On some operating systems, the HIF layer has a parent device object for the bus.  This object
  *         may be required to register certain types of logical devices.
  * 
@@ -223,10 +222,10 @@ typedef enum {
  * 
  */
 
-typedef struct {
-    A_UINT32    ExtendedAddress;  /* extended address for larger writes */  
-    A_UINT32    ExtendedSize;
-} HIF_MBOX_PROPERTIES;
+struct hif_mbox_properties {
+    u32 ExtendedAddress;  /* extended address for larger writes */
+    u32 ExtendedSize;
+};
 
 #define HIF_MBOX_FLAG_NO_BUNDLING   (1 << 0)   /* do not allow bundling over the mailbox */
 
@@ -235,19 +234,19 @@ typedef enum _MBOX_BUF_IF_TYPE {
     MBOX_BUS_IF_SPI = 1,    
 } MBOX_BUF_IF_TYPE;
 
-typedef struct {
-    A_UINT32 MboxAddresses[4];  /* must be first element for legacy HIFs that return the address in  
+struct hif_device_mbox_info {
+    u32 MboxAddresses[4];  /* must be first element for legacy HIFs that return the address in
                                    and ARRAY of 32-bit words */
     
         /* the following describe extended mailbox properties */
-    HIF_MBOX_PROPERTIES MboxProp[4];
+    struct hif_mbox_properties MboxProp[4];
         /* if the HIF supports the GMbox extended address region it can report it
          * here, some interfaces cannot support the GMBOX address range and not set this */
-    A_UINT32 GMboxAddress;  
-    A_UINT32 GMboxSize;
-    A_UINT32 Flags;             /* flags to describe mbox behavior or usage */
+    u32 GMboxAddress;
+    u32 GMboxSize;
+    u32 Flags;             /* flags to describe mbox behavior or usage */
     MBOX_BUF_IF_TYPE MboxBusIFType;   /* mailbox bus interface type */
-} HIF_DEVICE_MBOX_INFO;
+};
 
 typedef enum {
     HIF_DEVICE_IRQ_SYNC_ONLY,   /* for HIF implementations that require the DSR to process all
@@ -265,20 +264,19 @@ typedef enum {
                             */
 } HIF_DEVICE_POWER_CHANGE_TYPE;
 
-typedef struct {
+struct hif_device_irq_yield_params {
     int     RecvPacketYieldCount; /* max number of packets to force DSR to return */
-} HIF_DEVICE_IRQ_YIELD_PARAMS;
+};
 
 
-typedef struct _HIF_SCATTER_ITEM {
-    A_UINT8     *pBuffer;             /* CPU accessible address of buffer */
+struct hif_scatter_item {
+    u8 *pBuffer;             /* CPU accessible address of buffer */
     int          Length;              /* length of transfer to/from this buffer */
     void        *pCallerContexts[2];  /* space for caller to insert a context associated with this item */
-} HIF_SCATTER_ITEM;
+};
 
-struct _HIF_SCATTER_REQ;
-
-typedef void ( *HIF_SCATTER_COMP_CB)(struct _HIF_SCATTER_REQ *);
+struct hif_scatter_req;
+typedef void ( *HIF_SCATTER_COMP_CB)(struct hif_scatter_req *);
 
 typedef enum _HIF_SCATTER_METHOD {
     HIF_SCATTER_NONE = 0,
@@ -286,84 +284,84 @@ typedef enum _HIF_SCATTER_METHOD {
     HIF_SCATTER_DMA_BOUNCE,            /* Uses SG DMA but HIF layer uses an internal bounce buffer */    
 } HIF_SCATTER_METHOD;
 
-typedef struct _HIF_SCATTER_REQ {
-    DL_LIST             ListLink;           /* link management */
-    A_UINT32            Address;            /* address for the read/write operation */
-    A_UINT32            Request;            /* request flags */
-    A_UINT32            TotalLength;        /* total length of entire transfer */
-    A_UINT32            CallerFlags;        /* caller specific flags can be stored here */
+struct hif_scatter_req {
+    struct dl_list             ListLink;           /* link management */
+    u32 Address;            /* address for the read/write operation */
+    u32 Request;            /* request flags */
+    u32 TotalLength;        /* total length of entire transfer */
+    u32 CallerFlags;        /* caller specific flags can be stored here */
     HIF_SCATTER_COMP_CB CompletionRoutine;  /* completion routine set by caller */
-    A_STATUS            CompletionStatus;   /* status of completion */
+    int            CompletionStatus;   /* status of completion */
     void                *Context;           /* caller context for this request */
     int                 ValidScatterEntries;  /* number of valid entries set by caller */
     HIF_SCATTER_METHOD  ScatterMethod;        /* scatter method handled by HIF */  
     void                *HIFPrivate[4];     /* HIF private area */
-    A_UINT8             *pScatterBounceBuffer;  /* bounce buffer for upper layers to copy to/from */
-    HIF_SCATTER_ITEM    ScatterList[1];     /* start of scatter list */
-} HIF_SCATTER_REQ;
+    u8 *pScatterBounceBuffer;  /* bounce buffer for upper layers to copy to/from */
+    struct hif_scatter_item    ScatterList[1];     /* start of scatter list */
+};
 
-typedef HIF_SCATTER_REQ * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);
-typedef void ( *HIF_FREE_SCATTER_REQUEST)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
-typedef A_STATUS ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
+typedef struct hif_scatter_req * ( *HIF_ALLOCATE_SCATTER_REQUEST)(struct hif_device *device);
+typedef void ( *HIF_FREE_SCATTER_REQUEST)(struct hif_device *device, struct hif_scatter_req *request);
+typedef int ( *HIF_READWRITE_SCATTER)(struct hif_device *device, struct hif_scatter_req *request);
 
-typedef struct _HIF_DEVICE_SCATTER_SUPPORT_INFO {
+struct hif_device_scatter_support_info {
         /* information returned from HIF layer */
     HIF_ALLOCATE_SCATTER_REQUEST    pAllocateReqFunc;
     HIF_FREE_SCATTER_REQUEST        pFreeReqFunc;
     HIF_READWRITE_SCATTER           pReadWriteScatterFunc;    
     int                             MaxScatterEntries;
     int                             MaxTransferSizePerScatterReq;
-} HIF_DEVICE_SCATTER_SUPPORT_INFO;
+};
                       
-typedef struct {
+struct hif_device_os_device_info {
     void    *pOSDevice;
-} HIF_DEVICE_OS_DEVICE_INFO;
+};
                       
 #define HIF_MAX_DEVICES                 1
 
 struct htc_callbacks {
     void      *context;     /* context to pass to the dsrhandler
                                note : rwCompletionHandler is provided the context passed to HIFReadWrite  */
-    A_STATUS (* rwCompletionHandler)(void *rwContext, A_STATUS status);
-    A_STATUS (* dsrHandler)(void *context);
+    int (* rwCompletionHandler)(void *rwContext, int status);
+    int (* dsrHandler)(void *context);
 };
 
 typedef struct osdrv_callbacks {
     void      *context;     /* context to pass for all callbacks except deviceRemovedHandler 
                                the deviceRemovedHandler is only called if the device is claimed */
-    A_STATUS (* deviceInsertedHandler)(void *context, void *hif_handle);
-    A_STATUS (* deviceRemovedHandler)(void *claimedContext, void *hif_handle);
-    A_STATUS (* deviceSuspendHandler)(void *context);
-    A_STATUS (* deviceResumeHandler)(void *context);
-    A_STATUS (* deviceWakeupHandler)(void *context);  
-    A_STATUS (* devicePowerChangeHandler)(void *context, HIF_DEVICE_POWER_CHANGE_TYPE config);  
+    int (* deviceInsertedHandler)(void *context, void *hif_handle);
+    int (* deviceRemovedHandler)(void *claimedContext, void *hif_handle);
+    int (* deviceSuspendHandler)(void *context);
+    int (* deviceResumeHandler)(void *context);
+    int (* deviceWakeupHandler)(void *context);
+    int (* devicePowerChangeHandler)(void *context, HIF_DEVICE_POWER_CHANGE_TYPE config);
 } OSDRV_CALLBACKS;
 
 #define HIF_OTHER_EVENTS     (1 << 0)   /* other interrupts (non-Recv) are pending, host
                                            needs to read the register table to figure out what */
 #define HIF_RECV_MSG_AVAIL   (1 << 1)   /* pending recv packet */
 
-typedef struct _HIF_PENDING_EVENTS_INFO {
-    A_UINT32 Events;
-    A_UINT32 LookAhead;
-    A_UINT32 AvailableRecvBytes;
+struct hif_pending_events_info {
+    u32 Events;
+    u32 LookAhead;
+    u32 AvailableRecvBytes;
 #ifdef THREAD_X
-    A_UINT32 Polling;
-    A_UINT32 INT_CAUSE_REG;
+    u32 Polling;
+    u32 INT_CAUSE_REG;
 #endif
-} HIF_PENDING_EVENTS_INFO;
+};
 
     /* function to get pending events , some HIF modules use special mechanisms
      * to detect packet available and other interrupts */
-typedef A_STATUS ( *HIF_PENDING_EVENTS_FUNC)(HIF_DEVICE              *device,
-                                             HIF_PENDING_EVENTS_INFO *pEvents,
+typedef int ( *HIF_PENDING_EVENTS_FUNC)(struct hif_device              *device,
+                                             struct hif_pending_events_info *pEvents,
                                              void                    *AsyncContext);
 
-#define HIF_MASK_RECV    TRUE
-#define HIF_UNMASK_RECV  FALSE
+#define HIF_MASK_RECV    true
+#define HIF_UNMASK_RECV  false
     /* function to mask recv events */
-typedef A_STATUS ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
-                                                A_BOOL      Mask,
+typedef int ( *HIF_MASK_UNMASK_RECV_EVENT)(struct hif_device  *device,
+                                                bool      Mask,
                                                 void        *AsyncContext);
 
 
@@ -372,19 +370,19 @@ typedef A_STATUS ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
  * and to set OS driver callbacks (i.e. insertion/removal) to the HIF layer
  * 
  */
-A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks);
+int HIFInit(OSDRV_CALLBACKS *callbacks);
 
 /* This API claims the HIF device and provides a context for handling removal.
  * The device removal callback is only called when the OSDRV layer claims
  * a device.  The claimed context must be non-NULL */
-void HIFClaimDevice(HIF_DEVICE *device, void *claimedContext);
+void HIFClaimDevice(struct hif_device *device, void *claimedContext);
 /* release the claimed device */
-void HIFReleaseDevice(HIF_DEVICE *device);
+void HIFReleaseDevice(struct hif_device *device);
 
 /* This API allows the HTC layer to attach to the HIF device */
-A_STATUS HIFAttachHTC(HIF_DEVICE *device, HTC_CALLBACKS *callbacks);
+int HIFAttachHTC(struct hif_device *device, HTC_CALLBACKS *callbacks);
 /* This API detaches the HTC layer from the HIF device */
-void     HIFDetachHTC(HIF_DEVICE *device);
+void     HIFDetachHTC(struct hif_device *device);
 
 /*
  * This API is used to provide the read/write interface over the specific bus
@@ -398,19 +396,19 @@ void     HIFDetachHTC(HIF_DEVICE *device);
  * length - Amount of data to be transmitted or received.
  * request - Characterizes the attributes of the command.
  */
-A_STATUS
-HIFReadWrite(HIF_DEVICE    *device,
-             A_UINT32       address,
-             A_UCHAR       *buffer,
-             A_UINT32       length,
-             A_UINT32       request,
+int
+HIFReadWrite(struct hif_device    *device,
+             u32 address,
+             u8       *buffer,
+             u32 length,
+             u32 request,
              void          *context);
 
 /*
  * This can be initiated from the unload driver context when the OSDRV layer has no more use for
  * the device.
  */
-void HIFShutDownDevice(HIF_DEVICE *device);
+void HIFShutDownDevice(struct hif_device *device);
 
 /*
  * This should translate to an acknowledgment to the bus driver indicating that
@@ -419,11 +417,11 @@ void HIFShutDownDevice(HIF_DEVICE *device);
  * This should prevent the bus driver from raising an interrupt unless the
  * previous one has been serviced and acknowledged using the previous API.
  */
-void HIFAckInterrupt(HIF_DEVICE *device);
+void HIFAckInterrupt(struct hif_device *device);
 
-void HIFMaskInterrupt(HIF_DEVICE *device);
+void HIFMaskInterrupt(struct hif_device *device);
 
-void HIFUnMaskInterrupt(HIF_DEVICE *device);
+void HIFUnMaskInterrupt(struct hif_device *device);
  
 #ifdef THREAD_X
 /*
@@ -441,15 +439,15 @@ int HIFIRQEventNotify(void);
 int HIFRWCompleteEventNotify(void);
 #endif
 
-A_STATUS
-HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
-                   void *config, A_UINT32 configLen);
+int
+HIFConfigureDevice(struct hif_device *device, HIF_DEVICE_CONFIG_OPCODE opcode,
+                   void *config, u32 configLen);
 
 /* 
  * This API wait for the remaining MBOX messages to be drained
  * This should be moved to HTC AR6K layer
  */
-A_STATUS hifWaitForPendingRecv(HIF_DEVICE *device);
+int hifWaitForPendingRecv(struct hif_device *device);
 
 #ifdef __cplusplus
 }

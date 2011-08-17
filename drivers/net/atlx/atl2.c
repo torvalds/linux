@@ -20,7 +20,7 @@
  * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/crc32.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
@@ -93,8 +93,8 @@ static int __devinit atl2_sw_init(struct atl2_adapter *adapter)
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_id = pdev->subsystem_device;
+	hw->revision_id  = pdev->revision;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->pci_cmd_word);
 
 	adapter->wol = 0;
@@ -311,8 +311,7 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 	adapter->txd_dma = adapter->ring_dma ;
 	offset = (adapter->txd_dma & 0x7) ? (8 - (adapter->txd_dma & 0x7)) : 0;
 	adapter->txd_dma += offset;
-	adapter->txd_ring = (struct tx_pkt_header *) (adapter->ring_vir_addr +
-		offset);
+	adapter->txd_ring = adapter->ring_vir_addr + offset;
 
 	/* Init TXS Ring */
 	adapter->txs_dma = adapter->txd_dma + adapter->txd_ring_size;
@@ -362,36 +361,59 @@ static inline void atl2_irq_disable(struct atl2_adapter *adapter)
     synchronize_irq(adapter->pdev->irq);
 }
 
-#ifdef NETIF_F_HW_VLAN_TX
-static void atl2_vlan_rx_register(struct net_device *netdev,
-	struct vlan_group *grp)
+static void __atl2_vlan_mode(u32 features, u32 *ctrl)
+{
+	if (features & NETIF_F_HW_VLAN_RX) {
+		/* enable VLAN tag insert/strip */
+		*ctrl |= MAC_CTRL_RMV_VLAN;
+	} else {
+		/* disable VLAN tag insert/strip */
+		*ctrl &= ~MAC_CTRL_RMV_VLAN;
+	}
+}
+
+static void atl2_vlan_mode(struct net_device *netdev, u32 features)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 	u32 ctrl;
 
 	atl2_irq_disable(adapter);
-	adapter->vlgrp = grp;
 
-	if (grp) {
-		/* enable VLAN tag insert/strip */
-		ctrl = ATL2_READ_REG(&adapter->hw, REG_MAC_CTRL);
-		ctrl |= MAC_CTRL_RMV_VLAN;
-		ATL2_WRITE_REG(&adapter->hw, REG_MAC_CTRL, ctrl);
-	} else {
-		/* disable VLAN tag insert/strip */
-		ctrl = ATL2_READ_REG(&adapter->hw, REG_MAC_CTRL);
-		ctrl &= ~MAC_CTRL_RMV_VLAN;
-		ATL2_WRITE_REG(&adapter->hw, REG_MAC_CTRL, ctrl);
-	}
+	ctrl = ATL2_READ_REG(&adapter->hw, REG_MAC_CTRL);
+	__atl2_vlan_mode(features, &ctrl);
+	ATL2_WRITE_REG(&adapter->hw, REG_MAC_CTRL, ctrl);
 
 	atl2_irq_enable(adapter);
 }
 
 static void atl2_restore_vlan(struct atl2_adapter *adapter)
 {
-	atl2_vlan_rx_register(adapter->netdev, adapter->vlgrp);
+	atl2_vlan_mode(adapter->netdev, adapter->netdev->features);
 }
-#endif
+
+static u32 atl2_fix_features(struct net_device *netdev, u32 features)
+{
+	/*
+	 * Since there is no support for separate rx/tx vlan accel
+	 * enable/disable make sure tx flag is always in same state as rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_RX)
+		features |= NETIF_F_HW_VLAN_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	return features;
+}
+
+static int atl2_set_features(struct net_device *netdev, u32 features)
+{
+	u32 changed = netdev->features ^ features;
+
+	if (changed & NETIF_F_HW_VLAN_RX)
+		atl2_vlan_mode(netdev, features);
+
+	return 0;
+}
 
 static void atl2_intr_rx(struct atl2_adapter *adapter)
 {
@@ -425,14 +447,13 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 			memcpy(skb->data, rxd->packet, rx_size);
 			skb_put(skb, rx_size);
 			skb->protocol = eth_type_trans(skb, netdev);
-#ifdef NETIF_F_HW_VLAN_TX
-			if (adapter->vlgrp && (rxd->status.vlan)) {
+			if (rxd->status.vlan) {
 				u16 vlan_tag = (rxd->status.vtag>>4) |
 					((rxd->status.vtag&7) << 13) |
 					((rxd->status.vtag&8) << 9);
-				vlan_hwaccel_rx(skb, adapter->vlgrp, vlan_tag);
-			} else
-#endif
+
+				__vlan_hwaccel_put_tag(skb, vlan_tag);
+			}
 			netif_rx(skb);
 			netdev->stats.rx_bytes += rx_size;
 			netdev->stats.rx_packets++;
@@ -705,9 +726,7 @@ static int atl2_open(struct net_device *netdev)
 	atl2_set_multi(netdev);
 	init_ring_ptrs(adapter);
 
-#ifdef NETIF_F_HW_VLAN_TX
 	atl2_restore_vlan(adapter);
-#endif
 
 	if (atl2_configure(adapter)) {
 		err = -EIO;
@@ -1083,9 +1102,7 @@ static int atl2_up(struct atl2_adapter *adapter)
 	atl2_set_multi(netdev);
 	init_ring_ptrs(adapter);
 
-#ifdef NETIF_F_HW_VLAN_TX
 	atl2_restore_vlan(adapter);
-#endif
 
 	if (atl2_configure(adapter)) {
 		err = -EIO;
@@ -1146,8 +1163,7 @@ static void atl2_setup_mac_ctrl(struct atl2_adapter *adapter)
 		MAC_CTRL_PRMLEN_SHIFT);
 
 	/* vlan */
-	if (adapter->vlgrp)
-		value |= MAC_CTRL_RMV_VLAN;
+	__atl2_vlan_mode(netdev->features, &value);
 
 	/* filter mode */
 	value |= MAC_CTRL_BC_EN;
@@ -1313,9 +1329,10 @@ static const struct net_device_ops atl2_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= atl2_set_mac,
 	.ndo_change_mtu		= atl2_change_mtu,
+	.ndo_fix_features	= atl2_fix_features,
+	.ndo_set_features	= atl2_set_features,
 	.ndo_do_ioctl		= atl2_ioctl,
 	.ndo_tx_timeout		= atl2_tx_timeout,
-	.ndo_vlan_rx_register	= atl2_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl2_poll_controller,
 #endif
@@ -1411,9 +1428,8 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 
 	err = -EIO;
 
-#ifdef NETIF_F_HW_VLAN_TX
+	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_VLAN_RX;
 	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-#endif
 
 	/* Init PHY as early as possible due to power saving issue  */
 	atl2_phy_init(&adapter->hw);
@@ -1701,7 +1717,7 @@ static struct pci_driver atl2_driver = {
 	.id_table = atl2_pci_tbl,
 	.probe    = atl2_probe,
 	.remove   = __devexit_p(atl2_remove),
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 	.suspend  = atl2_suspend,
 #ifdef CONFIG_PM
 	.resume   = atl2_resume,
@@ -1770,13 +1786,13 @@ static int atl2_get_settings(struct net_device *netdev,
 	ecmd->transceiver = XCVR_INTERNAL;
 
 	if (adapter->link_speed != SPEED_0) {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		if (adapter->link_duplex == FULL_DUPLEX)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -1838,11 +1854,6 @@ static int atl2_set_settings(struct net_device *netdev,
 
 	clear_bit(__ATL2_RESETTING, &adapter->flags);
 	return 0;
-}
-
-static u32 atl2_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static u32 atl2_get_msglevel(struct net_device *netdev)
@@ -1996,13 +2007,15 @@ static int atl2_set_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	ptr = (u32 *)eeprom_buff;
+	ptr = eeprom_buff;
 
 	if (eeprom->offset & 3) {
 		/* need read/modify/write of first changed EEPROM word */
 		/* only the second byte of the word is being modified */
-		if (!atl2_read_eeprom(hw, first_dword*4, &(eeprom_buff[0])))
-			return -EIO;
+		if (!atl2_read_eeprom(hw, first_dword*4, &(eeprom_buff[0]))) {
+			ret_val = -EIO;
+			goto out;
+		}
 		ptr++;
 	}
 	if (((eeprom->offset + eeprom->len) & 3)) {
@@ -2011,18 +2024,22 @@ static int atl2_set_eeprom(struct net_device *netdev,
 		 * only the first byte of the word is being modified
 		 */
 		if (!atl2_read_eeprom(hw, last_dword * 4,
-			&(eeprom_buff[last_dword - first_dword])))
-			return -EIO;
+					&(eeprom_buff[last_dword - first_dword]))) {
+			ret_val = -EIO;
+			goto out;
+		}
 	}
 
 	/* Device's eeprom is always little-endian, word addressable */
 	memcpy(ptr, bytes, eeprom->len);
 
 	for (i = 0; i < last_dword - first_dword + 1; i++) {
-		if (!atl2_write_eeprom(hw, ((first_dword+i)*4), eeprom_buff[i]))
-			return -EIO;
+		if (!atl2_write_eeprom(hw, ((first_dword+i)*4), eeprom_buff[i])) {
+			ret_val = -EIO;
+			goto out;
+		}
 	}
-
+ out:
 	kfree(eeprom_buff);
 	return ret_val;
 }
@@ -2106,12 +2123,6 @@ static const struct ethtool_ops atl2_ethtool_ops = {
 	.get_eeprom_len		= atl2_get_eeprom_len,
 	.get_eeprom		= atl2_get_eeprom,
 	.set_eeprom		= atl2_set_eeprom,
-	.get_tx_csum		= atl2_get_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
-	.get_tso		= ethtool_op_get_tso,
-#endif
 };
 
 static void atl2_set_ethtool_ops(struct net_device *netdev)

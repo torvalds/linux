@@ -37,21 +37,16 @@
 
 #include "generic.h"
 
-static void __init flexibity_map_io(void)
+static void __init flexibity_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init flexibity_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
 }
 
 /* USB Host port */
@@ -154,9 +149,9 @@ static void __init flexibity_board_init(void)
 
 MACHINE_START(FLEXIBITY, "Flexibity Connect")
 	/* Maintainer: Maxim Osipov */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= flexibity_map_io,
-	.init_irq	= flexibity_init_irq,
+	.map_io		= at91_map_io,
+	.init_early	= flexibity_init_early,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= flexibity_board_init,
 MACHINE_END

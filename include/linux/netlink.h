@@ -24,11 +24,12 @@
 /* leave room for NETLINK_DM (DM Events) */
 #define NETLINK_SCSITRANSPORT	18	/* SCSI Transports */
 #define NETLINK_ECRYPTFS	19
+#define NETLINK_RDMA		20
 
 #define MAX_LINKS 32		
 
 struct sockaddr_nl {
-	sa_family_t	nl_family;	/* AF_NETLINK	*/
+	__kernel_sa_family_t	nl_family;	/* AF_NETLINK	*/
 	unsigned short	nl_pad;		/* zero		*/
 	__u32		nl_pid;		/* port ID	*/
        	__u32		nl_groups;	/* multicast groups mask */
@@ -48,6 +49,7 @@ struct nlmsghdr {
 #define NLM_F_MULTI		2	/* Multipart message, terminated by NLMSG_DONE */
 #define NLM_F_ACK		4	/* Reply with ack, with zero or error code */
 #define NLM_F_ECHO		8	/* Echo this request 		*/
+#define NLM_F_DUMP_INTR		16	/* Dump was inconsistent due to sequence change */
 
 /* Modifiers to GET request */
 #define NLM_F_ROOT	0x100	/* specify tree	root	*/
@@ -160,10 +162,6 @@ struct netlink_skb_parms {
 	struct ucred		creds;		/* Skb credentials	*/
 	__u32			pid;
 	__u32			dst_group;
-	kernel_cap_t		eff_cap;
-	__u32			loginuid;	/* Login (audit) uid */
-	__u32			sessionid;	/* Session id (audit) */
-	__u32			sid;		/* SELinux security id */
 };
 
 #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))
@@ -224,7 +222,9 @@ struct netlink_callback {
 	int			(*dump)(struct sk_buff * skb,
 					struct netlink_callback *cb);
 	int			(*done)(struct netlink_callback *cb);
-	int			family;
+	u16			family;
+	u16			min_dump_alloc;
+	unsigned int		prev_seq, seq;
 	long			args[6];
 };
 
@@ -262,7 +262,8 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
 			      int (*dump)(struct sk_buff *skb, struct netlink_callback*),
-			      int (*done)(struct netlink_callback*));
+			      int (*done)(struct netlink_callback*),
+			      u16 min_dump_alloc);
 
 
 #define NL_NONROOT_RECV 0x1

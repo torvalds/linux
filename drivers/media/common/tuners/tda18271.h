@@ -98,7 +98,7 @@ struct tda18271_config {
 	/* output options that can be disabled */
 	enum tda18271_output_options output_opt;
 
-	/* some i2c providers cant write all 39 registers at once */
+	/* some i2c providers can't write all 39 registers at once */
 	enum tda18271_small_i2c small_i2c;
 
 	/* force rf tracking filter calibration on startup */

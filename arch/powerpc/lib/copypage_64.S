@@ -6,6 +6,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
@@ -15,9 +16,9 @@ PPC64_CACHES:
         .tc             ppc64_caches[TC],ppc64_caches
         .section        ".text"
 
-
-_GLOBAL(copy_4K_page)
-	li	r5,4096		/* 4K page size */
+_GLOBAL(copy_page)
+	lis	r5,PAGE_SIZE@h
+	ori	r5,r5,PAGE_SIZE@l
 BEGIN_FTR_SECTION
 	ld      r10,PPC64_CACHES@toc(r2)
 	lwz	r11,DCACHEL1LOGLINESIZE(r10)	/* log2 of cache line size */

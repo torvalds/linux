@@ -4,7 +4,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@
  */
 
 struct squashfs_decompressor {
-	void	*(*init)(struct squashfs_sb_info *);
+	void	*(*init)(struct squashfs_sb_info *, void *, int);
 	void	(*free)(void *);
 	int	(*decompress)(struct squashfs_sb_info *, void **,
 		struct buffer_head **, int, int, int, int, int);
@@ -32,11 +32,6 @@ struct squashfs_decompressor {
 	char	*name;
 	int	supported;
 };
-
-static inline void *squashfs_decompressor_init(struct squashfs_sb_info *msblk)
-{
-	return msblk->decompressor->init(msblk);
-}
 
 static inline void squashfs_decompressor_free(struct squashfs_sb_info *msblk,
 	void *s)
@@ -59,6 +54,10 @@ extern const struct squashfs_decompressor squashfs_xz_comp_ops;
 
 #ifdef CONFIG_SQUASHFS_LZO
 extern const struct squashfs_decompressor squashfs_lzo_comp_ops;
+#endif
+
+#ifdef CONFIG_SQUASHFS_ZLIB
+extern const struct squashfs_decompressor squashfs_zlib_comp_ops;
 #endif
 
 #endif

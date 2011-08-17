@@ -24,7 +24,7 @@ ATOMIC CONTEXT:
 
 	ndelay(unsigned long nsecs)
 	udelay(unsigned long usecs)
-	mdelay(unsgined long msecs)
+	mdelay(unsigned long msecs)
 
 	udelay is the generally preferred API; ndelay-level
 	precision may not actually exist on many non-PC devices.

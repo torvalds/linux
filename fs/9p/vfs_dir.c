@@ -295,7 +295,6 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 	P9_DPRINTK(P9_DEBUG_VFS,
 			"v9fs_dir_release: inode: %p filp: %p fid: %d\n",
 			inode, filp, fid ? fid->fid : -1);
-	filemap_write_and_wait(inode->i_mapping);
 	if (fid)
 		p9_client_clunk(fid);
 	return 0;

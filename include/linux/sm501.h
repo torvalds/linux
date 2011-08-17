@@ -172,3 +172,11 @@ struct sm501_platdata {
 	struct sm501_platdata_gpio_i2c	*gpio_i2c;
 	unsigned int			 gpio_i2c_nr;
 };
+
+#if defined(CONFIG_PPC32)
+#define smc501_readl(addr)		ioread32be((addr))
+#define smc501_writel(val, addr)	iowrite32be((val), (addr))
+#else
+#define smc501_readl(addr)		readl(addr)
+#define smc501_writel(val, addr)	writel(val, addr)
+#endif

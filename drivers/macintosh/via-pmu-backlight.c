@@ -163,6 +163,7 @@ void __init pmu_backlight_init()
 	snprintf(name, sizeof(name), "pmubl");
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd = backlight_device_register(name, NULL, NULL, &pmu_backlight_data,
 				       &props);

@@ -1,28 +1,84 @@
+/*
+ * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
+ *
+ * Parts came from builtin-{top,stat,record}.c, see those files for further
+ * copyright notes.
+ *
+ * Released under the GPL v2. (and only v2, not any later version)
+ */
+
 #include "evsel.h"
-#include "../perf.h"
+#include "evlist.h"
 #include "util.h"
 #include "cpumap.h"
-#include "thread.h"
+#include "thread_map.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+
+int __perf_evsel__sample_size(u64 sample_type)
+{
+	u64 mask = sample_type & PERF_SAMPLE_MASK;
+	int size = 0;
+	int i;
+
+	for (i = 0; i < 64; i++) {
+		if (mask & (1ULL << i))
+			size++;
+	}
+
+	size *= sizeof(u64);
+
+	return size;
+}
+
+void perf_evsel__init(struct perf_evsel *evsel,
+		      struct perf_event_attr *attr, int idx)
+{
+	evsel->idx	   = idx;
+	evsel->attr	   = *attr;
+	INIT_LIST_HEAD(&evsel->node);
+}
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
-	if (evsel != NULL) {
-		evsel->idx	   = idx;
-		evsel->attr	   = *attr;
-		INIT_LIST_HEAD(&evsel->node);
-	}
+	if (evsel != NULL)
+		perf_evsel__init(evsel, attr, idx);
 
 	return evsel;
 }
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
+	int cpu, thread;
 	evsel->fd = xyarray__new(ncpus, nthreads, sizeof(int));
+
+	if (evsel->fd) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			for (thread = 0; thread < nthreads; thread++) {
+				FD(evsel, cpu, thread) = -1;
+			}
+		}
+	}
+
 	return evsel->fd != NULL ? 0 : -ENOMEM;
+}
+
+int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
+	if (evsel->sample_id == NULL)
+		return -ENOMEM;
+
+	evsel->id = zalloc(ncpus * nthreads * sizeof(u64));
+	if (evsel->id == NULL) {
+		xyarray__delete(evsel->sample_id);
+		evsel->sample_id = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
@@ -38,6 +94,14 @@ void perf_evsel__free_fd(struct perf_evsel *evsel)
 	evsel->fd = NULL;
 }
 
+void perf_evsel__free_id(struct perf_evsel *evsel)
+{
+	xyarray__delete(evsel->sample_id);
+	evsel->sample_id = NULL;
+	free(evsel->id);
+	evsel->id = NULL;
+}
+
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
@@ -49,10 +113,19 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 }
 
-void perf_evsel__delete(struct perf_evsel *evsel)
+void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	xyarray__delete(evsel->fd);
+	xyarray__delete(evsel->sample_id);
+	free(evsel->id);
+}
+
+void perf_evsel__delete(struct perf_evsel *evsel)
+{
+	perf_evsel__exit(evsel);
+	close_cgroup(evsel->cgrp);
+	free(evsel->name);
 	free(evsel);
 }
 
@@ -128,21 +201,38 @@ int __perf_evsel__read(struct perf_evsel *evsel,
 }
 
 static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads)
+			      struct thread_map *threads, bool group)
 {
 	int cpu, thread;
+	unsigned long flags = 0;
+	int pid = -1;
 
 	if (evsel->fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
 		return -1;
 
+	if (evsel->cgrp) {
+		flags = PERF_FLAG_PID_CGROUP;
+		pid = evsel->cgrp->fd;
+	}
+
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		int group_fd = -1;
+
 		for (thread = 0; thread < threads->nr; thread++) {
+
+			if (!evsel->cgrp)
+				pid = threads->map[thread];
+
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
-								     threads->map[thread],
-								     cpus->map[cpu], -1, 0);
+								     pid,
+								     cpus->map[cpu],
+								     group_fd, flags);
 			if (FD(evsel, cpu, thread) < 0)
 				goto out_close;
+
+			if (group && group_fd == -1)
+				group_fd = FD(evsel, cpu, thread);
 		}
 	}
 
@@ -175,10 +265,9 @@ static struct {
 	.threads = { -1, },
 };
 
-int perf_evsel__open(struct perf_evsel *evsel,
-		     struct cpu_map *cpus, struct thread_map *threads)
+int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads, bool group)
 {
-
 	if (cpus == NULL) {
 		/* Work around old compiler warnings about strict aliasing */
 		cpus = &empty_cpu_map.map;
@@ -187,15 +276,166 @@ int perf_evsel__open(struct perf_evsel *evsel,
 	if (threads == NULL)
 		threads = &empty_thread_map.map;
 
-	return __perf_evsel__open(evsel, cpus, threads);
+	return __perf_evsel__open(evsel, cpus, threads, group);
 }
 
-int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus)
+int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
+			     struct cpu_map *cpus, bool group)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
+	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map, group);
 }
 
-int perf_evsel__open_per_thread(struct perf_evsel *evsel, struct thread_map *threads)
+int perf_evsel__open_per_thread(struct perf_evsel *evsel,
+				struct thread_map *threads, bool group)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
+	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group);
+}
+
+static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
+				       struct perf_sample *sample)
+{
+	const u64 *array = event->sample.array;
+
+	array += ((event->header.size -
+		   sizeof(event->header)) / sizeof(u64)) - 1;
+
+	if (type & PERF_SAMPLE_CPU) {
+		u32 *p = (u32 *)array;
+		sample->cpu = *p;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_STREAM_ID) {
+		sample->stream_id = *array;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_ID) {
+		sample->id = *array;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_TIME) {
+		sample->time = *array;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_TID) {
+		u32 *p = (u32 *)array;
+		sample->pid = p[0];
+		sample->tid = p[1];
+	}
+
+	return 0;
+}
+
+static bool sample_overlap(const union perf_event *event,
+			   const void *offset, u64 size)
+{
+	const void *base = event;
+
+	if (offset + size > base + event->header.size)
+		return true;
+
+	return false;
+}
+
+int perf_event__parse_sample(const union perf_event *event, u64 type,
+			     int sample_size, bool sample_id_all,
+			     struct perf_sample *data)
+{
+	const u64 *array;
+
+	data->cpu = data->pid = data->tid = -1;
+	data->stream_id = data->id = data->time = -1ULL;
+
+	if (event->header.type != PERF_RECORD_SAMPLE) {
+		if (!sample_id_all)
+			return 0;
+		return perf_event__parse_id_sample(event, type, data);
+	}
+
+	array = event->sample.array;
+
+	if (sample_size + sizeof(event->header) > event->header.size)
+		return -EFAULT;
+
+	if (type & PERF_SAMPLE_IP) {
+		data->ip = event->ip.ip;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TID) {
+		u32 *p = (u32 *)array;
+		data->pid = p[0];
+		data->tid = p[1];
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TIME) {
+		data->time = *array;
+		array++;
+	}
+
+	data->addr = 0;
+	if (type & PERF_SAMPLE_ADDR) {
+		data->addr = *array;
+		array++;
+	}
+
+	data->id = -1ULL;
+	if (type & PERF_SAMPLE_ID) {
+		data->id = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_STREAM_ID) {
+		data->stream_id = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_CPU) {
+		u32 *p = (u32 *)array;
+		data->cpu = *p;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_PERIOD) {
+		data->period = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_READ) {
+		fprintf(stderr, "PERF_SAMPLE_READ is unsuported for now\n");
+		return -1;
+	}
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		if (sample_overlap(event, array, sizeof(data->callchain->nr)))
+			return -EFAULT;
+
+		data->callchain = (struct ip_callchain *)array;
+
+		if (sample_overlap(event, array, data->callchain->nr))
+			return -EFAULT;
+
+		array += 1 + data->callchain->nr;
+	}
+
+	if (type & PERF_SAMPLE_RAW) {
+		u32 *p = (u32 *)array;
+
+		if (sample_overlap(event, array, sizeof(u32)))
+			return -EFAULT;
+
+		data->raw_size = *p;
+		p++;
+
+		if (sample_overlap(event, p, data->raw_size))
+			return -EFAULT;
+
+		data->raw_data = p;
+	}
+
+	return 0;
 }

@@ -4,9 +4,10 @@
 #ifndef __NET_NET_NAMESPACE_H
 #define __NET_NET_NAMESPACE_H
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
+#include <linux/sysctl.h>
 
 #include <net/netns/core.h>
 #include <net/netns/mib.h>
@@ -27,14 +28,18 @@ struct sock;
 struct ctl_table_header;
 struct net_generic;
 struct sock;
+struct netns_ipvs;
 
 
 #define NETDEV_HASHBITS    8
 #define NETDEV_HASHENTRIES (1 << NETDEV_HASHBITS)
 
 struct net {
+	atomic_t		passive;	/* To decided when the network
+						 * namespace should be freed.
+						 */
 	atomic_t		count;		/* To decided when the network
-						 *  namespace should be freed.
+						 *  namespace should be shut down.
 						 */
 #ifdef NETNS_REFCNT_DEBUG
 	atomic_t		use_count;	/* To track references we
@@ -60,6 +65,7 @@ struct net {
 	struct list_head 	dev_base_head;
 	struct hlist_head 	*dev_name_head;
 	struct hlist_head	*dev_index_head;
+	unsigned int		dev_base_seq;	/* protected by rtnl_mutex */
 
 	/* core fib_rules */
 	struct list_head	rules_ops;
@@ -94,6 +100,7 @@ struct net {
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
+	struct netns_ipvs	*ipvs;
 };
 
 
@@ -117,6 +124,7 @@ static inline struct net *copy_net_ns(unsigned long flags, struct net *net_ns)
 extern struct list_head net_namespace_list;
 
 extern struct net *get_net_ns_by_pid(pid_t pid);
+extern struct net *get_net_ns_by_fd(int pid);
 
 #ifdef CONFIG_NET_NS
 extern void __put_net(struct net *net);
@@ -150,6 +158,9 @@ int net_eq(const struct net *net1, const struct net *net2)
 {
 	return net1 == net2;
 }
+
+extern void net_drop_ns(void *);
+
 #else
 
 static inline struct net *get_net(struct net *net)
@@ -171,6 +182,8 @@ int net_eq(const struct net *net1, const struct net *net2)
 {
 	return 1;
 }
+
+#define net_drop_ns NULL
 #endif
 
 

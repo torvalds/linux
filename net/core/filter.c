@@ -38,65 +38,7 @@
 #include <asm/unaligned.h>
 #include <linux/filter.h>
 #include <linux/reciprocal_div.h>
-
-enum {
-	BPF_S_RET_K = 1,
-	BPF_S_RET_A,
-	BPF_S_ALU_ADD_K,
-	BPF_S_ALU_ADD_X,
-	BPF_S_ALU_SUB_K,
-	BPF_S_ALU_SUB_X,
-	BPF_S_ALU_MUL_K,
-	BPF_S_ALU_MUL_X,
-	BPF_S_ALU_DIV_X,
-	BPF_S_ALU_AND_K,
-	BPF_S_ALU_AND_X,
-	BPF_S_ALU_OR_K,
-	BPF_S_ALU_OR_X,
-	BPF_S_ALU_LSH_K,
-	BPF_S_ALU_LSH_X,
-	BPF_S_ALU_RSH_K,
-	BPF_S_ALU_RSH_X,
-	BPF_S_ALU_NEG,
-	BPF_S_LD_W_ABS,
-	BPF_S_LD_H_ABS,
-	BPF_S_LD_B_ABS,
-	BPF_S_LD_W_LEN,
-	BPF_S_LD_W_IND,
-	BPF_S_LD_H_IND,
-	BPF_S_LD_B_IND,
-	BPF_S_LD_IMM,
-	BPF_S_LDX_W_LEN,
-	BPF_S_LDX_B_MSH,
-	BPF_S_LDX_IMM,
-	BPF_S_MISC_TAX,
-	BPF_S_MISC_TXA,
-	BPF_S_ALU_DIV_K,
-	BPF_S_LD_MEM,
-	BPF_S_LDX_MEM,
-	BPF_S_ST,
-	BPF_S_STX,
-	BPF_S_JMP_JA,
-	BPF_S_JMP_JEQ_K,
-	BPF_S_JMP_JEQ_X,
-	BPF_S_JMP_JGE_K,
-	BPF_S_JMP_JGE_X,
-	BPF_S_JMP_JGT_K,
-	BPF_S_JMP_JGT_X,
-	BPF_S_JMP_JSET_K,
-	BPF_S_JMP_JSET_X,
-	/* Ancillary data */
-	BPF_S_ANC_PROTOCOL,
-	BPF_S_ANC_PKTTYPE,
-	BPF_S_ANC_IFINDEX,
-	BPF_S_ANC_NLATTR,
-	BPF_S_ANC_NLATTR_NEST,
-	BPF_S_ANC_MARK,
-	BPF_S_ANC_QUEUE,
-	BPF_S_ANC_HATYPE,
-	BPF_S_ANC_RXHASH,
-	BPF_S_ANC_CPU,
-};
+#include <linux/ratelimit.h>
 
 /* No hurry in this branch */
 static void *__load_pointer(const struct sk_buff *skb, int k, unsigned int size)
@@ -142,14 +84,14 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	rcu_read_lock_bh();
-	filter = rcu_dereference_bh(sk->sk_filter);
+	rcu_read_lock();
+	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
-		unsigned int pkt_len = sk_run_filter(skb, filter->insns);
+		unsigned int pkt_len = SK_RUN_FILTER(filter, skb);
 
 		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return err;
 }
@@ -409,7 +351,9 @@ load_b:
 			continue;
 		}
 		default:
-			WARN_ON(1);
+			WARN_RATELIMIT(1, "Unknown code:%u jt:%u tf:%u k:%u\n",
+				       fentry->code, fentry->jt,
+				       fentry->jf, fentry->k);
 			return 0;
 		}
 	}
@@ -425,7 +369,7 @@ EXPORT_SYMBOL(sk_run_filter);
  * As we dont want to clear mem[] array for each packet going through
  * sk_run_filter(), we check that filter loaded by user never try to read
  * a cell if not previously written, and we check all branches to be sure
- * a malicious user doesnt try to abuse us.
+ * a malicious user doesn't try to abuse us.
  */
 static int check_load_and_stores(struct sock_filter *filter, int flen)
 {
@@ -638,6 +582,7 @@ void sk_filter_release_rcu(struct rcu_head *rcu)
 {
 	struct sk_filter *fp = container_of(rcu, struct sk_filter, rcu);
 
+	bpf_jit_free(fp);
 	kfree(fp);
 }
 EXPORT_SYMBOL(sk_filter_release_rcu);
@@ -672,12 +617,15 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 
 	atomic_set(&fp->refcnt, 1);
 	fp->len = fprog->len;
+	fp->bpf_func = sk_run_filter;
 
 	err = sk_chk_filter(fp->insns, fp->len);
 	if (err) {
 		sk_filter_uncharge(sk, fp);
 		return err;
 	}
+
+	bpf_jit_compile(fp);
 
 	old_fp = rcu_dereference_protected(sk->sk_filter,
 					   sock_owned_by_user(sk));

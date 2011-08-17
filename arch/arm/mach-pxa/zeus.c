@@ -25,24 +25,23 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/apm-emulation.h>
 #include <linux/can/platform/mcp251x.h>
 
 #include <asm/mach-types.h>
+#include <asm/suspend.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/i2c.h>
-
-#include <mach/pxa2xx-regs.h>
+#include <mach/pxa27x.h>
 #include <mach/regs-uart.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa27x.h>
 #include <mach/pm.h>
 #include <mach/audio.h>
 #include <mach/arcom-pcmcia.h>
@@ -137,22 +136,23 @@ static void __init zeus_init_irq(void)
 
 	/* Peripheral IRQs. It would be nice to move those inside driver
 	   configuration, but it is not supported at the moment. */
-	set_irq_type(gpio_to_irq(ZEUS_AC97_GPIO),	IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(ZEUS_WAKEUP_GPIO),	IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(ZEUS_PTT_GPIO),	IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(ZEUS_EXTGPIO_GPIO),	IRQ_TYPE_EDGE_FALLING);
-	set_irq_type(gpio_to_irq(ZEUS_CAN_GPIO),	IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(gpio_to_irq(ZEUS_AC97_GPIO), IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(gpio_to_irq(ZEUS_WAKEUP_GPIO), IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(gpio_to_irq(ZEUS_PTT_GPIO), IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(gpio_to_irq(ZEUS_EXTGPIO_GPIO),
+			 IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(gpio_to_irq(ZEUS_CAN_GPIO), IRQ_TYPE_EDGE_FALLING);
 
 	/* Setup ISA IRQs */
 	for (level = 0; level < ARRAY_SIZE(zeus_isa_irqs); level++) {
 		isa_irq = zeus_bit_to_irq(level);
-		set_irq_chip(isa_irq, &zeus_irq_chip);
-		set_irq_handler(isa_irq, handle_edge_irq);
+		irq_set_chip_and_handler(isa_irq, &zeus_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_type(gpio_to_irq(ZEUS_ISA_GPIO), IRQ_TYPE_EDGE_RISING);
-	set_irq_chained_handler(gpio_to_irq(ZEUS_ISA_GPIO), zeus_irq_handler);
+	irq_set_irq_type(gpio_to_irq(ZEUS_ISA_GPIO), IRQ_TYPE_EDGE_RISING);
+	irq_set_chained_handler(gpio_to_irq(ZEUS_ISA_GPIO), zeus_irq_handler);
 }
 
 
@@ -676,7 +676,7 @@ static struct pxa2xx_udc_mach_info zeus_udc_info = {
 static void zeus_power_off(void)
 {
 	local_irq_disable();
-	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP);
+	cpu_suspend(PWRMODE_DEEPSLEEP, pxa27x_finish_suspend);
 }
 #else
 #define zeus_power_off   NULL
@@ -847,7 +847,7 @@ static void __init zeus_init(void)
 	if (zeus_setup_fb_gpios())
 		pr_err("Failed to setup fb gpios\n");
 	else
-		set_pxa_fb_info(&zeus_fb_info);
+		pxa_set_fb_info(NULL, &zeus_fb_info);
 
 	pxa_set_mci_info(&zeus_mci_platform_data);
 	pxa_set_udc_info(&zeus_udc_info);
@@ -908,6 +908,7 @@ MACHINE_START(ARCOM_ZEUS, "Arcom/Eurotech ZEUS")
 	.map_io		= zeus_map_io,
 	.nr_irqs	= ZEUS_NR_IRQS,
 	.init_irq	= zeus_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zeus_init,
 MACHINE_END

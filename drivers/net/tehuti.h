@@ -250,7 +250,6 @@ struct bdx_priv {
 	struct rxf_fifo rxf_fifo0;
 	struct rxdb *rxdb;	/* rx dbs to store skb pointers */
 	int napi_stop;
-	struct vlan_group *vlgrp;
 
 	/* Tx FIFOs: 1 for data desc, 1 for empty (acks) desc */
 	struct txd_fifo txd_fifo0;
@@ -502,7 +501,7 @@ struct txd_desc {
 #define  GMAC_RX_FILTER_ACRC  0x0010	/* accept crc error */
 #define  GMAC_RX_FILTER_AM    0x0008	/* accept multicast */
 #define  GMAC_RX_FILTER_AB    0x0004	/* accept broadcast */
-#define  GMAC_RX_FILTER_PRM   0x0001	/* [0:1] promiscous mode */
+#define  GMAC_RX_FILTER_PRM   0x0001	/* [0:1] promiscuous mode */
 
 #define  MAX_FRAME_AB_VAL       0x3fff	/* 13:0 */
 
