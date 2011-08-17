@@ -191,7 +191,8 @@ static inline void vunmap_sg(const void *va)
 	vunmap(va);
 }
 
-static struct iovm_struct *__find_iovm_area(struct iommu *obj, const u32 da)
+static struct iovm_struct *__find_iovm_area(struct omap_iommu *obj,
+							const u32 da)
 {
 	struct iovm_struct *tmp;
 
@@ -213,12 +214,12 @@ static struct iovm_struct *__find_iovm_area(struct iommu *obj, const u32 da)
 }
 
 /**
- * find_iovm_area  -  find iovma which includes @da
+ * omap_find_iovm_area  -  find iovma which includes @da
  * @da:		iommu device virtual address
  *
  * Find the existing iovma starting at @da
  */
-struct iovm_struct *find_iovm_area(struct iommu *obj, u32 da)
+struct iovm_struct *omap_find_iovm_area(struct omap_iommu *obj, u32 da)
 {
 	struct iovm_struct *area;
 
@@ -228,13 +229,13 @@ struct iovm_struct *find_iovm_area(struct iommu *obj, u32 da)
 
 	return area;
 }
-EXPORT_SYMBOL_GPL(find_iovm_area);
+EXPORT_SYMBOL_GPL(omap_find_iovm_area);
 
 /*
  * This finds the hole(area) which fits the requested address and len
  * in iovmas mmap, and returns the new allocated iovma.
  */
-static struct iovm_struct *alloc_iovm_area(struct iommu *obj, u32 da,
+static struct iovm_struct *alloc_iovm_area(struct omap_iommu *obj, u32 da,
 					   size_t bytes, u32 flags)
 {
 	struct iovm_struct *new, *tmp;
@@ -309,7 +310,7 @@ found:
 	return new;
 }
 
-static void free_iovm_area(struct iommu *obj, struct iovm_struct *area)
+static void free_iovm_area(struct omap_iommu *obj, struct iovm_struct *area)
 {
 	size_t bytes;
 
@@ -325,14 +326,14 @@ static void free_iovm_area(struct iommu *obj, struct iovm_struct *area)
 }
 
 /**
- * da_to_va - convert (d) to (v)
+ * omap_da_to_va - convert (d) to (v)
  * @obj:	objective iommu
  * @da:		iommu device virtual address
  * @va:		mpu virtual address
  *
  * Returns mpu virtual addr which corresponds to a given device virtual addr
  */
-void *da_to_va(struct iommu *obj, u32 da)
+void *omap_da_to_va(struct omap_iommu *obj, u32 da)
 {
 	void *va = NULL;
 	struct iovm_struct *area;
@@ -350,7 +351,7 @@ out:
 
 	return va;
 }
-EXPORT_SYMBOL_GPL(da_to_va);
+EXPORT_SYMBOL_GPL(omap_da_to_va);
 
 static void sgtable_fill_vmalloc(struct sg_table *sgt, void *_va)
 {
@@ -364,7 +365,7 @@ static void sgtable_fill_vmalloc(struct sg_table *sgt, void *_va)
 		const size_t bytes = PAGE_SIZE;
 
 		/*
-		 * iommu 'superpage' isn't supported with 'iommu_vmalloc()'
+		 * iommu 'superpage' isn't supported with 'omap_iommu_vmalloc()'
 		 */
 		pg = vmalloc_to_page(va);
 		BUG_ON(!pg);
@@ -443,7 +444,7 @@ err_out:
 }
 
 /* release 'da' <-> 'pa' mapping */
-static void unmap_iovm_area(struct iommu_domain *domain, struct iommu *obj,
+static void unmap_iovm_area(struct iommu_domain *domain, struct omap_iommu *obj,
 						struct iovm_struct *area)
 {
 	u32 start;
@@ -480,7 +481,7 @@ static void unmap_iovm_area(struct iommu_domain *domain, struct iommu *obj,
 
 /* template function for all unmapping */
 static struct sg_table *unmap_vm_area(struct iommu_domain *domain,
-				      struct iommu *obj, const u32 da,
+				      struct omap_iommu *obj, const u32 da,
 				      void (*fn)(const void *), u32 flags)
 {
 	struct sg_table *sgt = NULL;
@@ -521,7 +522,7 @@ out:
 	return sgt;
 }
 
-static u32 map_iommu_region(struct iommu_domain *domain, struct iommu *obj,
+static u32 map_iommu_region(struct iommu_domain *domain, struct omap_iommu *obj,
 				u32 da, const struct sg_table *sgt, void *va,
 				size_t bytes, u32 flags)
 {
@@ -555,7 +556,8 @@ err_alloc_iovma:
 	return err;
 }
 
-static inline u32 __iommu_vmap(struct iommu_domain *domain, struct iommu *obj,
+static inline u32
+__iommu_vmap(struct iommu_domain *domain, struct omap_iommu *obj,
 				u32 da, const struct sg_table *sgt,
 				void *va, size_t bytes, u32 flags)
 {
@@ -563,7 +565,7 @@ static inline u32 __iommu_vmap(struct iommu_domain *domain, struct iommu *obj,
 }
 
 /**
- * iommu_vmap  -  (d)-(p)-(v) address mapper
+ * omap_iommu_vmap  -  (d)-(p)-(v) address mapper
  * @obj:	objective iommu
  * @sgt:	address of scatter gather table
  * @flags:	iovma and page property
@@ -571,7 +573,7 @@ static inline u32 __iommu_vmap(struct iommu_domain *domain, struct iommu *obj,
  * Creates 1-n-1 mapping with given @sgt and returns @da.
  * All @sgt element must be io page size aligned.
  */
-u32 iommu_vmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
+u32 omap_iommu_vmap(struct iommu_domain *domain, struct omap_iommu *obj, u32 da,
 		const struct sg_table *sgt, u32 flags)
 {
 	size_t bytes;
@@ -600,22 +602,22 @@ u32 iommu_vmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
 
 	return da;
 }
-EXPORT_SYMBOL_GPL(iommu_vmap);
+EXPORT_SYMBOL_GPL(omap_iommu_vmap);
 
 /**
- * iommu_vunmap  -  release virtual mapping obtained by 'iommu_vmap()'
+ * omap_iommu_vunmap  -  release virtual mapping obtained by 'omap_iommu_vmap()'
  * @obj:	objective iommu
  * @da:		iommu device virtual address
  *
  * Free the iommu virtually contiguous memory area starting at
- * @da, which was returned by 'iommu_vmap()'.
+ * @da, which was returned by 'omap_iommu_vmap()'.
  */
 struct sg_table *
-iommu_vunmap(struct iommu_domain *domain, struct iommu *obj, u32 da)
+omap_iommu_vunmap(struct iommu_domain *domain, struct omap_iommu *obj, u32 da)
 {
 	struct sg_table *sgt;
 	/*
-	 * 'sgt' is allocated before 'iommu_vmalloc()' is called.
+	 * 'sgt' is allocated before 'omap_iommu_vmalloc()' is called.
 	 * Just returns 'sgt' to the caller to free
 	 */
 	sgt = unmap_vm_area(domain, obj, da, vunmap_sg,
@@ -624,10 +626,10 @@ iommu_vunmap(struct iommu_domain *domain, struct iommu *obj, u32 da)
 		dev_dbg(obj->dev, "%s: No sgt\n", __func__);
 	return sgt;
 }
-EXPORT_SYMBOL_GPL(iommu_vunmap);
+EXPORT_SYMBOL_GPL(omap_iommu_vunmap);
 
 /**
- * iommu_vmalloc  -  (d)-(p)-(v) address allocator and mapper
+ * omap_iommu_vmalloc  -  (d)-(p)-(v) address allocator and mapper
  * @obj:	objective iommu
  * @da:		contiguous iommu virtual memory
  * @bytes:	allocation size
@@ -636,7 +638,8 @@ EXPORT_SYMBOL_GPL(iommu_vunmap);
  * Allocate @bytes linearly and creates 1-n-1 mapping and returns
  * @da again, which might be adjusted if 'IOVMF_DA_FIXED' is not set.
  */
-u32 iommu_vmalloc(struct iommu_domain *domain, struct iommu *obj, u32 da,
+u32
+omap_iommu_vmalloc(struct iommu_domain *domain, struct omap_iommu *obj, u32 da,
 						size_t bytes, u32 flags)
 {
 	void *va;
@@ -674,17 +677,18 @@ err_sgt_alloc:
 	vfree(va);
 	return da;
 }
-EXPORT_SYMBOL_GPL(iommu_vmalloc);
+EXPORT_SYMBOL_GPL(omap_iommu_vmalloc);
 
 /**
- * iommu_vfree  -  release memory allocated by 'iommu_vmalloc()'
+ * omap_iommu_vfree  -  release memory allocated by 'omap_iommu_vmalloc()'
  * @obj:	objective iommu
  * @da:		iommu device virtual address
  *
  * Frees the iommu virtually continuous memory area starting at
- * @da, as obtained from 'iommu_vmalloc()'.
+ * @da, as obtained from 'omap_iommu_vmalloc()'.
  */
-void iommu_vfree(struct iommu_domain *domain, struct iommu *obj, const u32 da)
+void omap_iommu_vfree(struct iommu_domain *domain, struct omap_iommu *obj,
+								const u32 da)
 {
 	struct sg_table *sgt;
 
@@ -694,7 +698,7 @@ void iommu_vfree(struct iommu_domain *domain, struct iommu *obj, const u32 da)
 		dev_dbg(obj->dev, "%s: No sgt\n", __func__);
 	sgtable_free(sgt);
 }
-EXPORT_SYMBOL_GPL(iommu_vfree);
+EXPORT_SYMBOL_GPL(omap_iommu_vfree);
 
 static int __init iovmm_init(void)
 {

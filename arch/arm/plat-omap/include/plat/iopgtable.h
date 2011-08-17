@@ -115,6 +115,6 @@ static inline u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa,
 }
 
 #define to_iommu(dev)							\
-	(struct iommu *)platform_get_drvdata(to_platform_device(dev))
+	(struct omap_iommu *)platform_get_drvdata(to_platform_device(dev))
 
 #endif /* __PLAT_OMAP_IOMMU_H */

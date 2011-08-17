@@ -295,7 +295,7 @@ struct isp_device {
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
 
-	struct iommu *iommu;
+	struct omap_iommu *iommu;
 	struct iommu_domain *domain;
 	struct device *iommu_dev;
 

@@ -83,12 +83,12 @@
 /*
  * register accessors
  */
-static inline u32 iommu_read_reg(struct iommu *obj, size_t offs)
+static inline u32 iommu_read_reg(struct omap_iommu *obj, size_t offs)
 {
 	return __raw_readl(obj->regbase + offs);
 }
 
-static inline void iommu_write_reg(struct iommu *obj, u32 val, size_t offs)
+static inline void iommu_write_reg(struct omap_iommu *obj, u32 val, size_t offs)
 {
 	__raw_writel(val, obj->regbase + offs);
 }

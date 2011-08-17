@@ -25,7 +25,7 @@ struct iotlb_entry {
 	};
 };
 
-struct iommu {
+struct omap_iommu {
 	const char	*name;
 	struct module	*owner;
 	struct clk	*clk;
@@ -48,7 +48,7 @@ struct iommu {
 	struct list_head	mmap;
 	struct mutex		mmap_lock; /* protect mmap */
 
-	int (*isr)(struct iommu *obj, u32 da, u32 iommu_errs, void *priv);
+	int (*isr)(struct omap_iommu *obj, u32 da, u32 iommu_errs, void *priv);
 
 	void *ctx; /* iommu context: registres saved area */
 	u32 da_start;
@@ -81,25 +81,27 @@ struct iotlb_lock {
 struct iommu_functions {
 	unsigned long	version;
 
-	int (*enable)(struct iommu *obj);
-	void (*disable)(struct iommu *obj);
-	void (*set_twl)(struct iommu *obj, bool on);
-	u32 (*fault_isr)(struct iommu *obj, u32 *ra);
+	int (*enable)(struct omap_iommu *obj);
+	void (*disable)(struct omap_iommu *obj);
+	void (*set_twl)(struct omap_iommu *obj, bool on);
+	u32 (*fault_isr)(struct omap_iommu *obj, u32 *ra);
 
-	void (*tlb_read_cr)(struct iommu *obj, struct cr_regs *cr);
-	void (*tlb_load_cr)(struct iommu *obj, struct cr_regs *cr);
+	void (*tlb_read_cr)(struct omap_iommu *obj, struct cr_regs *cr);
+	void (*tlb_load_cr)(struct omap_iommu *obj, struct cr_regs *cr);
 
-	struct cr_regs *(*alloc_cr)(struct iommu *obj, struct iotlb_entry *e);
+	struct cr_regs *(*alloc_cr)(struct omap_iommu *obj,
+							struct iotlb_entry *e);
 	int (*cr_valid)(struct cr_regs *cr);
 	u32 (*cr_to_virt)(struct cr_regs *cr);
 	void (*cr_to_e)(struct cr_regs *cr, struct iotlb_entry *e);
-	ssize_t (*dump_cr)(struct iommu *obj, struct cr_regs *cr, char *buf);
+	ssize_t (*dump_cr)(struct omap_iommu *obj, struct cr_regs *cr,
+							char *buf);
 
 	u32 (*get_pte_attr)(struct iotlb_entry *e);
 
-	void (*save_ctx)(struct iommu *obj);
-	void (*restore_ctx)(struct iommu *obj);
-	ssize_t (*dump_ctx)(struct iommu *obj, char *buf, ssize_t len);
+	void (*save_ctx)(struct omap_iommu *obj);
+	void (*restore_ctx)(struct omap_iommu *obj);
+	ssize_t (*dump_ctx)(struct omap_iommu *obj, char *buf, ssize_t len);
 };
 
 struct iommu_platform_data {
@@ -150,28 +152,31 @@ struct iommu_platform_data {
 /*
  * global functions
  */
-extern u32 iommu_arch_version(void);
+extern u32 omap_iommu_arch_version(void);
 
-extern void iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
+extern void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
 
-extern int iopgtable_store_entry(struct iommu *obj, struct iotlb_entry *e);
+extern int
+omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
 
-extern int iommu_set_isr(const char *name,
-			 int (*isr)(struct iommu *obj, u32 da, u32 iommu_errs,
+extern int omap_iommu_set_isr(const char *name,
+		 int (*isr)(struct omap_iommu *obj, u32 da, u32 iommu_errs,
 				    void *priv),
 			 void *isr_priv);
 
-extern void iommu_save_ctx(struct iommu *obj);
-extern void iommu_restore_ctx(struct iommu *obj);
+extern void omap_iommu_save_ctx(struct omap_iommu *obj);
+extern void omap_iommu_restore_ctx(struct omap_iommu *obj);
 
-extern int install_iommu_arch(const struct iommu_functions *ops);
-extern void uninstall_iommu_arch(const struct iommu_functions *ops);
+extern int omap_install_iommu_arch(const struct iommu_functions *ops);
+extern void omap_uninstall_iommu_arch(const struct iommu_functions *ops);
 
-extern int foreach_iommu_device(void *data,
+extern int omap_foreach_iommu_device(void *data,
 				int (*fn)(struct device *, void *));
 
-extern ssize_t iommu_dump_ctx(struct iommu *obj, char *buf, ssize_t len);
-extern size_t dump_tlb_entries(struct iommu *obj, char *buf, ssize_t len);
+extern ssize_t
+omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len);
+extern size_t
+omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t len);
 struct device *omap_find_iommu_device(const char *name);
 
 #endif /* __MACH_IOMMU_H */

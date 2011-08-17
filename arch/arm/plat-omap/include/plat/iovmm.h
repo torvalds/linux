@@ -16,7 +16,7 @@
 #include <linux/iommu.h>
 
 struct iovm_struct {
-	struct iommu		*iommu;	/* iommu object which this belongs to */
+	struct omap_iommu	*iommu;	/* iommu object which this belongs to */
 	u32			da_start; /* area definition */
 	u32			da_end;
 	u32			flags; /* IOVMF_: see below */
@@ -72,15 +72,18 @@ struct iovm_struct {
 #define IOVMF_DA_FIXED		(1 << (4 + IOVMF_SW_SHIFT))
 
 
-extern struct iovm_struct *find_iovm_area(struct iommu *obj, u32 da);
-extern u32 iommu_vmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
+extern struct iovm_struct *omap_find_iovm_area(struct omap_iommu *obj, u32 da);
+extern u32
+omap_iommu_vmap(struct iommu_domain *domain, struct omap_iommu *obj, u32 da,
 			const struct sg_table *sgt, u32 flags);
-extern struct sg_table *iommu_vunmap(struct iommu_domain *domain,
-				struct iommu *obj, u32 da);
-extern u32 iommu_vmalloc(struct iommu_domain *domain, struct iommu *obj,
+extern struct sg_table *omap_iommu_vunmap(struct iommu_domain *domain,
+				struct omap_iommu *obj, u32 da);
+extern u32
+omap_iommu_vmalloc(struct iommu_domain *domain, struct omap_iommu *obj,
 				u32 da, size_t bytes, u32 flags);
-extern void iommu_vfree(struct iommu_domain *domain, struct iommu *obj,
+extern void
+omap_iommu_vfree(struct iommu_domain *domain, struct omap_iommu *obj,
 				const u32 da);
-extern void *da_to_va(struct iommu *obj, u32 da);
+extern void *omap_da_to_va(struct omap_iommu *obj, u32 da);
 
 #endif /* __IOMMU_MMAP_H */
