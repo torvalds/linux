@@ -2555,6 +2555,11 @@ S:	Maintained
 F:	Documentation/filesystems/ext4.txt
 F:	fs/ext4/
 
+Extended Verification Module (EVM)
+M:	Mimi Zohar <zohar@us.ibm.com>
+S:	Supported
+F:	security/integrity/evm/
+
 F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
