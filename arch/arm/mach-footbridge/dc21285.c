@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <video/vga.h>
 
 #include <asm/irq.h>
 #include <asm/system.h>
