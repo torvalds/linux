@@ -96,13 +96,16 @@ static int xen_pci_notifier(struct notifier_block *nb,
 		r = xen_remove_device(dev);
 		break;
 	default:
-		break;
+		return NOTIFY_DONE;
 	}
-
-	return r;
+	if (r)
+		dev_err(dev, "Failed to %s - passthrough or MSI/MSI-X might fail!\n",
+			action == BUS_NOTIFY_ADD_DEVICE ? "add" :
+			(action == BUS_NOTIFY_DEL_DEVICE ? "delete" : "?"));
+	return NOTIFY_OK;
 }
 
-struct notifier_block device_nb = {
+static struct notifier_block device_nb = {
 	.notifier_call = xen_pci_notifier,
 };
 
