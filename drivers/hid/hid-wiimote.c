@@ -60,6 +60,8 @@ enum wiiproto_reqs {
 	WIIPROTO_REQ_NULL = 0x0,
 	WIIPROTO_REQ_LED = 0x11,
 	WIIPROTO_REQ_DRM = 0x12,
+	WIIPROTO_REQ_STATUS = 0x20,
+	WIIPROTO_REQ_RETURN = 0x22,
 	WIIPROTO_REQ_DRM_K = 0x30,
 };
 
@@ -313,6 +315,26 @@ static void handler_keys(struct wiimote_data *wdata, const __u8 *payload)
 	input_sync(wdata->input);
 }
 
+static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
+{
+	handler_keys(wdata, payload);
+
+	/* on status reports the drm is reset so we need to resend the drm */
+	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+}
+
+static void handler_return(struct wiimote_data *wdata, const __u8 *payload)
+{
+	__u8 err = payload[3];
+	__u8 cmd = payload[2];
+
+	handler_keys(wdata, payload);
+
+	if (err)
+		hid_warn(wdata->hdev, "Remote error %hhu on req %hhu\n", err,
+									cmd);
+}
+
 struct wiiproto_handler {
 	__u8 id;
 	size_t size;
@@ -320,6 +342,8 @@ struct wiiproto_handler {
 };
 
 static struct wiiproto_handler handlers[] = {
+	{ .id = WIIPROTO_REQ_STATUS, .size = 6, .func = handler_status },
+	{ .id = WIIPROTO_REQ_RETURN, .size = 4, .func = handler_return },
 	{ .id = WIIPROTO_REQ_DRM_K, .size = 2, .func = handler_keys },
 	{ .id = 0 }
 };
