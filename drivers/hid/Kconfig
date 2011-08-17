@@ -589,6 +589,7 @@ config HID_WACOM_POWER_SUPPLY
 config HID_WIIMOTE
 	tristate "Nintendo Wii Remote support"
 	depends on BT_HIDP
+	depends on LEDS_CLASS
 	---help---
 	Support for the Nintendo Wii Remote bluetooth device.
 
