@@ -8,7 +8,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/reboot.h>
 #include <linux/signal.h>
+#include <linux/power_supply.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-sysctrl.h>
@@ -19,6 +21,31 @@ void ab8500_power_off(void)
 {
 	sigset_t old;
 	sigset_t all;
+	static char *pss[] = {"ab8500_ac", "ab8500_usb"};
+	int i;
+
+	/*
+	 * If we have a charger connected and we're powering off,
+	 * reboot into charge-only mode.
+	 */
+
+	for (i = 0; i < ARRAY_SIZE(pss); i++) {
+		union power_supply_propval val;
+		struct power_supply *psy;
+		int ret;
+
+		psy = power_supply_get_by_name(pss[i]);
+		if (!psy)
+			continue;
+		ret = psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &val);
+
+		if (!ret && val.intval) {
+			printk(KERN_INFO
+			       "Charger \"%s\" is connected. Rebooting.\n",
+			       pss[i]);
+			machine_restart(NULL);
+		}
+	}
 
 	sigfillset(&all);
 
