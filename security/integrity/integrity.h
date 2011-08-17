@@ -45,3 +45,6 @@ struct integrity_iint_cache {
  */
 struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
+
+/* set during initialization */
+extern int iint_initialized;
