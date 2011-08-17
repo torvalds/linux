@@ -395,6 +395,22 @@ static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 	}
 }
 
+static inline unsigned int hci_conn_num(struct hci_dev *hdev, __u8 type)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	switch (type) {
+	case ACL_LINK:
+		return h->acl_num;
+	case LE_LINK:
+		return h->le_num;
+	case SCO_LINK:
+	case ESCO_LINK:
+		return h->sco_num;
+	default:
+		return 0;
+	}
+}
+
 static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
 								__u16 handle)
 {

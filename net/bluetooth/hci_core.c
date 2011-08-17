@@ -2074,6 +2074,9 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 			min  = c->sent;
 			conn = c;
 		}
+
+		if (hci_conn_num(hdev, type) == num)
+			break;
 	}
 
 	if (conn) {
@@ -2131,6 +2134,9 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
+	if (!hci_conn_num(hdev, ACL_LINK))
+		return;
+
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		/* ACL tx timeout must be longer than maximum
 		 * link supervision timeout (40.9 seconds) */
@@ -2162,6 +2168,9 @@ static inline void hci_sched_sco(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
+	if (!hci_conn_num(hdev, SCO_LINK))
+		return;
+
 	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, SCO_LINK, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
@@ -2182,6 +2191,9 @@ static inline void hci_sched_esco(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
+	if (!hci_conn_num(hdev, ESCO_LINK))
+		return;
+
 	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, ESCO_LINK, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
@@ -2201,6 +2213,9 @@ static inline void hci_sched_le(struct hci_dev *hdev)
 	int quote, cnt;
 
 	BT_DBG("%s", hdev->name);
+
+	if (!hci_conn_num(hdev, LE_LINK))
+		return;
 
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		/* LE tx timeout must be longer than maximum
