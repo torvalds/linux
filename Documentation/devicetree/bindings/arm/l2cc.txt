@@ -28,6 +28,7 @@ Optional properties:
 - arm,filter-ranges : <start length> Starting address and length of window to
   filter. Addresses in the filter window are directed to the M1 port. Other
   addresses will go to the M0 port.
+- interrupts : 1 combined interrupt.
 
 Example:
 
@@ -39,4 +40,5 @@ L2: cache-controller {
         arm,filter-latency = <0x80000000 0x8000000>;
         cache-unified;
         cache-level = <2>;
+	interrupts = <45>;
 };
