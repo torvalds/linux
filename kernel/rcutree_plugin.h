@@ -1149,6 +1149,8 @@ static void rcu_initiate_boost_trace(struct rcu_node *rnp)
 
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
+static struct lock_class_key rcu_boost_class;
+
 /*
  * Carry out RCU priority boosting on the task indicated by ->exp_tasks
  * or ->boost_tasks, advancing the pointer to the next task in the
@@ -1211,6 +1213,9 @@ static int rcu_boost(struct rcu_node *rnp)
 	 */
 	t = container_of(tb, struct task_struct, rcu_node_entry);
 	rt_mutex_init_proxy_locked(&mtx, t);
+	/* Avoid lockdep false positives.  This rt_mutex is its own thing. */
+	lockdep_set_class_and_name(&mtx.wait_lock, &rcu_boost_class,
+				   "rcu_boost_mutex");
 	t->rcu_boost_mutex = &mtx;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	rt_mutex_lock(&mtx);  /* Side effect: boosts task t's priority. */
