@@ -3141,9 +3141,9 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm8994_request_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR,
 			   wm8994_fifo_error, "FIFO error", codec);
-	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_WARN,
+	wm8994_request_irq(wm8994->control_data, WM8994_IRQ_TEMP_WARN,
 			   wm8994_temp_warn, "Thermal warning", codec);
-	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT,
+	wm8994_request_irq(wm8994->control_data, WM8994_IRQ_TEMP_SHUT,
 			   wm8994_temp_shut, "Thermal shutdown", codec);
 
 	ret = wm8994_request_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
