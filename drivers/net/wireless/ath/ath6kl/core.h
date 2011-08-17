@@ -42,6 +42,9 @@
 #define ATH6KL_MAX_ENDPOINTS   4
 #define MAX_NODE_NUM           15
 
+/* Extra bytes for htc header alignment */
+#define ATH6KL_HTC_ALIGN_BYTES 3
+
 /* MAX_HI_COOKIE_NUM are reserved for high priority traffic */
 #define MAX_DEF_COOKIE_NUM                180
 #define MAX_HI_COOKIE_NUM                 18	/* 10% of MAX_COOKIE_NUM */

@@ -67,7 +67,7 @@ struct sk_buff *ath6kl_buf_alloc(int size)
 
 	/* Add chacheline space at front and back of buffer */
 	reserved = (2 * L1_CACHE_BYTES) + ATH6KL_DATA_OFFSET +
-		   sizeof(struct htc_packet);
+		   sizeof(struct htc_packet) + ATH6KL_HTC_ALIGN_BYTES;
 	skb = dev_alloc_skb(size + reserved);
 
 	if (skb)
