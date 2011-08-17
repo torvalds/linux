@@ -504,7 +504,7 @@ static int iscsi_target_do_authentication(
 		break;
 	case 1:
 		pr_debug("iSCSI security negotiation"
-			" completed sucessfully.\n");
+			" completed successfully.\n");
 		login->auth_complete = 1;
 		if ((login_req->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE1) &&
 		    (login_req->flags & ISCSI_FLAG_LOGIN_TRANSIT)) {

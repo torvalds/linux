@@ -553,7 +553,7 @@ static int bcm5481_config_aneg(struct phy_device *phydev)
 		/*
 		 * There is no BCM5481 specification available, so down
 		 * here is everything we know about "register 0x18". This
-		 * at least helps BCM5481 to successfuly receive packets
+		 * at least helps BCM5481 to successfully receive packets
 		 * on MPC8360E-RDK board. Peter Barada <peterb@logicpd.com>
 		 * says: "This sets delay between the RXD and RXC signals
 		 * instead of using trace lengths to achieve timing".

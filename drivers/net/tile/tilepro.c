@@ -177,7 +177,7 @@ struct tile_net_cpu {
 	struct tile_net_stats_t stats;
 	/* True iff NAPI is enabled. */
 	bool napi_enabled;
-	/* True if this tile has succcessfully registered with the IPP. */
+	/* True if this tile has successfully registered with the IPP. */
 	bool registered;
 	/* True if the link was down last time we tried to register. */
 	bool link_down;
