@@ -548,4 +548,4 @@ struct usb_driver stub_driver = {
 	.id_table	= stub_table,
 	.pre_reset	= stub_pre_reset,
 	.post_reset	= stub_post_reset,
- };
+};

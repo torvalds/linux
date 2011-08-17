@@ -179,8 +179,7 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	 * longer unbinds. This allows the use of synchronous reset.
 	 */
 
-	if (usb_lock_device_for_reset(sdev->udev, sdev->interface)<0)
-	{
+	if (usb_lock_device_for_reset(sdev->udev, sdev->interface) < 0) {
 		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
 		return 0;
 	}
