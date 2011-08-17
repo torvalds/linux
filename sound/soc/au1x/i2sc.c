@@ -267,7 +267,6 @@ static int __devinit au1xi2s_drvprobe(struct platform_device *pdev)
 
 	return 0;
 
-	snd_soc_unregister_dai(&pdev->dev);
 out1:
 	release_mem_region(r->start, resource_size(r));
 out0:
