@@ -178,13 +178,13 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
+#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD2//RK29_PIN6_PD0
 #define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
-#define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
+#define FB_LCD_CABC_EN_PIN          INVALID_GPIO
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
-#define FB_DISPLAY_ON_VALUE         GPIO_HIGH
-#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
+#define FB_DISPLAY_ON_VALUE          GPIO_HIGH
+#define FB_LCD_STANDBY_VALUE       GPIO_HIGH
 
 static int rk29_lcd_io_init(void)
 {
@@ -211,12 +211,17 @@ int rk29_fb_io_enable(void)
     if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
     {
         gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-        gpio_set_value(FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE);              
+        gpio_set_value(FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE); 
+        printk("%s set %d value %d\n",__func__,FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE);
     }
     if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
     {
         gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
-        gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);             
+        gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);  
+
+      //  gpio_direction_output(RK29_PIN4_PD1, 0);
+      //  gpio_set_value(RK29_PIN4_PD1, GPIO_HIGH); 
+        printk("%s set %d value %d\n",__func__,FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);
     }
     return 0;
 }
@@ -226,12 +231,17 @@ int rk29_fb_io_disable(void)
     if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
     {
         gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-        gpio_set_value(FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);              
+        gpio_set_value(FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);  
+        printk("%s set %d value %d\n",__func__,FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);
     }
     if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
     {
         gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
-        gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);             
+        gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE); 
+
+       // gpio_direction_output(RK29_PIN4_PD1, 0);
+       // gpio_set_value(RK29_PIN4_PD1, GPIO_LOW); 
+        printk("%s set %d value %d\n",__func__,FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);
     }
     return 0;
 }
@@ -308,24 +318,10 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
         gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
     }
+    
+  //  rk29_mux_api_set(GPIO4D10_CPUTRACEDATA10_NAME, 0);
+  //   ret = gpio_request(RK29_PIN4_PD1, NULL);
 
-    gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-    gpio_direction_output(FB_LCD_STANDBY_PIN, 0);    
-    gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
-    gpio_set_value(FB_DISPLAY_ON_PIN, GPIO_HIGH);//add by xhh    
-    gpio_set_value(FB_LCD_STANDBY_PIN, GPIO_HIGH);//add by xhh    
-    gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_HIGH);//add by xhh
-    
-	if(gpio_get_value(FB_LCD_STANDBY_PIN)) //add by xhh
-        {
-        printk(">>>>>> xhh FB_LCD_STANDBY_PIN 11111 \n ");
-        }
-    else
-        {
-        
-        printk(">>>>>> xhh FB_LCD_STANDBY_PIN 00000 \n ");
-        }
-    
     rk29_fb_io_enable();   //enable it
 
     return ret;
@@ -507,15 +503,15 @@ static int atmel_mxt1386_init_platform_hw(void)
 	printk(KERN_INFO "%s: atmel_mxt1386_init_platform_hw enter!\n", __func__);	/////////////////
 
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
-      gpio_free(TOUCH_RESET_PIN);
-      printk("atmel_mxt1386_init_platform_hw gpio_request error\n");
-      return -EIO;
+     // gpio_free(TOUCH_RESET_PIN);
+    //  printk("atmel_mxt1386_init_platform_hw gpio_request error\n");
+    //  return -EIO;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
-      gpio_free(TOUCH_INT_PIN);
-      printk("atmel_mxt1386_init_platform_hw gpio_request error\n");
-      return -EIO;
+    //  gpio_free(TOUCH_INT_PIN);
+    //  printk("atmel_mxt1386_init_platform_hw gpio_request error\n");
+    //  return -EIO;
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
@@ -627,9 +623,30 @@ static struct mma8452_platform_data mma8452_info = {
 /*mpu3050*/
 static struct mpu3050_platform_data mpu3050_data = {
 	.int_config = 0x10,
+	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+	.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 }, //re
+
+
+    
+	//.orientation = { -1, 0, 0, 0, -1, 0,0, 0, 1 }, 
+	//.orientation = { 0, -1,0,  0, 0, -1, 1, 0, 0 }, 
+	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, -1 },
+	//.orientation = { 0, 0, 1,0, 1, 0,1, 0, 0 },
 	//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+	//.orientation = { 1, 0, 0,0, -1, 0,0, 0, -1 },
+	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, -1 },
+	//.orientation = { -1, 0, 0,0, 1, 0,0, 0, -1 },
+	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+	//.orientation = { 0, 0, 1,0, -1, 0,1, 0, 0 },
+	//.orientation = { -1, 0, 0,0, 0, 1,0, 1, 0 },
+	//.orientation = { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
+	//.orientation = { 0, 1, 0, 1, 0, 0, 0, 0, 1 }, //z
+	//.orientation = { 0, 0, -1,-1, 0, 0,0, 1, 0 },
+	//.orientation = { -1, 0, 0,0, 0, -1,0, -1, 0 },
+	//.orientation = { 0, -1, 0, 1, 0, 0,0, 0, 1 },	
 	//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
-	.orientation = { -1, 0, 0,0, -1, 0, 0, 0, -1 },
+	//.orientation = { -1, 0, 0,0, -1, 0, 0, 0, -1 },
 	.level_shifter = 0,
 #if defined (CONFIG_SENSORS_KXTF9)
     .accel = {
@@ -655,7 +672,7 @@ static struct mpu3050_platform_data mpu3050_data = {
     	.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
     	.address = 0x38,//0x1c, //
     	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-    	.orientation = { 0, -1, 0,1, 0, 0,0, 0, -1 },
+    	.orientation = { 0, -1, 0,1, 0, 0, 0, 0, 1 },
     	//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
     	//.orientation = {1, 0, 0, 0, -1, 0, 0, 0, -1},
     	},
@@ -670,9 +687,15 @@ static struct mpu3050_platform_data mpu3050_data = {
     	.irq = RK29_PIN0_PA4,
     	.bus = EXT_SLAVE_BUS_PRIMARY,
     	.address = 0x0d, //
+    	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },  //ok
+    	//.orientation = { -1, 0, 0,0, 1, 0,0, 0, 1 }, 
+    	//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 }, 
     	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-    	//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
-    	.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+    	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+    	//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, 1 },
+    	//.orientation = { 0, -1, 0,1, 0, 0,0, 0, 1 },
+    	//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, 1 },
+    	.orientation = { 0, 1, 0,-1, 0, 0,0, 0, 1 },
     	},
 #endif
 };
@@ -1072,7 +1095,7 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
 #define PWM_GPIO RK29_PIN1_PB5
 #define PWM_EFFECT_VALUE  1
 
-#define LCD_DISP_ON_PIN
+#define LCD_DISP_ON_PIN 1
 
 #ifdef  LCD_DISP_ON_PIN
 //#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
@@ -1120,7 +1143,8 @@ static int rk29_backlight_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	//gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	gpio_direction_output(PWM_GPIO, GPIO_HIGH);
    #ifdef  LCD_DISP_ON_PIN
     gpio_direction_output(BL_EN_PIN, 0);
     gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
