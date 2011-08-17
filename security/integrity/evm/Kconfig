@@ -1,6 +1,6 @@
 config EVM
 	boolean "EVM support"
-	depends on SECURITY && KEYS
+	depends on SECURITY && KEYS && TCG_TPM
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
