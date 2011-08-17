@@ -202,7 +202,10 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 {
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct atm_vcc *atmvcc;
-	int minheadroom = (brvcc->encaps == e_llc) ? 10 : 2;
+	int minheadroom = (brvcc->encaps == e_llc) ?
+		((brdev->payload == p_bridged) ?
+			sizeof(llc_oui_pid_pad) : sizeof(llc_oui_ipv4)) :
+		((brdev->payload == p_bridged) ? BR2684_PAD_LEN : 0);
 
 	if (skb_headroom(skb) < minheadroom) {
 		struct sk_buff *skb2 = skb_realloc_headroom(skb, minheadroom);
@@ -583,6 +586,7 @@ static void br2684_setup(struct net_device *netdev)
 	struct br2684_dev *brdev = BRPRIV(netdev);
 
 	ether_setup(netdev);
+	netdev->hard_header_len += sizeof(llc_oui_pid_pad); /* worst case */
 	brdev->net_dev = netdev;
 
 	netdev->netdev_ops = &br2684_netdev_ops;
@@ -595,7 +599,7 @@ static void br2684_setup_routed(struct net_device *netdev)
 	struct br2684_dev *brdev = BRPRIV(netdev);
 
 	brdev->net_dev = netdev;
-	netdev->hard_header_len = 0;
+	netdev->hard_header_len = sizeof(llc_oui_ipv4); /* worst case */
 	netdev->netdev_ops = &br2684_netdev_ops_routed;
 	netdev->addr_len = 0;
 	netdev->mtu = 1500;
