@@ -53,6 +53,7 @@ static const unsigned char ethertype_ipv4[] = { ETHERTYPE_IPV4 };
 static const unsigned char ethertype_ipv6[] = { ETHERTYPE_IPV6 };
 static const unsigned char llc_oui_pid_pad[] =
 			{ LLC, SNAP_BRIDGED, PID_ETHERNET, PAD_BRIDGED };
+static const unsigned char pad[] = { PAD_BRIDGED };
 static const unsigned char llc_oui_ipv4[] = { LLC, SNAP_ROUTED, ETHERTYPE_IPV4 };
 static const unsigned char llc_oui_ipv6[] = { LLC, SNAP_ROUTED, ETHERTYPE_IPV6 };
 
@@ -453,7 +454,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			skb->pkt_type = PACKET_HOST;
 		} else { /* p_bridged */
 			/* first 2 chars should be 0 */
-			if (*((u16 *) (skb->data)) != 0)
+			if (memcmp(skb->data, pad, BR2684_PAD_LEN) != 0)
 				goto error;
 			skb_pull(skb, BR2684_PAD_LEN);
 			skb->protocol = eth_type_trans(skb, net_dev);
