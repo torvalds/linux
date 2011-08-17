@@ -10,7 +10,6 @@
  * any later version.
  */
 
-#include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/input.h>
@@ -33,7 +32,6 @@ struct wiimote_state {
 };
 
 struct wiimote_data {
-	atomic_t ready;
 	struct hid_device *hdev;
 	struct input_dev *input;
 
@@ -200,9 +198,6 @@ static ssize_t wiifs_led_show_##num(struct device *dev,			\
 	unsigned long flags;						\
 	int state;							\
 									\
-	if (!atomic_read(&wdata->ready))				\
-		return -EBUSY;						\
-									\
 	spin_lock_irqsave(&wdata->state.lock, flags);			\
 	state = !!(wdata->state.flags & WIIPROTO_FLAG_LED##num);	\
 	spin_unlock_irqrestore(&wdata->state.lock, flags);		\
@@ -216,9 +211,6 @@ static ssize_t wiifs_led_set_##num(struct device *dev,			\
 	int tmp = simple_strtoul(buf, NULL, 10);			\
 	unsigned long flags;						\
 	__u8 state;							\
-									\
-	if (!atomic_read(&wdata->ready))				\
-		return -EBUSY;						\
 									\
 	spin_lock_irqsave(&wdata->state.lock, flags);			\
 									\
@@ -244,13 +236,6 @@ wiifs_led_show_set(4);
 static int wiimote_input_event(struct input_dev *dev, unsigned int type,
 						unsigned int code, int value)
 {
-	struct wiimote_data *wdata = input_get_drvdata(dev);
-
-	if (!atomic_read(&wdata->ready))
-		return -EBUSY;
-	/* smp_rmb: Make sure wdata->xy is available when wdata->ready is 1 */
-	smp_rmb();
-
 	return 0;
 }
 
@@ -299,11 +284,6 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 	struct wiiproto_handler *h;
 	int i;
 	unsigned long flags;
-
-	if (!atomic_read(&wdata->ready))
-		return -EBUSY;
-	/* smp_rmb: Make sure wdata->xy is available when wdata->ready is 1 */
-	smp_rmb();
 
 	if (size < 1)
 		return -EINVAL;
@@ -362,6 +342,15 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 
 static void wiimote_destroy(struct wiimote_data *wdata)
 {
+	device_remove_file(&wdata->hdev->dev, &dev_attr_led1);
+	device_remove_file(&wdata->hdev->dev, &dev_attr_led2);
+	device_remove_file(&wdata->hdev->dev, &dev_attr_led3);
+	device_remove_file(&wdata->hdev->dev, &dev_attr_led4);
+
+	input_unregister_device(wdata->input);
+	cancel_work_sync(&wdata->worker);
+	hid_hw_stop(wdata->hdev);
+
 	kfree(wdata);
 }
 
@@ -376,19 +365,6 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		hid_err(hdev, "Can't alloc device\n");
 		return -ENOMEM;
 	}
-
-	ret = device_create_file(&hdev->dev, &dev_attr_led1);
-	if (ret)
-		goto err;
-	ret = device_create_file(&hdev->dev, &dev_attr_led2);
-	if (ret)
-		goto err;
-	ret = device_create_file(&hdev->dev, &dev_attr_led3);
-	if (ret)
-		goto err;
-	ret = device_create_file(&hdev->dev, &dev_attr_led4);
-	if (ret)
-		goto err;
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -408,9 +384,19 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_stop;
 	}
 
-	/* smp_wmb: Write wdata->xy first before wdata->ready is set to 1 */
-	smp_wmb();
-	atomic_set(&wdata->ready, 1);
+	ret = device_create_file(&hdev->dev, &dev_attr_led1);
+	if (ret)
+		goto err_free;
+	ret = device_create_file(&hdev->dev, &dev_attr_led2);
+	if (ret)
+		goto err_free;
+	ret = device_create_file(&hdev->dev, &dev_attr_led3);
+	if (ret)
+		goto err_free;
+	ret = device_create_file(&hdev->dev, &dev_attr_led4);
+	if (ret)
+		goto err_free;
+
 	hid_info(hdev, "New device registered\n");
 
 	/* by default set led1 after device initialization */
@@ -420,15 +406,15 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 
 	return 0;
 
+err_free:
+	wiimote_destroy(wdata);
+	return ret;
+
 err_stop:
 	hid_hw_stop(hdev);
 err:
 	input_free_device(wdata->input);
-	device_remove_file(&hdev->dev, &dev_attr_led1);
-	device_remove_file(&hdev->dev, &dev_attr_led2);
-	device_remove_file(&hdev->dev, &dev_attr_led3);
-	device_remove_file(&hdev->dev, &dev_attr_led4);
-	wiimote_destroy(wdata);
+	kfree(wdata);
 	return ret;
 }
 
@@ -437,16 +423,6 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
 
 	hid_info(hdev, "Device removed\n");
-
-	device_remove_file(&hdev->dev, &dev_attr_led1);
-	device_remove_file(&hdev->dev, &dev_attr_led2);
-	device_remove_file(&hdev->dev, &dev_attr_led3);
-	device_remove_file(&hdev->dev, &dev_attr_led4);
-
-	hid_hw_stop(hdev);
-	input_unregister_device(wdata->input);
-
-	cancel_work_sync(&wdata->worker);
 	wiimote_destroy(wdata);
 }
 
