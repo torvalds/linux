@@ -239,6 +239,20 @@ static int wiimote_input_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
+static int wiimote_input_open(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+
+	return hid_hw_open(wdata->hdev);
+}
+
+static void wiimote_input_close(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+
+	hid_hw_close(wdata->hdev);
+}
+
 static void handler_keys(struct wiimote_data *wdata, const __u8 *payload)
 {
 	input_report_key(wdata->input, wiiproto_keymap[WIIPROTO_KEY_LEFT],
@@ -321,6 +335,8 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 
 	input_set_drvdata(wdata->input, wdata);
 	wdata->input->event = wiimote_input_event;
+	wdata->input->open = wiimote_input_open;
+	wdata->input->close = wiimote_input_close;
 	wdata->input->dev.parent = &wdata->hdev->dev;
 	wdata->input->id.bustype = wdata->hdev->bus;
 	wdata->input->id.vendor = wdata->hdev->vendor;
