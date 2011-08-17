@@ -111,12 +111,12 @@ static int max17042_get_property(struct power_supply *psy,
 		val->intval *= 10000; /* Units of LSB = 10mV */
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = max17042_read_reg(chip->client,
-				MAX17042_VCELL) * 83; /* 1000 / 12 = 83 */
+		val->intval = max17042_read_reg(chip->client, MAX17042_VCELL)
+			    * 625 / 8;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
-		val->intval = max17042_read_reg(chip->client,
-				MAX17042_AvgVCELL) * 83;
+		val->intval = max17042_read_reg(chip->client, MAX17042_AvgVCELL)
+			    * 625 / 8;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = max17042_read_reg(chip->client,
