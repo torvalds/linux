@@ -238,10 +238,12 @@ struct sta_ampdu_mlme {
  * @plink_timer: peer link watch timer
  * @plink_timer_was_running: used by suspend/resume to restore timers
  * @debugfs: debug filesystem info
- * @sta: station information we share with the driver
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
  * @lost_packets: number of consecutive lost packets
+ * @dummy: indicate a dummy station created for receiving
+ *	EAP frames before association
+ * @sta: station information we share with the driver
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -335,6 +337,9 @@ struct sta_info {
 #endif
 
 	unsigned int lost_packets;
+
+	/* should be right in front of sta to be in the same cache line */
+	bool dummy;
 
 	/* keep last! */
 	struct ieee80211_sta sta;
@@ -436,7 +441,13 @@ rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
 struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 			      const u8 *addr);
 
+struct sta_info *sta_info_get_rx(struct ieee80211_sub_if_data *sdata,
+			      const u8 *addr);
+
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr);
+
+struct sta_info *sta_info_get_bss_rx(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr);
 
 static inline
@@ -448,6 +459,22 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 }
 
 #define for_each_sta_info(local, _addr, _sta, nxt) 			\
+	for (	/* initialise loop */					\
+		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
+		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
+		/* typecheck */						\
+		for_each_sta_info_type_check(local, (_addr), _sta, nxt),\
+		/* continue condition */				\
+		_sta;							\
+		/* advance loop */					\
+		_sta = nxt,						\
+		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
+	     )								\
+	/* run code only if address matches and it's not a dummy sta */	\
+	if (memcmp(_sta->sta.addr, (_addr), ETH_ALEN) == 0 &&		\
+		!_sta->dummy)
+
+#define for_each_sta_info_rx(local, _addr, _sta, nxt)			\
 	for (	/* initialise loop */					\
 		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
 		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
@@ -484,6 +511,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 int sta_info_insert(struct sta_info *sta);
 int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU);
 int sta_info_insert_atomic(struct sta_info *sta);
+int sta_info_reinsert(struct sta_info *sta);
 
 int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,
 			  const u8 *addr);
