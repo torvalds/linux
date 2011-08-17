@@ -1043,25 +1043,10 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 	const char *fw_name;
 	int ret;
 
-	switch (wl->bss_type) {
-	case BSS_TYPE_AP_BSS:
-		if (wl->chip.id == CHIP_ID_1283_PG20)
-			fw_name = WL128X_AP_FW_NAME;
-		else
-			fw_name = WL127X_AP_FW_NAME;
-		break;
-	case BSS_TYPE_IBSS:
-	case BSS_TYPE_STA_BSS:
-		if (wl->chip.id == CHIP_ID_1283_PG20)
-			fw_name = WL128X_FW_NAME;
-		else
-			fw_name	= WL1271_FW_NAME;
-		break;
-	default:
-		wl1271_error("no compatible firmware for bss_type %d",
-			     wl->bss_type);
-		return -EINVAL;
-	}
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		fw_name = WL128X_FW_NAME;
+	else
+		fw_name	= WL127X_FW_NAME;
 
 	wl1271_debug(DEBUG_BOOT, "booting firmware %s", fw_name);
 
@@ -1090,7 +1075,6 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 	}
 
 	memcpy(wl->fw, fw->data, wl->fw_len);
-	wl->fw_bss_type = wl->bss_type;
 	ret = 0;
 
 out:
@@ -1361,8 +1345,7 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		goto out;
 	}
 
-	/* Make sure the firmware type matches the BSS type */
-	if (wl->fw == NULL || wl->fw_bss_type != wl->bss_type) {
+	if (wl->fw == NULL) {
 		ret = wl1271_fetch_firmware(wl);
 		if (ret < 0)
 			goto out;
@@ -1796,9 +1779,6 @@ static int wl1271_op_start(struct ieee80211_hw *hw)
 	 *
 	 * The MAC address is first known when the corresponding interface
 	 * is added. That is where we will initialize the hardware.
-	 *
-	 * In addition, we currently have different firmwares for AP and managed
-	 * operation. We will know which to boot according to interface type.
 	 */
 
 	return 0;
@@ -4393,7 +4373,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->hw_pg_ver = -1;
 	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;
-	wl->fw_bss_type = MAX_BSS_TYPE;
 	wl->last_tx_hlid = 0;
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
