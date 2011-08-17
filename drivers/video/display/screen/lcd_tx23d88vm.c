@@ -10,8 +10,8 @@
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
 
-//#define OUT_FACE		OUT_D888_P666
-#define OUT_FACE		OUT_P888//modify by xhh
+#define OUT_FACE		OUT_D888_P666
+//#define OUT_FACE		OUT_P888//modify by xhh
 
 
 #define OUT_CLK			 66000000//64000000
