@@ -62,6 +62,7 @@ config ARCH_EBSA285_HOST
 config ARCH_NETWINDER
 	bool "NetWinder"
 	select CLKSRC_I8253
+	select CLKEVT_I8253
 	select FOOTBRIDGE_HOST
 	select ISA
 	select ISA_DMA
