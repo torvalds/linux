@@ -355,6 +355,9 @@ struct wl1271_link {
 	u8 prev_freed_blks;
 
 	u8 addr[ETH_ALEN];
+
+	/* bitmap of TIDs where RX BA sessions are active for this link */
+	u8 ba_bitmap;
 };
 
 struct wl1271 {
@@ -609,6 +612,9 @@ struct wl1271 {
 
 	/* Platform limitations */
 	unsigned int platform_quirks;
+
+	/* number of currently active RX BA sessions */
+	int ba_rx_session_count;
 };
 
 struct wl1271_station {

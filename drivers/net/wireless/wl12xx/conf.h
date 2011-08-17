@@ -557,6 +557,9 @@ struct conf_tx_ac_category {
 
 #define CONF_TX_MAX_TID_COUNT 8
 
+/* Allow TX BA on all TIDs but 6,7. These are currently reserved in the FW */
+#define CONF_TX_BA_ENABLED_TID_BITMAP 0x3F
+
 enum {
 	CONF_CHANNEL_TYPE_DCF = 0,   /* DC/LEGACY*/
 	CONF_CHANNEL_TYPE_EDCF = 1,  /* EDCA*/
@@ -1095,8 +1098,12 @@ struct conf_rf_settings {
 };
 
 struct conf_ht_setting {
-	u16 tx_ba_win_size;
+	u8 rx_ba_win_size;
+	u8 tx_ba_win_size;
 	u16 inactivity_timeout;
+
+	/* bitmap of enabled TIDs for TX BA sessions */
+	u8 tx_ba_tid_bitmap;
 };
 
 struct conf_memory_settings {

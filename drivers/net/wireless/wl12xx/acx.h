@@ -899,6 +899,10 @@ struct wl1271_acx_rssi_snr_avg_weights {
 	u8 snr_data;
 };
 
+
+/* special capability bit (not employed by the 802.11n spec) */
+#define WL12XX_HT_CAP_HT_OPERATION BIT(16)
+
 /*
  * ACX_PEER_HT_CAP
  * Configure HT capabilities - declare the capabilities of the peer
@@ -907,19 +911,7 @@ struct wl1271_acx_rssi_snr_avg_weights {
 struct wl1271_acx_ht_capabilities {
 	struct acx_header header;
 
-	/*
-	 * bit 0 - Allow HT Operation
-	 * bit 1 - Allow Greenfield format in TX
-	 * bit 2 - Allow Short GI in TX
-	 * bit 3 - Allow L-SIG TXOP Protection in TX
-	 * bit 4 - Allow HT Control fields in TX.
-	 *         Note, driver will still leave space for HT control in packets
-	 *         regardless of the value of this field. FW will be responsible
-	 *         to drop the HT field from any frame when this Bit set to 0.
-	 * bit 5 - Allow RD initiation in TXOP. FW is allowed to initate RD.
-	 *         Exact policy setting for this feature is TBD.
-	 *         Note, this bit can only be set to 1 if bit 3 is set to 1.
-	 */
+	/* bitmask of capability bits supported by the peer */
 	__le32 ht_capabilites;
 
 	/* Indicates to which link these capabilities apply. */
@@ -936,15 +928,6 @@ struct wl1271_acx_ht_capabilities {
 
 	u8 padding;
 } __packed;
-
-/* HT Capabilites Fw Bit Mask Mapping */
-#define WL1271_ACX_FW_CAP_HT_OPERATION                 BIT(0)
-#define WL1271_ACX_FW_CAP_GREENFIELD_FRAME_FORMAT      BIT(1)
-#define WL1271_ACX_FW_CAP_SHORT_GI_FOR_20MHZ_PACKETS   BIT(2)
-#define WL1271_ACX_FW_CAP_LSIG_TXOP_PROTECTION         BIT(3)
-#define WL1271_ACX_FW_CAP_HT_CONTROL_FIELDS            BIT(4)
-#define WL1271_ACX_FW_CAP_RD_INITIATION                BIT(5)
-
 
 /*
  * ACX_HT_BSS_OPERATION
@@ -979,57 +962,48 @@ struct wl1271_acx_ht_information {
 	u8 padding[2];
 } __packed;
 
-#define RX_BA_WIN_SIZE 8
+#define RX_BA_MAX_SESSIONS 2
 
-struct wl1271_acx_ba_session_policy {
+struct wl1271_acx_ba_initiator_policy {
 	struct acx_header header;
-	/*
-	 * Specifies role Id, Range 0-7, 0xFF means ANY role.
-	 * Future use. For now this field is irrelevant
-	 */
+
+	/* Specifies role Id, Range 0-7, 0xFF means ANY role. */
 	u8 role_id;
+
 	/*
-	 * Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id.
-	 * Not applicable if Role Id is set to ANY.
+	 * Per TID setting for allowing TX BA. Set a bit to 1 to allow
+	 * TX BA sessions for the corresponding TID.
 	 */
-	u8 link_id;
-
-	u8 tid;
-
-	u8 enable;
+	u8 tid_bitmap;
 
 	/* Windows size in number of packets */
-	u16 win_size;
+	u8 win_size;
 
-	/*
-	 * As initiator inactivity timeout in time units(TU) of 1024us.
-	 * As receiver reserved
-	 */
+	u8 padding1[1];
+
+	/* As initiator inactivity timeout in time units(TU) of 1024us */
 	u16 inactivity_timeout;
 
-	/* Initiator = 1/Receiver = 0 */
-	u8 ba_direction;
-
-	u8 padding[3];
+	u8 padding[2];
 } __packed;
 
 struct wl1271_acx_ba_receiver_setup {
 	struct acx_header header;
 
-	/* Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id */
-	u8 link_id;
+	/* Specifies link id, range 0-31 */
+	u8 hlid;
 
 	u8 tid;
 
 	u8 enable;
 
-	u8 padding[1];
-
 	/* Windows size in number of packets */
-	u16 win_size;
+	u8 win_size;
 
 	/* BA session starting sequence number.  RANGE 0-FFF */
 	u16 ssn;
+
+	u8 padding[2];
 } __packed;
 
 struct wl1271_acx_fw_tsf_information {
@@ -1218,7 +1192,7 @@ enum {
 	ACX_RSSI_SNR_WEIGHTS        = 0x0052,
 	ACX_KEEP_ALIVE_MODE         = 0x0053,
 	ACX_SET_KEEP_ALIVE_CONFIG   = 0x0054,
-	ACX_BA_SESSION_POLICY_CFG   = 0x0055,
+	ACX_BA_SESSION_INIT_POLICY  = 0x0055,
 	ACX_BA_SESSION_RX_SETUP     = 0x0056,
 	ACX_PEER_HT_CAP             = 0x0057,
 	ACX_HT_BSS_OPERATION        = 0x0058,
@@ -1297,11 +1271,9 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 				    bool allow_ht_operation);
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   u16 ht_operation_mode);
-int wl1271_acx_set_ba_session(struct wl1271 *wl,
-			      enum ieee80211_back_parties direction,
-			      u8 tid_index, u8 policy);
-int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
-				       bool enable);
+int wl12xx_acx_set_ba_initiator_policy(struct wl1271 *wl);
+int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
+				       u16 ssn, bool enable, u8 peer_hlid);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
 int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable);
 int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl);
