@@ -524,11 +524,11 @@ static void stub_disconnect(struct usb_interface *interface)
 	}
 }
 
-/* 
+/*
  * Presence of pre_reset and post_reset prevents the driver from being unbound
  * when the device is being reset
  */
- 
+
 int stub_pre_reset(struct usb_interface *interface)
 {
 	dev_dbg(&interface->dev, "pre_reset\n");
