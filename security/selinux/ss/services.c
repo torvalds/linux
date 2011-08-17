@@ -1790,7 +1790,6 @@ static void security_load_policycaps(void)
 						  POLICYDB_CAPABILITY_OPENPERM);
 }
 
-extern void selinux_complete_init(void);
 static int security_preserve_bools(struct policydb *p);
 
 /**

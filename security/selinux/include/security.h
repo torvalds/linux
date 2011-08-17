@@ -216,6 +216,7 @@ struct selinux_kernel_status {
 
 extern void selinux_status_update_setenforce(int enforcing);
 extern void selinux_status_update_policyload(int seqno);
+extern void selinux_complete_init(void);
 
 #endif /* _SELINUX_SECURITY_H_ */
 
