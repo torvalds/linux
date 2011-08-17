@@ -1506,7 +1506,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	if (strncmp(dso->name, "/tmp/perf-", 10) == 0) {
 		struct stat st;
 
-		if (stat(dso->name, &st) < 0)
+		if (lstat(dso->name, &st) < 0)
 			return -1;
 
 		if (st.st_uid && (st.st_uid != geteuid())) {
@@ -2181,27 +2181,22 @@ size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
 	return ret;
 }
 
-struct dso *dso__new_kernel(const char *name)
+static struct dso*
+dso__kernel_findnew(struct machine *machine, const char *name,
+		    const char *short_name, int dso_type)
 {
-	struct dso *dso = dso__new(name ?: "[kernel.kallsyms]");
+	/*
+	 * The kernel dso could be created by build_id processing.
+	 */
+	struct dso *dso = __dsos__findnew(&machine->kernel_dsos, name);
 
+	/*
+	 * We need to run this in all cases, since during the build_id
+	 * processing we had no idea this was the kernel dso.
+	 */
 	if (dso != NULL) {
-		dso__set_short_name(dso, "[kernel]");
-		dso->kernel = DSO_TYPE_KERNEL;
-	}
-
-	return dso;
-}
-
-static struct dso *dso__new_guest_kernel(struct machine *machine,
-					const char *name)
-{
-	char bf[PATH_MAX];
-	struct dso *dso = dso__new(name ?: machine__mmap_name(machine, bf,
-							      sizeof(bf)));
-	if (dso != NULL) {
-		dso__set_short_name(dso, "[guest.kernel]");
-		dso->kernel = DSO_TYPE_GUEST_KERNEL;
+		dso__set_short_name(dso, short_name);
+		dso->kernel = dso_type;
 	}
 
 	return dso;
@@ -2219,24 +2214,36 @@ void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 		dso->has_build_id = true;
 }
 
-static struct dso *machine__create_kernel(struct machine *machine)
+static struct dso *machine__get_kernel(struct machine *machine)
 {
 	const char *vmlinux_name = NULL;
 	struct dso *kernel;
 
 	if (machine__is_host(machine)) {
 		vmlinux_name = symbol_conf.vmlinux_name;
-		kernel = dso__new_kernel(vmlinux_name);
+		if (!vmlinux_name)
+			vmlinux_name = "[kernel.kallsyms]";
+
+		kernel = dso__kernel_findnew(machine, vmlinux_name,
+					     "[kernel]",
+					     DSO_TYPE_KERNEL);
 	} else {
+		char bf[PATH_MAX];
+
 		if (machine__is_default_guest(machine))
 			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
-		kernel = dso__new_guest_kernel(machine, vmlinux_name);
+		if (!vmlinux_name)
+			vmlinux_name = machine__mmap_name(machine, bf,
+							  sizeof(bf));
+
+		kernel = dso__kernel_findnew(machine, vmlinux_name,
+					     "[guest.kernel]",
+					     DSO_TYPE_GUEST_KERNEL);
 	}
 
-	if (kernel != NULL) {
+	if (kernel != NULL && (!kernel->has_build_id))
 		dso__read_running_kernel_build_id(kernel, machine);
-		dsos__add(&machine->kernel_dsos, kernel);
-	}
+
 	return kernel;
 }
 
@@ -2340,7 +2347,7 @@ void machine__destroy_kernel_maps(struct machine *machine)
 
 int machine__create_kernel_maps(struct machine *machine)
 {
-	struct dso *kernel = machine__create_kernel(machine);
+	struct dso *kernel = machine__get_kernel(machine);
 
 	if (kernel == NULL ||
 	    __machine__create_kernel_maps(machine, kernel) < 0)
