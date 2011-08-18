@@ -14,15 +14,8 @@
 #define DEFINE_LONGS(sym, val) \
 	asm volatile("\n->" #sym " %0 " #val : : "i" (val/sizeof(unsigned long)))
 
-#define OFFSET(sym, str, mem) \
-	DEFINE(sym, offsetof(struct str, mem));
-
 void foo(void)
 {
-	OFFSET(HOST_SC_TRAPNO, sigcontext, trapno);
-	OFFSET(HOST_SC_ERR, sigcontext, err);
-	OFFSET(HOST_SC_CR2, sigcontext, cr2);
-
 #ifdef __i386__
 	DEFINE_LONGS(HOST_FP_SIZE, sizeof(struct user_fpregs_struct));
 	DEFINE_LONGS(HOST_FPX_SIZE, sizeof(struct user_fpxregs_struct));

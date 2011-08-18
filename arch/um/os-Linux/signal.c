@@ -14,7 +14,7 @@
 #include "os.h"
 #include "process.h"
 #include "sysdep/barrier.h"
-#include "sysdep/sigcontext.h"
+#include "sysdep/mcontext.h"
 
 void (*sig_info[NSIG])(int, struct uml_pt_regs *) = {
 	[SIGTRAP]	= relay_signal,
@@ -34,7 +34,7 @@ static void sig_handler_common(int sig, mcontext_t *mc)
 	r.is_user = 0;
 	if (sig == SIGSEGV) {
 		/* For segfaults, we want the data from the sigcontext. */
-		copy_sc(&r, (struct sigcontext *)mc);
+		get_regs_from_mc(&r, mc);
 		GET_FAULTINFO_FROM_MC(r.faultinfo, mc);
 	}
 
@@ -84,7 +84,7 @@ static void real_alarm_handler(mcontext_t *mc)
 	struct uml_pt_regs regs;
 
 	if (mc != NULL)
-		copy_sc(&regs, (struct sigcontext *)mc);
+		get_regs_from_mc(&regs, mc);
 	regs.is_user = 0;
 	unblock_signals();
 	timer_handler(SIGVTALRM, &regs);
