@@ -2929,6 +2929,13 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	build $build_type or next;
     }
 
+    if ($test_type eq "install") {
+	get_version;
+	install;
+	success $i;
+	next;
+    }
+
     if ($test_type ne "build") {
 	my $failed = 0;
 	start_monitor_and_boot or $failed = 1;
