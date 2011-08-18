@@ -878,7 +878,7 @@ xlog_iodone(xfs_buf_t *bp)
 	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
-	if (XFS_TEST_ERROR((XFS_BUF_GETERROR(bp)), l->l_mp,
+	if (XFS_TEST_ERROR((xfs_buf_geterror(bp)), l->l_mp,
 			XFS_ERRTAG_IODONE_IOERR, XFS_RANDOM_IODONE_IOERR)) {
 		xfs_ioerror_alert("xlog_iodone", l->l_mp, bp, XFS_BUF_ADDR(bp));
 		XFS_BUF_STALE(bp);
@@ -1051,7 +1051,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	if (!bp)
 		goto out_free_log;
 	bp->b_iodone = xlog_iodone;
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
 	log->l_xbuf = bp;
 
@@ -1108,7 +1107,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		iclog->ic_callback_tail = &(iclog->ic_callback);
 		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
 
-		ASSERT(XFS_BUF_ISBUSY(iclog->ic_bp));
 		ASSERT(xfs_buf_islocked(iclog->ic_bp));
 		init_waitqueue_head(&iclog->ic_force_wait);
 		init_waitqueue_head(&iclog->ic_write_wait);
@@ -1248,7 +1246,7 @@ xlog_bdstrat(
 	struct xlog_in_core	*iclog = bp->b_fspriv;
 
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
-		XFS_BUF_ERROR(bp, EIO);
+		xfs_buf_ioerror(bp, EIO);
 		XFS_BUF_STALE(bp);
 		xfs_buf_ioend(bp, 0);
 		/*
@@ -1355,7 +1353,6 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_SET_COUNT(bp, count);
 	bp->b_fspriv = iclog;
 	XFS_BUF_ZEROFLAGS(bp);
-	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
 	bp->b_flags |= XBF_SYNCIO;
 
@@ -1398,16 +1395,15 @@ xlog_sync(xlog_t		*log,
 	if (split) {
 		bp = iclog->ic_log->l_xbuf;
 		XFS_BUF_SET_ADDR(bp, 0);	     /* logical 0 */
-		XFS_BUF_SET_PTR(bp, (xfs_caddr_t)((__psint_t)&(iclog->ic_header)+
-					    (__psint_t)count), split);
+		xfs_buf_associate_memory(bp,
+				(char *)&iclog->ic_header + count, split);
 		bp->b_fspriv = iclog;
 		XFS_BUF_ZEROFLAGS(bp);
-		XFS_BUF_BUSY(bp);
 		XFS_BUF_ASYNC(bp);
 		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 			bp->b_flags |= XBF_FUA;
-		dptr = XFS_BUF_PTR(bp);
+		dptr = bp->b_addr;
 		/*
 		 * Bump the cycle numbers at the start of each block
 		 * since this part of the buffer is at the start of

@@ -1,8 +1,8 @@
 VERSION = 3
 PATCHLEVEL = 1
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
-NAME = Sneaky Weasel
+EXTRAVERSION = -rc2
+NAME = Wet Seal
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

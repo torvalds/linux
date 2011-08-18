@@ -256,6 +256,13 @@ static inline int of_property_read_string(struct device_node *np,
 	return -ENOSYS;
 }
 
+static inline const void *of_get_property(const struct device_node *node,
+				const char *name,
+				int *lenp)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_OF */
 
 static inline int of_property_read_u32(const struct device_node *np,

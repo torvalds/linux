@@ -42,9 +42,6 @@
 #include "mdfld_dsi_output.h"
 #include "mdfld_output.h"
 
-#define DRM_MODE_ENCODER_MIPI  5
-
-
 /*
  * DBI encoder which inherits from mdfld_dsi_encoder
  */

@@ -71,7 +71,6 @@ PHDRS {
 	text PT_LOAD FLAGS(5);          /* R_E */
 	data PT_LOAD FLAGS(6);          /* RW_ */
 #ifdef CONFIG_X86_64
-	user PT_LOAD FLAGS(5);          /* R_E */
 #ifdef CONFIG_SMP
 	percpu PT_LOAD FLAGS(6);        /* RW_ */
 #endif
@@ -154,44 +153,16 @@ SECTIONS
 
 #ifdef CONFIG_X86_64
 
-#define VSYSCALL_ADDR (-10*1024*1024)
-
-#define VLOAD_OFFSET (VSYSCALL_ADDR - __vsyscall_0 + LOAD_OFFSET)
-#define VLOAD(x) (ADDR(x) - VLOAD_OFFSET)
-
-#define VVIRT_OFFSET (VSYSCALL_ADDR - __vsyscall_0)
-#define VVIRT(x) (ADDR(x) - VVIRT_OFFSET)
-
-	. = ALIGN(4096);
-	__vsyscall_0 = .;
-
-	. = VSYSCALL_ADDR;
-	.vsyscall : AT(VLOAD(.vsyscall)) {
-		*(.vsyscall_0)
-
-		. = 1024;
-		*(.vsyscall_1)
-
-		. = 2048;
-		*(.vsyscall_2)
-
-		. = 4096;  /* Pad the whole page. */
-	} :user =0xcc
-	. = ALIGN(__vsyscall_0 + PAGE_SIZE, PAGE_SIZE);
-
-#undef VSYSCALL_ADDR
-#undef VLOAD_OFFSET
-#undef VLOAD
-#undef VVIRT_OFFSET
-#undef VVIRT
-
+	. = ALIGN(PAGE_SIZE);
 	__vvar_page = .;
 
 	.vvar : AT(ADDR(.vvar) - LOAD_OFFSET) {
+		/* work around gold bug 13023 */
+		__vvar_beginning_hack = .;
 
-	      /* Place all vvars at the offsets in asm/vvar.h. */
-#define EMIT_VVAR(name, offset) 		\
-		. = offset;		\
+		/* Place all vvars at the offsets in asm/vvar.h. */
+#define EMIT_VVAR(name, offset) 			\
+		. = __vvar_beginning_hack + offset;	\
 		*(.vvar_ ## name)
 #define __VVAR_KERNEL_LDS
 #include <asm/vvar.h>

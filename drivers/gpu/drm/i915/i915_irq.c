@@ -2058,8 +2058,10 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
 
-
-	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	else
+		dev->driver->get_vblank_timestamp = NULL;
 	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_IVYBRIDGE(dev)) {
