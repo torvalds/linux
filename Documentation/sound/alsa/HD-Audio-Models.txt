@@ -74,9 +74,7 @@ ALC662/663/272
   3stack-6ch-dig 3-stack (6-channel) with SPDIF
   5stack-dig	 5-stack with SPDIF
   lenovo-101e	 Lenovo laptop
-  eeepc-p701	ASUS Eeepc P701
   eeepc-ep20	ASUS Eeepc EP20
-  ecs		ECS/Foxconn mobo
   m51va		ASUS M51VA
   g71v		ASUS G71V
   h13		ASUS H13
