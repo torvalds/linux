@@ -26,6 +26,7 @@
 
 #include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
+#include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-db1x00/bcsr.h>
 
 #include "../platform.h"
@@ -115,7 +116,12 @@ static struct resource ide_resources[] = {
 		.start	= IDE_INT,
 		.end	= IDE_INT,
 		.flags	= IORESOURCE_IRQ
-	}
+	},
+	[2] = {
+		.start	= DSCR_CMD0_DMA_REQ1,
+		.end	= DSCR_CMD0_DMA_REQ1,
+		.flags	= IORESOURCE_DMA,
+	},
 };
 
 static u64 ide_dmamask = DMA_BIT_MASK(32);

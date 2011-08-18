@@ -213,7 +213,12 @@ static struct resource db1200_ide_res[] = {
 		.start	= DB1200_IDE_INT,
 		.end	= DB1200_IDE_INT,
 		.flags	= IORESOURCE_IRQ,
-	}
+	},
+	[2] = {
+		.start	= DSCR_CMD0_DMA_REQ1,
+		.end	= DSCR_CMD0_DMA_REQ1,
+		.flags	= IORESOURCE_DMA,
+	},
 };
 
 static u64 ide_dmamask = DMA_BIT_MASK(32);
