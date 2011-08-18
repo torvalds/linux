@@ -4,6 +4,8 @@
 #include <sys/mman.h>
 #include "longjmp.h"
 
+#ifdef __i386__
+
 static jmp_buf buf;
 
 static void segfault(int sig)
@@ -136,3 +138,13 @@ out:
 
 	return top;
 }
+
+#else
+
+unsigned long os_get_top_address(void)
+{
+	/* The old value of CONFIG_TOP_ADDR */
+	return 0x7fc0000000;
+}
+
+#endif

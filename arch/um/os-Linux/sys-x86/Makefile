@@ -3,7 +3,10 @@
 # Licensed under the GPL
 #
 
-obj-y = registers.o prctl.o task_size.o
+obj-y = registers.o task_size.o
+
+obj-$(CONFIG_X86_32) += tls.o
+obj-$(CONFIG_64BIT) += prctl.o
 
 USER_OBJS := $(obj-y)
 

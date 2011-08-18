@@ -5,7 +5,7 @@
 
 obj-y = aio.o execvp.o file.o helper.o irq.o main.o mem.o process.o \
 	registers.o sigio.o signal.o start_up.o time.o tty.o \
-	umid.o tls.o user_syms.o util.o drivers/ sys-$(SUBARCH)/ skas/
+	umid.o tls.o user_syms.o util.o drivers/ sys-$(HEADER_ARCH)/ skas/
 
 obj-$(CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA) += elf_aux.o
 

@@ -24,6 +24,8 @@ int restore_fp_registers(int pid, unsigned long *fp_regs)
 	return 0;
 }
 
+#ifdef __i386__
+int have_fpx_regs = 1;
 int save_fpx_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_GETFPXREGS, pid, 0, fp_regs) < 0)
@@ -37,24 +39,6 @@ int restore_fpx_registers(int pid, unsigned long *fp_regs)
 		return -errno;
 	return 0;
 }
-
-unsigned long get_thread_reg(int reg, jmp_buf *buf)
-{
-	switch (reg) {
-	case EIP:
-		return buf[0]->__eip;
-	case UESP:
-		return buf[0]->__esp;
-	case EBP:
-		return buf[0]->__ebp;
-	default:
-		printk(UM_KERN_ERR "get_thread_regs - unknown register %d\n",
-		       reg);
-		return 0;
-	}
-}
-
-int have_fpx_regs = 1;
 
 int get_fp_registers(int pid, unsigned long *regs)
 {
@@ -86,4 +70,42 @@ void arch_init_registers(int pid)
 		      errno);
 
 	have_fpx_regs = 0;
+}
+#else
+
+int get_fp_registers(int pid, unsigned long *regs)
+{
+	return save_fp_registers(pid, regs);
+}
+
+int put_fp_registers(int pid, unsigned long *regs)
+{
+	return restore_fp_registers(pid, regs);
+}
+
+#endif
+
+unsigned long get_thread_reg(int reg, jmp_buf *buf)
+{
+	switch (reg) {
+#ifdef __i386__
+	case EIP:
+		return buf[0]->__eip;
+	case UESP:
+		return buf[0]->__esp;
+	case EBP:
+		return buf[0]->__ebp;
+#else
+	case RIP:
+		return buf[0]->__rip;
+	case RSP:
+		return buf[0]->__rsp;
+	case RBP:
+		return buf[0]->__rbp;
+#endif
+	default:
+		printk(UM_KERN_ERR "get_thread_regs - unknown register %d\n",
+		       reg);
+		return 0;
+	}
 }
