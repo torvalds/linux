@@ -1415,17 +1415,15 @@ void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);
 #define BTRFS_SETGET_HEADER_FUNCS(name, type, member, bits)		\
 static inline u##bits btrfs_##name(struct extent_buffer *eb)		\
 {									\
-	type *p = kmap_atomic(eb->first_page, KM_USER0);		\
+	type *p = page_address(eb->first_page);				\
 	u##bits res = le##bits##_to_cpu(p->member);			\
-	kunmap_atomic(p, KM_USER0);					\
 	return res;							\
 }									\
 static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 				    u##bits val)			\
 {									\
-	type *p = kmap_atomic(eb->first_page, KM_USER0);		\
+	type *p = page_address(eb->first_page);				\
 	p->member = cpu_to_le##bits(val);				\
-	kunmap_atomic(p, KM_USER0);					\
 }
 
 #define BTRFS_SETGET_STACK_FUNCS(name, type, member, bits)		\
@@ -2367,8 +2365,8 @@ static inline int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct extent_buffer *leaf);
-int btrfs_drop_snapshot(struct btrfs_root *root,
-			struct btrfs_block_rsv *block_rsv, int update_ref);
+void btrfs_drop_snapshot(struct btrfs_root *root,
+			 struct btrfs_block_rsv *block_rsv, int update_ref);
 int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct extent_buffer *node,
