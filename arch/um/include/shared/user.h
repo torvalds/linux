@@ -36,9 +36,7 @@ static inline int printk(const char *fmt, ...)
 }
 #endif
 
-extern void schedule(void);
 extern int in_aton(char *str);
-extern int open_gdb_chan(void);
 extern size_t strlcpy(char *, const char *, size_t);
 extern size_t strlcat(char *, const char *, size_t);
 
