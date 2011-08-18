@@ -24,7 +24,6 @@ typedef struct um_dup_user_desc {
 
 # else /* __KERNEL__ */
 
-#  include <ldt.h>
 typedef struct user_desc user_desc_t;
 
 # endif /* __KERNEL__ */

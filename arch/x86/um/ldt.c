@@ -137,7 +137,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 {
 	int i, err = 0;
 	unsigned long size;
-	uml_ldt_t * ldt = &current->mm->context.ldt;
+	uml_ldt_t *ldt = &current->mm->context.arch.ldt;
 
 	if (!ldt->entry_count)
 		goto out;
@@ -205,7 +205,7 @@ static int read_default_ldt(void __user * ptr, unsigned long bytecount)
 
 static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 {
-	uml_ldt_t * ldt = &current->mm->context.ldt;
+	uml_ldt_t *ldt = &current->mm->context.arch.ldt;
 	struct mm_id * mm_idp = &current->mm->context.id;
 	int i, err;
 	struct user_desc ldt_info;
@@ -397,7 +397,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 
 
 	if (!ptrace_ldt)
-		mutex_init(&new_mm->ldt.lock);
+		mutex_init(&new_mm->arch.ldt.lock);
 
 	if (!from_mm) {
 		memset(&desc, 0, sizeof(desc));
@@ -429,7 +429,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 					break;
 			}
 		}
-		new_mm->ldt.entry_count = 0;
+		new_mm->arch.ldt.entry_count = 0;
 
 		goto out;
 	}
@@ -457,26 +457,26 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 		 * i.e., we have to use the stub for modify_ldt, which
 		 * can't handle the big read buffer of up to 64kB.
 		 */
-		mutex_lock(&from_mm->ldt.lock);
-		if (from_mm->ldt.entry_count <= LDT_DIRECT_ENTRIES)
-			memcpy(new_mm->ldt.u.entries, from_mm->ldt.u.entries,
-			       sizeof(new_mm->ldt.u.entries));
+		mutex_lock(&from_mm->arch.ldt.lock);
+		if (from_mm->arch.ldt.entry_count <= LDT_DIRECT_ENTRIES)
+			memcpy(new_mm->arch.ldt.u.entries, from_mm->arch.ldt.u.entries,
+			       sizeof(new_mm->arch.ldt.u.entries));
 		else {
-			i = from_mm->ldt.entry_count / LDT_ENTRIES_PER_PAGE;
+			i = from_mm->arch.ldt.entry_count / LDT_ENTRIES_PER_PAGE;
 			while (i-->0) {
 				page = __get_free_page(GFP_KERNEL|__GFP_ZERO);
 				if (!page) {
 					err = -ENOMEM;
 					break;
 				}
-				new_mm->ldt.u.pages[i] =
+				new_mm->arch.ldt.u.pages[i] =
 					(struct ldt_entry *) page;
-				memcpy(new_mm->ldt.u.pages[i],
-				       from_mm->ldt.u.pages[i], PAGE_SIZE);
+				memcpy(new_mm->arch.ldt.u.pages[i],
+				       from_mm->arch.ldt.u.pages[i], PAGE_SIZE);
 			}
 		}
-		new_mm->ldt.entry_count = from_mm->ldt.entry_count;
-		mutex_unlock(&from_mm->ldt.lock);
+		new_mm->arch.ldt.entry_count = from_mm->arch.ldt.entry_count;
+		mutex_unlock(&from_mm->arch.ldt.lock);
 	}
 
     out:
@@ -488,12 +488,12 @@ void free_ldt(struct mm_context *mm)
 {
 	int i;
 
-	if (!ptrace_ldt && mm->ldt.entry_count > LDT_DIRECT_ENTRIES) {
-		i = mm->ldt.entry_count / LDT_ENTRIES_PER_PAGE;
+	if (!ptrace_ldt && mm->arch.ldt.entry_count > LDT_DIRECT_ENTRIES) {
+		i = mm->arch.ldt.entry_count / LDT_ENTRIES_PER_PAGE;
 		while (i-- > 0)
-			free_page((long) mm->ldt.u.pages[i]);
+			free_page((long) mm->arch.ldt.u.pages[i]);
 	}
-	mm->ldt.entry_count = 0;
+	mm->arch.ldt.entry_count = 0;
 }
 
 int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)

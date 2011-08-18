@@ -7,11 +7,11 @@
 #define __ARCH_UM_MMU_H
 
 #include "mm_id.h"
-#include "ldt.h"
+#include <asm/mm_context.h>
 
 typedef struct mm_context {
 	struct mm_id id;
-	struct uml_ldt ldt;
+	struct uml_arch_mm_context arch;
 	struct page **stub_pages;
 } mm_context_t;
 
