@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed under the GPL
  */
 
