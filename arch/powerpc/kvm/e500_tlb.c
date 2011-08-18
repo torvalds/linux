@@ -853,6 +853,8 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 	}
 
 	if (gtlbe) {
+		esel &= vcpu_e500->gtlb_params[tlbsel].ways - 1;
+
 		vcpu_e500->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(esel)
 			| MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
 		vcpu_e500->mas1 = gtlbe->mas1;
