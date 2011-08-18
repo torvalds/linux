@@ -17,7 +17,6 @@
 #include "kern_util.h"
 #include "mem.h"
 #include "os.h"
-#include "process.h"
 #include "proc_mm.h"
 #include "ptrace_user.h"
 #include "registers.h"

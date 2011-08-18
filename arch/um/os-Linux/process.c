@@ -15,7 +15,6 @@
 #include "init.h"
 #include "longjmp.h"
 #include "os.h"
-#include "process.h"
 #include "skas_ptrace.h"
 
 #define ARBITRARY_ADDR -1
