@@ -82,7 +82,7 @@ static int exynos4_usb_phy1_init(struct platform_device *pdev)
 
 	rstcon &= ~(HOST_LINK_PORT_SWRST_MASK | PHY1_SWRST_MASK);
 	writel(rstcon, EXYNOS4_RSTCON);
-	udelay(50);
+	udelay(80);
 
 	clk_disable(otg_clk);
 	clk_put(otg_clk);
