@@ -53,7 +53,6 @@
 #include "ubd_user.h"
 #include "os.h"
 #include "mem.h"
-#include "mem_kern.h"
 #include "cow.h"
 
 enum ubd_req { UBD_READ, UBD_WRITE };
