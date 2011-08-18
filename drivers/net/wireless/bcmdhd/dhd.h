@@ -71,6 +71,12 @@ enum dhd_bus_state {
 	DHD_BUS_DATA		/* Ready for frame transfers */
 };
 
+/* Firmware requested operation mode */
+#define STA_MASK			0x0001
+#define HOSTAPD_MASK			0x0002
+#define WFD_MASK			0x0004
+#define SOFTAP_FW_MASK			0x0008
+
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
 	WAKE_LOCK_PRIV,
@@ -173,6 +179,7 @@ typedef struct dhd_pub {
 
 	wl_country_t dhd_cspec;		/* Current Locale info */
 	char eventmask[WL_EVENTING_MASK_LEN];
+	int	op_mode;				/* STA, HostAPD, WFD, SoftAP */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
 	struct wake_lock 	wakelock[WAKE_LOCK_MAX];

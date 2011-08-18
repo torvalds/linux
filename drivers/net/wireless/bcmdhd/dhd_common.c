@@ -1535,7 +1535,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint bcn_timeout = 4;
 	uint retry_max = 3;
 	int arpoe = 1;
-	int arp_ol = 0xf;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
 	const char 				*str;
@@ -1552,7 +1551,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if defined(SOFTAP)
 	uint dtim = 1;
 #endif
-#ifdef AP
+#if (defined(AP) && !defined(WLP2P)) || (!defined(AP) && defined(WL_CFG80211))
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
 #endif /* AP */
 #if defined(AP) || defined(WLP2P)
@@ -1562,6 +1561,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
+	dhd->op_mode = 0;
 #ifdef GET_CUSTOM_MAC_ENABLE
 	ret = dhd_custom_get_mac_address(ea_addr.octet);
 	if (!ret) {
@@ -1610,9 +1610,39 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
-	DHD_ERROR(("Firmware up: Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-	           dhd->mac.octet[0], dhd->mac.octet[1], dhd->mac.octet[2],
-	           dhd->mac.octet[3], dhd->mac.octet[4], dhd->mac.octet[5]));
+#if !defined(AP) && defined(WLP2P)
+	/* Check if firmware with WFD support used */
+	if (strstr(fw_path, "_p2p") != NULL) {
+		bcm_mkiovar("apsta", (char *)&apsta, 4, iovbuf, sizeof(iovbuf));
+		if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR,
+			iovbuf, sizeof(iovbuf), TRUE, 0)) < 0) {
+			DHD_ERROR(("%s APSTA for WFD failed ret= %d\n", __FUNCTION__, ret));
+		} else {
+			dhd->op_mode |= WFD_MASK;
+			arpoe = 0;
+		}
+	}
+#endif /* !defined(AP) && defined(WLP2P) */
+
+#if !defined(AP) && defined(WL_CFG80211)
+	/* Check if firmware with HostAPD support used */
+	if (strstr(fw_path, "_apsta") != NULL) {
+			/* Turn off MPC in AP mode */
+			bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
+			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf,
+				sizeof(iovbuf), TRUE, 0)) < 0) {
+				DHD_ERROR(("%s mpc for HostAPD failed  %d\n", __FUNCTION__, ret));
+			} else {
+				dhd->op_mode |= HOSTAPD_MASK;
+				arpoe = 0;
+			}
+	}
+#endif /* !defined(AP) && defined(WL_CFG80211) */
+	DHD_ERROR(("Firmware up: op_mode=%d, "
+			"Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+			dhd->op_mode,
+			dhd->mac.octet[0], dhd->mac.octet[1], dhd->mac.octet[2],
+			dhd->mac.octet[3], dhd->mac.octet[4], dhd->mac.octet[5]));
 
 	/* Set Country code  */
 	if (dhd->dhd_cspec.ccode[0] != 0) {
@@ -1655,16 +1685,13 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Setup assoc_retry_max count to reconnect target AP in dongle */
 	bcm_mkiovar("assoc_retry_max", (char *)&retry_max, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#ifdef AP
+#if defined(AP) && !defined(WLP2P)
 	/* Turn off MPC in AP mode */
 	bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif /* AP */
-#if defined(AP) || defined(WLP2P)
-	/* Enable APSTA mode */
 	bcm_mkiovar("apsta", (char *)&apsta, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif /* defined(AP) || defined(WLP2P) */
+#endif /* defined(AP) && !defined(WLP2P) */
 #if defined(SOFTAP)
 	if (ap_fw_loaded == TRUE) {
 		dhd_wl_ioctl_cmd(dhd, WLC_SET_DTIMPRD, (char *)&dtim, sizeof(dtim), TRUE, 0);
@@ -1727,12 +1754,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_UNASSOC_TIME, (char *)&scan_unassoc_time,
 		sizeof(scan_unassoc_time), TRUE, 0);
 
-	/* Set ARP offload */
-	bcm_mkiovar("arpoe", (char *)&arpoe, 4, iovbuf, sizeof(iovbuf));
-	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-	bcm_mkiovar("arp_ol", (char *)&arp_ol, 4, iovbuf, sizeof(iovbuf));
-	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-
 	/* add a default packet filter pattern */
 	str = "pkt_filter_add";
 	str_len = strlen(str);
@@ -1786,9 +1807,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 
 #ifdef ARP_OFFLOAD_SUPPORT
 	/* Set and enable ARP offload feature for STA only  */
-	if (dhd_arp_enable && !ap_fw_loaded) {
+	if (arpoe && !ap_fw_loaded) {
 		dhd_arp_offload_set(dhd, dhd_arp_mode);
-		dhd_arp_offload_enable(dhd, dhd_arp_enable);
+		dhd_arp_offload_enable(dhd, arpoe);
 	} else {
 		dhd_arp_offload_set(dhd, 0);
 		dhd_arp_offload_enable(dhd, FALSE);
