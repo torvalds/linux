@@ -7,7 +7,13 @@
 #ifndef __SYSDEP_X86_64_SIGCONTEXT_H
 #define __SYSDEP_X86_64_SIGCONTEXT_H
 
-#include <sysdep/sc.h>
+#include <generated/user_constants.h>
+
+#define SC_OFFSET(sc, field) \
+	 *((unsigned long *) &(((char *) (sc))[HOST_##field]))
+#define SC_CR2(sc) SC_OFFSET(sc, SC_CR2)
+#define SC_ERR(sc) SC_OFFSET(sc, SC_ERR)
+#define SC_TRAPNO(sc) SC_OFFSET(sc, SC_TRAPNO)
 
 #define IP_RESTART_SYSCALL(ip) ((ip) -= 2)
 
