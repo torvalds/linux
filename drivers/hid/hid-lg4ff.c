@@ -285,7 +285,7 @@ static void hid_lg4ff_switch_native(struct hid_device *hid, const struct lg4ff_n
 /* Read current range and display it in terminal */
 static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct lg4ff_device_entry *entry = 0;
+	struct lg4ff_device_entry *uninitialized_var(entry);
 	struct list_head *h;
 	struct hid_device *hid = to_hid_device(dev);
 	size_t count;
@@ -308,7 +308,7 @@ static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *att
  * according to the type of the wheel */
 static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct lg4ff_device_entry *entry = 0;
+	struct lg4ff_device_entry *uninitialized_var(entry);
 	struct list_head *h;
 	struct hid_device *hid = to_hid_device(dev);
 	__u16 range = simple_strtoul(buf, NULL, 10);
