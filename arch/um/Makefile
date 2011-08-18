@@ -20,8 +20,18 @@ core-y			+= $(ARCH_DIR)/kernel/		\
 
 MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
 
+HEADER_ARCH 	:= $(SUBARCH)
+
+# Additional ARCH settings for x86
+ifeq ($(SUBARCH),i386)
+        HEADER_ARCH := x86
+endif
+ifeq ($(SUBARCH),x86_64)
+        HEADER_ARCH := x86
+endif
+
 include $(srctree)/$(ARCH_DIR)/Makefile-skas
-include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
+include $(srctree)/$(ARCH_DIR)/Makefile-$(HEADER_ARCH)
 
 SHARED_HEADERS	:= $(ARCH_DIR)/include/shared
 ARCH_INCLUDE	:= -I$(srctree)/$(SHARED_HEADERS)

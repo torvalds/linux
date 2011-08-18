@@ -1,11 +1,11 @@
 core-y += arch/um/sys-x86/ arch/x86/crypto/
 
+ifeq ($(CONFIG_X86_32),y)
 START := 0x8048000
 
 LDFLAGS			+= -m elf_i386
 ELF_ARCH		:= i386
 ELF_FORMAT 		:= elf32-i386
-HEADER_ARCH		:= x86
 CHECKFLAGS	+= -D__i386__
 
 ifeq ("$(origin SUBARCH)", "command line")
@@ -36,3 +36,26 @@ KBUILD_CFLAGS += $(shell if [ $(call cc-version) -lt 0400 ] ; then \
 			else echo $(call cc-option,-funit-at-a-time); fi ;)
 
 KBUILD_CFLAGS += $(cflags-y)
+
+else
+
+START := 0x60000000
+
+KBUILD_CFLAGS += -fno-builtin -m64 
+
+CHECKFLAGS  += -m64 -D__x86_64__
+KBUILD_AFLAGS += -m64
+LDFLAGS += -m elf_x86_64
+KBUILD_CPPFLAGS += -m64
+
+ELF_ARCH := i386:x86-64
+ELF_FORMAT := elf64-x86-64
+
+# Not on all 64-bit distros /lib is a symlink to /lib64. PLD is an example.
+
+LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib64
+LINK-y += -m64
+
+# Do unit-at-a-time unconditionally on x86_64, following the host
+KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
+endif
