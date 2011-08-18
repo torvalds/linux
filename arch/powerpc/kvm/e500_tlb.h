@@ -155,23 +155,6 @@ static inline unsigned int get_tlb_esel_bit(
 	return (vcpu_e500->mas0 >> 16) & 0xfff;
 }
 
-static inline unsigned int get_tlb_esel(
-		const struct kvmppc_vcpu_e500 *vcpu_e500,
-		int tlbsel)
-{
-	unsigned int esel = get_tlb_esel_bit(vcpu_e500);
-
-	if (tlbsel == 0) {
-		esel &= KVM_E500_TLB0_WAY_NUM_MASK;
-		esel |= ((vcpu_e500->mas2 >> 12) & KVM_E500_TLB0_WAY_SIZE_MASK)
-				<< KVM_E500_TLB0_WAY_NUM_BIT;
-	} else {
-		esel &= KVM_E500_TLB1_SIZE - 1;
-	}
-
-	return esel;
-}
-
 static inline int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 			const struct tlbe *tlbe)
 {
