@@ -309,7 +309,7 @@ static void il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
-				IL_CRIT(
+				IL_ERR(
 					"Failed to alloc_pages with %s. "
 					"Only %u free buffers remaining.\n",
 					 priority == GFP_ATOMIC ?
