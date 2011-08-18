@@ -3,11 +3,6 @@
 
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
-static inline void set_64bit(volatile u64 *ptr, u64 val)
-{
-	*ptr = val;
-}
-
 extern void __xchg_wrong_size(void);
 extern void __cmpxchg_wrong_size(void);
 
@@ -65,6 +60,11 @@ extern void __cmpxchg_wrong_size(void);
 
 #define xchg(ptr, v)							\
 	__xchg((v), (ptr), sizeof(*ptr))
+
+static inline void set_64bit(volatile u64 *ptr, u64 val)
+{
+	*ptr = val;
+}
 
 #define __HAVE_ARCH_CMPXCHG 1
 
