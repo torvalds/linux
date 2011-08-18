@@ -44,10 +44,10 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 }
 
 static int copy_sc_from_user(struct pt_regs *regs,
-			     struct sigcontext __user *from,
-			     struct _fpstate __user *fpp)
+			     struct sigcontext __user *from)
 {
 	struct user_i387_struct fp;
+	void __user *buf;
 	int err = 0;
 
 #define GETREG(regs, regno, sc, regname)				\
@@ -78,7 +78,11 @@ static int copy_sc_from_user(struct pt_regs *regs,
 
 #undef GETREG
 
-	err = copy_from_user(&fp, fpp, sizeof(struct user_i387_struct));
+	err = __get_user(buf, &from->fpstate);
+	if (err)
+		return 1;
+
+	err = copy_from_user(&fp, buf, sizeof(struct user_i387_struct));
 	if (err)
 		return 1;
 
@@ -272,8 +276,7 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
-	if (copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext,
-			      &frame->fpstate))
+	if (copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext))
 		goto segfault;
 
 	/* Avoid ERESTART handling */
