@@ -58,7 +58,7 @@ extern void sys_ni_syscall(void);
  */
 
 sys_call_ptr_t sys_call_table[] __cacheline_aligned = {
-#include "../../x86/include/asm/unistd_64.h"
+#include <asm/unistd_64.h>
 };
 
 int syscall_table_size = sizeof(sys_call_table);

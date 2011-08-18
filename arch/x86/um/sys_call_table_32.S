@@ -22,7 +22,7 @@
 
 .section .rodata,"a"
 
-#include "../../x86/kernel/syscall_table_32.S"
+#include "../kernel/syscall_table_32.S"
 
 ENTRY(syscall_table_size)
 .long .-sys_call_table
