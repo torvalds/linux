@@ -29,6 +29,9 @@ typedef struct user_desc user_desc_t;
 
 # endif /* __KERNEL__ */
 
+extern int os_set_thread_area(user_desc_t *info, int pid);
+extern int os_get_thread_area(user_desc_t *info, int pid);
+
 #ifdef __i386__
 #define GDT_ENTRY_TLS_MIN_I386 6
 #define GDT_ENTRY_TLS_MIN_X86_64 12
