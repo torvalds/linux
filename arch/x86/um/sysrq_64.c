@@ -20,7 +20,7 @@ void __show_regs(struct pt_regs *regs)
 		current->comm, print_tainted(), init_utsname()->release);
 	printk(KERN_INFO "RIP: %04lx:[<%016lx>]\n", PT_REGS_CS(regs) & 0xffff,
 	       PT_REGS_RIP(regs));
-	printk(KERN_INFO "RSP: %016lx  EFLAGS: %08lx\n", PT_REGS_RSP(regs),
+	printk(KERN_INFO "RSP: %016lx  EFLAGS: %08lx\n", PT_REGS_SP(regs),
 	       PT_REGS_EFLAGS(regs));
 	printk(KERN_INFO "RAX: %016lx RBX: %016lx RCX: %016lx\n",
 	       PT_REGS_RAX(regs), PT_REGS_RBX(regs), PT_REGS_RCX(regs));

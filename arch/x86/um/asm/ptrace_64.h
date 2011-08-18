@@ -40,7 +40,7 @@
 
 #define PT_REGS_ORIG_RAX(r) UPT_ORIG_RAX(&(r)->regs)
 #define PT_REGS_RIP(r) UPT_IP(&(r)->regs)
-#define PT_REGS_RSP(r) UPT_SP(&(r)->regs)
+#define PT_REGS_SP(r) UPT_SP(&(r)->regs)
 
 #define PT_REGS_EFLAGS(r) UPT_EFLAGS(&(r)->regs)
 
