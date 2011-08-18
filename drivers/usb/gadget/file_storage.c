@@ -1135,7 +1135,6 @@ static int do_read(struct fsg_dev *fsg)
 	u32			amount_left;
 	loff_t			file_offset, file_offset_tmp;
 	unsigned int		amount;
-	unsigned int		partial_page;
 	ssize_t			nread;
 
 	/* Get the starting Logical Block Address and check that it's
@@ -1170,17 +1169,10 @@ static int do_read(struct fsg_dev *fsg)
 		 * Try to read the remaining amount.
 		 * But don't read more than the buffer size.
 		 * And don't try to read past the end of the file.
-		 * Finally, if we're not at a page boundary, don't read past
-		 *	the next page.
-		 * If this means reading 0 then we were asked to read past
-		 *	the end of file. */
+		 */
 		amount = min((unsigned int) amount_left, mod_data.buflen);
 		amount = min((loff_t) amount,
 				curlun->file_length - file_offset);
-		partial_page = file_offset & (PAGE_CACHE_SIZE - 1);
-		if (partial_page > 0)
-			amount = min(amount, (unsigned int) PAGE_CACHE_SIZE -
-					partial_page);
 
 		/* Wait for the next buffer to become available */
 		bh = fsg->next_buffhd_to_fill;
@@ -1225,6 +1217,11 @@ static int do_read(struct fsg_dev *fsg)
 		file_offset  += nread;
 		amount_left  -= nread;
 		fsg->residue -= nread;
+
+		/* Except at the end of the transfer, nread will be
+		 * equal to the buffer size, which is divisible by the
+		 * bulk-in maxpacket size.
+		 */
 		bh->inreq->length = nread;
 		bh->state = BUF_STATE_FULL;
 
@@ -1261,7 +1258,6 @@ static int do_write(struct fsg_dev *fsg)
 	u32			amount_left_to_req, amount_left_to_write;
 	loff_t			usb_offset, file_offset, file_offset_tmp;
 	unsigned int		amount;
-	unsigned int		partial_page;
 	ssize_t			nwritten;
 	int			rc;
 
@@ -1312,36 +1308,18 @@ static int do_write(struct fsg_dev *fsg)
 		if (bh->state == BUF_STATE_EMPTY && get_some_more) {
 
 			/* Figure out how much we want to get:
-			 * Try to get the remaining amount.
-			 * But don't get more than the buffer size.
-			 * And don't try to go past the end of the file.
-			 * If we're not at a page boundary,
-			 *	don't go past the next page.
-			 * If this means getting 0, then we were asked
-			 *	to write past the end of file.
-			 * Finally, round down to a block boundary. */
+			 * Try to get the remaining amount,
+			 * but not more than the buffer size.
+			 */
 			amount = min(amount_left_to_req, mod_data.buflen);
-			amount = min((loff_t) amount, curlun->file_length -
-					usb_offset);
-			partial_page = usb_offset & (PAGE_CACHE_SIZE - 1);
-			if (partial_page > 0)
-				amount = min(amount,
-	(unsigned int) PAGE_CACHE_SIZE - partial_page);
 
-			if (amount == 0) {
+			/* Beyond the end of the backing file? */
+			if (usb_offset >= curlun->file_length) {
 				get_some_more = 0;
 				curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 				curlun->sense_data_info = usb_offset >> curlun->blkbits;
 				curlun->info_valid = 1;
-				continue;
-			}
-			amount = round_down(amount, curlun->blksize);
-			if (amount == 0) {
-
-				/* Why were we were asked to transfer a
-				 * partial block? */
-				get_some_more = 0;
 				continue;
 			}
 
@@ -1352,8 +1330,10 @@ static int do_write(struct fsg_dev *fsg)
 			if (amount_left_to_req == 0)
 				get_some_more = 0;
 
-			/* amount is always divisible by 512, hence by
-			 * the bulk-out maxpacket size */
+			/* Except at the end of the transfer, amount will be
+			 * equal to the buffer size, which is divisible by
+			 * the bulk-out maxpacket size.
+			 */
 			bh->outreq->length = bh->bulk_out_intended_length =
 					amount;
 			bh->outreq->short_not_ok = 1;
@@ -1389,6 +1369,11 @@ static int do_write(struct fsg_dev *fsg)
 				amount = curlun->file_length - file_offset;
 			}
 
+			/* Don't write a partial block */
+			amount = round_down(amount, curlun->blksize);
+			if (amount == 0)
+				goto empty_write;
+
 			/* Perform the write */
 			file_offset_tmp = file_offset;
 			nwritten = vfs_write(curlun->filp,
@@ -1421,6 +1406,7 @@ static int do_write(struct fsg_dev *fsg)
 				break;
 			}
 
+ empty_write:
 			/* Did the host decide to stop early? */
 			if (bh->outreq->actual != bh->outreq->length) {
 				fsg->short_packet_received = 1;
@@ -1517,8 +1503,7 @@ static int do_verify(struct fsg_dev *fsg)
 		 * Try to read the remaining amount, but not more than
 		 * the buffer size.
 		 * And don't try to read past the end of the file.
-		 * If this means reading 0 then we were asked to read
-		 * past the end of file. */
+		 */
 		amount = min((unsigned int) amount_left, mod_data.buflen);
 		amount = min((loff_t) amount,
 				curlun->file_length - file_offset);
@@ -1981,8 +1966,10 @@ static int throw_away_data(struct fsg_dev *fsg)
 			amount = min(fsg->usb_amount_left,
 					(u32) mod_data.buflen);
 
-			/* amount is always divisible by 512, hence by
-			 * the bulk-out maxpacket size */
+			/* Except at the end of the transfer, amount will be
+			 * equal to the buffer size, which is divisible by
+			 * the bulk-out maxpacket size.
+			 */
 			bh->outreq->length = bh->bulk_out_intended_length =
 					amount;
 			bh->outreq->short_not_ok = 1;
