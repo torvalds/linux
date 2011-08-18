@@ -828,7 +828,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	else
 	{
 		ipp_write(ipp_read(IPP_CONFIG)|ROT_ENABLE, IPP_CONFIG);
-		ipp_write(ipp_read(IPP_CONFIG)|rotate<<5, IPP_CONFIG);
+		ipp_write((ipp_read(IPP_CONFIG)&0xffffff1f)|(rotate<<5), IPP_CONFIG);
 	}
 
 	/*Configure deinterlace*/
@@ -877,7 +877,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		ipp_write(ipp_read(IPP_CONFIG)&(~STORE_CLIP_MODE), IPP_CONFIG);
 	}
-		
+
 	/* Start the operation */
 	ipp_write(8, IPP_INT);//		
 	dsb();
@@ -1416,6 +1416,7 @@ uint32_t size = 8*1024*1024;
 */
 
 		/*8 test special up scaling*/
+		/*
 		ipp_req.src0.fmt = IPP_Y_CBCR_H2V2;
 		ipp_req.src0.w = 128;
 		ipp_req.src0.h = 128;
@@ -1453,7 +1454,13 @@ uint32_t size = 8*1024*1024;
 		ret = -1;
 		ret = ipp_blit_sync(&ipp_req);
 		printk("176x144->800x480: %d \n",ret);
+		*/
 
+		/*9 test rotate config*/
+		ipp_req.flag = IPP_ROT_180;
+		ipp_blit_sync(&ipp_req);
+		ipp_req.flag = IPP_ROT_270;
+		ipp_blit_sync(&ipp_req);
 		
 		free_pages(srcY, 9);
 //test deinterlace
