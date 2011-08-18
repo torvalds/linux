@@ -86,6 +86,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 		goto fail_hcd;
 	}
 
+	s5p_ehci->hcd = hcd;
 	s5p_ehci->clk = clk_get(&pdev->dev, "usbhost");
 
 	if (IS_ERR(s5p_ehci->clk)) {
