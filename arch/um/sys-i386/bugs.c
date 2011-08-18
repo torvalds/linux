@@ -4,11 +4,9 @@
  */
 
 #include <signal.h>
-#include "kern_constants.h"
 #include "kern_util.h"
 #include "longjmp.h"
 #include "task.h"
-#include "user.h"
 #include "sysdep/ptrace.h"
 
 /* Set during early boot */

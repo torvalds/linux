@@ -7,9 +7,7 @@
 #include <errno.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
-#include "kern_constants.h"
 #include "longjmp.h"
-#include "user.h"
 #include "sysdep/ptrace_user.h"
 
 int save_fp_registers(int pid, unsigned long *fp_regs)

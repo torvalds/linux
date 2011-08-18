@@ -15,7 +15,6 @@
 #include "process.h"
 #include "sysdep/barrier.h"
 #include "sysdep/sigcontext.h"
-#include "user.h"
 
 /* Copied from linux/compiler-gcc.h since we can't include it directly */
 #define barrier() __asm__ __volatile__("": : :"memory")

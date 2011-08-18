@@ -3,7 +3,6 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include "longjmp.h"
-#include "kern_constants.h"
 
 static jmp_buf buf;
 

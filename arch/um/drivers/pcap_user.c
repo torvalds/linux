@@ -9,9 +9,7 @@
 #include <asm/types.h>
 #include "net_user.h"
 #include "pcap_user.h"
-#include "kern_constants.h"
 #include "um_malloc.h"
-#include "user.h"
 
 #define PCAP_FD(p) (*(int *)(p))
 

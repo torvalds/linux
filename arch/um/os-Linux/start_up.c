@@ -18,7 +18,6 @@
 #include <sys/wait.h>
 #include <asm/unistd.h>
 #include "init.h"
-#include "kern_constants.h"
 #include "os.h"
 #include "mem_user.h"
 #include "ptrace_user.h"

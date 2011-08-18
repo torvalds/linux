@@ -11,7 +11,6 @@
 #include <asm/unistd.h>
 #include "as-layout.h"
 #include "stub-data.h"
-#include "kern_constants.h"
 
 extern void stub_segv_handler(int sig);
 extern void stub_clone_handler(void);

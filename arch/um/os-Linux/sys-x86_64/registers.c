@@ -7,9 +7,7 @@
 #include <sys/ptrace.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
-#include "kern_constants.h"
 #include "longjmp.h"
-#include "user.h"
 
 int save_fp_registers(int pid, unsigned long *fp_regs)
 {

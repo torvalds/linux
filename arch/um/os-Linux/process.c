@@ -13,12 +13,10 @@
 #include <sys/wait.h>
 #include <asm/unistd.h>
 #include "init.h"
-#include "kern_constants.h"
 #include "longjmp.h"
 #include "os.h"
 #include "process.h"
 #include "skas_ptrace.h"
-#include "user.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1

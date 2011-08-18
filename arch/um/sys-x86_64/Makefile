@@ -18,8 +18,8 @@ ldt-y = ../sys-i386/ldt.o
 
 USER_OBJS := ptrace_user.o
 
-USER_OBJS += user-offsets.s
 extra-y += user-offsets.s
+$(obj)/user-offsets.s: c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS)
 
 UNPROFILE_OBJS := stub_segv.o
 CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
