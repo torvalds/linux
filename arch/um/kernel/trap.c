@@ -14,7 +14,6 @@
 #include "kern_util.h"
 #include "os.h"
 #include "skas.h"
-#include "sysdep/sigcontext.h"
 
 /*
  * Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by

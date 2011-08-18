@@ -69,9 +69,8 @@
 
 #define REGS_SET_SYSCALL_RETURN(r, res) REGS_RAX(r) = (res)
 
+#define IP_RESTART_SYSCALL(ip) ((ip) -= 2)
 #define REGS_RESTART_SYSCALL(r) IP_RESTART_SYSCALL(REGS_IP(r))
-
-#define REGS_SEGV_IS_FIXABLE(r) SEGV_IS_FIXABLE((r)->trap_type)
 
 #define REGS_FAULT_ADDR(r) ((r)->fault_addr)
 
@@ -151,8 +150,6 @@ struct syscall_args {
 	REGS_SET_SYSCALL_RETURN((r)->regs, (res))
 
 #define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->gp)
-
-#define UPT_SEGV_IS_FIXABLE(r) REGS_SEGV_IS_FIXABLE(&r->skas)
 
 #define UPT_FAULTINFO(r) (&(r)->faultinfo)
 

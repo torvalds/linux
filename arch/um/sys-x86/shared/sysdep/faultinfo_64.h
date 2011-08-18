@@ -24,6 +24,12 @@ struct faultinfo {
 #define FAULT_WRITE(fi) ((fi).error_code & 2)
 #define FAULT_ADDRESS(fi) ((fi).cr2)
 
+/* This is Page Fault */
+#define SEGV_IS_FIXABLE(fi)	((fi)->trap_no == 14)
+
+/* No broken SKAS API, which doesn't pass trap_no, here. */
+#define SEGV_MAYBE_FIXABLE(fi)	0
+
 #define PTRACE_FULL_FAULTINFO 1
 
 #endif

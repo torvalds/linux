@@ -8,8 +8,6 @@
 
 #include <generated/user_constants.h>
 
-#define IP_RESTART_SYSCALL(ip) ((ip) -= 2)
-
 #define SC_OFFSET(sc, field) \
 	*((unsigned long *) &(((char *) (sc))[HOST_##field]))
 
@@ -23,11 +21,5 @@
 		(fi).error_code = SC_ERR(sc); \
 		(fi).trap_no = SC_TRAPNO(sc); \
 	}
-
-/* This is Page Fault */
-#define SEGV_IS_FIXABLE(fi)	((fi)->trap_no == 14)
-
-/* SKAS3 has no trap_no on i386, but get_skas_faultinfo() sets it to 0. */
-#define SEGV_MAYBE_FIXABLE(fi)	((fi)->trap_no == 0 && ptrace_faultinfo)
 
 #endif

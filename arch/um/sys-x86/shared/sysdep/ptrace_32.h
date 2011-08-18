@@ -43,6 +43,7 @@ extern int sysemu_supported;
 
 #define REGS_SET_SYSCALL_RETURN(r, res) REGS_EAX(r) = (res)
 
+#define IP_RESTART_SYSCALL(ip) ((ip) -= 2)
 #define REGS_RESTART_SYSCALL(r) IP_RESTART_SYSCALL(REGS_IP(r))
 
 #ifndef PTRACE_SYSEMU_SINGLESTEP
