@@ -24,8 +24,6 @@ void set_using_sysemu(int value);
 int get_using_sysemu(void);
 extern int sysemu_supported;
 
-#include "skas_ptregs.h"
-
 #define REGS_IP(r) ((r)[HOST_IP])
 #define REGS_SP(r) ((r)[HOST_SP])
 #define REGS_EFLAGS(r) ((r)[HOST_EFLAGS])
