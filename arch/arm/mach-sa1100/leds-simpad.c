@@ -22,9 +22,6 @@ static unsigned int hw_led_state;
 #define	LED_GREEN	(1)
 #define	LED_MASK	(1)
 
-extern void set_cs3_bit(int value);
-extern void clear_cs3_bit(int value);     
-
 void simpad_leds_event(led_event_t evt)
 {
 	switch (evt)
@@ -93,8 +90,8 @@ void simpad_leds_event(led_event_t evt)
 	}
 
 	if  (led_state & LED_STATE_ENABLED)
-		set_cs3_bit(LED2_ON);
+		simpad_set_cs3_bit(LED2_ON);
 	else 
-	        clear_cs3_bit(LED2_ON);
+		simpad_clear_cs3_bit(LED2_ON);
 }
 
