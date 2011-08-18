@@ -1,13 +1,10 @@
 core-y += arch/um/sys-x86/ arch/x86/crypto/
 
-TOP_ADDR := $(CONFIG_TOP_ADDR)
-
 START := 0x8048000
 
 LDFLAGS			+= -m elf_i386
-ELF_ARCH		:= $(SUBARCH)
-ELF_FORMAT 		:= elf32-$(SUBARCH)
-OBJCOPYFLAGS  		:= -O binary -R .note -R .comment -S
+ELF_ARCH		:= i386
+ELF_FORMAT 		:= elf32-i386
 HEADER_ARCH		:= x86
 CHECKFLAGS	+= -D__i386__
 
@@ -16,9 +13,8 @@ ifneq ("$(shell uname -m | sed -e s/i.86/i386/)", "$(SUBARCH)")
 KBUILD_CFLAGS		+= $(call cc-option,-m32)
 KBUILD_AFLAGS		+= $(call cc-option,-m32)
 LINK-y			+= $(call cc-option,-m32)
-UML_OBJCOPYFLAGS	+= -F $(ELF_FORMAT)
 
-export LDFLAGS HOSTCFLAGS HOSTLDFLAGS UML_OBJCOPYFLAGS
+export LDFLAGS
 endif
 endif
 
