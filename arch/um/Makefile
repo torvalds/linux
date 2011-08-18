@@ -121,8 +121,8 @@ archclean:
 
 # Generated files
 
-$(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.s: FORCE
-	$(Q)$(MAKE) $(build)=$(ARCH_DIR)/sys-$(SUBARCH) $@
+$(ARCH_DIR)/sys-$(HEADER_ARCH)/user-offsets.s: FORCE
+	$(Q)$(MAKE) $(build)=$(ARCH_DIR)/sys-$(HEADER_ARCH) $@
 
 define filechk_gen-asm-offsets
         (set -e; \
@@ -137,7 +137,7 @@ define filechk_gen-asm-offsets
          echo ""; )
 endef
 
-include/generated/user_constants.h: $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.s
+include/generated/user_constants.h: $(ARCH_DIR)/sys-$(HEADER_ARCH)/user-offsets.s
 	$(call filechk,gen-asm-offsets)
 
 export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS HEADER_ARCH DEV_NULL_PATH
