@@ -18,10 +18,39 @@
  */
 #define FLAG_MASK 0x44dd5UL
 
+static const int reg_offsets[] =
+{
+	[R8 >> 3] = HOST_R8,
+	[R9 >> 3] = HOST_R9,
+	[R10 >> 3] = HOST_R10,
+	[R11 >> 3] = HOST_R11,
+	[R12 >> 3] = HOST_R12,
+	[R13 >> 3] = HOST_R13,
+	[R14 >> 3] = HOST_R14,
+	[R15 >> 3] = HOST_R15,
+	[RIP >> 3] = HOST_IP,
+	[RSP >> 3] = HOST_SP,
+	[RAX >> 3] = HOST_RAX,
+	[RBX >> 3] = HOST_RBX,
+	[RCX >> 3] = HOST_RCX,
+	[RDX >> 3] = HOST_RDX,
+	[RSI >> 3] = HOST_RSI,
+	[RDI >> 3] = HOST_RDI,
+	[RBP >> 3] = HOST_RBP,
+	[CS >> 3] = HOST_CS,
+	[SS >> 3] = HOST_SS,
+	[FS_BASE >> 3] = HOST_FS_BASE,
+	[GS_BASE >> 3] = HOST_GS_BASE,
+	[DS >> 3] = HOST_DS,
+	[ES >> 3] = HOST_ES,
+	[FS >> 3] = HOST_FS,
+	[GS >> 3] = HOST_GS,
+	[EFLAGS >> 3] = HOST_EFLAGS,
+	[ORIG_RAX >> 3] = HOST_ORIG_RAX,
+};
+
 int putreg(struct task_struct *child, int regno, unsigned long value)
 {
-	unsigned long tmp;
-
 #ifdef TIF_IA32
 	/*
 	 * Some code in the 64bit emulation may not be 64bit clean.
@@ -31,6 +60,26 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 		value &= 0xffffffff;
 #endif
 	switch (regno) {
+	case R8:
+	case R9:
+	case R10:
+	case R11:
+	case R12:
+	case R13:
+	case R14:
+	case R15:
+	case RIP:
+	case RSP:
+	case RAX:
+	case RBX:
+	case RCX:
+	case RDX:
+	case RSI:
+	case RDI:
+	case RBP:
+	case ORIG_RAX:
+		break;
+
 	case FS:
 	case GS:
 	case DS:
@@ -50,12 +99,14 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 
 	case EFLAGS:
 		value &= FLAG_MASK;
-		tmp = PT_REGS_EFLAGS(&child->thread.regs) & ~FLAG_MASK;
-		value |= tmp;
-		break;
+		child->thread.regs.regs.gp[HOST_EFLAGS] |= value;
+		return 0;
+
+	default:
+		panic("Bad register in putreg(): %d\n", regno);
 	}
 
-	PT_REGS_SET(&child->thread.regs, regno, value);
+	child->thread.regs.regs.gp[reg_offsets[regno >> 3]] = value;
 	return 0;
 }
 
@@ -80,24 +131,46 @@ int poke_user(struct task_struct *child, long addr, long data)
 
 unsigned long getreg(struct task_struct *child, int regno)
 {
-	unsigned long retval = ~0UL;
+	unsigned long mask = ~0UL;
+#ifdef TIF_IA32
+	if (test_tsk_thread_flag(child, TIF_IA32))
+		mask = 0xffffffff;
+#endif
 	switch (regno) {
+	case R8:
+	case R9:
+	case R10:
+	case R11:
+	case R12:
+	case R13:
+	case R14:
+	case R15:
+	case RIP:
+	case RSP:
+	case RAX:
+	case RBX:
+	case RCX:
+	case RDX:
+	case RSI:
+	case RDI:
+	case RBP:
+	case ORIG_RAX:
+	case EFLAGS:
+	case FS_BASE:
+	case GS_BASE:
+		break;
 	case FS:
 	case GS:
 	case DS:
 	case ES:
 	case SS:
 	case CS:
-		retval = 0xffff;
-		/* fall through */
+		mask = 0xffff;
+		break;
 	default:
-		retval &= PT_REG(&child->thread.regs, regno);
-#ifdef TIF_IA32
-		if (test_tsk_thread_flag(child, TIF_IA32))
-			retval &= 0xffffffff;
-#endif
+		panic("Bad register in getreg: %d\n", regno);
 	}
-	return retval;
+	return mask & child->thread.regs.regs.gp[reg_offsets[regno >> 3]];
 }
 
 int peek_user(struct task_struct *child, long addr, long data)

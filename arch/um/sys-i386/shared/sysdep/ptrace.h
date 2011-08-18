@@ -100,59 +100,6 @@ struct syscall_args {
 				     UPT_SYSCALL_ARG5(r),	\
 				     UPT_SYSCALL_ARG6(r) } } )
 
-#define UPT_REG(regs, reg) \
-	({	unsigned long val; \
-		switch(reg){ \
-		case EIP: val = UPT_IP(regs); break; \
-		case UESP: val = UPT_SP(regs); break; \
-		case EAX: val = UPT_EAX(regs); break; \
-		case EBX: val = UPT_EBX(regs); break; \
-		case ECX: val = UPT_ECX(regs); break; \
-		case EDX: val = UPT_EDX(regs); break; \
-		case ESI: val = UPT_ESI(regs); break; \
-		case EDI: val = UPT_EDI(regs); break; \
-		case EBP: val = UPT_EBP(regs); break; \
-		case ORIG_EAX: val = UPT_ORIG_EAX(regs); break; \
-		case CS: val = UPT_CS(regs); break; \
-		case SS: val = UPT_SS(regs); break; \
-		case DS: val = UPT_DS(regs); break; \
-		case ES: val = UPT_ES(regs); break; \
-		case FS: val = UPT_FS(regs); break; \
-		case GS: val = UPT_GS(regs); break; \
-		case EFL: val = UPT_EFLAGS(regs); break; \
-		default :  \
-			panic("Bad register in UPT_REG : %d\n", reg);  \
-			val = -1; \
-		} \
-	        val; \
-	})
-
-#define UPT_SET(regs, reg, val) \
-	do { \
-		switch(reg){ \
-		case EIP: UPT_IP(regs) = val; break; \
-		case UESP: UPT_SP(regs) = val; break; \
-		case EAX: UPT_EAX(regs) = val; break; \
-		case EBX: UPT_EBX(regs) = val; break; \
-		case ECX: UPT_ECX(regs) = val; break; \
-		case EDX: UPT_EDX(regs) = val; break; \
-		case ESI: UPT_ESI(regs) = val; break; \
-		case EDI: UPT_EDI(regs) = val; break; \
-		case EBP: UPT_EBP(regs) = val; break; \
-		case ORIG_EAX: UPT_ORIG_EAX(regs) = val; break; \
-		case CS: UPT_CS(regs) = val; break; \
-		case SS: UPT_SS(regs) = val; break; \
-		case DS: UPT_DS(regs) = val; break; \
-		case ES: UPT_ES(regs) = val; break; \
-		case FS: UPT_FS(regs) = val; break; \
-		case GS: UPT_GS(regs) = val; break; \
-		case EFL: UPT_EFLAGS(regs) = val; break; \
-		default :  \
-			panic("Bad register in UPT_SET : %d\n", reg);  \
-			break; \
-		} \
-	} while (0)
-
 #define UPT_SET_SYSCALL_RETURN(r, res) \
 	REGS_SET_SYSCALL_RETURN((r)->regs, (res))
 

@@ -50,20 +50,47 @@ int is_syscall(unsigned long addr)
 /* 1 = access 0 = no access */
 #define FLAG_MASK 0x00044dd5
 
+static const int reg_offsets[] = {
+	[EBX] = HOST_EBX,
+	[ECX] = HOST_ECX,
+	[EDX] = HOST_EDX,
+	[ESI] = HOST_ESI,
+	[EDI] = HOST_EDI,
+	[EBP] = HOST_EBP,
+	[EAX] = HOST_EAX,
+	[DS] = HOST_DS,
+	[ES] = HOST_ES,
+	[FS] = HOST_FS,
+	[GS] = HOST_GS,
+	[EIP] = HOST_IP,
+	[CS] = HOST_CS,
+	[EFL] = HOST_EFLAGS,
+	[UESP] = HOST_SP,
+	[SS] = HOST_SS,
+};
+
 int putreg(struct task_struct *child, int regno, unsigned long value)
 {
 	regno >>= 2;
 	switch (regno) {
+	case EBX:
+	case ECX:
+	case EDX:
+	case ESI:
+	case EDI:
+	case EBP:
+	case EAX:
+	case EIP:
+	case UESP:
+		break;
 	case FS:
 		if (value && (value & 3) != 3)
 			return -EIO;
-		PT_REGS_FS(&child->thread.regs) = value;
-		return 0;
+		break;
 	case GS:
 		if (value && (value & 3) != 3)
 			return -EIO;
-		PT_REGS_GS(&child->thread.regs) = value;
-		return 0;
+		break;
 	case DS:
 	case ES:
 		if (value && (value & 3) != 3)
@@ -78,10 +105,15 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 		break;
 	case EFL:
 		value &= FLAG_MASK;
-		value |= PT_REGS_EFLAGS(&child->thread.regs);
-		break;
+		child->thread.regs.regs.gp[HOST_EFLAGS] |= value;
+		return 0;
+	case ORIG_EAX:
+		child->thread.regs.regs.syscall = value;
+		return 0;
+	default :
+		panic("Bad register in putreg() : %d\n", regno);
 	}
-	PT_REGS_SET(&child->thread.regs, regno, value);
+	child->thread.regs.regs.gp[reg_offsets[regno]] = value;
 	return 0;
 }
 
@@ -106,22 +138,35 @@ int poke_user(struct task_struct *child, long addr, long data)
 
 unsigned long getreg(struct task_struct *child, int regno)
 {
-	unsigned long retval = ~0UL;
+	unsigned long mask = ~0UL;
 
 	regno >>= 2;
 	switch (regno) {
+	case ORIG_EAX:
+		return child->thread.regs.regs.syscall;
 	case FS:
 	case GS:
 	case DS:
 	case ES:
 	case SS:
 	case CS:
-		retval = 0xffff;
-		/* fall through */
+		mask = 0xffff;
+		break;
+	case EIP:
+	case UESP:
+	case EAX:
+	case EBX:
+	case ECX:
+	case EDX:
+	case ESI:
+	case EDI:
+	case EBP:
+	case EFL:
+		break;
 	default:
-		retval &= PT_REG(&child->thread.regs, regno);
+		panic("Bad register in getreg() : %d\n", regno);
 	}
-	return retval;
+	return mask & child->thread.regs.regs.gp[reg_offsets[regno]];
 }
 
 /* read the word at location addr in the USER area. */
