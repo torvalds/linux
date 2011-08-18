@@ -9,7 +9,6 @@
 
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <kern_constants.h>
 
 typedef long syscall_handler_t(void);
 
