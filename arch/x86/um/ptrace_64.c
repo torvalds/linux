@@ -46,7 +46,7 @@ static const int reg_offsets[] =
 	[FS >> 3] = HOST_FS,
 	[GS >> 3] = HOST_GS,
 	[EFLAGS >> 3] = HOST_EFLAGS,
-	[ORIG_RAX >> 3] = HOST_ORIG_RAX,
+	[ORIG_RAX >> 3] = HOST_ORIG_AX,
 };
 
 int putreg(struct task_struct *child, int regno, unsigned long value)

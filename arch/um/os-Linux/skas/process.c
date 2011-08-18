@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
 #include "as-layout.h"
@@ -162,7 +161,7 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 
 	if (!local_using_sysemu)
 	{
-		err = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_NR_OFFSET,
+		err = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
 			     __NR_getpid);
 		if (err < 0) {
 			printk(UM_KERN_ERR "handle_trap - nullifying syscall "

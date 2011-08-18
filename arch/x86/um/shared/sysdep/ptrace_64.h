@@ -65,7 +65,7 @@
 #define REGS_FS(r) ((r)[HOST_FS])
 #define REGS_GS(r) ((r)[HOST_GS])
 
-#define REGS_ORIG_RAX(r) ((r)[HOST_ORIG_RAX])
+#define REGS_ORIG_RAX(r) ((r)[HOST_ORIG_AX])
 
 #define REGS_SET_SYSCALL_RETURN(r, res) REGS_RAX(r) = (res)
 
