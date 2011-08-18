@@ -623,45 +623,9 @@ static struct mma8452_platform_data mma8452_info = {
 /*mpu3050*/
 static struct mpu3050_platform_data mpu3050_data = {
 	.int_config = 0x10,
-	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-	.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 }, //re
-
-
-    
-	//.orientation = { -1, 0, 0, 0, -1, 0,0, 0, 1 }, 
-	//.orientation = { 0, -1,0,  0, 0, -1, 1, 0, 0 }, 
-	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, -1 },
-	//.orientation = { 0, 0, 1,0, 1, 0,1, 0, 0 },
-	//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
-	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-	//.orientation = { 1, 0, 0,0, -1, 0,0, 0, -1 },
-	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, -1 },
-	//.orientation = { -1, 0, 0,0, 1, 0,0, 0, -1 },
-	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
-	//.orientation = { 0, 0, 1,0, -1, 0,1, 0, 0 },
-	//.orientation = { -1, 0, 0,0, 0, 1,0, 1, 0 },
-	//.orientation = { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
-	//.orientation = { 0, 1, 0, 1, 0, 0, 0, 0, 1 }, //z
-	//.orientation = { 0, 0, -1,-1, 0, 0,0, 1, 0 },
-	//.orientation = { -1, 0, 0,0, 0, -1,0, -1, 0 },
-	//.orientation = { 0, -1, 0, 1, 0, 0,0, 0, 1 },	
-	//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
-	//.orientation = { -1, 0, 0,0, -1, 0, 0, 0, -1 },
+	.orientation = { 1, 0, 0, 0, 1, 0, 0, 0, 1 }, //re
+	//.orientation = { -1, 0, 0, -1, 0, 0, 0, 0, 1 },
 	.level_shifter = 0,
-#if defined (CONFIG_SENSORS_KXTF9)
-    .accel = {
-        .get_slave_descr = get_accel_slave_descr ,
-        .adapt_num = 0, // The i2c bus to which the mpu device is
-        // connected
-        .irq = RK29_PIN6_PC4,
-        .bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
-        .address = 0x0f,
-        //.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-        //.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
-        //.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
-        .orientation = {1, 0, 0, 0, -1, 0, 0, 0, -1},
-    },
-#endif
 
 #ifdef CONFIG_MPU_SENSORS_BMA150
     .accel = {
@@ -671,10 +635,8 @@ static struct mpu3050_platform_data mpu3050_data = {
     	.irq = RK29_PIN0_PA3,
     	.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
     	.address = 0x38,//0x1c, //
-    	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-    	.orientation = { 0, -1, 0,1, 0, 0, 0, 0, 1 },
-    	//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
-    	//.orientation = {1, 0, 0, 0, -1, 0, 0, 0, -1},
+    	.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
+    	//.orientation = { 1, 0, 0, 1, 0, 0, 0, 0, 1 },
     	},
 #endif
 
@@ -687,15 +649,8 @@ static struct mpu3050_platform_data mpu3050_data = {
     	.irq = RK29_PIN0_PA4,
     	.bus = EXT_SLAVE_BUS_PRIMARY,
     	.address = 0x0d, //
-    	//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },  //ok
-    	//.orientation = { -1, 0, 0,0, 1, 0,0, 0, 1 }, 
-    	//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 }, 
-    	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-    	//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-    	//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, 1 },
-    	//.orientation = { 0, -1, 0,1, 0, 0,0, 0, 1 },
-    	//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, 1 },
-    	.orientation = { 0, 1, 0,-1, 0, 0,0, 0, 1 },
+    	.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
+    	//.orientation = { 1, 0, 0, 1, 0, 0, 0, 0, 1 },
     	},
 #endif
 };
