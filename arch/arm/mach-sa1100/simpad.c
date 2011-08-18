@@ -31,6 +31,7 @@
 #include <linux/ioport.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/leds.h>
 #include <linux/i2c-gpio.h>
 
 #include "generic.h"
@@ -295,6 +296,32 @@ static struct platform_device simpad_polled_keys = {
 };
 
 /*
+ * GPIO LEDs
+ */
+
+static struct gpio_led simpad_leds[] = {
+	{
+		.name = "simpad:power",
+		.gpio = SIMPAD_CS3_LED2_ON,
+		.active_low = 0,
+		.default_trigger = "default-on",
+	},
+};
+
+static struct gpio_led_platform_data simpad_led_data = {
+	.num_leds = ARRAY_SIZE(simpad_leds),
+	.leds = simpad_leds,
+};
+
+static struct platform_device simpad_gpio_leds = {
+	.name = "leds-gpio",
+	.id = 0,
+	.dev = {
+		.platform_data = &simpad_led_data,
+	},
+};
+
+/*
  * i2c
  */
 static struct i2c_gpio_platform_data simpad_i2c_data = {
@@ -324,6 +351,7 @@ static struct platform_device *devices[] __initdata = {
 	&simpad_keys,
 	&simpad_polled_keys,
 	&simpad_mq200fb,
+	&simpad_gpio_leds,
 	&simpad_i2c,
 };
 
