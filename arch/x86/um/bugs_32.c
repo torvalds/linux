@@ -6,12 +6,14 @@
 #include <signal.h>
 #include "kern_util.h"
 #include "longjmp.h"
-#include "task.h"
 #include "sysdep/ptrace.h"
+#include <generated/asm-offsets.h>
 
 /* Set during early boot */
 static int host_has_cmov = 1;
 static jmp_buf cmov_test_return;
+
+#define TASK_PID(task) *((int *) &(((char *) (task))[HOST_TASK_PID]))
 
 static void cmov_sigill_test_handler(int sig)
 {
