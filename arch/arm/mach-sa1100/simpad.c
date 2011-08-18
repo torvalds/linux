@@ -132,6 +132,7 @@ static struct resource simpad_flash_resources [] = {
 static struct mcp_plat_data simpad_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
+	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
 };
 
 
