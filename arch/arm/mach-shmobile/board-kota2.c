@@ -256,6 +256,12 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_SCIFA2_RTS1_, NULL);
 	gpio_request(GPIO_FN_SCIFA2_CTS1_, NULL);
 
+	/* SCIFA4 (UART1) */
+	gpio_request(GPIO_FN_SCIFA4_TXD, NULL);
+	gpio_request(GPIO_FN_SCIFA4_RXD, NULL);
+	gpio_request(GPIO_FN_SCIFA4_RTS_, NULL);
+	gpio_request(GPIO_FN_SCIFA4_CTS_, NULL);
+
 	/* SMSC911X */
 	gpio_request(GPIO_FN_D0_NAF0, NULL);
 	gpio_request(GPIO_FN_D1_NAF1, NULL);
@@ -312,6 +318,13 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_MMCCMD0, NULL);
 	gpio_request(GPIO_PORT208, NULL); /* Reset */
 	gpio_direction_output(GPIO_PORT208, 1);
+
+	/* SCIFB (BT) */
+	gpio_request(GPIO_FN_PORT159_SCIFB_SCK, NULL);
+	gpio_request(GPIO_FN_PORT160_SCIFB_TXD, NULL);
+	gpio_request(GPIO_FN_PORT161_SCIFB_CTS_, NULL);
+	gpio_request(GPIO_FN_PORT162_SCIFB_RXD, NULL);
+	gpio_request(GPIO_FN_PORT163_SCIFB_RTS_, NULL);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
