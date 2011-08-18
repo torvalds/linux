@@ -5,7 +5,7 @@
  * Released under the GPL
  */
 
-#include <user_constants.h>
+#include <generated/user_constants.h>
 
 #define SC_OFFSET(sc, field) \
 	 *((unsigned long *) &(((char *) (sc))[HOST_##field]))

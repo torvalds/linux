@@ -1,7 +1,7 @@
 #ifndef __SYSDEP_I386_SC_H
 #define __SYSDEP_I386_SC_H
 
-#include <user_constants.h>
+#include <generated/user_constants.h>
 
 #define SC_OFFSET(sc, field) \
 	*((unsigned long *) &(((char *) (sc))[HOST_##field]))

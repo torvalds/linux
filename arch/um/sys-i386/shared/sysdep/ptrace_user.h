@@ -9,7 +9,7 @@
 #include <sys/ptrace.h>
 #include <linux/ptrace.h>
 #include <asm/ptrace.h>
-#include "user_constants.h"
+#include <generated/user_constants.h>
 
 #define PT_OFFSET(r) ((r) * sizeof(long))
 

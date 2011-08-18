@@ -12,7 +12,7 @@
 #include <linux/ptrace.h>
 #include <asm/ptrace.h>
 #undef __FRAME_OFFSETS
-#include "user_constants.h"
+#include <generated/user_constants.h>
 
 #define PT_INDEX(off) ((off) / sizeof(unsigned long))
 

@@ -6,7 +6,7 @@
 #ifndef __SYSDEP_I386_PTRACE_H
 #define __SYSDEP_I386_PTRACE_H
 
-#include "user_constants.h"
+#include <generated/user_constants.h>
 #include "sysdep/faultinfo.h"
 
 #define MAX_REG_NR (UM_FRAME_SIZE / sizeof(unsigned long))
