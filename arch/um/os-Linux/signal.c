@@ -111,7 +111,7 @@ void alarm_handler(int sig, struct sigcontext *sc)
 
 void timer_init(void)
 {
-	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler);
+	set_handler(SIGVTALRM);
 }
 
 void set_sigstack(void *sig_stack, int size)
@@ -124,7 +124,17 @@ void set_sigstack(void *sig_stack, int size)
 		panic("enabling signal stack failed, errno = %d\n", errno);
 }
 
-static void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
+static void (*handlers[_NSIG])(int sig, struct sigcontext *sc) = {
+	[SIGSEGV] = sig_handler,
+	[SIGBUS] = sig_handler,
+	[SIGILL] = sig_handler,
+	[SIGFPE] = sig_handler,
+	[SIGTRAP] = sig_handler,
+
+	[SIGIO] = sig_handler,
+	[SIGWINCH] = sig_handler,
+	[SIGVTALRM] = alarm_handler
+};
 
 static void handle_signal(int sig, struct sigcontext *sc)
 {
@@ -173,13 +183,12 @@ static void hard_handler(int sig, siginfo_t *info, void *p)
 	handle_signal(sig, (struct sigcontext *) &uc->uc_mcontext);
 }
 
-void set_handler(int sig, void (*handler)(int))
+void set_handler(int sig)
 {
 	struct sigaction action;
 	int flags = SA_SIGINFO | SA_ONSTACK;
 	sigset_t sig_mask;
 
-	handlers[sig] = (void (*)(int, struct sigcontext *)) handler;
 	action.sa_sigaction = hard_handler;
 
 	/* block irq ones */
