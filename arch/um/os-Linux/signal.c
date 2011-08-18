@@ -12,7 +12,6 @@
 #include "as-layout.h"
 #include "kern_util.h"
 #include "os.h"
-#include "sysdep/barrier.h"
 #include "sysdep/mcontext.h"
 
 void (*sig_info[NSIG])(int, struct uml_pt_regs *) = {
