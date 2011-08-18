@@ -53,7 +53,9 @@ static irqreturn_t sun3_int7(int irq, void *dev_id)
 {
 	unsigned int cnt;
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 	*sun3_intreg |=  (1 << irq);
+#endif
 	cnt = kstat_irqs_cpu(irq, 0);
 	if (!(cnt % 2000))
 		sun3_leds(led_pattern[cnt % 16000 / 2000]);
@@ -67,7 +69,9 @@ static irqreturn_t sun3_int5(int irq, void *dev_id)
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
+#ifndef CONFIG_GENERIC_HARDIRQS
         *sun3_intreg |=  (1 << irq);
+#endif
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
@@ -85,12 +89,14 @@ static irqreturn_t sun3_vec255(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 static void sun3_inthandle(unsigned int irq, struct pt_regs *fp)
 {
         *sun3_intreg &= ~(1 << irq);
 
 	do_IRQ(irq, fp);
 }
+#endif
 
 static void sun3_irq_enable(struct irq_data *data)
 {
@@ -108,15 +114,21 @@ static struct irq_chip sun3_irq_chip = {
 	.irq_shutdown	= m68k_irq_shutdown,
 	.irq_enable	= sun3_irq_enable,
 	.irq_disable	= sun3_irq_disable,
+#ifdef CONFIG_GENERIC_HARDIRQS
+	.irq_mask	= sun3_irq_disable,
+	.irq_unmask	= sun3_irq_enable,
+#endif
 };
 
 void __init sun3_init_IRQ(void)
 {
 	*sun3_intreg = 1;
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 	m68k_setup_auto_interrupt(sun3_inthandle);
-	m68k_setup_irq_controller(&sun3_irq_chip, handle_simple_irq,
-				  IRQ_AUTO_1, 7);
+#endif
+	m68k_setup_irq_controller(&sun3_irq_chip, handle_level_irq, IRQ_AUTO_1,
+				  7);
 	m68k_setup_user_interrupt(VEC_USER, 128, NULL);
 
 	if (request_irq(IRQ_AUTO_5, sun3_int5, 0, "int5", NULL))

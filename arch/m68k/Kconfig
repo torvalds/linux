@@ -87,9 +87,7 @@ config MMU_SUN3
 config USE_GENERIC_HARDIRQS
 	bool "Use genirq"
 	depends on MMU
-	depends on !SUN3X
 	depends on !Q40
-	depends on !SUN3
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 
