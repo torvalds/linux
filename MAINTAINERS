@@ -5920,6 +5920,12 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/smsc9420.*
 
+SMSC UFX6000 and UFX7000 USB to VGA DRIVER
+M:	Steve Glendinning <steve.glendinning@smsc.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Supported
+F:	drivers/video/smscufx.c
+
 SN-IA64 (Itanium) SUB-PLATFORM
 M:	Jes Sorensen <jes@sgi.com>
 L:	linux-altix@sgi.com
