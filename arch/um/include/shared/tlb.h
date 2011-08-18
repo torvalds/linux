@@ -9,7 +9,5 @@
 #include "um_mmu.h"
 
 extern void force_flush_all(void);
-extern int flush_tlb_kernel_range_common(unsigned long start,
-					 unsigned long end);
 
 #endif

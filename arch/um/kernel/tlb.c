@@ -287,7 +287,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 	}
 }
 
-int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
+static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 {
 	struct mm_struct *mm;
 	pgd_t *pgd;
