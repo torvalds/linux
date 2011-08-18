@@ -6,6 +6,7 @@
 #include <asm/cpufeature.h>
 #include <asm/cmpxchg.h>
 #include <asm/nops.h>
+#include <asm/system-um.h>
 
 #include <linux/kernel.h>
 #include <linux/irqflags.h>

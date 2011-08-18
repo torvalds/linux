@@ -1,8 +1,6 @@
 #ifndef __UM_SYSTEM_GENERIC_H
 #define __UM_SYSTEM_GENERIC_H
 
-#include "sysdep/system.h"
-
 extern int get_signals(void);
 extern int set_signals(int enable);
 extern void block_signals(void);
