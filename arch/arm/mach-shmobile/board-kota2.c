@@ -33,6 +33,8 @@
 #include <linux/input/sh_keysc.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
 #include <mach/hardware.h>
 #include <mach/sh73a0.h>
 #include <mach/common.h>
@@ -171,11 +173,44 @@ static struct platform_device gpio_leds_device = {
 	},
 };
 
+static struct resource mmcif_resources[] = {
+	[0] = {
+		.name   = "MMCIF",
+		.start  = 0xe6bd0000,
+		.end    = 0xe6bd00ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = gic_spi(140),
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start  = gic_spi(141),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_mmcif_plat_data mmcif_info = {
+	.ocr            = MMC_VDD_165_195,
+	.caps           = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+};
+
+static struct platform_device mmcif_device = {
+	.name           = "sh_mmcif",
+	.id             = 0,
+	.dev            = {
+		.platform_data          = &mmcif_info,
+	},
+	.num_resources  = ARRAY_SIZE(mmcif_resources),
+	.resource       = mmcif_resources,
+};
+
 static struct platform_device *kota2_devices[] __initdata = {
 	&eth_device,
 	&keysc_device,
 	&gpio_keys_device,
 	&gpio_leds_device,
+	&mmcif_device,
 };
 
 static struct map_desc kota2_io_desc[] __initdata = {
@@ -263,6 +298,20 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_PORT59_KEYOUT6, NULL);
 	gpio_request(GPIO_FN_PORT58_KEYOUT7, NULL);
 	gpio_request(GPIO_FN_KEYOUT8, NULL);
+
+	/* MMCIF */
+	gpio_request(GPIO_FN_MMCCLK0, NULL);
+	gpio_request(GPIO_FN_MMCD0_0, NULL);
+	gpio_request(GPIO_FN_MMCD0_1, NULL);
+	gpio_request(GPIO_FN_MMCD0_2, NULL);
+	gpio_request(GPIO_FN_MMCD0_3, NULL);
+	gpio_request(GPIO_FN_MMCD0_4, NULL);
+	gpio_request(GPIO_FN_MMCD0_5, NULL);
+	gpio_request(GPIO_FN_MMCD0_6, NULL);
+	gpio_request(GPIO_FN_MMCD0_7, NULL);
+	gpio_request(GPIO_FN_MMCCMD0, NULL);
+	gpio_request(GPIO_PORT208, NULL); /* Reset */
+	gpio_direction_output(GPIO_PORT208, 1);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
