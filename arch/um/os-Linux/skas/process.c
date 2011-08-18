@@ -26,11 +26,7 @@
 
 int is_skas_winch(int pid, int fd, void *data)
 {
-	if (pid != getpgrp())
-		return 0;
-
-	register_winch_irq(-1, fd, -1, data, 0);
-	return 1;
+	return pid == getpgrp();
 }
 
 static int ptrace_dump_regs(int pid)
