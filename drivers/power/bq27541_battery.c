@@ -45,6 +45,11 @@
 #define BQ27500_FLAG_OTC		BIT(15)
 
 #define BQ27510_SPEED 			100 * 1000
+#define POWER_ON_PIN	RK29_PIN4_PA4
+
+#define BAT_LOW	RK29_PIN4_PA2
+
+
 int  virtual_battery_enable = 0;
 extern int dwc_vbus_status(void);
 static void bq27541_set(void);
@@ -144,6 +149,8 @@ static int bq27541_write(struct i2c_client *client, u8 reg, u8 const buf[], unsi
  * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
  */
+
+
 static int bq27541_battery_temperature(struct bq27541_device_info *di)
 {
 	int ret;
@@ -164,6 +171,8 @@ static int bq27541_battery_temperature(struct bq27541_device_info *di)
 	temp = get_unaligned_le16(buf);
 	temp = temp - 2731;  //K
 	DBG("Enter:%s %d--temp = %d\n",__FUNCTION__,__LINE__,temp);
+
+//	rk29_pm_power_off();
 	return temp;
 }
 
@@ -186,6 +195,8 @@ static int bq27541_battery_voltage(struct bq27541_device_info *di)
 	ret = bq27541_read(di->client,BQ27x00_REG_VOLT,buf,2); 
 	if (ret<0) {
 		dev_err(di->dev, "error reading voltage\n");
+		printk("vol smaller then 3.4V, shutdown");
+//		gpio_set_value(POWER_ON_PIN, GPIO_LOW);
 		return ret;
 	}
 	volt = get_unaligned_le16(buf);
@@ -196,7 +207,18 @@ static int bq27541_battery_voltage(struct bq27541_device_info *di)
 	}else{
 		volt = volt * 1000;
 	}
+		
+	
+	if ((volt <= 3400000)  && (volt > 0)){
+		printk("vol smaller then 3.4V, shutdown");
+		while(1){
+			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+			mdelay(100);
+		}
+	}
 
+
+	
 	DBG("Enter:%s %d--volt = %d\n",__FUNCTION__,__LINE__,volt);
 	return volt;
 }
@@ -440,6 +462,8 @@ static int bq27541_battery_get_property(struct power_supply *psy,
 					union power_supply_propval *val)
 {
 	int ret = 0;
+	int vals=0;
+	
 	struct bq27541_device_info *di = to_bq27541_device_info(psy);
 	DBG("Enter:%s %d psp= %d\n",__FUNCTION__,__LINE__,psp);
 	
@@ -451,8 +475,9 @@ static int bq27541_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = bq27541_battery_voltage(di);
-		if (psp == POWER_SUPPLY_PROP_PRESENT)
+		if (psp == POWER_SUPPLY_PROP_PRESENT){
 			val->intval = val->intval <= 0 ? 0 : 1;
+		}
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = bq27541_battery_current(di);
@@ -592,6 +617,24 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	struct bq27541_device_info *di;
 	int retval = 0;
 	struct bq27541_platform_data *pdata;
+	int val =0;
+	
+//	gpio_request(BAT_LOW, NULL);
+//	gpio_direction_input(BAT_LOW);
+	gpio_request(POWER_ON_PIN, "poweronpin");
+	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+/*	
+	val = gpio_get_value(BAT_LOW);
+	if (val == 0){
+		printk("no battery, shutdown\n");
+		while(1){
+			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+			mdelay(100);
+		}
+		return 0;
+	}
+
+*/
 
 	DBG("**********  bq27541_battery_probe**************  ");
 	pdata = client->dev.platform_data;
@@ -616,6 +659,8 @@ static int bq27541_battery_probe(struct i2c_client *client,
 		pdata->init_dc_check_pin( );
 	
 	bq27541_powersupply_init(di);
+
+	
 	
 	retval = power_supply_register(&client->dev, &di->bat);
 	if (retval) {
@@ -665,6 +710,7 @@ static struct i2c_driver bq27541_battery_driver = {
 static int __init bq27541_battery_init(void)
 {
 	int ret;
+	
 	struct proc_dir_entry * battery_proc_entry;
 	
 	ret = i2c_add_driver(&bq27541_battery_driver);
@@ -672,9 +718,13 @@ static int __init bq27541_battery_init(void)
 		printk(KERN_ERR "Unable to register BQ27541 driver\n");
 	
 	battery_proc_entry = proc_create("driver/power",0777,NULL,&battery_proc_fops);
+
 	return ret;
 }
-module_init(bq27541_battery_init);
+
+//module_init(bq27541_battery_init);
+fs_initcall(bq27541_battery_init);
+//arch_initcall(bq27541_battery_init);
 
 static void __exit bq27541_battery_exit(void)
 {

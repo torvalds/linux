@@ -23,6 +23,7 @@
 #define ENABLE_FURTHER_CPUFREQ          0x20
 #define MASK_FURTHER_CPUFREQ            0x30
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
+#define CPUFREQ_FORCE_CHANGE            0x40
 
 #ifdef CONFIG_CPU_FREQ
 int board_update_cpufreq_table(struct cpufreq_frequency_table *table);
