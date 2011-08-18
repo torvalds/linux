@@ -6,7 +6,9 @@
 
 #include <errno.h>
 #include <sys/ptrace.h>
+#ifdef __i386__
 #include <sys/user.h>
+#endif
 #include "longjmp.h"
 #include "sysdep/ptrace_user.h"
 
