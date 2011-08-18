@@ -1293,12 +1293,13 @@ static void acer_rfkill_update(struct work_struct *ignored)
 	u32 state;
 	acpi_status status;
 
-	status = get_u32(&state, ACER_CAP_WIRELESS);
-	if (ACPI_SUCCESS(status)) {
-		if (quirks->wireless == 3) {
-			rfkill_set_hw_state(wireless_rfkill, !state);
-		} else {
-			rfkill_set_sw_state(wireless_rfkill, !state);
+	if (has_cap(ACER_CAP_WIRELESS)) {
+		status = get_u32(&state, ACER_CAP_WIRELESS);
+		if (ACPI_SUCCESS(status)) {
+			if (quirks->wireless == 3)
+				rfkill_set_hw_state(wireless_rfkill, !state);
+			else
+				rfkill_set_sw_state(wireless_rfkill, !state);
 		}
 	}
 
@@ -1367,19 +1368,24 @@ static struct rfkill *acer_rfkill_register(struct device *dev,
 
 static int acer_rfkill_init(struct device *dev)
 {
-	wireless_rfkill = acer_rfkill_register(dev, RFKILL_TYPE_WLAN,
-		"acer-wireless", ACER_CAP_WIRELESS);
-	if (IS_ERR(wireless_rfkill))
-		return PTR_ERR(wireless_rfkill);
+	int err;
+
+	if (has_cap(ACER_CAP_WIRELESS)) {
+		wireless_rfkill = acer_rfkill_register(dev, RFKILL_TYPE_WLAN,
+			"acer-wireless", ACER_CAP_WIRELESS);
+		if (IS_ERR(wireless_rfkill)) {
+			err = PTR_ERR(wireless_rfkill);
+			goto error_wireless;
+		}
+	}
 
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
 		bluetooth_rfkill = acer_rfkill_register(dev,
 			RFKILL_TYPE_BLUETOOTH, "acer-bluetooth",
 			ACER_CAP_BLUETOOTH);
 		if (IS_ERR(bluetooth_rfkill)) {
-			rfkill_unregister(wireless_rfkill);
-			rfkill_destroy(wireless_rfkill);
-			return PTR_ERR(bluetooth_rfkill);
+			err = PTR_ERR(bluetooth_rfkill);
+			goto error_bluetooth;
 		}
 	}
 
@@ -1388,30 +1394,44 @@ static int acer_rfkill_init(struct device *dev)
 			RFKILL_TYPE_WWAN, "acer-threeg",
 			ACER_CAP_THREEG);
 		if (IS_ERR(threeg_rfkill)) {
-			rfkill_unregister(wireless_rfkill);
-			rfkill_destroy(wireless_rfkill);
-			rfkill_unregister(bluetooth_rfkill);
-			rfkill_destroy(bluetooth_rfkill);
-			return PTR_ERR(threeg_rfkill);
+			err = PTR_ERR(threeg_rfkill);
+			goto error_threeg;
 		}
 	}
 
 	rfkill_inited = true;
 
-	if (ec_raw_mode || !wmi_has_guid(ACERWMID_EVENT_GUID))
+	if ((ec_raw_mode || !wmi_has_guid(ACERWMID_EVENT_GUID)) &&
+	    has_cap(ACER_CAP_WIRELESS | ACER_CAP_BLUETOOTH | ACER_CAP_THREEG))
 		schedule_delayed_work(&acer_rfkill_work,
 			round_jiffies_relative(HZ));
 
 	return 0;
+
+error_threeg:
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		rfkill_unregister(bluetooth_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
+	}
+error_bluetooth:
+	if (has_cap(ACER_CAP_WIRELESS)) {
+		rfkill_unregister(wireless_rfkill);
+		rfkill_destroy(wireless_rfkill);
+	}
+error_wireless:
+	return err;
 }
 
 static void acer_rfkill_exit(void)
 {
-	if (ec_raw_mode || !wmi_has_guid(ACERWMID_EVENT_GUID))
+	if ((ec_raw_mode || !wmi_has_guid(ACERWMID_EVENT_GUID)) &&
+	    has_cap(ACER_CAP_WIRELESS | ACER_CAP_BLUETOOTH | ACER_CAP_THREEG))
 		cancel_delayed_work_sync(&acer_rfkill_work);
 
-	rfkill_unregister(wireless_rfkill);
-	rfkill_destroy(wireless_rfkill);
+	if (has_cap(ACER_CAP_WIRELESS)) {
+		rfkill_unregister(wireless_rfkill);
+		rfkill_destroy(wireless_rfkill);
+	}
 
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
 		rfkill_unregister(bluetooth_rfkill);
