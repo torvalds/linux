@@ -248,9 +248,12 @@ static inline int au_test_mmapped(struct file *f)
 static inline void au_do_vm_file_reset(struct vm_area_struct *vma,
 				       struct file *file)
 {
-	fput(vma->vm_file);
+	struct file *f;
+
+	f = vma->vm_file;
 	get_file(file);
 	vma->vm_file = file;
+	fput(f);
 }
 
 #ifdef CONFIG_MMU
@@ -268,10 +271,13 @@ static inline void au_vm_file_reset(struct vm_area_struct *vma,
 static inline void au_vm_file_reset(struct vm_area_struct *vma,
 				    struct file *file)
 {
+	struct file *f;
+
 	au_do_vm_file_reset(vma, file);
-	fput(vma->vm_region->vm_file);
+	f = vma->vm_region->vm_file;
 	get_file(file);
 	vma->vm_region->vm_file = file;
+	fput(f);
 }
 #endif /* CONFIG_MMU */
 
