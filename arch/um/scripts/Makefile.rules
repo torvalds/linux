@@ -25,8 +25,3 @@ $(UNPROFILE_OBJS) : CHECKFLAGS := -D__linux__ -Dlinux -D__STDC__ \
 define unprofile
 	$(patsubst -pg,,$(patsubst -fprofile-arcs -ftest-coverage,,$(1)))
 endef
-
-ifdef subarch-obj-y
-obj-y += subarch.o
-subarch-y = $(addprefix ../../$(HEADER_ARCH)/,$(subarch-obj-y))
-endif

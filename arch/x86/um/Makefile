@@ -11,28 +11,28 @@ endif
 obj-y = bug.o bugs_$(BITS).o delay_$(BITS).o fault.o ksyms.o ldt.o \
 	ptrace_$(BITS).o ptrace_user.o setjmp_$(BITS).o signal_$(BITS).o \
 	stub_$(BITS).o stub_segv.o syscalls_$(BITS).o \
-	sys_call_table_$(BITS).o sysrq_$(BITS).o tls_$(BITS).o mem_$(BITS).o
+	sys_call_table_$(BITS).o sysrq_$(BITS).o tls_$(BITS).o \
+	mem_$(BITS).o subarch.o os-$(OS)/
 
 ifeq ($(CONFIG_X86_32),y)
 
 obj-y += checksum_32.o
 obj-$(CONFIG_BINFMT_ELF) += elfcore.o
 
-subarch-obj-y = lib/string_32.o lib/atomic64_32.o lib/atomic64_cx8_32.o
-subarch-obj-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += lib/rwsem.o
-subarch-obj-$(CONFIG_HIGHMEM) += mm/highmem_32.o
-subarch-obj-$(CONFIG_MODULES) += kernel/module.o
+subarch-y = ../lib/string_32.o ../lib/atomic64_32.o ../lib/atomic64_cx8_32.o
+subarch-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += ../lib/rwsem.o
+subarch-$(CONFIG_HIGHMEM) += ../mm/highmem_32.o
 
 else
 
 obj-y += vdso/
 
-subarch-obj-y = lib/csum-partial_64.o lib/memcpy_64.o lib/thunk_64.o \
-		lib/rwsem.o
+subarch-y = ../lib/csum-partial_64.o ../lib/memcpy_64.o ../lib/thunk_64.o \
+		../lib/rwsem.o
 
 endif
 
-subarch-obj-$(CONFIG_MODULES) += kernel/module.o
+subarch-$(CONFIG_MODULES) += ../kernel/module.o
 
 USER_OBJS := bugs_$(BITS).o ptrace_user.o fault.o
 

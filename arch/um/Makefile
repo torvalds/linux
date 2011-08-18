@@ -30,13 +30,17 @@ ifeq ($(SUBARCH),x86_64)
         HEADER_ARCH := x86
 endif
 
+HOST_DIR := arch/$(HEADER_ARCH)
+
 include $(srctree)/$(ARCH_DIR)/Makefile-skas
-include $(srctree)/$(ARCH_DIR)/Makefile-$(HEADER_ARCH)
+include $(srctree)/$(HOST_DIR)/Makefile.um
+
+core-y += $(HOST_DIR)/um/
 
 SHARED_HEADERS	:= $(ARCH_DIR)/include/shared
 ARCH_INCLUDE	:= -I$(srctree)/$(SHARED_HEADERS)
-ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/sys-$(HEADER_ARCH)/shared
-KBUILD_CPPFLAGS += -I$(srctree)/$(ARCH_DIR)/sys-$(HEADER_ARCH)
+ARCH_INCLUDE	+= -I$(srctree)/$(HOST_DIR)/um/shared
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/um
 
 # -Dvmap=kernel_vmap prevents anything from referencing the libpcap.o symbol so
 # named - it's a common symbol in libpcap, so we get a binary which crashes.
@@ -60,7 +64,7 @@ USER_CFLAGS = $(patsubst $(KERNEL_DEFINES),,$(patsubst -D__KERNEL__,,\
 #This will adjust *FLAGS accordingly to the platform.
 include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
 
-KBUILD_CPPFLAGS += -I$(srctree)/arch/$(HEADER_ARCH)/include
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include
 
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
@@ -90,7 +94,7 @@ define archhelp
   echo '		   find in the kernel root.'
 endef
 
-KBUILD_KCONFIG := arch/um/Kconfig.$(HEADER_ARCH)
+KBUILD_KCONFIG := $(HOST_DIR)/um/Kconfig
 
 archprepare: include/generated/user_constants.h
 
@@ -131,8 +135,8 @@ archclean:
 
 # Generated files
 
-$(ARCH_DIR)/sys-$(HEADER_ARCH)/user-offsets.s: FORCE
-	$(Q)$(MAKE) $(build)=$(ARCH_DIR)/sys-$(HEADER_ARCH) $@
+$(HOST_DIR)/um/user-offsets.s: FORCE
+	$(Q)$(MAKE) $(build)=$(HOST_DIR)/um $@
 
 define filechk_gen-asm-offsets
         (set -e; \
@@ -147,7 +151,7 @@ define filechk_gen-asm-offsets
          echo ""; )
 endef
 
-include/generated/user_constants.h: $(ARCH_DIR)/sys-$(HEADER_ARCH)/user-offsets.s
+include/generated/user_constants.h: $(HOST_DIR)/um/user-offsets.s
 	$(call filechk,gen-asm-offsets)
 
-export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS HEADER_ARCH DEV_NULL_PATH
+export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS DEV_NULL_PATH

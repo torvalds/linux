@@ -1,4 +1,4 @@
-core-y += arch/um/sys-x86/ arch/x86/crypto/
+core-y += arch/x86/crypto/
 
 ifeq ($(CONFIG_X86_32),y)
 START := 0x8048000
