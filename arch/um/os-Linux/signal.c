@@ -127,7 +127,7 @@ void set_sigstack(void *sig_stack, int size)
 
 static void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
 
-void handle_signal(int sig, struct sigcontext *sc)
+static void handle_signal(int sig, struct sigcontext *sc)
 {
 	unsigned long pending = 1UL << sig;
 
@@ -168,7 +168,11 @@ void handle_signal(int sig, struct sigcontext *sc)
 	} while (pending);
 }
 
-extern void hard_handler(int sig);
+static void hard_handler(int sig, siginfo_t *info, void *p)
+{
+	struct ucontext *uc = p;
+	handle_signal(sig, (struct sigcontext *) &uc->uc_mcontext);
+}
 
 void set_handler(int sig, void (*handler)(int), int flags, ...)
 {
@@ -178,7 +182,7 @@ void set_handler(int sig, void (*handler)(int), int flags, ...)
 	int mask;
 
 	handlers[sig] = (void (*)(int, struct sigcontext *)) handler;
-	action.sa_handler = hard_handler;
+	action.sa_sigaction = hard_handler;
 
 	sigemptyset(&action.sa_mask);
 
@@ -190,7 +194,7 @@ void set_handler(int sig, void (*handler)(int), int flags, ...)
 	if (sig == SIGSEGV)
 		flags |= SA_NODEFER;
 
-	action.sa_flags = flags;
+	action.sa_flags = flags | SA_SIGINFO;
 	action.sa_restorer = NULL;
 	if (sigaction(sig, &action, NULL) < 0)
 		panic("sigaction failed - errno = %d\n", errno);
