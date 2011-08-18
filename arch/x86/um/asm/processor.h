@@ -10,6 +10,10 @@
 # include "processor_64.h"
 #endif
 
+#define KSTK_EIP(tsk) KSTK_REG(tsk, HOST_IP)
+#define KSTK_ESP(tsk) KSTK_REG(tsk, HOST_IP)
+#define KSTK_EBP(tsk) KSTK_REG(tsk, HOST_BP)
+
 #define ARCH_IS_STACKGROW(address) \
        (address + 65536 + 32 * sizeof(unsigned long) >= UPT_SP(&current->thread.regs.regs))
 

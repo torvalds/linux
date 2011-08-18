@@ -89,18 +89,18 @@ unsigned long get_thread_reg(int reg, jmp_buf *buf)
 {
 	switch (reg) {
 #ifdef __i386__
-	case EIP:
+	case HOST_IP:
 		return buf[0]->__eip;
-	case UESP:
+	case HOST_SP:
 		return buf[0]->__esp;
-	case EBP:
+	case HOST_BP:
 		return buf[0]->__ebp;
 #else
-	case RIP:
+	case HOST_IP:
 		return buf[0]->__rip;
-	case RSP:
+	case HOST_SP:
 		return buf[0]->__rsp;
-	case RBP:
+	case HOST_BP:
 		return buf[0]->__rbp;
 #endif
 	default:
