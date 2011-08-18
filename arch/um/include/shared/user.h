@@ -6,7 +6,7 @@
 #ifndef __USER_H__
 #define __USER_H__
 
-#include "kern_constants.h"
+#include <generated/asm-offsets.h>
 
 /*
  * The usual definition - copied here because the kernel provides its own,
