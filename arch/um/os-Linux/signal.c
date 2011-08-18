@@ -111,8 +111,7 @@ void alarm_handler(int sig, struct sigcontext *sc)
 
 void timer_init(void)
 {
-	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGIO, SIGWINCH, -1);
+	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler);
 }
 
 void set_sigstack(void *sig_stack, int size)
@@ -174,27 +173,28 @@ static void hard_handler(int sig, siginfo_t *info, void *p)
 	handle_signal(sig, (struct sigcontext *) &uc->uc_mcontext);
 }
 
-void set_handler(int sig, void (*handler)(int), int flags, ...)
+void set_handler(int sig, void (*handler)(int))
 {
 	struct sigaction action;
-	va_list ap;
+	int flags = SA_SIGINFO | SA_ONSTACK;
 	sigset_t sig_mask;
-	int mask;
 
 	handlers[sig] = (void (*)(int, struct sigcontext *)) handler;
 	action.sa_sigaction = hard_handler;
 
+	/* block irq ones */
 	sigemptyset(&action.sa_mask);
-
-	va_start(ap, flags);
-	while ((mask = va_arg(ap, int)) != -1)
-		sigaddset(&action.sa_mask, mask);
-	va_end(ap);
+	sigaddset(&action.sa_mask, SIGVTALRM);
+	sigaddset(&action.sa_mask, SIGIO);
+	sigaddset(&action.sa_mask, SIGWINCH);
 
 	if (sig == SIGSEGV)
 		flags |= SA_NODEFER;
 
-	action.sa_flags = flags | SA_SIGINFO;
+	if (sigismember(&action.sa_mask, sig))
+		flags |= SA_RESTART; /* if it's an irq signal */
+
+	action.sa_flags = flags;
 	action.sa_restorer = NULL;
 	if (sigaction(sig, &action, NULL) < 0)
 		panic("sigaction failed - errno = %d\n", errno);

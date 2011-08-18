@@ -225,7 +225,7 @@ extern char *get_umid(void);
 extern void timer_init(void);
 extern void set_sigstack(void *sig_stack, int size);
 extern void remove_sigstack(void);
-extern void set_handler(int sig, void (*handler)(int), int flags, ...);
+extern void set_handler(int sig, void (*handler)(int));
 extern int change_sig(int signal, int on);
 extern void block_signals(void);
 extern void unblock_signals(void);

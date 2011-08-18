@@ -235,20 +235,13 @@ out:
 
 void init_new_thread_signals(void)
 {
-	set_handler(SIGSEGV, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGTRAP, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGFPE, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGILL, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGBUS, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGIO, SIGWINCH, SIGVTALRM, -1);
+	set_handler(SIGSEGV, (__sighandler_t) sig_handler);
+	set_handler(SIGTRAP, (__sighandler_t) sig_handler);
+	set_handler(SIGFPE, (__sighandler_t) sig_handler);
+	set_handler(SIGILL, (__sighandler_t) sig_handler);
+	set_handler(SIGBUS, (__sighandler_t) sig_handler);
 	signal(SIGHUP, SIG_IGN);
-
-	set_handler(SIGIO, (__sighandler_t) sig_handler,
-		    SA_ONSTACK | SA_RESTART, SIGIO, SIGWINCH, SIGVTALRM, -1);
+	set_handler(SIGIO, (__sighandler_t) sig_handler);
 	signal(SIGWINCH, SIG_IGN);
 	signal(SIGTERM, SIG_DFL);
 }
