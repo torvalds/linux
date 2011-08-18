@@ -16,41 +16,39 @@
 static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
+	struct sigcontext sc;
 	struct user_i387_struct fp;
 	void __user *buf;
-	int err = 0;
+	int err;
 
-#define GETREG(regs, regno, sc, regname)				\
-	__get_user((regs)->regs.gp[(regno) / sizeof(unsigned long)],	\
-		   &(sc)->regname)
-
-	err |= GETREG(regs, R8, from, r8);
-	err |= GETREG(regs, R9, from, r9);
-	err |= GETREG(regs, R10, from, r10);
-	err |= GETREG(regs, R11, from, r11);
-	err |= GETREG(regs, R12, from, r12);
-	err |= GETREG(regs, R13, from, r13);
-	err |= GETREG(regs, R14, from, r14);
-	err |= GETREG(regs, R15, from, r15);
-	err |= GETREG(regs, RDI, from, di);
-	err |= GETREG(regs, RSI, from, si);
-	err |= GETREG(regs, RBP, from, bp);
-	err |= GETREG(regs, RBX, from, bx);
-	err |= GETREG(regs, RDX, from, dx);
-	err |= GETREG(regs, RAX, from, ax);
-	err |= GETREG(regs, RCX, from, cx);
-	err |= GETREG(regs, RSP, from, sp);
-	err |= GETREG(regs, RIP, from, ip);
-	err |= GETREG(regs, EFLAGS, from, flags);
-	err |= GETREG(regs, CS, from, cs);
+	err = copy_from_user(&sc, from, sizeof(sc));
 	if (err)
-		return 1;
+		return err;
 
+#define GETREG(regno, regname) regs->regs.gp[HOST_##regno] = sc.regname
+
+	GETREG(R8, r8);
+	GETREG(R9, r9);
+	GETREG(R10, r10);
+	GETREG(R11, r11);
+	GETREG(R12, r12);
+	GETREG(R13, r13);
+	GETREG(R14, r14);
+	GETREG(R15, r15);
+	GETREG(RDI, di);
+	GETREG(RSI, si);
+	GETREG(RBP, bp);
+	GETREG(RBX, bx);
+	GETREG(RDX, dx);
+	GETREG(RAX, ax);
+	GETREG(RCX, cx);
+	GETREG(SP, sp);
+	GETREG(IP, ip);
+	GETREG(EFLAGS, flags);
+	GETREG(CS, cs);
 #undef GETREG
 
-	err = __get_user(buf, &from->fpstate);
-	if (err)
-		return 1;
+	buf = sc.fpstate;
 
 	err = copy_from_user(&fp, buf, sizeof(struct user_i387_struct));
 	if (err)
@@ -73,48 +71,46 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			   unsigned long mask, unsigned long sp)
 {
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
+	struct sigcontext sc;
 	struct user_i387_struct fp;
 	int err = 0;
+	memset(&sc, 0, sizeof(struct sigcontext));
 
-	err |= __put_user(0, &to->gs);
-	err |= __put_user(0, &to->fs);
+#define PUTREG(regno, regname) sc.regname = regs->regs.gp[HOST_##regno]
 
-#define PUTREG(regs, regno, sc, regname)				\
-	__put_user((regs)->regs.gp[(regno) / sizeof(unsigned long)],	\
-		   &(sc)->regname)
-
-	err |= PUTREG(regs, RDI, to, di);
-	err |= PUTREG(regs, RSI, to, si);
-	err |= PUTREG(regs, RBP, to, bp);
+	PUTREG(RDI, di);
+	PUTREG(RSI, si);
+	PUTREG(RBP, bp);
 	/*
 	 * Must use original RSP, which is passed in, rather than what's in
-	 * the pt_regs, because that's already been updated to point at the
 	 * signal frame.
 	 */
-	err |= __put_user(sp, &to->sp);
-	err |= PUTREG(regs, RBX, to, bx);
-	err |= PUTREG(regs, RDX, to, dx);
-	err |= PUTREG(regs, RCX, to, cx);
-	err |= PUTREG(regs, RAX, to, ax);
-	err |= PUTREG(regs, R8, to, r8);
-	err |= PUTREG(regs, R9, to, r9);
-	err |= PUTREG(regs, R10, to, r10);
-	err |= PUTREG(regs, R11, to, r11);
-	err |= PUTREG(regs, R12, to, r12);
-	err |= PUTREG(regs, R13, to, r13);
-	err |= PUTREG(regs, R14, to, r14);
-	err |= PUTREG(regs, R15, to, r15);
-	err |= PUTREG(regs, CS, to, cs); /* XXX x86_64 doesn't do this */
+	sc.sp = sp;
+	PUTREG(RBX, bx);
+	PUTREG(RDX, dx);
+	PUTREG(RCX, cx);
+	PUTREG(RAX, ax);
+	PUTREG(R8, r8);
+	PUTREG(R9, r9);
+	PUTREG(R10, r10);
+	PUTREG(R11, r11);
+	PUTREG(R12, r12);
+	PUTREG(R13, r13);
+	PUTREG(R14, r14);
+	PUTREG(R15, r15);
+	PUTREG(CS, cs); /* XXX x86_64 doesn't do this */
 
-	err |= __put_user(fi->cr2, &to->cr2);
-	err |= __put_user(fi->error_code, &to->err);
-	err |= __put_user(fi->trap_no, &to->trapno);
+	sc.cr2 = fi->cr2;
+	sc.err = fi->error_code;
+	sc.trapno = fi->trap_no;
 
-	err |= PUTREG(regs, RIP, to, ip);
-	err |= PUTREG(regs, EFLAGS, to, flags);
+	PUTREG(IP, ip);
+	PUTREG(EFLAGS, flags);
 #undef PUTREG
 
-	err |= __put_user(mask, &to->oldmask);
+	sc.oldmask = mask;
+
+	err = copy_to_user(to, &sc, sizeof(struct sigcontext));
 	if (err)
 		return 1;
 

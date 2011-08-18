@@ -10,28 +10,6 @@
 #include "frame_kern.h"
 #include "skas.h"
 
-static void copy_sc(struct uml_pt_regs *regs, void *from)
-{
-	struct sigcontext *sc = from;
-
-	REGS_GS(regs->gp) = sc->gs;
-	REGS_FS(regs->gp) = sc->fs;
-	REGS_ES(regs->gp) = sc->es;
-	REGS_DS(regs->gp) = sc->ds;
-	REGS_EDI(regs->gp) = sc->di;
-	REGS_ESI(regs->gp) = sc->si;
-	REGS_EBP(regs->gp) = sc->bp;
-	REGS_SP(regs->gp) = sc->sp;
-	REGS_EBX(regs->gp) = sc->bx;
-	REGS_EDX(regs->gp) = sc->dx;
-	REGS_ECX(regs->gp) = sc->cx;
-	REGS_EAX(regs->gp) = sc->ax;
-	REGS_IP(regs->gp) = sc->ip;
-	REGS_CS(regs->gp) = sc->cs;
-	REGS_EFLAGS(regs->gp) = sc->flags;
-	REGS_SS(regs->gp) = sc->ss;
-}
-
 /*
  * FPU tag word conversions.
  */
@@ -175,7 +153,27 @@ static int copy_sc_from_user(struct pt_regs *regs,
 		return err;
 
 	pid = userspace_pid[current_thread_info()->cpu];
-	copy_sc(&regs->regs, &sc);
+
+#define GETREG(regno, regname) regs->regs.gp[HOST_##regno] = sc.regname
+
+	GETREG(GS, gs);
+	GETREG(FS, fs);
+	GETREG(ES, es);
+	GETREG(DS, ds);
+	GETREG(EDI, di);
+	GETREG(ESI, si);
+	GETREG(EBP, bp);
+	GETREG(SP, sp);
+	GETREG(EBX, bx);
+	GETREG(EDX, dx);
+	GETREG(ECX, cx);
+	GETREG(EAX, ax);
+	GETREG(IP, ip);
+	GETREG(CS, cs);
+	GETREG(EFLAGS, flags);
+	GETREG(SS, ss);
+
+#undef GETREG
 	if (have_fpx_regs) {
 		struct user_fxsr_struct fpx;
 
@@ -196,8 +194,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 			       -err);
 			return 1;
 		}
-	}
-	else {
+	} else {
 		struct user_i387_struct fp;
 
 		err = copy_from_user(&fp, sc.fpstate,
@@ -224,6 +221,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	struct sigcontext sc;
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err, pid;
+	memset(&sc, 0, sizeof(struct sigcontext));
 
 	sc.gs = REGS_GS(regs->regs.gp);
 	sc.fs = REGS_FS(regs->regs.gp);
