@@ -22,4 +22,11 @@
 		(fi).trap_no = SC_TRAPNO(sc); \
 	}
 
+#define GET_FAULTINFO_FROM_MC(fi, mc) \
+	{ \
+		(fi).cr2 = (mc)->cr2; \
+		(fi).error_code = (mc)->gregs[REG_ERR]; \
+		(fi).trap_no = (mc)->gregs[REG_TRAPNO]; \
+	}
+
 #endif

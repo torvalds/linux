@@ -12,7 +12,7 @@ stub_segv_handler(int sig, siginfo_t *info, void *p)
 {
 	struct ucontext *uc = p;
 
-	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) STUB_DATA),
+	GET_FAULTINFO_FROM_MC(*((struct faultinfo *) STUB_DATA),
 			      &uc->uc_mcontext);
 	trap_myself();
 }

@@ -26,7 +26,7 @@ void (*sig_info[NSIG])(int, struct uml_pt_regs *) = {
 	[SIGIO]		= sigio_handler,
 	[SIGVTALRM]	= timer_handler };
 
-static void sig_handler_common(int sig, struct sigcontext *sc)
+static void sig_handler_common(int sig, mcontext_t *mc)
 {
 	struct uml_pt_regs r;
 	int save_errno = errno;
@@ -34,8 +34,8 @@ static void sig_handler_common(int sig, struct sigcontext *sc)
 	r.is_user = 0;
 	if (sig == SIGSEGV) {
 		/* For segfaults, we want the data from the sigcontext. */
-		copy_sc(&r, sc);
-		GET_FAULTINFO_FROM_SC(r.faultinfo, sc);
+		copy_sc(&r, (struct sigcontext *)mc);
+		GET_FAULTINFO_FROM_MC(r.faultinfo, mc);
 	}
 
 	/* enable signals if sig isn't IRQ signal */
@@ -62,7 +62,7 @@ static void sig_handler_common(int sig, struct sigcontext *sc)
 static int signals_enabled;
 static unsigned int signals_pending;
 
-void sig_handler(int sig, struct sigcontext *sc)
+void sig_handler(int sig, mcontext_t *mc)
 {
 	int enabled;
 
@@ -74,23 +74,23 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 	block_signals();
 
-	sig_handler_common(sig, sc);
+	sig_handler_common(sig, mc);
 
 	set_signals(enabled);
 }
 
-static void real_alarm_handler(struct sigcontext *sc)
+static void real_alarm_handler(mcontext_t *mc)
 {
 	struct uml_pt_regs regs;
 
-	if (sc != NULL)
-		copy_sc(&regs, sc);
+	if (mc != NULL)
+		copy_sc(&regs, (struct sigcontext *)mc);
 	regs.is_user = 0;
 	unblock_signals();
 	timer_handler(SIGVTALRM, &regs);
 }
 
-void alarm_handler(int sig, struct sigcontext *sc)
+void alarm_handler(int sig, mcontext_t *mc)
 {
 	int enabled;
 
@@ -102,7 +102,7 @@ void alarm_handler(int sig, struct sigcontext *sc)
 
 	block_signals();
 
-	real_alarm_handler(sc);
+	real_alarm_handler(mc);
 	set_signals(enabled);
 }
 
@@ -121,7 +121,7 @@ void set_sigstack(void *sig_stack, int size)
 		panic("enabling signal stack failed, errno = %d\n", errno);
 }
 
-static void (*handlers[_NSIG])(int sig, struct sigcontext *sc) = {
+static void (*handlers[_NSIG])(int sig, mcontext_t *mc) = {
 	[SIGSEGV] = sig_handler,
 	[SIGBUS] = sig_handler,
 	[SIGILL] = sig_handler,
@@ -133,8 +133,11 @@ static void (*handlers[_NSIG])(int sig, struct sigcontext *sc) = {
 	[SIGVTALRM] = alarm_handler
 };
 
-static void handle_signal(int sig, struct sigcontext *sc)
+
+static void hard_handler(int sig, siginfo_t *info, void *p)
 {
+	struct ucontext *uc = p;
+	mcontext_t *mc = &uc->uc_mcontext;
 	unsigned long pending = 1UL << sig;
 
 	do {
@@ -160,7 +163,7 @@ static void handle_signal(int sig, struct sigcontext *sc)
 		while ((sig = ffs(pending)) != 0){
 			sig--;
 			pending &= ~(1 << sig);
-			(*handlers[sig])(sig, sc);
+			(*handlers[sig])(sig, mc);
 		}
 
 		/*
@@ -172,12 +175,6 @@ static void handle_signal(int sig, struct sigcontext *sc)
 		if (!nested)
 			pending = from_irq_stack(nested);
 	} while (pending);
-}
-
-static void hard_handler(int sig, siginfo_t *info, void *p)
-{
-	struct ucontext *uc = p;
-	handle_signal(sig, (struct sigcontext *) &uc->uc_mcontext);
 }
 
 void set_handler(int sig)
