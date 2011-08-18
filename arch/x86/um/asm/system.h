@@ -6,7 +6,6 @@
 #include <asm/cpufeature.h>
 #include <asm/cmpxchg.h>
 #include <asm/nops.h>
-#include <asm/system-um.h>
 
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
@@ -129,5 +128,8 @@ static inline void rdtsc_barrier(void)
 	alternative(ASM_NOP3, "mfence", X86_FEATURE_MFENCE_RDTSC);
 	alternative(ASM_NOP3, "lfence", X86_FEATURE_LFENCE_RDTSC);
 }
+
+extern void *_switch_to(void *prev, void *next, void *last);
+#define switch_to(prev, next, last) prev = _switch_to(prev, next, last)
 
 #endif
