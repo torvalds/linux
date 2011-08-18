@@ -11,7 +11,6 @@
 #include "mem_user.h"
 #include "os.h"
 #include "skas.h"
-#include "tlb.h"
 
 struct host_vm_change {
 	struct host_vm_op {
