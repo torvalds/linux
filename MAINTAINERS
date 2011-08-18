@@ -3905,9 +3905,9 @@ F:	arch/powerpc/platforms/powermac/
 F:	drivers/macintosh/
 
 LINUX FOR POWERPC EMBEDDED MPC5XXX
-M:	Grant Likely <grant.likely@secretlab.ca>
+M:	Anatolij Gustschin <agust@denx.de>
 L:	linuxppc-dev@lists.ozlabs.org
-T:	git git://git.secretlab.ca/git/linux-2.6.git
+T:	git git://git.denx.de/linux-2.6-agust.git
 S:	Maintained
 F:	arch/powerpc/platforms/512x/
 F:	arch/powerpc/platforms/52xx/
@@ -4604,7 +4604,7 @@ F:	arch/arm/mach-omap2/clockdomain2xxx_3xxx.c
 F:	arch/arm/mach-omap2/clockdomain44xx.c
 
 OMAP AUDIO SUPPORT
-M:	Jarkko Nikula <jhnikula@gmail.com>
+M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
 L:	alsa-devel@alsa-project.org (subscribers-only)
 L:	linux-omap@vger.kernel.org
 S:	Maintained
@@ -7357,7 +7357,7 @@ THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>
 L:	linux-kernel@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/LKML/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 S:	Buried alive in reporters
 F:	*
 F:	*/

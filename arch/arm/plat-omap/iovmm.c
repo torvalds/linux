@@ -423,9 +423,6 @@ static void sgtable_fill_kmalloc(struct sg_table *sgt, u32 pa, u32 da,
 {
 	unsigned int i;
 	struct scatterlist *sg;
-	void *va;
-
-	va = phys_to_virt(pa);
 
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		unsigned bytes;

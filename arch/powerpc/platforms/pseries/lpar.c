@@ -67,9 +67,8 @@ void vpa_init(int cpu)
 	ret = register_vpa(hwcpu, addr);
 
 	if (ret) {
-		printk(KERN_ERR "WARNING: vpa_init: VPA registration for "
-				"cpu %d (hw %d) of area %lx returns %ld\n",
-				cpu, hwcpu, addr, ret);
+		pr_err("WARNING: VPA registration for cpu %d (hw %d) of area "
+		       "%lx failed with %ld\n", cpu, hwcpu, addr, ret);
 		return;
 	}
 	/*
@@ -80,10 +79,9 @@ void vpa_init(int cpu)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
-			printk(KERN_ERR
-			       "WARNING: vpa_init: SLB shadow buffer "
-			       "registration for cpu %d (hw %d) of area %lx "
-			       "returns %ld\n", cpu, hwcpu, addr, ret);
+			pr_err("WARNING: SLB shadow buffer registration for "
+			       "cpu %d (hw %d) of area %lx failed with %ld\n",
+			       cpu, hwcpu, addr, ret);
 	}
 
 	/*
@@ -100,8 +98,9 @@ void vpa_init(int cpu)
 		dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
 		ret = register_dtl(hwcpu, __pa(dtl));
 		if (ret)
-			pr_warn("DTL registration failed for cpu %d (%ld)\n",
-				cpu, ret);
+			pr_err("WARNING: DTL registration of cpu %d (hw %d) "
+			       "failed with %ld\n", smp_processor_id(),
+			       hwcpu, ret);
 		lppaca_of(cpu).dtl_enable_mask = 2;
 	}
 }
@@ -204,7 +203,7 @@ static void pSeries_lpar_hptab_clear(void)
 		unsigned long ptel;
 	} ptes[4];
 	long lpar_rc;
-	int i, j;
+	unsigned long i, j;
 
 	/* Read in batches of 4,
 	 * invalidate only valid entries not in the VRMA

@@ -112,7 +112,7 @@ static struct sk_buff *prio_dequeue(struct Qdisc *sch)
 
 	for (prio = 0; prio < q->bands; prio++) {
 		struct Qdisc *qdisc = q->queues[prio];
-		struct sk_buff *skb = qdisc->dequeue(qdisc);
+		struct sk_buff *skb = qdisc_dequeue_peeked(qdisc);
 		if (skb) {
 			qdisc_bstats_update(sch, skb);
 			sch->q.qlen--;
