@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 #include <linux/poll.h>
 #include <linux/platform_device.h>
-#include <linux/workqueue.h>
+#include <linux/timer.h>
 
 #include <asm/uaccess.h>
 
@@ -120,7 +120,7 @@ typedef struct vpu_device {
 
 typedef struct vpu_service_info {
 	spinlock_t		lock;
-	struct workqueue_struct	*workqueue;
+	struct timer_list	timer;			/* timer for power off */
 	struct list_head	waiting;		/* link to link_reg in struct vpu_reg */
 	struct list_head	running;		/* link to link_reg in struct vpu_reg */
 	struct list_head	done;			/* link to link_reg in struct vpu_reg */
@@ -148,8 +148,6 @@ static vpu_service_info service;
 static vpu_device 	dec_dev;
 static vpu_device 	enc_dev;
 
-static void vpu_service_power_off_work_func(struct work_struct *work);
-static DECLARE_DELAYED_WORK(vpu_service_power_off_work, vpu_service_power_off_work_func);
 #define POWER_OFF_DELAY	3*HZ /* 3s */
 
 static void vpu_get_clk(void)
@@ -168,12 +166,42 @@ static void vpu_put_clk(void)
 	clk_put(hclk_cpu_vcodec);
 }
 
-static void vpu_service_power_on(void)
+static void vpu_service_power_off(void)
 {
-	if (service.enabled)
+	if (!service.enabled)
 		return;
 
+	service.enabled = false;
+	printk("vpu: power off\n");
+
+	while(atomic_read(&service.task_running)) {
+		pr_alert("power off when task running!!\n");
+		udelay(10);
+	}
+
+	pmu_set_power_domain(PD_VCODEC, false);
+	udelay(10);
+	clk_disable(hclk_cpu_vcodec);
+	clk_disable(aclk_ddr_vepu);
+	clk_disable(hclk_vepu);
+	clk_disable(aclk_vepu);
+}
+
+static void vpu_service_power_off_work_func(unsigned long data)
+{
+	printk("vpu: delayed power off work\n");
+	vpu_service_power_off();
+}
+
+static void vpu_service_power_on(void)
+{
+	if (service.enabled) {
+		mod_timer(&service.timer, jiffies + POWER_OFF_DELAY);
+		return;
+	}
+	service.enabled = true;
 	printk("vpu: power on\n");
+
 	clk_enable(aclk_vepu);
 	clk_enable(hclk_vepu);
 	clk_enable(hclk_cpu_vcodec);
@@ -181,34 +209,10 @@ static void vpu_service_power_on(void)
 	pmu_set_power_domain(PD_VCODEC, true);
 	udelay(10);
 	clk_enable(aclk_ddr_vepu);
-	service.enabled = true;
-}
-
-static void vpu_service_power_off(void)
-{
-	if (!service.enabled)
-		return;
-
-	while(atomic_read(&service.task_running)) {
-		pr_alert("power off when task running!!\n");
-		udelay(10);
-	}
-
-	printk("vpu: power off\n");
-	pmu_set_power_domain(PD_VCODEC, false);
-	udelay(10);
-	clk_disable(hclk_cpu_vcodec);
-	clk_disable(aclk_ddr_vepu);
-	clk_disable(hclk_vepu);
-	clk_disable(aclk_vepu);
-
-	service.enabled = false;
-}
-
-static void vpu_service_power_off_work_func(struct work_struct *work)
-{
-	pr_debug("work\n");
-	vpu_service_power_off();
+	init_timer(&service.timer);
+	service.timer.expires = jiffies + POWER_OFF_DELAY;
+	service.timer.function = vpu_service_power_off_work_func;
+	add_timer(&service.timer);
 }
 
 static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long size)
@@ -393,21 +397,11 @@ static void try_set_reg(void)
        		    ((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
        		    ((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
 			reg_from_wait_to_run(reg);
-			if (!cancel_delayed_work(&vpu_service_power_off_work)) {
-				if (!in_interrupt()) {
-					flush_delayed_work(&vpu_service_power_off_work);
-				} else {
-					pr_err("try_set_reg in inturrpt but cancel power off failed\n");
-				}
-			}
 			vpu_service_power_on();
 			reg_copy_to_hw(reg);
 		}
-		spin_unlock_irqrestore(&service.lock, flag);
-	} else {
-		spin_unlock_irqrestore(&service.lock, flag);
-		queue_delayed_work(service.workqueue, &vpu_service_power_off_work, POWER_OFF_DELAY);
 	}
+	spin_unlock_irqrestore(&service.lock, flag);
 }
 
 static int return_reg(vpu_reg *reg, u32 __user *dst)
@@ -682,7 +676,7 @@ static struct miscdevice vpu_service_misc_device = {
 static void vpu_service_shutdown(struct platform_device *pdev)
 {
 	pr_cont("shutdown...");
-	cancel_delayed_work(&vpu_service_power_off_work);
+	del_timer(&service.timer);
 	vpu_service_power_off();
 	pr_cont("done\n");
 }
@@ -691,7 +685,7 @@ static int vpu_service_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	bool enabled;
 	pr_info("suspend...");
-	cancel_delayed_work(&vpu_service_power_off_work);
+	del_timer(&service.timer);
 	enabled = service.enabled;
 	vpu_service_power_off();
 	service.enabled = enabled;
@@ -981,11 +975,6 @@ static int __init vpu_service_init(void)
 	service.reg_pproc	= NULL;
 	atomic_set(&service.task_running, 0);
 	service.enabled		= false;
-	service.workqueue	= create_singlethread_workqueue("vpu_service");
-	if (!service.workqueue) {
-		pr_err("create_singlethread_workqueue failed\n");
-		return -ENOMEM;
-	}
 
 	vpu_get_clk();
 	vpu_service_power_on();
@@ -1018,6 +1007,7 @@ static int __init vpu_service_init(void)
 	platform_device_register(&vpu_service_device);
 	platform_driver_probe(&vpu_service_driver, NULL);
 	get_hw_info();
+	del_timer(&service.timer);
 	vpu_service_power_off();
 	pr_info("init success\n");
 
@@ -1030,19 +1020,18 @@ err_req_vepu_irq:
 err_req_vdpu_irq:
 	pr_info("init failed\n");
 err_reserve_io:
+	del_timer(&service.timer);
 	vpu_service_power_off();
 	vpu_service_release_io();
 	vpu_put_clk();
-	destroy_workqueue(service.workqueue);
 	pr_info("init failed\n");
 	return ret;
 }
 
 static void __exit vpu_service_exit(void)
 {
-	cancel_delayed_work(&vpu_service_power_off_work);
+	del_timer(&service.timer);
 	vpu_service_power_off();
-	destroy_workqueue(service.workqueue);
 	platform_device_unregister(&vpu_service_device);
 	platform_driver_unregister(&vpu_service_driver);
 	misc_deregister(&vpu_service_misc_device);
@@ -1066,7 +1055,6 @@ static int proc_vpu_service_show(struct seq_file *s, void *v)
 	vpu_reg *reg, *reg_tmp;
 	vpu_session *session, *session_tmp;
 
-	cancel_delayed_work_sync(&vpu_service_power_off_work);
 	vpu_service_power_on();
 	seq_printf(s, "\nENC Registers:\n");
 	n = enc_dev.iosize >> 2;
@@ -1095,7 +1083,6 @@ static int proc_vpu_service_show(struct seq_file *s, void *v)
 		}
 	}
 	spin_unlock_irqrestore(&service.lock, flag);
-	queue_delayed_work(service.workqueue, &vpu_service_power_off_work, POWER_OFF_DELAY);
 
 	return 0;
 }
