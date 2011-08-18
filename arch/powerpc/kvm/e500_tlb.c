@@ -116,13 +116,11 @@ static inline int local_sid_lookup(struct id *entry)
 	return -1;
 }
 
-/* Invalidate all id mappings on local core */
+/* Invalidate all id mappings on local core -- call with preempt disabled */
 static inline void local_sid_destroy_all(void)
 {
-	preempt_disable();
 	__get_cpu_var(pcpu_last_used_sid) = 0;
 	memset(&__get_cpu_var(pcpu_sids), 0, sizeof(__get_cpu_var(pcpu_sids)));
-	preempt_enable();
 }
 
 static void *kvmppc_e500_id_table_alloc(struct kvmppc_vcpu_e500 *vcpu_e500)
