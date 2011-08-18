@@ -6,14 +6,11 @@
 #ifndef __UM_PROCESSOR_I386_H
 #define __UM_PROCESSOR_I386_H
 
-#include "linux/string.h"
+#include <linux/string.h>
 #include <sysdep/host_ldt.h>
-#include "asm/segment.h"
+#include <asm/segment.h>
 
 extern int host_has_cmov;
-
-/* include faultinfo structure */
-#include "sysdep/faultinfo.h"
 
 struct uml_tls_struct {
 	struct user_desc tls;
@@ -72,7 +69,5 @@ static inline void rep_nop(void)
 #define KSTK_EIP(tsk) KSTK_REG(tsk, EIP)
 #define KSTK_ESP(tsk) KSTK_REG(tsk, UESP)
 #define KSTK_EBP(tsk) KSTK_REG(tsk, EBP)
-
-#include "asm/processor-generic.h"
 
 #endif

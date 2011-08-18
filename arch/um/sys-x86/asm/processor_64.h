@@ -7,9 +7,6 @@
 #ifndef __UM_PROCESSOR_X86_64_H
 #define __UM_PROCESSOR_X86_64_H
 
-/* include faultinfo structure */
-#include "sysdep/faultinfo.h"
-
 struct arch_thread {
         unsigned long debugregs[8];
         int debugregs_seq;
@@ -50,7 +47,5 @@ static inline void arch_copy_thread(struct arch_thread *from,
 
 #define KSTK_EIP(tsk) KSTK_REG(tsk, RIP)
 #define KSTK_ESP(tsk) KSTK_REG(tsk, RSP)
-
-#include "asm/processor-generic.h"
 
 #endif
