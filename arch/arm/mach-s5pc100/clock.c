@@ -455,13 +455,13 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= (1 << 2),
 	}, {
 		.name		= "pdma",
-		.devname	= "s3c-pl330.1",
+		.devname	= "dma-pl330.1",
 		.parent		= &clk_div_d1_bus.clk,
 		.enable		= s5pc100_d1_0_ctrl,
 		.ctrlbit	= (1 << 1),
 	}, {
 		.name		= "pdma",
-		.devname	= "s3c-pl330.0",
+		.devname	= "dma-pl330.0",
 		.parent		= &clk_div_d1_bus.clk,
 		.enable		= s5pc100_d1_0_ctrl,
 		.ctrlbit	= (1 << 0),
