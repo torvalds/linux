@@ -177,7 +177,14 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 /*
  * evm_protect_xattr - protect the EVM extended attribute
  *
- * Prevent security.evm from being modified or removed.
+ * Prevent security.evm from being modified or removed without the
+ * necessary permissions or when the existing value is invalid.
+ *
+ * The posix xattr acls are 'system' prefixed, which normally would not
+ * affect security.evm.  An interesting side affect of writing posix xattr
+ * acls is their modifying of the i_mode, which is included in security.evm.
+ * For posix xattr acls only, permit security.evm, even if it currently
+ * doesn't exist, to be updated.
  */
 static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
@@ -187,9 +194,15 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-	} else if (!evm_protected_xattr(xattr_name))
-		return 0;
-
+	} else if (!evm_protected_xattr(xattr_name)) {
+		if (!posix_xattr_acl(xattr_name))
+			return 0;
+		evm_status = evm_verify_current_integrity(dentry);
+		if ((evm_status == INTEGRITY_PASS) ||
+			(evm_status == INTEGRITY_NOLABEL))
+			return 0;
+		return -EPERM;
+	}
 	evm_status = evm_verify_current_integrity(dentry);
 	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
 }
@@ -240,7 +253,8 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
-	if (!evm_initialized || !evm_protected_xattr(xattr_name))
+	if (!evm_initialized || (!evm_protected_xattr(xattr_name)
+				 && !posix_xattr_acl(xattr_name)))
 		return;
 
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
