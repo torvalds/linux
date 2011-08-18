@@ -507,21 +507,16 @@ static inline void kvmppc_e500_deliver_tlb_miss(struct kvm_vcpu *vcpu,
 	vcpu_e500->mas7 = 0;
 }
 
+/* TID must be supplied by the caller */
 static inline void kvmppc_e500_setup_stlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 					   struct tlbe *gtlbe, int tsize,
 					   struct tlbe_priv *priv,
 					   u64 gvaddr, struct tlbe *stlbe)
 {
 	pfn_t pfn = priv->pfn;
-	unsigned int stid;
-
-	stid = kvmppc_e500_get_sid(vcpu_e500, get_tlb_ts(gtlbe),
-				   get_tlb_tid(gtlbe),
-				   get_cur_pr(&vcpu_e500->vcpu), 0);
 
 	/* Force TS=1 IPROT=0 for all guest mappings. */
-	stlbe->mas1 = MAS1_TSIZE(tsize)
-		| MAS1_TID(stid) | MAS1_TS | MAS1_VALID;
+	stlbe->mas1 = MAS1_TSIZE(tsize) | MAS1_TS | MAS1_VALID;
 	stlbe->mas2 = (gvaddr & MAS2_EPN)
 		| e500_shadow_mas2_attrib(gtlbe->mas2,
 				vcpu_e500->vcpu.arch.shared->msr & MSR_PR);
@@ -816,6 +811,24 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 	return EMULATE_DONE;
 }
 
+/* sesel is index into the set, not the whole array */
+static void write_stlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
+			struct tlbe *gtlbe,
+			struct tlbe *stlbe,
+			int stlbsel, int sesel)
+{
+	int stid;
+
+	preempt_disable();
+	stid = kvmppc_e500_get_sid(vcpu_e500, get_tlb_ts(gtlbe),
+				   get_tlb_tid(gtlbe),
+				   get_cur_pr(&vcpu_e500->vcpu), 0);
+
+	stlbe->mas1 |= MAS1_TID(stid);
+	write_host_tlbe(vcpu_e500, stlbsel, sesel, stlbe);
+	preempt_enable();
+}
+
 int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
@@ -845,7 +858,6 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 		u64 eaddr;
 		u64 raddr;
 
-		preempt_disable();
 		switch (tlbsel) {
 		case 0:
 			/* TLB0 */
@@ -874,8 +886,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 		default:
 			BUG();
 		}
-		write_host_tlbe(vcpu_e500, stlbsel, sesel, &stlbe);
-		preempt_enable();
+
+		write_stlbe(vcpu_e500, gtlbe, &stlbe, stlbsel, sesel);
 	}
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
@@ -937,7 +949,6 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 
 	gtlbe = &vcpu_e500->gtlb_arch[tlbsel][esel];
 
-	preempt_disable();
 	switch (tlbsel) {
 	case 0:
 		stlbsel = 0;
@@ -962,8 +973,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 		break;
 	}
 
-	write_host_tlbe(vcpu_e500, stlbsel, sesel, &stlbe);
-	preempt_enable();
+	write_stlbe(vcpu_e500, gtlbe, &stlbe, stlbsel, sesel);
 }
 
 int kvmppc_e500_tlb_search(struct kvm_vcpu *vcpu,
