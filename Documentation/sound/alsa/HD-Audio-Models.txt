@@ -154,10 +154,6 @@ ALC861/660
   3stack-dig	3-jack with SPDIF I/O
   6stack-dig	6-jack with SPDIF I/O
   3stack-660	3-jack (for ALC660)
-  uniwill-m31	Uniwill M31 laptop
-  toshiba	Toshiba laptop support
-  asus		Asus laptop support
-  asus-laptop	ASUS F2/F3 laptops
   auto		auto-config reading BIOS (default)
 
 ALC861VD/660VD
