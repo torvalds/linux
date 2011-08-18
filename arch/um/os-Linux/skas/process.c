@@ -660,7 +660,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	int n;
 
 	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGVTALRM, -1);
+		    SA_ONSTACK | SA_RESTART, SIGIO, SIGVTALRM, -1);
 
 	/*
 	 * Can't use UML_SETJMP or UML_LONGJMP here because they save

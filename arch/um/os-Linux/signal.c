@@ -112,7 +112,7 @@ void alarm_handler(int sig, struct sigcontext *sc)
 void timer_init(void)
 {
 	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, -1);
+		    SA_ONSTACK | SA_RESTART, SIGIO, SIGWINCH, -1);
 }
 
 void set_sigstack(void *sig_stack, int size)
