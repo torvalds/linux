@@ -93,8 +93,7 @@ ALC662/663/272
 
 ALC680
 ======
-  base		Base model (ASUS NX90)
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC882/883/885/888/889
 ======================
@@ -163,10 +162,6 @@ ALC861VD/660VD
   6stack-dig	6-jack with SPDIF OUT
   3stack-660	3-jack (for ALC660VD)
   3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
-  lenovo	Lenovo 3000 C200
-  dallas	Dallas laptops
-  hp		HP TX1000
-  asus-v1s	ASUS V1Sn
   auto		auto-config reading BIOS (default)
 
 CMI9880

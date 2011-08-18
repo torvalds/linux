@@ -159,27 +159,6 @@ static const struct snd_kcontrol_new alc861vd_3st_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc861vd_lenovo_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
-	/*HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),*/
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
-
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-
-	{ } /* end */
-};
-
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -302,11 +281,6 @@ static const struct hda_verb alc861vd_6stack_init_verbs[] = {
 	/* CD pin widget for input */
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 
-	{ }
-};
-
-static const struct hda_verb alc861vd_eapd_verbs[] = {
-	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{ }
 };
 
