@@ -21,7 +21,6 @@ extern unsigned long alloc_stack(int order, int atomic);
 extern void free_stack(unsigned long stack, int order);
 
 extern int do_signal(void);
-extern void copy_sc(struct uml_pt_regs *regs, void *from);
 extern void interrupt_end(void);
 extern void relay_signal(int sig, struct uml_pt_regs *regs);
 

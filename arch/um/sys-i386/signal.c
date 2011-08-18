@@ -10,7 +10,7 @@
 #include "frame_kern.h"
 #include "skas.h"
 
-void copy_sc(struct uml_pt_regs *regs, void *from)
+static void copy_sc(struct uml_pt_regs *regs, void *from)
 {
 	struct sigcontext *sc = from;
 

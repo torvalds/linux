@@ -13,36 +13,6 @@
 #include "frame_kern.h"
 #include "skas.h"
 
-void copy_sc(struct uml_pt_regs *regs, void *from)
-{
-	struct sigcontext *sc = from;
-
-#define GETREG(regs, regno, sc, regname)				\
-	(regs)->gp[(regno) / sizeof(unsigned long)] = (sc)->regname
-
-	GETREG(regs, R8, sc, r8);
-	GETREG(regs, R9, sc, r9);
-	GETREG(regs, R10, sc, r10);
-	GETREG(regs, R11, sc, r11);
-	GETREG(regs, R12, sc, r12);
-	GETREG(regs, R13, sc, r13);
-	GETREG(regs, R14, sc, r14);
-	GETREG(regs, R15, sc, r15);
-	GETREG(regs, RDI, sc, di);
-	GETREG(regs, RSI, sc, si);
-	GETREG(regs, RBP, sc, bp);
-	GETREG(regs, RBX, sc, bx);
-	GETREG(regs, RDX, sc, dx);
-	GETREG(regs, RAX, sc, ax);
-	GETREG(regs, RCX, sc, cx);
-	GETREG(regs, RSP, sc, sp);
-	GETREG(regs, RIP, sc, ip);
-	GETREG(regs, EFLAGS, sc, flags);
-	GETREG(regs, CS, sc, cs);
-
-#undef GETREG
-}
-
 static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
