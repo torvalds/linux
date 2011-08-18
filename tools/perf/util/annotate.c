@@ -324,9 +324,12 @@ fallback:
 
 	snprintf(command, sizeof(command),
 		 "objdump --start-address=0x%016" PRIx64
-		 " --stop-address=0x%016" PRIx64 " -dS -C %s|grep -v %s|expand",
+		 " --stop-address=0x%016" PRIx64
+		 " -d %s %s -C %s|grep -v %s|expand",
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
+		 symbol_conf.annotate_asm_raw ? "" : "--no-show-raw",
+		 symbol_conf.annotate_src ? "-S" : "",
 		 symfs_filename, filename);
 
 	pr_debug("Executing: %s\n", command);

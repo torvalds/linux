@@ -76,7 +76,9 @@ struct symbol_conf {
 			exclude_other,
 			show_cpu_utilization,
 			initialized,
-			kptr_restrict;
+			kptr_restrict,
+			annotate_asm_raw,
+			annotate_src;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
