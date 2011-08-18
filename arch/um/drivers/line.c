@@ -7,7 +7,7 @@
 #include "linux/kd.h"
 #include "linux/sched.h"
 #include "linux/slab.h"
-#include "chan_kern.h"
+#include "chan.h"
 #include "irq_kern.h"
 #include "irq_user.h"
 #include "kern_util.h"

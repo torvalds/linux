@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include "chan_kern.h"
+#include "chan.h"
 #include "os.h"
 
 #ifdef CONFIG_NOCONFIG_CHAN
