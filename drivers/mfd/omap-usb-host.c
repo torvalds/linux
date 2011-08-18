@@ -676,7 +676,6 @@ static void usbhs_omap_tll_init(struct device *dev, u8 tll_channel_count)
 				| OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF
 				| OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE);
 
-			reg |= (1 << (i + 1));
 		} else
 			continue;
 
