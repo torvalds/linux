@@ -455,12 +455,12 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= (1 << 10),
 	}, {
 		.name		= "pdma",
-		.devname	= "s3c-pl330.0",
+		.devname	= "dma-pl330.0",
 		.enable		= exynos4_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 0),
 	}, {
 		.name		= "pdma",
-		.devname	= "s3c-pl330.1",
+		.devname	= "dma-pl330.1",
 		.enable		= exynos4_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 1),
 	}, {
