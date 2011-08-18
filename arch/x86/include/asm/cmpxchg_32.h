@@ -9,6 +9,7 @@
  */
 
 extern void __xchg_wrong_size(void);
+extern void __cmpxchg_wrong_size(void);
 
 /*
  * Note: no "lock" prefix even on SMP: xchg always implies lock anyway.
@@ -83,8 +84,6 @@ static inline void set_64bit(volatile u64 *ptr, u64 value)
 		     : "b" (low), "c" (high)
 		     : "memory");
 }
-
-extern void __cmpxchg_wrong_size(void);
 
 /*
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
