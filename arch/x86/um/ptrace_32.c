@@ -51,13 +51,13 @@ int is_syscall(unsigned long addr)
 #define FLAG_MASK 0x00044dd5
 
 static const int reg_offsets[] = {
-	[EBX] = HOST_EBX,
-	[ECX] = HOST_ECX,
-	[EDX] = HOST_EDX,
-	[ESI] = HOST_ESI,
-	[EDI] = HOST_EDI,
-	[EBP] = HOST_EBP,
-	[EAX] = HOST_EAX,
+	[EBX] = HOST_BX,
+	[ECX] = HOST_CX,
+	[EDX] = HOST_DX,
+	[ESI] = HOST_SI,
+	[EDI] = HOST_DI,
+	[EBP] = HOST_BP,
+	[EAX] = HOST_AX,
 	[DS] = HOST_DS,
 	[ES] = HOST_ES,
 	[FS] = HOST_FS,

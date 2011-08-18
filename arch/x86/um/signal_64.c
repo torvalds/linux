@@ -35,13 +35,13 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	GETREG(R13, r13);
 	GETREG(R14, r14);
 	GETREG(R15, r15);
-	GETREG(RDI, di);
-	GETREG(RSI, si);
-	GETREG(RBP, bp);
-	GETREG(RBX, bx);
-	GETREG(RDX, dx);
-	GETREG(RAX, ax);
-	GETREG(RCX, cx);
+	GETREG(DI, di);
+	GETREG(SI, si);
+	GETREG(BP, bp);
+	GETREG(BX, bx);
+	GETREG(DX, dx);
+	GETREG(AX, ax);
+	GETREG(CX, cx);
 	GETREG(SP, sp);
 	GETREG(IP, ip);
 	GETREG(EFLAGS, flags);
@@ -78,18 +78,18 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 
 #define PUTREG(regno, regname) sc.regname = regs->regs.gp[HOST_##regno]
 
-	PUTREG(RDI, di);
-	PUTREG(RSI, si);
-	PUTREG(RBP, bp);
+	PUTREG(DI, di);
+	PUTREG(SI, si);
+	PUTREG(BP, bp);
 	/*
 	 * Must use original RSP, which is passed in, rather than what's in
 	 * signal frame.
 	 */
 	sc.sp = sp;
-	PUTREG(RBX, bx);
-	PUTREG(RDX, dx);
-	PUTREG(RCX, cx);
-	PUTREG(RAX, ax);
+	PUTREG(BX, bx);
+	PUTREG(DX, dx);
+	PUTREG(CX, cx);
+	PUTREG(AX, ax);
 	PUTREG(R8, r8);
 	PUTREG(R9, r9);
 	PUTREG(R10, r10);
