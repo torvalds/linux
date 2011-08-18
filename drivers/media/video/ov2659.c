@@ -65,8 +65,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         1
-#define CONFIG_SENSOR_Mirror        0
-#define CONFIG_SENSOR_Flip          0
+#define CONFIG_SENSOR_Mirror        1 
+#define CONFIG_SENSOR_Flip          1
 
 #define CONFIG_SENSOR_I2C_SPEED     350000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
@@ -1107,7 +1107,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .minimum	= 0,
         .maximum	= 1,
         .step		= 1,
-        .default_value = 1,
+        .default_value = 0,
     },
     #endif
 
@@ -1119,7 +1119,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .minimum	= 0,
         .maximum	= 1,
         .step		= 1,
-        .default_value = 1,
+        .default_value = 0,
     },
     #endif
 
@@ -2071,44 +2071,76 @@ static int sensor_set_contrast(struct soc_camera_device *icd, const struct v4l2_
 }
 #endif
 #if CONFIG_SENSOR_Mirror
+static int sensor_mirror(struct i2c_client *client, int on)
+{
+    char val;
+    int err = 0;    
+
+    if (on) {
+        err = sensor_read(client, 0x3821, &val);
+        if (err == 0) {
+            val |= 0x06;
+            err = sensor_write(client, 0x3821, val);
+        }
+    } else {
+        err = sensor_read(client, 0x3821, &val);
+        if (err == 0) {
+            val &= 0xf9;
+            err = sensor_write(client, 0x3821, val);
+        }
+    }
+
+    return err;    
+}
 static int sensor_set_mirror(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 
     if ((value >= qctrl->minimum) && (value <= qctrl->maximum))
     {
-        if (sensor_MirrorSeqe[value - qctrl->minimum] != NULL)
-        {
-            if (sensor_write_array(client, sensor_MirrorSeqe[value - qctrl->minimum]) != 0)
-            {
-                SENSOR_TR("%s..%s WriteReg Fail.. \n",SENSOR_NAME_STRING(), __FUNCTION__);
-                return -EINVAL;
-            }
-            SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
-            return 0;
-        }
+        if (sensor_mirror(client,value) != 0)
+            SENSOR_TR("%s(%d): sensor_mirror failed, value:0x%x",__FUNCTION__, __LINE__,value);
+        
+        SENSOR_DG("%s(%d): sensor_mirror success, value:0x%x",__FUNCTION__, __LINE__,value);
+        return 0;
     }
-    SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
+    SENSOR_TR("\n %s..%s value = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
     return -EINVAL;
 }
 #endif
 #if CONFIG_SENSOR_Flip
+static int sensor_flip(struct i2c_client *client, int on)
+{
+    char val;
+    int err = 0;    
+
+    if (on) {
+        err = sensor_read(client, 0x3820, &val);
+        if (err == 0) {
+            val |= 0x06;
+            err = sensor_write(client, 0x3820, val);
+        }
+    } else {
+        err = sensor_read(client, 0x3820, &val);
+        if (err == 0) {
+            val &= 0xf9;
+            err = sensor_write(client, 0x3820, val);
+        }
+    }
+
+    return err;    
+}
 static int sensor_set_flip(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 
     if ((value >= qctrl->minimum) && (value <= qctrl->maximum))
     {
-        if (sensor_FlipSeqe[value - qctrl->minimum] != NULL)
-        {
-            if (sensor_write_array(client, sensor_FlipSeqe[value - qctrl->minimum]) != 0)
-            {
-                SENSOR_TR("%s..%s WriteReg Fail.. \n",SENSOR_NAME_STRING(), __FUNCTION__);
-                return -EINVAL;
-            }
-            SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
-            return 0;
-        }
+        if (sensor_flip(client,value) != 0)
+            SENSOR_TR("%s(%d): sensor_flip failed, value:0x%x",__FUNCTION__, __LINE__,value);
+        
+        SENSOR_DG("%s(%d): sensor_flip success, value:0x%x",__FUNCTION__, __LINE__,value);
+        return 0;
     }
     SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
     return -EINVAL;
