@@ -63,9 +63,6 @@ static inline void rep_nop(void)
 #define current_text_addr() \
 	({ void *pc; __asm__("movl $1f,%0\n1:":"=g" (pc)); pc; })
 
-#define ARCH_IS_STACKGROW(address) \
-       (address + 32 >= UPT_SP(&current->thread.regs.regs))
-
 #define KSTK_EIP(tsk) KSTK_REG(tsk, EIP)
 #define KSTK_ESP(tsk) KSTK_REG(tsk, UESP)
 #define KSTK_EBP(tsk) KSTK_REG(tsk, EBP)

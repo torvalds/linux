@@ -10,6 +10,9 @@
 # include "processor_64.h"
 #endif
 
+#define ARCH_IS_STACKGROW(address) \
+       (address + 65536 + 32 * sizeof(unsigned long) >= UPT_SP(&current->thread.regs.regs))
+
 #include <asm/processor-generic.h>
 
 #endif
