@@ -215,8 +215,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 }
 
 static int copy_sc_to_user(struct sigcontext __user *to,
-			   struct _fpstate __user *to_fp, struct pt_regs *regs,
-			   unsigned long sp)
+			   struct _fpstate __user *to_fp, struct pt_regs *regs)
 {
 	struct sigcontext sc;
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
@@ -230,7 +229,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	sc.di = REGS_EDI(regs->regs.gp);
 	sc.si = REGS_ESI(regs->regs.gp);
 	sc.bp = REGS_EBP(regs->regs.gp);
-	sc.sp = sp;
+	sc.sp = REGS_SP(regs->regs.gp);
 	sc.bx = REGS_EBX(regs->regs.gp);
 	sc.dx = REGS_EDX(regs->regs.gp);
 	sc.cx = REGS_ECX(regs->regs.gp);
@@ -291,7 +290,7 @@ static int copy_ucontext_to_user(struct ucontext __user *uc,
 	err |= put_user(current->sas_ss_sp, &uc->uc_stack.ss_sp);
 	err |= put_user(sas_ss_flags(sp), &uc->uc_stack.ss_flags);
 	err |= put_user(current->sas_ss_size, &uc->uc_stack.ss_size);
-	err |= copy_sc_to_user(&uc->uc_mcontext, fp, &current->thread.regs, sp);
+	err |= copy_sc_to_user(&uc->uc_mcontext, fp, &current->thread.regs);
 	err |= copy_to_user(&uc->uc_sigmask, set, sizeof(*set));
 	return err;
 }
@@ -324,7 +323,6 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 {
 	struct sigframe __user *frame;
 	void __user *restorer;
-	unsigned long save_sp = PT_REGS_SP(regs);
 	int err = 0;
 
 	/* This is the same calculation as i386 - ((sp + 4) & 15) == 0 */
@@ -337,19 +335,9 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 
-	/* Update SP now because the page fault handler refuses to extend
-	 * the stack if the faulting address is too far below the current
-	 * SP, which frame now certainly is.  If there's an error, the original
-	 * value is restored on the way out.
-	 * When writing the sigcontext to the stack, we have to write the
-	 * original value, so that's passed to copy_sc_to_user, which does
-	 * the right thing with it.
-	 */
-	PT_REGS_SP(regs) = (unsigned long) frame;
-
 	err |= __put_user(restorer, &frame->pretcode);
 	err |= __put_user(sig, &frame->sig);
-	err |= copy_sc_to_user(&frame->sc, NULL, regs, save_sp);
+	err |= copy_sc_to_user(&frame->sc, NULL, regs);
 	err |= __put_user(mask->sig[0], &frame->sc.oldmask);
 	if (_NSIG_WORDS > 1)
 		err |= __copy_to_user(&frame->extramask, &mask->sig[1],
@@ -367,7 +355,7 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+6));
 
 	if (err)
-		goto err;
+		return err;
 
 	PT_REGS_SP(regs) = (unsigned long) frame;
 	PT_REGS_IP(regs) = (unsigned long) ka->sa.sa_handler;
@@ -378,10 +366,6 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
 		ptrace_notify(SIGTRAP);
 	return 0;
-
-err:
-	PT_REGS_SP(regs) = save_sp;
-	return err;
 }
 
 int setup_signal_stack_si(unsigned long stack_top, int sig,
@@ -390,7 +374,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 {
 	struct rt_sigframe __user *frame;
 	void __user *restorer;
-	unsigned long save_sp = PT_REGS_SP(regs);
 	int err = 0;
 
 	stack_top &= -8UL;
@@ -402,16 +385,13 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 
-	/* See comment above about why this is here */
-	PT_REGS_SP(regs) = (unsigned long) frame;
-
 	err |= __put_user(restorer, &frame->pretcode);
 	err |= __put_user(sig, &frame->sig);
 	err |= __put_user(&frame->info, &frame->pinfo);
 	err |= __put_user(&frame->uc, &frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, info);
 	err |= copy_ucontext_to_user(&frame->uc, &frame->fpstate, mask,
-				     save_sp);
+					PT_REGS_SP(regs));
 
 	/*
 	 * This is movl $,%eax ; int $0x80
@@ -425,8 +405,9 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+5));
 
 	if (err)
-		goto err;
+		return err;
 
+	PT_REGS_SP(regs) = (unsigned long) frame;
 	PT_REGS_IP(regs) = (unsigned long) ka->sa.sa_handler;
 	PT_REGS_EAX(regs) = (unsigned long) sig;
 	PT_REGS_EDX(regs) = (unsigned long) &frame->info;
@@ -435,10 +416,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
 		ptrace_notify(SIGTRAP);
 	return 0;
-
-err:
-	PT_REGS_SP(regs) = save_sp;
-	return err;
 }
 
 long sys_sigreturn(struct pt_regs regs)

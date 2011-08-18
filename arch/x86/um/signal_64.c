@@ -68,7 +68,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 
 static int copy_sc_to_user(struct sigcontext __user *to,
 			   struct _fpstate __user *to_fp, struct pt_regs *regs,
-			   unsigned long mask, unsigned long sp)
+			   unsigned long mask)
 {
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	struct sigcontext sc;
@@ -81,11 +81,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	PUTREG(DI, di);
 	PUTREG(SI, si);
 	PUTREG(BP, bp);
-	/*
-	 * Must use original RSP, which is passed in, rather than what's in
-	 * signal frame.
-	 */
-	sc.sp = sp;
+	PUTREG(SP, sp);
 	PUTREG(BX, bx);
 	PUTREG(DX, dx);
 	PUTREG(CX, cx);
@@ -141,7 +137,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			  siginfo_t *info, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
-	unsigned long save_sp = PT_REGS_RSP(regs);
 	int err = 0;
 	struct task_struct *me = current;
 
@@ -159,26 +154,15 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			goto out;
 	}
 
-	/*
-	 * Update SP now because the page fault handler refuses to extend
-	 * the stack if the faulting address is too far below the current
-	 * SP, which frame now certainly is.  If there's an error, the original
-	 * value is restored on the way out.
-	 * When writing the sigcontext to the stack, we have to write the
-	 * original value, so that's passed to copy_sc_to_user, which does
-	 * the right thing with it.
-	 */
-	PT_REGS_RSP(regs) = (unsigned long) frame;
-
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(me->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(save_sp),
+	err |= __put_user(sas_ss_flags(PT_REGS_RSP(regs)),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
 	err |= copy_sc_to_user(&frame->uc.uc_mcontext, &frame->fpstate, regs,
-			       set->sig[0], save_sp);
+			       set->sig[0]);
 	err |= __put_user(&frame->fpstate, &frame->uc.uc_mcontext.fpstate);
 	if (sizeof(*set) == 16) {
 		__put_user(set->sig[0], &frame->uc.uc_sigmask.sig[0]);
@@ -197,10 +181,10 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
 	else
 		/* could use a vstub here */
-		goto restore_sp;
+		return err;
 
 	if (err)
-		goto restore_sp;
+		return err;
 
 	/* Set up registers for signal handler */
 	{
@@ -209,6 +193,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			sig = ed->signal_invmap[sig];
 	}
 
+	PT_REGS_RSP(regs) = (unsigned long) frame;
 	PT_REGS_RDI(regs) = sig;
 	/* In case the signal handler was declared without prototypes */
 	PT_REGS_RAX(regs) = 0;
@@ -221,10 +206,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	PT_REGS_RDX(regs) = (unsigned long) &frame->uc;
 	PT_REGS_RIP(regs) = (unsigned long) ka->sa.sa_handler;
  out:
-	return err;
-
-restore_sp:
-	PT_REGS_RSP(regs) = save_sp;
 	return err;
 }
 
