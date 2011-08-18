@@ -1804,10 +1804,14 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
 		}
 	}
 
-	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
-		return -EINVAL;
-	if (offset > inode->i_sb->s_maxbytes)
-		return -EINVAL;
+	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	if (offset > inode->i_sb->s_maxbytes) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/* Special lock needed here? */
 	if (offset != file->f_pos) {
