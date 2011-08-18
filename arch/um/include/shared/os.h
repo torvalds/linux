@@ -203,12 +203,6 @@ extern int os_drop_memory(void *addr, int length);
 extern int can_drop_memory(void);
 extern void os_flush_stdout(void);
 
-/* uaccess.c */
-extern unsigned long __do_user_copy(void *to, const void *from, int n,
-				    void **fault_addr, jmp_buf **fault_catcher,
-				    void (*op)(void *to, const void *from,
-					       int n), int *faulted_out);
-
 /* execvp.c */
 extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
 /* helper.c */
