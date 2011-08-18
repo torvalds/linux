@@ -121,7 +121,7 @@ void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	sregs->u.e.mas0 = vcpu_e500->mas0;
 	sregs->u.e.mas1 = vcpu_e500->mas1;
 	sregs->u.e.mas2 = vcpu_e500->mas2;
-	sregs->u.e.mas7_3 = ((u64)vcpu_e500->mas7 << 32) | vcpu_e500->mas3;
+	sregs->u.e.mas7_3 = vcpu_e500->mas7_3;
 	sregs->u.e.mas4 = vcpu_e500->mas4;
 	sregs->u.e.mas6 = vcpu_e500->mas6;
 
@@ -154,8 +154,7 @@ int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 		vcpu_e500->mas0 = sregs->u.e.mas0;
 		vcpu_e500->mas1 = sregs->u.e.mas1;
 		vcpu_e500->mas2 = sregs->u.e.mas2;
-		vcpu_e500->mas7 = sregs->u.e.mas7_3 >> 32;
-		vcpu_e500->mas3 = (u32)sregs->u.e.mas7_3;
+		vcpu_e500->mas7_3 = sregs->u.e.mas7_3;
 		vcpu_e500->mas4 = sregs->u.e.mas4;
 		vcpu_e500->mas6 = sregs->u.e.mas6;
 	}

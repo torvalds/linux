@@ -95,13 +95,17 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_MAS2:
 		vcpu_e500->mas2 = spr_val; break;
 	case SPRN_MAS3:
-		vcpu_e500->mas3 = spr_val; break;
+		vcpu_e500->mas7_3 &= ~(u64)0xffffffff;
+		vcpu_e500->mas7_3 |= spr_val;
+		break;
 	case SPRN_MAS4:
 		vcpu_e500->mas4 = spr_val; break;
 	case SPRN_MAS6:
 		vcpu_e500->mas6 = spr_val; break;
 	case SPRN_MAS7:
-		vcpu_e500->mas7 = spr_val; break;
+		vcpu_e500->mas7_3 &= (u64)0xffffffff;
+		vcpu_e500->mas7_3 |= (u64)spr_val << 32;
+		break;
 	case SPRN_L1CSR0:
 		vcpu_e500->l1csr0 = spr_val;
 		vcpu_e500->l1csr0 &= ~(L1CSR0_DCFI | L1CSR0_CLFC);
@@ -158,13 +162,13 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_MAS2:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas2); break;
 	case SPRN_MAS3:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas3); break;
+		kvmppc_set_gpr(vcpu, rt, (u32)vcpu_e500->mas7_3); break;
 	case SPRN_MAS4:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas4); break;
 	case SPRN_MAS6:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas6); break;
 	case SPRN_MAS7:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas7); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas7_3 >> 32); break;
 
 	case SPRN_TLB0CFG:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->tlb0cfg); break;

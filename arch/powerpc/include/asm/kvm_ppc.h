@@ -193,4 +193,9 @@ static inline void kvm_rma_init(void)
 {}
 #endif
 
+int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
+			      struct kvm_config_tlb *cfg);
+int kvm_vcpu_ioctl_dirty_tlb(struct kvm_vcpu *vcpu,
+			     struct kvm_dirty_tlb *cfg);
+
 #endif /* __POWERPC_KVM_PPC_H__ */

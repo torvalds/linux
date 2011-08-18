@@ -22,13 +22,6 @@
 #define E500_PID_NUM   3
 #define E500_TLB_NUM   2
 
-struct tlbe{
-	u32 mas1;
-	u32 mas2;
-	u32 mas3;
-	u32 mas7;
-};
-
 #define E500_TLB_VALID 1
 #define E500_TLB_DIRTY 2
 
@@ -48,13 +41,17 @@ struct kvmppc_e500_tlb_params {
 };
 
 struct kvmppc_vcpu_e500 {
-	/* Unmodified copy of the guest's TLB. */
-	struct tlbe *gtlb_arch[E500_TLB_NUM];
+	/* Unmodified copy of the guest's TLB -- shared with host userspace. */
+	struct kvm_book3e_206_tlb_entry *gtlb_arch;
+
+	/* Starting entry number in gtlb_arch[] */
+	int gtlb_offset[E500_TLB_NUM];
 
 	/* KVM internal information associated with each guest TLB entry */
 	struct tlbe_priv *gtlb_priv[E500_TLB_NUM];
 
-	unsigned int gtlb_size[E500_TLB_NUM];
+	struct kvmppc_e500_tlb_params gtlb_params[E500_TLB_NUM];
+
 	unsigned int gtlb_nv[E500_TLB_NUM];
 
 	/*
@@ -68,7 +65,6 @@ struct kvmppc_vcpu_e500 {
 	 * and back, and our host TLB entries got evicted).
 	 */
 	struct tlbe_ref *tlb_refs[E500_TLB_NUM];
-
 	unsigned int host_tlb1_nv;
 
 	u32 host_pid[E500_PID_NUM];
@@ -78,11 +74,10 @@ struct kvmppc_vcpu_e500 {
 	u32 mas0;
 	u32 mas1;
 	u32 mas2;
-	u32 mas3;
+	u64 mas7_3;
 	u32 mas4;
 	u32 mas5;
 	u32 mas6;
-	u32 mas7;
 
 	/* vcpu id table */
 	struct vcpu_id_table *idt;
@@ -94,6 +89,9 @@ struct kvmppc_vcpu_e500 {
 	u32 tlb0cfg;
 	u32 tlb1cfg;
 	u64 mcar;
+
+	struct page **shared_tlb_pages;
+	int num_shared_tlb_pages;
 
 	struct kvm_vcpu vcpu;
 };

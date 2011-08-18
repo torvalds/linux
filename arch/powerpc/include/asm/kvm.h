@@ -296,4 +296,39 @@ struct kvm_allocate_rma {
 	__u64 rma_size;
 };
 
+struct kvm_book3e_206_tlb_entry {
+	__u32 mas8;
+	__u32 mas1;
+	__u64 mas2;
+	__u64 mas7_3;
+};
+
+struct kvm_book3e_206_tlb_params {
+	/*
+	 * For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
+	 *
+	 * - The number of ways of TLB0 must be a power of two between 2 and
+	 *   16.
+	 * - TLB1 must be fully associative.
+	 * - The size of TLB0 must be a multiple of the number of ways, and
+	 *   the number of sets must be a power of two.
+	 * - The size of TLB1 may not exceed 64 entries.
+	 * - TLB0 supports 4 KiB pages.
+	 * - The page sizes supported by TLB1 are as indicated by
+	 *   TLB1CFG (if MMUCFG[MAVN] = 0) or TLB1PS (if MMUCFG[MAVN] = 1)
+	 *   as returned by KVM_GET_SREGS.
+	 * - TLB2 and TLB3 are reserved, and their entries in tlb_sizes[]
+	 *   and tlb_ways[] must be zero.
+	 *
+	 * tlb_ways[n] = tlb_sizes[n] means the array is fully associative.
+	 *
+	 * KVM will adjust TLBnCFG based on the sizes configured here,
+	 * though arrays greater than 2048 entries will have TLBnCFG[NENTRY]
+	 * set to zero.
+	 */
+	__u32 tlb_sizes[4];
+	__u32 tlb_ways[4];
+	__u32 reserved[8];
+};
+
 #endif /* __LINUX_KVM_POWERPC_H */

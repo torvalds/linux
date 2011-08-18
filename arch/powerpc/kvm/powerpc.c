@@ -222,6 +222,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_OSI:
 	case KVM_CAP_PPC_GET_PVINFO:
+#ifdef CONFIG_KVM_E500
+	case KVM_CAP_SW_TLB:
+#endif
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -602,6 +605,19 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = 0;
 		vcpu->arch.papr_enabled = true;
 		break;
+#ifdef CONFIG_KVM_E500
+	case KVM_CAP_SW_TLB: {
+		struct kvm_config_tlb cfg;
+		void __user *user_ptr = (void __user *)(uintptr_t)cap->args[0];
+
+		r = -EFAULT;
+		if (copy_from_user(&cfg, user_ptr, sizeof(cfg)))
+			break;
+
+		r = kvm_vcpu_ioctl_config_tlb(vcpu, &cfg);
+		break;
+	}
+#endif
 	default:
 		r = -EINVAL;
 		break;
@@ -651,6 +667,18 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
 		break;
 	}
+
+#ifdef CONFIG_KVM_E500
+	case KVM_DIRTY_TLB: {
+		struct kvm_dirty_tlb dirty;
+		r = -EFAULT;
+		if (copy_from_user(&dirty, argp, sizeof(dirty)))
+			goto out;
+		r = kvm_vcpu_ioctl_dirty_tlb(vcpu, &dirty);
+		break;
+	}
+#endif
+
 	default:
 		r = -EINVAL;
 	}

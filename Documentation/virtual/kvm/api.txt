@@ -1409,6 +1409,38 @@ The following flags are defined:
 If datamatch flag is set, the event will be signaled only if the written value
 to the registered address is equal to datamatch in struct kvm_ioeventfd.
 
+4.59 KVM_DIRTY_TLB
+
+Capability: KVM_CAP_SW_TLB
+Architectures: ppc
+Type: vcpu ioctl
+Parameters: struct kvm_dirty_tlb (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_dirty_tlb {
+	__u64 bitmap;
+	__u32 num_dirty;
+};
+
+This must be called whenever userspace has changed an entry in the shared
+TLB, prior to calling KVM_RUN on the associated vcpu.
+
+The "bitmap" field is the userspace address of an array.  This array
+consists of a number of bits, equal to the total number of TLB entries as
+determined by the last successful call to KVM_CONFIG_TLB, rounded up to the
+nearest multiple of 64.
+
+Each bit corresponds to one TLB entry, ordered the same as in the shared TLB
+array.
+
+The array is little-endian: the bit 0 is the least significant bit of the
+first byte, bit 8 is the least significant bit of the second byte, etc.
+This avoids any complications with differing word sizes.
+
+The "num_dirty" field is a performance hint for KVM to determine whether it
+should skip processing the bitmap and just invalidate everything.  It must
+be set to the number of set bits in the bitmap.
+
 4.62 KVM_CREATE_SPAPR_TCE
 
 Capability: KVM_CAP_SPAPR_TCE
@@ -1842,3 +1874,45 @@ HTAB address part of SDR1 contains an HVA instead of a GPA, as PAPR keeps the
 HTAB invisible to the guest.
 
 When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
+
+6.3 KVM_CAP_SW_TLB
+
+Architectures: ppc
+Parameters: args[0] is the address of a struct kvm_config_tlb
+Returns: 0 on success; -1 on error
+
+struct kvm_config_tlb {
+	__u64 params;
+	__u64 array;
+	__u32 mmu_type;
+	__u32 array_len;
+};
+
+Configures the virtual CPU's TLB array, establishing a shared memory area
+between userspace and KVM.  The "params" and "array" fields are userspace
+addresses of mmu-type-specific data structures.  The "array_len" field is an
+safety mechanism, and should be set to the size in bytes of the memory that
+userspace has reserved for the array.  It must be at least the size dictated
+by "mmu_type" and "params".
+
+While KVM_RUN is active, the shared region is under control of KVM.  Its
+contents are undefined, and any modification by userspace results in
+boundedly undefined behavior.
+
+On return from KVM_RUN, the shared region will reflect the current state of
+the guest's TLB.  If userspace makes any changes, it must call KVM_DIRTY_TLB
+to tell KVM which entries have been changed, prior to calling KVM_RUN again
+on this vcpu.
+
+For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
+ - The "params" field is of type "struct kvm_book3e_206_tlb_params".
+ - The "array" field points to an array of type "struct
+   kvm_book3e_206_tlb_entry".
+ - The array consists of all entries in the first TLB, followed by all
+   entries in the second TLB.
+ - Within a TLB, entries are ordered first by increasing set number.  Within a
+   set, entries are ordered by way (increasing ESEL).
+ - The hash for determining set number in TLB0 is: (MAS2 >> 12) & (num_sets - 1)
+   where "num_sets" is the tlb_sizes[] value divided by the tlb_ways[] value.
+ - The tsize field of mas1 shall be set to 4K on TLB0, even though the
+   hardware ignores this value for TLB0.
