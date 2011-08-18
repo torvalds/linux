@@ -25,5 +25,7 @@
 #define Q40_IRQ14_MASK       (1<<6)
 #define Q40_IRQ15_MASK       (1<<7)
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 extern unsigned long q40_probe_irq_on (void);
 extern int q40_probe_irq_off (unsigned long irqs);
+#endif

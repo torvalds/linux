@@ -15,10 +15,14 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#ifdef CONFIG_GENERIC_HARDIRQS
+#include <linux/irq.h>
+#else
+#include <asm/irq.h>
+#endif
 
 #include <asm/ptrace.h>
 #include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/traps.h>
 
 #include <asm/q40_master.h>
@@ -326,6 +330,7 @@ void q40_irq_disable(struct irq_data *data)
 	}
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 unsigned long q40_probe_irq_on(void)
 {
 	printk("irq probing not working - reconfigure the driver to avoid this\n");
@@ -335,3 +340,4 @@ int q40_probe_irq_off(unsigned long irqs)
 {
 	return -1;
 }
+#endif
