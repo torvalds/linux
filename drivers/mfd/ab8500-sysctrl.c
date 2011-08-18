@@ -59,7 +59,7 @@ void ab8500_power_off(void)
 			       "Charger \"%s\" is connected with known battery."
 			       " Rebooting.\n",
 			       pss[i]);
-			machine_restart(NULL);
+			machine_restart("charging");
 		}
 	}
 
