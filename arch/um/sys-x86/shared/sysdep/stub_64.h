@@ -6,14 +6,7 @@
 #ifndef __SYSDEP_STUB_H
 #define __SYSDEP_STUB_H
 
-#include <sys/mman.h>
-#include <asm/unistd.h>
 #include <sysdep/ptrace_user.h>
-#include "as-layout.h"
-#include "stub-data.h"
-
-extern void stub_segv_handler(int sig);
-extern void stub_clone_handler(void);
 
 #define STUB_SYSCALL_RET PT_INDEX(RAX)
 #define STUB_MMAP_NR __NR_mmap

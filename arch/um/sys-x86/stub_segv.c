@@ -4,14 +4,16 @@
  */
 
 #include "sysdep/stub.h"
+#include "sysdep/faultinfo.h"
 #include "sysdep/sigcontext.h"
 
 void __attribute__ ((__section__ (".__syscall_stub")))
-stub_segv_handler(int sig)
+stub_segv_handler(int sig, siginfo_t *info, void *p)
 {
-	struct sigcontext *sc = (struct sigcontext *) (&sig + 1);
+	struct ucontext *uc = p;
 
-	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) STUB_DATA), sc);
-
+	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) STUB_DATA),
+			      &uc->uc_mcontext);
 	trap_myself();
 }
+
