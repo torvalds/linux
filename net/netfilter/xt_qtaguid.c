@@ -1325,6 +1325,7 @@ static int ctrl_cmd_delete(const char *input)
 	struct iface_stat *iface_entry;
 	struct rb_node *node;
 	struct sock_tag *st_entry;
+	struct rb_root st_to_free_tree = RB_ROOT;
 	struct tag_stat *ts_entry;
 	struct tag_counter_set *tcs_entry;
 
@@ -1362,17 +1363,26 @@ static int ctrl_cmd_delete(const char *input)
 			continue;
 
 		if (!acct_tag || st_entry->tag == tag) {
-			CT_DEBUG("qtaguid: ctrl_delete(): "
-				 "erase st: sk=%p tag=0x%llx (uid=%u)\n",
-				 st_entry->sk,
-				 st_entry->tag,
-				 entry_uid);
 			rb_erase(&st_entry->sock_node, &sock_tag_tree);
-			sockfd_put(st_entry->socket);
-			kfree(st_entry);
+			/* Can't sockfd_put() within spinlock, do it later. */
+			sock_tag_tree_insert(st_entry, &st_to_free_tree);
 		}
 	}
 	spin_unlock_bh(&sock_tag_list_lock);
+
+	node = rb_first(&st_to_free_tree);
+	while (node) {
+		st_entry = rb_entry(node, struct sock_tag, sock_node);
+		node = rb_next(node);
+		CT_DEBUG("qtaguid: ctrl_delete(): "
+			 "erase st: sk=%p tag=0x%llx (uid=%u)\n",
+			 st_entry->sk,
+			 st_entry->tag,
+			 entry_uid);
+		rb_erase(&st_entry->sock_node, &st_to_free_tree);
+		sockfd_put(st_entry->socket);
+		kfree(st_entry);
+	}
 
 	tag = combine_atag_with_uid(acct_tag, uid);
 
