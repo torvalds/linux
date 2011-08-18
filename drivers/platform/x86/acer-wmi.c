@@ -1094,7 +1094,9 @@ static acpi_status WMID_set_capabilities(void)
 		return AE_ERROR;
 	}
 
-	interface->capability |= ACER_CAP_WIRELESS;
+	pr_info("Function bitmap for Communication Device: 0x%x\n", devices);
+	if (devices & 0x07)
+		interface->capability |= ACER_CAP_WIRELESS;
 	if (devices & 0x40)
 		interface->capability |= ACER_CAP_THREEG;
 	if (devices & 0x10)
