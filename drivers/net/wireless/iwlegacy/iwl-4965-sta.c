@@ -44,7 +44,7 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
 
 	link_cmd = kzalloc(sizeof(struct il_link_quality_cmd), GFP_KERNEL);
 	if (!link_cmd) {
-		IL_ERR(il, "Unable to allocate memory for LQ cmd.\n");
+		IL_ERR("Unable to allocate memory for LQ cmd.\n");
 		return NULL;
 	}
 	/* Set up the rate scaling to start at selected rate, fall back
@@ -105,7 +105,7 @@ il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
 
 	ret = il_add_station_common(il, ctx, addr, 0, NULL, &sta_id);
 	if (ret) {
-		IL_ERR(il, "Unable to add station %pM\n", addr);
+		IL_ERR("Unable to add station %pM\n", addr);
 		return ret;
 	}
 
@@ -119,7 +119,7 @@ il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
 	/* Set up default rate scaling table in device's station table */
 	link_cmd = il4965_sta_alloc_lq(il, sta_id);
 	if (!link_cmd) {
-		IL_ERR(il,
+		IL_ERR(
 			"Unable to initialize rate scaling for station %pM.\n",
 			addr);
 		return -ENOMEM;
@@ -127,7 +127,7 @@ il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
 
 	ret = il_send_lq_cmd(il, ctx, link_cmd, CMD_SYNC, true);
 	if (ret)
-		IL_ERR(il, "Link quality command failed (%d)\n", ret);
+		IL_ERR("Link quality command failed (%d)\n", ret);
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	il->stations[sta_id].lq = link_cmd;
@@ -467,7 +467,7 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 	}
 
 	if (il->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET) {
-		IL_WARN(il, "Removing wrong key %d 0x%x\n",
+		IL_WARN("Removing wrong key %d 0x%x\n",
 			    keyconf->keyidx, key_flags);
 		spin_unlock_irqrestore(&il->sta_lock, flags);
 		return 0;
@@ -475,7 +475,7 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 
 	if (!test_and_clear_bit(il->stations[sta_id].sta.key.key_offset,
 		&il->ucode_key_table))
-		IL_ERR(il, "index %d not used in uCode key table.\n",
+		IL_ERR("index %d not used in uCode key table.\n",
 			il->stations[sta_id].sta.key.key_offset);
 	memset(&il->stations[sta_id].keyinfo, 0,
 					sizeof(struct il_hw_key));
@@ -525,7 +525,7 @@ int il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
 							keyconf, sta_id);
 		break;
 	default:
-		IL_ERR(il,
+		IL_ERR(
 			"Unknown alg: %s cipher = %x\n", __func__,
 			keyconf->cipher);
 		ret = -EINVAL;
@@ -557,7 +557,7 @@ int il4965_alloc_bcast_station(struct il_priv *il,
 	sta_id = il_prep_station(il, ctx, il_bcast_addr,
 								false, NULL);
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(il, "Unable to prepare broadcast station\n");
+		IL_ERR("Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
 
 		return -EINVAL;
@@ -569,7 +569,7 @@ int il4965_alloc_bcast_station(struct il_priv *il,
 
 	link_cmd = il4965_sta_alloc_lq(il, sta_id);
 	if (!link_cmd) {
-		IL_ERR(il,
+		IL_ERR(
 			"Unable to initialize rate scaling for bcast station.\n");
 		return -ENOMEM;
 	}
@@ -596,7 +596,7 @@ static int il4965_update_bcast_station(struct il_priv *il,
 
 	link_cmd = il4965_sta_alloc_lq(il, sta_id);
 	if (!link_cmd) {
-		IL_ERR(il,
+		IL_ERR(
 		"Unable to initialize rate scaling for bcast station.\n");
 		return -ENOMEM;
 	}
@@ -686,7 +686,7 @@ int il4965_sta_rx_agg_stop(struct il_priv *il, struct ieee80211_sta *sta,
 
 	sta_id = il_sta_id(sta);
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(il, "Invalid station for AGG tid %d\n", tid);
+		IL_ERR("Invalid station for AGG tid %d\n", tid);
 		return -ENXIO;
 	}
 

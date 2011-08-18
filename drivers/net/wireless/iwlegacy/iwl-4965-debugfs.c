@@ -75,7 +75,7 @@ ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -501,7 +501,7 @@ ssize_t il4965_ucode_tx_stats_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -679,7 +679,7 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 

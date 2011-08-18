@@ -136,7 +136,7 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd,
 
 		memcpy(&il->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else
-		IL_ERR(il, "set power fail, ret = %d", ret);
+		IL_ERR("set power fail, ret = %d", ret);
 
 	return ret;
 }

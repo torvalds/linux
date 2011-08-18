@@ -95,7 +95,7 @@ static void il_generic_cmd_callback(struct il_priv *il,
 				     struct il_rx_packet *pkt)
 {
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(il, "Bad return from %s (0x%08X)\n",
+		IL_ERR("Bad return from %s (0x%08X)\n",
 		il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		return;
 	}
@@ -133,7 +133,7 @@ il_send_cmd_async(struct il_priv *il, struct il_host_cmd *cmd)
 
 	ret = il_enqueue_hcmd(il, cmd);
 	if (ret < 0) {
-		IL_ERR(il, "Error sending %s: enqueue_hcmd failed: %d\n",
+		IL_ERR("Error sending %s: enqueue_hcmd failed: %d\n",
 			  il_get_cmd_string(cmd->id), ret);
 		return ret;
 	}
@@ -162,7 +162,7 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 	cmd_idx = il_enqueue_hcmd(il, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
-		IL_ERR(il, "Error sending %s: enqueue_hcmd failed: %d\n",
+		IL_ERR("Error sending %s: enqueue_hcmd failed: %d\n",
 			  il_get_cmd_string(cmd->id), ret);
 		goto out;
 	}
@@ -172,7 +172,7 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &il->status)) {
-			IL_ERR(il,
+			IL_ERR(
 				"Error sending %s: time out after %dms.\n",
 				il_get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
@@ -187,19 +187,19 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 	}
 
 	if (test_bit(STATUS_RF_KILL_HW, &il->status)) {
-		IL_ERR(il, "Command %s aborted: RF KILL Switch\n",
+		IL_ERR("Command %s aborted: RF KILL Switch\n",
 			       il_get_cmd_string(cmd->id));
 		ret = -ECANCELED;
 		goto fail;
 	}
 	if (test_bit(STATUS_FW_ERROR, &il->status)) {
-		IL_ERR(il, "Command %s failed: FW Error\n",
+		IL_ERR("Command %s failed: FW Error\n",
 			       il_get_cmd_string(cmd->id));
 		ret = -EIO;
 		goto fail;
 	}
 	if ((cmd->flags & CMD_WANT_SKB) && !cmd->reply_page) {
-		IL_ERR(il, "Error: Response NULL in '%s'\n",
+		IL_ERR("Error: Response NULL in '%s'\n",
 			  il_get_cmd_string(cmd->id));
 		ret = -EIO;
 		goto cancel;

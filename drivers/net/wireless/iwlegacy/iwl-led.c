@@ -88,7 +88,7 @@ static inline u8 il_blink_compensation(struct il_priv *il,
 				    u8 time, u16 compensation)
 {
 	if (!compensation) {
-		IL_ERR(il, "undefined blink compensation: "
+		IL_ERR("undefined blink compensation: "
 			"use pre-defined blinking time\n");
 		return time;
 	}

@@ -129,12 +129,12 @@ int il4965_eeprom_check_version(struct il_priv *il)
 	    calib_ver < il->cfg->eeprom_calib_ver)
 		goto err;
 
-	IL_INFO(il, "device EEPROM VER=0x%x, CALIB=0x%x\n",
+	IL_INFO("device EEPROM VER=0x%x, CALIB=0x%x\n",
 		 eeprom_ver, calib_ver);
 
 	return 0;
 err:
-	IL_ERR(il, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
+	IL_ERR("Unsupported (too old) EEPROM VER=0x%x < 0x%x "
 		  "CALIB=0x%x < 0x%x\n",
 		  eeprom_ver, il->cfg->eeprom_ver,
 		  calib_ver,  il->cfg->eeprom_calib_ver);

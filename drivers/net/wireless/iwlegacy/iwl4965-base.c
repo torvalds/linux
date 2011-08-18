@@ -115,7 +115,7 @@ static void il4965_clear_free_frames(struct il_priv *il)
 	}
 
 	if (il->frames_count) {
-		IL_WARN(il, "%d frames still in use.  Did we lose one?\n",
+		IL_WARN("%d frames still in use.  Did we lose one?\n",
 			    il->frames_count);
 		il->frames_count = 0;
 	}
@@ -128,7 +128,7 @@ static struct il_frame *il4965_get_free_frame(struct il_priv *il)
 	if (list_empty(&il->free_frames)) {
 		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
 		if (!frame) {
-			IL_ERR(il, "Could not allocate frame!\n");
+			IL_ERR("Could not allocate frame!\n");
 			return NULL;
 		}
 
@@ -188,7 +188,7 @@ static void il4965_set_beacon_tim(struct il_priv *il,
 		tx_beacon_cmd->tim_idx = cpu_to_le16(tim_idx);
 		tx_beacon_cmd->tim_size = beacon[tim_idx+1];
 	} else
-		IL_WARN(il, "Unable to find TIM Element in beacon\n");
+		IL_WARN("Unable to find TIM Element in beacon\n");
 }
 
 static unsigned int il4965_hw_get_beacon_cmd(struct il_priv *il,
@@ -206,7 +206,7 @@ static unsigned int il4965_hw_get_beacon_cmd(struct il_priv *il,
 	lockdep_assert_held(&il->mutex);
 
 	if (!il->beacon_ctx) {
-		IL_ERR(il, "trying to build beacon w/o beacon context!\n");
+		IL_ERR("trying to build beacon w/o beacon context!\n");
 		return 0;
 	}
 
@@ -254,14 +254,14 @@ int il4965_send_beacon_cmd(struct il_priv *il)
 
 	frame = il4965_get_free_frame(il);
 	if (!frame) {
-		IL_ERR(il, "Could not obtain free frame buffer for beacon "
+		IL_ERR("Could not obtain free frame buffer for beacon "
 			  "command.\n");
 		return -ENOMEM;
 	}
 
 	frame_size = il4965_hw_get_beacon_cmd(il, frame);
 	if (!frame_size) {
-		IL_ERR(il, "Error configuring the beacon command\n");
+		IL_ERR("Error configuring the beacon command\n");
 		il4965_free_frame(il, frame);
 		return -EINVAL;
 	}
@@ -336,7 +336,7 @@ void il4965_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 	num_tbs = il4965_tfd_get_num_tbs(tfd);
 
 	if (num_tbs >= IL_NUM_OF_TBS) {
-		IL_ERR(il, "Too many chunks: %i\n", num_tbs);
+		IL_ERR("Too many chunks: %i\n", num_tbs);
 		/* @todo issue fatal error, it is quite serious situation */
 		return;
 	}
@@ -388,14 +388,14 @@ int il4965_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 
 	/* Each TFD can point to a maximum 20 Tx buffers */
 	if (num_tbs >= IL_NUM_OF_TBS) {
-		IL_ERR(il, "Error can not send more than %d chunks\n",
+		IL_ERR("Error can not send more than %d chunks\n",
 			  IL_NUM_OF_TBS);
 		return -EINVAL;
 	}
 
 	BUG_ON(addr & ~DMA_BIT_MASK(36));
 	if (unlikely(addr & ~IL_TX_DMA_MASK))
-		IL_ERR(il, "Unaligned address = %llx\n",
+		IL_ERR("Unaligned address = %llx\n",
 			  (unsigned long long)addr);
 
 	il4965_tfd_set_tb(tfd, num_tbs, addr, len);
@@ -460,7 +460,7 @@ static void il4965_rx_reply_alive(struct il_priv *il,
 		queue_delayed_work(il->workqueue, pwork,
 				   msecs_to_jiffies(5));
 	else
-		IL_WARN(il, "uCode did not respond OK.\n");
+		IL_WARN("uCode did not respond OK.\n");
 }
 
 /**
@@ -725,7 +725,7 @@ void il4965_rx_handle(struct il_priv *il)
 			if (rxb->page)
 				il_tx_cmd_complete(il, rxb);
 			else
-				IL_WARN(il, "Claim null rxb?\n");
+				IL_WARN("Claim null rxb?\n");
 		}
 
 		/* Reuse the page if possible. For notification packets and
@@ -818,7 +818,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IL_ERR(il, "Hardware error detected.  Restarting.\n");
+		IL_ERR("Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		il_disable_interrupts(il);
@@ -857,7 +857,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IL_WARN(il, "RF_KILL bit toggled to %s.\n",
+		IL_WARN("RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
 		il->isr_stats.rfkill++;
@@ -880,14 +880,14 @@ static void il4965_irq_tasklet(struct il_priv *il)
 
 	/* Chip got too hot and stopped itself */
 	if (inta & CSR_INT_BIT_CT_KILL) {
-		IL_ERR(il, "Microcode CT kill error detected.\n");
+		IL_ERR("Microcode CT kill error detected.\n");
 		il->isr_stats.ctkill++;
 		handled |= CSR_INT_BIT_CT_KILL;
 	}
 
 	/* Error detected by uCode */
 	if (inta & CSR_INT_BIT_SW_ERR) {
-		IL_ERR(il, "Microcode SW error detected. "
+		IL_ERR("Microcode SW error detected. "
 			" Restarting 0x%X.\n", inta);
 		il->isr_stats.sw++;
 		il_irq_handle_error(il);
@@ -928,14 +928,14 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	}
 
 	if (inta & ~handled) {
-		IL_ERR(il, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
+		IL_ERR("Unhandled INTA bits 0x%08x\n", inta & ~handled);
 		il->isr_stats.unhandled++;
 	}
 
 	if (inta & ~(il->inta_mask)) {
-		IL_WARN(il, "Disabled INTA bits 0x%08x were pending\n",
+		IL_WARN("Disabled INTA bits 0x%08x were pending\n",
 			 inta & ~il->inta_mask);
-		IL_WARN(il, "   with FH_INT = 0x%08x\n", inta_fh);
+		IL_WARN("   with FH_INT = 0x%08x\n", inta_fh);
 	}
 
 	/* Re-enable all interrupts */
@@ -993,11 +993,11 @@ static ssize_t il4965_store_debug_level(struct device *d,
 
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
-		IL_ERR(il, "%s is not in hex or decimal form.\n", buf);
+		IL_ERR("%s is not in hex or decimal form.\n", buf);
 	else {
 		il->debug_level = val;
 		if (il_alloc_traffic_mem(il))
-			IL_ERR(il,
+			IL_ERR(
 				"Not enough memory to generate traffic log\n");
 	}
 	return strnlen(buf, count);
@@ -1044,11 +1044,11 @@ static ssize_t il4965_store_tx_power(struct device *d,
 
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
-		IL_INFO(il, "%s is not in decimal form.\n", buf);
+		IL_INFO("%s is not in decimal form.\n", buf);
 	else {
 		ret = il_set_tx_power(il, val, false);
 		if (ret)
-			IL_ERR(il, "failed setting tx power (0x%d).\n",
+			IL_ERR("failed setting tx power (0x%d).\n",
 				ret);
 		else
 			ret = count;
@@ -1114,7 +1114,7 @@ static int __must_check il4965_request_firmware(struct il_priv *il, bool first)
 	}
 
 	if (il->fw_index < il->cfg->ucode_api_min) {
-		IL_ERR(il, "no suitable firmware found!\n");
+		IL_ERR("no suitable firmware found!\n");
 		return -ENOENT;
 	}
 
@@ -1151,7 +1151,7 @@ static int il4965_load_firmware(struct il_priv *il,
 	case 2:
 		hdr_size = 24;
 		if (ucode_raw->size < hdr_size) {
-			IL_ERR(il, "File size too small!\n");
+			IL_ERR("File size too small!\n");
 			return -EINVAL;
 		}
 		pieces->inst_size = le32_to_cpu(ucode->v1.inst_size);
@@ -1169,7 +1169,7 @@ static int il4965_load_firmware(struct il_priv *il,
 				pieces->data_size + pieces->init_size +
 				pieces->init_data_size + pieces->boot_size) {
 
-		IL_ERR(il,
+		IL_ERR(
 			"uCode file size %d does not match expected size\n",
 			(int)ucode_raw->size);
 		return -EINVAL;
@@ -1214,7 +1214,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	if (!ucode_raw) {
 		if (il->fw_index <= il->cfg->ucode_api_max)
-			IL_ERR(il,
+			IL_ERR(
 				"request for firmware file '%s' failed.\n",
 				il->firmware_name);
 		goto try_again;
@@ -1225,7 +1225,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* Make sure that we got at least the API version number */
 	if (ucode_raw->size < 4) {
-		IL_ERR(il, "File size way too small!\n");
+		IL_ERR("File size way too small!\n");
 		goto try_again;
 	}
 
@@ -1245,7 +1245,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * on the API version read from firmware header from here on forward
 	 */
 	if (api_ver < api_min || api_ver > api_max) {
-		IL_ERR(il,
+		IL_ERR(
 			"Driver unable to support your firmware API. "
 			"Driver supports v%u, firmware is v%u.\n",
 			api_max, api_ver);
@@ -1253,13 +1253,13 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	if (api_ver != api_max)
-		IL_ERR(il,
+		IL_ERR(
 			"Firmware has old API version. Expected v%u, "
 			"got v%u. New firmware can be obtained "
 			"from http://www.intellinuxwireless.org.\n",
 			api_max, api_ver);
 
-	IL_INFO(il, "loaded firmware version %u.%u.%u.%u\n",
+	IL_INFO("loaded firmware version %u.%u.%u.%u\n",
 		 IL_UCODE_MAJOR(il->ucode_ver),
 		 IL_UCODE_MINOR(il->ucode_ver),
 		 IL_UCODE_API(il->ucode_ver),
@@ -1294,31 +1294,31 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* Verify that uCode images will fit in card's SRAM */
 	if (pieces.inst_size > il->hw_params.max_inst_size) {
-		IL_ERR(il, "uCode instr len %Zd too large to fit in\n",
+		IL_ERR("uCode instr len %Zd too large to fit in\n",
 			pieces.inst_size);
 		goto try_again;
 	}
 
 	if (pieces.data_size > il->hw_params.max_data_size) {
-		IL_ERR(il, "uCode data len %Zd too large to fit in\n",
+		IL_ERR("uCode data len %Zd too large to fit in\n",
 			pieces.data_size);
 		goto try_again;
 	}
 
 	if (pieces.init_size > il->hw_params.max_inst_size) {
-		IL_ERR(il, "uCode init instr len %Zd too large to fit in\n",
+		IL_ERR("uCode init instr len %Zd too large to fit in\n",
 			pieces.init_size);
 		goto try_again;
 	}
 
 	if (pieces.init_data_size > il->hw_params.max_data_size) {
-		IL_ERR(il, "uCode init data len %Zd too large to fit in\n",
+		IL_ERR("uCode init data len %Zd too large to fit in\n",
 			pieces.init_data_size);
 		goto try_again;
 	}
 
 	if (pieces.boot_size > il->hw_params.max_bsm_size) {
-		IL_ERR(il, "uCode boot instr len %Zd too large to fit in\n",
+		IL_ERR("uCode boot instr len %Zd too large to fit in\n",
 			pieces.boot_size);
 		goto try_again;
 	}
@@ -1427,13 +1427,13 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	err = il_dbgfs_register(il, DRV_NAME);
 	if (err)
-		IL_ERR(il,
+		IL_ERR(
 		"failed to create debugfs files. Ignoring error: %d\n", err);
 
 	err = sysfs_create_group(&il->pci_dev->dev.kobj,
 					&il_attribute_group);
 	if (err) {
-		IL_ERR(il, "failed to create sysfs device attributes\n");
+		IL_ERR("failed to create sysfs device attributes\n");
 		goto out_unbind;
 	}
 
@@ -1450,7 +1450,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	return;
 
  err_pci_alloc:
-	IL_ERR(il, "failed to allocate pci memory\n");
+	IL_ERR("failed to allocate pci memory\n");
 	il4965_dealloc_ucode_pci(il);
  out_unbind:
 	complete(&il->_4965.firmware_loading_complete);
@@ -1541,7 +1541,7 @@ void il4965_dump_nic_error_log(struct il_priv *il)
 	}
 
 	if (!il->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IL_ERR(il,
+		IL_ERR(
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base, (il->ucode_type == UCODE_INIT) ? "Init" : "RT");
 		return;
@@ -1550,8 +1550,8 @@ void il4965_dump_nic_error_log(struct il_priv *il)
 	count = il_read_targ_mem(il, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
-		IL_ERR(il, "Start IWL Error Log Dump:\n");
-		IL_ERR(il, "Status: 0x%08lX, count: %d\n",
+		IL_ERR("Start IWL Error Log Dump:\n");
+		IL_ERR("Status: 0x%08lX, count: %d\n",
 			il->status, count);
 	}
 
@@ -1568,12 +1568,12 @@ void il4965_dump_nic_error_log(struct il_priv *il)
 	time = il_read_targ_mem(il, base + 11 * sizeof(u32));
 	hcmd = il_read_targ_mem(il, base + 22 * sizeof(u32));
 
-	IL_ERR(il, "Desc                                  Time       "
+	IL_ERR("Desc                                  Time       "
 		"data1      data2      line\n");
-	IL_ERR(il, "%-28s (0x%04X) %010u 0x%08X 0x%08X %u\n",
+	IL_ERR("%-28s (0x%04X) %010u 0x%08X 0x%08X %u\n",
 		il4965_desc_lookup(desc), desc, time, data1, data2, line);
-	IL_ERR(il, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
-	IL_ERR(il, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
+	IL_ERR("pc      blink1  blink2  ilink1  ilink2  hcmd\n");
+	IL_ERR("0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
 		pc, blink1, blink2, ilink1, ilink2, hcmd);
 }
 
@@ -1594,7 +1594,7 @@ static void il4965_rf_kill_ct_config(struct il_priv *il)
 	ret = il_send_cmd_pdu(il, REPLY_CT_KILL_CONFIG_CMD,
 			       sizeof(cmd), &cmd);
 	if (ret)
-		IL_ERR(il, "REPLY_CT_KILL_CONFIG_CMD failed\n");
+		IL_ERR("REPLY_CT_KILL_CONFIG_CMD failed\n");
 	else
 		D_INFO("REPLY_CT_KILL_CONFIG_CMD "
 				"succeeded, "
@@ -1740,7 +1740,7 @@ static void il4965_alive_start(struct il_priv *il)
 
 	ret = il4965_alive_notify(il);
 	if (ret) {
-		IL_WARN(il,
+		IL_WARN(
 			"Could not complete ALIVE transition [ntf]: %d\n", ret);
 		goto restart;
 	}
@@ -1955,12 +1955,12 @@ static int __il4965_up(struct il_priv *il)
 	int ret;
 
 	if (test_bit(STATUS_EXIT_PENDING, &il->status)) {
-		IL_WARN(il, "Exit pending; will not bring the NIC up\n");
+		IL_WARN("Exit pending; will not bring the NIC up\n");
 		return -EIO;
 	}
 
 	if (!il->ucode_data_backup.v_addr || !il->ucode_data.v_addr) {
-		IL_ERR(il, "ucode not available for device bringup\n");
+		IL_ERR("ucode not available for device bringup\n");
 		return -EIO;
 	}
 
@@ -1975,7 +1975,7 @@ static int __il4965_up(struct il_priv *il)
 	il4965_prepare_card_hw(il);
 
 	if (!il->hw_ready) {
-		IL_WARN(il, "Exit HW not ready\n");
+		IL_WARN("Exit HW not ready\n");
 		return -EIO;
 	}
 
@@ -1990,7 +1990,7 @@ static int __il4965_up(struct il_priv *il)
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, true);
 
 		il_enable_interrupts(il);
-		IL_WARN(il, "Radio disabled by HW RF Kill switch\n");
+		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return 0;
 	}
 
@@ -2001,7 +2001,7 @@ static int __il4965_up(struct il_priv *il)
 
 	ret = il4965_hw_nic_init(il);
 	if (ret) {
-		IL_ERR(il, "Unable to init nic\n");
+		IL_ERR("Unable to init nic\n");
 		return ret;
 	}
 
@@ -2032,7 +2032,7 @@ static int __il4965_up(struct il_priv *il)
 		ret = il->cfg->ops->lib->load_ucode(il);
 
 		if (ret) {
-			IL_ERR(il, "Unable to set up bootstrap uCode: %d\n",
+			IL_ERR("Unable to set up bootstrap uCode: %d\n",
 				ret);
 			continue;
 		}
@@ -2051,7 +2051,7 @@ static int __il4965_up(struct il_priv *il)
 
 	/* tried to restart and config the device for as long as our
 	 * patience could withstand */
-	IL_ERR(il, "Unable to initialize device after %d attempts.\n", i);
+	IL_ERR("Unable to initialize device after %d attempts.\n", i);
 	return -EIO;
 }
 
@@ -2229,7 +2229,7 @@ static int il4965_mac_setup_register(struct il_priv *il,
 
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {
-		IL_ERR(il, "Failed to register hw (error %d)\n", ret);
+		IL_ERR("Failed to register hw (error %d)\n", ret);
 		return ret;
 	}
 	il->mac80211_registered = 1;
@@ -2265,7 +2265,7 @@ int il4965_mac_start(struct ieee80211_hw *hw)
 			UCODE_READY_TIMEOUT);
 	if (!ret) {
 		if (!test_bit(STATUS_READY, &il->status)) {
-			IL_ERR(il, "START_ALIVE timeout after %dms.\n",
+			IL_ERR("START_ALIVE timeout after %dms.\n",
 				jiffies_to_msecs(UCODE_READY_TIMEOUT));
 			return -ETIMEDOUT;
 		}
@@ -2475,7 +2475,7 @@ int il4965_mac_sta_add(struct ieee80211_hw *hw,
 	ret = il_add_station_common(il, vif_priv->ctx, sta->addr,
 				     is_ap, sta, &sta_id);
 	if (ret) {
-		IL_ERR(il, "Unable to add station %pM (%d)\n",
+		IL_ERR("Unable to add station %pM (%d)\n",
 			sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
 		mutex_unlock(&il->mutex);
@@ -2792,13 +2792,13 @@ static int il4965_init_drv(struct il_priv *il)
 
 	ret = il_init_channel_map(il);
 	if (ret) {
-		IL_ERR(il, "initializing regulatory failed: %d\n", ret);
+		IL_ERR("initializing regulatory failed: %d\n", ret);
 		goto err;
 	}
 
 	ret = il_init_geos(il);
 	if (ret) {
-		IL_ERR(il, "initializing geos failed: %d\n", ret);
+		IL_ERR("initializing geos failed: %d\n", ret);
 		goto err_free_channel_map;
 	}
 	il4965_init_hw_rates(il, il->ieee_rates);
@@ -2917,7 +2917,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->inta_mask = CSR_INI_SET_MASK;
 
 	if (il_alloc_traffic_mem(il))
-		IL_ERR(il, "Not enough memory to generate traffic log\n");
+		IL_ERR("Not enough memory to generate traffic log\n");
 
 	/**************************
 	 * 2. Initializing PCI bus
@@ -2942,7 +2942,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 							DMA_BIT_MASK(32));
 		/* both attempts failed: */
 		if (err) {
-			IL_WARN(il, "No suitable DMA available.\n");
+			IL_WARN("No suitable DMA available.\n");
 			goto out_pci_disable_device;
 		}
 	}
@@ -2981,7 +2981,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il_write32(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	il4965_hw_detect(il);
-	IL_INFO(il, "Detected %s, REV=0x%X\n",
+	IL_INFO("Detected %s, REV=0x%X\n",
 		il->cfg->name, il->hw_rev);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
@@ -2990,7 +2990,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il4965_prepare_card_hw(il);
 	if (!il->hw_ready) {
-		IL_WARN(il, "Failed, HW not ready\n");
+		IL_WARN("Failed, HW not ready\n");
 		goto out_iounmap;
 	}
 
@@ -3000,7 +3000,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Read the EEPROM */
 	err = il_eeprom_init(il);
 	if (err) {
-		IL_ERR(il, "Unable to init EEPROM\n");
+		IL_ERR("Unable to init EEPROM\n");
 		goto out_iounmap;
 	}
 	err = il4965_eeprom_check_version(il);
@@ -3020,7 +3020,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 5. Setup HW constants
 	 ************************/
 	if (il4965_set_hw_params(il)) {
-		IL_ERR(il, "failed to set hw parameters\n");
+		IL_ERR("failed to set hw parameters\n");
 		goto out_free_eeprom;
 	}
 
@@ -3045,7 +3045,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = request_irq(il->pci_dev->irq, il_isr,
 			  IRQF_SHARED, DRV_NAME, il);
 	if (err) {
-		IL_ERR(il, "Error allocating IRQ %d\n", il->pci_dev->irq);
+		IL_ERR("Error allocating IRQ %d\n", il->pci_dev->irq);
 		goto out_disable_msi;
 	}
 

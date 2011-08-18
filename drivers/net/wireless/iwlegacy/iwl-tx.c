@@ -299,7 +299,7 @@ static int il_tx_queue_alloc(struct il_priv *il,
 		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
-			IL_ERR(il, "kmalloc for auxiliary BD "
+			IL_ERR("kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
@@ -312,7 +312,7 @@ static int il_tx_queue_alloc(struct il_priv *il,
 	txq->tfds = dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr,
 				       GFP_KERNEL);
 	if (!txq->tfds) {
-		IL_ERR(il, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
+		IL_ERR("pci_alloc_consistent(%zd) failed\n", tfd_sz);
 		goto error;
 	}
 	txq->q.id = id;
@@ -461,7 +461,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	BUG_ON(fix_size > IL_MAX_CMD_SIZE);
 
 	if (il_is_rfkill(il) || il_is_ctkill(il)) {
-		IL_WARN(il, "Not sending command - %s KILL\n",
+		IL_WARN("Not sending command - %s KILL\n",
 			 il_is_rfkill(il) ? "RF" : "CT");
 		return -EIO;
 	}
@@ -471,7 +471,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	if (il_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		spin_unlock_irqrestore(&il->hcmd_lock, flags);
 
-		IL_ERR(il, "Restarting adapter due to command queue full\n");
+		IL_ERR("Restarting adapter due to command queue full\n");
 		queue_work(il->workqueue, &il->restart);
 		return -ENOSPC;
 	}
@@ -566,7 +566,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
 	int nfreed = 0;
 
 	if ((idx >= q->n_bd) || (il_queue_used(q, idx) == 0)) {
-		IL_ERR(il, "Read index for DMA queue txq id (%d), index %d, "
+		IL_ERR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -576,7 +576,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IL_ERR(il, "HCMD skipped: index (%d) %d %d\n", idx,
+			IL_ERR("HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
 			queue_work(il->workqueue, &il->restart);
 		}

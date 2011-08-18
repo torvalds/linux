@@ -153,7 +153,7 @@ static int il_eeprom_verify_signature(struct il_priv *il)
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
 		break;
 	default:
-		IL_ERR(il, "bad EEPROM signature,"
+		IL_ERR("bad EEPROM signature,"
 			"EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		break;
@@ -206,7 +206,7 @@ int il_eeprom_init(struct il_priv *il)
 
 	ret = il_eeprom_verify_signature(il);
 	if (ret < 0) {
-		IL_ERR(il, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IL_ERR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		goto err;
 	}
@@ -214,7 +214,7 @@ int il_eeprom_init(struct il_priv *il)
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
 	ret = il->cfg->ops->lib->eeprom_ops.acquire_semaphore(il);
 	if (ret < 0) {
-		IL_ERR(il, "Failed to acquire EEPROM semaphore.\n");
+		IL_ERR("Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -231,7 +231,7 @@ int il_eeprom_init(struct il_priv *il)
 					  CSR_EEPROM_REG_READ_VALID_MSK,
 					  IL_EEPROM_ACCESS_TIMEOUT);
 		if (ret < 0) {
-			IL_ERR(il, "Time out reading EEPROM[%d]\n",
+			IL_ERR("Time out reading EEPROM[%d]\n",
 							addr);
 			goto done;
 		}
@@ -399,7 +399,7 @@ int il_init_channel_map(struct il_priv *il)
 	il->channel_info = kzalloc(sizeof(struct il_channel_info) *
 				     il->channel_count, GFP_KERNEL);
 	if (!il->channel_info) {
-		IL_ERR(il, "Could not allocate channel_info\n");
+		IL_ERR("Could not allocate channel_info\n");
 		il->channel_count = 0;
 		return -ENOMEM;
 	}

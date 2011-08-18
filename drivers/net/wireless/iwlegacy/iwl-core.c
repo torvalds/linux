@@ -253,14 +253,14 @@ int il_init_geos(struct il_priv *il)
 
 	if ((il->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     il->cfg->sku & IL_SKU_A) {
-		IL_INFO(il, "Incorrectly detected BG card as ABG. "
+		IL_INFO("Incorrectly detected BG card as ABG. "
 			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
 			   il->pci_dev->device,
 			   il->pci_dev->subsystem_device);
 		il->cfg->sku &= ~IL_SKU_A;
 	}
 
-	IL_INFO(il, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
+	IL_INFO("Tunable channels: %d 802.11bg, %d 802.11a channels\n",
 		   il->bands[IEEE80211_BAND_2GHZ].n_channels,
 		   il->bands[IEEE80211_BAND_5GHZ].n_channels);
 
@@ -431,65 +431,65 @@ il_check_rxon_cmd(struct il_priv *il, struct il_rxon_context *ctx)
 
 	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
 		if (rxon->flags & RXON_FLG_TGJ_NARROW_BAND_MSK) {
-			IL_WARN(il, "check 2.4G: wrong narrow\n");
+			IL_WARN("check 2.4G: wrong narrow\n");
 			error = true;
 		}
 		if (rxon->flags & RXON_FLG_RADAR_DETECT_MSK) {
-			IL_WARN(il, "check 2.4G: wrong radar\n");
+			IL_WARN("check 2.4G: wrong radar\n");
 			error = true;
 		}
 	} else {
 		if (!(rxon->flags & RXON_FLG_SHORT_SLOT_MSK)) {
-			IL_WARN(il, "check 5.2G: not short slot!\n");
+			IL_WARN("check 5.2G: not short slot!\n");
 			error = true;
 		}
 		if (rxon->flags & RXON_FLG_CCK_MSK) {
-			IL_WARN(il, "check 5.2G: CCK!\n");
+			IL_WARN("check 5.2G: CCK!\n");
 			error = true;
 		}
 	}
 	if ((rxon->node_addr[0] | rxon->bssid_addr[0]) & 0x1) {
-		IL_WARN(il, "mac/bssid mcast!\n");
+		IL_WARN("mac/bssid mcast!\n");
 		error = true;
 	}
 
 	/* make sure basic rates 6Mbps and 1Mbps are supported */
 	if ((rxon->ofdm_basic_rates & IL_RATE_6M_MASK) == 0 &&
 	    (rxon->cck_basic_rates & IL_RATE_1M_MASK) == 0) {
-		IL_WARN(il, "neither 1 nor 6 are basic\n");
+		IL_WARN("neither 1 nor 6 are basic\n");
 		error = true;
 	}
 
 	if (le16_to_cpu(rxon->assoc_id) > 2007) {
-		IL_WARN(il, "aid > 2007\n");
+		IL_WARN("aid > 2007\n");
 		error = true;
 	}
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK)) {
-		IL_WARN(il, "CCK and short slot\n");
+		IL_WARN("CCK and short slot\n");
 		error = true;
 	}
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
-		IL_WARN(il, "CCK and auto detect");
+		IL_WARN("CCK and auto detect");
 		error = true;
 	}
 
 	if ((rxon->flags & (RXON_FLG_AUTO_DETECT_MSK |
 			    RXON_FLG_TGG_PROTECT_MSK)) ==
 			    RXON_FLG_TGG_PROTECT_MSK) {
-		IL_WARN(il, "TGg but no auto-detect\n");
+		IL_WARN("TGg but no auto-detect\n");
 		error = true;
 	}
 
 	if (error)
-		IL_WARN(il, "Tuning to channel %d\n",
+		IL_WARN("Tuning to channel %d\n",
 			    le16_to_cpu(rxon->channel));
 
 	if (error) {
-		IL_ERR(il, "Invalid RXON\n");
+		IL_ERR("Invalid RXON\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -626,7 +626,7 @@ static void _il_set_rxon_ht(struct il_priv *il,
 			case IEEE80211_HT_PARAM_CHA_SEC_NONE:
 			default:
 				/* channel location only valid if in Mixed mode */
-				IL_ERR(il,
+				IL_ERR(
 					"invalid extension channel offset\n");
 				break;
 			}
@@ -778,7 +778,7 @@ void il_connection_init_rx_config(struct il_priv *il,
 		break;
 
 	default:
-		IL_ERR(il, "Unsupported interface type %d\n",
+		IL_ERR("Unsupported interface type %d\n",
 			ctx->vif->type);
 		break;
 	}
@@ -828,7 +828,7 @@ void il_set_rate(struct il_priv *il)
 
 	hw = il_get_hw_mode(il, il->band);
 	if (!hw) {
-		IL_ERR(il, "Failed to set rate: unable to get hw mode\n");
+		IL_ERR("Failed to set rate: unable to get hw mode\n");
 		return;
 	}
 
@@ -882,7 +882,7 @@ void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 			      le16_to_cpu(csa->channel));
 		il_chswitch_done(il, true);
 	} else {
-		IL_ERR(il, "CSA notif (fail) : channel %d\n",
+		IL_ERR("CSA notif (fail) : channel %d\n",
 			le16_to_cpu(csa->channel));
 		il_chswitch_done(il, false);
 	}
@@ -925,7 +925,7 @@ void il_irq_handle_error(struct il_priv *il)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &il->status);
 
-	IL_ERR(il, "Loaded firmware version: %s\n",
+	IL_ERR("Loaded firmware version: %s\n",
 		il->hw->wiphy->fw_version);
 
 	il->cfg->ops->lib->dump_nic_error_log(il);
@@ -963,7 +963,7 @@ static int il_apm_stop_master(struct il_priv *il)
 	ret = il_poll_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	if (ret)
-		IL_WARN(il, "Master Disable Timed Out, 100 usec\n");
+		IL_WARN("Master Disable Timed Out, 100 usec\n");
 
 	D_INFO("stop master\n");
 
@@ -1123,14 +1123,14 @@ int il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 
 	/* 0 dBm mean 1 milliwatt */
 	if (tx_power < 0) {
-		IL_WARN(il,
+		IL_WARN(
 			 "Requested user TXPOWER %d below 1 mW.\n",
 			 tx_power);
 		return -EINVAL;
 	}
 
 	if (tx_power > il->tx_power_device_lmt) {
-		IL_WARN(il,
+		IL_WARN(
 			"Requested user TXPOWER %d above upper limit %d.\n",
 			 tx_power, il->tx_power_device_lmt);
 		return -EINVAL;
@@ -1184,7 +1184,7 @@ void il_send_bt_config(struct il_priv *il)
 
 	if (il_send_cmd_pdu(il, REPLY_BT_CONFIG,
 			     sizeof(struct il_bt_cmd), &bt_cmd))
-		IL_ERR(il, "failed to send BT Coex Config\n");
+		IL_ERR("failed to send BT Coex Config\n");
 }
 EXPORT_SYMBOL(il_send_bt_config);
 
@@ -1235,7 +1235,7 @@ void il_rx_reply_error(struct il_priv *il,
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 
-	IL_ERR(il, "Error Reply type 0x%08X cmd %s (0x%02X) "
+	IL_ERR("Error Reply type 0x%08X cmd %s (0x%02X) "
 		"seq 0x%04X ser 0x%08X\n",
 		le32_to_cpu(pkt->u.err_resp.error_type),
 		il_get_cmd_string(pkt->u.err_resp.cmd_id),
@@ -1354,7 +1354,7 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_lock(&il->mutex);
 
 	if (!il_is_ready_rf(il)) {
-		IL_WARN(il, "Try to add interface when device not ready\n");
+		IL_WARN("Try to add interface when device not ready\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1454,7 +1454,7 @@ int il_alloc_txq_mem(struct il_priv *il)
 				il->cfg->base_params->num_of_queues,
 			GFP_KERNEL);
 	if (!il->txq) {
-		IL_ERR(il, "Not enough memory for txq\n");
+		IL_ERR("Not enough memory for txq\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -1743,7 +1743,7 @@ int il_force_reset(struct il_priv *il, bool external)
 		return 0;
 	}
 
-	IL_ERR(il, "On demand firmware reload\n");
+	IL_ERR("On demand firmware reload\n");
 
 	/* Set the FW error flag -- cleared on il_down */
 	set_bit(STATUS_FW_ERROR, &il->status);
@@ -1847,7 +1847,7 @@ static int il_check_stuck_queue(struct il_priv *il, int cnt)
 		  msecs_to_jiffies(il->cfg->base_params->wd_timeout);
 
 	if (time_after(jiffies, timeout)) {
-		IL_ERR(il, "Queue %d stuck for %u ms.\n",
+		IL_ERR("Queue %d stuck for %u ms.\n",
 				q->id, il->cfg->base_params->wd_timeout);
 		ret = il_force_reset(il, false);
 		return (ret == -EAGAIN) ? 0 : 1;
@@ -2363,7 +2363,7 @@ static void il_beacon_update(struct ieee80211_hw *hw,
 	lockdep_assert_held(&il->mutex);
 
 	if (!il->beacon_ctx) {
-		IL_ERR(il, "update beacon but no beacon context!\n");
+		IL_ERR("update beacon but no beacon context!\n");
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -2440,7 +2440,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 		 * below/in post_associate will fail.
 		 */
 		if (il_scan_cancel_timeout(il, 100)) {
-			IL_WARN(il,
+			IL_WARN(
 				"Aborted scan still in progress after 100ms\n");
 			D_MAC80211(
 				"leaving - scan abort failed.\n");
@@ -2554,7 +2554,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 		ret = il->cfg->ops->legacy->manage_ibss_station(il, vif,
 							bss_conf->ibss_joined);
 		if (ret)
-			IL_ERR(il, "failed to %s IBSS station %pM\n",
+			IL_ERR("failed to %s IBSS station %pM\n",
 				bss_conf->ibss_joined ? "add" : "remove",
 				bss_conf->bssid);
 	}
@@ -2599,7 +2599,7 @@ irqreturn_t il_isr(int irq, void *data)
 	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
 		/* Hardware disappeared. It might have already raised
 		 * an interrupt */
-		IL_WARN(il, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
+		IL_WARN("HARDWARE GONE?? INTA == 0x%08x\n", inta);
 		goto unplugged;
 	}
 

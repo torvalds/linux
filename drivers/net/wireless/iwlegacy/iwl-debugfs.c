@@ -358,20 +358,20 @@ static ssize_t il_dbgfs_nvm_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IL_ERR(il, "NVM size is not multiple of 16.\n");
+		IL_ERR("NVM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
 	ptr = il->eeprom;
 	if (!ptr) {
-		IL_ERR(il, "Invalid EEPROM memory\n");
+		IL_ERR("Invalid EEPROM memory\n");
 		return -ENOMEM;
 	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 	eeprom_ver = il_eeprom_query16(il, EEPROM_VERSION);
@@ -407,7 +407,7 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -519,7 +519,7 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -640,7 +640,7 @@ static ssize_t il_dbgfs_disable_ht40_write(struct file *file,
 	if (!il_is_any_associated(il))
 		il->disable_ht40 = ht40 ? true : false;
 	else {
-		IL_ERR(il, "Sta associated with AP - "
+		IL_ERR("Sta associated with AP - "
 			"Change to 40MHz channel support is not allowed\n");
 		return -EINVAL;
 	}
@@ -689,12 +689,12 @@ static ssize_t il_dbgfs_traffic_log_read(struct file *file,
 	ssize_t ret;
 
 	if (!il->txq) {
-		IL_ERR(il, "txq not ready\n");
+		IL_ERR("txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate buffer\n");
+		IL_ERR("Can not allocate buffer\n");
 		return -ENOMEM;
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
@@ -787,7 +787,7 @@ static ssize_t il_dbgfs_tx_queue_read(struct file *file,
 				il->cfg->base_params->num_of_queues;
 
 	if (!il->txq) {
-		IL_ERR(il, "txq not ready\n");
+		IL_ERR("txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -884,7 +884,7 @@ static ssize_t il_dbgfs_sensitivity_read(struct file *file,
 	data = &il->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -965,7 +965,7 @@ static ssize_t il_dbgfs_chain_noise_read(struct file *file,
 	data = &il->chain_noise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(il, "Can not allocate Buffer\n");
+		IL_ERR("Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -1292,7 +1292,7 @@ int il_dbgfs_register(struct il_priv *il, const char *name)
 	return 0;
 
 err:
-	IL_ERR(il, "Can't create the debugfs directory\n");
+	IL_ERR("Can't create the debugfs directory\n");
 	il_dbgfs_unregister(il);
 	return -ENOMEM;
 }

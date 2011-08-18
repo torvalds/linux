@@ -258,7 +258,7 @@ static void il4965_tx_cmd_build_hwcrypto(struct il_priv *il,
 		break;
 
 	default:
-		IL_ERR(il, "Unknown encode cipher %x\n", keyconf->cipher);
+		IL_ERR("Unknown encode cipher %x\n", keyconf->cipher);
 		break;
 	}
 }
@@ -619,13 +619,13 @@ int il4965_txq_ctx_alloc(struct il_priv *il)
 	ret = il4965_alloc_dma_ptr(il, &il->scd_bc_tbls,
 				il->hw_params.scd_bc_tbls_size);
 	if (ret) {
-		IL_ERR(il, "Scheduler BC Table allocation failed\n");
+		IL_ERR("Scheduler BC Table allocation failed\n");
 		goto error_bc_tbls;
 	}
 	/* Alloc keep-warm buffer */
 	ret = il4965_alloc_dma_ptr(il, &il->kw, IL_KW_SIZE);
 	if (ret) {
-		IL_ERR(il, "Keep Warm allocation failed\n");
+		IL_ERR("Keep Warm allocation failed\n");
 		goto error_kw;
 	}
 
@@ -652,7 +652,7 @@ int il4965_txq_ctx_alloc(struct il_priv *il)
 					&il->txq[txq_id], slots_num,
 				       txq_id);
 		if (ret) {
-			IL_ERR(il, "Tx %d queue init failed\n", txq_id);
+			IL_ERR("Tx %d queue init failed\n", txq_id);
 			goto error;
 		}
 	}
@@ -712,7 +712,7 @@ void il4965_txq_ctx_stop(struct il_priv *il)
 		if (il_poll_direct_bit(il, FH_TSSR_TX_STATUS_REG,
 				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
 				    1000))
-			IL_ERR(il, "Failing on timeout while stopping"
+			IL_ERR("Failing on timeout while stopping"
 			    " DMA channel %d [0x%08x]", ch,
 			    il_read_direct32(il,
 					FH_TSSR_TX_STATUS_REG));
@@ -803,7 +803,7 @@ static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE +
 		il->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
-		IL_WARN(il,
+		IL_WARN(
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE +
@@ -871,25 +871,25 @@ int il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 	if (unlikely(tx_fifo < 0))
 		return tx_fifo;
 
-	IL_WARN(il, "%s on ra = %pM tid = %d\n",
+	IL_WARN("%s on ra = %pM tid = %d\n",
 			__func__, sta->addr, tid);
 
 	sta_id = il_sta_id(sta);
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(il, "Start AGG on invalid station\n");
+		IL_ERR("Start AGG on invalid station\n");
 		return -ENXIO;
 	}
 	if (unlikely(tid >= MAX_TID_COUNT))
 		return -EINVAL;
 
 	if (il->stations[sta_id].tid[tid].agg.state != IL_AGG_OFF) {
-		IL_ERR(il, "Start AGG when state is not IL_AGG_OFF !\n");
+		IL_ERR("Start AGG when state is not IL_AGG_OFF !\n");
 		return -ENXIO;
 	}
 
 	txq_id = il4965_txq_ctx_activate_free(il);
 	if (txq_id == -1) {
-		IL_ERR(il, "No free aggregation queue available\n");
+		IL_ERR("No free aggregation queue available\n");
 		return -ENXIO;
 	}
 
@@ -932,7 +932,7 @@ static int il4965_txq_agg_disable(struct il_priv *il, u16 txq_id,
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE +
 		il->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
-		IL_WARN(il,
+		IL_WARN(
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE +
@@ -973,7 +973,7 @@ int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 	sta_id = il_sta_id(sta);
 
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(il, "Invalid station for AGG tid %d\n", tid);
+		IL_ERR("Invalid station for AGG tid %d\n", tid);
 		return -ENXIO;
 	}
 
@@ -996,7 +996,7 @@ int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 	case IL_AGG_ON:
 		break;
 	default:
-		IL_WARN(il, "Stopping AGG while state not ON or starting\n");
+		IL_WARN("Stopping AGG while state not ON or starting\n");
 	}
 
 	write_ptr = il->txq[txq_id].q.write_ptr;
@@ -1115,7 +1115,7 @@ int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index)
 	struct ieee80211_hdr *hdr;
 
 	if ((index >= q->n_bd) || (il_queue_used(q, index) == 0)) {
-		IL_ERR(il, "Read index for DMA queue txq id (%d), index %d, "
+		IL_ERR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);
 		return 0;
@@ -1163,7 +1163,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 
 	if (unlikely(!agg->wait_for_ba))  {
 		if (unlikely(ba_resp->bitmap))
-			IL_ERR(il, "Received BA when not expected\n");
+			IL_ERR("Received BA when not expected\n");
 		return -EINVAL;
 	}
 
@@ -1266,7 +1266,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
 	if (scd_flow >= il->hw_params.max_txq_num) {
-		IL_ERR(il,
+		IL_ERR(
 			"BUG_ON scd_flow is bigger than number of queues\n");
 		return;
 	}

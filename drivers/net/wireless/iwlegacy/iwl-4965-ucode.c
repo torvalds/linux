@@ -99,7 +99,7 @@ static int il4965_verify_inst_full(struct il_priv *il, __le32 *image,
 		 * if IL_DL_IO is set */
 		val = _il_read_direct32(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IL_ERR(il, "uCode INST section is invalid at "
+			IL_ERR("uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  save_len - len, val, le32_to_cpu(*image));
 			ret = -EIO;
@@ -153,7 +153,7 @@ int il4965_verify_ucode(struct il_priv *il)
 		return 0;
 	}
 
-	IL_ERR(il, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
+	IL_ERR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
 	/* Since nothing seems to match, show first several data entries in
 	 * instruction SRAM, so maybe visual inspection will give a clue.

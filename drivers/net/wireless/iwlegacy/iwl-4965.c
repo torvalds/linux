@@ -78,7 +78,7 @@ static int il4965_verify_bsm(struct il_priv *il)
 	     reg += sizeof(u32), image++) {
 		val = il_read_prph(il, reg);
 		if (val != le32_to_cpu(*image)) {
-			IL_ERR(il, "BSM uCode verification failed at "
+			IL_ERR("BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
 				  BSM_SRAM_LOWER_BOUND,
 				  reg - BSM_SRAM_LOWER_BOUND, len,
@@ -191,7 +191,7 @@ static int il4965_load_bsm(struct il_priv *il)
 	if (i < 100)
 		D_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
-		IL_ERR(il, "BSM write did not complete!\n");
+		IL_ERR("BSM write did not complete!\n");
 		return -EIO;
 	}
 
@@ -343,7 +343,7 @@ static void il4965_chain_noise_reset(struct il_priv *il)
 		cmd.diff_gain_c = 0;
 		if (il_send_cmd_pdu(il, REPLY_PHY_CALIBRATION_CMD,
 				 sizeof(cmd), &cmd))
-			IL_ERR(il,
+			IL_ERR(
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IL_CHAIN_NOISE_ACCUMULATE;
 		D_CALIB("Run chain_noise_calibrate\n");
@@ -548,7 +548,7 @@ static int il4965_interpolate_chan(struct il_priv *il, u32 channel,
 
 	s = il4965_get_sub_band(il, channel);
 	if (s >= EEPROM_TX_POWER_BANDS) {
-		IL_ERR(il, "Tx Power can not find channel %d\n", channel);
+		IL_ERR("Tx Power can not find channel %d\n", channel);
 		return -1;
 	}
 
@@ -912,7 +912,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 	 *   and 2) mimo txpower balance between Tx chains. */
 	txatten_grp = il4965_get_tx_atten_grp(channel);
 	if (txatten_grp < 0) {
-		IL_ERR(il, "Can't find txatten group for channel %d.\n",
+		IL_ERR("Can't find txatten group for channel %d.\n",
 			  channel);
 		return txatten_grp;
 	}
@@ -1078,12 +1078,12 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 
 			/* stay within the table! */
 			if (power_index > 107) {
-				IL_WARN(il, "txpower index %d > 107\n",
+				IL_WARN("txpower index %d > 107\n",
 					    power_index);
 				power_index = 107;
 			}
 			if (power_index < 0) {
-				IL_WARN(il, "txpower index %d < 0\n",
+				IL_WARN("txpower index %d < 0\n",
 					    power_index);
 				power_index = 0;
 			}
@@ -1207,7 +1207,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 
 	ret = il_check_rxon_cmd(il, ctx);
 	if (ret) {
-		IL_ERR(il, "Invalid RXON configuration.  Not committing.\n");
+		IL_ERR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
 	}
 
@@ -1228,7 +1228,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	if (!il_full_rxon_required(il, ctx)) {
 		ret = il_send_rxon_assoc(il, ctx);
 		if (ret) {
-			IL_ERR(il, "Error setting RXON_ASSOC (%d)\n", ret);
+			IL_ERR("Error setting RXON_ASSOC (%d)\n", ret);
 			return ret;
 		}
 
@@ -1258,14 +1258,14 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		 * active_rxon back to what it was previously */
 		if (ret) {
 			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
-			IL_ERR(il, "Error clearing ASSOC_MSK (%d)\n", ret);
+			IL_ERR("Error clearing ASSOC_MSK (%d)\n", ret);
 			return ret;
 		}
 		il_clear_ucode_stations(il, ctx);
 		il_restore_stations(il, ctx);
 		ret = il4965_restore_default_wep_keys(il, ctx);
 		if (ret) {
-			IL_ERR(il, "Failed to restore WEP keys (%d)\n", ret);
+			IL_ERR("Failed to restore WEP keys (%d)\n", ret);
 			return ret;
 		}
 	}
@@ -1289,7 +1289,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		ret = il_send_cmd_pdu(il, ctx->rxon_cmd,
 			      sizeof(struct il_rxon_cmd), &ctx->staging);
 		if (ret) {
-			IL_ERR(il, "Error setting new RXON (%d)\n", ret);
+			IL_ERR("Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
 		D_INFO("Return from !new_assoc RXON.\n");
@@ -1298,7 +1298,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		il_restore_stations(il, ctx);
 		ret = il4965_restore_default_wep_keys(il, ctx);
 		if (ret) {
-			IL_ERR(il, "Failed to restore WEP keys (%d)\n", ret);
+			IL_ERR("Failed to restore WEP keys (%d)\n", ret);
 			return ret;
 		}
 	}
@@ -1310,7 +1310,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		ret = il_send_cmd_pdu(il, ctx->rxon_cmd,
 			      sizeof(struct il_rxon_cmd), &ctx->staging);
 		if (ret) {
-			IL_ERR(il, "Error setting new RXON (%d)\n", ret);
+			IL_ERR("Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
@@ -1323,7 +1323,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
 	ret = il_set_tx_power(il, il->tx_power_next, true);
 	if (ret) {
-		IL_ERR(il, "Error sending TX power (%d)\n", ret);
+		IL_ERR("Error sending TX power (%d)\n", ret);
 		return ret;
 	}
 
@@ -1393,7 +1393,7 @@ static int il4965_hw_channel_switch(struct il_priv *il,
 	if (ch_info)
 		cmd.expect_beacon = il_is_channel_radar(ch_info);
 	else {
-		IL_ERR(il, "invalid channel switch from %u to %u\n",
+		IL_ERR("invalid channel switch from %u to %u\n",
 			ctx->active.channel, ch);
 		return -EFAULT;
 	}
@@ -1479,7 +1479,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	D_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
 	if (R3 == R1) {
-		IL_ERR(il, "Calibration conflict R1 == R3\n");
+		IL_ERR("Calibration conflict R1 == R3\n");
 		return -1;
 	}
 
@@ -1666,7 +1666,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 
 			hdr = il_tx_queue_get_hdr(il, txq_id, idx);
 			if (!hdr) {
-				IL_ERR(il,
+				IL_ERR(
 					"BUG_ON idx doesn't point to valid skb"
 					" idx=%d, txq_id=%d\n", idx, txq_id);
 				return -1;
@@ -1674,7 +1674,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
-				IL_ERR(il,
+				IL_ERR(
 					"BUG_ON idx doesn't match seq control"
 					" idx=%d, seq_idx=%d, seq=%d\n",
 					idx, SEQ_TO_SN(sc), hdr->seq_ctrl);
@@ -1750,7 +1750,7 @@ static u8 il4965_find_station(struct il_priv *il, const u8 *addr)
 	    (!(il->stations[ret].used & IL_STA_UCODE_ACTIVE) ||
 	     ((il->stations[ret].used & IL_STA_UCODE_ACTIVE) &&
 	      (il->stations[ret].used & IL_STA_UCODE_INPROGRESS)))) {
-		IL_ERR(il, "Requested station info for sta %d before ready.\n",
+		IL_ERR("Requested station info for sta %d before ready.\n",
 			ret);
 		ret = IL_INVALID_STATION;
 	}
@@ -1790,7 +1790,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (il_queue_used(&txq->q, index) == 0)) {
-		IL_ERR(il, "Read index for DMA queue txq_id (%d) index %d "
+		IL_ERR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
@@ -1809,7 +1809,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 
 	sta_id = il4965_get_ra_sta_id(il, hdr);
 	if (txq->sched_retry && unlikely(sta_id == IL_INVALID_STATION)) {
-		IL_ERR(il, "Station not known\n");
+		IL_ERR("Station not known\n");
 		return;
 	}
 
@@ -1943,7 +1943,7 @@ static void il4965_post_associate(struct il_priv *il)
 
 	ret = il_send_rxon_timing(il, ctx);
 	if (ret)
-		IL_WARN(il, "RXON timing - "
+		IL_WARN("RXON timing - "
 			    "Attempting to continue.\n");
 
 	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
@@ -1982,7 +1982,7 @@ static void il4965_post_associate(struct il_priv *il)
 		il4965_send_beacon_cmd(il);
 		break;
 	default:
-		IL_ERR(il, "%s Should not be called in %d mode\n",
+		IL_ERR("%s Should not be called in %d mode\n",
 			  __func__, vif->type);
 		break;
 	}
@@ -2019,7 +2019,7 @@ static void il4965_config_ap(struct il_priv *il)
 		/* RXON Timing */
 		ret = il_send_rxon_timing(il, ctx);
 		if (ret)
-			IL_WARN(il, "RXON timing failed - "
+			IL_WARN("RXON timing failed - "
 					"Attempting to continue.\n");
 
 		/* AP has all antennas */

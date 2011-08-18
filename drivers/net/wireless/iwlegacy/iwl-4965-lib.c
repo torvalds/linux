@@ -44,7 +44,7 @@ void il4965_check_abort_status(struct il_priv *il,
 			    u8 frame_count, u32 status)
 {
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
-		IL_ERR(il, "Tx flush command to flush out all frames\n");
+		IL_ERR("Tx flush command to flush out all frames\n");
 		if (!test_bit(STATUS_EXIT_PENDING, &il->status))
 			queue_work(il->workqueue, &il->tx_flush);
 	}
@@ -176,7 +176,7 @@ int il4965_hw_nic_init(struct il_priv *il)
 	if (!rxq->bd) {
 		ret = il_rx_queue_alloc(il);
 		if (ret) {
-			IL_ERR(il, "Unable to initialize Rx queue\n");
+			IL_ERR("Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
@@ -309,7 +309,7 @@ static void il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
-				IL_CRIT(il,
+				IL_CRIT(
 					"Failed to alloc_pages with %s. "
 					"Only %u free buffers remaining.\n",
 					 priority == GFP_ATOMIC ?
@@ -549,7 +549,7 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 
 	skb = dev_alloc_skb(128);
 	if (!skb) {
-		IL_ERR(il, "dev_alloc_skb failed\n");
+		IL_ERR("dev_alloc_skb failed\n");
 		return;
 	}
 
@@ -598,7 +598,7 @@ void il4965_rx_reply_rx(struct il_priv *il,
 		ampdu_status = le32_to_cpu(rx_pkt_status);
 	} else {
 		if (!il->_4965.last_phy_res_valid) {
-			IL_ERR(il, "MPDU frame without cached PHY data\n");
+			IL_ERR("MPDU frame without cached PHY data\n");
 			return;
 		}
 		phy_res = &il->_4965.last_phy_res;
@@ -880,7 +880,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		rate = IL_RATE_6M_PLCP;
 		break;
 	default:
-		IL_WARN(il, "Invalid scan band\n");
+		IL_WARN("Invalid scan band\n");
 		return -EIO;
 	}
 
@@ -1184,9 +1184,9 @@ int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 		return pos;
 	}
 #endif
-	IL_ERR(il, "FH register values:\n");
+	IL_ERR("FH register values:\n");
 	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++) {
-		IL_ERR(il, "  %34s: 0X%08x\n",
+		IL_ERR("  %34s: 0X%08x\n",
 			il4965_get_fh_string(fh_tbl[i]),
 			il_read_direct32(il, fh_tbl[i]));
 	}

@@ -367,12 +367,12 @@ static int il4965_rs_tl_turn_on_agg_for_tid(struct il_priv *il,
 			 * this might be cause by reloading firmware
 			 * stop the tx ba session here
 			 */
-			IL_ERR(il, "Fail start Tx agg on tid: %d\n",
+			IL_ERR("Fail start Tx agg on tid: %d\n",
 				tid);
 			ieee80211_stop_tx_ba_session(sta, tid);
 		}
 	} else {
-		IL_ERR(il, "Aggregation not enabled for tid %d "
+		IL_ERR("Aggregation not enabled for tid %d "
 			"because load = %u\n", tid, load);
 	}
 	return ret;
@@ -385,7 +385,7 @@ static void il4965_rs_tl_turn_on_agg(struct il_priv *il, u8 tid,
 	if (tid < TID_MAX_LOAD_COUNT)
 		il4965_rs_tl_turn_on_agg_for_tid(il, lq_data, tid, sta);
 	else
-		IL_ERR(il, "tid exceeds max load count: %d/%d\n",
+		IL_ERR("tid exceeds max load count: %d/%d\n",
 			tid, TID_MAX_LOAD_COUNT);
 }
 
@@ -505,7 +505,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *il,
 
 	} else if (is_Ht(tbl->lq_type)) {
 		if (index > IL_LAST_OFDM_RATE) {
-			IL_ERR(il, "Invalid HT rate index %d\n", index);
+			IL_ERR("Invalid HT rate index %d\n", index);
 			index = IL_LAST_OFDM_RATE;
 		}
 		rate_n_flags = RATE_MCS_HT_MSK;
@@ -515,7 +515,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *il,
 		else
 			rate_n_flags |=	il_rates[index].plcp_mimo2;
 	} else {
-		IL_ERR(il, "Invalid tbl->lq_type %d\n", tbl->lq_type);
+		IL_ERR("Invalid tbl->lq_type %d\n", tbl->lq_type);
 	}
 
 	rate_n_flags |= ((tbl->ant_type << RATE_MCS_ANT_POS) &
@@ -535,7 +535,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *il,
 			rate_n_flags |= RATE_MCS_GF_MSK;
 			if (is_siso(tbl->lq_type) && tbl->is_SGI) {
 				rate_n_flags &= ~RATE_MCS_SGI_MSK;
-				IL_ERR(il, "GF was set with SGI:SISO\n");
+				IL_ERR("GF was set with SGI:SISO\n");
 			}
 		}
 	}
@@ -1480,7 +1480,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *il,
 				if (!tbl->is_SGI)
 					break;
 				else
-					IL_ERR(il,
+					IL_ERR(
 						"SGI was set in GF+SISO\n");
 			}
 			search_tbl->is_SGI = !tbl->is_SGI;
@@ -1851,7 +1851,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 		rate_scale_index_msk = rate_mask;
 
 	if (!((1 << index) & rate_scale_index_msk)) {
-		IL_ERR(il, "Current Rate is not valid\n");
+		IL_ERR("Current Rate is not valid\n");
 		if (lq_sta->search_better_tbl) {
 			/* revert to active table if search table is not valid*/
 			tbl->lq_type = LQ_NONE;
@@ -1867,7 +1867,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 
 	/* Get expected throughput table and history window for current rate */
 	if (!tbl->expected_tpt) {
-		IL_ERR(il, "tbl->expected_tpt is NULL\n");
+		IL_ERR("tbl->expected_tpt is NULL\n");
 		return;
 	}
 
@@ -1909,7 +1909,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	 * actual average throughput */
 	if (window->average_tpt != ((window->success_ratio *
 			tbl->expected_tpt[index] + 64) / 128)) {
-		IL_ERR(il,
+		IL_ERR(
 			 "expected_tpt should have been calculated by now\n");
 		window->average_tpt = ((window->success_ratio *
 					tbl->expected_tpt[index] + 64) / 128);
@@ -2590,7 +2590,7 @@ static void il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta,
 			D_RATE("Fixed rate ON\n");
 		} else {
 			lq_sta->dbg_fixed_rate = 0;
-			IL_ERR(il,
+			IL_ERR(
 			    "Invalid antenna selection 0x%X, Valid is 0x%X\n",
 			    ant_sel_tx, valid_tx_ant);
 			D_RATE("Fixed rate OFF\n");

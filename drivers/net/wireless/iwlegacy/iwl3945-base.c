@@ -127,7 +127,7 @@ __le32 il3945_get_antenna_flags(const struct il_priv *il)
 	}
 
 	/* bad antenna selector value */
-	IL_ERR(il, "Bad antenna selector value (0x%x)\n",
+	IL_ERR("Bad antenna selector value (0x%x)\n",
 		il3945_mod_params.antenna);
 
 	return 0;		/* "diversity" is default if error */
@@ -236,7 +236,7 @@ static int il3945_set_dynamic_key(struct il_priv *il,
 		ret = il3945_set_wep_dynamic_key_info(il, keyconf, sta_id);
 		break;
 	default:
-		IL_ERR(il, "Unknown alg: %s alg=%x\n", __func__,
+		IL_ERR("Unknown alg: %s alg=%x\n", __func__,
 			keyconf->cipher);
 		ret = -EINVAL;
 	}
@@ -262,7 +262,7 @@ static int il3945_set_static_key(struct il_priv *il,
 	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
 		return -EOPNOTSUPP;
 
-	IL_ERR(il, "Static key invalid: cipher %x\n", key->cipher);
+	IL_ERR("Static key invalid: cipher %x\n", key->cipher);
 	return -EINVAL;
 }
 
@@ -281,7 +281,7 @@ static void il3945_clear_free_frames(struct il_priv *il)
 	}
 
 	if (il->frames_count) {
-		IL_WARN(il, "%d frames still in use.  Did we lose one?\n",
+		IL_WARN("%d frames still in use.  Did we lose one?\n",
 			    il->frames_count);
 		il->frames_count = 0;
 	}
@@ -294,7 +294,7 @@ static struct il3945_frame *il3945_get_free_frame(struct il_priv *il)
 	if (list_empty(&il->free_frames)) {
 		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
 		if (!frame) {
-			IL_ERR(il, "Could not allocate frame!\n");
+			IL_ERR("Could not allocate frame!\n");
 			return NULL;
 		}
 
@@ -339,7 +339,7 @@ static int il3945_send_beacon_cmd(struct il_priv *il)
 	frame = il3945_get_free_frame(il);
 
 	if (!frame) {
-		IL_ERR(il, "Could not obtain free frame buffer for beacon "
+		IL_ERR("Could not obtain free frame buffer for beacon "
 			  "command.\n");
 		return -ENOMEM;
 	}
@@ -401,7 +401,7 @@ static void il3945_build_tx_cmd_hwcrypto(struct il_priv *il,
 		break;
 
 	default:
-		IL_ERR(il, "Unknown encode cipher %x\n", keyinfo->cipher);
+		IL_ERR("Unknown encode cipher %x\n", keyinfo->cipher);
 		break;
 	}
 }
@@ -491,7 +491,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	}
 
 	if ((ieee80211_get_tx_rate(il->hw, info)->hw_value & 0xFF) == IL_INVALID_RATE) {
-		IL_ERR(il, "ERROR: No TX rate available.\n");
+		IL_ERR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
 
@@ -718,7 +718,7 @@ static int il3945_get_measurement(struct il_priv *il,
 
 	pkt = (struct il_rx_packet *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(il, "Bad return from REPLY_RX_ON_ASSOC command\n");
+		IL_ERR("Bad return from REPLY_RX_ON_ASSOC command\n");
 		rc = -EIO;
 	}
 
@@ -777,7 +777,7 @@ static void il3945_rx_reply_alive(struct il_priv *il,
 		queue_delayed_work(il->workqueue, pwork,
 				   msecs_to_jiffies(5));
 	else
-		IL_WARN(il, "uCode did not respond OK.\n");
+		IL_WARN("uCode did not respond OK.\n");
 }
 
 static void il3945_rx_reply_add_sta(struct il_priv *il,
@@ -820,7 +820,7 @@ static void il3945_rx_card_state_notif(struct il_priv *il,
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = il->status;
 
-	IL_WARN(il, "Card state received: HW:%s SW:%s\n",
+	IL_WARN("Card state received: HW:%s SW:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On");
 
@@ -1043,7 +1043,7 @@ static void il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 				D_INFO("Failed to allocate SKB buffer.\n");
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
-				IL_CRIT(il, "Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
+				IL_CRIT("Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
 					 priority == GFP_ATOMIC ?  "GFP_ATOMIC" : "GFP_KERNEL",
 					 rxq->free_count);
 			/* We don't reschedule replenish work here -- we will
@@ -1287,7 +1287,7 @@ static void il3945_rx_handle(struct il_priv *il)
 			if (rxb->page)
 				il_tx_cmd_complete(il, rxb);
 			else
-				IL_WARN(il, "Claim null rxb?\n");
+				IL_WARN("Claim null rxb?\n");
 		}
 
 		/* Reuse the page if possible. For notification packets and
@@ -1366,7 +1366,7 @@ void il3945_dump_nic_error_log(struct il_priv *il)
 	base = le32_to_cpu(il->card_alive.error_event_table_ptr);
 
 	if (!il3945_hw_valid_rtc_data_addr(base)) {
-		IL_ERR(il, "Not valid error log pointer 0x%08X\n", base);
+		IL_ERR("Not valid error log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -1374,12 +1374,12 @@ void il3945_dump_nic_error_log(struct il_priv *il)
 	count = il_read_targ_mem(il, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
-		IL_ERR(il, "Start IWL Error Log Dump:\n");
-		IL_ERR(il, "Status: 0x%08lX, count: %d\n",
+		IL_ERR("Start IWL Error Log Dump:\n");
+		IL_ERR("Status: 0x%08lX, count: %d\n",
 			il->status, count);
 	}
 
-	IL_ERR(il, "Desc       Time       asrtPC  blink2 "
+	IL_ERR("Desc       Time       asrtPC  blink2 "
 		  "ilink1  nmiPC   Line\n");
 	for (i = ERROR_START_OFFSET;
 	     i < (count * ERROR_ELEM_SIZE) + ERROR_START_OFFSET;
@@ -1398,7 +1398,7 @@ void il3945_dump_nic_error_log(struct il_priv *il)
 		data1 =
 		    il_read_targ_mem(il, base + i + 6 * sizeof(u32));
 
-		IL_ERR(il,
+		IL_ERR(
 			"%-13s (0x%X) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
 			il3945_desc_lookup(desc), desc, time, blink1, blink2,
 			ilink1, ilink2, data1);
@@ -1450,7 +1450,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IL_ERR(il, "Hardware error detected.  Restarting.\n");
+		IL_ERR("Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		il_disable_interrupts(il);
@@ -1484,7 +1484,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 
 	/* Error detected by uCode */
 	if (inta & CSR_INT_BIT_SW_ERR) {
-		IL_ERR(il, "Microcode SW error detected. "
+		IL_ERR("Microcode SW error detected. "
 			"Restarting 0x%X.\n", inta);
 		il->isr_stats.sw++;
 		il_irq_handle_error(il);
@@ -1526,14 +1526,14 @@ static void il3945_irq_tasklet(struct il_priv *il)
 	}
 
 	if (inta & ~handled) {
-		IL_ERR(il, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
+		IL_ERR("Unhandled INTA bits 0x%08x\n", inta & ~handled);
 		il->isr_stats.unhandled++;
 	}
 
 	if (inta & ~il->inta_mask) {
-		IL_WARN(il, "Disabled INTA bits 0x%08x were pending\n",
+		IL_WARN("Disabled INTA bits 0x%08x were pending\n",
 			 inta & ~il->inta_mask);
-		IL_WARN(il, "   with FH_INT = 0x%08x\n", inta_fh);
+		IL_WARN("   with FH_INT = 0x%08x\n", inta_fh);
 	}
 
 	/* Re-enable all interrupts */
@@ -1708,7 +1708,7 @@ static int il3945_verify_inst_full(struct il_priv *il, __le32 *image, u32 len)
 		 * if IL_DL_IO is set */
 		val = _il_read_direct32(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IL_ERR(il, "uCode INST section is invalid at "
+			IL_ERR("uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  save_len - len, val, le32_to_cpu(*image));
 			rc = -EIO;
@@ -1750,7 +1750,7 @@ static int il3945_verify_inst_sparse(struct il_priv *il, __le32 *image, u32 len)
 		val = _il_read_direct32(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
-			IL_ERR(il, "uCode INST section is invalid at "
+			IL_ERR("uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  i, val, *image);
 #endif
@@ -1802,7 +1802,7 @@ static int il3945_verify_ucode(struct il_priv *il)
 		return 0;
 	}
 
-	IL_ERR(il, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
+	IL_ERR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
 	/* Since nothing seems to match, show first several data entries in
 	 * instruction SRAM, so maybe visual inspection will give a clue.
@@ -1867,7 +1867,7 @@ static int il3945_read_ucode(struct il_priv *il)
 		sprintf(buf, "%s%u%s", name_pre, index, ".ucode");
 		ret = request_firmware(&ucode_raw, buf, &il->pci_dev->dev);
 		if (ret < 0) {
-			IL_ERR(il, "%s firmware file req failed: %d\n",
+			IL_ERR("%s firmware file req failed: %d\n",
 				  buf, ret);
 			if (ret == -ENOENT)
 				continue;
@@ -1875,7 +1875,7 @@ static int il3945_read_ucode(struct il_priv *il)
 				goto error;
 		} else {
 			if (index < api_max)
-				IL_ERR(il, "Loaded firmware %s, "
+				IL_ERR("Loaded firmware %s, "
 					"which is deprecated. "
 					" Please use API v%u instead.\n",
 					  buf, api_max);
@@ -1891,7 +1891,7 @@ static int il3945_read_ucode(struct il_priv *il)
 
 	/* Make sure that we got at least our header! */
 	if (ucode_raw->size <  il3945_ucode_get_header_size(1)) {
-		IL_ERR(il, "File size way too small!\n");
+		IL_ERR("File size way too small!\n");
 		ret = -EINVAL;
 		goto err_release;
 	}
@@ -1913,7 +1913,7 @@ static int il3945_read_ucode(struct il_priv *il)
 	 * on the API version read from firmware header from here on forward */
 
 	if (api_ver < api_min || api_ver > api_max) {
-		IL_ERR(il, "Driver unable to support your firmware API. "
+		IL_ERR("Driver unable to support your firmware API. "
 			  "Driver supports v%u, firmware is v%u.\n",
 			  api_max, api_ver);
 		il->ucode_ver = 0;
@@ -1921,12 +1921,12 @@ static int il3945_read_ucode(struct il_priv *il)
 		goto err_release;
 	}
 	if (api_ver != api_max)
-		IL_ERR(il, "Firmware has old API version. Expected %u, "
+		IL_ERR("Firmware has old API version. Expected %u, "
 			  "got %u. New firmware can be obtained "
 			  "from http://www.intellinuxwireless.org.\n",
 			  api_max, api_ver);
 
-	IL_INFO(il, "loaded firmware version %u.%u.%u.%u\n",
+	IL_INFO("loaded firmware version %u.%u.%u.%u\n",
 		IL_UCODE_MAJOR(il->ucode_ver),
 		IL_UCODE_MINOR(il->ucode_ver),
 		IL_UCODE_API(il->ucode_ver),
@@ -2091,7 +2091,7 @@ static int il3945_read_ucode(struct il_priv *il)
 	return 0;
 
  err_pci_alloc:
-	IL_ERR(il, "failed to allocate pci memory\n");
+	IL_ERR("failed to allocate pci memory\n");
 	ret = -ENOMEM;
 	il3945_dealloc_ucode_pci(il);
 
@@ -2380,7 +2380,7 @@ static int il3945_alloc_bcast_station(struct il_priv *il)
 	sta_id = il_prep_station(il, ctx,
 					il_bcast_addr, false, NULL);
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(il, "Unable to prepare broadcast station\n");
+		IL_ERR("Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
 
 		return -EINVAL;
@@ -2402,12 +2402,12 @@ static int __il3945_up(struct il_priv *il)
 		return rc;
 
 	if (test_bit(STATUS_EXIT_PENDING, &il->status)) {
-		IL_WARN(il, "Exit pending; will not bring the NIC up\n");
+		IL_WARN("Exit pending; will not bring the NIC up\n");
 		return -EIO;
 	}
 
 	if (!il->ucode_data_backup.v_addr || !il->ucode_data.v_addr) {
-		IL_ERR(il, "ucode not available for device bring up\n");
+		IL_ERR("ucode not available for device bring up\n");
 		return -EIO;
 	}
 
@@ -2417,7 +2417,7 @@ static int __il3945_up(struct il_priv *il)
 		clear_bit(STATUS_RF_KILL_HW, &il->status);
 	else {
 		set_bit(STATUS_RF_KILL_HW, &il->status);
-		IL_WARN(il, "Radio disabled by HW RF Kill switch\n");
+		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return -ENODEV;
 	}
 
@@ -2425,7 +2425,7 @@ static int __il3945_up(struct il_priv *il)
 
 	rc = il3945_hw_nic_init(il);
 	if (rc) {
-		IL_ERR(il, "Unable to int nic\n");
+		IL_ERR("Unable to int nic\n");
 		return rc;
 	}
 
@@ -2460,7 +2460,7 @@ static int __il3945_up(struct il_priv *il)
 		rc = il->cfg->ops->lib->load_ucode(il);
 
 		if (rc) {
-			IL_ERR(il,
+			IL_ERR(
 				"Unable to set up bootstrap uCode: %d\n", rc);
 			continue;
 		}
@@ -2479,7 +2479,7 @@ static int __il3945_up(struct il_priv *il)
 
 	/* tried to restart and config the device for as long as our
 	 * patience could withstand */
-	IL_ERR(il, "Unable to initialize device after %d attempts.\n", i);
+	IL_ERR("Unable to initialize device after %d attempts.\n", i);
 	return -EIO;
 }
 
@@ -2650,7 +2650,7 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	default:
-		IL_WARN(il, "Invalid scan band\n");
+		IL_WARN("Invalid scan band\n");
 		return -EIO;
 	}
 
@@ -2770,7 +2770,7 @@ void il3945_post_associate(struct il_priv *il)
 
 	rc = il_send_rxon_timing(il, ctx);
 	if (rc)
-		IL_WARN(il, "REPLY_RXON_TIMING failed - "
+		IL_WARN("REPLY_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
 
 	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
@@ -2802,7 +2802,7 @@ void il3945_post_associate(struct il_priv *il)
 		il3945_send_beacon_cmd(il);
 		break;
 	default:
-		IL_ERR(il, "%s Should not be called in %d mode\n",
+		IL_ERR("%s Should not be called in %d mode\n",
 			__func__, ctx->vif->type);
 		break;
 	}
@@ -2832,7 +2832,7 @@ static int il3945_mac_start(struct ieee80211_hw *hw)
 	if (!il->ucode_code.len) {
 		ret = il3945_read_ucode(il);
 		if (ret) {
-			IL_ERR(il, "Could not read microcode: %d\n", ret);
+			IL_ERR("Could not read microcode: %d\n", ret);
 			mutex_unlock(&il->mutex);
 			goto out_release_irq;
 		}
@@ -2854,7 +2854,7 @@ static int il3945_mac_start(struct ieee80211_hw *hw)
 			UCODE_READY_TIMEOUT);
 	if (!ret) {
 		if (!test_bit(STATUS_READY, &il->status)) {
-			IL_ERR(il,
+			IL_ERR(
 				"Wait for START_ALIVE timeout after %dms.\n",
 				jiffies_to_msecs(UCODE_READY_TIMEOUT));
 			ret = -ETIMEDOUT;
@@ -2934,7 +2934,7 @@ void il3945_config_ap(struct il_priv *il)
 		/* RXON Timing */
 		rc = il_send_rxon_timing(il, ctx);
 		if (rc)
-			IL_WARN(il, "REPLY_RXON_TIMING failed - "
+			IL_WARN("REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
 
 		ctx->staging.assoc_id = 0;
@@ -3045,7 +3045,7 @@ static int il3945_mac_sta_add(struct ieee80211_hw *hw,
 				&il->contexts[IL_RXON_CTX_BSS],
 				     sta->addr, is_ap, sta, &sta_id);
 	if (ret) {
-		IL_ERR(il, "Unable to add station %pM (%d)\n",
+		IL_ERR("Unable to add station %pM (%d)\n",
 			sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
 		mutex_unlock(&il->mutex);
@@ -3147,11 +3147,11 @@ static ssize_t il3945_store_debug_level(struct device *d,
 
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
-		IL_INFO(il, "%s is not in hex or decimal form.\n", buf);
+		IL_INFO("%s is not in hex or decimal form.\n", buf);
 	else {
 		il->debug_level = val;
 		if (il_alloc_traffic_mem(il))
-			IL_ERR(il,
+			IL_ERR(
 				"Not enough memory to generate traffic log\n");
 	}
 	return strnlen(buf, count);
@@ -3192,7 +3192,7 @@ static ssize_t il3945_store_tx_power(struct device *d,
 
 	val = simple_strtoul(p, &p, 10);
 	if (p == buf)
-		IL_INFO(il, ": %s is not in decimal form.\n", buf);
+		IL_INFO(": %s is not in decimal form.\n", buf);
 	else
 		il3945_hw_reg_set_txpower(il, val);
 
@@ -3222,7 +3222,7 @@ static ssize_t il3945_store_flags(struct device *d,
 	if (le32_to_cpu(ctx->staging.flags) != flags) {
 		/* Cancel any currently running scans... */
 		if (il_scan_cancel_timeout(il, 100))
-			IL_WARN(il, "Could not cancel scan.\n");
+			IL_WARN("Could not cancel scan.\n");
 		else {
 			D_INFO("Committing rxon.flags = 0x%04X\n",
 				       flags);
@@ -3259,7 +3259,7 @@ static ssize_t il3945_store_filter_flags(struct device *d,
 	if (le32_to_cpu(ctx->staging.filter_flags) != filter_flags) {
 		/* Cancel any currently running scans... */
 		if (il_scan_cancel_timeout(il, 100))
-			IL_WARN(il, "Could not cancel scan.\n");
+			IL_WARN("Could not cancel scan.\n");
 		else {
 			D_INFO("Committing rxon.filter_flags = "
 				       "0x%04X\n", filter_flags);
@@ -3551,14 +3551,14 @@ static int il3945_init_drv(struct il_priv *il)
 	il->force_reset.reset_duration = IL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
-		IL_WARN(il, "Unsupported EEPROM version: 0x%04X\n",
+		IL_WARN("Unsupported EEPROM version: 0x%04X\n",
 			 eeprom->version);
 		ret = -EINVAL;
 		goto err;
 	}
 	ret = il_init_channel_map(il);
 	if (ret) {
-		IL_ERR(il, "initializing regulatory failed: %d\n", ret);
+		IL_ERR("initializing regulatory failed: %d\n", ret);
 		goto err;
 	}
 
@@ -3570,7 +3570,7 @@ static int il3945_init_drv(struct il_priv *il)
 
 	ret = il_init_geos(il);
 	if (ret) {
-		IL_ERR(il, "initializing geos failed: %d\n", ret);
+		IL_ERR("initializing geos failed: %d\n", ret);
 		goto err_free_channel_map;
 	}
 	il3945_init_hw_rates(il, il->ieee_rates);
@@ -3624,7 +3624,7 @@ static int il3945_setup_mac(struct il_priv *il)
 
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {
-		IL_ERR(il, "Failed to register hw (error %d)\n", ret);
+		IL_ERR("Failed to register hw (error %d)\n", ret);
 		return ret;
 	}
 	il->mac80211_registered = 1;
@@ -3692,7 +3692,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	il->inta_mask = CSR_INI_SET_MASK;
 
 	if (il_alloc_traffic_mem(il))
-		IL_ERR(il, "Not enough memory to generate traffic log\n");
+		IL_ERR("Not enough memory to generate traffic log\n");
 
 	/***************************
 	 * 2. Initializing PCI bus
@@ -3711,7 +3711,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	if (!err)
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
-		IL_WARN(il, "No suitable DMA available.\n");
+		IL_WARN("No suitable DMA available.\n");
 		goto out_pci_disable_device;
 	}
 
@@ -3757,7 +3757,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	/* Read the EEPROM */
 	err = il_eeprom_init(il);
 	if (err) {
-		IL_ERR(il, "Unable to init EEPROM\n");
+		IL_ERR("Unable to init EEPROM\n");
 		goto out_iounmap;
 	}
 	/* MAC Address location in EEPROM same for 3945/4965 */
@@ -3770,7 +3770,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	 * ********************/
 	/* Device-specific setup */
 	if (il3945_hw_set_hw_params(il)) {
-		IL_ERR(il, "failed to set hw settings\n");
+		IL_ERR("failed to set hw settings\n");
 		goto out_eeprom_free;
 	}
 
@@ -3780,11 +3780,11 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	err = il3945_init_drv(il);
 	if (err) {
-		IL_ERR(il, "initializing driver failed\n");
+		IL_ERR("initializing driver failed\n");
 		goto out_unset_hw_params;
 	}
 
-	IL_INFO(il, "Detected Intel Wireless WiFi Link %s\n",
+	IL_INFO("Detected Intel Wireless WiFi Link %s\n",
 		il->cfg->name);
 
 	/***********************
@@ -3800,13 +3800,13 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	err = request_irq(il->pci_dev->irq, il_isr,
 			  IRQF_SHARED, DRV_NAME, il);
 	if (err) {
-		IL_ERR(il, "Error allocating IRQ %d\n", il->pci_dev->irq);
+		IL_ERR("Error allocating IRQ %d\n", il->pci_dev->irq);
 		goto out_disable_msi;
 	}
 
 	err = sysfs_create_group(&pdev->dev.kobj, &il3945_attribute_group);
 	if (err) {
-		IL_ERR(il, "failed to create sysfs device attributes\n");
+		IL_ERR("failed to create sysfs device attributes\n");
 		goto out_release_irq;
 	}
 
@@ -3829,7 +3829,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	err = il_dbgfs_register(il, DRV_NAME);
 	if (err)
-		IL_ERR(il, "failed to create debugfs files. Ignoring error: %d\n", err);
+		IL_ERR("failed to create debugfs files. Ignoring error: %d\n", err);
 
 	/* Start monitoring the killswitch */
 	queue_delayed_work(il->workqueue, &il->_3945.rfkill_poll,

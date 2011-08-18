@@ -41,7 +41,7 @@ static void il_sta_ucode_activate(struct il_priv *il, u8 sta_id)
 {
 
 	if (!(il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE))
-		IL_ERR(il,
+		IL_ERR(
 			"ACTIVATE a non DRIVER active station id %u addr %pM\n",
 			sta_id, il->stations[sta_id].sta.sta.addr);
 
@@ -67,7 +67,7 @@ static int il_process_add_sta_resp(struct il_priv *il,
 	int ret = -EIO;
 
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(il, "Bad return from REPLY_ADD_STA (0x%08X)\n",
+		IL_ERR("Bad return from REPLY_ADD_STA (0x%08X)\n",
 			pkt->hdr.flags);
 		return ret;
 	}
@@ -84,16 +84,16 @@ static int il_process_add_sta_resp(struct il_priv *il,
 		ret = 0;
 		break;
 	case ADD_STA_NO_ROOM_IN_TABLE:
-		IL_ERR(il, "Adding station %d failed, no room in table.\n",
+		IL_ERR("Adding station %d failed, no room in table.\n",
 			sta_id);
 		break;
 	case ADD_STA_NO_BLOCK_ACK_RESOURCE:
-		IL_ERR(il,
+		IL_ERR(
 			"Adding station %d failed, no block ack resource.\n",
 			sta_id);
 		break;
 	case ADD_STA_MODIFY_NON_EXIST_STA:
-		IL_ERR(il, "Attempting to modify non-existing station %d\n",
+		IL_ERR("Attempting to modify non-existing station %d\n",
 			sta_id);
 		break;
 	default:
@@ -206,7 +206,7 @@ static void il_set_ht_add_station(struct il_priv *il, u8 index,
 	case WLAN_HT_CAP_SM_PS_DISABLED:
 		break;
 	default:
-		IL_WARN(il, "Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IL_WARN("Invalid MIMO PS mode %d\n", mimo_ps_mode);
 		break;
 	}
 
@@ -343,7 +343,7 @@ il_add_station_common(struct il_priv *il,
 	spin_lock_irqsave(&il->sta_lock, flags_spin);
 	sta_id = il_prep_station(il, ctx, addr, is_ap, sta);
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(il, "Unable to prepare station %pM for addition\n",
+		IL_ERR("Unable to prepare station %pM for addition\n",
 			addr);
 		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 		return -EINVAL;
@@ -380,7 +380,7 @@ il_add_station_common(struct il_priv *il,
 	ret = il_send_add_sta(il, &sta_cmd, CMD_SYNC);
 	if (ret) {
 		spin_lock_irqsave(&il->sta_lock, flags_spin);
-		IL_ERR(il, "Adding station %pM failed.\n",
+		IL_ERR("Adding station %pM failed.\n",
 			il->stations[sta_id].sta.sta.addr);
 		il->stations[sta_id].used &= ~IL_STA_DRIVER_ACTIVE;
 		il->stations[sta_id].used &= ~IL_STA_UCODE_INPROGRESS;
@@ -402,7 +402,7 @@ static void il_sta_ucode_deactivate(struct il_priv *il, u8 sta_id)
 	if ((il->stations[sta_id].used &
 	     (IL_STA_UCODE_ACTIVE | IL_STA_DRIVER_ACTIVE)) !=
 						IL_STA_UCODE_ACTIVE)
-		IL_ERR(il, "removed non active STA %u\n", sta_id);
+		IL_ERR("removed non active STA %u\n", sta_id);
 
 	il->stations[sta_id].used &= ~IL_STA_UCODE_ACTIVE;
 
@@ -440,7 +440,7 @@ static int il_send_remove_station(struct il_priv *il,
 
 	pkt = (struct il_rx_packet *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(il, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
+		IL_ERR("Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 			  pkt->hdr.flags);
 		ret = -EIO;
 	}
@@ -458,7 +458,7 @@ static int il_send_remove_station(struct il_priv *il,
 			break;
 		default:
 			ret = -EIO;
-			IL_ERR(il, "REPLY_REMOVE_STA failed\n");
+			IL_ERR("REPLY_REMOVE_STA failed\n");
 			break;
 		}
 	}
@@ -618,7 +618,7 @@ il_restore_stations(struct il_priv *il, struct il_rxon_context *ctx)
 			ret = il_send_add_sta(il, &sta_cmd, CMD_SYNC);
 			if (ret) {
 				spin_lock_irqsave(&il->sta_lock, flags_spin);
-				IL_ERR(il, "Adding station %pM failed.\n",
+				IL_ERR("Adding station %pM failed.\n",
 					il->stations[i].sta.sta.addr);
 				il->stations[i].used &=
 						~IL_STA_DRIVER_ACTIVE;
@@ -808,7 +808,7 @@ int il_mac_sta_remove(struct ieee80211_hw *hw,
 			sta->addr);
 	ret = il_remove_station(il, sta_common->sta_id, sta->addr);
 	if (ret)
-		IL_ERR(il, "Error removing station %pM\n",
+		IL_ERR("Error removing station %pM\n",
 			sta->addr);
 	mutex_unlock(&il->mutex);
 	return ret;

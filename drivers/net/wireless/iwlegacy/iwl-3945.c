@@ -166,7 +166,7 @@ void il3945_disable_events(struct il_priv *il)
 
 	base = le32_to_cpu(il->card_alive.log_event_table_ptr);
 	if (!il3945_hw_valid_rtc_data_addr(base)) {
-		IL_ERR(il, "Invalid event log pointer 0x%08X\n", base);
+		IL_ERR("Invalid event log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -317,7 +317,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 	int fail;
 
 	if ((index >= txq->q.n_bd) || (il_queue_used(&txq->q, index) == 0)) {
-		IL_ERR(il, "Read index for DMA queue txq_id (%d) index %d "
+		IL_ERR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
@@ -350,7 +350,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 	il3945_tx_queue_reclaim(il, txq_id, index);
 
 	if (status & TX_ABORT_REQUIRED_MSK)
-		IL_ERR(il, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
+		IL_ERR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
 
@@ -484,7 +484,7 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 
 	skb = dev_alloc_skb(128);
 	if (!skb) {
-		IL_ERR(il, "dev_alloc_skb failed\n");
+		IL_ERR("dev_alloc_skb failed\n");
 		return;
 	}
 
@@ -600,7 +600,7 @@ int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 	count = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 
 	if ((count >= NUM_TFD_CHUNKS) || (count < 0)) {
-		IL_ERR(il, "Error can not send more than %d chunks\n",
+		IL_ERR("Error can not send more than %d chunks\n",
 			  NUM_TFD_CHUNKS);
 		return -EINVAL;
 	}
@@ -633,7 +633,7 @@ void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 	/* sanity check */
 	counter = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 	if (counter > NUM_TFD_CHUNKS) {
-		IL_ERR(il, "Too many chunks: %i\n", counter);
+		IL_ERR("Too many chunks: %i\n", counter);
 		/* @todo issue fatal error, it is quite serious situation */
 		return;
 	}
@@ -855,7 +855,7 @@ static int il3945_txq_ctx_reset(struct il_priv *il)
 		rc = il_tx_queue_init(il, &il->txq[txq_id],
 						slots_num, txq_id);
 		if (rc) {
-			IL_ERR(il, "Tx %d queue init failed\n", txq_id);
+			IL_ERR("Tx %d queue init failed\n", txq_id);
 			goto error;
 		}
 	}
@@ -971,7 +971,7 @@ int il3945_hw_nic_init(struct il_priv *il)
 	if (!rxq->bd) {
 		rc = il_rx_queue_alloc(il);
 		if (rc) {
-			IL_ERR(il, "Unable to initialize Rx queue\n");
+			IL_ERR("Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
@@ -1078,7 +1078,7 @@ static int il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
 
 	/* handle insane temp reading */
 	if (il3945_hw_reg_temp_out_of_range(temperature)) {
-		IL_ERR(il, "Error bad temperature value  %d\n", temperature);
+		IL_ERR("Error bad temperature value  %d\n", temperature);
 
 		/* if really really hot(?),
 		 *   substitute the 3rd band/group's temp measured at factory */
@@ -1388,7 +1388,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 	txpower.band = (il->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = il_get_channel_info(il, il->band, chan);
 	if (!ch_info) {
-		IL_ERR(il,
+		IL_ERR(
 			"Failed to get channel info for channel %d [%d]\n",
 			chan, il->band);
 		return -EINVAL;
@@ -1686,7 +1686,7 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
 
 	pkt = (struct il_rx_packet *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(il, "Bad return from REPLY_RXON_ASSOC command\n");
+		IL_ERR("Bad return from REPLY_RXON_ASSOC command\n");
 		rc = -EIO;
 	}
 
@@ -1727,7 +1727,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 
 	rc = il_check_rxon_cmd(il, ctx);
 	if (rc) {
-		IL_ERR(il, "Invalid RXON configuration.  Not committing.\n");
+		IL_ERR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
 	}
 
@@ -1739,7 +1739,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		rc = il_send_rxon_assoc(il,
 					 &il->contexts[IL_RXON_CTX_BSS]);
 		if (rc) {
-			IL_ERR(il, "Error setting RXON_ASSOC "
+			IL_ERR("Error setting RXON_ASSOC "
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
@@ -1775,7 +1775,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		 * active_rxon back to what it was previously */
 		if (rc) {
 			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
-			IL_ERR(il, "Error clearing ASSOC_MSK on current "
+			IL_ERR("Error clearing ASSOC_MSK on current "
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
@@ -1807,7 +1807,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 			      sizeof(struct il3945_rxon_cmd),
 			      staging_rxon);
 	if (rc) {
-		IL_ERR(il, "Error setting new configuration (%d).\n", rc);
+		IL_ERR("Error setting new configuration (%d).\n", rc);
 		return rc;
 	}
 
@@ -1824,14 +1824,14 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
 	rc = il_set_tx_power(il, il->tx_power_next, true);
 	if (rc) {
-		IL_ERR(il, "Error setting Tx power (%d).\n", rc);
+		IL_ERR("Error setting Tx power (%d).\n", rc);
 		return rc;
 	}
 
 	/* Init the hardware's rate fallback order based on the band */
 	rc = il3945_init_hw_rate_table(il);
 	if (rc) {
-		IL_ERR(il, "Error setting HW rate table: %02X\n", rc);
+		IL_ERR("Error setting HW rate table: %02X\n", rc);
 		return -EIO;
 	}
 
@@ -1989,7 +1989,7 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 
 		/* sanity check on factory saturation power value */
 		if (group->saturation_power < 40) {
-			IL_WARN(il, "Error: saturation power is %d, "
+			IL_WARN("Error: saturation power is %d, "
 				    "less than minimum expected 40\n",
 				    group->saturation_power);
 			return;
@@ -2119,7 +2119,7 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 							 ch_info->group_index,
 							 &power_idx);
 			if (rc) {
-				IL_ERR(il, "Invalid power index\n");
+				IL_ERR("Invalid power index\n");
 				return rc;
 			}
 			pwr_info->base_power_index = (u8) power_idx;
@@ -2187,7 +2187,7 @@ int il3945_hw_rxq_stop(struct il_priv *il)
 	rc = il_poll_direct_bit(il, FH39_RSSR_STATUS,
 			FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 	if (rc < 0)
-		IL_ERR(il, "Can't stop Rx DMA.\n");
+		IL_ERR("Can't stop Rx DMA.\n");
 
 	return 0;
 }
@@ -2263,7 +2263,7 @@ static int il3945_add_bssid_station(struct il_priv *il,
 
 	ret = il_add_station_common(il, ctx, addr, 0, NULL, &sta_id);
 	if (ret) {
-		IL_ERR(il, "Unable to add station %pM\n", addr);
+		IL_ERR("Unable to add station %pM\n", addr);
 		return ret;
 	}
 
@@ -2390,7 +2390,7 @@ int il3945_hw_set_hw_params(struct il_priv *il)
 				   sizeof(struct il3945_shared),
 				   &il->_3945.shared_phys, GFP_KERNEL);
 	if (!il->_3945.shared_virt) {
-		IL_ERR(il, "failed to allocate pci memory\n");
+		IL_ERR("failed to allocate pci memory\n");
 		return -ENOMEM;
 	}
 
@@ -2481,7 +2481,7 @@ static int il3945_verify_bsm(struct il_priv *il)
 	     reg += sizeof(u32), image++) {
 		val = il_read_prph(il, reg);
 		if (val != le32_to_cpu(*image)) {
-			IL_ERR(il, "BSM uCode verification failed at "
+			IL_ERR("BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
 				  BSM_SRAM_LOWER_BOUND,
 				  reg - BSM_SRAM_LOWER_BOUND, len,
@@ -2620,7 +2620,7 @@ static int il3945_load_bsm(struct il_priv *il)
 	if (i < 100)
 		D_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
-		IL_ERR(il, "BSM write did not complete!\n");
+		IL_ERR("BSM write did not complete!\n");
 		return -EIO;
 	}
 

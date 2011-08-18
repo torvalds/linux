@@ -341,7 +341,7 @@ static int il_scan_initiate(struct il_priv *il,
 	cancel_delayed_work(&il->scan_check);
 
 	if (!il_is_ready_rf(il)) {
-		IL_WARN(il, "Request scan called when driver not ready.\n");
+		IL_WARN("Request scan called when driver not ready.\n");
 		return -EIO;
 	}
 

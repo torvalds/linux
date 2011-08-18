@@ -132,7 +132,7 @@ static inline int _il_grab_nic_access(struct il_priv *il)
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (ret < 0) {
 		val = _il_read32(il, CSR_GP_CNTRL);
-		IL_ERR(il,
+		IL_ERR(
 			"MAC is in deep sleep!.  CSR_GP_CNTRL = 0x%08X\n", val);
 		_il_write32(il, CSR_RESET,
 				CSR_RESET_REG_FLAG_FORCE_NMI);

@@ -32,10 +32,10 @@
 struct il_priv;
 extern u32 il_debug_level;
 
-#define IL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
-#define IL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
-#define IL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
-#define IL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
+#define IL_ERR(f, a...) dev_err(&il->pci_dev->dev, f, ## a)
+#define IL_WARN(f, a...) dev_warn(&il->pci_dev->dev, f, ## a)
+#define IL_INFO(f, a...) dev_info(&il->pci_dev->dev, f, ## a)
+#define IL_CRIT(f, a...) dev_crit(&il->pci_dev->dev, f, ## a)
 
 #define il_print_hex_error(il, p, len)					\
 do {									\
