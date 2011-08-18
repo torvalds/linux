@@ -22,6 +22,7 @@
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
 #include <linux/tick.h>
@@ -510,6 +511,23 @@ static struct notifier_block rk29_cpufreq_pm_notifier = {
 	.notifier_call = rk29_cpufreq_pm_notifier_event,
 };
 
+static int rk29_cpufreq_reboot_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+
+	if (policy) {
+		cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		cpufreq_cpu_put(policy);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk29_cpufreq_reboot_notifier = {
+	.notifier_call = rk29_cpufreq_reboot_notifier_event,
+};
+
 static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
@@ -547,6 +565,7 @@ static struct notifier_block rk29_cpufreq_fb_notifier = {
 static int __init rk29_cpufreq_register(void)
 {
 	register_pm_notifier(&rk29_cpufreq_pm_notifier);
+	register_reboot_notifier(&rk29_cpufreq_reboot_notifier);
 	rk29fb_register_notifier(&rk29_cpufreq_fb_notifier);
 
 	return cpufreq_register_driver(&rk29_cpufreq_driver);
