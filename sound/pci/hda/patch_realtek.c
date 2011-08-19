@@ -203,6 +203,9 @@ struct alc_spec {
 	/* multi-io */
 	int multi_ios;
 	struct alc_multi_io multi_io[4];
+
+	/* bind volumes */
+	struct snd_array bind_ctls;
 };
 
 #define ALC_MODEL_AUTO		0	/* common for all chips */
@@ -2369,6 +2372,18 @@ static void alc_free_kctls(struct hda_codec *codec)
 	snd_array_free(&spec->kctls);
 }
 
+static void alc_free_bind_ctls(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	if (spec->bind_ctls.list) {
+		struct hda_bind_ctls **ctl = spec->bind_ctls.list;
+		int i;
+		for (i = 0; i < spec->bind_ctls.used; i++)
+			kfree(ctl[i]);
+	}
+	snd_array_free(&spec->bind_ctls);
+}
+
 static void alc_free(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -2379,6 +2394,7 @@ static void alc_free(struct hda_codec *codec)
 	alc_shutup(codec);
 	snd_hda_input_jack_free(codec);
 	alc_free_kctls(codec);
+	alc_free_bind_ctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
@@ -2449,11 +2465,15 @@ enum {
 	ALC_CTL_WIDGET_VOL,
 	ALC_CTL_WIDGET_MUTE,
 	ALC_CTL_BIND_MUTE,
+	ALC_CTL_BIND_VOL,
+	ALC_CTL_BIND_SW,
 };
 static const struct snd_kcontrol_new alc_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	HDA_BIND_MUTE(NULL, 0, 0, 0),
+	HDA_BIND_VOL(NULL, 0),
+	HDA_BIND_SW(NULL, 0),
 };
 
 /* add dynamic controls */
@@ -2494,13 +2514,14 @@ static int add_control_with_pfx(struct alc_spec *spec, int type,
 #define __add_pb_sw_ctrl(spec, type, pfx, cidx, val)			\
 	add_control_with_pfx(spec, type, pfx, "Playback", "Switch", cidx, val)
 
+static const char * const channel_name[4] = {
+	"Front", "Surround", "CLFE", "Side"
+};
+
 static const char *alc_get_line_out_pfx(struct alc_spec *spec, int ch,
 					bool can_be_master, int *index)
 {
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	static const char * const chname[4] = {
-		"Front", "Surround", NULL /*CLFE*/, "Side"
-	};
 
 	*index = 0;
 	if (cfg->line_outs == 1 && !spec->multi_ios &&
@@ -2523,7 +2544,10 @@ static const char *alc_get_line_out_pfx(struct alc_spec *spec, int ch,
 			return "PCM";
 		break;
 	}
-	return chname[ch];
+	if (snd_BUG_ON(ch >= ARRAY_SIZE(channel_name)))
+		return "PCM";
+
+	return channel_name[ch];
 }
 
 /* create input playback/capture controls for the given pin */
@@ -2869,6 +2893,28 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	return 0;
 }
 
+/* fill in the dac_nids table for surround speakers, etc */
+static int alc_auto_fill_extra_dacs(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	if (cfg->speaker_outs < 2 || !spec->multiout.extra_out_nid[0])
+		return 0;
+
+	for (i = 1; i < cfg->speaker_outs; i++)
+		spec->multiout.extra_out_nid[i] =
+			get_dac_if_single(codec, cfg->speaker_pins[i]);
+	for (i = 1; i < cfg->speaker_outs; i++) {
+		if (spec->multiout.extra_out_nid[i])
+			continue;
+		spec->multiout.extra_out_nid[i] =
+			alc_auto_look_for_dac(codec, cfg->speaker_pins[0]);
+	}
+	return 0;
+}
+
 static int alc_auto_add_vol_ctl(struct hda_codec *codec,
 			      const char *pfx, int cidx,
 			      hda_nid_t nid, unsigned int chs)
@@ -2991,16 +3037,13 @@ static int alc_auto_create_multi_out_ctls(struct hda_codec *codec,
 	return 0;
 }
 
-/* add playback controls for speaker and HP outputs */
 static int alc_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
-					hda_nid_t dac, const char *pfx)
+				     hda_nid_t dac, const char *pfx)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t sw, vol;
 	int err;
 
-	if (!pin)
-		return 0;
 	if (!dac) {
 		/* the corresponding DAC is already occupied */
 		if (!(get_wcaps(codec, pin) & AC_WCAP_OUT_AMP))
@@ -3021,6 +3064,92 @@ static int alc_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 	return 0;
 }
 
+static struct hda_bind_ctls *new_bind_ctl(struct hda_codec *codec,
+					  unsigned int nums,
+					  struct hda_ctl_ops *ops)
+{
+	struct alc_spec *spec = codec->spec;
+	struct hda_bind_ctls **ctlp, *ctl;
+	snd_array_init(&spec->bind_ctls, sizeof(ctl), 8);
+	ctlp = snd_array_new(&spec->bind_ctls);
+	if (!ctlp)
+		return NULL;
+	ctl = kzalloc(sizeof(*ctl) + sizeof(long) * (nums + 1), GFP_KERNEL);
+	*ctlp = ctl;
+	if (ctl)
+		ctl->ops = ops;
+	return ctl;
+}
+
+/* add playback controls for speaker and HP outputs */
+static int alc_auto_create_extra_outs(struct hda_codec *codec, int num_pins,
+				      const hda_nid_t *pins,
+				      const hda_nid_t *dacs,
+				      const char *pfx)
+{
+	struct alc_spec *spec = codec->spec;
+	struct hda_bind_ctls *ctl;
+	char name[32];
+	int i, n, err;
+
+	if (!num_pins || !pins[0])
+		return 0;
+
+	if (num_pins == 1)
+		return alc_auto_create_extra_out(codec, *pins, *dacs, pfx);
+
+	if (dacs[num_pins - 1]) {
+		/* OK, we have a multi-output system with individual volumes */
+		for (i = 0; i < num_pins; i++) {
+			snprintf(name, sizeof(name), "%s %s",
+				 pfx, channel_name[i]);
+			err = alc_auto_create_extra_out(codec, pins[i], dacs[i],
+							name);
+			if (err < 0)
+				return err;
+		}
+		return 0;
+	}
+
+	/* Let's create a bind-controls */
+	ctl = new_bind_ctl(codec, num_pins, &snd_hda_bind_sw);
+	if (!ctl)
+		return -ENOMEM;
+	n = 0;
+	for (i = 0; i < num_pins; i++) {
+		if (get_wcaps(codec, pins[i]) & AC_WCAP_OUT_AMP)
+			ctl->values[n++] =
+				HDA_COMPOSE_AMP_VAL(pins[i], 3, 0, HDA_OUTPUT);
+	}
+	if (n) {
+		snprintf(name, sizeof(name), "%s Playback Switch", pfx);
+		err = add_control(spec, ALC_CTL_BIND_SW, name, 0, (long)ctl);
+		if (err < 0)
+			return err;
+	}
+
+	ctl = new_bind_ctl(codec, num_pins, &snd_hda_bind_vol);
+	if (!ctl)
+		return -ENOMEM;
+	n = 0;
+	for (i = 0; i < num_pins; i++) {
+		hda_nid_t vol;
+		if (!pins[i] || !dacs[i])
+			continue;
+		vol = alc_look_for_out_vol_nid(codec, pins[i], dacs[i]);
+		if (vol)
+			ctl->values[n++] =
+				HDA_COMPOSE_AMP_VAL(vol, 3, 0, HDA_OUTPUT);
+	}
+	if (n) {
+		snprintf(name, sizeof(name), "%s Playback Volume", pfx);
+		err = add_control(spec, ALC_CTL_BIND_VOL, name, 0, (long)ctl);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 static int alc_auto_create_hp_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3032,9 +3161,10 @@ static int alc_auto_create_hp_out(struct hda_codec *codec)
 static int alc_auto_create_speaker_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	return alc_auto_create_extra_out(codec, spec->autocfg.speaker_pins[0],
-					 spec->multiout.extra_out_nid[0],
-					 "Speaker");
+	return alc_auto_create_extra_outs(codec, spec->autocfg.speaker_outs,
+					  spec->autocfg.speaker_pins,
+					  spec->multiout.extra_out_nid,
+					  "Speaker");
 }
 
 static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
@@ -3225,27 +3355,13 @@ static const struct snd_kcontrol_new alc_auto_channel_mode_enum = {
 	.put = alc_auto_ch_mode_put,
 };
 
-static int alc_auto_add_multi_channel_mode(struct hda_codec *codec,
-					   int (*fill_dac)(struct hda_codec *))
+static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	unsigned int location, defcfg;
 	int num_pins;
 
-	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && cfg->hp_outs == 1) {
-		/* use HP as primary out */
-		cfg->speaker_outs = cfg->line_outs;
-		memcpy(cfg->speaker_pins, cfg->line_out_pins,
-		       sizeof(cfg->speaker_pins));
-		cfg->line_outs = cfg->hp_outs;
-		memcpy(cfg->line_out_pins, cfg->hp_pins, sizeof(cfg->hp_pins));
-		cfg->hp_outs = 0;
-		memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
-		cfg->line_out_type = AUTO_PIN_HP_OUT;
-		if (fill_dac)
-			fill_dac(codec);
-	}
 	if (cfg->line_outs != 1 ||
 	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
 		return 0;
@@ -3550,27 +3666,43 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 				 const hda_nid_t *ssid_nids)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int err;
 
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-					   ignore_nids);
+	err = snd_hda_parse_pin_def_config(codec, cfg, ignore_nids);
 	if (err < 0)
 		return err;
-	if (!spec->autocfg.line_outs) {
-		if (spec->autocfg.dig_outs || spec->autocfg.dig_in_pin) {
+	if (!cfg->line_outs) {
+		if (cfg->dig_outs || cfg->dig_in_pin) {
 			spec->multiout.max_channels = 2;
 			spec->no_analog = 1;
 			goto dig_only;
 		}
 		return 0; /* can't find valid BIOS pin config */
 	}
+
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && cfg->hp_outs == 1) {
+		/* use HP as primary out */
+		cfg->speaker_outs = cfg->line_outs;
+		memcpy(cfg->speaker_pins, cfg->line_out_pins,
+		       sizeof(cfg->speaker_pins));
+		cfg->line_outs = cfg->hp_outs;
+		memcpy(cfg->line_out_pins, cfg->hp_pins, sizeof(cfg->hp_pins));
+		cfg->hp_outs = 0;
+		memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
+		cfg->line_out_type = AUTO_PIN_HP_OUT;
+	}
+
 	err = alc_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec, alc_auto_fill_dac_nids);
+	err = alc_auto_add_multi_channel_mode(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_create_multi_out_ctls(codec, &spec->autocfg);
+	err = alc_auto_fill_extra_dacs(codec);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_multi_out_ctls(codec, cfg);
 	if (err < 0)
 		return err;
 	err = alc_auto_create_hp_out(codec);
