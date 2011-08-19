@@ -101,6 +101,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define SENSOR_AF_IS_ERR    (0x00<<0)
 #define SENSOR_AF_IS_OK		(0x01<<0)
+#define SENSOR_INIT_IS_ERR   (0x00<<28)
+#define SENSOR_INIT_IS_OK    (0x01<<28)
 
 #if CONFIG_SENSOR_Focus
 #define SENSOR_AF_MODE_INFINITY    0
@@ -6796,36 +6798,43 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
     #endif
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
+ 
 
+    sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
     return 0;
 sensor_INIT_ERR:
+    sensor->info_priv.funmodule_state &= ~SENSOR_INIT_IS_OK;
 	sensor_task_lock(client,0);
-	sensor_deactivate(client);
+	sensor_deactivate(client); 
     return ret;
 }
 static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
 	u16 reg_val = 0;
+    struct sensor *sensor = to_sensor(client);
     struct reginfo reg_info;
     
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
-	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */	
-	sensor_task_lock(client, 1);
-	
-	sensor_read( client, 0x001a, &reg_val);
-	reg_info.reg = 0x001a;
-	reg_info.val = reg_val & (~0x0200);//reg_val & (~0x02);
-	reg_info.reg_len = 0x04;
-	sensor_write(client, &reg_info);
-	
-	sensor_task_lock(client, 0);
+	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
+    if (sensor->info_priv.funmodule_state & SENSOR_INIT_IS_OK) {
+    	sensor_task_lock(client, 1);
+    	
+    	sensor_read( client, 0x001a, &reg_val);
+    	reg_info.reg = 0x001a;
+    	reg_info.val = reg_val & (~0x0200);//reg_val & (~0x02);
+    	reg_info.reg_len = 0x04;
+    	sensor_write(client, &reg_info);
+    	
+    	sensor_task_lock(client, 0);
+    }
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
 	msleep(100);
+    sensor->info_priv.funmodule_state &= ~SENSOR_INIT_IS_OK;
 	return 0;
 }
 static  struct reginfo sensor_power_down_sequence[]=
