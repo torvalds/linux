@@ -1309,11 +1309,17 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 		dwc3_trb_to_nat(req->trb, &trb);
 
-		if (trb.hwo) {
+		if (trb.hwo && status != -ESHUTDOWN)
+			/*
+			 * We continue despite the error. There is not much we
+			 * can do. If we don't clean in up we loop for ever. If
+			 * we skip the TRB than it gets overwritten reused after
+			 * a while since we use them in a ring buffer. a BUG()
+			 * would help. Lets hope that if this occures, someone
+			 * fixes the root cause instead of looking away :)
+			 */
 			dev_err(dwc->dev, "%s's TRB (%p) still owned by HW\n",
 					dep->name, req->trb);
-			continue;
-		}
 		count = trb.length;
 
 		if (dep->direction) {
