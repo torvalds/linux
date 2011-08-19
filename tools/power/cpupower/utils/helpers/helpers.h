@@ -16,11 +16,20 @@
 #include "helpers/bitmask.h"
 
 /* Internationalization ****************************/
+#ifdef NLS
+
 #define _(String) gettext(String)
 #ifndef gettext_noop
 #define gettext_noop(String) String
 #endif
 #define N_(String) gettext_noop(String)
+
+#else /* !NLS */
+
+#define _(String) String
+#define N_(String) String
+
+#endif
 /* Internationalization ****************************/
 
 extern int run_as_root;
