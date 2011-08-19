@@ -2529,6 +2529,7 @@ void __skb_get_rxhash(struct sk_buff *skb)
 	int nhoff, hash = 0, poff;
 	const struct ipv6hdr *ip6;
 	const struct iphdr *ip;
+	const struct vlan_hdr *vlan;
 	u8 ip_proto;
 	u32 addr1, addr2;
 	u16 proto;
@@ -2565,6 +2566,13 @@ again:
 		addr2 = (__force u32) ip6->daddr.s6_addr32[3];
 		nhoff += 40;
 		break;
+	case __constant_htons(ETH_P_8021Q):
+		if (!pskb_may_pull(skb, sizeof(*vlan) + nhoff))
+			goto done;
+		vlan = (const struct vlan_hdr *) (skb->data + nhoff);
+		proto = vlan->h_vlan_encapsulated_proto;
+		nhoff += sizeof(*vlan);
+		goto again;
 	default:
 		goto done;
 	}
