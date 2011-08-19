@@ -132,9 +132,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 /* Fbcon variables */
 static struct fb_info *fb_info;
 
-
-static int    video_type = FB_TYPE_PACKED_PIXELS;
-
 static struct fb_var_screeninfo default_var = {
 	.xres		= 0,
 	.yres		= 0,

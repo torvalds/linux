@@ -1487,7 +1487,7 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 
 	fix->smem_len = xgi_video_info.video_size;
 
-	fix->type = video_type;
+	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
 	if (xgi_video_info.video_bpp == 8)
 		fix->visual = FB_VISUAL_PSEUDOCOLOR;
