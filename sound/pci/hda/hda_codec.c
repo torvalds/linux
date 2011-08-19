@@ -4700,7 +4700,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 				 const hda_nid_t *ignore_nids)
 {
 	hda_nid_t nid, end_nid;
-	short seq, assoc_line_out, assoc_speaker;
+	short seq, assoc_line_out;
 	short sequences_line_out[ARRAY_SIZE(cfg->line_out_pins)];
 	short sequences_speaker[ARRAY_SIZE(cfg->speaker_pins)];
 	short sequences_hp[ARRAY_SIZE(cfg->hp_pins)];
@@ -4711,7 +4711,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	memset(sequences_line_out, 0, sizeof(sequences_line_out));
 	memset(sequences_speaker, 0, sizeof(sequences_speaker));
 	memset(sequences_hp, 0, sizeof(sequences_hp));
-	assoc_line_out = assoc_speaker = 0;
+	assoc_line_out = 0;
 
 	end_nid = codec->start_nid + codec->num_nodes;
 	for (nid = codec->start_nid; nid < end_nid; nid++) {
@@ -4763,16 +4763,10 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		case AC_JACK_SPEAKER:
 			seq = get_defcfg_sequence(def_conf);
 			assoc = get_defcfg_association(def_conf);
-			if (!assoc)
-				continue;
-			if (!assoc_speaker)
-				assoc_speaker = assoc;
-			else if (assoc_speaker != assoc)
-				continue;
 			if (cfg->speaker_outs >= ARRAY_SIZE(cfg->speaker_pins))
 				continue;
 			cfg->speaker_pins[cfg->speaker_outs] = nid;
-			sequences_speaker[cfg->speaker_outs] = seq;
+			sequences_speaker[cfg->speaker_outs] = (assoc << 4) | seq;
 			cfg->speaker_outs++;
 			break;
 		case AC_JACK_HP_OUT:
