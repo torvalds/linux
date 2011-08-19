@@ -1,12 +1,6 @@
 #ifndef _VB_STRUCT_
 #define _VB_STRUCT_
 
-#ifdef _INITNEW_
-#define EXTERN
-#else
-#define EXTERN extern
-#endif
-
 struct XGI_PanelDelayTblStruct {
 	unsigned char timer[2];
 };

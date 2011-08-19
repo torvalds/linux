@@ -15,8 +15,6 @@
 #define VER_MINOR                 8
 #define VER_LEVEL                 1
 
-#define DRIVER_DESC  "XGI Volari Frame Buffer Module Version 0.8.1"
-
 #ifndef PCI_VENDOR_ID_XG
 #define PCI_VENDOR_ID_XG          0x18CA
 #endif
@@ -37,11 +35,6 @@
 #define PCI_DEVICE_ID_XG_27      0x027
 #endif
 
-
-
-#define XGI_IOTYPE1 void __iomem
-#define XGI_IOTYPE2 __iomem
-
 static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
 	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID,
 	 0, 0, 0},
@@ -57,31 +50,11 @@ static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
 MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 /* To be included in fb.h */
-#ifndef FB_ACCEL_XGI_GLAMOUR_2
-#define FB_ACCEL_XGI_GLAMOUR_2  40	/* XGI 315, 650, 740		*/
-#endif
 #ifndef FB_ACCEL_XGI_XABRE
 #define FB_ACCEL_XGI_XABRE      41	/* XGI 330 ("Xabre")		*/
 #endif
 
-#define MAX_ROM_SCAN              0x10000
-
-#define SEQ_ADR                   0x14
 #define SEQ_DATA                  0x15
-#define DAC_ADR                   0x18
-#define DAC_DATA                  0x19
-#define CRTC_ADR                  0x24
-#define CRTC_DATA                 0x25
-#define DAC2_ADR                  (0x16-0x30)
-#define DAC2_DATA                 (0x17-0x30)
-#define VB_PART1_ADR              (0x04-0x30)
-#define VB_PART1_DATA             (0x05-0x30)
-#define VB_PART2_ADR              (0x10-0x30)
-#define VB_PART2_DATA             (0x11-0x30)
-#define VB_PART3_ADR              (0x12-0x30)
-#define VB_PART3_DATA             (0x13-0x30)
-#define VB_PART4_ADR              (0x14-0x30)
-#define VB_PART4_DATA             (0x15-0x30)
 
 #define XGISR			  XGI_Pr.P3c4
 #define XGICR                     XGI_Pr.P3d4
@@ -94,24 +67,12 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGIPART5                  XGI_Pr.Part5Port
 #define XGIDAC2A                  XGIPART5
 #define XGIDAC2D                  (XGIPART5 + 1)
-#define XGIMISCR                  (XGI_Pr.RelIO + 0x1c)
-#define XGIINPSTAT		  (XGI_Pr.RelIO + 0x2a)
 
 #define IND_XGI_PASSWORD          0x05  /* SRs */
-#define IND_XGI_COLOR_MODE        0x06
 #define IND_XGI_RAMDAC_CONTROL    0x07
 #define IND_XGI_DRAM_SIZE         0x14
-#define IND_XGI_SCRATCH_REG_16    0x16
-#define IND_XGI_SCRATCH_REG_17    0x17
-#define IND_XGI_SCRATCH_REG_1A    0x1A
 #define IND_XGI_MODULE_ENABLE     0x1E
 #define IND_XGI_PCI_ADDRESS_SET   0x20
-#define IND_XGI_TURBOQUEUE_ADR    0x26
-#define IND_XGI_TURBOQUEUE_SET    0x27
-#define IND_XGI_POWER_ON_TRAP     0x38
-#define IND_XGI_POWER_ON_TRAP2    0x39
-#define IND_XGI_CMDQUEUE_SET      0x26
-#define IND_XGI_CMDQUEUE_THRESHOLD  0x27
 
 #define IND_XGI_SCRATCH_REG_CR30  0x30  /* CRs */
 #define IND_XGI_SCRATCH_REG_CR31  0x31
@@ -119,23 +80,10 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define IND_XGI_SCRATCH_REG_CR33  0x33
 #define IND_XGI_LCD_PANEL         0x36
 #define IND_XGI_SCRATCH_REG_CR37  0x37
-#define IND_XGI_AGP_IO_PAD        0x48
 
-#define IND_BRI_DRAM_STATUS       0x63 /* PCI config memory size offset */
-
-#define MMIO_QUEUE_PHYBASE        0x85C0
-#define MMIO_QUEUE_WRITEPORT      0x85C4
-#define MMIO_QUEUE_READPORT       0x85C8
-
-#define IND_XGI_CRT2_WRITE_ENABLE_300 0x24
 #define IND_XGI_CRT2_WRITE_ENABLE_315 0x2F
 
 #define XGI_PASSWORD              0x86  /* SR05 */
-#define XGI_INTERLACED_MODE       0x20  /* SR06 */
-#define XGI_8BPP_COLOR_MODE       0x0
-#define XGI_15BPP_COLOR_MODE      0x1
-#define XGI_16BPP_COLOR_MODE      0x2
-#define XGI_32BPP_COLOR_MODE      0x4
 
 #define XGI_DRAM_SIZE_MASK     0xF0  /*SR14 */
 #define XGI_DRAM_SIZE_1MB      0x00
@@ -147,27 +95,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_DRAM_SIZE_64MB     0x06
 #define XGI_DRAM_SIZE_128MB    0x07
 #define XGI_DRAM_SIZE_256MB    0x08
-#define XGI_DATA_BUS_MASK      0x02
-#define XGI_DATA_BUS_64        0x00
-#define XGI_DATA_BUS_128       0x01
-#define XGI_DUAL_CHANNEL_MASK  0x0C
-#define XGI_SINGLE_CHANNEL_1_RANK 0x0
-#define XGI_SINGLE_CHANNEL_2_RANK 0x1
-#define XGI_ASYM_DDR		  0x02
-#define XGI_DUAL_CHANNEL_1_RANK	  0x3
-
-#define XGI550_DRAM_SIZE_MASK     0x3F  /* 550/650/740 SR14 */
-#define XGI550_DRAM_SIZE_4MB      0x00
-#define XGI550_DRAM_SIZE_8MB      0x01
-#define XGI550_DRAM_SIZE_16MB     0x03
-#define XGI550_DRAM_SIZE_24MB     0x05
-#define XGI550_DRAM_SIZE_32MB     0x07
-#define XGI550_DRAM_SIZE_64MB     0x0F
-#define XGI550_DRAM_SIZE_96MB     0x17
-#define XGI550_DRAM_SIZE_128MB    0x1F
-#define XGI550_DRAM_SIZE_256MB    0x3F
-
-#define XGI_SCRATCH_REG_1A_MASK   0x10
 
 #define XGI_ENABLE_2D             0x40  /* SR1E */
 
@@ -175,7 +102,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_PCI_ADDR_ENABLE       0x80
 
 #define XGI_SIMULTANEOUS_VIEW_ENABLE  0x01  /* CR30 */
-#define XGI_MODE_SELECT_CRT2      0x02
 #define XGI_VB_OUTPUT_COMPOSITE   0x04
 #define XGI_VB_OUTPUT_SVIDEO      0x08
 #define XGI_VB_OUTPUT_SCART       0x10
@@ -198,26 +124,8 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 				   XGI_VB_SCART | XGI_VB_HIVISION|XGI_VB_YPBPR)
 
 #define XGI_EXTERNAL_CHIP_MASK		   0x0E  /* CR37 */
-#define XGI_EXTERNAL_CHIP_XGI301           0x01  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_LVDS             0x02  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_TRUMPION         0x03  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_LVDS_CHRONTEL    0x04  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_CHRONTEL         0x05  /* in CR37 << 1 ! */
 #define XGI310_EXTERNAL_CHIP_LVDS          0x02  /* in CR37 << 1 ! */
 #define XGI310_EXTERNAL_CHIP_LVDS_CHRONTEL 0x03  /* in CR37 << 1 ! */
-
-#define XGI_AGP_2X                0x20  /* CR48 */
-
-#define BRI_DRAM_SIZE_MASK        0x70  /* PCI bridge config data */
-#define BRI_DRAM_SIZE_2MB         0x00
-#define BRI_DRAM_SIZE_4MB         0x01
-#define BRI_DRAM_SIZE_8MB         0x02
-#define BRI_DRAM_SIZE_16MB        0x03
-#define BRI_DRAM_SIZE_32MB        0x04
-#define BRI_DRAM_SIZE_64MB        0x05
-
-#define SR_BUFFER_SIZE            5
-#define CR_BUFFER_SIZE            5
 
 /* ------------------- Global Variables ----------------------------- */
 
@@ -423,7 +331,6 @@ static struct _XGIbios_mode {
 	 MD_XGI315},
 	{"1280x768x32",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
 	 MD_XGI315},
-#define MODEINDEX_1280x960 48
 	{"1280x960x8",   0x7C, 0x0000, 0x0000, 1280,  960,  8, 1, 160, 60,
 	 MD_XGI300|MD_XGI315},  /* TW: Modenumbers being patched */
 	{"1280x960x16",  0x7D, 0x0000, 0x0000, 1280,  960, 16, 1, 160, 60,

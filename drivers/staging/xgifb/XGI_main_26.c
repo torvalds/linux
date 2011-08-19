@@ -45,11 +45,9 @@
 #include "vb_setmode.h"
 
 #define Index_CR_GPIO_Reg1 0x48
-#define Index_CR_GPIO_Reg2 0x49
 #define Index_CR_GPIO_Reg3 0x4a
 
 #define GPIOG_EN    (1<<6)
-#define GPIOG_WRITE (1<<6)
 #define GPIOG_READ  (1<<1)
 
 #define XGIFB_ROM_SIZE	65536
