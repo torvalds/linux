@@ -507,6 +507,8 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
 	struct p54_statistics *stats = (struct p54_statistics *) hdr->data;
 	struct sk_buff *tmp;
+	struct ieee80211_channel *chan;
+	unsigned int i, rssi, tx, cca, dtime, dtotal, dcca, dtx, drssi, unit;
 	u32 tsf32;
 
 	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
@@ -523,8 +525,72 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 
 	priv->noise = p54_rssi_to_dbm(priv, le32_to_cpu(stats->noise));
 
+	/*
+	 * STSW450X LMAC API page 26 - 3.8 Statistics
+	 * "The exact measurement period can be derived from the
+	 * timestamp member".
+	 */
+	dtime = tsf32 - priv->survey_raw.timestamp;
+
+	/*
+	 * STSW450X LMAC API page 26 - 3.8.1 Noise histogram
+	 * The LMAC samples RSSI, CCA and transmit state at regular
+	 * periods (typically 8 times per 1k [as in 1024] usec).
+	 */
+	cca = le32_to_cpu(stats->sample_cca);
+	tx = le32_to_cpu(stats->sample_tx);
+	rssi = 0;
+	for (i = 0; i < ARRAY_SIZE(stats->sample_noise); i++)
+		rssi += le32_to_cpu(stats->sample_noise[i]);
+
+	dcca = cca - priv->survey_raw.cached_cca;
+	drssi = rssi - priv->survey_raw.cached_rssi;
+	dtx = tx - priv->survey_raw.cached_tx;
+	dtotal = dcca + drssi + dtx;
+
+	/*
+	 * update statistics when more than a second is over since the
+	 * last call, or when a update is badly needed.
+	 */
+	if (dtotal && (priv->update_stats || dtime >= USEC_PER_SEC) &&
+	    dtime >= dtotal) {
+		priv->survey_raw.timestamp = tsf32;
+		priv->update_stats = false;
+		unit = dtime / dtotal;
+
+		if (dcca) {
+			priv->survey_raw.cca += dcca * unit;
+			priv->survey_raw.cached_cca = cca;
+		}
+		if (dtx) {
+			priv->survey_raw.tx += dtx * unit;
+			priv->survey_raw.cached_tx = tx;
+		}
+		if (drssi) {
+			priv->survey_raw.rssi += drssi * unit;
+			priv->survey_raw.cached_rssi = rssi;
+		}
+
+		/* 1024 usec / 8 times = 128 usec / time */
+		if (!(priv->phy_ps || priv->phy_idle))
+			priv->survey_raw.active += dtotal * unit;
+		else
+			priv->survey_raw.active += (dcca + dtx) * unit;
+	}
+
+	chan = priv->curchan;
+	if (chan) {
+		struct survey_info *survey = &priv->survey[chan->hw_value];
+		survey->noise = clamp_t(s8, priv->noise, -128, 127);
+		survey->channel_time = priv->survey_raw.active / 1024;
+		survey->channel_time_tx = priv->survey_raw.tx / 1024;
+		survey->channel_time_busy = priv->survey_raw.cca / 1024 +
+			survey->channel_time_tx;
+	}
+
 	tmp = p54_find_and_unlink_skb(priv, hdr->req_id);
 	dev_kfree_skb_any(tmp);
+	complete(&priv->stat_comp);
 }
 
 static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
