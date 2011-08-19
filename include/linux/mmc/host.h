@@ -12,6 +12,7 @@
 
 #include <linux/leds.h>
 #include <linux/sched.h>
+#include <linux/fault-inject.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/pm.h>
@@ -301,6 +302,10 @@ struct mmc_host {
 	struct dentry		*debugfs_root;
 
 	struct mmc_async_req	*areq;		/* active async req */
+
+#ifdef CONFIG_FAIL_MMC_REQUEST
+	struct fault_attr	fail_mmc_request;
+#endif
 
 	unsigned long		private[0] ____cacheline_aligned;
 };

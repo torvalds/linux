@@ -12,6 +12,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/fault-inject.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -158,6 +159,23 @@ static int mmc_clock_opt_set(void *data, u64 val)
 	return 0;
 }
 
+#ifdef CONFIG_FAIL_MMC_REQUEST
+
+static DECLARE_FAULT_ATTR(fail_mmc_request);
+
+#ifdef KERNEL
+/*
+ * Internal function. Pass the boot param fail_mmc_request to
+ * the setup fault injection attributes routine.
+ */
+static int __init setup_fail_mmc_request(char *str)
+{
+	return setup_fault_attr(&fail_mmc_request, str);
+}
+__setup("fail_mmc_request=", setup_fail_mmc_request);
+#endif /* KERNEL */
+#endif /* CONFIG_FAIL_MMC_REQUEST */
+
 DEFINE_SIMPLE_ATTRIBUTE(mmc_clock_fops, mmc_clock_opt_get, mmc_clock_opt_set,
 	"%llu\n");
 
@@ -186,6 +204,13 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 #ifdef CONFIG_MMC_CLKGATE
 	if (!debugfs_create_u32("clk_delay", (S_IRUSR | S_IWUSR),
 				root, &host->clk_delay))
+		goto err_node;
+#endif
+#ifdef CONFIG_FAIL_MMC_REQUEST
+	host->fail_mmc_request = fail_mmc_request;
+	if (IS_ERR(fault_create_debugfs_attr("fail_mmc_request",
+					     root,
+					     &host->fail_mmc_request)))
 		goto err_node;
 #endif
 	return;
