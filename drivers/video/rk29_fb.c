@@ -1223,8 +1223,8 @@ static int win1_set_par(struct fb_info *info)
     //fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
    #ifdef CONFIG_FB_SCALING_OSD
-    if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+    if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
     {
         addr = fix->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
         xres_virtual = screen->x_res* hdmi_get_fbscale()/100;      //virtual screen size
@@ -1281,8 +1281,8 @@ static int win1_pan( struct fb_info *info )
     #ifdef CONFIG_FB_SCALING_OSD
     struct rk29fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var = &info->var;
-    if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+    if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
     {
         addr = fix1->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
     }
@@ -1445,8 +1445,8 @@ static int fb0_set_par(struct fb_info *info)
     if(inf->video_mode == 1)
     {
         #ifdef CONFIG_FB_SCALING_OSD
-        if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+        if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
         {
             par->xpos = 0;
             par->ypos = 0;
@@ -1543,8 +1543,8 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     if(inf->video_mode == 1)
     {
         #ifdef CONFIG_FB_SCALING_OSD
-        if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+        if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
         {
             par->y_offset = dstoffset;
 
