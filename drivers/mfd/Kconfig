@@ -171,18 +171,6 @@ config PMIC_DA903X
 	  the I2C driver and the core APIs _only_, you have to select
 	  individual components like LCD backlight, voltage regulators,
 	  LEDs and battery-charger under the corresponding menus.
-##and by qjb 
-config MFD_WM8994
-	tristate "Support Wolfson Microelectronics WM8994"
-	select MFD_CORE
-	depends on I2C
-	help
-	  The WM8994 is a highly integrated hi-fi CODEC designed for
-	  smartphone applicatiosn.  As well as audio functionality it
-	  has on board GPIO and regulator functionality which is
-	  supported via the relevant subsystems.  This driver provides
-	  core support for the WM8994, in order to use the actual
-	  functionaltiy of the device other drivers must be enabled.
 
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"

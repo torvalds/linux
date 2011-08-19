@@ -161,13 +161,6 @@ config GPIO_TPS65910
 	help
 	  Say yes here to access the GPIO signal of TPS65910x multi-function
 	  power management chips from Texas Instruments.
-#add by qjb
-config GPIO_WM8994
-	tristate "WM8994 GPIOs"
-	depends on MFD_WM8994
-	help
-	  Say yes here to access the GPIO signals of WM8994 audio hub
-	  CODECs from Wolfson Microelectronics.	
 
 config GPIO_WM831X
 	tristate "WM831x GPIOs"

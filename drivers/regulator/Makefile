@@ -29,7 +29,5 @@ obj-$(CONFIG_RK29_PWM_REGULATOR) += rk29-pwm-regulator.o
 
 obj-$(CONFIG_REGULATOR_TPS65023) += tps65023-regulator.o
 obj-$(CONFIG_REGULATOR_TPS6507X) += tps6507x-regulator.o
-#add by qjb
-obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
 
 ccflags-$(CONFIG_REGULATOR_DEBUG) += -DDEBUG

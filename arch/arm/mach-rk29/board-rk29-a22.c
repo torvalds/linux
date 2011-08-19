@@ -1434,109 +1434,7 @@ struct platform_device rk29_device_gps = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
-//#if defined(CONFIG_MFD_WM8994)
-#if defined (CONFIG_REGULATOR_WM8994)
-static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
-	{
-		.supply = "DBVDD",
-	},
-	{
-		.supply = "AVDD1",
-	},
-	{
-		.supply = "CPVDD",
-	},
-	{
-		.supply = "SPKVDD1",
-	}		
-};
-static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
-	{
-		.supply = "DCVDD",
-	},
-	{
-		.supply = "AVDD2",
-	},
-	{
-		.supply = "SPKVDD2",
-	}			
-};
-struct regulator_init_data regulator_init_data_ldo1 = {
-	.constraints = {
-		.name = "wm8994-ldo1",
-		.min_uA = 00000,
-		.max_uA = 18000,
-		.always_on = true,
-		.apply_uV = true,		
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
-	},
-	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
-	.consumer_supplies = wm8994_ldo1_consumers,	
-};
-struct regulator_init_data regulator_init_data_ldo2 = {
-	.constraints = {
-		.name = "wm8994-ldo2",
-		.min_uA = 00000,
-		.max_uA = 18000,
-		.always_on = true,
-		.apply_uV = true,		
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
-	},
-	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
-	.consumer_supplies = wm8994_ldo2_consumers,	
-};
-#endif 
-struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
-	.name = "wm8994_DRC",
-	.regs = {0,0,0,0,0},
-};
-
-struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
-	.name = "wm8994_EQ",
-	.rate = 0,
-	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
-}; 
-
 struct wm8994_pdata wm8994_platdata = {	
-#if defined (CONFIG_GPIO_WM8994)
-	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
-	//Fill value to initialize the GPIO
-	.gpio_defaults ={},
-#endif	
-	//enable=0 disable ldo
-#if defined (CONFIG_REGULATOR_WM8994)	
-	.ldo = {
-		{
-			.enable = 0,
-			//RK29_PIN5_PA1
-			.supply = NULL,
-			.init_data = &regulator_init_data_ldo1,
-		},
-		{
-			.enable = 0,
-			.supply = NULL,		
-			.init_data = &regulator_init_data_ldo2,
-		}
-	},
-#endif 	
-	//DRC 0--use default
-	.num_drc_cfgs = 0,
-	.drc_cfgs = &wm8994_drc_cfg_pdata,
-	//EQ   0--use default 
-	.num_retune_mobile_cfgs = 0,
-	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
-	
-	.lineout1_diff = 1,
-	.lineout2_diff = 1,
-	
-	.lineout1fb = 1,
-	.lineout2fb = 1,
-	
-	.micbias1_lvl = 1,
-	.micbias2_lvl = 1,
-	
-	.jd_scthr = 0,
-	.jd_thr = 0,
 	
 	.PA_control_pin = RK29_PIN6_PD3,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
@@ -1553,7 +1451,7 @@ struct wm8994_pdata wm8994_platdata = {
 	.recorder_vol = 30,
 		
 };
-//#endif 
+
 
 #ifdef CONFIG_RK_HEADSET_DET
 

@@ -23,5 +23,3 @@ obj-$(CONFIG_GPIO_WM831X)	+= wm831x-gpio.o
 obj-$(CONFIG_GPIO_PCA9554)	+= pca9554.o
 obj-$(CONFIG_IOEXTEND_TCA6424) += tca6424.o
 obj-$(CONFIG_EXPAND_GPIO_SOFT_INTERRUPT) += expand_gpio_soft_interrupt.o
-#add by qjb
-obj-$(CONFIG_GPIO_WM8994)	+= wm8994-gpio.o
