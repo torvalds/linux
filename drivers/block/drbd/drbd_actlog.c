@@ -202,8 +202,8 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 
 	err = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
 	if (err) {
-		dev_err(DEV, "drbd_md_sync_page_io(,%llus,%s) failed!\n",
-		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
+		dev_err(DEV, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
+		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
 	}
 	return err;
 }
