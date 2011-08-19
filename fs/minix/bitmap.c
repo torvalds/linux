@@ -20,10 +20,11 @@ static const int nibblemap[] = { 4,3,3,2,3,2,2,1,3,2,2,1,2,1,1,0 };
 
 static DEFINE_SPINLOCK(bitmap_lock);
 
-static unsigned long count_free(struct buffer_head *map[], unsigned numblocks, __u32 numbits)
+static unsigned long count_free(struct buffer_head *map[], unsigned blocksize, __u32 numbits)
 {
 	unsigned i, j, sum = 0;
 	struct buffer_head *bh;
+	unsigned numblocks = minix_blocks_needed(numbits, blocksize);
   
 	for (i=0; i<numblocks-1; i++) {
 		if (!(bh=map[i])) 
@@ -105,10 +106,12 @@ int minix_new_block(struct inode * inode)
 	return 0;
 }
 
-unsigned long minix_count_free_blocks(struct minix_sb_info *sbi)
+unsigned long minix_count_free_blocks(struct super_block *sb)
 {
-	return (count_free(sbi->s_zmap, sbi->s_zmap_blocks,
-		sbi->s_nzones - sbi->s_firstdatazone + 1)
+	struct minix_sb_info *sbi = minix_sb(sb);
+	u32 bits = sbi->s_nzones - (sbi->s_firstdatazone + 1);
+
+	return (count_free(sbi->s_zmap, sb->s_blocksize, bits)
 		<< sbi->s_log_zone_size);
 }
 
@@ -273,7 +276,10 @@ struct inode *minix_new_inode(const struct inode *dir, int mode, int *error)
 	return inode;
 }
 
-unsigned long minix_count_free_inodes(struct minix_sb_info *sbi)
+unsigned long minix_count_free_inodes(struct super_block *sb)
 {
-	return count_free(sbi->s_imap, sbi->s_imap_blocks, sbi->s_ninodes + 1);
+	struct minix_sb_info *sbi = minix_sb(sb);
+	u32 bits = sbi->s_ninodes + 1;
+
+	return count_free(sbi->s_imap, sb->s_blocksize, bits);
 }
