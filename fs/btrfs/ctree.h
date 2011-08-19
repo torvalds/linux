@@ -2125,6 +2125,17 @@ static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
 		3 * num_items;
 }
 
+/*
+ * Doing a truncate won't result in new nodes or leaves, just what we need for
+ * COW.
+ */
+static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_root *root,
+						 unsigned num_items)
+{
+	return (root->leafsize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
+		num_items;
+}
+
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
