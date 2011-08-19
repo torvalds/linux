@@ -136,9 +136,15 @@ void radeon_test_moves(struct radeon_device *rdev)
 		     gtt_start++, vram_start++) {
 			if (*vram_start != gtt_start) {
 				DRM_ERROR("Incorrect GTT->VRAM copy %d: Got 0x%p, "
-					  "expected 0x%p (GTT map 0x%p-0x%p)\n",
-					  i, *vram_start, gtt_start, gtt_map,
-					  gtt_end);
+					  "expected 0x%p (GTT/VRAM offset "
+					  "0x%16llx/0x%16llx)\n",
+					  i, *vram_start, gtt_start,
+					  (unsigned long long)
+					  (gtt_addr - rdev->mc.gtt_start +
+					   (void*)gtt_start - gtt_map),
+					  (unsigned long long)
+					  (vram_addr - rdev->mc.vram_start +
+					   (void*)gtt_start - gtt_map));
 				radeon_bo_kunmap(vram_obj);
 				goto out_cleanup;
 			}
@@ -179,9 +185,15 @@ void radeon_test_moves(struct radeon_device *rdev)
 		     gtt_start++, vram_start++) {
 			if (*gtt_start != vram_start) {
 				DRM_ERROR("Incorrect VRAM->GTT copy %d: Got 0x%p, "
-					  "expected 0x%p (VRAM map 0x%p-0x%p)\n",
-					  i, *gtt_start, vram_start, vram_map,
-					  vram_end);
+					  "expected 0x%p (VRAM/GTT offset "
+					  "0x%16llx/0x%16llx)\n",
+					  i, *gtt_start, vram_start,
+					  (unsigned long long)
+					  (vram_addr - rdev->mc.vram_start +
+					   (void*)vram_start - vram_map),
+					  (unsigned long long)
+					  (gtt_addr - rdev->mc.gtt_start +
+					   (void*)vram_start - vram_map));
 				radeon_bo_kunmap(gtt_obj[i]);
 				goto out_cleanup;
 			}
