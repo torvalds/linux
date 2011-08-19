@@ -478,5 +478,4 @@ struct TimingInfo {
 	unsigned short Margin;
 };
 
-#define _VB_STRUCT_
 #endif /* _VB_STRUCT_ */
