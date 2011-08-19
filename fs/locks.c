@@ -1368,7 +1368,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
-	int error, rdlease_count = 0, wrlease_count = 0;
+	int error;
 
 	lease = *flp;
 
@@ -1404,26 +1404,27 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	 * then the file is not open by anyone (including us)
 	 * except for this filp.
 	 */
+	error = -EAGAIN;
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
-		if (fl->fl_file == filp)
+		if (fl->fl_file == filp) {
 			my_before = before;
-		else if (fl->fl_flags & FL_UNLOCK_PENDING)
-			/*
-			 * Someone is in the process of opening this
-			 * file for writing so we may not take an
-			 * exclusive lease on it.
-			 */
-			wrlease_count++;
-		else
-			rdlease_count++;
+			continue;
+		}
+		/*
+		 * No exclusive leases if someone else has a lease on
+		 * this file:
+		 */
+		if (arg == F_WRLCK)
+			goto out;
+		/*
+		 * Modifying our existing lease is OK, but no getting a
+		 * new lease if someone else is opening for write:
+		 */
+		if (fl->fl_flags & FL_UNLOCK_PENDING)
+			goto out;
 	}
-
-	error = -EAGAIN;
-	if ((arg == F_RDLCK && (wrlease_count > 0)) ||
-	    (arg == F_WRLCK && ((rdlease_count + wrlease_count) > 0)))
-		goto out;
 
 	if (my_before != NULL) {
 		error = lease->fl_lmops->lm_change(my_before, arg);
