@@ -84,7 +84,7 @@
 #define BULK_BUFFER_SIZE           16384 * 4//4096
 
 /* flush after every 4 meg of writes to avoid excessive block level caching */
-#define MAX_UNFLUSHED_BYTES (4 * 1024 * 1024)
+#define MAX_UNFLUSHED_BYTES  (512 * 1024)// (4 * 1024 * 1024) //original value is 4MB,Modifyed by xbw at 2011-08-18
 
 /*-------------------------------------------------------------------------*/
 
