@@ -127,8 +127,7 @@ static void sock_shutdown(struct nbd_device *lo, int lock)
 	if (lock)
 		mutex_lock(&lo->tx_lock);
 	if (lo->sock) {
-		printk(KERN_WARNING "%s: shutting down socket\n",
-			lo->disk->disk_name);
+		dev_warn(disk_to_dev(lo->disk), "shutting down socket\n");
 		kernel_sock_shutdown(lo->sock, SHUT_RDWR);
 		lo->sock = NULL;
 	}
@@ -576,7 +575,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 	case NBD_DISCONNECT: {
 		struct request sreq;
 
-	        printk(KERN_INFO "%s: NBD_DISCONNECT\n", lo->disk->disk_name);
+	        dev_info(disk_to_dev(lo->disk), "NBD_DISCONNECT\n");
 
 		blk_rq_init(NULL, &sreq);
 		sreq.cmd_type = REQ_TYPE_SPECIAL;
@@ -674,7 +673,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
-		printk(KERN_WARNING "%s: queue cleared\n", lo->disk->disk_name);
+		dev_warn(disk_to_dev(lo->disk), "queue cleared\n");
 		if (file)
 			fput(file);
 		lo->bytesize = 0;
@@ -694,8 +693,8 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 		return 0;
 
 	case NBD_PRINT_DEBUG:
-		printk(KERN_INFO "%s: next = %p, prev = %p, head = %p\n",
-			bdev->bd_disk->disk_name,
+		dev_info(disk_to_dev(lo->disk),
+			"next = %p, prev = %p, head = %p\n",
 			lo->queue_head.next, lo->queue_head.prev,
 			&lo->queue_head);
 		return 0;
