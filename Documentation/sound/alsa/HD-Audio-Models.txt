@@ -73,7 +73,6 @@ ALC662/663/272
   3stack-6ch	 3-stack (6-channel)
   3stack-6ch-dig 3-stack (6-channel) with SPDIF
   5stack-dig	 5-stack with SPDIF
-  lenovo-101e	 Lenovo laptop
   eeepc-ep20	ASUS Eeepc EP20
   m51va		ASUS M51VA
   g71v		ASUS G71V
