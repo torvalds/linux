@@ -824,7 +824,8 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	is_mc = !!is_multicast_ether_addr(hdr->addr1);
 	is_valid_tkip = rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID &&
 		test_bit(rx_stats->rs_keyix, common->tkip_keymap);
-	strip_mic = is_valid_tkip && !(rx_stats->rs_status &
+	strip_mic = is_valid_tkip && ieee80211_is_data(fc) &&
+		!(rx_stats->rs_status &
 		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC));
 
 	if (!rx_stats->rs_datalen)
