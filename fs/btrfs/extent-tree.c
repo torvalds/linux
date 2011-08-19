@@ -3705,7 +3705,7 @@ int btrfs_block_rsv_add(struct btrfs_trans_handle *trans,
 int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv,
-			  u64 min_reserved, int min_factor)
+			  u64 min_reserved, int min_factor, int flush)
 {
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
@@ -3728,7 +3728,7 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 	if (!ret)
 		return 0;
 
-	ret = reserve_metadata_bytes(trans, root, block_rsv, num_bytes, 0);
+	ret = reserve_metadata_bytes(trans, root, block_rsv, num_bytes, flush);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 0);
 		return 0;

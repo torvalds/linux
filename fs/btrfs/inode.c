@@ -3576,10 +3576,10 @@ void btrfs_evict_inode(struct inode *inode)
 	 * doing the truncate.
 	 */
 	while (1) {
-		ret = btrfs_block_rsv_check(NULL, root, rsv, min_size, 0);
+		ret = btrfs_block_rsv_check(NULL, root, rsv, min_size, 0, 1);
 		if (ret) {
 			printk(KERN_WARNING "Could not get space for a "
-			       "delete, will truncate on mount\n");
+			       "delete, will truncate on mount %d\n", ret);
 			btrfs_orphan_del(NULL, inode);
 			btrfs_free_block_rsv(root, rsv);
 			goto no_delete;
@@ -6575,7 +6575,7 @@ static int btrfs_truncate(struct inode *inode)
 		btrfs_add_ordered_operation(trans, root, inode);
 
 	while (1) {
-		ret = btrfs_block_rsv_check(trans, root, rsv, min_size, 0);
+		ret = btrfs_block_rsv_check(trans, root, rsv, min_size, 0, 1);
 		if (ret) {
 			/*
 			 * This can only happen with the original transaction we

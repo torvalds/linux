@@ -419,7 +419,7 @@ static int should_end_transaction(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	ret = btrfs_block_rsv_check(trans, root,
-				    &root->fs_info->global_block_rsv, 0, 5);
+				    &root->fs_info->global_block_rsv, 0, 5, 0);
 	return ret ? 1 : 0;
 }
 
