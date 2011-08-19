@@ -135,7 +135,7 @@ multiqueue.txt
 netconsole.txt
 	- The network console module netconsole.ko: configuration and notes.
 netdev-features.txt
-	- Network interface "feature mess and how to get out from it alive".
+	- Network interface features API description.
 netdevices.txt
 	- info on network device driver functions exported to the kernel.
 netif-msg.txt
