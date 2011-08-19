@@ -140,7 +140,7 @@ static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 		struct be_async_event_grp5_pvid_state *evt)
 {
 	if (evt->enabled)
-		adapter->pvid = le16_to_cpu(evt->tag);
+		adapter->pvid = le16_to_cpu(evt->tag) & VLAN_VID_MASK;
 	else
 		adapter->pvid = 0;
 }

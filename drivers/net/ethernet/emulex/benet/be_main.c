@@ -1277,8 +1277,7 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 		if (!lancer_chip(adapter))
 			rxcp->vlan_tag = swab16(rxcp->vlan_tag);
 
-		if (((adapter->pvid & VLAN_VID_MASK) ==
-		     (rxcp->vlan_tag & VLAN_VID_MASK)) &&
+		if (adapter->pvid == (rxcp->vlan_tag & VLAN_VID_MASK) &&
 		    !adapter->vlan_tag[rxcp->vlan_tag])
 			rxcp->vlanf = 0;
 	}
