@@ -40,10 +40,14 @@ void radeon_test_moves(struct radeon_device *rdev)
 	size = 1024 * 1024;
 
 	/* Number of tests =
-	 * (Total GTT - IB pool - writeback page - ring buffer) / test size
+	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
 	 */
-	n = ((u32)(rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024 - RADEON_GPU_PAGE_SIZE -
-	     rdev->cp.ring_size)) / size;
+	n = rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024 - rdev->cp.ring_size;
+	if (rdev->wb.wb_obj)
+		n -= RADEON_GPU_PAGE_SIZE;
+	if (rdev->ih.ring_obj)
+		n -= rdev->ih.ring_size;
+	n /= size;
 
 	gtt_obj = kzalloc(n * sizeof(*gtt_obj), GFP_KERNEL);
 	if (!gtt_obj) {
