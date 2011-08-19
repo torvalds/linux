@@ -11527,7 +11527,7 @@ out:
 static int tg3_test_loopback(struct tg3 *tp)
 {
 	int err = 0;
-	u32 eee_cap, cpmuctrl = 0;
+	u32 eee_cap;
 
 	if (!netif_running(tp->dev))
 		return TG3_LOOPBACK_FAILED;
@@ -11554,45 +11554,12 @@ static int tg3_test_loopback(struct tg3 *tp)
 	if (tp->phy_flags & TG3_PHYFLG_ENABLE_APD)
 		tg3_phy_toggle_apd(tp, false);
 
-	if (tg3_flag(tp, CPMU_PRESENT)) {
-		int i;
-		u32 status;
-
-		tw32(TG3_CPMU_MUTEX_REQ, CPMU_MUTEX_REQ_DRIVER);
-
-		/* Wait for up to 40 microseconds to acquire lock. */
-		for (i = 0; i < 4; i++) {
-			status = tr32(TG3_CPMU_MUTEX_GNT);
-			if (status == CPMU_MUTEX_GNT_DRIVER)
-				break;
-			udelay(10);
-		}
-
-		if (status != CPMU_MUTEX_GNT_DRIVER) {
-			err = TG3_LOOPBACK_FAILED;
-			goto done;
-		}
-
-		/* Turn off link-based power management. */
-		cpmuctrl = tr32(TG3_CPMU_CTRL);
-		tw32(TG3_CPMU_CTRL,
-		     cpmuctrl & ~(CPMU_CTRL_LINK_SPEED_MODE |
-				  CPMU_CTRL_LINK_AWARE_MODE));
-	}
-
 	if (tg3_run_loopback(tp, ETH_FRAME_LEN, TG3_MAC_LOOPBACK))
 		err |= TG3_STD_LOOPBACK_FAILED << TG3_MAC_LOOPBACK_SHIFT;
 
 	if (tg3_flag(tp, JUMBO_RING_ENABLE) &&
 	    tg3_run_loopback(tp, 9000 + ETH_HLEN, TG3_MAC_LOOPBACK))
 		err |= TG3_JMB_LOOPBACK_FAILED << TG3_MAC_LOOPBACK_SHIFT;
-
-	if (tg3_flag(tp, CPMU_PRESENT)) {
-		tw32(TG3_CPMU_CTRL, cpmuctrl);
-
-		/* Release the mutex */
-		tw32(TG3_CPMU_MUTEX_GNT, CPMU_MUTEX_GNT_DRIVER);
-	}
 
 	if (!(tp->phy_flags & TG3_PHYFLG_PHY_SERDES) &&
 	    !tg3_flag(tp, USE_PHYLIB)) {
