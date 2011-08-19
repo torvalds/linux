@@ -82,16 +82,9 @@ config LOGO_M32R_CLUT224
 	depends on M32R
 	default y
 
-config LOGO_PWON_CHARGER_CLUT224
-        bool "standard 224-color linux logo for power on charege"
-        default n
-
 config LOGO_CHARGER_CLUT224
         bool "standard 224-color linux logo for rk2918 phone"
         default n
 
-config LOGO_CRUZ_CLUT224
-        bool "standard 224-color cruz logo"
-        default n
 
 endif # LOGO

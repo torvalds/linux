@@ -15,8 +15,7 @@ obj-$(CONFIG_LOGO_SUPERH_MONO)		+= logo_superh_mono.o
 obj-$(CONFIG_LOGO_SUPERH_VGA16)		+= logo_superh_vga16.o
 obj-$(CONFIG_LOGO_SUPERH_CLUT224)	+= logo_superh_clut224.o
 obj-$(CONFIG_LOGO_M32R_CLUT224)		+= logo_m32r_clut224.o
-obj-$(CONFIG_LOGO_CRUZ_CLUT224)         +=logo_cruz_clut224.o
-obj-$(CONFIG_LOGO_PWON_CHARGE_CLUT224)         += logo_charge0100_clut224.o  logo_charge0102_clut224.o  logo_charge0103_clut224.o  logo_charge0104_clut224.o  logo_charge0105_clut224.o  logo_charge0106_clut224.o  logo_charge0108_clut224.o
+
 obj-$(CONFIG_LOGO_CHARGER_CLUT224)         += logo_charger00_clut224.o logo_charger01_clut224.o logo_charger02_clut224.o logo_charger03_clut224.o logo_charger04_clut224.o logo_charger05_clut224.o logo_charger06_clut224.o logo_charger07_clut224.o logo_charger08_clut224.o 
 
 obj-$(CONFIG_SPU_BASE)			+= logo_spe_clut224.o
