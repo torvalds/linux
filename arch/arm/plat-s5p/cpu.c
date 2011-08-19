@@ -36,40 +36,40 @@ static const char name_exynos4210[] = "EXYNOS4210";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
-		.idcode		= 0x56440100,
-		.idmask		= 0xfffff000,
+		.idcode		= S5P6440_CPU_ID,
+		.idmask		= S5P64XX_CPU_MASK,
 		.map_io		= s5p6440_map_io,
 		.init_clocks	= s5p6440_init_clocks,
 		.init_uarts	= s5p6440_init_uarts,
 		.init		= s5p64x0_init,
 		.name		= name_s5p6440,
 	}, {
-		.idcode		= 0x36450000,
-		.idmask		= 0xfffff000,
+		.idcode		= S5P6450_CPU_ID,
+		.idmask		= S5P64XX_CPU_MASK,
 		.map_io		= s5p6450_map_io,
 		.init_clocks	= s5p6450_init_clocks,
 		.init_uarts	= s5p6450_init_uarts,
 		.init		= s5p64x0_init,
 		.name		= name_s5p6450,
 	}, {
-		.idcode		= 0x43100000,
-		.idmask		= 0xfffff000,
+		.idcode		= S5PC100_CPU_ID,
+		.idmask		= S5PC100_CPU_MASK,
 		.map_io		= s5pc100_map_io,
 		.init_clocks	= s5pc100_init_clocks,
 		.init_uarts	= s5pc100_init_uarts,
 		.init		= s5pc100_init,
 		.name		= name_s5pc100,
 	}, {
-		.idcode		= 0x43110000,
-		.idmask		= 0xfffff000,
+		.idcode		= S5PV210_CPU_ID,
+		.idmask		= S5PV210_CPU_MASK,
 		.map_io		= s5pv210_map_io,
 		.init_clocks	= s5pv210_init_clocks,
 		.init_uarts	= s5pv210_init_uarts,
 		.init		= s5pv210_init,
 		.name		= name_s5pv210,
 	}, {
-		.idcode		= 0x43210000,
-		.idmask		= 0xfffe0000,
+		.idcode		= EXYNOS4210_CPU_ID,
+		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
 		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
@@ -114,13 +114,11 @@ static struct map_desc s5p_iodesc[] __initdata = {
 void __init s5p_init_io(struct map_desc *mach_desc,
 			int size, void __iomem *cpuid_addr)
 {
-	unsigned long idcode;
-
 	/* initialize the io descriptors we need for initialization */
 	iotable_init(s5p_iodesc, ARRAY_SIZE(s5p_iodesc));
 	if (mach_desc)
 		iotable_init(mach_desc, size);
 
-	idcode = __raw_readl(cpuid_addr);
-	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
+	samsung_cpu_id = __raw_readl(cpuid_addr);
+	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }

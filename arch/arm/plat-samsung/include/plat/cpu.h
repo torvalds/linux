@@ -1,9 +1,12 @@
 /* linux/arch/arm/plat-samsung/include/plat/cpu.h
  *
+ * Copyright (c) 2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com/
+ *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Header file for S3C24XX CPU support
+ * Header file for Samsung CPU support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +17,88 @@
 
 #ifndef __SAMSUNG_PLAT_CPU_H
 #define __SAMSUNG_PLAT_CPU_H
+
+extern unsigned long samsung_cpu_id;
+
+#define S3C24XX_CPU_ID		0x32400000
+#define S3C24XX_CPU_MASK	0xFFF00000
+
+#define S3C6400_CPU_ID		0x36400000
+#define S3C6410_CPU_ID		0x36410000
+#define S3C64XX_CPU_ID		(S3C6400_CPU_ID & S3C6410_CPU_ID)
+#define S3C64XX_CPU_MASK	0x1FF40000
+
+#define S5P6440_CPU_ID		0x56440000
+#define S5P6450_CPU_ID		0x36450000
+#define S5P64XX_CPU_MASK	0x1FF40000
+
+#define S5PC100_CPU_ID		0x43100000
+#define S5PC100_CPU_MASK	0xFFFFF000
+
+#define S5PV210_CPU_ID		0x43110000
+#define S5PV210_CPU_MASK	0xFFFFF000
+
+#define EXYNOS4210_CPU_ID	0x43210000
+#define EXYNOS4_CPU_MASK	0xFFFE0000
+
+#define IS_SAMSUNG_CPU(name, id, mask)		\
+static inline int is_samsung_##name(void)	\
+{						\
+	return ((samsung_cpu_id & mask) == (id & mask));	\
+}
+
+IS_SAMSUNG_CPU(s3c24xx, S3C24XX_CPU_ID, S3C24XX_CPU_MASK)
+IS_SAMSUNG_CPU(s3c64xx, S3C64XX_CPU_ID, S3C64XX_CPU_MASK)
+IS_SAMSUNG_CPU(s5p6440, S5P6440_CPU_ID, S5P64XX_CPU_MASK)
+IS_SAMSUNG_CPU(s5p6450, S5P6450_CPU_ID, S5P64XX_CPU_MASK)
+IS_SAMSUNG_CPU(s5pc100, S5PC100_CPU_ID, S5PC100_CPU_MASK)
+IS_SAMSUNG_CPU(s5pv210, S5PV210_CPU_ID, S5PV210_CPU_MASK)
+IS_SAMSUNG_CPU(exynos4210, EXYNOS4210_CPU_ID, EXYNOS4_CPU_MASK)
+
+#if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2412) || \
+    defined(CONFIG_CPU_S3C2416) || defined(CONFIG_CPU_S3C2440) || \
+    defined(CONFIG_CPU_S3C2442) || defined(CONFIG_CPU_S3C244X) || \
+    defined(CONFIG_CPU_S3C2443)
+# define soc_is_s3c24xx()	is_samsung_s3c24xx()
+#else
+# define soc_is_s3c24xx()	0
+#endif
+
+#if defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410)
+# define soc_is_s3c64xx()	is_samsung_s3c64xx()
+#else
+# define soc_is_s3c64xx()	0
+#endif
+
+#if defined(CONFIG_CPU_S5P6440)
+# define soc_is_s5p6440()	is_samsung_s5p6440()
+#else
+# define soc_is_s5p6440()	0
+#endif
+
+#if defined(CONFIG_CPU_S5P6450)
+# define soc_is_s5p6450()	is_samsung_s5p6450()
+#else
+# define soc_is_s5p6450()	0
+#endif
+
+#if defined(CONFIG_CPU_S5PC100)
+# define soc_is_s5pc100()	is_samsung_s5pc100()
+#else
+# define soc_is_s5pc100()	0
+#endif
+
+#if defined(CONFIG_CPU_S5PV210)
+# define soc_is_s5pv210()	is_samsung_s5pv210()
+#else
+# define soc_is_s5pv210()	0
+#endif
+
+#if defined(CONFIG_CPU_EXYNOS4210)
+# define soc_is_exynos4210()	is_samsung_exynos4210()
+#else
+# define soc_is_exynos4210()	0
+#endif
 
 #define IODESC_ENT(x) { (unsigned long)S3C24XX_VA_##x, __phys_to_pfn(S3C24XX_PA_##x), S3C24XX_SZ_##x, MT_DEVICE }
 
