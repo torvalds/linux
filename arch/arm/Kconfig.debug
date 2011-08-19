@@ -128,6 +128,62 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
+	config DEBUG_IMX1_UART
+		bool "i.MX1 Debug UART"
+		depends on SOC_IMX1
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX1.
+
+	config DEBUG_IMX23_UART
+		bool "i.MX23 Debug UART"
+		depends on SOC_IMX23
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX23.
+
+	config DEBUG_IMX25_UART
+		bool "i.MX25 Debug UART"
+		depends on SOC_IMX25
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX25.
+
+	config DEBUG_IMX21_IMX27_UART
+		bool "i.MX21 and i.MX27 Debug UART"
+		depends on SOC_IMX21 || SOC_IMX27
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX21 or i.MX27.
+
+	config DEBUG_IMX28_UART
+		bool "i.MX28 Debug UART"
+		depends on SOC_IMX28
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX28.
+
+	config DEBUG_IMX31_IMX35_UART
+		bool "i.MX31 and i.MX35 Debug UART"
+		depends on SOC_IMX31 || SOC_IMX35
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX31 or i.MX35.
+
+	config DEBUG_IMX51_UART
+		bool "i.MX51 Debug UART"
+		depends on SOC_IMX51
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX51.
+
+	config DEBUG_IMX50_IMX53_UART
+		bool "i.MX50 and i.MX53 Debug UART"
+		depends on SOC_IMX50 || SOC_IMX53
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX50 or i.MX53.
+
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
 		bool "Use S3C UART 0 for low-level debug"
