@@ -322,7 +322,9 @@ struct nfc_dev *nfc_get_device(unsigned idx)
  * @supported_protocols: NFC protocols supported by the device
  */
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
-					u32 supported_protocols)
+					u32 supported_protocols,
+					int tx_headroom,
+					int tx_tailroom)
 {
 	static atomic_t dev_no = ATOMIC_INIT(0);
 	struct nfc_dev *dev;
@@ -345,6 +347,8 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 
 	dev->ops = ops;
 	dev->supported_protocols = supported_protocols;
+	dev->tx_headroom = tx_headroom;
+	dev->tx_tailroom = tx_tailroom;
 
 	spin_lock_init(&dev->targets_lock);
 	nfc_genl_data_init(&dev->genl_data);

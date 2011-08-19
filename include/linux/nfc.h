@@ -123,4 +123,6 @@ struct sockaddr_nfc {
 #define NFC_SOCKPROTO_RAW	0
 #define NFC_SOCKPROTO_MAX	1
 
+#define NFC_HEADER_SIZE 1
+
 #endif /*__LINUX_NFC_H */
