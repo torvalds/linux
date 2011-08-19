@@ -4025,16 +4025,24 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
 	if (ret) {
+		u64 to_free = 0;
 		unsigned dropped;
-		/*
-		 * We don't need the return value since our reservation failed,
-		 * we just need to clean up our counter.
-		 */
+
 		spin_lock(&BTRFS_I(inode)->lock);
 		dropped = drop_outstanding_extent(inode);
-		WARN_ON(dropped > 1);
-		BTRFS_I(inode)->csum_bytes -= num_bytes;
+		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
 		spin_unlock(&BTRFS_I(inode)->lock);
+		to_free += btrfs_calc_trans_metadata_size(root, dropped);
+
+		/*
+		 * Somebody could have come in and twiddled with the
+		 * reservation, so if we have to free more than we would have
+		 * reserved from this reservation go ahead and release those
+		 * bytes.
+		 */
+		to_free -= to_reserve;
+		if (to_free)
+			btrfs_block_rsv_release(root, block_rsv, to_free);
 		return ret;
 	}
 
