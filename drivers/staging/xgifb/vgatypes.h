@@ -47,11 +47,6 @@ enum XGI_LCD_TYPE {
 };
 #endif
 
-struct XGI_DSReg {
-	unsigned char jIdx;
-	unsigned char jVal;
-};
-
 struct xgi_hw_device_info {
 	unsigned long ulExternalChip; /* NO VB or other video bridge*/
 				      /* if ujVBChipID = VB_CHIP_UNKNOWN, */
