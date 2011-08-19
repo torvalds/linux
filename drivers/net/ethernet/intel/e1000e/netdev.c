@@ -3069,7 +3069,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 
 	/* Enable Receive Checksum Offload for TCP and UDP */
 	rxcsum = er32(RXCSUM);
-	if (adapter->flags & FLAG_RX_CSUM_ENABLED) {
+	if (adapter->netdev->features & NETIF_F_RXCSUM) {
 		rxcsum |= E1000_RXCSUM_TUOFL;
 
 		/*
@@ -5860,6 +5860,26 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 	}
 }
 
+static int e1000_set_features(struct net_device *netdev, u32 features)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	u32 changed = features ^ netdev->features;
+
+	if (changed & (NETIF_F_TSO | NETIF_F_TSO6))
+		adapter->flags |= FLAG_TSO_FORCE;
+
+	if (!(changed & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX |
+			 NETIF_F_RXCSUM)))
+		return 0;
+
+	if (netif_running(netdev))
+		e1000e_reinit_locked(adapter);
+	else
+		e1000e_reset(adapter);
+
+	return 0;
+}
+
 static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_open		= e1000_open,
 	.ndo_stop		= e1000_close,
@@ -5877,6 +5897,7 @@ static const struct net_device_ops e1000e_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= e1000_netpoll,
 #endif
+	.ndo_set_features = e1000_set_features,
 };
 
 /**
@@ -6036,21 +6057,25 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	if (e1000_check_reset_block(&adapter->hw))
 		e_info("PHY reset is blocked due to SOL/IDER session.\n");
 
-	netdev->features = NETIF_F_SG |
-			   NETIF_F_HW_CSUM |
-			   NETIF_F_HW_VLAN_TX |
-			   NETIF_F_HW_VLAN_RX;
+	/* Set initial default active device features */
+	netdev->features = (NETIF_F_SG |
+			    NETIF_F_HW_VLAN_RX |
+			    NETIF_F_HW_VLAN_TX |
+			    NETIF_F_TSO |
+			    NETIF_F_TSO6 |
+			    NETIF_F_RXCSUM |
+			    NETIF_F_HW_CSUM);
+
+	/* Set user-changeable features (subset of all device features) */
+	netdev->hw_features = netdev->features;
 
 	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
 		netdev->features |= NETIF_F_HW_VLAN_FILTER;
 
-	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
-
-	netdev->vlan_features |= NETIF_F_TSO;
-	netdev->vlan_features |= NETIF_F_TSO6;
-	netdev->vlan_features |= NETIF_F_HW_CSUM;
-	netdev->vlan_features |= NETIF_F_SG;
+	netdev->vlan_features |= (NETIF_F_SG |
+				  NETIF_F_TSO |
+				  NETIF_F_TSO6 |
+				  NETIF_F_HW_CSUM);
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;

@@ -1498,7 +1498,6 @@ struct e1000_info e1000_es2_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
-				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_RX_NEEDS_RESTART /* errata */
 				  | FLAG_TARC_SET_BIT_ZERO /* errata */

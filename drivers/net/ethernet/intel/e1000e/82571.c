@@ -2019,7 +2019,6 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
-				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_RESET_OVERWRITES_LAA /* errata */
@@ -2041,7 +2040,6 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
-				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
 	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
@@ -2059,7 +2057,6 @@ struct e1000_info e1000_82573_info = {
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
-				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_SWSM_ON_LOAD,
@@ -2080,7 +2077,6 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
-				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
@@ -2100,7 +2096,6 @@ struct e1000_info e1000_82583_info = {
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
-				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_JUMBO_FRAMES

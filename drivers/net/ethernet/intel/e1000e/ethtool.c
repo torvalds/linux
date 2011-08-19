@@ -367,59 +367,6 @@ out:
 	return retval;
 }
 
-static u32 e1000_get_rx_csum(struct net_device *netdev)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	return adapter->flags & FLAG_RX_CSUM_ENABLED;
-}
-
-static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	if (data)
-		adapter->flags |= FLAG_RX_CSUM_ENABLED;
-	else
-		adapter->flags &= ~FLAG_RX_CSUM_ENABLED;
-
-	if (netif_running(netdev))
-		e1000e_reinit_locked(adapter);
-	else
-		e1000e_reset(adapter);
-	return 0;
-}
-
-static u32 e1000_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
-}
-
-static int e1000_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
-	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
-
-	return 0;
-}
-
-static int e1000_set_tso(struct net_device *netdev, u32 data)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	if (data) {
-		netdev->features |= NETIF_F_TSO;
-		netdev->features |= NETIF_F_TSO6;
-	} else {
-		netdev->features &= ~NETIF_F_TSO;
-		netdev->features &= ~NETIF_F_TSO6;
-	}
-
-	adapter->flags |= FLAG_TSO_FORCE;
-	return 0;
-}
-
 static u32 e1000_get_msglevel(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -2014,31 +1961,6 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 	}
 }
 
-static int e1000e_set_flags(struct net_device *netdev, u32 data)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	bool need_reset = false;
-	int rc;
-
-	need_reset = (data & ETH_FLAG_RXVLAN) !=
-		     (netdev->features & NETIF_F_HW_VLAN_RX);
-
-	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_RXVLAN |
-				  ETH_FLAG_TXVLAN);
-
-	if (rc)
-		return rc;
-
-	if (need_reset) {
-		if (netif_running(netdev))
-			e1000e_reinit_locked(adapter);
-		else
-			e1000e_reset(adapter);
-	}
-
-	return 0;
-}
-
 static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
@@ -2058,14 +1980,6 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.set_ringparam		= e1000_set_ringparam,
 	.get_pauseparam		= e1000_get_pauseparam,
 	.set_pauseparam		= e1000_set_pauseparam,
-	.get_rx_csum		= e1000_get_rx_csum,
-	.set_rx_csum		= e1000_set_rx_csum,
-	.get_tx_csum		= e1000_get_tx_csum,
-	.set_tx_csum		= e1000_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= e1000_set_tso,
 	.self_test		= e1000_diag_test,
 	.get_strings		= e1000_get_strings,
 	.set_phys_id		= e1000_set_phys_id,
@@ -2073,8 +1987,6 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_sset_count		= e1000e_get_sset_count,
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
-	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= e1000e_set_flags,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)
