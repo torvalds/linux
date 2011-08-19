@@ -4492,6 +4492,17 @@ W:	http://www.qlogic.com
 S:	Supported
 F:	drivers/net/netxen/
 
+NFC SUBSYSTEM
+M:	Lauro Ramos Venancio <lauro.venancio@openbossa.org>
+M:	Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
+M:	Samuel Ortiz <sameo@linux.intel.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	net/nfc/
+F:	include/linux/nfc.h
+F:	include/net/nfc.h
+F:	drivers/nfc/
+
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <Trond.Myklebust@netapp.com>
 L:	linux-nfs@vger.kernel.org
