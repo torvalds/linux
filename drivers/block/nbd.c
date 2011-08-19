@@ -575,7 +575,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 	case NBD_DISCONNECT: {
 		struct request sreq;
 
-	        dev_info(disk_to_dev(lo->disk), "NBD_DISCONNECT\n");
+		dev_info(disk_to_dev(lo->disk), "NBD_DISCONNECT\n");
 
 		blk_rq_init(NULL, &sreq);
 		sreq.cmd_type = REQ_TYPE_SPECIAL;
