@@ -5249,8 +5249,8 @@ F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
 M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
+M:	Sony Chacko <sony.chacko@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
