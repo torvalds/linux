@@ -2048,7 +2048,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	set_net_conf_defaults(new_conf);
 
 	err = net_conf_from_attrs(new_conf, info);
-	if (err) {
+	if (err && err != -ENOMSG) {
 		retcode = ERR_MANDATORY_TAG;
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
 		goto fail;
