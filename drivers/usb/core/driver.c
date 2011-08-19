@@ -1046,8 +1046,7 @@ static int usb_resume_device(struct usb_device *udev, pm_message_t msg)
 	/* Non-root devices on a full/low-speed bus must wait for their
 	 * companion high-speed root hub, in case a handoff is needed.
 	 */
-	if (!(msg.event & PM_EVENT_AUTO) && udev->parent &&
-			udev->bus->hs_companion)
+	if (!PMSG_IS_AUTO(msg) && udev->parent && udev->bus->hs_companion)
 		device_pm_wait_for_dev(&udev->dev,
 				&udev->bus->hs_companion->root_hub->dev);
 
@@ -1075,7 +1074,7 @@ static int usb_suspend_interface(struct usb_device *udev,
 
 	if (driver->suspend) {
 		status = driver->suspend(intf, msg);
-		if (status && !(msg.event & PM_EVENT_AUTO))
+		if (status && !PMSG_IS_AUTO(msg))
 			dev_err(&intf->dev, "%s error %d\n",
 					"suspend", status);
 	} else {
@@ -1189,7 +1188,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 			status = usb_suspend_interface(udev, intf, msg);
 
 			/* Ignore errors during system sleep transitions */
-			if (!(msg.event & PM_EVENT_AUTO))
+			if (!PMSG_IS_AUTO(msg))
 				status = 0;
 			if (status != 0)
 				break;
@@ -1199,7 +1198,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		status = usb_suspend_device(udev, msg);
 
 		/* Again, ignore errors during system sleep transitions */
-		if (!(msg.event & PM_EVENT_AUTO))
+		if (!PMSG_IS_AUTO(msg))
 			status = 0;
 	}
 

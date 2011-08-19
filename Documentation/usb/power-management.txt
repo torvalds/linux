@@ -439,10 +439,10 @@ cause autosuspends to fail with -EBUSY if the driver needs to use the
 device.
 
 External suspend calls should never be allowed to fail in this way,
-only autosuspend calls.  The driver can tell them apart by checking
-the PM_EVENT_AUTO bit in the message.event argument to the suspend
-method; this bit will be set for internal PM events (autosuspend) and
-clear for external PM events.
+only autosuspend calls.  The driver can tell them apart by applying
+the PMSG_IS_AUTO() macro to the message argument to the suspend
+method; it will return True for internal PM events (autosuspend) and
+False for external PM events.
 
 
 	Mutual exclusion
