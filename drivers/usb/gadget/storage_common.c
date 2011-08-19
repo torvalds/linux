@@ -52,6 +52,12 @@
  * characters rather then a pointer to void.
  */
 
+/*
+ * When USB_GADGET_DEBUG_FILES is defined the module param num_buffers
+ * sets the number of pipeline buffers (length of the fsg_buffhd array).
+ * The valid range of num_buffers is: num >= 2 && num <= 4.
+ */
+
 
 #include <linux/usb/storage.h>
 #include <scsi/scsi.h>
@@ -264,8 +270,31 @@ static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 #define EP0_BUFSIZE	256
 #define DELAYED_STATUS	(EP0_BUFSIZE + 999)	/* An impossibly large value */
 
-/* Number of buffers we will use.  2 is enough for double-buffering */
-#define FSG_NUM_BUFFERS	2
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+
+static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
+module_param_named(num_buffers, fsg_num_buffers, uint, S_IRUGO);
+MODULE_PARM_DESC(num_buffers, "Number of pipeline buffers");
+
+#else
+
+/*
+ * Number of buffers we will use.
+ * 2 is usually enough for good buffering pipeline
+ */
+#define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
+
+#endif /* CONFIG_USB_DEBUG */
+
+/* check if fsg_num_buffers is within a valid range */
+static inline int fsg_num_buffers_validate(void)
+{
+	if (fsg_num_buffers >= 2 && fsg_num_buffers <= 4)
+		return 0;
+	pr_err("fsg_num_buffers %u is out of range (%d to %d)\n",
+	       fsg_num_buffers, 2 ,4);
+	return -EINVAL;
+}
 
 /* Default size of buffer length. */
 #define FSG_BUFLEN	((u32)16384)
