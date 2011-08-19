@@ -2376,6 +2376,12 @@ that used it. It was originally scheduled for removal in 2.6.35.
         <listitem>
 	  <para>V4L2_CTRL_FLAG_VOLATILE was added to signal volatile controls to userspace.</para>
         </listitem>
+        <listitem>
+	  <para>Add selection API for extended control over cropping and
+composing. Does not affect the compatibility of current drivers and
+applications.  See <link linkend="selection-api"> selection API </link> for
+details.</para>
+        </listitem>
       </orderedlist>
     </section>
 
@@ -2499,6 +2505,9 @@ ioctls.</para>
         </listitem>
         <listitem>
 	  <para>&VIDIOC-CREATE-BUFS; and &VIDIOC-PREPARE-BUF; ioctls.</para>
+        </listitem>
+        <listitem>
+	  <para>Selection API. <xref linkend="selection-api" /></para>
         </listitem>
       </itemizedlist>
     </section>

@@ -1168,6 +1168,8 @@ dheight = format.fmt.pix.height;
     </section>
   </section>
 
+  &sub-selection-api;
+
   <section id="streaming-par">
     <title>Streaming Parameters</title>
 
