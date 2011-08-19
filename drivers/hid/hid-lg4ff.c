@@ -435,12 +435,12 @@ int lg4ff_init(struct hid_device *hid)
 		hid_err(hid, "Cannot add device, insufficient memory.\n");
 		return -ENOMEM;
 	}
-	entry->device_id = (char *)kzalloc(strlen((&hid->dev)->kobj.name) + 1, GFP_KERNEL);
+	entry->device_id = kstrdup((&hid->dev)->kobj.name, GFP_KERNEL);
 	if (!entry->device_id) {
 		hid_err(hid, "Cannot set device_id, insufficient memory.\n");
+		kfree(entry);
 		return -ENOMEM;
 	}
-	strcpy(entry->device_id, (&hid->dev)->kobj.name);
 	entry->min_range = lg4ff_devices[i].min_range;
 	entry->max_range = lg4ff_devices[i].max_range;
 	entry->set_range = lg4ff_devices[i].set_range;
