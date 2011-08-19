@@ -47,6 +47,7 @@
 #include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-modem.h>
+#include <mach/crag6410.h>
 
 #include <mach/regs-gpio-memport.h>
 
@@ -64,17 +65,6 @@
 #include <plat/adc.h>
 #include <plat/iic.h>
 #include <plat/pm.h>
-
-#include <sound/wm8996.h>
-#include <sound/wm8962.h>
-#include <sound/wm9081.h>
-
-#define BANFF_PMIC_IRQ_BASE		IRQ_BOARD_START
-#define GLENFARCLAS_PMIC_IRQ_BASE	(IRQ_BOARD_START + 64)
-
-#define PCA935X_GPIO_BASE		GPIO_BOARD_START
-#define CODEC_GPIO_BASE		(GPIO_BOARD_START + 8)
-#define GLENFARCLAS_PMIC_GPIO_BASE	(GPIO_BOARD_START + 16)
 
 /* serial port setup */
 
@@ -623,81 +613,16 @@ static struct wm831x_pdata glenfarclas_pmic_pdata __initdata = {
 	.disable_touch = true,
 };
 
-static struct wm8996_retune_mobile_config wm8996_retune[] = {
-	{
-		.name = "Sub LPF",
-		.rate = 48000,
-		.regs = {
-			0x6318, 0x6300, 0x1000, 0x0000, 0x0004, 0x2000, 0xF000,
-			0x0000, 0x0004, 0x2000, 0xF000, 0x0000, 0x0004, 0x2000,
-			0xF000, 0x0000, 0x0004, 0x1000, 0x0800, 0x4000
-		},
-	},
-	{
-		.name = "Sub HPF",
-		.rate = 48000,
-		.regs = {
-			0x000A, 0x6300, 0x1000, 0x0000, 0x0004, 0x2000, 0xF000,
-			0x0000, 0x0004, 0x2000, 0xF000, 0x0000, 0x0004, 0x2000,
-			0xF000, 0x0000, 0x0004, 0x1000, 0x0800, 0x4000
-		},
-	},
-};
-
-static struct wm8996_pdata wm8996_pdata __initdata = {
-	.ldo_ena = S3C64XX_GPN(7),
-	.gpio_base = CODEC_GPIO_BASE,
-	.micdet_def = 1,
-	.inl_mode = WM8996_DIFFERRENTIAL_1,
-	.inr_mode = WM8996_DIFFERRENTIAL_1,
-
-	.irq_flags = IRQF_TRIGGER_RISING,
-
-	.gpio_default = {
-		0x8001, /* GPIO1 == ADCLRCLK1 */
-		0x8001, /* GPIO2 == ADCLRCLK2, input due to CPU */
-		0x0141, /* GPIO3 == HP_SEL */
-		0x0002, /* GPIO4 == IRQ */
-		0x020e, /* GPIO5 == CLKOUT */
-	},
-
-	.retune_mobile_cfgs = wm8996_retune,
-	.num_retune_mobile_cfgs = ARRAY_SIZE(wm8996_retune),
-};
-
-static struct wm8962_pdata wm8962_pdata __initdata = {
-	.gpio_init = {
-		0,
-		WM8962_GPIO_FN_OPCLK,
-		WM8962_GPIO_FN_DMICCLK,
-		0,
-		0x8000 | WM8962_GPIO_FN_DMICDAT,
-		WM8962_GPIO_FN_IRQ,    /* Open drain mode */
-	},
-	.irq_active_low = true,
-};
-
-static struct wm9081_pdata wm9081_pdata __initdata = {
-	.irq_high = false,
-	.irq_cmos = false,
-};
-
 static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("wm8311", 0x34),
 	  .irq = S3C_EINT(0),
 	  .platform_data = &glenfarclas_pmic_pdata },
 
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x24) },
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x25) },
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x26) },
+
 	{ I2C_BOARD_INFO("wm1250-ev1", 0x27) },
-	{ I2C_BOARD_INFO("wm8996", 0x1a),
-	  .platform_data = &wm8996_pdata,
-	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
-	},
-	{ I2C_BOARD_INFO("wm9081", 0x6c),
-	  .platform_data = &wm9081_pdata, },
-	{ I2C_BOARD_INFO("wm8962", 0x1a),
-	  .platform_data = &wm8962_pdata,
-	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
-	},
 };
 
 static void __init crag6410_map_io(void)
