@@ -51,7 +51,7 @@ struct zmii_instance {
 	struct platform_device		*ofdev;
 };
 
-#ifdef CONFIG_IBM_NEW_EMAC_ZMII
+#ifdef CONFIG_IBM_EMAC_ZMII
 
 extern int zmii_init(void);
 extern void zmii_exit(void);
@@ -73,6 +73,6 @@ extern void *zmii_dump_regs(struct platform_device *ofdev, void *buf);
 # define zmii_set_speed(x,y,z)	do { } while(0)
 # define zmii_get_regs_len(x)	0
 # define zmii_dump_regs(x,buf)	(buf)
-#endif				/* !CONFIG_IBM_NEW_EMAC_ZMII */
+#endif				/* !CONFIG_IBM_EMAC_ZMII */
 
 #endif /* __IBM_NEWEMAC_ZMII_H */

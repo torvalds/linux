@@ -47,8 +47,8 @@
 #include "tah.h"
 #include "debug.h"
 
-#define NUM_TX_BUFF			CONFIG_IBM_NEW_EMAC_TXB
-#define NUM_RX_BUFF			CONFIG_IBM_NEW_EMAC_RXB
+#define NUM_TX_BUFF			CONFIG_IBM_EMAC_TXB
+#define NUM_RX_BUFF			CONFIG_IBM_EMAC_RXB
 
 /* Simple sanity check */
 #if NUM_TX_BUFF > 256 || NUM_RX_BUFF > 256
@@ -72,7 +72,7 @@ static inline int emac_rx_size(int mtu)
 #define EMAC_DMA_ALIGN(x)		ALIGN((x), dma_get_cache_alignment())
 
 #define EMAC_RX_SKB_HEADROOM		\
-	EMAC_DMA_ALIGN(CONFIG_IBM_NEW_EMAC_RX_SKB_HEADROOM)
+	EMAC_DMA_ALIGN(CONFIG_IBM_EMAC_RX_SKB_HEADROOM)
 
 /* Size of RX skb for the given MTU */
 static inline int emac_rx_skb_size(int mtu)
@@ -335,21 +335,21 @@ enum {
 	EMAC_FTRS_ALWAYS	= 0,
 
 	EMAC_FTRS_POSSIBLE	=
-#ifdef CONFIG_IBM_NEW_EMAC_EMAC4
+#ifdef CONFIG_IBM_EMAC_EMAC4
 	    EMAC_FTR_EMAC4	| EMAC_FTR_EMAC4SYNC	|
 	    EMAC_FTR_HAS_NEW_STACR	|
 	    EMAC_FTR_STACR_OC_INVERT | EMAC_FTR_440GX_PHY_CLK_FIX |
 #endif
-#ifdef CONFIG_IBM_NEW_EMAC_TAH
+#ifdef CONFIG_IBM_EMAC_TAH
 	    EMAC_FTR_HAS_TAH	|
 #endif
-#ifdef CONFIG_IBM_NEW_EMAC_ZMII
+#ifdef CONFIG_IBM_EMAC_ZMII
 	    EMAC_FTR_HAS_ZMII	|
 #endif
-#ifdef CONFIG_IBM_NEW_EMAC_RGMII
+#ifdef CONFIG_IBM_EMAC_RGMII
 	    EMAC_FTR_HAS_RGMII	|
 #endif
-#ifdef CONFIG_IBM_NEW_EMAC_NO_FLOW_CTRL
+#ifdef CONFIG_IBM_EMAC_NO_FLOW_CTRL
 	    EMAC_FTR_NO_FLOW_CONTROL_40x |
 #endif
 	EMAC_FTR_460EX_PHY_CLK_FIX |

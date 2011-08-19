@@ -24,7 +24,7 @@
 
 #include "core.h"
 
-#if defined(CONFIG_IBM_NEW_EMAC_DEBUG)
+#if defined(CONFIG_IBM_EMAC_DEBUG)
 
 struct emac_instance;
 struct mal_instance;

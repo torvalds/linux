@@ -130,21 +130,21 @@ config 405GP
 	bool
 	select IBM405_ERR77
 	select IBM405_ERR51
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_ZMII
 
 config 405EP
 	bool
 
 config 405EX
 	bool
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_RGMII
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
 
 config 405EZ
 	bool
-	select IBM_NEW_EMAC_NO_FLOW_CTRL
-	select IBM_NEW_EMAC_MAL_CLR_ICINTSTAT
-	select IBM_NEW_EMAC_MAL_COMMON_ERR
+	select IBM_EMAC_NO_FLOW_CTRL
+	select IBM_EMAC_MAL_CLR_ICINTSTAT
+	select IBM_EMAC_MAL_COMMON_ERR
 
 config 405GPR
 	bool

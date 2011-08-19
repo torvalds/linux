@@ -70,7 +70,7 @@ struct tah_instance {
 #define TAH_MR_DTFP		0x00100000
 #define TAH_MR_DIG		0x00080000
 
-#ifdef CONFIG_IBM_NEW_EMAC_TAH
+#ifdef CONFIG_IBM_EMAC_TAH
 
 extern int tah_init(void);
 extern void tah_exit(void);
@@ -90,6 +90,6 @@ extern void *tah_dump_regs(struct platform_device *ofdev, void *buf);
 # define tah_get_regs_len(x)	0
 # define tah_dump_regs(x,buf)	(buf)
 
-#endif				/* !CONFIG_IBM_NEW_EMAC_TAH */
+#endif				/* !CONFIG_IBM_EMAC_TAH */
 
 #endif /* __IBM_NEWEMAC_TAH_H */

@@ -54,7 +54,7 @@ struct rgmii_instance {
 	struct platform_device		*ofdev;
 };
 
-#ifdef CONFIG_IBM_NEW_EMAC_RGMII
+#ifdef CONFIG_IBM_EMAC_RGMII
 
 extern int rgmii_init(void);
 extern void rgmii_exit(void);
@@ -77,6 +77,6 @@ extern void *rgmii_dump_regs(struct platform_device *ofdev, void *buf);
 # define rgmii_set_speed(x,y,z)	do { } while(0)
 # define rgmii_get_regs_len(x)	0
 # define rgmii_dump_regs(x,buf)	(buf)
-#endif				/* !CONFIG_IBM_NEW_EMAC_RGMII */
+#endif				/* !CONFIG_IBM_EMAC_RGMII */
 
 #endif /* __IBM_NEWEMAC_RGMII_H */

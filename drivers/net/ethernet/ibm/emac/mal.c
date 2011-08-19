@@ -577,8 +577,8 @@ static int __devinit mal_probe(struct platform_device *ofdev)
 	}
 
 	if (of_device_is_compatible(ofdev->dev.of_node, "ibm,mcmal-405ez")) {
-#if defined(CONFIG_IBM_NEW_EMAC_MAL_CLR_ICINTSTAT) && \
-		defined(CONFIG_IBM_NEW_EMAC_MAL_COMMON_ERR)
+#if defined(CONFIG_IBM_EMAC_MAL_CLR_ICINTSTAT) && \
+		defined(CONFIG_IBM_EMAC_MAL_COMMON_ERR)
 		mal->features |= (MAL_FTR_CLEAR_ICINTSTAT |
 				MAL_FTR_COMMON_ERR_INT);
 #else
@@ -616,7 +616,7 @@ static int __devinit mal_probe(struct platform_device *ofdev)
 	init_dummy_netdev(&mal->dummy_dev);
 
 	netif_napi_add(&mal->dummy_dev, &mal->napi, mal_poll,
-		       CONFIG_IBM_NEW_EMAC_POLL_WEIGHT);
+		       CONFIG_IBM_EMAC_POLL_WEIGHT);
 
 	/* Load power-on reset defaults */
 	mal_reset(mal);

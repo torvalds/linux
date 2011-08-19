@@ -90,7 +90,7 @@ MODULE_LICENSE("GPL");
 /* If packet size is less than this number, we allocate small skb and copy packet
  * contents into it instead of just sending original big skb up
  */
-#define EMAC_RX_COPY_THRESH		CONFIG_IBM_NEW_EMAC_RX_COPY_THRESHOLD
+#define EMAC_RX_COPY_THRESH		CONFIG_IBM_EMAC_RX_COPY_THRESHOLD
 
 /* Since multiple EMACs share MDIO lines in various ways, we need
  * to avoid re-using the same PHY ID in cases where the arch didn't
@@ -1618,7 +1618,7 @@ static void emac_parse_rx_error(struct emac_instance *dev, u16 ctrl)
 static inline void emac_rx_csum(struct emac_instance *dev,
 				struct sk_buff *skb, u16 ctrl)
 {
-#ifdef CONFIG_IBM_NEW_EMAC_TAH
+#ifdef CONFIG_IBM_EMAC_TAH
 	if (!ctrl && dev->tah_dev) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		++dev->stats.rx_packets_csum;
@@ -2577,7 +2577,7 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		    of_device_is_compatible(np, "ibm,emac-440gr"))
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
 		if (of_device_is_compatible(np, "ibm,emac-405ez")) {
-#ifdef CONFIG_IBM_NEW_EMAC_NO_FLOW_CTRL
+#ifdef CONFIG_IBM_EMAC_NO_FLOW_CTRL
 			dev->features |= EMAC_FTR_NO_FLOW_CONTROL_40x;
 #else
 			printk(KERN_ERR "%s: Flow control not disabled!\n",
@@ -2601,7 +2601,7 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 
 	/* Enable TAH/ZMII/RGMII features as found */
 	if (dev->tah_ph != 0) {
-#ifdef CONFIG_IBM_NEW_EMAC_TAH
+#ifdef CONFIG_IBM_EMAC_TAH
 		dev->features |= EMAC_FTR_HAS_TAH;
 #else
 		printk(KERN_ERR "%s: TAH support not enabled !\n",
@@ -2611,7 +2611,7 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	}
 
 	if (dev->zmii_ph != 0) {
-#ifdef CONFIG_IBM_NEW_EMAC_ZMII
+#ifdef CONFIG_IBM_EMAC_ZMII
 		dev->features |= EMAC_FTR_HAS_ZMII;
 #else
 		printk(KERN_ERR "%s: ZMII support not enabled !\n",
@@ -2621,7 +2621,7 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	}
 
 	if (dev->rgmii_ph != 0) {
-#ifdef CONFIG_IBM_NEW_EMAC_RGMII
+#ifdef CONFIG_IBM_EMAC_RGMII
 		dev->features |= EMAC_FTR_HAS_RGMII;
 #else
 		printk(KERN_ERR "%s: RGMII support not enabled !\n",
