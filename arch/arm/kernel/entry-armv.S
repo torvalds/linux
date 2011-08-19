@@ -262,8 +262,7 @@ __und_svc:
 	ldr	r0, [r4, #-4]
 #else
 	ldrh	r0, [r4, #-2]			@ Thumb instruction at LR - 2
-	and	r9, r0, #0xf800
-	cmp	r9, #0xe800			@ 32-bit instruction if xx >= 0
+	cmp	r0, #0xe800			@ 32-bit instruction if xx >= 0
 	ldrhhs	r9, [r4]			@ bottom 16 bits
 	orrhs	r0, r9, r0, lsl #16
 #endif
@@ -445,8 +444,7 @@ __und_usr:
  ARM(	ldrht	r5, [r4], #2	)
  THUMB(	ldrht	r5, [r4]	)
  THUMB(	add	r4, r4, #2	)
-	and	r0, r5, #0xf800			@ mask bits 111x x... .... ....
-	cmp	r0, #0xe800			@ 32bit instruction if xx != 0
+	cmp	r5, #0xe800			@ 32bit instruction if xx != 0
 	blo	__und_usr_unknown
 3:	ldrht	r0, [r4]
 	add	r2, r2, #2			@ r2 is PC + 2, make it PC + 4
