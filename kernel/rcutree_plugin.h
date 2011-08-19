@@ -27,6 +27,14 @@
 #include <linux/delay.h>
 #include <linux/stop_machine.h>
 
+#define RCU_KTHREAD_PRIO 1
+
+#ifdef CONFIG_RCU_BOOST
+#define RCU_BOOST_PRIO CONFIG_RCU_BOOST_PRIO
+#else
+#define RCU_BOOST_PRIO RCU_KTHREAD_PRIO
+#endif
+
 /*
  * Check the RCU kernel configuration parameters and print informative
  * messages about anything out of the ordinary.  If you like #ifdef, you
@@ -1364,13 +1372,13 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 	if (rnp->boost_kthread_task != NULL)
 		return 0;
 	t = kthread_create(rcu_boost_kthread, (void *)rnp,
-			   "rcub%d", rnp_index);
+			   "rcub/%d", rnp_index);
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rnp->boost_kthread_task = t;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	sp.sched_priority = RCU_KTHREAD_PRIO;
+	sp.sched_priority = RCU_BOOST_PRIO;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
 	return 0;
@@ -1465,6 +1473,7 @@ static void rcu_yield(void (*f)(unsigned long), unsigned long arg)
 {
 	struct sched_param sp;
 	struct timer_list yield_timer;
+	int prio = current->rt_priority;
 
 	setup_timer_on_stack(&yield_timer, f, arg);
 	mod_timer(&yield_timer, jiffies + 2);
@@ -1472,7 +1481,8 @@ static void rcu_yield(void (*f)(unsigned long), unsigned long arg)
 	sched_setscheduler_nocheck(current, SCHED_NORMAL, &sp);
 	set_user_nice(current, 19);
 	schedule();
-	sp.sched_priority = RCU_KTHREAD_PRIO;
+	set_user_nice(current, 0);
+	sp.sched_priority = prio;
 	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
 	del_timer(&yield_timer);
 }
@@ -1591,7 +1601,7 @@ static int __cpuinit rcu_spawn_one_cpu_kthread(int cpu)
 	t = kthread_create_on_node(rcu_cpu_kthread,
 				   (void *)(long)cpu,
 				   cpu_to_node(cpu),
-				   "rcuc%d", cpu);
+				   "rcuc/%d", cpu);
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 	if (cpu_online(cpu))
@@ -1700,7 +1710,7 @@ static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
 		return 0;
 	if (rnp->node_kthread_task == NULL) {
 		t = kthread_create(rcu_node_kthread, (void *)rnp,
-				   "rcun%d", rnp_index);
+				   "rcun/%d", rnp_index);
 		if (IS_ERR(t))
 			return PTR_ERR(t);
 		raw_spin_lock_irqsave(&rnp->lock, flags);
