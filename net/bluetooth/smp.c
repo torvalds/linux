@@ -248,6 +248,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p", conn);
 
+	if (!test_and_set_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend))
+		hci_conn_hold(conn->hcon);
+
 	conn->preq[0] = SMP_CMD_PAIRING_REQ;
 	memcpy(&conn->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
@@ -397,6 +400,9 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 		memset(stk + conn->smp_key_size, 0,
 				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
 
+		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend))
+			return SMP_UNSPECIFIED;
+
 		hci_le_start_enc(hcon, ediv, rand, stk);
 		hcon->enc_key_size = conn->smp_key_size;
 	} else {
@@ -430,8 +436,10 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p", conn);
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend))
+	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend))
 		return 0;
+
+	hci_conn_hold(hcon);
 
 	skb_pull(skb, sizeof(*rp));
 
@@ -442,8 +450,6 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(&conn->preq[1], &cp, sizeof(cp));
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
-
-	set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend);
 
 	return 0;
 }
@@ -461,19 +467,13 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 	if (IS_ERR(hcon->hdev->tfm))
 		return 1;
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend))
-		return 0;
-
 	if (sec_level == BT_SECURITY_LOW)
 		return 1;
 
 	if (hcon->sec_level >= sec_level)
 		return 1;
 
-	authreq = seclevel_to_authreq(sec_level);
-
 	if (hcon->link_mode & HCI_LM_MASTER) {
-		struct smp_cmd_pairing cp;
 		struct link_key *key;
 
 		key = hci_find_link_key_type(hcon->hdev, conn->dst,
@@ -481,12 +481,28 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 		if (key) {
 			struct key_master_id *master = (void *) key->data;
 
+			if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND,
+							&hcon->pend))
+				goto done;
+
 			hci_le_start_enc(hcon, master->ediv, master->rand,
 								key->val);
 			hcon->enc_key_size = key->pin_len;
 
 			goto done;
 		}
+	}
+
+	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend))
+		return 0;
+
+	/* While SMP is going on */
+	hci_conn_hold(hcon);
+
+	authreq = seclevel_to_authreq(sec_level);
+
+	if (hcon->link_mode & HCI_LM_MASTER) {
+		struct smp_cmd_pairing cp;
 
 		build_pairing_cmd(conn, &cp, NULL, authreq);
 		conn->preq[0] = SMP_CMD_PAIRING_REQ;
@@ -501,7 +517,6 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 
 done:
 	hcon->pending_sec_level = sec_level;
-	set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend);
 
 	return 0;
 }
@@ -619,6 +634,9 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 	if (IS_ERR(conn->hcon->hdev->tfm))
 		return PTR_ERR(conn->hcon->hdev->tfm);
 
+	if (!test_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend))
+		return 0;
+
 	rsp = (void *) &conn->prsp[1];
 
 	/* The responder sends its keys first */
@@ -687,6 +705,12 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 		smp_send_cmd(conn, SMP_CMD_SIGN_INFO, sizeof(sign), &sign);
 
 		*keydist &= ~SMP_DIST_SIGN;
+	}
+
+	if (conn->hcon->out || force) {
+		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend);
+		del_timer(&conn->security_timer);
+		hci_conn_put(conn->hcon);
 	}
 
 	return 0;

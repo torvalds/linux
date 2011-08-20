@@ -986,8 +986,10 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
 		del_timer_sync(&conn->info_timer);
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend))
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
 		del_timer(&conn->security_timer);
+		hci_conn_put(hcon);
+	}
 
 	hcon->l2cap_data = NULL;
 	kfree(conn);

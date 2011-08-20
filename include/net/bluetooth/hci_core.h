@@ -348,6 +348,7 @@ enum {
 	HCI_CONN_RSWITCH_PEND,
 	HCI_CONN_MODE_CHANGE_PEND,
 	HCI_CONN_SCO_SETUP_PEND,
+	HCI_CONN_LE_SMP_PEND,
 };
 
 static inline void hci_conn_hash_init(struct hci_dev *hdev)
