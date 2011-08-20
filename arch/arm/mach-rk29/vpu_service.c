@@ -148,7 +148,8 @@ static vpu_service_info service;
 static vpu_device 	dec_dev;
 static vpu_device 	enc_dev;
 
-#define POWER_OFF_DELAY	3*HZ /* 3s */
+#define POWER_OFF_DELAY	4*HZ /* 4s */
+#define TIMEOUT_DELAY	2*HZ /* 2s */
 
 static void vpu_get_clk(void)
 {
@@ -308,7 +309,6 @@ static void reg_from_run_to_done(vpu_reg *reg)
 		break;
 	}
 	}
-	atomic_sub(1, &service.task_running);
 	wake_up_interruptible_sync(&reg->session->wait);
 	spin_unlock(&service.lock);
 }
@@ -495,7 +495,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			pr_err("VPU_IOC_GET_REG copy_from_user failed\n");
 			return -EFAULT;
 		} else {
-			int ret = wait_event_interruptible_timeout(session->wait, !list_empty(&session->done), HZ);
+			int ret = wait_event_interruptible_timeout(session->wait, !list_empty(&session->done), TIMEOUT_DELAY);
 			if (unlikely(ret < 0)) {
 				pr_err("pid %d wait task ret %d\n", session->pid, ret);
 				return ret;
@@ -911,6 +911,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		/* clear dec IRQ */
 		writel(irq_status_dec & (~DEC_INTERRUPT_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
 		pr_debug("DEC IRQ received!\n");
+		atomic_sub(1, &service.task_running);
 		if (NULL == service.reg_codec) {
 			pr_err("dec isr with no task waiting\n");
 		} else {
@@ -922,7 +923,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		/* clear pp IRQ */
 		writel(irq_status_pp & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
 		pr_debug("PP IRQ received!\n");
-
+		atomic_sub(1, &service.task_running);
 		if (NULL == service.reg_pproc) {
 			pr_err("pp isr with no task waiting\n");
 		} else {
@@ -944,7 +945,7 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 		/* clear enc IRQ */
 		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
 		pr_debug("ENC IRQ received!\n");
-
+		atomic_sub(1, &service.task_running);
 		if (NULL == service.reg_codec) {
 			pr_err("enc isr with no task waiting\n");
 		} else {
