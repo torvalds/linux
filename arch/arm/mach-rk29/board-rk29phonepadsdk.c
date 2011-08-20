@@ -60,6 +60,7 @@
 #include <linux/mu509.h>
 #endif
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
+#include "../../../drivers/headset_observe/rk_headset.h"
 
 #include <linux/goodix_touch.h>
 
