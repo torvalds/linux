@@ -2806,7 +2806,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 {
 	struct em28xx *dev = *devhandle;
 	int retval;
-	int errCode;
 
 	dev->udev = udev;
 	mutex_init(&dev->ctrl_urb_lock);
@@ -2883,8 +2882,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	if (dev->is_audio_only) {
-		errCode = em28xx_audio_setup(dev);
-		if (errCode)
+		retval = em28xx_audio_setup(dev);
+		if (retval)
 			return -ENODEV;
 		em28xx_add_into_devlist(dev);
 		em28xx_init_extension(dev);
@@ -2903,7 +2902,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		/* Resets I2C speed */
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 		if (retval < 0) {
-			em28xx_errdev("%s: em28xx_write_regs_req failed!"
+			em28xx_errdev("%s: em28xx_write_reg failed!"
 				      " retval [%d]\n",
 				      __func__, retval);
 			return retval;
@@ -2917,12 +2916,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	/* register i2c bus */
-	errCode = em28xx_i2c_register(dev);
-	if (errCode < 0) {
-		v4l2_device_unregister(&dev->v4l2_dev);
-		em28xx_errdev("%s: em28xx_i2c_register - errCode [%d]!\n",
-			__func__, errCode);
-		return errCode;
+	retval = em28xx_i2c_register(dev);
+	if (retval < 0) {
+		em28xx_errdev("%s: em28xx_i2c_register - error [%d]!\n",
+			__func__, retval);
+		goto unregister_dev;
 	}
 
 	/*
@@ -2936,11 +2934,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_card_setup(dev);
 
 	/* Configure audio */
-	errCode = em28xx_audio_setup(dev);
-	if (errCode < 0) {
-		v4l2_device_unregister(&dev->v4l2_dev);
-		em28xx_errdev("%s: Error while setting audio - errCode [%d]!\n",
-			__func__, errCode);
+	retval = em28xx_audio_setup(dev);
+	if (retval < 0) {
+		em28xx_errdev("%s: Error while setting audio - error [%d]!\n",
+			__func__, retval);
+		goto fail;
 	}
 
 	/* wake i2c devices */
@@ -2954,31 +2952,28 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	if (dev->board.has_msp34xx) {
 		/* Send a reset to other chips via gpio */
-		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
-		if (errCode < 0) {
-			em28xx_errdev("%s: em28xx_write_regs_req - "
-				      "msp34xx(1) failed! errCode [%d]\n",
-				      __func__, errCode);
-			return errCode;
+		retval = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_write_reg - "
+				      "msp34xx(1) failed! error [%d]\n",
+				      __func__, retval);
+			goto fail;
 		}
 		msleep(3);
 
-		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
-		if (errCode < 0) {
-			em28xx_errdev("%s: em28xx_write_regs_req - "
-				      "msp34xx(2) failed! errCode [%d]\n",
-				      __func__, errCode);
-			return errCode;
+		retval = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_write_reg - "
+				      "msp34xx(2) failed! error [%d]\n",
+				      __func__, retval);
+			goto fail;
 		}
 		msleep(3);
 	}
 
-	em28xx_add_into_devlist(dev);
-
 	retval = em28xx_register_analog_devices(dev);
 	if (retval < 0) {
-		em28xx_release_resources(dev);
-		goto fail_reg_devices;
+		goto fail;
 	}
 
 	em28xx_init_extension(dev);
@@ -2988,7 +2983,12 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	return 0;
 
-fail_reg_devices:
+fail:
+	em28xx_i2c_unregister(dev);
+
+unregister_dev:
+	v4l2_device_unregister(&dev->v4l2_dev);
+
 	return retval;
 }
 
