@@ -837,6 +837,25 @@ struct wm8994_pdata wm8994_platdata = {
 	.recorder_vol = 50,
 	
 };
+
+#ifdef CONFIG_RK_HEADSET_DET
+
+struct rk_headset_pdata rk_headset_info = {
+	.Headset_gpio		= RK29_PIN4_PD2,
+	.headset_in_type= HEADSET_IN_HIGH,
+	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
+	.hook_key_code = KEY_MEDIA,
+};
+
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
+		.id 	= 0,
+		.dev    = {
+		    .platform_data = &rk_headset_info,
+		}
+};
+#endif
+
 #if defined (CONFIG_BATTERY_BQ27541)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -1897,6 +1916,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
 #endif
+#ifdef CONFIG_RK_HEADSET_DET
+    &rk_device_headset,
+#endif
+
 };
 
 /*****************************************************************************************
