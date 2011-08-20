@@ -3250,7 +3250,7 @@ int pcie_get_mps(struct pci_dev *dev)
 /**
  * pcie_set_mps - set PCI Express maximum payload size
  * @dev: PCI device to query
- * @rq: maximum payload size in bytes
+ * @mps: maximum payload size in bytes
  *    valid values are 128, 256, 512, 1024, 2048, 4096
  *
  * If possible sets maximum payload size
