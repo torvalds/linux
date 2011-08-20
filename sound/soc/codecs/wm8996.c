@@ -1213,6 +1213,16 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 	{ "AIF2RX0", NULL, "AIFCLK" },
 	{ "AIF2RX1", NULL, "AIFCLK" },
 
+	{ "AIF1TX0", NULL, "AIFCLK" },
+	{ "AIF1TX1", NULL, "AIFCLK" },
+	{ "AIF1TX2", NULL, "AIFCLK" },
+	{ "AIF1TX3", NULL, "AIFCLK" },
+	{ "AIF1TX4", NULL, "AIFCLK" },
+	{ "AIF1TX5", NULL, "AIFCLK" },
+
+	{ "AIF2TX0", NULL, "AIFCLK" },
+	{ "AIF2TX1", NULL, "AIFCLK" },
+
 	{ "DSP1RXL", NULL, "SYSDSPCLK" },
 	{ "DSP1RXR", NULL, "SYSDSPCLK" },
 	{ "DSP2RXL", NULL, "SYSDSPCLK" },
