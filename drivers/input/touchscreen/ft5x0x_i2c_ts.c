@@ -186,7 +186,7 @@ static void fts_ts_release(void)
 
 		_st_finger_infos[i].u2_pressure = 0;
 
-		input_report_abs(data->input_dev, ABS_MT_POSITION_X, _st_finger_infos[i].i2_x);
+		input_report_abs(data->input_dev, ABS_MT_POSITION_X, SCREEN_MAX_X - _st_finger_infos[i].i2_x);
 		input_report_abs(data->input_dev, ABS_MT_POSITION_Y, _st_finger_infos[i].i2_y);
 		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, _st_finger_infos[i].u2_pressure);
 		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, _st_finger_infos[i].ui2_id);
@@ -439,7 +439,7 @@ int fts_read_data(void)
 
 					input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, _st_finger_infos[i].ui2_id);
 					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, _st_finger_infos[i].u2_pressure);
-					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  _st_finger_infos[i].i2_x);
+					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  SCREEN_MAX_X - _st_finger_infos[i].i2_x);
 					input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[i].i2_y);
 					input_mt_sync(data->input_dev);
 
