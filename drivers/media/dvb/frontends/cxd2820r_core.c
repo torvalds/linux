@@ -742,7 +742,7 @@ static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return cxd2820r_wr_reg_mask(priv, 0xdb, enable ? 1 : 0, 0x1);
 }
 
-static struct dvb_frontend_ops cxd2820r_ops[2];
+static const struct dvb_frontend_ops cxd2820r_ops[2];
 
 struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 	struct i2c_adapter *i2c, struct dvb_frontend *fe)
@@ -796,7 +796,7 @@ error:
 }
 EXPORT_SYMBOL(cxd2820r_attach);
 
-static struct dvb_frontend_ops cxd2820r_ops[2] = {
+static const struct dvb_frontend_ops cxd2820r_ops[2] = {
 	{
 		/* DVB-T/T2 */
 		.info = {

@@ -842,6 +842,13 @@ out_free:
 	goto ret;
 }
 
+static inline void prevent_sleep(struct dvb_frontend_ops *ops)
+{
+	ops->set_voltage = NULL;
+	ops->sleep = NULL;
+	ops->tuner_ops.sleep = NULL;
+}
+
 static int em28xx_dvb_fini(struct em28xx *dev)
 {
 	if (!dev->board.has_dvb) {
@@ -850,8 +857,19 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	}
 
 	if (dev->dvb) {
-		em28xx_unregister_dvb(dev->dvb);
-		kfree(dev->dvb);
+		struct em28xx_dvb *dvb = dev->dvb;
+
+		if (dev->state & DEV_DISCONNECTED) {
+			/* We cannot tell the device to sleep
+			 * once it has been unplugged. */
+			if (dvb->fe[0])
+				prevent_sleep(&dvb->fe[0]->ops);
+			if (dvb->fe[1])
+				prevent_sleep(&dvb->fe[1]->ops);
+		}
+
+		em28xx_unregister_dvb(dvb);
+		kfree(dvb);
 		dev->dvb = NULL;
 	}
 
