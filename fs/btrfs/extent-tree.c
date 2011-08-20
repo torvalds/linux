@@ -6735,9 +6735,9 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
 	struct btrfs_device *device;
 	u64 min_free;
+	u64 dev_min = 1;
+	u64 dev_nr = 0;
 	int index;
-	int dev_nr = 0;
-	int dev_min = 1;
 	int full = 0;
 	int ret = 0;
 
@@ -6796,14 +6796,16 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	index = get_block_group_index(block_group);
 	if (index == 0) {
 		dev_min = 4;
-		min_free /= 2;
+		/* Divide by 2 */
+		min_free >>= 1;
 	} else if (index == 1) {
 		dev_min = 2;
 	} else if (index == 2) {
-		min_free *= 2;
+		/* Multiply by 2 */
+		min_free <<= 1;
 	} else if (index == 3) {
 		dev_min = fs_devices->rw_devices;
-		min_free /= dev_min;
+		do_div(min_free, dev_min);
 	}
 
 	mutex_lock(&root->fs_info->chunk_mutex);
