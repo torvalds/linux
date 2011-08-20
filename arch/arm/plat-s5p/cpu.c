@@ -119,6 +119,8 @@ void __init s5p_init_io(struct map_desc *mach_desc,
 	if (mach_desc)
 		iotable_init(mach_desc, size);
 
-	samsung_cpu_id = __raw_readl(cpuid_addr);
+	/* detect cpu id and rev. */
+	s5p_init_cpu(cpuid_addr);
+
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }

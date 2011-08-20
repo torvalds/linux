@@ -224,6 +224,7 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	} else {
 		samsung_cpu_id = s3c24xx_read_idcode_v4();
 	}
+	s3c24xx_init_cpu();
 
 	arm_pm_restart = s3c24xx_pm_restart;
 

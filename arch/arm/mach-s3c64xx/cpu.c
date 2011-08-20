@@ -144,14 +144,8 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 	iotable_init(mach_desc, size);
 
-	samsung_cpu_id = __raw_readl(S3C_VA_SYS + 0x118);
-	if (!samsung_cpu_id) {
-		/* S3C6400 has the ID register in a different place,
-		 * and needs a write before it can be read. */
-
-		__raw_writel(0x0, S3C_VA_SYS + 0xA1C);
-		samsung_cpu_id = __raw_readl(S3C_VA_SYS + 0xA1C);
-	}
+	/* detect cpu id */
+	s3c64xx_init_cpu();
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
