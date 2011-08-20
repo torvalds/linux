@@ -104,9 +104,9 @@ xfs_ioerror_alert(
 	xfs_alert(mp,
 		 "I/O error occurred: meta-data dev %s block 0x%llx"
 		 "       (\"%s\") error %d buf count %zd",
-		XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
+		xfs_buf_target_name(bp->b_target),
 		(__uint64_t)blkno, func,
-		XFS_BUF_GETERROR(bp), XFS_BUF_COUNT(bp));
+		bp->b_error, XFS_BUF_COUNT(bp));
 }
 
 /*
@@ -137,8 +137,8 @@ xfs_read_buf(
 	bp = xfs_buf_read(target, blkno, len, flags);
 	if (!bp)
 		return XFS_ERROR(EIO);
-	error = XFS_BUF_GETERROR(bp);
-	if (bp && !error && !XFS_FORCED_SHUTDOWN(mp)) {
+	error = bp->b_error;
+	if (!error && !XFS_FORCED_SHUTDOWN(mp)) {
 		*bpp = bp;
 	} else {
 		*bpp = NULL;

@@ -82,7 +82,7 @@ static int cards_found;
 /*
  * VLB I/O addresses
  */
-static unsigned int pcnet32_portlist[] __initdata =
+static unsigned int pcnet32_portlist[] =
     { 0x300, 0x320, 0x340, 0x360, 0 };
 
 static int pcnet32_debug;

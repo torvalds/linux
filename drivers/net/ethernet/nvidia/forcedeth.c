@@ -5615,7 +5615,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		goto out_error;
 	}
 
-	nv_vlan_mode(dev, dev->features);
+	if (id->driver_data & DEV_HAS_VLAN)
+		nv_vlan_mode(dev, dev->features);
 
 	netif_carrier_off(dev);
 

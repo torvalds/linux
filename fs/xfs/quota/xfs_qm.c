@@ -1240,7 +1240,7 @@ xfs_qm_reset_dqcounts(
 	do_div(j, sizeof(xfs_dqblk_t));
 	ASSERT(mp->m_quotainfo->qi_dqperchunk == j);
 #endif
-	ddq = (xfs_disk_dquot_t *)XFS_BUF_PTR(bp);
+	ddq = bp->b_addr;
 	for (j = 0; j < mp->m_quotainfo->qi_dqperchunk; j++) {
 		/*
 		 * Do a sanity check, and if needed, repair the dqblk. Don't

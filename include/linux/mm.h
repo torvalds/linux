@@ -962,6 +962,8 @@ int invalidate_inode_page(struct page *page);
 #ifdef CONFIG_MMU
 extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, unsigned int flags);
+extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+			    unsigned long address, unsigned int fault_flags);
 #else
 static inline int handle_mm_fault(struct mm_struct *mm,
 			struct vm_area_struct *vma, unsigned long address,
@@ -970,6 +972,14 @@ static inline int handle_mm_fault(struct mm_struct *mm,
 	/* should never happen if there's no MMU */
 	BUG();
 	return VM_FAULT_SIGBUS;
+}
+static inline int fixup_user_fault(struct task_struct *tsk,
+		struct mm_struct *mm, unsigned long address,
+		unsigned int fault_flags)
+{
+	/* should never happen if there's no MMU */
+	BUG();
+	return -EFAULT;
 }
 #endif
 
@@ -988,8 +998,6 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages);
 struct page *get_dump_page(unsigned long addr);
-extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
-			    unsigned long address, unsigned int fault_flags);
 
 extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
 extern void do_invalidatepage(struct page *page, unsigned long offset);

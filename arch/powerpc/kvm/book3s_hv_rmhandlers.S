@@ -1251,7 +1251,7 @@ BEGIN_FTR_SECTION
 	reg = 0
 	.rept	32
 	li	r6,reg*16+VCPU_VSRS
-	stxvd2x	reg,r6,r3
+	STXVD2X(reg,r6,r3)
 	reg = reg + 1
 	.endr
 FTR_SECTION_ELSE
@@ -1313,7 +1313,7 @@ BEGIN_FTR_SECTION
 	reg = 0
 	.rept	32
 	li	r7,reg*16+VCPU_VSRS
-	lxvd2x	reg,r7,r4
+	LXVD2X(reg,r7,r4)
 	reg = reg + 1
 	.endr
 FTR_SECTION_ELSE

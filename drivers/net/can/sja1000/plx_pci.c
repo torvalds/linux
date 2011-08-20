@@ -408,7 +408,7 @@ static void plx_pci_del_card(struct pci_dev *pdev)
 	struct sja1000_priv *priv;
 	int i = 0;
 
-	for (i = 0; i < card->channels; i++) {
+	for (i = 0; i < PLX_PCI_MAX_CHAN; i++) {
 		dev = card->net_dev[i];
 		if (!dev)
 			continue;
@@ -536,7 +536,6 @@ static int __devinit plx_pci_add_card(struct pci_dev *pdev,
 			if (err) {
 				dev_err(&pdev->dev, "Registering device failed "
 					"(err=%d)\n", err);
-				free_sja1000dev(dev);
 				goto failure_cleanup;
 			}
 
@@ -549,6 +548,7 @@ static int __devinit plx_pci_add_card(struct pci_dev *pdev,
 			dev_err(&pdev->dev, "Channel #%d not detected\n",
 				i + 1);
 			free_sja1000dev(dev);
+			card->net_dev[i] = NULL;
 		}
 	}
 

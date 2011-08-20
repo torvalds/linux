@@ -2084,7 +2084,7 @@ static int via_auto_create_speaker_ctls(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	struct nid_path *path;
 	bool check_dac;
-	hda_nid_t pin, dac;
+	hda_nid_t pin, dac = 0;
 	int err;
 
 	pin = spec->autocfg.speaker_pins[0];

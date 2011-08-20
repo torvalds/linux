@@ -1,5 +1,10 @@
 # ALSA PCI drivers
 
+config SND_TEA575X
+	tristate
+	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2
+	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2
+
 menuconfig SND_PCI
 	bool "PCI sound devices"
 	depends on PCI
@@ -562,11 +567,6 @@ config SND_FM801_TEA575X_BOOL
 	  Say Y here to include support for soundcards based on the ForteMedia
 	  FM801 chip with a TEA5757 tuner (MediaForte SF256-PCS, SF256-PCP and
 	  SF64-PCR) into the snd-fm801 driver.
-
-config SND_TEA575X
-	tristate
-	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2
-	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2
 
 source "sound/pci/hda/Kconfig"
 
