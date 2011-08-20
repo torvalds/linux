@@ -60,7 +60,7 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
-/* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
+/* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
 static unsigned long em28xx_devused;
 
 struct em28xx_hash_table {
@@ -2793,7 +2793,7 @@ void em28xx_release_resources(struct em28xx *dev)
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	em28xx_devused &= ~(1 << dev->devno);
+	clear_bit(dev->devno, &em28xx_devused);
 };
 
 /*
@@ -3015,8 +3015,16 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
 	/* Check to see next free device and mark as used */
-	nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
-	em28xx_devused |= 1<<nr;
+	do {
+		nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
+		if (nr >= EM28XX_MAXBOARDS) {
+			/* No free device slots */
+			printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
+					EM28XX_MAXBOARDS);
+			retval = -ENOMEM;
+			goto err_no_slot;
+		}
+	} while (test_and_set_bit(nr, &em28xx_devused));
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
@@ -3027,7 +3035,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			ifnum,
 			interface->altsetting[0].desc.bInterfaceClass);
 
-		em28xx_devused &= ~(1<<nr);
 		retval = -ENODEV;
 		goto err;
 	}
@@ -3132,16 +3139,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		printk(DRIVER_NAME ": Device initialization failed.\n");
 		printk(DRIVER_NAME ": Device must be connected to a high-speed"
 		       " USB 2.0 port.\n");
-		em28xx_devused &= ~(1<<nr);
 		retval = -ENODEV;
-		goto err;
-	}
-
-	if (nr >= EM28XX_MAXBOARDS) {
-		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
-				EM28XX_MAXBOARDS);
-		em28xx_devused &= ~(1<<nr);
-		retval = -ENOMEM;
 		goto err;
 	}
 
@@ -3149,7 +3147,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		em28xx_err(DRIVER_NAME ": out of memory!\n");
-		em28xx_devused &= ~(1<<nr);
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -3177,7 +3174,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	if (dev->alt_max_pkt_size == NULL) {
 		em28xx_errdev("out of memory!\n");
-		em28xx_devused &= ~(1<<nr);
 		kfree(dev);
 		retval = -ENOMEM;
 		goto err;
@@ -3204,7 +3200,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	mutex_lock(&dev->lock);
 	retval = em28xx_init_dev(&dev, udev, interface, nr);
 	if (retval) {
-		em28xx_devused &= ~(1<<dev->devno);
 		mutex_unlock(&dev->lock);
 		kfree(dev);
 		goto err;
@@ -3220,6 +3215,10 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	return 0;
 
 err:
+	clear_bit(nr, &em28xx_devused);
+
+err_no_slot:
+	usb_put_dev(udev);
 	return retval;
 }
 
