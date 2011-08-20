@@ -750,14 +750,13 @@ static int uio_major_init(void)
 
 	uio_major = MAJOR(uio_dev);
 	uio_cdev = cdev;
-	result = 0;
-out:
-	return result;
+	return 0;
 out_put:
 	kobject_put(&cdev->kobj);
 out_unregister:
 	unregister_chrdev_region(uio_dev, UIO_MAX_DEVICES);
-	goto out;
+out:
+	return result;
 }
 
 static void uio_major_cleanup(void)
