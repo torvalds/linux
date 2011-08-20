@@ -222,6 +222,28 @@ struct sock_tag {
 	tag_t tag;
 };
 
+struct qtaguid_event_counts {
+	/* Various successful events */
+	atomic64_t sockets_tagged;
+	atomic64_t sockets_untagged;
+	atomic64_t counter_set_changes;
+	atomic64_t delete_cmds;
+	atomic64_t iface_events;  /* Number of NETDEV_* events handled */
+	/*
+	 * match_found_sk_*: numbers related to the netfilter matching
+	 * function finding a sock for the sk_buff.
+	 */
+	atomic64_t match_found_sk;   /* An sk was already in the sk_buff. */
+	/* The connection tracker had the sk. */
+	atomic64_t match_found_sk_in_ct;
+	/*
+	 * No sk could be found. No apparent owner. Could happen with
+	 * unsolicited traffic.
+	 */
+	atomic64_t match_found_sk_none;
+};
+static struct qtaguid_event_counts qtu_events;
+
 static struct rb_root sock_tag_tree = RB_ROOT;
 static DEFINE_SPINLOCK(sock_tag_list_lock);
 
@@ -954,6 +976,7 @@ static int iface_inet6addr_event_handler(struct notifier_block *nb,
 		BUG_ON(!ifa || !ifa->idev);
 		dev = (struct net_device *)ifa->idev->dev;
 		iface_stat_create_ipv6(dev, ifa);
+		atomic64_inc(&qtu_events.iface_events);
 		break;
 	}
 	return NOTIFY_DONE;
@@ -977,6 +1000,7 @@ static int iface_inetaddr_event_handler(struct notifier_block *nb,
 		BUG_ON(!ifa || !ifa->ifa_dev);
 		dev = ifa->ifa_dev->dev;
 		iface_stat_create(dev, ifa);
+		atomic64_inc(&qtu_events.iface_events);
 		break;
 	}
 	return NOTIFY_DONE;
@@ -1149,6 +1173,10 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 * it back, as nf_tproxy_get_sock_v4() got it.
 		 */
 		got_sock = sk;
+		if (sk)
+			atomic64_inc(&qtu_events.match_found_sk_in_ct);
+	} else {
+		atomic64_inc(&qtu_events.match_found_sk);
 	}
 	MT_DEBUG("qtaguid[%d]: sk=%p got_sock=%d proto=%d\n",
 		par->hooknum, sk, got_sock, ip_hdr(skb)->protocol);
@@ -1178,6 +1206,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			par->hooknum,
 			sk ? sk->sk_socket : NULL);
 		res = (info->match ^ info->invert) == 0;
+		atomic64_inc(&qtu_events.match_found_sk_none);
 		goto put_sock_ret_res;
 	} else if (info->match & info->invert & XT_QTAGUID_SOCKET) {
 		res = false;
@@ -1254,6 +1283,7 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 		return 0;
 	}
 
+	/* TODO: support skipping num_items_returned on entry. */
 	CT_DEBUG("qtaguid: proc ctrl page=%p off=%ld char_count=%d *eof=%d\n",
 		page, items_to_skip, char_count, *eof);
 
@@ -1286,6 +1316,34 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 		(*num_items_returned)++;
 	}
 	spin_unlock_bh(&sock_tag_list_lock);
+
+	if (item_index++ >= items_to_skip) {
+		len = snprintf(outp, char_count,
+			       "events: sockets_tagged=%llu "
+			       "sockets_untagged=%llu "
+			       "counter_set_changes=%llu "
+			       "delete_cmds=%llu "
+			       "iface_events=%llu "
+			       "match_found_sk=%llu "
+			       "match_found_sk_in_ct=%llu "
+			       "match_found_sk_none=%llu\n",
+			       atomic64_read(&qtu_events.sockets_tagged),
+			       atomic64_read(&qtu_events.sockets_untagged),
+			       atomic64_read(&qtu_events.counter_set_changes),
+			       atomic64_read(&qtu_events.delete_cmds),
+			       atomic64_read(&qtu_events.iface_events),
+			       atomic64_read(&qtu_events.match_found_sk),
+			       atomic64_read(&qtu_events.match_found_sk_in_ct),
+			       atomic64_read(&qtu_events.match_found_sk_none));
+		if (len >= char_count) {
+			*outp = '\0';
+			return outp - page;
+		}
+		outp += len;
+		char_count -= len;
+		(*num_items_returned)++;
+	}
+
 	*eof = 1;
 	return outp - page;
 }
@@ -1428,7 +1486,7 @@ static int ctrl_cmd_delete(const char *input)
 		spin_unlock_bh(&iface_entry->tag_stat_list_lock);
 	}
 	spin_unlock_bh(&iface_stat_list_lock);
-
+	atomic64_inc(&qtu_events.delete_cmds);
 	res = 0;
 
 err:
@@ -1487,7 +1545,7 @@ static int ctrl_cmd_counter_set(const char *input)
 	}
 	tcs->active_set = counter_set;
 	spin_unlock_bh(&tag_counter_set_list_lock);
-
+	atomic64_inc(&qtu_events.counter_set_changes);
 	res = 0;
 
 err:
@@ -1573,6 +1631,7 @@ static int ctrl_cmd_tag(const char *input)
 		sock_tag_entry->tag = combine_atag_with_uid(acct_tag,
 							    uid);
 		sock_tag_tree_insert(sock_tag_entry, &sock_tag_tree);
+		atomic64_inc(&qtu_events.sockets_tagged);
 	}
 	spin_unlock_bh(&sock_tag_list_lock);
 	/* We keep the ref to the socket (file) until it is untagged */
@@ -1638,6 +1697,7 @@ static int ctrl_cmd_untag(const char *input)
 	sockfd_put(el_socket);
 	refcnt -= 2;
 	kfree(sock_tag_entry);
+	atomic64_inc(&qtu_events.sockets_untagged);
 	CT_DEBUG("qtaguid: ctrl_untag(%s): done. socket->...->f_count=%d\n",
 		 input, refcnt);
 
