@@ -206,7 +206,7 @@ nouveau_perf_init(struct drm_device *dev)
 			recordlen = perf[3] + (perf[4] * perf[5]);
 			entries   = perf[2];
 
-			pm->pwm_divisor = ROM16(perf[6]);
+			pm->fan.pwm_divisor = ROM16(perf[6]);
 		} else {
 			recordlen = perf[2] + (perf[3] * perf[4]);
 			entries   = perf[5];

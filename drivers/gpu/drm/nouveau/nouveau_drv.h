@@ -523,6 +523,7 @@ struct nouveau_pm_fan {
 	u32 min_duty;
 	u32 max_duty;
 	u32 pwm_freq;
+	u32 pwm_divisor;
 };
 
 struct nouveau_pm_engine {
@@ -533,7 +534,6 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
 	struct nouveau_pm_fan fan;
-	u32 pwm_divisor;
 
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;

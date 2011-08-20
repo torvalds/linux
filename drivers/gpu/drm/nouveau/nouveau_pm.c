@@ -77,7 +77,7 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 
 	ret = nouveau_gpio_find(dev, 0, DCB_GPIO_PWM_FAN, 0xff, &gpio);
 	if (ret == 0) {
-		divs = pm->pwm_divisor;
+		divs = pm->fan.pwm_divisor;
 		if (pm->fan.pwm_freq) {
 			/*XXX: PNVIO clock more than likely... */
 			divs = 135000 / pm->fan.pwm_freq;
