@@ -1347,6 +1347,7 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	struct hci_dev *hdev;
 	struct mgmt_cp_pair_device *cp;
 	struct pending_cmd *cmd;
+	struct adv_entry *entry;
 	u8 sec_level, auth_type;
 	struct hci_conn *conn;
 	int err;
@@ -1372,7 +1373,14 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 	}
 
-	conn = hci_connect(hdev, ACL_LINK, &cp->bdaddr, sec_level, auth_type);
+	entry = hci_find_adv_entry(hdev, &cp->bdaddr);
+	if (entry)
+		conn = hci_connect(hdev, LE_LINK, &cp->bdaddr, sec_level,
+								auth_type);
+	else
+		conn = hci_connect(hdev, ACL_LINK, &cp->bdaddr, sec_level,
+								auth_type);
+
 	if (IS_ERR(conn)) {
 		err = PTR_ERR(conn);
 		goto unlock;
@@ -1391,7 +1399,10 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 		goto unlock;
 	}
 
-	conn->connect_cfm_cb = pairing_complete_cb;
+	/* For LE, just connecting isn't a proof that the pairing finished */
+	if (!entry)
+		conn->connect_cfm_cb = pairing_complete_cb;
+
 	conn->security_cfm_cb = pairing_complete_cb;
 	conn->disconn_cfm_cb = pairing_complete_cb;
 	conn->io_capability = cp->io_cap;
