@@ -56,6 +56,13 @@ static int watchdog = 5000;
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
+/*
+ * Debug messages level
+ */
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "dm9000 debug level (0-4)");
+
 /* DM9000 register address locking.
  *
  * The DM9000 uses an address register to control where data written
@@ -103,7 +110,6 @@ typedef struct board_info {
 	unsigned int	flags;
 	unsigned int	in_suspend :1;
 	unsigned int	wake_supported :1;
-	int		debug_level;
 
 	enum dm9000_type type;
 
@@ -138,8 +144,7 @@ typedef struct board_info {
 /* debug code */
 
 #define dm9000_dbg(db, lev, msg...) do {		\
-	if ((lev) < CONFIG_DM9000_DEBUGLEVEL &&		\
-	    (lev) < db->debug_level) {			\
+	if ((lev) < debug) {				\
 		dev_dbg(db->dev, msg);			\
 	}						\
 } while (0)
