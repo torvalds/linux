@@ -182,6 +182,9 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 		return;
 
 	hci_send_acl(conn->hcon, skb, 0);
+
+	mod_timer(&conn->security_timer, jiffies +
+					msecs_to_jiffies(SMP_TIMEOUT));
 }
 
 static __u8 seclevel_to_authreq(__u8 level)
@@ -267,9 +270,6 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_RSP, sizeof(rsp), &rsp);
 
-	mod_timer(&conn->security_timer, jiffies +
-					msecs_to_jiffies(SMP_TIMEOUT));
-
 	return 0;
 }
 
@@ -350,9 +350,6 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 
 		smp_send_cmd(conn, SMP_CMD_PAIRING_CONFIRM, sizeof(cp), &cp);
 	}
-
-	mod_timer(&conn->security_timer, jiffies +
-					msecs_to_jiffies(SMP_TIMEOUT));
 
 	return 0;
 }
@@ -446,9 +443,6 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
 
-	mod_timer(&conn->security_timer, jiffies +
-					msecs_to_jiffies(SMP_TIMEOUT));
-
 	set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend);
 
 	return 0;
@@ -497,9 +491,6 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 		build_pairing_cmd(conn, &cp, NULL, authreq);
 		conn->preq[0] = SMP_CMD_PAIRING_REQ;
 		memcpy(&conn->preq[1], &cp, sizeof(cp));
-
-		mod_timer(&conn->security_timer, jiffies +
-					msecs_to_jiffies(SMP_TIMEOUT));
 
 		smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
 	} else {
