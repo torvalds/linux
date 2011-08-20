@@ -344,6 +344,11 @@ enum p9_qid_t {
 /* Room for readdir header */
 #define P9_READDIRHDRSZ	24
 
+/* 9p2000.L lock type */
+#define P9_LOCK_TYPE_RDLCK 0
+#define P9_LOCK_TYPE_WRLCK 1
+#define P9_LOCK_TYPE_UNLCK 2
+
 /**
  * struct p9_str - length prefixed string type
  * @len: length of the string
