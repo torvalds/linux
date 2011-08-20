@@ -1751,6 +1751,39 @@ static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
 	}
 }
 
+static void ixgbe_check_overtemp_event(struct ixgbe_adapter *adapter, u32 eicr)
+{
+	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE))
+		return;
+
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+		/*
+		 * Need to check link state so complete overtemp check
+		 * on service task
+		 */
+		if (((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC)) &&
+		    (!test_bit(__IXGBE_DOWN, &adapter->state))) {
+			adapter->interrupt_event = eicr;
+			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
+			ixgbe_service_event_schedule(adapter);
+			return;
+		}
+		return;
+	case ixgbe_mac_X540:
+		if (!(eicr & IXGBE_EICR_TS))
+			return;
+		break;
+	default:
+		return;
+	}
+
+	e_crit(drv,
+	       "Network adapter has been stopped because it has over heated. "
+	       "Restart the computer. If the problem persists, "
+	       "power off the system and replace the adapter\n");
+}
+
 static void ixgbe_check_sfp_event(struct ixgbe_adapter *adapter, u32 eicr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -1854,7 +1887,16 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		mask &= ~IXGBE_EIMS_LSC;
 
 	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		mask |= IXGBE_EIMS_GPI_SDP0;
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+			mask |= IXGBE_EIMS_GPI_SDP0;
+			break;
+		case ixgbe_mac_X540:
+			mask |= IXGBE_EIMS_TS;
+			break;
+		default:
+			break;
+		}
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		mask |= IXGBE_EIMS_GPI_SDP1;
 	switch (adapter->hw.mac.type) {
@@ -1924,14 +1966,7 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 			}
 		}
 		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-				adapter->interrupt_event = eicr;
-				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
-				ixgbe_service_event_schedule(adapter);
-			}
-		}
+		ixgbe_check_overtemp_event(adapter, eicr);
 		break;
 	default:
 		break;
@@ -2140,15 +2175,9 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-				adapter->interrupt_event = eicr;
-				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
-				ixgbe_service_event_schedule(adapter);
-			}
-		}
+		ixgbe_check_overtemp_event(adapter, eicr);
 		break;
 	default:
 		break;
@@ -4913,8 +4942,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 			adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
 		break;
-	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+		adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
+	case ixgbe_mac_82599EB:
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
