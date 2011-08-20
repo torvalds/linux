@@ -563,7 +563,7 @@ void laibao_reset(void)
 }
 void laibao_hold(void)
 {
-    printk("nas_hold()\n");
+    printk("laibao_hold()\n");
     gpio_direction_output(TOUCH_RESET_PIN, 0);
     msleep(5);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
@@ -573,14 +573,14 @@ void laibao_request_io(void)
 {
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
-      printk("nas_init_platform_hw gpio_request error\n");
+      printk("laibao_request_io gpio_request error\n");
       return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
 	  gpio_free(TOUCH_RESET_PIN);
-      printk("nas_init_platform_hw gpio_request error\n");
+      printk("laibao_request_io gpio_request error\n");
       return ;
     }
 }
@@ -593,7 +593,7 @@ int laibao_init_platform_hw(void)
 	
     if(gpio_request(RK29_PIN6_PD3,NULL) != 0){
       gpio_free(RK29_PIN6_PD3);
-      printk("mma8452_init_platform_hw gpio_request error\n");
+      printk("laibao_init_platform_hw gpio_request error\n");
       return -EIO;
     }
 	

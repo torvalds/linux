@@ -108,6 +108,12 @@ static ssize_t battery_proc_write(struct file *file,const char __user *buffer,
 	rc = get_user(c,buffer);
 	if(rc)
 		return rc;
+	
+	//added by zwp,c='8' means check whether we need to download firmware to bq27xxx,return 0 means yes.
+	if(c == '8'){
+		printk("%s,bq27541 don't need to download firmware\n",__FUNCTION__);
+		return -1;//bq27541 don't need to download firmware.
+	}
 	if(c == '1')
 		virtual_battery_enable = 1;
 	else if(c == '2')
