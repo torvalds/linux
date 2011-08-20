@@ -312,6 +312,11 @@ enum p9_perm_t {
 /* 9p2000.L at flags */
 #define P9_DOTL_AT_REMOVEDIR		0x200
 
+/* 9p2000.L lock type */
+#define P9_LOCK_TYPE_RDLCK 0
+#define P9_LOCK_TYPE_WRLCK 1
+#define P9_LOCK_TYPE_UNLCK 2
+
 /**
  * enum p9_qid_t - QID types
  * @P9_QTDIR: directory
