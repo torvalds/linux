@@ -2403,6 +2403,20 @@ skip:
 	return sc->beacon.tx_last;
 }
 
+static int ath9k_get_stats(struct ieee80211_hw *hw,
+			   struct ieee80211_low_level_stats *stats)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_mib_stats *mib_stats = &ah->ah_mibStats;
+
+	stats->dot11ACKFailureCount = mib_stats->ackrcv_bad;
+	stats->dot11RTSFailureCount = mib_stats->rts_bad;
+	stats->dot11FCSErrorCount = mib_stats->fcs_bad;
+	stats->dot11RTSSuccessCount = mib_stats->rts_good;
+	return 0;
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2427,5 +2441,6 @@ struct ieee80211_ops ath9k_ops = {
 	.set_coverage_class = ath9k_set_coverage_class,
 	.flush		    = ath9k_flush,
 	.tx_frames_pending  = ath9k_tx_frames_pending,
-	.tx_last_beacon = ath9k_tx_last_beacon,
+	.tx_last_beacon     = ath9k_tx_last_beacon,
+	.get_stats	    = ath9k_get_stats,
 };
