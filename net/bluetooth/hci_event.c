@@ -1412,7 +1412,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
 			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-			mgmt_connected(hdev->id, &ev->bdaddr);
+			mgmt_connected(hdev->id, &ev->bdaddr, conn->type);
 		} else
 			conn->state = BT_CONNECTED;
 
@@ -2816,7 +2816,7 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 		goto unlock;
 	}
 
-	mgmt_connected(hdev->id, &ev->bdaddr);
+	mgmt_connected(hdev->id, &ev->bdaddr, conn->type);
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);

@@ -2012,11 +2012,12 @@ int mgmt_new_key(u16 index, struct link_key *key, u8 persistent)
 	return err;
 }
 
-int mgmt_connected(u16 index, bdaddr_t *bdaddr)
+int mgmt_connected(u16 index, bdaddr_t *bdaddr, u8 link_type)
 {
 	struct mgmt_ev_connected ev;
 
 	bacpy(&ev.bdaddr, bdaddr);
+	ev.link_type = link_type;
 
 	return mgmt_event(MGMT_EV_CONNECTED, index, &ev, sizeof(ev), NULL);
 }
