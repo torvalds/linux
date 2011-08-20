@@ -907,6 +907,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 	if (!conn->hcon->out && conn->hcon->type == LE_LINK)
 		l2cap_le_conn_ready(conn);
 
+	if (conn->hcon->out && conn->hcon->type == LE_LINK)
+		smp_conn_security(conn, conn->hcon->pending_sec_level);
+
 	read_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
@@ -4095,6 +4098,11 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	BT_DBG("conn %p", conn);
 
+	if (hcon->type == LE_LINK) {
+		smp_distribute_keys(conn, 0);
+		del_timer(&conn->security_timer);
+	}
+
 	read_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
@@ -4107,9 +4115,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 		if (chan->scid == L2CAP_CID_LE_DATA) {
 			if (!status && encrypt) {
 				chan->sec_level = hcon->sec_level;
-				del_timer(&conn->security_timer);
 				l2cap_chan_ready(sk);
-				smp_distribute_keys(conn, 0);
 			}
 
 			bh_unlock_sock(sk);
