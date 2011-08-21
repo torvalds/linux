@@ -94,17 +94,39 @@ static char *dlfb_vidreg_unlock(char *buf)
 }
 
 /*
- * On/Off for driving the DisplayLink framebuffer to the display
- *  0x00 H and V sync on
- *  0x01 H and V sync off (screen blank but powered)
- *  0x07 DPMS powerdown (requires modeset to come back)
+ * Map FB_BLANK_* to DisplayLink register
+ * DLReg FB_BLANK_*
+ * ----- -----------------------------
+ *  0x00 FB_BLANK_UNBLANK (0)
+ *  0x01 FB_BLANK (1)
+ *  0x03 FB_BLANK_VSYNC_SUSPEND (2)
+ *  0x05 FB_BLANK_HSYNC_SUSPEND (3)
+ *  0x07 FB_BLANK_POWERDOWN (4) Note: requires modeset to come back
  */
-static char *dlfb_enable_hvsync(char *buf, bool enable)
+static char *dlfb_blanking(char *buf, int fb_blank)
 {
-	if (enable)
-		return dlfb_set_register(buf, 0x1F, 0x00);
-	else
-		return dlfb_set_register(buf, 0x1F, 0x07);
+	u8 reg;
+
+	switch (fb_blank) {
+	case FB_BLANK_POWERDOWN:
+		reg = 0x07;
+		break;
+	case FB_BLANK_HSYNC_SUSPEND:
+		reg = 0x05;
+		break;
+	case FB_BLANK_VSYNC_SUSPEND:
+		reg = 0x03;
+		break;
+	case FB_BLANK_NORMAL:
+		reg = 0x01;
+		break;
+	default:
+		reg = 0x00;
+	}
+
+	buf = dlfb_set_register(buf, 0x1F, reg);
+
+	return buf;
 }
 
 static char *dlfb_set_color_depth(char *buf, u8 selection)
@@ -272,12 +294,14 @@ static int dlfb_set_video_mode(struct dlfb_data *dev,
 	wrptr = dlfb_set_base8bpp(wrptr, dev->info->fix.smem_len);
 
 	wrptr = dlfb_set_vid_cmds(wrptr, var);
-	wrptr = dlfb_enable_hvsync(wrptr, true);
+	wrptr = dlfb_blanking(wrptr, FB_BLANK_UNBLANK);
 	wrptr = dlfb_vidreg_unlock(wrptr);
 
 	writesize = wrptr - buf;
 
 	retval = dlfb_submit_urb(dev, urb, writesize);
+
+	dev->blank_mode = FB_BLANK_UNBLANK;
 
 	return retval;
 }
@@ -1039,31 +1063,56 @@ static int dlfb_ops_set_par(struct fb_info *info)
 	return result;
 }
 
+/* To fonzi the jukebox (e.g. make blanking changes take effect) */
+static char *dlfb_dummy_render(char *buf)
+{
+	*buf++ = 0xAF;
+	*buf++ = 0x6A; /* copy */
+	*buf++ = 0x00; /* from address*/
+	*buf++ = 0x00;
+	*buf++ = 0x00;
+	*buf++ = 0x01; /* one pixel */
+	*buf++ = 0x00; /* to address */
+	*buf++ = 0x00;
+	*buf++ = 0x00;
+	return buf;
+}
+
 /*
  * In order to come back from full DPMS off, we need to set the mode again
  */
 static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev = info->par;
+	char *bufptr;
+	struct urb *urb;
 
-	if (blank_mode != FB_BLANK_UNBLANK) {
-		char *bufptr;
-		struct urb *urb;
+	pr_info("/dev/fb%d FB_BLANK mode %d --> %d\n",
+		info->node, dev->blank_mode, blank_mode);
 
-		urb = dlfb_get_urb(dev);
-		if (!urb)
-			return 0;
+	if ((dev->blank_mode == FB_BLANK_POWERDOWN) &&
+	    (blank_mode != FB_BLANK_POWERDOWN)) {
 
-		bufptr = (char *) urb->transfer_buffer;
-		bufptr = dlfb_vidreg_lock(bufptr);
-		bufptr = dlfb_enable_hvsync(bufptr, false);
-		bufptr = dlfb_vidreg_unlock(bufptr);
-
-		dlfb_submit_urb(dev, urb, bufptr -
-				(char *) urb->transfer_buffer);
-	} else {
+		/* returning from powerdown requires a fresh modeset */
 		dlfb_set_video_mode(dev, &info->var);
 	}
+
+	urb = dlfb_get_urb(dev);
+	if (!urb)
+		return 0;
+
+	bufptr = (char *) urb->transfer_buffer;
+	bufptr = dlfb_vidreg_lock(bufptr);
+	bufptr = dlfb_blanking(bufptr, blank_mode);
+	bufptr = dlfb_vidreg_unlock(bufptr);
+
+	/* seems like a render op is needed to have blank change take effect */
+	bufptr = dlfb_dummy_render(bufptr);
+
+	dlfb_submit_urb(dev, urb, bufptr -
+			(char *) urb->transfer_buffer);
+
+	dev->blank_mode = blank_mode;
 
 	return 0;
 }
