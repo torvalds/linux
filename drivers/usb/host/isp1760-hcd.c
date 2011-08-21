@@ -777,10 +777,7 @@ static void collect_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh,
 		if (qtd->status < QTD_XFER_COMPLETE)
 			break;
 
-		if (list_is_last(&qtd->qtd_list, &qh->qtd_list))
-			last_qtd = 1;
-		else
-			last_qtd = qtd->urb != qtd_next->urb;
+		last_qtd = last_qtd_of_urb(qtd, qh);
 
 		if ((!last_qtd) && (qtd->status == QTD_RETIRE))
 			qtd_next->status = QTD_RETIRE;
@@ -821,7 +818,7 @@ static void collect_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh,
 			urb_listitem = kmem_cache_zalloc(urb_listitem_cachep,
 								GFP_ATOMIC);
 			if (unlikely(!urb_listitem))
-				break;
+				break; /* Try again on next call */
 			urb_listitem->urb = qtd->urb;
 			list_add_tail(&urb_listitem->urb_list, urb_list);
 		}
@@ -1543,7 +1540,6 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	packetize_urb(hcd, urb, &new_qtds, mem_flags);
 	if (list_empty(&new_qtds))
 		return -ENOMEM;
-	urb->hcpriv = NULL; /* Used to signal unlink to interrupt handler */
 
 	retval = 0;
 	spin_lock_irqsave(&priv->lock, spinflags);
@@ -1571,6 +1567,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		qh = qh_alloc(GFP_ATOMIC);
 		if (!qh) {
 			retval = -ENOMEM;
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			goto out;
 		}
 		list_add_tail(&qh->qh_list, ep_queue);
