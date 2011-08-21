@@ -839,7 +839,7 @@ static const struct wm8962_reg_access {
 	[40] = { 0x00FF, 0x01FF, 0x0000 }, /* R40    - SPKOUTL volume */
 	[41] = { 0x00FF, 0x01FF, 0x0000 }, /* R41    - SPKOUTR volume */
 
-	[47] = { 0x000F, 0x0000, 0x0000 }, /* R47    - Thermal Shutdown Status */
+	[47] = { 0x000F, 0x0000, 0xFFFF }, /* R47    - Thermal Shutdown Status */
 	[48] = { 0x7EC7, 0x7E07, 0xFFFF }, /* R48    - Additional Control (4) */
 	[49] = { 0x00D3, 0x00D7, 0xFFFF }, /* R49    - Class D Control 1 */
 	[51] = { 0x0047, 0x0047, 0x0000 }, /* R51    - Class D Control 2 */
@@ -3564,6 +3564,7 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int mask;
 	int active;
+	int reg;
 
 	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2_MASK);
 
@@ -3584,8 +3585,20 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	if (active & WM8962_FIFOS_ERR_EINT)
 		dev_err(codec->dev, "FIFO error\n");
 
-	if (active & WM8962_TEMP_SHUT_EINT)
+	if (active & WM8962_TEMP_SHUT_EINT) {
 		dev_crit(codec->dev, "Thermal shutdown\n");
+
+		reg = snd_soc_read(codec, WM8962_THERMAL_SHUTDOWN_STATUS);
+
+		if (reg & WM8962_TEMP_ERR_HP)
+			dev_crit(codec->dev, "Headphone thermal error\n");
+		if (reg & WM8962_TEMP_WARN_HP)
+			dev_crit(codec->dev, "Headphone thermal warning\n");
+		if (reg & WM8962_TEMP_ERR_SPK)
+			dev_crit(codec->dev, "Speaker thermal error\n");
+		if (reg & WM8962_TEMP_WARN_SPK)
+			dev_crit(codec->dev, "Speaker thermal warning\n");
+	}
 
 	if (active & (WM8962_MICSCD_EINT | WM8962_MICD_EINT)) {
 		dev_dbg(codec->dev, "Microphone event detected\n");
