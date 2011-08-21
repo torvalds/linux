@@ -22,10 +22,6 @@
 #include "phy.h"
 
 
-/* The unique identifier of the firmware that's officially supported by this
- * driver version. */
-#define B43legacy_SUPPORTED_FIRMWARE_ID	"FW10"
-
 #define B43legacy_IRQWAIT_MAX_RETRIES	20
 
 /* MMIO offsets */
