@@ -566,6 +566,12 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 		struct inode *dir = dentry->d_inode;
 		struct dentry *child;
 
+		if (!dir) {
+			dput(dentry);
+			dentry = ERR_PTR(-ENOENT);
+			break;
+		}
+
 		/* skip separators */
 		while (*s == sep)
 			s++;
@@ -581,10 +587,6 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 		mutex_unlock(&dir->i_mutex);
 		dput(dentry);
 		dentry = child;
-		if (!dentry->d_inode) {
-			dput(dentry);
-			dentry = ERR_PTR(-ENOENT);
-		}
 	} while (!IS_ERR(dentry));
 	_FreeXid(xid);
 	kfree(full_path);
