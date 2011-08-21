@@ -732,28 +732,29 @@ static void start_bus_transfer(struct usb_hcd *hcd, u32 ptd_offset, int slot,
 	WARN_ON(slots[slot].qh);
 	WARN_ON(qtd->status != QTD_PAYLOAD_ALLOC);
 
-	slots[slot].qtd = qtd;
-	slots[slot].qh = qh;
-	qh->slot = slot;
-	qtd->status = QTD_XFER_STARTED; /* Set this before writing ptd, since
-		interrupt routine may preempt and expects this value. */
-	slots[slot].timestamp = jiffies;
-	ptd_write(hcd->regs, ptd_offset, slot, ptd);
-
 	/* Make sure done map has not triggered from some unlinked transfer */
 	if (ptd_offset == ATL_PTD_OFFSET) {
 		priv->atl_done_map |= reg_read32(hcd->regs,
 						HC_ATL_PTD_DONEMAP_REG);
-		priv->atl_done_map &= ~(1 << qh->slot);
+		priv->atl_done_map &= ~(1 << slot);
+	} else {
+		priv->int_done_map |= reg_read32(hcd->regs,
+						HC_INT_PTD_DONEMAP_REG);
+		priv->int_done_map &= ~(1 << slot);
+	}
 
+	qh->slot = slot;
+	qtd->status = QTD_XFER_STARTED;
+	slots[slot].timestamp = jiffies;
+	slots[slot].qtd = qtd;
+	slots[slot].qh = qh;
+	ptd_write(hcd->regs, ptd_offset, slot, ptd);
+
+	if (ptd_offset == ATL_PTD_OFFSET) {
 		skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
 		skip_map &= ~(1 << qh->slot);
 		reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
 	} else {
-		priv->int_done_map |= reg_read32(hcd->regs,
-						HC_INT_PTD_DONEMAP_REG);
-		priv->int_done_map &= ~(1 << qh->slot);
-
 		skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
 		skip_map &= ~(1 << qh->slot);
 		reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
@@ -1266,7 +1267,7 @@ leave:
  * not to cause too much lag when this HW bug occurs, while still hopefully
  * ensuring that the check does not falsely trigger.
  */
-#define SLOT_TIMEOUT 180
+#define SLOT_TIMEOUT 300
 #define SLOT_CHECK_PERIOD 200
 static struct timer_list errata2_timer;
 
@@ -1281,16 +1282,17 @@ void errata2_function(unsigned long data)
 	spin_lock_irqsave(&priv->lock, spinflags);
 
 	for (slot = 0; slot < 32; slot++)
-		if ((priv->atl_slots[slot].qh || priv->atl_slots[slot].qtd) &&
-				time_after(jiffies + SLOT_TIMEOUT * HZ / 1000,
-				priv->atl_slots[slot].timestamp)) {
+		if (priv->atl_slots[slot].qh && time_after(jiffies,
+					priv->atl_slots[slot].timestamp +
+					SLOT_TIMEOUT * HZ / 1000)) {
 			ptd_read(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
 			if (!FROM_DW0_VALID(ptd.dw0) &&
 					!FROM_DW3_ACTIVE(ptd.dw3))
 				priv->atl_done_map |= 1 << slot;
 		}
 
-	handle_done_ptds(hcd);
+	if (priv->atl_done_map)
+		handle_done_ptds(hcd);
 
 	spin_unlock_irqrestore(&priv->lock, spinflags);
 
