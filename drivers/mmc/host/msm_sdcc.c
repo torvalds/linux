@@ -939,7 +939,7 @@ static void msmsdcc_setup_gpio(struct msmsdcc_host *host, bool enable)
 	struct msm_mmc_gpio_data *curr;
 	int i, rc = 0;
 
-	if (!host->plat->gpio_data && host->gpio_config_status == enable)
+	if (!host->plat->gpio_data || host->gpio_config_status == enable)
 		return;
 
 	curr = host->plat->gpio_data;
