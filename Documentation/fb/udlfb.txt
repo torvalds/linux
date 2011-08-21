@@ -107,16 +107,18 @@ fb_defio	Make use of the fb_defio (CONFIG_FB_DEFERRED_IO) kernel
 		Disable when running with X server that supports reporting
 		changed regions via ioctl, as this method is simpler,
 		more stable, and higher performance.
+		default: fb_defio=1
 
-console	Allow fbcon to attach to udlfb provided framebuffers. This
-		is disabled by default because fbcon will aggressively consume
-		the first framebuffer it finds, which isn't usually what the
-		user wants in the case of USB displays.
+console	Allow fbcon to attach to udlfb provided framebuffers.
+		Can be disabled if fbcon and other clients
+		(e.g. X with --shared-vt) are in conflict.
+		default: console=1
 
 shadow		Allocate a 2nd framebuffer to shadow what's currently across
 		the USB bus in device memory. If any pixels are unchanged,
 		do not transmit. Spends host memory to save USB transfers.
 		Enabled by default. Only disable on very low memory systems.
+		default: shadow=1
 
 Sysfs Attributes
 ================

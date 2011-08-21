@@ -60,7 +60,7 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* module options */
-static int console;   /* Optionally allow fbcon to consume first framebuffer */
+static int console = 1; /* Allow fbcon to open framebuffer */
 static int fb_defio = 1;  /* Detect mmap writes using page faults */
 static int shadow = 1; /* Optionally disable shadow framebuffer */
 
@@ -1948,7 +1948,7 @@ static int dlfb_submit_urb(struct dlfb_data *dev, struct urb *urb, size_t len)
 }
 
 module_param(console, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(console, "Allow fbcon to consume first framebuffer found");
+MODULE_PARM_DESC(console, "Allow fbcon to open framebuffer");
 
 module_param(fb_defio, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(fb_defio, "Page fault detection of mmap writes");
