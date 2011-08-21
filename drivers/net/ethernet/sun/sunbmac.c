@@ -17,6 +17,7 @@
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/ethtool.h>
+#include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -500,13 +501,13 @@ static int try_next_permutation(struct bigmac *bp, void __iomem *tregs)
 
 		/* Reset the PHY. */
 		bp->sw_bmcr	= (BMCR_ISOLATE | BMCR_PDOWN | BMCR_LOOPBACK);
-		bigmac_tcvr_write(bp, tregs, BIGMAC_BMCR, bp->sw_bmcr);
+		bigmac_tcvr_write(bp, tregs, MII_BMCR, bp->sw_bmcr);
 		bp->sw_bmcr	= (BMCR_RESET);
-		bigmac_tcvr_write(bp, tregs, BIGMAC_BMCR, bp->sw_bmcr);
+		bigmac_tcvr_write(bp, tregs, MII_BMCR, bp->sw_bmcr);
 
 		timeout = 64;
 		while (--timeout) {
-			bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, BIGMAC_BMCR);
+			bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, MII_BMCR);
 			if ((bp->sw_bmcr & BMCR_RESET) == 0)
 				break;
 			udelay(20);
@@ -514,11 +515,11 @@ static int try_next_permutation(struct bigmac *bp, void __iomem *tregs)
 		if (timeout == 0)
 			printk(KERN_ERR "%s: PHY reset failed.\n", bp->dev->name);
 
-		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, BIGMAC_BMCR);
+		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, MII_BMCR);
 
 		/* Now we try 10baseT. */
 		bp->sw_bmcr &= ~(BMCR_SPEED100);
-		bigmac_tcvr_write(bp, tregs, BIGMAC_BMCR, bp->sw_bmcr);
+		bigmac_tcvr_write(bp, tregs, MII_BMCR, bp->sw_bmcr);
 		return 0;
 	}
 
@@ -534,8 +535,8 @@ static void bigmac_timer(unsigned long data)
 
 	bp->timer_ticks++;
 	if (bp->timer_state == ltrywait) {
-		bp->sw_bmsr = bigmac_tcvr_read(bp, tregs, BIGMAC_BMSR);
-		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, BIGMAC_BMCR);
+		bp->sw_bmsr = bigmac_tcvr_read(bp, tregs, MII_BMSR);
+		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, MII_BMCR);
 		if (bp->sw_bmsr & BMSR_LSTATUS) {
 			printk(KERN_INFO "%s: Link is now up at %s.\n",
 			       bp->dev->name,
@@ -588,18 +589,18 @@ static void bigmac_begin_auto_negotiation(struct bigmac *bp)
 	int timeout;
 
 	/* Grab new software copies of PHY registers. */
-	bp->sw_bmsr	= bigmac_tcvr_read(bp, tregs, BIGMAC_BMSR);
-	bp->sw_bmcr	= bigmac_tcvr_read(bp, tregs, BIGMAC_BMCR);
+	bp->sw_bmsr	= bigmac_tcvr_read(bp, tregs, MII_BMSR);
+	bp->sw_bmcr	= bigmac_tcvr_read(bp, tregs, MII_BMCR);
 
 	/* Reset the PHY. */
 	bp->sw_bmcr	= (BMCR_ISOLATE | BMCR_PDOWN | BMCR_LOOPBACK);
-	bigmac_tcvr_write(bp, tregs, BIGMAC_BMCR, bp->sw_bmcr);
+	bigmac_tcvr_write(bp, tregs, MII_BMCR, bp->sw_bmcr);
 	bp->sw_bmcr	= (BMCR_RESET);
-	bigmac_tcvr_write(bp, tregs, BIGMAC_BMCR, bp->sw_bmcr);
+	bigmac_tcvr_write(bp, tregs, MII_BMCR, bp->sw_bmcr);
 
 	timeout = 64;
 	while (--timeout) {
-		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, BIGMAC_BMCR);
+		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, MII_BMCR);
 		if ((bp->sw_bmcr & BMCR_RESET) == 0)
 			break;
 		udelay(20);
@@ -607,11 +608,11 @@ static void bigmac_begin_auto_negotiation(struct bigmac *bp)
 	if (timeout == 0)
 		printk(KERN_ERR "%s: PHY reset failed.\n", bp->dev->name);
 
-	bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, BIGMAC_BMCR);
+	bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, MII_BMCR);
 
 	/* First we try 100baseT. */
 	bp->sw_bmcr |= BMCR_SPEED100;
-	bigmac_tcvr_write(bp, tregs, BIGMAC_BMCR, bp->sw_bmcr);
+	bigmac_tcvr_write(bp, tregs, MII_BMCR, bp->sw_bmcr);
 
 	bp->timer_state = ltrywait;
 	bp->timer_ticks = 0;
@@ -1054,7 +1055,7 @@ static u32 bigmac_get_link(struct net_device *dev)
 	struct bigmac *bp = netdev_priv(dev);
 
 	spin_lock_irq(&bp->lock);
-	bp->sw_bmsr = bigmac_tcvr_read(bp, bp->tregs, BIGMAC_BMSR);
+	bp->sw_bmsr = bigmac_tcvr_read(bp, bp->tregs, MII_BMSR);
 	spin_unlock_irq(&bp->lock);
 
 	return (bp->sw_bmsr & BMSR_LSTATUS);
