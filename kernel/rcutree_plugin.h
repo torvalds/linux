@@ -1948,15 +1948,6 @@ int rcu_needs_cpu(int cpu)
 	return rcu_needs_cpu_quick_check(cpu);
 }
 
-/*
- * Check to see if we need to continue a callback-flush operations to
- * allow the last CPU to enter dyntick-idle mode.  But fast dyntick-idle
- * entry is not configured, so we never do need to.
- */
-static void rcu_needs_cpu_flush(void)
-{
-}
-
 #else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
 #define RCU_NEEDS_CPU_FLUSHES 5
@@ -2030,22 +2021,6 @@ int rcu_needs_cpu(int cpu)
 	if (c)
 		invoke_rcu_core();
 	return c;
-}
-
-/*
- * Check to see if we need to continue a callback-flush operations to
- * allow the last CPU to enter dyntick-idle mode.
- */
-static void rcu_needs_cpu_flush(void)
-{
-	int cpu = smp_processor_id();
-	unsigned long flags;
-
-	if (per_cpu(rcu_dyntick_drain, cpu) <= 0)
-		return;
-	local_irq_save(flags);
-	(void)rcu_needs_cpu(cpu);
-	local_irq_restore(flags);
 }
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
