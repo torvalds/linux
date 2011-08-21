@@ -1269,19 +1269,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 		goto err_remap;
 	}
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "unable to obtain IRQ number\n");
-		goto err_irq;
-	}
-	hsudc->irq = ret;
-
-	ret = request_irq(hsudc->irq, s3c_hsudc_irq, 0, driver_name, hsudc);
-	if (ret < 0) {
-		dev_err(dev, "irq request failed\n");
-		goto err_irq;
-	}
-
 	spin_lock_init(&hsudc->lock);
 
 	device_initialize(&hsudc->gadget.dev);
@@ -1298,6 +1285,19 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->gadget.is_a_peripheral = 0;
 
 	s3c_hsudc_setup_ep(hsudc);
+
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
+		dev_err(dev, "unable to obtain IRQ number\n");
+		goto err_irq;
+	}
+	hsudc->irq = ret;
+
+	ret = request_irq(hsudc->irq, s3c_hsudc_irq, 0, driver_name, hsudc);
+	if (ret < 0) {
+		dev_err(dev, "irq request failed\n");
+		goto err_irq;
+	}
 
 	hsudc->uclk = clk_get(&pdev->dev, "usb-device");
 	if (IS_ERR(hsudc->uclk)) {
