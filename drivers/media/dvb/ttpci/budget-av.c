@@ -33,6 +33,8 @@
  * the project's page is at http://www.linuxtv.org/ 
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "budget.h"
 #include "stv0299.h"
 #include "stb0899_drv.h"
@@ -149,7 +151,7 @@ static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int ad
 	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 0xfff, 1, 0, 1);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 1\n");
+		pr_info("cam ejected 1\n");
 	}
 	return result;
 }
@@ -168,7 +170,7 @@ static int ciintf_write_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int a
 	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 0xfff, 1, value, 0, 1);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 2\n");
+		pr_info("cam ejected 2\n");
 	}
 	return result;
 }
@@ -187,7 +189,7 @@ static int ciintf_read_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addre
 	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 3, 1, 0, 0);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 3\n");
+		pr_info("cam ejected 3\n");
 		return -ETIMEDOUT;
 	}
 	return result;
@@ -207,7 +209,7 @@ static int ciintf_write_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addr
 	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 3, 1, value, 0, 0);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 5\n");
+		pr_info("cam ejected 5\n");
 	}
 	return result;
 }
@@ -289,7 +291,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		if (saa7146_read(saa, PSR) & MASK_06) {
 			if (budget_av->slot_status == SLOTSTATUS_NONE) {
 				budget_av->slot_status = SLOTSTATUS_PRESENT;
-				printk(KERN_INFO "budget-av: cam inserted A\n");
+				pr_info("cam inserted A\n");
 			}
 		}
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
@@ -306,11 +308,11 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1);
 		if ((result >= 0) && (budget_av->slot_status == SLOTSTATUS_NONE)) {
 			budget_av->slot_status = SLOTSTATUS_PRESENT;
-			printk(KERN_INFO "budget-av: cam inserted B\n");
+			pr_info("cam inserted B\n");
 		} else if (result < 0) {
 			if (budget_av->slot_status != SLOTSTATUS_NONE) {
 				ciintf_slot_shutdown(ca, slot);
-				printk(KERN_INFO "budget-av: cam ejected 5\n");
+				pr_info("cam ejected 5\n");
 				return 0;
 			}
 		}
@@ -365,11 +367,11 @@ static int ciintf_init(struct budget_av *budget_av)
 
 	if ((result = dvb_ca_en50221_init(&budget_av->budget.dvb_adapter,
 					  &budget_av->ca, 0, 1)) != 0) {
-		printk(KERN_ERR "budget-av: ci initialisation failed.\n");
+		pr_err("ci initialisation failed\n");
 		goto error;
 	}
 
-	printk(KERN_INFO "budget-av: ci interface initialised.\n");
+	pr_info("ci interface initialised\n");
 	return 0;
 
 error:
@@ -1345,8 +1347,7 @@ static void frontend_init(struct budget_av *budget_av)
 	}
 
 	if (fe == NULL) {
-		printk(KERN_ERR "budget-av: A frontend driver was not found "
-				"for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       saa->pci->vendor,
 		       saa->pci->device,
 		       saa->pci->subsystem_vendor,
@@ -1358,7 +1359,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 	if (dvb_register_frontend(&budget_av->budget.dvb_adapter,
 				  budget_av->budget.dvb_frontend)) {
-		printk(KERN_ERR "budget-av: Frontend registration failed!\n");
+		pr_err("Frontend registration failed!\n");
 		dvb_frontend_detach(budget_av->budget.dvb_frontend);
 		budget_av->budget.dvb_frontend = NULL;
 	}
@@ -1416,7 +1417,7 @@ static struct v4l2_input knc1_inputs[KNC1_INPUTS] = {
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
-	dprintk(1, "VIDIOC_ENUMINPUT %d.\n", i->index);
+	dprintk(1, "VIDIOC_ENUMINPUT %d\n", i->index);
 	if (i->index >= KNC1_INPUTS)
 		return -EINVAL;
 	memcpy(i, &knc1_inputs[i->index], sizeof(struct v4l2_input));
@@ -1430,7 +1431,7 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 
 	*i = budget_av->cur_input;
 
-	dprintk(1, "VIDIOC_G_INPUT %d.\n", *i);
+	dprintk(1, "VIDIOC_G_INPUT %d\n", *i);
 	return 0;
 }
 
@@ -1439,7 +1440,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct budget_av *budget_av = (struct budget_av *)dev->ext_priv;
 
-	dprintk(1, "VIDIOC_S_INPUT %d.\n", input);
+	dprintk(1, "VIDIOC_S_INPUT %d\n", input);
 	return saa7113_setinput(budget_av, input);
 }
 
@@ -1478,7 +1479,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 		if (0 != saa7146_vv_init(dev, &vv_data)) {
 			/* fixme: proper cleanup here */
-			ERR(("cannot init vv subsystem.\n"));
+			ERR("cannot init vv subsystem\n");
 			return err;
 		}
 		vv_data.ops.vidioc_enum_input = vidioc_enum_input;
@@ -1487,7 +1488,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_GRABBER))) {
 			/* fixme: proper cleanup here */
-			ERR(("cannot register capture v4l2 device.\n"));
+			ERR("cannot register capture v4l2 device\n");
 			saa7146_vv_release(dev);
 			return err;
 		}
@@ -1504,13 +1505,12 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	mac = budget_av->budget.dvb_adapter.proposed_mac;
 	if (i2c_readregs(&budget_av->budget.i2c_adap, 0xa0, 0x30, mac, 6)) {
-		printk(KERN_ERR "KNC1-%d: Could not read MAC from KNC1 card\n",
+		pr_err("KNC1-%d: Could not read MAC from KNC1 card\n",
 		       budget_av->budget.dvb_adapter.num);
 		memset(mac, 0, 6);
 	} else {
-		printk(KERN_INFO "KNC1-%d: MAC addr = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		       budget_av->budget.dvb_adapter.num,
-		       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+		pr_info("KNC1-%d: MAC addr = %pM\n",
+			budget_av->budget.dvb_adapter.num, mac);
 	}
 
 	budget_av->budget.dvb_adapter.priv = budget_av;
