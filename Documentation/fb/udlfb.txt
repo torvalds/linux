@@ -105,6 +105,11 @@ console		Allow fbcon to attach to udlfb provided framebuffers. This
 		the first framebuffer it finds, which isn't usually what the
 		user wants in the case of USB displays.
 
+shadow		Allocate a 2nd framebuffer to shadow what's currently across
+		the USB bus in device memory. If any pixels are unchanged,
+		do not transmit. Spends host memory to save USB transfers.
+		Enabled by default. Only disable on very low memory systems.
+
 Sysfs Attributes
 ================
 
