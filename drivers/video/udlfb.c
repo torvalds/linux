@@ -61,7 +61,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* module options */
 static int console;   /* Optionally allow fbcon to consume first framebuffer */
-static int fb_defio;  /* Optionally enable experimental fb_defio mmap support */
+static int fb_defio = 1;  /* Detect mmap writes using page faults */
 static int shadow = 1; /* Optionally disable shadow framebuffer */
 
 /* dlfb keeps a list of urbs for efficient bulk transfers */
@@ -1951,7 +1951,7 @@ module_param(console, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(console, "Allow fbcon to consume first framebuffer found");
 
 module_param(fb_defio, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(fb_defio, "Enable fb_defio mmap support. *Experimental*");
+MODULE_PARM_DESC(fb_defio, "Page fault detection of mmap writes");
 
 module_param(shadow, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(shadow, "Shadow vid mem. Disable to save mem but lose perf");
