@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg.h>
 #include <linux/prefetch.h>
 
 #include <mach/regs-s3c2443-clock.h>
@@ -137,6 +138,7 @@ struct s3c_hsudc {
 	struct usb_gadget_driver *driver;
 	struct device *dev;
 	struct s3c24xx_hsudc_platdata *pd;
+	struct otg_transceiver *transceiver;
 	spinlock_t lock;
 	void __iomem *regs;
 	struct resource *mem_rsrc;
@@ -1171,6 +1173,22 @@ static int s3c_hsudc_start(struct usb_gadget_driver *driver,
 		return ret;
 	}
 
+	/* connect to bus through transceiver */
+	if (hsudc->transceiver) {
+		ret = otg_set_peripheral(hsudc->transceiver, &hsudc->gadget);
+		if (ret) {
+			dev_err(hsudc->dev, "%s: can't bind to transceiver\n",
+					hsudc->gadget.name);
+			driver->unbind(&hsudc->gadget);
+
+			device_del(&hsudc->gadget.dev);
+
+			hsudc->driver = NULL;
+			hsudc->gadget.dev.driver = NULL;
+			return ret;
+		}
+	}
+
 	enable_irq(hsudc->irq);
 	dev_info(hsudc->dev, "bound driver %s\n", driver->driver.name);
 
@@ -1200,6 +1218,9 @@ static int s3c_hsudc_stop(struct usb_gadget_driver *driver)
 		hsudc->pd->gpio_uninit();
 	s3c_hsudc_stop_activity(hsudc, driver);
 	spin_unlock_irqrestore(&hsudc->lock, flags);
+
+	if (hsudc->transceiver)
+		(void) otg_set_peripheral(hsudc->transceiver, NULL);
 
 	driver->unbind(&hsudc->gadget);
 	device_del(&hsudc->gadget.dev);
@@ -1246,6 +1267,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
+
+	hsudc->transceiver = otg_get_transceiver();
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
