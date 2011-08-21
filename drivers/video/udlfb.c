@@ -1479,21 +1479,30 @@ static int dlfb_select_std_channel(struct dlfb_data *dev)
 }
 
 static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
-					struct usb_device *usbdev)
+					struct usb_interface *interface)
 {
 	char *desc;
 	char *buf;
 	char *desc_end;
 
-	u8 total_len = 0;
+	int total_len = 0;
 
 	buf = kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
 	if (!buf)
 		return false;
 	desc = buf;
 
-	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
-				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
+	total_len = usb_get_descriptor(interface_to_usbdev(interface),
+					0x5f, /* vendor specific */
+					0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
+
+	/* if not found, look in configuration descriptor */
+	if (total_len < 0) {
+		if (0 == usb_get_extra_descriptor(interface->cur_altsetting,
+			0x5f, &desc))
+			total_len = (int) desc[0];
+	}
+
 	if (total_len > 5) {
 		pr_info("vendor descriptor length:%x data:%02x %02x %02x %02x" \
 			"%02x %02x %02x %02x %02x %02x %02x\n",
@@ -1534,6 +1543,8 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
 			}
 			desc += length;
 		}
+	} else {
+		pr_info("vendor descriptor not available (%d)\n", total_len);
 	}
 
 	goto success;
@@ -1583,7 +1594,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 
 	dev->sku_pixel_limit = 2048 * 1152; /* default to maximum */
 
-	if (!dlfb_parse_vendor_descriptor(dev, usbdev)) {
+	if (!dlfb_parse_vendor_descriptor(dev, interface)) {
 		pr_err("firmware not recognized. Assume incompatible device\n");
 		goto error;
 	}
