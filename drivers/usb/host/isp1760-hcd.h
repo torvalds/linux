@@ -73,7 +73,6 @@ void deinit_kmem_cache(void);
 #define HC_EOT_INT		(1 << 3)
 #define HC_SOT_INT		(1 << 1)
 #define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT)
-#define INTERRUPT_ENABLE_SOT_MASK	(HC_SOT_INT)
 
 #define HC_ISO_IRQ_MASK_OR_REG	0x318
 #define HC_INT_IRQ_MASK_OR_REG	0x31C
@@ -107,6 +106,7 @@ struct ptd {
 struct slotinfo {
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
+	unsigned long timestamp;
 };
 
 
@@ -188,6 +188,7 @@ struct memory_chunk {
 #define DW3_BABBLE_BIT			(1 << 29)
 #define DW3_HALT_BIT			(1 << 30)
 #define DW3_ACTIVE_BIT			(1 << 31)
+#define FROM_DW3_ACTIVE(x)		(((x) >> 31) & 0x01)
 
 #define INT_UNDERRUN			(1 << 2)
 #define INT_BABBLE			(1 << 1)
