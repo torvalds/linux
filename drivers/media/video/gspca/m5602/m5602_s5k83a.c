@@ -16,6 +16,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kthread.h>
 #include "m5602_s5k83a.h"
 
@@ -135,7 +137,7 @@ int s5k83a_probe(struct sd *sd)
 
 	if (force_sensor) {
 		if (force_sensor == S5K83A_SENSOR) {
-			info("Forcing a %s sensor", s5k83a.name);
+			pr_info("Forcing a %s sensor\n", s5k83a.name);
 			goto sensor_found;
 		}
 		/* If we want to force another sensor, don't try to probe this
@@ -168,7 +170,7 @@ int s5k83a_probe(struct sd *sd)
 	if ((prod_id == 0xff) || (ver_id == 0xff))
 		return -ENODEV;
 	else
-		info("Detected a s5k83a sensor");
+		pr_info("Detected a s5k83a sensor\n");
 
 sensor_found:
 	sens_priv = kmalloc(
@@ -227,7 +229,7 @@ int s5k83a_init(struct sd *sd)
 				init_s5k83a[i][1], data, 2);
 			break;
 		default:
-			info("Invalid stream command, exiting init");
+			pr_info("Invalid stream command, exiting init\n");
 			return -EINVAL;
 		}
 	}
@@ -273,7 +275,7 @@ static int rotation_thread_function(void *data)
 		s5k83a_get_rotation(sd, &reg);
 		if (previous_rotation != reg) {
 			previous_rotation = reg;
-			info("Camera was flipped");
+			pr_info("Camera was flipped\n");
 
 			s5k83a_get_vflip((struct gspca_dev *) sd, &vflip);
 			s5k83a_get_hflip((struct gspca_dev *) sd, &hflip);
@@ -566,20 +568,20 @@ static void s5k83a_dump_registers(struct sd *sd)
 
 	for (page = 0; page < 16; page++) {
 		m5602_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
-		info("Dumping the s5k83a register state for page 0x%x", page);
+		pr_info("Dumping the s5k83a register state for page 0x%x\n",
+			page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 val = 0;
 			m5602_read_sensor(sd, address, &val, 1);
-			info("register 0x%x contains 0x%x",
-			     address, val);
+			pr_info("register 0x%x contains 0x%x\n", address, val);
 		}
 	}
-	info("s5k83a register state dump complete");
+	pr_info("s5k83a register state dump complete\n");
 
 	for (page = 0; page < 16; page++) {
 		m5602_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
-		info("Probing for which registers that are read/write "
-				"for page 0x%x", page);
+		pr_info("Probing for which registers that are read/write for page 0x%x\n",
+			page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 old_val, ctrl_val, test_val = 0xff;
 
@@ -588,14 +590,16 @@ static void s5k83a_dump_registers(struct sd *sd)
 			m5602_read_sensor(sd, address, &ctrl_val, 1);
 
 			if (ctrl_val == test_val)
-				info("register 0x%x is writeable", address);
+				pr_info("register 0x%x is writeable\n",
+					address);
 			else
-				info("register 0x%x is read only", address);
+				pr_info("register 0x%x is read only\n",
+					address);
 
 			/* Restore original val */
 			m5602_write_sensor(sd, address, &old_val, 1);
 		}
 	}
-	info("Read/write register probing complete");
+	pr_info("Read/write register probing complete\n");
 	m5602_write_sensor(sd, S5K83A_PAGE_MAP, &old_page, 1);
 }
