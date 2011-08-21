@@ -521,12 +521,13 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	struct mxs_saif *saif;
 	int ret = 0;
 
+	if (pdev->id >= ARRAY_SIZE(mxs_saif))
+		return -EINVAL;
+
 	saif = kzalloc(sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
 
-	if (pdev->id >= ARRAY_SIZE(mxs_saif))
-		return -EINVAL;
 	mxs_saif[pdev->id] = saif;
 
 	saif->clk = clk_get(&pdev->dev, NULL);
