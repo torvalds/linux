@@ -3570,6 +3570,9 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
 
+	if (!active)
+		return IRQ_NONE;
+
 	/* Acknowledge the interrupts */
 	snd_soc_write(codec, WM8962_INTERRUPT_STATUS_2, active);
 
