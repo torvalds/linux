@@ -187,15 +187,19 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 	if (!saif)
 		return -EINVAL;
 
+	/* Clear Reset */
+	__raw_writel(BM_SAIF_CTRL_SFTRST,
+		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+
+	/* FIXME: need clear clk gate for register r/w */
+	__raw_writel(BM_SAIF_CTRL_CLKGATE,
+		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+
 	stat = __raw_readl(saif->base + SAIF_STAT);
 	if (stat & BM_SAIF_STAT_BUSY) {
 		dev_err(saif->dev, "error: busy\n");
 		return -EBUSY;
 	}
-
-	/* Clear Reset */
-	__raw_writel(BM_SAIF_CTRL_SFTRST,
-		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
 	saif->mclk_in_use = 1;
 	ret = mxs_saif_set_clk(saif, mclk, rate);
@@ -207,8 +211,6 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 		return ret;
 
 	/* enable MCLK output */
-	__raw_writel(BM_SAIF_CTRL_CLKGATE,
-		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 	__raw_writel(BM_SAIF_CTRL_RUN,
 		saif->base + SAIF_CTRL + MXS_SET_ADDR);
 
@@ -303,6 +305,10 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 	__raw_writel(BM_SAIF_CTRL_SFTRST,
 		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
+	/* clear clock gate */
+	__raw_writel(BM_SAIF_CTRL_CLKGATE,
+		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+
 	return 0;
 }
 
@@ -378,10 +384,6 @@ static int mxs_saif_prepare(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
-
-	/* clear clock gate */
-	__raw_writel(BM_SAIF_CTRL_CLKGATE,
-		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
 	/* enable FIFO error irqs */
 	__raw_writel(BM_SAIF_CTRL_FIFO_ERROR_IRQ_EN,
