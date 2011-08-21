@@ -20,6 +20,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "sq930x"
 
 #include "gspca.h"
@@ -468,7 +470,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			value, 0, gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		err("reg_r %04x failed %d", value, ret);
+		pr_err("reg_r %04x failed %d\n", value, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -488,7 +490,7 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 			500);
 	msleep(30);
 	if (ret < 0) {
-		err("reg_w %04x %04x failed %d", value, index, ret);
+		pr_err("reg_w %04x %04x failed %d\n", value, index, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -511,7 +513,7 @@ static void reg_wb(struct gspca_dev *gspca_dev, u16 value, u16 index,
 			1000);
 	msleep(30);
 	if (ret < 0) {
-		err("reg_wb %04x %04x failed %d", value, index, ret);
+		pr_err("reg_wb %04x %04x failed %d\n", value, index, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -556,7 +558,7 @@ static void i2c_write(struct sd *sd,
 			gspca_dev->usb_buf, buf - gspca_dev->usb_buf,
 			500);
 	if (ret < 0) {
-		err("i2c_write failed %d", ret);
+		pr_err("i2c_write failed %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -575,7 +577,7 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 
 #ifdef GSPCA_DEBUG
 	if ((batchsize - 1) * 3 > USB_BUF_SZ) {
-		err("Bug: usb_buf overflow");
+		pr_err("Bug: usb_buf overflow\n");
 		gspca_dev->usb_err = -ENOMEM;
 		return;
 	}
@@ -612,7 +614,7 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 				gspca_dev->usb_buf, buf - gspca_dev->usb_buf,
 				500);
 		if (ret < 0) {
-			err("ucbus_write failed %d", ret);
+			pr_err("ucbus_write failed %d\n", ret);
 			gspca_dev->usb_err = ret;
 			return;
 		}
@@ -688,7 +690,7 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 			break;
 	}
 	if (i >= ARRAY_SIZE(probe_order)) {
-		err("Unknown sensor");
+		pr_err("Unknown sensor\n");
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -696,7 +698,8 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV9630:
-		err("Sensor %s not yet treated", sensor_tb[sd->sensor].name);
+		pr_err("Sensor %s not yet treated\n",
+		       sensor_tb[sd->sensor].name);
 		gspca_dev->usb_err = -EINVAL;
 		break;
 	}
@@ -1091,7 +1094,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	gspca_dev->cam.bulk_nurbs = 1;
 	ret = usb_submit_urb(gspca_dev->urb[0], GFP_ATOMIC);
 	if (ret < 0)
-		err("sd_dq_callback() err %d", ret);
+		pr_err("sd_dq_callback() err %d\n", ret);
 
 	/* wait a little time, otherwise the webcam crashes */
 	msleep(100);

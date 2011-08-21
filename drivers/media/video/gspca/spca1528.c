@@ -18,6 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "spca1528"
 
 #include "gspca.h"
@@ -171,7 +173,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "GET %02x 0000 %04x %02x", req, index,
 			 gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		err("reg_r err %d", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -193,7 +195,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			value, index,
 			NULL, 0, 500);
 	if (ret < 0) {
-		err("reg_w err %d", ret);
+		pr_err("reg_w err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -217,7 +219,7 @@ static void reg_wb(struct gspca_dev *gspca_dev,
 			value, index,
 			gspca_dev->usb_buf, 1, 500);
 	if (ret < 0) {
-		err("reg_w err %d", ret);
+		pr_err("reg_w err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }

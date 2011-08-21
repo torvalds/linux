@@ -24,6 +24,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "ov534_9"
 
 #include "gspca.h"
@@ -785,7 +787,7 @@ static void reg_w_i(struct gspca_dev *gspca_dev, u16 reg, u8 val)
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x00, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	if (ret < 0) {
-		err("reg_w failed %d", ret);
+		pr_err("reg_w failed %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -810,7 +812,7 @@ static u8 reg_r(struct gspca_dev *gspca_dev, u16 reg)
 			      0x00, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	PDEBUG(D_USBI, "reg_r [%04x] -> %02x", reg, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		err("reg_r err %d", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 	return gspca_dev->usb_buf[0];
@@ -848,7 +850,7 @@ static void sccb_write(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	reg_w_i(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_3);
 
 	if (!sccb_check_status(gspca_dev))
-		err("sccb_write failed");
+		pr_err("sccb_write failed\n");
 }
 
 static u8 sccb_read(struct gspca_dev *gspca_dev, u16 reg)
@@ -856,11 +858,11 @@ static u8 sccb_read(struct gspca_dev *gspca_dev, u16 reg)
 	reg_w(gspca_dev, OV534_REG_SUBADDR, reg);
 	reg_w(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_2);
 	if (!sccb_check_status(gspca_dev))
-		err("sccb_read failed 1");
+		pr_err("sccb_read failed 1\n");
 
 	reg_w(gspca_dev, OV534_REG_OPERATION, OV534_OP_READ_2);
 	if (!sccb_check_status(gspca_dev))
-		err("sccb_read failed 2");
+		pr_err("sccb_read failed 2\n");
 
 	return reg_r(gspca_dev, OV534_REG_READ);
 }

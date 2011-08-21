@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "sonixj"
 
 #include <linux/input.h>
@@ -1395,7 +1397,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 		return;
 #ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		err("reg_r: buffer overflow");
+		pr_err("reg_r: buffer overflow\n");
 		return;
 	}
 #endif
@@ -1408,7 +1410,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			500);
 	PDEBUG(D_USBI, "reg_r [%02x] -> %02x", value, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		err("reg_r err %d", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -1432,7 +1434,7 @@ static void reg_w1(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		err("reg_w1 err %d", ret);
+		pr_err("reg_w1 err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -1449,7 +1451,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		value, buffer[0], buffer[1]);
 #ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		err("reg_w: buffer overflow");
+		pr_err("reg_w: buffer overflow\n");
 		return;
 	}
 #endif
@@ -1462,7 +1464,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		err("reg_w err %d", ret);
+		pr_err("reg_w err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -1502,7 +1504,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 			gspca_dev->usb_buf, 8,
 			500);
 	if (ret < 0) {
-		err("i2c_w1 err %d", ret);
+		pr_err("i2c_w1 err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -1527,7 +1529,7 @@ static void i2c_w8(struct gspca_dev *gspca_dev,
 			500);
 	msleep(2);
 	if (ret < 0) {
-		err("i2c_w8 err %d", ret);
+		pr_err("i2c_w8 err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -1591,7 +1593,7 @@ static void hv7131r_probe(struct gspca_dev *gspca_dev)
 		PDEBUG(D_PROBE, "Sensor HV7131R found");
 		return;
 	}
-	warn("Erroneous HV7131R ID 0x%02x 0x%02x 0x%02x",
+	pr_warn("Erroneous HV7131R ID 0x%02x 0x%02x 0x%02x\n",
 		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1],
 		gspca_dev->usb_buf[2]);
 }
@@ -1710,7 +1712,7 @@ static void ov7648_probe(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_PO1030;
 		return;
 	}
-	err("Unknown sensor %04x", val);
+	pr_err("Unknown sensor %04x\n", val);
 }
 
 /* 0c45:6142 sensor may be po2030n, gc0305 or gc0307 */
@@ -1748,7 +1750,7 @@ static void po2030n_probe(struct gspca_dev *gspca_dev)
 		PDEBUG(D_PROBE, "Sensor po2030n");
 /*		sd->sensor = SENSOR_PO2030N; */
 	} else {
-		err("Unknown sensor ID %04x", val);
+		pr_err("Unknown sensor ID %04x\n", val);
 	}
 }
 

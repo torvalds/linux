@@ -31,6 +31,8 @@
    the sensor drivers to v4l2 sub drivers, and properly split of this
    driver from ov519.c */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define W9968CF_I2C_BUS_DELAY    4 /* delay in us for I2C bit r/w operations */
 
 #define Y_QUANTABLE (&sd->jpeg_hdr[JPEG_QT0_OFFSET])
@@ -81,7 +83,7 @@ static void w9968cf_write_fsb(struct sd *sd, u16* data)
 			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
 			      value, 0x06, sd->gspca_dev.usb_buf, 6, 500);
 	if (ret < 0) {
-		err("Write FSB registers failed (%d)", ret);
+		pr_err("Write FSB registers failed (%d)\n", ret);
 		sd->gspca_dev.usb_err = ret;
 	}
 }
@@ -108,7 +110,7 @@ static void w9968cf_write_sb(struct sd *sd, u16 value)
 	udelay(W9968CF_I2C_BUS_DELAY);
 
 	if (ret < 0) {
-		err("Write SB reg [01] %04x failed", value);
+		pr_err("Write SB reg [01] %04x failed\n", value);
 		sd->gspca_dev.usb_err = ret;
 	}
 }
@@ -135,7 +137,7 @@ static int w9968cf_read_sb(struct sd *sd)
 		ret = sd->gspca_dev.usb_buf[0] |
 		      (sd->gspca_dev.usb_buf[1] << 8);
 	} else {
-		err("Read SB reg [01] failed");
+		pr_err("Read SB reg [01] failed\n");
 		sd->gspca_dev.usb_err = ret;
 	}
 

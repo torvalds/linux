@@ -27,6 +27,8 @@
  * P/N 861040-0000: Sensor ST VV6410       ASIC STV0610   - QuickCam Web
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "stv06xx_vv6410.h"
 
 static struct v4l2_pix_format vv6410_mode[] = {
@@ -112,7 +114,7 @@ static int vv6410_probe(struct sd *sd)
 		return -ENODEV;
 
 	if (data == 0x19) {
-		info("vv6410 sensor detected");
+		pr_info("vv6410 sensor detected\n");
 
 		sensor_settings = kmalloc(ARRAY_SIZE(vv6410_ctrl) * sizeof(s32),
 					  GFP_KERNEL);
@@ -222,11 +224,11 @@ static int vv6410_dump(struct sd *sd)
 	u8 i;
 	int err = 0;
 
-	info("Dumping all vv6410 sensor registers");
+	pr_info("Dumping all vv6410 sensor registers\n");
 	for (i = 0; i < 0xff && !err; i++) {
 		u16 data;
 		err = stv06xx_read_sensor(sd, i, &data);
-		info("Register 0x%x contained 0x%x", i, data);
+		pr_info("Register 0x%x contained 0x%x\n", i, data);
 	}
 	return (err < 0) ? err : 0;
 }

@@ -21,6 +21,8 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "gspca"
 
 #include <linux/init.h>
@@ -148,7 +150,7 @@ static void int_irq(struct urb *urb)
 	if (ret == 0) {
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0)
-			err("Resubmit URB failed with error %i", ret);
+			pr_err("Resubmit URB failed with error %i\n", ret);
 	}
 }
 
@@ -177,8 +179,8 @@ static int gspca_input_connect(struct gspca_dev *dev)
 
 		err = input_register_device(input_dev);
 		if (err) {
-			err("Input device registration failed with error %i",
-				err);
+			pr_err("Input device registration failed with error %i\n",
+			       err);
 			input_dev->dev.parent = NULL;
 			input_free_device(input_dev);
 		} else {
@@ -323,8 +325,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		/* check the packet status and length */
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
-			err("ISOC data error: [%d] len=%d, status=%d",
-				i, len, st);
+			pr_err("ISOC data error: [%d] len=%d, status=%d\n",
+			       i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
@@ -346,7 +348,7 @@ resubmit:
 	/* resubmit the URB */
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
-		err("usb_submit_urb() ret %d", st);
+		pr_err("usb_submit_urb() ret %d\n", st);
 }
 
 /*
@@ -400,7 +402,7 @@ resubmit:
 	if (gspca_dev->cam.bulk_nurbs != 0) {
 		st = usb_submit_urb(urb, GFP_ATOMIC);
 		if (st < 0)
-			err("usb_submit_urb() ret %d", st);
+			pr_err("usb_submit_urb() ret %d\n", st);
 	}
 }
 
@@ -464,7 +466,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		} else {
 /* !! image is NULL only when last pkt is LAST or DISCARD
 			if (gspca_dev->image == NULL) {
-				err("gspca_frame_add() image == NULL");
+				pr_err("gspca_frame_add() image == NULL\n");
 				return;
 			}
  */
@@ -525,7 +527,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
 		count = GSPCA_MAX_FRAMES - 1;
 	gspca_dev->frbuf = vmalloc_32(frsz * count);
 	if (!gspca_dev->frbuf) {
-		err("frame alloc failed");
+		pr_err("frame alloc failed\n");
 		return -ENOMEM;
 	}
 	gspca_dev->capt_file = file;
@@ -597,7 +599,7 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 		return 0;
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0);
 	if (ret < 0)
-		err("set alt 0 err %d", ret);
+		pr_err("set alt 0 err %d\n", ret);
 	return ret;
 }
 
@@ -673,7 +675,7 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 		}
 	}
 	if (ep == NULL) {
-		err("no transfer endpoint found");
+		pr_err("no transfer endpoint found\n");
 		return NULL;
 	}
 	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
@@ -682,7 +684,7 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	if (gspca_dev->nbalt > 1) {
 		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 		if (ret < 0) {
-			err("set alt %d err %d", i, ret);
+			pr_err("set alt %d err %d\n", i, ret);
 			ep = NULL;
 		}
 	}
@@ -731,7 +733,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
 		if (!urb) {
-			err("usb_alloc_urb failed");
+			pr_err("usb_alloc_urb failed\n");
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
@@ -741,7 +743,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 						&urb->transfer_dma);
 
 		if (urb->transfer_buffer == NULL) {
-			err("usb_alloc_coherent failed");
+			pr_err("usb_alloc_coherent failed\n");
 			return -ENOMEM;
 		}
 		urb->dev = gspca_dev->dev;
@@ -854,8 +856,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			break;
 		gspca_stream_off(gspca_dev);
 		if (ret != -ENOSPC) {
-			err("usb_submit_urb alt %d err %d",
-				gspca_dev->alt, ret);
+			pr_err("usb_submit_urb alt %d err %d\n",
+			       gspca_dev->alt, ret);
 			goto out;
 		}
 
@@ -2202,12 +2204,12 @@ int gspca_dev_probe2(struct usb_interface *intf,
 		dev_size = sizeof *gspca_dev;
 	gspca_dev = kzalloc(dev_size, GFP_KERNEL);
 	if (!gspca_dev) {
-		err("couldn't kzalloc gspca struct");
+		pr_err("couldn't kzalloc gspca struct\n");
 		return -ENOMEM;
 	}
 	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
-		err("out of memory");
+		pr_err("out of memory\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2264,7 +2266,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 				  VFL_TYPE_GRABBER,
 				  -1);
 	if (ret < 0) {
-		err("video_register_device err %d", ret);
+		pr_err("video_register_device err %d\n", ret);
 		goto out;
 	}
 
@@ -2296,8 +2298,8 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	/* we don't handle multi-config cameras */
 	if (dev->descriptor.bNumConfigurations != 1) {
-		err("%04x:%04x too many config",
-				id->idVendor, id->idProduct);
+		pr_err("%04x:%04x too many config\n",
+		       id->idVendor, id->idProduct);
 		return -ENODEV;
 	}
 
@@ -2480,7 +2482,7 @@ EXPORT_SYMBOL(gspca_auto_gain_n_exposure);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-	info("v" DRIVER_VERSION_NUMBER " registered");
+	pr_info("v" DRIVER_VERSION_NUMBER " registered\n");
 	return 0;
 }
 static void __exit gspca_exit(void)
