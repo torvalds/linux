@@ -1052,10 +1052,19 @@ static void msmsdcc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static void msmsdcc_init_card(struct mmc_host *mmc, struct mmc_card *card)
+{
+	struct msmsdcc_host *host = mmc_priv(mmc);
+
+	if (host->plat->init_card)
+		host->plat->init_card(card);
+}
+
 static const struct mmc_host_ops msmsdcc_ops = {
 	.request	= msmsdcc_request,
 	.set_ios	= msmsdcc_set_ios,
 	.enable_sdio_irq = msmsdcc_enable_sdio_irq,
+	.init_card	= msmsdcc_init_card,
 };
 
 static void
