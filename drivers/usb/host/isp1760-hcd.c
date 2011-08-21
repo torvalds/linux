@@ -514,32 +514,6 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	return priv_init(hcd);
 }
 
-static void isp1760_init_maps(struct usb_hcd *hcd)
-{
-	/*set last maps, for iso its only 1, else 32 tds bitmap*/
-	reg_write32(hcd->regs, HC_ATL_PTD_LASTPTD_REG, 0x80000000);
-	reg_write32(hcd->regs, HC_INT_PTD_LASTPTD_REG, 0x80000000);
-	reg_write32(hcd->regs, HC_ISO_PTD_LASTPTD_REG, 0x00000001);
-
-	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, 0xffffffff);
-	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, 0xffffffff);
-	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, 0xffffffff);
-
-	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG,
-						ATL_BUF_FILL | INT_BUF_FILL);
-}
-
-static void isp1760_enable_interrupts(struct usb_hcd *hcd)
-{
-	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_AND_REG, 0);
-	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, 0xffffffff);
-	reg_write32(hcd->regs, HC_INT_IRQ_MASK_AND_REG, 0);
-	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, 0xffffffff);
-	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_AND_REG, 0);
-	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_OR_REG, 0xffffffff);
-	/* step 23 passed */
-}
-
 static int isp1760_run(struct usb_hcd *hcd)
 {
 	int retval;
@@ -550,7 +524,16 @@ static int isp1760_run(struct usb_hcd *hcd)
 	hcd->uses_new_polling = 1;
 
 	hcd->state = HC_STATE_RUNNING;
-	isp1760_enable_interrupts(hcd);
+
+	/* Set PTD interrupt AND & OR maps */
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_AND_REG, 0);
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_AND_REG, 0);
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_AND_REG, 0);
+	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_OR_REG, 0xffffffff);
+	/* step 23 passed */
+
 	temp = reg_read32(hcd->regs, HC_HW_MODE_CTRL);
 	reg_write32(hcd->regs, HC_HW_MODE_CTRL, temp | HW_GLOBAL_INTR_EN);
 
@@ -581,8 +564,16 @@ static int isp1760_run(struct usb_hcd *hcd)
 					chipid & 0xffff, chipid >> 16);
 
 	/* PTD Register Init Part 2, Step 28 */
-	/* enable INTs */
-	isp1760_init_maps(hcd);
+
+	/* Setup registers controlling PTD checking */
+	reg_write32(hcd->regs, HC_ATL_PTD_LASTPTD_REG, 0x80000000);
+	reg_write32(hcd->regs, HC_INT_PTD_LASTPTD_REG, 0x80000000);
+	reg_write32(hcd->regs, HC_ISO_PTD_LASTPTD_REG, 0x00000001);
+	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG,
+						ATL_BUF_FILL | INT_BUF_FILL);
 
 	/* GRR this is run-once init(), being done every time the HC starts.
 	 * So long as they're part of class devices, we can't do it init()
