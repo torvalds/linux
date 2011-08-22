@@ -3453,16 +3453,11 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 			if (!nfsd4_has_session(cstate) &&
 			    !same_clid(&clp->cl_clientid, lockclid))
 				return nfserr_bad_stateid;
-			/* stp is the open stateid */
-			status = nfs4_check_openmode(stp, lkflg);
-			if (status)
-				return status;
-		} else {
-			/* stp is the lock stateid */
-			status = nfs4_check_openmode(stp->st_openstp, lkflg);
-			if (status)
-				return status;
-               }
+		}
+		/* stp is the open stateid */
+		status = nfs4_check_openmode(stp, lkflg);
+		if (status)
+			return status;
 	}
 
 	if (nfs4_check_fh(current_fh, stp)) {
