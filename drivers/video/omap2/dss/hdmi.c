@@ -571,11 +571,20 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 	struct hdmi_cm cm;
 
 	hdmi.custom_set = 1;
+
 	cm = hdmi_get_code(&dssdev->panel.timings);
 	hdmi.code = cm.code;
 	hdmi.mode = cm.mode;
-	omapdss_hdmi_display_enable(dssdev);
-	hdmi.custom_set = 0;
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+		int r;
+
+		hdmi_power_off(dssdev);
+
+		r = hdmi_power_on(dssdev);
+		if (r)
+			DSSERR("failed to power on device\n");
+	}
 }
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)

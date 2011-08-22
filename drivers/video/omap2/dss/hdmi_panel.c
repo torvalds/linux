@@ -161,12 +161,7 @@ static void hdmi_set_timings(struct omap_dss_device *dssdev,
 	mutex_lock(&hdmi.hdmi_lock);
 
 	dssdev->panel.timings = *timings;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		/* turn the hdmi off and on to get new timings to use */
-		omapdss_hdmi_display_disable(dssdev);
-		omapdss_hdmi_display_set_timing(dssdev);
-	}
+	omapdss_hdmi_display_set_timing(dssdev);
 
 	mutex_unlock(&hdmi.hdmi_lock);
 }
