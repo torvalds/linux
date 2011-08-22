@@ -294,29 +294,29 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 
 	dout("parse_mount_options %p, dev_name '%s'\n", fsopt, dev_name);
 
-        fsopt->sb_flags = flags;
-        fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
+	fsopt->sb_flags = flags;
+	fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
 
-        fsopt->rsize = CEPH_RSIZE_DEFAULT;
-        fsopt->rasize = CEPH_RASIZE_DEFAULT;
-        fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
+	fsopt->rsize = CEPH_RSIZE_DEFAULT;
+	fsopt->rasize = CEPH_RASIZE_DEFAULT;
+	fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
-        fsopt->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
-        fsopt->max_readdir = CEPH_MAX_READDIR_DEFAULT;
-        fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
-        fsopt->congestion_kb = default_congestion_kb();
-	
-        /* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
-        err = -EINVAL;
-        if (!dev_name)
-                goto out;
-        *path = strstr(dev_name, ":/");
-        if (*path == NULL) {
-                pr_err("device name is missing path (no :/ in %s)\n",
-                       dev_name);
-                goto out;
-        }
+	fsopt->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
+	fsopt->max_readdir = CEPH_MAX_READDIR_DEFAULT;
+	fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
+	fsopt->congestion_kb = default_congestion_kb();
+
+	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
+	err = -EINVAL;
+	if (!dev_name)
+		goto out;
+	*path = strstr(dev_name, ":/");
+	if (*path == NULL) {
+		pr_err("device name is missing path (no :/ in %s)\n",
+				dev_name);
+		goto out;
+	}
 	dev_name_end = *path;
 	dout("device name '%.*s'\n", (int)(dev_name_end - dev_name), dev_name);
 
