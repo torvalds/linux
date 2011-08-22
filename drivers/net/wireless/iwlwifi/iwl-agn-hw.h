@@ -92,8 +92,8 @@
 
 #define IWLAGN_CMD_FIFO_NUM		7
 #define IWLAGN_NUM_QUEUES		20
-#define IWLAGN_NUM_AMPDU_QUEUES		10
-#define IWLAGN_FIRST_AMPDU_QUEUE	10
+#define IWLAGN_NUM_AMPDU_QUEUES		9
+#define IWLAGN_FIRST_AMPDU_QUEUE	11
 
 /* Fixed (non-configurable) rx data from phy */
 

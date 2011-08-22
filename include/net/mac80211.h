@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -1896,11 +1895,6 @@ enum ieee80211_tx_sync_type {
  *	ieee80211_remain_on_channel_expired(). This callback may sleep.
  * @cancel_remain_on_channel: Requests that an ongoing off-channel period is
  *	aborted before it expires. This callback may sleep.
- * @offchannel_tx: Transmit frame on another channel, wait for a response
- *	and return. Reliable TX status must be reported for the frame. If the
- *	return value is 1, then the @remain_on_channel will be used with a
- *	regular transmission (if supported.)
- * @offchannel_tx_cancel_wait: cancel wait associated with offchannel TX
  *
  * @set_ringparam: Set tx and rx ring sizes.
  *
@@ -2019,11 +2013,6 @@ struct ieee80211_ops {
 				 enum nl80211_channel_type channel_type,
 				 int duration);
 	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw);
-	int (*offchannel_tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
-			     struct ieee80211_channel *chan,
-			     enum nl80211_channel_type channel_type,
-			     unsigned int wait);
-	int (*offchannel_tx_cancel_wait)(struct ieee80211_hw *hw);
 	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
 	void (*get_ringparam)(struct ieee80211_hw *hw,
 			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);

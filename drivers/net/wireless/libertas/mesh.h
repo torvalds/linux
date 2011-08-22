@@ -9,30 +9,25 @@
 #include <net/lib80211.h>
 
 #include "host.h"
+#include "dev.h"
 
 #ifdef CONFIG_LIBERTAS_MESH
 
-/* Mesh statistics */
-struct lbs_mesh_stats {
-	u32	fwd_bcast_cnt;		/* Fwd: Broadcast counter */
-	u32	fwd_unicast_cnt;	/* Fwd: Unicast counter */
-	u32	fwd_drop_ttl;		/* Fwd: TTL zero */
-	u32	fwd_drop_rbt;		/* Fwd: Recently Broadcasted */
-	u32	fwd_drop_noroute; 	/* Fwd: No route to Destination */
-	u32	fwd_drop_nobuf;		/* Fwd: Run out of internal buffers */
-	u32	drop_blind;		/* Rx:  Dropped by blinding table */
-	u32	tx_failed_cnt;		/* Tx:  Failed transmissions */
-};
-
-
 struct net_device;
-struct lbs_private;
 
 int lbs_init_mesh(struct lbs_private *priv);
+void lbs_start_mesh(struct lbs_private *priv);
 int lbs_deinit_mesh(struct lbs_private *priv);
 
 void lbs_remove_mesh(struct lbs_private *priv);
 
+static inline bool lbs_mesh_activated(struct lbs_private *priv)
+{
+	/* Mesh SSID is only programmed after successful init */
+	return priv->mesh_ssid_len != 0;
+}
+
+int lbs_mesh_set_channel(struct lbs_private *priv, u8 channel);
 
 /* Sending / Receiving */
 
@@ -67,11 +62,13 @@ void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 
 #define lbs_init_mesh(priv)
 #define lbs_deinit_mesh(priv)
+#define lbs_start_mesh(priv)
 #define lbs_add_mesh(priv)
 #define lbs_remove_mesh(priv)
 #define lbs_mesh_set_dev(priv, dev, rxpd) (dev)
 #define lbs_mesh_set_txpd(priv, dev, txpd)
-#define lbs_mesh_config(priv, enable, chan)
+#define lbs_mesh_set_channel(priv, channel) (0)
+#define lbs_mesh_activated(priv) (false)
 
 #endif
 

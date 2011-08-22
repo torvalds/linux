@@ -1484,7 +1484,7 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 	if (rc->rate_table == NULL)
 		return 0;
 
-	max = 80 + rc->rate_table->rate_cnt * 1024 + 1;
+	max = 80 + rc->rate_table_size * 1024 + 1;
 	buf = kmalloc(max, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
@@ -1494,7 +1494,7 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 		       "HT", "MCS", "Rate",
 		       "Success", "Retries", "XRetries", "PER");
 
-	for (i = 0; i < rc->rate_table->rate_cnt; i++) {
+	for (i = 0; i < rc->rate_table_size; i++) {
 		u32 ratekbps = rc->rate_table->info[i].ratekbps;
 		struct ath_rc_stats *stats = &rc->rcstats[i];
 		char mcs[5];

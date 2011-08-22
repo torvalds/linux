@@ -136,6 +136,7 @@ struct iwl_mod_params {
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadhow register bit
  * @no_idle_support: do not support idle mode
+ * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -158,6 +159,7 @@ struct iwl_base_params {
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool no_idle_support;
+	const bool hd_v2;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
@@ -194,6 +196,8 @@ struct iwl_ht_params {
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
  * @ucode_api_max: Highest version of uCode API supported by driver.
+ * @ucode_api_ok: oldest version of the uCode API that is OK to load
+ *	without a warning, for use in transitions
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
@@ -237,6 +241,7 @@ struct iwl_cfg {
 	const char *name;
 	const char *fw_name_pre;
 	const unsigned int ucode_api_max;
+	const unsigned int ucode_api_ok;
 	const unsigned int ucode_api_min;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;

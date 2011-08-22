@@ -15,7 +15,6 @@
  */
 
 #include "ath5k.h"
-#include "base.h"
 #include "reg.h"
 #include "debug.h"
 #include "ani.h"

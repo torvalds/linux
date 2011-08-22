@@ -777,18 +777,14 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "switched off addBA timer for tid %d\n", tid);
 #endif
-
+	/*
+	 * IEEE 802.11-2007 7.3.1.14:
+	 * In an ADDBA Response frame, when the Status Code field
+	 * is set to 0, the Buffer Size subfield is set to a value
+	 * of at least 1.
+	 */
 	if (le16_to_cpu(mgmt->u.action.u.addba_resp.status)
-			== WLAN_STATUS_SUCCESS) {
-		/*
-		 * IEEE 802.11-2007 7.3.1.14:
-		 * In an ADDBA Response frame, when the Status Code field
-		 * is set to 0, the Buffer Size subfield is set to a value
-		 * of at least 1.
-		 */
-		if (!buf_size)
-			goto out;
-
+			== WLAN_STATUS_SUCCESS && buf_size) {
 		if (test_and_set_bit(HT_AGG_STATE_RESPONSE_RECEIVED,
 				     &tid_tx->state)) {
 			/* ignore duplicate response */

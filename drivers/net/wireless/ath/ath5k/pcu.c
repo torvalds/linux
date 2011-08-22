@@ -29,7 +29,6 @@
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
-#include "base.h"
 
 /*
  * AR5212+ can use higher rates for ack transmission
@@ -152,7 +151,7 @@ unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
 	case AR5K_BWMODE_DEFAULT:
 	default:
 		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
-		if ((channel->hw_value & CHANNEL_CCK) && !ah->ah_short_slot)
+		if ((channel->hw_value == AR5K_MODE_11B) && !ah->ah_short_slot)
 			slot_time = AR5K_INIT_SLOT_TIME_B;
 		break;
 	}
@@ -183,7 +182,7 @@ unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
 	case AR5K_BWMODE_DEFAULT:
 		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
 	default:
-		if (channel->hw_value & CHANNEL_5GHZ)
+		if (channel->band == IEEE80211_BAND_5GHZ)
 			sifs = AR5K_INIT_SIFS_DEFAULT_A;
 		break;
 	}

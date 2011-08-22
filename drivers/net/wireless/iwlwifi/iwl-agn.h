@@ -209,6 +209,7 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 /* scan */
 int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwlagn_post_scan(struct iwl_priv *priv);
+void iwlagn_disable_roc(struct iwl_priv *priv);
 
 /* station mgmt */
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,

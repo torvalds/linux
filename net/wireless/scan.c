@@ -12,6 +12,7 @@
 #include <linux/etherdevice.h>
 #include <net/arp.h>
 #include <net/cfg80211.h>
+#include <net/cfg80211-wext.h>
 #include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"

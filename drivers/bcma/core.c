@@ -110,6 +110,8 @@ EXPORT_SYMBOL_GPL(bcma_core_pll_ctl);
 u32 bcma_core_dma_translation(struct bcma_device *core)
 {
 	switch (core->bus->hosttype) {
+	case BCMA_HOSTTYPE_SOC:
+		return 0;
 	case BCMA_HOSTTYPE_PCI:
 		if (bcma_aread32(core, BCMA_IOST) & BCMA_IOST_DMA64)
 			return BCMA_DMA_TRANSLATION_DMA64_CMT;

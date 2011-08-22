@@ -114,13 +114,13 @@ config B43_PHY_N
 	  affect other devices support and may provide support for basic needs.
 
 config B43_PHY_LP
-	bool "Support for low-power (LP-PHY) devices (EXPERIMENTAL)"
-	depends on B43 && EXPERIMENTAL
+	bool "Support for low-power (LP-PHY) devices"
+	depends on B43
 	default y
 	---help---
 	  Support for the LP-PHY.
 	  The LP-PHY is a low-power PHY built into some notebooks
-	  and embedded devices. It supports 802.11a/g
+	  and embedded devices. It supports 802.11a/b/g
 	  (802.11a support is optional, and currently disabled).
 
 config B43_PHY_HT

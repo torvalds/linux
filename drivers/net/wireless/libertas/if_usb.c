@@ -324,7 +324,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 	kparam_unblock_sysfs_write(fw_name);
 
-	if (!(priv = lbs_add_card(cardp, &udev->dev)))
+	if (!(priv = lbs_add_card(cardp, &intf->dev)))
 		goto err_prog_firmware;
 
 	cardp->priv = priv;
@@ -956,7 +956,7 @@ static int if_usb_prog_firmware(struct if_usb_card *cardp,
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	wake_up_interruptible(&priv->waitq);
+	wake_up(&priv->waitq);
 
 	return ret;
 }
@@ -1111,6 +1111,15 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
+
+#ifdef CONFIG_OLPC
+	if (machine_is_olpc()) {
+		if (priv->wol_criteria == EHS_REMOVE_WAKEUP)
+			olpc_ec_wakeup_clear(EC_SCI_SRC_WLAN);
+		else
+			olpc_ec_wakeup_set(EC_SCI_SRC_WLAN);
+	}
+#endif
 
 	ret = lbs_suspend(priv);
 	if (ret)

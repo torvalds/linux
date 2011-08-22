@@ -521,8 +521,6 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 
 int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
 				u8 enable_coex);
-void ath9k_htc_station_work(struct work_struct *work);
-void ath9k_htc_aggr_work(struct work_struct *work);
 void ath9k_htc_ani_work(struct work_struct *work);
 void ath9k_htc_start_ani(struct ath9k_htc_priv *priv);
 void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
@@ -542,7 +540,6 @@ int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv);
 void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot);
 void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
 void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event);
-void ath9k_htc_tx_failed(struct ath9k_htc_priv *priv);
 void ath9k_tx_failed_tasklet(unsigned long data);
 void ath9k_htc_tx_cleanup_timer(unsigned long data);
 

@@ -35,7 +35,6 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/wireless.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
@@ -614,6 +613,87 @@ static int iwl_alloc_fw_desc(struct iwl_priv *priv, struct fw_desc *desc,
 	return 0;
 }
 
+static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
+{
+	static const u8 iwlagn_bss_ac_to_fifo[] = {
+		IWL_TX_FIFO_VO,
+		IWL_TX_FIFO_VI,
+		IWL_TX_FIFO_BE,
+		IWL_TX_FIFO_BK,
+	};
+	static const u8 iwlagn_bss_ac_to_queue[] = {
+		0, 1, 2, 3,
+	};
+	static const u8 iwlagn_pan_ac_to_fifo[] = {
+		IWL_TX_FIFO_VO_IPAN,
+		IWL_TX_FIFO_VI_IPAN,
+		IWL_TX_FIFO_BE_IPAN,
+		IWL_TX_FIFO_BK_IPAN,
+	};
+	static const u8 iwlagn_pan_ac_to_queue[] = {
+		7, 6, 5, 4,
+	};
+	int i;
+
+	/*
+	 * The default context is always valid,
+	 * the PAN context depends on uCode.
+	 */
+	priv->valid_contexts = BIT(IWL_RXON_CTX_BSS);
+	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN)
+		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
+
+	for (i = 0; i < NUM_IWL_RXON_CTX; i++)
+		priv->contexts[i].ctxid = i;
+
+	priv->contexts[IWL_RXON_CTX_BSS].always_active = true;
+	priv->contexts[IWL_RXON_CTX_BSS].is_active = true;
+	priv->contexts[IWL_RXON_CTX_BSS].rxon_cmd = REPLY_RXON;
+	priv->contexts[IWL_RXON_CTX_BSS].rxon_timing_cmd = REPLY_RXON_TIMING;
+	priv->contexts[IWL_RXON_CTX_BSS].rxon_assoc_cmd = REPLY_RXON_ASSOC;
+	priv->contexts[IWL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
+	priv->contexts[IWL_RXON_CTX_BSS].ap_sta_id = IWL_AP_ID;
+	priv->contexts[IWL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
+	priv->contexts[IWL_RXON_CTX_BSS].ac_to_fifo = iwlagn_bss_ac_to_fifo;
+	priv->contexts[IWL_RXON_CTX_BSS].ac_to_queue = iwlagn_bss_ac_to_queue;
+	priv->contexts[IWL_RXON_CTX_BSS].exclusive_interface_modes =
+		BIT(NL80211_IFTYPE_ADHOC);
+	priv->contexts[IWL_RXON_CTX_BSS].interface_modes =
+		BIT(NL80211_IFTYPE_STATION);
+	priv->contexts[IWL_RXON_CTX_BSS].ap_devtype = RXON_DEV_TYPE_AP;
+	priv->contexts[IWL_RXON_CTX_BSS].ibss_devtype = RXON_DEV_TYPE_IBSS;
+	priv->contexts[IWL_RXON_CTX_BSS].station_devtype = RXON_DEV_TYPE_ESS;
+	priv->contexts[IWL_RXON_CTX_BSS].unused_devtype = RXON_DEV_TYPE_ESS;
+
+	priv->contexts[IWL_RXON_CTX_PAN].rxon_cmd = REPLY_WIPAN_RXON;
+	priv->contexts[IWL_RXON_CTX_PAN].rxon_timing_cmd =
+		REPLY_WIPAN_RXON_TIMING;
+	priv->contexts[IWL_RXON_CTX_PAN].rxon_assoc_cmd =
+		REPLY_WIPAN_RXON_ASSOC;
+	priv->contexts[IWL_RXON_CTX_PAN].qos_cmd = REPLY_WIPAN_QOS_PARAM;
+	priv->contexts[IWL_RXON_CTX_PAN].ap_sta_id = IWL_AP_ID_PAN;
+	priv->contexts[IWL_RXON_CTX_PAN].wep_key_cmd = REPLY_WIPAN_WEPKEY;
+	priv->contexts[IWL_RXON_CTX_PAN].bcast_sta_id = IWLAGN_PAN_BCAST_ID;
+	priv->contexts[IWL_RXON_CTX_PAN].station_flags = STA_FLG_PAN_STATION;
+	priv->contexts[IWL_RXON_CTX_PAN].ac_to_fifo = iwlagn_pan_ac_to_fifo;
+	priv->contexts[IWL_RXON_CTX_PAN].ac_to_queue = iwlagn_pan_ac_to_queue;
+	priv->contexts[IWL_RXON_CTX_PAN].mcast_queue = IWL_IPAN_MCAST_QUEUE;
+	priv->contexts[IWL_RXON_CTX_PAN].interface_modes =
+		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP);
+
+	if (ucode_flags & IWL_UCODE_TLV_FLAGS_P2P)
+		priv->contexts[IWL_RXON_CTX_PAN].interface_modes |=
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_P2P_GO);
+
+	priv->contexts[IWL_RXON_CTX_PAN].ap_devtype = RXON_DEV_TYPE_CP;
+	priv->contexts[IWL_RXON_CTX_PAN].station_devtype = RXON_DEV_TYPE_2STA;
+	priv->contexts[IWL_RXON_CTX_PAN].unused_devtype = RXON_DEV_TYPE_P2P;
+
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+}
+
+
 struct iwlagn_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
@@ -952,6 +1032,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	int err;
 	struct iwlagn_firmware_pieces pieces;
 	const unsigned int api_max = priv->cfg->ucode_api_max;
+	unsigned int api_ok = priv->cfg->ucode_api_ok;
 	const unsigned int api_min = priv->cfg->ucode_api_min;
 	u32 api_ver;
 	char buildstr[25];
@@ -962,10 +1043,13 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE,
 	};
 
+	if (!api_ok)
+		api_ok = api_max;
+
 	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
-		if (priv->fw_index <= priv->cfg->ucode_api_max)
+		if (priv->fw_index <= api_ok)
 			IWL_ERR(priv,
 				"request for firmware file '%s' failed.\n",
 				priv->firmware_name);
@@ -1011,12 +1095,18 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			goto try_again;
 		}
 
-		if (api_ver != api_max)
-			IWL_ERR(priv,
-				"Firmware has old API version. Expected v%u, "
-				"got v%u. New firmware can be obtained "
-				"from http://www.intellinuxwireless.org.\n",
-				api_max, api_ver);
+		if (api_ver < api_ok) {
+			if (api_ok != api_max)
+				IWL_ERR(priv, "Firmware has old API version, "
+					"expected v%u through v%u, got v%u.\n",
+					api_ok, api_max, api_ver);
+			else
+				IWL_ERR(priv, "Firmware has old API version, "
+					"expected v%u, got v%u.\n",
+					api_max, api_ver);
+			IWL_ERR(priv, "New firmware can be obtained from "
+				      "http://www.intellinuxwireless.org/.\n");
+		}
 	}
 
 	if (build)
@@ -1143,17 +1233,23 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
-	if ((priv->cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE) &&
-	    (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN)) {
-		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
-		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
-	} else
-		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+	if (!(priv->cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
+		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 
-	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+	/*
+	 * if not PAN, then don't support P2P -- might be a uCode
+	 * packaging bug or due to the eeprom check above
+	 */
+	if (!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
+		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
+
+	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
-	else
+	} else {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+	}
 
 	/*
 	 * figure out the offset of chain noise reset and gain commands
@@ -1168,6 +1264,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		ucode_capa.standard_phy_calibration_size;
 	priv->phy_calib_chain_noise_gain_cmd =
 		ucode_capa.standard_phy_calibration_size + 1;
+
+	/* initialize all valid contexts */
+	iwl_init_context(priv, ucode_capa.flags);
 
 	/**************************************************
 	 * This is still part of probe() in a sense...
@@ -1765,6 +1864,13 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	iwl_scan_cancel_timeout(priv, 200);
 
+	/*
+	 * If active, scanning won't cancel it, so say it expired.
+	 * No race since we hold the mutex here and a new one
+	 * can't come in at this time.
+	 */
+	ieee80211_remain_on_channel_expired(priv->hw);
+
 	exit_pending = test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
@@ -1953,94 +2059,6 @@ static void iwl_bg_restart(struct work_struct *data)
 	} else {
 		WARN_ON(1);
 	}
-}
-
-static int iwl_mac_offchannel_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-				 struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type,
-				 unsigned int wait)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	/* Not supported if we don't have PAN */
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN))) {
-		ret = -EOPNOTSUPP;
-		goto free;
-	}
-
-	/* Not supported on pre-P2P firmware */
-	if (!(priv->contexts[IWL_RXON_CTX_PAN].interface_modes &
-					BIT(NL80211_IFTYPE_P2P_CLIENT))) {
-		ret = -EOPNOTSUPP;
-		goto free;
-	}
-
-	mutex_lock(&priv->mutex);
-
-	if (!priv->contexts[IWL_RXON_CTX_PAN].is_active) {
-		/*
-		 * If the PAN context is free, use the normal
-		 * way of doing remain-on-channel offload + TX.
-		 */
-		ret = 1;
-		goto out;
-	}
-
-	/* TODO: queue up if scanning? */
-	if (test_bit(STATUS_SCANNING, &priv->status) ||
-	    priv->offchan_tx_skb) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	/*
-	 * max_scan_ie_len doesn't include the blank SSID or the header,
-	 * so need to add that again here.
-	 */
-	if (skb->len > hw->wiphy->max_scan_ie_len + 24 + 2) {
-		ret = -ENOBUFS;
-		goto out;
-	}
-
-	priv->offchan_tx_skb = skb;
-	priv->offchan_tx_timeout = wait;
-	priv->offchan_tx_chan = chan;
-
-	ret = iwl_scan_initiate(priv, priv->contexts[IWL_RXON_CTX_PAN].vif,
-				IWL_SCAN_OFFCH_TX, chan->band);
-	if (ret)
-		priv->offchan_tx_skb = NULL;
- out:
-	mutex_unlock(&priv->mutex);
- free:
-	if (ret < 0)
-		kfree_skb(skb);
-
-	return ret;
-}
-
-static int iwl_mac_offchannel_tx_cancel_wait(struct ieee80211_hw *hw)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	mutex_lock(&priv->mutex);
-
-	if (!priv->offchan_tx_skb) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	priv->offchan_tx_skb = NULL;
-
-	ret = iwl_scan_cancel_timeout(priv, 200);
-	if (ret)
-		ret = -EIO;
-unlock:
-	mutex_unlock(&priv->mutex);
-
-	return ret;
 }
 
 /*****************************************************************************
@@ -3198,35 +3216,34 @@ done:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static void iwlagn_disable_roc(struct iwl_priv *priv)
+void iwlagn_disable_roc(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
-	struct ieee80211_channel *chan = ACCESS_ONCE(priv->hw->conf.channel);
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (!ctx->is_active)
+	if (!priv->hw_roc_setup)
 		return;
 
-	ctx->staging.dev_type = RXON_DEV_TYPE_2STA;
+	ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwl_set_rxon_channel(priv, chan, ctx);
-	iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
 
 	priv->hw_roc_channel = NULL;
+
+	memset(ctx->staging.node_addr, 0, ETH_ALEN);
 
 	iwlagn_commit_rxon(priv, ctx);
 
 	ctx->is_active = false;
+	priv->hw_roc_setup = false;
 }
 
-static void iwlagn_bg_roc_done(struct work_struct *work)
+static void iwlagn_disable_roc_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     hw_roc_work.work);
+					     hw_roc_disable_work.work);
 
 	mutex_lock(&priv->mutex);
-	ieee80211_remain_on_channel_expired(priv->hw);
 	iwlagn_disable_roc(priv);
 	mutex_unlock(&priv->mutex);
 }
@@ -3237,33 +3254,63 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 				     int duration)
 {
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 	int err = 0;
 
 	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
-	if (!(priv->contexts[IWL_RXON_CTX_PAN].interface_modes &
-					BIT(NL80211_IFTYPE_P2P_CLIENT)))
+	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->contexts[IWL_RXON_CTX_PAN].is_active ||
-	    test_bit(STATUS_SCAN_HW, &priv->status)) {
+	/*
+	 * TODO: Remove this hack! Firmware needs to be updated
+	 * to allow longer off-channel periods in scanning for
+	 * this use case, based on a flag (and we'll need an API
+	 * flag in the firmware when it has that).
+	 */
+	if (iwl_is_associated(priv, IWL_RXON_CTX_BSS) && duration > 80)
+		duration = 80;
+
+	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 		err = -EBUSY;
 		goto out;
 	}
 
-	priv->contexts[IWL_RXON_CTX_PAN].is_active = true;
 	priv->hw_roc_channel = channel;
 	priv->hw_roc_chantype = channel_type;
-	priv->hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
-	iwlagn_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
-	queue_delayed_work(priv->workqueue, &priv->hw_roc_work,
-			   msecs_to_jiffies(duration + 20));
+	priv->hw_roc_duration = duration;
+	cancel_delayed_work(&priv->hw_roc_disable_work);
 
-	msleep(IWL_MIN_SLOT_TIME); /* TU is almost ms */
-	ieee80211_ready_on_channel(priv->hw);
+	if (!ctx->is_active) {
+		ctx->is_active = true;
+		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
+		memcpy(ctx->staging.node_addr,
+		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
+		       ETH_ALEN);
+		memcpy(ctx->staging.bssid_addr,
+		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
+		       ETH_ALEN);
+		err = iwlagn_commit_rxon(priv, ctx);
+		if (err)
+			goto out;
+		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK |
+					     RXON_FILTER_PROMISC_MSK |
+					     RXON_FILTER_CTL2HOST_MSK;
+
+		err = iwlagn_commit_rxon(priv, ctx);
+		if (err) {
+			iwlagn_disable_roc(priv);
+			goto out;
+		}
+		priv->hw_roc_setup = true;
+	}
+
+	err = iwl_scan_initiate(priv, ctx->vif, IWL_SCAN_ROC, channel->band);
+	if (err)
+		iwlagn_disable_roc(priv);
 
  out:
 	mutex_unlock(&priv->mutex);
@@ -3278,9 +3325,8 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
-	cancel_delayed_work_sync(&priv->hw_roc_work);
-
 	mutex_lock(&priv->mutex);
+	iwl_scan_cancel_timeout(priv, priv->hw_roc_duration);
 	iwlagn_disable_roc(priv);
 	mutex_unlock(&priv->mutex);
 
@@ -3305,7 +3351,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_WORK(&priv->bt_full_concurrency, iwl_bg_bt_full_concurrency);
 	INIT_WORK(&priv->bt_runtime_config, iwl_bg_bt_runtime_config);
-	INIT_DELAYED_WORK(&priv->hw_roc_work, iwlagn_bg_roc_done);
+	INIT_DELAYED_WORK(&priv->hw_roc_disable_work,
+			  iwlagn_disable_roc_work);
 
 	iwl_setup_scan_deferred_work(priv);
 
@@ -3337,6 +3384,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 
 	cancel_work_sync(&priv->bt_full_concurrency);
 	cancel_work_sync(&priv->bt_runtime_config);
+	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
 
 	del_timer_sync(&priv->statistics_periodic);
 	del_timer_sync(&priv->ucode_trace);
@@ -3489,8 +3537,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.tx_last_beacon = iwl_mac_tx_last_beacon,
 	.remain_on_channel = iwl_mac_remain_on_channel,
 	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
-	.offchannel_tx = iwl_mac_offchannel_tx,
-	.offchannel_tx_cancel_wait = iwl_mac_offchannel_tx_cancel_wait,
 	.rssi_callback = iwl_mac_rssi_callback,
 	CFG80211_TESTMODE_CMD(iwl_testmode_cmd)
 	CFG80211_TESTMODE_DUMP(iwl_testmode_dump)
@@ -3519,28 +3565,6 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 	return priv->cfg->lib->set_hw_params(priv);
 }
 
-static const u8 iwlagn_bss_ac_to_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-};
-
-static const u8 iwlagn_bss_ac_to_queue[] = {
-	0, 1, 2, 3,
-};
-
-static const u8 iwlagn_pan_ac_to_fifo[] = {
-	IWL_TX_FIFO_VO_IPAN,
-	IWL_TX_FIFO_VI_IPAN,
-	IWL_TX_FIFO_BE_IPAN,
-	IWL_TX_FIFO_BK_IPAN,
-};
-
-static const u8 iwlagn_pan_ac_to_queue[] = {
-	7, 6, 5, 4,
-};
-
 /* This function both allocates and initializes hw and priv. */
 static struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
 {
@@ -3561,65 +3585,6 @@ static struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
 
 out:
 	return hw;
-}
-
-static void iwl_init_context(struct iwl_priv *priv)
-{
-	int i;
-
-	/*
-	 * The default context is always valid,
-	 * more may be discovered when firmware
-	 * is loaded.
-	 */
-	priv->valid_contexts = BIT(IWL_RXON_CTX_BSS);
-
-	for (i = 0; i < NUM_IWL_RXON_CTX; i++)
-		priv->contexts[i].ctxid = i;
-
-	priv->contexts[IWL_RXON_CTX_BSS].always_active = true;
-	priv->contexts[IWL_RXON_CTX_BSS].is_active = true;
-	priv->contexts[IWL_RXON_CTX_BSS].rxon_cmd = REPLY_RXON;
-	priv->contexts[IWL_RXON_CTX_BSS].rxon_timing_cmd = REPLY_RXON_TIMING;
-	priv->contexts[IWL_RXON_CTX_BSS].rxon_assoc_cmd = REPLY_RXON_ASSOC;
-	priv->contexts[IWL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
-	priv->contexts[IWL_RXON_CTX_BSS].ap_sta_id = IWL_AP_ID;
-	priv->contexts[IWL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
-	priv->contexts[IWL_RXON_CTX_BSS].ac_to_fifo = iwlagn_bss_ac_to_fifo;
-	priv->contexts[IWL_RXON_CTX_BSS].ac_to_queue = iwlagn_bss_ac_to_queue;
-	priv->contexts[IWL_RXON_CTX_BSS].exclusive_interface_modes =
-		BIT(NL80211_IFTYPE_ADHOC);
-	priv->contexts[IWL_RXON_CTX_BSS].interface_modes =
-		BIT(NL80211_IFTYPE_STATION);
-	priv->contexts[IWL_RXON_CTX_BSS].ap_devtype = RXON_DEV_TYPE_AP;
-	priv->contexts[IWL_RXON_CTX_BSS].ibss_devtype = RXON_DEV_TYPE_IBSS;
-	priv->contexts[IWL_RXON_CTX_BSS].station_devtype = RXON_DEV_TYPE_ESS;
-	priv->contexts[IWL_RXON_CTX_BSS].unused_devtype = RXON_DEV_TYPE_ESS;
-
-	priv->contexts[IWL_RXON_CTX_PAN].rxon_cmd = REPLY_WIPAN_RXON;
-	priv->contexts[IWL_RXON_CTX_PAN].rxon_timing_cmd =
-		REPLY_WIPAN_RXON_TIMING;
-	priv->contexts[IWL_RXON_CTX_PAN].rxon_assoc_cmd =
-		REPLY_WIPAN_RXON_ASSOC;
-	priv->contexts[IWL_RXON_CTX_PAN].qos_cmd = REPLY_WIPAN_QOS_PARAM;
-	priv->contexts[IWL_RXON_CTX_PAN].ap_sta_id = IWL_AP_ID_PAN;
-	priv->contexts[IWL_RXON_CTX_PAN].wep_key_cmd = REPLY_WIPAN_WEPKEY;
-	priv->contexts[IWL_RXON_CTX_PAN].bcast_sta_id = IWLAGN_PAN_BCAST_ID;
-	priv->contexts[IWL_RXON_CTX_PAN].station_flags = STA_FLG_PAN_STATION;
-	priv->contexts[IWL_RXON_CTX_PAN].ac_to_fifo = iwlagn_pan_ac_to_fifo;
-	priv->contexts[IWL_RXON_CTX_PAN].ac_to_queue = iwlagn_pan_ac_to_queue;
-	priv->contexts[IWL_RXON_CTX_PAN].mcast_queue = IWL_IPAN_MCAST_QUEUE;
-	priv->contexts[IWL_RXON_CTX_PAN].interface_modes =
-		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP);
-#ifdef CONFIG_IWL_P2P
-	priv->contexts[IWL_RXON_CTX_PAN].interface_modes |=
-		BIT(NL80211_IFTYPE_P2P_CLIENT) | BIT(NL80211_IFTYPE_P2P_GO);
-#endif
-	priv->contexts[IWL_RXON_CTX_PAN].ap_devtype = RXON_DEV_TYPE_CP;
-	priv->contexts[IWL_RXON_CTX_PAN].station_devtype = RXON_DEV_TYPE_2STA;
-	priv->contexts[IWL_RXON_CTX_PAN].unused_devtype = RXON_DEV_TYPE_P2P;
-
-	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 }
 
 int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
@@ -3723,9 +3688,6 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 		priv->addresses[1].addr[5]++;
 		priv->hw->wiphy->n_addresses++;
 	}
-
-	/* initialize all valid contexts */
-	iwl_init_context(priv);
 
 	/************************
 	 * 5. Setup HW constants

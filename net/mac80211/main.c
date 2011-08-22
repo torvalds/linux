@@ -608,6 +608,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.max_rates = 1;
 	local->hw.max_report_rates = 0;
 	local->hw.max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
+	local->hw.max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
 	local->user_power_level = -1;

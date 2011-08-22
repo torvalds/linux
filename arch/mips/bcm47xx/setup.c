@@ -29,21 +29,36 @@
 #include <linux/types.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_embedded.h>
+#include <linux/bcma/bcma_soc.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
 #include <asm/mach-bcm47xx/nvram.h>
 
-struct ssb_bus ssb_bcm47xx;
-EXPORT_SYMBOL(ssb_bcm47xx);
+union bcm47xx_bus bcm47xx_bus;
+EXPORT_SYMBOL(bcm47xx_bus);
+
+enum bcm47xx_bus_type bcm47xx_bus_type;
+EXPORT_SYMBOL(bcm47xx_bus_type);
 
 static void bcm47xx_machine_restart(char *command)
 {
 	printk(KERN_ALERT "Please stand by while rebooting the system...\n");
 	local_irq_disable();
 	/* Set the watchdog timer to reset immediately */
-	ssb_watchdog_timer_set(&ssb_bcm47xx, 1);
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 1);
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 1);
+		break;
+#endif
+	}
 	while (1)
 		cpu_relax();
 }
@@ -52,11 +67,23 @@ static void bcm47xx_machine_halt(void)
 {
 	/* Disable interrupts and watchdog and spin forever */
 	local_irq_disable();
-	ssb_watchdog_timer_set(&ssb_bcm47xx, 0);
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0);
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 0);
+		break;
+#endif
+	}
 	while (1)
 		cpu_relax();
 }
 
+#ifdef CONFIG_BCM47XX_SSB
 #define READ_FROM_NVRAM(_outvar, name, buf) \
 	if (nvram_getprefix(prefix, name, buf, sizeof(buf)) >= 0)\
 		sprom->_outvar = simple_strtoul(buf, NULL, 0);
@@ -247,7 +274,7 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	return 0;
 }
 
-void __init plat_mem_setup(void)
+static void __init bcm47xx_register_ssb(void)
 {
 	int err;
 	char buf[100];
@@ -258,12 +285,12 @@ void __init plat_mem_setup(void)
 		printk(KERN_WARNING "bcm47xx: someone else already registered"
 			" a ssb SPROM callback handler (err %d)\n", err);
 
-	err = ssb_bus_ssbbus_register(&ssb_bcm47xx, SSB_ENUM_BASE,
+	err = ssb_bus_ssbbus_register(&(bcm47xx_bus.ssb), SSB_ENUM_BASE,
 				      bcm47xx_get_invariants);
 	if (err)
 		panic("Failed to initialize SSB bus (err %d)\n", err);
 
-	mcore = &ssb_bcm47xx.mipscore;
+	mcore = &bcm47xx_bus.ssb.mipscore;
 	if (nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
 		if (strstr(buf, "console=ttyS1")) {
 			struct ssb_serial_port port;
@@ -276,8 +303,57 @@ void __init plat_mem_setup(void)
 			memcpy(&mcore->serial_ports[1], &port, sizeof(port));
 		}
 	}
+}
+#endif
+
+#ifdef CONFIG_BCM47XX_BCMA
+static void __init bcm47xx_register_bcma(void)
+{
+	int err;
+
+	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
+	if (err)
+		panic("Failed to initialize BCMA bus (err %d)\n", err);
+}
+#endif
+
+void __init plat_mem_setup(void)
+{
+	struct cpuinfo_mips *c = &current_cpu_data;
+
+	if (c->cputype == CPU_74K) {
+		printk(KERN_INFO "bcm47xx: using bcma bus\n");
+#ifdef CONFIG_BCM47XX_BCMA
+		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
+		bcm47xx_register_bcma();
+#endif
+	} else {
+		printk(KERN_INFO "bcm47xx: using ssb bus\n");
+#ifdef CONFIG_BCM47XX_SSB
+		bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
+		bcm47xx_register_ssb();
+#endif
+	}
 
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
 }
+
+static int __init bcm47xx_register_bus_complete(void)
+{
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		/* Nothing to do */
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_bus_register(&bcm47xx_bus.bcma.bus);
+		break;
+#endif
+	}
+	return 0;
+}
+device_initcall(bcm47xx_register_bus_complete);
