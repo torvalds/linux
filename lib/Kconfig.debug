@@ -835,7 +835,7 @@ config DEBUG_CREDENTIALS
 
 #
 # Select this config option from the architecture Kconfig, if it
-# it is preferred to always offer frame pointers as a config
+# is preferred to always offer frame pointers as a config
 # option on the architecture (regardless of KERNEL_DEBUG):
 #
 config ARCH_WANT_FRAME_POINTERS
