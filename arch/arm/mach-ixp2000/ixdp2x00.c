@@ -41,6 +41,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/arch.h>
 
+#include <mach/gpio-ixp2000.h>
 
 /*************************************************************************
  * IXDP2x00 IRQ Initialization

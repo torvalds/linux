@@ -39,6 +39,8 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
+#include <mach/gpio-ixp2000.h>
+
 static DEFINE_SPINLOCK(ixp2000_slowport_lock);
 static unsigned long ixp2000_slowport_irq_flags;
 
