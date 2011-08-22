@@ -59,12 +59,9 @@ static int vcore_uV;
 #define CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 #endif
 
-#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 static struct workqueue_struct *wq;
-static void rk29_cpufreq_work_func(struct work_struct *work);
-static DECLARE_DELAYED_WORK(rk29_cpufreq_work, rk29_cpufreq_work_func);
-#define WORK_DELAY HZ
 
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 static int limit = 1;
 module_param(limit, int, 0644);
 
@@ -197,7 +194,7 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 	static u64 last_idle_time_us;
 	unsigned int cur = policy->cur;
 
-	if (!limit || !wq || !rk29_cpufreq_is_ondemand_policy(policy) ||
+	if (!limit || !rk29_cpufreq_is_ondemand_policy(policy) ||
 	    (limit_avg_index < 0) || (relation & MASK_FURTHER_CPUFREQ)) {
 		limit_temp = 0;
 		last.tv64 = 0;
@@ -247,7 +244,7 @@ static void rk29_cpufreq_limit_by_disp(int *index)
 	unsigned int frequency = freq_table[*index].frequency;
 	int new_index = -1;
 
-	if (!ddr_clk || !aclk_limit())
+	if (!aclk_limit())
 		return;
 
 	ddr_rate = clk_get_rate(ddr_clk);
@@ -368,26 +365,24 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 }
 
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
+static void rk29_cpufreq_limit_by_temp_work_func(struct work_struct *work);
+static DECLARE_DELAYED_WORK(rk29_cpufreq_limit_by_temp_work, rk29_cpufreq_limit_by_temp_work_func);
+#define WORK_DELAY HZ
+
 static int rk29_cpufreq_notifier_policy(struct notifier_block *nb,
 		unsigned long val, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	bool is_ondemand;
 
 	if (val != CPUFREQ_NOTIFY)
 		return 0;
 
-	is_ondemand = rk29_cpufreq_is_ondemand_policy(policy);
-	if (!wq && is_ondemand) {
-		dprintk(DEBUG_TEMP, "start wq\n");
-		wq = create_singlethread_workqueue("rk29_cpufreqd");
-		if (wq)
-			queue_delayed_work(wq, &rk29_cpufreq_work, WORK_DELAY);
-	} else if (wq && !is_ondemand) {
-		dprintk(DEBUG_TEMP, "stop wq\n");
-		cancel_delayed_work(&rk29_cpufreq_work);
-		destroy_workqueue(wq);
-		wq = NULL;
+	if (rk29_cpufreq_is_ondemand_policy(policy)) {
+		dprintk(DEBUG_TEMP, "queue work\n");
+		queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
+	} else {
+		dprintk(DEBUG_TEMP, "cancel work\n");
+		cancel_delayed_work(&rk29_cpufreq_limit_by_temp_work);
 	}
 
 	return 0;
@@ -397,7 +392,7 @@ static struct notifier_block notifier_policy_block = {
 	.notifier_call = rk29_cpufreq_notifier_policy
 };
 
-static void rk29_cpufreq_work_func(struct work_struct *work)
+static void rk29_cpufreq_limit_by_temp_work_func(struct work_struct *work)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
@@ -405,16 +400,27 @@ static void rk29_cpufreq_work_func(struct work_struct *work)
 		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
 		cpufreq_cpu_put(policy);
 	}
-	queue_delayed_work(wq, &rk29_cpufreq_work, WORK_DELAY);
+	queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
 }
 #endif
 
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
-static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
-		unsigned long event, void *ptr)
+static void rk29_cpufreq_limit_by_disp_work_func(struct work_struct *work)
 {
 	struct cpufreq_policy *policy;
 
+	policy = cpufreq_cpu_get(0);
+	if (policy) {
+		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_FORCE_CHANGE);
+		cpufreq_cpu_put(policy);
+	}
+}
+
+static DECLARE_WORK(rk29_cpufreq_limit_by_disp_work, rk29_cpufreq_limit_by_disp_work_func);
+
+static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
 	switch (event) {
 	case RK29FB_EVENT_HDMI_ON:
 		limit_hdmi_is_on = true;
@@ -431,11 +437,8 @@ static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
 	}
 
 	dprintk(DEBUG_DISP, "event: %lu aclk_limit: %d\n", event, aclk_limit());
-	policy = cpufreq_cpu_get(0);
-	if (policy) {
-		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_FORCE_CHANGE);
-		cpufreq_cpu_put(policy);
-	}
+	flush_work(&rk29_cpufreq_limit_by_disp_work);
+	queue_work(wq, &rk29_cpufreq_limit_by_disp_work);
 
 	return NOTIFY_OK;
 }
@@ -453,14 +456,17 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 	arm_clk = clk_get(NULL, "arm_pll");
 	if (IS_ERR(arm_clk)) {
 		int err = PTR_ERR(arm_clk);
+		pr_err("fail to get arm_pll clk: %d\n", err);
 		arm_clk = NULL;
 		return err;
 	}
 
 	ddr_clk = clk_get(NULL, "ddr");
 	if (IS_ERR(ddr_clk)) {
-		pr_err("fail to get ddr clk: %ld\n", PTR_ERR(ddr_clk));
+		int err = PTR_ERR(ddr_clk);
+		pr_err("fail to get ddr clk: %d\n", err);
 		ddr_clk = NULL;
+		return err;
 	}
 
 #ifdef CONFIG_REGULATOR
@@ -478,12 +484,16 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency = 40 * NSEC_PER_USEC; // make default sampling_rate to 40000
 
+	wq = create_singlethread_workqueue("rk29_cpufreqd");
+	if (!wq) {
+		pr_err("fail to create workqueue\n");
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 	if (rk29_cpufreq_is_ondemand_policy(policy)) {
 		dprintk(DEBUG_TEMP, "start wq\n");
-		wq = create_singlethread_workqueue("rk29_cpufreqd");
-		if (wq)
-			queue_delayed_work(wq, &rk29_cpufreq_work, WORK_DELAY);
+		queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
 	}
 	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 #endif
@@ -500,17 +510,19 @@ static int rk29_cpufreq_exit(struct cpufreq_policy *policy)
 #endif
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
+	if (wq)
+		cancel_delayed_work(&rk29_cpufreq_limit_by_temp_work);
+#endif
 	if (wq) {
-		dprintk(DEBUG_TEMP, "stop wq\n");
-		cancel_delayed_work(&rk29_cpufreq_work);
+		flush_workqueue(wq);
 		destroy_workqueue(wq);
 		wq = NULL;
 	}
-#endif
 #ifdef CONFIG_REGULATOR
 	if (vcore)
 		regulator_put(vcore);
 #endif
+	clk_put(ddr_clk);
 	clk_put(arm_clk);
 	return 0;
 }
