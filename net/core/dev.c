@@ -1949,9 +1949,11 @@ static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 #ifdef CONFIG_HIGHMEM
 	int i;
 	if (!(dev->features & NETIF_F_HIGHDMA)) {
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-			if (PageHighMem(skb_shinfo(skb)->frags[i].page))
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			if (PageHighMem(skb_frag_page(frag)))
 				return 1;
+		}
 	}
 
 	if (PCI_DMA_BUS_IS_PHYS) {
@@ -1960,7 +1962,8 @@ static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 		if (!pdev)
 			return 0;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			dma_addr_t addr = page_to_phys(skb_shinfo(skb)->frags[i].page);
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			dma_addr_t addr = page_to_phys(skb_frag_page(frag));
 			if (!pdev->dma_mask || addr + PAGE_SIZE - 1 > *pdev->dma_mask)
 				return 1;
 		}
@@ -3474,7 +3477,7 @@ pull:
 		skb_shinfo(skb)->frags[0].size -= grow;
 
 		if (unlikely(!skb_shinfo(skb)->frags[0].size)) {
-			put_page(skb_shinfo(skb)->frags[0].page);
+			skb_frag_unref(skb, 0);
 			memmove(skb_shinfo(skb)->frags,
 				skb_shinfo(skb)->frags + 1,
 				--skb_shinfo(skb)->nr_frags * sizeof(skb_frag_t));
@@ -3538,10 +3541,9 @@ void skb_gro_reset_offset(struct sk_buff *skb)
 	NAPI_GRO_CB(skb)->frag0_len = 0;
 
 	if (skb->mac_header == skb->tail &&
-	    !PageHighMem(skb_shinfo(skb)->frags[0].page)) {
+	    !PageHighMem(skb_frag_page(&skb_shinfo(skb)->frags[0]))) {
 		NAPI_GRO_CB(skb)->frag0 =
-			page_address(skb_shinfo(skb)->frags[0].page) +
-			skb_shinfo(skb)->frags[0].page_offset;
+			skb_frag_address(&skb_shinfo(skb)->frags[0]);
 		NAPI_GRO_CB(skb)->frag0_len = skb_shinfo(skb)->frags[0].size;
 	}
 }

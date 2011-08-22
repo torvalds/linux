@@ -332,7 +332,7 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 			int err;
 			u8  *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			struct page *page = frag->page;
+			struct page *page = skb_frag_page(frag);
 
 			if (copy > len)
 				copy = len;
@@ -418,7 +418,7 @@ int skb_copy_datagram_const_iovec(const struct sk_buff *skb, int offset,
 			int err;
 			u8  *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			struct page *page = frag->page;
+			struct page *page = skb_frag_page(frag);
 
 			if (copy > len)
 				copy = len;
@@ -508,7 +508,7 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 			int err;
 			u8  *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			struct page *page = frag->page;
+			struct page *page = skb_frag_page(frag);
 
 			if (copy > len)
 				copy = len;
@@ -594,7 +594,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 			int err = 0;
 			u8  *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			struct page *page = frag->page;
+			struct page *page = skb_frag_page(frag);
 
 			if (copy > len)
 				copy = len;

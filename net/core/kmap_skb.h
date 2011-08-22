@@ -7,7 +7,7 @@ static inline void *kmap_skb_frag(const skb_frag_t *frag)
 
 	local_bh_disable();
 #endif
-	return kmap_atomic(frag->page, KM_SKB_DATA_SOFTIRQ);
+	return kmap_atomic(skb_frag_page(frag), KM_SKB_DATA_SOFTIRQ);
 }
 
 static inline void kunmap_skb_frag(void *vaddr)

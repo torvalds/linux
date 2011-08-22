@@ -1533,7 +1533,6 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 				skb_shinfo(skb)->nr_frags = npages;
 				for (i = 0; i < npages; i++) {
 					struct page *page;
-					skb_frag_t *frag;
 
 					page = alloc_pages(sk->sk_allocation, 0);
 					if (!page) {
@@ -1543,12 +1542,11 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 						goto failure;
 					}
 
-					frag = &skb_shinfo(skb)->frags[i];
-					frag->page = page;
-					frag->page_offset = 0;
-					frag->size = (data_len >= PAGE_SIZE ?
-						      PAGE_SIZE :
-						      data_len);
+					__skb_fill_page_desc(skb, i,
+							page, 0,
+							(data_len >= PAGE_SIZE ?
+							 PAGE_SIZE :
+							 data_len));
 					data_len -= PAGE_SIZE;
 				}
 

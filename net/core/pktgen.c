@@ -2602,8 +2602,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 				if (!pkt_dev->page)
 					break;
 			}
-			skb_shinfo(skb)->frags[i].page = pkt_dev->page;
-			get_page(pkt_dev->page);
+			skb_frag_set_page(skb, i, pkt_dev->page);
 			skb_shinfo(skb)->frags[i].page_offset = 0;
 			/*last fragment, fill rest of data*/
 			if (i == (frags - 1))

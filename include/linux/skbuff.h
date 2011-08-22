@@ -1898,12 +1898,12 @@ static inline int skb_add_data(struct sk_buff *skb,
 }
 
 static inline int skb_can_coalesce(struct sk_buff *skb, int i,
-				   struct page *page, int off)
+				   const struct page *page, int off)
 {
 	if (i) {
 		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		return page == frag->page &&
+		return page == skb_frag_page(frag) &&
 		       off == frag->page_offset + frag->size;
 	}
 	return 0;
