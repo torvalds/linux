@@ -347,7 +347,6 @@ struct be_adapter {
 	u32 beacon_state;	/* for set_phys_id */
 
 	bool eeh_err;
-	bool link_up;
 	u32 port_num;
 	bool promiscuous;
 	bool wol;
