@@ -310,7 +310,7 @@ static struct sys_timer eukrea_cpuimx27_timer = {
 	.init = eukrea_cpuimx27_timer_init,
 };
 
-MACHINE_START(CPUIMX27, "EUKREA CPUIMX27")
+MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.boot_params = MX27_PHYS_OFFSET + 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,

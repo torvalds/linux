@@ -192,7 +192,7 @@ struct sys_timer eukrea_cpuimx35_timer = {
 	.init	= eukrea_cpuimx35_timer_init,
 };
 
-MACHINE_START(EUKREA_CPUIMX35, "Eukrea CPUIMX35")
+MACHINE_START(EUKREA_CPUIMX35SD, "Eukrea CPUIMX35")
 	/* Maintainer: Eukrea Electromatique */
 	.boot_params = MX3x_PHYS_OFFSET + 0x100,
 	.map_io = mx35_map_io,
