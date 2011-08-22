@@ -92,7 +92,7 @@ static int hdmi_pll_init(struct hdmi_ip_data *ip_data)
 
 	r = hdmi_read_reg(pll_base, PLLCTRL_CFG1);
 	r = FLD_MOD(r, fmt->regm, 20, 9); /* CFG1_PLL_REGM */
-	r = FLD_MOD(r, fmt->regn, 8, 1);  /* CFG1_PLL_REGN */
+	r = FLD_MOD(r, fmt->regn - 1, 8, 1);  /* CFG1_PLL_REGN */
 
 	hdmi_write_reg(pll_base, PLLCTRL_CFG1, r);
 
