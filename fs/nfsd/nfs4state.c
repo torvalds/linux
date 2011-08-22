@@ -3168,13 +3168,13 @@ grace_disallows_io(struct inode *inode)
 	return locks_in_grace() && mandatory_lock(inode);
 }
 
-static int check_stateid_generation(stateid_t *in, stateid_t *ref, int flags)
+static int check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_session)
 {
 	/*
 	 * When sessions are used the stateid generation number is ignored
 	 * when it is zero.
 	 */
-	if ((flags & HAS_SESSION) && in->si_generation == 0)
+	if (has_session && in->si_generation == 0)
 		goto out;
 
 	/* If the client sends us a stateid from the future, it's buggy: */
@@ -3206,7 +3206,7 @@ static int is_open_stateid(struct nfs4_stateid *stateid)
 	return stateid->st_openstp == NULL;
 }
 
-__be32 nfs4_validate_stateid(stateid_t *stateid, int flags)
+__be32 nfs4_validate_stateid(stateid_t *stateid, bool has_session)
 {
 	struct nfs4_stateid *stp = NULL;
 	__be32 status = nfserr_stale_stateid;
@@ -3223,7 +3223,7 @@ __be32 nfs4_validate_stateid(stateid_t *stateid, int flags)
 	if (!stp->st_stateowner->so_confirmed)
 		goto out;
 
-	status = check_stateid_generation(stateid, &stp->st_stateid, flags);
+	status = check_stateid_generation(stateid, &stp->st_stateid, has_session);
 	if (status)
 		goto out;
 
@@ -3251,9 +3251,6 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 	if (grace_disallows_io(ino))
 		return nfserr_grace;
 
-	if (nfsd4_has_session(cstate))
-		flags |= HAS_SESSION;
-
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
 		return check_special_stateids(current_fh, stateid, flags);
 
@@ -3270,8 +3267,7 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		dp = find_delegation_stateid(ino, stateid);
 		if (!dp)
 			goto out;
-		status = check_stateid_generation(stateid, &dp->dl_stateid,
-						  flags);
+		status = check_stateid_generation(stateid, &dp->dl_stateid, nfsd4_has_session(cstate));
 		if (status)
 			goto out;
 		status = nfs4_check_delegmode(dp, flags);
@@ -3292,7 +3288,7 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		if (!stp->st_stateowner->so_confirmed)
 			goto out;
 		status = check_stateid_generation(stateid, &stp->st_stateid,
-						  flags);
+						  nfsd4_has_session(cstate));
 		if (status)
 			goto out;
 		status = nfs4_check_openmode(stp, flags);
@@ -3421,9 +3417,6 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	if (STALE_STATEID(stateid))
 		return nfserr_stale_stateid;
 
-	if (nfsd4_has_session(cstate))
-		flags |= HAS_SESSION;
-
 	/*
 	* We return BAD_STATEID if filehandle doesn't match stateid, 
 	* the confirmed flag is incorrecly set, or the generation 
@@ -3457,7 +3450,7 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 		if (lock->lk_is_new) {
 			if (!sop->so_is_open_owner)
 				return nfserr_bad_stateid;
-			if (!(flags & HAS_SESSION) &&
+			if (!nfsd4_has_session(cstate) &&
 			    !same_clid(&clp->cl_clientid, lockclid))
 				return nfserr_bad_stateid;
 			/* stp is the open stateid */
@@ -3482,7 +3475,7 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	*  For the moment, we ignore the possibility of 
 	*  generation number wraparound.
 	*/
-	if (!(flags & HAS_SESSION) && seqid != sop->so_seqid)
+	if (!nfsd4_has_session(cstate) && seqid != sop->so_seqid)
 		goto check_replay;
 
 	if (sop->so_confirmed && flags & CONFIRM) {
@@ -3495,7 +3488,7 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 				" confirmed yet!\n");
 		return nfserr_bad_stateid;
 	}
-	status = check_stateid_generation(stateid, &stp->st_stateid, flags);
+	status = check_stateid_generation(stateid, &stp->st_stateid, nfsd4_has_session(cstate));
 	if (status)
 		return status;
 	renew_client(sop->so_client);
@@ -3679,14 +3672,11 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	stateid_t *stateid = &dr->dr_stateid;
 	struct inode *inode;
 	__be32 status;
-	int flags = 0;
 
 	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0)))
 		return status;
 	inode = cstate->current_fh.fh_dentry->d_inode;
 
-	if (nfsd4_has_session(cstate))
-		flags |= HAS_SESSION;
 	nfs4_lock_state();
 	status = nfserr_bad_stateid;
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
@@ -3701,7 +3691,7 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	dp = find_delegation_stateid(inode, stateid);
 	if (!dp)
 		goto out;
-	status = check_stateid_generation(stateid, &dp->dl_stateid, flags);
+	status = check_stateid_generation(stateid, &dp->dl_stateid, nfsd4_has_session(cstate));
 	if (status)
 		goto out;
 	renew_client(dp->dl_client);
