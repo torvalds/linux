@@ -133,7 +133,7 @@ static int check_usbip_device(struct sysfs_class_device *cdev)
 			     strlen(vhci_driver->hc_device->path))) {
 			/* found usbip device */
 			usbip_cdev = calloc(1, sizeof(*usbip_cdev));
-			if (!cdev) {
+			if (!usbip_cdev) {
 				dbg("calloc failed");
 				return -1;
 			}
