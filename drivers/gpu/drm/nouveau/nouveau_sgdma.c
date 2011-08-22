@@ -129,7 +129,7 @@ nv04_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++, pte++) {
 			nv_wo32(gpuobj, (pte * 4) + 0, offset_l | 3);
-			dma_offset += NV_CTXDMA_PAGE_SIZE;
+			offset_l += NV_CTXDMA_PAGE_SIZE;
 		}
 	}
 
