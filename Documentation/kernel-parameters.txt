@@ -1350,9 +1350,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			it is equivalent to "nosmp", which also disables
 			the IO APIC.
 
-	max_loop=	[LOOP] Maximum number of loopback devices that can
-			be mounted
-			Format: <1-256>
+	max_loop=	[LOOP] The number of loop block devices that get
+	(loop.max_loop)	unconditionally pre-created at init time. The default
+			number is configured by BLK_DEV_LOOP_MIN_COUNT. Instead
+			of statically allocating a predefined number, loop
+			devices can be requested on-demand with the
+			/dev/loop-control interface.
 
 	mcatest=	[IA-64]
 

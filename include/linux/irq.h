@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/topology.h>
 #include <linux/wait.h>
+#include <linux/module.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
@@ -547,7 +548,15 @@ static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
 	return d->msi_desc;
 }
 
-int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
+int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
+		struct module *owner);
+
+static inline int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt,
+		int node)
+{
+	return __irq_alloc_descs(irq, from, cnt, node, THIS_MODULE);
+}
+
 void irq_free_descs(unsigned int irq, unsigned int cnt);
 int irq_reserve_irqs(unsigned int from, unsigned int cnt);
 

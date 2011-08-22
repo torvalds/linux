@@ -991,24 +991,6 @@ struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	return pntsd;
 }
 
-static int set_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb, __u16 fid,
-		struct cifs_ntsd *pnntsd, u32 acllen)
-{
-	int xid, rc;
-	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
-
-	if (IS_ERR(tlink))
-		return PTR_ERR(tlink);
-
-	xid = GetXid();
-	rc = CIFSSMBSetCIFSACL(xid, tlink_tcon(tlink), fid, pnntsd, acllen);
-	FreeXid(xid);
-	cifs_put_tlink(tlink);
-
-	cFYI(DBG2, "SetCIFSACL rc = %d", rc);
-	return rc;
-}
-
 static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
 		struct cifs_ntsd *pnntsd, u32 acllen)
 {
@@ -1047,18 +1029,10 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 				struct inode *inode, const char *path)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsFileInfo *open_file;
-	int rc;
 
 	cFYI(DBG2, "set ACL for %s from mode 0x%x", path, inode->i_mode);
 
-	open_file = find_readable_file(CIFS_I(inode), true);
-	if (!open_file)
-		return set_cifs_acl_by_path(cifs_sb, path, pnntsd, acllen);
-
-	rc = set_cifs_acl_by_fid(cifs_sb, open_file->netfid, pnntsd, acllen);
-	cifsFileInfo_put(open_file);
-	return rc;
+	return set_cifs_acl_by_path(cifs_sb, path, pnntsd, acllen);
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
