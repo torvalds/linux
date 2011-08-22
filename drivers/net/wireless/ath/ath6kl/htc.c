@@ -381,13 +381,7 @@ static int htc_setup_send_scat_list(struct htc_target *target,
 
 		cred_pad = htc_get_credit_padding(target->tgt_cred_sz,
 						  &len, endpoint);
-		if (cred_pad < 0) {
-			status = -EINVAL;
-			break;
-		}
-
-		if (rem_scat < len) {
-			/* exceeds what we can transfer */
+		if (cred_pad < 0 || rem_scat < len) {
 			status = -ENOSPC;
 			break;
 		}
@@ -416,7 +410,7 @@ static int htc_setup_send_scat_list(struct htc_target *target,
 	}
 
 	/* Roll back scatter setup in case of any failure */
-	if (status || (scat_req->scat_entries < HTC_MIN_HTC_MSGS_TO_BUNDLE)) {
+	if (scat_req->scat_entries < HTC_MIN_HTC_MSGS_TO_BUNDLE) {
 		for (i = scat_req->scat_entries - 1; i >= 0; i--) {
 			packet = scat_req->scat_list[i].packet;
 			if (packet) {
@@ -424,10 +418,10 @@ static int htc_setup_send_scat_list(struct htc_target *target,
 				list_add(&packet->list, queue);
 			}
 		}
-		return -EINVAL;
+		return -EAGAIN;
 	}
 
-	return 0;
+	return status;
 }
 
 /*
@@ -447,8 +441,10 @@ static void htc_issue_send_bundle(struct htc_endpoint *endpoint,
 	struct htc_target *target = endpoint->target;
 	struct hif_scatter_req *scat_req = NULL;
 	int n_scat, n_sent_bundle = 0, tot_pkts_bundle = 0;
+	int status;
 
 	while (true) {
+		status = 0;
 		n_scat = get_queue_depth(queue);
 		n_scat = min(n_scat, target->msg_per_bndl_max);
 
@@ -471,8 +467,9 @@ static void htc_issue_send_bundle(struct htc_endpoint *endpoint,
 		scat_req->len = 0;
 		scat_req->scat_entries = 0;
 
-		if (htc_setup_send_scat_list(target, endpoint, scat_req,
-					     n_scat, queue)) {
+		status = htc_setup_send_scat_list(target, endpoint,
+						  scat_req, n_scat, queue);
+		if (status == -EAGAIN) {
 			hif_scatter_req_add(target->dev->ar, scat_req);
 			break;
 		}
@@ -486,6 +483,9 @@ static void htc_issue_send_bundle(struct htc_endpoint *endpoint,
 			   "send scatter total bytes: %d , entries: %d\n",
 			   scat_req->len, scat_req->scat_entries);
 		ath6kldev_submit_scat_req(target->dev, scat_req, false);
+
+		if (status)
+			break;
 	}
 
 	*sent_bundle = n_sent_bundle;
