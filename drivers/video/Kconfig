@@ -1964,6 +1964,11 @@ config FB_ROTATE_VIDEO
 	---help---
 		this function  can use to rotate video .
 
+config CLOSE_WIN1_DYNAMIC
+	bool "close win1 dynamically when video"
+	depends on FB_RK29
+	---help---
+		this function  can close win1 when video and it have no data in fb0
 
 config FB_SM501
 	tristate "Silicon Motion SM501 framebuffer support"
