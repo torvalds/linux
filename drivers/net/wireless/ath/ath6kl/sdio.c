@@ -128,17 +128,6 @@ static int ath6kl_sdio_func0_cmd52_wr_byte(struct mmc_card *card,
 	return mmc_wait_for_cmd(card->host, &io_cmd, 0);
 }
 
-static void ath6kl_sdio_buf_align(u8 **buf, unsigned long len)
-{
-	u8 *align_addr;
-
-	if (!IS_ALIGNED((unsigned long) *buf, 4)) {
-		align_addr = PTR_ALIGN(*buf - 4, 4);
-		memmove(align_addr, *buf, len);
-		*buf = align_addr;
-	}
-}
-
 static int ath6kl_sdio_io(struct sdio_func *func, u32 request, u32 addr,
 			  u8 *buf, u32 len)
 {
@@ -224,10 +213,6 @@ static void ath6kl_sdio_setup_scat_data(struct hif_scatter_req *scat_req,
 
 	/* assemble SG list */
 	for (i = 0; i < scat_req->scat_entries; i++, sg++) {
-		/* No header is added to rx buf, so it shoule be aligned */
-		if (data->flags == MMC_DATA_WRITE)
-			ath6kl_sdio_buf_align(&scat_req->scat_list[i].buf,
-					      scat_req->scat_list[i].len);
 		ath6kl_dbg(ATH6KL_DBG_SCATTER, "%d: addr:0x%p, len:%d\n",
 			   i, scat_req->scat_list[i].buf,
 			   scat_req->scat_list[i].len);
