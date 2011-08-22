@@ -1366,8 +1366,10 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 		status = -ECONNRESET;
 
 	clean_busy =  dwc3_cleanup_done_reqs(dwc, dep, event, status);
-	if (clean_busy)
+	if (clean_busy) {
 		dep->flags &= ~DWC3_EP_BUSY;
+		dep->res_trans_idx = 0;
+	}
 }
 
 static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
@@ -1537,6 +1539,7 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum)
 		memset(&params, 0, sizeof(params));
 		ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
 		WARN_ON_ONCE(ret);
+		dep->res_trans_idx = 0;
 	}
 }
 
