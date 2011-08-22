@@ -602,7 +602,7 @@ void key_put(struct key *key)
 		key_check(key);
 
 		if (atomic_dec_and_test(&key->usage))
-			schedule_work(&key_gc_unused_work);
+			queue_work(system_nrt_wq, &key_gc_unused_work);
 	}
 }
 EXPORT_SYMBOL(key_put);
