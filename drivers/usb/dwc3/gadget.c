@@ -632,7 +632,7 @@ static struct dwc3_request *dwc3_prepare_trbs(struct dwc3_ep *dep,
 			break;
 
 		case USB_ENDPOINT_XFER_ISOC:
-			trb.trbctl = DWC3_TRBCTL_ISOCHRONOUS;
+			trb.trbctl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
 
 			/* IOC every DWC3_TRB_NUM / 4 so we can refill */
 			if (!(cur_slot % (DWC3_TRB_NUM / 4)))
