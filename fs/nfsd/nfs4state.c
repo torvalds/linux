@@ -3396,7 +3396,7 @@ static __be32
 nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 			 stateid_t *stateid, int flags,
 			 struct nfs4_stateowner **sopp,
-			 struct nfs4_stateid **stpp, struct nfsd4_lock *lock)
+			 struct nfs4_stateid **stpp)
 {
 	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
@@ -3438,27 +3438,6 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 
 	*stpp = stp;
 	*sopp = sop = stp->st_stateowner;
-
-	if (lock) {
-		clientid_t *lockclid = &lock->v.new.clientid;
-		struct nfs4_client *clp = sop->so_client;
-		int lkflg = 0;
-		__be32 status;
-
-		lkflg = setlkflg(lock->lk_type);
-
-		if (lock->lk_is_new) {
-			if (!sop->so_is_open_owner)
-				return nfserr_bad_stateid;
-			if (!nfsd4_has_session(cstate) &&
-			    !same_clid(&clp->cl_clientid, lockclid))
-				return nfserr_bad_stateid;
-		}
-		/* stp is the open stateid */
-		status = nfs4_check_openmode(stp, lkflg);
-		if (status)
-			return status;
-	}
 
 	if (nfs4_check_fh(current_fh, stp)) {
 		dprintk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
@@ -3522,7 +3501,7 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if ((status = nfs4_preprocess_seqid_op(cstate,
 					oc->oc_seqid, &oc->oc_req_stateid,
 					CONFIRM | OPEN_STATE,
-					&oc->oc_stateowner, &stp, NULL)))
+					&oc->oc_stateowner, &stp)))
 		goto out; 
 
 	sop = oc->oc_stateowner;
@@ -3585,7 +3564,7 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 					od->od_seqid,
 					&od->od_stateid, 
 					OPEN_STATE,
-					&od->od_stateowner, &stp, NULL)))
+					&od->od_stateowner, &stp)))
 		goto out; 
 
 	status = nfserr_inval;
@@ -3635,7 +3614,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					close->cl_seqid,
 					&close->cl_stateid, 
 					OPEN_STATE | CLOSE_STATE,
-					&close->cl_stateowner, &stp, NULL)))
+					&close->cl_stateowner, &stp)))
 		goto out; 
 	status = nfs_ok;
 	update_stateid(&stp->st_stateid);
@@ -3997,6 +3976,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file_lock conflock;
 	__be32 status = 0;
 	unsigned int strhashval;
+	int lkflg;
 	int err;
 
 	dprintk("NFSD: nfsd4_lock: start=%Ld length=%Ld\n",
@@ -4032,11 +4012,17 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				        lock->lk_new_open_seqid,
 		                        &lock->lk_new_open_stateid,
 					OPEN_STATE,
-		                        &lock->lk_replay_owner, &open_stp,
-					lock);
+		                        &lock->lk_replay_owner, &open_stp);
 		if (status)
 			goto out;
+		status = nfserr_bad_stateid;
 		open_sop = lock->lk_replay_owner;
+		if (!open_sop->so_is_open_owner)
+			goto out;
+		if (!nfsd4_has_session(cstate) &&
+				!same_clid(&open_sop->so_client->cl_clientid,
+						&lock->v.new.clientid))
+			goto out;
 		/* create lockowner and lock stateid */
 		fp = open_stp->st_file;
 		strhashval = lock_ownerstr_hashval(fp->fi_inode, 
@@ -4059,13 +4045,18 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				       lock->lk_old_lock_seqid, 
 				       &lock->lk_old_lock_stateid, 
 				       LOCK_STATE,
-				       &lock->lk_replay_owner, &lock_stp, lock);
+				       &lock->lk_replay_owner, &lock_stp);
 		if (status)
 			goto out;
 		lock_sop = lock->lk_replay_owner;
 		fp = lock_stp->st_file;
 	}
 	/* lock->lk_replay_owner and lock_stp have been created or found */
+
+	lkflg = setlkflg(lock->lk_type);
+	status = nfs4_check_openmode(lock_stp, lkflg);
+	if (status)
+		goto out;
 
 	status = nfserr_grace;
 	if (locks_in_grace() && !lock->lk_reclaim)
@@ -4259,7 +4250,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					locku->lu_seqid, 
 					&locku->lu_stateid, 
 					LOCK_STATE,
-					&locku->lu_stateowner, &stp, NULL)))
+					&locku->lu_stateowner, &stp)))
 		goto out;
 
 	filp = find_any_file(stp->st_file);
