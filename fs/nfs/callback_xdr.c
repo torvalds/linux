@@ -754,26 +754,15 @@ static void nfs4_callback_free_slot(struct nfs4_session *session)
 	 * Let the state manager know callback processing done.
 	 * A single slot, so highest used slotid is either 0 or -1
 	 */
-	tbl->highest_used_slotid--;
+	tbl->highest_used_slotid = -1;
 	nfs4_check_drain_bc_complete(session);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
-static void nfs4_cb_free_slot(struct nfs_client *clp)
+static void nfs4_cb_free_slot(struct cb_process_state *cps)
 {
-	if (clp && clp->cl_session)
-		nfs4_callback_free_slot(clp->cl_session);
-}
-
-/* A single slot, so highest used slotid is either 0 or -1 */
-void nfs4_cb_take_slot(struct nfs_client *clp)
-{
-	struct nfs4_slot_table *tbl = &clp->cl_session->bc_slot_table;
-
-	spin_lock(&tbl->slot_tbl_lock);
-	tbl->highest_used_slotid++;
-	BUG_ON(tbl->highest_used_slotid != 0);
-	spin_unlock(&tbl->slot_tbl_lock);
+	if (cps->slotid != -1)
+		nfs4_callback_free_slot(cps->clp->cl_session);
 }
 
 #else /* CONFIG_NFS_V4_1 */
@@ -784,7 +773,7 @@ preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
 	return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 }
 
-static void nfs4_cb_free_slot(struct nfs_client *clp)
+static void nfs4_cb_free_slot(struct cb_process_state *cps)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */
@@ -866,6 +855,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	struct cb_process_state cps = {
 		.drc_status = 0,
 		.clp = NULL,
+		.slotid = -1,
 	};
 	unsigned int nops = 0;
 
@@ -906,7 +896,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	*hdr_res.status = status;
 	*hdr_res.nops = htonl(nops);
-	nfs4_cb_free_slot(cps.clp);
+	nfs4_cb_free_slot(&cps);
 	nfs_put_client(cps.clp);
 	dprintk("%s: done, status = %u\n", __func__, ntohl(status));
 	return rpc_success;

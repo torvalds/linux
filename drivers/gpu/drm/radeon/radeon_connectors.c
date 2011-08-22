@@ -60,18 +60,20 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 
 	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
-	/* powering up/down the eDP panel generates hpd events which
-	 * can interfere with modesetting.
-	 */
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+	/* if the connector is already off, don't turn it back on */
+	if (connector->dpms != DRM_MODE_DPMS_ON)
 		return;
 
-	/* pre-r600 did not always have the hpd pins mapped accurately to connectors */
-	if (rdev->family >= CHIP_R600) {
-		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd))
+	/* just deal with DP (not eDP) here. */
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		int saved_dpms = connector->dpms;
+
+		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd) &&
+		    radeon_dp_needs_link_train(radeon_connector))
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
 		else
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+		connector->dpms = saved_dpms;
 	}
 }
 
@@ -474,11 +476,19 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 {
 	struct radeon_encoder *radeon_encoder =	to_radeon_encoder(encoder);
 	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+	struct drm_display_mode *t, *mode;
+
+	/* If the EDID preferred mode doesn't match the native mode, use it */
+	list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
+		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+			if (mode->hdisplay != native_mode->hdisplay ||
+			    mode->vdisplay != native_mode->vdisplay)
+				memcpy(native_mode, mode, sizeof(*mode));
+		}
+	}
 
 	/* Try to get native mode details from EDID if necessary */
 	if (!native_mode->clock) {
-		struct drm_display_mode *t, *mode;
-
 		list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
 			if (mode->hdisplay == native_mode->hdisplay &&
 			    mode->vdisplay == native_mode->vdisplay) {
@@ -489,6 +499,7 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 			}
 		}
 	}
+
 	if (!native_mode->clock) {
 		DRM_DEBUG_KMS("No LVDS native mode details, disabling RMX\n");
 		radeon_encoder->rmx_type = RMX_OFF;

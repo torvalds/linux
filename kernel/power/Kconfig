@@ -231,3 +231,7 @@ config PM_CLK
 config PM_GENERIC_DOMAINS
 	bool
 	depends on PM
+
+config PM_GENERIC_DOMAINS_RUNTIME
+	def_bool y
+	depends on PM_RUNTIME && PM_GENERIC_DOMAINS

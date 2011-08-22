@@ -283,6 +283,8 @@ static inline int pci_iov_bus_range(struct pci_bus *bus)
 
 #endif /* CONFIG_PCI_IOV */
 
+extern unsigned long pci_cardbus_resource_alignment(struct resource *);
+
 static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 					 struct resource *res)
 {
@@ -292,6 +294,8 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
 		return pci_sriov_resource_alignment(dev, resno);
 #endif
+	if (dev->class >> 8  == PCI_CLASS_BRIDGE_CARDBUS)
+		return pci_cardbus_resource_alignment(res);
 	return resource_alignment(res);
 }
 

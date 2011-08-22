@@ -123,8 +123,8 @@ static DEFINE_SPINLOCK(minor_lock);
 #define BLKIF_MINOR_EXT(dev) ((dev)&(~EXTENDED))
 #define EMULATED_HD_DISK_MINOR_OFFSET (0)
 #define EMULATED_HD_DISK_NAME_OFFSET (EMULATED_HD_DISK_MINOR_OFFSET / 256)
-#define EMULATED_SD_DISK_MINOR_OFFSET (EMULATED_HD_DISK_MINOR_OFFSET + (4 * 16))
-#define EMULATED_SD_DISK_NAME_OFFSET (EMULATED_HD_DISK_NAME_OFFSET + 4)
+#define EMULATED_SD_DISK_MINOR_OFFSET (0)
+#define EMULATED_SD_DISK_NAME_OFFSET (EMULATED_SD_DISK_MINOR_OFFSET / 256)
 
 #define DEV_NAME	"xvd"	/* name in /dev */
 
@@ -529,7 +529,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 		minor = BLKIF_MINOR_EXT(info->vdevice);
 		nr_parts = PARTS_PER_EXT_DISK;
 		offset = minor / nr_parts;
-		if (xen_hvm_domain() && offset <= EMULATED_HD_DISK_NAME_OFFSET + 4)
+		if (xen_hvm_domain() && offset < EMULATED_HD_DISK_NAME_OFFSET + 4)
 			printk(KERN_WARNING "blkfront: vdevice 0x%x might conflict with "
 					"emulated IDE disks,\n\t choose an xvd device name"
 					"from xvde on\n", info->vdevice);
