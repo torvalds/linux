@@ -27,6 +27,7 @@
 #include <asm/mach/irq.h>
 
 #include <plat/pincfg.h>
+#include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <asm/gpio.h>
 

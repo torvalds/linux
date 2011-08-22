@@ -7,9 +7,9 @@
 
 #include <linux/amba/mmci.h>
 #include <linux/mmc/host.h>
-#include <linux/gpio.h>
 
 #include <plat/pincfg.h>
+#include <plat/gpio-nomadik.h>
 #include <mach/db5500-regs.h>
 #include <plat/ste_dma40.h>
 

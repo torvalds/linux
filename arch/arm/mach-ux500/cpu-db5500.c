@@ -13,7 +13,7 @@
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
 
-#include <plat/gpio.h>
+#include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
 #include <mach/devices.h>
