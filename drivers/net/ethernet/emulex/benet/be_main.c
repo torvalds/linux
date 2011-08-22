@@ -141,12 +141,14 @@ static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
 
 static void be_intr_set(struct be_adapter *adapter, bool enable)
 {
-	u8 __iomem *addr = adapter->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET;
-	u32 reg = ioread32(addr);
-	u32 enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
+	u32 reg, enabled;
 
 	if (adapter->eeh_err)
 		return;
+
+	pci_read_config_dword(adapter->pdev, PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET,
+				&reg);
+	enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 
 	if (!enabled && enable)
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
@@ -155,7 +157,8 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 	else
 		return;
 
-	iowrite32(reg, addr);
+	pci_write_config_dword(adapter->pdev,
+			PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET, reg);
 }
 
 static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
@@ -2951,14 +2954,12 @@ static void be_unmap_pci_bars(struct be_adapter *adapter)
 		iounmap(adapter->csr);
 	if (adapter->db)
 		iounmap(adapter->db);
-	if (adapter->pcicfg && be_physfn(adapter))
-		iounmap(adapter->pcicfg);
 }
 
 static int be_map_pci_bars(struct be_adapter *adapter)
 {
 	u8 __iomem *addr;
-	int pcicfg_reg, db_reg;
+	int db_reg;
 
 	if (lancer_chip(adapter)) {
 		addr = ioremap_nocache(pci_resource_start(adapter->pdev, 0),
@@ -2978,10 +2979,8 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	}
 
 	if (adapter->generation == BE_GEN2) {
-		pcicfg_reg = 1;
 		db_reg = 4;
 	} else {
-		pcicfg_reg = 0;
 		if (be_physfn(adapter))
 			db_reg = 4;
 		else
@@ -2992,16 +2991,6 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	if (addr == NULL)
 		goto pci_map_err;
 	adapter->db = addr;
-
-	if (be_physfn(adapter)) {
-		addr = ioremap_nocache(
-				pci_resource_start(adapter->pdev, pcicfg_reg),
-				pci_resource_len(adapter->pdev, pcicfg_reg));
-		if (addr == NULL)
-			goto pci_map_err;
-		adapter->pcicfg = addr;
-	} else
-		adapter->pcicfg = adapter->db + SRIOV_VF_PCICFG_OFFSET;
 
 	return 0;
 pci_map_err:
