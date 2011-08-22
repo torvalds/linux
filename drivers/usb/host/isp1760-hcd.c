@@ -114,6 +114,7 @@ struct isp1760_qh {
 	u32 toggle;
 	u32 ping;
 	int slot;
+	int tt_buffer_dirty;	/* See USB2.0 spec section 11.17.5 */
 };
 
 struct urb_listitem {
@@ -845,6 +846,10 @@ static void enqueue_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh)
 		return;
 	}
 
+	/* Make sure this endpoint's TT buffer is clean before queueing ptds */
+	if (qh->tt_buffer_dirty)
+		return;
+
 	if (usb_pipeint(list_entry(qh->qtd_list.next, struct isp1760_qtd,
 							qtd_list)->urb->pipe)) {
 		ptd_offset = INT_PTD_OFFSET;
@@ -1182,6 +1187,15 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 
 		case PTD_STATE_URB_RETIRE:
 			qtd->status = QTD_RETIRE;
+			if ((qtd->urb->dev->speed != USB_SPEED_HIGH) &&
+					(qtd->urb->status != -EPIPE) &&
+					(qtd->urb->status != -EREMOTEIO)) {
+				qh->tt_buffer_dirty = 1;
+				if (usb_hub_clear_tt_buffer(qtd->urb))
+					/* Clear failed; let's hope things work
+					   anyway */
+					qh->tt_buffer_dirty = 0;
+			}
 			qtd = NULL;
 			qh->toggle = 0;
 			qh->ping = 0;
@@ -1611,6 +1625,41 @@ static void kill_transfer(struct usb_hcd *hcd, struct urb *urb,
 	qh->slot = -1;
 }
 
+/*
+ * Retire the qtds beginning at 'qtd' and belonging all to the same urb, killing
+ * any active transfer belonging to the urb in the process.
+ */
+static void dequeue_urb_from_qtd(struct usb_hcd *hcd, struct isp1760_qh *qh,
+						struct isp1760_qtd *qtd)
+{
+	struct urb *urb;
+	int urb_was_running;
+
+	urb = qtd->urb;
+	urb_was_running = 0;
+	list_for_each_entry_from(qtd, &qh->qtd_list, qtd_list) {
+		if (qtd->urb != urb)
+			break;
+
+		if (qtd->status >= QTD_XFER_STARTED)
+			urb_was_running = 1;
+		if (last_qtd_of_urb(qtd, qh) &&
+					(qtd->status >= QTD_XFER_COMPLETE))
+			urb_was_running = 0;
+
+		if (qtd->status == QTD_XFER_STARTED)
+			kill_transfer(hcd, urb, qh);
+		qtd->status = QTD_RETIRE;
+	}
+
+	if ((urb->dev->speed != USB_SPEED_HIGH) && urb_was_running) {
+		qh->tt_buffer_dirty = 1;
+		if (usb_hub_clear_tt_buffer(urb))
+			/* Clear failed; let's hope things work anyway */
+			qh->tt_buffer_dirty = 0;
+	}
+}
+
 static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		int status)
 {
@@ -1633,9 +1682,8 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
 		if (qtd->urb == urb) {
-			if (qtd->status == QTD_XFER_STARTED)
-				kill_transfer(hcd, urb, qh);
-			qtd->status = QTD_RETIRE;
+			dequeue_urb_from_qtd(hcd, qh, qtd);
+			break;
 		}
 
 	urb->status = status;
@@ -1660,12 +1708,11 @@ static void isp1760_endpoint_disable(struct usb_hcd *hcd,
 	if (!qh)
 		goto out;
 
-	list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
-		if (qtd->status == QTD_XFER_STARTED)
-			kill_transfer(hcd, qtd->urb, qh);
-		qtd->status = QTD_RETIRE;
-		qtd->urb->status = -ECONNRESET;
-	}
+	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
+		if (qtd->status != QTD_RETIRE) {
+			dequeue_urb_from_qtd(hcd, qh, qtd);
+			qtd->urb->status = -ECONNRESET;
+		}
 
 	ep->hcpriv = NULL;
 	/* Cannot free qh here since it will be parsed by schedule_ptds() */
@@ -2088,6 +2135,23 @@ static void isp1760_shutdown(struct usb_hcd *hcd)
 	reg_write32(hcd->regs, HC_USBCMD, command);
 }
 
+static void isp1760_clear_tt_buffer_complete(struct usb_hcd *hcd,
+						struct usb_host_endpoint *ep)
+{
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	struct isp1760_qh *qh = ep->hcpriv;
+	unsigned long spinflags;
+
+	if (!qh)
+		return;
+
+	spin_lock_irqsave(&priv->lock, spinflags);
+	qh->tt_buffer_dirty = 0;
+	schedule_ptds(hcd);
+	spin_unlock_irqrestore(&priv->lock, spinflags);
+}
+
+
 static const struct hc_driver isp1760_hc_driver = {
 	.description		= "isp1760-hcd",
 	.product_desc		= "NXP ISP1760 USB Host Controller",
@@ -2104,6 +2168,7 @@ static const struct hc_driver isp1760_hc_driver = {
 	.get_frame_number	= isp1760_get_frame,
 	.hub_status_data	= isp1760_hub_status_data,
 	.hub_control		= isp1760_hub_control,
+	.clear_tt_buffer_complete	= isp1760_clear_tt_buffer_complete,
 };
 
 int __init init_kmem_once(void)
