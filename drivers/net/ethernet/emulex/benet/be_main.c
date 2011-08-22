@@ -1862,7 +1862,7 @@ loop_continue:
 	}
 
 	/* Refill the queue */
-	if (atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM)
+	if (work_done && atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM)
 		be_post_rx_frags(rxo, GFP_ATOMIC);
 
 	/* All consumed */
