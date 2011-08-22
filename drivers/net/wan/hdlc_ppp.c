@@ -515,37 +515,37 @@ static int ppp_rx(struct sk_buff *skb)
 	switch (cp->code) {
 	case CP_CONF_REQ:
 		ppp_cp_parse_cr(dev, pid, cp->id, len, skb->data);
-		goto out;
+		break;
 
 	case CP_CONF_ACK:
 		if (cp->id == proto->cr_id)
 			ppp_cp_event(dev, pid, RCA, 0, 0, 0, NULL);
-		goto out;
+		break;
 
 	case CP_CONF_REJ:
 	case CP_CONF_NAK:
 		if (cp->id == proto->cr_id)
 			ppp_cp_event(dev, pid, RCN, 0, 0, 0, NULL);
-		goto out;
+		break;
 
 	case CP_TERM_REQ:
 		ppp_cp_event(dev, pid, RTR, 0, cp->id, 0, NULL);
-		goto out;
+		break;
 
 	case CP_TERM_ACK:
 		ppp_cp_event(dev, pid, RTA, 0, 0, 0, NULL);
-		goto out;
+		break;
 
 	case CP_CODE_REJ:
 		ppp_cp_event(dev, pid, RXJ_BAD, 0, 0, 0, NULL);
-		goto out;
+		break;
 
 	default:
 		len += sizeof(struct cp_header);
 		if (len > dev->mtu)
 			len = dev->mtu;
 		ppp_cp_event(dev, pid, RUC, 0, 0, len, cp);
-		goto out;
+		break;
 	}
 	goto out;
 
