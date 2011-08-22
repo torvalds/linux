@@ -10,6 +10,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/security.h>
 #include <keys/keyring-type.h>
 #include "internal.h"
 
@@ -19,12 +21,18 @@
 unsigned key_gc_delay = 5 * 60;
 
 /*
- * Reaper
+ * Reaper for unused keys.
+ */
+static void key_gc_unused_keys(struct work_struct *work);
+DECLARE_WORK(key_gc_unused_work, key_gc_unused_keys);
+
+/*
+ * Reaper for links from keyrings to dead keys.
  */
 static void key_gc_timer_func(unsigned long);
-static void key_garbage_collector(struct work_struct *);
+static void key_gc_dead_links(struct work_struct *);
 static DEFINE_TIMER(key_gc_timer, key_gc_timer_func, 0, 0);
-static DECLARE_WORK(key_gc_work, key_garbage_collector);
+static DECLARE_WORK(key_gc_work, key_gc_dead_links);
 static key_serial_t key_gc_cursor; /* the last key the gc considered */
 static bool key_gc_again;
 static unsigned long key_gc_executing;
@@ -108,10 +116,12 @@ do_gc:
 }
 
 /*
- * Garbage collector for keys.  This involves scanning the keyrings for dead,
- * expired and revoked keys that have overstayed their welcome
+ * Garbage collector for links to dead keys.
+ *
+ * This involves scanning the keyrings for dead, expired and revoked keys that
+ * have overstayed their welcome
  */
-static void key_garbage_collector(struct work_struct *work)
+static void key_gc_dead_links(struct work_struct *work)
 {
 	struct rb_node *rb;
 	key_serial_t cursor;
@@ -219,4 +229,69 @@ reached_the_end:
 		key_schedule_gc(new_timer);
 	}
 	kleave(" [end]");
+}
+
+/*
+ * Garbage collector for unused keys.
+ *
+ * This is done in process context so that we don't have to disable interrupts
+ * all over the place.  key_put() schedules this rather than trying to do the
+ * cleanup itself, which means key_put() doesn't have to sleep.
+ */
+static void key_gc_unused_keys(struct work_struct *work)
+{
+	struct rb_node *_n;
+	struct key *key;
+
+go_again:
+	/* look for a dead key in the tree */
+	spin_lock(&key_serial_lock);
+
+	for (_n = rb_first(&key_serial_tree); _n; _n = rb_next(_n)) {
+		key = rb_entry(_n, struct key, serial_node);
+
+		if (atomic_read(&key->usage) == 0)
+			goto found_dead_key;
+	}
+
+	spin_unlock(&key_serial_lock);
+	return;
+
+found_dead_key:
+	/* we found a dead key - once we've removed it from the tree, we can
+	 * drop the lock */
+	rb_erase(&key->serial_node, &key_serial_tree);
+	spin_unlock(&key_serial_lock);
+
+	key_check(key);
+
+	security_key_free(key);
+
+	/* deal with the user's key tracking and quota */
+	if (test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
+		spin_lock(&key->user->lock);
+		key->user->qnkeys--;
+		key->user->qnbytes -= key->quotalen;
+		spin_unlock(&key->user->lock);
+	}
+
+	atomic_dec(&key->user->nkeys);
+	if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
+		atomic_dec(&key->user->nikeys);
+
+	key_user_put(key->user);
+
+	/* now throw away the key memory */
+	if (key->type->destroy)
+		key->type->destroy(key);
+
+	kfree(key->description);
+
+#ifdef KEY_DEBUGGING
+	key->magic = KEY_DEBUG_MAGIC_X;
+#endif
+	kmem_cache_free(key_jar, key);
+
+	/* there may, of course, be more than one key to destroy */
+	goto go_again;
 }
