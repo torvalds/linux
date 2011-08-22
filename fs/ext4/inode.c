@@ -2148,7 +2148,12 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 			else if (test_opt(inode->i_sb, MBLK_IO_SUBMIT))
 				err = ext4_bio_write_page(&io_submit, page,
 							  len, mpd->wbc);
-			else
+			else if (buffer_uninit(page_bufs)) {
+				ext4_set_bh_endio(page_bufs, inode);
+				err = block_write_full_page_endio(page,
+					noalloc_get_block_write,
+					mpd->wbc, ext4_end_io_buffer_write);
+			} else
 				err = block_write_full_page(page,
 					noalloc_get_block_write, mpd->wbc);
 
