@@ -54,6 +54,12 @@ static int ad714x_spi_write(struct device *dev, unsigned short reg,
 static int __devinit ad714x_spi_probe(struct spi_device *spi)
 {
 	struct ad714x_chip *chip;
+	int err;
+
+	spi->bits_per_word = 8;
+	err = spi_setup(spi);
+	if (err < 0)
+		return err;
 
 	chip = ad714x_probe(&spi->dev, BUS_SPI, spi->irq,
 			    ad714x_spi_read, ad714x_spi_write);
