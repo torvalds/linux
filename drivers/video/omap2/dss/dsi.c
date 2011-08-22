@@ -217,9 +217,9 @@ enum fifo_size {
 	DSI_FIFO_SIZE_128	= 4,
 };
 
-enum dsi_vc_mode {
-	DSI_VC_MODE_L4 = 0,
-	DSI_VC_MODE_VP,
+enum dsi_vc_source {
+	DSI_VC_SOURCE_L4 = 0,
+	DSI_VC_SOURCE_VP,
 };
 
 enum dsi_lane {
@@ -272,7 +272,7 @@ struct dsi_data {
 	struct regulator *vdds_dsi_reg;
 
 	struct {
-		enum dsi_vc_mode mode;
+		enum dsi_vc_source source;
 		struct omap_dss_device *dssdev;
 		enum fifo_size fifo_size;
 		int vc_id;
@@ -2672,10 +2672,10 @@ static int dsi_sync_vc(struct platform_device *dsidev, int channel)
 	if (!dsi_vc_is_enabled(dsidev, channel))
 		return 0;
 
-	switch (dsi->vc[channel].mode) {
-	case DSI_VC_MODE_VP:
+	switch (dsi->vc[channel].source) {
+	case DSI_VC_SOURCE_VP:
 		return dsi_sync_vc_vp(dsidev, channel);
-	case DSI_VC_MODE_L4:
+	case DSI_VC_SOURCE_L4:
 		return dsi_sync_vc_l4(dsidev, channel);
 	default:
 		BUG();
@@ -2729,43 +2729,12 @@ static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 	dsi_write_reg(dsidev, DSI_VC_CTRL(channel), r);
 }
 
-static int dsi_vc_config_l4(struct platform_device *dsidev, int channel)
+static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
+		enum dsi_vc_source source)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	if (dsi->vc[channel].mode == DSI_VC_MODE_L4)
-		return 0;
-
-	DSSDBGF("%d", channel);
-
-	dsi_sync_vc(dsidev, channel);
-
-	dsi_vc_enable(dsidev, channel, 0);
-
-	/* VC_BUSY */
-	if (wait_for_bit_change(dsidev, DSI_VC_CTRL(channel), 15, 0) != 0) {
-		DSSERR("vc(%d) busy when trying to config for L4\n", channel);
-		return -EIO;
-	}
-
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 0, 1, 1); /* SOURCE, 0 = L4 */
-
-	/* DCS_CMD_ENABLE */
-	if (dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC))
-		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 0, 30, 30);
-
-	dsi_vc_enable(dsidev, channel, 1);
-
-	dsi->vc[channel].mode = DSI_VC_MODE_L4;
-
-	return 0;
-}
-
-static int dsi_vc_config_vp(struct platform_device *dsidev, int channel)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (dsi->vc[channel].mode == DSI_VC_MODE_VP)
+	if (dsi->vc[channel].source == source)
 		return 0;
 
 	DSSDBGF("%d", channel);
@@ -2780,20 +2749,21 @@ static int dsi_vc_config_vp(struct platform_device *dsidev, int channel)
 		return -EIO;
 	}
 
-	/* SOURCE, 1 = video port */
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 1, 1);
+	/* SOURCE, 0 = L4, 1 = video port */
+	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), source, 1, 1);
 
 	/* DCS_CMD_ENABLE */
-	if (dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC))
-		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 30, 30);
+	if (dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
+		bool enable = source == DSI_VC_SOURCE_VP;
+		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 30, 30);
+	}
 
 	dsi_vc_enable(dsidev, channel, 1);
 
-	dsi->vc[channel].mode = DSI_VC_MODE_VP;
+	dsi->vc[channel].source = source;
 
 	return 0;
 }
-
 
 void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable)
@@ -3010,7 +2980,7 @@ static int dsi_vc_send_long(struct platform_device *dsidev, int channel,
 		return -EINVAL;
 	}
 
-	dsi_vc_config_l4(dsidev, channel);
+	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_L4);
 
 	dsi_vc_write_long_header(dsidev, channel, data_type, len, ecc);
 
@@ -3069,7 +3039,7 @@ static int dsi_vc_send_short(struct platform_device *dsidev, int channel,
 				channel,
 				data_type, data & 0xff, (data >> 8) & 0xff);
 
-	dsi_vc_config_l4(dsidev, channel);
+	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_L4);
 
 	if (FLD_GET(dsi_read_reg(dsidev, DSI_VC_CTRL(channel)), 16, 16)) {
 		DSSERR("ERROR FIFO FULL, aborting transfer\n");
@@ -3657,7 +3627,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
 			x, y, w, h);
 
-	dsi_vc_config_vp(dsidev, channel);
+	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_VP);
 
 	bytespp	= dssdev->ctrl.pixel_size / 8;
 	bytespl = w * bytespp;
@@ -4383,7 +4353,7 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	/* DSI VCs initialization */
 	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
-		dsi->vc[i].mode = DSI_VC_MODE_L4;
+		dsi->vc[i].source = DSI_VC_SOURCE_L4;
 		dsi->vc[i].dssdev = NULL;
 		dsi->vc[i].vc_id = 0;
 	}
