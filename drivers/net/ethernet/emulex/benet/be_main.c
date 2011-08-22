@@ -378,6 +378,18 @@ static void populate_lancer_stats(struct be_adapter *adapter)
 				pport_stats->rx_drops_too_many_frags_lo;
 }
 
+static void accumulate_16bit_val(u32 *acc, u16 val)
+{
+#define lo(x)			(x & 0xFFFF)
+#define hi(x)			(x & 0xFFFF0000)
+	bool wrapped = val < lo(*acc);
+	u32 newacc = hi(*acc) + val;
+
+	if (wrapped)
+		newacc += 65536;
+	ACCESS_ONCE(*acc) = newacc;
+}
+
 void be_parse_stats(struct be_adapter *adapter)
 {
 	struct be_erx_stats_v1 *erx = be_erx_stats_from_cmd(adapter);
@@ -394,9 +406,13 @@ void be_parse_stats(struct be_adapter *adapter)
 	}
 
 	/* as erx_v1 is longer than v0, ok to use v1 defn for v0 access */
-	for_all_rx_queues(adapter, rxo, i)
-		rx_stats(rxo)->rx_drops_no_frags =
-			erx->rx_drops_no_fragments[rxo->q.id];
+	for_all_rx_queues(adapter, rxo, i) {
+		/* below erx HW counter can actually wrap around after
+		 * 65535. Driver accumulates a 32-bit value
+		 */
+		accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
+				(u16)erx->rx_drops_no_fragments[rxo->q.id]);
+	}
 }
 
 static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
