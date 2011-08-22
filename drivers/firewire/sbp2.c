@@ -1198,6 +1198,10 @@ static int sbp2_remove(struct device *dev)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
+	struct sbp2_logical_unit *lu;
+
+	list_for_each_entry(lu, &tgt->lu_list, link)
+		cancel_delayed_work_sync(&lu->work);
 
 	sbp2_target_put(tgt);
 	return 0;
