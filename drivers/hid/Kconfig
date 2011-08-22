@@ -172,6 +172,20 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_HOLTEK
+	tristate "Holtek On Line Grip based game controller support"
+	depends on USB_HID
+	---help---
+	  Say Y here if you have a Holtek On Line Grip based game controller.
+
+config HOLTEK_FF
+	bool "Holtek On Line Grip force feedback support"
+	depends on HID_HOLTEK
+	select INPUT_FF_MEMLESS
+	---help---
+	  Say Y here if you have a Holtek On Line Grip based game controller
+	  and want to have force feedback support for it.
+
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on USB_HID
@@ -305,6 +319,7 @@ config HID_MULTITOUCH
 	  - 3M PCT touch screens
 	  - ActionStar dual touch panels
 	  - Cando dual touch panels
+	  - Chunghwa panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
 	  - Elo TouchSystems IntelliTouch Plus panels
@@ -321,6 +336,7 @@ config HID_MULTITOUCH
 	  - Stantum multitouch panels
 	  - Touch International Panels
 	  - Unitec Panels
+	  - XAT optical touch panels
 
 	  If unsure, say N.
 
@@ -434,6 +450,7 @@ config HID_QUANTA
 config HID_ROCCAT
 	tristate "Roccat special event support"
 	depends on USB_HID
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat special events.
 	Say Y here if you have a Roccat mouse or keyboard and want OSD or
@@ -441,44 +458,40 @@ config HID_ROCCAT
 
 config HID_ROCCAT_COMMON
 	tristate
+	depends on HID_ROCCAT
 
 config HID_ROCCAT_ARVO
 	tristate "Roccat Arvo keyboard support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Arvo keyboard.
 
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Kone mouse.
 
 config HID_ROCCAT_KONEPLUS
 	tristate "Roccat Kone[+] mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Kone[+] mouse.
 
 config HID_ROCCAT_KOVAPLUS
 	tristate "Roccat Kova[+] mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Kova[+] mouse.
 
 config HID_ROCCAT_PYRA
 	tristate "Roccat Pyra mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Pyra mouse.
 
@@ -493,6 +506,12 @@ config HID_SONY
 	depends on USB_HID
 	---help---
 	Support for Sony PS3 controller.
+
+config HID_SPEEDLINK
+	tristate "Speedlink VAD Cezanne mouse support"
+	depends on USB_HID
+	---help---
+	Support for Speedlink Vicious and Divine Cezanne mouse.
 
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"
@@ -566,6 +585,12 @@ config HID_WACOM_POWER_SUPPLY
 	---help---
 	  Say Y here if you want to enable power supply status monitoring for
 	  Wacom Bluetooth devices.
+
+config HID_WIIMOTE
+	tristate "Nintendo Wii Remote support"
+	depends on BT_HIDP
+	---help---
+	Support for the Nintendo Wii Remote bluetooth device.
 
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"

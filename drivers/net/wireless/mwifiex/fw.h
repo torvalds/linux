@@ -157,6 +157,17 @@ enum MWIFIEX_802_11_WEP_STATUS {
 #define ISSUPP_RXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(26))
 #define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
 
+/* httxcfg bitmap
+ * 0		reserved
+ * 1		20/40 Mhz enable(1)/disable(0)
+ * 2-3		reserved
+ * 4		green field enable(1)/disable(0)
+ * 5		short GI in 20 Mhz enable(1)/disable(0)
+ * 6		short GI in 40 Mhz enable(1)/disable(0)
+ * 7-15		reserved
+ */
+#define MWIFIEX_FW_DEF_HTTXCFG (BIT(1) | BIT(4) | BIT(5) | BIT(6))
+
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
 #define SETHT_MCS32(x) (x[4] |= 1)
 

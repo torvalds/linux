@@ -507,6 +507,18 @@ static ssize_t show_nctxts(struct device *device,
 		dd->first_user_ctxt);
 }
 
+static ssize_t show_nfreectxts(struct device *device,
+			   struct device_attribute *attr, char *buf)
+{
+	struct qib_ibdev *dev =
+		container_of(device, struct qib_ibdev, ibdev.dev);
+	struct qib_devdata *dd = dd_from_dev(dev);
+
+	/* Return the number of free user ports (contexts) available. */
+	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->cfgctxts -
+		dd->first_user_ctxt - (u32)qib_stats.sps_ctxts);
+}
+
 static ssize_t show_serial(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
@@ -604,6 +616,7 @@ static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_hca, NULL);
 static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 static DEVICE_ATTR(nctxts, S_IRUGO, show_nctxts, NULL);
+static DEVICE_ATTR(nfreectxts, S_IRUGO, show_nfreectxts, NULL);
 static DEVICE_ATTR(serial, S_IRUGO, show_serial, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(logged_errors, S_IRUGO, show_logged_errs, NULL);
@@ -617,6 +630,7 @@ static struct device_attribute *qib_attributes[] = {
 	&dev_attr_board_id,
 	&dev_attr_version,
 	&dev_attr_nctxts,
+	&dev_attr_nfreectxts,
 	&dev_attr_serial,
 	&dev_attr_boardversion,
 	&dev_attr_logged_errors,

@@ -22,6 +22,10 @@ Supported chips:
     Prefix: 'f71869'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
+  * Fintek F71869A
+    Prefix: 'f71869a'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
   * Fintek F71882FG and F71883FG
     Prefix: 'f71882fg'
     Addresses scanned: none, address read from Super I/O config space

@@ -228,7 +228,7 @@ void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 		default:
 			type_str = "ECC Error";
 			break;
-		};
+		}
 		printk(KERN_ERR "%s: IOMMU Error, type[%s]\n",
 		       pbm->name, type_str);
 

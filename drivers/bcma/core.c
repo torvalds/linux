@@ -19,7 +19,7 @@ bool bcma_core_is_enabled(struct bcma_device *core)
 }
 EXPORT_SYMBOL_GPL(bcma_core_is_enabled);
 
-static void bcma_core_disable(struct bcma_device *core, u32 flags)
+void bcma_core_disable(struct bcma_device *core, u32 flags)
 {
 	if (bcma_aread32(core, BCMA_RESET_CTL) & BCMA_RESET_CTL_RESET)
 		return;
@@ -31,6 +31,7 @@ static void bcma_core_disable(struct bcma_device *core, u32 flags)
 	bcma_awrite32(core, BCMA_RESET_CTL, BCMA_RESET_CTL_RESET);
 	udelay(1);
 }
+EXPORT_SYMBOL_GPL(bcma_core_disable);
 
 int bcma_core_enable(struct bcma_device *core, u32 flags)
 {

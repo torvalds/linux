@@ -16,6 +16,8 @@
 
 #include <asm/uaccess.h>
 
+#include "internal.h"
+
 static inline int simple_positive(struct dentry *dentry)
 {
 	return dentry->d_inode && !d_unhashed(dentry);
@@ -246,13 +248,11 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 	root->i_ino = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
 	root->i_atime = root->i_mtime = root->i_ctime = CURRENT_TIME;
-	dentry = d_alloc(NULL, &d_name);
+	dentry = __d_alloc(s, &d_name);
 	if (!dentry) {
 		iput(root);
 		goto Enomem;
 	}
-	dentry->d_sb = s;
-	dentry->d_parent = dentry;
 	d_instantiate(dentry, root);
 	s->s_root = dentry;
 	s->s_d_op = dops;
@@ -328,8 +328,10 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (new_dentry->d_inode) {
 		simple_unlink(new_dir, new_dentry);
-		if (they_are_dirs)
+		if (they_are_dirs) {
+			drop_nlink(new_dentry->d_inode);
 			drop_nlink(old_dir);
+		}
 	} else if (they_are_dirs) {
 		drop_nlink(old_dir);
 		inc_nlink(new_dir);
@@ -822,7 +824,7 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 		goto out;
 
 	attr->set_buf[size] = '\0';
-	val = simple_strtol(attr->set_buf, NULL, 0);
+	val = simple_strtoll(attr->set_buf, NULL, 0);
 	ret = attr->set(attr->data, val);
 	if (ret == 0)
 		ret = len; /* on success, claim we got the whole input */
@@ -905,21 +907,29 @@ EXPORT_SYMBOL_GPL(generic_fh_to_parent);
  * filesystems which track all non-inode metadata in the buffers list
  * hanging off the address_space structure.
  */
-int generic_file_fsync(struct file *file, int datasync)
+int generic_file_fsync(struct file *file, loff_t start, loff_t end,
+		       int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	int err;
 	int ret;
 
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (err)
+		return err;
+
+	mutex_lock(&inode->i_mutex);
 	ret = sync_mapping_buffers(inode->i_mapping);
 	if (!(inode->i_state & I_DIRTY))
-		return ret;
+		goto out;
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		return ret;
+		goto out;
 
 	err = sync_inode_metadata(inode, 1);
 	if (ret == 0)
 		ret = err;
+out:
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(generic_file_fsync);
@@ -956,7 +966,7 @@ EXPORT_SYMBOL(generic_check_addressable);
 /*
  * No-op implementation of ->fsync for in-memory filesystems.
  */
-int noop_fsync(struct file *file, int datasync)
+int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	return 0;
 }

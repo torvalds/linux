@@ -37,14 +37,25 @@ static struct __initdata resource omap16xx_mpu_gpio_resources[] = {
 	},
 };
 
+static struct omap_gpio_reg_offs omap16xx_mpuio_regs = {
+	.revision       = USHRT_MAX,
+	.direction	= OMAP_MPUIO_IO_CNTL,
+	.datain		= OMAP_MPUIO_INPUT_LATCH,
+	.dataout	= OMAP_MPUIO_OUTPUT,
+	.irqstatus	= OMAP_MPUIO_GPIO_INT,
+	.irqenable	= OMAP_MPUIO_GPIO_MASKIT,
+	.irqenable_inv	= true,
+};
+
 static struct __initdata omap_gpio_platform_data omap16xx_mpu_gpio_config = {
 	.virtual_irq_start	= IH_MPUIO_BASE,
 	.bank_type		= METHOD_MPUIO,
 	.bank_width		= 16,
 	.bank_stride		= 1,
+	.regs                   = &omap16xx_mpuio_regs,
 };
 
-static struct __initdata platform_device omap16xx_mpu_gpio = {
+static struct platform_device omap16xx_mpu_gpio = {
 	.name           = "omap_gpio",
 	.id             = 0,
 	.dev            = {
@@ -67,13 +78,27 @@ static struct __initdata resource omap16xx_gpio1_resources[] = {
 	},
 };
 
+static struct omap_gpio_reg_offs omap16xx_gpio_regs = {
+	.revision       = OMAP1610_GPIO_REVISION,
+	.direction	= OMAP1610_GPIO_DIRECTION,
+	.set_dataout	= OMAP1610_GPIO_SET_DATAOUT,
+	.clr_dataout	= OMAP1610_GPIO_CLEAR_DATAOUT,
+	.datain		= OMAP1610_GPIO_DATAIN,
+	.dataout	= OMAP1610_GPIO_DATAOUT,
+	.irqstatus	= OMAP1610_GPIO_IRQSTATUS1,
+	.irqenable	= OMAP1610_GPIO_IRQENABLE1,
+	.set_irqenable	= OMAP1610_GPIO_SET_IRQENABLE1,
+	.clr_irqenable	= OMAP1610_GPIO_CLEAR_IRQENABLE1,
+};
+
 static struct __initdata omap_gpio_platform_data omap16xx_gpio1_config = {
 	.virtual_irq_start	= IH_GPIO_BASE,
 	.bank_type		= METHOD_GPIO_1610,
 	.bank_width		= 16,
+	.regs                   = &omap16xx_gpio_regs,
 };
 
-static struct __initdata platform_device omap16xx_gpio1 = {
+static struct platform_device omap16xx_gpio1 = {
 	.name           = "omap_gpio",
 	.id             = 1,
 	.dev            = {
@@ -100,9 +125,10 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio2_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 16,
 	.bank_type		= METHOD_GPIO_1610,
 	.bank_width		= 16,
+	.regs                   = &omap16xx_gpio_regs,
 };
 
-static struct __initdata platform_device omap16xx_gpio2 = {
+static struct platform_device omap16xx_gpio2 = {
 	.name           = "omap_gpio",
 	.id             = 2,
 	.dev            = {
@@ -129,9 +155,10 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio3_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 32,
 	.bank_type		= METHOD_GPIO_1610,
 	.bank_width		= 16,
+	.regs                   = &omap16xx_gpio_regs,
 };
 
-static struct __initdata platform_device omap16xx_gpio3 = {
+static struct platform_device omap16xx_gpio3 = {
 	.name           = "omap_gpio",
 	.id             = 3,
 	.dev            = {
@@ -158,9 +185,10 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio4_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 48,
 	.bank_type		= METHOD_GPIO_1610,
 	.bank_width		= 16,
+	.regs                   = &omap16xx_gpio_regs,
 };
 
-static struct __initdata platform_device omap16xx_gpio4 = {
+static struct platform_device omap16xx_gpio4 = {
 	.name           = "omap_gpio",
 	.id             = 4,
 	.dev            = {

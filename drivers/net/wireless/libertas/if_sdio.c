@@ -892,6 +892,37 @@ static int if_sdio_reset_deep_sleep_wakeup(struct lbs_private *priv)
 
 }
 
+static struct mmc_host *reset_host;
+
+static void if_sdio_reset_card_worker(struct work_struct *work)
+{
+	/*
+	 * The actual reset operation must be run outside of lbs_thread. This
+	 * is because mmc_remove_host() will cause the device to be instantly
+	 * destroyed, and the libertas driver then needs to end lbs_thread,
+	 * leading to a deadlock.
+	 *
+	 * We run it in a workqueue totally independent from the if_sdio_card
+	 * instance for that reason.
+	 */
+
+	pr_info("Resetting card...");
+	mmc_remove_host(reset_host);
+	mmc_add_host(reset_host);
+}
+static DECLARE_WORK(card_reset_work, if_sdio_reset_card_worker);
+
+static void if_sdio_reset_card(struct lbs_private *priv)
+{
+	struct if_sdio_card *card = priv->card;
+
+	if (work_pending(&card_reset_work))
+		return;
+
+	reset_host = card->func->card->host;
+	schedule_work(&card_reset_work);
+}
+
 /*******************************************************************/
 /* SDIO callbacks                                                  */
 /*******************************************************************/
@@ -907,7 +938,7 @@ static void if_sdio_interrupt(struct sdio_func *func)
 	card = sdio_get_drvdata(func);
 
 	cause = sdio_readb(card->func, IF_SDIO_H_INT_STATUS, &ret);
-	if (ret)
+	if (ret || !cause)
 		goto out;
 
 	lbs_deb_sdio("interrupt: 0x%X\n", (unsigned)cause);
@@ -1008,10 +1039,6 @@ static int if_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto release;
 
-	ret = sdio_claim_irq(func, if_sdio_interrupt);
-	if (ret)
-		goto disable;
-
 	/* For 1-bit transfers to the 8686 model, we need to enable the
 	 * interrupt flag in the CCCR register. Set the MMC_QUIRK_LENIENT_FN0
 	 * bit to allow access to non-vendor registers. */
@@ -1069,6 +1096,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	priv->enter_deep_sleep = if_sdio_enter_deep_sleep;
 	priv->exit_deep_sleep = if_sdio_exit_deep_sleep;
 	priv->reset_deep_sleep_wakeup = if_sdio_reset_deep_sleep_wakeup;
+	priv->reset_card = if_sdio_reset_card;
 
 	sdio_claim_host(func);
 
@@ -1081,6 +1109,21 @@ static int if_sdio_probe(struct sdio_func *func,
 		card->rx_unit = if_sdio_read_rx_unit(card);
 	else
 		card->rx_unit = 0;
+
+	/*
+	 * Set up the interrupt handler late.
+	 *
+	 * If we set it up earlier, the (buggy) hardware generates a spurious
+	 * interrupt, even before the interrupt has been enabled, with
+	 * CCCR_INTx = 0.
+	 *
+	 * We register the interrupt handler late so that we can handle any
+	 * spurious interrupts, and also to avoid generation of that known
+	 * spurious interrupt in the first place.
+	 */
+	ret = sdio_claim_irq(func, if_sdio_interrupt);
+	if (ret)
+		goto disable;
 
 	/*
 	 * Enable interrupts now that everything is set up
@@ -1289,6 +1332,8 @@ static void __exit if_sdio_exit_module(void)
 
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
+
+	cancel_work_sync(&card_reset_work);
 
 	sdio_unregister_driver(&if_sdio_driver);
 

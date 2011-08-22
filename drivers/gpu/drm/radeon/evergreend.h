@@ -168,10 +168,16 @@
 #define		SE_DB_BUSY					(1 << 30)
 #define		SE_CB_BUSY					(1 << 31)
 /* evergreen */
+#define	CG_THERMAL_CTRL					0x72c
+#define		TOFFSET_MASK			        0x00003FE0
+#define		TOFFSET_SHIFT			        5
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
-#define		ASIC_T_MASK			        0x7FF0000
+#define		ASIC_T_MASK			        0x07FF0000
 #define		ASIC_T_SHIFT			        16
+#define	CG_TS0_STATUS					0x760
+#define		TS0_ADC_DOUT_MASK			0x000003FF
+#define		TS0_ADC_DOUT_SHIFT			0
 /* APU */
 #define	CG_THERMAL_STATUS			        0x678
 
@@ -460,7 +466,7 @@
 #define IH_RB_WPTR_ADDR_LO                                0x3e14
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
-#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP(x)                              ((x) << 1)
 #       define IH_MC_SWAP_NONE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
@@ -541,7 +547,7 @@
 #       define LB_D5_VBLANK_INTERRUPT                   (1 << 3)
 #       define DC_HPD5_INTERRUPT                        (1 << 17)
 #       define DC_HPD5_RX_INTERRUPT                     (1 << 18)
-#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6050
+#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6150
 #       define LB_D6_VLINE_INTERRUPT                    (1 << 2)
 #       define LB_D6_VBLANK_INTERRUPT                   (1 << 3)
 #       define DC_HPD6_INTERRUPT                        (1 << 17)

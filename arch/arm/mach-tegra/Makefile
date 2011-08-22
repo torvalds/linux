@@ -4,7 +4,6 @@ obj-y                                   += io.o
 obj-y                                   += irq.o
 obj-y                                   += clock.o
 obj-y                                   += timer.o
-obj-y                                   += gpio.o
 obj-y                                   += pinmux.o
 obj-y                                   += powergate.o
 obj-y					+= fuse.o

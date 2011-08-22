@@ -54,6 +54,7 @@ enum bfa_fcs_itnim_event {
 	BFA_FCS_ITNIM_SM_INITIATOR = 9,	/*  rport is initiator */
 	BFA_FCS_ITNIM_SM_DELETE = 10,	/*  delete event from rport */
 	BFA_FCS_ITNIM_SM_PRLO = 11,	/*  delete event from rport */
+	BFA_FCS_ITNIM_SM_RSP_NOT_SUPP = 12, /* cmd not supported rsp */
 };
 
 static void	bfa_fcs_itnim_sm_offline(struct bfa_fcs_itnim_s *itnim,
@@ -176,6 +177,10 @@ bfa_fcs_itnim_sm_prli(struct bfa_fcs_itnim_s *itnim,
 		bfa_timer_start(itnim->fcs->bfa, &itnim->timer,
 				bfa_fcs_itnim_timeout, itnim,
 				BFA_FCS_RETRY_TIMEOUT);
+		break;
+
+	case BFA_FCS_ITNIM_SM_RSP_NOT_SUPP:
+		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_offline);
 		break;
 
 	case BFA_FCS_ITNIM_SM_OFFLINE:
@@ -447,6 +452,7 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 				itnim->rport->scsi_function =
 					 BFA_RPORT_INITIATOR;
 				itnim->stats.prli_rsp_acc++;
+				itnim->stats.initiator++;
 				bfa_sm_send_event(itnim,
 						  BFA_FCS_ITNIM_SM_RSP_OK);
 				return;
@@ -472,6 +478,10 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		bfa_trc(itnim->fcs, ls_rjt->reason_code_expl);
 
 		itnim->stats.prli_rsp_rjt++;
+		if (ls_rjt->reason_code == FC_LS_RJT_RSN_CMD_NOT_SUPP) {
+			bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_NOT_SUPP);
+			return;
+		}
 		bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_ERROR);
 	}
 }

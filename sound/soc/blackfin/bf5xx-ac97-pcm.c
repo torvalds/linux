@@ -418,9 +418,11 @@ static void bf5xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 static u64 bf5xx_pcm_dmamask = DMA_BIT_MASK(32);
 
-int bf5xx_pcm_ac97_new(struct snd_card *card, struct snd_soc_dai *dai,
-	struct snd_pcm *pcm)
+int bf5xx_pcm_ac97_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
 	pr_debug("%s enter\n", __func__);

@@ -138,7 +138,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 	}
 	if (need_dev) {
 		/* Get mount point or device file. */
-		if (kern_path(dev_name, LOOKUP_FOLLOW, &path)) {
+		if (!dev_name || kern_path(dev_name, LOOKUP_FOLLOW, &path)) {
 			error = -ENOENT;
 			goto out;
 		}

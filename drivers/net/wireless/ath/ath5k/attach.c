@@ -104,6 +104,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  */
 int ath5k_hw_init(struct ath5k_softc *sc)
 {
+	static const u8 zero_mac[ETH_ALEN] = { };
 	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
 	struct pci_dev *pdev = sc->pdev;
@@ -191,7 +192,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 		break;
 	case AR5K_SREV_RAD_5424:
 		if (ah->ah_mac_version == AR5K_SREV_AR2425 ||
-		ah->ah_mac_version == AR5K_SREV_AR2417){
+		    ah->ah_mac_version == AR5K_SREV_AR2417) {
 			ah->ah_radio = AR5K_RF2425;
 			ah->ah_single_chip = true;
 		} else {
@@ -210,28 +211,28 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 			ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
 								CHANNEL_2GHZ);
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4) ||
-		ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4) ||
-		ah->ah_phy_revision == AR5K_SREV_PHY_2425) {
+			   ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4) ||
+			   ah->ah_phy_revision == AR5K_SREV_PHY_2425) {
 			ah->ah_radio = AR5K_RF2425;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2425;
 		} else if (srev == AR5K_SREV_AR5213A &&
-		ah->ah_phy_revision == AR5K_SREV_PHY_5212B) {
+			   ah->ah_phy_revision == AR5K_SREV_PHY_5212B) {
 			ah->ah_radio = AR5K_RF5112;
 			ah->ah_single_chip = false;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5112B;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4) ||
-			ah->ah_mac_version == (AR5K_SREV_AR2315_R6 >> 4)) {
+			   ah->ah_mac_version == (AR5K_SREV_AR2315_R6 >> 4)) {
 			ah->ah_radio = AR5K_RF2316;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2316;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR5414 >> 4) ||
-		ah->ah_phy_revision == AR5K_SREV_PHY_5413) {
+			   ah->ah_phy_revision == AR5K_SREV_PHY_5413) {
 			ah->ah_radio = AR5K_RF5413;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5413;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2414 >> 4) ||
-		ah->ah_phy_revision == AR5K_SREV_PHY_2413) {
+			   ah->ah_phy_revision == AR5K_SREV_PHY_2413) {
 			ah->ah_radio = AR5K_RF2413;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2413;
@@ -243,9 +244,8 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	}
 
 
-	/* Return on unsuported chips (unsupported eeprom etc) */
-	if ((srev >= AR5K_SREV_AR5416) &&
-	(srev < AR5K_SREV_AR2425)) {
+	/* Return on unsupported chips (unsupported eeprom etc) */
+	if ((srev >= AR5K_SREV_AR5416) && (srev < AR5K_SREV_AR2425)) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
 		goto err;
@@ -285,7 +285,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 		ath5k_hw_reg_write(ah, 0x28000039, AR5K_PCIE_SERDES);
 		ath5k_hw_reg_write(ah, 0x53160824, AR5K_PCIE_SERDES);
 
-		/* If serdes programing is enabled, increase PCI-E
+		/* If serdes programming is enabled, increase PCI-E
 		 * tx power for systems with long trace from host
 		 * to minicard connector. */
 		if (ee->ee_serdes)
@@ -334,7 +334,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	}
 
 	/* MAC address is cleared until add_interface */
-	ath5k_hw_set_lladdr(ah, (u8[ETH_ALEN]){});
+	ath5k_hw_set_lladdr(ah, zero_mac);
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);

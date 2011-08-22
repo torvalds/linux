@@ -44,7 +44,6 @@ static int ehci_ath79_init(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
 	const struct platform_device_id *id;
-	int hclength;
 	int ret;
 
 	id = platform_get_device_id(pdev);
@@ -53,20 +52,23 @@ static int ehci_ath79_init(struct usb_hcd *hcd)
 		return -EINVAL;
 	}
 
-	hclength = HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	switch (id->driver_data) {
 	case EHCI_ATH79_IP_V1:
 		ehci->has_synopsys_hc_bug = 1;
 
 		ehci->caps = hcd->regs;
-		ehci->regs = hcd->regs + hclength;
+		ehci->regs = hcd->regs +
+			HC_LENGTH(ehci,
+				  ehci_readl(ehci, &ehci->caps->hc_capbase));
 		break;
 
 	case EHCI_ATH79_IP_V2:
 		hcd->has_tt = 1;
 
 		ehci->caps = hcd->regs + 0x100;
-		ehci->regs = hcd->regs + 0x100 + hclength;
+		ehci->regs = hcd->regs + 0x100 +
+			HC_LENGTH(ehci,
+				  ehci_readl(ehci, &ehci->caps->hc_capbase));
 		break;
 
 	default:

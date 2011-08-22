@@ -407,11 +407,6 @@ static int iwl_find_otp_image(struct iwl_priv *priv,
 	return -EINVAL;
 }
 
-const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
-{
-	return priv->cfg->ops->lib->eeprom_ops.query_addr(priv, offset);
-}
-
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
 {
 	if (!priv->eeprom)
@@ -449,7 +444,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 	e = (__le16 *)priv->eeprom;
 
-	priv->cfg->ops->lib->apm_ops.init(priv);
+	iwl_apm_init(priv);
 
 	ret = iwl_eeprom_verify_signature(priv);
 	if (ret < 0) {
@@ -833,4 +828,29 @@ const struct iwl_channel_info *iwl_get_channel_info(const struct iwl_priv *priv,
 	}
 
 	return NULL;
+}
+
+void iwl_rf_config(struct iwl_priv *priv)
+{
+	u16 radio_cfg;
+
+	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
+
+	/* write radio config values to register */
+	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
+		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
+			 EEPROM_RF_CFG_TYPE_MSK(radio_cfg),
+			 EEPROM_RF_CFG_STEP_MSK(radio_cfg),
+			 EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+	} else
+		WARN_ON(1);
+
+	/* set CSR_HW_CONFIG_REG for uCode use */
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 }

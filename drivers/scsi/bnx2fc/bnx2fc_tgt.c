@@ -133,6 +133,8 @@ retry_ofld:
 		/* upload will take care of cleaning up sess resc */
 		lport->tt.rport_logoff(rdata);
 	}
+	/* Arm CQ */
+	bnx2fc_arm_cq(tgt);
 	return;
 
 ofld_err:
@@ -315,6 +317,8 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 
 	struct fc_rport *rport = rdata->rport;
 	struct bnx2fc_hba *hba = port->priv;
+	struct b577xx_doorbell_set_prod *sq_db = &tgt->sq_db;
+	struct b577xx_fcoe_rx_doorbell *rx_db = &tgt->rx_db;
 
 	tgt->rport = rport;
 	tgt->rdata = rdata;
@@ -335,6 +339,7 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 	tgt->max_sqes = BNX2FC_SQ_WQES_MAX;
 	tgt->max_rqes = BNX2FC_RQ_WQES_MAX;
 	tgt->max_cqes = BNX2FC_CQ_WQES_MAX;
+	atomic_set(&tgt->free_sqes, BNX2FC_SQ_WQES_MAX);
 
 	/* Initialize the toggle bit */
 	tgt->sq_curr_toggle_bit = 1;
@@ -345,7 +350,17 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 	tgt->rq_cons_idx = 0;
 	atomic_set(&tgt->num_active_ios, 0);
 
-	tgt->work_time_slice = 2;
+	/* initialize sq doorbell */
+	sq_db->header.header = B577XX_DOORBELL_HDR_DB_TYPE;
+	sq_db->header.header |= B577XX_FCOE_CONNECTION_TYPE <<
+					B577XX_DOORBELL_HDR_CONN_TYPE_SHIFT;
+	/* initialize rx doorbell */
+	rx_db->hdr.header = ((0x1 << B577XX_DOORBELL_HDR_RX_SHIFT) |
+			  (0x1 << B577XX_DOORBELL_HDR_DB_TYPE_SHIFT) |
+			  (B577XX_FCOE_CONNECTION_TYPE <<
+				B577XX_DOORBELL_HDR_CONN_TYPE_SHIFT));
+	rx_db->params = (0x2 << B577XX_FCOE_RX_DOORBELL_NEGATIVE_ARM_SHIFT) |
+		     (0x3 << B577XX_FCOE_RX_DOORBELL_OPCODE_SHIFT);
 
 	spin_lock_init(&tgt->tgt_lock);
 	spin_lock_init(&tgt->cq_lock);
@@ -758,8 +773,6 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	}
 	memset(tgt->lcq, 0, tgt->lcq_mem_size);
 
-	/* Arm CQ */
-	tgt->conn_db->cq_arm.lo = -1;
 	tgt->conn_db->rq_prod = 0x8000;
 
 	return 0;
@@ -787,6 +800,8 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 		iounmap(tgt->ctx_base);
 		tgt->ctx_base = NULL;
 	}
+
+	spin_lock_bh(&tgt->cq_lock);
 	/* Free LCQ */
 	if (tgt->lcq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->lcq_mem_size,
@@ -828,17 +843,16 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 		tgt->rq = NULL;
 	}
 	/* Free CQ */
-	spin_lock_bh(&tgt->cq_lock);
 	if (tgt->cq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->cq_mem_size,
 				    tgt->cq, tgt->cq_dma);
 		tgt->cq = NULL;
 	}
-	spin_unlock_bh(&tgt->cq_lock);
 	/* Free SQ */
 	if (tgt->sq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->sq_mem_size,
 				    tgt->sq, tgt->sq_dma);
 		tgt->sq = NULL;
 	}
+	spin_unlock_bh(&tgt->cq_lock);
 }

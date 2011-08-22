@@ -27,8 +27,8 @@ static struct dentry *mwifiex_dfs_dir;
 
 static char *bss_modes[] = {
 	"Unknown",
-	"Managed",
 	"Ad-hoc",
+	"Managed",
 	"Auto"
 };
 

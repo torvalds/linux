@@ -762,7 +762,6 @@ static int lx_set_granularity(struct lx6464es *chip, u32 gran)
 static int __devinit lx_init_dsp(struct lx6464es *chip)
 {
 	int err;
-	u8 mac_address[6];
 	int i;
 
 	snd_printdd("->lx_init_dsp\n");
@@ -787,11 +786,11 @@ static int __devinit lx_init_dsp(struct lx6464es *chip)
 	/** \todo the mac address should be ready by not, but it isn't,
 	 *  so we wait for it */
 	for (i = 0; i != 1000; ++i) {
-		err = lx_dsp_get_mac(chip, mac_address);
+		err = lx_dsp_get_mac(chip);
 		if (err)
 			return err;
-		if (mac_address[0] || mac_address[1] || mac_address[2] ||
-		    mac_address[3] || mac_address[4] || mac_address[5])
+		if (chip->mac_address[0] || chip->mac_address[1] || chip->mac_address[2] ||
+		    chip->mac_address[3] || chip->mac_address[4] || chip->mac_address[5])
 			goto mac_ready;
 		msleep(1);
 	}
@@ -800,8 +799,8 @@ static int __devinit lx_init_dsp(struct lx6464es *chip)
 mac_ready:
 	snd_printd(LXP "mac address ready read after: %dms\n", i);
 	snd_printk(LXP "mac address: %02X.%02X.%02X.%02X.%02X.%02X\n",
-		   mac_address[0], mac_address[1], mac_address[2],
-		   mac_address[3], mac_address[4], mac_address[5]);
+		   chip->mac_address[0], chip->mac_address[1], chip->mac_address[2],
+		   chip->mac_address[3], chip->mac_address[4], chip->mac_address[5]);
 
 	err = lx_init_get_version_features(chip);
 	if (err)
@@ -1031,7 +1030,7 @@ static int __devinit snd_lx6464es_create(struct snd_card *card,
 	chip->port_dsp_bar = pci_ioremap_bar(pci, 2);
 
 	err = request_irq(pci->irq, lx_interrupt, IRQF_SHARED,
-			  card_name, chip);
+			  KBUILD_MODNAME, chip);
 	if (err) {
 		snd_printk(KERN_ERR LXP "unable to grab IRQ %d\n", pci->irq);
 		goto request_irq_failed;
@@ -1108,8 +1107,14 @@ static int __devinit snd_lx6464es_probe(struct pci_dev *pci,
 		goto out_free;
 	}
 
-	strcpy(card->driver, "lx6464es");
-	strcpy(card->shortname, "Digigram LX6464ES");
+	strcpy(card->driver, "LX6464ES");
+	sprintf(card->id, "LX6464ES_%02X%02X%02X",
+		chip->mac_address[3], chip->mac_address[4], chip->mac_address[5]);
+
+	sprintf(card->shortname, "LX6464ES %02X.%02X.%02X.%02X.%02X.%02X",
+		chip->mac_address[0], chip->mac_address[1], chip->mac_address[2],
+		chip->mac_address[3], chip->mac_address[4], chip->mac_address[5]);
+
 	sprintf(card->longname, "%s at 0x%lx, 0x%p, irq %i",
 		card->shortname, chip->port_plx,
 		chip->port_dsp_bar, chip->irq);
@@ -1137,7 +1142,7 @@ static void __devexit snd_lx6464es_remove(struct pci_dev *pci)
 
 
 static struct pci_driver driver = {
-	.name =     "Digigram LX6464ES",
+	.name =     KBUILD_MODNAME,
 	.id_table = snd_lx6464es_ids,
 	.probe =    snd_lx6464es_probe,
 	.remove = __devexit_p(snd_lx6464es_remove),

@@ -49,6 +49,8 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	  .driver_info = AR9280_USB },  /* Netgear WNDA3200 */
 	{ USB_DEVICE(0x083A, 0xA704),
 	  .driver_info = AR9280_USB },  /* SMC Networks */
+	{ USB_DEVICE(0x0411, 0x017f),
+	  .driver_info = AR9280_USB },  /* Sony UWA-BR100 */
 
 	{ USB_DEVICE(0x0cf3, 0x20ff),
 	  .driver_info = STORAGE_DEVICE },

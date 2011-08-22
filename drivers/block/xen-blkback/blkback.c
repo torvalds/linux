@@ -809,11 +809,13 @@ static int __init xen_blkif_init(void)
  failed_init:
 	kfree(blkbk->pending_reqs);
 	kfree(blkbk->pending_grant_handles);
-	for (i = 0; i < mmap_pages; i++) {
-		if (blkbk->pending_pages[i])
-			__free_page(blkbk->pending_pages[i]);
+	if (blkbk->pending_pages) {
+		for (i = 0; i < mmap_pages; i++) {
+			if (blkbk->pending_pages[i])
+				__free_page(blkbk->pending_pages[i]);
+		}
+		kfree(blkbk->pending_pages);
 	}
-	kfree(blkbk->pending_pages);
 	kfree(blkbk);
 	blkbk = NULL;
 	return rc;

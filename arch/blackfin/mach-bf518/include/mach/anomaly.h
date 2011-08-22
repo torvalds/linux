@@ -11,10 +11,9 @@
  */
 
 /* This file should be up to date with:
- *  - Revision E, 01/26/2010; ADSP-BF512/BF514/BF516/BF518 Blackfin Processor Anomaly List
+ *  - Revision F, 05/23/2011; ADSP-BF512/BF514/BF516/BF518 Blackfin Processor Anomaly List
  */
 
-/* We plan on not supporting 0.0 silicon, but 0.1 isn't out yet - sorry */
 #if __SILICON_REVISION__ < 0
 # error will not work on BF518 silicon version
 #endif
@@ -77,19 +76,29 @@
 /* False Hardware Error when RETI Points to Invalid Memory */
 #define ANOMALY_05000461 (1)
 /* Synchronization Problem at Startup May Cause SPORT Transmit Channels to Misalign */
-#define ANOMALY_05000462 (1)
-/* PLL Latches Incorrect Settings During Reset */
-#define ANOMALY_05000469 (1)
+#define ANOMALY_05000462 (__SILICON_REVISION__ < 2)
 /* Incorrect Default MSEL Value in PLL_CTL */
-#define ANOMALY_05000472 (1)
+#define ANOMALY_05000472 (__SILICON_REVISION__ < 2)
 /* Interrupted SPORT Receive Data Register Read Results In Underflow when SLEN > 15 */
 #define ANOMALY_05000473 (1)
 /* TESTSET Instruction Cannot Be Interrupted */
 #define ANOMALY_05000477 (1)
 /* Reads of ITEST_COMMAND and ITEST_DATA Registers Cause Cache Corruption */
 #define ANOMALY_05000481 (1)
-/* IFLUSH sucks at life */
+/* PLL Latches Incorrect Settings During Reset */
+#define ANOMALY_05000482 (__SILICON_REVISION__ < 2)
+/* PLL_CTL Change Using bfrom_SysControl() Can Result in Processor Overclocking */
+#define ANOMALY_05000485 (__SILICON_REVISION__ < 2)
+/* SPI Master Boot Can Fail Under Certain Conditions */
+#define ANOMALY_05000490 (1)
+/* Instruction Memory Stalls Can Cause IFLUSH to Fail */
 #define ANOMALY_05000491 (1)
+/* EXCPT Instruction May Be Lost If NMI Happens Simultaneously */
+#define ANOMALY_05000494 (1)
+/* CNT_COMMAND Functionality Depends on CNT_IMASK Configuration */
+#define ANOMALY_05000498 (1)
+/* RXS Bit in SPI_STAT May Become Stuck In RX DMA Modes */
+#define ANOMALY_05000501 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000099 (0)
@@ -157,6 +166,5 @@
 #define ANOMALY_05000474 (0)
 #define ANOMALY_05000475 (0)
 #define ANOMALY_05000480 (0)
-#define ANOMALY_05000485 (0)
 
 #endif

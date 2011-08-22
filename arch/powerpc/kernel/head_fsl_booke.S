@@ -656,7 +656,7 @@ load_up_spe:
 	cmpi	0,r4,0
 	beq	1f
 	addi	r4,r4,THREAD	/* want THREAD of last_task_used_spe */
-	SAVE_32EVRS(0,r10,r4)
+	SAVE_32EVRS(0,r10,r4,THREAD_EVR0)
 	evxor	evr10, evr10, evr10	/* clear out evr10 */
 	evmwumiaa evr10, evr10, evr10	/* evr10 <- ACC = 0 * 0 + ACC */
 	li	r5,THREAD_ACC
@@ -676,7 +676,7 @@ load_up_spe:
 	stw	r4,THREAD_USED_SPE(r5)
 	evlddx	evr4,r10,r5
 	evmra	evr4,evr4
-	REST_32EVRS(0,r10,r5)
+	REST_32EVRS(0,r10,r5,THREAD_EVR0)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	stw	r4,last_task_used_spe@l(r3)
@@ -787,13 +787,11 @@ _GLOBAL(giveup_spe)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	lwz	r5,PT_REGS(r3)
 	cmpi	0,r5,0
-	SAVE_32EVRS(0, r4, r3)
+	SAVE_32EVRS(0, r4, r3, THREAD_EVR0)
 	evxor	evr6, evr6, evr6	/* clear out evr6 */
 	evmwumiaa evr6, evr6, evr6	/* evr6 <- ACC = 0 * 0 + ACC */
 	li	r4,THREAD_ACC
 	evstddx	evr6, r4, r3		/* save off accumulator */
-	mfspr	r6,SPRN_SPEFSCR
-	stw	r6,THREAD_SPEFSCR(r3)	/* save spefscr register value */
 	beq	1f
 	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	lis	r3,MSR_SPE@h

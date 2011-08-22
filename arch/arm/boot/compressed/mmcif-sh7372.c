@@ -40,7 +40,7 @@
  * to an MMC card
  * # dd if=vrl4.out of=/dev/sdx bs=512 seek=1
  */
-asmlinkage void mmcif_loader(unsigned char *buf, unsigned long len)
+asmlinkage void mmc_loader(unsigned char *buf, unsigned long len)
 {
 	mmc_init_progress();
 	mmc_update_progress(MMC_PROGRESS_ENTER);

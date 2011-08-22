@@ -534,6 +534,82 @@ void bitmap_print_sb(struct bitmap *bitmap)
 	kunmap_atomic(sb, KM_USER0);
 }
 
+/*
+ * bitmap_new_disk_sb
+ * @bitmap
+ *
+ * This function is somewhat the reverse of bitmap_read_sb.  bitmap_read_sb
+ * reads and verifies the on-disk bitmap superblock and populates bitmap_info.
+ * This function verifies 'bitmap_info' and populates the on-disk bitmap
+ * structure, which is to be written to disk.
+ *
+ * Returns: 0 on success, -Exxx on error
+ */
+static int bitmap_new_disk_sb(struct bitmap *bitmap)
+{
+	bitmap_super_t *sb;
+	unsigned long chunksize, daemon_sleep, write_behind;
+	int err = -EINVAL;
+
+	bitmap->sb_page = alloc_page(GFP_KERNEL);
+	if (IS_ERR(bitmap->sb_page)) {
+		err = PTR_ERR(bitmap->sb_page);
+		bitmap->sb_page = NULL;
+		return err;
+	}
+	bitmap->sb_page->index = 0;
+
+	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
+
+	sb->magic = cpu_to_le32(BITMAP_MAGIC);
+	sb->version = cpu_to_le32(BITMAP_MAJOR_HI);
+
+	chunksize = bitmap->mddev->bitmap_info.chunksize;
+	BUG_ON(!chunksize);
+	if (!is_power_of_2(chunksize)) {
+		kunmap_atomic(sb, KM_USER0);
+		printk(KERN_ERR "bitmap chunksize not a power of 2\n");
+		return -EINVAL;
+	}
+	sb->chunksize = cpu_to_le32(chunksize);
+
+	daemon_sleep = bitmap->mddev->bitmap_info.daemon_sleep;
+	if (!daemon_sleep ||
+	    (daemon_sleep < 1) || (daemon_sleep > MAX_SCHEDULE_TIMEOUT)) {
+		printk(KERN_INFO "Choosing daemon_sleep default (5 sec)\n");
+		daemon_sleep = 5 * HZ;
+	}
+	sb->daemon_sleep = cpu_to_le32(daemon_sleep);
+	bitmap->mddev->bitmap_info.daemon_sleep = daemon_sleep;
+
+	/*
+	 * FIXME: write_behind for RAID1.  If not specified, what
+	 * is a good choice?  We choose COUNTER_MAX / 2 arbitrarily.
+	 */
+	write_behind = bitmap->mddev->bitmap_info.max_write_behind;
+	if (write_behind > COUNTER_MAX)
+		write_behind = COUNTER_MAX / 2;
+	sb->write_behind = cpu_to_le32(write_behind);
+	bitmap->mddev->bitmap_info.max_write_behind = write_behind;
+
+	/* keep the array size field of the bitmap superblock up to date */
+	sb->sync_size = cpu_to_le64(bitmap->mddev->resync_max_sectors);
+
+	memcpy(sb->uuid, bitmap->mddev->uuid, 16);
+
+	bitmap->flags |= BITMAP_STALE;
+	sb->state |= cpu_to_le32(BITMAP_STALE);
+	bitmap->events_cleared = bitmap->mddev->events;
+	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
+
+	bitmap->flags |= BITMAP_HOSTENDIAN;
+	sb->version = cpu_to_le32(BITMAP_MAJOR_HOSTENDIAN);
+
+	kunmap_atomic(sb, KM_USER0);
+
+	return 0;
+}
+
 /* read the superblock from the bitmap file and initialize some bitmap fields */
 static int bitmap_read_sb(struct bitmap *bitmap)
 {
@@ -575,7 +651,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 		reason = "unrecognized superblock version";
 	else if (chunksize < 512)
 		reason = "bitmap chunksize too small";
-	else if ((1 << ffz(~chunksize)) != chunksize)
+	else if (!is_power_of_2(chunksize))
 		reason = "bitmap chunksize not a power of 2";
 	else if (daemon_sleep < 1 || daemon_sleep > MAX_SCHEDULE_TIMEOUT)
 		reason = "daemon sleep period out of range";
@@ -1076,8 +1152,8 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	}
 
 	printk(KERN_INFO "%s: bitmap initialized from disk: "
-		"read %lu/%lu pages, set %lu bits\n",
-		bmname(bitmap), bitmap->file_pages, num_pages, bit_cnt);
+	       "read %lu/%lu pages, set %lu of %lu bits\n",
+	       bmname(bitmap), bitmap->file_pages, num_pages, bit_cnt, chunks);
 
 	return 0;
 
@@ -1332,7 +1408,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 			return 0;
 		}
 
-		if (unlikely((*bmc & COUNTER_MAX) == COUNTER_MAX)) {
+		if (unlikely(COUNTER(*bmc) == COUNTER_MAX)) {
 			DEFINE_WAIT(__wait);
 			/* note that it is safe to do the prepare_to_wait
 			 * after the test as long as we do it before dropping
@@ -1404,10 +1480,10 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 			sysfs_notify_dirent_safe(bitmap->sysfs_can_clear);
 		}
 
-		if (!success && ! (*bmc & NEEDED_MASK))
+		if (!success && !NEEDED(*bmc))
 			*bmc |= NEEDED_MASK;
 
-		if ((*bmc & COUNTER_MAX) == COUNTER_MAX)
+		if (COUNTER(*bmc) == COUNTER_MAX)
 			wake_up(&bitmap->overflow_wait);
 
 		(*bmc)--;
@@ -1728,9 +1804,16 @@ int bitmap_create(mddev_t *mddev)
 		vfs_fsync(file, 1);
 	}
 	/* read superblock from bitmap file (this sets mddev->bitmap_info.chunksize) */
-	if (!mddev->bitmap_info.external)
-		err = bitmap_read_sb(bitmap);
-	else {
+	if (!mddev->bitmap_info.external) {
+		/*
+		 * If 'MD_ARRAY_FIRST_USE' is set, then device-mapper is
+		 * instructing us to create a new on-disk bitmap instance.
+		 */
+		if (test_and_clear_bit(MD_ARRAY_FIRST_USE, &mddev->flags))
+			err = bitmap_new_disk_sb(bitmap);
+		else
+			err = bitmap_read_sb(bitmap);
+	} else {
 		err = 0;
 		if (mddev->bitmap_info.chunksize == 0 ||
 		    mddev->bitmap_info.daemon_sleep == 0)
@@ -1754,9 +1837,6 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->chunks = chunks;
 	bitmap->pages = pages;
 	bitmap->missing_pages = pages;
-	bitmap->counter_bits = COUNTER_BITS;
-
-	bitmap->syncchunk = ~0UL;
 
 #ifdef INJECT_FATAL_FAULT_1
 	bitmap->bp = NULL;

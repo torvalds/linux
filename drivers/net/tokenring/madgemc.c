@@ -418,7 +418,7 @@ static irqreturn_t madgemc_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	dev = (struct net_device *)dev_id;
+	dev = dev_id;
 
 	/* Make sure its really us. -- the Madge way */
 	pending = inb(dev->base_addr + MC_CONTROL_REG0);
@@ -727,7 +727,7 @@ static int __devexit madgemc_remove(struct device *device)
 	return 0;
 }
 
-static const short madgemc_adapter_ids[] __devinitconst = {
+static short madgemc_adapter_ids[] __initdata = {
 	0x002d,
 	0x0000
 };

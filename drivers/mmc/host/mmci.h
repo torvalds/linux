@@ -86,6 +86,7 @@
 #define MCI_CMDRESPEND		(1 << 6)
 #define MCI_CMDSENT		(1 << 7)
 #define MCI_DATAEND		(1 << 8)
+#define MCI_STARTBITERR		(1 << 9)
 #define MCI_DATABLOCKEND	(1 << 10)
 #define MCI_CMDACTIVE		(1 << 11)
 #define MCI_TXACTIVE		(1 << 12)
@@ -112,6 +113,7 @@
 #define MCI_CMDRESPENDCLR	(1 << 6)
 #define MCI_CMDSENTCLR		(1 << 7)
 #define MCI_DATAENDCLR		(1 << 8)
+#define MCI_STARTBITERRCLR	(1 << 9)
 #define MCI_DATABLOCKENDCLR	(1 << 10)
 /* Extended status bits for the ST Micro variants */
 #define MCI_ST_SDIOITC		(1 << 22)
@@ -127,6 +129,7 @@
 #define MCI_CMDRESPENDMASK	(1 << 6)
 #define MCI_CMDSENTMASK		(1 << 7)
 #define MCI_DATAENDMASK		(1 << 8)
+#define MCI_STARTBITERRMASK	(1 << 9)
 #define MCI_DATABLOCKENDMASK	(1 << 10)
 #define MCI_CMDACTIVEMASK	(1 << 11)
 #define MCI_TXACTIVEMASK	(1 << 12)
@@ -150,7 +153,7 @@
 #define MCI_IRQENABLE	\
 	(MCI_CMDCRCFAILMASK|MCI_DATACRCFAILMASK|MCI_CMDTIMEOUTMASK|	\
 	MCI_DATATIMEOUTMASK|MCI_TXUNDERRUNMASK|MCI_RXOVERRUNMASK|	\
-	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK)
+	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK|MCI_STARTBITERRMASK)
 
 /* These interrupts are directed to IRQ1 when two IRQ lines are available */
 #define MCI_IRQ1MASK \
@@ -162,6 +165,12 @@
 struct clk;
 struct variant_data;
 struct dma_chan;
+
+struct mmci_host_next {
+	struct dma_async_tx_descriptor	*dma_desc;
+	struct dma_chan			*dma_chan;
+	s32				cookie;
+};
 
 struct mmci_host {
 	phys_addr_t		phybase;
@@ -200,6 +209,8 @@ struct mmci_host {
 	struct dma_chan		*dma_current;
 	struct dma_chan		*dma_rx_channel;
 	struct dma_chan		*dma_tx_channel;
+	struct dma_async_tx_descriptor	*dma_desc_current;
+	struct mmci_host_next	next_data;
 
 #define dma_inprogress(host)	((host)->dma_current)
 #else

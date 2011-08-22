@@ -965,8 +965,30 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 		sp = &ep->seq;
 		if (sp->id != fh->fh_seq_id) {
 			atomic_inc(&mp->stats.seq_not_found);
-			reject = FC_RJT_SEQ_ID;	/* sequence/exch should exist */
-			goto rel;
+			if (f_ctl & FC_FC_END_SEQ) {
+				/*
+				 * Update sequence_id based on incoming last
+				 * frame of sequence exchange. This is needed
+				 * for FCoE target where DDP has been used
+				 * on target where, stack is indicated only
+				 * about last frame's (payload _header) header.
+				 * Whereas "seq_id" which is part of
+				 * frame_header is allocated by initiator
+				 * which is totally different from "seq_id"
+				 * allocated when XFER_RDY was sent by target.
+				 * To avoid false -ve which results into not
+				 * sending RSP, hence write request on other
+				 * end never finishes.
+				 */
+				spin_lock_bh(&ep->ex_lock);
+				sp->ssb_stat |= SSB_ST_RESP;
+				sp->id = fh->fh_seq_id;
+				spin_unlock_bh(&ep->ex_lock);
+			} else {
+				/* sequence/exch should exist */
+				reject = FC_RJT_SEQ_ID;
+				goto rel;
+			}
 		}
 	}
 	WARN_ON(ep != fc_seq_exch(sp));

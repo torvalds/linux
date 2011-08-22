@@ -26,7 +26,6 @@
 #include <mach/iomux-mx28.h>
 
 #include "devices-mx28.h"
-#include "gpio.h"
 
 #define MX28EVK_FLEXCAN_SWITCH	MXS_GPIO_NR(2, 13)
 #define MX28EVK_FEC_PHY_POWER	MXS_GPIO_NR(2, 15)

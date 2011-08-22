@@ -232,6 +232,7 @@ static int s3c_hwmon_create_attr(struct device *dev,
 
 	attr = &attrs->in;
 	attr->index = channel;
+	sysfs_attr_init(&attr->dev_attr.attr);
 	attr->dev_attr.attr.name  = attrs->in_name;
 	attr->dev_attr.attr.mode  = S_IRUGO;
 	attr->dev_attr.show = s3c_hwmon_ch_show;
@@ -249,6 +250,7 @@ static int s3c_hwmon_create_attr(struct device *dev,
 
 		attr = &attrs->label;
 		attr->index = channel;
+		sysfs_attr_init(&attr->dev_attr.attr);
 		attr->dev_attr.attr.name  = attrs->label_name;
 		attr->dev_attr.attr.mode  = S_IRUGO;
 		attr->dev_attr.show = s3c_hwmon_label_show;

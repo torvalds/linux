@@ -543,11 +543,20 @@ static void recalibrate(struct dp83640_clock *clock)
 
 /* time stamping methods */
 
-static void decode_evnt(struct dp83640_private *dp83640,
-			struct phy_txts *phy_txts, u16 ests)
+static int decode_evnt(struct dp83640_private *dp83640,
+		       void *data, u16 ests)
 {
+	struct phy_txts *phy_txts;
 	struct ptp_clock_event event;
 	int words = (ests >> EVNT_TS_LEN_SHIFT) & EVNT_TS_LEN_MASK;
+	u16 ext_status = 0;
+
+	if (ests & MULT_EVNT) {
+		ext_status = *(u16 *) data;
+		data += sizeof(ext_status);
+	}
+
+	phy_txts = data;
 
 	switch (words) { /* fall through in every case */
 	case 3:
@@ -565,6 +574,9 @@ static void decode_evnt(struct dp83640_private *dp83640,
 	event.timestamp = phy2txts(&dp83640->edata);
 
 	ptp_clock_event(dp83640->clock->ptp_clock, &event);
+
+	words = ext_status ? words + 2 : words + 1;
+	return words * sizeof(u16);
 }
 
 static void decode_rxts(struct dp83640_private *dp83640,
@@ -643,9 +655,7 @@ static void decode_status_frame(struct dp83640_private *dp83640,
 
 		} else if (PSF_EVNT == type && len >= sizeof(*phy_txts)) {
 
-			phy_txts = (struct phy_txts *) ptr;
-			decode_evnt(dp83640, phy_txts, ests);
-			size = sizeof(*phy_txts);
+			size = decode_evnt(dp83640, ptr, ests);
 
 		} else {
 			size = 0;
@@ -1034,8 +1044,8 @@ static bool dp83640_rxtstamp(struct phy_device *phydev,
 
 	if (is_status_frame(skb, type)) {
 		decode_status_frame(dp83640, skb);
-		/* Let the stack drop this frame. */
-		return false;
+		kfree_skb(skb);
+		return true;
 	}
 
 	SKB_PTP_TYPE(skb) = type;

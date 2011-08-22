@@ -3080,7 +3080,6 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
 	u32 ctrl, ctrl_ext;
 	u32 led_ctrl;
-	s32 ret_val;
 
 	e_dbg("e1000_phy_hw_reset");
 
@@ -3126,11 +3125,7 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 	}
 
 	/* Wait for FW to finish PHY configuration. */
-	ret_val = e1000_get_phy_cfg_done(hw);
-	if (ret_val != E1000_SUCCESS)
-		return ret_val;
-
-	return ret_val;
+	return e1000_get_phy_cfg_done(hw);
 }
 
 /**

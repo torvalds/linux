@@ -258,7 +258,7 @@ static struct gpio sdp4430_eth_gpios[] __initdata = {
 	{ ETH_KS8851_IRQ,	GPIOF_IN,		"eth_irq"	},
 };
 
-static int omap_ethernet_init(void)
+static int __init omap_ethernet_init(void)
 {
 	int status;
 
@@ -322,6 +322,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_wp	= -EINVAL,
 		.nonremovable   = true,
 		.ocr_mask	= MMC_VDD_29_30,
+		.no_off_init	= true,
 	},
 	{
 		.mmc		= 1,
@@ -681,19 +682,19 @@ static struct omap_device_pad serial4_pads[] __initdata = {
 			 OMAP_PIN_OUTPUT | OMAP_MUX_MODE0),
 };
 
-static struct omap_board_data serial2_data = {
+static struct omap_board_data serial2_data __initdata = {
 	.id		= 1,
 	.pads		= serial2_pads,
 	.pads_cnt	= ARRAY_SIZE(serial2_pads),
 };
 
-static struct omap_board_data serial3_data = {
+static struct omap_board_data serial3_data __initdata = {
 	.id		= 2,
 	.pads		= serial3_pads,
 	.pads_cnt	= ARRAY_SIZE(serial3_pads),
 };
 
-static struct omap_board_data serial4_data = {
+static struct omap_board_data serial4_data __initdata = {
 	.id		= 3,
 	.pads		= serial4_pads,
 	.pads_cnt	= ARRAY_SIZE(serial4_pads),
@@ -729,7 +730,7 @@ static void __init omap_4430sdp_init(void)
 
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
-	omap4_mux_init(board_mux, package);
+	omap4_mux_init(board_mux, NULL, package);
 
 	omap_board_config = sdp4430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp4430_config);

@@ -1073,7 +1073,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
 
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+	sb->s_flags = (sb->s_flags & ~(MS_POSIXACL | MS_NOSEC)) |
 		((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
 
 	/* Hard readonly mode only if: bdev_read_only, MS_RDONLY,
@@ -1108,9 +1108,9 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 		ocfs2_set_ro_flag(osb, 1);
 
-		printk(KERN_NOTICE "Readonly device detected. No cluster "
-		       "services will be utilized for this mount. Recovery "
-		       "will be skipped.\n");
+		printk(KERN_NOTICE "ocfs2: Readonly device (%s) detected. "
+		       "Cluster services will not be used for this mount. "
+		       "Recovery will be skipped.\n", osb->dev_str);
 	}
 
 	if (!ocfs2_is_hard_readonly(osb)) {
@@ -2469,8 +2469,8 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 			goto finally;
 		}
 	} else {
-		mlog(ML_NOTICE, "File system was not unmounted cleanly, "
-		     "recovering volume.\n");
+		printk(KERN_NOTICE "ocfs2: File system on device (%s) was not "
+		       "unmounted cleanly, recovering it.\n", osb->dev_str);
 	}
 
 	local = ocfs2_mount_local(osb);

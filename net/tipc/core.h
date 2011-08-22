@@ -62,12 +62,6 @@ struct tipc_msg;	/* msg.h */
 struct print_buf;	/* log.h */
 
 /*
- * TIPC sanity test macros
- */
-
-#define assert(i)  BUG_ON(!(i))
-
-/*
  * TIPC system monitoring code
  */
 

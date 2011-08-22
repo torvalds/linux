@@ -87,7 +87,8 @@ static int bad_file_release(struct inode *inode, struct file *filp)
 	return -EIO;
 }
 
-static int bad_file_fsync(struct file *file, int datasync)
+static int bad_file_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
 	return -EIO;
 }
@@ -229,11 +230,8 @@ static int bad_inode_readlink(struct dentry *dentry, char __user *buffer,
 	return -EIO;
 }
 
-static int bad_inode_permission(struct inode *inode, int mask, unsigned int flags)
+static int bad_inode_permission(struct inode *inode, int mask)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
 	return -EIO;
 }
 

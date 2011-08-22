@@ -788,7 +788,7 @@ sub wait_for_input
 
 sub reboot_to {
     if ($reboot_type eq "grub") {
-	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
+	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch && reboot)'";
 	return;
     }
 
@@ -1480,7 +1480,7 @@ sub process_config_ignore {
 	or dodie "Failed to read $config";
 
     while (<IN>) {
-	if (/^(.*?(CONFIG\S*)(=.*| is not set))/) {
+	if (/^((CONFIG\S*)=.*)/) {
 	    $config_ignore{$2} = $1;
 	}
     }
@@ -1638,7 +1638,7 @@ sub run_config_bisect {
 	if (!$found) {
 	    # try the other half
 	    doprint "Top half produced no set configs, trying bottom half\n";
-	    @tophalf = @start_list[$half .. $#start_list];
+	    @tophalf = @start_list[$half + 1 .. $#start_list];
 	    create_config @tophalf;
 	    read_current_config \%current_config;
 	    foreach my $config (@tophalf) {
@@ -1690,7 +1690,7 @@ sub run_config_bisect {
 	# remove half the configs we are looking at and see if
 	# they are good.
 	$half = int($#start_list / 2);
-    } while ($half > 0);
+    } while ($#start_list > 0);
 
     # we found a single config, try it again unless we are running manually
 

@@ -425,6 +425,7 @@ struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 	struct list_head *listp;
 	struct io_bdt *bd_tbl;
 	int index = RESERVE_FREE_LIST_INDEX;
+	u32 free_sqes;
 	u32 max_sqes;
 	u16 xid;
 
@@ -445,8 +446,10 @@ struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 	 * cmgr lock
 	 */
 	spin_lock_bh(&cmd_mgr->free_list_lock[index]);
+	free_sqes = atomic_read(&tgt->free_sqes);
 	if ((list_empty(&(cmd_mgr->free_list[index]))) ||
-	    (tgt->num_active_ios.counter  >= max_sqes)) {
+	    (tgt->num_active_ios.counter  >= max_sqes) ||
+	    (free_sqes + max_sqes <= BNX2FC_SQ_WQES_MAX)) {
 		BNX2FC_TGT_DBG(tgt, "No free els_tm cmds available "
 			"ios(%d):sqes(%d)\n",
 			tgt->num_active_ios.counter, tgt->max_sqes);
@@ -463,6 +466,7 @@ struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 	xid = io_req->xid;
 	cmd_mgr->cmds[xid] = io_req;
 	atomic_inc(&tgt->num_active_ios);
+	atomic_dec(&tgt->free_sqes);
 	spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
 
 	INIT_LIST_HEAD(&io_req->link);
@@ -489,6 +493,7 @@ static struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	struct bnx2fc_cmd *io_req;
 	struct list_head *listp;
 	struct io_bdt *bd_tbl;
+	u32 free_sqes;
 	u32 max_sqes;
 	u16 xid;
 	int index = get_cpu();
@@ -499,8 +504,10 @@ static struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	 * cmgr lock
 	 */
 	spin_lock_bh(&cmd_mgr->free_list_lock[index]);
+	free_sqes = atomic_read(&tgt->free_sqes);
 	if ((list_empty(&cmd_mgr->free_list[index])) ||
-	    (tgt->num_active_ios.counter  >= max_sqes)) {
+	    (tgt->num_active_ios.counter  >= max_sqes) ||
+	    (free_sqes + max_sqes <= BNX2FC_SQ_WQES_MAX)) {
 		spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
 		put_cpu();
 		return NULL;
@@ -513,6 +520,7 @@ static struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	xid = io_req->xid;
 	cmd_mgr->cmds[xid] = io_req;
 	atomic_inc(&tgt->num_active_ios);
+	atomic_dec(&tgt->free_sqes);
 	spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
 	put_cpu();
 
@@ -873,7 +881,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 
 	/* Obtain oxid and rxid for the original exchange to be aborted */
 	fc_hdr->fh_ox_id = htons(io_req->xid);
-	fc_hdr->fh_rx_id = htons(io_req->task->rx_wr_tx_rd.rx_id);
+	fc_hdr->fh_rx_id = htons(io_req->task->rxwr_txrd.var_ctx.rx_id);
 
 	sid = tgt->sid;
 	did = rport->port_id;
@@ -1189,7 +1197,7 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 			kref_put(&io_req->refcount,
 				 bnx2fc_cmd_release); /* drop timer hold */
 
-	r_ctl = task->cmn.general.rsp_info.abts_rsp.r_ctl;
+	r_ctl = (u8)task->rxwr_only.union_ctx.comp_info.abts_rsp.r_ctl;
 
 	switch (r_ctl) {
 	case FC_RCTL_BA_ACC:
@@ -1344,12 +1352,13 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 	fc_hdr = &(tm_req->resp_fc_hdr);
 	hdr = (u64 *)fc_hdr;
 	temp_hdr = (u64 *)
-		&task->cmn.general.cmd_info.mp_fc_frame.fc_hdr;
+		&task->rxwr_only.union_ctx.comp_info.mp_rsp.fc_hdr;
 	hdr[0] = cpu_to_be64(temp_hdr[0]);
 	hdr[1] = cpu_to_be64(temp_hdr[1]);
 	hdr[2] = cpu_to_be64(temp_hdr[2]);
 
-	tm_req->resp_len = task->rx_wr_only.sgl_ctx.mul_sges.cur_sge_off;
+	tm_req->resp_len =
+		task->rxwr_only.union_ctx.comp_info.mp_rsp.mp_payload_len;
 
 	rsp_buf = tm_req->resp_buf;
 
@@ -1724,7 +1733,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 
 	/* Fetch fcp_rsp from task context and perform cmd completion */
 	fcp_rsp = (struct fcoe_fcp_rsp_payload *)
-		   &(task->cmn.general.rsp_info.fcp_rsp.payload);
+		   &(task->rxwr_only.union_ctx.comp_info.fcp_rsp.payload);
 
 	/* parse fcp_rsp and obtain sense data from RQ if available */
 	bnx2fc_parse_fcp_rsp(io_req, fcp_rsp, num_rq);
@@ -1734,7 +1743,6 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 		printk(KERN_ERR PFX "SCp.ptr is NULL\n");
 		return;
 	}
-	io_req->sc_cmd = NULL;
 
 	if (io_req->on_active_queue) {
 		list_del_init(&io_req->link);
@@ -1754,6 +1762,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 	}
 
 	bnx2fc_unmap_sg_list(io_req);
+	io_req->sc_cmd = NULL;
 
 	switch (io_req->fcp_status) {
 	case FC_GOOD:

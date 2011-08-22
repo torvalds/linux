@@ -375,6 +375,9 @@ void __init check_for_initrd(void)
 
 int threads_per_core, threads_shift;
 cpumask_t threads_core_mask;
+EXPORT_SYMBOL_GPL(threads_per_core);
+EXPORT_SYMBOL_GPL(threads_shift);
+EXPORT_SYMBOL_GPL(threads_core_mask);
 
 static void __init cpu_init_thread_core_maps(int tpc)
 {

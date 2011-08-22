@@ -41,14 +41,12 @@
 #define HPOUT2L 4
 #define HPOUT2R 8
 
-#define WM8915_NUM_SUPPLIES 6
+#define WM8915_NUM_SUPPLIES 4
 static const char *wm8915_supply_names[WM8915_NUM_SUPPLIES] = {
-	"DCVDD",
 	"DBVDD",
 	"AVDD1",
 	"AVDD2",
 	"CPVDD",
-	"MICVDD",
 };
 
 struct wm8915_priv {
@@ -57,6 +55,7 @@ struct wm8915_priv {
 	int ldo1ena;
 
 	int sysclk;
+	int sysclk_src;
 
 	int fll_src;
 	int fll_fref;
@@ -76,6 +75,7 @@ struct wm8915_priv {
 	struct wm8915_pdata pdata;
 
 	int rx_rate[WM8915_AIFS];
+	int bclk_rate[WM8915_AIFS];
 
 	/* Platform dependant ReTune mobile configuration */
 	int num_retune_mobile_texts;
@@ -113,8 +113,6 @@ WM8915_REGULATOR_EVENT(0)
 WM8915_REGULATOR_EVENT(1)
 WM8915_REGULATOR_EVENT(2)
 WM8915_REGULATOR_EVENT(3)
-WM8915_REGULATOR_EVENT(4)
-WM8915_REGULATOR_EVENT(5)
 
 static const u16 wm8915_reg[WM8915_MAX_REGISTER] = {
 	[WM8915_SOFTWARE_RESET] = 0x8915,
@@ -1565,6 +1563,50 @@ static int wm8915_reset(struct snd_soc_codec *codec)
 	return snd_soc_write(codec, WM8915_SOFTWARE_RESET, 0x8915);
 }
 
+static const int bclk_divs[] = {
+	1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
+};
+
+static void wm8915_update_bclk(struct snd_soc_codec *codec)
+{
+	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
+	int aif, best, cur_val, bclk_rate, bclk_reg, i;
+
+	/* Don't bother if we're in a low frequency idle mode that
+	 * can't support audio.
+	 */
+	if (wm8915->sysclk < 64000)
+		return;
+
+	for (aif = 0; aif < WM8915_AIFS; aif++) {
+		switch (aif) {
+		case 0:
+			bclk_reg = WM8915_AIF1_BCLK;
+			break;
+		case 1:
+			bclk_reg = WM8915_AIF2_BCLK;
+			break;
+		}
+
+		bclk_rate = wm8915->bclk_rate[aif];
+
+		/* Pick a divisor for BCLK as close as we can get to ideal */
+		best = 0;
+		for (i = 0; i < ARRAY_SIZE(bclk_divs); i++) {
+			cur_val = (wm8915->sysclk / bclk_divs[i]) - bclk_rate;
+			if (cur_val < 0) /* BCLK table is sorted */
+				break;
+			best = i;
+		}
+		bclk_rate = wm8915->sysclk / bclk_divs[best];
+		dev_dbg(codec->dev, "Using BCLK_DIV %d for actual BCLK %dHz\n",
+			bclk_divs[best], bclk_rate);
+
+		snd_soc_update_bits(codec, bclk_reg,
+				    WM8915_AIF1_BCLK_DIV_MASK, best);
+	}
+}
+
 static int wm8915_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -1717,10 +1759,6 @@ static int wm8915_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static const int bclk_divs[] = {
-	1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
-};
-
 static const int dsp_divs[] = {
 	48000, 32000, 16000, 8000
 };
@@ -1731,17 +1769,11 @@ static int wm8915_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
-	int bits, i, bclk_rate, best, cur_val;
+	int bits, i, bclk_rate;
 	int aifdata = 0;
-	int bclk = 0;
 	int lrclk = 0;
 	int dsp = 0;
-	int aifdata_reg, bclk_reg, lrclk_reg, dsp_shift;
-
-	if (!wm8915->sysclk) {
-		dev_err(codec->dev, "SYSCLK not configured\n");
-		return -EINVAL;
-	}
+	int aifdata_reg, lrclk_reg, dsp_shift;
 
 	switch (dai->id) {
 	case 0:
@@ -1753,7 +1785,6 @@ static int wm8915_hw_params(struct snd_pcm_substream *substream,
 			aifdata_reg = WM8915_AIF1TX_DATA_CONFIGURATION_1;
 			lrclk_reg = WM8915_AIF1_TX_LRCLK_1;
 		}
-		bclk_reg = WM8915_AIF1_BCLK;
 		dsp_shift = 0;
 		break;
 	case 1:
@@ -1765,7 +1796,6 @@ static int wm8915_hw_params(struct snd_pcm_substream *substream,
 			aifdata_reg = WM8915_AIF2TX_DATA_CONFIGURATION_1;
 			lrclk_reg = WM8915_AIF2_TX_LRCLK_1;
 		}
-		bclk_reg = WM8915_AIF2_BCLK;
 		dsp_shift = WM8915_DSP2_DIV_SHIFT;
 		break;
 	default:
@@ -1778,6 +1808,9 @@ static int wm8915_hw_params(struct snd_pcm_substream *substream,
 		dev_err(codec->dev, "Unsupported BCLK rate: %d\n", bclk_rate);
 		return bclk_rate;
 	}
+
+	wm8915->bclk_rate[dai->id] = bclk_rate;
+	wm8915->rx_rate[dai->id] = params_rate(params);
 
 	/* Needs looking at for TDM */
 	bits = snd_pcm_format_width(params_format(params));
@@ -1796,18 +1829,7 @@ static int wm8915_hw_params(struct snd_pcm_substream *substream,
 	}
 	dsp |= i << dsp_shift;
 
-	/* Pick a divisor for BCLK as close as we can get to ideal */
-	best = 0;
-	for (i = 0; i < ARRAY_SIZE(bclk_divs); i++) {
-		cur_val = (wm8915->sysclk / bclk_divs[i]) - bclk_rate;
-		if (cur_val < 0) /* BCLK table is sorted */
-			break;
-		best = i;
-	}
-	bclk_rate = wm8915->sysclk / bclk_divs[best];
-	dev_dbg(dai->dev, "Using BCLK_DIV %d for actual BCLK %dHz\n",
-		bclk_divs[best], bclk_rate);
-	bclk |= best;
+	wm8915_update_bclk(codec);
 
 	lrclk = bclk_rate / params_rate(params);
 	dev_dbg(dai->dev, "Using LRCLK rate %d for actual LRCLK %dHz\n",
@@ -1817,13 +1839,10 @@ static int wm8915_hw_params(struct snd_pcm_substream *substream,
 			    WM8915_AIF1TX_WL_MASK |
 			    WM8915_AIF1TX_SLOT_LEN_MASK,
 			    aifdata);
-	snd_soc_update_bits(codec, bclk_reg, WM8915_AIF1_BCLK_DIV_MASK, bclk);
 	snd_soc_update_bits(codec, lrclk_reg, WM8915_AIF1RX_RATE_MASK,
 			    lrclk);
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_2,
 			    WM8915_DSP1_DIV_SHIFT << dsp_shift, dsp);
-
-	wm8915->rx_rate[dai->id] = params_rate(params);
 
 	return 0;
 }
@@ -1838,8 +1857,11 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	int src;
 	int old;
 
+	if (freq == wm8915->sysclk && clk_id == wm8915->sysclk_src)
+		return 0;
+
 	/* Disable SYSCLK while we reconfigure */
-	old = snd_soc_read(codec, WM8915_AIF_CLOCKING_1);
+	old = snd_soc_read(codec, WM8915_AIF_CLOCKING_1) & WM8915_SYSCLK_ENA;
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_ENA, 0);
 
@@ -1882,12 +1904,16 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
+	wm8915_update_bclk(codec);
+
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_SRC_MASK | WM8915_SYSCLK_DIV_MASK,
 			    src << WM8915_SYSCLK_SRC_SHIFT | ratediv);
 	snd_soc_update_bits(codec, WM8915_CLOCKING_1, WM8915_LFCLK_ENA, lfclk);
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_ENA, old);
+
+	wm8915->sysclk_src = clk_id;
 
 	return 0;
 }
@@ -2007,6 +2033,7 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct _fll_div fll_div;
 	unsigned long timeout;
 	int ret, reg;
@@ -2038,6 +2065,7 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		break;
 	case WM8915_FLL_MCLK2:
 		reg = 1;
+		break;
 	case WM8915_FLL_DACLRCLK1:
 		reg = 2;
 		break;
@@ -2092,7 +2120,18 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	else
 		timeout = msecs_to_jiffies(2);
 
-	wait_for_completion_timeout(&wm8915->fll_lock, timeout);
+	/* Allow substantially longer if we've actually got the IRQ */
+	if (i2c->irq)
+		timeout *= 1000;
+
+	ret = wait_for_completion_timeout(&wm8915->fll_lock, timeout);
+
+	if (ret == 0 && i2c->irq) {
+		dev_err(codec->dev, "Timed out waiting for FLL\n");
+		ret = -ETIMEDOUT;
+	} else {
+		ret = 0;
+	}
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
 
@@ -2100,7 +2139,7 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	wm8915->fll_fout = Fout;
 	wm8915->fll_src = source;
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_GPIOLIB
@@ -2292,6 +2331,12 @@ static void wm8915_micd(struct snd_soc_codec *codec)
 				    SND_JACK_HEADSET | SND_JACK_BTN_0);
 		wm8915->jack_mic = true;
 		wm8915->detecting = false;
+
+		/* Increase poll rate to give better responsiveness
+		 * for buttons */
+		snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
+				    WM8915_MICD_RATE_MASK,
+				    5 << WM8915_MICD_RATE_SHIFT);
 	}
 
 	/* If we detected a lower impedence during initial startup
@@ -2332,15 +2377,17 @@ static void wm8915_micd(struct snd_soc_codec *codec)
 					    SND_JACK_HEADPHONE,
 					    SND_JACK_HEADSET |
 					    SND_JACK_BTN_0);
+
+			/* Increase the detection rate a bit for
+			 * responsiveness.
+			 */
+			snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
+					    WM8915_MICD_RATE_MASK,
+					    7 << WM8915_MICD_RATE_SHIFT);
+
 			wm8915->detecting = false;
 		}
 	}
-
-	/* Increase poll rate to give better responsiveness for buttons */
-	if (!wm8915->detecting)
-		snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
-				    WM8915_MICD_RATE_MASK,
-				    5 << WM8915_MICD_RATE_SHIFT);
 }
 
 static irqreturn_t wm8915_irq(int irq, void *data)
@@ -2380,6 +2427,20 @@ static irqreturn_t wm8915_irq(int irq, void *data)
 	} else {
 		return IRQ_NONE;
 	}
+}
+
+static irqreturn_t wm8915_edge_irq(int irq, void *data)
+{
+	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t val;
+
+	do {
+		val = wm8915_irq(irq, data);
+		if (val != IRQ_NONE)
+			ret = val;
+	} while (val != IRQ_NONE);
+
+	return ret;
 }
 
 static void wm8915_retune_mobile_pdata(struct snd_soc_codec *codec)
@@ -2481,8 +2542,6 @@ static int wm8915_probe(struct snd_soc_codec *codec)
 	wm8915->disable_nb[1].notifier_call = wm8915_regulator_event_1;
 	wm8915->disable_nb[2].notifier_call = wm8915_regulator_event_2;
 	wm8915->disable_nb[3].notifier_call = wm8915_regulator_event_3;
-	wm8915->disable_nb[4].notifier_call = wm8915_regulator_event_4;
-	wm8915->disable_nb[5].notifier_call = wm8915_regulator_event_5;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8915->supplies); i++) {
@@ -2708,8 +2767,14 @@ static int wm8915_probe(struct snd_soc_codec *codec)
 
 		irq_flags |= IRQF_ONESHOT;
 
-		ret = request_threaded_irq(i2c->irq, NULL, wm8915_irq,
-					   irq_flags, "wm8915", codec);
+		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
+			ret = request_threaded_irq(i2c->irq, NULL,
+						   wm8915_edge_irq,
+						   irq_flags, "wm8915", codec);
+		else
+			ret = request_threaded_irq(i2c->irq, NULL, wm8915_irq,
+						   irq_flags, "wm8915", codec);
+
 		if (ret == 0) {
 			/* Unmask the interrupt */
 			snd_soc_update_bits(codec, WM8915_INTERRUPT_CONTROL,

@@ -92,7 +92,8 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
-static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
+static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats);
 static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
 /*  PCI Device ID Table  */
@@ -520,7 +521,7 @@ static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_open	   = netxen_nic_open,
 	.ndo_stop	   = netxen_nic_close,
 	.ndo_start_xmit    = netxen_nic_xmit_frame,
-	.ndo_get_stats	   = netxen_nic_get_stats,
+	.ndo_get_stats64   = netxen_nic_get_stats,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_multicast_list = netxen_set_multicast_list,
 	.ndo_set_mac_address    = netxen_nic_set_mac,
@@ -1387,6 +1388,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
+	err = netxen_check_flash_fw_compatibility(adapter);
+	if (err)
+		goto err_out_iounmap;
+
 	if (adapter->portnum == 0) {
 		val = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
 		if (val != 0xffffffff && val != 0) {
@@ -1965,10 +1970,10 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	netxen_tso_check(netdev, tx_ring, first_desc, skb);
 
-	netxen_nic_update_cmd_producer(adapter, tx_ring);
-
 	adapter->stats.txbytes += skb->len;
 	adapter->stats.xmitcalled++;
+
+	netxen_nic_update_cmd_producer(adapter, tx_ring);
 
 	return NETDEV_TX_OK;
 
@@ -2110,10 +2115,10 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *netdev,
+						      struct rtnl_link_stats64 *stats)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct net_device_stats *stats = &netdev->stats;
 
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;

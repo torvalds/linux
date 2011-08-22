@@ -18,6 +18,9 @@ enum ip_conntrack_info {
 	/* >= this indicates reply direction */
 	IP_CT_IS_REPLY,
 
+	IP_CT_ESTABLISHED_REPLY = IP_CT_ESTABLISHED + IP_CT_IS_REPLY,
+	IP_CT_RELATED_REPLY = IP_CT_RELATED + IP_CT_IS_REPLY,
+	IP_CT_NEW_REPLY = IP_CT_NEW + IP_CT_IS_REPLY,	
 	/* Number of distinct IP_CT types (no NEW in reply dirn). */
 	IP_CT_NUMBER = IP_CT_IS_REPLY * 2 - 1
 };

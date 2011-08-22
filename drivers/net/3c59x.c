@@ -901,14 +901,14 @@ static const struct dev_pm_ops vortex_pm_ops = {
 #endif /* !CONFIG_PM */
 
 #ifdef CONFIG_EISA
-static const struct eisa_device_id vortex_eisa_ids[] __devinitconst = {
+static struct eisa_device_id vortex_eisa_ids[] = {
 	{ "TCM5920", CH_3C592 },
 	{ "TCM5970", CH_3C597 },
 	{ "" }
 };
 MODULE_DEVICE_TABLE(eisa, vortex_eisa_ids);
 
-static int __devinit vortex_eisa_probe(struct device *device)
+static int __init vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;

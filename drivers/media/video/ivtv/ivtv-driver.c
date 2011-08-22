@@ -1328,6 +1328,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (!itv->has_cx23415)
 		write_reg_sync(0x03, IVTV_REG_DMACONTROL);
 
+	ivtv_s_std_enc(itv, &itv->tuner_std);
+
 	/* Default interrupts enabled. For the PVR350 this includes the
 	   decoder VSYNC interrupt, which is always on. It is not only used
 	   during decoding but also by the OSD.
@@ -1336,12 +1338,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT | IVTV_IRQ_DEC_VSYNC);
 		ivtv_set_osd_alpha(itv);
-	}
-	else
+		ivtv_s_std_dec(itv, &itv->tuner_std);
+	} else {
 		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
-
-	/* For cards with video out, this call needs interrupts enabled */
-	ivtv_s_std(NULL, &fh, &itv->tuner_std);
+	}
 
 	/* Setup initial controls */
 	cx2341x_handler_setup(&itv->cxhdl);

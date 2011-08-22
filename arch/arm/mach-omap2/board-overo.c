@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/i2c/twl.h>
@@ -45,7 +46,6 @@
 #include <plat/common.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
-#include <mach/gpio.h>
 #include <plat/gpmc.h>
 #include <mach/hardware.h>
 #include <plat/nand.h>
@@ -64,8 +64,6 @@
 #define OVERO_GPIO_BT_NRESET	164
 #define OVERO_GPIO_USBH_CPEN	168
 #define OVERO_GPIO_USBH_NRESET	183
-
-#define NAND_BLOCK_SIZE SZ_128K
 
 #define OVERO_SMSC911X_CS      5
 #define OVERO_SMSC911X_GPIO    176

@@ -776,8 +776,16 @@ static void ip_vs_conn_expire(unsigned long data)
 		if (cp->control)
 			ip_vs_control_del(cp);
 
-		if (cp->flags & IP_VS_CONN_F_NFCT)
+		if (cp->flags & IP_VS_CONN_F_NFCT) {
 			ip_vs_conn_drop_conntrack(cp);
+			/* Do not access conntracks during subsys cleanup
+			 * because nf_conntrack_find_get can not be used after
+			 * conntrack cleanup for the net.
+			 */
+			smp_rmb();
+			if (ipvs->enable)
+				ip_vs_conn_drop_conntrack(cp);
+		}
 
 		ip_vs_pe_put(cp->pe);
 		kfree(cp->pe_data);
@@ -1247,7 +1255,7 @@ flush_again:
 /*
  * per netns init and exit
  */
-int __net_init __ip_vs_conn_init(struct net *net)
+int __net_init ip_vs_conn_net_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -1258,7 +1266,7 @@ int __net_init __ip_vs_conn_init(struct net *net)
 	return 0;
 }
 
-void __net_exit __ip_vs_conn_cleanup(struct net *net)
+void __net_exit ip_vs_conn_net_cleanup(struct net *net)
 {
 	/* flush all the connection entries first */
 	ip_vs_conn_flush(net);

@@ -98,11 +98,16 @@ struct lm95241_data {
 };
 
 /* Conversions */
-static int TempFromReg(u8 val_h, u8 val_l)
+static int temp_from_reg_signed(u8 val_h, u8 val_l)
 {
-	if (val_h & 0x80)
-		return val_h - 0x100;
-	return val_h * 1000 + val_l * 1000 / 256;
+	s16 val_hl = (val_h << 8) | val_l;
+	return val_hl * 1000 / 256;
+}
+
+static int temp_from_reg_unsigned(u8 val_h, u8 val_l)
+{
+	u16 val_hl = (val_h << 8) | val_l;
+	return val_hl * 1000 / 256;
 }
 
 static struct lm95241_data *lm95241_update_device(struct device *dev)
@@ -135,10 +140,13 @@ static ssize_t show_input(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct lm95241_data *data = lm95241_update_device(dev);
+	int index = to_sensor_dev_attr(attr)->index;
 
 	return snprintf(buf, PAGE_SIZE - 1, "%d\n",
-		TempFromReg(data->temp[to_sensor_dev_attr(attr)->index],
-			    data->temp[to_sensor_dev_attr(attr)->index + 1]));
+			index == 0 || (data->config & (1 << (index / 2))) ?
+		temp_from_reg_signed(data->temp[index], data->temp[index + 1]) :
+		temp_from_reg_unsigned(data->temp[index],
+				       data->temp[index + 1]));
 }
 
 static ssize_t show_type(struct device *dev, struct device_attribute *attr,
@@ -339,7 +347,7 @@ static int lm95241_detect(struct i2c_client *new_client,
 	if ((i2c_smbus_read_byte_data(new_client, LM95241_REG_R_MAN_ID)
 	     == MANUFACTURER_ID)
 	    && (i2c_smbus_read_byte_data(new_client, LM95241_REG_R_CHIP_ID)
-		>= DEFAULT_REVISION)) {
+		== DEFAULT_REVISION)) {
 		name = DEVNAME;
 	} else {
 		dev_dbg(&adapter->dev, "LM95241 detection failed at 0x%02x\n",

@@ -10,18 +10,22 @@ static ssize_t ath5k_attr_show_##name(struct device *dev,		\
 			struct device_attribute *attr,			\
 			char *buf)					\
 {									\
-	struct ath5k_softc *sc = dev_get_drvdata(dev);			\
-	return snprintf(buf, PAGE_SIZE, "%d\n", get); 			\
+	struct ieee80211_hw *hw = dev_get_drvdata(dev);			\
+	struct ath5k_softc *sc = hw->priv;				\
+	return snprintf(buf, PAGE_SIZE, "%d\n", get);			\
 }									\
 									\
 static ssize_t ath5k_attr_store_##name(struct device *dev,		\
 			struct device_attribute *attr,			\
 			const char *buf, size_t count)			\
 {									\
-	struct ath5k_softc *sc = dev_get_drvdata(dev);			\
-	int val;							\
+	struct ieee80211_hw *hw = dev_get_drvdata(dev);			\
+	struct ath5k_softc *sc = hw->priv;				\
+	int val, ret;							\
 									\
-	val = (int)simple_strtoul(buf, NULL, 10);			\
+	ret = kstrtoint(buf, 10, &val);					\
+	if (ret < 0)							\
+		return ret;						\
 	set(sc->ah, val);						\
 	return count;							\
 }									\
@@ -33,8 +37,9 @@ static ssize_t ath5k_attr_show_##name(struct device *dev,		\
 			struct device_attribute *attr,			\
 			char *buf)					\
 {									\
-	struct ath5k_softc *sc = dev_get_drvdata(dev);			\
-	return snprintf(buf, PAGE_SIZE, "%d\n", get); 			\
+	struct ieee80211_hw *hw = dev_get_drvdata(dev);			\
+	struct ath5k_softc *sc = hw->priv;				\
+	return snprintf(buf, PAGE_SIZE, "%d\n", get);			\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, ath5k_attr_show_##name, NULL)
 

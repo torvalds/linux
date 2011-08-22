@@ -135,6 +135,7 @@ struct hrtimer_sleeper {
  * @cpu_base:		per cpu clock base
  * @index:		clock type index for per_cpu support when moving a
  *			timer to a base on another cpu.
+ * @clockid:		clock id for per_cpu support
  * @active:		red black tree root node for the active timers
  * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock

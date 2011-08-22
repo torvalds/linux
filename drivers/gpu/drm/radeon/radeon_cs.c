@@ -228,6 +228,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	parser.filp = filp;
 	parser.rdev = rdev;
 	parser.dev = rdev->dev;
+	parser.family = rdev->family;
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");

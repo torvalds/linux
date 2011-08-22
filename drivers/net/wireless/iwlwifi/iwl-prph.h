@@ -168,6 +168,7 @@
  * the scheduler (especially for queue #4/#9, the command queue, otherwise
  * the driver can't issue commands!):
  */
+#define SCD_MEM_LOWER_BOUND		(0x0000)
 
 /**
  * Max Tx window size is the max number of contiguous TFDs that the scheduler
@@ -197,15 +198,23 @@
 #define IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
 #define IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
 
-#define IWLAGN_SCD_CONTEXT_DATA_OFFSET		(0x600)
-#define IWLAGN_SCD_TX_STTS_BITMAP_OFFSET		(0x7B1)
-#define IWLAGN_SCD_TRANSLATE_TBL_OFFSET		(0x7E0)
+/* Context Data */
+#define IWLAGN_SCD_CONTEXT_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x600)
+#define IWLAGN_SCD_CONTEXT_MEM_UPPER_BOUND	(SCD_MEM_LOWER_BOUND + 0x6A0)
+
+/* Tx status */
+#define IWLAGN_SCD_TX_STTS_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x6A0)
+#define IWLAGN_SCD_TX_STTS_MEM_UPPER_BOUND	(SCD_MEM_LOWER_BOUND + 0x7E0)
+
+/* Translation Data */
+#define IWLAGN_SCD_TRANS_TBL_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x7E0)
+#define IWLAGN_SCD_TRANS_TBL_MEM_UPPER_BOUND	(SCD_MEM_LOWER_BOUND + 0x808)
 
 #define IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(x)\
-	(IWLAGN_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
+	(IWLAGN_SCD_CONTEXT_MEM_LOWER_BOUND + ((x) * 8))
 
 #define IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
-	((IWLAGN_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffc)
+	((IWLAGN_SCD_TRANS_TBL_MEM_LOWER_BOUND + ((x) * 2)) & 0xfffc)
 
 #define IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv)	\
 	(((1<<(priv)->hw_params.max_txq_num) - 1) &\

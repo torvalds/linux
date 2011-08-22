@@ -169,10 +169,15 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 	ret = wait_event_interruptible_timeout(dev->wait_stop_wd,
 					dev->wd_stopped, 10 * HZ);
 	mutex_lock(&dev->device_lock);
-	if (!dev->wd_stopped)
-		dev_dbg(&dev->pdev->dev, "stop wd failed to complete.\n");
-	else
-		dev_dbg(&dev->pdev->dev, "stop wd complete.\n");
+	if (dev->wd_stopped) {
+		dev_dbg(&dev->pdev->dev, "stop wd complete ret=%d.\n", ret);
+		ret = 0;
+	} else {
+		if (!ret)
+			ret = -ETIMEDOUT;
+		dev_warn(&dev->pdev->dev,
+			"stop wd failed to complete ret=%d.\n", ret);
+	}
 
 	if (preserve)
 		dev->wd_timeout = wd_timeout;

@@ -88,7 +88,7 @@ static inline int bit_spin_is_locked(int bitnum, unsigned long *addr)
 {
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
 	return test_bit(bitnum, addr);
-#elif defined CONFIG_PREEMPT
+#elif defined CONFIG_PREEMPT_COUNT
 	return preempt_count();
 #else
 	return 1;

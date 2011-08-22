@@ -57,7 +57,8 @@ static int async_error;
  */
 void device_pm_init(struct device *dev)
 {
-	dev->power.in_suspend = false;
+	dev->power.is_prepared = false;
+	dev->power.is_suspended = false;
 	init_completion(&dev->power.completion);
 	complete_all(&dev->power.completion);
 	dev->power.wakeup = NULL;
@@ -91,7 +92,7 @@ void device_pm_add(struct device *dev)
 	pr_debug("PM: Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
 	mutex_lock(&dpm_list_mtx);
-	if (dev->parent && dev->parent->power.in_suspend)
+	if (dev->parent && dev->parent->power.is_prepared)
 		dev_warn(dev, "parent %s should not be sleeping\n",
 			dev_name(dev->parent));
 	list_add_tail(&dev->power.entry, &dpm_list);
@@ -424,9 +425,9 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "EARLY power domain ");
-		error = pm_noirq_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_noirq_op(dev, &dev->pm_domain->ops, state);
 	} else if (dev->type && dev->type->pm) {
 		pm_dev_dbg(dev, state, "EARLY type ");
 		error = pm_noirq_op(dev, dev->type->pm, state);
@@ -504,6 +505,7 @@ static int legacy_resume(struct device *dev, int (*cb)(struct device *dev))
 static int device_resume(struct device *dev, pm_message_t state, bool async)
 {
 	int error = 0;
+	bool put = false;
 
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
@@ -511,11 +513,21 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	dpm_wait(dev->parent, async);
 	device_lock(dev);
 
-	dev->power.in_suspend = false;
+	/*
+	 * This is a fib.  But we'll allow new children to be added below
+	 * a resumed device, even if the device hasn't been completed yet.
+	 */
+	dev->power.is_prepared = false;
 
-	if (dev->pwr_domain) {
+	if (!dev->power.is_suspended)
+		goto Unlock;
+
+	pm_runtime_enable(dev);
+	put = true;
+
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "power domain ");
-		error = pm_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_op(dev, &dev->pm_domain->ops, state);
 		goto End;
 	}
 
@@ -548,10 +560,17 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	}
 
  End:
+	dev->power.is_suspended = false;
+
+ Unlock:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
 	TRACE_RESUME(error);
+
+	if (put)
+		pm_runtime_put_sync(dev);
+
 	return error;
 }
 
@@ -630,10 +649,10 @@ static void device_complete(struct device *dev, pm_message_t state)
 {
 	device_lock(dev);
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "completing power domain ");
-		if (dev->pwr_domain->ops.complete)
-			dev->pwr_domain->ops.complete(dev);
+		if (dev->pm_domain->ops.complete)
+			dev->pm_domain->ops.complete(dev);
 	} else if (dev->type && dev->type->pm) {
 		pm_dev_dbg(dev, state, "completing type ");
 		if (dev->type->pm->complete)
@@ -670,7 +689,7 @@ void dpm_complete(pm_message_t state)
 		struct device *dev = to_device(dpm_prepared_list.prev);
 
 		get_device(dev);
-		dev->power.in_suspend = false;
+		dev->power.is_prepared = false;
 		list_move(&dev->power.entry, &list);
 		mutex_unlock(&dpm_list_mtx);
 
@@ -733,9 +752,9 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 {
 	int error;
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "LATE power domain ");
-		error = pm_noirq_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_noirq_op(dev, &dev->pm_domain->ops, state);
 		if (error)
 			return error;
 	} else if (dev->type && dev->type->pm) {
@@ -832,19 +851,25 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	int error = 0;
 
 	dpm_wait_for_children(dev, async);
-	device_lock(dev);
 
 	if (async_error)
-		goto End;
+		return 0;
+
+	pm_runtime_get_noresume(dev);
+	if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
+		pm_wakeup_event(dev, 0);
 
 	if (pm_wakeup_pending()) {
+		pm_runtime_put_sync(dev);
 		async_error = -EBUSY;
-		goto End;
+		return 0;
 	}
 
-	if (dev->pwr_domain) {
+	device_lock(dev);
+
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "power domain ");
-		error = pm_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_op(dev, &dev->pm_domain->ops, state);
 		goto End;
 	}
 
@@ -877,11 +902,17 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	}
 
  End:
+	dev->power.is_suspended = !error;
+
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
-	if (error)
+	if (error) {
+		pm_runtime_put_sync(dev);
 		async_error = error;
+	} else if (dev->power.is_suspended) {
+		__pm_runtime_disable(dev, false);
+	}
 
 	return error;
 }
@@ -968,11 +999,11 @@ static int device_prepare(struct device *dev, pm_message_t state)
 
 	device_lock(dev);
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "preparing power domain ");
-		if (dev->pwr_domain->ops.prepare)
-			error = dev->pwr_domain->ops.prepare(dev);
-		suspend_report_result(dev->pwr_domain->ops.prepare, error);
+		if (dev->pm_domain->ops.prepare)
+			error = dev->pm_domain->ops.prepare(dev);
+		suspend_report_result(dev->pm_domain->ops.prepare, error);
 		if (error)
 			goto End;
 	} else if (dev->type && dev->type->pm) {
@@ -1021,13 +1052,7 @@ int dpm_prepare(pm_message_t state)
 		get_device(dev);
 		mutex_unlock(&dpm_list_mtx);
 
-		pm_runtime_get_noresume(dev);
-		if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
-			pm_wakeup_event(dev, 0);
-
-		pm_runtime_put_sync(dev);
-		error = pm_wakeup_pending() ?
-				-EBUSY : device_prepare(dev, state);
+		error = device_prepare(dev, state);
 
 		mutex_lock(&dpm_list_mtx);
 		if (error) {
@@ -1042,7 +1067,7 @@ int dpm_prepare(pm_message_t state)
 			put_device(dev);
 			break;
 		}
-		dev->power.in_suspend = true;
+		dev->power.is_prepared = true;
 		if (!list_empty(&dev->power.entry))
 			list_move_tail(&dev->power.entry, &dpm_prepared_list);
 		put_device(dev);

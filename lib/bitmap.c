@@ -572,7 +572,7 @@ EXPORT_SYMBOL(bitmap_scnlistprintf);
 
 /**
  * __bitmap_parselist - convert list format ASCII string to bitmap
- * @bp: read nul-terminated user string from this buffer
+ * @buf: read nul-terminated user string from this buffer
  * @buflen: buffer size in bytes.  If string is smaller than this
  *    then it must be terminated with a \0.
  * @is_user: location of buffer, 0 indicates kernel space

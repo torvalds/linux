@@ -215,7 +215,7 @@ static struct omap_kp_platform_data ams_delta_kp_data __initdata = {
 	.delay		= 9,
 };
 
-static struct platform_device ams_delta_kp_device __initdata = {
+static struct platform_device ams_delta_kp_device = {
 	.name		= "omap-keypad",
 	.id		= -1,
 	.dev		= {
@@ -225,12 +225,12 @@ static struct platform_device ams_delta_kp_device __initdata = {
 	.resource	= ams_delta_kp_resources,
 };
 
-static struct platform_device ams_delta_lcd_device __initdata = {
+static struct platform_device ams_delta_lcd_device = {
 	.name	= "lcd_ams_delta",
 	.id	= -1,
 };
 
-static struct platform_device ams_delta_led_device __initdata = {
+static struct platform_device ams_delta_led_device = {
 	.name	= "ams-delta-led",
 	.id	= -1
 };
@@ -267,7 +267,7 @@ static struct soc_camera_link ams_delta_iclink = {
 	.power		= ams_delta_camera_power,
 };
 
-static struct platform_device ams_delta_camera_device __initdata = {
+static struct platform_device ams_delta_camera_device = {
 	.name   = "soc-camera-pdrv",
 	.id     = 0,
 	.dev    = {

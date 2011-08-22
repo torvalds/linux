@@ -817,14 +817,13 @@ static void dmacontroller_cleanup(struct b43legacy_dmaring *ring)
 
 static void free_all_descbuffers(struct b43legacy_dmaring *ring)
 {
-	struct b43legacy_dmadesc_generic *desc;
 	struct b43legacy_dmadesc_meta *meta;
 	int i;
 
 	if (!ring->used_slots)
 		return;
 	for (i = 0; i < ring->nr_slots; i++) {
-		desc = ring->ops->idx2desc(ring, i, &meta);
+		ring->ops->idx2desc(ring, i, &meta);
 
 		if (!meta->skb) {
 			B43legacy_WARN_ON(!ring->tx);
@@ -1371,10 +1370,8 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		     struct sk_buff *skb)
 {
 	struct b43legacy_dmaring *ring;
-	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ring = priority_to_txring(dev, skb_get_queue_mapping(skb));
 	spin_lock_irqsave(&ring->lock, flags);
@@ -1401,8 +1398,6 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 
 	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
 	 * into the skb data or cb now. */
-	hdr = NULL;
-	info = NULL;
 	err = dma_tx_fragment(ring, &skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
@@ -1435,7 +1430,6 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 {
 	const struct b43legacy_dma_ops *ops;
 	struct b43legacy_dmaring *ring;
-	struct b43legacy_dmadesc_generic *desc;
 	struct b43legacy_dmadesc_meta *meta;
 	int retry_limit;
 	int slot;
@@ -1450,7 +1444,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	ops = ring->ops;
 	while (1) {
 		B43legacy_WARN_ON(!(slot >= 0 && slot < ring->nr_slots));
-		desc = ops->idx2desc(ring, slot, &meta);
+		ops->idx2desc(ring, slot, &meta);
 
 		if (meta->skb)
 			unmap_descbuffer(ring, meta->dmaaddr,

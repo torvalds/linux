@@ -1476,7 +1476,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 			if (total_bytes >= max_bytes)
 				break;
 			if (!found) {
-				*start = state->start;
+				*start = max(cur_start, state->start);
 				found = 1;
 			}
 			last = state->end;

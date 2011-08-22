@@ -5,21 +5,19 @@
  *
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 
 	.section .kprobes.text, "ax"
 
-	.globl ftrace_stub
-ftrace_stub:
+ENTRY(ftrace_stub)
 	br	%r14
 
-	.globl _mcount
-_mcount:
+ENTRY(_mcount)
 #ifdef CONFIG_DYNAMIC_FTRACE
 	br	%r14
 
-	.globl ftrace_caller
-ftrace_caller:
+ENTRY(ftrace_caller)
 #endif
 	larl	%r1,function_trace_stop
 	icm	%r1,0xf,0(%r1)
@@ -37,8 +35,7 @@ ftrace_caller:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	lg	%r2,168(%r15)
 	lg	%r3,272(%r15)
-	.globl	ftrace_graph_caller
-ftrace_graph_caller:
+ENTRY(ftrace_graph_caller)
 # The bras instruction gets runtime patched to call prepare_ftrace_return.
 # See ftrace_enable_ftrace_graph_caller. The patched instruction is:
 #	bras	%r14,prepare_ftrace_return
@@ -52,8 +49,7 @@ ftrace_graph_caller:
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-	.globl	return_to_handler
-return_to_handler:
+ENTRY(return_to_handler)
 	stmg	%r2,%r5,32(%r15)
 	lgr	%r1,%r15
 	aghi	%r15,-160

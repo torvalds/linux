@@ -252,7 +252,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		off = 1;
 	}
 	if (filp->f_pos == 1) {
-		ino_t ino = filp->f_dentry->d_parent->d_inode->i_ino;
+		ino_t ino = parent_ino(filp->f_dentry);
 		dout("readdir off 1 -> '..'\n");
 		if (filldir(dirent, "..", 2, ceph_make_fpos(0, 1),
 			    ceph_translate_ino(inode->i_sb, ino),
@@ -308,7 +308,8 @@ more:
 		req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
-		req->r_inode = igrab(inode);
+		req->r_inode = inode;
+		ihold(inode);
 		req->r_dentry = dget(filp->f_dentry);
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
@@ -445,14 +446,19 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
 	loff_t retval;
 
 	mutex_lock(&inode->i_mutex);
+	retval = -EINVAL;
 	switch (origin) {
 	case SEEK_END:
 		offset += inode->i_size + 2;   /* FIXME */
 		break;
 	case SEEK_CUR:
 		offset += file->f_pos;
+	case SEEK_SET:
+		break;
+	default:
+		goto out;
 	}
-	retval = -EINVAL;
+
 	if (offset >= 0 && offset <= inode->i_sb->s_maxbytes) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
@@ -476,6 +482,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
 		if (offset > old_offset)
 			fi->dir_release_count--;
 	}
+out:
 	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
@@ -565,7 +572,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	/* open (but not create!) intent? */
 	if (nd &&
 	    (nd->flags & LOOKUP_OPEN) &&
-	    (nd->flags & LOOKUP_CONTINUE) == 0 && /* only open last component */
 	    !(nd->intent.open.flags & O_CREAT)) {
 		int mode = nd->intent.open.create_mode & ~current->fs->umask;
 		return ceph_lookup_open(dir, dentry, nd, mode, 1);
@@ -787,10 +793,12 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	err = ceph_mdsc_do_request(mdsc, dir, req);
-	if (err)
+	if (err) {
 		d_drop(dentry);
-	else if (!req->r_reply_info.head->is_dentry)
-		d_instantiate(dentry, igrab(old_dentry->d_inode));
+	} else if (!req->r_reply_info.head->is_dentry) {
+		ihold(old_dentry->d_inode);
+		d_instantiate(dentry, old_dentry->d_inode);
+	}
 	ceph_mdsc_put_request(req);
 	return err;
 }
@@ -1110,7 +1118,8 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
  * an fsync() on a dir will wait for any uncommitted directory
  * operations to commit.
  */
-static int ceph_dir_fsync(struct file *file, int datasync)
+static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -1120,6 +1129,11 @@ static int ceph_dir_fsync(struct file *file, int datasync)
 	int ret = 0;
 
 	dout("dir_fsync %p\n", inode);
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	spin_lock(&ci->i_unsafe_lock);
 	if (list_empty(head))
 		goto out;
@@ -1153,6 +1167,8 @@ static int ceph_dir_fsync(struct file *file, int datasync)
 	} while (req->r_tid < last_tid);
 out:
 	spin_unlock(&ci->i_unsafe_lock);
+	mutex_unlock(&inode->i_mutex);
+
 	return ret;
 }
 

@@ -973,7 +973,7 @@ ce4100_serial_setup(struct serial_private *priv,
 
 static int
 pci_omegapci_setup(struct serial_private *priv,
-		      struct pciserial_board *board,
+		      const struct pciserial_board *board,
 		      struct uart_port *port, int idx)
 {
 	return setup_port(priv, port, 2, idx * 8, 0);
@@ -992,6 +992,15 @@ static int skip_tx_en_setup(struct serial_private *priv,
 			  priv->dev->subsystem_device);
 
 	return pci_default_setup(priv, board, port, idx);
+}
+
+static int pci_eg20t_init(struct pci_dev *dev)
+{
+#if defined(CONFIG_SERIAL_PCH_UART) || defined(CONFIG_SERIAL_PCH_UART_MODULE)
+	return -ENODEV;
+#else
+	return 0;
+#endif
 }
 
 /* This should be in linux/pci_ids.h */
@@ -1445,6 +1454,56 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice		= PCI_ANY_ID,
 		.init			= pci_oxsemi_tornado_init,
 		.setup		= pci_default_setup,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8811,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8812,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8813,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = PCI_VENDOR_ID_INTEL,
+		.device         = 0x8814,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x8027,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x8028,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x8029,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x800C,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x800D,
+		.init		= pci_eg20t_init,
+	},
+	{
+		.vendor         = 0x10DB,
+		.device         = 0x800D,
+		.init		= pci_eg20t_init,
 	},
 	/*
 	 * Cronyx Omega PCI (PLX-chip based)

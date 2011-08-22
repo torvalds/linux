@@ -450,7 +450,7 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 	 * will not answer to direct packet in unassociated state.
 	 */
 	ieee80211_send_probe_req(sdata, NULL, wk->probe_auth.ssid,
-				 wk->probe_auth.ssid_len, NULL, 0);
+				 wk->probe_auth.ssid_len, NULL, 0, true);
 
 	wk->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
 	run_again(local, wk->timeout);

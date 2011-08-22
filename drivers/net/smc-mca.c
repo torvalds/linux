@@ -42,6 +42,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
@@ -156,7 +157,7 @@ static const struct {
    { 14, 15 }
 };
 
-static const short smc_mca_adapter_ids[] __devinitconst = {
+static short smc_mca_adapter_ids[] __initdata = {
 	0x61c8,
 	0x61c9,
 	0x6fc0,
@@ -168,7 +169,7 @@ static const short smc_mca_adapter_ids[] __devinitconst = {
 	0x0000
 };
 
-static const char *const smc_mca_adapter_names[] __devinitconst = {
+static char *smc_mca_adapter_names[] __initdata = {
 	"SMC Ethercard PLUS Elite/A BNC/AUI (WD8013EP/A)",
 	"SMC Ethercard PLUS Elite/A UTP/AUI (WD8013WP/A)",
 	"WD Ethercard PLUS/A (WD8003E/A or WD8003ET/A)",
@@ -199,7 +200,7 @@ static const struct net_device_ops ultramca_netdev_ops = {
 #endif
 };
 
-static int __devinit ultramca_probe(struct device *gen_dev)
+static int __init ultramca_probe(struct device *gen_dev)
 {
 	unsigned short ioaddr;
 	struct net_device *dev;

@@ -523,7 +523,7 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 		mac->opmode == NL80211_IFTYPE_ADHOC)
 		bw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
-	if ((bw_40 == true) && sgi_40)
+	if (bw_40 && sgi_40)
 		tcb_desc->use_shortgi = true;
 	else if ((bw_40 == false) && sgi_20)
 		tcb_desc->use_shortgi = true;
@@ -888,7 +888,6 @@ int rtl_tx_agg_stop(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_tid_data *tid_data;
 	struct rtl_sta_info *sta_entry = NULL;
 
 	if (sta == NULL)
@@ -906,7 +905,6 @@ int rtl_tx_agg_stop(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	tid_data = &sta_entry->tids[tid];
 	sta_entry->tids[tid].agg.agg_state = RTL_AGG_STOP;
 
 	ieee80211_stop_tx_ba_cb_irqsafe(mac->vif, sta->addr, tid);
@@ -918,7 +916,6 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 		struct ieee80211_sta *sta, u16 tid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_tid_data *tid_data;
 	struct rtl_sta_info *sta_entry = NULL;
 
 	if (sta == NULL)
@@ -936,7 +933,6 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	tid_data = &sta_entry->tids[tid];
 	sta_entry->tids[tid].agg.agg_state = RTL_AGG_OPERATIONAL;
 
 	return 0;

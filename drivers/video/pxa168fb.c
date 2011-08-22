@@ -623,19 +623,21 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IO memory defined\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto failed_put_clk;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no IRQ defined\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto failed_put_clk;
 	}
 
 	info = framebuffer_alloc(sizeof(struct pxa168fb_info), &pdev->dev);
 	if (info == NULL) {
-		clk_put(clk);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto failed_put_clk;
 	}
 
 	/* Initialize private data */
@@ -671,7 +673,7 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	fbi->reg_base = ioremap_nocache(res->start, resource_size(res));
 	if (fbi->reg_base == NULL) {
 		ret = -ENOMEM;
-		goto failed;
+		goto failed_free_info;
 	}
 
 	/*
@@ -683,7 +685,7 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 						&fbi->fb_start_dma, GFP_KERNEL);
 	if (info->screen_base == NULL) {
 		ret = -ENOMEM;
-		goto failed;
+		goto failed_free_info;
 	}
 
 	info->fix.smem_start = (unsigned long)fbi->fb_start_dma;
@@ -772,8 +774,9 @@ failed_free_clk:
 failed_free_fbmem:
 	dma_free_coherent(fbi->dev, info->fix.smem_len,
 			info->screen_base, fbi->fb_start_dma);
-failed:
+failed_free_info:
 	kfree(info);
+failed_put_clk:
 	clk_put(clk);
 
 	dev_err(&pdev->dev, "frame buffer device init failed with %d\n", ret);

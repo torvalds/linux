@@ -43,8 +43,6 @@ struct btrfs_path *btrfs_alloc_path(void)
 {
 	struct btrfs_path *path;
 	path = kmem_cache_zalloc(btrfs_path_cachep, GFP_NOFS);
-	if (path)
-		path->reada = 1;
 	return path;
 }
 
@@ -1224,11 +1222,13 @@ static void reada_for_search(struct btrfs_root *root,
 	u64 search;
 	u64 target;
 	u64 nread = 0;
+	u64 gen;
 	int direction = path->reada;
 	struct extent_buffer *eb;
 	u32 nr;
 	u32 blocksize;
 	u32 nscan = 0;
+	bool map = true;
 
 	if (level != 1)
 		return;
@@ -1250,7 +1250,19 @@ static void reada_for_search(struct btrfs_root *root,
 
 	nritems = btrfs_header_nritems(node);
 	nr = slot;
+	if (node->map_token || path->skip_locking)
+		map = false;
+
 	while (1) {
+		if (map && !node->map_token) {
+			unsigned long offset = btrfs_node_key_ptr_offset(nr);
+			map_private_extent_buffer(node, offset,
+						  sizeof(struct btrfs_key_ptr),
+						  &node->map_token,
+						  &node->kaddr,
+						  &node->map_start,
+						  &node->map_len, KM_USER1);
+		}
 		if (direction < 0) {
 			if (nr == 0)
 				break;
@@ -1268,13 +1280,22 @@ static void reada_for_search(struct btrfs_root *root,
 		search = btrfs_node_blockptr(node, nr);
 		if ((search <= target && target - search <= 65536) ||
 		    (search > target && search - target <= 65536)) {
-			readahead_tree_block(root, search, blocksize,
-				     btrfs_node_ptr_generation(node, nr));
+			gen = btrfs_node_ptr_generation(node, nr);
+			if (map && node->map_token) {
+				unmap_extent_buffer(node, node->map_token,
+						    KM_USER1);
+				node->map_token = NULL;
+			}
+			readahead_tree_block(root, search, blocksize, gen);
 			nread += blocksize;
 		}
 		nscan++;
 		if ((nread > 65536 || nscan > 32))
 			break;
+	}
+	if (map && node->map_token) {
+		unmap_extent_buffer(node, node->map_token, KM_USER1);
+		node->map_token = NULL;
 	}
 }
 
@@ -1648,9 +1669,6 @@ again:
 		}
 cow_done:
 		BUG_ON(!cow && ins_len);
-		if (level != btrfs_header_level(b))
-			WARN_ON(1);
-		level = btrfs_header_level(b);
 
 		p->nodes[level] = b;
 		if (!p->skip_locking)

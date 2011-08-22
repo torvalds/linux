@@ -50,7 +50,7 @@ static const char version[] =
 #ifdef __arm__
 static void write_rreg(u_long base, u_int reg, u_int val)
 {
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NET_RAP\n\t"
 	"str%?h	%0, [%2, #-4]	@ NET_RDP"
 	:
@@ -60,7 +60,7 @@ static void write_rreg(u_long base, u_int reg, u_int val)
 static inline unsigned short read_rreg(u_long base_addr, u_int reg)
 {
 	unsigned short v;
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NET_RAP\n\t"
 	"ldr%?h	%0, [%2, #-4]	@ NET_RDP"
 	: "=r" (v)
@@ -70,7 +70,7 @@ static inline unsigned short read_rreg(u_long base_addr, u_int reg)
 
 static inline void write_ireg(u_long base, u_int reg, u_int val)
 {
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NET_RAP\n\t"
 	"str%?h	%0, [%2, #8]	@ NET_IDP"
 	:
@@ -80,7 +80,7 @@ static inline void write_ireg(u_long base, u_int reg, u_int val)
 static inline unsigned short read_ireg(u_long base_addr, u_int reg)
 {
 	u_short v;
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NAT_RAP\n\t"
 	"ldr%?h	%0, [%2, #8]	@ NET_IDP\n\t"
 	: "=r" (v)
@@ -91,47 +91,48 @@ static inline unsigned short read_ireg(u_long base_addr, u_int reg)
 #define am_writeword(dev,off,val) __raw_writew(val, ISAMEM_BASE + ((off) << 1))
 #define am_readword(dev,off)      __raw_readw(ISAMEM_BASE + ((off) << 1))
 
-static inline void
+static void
 am_writebuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned int length)
 {
 	offset = ISAMEM_BASE + (offset << 1);
 	length = (length + 1) & ~1;
 	if ((int)buf & 2) {
-		__asm__ __volatile__("str%?h	%2, [%0], #4"
+		asm volatile("str%?h	%2, [%0], #4"
 		 : "=&r" (offset) : "0" (offset), "r" (buf[0] | (buf[1] << 8)));
 		buf += 2;
 		length -= 2;
 	}
 	while (length > 8) {
-		unsigned int tmp, tmp2;
-		__asm__ __volatile__(
-			"ldm%?ia	%1!, {%2, %3}\n\t"
+		register unsigned int tmp asm("r2"), tmp2 asm("r3");
+		asm volatile(
+			"ldm%?ia	%0!, {%1, %2}"
+			: "+r" (buf), "=&r" (tmp), "=&r" (tmp2));
+		length -= 8;
+		asm volatile(
+			"str%?h	%1, [%0], #4\n\t"
+			"mov%?	%1, %1, lsr #16\n\t"
+			"str%?h	%1, [%0], #4\n\t"
 			"str%?h	%2, [%0], #4\n\t"
 			"mov%?	%2, %2, lsr #16\n\t"
-			"str%?h	%2, [%0], #4\n\t"
-			"str%?h	%3, [%0], #4\n\t"
-			"mov%?	%3, %3, lsr #16\n\t"
-			"str%?h	%3, [%0], #4"
-		: "=&r" (offset), "=&r" (buf), "=r" (tmp), "=r" (tmp2)
-		: "0" (offset), "1" (buf));
-		length -= 8;
+			"str%?h	%2, [%0], #4"
+		: "+r" (offset), "=&r" (tmp), "=&r" (tmp2));
 	}
 	while (length > 0) {
-		__asm__ __volatile__("str%?h	%2, [%0], #4"
+		asm volatile("str%?h	%2, [%0], #4"
 		 : "=&r" (offset) : "0" (offset), "r" (buf[0] | (buf[1] << 8)));
 		buf += 2;
 		length -= 2;
 	}
 }
 
-static inline void
+static void
 am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned int length)
 {
 	offset = ISAMEM_BASE + (offset << 1);
 	length = (length + 1) & ~1;
 	if ((int)buf & 2) {
 		unsigned int tmp;
-		__asm__ __volatile__(
+		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
 			"str%?b	%2, [%1], #1\n\t"
 			"mov%?	%2, %2, lsr #8\n\t"
@@ -140,12 +141,12 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 		length -= 2;
 	}
 	while (length > 8) {
-		unsigned int tmp, tmp2, tmp3;
-		__asm__ __volatile__(
+		register unsigned int tmp asm("r2"), tmp2 asm("r3"), tmp3;
+		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
+			"ldr%?h	%4, [%0], #4\n\t"
 			"ldr%?h	%3, [%0], #4\n\t"
-			"orr%?	%2, %2, %3, lsl #16\n\t"
-			"ldr%?h	%3, [%0], #4\n\t"
+			"orr%?	%2, %2, %4, lsl #16\n\t"
 			"ldr%?h	%4, [%0], #4\n\t"
 			"orr%?	%3, %3, %4, lsl #16\n\t"
 			"stm%?ia	%1!, {%2, %3}"
@@ -155,7 +156,7 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 	}
 	while (length > 0) {
 		unsigned int tmp;
-		__asm__ __volatile__(
+		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
 			"str%?b	%2, [%1], #1\n\t"
 			"mov%?	%2, %2, lsr #8\n\t"
@@ -196,6 +197,40 @@ am79c961_ramtest(struct net_device *dev, unsigned int val)
 	return errorcount;
 }
 
+static void am79c961_mc_hash(char *addr, u16 *hash)
+{
+	int idx, bit;
+	u32 crc;
+
+	crc = ether_crc_le(ETH_ALEN, addr);
+
+	idx = crc >> 30;
+	bit = (crc >> 26) & 15;
+
+	hash[idx] |= 1 << bit;
+}
+
+static unsigned int am79c961_get_rx_mode(struct net_device *dev, u16 *hash)
+{
+	unsigned int mode = MODE_PORT_10BT;
+
+	if (dev->flags & IFF_PROMISC) {
+		mode |= MODE_PROMISC;
+		memset(hash, 0xff, 4 * sizeof(*hash));
+	} else if (dev->flags & IFF_ALLMULTI) {
+		memset(hash, 0xff, 4 * sizeof(*hash));
+	} else {
+		struct netdev_hw_addr *ha;
+
+		memset(hash, 0, 4 * sizeof(*hash));
+
+		netdev_for_each_mc_addr(ha, dev)
+			am79c961_mc_hash(ha->addr, hash);
+	}
+
+	return mode;
+}
+
 static void
 am79c961_init_for_open(struct net_device *dev)
 {
@@ -203,6 +238,7 @@ am79c961_init_for_open(struct net_device *dev)
 	unsigned long flags;
 	unsigned char *p;
 	u_int hdr_addr, first_free_addr;
+	u16 multi_hash[4], mode = am79c961_get_rx_mode(dev, multi_hash);
 	int i;
 
 	/*
@@ -218,16 +254,12 @@ am79c961_init_for_open(struct net_device *dev)
 	write_ireg (dev->base_addr, 2, 0x0000); /* MODE register selects media */
 
 	for (i = LADRL; i <= LADRH; i++)
-		write_rreg (dev->base_addr, i, 0);
+		write_rreg (dev->base_addr, i, multi_hash[i - LADRL]);
 
 	for (i = PADRL, p = dev->dev_addr; i <= PADRH; i++, p += 2)
 		write_rreg (dev->base_addr, i, p[0] | (p[1] << 8));
 
-	i = MODE_PORT_10BT;
-	if (dev->flags & IFF_PROMISC)
-		i |= MODE_PROMISC;
-
-	write_rreg (dev->base_addr, MODE, i);
+	write_rreg (dev->base_addr, MODE, mode);
 	write_rreg (dev->base_addr, POLLINT, 0);
 	write_rreg (dev->base_addr, SIZERXR, -RX_BUFFERS);
 	write_rreg (dev->base_addr, SIZETXR, -TX_BUFFERS);
@@ -340,21 +372,6 @@ am79c961_close(struct net_device *dev)
 	return 0;
 }
 
-static void am79c961_mc_hash(char *addr, unsigned short *hash)
-{
-	if (addr[0] & 0x01) {
-		int idx, bit;
-		u32 crc;
-
-		crc = ether_crc_le(ETH_ALEN, addr);
-
-		idx = crc >> 30;
-		bit = (crc >> 26) & 15;
-
-		hash[idx] |= 1 << bit;
-	}
-}
-
 /*
  * Set or clear promiscuous/multicast mode filter for this adapter.
  */
@@ -362,23 +379,8 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
-	unsigned short multi_hash[4], mode;
+	u16 multi_hash[4], mode = am79c961_get_rx_mode(dev, multi_hash);
 	int i, stopped;
-
-	mode = MODE_PORT_10BT;
-
-	if (dev->flags & IFF_PROMISC) {
-		mode |= MODE_PROMISC;
-	} else if (dev->flags & IFF_ALLMULTI) {
-		memset(multi_hash, 0xff, sizeof(multi_hash));
-	} else {
-		struct netdev_hw_addr *ha;
-
-		memset(multi_hash, 0x00, sizeof(multi_hash));
-
-		netdev_for_each_mc_addr(ha, dev)
-			am79c961_mc_hash(ha->addr, multi_hash);
-	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
 

@@ -177,7 +177,7 @@ static void service_arp_queue(struct netpoll_info *npi)
 	}
 }
 
-void netpoll_poll_dev(struct net_device *dev)
+static void netpoll_poll_dev(struct net_device *dev)
 {
 	const struct net_device_ops *ops;
 
@@ -208,13 +208,6 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	zap_completion_queue();
 }
-EXPORT_SYMBOL(netpoll_poll_dev);
-
-void netpoll_poll(struct netpoll *np)
-{
-	netpoll_poll_dev(np->dev);
-}
-EXPORT_SYMBOL(netpoll_poll);
 
 static void refill_skbs(void)
 {
@@ -275,7 +268,7 @@ repeat:
 
 	if (!skb) {
 		if (++count < 10) {
-			netpoll_poll(np);
+			netpoll_poll_dev(np->dev);
 			goto repeat;
 		}
 		return NULL;
@@ -336,7 +329,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 			}
 
 			/* tickle device maybe there is some cleanup */
-			netpoll_poll(np);
+			netpoll_poll_dev(np->dev);
 
 			udelay(USEC_PER_POLL);
 		}
@@ -790,6 +783,13 @@ int netpoll_setup(struct netpoll *np)
 		printk(KERN_ERR "%s: %s doesn't exist, aborting.\n",
 		       np->name, np->dev_name);
 		return -ENODEV;
+	}
+
+	if (ndev->master) {
+		printk(KERN_ERR "%s: %s is a slave device, aborting.\n",
+		       np->name, np->dev_name);
+		err = -EBUSY;
+		goto put;
 	}
 
 	if (!netif_running(ndev)) {

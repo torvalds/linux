@@ -1328,6 +1328,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_ep *child_ep, *parent_ep = ctx;
 	struct cpl_pass_accept_req *req = cplhdr(skb);
 	unsigned int hwtid = GET_TID(req);
+	struct neighbour *neigh;
 	struct dst_entry *dst;
 	struct l2t_entry *l2t;
 	struct rtable *rt;
@@ -1364,7 +1365,8 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		goto reject;
 	}
 	dst = &rt->dst;
-	l2t = t3_l2t_get(tdev, dst->neighbour, dst->neighbour->dev);
+	neigh = dst_get_neighbour(dst);
+	l2t = t3_l2t_get(tdev, neigh, neigh->dev);
 	if (!l2t) {
 		printk(KERN_ERR MOD "%s - failed to allocate l2t entry!\n",
 		       __func__);
@@ -1874,10 +1876,11 @@ static int is_loopback_dst(struct iw_cm_id *cm_id)
 
 int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 {
-	int err = 0;
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
+	struct neighbour *neigh;
 	struct iwch_ep *ep;
 	struct rtable *rt;
+	int err = 0;
 
 	if (is_loopback_dst(cm_id)) {
 		err = -ENOSYS;
@@ -1933,9 +1936,10 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	ep->dst = &rt->dst;
 
+	neigh = dst_get_neighbour(ep->dst);
+
 	/* get a l2t entry */
-	ep->l2t = t3_l2t_get(ep->com.tdev, ep->dst->neighbour,
-			     ep->dst->neighbour->dev);
+	ep->l2t = t3_l2t_get(ep->com.tdev, neigh, neigh->dev);
 	if (!ep->l2t) {
 		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
 		err = -ENOMEM;

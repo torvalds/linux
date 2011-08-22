@@ -32,10 +32,10 @@
 struct iwl_priv;
 extern u32 iwl_debug_level;
 
-#define IWL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
-#define IWL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
-#define IWL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
-#define IWL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
+#define IWL_ERR(p, f, a...) dev_err(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_WARN(p, f, a...) dev_warn(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_INFO(p, f, a...) dev_info(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_CRIT(p, f, a...) dev_crit(p->bus.ops->get_dev(&p->bus), f, ## a)
 
 #define iwl_print_hex_error(priv, p, len) 				\
 do {									\
@@ -125,13 +125,13 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 /* 0x00000F00 - 0x00000100 */
 #define IWL_DL_POWER		(1 << 8)
 #define IWL_DL_TEMP		(1 << 9)
-#define IWL_DL_NOTIF		(1 << 10)
+/* reserved (1 << 10) */
 #define IWL_DL_SCAN		(1 << 11)
 /* 0x0000F000 - 0x00001000 */
 #define IWL_DL_ASSOC		(1 << 12)
 #define IWL_DL_DROP		(1 << 13)
-#define IWL_DL_TXPOWER		(1 << 14)
-#define IWL_DL_AP		(1 << 15)
+/* reserved (1 << 14) */
+#define IWL_DL_COEX		(1 << 15)
 /* 0x000F0000 - 0x00010000 */
 #define IWL_DL_FW		(1 << 16)
 #define IWL_DL_RF_KILL		(1 << 17)
@@ -171,12 +171,10 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_DROP(p, f, a...)	IWL_DEBUG(p, IWL_DL_DROP, f, ## a)
 #define IWL_DEBUG_DROP_LIMIT(p, f, a...)	\
 		IWL_DEBUG_LIMIT(p, IWL_DL_DROP, f, ## a)
-#define IWL_DEBUG_AP(p, f, a...)	IWL_DEBUG(p, IWL_DL_AP, f, ## a)
-#define IWL_DEBUG_TXPOWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_TXPOWER, f, ## a)
+#define IWL_DEBUG_COEX(p, f, a...)	IWL_DEBUG(p, IWL_DL_COEX, f, ## a)
 #define IWL_DEBUG_RATE(p, f, a...)	IWL_DEBUG(p, IWL_DL_RATE, f, ## a)
 #define IWL_DEBUG_RATE_LIMIT(p, f, a...)	\
 		IWL_DEBUG_LIMIT(p, IWL_DL_RATE, f, ## a)
-#define IWL_DEBUG_NOTIF(p, f, a...)	IWL_DEBUG(p, IWL_DL_NOTIF, f, ## a)
 #define IWL_DEBUG_ASSOC(p, f, a...)	\
 		IWL_DEBUG(p, IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_ASSOC_LIMIT(p, f, a...)	\

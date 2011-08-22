@@ -133,10 +133,13 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		if (ret < 0)
 			break;
 
-		/* enable beacon early termination */
-		ret = wl1271_acx_bet_enable(wl, true);
-		if (ret < 0)
-			break;
+		/*
+		 * BET has only a minor effect in 5GHz and masks
+		 * channel switch IEs, so we only enable BET on 2.4GHz
+		*/
+		if (wl->band == IEEE80211_BAND_2GHZ)
+			/* enable beacon early termination */
+			ret = wl1271_acx_bet_enable(wl, true);
 
 		if (wl->ps_compl) {
 			complete(wl->ps_compl);
@@ -168,6 +171,36 @@ static void wl1271_event_rssi_trigger(struct wl1271 *wl,
 	wl->last_rssi_event = event;
 }
 
+static void wl1271_stop_ba_event(struct wl1271 *wl, u8 ba_allowed)
+{
+	/* Convert the value to bool */
+	wl->ba_allowed = !!ba_allowed;
+
+	/*
+	 * Return in case:
+	 * there are not BA open or the event indication is to allowed BA
+	 */
+	if ((!wl->ba_rx_bitmap) || (wl->ba_allowed))
+		return;
+
+	ieee80211_stop_rx_ba_session(wl->vif, wl->ba_rx_bitmap, wl->bssid);
+}
+
+static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
+					       u8 enable)
+{
+	if (enable) {
+		/* disable dynamic PS when requested by the firmware */
+		ieee80211_disable_dyn_ps(wl->vif);
+		set_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
+	} else {
+		ieee80211_enable_dyn_ps(wl->vif);
+		clear_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
+		wl1271_recalc_rx_streaming(wl);
+	}
+
+}
+
 static void wl1271_event_mbox_dump(struct event_mailbox *mbox)
 {
 	wl1271_debug(DEBUG_EVENT, "MBOX DUMP:");
@@ -181,6 +214,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	u32 vector;
 	bool beacon_loss = false;
 	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool disconnect_sta = false;
+	unsigned long sta_bitmap = 0;
 
 	wl1271_event_mbox_dump(mbox);
 
@@ -211,14 +246,10 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		}
 	}
 
-	/* disable dynamic PS when requested by the firmware */
 	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
-	    wl->bss_type == BSS_TYPE_STA_BSS) {
-		if (mbox->soft_gemini_sense_info)
-			ieee80211_disable_dyn_ps(wl->vif);
-		else
-			ieee80211_enable_dyn_ps(wl->vif);
-	}
+	    wl->bss_type == BSS_TYPE_STA_BSS)
+		wl12xx_event_soft_gemini_sense(wl,
+					       mbox->soft_gemini_sense_info);
 
 	/*
 	 * The BSS_LOSE_EVENT_ID is only needed while psm (and hence beacon
@@ -252,10 +283,58 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			wl1271_event_rssi_trigger(wl, mbox);
 	}
 
+	if ((vector & BA_SESSION_RX_CONSTRAINT_EVENT_ID) && !is_ap) {
+		wl1271_debug(DEBUG_EVENT, "BA_SESSION_RX_CONSTRAINT_EVENT_ID. "
+			     "ba_allowed = 0x%x", mbox->ba_allowed);
+
+		if (wl->vif)
+			wl1271_stop_ba_event(wl, mbox->ba_allowed);
+	}
+
 	if ((vector & DUMMY_PACKET_EVENT_ID) && !is_ap) {
 		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 		if (wl->vif)
 			wl1271_tx_dummy_packet(wl);
+	}
+
+	/*
+	 * "TX retries exceeded" has a different meaning according to mode.
+	 * In AP mode the offending station is disconnected.
+	 */
+	if ((vector & MAX_TX_RETRY_EVENT_ID) && is_ap) {
+		wl1271_debug(DEBUG_EVENT, "MAX_TX_RETRY_EVENT_ID");
+		sta_bitmap |= le16_to_cpu(mbox->sta_tx_retry_exceeded);
+		disconnect_sta = true;
+	}
+
+	if ((vector & INACTIVE_STA_EVENT_ID) && is_ap) {
+		wl1271_debug(DEBUG_EVENT, "INACTIVE_STA_EVENT_ID");
+		sta_bitmap |= le16_to_cpu(mbox->sta_aging_status);
+		disconnect_sta = true;
+	}
+
+	if (is_ap && disconnect_sta) {
+		u32 num_packets = wl->conf.tx.max_tx_retries;
+		struct ieee80211_sta *sta;
+		const u8 *addr;
+		int h;
+
+		for (h = find_first_bit(&sta_bitmap, AP_MAX_LINKS);
+		     h < AP_MAX_LINKS;
+		     h = find_next_bit(&sta_bitmap, AP_MAX_LINKS, h+1)) {
+			if (!wl1271_is_active_sta(wl, h))
+				continue;
+
+			addr = wl->links[h].addr;
+
+			rcu_read_lock();
+			sta = ieee80211_find_sta(wl->vif, addr);
+			if (sta) {
+				wl1271_debug(DEBUG_EVENT, "remove sta %d", h);
+				ieee80211_report_low_ack(sta, num_packets);
+			}
+			rcu_read_unlock();
+		}
 	}
 
 	if (wl->vif && beacon_loss)

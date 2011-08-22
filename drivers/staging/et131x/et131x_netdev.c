@@ -97,7 +97,6 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev);
 void et131x_tx_timeout(struct net_device *netdev);
 int et131x_change_mtu(struct net_device *netdev, int new_mtu);
 int et131x_set_mac_addr(struct net_device *netdev, void *new_mac);
-void et131x_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp);
 void et131x_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
 void et131x_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
 

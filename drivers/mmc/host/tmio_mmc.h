@@ -18,6 +18,7 @@
 
 #include <linux/highmem.h>
 #include <linux/mmc/tmio.h>
+#include <linux/mutex.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 
@@ -52,6 +53,8 @@ struct tmio_mmc_host {
 	void (*set_clk_div)(struct platform_device *host, int state);
 
 	int			pm_error;
+	/* recognise system-wide suspend in runtime PM methods */
+	bool			pm_global;
 
 	/* pio related stuff */
 	struct scatterlist      *sg_ptr;
@@ -73,8 +76,11 @@ struct tmio_mmc_host {
 
 	/* Track lost interrupts */
 	struct delayed_work	delayed_reset_work;
-	spinlock_t		lock;
+	struct work_struct	done;
+
+	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
+	struct mutex		ios_lock;	/* protect set_ios() context */
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
@@ -103,11 +109,16 @@ static inline void tmio_mmc_kunmap_atomic(struct scatterlist *sg,
 
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 void tmio_mmc_start_dma(struct tmio_mmc_host *host, struct mmc_data *data);
+void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable);
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata);
 void tmio_mmc_release_dma(struct tmio_mmc_host *host);
 #else
 static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
+{
+}
+
+static inline void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 }
 
@@ -133,5 +144,45 @@ int tmio_mmc_host_resume(struct device *dev);
 
 int tmio_mmc_host_runtime_suspend(struct device *dev);
 int tmio_mmc_host_runtime_resume(struct device *dev);
+
+static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
+{
+	return readw(host->ctl + (addr << host->bus_shift));
+}
+
+static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
+		u16 *buf, int count)
+{
+	readsw(host->ctl + (addr << host->bus_shift), buf, count);
+}
+
+static inline u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
+{
+	return readw(host->ctl + (addr << host->bus_shift)) |
+	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
+}
+
+static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
+{
+	/* If there is a hook and it returns non-zero then there
+	 * is an error and the write should be skipped
+	 */
+	if (host->pdata->write16_hook && host->pdata->write16_hook(host, addr))
+		return;
+	writew(val, host->ctl + (addr << host->bus_shift));
+}
+
+static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
+		u16 *buf, int count)
+{
+	writesw(host->ctl + (addr << host->bus_shift), buf, count);
+}
+
+static inline void sd_ctrl_write32(struct tmio_mmc_host *host, int addr, u32 val)
+{
+	writew(val, host->ctl + (addr << host->bus_shift));
+	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
+}
+
 
 #endif

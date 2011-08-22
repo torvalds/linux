@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
+#include <linux/of_pci.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -235,7 +236,7 @@ static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 
 	if (offset >= 0x100)
 		return  PCIBIOS_BAD_REGISTER_NUMBER;
-	np = pci_busdev_to_OF_node(bus, devfn);
+	np = of_pci_find_child_device(bus->dev.of_node, devfn);
 	if (np == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 

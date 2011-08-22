@@ -330,7 +330,7 @@ struct platform_device exynos4_device_ac97 = {
 
 static int exynos4_spdif_cfg_gpio(struct platform_device *pdev)
 {
-	s3c_gpio_cfgpin_range(EXYNOS4_GPC1(0), 2, S3C_GPIO_SFN(3));
+	s3c_gpio_cfgpin_range(EXYNOS4_GPC1(0), 2, S3C_GPIO_SFN(4));
 
 	return 0;
 }

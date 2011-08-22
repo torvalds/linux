@@ -1,5 +1,6 @@
 #ifndef _ACENIC_H_
 #define _ACENIC_H_
+#include <linux/interrupt.h>
 
 
 /*
@@ -664,10 +665,6 @@ struct ace_private
 	struct rx_desc		*rx_mini_ring;
 	struct rx_desc		*rx_return_ring;
 
-#if ACENIC_DO_VLAN
-	struct vlan_group	*vlgrp;
-#endif
-
 	int			tasklet_pending, jumbo;
 	struct tasklet_struct	ace_tasklet;
 
@@ -789,8 +786,5 @@ static void ace_free_descriptors(struct net_device *dev);
 static void ace_init_cleanup(struct net_device *dev);
 static struct net_device_stats *ace_get_stats(struct net_device *dev);
 static int read_eeprom_byte(struct net_device *dev, unsigned long offset);
-#if ACENIC_DO_VLAN
-static void ace_vlan_rx_register(struct net_device *dev, struct vlan_group *grp);
-#endif
 
 #endif /* _ACENIC_H_ */

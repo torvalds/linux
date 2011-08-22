@@ -520,7 +520,8 @@ static void pmic8xxx_kp_close(struct input_dev *dev)
  */
 static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 {
-	const struct pm8xxx_keypad_platform_data *pdata = mfd_get_data(pdev);
+	const struct pm8xxx_keypad_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 	const struct matrix_keymap_data *keymap_data;
 	struct pmic8xxx_kp *kp;
 	int rc;

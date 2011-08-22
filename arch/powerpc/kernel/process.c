@@ -96,6 +96,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 		preempt_enable();
 	}
 }
+EXPORT_SYMBOL_GPL(flush_fp_to_thread);
 
 void enable_kernel_fp(void)
 {
@@ -145,6 +146,7 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 		preempt_enable();
 	}
 }
+EXPORT_SYMBOL_GPL(flush_altivec_to_thread);
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_VSX
@@ -186,6 +188,7 @@ void flush_vsx_to_thread(struct task_struct *tsk)
 		preempt_enable();
 	}
 }
+EXPORT_SYMBOL_GPL(flush_vsx_to_thread);
 #endif /* CONFIG_VSX */
 
 #ifdef CONFIG_SPE
@@ -213,6 +216,7 @@ void flush_spe_to_thread(struct task_struct *tsk)
 #ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
 #endif
+			tsk->thread.spefscr = mfspr(SPRN_SPEFSCR);
 			giveup_spe(tsk);
 		}
 		preempt_enable();

@@ -104,7 +104,6 @@ struct adis16260_state {
 
 int adis16260_set_irq(struct iio_dev *indio_dev, bool enable);
 
-#ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
@@ -115,6 +114,7 @@ int adis16260_set_irq(struct iio_dev *indio_dev, bool enable);
 #define ADIS16260_SCAN_TEMP	3
 #define ADIS16260_SCAN_ANGL	4
 
+#ifdef CONFIG_IIO_RING_BUFFER
 void adis16260_remove_trigger(struct iio_dev *indio_dev);
 int adis16260_probe_trigger(struct iio_dev *indio_dev);
 

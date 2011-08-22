@@ -12,22 +12,24 @@
 TRACE_EVENT(net_dev_xmit,
 
 	TP_PROTO(struct sk_buff *skb,
-		 int rc),
+		 int rc,
+		 struct net_device *dev,
+		 unsigned int skb_len),
 
-	TP_ARGS(skb, rc),
+	TP_ARGS(skb, rc, dev, skb_len),
 
 	TP_STRUCT__entry(
 		__field(	void *,		skbaddr		)
 		__field(	unsigned int,	len		)
 		__field(	int,		rc		)
-		__string(	name,		skb->dev->name	)
+		__string(	name,		dev->name	)
 	),
 
 	TP_fast_assign(
 		__entry->skbaddr = skb;
-		__entry->len = skb->len;
+		__entry->len = skb_len;
 		__entry->rc = rc;
-		__assign_str(name, skb->dev->name);
+		__assign_str(name, dev->name);
 	),
 
 	TP_printk("dev=%s skbaddr=%p len=%u rc=%d",

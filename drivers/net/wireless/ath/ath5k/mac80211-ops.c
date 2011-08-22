@@ -46,8 +46,6 @@
 #include "base.h"
 #include "reg.h"
 
-extern int ath5k_modparam_nohwcrypt;
-
 /********************\
 * Mac80211 functions *
 \********************/
@@ -296,10 +294,10 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (bss_conf->assoc)
 			sc->assoc = bss_conf->assoc;
 		else
-			sc->assoc = ath_any_vif_assoc(sc);
+			sc->assoc = ath5k_any_vif_assoc(sc);
 
 		if (sc->opmode == NL80211_IFTYPE_STATION)
-			set_beacon_filter(hw, sc->assoc);
+			ath5k_set_beacon_filter(hw, sc->assoc);
 		ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
 			AR5K_LED_ASSOC : AR5K_LED_INIT);
 		if (bss_conf->assoc) {
@@ -350,7 +348,7 @@ ath5k_prepare_multicast(struct ieee80211_hw *hw,
 		mfilt[pos / 32] |= (1 << (pos % 32));
 		/* XXX: we might be able to just do this instead,
 		* but not sure, needs testing, if we do use this we'd
-		* neet to inform below to not reset the mcast */
+		* need to inform below not to reset the mcast */
 		/* ath5k_hw_set_mcast_filterindex(ah,
 		 *      ha->addr[5]); */
 	}
@@ -473,7 +471,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	if (iter_data.n_stas > 1) {
 		/* If you have multiple STA interfaces connected to
 		 * different APs, ARPs are not received (most of the time?)
-		 * Enabling PROMISC appears to fix that probem.
+		 * Enabling PROMISC appears to fix that problem.
 		 */
 		rfilt |= AR5K_RX_FILTER_PROM;
 	}

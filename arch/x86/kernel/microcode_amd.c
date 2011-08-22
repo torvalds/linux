@@ -66,8 +66,8 @@ struct microcode_amd {
 	unsigned int			mpb[0];
 };
 
-#define UCODE_CONTAINER_SECTION_HDR	8
-#define UCODE_CONTAINER_HEADER_SIZE	12
+#define SECTION_HDR_SIZE	8
+#define CONTAINER_HDR_SZ	12
 
 static struct equiv_cpu_entry *equiv_cpu_table;
 
@@ -157,7 +157,7 @@ static int apply_microcode_amd(int cpu)
 static unsigned int verify_ucode_size(int cpu, const u8 *buf, unsigned int size)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	unsigned int max_size, actual_size;
+	u32 max_size, actual_size;
 
 #define F1XH_MPB_MAX_SIZE 2048
 #define F14H_MPB_MAX_SIZE 1824
@@ -175,9 +175,9 @@ static unsigned int verify_ucode_size(int cpu, const u8 *buf, unsigned int size)
 		break;
 	}
 
-	actual_size = buf[4] + (buf[5] << 8);
+	actual_size = *(u32 *)(buf + 4);
 
-	if (actual_size > size || actual_size > max_size) {
+	if (actual_size + SECTION_HDR_SIZE > size || actual_size > max_size) {
 		pr_err("section size mismatch\n");
 		return 0;
 	}
@@ -191,7 +191,7 @@ get_next_ucode(int cpu, const u8 *buf, unsigned int size, unsigned int *mc_size)
 	struct microcode_header_amd *mc = NULL;
 	unsigned int actual_size = 0;
 
-	if (buf[0] != UCODE_UCODE_TYPE) {
+	if (*(u32 *)buf != UCODE_UCODE_TYPE) {
 		pr_err("invalid type field in container file section header\n");
 		goto out;
 	}
@@ -204,8 +204,8 @@ get_next_ucode(int cpu, const u8 *buf, unsigned int size, unsigned int *mc_size)
 	if (!mc)
 		goto out;
 
-	get_ucode_data(mc, buf + UCODE_CONTAINER_SECTION_HDR, actual_size);
-	*mc_size = actual_size + UCODE_CONTAINER_SECTION_HDR;
+	get_ucode_data(mc, buf + SECTION_HDR_SIZE, actual_size);
+	*mc_size = actual_size + SECTION_HDR_SIZE;
 
 out:
 	return mc;
@@ -229,9 +229,10 @@ static int install_equiv_cpu_table(const u8 *buf)
 		return -ENOMEM;
 	}
 
-	get_ucode_data(equiv_cpu_table, buf + UCODE_CONTAINER_HEADER_SIZE, size);
+	get_ucode_data(equiv_cpu_table, buf + CONTAINER_HDR_SZ, size);
 
-	return size + UCODE_CONTAINER_HEADER_SIZE; /* add header length */
+	/* add header length */
+	return size + CONTAINER_HDR_SZ;
 }
 
 static void free_equiv_cpu_table(void)

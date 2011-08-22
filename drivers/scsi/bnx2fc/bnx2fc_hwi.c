@@ -100,6 +100,9 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 	fcoe_init2.hdr.flags = (FCOE_KWQE_LAYER_CODE <<
 					FCOE_KWQE_HEADER_LAYER_CODE_SHIFT);
 
+	fcoe_init2.hsi_major_version = FCOE_HSI_MAJOR_VERSION;
+	fcoe_init2.hsi_minor_version = FCOE_HSI_MINOR_VERSION;
+
 	fcoe_init2.hash_tbl_pbl_addr_lo = (u32) hba->hash_tbl_pbl_dma;
 	fcoe_init2.hash_tbl_pbl_addr_hi = (u32)
 					   ((u64) hba->hash_tbl_pbl_dma >> 32);
@@ -122,6 +125,7 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 	fcoe_init3.error_bit_map_lo = 0xffffffff;
 	fcoe_init3.error_bit_map_hi = 0xffffffff;
 
+	fcoe_init3.perf_config = 1;
 
 	kwqe_arr[0] = (struct kwqe *) &fcoe_init1;
 	kwqe_arr[1] = (struct kwqe *) &fcoe_init2;
@@ -289,19 +293,19 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 	ofld_req4.e_d_tov_timer_val = lport->e_d_tov / 20;
 
 
-	ofld_req4.src_mac_addr_lo32[0] =  port->data_src_addr[5];
+	ofld_req4.src_mac_addr_lo[0] =  port->data_src_addr[5];
 							/* local mac */
-	ofld_req4.src_mac_addr_lo32[1] =  port->data_src_addr[4];
-	ofld_req4.src_mac_addr_lo32[2] =  port->data_src_addr[3];
-	ofld_req4.src_mac_addr_lo32[3] =  port->data_src_addr[2];
-	ofld_req4.src_mac_addr_hi16[0] =  port->data_src_addr[1];
-	ofld_req4.src_mac_addr_hi16[1] =  port->data_src_addr[0];
-	ofld_req4.dst_mac_addr_lo32[0] =  hba->ctlr.dest_addr[5];/* fcf mac */
-	ofld_req4.dst_mac_addr_lo32[1] =  hba->ctlr.dest_addr[4];
-	ofld_req4.dst_mac_addr_lo32[2] =  hba->ctlr.dest_addr[3];
-	ofld_req4.dst_mac_addr_lo32[3] =  hba->ctlr.dest_addr[2];
-	ofld_req4.dst_mac_addr_hi16[0] =  hba->ctlr.dest_addr[1];
-	ofld_req4.dst_mac_addr_hi16[1] =  hba->ctlr.dest_addr[0];
+	ofld_req4.src_mac_addr_lo[1] =  port->data_src_addr[4];
+	ofld_req4.src_mac_addr_mid[0] =  port->data_src_addr[3];
+	ofld_req4.src_mac_addr_mid[1] =  port->data_src_addr[2];
+	ofld_req4.src_mac_addr_hi[0] =  port->data_src_addr[1];
+	ofld_req4.src_mac_addr_hi[1] =  port->data_src_addr[0];
+	ofld_req4.dst_mac_addr_lo[0] =  hba->ctlr.dest_addr[5];/* fcf mac */
+	ofld_req4.dst_mac_addr_lo[1] =  hba->ctlr.dest_addr[4];
+	ofld_req4.dst_mac_addr_mid[0] =  hba->ctlr.dest_addr[3];
+	ofld_req4.dst_mac_addr_mid[1] =  hba->ctlr.dest_addr[2];
+	ofld_req4.dst_mac_addr_hi[0] =  hba->ctlr.dest_addr[1];
+	ofld_req4.dst_mac_addr_hi[1] =  hba->ctlr.dest_addr[0];
 
 	ofld_req4.lcq_addr_lo = (u32) tgt->lcq_dma;
 	ofld_req4.lcq_addr_hi = (u32)((u64) tgt->lcq_dma >> 32);
@@ -345,20 +349,21 @@ static int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 	enbl_req.hdr.flags =
 		(FCOE_KWQE_LAYER_CODE << FCOE_KWQE_HEADER_LAYER_CODE_SHIFT);
 
-	enbl_req.src_mac_addr_lo32[0] =  port->data_src_addr[5];
+	enbl_req.src_mac_addr_lo[0] =  port->data_src_addr[5];
 							/* local mac */
-	enbl_req.src_mac_addr_lo32[1] =  port->data_src_addr[4];
-	enbl_req.src_mac_addr_lo32[2] =  port->data_src_addr[3];
-	enbl_req.src_mac_addr_lo32[3] =  port->data_src_addr[2];
-	enbl_req.src_mac_addr_hi16[0] =  port->data_src_addr[1];
-	enbl_req.src_mac_addr_hi16[1] =  port->data_src_addr[0];
+	enbl_req.src_mac_addr_lo[1] =  port->data_src_addr[4];
+	enbl_req.src_mac_addr_mid[0] =  port->data_src_addr[3];
+	enbl_req.src_mac_addr_mid[1] =  port->data_src_addr[2];
+	enbl_req.src_mac_addr_hi[0] =  port->data_src_addr[1];
+	enbl_req.src_mac_addr_hi[1] =  port->data_src_addr[0];
+	memcpy(tgt->src_addr, port->data_src_addr, ETH_ALEN);
 
-	enbl_req.dst_mac_addr_lo32[0] =  hba->ctlr.dest_addr[5];/* fcf mac */
-	enbl_req.dst_mac_addr_lo32[1] =  hba->ctlr.dest_addr[4];
-	enbl_req.dst_mac_addr_lo32[2] =  hba->ctlr.dest_addr[3];
-	enbl_req.dst_mac_addr_lo32[3] =  hba->ctlr.dest_addr[2];
-	enbl_req.dst_mac_addr_hi16[0] =  hba->ctlr.dest_addr[1];
-	enbl_req.dst_mac_addr_hi16[1] =  hba->ctlr.dest_addr[0];
+	enbl_req.dst_mac_addr_lo[0] =  hba->ctlr.dest_addr[5];/* fcf mac */
+	enbl_req.dst_mac_addr_lo[1] =  hba->ctlr.dest_addr[4];
+	enbl_req.dst_mac_addr_mid[0] =  hba->ctlr.dest_addr[3];
+	enbl_req.dst_mac_addr_mid[1] =  hba->ctlr.dest_addr[2];
+	enbl_req.dst_mac_addr_hi[0] =  hba->ctlr.dest_addr[1];
+	enbl_req.dst_mac_addr_hi[1] =  hba->ctlr.dest_addr[0];
 
 	port_id = fc_host_port_id(lport->host);
 	if (port_id != tgt->sid) {
@@ -411,18 +416,19 @@ int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 	disable_req.hdr.flags =
 		(FCOE_KWQE_LAYER_CODE << FCOE_KWQE_HEADER_LAYER_CODE_SHIFT);
 
-	disable_req.src_mac_addr_lo32[0] =  port->data_src_addr[5];
-	disable_req.src_mac_addr_lo32[2] =  port->data_src_addr[3];
-	disable_req.src_mac_addr_lo32[3] =  port->data_src_addr[2];
-	disable_req.src_mac_addr_hi16[0] =  port->data_src_addr[1];
-	disable_req.src_mac_addr_hi16[1] =  port->data_src_addr[0];
+	disable_req.src_mac_addr_lo[0] =  tgt->src_addr[5];
+	disable_req.src_mac_addr_lo[1] =  tgt->src_addr[4];
+	disable_req.src_mac_addr_mid[0] =  tgt->src_addr[3];
+	disable_req.src_mac_addr_mid[1] =  tgt->src_addr[2];
+	disable_req.src_mac_addr_hi[0] =  tgt->src_addr[1];
+	disable_req.src_mac_addr_hi[1] =  tgt->src_addr[0];
 
-	disable_req.dst_mac_addr_lo32[0] =  hba->ctlr.dest_addr[5];/* fcf mac */
-	disable_req.dst_mac_addr_lo32[1] =  hba->ctlr.dest_addr[4];
-	disable_req.dst_mac_addr_lo32[2] =  hba->ctlr.dest_addr[3];
-	disable_req.dst_mac_addr_lo32[3] =  hba->ctlr.dest_addr[2];
-	disable_req.dst_mac_addr_hi16[0] =  hba->ctlr.dest_addr[1];
-	disable_req.dst_mac_addr_hi16[1] =  hba->ctlr.dest_addr[0];
+	disable_req.dst_mac_addr_lo[0] =  hba->ctlr.dest_addr[5];/* fcf mac */
+	disable_req.dst_mac_addr_lo[1] =  hba->ctlr.dest_addr[4];
+	disable_req.dst_mac_addr_mid[0] =  hba->ctlr.dest_addr[3];
+	disable_req.dst_mac_addr_mid[1] =  hba->ctlr.dest_addr[2];
+	disable_req.dst_mac_addr_hi[0] =  hba->ctlr.dest_addr[1];
+	disable_req.dst_mac_addr_hi[1] =  hba->ctlr.dest_addr[0];
 
 	port_id = tgt->sid;
 	disable_req.s_id[0] = (port_id & 0x000000FF);
@@ -480,16 +486,36 @@ int bnx2fc_send_session_destroy_req(struct bnx2fc_hba *hba,
 	return rc;
 }
 
+static bool is_valid_lport(struct bnx2fc_hba *hba, struct fc_lport *lport)
+{
+	struct bnx2fc_lport *blport;
+
+	spin_lock_bh(&hba->hba_lock);
+	list_for_each_entry(blport, &hba->vports, list) {
+		if (blport->lport == lport) {
+			spin_unlock_bh(&hba->hba_lock);
+			return true;
+		}
+	}
+	spin_unlock_bh(&hba->hba_lock);
+	return false;
+
+}
+
+
 static void bnx2fc_unsol_els_work(struct work_struct *work)
 {
 	struct bnx2fc_unsol_els *unsol_els;
 	struct fc_lport *lport;
+	struct bnx2fc_hba *hba;
 	struct fc_frame *fp;
 
 	unsol_els = container_of(work, struct bnx2fc_unsol_els, unsol_els_work);
 	lport = unsol_els->lport;
 	fp = unsol_els->fp;
-	fc_exch_recv(lport, fp);
+	hba = unsol_els->hba;
+	if (is_valid_lport(hba, lport))
+		fc_exch_recv(lport, fp);
 	kfree(unsol_els);
 }
 
@@ -499,6 +525,7 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 {
 	struct fcoe_port *port = tgt->port;
 	struct fc_lport *lport = port->lport;
+	struct bnx2fc_hba *hba = port->priv;
 	struct bnx2fc_unsol_els *unsol_els;
 	struct fc_frame_header *fh;
 	struct fc_frame *fp;
@@ -559,6 +586,7 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 		fr_eof(fp) = FC_EOF_T;
 		fr_crc(fp) = cpu_to_le32(~crc);
 		unsol_els->lport = lport;
+		unsol_els->hba = hba;
 		unsol_els->fp = fp;
 		INIT_WORK(&unsol_els->unsol_els_work, bnx2fc_unsol_els_work);
 		queue_work(bnx2fc_wq, &unsol_els->unsol_els_work);
@@ -640,10 +668,10 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		xid = err_entry->fc_hdr.ox_id;
 		BNX2FC_TGT_DBG(tgt, "Unsol Error Frame OX_ID = 0x%x\n", xid);
 		BNX2FC_TGT_DBG(tgt, "err_warn_bitmap = %08x:%08x\n",
-			err_entry->err_warn_bitmap_hi,
-			err_entry->err_warn_bitmap_lo);
+			err_entry->data.err_warn_bitmap_hi,
+			err_entry->data.err_warn_bitmap_lo);
 		BNX2FC_TGT_DBG(tgt, "buf_offsets - tx = 0x%x, rx = 0x%x\n",
-			err_entry->tx_buf_off, err_entry->rx_buf_off);
+			err_entry->data.tx_buf_off, err_entry->data.rx_buf_off);
 
 		bnx2fc_return_rqe(tgt, 1);
 
@@ -722,10 +750,10 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		xid = cpu_to_be16(err_entry->fc_hdr.ox_id);
 		BNX2FC_TGT_DBG(tgt, "Unsol Warning Frame OX_ID = 0x%x\n", xid);
 		BNX2FC_TGT_DBG(tgt, "err_warn_bitmap = %08x:%08x",
-			err_entry->err_warn_bitmap_hi,
-			err_entry->err_warn_bitmap_lo);
+			err_entry->data.err_warn_bitmap_hi,
+			err_entry->data.err_warn_bitmap_lo);
 		BNX2FC_TGT_DBG(tgt, "buf_offsets - tx = 0x%x, rx = 0x%x",
-			err_entry->tx_buf_off, err_entry->rx_buf_off);
+			err_entry->data.tx_buf_off, err_entry->data.rx_buf_off);
 
 		bnx2fc_return_rqe(tgt, 1);
 		spin_unlock_bh(&tgt->tgt_lock);
@@ -762,9 +790,9 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 	task_page = (struct fcoe_task_ctx_entry *)hba->task_ctx[task_idx];
 	task = &(task_page[index]);
 
-	num_rq = ((task->rx_wr_tx_rd.rx_flags &
-		   FCOE_TASK_CTX_ENTRY_RXWR_TXRD_NUM_RQ_WQE) >>
-		   FCOE_TASK_CTX_ENTRY_RXWR_TXRD_NUM_RQ_WQE_SHIFT);
+	num_rq = ((task->rxwr_txrd.var_ctx.rx_flags &
+		   FCOE_TCE_RX_WR_TX_RD_VAR_NUM_RQ_WQE) >>
+		   FCOE_TCE_RX_WR_TX_RD_VAR_NUM_RQ_WQE_SHIFT);
 
 	io_req = (struct bnx2fc_cmd *)hba->cmd_mgr->cmds[xid];
 
@@ -777,22 +805,19 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 	/* Timestamp IO completion time */
 	cmd_type = io_req->cmd_type;
 
-	/* optimized completion path */
-	if (cmd_type == BNX2FC_SCSI_CMD) {
-		rx_state = ((task->rx_wr_tx_rd.rx_flags &
-			    FCOE_TASK_CTX_ENTRY_RXWR_TXRD_RX_STATE) >>
-			    FCOE_TASK_CTX_ENTRY_RXWR_TXRD_RX_STATE_SHIFT);
+	rx_state = ((task->rxwr_txrd.var_ctx.rx_flags &
+		    FCOE_TCE_RX_WR_TX_RD_VAR_RX_STATE) >>
+		    FCOE_TCE_RX_WR_TX_RD_VAR_RX_STATE_SHIFT);
 
+	/* Process other IO completion types */
+	switch (cmd_type) {
+	case BNX2FC_SCSI_CMD:
 		if (rx_state == FCOE_TASK_RX_STATE_COMPLETED) {
 			bnx2fc_process_scsi_cmd_compl(io_req, task, num_rq);
 			spin_unlock_bh(&tgt->tgt_lock);
 			return;
 		}
-	}
 
-	/* Process other IO completion types */
-	switch (cmd_type) {
-	case BNX2FC_SCSI_CMD:
 		if (rx_state == FCOE_TASK_RX_STATE_ABTS_COMPLETED)
 			bnx2fc_process_abts_compl(io_req, task, num_rq);
 		else if (rx_state ==
@@ -819,8 +844,16 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		break;
 
 	case BNX2FC_ELS:
-		BNX2FC_IO_DBG(io_req, "cq_compl - call process_els_compl\n");
-		bnx2fc_process_els_compl(io_req, task, num_rq);
+		if (rx_state == FCOE_TASK_RX_STATE_COMPLETED)
+			bnx2fc_process_els_compl(io_req, task, num_rq);
+		else if (rx_state == FCOE_TASK_RX_STATE_ABTS_COMPLETED)
+			bnx2fc_process_abts_compl(io_req, task, num_rq);
+		else if (rx_state ==
+			 FCOE_TASK_RX_STATE_EXCHANGE_CLEANUP_COMPLETED)
+			bnx2fc_process_cleanup_compl(io_req, task, num_rq);
+		else
+			printk(KERN_ERR PFX "Invalid rx state =  %d\n",
+				rx_state);
 		break;
 
 	case BNX2FC_CLEANUP:
@@ -833,6 +866,20 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		break;
 	}
 	spin_unlock_bh(&tgt->tgt_lock);
+}
+
+void bnx2fc_arm_cq(struct bnx2fc_rport *tgt)
+{
+	struct b577xx_fcoe_rx_doorbell *rx_db = &tgt->rx_db;
+	u32 msg;
+
+	wmb();
+	rx_db->doorbell_cq_cons = tgt->cq_cons_idx | (tgt->cq_curr_toggle_bit <<
+			FCOE_CQE_TOGGLE_BIT_SHIFT);
+	msg = *((u32 *)rx_db);
+	writel(cpu_to_le32(msg), tgt->ctx_base);
+	mmiowb();
+
 }
 
 struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe)
@@ -853,8 +900,8 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 	struct fcoe_cqe *cq;
 	u32 cq_cons;
 	struct fcoe_cqe *cqe;
+	u32 num_free_sqes = 0;
 	u16 wqe;
-	bool more_cqes_found = false;
 
 	/*
 	 * cq_lock is a low contention lock used to protect
@@ -872,62 +919,51 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 	cq_cons = tgt->cq_cons_idx;
 	cqe = &cq[cq_cons];
 
-	do {
-		more_cqes_found ^= true;
+	while (((wqe = cqe->wqe) & FCOE_CQE_TOGGLE_BIT) ==
+	       (tgt->cq_curr_toggle_bit <<
+	       FCOE_CQE_TOGGLE_BIT_SHIFT)) {
 
-		while (((wqe = cqe->wqe) & FCOE_CQE_TOGGLE_BIT) ==
-		       (tgt->cq_curr_toggle_bit <<
-		       FCOE_CQE_TOGGLE_BIT_SHIFT)) {
+		/* new entry on the cq */
+		if (wqe & FCOE_CQE_CQE_TYPE) {
+			/* Unsolicited event notification */
+			bnx2fc_process_unsol_compl(tgt, wqe);
+		} else {
+			/* Pending work request completion */
+			struct bnx2fc_work *work = NULL;
+			struct bnx2fc_percpu_s *fps = NULL;
+			unsigned int cpu = wqe % num_possible_cpus();
 
-			/* new entry on the cq */
-			if (wqe & FCOE_CQE_CQE_TYPE) {
-				/* Unsolicited event notification */
-				bnx2fc_process_unsol_compl(tgt, wqe);
-			} else {
-				struct bnx2fc_work *work = NULL;
-				struct bnx2fc_percpu_s *fps = NULL;
-				unsigned int cpu = wqe % num_possible_cpus();
+			fps = &per_cpu(bnx2fc_percpu, cpu);
+			spin_lock_bh(&fps->fp_work_lock);
+			if (unlikely(!fps->iothread))
+				goto unlock;
 
-				fps = &per_cpu(bnx2fc_percpu, cpu);
-				spin_lock_bh(&fps->fp_work_lock);
-				if (unlikely(!fps->iothread))
-					goto unlock;
-
-				work = bnx2fc_alloc_work(tgt, wqe);
-				if (work)
-					list_add_tail(&work->list,
-							&fps->work_list);
+			work = bnx2fc_alloc_work(tgt, wqe);
+			if (work)
+				list_add_tail(&work->list,
+					      &fps->work_list);
 unlock:
-				spin_unlock_bh(&fps->fp_work_lock);
+			spin_unlock_bh(&fps->fp_work_lock);
 
-				/* Pending work request completion */
-				if (fps->iothread && work)
-					wake_up_process(fps->iothread);
-				else
-					bnx2fc_process_cq_compl(tgt, wqe);
-			}
-			cqe++;
-			tgt->cq_cons_idx++;
-
-			if (tgt->cq_cons_idx == BNX2FC_CQ_WQES_MAX) {
-				tgt->cq_cons_idx = 0;
-				cqe = cq;
-				tgt->cq_curr_toggle_bit =
-					1 - tgt->cq_curr_toggle_bit;
-			}
+			/* Pending work request completion */
+			if (fps->iothread && work)
+				wake_up_process(fps->iothread);
+			else
+				bnx2fc_process_cq_compl(tgt, wqe);
 		}
-		/* Re-arm CQ */
-		if (more_cqes_found) {
-			tgt->conn_db->cq_arm.lo = -1;
-			wmb();
+		cqe++;
+		tgt->cq_cons_idx++;
+		num_free_sqes++;
+
+		if (tgt->cq_cons_idx == BNX2FC_CQ_WQES_MAX) {
+			tgt->cq_cons_idx = 0;
+			cqe = cq;
+			tgt->cq_curr_toggle_bit =
+				1 - tgt->cq_curr_toggle_bit;
 		}
-	} while (more_cqes_found);
-
-	/*
-	 * Commit tgt->cq_cons_idx change to the memory
-	 * spin_lock implies full memory barrier, no need to smp_wmb
-	 */
-
+	}
+	bnx2fc_arm_cq(tgt);
+	atomic_add(num_free_sqes, &tgt->free_sqes);
 	spin_unlock_bh(&tgt->cq_lock);
 	return 0;
 }
@@ -1141,7 +1177,11 @@ static void bnx2fc_init_failure(struct bnx2fc_hba *hba, u32 err_code)
 	case FCOE_KCQE_COMPLETION_STATUS_NIC_ERROR:
 		printk(KERN_ERR PFX "init_failure due to NIC error\n");
 		break;
-
+	case FCOE_KCQE_COMPLETION_STATUS_ERROR:
+		printk(KERN_ERR PFX "init failure due to compl status err\n");
+		break;
+	case FCOE_KCQE_COMPLETION_STATUS_WRONG_HSI_VERSION:
+		printk(KERN_ERR PFX "init failure due to HSI mismatch\n");
 	default:
 		printk(KERN_ERR PFX "Unknown Error code %d\n", err_code);
 	}
@@ -1247,21 +1287,14 @@ void bnx2fc_add_2_sq(struct bnx2fc_rport *tgt, u16 xid)
 
 void bnx2fc_ring_doorbell(struct bnx2fc_rport *tgt)
 {
-	struct b577xx_doorbell_set_prod ev_doorbell;
+	struct b577xx_doorbell_set_prod *sq_db = &tgt->sq_db;
 	u32 msg;
 
 	wmb();
-
-	memset(&ev_doorbell, 0, sizeof(struct b577xx_doorbell_set_prod));
-	ev_doorbell.header.header = B577XX_DOORBELL_HDR_DB_TYPE;
-
-	ev_doorbell.prod = tgt->sq_prod_idx |
+	sq_db->prod = tgt->sq_prod_idx |
 				(tgt->sq_curr_toggle_bit << 15);
-	ev_doorbell.header.header |= B577XX_FCOE_CONNECTION_TYPE <<
-					B577XX_DOORBELL_HDR_CONN_TYPE_SHIFT;
-	msg = *((u32 *)&ev_doorbell);
+	msg = *((u32 *)sq_db);
 	writel(cpu_to_le32(msg), tgt->ctx_base);
-
 	mmiowb();
 
 }
@@ -1322,18 +1355,26 @@ void bnx2fc_init_cleanup_task(struct bnx2fc_cmd *io_req,
 	memset(task, 0, sizeof(struct fcoe_task_ctx_entry));
 
 	/* Tx Write Rx Read */
-	task->tx_wr_rx_rd.tx_flags = FCOE_TASK_TX_STATE_EXCHANGE_CLEANUP <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_TX_STATE_SHIFT;
-	task->tx_wr_rx_rd.init_flags = task_type <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_TASK_TYPE_SHIFT;
-	task->tx_wr_rx_rd.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_CLASS_TYPE_SHIFT;
-	/* Common */
-	task->cmn.common_flags = context_id <<
-				FCOE_TASK_CTX_ENTRY_TX_RX_CMN_CID_SHIFT;
-	task->cmn.general.cleanup_info.task_id = orig_xid;
+	/* init flags */
+	task->txwr_rxrd.const_ctx.init_flags = task_type <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TASK_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_CLASS_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |=
+				FCOE_TASK_DEV_TYPE_DISK <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;
+	task->txwr_rxrd.union_ctx.cleanup.ctx.cleaned_task_id = orig_xid;
 
+	/* Tx flags */
+	task->txwr_rxrd.const_ctx.tx_flags =
+				FCOE_TASK_TX_STATE_EXCHANGE_CLEANUP <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TX_STATE_SHIFT;
 
+	/* Rx Read Tx Write */
+	task->rxwr_txrd.const_ctx.init_flags = context_id <<
+				FCOE_TCE_RX_WR_TX_RD_CONST_CID_SHIFT;
+	task->rxwr_txrd.var_ctx.rx_flags |= 1 <<
+				FCOE_TCE_RX_WR_TX_RD_VAR_EXP_FIRST_FRAME_SHIFT;
 }
 
 void bnx2fc_init_mp_task(struct bnx2fc_cmd *io_req,
@@ -1342,6 +1383,7 @@ void bnx2fc_init_mp_task(struct bnx2fc_cmd *io_req,
 	struct bnx2fc_mp_req *mp_req = &(io_req->mp_req);
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct fc_frame_header *fc_hdr;
+	struct fcoe_ext_mul_sges_ctx *sgl;
 	u8 task_type = 0;
 	u64 *hdr;
 	u64 temp_hdr[3];
@@ -1367,47 +1409,49 @@ void bnx2fc_init_mp_task(struct bnx2fc_cmd *io_req,
 	/* Tx only */
 	if ((task_type == FCOE_TASK_TYPE_MIDPATH) ||
 	    (task_type == FCOE_TASK_TYPE_UNSOLICITED)) {
-		task->tx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.lo =
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_addr.lo =
 				(u32)mp_req->mp_req_bd_dma;
-		task->tx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.hi =
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_addr.hi =
 				(u32)((u64)mp_req->mp_req_bd_dma >> 32);
-		task->tx_wr_only.sgl_ctx.mul_sges.sgl_size = 1;
-		BNX2FC_IO_DBG(io_req, "init_mp_task - bd_dma = 0x%llx\n",
-			      (unsigned long long)mp_req->mp_req_bd_dma);
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.sgl_size = 1;
 	}
 
 	/* Tx Write Rx Read */
-	task->tx_wr_rx_rd.tx_flags = FCOE_TASK_TX_STATE_INIT <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_TX_STATE_SHIFT;
-	task->tx_wr_rx_rd.init_flags = task_type <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_TASK_TYPE_SHIFT;
-	task->tx_wr_rx_rd.init_flags |= FCOE_TASK_DEV_TYPE_DISK <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_DEV_TYPE_SHIFT;
-	task->tx_wr_rx_rd.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_CLASS_TYPE_SHIFT;
+	/* init flags */
+	task->txwr_rxrd.const_ctx.init_flags = task_type <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TASK_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |=
+				FCOE_TASK_DEV_TYPE_DISK <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_CLASS_TYPE_SHIFT;
 
-	/* Common */
-	task->cmn.data_2_trns = io_req->data_xfer_len;
-	context_id = tgt->context_id;
-	task->cmn.common_flags = context_id <<
-				FCOE_TASK_CTX_ENTRY_TX_RX_CMN_CID_SHIFT;
-	task->cmn.common_flags |= 1 <<
-				FCOE_TASK_CTX_ENTRY_TX_RX_CMN_VALID_SHIFT;
-	task->cmn.common_flags |= 1 <<
-			FCOE_TASK_CTX_ENTRY_TX_RX_CMN_EXP_FIRST_FRAME_SHIFT;
+	/* tx flags */
+	task->txwr_rxrd.const_ctx.tx_flags = FCOE_TASK_TX_STATE_INIT <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TX_STATE_SHIFT;
 
 	/* Rx Write Tx Read */
+	task->rxwr_txrd.const_ctx.data_2_trns = io_req->data_xfer_len;
+
+	/* rx flags */
+	task->rxwr_txrd.var_ctx.rx_flags |= 1 <<
+				FCOE_TCE_RX_WR_TX_RD_VAR_EXP_FIRST_FRAME_SHIFT;
+
+	context_id = tgt->context_id;
+	task->rxwr_txrd.const_ctx.init_flags = context_id <<
+				FCOE_TCE_RX_WR_TX_RD_CONST_CID_SHIFT;
+
 	fc_hdr = &(mp_req->req_fc_hdr);
 	if (task_type == FCOE_TASK_TYPE_MIDPATH) {
 		fc_hdr->fh_ox_id = cpu_to_be16(io_req->xid);
 		fc_hdr->fh_rx_id = htons(0xffff);
-		task->rx_wr_tx_rd.rx_id = 0xffff;
+		task->rxwr_txrd.var_ctx.rx_id = 0xffff;
 	} else if (task_type == FCOE_TASK_TYPE_UNSOLICITED) {
 		fc_hdr->fh_rx_id = cpu_to_be16(io_req->xid);
 	}
 
 	/* Fill FC Header into middle path buffer */
-	hdr = (u64 *) &task->cmn.general.cmd_info.mp_fc_frame.fc_hdr;
+	hdr = (u64 *) &task->txwr_rxrd.union_ctx.tx_frame.fc_hdr;
 	memcpy(temp_hdr, fc_hdr, sizeof(temp_hdr));
 	hdr[0] = cpu_to_be64(temp_hdr[0]);
 	hdr[1] = cpu_to_be64(temp_hdr[1]);
@@ -1415,12 +1459,12 @@ void bnx2fc_init_mp_task(struct bnx2fc_cmd *io_req,
 
 	/* Rx Only */
 	if (task_type == FCOE_TASK_TYPE_MIDPATH) {
+		sgl = &task->rxwr_only.union_ctx.read_info.sgl_ctx.sgl;
 
-		task->rx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.lo =
-				(u32)mp_req->mp_resp_bd_dma;
-		task->rx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.hi =
+		sgl->mul_sgl.cur_sge_addr.lo = (u32)mp_req->mp_resp_bd_dma;
+		sgl->mul_sgl.cur_sge_addr.hi =
 				(u32)((u64)mp_req->mp_resp_bd_dma >> 32);
-		task->rx_wr_only.sgl_ctx.mul_sges.sgl_size = 1;
+		sgl->mul_sgl.sgl_size = 1;
 	}
 }
 
@@ -1431,6 +1475,8 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	struct io_bdt *bd_tbl = io_req->bd_tbl;
 	struct bnx2fc_rport *tgt = io_req->tgt;
+	struct fcoe_cached_sge_ctx *cached_sge;
+	struct fcoe_ext_mul_sges_ctx *sgl;
 	u64 *fcp_cmnd;
 	u64 tmp_fcp_cmnd[4];
 	u32 context_id;
@@ -1449,47 +1495,33 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 
 	/* Tx only */
 	if (task_type == FCOE_TASK_TYPE_WRITE) {
-		task->tx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.lo =
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_addr.lo =
 				(u32)bd_tbl->bd_tbl_dma;
-		task->tx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.hi =
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_addr.hi =
 				(u32)((u64)bd_tbl->bd_tbl_dma >> 32);
-		task->tx_wr_only.sgl_ctx.mul_sges.sgl_size =
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.sgl_size =
 				bd_tbl->bd_valid;
 	}
 
 	/*Tx Write Rx Read */
 	/* Init state to NORMAL */
-	task->tx_wr_rx_rd.tx_flags = FCOE_TASK_TX_STATE_NORMAL <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_TX_STATE_SHIFT;
-	task->tx_wr_rx_rd.init_flags = task_type <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_TASK_TYPE_SHIFT;
-	task->tx_wr_rx_rd.init_flags |= FCOE_TASK_DEV_TYPE_DISK <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_DEV_TYPE_SHIFT;
-	task->tx_wr_rx_rd.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_CLASS_TYPE_SHIFT;
-
-	/* Common */
-	task->cmn.data_2_trns = io_req->data_xfer_len;
-	context_id = tgt->context_id;
-	task->cmn.common_flags = context_id <<
-				FCOE_TASK_CTX_ENTRY_TX_RX_CMN_CID_SHIFT;
-	task->cmn.common_flags |= 1 <<
-				FCOE_TASK_CTX_ENTRY_TX_RX_CMN_VALID_SHIFT;
-	task->cmn.common_flags |= 1 <<
-			FCOE_TASK_CTX_ENTRY_TX_RX_CMN_EXP_FIRST_FRAME_SHIFT;
-
-	/* Set initiative ownership */
-	task->cmn.common_flags |= FCOE_TASK_CTX_ENTRY_TX_RX_CMN_SEQ_INIT;
+	task->txwr_rxrd.const_ctx.init_flags = task_type <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TASK_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |=
+				FCOE_TASK_DEV_TYPE_DISK <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_CLASS_TYPE_SHIFT;
+	/* tx flags */
+	task->txwr_rxrd.const_ctx.tx_flags = FCOE_TASK_TX_STATE_NORMAL <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TX_STATE_SHIFT;
 
 	/* Set initial seq counter */
-	task->cmn.tx_low_seq_cnt = 1;
-
-	/* Set state to "waiting for the first packet" */
-	task->cmn.common_flags |= FCOE_TASK_CTX_ENTRY_TX_RX_CMN_EXP_FIRST_FRAME;
+	task->txwr_rxrd.union_ctx.tx_seq.ctx.seq_cnt = 1;
 
 	/* Fill FCP_CMND IU */
 	fcp_cmnd = (u64 *)
-		    task->cmn.general.cmd_info.fcp_cmd_payload.opaque;
+		    task->txwr_rxrd.union_ctx.fcp_cmd.opaque;
 	bnx2fc_build_fcp_cmnd(io_req, (struct fcp_cmnd *)&tmp_fcp_cmnd);
 
 	/* swap fcp_cmnd */
@@ -1501,32 +1533,54 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 	}
 
 	/* Rx Write Tx Read */
-	task->rx_wr_tx_rd.rx_id = 0xffff;
+	task->rxwr_txrd.const_ctx.data_2_trns = io_req->data_xfer_len;
+
+	context_id = tgt->context_id;
+	task->rxwr_txrd.const_ctx.init_flags = context_id <<
+				FCOE_TCE_RX_WR_TX_RD_CONST_CID_SHIFT;
+
+	/* rx flags */
+	/* Set state to "waiting for the first packet" */
+	task->rxwr_txrd.var_ctx.rx_flags |= 1 <<
+				FCOE_TCE_RX_WR_TX_RD_VAR_EXP_FIRST_FRAME_SHIFT;
+
+	task->rxwr_txrd.var_ctx.rx_id = 0xffff;
 
 	/* Rx Only */
+	cached_sge = &task->rxwr_only.union_ctx.read_info.sgl_ctx.cached_sge;
+	sgl = &task->rxwr_only.union_ctx.read_info.sgl_ctx.sgl;
+	bd_count = bd_tbl->bd_valid;
 	if (task_type == FCOE_TASK_TYPE_READ) {
-
-		bd_count = bd_tbl->bd_valid;
 		if (bd_count == 1) {
 
 			struct fcoe_bd_ctx *fcoe_bd_tbl = bd_tbl->bd_tbl;
 
-			task->rx_wr_only.sgl_ctx.single_sge.cur_buf_addr.lo =
-					fcoe_bd_tbl->buf_addr_lo;
-			task->rx_wr_only.sgl_ctx.single_sge.cur_buf_addr.hi =
-					fcoe_bd_tbl->buf_addr_hi;
-			task->rx_wr_only.sgl_ctx.single_sge.cur_buf_rem =
-					fcoe_bd_tbl->buf_len;
-			task->tx_wr_rx_rd.init_flags |= 1 <<
-				FCOE_TASK_CTX_ENTRY_TXWR_RXRD_SINGLE_SGE_SHIFT;
+			cached_sge->cur_buf_addr.lo = fcoe_bd_tbl->buf_addr_lo;
+			cached_sge->cur_buf_addr.hi = fcoe_bd_tbl->buf_addr_hi;
+			cached_sge->cur_buf_rem = fcoe_bd_tbl->buf_len;
+			task->txwr_rxrd.const_ctx.init_flags |= 1 <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_CACHED_SGE_SHIFT;
+		} else if (bd_count == 2) {
+			struct fcoe_bd_ctx *fcoe_bd_tbl = bd_tbl->bd_tbl;
+
+			cached_sge->cur_buf_addr.lo = fcoe_bd_tbl->buf_addr_lo;
+			cached_sge->cur_buf_addr.hi = fcoe_bd_tbl->buf_addr_hi;
+			cached_sge->cur_buf_rem = fcoe_bd_tbl->buf_len;
+
+			fcoe_bd_tbl++;
+			cached_sge->second_buf_addr.lo =
+						 fcoe_bd_tbl->buf_addr_lo;
+			cached_sge->second_buf_addr.hi =
+						fcoe_bd_tbl->buf_addr_hi;
+			cached_sge->second_buf_rem = fcoe_bd_tbl->buf_len;
+			task->txwr_rxrd.const_ctx.init_flags |= 1 <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_CACHED_SGE_SHIFT;
 		} else {
 
-			task->rx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.lo =
-					(u32)bd_tbl->bd_tbl_dma;
-			task->rx_wr_only.sgl_ctx.mul_sges.cur_sge_addr.hi =
+			sgl->mul_sgl.cur_sge_addr.lo = (u32)bd_tbl->bd_tbl_dma;
+			sgl->mul_sgl.cur_sge_addr.hi =
 					(u32)((u64)bd_tbl->bd_tbl_dma >> 32);
-			task->rx_wr_only.sgl_ctx.mul_sges.sgl_size =
-					bd_tbl->bd_valid;
+			sgl->mul_sgl.sgl_size = bd_count;
 		}
 	}
 }

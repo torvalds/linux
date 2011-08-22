@@ -222,7 +222,6 @@ static void _rtl92s_dm_refresh_rateadaptive_mask(struct ieee80211_hw *hw)
 	u32 low_rssi_thresh = 0;
 	u32 middle_rssi_thresh = 0;
 	u32 high_rssi_thresh = 0;
-	u8 rssi_level;
 	struct ieee80211_sta *sta = NULL;
 
 	if (is_hal_stop(rtlhal))
@@ -272,18 +271,14 @@ static void _rtl92s_dm_refresh_rateadaptive_mask(struct ieee80211_hw *hw)
 		if (rtlpriv->dm.undecorated_smoothed_pwdb >
 		    (long)high_rssi_thresh) {
 			ra->ratr_state = DM_RATR_STA_HIGH;
-			rssi_level = 1;
 		} else if (rtlpriv->dm.undecorated_smoothed_pwdb >
 			   (long)middle_rssi_thresh) {
 			ra->ratr_state = DM_RATR_STA_LOW;
-			rssi_level = 3;
 		} else if (rtlpriv->dm.undecorated_smoothed_pwdb >
 			   (long)low_rssi_thresh) {
 			ra->ratr_state = DM_RATR_STA_LOW;
-			rssi_level = 5;
 		} else {
 			ra->ratr_state = DM_RATR_STA_ULTRALOW;
-			rssi_level = 6;
 		}
 
 		if (ra->pre_ratr_state != ra->ratr_state) {
@@ -457,7 +452,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 			if (rtlpriv->psc.rfpwr_state != ERFON)
 				return;
 
-			if (digtable.backoff_enable_flag == true)
+			if (digtable.backoff_enable_flag)
 				rtl92s_backoff_enable_flag(hw);
 			else
 				digtable.backoff_val = DM_DIG_BACKOFF;

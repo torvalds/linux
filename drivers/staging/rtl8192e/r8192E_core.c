@@ -27,6 +27,8 @@
 
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
+#include <linux/hardirq.h>
 #include <asm/uaccess.h>
 #include "r8192E_hw.h"
 #include "r8192E.h"

@@ -990,14 +990,7 @@ struct wl_private
 #endif // USE_WDS
 }; // wl_private
 
-#ifdef HAVE_NETDEV_PRIV
 #define wl_priv(dev) ((struct wl_private *) netdev_priv(dev))
-#else
-extern inline struct wl_private *wl_priv(struct net_device *dev)
-{
-    return dev->priv;
-}
-#endif
 
 /********************************************************************/
 /* Locking and synchronization functions                            */

@@ -460,6 +460,12 @@ DEFINE_EVENT(local_sdata_evt, drv_hw_scan,
 	TP_ARGS(local, sdata)
 );
 
+DEFINE_EVENT(local_sdata_evt, drv_cancel_hw_scan,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
 DEFINE_EVENT(local_sdata_evt, drv_sched_scan_start,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata),
@@ -1018,6 +1024,56 @@ TRACE_EVENT(drv_set_bitrate_mask,
 	)
 );
 
+TRACE_EVENT(drv_set_rekey_data,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct cfg80211_gtk_rekey_data *data),
+
+	TP_ARGS(local, sdata, data),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__array(u8, kek, NL80211_KEK_LEN)
+		__array(u8, kck, NL80211_KCK_LEN)
+		__array(u8, replay_ctr, NL80211_REPLAY_CTR_LEN)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		memcpy(__entry->kek, data->kek, NL80211_KEK_LEN);
+		memcpy(__entry->kck, data->kck, NL80211_KCK_LEN);
+		memcpy(__entry->replay_ctr, data->replay_ctr,
+		       NL80211_REPLAY_CTR_LEN);
+	),
+
+	TP_printk(LOCAL_PR_FMT VIF_PR_FMT,
+		  LOCAL_PR_ARG, VIF_PR_ARG)
+);
+
+TRACE_EVENT(drv_rssi_callback,
+	TP_PROTO(struct ieee80211_local *local,
+		 enum ieee80211_rssi_event rssi_event),
+
+	TP_ARGS(local, rssi_event),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, rssi_event)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->rssi_event = rssi_event;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " rssi_event:%d",
+		LOCAL_PR_ARG, __entry->rssi_event
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
@@ -1285,6 +1341,51 @@ DEFINE_EVENT(local_only_evt, api_ready_on_channel,
 DEFINE_EVENT(local_only_evt, api_remain_on_channel_expired,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)
+);
+
+TRACE_EVENT(api_gtk_rekey_notify,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid, const u8 *replay_ctr),
+
+	TP_ARGS(sdata, bssid, replay_ctr),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__array(u8, bssid, ETH_ALEN)
+		__array(u8, replay_ctr, NL80211_REPLAY_CTR_LEN)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		memcpy(__entry->bssid, bssid, ETH_ALEN);
+		memcpy(__entry->replay_ctr, replay_ctr, NL80211_REPLAY_CTR_LEN);
+	),
+
+	TP_printk(VIF_PR_FMT, VIF_PR_ARG)
+);
+
+TRACE_EVENT(api_enable_rssi_reports,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata,
+		 int rssi_min_thold, int rssi_max_thold),
+
+	TP_ARGS(sdata, rssi_min_thold, rssi_max_thold),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(int, rssi_min_thold)
+		__field(int, rssi_max_thold)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->rssi_min_thold = rssi_min_thold;
+		__entry->rssi_max_thold = rssi_max_thold;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " rssi_min_thold =%d, rssi_max_thold = %d",
+		VIF_PR_ARG, __entry->rssi_min_thold, __entry->rssi_max_thold
+	)
 );
 
 /*

@@ -182,7 +182,10 @@ void clockevents_register_device(struct clock_event_device *dev)
 	unsigned long flags;
 
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
-	BUG_ON(!dev->cpumask);
+	if (!dev->cpumask) {
+		WARN_ON(num_possible_cpus() > 1);
+		dev->cpumask = cpumask_of(smp_processor_id());
+	}
 
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 

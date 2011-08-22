@@ -136,15 +136,29 @@ static int max6642_detect(struct i2c_client *client,
 	if (man_id != 0x4D)
 		return -ENODEV;
 
+	/* sanity check */
+	if (i2c_smbus_read_byte_data(client, 0x04) != 0x4D
+	    || i2c_smbus_read_byte_data(client, 0x06) != 0x4D
+	    || i2c_smbus_read_byte_data(client, 0xff) != 0x4D)
+		return -ENODEV;
+
 	/*
 	 * We read the config and status register, the 4 lower bits in the
 	 * config register should be zero and bit 5, 3, 1 and 0 should be
 	 * zero in the status register.
 	 */
 	reg_config = i2c_smbus_read_byte_data(client, MAX6642_REG_R_CONFIG);
+	if ((reg_config & 0x0f) != 0x00)
+		return -ENODEV;
+
+	/* in between, another round of sanity checks */
+	if (i2c_smbus_read_byte_data(client, 0x04) != reg_config
+	    || i2c_smbus_read_byte_data(client, 0x06) != reg_config
+	    || i2c_smbus_read_byte_data(client, 0xff) != reg_config)
+		return -ENODEV;
+
 	reg_status = i2c_smbus_read_byte_data(client, MAX6642_REG_R_STATUS);
-	if (((reg_config & 0x0f) != 0x00) ||
-	    ((reg_status & 0x2b) != 0x00))
+	if ((reg_status & 0x2b) != 0x00)
 		return -ENODEV;
 
 	strlcpy(info->type, "max6642", I2C_NAME_SIZE);
@@ -246,7 +260,7 @@ static SENSOR_DEVICE_ATTR_2(temp1_max, S_IWUSR | S_IRUGO, show_temp_max,
 			    set_temp_max, 0, MAX6642_REG_W_LOCAL_HIGH);
 static SENSOR_DEVICE_ATTR_2(temp2_max, S_IWUSR | S_IRUGO, show_temp_max,
 			    set_temp_max, 1, MAX6642_REG_W_REMOTE_HIGH);
-static SENSOR_DEVICE_ATTR(temp_fault, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
 static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
 static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 4);
 
@@ -256,7 +270,7 @@ static struct attribute *max6642_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 
-	&sensor_dev_attr_temp_fault.dev_attr.attr,
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
 	NULL

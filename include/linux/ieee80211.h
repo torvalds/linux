@@ -117,8 +117,19 @@
 #define IEEE80211_MAX_MESH_ID_LEN	32
 
 #define IEEE80211_QOS_CTL_LEN		2
-#define IEEE80211_QOS_CTL_TID_MASK	0x000F
-#define IEEE80211_QOS_CTL_TAG1D_MASK	0x0007
+/* 1d tag mask */
+#define IEEE80211_QOS_CTL_TAG1D_MASK		0x0007
+/* TID mask */
+#define IEEE80211_QOS_CTL_TID_MASK		0x000f
+/* EOSP */
+#define IEEE80211_QOS_CTL_EOSP			0x0010
+/* ACK policy */
+#define IEEE80211_QOS_CTL_ACK_POLICY_NORMAL	0x0000
+#define IEEE80211_QOS_CTL_ACK_POLICY_NOACK	0x0020
+#define IEEE80211_QOS_CTL_ACK_POLICY_NO_EXPL	0x0040
+#define IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK	0x0060
+/* A-MSDU 802.11n */
+#define IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080
 
 /* U-APSD queue for WMM IEs sent by AP */
 #define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
@@ -1003,8 +1014,12 @@ struct ieee80211_ht_info {
 #define WLAN_CAPABILITY_ESS		(1<<0)
 #define WLAN_CAPABILITY_IBSS		(1<<1)
 
-/* A mesh STA sets the ESS and IBSS capability bits to zero */
-#define WLAN_CAPABILITY_IS_MBSS(cap)	\
+/*
+ * A mesh STA sets the ESS and IBSS capability bits to zero.
+ * however, this holds true for p2p probe responses (in the p2p_find
+ * phase) as well.
+ */
+#define WLAN_CAPABILITY_IS_STA_BSS(cap)	\
 	(!((cap) & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)))
 
 #define WLAN_CAPABILITY_CF_POLLABLE	(1<<2)
@@ -1418,9 +1433,6 @@ enum ieee80211_sa_query_action {
 	WLAN_ACTION_SA_QUERY_RESPONSE = 1,
 };
 
-
-/* A-MSDU 802.11n */
-#define IEEE80211_QOS_CONTROL_A_MSDU_PRESENT 0x0080
 
 /* cipher suite selectors */
 #define WLAN_CIPHER_SUITE_USE_GROUP	0x000FAC00

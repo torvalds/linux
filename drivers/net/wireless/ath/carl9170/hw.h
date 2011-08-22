@@ -4,7 +4,7 @@
  * Register map, hardware-specific definitions
  *
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
- * Copyright 2009, 2010, Christian Lamparter <chunkeey@googlemail.com>
+ * Copyright 2009-2011 Christian Lamparter <chunkeey@googlemail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -357,7 +357,18 @@
 
 #define AR9170_MAC_REG_DMA_WLAN_STATUS		(AR9170_MAC_REG_BASE + 0xd38)
 #define	AR9170_MAC_REG_DMA_STATUS		(AR9170_MAC_REG_BASE + 0xd3c)
+#define AR9170_MAC_REG_DMA_TXQ_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd40)
+#define	AR9170_MAC_REG_DMA_TXQ0_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd40)
+#define	AR9170_MAC_REG_DMA_TXQ1_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd44)
+#define	AR9170_MAC_REG_DMA_TXQ2_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd48)
+#define	AR9170_MAC_REG_DMA_TXQ3_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd4c)
+#define	AR9170_MAC_REG_DMA_TXQ4_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd50)
+#define	AR9170_MAC_REG_DMA_TXQ0Q1_LEN		(AR9170_MAC_REG_BASE + 0xd54)
+#define	AR9170_MAC_REG_DMA_TXQ2Q3_LEN		(AR9170_MAC_REG_BASE + 0xd58)
+#define	AR9170_MAC_REG_DMA_TXQ4_LEN		(AR9170_MAC_REG_BASE + 0xd5c)
 
+#define AR9170_MAC_REG_DMA_TXQX_LAST_ADDR	(AR9170_MAC_REG_BASE + 0xd74)
+#define AR9170_MAC_REG_DMA_TXQX_FAIL_ADDR	(AR9170_MAC_REG_BASE + 0xd78)
 #define	AR9170_MAC_REG_TXRX_MPI			(AR9170_MAC_REG_BASE + 0xd7c)
 #define		AR9170_MAC_TXRX_MPI_TX_MPI_MASK		0x0000000f
 #define		AR9170_MAC_TXRX_MPI_TX_TO_MASK		0x0000fff0

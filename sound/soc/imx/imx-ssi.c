@@ -388,10 +388,11 @@ static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 
 static u64 imx_pcm_dmamask = DMA_BIT_MASK(32);
 
-int imx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
-	struct snd_pcm *pcm)
+int imx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
 	if (!card->dev->dma_mask)
@@ -774,4 +775,4 @@ module_exit(imx_ssi_exit);
 MODULE_AUTHOR("Sascha Hauer, <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("i.MX I2S/ac97 SoC Interface");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:imx-ssi");

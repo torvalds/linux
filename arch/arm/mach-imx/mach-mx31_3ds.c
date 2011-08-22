@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -688,6 +689,8 @@ static struct platform_device *devices[] __initdata = {
 static void __init mx31_3ds_init(void)
 {
 	int ret;
+
+	imx31_soc_init();
 
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
 				      "mx31_3ds");

@@ -107,10 +107,13 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 		case AR5K_PKT_TYPE_BEACON:
 		case AR5K_PKT_TYPE_PROBE_RESP:
 			frame_type = AR5K_AR5210_TX_DESC_FRAME_TYPE_NO_DELAY;
+			break;
 		case AR5K_PKT_TYPE_PIFS:
 			frame_type = AR5K_AR5210_TX_DESC_FRAME_TYPE_PIFS;
+			break;
 		default:
 			frame_type = type;
+			break;
 		}
 
 		tx_ctl->tx_control_0 |=

@@ -963,9 +963,18 @@ static int de_thread(struct task_struct *tsk)
 		leader->group_leader = tsk;
 
 		tsk->exit_signal = SIGCHLD;
+		leader->exit_signal = -1;
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
+
+		/*
+		 * We are going to release_task()->ptrace_unlink() silently,
+		 * the tracer can sleep in do_wait(). EXIT_DEAD guarantees
+		 * the tracer wont't block again waiting for this thread.
+		 */
+		if (unlikely(leader->ptrace))
+			__wake_up_parent(leader, leader->parent);
 		write_unlock_irq(&tasklist_lock);
 
 		release_task(leader);
@@ -1093,6 +1102,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 
 	bprm->mm = NULL;		/* We're using it now */
 
+	set_fs(USER_DS);
 	current->flags &= ~(PF_RANDOMIZE | PF_KTHREAD);
 	flush_thread();
 	current->personality &= ~bprm->per_clear;
@@ -1103,6 +1113,13 @@ out:
 	return retval;
 }
 EXPORT_SYMBOL(flush_old_exec);
+
+void would_dump(struct linux_binprm *bprm, struct file *file)
+{
+	if (inode_permission(file->f_path.dentry->d_inode, MAY_READ) < 0)
+		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+}
+EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
@@ -1143,9 +1160,10 @@ void setup_new_exec(struct linux_binprm * bprm)
 	if (bprm->cred->uid != current_euid() ||
 	    bprm->cred->gid != current_egid()) {
 		current->pdeath_signal = 0;
-	} else if (file_permission(bprm->file, MAY_READ) ||
-		   bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) {
-		set_dumpable(current->mm, suid_dumpable);
+	} else {
+		would_dump(bprm, bprm->file);
+		if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)
+			set_dumpable(current->mm, suid_dumpable);
 	}
 
 	/*
@@ -1224,7 +1242,12 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 	unsigned n_fs;
 	int res = 0;
 
-	bprm->unsafe = tracehook_unsafe_exec(p);
+	if (p->ptrace) {
+		if (p->ptrace & PT_PTRACE_CAP)
+			bprm->unsafe |= LSM_UNSAFE_PTRACE_CAP;
+		else
+			bprm->unsafe |= LSM_UNSAFE_PTRACE;
+	}
 
 	n_fs = 1;
 	spin_lock(&p->fs->lock);
@@ -1352,18 +1375,20 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
+	pid_t old_pid;
 
 	retval = security_bprm_check(bprm);
 	if (retval)
 		return retval;
 
-	/* kernel module loader fixup */
-	/* so we don't try to load run modprobe in kernel space. */
-	set_fs(USER_DS);
-
 	retval = audit_bprm(bprm);
 	if (retval)
 		return retval;
+
+	/* Need to fetch pid before load_binary changes it */
+	rcu_read_lock();
+	old_pid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
+	rcu_read_unlock();
 
 	retval = -ENOENT;
 	for (try=0; try<2; try++) {
@@ -1384,7 +1409,8 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
 				if (depth == 0)
-					tracehook_report_exec(fmt, bprm, regs);
+					ptrace_event(PTRACE_EVENT_EXEC,
+							old_pid);
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)
@@ -1772,7 +1798,7 @@ static int zap_process(struct task_struct *start, int exit_code)
 
 	t = start;
 	do {
-		task_clear_group_stop_pending(t);
+		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
 		if (t != current && t->mm) {
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
@@ -1999,7 +2025,7 @@ static void wait_for_dump_helpers(struct file *file)
  * is a special value that we use to trap recursive
  * core dumps
  */
-static int umh_pipe_setup(struct subprocess_info *info)
+static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 {
 	struct file *rp, *wp;
 	struct fdtable *fdt;

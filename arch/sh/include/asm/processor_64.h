@@ -150,7 +150,6 @@ struct thread_struct {
 #define SR_USER (SR_MMU | SR_FD)
 
 #define start_thread(_regs, new_pc, new_sp)			\
-	set_fs(USER_DS);					\
 	_regs->sr = SR_USER;	/* User mode. */		\
 	_regs->pc = new_pc - 4;	/* Compensate syscall exit */	\
 	_regs->pc |= 1;		/* Set SHmedia ! */		\

@@ -355,25 +355,30 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 	mutex_lock(&bd_inode->i_mutex);
 	size = i_size_read(bd_inode);
 
+	retval = -EINVAL;
 	switch (origin) {
-		case 2:
+		case SEEK_END:
 			offset += size;
 			break;
-		case 1:
+		case SEEK_CUR:
 			offset += file->f_pos;
+		case SEEK_SET:
+			break;
+		default:
+			goto out;
 	}
-	retval = -EINVAL;
 	if (offset >= 0 && offset <= size) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 		}
 		retval = offset;
 	}
+out:
 	mutex_unlock(&bd_inode->i_mutex);
 	return retval;
 }
 	
-int blkdev_fsync(struct file *filp, int datasync)
+int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 {
 	struct inode *bd_inode = filp->f_mapping->host;
 	struct block_device *bdev = I_BDEV(bd_inode);
@@ -384,13 +389,9 @@ int blkdev_fsync(struct file *filp, int datasync)
 	 * i_mutex and doing so causes performance issues with concurrent
 	 * O_SYNC writers to a block device.
 	 */
-	mutex_unlock(&bd_inode->i_mutex);
-
 	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL);
 	if (error == -EOPNOTSUPP)
 		error = 0;
-
-	mutex_lock(&bd_inode->i_mutex);
 
 	return error;
 }
@@ -762,7 +763,19 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	if (!disk)
 		return ERR_PTR(-ENXIO);
 
-	whole = bdget_disk(disk, 0);
+	/*
+	 * Normally, @bdev should equal what's returned from bdget_disk()
+	 * if partno is 0; however, some drivers (floppy) use multiple
+	 * bdev's for the same physical device and @bdev may be one of the
+	 * aliases.  Keep @bdev if partno is 0.  This means claimer
+	 * tracking is broken for those devices but it has always been that
+	 * way.
+	 */
+	if (partno)
+		whole = bdget_disk(disk, 0);
+	else
+		whole = bdgrab(bdev);
+
 	module_put(disk->fops->owner);
 	put_disk(disk);
 	if (!whole)
@@ -1272,8 +1285,8 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		 * individual writeable reference is too fragile given the
 		 * way @mode is used in blkdev_get/put().
 		 */
-		if ((disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE) &&
-		    !res && (mode & FMODE_WRITE) && !bdev->bd_write_holder) {
+		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder &&
+		    (disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE)) {
 			bdev->bd_write_holder = true;
 			disk_block_events(disk);
 		}

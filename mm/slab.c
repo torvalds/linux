@@ -574,7 +574,9 @@ static struct arraycache_init initarray_generic =
     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
 
 /* internal cache of cache description objs */
+static struct kmem_list3 *cache_cache_nodelists[MAX_NUMNODES];
 static struct kmem_cache cache_cache = {
+	.nodelists = cache_cache_nodelists,
 	.batchcount = 1,
 	.limit = BOOT_CPUCACHE_ENTRIES,
 	.shared = 1,
@@ -1492,11 +1494,10 @@ void __init kmem_cache_init(void)
 	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
 
 	/*
-	 * struct kmem_cache size depends on nr_node_ids, which
-	 * can be less than MAX_NUMNODES.
+	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
 	 */
-	cache_cache.buffer_size = offsetof(struct kmem_cache, nodelists) +
-				 nr_node_ids * sizeof(struct kmem_list3 *);
+	cache_cache.buffer_size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
+				  nr_node_ids * sizeof(struct kmem_list3 *);
 #if DEBUG
 	cache_cache.obj_size = cache_cache.buffer_size;
 #endif
@@ -2308,6 +2309,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	if (!cachep)
 		goto oops;
 
+	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
 #if DEBUG
 	cachep->obj_size = size;
 
@@ -3153,12 +3155,11 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON)
 		cachep->ctor(objp);
-#if ARCH_SLAB_MINALIGN
-	if ((u32)objp & (ARCH_SLAB_MINALIGN-1)) {
+	if (ARCH_SLAB_MINALIGN &&
+	    ((unsigned long)objp & (ARCH_SLAB_MINALIGN-1))) {
 		printk(KERN_ERR "0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",
-		       objp, ARCH_SLAB_MINALIGN);
+		       objp, (int)ARCH_SLAB_MINALIGN);
 	}
-#endif
 	return objp;
 }
 #else
@@ -3604,13 +3605,14 @@ free_done:
  * Release an obj back to its cache. If the obj has a constructed state, it must
  * be in this state _before_ it is released.  Called with disabled ints.
  */
-static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+    void *caller)
 {
 	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	kmemleak_free_recursive(objp, cachep->flags);
-	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
+	objp = cache_free_debugcheck(cachep, objp, caller);
 
 	kmemcheck_slab_free(cachep, objp, obj_size(cachep));
 
@@ -3801,7 +3803,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	debug_check_no_locks_freed(objp, obj_size(cachep));
 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
 		debug_check_no_obj_freed(objp, obj_size(cachep));
-	__cache_free(cachep, objp);
+	__cache_free(cachep, objp, __builtin_return_address(0));
 	local_irq_restore(flags);
 
 	trace_kmem_cache_free(_RET_IP_, objp);
@@ -3831,7 +3833,7 @@ void kfree(const void *objp)
 	c = virt_to_cache(objp);
 	debug_check_no_locks_freed(objp, obj_size(c));
 	debug_check_no_obj_freed(objp, obj_size(c));
-	__cache_free(c, (void *)objp);
+	__cache_free(c, (void *)objp, __builtin_return_address(0));
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kfree);

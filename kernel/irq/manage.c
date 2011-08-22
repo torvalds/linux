@@ -491,6 +491,9 @@ int irq_set_irq_wake(unsigned int irq, unsigned int on)
 	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
 	int ret = 0;
 
+	if (!desc)
+		return -EINVAL;
+
 	/* wakeup-capable irqs can be shared between drivers that
 	 * don't need to have the same sleep mode behaviors.
 	 */
@@ -723,13 +726,16 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action) { }
  * context. So we need to disable bh here to avoid deadlocks and other
  * side effects.
  */
-static void
+static irqreturn_t
 irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
 {
+	irqreturn_t ret;
+
 	local_bh_disable();
-	action->thread_fn(action->irq, action->dev_id);
+	ret = action->thread_fn(action->irq, action->dev_id);
 	irq_finalize_oneshot(desc, action, false);
 	local_bh_enable();
+	return ret;
 }
 
 /*
@@ -737,10 +743,14 @@ irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
  * preemtible - many of them need to sleep and wait for slow busses to
  * complete.
  */
-static void irq_thread_fn(struct irq_desc *desc, struct irqaction *action)
+static irqreturn_t irq_thread_fn(struct irq_desc *desc,
+		struct irqaction *action)
 {
-	action->thread_fn(action->irq, action->dev_id);
+	irqreturn_t ret;
+
+	ret = action->thread_fn(action->irq, action->dev_id);
 	irq_finalize_oneshot(desc, action, false);
+	return ret;
 }
 
 /*
@@ -753,7 +763,8 @@ static int irq_thread(void *data)
 	};
 	struct irqaction *action = data;
 	struct irq_desc *desc = irq_to_desc(action->irq);
-	void (*handler_fn)(struct irq_desc *desc, struct irqaction *action);
+	irqreturn_t (*handler_fn)(struct irq_desc *desc,
+			struct irqaction *action);
 	int wake;
 
 	if (force_irqthreads & test_bit(IRQTF_FORCED_THREAD,
@@ -783,8 +794,12 @@ static int irq_thread(void *data)
 			desc->istate |= IRQS_PENDING;
 			raw_spin_unlock_irq(&desc->lock);
 		} else {
+			irqreturn_t action_ret;
+
 			raw_spin_unlock_irq(&desc->lock);
-			handler_fn(desc, action);
+			action_ret = handler_fn(desc, action);
+			if (!noirqdebug)
+				note_interrupt(action->irq, desc, action_ret);
 		}
 
 		wake = atomic_dec_and_test(&desc->threads_active);

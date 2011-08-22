@@ -1191,6 +1191,8 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (intf->cur_altsetting->desc.bInterfaceProtocol ==
 			USB_INTERFACE_PROTOCOL_MOUSE)
 		hid->type = HID_TYPE_USBMOUSE;
+	else if (intf->cur_altsetting->desc.bInterfaceProtocol == 0)
+		hid->type = HID_TYPE_USBNONE;
 
 	if (dev->manufacturer)
 		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));

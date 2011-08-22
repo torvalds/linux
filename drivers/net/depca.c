@@ -331,18 +331,18 @@ static struct {
                          "DE422",\
                          ""}
 
-static const char* const depca_signature[] __devinitconst = DEPCA_SIGNATURE;
+static char* __initdata depca_signature[] = DEPCA_SIGNATURE;
 
 enum depca_type {
 	DEPCA, de100, de101, de200, de201, de202, de210, de212, de422, unknown
 };
 
-static const char depca_string[] = "depca";
+static char depca_string[] = "depca";
 
 static int depca_device_remove (struct device *device);
 
 #ifdef CONFIG_EISA
-static const struct eisa_device_id depca_eisa_ids[] __devinitconst = {
+static struct eisa_device_id depca_eisa_ids[] = {
 	{ "DEC4220", de422 },
 	{ "" }
 };
@@ -367,19 +367,19 @@ static struct eisa_driver depca_eisa_driver = {
 #define DE210_ID 0x628d
 #define DE212_ID 0x6def
 
-static const short depca_mca_adapter_ids[] __devinitconst = {
+static short depca_mca_adapter_ids[] = {
 	DE210_ID,
 	DE212_ID,
 	0x0000
 };
 
-static const char *depca_mca_adapter_name[] = {
+static char *depca_mca_adapter_name[] = {
 	"DEC EtherWORKS MC Adapter (DE210)",
 	"DEC EtherWORKS MC Adapter (DE212)",
 	NULL
 };
 
-static const enum depca_type depca_mca_adapter_type[] = {
+static enum depca_type depca_mca_adapter_type[] = {
 	de210,
 	de212,
 	0
@@ -541,9 +541,10 @@ static void SetMulticastFilter(struct net_device *dev);
 static int load_packet(struct net_device *dev, struct sk_buff *skb);
 static void depca_dbg_open(struct net_device *dev);
 
-static const u_char de1xx_irq[] __devinitconst = { 2, 3, 4, 5, 7, 9, 0 };
-static const u_char de2xx_irq[] __devinitconst = { 5, 9, 10, 11, 15, 0 };
-static const u_char de422_irq[] __devinitconst = { 5, 9, 10, 11, 0 };
+static u_char de1xx_irq[] __initdata = { 2, 3, 4, 5, 7, 9, 0 };
+static u_char de2xx_irq[] __initdata = { 5, 9, 10, 11, 15, 0 };
+static u_char de422_irq[] __initdata = { 5, 9, 10, 11, 0 };
+static u_char *depca_irq;
 
 static int irq;
 static int io;
@@ -579,7 +580,7 @@ static const struct net_device_ops depca_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit depca_hw_init (struct net_device *dev, struct device *device)
+static int __init depca_hw_init (struct net_device *dev, struct device *device)
 {
 	struct depca_private *lp;
 	int i, j, offset, netRAM, mem_len, status = 0;
@@ -707,11 +708,11 @@ static int __devinit depca_hw_init (struct net_device *dev, struct device *devic
 
 	/* Tx & Rx descriptors (aligned to a quadword boundary) */
 	offset = (offset + DEPCA_ALIGN) & ~DEPCA_ALIGN;
-	lp->rx_ring = (struct depca_rx_desc __iomem *) (lp->sh_mem + offset);
+	lp->rx_ring = lp->sh_mem + offset;
 	lp->rx_ring_offset = offset;
 
 	offset += (sizeof(struct depca_rx_desc) * NUM_RX_DESC);
-	lp->tx_ring = (struct depca_tx_desc __iomem *) (lp->sh_mem + offset);
+	lp->tx_ring = lp->sh_mem + offset;
 	lp->tx_ring_offset = offset;
 
 	offset += (sizeof(struct depca_tx_desc) * NUM_TX_DESC);
@@ -747,7 +748,6 @@ static int __devinit depca_hw_init (struct net_device *dev, struct device *devic
 	if (dev->irq < 2) {
 		unsigned char irqnum;
 		unsigned long irq_mask, delay;
-		const u_char *depca_irq;
 
 		irq_mask = probe_irq_on();
 
@@ -770,7 +770,6 @@ static int __devinit depca_hw_init (struct net_device *dev, struct device *devic
 			break;
 
 		default:
-			depca_irq = NULL;
 			break;	/* Not reached */
 		}
 
@@ -1074,13 +1073,13 @@ static int depca_rx(struct net_device *dev)
 							i = DEPCA_PKT_STAT_SZ;
 						}
 					}
-					if (buf[0] & 0x01) {	/* Multicast/Broadcast */
-						if ((*(s16 *) & buf[0] == -1) && (*(s16 *) & buf[2] == -1) && (*(s16 *) & buf[4] == -1)) {
+					if (is_multicast_ether_addr(buf)) {
+						if (is_broadcast_ether_addr(buf)) {
 							lp->pktStats.broadcast++;
 						} else {
 							lp->pktStats.multicast++;
 						}
-					} else if ((*(s16 *) & buf[0] == *(s16 *) & dev->dev_addr[0]) && (*(s16 *) & buf[2] == *(s16 *) & dev->dev_addr[2]) && (*(s16 *) & buf[4] == *(s16 *) & dev->dev_addr[4])) {
+					} else if (compare_ether_addr(buf, dev->dev_addr) == 0) {
 						lp->pktStats.unicast++;
 					}
 
@@ -1271,7 +1270,6 @@ static void SetMulticastFilter(struct net_device *dev)
 {
 	struct depca_private *lp = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	int i, j, bit, byte;
 	u16 hashcode;
 	u32 crc;
@@ -1286,24 +1284,20 @@ static void SetMulticastFilter(struct net_device *dev)
 		}
 		/* Add multicast addresses */
 		netdev_for_each_mc_addr(ha, dev) {
-			addrs = ha->addr;
-			if ((*addrs & 0x01) == 1) {	/* multicast address? */
-				crc = ether_crc(ETH_ALEN, addrs);
-				hashcode = (crc & 1);	/* hashcode is 6 LSb of CRC ... */
-				for (j = 0; j < 5; j++) {	/* ... in reverse order. */
-					hashcode = (hashcode << 1) | ((crc >>= 1) & 1);
-				}
-
-
-				byte = hashcode >> 3;	/* bit[3-5] -> byte in filter */
-				bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
-				lp->init_block.mcast_table[byte] |= bit;
+			crc = ether_crc(ETH_ALEN, ha->addr);
+			hashcode = (crc & 1);	/* hashcode is 6 LSb of CRC ... */
+			for (j = 0; j < 5; j++) {	/* ... in reverse order. */
+				hashcode = (hashcode << 1) | ((crc >>= 1) & 1);
 			}
+
+			byte = hashcode >> 3;	/* bit[3-5] -> byte in filter */
+			bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
+			lp->init_block.mcast_table[byte] |= bit;
 		}
 	}
 }
 
-static int __devinit depca_common_init (u_long ioaddr, struct net_device **devp)
+static int __init depca_common_init (u_long ioaddr, struct net_device **devp)
 {
 	int status = 0;
 
@@ -1334,7 +1328,7 @@ static int __devinit depca_common_init (u_long ioaddr, struct net_device **devp)
 /*
 ** Microchannel bus I/O device probe
 */
-static int __devinit depca_mca_probe(struct device *device)
+static int __init depca_mca_probe(struct device *device)
 {
 	unsigned char pos[2];
 	unsigned char where;
@@ -1458,7 +1452,7 @@ static int __devinit depca_mca_probe(struct device *device)
 ** ISA bus I/O device probe
 */
 
-static void __devinit depca_platform_probe (void)
+static void __init depca_platform_probe (void)
 {
 	int i;
 	struct platform_device *pldev;
@@ -1498,7 +1492,7 @@ static void __devinit depca_platform_probe (void)
 	}
 }
 
-static enum depca_type __devinit depca_shmem_probe (ulong *mem_start)
+static enum depca_type __init depca_shmem_probe (ulong *mem_start)
 {
 	u_long mem_base[] = DEPCA_RAM_BASE_ADDRESSES;
 	enum depca_type adapter = unknown;
@@ -1559,7 +1553,7 @@ static int __devinit depca_isa_probe (struct platform_device *device)
 */
 
 #ifdef CONFIG_EISA
-static int __devinit depca_eisa_probe (struct device *device)
+static int __init depca_eisa_probe (struct device *device)
 {
 	enum depca_type adapter = unknown;
 	struct eisa_device *edev;
@@ -1630,7 +1624,7 @@ static int __devexit depca_device_remove (struct device *device)
 ** and Boot (readb) ROM. This will also give us a clue to the network RAM
 ** base address.
 */
-static int __devinit DepcaSignature(char *name, u_long base_addr)
+static int __init DepcaSignature(char *name, u_long base_addr)
 {
 	u_int i, j, k;
 	void __iomem *ptr;

@@ -82,8 +82,6 @@ struct perf_sample {
 	struct ip_callchain *callchain;
 };
 
-int perf_sample_size(u64 sample_type);
-
 #define BUILD_ID_SIZE 20
 
 struct build_id_event {

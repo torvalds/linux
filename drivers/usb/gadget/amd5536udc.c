@@ -60,6 +60,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <asm/system.h>

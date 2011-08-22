@@ -680,8 +680,8 @@ ones already enabled by DEBUG.
 		Chapter 14: Allocating memory
 
 The kernel provides the following general purpose memory allocators:
-kmalloc(), kzalloc(), kcalloc(), and vmalloc().  Please refer to the API
-documentation for further information about them.
+kmalloc(), kzalloc(), kcalloc(), vmalloc(), and vzalloc().  Please refer to
+the API documentation for further information about them.
 
 The preferred form for passing a size of a struct is the following:
 

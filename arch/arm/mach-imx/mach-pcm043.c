@@ -356,6 +356,8 @@ static struct esdhc_platform_data sd1_pdata = {
  */
 static void __init pcm043_init(void)
 {
+	imx35_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(pcm043_pads, ARRAY_SIZE(pcm043_pads));
 
 	mxc_audmux_v2_configure_port(3,

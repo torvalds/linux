@@ -1958,7 +1958,7 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 
 		evstat = hermes_read_regn(hw, EVSTAT);
 		events = evstat & hw->inten;
-	};
+	}
 
 	orinoco_unlock(priv, &flags);
 	return IRQ_HANDLED;

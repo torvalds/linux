@@ -426,10 +426,9 @@ int netlbl_unlhsh_add(struct net *net,
 					      audit_info);
 	switch (addr_len) {
 	case sizeof(struct in_addr): {
-		struct in_addr *addr4, *mask4;
+		const struct in_addr *addr4 = addr;
+		const struct in_addr *mask4 = mask;
 
-		addr4 = (struct in_addr *)addr;
-		mask4 = (struct in_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr4(iface, addr4, mask4, secid);
 		if (audit_buf != NULL)
 			netlbl_af4list_audit_addr(audit_buf, 1,
@@ -440,10 +439,9 @@ int netlbl_unlhsh_add(struct net *net,
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case sizeof(struct in6_addr): {
-		struct in6_addr *addr6, *mask6;
+		const struct in6_addr *addr6 = addr;
+		const struct in6_addr *mask6 = mask;
 
-		addr6 = (struct in6_addr *)addr;
-		mask6 = (struct in6_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr6(iface, addr6, mask6, secid);
 		if (audit_buf != NULL)
 			netlbl_af6list_audit_addr(audit_buf, 1,

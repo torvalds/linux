@@ -343,7 +343,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 
 		dmae_set_dmars(sh_chan, cfg->mid_rid);
 		dmae_set_chcr(sh_chan, cfg->chcr);
-	} else if ((sh_dmae_readl(sh_chan, CHCR) & 0xf00) != 0x400) {
+	} else {
 		dmae_init(sh_chan);
 	}
 
@@ -1144,6 +1144,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	/* platform data */
 	shdev->pdata = pdata;
 
+	platform_set_drvdata(pdev, shdev);
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -1219,6 +1221,11 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	} else {
 		do {
 			for (i = chanirq_res->start; i <= chanirq_res->end; i++) {
+				if (irq_cnt >= SH_DMAC_MAX_CHANNELS) {
+					irq_cap = 1;
+					break;
+				}
+
 				if ((errirq_res->flags & IORESOURCE_BITS) ==
 				    IORESOURCE_IRQ_SHAREABLE)
 					chan_flag[irq_cnt] = IRQF_SHARED;
@@ -1228,15 +1235,11 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 					"Found IRQ %d for channel %d\n",
 					i, irq_cnt);
 				chan_irq[irq_cnt++] = i;
-
-				if (irq_cnt >= SH_DMAC_MAX_CHANNELS)
-					break;
 			}
 
-			if (irq_cnt >= SH_DMAC_MAX_CHANNELS) {
-				irq_cap = 1;
+			if (irq_cnt >= SH_DMAC_MAX_CHANNELS)
 				break;
-			}
+
 			chanirq_res = platform_get_resource(pdev,
 						IORESOURCE_IRQ, ++irqres);
 		} while (irq_cnt < pdata->channel_num && chanirq_res);
@@ -1256,7 +1259,6 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	platform_set_drvdata(pdev, shdev);
 	dma_async_device_register(&shdev->common);
 
 	return err;
@@ -1278,6 +1280,8 @@ rst_err:
 
 	if (dmars)
 		iounmap(shdev->dmars);
+
+	platform_set_drvdata(pdev, NULL);
 emapdmars:
 	iounmap(shdev->chan_reg);
 	synchronize_rcu();
@@ -1315,6 +1319,8 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 	if (shdev->dmars)
 		iounmap(shdev->dmars);
 	iounmap(shdev->chan_reg);
+
+	platform_set_drvdata(pdev, NULL);
 
 	synchronize_rcu();
 	kfree(shdev);

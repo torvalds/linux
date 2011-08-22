@@ -56,6 +56,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/can.h>
 
 static __initdata const char banner[] =
@@ -95,10 +96,6 @@ struct slcan {
 	unsigned long		flags;		/* Flag values/ mode etc     */
 #define SLF_INUSE		0		/* Channel in use            */
 #define SLF_ERROR		1               /* Parity, etc. error        */
-
-	unsigned char		leased;
-	dev_t			line;
-	pid_t			pid;
 };
 
 static struct net_device **slcan_devs;
@@ -142,21 +139,6 @@ static struct net_device **slcan_devs;
   *			STANDARD SLCAN DECAPSULATION			 *
   ************************************************************************/
 
-static int asc2nibble(char c)
-{
-
-	if ((c >= '0') && (c <= '9'))
-		return c - '0';
-
-	if ((c >= 'A') && (c <= 'F'))
-		return c - 'A' + 10;
-
-	if ((c >= 'a') && (c <= 'f'))
-		return c - 'a' + 10;
-
-	return 16; /* error */
-}
-
 /* Send one completely decapsulated can_frame to the network layer */
 static void slc_bump(struct slcan *sl)
 {
@@ -195,17 +177,15 @@ static void slc_bump(struct slcan *sl)
 	*(u64 *) (&cf.data) = 0; /* clear payload */
 
 	for (i = 0, dlc_pos++; i < cf.can_dlc; i++) {
-
-		tmp = asc2nibble(sl->rbuff[dlc_pos++]);
-		if (tmp > 0x0F)
+		tmp = hex_to_bin(sl->rbuff[dlc_pos++]);
+		if (tmp < 0)
 			return;
 		cf.data[i] = (tmp << 4);
-		tmp = asc2nibble(sl->rbuff[dlc_pos++]);
-		if (tmp > 0x0F)
+		tmp = hex_to_bin(sl->rbuff[dlc_pos++]);
+		if (tmp < 0)
 			return;
 		cf.data[i] |= tmp;
 	}
-
 
 	skb = dev_alloc_skb(sizeof(struct can_frame));
 	if (!skb)
@@ -425,17 +405,16 @@ static void slc_setup(struct net_device *dev)
  * in parallel
  */
 
-static unsigned int slcan_receive_buf(struct tty_struct *tty,
+static void slcan_receive_buf(struct tty_struct *tty,
 			      const unsigned char *cp, char *fp, int count)
 {
 	struct slcan *sl = (struct slcan *) tty->disc_data;
-	int bytes = count;
 
 	if (!sl || sl->magic != SLCAN_MAGIC || !netif_running(sl->dev))
-		return -ENODEV;
+		return;
 
 	/* Read the characters out of the buffer */
-	while (bytes--) {
+	while (count--) {
 		if (fp && *fp++) {
 			if (!test_and_set_bit(SLF_ERROR, &sl->flags))
 				sl->dev->stats.rx_errors++;
@@ -444,8 +423,6 @@ static unsigned int slcan_receive_buf(struct tty_struct *tty,
 		}
 		slcan_unesc(sl, *cp++);
 	}
-
-	return count;
 }
 
 /************************************
@@ -465,7 +442,7 @@ static void slc_sync(void)
 			break;
 
 		sl = netdev_priv(dev);
-		if (sl->tty || sl->leased)
+		if (sl->tty)
 			continue;
 		if (dev->flags & IFF_UP)
 			dev_close(dev);
@@ -476,11 +453,9 @@ static void slc_sync(void)
 static struct slcan *slc_alloc(dev_t line)
 {
 	int i;
+	char name[IFNAMSIZ];
 	struct net_device *dev = NULL;
 	struct slcan       *sl;
-
-	if (slcan_devs == NULL)
-		return NULL;	/* Master array missing ! */
 
 	for (i = 0; i < maxdev; i++) {
 		dev = slcan_devs[i];
@@ -493,25 +468,12 @@ static struct slcan *slc_alloc(dev_t line)
 	if (i >= maxdev)
 		return NULL;
 
-	if (dev) {
-		sl = netdev_priv(dev);
-		if (test_bit(SLF_INUSE, &sl->flags)) {
-			unregister_netdevice(dev);
-			dev = NULL;
-			slcan_devs[i] = NULL;
-		}
-	}
+	sprintf(name, "slcan%d", i);
+	dev = alloc_netdev(sizeof(*sl), name, slc_setup);
+	if (!dev)
+		return NULL;
 
-	if (!dev) {
-		char name[IFNAMSIZ];
-		sprintf(name, "slcan%d", i);
-
-		dev = alloc_netdev(sizeof(*sl), name, slc_setup);
-		if (!dev)
-			return NULL;
-		dev->base_addr  = i;
-	}
-
+	dev->base_addr  = i;
 	sl = netdev_priv(dev);
 
 	/* Initialize channel control data */
@@ -568,8 +530,6 @@ static int slcan_open(struct tty_struct *tty)
 
 	sl->tty = tty;
 	tty->disc_data = sl;
-	sl->line = tty_devnum(tty);
-	sl->pid = current->pid;
 
 	if (!test_bit(SLF_INUSE, &sl->flags)) {
 		/* Perform the low-level SLCAN initialization. */
@@ -620,8 +580,6 @@ static void slcan_close(struct tty_struct *tty)
 
 	tty->disc_data = NULL;
 	sl->tty = NULL;
-	if (!sl->leased)
-		sl->line = 0;
 
 	/* Flush network side */
 	unregister_netdev(sl->dev);

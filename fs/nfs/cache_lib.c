@@ -113,19 +113,18 @@ int nfs_cache_wait_for_upcall(struct nfs_cache_defer_req *dreq)
 
 int nfs_cache_register(struct cache_detail *cd)
 {
-	struct nameidata nd;
 	struct vfsmount *mnt;
+	struct path path;
 	int ret;
 
 	mnt = rpc_get_mount();
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
-	ret = vfs_path_lookup(mnt->mnt_root, mnt, "/cache", 0, &nd);
+	ret = vfs_path_lookup(mnt->mnt_root, mnt, "/cache", 0, &path);
 	if (ret)
 		goto err;
-	ret = sunrpc_cache_register_pipefs(nd.path.dentry,
-			cd->name, 0600, cd);
-	path_put(&nd.path);
+	ret = sunrpc_cache_register_pipefs(path.dentry, cd->name, 0600, cd);
+	path_put(&path);
 	if (!ret)
 		return ret;
 err:

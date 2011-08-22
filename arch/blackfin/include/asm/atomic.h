@@ -1,8 +1,8 @@
 /*
- * Copyright 2004-2009 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
- */
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef __ARCH_BLACKFIN_ATOMIC__
 #define __ARCH_BLACKFIN_ATOMIC__
@@ -74,11 +74,6 @@ static inline void atomic_clear_mask(int mask, atomic_t *v)
 static inline void atomic_set_mask(int mask, atomic_t *v)
 {
 	__raw_atomic_set_asm(&v->counter, mask);
-}
-
-static inline int atomic_test_mask(int mask, atomic_t *v)
-{
-	return __raw_atomic_test_asm(&v->counter, mask);
 }
 
 /* Atomic operations are already serializing */

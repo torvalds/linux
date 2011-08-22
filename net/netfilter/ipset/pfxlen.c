@@ -148,7 +148,7 @@ const union nf_inet_addr ip_set_netmask_map[] = {
 EXPORT_SYMBOL_GPL(ip_set_netmask_map);
 
 #undef  E
-#define E(a, b, c, d) 						\
+#define E(a, b, c, d)						\
 	{.ip6 = { (__force __be32) a, (__force __be32) b,	\
 		  (__force __be32) c, (__force __be32) d,	\
 	} }
@@ -289,3 +289,24 @@ const union nf_inet_addr ip_set_hostmask_map[] = {
 	E(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF),
 };
 EXPORT_SYMBOL_GPL(ip_set_hostmask_map);
+
+/* Find the largest network which matches the range from left, in host order. */
+u32
+ip_set_range_to_cidr(u32 from, u32 to, u8 *cidr)
+{
+	u32 last;
+	u8 i;
+
+	for (i = 1; i < 32; i++) {
+		if ((from & ip_set_hostmask(i)) != from)
+			continue;
+		last = from | ~ip_set_hostmask(i);
+		if (!after(last, to)) {
+			*cidr = i;
+			return last;
+		}
+	}
+	*cidr = 32;
+	return from;
+}
+EXPORT_SYMBOL_GPL(ip_set_range_to_cidr);

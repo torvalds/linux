@@ -481,23 +481,6 @@ Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 
 ----------------------------
 
-What:   namespace cgroup (ns_cgroup)
-When:   2.6.38
-Why:    The ns_cgroup leads to some problems:
-	* cgroup creation is out-of-control
-	* cgroup name can conflict when pids are looping
-	* it is not possible to have a single process handling
-	a lot of namespaces without falling in a exponential creation time
-	* we may want to create a namespace without creating a cgroup
-
-	The ns_cgroup is replaced by a compatibility flag 'clone_children',
-	where a newly created cgroup will copy the parent cgroup values.
-	The userspace has to manually create a cgroup and add a task to
-	the 'tasks' file.
-Who:    Daniel Lezcano <daniel.lezcano@free.fr>
-
-----------------------------
-
 What:	iwlwifi disable_hw_scan module parameters
 When:	2.6.40
 Why:	Hareware scan is the prefer method for iwlwifi devices for
@@ -515,16 +498,6 @@ Why:    This is a legacy interface which have been replaced by a more
         dynamic cache.  Continuing to maintain this interface is an
         unnecessary burden.
 Who:    NeilBrown <neilb@suse.de>
-
-----------------------------
-
-What:	cancel_rearming_delayed_work[queue]()
-When:	2.6.39
-
-Why:	The functions have been superceded by cancel_delayed_work_sync()
-	quite some time ago.  The conversion is trivial and there is no
-	in-kernel user left.
-Who:	Tejun Heo <tj@kernel.org>
 
 ----------------------------
 
@@ -598,5 +571,27 @@ What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
 When:	2.6.42
 Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
 Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	For VIDIOC_S_FREQUENCY the type field must match the device node's type.
+	If not, return -EINVAL.
+When:	3.2
+Why:	It makes no sense to switch the tuner to radio mode by calling
+	VIDIOC_S_FREQUENCY on a video node, or to switch the tuner to tv mode by
+	calling VIDIOC_S_FREQUENCY on a radio node. This is the first step of a
+	move to more consistent handling of tv and radio tuners.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
+What:	Opening a radio device node will no longer automatically switch the
+	tuner mode from tv to radio.
+When:	3.3
+Why:	Just opening a V4L device should not change the state of the hardware
+	like that. It's very unexpected and against the V4L spec. Instead, you
+	switch to radio mode by calling VIDIOC_S_FREQUENCY. This is the second
+	and last step of the move to consistent handling of tv and radio tuners.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
 
 ----------------------------

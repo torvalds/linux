@@ -628,11 +628,11 @@ void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 
 	/* rx_status carries information about the packet to mac80211 */
 	rx_status.mactime = le64_to_cpu(phy_res->timestamp);
+	rx_status.band = (phy_res->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
+				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(phy_res->channel),
 							rx_status.band);
-	rx_status.band = (phy_res->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
-				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.rate_idx =
 		iwl4965_hwrate_to_mac80211_idx(rate_n_flags, rx_status.band);
 	rx_status.flag = 0;
@@ -692,47 +692,6 @@ void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
 	priv->_4965.last_phy_res_valid = true;
 	memcpy(&priv->_4965.last_phy_res, pkt->u.raw,
 	       sizeof(struct iwl_rx_phy_res));
-}
-
-static int iwl4965_get_single_channel_for_scan(struct iwl_priv *priv,
-					   struct ieee80211_vif *vif,
-					   enum ieee80211_band band,
-					   struct iwl_scan_channel *scan_ch)
-{
-	const struct ieee80211_supported_band *sband;
-	u16 passive_dwell = 0;
-	u16 active_dwell = 0;
-	int added = 0;
-	u16 channel = 0;
-
-	sband = iwl_get_hw_mode(priv, band);
-	if (!sband) {
-		IWL_ERR(priv, "invalid band\n");
-		return added;
-	}
-
-	active_dwell = iwl_legacy_get_active_dwell_time(priv, band, 0);
-	passive_dwell = iwl_legacy_get_passive_dwell_time(priv, band, vif);
-
-	if (passive_dwell <= active_dwell)
-		passive_dwell = active_dwell + 1;
-
-	channel = iwl_legacy_get_single_channel_number(priv, band);
-	if (channel) {
-		scan_ch->channel = cpu_to_le16(channel);
-		scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
-		scan_ch->active_dwell = cpu_to_le16(active_dwell);
-		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
-		/* Set txpower levels to defaults */
-		scan_ch->dsp_atten = 110;
-		if (band == IEEE80211_BAND_5GHZ)
-			scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
-		else
-			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
-		added++;
-	} else
-		IWL_ERR(priv, "no valid channel found\n");
-	return added;
 }
 
 static int iwl4965_get_channels_for_scan(struct iwl_priv *priv,
@@ -858,16 +817,13 @@ int iwl4965_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
 	if (iwl_legacy_is_any_associated(priv)) {
-		u16 interval = 0;
+		u16 interval;
 		u32 extra;
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
-		if (priv->is_internal_short_scan)
-			interval = 0;
-		else
-			interval = vif->bss_conf.beacon_int;
+		interval = vif->bss_conf.beacon_int;
 
 		scan->suspend_time = 0;
 		scan->max_out_time = cpu_to_le32(200 * 1024);
@@ -882,9 +838,7 @@ int iwl4965_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			       scan_suspend_time, interval);
 	}
 
-	if (priv->is_internal_short_scan) {
-		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
-	} else if (priv->scan_request->n_ssids) {
+	if (priv->scan_request->n_ssids) {
 		int i, p = 0;
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
 		for (i = 0; i < priv->scan_request->n_ssids; i++) {
@@ -981,38 +935,21 @@ int iwl4965_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
 	scan->rx_chain = cpu_to_le16(rx_chain);
-	if (!priv->is_internal_short_scan) {
-		cmd_len = iwl_legacy_fill_probe_req(priv,
+
+	cmd_len = iwl_legacy_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
 					vif->addr,
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
-	} else {
-		/* use bcast addr, will not be transmitted but must be valid */
-		cmd_len = iwl_legacy_fill_probe_req(priv,
-					(struct ieee80211_mgmt *)scan->data,
-					iwlegacy_bcast_addr, NULL, 0,
-					IWL_MAX_SCAN_SIZE - sizeof(*scan));
-
-	}
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
 			       RXON_FILTER_BCON_AWARE_MSK);
 
-	if (priv->is_internal_short_scan) {
-		scan->channel_count =
-			iwl4965_get_single_channel_for_scan(priv, vif, band,
-				(void *)&scan->data[le16_to_cpu(
-				scan->tx_cmd.len)]);
-	} else {
-		scan->channel_count =
-			iwl4965_get_channels_for_scan(priv, vif, band,
-				is_active, n_probes,
-				(void *)&scan->data[le16_to_cpu(
-				scan->tx_cmd.len)]);
-	}
+	scan->channel_count = iwl4965_get_channels_for_scan(priv, vif, band,
+						is_active, n_probes,
+						(void *)&scan->data[cmd_len]);
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
 		return -EIO;

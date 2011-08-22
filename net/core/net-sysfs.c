@@ -100,7 +100,6 @@ NETDEVICE_SHOW(addr_assign_type, fmt_dec);
 NETDEVICE_SHOW(addr_len, fmt_dec);
 NETDEVICE_SHOW(iflink, fmt_dec);
 NETDEVICE_SHOW(ifindex, fmt_dec);
-NETDEVICE_SHOW(features, fmt_hex);
 NETDEVICE_SHOW(type, fmt_dec);
 NETDEVICE_SHOW(link_mode, fmt_dec);
 
@@ -312,7 +311,6 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(ifalias, S_IRUGO | S_IWUSR, show_ifalias, store_ifalias),
 	__ATTR(iflink, S_IRUGO, show_iflink, NULL),
 	__ATTR(ifindex, S_IRUGO, show_ifindex, NULL),
-	__ATTR(features, S_IRUGO, show_features, NULL),
 	__ATTR(type, S_IRUGO, show_type, NULL),
 	__ATTR(link_mode, S_IRUGO, show_link_mode, NULL),
 	__ATTR(address, S_IRUGO, show_address, NULL),
@@ -1179,9 +1177,14 @@ static void remove_queue_kobjects(struct net_device *net)
 #endif
 }
 
-static const void *net_current_ns(void)
+static void *net_grab_current_ns(void)
 {
-	return current->nsproxy->net_ns;
+	struct net *ns = current->nsproxy->net_ns;
+#ifdef CONFIG_NET_NS
+	if (ns)
+		atomic_inc(&ns->passive);
+#endif
+	return ns;
 }
 
 static const void *net_initial_ns(void)
@@ -1196,21 +1199,12 @@ static const void *net_netlink_ns(struct sock *sk)
 
 struct kobj_ns_type_operations net_ns_type_operations = {
 	.type = KOBJ_NS_TYPE_NET,
-	.current_ns = net_current_ns,
+	.grab_current_ns = net_grab_current_ns,
 	.netlink_ns = net_netlink_ns,
 	.initial_ns = net_initial_ns,
+	.drop_ns = net_drop_ns,
 };
 EXPORT_SYMBOL_GPL(net_ns_type_operations);
-
-static void net_kobj_ns_exit(struct net *net)
-{
-	kobj_ns_exit(KOBJ_NS_TYPE_NET, net);
-}
-
-static struct pernet_operations kobj_net_ops = {
-	.exit = net_kobj_ns_exit,
-};
-
 
 #ifdef CONFIG_HOTPLUG
 static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
@@ -1339,6 +1333,5 @@ EXPORT_SYMBOL(netdev_class_remove_file);
 int netdev_kobject_init(void)
 {
 	kobj_ns_type_register(&net_ns_type_operations);
-	register_pernet_subsys(&kobj_net_ops);
 	return class_register(&net_class);
 }

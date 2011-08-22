@@ -121,7 +121,7 @@ extern int _cond_resched(void);
 # define might_resched() do { } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
+#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
   void __might_sleep(const char *file, int line, int preempt_offset);
 /**
  * might_sleep - annotation for functions that can sleep
@@ -671,8 +671,8 @@ struct sysinfo {
 
 #ifdef __CHECKER__
 #define BUILD_BUG_ON_NOT_POWER_OF_2(n)
-#define BUILD_BUG_ON_ZERO(e)
-#define BUILD_BUG_ON_NULL(e)
+#define BUILD_BUG_ON_ZERO(e) (0)
+#define BUILD_BUG_ON_NULL(e) ((void*)0)
 #define BUILD_BUG_ON(condition)
 #else /* __CHECKER__ */
 

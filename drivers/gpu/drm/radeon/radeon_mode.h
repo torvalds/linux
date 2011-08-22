@@ -483,6 +483,8 @@ extern void radeon_atom_encoder_init(struct radeon_device *rdev);
 extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 					   int action, uint8_t lane_num,
 					   uint8_t lane_set);
+extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
+extern struct drm_encoder *radeon_atom_get_external_encoder(struct drm_encoder *encoder);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				u8 write_byte, u8 *read_byte);
 

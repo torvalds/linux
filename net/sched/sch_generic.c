@@ -189,15 +189,15 @@ static inline int qdisc_restart(struct Qdisc *q)
 
 void __qdisc_run(struct Qdisc *q)
 {
-	unsigned long start_time = jiffies;
+	int quota = weight_p;
 
 	while (qdisc_restart(q)) {
 		/*
-		 * Postpone processing if
-		 * 1. another process needs the CPU;
-		 * 2. we've been doing it for too long.
+		 * Ordered by possible occurrence: Postpone processing if
+		 * 1. we've exceeded packet quota
+		 * 2. another process needs the CPU;
 		 */
-		if (need_resched() || jiffies != start_time) {
+		if (--quota <= 0 || need_resched()) {
 			__netif_schedule(q);
 			break;
 		}
@@ -251,9 +251,8 @@ static void dev_watchdog(unsigned long arg)
 			}
 
 			if (some_queue_timedout) {
-				char drivername[64];
 				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
-				       dev->name, netdev_drivername(dev, drivername, 64), i);
+				       dev->name, netdev_drivername(dev), i);
 				dev->netdev_ops->ndo_tx_timeout(dev);
 			}
 			if (!mod_timer(&dev->watchdog_timer,

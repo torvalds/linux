@@ -94,7 +94,7 @@ module_param(diag_buffer_enable, int, 0);
 MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
     "(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
 
-int mpt2sas_fwfault_debug;
+static int mpt2sas_fwfault_debug;
 MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
     "and halt firmware - (default=0)");
 
@@ -857,7 +857,7 @@ _base_interrupt(int irq, void *bus_id)
 	completed_cmds = 0;
 	cb_idx = 0xFF;
 	do {
-		rd.word = rpf->Words;
+		rd.word = le64_to_cpu(rpf->Words);
 		if (rd.u.low == UINT_MAX || rd.u.high == UINT_MAX)
 			goto out;
 		reply = 0;
@@ -906,7 +906,7 @@ _base_interrupt(int irq, void *bus_id)
 
  next:
 
-		rpf->Words = ULLONG_MAX;
+		rpf->Words = cpu_to_le64(ULLONG_MAX);
 		ioc->reply_post_host_index = (ioc->reply_post_host_index ==
 		    (ioc->reply_post_queue_depth - 1)) ? 0 :
 		    ioc->reply_post_host_index + 1;
@@ -1740,9 +1740,11 @@ _base_display_dell_branding(struct MPT2SAS_ADAPTER *ioc)
 static void
 _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 {
-	if (ioc->pdev->subsystem_vendor == PCI_VENDOR_ID_INTEL &&
-	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2008) {
+	if (ioc->pdev->subsystem_vendor != PCI_VENDOR_ID_INTEL)
+		return;
 
+	switch (ioc->pdev->device) {
+	case MPI2_MFGPAGE_DEVID_SAS2008:
 		switch (ioc->pdev->subsystem_device) {
 		case MPT2SAS_INTEL_RMS2LL080_SSDID:
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
@@ -1752,7 +1754,20 @@ _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 			    MPT2SAS_INTEL_RMS2LL040_BRANDING);
 			break;
+		default:
+			break;
 		}
+	case MPI2_MFGPAGE_DEVID_SAS2308_2:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT2SAS_INTEL_RS25GB008_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_INTEL_RS25GB008_BRANDING);
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
 	}
 }
 
@@ -1817,7 +1832,9 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 	char desc[16];
 	u8 revision;
 	u32 iounit_pg1_flags;
+	u32 bios_version;
 
+	bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
 	pci_read_config_byte(ioc->pdev, PCI_CLASS_REVISION, &revision);
 	strncpy(desc, ioc->manu_pg0.ChipName, 16);
 	printk(MPT2SAS_INFO_FMT "%s: FWVersion(%02d.%02d.%02d.%02d), "
@@ -1828,10 +1845,10 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 	   (ioc->facts.FWVersion.Word & 0x0000FF00) >> 8,
 	   ioc->facts.FWVersion.Word & 0x000000FF,
 	   revision,
-	   (ioc->bios_pg3.BiosVersion & 0xFF000000) >> 24,
-	   (ioc->bios_pg3.BiosVersion & 0x00FF0000) >> 16,
-	   (ioc->bios_pg3.BiosVersion & 0x0000FF00) >> 8,
-	    ioc->bios_pg3.BiosVersion & 0x000000FF);
+	   (bios_version & 0xFF000000) >> 24,
+	   (bios_version & 0x00FF0000) >> 16,
+	   (bios_version & 0x0000FF00) >> 8,
+	    bios_version & 0x000000FF);
 
 	_base_display_dell_branding(ioc);
 	_base_display_intel_branding(ioc);
@@ -2150,7 +2167,7 @@ _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 static int
 _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 {
-	Mpi2IOCFactsReply_t *facts;
+	struct mpt2sas_facts *facts;
 	u32 queue_size, queue_diff;
 	u16 max_sge_elements;
 	u16 num_of_reply_frames;
@@ -2783,7 +2800,7 @@ _base_handshake_req_reply_wait(struct MPT2SAS_ADAPTER *ioc, int request_bytes,
 	int i;
 	u8 failed;
 	u16 dummy;
-	u32 *mfp;
+	__le32 *mfp;
 
 	/* make sure doorbell is not in use */
 	if ((readl(&ioc->chip->Doorbell) & MPI2_DOORBELL_USED)) {
@@ -2871,7 +2888,7 @@ _base_handshake_req_reply_wait(struct MPT2SAS_ADAPTER *ioc, int request_bytes,
 	writel(0, &ioc->chip->HostInterruptStatus);
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
-		mfp = (u32 *)reply;
+		mfp = (__le32 *)reply;
 		printk(KERN_INFO "\toffset:data\n");
 		for (i = 0; i < reply_bytes/4; i++)
 			printk(KERN_INFO "\t[0x%02x]:%08x\n", i*4,
@@ -3097,7 +3114,8 @@ static int
 _base_get_port_facts(struct MPT2SAS_ADAPTER *ioc, int port, int sleep_flag)
 {
 	Mpi2PortFactsRequest_t mpi_request;
-	Mpi2PortFactsReply_t mpi_reply, *pfacts;
+	Mpi2PortFactsReply_t mpi_reply;
+	struct mpt2sas_port_facts *pfacts;
 	int mpi_reply_sz, mpi_request_sz, r;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
@@ -3139,7 +3157,8 @@ static int
 _base_get_ioc_facts(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 {
 	Mpi2IOCFactsRequest_t mpi_request;
-	Mpi2IOCFactsReply_t mpi_reply, *facts;
+	Mpi2IOCFactsReply_t mpi_reply;
+	struct mpt2sas_facts *facts;
 	int mpi_reply_sz, mpi_request_sz, r;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
@@ -3225,17 +3244,6 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	mpi_request.MsgVersion = cpu_to_le16(MPI2_VERSION);
 	mpi_request.HeaderVersion = cpu_to_le16(MPI2_HEADER_VERSION);
 
-	/* In MPI Revision I (0xA), the SystemReplyFrameSize(offset 0x18) was
-	 * removed and made reserved.  For those with older firmware will need
-	 * this fix. It was decided that the Reply and Request frame sizes are
-	 * the same.
-	 */
-	if ((ioc->facts.HeaderVersion >> 8) < 0xA) {
-		mpi_request.Reserved7 = cpu_to_le16(ioc->reply_sz);
-/*		mpi_request.SystemReplyFrameSize =
- *		 cpu_to_le16(ioc->reply_sz);
- */
-	}
 
 	mpi_request.SystemRequestFrameSize = cpu_to_le16(ioc->request_sz/4);
 	mpi_request.ReplyDescriptorPostQueueDepth =
@@ -3243,25 +3251,17 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	mpi_request.ReplyFreeQueueDepth =
 	    cpu_to_le16(ioc->reply_free_queue_depth);
 
-#if BITS_PER_LONG > 32
 	mpi_request.SenseBufferAddressHigh =
-	    cpu_to_le32(ioc->sense_dma >> 32);
+	    cpu_to_le32((u64)ioc->sense_dma >> 32);
 	mpi_request.SystemReplyAddressHigh =
-	    cpu_to_le32(ioc->reply_dma >> 32);
+	    cpu_to_le32((u64)ioc->reply_dma >> 32);
 	mpi_request.SystemRequestFrameBaseAddress =
-	    cpu_to_le64(ioc->request_dma);
+	    cpu_to_le64((u64)ioc->request_dma);
 	mpi_request.ReplyFreeQueueAddress =
-	    cpu_to_le64(ioc->reply_free_dma);
+	    cpu_to_le64((u64)ioc->reply_free_dma);
 	mpi_request.ReplyDescriptorPostQueueAddress =
-	    cpu_to_le64(ioc->reply_post_free_dma);
-#else
-	mpi_request.SystemRequestFrameBaseAddress =
-	    cpu_to_le32(ioc->request_dma);
-	mpi_request.ReplyFreeQueueAddress =
-	    cpu_to_le32(ioc->reply_free_dma);
-	mpi_request.ReplyDescriptorPostQueueAddress =
-	    cpu_to_le32(ioc->reply_post_free_dma);
-#endif
+	    cpu_to_le64((u64)ioc->reply_post_free_dma);
+
 
 	/* This time stamp specifies number of milliseconds
 	 * since epoch ~ midnight January 1, 1970.
@@ -3271,10 +3271,10 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	    (current_time.tv_usec / 1000));
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
-		u32 *mfp;
+		__le32 *mfp;
 		int i;
 
-		mfp = (u32 *)&mpi_request;
+		mfp = (__le32 *)&mpi_request;
 		printk(KERN_INFO "\toffset:data\n");
 		for (i = 0; i < sizeof(Mpi2IOCInitRequest_t)/4; i++)
 			printk(KERN_INFO "\t[0x%02x]:%08x\n", i*4,
@@ -3759,7 +3759,7 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 
 	/* initialize Reply Post Free Queue */
 	for (i = 0; i < ioc->reply_post_queue_depth; i++)
-		ioc->reply_post_free[i].Words = ULLONG_MAX;
+		ioc->reply_post_free[i].Words = cpu_to_le64(ULLONG_MAX);
 
 	r = _base_send_ioc_init(ioc, sleep_flag);
 	if (r)

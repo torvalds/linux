@@ -1246,6 +1246,10 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		}
 		*dcpll = *p1pll;
 
+		rdev->clock.max_pixel_clock = le16_to_cpu(firmware_info->info.usMaxPixelClock);
+		if (rdev->clock.max_pixel_clock == 0)
+			rdev->clock.max_pixel_clock = 40000;
+
 		return true;
 	}
 
@@ -2316,6 +2320,14 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			le16_to_cpu(clock_info->r600.usVDDC);
 	}
 
+	/* patch up vddc if necessary */
+	if (rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage == 0xff01) {
+		u16 vddc;
+
+		if (radeon_atom_get_max_vddc(rdev, &vddc) == 0)
+			rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage = vddc;
+	}
+
 	if (rdev->flags & RADEON_IS_IGP) {
 		/* skip invalid modes */
 		if (rdev->pm.power_state[state_index].clock_info[mode_index].sclk == 0)
@@ -2603,6 +2615,10 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
+	/* 0xff01 is a flag rather then an actual voltage */
+	if (voltage_level == 0xff01)
+		return;
+
 	switch (crev) {
 	case 1:
 		args.v1.ucVoltageType = voltage_type;
@@ -2622,7 +2638,35 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+int radeon_atom_get_max_vddc(struct radeon_device *rdev,
+			     u16 *voltage)
+{
+	union set_voltage args;
+	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
+	u8 frev, crev;
 
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return -EINVAL;
+
+	switch (crev) {
+	case 1:
+		return -EINVAL;
+	case 2:
+		args.v2.ucVoltageType = SET_VOLTAGE_GET_MAX_VOLTAGE;
+		args.v2.ucVoltageMode = 0;
+		args.v2.usVoltageLevel = 0;
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		*voltage = le16_to_cpu(args.v2.usVoltageLevel);
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 {

@@ -683,9 +683,11 @@ __SC_COMP(__NR_clock_adjtime, sys_clock_adjtime, compat_sys_clock_adjtime)
 __SYSCALL(__NR_syncfs, sys_syncfs)
 #define __NR_setns 268
 __SYSCALL(__NR_setns, sys_setns)
+#define __NR_sendmmsg 269
+__SC_COMP(__NR_sendmmsg, sys_sendmmsg, compat_sys_sendmmsg)
 
 #undef __NR_syscalls
-#define __NR_syscalls 269
+#define __NR_syscalls 270
 
 /*
  * All syscalls below here should go away really,

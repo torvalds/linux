@@ -168,4 +168,6 @@ config SYS_HYPERVISOR
 	bool
 	default n
 
+source "drivers/base/regmap/Kconfig"
+
 endmenu

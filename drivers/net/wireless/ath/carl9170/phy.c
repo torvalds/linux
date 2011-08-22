@@ -1783,12 +1783,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		}
 	}
 
-	/* FIXME: PSM does not work in 5GHz Band */
-	if (channel->band == IEEE80211_BAND_5GHZ)
-		ar->ps.off_override |= PS_OFF_5GHZ;
-	else
-		ar->ps.off_override &= ~PS_OFF_5GHZ;
-
 	ar->channel = channel;
 	ar->ht_settings = new_ht;
 	return 0;

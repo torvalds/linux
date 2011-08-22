@@ -30,6 +30,7 @@
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-helpers.h"
+#include "iwl-trans.h"
 
 static int iwlagn_disable_bss(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
@@ -39,7 +40,8 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd, sizeof(*send), send);
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd,
+				CMD_SYNC, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 
@@ -64,7 +66,8 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd, sizeof(*send), send);
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd,
+				CMD_SYNC, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 	send->dev_type = old_dev_type;
@@ -77,6 +80,22 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 		if (ret)
 			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
 	}
+
+	return ret;
+}
+
+static int iwlagn_disconn_pan(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx,
+			      struct iwl_rxon_cmd *send)
+{
+	__le32 old_filter = send->filter_flags;
+	int ret;
+
+	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
+				sizeof(*send), send);
+
+	send->filter_flags = old_filter;
 
 	return ret;
 }
@@ -102,7 +121,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
-	ret = iwl_send_cmd_pdu(priv, ctx->qos_cmd,
+	ret = trans_send_cmd_pdu(priv, ctx->qos_cmd, CMD_SYNC,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
@@ -161,11 +180,8 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 		 ctx->staging.ofdm_ht_triple_stream_basic_rates;
 	rxon_assoc.acquisition_data = ctx->staging.acquisition_data;
 
-	ret = iwl_send_cmd_pdu_async(priv, ctx->rxon_assoc_cmd,
-				     sizeof(rxon_assoc), &rxon_assoc, NULL);
-	if (ret)
-		return ret;
-
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_assoc_cmd,
+				CMD_ASYNC, sizeof(rxon_assoc), &rxon_assoc);
 	return ret;
 }
 
@@ -175,10 +191,21 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 	int ret;
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
 
-	if (ctx->ctxid == IWL_RXON_CTX_BSS)
+	if (ctx->ctxid == IWL_RXON_CTX_BSS) {
 		ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
-	else
+	} else {
 		ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
+		if (ret)
+			return ret;
+		if (ctx->vif) {
+			ret = iwl_send_rxon_timing(priv, ctx);
+			if (ret) {
+				IWL_ERR(priv, "Failed to send timing (%d)!\n", ret);
+				return ret;
+			}
+			ret = iwlagn_disconn_pan(priv, ctx, &ctx->staging);
+		}
+	}
 	if (ret)
 		return ret;
 
@@ -187,6 +214,8 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 	 * keys, so we have to restore those afterwards.
 	 */
 	iwl_clear_ucode_stations(priv, ctx);
+	/* update -- might need P2P now */
+	iwl_update_bcast_station(priv, ctx);
 	iwl_restore_stations(priv, ctx);
 	ret = iwl_restore_default_wep_keys(priv, ctx);
 	if (ret) {
@@ -205,10 +234,12 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
 
 	/* RXON timing must be before associated RXON */
-	ret = iwl_send_rxon_timing(priv, ctx);
-	if (ret) {
-		IWL_ERR(priv, "Failed to send timing (%d)!\n", ret);
-		return ret;
+	if (ctx->ctxid == IWL_RXON_CTX_BSS) {
+		ret = iwl_send_rxon_timing(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Failed to send timing (%d)!\n", ret);
+			return ret;
+		}
 	}
 	/* QoS info may be cleared by previous un-assoc RXON */
 	iwlagn_update_qos(priv, ctx);
@@ -235,7 +266,7 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	 * Associated RXON doesn't clear the station table in uCode,
 	 * so we don't need to restore stations etc. after this.
 	 */
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
 		      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 	if (ret) {
 		IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -263,6 +294,12 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 		IWL_ERR(priv, "Error sending TX power (%d)\n", ret);
 		return ret;
 	}
+
+	if ((ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION) &&
+	    priv->cfg->ht_params->smps_mode)
+		ieee80211_request_smps(ctx->vif,
+				       priv->cfg->ht_params->smps_mode);
+
 	return 0;
 }
 
@@ -325,6 +362,14 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			return 0;
 	}
 
+	/*
+	 * force CTS-to-self frames protection if RTS-CTS is not preferred
+	 * one aggregation protection method
+	 */
+	if (!(priv->cfg->ht_params &&
+	      priv->cfg->ht_params->use_rts_for_aggregation))
+		ctx->staging.flags |= RXON_FLG_SELF_CTS_EN;
+
 	if ((ctx->vif && ctx->vif->bss_conf.use_short_slot) ||
 	    !(ctx->staging.flags & RXON_FLG_BAND_24G_MSK))
 		ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
@@ -342,10 +387,10 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (priv->switch_rxon.switch_in_progress &&
-	    (priv->switch_rxon.channel != ctx->staging.channel)) {
+	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
+	    (priv->switch_channel != ctx->staging.channel)) {
 		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
-		      le16_to_cpu(priv->switch_rxon.channel));
+			      le16_to_cpu(priv->switch_channel));
 		iwl_chswitch_done(priv, false);
 	}
 
@@ -362,13 +407,16 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 
 		memcpy(active, &ctx->staging, sizeof(*active));
-		return 0;
-	}
+		/*
+		 * We do not commit tx power settings while channel changing,
+		 * do it now if after settings changed.
+		 */
+		iwl_set_tx_power(priv, priv->tx_power_next, false);
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
+		/* make sure we are in the right PS state */
+		iwl_power_update_mode(priv, true);
+
+		return 0;
 	}
 
 	iwl_set_rxon_hwcrypto(priv, ctx, !iwlagn_mod_params.sw_crypto);
@@ -389,6 +437,10 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * set up filters in the device.
 	 */
 	ret = iwlagn_rxon_disconn(priv, ctx);
+	if (ret)
+		return ret;
+
+	ret = iwlagn_set_pan_params(priv);
 	if (ret)
 		return ret;
 
@@ -433,9 +485,8 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * set up the SM PS mode to OFF if an HT channel is
 		 * configured.
 		 */
-		if (priv->cfg->ops->hcmd->set_rxon_chain)
-			for_each_context(priv, ctx)
-				priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+		for_each_context(priv, ctx)
+			iwlagn_set_rxon_chain(priv, ctx);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
@@ -623,6 +674,38 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	ht_conf->single_chain_sufficient = !need_multiple;
 }
 
+static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
+{
+	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	int ret;
+
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	    iwl_is_any_associated(priv)) {
+		struct iwl_calib_chain_noise_reset_cmd cmd;
+
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
+
+		memset(&cmd, 0, sizeof(cmd));
+		iwl_set_calib_hdr(&cmd.hdr,
+			priv->_agn.phy_calib_chain_noise_reset_cmd);
+		ret = trans_send_cmd_pdu(priv,
+					REPLY_PHY_CALIBRATION_CMD,
+					CMD_SYNC, sizeof(cmd), &cmd);
+		if (ret)
+			IWL_ERR(priv,
+				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
+		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
+		IWL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
+	}
+}
+
 void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf,
@@ -680,6 +763,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		}
+
+		iwlagn_bt_coex_rssi_monitor(priv);
 	}
 
 	if (ctx->ht.enabled) {
@@ -691,8 +776,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 		iwl_set_rxon_ht(priv, &priv->current_ht_config);
 	}
 
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+	iwlagn_set_rxon_chain(priv, ctx);
 
 	if (bss_conf->use_cts_prot && (priv->band != IEEE80211_BAND_5GHZ))
 		ctx->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
@@ -730,7 +814,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			iwl_power_update_mode(priv, false);
 
 		/* Enable RX differential gain and sensitivity calibrations */
-		iwl_chain_noise_reset(priv);
+		if (!priv->disable_chain_noise_cal)
+			iwlagn_chain_noise_reset(priv);
 		priv->start_calib = 1;
 	}
 
@@ -757,6 +842,13 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 	struct iwl_rxon_context *ctx;
 
 	/*
+	 * We do not commit power settings while scan is pending,
+	 * do it now if the settings changed.
+	 */
+	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
+	iwl_set_tx_power(priv, priv->tx_power_next, false);
+
+	/*
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
@@ -764,6 +856,5 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 		if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
 			iwlagn_commit_rxon(priv, ctx);
 
-	if (priv->cfg->ops->hcmd->set_pan_params)
-		priv->cfg->ops->hcmd->set_pan_params(priv);
+	iwlagn_set_pan_params(priv);
 }

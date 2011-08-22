@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 75
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.75"
+#define _NETXEN_NIC_LINUX_SUBVERSION 76
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.76"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -1302,6 +1302,7 @@ int netxen_nic_wol_supported(struct netxen_adapter *adapter);
 int netxen_init_dummy_dma(struct netxen_adapter *adapter);
 void netxen_free_dummy_dma(struct netxen_adapter *adapter);
 
+int netxen_check_flash_fw_compatibility(struct netxen_adapter *adapter);
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 int netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_need_fw_reset(struct netxen_adapter *adapter);

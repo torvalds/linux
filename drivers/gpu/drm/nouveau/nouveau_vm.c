@@ -58,6 +58,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 			num -= len;
 			pte += len;
 			if (unlikely(end >= max)) {
+				phys += len << (bits + 12);
 				pde++;
 				pte = 0;
 			}
