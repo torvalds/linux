@@ -114,15 +114,20 @@ static int rk29_cpufreq_set_limit_avg_voltage(const char *val, struct kernel_par
 }
 module_param_call(limit_avg_voltage, rk29_cpufreq_set_limit_avg_voltage, param_get_uint, &limit_avg_voltage, 0644);
 
+#define CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
 static bool limit_fb1_is_on;
 static bool limit_hdmi_is_on;
-static bool aclk_limit(void) { return limit_hdmi_is_on && limit_fb1_is_on; }
+static inline bool aclk_limit(void) { return limit_hdmi_is_on && limit_fb1_is_on; }
 static int limit_index_816 = -1;
 static int limit_index_1008 = -1;
 module_param(limit_fb1_is_on, bool, 0644);
 module_param(limit_hdmi_is_on, bool, 0644);
 module_param(limit_index_816, int, 0444);
 module_param(limit_index_1008, int, 0444);
+#else
+static inline bool aclk_limit(void) { return false; }
+#endif
 
 static bool rk29_cpufreq_is_ondemand_policy(struct cpufreq_policy *policy)
 {
@@ -138,8 +143,10 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 
 	limit_avg_freq = 0;
 	limit_avg_index = -1;
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
 	limit_index_816 = -1;
 	limit_index_1008 = -1;
+#endif
 
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		table[i].frequency = clk_round_rate(arm_clk, table[i].frequency * KHZ) / KHZ;
@@ -147,6 +154,7 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 			limit_avg_freq = table[i].frequency;
 			limit_avg_index = i;
 		}
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
 		if (table[i].frequency <= 816 * KHZ &&
 		    (limit_index_816 < 0 ||
 		    (limit_index_816 >= 0 && table[limit_index_816].frequency < table[i].frequency)))
@@ -155,6 +163,7 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 		    (limit_index_1008 < 0 ||
 		    (limit_index_1008 >= 0 && table[limit_index_1008].frequency < table[i].frequency)))
 			limit_index_1008 = i;
+#endif
 	}
 
 	if (!limit_avg_freq)
@@ -231,6 +240,7 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 #define rk29_cpufreq_limit_by_temp(...) do {} while (0)
 #endif
 
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
 static void rk29_cpufreq_limit_by_disp(int *index)
 {
 	unsigned long ddr_rate;
@@ -255,6 +265,9 @@ static void rk29_cpufreq_limit_by_disp(int *index)
 		*index = new_index;
 	}
 }
+#else
+#define rk29_cpufreq_limit_by_disp(...) do {} while (0)
+#endif
 
 static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int target_freq, unsigned int relation)
 {
@@ -396,6 +409,42 @@ static void rk29_cpufreq_work_func(struct work_struct *work)
 }
 #endif
 
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct cpufreq_policy *policy;
+
+	switch (event) {
+	case RK29FB_EVENT_HDMI_ON:
+		limit_hdmi_is_on = true;
+		break;
+	case RK29FB_EVENT_HDMI_OFF:
+		limit_hdmi_is_on = false;
+		break;
+	case RK29FB_EVENT_FB1_ON:
+		limit_fb1_is_on = true;
+		break;
+	case RK29FB_EVENT_FB1_OFF:
+		limit_fb1_is_on = false;
+		break;
+	}
+
+	dprintk(DEBUG_DISP, "event: %lu aclk_limit: %d\n", event, aclk_limit());
+	policy = cpufreq_cpu_get(0);
+	if (policy) {
+		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_FORCE_CHANGE);
+		cpufreq_cpu_put(policy);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk29_cpufreq_fb_notifier = {
+	.notifier_call = rk29_cpufreq_fb_notifier_event,
+};
+#endif
+
 static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu != 0)
@@ -438,11 +487,17 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 	}
 	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 #endif
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+	rk29fb_register_notifier(&rk29_cpufreq_fb_notifier);
+#endif
 	return 0;
 }
 
 static int rk29_cpufreq_exit(struct cpufreq_policy *policy)
 {
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+	rk29fb_unregister_notifier(&rk29_cpufreq_fb_notifier);
+#endif
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 	if (wq) {
@@ -528,45 +583,10 @@ static struct notifier_block rk29_cpufreq_reboot_notifier = {
 	.notifier_call = rk29_cpufreq_reboot_notifier_event,
 };
 
-static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
-		unsigned long event, void *ptr)
-{
-	struct cpufreq_policy *policy;
-
-	switch (event) {
-	case RK29FB_EVENT_HDMI_ON:
-		limit_hdmi_is_on = true;
-		break;
-	case RK29FB_EVENT_HDMI_OFF:
-		limit_hdmi_is_on = false;
-		break;
-	case RK29FB_EVENT_FB1_ON:
-		limit_fb1_is_on = true;
-		break;
-	case RK29FB_EVENT_FB1_OFF:
-		limit_fb1_is_on = false;
-		break;
-	}
-
-	dprintk(DEBUG_DISP, "event: %lu aclk_limit: %d\n", event, aclk_limit());
-	policy = cpufreq_cpu_get(0);
-	if (policy) {
-		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_FORCE_CHANGE);
-		cpufreq_cpu_put(policy);
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rk29_cpufreq_fb_notifier = {
-	.notifier_call = rk29_cpufreq_fb_notifier_event,
-};
-
 static int __init rk29_cpufreq_register(void)
 {
 	register_pm_notifier(&rk29_cpufreq_pm_notifier);
 	register_reboot_notifier(&rk29_cpufreq_reboot_notifier);
-	rk29fb_register_notifier(&rk29_cpufreq_fb_notifier);
 
 	return cpufreq_register_driver(&rk29_cpufreq_driver);
 }
