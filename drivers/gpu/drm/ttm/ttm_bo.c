@@ -392,10 +392,12 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	 * Create and bind a ttm if required.
 	 */
 
-	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED) && (bo->ttm == NULL)) {
-		ret = ttm_bo_add_ttm(bo, false);
-		if (ret)
-			goto out_err;
+	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
+		if (bo->ttm == NULL) {
+			ret = ttm_bo_add_ttm(bo, false);
+			if (ret)
+				goto out_err;
+		}
 
 		ret = ttm_tt_set_placement_caching(bo->ttm, mem->placement);
 		if (ret)
