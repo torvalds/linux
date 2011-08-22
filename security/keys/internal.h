@@ -31,6 +31,7 @@
 	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
 #endif
 
+extern struct key_type key_type_dead;
 extern struct key_type key_type_user;
 
 /*****************************************************************************/
@@ -147,10 +148,11 @@ extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 
 extern long join_session_keyring(const char *name);
 
-extern struct work_struct key_gc_unused_work;
+extern struct work_struct key_gc_work;
 extern unsigned key_gc_delay;
 extern void keyring_gc(struct key *keyring, time_t limit);
 extern void key_schedule_gc(time_t expiry_at);
+extern void key_gc_keytype(struct key_type *ktype);
 
 extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
