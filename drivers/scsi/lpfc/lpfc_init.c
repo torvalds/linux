@@ -1481,15 +1481,18 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			return;
 		}
 		if (bf_get(lpfc_sliport_status_rn, &portstat_reg)) {
-			/*
-			 * TODO: Attempt port recovery via a port reset.
-			 * When fully implemented, the driver should
-			 * attempt to recover the port here and return.
-			 * For now, log an error and take the port offline.
-			 */
+			/* need reset: attempt for port recovery */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2887 Port Error: Attempting "
 					"Port Recovery\n");
+			lpfc_offline_prep(phba);
+			lpfc_offline(phba);
+			lpfc_sli_brdrestart(phba);
+			if (lpfc_online(phba) == 0) {
+				lpfc_unblock_mgmt_io(phba);
+				return;
+			}
+			/* fall through for not able to recover */
 		}
 		lpfc_sli4_offline_eratt(phba);
 		break;
@@ -1958,7 +1961,7 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	case PCI_DEVICE_ID_LANCER_FCOE:
 	case PCI_DEVICE_ID_LANCER_FCOE_VF:
 		oneConnect = 1;
-		m = (typeof(m)){"OCe50100", "PCIe", "FCoE"};
+		m = (typeof(m)){"OCe15100", "PCIe", "FCoE"};
 		break;
 	default:
 		m = (typeof(m)){"Unknown", "", ""};
@@ -3949,7 +3952,7 @@ static int
 lpfc_enable_pci_dev(struct lpfc_hba *phba)
 {
 	struct pci_dev *pdev;
-	int bars;
+	int bars = 0;
 
 	/* Obtain PCI device reference */
 	if (!phba->pcidev)
@@ -3978,6 +3981,8 @@ lpfc_enable_pci_dev(struct lpfc_hba *phba)
 out_disable_device:
 	pci_disable_device(pdev);
 out_error:
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"1401 Failed to enable pci device, bars:x%x\n", bars);
 	return -ENODEV;
 }
 
@@ -8271,11 +8276,8 @@ lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Perform generic PCI device enabling operation */
 	error = lpfc_enable_pci_dev(phba);
-	if (error) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1401 Failed to enable pci device.\n");
+	if (error)
 		goto out_free_phba;
-	}
 
 	/* Set up SLI API function jump table for PCI-device group-0 HBAs */
 	error = lpfc_api_table_setup(phba, LPFC_PCI_DEV_LP);
@@ -8321,6 +8323,9 @@ lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
 				"1406 Failed to set up driver resource.\n");
 		goto out_free_iocb_list;
 	}
+
+	/* Get the default values for Model Name and Description */
+	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
 
 	/* Create SCSI host to the physical port */
 	error = lpfc_create_shost(phba);
@@ -8885,16 +8890,17 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 	uint32_t offset = 0, temp_offset = 0;
 
 	INIT_LIST_HEAD(&dma_buffer_list);
-	if ((image->magic_number != LPFC_GROUP_OJECT_MAGIC_NUM) ||
-	    (bf_get(lpfc_grp_hdr_file_type, image) != LPFC_FILE_TYPE_GROUP) ||
-	    (bf_get(lpfc_grp_hdr_id, image) != LPFC_FILE_ID_GROUP) ||
-	    (image->size != fw->size)) {
+	if ((be32_to_cpu(image->magic_number) != LPFC_GROUP_OJECT_MAGIC_NUM) ||
+	    (bf_get_be32(lpfc_grp_hdr_file_type, image) !=
+	     LPFC_FILE_TYPE_GROUP) ||
+	    (bf_get_be32(lpfc_grp_hdr_id, image) != LPFC_FILE_ID_GROUP) ||
+	    (be32_to_cpu(image->size) != fw->size)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3022 Invalid FW image found. "
-				"Magic:%d Type:%x ID:%x\n",
-				image->magic_number,
-				bf_get(lpfc_grp_hdr_file_type, image),
-				bf_get(lpfc_grp_hdr_id, image));
+				"Magic:%x Type:%x ID:%x\n",
+				be32_to_cpu(image->magic_number),
+				bf_get_be32(lpfc_grp_hdr_file_type, image),
+				bf_get_be32(lpfc_grp_hdr_id, image));
 		return -EINVAL;
 	}
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
@@ -8924,11 +8930,11 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 		while (offset < fw->size) {
 			temp_offset = offset;
 			list_for_each_entry(dmabuf, &dma_buffer_list, list) {
-				if (offset + SLI4_PAGE_SIZE > fw->size) {
-					temp_offset += fw->size - offset;
+				if (temp_offset + SLI4_PAGE_SIZE > fw->size) {
 					memcpy(dmabuf->virt,
 					       fw->data + temp_offset,
-					       fw->size - offset);
+					       fw->size - temp_offset);
+					temp_offset = fw->size;
 					break;
 				}
 				memcpy(dmabuf->virt, fw->data + temp_offset,
@@ -8995,11 +9001,8 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Perform generic PCI device enabling operation */
 	error = lpfc_enable_pci_dev(phba);
-	if (error) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1409 Failed to enable pci device.\n");
+	if (error)
 		goto out_free_phba;
-	}
 
 	/* Set up SLI API function jump table for PCI-device group-1 HBAs */
 	error = lpfc_api_table_setup(phba, LPFC_PCI_DEV_OC);
@@ -9053,6 +9056,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 				"1414 Failed to set up driver resource.\n");
 		goto out_free_iocb_list;
 	}
+
+	/* Get the default values for Model Name and Description */
+	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
 
 	/* Create SCSI host to the physical port */
 	error = lpfc_create_shost(phba);
