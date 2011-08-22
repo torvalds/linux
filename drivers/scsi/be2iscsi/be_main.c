@@ -4181,6 +4181,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 	iscsi_host_remove(phba->shost);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
+	pci_disable_device(pcidev);
 }
 
 static void beiscsi_shutdown(struct pci_dev *pcidev)
@@ -4195,6 +4196,7 @@ static void beiscsi_shutdown(struct pci_dev *pcidev)
 	}
 
 	beiscsi_quiesce(phba);
+	pci_disable_device(pcidev);
 }
 
 static void beiscsi_msix_enable(struct beiscsi_hba *phba)
