@@ -735,11 +735,6 @@ static void rt2500pci_start_queue(struct data_queue *queue)
 		rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
 		break;
 	case QID_BEACON:
-		/*
-		 * Allow the tbtt tasklet to be scheduled.
-		 */
-		tasklet_enable(&rt2x00dev->tbtt_tasklet);
-
 		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
 		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
 		rt2x00_set_field32(&reg, CSR14_TBCN, 1);
@@ -805,7 +800,7 @@ static void rt2500pci_stop_queue(struct data_queue *queue)
 		/*
 		 * Wait for possibly running tbtt tasklets.
 		 */
-		tasklet_disable(&rt2x00dev->tbtt_tasklet);
+		tasklet_kill(&rt2x00dev->tbtt_tasklet);
 		break;
 	default:
 		break;
@@ -1137,12 +1132,6 @@ static void rt2500pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_RADIO_IRQ_ON) {
 		rt2x00pci_register_read(rt2x00dev, CSR7, &reg);
 		rt2x00pci_register_write(rt2x00dev, CSR7, reg);
-
-		/*
-		 * Enable tasklets.
-		 */
-		tasklet_enable(&rt2x00dev->txstatus_tasklet);
-		tasklet_enable(&rt2x00dev->rxdone_tasklet);
 	}
 
 	/*
@@ -1165,8 +1154,9 @@ static void rt2500pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Ensure that all tasklets are finished.
 		 */
-		tasklet_disable(&rt2x00dev->txstatus_tasklet);
-		tasklet_disable(&rt2x00dev->rxdone_tasklet);
+		tasklet_kill(&rt2x00dev->txstatus_tasklet);
+		tasklet_kill(&rt2x00dev->rxdone_tasklet);
+		tasklet_kill(&rt2x00dev->tbtt_tasklet);
 	}
 }
 
@@ -1479,22 +1469,25 @@ static void rt2500pci_txstatus_tasklet(unsigned long data)
 	/*
 	 * Enable all TXDONE interrupts again.
 	 */
-	spin_lock_irq(&rt2x00dev->irqmask_lock);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags)) {
+		spin_lock_irq(&rt2x00dev->irqmask_lock);
 
-	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
-	rt2x00_set_field32(&reg, CSR8_TXDONE_TXRING, 0);
-	rt2x00_set_field32(&reg, CSR8_TXDONE_ATIMRING, 0);
-	rt2x00_set_field32(&reg, CSR8_TXDONE_PRIORING, 0);
-	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
+		rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
+		rt2x00_set_field32(&reg, CSR8_TXDONE_TXRING, 0);
+		rt2x00_set_field32(&reg, CSR8_TXDONE_ATIMRING, 0);
+		rt2x00_set_field32(&reg, CSR8_TXDONE_PRIORING, 0);
+		rt2x00pci_register_write(rt2x00dev, CSR8, reg);
 
-	spin_unlock_irq(&rt2x00dev->irqmask_lock);
+		spin_unlock_irq(&rt2x00dev->irqmask_lock);
+	}
 }
 
 static void rt2500pci_tbtt_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	rt2x00lib_beacondone(rt2x00dev);
-	rt2500pci_enable_interrupt(rt2x00dev, CSR8_TBCN_EXPIRE);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2500pci_enable_interrupt(rt2x00dev, CSR8_TBCN_EXPIRE);
 }
 
 static void rt2500pci_rxdone_tasklet(unsigned long data)
@@ -1502,7 +1495,7 @@ static void rt2500pci_rxdone_tasklet(unsigned long data)
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	if (rt2x00pci_rxdone(rt2x00dev))
 		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
-	else
+	else if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2500pci_enable_interrupt(rt2x00dev, CSR8_RXDONE);
 }
 

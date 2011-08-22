@@ -750,6 +750,7 @@ static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
 	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
 	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
 	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
 };
 
 static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
@@ -763,6 +764,7 @@ static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
 	{ IWL_TX_FIFO_VO_IPAN, IEEE80211_AC_VO, },
 	{ IWL_TX_FIFO_BE_IPAN, 2, },
 	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_AUX, IWL_AC_UNSET, },
 };
 static void iwl_trans_tx_start(struct iwl_priv *priv)
 {
@@ -848,10 +850,12 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
 
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) !=
+						IWLAGN_FIRST_AMPDU_QUEUE);
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) !=
+						IWLAGN_FIRST_AMPDU_QUEUE);
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < IWLAGN_FIRST_AMPDU_QUEUE; i++) {
 		int fifo = queue_to_fifo[i].fifo;
 		int ac = queue_to_fifo[i].ac;
 

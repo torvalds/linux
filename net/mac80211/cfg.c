@@ -1898,33 +1898,6 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	*cookie = (unsigned long) skb;
 
-	if (is_offchan && local->ops->offchannel_tx) {
-		int ret;
-
-		IEEE80211_SKB_CB(skb)->band = chan->band;
-
-		mutex_lock(&local->mtx);
-
-		if (local->hw_offchan_tx_cookie) {
-			mutex_unlock(&local->mtx);
-			return -EBUSY;
-		}
-
-		/* TODO: bitrate control, TX processing? */
-		ret = drv_offchannel_tx(local, skb, chan, channel_type, wait);
-
-		if (ret == 0)
-			local->hw_offchan_tx_cookie = *cookie;
-		mutex_unlock(&local->mtx);
-
-		/*
-		 * Allow driver to return 1 to indicate it wants to have the
-		 * frame transmitted with a remain_on_channel + regular TX.
-		 */
-		if (ret != 1)
-			return ret;
-	}
-
 	if (is_offchan && local->ops->remain_on_channel) {
 		unsigned int duration;
 		int ret;
@@ -2010,18 +1983,6 @@ static int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	int ret = -ENOENT;
 
 	mutex_lock(&local->mtx);
-
-	if (local->ops->offchannel_tx_cancel_wait &&
-	    local->hw_offchan_tx_cookie == cookie) {
-		ret = drv_offchannel_tx_cancel_wait(local);
-
-		if (!ret)
-			local->hw_offchan_tx_cookie = 0;
-
-		mutex_unlock(&local->mtx);
-
-		return ret;
-	}
 
 	if (local->ops->cancel_remain_on_channel) {
 		cookie ^= 2;

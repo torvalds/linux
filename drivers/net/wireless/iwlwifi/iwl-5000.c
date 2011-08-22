@@ -31,7 +31,6 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
@@ -84,12 +83,12 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 }
 
 static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
-	.min_nrg_cck = 95,
+	.min_nrg_cck = 100,
 	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,
-	.auto_corr_min_ofdm_x1 = 120,
-	.auto_corr_min_ofdm_mrc_x1 = 240,
+	.auto_corr_min_ofdm_x1 = 105,
+	.auto_corr_min_ofdm_mrc_x1 = 220,
 
 	.auto_corr_max_ofdm = 120,
 	.auto_corr_max_ofdm_mrc = 210,
@@ -98,10 +97,10 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 
 	.auto_corr_min_cck = 125,
 	.auto_corr_max_cck = 200,
-	.auto_corr_min_cck_mrc = 170,
+	.auto_corr_min_cck_mrc = 200,
 	.auto_corr_max_cck_mrc = 400,
-	.nrg_th_cck = 95,
-	.nrg_th_ofdm = 95,
+	.nrg_th_cck = 100,
+	.nrg_th_ofdm = 100,
 
 	.barker_corr_th_min = 190,
 	.barker_corr_th_min_mrc = 390,

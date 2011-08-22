@@ -212,7 +212,6 @@ struct mp_adapter {
 	u16 pcibridge_vendorid;
 	u16 pcibridge_deviceid;
 
-	u32 pcicfg_addrport;
 	u8 num4bytes;
 
 	u8 pcibridge_pciehdr_offset;
@@ -271,31 +270,6 @@ static inline void pci_write32_async(struct rtl_priv *rtlpriv,
 				     u32 addr, u32 val)
 {
 	writel(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
-}
-
-static inline void rtl_pci_raw_write_port_ulong(u32 port, u32 val)
-{
-	outl(val, port);
-}
-
-static inline void rtl_pci_raw_write_port_uchar(u32 port, u8 val)
-{
-	outb(val, port);
-}
-
-static inline void rtl_pci_raw_read_port_uchar(u32 port, u8 *pval)
-{
-	*pval = inb(port);
-}
-
-static inline void rtl_pci_raw_read_port_ushort(u32 port, u16 *pval)
-{
-	*pval = inw(port);
-}
-
-static inline void rtl_pci_raw_read_port_ulong(u32 port, u32 *pval)
-{
-	*pval = inl(port);
 }
 
 #endif

@@ -41,8 +41,10 @@
  *
  */
 
+#include <net/mac80211.h>
 #include <asm/unaligned.h>
 
+#include "ath5k.h"
 #include "base.h"
 #include "reg.h"
 
@@ -137,10 +139,7 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	/* Any MAC address is fine, all others are included through the
 	 * filter.
 	 */
-	memcpy(&ah->lladdr, vif->addr, ETH_ALEN);
 	ath5k_hw_set_lladdr(ah, vif->addr);
-
-	memcpy(&avf->lladdr, vif->addr, ETH_ALEN);
 
 	ath5k_update_bssid_mask_and_opmode(ah, vif);
 	ret = 0;

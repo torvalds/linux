@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
@@ -50,7 +49,10 @@
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
 #define IWL6050_UCODE_API_MAX 5
-#define IWL6000G2_UCODE_API_MAX 5
+#define IWL6000G2_UCODE_API_MAX 6
+
+/* Oldest version we won't warn about */
+#define IWL6000G2_UCODE_API_OK 5
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
@@ -111,7 +113,7 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
-	.min_nrg_cck = 97,
+	.min_nrg_cck = 110,
 	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 80,
 	.auto_corr_min_ofdm_mrc = 128,
@@ -127,11 +129,11 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 	.auto_corr_max_cck = 175,
 	.auto_corr_min_cck_mrc = 160,
 	.auto_corr_max_cck_mrc = 310,
-	.nrg_th_cck = 97,
-	.nrg_th_ofdm = 100,
+	.nrg_th_cck = 110,
+	.nrg_th_ofdm = 110,
 
 	.barker_corr_th_min = 190,
-	.barker_corr_th_min_mrc = 390,
+	.barker_corr_th_min_mrc = 336,
 	.nrg_th_cca = 62,
 };
 
@@ -365,8 +367,9 @@ static struct iwl_bt_params iwl6000_bt_params = {
 };
 
 #define IWL_DEVICE_6005						\
-	.fw_name_pre = IWL6005_FW_PRE,			\
+	.fw_name_pre = IWL6005_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
+	.ucode_api_ok = IWL6000G2_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
 	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
@@ -393,8 +396,9 @@ struct iwl_cfg iwl6005_2bg_cfg = {
 };
 
 #define IWL_DEVICE_6030						\
-	.fw_name_pre = IWL6030_FW_PRE,			\
+	.fw_name_pre = IWL6030_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
+	.ucode_api_ok = IWL6000G2_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
 	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\

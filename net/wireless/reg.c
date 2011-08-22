@@ -49,10 +49,8 @@
 #include "nl80211.h"
 
 #ifdef CONFIG_CFG80211_REG_DEBUG
-#define REG_DBG_PRINT(format, args...) \
-	do { \
-		printk(KERN_DEBUG pr_fmt(format), ##args);	\
-	} while (0)
+#define REG_DBG_PRINT(format, args...)			\
+	printk(KERN_DEBUG pr_fmt(format), ##args)
 #else
 #define REG_DBG_PRINT(args...)
 #endif
@@ -890,7 +888,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
 		REG_DBG_PRINT("Ignoring regulatory request %s "
 			      "since the driver uses its own custom "
-			      "regulatory domain ",
+			      "regulatory domain\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
@@ -904,7 +902,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	    !is_world_regdom(last_request->alpha2)) {
 		REG_DBG_PRINT("Ignoring regulatory request %s "
 			      "since the driver requires its own regulatory "
-			      "domain to be set first",
+			      "domain to be set first\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
@@ -1474,7 +1472,7 @@ static void reg_process_pending_hints(void)
 	/* When last_request->processed becomes true this will be rescheduled */
 	if (last_request && !last_request->processed) {
 		REG_DBG_PRINT("Pending regulatory request, waiting "
-			      "for it to be processed...");
+			      "for it to be processed...\n");
 		goto out;
 	}
 
@@ -2187,7 +2185,7 @@ out:
 static void reg_timeout_work(struct work_struct *work)
 {
 	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, "
-		      "restoring regulatory settings");
+		      "restoring regulatory settings\n");
 	restore_regulatory_settings(true);
 }
 

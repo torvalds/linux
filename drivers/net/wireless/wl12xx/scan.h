@@ -77,7 +77,7 @@ struct basic_scan_params {
 	u8 ssid_len;
 	/* in order to align */
 	u8 padding1[2];
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	/* Band to scan */
 	u8 band;
 	u8 use_ssid_list;
@@ -167,7 +167,7 @@ struct wl1271_cmd_sched_scan_config {
 	u8 filter_type;
 
 	u8 ssid_len;     /* For SCAN_SSID_FILTER_SPECIFIC */
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 
 	u8 n_probe_reqs; /* Number of probes requests per channel */
 
@@ -194,7 +194,7 @@ enum {
 struct wl1271_ssid {
 	u8 type;
 	u8 len;
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	/* u8 padding[2]; */
 } __packed;
 

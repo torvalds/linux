@@ -449,7 +449,6 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 
 		if (fresh_info) {
 			mesh_path_assign_nexthop(mpath, sta);
-			mpath->flags &= ~MESH_PATH_SN_VALID;
 			mpath->metric = last_hop_metric;
 			mpath->exp_time = time_after(mpath->exp_time, exp_time)
 					  ?  mpath->exp_time : exp_time;
@@ -792,9 +791,9 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 		return;
 	}
 
-	spin_lock(&ifmsh->mesh_preq_queue_lock);
+	spin_lock_bh(&ifmsh->mesh_preq_queue_lock);
 	if (ifmsh->preq_queue_len == MAX_PREQ_QUEUE_LEN) {
-		spin_unlock(&ifmsh->mesh_preq_queue_lock);
+		spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 		kfree(preq_node);
 		if (printk_ratelimit())
 			mhwmp_dbg("PREQ node queue full\n");
@@ -806,7 +805,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 
 	list_add_tail(&preq_node->list, &ifmsh->preq_queue.list);
 	++ifmsh->preq_queue_len;
-	spin_unlock(&ifmsh->mesh_preq_queue_lock);
+	spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 
 	if (time_after(jiffies, ifmsh->last_preq + min_preq_int_jiff(sdata)))
 		ieee80211_queue_work(&sdata->local->hw, &sdata->work);

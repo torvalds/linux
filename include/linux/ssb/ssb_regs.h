@@ -462,6 +462,46 @@
 #define SSB_SPROM8_OFDM5GLPO		0x014A	/* 5.2GHz OFDM power offset */
 #define SSB_SPROM8_OFDM5GHPO		0x014E	/* 5.8GHz OFDM power offset */
 
+/* Values for boardflags_lo read from SPROM */
+#define SSB_BFL_BTCOEXIST		0x0001	/* implements Bluetooth coexistance */
+#define SSB_BFL_PACTRL			0x0002	/* GPIO 9 controlling the PA */
+#define SSB_BFL_AIRLINEMODE		0x0004	/* implements GPIO 13 radio disable indication */
+#define SSB_BFL_RSSI			0x0008	/* software calculates nrssi slope. */
+#define SSB_BFL_ENETSPI			0x0010	/* has ephy roboswitch spi */
+#define SSB_BFL_XTAL_NOSLOW		0x0020	/* no slow clock available */
+#define SSB_BFL_CCKHIPWR		0x0040	/* can do high power CCK transmission */
+#define SSB_BFL_ENETADM			0x0080	/* has ADMtek switch */
+#define SSB_BFL_ENETVLAN		0x0100	/* can do vlan */
+#define SSB_BFL_AFTERBURNER		0x0200	/* supports Afterburner mode */
+#define SSB_BFL_NOPCI			0x0400	/* board leaves PCI floating */
+#define SSB_BFL_FEM			0x0800	/* supports the Front End Module */
+#define SSB_BFL_EXTLNA			0x1000	/* has an external LNA */
+#define SSB_BFL_HGPA			0x2000	/* had high gain PA */
+#define SSB_BFL_BTCMOD			0x4000	/* BFL_BTCOEXIST is given in alternate GPIOs */
+#define SSB_BFL_ALTIQ			0x8000	/* alternate I/Q settings */
+
+/* Values for boardflags_hi read from SPROM */
+#define SSB_BFH_NOPA			0x0001	/* has no PA */
+#define SSB_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (not TSSI) */
+#define SSB_BFH_PAREF			0x0004	/* uses the PARef LDO */
+#define SSB_BFH_3TSWITCH		0x0008	/* uses a triple throw switch shared with bluetooth */
+#define SSB_BFH_PHASESHIFT		0x0010	/* can support phase shifter */
+#define SSB_BFH_BUCKBOOST		0x0020	/* has buck/booster */
+#define SSB_BFH_FEM_BT			0x0040	/* has FEM and switch to share antenna with bluetooth */
+
+/* Values for boardflags2_lo read from SPROM */
+#define SSB_BFL2_RXBB_INT_REG_DIS	0x0001	/* external RX BB regulator present */
+#define SSB_BFL2_APLL_WAR		0x0002	/* alternative A-band PLL settings implemented */
+#define SSB_BFL2_TXPWRCTRL_EN 		0x0004	/* permits enabling TX Power Control */
+#define SSB_BFL2_2X4_DIV		0x0008	/* 2x4 diversity switch */
+#define SSB_BFL2_5G_PWRGAIN		0x0010	/* supports 5G band power gain */
+#define SSB_BFL2_PCIEWAR_OVR		0x0020	/* overrides ASPM and Clkreq settings */
+#define SSB_BFL2_CAESERS_BRD		0x0040	/* is Caesers board (unused) */
+#define SSB_BFL2_BTC3WIRE		0x0080	/* used 3-wire bluetooth coexist */
+#define SSB_BFL2_SKWRKFEM_BRD		0x0100	/* 4321mcm93 uses Skyworks FEM */
+#define SSB_BFL2_SPUR_WAR		0x0200	/* has a workaround for clock-harmonic spurs */
+#define SSB_BFL2_GPLL_WAR		0x0400	/* altenative G-band PLL settings implemented */
+
 /* Values for SSB_SPROM1_BINF_CCODE */
 enum {
 	SSB_SPROM1CCODE_WORLD = 0,

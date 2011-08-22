@@ -849,6 +849,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 {
 	int i;
 	struct mwifiex_adapter *adapter;
+	char fmt[64];
 
 	if (down_interruptible(sem))
 		goto exit_sem_err;
@@ -896,6 +897,9 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	}
 
 	up(sem);
+
+	mwifiex_drv_get_driver_version(adapter, fmt, sizeof(fmt) - 1);
+	dev_notice(adapter->dev, "driver_version = %s\n", fmt);
 
 	return 0;
 

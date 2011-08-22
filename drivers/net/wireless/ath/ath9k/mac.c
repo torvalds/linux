@@ -800,6 +800,11 @@ void ath9k_hw_disable_interrupts(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		atomic_set(&ah->intr_ref_cnt, -1);
+	else
+		atomic_dec(&ah->intr_ref_cnt);
+
 	ath_dbg(common, ATH_DBG_INTERRUPT, "disable IER\n");
 	REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
 	(void) REG_READ(ah, AR_IER);
@@ -820,6 +825,13 @@ void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 
 	if (!(ah->imask & ATH9K_INT_GLOBAL))
 		return;
+
+	if (!atomic_inc_and_test(&ah->intr_ref_cnt)) {
+		ath_dbg(common, ATH_DBG_INTERRUPT,
+			"Do not enable IER ref count %d\n",
+			atomic_read(&ah->intr_ref_cnt));
+		return;
+	}
 
 	if (AR_SREV_9340(ah))
 		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
@@ -852,7 +864,6 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 
 	ath_dbg(common, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
 
-	/* TODO: global int Ref count */
 	mask = ints & ATH9K_INT_COMMON;
 	mask2 = 0;
 
@@ -928,9 +939,6 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 		else
 			REG_CLR_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
 	}
-
-	if (ints & ATH9K_INT_GLOBAL)
-		ath9k_hw_enable_interrupts(ah);
 
 	return;
 }

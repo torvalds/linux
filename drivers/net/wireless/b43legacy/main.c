@@ -35,7 +35,6 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
-#include <linux/wireless.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
@@ -3785,7 +3784,8 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	INIT_WORK(&wl->beacon_update_trigger, b43legacy_beacon_update_trigger_work);
 
 	ssb_set_devtypedata(dev, wl);
-	b43legacyinfo(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);
+	b43legacyinfo(wl, "Broadcom %04X WLAN found (core revision %u)\n",
+		      dev->bus->chip_id, dev->id.revision);
 	err = 0;
 out:
 	return err;

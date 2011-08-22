@@ -103,6 +103,12 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 		ieee80211_scan_completed(priv->hw, aborted);
 	}
 
+	if (priv->scan_type == IWL_SCAN_ROC) {
+		ieee80211_remain_on_channel_expired(priv->hw);
+		priv->hw_roc_channel = NULL;
+		schedule_delayed_work(&priv->hw_roc_disable_work, 10 * HZ);
+	}
+
 	priv->scan_type = IWL_SCAN_NORMAL;
 	priv->scan_vif = NULL;
 	priv->scan_request = NULL;
@@ -211,6 +217,9 @@ static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
 		       le32_to_cpu(notif->tsf_high),
 		       le32_to_cpu(notif->tsf_low),
 		       notif->status, notif->beacon_timer);
+
+	if (priv->scan_type == IWL_SCAN_ROC)
+		ieee80211_ready_on_channel(priv->hw);
 }
 
 /* Service SCAN_RESULTS_NOTIFICATION (0x83) */
@@ -370,7 +379,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	IWL_DEBUG_SCAN(priv, "Starting %sscan...\n",
 			scan_type == IWL_SCAN_NORMAL ? "" :
-			scan_type == IWL_SCAN_OFFCH_TX ? "offchan TX " :
+			scan_type == IWL_SCAN_ROC ? "remain-on-channel " :
 			"internal short ");
 
 	set_bit(STATUS_SCANNING, &priv->status);
@@ -565,10 +574,10 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 		goto out_settings;
 	}
 
-	if (priv->scan_type == IWL_SCAN_OFFCH_TX && priv->offchan_tx_skb) {
-		ieee80211_tx_status_irqsafe(priv->hw,
-					    priv->offchan_tx_skb);
-		priv->offchan_tx_skb = NULL;
+	if (priv->scan_type == IWL_SCAN_ROC) {
+		ieee80211_remain_on_channel_expired(priv->hw);
+		priv->hw_roc_channel = NULL;
+		schedule_delayed_work(&priv->hw_roc_disable_work, 10 * HZ);
 	}
 
 	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {

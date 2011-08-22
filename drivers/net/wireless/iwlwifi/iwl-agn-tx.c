@@ -128,11 +128,10 @@ static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
  * handle build REPLY_TX command notification.
  */
 static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
-					struct sk_buff *skb,
-					struct iwl_tx_cmd *tx_cmd,
-					struct ieee80211_tx_info *info,
-					struct ieee80211_hdr *hdr,
-					u8 std_id)
+				      struct sk_buff *skb,
+				      struct iwl_tx_cmd *tx_cmd,
+				      struct ieee80211_tx_info *info,
+				      struct ieee80211_hdr *hdr, u8 sta_id)
 {
 	__le16 fc = hdr->frame_control;
 	__le32 tx_flags = tx_cmd->tx_flags;
@@ -157,7 +156,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_IGNORE_BT;
 
 
-	tx_cmd->sta_id = std_id;
+	tx_cmd->sta_id = sta_id;
 	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
 
@@ -189,9 +188,9 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 #define RTS_DFAULT_RETRY_LIMIT		60
 
 static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
-			      struct iwl_tx_cmd *tx_cmd,
-			      struct ieee80211_tx_info *info,
-			      __le16 fc)
+				     struct iwl_tx_cmd *tx_cmd,
+				     struct ieee80211_tx_info *info,
+				     __le16 fc)
 {
 	u32 rate_flags;
 	int rate_idx;
@@ -334,14 +333,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	unsigned long flags;
 	bool is_agg = false;
 
-	/*
-	 * If the frame needs to go out off-channel, then
-	 * we'll have put the PAN context to that channel,
-	 * so make the frame go out there.
-	 */
-	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		ctx = &priv->contexts[IWL_RXON_CTX_PAN];
-	else if (info->control.vif)
+	if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -407,7 +399,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		 */
 		hdr->frame_control |=
 			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	} else
+	} else if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		txq_id = IWL_AUX_QUEUE;
+	else
 		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
 	/* irqs already disabled/saved above when locking priv->lock */

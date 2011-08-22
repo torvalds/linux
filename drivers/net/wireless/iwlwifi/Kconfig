@@ -111,20 +111,3 @@ config IWLWIFI_DEVICE_SVTOOL
 	  NL80211_TESTMODE. svtool is a software validation tool that runs in
 	  the user space and interacts with the device in the kernel space
 	  through the generic netlink message via NL80211_TESTMODE channel.
-
-config IWL_P2P
-	bool "iwlwifi experimental P2P support"
-	depends on IWLAGN
-	help
-	  This option enables experimental P2P support for some devices
-	  based on microcode support. Since P2P support is still under
-	  development, this option may even enable it for some devices
-	  now that turn out to not support it in the future due to
-	  microcode restrictions.
-
-	  To determine if your microcode supports the experimental P2P
-	  offered by this option, check if the driver advertises AP
-	  support when it is loaded.
-
-	  Say Y only if you want to experiment with P2P.
-

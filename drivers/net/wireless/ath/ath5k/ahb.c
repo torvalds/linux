@@ -169,7 +169,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 			__set_bit(ATH_STAT_2G_DISABLED, ah->status);
 	}
 
-	ret = ath5k_init_softc(ah, &ath_ahb_bus_ops);
+	ret = ath5k_init_ah(ah, &ath_ahb_bus_ops);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to attach device, err=%d\n", ret);
 		ret = -ENODEV;
@@ -214,7 +214,7 @@ static int ath_ahb_remove(struct platform_device *pdev)
 		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
 	}
 
-	ath5k_deinit_softc(ah);
+	ath5k_deinit_ah(ah);
 	platform_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 

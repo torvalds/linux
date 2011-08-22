@@ -309,7 +309,7 @@ struct wl1271_scan {
 	unsigned long scanned_ch[BITS_TO_LONGS(WL1271_MAX_CHANNELS)];
 	bool failed;
 	u8 state;
-	u8 ssid[IW_ESSID_MAX_SIZE+1];
+	u8 ssid[IEEE80211_MAX_SSID_LEN+1];
 	size_t ssid_len;
 };
 
@@ -415,7 +415,7 @@ struct wl1271 {
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;
 	u8 set_bss_type;
-	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;
 	int channel;
 

@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
+#include <net/cfg80211-wext.h>
 #include "wext-compat.h"
 #include "core.h"
 
@@ -363,9 +364,9 @@ int cfg80211_wext_giwfrag(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwfrag);
 
-int cfg80211_wext_siwretry(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *retry, char *extra)
+static int cfg80211_wext_siwretry(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_param *retry, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -402,7 +403,6 @@ int cfg80211_wext_siwretry(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwretry);
 
 int cfg80211_wext_giwretry(struct net_device *dev,
 			   struct iw_request_info *info,
@@ -593,9 +593,9 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-int cfg80211_wext_siwencode(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct iw_point *erq, char *keybuf)
+static int cfg80211_wext_siwencode(struct net_device *dev,
+				   struct iw_request_info *info,
+				   struct iw_point *erq, char *keybuf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -652,11 +652,10 @@ int cfg80211_wext_siwencode(struct net_device *dev,
 				       wdev->wext.default_key == -1,
 				       idx, &params);
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwencode);
 
-int cfg80211_wext_siwencodeext(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_point *erq, char *extra)
+static int cfg80211_wext_siwencodeext(struct net_device *dev,
+				      struct iw_request_info *info,
+				      struct iw_point *erq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -744,11 +743,10 @@ int cfg80211_wext_siwencodeext(struct net_device *dev,
 			ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
 			idx, &params);
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwencodeext);
 
-int cfg80211_wext_giwencode(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct iw_point *erq, char *keybuf)
+static int cfg80211_wext_giwencode(struct net_device *dev,
+				   struct iw_request_info *info,
+				   struct iw_point *erq, char *keybuf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int idx;
@@ -782,11 +780,10 @@ int cfg80211_wext_giwencode(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwencode);
 
-int cfg80211_wext_siwfreq(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_freq *wextfreq, char *extra)
+static int cfg80211_wext_siwfreq(struct net_device *dev,
+				 struct iw_request_info *info,
+				 struct iw_freq *wextfreq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -815,11 +812,10 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwfreq);
 
-int cfg80211_wext_giwfreq(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_freq *freq, char *extra)
+static int cfg80211_wext_giwfreq(struct net_device *dev,
+				 struct iw_request_info *info,
+				 struct iw_freq *freq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -836,11 +832,10 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 		return 0;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwfreq);
 
-int cfg80211_wext_siwtxpower(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *data, char *extra)
+static int cfg80211_wext_siwtxpower(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *data, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -889,11 +884,10 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 
 	return rdev->ops->set_tx_power(wdev->wiphy, type, DBM_TO_MBM(dbm));
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwtxpower);
 
-int cfg80211_wext_giwtxpower(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *data, char *extra)
+static int cfg80211_wext_giwtxpower(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *data, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -919,7 +913,6 @@ int cfg80211_wext_giwtxpower(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwtxpower);
 
 static int cfg80211_set_auth_alg(struct wireless_dev *wdev,
 				 s32 auth_alg)
@@ -1070,9 +1063,9 @@ static int cfg80211_set_key_mgt(struct wireless_dev *wdev, u32 key_mgt)
 	return 0;
 }
 
-int cfg80211_wext_siwauth(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *data, char *extra)
+static int cfg80211_wext_siwauth(struct net_device *dev,
+				 struct iw_request_info *info,
+				 struct iw_param *data, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1102,21 +1095,19 @@ int cfg80211_wext_siwauth(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwauth);
 
-int cfg80211_wext_giwauth(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *data, char *extra)
+static int cfg80211_wext_giwauth(struct net_device *dev,
+				 struct iw_request_info *info,
+				 struct iw_param *data, char *extra)
 {
 	/* XXX: what do we need? */
 
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwauth);
 
-int cfg80211_wext_siwpower(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *wrq, char *extra)
+static int cfg80211_wext_siwpower(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_param *wrq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -1160,11 +1151,10 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 	return 0;
 
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwpower);
 
-int cfg80211_wext_giwpower(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *wrq, char *extra)
+static int cfg80211_wext_giwpower(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_param *wrq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1172,7 +1162,6 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwpower);
 
 static int cfg80211_wds_wext_siwap(struct net_device *dev,
 				   struct iw_request_info *info,
@@ -1218,9 +1207,9 @@ static int cfg80211_wds_wext_giwap(struct net_device *dev,
 	return 0;
 }
 
-int cfg80211_wext_siwrate(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *rate, char *extra)
+static int cfg80211_wext_siwrate(struct net_device *dev,
+				 struct iw_request_info *info,
+				 struct iw_param *rate, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -1268,11 +1257,10 @@ int cfg80211_wext_siwrate(struct net_device *dev,
 
 	return rdev->ops->set_bitrate_mask(wdev->wiphy, dev, NULL, &mask);
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwrate);
 
-int cfg80211_wext_giwrate(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *rate, char *extra)
+static int cfg80211_wext_giwrate(struct net_device *dev,
+				 struct iw_request_info *info,
+				 struct iw_param *rate, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -1308,10 +1296,9 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwrate);
 
 /* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
-struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
+static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -1376,11 +1363,10 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 
 	return &wstats;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wireless_stats);
 
-int cfg80211_wext_siwap(struct net_device *dev,
-			struct iw_request_info *info,
-			struct sockaddr *ap_addr, char *extra)
+static int cfg80211_wext_siwap(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct sockaddr *ap_addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1395,11 +1381,10 @@ int cfg80211_wext_siwap(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwap);
 
-int cfg80211_wext_giwap(struct net_device *dev,
-			struct iw_request_info *info,
-			struct sockaddr *ap_addr, char *extra)
+static int cfg80211_wext_giwap(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct sockaddr *ap_addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1414,11 +1399,10 @@ int cfg80211_wext_giwap(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwap);
 
-int cfg80211_wext_siwessid(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *ssid)
+static int cfg80211_wext_siwessid(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_point *data, char *ssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1431,11 +1415,10 @@ int cfg80211_wext_siwessid(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwessid);
 
-int cfg80211_wext_giwessid(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *ssid)
+static int cfg80211_wext_giwessid(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_point *data, char *ssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1451,11 +1434,10 @@ int cfg80211_wext_giwessid(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwessid);
 
-int cfg80211_wext_siwpmksa(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *extra)
+static int cfg80211_wext_siwpmksa(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_point *data, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -1493,7 +1475,6 @@ int cfg80211_wext_siwpmksa(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwpmksa);
 
 static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCGIWNAME)]	= (iw_handler) cfg80211_wext_giwname,

@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
@@ -46,8 +45,12 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL1000_UCODE_API_MAX 5
-#define IWL100_UCODE_API_MAX 5
+#define IWL1000_UCODE_API_MAX 6
+#define IWL100_UCODE_API_MAX 6
+
+/* Oldest version we won't warn about */
+#define IWL1000_UCODE_API_OK 5
+#define IWL100_UCODE_API_OK 5
 
 /* Lowest firmware API version supported */
 #define IWL1000_UCODE_API_MIN 1
@@ -135,8 +138,7 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
-					BIT(IEEE80211_BAND_5GHZ);
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	if (priv->cfg->rx_with_siso_diversity)
@@ -201,12 +203,13 @@ static struct iwl_base_params iwl1000_base_params = {
 static struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.smps_mode = IEEE80211_SMPS_STATIC,
+	.smps_mode = IEEE80211_SMPS_DYNAMIC,
 };
 
 #define IWL_DEVICE_1000						\
 	.fw_name_pre = IWL1000_FW_PRE,				\
 	.ucode_api_max = IWL1000_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL1000_UCODE_API_OK,			\
 	.ucode_api_min = IWL1000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
@@ -228,6 +231,7 @@ struct iwl_cfg iwl1000_bg_cfg = {
 #define IWL_DEVICE_100						\
 	.fw_name_pre = IWL100_FW_PRE,				\
 	.ucode_api_max = IWL100_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL100_UCODE_API_OK,			\
 	.ucode_api_min = IWL100_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
