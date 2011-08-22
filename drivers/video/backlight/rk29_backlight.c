@@ -208,7 +208,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	clk_enable(pwm_clk);
 	write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_RESET);
 	write_pwm_reg(id, PWM_REG_LRC, div_total);
-	//write_pwm_reg(id, PWM_REG_HRC, divh);
+	write_pwm_reg(id, PWM_REG_HRC, divh);
 	write_pwm_reg(id, PWM_REG_CNTR, 0x0);
 	write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TIME_EN);
 
