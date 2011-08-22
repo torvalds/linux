@@ -26,22 +26,6 @@
 #define TEGRA_NR_GPIOS		INT_GPIO_NR
 
 #define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
-#define TEGRA_IRQ_TO_GPIO(irq) ((irq) - INT_GPIO_BASE)
-
-static inline int gpio_to_irq(unsigned int gpio)
-{
-	if (gpio < TEGRA_NR_GPIOS)
-		return INT_GPIO_BASE + gpio;
-	return -EINVAL;
-}
-#define gpio_to_irq gpio_to_irq
-
-static inline int irq_to_gpio(unsigned int irq)
-{
-	if ((irq >= INT_GPIO_BASE) && (irq < INT_GPIO_BASE + INT_GPIO_NR))
-		return irq - INT_GPIO_BASE;
-	return -EINVAL;
-}
 
 struct tegra_gpio_table {
 	int	gpio;	/* GPIO number */
