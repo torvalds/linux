@@ -870,6 +870,22 @@ void dbg_dump_lpt_info(struct ubifs_info *c)
 	spin_unlock(&dbg_lock);
 }
 
+void dbg_dump_sleb(const struct ubifs_info *c,
+		   const struct ubifs_scan_leb *sleb, int offs)
+{
+	struct ubifs_scan_node *snod;
+
+	printk(KERN_DEBUG "(pid %d) start dumping scanned data from LEB %d:%d\n",
+	       current->pid, sleb->lnum, offs);
+
+	list_for_each_entry(snod, &sleb->nodes, list) {
+		cond_resched();
+		printk(KERN_DEBUG "Dumping node at LEB %d:%d len %d\n", sleb->lnum,
+		       snod->offs, snod->len);
+		dbg_dump_node(c, snod->node);
+	}
+}
+
 void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 {
 	struct ubifs_scan_leb *sleb;
