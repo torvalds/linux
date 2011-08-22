@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <mach/gpio-u300.h>
 
 /* Reference to GPIO block clock */
 static struct clk *clk;
