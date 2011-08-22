@@ -5707,9 +5707,6 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 		ret = reserve_metadata_bytes(trans, root, block_rsv, blocksize,
 					     0);
 		if (!ret) {
-			spin_lock(&block_rsv->lock);
-			block_rsv->size += blocksize;
-			spin_unlock(&block_rsv->lock);
 			return block_rsv;
 		} else if (ret && block_rsv != global_rsv) {
 			ret = block_rsv_use_bytes(global_rsv, blocksize);
