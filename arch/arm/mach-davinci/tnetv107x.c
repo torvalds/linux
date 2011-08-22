@@ -30,6 +30,7 @@
 #include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/tnetv107x.h>
+#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
