@@ -1981,8 +1981,8 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
 				//   if(var->xres > screen->x_res)
 				//   {
-					ipp_req.dst0.w = var->xres;
-					ipp_req.dst0.h = var->yres;
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
 				//  }   else	{
 				//	  ipp_req.dst0.w = var->yres;
 				// 	  ipp_req.dst0.h = var->xres;
