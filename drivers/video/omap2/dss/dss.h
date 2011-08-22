@@ -97,10 +97,10 @@ extern unsigned int dss_debug;
 #define FLD_MOD(orig, val, start, end) \
 	(((orig) & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end))
 
-enum omap_parallel_interface_mode {
-	OMAP_DSS_PARALLELMODE_BYPASS,		/* MIPI DPI */
-	OMAP_DSS_PARALLELMODE_RFBI,		/* MIPI DBI */
-	OMAP_DSS_PARALLELMODE_DSI,
+enum dss_io_pad_mode {
+	DSS_IO_PAD_MODE_RESET,
+	DSS_IO_PAD_MODE_RFBI,
+	DSS_IO_PAD_MODE_BYPASS,
 };
 
 enum dss_hdmi_venc_clk_source_select {
@@ -429,8 +429,8 @@ bool dispc_mgr_go_busy(enum omap_channel channel);
 void dispc_mgr_go(enum omap_channel channel);
 void dispc_mgr_enable(enum omap_channel channel, bool enable);
 bool dispc_mgr_is_channel_enabled(enum omap_channel channel);
-void dispc_mgr_set_parallel_interface_mode(enum omap_channel channel,
-		enum omap_parallel_interface_mode mode);
+void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode);
+void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable);
 void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines);
 void dispc_mgr_set_lcd_display_type(enum omap_channel channel,
 		enum omap_lcd_display_type type);

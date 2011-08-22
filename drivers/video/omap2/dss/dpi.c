@@ -166,8 +166,9 @@ static void dpi_basic_init(struct omap_dss_device *dssdev)
 
 	is_tft = (dssdev->panel.config & OMAP_DSS_LCD_TFT) != 0;
 
-	dispc_mgr_set_parallel_interface_mode(dssdev->manager->id,
-			OMAP_DSS_PARALLELMODE_BYPASS);
+	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_BYPASS);
+	dispc_mgr_enable_stallmode(dssdev->manager->id, false);
+
 	dispc_mgr_set_lcd_display_type(dssdev->manager->id, is_tft ?
 			OMAP_DSS_LCD_DISPLAY_TFT : OMAP_DSS_LCD_DISPLAY_STN);
 	dispc_mgr_set_tft_data_lines(dssdev->manager->id,

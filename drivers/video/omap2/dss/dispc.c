@@ -2205,46 +2205,41 @@ void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 		REG_FLD_MOD(DISPC_CONTROL, code, 9, 8);
 }
 
-void dispc_mgr_set_parallel_interface_mode(enum omap_channel channel,
-		enum omap_parallel_interface_mode mode)
+void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
 {
 	u32 l;
-	int stallmode;
-	int gpout0 = 1;
-	int gpout1;
+	int gpout0, gpout1;
 
 	switch (mode) {
-	case OMAP_DSS_PARALLELMODE_BYPASS:
-		stallmode = 0;
-		gpout1 = 1;
-		break;
-
-	case OMAP_DSS_PARALLELMODE_RFBI:
-		stallmode = 1;
+	case DSS_IO_PAD_MODE_RESET:
+		gpout0 = 0;
 		gpout1 = 0;
 		break;
-
-	case OMAP_DSS_PARALLELMODE_DSI:
-		stallmode = 1;
+	case DSS_IO_PAD_MODE_RFBI:
+		gpout0 = 1;
+		gpout1 = 0;
+		break;
+	case DSS_IO_PAD_MODE_BYPASS:
+		gpout0 = 1;
 		gpout1 = 1;
 		break;
-
 	default:
 		BUG();
 		return;
 	}
 
-	if (channel == OMAP_DSS_CHANNEL_LCD2) {
-		l = dispc_read_reg(DISPC_CONTROL2);
-		l = FLD_MOD(l, stallmode, 11, 11);
-		dispc_write_reg(DISPC_CONTROL2, l);
-	} else {
-		l = dispc_read_reg(DISPC_CONTROL);
-		l = FLD_MOD(l, stallmode, 11, 11);
-		l = FLD_MOD(l, gpout0, 15, 15);
-		l = FLD_MOD(l, gpout1, 16, 16);
-		dispc_write_reg(DISPC_CONTROL, l);
-	}
+	l = dispc_read_reg(DISPC_CONTROL);
+	l = FLD_MOD(l, gpout0, 15, 15);
+	l = FLD_MOD(l, gpout1, 16, 16);
+	dispc_write_reg(DISPC_CONTROL, l);
+}
+
+void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		REG_FLD_MOD(DISPC_CONTROL2, enable, 11, 11);
+	else
+		REG_FLD_MOD(DISPC_CONTROL, enable, 11, 11);
 }
 
 static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,

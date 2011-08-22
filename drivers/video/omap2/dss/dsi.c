@@ -4019,8 +4019,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
 			OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_mgr_set_parallel_interface_mode(dssdev->manager->id,
-			OMAP_DSS_PARALLELMODE_DSI);
+	dispc_mgr_enable_stallmode(dssdev->manager->id, true);
 	dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
 
 	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
