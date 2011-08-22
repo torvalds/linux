@@ -1579,10 +1579,10 @@ static int __init omap1_cam_probe(struct platform_device *pdev)
 	pcdev->clk = clk;
 
 	pcdev->pdata = pdev->dev.platform_data;
-	pcdev->pflags = pcdev->pdata->flags;
-
-	if (pcdev->pdata)
+	if (pcdev->pdata) {
+		pcdev->pflags = pcdev->pdata->flags;
 		pcdev->camexclk = pcdev->pdata->camexclk_khz * 1000;
+	}
 
 	switch (pcdev->camexclk) {
 	case 6000000:
@@ -1592,6 +1592,7 @@ static int __init omap1_cam_probe(struct platform_device *pdev)
 	case 24000000:
 		break;
 	default:
+		/* pcdev->camexclk != 0 => pcdev->pdata != NULL */
 		dev_warn(&pdev->dev,
 				"Incorrect sensor clock frequency %ld kHz, "
 				"should be one of 0, 6, 8, 9.6, 12 or 24 MHz, "
@@ -1599,8 +1600,7 @@ static int __init omap1_cam_probe(struct platform_device *pdev)
 				pcdev->pdata->camexclk_khz);
 		pcdev->camexclk = 0;
 	case 0:
-		dev_info(&pdev->dev,
-				"Not providing sensor clock\n");
+		dev_info(&pdev->dev, "Not providing sensor clock\n");
 	}
 
 	INIT_LIST_HEAD(&pcdev->capture);
