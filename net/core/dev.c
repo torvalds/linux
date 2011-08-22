@@ -3236,10 +3236,9 @@ ncls:
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
-		if (vlan_do_receive(&skb)) {
-			ret = __netif_receive_skb(skb);
-			goto out;
-		} else if (unlikely(!skb))
+		if (vlan_do_receive(&skb))
+			goto another_round;
+		else if (unlikely(!skb))
 			goto out;
 	}
 
