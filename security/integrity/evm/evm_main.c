@@ -66,7 +66,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					     struct integrity_iint_cache *iint)
 {
 	struct evm_ima_xattr_data xattr_data;
-	enum integrity_status evm_status;
+	enum integrity_status evm_status = INTEGRITY_PASS;
 	int rc;
 
 	if (iint && iint->evm_status == INTEGRITY_PASS)
@@ -76,25 +76,18 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 
 	rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
 			   xattr_value_len, xattr_data.digest);
-	if (rc < 0)
-		goto err_out;
+	if (rc < 0) {
+		evm_status = (rc == -ENODATA)
+		    ? INTEGRITY_NOXATTRS : INTEGRITY_FAIL;
+		goto out;
+	}
 
 	xattr_data.type = EVM_XATTR_HMAC;
 	rc = vfs_xattr_cmp(dentry, XATTR_NAME_EVM, (u8 *)&xattr_data,
 			   sizeof xattr_data, GFP_NOFS);
 	if (rc < 0)
-		goto err_out;
-	evm_status = INTEGRITY_PASS;
-	goto out;
-
-err_out:
-	switch (rc) {
-	case -ENODATA:		/* file not labelled */
-		evm_status = INTEGRITY_NOLABEL;
-		break;
-	default:
-		evm_status = INTEGRITY_FAIL;
-	}
+		evm_status = (rc == -ENODATA)
+		    ? INTEGRITY_NOLABEL : INTEGRITY_FAIL;
 out:
 	if (iint)
 		iint->evm_status = evm_status;
@@ -199,7 +192,7 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 			return 0;
 		evm_status = evm_verify_current_integrity(dentry);
 		if ((evm_status == INTEGRITY_PASS) ||
-			(evm_status == INTEGRITY_NOLABEL))
+		    (evm_status == INTEGRITY_NOXATTRS))
 			return 0;
 		return -EPERM;
 	}
@@ -293,7 +286,10 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	if (!(ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)))
 		return 0;
 	evm_status = evm_verify_current_integrity(dentry);
-	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+	if ((evm_status == INTEGRITY_PASS) ||
+	    (evm_status == INTEGRITY_NOXATTRS))
+		return 0;
+	return -EPERM;
 }
 
 /**
