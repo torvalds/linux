@@ -44,13 +44,4 @@ static inline unsigned gpio_to_irq(unsigned gpio)
 }
 #define gpio_to_irq gpio_to_irq
 
-static inline unsigned irq_to_gpio(unsigned irq)
-{
-	/*
-	 * FIXME: This is no 1-1 mapping at all, it points to the
-	 * whole block of 8 pins.
-	 */
-	return (irq - IRQ_U300_GPIO_PORT0) << 3;
-}
-
 #endif /* __MACH_U300_GPIO_H */
