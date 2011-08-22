@@ -1412,7 +1412,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 		if (phba->pport->port_state != LPFC_FLOGI) {
 			phba->hba_flag |= FCF_RR_INPROG;
 			spin_unlock_irq(&phba->hbalock);
-			lpfc_issue_init_vfi(phba->pport);
+			lpfc_initial_flogi(phba->pport);
 			return;
 		}
 		spin_unlock_irq(&phba->hbalock);

@@ -4082,9 +4082,6 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 
 	phba->fc_stat.elsXmitACC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
-	lpfc_nlp_put(ndlp);
-	elsiocb->context1 = NULL;  /* Don't need ndlp for cmpl,
-				    * it could be freed */
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
@@ -4166,6 +4163,11 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 	psli = &phba->sli;
 	cmdsize = oldiocb->iocb.unsli3.rcvsli3.acc_len;
 
+	/* The accumulated length can exceed the BPL_SIZE.  For
+	 * now, use this as the limit
+	 */
+	if (cmdsize > LPFC_BPL_SIZE)
+		cmdsize = LPFC_BPL_SIZE;
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_ACC);
 	if (!elsiocb)
@@ -4189,9 +4191,6 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 
 	phba->fc_stat.elsXmitACC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
-	lpfc_nlp_put(ndlp);
-	elsiocb->context1 = NULL;  /* Don't need ndlp for cmpl,
-				    * it could be freed */
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {

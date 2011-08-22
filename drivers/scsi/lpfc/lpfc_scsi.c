@@ -3056,8 +3056,9 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	}
 	ndlp = rdata->pnode;
 
-	if (!(phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
-		scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) {
+	if ((scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) &&
+		(!(phba->sli3_options & LPFC_SLI3_BG_ENABLED) ||
+		(phba->sli_rev == LPFC_SLI_REV4))) {
 
 		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 				"9058 BLKGRD: ERROR: rcvd protected cmd:%02x"
@@ -3691,9 +3692,9 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
 
-	ret = fc_block_scsi_eh(cmnd);
-	if (ret)
-		return ret;
+	status = fc_block_scsi_eh(cmnd);
+	if (status)
+		return status;
 
 	/*
 	 * Since the driver manages a single bus device, reset all
