@@ -297,8 +297,10 @@ static int get_dma_channel(struct device_node *ssi_np,
 	 * dai->platform name should already point to an allocated buffer.
 	 */
 	ret = of_address_to_resource(dma_channel_np, 0, &res);
-	if (ret)
+	if (ret) {
+		of_node_put(dma_channel_np);
 		return ret;
+	}
 	snprintf((char *)dai->platform_name, DAI_NAME_SIZE, "%llx.%s",
 		 (unsigned long long) res.start, dma_channel_np->name);
 
