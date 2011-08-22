@@ -463,11 +463,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					&& (temp & PORT_POWER))
 				status |= USB_PORT_STAT_SUSPEND;
 		}
-		if ((temp & PORT_PLS_MASK) == XDEV_RESUME) {
+		if ((temp & PORT_PLS_MASK) == XDEV_RESUME &&
+				!DEV_SUPERSPEED(temp)) {
 			if ((temp & PORT_RESET) || !(temp & PORT_PE))
 				goto error;
-			if (!DEV_SUPERSPEED(temp) && time_after_eq(jiffies,
-						bus_state->resume_done[wIndex])) {
+			if (time_after_eq(jiffies,
+					bus_state->resume_done[wIndex])) {
 				xhci_dbg(xhci, "Resume USB2 port %d\n",
 					wIndex + 1);
 				bus_state->resume_done[wIndex] = 0;
@@ -487,6 +488,14 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				xhci_ring_device(xhci, slot_id);
 				bus_state->port_c_suspend |= 1 << wIndex;
 				bus_state->suspended_ports &= ~(1 << wIndex);
+			} else {
+				/*
+				 * The resume has been signaling for less than
+				 * 20ms. Report the port status as SUSPEND,
+				 * let the usbcore check port status again
+				 * and clear resume signaling later.
+				 */
+				status |= USB_PORT_STAT_SUSPEND;
 			}
 		}
 		if ((temp & PORT_PLS_MASK) == XDEV_U0
@@ -664,7 +673,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			xhci_dbg(xhci, "PORTSC %04x\n", temp);
 			if (temp & PORT_RESET)
 				goto error;
-			if (temp & XDEV_U3) {
+			if ((temp & PORT_PLS_MASK) == XDEV_U3) {
 				if ((temp & PORT_PE) == 0)
 					goto error;
 
