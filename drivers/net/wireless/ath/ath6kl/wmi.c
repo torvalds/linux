@@ -167,9 +167,11 @@ int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 	if (WARN_ON(skb == NULL))
 		return -EINVAL;
 
-	ret = ath6kl_wmi_meta_add(wmi, skb, &meta_ver, tx_meta_info);
-	if (ret)
-		return ret;
+	if (tx_meta_info) {
+		ret = ath6kl_wmi_meta_add(wmi, skb, &meta_ver, tx_meta_info);
+		if (ret)
+			return ret;
+	}
 
 	skb_push(skb, sizeof(struct wmi_data_hdr));
 
