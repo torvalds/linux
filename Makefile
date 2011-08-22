@@ -1,8 +1,8 @@
 VERSION = 3
 PATCHLEVEL = 1
 SUBLEVEL = 0
-EXTRAVERSION = -rc2
-NAME = Wet Seal
+EXTRAVERSION = -rc3
+NAME = "Divemaster Edition"
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
