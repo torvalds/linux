@@ -239,7 +239,6 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
 	u8 ac = 99 ; /* initialize to unmapped ac */
 	bool chk_adhoc_ps_mapping = false, more_data = false;
-	struct wmi_tx_meta_v2 meta_v2;
 	int ret;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
@@ -262,8 +261,6 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (test_bit(WMI_ENABLED, &ar->flag)) {
-		memset(&meta_v2, 0, sizeof(meta_v2));
-
 		if (skb_headroom(skb) < dev->needed_headroom) {
 			WARN_ON(1);
 			goto fail_tx;
