@@ -3307,44 +3307,6 @@ err:
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read);
 
-int dsi_vc_dcs_read_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 *data)
-{
-	int r;
-
-	r = dsi_vc_dcs_read(dssdev, channel, dcs_cmd, data, 1);
-
-	if (r < 0)
-		return r;
-
-	if (r != 1)
-		return -EIO;
-
-	return 0;
-}
-EXPORT_SYMBOL(dsi_vc_dcs_read_1);
-
-int dsi_vc_dcs_read_2(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 *data1, u8 *data2)
-{
-	u8 buf[2];
-	int r;
-
-	r = dsi_vc_dcs_read(dssdev, channel, dcs_cmd, buf, 2);
-
-	if (r < 0)
-		return r;
-
-	if (r != 2)
-		return -EIO;
-
-	*data1 = buf[0];
-	*data2 = buf[1];
-
-	return 0;
-}
-EXPORT_SYMBOL(dsi_vc_dcs_read_2);
-
 int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
 		u16 len)
 {
