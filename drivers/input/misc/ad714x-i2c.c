@@ -1,7 +1,7 @@
 /*
  * AD714X CapTouch Programmable Controller driver (I2C bus)
  *
- * Copyright 2009 Analog Devices Inc.
+ * Copyright 2009-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -47,9 +47,10 @@ static int ad714x_i2c_write(struct ad714x_chip *chip,
 }
 
 static int ad714x_i2c_read(struct ad714x_chip *chip,
-			   unsigned short reg, unsigned short *data)
+			   unsigned short reg, unsigned short *data, size_t len)
 {
 	struct i2c_client *client = to_i2c_client(chip->dev);
+	int i;
 	int error;
 
 	chip->xfer_buf[0] = cpu_to_be16(reg);
@@ -58,14 +59,16 @@ static int ad714x_i2c_read(struct ad714x_chip *chip,
 				sizeof(*chip->xfer_buf));
 	if (error >= 0)
 		error = i2c_master_recv(client, (u8 *)chip->xfer_buf,
-					sizeof(*chip->xfer_buf));
+					len * sizeof(*chip->xfer_buf));
 
 	if (unlikely(error < 0)) {
 		dev_err(&client->dev, "I2C read error: %d\n", error);
 		return error;
 	}
 
-	*data = be16_to_cpup(chip->xfer_buf);
+	for (i = 0; i < len; i++)
+		data[i] = be16_to_cpu(chip->xfer_buf[i]);
+
 	return 0;
 }
 

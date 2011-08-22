@@ -1,7 +1,7 @@
 /*
  * AD714X CapTouch Programmable Controller driver (SPI bus)
  *
- * Copyright 2009 Analog Devices Inc.
+ * Copyright 2009-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -31,11 +31,12 @@ static int ad714x_spi_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ad714x_spi_pm, ad714x_spi_suspend, ad714x_spi_resume);
 
 static int ad714x_spi_read(struct ad714x_chip *chip,
-			   unsigned short reg, unsigned short *data)
+			   unsigned short reg, unsigned short *data, size_t len)
 {
 	struct spi_device *spi = to_spi_device(chip->dev);
 	struct spi_message message;
 	struct spi_transfer xfer[2];
+	int i;
 	int error;
 
 	spi_message_init(&message);
@@ -48,7 +49,7 @@ static int ad714x_spi_read(struct ad714x_chip *chip,
 	spi_message_add_tail(&xfer[0], &message);
 
 	xfer[1].rx_buf = &chip->xfer_buf[1];
-	xfer[1].len = sizeof(chip->xfer_buf[1]);
+	xfer[1].len = sizeof(chip->xfer_buf[1]) * len;
 	spi_message_add_tail(&xfer[1], &message);
 
 	error = spi_sync(spi, &message);
@@ -57,7 +58,9 @@ static int ad714x_spi_read(struct ad714x_chip *chip,
 		return error;
 	}
 
-	*data = be16_to_cpu(chip->xfer_buf[1]);
+	for (i = 0; i < len; i++)
+		data[i] = be16_to_cpu(chip->xfer_buf[i + 1]);
+
 	return 0;
 }
 
