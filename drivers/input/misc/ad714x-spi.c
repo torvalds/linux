@@ -6,7 +6,7 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/input.h>	/* BUS_I2C */
+#include <linux/input.h>	/* BUS_SPI */
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/pm.h>
@@ -30,22 +30,28 @@ static int ad714x_spi_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(ad714x_spi_pm, ad714x_spi_suspend, ad714x_spi_resume);
 
-static int ad714x_spi_read(struct device *dev, unsigned short reg,
-		unsigned short *data)
+static int ad714x_spi_read(struct device *dev,
+			   unsigned short reg, unsigned short *data)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	unsigned short tx = AD714x_SPI_CMD_PREFIX | AD714x_SPI_READ | reg;
+	unsigned short tx = cpu_to_be16(AD714x_SPI_CMD_PREFIX |
+					AD714x_SPI_READ | reg);
+	int ret;
 
-	return spi_write_then_read(spi, (u8 *)&tx, 2, (u8 *)data, 2);
+	ret = spi_write_then_read(spi, &tx, 2, data, 2);
+
+	*data = be16_to_cpup(data);
+
+	return ret;
 }
 
-static int ad714x_spi_write(struct device *dev, unsigned short reg,
-		unsigned short data)
+static int ad714x_spi_write(struct device *dev,
+			    unsigned short reg, unsigned short data)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	unsigned short tx[2] = {
-		AD714x_SPI_CMD_PREFIX | reg,
-		data
+		cpu_to_be16(AD714x_SPI_CMD_PREFIX | reg),
+		cpu_to_be16(data)
 	};
 
 	return spi_write(spi, (u8 *)tx, 4);
