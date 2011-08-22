@@ -86,7 +86,8 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     IN gckOS Os,
     IN gctSIZE_T Bytes,
     IN gctPHYS_ADDR Physical,
-    IN gctPOINTER Logical
+    IN gctPOINTER Logical,
+    IN gctBOOL MemLock
     );
 
 
@@ -139,7 +140,7 @@ struct _gckOS
 
 // dkm : gcdkUSE_MAPED_NONPAGE_CACHE
 #if gcdkUSE_MAPED_NONPAGE_CACHE
-    gctUINT                     cacheNum;
+    gctINT                      cacheNum;
     gcsMapedNonPagedCache *     cacheHead;
     gcsMapedNonPagedCache *     cacheTail;
 #endif
@@ -1233,134 +1234,156 @@ gckOS_UnmapMemory(
 #if gcdkUSE_MAPED_NONPAGE_CACHE
 static gctBOOL _AddMapedNonPagedCache(gckOS Os, PLINUX_MDL mdl)
 {
-    gcsMapedNonPagedCache *cache;
+    gcsMapedNonPagedCache   *cache;
+    gctINT Num = 0;
 
     if(5!=mdl->numPages)     return gcvFALSE;
-    
-    // add to maped nonpage cache
-    if(Os->cacheNum >= gcdkUSE_MAPED_NONPAGE_CACHE) {
-        printk("Add(%d) %d:%d fail!, no space!\n", Os->cacheNum, mdl->pid, mdl->numPages);
-        return gcvFALSE;
+
+    /* Create Caches */
+    if(gcvNULL==Os->cacheHead)
+    {
+        while(Num < gcdkUSE_MAPED_NONPAGE_CACHE)
+        {
+            cache = (gcsMapedNonPagedCache *)kmalloc(sizeof(gcsMapedNonPagedCache), GFP_ATOMIC);
+            if(gcvNULL==cache)      break;
+            cache->mdl = gcvNULL;
+            
+            /* Add to list */
+            if (Os->cacheHead == gcvNULL) {
+                cache->prev   = gcvNULL;
+                cache->next   = gcvNULL;
+                Os->cacheHead = Os->cacheTail = cache;
+            } else {
+                /* Add to the Head. */
+                cache->prev = gcvNULL;
+                cache->next = Os->cacheHead;
+                Os->cacheHead->prev = cache;
+                Os->cacheHead = cache;
+            }
+            Num++;
+        }
+        if(Num < 1)  return gcvFALSE;
     }
 
-    cache = (gcsMapedNonPagedCache *)kmalloc(sizeof(gcsMapedNonPagedCache), GFP_ATOMIC);
-    if(gcvNULL==cache)      return gcvFALSE;
-    
-    cache->mdl = mdl;
-    
-    /* Add to list */
-    if (Os->cacheHead == gcvNULL) {
-        cache->prev   = gcvNULL;
-        cache->next   = gcvNULL;
-        Os->cacheHead = Os->cacheTail = cache;
-    } else {
-        /* Add to the Head. */
+    /* Get the last and Add it to the Head */
+    cache = Os->cacheTail;
+    if(cache->prev) {
+        Os->cacheTail = cache->prev;
+        Os->cacheTail->next = gcvNULL;
         cache->prev = gcvNULL;
         cache->next = Os->cacheHead;
         Os->cacheHead->prev = cache;
         Os->cacheHead = cache;
     }
-    Os->cacheNum++;
-
-    //printk("Add(%d) %d:%d\n", Os->cacheNum, mdl->pid, mdl->numPages);
-
+    if(cache->mdl) {
+        //printk("Add(%d) pid:%d, But exist pid:%d, free and get it!\n", Os->cacheNum, mdl->pid, cache->mdl->pid);
+        gckOS_FreeNonPagedMemoryRealy(Os, cache->mdl->numPages, (gctPHYS_ADDR)cache->mdl, (gctPOINTER)cache->mdl->addr, gcvFALSE);
+        cache->mdl = gcvNULL;
+    } else {
+        Os->cacheNum++;
+        //printk("Add(%d) pid:%d succ!\n", Os->cacheNum, mdl->pid);
+    }
+    cache->mdl = mdl;
     return gcvTRUE;
 }
 
 static PLINUX_MDL _GetMapedNonPagedCache(gckOS Os, gctINT pid, gctINT numPages)
 {
-    gcsMapedNonPagedCache *cache;
-    PLINUX_MDL mdl;
-    int cnt = 0;
+    gcsMapedNonPagedCache *cache = gcvNULL;
+    PLINUX_MDL mdl = gcvNULL;
 
     if(5!=numPages)     return gcvNULL;
     
-    if (Os->cacheHead == gcvNULL) {
-        //printk("Get(%d) %d:%d fail!, cache empty!\n", Os->cacheNum, pid, numPages);
-        return gcvNULL;
-    }
-    
     cache = Os->cacheHead;
-    while (cache != gcvNULL)
+    
+    while (cache != gcvNULL) 
     {
-        cnt ++;
-        if (cache->mdl->pid==pid && cache->mdl->numPages==numPages)     break;
+        if (cache->mdl && cache->mdl->pid==pid && cache->mdl->numPages==numPages) 
+        {
+            /* Move the cache to the Tail */
+            if(cache->next) {
+                if(cache->prev) {
+                    cache->prev->next = cache->next;
+                    cache->next->prev = cache->prev;
+                } else {
+                    Os->cacheHead = cache->next;
+                    Os->cacheHead->prev = gcvNULL;
+                }
+                    
+                cache->prev = Os->cacheTail;
+                cache->next = gcvNULL;
+                Os->cacheTail->next = cache;
+                Os->cacheTail = cache;
+            } 
+          
+            mdl = cache->mdl;
+            cache->mdl = gcvNULL;
+            Os->cacheNum--;
+            break;
+        }
         cache = cache->next; 
     }
-
-    if (cache == gcvNULL) {
-        //printk("Get(%d) %d:%d fail!, no in cache!\n", Os->cacheNum, pid, numPages);
-        return gcvNULL;
-    }
-
-    mdl = cache->mdl;
-    
-    /* Remove the cache from list */
-    if (cache == Os->cacheHead) {
-        Os->cacheHead = cache->next;
-        if (Os->cacheHead == gcvNULL)   Os->cacheTail = gcvNULL;
-    } else {
-        cache->prev->next = cache->next;
-        if (cache == Os->cacheTail) {
-            Os->cacheTail = cache->prev;
-        } else {
-            cache->next->prev = cache->prev;
-        }
-    }
-    Os->cacheNum--;
-    kfree(cache);
-    
-    //printk("Get(%d) %d:%d -->%d\n", Os->cacheNum, mdl->pid, mdl->numPages, cnt);
     
     return mdl;
 }
 
 static void _FreeAllMapedNonPagedCache(gckOS Os, gctINT pid)
 {
-    gcsMapedNonPagedCache *cache, *nextCache;
+    gcsMapedNonPagedCache *cache, *next, *tail;
 
     MEMORY_LOCK(Os);
 
     cache = Os->cacheHead;
+    tail = Os->cacheTail;
 
+    /* free mdl that pid hit */
     while (cache != gcvNULL)
     {
-        if (cache != Os->cacheTail)
-            nextCache = cache->next;
-        else
-            nextCache = gcvNULL;
-
-        if(cache->mdl->pid==pid || 0==pid)
+        next = cache->next;
+        
+        if( (cache->mdl) && (cache->mdl->pid==pid || 0==pid))
         {
-            /* Remove the cache from list */
-            if (cache == Os->cacheHead) {
-                Os->cacheHead = cache->next;
-                if (Os->cacheHead == gcvNULL)   Os->cacheTail = gcvNULL;
-            } else {
-                cache->prev->next = cache->next;
-                if (cache == Os->cacheTail) {
-                    Os->cacheTail = cache->prev;
-                } else {
+            /* Move the cache to the Tail */
+            if(cache->next) {
+                if(cache->prev) {
+                    cache->prev->next = cache->next;
                     cache->next->prev = cache->prev;
+                } else {
+                    Os->cacheHead = cache->next;
+                    Os->cacheHead->prev = gcvNULL;
                 }
-            }
-            Os->cacheNum--;
+                    
+                cache->prev = Os->cacheTail;
+                cache->next = gcvNULL;
+                Os->cacheTail->next = cache;
+                Os->cacheTail = cache;
+            } 
 
             /* Real Free memory */
-            MEMORY_UNLOCK(Os);
-            gckOS_FreeNonPagedMemoryRealy(Os, cache->mdl->numPages, (gctPHYS_ADDR)cache->mdl, (gctPOINTER)cache->mdl->addr);
-            MEMORY_LOCK(Os);
-
-            kfree(cache);
+            gckOS_FreeNonPagedMemoryRealy(Os, cache->mdl->numPages, (gctPHYS_ADDR)cache->mdl, (gctPOINTER)cache->mdl->addr, gcvFALSE);
+            cache->mdl = gcvNULL;
+            Os->cacheNum--;
         }
 
-        cache = nextCache;
+        if(tail == cache)   break;
+        cache = next;
+    }
+
+    //printk("FreeAll(%d) pid:%d succ!\n", Os->cacheNum, pid);
+
+    /* destroy all caches */
+    if(0 == pid)
+    {
+        cache = Os->cacheHead;
+        while (cache != gcvNULL)
+        {
+            next = cache->next;
+            kfree(cache);
+            cache = next;
+        }
     }
 
     MEMORY_UNLOCK(Os);
-
-    //printk("_FreeAllMapedNonPagedCache pid=%d, cacheNum=%d\n", pid, Os->cacheNum);
-
 }
 #endif
 
@@ -1755,7 +1778,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
     MEMORY_UNLOCK(Os);
 #endif
     
-    return gckOS_FreeNonPagedMemoryRealy(Os, Bytes, Physical, Logical);
+    return gckOS_FreeNonPagedMemoryRealy(Os, Bytes, Physical, Logical, gcvTRUE);
 }
 
 
@@ -1763,7 +1786,8 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     IN gckOS Os,
     IN gctSIZE_T Bytes,
     IN gctPHYS_ADDR Physical,
-    IN gctPOINTER Logical
+    IN gctPOINTER Logical,
+    IN gctBOOL MemLock
     )
 {
     PLINUX_MDL              mdl;
@@ -1790,7 +1814,7 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     /* Convert physical address into a pointer to a MDL. */
     mdl = (PLINUX_MDL) Physical;
 
-    MEMORY_LOCK(Os);
+    if(MemLock)     MEMORY_LOCK(Os);
 
 #ifndef NO_DMA_COHERENT
     dma_free_coherent(gcvNULL,
@@ -1879,7 +1903,7 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
         }
     }
 
-    MEMORY_UNLOCK(Os);
+    if(MemLock)     MEMORY_UNLOCK(Os);
 
     gcmkTRACE_ZONE(gcvLEVEL_INFO,
                 gcvZONE_OS,
