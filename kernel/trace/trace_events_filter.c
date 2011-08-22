@@ -2101,6 +2101,11 @@ static __init int ftrace_test_event_filter(void)
 			break;
 		}
 
+		/*
+		 * The preemption disabling is not really needed for self
+		 * tests, but the rcu dereference will complain without it.
+		 */
+		preempt_disable();
 		if (*d->not_visited)
 			walk_pred_tree(filter->preds, filter->root,
 				       test_walk_pred_cb,
@@ -2108,6 +2113,7 @@ static __init int ftrace_test_event_filter(void)
 
 		test_pred_visited = 0;
 		err = filter_match_preds(filter, &d->rec);
+		preempt_enable();
 
 		__free_filter(filter);
 
