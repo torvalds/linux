@@ -12,7 +12,6 @@
 #include <linux/module.h>
 
 #include <mach/hardware.h>
-#include "generic.h"
 
 static int sa1100_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
