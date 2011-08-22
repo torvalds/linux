@@ -717,10 +717,13 @@ static void capture_restore(struct sh_mobile_ceu_dev *pcdev, u32 capsr)
 static struct v4l2_subdev *find_bus_subdev(struct sh_mobile_ceu_dev *pcdev,
 					   struct soc_camera_device *icd)
 {
-	if (!pcdev->csi2_pdev)
-		return soc_camera_to_subdev(icd);
+	if (pcdev->csi2_pdev) {
+		struct v4l2_subdev *csi2_sd = find_csi2(pcdev);
+		if (csi2_sd && csi2_sd->grp_id == (u32)icd)
+			return csi2_sd;
+	}
 
-	return find_csi2(pcdev);
+	return soc_camera_to_subdev(icd);
 }
 
 #define CEU_BUS_FLAGS (V4L2_MBUS_MASTER |	\
