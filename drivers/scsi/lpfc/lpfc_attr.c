@@ -52,6 +52,13 @@
 #define LPFC_MIN_DEVLOSS_TMO 1
 #define LPFC_MAX_DEVLOSS_TMO 255
 
+/*
+ * Write key size should be multiple of 4. If write key is changed
+ * make sure that library write key is also changed.
+ */
+#define LPFC_REG_WRITE_KEY_SIZE	4
+#define LPFC_REG_WRITE_KEY	"EMLX"
+
 /**
  * lpfc_jedec_to_ascii - Hex to ascii convertor according to JEDEC rules
  * @incr: integer to convert.
@@ -693,7 +700,7 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
-		return -EIO;
+		return -EACCES;
 
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
@@ -768,12 +775,17 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 static int
 lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 {
-	struct lpfc_register portstat_reg;
+	struct lpfc_register portstat_reg = {0};
 	int i;
 
-
+	msleep(100);
 	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 		   &portstat_reg.word0);
+
+	/* verify if privilaged for the request operation */
+	if (!bf_get(lpfc_sliport_status_rn, &portstat_reg) &&
+	    !bf_get(lpfc_sliport_status_err, &portstat_reg))
+		return -EPERM;
 
 	/* wait for the SLI port firmware ready after firmware reset */
 	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
@@ -816,14 +828,11 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
-		return -EIO;
+		return -EACCES;
 
 	if ((phba->sli_rev < LPFC_SLI_REV4) ||
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 	     LPFC_SLI_INTF_IF_TYPE_2))
-		return -EPERM;
-
-	if (!pdev->is_physfn)
 		return -EPERM;
 
 	/* Disable SR-IOV virtual functions if enabled */
@@ -858,7 +867,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	rc = lpfc_sli4_pdev_status_reg_wait(phba);
 
 	if (rc)
-		return -EIO;
+		return rc;
 
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
@@ -984,7 +993,7 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	if (!status)
 		return strlen(buf);
 	else
-		return -EIO;
+		return status;
 }
 
 /**
@@ -3885,18 +3894,23 @@ sysfs_ctlreg_write(struct file *filp, struct kobject *kobj,
 	if ((off + count) > FF_REG_AREA_SIZE)
 		return -ERANGE;
 
-	if (count == 0) return 0;
+	if (count <= LPFC_REG_WRITE_KEY_SIZE)
+		return 0;
 
 	if (off % 4 || count % 4 || (unsigned long)buf % 4)
 		return -EINVAL;
 
-	if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
+	/* This is to protect HBA registers from accidental writes. */
+	if (memcmp(buf, LPFC_REG_WRITE_KEY, LPFC_REG_WRITE_KEY_SIZE))
+		return -EINVAL;
+
+	if (!(vport->fc_flag & FC_OFFLINE_MODE))
 		return -EPERM;
-	}
 
 	spin_lock_irq(&phba->hbalock);
-	for (buf_off = 0; buf_off < count; buf_off += sizeof(uint32_t))
-		writel(*((uint32_t *)(buf + buf_off)),
+	for (buf_off = 0; buf_off < count - LPFC_REG_WRITE_KEY_SIZE;
+			buf_off += sizeof(uint32_t))
+		writel(*((uint32_t *)(buf + buf_off + LPFC_REG_WRITE_KEY_SIZE)),
 		       phba->ctrl_regs_memmap_p + off + buf_off);
 
 	spin_unlock_irq(&phba->hbalock);

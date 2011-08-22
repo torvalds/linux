@@ -4056,9 +4056,6 @@ lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *phba)
 	uint16_t nr_virtfn;
 	int pos;
 
-	if (!pdev->is_physfn)
-		return 0;
-
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (pos == 0)
 		return 0;
