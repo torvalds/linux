@@ -651,7 +651,7 @@ static unsigned int zv_max_zsize = (PAGE_SIZE / 8) * 7;
 /*
  * byte count defining poor *mean* compression; pages with greater zsize
  * will be rejected until sufficient better-compressed pages are accepted
- * driving the man below this threshold
+ * driving the mean below this threshold
  */
 static unsigned int zv_max_mean_zsize = (PAGE_SIZE / 8) * 5;
 
@@ -1993,7 +1993,7 @@ static int __init zcache_init(void)
 		pr_info("zcache: frontswap enabled using kernel "
 			"transcendent memory and xvmalloc\n");
 		if (old_ops.init != NULL)
-			pr_warning("ktmem: frontswap_ops overridden");
+			pr_warning("zcache: frontswap_ops overridden");
 	}
 #endif
 out:
