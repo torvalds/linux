@@ -31,15 +31,4 @@ config ARCNET_COM20020_CS
 	  To compile this driver as a module, choose M here: the module will be
 	  called com20020_cs.  If unsure, say N.
 
-config PCMCIA_IBMTR
-	tristate "IBM PCMCIA tokenring adapter support"
-	depends on IBMTR!=y && TR
-	help
-	  Say Y here if you intend to attach this type of Token Ring PCMCIA
-	  card to your computer. You then also need to say Y to "Token Ring
-	  driver support".
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called ibmtr_cs.
-
 endif # NET_PCMCIA
