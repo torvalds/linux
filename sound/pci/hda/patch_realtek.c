@@ -177,6 +177,7 @@ struct alc_spec {
 	unsigned int dyn_adc_switch:1; /* switch ADCs (for ALC275) */
 	unsigned int single_input_src:1;
 	unsigned int vol_in_capsrc:1; /* use capsrc volume (ADC has no vol) */
+	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
 
 	/* auto-mute control */
 	int automute_mode;
@@ -3691,7 +3692,8 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int err;
 
-	err = snd_hda_parse_pin_def_config(codec, cfg, ignore_nids);
+	err = snd_hda_parse_pin_defcfg(codec, cfg, ignore_nids,
+				       spec->parse_flags);
 	if (err < 0)
 		return err;
 	if (!cfg->line_outs) {
@@ -5232,7 +5234,14 @@ enum {
 	ALC662_FIXUP_CZC_P10T,
 	ALC662_FIXUP_SKU_IGNORE,
 	ALC662_FIXUP_HP_RP5800,
-	ALC662_FIXUP_ECS,
+	ALC662_FIXUP_ASUS_MODE1,
+	ALC662_FIXUP_ASUS_MODE2,
+	ALC662_FIXUP_ASUS_MODE3,
+	ALC662_FIXUP_ASUS_MODE4,
+	ALC662_FIXUP_ASUS_MODE5,
+	ALC662_FIXUP_ASUS_MODE6,
+	ALC662_FIXUP_ASUS_MODE7,
+	ALC662_FIXUP_ASUS_MODE8,
 };
 
 static const struct alc_fixup alc662_fixups[] = {
@@ -5274,7 +5283,19 @@ static const struct alc_fixup alc662_fixups[] = {
 		.chained = true,
 		.chain_id = ALC662_FIXUP_SKU_IGNORE
 	},
-	[ALC662_FIXUP_ECS] = {
+	[ALC662_FIXUP_ASUS_MODE1] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x18, 0x01a19c20 }, /* mic */
+			{ 0x19, 0x99a3092f }, /* int-mic */
+			{ 0x21, 0x0121401f }, /* HP out */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE2] = {
 		.type = ALC_FIXUP_PINS,
 		.v.pins = (const struct alc_pincfg[]) {
 			{ 0x14, 0x99130110 }, /* speaker */
@@ -5283,25 +5304,173 @@ static const struct alc_fixup alc662_fixups[] = {
 			{ 0x1b, 0x0121401f }, /* HP out */
 			{ }
 		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE3] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x15, 0x0121441f }, /* HP */
+			{ 0x18, 0x01a19840 }, /* mic */
+			{ 0x19, 0x99a3094f }, /* int-mic */
+			{ 0x21, 0x01211420 }, /* HP2 */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE4] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x16, 0x99130111 }, /* speaker */
+			{ 0x18, 0x01a19840 }, /* mic */
+			{ 0x19, 0x99a3094f }, /* int-mic */
+			{ 0x21, 0x0121441f }, /* HP */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE5] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x15, 0x0121441f }, /* HP */
+			{ 0x16, 0x99130111 }, /* speaker */
+			{ 0x18, 0x01a19840 }, /* mic */
+			{ 0x19, 0x99a3094f }, /* int-mic */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE6] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x15, 0x01211420 }, /* HP2 */
+			{ 0x18, 0x01a19840 }, /* mic */
+			{ 0x19, 0x99a3094f }, /* int-mic */
+			{ 0x1b, 0x0121441f }, /* HP */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE7] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x17, 0x99130111 }, /* speaker */
+			{ 0x18, 0x01a19840 }, /* mic */
+			{ 0x19, 0x99a3094f }, /* int-mic */
+			{ 0x1b, 0x01214020 }, /* HP */
+			{ 0x21, 0x0121401f }, /* HP */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
+	},
+	[ALC662_FIXUP_ASUS_MODE8] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x12, 0x99a30970 }, /* int-mic */
+			{ 0x15, 0x01214020 }, /* HP */
+			{ 0x17, 0x99130111 }, /* speaker */
+			{ 0x18, 0x01a19840 }, /* mic */
+			{ 0x21, 0x0121401f }, /* HP */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_SKU_IGNORE
 	},
 };
 
 static const struct snd_pci_quirk alc662_fixup_tbl[] = {
-	SND_PCI_QUIRK(0x1019, 0x9087, "ECS", ALC662_FIXUP_ECS),
+	SND_PCI_QUIRK(0x1019, 0x9087, "ECS", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x1025, 0x0308, "Acer Aspire 8942G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x031c, "Gateway NV79", ALC662_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x103c, 0x1632, "HP RP5800", ALC662_FIXUP_HP_RP5800),
-	SND_PCI_QUIRK(0x105b, 0x0cd6, "Foxconn", ALC662_FIXUP_ECS),
+	SND_PCI_QUIRK(0x105b, 0x0cd6, "Foxconn", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x1b35, 0x2206, "CZC P10T", ALC662_FIXUP_CZC_P10T),
+
+#if 0
+	/* Below is a quirk table taken from the old code.
+	 * Basically the device should work as is without the fixup table.
+	 * If BIOS doesn't give a proper info, enable the corresponding
+	 * fixup entry.
+	 */ 
+	SND_PCI_QUIRK(0x1043, 0x1000, "ASUS N50Vm", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1092, "ASUS NB", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x1173, "ASUS K73Jn", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x11c3, "ASUS M70V", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x11d3, "ASUS NB", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x11f3, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1203, "ASUS NB", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1303, "ASUS G60J", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1333, "ASUS G60Jx", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1339, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x13e3, "ASUS N71JA", ALC662_FIXUP_ASUS_MODE7),
+	SND_PCI_QUIRK(0x1043, 0x1463, "ASUS N71", ALC662_FIXUP_ASUS_MODE7),
+	SND_PCI_QUIRK(0x1043, 0x14d3, "ASUS G72", ALC662_FIXUP_ASUS_MODE8),
+	SND_PCI_QUIRK(0x1043, 0x1563, "ASUS N90", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x15d3, "ASUS N50SF F50SF", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x16c3, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x16f3, "ASUS K40C K50C", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1733, "ASUS N81De", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1753, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1763, "ASUS NB", ALC662_FIXUP_ASUS_MODE6),
+	SND_PCI_QUIRK(0x1043, 0x1765, "ASUS NB", ALC662_FIXUP_ASUS_MODE6),
+	SND_PCI_QUIRK(0x1043, 0x1783, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1793, "ASUS F50GX", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x17b3, "ASUS F70SL", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x17f3, "ASUS X58LE", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1813, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1823, "ASUS NB", ALC662_FIXUP_ASUS_MODE5),
+	SND_PCI_QUIRK(0x1043, 0x1833, "ASUS NB", ALC662_FIXUP_ASUS_MODE6),
+	SND_PCI_QUIRK(0x1043, 0x1843, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1853, "ASUS F50Z", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1864, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1876, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1893, "ASUS M50Vm", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x1894, "ASUS X55", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x18b3, "ASUS N80Vc", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x18c3, "ASUS VX5", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x18d3, "ASUS N81Te", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x18f3, "ASUS N505Tp", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1903, "ASUS F5GL", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1913, "ASUS NB", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1933, "ASUS F80Q", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x1943, "ASUS Vx3V", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1953, "ASUS NB", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1963, "ASUS X71C", ALC662_FIXUP_ASUS_MODE3),
+	SND_PCI_QUIRK(0x1043, 0x1983, "ASUS N5051A", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x1993, "ASUS N20", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x19b3, "ASUS F7Z", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x19c3, "ASUS F5Z/F6x", ALC662_FIXUP_ASUS_MODE2),
+	SND_PCI_QUIRK(0x1043, 0x19e3, "ASUS NB", ALC662_FIXUP_ASUS_MODE1),
+	SND_PCI_QUIRK(0x1043, 0x19f3, "ASUS NB", ALC662_FIXUP_ASUS_MODE4),
+#endif
 	{}
 };
 
 static const struct alc_model_fixup alc662_fixup_models[] = {
 	{.id = ALC272_FIXUP_MARIO, .name = "mario"},
+	{.id = ALC662_FIXUP_ASUS_MODE1, .name = "asus-mode1"},
+	{.id = ALC662_FIXUP_ASUS_MODE2, .name = "asus-mode2"},
+	{.id = ALC662_FIXUP_ASUS_MODE3, .name = "asus-mode3"},
+	{.id = ALC662_FIXUP_ASUS_MODE4, .name = "asus-mode4"},
+	{.id = ALC662_FIXUP_ASUS_MODE5, .name = "asus-mode5"},
+	{.id = ALC662_FIXUP_ASUS_MODE6, .name = "asus-mode6"},
+	{.id = ALC662_FIXUP_ASUS_MODE7, .name = "asus-mode7"},
+	{.id = ALC662_FIXUP_ASUS_MODE8, .name = "asus-mode8"},
 	{}
 };
 
@@ -5325,6 +5494,9 @@ static int patch_alc662(struct hda_codec *codec)
 	codec->spec = spec;
 
 	spec->mixer_nid = 0x0b;
+
+	/* handle multiple HPs as is */
+	spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 
 	alc_auto_parse_customize_define(codec);
 

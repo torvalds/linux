@@ -15,14 +15,6 @@ enum {
 	ALC663_ASUS_G71V,
 	ALC663_ASUS_H13,
 	ALC663_ASUS_G50V,
-	ALC663_ASUS_MODE1,
-	ALC662_ASUS_MODE2,
-	ALC663_ASUS_MODE3,
-	ALC663_ASUS_MODE4,
-	ALC663_ASUS_MODE5,
-	ALC663_ASUS_MODE6,
-	ALC663_ASUS_MODE7,
-	ALC663_ASUS_MODE8,
 	ALC662_MODEL_LAST,
 };
 
@@ -246,97 +238,6 @@ static const struct snd_kcontrol_new alc663_m51va_mixer[] = {
 	{ } /* end */
 };
 
-static const struct hda_bind_ctls alc663_asus_tree_bind_switch = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x21, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct snd_kcontrol_new alc663_two_hp_m1_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc663_asus_bind_master_vol),
-	HDA_BIND_SW("Master Playback Switch", &alc663_asus_tree_bind_switch),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("F-Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("F-Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-
-	{ } /* end */
-};
-
-static const struct hda_bind_ctls alc663_asus_four_bind_switch = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct snd_kcontrol_new alc663_two_hp_m2_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc663_asus_bind_master_vol),
-	HDA_BIND_SW("Master Playback Switch", &alc663_asus_four_bind_switch),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("F-Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("F-Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc662_1bjd_mixer[] = {
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("F-Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("F-Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct hda_bind_ctls alc663_asus_two_bind_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x04, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct hda_bind_ctls alc663_asus_two_bind_switch = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x16, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct snd_kcontrol_new alc663_asus_21jd_clfe_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume",
-				&alc663_asus_two_bind_master_vol),
-	HDA_BIND_SW("Master Playback Switch", &alc663_asus_two_bind_switch),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x21, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc663_asus_15jd_clfe_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc663_asus_bind_master_vol),
-	HDA_BIND_SW("Master Playback Switch", &alc663_asus_two_bind_switch),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc663_g71v_mixer[] = {
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
@@ -364,52 +265,6 @@ static const struct snd_kcontrol_new alc663_g50v_mixer[] = {
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	{ } /* end */
 };
-
-static const struct hda_bind_ctls alc663_asus_mode7_8_all_bind_switch = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x17, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x21, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct hda_bind_ctls alc663_asus_mode7_8_sp_bind_switch = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x17, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct snd_kcontrol_new alc663_mode7_mixer[] = {
-	HDA_BIND_SW("Master Playback Switch", &alc663_asus_mode7_8_all_bind_switch),
-	HDA_BIND_VOL("Speaker Playback Volume", &alc663_asus_bind_master_vol),
-	HDA_BIND_SW("Speaker Playback Switch", &alc663_asus_mode7_8_sp_bind_switch),
-	HDA_CODEC_MUTE("Headphone1 Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone2 Playback Switch", 0x21, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("IntMic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("IntMic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc663_mode8_mixer[] = {
-	HDA_BIND_SW("Master Playback Switch", &alc663_asus_mode7_8_all_bind_switch),
-	HDA_BIND_VOL("Speaker Playback Volume", &alc663_asus_bind_master_vol),
-	HDA_BIND_SW("Speaker Playback Switch", &alc663_asus_mode7_8_sp_bind_switch),
-	HDA_CODEC_MUTE("Headphone1 Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone2 Playback Switch", 0x21, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 
 static const struct snd_kcontrol_new alc662_chmode_mixer[] = {
 	{
@@ -498,72 +353,6 @@ static const struct hda_verb alc663_m51va_init_verbs[] = {
 	{}
 };
 
-static const struct hda_verb alc663_21jd_amic_init_verbs[] = {
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc662_1bjd_amic_init_verbs[] = {
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc663_15jd_amic_init_verbs[] = {
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc663_two_hp_amic_m1_init_verbs[] = {
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x0},	/* Headphone */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x0},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc663_two_hp_amic_m2_init_verbs[] = {
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
 static const struct hda_verb alc663_g71v_init_verbs[] = {
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	/* {0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE}, */
@@ -589,65 +378,6 @@ static const struct hda_verb alc663_g50v_init_verbs[] = {
 	{}
 };
 
-static const struct hda_verb alc662_ecs_init_verbs[] = {
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x701f},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc663_mode7_init_verbs[] = {
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(9)},
-	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc663_mode8_init_verbs[] = {
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(9)},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct snd_kcontrol_new alc662_auto_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc272_auto_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 static void alc662_eeepc_ep20_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -671,124 +401,6 @@ static void alc663_m51va_setup(struct hda_codec *codec)
 	spec->auto_mic = 1;
 }
 
-/* ***************** Mode1 ******************************/
-static void alc663_mode1_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x21;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute_mixer_nid[0] = 0x0c;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_MIXER;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode2 ******************************/
-static void alc662_mode2_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode3 ******************************/
-static void alc663_mode3_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x21;
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode4 ******************************/
-static void alc663_mode4_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x21;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[1] = 0x16;
-	spec->automute_mixer_nid[0] = 0x0c;
-	spec->automute_mixer_nid[1] = 0x0e;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_MIXER;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode5 ******************************/
-static void alc663_mode5_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[1] = 0x16;
-	spec->automute_mixer_nid[0] = 0x0c;
-	spec->automute_mixer_nid[1] = 0x0e;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_MIXER;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode6 ******************************/
-static void alc663_mode6_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute_mixer_nid[0] = 0x0c;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_MIXER;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode7 ******************************/
-static void alc663_mode7_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.hp_pins[0] = 0x21;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x17;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-}
-
-/* ***************** Mode8 ******************************/
-static void alc663_mode8_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x21;
-	spec->autocfg.hp_pins[1] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x17;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x12;
-	spec->auto_mic = 1;
-}
-
 static void alc663_g71v_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -806,20 +418,6 @@ static void alc663_g71v_setup(struct hda_codec *codec)
 
 #define alc663_g50v_setup	alc663_m51va_setup
 
-static const struct snd_kcontrol_new alc662_ecs_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x02, 0x0, HDA_OUTPUT),
-	ALC262_HIPPO_MASTER_SWITCH,
-
-	HDA_CODEC_VOLUME("Mic/LineIn Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic/LineIn Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic/LineIn Playback Switch", 0x0b, 0x0, HDA_INPUT),
-
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
 /*
  * configuration and preset
  */
@@ -833,74 +431,14 @@ static const char * const alc662_models[ALC662_MODEL_LAST] = {
 	[ALC663_ASUS_G71V] = "g71v",
 	[ALC663_ASUS_H13] = "h13",
 	[ALC663_ASUS_G50V] = "g50v",
-	[ALC663_ASUS_MODE1] = "asus-mode1",
-	[ALC662_ASUS_MODE2] = "asus-mode2",
-	[ALC663_ASUS_MODE3] = "asus-mode3",
-	[ALC663_ASUS_MODE4] = "asus-mode4",
-	[ALC663_ASUS_MODE5] = "asus-mode5",
-	[ALC663_ASUS_MODE6] = "asus-mode6",
-	[ALC663_ASUS_MODE7] = "asus-mode7",
-	[ALC663_ASUS_MODE8] = "asus-mode8",
 	[ALC662_AUTO]		= "auto",
 };
 
 static const struct snd_pci_quirk alc662_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x1043, 0x1000, "ASUS N50Vm", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1092, "ASUS NB", ALC663_ASUS_MODE3),
-	SND_PCI_QUIRK(0x1043, 0x1173, "ASUS K73Jn", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x11c3, "ASUS M70V", ALC663_ASUS_MODE3),
-	SND_PCI_QUIRK(0x1043, 0x11d3, "ASUS NB", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x11f3, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1203, "ASUS NB", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1303, "ASUS G60J", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1333, "ASUS G60Jx", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1339, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x13e3, "ASUS N71JA", ALC663_ASUS_MODE7),
-	SND_PCI_QUIRK(0x1043, 0x1463, "ASUS N71", ALC663_ASUS_MODE7),
-	SND_PCI_QUIRK(0x1043, 0x14d3, "ASUS G72", ALC663_ASUS_MODE8),
-	SND_PCI_QUIRK(0x1043, 0x1563, "ASUS N90", ALC663_ASUS_MODE3),
-	SND_PCI_QUIRK(0x1043, 0x15d3, "ASUS N50SF F50SF", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x16c3, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x16f3, "ASUS K40C K50C", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1733, "ASUS N81De", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1753, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1763, "ASUS NB", ALC663_ASUS_MODE6),
-	SND_PCI_QUIRK(0x1043, 0x1765, "ASUS NB", ALC663_ASUS_MODE6),
-	SND_PCI_QUIRK(0x1043, 0x1783, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1793, "ASUS F50GX", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x17b3, "ASUS F70SL", ALC663_ASUS_MODE3),
 	SND_PCI_QUIRK(0x1043, 0x17c3, "ASUS UX20", ALC663_ASUS_M51VA),
-	SND_PCI_QUIRK(0x1043, 0x17f3, "ASUS X58LE", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1813, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1823, "ASUS NB", ALC663_ASUS_MODE5),
-	SND_PCI_QUIRK(0x1043, 0x1833, "ASUS NB", ALC663_ASUS_MODE6),
-	SND_PCI_QUIRK(0x1043, 0x1843, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1853, "ASUS F50Z", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1864, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1876, "ASUS NB", ALC662_ASUS_MODE2),
 	SND_PCI_QUIRK(0x1043, 0x1878, "ASUS M51VA", ALC663_ASUS_M51VA),
-	/*SND_PCI_QUIRK(0x1043, 0x1878, "ASUS M50Vr", ALC663_ASUS_MODE1),*/
-	SND_PCI_QUIRK(0x1043, 0x1893, "ASUS M50Vm", ALC663_ASUS_MODE3),
-	SND_PCI_QUIRK(0x1043, 0x1894, "ASUS X55", ALC663_ASUS_MODE3),
-	SND_PCI_QUIRK(0x1043, 0x18b3, "ASUS N80Vc", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x18c3, "ASUS VX5", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x18d3, "ASUS N81Te", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x18f3, "ASUS N505Tp", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1903, "ASUS F5GL", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1913, "ASUS NB", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1933, "ASUS F80Q", ALC662_ASUS_MODE2),
-	SND_PCI_QUIRK(0x1043, 0x1943, "ASUS Vx3V", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1953, "ASUS NB", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1963, "ASUS X71C", ALC663_ASUS_MODE3),
-	SND_PCI_QUIRK(0x1043, 0x1983, "ASUS N5051A", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x1993, "ASUS N20", ALC663_ASUS_MODE1),
 	SND_PCI_QUIRK(0x1043, 0x19a3, "ASUS G50V", ALC663_ASUS_G50V),
-	/*SND_PCI_QUIRK(0x1043, 0x19a3, "ASUS NB", ALC663_ASUS_MODE1),*/
-	SND_PCI_QUIRK(0x1043, 0x19b3, "ASUS F7Z", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x19c3, "ASUS F5Z/F6x", ALC662_ASUS_MODE2),
 	SND_PCI_QUIRK(0x1043, 0x19d3, "ASUS NB", ALC663_ASUS_M51VA),
-	SND_PCI_QUIRK(0x1043, 0x19e3, "ASUS NB", ALC663_ASUS_MODE1),
-	SND_PCI_QUIRK(0x1043, 0x19f3, "ASUS NB", ALC663_ASUS_MODE4),
 	SND_PCI_QUIRK(0x1043, 0x8290, "ASUS P5GC-MX", ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1043, 0x82d1, "ASUS Eeepc EP20", ALC662_ASUS_EEEPC_EP20),
 	SND_PCI_QUIRK(0x105b, 0x0d47, "Foxconn 45CMX/45GMX/45CMX-K",
@@ -1032,133 +570,6 @@ static const struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc663_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc663_g50v_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE1] = {
-		.mixers = { alc663_m51va_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_21jd_amic_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode1_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC662_ASUS_MODE2] = {
-		.mixers = { alc662_1bjd_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc662_1bjd_amic_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc662_mode2_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE3] = {
-		.mixers = { alc663_two_hp_m1_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_two_hp_amic_m1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode3_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE4] = {
-		.mixers = { alc663_asus_21jd_clfe_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_21jd_amic_init_verbs},
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode4_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE5] = {
-		.mixers = { alc663_asus_15jd_clfe_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_15jd_amic_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode5_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE6] = {
-		.mixers = { alc663_two_hp_m2_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_two_hp_amic_m2_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode6_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE7] = {
-		.mixers = { alc663_mode7_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_mode7_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode7_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC663_ASUS_MODE8] = {
-		.mixers = { alc663_mode8_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_mode8_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.hp_nid = 0x03,
-		.dac_nids = alc662_dac_nids,
-		.dig_out_nid = ALC662_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode8_setup,
 		.init_hook = alc_inithook,
 	},
 };
