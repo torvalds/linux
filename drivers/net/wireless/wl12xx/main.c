@@ -3361,19 +3361,6 @@ sta_not_found:
 			ret = wl1271_acx_conn_monit_params(wl, true);
 			if (ret < 0)
 				goto out;
-
-			/* If we want to go in PSM but we're not there yet */
-			if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
-			    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-				enum wl1271_cmd_ps_mode mode;
-
-				mode = STATION_POWER_SAVE_MODE;
-				ret = wl1271_ps_set_mode(wl, mode,
-							 wl->basic_rate,
-							 true);
-				if (ret < 0)
-					goto out;
-			}
 		} else {
 			/* use defaults when not associated */
 			bool was_assoc =
@@ -3514,6 +3501,19 @@ sta_not_found:
 				goto out;
 
 			ret = wl12xx_cmd_role_stop_dev(wl);
+			if (ret < 0)
+				goto out;
+		}
+
+		/* If we want to go in PSM but we're not there yet */
+		if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
+		    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+			enum wl1271_cmd_ps_mode mode;
+
+			mode = STATION_POWER_SAVE_MODE;
+			ret = wl1271_ps_set_mode(wl, mode,
+						 wl->basic_rate,
+						 true);
 			if (ret < 0)
 				goto out;
 		}
