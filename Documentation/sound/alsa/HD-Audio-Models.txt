@@ -62,10 +62,8 @@ ALC267/268
 
 ALC269
 ======
-  basic		Basic preset
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
-  auto		auto-config reading BIOS (default)
 
 ALC662/663/272
 ==============
