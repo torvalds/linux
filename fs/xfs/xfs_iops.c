@@ -833,8 +833,8 @@ xfs_setattr_size(
 	 * care about here.
 	 */
 	if (ip->i_size != ip->i_d.di_size && iattr->ia_size > ip->i_d.di_size) {
-		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size,
-					XBF_ASYNC, FI_NONE);
+		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size, 0,
+					FI_NONE);
 		if (error)
 			goto out_unlock;
 	}
