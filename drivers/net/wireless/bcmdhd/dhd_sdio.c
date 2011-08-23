@@ -77,11 +77,7 @@
 
 #define TXRETRIES	2	/* # of retries for tx frames */
 
-#if defined(CONFIG_MACH_SANDGATE2G)
-#define DHD_RXBOUND	250	/* Default for max rx frames in one scheduling */
-#else
 #define DHD_RXBOUND	50	/* Default for max rx frames in one scheduling */
-#endif /* defined(CONFIG_MACH_SANDGATE2G) */
 
 #define DHD_TXBOUND	20	/* Default for max tx frames in one scheduling */
 
@@ -1846,6 +1842,8 @@ dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 	sh->console_addr = ltoh32(sh->console_addr);
 	sh->msgtrace_addr = ltoh32(sh->msgtrace_addr);
 
+	if ((sh->flags & SDPCM_SHARED_VERSION_MASK) == 3 && SDPCM_SHARED_VERSION == 1)
+		return BCME_OK;
 	if ((sh->flags & SDPCM_SHARED_VERSION_MASK) != SDPCM_SHARED_VERSION) {
 		DHD_ERROR(("%s: sdpcm_shared version %d in dhd "
 		           "is different than sdpcm_shared version %d in dongle\n",

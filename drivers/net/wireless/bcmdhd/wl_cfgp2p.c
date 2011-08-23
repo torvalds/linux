@@ -176,8 +176,8 @@ wl_cfgp2p_ifdel(struct wl_priv *wl, struct ether_addr *mac)
 	s32 ret;
 	struct net_device *netdev = wl_to_prmry_ndev(wl);
 
-	CFGP2P_INFO(("---wl p2p_ifdel %02x:%02x:%02x:%02x:%02x:%02x\n",
-	    mac->octet[0], mac->octet[1], mac->octet[2],
+	CFGP2P_INFO(("------primary idx %d : wl p2p_ifdel %02x:%02x:%02x:%02x:%02x:%02x\n",
+	    netdev->ifindex, mac->octet[0], mac->octet[1], mac->octet[2],
 	    mac->octet[3], mac->octet[4], mac->octet[5]));
 
 	ret = wldev_iovar_setbuf(netdev, "p2p_ifdel", mac, sizeof(*mac),
@@ -1047,10 +1047,13 @@ wl_cfgp2p_action_tx_complete(struct wl_priv *wl, struct net_device *ndev,
 	if (event_type == WLC_E_ACTION_FRAME_COMPLETE) {
 
 		CFGP2P_INFO((" WLC_E_ACTION_FRAME_COMPLETE is received : %d\n", status));
-		if (status == WLC_E_STATUS_SUCCESS)
+		if (status == WLC_E_STATUS_SUCCESS) {
 			wl_set_p2p_status(wl, ACTION_TX_COMPLETED);
-		else
+		}
+		else {
+			wl_set_p2p_status(wl, ACTION_TX_NOACK);
 			CFGP2P_ERR(("WLC_E_ACTION_FRAME_COMPLETE : NO ACK\n"));
+		}
 		wake_up_interruptible(&wl->dongle_event_wait);
 	} else {
 		CFGP2P_INFO((" WLC_E_ACTION_FRAME_OFFCHAN_COMPLETE is received,"
@@ -1081,6 +1084,7 @@ wl_cfgp2p_tx_action_frame(struct wl_priv *wl, struct net_device *dev,
 	    af_params->channel, af_params->dwell_time));
 
 	wl_clr_p2p_status(wl, ACTION_TX_COMPLETED);
+	wl_clr_p2p_status(wl, ACTION_TX_NOACK);
 #define MAX_WAIT_TIME 2000
 	if (bssidx == P2PAPI_BSSCFG_PRIMARY)
 		bssidx =  wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE);
@@ -1094,7 +1098,7 @@ wl_cfgp2p_tx_action_frame(struct wl_priv *wl, struct net_device *dev,
 		goto exit;
 	}
 	timeout = wait_event_interruptible_timeout(wl->dongle_event_wait,
-	                (wl_get_p2p_status(wl, ACTION_TX_COMPLETED) == TRUE),
+	(wl_get_p2p_status(wl, ACTION_TX_COMPLETED) ||wl_get_p2p_status(wl, ACTION_TX_NOACK)),
 	                    msecs_to_jiffies(MAX_WAIT_TIME));
 
 	if (timeout > 0 && wl_get_p2p_status(wl, ACTION_TX_COMPLETED)) {

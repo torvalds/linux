@@ -48,15 +48,6 @@ extern void dhdsdio_isr(void * args);
 #include <dngl_stats.h>
 #include <dhd.h>
 #endif /* defined(OOB_INTR_ONLY) */
-#if defined(CONFIG_MACH_SANDGATE2G) || defined(CONFIG_MACH_LOGICPD_PXA270)
-#if !defined(BCMPLATFORM_BUS)
-#define BCMPLATFORM_BUS
-#endif /* !defined(BCMPLATFORM_BUS) */
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
-#include <linux/platform_device.h>
-#endif /* KERNEL_VERSION(2, 6, 19) */
-#endif /* CONFIG_MACH_SANDGATE2G || CONFIG_MACH_LOGICPD_PXA270 */
 
 /**
  * SDIO Host Controller info

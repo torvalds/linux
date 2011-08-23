@@ -916,7 +916,10 @@ _dhd_wlfc_send_signalonly_packet(athost_wl_status_info_t* ctx, wlfc_mac_descript
 #ifdef PROP_TXSTATUS_DEBUG
 		ctx->stats.signal_only_pkts_sent++;
 #endif
-		dhd_bus_txdata(((dhd_pub_t *)ctx->dhdp)->bus, p);
+		rc = dhd_bus_txdata(((dhd_pub_t *)ctx->dhdp)->bus, p);
+		if (rc != BCME_OK) {
+			PKTFREE(ctx->osh, p, TRUE);
+		}
 	}
 	else {
 		DHD_ERROR(("%s: couldn't allocate new %d-byte packet\n",
@@ -2236,49 +2239,6 @@ dhd_prot_dstats(dhd_pub_t *dhd)
 	return;
 }
 
-int dhd_set_suspend(int value, dhd_pub_t *dhd)
-{
-	int power_mode = PM_MAX;
-	wl_pkt_filter_enable_t	enable_parm;
-	char iovbuf[32];
-	int bcn_li_dtim = 3;
-
-#define htod32(i) i
-
-	if (dhd && dhd->up) {
-		if (value) {
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM,
-				(char *)&power_mode, sizeof(power_mode), TRUE, 0);
-			/* Enable packet filter, only allow unicast packet to send up */
-			enable_parm.id = htod32(100);
-			enable_parm.enable = htod32(1);
-			bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
-				sizeof(wl_pkt_filter_enable_t), iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-			/* set bcn_li_dtim */
-			bcm_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
-				4, iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-		} else {
-			power_mode = PM_FAST;
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
-				sizeof(power_mode), TRUE, 0);
-			/* disable pkt filter */
-			enable_parm.id = htod32(100);
-			enable_parm.enable = htod32(0);
-			bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
-				sizeof(wl_pkt_filter_enable_t), iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-			/* set bcn_li_dtim */
-			bcn_li_dtim = 0;
-			bcm_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
-				4, iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-		}
-	}
-
-	return 0;
-}
 
 int
 dhd_prot_init(dhd_pub_t *dhd)
@@ -2300,7 +2260,9 @@ dhd_prot_init(dhd_pub_t *dhd)
 	ret = dhd_wlfc_init(dhd);
 #endif
 
+#ifndef WL_CFG80211
 	ret = dhd_preinit_ioctls(dhd);
+#endif /* WL_CFG80211 */
 
 	/* Always assumes wl for now */
 	dhd->iswl = TRUE;

@@ -106,8 +106,10 @@ static struct net_device* lookup_real_netdev(char *name)
 	for (i = 0; i < DHD_MAX_IFS; i++) {
 		ndev = dhd_idx2net(g_monitor.dhd_pub, i);
 		if (ndev && strstr(name, ndev->name)) {
-			if (strlen(ndev->name) > last_name_len)
+			if (strlen(ndev->name) > last_name_len) {
 				ndev_found = ndev;
+				last_name_len = strlen(ndev->name);
+			}
 		}
 	}
 

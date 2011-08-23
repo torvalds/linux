@@ -48,6 +48,11 @@ extern void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
 /* Initialize bus module: prepare for communication w/dongle */
 extern int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex);
 
+/* Get the Bus Idle Time */
+extern void dhd_bus_getidletime(dhd_pub_t *dhdp, int *idletime);
+
+/* Set the Bus Idle Time*/
+extern void dhd_bus_setidletime(dhd_pub_t *dhdp, int idle_time);
 /* Send a data frame to the dongle.  Callee disposes of txp. */
 extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp);
 

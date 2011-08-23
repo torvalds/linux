@@ -874,7 +874,8 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 				return ERR_PTR(-ENOMEM);
 			}
 			vwdev->wiphy = wl->wdev->wiphy;
-			WL_INFO((" virtual interface(%s) is created \n", wl->p2p->vir_ifname));
+			WL_INFO((" virtual interface(%s) is created memalloc done \n",
+			wl->p2p->vir_ifname));
 			index = alloc_idx_vwdev(wl);
 			wl->vwdev[index] = vwdev;
 			vwdev->iftype =
@@ -891,7 +892,7 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			rtnl_unlock();
 			if (net_attach && !net_attach(dhd, _ndev->ifindex))
 				WL_DBG((" virtual interface(%s) is "
-					"created\n", wl->p2p->vir_ifname));
+					"created net attach done\n", wl->p2p->vir_ifname));
 			else {
 				rtnl_lock();
 				goto fail;
@@ -918,6 +919,7 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 timeout = -1;
 	s32 ret = 0;
+	WL_DBG(("Enter\n"));
 	if (wl->p2p_supported) {
 		memcpy(p2p_mac.octet, wl->p2p->int_addr.octet, ETHER_ADDR_LEN);
 		if (wl->p2p->vif_created) {
@@ -925,8 +927,17 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 				wl_cfg80211_scan_abort(wl, dev);
 			}
 
-			wl_cfgp2p_ifdel(wl, &p2p_mac);
+			ret = wl_cfgp2p_ifdel(wl, &p2p_mac);
 			wl_set_p2p_status(wl, IF_DELETING);
+			if (ret) {
+				/* Firmware could not delete the interface so we will not get WLC_E_IF event for cleaning the dhd virtual nw interace
+				 * So lets do it here. Failures from fw will ensure the application to do ifconfig <inter> down and up sequnce, which will reload the fw
+				* however we should cleanup the linux network virtual interfaces
+				*/
+				dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
+				WL_ERR(("Firmware returned an error from p2p_ifdel, try to remove linux virtual network interface dev->name %s\n", dev->name));
+				dhd_del_if(dhd->info, dhd_net2idx(dhd->info, dev));
+			}
 
 			/* Wait for any pending scan req to get aborted from the sysioc context */
 			timeout = wait_event_interruptible_timeout(wl->dongle_event_wait,
@@ -1082,8 +1093,8 @@ wl_cfg80211_notify_ifdel(struct net_device *net)
 	if (wl->p2p->vif_created) {
 		s32 index = 0;
 
-		WL_DBG(("IF_DEL event called from dongle, _net name: %s, vif name: %s\n",
-			net->name, wl->p2p->vir_ifname));
+		WL_DBG(("IF_DEL event called from dongle, net %x, vif name: %s\n",
+			(unsigned int)net, wl->p2p->vir_ifname));
 
 		memset(wl->p2p->vir_ifname, '\0', IFNAMSIZ);
 		index = wl_cfgp2p_find_idx(wl, net);
@@ -2220,12 +2231,20 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	CHECK_SYS_UP(wl);
 	act = *(bool *) wl_read_prof(wl, WL_PROF_ACT);
 	if (likely(act)) {
+		/*
+		* Cancel ongoing scan to sync up with sme state machine of cfg80211.
+		*/
+		if (wl->scan_request) {
+			wl_cfg80211_scan_abort(wl, dev);
+		}
+		wl_set_drv_status(wl, DISCONNECTING);
 		scbval.val = reason_code;
 		memcpy(&scbval.ea, &wl->bssid, ETHER_ADDR_LEN);
 		scbval.val = htod32(scbval.val);
 		err = wldev_ioctl(dev, WLC_DISASSOC, &scbval,
 			sizeof(scb_val_t), false);
 		if (unlikely(err)) {
+			wl_clr_drv_status(wl, DISCONNECTING);
 			WL_ERR(("error (%d)\n", err));
 			return err;
 		}
@@ -2710,6 +2729,11 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	CHECK_SYS_UP(wl);
 	pm = enabled ? PM_FAST : PM_OFF;
+	/* Do not enable the power save after assoc if it is p2p interface */
+	if (wl->p2p && wl->p2p->vif_created) {
+		WL_DBG(("Do not enable the power save for p2p interfaces even after assoc\n"));
+		pm = PM_OFF;
+	}
 	pm = htod32(pm);
 	WL_DBG(("power save %s\n", (pm ? "enabled" : "disabled")));
 	err = wldev_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm), false);
@@ -3616,7 +3640,10 @@ wl_cfg80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 			wldev_iovar_setint(dev, "mpc", 0);
 			wldev_ioctl(dev, WLC_DOWN, &ap, sizeof(s32), false);
 			wldev_ioctl(dev, WLC_SET_INFRA, &infra, sizeof(s32), false);
-			wldev_ioctl(dev, WLC_SET_AP, &ap, sizeof(s32), false);
+			if ((err = wldev_ioctl(dev, WLC_SET_AP, &ap, sizeof(s32), false)) < 0) {
+				WL_ERR(("setting AP mode failed %d \n", err));
+				return err;
+			}
 			/* find the RSN_IE */
 			if ((wpa2_ie = bcm_parse_tlvs((u8 *)info->tail, info->tail_len,
 				DOT11_MNG_RSN_ID)) != NULL) {
@@ -4188,21 +4215,30 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 			ntoh32(e->event_type), ntoh32(e->status)));
 		if (wl_is_linkup(wl, e, ndev)) {
 			wl_link_up(wl);
+			act = true;
+			wl_update_prof(wl, e, &act, WL_PROF_ACT);
 			if (wl_is_ibssmode(wl, ndev)) {
 				printk("cfg80211_ibss_joined");
 				cfg80211_ibss_joined(ndev, (s8 *)&e->addr,
 					GFP_KERNEL);
 				WL_DBG(("joined in IBSS network\n"));
 			} else {
-				printk("wl_bss_connect_done succeeded");
-				wl_bss_connect_done(wl, ndev, e, data, true);
-				WL_DBG(("joined in BSS network \"%s\"\n",
+				if (!wl_get_drv_status(wl, DISCONNECTING)) {
+					printk("wl_bss_connect_done succeeded");
+					wl_bss_connect_done(wl, ndev, e, data, true);
+					WL_DBG(("joined in BSS network \"%s\"\n",
 					((struct wlc_ssid *)
 					 wl_read_prof(wl, WL_PROF_SSID))->SSID));
+				}
 			}
-			act = true;
-			wl_update_prof(wl, e, &act, WL_PROF_ACT);
+
 		} else if (wl_is_linkdown(wl, e)) {
+			if (wl->scan_request) {
+				if (wl->escan_on) {
+					wl_notify_escan_complete(wl, true);
+				} else
+					wl_iscan_aborted(wl);
+			}
 			if (wl_get_drv_status(wl, CONNECTED)) {
 				printk("link down, call cfg80211_disconnected ");
 				wl_clr_drv_status(wl, CONNECTED);
@@ -4213,9 +4249,8 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 				printk("link down, during connecting");
 				wl_bss_connect_done(wl, ndev, e, data, false);
 			}
-			if (wl->scan_request) {
-				wl_cfg80211_scan_abort(wl, ndev);
-			}
+			wl_clr_drv_status(wl, DISCONNECTING);
+
 		} else if (wl_is_nonetwork(wl, e)) {
 			printk("connect failed e->status 0x%x", (int)ntoh32(e->status));
 			if (wl_get_drv_status(wl, CONNECTING))
@@ -4498,7 +4533,9 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 	s32 err = 0;
 
 	WL_DBG((" enter\n"));
-
+	if (wl->scan_request) {
+			wl_cfg80211_scan_abort(wl, ndev);
+	}
 	if (wl_get_drv_status(wl, CONNECTING)) {
 		wl_clr_drv_status(wl, CONNECTING);
 		if (completed) {
@@ -4506,6 +4543,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 			memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
 			wl_update_bss_info(wl, ndev);
 			wl_update_pmklist(ndev, wl->pmk_list, err);
+			wl_set_drv_status(wl, CONNECTED);
 		}
 		cfg80211_connect_result(ndev,
 			(u8 *)&wl->bssid,
@@ -4518,14 +4556,6 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 		WL_DBG(("Report connect result - connection %s\n",
 			completed ? "succeeded" : "failed"));
 	}
-	if (completed)
-		wl_set_drv_status(wl, CONNECTED);
-	else {
-		if (wl->scan_request) {
-			wl_cfg80211_scan_abort(wl, ndev);
-		}
-	}
-
 	return err;
 }
 
@@ -5085,6 +5115,7 @@ static void wl_notify_escan_complete(struct wl_priv *wl, bool aborted)
 	if (unlikely(!wl_get_drv_status(wl, SCANNING))) {
 		wl_clr_drv_status(wl, SCANNING);
 		WL_ERR(("Scan complete while device not scanning\n"));
+		wl->scan_request = NULL;
 		return;
 	}
 	wl_clr_drv_status(wl, SCANNING);
@@ -5191,7 +5222,9 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 		wl->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
 		if (likely(wl->scan_request)) {
 			rtnl_lock();
-			WL_INFO(("ESCAN COMPLETED\n"));
+			WL_INFO(("ESCAN ABORTED\n"));
+			wl->bss_list = (wl_scan_results_t *)wl->escan_info.escan_buf;
+			wl_inform_bss(wl);
 			wl_notify_escan_complete(wl, true);
 			rtnl_unlock();
 		}
@@ -6040,7 +6073,6 @@ static s32 wl_update_wiphybands(struct wl_priv *wl)
 	}
 	phy = phylist_buf;
 	for (; *phy; phy++) {
-	WL_ERR(("%c phy\n", *phy));
 		if (*phy == 'a' || *phy == 'n') {
 			wiphy = wl_to_wiphy(wl);
 			wiphy->bands[IEEE80211_BAND_5GHZ] =
@@ -6087,6 +6119,7 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	wl_clr_drv_status(wl, SCAN_ABORTING);
 	wl_clr_drv_status(wl, CONNECTING);
 	wl_clr_drv_status(wl, CONNECTED);
+	wl_clr_drv_status(wl, DISCONNECTING);
 	if (wl_get_drv_status(wl, AP_CREATED)) {
 		wl_clr_drv_status(wl, AP_CREATED);
 		wl_clr_drv_status(wl, AP_CREATING);

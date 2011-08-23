@@ -376,6 +376,7 @@ typedef volatile struct {
 #define SDIOH_CMD_5		5
 #define SDIOH_CMD_7		7
 #define SDIOH_CMD_11		11
+#define SDIOH_CMD_14		14
 #define SDIOH_CMD_15		15
 #define SDIOH_CMD_19		19
 #define SDIOH_CMD_52		52
@@ -411,6 +412,10 @@ typedef volatile struct {
 
 #define CMD7_RCA_M		BITFIELD_MASK(16)
 #define CMD7_RCA_S		16
+#define CMD14_RCA_M		BITFIELD_MASK(16)
+#define CMD14_RCA_S		16
+#define CMD14_SLEEP_M		BITFIELD_MASK(1)
+#define CMD14_SLEEP_S		15
 
 #define CMD_15_RCA_M		BITFIELD_MASK(16)
 #define CMD_15_RCA_S		16

@@ -555,6 +555,7 @@ typedef enum sup_auth_status {
 #define CRYPTO_ALGO_AES_OCB_MSDU    5
 #define CRYPTO_ALGO_AES_OCB_MPDU    6
 #define CRYPTO_ALGO_NALG        7
+#define CRYPTO_ALGO_PMK			12
 
 #define WSEC_GEN_MIC_ERROR  0x0001
 #define WSEC_GEN_REPLAY     0x0002
@@ -616,6 +617,9 @@ typedef struct {
 #define WPA2_AUTH_PSK       0x0080  
 #define BRCM_AUTH_PSK           0x0100  
 #define BRCM_AUTH_DPT       0x0200  
+#define WPA2_AUTH_MFP           0x1000
+#define WPA2_AUTH_TPK		0x2000
+#define WPA2_AUTH_FT		0x4000
 
 
 #define MAXPMKID        16
@@ -1499,6 +1503,7 @@ typedef struct wl_sampledata {
 #define WL_JOIN_PREF_WPA    2   
 #define WL_JOIN_PREF_BAND   3   
 #define WL_JOIN_PREF_RSSI_DELTA 4   
+#define WL_JOIN_PREF_TRANS_PREF	5
 
 
 #define WLJP_BAND_ASSOC_PREF    255 

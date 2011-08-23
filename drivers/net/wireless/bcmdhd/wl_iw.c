@@ -792,7 +792,7 @@ wl_iw_set_power_mode(
 
 #ifdef COEX_DHCP
 		g_bt->ts_dhcp_start = JF2MS;
-		g_bt->dhcp_done = false;
+		g_bt->dhcp_done = FALSE;
 		WL_TRACE_COEX(("%s: DHCP start, pm:%d changed to pm:%d\n",
 			__FUNCTION__, pm, pm_local));
 
@@ -806,7 +806,7 @@ wl_iw_set_power_mode(
 		net_os_set_packet_filter(dev, 1);
 
 #ifdef COEX_DHCP
-		g_bt->dhcp_done = true;
+		g_bt->dhcp_done = TRUE;
 		g_bt->ts_dhcp_ok = JF2MS;
 		WL_TRACE_COEX(("%s: DHCP done for:%d ms, restored pm:%d\n",
 			__FUNCTION__, (g_bt->ts_dhcp_ok - g_bt->ts_dhcp_start), pm));
@@ -828,7 +828,7 @@ wl_iw_set_power_mode(
 bool btcoex_is_sco_active(struct net_device *dev)
 {
 	int ioc_res = 0;
-	bool res = false;
+	bool res = FALSE;
 	int sco_id_cnt = 0;
 	int param27;
 	int i;
@@ -852,7 +852,7 @@ bool btcoex_is_sco_active(struct net_device *dev)
 		if (sco_id_cnt > 2) {
 			WL_TRACE_COEX(("%s, sco/esco detected, pkt id_cnt:%d  samples:%d\n",
 				__FUNCTION__, sco_id_cnt, i));
-			res = true;
+			res = TRUE;
 			break;
 		}
 
@@ -866,7 +866,7 @@ bool btcoex_is_sco_active(struct net_device *dev)
 
 static int set_btc_esco_params(struct net_device *dev, bool trump_sco)
 {
-	static bool saved_status = false;
+	static bool saved_status = FALSE;
 
 	char buf_reg50va_dhcp_on[8] = { 50, 00, 00, 00, 0x22, 0x80, 0x00, 0x00 };
 	char buf_reg51va_dhcp_on[8] = { 51, 00, 00, 00, 0x00, 0x00, 0x00, 0x00 };
@@ -902,7 +902,7 @@ static int set_btc_esco_params(struct net_device *dev, bool trump_sco)
 		} else {
 			WL_ERROR((":%s: save btc_params failed\n",
 				__FUNCTION__));
-			saved_status = false;
+			saved_status = FALSE;
 			return -1;
 		}
 
@@ -920,7 +920,7 @@ static int set_btc_esco_params(struct net_device *dev, bool trump_sco)
 		dev_wlc_bufvar_set(dev, "btc_params", (char *)&buf_reg65va_dhcp_on[0], 8);
 		dev_wlc_bufvar_set(dev, "btc_params", (char *)&buf_reg71va_dhcp_on[0], 8);
 
-		saved_status = true;
+		saved_status = TRUE;
 
 	} else if (saved_status) {
 		
@@ -946,7 +946,7 @@ static int set_btc_esco_params(struct net_device *dev, bool trump_sco)
 			saved_reg50, saved_reg51, saved_reg64,
 			saved_reg65, saved_reg71));
 
-		saved_status = false;
+		saved_status = FALSE;
 	} else {
 		WL_ERROR((":%s att to restore not saved BTCOEX params\n",
 			__FUNCTION__));
@@ -6320,12 +6320,12 @@ fail:
 #ifndef AP_ONLY
 static int last_auto_channel = 6;
 #endif
+
 static int
 get_softap_auto_channel(struct net_device *dev, struct ap_profile *ap)
 {
 	int chosen = 0;
 	wl_uint32_list_t request;
-	int rescan = 0;
 	int retry = 0;
 	int updown = 0;
 	int ret = 0;
@@ -6354,42 +6354,57 @@ get_softap_auto_channel(struct net_device *dev, struct ap_profile *ap)
 		null_ssid.SSID_len+4, buf, sizeof(buf), &mkvar_err);
 	ASSERT(iolen);
 	res |= dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen);
+
 #endif
-	auto_channel_retry:
-			request.count = htod32(0);
-			ret = dev_wlc_ioctl(dev, WLC_START_CHANNEL_SEL, &request, sizeof(request));
-			if (ret < 0) {
-				WL_ERROR(("can't start auto channel scan\n"));
-				goto fail;
-			}
+
+	request.count = htod32(0);
+	ret = dev_wlc_ioctl(dev, WLC_START_CHANNEL_SEL, &request, sizeof(request));
+	if (ret < 0) {
+		WL_ERROR(("can't start auto channel scan\n"));
+		goto fail;
+	}
 
 	get_channel_retry:
-			bcm_mdelay(500);
+		bcm_mdelay(350);
 
-			ret = dev_wlc_ioctl(dev, WLC_GET_CHANNEL_SEL, &chosen, sizeof(chosen));
-			if (ret < 0 || dtoh32(chosen) == 0) {
-				if (retry++ < 3)
-					goto get_channel_retry;
-				else {
+	ret = dev_wlc_ioctl(dev, WLC_GET_CHANNEL_SEL, &chosen, sizeof(chosen));
+		if (ret < 0 || dtoh32(chosen) == 0) {
+			if (retry++ < 15) {
+				goto get_channel_retry;
+			} else {
+				if (ret < 0) {
 					WL_ERROR(("can't get auto channel sel, err = %d, "
-					          "chosen = %d\n", ret, chosen));
+					          "chosen = 0x%04X\n", ret, (uint16)chosen));
 					goto fail;
+				} else {
+					ap->channel = (uint16)last_auto_channel;
+					WL_ERROR(("auto channel sel timed out. we get channel %d\n",
+						ap->channel));
 				}
 			}
-			if ((chosen == 1) && (!rescan++))
-				goto auto_channel_retry;
-			WL_SOFTAP(("Set auto channel = %d\n", chosen));
-			ap->channel = chosen;
-			if ((res = dev_wlc_ioctl(dev, WLC_DOWN, &updown, sizeof(updown))) < 0) {
-				WL_ERROR(("%s fail to set up err =%d\n", __FUNCTION__, res));
-				goto fail;
-			}
+		}
+
+		if (chosen) {
+			ap->channel = (uint16)chosen & 0x00FF;
+			WL_SOFTAP(("%s: Got auto channel = %d, attempt:%d\n",
+				__FUNCTION__, ap->channel, retry));
+		}
+
+		if ((res = dev_wlc_ioctl(dev, WLC_DOWN, &updown, sizeof(updown))) < 0) {
+			WL_ERROR(("%s fail to set up err =%d\n", __FUNCTION__, res));
+			goto fail;
+		}
+
 #ifndef AP_ONLY
-	if (!res)
+	if (!res || !ret)
 		last_auto_channel = ap->channel;
 #endif
 
 fail :
+	if (ret < 0) {
+		WL_TRACE(("%s: return value %d\n", __FUNCTION__, ret));
+		return ret;
+	}
 	return res;
 } 
 
@@ -6482,6 +6497,15 @@ set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 			goto fail;
 		}
 		WL_TRACE(("\n>in %s: apsta set result: %d \n", __FUNCTION__, res));
+
+
+		mpc = 0;
+		if ((res = dev_wlc_intvar_set(dev, "mpc", mpc))) {
+			WL_ERROR(("%s fail to set mpc\n", __FUNCTION__));
+			goto fail;
+		}
+
+
 #endif 
 
 		updown = 1;
@@ -6528,15 +6552,15 @@ set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 	
 	if ((ap->channel == 0) && (get_softap_auto_channel(dev, ap) < 0)) {
 		ap->channel = 1;
-		WL_ERROR(("%s auto channel failed, pick up channel=%d\n",
+		WL_ERROR(("%s auto channel failed, use channel=%d\n",
 		          __FUNCTION__, ap->channel));
 	}
 
 	channel = ap->channel;
 	if ((res = dev_wlc_ioctl(dev, WLC_SET_CHANNEL, &channel, sizeof(channel)))) {
 		WL_ERROR(("%s fail to set channel\n", __FUNCTION__));
-		goto fail;
 	}
+
 
 	if (ap_cfg_running == FALSE) {
 		updown = 0;
@@ -6877,11 +6901,11 @@ static int wl_iw_softap_deassoc_stations(struct net_device *dev, u8 *mac)
 	char z_mac[6] = {0, 0, 0, 0, 0, 0};
 	char *sta_mac;
 	struct maclist *assoc_maclist = (struct maclist *) mac_buf;
-	bool deauth_all = false;
+	bool deauth_all = FALSE;
 
 	
 	if (mac == NULL) {
-		deauth_all = true;
+		deauth_all = TRUE;
 		sta_mac = z_mac;  
 	} else {
 		sta_mac = mac;  
@@ -7179,7 +7203,7 @@ set_ap_mac_list(struct net_device *dev, void *buf)
 		if (assoc_maclist->count)
 			for (i = 0; i < assoc_maclist->count; i++) {
 				int j;
-				bool assoc_mac_matched = false;
+				bool assoc_mac_matched = FALSE;
 				
 				WL_SOFTAP(("\n Cheking assoc STA: "));
 				dhd_print_buf(&assoc_maclist->ea[i], 6, 7);
@@ -7189,7 +7213,7 @@ set_ap_mac_list(struct net_device *dev, void *buf)
 					if (!bcmp(&assoc_maclist->ea[i], &maclist->ea[j],
 						ETHER_ADDR_LEN)) {
 						
-						assoc_mac_matched = true;
+						assoc_mac_matched = TRUE;
 						break;
 					}
 
