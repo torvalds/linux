@@ -36,7 +36,6 @@
 
 #define IXGBE_MAX_PACKET_BUFFERS 8
 #define MAX_USER_PRIORITY        8
-#define MAX_TRAFFIC_CLASS        8
 #define MAX_BW_GROUP             8
 #define BW_PERCENT               100
 

@@ -210,21 +210,19 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
  */
 s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en)
 {
-	u32 i, reg, rx_pba_size;
+	u32 i, reg;
 
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		int enabled = pfc_en & (1 << i);
-		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i));
-		rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
 
-		reg = (rx_pba_size - hw->fc.low_water) << 10;
+		reg = hw->fc.low_water << 10;
 
 		if (enabled)
 			reg |= IXGBE_FCRTL_XONE;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), reg);
 
-		reg = (rx_pba_size - hw->fc.high_water) << 10;
+		reg = hw->fc.high_water[i] << 10;
 		if (enabled)
 			reg |= IXGBE_FCRTH_FCEN;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), reg);

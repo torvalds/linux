@@ -3351,8 +3351,127 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
 	}
 }
+#endif
+
+/* Additional bittime to account for IXGBE framing */
+#define IXGBE_ETH_FRAMING 20
+
+/*
+ * ixgbe_hpbthresh - calculate high water mark for flow control
+ *
+ * @adapter: board private structure to calculate for
+ * @pb - packet buffer to calculate
+ */
+static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *dev = adapter->netdev;
+	int link, tc, kb, marker;
+	u32 dv_id, rx_pba;
+
+	/* Calculate max LAN frame size */
+	tc = link = dev->mtu + ETH_HLEN + ETH_FCS_LEN + IXGBE_ETH_FRAMING;
+
+#ifdef IXGBE_FCOE
+	/* FCoE traffic class uses FCOE jumbo frames */
+	if (dev->features & NETIF_F_FCOE_MTU) {
+		int fcoe_pb = 0;
+
+#ifdef CONFIG_IXGBE_DCB
+		fcoe_pb = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
 
 #endif
+		if (fcoe_pb == pb && tc < IXGBE_FCOE_JUMBO_FRAME_SIZE)
+			tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
+	}
+#endif
+
+	/* Calculate delay value for device */
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+		dv_id = IXGBE_DV_X540(link, tc);
+		break;
+	default:
+		dv_id = IXGBE_DV(link, tc);
+		break;
+	}
+
+	/* Loopback switch introduces additional latency */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		dv_id += IXGBE_B2BT(tc);
+
+	/* Delay value is calculated in bit times convert to KB */
+	kb = IXGBE_BT2KB(dv_id);
+	rx_pba = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(pb)) >> 10;
+
+	marker = rx_pba - kb;
+
+	/* It is possible that the packet buffer is not large enough
+	 * to provide required headroom. In this case throw an error
+	 * to user and a do the best we can.
+	 */
+	if (marker < 0) {
+		e_warn(drv, "Packet Buffer(%i) can not provide enough"
+			    "headroom to support flow control."
+			    "Decrease MTU or number of traffic classes\n", pb);
+		marker = tc + 1;
+	}
+
+	return marker;
+}
+
+/*
+ * ixgbe_lpbthresh - calculate low water mark for for flow control
+ *
+ * @adapter: board private structure to calculate for
+ * @pb - packet buffer to calculate
+ */
+static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *dev = adapter->netdev;
+	int tc;
+	u32 dv_id;
+
+	/* Calculate max LAN frame size */
+	tc = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+	/* Calculate delay value for device */
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+		dv_id = IXGBE_LOW_DV_X540(tc);
+		break;
+	default:
+		dv_id = IXGBE_LOW_DV(tc);
+		break;
+	}
+
+	/* Delay value is calculated in bit times convert to KB */
+	return IXGBE_BT2KB(dv_id);
+}
+
+/*
+ * ixgbe_pbthresh_setup - calculate and setup high low water marks
+ */
+static void ixgbe_pbthresh_setup(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int num_tc = netdev_get_num_tc(adapter->netdev);
+	int i;
+
+	if (!num_tc)
+		num_tc = 1;
+
+	hw->fc.low_water = ixgbe_lpbthresh(adapter);
+
+	for (i = 0; i < num_tc; i++) {
+		hw->fc.high_water[i] = ixgbe_hpbthresh(adapter, i);
+
+		/* Low water marks must not be larger than high water marks */
+		if (hw->fc.low_water > hw->fc.high_water[i])
+			hw->fc.low_water = 0;
+	}
+}
 
 static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 {
@@ -3367,6 +3486,7 @@ static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 		hdrm = 0;
 
 	hw->mac.ops.set_rxpba(hw, tc, hdrm, PBA_STRATEGY_EQUAL);
+	ixgbe_pbthresh_setup(adapter);
 }
 
 static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
@@ -4769,13 +4889,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	struct net_device *dev = adapter->netdev;
 	unsigned int rss;
 #ifdef CONFIG_IXGBE_DCB
 	int j;
 	struct tc_configuration *tc;
 #endif
-	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* PCI config space info */
 
@@ -4851,8 +4969,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_DCB
 	adapter->last_lfc_mode = hw->fc.current_mode;
 #endif
-	hw->fc.high_water = FC_HIGH_WATER(max_frame);
-	hw->fc.low_water = FC_LOW_WATER(max_frame);
+	ixgbe_pbthresh_setup(adapter);
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
 	hw->fc.disable_fc_autoneg = false;
@@ -5118,9 +5235,6 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
-
-	hw->fc.high_water = FC_HIGH_WATER(max_frame);
-	hw->fc.low_water = FC_LOW_WATER(max_frame);
 
 	if (netif_running(netdev))
 		ixgbe_reinit_locked(adapter);

@@ -404,6 +404,7 @@
 #define IXGBE_WUPL_LENGTH_MASK 0xFFFF
 
 /* DCB registers */
+#define MAX_TRAFFIC_CLASS        8
 #define IXGBE_RMCS      0x03D00
 #define IXGBE_DPMCS     0x07F40
 #define IXGBE_PDPMCS    0x0CD00
@@ -2323,13 +2324,60 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_10GBASE_XAUI 0x1000
 #define IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA 0x2000
 
-/* Flow Control Macros */
-#define PAUSE_RTT	8
-#define PAUSE_MTU(MTU)	((MTU + 1024 - 1) / 1024)
+/* Flow Control Data Sheet defined values
+ * Calculation and defines taken from 802.1bb Annex O
+ */
 
-#define FC_HIGH_WATER(MTU) ((((PAUSE_RTT + PAUSE_MTU(MTU)) * 144) + 99) / 100 +\
-				PAUSE_MTU(MTU))
-#define FC_LOW_WATER(MTU)  (2 * (2 * PAUSE_MTU(MTU) + PAUSE_RTT))
+/* BitTimes (BT) conversion */
+#define IXGBE_BT2KB(BT) ((BT + 1023) / (8 * 1024))
+#define IXGBE_B2BT(BT) (BT * 8)
+
+/* Calculate Delay to respond to PFC */
+#define IXGBE_PFC_D	672
+
+/* Calculate Cable Delay */
+#define IXGBE_CABLE_DC	5556 /* Delay Copper */
+#define IXGBE_CABLE_DO	5000 /* Delay Optical */
+
+/* Calculate Interface Delay X540 */
+#define IXGBE_PHY_DC	25600	/* Delay 10G BASET */
+#define IXGBE_MAC_DC	8192	/* Delay Copper XAUI interface */
+#define IXGBE_XAUI_DC	(2 * 2048) /* Delay Copper Phy */
+
+#define IXGBE_ID_X540	(IXGBE_MAC_DC + IXGBE_XAUI_DC + IXGBE_PHY_DC)
+
+/* Calculate Interface Delay 82598, 82599 */
+#define IXGBE_PHY_D	12800
+#define IXGBE_MAC_D	4096
+#define IXGBE_XAUI_D	(2 * 1024)
+
+#define IXGBE_ID	(IXGBE_MAC_D + IXGBE_XAUI_D + IXGBE_PHY_D)
+
+/* Calculate Delay incurred from higher layer */
+#define IXGBE_HD	6144
+
+/* Calculate PCI Bus delay for low thresholds */
+#define IXGBE_PCI_DELAY	10000
+
+/* Calculate X540 delay value in bit times */
+#define IXGBE_FILL_RATE (36 / 25)
+
+#define IXGBE_DV_X540(LINK, TC) (IXGBE_FILL_RATE * \
+				 (IXGBE_B2BT(LINK) + IXGBE_PFC_D + \
+				 (2 * IXGBE_CABLE_DC) + \
+				 (2 * IXGBE_ID_X540) + \
+				 IXGBE_HD + IXGBE_B2BT(TC)))
+
+/* Calculate 82599, 82598 delay value in bit times */
+#define IXGBE_DV(LINK, TC) (IXGBE_FILL_RATE * \
+			    (IXGBE_B2BT(LINK) + IXGBE_PFC_D + \
+			    (2 * IXGBE_CABLE_DC) + (2 * IXGBE_ID) + \
+			    IXGBE_HD + IXGBE_B2BT(TC)))
+
+/* Calculate low threshold delay values */
+#define IXGBE_LOW_DV_X540(TC) (2 * IXGBE_B2BT(TC) + \
+			       (IXGBE_FILL_RATE * IXGBE_PCI_DELAY))
+#define IXGBE_LOW_DV(TC)      (2 * IXGBE_LOW_DV_X540(TC))
 
 /* Software ATR hash keys */
 #define IXGBE_ATR_BUCKET_HASH_KEY    0x3DAD14E2
@@ -2548,7 +2596,7 @@ struct ixgbe_bus_info {
 
 /* Flow control parameters */
 struct ixgbe_fc_info {
-	u32 high_water; /* Flow Control High-water */
+	u32 high_water[MAX_TRAFFIC_CLASS]; /* Flow Control High-water */
 	u32 low_water; /* Flow Control Low-water */
 	u16 pause_time; /* Flow Control Pause timer */
 	bool send_xon; /* Flow control send XON */

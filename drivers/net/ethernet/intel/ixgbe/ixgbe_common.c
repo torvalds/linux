@@ -1932,7 +1932,6 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	s32 ret_val = 0;
 	u32 mflcn_reg, fccfg_reg;
 	u32 reg;
-	u32 rx_pba_size;
 	u32 fcrtl, fcrth;
 
 #ifdef CONFIG_DCB
@@ -2012,11 +2011,8 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
-	rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
-
-	fcrth = (rx_pba_size - hw->fc.high_water) << 10;
-	fcrtl = (rx_pba_size - hw->fc.low_water) << 10;
+	fcrth = hw->fc.high_water[packetbuf_num] << 10;
+	fcrtl = hw->fc.low_water << 10;
 
 	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
 		fcrth |= IXGBE_FCRTH_FCEN;
@@ -2293,7 +2289,9 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * Validate the water mark configuration.  Zero water marks are invalid
 	 * because it causes the controller to just blast out fc packets.
 	 */
-	if (!hw->fc.low_water || !hw->fc.high_water || !hw->fc.pause_time) {
+	if (!hw->fc.low_water ||
+	    !hw->fc.high_water[packetbuf_num] ||
+	    !hw->fc.pause_time) {
 		hw_dbg(hw, "Invalid water mark configuration\n");
 		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
 		goto out;
