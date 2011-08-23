@@ -1083,7 +1083,7 @@ static unsigned int sci_get_mctrl(struct uart_port *port)
 	/* This routine is used for getting signals of: DTR, DCD, DSR, RI,
 	   and CTS/RTS */
 
-	return TIOCM_DTR | TIOCM_RTS | TIOCM_DSR;
+	return TIOCM_DTR | TIOCM_RTS | TIOCM_CTS | TIOCM_DSR;
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
