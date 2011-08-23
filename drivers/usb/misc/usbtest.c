@@ -359,8 +359,10 @@ static int simple_io(
 	urb->context = &completion;
 	while (retval == 0 && iterations-- > 0) {
 		init_completion(&completion);
-		if (usb_pipeout(urb->pipe))
+		if (usb_pipeout(urb->pipe)) {
 			simple_fill_buf(urb);
+			urb->transfer_flags |= URB_ZERO_PACKET;
+		}
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 		if (retval != 0)
 			break;
