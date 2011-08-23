@@ -1331,7 +1331,6 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		if (!thread_fn)
 			return -EINVAL;
 		handler = irq_default_primary_handler;
-		irqflags |= IRQF_ONESHOT;
 	}
 
 	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
