@@ -167,8 +167,10 @@ osl_t *
 osl_attach(void *pdev, uint bustype, bool pkttag)
 {
 	osl_t *osh;
+	gfp_t flags;
 
-	osh = kmalloc(sizeof(osl_t), GFP_ATOMIC);
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	osh = kmalloc(sizeof(osl_t), flags);
 	ASSERT(osh);
 
 	bzero(osh, sizeof(osl_t));
@@ -321,7 +323,10 @@ osl_ctfpool_replenish(osl_t *osh, uint thresh)
 int32
 osl_ctfpool_init(osl_t *osh, uint numobj, uint size)
 {
-	osh->ctfpool = kmalloc(sizeof(ctfpool_t), GFP_ATOMIC);
+	gfp_t flags;
+
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	osh->ctfpool = kmalloc(sizeof(ctfpool_t), flags);
 	ASSERT(osh->ctfpool);
 	bzero(osh->ctfpool, sizeof(ctfpool_t));
 
@@ -710,12 +715,13 @@ void *
 osl_malloc(osl_t *osh, uint size)
 {
 	void *addr;
-
+	gfp_t flags;
 	
 	if (osh)
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 
-	if ((addr = kmalloc(size, GFP_ATOMIC)) == NULL) {
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	if ((addr = kmalloc(size, flags)) == NULL) {
 		if (osh)
 			osh->failed++;
 		return (NULL);
@@ -843,8 +849,10 @@ void *
 osl_pktdup(osl_t *osh, void *skb)
 {
 	void * p;
+	gfp_t flags;
 
-	if ((p = skb_clone((struct sk_buff*)skb, GFP_ATOMIC)) == NULL)
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	if ((p = skb_clone((struct sk_buff *)skb, flags)) == NULL)
 		return NULL;
 
 #ifdef CTFPOOL
