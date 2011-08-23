@@ -481,8 +481,6 @@ static int __init overo_spi_init(void)
 static void __init overo_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
 }
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -514,6 +512,8 @@ static void __init overo_init(void)
 	overo_i2c_init();
 	omap_display_init(&overo_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	omap_nand_flash_init(0, overo_nand_partitions,
 			     ARRAY_SIZE(overo_nand_partitions));
 	usb_musb_init(NULL);

@@ -144,7 +144,6 @@ static struct omap_board_config_kernel sdp2430_config[] __initdata = {
 static void __init omap_2430sdp_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct regulator_consumer_supply sdp2430_vmmc1_supplies[] = {
@@ -235,6 +234,7 @@ static void __init omap_2430sdp_init(void)
 
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	omap2_hsmmc_init(mmc);
 	omap2_usbfs_init(&sdp2430_usb_config);
 

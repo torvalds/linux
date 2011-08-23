@@ -401,8 +401,6 @@ static struct platform_device keys_gpio = {
 static void __init devkit8000_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
 }
 
 static void __init devkit8000_init_irq(void)
@@ -645,6 +643,8 @@ static void __init devkit8000_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 
 	omap_dm9000_init();
 

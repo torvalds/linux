@@ -625,7 +625,6 @@ static void __init n8x0_map_io(void)
 static void __init n8x0_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -689,6 +688,7 @@ static void __init n8x0_init_machine(void)
 		i2c_register_board_info(2, n810_i2c_board_info_2,
 					ARRAY_SIZE(n810_i2c_board_info_2));
 	board_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	gpmc_onenand_init(board_onenand_data);
 	n8x0_mmc_init();
 	n8x0_usb_init();

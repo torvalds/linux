@@ -196,7 +196,6 @@ static struct omap_board_config_kernel ldp_config[] __initdata = {
 static void __init omap_ldp_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct twl4030_gpio_platform_data ldp_gpio_data = {
@@ -325,6 +324,7 @@ static void __init omap_ldp_init(void)
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
 	omap_ads7846_init(1, 54, 310, NULL);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	usb_musb_init(NULL);
 	board_nand_init(ldp_nand_partitions,
 		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);

@@ -431,7 +431,6 @@ static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
 static void __init omap3_stalker_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 }
 
 static void __init omap3_stalker_init_irq(void)
@@ -478,6 +477,7 @@ static void __init omap3_stalker_init(void)
 	omap_display_init(&omap3_stalker_dss_data);
 
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params, NULL);
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	omap_ads7846_init(1, OMAP3_STALKER_TS_GPIO, 310, NULL);

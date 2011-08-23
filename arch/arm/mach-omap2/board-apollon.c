@@ -276,7 +276,6 @@ static struct omap_board_config_kernel apollon_config[] __initdata = {
 static void __init omap_apollon_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct gpio apollon_gpio_leds[] __initdata = {
@@ -340,6 +339,7 @@ static void __init omap_apollon_init(void)
 	 */
 	platform_add_devices(apollon_devices, ARRAY_SIZE(apollon_devices));
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 }
 
 static void __init omap_apollon_map_io(void)

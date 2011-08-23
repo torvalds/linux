@@ -254,7 +254,6 @@ static struct omap_board_config_kernel cm_t3517_config[] __initdata = {
 static void __init cm_t3517_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -289,6 +288,7 @@ static void __init cm_t3517_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	omap_board_config = cm_t3517_config;
 	omap_board_config_size = ARRAY_SIZE(cm_t3517_config);
 	cm_t3517_init_leds();

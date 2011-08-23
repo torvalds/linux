@@ -228,7 +228,6 @@ static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 static void __init omap_3430sdp_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
 }
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -719,6 +718,7 @@ static void __init omap_3430sdp_init(void)
 		gpio_pendown = SDP3430_TS_GPIO_IRQ_SDPV1;
 	omap_ads7846_init(1, gpio_pendown, 310, NULL);
 	board_serial_init();
+	omap_sdrc_init(hyb18m512160af6_sdrc_params, NULL);
 	usb_musb_init(NULL);
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_3430, 0);

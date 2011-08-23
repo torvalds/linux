@@ -125,11 +125,7 @@ static void __init rm680_peripherals_init(void)
 
 static void __init rm680_init_early(void)
 {
-	struct omap_sdrc_params *sdrc_params;
-
 	omap2_init_common_infrastructure();
-	sdrc_params = nokia_get_sdram_timings();
-	omap2_init_common_devices(sdrc_params, sdrc_params);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -140,8 +136,14 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 static void __init rm680_init(void)
 {
+	struct omap_sdrc_params *sdrc_params;
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+
+	sdrc_params = nokia_get_sdram_timings();
+	omap_sdrc_init(sdrc_params, sdrc_params);
+
 	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }

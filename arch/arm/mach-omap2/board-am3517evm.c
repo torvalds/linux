@@ -365,7 +365,6 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 static void __init am3517_evm_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -469,6 +468,7 @@ static void __init am3517_evm_init(void)
 	am3517_evm_i2c_init();
 	omap_display_init(&am3517_evm_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 
 	/* Configure GPIO for EHCI port */
 	omap_mux_init_gpio(57, OMAP_PIN_OUTPUT);

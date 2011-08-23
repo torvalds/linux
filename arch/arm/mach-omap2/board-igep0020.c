@@ -494,8 +494,6 @@ static struct platform_device *igep_devices[] __initdata = {
 static void __init igep_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(m65kxxxxam_sdrc_params,
-				  m65kxxxxam_sdrc_params);
 }
 
 static int igep2_keymap[] = {
@@ -650,6 +648,8 @@ static void __init igep_init(void)
 	igep_i2c_init();
 	platform_add_devices(igep_devices, ARRAY_SIZE(igep_devices));
 	omap_serial_init();
+	omap_sdrc_init(m65kxxxxam_sdrc_params,
+				  m65kxxxxam_sdrc_params);
 	usb_musb_init(NULL);
 
 	igep_flash_init();

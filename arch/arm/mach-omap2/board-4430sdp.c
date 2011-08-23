@@ -392,7 +392,6 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 static void __init omap_4430sdp_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -809,6 +808,7 @@ static void __init omap_4430sdp_init(void)
 	omap_sfh7741prox_init();
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
 	board_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	omap4_sdp4430_wifi_init();
 	omap4_twl6030_hsmmc_init(mmc);
 

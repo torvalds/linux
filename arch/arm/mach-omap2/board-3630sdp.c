@@ -73,8 +73,6 @@ static struct omap_board_config_kernel sdp_config[] __initdata = {
 static void __init omap_sdp_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
-				  h8mbx00u0mer0em_sdrc_params);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -207,6 +205,8 @@ static void __init omap_sdp_init(void)
 	omap_board_config = sdp_config;
 	omap_board_config_size = ARRAY_SIZE(sdp_config);
 	zoom_peripherals_init();
+	omap_sdrc_init(h8mbx00u0mer0em_sdrc_params,
+				  h8mbx00u0mer0em_sdrc_params);
 	zoom_display_init();
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_sdp, NAND_BUSWIDTH_16);

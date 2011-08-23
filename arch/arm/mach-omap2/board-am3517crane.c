@@ -50,7 +50,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init am3517_crane_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
@@ -70,6 +69,7 @@ static void __init am3517_crane_init(void)
 
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 
 	omap_board_config = am3517_crane_config;
 	omap_board_config_size = ARRAY_SIZE(am3517_crane_config);

@@ -329,8 +329,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap3_touchbook_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
 }
 
 static void __init omap3_touchbook_init_irq(void)
@@ -385,6 +383,8 @@ static void __init omap3_touchbook_init(void)
 	platform_add_devices(omap3_touchbook_devices,
 			ARRAY_SIZE(omap3_touchbook_devices));
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
 	/* REVISIT leave DVI powered down until it's needed ... */

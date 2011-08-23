@@ -293,7 +293,6 @@ static struct omap_board_config_kernel h4_config[] __initdata = {
 static void __init omap_h4_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 static void __init omap_h4_init_irq(void)
@@ -371,6 +370,7 @@ static void __init omap_h4_init(void)
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	h4_init_flash();
 }
 

@@ -185,7 +185,6 @@ static inline void __init board_smsc911x_init(void)
 static void __init omap3logic_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -200,6 +199,7 @@ static void __init omap3logic_init(void)
 	omap3torpedo_fix_pbias_voltage();
 	omap3logic_i2c_init();
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	board_mmc_init();
 	board_smsc911x_init();
 

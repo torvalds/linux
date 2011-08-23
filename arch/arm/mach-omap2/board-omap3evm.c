@@ -523,7 +523,6 @@ static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
 static void __init omap3_evm_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 }
 
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
@@ -640,6 +639,7 @@ static void __init omap3_evm_init(void)
 	omap_display_init(&omap3_evm_dss_data);
 
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params, NULL);
 
 	/* OMAP3EVM uses ISP1504 phy and so register nop transceiver */
 	usb_nop_xceiv_register();

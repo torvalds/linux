@@ -104,11 +104,7 @@ static struct omap_board_config_kernel rx51_config[] = {
 
 static void __init rx51_init_early(void)
 {
-	struct omap_sdrc_params *sdrc_params;
-
 	omap2_init_common_infrastructure();
-	sdrc_params = nokia_get_sdram_timings();
-	omap2_init_common_devices(sdrc_params, sdrc_params);
 }
 
 extern void __init rx51_peripherals_init(void);
@@ -127,11 +123,17 @@ static struct omap_musb_board_data musb_board_data = {
 
 static void __init rx51_init(void)
 {
+	struct omap_sdrc_params *sdrc_params;
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_board_config = rx51_config;
 	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	omap_serial_init();
+
+	sdrc_params = nokia_get_sdram_timings();
+	omap_sdrc_init(sdrc_params, sdrc_params);
+
 	usb_musb_init(&musb_board_data);
 	rx51_peripherals_init();
 
