@@ -537,7 +537,7 @@ static void __init palmtc_init(void)
 };
 
 MACHINE_START(PALMTC, "Palm Tungsten|C")
-	.boot_params 	= 0xa0000100,
+	.atag_offset 	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,

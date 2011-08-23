@@ -513,7 +513,7 @@ static void __init cmx2xx_map_io(void)
 #endif
 
 MACHINE_START(ARMCORE, "Compulab CM-X2XX")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= cmx2xx_map_io,
 	.nr_irqs	= CMX2XX_NR_IRQS,
 	.init_irq	= cmx2xx_init_irq,

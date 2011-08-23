@@ -239,7 +239,7 @@ MACHINE_START(ARCOM_VULCAN, "Arcom/Eurotech Vulcan")
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	.boot_params	= 0x0100,
+	.atag_offset	= 0x100,
 	.init_machine	= vulcan_init,
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,

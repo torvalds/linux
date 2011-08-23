@@ -233,7 +233,7 @@ static void __init at2440evb_init(void)
 
 
 MACHINE_START(AT2440EVB, "AT2440EVB")
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= at2440evb_map_io,
 	.init_machine	= at2440evb_init,
 	.init_irq	= s3c24xx_init_irq,

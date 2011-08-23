@@ -153,7 +153,7 @@ static void __init rm680_map_io(void)
 }
 
 MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= rm680_map_io,
 	.init_early	= rm680_init_early,

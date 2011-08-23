@@ -254,7 +254,7 @@ static void __init enp2611_init_machine(void)
 
 MACHINE_START(ENP2611, "Radisys ENP-2611 PCI network processor board")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= enp2611_map_io,
 	.init_irq	= ixp2000_init_irq,
 	.timer		= &enp2611_timer,

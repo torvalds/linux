@@ -233,7 +233,7 @@ static void __init gumstix_init(void)
 }
 
 MACHINE_START(GUMSTIX, "Gumstix")
-	.boot_params	= 0xa0000100, /* match u-boot bi_boot_params */
+	.atag_offset	= 0x100, /* match u-boot bi_boot_params */
 	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,

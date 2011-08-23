@@ -667,7 +667,7 @@ static void __init devkit8000_init(void)
 }
 
 MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= devkit8000_init_early,

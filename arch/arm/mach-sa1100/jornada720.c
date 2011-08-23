@@ -364,7 +364,7 @@ static void __init jornada720_mach_init(void)
 
 MACHINE_START(JORNADA720, "HP Jornada 720")
 	/* Maintainer: Kristoffer Ericson <Kristoffer.Ericson@gmail.com> */
-	.boot_params	= 0xc0000100,
+	.atag_offset	= 0x100,
 	.map_io		= jornada720_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,

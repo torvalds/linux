@@ -657,7 +657,7 @@ static void __init bast_init(void)
 
 MACHINE_START(BAST, "Simtec-BAST")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= bast_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= bast_init,

@@ -266,7 +266,7 @@ static struct sys_timer mx51_efikasb_timer = {
 };
 
 MACHINE_START(MX51_EFIKASB, "Genesi Efika Smartbook")
-	.boot_params = MX51_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,

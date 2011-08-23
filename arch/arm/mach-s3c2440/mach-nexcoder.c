@@ -151,7 +151,7 @@ static void __init nexcoder_init(void)
 
 MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
 	/* Maintainer: Guillaume GOURAT <guillaume.gourat@nexvision.tv> */
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= nexcoder_map_io,
 	.init_machine	= nexcoder_init,
 	.init_irq	= s3c24xx_init_irq,

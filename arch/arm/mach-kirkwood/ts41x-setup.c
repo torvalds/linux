@@ -176,7 +176,7 @@ subsys_initcall(ts41x_pci_init);
 
 MACHINE_START(TS41X, "QNAP TS-41x")
 	/* Maintainer: Martin Michlmayr <tbm@cyrius.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= qnap_ts41x_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,

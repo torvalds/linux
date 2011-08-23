@@ -100,7 +100,7 @@ MACHINE_START(WG302V2, "Netgear WG302 v2 / WAG302 v2")
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	.boot_params	= 0x0100,
+	.atag_offset	= 0x100,
 	.init_machine	= wg302v2_init,
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,

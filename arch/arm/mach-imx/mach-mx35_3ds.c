@@ -217,7 +217,7 @@ struct sys_timer mx35pdk_timer = {
 
 MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	/* Maintainer: Freescale Semiconductor, Inc */
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,

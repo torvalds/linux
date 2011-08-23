@@ -764,7 +764,7 @@ static void __init mx31_3ds_reserve(void)
 
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
