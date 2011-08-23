@@ -373,6 +373,22 @@ enum nfsstat4 {
 	NFS4ERR_DELEG_REVOKED	= 10087,	/* deleg./layout revoked */
 };
 
+static inline bool seqid_mutating_err(u32 err)
+{
+	/* rfc 3530 section 8.1.5: */
+	switch (err) {
+	case NFS4ERR_STALE_CLIENTID:
+	case NFS4ERR_STALE_STATEID:
+	case NFS4ERR_BAD_STATEID:
+	case NFS4ERR_BAD_SEQID:
+	case NFS4ERR_BADXDR:
+	case NFS4ERR_RESOURCE:
+	case NFS4ERR_NOFILEHANDLE:
+		return false;
+	};
+	return true;
+}
+
 /*
  * Note: NF4BAD is not actually part of the protocol; it is just used
  * internally by nfsd.
