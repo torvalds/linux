@@ -72,7 +72,6 @@ static inline unsigned long s5p_get_pll46xx(unsigned long baseclk,
 	mdiv = (pll_con0 >> PLL46XX_MDIV_SHIFT) & PLL46XX_MDIV_MASK;
 	pdiv = (pll_con0 >> PLL46XX_PDIV_SHIFT) & PLL46XX_PDIV_MASK;
 	sdiv = (pll_con0 >> PLL46XX_SDIV_SHIFT) & PLL46XX_SDIV_MASK;
-	kdiv = pll_con1 & PLL46XX_KDIV_MASK;
 
 	if (pll_type == pll_4650c)
 		kdiv = pll_con1 & PLL4650C_KDIV_MASK;
