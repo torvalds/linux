@@ -2907,6 +2907,43 @@ void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data)
 }
 EXPORT_SYMBOL_GPL(regulator_get_init_drvdata);
 
+#ifdef CONFIG_DEBUG_FS
+static ssize_t supply_map_read_file(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	ssize_t len, ret = 0;
+	struct regulator_map *map;
+
+	if (!buf)
+		return -ENOMEM;
+
+	list_for_each_entry(map, &regulator_map_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret,
+			       "%s -> %s.%s\n",
+			       rdev_get_name(map->regulator), map->dev_name,
+			       map->supply);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+
+	kfree(buf);
+
+	return ret;
+}
+
+static const struct file_operations supply_map_fops = {
+	.read = supply_map_read_file,
+	.llseek = default_llseek,
+};
+#endif
+
 static int __init regulator_init(void)
 {
 	int ret;
@@ -2919,6 +2956,10 @@ static int __init regulator_init(void)
 		pr_warn("regulator: Failed to create debugfs directory\n");
 		debugfs_root = NULL;
 	}
+
+	if (IS_ERR(debugfs_create_file("supply_map", 0444, debugfs_root,
+				       NULL, &supply_map_fops)))
+		pr_warn("regulator: Failed to create supplies debugfs\n");
 #endif
 
 	regulator_dummy_init();
