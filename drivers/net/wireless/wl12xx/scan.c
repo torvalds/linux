@@ -473,6 +473,48 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 		cfg->passive[2] || cfg->active[2];
 }
 
+/* Returns 0 if no wildcard is used, 1 if wildcard is used or a
+ * negative value on error */
+static int
+wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
+				 struct cfg80211_sched_scan_request *req)
+{
+	struct wl1271_cmd_sched_scan_ssid_list *cmd = NULL;
+	struct cfg80211_ssid *ssid = req->ssids;
+	int ret, wildcard = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd sched scan ssid list");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	while ((cmd->n_ssids < req->n_ssids) && ssid) {
+		if (ssid->ssid_len == 0)
+			wildcard = 1;
+		cmd->ssids[cmd->n_ssids].type = SCAN_SSID_TYPE_HIDDEN;
+		cmd->ssids[cmd->n_ssids].len = ssid->ssid_len;
+		memcpy(cmd->ssids[cmd->n_ssids].ssid, ssid->ssid,
+		       ssid->ssid_len);
+		ssid++;
+		cmd->n_ssids++;
+	}
+
+	wl1271_dump(DEBUG_SCAN, "SSID_LIST: ", cmd, sizeof(*cmd));
+
+	ret = wl1271_cmd_send(wl, CMD_CONNECTION_SCAN_SSID_CFG, cmd,
+			      sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("cmd sched scan ssid list failed");
+		goto out;
+	}
+
+	ret = wildcard;
+out:
+	kfree(cmd);
+	return ret;
+}
+
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 				  struct cfg80211_sched_scan_request *req,
 				  struct ieee80211_sched_scan_ies *ies)
@@ -504,14 +546,21 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	for (i = 0; i < SCAN_MAX_CYCLE_INTERVALS; i++)
 		cfg->intervals[i] = cpu_to_le32(req->interval);
 
-	if (!force_passive && req->ssids[0].ssid_len && req->ssids[0].ssid) {
-		cfg->filter_type = SCAN_SSID_FILTER_SPECIFIC;
-		cfg->ssid_len = req->ssids[0].ssid_len;
-		memcpy(cfg->ssid, req->ssids[0].ssid,
-		       req->ssids[0].ssid_len);
-	} else {
+	cfg->ssid_len = 0;
+	if (req->n_ssids == 0) {
+		wl1271_debug(DEBUG_SCAN, "using SCAN_SSID_FILTER_ANY");
 		cfg->filter_type = SCAN_SSID_FILTER_ANY;
-		cfg->ssid_len = 0;
+	} else {
+		ret = wl12xx_scan_sched_scan_ssid_list(wl, req);
+		if (ret < 0)
+			goto out;
+		if (ret) {
+			wl1271_debug(DEBUG_SCAN, "using SCAN_SSID_FILTER_DISABLED");
+			cfg->filter_type = SCAN_SSID_FILTER_DISABLED;
+		} else {
+			wl1271_debug(DEBUG_SCAN, "using SCAN_SSID_FILTER_LIST");
+			cfg->filter_type = SCAN_SSID_FILTER_LIST;
+		}
 	}
 
 	if (!wl1271_scan_sched_scan_channels(wl, req, cfg)) {
