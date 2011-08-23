@@ -137,7 +137,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *adapter);
 /* et131x_tx.c */
 int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter);
 void et131x_tx_dma_memory_free(struct et131x_adapter *adapter);
-void ConfigTxDmaRegs(struct et131x_adapter *adapter);
+void et131x_config_tx_dma_regs(struct et131x_adapter *adapter);
 void et131x_init_send(struct et131x_adapter *adapter);
 void et131x_tx_dma_disable(struct et131x_adapter *adapter);
 void et131x_tx_dma_enable(struct et131x_adapter *adapter);
