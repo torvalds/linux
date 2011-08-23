@@ -81,8 +81,6 @@ void (*mach_power_off)(void);
 #define	CPU_INSTR_PER_JIFFY	16
 #endif
 
-extern int _ramstart, _ramend;
-
 #if defined(CONFIG_UBOOT)
 /*
  * parse_uboot_commandline

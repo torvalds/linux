@@ -76,7 +76,6 @@ void __init mem_init(void)
 {
 	int codek = 0, datak = 0, initk = 0;
 	unsigned long tmp;
-	extern unsigned int _ramend, _rambase;
 	unsigned long len = _ramend - _rambase;
 	unsigned long start_mem = memory_start; /* DAVIDM - these must start at end of kernel */
 	unsigned long end_mem   = memory_end; /* DAVIDM - this must not include kernel stack at top */
