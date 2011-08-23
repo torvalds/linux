@@ -317,7 +317,7 @@ struct brcmf_cfg80211_priv {
 	u8 *ioctl_buf;	/* ioctl buffer */
 	u8 *extra_buf;	/* maily to grab assoc information */
 	struct dentry *debugfsdir;
-	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
+	u8 ci[0] __aligned(NETDEV_ALIGN);
 };
 
 #define cfg_to_wiphy(w) (w->wdev->wiphy)
