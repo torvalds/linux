@@ -6111,9 +6111,12 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 	/* default argument is generic integer */
 	pval = arg ? (int *)arg : NULL;
 
-	/* This will prevent the misaligned access */
+	/*
+	 * This will prevent misaligned access. The (void *) cast prevents a
+	 * memcpy alignment issue on e.g. Sparc64 platforms.
+	 */
 	if (pval && (u32) len >= sizeof(val))
-		memcpy(&val, pval, sizeof(val));
+		memcpy((void *)&val, (void *)pval, sizeof(val));
 	else
 		val = 0;
 
