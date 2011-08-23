@@ -45,9 +45,6 @@
  */
 void *empty_zero_page;
 
-extern unsigned long memory_start;
-extern unsigned long memory_end;
-
 /*
  * paging_init() continues the virtual memory environment setup which
  * was begun by the code in arch/head.S.
