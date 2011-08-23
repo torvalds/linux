@@ -5095,24 +5095,41 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 }
 
 enum {
-	ALC660VD_FIX_ASUS_GPIO1
+	ALC660VD_FIX_ASUS_GPIO1,
+	ALC861VD_FIX_DALLAS,
 };
 
-/* reset GPIO1 */
+/* exclude VREF80 */
+static void alc861vd_fixup_dallas(struct hda_codec *codec,
+				  const struct alc_fixup *fix, int action)
+{
+	if (action == ALC_FIXUP_ACT_PRE_PROBE) {
+		snd_hda_override_pin_caps(codec, 0x18, 0x00001714);
+		snd_hda_override_pin_caps(codec, 0x19, 0x0000171c);
+	}
+}
+
 static const struct alc_fixup alc861vd_fixups[] = {
 	[ALC660VD_FIX_ASUS_GPIO1] = {
 		.type = ALC_FIXUP_VERBS,
 		.v.verbs = (const struct hda_verb[]) {
+			/* reset GPIO1 */
 			{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
 			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
 			{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
 			{ }
 		}
 	},
+	[ALC861VD_FIX_DALLAS] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc861vd_fixup_dallas,
+	},
 };
 
 static const struct snd_pci_quirk alc861vd_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x30bf, "HP TX1000", ALC861VD_FIX_DALLAS),
 	SND_PCI_QUIRK(0x1043, 0x1339, "ASUS A7-K", ALC660VD_FIX_ASUS_GPIO1),
+	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba L30-149", ALC861VD_FIX_DALLAS),
 	{}
 };
 
