@@ -565,11 +565,11 @@ static void alc_hp_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->automute)
-		return;
 	spec->jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
 			     spec->autocfg.hp_pins);
+	if (!spec->automute)
+		return;
 	update_speakers(codec);
 }
 
@@ -578,11 +578,11 @@ static void alc_line_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->automute || !spec->detect_line)
-		return;
 	spec->line_jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
 			     spec->autocfg.line_out_pins);
+	if (!spec->automute || !spec->detect_line)
+		return;
 	update_speakers(codec);
 }
 
