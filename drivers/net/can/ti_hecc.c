@@ -923,6 +923,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	priv->can.do_get_state = ti_hecc_get_state;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
+	spin_lock_init(&priv->mbx_lock);
 	ndev->irq = irq->start;
 	ndev->flags |= IFF_ECHO;
 	platform_set_drvdata(pdev, ndev);
