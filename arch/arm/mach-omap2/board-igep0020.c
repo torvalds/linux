@@ -491,11 +491,6 @@ static struct platform_device *igep_devices[] __initdata = {
 	&igep_vwlan_device,
 };
 
-static void __init igep_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static int igep2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
@@ -675,7 +670,7 @@ MACHINE_START(IGEP0020, "IGEP v2 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= igep_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= igep_init,
 	.timer		= &omap3_timer,
@@ -685,7 +680,7 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= igep_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= igep_init,
 	.timer		= &omap3_timer,

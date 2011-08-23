@@ -400,6 +400,46 @@ void __init omap2_init_common_infrastructure(void)
 		pr_err("Could not init clock framework - unknown SoC\n");
 }
 
+void __init omap2420_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap2430_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap3430_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap35xx_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap3630_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init am35xx_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init ti816x_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap4430_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
 void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)
 {

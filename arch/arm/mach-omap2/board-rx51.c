@@ -102,11 +102,6 @@ static struct omap_board_config_kernel rx51_config[] = {
 	{ OMAP_TAG_LCD,		&rx51_lcd_config },
 };
 
-static void __init rx51_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 extern void __init rx51_peripherals_init(void);
 
 #ifdef CONFIG_OMAP_MUX
@@ -161,7 +156,7 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.boot_params	= 0x80000100,
 	.reserve	= rx51_reserve,
 	.map_io		= rx51_map_io,
-	.init_early	= rx51_init_early,
+	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= rx51_init,
 	.timer		= &omap3_timer,

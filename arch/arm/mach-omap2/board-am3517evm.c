@@ -362,10 +362,6 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 /*
  * Board initialization
  */
-static void __init am3517_evm_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type         = MUSB_INTERFACE_ULPI,
@@ -493,7 +489,7 @@ MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= am3517_evm_init_early,
+	.init_early	= am35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= am3517_evm_init,
 	.timer		= &omap3_timer,

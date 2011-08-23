@@ -525,11 +525,6 @@ static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 	}
 };
 
-static void __init omap3pandora_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static void __init pandora_wl1251_init(void)
 {
 	struct wl12xx_platform_data pandora_wl1251_pdata;
@@ -609,7 +604,7 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap3pandora_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3pandora_init,
 	.timer		= &omap3_timer,

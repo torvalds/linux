@@ -34,11 +34,6 @@
 
 #define ZOOM3_EHCI_RESET_GPIO		64
 
-static void __init omap_zoom_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* WLAN IRQ - GPIO 162 */
@@ -138,7 +133,7 @@ MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_zoom_init_early,
+	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap3_timer,
@@ -148,7 +143,7 @@ MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_zoom_init_early,
+	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap3_timer,

@@ -326,11 +326,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static void __init omap3_touchbook_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static void __init omap3_touchbook_init_irq(void)
 {
 	omap3_init_irq();
@@ -407,7 +402,7 @@ MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap3_touchbook_init_early,
+	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_touchbook_init_irq,
 	.init_machine	= omap3_touchbook_init,
 	.timer		= &omap3_secure_timer,

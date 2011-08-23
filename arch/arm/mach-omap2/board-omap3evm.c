@@ -520,11 +520,6 @@ static int __init omap3_evm_i2c_init(void)
 static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
 };
 
-static void __init omap3_evm_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -684,7 +679,7 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap3_evm_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3_evm_init,
 	.timer		= &omap3_timer,

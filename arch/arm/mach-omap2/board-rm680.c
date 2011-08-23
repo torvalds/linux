@@ -123,11 +123,6 @@ static void __init rm680_peripherals_init(void)
 	omap2_hsmmc_init(mmc);
 }
 
-static void __init rm680_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
@@ -158,7 +153,7 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= rm680_map_io,
-	.init_early	= rm680_init_early,
+	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= rm680_init,
 	.timer		= &omap3_timer,

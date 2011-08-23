@@ -141,11 +141,6 @@ static struct omap_board_config_kernel sdp2430_config[] __initdata = {
 	{OMAP_TAG_LCD, &sdp2430_lcd_config},
 };
 
-static void __init omap_2430sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static struct regulator_consumer_supply sdp2430_vmmc1_supplies[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
@@ -259,7 +254,7 @@ MACHINE_START(OMAP_2430SDP, "OMAP2430 sdp2430 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap_2430sdp_map_io,
-	.init_early	= omap_2430sdp_init_early,
+	.init_early	= omap2430_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= omap_2430sdp_init,
 	.timer		= &omap2_timer,

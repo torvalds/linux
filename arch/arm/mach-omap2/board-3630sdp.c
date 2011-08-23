@@ -70,11 +70,6 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 static struct omap_board_config_kernel sdp_config[] __initdata = {
 };
 
-static void __init omap_sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
@@ -218,7 +213,7 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_sdp_init_early,
+	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap3_timer,

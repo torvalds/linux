@@ -471,11 +471,6 @@ static void __init cm_t35_init_i2c(void)
 	omap3_pmic_init("tps65930", &cm_t35_twldata);
 }
 
-static void __init cm_t35_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* nCS and IRQ for CM-T35 ethernet */
@@ -637,7 +632,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= cm_t35_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap3_timer,
@@ -647,7 +642,7 @@ MACHINE_START(CM_T3730, "Compulab CM-T3730")
 	.boot_params    = 0x80000100,
 	.reserve        = omap_reserve,
 	.map_io         = omap3_map_io,
-	.init_early     = cm_t35_init_early,
+	.init_early     = omap3630_init_early,
 	.init_irq       = omap3_init_irq,
 	.init_machine   = cm_t3730_init,
 	.timer          = &omap3_timer,

@@ -45,6 +45,15 @@ extern unsigned long long notrace omap_32k_sched_clock(void);
 
 extern void omap_reserve(void);
 
+void omap2420_init_early(void);
+void omap2430_init_early(void);
+void omap3430_init_early(void);
+void omap35xx_init_early(void);
+void omap3630_init_early(void);
+void am35xx_init_early(void);
+void ti816x_init_early(void);
+void omap4430_init_early(void);
+
 /*
  * IO bases for various OMAP processors
  * Except the tap base, rest all the io bases

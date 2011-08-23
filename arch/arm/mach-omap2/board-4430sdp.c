@@ -389,11 +389,6 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
 
-static void __init omap_4430sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_UTMI,
 	.mode			= MUSB_OTG,
@@ -841,7 +836,7 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap_4430sdp_map_io,
-	.init_early	= omap_4430sdp_init_early,
+	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap_4430sdp_init,
 	.timer		= &omap4_timer,

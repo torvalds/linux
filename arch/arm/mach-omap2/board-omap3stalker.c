@@ -428,11 +428,6 @@ static int __init omap3_stalker_i2c_init(void)
 static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
 };
 
-static void __init omap3_stalker_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static void __init omap3_stalker_init_irq(void)
 {
 	omap3_init_irq();
@@ -496,7 +491,7 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	/* Maintainer: Jason Lam -lzg@ema-tech.com */
 	.boot_params		= 0x80000100,
 	.map_io			= omap3_map_io,
-	.init_early		= omap3_stalker_init_early,
+	.init_early		= omap35xx_init_early,
 	.init_irq		= omap3_stalker_init_irq,
 	.init_machine		= omap3_stalker_init,
 	.timer			= &omap3_secure_timer,

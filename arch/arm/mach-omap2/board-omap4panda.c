@@ -95,11 +95,6 @@ static struct platform_device *panda_devices[] __initdata = {
 	&wl1271_device,
 };
 
-static void __init omap4_panda_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -586,7 +581,7 @@ MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap4_panda_map_io,
-	.init_early	= omap4_panda_init_early,
+	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap4_panda_init,
 	.timer		= &omap4_timer,

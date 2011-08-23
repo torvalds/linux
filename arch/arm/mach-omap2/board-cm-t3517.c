@@ -251,11 +251,6 @@ static inline void cm_t3517_init_nand(void) {}
 static struct omap_board_config_kernel cm_t3517_config[] __initdata = {
 };
 
-static void __init cm_t3517_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* GPIO186 - Green LED */
@@ -302,7 +297,7 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.boot_params	= 0x80000100,
 	.reserve        = omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= cm_t3517_init_early,
+	.init_early	= am35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= cm_t3517_init,
 	.timer		= &omap3_timer,

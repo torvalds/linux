@@ -478,11 +478,6 @@ static int __init overo_spi_init(void)
 	return 0;
 }
 
-static void __init overo_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
@@ -564,7 +559,7 @@ MACHINE_START(OVERO, "Gumstix Overo")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= overo_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= overo_init,
 	.timer		= &omap3_timer,

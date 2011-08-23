@@ -225,11 +225,6 @@ static struct omap_dss_board_info sdp3430_dss_data = {
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 };
 
-static void __init omap_3430sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-}
-
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -732,7 +727,7 @@ MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_3430sdp_init_early,
+	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_3430sdp_init,
 	.timer		= &omap3_timer,
