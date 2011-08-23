@@ -822,8 +822,11 @@ struct wm8994_pdata wm8994_platdata = {
 	
 	.jd_scthr = 0,
 	.jd_thr = 0,
-
-	.PA_control_pin = 0,	
+	
+	.BB_input_diff = 1,
+	.phone_pad = 1,
+	
+	.PA_control_pin = RK29_PIN6_PB6,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
 
 	.speaker_incall_vol = 0,

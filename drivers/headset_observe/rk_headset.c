@@ -316,7 +316,7 @@ static void headset_timer_callback(unsigned long arg)
 	struct rk_headset_pdata *pdata = headset->pdata;
 	int i,level = 0;
 	
-//	DBG("headset_timer_callback\n");	
+	DBG("headset_timer_callback,headset->headset_status=%d\n",headset->headset_status);	
 
 	if(headset->headset_status == HEADSET_OUT)
 	{
