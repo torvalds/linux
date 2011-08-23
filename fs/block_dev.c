@@ -971,7 +971,7 @@ static void flush_disk(struct block_device *bdev, bool kill_dirty)
 
 	if (!bdev->bd_disk)
 		return;
-	if (disk_partitionable(bdev->bd_disk))
+	if (disk_part_scan_enabled(bdev->bd_disk))
 		bdev->bd_invalidated = 1;
 }
 
