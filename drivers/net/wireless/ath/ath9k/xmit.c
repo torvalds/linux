@@ -571,6 +571,25 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		ath_reset(sc, false);
 }
 
+static bool ath_lookup_legacy(struct ath_buf *bf)
+{
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *tx_info;
+	struct ieee80211_tx_rate *rates;
+	int i;
+
+	skb = bf->bf_mpdu;
+	tx_info = IEEE80211_SKB_CB(skb);
+	rates = tx_info->control.rates;
+
+	for (i = 3; i >= 0; i--) {
+		if (!(rates[i].flags & IEEE80211_TX_RC_MCS))
+			return true;
+	}
+
+	return false;
+}
+
 static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 			   struct ath_atx_tid *tid)
 {
@@ -750,7 +769,8 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		al_delta = ATH_AGGR_DELIM_SZ + fi->framelen;
 
 		if (nframes &&
-		    (aggr_limit < (al + bpad + al_delta + prev_al))) {
+		    ((aggr_limit < (al + bpad + al_delta + prev_al)) ||
+		     ath_lookup_legacy(bf))) {
 			status = ATH_AGGR_LIMITED;
 			break;
 		}
