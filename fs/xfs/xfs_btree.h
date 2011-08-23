@@ -262,7 +262,7 @@ typedef struct xfs_btree_cur
 /*
  * Convert from buffer to btree block header.
  */
-#define	XFS_BUF_TO_BLOCK(bp)	((struct xfs_btree_block *)XFS_BUF_PTR(bp))
+#define	XFS_BUF_TO_BLOCK(bp)	((struct xfs_btree_block *)((bp)->b_addr))
 
 
 /*

@@ -328,6 +328,8 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 		mutex_unlock(&register_mutex);
 	} else {
 		timer = timeri->timer;
+		if (snd_BUG_ON(!timer))
+			goto out;
 		/* wait, until the active callback is finished */
 		spin_lock_irq(&timer->lock);
 		while (timeri->flags & SNDRV_TIMER_IFLG_CALLBACK) {
@@ -353,6 +355,7 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 		}
 		mutex_unlock(&register_mutex);
 	}
+ out:
 	if (timeri->private_free)
 		timeri->private_free(timeri);
 	kfree(timeri->owner);
@@ -531,6 +534,8 @@ int snd_timer_stop(struct snd_timer_instance *timeri)
 	if (err < 0)
 		return err;
 	timer = timeri->timer;
+	if (!timer)
+		return -EINVAL;
 	spin_lock_irqsave(&timer->lock, flags);
 	timeri->cticks = timeri->ticks;
 	timeri->pticks = 0;

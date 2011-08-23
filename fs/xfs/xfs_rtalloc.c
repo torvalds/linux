@@ -168,7 +168,7 @@ error_cancel:
 				xfs_trans_cancel(tp, cancelflags);
 				goto error;
 			}
-			memset(XFS_BUF_PTR(bp), 0, mp->m_sb.sb_blocksize);
+			memset(bp->b_addr, 0, mp->m_sb.sb_blocksize);
 			xfs_trans_log_buf(tp, bp, 0, mp->m_sb.sb_blocksize - 1);
 			/*
 			 * Commit the transaction.
@@ -883,7 +883,7 @@ xfs_rtbuf_get(
 	if (error) {
 		return error;
 	}
-	ASSERT(bp && !XFS_BUF_GETERROR(bp));
+	ASSERT(!xfs_buf_geterror(bp));
 	*bpp = bp;
 	return 0;
 }
@@ -943,7 +943,7 @@ xfs_rtcheck_range(
 	if (error) {
 		return error;
 	}
-	bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+	bufp = bp->b_addr;
 	/*
 	 * Compute the starting word's address, and starting bit.
 	 */
@@ -994,7 +994,7 @@ xfs_rtcheck_range(
 			if (error) {
 				return error;
 			}
-			b = bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			b = bufp = bp->b_addr;
 			word = 0;
 		} else {
 			/*
@@ -1040,7 +1040,7 @@ xfs_rtcheck_range(
 			if (error) {
 				return error;
 			}
-			b = bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			b = bufp = bp->b_addr;
 			word = 0;
 		} else {
 			/*
@@ -1158,7 +1158,7 @@ xfs_rtfind_back(
 	if (error) {
 		return error;
 	}
-	bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+	bufp = bp->b_addr;
 	/*
 	 * Get the first word's index & point to it.
 	 */
@@ -1210,7 +1210,7 @@ xfs_rtfind_back(
 			if (error) {
 				return error;
 			}
-			bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			bufp = bp->b_addr;
 			word = XFS_BLOCKWMASK(mp);
 			b = &bufp[word];
 		} else {
@@ -1256,7 +1256,7 @@ xfs_rtfind_back(
 			if (error) {
 				return error;
 			}
-			bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			bufp = bp->b_addr;
 			word = XFS_BLOCKWMASK(mp);
 			b = &bufp[word];
 		} else {
@@ -1333,7 +1333,7 @@ xfs_rtfind_forw(
 	if (error) {
 		return error;
 	}
-	bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+	bufp = bp->b_addr;
 	/*
 	 * Get the first word's index & point to it.
 	 */
@@ -1384,7 +1384,7 @@ xfs_rtfind_forw(
 			if (error) {
 				return error;
 			}
-			b = bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			b = bufp = bp->b_addr;
 			word = 0;
 		} else {
 			/*
@@ -1429,7 +1429,7 @@ xfs_rtfind_forw(
 			if (error) {
 				return error;
 			}
-			b = bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			b = bufp = bp->b_addr;
 			word = 0;
 		} else {
 			/*
@@ -1649,7 +1649,7 @@ xfs_rtmodify_range(
 	if (error) {
 		return error;
 	}
-	bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+	bufp = bp->b_addr;
 	/*
 	 * Compute the starting word's address, and starting bit.
 	 */
@@ -1694,7 +1694,7 @@ xfs_rtmodify_range(
 			if (error) {
 				return error;
 			}
-			first = b = bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			first = b = bufp = bp->b_addr;
 			word = 0;
 		} else {
 			/*
@@ -1734,7 +1734,7 @@ xfs_rtmodify_range(
 			if (error) {
 				return error;
 			}
-			first = b = bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
+			first = b = bufp = bp->b_addr;
 			word = 0;
 		} else {
 			/*
@@ -1832,8 +1832,8 @@ xfs_rtmodify_summary(
 	 */
 	sp = XFS_SUMPTR(mp, bp, so);
 	*sp += delta;
-	xfs_trans_log_buf(tp, bp, (uint)((char *)sp - (char *)XFS_BUF_PTR(bp)),
-		(uint)((char *)sp - (char *)XFS_BUF_PTR(bp) + sizeof(*sp) - 1));
+	xfs_trans_log_buf(tp, bp, (uint)((char *)sp - (char *)bp->b_addr),
+		(uint)((char *)sp - (char *)bp->b_addr + sizeof(*sp) - 1));
 	return 0;
 }
 

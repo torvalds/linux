@@ -125,5 +125,5 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern const struct export_operations cifs_export_ops;
 #endif /* CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "1.74"
+#define CIFS_VERSION   "1.75"
 #endif				/* _CIFSFS_H */

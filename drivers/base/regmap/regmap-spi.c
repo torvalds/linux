@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 static int regmap_spi_write(struct device *dev, const void *data, size_t count)
 {
@@ -70,3 +71,5 @@ struct regmap *regmap_init_spi(struct spi_device *spi,
 	return regmap_init(&spi->dev, &regmap_spi, config);
 }
 EXPORT_SYMBOL_GPL(regmap_init_spi);
+
+MODULE_LICENSE("GPL");

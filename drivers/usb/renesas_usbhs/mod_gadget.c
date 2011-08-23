@@ -14,6 +14,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -76,7 +77,7 @@ struct usbhsg_recip_handle {
 		struct usbhsg_gpriv, mod)
 
 #define __usbhsg_for_each_uep(start, pos, g, i)	\
-	for (i = start, pos = (g)->uep;		\
+	for (i = start, pos = (g)->uep + i;	\
 	     i < (g)->uep_size;			\
 	     i++, pos = (g)->uep + i)
 

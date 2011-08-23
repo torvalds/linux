@@ -2473,7 +2473,7 @@ cluster_corrupt_out:
 		if (bp->b_iodone) {
 			XFS_BUF_UNDONE(bp);
 			XFS_BUF_STALE(bp);
-			XFS_BUF_ERROR(bp,EIO);
+			xfs_buf_ioerror(bp, EIO);
 			xfs_buf_ioend(bp, 0);
 		} else {
 			XFS_BUF_STALE(bp);
@@ -2585,7 +2585,7 @@ xfs_iflush(
 	 * If the buffer is pinned then push on the log now so we won't
 	 * get stuck waiting in the write for too long.
 	 */
-	if (XFS_BUF_ISPINNED(bp))
+	if (xfs_buf_ispinned(bp))
 		xfs_log_force(mp, 0);
 
 	/*

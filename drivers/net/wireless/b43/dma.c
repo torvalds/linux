@@ -795,9 +795,23 @@ static u64 supported_dma_mask(struct b43_wldev *dev)
 	u32 tmp;
 	u16 mmio_base;
 
-	tmp = b43_read32(dev, SSB_TMSHIGH);
-	if (tmp & SSB_TMSHIGH_DMA64)
-		return DMA_BIT_MASK(64);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOST);
+		if (tmp & BCMA_IOST_DMA64)
+			return DMA_BIT_MASK(64);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
+		if (tmp & SSB_TMSHIGH_DMA64)
+			return DMA_BIT_MASK(64);
+		break;
+#endif
+	}
+
 	mmio_base = b43_dmacontroller_base(0, 0);
 	b43_write32(dev, mmio_base + B43_DMA32_TXCTL, B43_DMA32_TXADDREXT_MASK);
 	tmp = b43_read32(dev, mmio_base + B43_DMA32_TXCTL);

@@ -77,8 +77,8 @@ EXPORT_SYMBOL_GPL(xen_domain_type);
 
 unsigned long *machine_to_phys_mapping = (void *)MACH2PHYS_VIRT_START;
 EXPORT_SYMBOL(machine_to_phys_mapping);
-unsigned int   machine_to_phys_order;
-EXPORT_SYMBOL(machine_to_phys_order);
+unsigned long  machine_to_phys_nr;
+EXPORT_SYMBOL(machine_to_phys_nr);
 
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
@@ -950,6 +950,10 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
 static const struct pv_info xen_info __initconst = {
 	.paravirt_enabled = 1,
 	.shared_kernel_pmd = 0,
+
+#ifdef CONFIG_X86_64
+	.extra_user_64bit_cs = FLAT_USER_CS64,
+#endif
 
 	.name = "Xen",
 };

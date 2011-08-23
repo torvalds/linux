@@ -186,7 +186,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 
 	mdelay(10);
 
-	return mx51_initialize_usb_hw(0, MXC_EHCI_ITC_NO_THRESHOLD);
+	return mx51_initialize_usb_hw(pdev->id, MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
 static struct mxc_usbh_platform_data usbh1_config = {

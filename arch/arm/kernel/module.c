@@ -323,7 +323,11 @@ int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 #endif
 	s = find_mod_section(hdr, sechdrs, ".alt.smp.init");
 	if (s && !is_smp())
+#ifdef CONFIG_SMP_ON_UP
 		fixup_smp((void *)s->sh_addr, s->sh_size);
+#else
+		return -EINVAL;
+#endif
 	return 0;
 }
 

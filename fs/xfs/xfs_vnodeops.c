@@ -83,7 +83,9 @@ xfs_readlink_bmap(
 
 		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt),
 				  XBF_LOCK | XBF_MAPPED | XBF_DONT_BLOCK);
-		error = XFS_BUF_GETERROR(bp);
+		if (!bp)
+			return XFS_ERROR(ENOMEM);
+		error = bp->b_error;
 		if (error) {
 			xfs_ioerror_alert("xfs_readlink",
 				  ip->i_mount, bp, XFS_BUF_ADDR(bp));
@@ -94,7 +96,7 @@ xfs_readlink_bmap(
 			byte_cnt = pathlen;
 		pathlen -= byte_cnt;
 
-		memcpy(link, XFS_BUF_PTR(bp), byte_cnt);
+		memcpy(link, bp->b_addr, byte_cnt);
 		xfs_buf_relse(bp);
 	}
 
@@ -1648,13 +1650,13 @@ xfs_symlink(
 			byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
 			bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
 					       BTOBB(byte_cnt), 0);
-			ASSERT(bp && !XFS_BUF_GETERROR(bp));
+			ASSERT(!xfs_buf_geterror(bp));
 			if (pathlen < byte_cnt) {
 				byte_cnt = pathlen;
 			}
 			pathlen -= byte_cnt;
 
-			memcpy(XFS_BUF_PTR(bp), cur_chunk, byte_cnt);
+			memcpy(bp->b_addr, cur_chunk, byte_cnt);
 			cur_chunk += byte_cnt;
 
 			xfs_trans_log_buf(tp, bp, 0, byte_cnt - 1);
@@ -1999,7 +2001,7 @@ xfs_zero_remaining_bytes(
 					  mp, bp, XFS_BUF_ADDR(bp));
 			break;
 		}
-		memset(XFS_BUF_PTR(bp) +
+		memset(bp->b_addr +
 			(offset - XFS_FSB_TO_B(mp, imap.br_startoff)),
 		      0, lastoffset - offset + 1);
 		XFS_BUF_UNDONE(bp);
