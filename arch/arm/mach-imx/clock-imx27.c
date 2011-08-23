@@ -583,7 +583,7 @@ DEFINE_CLOCK(emi_clk,      0, PCCR1, 19, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(dma_clk1,     0, PCCR1, 20, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(csi_clk1,     0, PCCR1, 21, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(brom_clk,     0, PCCR1, 22, NULL, NULL, &ahb_clk);
-DEFINE_CLOCK(ata_clk,      0, PCCR1, 23, NULL, NULL, &ahb_clk);
+DEFINE_CLOCK(pata_clk,      0, PCCR1, 23, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(wdog_clk,     0, PCCR1, 24, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(usb_clk,      0, PCCR1, 25, get_rate_usb, &usb_clk1, &spll_clk);
 DEFINE_CLOCK(uart6_clk1,   0, PCCR1, 26, NULL, NULL, &ipg_clk);
@@ -666,7 +666,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
 	_REGISTER_CLOCK(NULL, "sahara2", sahara2_clk)
-	_REGISTER_CLOCK(NULL, "ata", ata_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 	_REGISTER_CLOCK(NULL, "mstick", mstick_clk)
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio_clk)
