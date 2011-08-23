@@ -600,13 +600,18 @@ static bool _dma_alloc(struct dma_info *di, uint direction)
 void *dma_alloc_consistent(struct pci_dev *pdev, uint size, u16 align_bits,
 			       uint *alloced, unsigned long *pap)
 {
+	void *rc;
+	dma_addr_t dma_addr;
+
 	if (align_bits) {
 		u16 align = (1 << align_bits);
 		if (!IS_ALIGNED(PAGE_SIZE, align))
 			size += align;
 		*alloced = size;
 	}
-	return pci_alloc_consistent(pdev, size, (dma_addr_t *) pap);
+	rc = pci_alloc_consistent(pdev, size, &dma_addr);
+	*pap = dma_addr;
+	return rc;
 }
 
 /* !! may be called with core in reset */
