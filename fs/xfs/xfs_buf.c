@@ -1489,12 +1489,12 @@ xfs_setsize_buftarg(
 }
 
 STATIC int
-xfs_alloc_delwrite_queue(
+xfs_alloc_delwri_queue(
 	xfs_buftarg_t		*btp,
 	const char		*fsname)
 {
-	INIT_LIST_HEAD(&btp->bt_delwrite_queue);
-	spin_lock_init(&btp->bt_delwrite_lock);
+	INIT_LIST_HEAD(&btp->bt_delwri_queue);
+	spin_lock_init(&btp->bt_delwri_lock);
 	btp->bt_flags = 0;
 	btp->bt_task = kthread_run(xfsbufd, btp, "xfsbufd/%s", fsname);
 	if (IS_ERR(btp->bt_task))
@@ -1524,7 +1524,7 @@ xfs_alloc_buftarg(
 	spin_lock_init(&btp->bt_lru_lock);
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
-	if (xfs_alloc_delwrite_queue(btp, fsname))
+	if (xfs_alloc_delwri_queue(btp, fsname))
 		goto error;
 	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
@@ -1544,46 +1544,44 @@ void
 xfs_buf_delwri_queue(
 	xfs_buf_t		*bp)
 {
-	struct list_head	*dwq = &bp->b_target->bt_delwrite_queue;
-	spinlock_t		*dwlk = &bp->b_target->bt_delwrite_lock;
+	struct xfs_buftarg	*btp = bp->b_target;
 
 	trace_xfs_buf_delwri_queue(bp, _RET_IP_);
 
 	ASSERT(!(bp->b_flags & XBF_READ));
 
-	spin_lock(dwlk);
+	spin_lock(&btp->bt_delwri_lock);
 	if (!list_empty(&bp->b_list)) {
 		/* if already in the queue, move it to the tail */
 		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-		list_move_tail(&bp->b_list, dwq);
+		list_move_tail(&bp->b_list, &btp->bt_delwri_queue);
 	} else {
 		/* start xfsbufd as it is about to have something to do */
-		if (list_empty(dwq))
+		if (list_empty(&btp->bt_delwri_queue))
 			wake_up_process(bp->b_target->bt_task);
 
 		atomic_inc(&bp->b_hold);
 		bp->b_flags |= XBF_DELWRI | _XBF_DELWRI_Q | XBF_ASYNC;
-		list_add_tail(&bp->b_list, dwq);
+		list_add_tail(&bp->b_list, &btp->bt_delwri_queue);
 	}
 	bp->b_queuetime = jiffies;
-	spin_unlock(dwlk);
+	spin_unlock(&btp->bt_delwri_lock);
 }
 
 void
 xfs_buf_delwri_dequeue(
 	xfs_buf_t		*bp)
 {
-	spinlock_t		*dwlk = &bp->b_target->bt_delwrite_lock;
 	int			dequeued = 0;
 
-	spin_lock(dwlk);
+	spin_lock(&bp->b_target->bt_delwri_lock);
 	if ((bp->b_flags & XBF_DELWRI) && !list_empty(&bp->b_list)) {
 		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
 		list_del_init(&bp->b_list);
 		dequeued = 1;
 	}
 	bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
-	spin_unlock(dwlk);
+	spin_unlock(&bp->b_target->bt_delwri_lock);
 
 	if (dequeued)
 		xfs_buf_rele(bp);
@@ -1615,9 +1613,9 @@ xfs_buf_delwri_promote(
 	if (bp->b_queuetime < jiffies - age)
 		return;
 	bp->b_queuetime = jiffies - age;
-	spin_lock(&btp->bt_delwrite_lock);
-	list_move(&bp->b_list, &btp->bt_delwrite_queue);
-	spin_unlock(&btp->bt_delwrite_lock);
+	spin_lock(&btp->bt_delwri_lock);
+	list_move(&bp->b_list, &btp->bt_delwri_queue);
+	spin_unlock(&btp->bt_delwri_lock);
 }
 
 STATIC void
@@ -1638,15 +1636,13 @@ xfs_buf_delwri_split(
 	unsigned long	age)
 {
 	xfs_buf_t	*bp, *n;
-	struct list_head *dwq = &target->bt_delwrite_queue;
-	spinlock_t	*dwlk = &target->bt_delwrite_lock;
 	int		skipped = 0;
 	int		force;
 
 	force = test_and_clear_bit(XBT_FORCE_FLUSH, &target->bt_flags);
 	INIT_LIST_HEAD(list);
-	spin_lock(dwlk);
-	list_for_each_entry_safe(bp, n, dwq, b_list) {
+	spin_lock(&target->bt_delwri_lock);
+	list_for_each_entry_safe(bp, n, &target->bt_delwri_queue, b_list) {
 		ASSERT(bp->b_flags & XBF_DELWRI);
 
 		if (!xfs_buf_ispinned(bp) && xfs_buf_trylock(bp)) {
@@ -1663,10 +1659,9 @@ xfs_buf_delwri_split(
 		} else
 			skipped++;
 	}
-	spin_unlock(dwlk);
 
+	spin_unlock(&target->bt_delwri_lock);
 	return skipped;
-
 }
 
 /*
@@ -1716,7 +1711,7 @@ xfsbufd(
 		}
 
 		/* sleep for a long time if there is nothing to do. */
-		if (list_empty(&target->bt_delwrite_queue))
+		if (list_empty(&target->bt_delwri_queue))
 			tout = MAX_SCHEDULE_TIMEOUT;
 		schedule_timeout_interruptible(tout);
 

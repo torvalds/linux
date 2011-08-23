@@ -105,8 +105,8 @@ typedef struct xfs_buftarg {
 
 	/* per device delwri queue */
 	struct task_struct	*bt_task;
-	struct list_head	bt_delwrite_queue;
-	spinlock_t		bt_delwrite_lock;
+	struct list_head	bt_delwri_queue;
+	spinlock_t		bt_delwri_lock;
 	unsigned long		bt_flags;
 
 	/* LRU control structures */
