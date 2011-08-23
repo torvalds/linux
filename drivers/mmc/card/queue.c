@@ -108,7 +108,7 @@ static void mmc_request(struct request_queue *q)
 		wake_up_process(mq->thread);
 }
 
-struct scatterlist *mmc_alloc_sg(int sg_len, int *err)
+static struct scatterlist *mmc_alloc_sg(int sg_len, int *err)
 {
 	struct scatterlist *sg;
 
