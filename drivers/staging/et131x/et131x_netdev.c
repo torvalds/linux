@@ -212,19 +212,19 @@ int et131x_close(struct net_device *netdev)
 int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 {
 	int status = 0;
-	struct et131x_adapter *etdev = netdev_priv(netdev);
+	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct mii_ioctl_data *data = if_mii(reqbuf);
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
-		data->phy_id = etdev->stats.xcvr_addr;
+		data->phy_id = adapter->stats.xcvr_addr;
 		break;
 
 	case SIOCGMIIREG:
 		if (!capable(CAP_NET_ADMIN))
 			status = -EPERM;
 		else
-			status = et131x_mii_read(etdev,
+			status = et131x_mii_read(adapter,
 					data->reg_num, &data->val_out);
 		break;
 
@@ -232,7 +232,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			status = -EPERM;
 		else
-			status = et131x_mii_write(etdev, data->reg_num,
+			status = et131x_mii_write(adapter, data->reg_num,
 					 data->val_in);
 		break;
 
@@ -445,35 +445,35 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
  */
 void et131x_tx_timeout(struct net_device *netdev)
 {
-	struct et131x_adapter *etdev = netdev_priv(netdev);
+	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct tcb *tcb;
 	unsigned long flags;
 
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
-	if (etdev->flags & fMP_ADAPTER_NON_RECOVER_ERROR)
+	if (adapter->flags & fMP_ADAPTER_NON_RECOVER_ERROR)
 		return;
 
 	/* Hardware failure? */
-	if (etdev->flags & fMP_ADAPTER_HARDWARE_ERROR) {
-		dev_err(&etdev->pdev->dev, "hardware error - reset\n");
+	if (adapter->flags & fMP_ADAPTER_HARDWARE_ERROR) {
+		dev_err(&adapter->pdev->dev, "hardware error - reset\n");
 		return;
 	}
 
 	/* Is send stuck? */
-	spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
+	spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
-	tcb = etdev->tx_ring.send_head;
+	tcb = adapter->tx_ring.send_head;
 
 	if (tcb != NULL) {
 		tcb->count++;
 
 		if (tcb->count > NIC_SEND_HANG_THRESHOLD) {
-			spin_unlock_irqrestore(&etdev->tcb_send_qlock,
+			spin_unlock_irqrestore(&adapter->tcb_send_qlock,
 					       flags);
 
-			dev_warn(&etdev->pdev->dev,
+			dev_warn(&adapter->pdev->dev,
 				"Send stuck - reset.  tcb->WrIndex %x, flags 0x%08x\n",
 				tcb->index,
 				tcb->flags);
@@ -485,7 +485,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 		}
 	}
 
-	spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
+	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 }
 
 /**

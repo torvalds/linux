@@ -100,11 +100,11 @@
 
 /**
  * et1310_config_mac_regs1 - Initialize the first part of MAC regs
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  */
-void et1310_config_mac_regs1(struct et131x_adapter *etdev)
+void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 {
-	struct mac_regs __iomem *macregs = &etdev->regs->mac;
+	struct mac_regs __iomem *macregs = &adapter->regs->mac;
 	u32 station1;
 	u32 station2;
 	u32 ipg;
@@ -136,12 +136,12 @@ void et1310_config_mac_regs1(struct et131x_adapter *etdev)
 	 * station address is used for generating and checking pause control
 	 * packets.
 	 */
-	station2 = (etdev->addr[1] << ET_MAC_STATION_ADDR2_OC2_SHIFT) |
-		   (etdev->addr[0] << ET_MAC_STATION_ADDR2_OC1_SHIFT);
-	station1 = (etdev->addr[5] << ET_MAC_STATION_ADDR1_OC6_SHIFT) |
-		   (etdev->addr[4] << ET_MAC_STATION_ADDR1_OC5_SHIFT) |
-		   (etdev->addr[3] << ET_MAC_STATION_ADDR1_OC4_SHIFT) |
-		    etdev->addr[2];
+	station2 = (adapter->addr[1] << ET_MAC_STATION_ADDR2_OC2_SHIFT) |
+		   (adapter->addr[0] << ET_MAC_STATION_ADDR2_OC1_SHIFT);
+	station1 = (adapter->addr[5] << ET_MAC_STATION_ADDR1_OC6_SHIFT) |
+		   (adapter->addr[4] << ET_MAC_STATION_ADDR1_OC5_SHIFT) |
+		   (adapter->addr[3] << ET_MAC_STATION_ADDR1_OC4_SHIFT) |
+		    adapter->addr[2];
 	writel(station1, &macregs->station_addr_1);
 	writel(station2, &macregs->station_addr_2);
 
@@ -152,7 +152,7 @@ void et1310_config_mac_regs1(struct et131x_adapter *etdev)
 	 * Packets larger than (registry_jumbo_packet) that do not contain a
 	 * VLAN ID will be dropped by the Rx function.
 	 */
-	writel(etdev->registry_jumbo_packet + 4, &macregs->max_fm_len);
+	writel(adapter->registry_jumbo_packet + 4, &macregs->max_fm_len);
 
 	/* clear out MAC config reset */
 	writel(0, &macregs->cfg1);
@@ -160,25 +160,25 @@ void et1310_config_mac_regs1(struct et131x_adapter *etdev)
 
 /**
  * et1310_config_mac_regs2 - Initialize the second part of MAC regs
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  */
-void et1310_config_mac_regs2(struct et131x_adapter *etdev)
+void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 {
 	int32_t delay = 0;
-	struct mac_regs __iomem *mac = &etdev->regs->mac;
+	struct mac_regs __iomem *mac = &adapter->regs->mac;
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
 	u32 ctl;
 
-	ctl = readl(&etdev->regs->txmac.ctl);
+	ctl = readl(&adapter->regs->txmac.ctl);
 	cfg1 = readl(&mac->cfg1);
 	cfg2 = readl(&mac->cfg2);
 	ifctrl = readl(&mac->if_ctrl);
 
 	/* Set up the if mode bits */
 	cfg2 &= ~0x300;
-	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
+	if (adapter->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		cfg2 |= 0x200;
 		/* Phy mode bit */
 		ifctrl &= ~(1 << 24);
@@ -191,7 +191,7 @@ void et1310_config_mac_regs2(struct et131x_adapter *etdev)
 	cfg1 |= CFG1_RX_ENABLE | CFG1_TX_ENABLE | CFG1_TX_FLOW;
 	/* Initialize loop back to off */
 	cfg1 &= ~(CFG1_LOOPBACK | CFG1_RX_FLOW);
-	if (etdev->flowcontrol == FLOW_RXONLY || etdev->flowcontrol == FLOW_BOTH)
+	if (adapter->flowcontrol == FLOW_RXONLY || adapter->flowcontrol == FLOW_BOTH)
 		cfg1 |= CFG1_RX_FLOW;
 	writel(cfg1, &mac->cfg1);
 
@@ -202,11 +202,11 @@ void et1310_config_mac_regs2(struct et131x_adapter *etdev)
 	cfg2 &= ~0x0021;
 
 	/* Turn on duplex if needed */
-	if (etdev->duplex_mode)
+	if (adapter->duplex_mode)
 		cfg2 |= 0x01;
 
 	ifctrl &= ~(1 << 26);
-	if (!etdev->duplex_mode)
+	if (!adapter->duplex_mode)
 		ifctrl |= (1<<26);	/* Enable ghd */
 
 	writel(ifctrl, &mac->if_ctrl);
@@ -219,25 +219,25 @@ void et1310_config_mac_regs2(struct et131x_adapter *etdev)
 	} while ((cfg1 & CFG1_WAIT) != CFG1_WAIT && delay < 100);
 
 	if (delay == 100) {
-		dev_warn(&etdev->pdev->dev,
+		dev_warn(&adapter->pdev->dev,
 		    "Syncd bits did not respond correctly cfg1 word 0x%08x\n",
 			cfg1);
 	}
 
 	/* Enable txmac */
 	ctl |= 0x09;	/* TX mac enable, FC disable */
-	writel(ctl, &etdev->regs->txmac.ctl);
+	writel(ctl, &adapter->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */
-	if (etdev->flags & fMP_ADAPTER_LOWER_POWER) {
-		et131x_rx_dma_enable(etdev);
-		et131x_tx_dma_enable(etdev);
+	if (adapter->flags & fMP_ADAPTER_LOWER_POWER) {
+		et131x_rx_dma_enable(adapter);
+		et131x_tx_dma_enable(adapter);
 	}
 }
 
-void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
+void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 {
-	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
+	struct rxmac_regs __iomem *rxmac = &adapter->regs->rxmac;
 	u32 sa_lo;
 	u32 sa_hi = 0;
 	u32 pf_ctrl = 0;
@@ -280,22 +280,22 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	writel(0, &rxmac->mask4_word3);
 
 	/* Lets setup the WOL Source Address */
-	sa_lo = (etdev->addr[2] << ET_WOL_LO_SA3_SHIFT) |
-		(etdev->addr[3] << ET_WOL_LO_SA4_SHIFT) |
-		(etdev->addr[4] << ET_WOL_LO_SA5_SHIFT) |
-		 etdev->addr[5];
+	sa_lo = (adapter->addr[2] << ET_WOL_LO_SA3_SHIFT) |
+		(adapter->addr[3] << ET_WOL_LO_SA4_SHIFT) |
+		(adapter->addr[4] << ET_WOL_LO_SA5_SHIFT) |
+		 adapter->addr[5];
 	writel(sa_lo, &rxmac->sa_lo);
 
-	sa_hi = (u32) (etdev->addr[0] << ET_WOL_HI_SA1_SHIFT) |
-	               etdev->addr[1];
+	sa_hi = (u32) (adapter->addr[0] << ET_WOL_HI_SA1_SHIFT) |
+	               adapter->addr[1];
 	writel(sa_hi, &rxmac->sa_hi);
 
 	/* Disable all Packet Filtering */
 	writel(0, &rxmac->pf_ctrl);
 
 	/* Let's initialize the Unicast Packet filtering address */
-	if (etdev->packet_filter & ET131X_PACKET_TYPE_DIRECTED) {
-		et1310_setup_device_for_unicast(etdev);
+	if (adapter->packet_filter & ET131X_PACKET_TYPE_DIRECTED) {
+		et1310_setup_device_for_unicast(adapter);
 		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
 		writel(0, &rxmac->uni_pf_addr1);
@@ -304,16 +304,16 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	}
 
 	/* Let's initialize the Multicast hash */
-	if (!(etdev->packet_filter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
+	if (!(adapter->packet_filter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
 		pf_ctrl |= 2;	/* Multicast filter */
-		et1310_setup_device_for_multicast(etdev);
+		et1310_setup_device_for_multicast(adapter);
 	}
 
 	/* Runt packet filtering.  Didn't work in version A silicon. */
 	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
 	pf_ctrl |= 8;	/* Fragment filter */
 
-	if (etdev->registry_jumbo_packet > 8192)
+	if (adapter->registry_jumbo_packet > 8192)
 		/* In order to transmit jumbo packets greater than 8k, the
 		 * FIFO between RxMAC and RxDMA needs to be reduced in size
 		 * to (16k - Jumbo packet size).  In order to implement this,
@@ -350,7 +350,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	 * bit 16: Receive frame truncated.
 	 * bit 17: Drop packet enable
 	 */
-	if (etdev->linkspeed == TRUEPHY_SPEED_100MBPS)
+	if (adapter->linkspeed == TRUEPHY_SPEED_100MBPS)
 		writel(0x30038, &rxmac->mif_ctrl);
 	else
 		writel(0x30030, &rxmac->mif_ctrl);
@@ -365,24 +365,24 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	writel(0x9, &rxmac->ctrl);
 }
 
-void et1310_config_txmac_regs(struct et131x_adapter *etdev)
+void et1310_config_txmac_regs(struct et131x_adapter *adapter)
 {
-	struct txmac_regs *txmac = &etdev->regs->txmac;
+	struct txmac_regs *txmac = &adapter->regs->txmac;
 
 	/* We need to update the Control Frame Parameters
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (etdev->flowcontrol == FLOW_NONE)
+	if (adapter->flowcontrol == FLOW_NONE)
 		writel(0, &txmac->cf_param);
 	else
 		writel(0x40, &txmac->cf_param);
 }
 
-void et1310_config_macstat_regs(struct et131x_adapter *etdev)
+void et1310_config_macstat_regs(struct et131x_adapter *adapter)
 {
 	struct macstat_regs __iomem *macstat =
-		&etdev->regs->macstat;
+		&adapter->regs->macstat;
 
 	/* Next we need to initialize all the macstat registers to zero on
 	 * the device.
@@ -444,50 +444,50 @@ void et1310_config_macstat_regs(struct et131x_adapter *etdev)
 	writel(0xFFFE7E8B, &macstat->carry_reg2_mask);
 }
 
-void et1310_config_flow_control(struct et131x_adapter *etdev)
+void et1310_config_flow_control(struct et131x_adapter *adapter)
 {
-	if (etdev->duplex_mode == 0) {
-		etdev->flowcontrol = FLOW_NONE;
+	if (adapter->duplex_mode == 0) {
+		adapter->flowcontrol = FLOW_NONE;
 	} else {
 		char remote_pause, remote_async_pause;
 
-		et1310_phy_access_mii_bit(etdev,
+		et1310_phy_access_mii_bit(adapter,
 				TRUEPHY_BIT_READ, 5, 10, &remote_pause);
-		et1310_phy_access_mii_bit(etdev,
+		et1310_phy_access_mii_bit(adapter,
 				TRUEPHY_BIT_READ, 5, 11,
 				&remote_async_pause);
 
 		if ((remote_pause == TRUEPHY_BIT_SET) &&
 		    (remote_async_pause == TRUEPHY_BIT_SET)) {
-			etdev->flowcontrol = etdev->wanted_flow;
+			adapter->flowcontrol = adapter->wanted_flow;
 		} else if ((remote_pause == TRUEPHY_BIT_SET) &&
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
-			if (etdev->wanted_flow == FLOW_BOTH)
-				etdev->flowcontrol = FLOW_BOTH;
+			if (adapter->wanted_flow == FLOW_BOTH)
+				adapter->flowcontrol = FLOW_BOTH;
 			else
-				etdev->flowcontrol = FLOW_NONE;
+				adapter->flowcontrol = FLOW_NONE;
 		} else if ((remote_pause == TRUEPHY_BIT_CLEAR) &&
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
-			etdev->flowcontrol = FLOW_NONE;
+			adapter->flowcontrol = FLOW_NONE;
 		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
 			       remote_async_pause == TRUEPHY_SET_BIT) */
-			if (etdev->wanted_flow == FLOW_BOTH)
-				etdev->flowcontrol = FLOW_RXONLY;
+			if (adapter->wanted_flow == FLOW_BOTH)
+				adapter->flowcontrol = FLOW_RXONLY;
 			else
-				etdev->flowcontrol = FLOW_NONE;
+				adapter->flowcontrol = FLOW_NONE;
 		}
 	}
 }
 
 /**
  * et1310_update_macstat_host_counters - Update the local copy of the statistics
- * @etdev: pointer to the adapter structure
+ * @adapter: pointer to the adapter structure
  */
-void et1310_update_macstat_host_counters(struct et131x_adapter *etdev)
+void et1310_update_macstat_host_counters(struct et131x_adapter *adapter)
 {
-	struct ce_stats *stats = &etdev->stats;
+	struct ce_stats *stats = &adapter->stats;
 	struct macstat_regs __iomem *macstat =
-		&etdev->regs->macstat;
+		&adapter->regs->macstat;
 
 	stats->tx_collisions	       += readl(&macstat->tx_total_collisions);
 	stats->tx_first_collisions     += readl(&macstat->tx_single_collisions);
@@ -509,13 +509,13 @@ void et1310_update_macstat_host_counters(struct et131x_adapter *etdev)
 
 /**
  * et1310_handle_macstat_interrupt
- * @etdev: pointer to the adapter structure
+ * @adapter: pointer to the adapter structure
  *
  * One of the MACSTAT counters has wrapped.  Update the local copy of
  * the statistics held in the adapter structure, checking the "wrap"
  * bit for each counter.
  */
-void et1310_handle_macstat_interrupt(struct et131x_adapter *etdev)
+void et1310_handle_macstat_interrupt(struct et131x_adapter *adapter)
 {
 	u32 carry_reg1;
 	u32 carry_reg2;
@@ -523,11 +523,11 @@ void et1310_handle_macstat_interrupt(struct et131x_adapter *etdev)
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	carry_reg1 = readl(&etdev->regs->macstat.carry_reg1);
-	carry_reg2 = readl(&etdev->regs->macstat.carry_reg2);
+	carry_reg1 = readl(&adapter->regs->macstat.carry_reg1);
+	carry_reg2 = readl(&adapter->regs->macstat.carry_reg2);
 
-	writel(carry_reg1, &etdev->regs->macstat.carry_reg1);
-	writel(carry_reg2, &etdev->regs->macstat.carry_reg2);
+	writel(carry_reg1, &adapter->regs->macstat.carry_reg1);
+	writel(carry_reg2, &adapter->regs->macstat.carry_reg2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
@@ -536,38 +536,38 @@ void et1310_handle_macstat_interrupt(struct et131x_adapter *etdev)
 	 * block indicates that one of the counters has wrapped.
 	 */
 	if (carry_reg1 & (1 << 14))
-		etdev->stats.rx_code_violations	+= COUNTER_WRAP_16_BIT;
+		adapter->stats.rx_code_violations	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 8))
-		etdev->stats.rx_align_errs	+= COUNTER_WRAP_12_BIT;
+		adapter->stats.rx_align_errs	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg1 & (1 << 7))
-		etdev->stats.rx_length_errs	+= COUNTER_WRAP_16_BIT;
+		adapter->stats.rx_length_errs	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 2))
-		etdev->stats.rx_other_errs	+= COUNTER_WRAP_16_BIT;
+		adapter->stats.rx_other_errs	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 6))
-		etdev->stats.rx_crc_errs	+= COUNTER_WRAP_16_BIT;
+		adapter->stats.rx_crc_errs	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 3))
-		etdev->stats.rx_overflows	+= COUNTER_WRAP_16_BIT;
+		adapter->stats.rx_overflows	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 0))
-		etdev->stats.rcvd_pkts_dropped	+= COUNTER_WRAP_16_BIT;
+		adapter->stats.rcvd_pkts_dropped	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg2 & (1 << 16))
-		etdev->stats.tx_max_pkt_errs	+= COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_max_pkt_errs	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 15))
-		etdev->stats.tx_underflows	+= COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_underflows	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 6))
-		etdev->stats.tx_first_collisions += COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_first_collisions += COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 8))
-		etdev->stats.tx_deferred	+= COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_deferred	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 5))
-		etdev->stats.tx_excessive_collisions += COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_excessive_collisions += COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 4))
-		etdev->stats.tx_late_collisions	+= COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_late_collisions	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 2))
-		etdev->stats.tx_collisions	+= COUNTER_WRAP_12_BIT;
+		adapter->stats.tx_collisions	+= COUNTER_WRAP_12_BIT;
 }
 
-void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
+void et1310_setup_device_for_multicast(struct et131x_adapter *adapter)
 {
-	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
+	struct rxmac_regs __iomem *rxmac = &adapter->regs->rxmac;
 	uint32_t nIndex;
 	uint32_t result;
 	uint32_t hash1 = 0;
@@ -581,11 +581,11 @@ void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
 	 * specified) then we should pass NO multi-cast addresses to the
 	 * driver.
 	 */
-	if (etdev->packet_filter & ET131X_PACKET_TYPE_MULTICAST) {
+	if (adapter->packet_filter & ET131X_PACKET_TYPE_MULTICAST) {
 		/* Loop through our multicast array and set up the device */
-		for (nIndex = 0; nIndex < etdev->multicast_addr_count;
+		for (nIndex = 0; nIndex < adapter->multicast_addr_count;
 		     nIndex++) {
-			result = ether_crc(6, etdev->multicast_list[nIndex]);
+			result = ether_crc(6, adapter->multicast_list[nIndex]);
 
 			result = (result & 0x3F800000) >> 23;
 
@@ -605,7 +605,7 @@ void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
 	}
 
 	/* Write out the new hash to the device */
-	pm_csr = readl(&etdev->regs->global.pm_csr);
+	pm_csr = readl(&adapter->regs->global.pm_csr);
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 		writel(hash1, &rxmac->multi_hash1);
 		writel(hash2, &rxmac->multi_hash2);
@@ -614,9 +614,9 @@ void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
 	}
 }
 
-void et1310_setup_device_for_unicast(struct et131x_adapter *etdev)
+void et1310_setup_device_for_unicast(struct et131x_adapter *adapter)
 {
-	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
+	struct rxmac_regs __iomem *rxmac = &adapter->regs->rxmac;
 	u32 uni_pf1;
 	u32 uni_pf2;
 	u32 uni_pf3;
@@ -631,22 +631,22 @@ void et1310_setup_device_for_unicast(struct et131x_adapter *etdev)
 	 * Set up unicast packet filter reg 3 to be the octets 2 - 5 of the
 	 * MAC address for first address
 	 */
-	uni_pf3 = (etdev->addr[0] << ET_UNI_PF_ADDR2_1_SHIFT) |
-		  (etdev->addr[1] << ET_UNI_PF_ADDR2_2_SHIFT) |
-		  (etdev->addr[0] << ET_UNI_PF_ADDR1_1_SHIFT) |
-		   etdev->addr[1];
+	uni_pf3 = (adapter->addr[0] << ET_UNI_PF_ADDR2_1_SHIFT) |
+		  (adapter->addr[1] << ET_UNI_PF_ADDR2_2_SHIFT) |
+		  (adapter->addr[0] << ET_UNI_PF_ADDR1_1_SHIFT) |
+		   adapter->addr[1];
 
-	uni_pf2 = (etdev->addr[2] << ET_UNI_PF_ADDR2_3_SHIFT) |
-		  (etdev->addr[3] << ET_UNI_PF_ADDR2_4_SHIFT) |
-		  (etdev->addr[4] << ET_UNI_PF_ADDR2_5_SHIFT) |
-		   etdev->addr[5];
+	uni_pf2 = (adapter->addr[2] << ET_UNI_PF_ADDR2_3_SHIFT) |
+		  (adapter->addr[3] << ET_UNI_PF_ADDR2_4_SHIFT) |
+		  (adapter->addr[4] << ET_UNI_PF_ADDR2_5_SHIFT) |
+		   adapter->addr[5];
 
-	uni_pf1 = (etdev->addr[2] << ET_UNI_PF_ADDR1_3_SHIFT) |
-		  (etdev->addr[3] << ET_UNI_PF_ADDR1_4_SHIFT) |
-		  (etdev->addr[4] << ET_UNI_PF_ADDR1_5_SHIFT) |
-		   etdev->addr[5];
+	uni_pf1 = (adapter->addr[2] << ET_UNI_PF_ADDR1_3_SHIFT) |
+		  (adapter->addr[3] << ET_UNI_PF_ADDR1_4_SHIFT) |
+		  (adapter->addr[4] << ET_UNI_PF_ADDR1_5_SHIFT) |
+		   adapter->addr[5];
 
-	pm_csr = readl(&etdev->regs->global.pm_csr);
+	pm_csr = readl(&adapter->regs->global.pm_csr);
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 		writel(uni_pf1, &rxmac->uni_pf_addr1);
 		writel(uni_pf2, &rxmac->uni_pf_addr2);

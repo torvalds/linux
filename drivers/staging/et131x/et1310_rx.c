@@ -605,19 +605,19 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 
 /**
  * et131x_config_rx_dma_regs - Start of Rx_DMA init sequence
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  */
-void et131x_config_rx_dma_regs(struct et131x_adapter *etdev)
+void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 {
-	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
-	struct rx_ring *rx_local = &etdev->rx_ring;
+	struct rxdma_regs __iomem *rx_dma = &adapter->regs->rxdma;
+	struct rx_ring *rx_local = &adapter->rx_ring;
 	struct fbr_desc *fbr_entry;
 	u32 entry;
 	u32 psr_num_des;
 	unsigned long flags;
 
 	/* Halt RXDMA to perform the reconfigure.  */
-	et131x_rx_dma_disable(etdev);
+	et131x_rx_dma_disable(adapter);
 
 	/* Load the completion writeback physical address
 	 *
@@ -645,7 +645,7 @@ void et131x_config_rx_dma_regs(struct et131x_adapter *etdev)
 	writel((psr_num_des * LO_MARK_PERCENT_FOR_PSR) / 100,
 	       &rx_dma->psr_min_des);
 
-	spin_lock_irqsave(&etdev->rcv_lock, flags);
+	spin_lock_irqsave(&adapter->rcv_lock, flags);
 
 	/* These local variables track the PSR in the adapter structure */
 	rx_local->local_psr_full = 0;
@@ -715,34 +715,34 @@ void et131x_config_rx_dma_regs(struct et131x_adapter *etdev)
 	 */
 	writel(PARM_RX_TIME_INT_DEF, &rx_dma->max_pkt_time);
 
-	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
+	spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 }
 
 /**
  * et131x_set_rx_dma_timer - Set the heartbeat timer according to line rate.
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  */
-void et131x_set_rx_dma_timer(struct et131x_adapter *etdev)
+void et131x_set_rx_dma_timer(struct et131x_adapter *adapter)
 {
 	/* For version B silicon, we do not use the RxDMA timer for 10 and 100
 	 * Mbits/s line rates. We do not enable and RxDMA interrupt coalescing.
 	 */
-	if ((etdev->linkspeed == TRUEPHY_SPEED_100MBPS) ||
-	    (etdev->linkspeed == TRUEPHY_SPEED_10MBPS)) {
-		writel(0, &etdev->regs->rxdma.max_pkt_time);
-		writel(1, &etdev->regs->rxdma.num_pkt_done);
+	if ((adapter->linkspeed == TRUEPHY_SPEED_100MBPS) ||
+	    (adapter->linkspeed == TRUEPHY_SPEED_10MBPS)) {
+		writel(0, &adapter->regs->rxdma.max_pkt_time);
+		writel(1, &adapter->regs->rxdma.num_pkt_done);
 	}
 }
 
 /**
  * NICReturnRFD - Recycle a RFD and put it back onto the receive list
- * @etdev: pointer to our adapter
+ * @adapter: pointer to our adapter
  * @rfd: pointer to the RFD
  */
-static void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
+static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 {
-	struct rx_ring *rx_local = &etdev->rx_ring;
-	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
+	struct rx_ring *rx_local = &adapter->rx_ring;
+	struct rxdma_regs __iomem *rx_dma = &adapter->regs->rxdma;
 	u16 buff_index = rfd->bufferindex;
 	u8 ring_index = rfd->ringindex;
 	unsigned long flags;
@@ -755,7 +755,7 @@ static void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
 	    (ring_index == 0 && buff_index < rx_local->fbr0_num_entries) ||
 #endif
 	    (ring_index == 1 && buff_index < rx_local->fbr1_num_entries)) {
-		spin_lock_irqsave(&etdev->fbr_lock, flags);
+		spin_lock_irqsave(&adapter->fbr_lock, flags);
 
 		if (ring_index == 1) {
 			struct fbr_desc *next =
@@ -793,38 +793,38 @@ static void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
 			       &rx_dma->fbr0_full_offset);
 		}
 #endif
-		spin_unlock_irqrestore(&etdev->fbr_lock, flags);
+		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
-		dev_err(&etdev->pdev->dev,
+		dev_err(&adapter->pdev->dev,
 			  "%s illegal Buffer Index returned\n", __func__);
 	}
 
 	/* The processing on this RFD is done, so put it back on the tail of
 	 * our list
 	 */
-	spin_lock_irqsave(&etdev->rcv_lock, flags);
+	spin_lock_irqsave(&adapter->rcv_lock, flags);
 	list_add_tail(&rfd->list_node, &rx_local->recv_list);
 	rx_local->num_ready_recv++;
-	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
+	spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 
 	WARN_ON(rx_local->num_ready_recv > rx_local->num_rfd);
 }
 
 /**
  * et131x_rx_dma_disable - Stop of Rx_DMA on the ET1310
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  */
-void et131x_rx_dma_disable(struct et131x_adapter *etdev)
+void et131x_rx_dma_disable(struct et131x_adapter *adapter)
 {
 	u32 csr;
 	/* Setup the receive dma configuration register */
-	writel(0x00002001, &etdev->regs->rxdma.csr);
-	csr = readl(&etdev->regs->rxdma.csr);
+	writel(0x00002001, &adapter->regs->rxdma.csr);
+	csr = readl(&adapter->regs->rxdma.csr);
 	if ((csr & 0x00020000) == 0) {	/* Check halt status (bit 17) */
 		udelay(5);
-		csr = readl(&etdev->regs->rxdma.csr);
+		csr = readl(&adapter->regs->rxdma.csr);
 		if ((csr & 0x00020000) == 0)
-			dev_err(&etdev->pdev->dev,
+			dev_err(&adapter->pdev->dev,
 			"RX Dma failed to enter halt state. CSR 0x%08x\n",
 				csr);
 	}
@@ -832,36 +832,36 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 
 /**
  * et131x_rx_dma_enable - re-start of Rx_DMA on the ET1310.
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  */
-void et131x_rx_dma_enable(struct et131x_adapter *etdev)
+void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 {
 	/* Setup the receive dma configuration register for normal operation */
 	u32 csr =  0x2000;	/* FBR1 enable */
 
-	if (etdev->rx_ring.fbr1_buffsize == 4096)
+	if (adapter->rx_ring.fbr1_buffsize == 4096)
 		csr |= 0x0800;
-	else if (etdev->rx_ring.fbr1_buffsize == 8192)
+	else if (adapter->rx_ring.fbr1_buffsize == 8192)
 		csr |= 0x1000;
-	else if (etdev->rx_ring.fbr1_buffsize == 16384)
+	else if (adapter->rx_ring.fbr1_buffsize == 16384)
 		csr |= 0x1800;
 #ifdef USE_FBR0
 	csr |= 0x0400;		/* FBR0 enable */
-	if (etdev->rx_ring.fbr0_buffsize == 256)
+	if (adapter->rx_ring.fbr0_buffsize == 256)
 		csr |= 0x0100;
-	else if (etdev->rx_ring.fbr0_buffsize == 512)
+	else if (adapter->rx_ring.fbr0_buffsize == 512)
 		csr |= 0x0200;
-	else if (etdev->rx_ring.fbr0_buffsize == 1024)
+	else if (adapter->rx_ring.fbr0_buffsize == 1024)
 		csr |= 0x0300;
 #endif
-	writel(csr, &etdev->regs->rxdma.csr);
+	writel(csr, &adapter->regs->rxdma.csr);
 
-	csr = readl(&etdev->regs->rxdma.csr);
+	csr = readl(&adapter->regs->rxdma.csr);
 	if ((csr & 0x00020000) != 0) {
 		udelay(5);
-		csr = readl(&etdev->regs->rxdma.csr);
+		csr = readl(&adapter->regs->rxdma.csr);
 		if ((csr & 0x00020000) != 0) {
-			dev_err(&etdev->pdev->dev,
+			dev_err(&adapter->pdev->dev,
 			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
 				csr);
 		}
@@ -870,7 +870,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 
 /**
  * nic_rx_pkts - Checks the hardware for available packets
- * @etdev: pointer to our adapter
+ * @adapter: pointer to our adapter
  *
  * Returns rfd, a pointer to our MPRFD.
  *
@@ -879,9 +879,9 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
  * the packet to it, puts the RFD in the RecvPendList, and also returns
  * the pointer to the RFD.
  */
-static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
+static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 {
-	struct rx_ring *rx_local = &etdev->rx_ring;
+	struct rx_ring *rx_local = &adapter->rx_ring;
 	struct rx_status_block *status;
 	struct pkt_stat_desc *psr;
 	struct rfd *rfd;
@@ -931,7 +931,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 	}
 
 	writel(rx_local->local_psr_full,
-	       &etdev->regs->rxdma.psr_full_offset);
+	       &adapter->regs->rxdma.psr_full_offset);
 
 #ifndef USE_FBR0
 	if (ring_index != 1)
@@ -949,7 +949,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 #endif
 	{
 		/* Illegal buffer or ring index cannot be used by S/W*/
-		dev_err(&etdev->pdev->dev,
+		dev_err(&adapter->pdev->dev,
 			  "NICRxPkts PSR Entry %d indicates "
 			  "length of %d and/or bad bi(%d)\n",
 			  rx_local->local_psr_full & 0xFFF,
@@ -958,21 +958,21 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 	}
 
 	/* Get and fill the RFD. */
-	spin_lock_irqsave(&etdev->rcv_lock, flags);
+	spin_lock_irqsave(&adapter->rcv_lock, flags);
 
 	rfd = NULL;
 	element = rx_local->recv_list.next;
 	rfd = (struct rfd *) list_entry(element, struct rfd, list_node);
 
 	if (rfd == NULL) {
-		spin_unlock_irqrestore(&etdev->rcv_lock, flags);
+		spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 		return NULL;
 	}
 
 	list_del(&rfd->list_node);
 	rx_local->num_ready_recv--;
 
-	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
+	spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 
 	rfd->bufferindex = buff_index;
 	rfd->ringindex = ring_index;
@@ -983,18 +983,18 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 	 * also counted here.
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
-		etdev->stats.rx_other_errs++;
+		adapter->stats.rx_other_errs++;
 		len = 0;
 	}
 
 	if (len) {
-		if (etdev->replica_phy_loopbk == 1) {
+		if (adapter->replica_phy_loopbk == 1) {
 			buf = rx_local->fbr[ring_index]->virt[buff_index];
 
-			if (memcmp(&buf[6], etdev->addr, ETH_ALEN) == 0) {
+			if (memcmp(&buf[6], adapter->addr, ETH_ALEN) == 0) {
 				if (memcmp(&buf[42], "Replica packet",
 					   ETH_HLEN)) {
-					etdev->replica_phy_loopbk_passfail = 1;
+					adapter->replica_phy_loopbk_passfail = 1;
 				}
 			}
 		}
@@ -1009,11 +1009,11 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 			 * filters. Generally filter is 0x2b when in
 			 * promiscuous mode.
 			 */
-			if ((etdev->packet_filter &
+			if ((adapter->packet_filter &
 					ET131X_PACKET_TYPE_MULTICAST)
-			    && !(etdev->packet_filter &
+			    && !(adapter->packet_filter &
 					ET131X_PACKET_TYPE_PROMISCUOUS)
-			    && !(etdev->packet_filter &
+			    && !(adapter->packet_filter &
 					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
 				buf = rx_local->fbr[ring_index]->
 						virt[buff_index];
@@ -1022,20 +1022,20 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 				 * destination address of this packet
 				 * matches one in our list.
 				 */
-				for (i = 0; i < etdev->multicast_addr_count;
+				for (i = 0; i < adapter->multicast_addr_count;
 				     i++) {
 					if (buf[0] ==
-						etdev->multicast_list[i][0]
+						adapter->multicast_list[i][0]
 					    && buf[1] ==
-						etdev->multicast_list[i][1]
+						adapter->multicast_list[i][1]
 					    && buf[2] ==
-						etdev->multicast_list[i][2]
+						adapter->multicast_list[i][2]
 					    && buf[3] ==
-						etdev->multicast_list[i][3]
+						adapter->multicast_list[i][3]
 					    && buf[4] ==
-						etdev->multicast_list[i][4]
+						adapter->multicast_list[i][4]
 					    && buf[5] ==
-						etdev->multicast_list[i][5]) {
+						adapter->multicast_list[i][5]) {
 						break;
 					}
 				}
@@ -1048,21 +1048,21 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 				 * so we free our RFD when we return
 				 * from this function.
 				 */
-				if (i == etdev->multicast_addr_count)
+				if (i == adapter->multicast_addr_count)
 					len = 0;
 			}
 
 			if (len > 0)
-				etdev->stats.multicast_pkts_rcvd++;
+				adapter->stats.multicast_pkts_rcvd++;
 		} else if (word0 & ALCATEL_BROADCAST_PKT)
-			etdev->stats.broadcast_pkts_rcvd++;
+			adapter->stats.broadcast_pkts_rcvd++;
 		else
 			/* Not sure what this counter measures in
 			 * promiscuous mode. Perhaps we should check
 			 * the MAC address to see if it is directed
 			 * to us in promiscuous mode.
 			 */
-			etdev->stats.unicast_pkts_rcvd++;
+			adapter->stats.unicast_pkts_rcvd++;
 	}
 
 	if (len > 0) {
@@ -1073,19 +1073,19 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 
 		skb = dev_alloc_skb(rfd->len + 2);
 		if (!skb) {
-			dev_err(&etdev->pdev->dev,
+			dev_err(&adapter->pdev->dev,
 				  "Couldn't alloc an SKB for Rx\n");
 			return NULL;
 		}
 
-		etdev->net_stats.rx_bytes += rfd->len;
+		adapter->net_stats.rx_bytes += rfd->len;
 
 		memcpy(skb_put(skb, rfd->len),
 		       rx_local->fbr[ring_index]->virt[buff_index],
 		       rfd->len);
 
-		skb->dev = etdev->netdev;
-		skb->protocol = eth_type_trans(skb, etdev->netdev);
+		skb->dev = adapter->netdev;
+		skb->protocol = eth_type_trans(skb, adapter->netdev);
 		skb->ip_summed = CHECKSUM_NONE;
 
 		netif_rx(skb);
@@ -1093,28 +1093,28 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 		rfd->len = 0;
 	}
 
-	nic_return_rfd(etdev, rfd);
+	nic_return_rfd(adapter, rfd);
 	return rfd;
 }
 
 /**
  * et131x_reset_recv - Reset the receive list
- * @etdev: pointer to our adapter
+ * @adapter: pointer to our adapter
  *
  * Assumption, Rcv spinlock has been acquired.
  */
-void et131x_reset_recv(struct et131x_adapter *etdev)
+void et131x_reset_recv(struct et131x_adapter *adapter)
 {
-	WARN_ON(list_empty(&etdev->rx_ring.recv_list));
+	WARN_ON(list_empty(&adapter->rx_ring.recv_list));
 }
 
 /**
  * et131x_handle_recv_interrupt - Interrupt handler for receive processing
- * @etdev: pointer to our adapter
+ * @adapter: pointer to our adapter
  *
  * Assumption, Rcv spinlock has been acquired.
  */
-void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
+void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 {
 	struct rfd *rfd = NULL;
 	u32 count = 0;
@@ -1122,13 +1122,13 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 
 	/* Process up to available RFD's */
 	while (count < NUM_PACKETS_HANDLED) {
-		if (list_empty(&etdev->rx_ring.recv_list)) {
-			WARN_ON(etdev->rx_ring.num_ready_recv != 0);
+		if (list_empty(&adapter->rx_ring.recv_list)) {
+			WARN_ON(adapter->rx_ring.num_ready_recv != 0);
 			done = false;
 			break;
 		}
 
-		rfd = nic_rx_pkts(etdev);
+		rfd = nic_rx_pkts(adapter);
 
 		if (rfd == NULL)
 			break;
@@ -1138,28 +1138,28 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		 * If length is zero, return the RFD in order to advance the
 		 * Free buffer ring.
 		 */
-		if (!etdev->packet_filter ||
-		    !netif_carrier_ok(etdev->netdev) ||
+		if (!adapter->packet_filter ||
+		    !netif_carrier_ok(adapter->netdev) ||
 		    rfd->len == 0)
 			continue;
 
 		/* Increment the number of packets we received */
-		etdev->net_stats.rx_packets++;
+		adapter->net_stats.rx_packets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (etdev->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK) {
-			dev_warn(&etdev->pdev->dev,
+		if (adapter->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK) {
+			dev_warn(&adapter->pdev->dev,
 				    "RFD's are running out\n");
 		}
 		count++;
 	}
 
 	if (count == NUM_PACKETS_HANDLED || !done) {
-		etdev->rx_ring.unfinished_receives = true;
+		adapter->rx_ring.unfinished_receives = true;
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
-		       &etdev->regs->global.watchdog_timer);
+		       &adapter->regs->global.watchdog_timer);
 	} else
 		/* Watchdog timer will disable itself if appropriate. */
-		etdev->rx_ring.unfinished_receives = false;
+		adapter->rx_ring.unfinished_receives = false;
 }
 

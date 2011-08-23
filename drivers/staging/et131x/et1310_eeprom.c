@@ -150,15 +150,15 @@ static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 
 /**
  * eeprom_write - Write a byte to the ET1310's EEPROM
- * @etdev: pointer to our private adapter structure
+ * @adapter: pointer to our private adapter structure
  * @addr: the address to write
  * @data: the value to write
  *
  * Returns 1 for a successful write.
  */
-static int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
+static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 {
-	struct pci_dev *pdev = etdev->pdev;
+	struct pci_dev *pdev = adapter->pdev;
 	int index = 0;
 	int retries;
 	int err = 0;
@@ -222,7 +222,7 @@ static int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
 		 * 1, this is so we do a blind write for load bug.
 		 */
 		if ((status & LBCIF_STATUS_GENERAL_ERROR)
-			&& etdev->pdev->revision == 0)
+			&& adapter->pdev->revision == 0)
 			break;
 
 		/*
@@ -280,7 +280,7 @@ static int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
 
 /**
  * eeprom_read - Read a byte from the ET1310's EEPROM
- * @etdev: pointer to our private adapter structure
+ * @adapter: pointer to our private adapter structure
  * @addr: the address from which to read
  * @pdata: a pointer to a byte in which to store the value of the read
  * @eeprom_id: the ID of the EEPROM
@@ -288,9 +288,9 @@ static int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
  *
  * Returns 1 for a successful read
  */
-static int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
+static int eeprom_read(struct et131x_adapter *adapter, u32 addr, u8 *pdata)
 {
-	struct pci_dev *pdev = etdev->pdev;
+	struct pci_dev *pdev = adapter->pdev;
 	int err;
 	u32 status;
 
@@ -337,9 +337,9 @@ static int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 	return (status & LBCIF_STATUS_ACK_ERROR) ? -EIO : 0;
 }
 
-int et131x_init_eeprom(struct et131x_adapter *etdev)
+int et131x_init_eeprom(struct et131x_adapter *adapter)
 {
-	struct pci_dev *pdev = etdev->pdev;
+	struct pci_dev *pdev = adapter->pdev;
 	u8 eestatus;
 
 	/* We first need to check the EEPROM Status code located at offset
@@ -374,7 +374,7 @@ int et131x_init_eeprom(struct et131x_adapter *etdev)
 			 * corruption seen with 1310 B Silicon
 			 */
 			for (i = 0; i < 3; i++)
-				if (eeprom_write(etdev, i, eedata[i]) < 0)
+				if (eeprom_write(adapter, i, eedata[i]) < 0)
 					write_failed = 1;
 		}
 		if (pdev->revision  != 0x01 || write_failed) {
@@ -387,21 +387,21 @@ int et131x_init_eeprom(struct et131x_adapter *etdev)
 			 * gather additional information that normally would
 			 * come from the eeprom, like MAC Address
 			 */
-			etdev->has_eeprom = 0;
+			adapter->has_eeprom = 0;
 			return -EIO;
 		}
 	}
-	etdev->has_eeprom = 1;
+	adapter->has_eeprom = 1;
 
 	/* Read the EEPROM for information regarding LED behavior. Refer to
 	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
 	 */
-	eeprom_read(etdev, 0x70, &etdev->eeprom_data[0]);
-	eeprom_read(etdev, 0x71, &etdev->eeprom_data[1]);
+	eeprom_read(adapter, 0x70, &adapter->eeprom_data[0]);
+	eeprom_read(adapter, 0x71, &adapter->eeprom_data[1]);
 
-	if (etdev->eeprom_data[0] != 0xcd)
+	if (adapter->eeprom_data[0] != 0xcd)
 		/* Disable all optional features */
-		etdev->eeprom_data[1] = 0x00;
+		adapter->eeprom_data[1] = 0x00;
 
 	return 0;
 }
