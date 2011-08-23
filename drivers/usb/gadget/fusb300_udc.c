@@ -220,7 +220,7 @@ static int config_ep(struct fusb300_ep *ep,
 
 	info.type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 	info.dir_in = (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ? 1 : 0;
-	info.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	info.maxpacket = usb_endpoint_maxp(desc);
 	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 
 	if ((info.type == USB_ENDPOINT_XFER_INT) ||

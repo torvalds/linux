@@ -1932,7 +1932,7 @@ static int musb_urb_enqueue(
 	INIT_LIST_HEAD(&qh->ring);
 	qh->is_ready = 1;
 
-	qh->maxpacket = le16_to_cpu(epd->wMaxPacketSize);
+	qh->maxpacket = usb_endpoint_maxp(epd);
 	qh->type = usb_endpoint_type(epd);
 
 	/* Bits 11 & 12 of wMaxPacketSize encode high bandwidth multiplier.

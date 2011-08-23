@@ -341,7 +341,7 @@ static void r8a66597_ep_setting(struct r8a66597 *r8a66597,
 
 	ep->pipectr = get_pipectr_addr(pipenum);
 	ep->pipenum = pipenum;
-	ep->ep.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	ep->ep.maxpacket = usb_endpoint_maxp(desc);
 	r8a66597->pipenum2ep[pipenum] = ep;
 	r8a66597->epaddr2ep[desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK]
 		= ep;
@@ -420,7 +420,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	ep->type = info.type;
 
 	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-	info.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	info.maxpacket = usb_endpoint_maxp(desc);
 	info.interval = desc->bInterval;
 	if (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
 		info.dir_in = 1;

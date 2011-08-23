@@ -1020,7 +1020,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		goto fail;
 
 	/* REVISIT this rules out high bandwidth periodic transfers */
-	tmp = le16_to_cpu(desc->wMaxPacketSize);
+	tmp = usb_endpoint_maxp(desc);
 	if (tmp & ~0x07ff) {
 		int ok;
 

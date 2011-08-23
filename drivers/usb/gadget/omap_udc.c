@@ -166,15 +166,14 @@ static int omap_ep_enable(struct usb_ep *_ep,
 	if (!_ep || !desc || ep->desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
-			|| ep->maxpacket < le16_to_cpu
-						(desc->wMaxPacketSize)) {
+			|| ep->maxpacket < usb_endpoint_maxp(desc)) {
 		DBG("%s, bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
-	maxp = le16_to_cpu (desc->wMaxPacketSize);
+	maxp = usb_endpoint_maxp(desc);
 	if ((desc->bmAttributes == USB_ENDPOINT_XFER_BULK
 				&& maxp != ep->maxpacket)
-			|| le16_to_cpu(desc->wMaxPacketSize) > ep->maxpacket
+			|| usb_endpoint_maxp(desc) > ep->maxpacket
 			|| !desc->wMaxPacketSize) {
 		DBG("%s, bad %s maxpacket\n", __func__, _ep->name);
 		return -ERANGE;

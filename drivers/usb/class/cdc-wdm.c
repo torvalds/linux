@@ -682,7 +682,7 @@ next_desc:
 	if (!ep || !usb_endpoint_is_int_in(ep))
 		goto err;
 
-	desc->wMaxPacketSize = le16_to_cpu(ep->wMaxPacketSize);
+	desc->wMaxPacketSize = usb_endpoint_maxp(ep);
 	desc->bMaxPacketSize0 = udev->descriptor.bMaxPacketSize0;
 
 	desc->orq = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);

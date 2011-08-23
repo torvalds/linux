@@ -2401,8 +2401,7 @@ reset:
 		goto reset;
 	fsg->bulk_out->driver_data = common;
 	fsg->bulk_out_enabled = 1;
-	common->bulk_out_maxpacket =
-		le16_to_cpu(fsg->bulk_out->desc->wMaxPacketSize);
+	common->bulk_out_maxpacket = usb_endpoint_maxp(fsg->bulk_out->desc);
 	clear_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
 
 	/* Allocate the requests */

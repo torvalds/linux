@@ -169,7 +169,7 @@ net2280_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		return -EDOM;
 
 	/* sanity check ep-e/ep-f since their fifos are small */
-	max = le16_to_cpu (desc->wMaxPacketSize) & 0x1fff;
+	max = usb_endpoint_maxp (desc) & 0x1fff;
 	if (ep->num > 4 && max > 64)
 		return -ERANGE;
 
@@ -1640,7 +1640,7 @@ show_queues (struct device *_dev, struct device_attribute *attr, char *buf)
 				 default:
 					val = "iso"; break;
 				 }; val; }),
-				le16_to_cpu (d->wMaxPacketSize) & 0x1fff,
+				usb_endpoint_maxp (d) & 0x1fff,
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
 		} else /* ep0 should only have one transfer queued */

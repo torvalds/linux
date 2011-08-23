@@ -761,11 +761,11 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	if (!_ep || !desc || hsep->desc || _ep->name == ep0name
 		|| desc->bDescriptorType != USB_DT_ENDPOINT
 		|| hsep->bEndpointAddress != desc->bEndpointAddress
-		|| ep_maxpacket(hsep) < le16_to_cpu(desc->wMaxPacketSize))
+		|| ep_maxpacket(hsep) < usb_endpoint_maxp(desc))
 		return -EINVAL;
 
 	if ((desc->bmAttributes == USB_ENDPOINT_XFER_BULK
-		&& le16_to_cpu(desc->wMaxPacketSize) != ep_maxpacket(hsep))
+		&& usb_endpoint_maxp(desc) != ep_maxpacket(hsep))
 		|| !desc->wMaxPacketSize)
 		return -ERANGE;
 
@@ -781,7 +781,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 
 	hsep->stopped = hsep->wedge = 0;
 	hsep->desc = desc;
-	hsep->ep.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	hsep->ep.maxpacket = usb_endpoint_maxp(desc);
 
 	s3c_hsudc_set_halt(_ep, 0);
 	__set_bit(ep_index(hsep), hsudc->regs + S3C_EIER);

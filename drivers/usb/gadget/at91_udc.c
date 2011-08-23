@@ -487,7 +487,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 			|| !desc || ep->desc
 			|| _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
-			|| (maxpacket = le16_to_cpu(desc->wMaxPacketSize)) == 0
+			|| (maxpacket = usb_endpoint_maxp(desc)) == 0
 			|| maxpacket > ep->maxpacket) {
 		DBG("bad ep or descriptor\n");
 		return -EINVAL;

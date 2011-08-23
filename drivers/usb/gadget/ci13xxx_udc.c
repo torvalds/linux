@@ -2101,7 +2101,7 @@ static int ep_enable(struct usb_ep *ep,
 	mEp->num  = usb_endpoint_num(desc);
 	mEp->type = usb_endpoint_type(desc);
 
-	mEp->ep.maxpacket = __constant_le16_to_cpu(desc->wMaxPacketSize);
+	mEp->ep.maxpacket = usb_endpoint_maxp(desc);
 
 	dbg_event(_usb_addr(mEp), "ENABLE", 0);
 

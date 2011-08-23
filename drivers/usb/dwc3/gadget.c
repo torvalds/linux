@@ -254,8 +254,7 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 	memset(&params, 0x00, sizeof(params));
 
 	params.param0.depcfg.ep_type = usb_endpoint_type(desc);
-	params.param0.depcfg.max_packet_size =
-		le16_to_cpu(desc->wMaxPacketSize);
+	params.param0.depcfg.max_packet_size = usb_endpoint_maxp(desc);
 
 	params.param1.depcfg.xfer_complete_enable = true;
 	params.param1.depcfg.xfer_not_ready_enable = true;

@@ -226,7 +226,7 @@ static int symbol_startup(struct usb_serial *serial)
 			goto error;
 		}
 
-		priv->buffer_size = le16_to_cpu(endpoint->wMaxPacketSize) * 2;
+		priv->buffer_size = usb_endpoint_maxp(endpoint) * 2;
 		priv->int_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
 		if (!priv->int_buffer) {
 			dev_err(&priv->udev->dev, "out of memory\n");
