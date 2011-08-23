@@ -971,6 +971,10 @@ static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
 	.hw_value = (rate100m / 5), \
 }
 
+/*
+ * The rate table is used for both 2.4G and 5G rates. The
+ * latter being a subset as it does not support CCK rates.
+ */
 static struct ieee80211_rate legacy_ratetable[] = {
 	RATE(10, 0),
 	RATE(20, IEEE80211_RATE_SHORT_PREAMBLE),
@@ -1012,8 +1016,9 @@ static struct ieee80211_supported_band brcms_band_5GHz_nphy = {
 	.band = IEEE80211_BAND_5GHZ,
 	.channels = brcms_5ghz_nphy_chantable,
 	.n_channels = ARRAY_SIZE(brcms_5ghz_nphy_chantable),
-	.bitrates = legacy_ratetable + 4,
-	.n_bitrates = ARRAY_SIZE(legacy_ratetable) - 4,
+	.bitrates = legacy_ratetable + BRCMS_LEGACY_5G_RATE_OFFSET,
+	.n_bitrates = ARRAY_SIZE(legacy_ratetable) -
+			BRCMS_LEGACY_5G_RATE_OFFSET,
 	.ht_cap = {
 		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
 			  IEEE80211_HT_CAP_SGI_40 |
