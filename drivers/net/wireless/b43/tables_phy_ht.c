@@ -710,6 +710,51 @@ void b43_httab_write(struct b43_wldev *dev, u32 offset, u32 value)
 	return;
 }
 
+void b43_httab_write_few(struct b43_wldev *dev, u32 offset, size_t num, ...)
+{
+	va_list args;
+	u32 type, value;
+	unsigned int i;
+
+	type = offset & B43_HTTAB_TYPEMASK;
+	offset &= 0xFFFF;
+
+	va_start(args, num);
+	switch (type) {
+	case B43_HTTAB_8BIT:
+		b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, offset);
+		for (i = 0; i < num; i++) {
+			value = va_arg(args, int);
+			B43_WARN_ON(value & ~0xFF);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO, value);
+		}
+		break;
+	case B43_HTTAB_16BIT:
+		b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, offset);
+		for (i = 0; i < num; i++) {
+			value = va_arg(args, int);
+			B43_WARN_ON(value & ~0xFFFF);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO, value);
+		}
+		break;
+	case B43_HTTAB_32BIT:
+		b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, offset);
+		for (i = 0; i < num; i++) {
+			value = va_arg(args, int);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATAHI,
+				      value >> 16);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO,
+				      value & 0xFFFF);
+		}
+		break;
+	default:
+		B43_WARN_ON(1);
+	}
+	va_end(args);
+
+	return;
+}
+
 void b43_httab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data)
 {

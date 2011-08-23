@@ -14,6 +14,7 @@ u32 b43_httab_read(struct b43_wldev *dev, u32 offset);
 void b43_httab_read_bulk(struct b43_wldev *dev, u32 offset,
 			 unsigned int nr_elements, void *_data);
 void b43_httab_write(struct b43_wldev *dev, u32 offset, u32 value);
+void b43_httab_write_few(struct b43_wldev *dev, u32 offset, size_t num, ...);
 void b43_httab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data);
 
