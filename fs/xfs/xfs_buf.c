@@ -937,11 +937,8 @@ void
 xfs_buf_unlock(
 	struct xfs_buf		*bp)
 {
-	if ((bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)) == XBF_DELWRI) {
-		atomic_inc(&bp->b_hold);
-		bp->b_flags |= XBF_ASYNC;
+	if ((bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)) == XBF_DELWRI)
 		xfs_buf_delwri_queue(bp);
-	}
 
 	XB_CLEAR_OWNER(bp);
 	up(&bp->b_sema);
@@ -1046,11 +1043,8 @@ xfs_bdwrite(
 {
 	trace_xfs_buf_bdwrite(bp, _RET_IP_);
 
-	bp->b_flags &= ~XBF_READ;
-	bp->b_flags |= (XBF_DELWRI | XBF_ASYNC);
-
 	xfs_buf_delwri_queue(bp);
-	xfs_buf_unlock(bp);
+	xfs_buf_relse(bp);
 }
 
 /*
@@ -1570,23 +1564,22 @@ xfs_buf_delwri_queue(
 
 	trace_xfs_buf_delwri_queue(bp, _RET_IP_);
 
-	ASSERT((bp->b_flags&(XBF_DELWRI|XBF_ASYNC)) == (XBF_DELWRI|XBF_ASYNC));
+	ASSERT(!(bp->b_flags & XBF_READ));
 
 	spin_lock(dwlk);
-	/* If already in the queue, dequeue and place at tail */
 	if (!list_empty(&bp->b_list)) {
+		/* if already in the queue, move it to the tail */
 		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-		atomic_dec(&bp->b_hold);
-		list_del(&bp->b_list);
-	}
-
-	if (list_empty(dwq)) {
+		list_move_tail(&bp->b_list, dwq);
+	} else {
 		/* start xfsbufd as it is about to have something to do */
-		wake_up_process(bp->b_target->bt_task);
-	}
+		if (list_empty(dwq))
+			wake_up_process(bp->b_target->bt_task);
 
-	bp->b_flags |= _XBF_DELWRI_Q;
-	list_add_tail(&bp->b_list, dwq);
+		atomic_inc(&bp->b_hold);
+		bp->b_flags |= XBF_DELWRI | _XBF_DELWRI_Q | XBF_ASYNC;
+		list_add_tail(&bp->b_list, dwq);
+	}
 	bp->b_queuetime = jiffies;
 	spin_unlock(dwlk);
 }
