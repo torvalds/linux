@@ -43,7 +43,7 @@
 
 static kmem_zone_t *xfs_buf_zone;
 STATIC int xfsbufd(void *);
-STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
+STATIC void xfs_buf_delwri_queue(xfs_buf_t *);
 
 static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
@@ -940,7 +940,7 @@ xfs_buf_unlock(
 	if ((bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)) == XBF_DELWRI) {
 		atomic_inc(&bp->b_hold);
 		bp->b_flags |= XBF_ASYNC;
-		xfs_buf_delwri_queue(bp, 0);
+		xfs_buf_delwri_queue(bp);
 	}
 
 	XB_CLEAR_OWNER(bp);
@@ -1049,7 +1049,8 @@ xfs_bdwrite(
 	bp->b_flags &= ~XBF_READ;
 	bp->b_flags |= (XBF_DELWRI | XBF_ASYNC);
 
-	xfs_buf_delwri_queue(bp, 1);
+	xfs_buf_delwri_queue(bp);
+	xfs_buf_unlock(bp);
 }
 
 /*
@@ -1562,8 +1563,7 @@ error:
  */
 STATIC void
 xfs_buf_delwri_queue(
-	xfs_buf_t		*bp,
-	int			unlock)
+	xfs_buf_t		*bp)
 {
 	struct list_head	*dwq = &bp->b_target->bt_delwrite_queue;
 	spinlock_t		*dwlk = &bp->b_target->bt_delwrite_lock;
@@ -1576,8 +1576,7 @@ xfs_buf_delwri_queue(
 	/* If already in the queue, dequeue and place at tail */
 	if (!list_empty(&bp->b_list)) {
 		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-		if (unlock)
-			atomic_dec(&bp->b_hold);
+		atomic_dec(&bp->b_hold);
 		list_del(&bp->b_list);
 	}
 
@@ -1590,9 +1589,6 @@ xfs_buf_delwri_queue(
 	list_add_tail(&bp->b_list, dwq);
 	bp->b_queuetime = jiffies;
 	spin_unlock(dwlk);
-
-	if (unlock)
-		xfs_buf_unlock(bp);
 }
 
 void
