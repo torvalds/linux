@@ -153,7 +153,7 @@ int et131x_open(struct net_device *netdev)
 	result = request_irq(netdev->irq, et131x_isr, IRQF_SHARED,
 					netdev->name, netdev);
 	if (result) {
-		dev_err(&adapter->pdev->dev, "c ould not register IRQ %d\n",
+		dev_err(&adapter->pdev->dev, "could not register IRQ %d\n",
 			netdev->irq);
 		return result;
 	}
@@ -181,6 +181,9 @@ int et131x_open(struct net_device *netdev)
 int et131x_close(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
+
+	/* Save the timestamp for the TX watchdog, prevent a timeout */
+	netdev->trans_start = jiffies;
 
 	/* First thing is to stop the queue */
 	netif_stop_queue(netdev);
@@ -449,6 +452,10 @@ void et131x_tx_timeout(struct net_device *netdev)
 	struct tcb *tcb;
 	unsigned long flags;
 
+	/* If the device is closed, ignore the timeout */
+	if (~(adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE));
+		return;
+
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
@@ -685,12 +692,12 @@ struct net_device *et131x_device_alloc(void)
 		return NULL;
 	}
 
-	/* Setup the function registration table (and other data) for a
+	/*
+	 * Setup the function registration table (and other data) for a
 	 * net_device
 	 */
-
 	netdev->watchdog_timeo = ET131X_TX_TIMEOUT;
-	netdev->netdev_ops = &et131x_netdev_ops;
+	netdev->netdev_ops     = &et131x_netdev_ops;
 
 	/* netdev->ethtool_ops        = &et131x_ethtool_ops; */
 
