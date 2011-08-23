@@ -149,7 +149,7 @@ xfs_read_buf(
 		}
 		if (bp) {
 			XFS_BUF_UNDONE(bp);
-			XFS_BUF_UNDELAYWRITE(bp);
+			xfs_buf_delwri_dequeue(bp);
 			XFS_BUF_STALE(bp);
 			/*
 			 * brelse clears B_ERROR and b_error

@@ -992,7 +992,7 @@ xfs_buf_iodone_callbacks(
 		xfs_buf_ioerror(bp, 0); /* errno of 0 unsets the flag */
 
 		if (!XFS_BUF_ISSTALE(bp)) {
-			XFS_BUF_DELAYWRITE(bp);
+			xfs_buf_delwri_queue(bp);
 			XFS_BUF_DONE(bp);
 		}
 		ASSERT(bp->b_iodone != NULL);
@@ -1007,7 +1007,7 @@ xfs_buf_iodone_callbacks(
 	 */
 	XFS_BUF_STALE(bp);
 	XFS_BUF_DONE(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
+	xfs_buf_delwri_dequeue(bp);
 
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 

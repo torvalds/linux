@@ -2598,8 +2598,10 @@ xfs_iflush(
 
 	if (flags & SYNC_WAIT)
 		error = xfs_bwrite(mp, bp);
-	else
-		xfs_bdwrite(mp, bp);
+	else {
+		xfs_buf_delwri_queue(bp);
+		xfs_buf_relse(bp);
+	}
 	return error;
 
 corrupt_out:

@@ -43,7 +43,6 @@
 
 static kmem_zone_t *xfs_buf_zone;
 STATIC int xfsbufd(void *);
-STATIC void xfs_buf_delwri_queue(xfs_buf_t *);
 
 static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
@@ -937,9 +936,6 @@ void
 xfs_buf_unlock(
 	struct xfs_buf		*bp)
 {
-	if ((bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)) == XBF_DELWRI)
-		xfs_buf_delwri_queue(bp);
-
 	XB_CLEAR_OWNER(bp);
 	up(&bp->b_sema);
 
@@ -1036,17 +1032,6 @@ xfs_bwrite(
 	return error;
 }
 
-void
-xfs_bdwrite(
-	void			*mp,
-	struct xfs_buf		*bp)
-{
-	trace_xfs_buf_bdwrite(bp, _RET_IP_);
-
-	xfs_buf_delwri_queue(bp);
-	xfs_buf_relse(bp);
-}
-
 /*
  * Called when we want to stop a buffer from getting written or read.
  * We attach the EIO error, muck with its flags, and call xfs_buf_ioend
@@ -1069,7 +1054,7 @@ xfs_bioerror(
 	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
 	 */
 	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
+	xfs_buf_delwri_dequeue(bp);
 	XFS_BUF_UNDONE(bp);
 	XFS_BUF_STALE(bp);
 
@@ -1098,7 +1083,7 @@ xfs_bioerror_relse(
 	 * change that interface.
 	 */
 	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
+	xfs_buf_delwri_dequeue(bp);
 	XFS_BUF_DONE(bp);
 	XFS_BUF_STALE(bp);
 	bp->b_iodone = NULL;
@@ -1555,7 +1540,7 @@ error:
 /*
  *	Delayed write buffer handling
  */
-STATIC void
+void
 xfs_buf_delwri_queue(
 	xfs_buf_t		*bp)
 {

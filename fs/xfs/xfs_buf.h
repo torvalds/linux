@@ -198,7 +198,6 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
-extern void xfs_bdwrite(void *mp, xfs_buf_t *bp);
 
 extern void xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
@@ -221,8 +220,9 @@ static inline int xfs_buf_geterror(xfs_buf_t *bp)
 extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
 
 /* Delayed Write Buffer Routines */
-extern void xfs_buf_delwri_dequeue(xfs_buf_t *);
-extern void xfs_buf_delwri_promote(xfs_buf_t *);
+extern void xfs_buf_delwri_queue(struct xfs_buf *);
+extern void xfs_buf_delwri_dequeue(struct xfs_buf *);
+extern void xfs_buf_delwri_promote(struct xfs_buf *);
 
 /* Buffer Daemon Setup Routines */
 extern int xfs_buf_init(void);
@@ -251,8 +251,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 					XFS_BUF_DONE(bp);	\
 				} while (0)
 
-#define XFS_BUF_DELAYWRITE(bp)		((bp)->b_flags |= XBF_DELWRI)
-#define XFS_BUF_UNDELAYWRITE(bp)	xfs_buf_delwri_dequeue(bp)
 #define XFS_BUF_ISDELAYWRITE(bp)	((bp)->b_flags & XBF_DELWRI)
 
 #define XFS_BUF_DONE(bp)	((bp)->b_flags |= XBF_DONE)

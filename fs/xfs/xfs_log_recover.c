@@ -2176,7 +2176,8 @@ xlog_recover_buffer_pass2(
 	} else {
 		ASSERT(bp->b_target->bt_mount == mp);
 		bp->b_iodone = xlog_recover_iodone;
-		xfs_bdwrite(mp, bp);
+		xfs_buf_delwri_queue(bp);
+		xfs_buf_relse(bp);
 	}
 
 	return (error);
@@ -2439,7 +2440,8 @@ xlog_recover_inode_pass2(
 write_inode_buffer:
 	ASSERT(bp->b_target->bt_mount == mp);
 	bp->b_iodone = xlog_recover_iodone;
-	xfs_bdwrite(mp, bp);
+	xfs_buf_delwri_queue(bp);
+	xfs_buf_relse(bp);
 error:
 	if (need_free)
 		kmem_free(in_f);
@@ -2561,7 +2563,8 @@ xlog_recover_dquot_pass2(
 	ASSERT(dq_f->qlf_size == 2);
 	ASSERT(bp->b_target->bt_mount == mp);
 	bp->b_iodone = xlog_recover_iodone;
-	xfs_bdwrite(mp, bp);
+	xfs_buf_delwri_queue(bp);
+	xfs_buf_relse(bp);
 
 	return (0);
 }

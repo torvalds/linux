@@ -1612,7 +1612,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 
 		XFS_BUF_UNDONE(sbp);
 		XFS_BUF_UNREAD(sbp);
-		XFS_BUF_UNDELAYWRITE(sbp);
+		xfs_buf_delwri_dequeue(sbp);
 		XFS_BUF_WRITE(sbp);
 		XFS_BUF_UNASYNC(sbp);
 		ASSERT(sbp->b_target == mp->m_ddev_targp);
