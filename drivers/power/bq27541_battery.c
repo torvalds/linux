@@ -74,6 +74,7 @@ struct bq27541_device_info {
 	unsigned int interval;
 	unsigned int dc_check_pin;
 	unsigned int bat_num;
+	int power_down;
 };
   
 static struct bq27541_device_info *bq27541_di;
@@ -211,10 +212,9 @@ static int bq27541_battery_voltage(struct bq27541_device_info *di)
 	
 	if ((volt <= 3400000)  && (volt > 0)){
 		printk("vol smaller then 3.4V, shutdown");
-		while(1){
-			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
-			mdelay(100);
-		}
+		di->power_down = 1;
+	}else{
+		di->power_down = 0;
 	}
 
 
@@ -483,7 +483,11 @@ static int bq27541_battery_get_property(struct power_supply *psy,
 		val->intval = bq27541_battery_current(di);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = bq27541_battery_rsoc(di);
+		if (!(di->power_down)){      // < 3.4V    power down ,capacity = 0;
+			val->intval = bq27541_battery_rsoc(di);
+		}else{
+			val->intval = 0;
+		}
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
@@ -544,6 +548,7 @@ static void bq27541_powersupply_init(struct bq27541_device_info *di)
 	di->bat.properties = bq27541_battery_props;
 	di->bat.num_properties = ARRAY_SIZE(bq27541_battery_props);
 	di->bat.get_property = bq27541_battery_get_property;
+	di->power_down = 0;
 	
 	di->ac.name = "ac";
 	di->ac.type = POWER_SUPPLY_TYPE_MAINS;
@@ -619,22 +624,6 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	struct bq27541_platform_data *pdata;
 	int val =0;
 	
-//	gpio_request(BAT_LOW, NULL);
-//	gpio_direction_input(BAT_LOW);
-	gpio_request(POWER_ON_PIN, "poweronpin");
-	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-/*	
-	val = gpio_get_value(BAT_LOW);
-	if (val == 0){
-		printk("no battery, shutdown\n");
-		while(1){
-			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
-			mdelay(100);
-		}
-		return 0;
-	}
-
-*/
 
 	DBG("**********  bq27541_battery_probe**************  ");
 	pdata = client->dev.platform_data;
