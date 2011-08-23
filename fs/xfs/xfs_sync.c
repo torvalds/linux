@@ -322,6 +322,7 @@ xfs_sync_fsdata(
 	struct xfs_mount	*mp)
 {
 	struct xfs_buf		*bp;
+	int			error;
 
 	/*
 	 * If the buffer is pinned then push on the log so we won't get stuck
@@ -334,8 +335,9 @@ xfs_sync_fsdata(
 	bp = xfs_getsb(mp, 0);
 	if (xfs_buf_ispinned(bp))
 		xfs_log_force(mp, 0);
-
-	return xfs_bwrite(mp, bp);
+	error = xfs_bwrite(bp);
+	xfs_buf_relse(bp);
+	return error;
 }
 
 /*

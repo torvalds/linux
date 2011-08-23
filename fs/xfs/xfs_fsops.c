@@ -216,10 +216,11 @@ xfs_growfs_data_private(
 		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
 		agf->agf_freeblks = cpu_to_be32(tmpsize);
 		agf->agf_longest = cpu_to_be32(tmpsize);
-		error = xfs_bwrite(mp, bp);
-		if (error) {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
 			goto error0;
-		}
+
 		/*
 		 * AG inode header block
 		 */
@@ -240,10 +241,11 @@ xfs_growfs_data_private(
 		agi->agi_dirino = cpu_to_be32(NULLAGINO);
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
 			agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
-		error = xfs_bwrite(mp, bp);
-		if (error) {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
 			goto error0;
-		}
+
 		/*
 		 * BNO btree root block
 		 */
@@ -262,10 +264,11 @@ xfs_growfs_data_private(
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
-		error = xfs_bwrite(mp, bp);
-		if (error) {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
 			goto error0;
-		}
+
 		/*
 		 * CNT btree root block
 		 */
@@ -285,10 +288,11 @@ xfs_growfs_data_private(
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
 		nfree += be32_to_cpu(arec->ar_blockcount);
-		error = xfs_bwrite(mp, bp);
-		if (error) {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
 			goto error0;
-		}
+
 		/*
 		 * INO btree root block
 		 */
@@ -303,10 +307,10 @@ xfs_growfs_data_private(
 		block->bb_numrecs = 0;
 		block->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		block->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		error = xfs_bwrite(mp, bp);
-		if (error) {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
 			goto error0;
-		}
 	}
 	xfs_trans_agblocks_delta(tp, nfree);
 	/*
@@ -396,9 +400,9 @@ xfs_growfs_data_private(
 		 * just issue a warning and continue.  The real work is
 		 * already done and committed.
 		 */
-		if (!(error = xfs_bwrite(mp, bp))) {
-			continue;
-		} else {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error) {
 			xfs_warn(mp,
 		"write error %d updating secondary superblock for ag %d",
 				error, agno);

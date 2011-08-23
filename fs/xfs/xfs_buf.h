@@ -197,7 +197,7 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 	((bp)->b_sema.count <= 0)
 
 /* Buffer Read and Write Routines */
-extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
+extern int xfs_bwrite(struct xfs_buf *bp);
 
 extern void xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);

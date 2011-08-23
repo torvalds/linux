@@ -2128,9 +2128,10 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 		xfs_buf_iomove(bp, 0, tmp, src, XBRW_WRITE);
 		if (tmp < XFS_BUF_SIZE(bp))
 			xfs_buf_zero(bp, tmp, XFS_BUF_SIZE(bp) - tmp);
-		if ((error = xfs_bwrite(mp, bp))) {/* GROT: NOTE: synchronous write */
-			return (error);
-		}
+		error = xfs_bwrite(bp);	/* GROT: NOTE: synchronous write */
+		xfs_buf_relse(bp);
+		if (error)
+			return error;
 		src += tmp;
 		valuelen -= tmp;
 

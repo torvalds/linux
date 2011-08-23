@@ -1014,7 +1014,6 @@ xfs_buf_ioerror(
 
 int
 xfs_bwrite(
-	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
 	int			error;
@@ -1026,9 +1025,10 @@ xfs_bwrite(
 	xfs_bdstrat_cb(bp);
 
 	error = xfs_buf_iowait(bp);
-	if (error)
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-	xfs_buf_relse(bp);
+	if (error) {
+		xfs_force_shutdown(bp->b_target->bt_mount,
+				   SHUTDOWN_META_IO_ERROR);
+	}
 	return error;
 }
 

@@ -268,9 +268,12 @@ xlog_bwrite(
 	xfs_buf_lock(bp);
 	XFS_BUF_SET_COUNT(bp, BBTOB(nbblks));
 
-	if ((error = xfs_bwrite(log->l_mp, bp)))
+	error = xfs_bwrite(bp);
+	if (error) {
 		xfs_ioerror_alert("xlog_bwrite", log->l_mp,
 				  bp, XFS_BUF_ADDR(bp));
+	}
+	xfs_buf_relse(bp);
 	return error;
 }
 
@@ -2172,15 +2175,15 @@ xlog_recover_buffer_pass2(
 	    (XFS_BUF_COUNT(bp) != MAX(log->l_mp->m_sb.sb_blocksize,
 			(__uint32_t)XFS_INODE_CLUSTER_SIZE(log->l_mp)))) {
 		XFS_BUF_STALE(bp);
-		error = xfs_bwrite(mp, bp);
+		error = xfs_bwrite(bp);
 	} else {
 		ASSERT(bp->b_target->bt_mount == mp);
 		bp->b_iodone = xlog_recover_iodone;
 		xfs_buf_delwri_queue(bp);
-		xfs_buf_relse(bp);
 	}
 
-	return (error);
+	xfs_buf_relse(bp);
+	return error;
 }
 
 STATIC int
