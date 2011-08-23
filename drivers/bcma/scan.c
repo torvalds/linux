@@ -281,7 +281,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 
 	/* get & parse master ports */
 	for (i = 0; i < ports[0]; i++) {
-		u32 mst_port_d = bcma_erom_get_mst_port(bus, eromptr);
+		s32 mst_port_d = bcma_erom_get_mst_port(bus, eromptr);
 		if (mst_port_d < 0)
 			return -EILSEQ;
 	}
