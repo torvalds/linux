@@ -4987,14 +4987,9 @@ static const struct snd_pci_quirk alc861_fixup_tbl[] = {
 
 /*
  */
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-#include "alc861_quirks.c"
-#endif
-
 static int patch_alc861(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
 	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5005,39 +5000,15 @@ static int patch_alc861(struct hda_codec *codec)
 
 	spec->mixer_nid = 0x15;
 
-        board_config = alc_board_config(codec, ALC861_MODEL_LAST,
-					alc861_models, alc861_cfg_tbl);
+	alc_pick_fixup(codec, NULL, alc861_fixup_tbl, alc861_fixups);
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
 
-	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
-		board_config = ALC_MODEL_AUTO;
+	/* automatic parse from the BIOS config */
+	err = alc861_parse_auto_config(codec);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		alc_pick_fixup(codec, NULL, alc861_fixup_tbl, alc861_fixups);
-		alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
-	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		/* automatic parse from the BIOS config */
-		err = alc861_parse_auto_config(codec);
-		if (err < 0) {
-			alc_free(codec);
-			return err;
-		}
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		else if (!err) {
-			printk(KERN_INFO
-			       "hda_codec: Cannot set up configuration "
-			       "from BIOS.  Using base mode...\n");
-		   board_config = ALC861_3ST_DIG;
-		}
-#endif
-	}
-
-	if (board_config != ALC_MODEL_AUTO)
-		setup_preset(codec, &alc861_presets[board_config]);
 
 	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
@@ -5062,13 +5033,9 @@ static int patch_alc861(struct hda_codec *codec)
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC_MODEL_AUTO) {
-		spec->init_hook = alc_auto_init_std;
+	spec->init_hook = alc_auto_init_std;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-		spec->power_hook = alc_power_eapd;
-#endif
-	}
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->power_hook = alc_power_eapd;
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc861_loopbacks;
 #endif
@@ -5141,14 +5108,10 @@ static const struct hda_verb alc660vd_eapd_verbs[] = {
 
 /*
  */
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-#include "alc861vd_quirks.c"
-#endif
-
 static int patch_alc861vd(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err, board_config;
+	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -5158,39 +5121,15 @@ static int patch_alc861vd(struct hda_codec *codec)
 
 	spec->mixer_nid = 0x0b;
 
-	board_config = alc_board_config(codec, ALC861VD_MODEL_LAST,
-					alc861vd_models, alc861vd_cfg_tbl);
+	alc_pick_fixup(codec, NULL, alc861vd_fixup_tbl, alc861vd_fixups);
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
 
-	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
-		board_config = ALC_MODEL_AUTO;
+	/* automatic parse from the BIOS config */
+	err = alc861vd_parse_auto_config(codec);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		alc_pick_fixup(codec, NULL, alc861vd_fixup_tbl, alc861vd_fixups);
-		alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
-	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		/* automatic parse from the BIOS config */
-		err = alc861vd_parse_auto_config(codec);
-		if (err < 0) {
-			alc_free(codec);
-			return err;
-		}
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		else if (!err) {
-			printk(KERN_INFO
-			       "hda_codec: Cannot set up configuration "
-			       "from BIOS.  Using base mode...\n");
-			board_config = ALC861VD_3ST;
-		}
-#endif
-	}
-
-	if (board_config != ALC_MODEL_AUTO)
-		setup_preset(codec, &alc861vd_presets[board_config]);
 
 	if (codec->vendor_id == 0x10ec0660) {
 		/* always turn on EAPD */
@@ -5221,8 +5160,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 
 	codec->patch_ops = alc_patch_ops;
 
-	if (board_config == ALC_MODEL_AUTO)
-		spec->init_hook = alc_auto_init_std;
+	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)

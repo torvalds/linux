@@ -146,20 +146,11 @@ ALC882/883/885/888/889
 
 ALC861/660
 ==========
-  3stack	3-jack
-  3stack-dig	3-jack with SPDIF I/O
-  6stack-dig	6-jack with SPDIF I/O
-  3stack-660	3-jack (for ALC660)
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC861VD/660VD
 ==============
-  3stack	3-jack
-  3stack-dig	3-jack with SPDIF OUT
-  6stack-dig	6-jack with SPDIF OUT
-  3stack-660	3-jack (for ALC660VD)
-  3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
-  auto		auto-config reading BIOS (default)
+  N/A
 
 CMI9880
 =======
