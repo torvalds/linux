@@ -1039,7 +1039,6 @@ extern void wlc_phy_table_data_write(struct brcms_phy *pi, uint width, u32 val);
 extern void write_phy_channel_reg(struct brcms_phy *pi, uint val);
 extern void wlc_phy_txpower_update_shm(struct brcms_phy *pi);
 
-extern void wlc_phy_cordic(s32 theta, struct cs32 *val);
 extern u8 wlc_phy_nbits(s32 value);
 extern void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_dB, u8 core);
 

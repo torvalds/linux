@@ -15,6 +15,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/cordic.h>
 
 #include <pmu.h>
 #include <d11.h>
@@ -2723,7 +2724,7 @@ wlc_lcnphy_start_tx_tone(struct brcms_phy *pi, s32 f_kHz, u16 max_val,
 	u16 num_samps, t, k;
 	u32 bw;
 	s32 theta = 0, rot = 0;
-	struct cs32 tone_samp;
+	struct cordic_iq tone_samp;
 	u32 data_buf[64];
 	u16 i_samp, q_samp;
 	struct phytbl_info tab;
@@ -2751,12 +2752,12 @@ wlc_lcnphy_start_tx_tone(struct brcms_phy *pi, s32 f_kHz, u16 max_val,
 	} else
 		num_samps = 2;
 
-	rot = FIXED((f_kHz * 36) / phy_bw) / 100;
+	rot = ((f_kHz * 36) / phy_bw) / 100;
 	theta = 0;
 
 	for (t = 0; t < num_samps; t++) {
 
-		wlc_phy_cordic(theta, &tone_samp);
+		tone_samp = cordic_calc_iq(theta);
 
 		theta += rot;
 

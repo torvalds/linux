@@ -2779,68 +2779,6 @@ wlc_phy_papd_decode_epsilon(u32 epsilon, s32 *eps_real, s32 *eps_imag)
 		*eps_real -= 0x2000;
 }
 
-static const s32 AtanTbl[] = {
-	2949120,
-	1740967,
-	919879,
-	466945,
-	234379,
-	117304,
-	58666,
-	29335,
-	14668,
-	7334,
-	3667,
-	1833,
-	917,
-	458,
-	229,
-	115,
-	57,
-	29
-};
-
-void wlc_phy_cordic(s32 theta, struct cs32 *val)
-{
-	s32 angle, valtmp;
-	unsigned iter;
-	int signx = 1;
-	int signtheta;
-
-	val[0].i = CORDIC_AG;
-	val[0].q = 0;
-	angle = 0;
-
-	signtheta = (theta < 0) ? -1 : 1;
-	theta =	((theta + FIXED(180) * signtheta) % FIXED(360)) -
-		FIXED(180) * signtheta;
-
-	if (FLOAT(theta) > 90) {
-		theta -= FIXED(180);
-		signx = -1;
-	} else if (FLOAT(theta) < -90) {
-		theta += FIXED(180);
-		signx = -1;
-	}
-
-	for (iter = 0; iter < CORDIC_NI; iter++) {
-		if (theta > angle) {
-			valtmp = val[0].i - (val[0].q >> iter);
-			val[0].q = (val[0].i >> iter) + val[0].q;
-			val[0].i = valtmp;
-			angle += AtanTbl[iter];
-		} else {
-			valtmp = val[0].i + (val[0].q >> iter);
-			val[0].q = -(val[0].i >> iter) + val[0].q;
-			val[0].i = valtmp;
-			angle -= AtanTbl[iter];
-		}
-	}
-
-	val[0].i = val[0].i * signx;
-	val[0].q = val[0].q * signx;
-}
-
 void wlc_phy_cal_perical_mphase_reset(struct brcms_phy *pi)
 {
 	wlapi_del_timer(pi->sh->physhim, pi->phycal_timer);

@@ -12,6 +12,7 @@ config BRCMSMAC
 	select FW_LOADER
 	select CRC_CCITT
 	select CRC8
+	select CORDIC
 	---help---
 	  This module adds support for PCIe wireless adapters based on Broadcom
 	  IEEE802.11n SoftMAC chipsets.  If you choose to build a module, it'll

@@ -15,6 +15,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/cordic.h>
 
 #include <brcm_hw_ids.h>
 #include <aiutils.h>
@@ -14214,7 +14215,8 @@ static u16 wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz,
 					 u16 max_val,
 					 u8 dac_test_mode);
 static void wlc_phy_loadsampletable_nphy(struct brcms_phy *pi,
-					 struct cs32 *tone_buf, u16 num_samps);
+					 struct cordic_iq *tone_buf,
+					 u16 num_samps);
 static void wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 n, u16 lps,
 				    u16 wait, u8 iq, u8 dac_test_mode,
 				    bool modify_bbmult);
@@ -22179,7 +22181,7 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 	u16 num_samps, t, spur;
 	s32 theta = 0, rot = 0;
 	u32 tbl_len;
-	struct cs32 *tone_buf = NULL;
+	struct cordic_iq *tone_buf = NULL;
 
 	is_phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 	phy_bw = (is_phybw40 == 1) ? 40 : 20;
@@ -22194,17 +22196,17 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 		tbl_len = (phy_bw << 1);
 	}
 
-	tone_buf = kmalloc(sizeof(struct cs32) * tbl_len, GFP_ATOMIC);
+	tone_buf = kmalloc(sizeof(struct cordic_iq) * tbl_len, GFP_ATOMIC);
 	if (tone_buf == NULL)
 		return 0;
 
 	num_samps = (u16) tbl_len;
-	rot = FIXED((f_kHz * 36) / phy_bw) / 100;
+	rot = ((f_kHz * 36) / phy_bw) / 100;
 	theta = 0;
 
 	for (t = 0; t < num_samps; t++) {
 
-		wlc_phy_cordic(theta, &tone_buf[t]);
+		tone_buf[t] = cordic_calc_iq(theta);
 
 		theta += rot;
 
@@ -22239,7 +22241,7 @@ wlc_phy_tx_tone_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 }
 
 static void
-wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cs32 *tone_buf,
+wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cordic_iq *tone_buf,
 			     u16 num_samps)
 {
 	u16 t;
