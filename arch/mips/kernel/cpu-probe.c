@@ -191,6 +191,7 @@ void __init check_wait(void)
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
 	case CPU_JZRISC:
+	case CPU_XLR:
 		cpu_wait = r4k_wait;
 		break;
 
