@@ -732,7 +732,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 	u32 mdi_mdix;
 	u32 masterslave;
 	u32 polarity;
-	unsigned long flags;
 
 	if (bmsr_ints & MI_BMSR_LINK_STATUS) {
 		if (bmsr & MI_BMSR_LINK_STATUS) {

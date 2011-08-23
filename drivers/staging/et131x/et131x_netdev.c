@@ -478,9 +478,28 @@ void et131x_tx_timeout(struct net_device *netdev)
 				tcb->index,
 				tcb->flags);
 
-			et131x_close(netdev);
-			et131x_open(netdev);
+			adapter->net_stats.tx_errors++;
 
+			/* perform reset */
+			/* First thing is to stop the queue */
+			netif_stop_queue(netdev);
+
+			/* Stop the Tx and Rx DMA engines */
+			et131x_rx_dma_disable(adapter);
+			et131x_tx_dma_disable(adapter);
+
+			/* Disable device interrupts */
+			et131x_disable_interrupts(adapter);
+
+			/* Enable the Tx and Rx DMA engines (if not already enabled) */
+			et131x_rx_dma_enable(adapter);
+			et131x_tx_dma_enable(adapter);
+
+			/* Enable device interrupts */
+			et131x_enable_interrupts(adapter);
+
+			/* We're ready to move some data, so start the queue */
+			netif_start_queue(netdev);
 			return;
 		}
 	}
