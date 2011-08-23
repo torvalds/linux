@@ -267,11 +267,14 @@ int snd_hda_ch_mode_put(struct hda_codec *codec,
 enum { HDA_FRONT, HDA_REAR, HDA_CLFE, HDA_SIDE }; /* index for dac_nidx */
 enum { HDA_DIG_NONE, HDA_DIG_EXCLUSIVE, HDA_DIG_ANALOG_DUP }; /* dig_out_used */
 
+#define HDA_MAX_OUTS	5
+
 struct hda_multi_out {
 	int num_dacs;		/* # of DACs, must be more than 1 */
 	const hda_nid_t *dac_nids;	/* DAC list */
 	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when not exists */
-	hda_nid_t extra_out_nid[3];	/* optional DACs, 0 when not exists */
+	hda_nid_t hp_out_nid[HDA_MAX_OUTS];	/* DACs for multiple HPs */
+	hda_nid_t extra_out_nid[HDA_MAX_OUTS];	/* other (e.g. speaker) DACs */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
 	const hda_nid_t *slave_dig_outs;
 	int max_channels;	/* currently supported analog channels */
@@ -385,7 +388,7 @@ enum {
 	AUTO_PIN_HP_OUT
 };
 
-#define AUTO_CFG_MAX_OUTS	5
+#define AUTO_CFG_MAX_OUTS	HDA_MAX_OUTS
 #define AUTO_CFG_MAX_INS	8
 
 struct auto_pin_cfg_item {
