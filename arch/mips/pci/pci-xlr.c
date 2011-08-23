@@ -36,12 +36,16 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/msi.h>
 #include <linux/mm.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/console.h>
 
 #include <asm/io.h>
 
 #include <asm/netlogic/interrupt.h>
+#include <asm/netlogic/xlr/msidef.h>
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/xlr.h>
@@ -150,7 +154,7 @@ struct pci_controller nlm_pci_controller = {
 	.io_offset      = 0x00000000UL,
 };
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int get_irq_vector(const struct pci_dev *dev)
 {
 	if (!nlm_chip_is_xls())
 		return	PIC_PCIX_IRQ;	/* for XLR just one IRQ*/
@@ -180,6 +184,51 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	}
 	WARN(1, "Unexpected devfn %d\n", dev->bus->self->devfn);
 	return 0;
+}
+
+#ifdef CONFIG_PCI_MSI
+void destroy_irq(unsigned int irq)
+{
+	    /* nothing to do yet */
+}
+
+void arch_teardown_msi_irq(unsigned int irq)
+{
+	destroy_irq(irq);
+}
+
+int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
+{
+	struct msi_msg msg;
+	int irq, ret;
+
+	irq = get_irq_vector(dev);
+	if (irq <= 0)
+		return 1;
+
+	msg.address_hi = MSI_ADDR_BASE_HI;
+	msg.address_lo = MSI_ADDR_BASE_LO   |
+		MSI_ADDR_DEST_MODE_PHYSICAL |
+		MSI_ADDR_REDIRECTION_CPU;
+
+	msg.data = MSI_DATA_TRIGGER_EDGE |
+		MSI_DATA_LEVEL_ASSERT    |
+		MSI_DATA_DELIVERY_FIXED;
+
+	ret = irq_set_msi_desc(irq, desc);
+	if (ret < 0) {
+		destroy_irq(irq);
+		return ret;
+	}
+
+	write_msi_msg(irq, &msg);
+	return 0;
+}
+#endif
+
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	return get_irq_vector(dev);
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */

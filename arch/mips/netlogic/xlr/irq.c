@@ -38,9 +38,14 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/msi.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
+#include <linux/pci.h>
 
 #include <asm/mipsregs.h>
 
+#include <asm/netlogic/xlr/msidef.h>
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/xlr.h>
