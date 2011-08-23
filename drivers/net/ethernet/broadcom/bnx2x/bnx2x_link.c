@@ -11242,6 +11242,7 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
 		*phy = phy_84833;
 		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE:
 		*phy = phy_54618se;
 		break;
