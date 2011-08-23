@@ -6,16 +6,37 @@
 #include <mach/hardware.h>
 #include <mach/devices-common.h>
 
-#define imx_pata_imx_data_entry_single(soc)				\
+#define imx_pata_imx_data_entry_single(soc, _size)			\
 	{								\
 		.iobase = soc ## _ATA_BASE_ADDR,			\
-		.irq = soc ## _MXC_INT_ATA,				\
+		.iosize = _size,					\
+		.irq = soc ## _INT_ATA,					\
 	}
+
+#ifdef CONFIG_SOC_IMX27
+const struct imx_pata_imx_data imx27_pata_imx_data __initconst =
+	imx_pata_imx_data_entry_single(MX27, SZ_4K);
+#endif /* ifdef CONFIG_SOC_IMX27 */
+
+#ifdef CONFIG_SOC_IMX31
+const struct imx_pata_imx_data imx31_pata_imx_data __initconst =
+	imx_pata_imx_data_entry_single(MX31, SZ_16K);
+#endif /* ifdef CONFIG_SOC_IMX31 */
+
+#ifdef CONFIG_SOC_IMX35
+const struct imx_pata_imx_data imx35_pata_imx_data __initconst =
+	imx_pata_imx_data_entry_single(MX35, SZ_16K);
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_SOC_IMX51
 const struct imx_pata_imx_data imx51_pata_imx_data __initconst =
-	imx_pata_imx_data_entry_single(MX51);
+	imx_pata_imx_data_entry_single(MX51, SZ_16K);
 #endif /* ifdef CONFIG_SOC_IMX51 */
+
+#ifdef CONFIG_SOC_IMX53
+const struct imx_pata_imx_data imx53_pata_imx_data __initconst =
+	imx_pata_imx_data_entry_single(MX53, SZ_16K);
+#endif /* ifdef CONFIG_SOC_IMX53 */
 
 struct platform_device *__init imx_add_pata_imx(
 		const struct imx_pata_imx_data *data)
@@ -23,7 +44,7 @@ struct platform_device *__init imx_add_pata_imx(
 	struct resource res[] = {
 		{
 			.start = data->iobase,
-			.end = data->iobase + SZ_16K - 1,
+			.end = data->iobase + data->iobase - 1,
 			.flags = IORESOURCE_MEM,
 		},
 		{

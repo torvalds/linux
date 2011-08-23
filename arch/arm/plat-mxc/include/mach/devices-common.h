@@ -253,6 +253,7 @@ struct platform_device *__init imx_add_mxc_nand(
 
 struct imx_pata_imx_data {
 	resource_size_t iobase;
+	resource_size_t iosize;
 	resource_size_t irq;
 };
 struct platform_device *__init imx_add_pata_imx(
