@@ -4017,8 +4017,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 		status = nfserr_bad_stateid;
 		open_sop = lock->lk_replay_owner;
-		if (!open_sop->so_is_open_owner)
-			goto out;
 		if (!nfsd4_has_session(cstate) &&
 				!same_clid(&open_sop->so_client->cl_clientid,
 						&lock->v.new.clientid))
