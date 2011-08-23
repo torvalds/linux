@@ -593,7 +593,6 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	/* Set the new MAC */
 	/* netdev->set_mac_address  = &new_mac; */
-	/* netdev->mtu = new_mtu; */
 
 	memcpy(netdev->dev_addr, address->sa_data, netdev->addr_len);
 
@@ -602,10 +601,6 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	/* Free Rx DMA memory */
 	et131x_adapter_memory_free(adapter);
-
-	/* Set the config parameter for Jumbo Packet support */
-	/* adapter->registry_jumbo_packet = new_mtu + 14; */
-	/* blux: not needet here, we'll change the MAC */
 
 	et131x_soft_reset(adapter);
 
