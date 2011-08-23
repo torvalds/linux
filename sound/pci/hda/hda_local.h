@@ -443,9 +443,18 @@ struct auto_pin_cfg {
 #define get_defcfg_device(cfg) \
 	((cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
 
-int snd_hda_parse_pin_def_config(struct hda_codec *codec,
-				 struct auto_pin_cfg *cfg,
-				 const hda_nid_t *ignore_nids);
+/* bit-flags for snd_hda_parse_pin_def_config() behavior */
+#define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
+#define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
+
+int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
+			     struct auto_pin_cfg *cfg,
+			     const hda_nid_t *ignore_nids,
+			     unsigned int cond_flags);
+
+/* older function */
+#define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
+	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
 
 /* amp values */
 #define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))

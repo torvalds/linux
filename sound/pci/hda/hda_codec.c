@@ -4695,9 +4695,10 @@ static void sort_autocfg_input_pins(struct auto_pin_cfg *cfg)
  * The digital input/output pins are assigned to dig_in_pin and dig_out_pin,
  * respectively.
  */
-int snd_hda_parse_pin_def_config(struct hda_codec *codec,
-				 struct auto_pin_cfg *cfg,
-				 const hda_nid_t *ignore_nids)
+int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
+			     struct auto_pin_cfg *cfg,
+			     const hda_nid_t *ignore_nids,
+			     unsigned int cond_flags)
 {
 	hda_nid_t nid, end_nid;
 	short seq, assoc_line_out;
@@ -4815,7 +4816,8 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	 * If no line-out is defined but multiple HPs are found,
 	 * some of them might be the real line-outs.
 	 */
-	if (!cfg->line_outs && cfg->hp_outs > 1) {
+	if (!cfg->line_outs && cfg->hp_outs > 1 &&
+	    !(cond_flags & HDA_PINCFG_NO_HP_FIXUP)) {
 		int i = 0;
 		while (i < cfg->hp_outs) {
 			/* The real HPs should have the sequence 0x0f */
@@ -4852,7 +4854,8 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
 	 * as a primary output
 	 */
-	if (!cfg->line_outs) {
+	if (!cfg->line_outs &&
+	    !(cond_flags & HDA_PINCFG_NO_LO_FIXUP)) {
 		if (cfg->speaker_outs) {
 			cfg->line_outs = cfg->speaker_outs;
 			memcpy(cfg->line_out_pins, cfg->speaker_pins,
@@ -4922,7 +4925,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_parse_pin_def_config);
+EXPORT_SYMBOL_HDA(snd_hda_parse_pin_defcfg);
 
 int snd_hda_get_input_pin_attr(unsigned int def_conf)
 {
