@@ -360,8 +360,8 @@ int fts_read_data(void)
 						_st_finger_infos[id].i2_y= (int16_t)y;
 						_st_finger_infos[id].ui2_id  = size;
 						_si_touch_num ++;
-						printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, pressure);
-						printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, pressure);
+//						printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, pressure);
+//						printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, pressure);
 					}  
 #if 0
 
@@ -416,7 +416,7 @@ int fts_read_data(void)
 
 				else if (touch_event == 2) //move
 				{
-					printk("[TSP]id=%d move\n", id);
+//					printk("[TSP]id=%d move\n", id);
 					_st_finger_infos[id].u2_pressure= 1;//pressure;
 					_st_finger_infos[id].i2_x= (int16_t)x;
 					_st_finger_infos[id].i2_y= (int16_t)y;
@@ -430,7 +430,7 @@ int fts_read_data(void)
 
 				if ( (touch_event==1) )
 				{
-					printk("[TSP]id=%d up\n",  id);  
+//					printk("[TSP]id=%d up\n",  id);  
 				}
 
 
@@ -517,7 +517,7 @@ static void fts_work_func(struct work_struct *work)
 static irqreturn_t fts_ts_irq(int irq, void *dev_id)
 {
 	struct FTS_TS_DATA_T *ft5x0x_ts = dev_id;
-	printk(KERN_ALERT "fts_tp_irq\n");
+//	printk(KERN_ALERT "fts_tp_irq\n");
 	if (!work_pending(&ft5x0x_ts->pen_event_work)) {
 		disable_irq_nosync(this_client->irq);
 		queue_work(ft5x0x_ts->ts_workqueue, &ft5x0x_ts->pen_event_work);
