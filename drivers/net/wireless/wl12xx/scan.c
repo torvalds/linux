@@ -490,9 +490,12 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 		return -ENOMEM;
 
 	while ((cmd->n_ssids < req->n_ssids) && ssid) {
-		if (ssid->ssid_len == 0)
+		if (ssid->ssid_len == 0) {
 			wildcard = 1;
-		cmd->ssids[cmd->n_ssids].type = SCAN_SSID_TYPE_HIDDEN;
+			cmd->ssids[cmd->n_ssids].type = SCAN_SSID_TYPE_PUBLIC;
+		} else {
+			cmd->ssids[cmd->n_ssids].type = SCAN_SSID_TYPE_HIDDEN;
+		}
 		cmd->ssids[cmd->n_ssids].len = ssid->ssid_len;
 		memcpy(cmd->ssids[cmd->n_ssids].ssid, ssid->ssid,
 		       ssid->ssid_len);
