@@ -908,9 +908,6 @@ void et1310_phy_init(struct et131x_adapter *etdev)
 {
 	u16 data, index;
 
-	if (etdev == NULL)
-		return;
-
 	/* get the identity (again ?) */
 	et131x_mii_read(etdev, PHY_ID_1, &data);
 	et131x_mii_read(etdev, PHY_ID_2, &data);
