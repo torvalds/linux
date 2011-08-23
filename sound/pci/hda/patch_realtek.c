@@ -2813,7 +2813,7 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 		if (found_in_nid_list(nid, spec->multiout.dac_nids,
 				      spec->multiout.num_dacs))
 			continue;
-		if (spec->multiout.hp_nid == nid)
+		if (spec->multiout.hp_out_nid[0] == nid)
 			continue;
 		if (found_in_nid_list(nid, spec->multiout.extra_out_nid,
 				      ARRAY_SIZE(spec->multiout.extra_out_nid)))
@@ -2842,7 +2842,7 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
  again:
 	/* set num_dacs once to full for alc_auto_look_for_dac() */
 	spec->multiout.num_dacs = cfg->line_outs;
-	spec->multiout.hp_nid = 0;
+	spec->multiout.hp_out_nid[0] = 0;
 	spec->multiout.extra_out_nid[0] = 0;
 	memset(spec->private_dac_nids, 0, sizeof(spec->private_dac_nids));
 	spec->multiout.dac_nids = spec->private_dac_nids;
@@ -2853,7 +2853,7 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 			spec->private_dac_nids[i] =
 				get_dac_if_single(codec, cfg->line_out_pins[i]);
 		if (cfg->hp_outs)
-			spec->multiout.hp_nid =
+			spec->multiout.hp_out_nid[0] =
 				get_dac_if_single(codec, cfg->hp_pins[0]);
 		if (cfg->speaker_outs)
 			spec->multiout.extra_out_nid[0] =
@@ -2885,8 +2885,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 				sizeof(hda_nid_t) * (cfg->line_outs - i - 1));
 	}
 
-	if (cfg->hp_outs && !spec->multiout.hp_nid)
-		spec->multiout.hp_nid =
+	if (cfg->hp_outs && !spec->multiout.hp_out_nid[0])
+		spec->multiout.hp_out_nid[0] =
 			alc_auto_look_for_dac(codec, cfg->hp_pins[0]);
 	if (cfg->speaker_outs && !spec->multiout.extra_out_nid[0])
 		spec->multiout.extra_out_nid[0] =
@@ -3155,9 +3155,10 @@ static int alc_auto_create_extra_outs(struct hda_codec *codec, int num_pins,
 static int alc_auto_create_hp_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	return alc_auto_create_extra_out(codec, spec->autocfg.hp_pins[0],
-					 spec->multiout.hp_nid,
-					 "Headphone");
+	return alc_auto_create_extra_outs(codec, spec->autocfg.hp_outs,
+					  spec->autocfg.hp_pins,
+					  spec->multiout.hp_out_nid,
+					  "Headphone");
 }
 
 static int alc_auto_create_speaker_out(struct hda_codec *codec)
@@ -3226,11 +3227,17 @@ static void alc_auto_init_extra_out(struct hda_codec *codec)
 	int i;
 	hda_nid_t pin, dac;
 
-	pin = spec->autocfg.hp_pins[0];
-	if (pin) {
-		dac = spec->multiout.hp_nid;
-		if (!dac)
-			dac = spec->multiout.dac_nids[0];
+	for (i = 0; i < spec->autocfg.speaker_outs; i++) {
+		pin = spec->autocfg.hp_pins[i];
+		if (!pin)
+			break;
+		dac = spec->multiout.hp_out_nid[i];
+		if (!dac) {
+			if (i > 0 && spec->multiout.hp_out_nid[0])
+				dac = spec->multiout.hp_out_nid[0];
+			else
+				dac = spec->multiout.dac_nids[0];
+		}
 		alc_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
 	}
 	for (i = 0; i < spec->autocfg.speaker_outs; i++) {
@@ -3696,7 +3703,7 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 		return 0; /* can't find valid BIOS pin config */
 	}
 
-	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && cfg->hp_outs == 1) {
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && cfg->hp_outs > 0) {
 		/* use HP as primary out */
 		cfg->speaker_outs = cfg->line_outs;
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
