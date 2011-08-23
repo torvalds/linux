@@ -16,7 +16,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -250,6 +249,7 @@ static void __init _omap2_map_common_io(void)
 
 	omap2_check_revision();
 	omap_sram_init();
+	omap_init_consistent_dma_size();
 }
 
 #ifdef CONFIG_SOC_OMAP2420

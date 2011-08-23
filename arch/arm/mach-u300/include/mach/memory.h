@@ -34,9 +34,4 @@
 	    (CONFIG_MACH_U300_ACCESS_MEM_SIZE & 1))*1024*1024 + 0x100)
 #endif
 
-/*
- * We enable a real big DMA buffer if need be.
- */
-#define CONSISTENT_DMA_SIZE SZ_4M
-
 #endif

@@ -42,6 +42,7 @@
 #include <linux/leds.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/dma-mapping.h>
 
 #include <media/sh_mobile_ceu.h>
 #include <media/sh_mobile_csi2.h>
@@ -1170,6 +1171,8 @@ static struct map_desc ap4evb_io_desc[] __initdata = {
 static void __init ap4evb_map_io(void)
 {
 	iotable_init(ap4evb_io_desc, ARRAY_SIZE(ap4evb_io_desc));
+	/* DMA memory at 0xf6000000 - 0xffdfffff */
+	init_consistent_dma_size(158 << 20);
 
 	/* setup early devices and console here as well */
 	sh7372_add_early_devices();

@@ -13,6 +13,7 @@
 *****************************************************************************/
 
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
@@ -53,4 +54,6 @@ void __init bcmring_map_io(void)
 {
 
 	iotable_init(bcmring_io_desc, ARRAY_SIZE(bcmring_io_desc));
+	/* Maximum DMA memory allowed is 14M */
+	init_consistent_dma_size(14 << 20);
 }
