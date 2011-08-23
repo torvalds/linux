@@ -1275,15 +1275,10 @@ xfs_buf_iorequest(
 {
 	trace_xfs_buf_iorequest(bp, _RET_IP_);
 
-	if (bp->b_flags & XBF_DELWRI) {
-		xfs_buf_delwri_queue(bp, 1);
-		return 0;
-	}
+	ASSERT(!(bp->b_flags & XBF_DELWRI));
 
-	if (bp->b_flags & XBF_WRITE) {
+	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
-	}
-
 	xfs_buf_hold(bp);
 
 	/* Set the count to 1 initially, this will stop an I/O
