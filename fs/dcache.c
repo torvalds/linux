@@ -276,15 +276,15 @@ static void dentry_lru_prune(struct dentry *dentry)
 	}
 }
 
-static void dentry_lru_move_tail(struct dentry *dentry)
+static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
 {
 	spin_lock(&dcache_lru_lock);
 	if (list_empty(&dentry->d_lru)) {
-		list_add_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
+		list_add_tail(&dentry->d_lru, list);
 		dentry->d_sb->s_nr_dentry_unused++;
 		dentry_stat.nr_unused++;
 	} else {
-		list_move_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
+		list_move_tail(&dentry->d_lru, list);
 	}
 	spin_unlock(&dcache_lru_lock);
 }
@@ -770,14 +770,18 @@ static void shrink_dentry_list(struct list_head *list)
 }
 
 /**
- * __shrink_dcache_sb - shrink the dentry LRU on a given superblock
- * @sb:		superblock to shrink dentry LRU.
- * @count:	number of entries to prune
- * @flags:	flags to control the dentry processing
+ * prune_dcache_sb - shrink the dcache
+ * @sb: superblock
+ * @count: number of entries to try to free
  *
- * If flags contains DCACHE_REFERENCED reference dentries will not be pruned.
+ * Attempt to shrink the superblock dcache LRU by @count entries. This is
+ * done when we need more memory an called from the superblock shrinker
+ * function.
+ *
+ * This function may fail to free any resources if all the dentries are in
+ * use.
  */
-static void __shrink_dcache_sb(struct super_block *sb, int count, int flags)
+void prune_dcache_sb(struct super_block *sb, int count)
 {
 	struct dentry *dentry;
 	LIST_HEAD(referenced);
@@ -796,13 +800,7 @@ relock:
 			goto relock;
 		}
 
-		/*
-		 * If we are honouring the DCACHE_REFERENCED flag and the
-		 * dentry has this flag set, don't free it.  Clear the flag
-		 * and put it back on the LRU.
-		 */
-		if (flags & DCACHE_REFERENCED &&
-				dentry->d_flags & DCACHE_REFERENCED) {
+		if (dentry->d_flags & DCACHE_REFERENCED) {
 			dentry->d_flags &= ~DCACHE_REFERENCED;
 			list_move(&dentry->d_lru, &referenced);
 			spin_unlock(&dentry->d_lock);
@@ -819,23 +817,6 @@ relock:
 	spin_unlock(&dcache_lru_lock);
 
 	shrink_dentry_list(&tmp);
-}
-
-/**
- * prune_dcache_sb - shrink the dcache
- * @sb: superblock
- * @nr_to_scan: number of entries to try to free
- *
- * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
- * done when we need more memory an called from the superblock shrinker
- * function.
- *
- * This function may fail to free any resources if all the dentries are in
- * use.
- */
-void prune_dcache_sb(struct super_block *sb, int nr_to_scan)
-{
-	__shrink_dcache_sb(sb, nr_to_scan, DCACHE_REFERENCED);
 }
 
 /**
@@ -1092,7 +1073,7 @@ EXPORT_SYMBOL(have_submounts);
  * drop the lock and return early due to latency
  * constraints.
  */
-static int select_parent(struct dentry * parent)
+static int select_parent(struct dentry *parent, struct list_head *dispose)
 {
 	struct dentry *this_parent;
 	struct list_head *next;
@@ -1114,12 +1095,11 @@ resume:
 
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 
-		/* 
-		 * move only zero ref count dentries to the end 
-		 * of the unused list for prune_dcache
+		/*
+		 * move only zero ref count dentries to the dispose list.
 		 */
 		if (!dentry->d_count) {
-			dentry_lru_move_tail(dentry);
+			dentry_lru_move_list(dentry, dispose);
 			found++;
 		} else {
 			dentry_lru_del(dentry);
@@ -1181,14 +1161,13 @@ rename_retry:
  *
  * Prune the dcache to remove unused children of the parent dentry.
  */
- 
 void shrink_dcache_parent(struct dentry * parent)
 {
-	struct super_block *sb = parent->d_sb;
+	LIST_HEAD(dispose);
 	int found;
 
-	while ((found = select_parent(parent)) != 0)
-		__shrink_dcache_sb(sb, found, 0);
+	while ((found = select_parent(parent, &dispose)) != 0)
+		shrink_dentry_list(&dispose);
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
 
