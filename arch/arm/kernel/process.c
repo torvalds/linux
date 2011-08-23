@@ -31,6 +31,7 @@
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/cpuidle.h>
+#include <linux/console.h>
 
 #include <asm/cacheflush.h>
 #include <asm/leds.h>
@@ -91,6 +92,31 @@ __setup("hlt", hlt_setup);
 
 extern void call_with_stack(void (*fn)(void *), void *arg, void *sp);
 typedef void (*phys_reset_t)(unsigned long);
+
+#ifdef CONFIG_ARM_FLUSH_CONSOLE_ON_RESTART
+void arm_machine_flush_console(void)
+{
+	printk("\n");
+	pr_emerg("Restarting %s\n", linux_banner);
+	if (console_trylock()) {
+		console_unlock();
+		return;
+	}
+
+	mdelay(50);
+
+	local_irq_disable();
+	if (!console_trylock())
+		pr_emerg("arm_restart: Console was locked! Busting\n");
+	else
+		pr_emerg("arm_restart: Console was locked!\n");
+	console_unlock();
+}
+#else
+void arm_machine_flush_console(void)
+{
+}
+#endif
 
 /*
  * A temporary stack to use for CPU reset. This is static so that we
@@ -280,6 +306,10 @@ void machine_power_off(void)
 void machine_restart(char *cmd)
 {
 	machine_shutdown();
+
+	/* Flush the console to make sure all the relevant messages make it
+	 * out to the console drivers */
+	arm_machine_flush_console();
 
 	arm_pm_restart(reboot_mode, cmd);
 
