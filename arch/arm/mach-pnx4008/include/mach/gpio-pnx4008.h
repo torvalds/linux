@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-pnx4008/include/mach/gpio.h
+ * arch/arm/mach-pnx4008/include/mach/gpio-pnx4008.h
  *
  * PNX4008 GPIO driver - header file
  *
