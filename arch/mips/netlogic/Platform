@@ -13,4 +13,4 @@ cflags-$(CONFIG_NLM_XLR)	+= $(call cc-option,-march=xlr,-march=mips64)
 # NETLOGIC XLR/XLS SoC, Simulator and boards
 #
 core-$(CONFIG_NLM_XLR)	      += arch/mips/netlogic/xlr/
-load-$(CONFIG_NLM_XLR_BOARD)  += 0xffffffff84000000
+load-$(CONFIG_NLM_XLR_BOARD)  += 0xffffffff80100000
