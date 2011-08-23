@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/io.h>
 #include <linux/etherdevice.h>
+#include <linux/crc8.h>
 #include <stdarg.h>
 
 #include <chipcommon.h>
@@ -38,6 +39,13 @@
 /* 20 ms between each word write */
 #define WRITE_WORD_DELAY	20
 #endif
+
+/*
+ * SROM CRC8 polynomial value:
+ *
+ * x^8 + x^7 +x^6 + x^4 + x^2 + 1
+ */
+#define SROM_CRC8_POLY		0xAB
 
 /* Maximum srom: 6 Kilobits == 768 bytes */
 #define	SROM_MAX		768
@@ -782,6 +790,8 @@ static const struct brcms_sromvar perpath_pci_sromvars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
+static u8 srom_crc8_table[CRC8_TABLE_SIZE];
+
 static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off,
 			       struct brcms_varbuf *b);
 static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
@@ -919,8 +929,8 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 
 		/* fixup the endianness so crc8 will pass */
 		htol16_buf(buf, nwords * 2);
-		if (brcmu_crc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
-		    CRC8_GOOD_VALUE)
+		if (crc8(srom_crc8_table, (u8 *) buf, nwords * 2,
+			 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
 			/* DBG only pci always read srom4 first, then srom8/9 */
 			err = -EIO;
 
@@ -957,8 +967,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
-	if (brcmu_crc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
-	    CRC8_GOOD_VALUE)
+	if (crc8(srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
+		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
 		err = -EIO;
 
 	/* now correct the endianness of the byte array */
@@ -1174,6 +1184,8 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		return -ENOMEM;
 
 	sromwindow = (u16 *) SROM_OFFSET(sih);
+
+	crc8_populate_lsb(srom_crc8_table, SROM_CRC8_POLY);
 	if (ai_is_sprom_available(sih)) {
 		err = sprom_read_pci(sih, sromwindow, 0, srom, SROM_WORDS,
 				     true);

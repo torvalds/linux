@@ -246,8 +246,6 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 #define MODSUB_POW2(x, y, bound) (((x) - (y)) & ((bound) - 1))
 
 /* crc defines */
-#define CRC8_INIT_VALUE  0xff	/* Initial CRC8 checksum value */
-#define CRC8_GOOD_VALUE  0x9f	/* Good final CRC8 checksum value */
 #define CRC16_INIT_VALUE 0xffff	/* Initial CRC16 checksum value */
 #define CRC16_GOOD_VALUE 0xf0b8	/* Good final CRC16 checksum value */
 
@@ -268,9 +266,6 @@ struct brcmu_tlv {
 #define ETHER_ADDR_STR_LEN	18
 
 /* externs */
-/* crc */
-extern u8 brcmu_crc8(u8 *p, uint nbytes, u8 crc);
-
 /* format/print */
 #if defined(BCMDBG)
 extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,
