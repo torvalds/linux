@@ -12,6 +12,7 @@
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
+#include <linux/bitmap.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -557,20 +558,9 @@ static int armpmu_event_init(struct perf_event *event)
 
 static void armpmu_enable(struct pmu *pmu)
 {
-	/* Enable all of the perf events on hardware. */
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
-	int idx, enabled = 0;
 	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
-
-	for (idx = 0; idx < armpmu->num_events; ++idx) {
-		struct perf_event *event = hw_events->events[idx];
-
-		if (!event)
-			continue;
-
-		armpmu->enable(&event->hw, idx);
-		enabled = 1;
-	}
+	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
 
 	if (enabled)
 		armpmu->start();
