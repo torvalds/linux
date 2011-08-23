@@ -150,6 +150,15 @@ xfs_ioend_new_eof(
 }
 
 /*
+ * Fast and loose check if this write could update the on-disk inode size.
+ */
+static inline bool xfs_ioend_is_append(struct xfs_ioend *ioend)
+{
+	return ioend->io_offset + ioend->io_size >
+		XFS_I(ioend->io_inode)->i_d.di_size;
+}
+
+/*
  * Update on-disk file size now that data has been written to disk.  The
  * current in-memory file size is i_size.  If a write is beyond eof i_new_size
  * will be the intended file size until i_size is updated.  If this write does
@@ -186,6 +195,9 @@ xfs_setfilesize(
 
 /*
  * Schedule IO completion handling on the final put of an ioend.
+ *
+ * If there is no work to do we might as well call it a day and free the
+ * ioend right now.
  */
 STATIC void
 xfs_finish_ioend(
@@ -194,8 +206,10 @@ xfs_finish_ioend(
 	if (atomic_dec_and_test(&ioend->io_remaining)) {
 		if (ioend->io_type == IO_UNWRITTEN)
 			queue_work(xfsconvertd_workqueue, &ioend->io_work);
-		else
+		else if (xfs_ioend_is_append(ioend))
 			queue_work(xfsdatad_workqueue, &ioend->io_work);
+		else
+			xfs_destroy_ioend(ioend);
 	}
 }
 
