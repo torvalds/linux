@@ -85,6 +85,8 @@ static struct sleep_save misc_save[] = {
 	SAVE_ITEM(S3C64XX_MEM0CONSLP0),
 	SAVE_ITEM(S3C64XX_MEM0CONSLP1),
 	SAVE_ITEM(S3C64XX_MEM1CONSLP),
+
+	SAVE_ITEM(S3C64XX_SDMA_SEL),
 };
 
 void s3c_pm_configure_extint(void)
