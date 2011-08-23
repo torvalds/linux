@@ -206,7 +206,7 @@ struct omap3_l3 {
 };
 
 /* offsets for l3 agents in order with the Flag status register */
-unsigned int __iomem omap3_l3_app_bases[] = {
+static unsigned int omap3_l3_app_bases[] = {
 	/* MPU IA */
 	0x1400,
 	0x1400,
@@ -305,7 +305,7 @@ unsigned int __iomem omap3_l3_app_bases[] = {
 	0,
 };
 
-unsigned int __iomem omap3_l3_debug_bases[] = {
+static unsigned int omap3_l3_debug_bases[] = {
 	/* MPU DATA IA */
 	0x1400,
 	/* RESERVED */
@@ -321,7 +321,7 @@ unsigned int __iomem omap3_l3_debug_bases[] = {
 	/* REST RESERVED */
 };
 
-u32 *omap3_l3_bases[] = {
+static u32 *omap3_l3_bases[] = {
 	omap3_l3_app_bases,
 	omap3_l3_debug_bases,
 };

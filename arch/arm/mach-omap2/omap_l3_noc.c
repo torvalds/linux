@@ -58,7 +58,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	struct omap4_l3 *l3 = _l3;
 	int inttype, i;
 	int err_src = 0;
-	u32 std_err_main, err_reg, clear, base, l3_targ_base;
+	u32 std_err_main, err_reg, clear;
+	void __iomem *base, *l3_targ_base;
 	char *source_name;
 
 	/* Get the Type of interrupt */
@@ -69,8 +70,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		 * Read the regerr register of the clock domain
 		 * to determine the source
 		 */
-		base = (u32)l3->l3_base[i];
-		err_reg = readl(base + l3_flagmux[i] +
+		base = l3->l3_base[i];
+		err_reg = __raw_readl(base + l3_flagmux[i] +
 					+ L3_FLAGMUX_REGERR0 + (inttype << 3));
 
 		/* Get the corresponding error and analyse */
@@ -80,7 +81,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 			/* Read the stderrlog_main_source from clk domain */
 			l3_targ_base = base + *(l3_targ[i] + err_src);
-			std_err_main =  readl(l3_targ_base +
+			std_err_main =  __raw_readl(l3_targ_base +
 					L3_TARG_STDERRLOG_MAIN);
 
 			switch (std_err_main & CUSTOM_ERROR) {
@@ -89,7 +90,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 					l3_targ_inst_name[i][err_src];
 				WARN(true, "L3 standard error: SOURCE:%s at address 0x%x\n",
 					source_name,
-					readl(l3_targ_base +
+					__raw_readl(l3_targ_base +
 						L3_TARG_STDERRLOG_SLVOFSLSB));
 				/* clear the std error log*/
 				clear = std_err_main | CLEAR_STDERR_LOG;
