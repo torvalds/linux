@@ -4,6 +4,7 @@
 
 config NET_VENDOR_NUVOTON
 	bool "Nuvoton devices"
+	default y
 	depends on ARM && ARCH_W90X900
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

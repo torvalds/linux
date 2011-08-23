@@ -4,6 +4,7 @@
 
 config NET_VENDOR_APPLE
 	bool "Apple devices"
+	default y
 	depends on (PPC_PMAC && PPC32) || MAC || ISA || EISA || MACH_IXDP2351 \
 		   || ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440
 	---help---

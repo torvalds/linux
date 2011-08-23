@@ -4,6 +4,7 @@
 
 config NET_VENDOR_NATSEMI
 	bool "National Semi-conductor devices"
+	default y
 	depends on MCA || MAC || MACH_JAZZ || PCI || XTENSA_PLATFORM_XT2000
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

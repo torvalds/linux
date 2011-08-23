@@ -4,6 +4,7 @@
 
 config NET_VENDOR_MICROCHIP
 	bool "Microchip devices"
+	default y
 	depends on SPI && EXPERIMENTAL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

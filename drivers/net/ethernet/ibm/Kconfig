@@ -4,6 +4,7 @@
 
 config NET_VENDOR_IBM
 	bool "IBM devices"
+	default y
 	depends on MCA || PPC_PSERIES || PPC_PSERIES || PPC_DCR || \
 		   (IBMEBUS && INET && SPARSEMEM)
 	---help---

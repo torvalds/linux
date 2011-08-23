@@ -4,6 +4,7 @@
 
 config NET_VENDOR_XSCALE
 	bool "Intel XScale IXP devices"
+	default y
 	depends on NET_VENDOR_INTEL && ((ARM && ARCH_IXP4XX && \
 		   IXP4XX_NPE && IXP4XX_QMGR) || ARCH_ENP2611)
 	---help---

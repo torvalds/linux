@@ -4,6 +4,7 @@
 
 config NET_VENDOR_EXAR
 	bool "Exar devices"
+	default y
 	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say

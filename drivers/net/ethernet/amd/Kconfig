@@ -4,6 +4,7 @@
 
 config NET_VENDOR_AMD
 	bool "AMD devices"
+	default y
 	depends on DIO || MACH_DECSTATION || MVME147 || ATARI || SUN3 || \
 		   SUN3X || SBUS || PCI || ZORRO || (ISA && ISA_DMA_API) || \
 		   (ARM && ARCH_EBSA110) || ISA || EISA || MCA || PCMCIA

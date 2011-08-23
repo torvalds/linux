@@ -4,6 +4,7 @@
 
 config NET_VENDOR_SMSC
 	bool "SMC (SMSC)/Western Digital devices"
+	default y
 	depends on ARM || ISA || MAC || ARM || MIPS || M32R || SUPERH || \
 		BLACKFIN || MN10300 || COLDFIRE || PCI || PCMCIA
 	---help---

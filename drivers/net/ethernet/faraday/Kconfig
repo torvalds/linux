@@ -4,6 +4,7 @@
 
 config NET_VENDOR_FARADAY
 	bool "Faraday devices"
+	default y
 	depends on ARM
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

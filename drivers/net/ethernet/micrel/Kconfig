@@ -4,6 +4,7 @@
 
 config NET_VENDOR_MICREL
 	bool "Micrel devices"
+	default y
 	depends on (HAS_IOMEM && DMA_ENGINE) || SPI || PCI || HAS_IOMEM || \
 		   (ARM && ARCH_KS8695)
 	---help---

@@ -4,6 +4,7 @@
 
 config NET_VENDOR_XILINX
 	bool "Xilinx devices"
+	default y
 	depends on PPC || PPC32 || MICROBLAZE
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
