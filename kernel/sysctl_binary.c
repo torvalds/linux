@@ -1,6 +1,6 @@
 #include <linux/stat.h>
 #include <linux/sysctl.h>
-#include "../fs/xfs/linux-2.6/xfs_sysctl.h"
+#include "../fs/xfs/xfs_sysctl.h"
 #include <linux/sunrpc/debug.h>
 #include <linux/string.h>
 #include <net/ip_vs.h>
