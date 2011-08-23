@@ -29,6 +29,7 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-syscon-power.h>
 #include <mach/regs-gpio-memport.h>
+#include <mach/regs-modem.h>
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
 void s3c_pm_debug_smdkled(u32 set, u32 clear)
@@ -87,6 +88,7 @@ static struct sleep_save misc_save[] = {
 	SAVE_ITEM(S3C64XX_MEM1CONSLP),
 
 	SAVE_ITEM(S3C64XX_SDMA_SEL),
+	SAVE_ITEM(S3C64XX_MODEM_MIFPCON),
 };
 
 void s3c_pm_configure_extint(void)
