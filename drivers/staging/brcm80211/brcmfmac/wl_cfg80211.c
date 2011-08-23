@@ -3189,7 +3189,14 @@ static void brcmf_term_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	if (cfg_priv->iscan_on && iscan->tsk) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
 		send_sig(SIGTERM, iscan->tsk, 1);
+
+		/*
+		 * The iscan task may want to acquire the rtnl_lock
+		 * so release it here upon stopping the task.
+		 */
+		rtnl_unlock();
 		kthread_stop(iscan->tsk);
+		rtnl_lock();
 		iscan->tsk = NULL;
 
 		/* Abort iscan running in FW */
