@@ -3168,6 +3168,12 @@ grace_disallows_io(struct inode *inode)
 	return locks_in_grace() && mandatory_lock(inode);
 }
 
+/* Returns true iff a is later than b: */
+static bool stateid_generation_after(stateid_t *a, stateid_t *b)
+{
+	return (s32)a->si_generation - (s32)b->si_generation > 0;
+}
+
 static int check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_session)
 {
 	/*
@@ -3175,25 +3181,25 @@ static int check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_sess
 	 * when it is zero.
 	 */
 	if (has_session && in->si_generation == 0)
-		goto out;
+		return nfs_ok;
+
+	if (in->si_generation == ref->si_generation)
+		return nfs_ok;
 
 	/* If the client sends us a stateid from the future, it's buggy: */
-	if (in->si_generation > ref->si_generation)
+	if (stateid_generation_after(in, ref))
 		return nfserr_bad_stateid;
 	/*
-	 * The following, however, can happen.  For example, if the
-	 * client sends an open and some IO at the same time, the open
-	 * may bump si_generation while the IO is still in flight.
-	 * Thanks to hard links and renames, the client never knows what
-	 * file an open will affect.  So it could avoid that situation
-	 * only by serializing all opens and IO from the same open
-	 * owner.  To recover from the old_stateid error, the client
-	 * will just have to retry the IO:
+	 * However, we could see a stateid from the past, even from a
+	 * non-buggy client.  For example, if the client sends a lock
+	 * while some IO is outstanding, the lock may bump si_generation
+	 * while the IO is still in flight.  The client could avoid that
+	 * situation by waiting for responses on all the IO requests,
+	 * but better performance may result in retrying IO that
+	 * receives an old_stateid error if requests are rarely
+	 * reordered in flight:
 	 */
-	if (in->si_generation < ref->si_generation)
-		return nfserr_old_stateid;
-out:
-	return nfs_ok;
+	return nfserr_old_stateid;
 }
 
 static int is_delegation_stateid(stateid_t *stateid)
@@ -3353,16 +3359,9 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		ret = nfserr_bad_stateid;
 		goto out;
 	}
-	if (stateid->si_generation != 0) {
-		if (stateid->si_generation < stp->st_stateid.si_generation) {
-			ret = nfserr_old_stateid;
-			goto out;
-		}
-		if (stateid->si_generation > stp->st_stateid.si_generation) {
-			ret = nfserr_bad_stateid;
-			goto out;
-		}
-	}
+	ret = check_stateid_generation(stateid, &stp->st_stateid, 1);
+	if (ret)
+		goto out;
 
 	if (stp->st_type == NFS4_OPEN_STID) {
 		ret = nfserr_locks_held;
@@ -3439,11 +3438,6 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 		return nfserr_bad_stateid;
 	}
 
-	/*
-	*  We now validate the seqid and stateid generation numbers.
-	*  For the moment, we ignore the possibility of 
-	*  generation number wraparound.
-	*/
 	if (!nfsd4_has_session(cstate) && seqid != sop->so_seqid)
 		goto check_replay;
 

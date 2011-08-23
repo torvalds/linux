@@ -293,6 +293,9 @@ static inline void
 update_stateid(stateid_t *stateid)
 {
 	stateid->si_generation++;
+	/* Wraparound recommendation from 3530bis-13 9.1.3.2: */
+	if (stateid->si_generation == 0)
+		stateid->si_generation = 1;
 }
 
 /* A reasonable value for REPLAY_ISIZE was estimated as follows:  
