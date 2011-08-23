@@ -216,6 +216,10 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
 		return 0;
 
+	/* Shortcut for clockevent devices that can deal with ktime. */
+	if (dev->features & CLOCK_EVT_FEAT_KTIME)
+		return dev->set_next_ktime(expires, dev);
+
 	delta = ktime_to_ns(ktime_sub(expires, ktime_get()));
 	if (delta <= 0)
 		return force ? clockevents_program_min_delta(dev) : -ETIME;
