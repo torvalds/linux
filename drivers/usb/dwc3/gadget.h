@@ -202,6 +202,11 @@ void dwc3_gadget_exit(struct dwc3 *dwc);
 #else
 static inline int dwc3_gadget_init(struct dwc3 *dwc) { return 0; }
 static inline void dwc3_gadget_exit(struct dwc3 *dwc) { }
+static inline int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
+		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
+{
+	return 0;
+}
 #endif
 
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
