@@ -656,11 +656,13 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	if (!new)
 		return NULL;
 
+#ifdef CONFIG_KEYS
 	tgcred = kmalloc(sizeof(*tgcred), GFP_KERNEL);
 	if (!tgcred) {
 		kmem_cache_free(cred_jar, new);
 		return NULL;
 	}
+#endif
 
 	kdebug("prepare_kernel_cred() alloc %p", new);
 
