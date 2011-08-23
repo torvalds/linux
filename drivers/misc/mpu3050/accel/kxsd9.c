@@ -1,7 +1,20 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
 
 /**
@@ -44,7 +57,6 @@ static int kxsd9_suspend(void *mlsl_handle,
 			 struct ext_slave_platform_data *pdata)
 {
 	int result;
-	(void *) slave;
 	/* CTRL_REGB: low-power standby mode */
 	result =
 	    MLSLSerialWriteSingle(mlsl_handle, pdata->address, 0x0d, 0x0);
@@ -99,7 +111,10 @@ static int kxsd9_read(void *mlsl_handle,
 		      struct ext_slave_platform_data *pdata,
 		      unsigned char *data)
 {
-	return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+	int result;
+	result = MLSLSerialRead(mlsl_handle, pdata->address,
+				slave->reg, slave->len, data);
+	return result;
 }
 
 static struct ext_slave_descr kxsd9_descr = {
@@ -109,6 +124,7 @@ static struct ext_slave_descr kxsd9_descr = {
 	/*.resume           = */ kxsd9_resume,
 	/*.read             = */ kxsd9_read,
 	/*.config           = */ NULL,
+	/*.get_config       = */ NULL,
 	/*.name             = */ "kxsd9",
 	/*.type             = */ EXT_SLAVE_TYPE_ACCELEROMETER,
 	/*.id               = */ ACCEL_ID_KXSD9,

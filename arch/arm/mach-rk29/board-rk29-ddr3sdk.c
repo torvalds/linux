@@ -96,6 +96,7 @@
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_64M
+#define PMEM_SKYPE_SIZE     0
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
 #define MEM_CAMIPP_SIZE     SZ_4M
@@ -119,7 +120,8 @@
 #define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define MEM_FBIPP_BASE      (MEM_FB_BASE - MEM_FBIPP_SIZE)
-#define LINUX_SIZE          (MEM_FBIPP_BASE - RK29_SDRAM_PHYS)
+#define PMEM_SKYPE_BASE      (MEM_FBIPP_BASE - PMEM_SKYPE_SIZE)
+#define LINUX_SIZE          (PMEM_SKYPE_BASE - RK29_SDRAM_PHYS)
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -396,6 +398,21 @@ static struct platform_device rk29_vpu_mem_device = {
 	.platform_data = &vpu_mem_pdata,
 	},
 };
+static struct android_pmem_platform_data android_pmem_skype_pdata = {
+	.name		= "pmem_skype",
+	.start		= PMEM_SKYPE_BASE,
+	.size		= PMEM_SKYPE_SIZE,
+	.no_allocator	= 0,
+	.cached		= 0,
+};
+
+static struct platform_device android_pmem_skype_device = {
+	.name		= "android_pmem",
+	.id		= 3,
+	.dev		= {
+		.platform_data = &android_pmem_skype_pdata,
+	},
+};
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
@@ -492,12 +509,60 @@ static int mma8452_init_platform_hw(void)
 
 static struct mma8452_platform_data mma8452_info = {
   .model= 8452,
-  .swap_xy = 0,
+  .swap_xy = 1,
   .init_platform_hw= mma8452_init_platform_hw,
 
 };
 #endif
-
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+		.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		.level_shifter = 0,
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+		.accel = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL ,
+#else
+				.get_slave_descr = get_accel_slave_descr ,			
+#endif
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				//.irq = RK29_PIN0_PA3,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = { 0, 1 ,0, -1 ,0, 0, 0, 0, 1 },
+		},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+		.compass = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
+#else
+				.get_slave_descr = get_compass_slave_descr,
+#endif						
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				//.irq = RK29_PIN0_PA4,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
+				.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		},
+};
+#endif
+#endif
 #if defined (CONFIG_BATTERY_BQ27510)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -730,6 +795,20 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
+};
+#endif
+#if defined (CONFIG_ANX7150)
+struct hdmi_platform_data anx7150_data  = {
+	//.io_init = anx7150_io_init,
 };
 #endif
 
@@ -742,12 +821,13 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
+#if defined (CONFIG_ANX7150)
     {
 		.type           = "anx7150",
         .addr           = 0x39,             //0x39, 0x3d
         .flags          = 0,
         .irq            = RK29_PIN1_PD7,
+		.platform_data  = &anx7150_data,
     },
 #endif
 
@@ -1421,6 +1501,7 @@ static struct platform_device *devices[] __initdata = {
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif
+  &android_pmem_skype_device,
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
 #ifdef CONFIG_USB20_OTG

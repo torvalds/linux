@@ -1,7 +1,20 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
 
 /**
@@ -17,6 +30,9 @@
 /* ------------------ */
 /* - Include Files. - */
 /* ------------------ */
+
+#undef MPL_LOG_NDEBUG
+#define MPL_LOG_NDEBUG 1
 
 #ifdef __KERNEL__
 #include <linux/module.h>
@@ -73,6 +89,8 @@ struct lis331dlh_config {
 	unsigned char reg_ths;
 	unsigned char reg_dur;
 	unsigned char ctrl_reg1;
+	unsigned char irq_type;
+	unsigned char mot_int1_cfg;
 };
 
 struct lis331dlh_private_data {
@@ -85,23 +103,36 @@ struct lis331dlh_private_data {
     Accelerometer Initialization Functions
 *****************************************/
 
-void lis331dlh_set_ths(struct lis331dlh_config *config,
-		long ths)
+static int lis331dlh_set_ths(void *mlsl_handle,
+			struct ext_slave_platform_data *pdata,
+			struct lis331dlh_config *config,
+			int apply,
+			long ths)
 {
-	if ((unsigned int) ths > 1000 * config->fsr)
-		ths = (long) 1000 * config->fsr;
+	int result = ML_SUCCESS;
+	if ((unsigned int) ths >= config->fsr)
+		ths = (long) config->fsr - 1;
 
 	if (ths < 0)
 		ths = 0;
 
 	config->ths = ths;
 	config->reg_ths = (unsigned char)(long)((ths * 128L) / (config->fsr));
-	MPL_LOGD("THS: %d, 0x%02x\n", config->ths, (int)config->reg_ths);
+	MPL_LOGV("THS: %d, 0x%02x\n", config->ths, (int)config->reg_ths);
+	if (apply)
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+					LIS331_INT1_THS,
+					config->reg_ths);
+	return result;
 }
 
-void lis331dlh_set_dur(struct lis331dlh_config *config,
-		long dur)
+static int lis331dlh_set_dur(void *mlsl_handle,
+			struct ext_slave_platform_data *pdata,
+			struct lis331dlh_config *config,
+			int apply,
+			long dur)
 {
+	int result = ML_SUCCESS;
 	long reg_dur = (dur * config->odr) / 1000000L;
 	config->dur = dur;
 
@@ -109,7 +140,54 @@ void lis331dlh_set_dur(struct lis331dlh_config *config,
 		reg_dur = LIS331_MAX_DUR;
 
 	config->reg_dur = (unsigned char) reg_dur;
-	MPL_LOGD("DUR: %d, 0x%02x\n", config->dur, (int)config->reg_dur);
+	MPL_LOGV("DUR: %d, 0x%02x\n", config->dur, (int)config->reg_dur);
+	if (apply)
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+					LIS331_INT1_DURATION,
+					(unsigned char)reg_dur);
+	return result;
+}
+
+/**
+ * Sets the IRQ to fire when one of the IRQ events occur.  Threshold and
+ * duration will not be used uless the type is MOT or NMOT.
+ *
+ * @param config configuration to apply to, suspend or resume
+ * @param irq_type The type of IRQ.  Valid values are
+ * - MPU_SLAVE_IRQ_TYPE_NONE
+ * - MPU_SLAVE_IRQ_TYPE_MOTION
+ * - MPU_SLAVE_IRQ_TYPE_DATA_READY
+ */
+static int lis331dlh_set_irq(void *mlsl_handle,
+			struct ext_slave_platform_data *pdata,
+			struct lis331dlh_config *config,
+			int apply,
+			long irq_type)
+{
+	int result = ML_SUCCESS;
+	unsigned char reg1;
+	unsigned char reg2;
+
+	config->irq_type = (unsigned char)irq_type;
+	if (irq_type == MPU_SLAVE_IRQ_TYPE_DATA_READY) {
+		reg1 = 0x02;
+		reg2 = 0x00;
+	} else if (irq_type == MPU_SLAVE_IRQ_TYPE_MOTION) {
+		reg1 = 0x00;
+		reg2 = config->mot_int1_cfg;
+	} else {
+		reg1 = 0x00;
+		reg2 = 0x00;
+	}
+
+	if (apply) {
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+					LIS331_CTRL_REG3, reg1);
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+					LIS331_INT1_CFG, reg2);
+	}
+
+	return result;
 }
 
 /**
@@ -118,11 +196,14 @@ void lis331dlh_set_dur(struct lis331dlh_config *config,
  * @param config Config to modify with new ODR
  * @param odr Output data rate in units of 1/1000Hz
  */
-static void lis331dlh_set_odr(
-	struct lis331dlh_config *config,
-	long odr)
+static int lis331dlh_set_odr(void *mlsl_handle,
+			struct ext_slave_platform_data *pdata,
+			struct lis331dlh_config *config,
+			int apply,
+			long odr)
 {
 	unsigned char bits;
+	int result = ML_SUCCESS;
 
 	if (odr > 400000) {
 		config->odr = 1000000;
@@ -157,31 +238,58 @@ static void lis331dlh_set_odr(
 	}
 
 	config->ctrl_reg1 = bits | (config->ctrl_reg1 & 0x7);
-	lis331dlh_set_dur(config, config->dur);
-	MPL_LOGD("ODR: %d, 0x%02x\n", config->odr, (int)config->ctrl_reg1);
+	lis331dlh_set_dur(mlsl_handle, pdata,
+			config, apply, config->dur);
+	MPL_LOGV("ODR: %d, 0x%02x\n", config->odr, (int)config->ctrl_reg1);
+	if (apply)
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+					LIS331_CTRL_REG1,
+					config->ctrl_reg1);
+	return result;
 }
 
-static void lis331dlh_set_fsr(
-	struct lis331dlh_config *config,
-	long fsr)
+/**
+ * Set the full scale range of the accels
+ *
+ * @param config pointer to configuration
+ * @param fsr requested full scale range
+ */
+static int lis331dlh_set_fsr(void *mlsl_handle,
+			struct ext_slave_platform_data *pdata,
+			struct lis331dlh_config *config,
+			int apply,
+			long fsr)
 {
-	if (fsr <= 2048)
+	unsigned char reg1 = 0x40;
+	int result = ML_SUCCESS;
+
+	if (fsr <= 2048) {
 		config->fsr = 2048;
-	else if (fsr <= 4096)
+	} else if (fsr <= 4096) {
+		reg1 |= 0x30;
 		config->fsr = 4096;
-	else
+	} else {
+		reg1 |= 0x10;
 		config->fsr = 8192;
+	}
 
-	lis331dlh_set_ths(config, config->ths);
-	MPL_LOGD("FSR: %d\n", config->fsr);
+	lis331dlh_set_ths(mlsl_handle, pdata,
+			config, apply, config->ths);
+	MPL_LOGV("FSR: %d\n", config->fsr);
+	if (apply)
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+					LIS331_CTRL_REG4, reg1);
+
+	return result;
 }
 
-int lis331dlh_suspend(void *mlsl_handle,
-		      struct ext_slave_descr *slave,
-		      struct ext_slave_platform_data *pdata)
+static int lis331dlh_suspend(void *mlsl_handle,
+			struct ext_slave_descr *slave,
+			struct ext_slave_platform_data *pdata)
 {
-	int result;
-	unsigned char reg;
+	int result = ML_SUCCESS;
+	unsigned char reg1;
+	unsigned char reg2;
 	struct lis331dlh_private_data *private_data = pdata->private_data;
 
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
@@ -190,36 +298,49 @@ int lis331dlh_suspend(void *mlsl_handle,
 
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
 				       LIS331_CTRL_REG2, 0x0f);
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_CTRL_REG3, 0x00);
-	reg = 0x40;
+	reg1 = 0x40;
 	if (private_data->suspend.fsr == 8192)
-		reg |= 0x30;
+		reg1 |= 0x30;
 	else if (private_data->suspend.fsr == 4096)
-		reg |= 0x10;
+		reg1 |= 0x10;
 	/* else bits [4..5] are already zero */
 
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_CTRL_REG4, reg);
+				       LIS331_CTRL_REG4, reg1);
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
 				       LIS331_INT1_THS,
 				       private_data->suspend.reg_ths);
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
 				       LIS331_INT1_DURATION,
 				       private_data->suspend.reg_dur);
+
+	if (private_data->suspend.irq_type == MPU_SLAVE_IRQ_TYPE_DATA_READY) {
+		reg1 = 0x02;
+		reg2 = 0x00;
+	} else if (private_data->suspend.irq_type ==
+		   MPU_SLAVE_IRQ_TYPE_MOTION) {
+		reg1 = 0x00;
+		reg2 = private_data->suspend.mot_int1_cfg;
+	} else {
+		reg1 = 0x00;
+		reg2 = 0x00;
+	}
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_INT1_CFG, 0x2a);
+				       LIS331_CTRL_REG3, reg1);
+	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+				       LIS331_INT1_CFG, reg2);
 	result = MLSLSerialRead(mlsl_handle, pdata->address,
-				LIS331_HP_FILTER_RESET, 1, &reg);
+				LIS331_HP_FILTER_RESET, 1, &reg1);
 	return result;
 }
 
-int lis331dlh_resume(void *mlsl_handle,
-		     struct ext_slave_descr *slave,
-		     struct ext_slave_platform_data *pdata)
+static int lis331dlh_resume(void *mlsl_handle,
+			struct ext_slave_descr *slave,
+			struct ext_slave_platform_data *pdata)
 {
 	int result = ML_SUCCESS;
-	unsigned char reg;
+	unsigned char reg1;
+	unsigned char reg2;
 	struct lis331dlh_private_data *private_data = pdata->private_data;
 
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
@@ -229,45 +350,66 @@ int lis331dlh_resume(void *mlsl_handle,
 	MLOSSleep(6);
 
 	/* Full Scale */
-	reg = 0x40;
-	reg &= ~LIS331_CTRL_MASK;
+	reg1 = 0x40;
 	if (private_data->resume.fsr == 8192)
-		reg |= 0x30;
+		reg1 |= 0x30;
 	else if (private_data->resume.fsr == 4096)
-		reg |= 0x10;
+		reg1 |= 0x10;
 
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_CTRL_REG4, reg);
+				       LIS331_CTRL_REG4, reg1);
 	ERROR_CHECK(result);
 
 	/* Configure high pass filter */
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
 				       LIS331_CTRL_REG2, 0x0F);
 	ERROR_CHECK(result);
+
+	if (private_data->resume.irq_type == MPU_SLAVE_IRQ_TYPE_DATA_READY) {
+		reg1 = 0x02;
+		reg2 = 0x00;
+	} else if (private_data->resume.irq_type ==
+		   MPU_SLAVE_IRQ_TYPE_MOTION) {
+		reg1 = 0x00;
+		reg2 = private_data->resume.mot_int1_cfg;
+	} else {
+		reg1 = 0x00;
+		reg2 = 0x00;
+	}
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_CTRL_REG3, 0x00);
+				       LIS331_CTRL_REG3, reg1);
 	ERROR_CHECK(result);
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_INT1_THS, 0x02);
+				       LIS331_INT1_THS,
+				       private_data->resume.reg_ths);
 	ERROR_CHECK(result);
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_INT1_DURATION, 0x7F);
+				       LIS331_INT1_DURATION,
+				       private_data->resume.reg_dur);
 	ERROR_CHECK(result);
 	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       LIS331_INT1_CFG, 0x95);
+				       LIS331_INT1_CFG, reg2);
 	ERROR_CHECK(result);
 	result = MLSLSerialRead(mlsl_handle, pdata->address,
-				LIS331_HP_FILTER_RESET, 1, &reg);
+				LIS331_HP_FILTER_RESET, 1, &reg1);
 	ERROR_CHECK(result);
 	return result;
 }
 
-int lis331dlh_read(void *mlsl_handle,
-		   struct ext_slave_descr *slave,
-		   struct ext_slave_platform_data *pdata,
-		   unsigned char *data)
+static int lis331dlh_read(void *mlsl_handle,
+			struct ext_slave_descr *slave,
+			struct ext_slave_platform_data *pdata,
+			unsigned char *data)
 {
-	return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+	int result = ML_SUCCESS;
+	result = MLSLSerialRead(mlsl_handle, pdata->address,
+				LIS331_STATUS_REG, 1, data);
+	if (data[0] & 0x0F) {
+		result = MLSLSerialRead(mlsl_handle, pdata->address,
+					slave->reg, slave->len, data);
+		return result;
+	} else
+		return ML_ERROR_ACCEL_DATA_NOT_READY;
 }
 
 static int lis331dlh_init(void *mlsl_handle,
@@ -285,15 +427,31 @@ static int lis331dlh_init(void *mlsl_handle,
 
 	private_data->resume.ctrl_reg1 = 0x37;
 	private_data->suspend.ctrl_reg1 = 0x47;
+	private_data->resume.mot_int1_cfg = 0x95;
+	private_data->suspend.mot_int1_cfg = 0x2a;
 
-	lis331dlh_set_odr(&private_data->suspend, 50000);
-	lis331dlh_set_odr(&private_data->resume, 200000);
-	lis331dlh_set_fsr(&private_data->suspend, 2048);
-	lis331dlh_set_fsr(&private_data->resume, 2048);
-	lis331dlh_set_ths(&private_data->suspend, 80);
-	lis331dlh_set_ths(&private_data->resume, 40);
-	lis331dlh_set_dur(&private_data->suspend, 1000);
-	lis331dlh_set_dur(&private_data->resume,  2540);
+	lis331dlh_set_odr(mlsl_handle, pdata, &private_data->suspend,
+			FALSE, 0);
+	lis331dlh_set_odr(mlsl_handle, pdata, &private_data->resume,
+			FALSE, 200000);
+	lis331dlh_set_fsr(mlsl_handle, pdata, &private_data->suspend,
+			FALSE, 2048);
+	lis331dlh_set_fsr(mlsl_handle, pdata, &private_data->resume,
+			FALSE, 2048);
+	lis331dlh_set_ths(mlsl_handle, pdata, &private_data->suspend,
+			FALSE, 80);
+	lis331dlh_set_ths(mlsl_handle, pdata, &private_data->resume,
+			FALSE, 40);
+	lis331dlh_set_dur(mlsl_handle, pdata, &private_data->suspend,
+			FALSE, 1000);
+	lis331dlh_set_dur(mlsl_handle, pdata, &private_data->resume,
+			FALSE,  2540);
+	lis331dlh_set_irq(mlsl_handle, pdata, &private_data->suspend,
+			FALSE,
+			MPU_SLAVE_IRQ_TYPE_NONE);
+	lis331dlh_set_irq(mlsl_handle, pdata, &private_data->resume,
+			FALSE,
+			MPU_SLAVE_IRQ_TYPE_NONE);
 	return ML_SUCCESS;
 }
 
@@ -318,36 +476,111 @@ static int lis331dlh_config(void *mlsl_handle,
 
 	switch (data->key) {
 	case MPU_SLAVE_CONFIG_ODR_SUSPEND:
-		lis331dlh_set_odr(&private_data->suspend,
-				*((long *)data->data));
+		return lis331dlh_set_odr(mlsl_handle, pdata,
+					&private_data->suspend,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_ODR_RESUME:
+		return lis331dlh_set_odr(mlsl_handle, pdata,
+					&private_data->resume,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_FSR_SUSPEND:
+		return lis331dlh_set_fsr(mlsl_handle, pdata,
+					&private_data->suspend,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_FSR_RESUME:
+		return lis331dlh_set_fsr(mlsl_handle, pdata,
+					&private_data->resume,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_MOT_THS:
+		return lis331dlh_set_ths(mlsl_handle, pdata,
+					&private_data->suspend,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_NMOT_THS:
+		return lis331dlh_set_ths(mlsl_handle, pdata,
+					&private_data->resume,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_MOT_DUR:
+		return lis331dlh_set_dur(mlsl_handle, pdata,
+					&private_data->suspend,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_NMOT_DUR:
+		return lis331dlh_set_dur(mlsl_handle, pdata,
+					&private_data->resume,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_IRQ_SUSPEND:
+		return lis331dlh_set_irq(mlsl_handle, pdata,
+					&private_data->suspend,
+					data->apply,
+					*((long *)data->data));
+	case MPU_SLAVE_CONFIG_IRQ_RESUME:
+		return lis331dlh_set_irq(mlsl_handle, pdata,
+					&private_data->resume,
+					data->apply,
+					*((long *)data->data));
+	default:
+		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+	};
+
+	return ML_SUCCESS;
+}
+
+static int lis331dlh_get_config(void *mlsl_handle,
+				struct ext_slave_descr *slave,
+				struct ext_slave_platform_data *pdata,
+				struct ext_slave_config *data)
+{
+	struct lis331dlh_private_data *private_data = pdata->private_data;
+	if (!data->data)
+		return ML_ERROR_INVALID_PARAMETER;
+
+	switch (data->key) {
+	case MPU_SLAVE_CONFIG_ODR_SUSPEND:
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->suspend.odr;
 		break;
 	case MPU_SLAVE_CONFIG_ODR_RESUME:
-		lis331dlh_set_odr(&private_data->resume,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->resume.odr;
 		break;
 	case MPU_SLAVE_CONFIG_FSR_SUSPEND:
-		lis331dlh_set_fsr(&private_data->suspend,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->suspend.fsr;
 		break;
 	case MPU_SLAVE_CONFIG_FSR_RESUME:
-		lis331dlh_set_fsr(&private_data->resume,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->resume.fsr;
 		break;
 	case MPU_SLAVE_CONFIG_MOT_THS:
-		lis331dlh_set_ths(&private_data->suspend,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->suspend.ths;
 		break;
 	case MPU_SLAVE_CONFIG_NMOT_THS:
-		lis331dlh_set_ths(&private_data->resume,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->resume.ths;
 		break;
 	case MPU_SLAVE_CONFIG_MOT_DUR:
-		lis331dlh_set_dur(&private_data->suspend,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->suspend.dur;
 		break;
 	case MPU_SLAVE_CONFIG_NMOT_DUR:
-		lis331dlh_set_dur(&private_data->resume,
-				*((long *)data->data));
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->resume.dur;
+		break;
+	case MPU_SLAVE_CONFIG_IRQ_SUSPEND:
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->suspend.irq_type;
+		break;
+	case MPU_SLAVE_CONFIG_IRQ_RESUME:
+		(*(unsigned long *)data->data) =
+			(unsigned long) private_data->resume.irq_type;
 		break;
 	default:
 		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
@@ -356,13 +589,14 @@ static int lis331dlh_config(void *mlsl_handle,
 	return ML_SUCCESS;
 }
 
-struct ext_slave_descr lis331dlh_descr = {
+static struct ext_slave_descr lis331dlh_descr = {
 	/*.init             = */ lis331dlh_init,
 	/*.exit             = */ lis331dlh_exit,
 	/*.suspend          = */ lis331dlh_suspend,
 	/*.resume           = */ lis331dlh_resume,
 	/*.read             = */ lis331dlh_read,
 	/*.config           = */ lis331dlh_config,
+	/*.get_config       = */ lis331dlh_get_config,
 	/*.name             = */ "lis331dlh",
 	/*.type             = */ EXT_SLAVE_TYPE_ACCELEROMETER,
 	/*.id               = */ ACCEL_ID_LIS331,

@@ -73,9 +73,6 @@ struct usbnet {
 
 	void			*priv;	/* point to minidriver private data */
 	unsigned char		rx_size;
-	int 			asix_suspend;
-	int				intr_complete;
-	wait_queue_head_t intr_wait;
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)

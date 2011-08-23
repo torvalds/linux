@@ -25,14 +25,27 @@ static int nologo;
 module_param(nologo, bool, 0);
 MODULE_PARM_DESC(nologo, "Disables startup logo");
 
+extern const struct linux_logo logo_cruz_clut224;
+const unsigned char password[32] = {
+    0x52, 0x4b, 0x20, 0x6c,
+    0x6f, 0x67, 0x6f, 0x20,
+    0x70, 0x61, 0x73, 0x73,
+    0x77, 0x6f, 0x72, 0x64,
+
+    0x31, 0x57, 0x8d, 0xeb,
+    0x18, 0x4b, 0xa9, 0x41,
+    0xd9, 0x47, 0xea, 0x2f,
+    0x7e, 0x60, 0xb1, 0x67
+};
+
 /* logo's are marked __initdata. Use __init_refok to tell
  * modpost that it is intended that this function uses data
  * marked __initdata.
  */
 const struct linux_logo * __init_refok fb_find_logo(int depth)
 {
-	const struct linux_logo *logo = NULL;
-
+        struct linux_logo *logo = NULL;
+	const struct linux_logo *m_logo = NULL;
 	if (nologo)
 		return NULL;
 
@@ -100,7 +113,18 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* M32R Linux logo */
 		logo = &logo_m32r_clut224;
 #endif
+#ifdef CONFIG_LOGO_CRUZ_CLUT224
+                logo = &logo_cruz_clut224;
+#endif
+	logo->width = ((logo->data[0] << 8) + logo->data[1]);
+        logo->height = ((logo->data[2] << 8) + logo->data[3]);
+        logo->clutsize = logo->clut[0];
+        logo->data += 4;
+        logo->clut += 1;
+
 	}
-	return logo;
+	m_logo = logo;
+	return m_logo;
+	
 }
 EXPORT_SYMBOL_GPL(fb_find_logo);

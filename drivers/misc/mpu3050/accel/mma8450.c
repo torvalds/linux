@@ -1,7 +1,20 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
 
 /**
@@ -18,9 +31,11 @@
 /* - Include Files. - */
 /* ------------------ */
 
+#include <stdlib.h>
 #include "mpu.h"
 #include "mlsl.h"
 #include "mlos.h"
+#include <string.h>
 
 #include <log.h>
 #undef MPL_LOG_TAG
@@ -90,7 +105,8 @@ int mma8450_resume(void *mlsl_handle,
 
 	/* XYZ_DATA_CFG: event flag enabled on all axis */
 	result =
-	    MLSLSerialWriteSingle(mlsl_handle, pdata->address, 0x16, 0x05);
+	    MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+				  0x16, 0x05);
 	ERROR_CHECK(result);
 	/* CTRL_REG1: rate + scale config + wakeup */
 	result =
@@ -106,7 +122,13 @@ int mma8450_read(void *mlsl_handle,
 		 struct ext_slave_platform_data *pdata,
 		 unsigned char *data)
 {
-	return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+	int result;
+	unsigned char local_data[4]; /* Status register + 3 bytes data */
+	result = MLSLSerialRead(mlsl_handle, pdata->address,
+				slave->reg, sizeof(local_data), local_data);
+    ERROR_CHECK(result);
+    memcpy(data, &local_data[1], (slave->len)-1);
+    return result;
 }
 
 struct ext_slave_descr mma8450_descr = {
@@ -116,11 +138,12 @@ struct ext_slave_descr mma8450_descr = {
 	/*.resume           = */ mma8450_resume,
 	/*.read             = */ mma8450_read,
 	/*.config           = */ NULL,
+	/*.get_config       = */ NULL,
 	/*.name             = */ "mma8450",
 	/*.type             = */ EXT_SLAVE_TYPE_ACCELEROMETER,
 	/*.id               = */ ACCEL_ID_MMA8450,
 	/*.reg              = */ 0x00,
-	/*.len              = */ 3,
+	/*.len              = */ 4,
 	/*.endian           = */ EXT_SLAVE_FS8_BIG_ENDIAN,
 	/*.range            = */ {2, 0},
 };

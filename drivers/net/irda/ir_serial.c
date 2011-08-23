@@ -37,6 +37,7 @@ struct bu92747_port {
 	unsigned long cur_frame_length; 
 	wait_queue_head_t data_ready_wq;
 	atomic_t data_ready;
+	spinlock_t data_lock; 
 
 	int tx_empty;		/* last TX empty bit */
 
@@ -193,16 +194,20 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 		if (!IS_FIR(s))
 			tty_flip_buffer_push(s->port.state->port.tty);
 		else
+			spin_lock(&s->data_lock);
 			s->cur_frame_length += len;
+			spin_unlock(&s->data_lock);
 	}
 	
 	if ((irq_src & REG_INT_EOF) && (s->port.state->port.tty != NULL)) {
 		tty_flip_buffer_push(s->port.state->port.tty);
 		if (IS_FIR(s)) {
-			s->last_frame_length = s->cur_frame_length;
+			spin_lock(&s->data_lock);
+			s->last_frame_length += s->cur_frame_length;
 			s->cur_frame_length = 0;
 			atomic_set(&(s->data_ready), 1);
 			wake_up(&(s->data_ready_wq) );
+			spin_unlock(&s->data_lock);
 		}
 	}
 	
@@ -343,10 +348,12 @@ static void bu92747_irda_shutdown(struct uart_port *port)
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
 	}
-	
+
+	spin_lock(&s->data_lock);
 	atomic_set(&(s->data_ready), 0);
 	s->last_frame_length = 0;
 	s->cur_frame_length = 0;
+	spin_unlock(&s->data_lock);
 		
 	if (s->irq)
 		free_irq(s->irq, s);
@@ -369,8 +376,11 @@ static int bu92747_irda_startup(struct uart_port *port)
 
 	s->baud = 9600;
 	s->rx_enabled = 1;
+	
+	spin_lock(&s->data_lock);
 	s->last_frame_length = 0;
 	s->cur_frame_length = 0;
+	spin_unlock(&s->data_lock);
 
 	if (s->suspending)
 		return 0;
@@ -503,10 +513,11 @@ static int bu92747_get_frame_length(struct bu92747_port *s)
 		return -1;
 	}
 
+	spin_lock(&s->data_lock);
 	len = s->last_frame_length;
 	s->last_frame_length = 0;
-	
 	atomic_set(&(s->data_ready), 0);
+	spin_unlock(&s->data_lock);
 	
 	return len;
 }
@@ -639,6 +650,8 @@ static int __devinit bu92747_irda_probe(struct platform_device *pdev)
 		bu92747s[i]->pdata->irda_pwr_ctl(0);
 	
 	init_waitqueue_head(&(bu92747s[i]->data_ready_wq));
+
+	spin_lock_init(&(bu92747s[i]->data_lock));
 
 	mutex_unlock(&bu92747s_lock);
 	

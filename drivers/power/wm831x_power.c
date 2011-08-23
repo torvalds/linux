@@ -37,7 +37,7 @@
 #define batt_num   52
 
 static int batt_step_table[batt_num] = {
-	3380,3405,3440,3475,3505,3525,
+	3400,3420,3440,3475,3505,3525,
 	3540,3557,3570,3580,3610,
 	3630,3640,3652,3662,3672,
 	3680,3687,3693,3699,3705,
@@ -731,7 +731,10 @@ static void wm831x_batt_timer_handler(unsigned long data)
 void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int *level)
 {
 	int i, ret, status;
-	static int count = 0;
+	static int chg_plus = 1000;
+	static int chg_minus = 1000;
+	static int chg_curr = 0;
+	static int chg_num = 60;
 	static int disp_plus = 1000;
 	static int disp_minus = 1000;
 	static int disp_curr = 0;
@@ -751,7 +754,8 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 		return;
 	}
 
-	if (status == POWER_SUPPLY_STATUS_CHARGING) {
+	if (status == POWER_SUPPLY_STATUS_CHARGING) 
+	{
 		disp_plus = 0;
 		disp_minus = 0;
 		disp_curr = 0;
@@ -768,17 +772,95 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 		if (batt_vol >= batt_chg_step_table[batt_num - 1])
 			*level = 100;
 
-		count++;
-		if (*level < wm831x_power->batt_info.level && count > 20)
-			*level = wm831x_power->batt_info.level;
+		// ³õÊ¼×´Ì¬
+		if ((chg_plus == 1000) && (chg_minus == 1000))
+		{
+			*level = *level;
+			chg_plus = 0;
+			chg_minus = 0;
+			chg_curr = 0;
+		}
+		else
+		{			
+
+			if (*level >= (wm831x_power->batt_info.level+1))
+			{
+				chg_minus = 0;
+				chg_curr = 0;
+				
+				if (++chg_plus > chg_num)
+				{
+					*level = wm831x_power->batt_info.level + 1;
+					chg_plus = 0;
+					
+					if(*level < 85)
+					chg_num = 60;
+					else 
+					chg_num = 20;
+			
+				}
+				else
+				{
+					*level = wm831x_power->batt_info.level;
+				}		
+			}
+
+			else if (*level >= wm831x_power->batt_info.level)
+			{
+				chg_plus = 0;
+				chg_minus = 0;
+
+				if (++chg_curr > chg_num)
+				{
+					*level = *level;
+					chg_curr = 0;
+				}
+				else
+				{
+					*level = wm831x_power->batt_info.level;
+				}
+			}
+			else if (*level < (wm831x_power->batt_info.level-1)) 	
+			{
+				chg_plus = 0;
+				chg_curr = 0;
+				
+				if (++chg_minus > (chg_num<<1))
+				{
+					*level = wm831x_power->batt_info.level - 1;
+					chg_minus = 0;
+
+					if(*level < 85)
+					chg_num = 60;
+					else 
+					chg_num = 20;
+
+				}
+				else
+				{
+					*level = wm831x_power->batt_info.level;
+				}
+			}
+			else
+			{
+				chg_plus = 0;
+				chg_minus = 0;
+				chg_curr = 0;
+				*level = wm831x_power->batt_info.level;
+			}
+		}
+		
 
 		if (*level >= 100)
 			*level = 100;
 		if (*level < 0)
 			*level = 0;
 	}
-	else {
-		count = 0;
+	else 
+	{
+		chg_plus = 0;
+		chg_minus = 0;
+		chg_curr = 0;
 
 		for(i = 0; i < batt_num; i++){        
 			if(batt_vol >= batt_step_table[i] && 

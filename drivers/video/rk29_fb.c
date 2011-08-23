@@ -271,6 +271,37 @@ static bool has_set_rotate;
 static u32 last_yuv_phy[2] = {0,0};
 #endif
 
+static BLOCKING_NOTIFIER_HEAD(rk29fb_notifier_list);
+int rk29fb_register_notifier(struct notifier_block *nb)
+{
+	int ret = 0;
+	if (g_pdev) {
+		struct rk29fb_inf *inf = platform_get_drvdata(g_pdev);
+		if (inf) {
+			if (inf->cur_screen && inf->cur_screen->type == SCREEN_HDMI)
+				nb->notifier_call(nb, RK29FB_EVENT_HDMI_ON, inf->cur_screen);
+			if (inf->fb1 && inf->fb1->par) {
+				struct win0_par *par = inf->fb1->par;
+				if (par->refcount)
+					nb->notifier_call(nb, RK29FB_EVENT_FB1_ON, inf->cur_screen);
+			}
+		}
+	}
+	ret = blocking_notifier_chain_register(&rk29fb_notifier_list, nb);
+
+	return ret;
+}
+
+int rk29fb_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&rk29fb_notifier_list, nb);
+}
+
+static int rk29fb_notify(struct rk29fb_inf *inf, unsigned long event)
+{
+	return blocking_notifier_call_chain(&rk29fb_notifier_list, event, inf->cur_screen);
+}
+
 int mcu_do_refresh(struct rk29fb_inf *inf)
 {
     if(inf->mcu_stopflush)  return 0;
@@ -1157,6 +1188,39 @@ static int win1_blank(int blank_mode, struct fb_info *info)
     return 0;
 }
 
+
+#ifdef CONFIG_CLOSE_WIN1_DYNAMIC 
+static void win1_check_work_func(struct work_struct *work)
+{
+    struct rk29fb_inf *inf = platform_get_drvdata(g_pdev);
+    struct fb_info *fb0_inf = inf->fb0;
+    int i=0;
+    int *p = NULL;
+    int blank_data,total_data;
+
+    u16 xres_virtual = fb0_inf->var.xres_virtual;      //virtual screen size
+    u16 xpos_virtual = fb0_inf->var.xoffset;           //visiable offset in virtual screen
+    u16 ypos_virtual = fb0_inf->var.yoffset;
+
+    int offset = (ypos_virtual*xres_virtual + xpos_virtual)*((inf->fb0_color_deepth || fb0_inf->var.bits_per_pixel==32)? 4:2)/4;  
+    p = (int*)fb0_inf->screen_base + offset; 
+    blank_data = (inf->fb0_color_deepth==32) ? 0xff000000 : 0;
+    total_data = fb0_inf->var.xres*fb0_inf->var.yres*fb0_inf->var.bits_per_pixel/32;
+    
+    for(i=0; i < total_data; i++)
+    {
+        if(*p++ != blank_data) 
+        {
+            //printk("win1 have no 0 data in %d, total %d\n",i,total_data);
+            return;
+        }            
+    }
+
+    win1_blank(FB_BLANK_POWERDOWN, fb0_inf);
+   // printk("%s close win1!\n",__func__);
+}
+static DECLARE_DELAYED_WORK(rk29_win1_check_work, win1_check_work_func);
+#endif
 static int win1_set_par(struct fb_info *info)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
@@ -1167,12 +1231,15 @@ static int win1_set_par(struct fb_info *info)
 	u32 addr;
 	u16 xres_virtual,xpos,ypos;
 	u8 trspval,trspmode;
+ #ifdef CONFIG_CLOSE_WIN1_DYNAMIC   
+    cancel_delayed_work_sync(&rk29_win1_check_work);
+ #endif   
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
         && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
     {
         hdmi_set_fbscale(info);
     }else  if(((screen->x_res==1920) ))
-    	{
+    {
     	if(hdmi_get_fbscale() < 100)
 			par->ypos -=screen->y_res * (100-hdmi_get_fbscale()) / 200;
 	}
@@ -1189,11 +1256,11 @@ static int win1_set_par(struct fb_info *info)
     trspmode = TRSP_CLOSE;
     trspval = 0;
 
-    //fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
    #ifdef CONFIG_FB_SCALING_OSD
-    if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+    if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
     {
         addr = fix->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
         xres_virtual = screen->x_res* hdmi_get_fbscale()/100;      //virtual screen size
@@ -1236,6 +1303,10 @@ static int win1_set_par(struct fb_info *info)
     }
 
 	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    
+#ifdef CONFIG_CLOSE_WIN1_DYNAMIC 
+    schedule_delayed_work(&rk29_win1_check_work, msecs_to_jiffies(5000));
+#endif
 
     return 0;
 }
@@ -1250,8 +1321,8 @@ static int win1_pan( struct fb_info *info )
     #ifdef CONFIG_FB_SCALING_OSD
     struct rk29fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var = &info->var;
-    if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+    if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
     {
         addr = fix1->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
     }
@@ -1414,8 +1485,8 @@ static int fb0_set_par(struct fb_info *info)
     if(inf->video_mode == 1)
     {
         #ifdef CONFIG_FB_SCALING_OSD
-        if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+        if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
         {
             par->xpos = 0;
             par->ypos = 0;
@@ -1512,8 +1583,8 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     if(inf->video_mode == 1)
     {
         #ifdef CONFIG_FB_SCALING_OSD
-        if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+        if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
+            && (screen->x_res<=1280))
         {
             par->y_offset = dstoffset;
 
@@ -1950,8 +2021,8 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
 				//   if(var->xres > screen->x_res)
 				//   {
-					ipp_req.dst0.w = var->xres;
-					ipp_req.dst0.h = var->yres;
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
 				//  }   else	{
 				//	  ipp_req.dst0.w = var->yres;
 				// 	  ipp_req.dst0.h = var->xres;
@@ -2040,6 +2111,7 @@ int fb1_open(struct fb_info *info, int user)
         fb0_set_par(inf->fb0);
         fb0_pan_display(&inf->fb0->var, inf->fb0);
         win0_blank(FB_BLANK_POWERDOWN, info);
+	    rk29fb_notify(inf, RK29FB_EVENT_FB1_ON);
         return 0;
     }
 }
@@ -2073,6 +2145,10 @@ int fb1_release(struct fb_info *info, int user)
         info->fix.smem_len = 0;
 		// clean the var param
 		memset(var0, 0, sizeof(struct fb_var_screeninfo));
+	    rk29fb_notify(inf, RK29FB_EVENT_FB1_OFF);
+        #ifdef CONFIG_CLOSE_WIN1_DYNAMIC   
+         cancel_delayed_work_sync(&rk29_win1_check_work);
+        #endif  
     }
 
     return 0;
@@ -2299,6 +2375,7 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     fb0_set_par(inf->fb0);
     LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    rk29fb_notify(inf, enable ? RK29FB_EVENT_HDMI_ON : RK29FB_EVENT_HDMI_OFF);
     return 0;
 }
 
@@ -2432,6 +2509,10 @@ static void rk29fb_early_suspend(struct early_suspend *h)
         return;
     }
 
+#ifdef CONFIG_CLOSE_WIN1_DYNAMIC   
+     cancel_delayed_work_sync(&rk29_win1_check_work);
+#endif  
+
     if((inf->cur_screen != &inf->panel2_info) && mach_info->io_disable)  // close lcd pwr when output screen is lcd
        mach_info->io_disable();  //close lcd out 
 
@@ -2501,7 +2582,7 @@ static void rk29fb_early_resume(struct early_suspend *h)
         if(inf->clk){
             clk_enable(inf->aclk);
         }
-        msleep(100);
+        usleep_range(100*1000, 100*1000);
 	}
     LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));
     LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
@@ -2515,9 +2596,9 @@ static void rk29fb_early_resume(struct early_suspend *h)
 		fbprintk(">>>>>> power on the screen! \n");
 		inf->cur_screen->standby(0);
 	}
-    msleep(10);
+    usleep_range(10*1000, 10*1000);
     memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
-    msleep(40);
+    usleep_range(40*1000, 40*1000);
     
     if((inf->cur_screen != &inf->panel2_info) && mach_info->io_enable)  // open lcd pwr when output screen is lcd
        mach_info->io_enable();  //close lcd out 

@@ -387,10 +387,10 @@ static int mma8452_get_data(struct i2c_client *client)
 		axis.y = y;	
 		axis.z = z;
 	}
-	
+
 	if(pdata->swap_xy)
 	{
-		axis.y = -axis.y;
+		axis.x = -axis.x;
 		swap(axis.x,axis.y);		
 	}
 	

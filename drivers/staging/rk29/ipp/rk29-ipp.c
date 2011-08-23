@@ -794,9 +794,15 @@ int ipp_blit(const struct rk29_ipp_req *req)
 
 		}
 
-		if(!((req->src0.fmt != IPP_Y_CBCR_H2V1)&&(req->src0.w == 176)&&(req->src0.h == 144)&&(req->dst0.w == 480)&&(req->dst0.h == 800)))
+		/*only support 1/2 to 4 times scaling,but two cases can pass
+		1.176*144->480*800, YUV420 
+		2.128*128->480*800, YUV420
+		*/
+		if(!((req->src0.fmt == IPP_Y_CBCR_H2V2)&&
+			(((req->src0.w == 176)&&(req->src0.h == 144))||((req->src0.w == 128)&&(req->src0.h == 128)))&&
+			((req->dst0.w == 480)&&(req->dst0.h == 800))))	
 		{	
-			//only support 1/2 to 4 times scaling,but 176*144->480*800 can pass
+			
 			if(post_scale_w<0x3ff || post_scale_w>0x1fff || post_scale_h<0x400 || post_scale_h>0x2000 )
 			{
 				printk("invalid post_scale para!\n");
@@ -822,7 +828,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	else
 	{
 		ipp_write(ipp_read(IPP_CONFIG)|ROT_ENABLE, IPP_CONFIG);
-		ipp_write(ipp_read(IPP_CONFIG)|rotate<<5, IPP_CONFIG);
+		ipp_write((ipp_read(IPP_CONFIG)&0xffffff1f)|(rotate<<5), IPP_CONFIG);
 	}
 
 	/*Configure deinterlace*/
@@ -871,7 +877,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		ipp_write(ipp_read(IPP_CONFIG)&(~STORE_CLIP_MODE), IPP_CONFIG);
 	}
-		
+
 	/* Start the operation */
 	ipp_write(8, IPP_INT);//		
 	dsb();
@@ -944,7 +950,8 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
    
 	if(drvdata->ipp_result == 0)
 	{
-		wait_ret = wait_event_interruptible_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
+		//wait_ret = wait_event_interruptible_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
+		wait_ret = wait_event_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
 #ifdef IPP_TEST
 		irq_end = ktime_get(); 
 		irq_end = ktime_sub(irq_end,irq_start);
@@ -990,6 +997,7 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
 #endif
 			
 			ipp_soft_reset();
+			drvdata->ipp_result = -EAGAIN;
 		}
 
 		ipp_power_off(NULL);
@@ -1133,7 +1141,8 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 
 	if(drvdata->issync)//sync
 	{
-		wake_up_interruptible_sync(&hw_wait_queue);
+		//wake_up_interruptible_sync(&hw_wait_queue);
+		wake_up(&hw_wait_queue);
 	}
 	else//async
 	{
@@ -1161,12 +1170,15 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 static int ipp_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	//printk("ipp_suspend\n");
-	//delay 20ms to wait hardware work completed
-	mdelay(20);
+	
+	if(drvdata->enable)
+	{
+		//delay 20ms to wait hardware work completed
+		mdelay(20);
 
-	//cancel the delay work, power off right now
-	cancel_delayed_work_sync(&drvdata->power_off_work);
-	ipp_power_off(NULL);
+		// power off right now
+	    ipp_power_off(NULL);
+	}
 
 	return 0;
 }
@@ -1263,21 +1275,21 @@ uint32_t size = 8*1024*1024;
 		
 		ipp_req.src0.YrgbMst = src_addr;
 		ipp_req.src0.CbrMst = src_addr + size;
-		ipp_req.src0.w = 480;
-		ipp_req.src0.h = 320;
+		ipp_req.src0.w = 128;
+		ipp_req.src0.h = 128;
 		ipp_req.src0.fmt = IPP_Y_CBCR_H2V2;
 		
 		ipp_req.dst0.YrgbMst = dst_addr;
 		ipp_req.dst0.CbrMst = dst_addr + size;
-		ipp_req.dst0.w = 240;
-		ipp_req.dst0.h = 160;
+		ipp_req.dst0.w = 480;
+		ipp_req.dst0.h = 800;
 	
-		ipp_req.src_vir_w = 480;
-		ipp_req.dst_vir_w = 240;
+		ipp_req.src_vir_w = 128;
+		ipp_req.dst_vir_w = 480;
 		ipp_req.timeout = 100;
 		ipp_req.flag = IPP_ROT_0;
 		
-		ipp_req.deinterlace_enable =1;
+		ipp_req.deinterlace_enable =0;
 		ipp_req.deinterlace_para0 = 16;
 		ipp_req.deinterlace_para1 = 16;
 		ipp_req.deinterlace_para2 = 0;
@@ -1285,11 +1297,13 @@ uint32_t size = 8*1024*1024;
 		ipp_req.complete = ipp_test_complete;
 
 		/*0 test whether IPP_CONFIG is set correctly*/
+		/*
 		ipp_blit_sync(&ipp_req);
 		ipp_req.dst0.w = 480;
 		ipp_req.dst0.h = 320;
 		ipp_req.dst_vir_w = 480;
 		ipp_blit_sync(&ipp_req);
+		*/
 		
 		/*1 test ipp_blit_sync*/
 		/*
@@ -1401,6 +1415,52 @@ uint32_t size = 8*1024*1024;
 		while(ret>0);
 */
 
+		/*8 test special up scaling*/
+		/*
+		ipp_req.src0.fmt = IPP_Y_CBCR_H2V2;
+		ipp_req.src0.w = 128;
+		ipp_req.src0.h = 128;
+		ipp_req.dst0.w = 480;
+		ipp_req.dst0.h = 800;
+		ipp_req.src_vir_w = 128;
+		ipp_req.dst_vir_w = 480;
+		ret = -1;
+		ret = ipp_blit_sync(&ipp_req);
+		printk("128x128->480x800: %d \n",ret);
+
+		ipp_req.src0.w = 160;
+		ipp_req.src0.h = 160;
+		ipp_req.src_vir_w = 160;
+		ret = -1;
+		ret = ipp_blit_sync(&ipp_req);
+		printk("160x160->480x800: %d \n",ret);
+
+		ipp_req.src0.w = 176;
+		ipp_req.src0.h = 144;
+		ipp_req.src_vir_w = 176;
+		ret = -1;
+		ret = ipp_blit_sync(&ipp_req);
+		printk("176x144->480x800: %d \n",ret);
+
+		ipp_req.src0.fmt = IPP_Y_CBCR_H2V1;
+		ret = -1;
+		ret = ipp_blit_sync(&ipp_req);
+		printk("fmt:422 176x144->480x800 : %d \n",ret);
+
+		ipp_req.src0.fmt = IPP_Y_CBCR_H2V2;
+		ipp_req.dst0.w = 800;
+		ipp_req.dst0.h = 480;
+		ipp_req.dst_vir_w = 800;
+		ret = -1;
+		ret = ipp_blit_sync(&ipp_req);
+		printk("176x144->800x480: %d \n",ret);
+		*/
+
+		/*9 test rotate config*/
+		ipp_req.flag = IPP_ROT_180;
+		ipp_blit_sync(&ipp_req);
+		ipp_req.flag = IPP_ROT_270;
+		ipp_blit_sync(&ipp_req);
 		
 		free_pages(srcY, 9);
 //test deinterlace

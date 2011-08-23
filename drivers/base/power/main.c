@@ -27,6 +27,9 @@
 #include <linux/sched.h>
 #include <linux/async.h>
 #include <linux/timer.h>
+#ifdef CONFIG_ARCH_RK29
+#include <linux/console.h>
+#endif
 
 #include "../base.h"
 #include "power.h"
@@ -611,6 +614,12 @@ static void dpm_drv_timeout(unsigned long data)
 	printk(KERN_EMERG "**** DPM device timeout: %s (%s)\n", dev_name(dev),
 	       (dev->driver ? dev->driver->name : "no driver"));
 
+#ifdef CONFIG_ARCH_RK29
+	resume_console();
+	if (dev->power.status == DPM_RESUMING)
+		printk(KERN_EMERG "dpm resume stack:\n");
+	else
+#endif
 	printk(KERN_EMERG "dpm suspend stack:\n");
 	show_stack(tsk, NULL);
 
@@ -653,7 +662,13 @@ static void dpm_resume(pm_message_t state)
 
 			mutex_unlock(&dpm_list_mtx);
 
+#ifdef CONFIG_ARCH_RK29
+			dpm_drv_wdset(dev);
+#endif
 			error = device_resume(dev, state, false);
+#ifdef CONFIG_ARCH_RK29
+			dpm_drv_wdclr(dev);
+#endif
 
 			mutex_lock(&dpm_list_mtx);
 			if (error)

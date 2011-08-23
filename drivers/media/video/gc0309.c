@@ -1444,8 +1444,6 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     char value;
     int ret;
 
-    SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
-
 	if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
 		ret = -ENODEV;
 		goto sensor_INIT_ERR;
@@ -1461,6 +1459,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         ret = -ENODEV;
 		goto sensor_INIT_ERR;
     }
+
     mdelay(5);  //delay 5 microseconds
 	/* check if it is an sensor sensor */
     ret = sensor_read(client, 0x00, &value);

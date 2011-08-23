@@ -832,6 +832,12 @@ config TOUCHSCREEN_NAS
           code includes that in its table of I2C devices.
 
           If unsure, say N (but it's safe to say "Y").
+          
+config LAIBAO_TS
+	tristate "LAIBAO touchscreen"
+	depends on I2C2_RK29
+	help
+	  RK29 LAIBAO touchscreen
 
 config TOUCHSCREEN_GT801_IIC
 	tristate "GT801_IIC based touchscreens"
@@ -890,4 +896,33 @@ config TOUCHSCREEN_QUANTUM_OBP
 
 	  If unsure, say N.
 
+config ATMEL_MXT1386
+        tristate "ATMEL_MXT1386 touchscreen panel support"
+        depends on I2C
+        help
+          Say Y here to enable support for I2C connected ATMEL_MXT1386 touch panels.
+
+          To compile this driver as a module, choose M here: the
+          module will be called atmel_mxt1386_ts.
+
+        config ATMEL_MXT1386_MAX_X
+                int "ATMEL_MXT1386_MAX_X"
+                depends on ATMEL_MXT1386
+                default 4095
+                help
+                  RK29 ATMEL_MXT1386 touch max X size
+
+        config ATMEL_MXT1386_MAX_Y
+                int "ATMEL_MXT1386_MAX_Y"
+                depends on ATMEL_MXT1386
+                default 4095
+                help
+                  RK29 ATMEL_MXT1386 touch max Y size
+
+        config ATMEL_MXT1386_DEBUG
+                bool "ATMEL_MXT1386 debug"
+                depends on ATMEL_MXT1386
+                default n
+                help
+                  RK29 ATMEL_MXT1386 touch debug
 endif

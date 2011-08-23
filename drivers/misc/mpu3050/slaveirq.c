@@ -1,7 +1,20 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -25,19 +38,20 @@
 #include <linux/wait.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/wait.h>
+#include <linux/slab.h>
 
 #include "mpu.h"
 #include "slaveirq.h"
 #include "mldl_cfg.h"
 #include "mpu-i2c.h"
-#include <linux/wait.h>
-#include <linux/delay.h>
+
 /* function which gets slave data and sends it to SLAVE */
 
 struct slaveirq_dev_data {
 	struct miscdevice dev;
 	struct i2c_client *slave_client;
-	struct irq_data data;
+	struct mpuirq_data data;
 	wait_queue_head_t slaveirq_wait;
 	int irq;
 	int pid;
@@ -77,7 +91,9 @@ static ssize_t slaveirq_read(struct file *file,
 	struct slaveirq_dev_data *data =
 		container_of(file->private_data, struct slaveirq_dev_data, dev);
 
-	if (!data->data_ready) {
+	if (!data->data_ready &&
+		data->timeout &&
+		!(file->f_flags & O_NONBLOCK)) {
 		wait_event_interruptible_timeout(data->slaveirq_wait,
 						 data->data_ready,
 						 data->timeout);
@@ -100,7 +116,8 @@ static ssize_t slaveirq_read(struct file *file,
 	return len;
 }
 
-unsigned int slaveirq_poll(struct file *file, struct poll_table_struct *poll)
+static unsigned int slaveirq_poll(struct file *file,
+				struct poll_table_struct *poll)
 {
 	int mask = 0;
 	struct slaveirq_dev_data *data =
@@ -156,17 +173,14 @@ static irqreturn_t slaveirq_handler(int irq, void *dev_id)
 	data->data.interruptcount++;
 
 	/* wake up (unblock) for reading data from userspace */
-	/* and ignore first interrupt generated in module init */
-	if (data->data.interruptcount > 1) {
-		data->data_ready = 1;
+	data->data_ready = 1;
 
-		do_gettimeofday(&irqtime);
-		data->data.irqtime = (((long long) irqtime.tv_sec) << 32);
-		data->data.irqtime += irqtime.tv_usec;
-		data->data.data_type |= 1;
+	do_gettimeofday(&irqtime);
+	data->data.irqtime = (((long long) irqtime.tv_sec) << 32);
+	data->data.irqtime += irqtime.tv_usec;
+	data->data.data_type |= 1;
 
-		wake_up_interruptible(&data->slaveirq_wait);
-	}
+	wake_up_interruptible(&data->slaveirq_wait);
 
 	return IRQ_HANDLED;
 
@@ -230,6 +244,7 @@ int slaveirq_init(struct i2c_adapter *slave_adapter,
 	printk("%s registing irq  == %d \r\n",name,gpio_to_irq(data->irq));
 	//gpio_pull_updown(data->irq, GPIOPullUp);
 	//gpio_set_value(data->irq,GPIO_HIGH);
+	init_waitqueue_head(&data->slaveirq_wait);
 	res = request_irq(gpio_to_irq(data->irq), slaveirq_handler, IRQF_TRIGGER_FALLING,data->dev.name, data);
 
 	if (res) {
@@ -247,7 +262,6 @@ int slaveirq_init(struct i2c_adapter *slave_adapter,
 		goto out_misc_register;
 	}
 
-	init_waitqueue_head(&data->slaveirq_wait);
 	return res;
 
 out_misc_register:

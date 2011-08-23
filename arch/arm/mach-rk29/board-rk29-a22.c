@@ -99,11 +99,11 @@
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0309  /* front camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_1 	    0x42
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
-#define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
+#define CONFIG_SENSOR_POWER_PIN_1        RK29_PIN5_PA0 //INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERDN_PIN_1       RK29_PIN5_PD7
 #define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_H
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
@@ -1434,109 +1434,7 @@ struct platform_device rk29_device_gps = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
-//#if defined(CONFIG_MFD_WM8994)
-#if defined (CONFIG_REGULATOR_WM8994)
-static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
-	{
-		.supply = "DBVDD",
-	},
-	{
-		.supply = "AVDD1",
-	},
-	{
-		.supply = "CPVDD",
-	},
-	{
-		.supply = "SPKVDD1",
-	}		
-};
-static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
-	{
-		.supply = "DCVDD",
-	},
-	{
-		.supply = "AVDD2",
-	},
-	{
-		.supply = "SPKVDD2",
-	}			
-};
-struct regulator_init_data regulator_init_data_ldo1 = {
-	.constraints = {
-		.name = "wm8994-ldo1",
-		.min_uA = 00000,
-		.max_uA = 18000,
-		.always_on = true,
-		.apply_uV = true,		
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
-	},
-	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
-	.consumer_supplies = wm8994_ldo1_consumers,	
-};
-struct regulator_init_data regulator_init_data_ldo2 = {
-	.constraints = {
-		.name = "wm8994-ldo2",
-		.min_uA = 00000,
-		.max_uA = 18000,
-		.always_on = true,
-		.apply_uV = true,		
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
-	},
-	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
-	.consumer_supplies = wm8994_ldo2_consumers,	
-};
-#endif 
-struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
-	.name = "wm8994_DRC",
-	.regs = {0,0,0,0,0},
-};
-
-struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
-	.name = "wm8994_EQ",
-	.rate = 0,
-	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
-}; 
-
 struct wm8994_pdata wm8994_platdata = {	
-#if defined (CONFIG_GPIO_WM8994)
-	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
-	//Fill value to initialize the GPIO
-	.gpio_defaults ={},
-#endif	
-	//enable=0 disable ldo
-#if defined (CONFIG_REGULATOR_WM8994)	
-	.ldo = {
-		{
-			.enable = 0,
-			//RK29_PIN5_PA1
-			.supply = NULL,
-			.init_data = &regulator_init_data_ldo1,
-		},
-		{
-			.enable = 0,
-			.supply = NULL,		
-			.init_data = &regulator_init_data_ldo2,
-		}
-	},
-#endif 	
-	//DRC 0--use default
-	.num_drc_cfgs = 0,
-	.drc_cfgs = &wm8994_drc_cfg_pdata,
-	//EQ   0--use default 
-	.num_retune_mobile_cfgs = 0,
-	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
-	
-	.lineout1_diff = 1,
-	.lineout2_diff = 1,
-	
-	.lineout1fb = 1,
-	.lineout2fb = 1,
-	
-	.micbias1_lvl = 1,
-	.micbias2_lvl = 1,
-	
-	.jd_scthr = 0,
-	.jd_thr = 0,
 	
 	.PA_control_pin = RK29_PIN6_PD3,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
@@ -1553,7 +1451,7 @@ struct wm8994_pdata wm8994_platdata = {
 	.recorder_vol = 30,
 		
 };
-//#endif 
+
 
 #ifdef CONFIG_RK_HEADSET_DET
 
@@ -1739,6 +1637,13 @@ struct i2c_gpio_platform_data default_i2c3_data = {
        .io_init = rk29_i2c3_io_init,
 };
 #endif
+#if defined (CONFIG_ANX7150)
+#define HDMI_VDD_CTL RK29_PIN6_PD3
+struct hdmi_platform_data anx7150_data  = {
+	//.io_init = anx7150_io_init,
+};
+#endif
+
 #ifdef CONFIG_I2C0_RK29
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)
@@ -1850,6 +1755,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
         .addr           = 0x39,             //0x39, 0x3d
         .flags          = 0,
         .irq            = RK29_PIN2_PA3,
+		.platform_data  = &anx7150_data,
     },
 #endif
 #if defined (CONFIG_SENSORS_MPU3050) 

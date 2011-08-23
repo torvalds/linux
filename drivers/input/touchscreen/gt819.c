@@ -36,11 +36,12 @@
 #include <linux/completion.h>
 #include <asm/uaccess.h>
 #include <mach/board.h>
+#include <linux/reboot.h>
 
 #define GOODIX_I2C_NAME "Goodix-TS"
 //define default resolution of the touchscreen
 #define GOODIX_MULTI_TOUCH
-#define GT819_IIC_SPEED              350*1000    //400*1000
+#define GT819_IIC_SPEED              400*1000    //400*1000
 #define TOUCH_MAX_WIDTH              800
 #define TOUCH_MAX_HEIGHT             480
 #define TOUCH_MAJOR_MAX              200
@@ -183,6 +184,7 @@ int gt189_wait_for_slave(struct i2c_client *client, u8 status)
 		printk("i2c read state byte:0x%x\n",i2c_state_buf[0]);
 		if(ret < 0)
 			return ERROR_I2C_TRANSFER;
+		if(i2c_state_buf[0]==0xff)continue;
 		if(i2c_state_buf[0] & status)
 			return i2c_state_buf[0];
 		msleep(10);
@@ -289,12 +291,14 @@ resend:
 		if(ret < 0)
 			return ret;
 		//gt819_printf(i2c_data_buf, data_len);
+		msleep(10);
 		dev_info(&client->dev, "PACK[%d]:read data\n",frame_number);
 		memset(i2c_rd_buf, 0, sizeof(i2c_rd_buf));
 		ret = gt819_read_regs(client,ADDR_DAT, i2c_rd_buf, data_len);
 		if(ret < 0)
 			return ret;
 		//gt819_printf(i2c_data_buf, data_len);
+		msleep(10);
 		dev_info(&client->dev, "PACK[%d]:check data\n",frame_number);
 		if(memcmp(&i2c_rd_buf[4],&fw_buf[frame_number*PACK_SIZE],check_len))
 		{
@@ -347,6 +351,7 @@ int gt819_update_fw(struct i2c_client *client)
 	int ret,file_len,update_need_config;
 	unsigned char i2c_control_buf[10];
 	char version[17];
+	const char version_base[17]={"GT81XNI"};
 	
 	dev_info(&client->dev, "gt819 firmware update start...\n");
 	dev_info(&client->dev, "step 1:read version...\n");
@@ -415,6 +420,13 @@ int gt819_update_fw(struct i2c_client *client)
 	if (ret < 0) 
 		return ret;
 	dev_info(&client->dev, "done!\n");
+	version[7] = '\0';
+	if(strcmp(version ,version_base)==0)
+	{
+		sys_sync();
+		msleep(200);
+		kernel_restart(NULL);
+	}
 	return 0;
 }
 
@@ -447,9 +459,14 @@ static void gt819_queue_work(struct work_struct *work)
 		enable_irq(ts->irq);
 		dev_info(&ts->client->dev, "touch release\n");
 		return; 
+	}	
+	for(i=0;0!=points;)
+	{
+	if(points&0x01)
+		i++;
+	points>>=1;
 	}
-	for(i=0;0!=points;i++)
-		points>>=1;
+	
 	points = i;
 	points_chect = points;
 	ret = gt819_read_regs(ts->client,3, point_data, points*5+1);
@@ -466,8 +483,12 @@ static void gt819_queue_work(struct work_struct *work)
 		check_sum += point_data[count];
 	if(check_sum  != 0)			//checksum verify error
 		{
-			printk("coor checksum error!\n");
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
+			//input_mt_sync(data->input_dev);
+			input_sync(ts->input_dev);
 			enable_irq(ts->irq);
+			dev_info(&ts->client->dev, "coor checksum error!touch release\n");
 			return;
 		}
 		
@@ -615,7 +636,7 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 {
 	int ret = 0;
 	char version[17];
-	char version_base[17]={"GT81XNI_1R05TEST"};
+	char version_base[17]={"GT81XNI_1R05_18G"};
 	struct goodix_ts_data *ts;
 	struct goodix_platform_data *pdata = client->dev.platform_data;
 	const char irq_table[4] = {IRQ_TYPE_EDGE_RISING,
@@ -623,7 +644,7 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 							   IRQ_TYPE_LEVEL_LOW,
 							   IRQ_TYPE_LEVEL_HIGH};
 
-	dev_info(&client->dev,"Install touch driver\n");
+	dev_info(&client->dev,"Install goodix touch driver\n");
 
 	if (!pdata) {
 		dev_err(&client->dev, "platform data is required!\n");
@@ -670,11 +691,11 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 	
 	ts->goodix_wq = create_workqueue("goodix_wq");
 	if (!ts->goodix_wq) {
-		printk(KERN_ALERT "creat workqueue faiked\n");
+		printk(KERN_ALERT "creat workqueue failed\n");
 		ret = -ENOMEM;
 		goto err_create_work_queue_fail;
 	}
-	//INIT_WORK(&ts->work, goodix_ts_work_func);
+
 	INIT_WORK(&ts->work, gt819_queue_work);
 
 	ts->input_dev = input_allocate_device();

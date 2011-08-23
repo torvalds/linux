@@ -29,4 +29,5 @@ obj-$(CONFIG_LCD_LS035Y8DX02A) += lcd_ls035y8dx02a.o
 obj-$(CONFIG_LCD_IPS1P5680_V1_E) += lcd_ips1p5680_v1_e.o
 obj-$(CONFIG_LCD_MCU_TFT480800_25_E) += lcd_mcu_tft480800_25_e.o
 obj-$(CONFIG_LCD_AT070TNA2)    += lcd_AT070TNA2.o
+obj-$(CONFIG_LCD_TX23D88VM) += lcd_tx23d88vm.o
 obj-$(CONFIG_LCD_AT070TN93)    += lcd_at070tn93.o

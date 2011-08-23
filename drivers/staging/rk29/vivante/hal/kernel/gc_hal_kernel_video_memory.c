@@ -831,7 +831,8 @@ gckVIDMEM_AllocateLinear(
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
 	}
 
-    if (Bytes > Memory->freeBytes)
+    // dkm: 多预留64K的空间，否则GPU会有访问非法地址的风险
+    if (Bytes + (64 << 10) > Memory->freeBytes)
     {
         /* Not enough memory. */
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);

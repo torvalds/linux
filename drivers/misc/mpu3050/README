@@ -108,7 +108,7 @@ should be modified for your platform.
 
 #include <linux/mpu.h>
 
-#if defined(CONFIG_SENSORS_MPU3050) || defined(CONFIG_SENSORS_MPU3050_MODULE)
+#if defined(CONFIG_MPU_SENSORS_MPU3050) || defined(CONFIG_MPU_SENSORS_MPU3050_MODULE)
 
 #define SENSOR_MPU_NAME "mpu3050"
 
@@ -119,7 +119,7 @@ static struct mpu3050_platform_data mpu_data = {
 			   0,  0, -1 },
 	/* accel */
 	.accel = {
-#ifdef CONFIG_SENSORS_MPU3050_MODULE
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
 		 .get_slave_descr = NULL,
 #else
 		 .get_slave_descr = get_accel_slave_descr,
@@ -133,7 +133,7 @@ static struct mpu3050_platform_data mpu_data = {
 	 },
 	/* compass */
 	.compass = {
-#ifdef CONFIG_SENSORS_MPU3050_MODULE
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
 		 .get_slave_descr = NULL,
 #else
 		 .get_slave_descr = get_compass_slave_descr,
@@ -147,7 +147,7 @@ static struct mpu3050_platform_data mpu_data = {
 	 },
 	/* pressure */
 	.pressure = {
-#ifdef CONFIG_SENSORS_MPU3050_MODULE
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
 		 .get_slave_descr = NULL,
 #else
 		 .get_slave_descr = get_pressure_slave_descr,
@@ -162,7 +162,7 @@ static struct mpu3050_platform_data mpu_data = {
 };
 #endif
 
-#if defined(CONFIG_SENSORS_MPU6000) || defined(CONFIG_SENSORS_MPU6000_MODULE)
+#if defined(CONFIG_MPU_SENSORS_MPU6000) || defined(CONFIG_MPU_SENSORS_MPU6000_MODULE)
 
 #define SENSOR_MPU_NAME "mpu6000"
 
@@ -173,7 +173,7 @@ static struct mpu3050_platform_data mpu_data = {
 			   0,  0, -1 },
 	/* accel */
 	.accel = {
-#ifdef CONFIG_SENSORS_MPU6000_MODULE
+#ifdef CONFIG_MPU_SENSORS_MPU6000_MODULE
 		 .get_slave_descr = NULL,
 #else
 		 .get_slave_descr = get_accel_slave_descr,
@@ -187,7 +187,7 @@ static struct mpu3050_platform_data mpu_data = {
 	 },
 	/* compass */
 	.compass = {
-#ifdef CONFIG_SENSORS_MPU6000_MODULE
+#ifdef CONFIG_MPU_SENSORS_MPU6000_MODULE
 		 .get_slave_descr = NULL,
 #else
 		 .get_slave_descr = get_compass_slave_descr,
@@ -201,7 +201,7 @@ static struct mpu3050_platform_data mpu_data = {
 	 },
 	/* pressure */
 	.pressure = {
-#ifdef CONFIG_SENSORS_MPU6000_MODULE
+#ifdef CONFIG_MPU_SENSORS_MPU6000_MODULE
 		 .get_slave_descr = NULL,
 #else
 		 .get_slave_descr = get_pressure_slave_descr,
@@ -234,6 +234,17 @@ done as well:
     gpio_request(MPU_GPIO_IRQ,"MPUIRQ");
     gpio_direction_input(MPU_GPIO_IRQ)
 
+NOTE:
+=====
+In previous releases, the sensors were defined using CONFIG_SENSORS_SENSORNAME convention. 
+From this release onwards this convention will be changed to CONFIG_MPU_SENSORS_SENSORNAME. 
+Please make note of this change.
+
+Dynamic Debug
+=============
+
+The mpu3050 makes use of dynamic debug.  For details on how to use this
+refer to Documentation/dynamic-debug-howto.txt
 
 Android File Permissions
 ========================
@@ -243,8 +254,17 @@ To set up the file permissions on an android system, the /dev/mpu and
 inside the perms_ structure.
 
 static struct perms_ devperms[] = {
-    { "/dev/mpu"           ,0640,   AID_SYSTEM,    AID_SYSTEM,     1 },
+    { "/dev/mpu"           ,0660,   AID_SYSTEM,    AID_SYSTEM,     1 },
 };
 
 Sufficient file permissions need to be give to read and write it by the system.
 
+For gingerbread and later the system/core/rootdir/ueventd.rc file needs to be
+modified with the appripriate lines added.
+
+# MPU sensors and IRQ
+/dev/mpu                  0660   system     system
+/dev/mpuirq               0660   system     system
+/dev/accelirq             0660   system     system
+/dev/compassirq           0660   system     system
+/dev/pressureirq          0660   system     system

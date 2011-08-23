@@ -330,7 +330,7 @@
         0  - no use cache 
         m  - The maximum number of cache unit
 */
-#define gcdkUSE_MAPED_NONPAGE_CACHE         100
+#define gcdkUSE_MAPED_NONPAGE_CACHE         20
 
 #endif /* __gc_hal_options_h_ */
 

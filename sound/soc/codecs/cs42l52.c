@@ -31,14 +31,12 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
+#include <linux/workqueue.h>
 #include <linux/types.h>
 #include <linux/device.h>
-
 #include <asm/io.h>
 #include "cs42l52.h"
 #include <mach/board.h>
-
 //#include "cs42L52_control.h"
 
 
@@ -69,6 +67,9 @@ static struct snd_soc_codec *cs42l52_codec;
 #include <linux/earlysuspend.h>
 static struct early_suspend cs42l52_early_suspend;
 #endif
+
+static struct delayed_work delaywork;
+static u8   hp_detected;
 
 /**
  * snd_soc_get_volsw - single mixer get callback
@@ -255,7 +256,7 @@ int snd_soc_cs42l5x_put_volsw_2r(struct snd_kcontrol *kcontrol,
  * CS42L52 register default value
  */
 static const u8 soc_cs42l52_reg_default[] = {
-	0x00, 0xE0, 0x01, 0x07, 0x05, /*4*/
+	0x00, 0xE0, 0x01, 0x06, 0x05, /*4*/
 	0xa0, 0x00, 0x00, 0x81, /*8*/
 	0x81, 0xa5, 0x00, 0x00, /*12*/
 	0x60, 0x02, 0x00, 0x00, /*16*/
@@ -336,6 +337,9 @@ static unsigned int soc_cs42l52_read(struct snd_soc_codec *codec,
 #if 1
 	u8 data;
 	if(i2c_master_reg8_recv(codec->control_data,reg,&data,1,50*1000)>0) {
+
+		if(reg!=0x31)
+			printk(" cs42l52  reg =0x%x, val=0x%x\n",reg,data);
 		return data;
 	}
 	else {
@@ -484,7 +488,7 @@ SOC_SINGLE("Ganged Ctl Capture Switch", CODEC_CS42L52_ADC_MISC_CTL, 7, 1, 1), /*
 SOC_ENUM("Mix/Swap Capture Switch",soc_cs42l52_enum[2]),
 SOC_ENUM("Signal Polarity Capture Switch", soc_cs42l52_enum[3]),
 
-SOC_SINGLE("HP Analog Gain Playback Volume", CODEC_CS42L52_PB_CTL1, 5, 7, 0),
+//SOC_SINGLE("HP Analog Gain Playback Volume", CODEC_CS42L52_PB_CTL1, 5, 7, 0),    //rocky liu 
 SOC_SINGLE("Playback B=A Volume Playback Switch", CODEC_CS42L52_PB_CTL1, 4, 1, 0), /*10*/ /*should be enabled init*/ 
 SOC_ENUM("PCM Signal Polarity Playback Switch",soc_cs42l52_enum[4]),
 
@@ -814,7 +818,7 @@ int soc_cs42l52_set_bias_level(struct snd_soc_codec *codec, enum snd_soc_bias_le
         case SND_SOC_BIAS_OFF: /* Off, without power */
 		SOCDBG("off without power\n");
               soc_cs42l52_write(codec, CODEC_CS42L52_PWCTL1, pwctl1 | 0x9f);
-		soc_cs42l52_write(codec, CODEC_CS42L52_PWCTL2, pwctl2 | 0x07);
+		soc_cs42l52_write(codec, CODEC_CS42L52_PWCTL2, pwctl2 | 0x06);
                 break;
         }
         codec->bias_level = level;
@@ -860,14 +864,16 @@ static void cs42l52_power_init (struct snd_soc_codec *soc_codec)
 #endif
 
 		/*default output stream configure*/
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_PB_CTL1,
-				(soc_cs42l52_read(soc_codec, CODEC_CS42L52_PB_CTL1)
-				| (PB_CTL1_HP_GAIN_06047 << PB_CTL1_HP_GAIN_SHIFT)));
-
+		soc_cs42l52_write(soc_codec, CODEC_CS42L52_PB_CTL1, 0x60);
+		/*
+					(soc_cs42l52_read(soc_codec, CODEC_CS42L52_PB_CTL1)
+					| (PB_CTL1_HP_GAIN_07099 << PB_CTL1_HP_GAIN_SHIFT)));
+		*///rocky
+		/*
 		soc_cs42l52_write(soc_codec, CODEC_CS42L52_MISC_CTL,
 				(soc_cs42l52_read(soc_codec, CODEC_CS42L52_MISC_CTL))
 				| (MISC_CTL_DEEMPH | MISC_CTL_DIGZC | MISC_CTL_DIGSFT));
-
+		*/ //rocky
 		soc_cs42l52_write(soc_codec, CODEC_CS42L52_MICA_CTL,
 				(soc_cs42l52_read(soc_codec, CODEC_CS42L52_MICA_CTL)
 				| 0<<6));/*pre-amplifer 16db*/
@@ -882,27 +888,35 @@ static void cs42l52_power_init (struct snd_soc_codec *soc_codec)
 		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_MICA_CTL, 0x2c);
 		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_MICB_CTL, 0x2c);
 
+		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_NOISE_GATE_CTL, 0xe3);
+
+
+		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_IFACE_CTL2,
+		 	(soc_cs42l52_read(soc_codec, CODEC_CS42L52_IFACE_CTL2)
+				| 0x5));
+		
+
 		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_PGAA_CTL, 0x00);  //0dB PGA
 		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_PGAB_CTL, 0x00);  //0dB PGA
 
 		 soc_cs42l52_write(soc_codec, CODEC_CS42L52_ADC_HPF_FREQ, 0x0F);  //enable 464Hz HPF
-			 
-		//soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERA_VOL, 0x12);
-		//soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERB_VOL, 0x12);
 
-		//soc_cs42l52_write(soc_codec, CODEC_CS42L52_HPA_VOL, 0xc0);
-		//soc_cs42l52_write(soc_codec, CODEC_CS42L52_HPB_VOL, 0xc0);
 
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_BEEP_TONE_CTL, 0X07);
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_TONE_CTL, 0X8f);
+		hp_detected = (soc_cs42l52_read(soc_codec,CODEC_CS42L52_SPK_STATUS) &0x8);	//rocky
 
-		/*	
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERA_VOL, 0x00);
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERB_VOL, 0x00);
+		if(hp_detected==0)
+		{		
+			soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERA_VOL, 0x0);
+			soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERB_VOL, 0x0);
+		}
+		else
+		{
+			soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERA_VOL, 0x06);
+			soc_cs42l52_write(soc_codec, CODEC_CS42L52_MASTERB_VOL, 0x06);
+		}
+		
+	
 
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_BEEP_TONE_CTL, 0X00);
-		soc_cs42l52_write(soc_codec, CODEC_CS42L52_TONE_CTL, 0X00);
-		*/
 	}
 
 	return;
@@ -1014,7 +1028,7 @@ static int soc_cs42l52_set_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *soc_codec = codec_dai->codec;
 	struct soc_codec_cs42l52 *info = (struct soc_codec_cs42l52*)soc_codec->private_data;
 
-	SOCDBG("sysclk=%dHz,freq=%d\n", info->sysclk,freq);
+	SOCDBG("info->sysclk=%dHz,freq=%d\n", info->sysclk,freq);
 
 	if((freq >= SOC_CS42L52_MIN_CLK) && (freq <= SOC_CS42L52_MAX_CLK)){
 		info->sysclk = freq;
@@ -1173,6 +1187,47 @@ struct  snd_soc_dai soc_cs42l52_dai = {
 };
 EXPORT_SYMBOL_GPL(soc_cs42l52_dai);
 
+//added by koffu for Work
+/*
+ *----------------------------------------------------------------------------
+ * Function: soc_codec_detect_hp
+ * Purpose : Read  CODEC_CS42L52_SPK_STATUS (Speaker Status(Address 31h)) 
+ *               Indicates the status of the SPKR/HP pin.                  
+ *               if (1<<3) ,  select Speaker mod , if (0<<3) , select  Headset mod;    
+ *----------------------------------------------------------------------------
+ */
+static void  soc_codec_detect_hp(struct work_struct *work)
+{
+
+	u8 val =  soc_cs42l52_read(cs42l52_codec,CODEC_CS42L52_SPK_STATUS);
+	val = val&0x08;
+	
+	if(val == hp_detected){
+		schedule_delayed_work(&delaywork, msecs_to_jiffies(200));
+		return;
+	}
+
+	hp_detected = val;
+	
+	if(val == 0){
+		SOCDBG("hp is detected \n");
+		soc_cs42l52_write(cs42l52_codec, CODEC_CS42L52_MASTERA_VOL, 0x00);
+		soc_cs42l52_write(cs42l52_codec, CODEC_CS42L52_MASTERB_VOL, 0x00);
+
+		soc_cs42l52_write(cs42l52_codec, CODEC_CS42L52_BEEP_TONE_CTL, 0X00);
+		soc_cs42l52_write(cs42l52_codec, CODEC_CS42L52_TONE_CTL, 0X00);		
+	}
+	else
+	{
+		SOCDBG("speaker is detected \n");
+		soc_cs42l52_write(cs42l52_codec, CODEC_CS42L52_MASTERA_VOL, 0x06);
+		soc_cs42l52_write(cs42l52_codec, CODEC_CS42L52_MASTERB_VOL, 0x06);
+
+	}
+
+	schedule_delayed_work(&delaywork, msecs_to_jiffies(200));
+
+}
 
 #if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
 static int cs42l52_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
@@ -1237,6 +1292,9 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 	soc_cs42l52_dai.dev = &i2c->dev;
 	cs42l52_codec = soc_codec;
 
+	INIT_DELAYED_WORK(&delaywork, soc_codec_detect_hp);
+	schedule_delayed_work(&delaywork, msecs_to_jiffies(200));
+
 	ret = snd_soc_register_codec(soc_codec);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
@@ -1285,6 +1343,8 @@ static int cs42l52_i2c_shutdown(struct i2c_client *client)
 	snd_soc_unregister_codec(cs42l52_codec);
 
 	soc_cs42l52_set_bias_level(cs42l52_codec, SND_SOC_BIAS_OFF);
+	
+	cancel_delayed_work(&delaywork);
 
 	soc_cs42l52_dai.dev = NULL;
 	if(cs42l52_codec->reg_cache)		

@@ -212,7 +212,7 @@ config BATT_CAPACITY_MAH
 
 config NO_BATTERY_IC
 	tristate "no BQ27510 battery ic in board"
-	depends on BATTERY_BQ27510 || BATTERY_BQ3060 
+	depends on BATTERY_BQ27510 || BATTERY_BQ27541 || BATTERY_BQ3060 
 	default n
 	help
 	  Say no BQ27510(I2C) chip in board .

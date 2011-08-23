@@ -1,5 +1,5 @@
 /*
-o* Driver for MT9M001 CMOS Image Sensor from Micron
+ * Driver for MT9M001 CMOS Image Sensor from Micron
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  *
@@ -344,9 +344,16 @@ static struct reginfo sensor_init_data[] =
 	{0x332e, 0x04},
 	{0x332f, 0x06},
 	{0x3331, 0x03},
+#ifdef CONFIG_RK29_NEWTON
+        {0x307c, 0x10}, // flip && mirror ,for newton
+        {0x3090, 0xc0},
+#else
+
 	//{0x307c, 0x13}, // flip && mirror
 	{0x307c, 0x11}, // flip && mirror ,by FAE.
-  {0x3090, 0xc8},
+  	{0x3090, 0xc8},
+#endif 
+
 #else
 //640 480 ;XGA-&gt;XGA;;
      {0x3012, 0x10},
@@ -438,9 +445,6 @@ static struct reginfo sensor_qxga_preview[] =
 	{0x3010, 0x20},
 	{0x3011, 0x01},
 	{0x304c, 0x81},
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // flip && mirror, by FAE.
-  {0x3090, 0xc8},
 
 #else
 //[Sensor.YUV.2048x1536] XGA-&gt;QXGA
@@ -494,8 +498,7 @@ static struct reginfo sensor_qxga_capture[] = {
 	{0x3027, 0x0c},
 	{0x302a, 0x06},
 	{0x302b, 0x20},
-	{0x3075, 0x44},
-	//{0x307C, 0x13}, // by FAE.
+	{0x3075, 0x44},	
 	{0x300d, 0x00},
 	{0x30d7, 0x10},
 	{0x3069, 0x44},
@@ -521,9 +524,6 @@ static struct reginfo sensor_qxga_capture[] = {
 	{0x3011, 0x01},
 	{0x304c, 0x81},
 	
-	//{0x307c, 0x13},// flip && mirror 
-	{0x307c, 0x11},// flip && mirror , by FAE.
-  {0x3090, 0xc8},
 		
 	{0x0000 ,0x00}
 };
@@ -570,9 +570,6 @@ static struct reginfo sensor_uxga_preview[] =
 	{0x308a, 0x04},
 	{0x308b, 0xb0},
 	{0x304c, 0x81},//56Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // flip && mirror, by FAE.
-  {0x3090, 0xc8},
 	
 	{0x0000 ,0x00},
 };
@@ -591,9 +588,6 @@ static struct reginfo sensor_uxga_capture[] =
 	{0x308a, 0x04},
 	{0x308b, 0xb0},
 	{0x304c, 0x81},//56Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror, by FAE.
-	{0x307c, 0x11},
-  {0x3090, 0xc8},
 
 	{0x0000 ,0x00},
 };
@@ -640,9 +634,6 @@ static struct reginfo sensor_sxga_preview[] =
 	{0x308a, 0x03},
 	{0x308b, 0xc0},
 	{0x304c, 0x81},//56Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // by FAE.
-  {0x3090, 0xc8},
 	
 	{0x0000 ,0x00},
 };
@@ -661,9 +652,7 @@ static struct reginfo sensor_sxga_capture[] =
 	{0x308a, 0x03},
 	{0x308b, 0xc0},
 	{0x304c, 0x81},//56Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // by FAE.
-  {0x3090, 0xc8},
+
 	{0x0000 ,0x00},
 };
 static struct reginfo *sensor_sxga[2] = {
@@ -705,9 +694,7 @@ static struct reginfo sensor_xga_preview[] =
 	{0x308a, 0x03},
 	{0x308b, 0x00},
 	{0x304c, 0x82},//28Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11},// by FAE.
-  {0x3090, 0xc8},
+
 
 	{0x0000 ,0x00},
 };
@@ -726,9 +713,6 @@ static struct reginfo sensor_xga_capture[] =
 	{0x308a, 0x03},
 	{0x308b, 0x00},
 	{0x304c, 0x82},//28Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // by FAE.
-  {0x3090, 0xc8},
 
 	{0x0000 ,0x00},
 };
@@ -772,9 +756,6 @@ static struct reginfo sensor_svga_preview[] =
 	{0x308b, 0x58},
 	{0x304c, 0x83},//28Mhz PCLK output
 
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // flip && mirror, by FAE.
-  {0x3090, 0xc8},
 	{0x0000 ,0x00},
 };
 static struct reginfo sensor_svga_capture[] =
@@ -793,9 +774,6 @@ static struct reginfo sensor_svga_capture[] =
 	{0x308b, 0x58},
 	{0x304c, 0x82},//28Mhz PCLK output
 
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // flip && mirror, by FAE.
-  {0x3090, 0xc8},
 	{0x0000 ,0x00},
 };
 static struct reginfo * sensor_svga[2] = {
@@ -837,9 +815,7 @@ static struct reginfo sensor_vga_preview[] =
 	{0x308a, 0x01},
 	{0x308b, 0xe4},// 0xe0, by FAE.
 	{0x304c, 0x84}, //0x83, by FAE.
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // flip && mirror, by FAE.
-  	{0x3090, 0xc8},
+
 // by FAE.
 //AWB short
       // {0x33a7, 0x60},
@@ -871,9 +847,6 @@ static struct reginfo sensor_vga_capture[] =
 	{0x308a, 0x01},
 	{0x308b, 0xe0},
 	{0x304c, 0x82},//14Mhz PCLK output 84
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11},// by FAE.
-  {0x3090, 0xc8},
 
 	{0x0000 ,0x00},
 };
@@ -932,9 +905,6 @@ static struct reginfo sensor_cif_preview[] =
 	{0x308b, 0x24},
 	{0x304c, 0x85}, //89	
 #endif	
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // flip && mirror, by FAE.
-  {0x3090, 0xc8},
 
 	{0x0000 ,0x00},
 };
@@ -953,9 +923,6 @@ static struct reginfo sensor_cif_capture[] =
 	{0x308a, 0x01},
 	{0x308b, 0x20},
 	{0x304c, 0x84},//14Mhz PCLK output
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11},//by FAE.
-  {0x3090, 0xc8},
 
 	{0x0000 ,0x00},
 };
@@ -998,9 +965,6 @@ static struct reginfo sensor_qvga_preview[] =
 	{0x308a, 0x00},
 	{0x308b, 0xf0},
 	{0x304c, 0x89},//14Mhz PCLK output 
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // by FAE.
-  {0x3090, 0xc8},
 
 	{0x0000 ,0x00},
 };
@@ -1020,9 +984,6 @@ static struct reginfo sensor_qvga_capture[] =
 	{0x308b, 0xf0},
 	{0x304c, 0x84},//14Mhz PCLK output
 
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11},// by FAE.
-  {0x3090, 0xc8},
 	{0x0000 ,0x00},
 };
 static  struct reginfo *sensor_qvga[2] = {
@@ -1064,9 +1025,7 @@ static struct reginfo sensor_qcif_preview[] =
 	{0x308a, 0x00},
 	{0x308b, 0x90},
 	{0x304c, 0x82},//14Mhz PCLK output 89
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11},// by FAE.
-  {0x3090, 0xc8},
+
 	{0x0000 ,0x00},
 };
 static struct reginfo sensor_qcif_capture[] =
@@ -1085,9 +1044,6 @@ static struct reginfo sensor_qcif_capture[] =
 	{0x308b, 0x90},
 	{0x304c, 0x84},//14Mhz PCLK output
 
-	//{0x307c, 0x13}, // flip && mirror
-	{0x307c, 0x11}, // by FAE.
-  {0x3090, 0xc8},
 	{0x0000 ,0x00},
 };
 static  struct reginfo *sensor_qcif[2] = {

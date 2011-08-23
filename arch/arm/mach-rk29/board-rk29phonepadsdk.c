@@ -44,6 +44,7 @@
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 #include <mach/ddr.h>
+#include <mach/cpufreq.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -51,6 +52,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c-gpio.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/registers.h>
 
 #include "devices.h"
 #if defined(CONFIG_MU509)
@@ -60,6 +63,7 @@
 
 #include <linux/goodix_touch.h>
 
+#include <linux/mpu.h>
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -425,6 +429,7 @@ int p1003_init_platform_hw(void)
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
       return -EIO;
     }
@@ -460,6 +465,7 @@ static int EETI_EGALAX_init_platform_hw(void)
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
       return -EIO;
     }
@@ -512,13 +518,14 @@ void nas_request_io(void)
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return;
     }
 }
 	
@@ -534,6 +541,70 @@ int nas_init_platform_hw(void)
 struct nas_platform_data nas_info = {
   .model= 1003,
   .init_platform_hw= nas_init_platform_hw,
+
+};
+#endif
+
+#if defined (CONFIG_LAIBAO_TS)
+#define TOUCH_RESET_PIN RK29_PIN4_PD5//RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+void laibao_reset(void)
+{
+    msleep(5);
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(200);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+}
+void laibao_hold(void)
+{
+    printk("nas_hold()\n");
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(30);
+ }
+void laibao_request_io(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return ;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return ;
+    }
+}
+	
+int laibao_init_platform_hw(void)
+{
+	printk("enter %s()\n", __FUNCTION__);
+	laibao_request_io();
+	laibao_reset();
+	
+    if(gpio_request(RK29_PIN6_PD3,NULL) != 0){
+      gpio_free(RK29_PIN6_PD3);
+      printk("mma8452_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+	
+    gpio_direction_output(RK29_PIN6_PD3, 0);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+
+
+    	return 0;
+}
+
+
+struct laibao_platform_data laibao_info = {
+  .model= 1003,
+  .init_platform_hw= laibao_init_platform_hw,
 
 };
 #endif
@@ -571,6 +642,57 @@ static struct mma8452_platform_data mma8452_info = {
 };
 #endif
 
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+		.orientation = { 1, 0, 0, 0, 1, 0, 0, 0, -1 },
+		.level_shifter = 0,
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+		.accel = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL ,
+#else
+				.get_slave_descr = get_accel_slave_descr ,			
+#endif
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				.irq = RK29_PIN0_PA3,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				
+				.orientation = { -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+				//.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, -1 },
+		},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+		.compass = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
+#else
+				.get_slave_descr = get_compass_slave_descr,
+#endif						
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				.irq = RK29_PIN0_PA4,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = { 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		},
+#endif
+};
+#endif
+
 #if defined (CONFIG_BATTERY_BQ27510)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -586,6 +708,148 @@ static int bq27510_init_dc_check_pin(void){
 
 struct bq27510_platform_data bq27510_info = {	
 	.init_dc_check_pin = bq27510_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
+/*****************************************************************************************
+ * wm8994  codec
+ * author: qjb@rock-chips.com
+ *****************************************************************************************/
+//#if defined(CONFIG_MFD_WM8994)
+#if defined (CONFIG_REGULATOR_WM8994)
+static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
+	{
+		.supply = "DBVDD",
+	},
+	{
+		.supply = "AVDD1",
+	},
+	{
+		.supply = "CPVDD",
+	},
+	{
+		.supply = "SPKVDD1",
+	}		
+};
+static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
+	{
+		.supply = "DCVDD",
+	},
+	{
+		.supply = "AVDD2",
+	},
+	{
+		.supply = "SPKVDD2",
+	}			
+};
+struct regulator_init_data regulator_init_data_ldo1 = {
+	.constraints = {
+		.name = "wm8994-ldo1",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
+	.consumer_supplies = wm8994_ldo1_consumers,	
+};
+struct regulator_init_data regulator_init_data_ldo2 = {
+	.constraints = {
+		.name = "wm8994-ldo2",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
+	.consumer_supplies = wm8994_ldo2_consumers,	
+};
+#endif 
+struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
+	.name = "wm8994_DRC",
+	.regs = {0,0,0,0,0},
+};
+
+struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
+	.name = "wm8994_EQ",
+	.rate = 0,
+	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
+}; 
+
+struct wm8994_pdata wm8994_platdata = {	
+#if defined (CONFIG_GPIO_WM8994)
+	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
+	//Fill value to initialize the GPIO
+	.gpio_defaults ={},
+#endif	
+	//enable=0 disable ldo
+#if defined (CONFIG_REGULATOR_WM8994)	
+	.ldo = {
+		{
+			.enable = 0,
+			//RK29_PIN5_PA1
+			.supply = NULL,
+			.init_data = &regulator_init_data_ldo1,
+		},
+		{
+			.enable = 0,
+			.supply = NULL,		
+			.init_data = &regulator_init_data_ldo2,
+		}
+	},
+#endif 	
+	//DRC 0--use default
+	.num_drc_cfgs = 0,
+	.drc_cfgs = &wm8994_drc_cfg_pdata,
+	//EQ   0--use default 
+	.num_retune_mobile_cfgs = 0,
+	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
+	
+	.lineout1_diff = 1,
+	.lineout2_diff = 1,
+	
+	.lineout1fb = 1,
+	.lineout2fb = 1,
+	
+	.micbias1_lvl = 1,
+	.micbias2_lvl = 1,
+	
+	.jd_scthr = 0,
+	.jd_thr = 0,
+
+	.PA_control_pin = 0,	
+	.Power_EN_Pin = RK29_PIN5_PA1,
+
+	.speaker_incall_vol = 0,
+	.speaker_incall_mic_vol = -9,
+	.speaker_normal_vol = 6,
+	.earpiece_incall_vol = 0,
+	.headset_incall_vol = 6,
+	.headset_incall_mic_vol = -6,
+	.headset_normal_vol = 6,
+	.BT_incall_vol = 0,
+	.BT_incall_mic_vol = 0,
+	.recorder_vol = 50,
+	
+};
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	2
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
 	.dc_check_pin =  DC_CHECK_PIN,		
 	.bat_num = LI_LION_BAT_NUM,
 };
@@ -765,11 +1029,12 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 	},
 #endif
 #if defined (CONFIG_SND_SOC_WM8994)
-        {
-                .type                   = "wm8994",
-                .addr           = 0x1A,
-                .flags                  = 0,
-        },
+	{
+		.type                   = "wm8994",
+		.addr           = 0x1A,
+		.flags                  = 0,
+		.platform_data          = &wm8994_platdata,
+	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
@@ -819,6 +1084,26 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+/*mpu3050*/
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
+
+#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
+
 };
 #endif
 
@@ -830,14 +1115,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.addr			= 0x40,
 		.flags			= 0,
 	},
-#endif
-#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
-    {
-		.type           = "anx7150",
-        .addr           = 0x39,             //0x39, 0x3d
-        .flags          = 0,
-        .irq            = RK29_PIN1_PD7,
-    },
 #endif
 
 };
@@ -876,6 +1153,16 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
     },
 #endif
 
+#if defined (CONFIG_LAIBAO_TS)
+    {
+      .type	      = "laibao_touch",
+      .addr	      = (0x70>>1),
+      .flags	      = 0,
+      .irq	      = RK29_PIN0_PA2,//gpio_to_irq(RK29_PIN0_PA2),
+      .platform_data  = &laibao_info,
+    },
+#endif
+
 #if defined (CONFIG_D70_L3188A)
     {
       .type           = "goodix-ts",
@@ -887,9 +1174,33 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #endif
 };
 #endif
+#if defined (CONFIG_ANX7150)
+#define HDMI_VDD_CTL RK29_PIN6_PD3
+int anx7150_io_init(void)
+{
+	gpio_request(HDMI_VDD_CTL, "hdmi pwr ctl");
+	gpio_direction_output(HDMI_VDD_CTL, GPIO_HIGH);
+	//gpio_set_value(HDMI_VDD_CTL, GPIO_HIGH); 
+	mdelay(10);
+	return 0;
+}
+struct hdmi_platform_data anx7150_data = {
+	.io_init = anx7150_io_init,
+};
+#endif
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
+#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
+    {
+		.type           = "anx7150",
+        .addr           = 0x39,             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+		.platform_data  = &anx7150_data,
+    },
+#endif
+
 };
 #endif
 
@@ -1146,7 +1457,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
+
+#ifdef CONFIG_SDMMC_RK29_OLD	
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
+#else
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+#endif
+
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 #if 0
@@ -1403,6 +1720,8 @@ static struct platform_device rk29sdk_rfkill = {
 
 
 #ifdef CONFIG_VIVANTE
+#define GPU_HIGH_CLOCK        552
+#define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
@@ -1421,6 +1740,12 @@ static struct resource resources_gpu[] = {
         .start  = PMEM_GPU_BASE,
         .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
+    },
+    [3] = {
+		.name 	= "gpu_clk",
+        .start 	= GPU_LOW_CLOCK,
+        .end    = GPU_HIGH_CLOCK,
+        .flags  = IORESOURCE_IO,
     },
 };
 static struct platform_device rk29_device_gpu = {
@@ -1819,11 +2144,19 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init();
 }
 
+static struct cpufreq_frequency_table freq_table[] = {
+	{ .index = 1200000, .frequency =  408000 },
+	{ .index = 1200000, .frequency =  816000 },
+	{ .index = 1300000, .frequency = 1008000 },
+	{ .frequency = CPUFREQ_TABLE_END },
+};
+
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
 
 	board_power_init();
+	board_update_cpufreq_table(freq_table);
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
@@ -1871,7 +2204,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_288mhz);
+	rk29_clock_init(periph_pll_default);
 	rk29_iomux_init();
     ddr_init(DDR_TYPE,DDR_FREQ);  // DDR3_1333H, 400
 }

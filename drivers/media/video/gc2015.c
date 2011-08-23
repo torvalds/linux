@@ -46,12 +46,12 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_NAME RK29_CAM_SENSOR_GC2015
 #define SENSOR_V4L2_IDENT V4L2_IDENT_GC2015
 #define SENSOR_ID 0x2005
-#define SENSOR_MIN_WIDTH    176
-#define SENSOR_MIN_HEIGHT   144
+#define SENSOR_MIN_WIDTH    640
+#define SENSOR_MIN_HEIGHT   480
 #define SENSOR_MAX_WIDTH    1600
 #define SENSOR_MAX_HEIGHT   1200
-#define SENSOR_INIT_WIDTH	1024			/* Sensor pixel size for sensor_init_data array */
-#define SENSOR_INIT_HEIGHT  768
+#define SENSOR_INIT_WIDTH	800//1024			/* Sensor pixel size for sensor_init_data array */
+#define SENSOR_INIT_HEIGHT  600//768
 #define SENSOR_INIT_WINSEQADR sensor_svga
 #define SENSOR_INIT_PIXFMT V4L2_MBUS_FMT_UYVY8_2X8
 
@@ -102,232 +102,483 @@ struct reginfo
 
 /* init SVGA preview */
 static struct reginfo sensor_init_data[] =
+
 {
-//{0xfe , 0x80}, //soft reset
-{0x45 , 0x00}, //output_enable
+	{0xfe, 0x80}, //soft reset
+	{0xfe, 0x80}, //soft reset
+	{0xfe, 0x80}, //soft reset
+
+	{0xfe, 0x00}, //page0
+	{0x45, 0x00}, //output_disable
+
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////preview capture switch /////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
 	//preview
-{0x02 , 0x01}, //preview mode
-{0x2a , 0xca}, //[7]col_binning , 0x[6]even skip
-{0x48 , 0x40}, //manual_gain
+	{0x02, 0x01}, //preview mode
+	{0x2a, 0xca}, //[7]col_binning, 0x[6]even skip
+	{0x48, 0x40}, //manual_gain
 
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////// preview LSC /////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
-	
-{0xb0 , 0x13}, //[4]Y_LSC_en [3]lsc_compensate [2]signed_b4 [1:0]pixel array select
-{0xb1 , 0x20}, //P_LSC_red_b2
-{0xb2 , 0x20}, //P_LSC_green_b2
-{0xb3 , 0x20}, //P_LSC_blue_b2
-{0xb4 , 0x20}, //P_LSC_red_b4
-{0xb5 , 0x20}, //P_LSC_green_b4
-{0xb6 , 0x20}, //P_LSC_blue_b4
-{0xb7 , 0x00}, //P_LSC_compensate_b2
-{0xb8 , 0x80}, //P_LSC_row_center , 0x344 , 0x (0x600/2-100)/2=100
-{0xb9 , 0x80}, //P_LSC_col_center , 0x544 , 0x (0x800/2-200)/2=100
+	{0xfe, 0x01}, //page1
+	{0xb0, 0x03}, //[4]Y_LSC_en [3]lsc_compensate [2]signed_b4 [1:0]pixel array select
+	{0xb1, 0x46}, //P_LSC_red_b2
+	{0xb2, 0x40}, //P_LSC_green_b2
+	{0xb3, 0x40}, //P_LSC_blue_b2
+	{0xb4, 0x24}, //P_LSC_red_b4
+	{0xb5, 0x20}, //P_LSC_green_b4
+	{0xb6, 0x22}, //P_LSC_blue_b4
+	{0xb7, 0x00}, //P_LSC_compensate_b2
+	{0xb8, 0x80}, //P_LSC_row_center, 0x344, 0x (1200/2-344)/2=128, 0x, 0x
+	{0xb9, 0x80}, //P_LSC_col_center, 0x544, 0x (1600/2-544)/2=128
+
 
 	////////////////////////////////////////////////////////////////////////
-	////////////////////////// capture LSC ///////////////////////////
+	////////////////////////// capture LSC /////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
-{0xba , 0x13}, //[4]Y_LSC_en [3]lsc_compensate [2]signed_b4 [1:0]pixel array select
-{0xbb , 0x20}, //C_LSC_red_b2
-{0xbc , 0x20}, //C_LSC_green_b2
-{0xbd , 0x20}, //C_LSC_blue_b2
-{0xbe , 0x20}, //C_LSC_red_b4
-{0xbf , 0x20}, //C_LSC_green_b4
-{0xc0 , 0x20}, //C_LSC_blue_b4
-{0xc1 , 0x00}, //C_Lsc_compensate_b2
-{0xc2 , 0x80}, //C_LSC_row_center , 0x344 , 0x (0x1200/2-344)/2=128
-{0xc3 , 0x80}, //C_LSC_col_center , 0x544 , 0x (0x1600/2-544)/2=128
-
-	//GC2015_SET_PAGE0; //page0
+	{0xba, 0x03}, //[4]Y_LSC_en [3]lsc_compensate [2]signed_b4 [1:0]pixel array select
+	{0xbb, 0x46}, //C_LSC_red_b2
+	{0xbc, 0x40}, //C_LSC_green_b2
+	{0xbd, 0x40}, //C_LSC_blue_b2
+	{0xbe, 0x24}, //C_LSC_red_b4
+	{0xbf, 0x20}, //C_LSC_green_b4
+	{0xc0, 0x22}, //C_LSC_blue_b4
+	{0xc1, 0x00}, //C_Lsc_compensate_b2
+	{0xc2, 0x80}, //C_LSC_row_center, 0x344, 0x (1200/2-344)/2=128
+	{0xc3, 0x80}, //C_LSC_col_center, 0x544, 0x (1600/2-544)/2=128
+	{0xfe, 0x00}, //page0
 
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////// analog configure ///////////////////////////
 	////////////////////////////////////////////////////////////////////////
-{0x29 , 0x00}, //cisctl mode 1
-{0x2b , 0x06}, //cisctl mode 3	
-{0x32 , 0x0c}, //analog mode 1
-{0x33 , 0x0f}, //analog mode 2
-{0x34 , 0x00}, //[6:4]da_rsg
-	
-{0x35 , 0x88}, //Vref_A25
-{0x37 , 0x16}, //Drive Current
+	{0xfe, 0x00}, //page0
+	{0x29, 0x00}, //cisctl mode 1
+	{0x2b, 0x06}, //cisctl mode 3	
+	{0x32, 0x1c}, //analog mode 1
+	{0x33, 0x0f}, //analog mode 2
+	{0x34, 0x30}, //[6:4]da_rsg
+
+	{0x35, 0x88}, //Vref_A25
+	{0x37, 0x16}, //Drive Current
 
 	/////////////////////////////////////////////////////////////////////
-	///////////////////////////ISP Related//////////////////////////////
+	/////////////////////////// ISP Related /////////////////////////////
 	/////////////////////////////////////////////////////////////////////
-{0x40 , 0xff}, 
-{0x41 , 0x24}, //[5]skin_detectionenable[2]auto_gray , 0x[1]y_gamma
-{0x42 , 0x76}, //[7]auto_sa[6]auto_ee[5]auto_dndd[4]auto_lsc[3]na[2]abs , 0x[1]awb
-{0x4b , 0xea}, //[1]AWB_gain_mode , 0x1:atpregain0:atpostgain
-{0x4d , 0x03}, //[1]inbf_en
-{0x4f , 0x01}, //AEC enable
+	{0x40, 0xff}, 
+	{0x41, 0x20}, //[5]skin_detectionenable[2]auto_gray, 0x[1]y_gamma
+	{0x42, 0xf6}, //[7]auto_sa[6]auto_ee[5]auto_dndd[4]auto_lsc[3]na[2]abs, 0x[1]awb
+	{0x4b, 0xe8}, //[1]AWB_gain_mode, 0x1:atpregain0:atpostgain
+	{0x4d, 0x03}, //[1]inbf_en
+	{0x4f, 0x01}, //AEC enable
 
 	////////////////////////////////////////////////////////////////////
-	/////////////////////////// BLK  ///////////////////////////////////
+	///////////////////////////  BLK  //////////////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x63 , 0x77}, //BLK mode 1
-{0x66 , 0x00}, //BLK global offset
-{0x6d , 0x04}, 
-{0x6e , 0x18}, //BLK offset submode,offset R
-{0x6f , 0x10},
-{0x70 , 0x18},
-{0x71 , 0x10},
-{0x73 , 0x03}, 
+	{0x63, 0x77}, //BLK mode 1
+	{0x66, 0x00}, //BLK global offset
+	{0x6d, 0x00},
+	{0x6e, 0x1a}, //BLK offset submode,offset R
+	{0x6f, 0x20},
+	{0x70, 0x1a},
+	{0x71, 0x20},
+	{0x73, 0x00},
+	{0x77, 0x80},
+	{0x78, 0x80},
+	{0x79, 0x90},
 
-
 	////////////////////////////////////////////////////////////////////
-	/////////////////////////// DNDD ////////////////////////////////
+	/////////////////////////// DNDD ///////////////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x80 , 0x07}, //[7]dn_inc_or_dec [4]zero_weight_mode[3]share [2]c_weight_adap [1]dn_lsc_mode [0]dn_b
-{0x82 , 0x08}, //DN lilat b base
+	{0x80, 0x07}, //[7]dn_inc_or_dec [4]zero_weight_mode[3]share [2]c_weight_adap [1]dn_lsc_mode [0]dn_b
+	{0x82, 0x0c}, //DN lilat b base
+	{0x83, 0x03},
 
 	////////////////////////////////////////////////////////////////////
 	/////////////////////////// EEINTP ////////////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x8a , 0x7c},
-{0x8c , 0x02},
-{0x8e , 0x02},
-{0x8f , 0x48},
+	{0x8a, 0x7c},
+	{0x8c, 0x02},
+	{0x8e, 0x02},
+	{0x8f, 0x45},
+
 
 	/////////////////////////////////////////////////////////////////////
-	/////////////////////////// CC_t ///////////////////////////////
+	/////////////////////////// CC_t ////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////
-{0xb0 , 0x44},
-{0xb1 , 0xfe},
-{0xb2 , 0x00},
-{0xb3 , 0xf8},
-{0xb4 , 0x48},
-{0xb5 , 0xf8},
-{0xb6 , 0x00},
-{0xb7 , 0x04},
-{0xb8 , 0x00},
+	{0xb0, 0x40},   // 0x48
+	{0xb1, 0xfe},
+	{0xb2, 0x00},
+	{0xb3, 0xf0},
+	{0xb4, 0x50},
+	{0xb5, 0xf8},
+	{0xb6, 0x00},
+	{0xb7, 0x00},
+	{0xb8, 0x00},
+
 
 	/////////////////////////////////////////////////////////////////////
 	/////////////////////////// GAMMA ///////////////////////////////////
 	/////////////////////////////////////////////////////////////////////
 	//RGB_GAMMA
-{0xbf , 0x0e},
-{0xc0 , 0x1c},
-{0xc1 , 0x34},
-{0xc2 , 0x48},
-{0xc3 , 0x5a},
-{0xc4 , 0x6b},
-{0xc5 , 0x7b},
-{0xc6 , 0x95},
-{0xc7 , 0xab},
-{0xc8 , 0xbf},
-{0xc9 , 0xce},
-{0xca , 0xd9},
-{0xcb , 0xe4},
-{0xcc , 0xec},
-{0xcd , 0xf7},
-{0xce , 0xfd},
-{0xcf , 0xff},
+	{0xbf, 0x08}, 
+	{0xc0, 0x1e},
+	{0xc1, 0x33},
+	{0xc2, 0x47},
+	{0xc3, 0x59},
+	{0xc4, 0x68},
+	{0xc5, 0x74},
+	{0xc6, 0x86},
+	{0xc7, 0x97},
+	{0xc8, 0xA5},
+	{0xc9, 0xB1},
+	{0xca, 0xBd},
+	{0xcb, 0xC8},
+	{0xcc, 0xD3},
+	{0xcd, 0xE4},
+	{0xce, 0xF4},
+	{0xcf, 0xff},
+	
+	/*{0xbf, 0x06},
+	{0xc0, 0x1f},
+	{0xc1, 0x38},
+	{0xc2, 0x4c},
+	{0xc3, 0x5b},
+	{0xc4, 0x6b},
+	{0xc5, 0x76},
+	{0xc6, 0x8b},
+	{0xc7, 0x9b},
+	{0xc8, 0xac},
+	{0xc9, 0xbb},
+	{0xca, 0xc7},
+	{0xcb, 0xd2},
+	{0xcc, 0xdb},
+	{0xcd, 0xea},
+	{0xce, 0xf5},
+	{0xcf, 0xff},	*/
 
 	/////////////////////////////////////////////////////////////////////
-	/////////////////////////// YCP_t  ///////////////////////////////
+	/////////////////////////// YCP_t ///////////////////////////////////
 	/////////////////////////////////////////////////////////////////////
-{0xd1 , 0x38}, //saturation
-{0xd2 , 0x38}, //saturation
-{0xde , 0x21}, //auto_gray
+	{0xd1, 0x40}, //saturation   38
+	{0xd2, 0x40}, //saturation   38
+	
+	{0xd3, 0x46},  // 2011-08-11 kim add
+	
+	{0xde, 0x21}, //auto_gray
 
 	////////////////////////////////////////////////////////////////////
-	/////////////////////////// ASDE ////////////////////////////////
+	/////////////////////////// ASDE ///////////////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x98 , 0x30},
-{0x99 , 0xf0},
-{0x9b , 0x00},
-
-	//GC2015_SET_PAGE1; //page1
-	////////////////////////////////////////////////////////////////////
-	/////////////////////////// AEC  ////////////////////////////////
-	////////////////////////////////////////////////////////////////////
-{0x10 , 0x45}, //AEC mode 1
-{0x11 , 0x32}, //[7]fix target
-{0x13 , 0x60},
-{0x17 , 0x00},
-{0x1c , 0x96},
-{0x1e , 0x11},
-{0x21 , 0xc0}, //max_post_gain
-{0x22 , 0x40}, //max_pre_gain
-{0x2d , 0x06}, //P_N_AEC_exp_level_1[12:8]
-{0x2e , 0x00}, //P_N_AEC_exp_level_1[7:0]
-{0x1e , 0x32},
-{0x33 , 0x00}, //[6:5]max_exp_level [4:0]min_exp_level
+	{0x98, 0x3a}, 
+	{0x99, 0x60}, 
+	{0x9b, 0x00}, 
+	{0x9f, 0x12}, 
+	{0xa1, 0x80}, 
+	{0xa2, 0x21}, 
+	
+	{0xfe, 0x01}, //page1
+	{0xc5, 0x10}, 
+	{0xc6, 0xff}, 
+	{0xc7, 0xff}, 
+	{0xc8, 0xff}, 
 
 	////////////////////////////////////////////////////////////////////
-	///////////////////////////  AWB  ////////////////////////////////
+	/////////////////////////// AEC ////////////////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x57 , 0x40}, //number limit
-{0x5d , 0x44}, //
-{0x5c , 0x35}, //show mode,close dark_mode
-{0x5e , 0x29}, //close color temp
-{0x5f , 0x50},
-{0x60 , 0x50}, 
-{0x65 , 0xc0},
+	{0x10, 0x09}, //AEC mode 1
+	{0x11, 0x92}, //[7]fix target  // 0xb2  2011-08-11 kim 
+	{0x12, 0x20}, 
+	{0x13, 0x78},   // 0x78  2011-08-11 kim 
+	{0x17, 0x00}, 
+	{0x1c, 0x96}, 
+	{0x1d, 0x04}, // sunlight step 
+	{0x1e, 0x11}, 
+	{0x21, 0xc0}, //max_post_gain
+	{0x22, 0x40}, //max_pre_gain   // 0x60  2011-08-11 kim 
+	{0x2d, 0x06}, //P_N_AEC_exp_level_1[12:8]
+	{0x2e, 0x00}, //P_N_AEC_exp_level_1[7:0]
+	{0x1e, 0x32}, 
+	{0x33, 0x00}, //[6:5]max_exp_level [4:0]min_exp_level
+	{0x34, 0x04}, // min exp
 
 	////////////////////////////////////////////////////////////////////
-	///////////////////////////  ABS  ////////////////////////////////
+	/////////////////////////// Measure Window /////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x80 , 0x82},
-{0x81 , 0x00},
-{0x83 , 0x00}, //ABS Y stretch limit
-
-	//GC2015_SET_PAGE0;
-
-	//////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////// Crop //////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////
-{0x50 , 0x01},//out window
-{0x51 , 0x00},
-{0x52 , 0x00},
-{0x53 , 0x00},
-{0x54 , 0x00},
-{0x55 , 0x02},
-{0x56 , 0x58},
-{0x57 , 0x03},
-{0x58 , 0x20},
+	{0x06, 0x07},
+	{0x07, 0x03},
+	{0x08, 0x64},
+	{0x09, 0x4a},
 
 	////////////////////////////////////////////////////////////////////
-	///////////////////////////  OUT  ////////////////////////////////
+	/////////////////////////// AWB ////////////////////////////////////
 	////////////////////////////////////////////////////////////////////
-{0x44 , 0xa0}, //YUV sequence
-{0x45 , 0x0f}, //output enable
-{0x46 , 0x02}, //sync mode
+	{0x57, 0x40}, //number limit
+	{0x5d, 0x44}, //
+	{0x5c, 0x35}, //show mode,close dark_mode
+	{0x5e, 0x29}, //close color temp
+	{0x5f, 0x50},
+	{0x60, 0x50}, 
+	{0x65, 0xc0},
+	////////////////////////////////////////////////////////////////////
+	/////////////////////////// ABS ////////////////////////////////////
+	////////////////////////////////////////////////////////////////////
+	{0x80, 0x82},
+	{0x81, 0x00},
+	
+	{0x82, 0x03},  /// 
+	
+	{0x83, 0x10}, //ABS Y stretch limit
+	{0xfe, 0x00},
+	////////////////////////////////////////////////////////////////////
+	/////////////////////////// OUT ////////////////////////////////////
+	////////////////////////////////////////////////////////////////////
+	{0xfe, 0x00},
+	//crop 
+	{0x50, 0x01},
+	{0x51, 0x00},
+	{0x52, 0x00},
+	{0x53, 0x00},
+	{0x54, 0x00},
+	{0x55, 0x02},
+	{0x56, 0x58},
+	{0x57, 0x03},
+	{0x58, 0x20},
+
+	{0x44, 0xa0}, //YUV sequence
+	{0x45, 0x0f}, //output enable
+	{0x46, 0x02}, //sync mode
+	
+/*	{0xbF, 0x0B}, 
+	{0xc0, 0x16}, 
+	{0xc1, 0x29}, 
+	{0xc2, 0x3C}, 
+	{0xc3, 0x4F}, 
+	{0xc4, 0x5F}, 
+	{0xc5, 0x6F}, 
+	{0xc6, 0x8A}, 
+	{0xc7, 0x9F}, 
+	{0xc8, 0xB4}, 
+	{0xc9, 0xC6}, 
+	{0xcA, 0xD3}, 
+	{0xcB, 0xDD},  
+	{0xcC, 0xE5},  
+	{0xcD, 0xF1}, 
+	{0xcE, 0xFA}, 
+	{0xcF, 0xFF},*/
+	
+	{0x05, 0x01},//HB
+	{0x06, 0xc1},
+	{0x07, 0x00},//VB
+	{0x08, 0x40},
+	
+	{0xfe, 0x01},
+	{0x29, 0x00},//Anti Step 128
+	{0x2a, 0x80},
+	
+	{0x2b, 0x05},//Level_0  10.00fps
+	{0x2c, 0x00},
+	{0x2d, 0x06},//Level_1   8.33fps
+	{0x2e, 0x00},
+	{0x2f, 0x08},//Level_2   6.25fps
+	{0x30, 0x00},
+	{0x31, 0x09},//Level_3   5.55fps
+	{0x32, 0x00},
+	{0x33, 0x20},
+	{0xfe, 0x00},
+	
+//--------------------Updated By Mormo 2011/08/08 Start --------------------//
+	{0xfe, 0x00},
+	{0x32, 0x34},
+	{0x34, 0x00},
+//--------------------Updated By Mormo 2011/08/08 End ---------------------//	
+	{0x7d, 0x80}, //
+	{0x7e, 0x80},
+	{0x7f, 0x84},
+
+	{0x0,0x0}
+
 };
 
 /* 1600X1200 UXGA capture */
 static struct reginfo sensor_uxga[] =
 {
-{0x45 , 0x0f}, //output enable
- {0x0,0x0}
+	{0xfe, 0x00},
+
+	{0x48, 0x80},  // 68
+	
+	{0x4f, 0x00},   // aec off
+	
+	{0x02, 0x00},
+	{0x2a, 0x0a},
+
+	//subsample 1/1
+	{0x59,  0x11},
+	{0x5a,  0x06},
+	{0x5b,  0x00},
+	{0x5c,  0x00},
+	{0x5d,  0x00},
+	{0x5e , 0x00},
+	{0x5f,  0x00},
+	{0x60,  0x00},
+	{0x61,  0x00},
+	{0x62,  0x00},
+
+	//crop 
+	{0x50,  0x01},
+	{0x51,  0x00},
+	{0x52,  0x00},
+	{0x53,  0x00},
+	{0x54,  0x00},
+	{0x55,  0x04},
+	{0x56,  0xb0},
+	{0x57,  0x06},
+	{0x58,  0x40},
+	{0x0,0x0}
 };
 
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
-  {0x0, 0x0}
+	{0xfe, 0x00},
+
+	{0x48, 0x80},  // 68
+	
+	{0x4f, 0x00},   // aec off
+	
+	{0x02, 0x00},
+	{0x2a, 0x0a},
+
+	//subsample 1/1
+	{0x59,  0x11},
+	{0x5a,  0x06},
+	{0x5b,  0x00},
+	{0x5c,  0x00},
+	{0x5d,  0x00},
+	{0x5e , 0x00},
+	{0x5f,  0x00},
+	{0x60,  0x00},
+	{0x61,  0x00},
+	{0x62,  0x00},
+
+	//crop 
+	{0x50,  0x01},
+	{0x51,  0x00},
+	{0x52,  0x00},
+	{0x53,  0x00},
+	{0x54,  0x00},
+	{0x55,  0x04},
+	{0x56,  0x00},
+	{0x57,  0x05},
+	{0x58,  0x00},
+	{0x0, 0x0}
 };
+/*1024*768*/
 static struct reginfo sensor_xga[] =
 {
+	{0xfe, 0x00},
+
+	{0x48, 0x80},  // 68
+	
+	{0x4f, 0x00},   // aec off
+	
+	{0x02, 0x00},
+	{0x2a, 0x0a},
+	//subsample 1600x1200 to 1066x800
+	{0x59 , 0x33},//out window
+	{0x5a , 0x06},
+	{0x5b , 0x00},
+	{0x5c , 0x00},
+	{0x5d , 0x00},
+	{0x5e , 0x01},
+	{0x5f , 0x00}, 
+	{0x60 , 0x00},
+	{0x61 , 0x00},
+	{0x62 , 0x01},
+
+	{0x50 , 0x01},//out window
+	{0x51 , 0x00},
+	{0x52 , 0x10},
+	{0x53 , 0x00},
+	{0x54 , 0x14},
+	{0x55 , 0x03},
+	{0x56 , 0x00},// 768
+	{0x57 , 0x04},
+	{0x58 , 0x00},//1024
 	{0x0, 0x0}
 };
 /* 800X600 SVGA,30fps*/
 static struct reginfo sensor_svga[] =
 {
-{0x45 , 0x0f}, //output enable
- {0x0,0x0}
+	{0xfe, 0x00},
+
+	{0x48, 0x40},
+	{0x4f, 0x01},   // aec on
+
+	{0x02, 0x01},
+	{0x2a, 0xca},
+
+	//subsample 1/1
+	{0x59,  0x11},
+	{0x5a,  0x06},
+	{0x5b,  0x00},
+	{0x5c,  0x00},
+	{0x5d,  0x00},
+	{0x5e , 0x00},
+	{0x5f,  0x00},
+	{0x60,  0x00},
+	{0x61,  0x00},
+	{0x62,  0x00},
+
+	{0x50 , 0x01},//out window
+	{0x51 , 0x00},
+	{0x52 , 0x00},
+	{0x53 , 0x00},
+	{0x54 , 0x00},
+	{0x55 , 0x02},
+	{0x56 , 0x58},// 600
+	{0x57 , 0x03},
+	{0x58 , 0x20},//800
+	{0x0,0x0}
 };
 
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
-{0x45 , 0x0f}, //output enable
- {0x0,0x0}
+
+
+	{0xfe, 0x00},
+
+	{0x48, 0x40},
+	{0x4f, 0x01},   // aec on
+
+	{0x02, 0x01},
+	{0x2a, 0xca},
+	//subsample 4/5
+
+	{0x59 , 0x55},//out window
+	{0x5a , 0x06},
+	{0x5b , 0x00},
+	{0x5c , 0x00},
+	{0x5d , 0x01},
+	{0x5e , 0x23},
+	{0x5f , 0x00}, 
+	{0x60 , 0x00},
+	{0x61 , 0x01},
+	{0x62 , 0x23},
+
+	{0x50 , 0x01},//out window
+	{0x51 , 0x00},
+	{0x52 , 0x00},
+	{0x53 , 0x00},
+	{0x54 , 0x00},
+	{0x55 , 0x01},
+	{0x56 , 0xe0},// 480
+	{0x57 , 0x02},
+	{0x58 , 0x80},//640 
+	{0x45 , 0x0f}, //output enable
+	{0x0,0x0}
 };
 
 /* 352X288 CIF */
@@ -345,84 +596,48 @@ static struct reginfo sensor_qcif[] =
 /* 160X120 QQVGA*/
 static struct reginfo ov2655_qqvga[] =
 {
-
-    {0x300E, 0x34},
-    {0x3011, 0x01},
-    {0x3012, 0x10},
-    {0x302a, 0x02},
-    {0x302b, 0xE6},
-    {0x306f, 0x14},
-    {0x3362, 0x90},
-
-    {0x3070, 0x5d},
-    {0x3072, 0x5d},
-    {0x301c, 0x07},
-    {0x301d, 0x07},
-
-    {0x3020, 0x01},
-    {0x3021, 0x18},
-    {0x3022, 0x00},
-    {0x3023, 0x06},
-    {0x3024, 0x06},
-    {0x3025, 0x58},
-    {0x3026, 0x02},
-    {0x3027, 0x61},
-    {0x3088, 0x00},
-    {0x3089, 0xa0},
-    {0x308a, 0x00},
-    {0x308b, 0x78},
-    {0x3316, 0x64},
-    {0x3317, 0x25},
-    {0x3318, 0x80},
-    {0x3319, 0x08},
-    {0x331a, 0x0a},
-    {0x331b, 0x07},
-    {0x331c, 0x80},
-    {0x331d, 0x38},
-    {0x3100, 0x00},
-    {0x3302, 0x11},
-
-    {0x0, 0x0},
+    {0x00, 0x00},
 };
 
 
 
 static  struct reginfo ov2655_Sharpness_auto[] =
 {
-    {0x3306, 0x00},
+ 
+    {0x00, 0x00},
 };
 
 static  struct reginfo ov2655_Sharpness1[] =
 {
-    {0x3306, 0x08},
-    {0x3371, 0x00},
+ 
+    {0x00, 0x00},
 };
 
 static  struct reginfo ov2655_Sharpness2[][3] =
 {
     //Sharpness 2
-    {0x3306, 0x08},
-    {0x3371, 0x01},
+ 
+    {0x00, 0x00},
 };
 
 static  struct reginfo ov2655_Sharpness3[] =
 {
     //default
-    {0x3306, 0x08},
-    {0x332d, 0x02},
+ 
+    {0x00, 0x00},
 };
 static  struct reginfo ov2655_Sharpness4[]=
 {
     //Sharpness 4
-    {0x3306, 0x08},
-    {0x332d, 0x03},
+ 
+    {0x00, 0x00},
 };
 
 static  struct reginfo ov2655_Sharpness5[] =
 {
     //Sharpness 5
-    {0x3306, 0x08},
-    {0x332d, 0x04},
+ 
+    {0x00, 0x00},
 };
 #endif
 
@@ -441,27 +656,37 @@ static  struct reginfo sensor_ClrFmt_UYVY[]=
 #if CONFIG_SENSOR_WhiteBalance
 static  struct reginfo sensor_WhiteB_Auto[]=
 {
-
+    {0x42,0x76},
     {0x00, 0x00}
 };
 /* Cloudy Colour Temperature : 6500K - 8000K  */
 static  struct reginfo sensor_WhiteB_Cloudy[]=
 {
-
+	 
+	{0x42 , 0x74},// [1] AWB enable  功能开关AWB OFF  
+	{0x7a , 0x8c},  //AWB_R_gain
+	{0x7b , 0x50},  //AWB_G_gain
+	{0x7c , 0x40}, //AWB_B_gain
     {0x00, 0x00}
 };
 /* ClearDay Colour Temperature : 5000K - 6500K  */
 static  struct reginfo sensor_WhiteB_ClearDay[]=
 {
-    //Sunny
-
+    //Sunny 
+	{0x42 , 0x74},// [1] AWB enable  功能开关AWB OFF  
+	{0x7a , 0x74},  //AWB_R_gain
+	{0x7b , 0x52},  //AWB_G_gain
+	{0x7c , 0x40}, //AWB_B_gain
     {0x00, 0x00}
 };
 /* Office Colour Temperature : 3500K - 5000K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp1[]=
 {
     //Office
-  
+	{0x42 , 0x74},// [1] AWB enable  功能开关AWB OFF  
+	{0x7a , 0x48},  //AWB_R_gain
+	{0x7b , 0x40},  //AWB_G_gain
+	{0x7c , 0x5c}, //AWB_B_gain  
     {0x00, 0x00}
 
 };
@@ -469,7 +694,10 @@ static  struct reginfo sensor_WhiteB_TungstenLamp1[]=
 static  struct reginfo sensor_WhiteB_TungstenLamp2[]=
 {
     //Home
-
+	{0x42 , 0x74},// [1] AWB enable  功能开关AWB OFF  
+	{0x7a , 0x40},  //AWB_R_gain
+	{0x7b , 0x54},  //AWB_G_gain
+	{0x7c , 0x70}, //AWB_B_gain
     {0x00, 0x00}
 };
 static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_WhiteB_TungstenLamp1,sensor_WhiteB_TungstenLamp2,
@@ -481,13 +709,21 @@ static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_W
 static  struct reginfo sensor_Brightness0[]=
 {
     // Brightness -2
- 
+
+	{0xfe, 0x01},
+	{0x13, 0x68}, //AEC_target_Y  
+	{0xfe, 0x00},
+	{0xd5, 0xe0},// Luma_offset  
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Brightness1[]=
 {
     // Brightness -1
+       {0xfe, 0x01},
+	{0x13, 0x70}, //AEC_target_Y  
+	{0xfe, 0x00},
+	{0xd5, 0xf0},// Luma_offset 
 
     {0x00, 0x00}
 };
@@ -495,13 +731,22 @@ static  struct reginfo sensor_Brightness1[]=
 static  struct reginfo sensor_Brightness2[]=
 {
     //  Brightness 0
+               		
+	{0xfe, 0x01},
+	{0x13, 0x78}, //AEC_target_Y  48
+	{0xfe, 0x00},
+	{0xd5, 0x00},// Luma_offset  c0
 
-    {0x00, 0x00}
+	{0x00, 0x00}
 };
 
 static  struct reginfo sensor_Brightness3[]=
 {
     // Brightness +1
+    	{0xfe, 0x01},
+	{0x13, 0x80}, //AEC_target_Y  
+	{0xfe, 0x00},
+	{0xd5, 0x10},// Luma_offset  
 
     {0x00, 0x00}
 };
@@ -509,6 +754,10 @@ static  struct reginfo sensor_Brightness3[]=
 static  struct reginfo sensor_Brightness4[]=
 {
     //  Brightness +2
+        {0xfe, 0x01},
+	{0x13, 0x88}, //AEC_target_Y  
+	{0xfe, 0x00},
+	{0xd5, 0x20},// Luma_offset 
 
     {0x00, 0x00}
 };
@@ -516,8 +765,11 @@ static  struct reginfo sensor_Brightness4[]=
 static  struct reginfo sensor_Brightness5[]=
 {
     //  Brightness +3
-
-    {0x00, 0x00}
+      {0xfe, 0x01},
+	{0x13, 0x90}, //AEC_target_Y  
+	{0xfe, 0x00},
+	{0xd5, 0x30},// Luma_offset 
+       {0x00, 0x00}
 };
 static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Brightness1, sensor_Brightness2, sensor_Brightness3,
     sensor_Brightness4, sensor_Brightness5,NULL,
@@ -529,38 +781,50 @@ static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Bri
 static  struct reginfo sensor_Effect_Normal[] =
 {
 
+    {0x43, 0x00},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_WandB[] =
 {
-
+	{0x43, 0x02},
+	{0xda, 0x50},
+	{0xdb, 0xe0},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Sepia[] =
 {
-
+	{0x43, 0x02},
+	{0xda, 0xd0},
+	{0xdb, 0x28},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Negative[] =
 {
     //Negative
-
+	{0x43, 0x01},
+	//{0xda, 0xc0},
+	//{0xdb, 0xc0},
     {0x00, 0x00}
 };
 static  struct reginfo sensor_Effect_Bluish[] =
 {
     // Bluish
+    	{0x43, 0x02},
+	{0xda, 0x00},
+	{0xdb, 0x00},
 
-    {0x00, 0x00}
+       {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Green[] =
 {
     //  Greenish
-
+	{0x43, 0x02},
+	{0xda, 0xc0},
+	{0xdb, 0xc0},
     {0x00, 0x00}
 };
 static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effect_WandB, sensor_Effect_Negative,sensor_Effect_Sepia,
@@ -645,35 +909,40 @@ static struct reginfo *sensor_SaturationSeqe[] = {sensor_Saturation0, sensor_Sat
 static  struct reginfo sensor_Contrast0[]=
 {
     //Contrast -3
-  
+    {0xfe, 0x00},    
+    {0xd3, 0x2c}, 
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast1[]=
 {
     //Contrast -2
-
+    {0xfe, 0x00},    
+    {0xd3, 0x30},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast2[]=
 {
     // Contrast -1
-
+    {0xfe, 0x00},        
+    {0xd3, 0x38},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast3[]=
 {
     //Contrast 0
-
+    {0xfe, 0x00},    
+    {0xd3, 0x40},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast4[]=
 {
     //Contrast +1
-
+    {0xfe, 0x00},        
+    {0xd3, 0x48},
     {0x00, 0x00}
 };
 
@@ -681,14 +950,16 @@ static  struct reginfo sensor_Contrast4[]=
 static  struct reginfo sensor_Contrast5[]=
 {
     //Contrast +2
-
+    {0xfe, 0x00},    
+    {0xd3, 0x50},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast6[]=
 {
     //Contrast +3
-
+    {0xfe, 0x00},    
+    {0xd3, 0x58},
     {0x00, 0x00}
 };
 static struct reginfo *sensor_ContrastSeqe[] = {sensor_Contrast0, sensor_Contrast1, sensor_Contrast2, sensor_Contrast3,
@@ -699,13 +970,13 @@ static struct reginfo *sensor_ContrastSeqe[] = {sensor_Contrast0, sensor_Contras
 #if CONFIG_SENSOR_Mirror
 static  struct reginfo sensor_MirrorOn[]=
 {
-
+    {0x29 , 0x01},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_MirrorOff[]=
 {
-
+    {0x29 , 0x01},
     {0x00, 0x00}
 };
 static struct reginfo *sensor_MirrorSeqe[] = {sensor_MirrorOff, sensor_MirrorOn,NULL,};
@@ -713,13 +984,13 @@ static struct reginfo *sensor_MirrorSeqe[] = {sensor_MirrorOff, sensor_MirrorOn,
 #if CONFIG_SENSOR_Flip
 static  struct reginfo sensor_FlipOn[]=
 {
-
+    {0x29 , 0x02},
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_FlipOff[]=
 {
-
+    {0x29 , 0x00},
     {0x00, 0x00}
 };
 static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,};
@@ -728,40 +999,24 @@ static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,}
 #if CONFIG_SENSOR_Scene
 static  struct reginfo sensor_SceneAuto[] =
 {
-#if 0                           /* ddl@rock-chips.com : */
-    {0x3014, 0x04},
-    {0x3015, 0x00},
-    {0x302e, 0x00},
-    {0x302d, 0x00},
-    {0x00, 0x00}
-#else
+                          /* ddl@rock-chips.com : */
+    {0xfe, 0x01},
+    {0x33, 0x00},
+    {0xfe, 0x00},
 
     {0x00, 0x00}
-#endif
+
 };
 
 static  struct reginfo sensor_SceneNight[] =
 {
-#if 1
-    //30fps ~ 5fps night mode for 60/50Hz light environment, 24Mhz clock input,36Mzh pclk
 
+    //30fps ~ 5fps night mode for 60/50Hz light environment, 24Mhz clock input,36Mzh pclk
+    {0xfe, 0x01},
+    {0x33, 0x20},
+    {0xfe, 0x00},
     {0x00, 0x00}
-#else
-    //15fps ~ 5fps night mode for 60/50Hz light environment, 24Mhz clock input,18Mhz pclk
-    {0x300e, 0x34},
-    {0x3011, 0x01},
-    {0x302c, 0x00},
-    {0x3071, 0x00},
-    {0x3070, 0x5d},
-    {0x301c, 0x05},
-    {0x3073, 0x00},
-    {0x3072, 0x4d},
-    {0x301d, 0x07},
-    {0x3014, 0x0c},
-    {0x3015, 0x50},
-    {0x302e, 0x00},
-    {0x302d, 0x00},
-#endif
+
 };
 static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight,NULL,};
 
@@ -989,6 +1244,42 @@ static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
 static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
 static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
 static int sensor_deactivate(struct i2c_client *client);
+static int sensor_write(struct i2c_client *client, u8 reg, u8 val);
+static int sensor_read(struct i2c_client *client, u8 reg, u8 *val);
+
+
+static u16 GC2015_read_shutter(struct i2c_client *client);  // add 2011-08-11 kim
+static void GC2015_set_shutter(struct i2c_client *client, u16 shutter);  // add 2011-08-11 kim
+
+
+////// add 2011-08-11 kim
+static u16 GC2015_read_shutter(struct i2c_client *client)
+{
+	u8 temp_reg1, temp_reg2;
+	u16 shutter;
+	
+	/* Backup the preview mode last shutter & sensor gain. */
+	sensor_read(client, 0x03, &temp_reg1);
+	sensor_read(client, 0x04, &temp_reg2);
+	
+	shutter = (temp_reg1 << 8) | (temp_reg2 & 0xFF);
+		
+	return shutter;
+}    /* GC2015_read_shutter */
+
+static void GC2015_set_shutter(struct i2c_client *client, u16 shutter)
+{
+	u16 temp_reg;
+
+	temp_reg = shutter * 10 / 20;   //// 
+
+	/*Set Shutter start*/
+	if(temp_reg < 1) temp_reg = 1;
+	sensor_write(client ,0x03 , (temp_reg>>8)&0xff);           
+	sensor_write(client ,0x04 , temp_reg&0xff); 
+	/*Set Shutter end*/
+}   
+//////// end add kim 
 
 static struct soc_camera_ops sensor_ops =
 {
@@ -1094,10 +1385,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
 	return 0;
 sensor_task_lock_err:
-	return -1;
+	return -1;  
+#else
+    return 0;
+#endif
+
 }
 
 #if 0
@@ -1203,10 +1497,9 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 {
     int err = 0, cnt;
     int i = 0;
-#if CONFIG_SENSOR_I2C_RDWRCHK    
-	int j = 0;
+    #if CONFIG_SENSOR_I2C_RDWRCHK
 	char valchk;
-#endif    
+    #endif
 
 	cnt = 0;
 	if (sensor_task_lock(client, 1) < 0)
@@ -1571,6 +1864,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 	struct soc_camera_device *icd = client->dev.platform_data;
     struct reginfo *winseqe_set_addr=NULL;
     int ret=0, set_w,set_h;
+	
+	u32 gc2015_shutter;
 
 	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
 				   ARRAY_SIZE(sensor_colour_fmts));
@@ -1635,25 +1930,32 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     else if (((set_w <= 800) && (set_h <= 600)) && sensor_svga[0].reg)
     {
         winseqe_set_addr = sensor_svga;
-        set_w = 800;
+        set_w = 800-32;
         set_h = 600;
     }
 	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
     {
+		gc2015_shutter = GC2015_read_shutter(client);  // add 2011-08-11 kim
+		
         winseqe_set_addr = sensor_xga;
         set_w = 1024;
         set_h = 768;
     }
     else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
     {
+		gc2015_shutter = GC2015_read_shutter(client);  // add 2011-08-11 kim
+    
         winseqe_set_addr = sensor_sxga;
         set_w = 1280;
         set_h = 1024;
     }
     else if (((set_w <= 1600) && (set_h <= 1200)) && sensor_uxga[0].reg)
     {
+
+		gc2015_shutter = GC2015_read_shutter(client); // add 2011-08-11 kim 
+		
         winseqe_set_addr = sensor_uxga;
-        set_w = 1600;
+        set_w = 1600-32;
         set_h = 1200;
     }
     else
@@ -1679,6 +1981,9 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         }
         #endif
         ret |= sensor_write_array(client, winseqe_set_addr);
+
+		if(set_w >= 1024) GC2015_set_shutter(client, gc2015_shutter); // add 2011-08-11 kim
+			
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
             #if CONFIG_SENSOR_Flash

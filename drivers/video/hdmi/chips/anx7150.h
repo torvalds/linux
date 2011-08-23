@@ -11,7 +11,6 @@
 #define ANX7150_SCL_RATE 100 * 1000
 
 
-
 /* HDMI auto switch */
 #define HDMI_AUTO_SWITCH HDMI_ENABLE
 

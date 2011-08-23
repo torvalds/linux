@@ -1,13 +1,21 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
-/*******************************************************************************
- *
- * $Id: mldl_cfg.c 4635 2011-01-27 07:49:49Z nroyer $
- *
- ******************************************************************************/
 
 /**
  *  @addtogroup MLDL
@@ -289,7 +297,7 @@ static int MLDLGetSiliconRev(struct mldl_cfg *pdata,
 
 	result = MLSLSerialReadMem(mlsl_handle, pdata->addr,
 				   memAddr, 1, &index);
-	ERROR_CHECK(result)
+	ERROR_CHECK(result);
 	if (result)
 		return result;
 	index >>= 2;
@@ -298,7 +306,7 @@ static int MLDLGetSiliconRev(struct mldl_cfg *pdata,
 	result =
 	    MLSLSerialWriteSingle(mlsl_handle, pdata->addr,
 				  MPUREG_BANK_SEL, 0);
-	ERROR_CHECK(result)
+	ERROR_CHECK(result);
 	if (result)
 		return result;
 
@@ -322,20 +330,28 @@ static int MLDLGetSiliconRev(struct mldl_cfg *pdata,
 }
 
 /**
- *  @brief      Enable/Disable the use MPU's VDDIO level shifters.
- *              When enabled the voltage interface with AUX or other external
- *              accelerometer is using Vlogic instead of VDD (supply).
+ *  @brief  Enable / Disable the use MPU's secondary I2C interface level
+ *          shifters.
+ *          When enabled the secondary I2C interface to which the external
+ *          device is connected runs at VDD voltage (main supply).
+ *          When disabled the 2nd interface runs at VDDIO voltage.
+ *          See the device specification for more details.
  *
- *  @note       Must be called after MLSerialOpen().
- *  @note       Typically be called before MLDmpOpen().
- *              If called after MLDmpOpen(), must be followed by a call to
- *              MLDLApplyLevelShifterBit() to write the setting on the hw.
+ *  @note   using this API may produce unpredictable results, depending on how
+ *          the MPU and slave device are setup on the target platform.
+ *          Use of this API should entirely be restricted to system
+ *          integrators. Once the correct value is found, there should be no
+ *          need to change the level shifter at runtime.
  *
- *  @param[in]  enable
- *                  1 to enable, 0 to disable
+ *  @pre    Must be called after MLSerialOpen().
+ *  @note   Typically called before MLDmpOpen().
  *
- *  @return     ML_SUCCESS if successfull, a non-zero error code otherwise.
-**/
+ *  @param[in]  enable:
+ *                  0 to run at VDDIO (default),
+ *                  1 to run at VDD.
+ *
+ *  @return ML_SUCCESS if successfull, a non-zero error code otherwise.
+ */
 static int MLDLSetLevelShifterBit(struct mldl_cfg *pdata,
 				  void *mlsl_handle,
 				  unsigned char enable)
@@ -350,9 +366,9 @@ static int MLDLSetLevelShifterBit(struct mldl_cfg *pdata,
 		return ML_ERROR_INVALID_PARAMETER;
 
 	/*-- on parts before B6 the VDDIO bit is bit 7 of ACCEL_BURST_ADDR --
-	  NOTE: this is incompatible with ST accelerometers where the VDDIO
-		bit MUST be set to enable ST's internal logic to autoincrement
-		the register address on burst reads --*/
+	NOTE: this is incompatible with ST accelerometers where the VDDIO
+	bit MUST be set to enable ST's internal logic to autoincrement
+	the register address on burst reads --*/
 	if ((pdata->silicon_revision & 0xf) < MPU_SILICON_REV_B6) {
 		reg = MPUREG_ACCEL_BURST_ADDR;
 		mask = 0x80;
@@ -551,6 +567,7 @@ static int MLDLPowerMgmtMPU(struct mldl_cfg *pdata,
 
 	/* Reset if requested */
 	if (reset) {
+		MPL_LOGV("Reset MPU3050\n");
 		result = MLSLSerialWriteSingle(mlsl_handle, pdata->addr,
 					MPUREG_PWR_MGM, b | BIT_H_RESET);
 		ERROR_CHECK(result);
@@ -1114,6 +1131,7 @@ int mpu3050_open(struct mldl_cfg *mldl_cfg,
 {
 	int result;
 	/* Default is Logic HIGH, pushpull, latch disabled, anyread to clear */
+	mldl_cfg->ignore_system_suspend = FALSE;
 	mldl_cfg->int_config = BIT_INT_ANYRD_2CLEAR | BIT_DMP_INT_EN;
 	mldl_cfg->clk_src = MPU_CLK_SEL_PLLGYROZ;
 	mldl_cfg->lpf = MPU_FILTER_42HZ;
@@ -1294,7 +1312,10 @@ int mpu3050_close(struct mldl_cfg *mldl_cfg,
 /**
  *  @brief  resume the MPU3050 device and all the other sensor
  *          devices from their low power state.
- *  @param  mlsl_handle
+ *
+ *  @param  mldl_cfg
+ *              pointer to the configuration structure
+ *  @param  gyro_handle
  *              the main file handle to the MPU3050 device.
  *  @param  accel_handle
  *              an handle to the accelerometer device, if sitting
@@ -1311,6 +1332,10 @@ int mpu3050_close(struct mldl_cfg *mldl_cfg,
  *              onto a separate bus. Can match mlsl_handle if
  *              the pressure sensor device operates on the same
  *              primary bus of MPU.
+ *  @param  resume_gyro
+ *              whether resuming the gyroscope device is
+ *              actually needed (if the device supports low power
+ *              mode of some sort).
  *  @param  resume_accel
  *              whether resuming the accelerometer device is
  *              actually needed (if the device supports low power
@@ -1337,7 +1362,7 @@ int mpu3050_resume(struct mldl_cfg *mldl_cfg,
 {
 	int result = ML_SUCCESS;
 
-#ifdef CONFIG_SENSORS_MPU_DEBUG
+#ifdef CONFIG_MPU_SENSORS_DEBUG
 	mpu_print_cfg(mldl_cfg);
 #endif
 
@@ -1367,15 +1392,15 @@ int mpu3050_resume(struct mldl_cfg *mldl_cfg,
 						 &mldl_cfg->pdata->accel);
 		ERROR_CHECK(result);
 		mldl_cfg->accel_is_suspended = FALSE;
+	}
 
-		if (!mldl_cfg->gyro_is_suspended &&
-		    EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->accel.bus) {
-			result = mpu_set_slave(mldl_cfg,
-					       gyro_handle,
-					       mldl_cfg->accel,
-					       &mldl_cfg->pdata->accel);
-			ERROR_CHECK(result);
-		}
+	if (!mldl_cfg->gyro_is_suspended && !mldl_cfg->accel_is_suspended &&
+		EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->accel.bus) {
+		result = mpu_set_slave(mldl_cfg,
+				gyro_handle,
+				mldl_cfg->accel,
+				&mldl_cfg->pdata->accel);
+		ERROR_CHECK(result);
 	}
 
 	if (resume_compass && mldl_cfg->compass_is_suspended) {
@@ -1390,15 +1415,15 @@ int mpu3050_resume(struct mldl_cfg *mldl_cfg,
 						   compass);
 		ERROR_CHECK(result);
 		mldl_cfg->compass_is_suspended = FALSE;
+	}
 
-		if (!mldl_cfg->gyro_is_suspended &&
-		    EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->compass.bus) {
-			result = mpu_set_slave(mldl_cfg,
-					       gyro_handle,
-					       mldl_cfg->compass,
-					       &mldl_cfg->pdata->compass);
-			ERROR_CHECK(result);
-		}
+	if (!mldl_cfg->gyro_is_suspended && !mldl_cfg->compass_is_suspended &&
+		EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->compass.bus) {
+		result = mpu_set_slave(mldl_cfg,
+				gyro_handle,
+				mldl_cfg->compass,
+				&mldl_cfg->pdata->compass);
+		ERROR_CHECK(result);
 	}
 
 	if (resume_pressure && mldl_cfg->pressure_is_suspended) {
@@ -1412,15 +1437,16 @@ int mpu3050_resume(struct mldl_cfg *mldl_cfg,
 						    &mldl_cfg->pdata->
 						    pressure);
 		ERROR_CHECK(result);
-		if (!mldl_cfg->gyro_is_suspended &&
-		    EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->pressure.bus) {
-			result = mpu_set_slave(mldl_cfg,
-					       gyro_handle,
-					       mldl_cfg->pressure,
-					       &mldl_cfg->pdata->pressure);
-			ERROR_CHECK(result);
-		}
 		mldl_cfg->pressure_is_suspended = FALSE;
+	}
+
+	if (!mldl_cfg->gyro_is_suspended && !mldl_cfg->pressure_is_suspended &&
+		EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->pressure.bus) {
+		result = mpu_set_slave(mldl_cfg,
+				gyro_handle,
+				mldl_cfg->pressure,
+				&mldl_cfg->pdata->pressure);
+		ERROR_CHECK(result);
 	}
 
 	/* Now start */
@@ -1431,7 +1457,6 @@ int mpu3050_resume(struct mldl_cfg *mldl_cfg,
 
 	return result;
 }
-
 
 /**
  *  @brief  suspend the MPU3050 device and all the other sensor
@@ -1481,13 +1506,14 @@ int mpu3050_suspend(struct mldl_cfg *mldl_cfg,
 
 	if (suspend_gyro && !mldl_cfg->gyro_is_suspended) {
 #ifdef M_HW
+		return ML_SUCCESS;
 		/* This puts the bus into bypass mode */
 		result = MLDLSetI2CBypass(mldl_cfg, gyro_handle, 1);
 		ERROR_CHECK(result);
 		result = mpu60xx_pwr_mgmt(mldl_cfg, gyro_handle, 0, SLEEP);
 #else
 		result = MLDLPowerMgmtMPU(mldl_cfg, gyro_handle,
-					  0, SLEEP, 0, 0, 0);
+					0, SLEEP, 0, 0, 0);
 #endif
 		ERROR_CHECK(result);
 	}
@@ -1545,6 +1571,10 @@ int mpu3050_suspend(struct mldl_cfg *mldl_cfg,
 /**
  *  @brief  read raw sensor data from the accelerometer device
  *          in use.
+ *  @param  mldl_cfg
+ *              A pointer to the struct mldl_cfg data structure.
+ *  @param  accel_handle
+ *              The handle to the device the accelerometer is connected to.
  *  @param  data
  *              a buffer to store the raw sensor data.
  *  @return ML_SUCCESS if successful, a non-zero error code otherwise.
@@ -1553,10 +1583,14 @@ int mpu3050_read_accel(struct mldl_cfg *mldl_cfg,
 		       void *accel_handle, unsigned char *data)
 {
 	if (NULL != mldl_cfg->accel && NULL != mldl_cfg->accel->read)
-		return mldl_cfg->accel->read(accel_handle,
-					     mldl_cfg->accel,
-					     &mldl_cfg->pdata->accel,
-					     data);
+		if ((EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->accel.bus)
+			&& (!mldl_cfg->gyro_is_bypassed))
+			return ML_ERROR_FEATURE_NOT_ENABLED;
+		else
+			return mldl_cfg->accel->read(accel_handle,
+						     mldl_cfg->accel,
+						     &mldl_cfg->pdata->accel,
+						     data);
 	else
 		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
 }
@@ -1564,6 +1598,10 @@ int mpu3050_read_accel(struct mldl_cfg *mldl_cfg,
 /**
  *  @brief  read raw sensor data from the compass device
  *          in use.
+ *  @param  mldl_cfg
+ *              A pointer to the struct mldl_cfg data structure.
+ *  @param  compass_handle
+ *              The handle to the device the compass is connected to.
  *  @param  data
  *              a buffer to store the raw sensor data.
  *  @return ML_SUCCESS if successful, a non-zero error code otherwise.
@@ -1572,10 +1610,14 @@ int mpu3050_read_compass(struct mldl_cfg *mldl_cfg,
 			 void *compass_handle, unsigned char *data)
 {
 	if (NULL != mldl_cfg->compass && NULL != mldl_cfg->compass->read)
-		return mldl_cfg->compass->read(compass_handle,
-					       mldl_cfg->compass,
-					       &mldl_cfg->pdata->compass,
-					       data);
+		if ((EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->compass.bus)
+			&& (!mldl_cfg->gyro_is_bypassed))
+			return ML_ERROR_FEATURE_NOT_ENABLED;
+		else
+			return mldl_cfg->compass->read(compass_handle,
+						mldl_cfg->compass,
+						&mldl_cfg->pdata->compass,
+						data);
 	else
 		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
 }
@@ -1583,6 +1625,10 @@ int mpu3050_read_compass(struct mldl_cfg *mldl_cfg,
 /**
  *  @brief  read raw sensor data from the pressure device
  *          in use.
+ *  @param  mldl_cfg
+ *              A pointer to the struct mldl_cfg data structure.
+ *  @param  pressure_handle
+ *              The handle to the device the pressure sensor is connected to.
  *  @param  data
  *              a buffer to store the raw sensor data.
  *  @return ML_SUCCESS if successful, a non-zero error code otherwise.
@@ -1591,10 +1637,15 @@ int mpu3050_read_pressure(struct mldl_cfg *mldl_cfg,
 			 void *pressure_handle, unsigned char *data)
 {
 	if (NULL != mldl_cfg->pressure && NULL != mldl_cfg->pressure->read)
-		return mldl_cfg->pressure->read(pressure_handle,
-						mldl_cfg->pressure,
-						&mldl_cfg->pdata->pressure,
-						data);
+		if ((EXT_SLAVE_BUS_SECONDARY == mldl_cfg->pdata->pressure.bus)
+			&& (!mldl_cfg->gyro_is_bypassed))
+			return ML_ERROR_FEATURE_NOT_ENABLED;
+		else
+			return mldl_cfg->pressure->read(
+				pressure_handle,
+				mldl_cfg->pressure,
+				&mldl_cfg->pdata->pressure,
+				data);
 	else
 		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
 }
@@ -1636,6 +1687,48 @@ int mpu3050_config_pressure(struct mldl_cfg *mldl_cfg,
 						  mldl_cfg->pressure,
 						  &mldl_cfg->pdata->pressure,
 						  data);
+	else
+		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+}
+
+int mpu3050_get_config_accel(struct mldl_cfg *mldl_cfg,
+			void *accel_handle,
+			struct ext_slave_config *data)
+{
+	if (NULL != mldl_cfg->accel && NULL != mldl_cfg->accel->get_config)
+		return mldl_cfg->accel->get_config(accel_handle,
+						mldl_cfg->accel,
+						&mldl_cfg->pdata->accel,
+						data);
+	else
+		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+
+}
+
+int mpu3050_get_config_compass(struct mldl_cfg *mldl_cfg,
+			void *compass_handle,
+			struct ext_slave_config *data)
+{
+	if (NULL != mldl_cfg->compass && NULL != mldl_cfg->compass->get_config)
+		return mldl_cfg->compass->get_config(compass_handle,
+						mldl_cfg->compass,
+						&mldl_cfg->pdata->compass,
+						data);
+	else
+		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
+
+}
+
+int mpu3050_get_config_pressure(struct mldl_cfg *mldl_cfg,
+				void *pressure_handle,
+				struct ext_slave_config *data)
+{
+	if (NULL != mldl_cfg->pressure &&
+	    NULL != mldl_cfg->pressure->get_config)
+		return mldl_cfg->pressure->get_config(pressure_handle,
+						mldl_cfg->pressure,
+						&mldl_cfg->pdata->pressure,
+						data);
 	else
 		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
 }

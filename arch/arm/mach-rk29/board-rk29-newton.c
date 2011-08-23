@@ -76,8 +76,8 @@
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
-#define CONFIG_SENSOR_1                   RK29_CAM_SENSOR_OV2655                      /* front camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_1 	      0x60
+#define CONFIG_SENSOR_1                   RK29_CAM_SENSOR_OV3640                     /* front camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_1 	      0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
@@ -185,6 +185,9 @@ struct rk29_nand_platform_data rk29_nand_data = {
 #define FB_LCD_STANDBY_VALUE        GPIO_HIGH
 //#define FB_LCD_STANDBY_VALUE        GPIO_LOW
 
+
+#define NEWTON_LCD_DISP				RK29_PIN1_PD6
+#define NEWTON_LCD_EN				RK29_PIN6_PD1
 static int rk29_lcd_io_init(void)
 {
     int ret = 0;
@@ -207,110 +210,36 @@ static struct rk29lcd_info rk29_lcd_info = {
 
 int rk29_fb_io_enable(void)
 {
-    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-        gpio_set_value(FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE);              
-    }
-    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
-        gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);             
-    }
+	gpio_direction_output(NEWTON_LCD_DISP, 0);
+	gpio_set_value(NEWTON_LCD_DISP,GPIO_HIGH);
+	gpio_direction_output(NEWTON_LCD_EN, 0);
+	gpio_set_value(NEWTON_LCD_EN,GPIO_LOW);
     return 0;
 }
 
 int rk29_fb_io_disable(void)
 {
-    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-        gpio_set_value(FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);              
-    }
-    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
-        gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);             
-    }
+	gpio_direction_output(NEWTON_LCD_DISP, 0);
+	gpio_set_value(NEWTON_LCD_DISP,GPIO_LOW);
+	gpio_direction_output(NEWTON_LCD_EN, 0);
+	gpio_set_value(NEWTON_LCD_EN,GPIO_HIGH);
     return 0;
 }
 
 static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
-    int ret = 0;
-    if(fb_setting->mcu_fmk_en && (FB_MCU_FMK_PIN != INVALID_GPIO))
-    {
-        ret = gpio_request(FB_MCU_FMK_PIN, NULL);
-        if(ret != 0)
-        {
-            gpio_free(FB_MCU_FMK_PIN);
-            printk(">>>>>> FB_MCU_FMK_PIN gpio_request err \n ");
-        }
-        gpio_direction_input(FB_MCU_FMK_PIN);
+    if(gpio_request(NEWTON_LCD_DISP,NULL) != 0){
+      gpio_free(NEWTON_LCD_DISP);
+      printk("NEWTON_LCD_DISP gpio_request error\n");
+      return -EIO;
     }
-    if(fb_setting->disp_on_en)
-    {
-        if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
-        {
-            ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
-            if(ret != 0)
-            {
-                gpio_free(FB_DISPLAY_ON_PIN);
-                printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
-            }
-        }
-        else
-        {
-             ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(TOUCH_SCREEN_DISPLAY_PIN);
-                 printk(">>>>>> TOUCH_SCREEN_DISPLAY_PIN gpio_request err \n ");
-             }
-             gpio_direction_output(TOUCH_SCREEN_DISPLAY_PIN, 0);
-             gpio_set_value(TOUCH_SCREEN_DISPLAY_PIN, TOUCH_SCREEN_DISPLAY_VALUE);
-        }
+    if(gpio_request(NEWTON_LCD_EN,NULL) != 0){
+      gpio_free(NEWTON_LCD_EN);
+      printk("NEWTON_LCD_EN gpio_request error\n");
+      return -EIO;
     }
-
-    if(fb_setting->disp_on_en)
-    {
-        if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
-        {
-             ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(FB_LCD_STANDBY_PIN);
-                 printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
-             }
-        }
-        else
-        {
-             ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(TOUCH_SCREEN_STANDBY_PIN);
-                 printk(">>>>>> TOUCH_SCREEN_STANDBY_PIN gpio_request err \n ");
-             }
-             gpio_direction_output(TOUCH_SCREEN_STANDBY_PIN, 0);
-             gpio_set_value(TOUCH_SCREEN_STANDBY_PIN, TOUCH_SCREEN_STANDBY_VALUE);
-         }
-    }
-
-    if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
-    {
-        ret = gpio_request(FB_LCD_CABC_EN_PIN, NULL);
-        if(ret != 0)
-        {
-            gpio_free(FB_LCD_CABC_EN_PIN);
-            printk(">>>>>> FB_LCD_CABC_EN_PIN gpio_request err \n ");
-        }
-        gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
-        gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
-    }
-    
     rk29_fb_io_enable();   //enable it
-
-    return ret;
+    return 0;
 }
 
 
@@ -619,6 +548,9 @@ int gt819_init_platform_hw(void)
 	gpio_direction_output(TOUCH_RESET_PIN, 0);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	gpio_direction_input(TOUCH_INT_PIN);
 	mdelay(10);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
@@ -833,7 +765,55 @@ static struct mma8452_platform_data mma8452_info = {
 
 };
 #endif
-
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+		.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		.level_shifter = 0,
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+		.accel = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL ,
+#else
+				.get_slave_descr = get_accel_slave_descr ,			
+#endif
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				//.irq = RK29_PIN0_PA3,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = { 0, 1 ,0, -1 ,0, 0, 0, 0, 1 },
+		},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+		.compass = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
+#else
+				.get_slave_descr = get_compass_slave_descr,
+#endif						
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				//.irq = RK29_PIN0_PA4,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
+				.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		},
+};
+#endif
+#endif
 #if defined (CONFIG_BATTERY_BQ27510)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -1066,6 +1046,17 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+/*mpu3050*/
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_CS42L52)
 	{
 		.type    		= "cs42l52",
@@ -1792,6 +1783,10 @@ struct platform_device newton_usb_mass_storage_device = {
 	},
 };
 #endif
+static struct platform_device  rk29_cs42l52_device = {
+	.name		= "rk29_cs42l52",
+	.id		    = -1,
+};
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1941,6 +1936,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_LEDS_NEWTON_PWM
 	&rk29_device_pwm_leds,
+#endif
+#ifdef CONFIG_SND_RK29_SOC_CS42L52
+	&rk29_cs42l52_device,
 #endif
 };
 
@@ -2198,8 +2196,24 @@ static struct cpufreq_frequency_table freq_table[] = {
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
+#define BAT_LOW	RK29_PIN4_PA2
+#define POWER_ON_PIN	RK29_PIN4_PA4
 static void __init machine_rk29_board_init(void)
 {
+	int val =0;
+	gpio_request(BAT_LOW, NULL);
+	gpio_direction_input(BAT_LOW);
+	val = gpio_get_value(BAT_LOW);
+	if (val == 0){
+		printk("no battery, no power up\n");
+		gpio_request(POWER_ON_PIN, "poweronpin");
+		gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+		while(1){
+			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+			mdelay(100);
+		}
+	}
+	gpio_free(BAT_LOW);
 	rk29_board_iomux_init();
 
 	board_power_init();
