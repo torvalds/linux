@@ -12,6 +12,7 @@
 #define __PLAT_GPIO_H
 
 #include <linux/init.h>
+#include <linux/types.h>
 
 /*
  * Orion-specific GPIO API extensions.
