@@ -198,3 +198,10 @@ config SND_SOC_SPEYSIDE_WM8962
 	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8962
+
+config SND_SOC_LOWLAND
+	tristate "Audio support for Wolfson Lowland"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM5100
+	select SND_SOC_WM9081
