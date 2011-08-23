@@ -227,21 +227,17 @@ xfs_sync_inode_data(
 	int			error = 0;
 
 	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-		goto out_wait;
+		return 0;
 
 	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
 		if (flags & SYNC_TRYLOCK)
-			goto out_wait;
+			return 0;
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	}
 
 	error = xfs_flush_pages(ip, 0, -1, (flags & SYNC_WAIT) ?
 				0 : XBF_ASYNC, FI_NONE);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-
- out_wait:
-	if (flags & SYNC_WAIT)
-		xfs_ioend_wait(ip);
 	return error;
 }
 

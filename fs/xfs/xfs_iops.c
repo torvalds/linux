@@ -840,9 +840,9 @@ xfs_setattr_size(
 	}
 
 	/*
-	 * Wait for all I/O to complete.
+	 * Wait for all direct I/O to complete.
 	 */
-	xfs_ioend_wait(ip);
+	inode_dio_wait(inode);
 
 	error = -block_truncate_page(inode->i_mapping, iattr->ia_size,
 				     xfs_get_blocks);
