@@ -124,7 +124,7 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
 
-	adapter->CachedMaskValue = mask;
+	adapter->cached_mask_value = mask;
 	writel(mask, &adapter->regs->global.int_mask);
 }
 
@@ -138,7 +138,7 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 void et131x_disable_interrupts(struct et131x_adapter *adapter)
 {
 	/* Disable all global interrupts */
-	adapter->CachedMaskValue = INT_MASK_DISABLE;
+	adapter->cached_mask_value = INT_MASK_DISABLE;
 	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
 }
 
@@ -222,7 +222,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	 * DPC. We will clear the software copy of that in that
 	 * routine.
 	 */
-	adapter->stats.InterruptStatus = status;
+	adapter->stats.interrupt_status = status;
 
 	/* Schedule the ISR handler as a bottom-half task in the
 	 * kernel's tq_immediate queue, and mark the queue for
@@ -244,7 +244,7 @@ void et131x_isr_handler(struct work_struct *work)
 {
 	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
-	u32 status = etdev->stats.InterruptStatus;
+	u32 status = etdev->stats.interrupt_status;
 	struct address_map __iomem *iomem = etdev->regs;
 
 	/*
@@ -389,7 +389,7 @@ void et131x_isr_handler(struct work_struct *work)
 					(uint8_t) offsetof(struct mi_regs, isr),
 					&myisr);
 
-			if (!etdev->ReplicaPhyLoopbk) {
+			if (!etdev->replica_phy_loopbk) {
 				et131x_mii_read(etdev,
 				       (uint8_t) offsetof(struct mi_regs, bmsr),
 				       &bmsr_data);

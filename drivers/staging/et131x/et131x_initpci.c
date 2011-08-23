@@ -275,14 +275,14 @@ void et131x_error_timer_handler(unsigned long data)
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
 	if (!(etdev->bmsr & MI_BMSR_LINK_STATUS) &&
-	    etdev->RegistryPhyComa &&
+	    etdev->registry_phy_coma &&
 	    etdev->boot_coma < 11) {
 		etdev->boot_coma++;
 	}
 
 	if (etdev->boot_coma == 10) {
 		if (!(etdev->bmsr & MI_BMSR_LINK_STATUS)
-		    && etdev->RegistryPhyComa) {
+		    && etdev->registry_phy_coma) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?
@@ -294,7 +294,7 @@ void et131x_error_timer_handler(unsigned long data)
 	}
 
 	/* This is a periodic timer, so reschedule */
-	mod_timer(&etdev->ErrorTimer, jiffies +
+	mod_timer(&etdev->error_timer, jiffies +
 					  TX_ERROR_PERIOD * HZ / 1000);
 }
 
@@ -308,12 +308,12 @@ void et131x_link_detection_handler(unsigned long data)
 	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
 	unsigned long flags;
 
-	if (etdev->MediaState == 0) {
-		spin_lock_irqsave(&etdev->Lock, flags);
+	if (etdev->media_state == 0) {
+		spin_lock_irqsave(&etdev->lock, flags);
 
-		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
+		etdev->media_state = NETIF_STATUS_MEDIA_DISCONNECT;
 
-		spin_unlock_irqrestore(&etdev->Lock, flags);
+		spin_unlock_irqrestore(&etdev->lock, flags);
 
 		netif_carrier_off(etdev->netdev);
 	}
@@ -332,7 +332,7 @@ void et131x_configure_global_regs(struct et131x_adapter *etdev)
 	writel(0, &regs->rxq_start_addr);
 	writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 
-	if (etdev->RegistryJumboPacket < 2048) {
+	if (etdev->registry_jumbo_packet < 2048) {
 		/* Tx / RxDMA and Tx/Rx MAC interfaces have a 1k word
 		 * block of RAM that the driver can split between Tx
 		 * and Rx as it desires.  Our default is to split it
@@ -340,7 +340,7 @@ void et131x_configure_global_regs(struct et131x_adapter *etdev)
 		 */
 		writel(PARM_RX_MEM_END_DEF, &regs->rxq_end_addr);
 		writel(PARM_RX_MEM_END_DEF + 1, &regs->txq_start_addr);
-	} else if (etdev->RegistryJumboPacket < 8192) {
+	} else if (etdev->registry_jumbo_packet < 8192) {
 		/* For jumbo packets > 2k but < 8k, split 50-50. */
 		writel(INTERNAL_MEM_RX_OFFSET, &regs->rxq_end_addr);
 		writel(INTERNAL_MEM_RX_OFFSET + 1, &regs->txq_start_addr);
@@ -547,27 +547,27 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	netdev->base_addr = pci_resource_start(pdev, 0);
 
 	/* Initialize spinlocks here */
-	spin_lock_init(&etdev->Lock);
-	spin_lock_init(&etdev->TCBSendQLock);
-	spin_lock_init(&etdev->TCBReadyQLock);
+	spin_lock_init(&etdev->lock);
+	spin_lock_init(&etdev->tcb_send_qlock);
+	spin_lock_init(&etdev->tcb_ready_qlock);
 	spin_lock_init(&etdev->send_hw_lock);
 	spin_lock_init(&etdev->rcv_lock);
-	spin_lock_init(&etdev->RcvPendLock);
-	spin_lock_init(&etdev->FbrLock);
-	spin_lock_init(&etdev->PHYLock);
+	spin_lock_init(&etdev->rcv_pend_lock);
+	spin_lock_init(&etdev->fbr_lock);
+	spin_lock_init(&etdev->phy_lock);
 
 	/* Parse configuration parameters into the private adapter struct */
 	if (et131x_speed_set)
 		dev_info(&etdev->pdev->dev,
 			"Speed set manually to : %d\n", et131x_speed_set);
 
-	etdev->SpeedDuplex = et131x_speed_set;
-	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
+	etdev->speed_duplex = et131x_speed_set;
+	etdev->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
 	/* Set the MAC address to a default */
 	memcpy(etdev->addr, default_mac, ETH_ALEN);
 
-	/* Decode SpeedDuplex
+	/* Decode speed_duplex
 	 *
 	 * Set up as if we are auto negotiating always and then change if we
 	 * go into force mode
@@ -576,11 +576,11 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	 * knock it down to 100 full.
 	 */
 	if (etdev->pdev->device == ET131X_PCI_DEVICE_ID_FAST &&
-	    etdev->SpeedDuplex == 5)
-		etdev->SpeedDuplex = 4;
+	    etdev->speed_duplex == 5)
+		etdev->speed_duplex = 4;
 
-	etdev->AiForceSpeed = speed[etdev->SpeedDuplex];
-	etdev->AiForceDpx = duplex[etdev->SpeedDuplex];	/* Auto FDX */
+	etdev->ai_force_speed = speed[etdev->speed_duplex];
+	etdev->ai_force_duplex = duplex[etdev->speed_duplex];	/* Auto FDX */
 
 	return etdev;
 }
@@ -711,11 +711,11 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	et131x_adapter_setup(adapter);
 
 	/* Create a timer to count errors received by the NIC */
-	init_timer(&adapter->ErrorTimer);
+	init_timer(&adapter->error_timer);
 
-	adapter->ErrorTimer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
-	adapter->ErrorTimer.function = et131x_error_timer_handler;
-	adapter->ErrorTimer.data = (unsigned long)adapter;
+	adapter->error_timer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
+	adapter->error_timer.function = et131x_error_timer_handler;
+	adapter->error_timer.data = (unsigned long)adapter;
 
 	/* Initialize link state */
 	et131x_link_detection_handler((unsigned long)adapter);

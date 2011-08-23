@@ -149,14 +149,14 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * the number of entries halves.  FBR0 increases in size, however.
 	 */
 
-	if (adapter->RegistryJumboPacket < 2048) {
+	if (adapter->registry_jumbo_packet < 2048) {
 #ifdef USE_FBR0
 		rx_ring->fbr0_buffsize = 256;
 		rx_ring->fbr0_num_entries = 512;
 #endif
 		rx_ring->fbr1_buffsize = 2048;
 		rx_ring->fbr1_num_entries = 512;
-	} else if (adapter->RegistryJumboPacket < 4096) {
+	} else if (adapter->registry_jumbo_packet < 4096) {
 #ifdef USE_FBR0
 		rx_ring->fbr0_buffsize = 512;
 		rx_ring->fbr0_num_entries = 1024;
@@ -755,7 +755,7 @@ static void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
 	    (ring_index == 0 && buff_index < rx_local->fbr0_num_entries) ||
 #endif
 	    (ring_index == 1 && buff_index < rx_local->fbr1_num_entries)) {
-		spin_lock_irqsave(&etdev->FbrLock, flags);
+		spin_lock_irqsave(&etdev->fbr_lock, flags);
 
 		if (ring_index == 1) {
 			struct fbr_desc *next =
@@ -793,7 +793,7 @@ static void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
 			       &rx_dma->fbr0_full_offset);
 		}
 #endif
-		spin_unlock_irqrestore(&etdev->FbrLock, flags);
+		spin_unlock_irqrestore(&etdev->fbr_lock, flags);
 	} else {
 		dev_err(&etdev->pdev->dev,
 			  "%s illegal Buffer Index returned\n", __func__);
@@ -983,18 +983,18 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 	 * also counted here.
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
-		etdev->stats.other_errors++;
+		etdev->stats.rx_other_errs++;
 		len = 0;
 	}
 
 	if (len) {
-		if (etdev->ReplicaPhyLoopbk == 1) {
+		if (etdev->replica_phy_loopbk == 1) {
 			buf = rx_local->fbr[ring_index]->virt[buff_index];
 
 			if (memcmp(&buf[6], etdev->addr, ETH_ALEN) == 0) {
 				if (memcmp(&buf[42], "Replica packet",
 					   ETH_HLEN)) {
-					etdev->ReplicaPhyLoopbkPF = 1;
+					etdev->replica_phy_loopbk_passfail = 1;
 				}
 			}
 		}
@@ -1009,9 +1009,12 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 			 * filters. Generally filter is 0x2b when in
 			 * promiscuous mode.
 			 */
-			if ((etdev->PacketFilter & ET131X_PACKET_TYPE_MULTICAST)
-			    && !(etdev->PacketFilter & ET131X_PACKET_TYPE_PROMISCUOUS)
-			    && !(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
+			if ((etdev->packet_filter &
+					ET131X_PACKET_TYPE_MULTICAST)
+			    && !(etdev->packet_filter &
+					ET131X_PACKET_TYPE_PROMISCUOUS)
+			    && !(etdev->packet_filter &
+					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
 				buf = rx_local->fbr[ring_index]->
 						virt[buff_index];
 
@@ -1019,13 +1022,20 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 				 * destination address of this packet
 				 * matches one in our list.
 				 */
-				for (i = 0; i < etdev->MCAddressCount; i++) {
-					if (buf[0] == etdev->MCList[i][0]
-					    && buf[1] == etdev->MCList[i][1]
-					    && buf[2] == etdev->MCList[i][2]
-					    && buf[3] == etdev->MCList[i][3]
-					    && buf[4] == etdev->MCList[i][4]
-					    && buf[5] == etdev->MCList[i][5]) {
+				for (i = 0; i < etdev->multicast_addr_count;
+				     i++) {
+					if (buf[0] ==
+						etdev->multicast_list[i][0]
+					    && buf[1] ==
+						etdev->multicast_list[i][1]
+					    && buf[2] ==
+						etdev->multicast_list[i][2]
+					    && buf[3] ==
+						etdev->multicast_list[i][3]
+					    && buf[4] ==
+						etdev->multicast_list[i][4]
+					    && buf[5] ==
+						etdev->multicast_list[i][5]) {
 						break;
 					}
 				}
@@ -1038,21 +1048,21 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 				 * so we free our RFD when we return
 				 * from this function.
 				 */
-				if (i == etdev->MCAddressCount)
+				if (i == etdev->multicast_addr_count)
 					len = 0;
 			}
 
 			if (len > 0)
-				etdev->stats.multircv++;
+				etdev->stats.multicast_pkts_rcvd++;
 		} else if (word0 & ALCATEL_BROADCAST_PKT)
-			etdev->stats.brdcstrcv++;
+			etdev->stats.broadcast_pkts_rcvd++;
 		else
 			/* Not sure what this counter measures in
 			 * promiscuous mode. Perhaps we should check
 			 * the MAC address to see if it is directed
 			 * to us in promiscuous mode.
 			 */
-			etdev->stats.unircv++;
+			etdev->stats.unicast_pkts_rcvd++;
 	}
 
 	if (len > 0) {
@@ -1128,7 +1138,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		 * If length is zero, return the RFD in order to advance the
 		 * Free buffer ring.
 		 */
-		if (!etdev->PacketFilter ||
+		if (!etdev->packet_filter ||
 		    !netif_carrier_ok(etdev->netdev) ||
 		    rfd->len == 0)
 			continue;

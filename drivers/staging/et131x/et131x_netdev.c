@@ -100,15 +100,18 @@ static struct net_device_stats *et131x_stats(struct net_device *netdev)
 	struct net_device_stats *stats = &adapter->net_stats;
 	struct ce_stats *devstat = &adapter->stats;
 
-	stats->rx_errors = devstat->length_err + devstat->alignment_err +
-	    devstat->crc_err + devstat->code_violations + devstat->other_errors;
-	stats->tx_errors = devstat->max_pkt_error;
-	stats->multicast = devstat->multircv;
-	stats->collisions = devstat->collisions;
+	stats->rx_errors = devstat->rx_length_errs +
+			   devstat->rx_align_errs +
+			   devstat->rx_crc_errs +
+			   devstat->rx_code_violations +
+			   devstat->rx_other_errs;
+	stats->tx_errors = devstat->tx_max_pkt_errs;
+	stats->multicast = devstat->multicast_pkts_rcvd;
+	stats->collisions = devstat->tx_collisions;
 
-	stats->rx_length_errors = devstat->length_err;
-	stats->rx_over_errors = devstat->rx_ov_flow;
-	stats->rx_crc_errors = devstat->crc_err;
+	stats->rx_length_errors = devstat->rx_length_errs;
+	stats->rx_over_errors = devstat->rx_overflows;
+	stats->rx_crc_errors = devstat->rx_crc_errs;
 
 	/* NOTE: These stats don't have corresponding values in CE_STATS,
 	 * so we're going to have to update these directly from within the
@@ -144,7 +147,7 @@ int et131x_open(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
 	/* Start the timer to track NIC errors */
-	add_timer(&adapter->ErrorTimer);
+	add_timer(&adapter->error_timer);
 
 	/* Register our IRQ */
 	result = request_irq(netdev->irq, et131x_isr, IRQF_SHARED,
@@ -194,7 +197,7 @@ int et131x_close(struct net_device *netdev)
 	free_irq(netdev->irq, netdev);
 
 	/* Stop the error timer */
-	del_timer_sync(&adapter->ErrorTimer);
+	del_timer_sync(&adapter->error_timer);
 	return 0;
 }
 
@@ -275,7 +278,7 @@ int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
 	int status = 0;
-	uint32_t filter = adapter->PacketFilter;
+	uint32_t filter = adapter->packet_filter;
 	u32 ctrl;
 	u32 pf_ctrl;
 
@@ -337,67 +340,67 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 void et131x_multicast(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
-	uint32_t PacketFilter = 0;
+	uint32_t packet_filter = 0;
 	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	int i;
 
-	spin_lock_irqsave(&adapter->Lock, flags);
+	spin_lock_irqsave(&adapter->lock, flags);
 
 	/* Before we modify the platform-independent filter flags, store them
 	 * locally. This allows us to determine if anything's changed and if
 	 * we even need to bother the hardware
 	 */
-	PacketFilter = adapter->PacketFilter;
+	packet_filter = adapter->packet_filter;
 
 	/* Clear the 'multicast' flag locally; because we only have a single
 	 * flag to check multicast, and multiple multicast addresses can be
 	 * set, this is the easiest way to determine if more than one
 	 * multicast address is being set.
 	 */
-	PacketFilter &= ~ET131X_PACKET_TYPE_MULTICAST;
+	packet_filter &= ~ET131X_PACKET_TYPE_MULTICAST;
 
 	/* Check the net_device flags and set the device independent flags
 	 * accordingly
 	 */
 
 	if (netdev->flags & IFF_PROMISC)
-		adapter->PacketFilter |= ET131X_PACKET_TYPE_PROMISCUOUS;
+		adapter->packet_filter |= ET131X_PACKET_TYPE_PROMISCUOUS;
 	else
-		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_PROMISCUOUS;
+		adapter->packet_filter &= ~ET131X_PACKET_TYPE_PROMISCUOUS;
 
 	if (netdev->flags & IFF_ALLMULTI)
-		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
+		adapter->packet_filter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
 
 	if (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST)
-		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
+		adapter->packet_filter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
 
 	if (netdev_mc_count(netdev) < 1) {
-		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_ALL_MULTICAST;
-		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_MULTICAST;
+		adapter->packet_filter &= ~ET131X_PACKET_TYPE_ALL_MULTICAST;
+		adapter->packet_filter &= ~ET131X_PACKET_TYPE_MULTICAST;
 	} else
-		adapter->PacketFilter |= ET131X_PACKET_TYPE_MULTICAST;
+		adapter->packet_filter |= ET131X_PACKET_TYPE_MULTICAST;
 
 	/* Set values in the private adapter struct */
 	i = 0;
 	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == NIC_MAX_MCAST_LIST)
 			break;
-		memcpy(adapter->MCList[i++], ha->addr, ETH_ALEN);
+		memcpy(adapter->multicast_list[i++], ha->addr, ETH_ALEN);
 	}
-	adapter->MCAddressCount = i;
+	adapter->multicast_addr_count = i;
 
 	/* Are the new flags different from the previous ones? If not, then no
 	 * action is required
 	 *
-	 * NOTE - This block will always update the MCList with the hardware,
-	 *        even if the addresses aren't the same.
+	 * NOTE - This block will always update the multicast_list with the
+	 *        hardware, even if the addresses aren't the same.
 	 */
-	if (PacketFilter != adapter->PacketFilter) {
+	if (packet_filter != adapter->packet_filter) {
 		/* Call the device's filter function */
 		et131x_set_packet_filter(adapter);
 	}
-	spin_unlock_irqrestore(&adapter->Lock, flags);
+	spin_unlock_irqrestore(&adapter->lock, flags);
 }
 
 /**
@@ -459,7 +462,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 	}
 
 	/* Is send stuck? */
-	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
+	spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
 
 	tcb = etdev->tx_ring.send_head;
 
@@ -467,7 +470,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 		tcb->count++;
 
 		if (tcb->count > NIC_SEND_HANG_THRESHOLD) {
-			spin_unlock_irqrestore(&etdev->TCBSendQLock,
+			spin_unlock_irqrestore(&etdev->tcb_send_qlock,
 					       flags);
 
 			dev_warn(&etdev->pdev->dev,
@@ -482,7 +485,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 		}
 	}
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
+	spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
 }
 
 /**
@@ -520,7 +523,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	et131x_adapter_memory_free(adapter);
 
 	/* Set the config parameter for Jumbo Packet support */
-	adapter->RegistryJumboPacket = new_mtu + 14;
+	adapter->registry_jumbo_packet = new_mtu + 14;
 	et131x_soft_reset(adapter);
 
 	/* Alloc and init Rx DMA memory */
@@ -601,7 +604,7 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 	et131x_adapter_memory_free(adapter);
 
 	/* Set the config parameter for Jumbo Packet support */
-	/* adapter->RegistryJumboPacket = new_mtu + 14; */
+	/* adapter->registry_jumbo_packet = new_mtu + 14; */
 	/* blux: not needet here, we'll change the MAC */
 
 	et131x_soft_reset(adapter);

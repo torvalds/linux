@@ -149,10 +149,10 @@ void et1310_config_mac_regs1(struct et131x_adapter *etdev)
 	 * being truncated.  Allow the MAC to pass 4 more than our max packet
 	 * size.  This is 4 for the Ethernet CRC.
 	 *
-	 * Packets larger than (RegistryJumboPacket) that do not contain a
+	 * Packets larger than (registry_jumbo_packet) that do not contain a
 	 * VLAN ID will be dropped by the Rx function.
 	 */
-	writel(etdev->RegistryJumboPacket + 4, &macregs->max_fm_len);
+	writel(etdev->registry_jumbo_packet + 4, &macregs->max_fm_len);
 
 	/* clear out MAC config reset */
 	writel(0, &macregs->cfg1);
@@ -294,7 +294,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	writel(0, &rxmac->pf_ctrl);
 
 	/* Let's initialize the Unicast Packet filtering address */
-	if (etdev->PacketFilter & ET131X_PACKET_TYPE_DIRECTED) {
+	if (etdev->packet_filter & ET131X_PACKET_TYPE_DIRECTED) {
 		et1310_setup_device_for_unicast(etdev);
 		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
@@ -304,7 +304,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	}
 
 	/* Let's initialize the Multicast hash */
-	if (!(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
+	if (!(etdev->packet_filter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
 		pf_ctrl |= 2;	/* Multicast filter */
 		et1310_setup_device_for_multicast(etdev);
 	}
@@ -313,7 +313,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
 	pf_ctrl |= 8;	/* Fragment filter */
 
-	if (etdev->RegistryJumboPacket > 8192)
+	if (etdev->registry_jumbo_packet > 8192)
 		/* In order to transmit jumbo packets greater than 8k, the
 		 * FIFO between RxMAC and RxDMA needs to be reduced in size
 		 * to (16k - Jumbo packet size).  In order to implement this,
@@ -489,22 +489,22 @@ void et1310_update_macstat_host_counters(struct et131x_adapter *etdev)
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
-	stats->collisions           += readl(&macstat->tx_total_collisions);
-	stats->first_collision      += readl(&macstat->tx_single_collisions);
-	stats->tx_deferred          += readl(&macstat->tx_deferred);
-	stats->excessive_collisions += readl(&macstat->tx_multiple_collisions);
-	stats->late_collisions      += readl(&macstat->tx_late_collisions);
-	stats->tx_uflo              += readl(&macstat->tx_undersize_frames);
-	stats->max_pkt_error        += readl(&macstat->tx_oversize_frames);
+	stats->tx_collisions	       += readl(&macstat->tx_total_collisions);
+	stats->tx_first_collisions     += readl(&macstat->tx_single_collisions);
+	stats->tx_deferred	       += readl(&macstat->tx_deferred);
+	stats->tx_excessive_collisions +=
+				readl(&macstat->tx_multiple_collisions);
+	stats->tx_late_collisions      += readl(&macstat->tx_late_collisions);
+	stats->tx_underflows	       += readl(&macstat->tx_undersize_frames);
+	stats->tx_max_pkt_errs	       += readl(&macstat->tx_oversize_frames);
 
-	stats->alignment_err        += readl(&macstat->rx_align_errs);
-	stats->crc_err              += readl(&macstat->rx_code_errs);
-	stats->norcvbuf             += readl(&macstat->rx_drops);
-	stats->rx_ov_flow           += readl(&macstat->rx_oversize_packets);
-	stats->code_violations      += readl(&macstat->rx_fcs_errs);
-	stats->length_err           += readl(&macstat->rx_frame_len_errs);
-
-	stats->other_errors         += readl(&macstat->rx_fragment_packets);
+	stats->rx_align_errs        += readl(&macstat->rx_align_errs);
+	stats->rx_crc_errs          += readl(&macstat->rx_code_errs);
+	stats->rcvd_pkts_dropped    += readl(&macstat->rx_drops);
+	stats->rx_overflows         += readl(&macstat->rx_oversize_packets);
+	stats->rx_code_violations   += readl(&macstat->rx_fcs_errs);
+	stats->rx_length_errs       += readl(&macstat->rx_frame_len_errs);
+	stats->rx_other_errs        += readl(&macstat->rx_fragment_packets);
 }
 
 /**
@@ -536,33 +536,33 @@ void et1310_handle_macstat_interrupt(struct et131x_adapter *etdev)
 	 * block indicates that one of the counters has wrapped.
 	 */
 	if (carry_reg1 & (1 << 14))
-		etdev->stats.code_violations      += COUNTER_WRAP_16_BIT;
+		etdev->stats.rx_code_violations	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 8))
-		etdev->stats.alignment_err        += COUNTER_WRAP_12_BIT;
+		etdev->stats.rx_align_errs	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg1 & (1 << 7))
-		etdev->stats.length_err           += COUNTER_WRAP_16_BIT;
+		etdev->stats.rx_length_errs	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 2))
-		etdev->stats.other_errors         += COUNTER_WRAP_16_BIT;
+		etdev->stats.rx_other_errs	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 6))
-		etdev->stats.crc_err              += COUNTER_WRAP_16_BIT;
+		etdev->stats.rx_crc_errs	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 3))
-		etdev->stats.rx_ov_flow           += COUNTER_WRAP_16_BIT;
+		etdev->stats.rx_overflows	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg1 & (1 << 0))
-		etdev->stats.norcvbuf             += COUNTER_WRAP_16_BIT;
+		etdev->stats.rcvd_pkts_dropped	+= COUNTER_WRAP_16_BIT;
 	if (carry_reg2 & (1 << 16))
-		etdev->stats.max_pkt_error        += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_max_pkt_errs	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 15))
-		etdev->stats.tx_uflo              += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_underflows	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 6))
-		etdev->stats.first_collision      += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_first_collisions += COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 8))
-		etdev->stats.tx_deferred          += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_deferred	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 5))
-		etdev->stats.excessive_collisions += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_excessive_collisions += COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 4))
-		etdev->stats.late_collisions      += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_late_collisions	+= COUNTER_WRAP_12_BIT;
 	if (carry_reg2 & (1 << 2))
-		etdev->stats.collisions           += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_collisions	+= COUNTER_WRAP_12_BIT;
 }
 
 void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
@@ -581,10 +581,11 @@ void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
 	 * specified) then we should pass NO multi-cast addresses to the
 	 * driver.
 	 */
-	if (etdev->PacketFilter & ET131X_PACKET_TYPE_MULTICAST) {
+	if (etdev->packet_filter & ET131X_PACKET_TYPE_MULTICAST) {
 		/* Loop through our multicast array and set up the device */
-		for (nIndex = 0; nIndex < etdev->MCAddressCount; nIndex++) {
-			result = ether_crc(6, etdev->MCList[nIndex]);
+		for (nIndex = 0; nIndex < etdev->multicast_addr_count;
+		     nIndex++) {
+			result = ether_crc(6, etdev->multicast_list[nIndex]);
 
 			result = (result & 0x3F800000) >> 23;
 

@@ -456,7 +456,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, struct tcb *tcb)
 	} else
 		tcb->index = etdev->tx_ring.send_idx - 1;
 
-	spin_lock(&etdev->TCBSendQLock);
+	spin_lock(&etdev->tcb_send_qlock);
 
 	if (etdev->tx_ring.send_tail)
 		etdev->tx_ring.send_tail->next = tcb;
@@ -469,7 +469,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, struct tcb *tcb)
 
 	etdev->tx_ring.used++;
 
-	spin_unlock(&etdev->TCBSendQLock);
+	spin_unlock(&etdev->tcb_send_qlock);
 
 	/* Write the new write pointer back to the device. */
 	writel(etdev->tx_ring.send_idx,
@@ -508,12 +508,12 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *etdev)
 		return -EIO;
 
 	/* Get a TCB for this packet */
-	spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
+	spin_lock_irqsave(&etdev->tcb_ready_qlock, flags);
 
 	tcb = etdev->tx_ring.tcb_qhead;
 
 	if (tcb == NULL) {
-		spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
+		spin_unlock_irqrestore(&etdev->tcb_ready_qlock, flags);
 		return -ENOMEM;
 	}
 
@@ -522,7 +522,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *etdev)
 	if (etdev->tx_ring.tcb_qhead == NULL)
 		etdev->tx_ring.tcb_qtail = NULL;
 
-	spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
+	spin_unlock_irqrestore(&etdev->tcb_ready_qlock, flags);
 
 	tcb->skb = skb;
 
@@ -543,7 +543,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *etdev)
 	status = nic_send_packet(etdev, tcb);
 
 	if (status != 0) {
-		spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
+		spin_lock_irqsave(&etdev->tcb_ready_qlock, flags);
 
 		if (etdev->tx_ring.tcb_qtail)
 			etdev->tx_ring.tcb_qtail->next = tcb;
@@ -552,7 +552,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *etdev)
 			etdev->tx_ring.tcb_qhead = tcb;
 
 		etdev->tx_ring.tcb_qtail = tcb;
-		spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
+		spin_unlock_irqrestore(&etdev->tcb_ready_qlock, flags);
 		return status;
 	}
 	WARN_ON(etdev->tx_ring.used > NUM_TCB);
@@ -627,11 +627,11 @@ static inline void free_send_packet(struct et131x_adapter *etdev,
 	struct net_device_stats *stats = &etdev->net_stats;
 
 	if (tcb->flags & fMP_DEST_BROAD)
-		atomic_inc(&etdev->stats.brdcstxmt);
+		atomic_inc(&etdev->stats.broadcast_pkts_xmtd);
 	else if (tcb->flags & fMP_DEST_MULTI)
-		atomic_inc(&etdev->stats.multixmt);
+		atomic_inc(&etdev->stats.multicast_pkts_xmtd);
 	else
-		atomic_inc(&etdev->stats.unixmt);
+		atomic_inc(&etdev->stats.unicast_pkts_xmtd);
 
 	if (tcb->skb) {
 		stats->tx_bytes += tcb->skb->len;
@@ -663,7 +663,7 @@ static inline void free_send_packet(struct et131x_adapter *etdev,
 	memset(tcb, 0, sizeof(struct tcb));
 
 	/* Add the TCB to the Ready Q */
-	spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
+	spin_lock_irqsave(&etdev->tcb_ready_qlock, flags);
 
 	etdev->net_stats.tx_packets++;
 
@@ -675,7 +675,7 @@ static inline void free_send_packet(struct et131x_adapter *etdev,
 
 	etdev->tx_ring.tcb_qtail = tcb;
 
-	spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
+	spin_unlock_irqrestore(&etdev->tcb_ready_qlock, flags);
 	WARN_ON(etdev->tx_ring.used < 0);
 }
 
@@ -692,7 +692,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 	u32 freed = 0;
 
 	/* Any packets being sent? Check the first TCB on the send list */
-	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
+	spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
 
 	tcb = etdev->tx_ring.send_head;
 
@@ -706,19 +706,19 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 
 		etdev->tx_ring.used--;
 
-		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
+		spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
 
 		freed++;
 		free_send_packet(etdev, tcb);
 
-		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
+		spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
 
 		tcb = etdev->tx_ring.send_head;
 	}
 
 	WARN_ON(freed == NUM_TCB);
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
+	spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
 
 	etdev->tx_ring.used = 0;
 }
@@ -745,7 +745,7 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 	/* Has the ring wrapped?  Process any descriptors that do not have
 	 * the same "wrap" indicator as the current completion indicator
 	 */
-	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
+	spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
 
 	tcb = etdev->tx_ring.send_head;
 
@@ -757,9 +757,9 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 		if (tcb->next == NULL)
 			etdev->tx_ring.send_tail = NULL;
 
-		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
+		spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
 		free_send_packet(etdev, tcb);
-		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
+		spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
 
 		/* Goto the next packet */
 		tcb = etdev->tx_ring.send_head;
@@ -772,9 +772,9 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 		if (tcb->next == NULL)
 			etdev->tx_ring.send_tail = NULL;
 
-		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
+		spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
 		free_send_packet(etdev, tcb);
-		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
+		spin_lock_irqsave(&etdev->tcb_send_qlock, flags);
 
 		/* Goto the next packet */
 		tcb = etdev->tx_ring.send_head;
@@ -784,6 +784,6 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 	if (etdev->tx_ring.used <= NUM_TCB / 3)
 		netif_wake_queue(etdev->netdev);
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
+	spin_unlock_irqrestore(&etdev->tcb_send_qlock, flags);
 }
 

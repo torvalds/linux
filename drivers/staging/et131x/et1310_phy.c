@@ -596,7 +596,7 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 	}
 
 	/* Determine if we need to go into a force mode and set it */
-	if (etdev->AiForceSpeed == 0 && etdev->AiForceDpx == 0) {
+	if (etdev->ai_force_speed == 0 && etdev->ai_force_duplex == 0) {
 		if (etdev->wanted_flow == FLOW_TXONLY ||
 		    etdev->wanted_flow == FLOW_BOTH)
 			et1310_phy_access_mii_bit(etdev,
@@ -623,7 +623,7 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 	et1310_phy_auto_neg(etdev, false);
 
 	/* Set to the correct force mode. */
-	if (etdev->AiForceDpx != 1) {
+	if (etdev->ai_force_duplex != 1) {
 		if (etdev->wanted_flow == FLOW_TXONLY ||
 		    etdev->wanted_flow == FLOW_BOTH)
 			et1310_phy_access_mii_bit(etdev,
@@ -645,16 +645,16 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 					  4, 11, NULL);
 	}
 	et1310_phy_power_down(etdev, 1);
-	switch (etdev->AiForceSpeed) {
+	switch (etdev->ai_force_speed) {
 	case 10:
 		/* First we need to turn off all other advertisement */
 		et1310_phy_advertise_1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
 		et1310_phy_advertise_100BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
-		if (etdev->AiForceDpx == 1) {
+		if (etdev->ai_force_duplex == 1) {
 			/* Set our advertise values accordingly */
 			et1310_phy_advertise_10BaseT(etdev,
 						TRUEPHY_ADV_DUPLEX_HALF);
-		} else if (etdev->AiForceDpx == 2) {
+		} else if (etdev->ai_force_duplex == 2) {
 			/* Set our advertise values accordingly */
 			et1310_phy_advertise_10BaseT(etdev,
 						TRUEPHY_ADV_DUPLEX_FULL);
@@ -674,13 +674,13 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 		/* first we need to turn off all other advertisement */
 		et1310_phy_advertise_1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
 		et1310_phy_advertise_10BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
-		if (etdev->AiForceDpx == 1) {
+		if (etdev->ai_force_duplex == 1) {
 			/* Set our advertise values accordingly */
 			et1310_phy_advertise_100BaseT(etdev,
 						TRUEPHY_ADV_DUPLEX_HALF);
 			/* Set speed */
 			et1310_phy_speed_select(etdev, TRUEPHY_SPEED_100MBPS);
-		} else if (etdev->AiForceDpx == 2) {
+		} else if (etdev->ai_force_duplex == 2) {
 			/* Set our advertise values accordingly */
 			et1310_phy_advertise_100BaseT(etdev,
 						TRUEPHY_ADV_DUPLEX_FULL);
@@ -741,11 +741,11 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 			/* Update our state variables and indicate the
 			 * connected state
 			 */
-			spin_lock_irqsave(&etdev->Lock, flags);
+			spin_lock_irqsave(&etdev->lock, flags);
 
-			etdev->MediaState = NETIF_STATUS_MEDIA_CONNECT;
+			etdev->media_state = NETIF_STATUS_MEDIA_CONNECT;
 
-			spin_unlock_irqrestore(&etdev->Lock, flags);
+			spin_unlock_irqrestore(&etdev->lock, flags);
 
 			netif_carrier_on(etdev->netdev);
 		} else {
@@ -774,11 +774,11 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 			 * Timer expires, we can report disconnected (handled
 			 * in the LinkDetectionDPC).
 			 */
-			if ((etdev->MediaState == NETIF_STATUS_MEDIA_DISCONNECT)) {
-				spin_lock_irqsave(&etdev->Lock, flags);
-				etdev->MediaState =
+			if (etdev->media_state == NETIF_STATUS_MEDIA_DISCONNECT) {
+				spin_lock_irqsave(&etdev->lock, flags);
+				etdev->media_state =
 				    NETIF_STATUS_MEDIA_DISCONNECT;
-				spin_unlock_irqrestore(&etdev->Lock,
+				spin_unlock_irqrestore(&etdev->lock,
 						       flags);
 
 				netif_carrier_off(etdev->netdev);
@@ -810,15 +810,15 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 			/* Setup the PHY into coma mode until the cable is
 			 * plugged back in
 			 */
-			if (etdev->RegistryPhyComa == 1)
+			if (etdev->registry_phy_coma == 1)
 				et1310_enable_phy_coma(etdev);
 		}
 	}
 
 	if ((bmsr_ints & MI_BMSR_AUTO_NEG_COMPLETE) ||
-	    (etdev->AiForceDpx == 3 && (bmsr_ints & MI_BMSR_LINK_STATUS))) {
+	   (etdev->ai_force_duplex == 3 && (bmsr_ints & MI_BMSR_LINK_STATUS))) {
 		if ((bmsr & MI_BMSR_AUTO_NEG_COMPLETE) ||
-		    etdev->AiForceDpx == 3) {
+		    etdev->ai_force_duplex == 3) {
 			et1310_phy_link_status(etdev,
 					     &link_status, &autoneg_status,
 					     &speed, &duplex, &mdi_mdix,
@@ -849,7 +849,7 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 			et1310_config_flow_control(etdev);
 
 			if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS &&
-					etdev->RegistryJumboPacket > 2048)
+					etdev->registry_jumbo_packet > 2048)
 				et1310_phy_and_or_reg(etdev, 0x16, 0xcfff,
 								   0x2000);
 
