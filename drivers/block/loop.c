@@ -724,7 +724,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 		goto out_putf;
 
 	fput(old_file);
-	if (max_part > 0)
+	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
 		ioctl_by_bdev(bdev, BLKRRPART, 0);
 	return 0;
 
@@ -808,16 +808,25 @@ static ssize_t loop_attr_autoclear_show(struct loop_device *lo, char *buf)
 	return sprintf(buf, "%s\n", autoclear ? "1" : "0");
 }
 
+static ssize_t loop_attr_partscan_show(struct loop_device *lo, char *buf)
+{
+	int partscan = (lo->lo_flags & LO_FLAGS_PARTSCAN);
+
+	return sprintf(buf, "%s\n", partscan ? "1" : "0");
+}
+
 LOOP_ATTR_RO(backing_file);
 LOOP_ATTR_RO(offset);
 LOOP_ATTR_RO(sizelimit);
 LOOP_ATTR_RO(autoclear);
+LOOP_ATTR_RO(partscan);
 
 static struct attribute *loop_attrs[] = {
 	&loop_attr_backing_file.attr,
 	&loop_attr_offset.attr,
 	&loop_attr_sizelimit.attr,
 	&loop_attr_autoclear.attr,
+	&loop_attr_partscan.attr,
 	NULL,
 };
 
@@ -979,7 +988,9 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	}
 	lo->lo_state = Lo_bound;
 	wake_up_process(lo->lo_thread);
-	if (max_part > 0)
+	if (part_shift)
+		lo->lo_flags |= LO_FLAGS_PARTSCAN;
+	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
 		ioctl_by_bdev(bdev, BLKRRPART, 0);
 	return 0;
 
@@ -1070,7 +1081,6 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	lo->lo_offset = 0;
 	lo->lo_sizelimit = 0;
 	lo->lo_encrypt_key_size = 0;
-	lo->lo_flags = 0;
 	lo->lo_thread = NULL;
 	memset(lo->lo_encrypt_key, 0, LO_KEY_SIZE);
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
@@ -1088,8 +1098,11 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	lo->lo_state = Lo_unbound;
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
-	if (max_part > 0 && bdev)
+	if (lo->lo_flags & LO_FLAGS_PARTSCAN && bdev)
 		ioctl_by_bdev(bdev, BLKRRPART, 0);
+	lo->lo_flags = 0;
+	if (!part_shift)
+		lo->lo_disk->flags |= GENHD_FL_NO_PART_SCAN;
 	mutex_unlock(&lo->lo_ctl_mutex);
 	/*
 	 * Need not hold lo_ctl_mutex to fput backing file.
@@ -1158,6 +1171,13 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	if ((lo->lo_flags & LO_FLAGS_AUTOCLEAR) !=
 	     (info->lo_flags & LO_FLAGS_AUTOCLEAR))
 		lo->lo_flags ^= LO_FLAGS_AUTOCLEAR;
+
+	if ((info->lo_flags & LO_FLAGS_PARTSCAN) &&
+	     !(lo->lo_flags & LO_FLAGS_PARTSCAN)) {
+		lo->lo_flags |= LO_FLAGS_PARTSCAN;
+		lo->lo_disk->flags &= ~GENHD_FL_NO_PART_SCAN;
+		ioctl_by_bdev(lo->lo_device, BLKRRPART, 0);
+	}
 
 	lo->lo_encrypt_key_size = info->lo_encrypt_key_size;
 	lo->lo_init[0] = info->lo_init[0];
@@ -1654,6 +1674,27 @@ static struct loop_device *loop_alloc(int i)
 	if (!disk)
 		goto out_free_queue;
 
+	/*
+	 * Disable partition scanning by default. The in-kernel partition
+	 * scanning can be requested individually per-device during its
+	 * setup. Userspace can always add and remove partitions from all
+	 * devices. The needed partition minors are allocated from the
+	 * extended minor space, the main loop device numbers will continue
+	 * to match the loop minors, regardless of the number of partitions
+	 * used.
+	 *
+	 * If max_part is given, partition scanning is globally enabled for
+	 * all loop devices. The minors for the main loop devices will be
+	 * multiples of max_part.
+	 *
+	 * Note: Global-for-all-devices, set-only-at-init, read-only module
+	 * parameteters like 'max_loop' and 'max_part' make things needlessly
+	 * complicated, are too static, inflexible and may surprise
+	 * userspace tools. Parameters like this in general should be avoided.
+	 */
+	if (!part_shift)
+		disk->flags |= GENHD_FL_NO_PART_SCAN;
+	disk->flags |= GENHD_FL_EXT_DEVT;
 	mutex_init(&lo->lo_ctl_mutex);
 	lo->lo_number		= i;
 	lo->lo_thread		= NULL;
