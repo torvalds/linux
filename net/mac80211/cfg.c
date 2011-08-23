@@ -697,6 +697,9 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	}
 	spin_unlock_irqrestore(&sta->flaglock, flags);
 
+	sta->sta.uapsd_queues = params->uapsd_queues;
+	sta->sta.max_sp = params->max_sp;
+
 	/*
 	 * cfg80211 validates this (1-2007) and allows setting the AID
 	 * only when creating a new station entry
