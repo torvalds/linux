@@ -299,27 +299,6 @@ void et131x_error_timer_handler(unsigned long data)
 }
 
 /**
- * et131x_link_detection_handler
- *
- * Timer function for link up at driver load time
- */
-void et131x_link_detection_handler(unsigned long data)
-{
-	struct et131x_adapter *adapter = (struct et131x_adapter *) data;
-	unsigned long flags;
-
-	if (adapter->media_state == 0) {
-		spin_lock_irqsave(&adapter->lock, flags);
-
-		adapter->media_state = NETIF_STATUS_MEDIA_DISCONNECT;
-
-		spin_unlock_irqrestore(&adapter->lock, flags);
-
-		netif_carrier_off(adapter->netdev);
-	}
-}
-
-/**
  * et131x_configure_global_regs	-	configure JAGCore global regs
  * @adapter: pointer to our adapter structure
  *
@@ -718,7 +697,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	adapter->error_timer.data = (unsigned long)adapter;
 
 	/* Initialize link state */
-	et131x_link_detection_handler((unsigned long)adapter);
+	netif_carrier_off(adapter->netdev);
 
 	/* Initialize variable for counting how long we do not have
 							link status */

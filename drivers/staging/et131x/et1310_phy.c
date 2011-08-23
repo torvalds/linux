@@ -737,16 +737,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 	if (bmsr_ints & MI_BMSR_LINK_STATUS) {
 		if (bmsr & MI_BMSR_LINK_STATUS) {
 			adapter->boot_coma = 20;
-
-			/* Update our state variables and indicate the
-			 * connected state
-			 */
-			spin_lock_irqsave(&adapter->lock, flags);
-
-			adapter->media_state = NETIF_STATUS_MEDIA_CONNECT;
-
-			spin_unlock_irqrestore(&adapter->lock, flags);
-
 			netif_carrier_on(adapter->netdev);
 		} else {
 			dev_warn(&adapter->pdev->dev,
@@ -768,21 +758,7 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 				et131x_mii_write(adapter, 0x12, register18);
 			}
 
-			/* For the first N seconds of life, we are in "link
-			 * detection" When we are in this state, we should
-			 * only report "connected". When the LinkDetection
-			 * Timer expires, we can report disconnected (handled
-			 * in the LinkDetectionDPC).
-			 */
-			if (adapter->media_state == NETIF_STATUS_MEDIA_DISCONNECT) {
-				spin_lock_irqsave(&adapter->lock, flags);
-				adapter->media_state =
-				    NETIF_STATUS_MEDIA_DISCONNECT;
-				spin_unlock_irqrestore(&adapter->lock,
-						       flags);
-
-				netif_carrier_off(adapter->netdev);
-			}
+			netif_carrier_off(adapter->netdev);
 
 			adapter->linkspeed = 0;
 			adapter->duplex_mode = 0;

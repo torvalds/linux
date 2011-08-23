@@ -196,12 +196,6 @@ struct et131x_adapter {
 	u8 ai_force_duplex;	/* duplex setting */
 	u16 ai_force_speed;	/* 'Speed', user over-ride of line speed */
 	u8 flowcontrol;		/* flow control validated by the far-end */
-	enum {
-		NETIF_STATUS_INVALID = 0,
-		NETIF_STATUS_MEDIA_CONNECT,
-		NETIF_STATUS_MEDIA_DISCONNECT,
-		NETIF_STATUS_MAX
-	} media_state;
 
 	/* Minimize init-time */
 	struct timer_list error_timer;
