@@ -51,7 +51,6 @@ obj-$(CONFIG_SLHC) += slip/
 obj-$(CONFIG_TR) += tokenring/
 obj-$(CONFIG_WAN) += wan/
 obj-$(CONFIG_ARCNET) += arcnet/
-obj-$(CONFIG_NET_PCMCIA) += pcmcia/
 
 obj-$(CONFIG_USB_CATC)          += usb/
 obj-$(CONFIG_USB_KAWETH)        += usb/

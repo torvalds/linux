@@ -209,8 +209,6 @@ source "drivers/net/wimax/Kconfig"
 
 source "drivers/net/usb/Kconfig"
 
-source "drivers/net/pcmcia/Kconfig"
-
 source "drivers/net/ppp/Kconfig"
 
 source "drivers/net/wan/Kconfig"
