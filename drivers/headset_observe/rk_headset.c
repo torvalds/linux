@@ -229,7 +229,6 @@ static void headsetobserve_work(struct work_struct *work)
 			}				
 			headset_info->cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_FALLING);//
-			disable_irq(headset_info->irq[HOOK]);
 		}
 		break;			
 	default:

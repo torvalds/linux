@@ -129,6 +129,7 @@ unsigned short BT_vol_table[16]		={0x01DB,0x01DC,0x01DD,0x01DE,0x01DF,0x01E0,
 struct wm8994_priv {
 	struct mutex io_lock;
 	struct mutex route_lock;
+	int route_status;//Because the time callback cannot use mutex
 	int sysclk;
 	int mclk;
 	int fmt;//master or salve
@@ -199,12 +200,10 @@ int wm8994_set_status(void)
 {
 	struct wm8994_priv *wm8994 = wm8994_codec->private_data;	
 	int ret = 1;
-	mutex_lock(&wm8994->route_lock);
 	
-	if(wm8994->work_type == SNDRV_PCM_TRIGGER_SUSPEND)
-		ret = -2;
-	
-	mutex_unlock(&wm8994->route_lock);	
+	if(wm8994->route_status != IDLE)
+		ret = -BUSY;
+		
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8994_set_status);
@@ -1687,7 +1686,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	wake_lock(&wm8994->wm8994_on_wake);
 	mutex_lock(&wm8994->route_lock);
 	wm8994->kcontrol.private_value = route;//save rount
-
+	wm8994->route_status = BUSY;
 	//before set the route -- disable PA
 	switch(route)
 	{
@@ -1697,7 +1696,6 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			PA_ctrl(GPIO_LOW);
 			break;
 	}
-	printk("%s,route=%d\n",__FUNCTION__,route);
 	//set rount
 	switch(route)
 	{
@@ -1776,7 +1774,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	}
 	
 	if(wm8994->RW_status == ERROR)
-	{//Failure to read or write, will re-power on wm8994
+	{//Failure to read or write, will reset wm8994
 		cancel_delayed_work_sync(&wm8994->wm8994_delayed_work);
 		wm8994->work_type = SNDRV_PCM_TRIGGER_PAUSE_PUSH;
 		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(10));
@@ -1793,7 +1791,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		case SPEAKER_RINGTONE:
 		case SPEAKER_INCALL:			
 		case EARPIECE_RINGTONE:	
-		case HEADSET_RINGTONE:
+		case HEADSET_RINGTONE:		
 			msleep(50);
 			PA_ctrl(GPIO_HIGH);				
 			break;
@@ -1808,6 +1806,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			break;
 	}
 out:	
+	wm8994->route_status = IDLE;
 	mutex_unlock(&wm8994->route_lock);	
 	wake_unlock(&wm8994->wm8994_on_wake);	
 	return 0;
@@ -2044,12 +2043,14 @@ static void wm8994_work_fun(struct work_struct *work)
 			return;	
 	//	DBG("wm8994 shutdown\n");
 		mutex_lock(&wm8994->route_lock);
+		wm8994->route_status = BUSY;
 		PA_ctrl(GPIO_LOW);
 		msleep(50);
 		wm8994_write(0,0);
 		msleep(50);
 		wm8994_write(0x01, 0x0033);	
 		wm8994_current_mode = null;//Automatically re-set the wake-up time	
+		wm8994->route_status = IDLE;
 		mutex_unlock(&wm8994->route_lock);	
 		break;
 	case SNDRV_PCM_TRIGGER_START:
@@ -2135,7 +2136,7 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 		return 0;		
 	DBG("%s----%d\n",__FUNCTION__,__LINE__);
 	
-	wm8994->work_type = SNDRV_PCM_TRIGGER_SUSPEND;
+	wm8994->route_status = SUSPEND;
 	PA_ctrl(GPIO_LOW);
 	wm8994_write(0x00, 0x00);
 	
@@ -2553,6 +2554,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->playback_active = 0;
 	wm8994->call_vol = call_maxvol;
 	wm8994->BT_call_vol = BT_call_maxvol;
+	wm8994->route_status = POWER_ON;
 	INIT_DELAYED_WORK(&wm8994->wm8994_delayed_work, wm8994_work_fun);
 	mutex_init(&wm8994->io_lock);	
 	mutex_init(&wm8994->route_lock);

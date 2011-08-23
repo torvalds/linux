@@ -1513,6 +1513,8 @@ struct platform_device rk29_device_gps = {
  * author: qjb@rock-chips.com
  *****************************************************************************************/
 struct wm8994_pdata wm8994_platdata = {	
+	.BB_input_diff = 0,
+	.phone_pad = 0,
 
 	.PA_control_pin = 0,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
