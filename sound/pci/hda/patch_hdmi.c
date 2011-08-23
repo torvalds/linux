@@ -967,18 +967,11 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 
 	per_pin->pin_nid = pin_nid;
 
-	err = snd_hda_input_jack_add(codec, pin_nid,
-				     SND_JACK_VIDEOOUT, NULL);
-	if (err < 0)
-		return err;
-
 	err = hdmi_read_pin_conn(codec, pin_idx);
 	if (err < 0)
 		return err;
 
 	spec->num_pins++;
-
-	hdmi_present_sense(codec, pin_nid, eld);
 
 	return 0;
 }
@@ -1162,6 +1155,25 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
+{
+	int err;
+	char hdmi_str[32];
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+	int pcmdev = spec->pcm_rec[pin_idx].device;
+
+	snprintf(hdmi_str, sizeof(hdmi_str), "HDMI/DP,pcm=%d", pcmdev);
+
+	err = snd_hda_input_jack_add(codec, per_pin->pin_nid,
+			     SND_JACK_VIDEOOUT, pcmdev > 0 ? hdmi_str : NULL);
+	if (err < 0)
+		return err;
+
+	hdmi_present_sense(codec, per_pin->pin_nid, &per_pin->sink_eld);
+	return 0;
+}
+
 static int generic_hdmi_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1170,6 +1182,11 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+
+		err = generic_hdmi_build_jack(codec, pin_idx);
+		if (err < 0)
+			return err;
+
 		err = snd_hda_create_spdif_out_ctls(codec,
 						    per_pin->pin_nid,
 						    per_pin->mux_nids[0]);
