@@ -137,14 +137,12 @@ static inline int _il_grab_nic_access(struct il_priv *il)
 
 	return 0;
 }
-#define il_grab_nic_access(il) _il_grab_nic_access(il)
 
 static inline void _il_release_nic_access(struct il_priv *il)
 {
 	_il_clear_bit(il, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
-#define il_release_nic_access(il) _il_release_nic_access(il)
 
 static inline u32 _il_read_direct32(struct il_priv *il, u32 reg)
 {
@@ -157,9 +155,9 @@ static inline u32 il_read_direct32(struct il_priv *il, u32 reg)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	il_grab_nic_access(il);
+	_il_grab_nic_access(il);
 	value = _il_read_direct32(il, reg);
-	il_release_nic_access(il);
+	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 	return value;
 
@@ -176,9 +174,9 @@ il_write_direct32(struct il_priv *il, u32 reg, u32 value)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!il_grab_nic_access(il)) {
+	if (!_il_grab_nic_access(il)) {
 		_il_write_direct32(il, reg, value);
-		il_release_nic_access(il);
+		_il_release_nic_access(il);
 	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
@@ -222,9 +220,9 @@ static inline u32 il_read_prph(struct il_priv *il, u32 reg)
 	u32 val;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	il_grab_nic_access(il);
+	_il_grab_nic_access(il);
 	val = _il_read_prph(il, reg);
-	il_release_nic_access(il);
+	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 	return val;
 }
@@ -244,9 +242,9 @@ il_write_prph(struct il_priv *il, u32 addr, u32 val)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!il_grab_nic_access(il)) {
+	if (!_il_grab_nic_access(il)) {
 		_il_write_prph(il, addr, val);
-		il_release_nic_access(il);
+		_il_release_nic_access(il);
 	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
@@ -260,9 +258,9 @@ il_set_bits_prph(struct il_priv *il, u32 reg, u32 mask)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	il_grab_nic_access(il);
+	_il_grab_nic_access(il);
 	_il_set_bits_prph(il, reg, mask);
-	il_release_nic_access(il);
+	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 
@@ -276,9 +274,9 @@ static inline void il_set_bits_mask_prph(struct il_priv *il, u32 reg,
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	il_grab_nic_access(il);
+	_il_grab_nic_access(il);
 	_il_set_bits_mask_prph(il, reg, bits, mask);
-	il_release_nic_access(il);
+	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 
@@ -289,10 +287,10 @@ static inline void il_clear_bits_prph(struct il_priv
 	u32 val;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	il_grab_nic_access(il);
+	_il_grab_nic_access(il);
 	val = _il_read_prph(il, reg);
 	_il_write_prph(il, reg, (val & ~mask));
-	il_release_nic_access(il);
+	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 
@@ -302,13 +300,13 @@ static inline u32 il_read_targ_mem(struct il_priv *il, u32 addr)
 	u32 value;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	il_grab_nic_access(il);
+	_il_grab_nic_access(il);
 
 	_il_write_direct32(il, HBUS_TARG_MEM_RADDR, addr);
 	rmb();
 	value = _il_read_direct32(il, HBUS_TARG_MEM_RDAT);
 
-	il_release_nic_access(il);
+	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 	return value;
 }
@@ -319,11 +317,11 @@ il_write_targ_mem(struct il_priv *il, u32 addr, u32 val)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!il_grab_nic_access(il)) {
+	if (!_il_grab_nic_access(il)) {
 		_il_write_direct32(il, HBUS_TARG_MEM_WADDR, addr);
 		wmb();
 		_il_write_direct32(il, HBUS_TARG_MEM_WDAT, val);
-		il_release_nic_access(il);
+		_il_release_nic_access(il);
 	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
@@ -335,14 +333,14 @@ il_write_targ_mem_buf(struct il_priv *il, u32 addr,
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!il_grab_nic_access(il)) {
+	if (!_il_grab_nic_access(il)) {
 		_il_write_direct32(il, HBUS_TARG_MEM_WADDR, addr);
 		wmb();
 		for (; 0 < len; len -= sizeof(u32), values++)
 			_il_write_direct32(il,
 					HBUS_TARG_MEM_WDAT, *values);
 
-		il_release_nic_access(il);
+		_il_release_nic_access(il);
 	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
