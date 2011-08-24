@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/idr.h>
 #include <linux/err.h>
 #include <linux/device.h>
@@ -478,6 +477,7 @@ struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
 					  IRQ_NOPROBE);
 		}
 		iio_get();
+		get_device(&trig->dev);
 	}
 	return trig;
 }
@@ -501,6 +501,9 @@ EXPORT_SYMBOL(iio_device_register_trigger_consumer);
 
 int iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
 {
+	/* Clean up and associated but not attached triggers references */
+	if (dev_info->trig)
+		iio_put_trigger(dev_info->trig);
 	sysfs_remove_group(&dev_info->dev.kobj,
 			   &iio_trigger_consumer_attr_group);
 	return 0;
