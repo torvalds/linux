@@ -58,7 +58,7 @@
 #define	ADDR(a) (((a)>>7) ? (outp(smc->hw.iop+B0_RAP,(a)>>7), (smc->hw.iop+( ((a)&0x7F) | ((a)>>7 ? 0x80:0)) )) : (smc->hw.iop+(((a)&0x7F)|((a)>>7 ? 0x80:0))))
 #endif
 
-#include "h/hwmtm.h"
+#include "hwmtm.h"
 
 #define TRUE  1
 #define FALSE 0

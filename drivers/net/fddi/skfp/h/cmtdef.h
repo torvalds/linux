@@ -477,8 +477,8 @@ struct s_plc {
 /*
  * function prototypes
  */
-#include "h/mbuf.h"	/* Type definitions for MBUFs */
-#include "h/smtstate.h"	/* struct smt_state */
+#include "mbuf.h"	/* Type definitions for MBUFs */
+#include "smtstate.h"	/* struct smt_state */
 
 void hwt_restart(struct s_smc *smc);	/* hwt.c */
 SMbuf *smt_build_frame(struct s_smc *smc, int class, int type,

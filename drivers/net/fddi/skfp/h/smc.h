@@ -38,18 +38,18 @@
  *	fddi.h
  */
 #ifdef	OSDEF
-#include "h/osdef1st.h"
+#include "osdef1st.h"
 #endif	/* OSDEF */
 #ifdef	OEM_CONCEPT
 #include "oemdef.h"
 #endif	/* OEM_CONCEPT */
-#include "h/smt.h"
-#include "h/cmtdef.h"
-#include "h/fddimib.h"
-#include "h/targethw.h"		/* all target hw dependencies */
-#include "h/targetos.h"		/* all target os dependencies */
+#include "smt.h"
+#include "cmtdef.h"
+#include "fddimib.h"
+#include "targethw.h"		/* all target hw dependencies */
+#include "targetos.h"		/* all target os dependencies */
 #ifdef	ESS
-#include "h/sba.h"
+#include "sba.h"
 #endif
 
 /*

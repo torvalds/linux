@@ -15,7 +15,7 @@
 #ifndef	_HWM_
 #define	_HWM_
 
-#include "h/mbuf.h"
+#include "mbuf.h"
 
 /*
  * MACRO for DMA synchronization:

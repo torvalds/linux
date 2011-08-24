@@ -19,8 +19,8 @@
 #ifndef _SBA_
 #define _SBA_
 
-#include "h/mbuf.h"
-#include "h/sba_def.h"
+#include "mbuf.h"
+#include "sba_def.h"
 
 #ifdef	SBA
 
