@@ -103,17 +103,17 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
 
 	/* Stop Rx DMA */
-	il_write_direct32(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 
 	/* Reset driver's Rx queue write index */
-	il_write_direct32(il, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
+	il_wr(il, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
 
 	/* Tell device where to find RBD circular buffer in DRAM */
-	il_write_direct32(il, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+	il_wr(il, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
 			   (u32)(rxq->bd_dma >> 8));
 
 	/* Tell device where in DRAM to update its Rx status */
-	il_write_direct32(il, FH_RSCSR_CHNL0_STTS_WPTR_REG,
+	il_wr(il, FH_RSCSR_CHNL0_STTS_WPTR_REG,
 			   rxq->rb_stts_dma >> 4);
 
 	/* Enable Rx DMA
@@ -122,7 +122,7 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 	 * RB timeout 0x10
 	 * 256 RBDs
 	 */
-	il_write_direct32(il, FH_MEM_RCSR_CHNL0_CONFIG_REG,
+	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG,
 			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
 			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
 			   FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
@@ -403,8 +403,8 @@ int il4965_rxq_stop(struct il_priv *il)
 {
 
 	/* stop Rx DMA */
-	il_write_direct32(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	il_poll_direct_bit(il, FH_MEM_RSSR_RX_STATUS_REG,
+	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	il_poll_bit(il, FH_MEM_RSSR_RX_STATUS_REG,
 			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 
 	return 0;
@@ -1179,7 +1179,7 @@ int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 			pos += scnprintf(*buf + pos, bufsz - pos,
 				"  %34s: 0X%08x\n",
 				il4965_get_fh_string(fh_tbl[i]),
-				il_read_direct32(il, fh_tbl[i]));
+				il_rd(il, fh_tbl[i]));
 		}
 		return pos;
 	}
@@ -1188,7 +1188,7 @@ int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++) {
 		IL_ERR("  %34s: 0X%08x\n",
 			il4965_get_fh_string(fh_tbl[i]),
-			il_read_direct32(il, fh_tbl[i]));
+			il_rd(il, fh_tbl[i]));
 	}
 	return 0;
 }

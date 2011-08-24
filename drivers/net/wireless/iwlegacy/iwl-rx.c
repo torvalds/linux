@@ -150,14 +150,14 @@ il_rx_queue_update_write_ptr(struct il_priv *il,
 		}
 
 		q->write_actual = (q->write & ~0x7);
-		il_write_direct32(il, rx_wrt_ptr_reg,
+		il_wr(il, rx_wrt_ptr_reg,
 				q->write_actual);
 
 	/* Else device is assumed to be awake */
 	} else {
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		il_write_direct32(il, rx_wrt_ptr_reg,
+		il_wr(il, rx_wrt_ptr_reg,
 			q->write_actual);
 	}
 

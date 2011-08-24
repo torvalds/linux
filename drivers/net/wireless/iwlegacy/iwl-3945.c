@@ -773,11 +773,11 @@ static void il3945_set_pwr_vmain(struct il_priv *il)
 
 static int il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 {
-	il_write_direct32(il, FH39_RCSR_RBD_BASE(0), rxq->bd_dma);
-	il_write_direct32(il, FH39_RCSR_RPTR_ADDR(0),
+	il_wr(il, FH39_RCSR_RBD_BASE(0), rxq->bd_dma);
+	il_wr(il, FH39_RCSR_RPTR_ADDR(0),
 					rxq->rb_stts_dma);
-	il_write_direct32(il, FH39_RCSR_WPTR(0), 0);
-	il_write_direct32(il, FH39_RCSR_CONFIG(0),
+	il_wr(il, FH39_RCSR_WPTR(0), 0);
+	il_wr(il, FH39_RCSR_CONFIG(0),
 		FH39_RCSR_RX_CONFIG_REG_VAL_DMA_CHNL_EN_ENABLE |
 		FH39_RCSR_RX_CONFIG_REG_VAL_RDRBD_EN_ENABLE |
 		FH39_RCSR_RX_CONFIG_REG_BIT_WR_STTS_EN |
@@ -788,7 +788,7 @@ static int il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 		FH39_RCSR_RX_CONFIG_REG_VAL_MSG_MODE_FH);
 
 	/* fake read to flush all prev I/O */
-	il_read_direct32(il, FH39_RSSR_CTRL);
+	il_rd(il, FH39_RSSR_CTRL);
 
 	return 0;
 }
@@ -810,10 +810,10 @@ static int il3945_tx_reset(struct il_priv *il)
 	il_write_prph(il, ALM_SCD_TXF4MF_REG, 0x000004);
 	il_write_prph(il, ALM_SCD_TXF5MF_REG, 0x000005);
 
-	il_write_direct32(il, FH39_TSSR_CBB_BASE,
+	il_wr(il, FH39_TSSR_CBB_BASE,
 			     il->_3945.shared_phys);
 
-	il_write_direct32(il, FH39_TSSR_MSG_CONFIG,
+	il_wr(il, FH39_TSSR_MSG_CONFIG,
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TXPD_ON |
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_TXPD_ON |
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_MAX_FRAG_SIZE_128B |
@@ -987,7 +987,7 @@ int il3945_hw_nic_init(struct il_priv *il)
 	il_rx_queue_update_write_ptr(il, rxq);
 	*/
 
-	il_write_direct32(il, FH39_RCSR_WPTR(0), rxq->write & ~7);
+	il_wr(il, FH39_RCSR_WPTR(0), rxq->write & ~7);
 
 	rc = il3945_txq_ctx_reset(il);
 	if (rc)
@@ -1030,8 +1030,8 @@ void il3945_hw_txq_ctx_stop(struct il_priv *il)
 
 	/* reset TFD queues */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		il_write_direct32(il, FH39_TCSR_CONFIG(txq_id), 0x0);
-		il_poll_direct_bit(il, FH39_TSSR_TX_STATUS,
+		il_wr(il, FH39_TCSR_CONFIG(txq_id), 0x0);
+		il_poll_bit(il, FH39_TSSR_TX_STATUS,
 				FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
 				1000);
 	}
@@ -2183,8 +2183,8 @@ int il3945_hw_rxq_stop(struct il_priv *il)
 {
 	int rc;
 
-	il_write_direct32(il, FH39_RCSR_CONFIG(0), 0);
-	rc = il_poll_direct_bit(il, FH39_RSSR_STATUS,
+	il_wr(il, FH39_RCSR_CONFIG(0), 0);
+	rc = il_poll_bit(il, FH39_RSSR_STATUS,
 			FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 	if (rc < 0)
 		IL_ERR("Can't stop Rx DMA.\n");
@@ -2200,10 +2200,10 @@ int il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq)
 
 	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32)txq->q.dma_addr);
 
-	il_write_direct32(il, FH39_CBCC_CTRL(txq_id), 0);
-	il_write_direct32(il, FH39_CBCC_BASE(txq_id), 0);
+	il_wr(il, FH39_CBCC_CTRL(txq_id), 0);
+	il_wr(il, FH39_CBCC_BASE(txq_id), 0);
 
-	il_write_direct32(il, FH39_TCSR_CONFIG(txq_id),
+	il_wr(il, FH39_TCSR_CONFIG(txq_id),
 		FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT |
 		FH39_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_TXF |
 		FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD |

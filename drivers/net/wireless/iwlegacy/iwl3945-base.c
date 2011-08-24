@@ -1520,7 +1520,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 		il->isr_stats.tx++;
 
 		_il_wr(il, CSR_FH_INT_STATUS, (1 << 6));
-		il_write_direct32(il, FH39_TCSR_CREDIT
+		il_wr(il, FH39_TCSR_CREDIT
 					(FH39_SRVC_CHNL), 0x0);
 		handled |= CSR_INT_BIT_FH_TX;
 	}
@@ -1698,7 +1698,7 @@ static int il3945_verify_inst_full(struct il_priv *il, __le32 *image, u32 len)
 
 	D_INFO("ucode inst image size is %u\n", len);
 
-	il_write_direct32(il, HBUS_TARG_MEM_RADDR,
+	il_wr(il, HBUS_TARG_MEM_RADDR,
 			       IWL39_RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
@@ -1745,7 +1745,7 @@ static int il3945_verify_inst_sparse(struct il_priv *il, __le32 *image, u32 len)
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
-		il_write_direct32(il, HBUS_TARG_MEM_RADDR,
+		il_wr(il, HBUS_TARG_MEM_RADDR,
 			i + IWL39_RTC_INST_LOWER_BOUND);
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {

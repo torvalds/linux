@@ -144,7 +144,7 @@ static inline void _il_release_nic_access(struct il_priv *il)
 			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
 
-static inline u32 il_read_direct32(struct il_priv *il, u32 reg)
+static inline u32 il_rd(struct il_priv *il, u32 reg)
 {
 	u32 value;
 	unsigned long reg_flags;
@@ -159,7 +159,7 @@ static inline u32 il_read_direct32(struct il_priv *il, u32 reg)
 }
 
 static inline void
-il_write_direct32(struct il_priv *il, u32 reg, u32 value)
+il_wr(struct il_priv *il, u32 reg, u32 value)
 {
 	unsigned long reg_flags;
 
@@ -178,17 +178,17 @@ static inline void il_write_reg_buf(struct il_priv *il,
 
 	if ((il != NULL) && (values != NULL)) {
 		for (; 0 < len; len -= count, reg += count, values++)
-			il_write_direct32(il, reg, *values);
+			il_wr(il, reg, *values);
 	}
 }
 
-static inline int _il_poll_direct_bit(struct il_priv *il, u32 addr,
+static inline int il_poll_bit(struct il_priv *il, u32 addr,
 				       u32 mask, int timeout)
 {
 	int t = 0;
 
 	do {
-		if ((il_read_direct32(il, addr) & mask) == mask)
+		if ((il_rd(il, addr) & mask) == mask)
 			return t;
 		udelay(IL_POLL_INTERVAL);
 		t += IL_POLL_INTERVAL;
@@ -196,7 +196,6 @@ static inline int _il_poll_direct_bit(struct il_priv *il, u32 addr,
 
 	return -ETIMEDOUT;
 }
-#define il_poll_direct_bit _il_poll_direct_bit
 
 static inline u32 _il_read_prph(struct il_priv *il, u32 reg)
 {

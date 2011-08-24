@@ -66,7 +66,7 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 			return;
 		}
 
-		il_write_direct32(il, HBUS_TARG_WRPTR,
+		il_wr(il, HBUS_TARG_WRPTR,
 				txq->q.write_ptr | (txq_id << 8));
 
 		/*

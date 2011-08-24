@@ -416,7 +416,7 @@ int il4965_hw_tx_queue_init(struct il_priv *il,
 	int txq_id = txq->q.id;
 
 	/* Circular buffer (TFD queue in DRAM) physical base address */
-	il_write_direct32(il, FH_MEM_CBBC_QUEUE(txq_id),
+	il_wr(il, FH_MEM_CBBC_QUEUE(txq_id),
 			     txq->q.dma_addr >> 8);
 
 	return 0;
@@ -548,13 +548,13 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
 		_il_wr(il, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		il_write_direct32(il, HBUS_TARG_MBX_C,
+		il_wr(il, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
 			_il_wr(il, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			il_write_direct32(il, HBUS_TARG_MBX_C,
+			il_wr(il, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
 	}
@@ -1639,14 +1639,14 @@ static int il4965_alive_notify(struct il_priv *il)
 
 	/* Enable DMA channel */
 	for (chan = 0; chan < FH49_TCSR_CHNL_NUM ; chan++)
-		il_write_direct32(il,
+		il_wr(il,
 				FH_TCSR_CHNL_TX_CONFIG_REG(chan),
 				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
 				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
 
 	/* Update FH chicken bits */
-	reg_val = il_read_direct32(il, FH_TX_CHICKEN_BITS_REG);
-	il_write_direct32(il, FH_TX_CHICKEN_BITS_REG,
+	reg_val = il_rd(il, FH_TX_CHICKEN_BITS_REG);
+	il_wr(il, FH_TX_CHICKEN_BITS_REG,
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Disable chain mode for all queues */
@@ -1657,7 +1657,7 @@ static int il4965_alive_notify(struct il_priv *il)
 
 		/* TFD circular buffer read/write indexes */
 		il_write_prph(il, IWL49_SCD_QUEUE_RDPTR(i), 0);
-		il_write_direct32(il, HBUS_TARG_WRPTR, 0 | (i << 8));
+		il_wr(il, HBUS_TARG_WRPTR, 0 | (i << 8));
 
 		/* Max Tx Window size for Scheduler-ACK mode */
 		il_write_targ_mem(il, il->scd_base_addr +
@@ -2731,7 +2731,7 @@ static void il4965_init_hw_rates(struct il_priv *il,
  */
 void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 index)
 {
-	il_write_direct32(il, HBUS_TARG_WRPTR,
+	il_wr(il, HBUS_TARG_WRPTR,
 			     (index & 0xff) | (txq_id << 8));
 	il_write_prph(il, IWL49_SCD_QUEUE_RDPTR(txq_id), index);
 }

@@ -640,7 +640,7 @@ int il4965_txq_ctx_alloc(struct il_priv *il)
 	il4965_txq_set_sched(il, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	il_write_direct32(il, FH_KW_MEM_ADDR_REG, il->kw.dma >> 4);
+	il_wr(il, FH_KW_MEM_ADDR_REG, il->kw.dma >> 4);
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -679,7 +679,7 @@ void il4965_txq_ctx_reset(struct il_priv *il)
 	il4965_txq_set_sched(il, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	il_write_direct32(il, FH_KW_MEM_ADDR_REG, il->kw.dma >> 4);
+	il_wr(il, FH_KW_MEM_ADDR_REG, il->kw.dma >> 4);
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -707,14 +707,14 @@ void il4965_txq_ctx_stop(struct il_priv *il)
 
 	/* Stop each Tx DMA channel, and wait for it to be idle */
 	for (ch = 0; ch < il->hw_params.dma_chnl_num; ch++) {
-		il_write_direct32(il,
+		il_wr(il,
 				FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
-		if (il_poll_direct_bit(il, FH_TSSR_TX_STATUS_REG,
+		if (il_poll_bit(il, FH_TSSR_TX_STATUS_REG,
 				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
 				    1000))
 			IL_ERR("Failing on timeout while stopping"
 			    " DMA channel %d [0x%08x]", ch,
-			    il_read_direct32(il,
+			    il_rd(il,
 					FH_TSSR_TX_STATUS_REG));
 	}
 	spin_unlock_irqrestore(&il->lock, flags);
