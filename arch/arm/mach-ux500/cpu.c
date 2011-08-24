@@ -62,7 +62,7 @@ static inline void ux500_cache_wait(void __iomem *reg, unsigned long mask)
 {
 	/* wait for the operation to complete */
 	while (readl_relaxed(reg) & mask)
-		;
+		cpu_relax();
 }
 
 static inline void ux500_cache_sync(void)
