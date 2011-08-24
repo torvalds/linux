@@ -20,8 +20,8 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
-#ifdef  __KERNEL__
 #include <linux/if_ether.h>
+#ifdef  __KERNEL__
 #include <linux/if.h>
 #include <linux/netdevice.h>
 #include <linux/ppp_channel.h>
