@@ -78,12 +78,6 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 		}
 	}
 
-	if (of_device_is_compatible(np, "ns8250dw")) {
-		ret = serial8250_use_designware_io(port);
-		if (ret)
-			dev_warn(&ofdev->dev, "unable to register DesignWare 8250 helpers, continuing as a normal 8250\n");
-	}
-
 	port->type = type;
 	port->uartclk = clk;
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
@@ -182,7 +176,6 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
  */
 static struct of_device_id __devinitdata of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
-	{ .compatible = "ns8250dw", .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },
 	{ .compatible = "ns16550",  .data = (void *)PORT_16550, },

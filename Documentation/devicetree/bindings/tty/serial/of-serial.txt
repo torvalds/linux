@@ -3,7 +3,6 @@
 Required properties:
 - compatible : one of:
 	- "ns8250"
-	- "ns8250dw"
 	- "ns16450"
 	- "ns16550a"
 	- "ns16550"
