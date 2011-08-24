@@ -419,6 +419,17 @@ static void synaptics_pt_create(struct psmouse *psmouse)
  *	Functions to interpret the absolute mode packets
  ****************************************************************************/
 
+static void synaptics_parse_agm(const unsigned char buf[],
+				struct synaptics_data *priv)
+{
+	struct synaptics_hw_state *agm = &priv->agm;
+
+	/* Gesture packet: (x, y, z) at half resolution */
+	agm->x = (((buf[4] & 0x0f) << 8) | buf[1]) << 1;
+	agm->y = (((buf[4] & 0xf0) << 4) | buf[2]) << 1;
+	agm->z = ((buf[3] & 0x30) | (buf[5] & 0x0f)) << 1;
+}
+
 static int synaptics_parse_hw_state(const unsigned char buf[],
 				    struct synaptics_data *priv,
 				    struct synaptics_hw_state *hw)
@@ -453,10 +464,7 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 		}
 
 		if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) && hw->w == 2) {
-			/* Gesture packet: (x, y, z) at half resolution */
-			priv->mt.x = (((buf[4] & 0x0f) << 8) | buf[1]) << 1;
-			priv->mt.y = (((buf[4] & 0xf0) << 4) | buf[2]) << 1;
-			priv->mt.z = ((buf[3] & 0x30) | (buf[5] & 0x0f)) << 1;
+			synaptics_parse_agm(buf, priv);
 			return 1;
 		}
 
@@ -595,7 +603,8 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	}
 
 	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c))
-		synaptics_report_semi_mt_data(dev, &hw, &priv->mt, num_fingers);
+		synaptics_report_semi_mt_data(dev, &hw, &priv->agm,
+					      num_fingers);
 
 	/* Post events
 	 * BTN_TOUCH has to be first as mousedev relies on it when doing
