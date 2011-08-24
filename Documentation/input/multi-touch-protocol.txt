@@ -65,6 +65,20 @@ the full state of each initiated contact has to reside in the receiving
 end.  Upon receiving an MT event, one simply updates the appropriate
 attribute of the current slot.
 
+Some devices identify and/or track more contacts than they can report to the
+driver.  A driver for such a device should associate one type B slot with each
+contact that is reported by the hardware.  Whenever the identity of the
+contact associated with a slot changes, the driver should invalidate that
+slot by changing its ABS_MT_TRACKING_ID.  If the hardware signals that it is
+tracking more contacts than it is currently reporting, the driver should use
+a BTN_TOOL_*TAP event to inform userspace of the total number of contacts
+being tracked by the hardware at that moment.  The driver should do this by
+explicitly sending the corresponding BTN_TOOL_*TAP event and setting
+use_count to false when calling input_mt_report_pointer_emulation().
+The driver should only advertise as many slots as the hardware can report.
+Userspace can detect that a driver can report more total contacts than slots
+by noting that the largest supported BTN_TOOL_*TAP event is larger than the
+total number of type B slots reported in the absinfo for the ABS_MT_SLOT axis.
 
 Protocol Example A
 ------------------
