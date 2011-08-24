@@ -1058,7 +1058,7 @@ static inline int il3945_hw_reg_temp_out_of_range(int temperature)
 
 int il3945_hw_get_temperature(struct il_priv *il)
 {
-	return il_read32(il, CSR_UCODE_DRV_GP2);
+	return _il_rd(il, CSR_UCODE_DRV_GP2);
 }
 
 /**
@@ -2211,7 +2211,7 @@ int il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq)
 		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE);
 
 	/* fake read to flush all prev. writes */
-	il_read32(il, FH39_TSSR_CBB_BASE);
+	_il_rd(il, FH39_TSSR_CBB_BASE);
 
 	return 0;
 }

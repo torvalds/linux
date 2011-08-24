@@ -1018,7 +1018,7 @@ static ssize_t il_dbgfs_power_save_status_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	u32 pwrsave_status;
 
-	pwrsave_status = il_read32(il, CSR_GP_CNTRL) &
+	pwrsave_status = _il_rd(il, CSR_GP_CNTRL) &
 			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");

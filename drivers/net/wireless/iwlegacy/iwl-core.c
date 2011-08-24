@@ -2001,7 +2001,7 @@ int il_pci_resume(struct device *device)
 
 	il_enable_interrupts(il);
 
-	if (!(il_read32(il, CSR_GP_CNTRL) &
+	if (!(_il_rd(il, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 		hw_rfkill = true;
 
@@ -2580,12 +2580,12 @@ irqreturn_t il_isr(int irq, void *data)
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
 	 * If we have something to service, the tasklet will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here. */
-	inta_mask = il_read32(il, CSR_INT_MASK);  /* just for debug */
-	il_write32(il, CSR_INT_MASK, 0x00000000);
+	inta_mask = _il_rd(il, CSR_INT_MASK);  /* just for debug */
+	_il_wr(il, CSR_INT_MASK, 0x00000000);
 
 	/* Discover which interrupts are active/pending */
-	inta = il_read32(il, CSR_INT);
-	inta_fh = il_read32(il, CSR_FH_INT_STATUS);
+	inta = _il_rd(il, CSR_INT);
+	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,

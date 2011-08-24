@@ -40,18 +40,15 @@ static inline void _il_write8(struct il_priv *il, u32 ofs, u8 val)
 }
 #define il_write8(il, ofs, val) _il_write8(il, ofs, val)
 
-static inline void _il_write32(struct il_priv *il, u32 ofs, u32 val)
+static inline void _il_wr(struct il_priv *il, u32 ofs, u32 val)
 {
 	iowrite32(val, il->hw_base + ofs);
 }
-#define il_write32(il, ofs, val) _il_write32(il, ofs, val)
 
-static inline u32 _il_read32(struct il_priv *il, u32 ofs)
+static inline u32 _il_rd(struct il_priv *il, u32 ofs)
 {
-	u32 val = ioread32(il->hw_base + ofs);
-	return val;
+	return ioread32(il->hw_base + ofs);
 }
-#define il_read32(p, o) _il_read32(p, o)
 
 #define IL_POLL_INTERVAL 10	/* microseconds */
 static inline int
@@ -61,7 +58,7 @@ _il_poll_bit(struct il_priv *il, u32 addr,
 	int t = 0;
 
 	do {
-		if ((_il_read32(il, addr) & mask) == (bits & mask))
+		if ((_il_rd(il, addr) & mask) == (bits & mask))
 			return t;
 		udelay(IL_POLL_INTERVAL);
 		t += IL_POLL_INTERVAL;
@@ -73,7 +70,7 @@ _il_poll_bit(struct il_priv *il, u32 addr,
 
 static inline void _il_set_bit(struct il_priv *il, u32 reg, u32 mask)
 {
-	_il_write32(il, reg, _il_read32(il, reg) | mask);
+	_il_wr(il, reg, _il_rd(il, reg) | mask);
 }
 
 static inline void il_set_bit(struct il_priv *p, u32 r, u32 m)
@@ -88,7 +85,7 @@ static inline void il_set_bit(struct il_priv *p, u32 r, u32 m)
 static inline void
 _il_clear_bit(struct il_priv *il, u32 reg, u32 mask)
 {
-	_il_write32(il, reg, _il_read32(il, reg) & ~mask);
+	_il_wr(il, reg, _il_rd(il, reg) & ~mask);
 }
 
 static inline void il_clear_bit(struct il_priv *p, u32 r, u32 m)
@@ -131,10 +128,10 @@ static inline int _il_grab_nic_access(struct il_priv *il)
 			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (ret < 0) {
-		val = _il_read32(il, CSR_GP_CNTRL);
+		val = _il_rd(il, CSR_GP_CNTRL);
 		IL_ERR(
 			"MAC is in deep sleep!.  CSR_GP_CNTRL = 0x%08X\n", val);
-		_il_write32(il, CSR_RESET,
+		_il_wr(il, CSR_RESET,
 				CSR_RESET_REG_FLAG_FORCE_NMI);
 		return -EIO;
 	}
@@ -152,7 +149,7 @@ static inline void _il_release_nic_access(struct il_priv *il)
 
 static inline u32 _il_read_direct32(struct il_priv *il, u32 reg)
 {
-	return _il_read32(il, reg);
+	return _il_rd(il, reg);
 }
 
 static inline u32 il_read_direct32(struct il_priv *il, u32 reg)
@@ -172,7 +169,7 @@ static inline u32 il_read_direct32(struct il_priv *il, u32 reg)
 static inline void _il_write_direct32(struct il_priv *il,
 					 u32 reg, u32 value)
 {
-	_il_write32(il, reg, value);
+	_il_wr(il, reg, value);
 }
 static inline void
 il_write_direct32(struct il_priv *il, u32 reg, u32 value)

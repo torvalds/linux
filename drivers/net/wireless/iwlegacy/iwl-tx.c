@@ -55,7 +55,7 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 		/* wake up nic if it's powered down ...
 		 * uCode will wake up, and interrupt us again, so next
 		 * time we'll skip this part. */
-		reg = il_read32(il, CSR_UCODE_DRV_GP1);
+		reg = _il_rd(il, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 			D_INFO(
@@ -75,7 +75,7 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 		 * trying to tx (during RFKILL, we're not trying to tx).
 		 */
 	} else
-		il_write32(il, HBUS_TARG_WRPTR,
+		_il_wr(il, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 	txq->need_update = 0;
 }

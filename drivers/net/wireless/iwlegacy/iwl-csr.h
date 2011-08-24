@@ -70,7 +70,7 @@
  * low power states due to driver-invoked device resets
  * (e.g. CSR_RESET_REG_FLAG_SW_RESET) or uCode-driven power-saving modes.
  *
- * Use il_write32() and il_read32() family to access these registers;
+ * Use _il_wr() and _il_rd() family to access these registers;
  * these provide simple PCI bus access, without waking up the MAC.
  * Do not use il_write_direct32() family for these registers;
  * no need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
@@ -91,7 +91,7 @@
 #define CSR_RESET               (CSR_BASE+0x020) /* busmaster enable, NMI, etc*/
 #define CSR_GP_CNTRL            (CSR_BASE+0x024)
 
-/* 2nd byte of CSR_INT_COALESCING, not accessible via il_write32()! */
+/* 2nd byte of CSR_INT_COALESCING, not accessible via _il_wr()! */
 #define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
 
 /*
@@ -374,7 +374,7 @@
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing
  * internal resources.
  *
- * Do not use il_write32()/il_read32() family to access these registers;
+ * Do not use _il_wr()/_il_rd() family to access these registers;
  * these provide only simple PCI bus access, without waking up the MAC.
  */
 #define HBUS_BASE	(0x400)

@@ -144,7 +144,7 @@ static const u8 il_eeprom_band_7[] = {       /* 5.2 ht40 channel */
 
 static int il_eeprom_verify_signature(struct il_priv *il)
 {
-	u32 gp = il_read32(il, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	u32 gp = _il_rd(il, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
 	D_EEPROM("EEPROM signature=0x%08x\n", gp);
@@ -187,7 +187,7 @@ EXPORT_SYMBOL(il_eeprom_query16);
 int il_eeprom_init(struct il_priv *il)
 {
 	__le16 *e;
-	u32 gp = il_read32(il, CSR_EEPROM_GP);
+	u32 gp = _il_rd(il, CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
@@ -223,7 +223,7 @@ int il_eeprom_init(struct il_priv *il)
 	for (addr = 0; addr < sz; addr += sizeof(u16)) {
 		u32 r;
 
-		_il_write32(il, CSR_EEPROM_REG,
+		_il_wr(il, CSR_EEPROM_REG,
 			     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
 		ret = il_poll_bit(il, CSR_EEPROM_REG,

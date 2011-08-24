@@ -138,7 +138,7 @@ il_rx_queue_update_write_ptr(struct il_priv *il,
 
 	/* If power-saving is in use, make sure device is awake */
 	if (test_bit(STATUS_POWER_PMI, &il->status)) {
-		reg = il_read32(il, CSR_UCODE_DRV_GP1);
+		reg = _il_rd(il, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 			D_INFO(

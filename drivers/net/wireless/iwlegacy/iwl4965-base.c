@@ -517,9 +517,9 @@ static void il4965_perform_ct_kill_task(struct il_priv *il)
 	if (il->mac80211_registered)
 		ieee80211_stop_queues(il->hw);
 
-	il_write32(il, CSR_UCODE_DRV_GP1_SET,
+	_il_wr(il, CSR_UCODE_DRV_GP1_SET,
 			CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
-	il_read32(il, CSR_UCODE_DRV_GP1);
+	_il_rd(il, CSR_UCODE_DRV_GP1);
 
 	spin_lock_irqsave(&il->reg_lock, flags);
 	if (!il_grab_nic_access(il))
@@ -545,14 +545,14 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
 		     CT_CARD_DISABLED)) {
 
-		il_write32(il, CSR_UCODE_DRV_GP1_SET,
+		_il_wr(il, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 		il_write_direct32(il, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
-			il_write32(il, CSR_UCODE_DRV_GP1_CLR,
+			_il_wr(il, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 			il_write_direct32(il, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
@@ -787,19 +787,19 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
 	 *  and will clear only when CSR_FH_INT_STATUS gets cleared. */
-	inta = il_read32(il, CSR_INT);
-	il_write32(il, CSR_INT, inta);
+	inta = _il_rd(il, CSR_INT);
+	_il_wr(il, CSR_INT, inta);
 
 	/* Ack/clear/reset pending flow-handler (DMA) interrupts.
 	 * Any new interrupts that happen after this, either while we're
 	 * in this tasklet, or later, will show up in next ISR/tasklet. */
-	inta_fh = il_read32(il, CSR_FH_INT_STATUS);
-	il_write32(il, CSR_FH_INT_STATUS, inta_fh);
+	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
+	_il_wr(il, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_ISR) {
 		/* just for debug */
-		inta_mask = il_read32(il, CSR_INT_MASK);
+		inta_mask = _il_rd(il, CSR_INT_MASK);
 		D_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 			      inta, inta_mask, inta_fh);
 	}
@@ -853,7 +853,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		int hw_rf_kill = 0;
-		if (!(il_read32(il, CSR_GP_CNTRL) &
+		if (!(_il_rd(il, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
@@ -948,9 +948,9 @@ static void il4965_irq_tasklet(struct il_priv *il)
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
-		inta = il_read32(il, CSR_INT);
-		inta_mask = il_read32(il, CSR_INT_MASK);
-		inta_fh = il_read32(il, CSR_FH_INT_STATUS);
+		inta = _il_rd(il, CSR_INT);
+		inta_mask = _il_rd(il, CSR_INT_MASK);
+		inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 		D_ISR(
 			"End inta 0x%08x, enabled 0x%08x, fh 0x%08x, "
 			"flags 0x%08lx\n", inta, inta_mask, inta_fh, flags);
@@ -1092,7 +1092,7 @@ static void il4965_dealloc_ucode_pci(struct il_priv *il)
 static void il4965_nic_start(struct il_priv *il)
 {
 	/* Remove all resets to allow NIC to operate */
-	il_write32(il, CSR_RESET, 0);
+	_il_wr(il, CSR_RESET, 0);
 }
 
 static void il4965_ucode_callback(const struct firmware *ucode_raw,
@@ -1584,7 +1584,7 @@ static void il4965_rf_kill_ct_config(struct il_priv *il)
 	int ret = 0;
 
 	spin_lock_irqsave(&il->lock, flags);
-	il_write32(il, CSR_UCODE_DRV_GP1_CLR,
+	_il_wr(il, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -1830,7 +1830,7 @@ static void __il4965_down(struct il_priv *il)
 		clear_bit(STATUS_EXIT_PENDING, &il->status);
 
 	/* stop and reset the on-board processor */
-	il_write32(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+	_il_wr(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/* tell the device to stop sending interrupts */
 	spin_lock_irqsave(&il->lock, flags);
@@ -1980,7 +1980,7 @@ static int __il4965_up(struct il_priv *il)
 	}
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (il_read32(il,
+	if (_il_rd(il,
 		CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &il->status);
 	else
@@ -1994,7 +1994,7 @@ static int __il4965_up(struct il_priv *il)
 		return 0;
 	}
 
-	il_write32(il, CSR_INT, 0xFFFFFFFF);
+	_il_wr(il, CSR_INT, 0xFFFFFFFF);
 
 	/* must be initialised before il_hw_nic_init */
 	il->cmd_queue = IL_DEFAULT_CMD_QUEUE_NUM;
@@ -2006,17 +2006,17 @@ static int __il4965_up(struct il_priv *il)
 	}
 
 	/* make sure rfkill handshake bits are cleared */
-	il_write32(il, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	il_write32(il, CSR_UCODE_DRV_GP1_CLR,
+	_il_wr(il, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	_il_wr(il, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	/* clear (again), then enable host interrupts */
-	il_write32(il, CSR_INT, 0xFFFFFFFF);
+	_il_wr(il, CSR_INT, 0xFFFFFFFF);
 	il_enable_interrupts(il);
 
 	/* really make sure rfkill handshake bits are cleared */
-	il_write32(il, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	il_write32(il, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	_il_wr(il, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	_il_wr(il, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Copy original ucode data image from disk into backup cache.
 	 * This will be used to initialize the on-board processor's
@@ -2296,7 +2296,7 @@ void il4965_mac_stop(struct ieee80211_hw *hw)
 
 	/* User space software may expect getting rfkill changes
 	 * even if interface is down */
-	il_write32(il, CSR_INT, 0xFFFFFFFF);
+	_il_wr(il, CSR_INT, 0xFFFFFFFF);
 	il_enable_rfkill_int(il);
 
 	D_MAC80211("leave\n");
@@ -2821,8 +2821,8 @@ static void il4965_uninit_drv(struct il_priv *il)
 
 static void il4965_hw_detect(struct il_priv *il)
 {
-	il->hw_rev = _il_read32(il, CSR_HW_REV);
-	il->hw_wa_rev = _il_read32(il, CSR_HW_REV_WA_REG);
+	il->hw_rev = _il_rd(il, CSR_HW_REV);
+	il->hw_wa_rev = _il_rd(il, CSR_HW_REV_WA_REG);
 	il->rev_id = il->pci_dev->revision;
 	D_INFO("HW Revision ID = 0x%X\n", il->rev_id);
 }
@@ -2978,7 +2978,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * strange state ... like being left stranded by a primary kernel
 	 * and this is now the kdump kernel trying to start up
 	 */
-	il_write32(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+	_il_wr(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	il4965_hw_detect(il);
 	IL_INFO("Detected %s, REV=0x%X\n",
@@ -3066,7 +3066,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il_enable_rfkill_int(il);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (il_read32(il, CSR_GP_CNTRL) &
+	if (_il_rd(il, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &il->status);
 	else

@@ -55,9 +55,9 @@ il4965_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
 	};
 	u32 reg;
 
-	reg = il_read32(il, CSR_LED_REG);
+	reg = _il_rd(il, CSR_LED_REG);
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
-		il_write32(il, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
+		_il_wr(il, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
 
 	return il_send_cmd(il, &cmd);
 }
@@ -65,7 +65,7 @@ il4965_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
 /* Set led register off */
 void il4965_led_enable(struct il_priv *il)
 {
-	il_write32(il, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
+	_il_wr(il, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
 }
 
 const struct il_led_ops il4965_led_ops = {
