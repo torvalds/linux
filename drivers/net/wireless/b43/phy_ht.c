@@ -212,6 +212,13 @@ static void b43_phy_ht_force_rf_sequence(struct b43_wldev *dev, u16 rf_seq)
 	b43_phy_write(dev, B43_PHY_HT_RF_SEQ_MODE, save_seq_mode);
 }
 
+static void b43_phy_ht_read_clip_detection(struct b43_wldev *dev, u16 *clip_st)
+{
+	clip_st[0] = b43_phy_read(dev, B43_PHY_HT_C1_CLIP1THRES);
+	clip_st[1] = b43_phy_read(dev, B43_PHY_HT_C2_CLIP1THRES);
+	clip_st[2] = b43_phy_read(dev, B43_PHY_HT_C3_CLIP1THRES);
+}
+
 static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
 {
 	unsigned int i;
@@ -335,6 +342,7 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 static int b43_phy_ht_op_init(struct b43_wldev *dev)
 {
 	u16 tmp;
+	u16 clip_state[3];
 
 	b43_phy_ht_tables_init(dev);
 
@@ -443,7 +451,8 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	/* TODO: PHY op on reg 0xb0 */
 
-	/* TODO: PHY ops on regs 0x40e, 0x44e, 0x48e */
+	/* TODO: Should we restore it? Or store it in global PHY info? */
+	b43_phy_ht_read_clip_detection(dev, clip_state);
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
 		b43_phy_ht_bphy_init(dev);
