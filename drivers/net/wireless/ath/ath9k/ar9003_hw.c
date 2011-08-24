@@ -21,6 +21,7 @@
 #include "ar9340_initvals.h"
 #include "ar9330_1p1_initvals.h"
 #include "ar9330_1p2_initvals.h"
+#include "ar9580_1p0_initvals.h"
 
 /* General hardware code for the AR9003 hadware family */
 
@@ -253,6 +254,56 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9485_1_1_pcie_phy_clkreq_disable_L1,
 				ARRAY_SIZE(ar9485_1_1_pcie_phy_clkreq_disable_L1),
 				2);
+	} else if (AR_SREV_9580(ah)) {
+		/* mac */
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_PRE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
+				ar9580_1p0_mac_core,
+				ARRAY_SIZE(ar9580_1p0_mac_core), 2);
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_POST],
+				ar9580_1p0_mac_postamble,
+				ARRAY_SIZE(ar9580_1p0_mac_postamble), 5);
+
+		/* bb */
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_PRE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+				ar9580_1p0_baseband_core,
+				ARRAY_SIZE(ar9580_1p0_baseband_core), 2);
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+				ar9580_1p0_baseband_postamble,
+				ARRAY_SIZE(ar9580_1p0_baseband_postamble), 5);
+
+		/* radio */
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_PRE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_CORE],
+				ar9580_1p0_radio_core,
+				ARRAY_SIZE(ar9580_1p0_radio_core), 2);
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_POST],
+				ar9580_1p0_radio_postamble,
+				ARRAY_SIZE(ar9580_1p0_radio_postamble), 5);
+
+		/* soc */
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_PRE],
+				ar9580_1p0_soc_preamble,
+				ARRAY_SIZE(ar9580_1p0_soc_preamble), 2);
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_CORE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_POST],
+				ar9580_1p0_soc_postamble,
+				ARRAY_SIZE(ar9580_1p0_soc_postamble), 5);
+
+		/* rx/tx gain */
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+				ar9580_1p0_rx_gain_table,
+				ARRAY_SIZE(ar9580_1p0_rx_gain_table), 2);
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+				ar9580_1p0_low_ob_db_tx_gain_table,
+				ARRAY_SIZE(ar9580_1p0_low_ob_db_tx_gain_table),
+				5);
+
+		INIT_INI_ARRAY(&ah->iniModesAdditional,
+				ar9580_1p0_modes_fast_clock,
+				ARRAY_SIZE(ar9580_1p0_modes_fast_clock),
+				3);
 	} else {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_PRE], NULL, 0, 0);
@@ -348,6 +399,11 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 				       ar9485_modes_lowest_ob_db_tx_gain_1_1,
 				       ARRAY_SIZE(ar9485_modes_lowest_ob_db_tx_gain_1_1),
 				       5);
+		else if (AR_SREV_9580(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+			      ar9580_1p0_lowest_ob_db_tx_gain_table,
+			      ARRAY_SIZE(ar9580_1p0_lowest_ob_db_tx_gain_table),
+			      5);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 				       ar9300Modes_lowest_ob_db_tx_gain_table_2p2,
@@ -374,6 +430,11 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 				       ar9485Modes_high_ob_db_tx_gain_1_1,
 				       ARRAY_SIZE(ar9485Modes_high_ob_db_tx_gain_1_1),
+				       5);
+		else if (AR_SREV_9580(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				ar9580_1p0_high_ob_db_tx_gain_table,
+				ARRAY_SIZE(ar9580_1p0_high_ob_db_tx_gain_table),
 				       5);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
@@ -402,6 +463,11 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 				       ar9485Modes_low_ob_db_tx_gain_1_1,
 				       ARRAY_SIZE(ar9485Modes_low_ob_db_tx_gain_1_1),
 				       5);
+		else if (AR_SREV_9580(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				 ar9580_1p0_low_ob_db_tx_gain_table,
+				 ARRAY_SIZE(ar9580_1p0_low_ob_db_tx_gain_table),
+				 5);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 				       ar9300Modes_low_ob_db_tx_gain_table_2p2,
@@ -429,6 +495,11 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 				       ar9485Modes_high_power_tx_gain_1_1,
 				       ARRAY_SIZE(ar9485Modes_high_power_tx_gain_1_1),
 				       5);
+		else if (AR_SREV_9580(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				ar9580_1p0_high_power_tx_gain_table,
+				ARRAY_SIZE(ar9580_1p0_high_power_tx_gain_table),
+				5);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 				       ar9300Modes_high_power_tx_gain_table_2p2,
@@ -463,6 +534,11 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 				       ar9485Common_wo_xlna_rx_gain_1_1,
 				       ARRAY_SIZE(ar9485Common_wo_xlna_rx_gain_1_1),
 				       2);
+		else if (AR_SREV_9580(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       ar9580_1p0_rx_gain_table,
+				       ARRAY_SIZE(ar9580_1p0_rx_gain_table),
+				       2);
 		else
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 				       ar9300Common_rx_gain_table_2p2,
@@ -490,6 +566,11 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 				       ar9485Common_wo_xlna_rx_gain_1_1,
 				       ARRAY_SIZE(ar9485Common_wo_xlna_rx_gain_1_1),
 				       2);
+		else if (AR_SREV_9580(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				   ar9580_1p0_wo_xlna_rx_gain_table,
+				   ARRAY_SIZE(ar9580_1p0_wo_xlna_rx_gain_table),
+				   2);
 		else
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 				       ar9300Common_wo_xlna_rx_gain_table_2p2,

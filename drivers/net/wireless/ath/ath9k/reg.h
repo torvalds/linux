@@ -793,6 +793,8 @@
 #define AR_SREV_REVISION_9485_10	0
 #define AR_SREV_REVISION_9485_11        1
 #define AR_SREV_VERSION_9340		0x300
+#define AR_SREV_VERSION_9580		0x1C0
+#define AR_SREV_REVISION_9580_10	4 /* AR9580 1.0 */
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -892,6 +894,18 @@
 #define AR_SREV_9285E_20(_ah) \
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
+
+#define AR_SREV_9580(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9580) && \
+	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9580_10))
+
+#define AR_SREV_9580_10(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9580) && \
+	((_ah)->hw_version.macRev == AR_SREV_REVISION_9580_10))
+
+/* NOTE: When adding chips newer than Peacock, add chip check here */
+#define AR_SREV_9580_10_OR_LATER(_ah) \
+	(AR_SREV_9580(_ah))
 
 enum ath_usb_dev {
 	AR9280_USB = 1, /* AR7010 + AR9280, UB94 */

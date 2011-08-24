@@ -663,6 +663,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9485_PCIE:
 	case AR9300_DEVID_AR9330:
 	case AR9300_DEVID_AR9340:
+	case AR9300_DEVID_AR9580:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
