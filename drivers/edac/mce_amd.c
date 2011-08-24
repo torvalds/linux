@@ -597,26 +597,8 @@ void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	u16 ec   = EC(m->status);
 	u8 xec   = XEC(m->status, 0x1f);
-	u32 nbsh = (u32)(m->status >> 32);
-	int core = -1;
 
-	pr_emerg(HW_ERR "Northbridge Error (node %d", node_id);
-
-	/* F10h, revD can disable ErrCpu[3:0] through ErrCpuVal */
-	if (c->x86 == 0x10 && c->x86_model > 7) {
-		if (nbsh & NBSH_ERR_CPU_VAL)
-			core = nbsh & nb_err_cpumask;
-	} else {
-		u8 assoc_cpus = nbsh & nb_err_cpumask;
-
-		if (assoc_cpus > 0)
-			core = fls(assoc_cpus) - 1;
-	}
-
-	if (core >= 0)
-		pr_cont(", core %d): ", core);
-	else
-		pr_cont("): ");
+	pr_emerg(HW_ERR "Northbridge Error (node %d): ", node_id);
 
 	switch (xec) {
 	case 0x2:
