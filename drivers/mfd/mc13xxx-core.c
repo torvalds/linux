@@ -30,16 +30,6 @@ struct mc13xxx {
 	int adcflags;
 };
 
-struct mc13783 {
-	struct mc13xxx mc13xxx;
-};
-
-struct mc13xxx *mc13783_to_mc13xxx(struct mc13783 *mc13783)
-{
-	return &mc13783->mc13xxx;
-}
-EXPORT_SYMBOL(mc13783_to_mc13xxx);
-
 #define MC13XXX_IRQSTAT0	0
 #define MC13XXX_IRQSTAT0_ADCDONEI	(1 << 0)
 #define MC13XXX_IRQSTAT0_ADCBISDONEI	(1 << 1)
@@ -557,8 +547,6 @@ static const char *mc13xxx_get_chipname(struct mc13xxx *mc13xxx)
 
 	return mc13xxx_chipname[devid->driver_data];
 }
-
-#include <linux/mfd/mc13783.h>
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx)
 {
