@@ -128,6 +128,7 @@ struct vf_data_storage {
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
+	struct pci_dev *vfdev;
 };
 
 struct vf_macvlans {
