@@ -2267,6 +2267,9 @@ ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
  * updated vector information), by using a virtual vector (io-apic pin number).
  * Real vector that is used for interrupting cpu will be coming from
  * the interrupt-remapping table entry.
+ *
+ * As the migration is a simple atomic update of IRTE, the same mechanism
+ * is used to migrate MSI irq's in the presence of interrupt-remapping.
  */
 static int
 ir_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
@@ -2291,10 +2294,16 @@ ir_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	irte.dest_id = IRTE_DEST(dest);
 
 	/*
-	 * Modified the IRTE and flushes the Interrupt entry cache.
+	 * Atomically updates the IRTE with the new destination, vector
+	 * and flushes the interrupt entry cache.
 	 */
 	modify_irte(irq, &irte);
 
+	/*
+	 * After this point, all the interrupts will start arriving
+	 * at the new destination. So, time to cleanup the previous
+	 * vector allocation.
+	 */
 	if (cfg->move_in_progress)
 		send_cleanup_vector(cfg);
 
@@ -3144,45 +3153,6 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 
 	return 0;
 }
-#ifdef CONFIG_INTR_REMAP
-/*
- * Migrate the MSI irq to another cpumask. This migration is
- * done in the process context using interrupt-remapping hardware.
- */
-static int
-ir_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
-		    bool force)
-{
-	struct irq_cfg *cfg = data->chip_data;
-	unsigned int dest, irq = data->irq;
-	struct irte irte;
-
-	if (get_irte(irq, &irte))
-		return -1;
-
-	if (__ioapic_set_affinity(data, mask, &dest))
-		return -1;
-
-	irte.vector = cfg->vector;
-	irte.dest_id = IRTE_DEST(dest);
-
-	/*
-	 * atomically update the IRTE with the new destination and vector.
-	 */
-	modify_irte(irq, &irte);
-
-	/*
-	 * After this point, all the interrupts will start arriving
-	 * at the new destination. So, time to cleanup the previous
-	 * vector allocation.
-	 */
-	if (cfg->move_in_progress)
-		send_cleanup_vector(cfg);
-
-	return 0;
-}
-
-#endif
 #endif /* CONFIG_SMP */
 
 /*
@@ -3207,7 +3177,7 @@ static struct irq_chip msi_ir_chip = {
 #ifdef CONFIG_INTR_REMAP
 	.irq_ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP
-	.irq_set_affinity	= ir_msi_set_affinity,
+	.irq_set_affinity	= ir_ioapic_set_affinity,
 #endif
 #endif
 	.irq_retrigger		= ioapic_retrigger_irq,
@@ -3416,7 +3386,7 @@ static struct irq_chip ir_hpet_msi_type = {
 #ifdef CONFIG_INTR_REMAP
 	.irq_ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP
-	.irq_set_affinity	= ir_msi_set_affinity,
+	.irq_set_affinity	= ir_ioapic_set_affinity,
 #endif
 #endif
 	.irq_retrigger		= ioapic_retrigger_irq,
