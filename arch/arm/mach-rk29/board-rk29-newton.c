@@ -1230,7 +1230,7 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
  * backlight  devices
  * author: nzy@rock-chips.com
  *****************************************************************************************/
-#ifdef CONFIG_BACKLIGHT_RK29_BL
+#ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
  /*
  GPIO1B5_PWM0_NAME,       GPIO1L_PWM0
  GPIO5D2_PWM1_UART1SIRIN_NAME,  GPIO5H_PWM1
@@ -1323,6 +1323,13 @@ struct rk29_bl_info rk29_bl_info = {
     .pwm_suspend = rk29_backlight_pwm_suspend,
     .pwm_resume = rk29_backlight_pwm_resume,
     .min_brightness = BACKLIGHT_MINVALUE,
+};
+struct platform_device rk29_device_backlight = {
+		.name	= "rk29_backlight",
+		.id 	= -1,
+        .dev    = {
+           .platform_data  = &rk29_bl_info,
+        }
 };
 #endif
 /*****************************************************************************************
@@ -1685,7 +1692,7 @@ static struct platform_device rk29_device_gpu = {
 };
 #endif
 
-#ifdef CONFIG_KEYS_RK29
+#ifdef CONFIG_KEYS_RK29_NEWTON
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
 	.name		= "rk29-keypad",
@@ -1854,7 +1861,7 @@ static struct platform_device *devices[] __initdata = {
         &rk29_device_iis_8ch,
 #endif
 
-#ifdef CONFIG_KEYS_RK29
+#ifdef CONFIG_KEYS_RK29_NEWTON
 	&rk29_device_keys,
 #endif
 #ifdef CONFIG_SDMMC0_RK29
@@ -1884,7 +1891,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_fb,
 	&rk29_device_dma_cpy,
 #endif
-#ifdef CONFIG_BACKLIGHT_RK29_BL
+#ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
 	&rk29_device_backlight,
 #endif
 #ifdef CONFIG_RK29_VMAC
