@@ -3158,12 +3158,12 @@ static struct platform_driver rk29_sdmmc_driver = {
 	},
 };
 
-static int __devinit rk29_sdmmc_init(void)
+static int __init rk29_sdmmc_init(void)
 {
 	return platform_driver_probe(&rk29_sdmmc_driver, rk29_sdmmc_probe);
 }
 
-static void __devexit rk29_sdmmc_exit(void)
+static void __exit rk29_sdmmc_exit(void)
 {
 	platform_driver_unregister(&rk29_sdmmc_driver);
 }

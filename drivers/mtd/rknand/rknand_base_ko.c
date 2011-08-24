@@ -201,6 +201,19 @@ char GetChipSectorInfo(char * pbuf)
     return 0;
 }
 
+int  GetParamterInfo(char * pbuf , int len)
+{
+    	int ret = -1;
+	int sector = (len)>>9;
+	int LBA = 0;
+	if(sector && gpNandInfo->ftl_read)
+	{
+		ret = gpNandInfo->ftl_read(LBA, sector, pbuf);
+	}
+	return ret?-1:(sector<<9);
+}
+
+
 static int rk28xxnand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	return 0;
@@ -250,7 +263,7 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
     return 0;
 }
 
-
+  
 /*
  * CMY: 增加了对命令行分区信息的支持
  *		若cmdline有提供分区信息，则使用cmdline的分区信息进行分区

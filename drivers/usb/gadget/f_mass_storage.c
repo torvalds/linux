@@ -813,7 +813,7 @@ static int do_read(struct fsg_common *common)
 		 * max size for dwc_otg ctonroller is 64(max pkt sizt) * 1023(pkt)
 		 * because of the DOEPTSIZ.PKTCNT has only 10 bits
 		 */
-		if((fsg->cdev->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
+		if((common->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
 		    amount = 0x8000;
 
 		/* Wait for the next buffer to become available */
@@ -993,7 +993,7 @@ static int do_write(struct fsg_common *common)
 			 * max size for dwc_otg ctonroller is 64(max pkt sizt) * 1023(pkt)
 			 * because of the DOEPTSIZ.PKTCNT has only 10 bits
 			 */
-			if((fsg->cdev->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
+			if((common->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
 			    amount = 0x8000;
 
 			/* amount is always divisible by 512, hence by
@@ -1983,6 +1983,133 @@ static void deferred_restart(struct work_struct *dummy)
 	kernel_restart("loader");
 }
 static DECLARE_WORK(restart_work, deferred_restart);
+
+typedef struct tagLoaderParam
+{
+	int	tag;
+	int	length;
+	char	parameter[1];
+	int	crc;
+} PARM_INFO;
+#define PARM_TAG			0x4D524150
+#define MSC_EXT_DBG			1
+extern int  GetParamterInfo(char * pbuf , int len);
+static int do_get_product_name(int ret ,char *buf)
+{
+	char 		tmp[32];
+	PARM_INFO	*pi;
+	char		*pp,*spp;
+	char		*tag = "MACHINE_MODEL:";
+	int 		i;
+	#if MSC_EXT_DBG
+	char 		tbuf[1024];
+	if( buf == NULL ) buf = tbuf;
+	#endif
+	i = GetParamterInfo( buf , 1024 );
+	pi = (PARM_INFO*)buf;
+	if( pi->tag != PARM_TAG ){
+error_out:	
+		printk("paramter error,tag=0x%x\n" , pi->tag );
+		memset( buf , 0 , ret );
+		strcpy( buf , "UNKNOW" );
+		return ret;
+	}
+	if( pi->length+sizeof(PARM_INFO) > i ) {
+		GetParamterInfo( buf , pi->length+sizeof(PARM_INFO)  + 511 );
+	}
+	pp = strstr( pi->parameter , tag );
+	if( !pp ) goto error_out;
+	pp+= strlen(tag); // sizeof "MACHINE_MODEL:"
+	while( *pp == ' ' || *pp == '\t' ) {
+		if(pp - pi->parameter >= pi->length)
+		  break;	
+		pp++;
+	}
+	spp = pp;
+	while( *pp != 0x0d && *pp != 0x0a ) {
+		if(pp - pi->parameter >= pi->length)
+		  break;
+		pp++;
+	}
+	*pp = 0;
+	i = pp - spp;
+	if( i >= ret ) i = ret -1;
+	memcpy( tmp , spp , i );
+	memset( buf , 0 , ret );
+	memcpy( buf , tmp , i );
+	printk("%s%s\n" , tag , buf );
+	return ret;
+}
+
+static int do_get_versions( int ret ,char* buf )
+{
+	/* get boot version and fireware version from cmdline
+	* bootver=2010-07-08#4.02 firmware_ver=1.0.0 // Firmware Ver:16.01.0000
+	* return format: 0x02 0x04 0x00 0x00 0x00 0x01 
+	* RK29: bootver=2011-07-18#2.05 firmware_ver=0.2.3 (==00.02.0003)
+	*/
+#define ASC_BCD0( c )  (((c-'0'))&0xf)
+#define ASC_BCD1( c )  (((c-'0')<<4)&0xf0)
+
+	char *ver = buf;
+	char *p_l , *p_f;
+	
+	#if MSC_EXT_DBG
+	char 		tbuf[1024];
+	if( ver == NULL ) ver = tbuf;
+	#endif
+	memset( ver , 0x00 , ret );
+	p_l = strstr( saved_command_line , "bootver=" );
+	if( !p_l ) {
+	        return 0;
+	} 
+	p_f = strstr( p_l , "firmware_ver=" );
+	if( !p_f ) {
+	        return 0;
+	} 
+	if( !(p_l = strnchr( p_l, p_f - p_l , '#'))  )
+	        return 0;
+	p_l++;
+	p_f+=strlen("firmware_ver=");
+	if( p_l[1] == '.' ) {
+	        ver[1] = ASC_BCD0(p_l[0]);
+	        p_l+=2;
+	} else {
+	        ver[1] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
+	        p_l+=3;
+	}
+	ver[0] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
+	if( p_f[1] == '.' ) {
+	        ver[5] = ASC_BCD0(p_f[0]);
+	        p_f+=2;
+	} else {
+	        ver[5] = ASC_BCD1(p_f[0])|ASC_BCD0(p_f[1]);
+	        p_f+=3;
+	} 
+	if( p_f[1] == '.' ) {
+	        ver[4] = ASC_BCD0(p_f[0]);
+	        p_f+=2;
+	} else {
+	        ver[4] = ASC_BCD1(p_f[0])|ASC_BCD0(p_f[1]);
+	        p_f+=3;
+	} 
+	ver[2] = ASC_BCD0(p_f[0]);
+	p_f++;
+	if( p_f[0] != ' ' ){
+	        ver[2] |= ASC_BCD1(p_f[0]);
+	        p_f++;
+	}
+	// only support 2 byte version.
+	ver[3] = 0;
+
+	#if MSC_EXT_DBG
+	printk("VERSION:%02x %02x %02x %02x %02x %02x\n" , 
+		ver[0],ver[1],ver[2],ver[3],ver[4],ver[5]);
+	#endif
+
+
+	return ret;
+}
 #endif
 
 static int do_scsi_command(struct fsg_common *common)
@@ -1992,6 +2119,9 @@ static int do_scsi_command(struct fsg_common *common)
 	int			reply = -EINVAL;
 	int			i;
 	static char		unknown[16];
+#ifdef CONFIG_ARCH_RK29
+	struct fsg_common	*fsg = common;
+#endif
 
 	dump_cdb(common);
 
@@ -2240,10 +2370,21 @@ unknown_cmnd:
 		break;
 #ifdef CONFIG_ARCH_RK29
 	case 0xff:
-		if (common->cmnd_size >= 6 && common->cmnd[1] == 0xe0 &&
-		    common->cmnd[2] == 0xff && common->cmnd[3] == 0xff &&
-		    common->cmnd[4] == 0xff && common->cmnd[5] == 0xfe) {
+		if( fsg->cmnd[1] != 0xe0 ||
+		    fsg->cmnd[2] != 0xff || fsg->cmnd[3] != 0xff ||
+		    fsg->cmnd[4] != 0xff )
+		    break;
+		if (fsg->cmnd_size >= 6 && fsg->cmnd[5] == 0xfe) {
 			schedule_work(&restart_work);
+		}
+		else if ( fsg->cmnd[5] == 0xf3 ) {
+			fsg->data_size_from_cmnd = fsg->data_size;
+		/* get product name from parameter section */
+			reply = do_get_product_name( fsg->data_size,bh->buf );
+		}
+		else if ( fsg->cmnd[5] == 0xff ){
+			fsg->data_size_from_cmnd = fsg->data_size;
+			reply = do_get_versions( fsg->data_size,bh->buf ); 
 		}
 		break;
 #endif
