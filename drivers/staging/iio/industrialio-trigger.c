@@ -230,6 +230,8 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	bool notinuse
 		= bitmap_empty(trig->pool, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 
+	/* Prevent the module being removed whilst attached to a trigger */
+	__module_get(pf->indio_dev->info->driver_module);
 	pf->irq = iio_trigger_get_irq(trig);
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
 				   pf->type, pf->name,
@@ -256,6 +258,7 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 	}
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
+	module_put(pf->indio_dev->info->driver_module);
 
 error_ret:
 	return ret;

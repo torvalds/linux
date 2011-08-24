@@ -152,12 +152,6 @@ error_ret:
 
 void ad7476_ring_cleanup(struct iio_dev *indio_dev)
 {
-	/* ensure that the trigger has been detached */
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
