@@ -3439,16 +3439,12 @@ int __init intel_iommu_init(void)
 		return 	-ENODEV;
 	}
 
-	if (dmar_dev_scope_init()) {
+	if (dmar_dev_scope_init() < 0) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR device scope\n");
 		return 	-ENODEV;
 	}
 
-	/*
-	 * Check the need for DMA-remapping initialization now.
-	 * Above initialization will also be used by Interrupt-remapping.
-	 */
 	if (no_iommu || dmar_disabled)
 		return -ENODEV;
 

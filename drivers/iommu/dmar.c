@@ -557,13 +557,17 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 int __init dmar_dev_scope_init(void)
 {
+	static int dmar_dev_scope_initialized;
 	struct dmar_drhd_unit *drhd, *drhd_n;
 	int ret = -ENODEV;
+
+	if (dmar_dev_scope_initialized)
+		return dmar_dev_scope_initialized;
 
 	list_for_each_entry_safe(drhd, drhd_n, &dmar_drhd_units, list) {
 		ret = dmar_parse_dev(drhd);
 		if (ret)
-			return ret;
+			goto fail;
 	}
 
 #ifdef CONFIG_DMAR
@@ -574,17 +578,22 @@ int __init dmar_dev_scope_init(void)
 		list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
 			ret = rmrr_parse_dev(rmrr);
 			if (ret)
-				return ret;
+				goto fail;
 		}
 
 		list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
 			ret = atsr_parse_dev(atsr);
 			if (ret)
-				return ret;
+				goto fail;
 		}
 	}
 #endif
 
+	dmar_dev_scope_initialized = 1;
+	return 0;
+
+fail:
+	dmar_dev_scope_initialized = ret;
 	return ret;
 }
 
