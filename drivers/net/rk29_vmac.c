@@ -95,7 +95,8 @@ static void vmac_mdio_xmit(struct vmac_priv *ap, unsigned val)
 {
 	init_completion(&ap->mdio_complete);
 	vmac_writel(ap, val, MDIO_DATA);
-	wait_for_completion(&ap->mdio_complete);
+	if(!wait_for_completion_timeout(&ap->mdio_complete, msecs_to_jiffies(1000)))
+		printk("Time out for waiting mdio completion\n");
 }
 
 static int vmac_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
@@ -1219,6 +1220,7 @@ static void rk29_init_vmac(struct net_device *dev)
 
 	/* enable, after all other bits are set */
 	vmac_writel(ap, temp | EN_MASK, CONTROL);
+
 }
 
 static void rk29_vmac_shutdown(struct net_device *dev)
@@ -1614,6 +1616,9 @@ rk29_vmac_suspend(struct device *dev)
 
 	if (ndev) {
 		if (netif_running(ndev)) {
+			if (ndev->irq)
+				disable_irq(ndev->irq);
+			netif_stop_queue(ndev);
 			netif_device_detach(ndev);
 			rk29_vmac_shutdown(ndev);
 		}
@@ -1631,6 +1636,9 @@ rk29_vmac_resume(struct device *dev)
 		if (netif_running(ndev)) {
 			rk29_init_vmac(ndev);
 			netif_device_attach(ndev);
+			netif_start_queue(ndev);
+			if (ndev->irq)
+				enable_irq(ndev->irq);
 		}
 	}
 	return 0;
