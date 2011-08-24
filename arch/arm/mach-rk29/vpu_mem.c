@@ -1,6 +1,7 @@
 /* arch/arm/mach-rk29/vpu_mem.c
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
+ * author: chenhengming chm@rock-chips.com
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -46,7 +47,7 @@
 
 /**
  * struct for process session which connect to vpu_mem
- * 
+ *
  * @author ChenHengming (2011-4-11)
  */
 typedef struct vpu_mem_session {
@@ -71,8 +72,8 @@ typedef struct vpu_mem_region_info {
 } vdm_region;
 
 /**
- * struct for region information 
- * this struct should be modified with bitmap lock 
+ * struct for region information
+ * this struct should be modified with bitmap lock
  */
 typedef struct vpu_mem_link_info {
     struct list_head session_link;      /* link to vpu_mem_session list */
@@ -102,7 +103,7 @@ typedef struct vpu_mem_info {
 	 * O_SYNC to get an uncached region */
 	unsigned cached;
 	unsigned buffered;
-	/* 
+	/*
 	 * vdm_session init only store the free region but use a vdm_session for convenience
 	 */
     vdm_session status;
@@ -125,9 +126,9 @@ static int vpu_mem_over = 0;
 #define is_free_region(x)       ((0 == (x)->used) && (0 == (x)->post))
 
 /**
- * vpu memory info dump: 
- * first dump global info, then dump each session info 
- * 
+ * vpu memory info dump:
+ * first dump global info, then dump each session info
+ *
  * @author ChenHengming (2011-4-20)
  */
 static void dump_status(void)
@@ -177,13 +178,13 @@ static void dump_status(void)
 
 /**
  * find used link in a session
- * 
+ *
  * @author ChenHengming (2011-4-18)
- * 
- * @param session 
- * @param index 
- * 
- * @return vdm_link* 
+ *
+ * @param session
+ * @param index
+ *
+ * @return vdm_link*
  */
 static vdm_link *find_used_link(vdm_session *session, int index)
 {
@@ -201,12 +202,12 @@ static vdm_link *find_used_link(vdm_session *session, int index)
 
 /**
  * find post link from vpu_mem's vdm_post list
- * 
+ *
  * @author ChenHengming (2011-4-18)
- * 
- * @param index 
- * 
- * @return vdm_link* 
+ *
+ * @param index
+ *
+ * @return vdm_link*
  */
 static vdm_link *find_post_link(int index)
 {
@@ -223,12 +224,12 @@ static vdm_link *find_post_link(int index)
 
 /**
  * find free link from vpu_mem's vdm_free list
- * 
+ *
  * @author Administrator (2011-4-19)
- * 
- * @param index 
- * 
- * @return vdm_link* 
+ *
+ * @param index
+ *
+ * @return vdm_link*
  */
 static vdm_link *find_free_link(int index)
 {
@@ -244,12 +245,12 @@ static vdm_link *find_free_link(int index)
 }
 /**
  * insert a region into the index list for search
- * 
+ *
  * @author ChenHengming (2011-4-18)
- * 
- * @param region 
- * 
- * @return int 
+ *
+ * @param region
+ *
+ * @return int
  */
 static int _insert_region_index(vdm_region *region)
 {
@@ -282,10 +283,10 @@ static int _insert_region_index(vdm_region *region)
 
 /**
  * insert a link into vdm_free list, indexed by vdm_link->index
- * 
+ *
  * @author ChenHengming (2011-4-20)
- * 
- * @param link 
+ *
+ * @param link
  */
 static void _insert_link_status_free(vdm_link *link)
 {
@@ -499,15 +500,15 @@ static void put_post_link(vdm_link *link, vdm_session *session)
 }
 
 /**
- * Create a link and a region by index and pfn at a same time, 
- * and connect the link with the region 
- * 
+ * Create a link and a region by index and pfn at a same time,
+ * and connect the link with the region
+ *
  * @author ChenHengming (2011-4-20)
- * 
- * @param index 
- * @param pfn 
- * 
- * @return vdm_link* 
+ *
+ * @param index
+ * @param pfn
+ *
+ * @return vdm_link*
  */
 static vdm_link *new_link_by_index(int index, int pfn)
 {
@@ -544,14 +545,14 @@ static vdm_link *new_link_by_index(int index, int pfn)
 }
 
 /**
- * Create a link from a already exist region and connect to the 
- * region 
- * 
+ * Create a link from a already exist region and connect to the
+ * region
+ *
  * @author ChenHengming (2011-4-20)
- * 
- * @param region 
- * 
- * @return vdm_link* 
+ *
+ * @param region
+ *
+ * @return vdm_link*
  */
 static vdm_link *new_link_by_region(vdm_region *region)
 {
@@ -574,10 +575,10 @@ static vdm_link *new_link_by_region(vdm_region *region)
 
 /**
  * Delete a link completely
- * 
+ *
  * @author ChenHengming (2011-4-20)
- * 
- * @param link 
+ *
+ * @param link
  */
 static void link_del(vdm_link *link)
 {
@@ -587,16 +588,16 @@ static void link_del(vdm_link *link)
 }
 
 /**
- * Called by malloc, check whether a free link can by used for a 
- * len of pfn, if can then put a used link to status link 
- * 
+ * Called by malloc, check whether a free link can by used for a
+ * len of pfn, if can then put a used link to status link
+ *
  * @author ChenHengming (2011-4-20)
- * 
- * @param link 
- * @param session 
- * @param pfn 
- * 
- * @return vdm_link* 
+ *
+ * @param link
+ * @param session
+ * @param pfn
+ *
+ * @return vdm_link*
  */
 static vdm_link *get_used_link_from_free_link(vdm_link *link, vdm_session *session, int pfn)
 {
@@ -873,7 +874,7 @@ static int vpu_mem_open(struct inode *inode, struct file *file)
 {
     vdm_session *session;
     int ret = 0;
-    
+
     DLOG("current %u file %p(%d)\n", current->pid, file, (int)file_count(file));
     /* setup file->private_data to indicate its unmapped */
     /*  you can only open a vpu_mem device one time */
@@ -887,9 +888,9 @@ static int vpu_mem_open(struct inode *inode, struct file *file)
     session->pid = current->pid;
     INIT_LIST_HEAD(&session->list_post);
     INIT_LIST_HEAD(&session->list_used);
-    
+
     file->private_data = session;
-    
+
     down_write(&vdm_rwsem);
     list_add_tail(&session->list_session, &vdm_proc);
     up_write(&vdm_rwsem);
@@ -983,7 +984,7 @@ static int vpu_mem_release(struct inode *inode, struct file *file)
 static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     long index, ret = 0;
-    
+
 	switch (cmd) {
 	case VPU_MEM_GET_PHYS:
 		DLOG("get_phys\n");
@@ -1120,13 +1121,13 @@ int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
     vpu_mem.dev.name = pdata->name;
     vpu_mem.dev.minor = MISC_DYNAMIC_MINOR;
     vpu_mem.dev.fops = &vpu_mem_fops;
-    
+
     err = misc_register(&vpu_mem.dev);
     if (err) {
         printk(KERN_ALERT "Unable to register vpu_mem driver!\n");
         goto err_cant_register_device;
     }
-    
+
     vpu_mem.num_entries = vpu_mem.size / VPU_MEM_MIN_ALLOC;
 
     tmp = new_link_by_index(0, vpu_mem.num_entries);
@@ -1145,10 +1146,10 @@ int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
     #endif
     else
         vpu_mem.vbase = ioremap(vpu_mem.base, vpu_mem.size);
-    
+
     if (vpu_mem.vbase == 0)
         goto error_cant_remap;
-    
+
     #if VPU_MEM_DEBUG
     debugfs_create_file(pdata->name, S_IFREG | S_IRUGO, NULL, (void *)vpu_mem.dev.minor,
                         &debug_fops);
@@ -1264,7 +1265,7 @@ static int proc_vpu_mem_show(struct seq_file *s, void *v)
                     link->index, link->pfn, link->link_used, link->link_post);
             }
         }
-    
+
         // 打印 vpu_mem_info 中的全部 session 的 region 占用情况
         list_for_each_entry_safe(session, tmp_session, &vdm_proc, list_session) {
             seq_printf(s, "\npid: %d\n", session->pid);

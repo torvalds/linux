@@ -1994,32 +1994,27 @@ typedef struct tagLoaderParam
 #define PARM_TAG			0x4D524150
 #define MSC_EXT_DBG			1
 extern int  GetParamterInfo(char * pbuf , int len);
-static int do_get_product_name(int ret ,char *buf)
+
+/* the buf is bh->buf,it is large enough. */
+static char * get_param_tag( char* buf , const char* tag )
 {
-	char 		tmp[32];
 	PARM_INFO	*pi;
-	char		*pp,*spp;
-	char		*tag = "MACHINE_MODEL:";
 	int 		i;
-	#if MSC_EXT_DBG
-	char 		tbuf[1024];
-	if( buf == NULL ) buf = tbuf;
-	#endif
-	i = GetParamterInfo( buf , 1024 );
-	pi = (PARM_INFO*)buf;
+	char		*pp = buf+256;
+	char		*spp;
+	i = GetParamterInfo( pp , 1024 );
+	pi = (PARM_INFO*)pp;
 	if( pi->tag != PARM_TAG ){
 error_out:	
 		printk("paramter error,tag=0x%x\n" , pi->tag );
-		memset( buf , 0 , ret );
-		strcpy( buf , "UNKNOW" );
-		return ret;
+		return NULL;
 	}
 	if( pi->length+sizeof(PARM_INFO) > i ) {
-		GetParamterInfo( buf , pi->length+sizeof(PARM_INFO)  + 511 );
+		GetParamterInfo( pp , pi->length+sizeof(PARM_INFO)  + 511 );
 	}
 	pp = strstr( pi->parameter , tag );
 	if( !pp ) goto error_out;
-	pp+= strlen(tag); // sizeof "MACHINE_MODEL:"
+	pp += strlen(tag); // sizeof "MACHINE_MODEL:"
 	while( *pp == ' ' || *pp == '\t' ) {
 		if(pp - pi->parameter >= pi->length)
 		  break;	
@@ -2032,12 +2027,26 @@ error_out:
 		pp++;
 	}
 	*pp = 0;
-	i = pp - spp;
-	if( i >= ret ) i = ret -1;
-	memcpy( tmp , spp , i );
+	if( spp == pp ) return NULL;
+	return spp;
+}
+
+static int do_get_product_name(int ret ,char *buf)
+{
+	char		*tag = "MACHINE_MODEL:";
+	char		*pname;
+	#if MSC_EXT_DBG
+	char 		tbuf[1300];
+	if( buf == NULL )   buf = tbuf;
+	#endif
 	memset( buf , 0 , ret );
-	memcpy( buf , tmp , i );
+	pname = get_param_tag( buf , tag );
+	if( pname ){
+		strcpy( buf , pname);
+	} 
+	#if MSC_EXT_DBG
 	printk("%s%s\n" , tag , buf );
+	#endif
 	return ret;
 }
 
@@ -2047,38 +2056,42 @@ static int do_get_versions( int ret ,char* buf )
 	* bootver=2010-07-08#4.02 firmware_ver=1.0.0 // Firmware Ver:16.01.0000
 	* return format: 0x02 0x04 0x00 0x00 0x00 0x01 
 	* RK29: bootver=2011-07-18#2.05 firmware_ver=0.2.3 (==00.02.0003)
+	* for the old loader,the firmware_ver may be empty,so get the fw ver from paramter.
 	*/
 #define ASC_BCD0( c )  (((c-'0'))&0xf)
 #define ASC_BCD1( c )  (((c-'0')<<4)&0xf0)
 
 	char *ver = buf;
 	char *p_l , *p_f;
+	char		*l_tag = "bootver=";
+	char		*fw_tag = "FIRMWARE_VER:";
 	
 	#if MSC_EXT_DBG
-	char 		tbuf[1024];
-	if( ver == NULL ) ver = tbuf;
+	char 		tbuf[1300];
+	if( ver == NULL )   ver = tbuf;
 	#endif
+	
 	memset( ver , 0x00 , ret );
-	p_l = strstr( saved_command_line , "bootver=" );
+	p_l = strstr( saved_command_line , l_tag );
 	if( !p_l ) {
-	        return 0;
+	        return ret;
 	} 
-	p_f = strstr( p_l , "firmware_ver=" );
-	if( !p_f ) {
-	        return 0;
-	} 
-	if( !(p_l = strnchr( p_l, p_f - p_l , '#'))  )
-	        return 0;
-	p_l++;
-	p_f+=strlen("firmware_ver=");
-	if( p_l[1] == '.' ) {
-	        ver[1] = ASC_BCD0(p_l[0]);
-	        p_l+=2;
-	} else {
-	        ver[1] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
-	        p_l+=3;
+	p_l+=strlen( l_tag );
+	if( (p_l = strchr( p_l,'#')) ) {
+		p_l++;
+		if( p_l[1] == '.' ) {
+		        ver[1] = ASC_BCD0(p_l[0]);
+		        p_l+=2;
+		} else {
+		        ver[1] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
+		        p_l+=3;
+		}
+		ver[0] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
 	}
-	ver[0] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
+	
+	p_f = get_param_tag( ver , fw_tag );
+	if( !p_f ) return ret;
+	
 	if( p_f[1] == '.' ) {
 	        ver[5] = ASC_BCD0(p_f[0]);
 	        p_f+=2;
@@ -2106,8 +2119,6 @@ static int do_get_versions( int ret ,char* buf )
 	printk("VERSION:%02x %02x %02x %02x %02x %02x\n" , 
 		ver[0],ver[1],ver[2],ver[3],ver[4],ver[5]);
 	#endif
-
-
 	return ret;
 }
 #endif

@@ -60,6 +60,7 @@
 #include <linux/mu509.h>
 #endif
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
+#include "../../../drivers/headset_observe/rk_headset.h"
 
 #include <linux/goodix_touch.h>
 
@@ -72,7 +73,7 @@
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0    1
 #define CONFIG_SENSOR_POWER_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_0       RK29_PIN6_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_0       RK29_PIN5_PD7
 #define CONFIG_SENSOR_FALSH_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
@@ -84,7 +85,7 @@
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_1       RK29_PIN5_PD7
+#define CONFIG_SENSOR_POWERDN_PIN_1       RK29_PIN6_PB7
 #define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
@@ -546,8 +547,10 @@ struct nas_platform_data nas_info = {
 #endif
 
 #if defined (CONFIG_LAIBAO_TS)
-#define TOUCH_RESET_PIN RK29_PIN4_PD5//RK29_PIN6_PC3
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
+//TODO,shut down touch for power saving
+#define TOUCH_SHUTDOWN  RK29_PIN4_PD5
 void laibao_reset(void)
 {
     msleep(5);
@@ -560,7 +563,7 @@ void laibao_reset(void)
 }
 void laibao_hold(void)
 {
-    printk("nas_hold()\n");
+    printk("laibao_hold()\n");
     gpio_direction_output(TOUCH_RESET_PIN, 0);
     msleep(5);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
@@ -570,14 +573,14 @@ void laibao_request_io(void)
 {
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
-      printk("nas_init_platform_hw gpio_request error\n");
+      printk("laibao_request_io gpio_request error\n");
       return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
 	  gpio_free(TOUCH_RESET_PIN);
-      printk("nas_init_platform_hw gpio_request error\n");
+      printk("laibao_request_io gpio_request error\n");
       return ;
     }
 }
@@ -590,7 +593,7 @@ int laibao_init_platform_hw(void)
 	
     if(gpio_request(RK29_PIN6_PD3,NULL) != 0){
       gpio_free(RK29_PIN6_PD3);
-      printk("mma8452_init_platform_hw gpio_request error\n");
+      printk("laibao_init_platform_hw gpio_request error\n");
       return -EIO;
     }
 	
@@ -819,8 +822,11 @@ struct wm8994_pdata wm8994_platdata = {
 	
 	.jd_scthr = 0,
 	.jd_thr = 0,
-
-	.PA_control_pin = 0,	
+	
+	.BB_input_diff = 1,
+	.phone_pad = 1,
+	
+	.PA_control_pin = RK29_PIN6_PB6,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
 
 	.speaker_incall_vol = 0,
@@ -835,6 +841,25 @@ struct wm8994_pdata wm8994_platdata = {
 	.recorder_vol = 50,
 	
 };
+
+#ifdef CONFIG_RK_HEADSET_DET
+
+struct rk_headset_pdata rk_headset_info = {
+	.Headset_gpio		= RK29_PIN4_PD2,
+	.headset_in_type= HEADSET_IN_HIGH,
+	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
+	.hook_key_code = KEY_MEDIA,
+};
+
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
+		.id 	= 0,
+		.dev    = {
+		    .platform_data = &rk_headset_info,
+		}
+};
+#endif
+
 #if defined (CONFIG_BATTERY_BQ27541)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -1895,6 +1920,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
 #endif
+#ifdef CONFIG_RK_HEADSET_DET
+    &rk_device_headset,
+#endif
+
 };
 
 /*****************************************************************************************

@@ -93,6 +93,12 @@ struct wm8994_pdata {
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
 
+		//for phonepad
+		unsigned int phone_pad:1;      // =0  is not phone_pad,  =1   is phone_pad
+		
+		//BB input can be differential or single ended
+		unsigned int BB_input_diff:1;   //  =0  single ended     =1  differential
+		
 		//If an external amplifier speakers wm8994		enable>0 disable=0
 		unsigned int PA_control_pin;
 
