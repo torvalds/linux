@@ -77,9 +77,16 @@ static const struct attribute_group *iio_sysfs_trig_groups[] = {
 	NULL
 };
 
+
+/* Nothing to actually do upon release */
+static void iio_trigger_sysfs_release(struct device *dev)
+{
+}
+
 static struct device iio_sysfs_trig_dev = {
 	.bus = &iio_bus_type,
 	.groups = iio_sysfs_trig_groups,
+	.release = &iio_trigger_sysfs_release,
 };
 
 static ssize_t iio_sysfs_trigger_poll(struct device *dev,
