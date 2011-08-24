@@ -3167,7 +3167,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	 */
 	err = bnad_pci_init(bnad, pdev, &using_dac);
 	if (err)
-		goto free_netdev;
+		goto unlock_mutex;
 
 	/*
 	 * Initialize bnad structure
@@ -3296,9 +3296,9 @@ drv_uninit:
 	bnad_uninit(bnad);
 pci_uninit:
 	bnad_pci_uninit(pdev);
+unlock_mutex:
 	mutex_unlock(&bnad->conf_mutex);
 	bnad_lock_uninit(bnad);
-free_netdev:
 	free_netdev(netdev);
 	return err;
 }
