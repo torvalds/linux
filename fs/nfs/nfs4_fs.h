@@ -56,6 +56,9 @@ enum nfs4_session_state {
 	NFS4_SESSION_DRAINING,
 };
 
+#define NFS4_RENEW_TIMEOUT		0x01
+#define NFS4_RENEW_DELEGATION_CB	0x02
+
 struct nfs4_minor_version_ops {
 	u32	minor_version;
 
@@ -225,7 +228,7 @@ struct nfs4_state_recovery_ops {
 };
 
 struct nfs4_state_maintenance_ops {
-	int (*sched_state_renewal)(struct nfs_client *, struct rpc_cred *);
+	int (*sched_state_renewal)(struct nfs_client *, struct rpc_cred *, unsigned);
 	struct rpc_cred * (*get_state_renewal_cred_locked)(struct nfs_client *);
 	int (*renew_lease)(struct nfs_client *, struct rpc_cred *);
 };
