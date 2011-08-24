@@ -1706,7 +1706,7 @@ static int il3945_verify_inst_full(struct il_priv *il, __le32 *image, u32 len)
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
-		val = _il_read_direct32(il, HBUS_TARG_MEM_RDAT);
+		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			IL_ERR("uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
@@ -1747,7 +1747,7 @@ static int il3945_verify_inst_sparse(struct il_priv *il, __le32 *image, u32 len)
 		 * if IL_DL_IO is set */
 		il_write_direct32(il, HBUS_TARG_MEM_RADDR,
 			i + IWL39_RTC_INST_LOWER_BOUND);
-		val = _il_read_direct32(il, HBUS_TARG_MEM_RDAT);
+		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
 			IL_ERR("uCode INST section is invalid at "

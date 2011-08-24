@@ -235,7 +235,7 @@ int il_eeprom_init(struct il_priv *il)
 							addr);
 			goto done;
 		}
-		r = _il_read_direct32(il, CSR_EEPROM_REG);
+		r = _il_rd(il, CSR_EEPROM_REG);
 		e[addr / 2] = cpu_to_le16(r >> 16);
 	}
 
