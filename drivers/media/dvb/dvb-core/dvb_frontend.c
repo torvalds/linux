@@ -577,12 +577,10 @@ restart:
 
 		if (fepriv->reinitialise) {
 			dvb_frontend_init(fe);
-			if (fepriv->tone != -1) {
+			if (fe->ops.set_tone && fepriv->tone != -1)
 				fe->ops.set_tone(fe, fepriv->tone);
-			}
-			if (fepriv->voltage != -1) {
+			if (fe->ops.set_voltage && fepriv->voltage != -1)
 				fe->ops.set_voltage(fe, fepriv->voltage);
-			}
 			fepriv->reinitialise = 0;
 		}
 
