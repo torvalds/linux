@@ -1,25 +1,25 @@
- /*
-  * OMAP4XXX L3 Interconnect  error handling driver header
-  *
-  * Copyright (C) 2011 Texas Corporation
-  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
-  *	sricharan <r.sricharan@ti.com>
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; if not, write to the Free Software
-  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
-  * USA
-  */
+/*
+ * OMAP4XXX L3 Interconnect  error handling driver header
+ *
+ * Copyright (C) 2011 Texas Corporation
+ *	Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *	sricharan <r.sricharan@ti.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
+ */
 #ifndef __ARCH_ARM_MACH_OMAP2_L3_INTERCONNECT_3XXX_H
 #define __ARCH_ARM_MACH_OMAP2_L3_INTERCONNECT_3XXX_H
 
@@ -32,9 +32,9 @@
 #define L3_DEBUG_ERROR			0x1
 
 /* L3 TARG register offsets */
-#define L3_TARG_STDERRLOG_MAIN         0x48
-#define L3_TARG_STDERRLOG_SLVOFSLSB    0x5c
-#define L3_FLAGMUX_REGERR0	       0xc
+#define L3_TARG_STDERRLOG_MAIN		0x48
+#define L3_TARG_STDERRLOG_SLVOFSLSB	0x5c
+#define L3_FLAGMUX_REGERR0		0xc
 
 u32 l3_flagmux[L3_MODULES] = {
 	0x500,
@@ -78,34 +78,34 @@ u32 l3_targ_inst_clk3[] = {
 
 char *l3_targ_inst_name[L3_MODULES][18] = {
 	{
-	"DMM1",
-	"DMM2",
-	"ABE",
-	"L4CFG",
-	"CLK2 PWR DISC",
+		"DMM1",
+		"DMM2",
+		"ABE",
+		"L4CFG",
+		"CLK2 PWR DISC",
 	},
 	{
-	"CORTEX M3" ,
-	"DSS ",
-	"GPMC ",
-	"ISS ",
-	"IVAHD ",
-	"AES1",
-	"L4 PER0",
-	"OCMRAM ",
-	"GPMC sERROR",
-	"SGX ",
-	"SL2 ",
-	"C2C ",
-	"PWR DISC CLK1",
-	"SHA1",
-	"AES2",
-	"L4 PER3",
-	"L4 PER1",
-	"L4 PER2",
+		"CORTEX M3" ,
+		"DSS ",
+		"GPMC ",
+		"ISS ",
+		"IVAHD ",
+		"AES1",
+		"L4 PER0",
+		"OCMRAM ",
+		"GPMC sERROR",
+		"SGX ",
+		"SL2 ",
+		"C2C ",
+		"PWR DISC CLK1",
+		"SHA1",
+		"AES2",
+		"L4 PER3",
+		"L4 PER1",
+		"L4 PER2",
 	},
 	{
-	"EMUSS",
+		"EMUSS",
 	},
 };
 
@@ -116,13 +116,13 @@ u32 *l3_targ[L3_MODULES] = {
 };
 
 struct omap4_l3 {
-	struct device	*dev;
-	struct clk	*ick;
+	struct device *dev;
+	struct clk *ick;
 
 	/* memory base */
 	void __iomem *l3_base[L3_MODULES];
 
-	int		debug_irq;
-	int		app_irq;
+	int debug_irq;
+	int app_irq;
 };
 #endif

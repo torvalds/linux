@@ -1,25 +1,25 @@
 /*
-  * OMAP4XXX L3 Interconnect error handling driver
-  *
-  * Copyright (C) 2011 Texas Corporation
-  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
-  *	Sricharan <r.sricharan@ti.com>
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; if not, write to the Free Software
-  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
-  * USA
-  */
+ * OMAP4XXX L3 Interconnect error handling driver
+ *
+ * Copyright (C) 2011 Texas Corporation
+ *	Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *	Sricharan <r.sricharan@ti.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
+ */
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -55,7 +55,7 @@
 static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 {
 
-	struct omap4_l3		*l3 = _l3;
+	struct omap4_l3 *l3 = _l3;
 	int inttype, i;
 	int err_src = 0;
 	u32 std_err_main, err_reg, clear, base, l3_targ_base;
@@ -122,7 +122,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 static int __init omap4_l3_probe(struct platform_device *pdev)
 {
-	static struct omap4_l3		*l3;
+	static struct omap4_l3 *l3;
 	struct resource	*res;
 	int ret;
 
@@ -182,7 +182,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 			IRQF_DISABLED, "l3-dbg-irq", l3);
 	if (ret) {
 		pr_crit("L3: request_irq failed to register for 0x%x\n",
-					 OMAP44XX_IRQ_L3_DBG);
+						OMAP44XX_IRQ_L3_DBG);
 		goto err3;
 	}
 
@@ -192,7 +192,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 			IRQF_DISABLED, "l3-app-irq", l3);
 	if (ret) {
 		pr_crit("L3: request_irq failed to register for 0x%x\n",
-					 OMAP44XX_IRQ_L3_APP);
+						OMAP44XX_IRQ_L3_APP);
 		goto err4;
 	}
 
@@ -213,7 +213,7 @@ err0:
 
 static int __exit omap4_l3_remove(struct platform_device *pdev)
 {
-	struct omap4_l3         *l3 = platform_get_drvdata(pdev);
+	struct omap4_l3 *l3 = platform_get_drvdata(pdev);
 
 	free_irq(l3->app_irq, l3);
 	free_irq(l3->debug_irq, l3);
@@ -226,9 +226,9 @@ static int __exit omap4_l3_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omap4_l3_driver = {
-	.remove		= __exit_p(omap4_l3_remove),
-	.driver		= {
-	.name		= "omap_l3_noc",
+	.remove	= __exit_p(omap4_l3_remove),
+	.driver	= {
+	.name = "omap_l3_noc",
 	},
 };
 
