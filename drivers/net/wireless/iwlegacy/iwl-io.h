@@ -197,26 +197,27 @@ static inline int il_poll_bit(struct il_priv *il, u32 addr,
 	return -ETIMEDOUT;
 }
 
-static inline u32 _il_read_prph(struct il_priv *il, u32 reg)
+static inline u32 _il_rd_prph(struct il_priv *il, u32 reg)
 {
 	_il_wr(il, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
 	rmb();
 	return _il_rd(il, HBUS_TARG_PRPH_RDAT);
 }
-static inline u32 il_read_prph(struct il_priv *il, u32 reg)
+
+static inline u32 il_rd_prph(struct il_priv *il, u32 reg)
 {
 	unsigned long reg_flags;
 	u32 val;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
 	_il_grab_nic_access(il);
-	val = _il_read_prph(il, reg);
+	val = _il_rd_prph(il, reg);
 	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 	return val;
 }
 
-static inline void _il_write_prph(struct il_priv *il,
+static inline void _il_wr_prph(struct il_priv *il,
 					     u32 addr, u32 val)
 {
 	_il_wr(il, HBUS_TARG_PRPH_WADDR,
@@ -226,20 +227,20 @@ static inline void _il_write_prph(struct il_priv *il,
 }
 
 static inline void
-il_write_prph(struct il_priv *il, u32 addr, u32 val)
+il_wr_prph(struct il_priv *il, u32 addr, u32 val)
 {
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
 	if (!_il_grab_nic_access(il)) {
-		_il_write_prph(il, addr, val);
+		_il_wr_prph(il, addr, val);
 		_il_release_nic_access(il);
 	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 
 #define _il_set_bits_prph(il, reg, mask) \
-_il_write_prph(il, reg, (_il_read_prph(il, reg) | mask))
+_il_wr_prph(il, reg, (_il_rd_prph(il, reg) | mask))
 
 static inline void
 il_set_bits_prph(struct il_priv *il, u32 reg, u32 mask)
@@ -254,8 +255,8 @@ il_set_bits_prph(struct il_priv *il, u32 reg, u32 mask)
 }
 
 #define _il_set_bits_mask_prph(il, reg, bits, mask) \
-_il_write_prph(il, reg,				\
-		 ((_il_read_prph(il, reg) & mask) | bits))
+_il_wr_prph(il, reg,				\
+		 ((_il_rd_prph(il, reg) & mask) | bits))
 
 static inline void il_set_bits_mask_prph(struct il_priv *il, u32 reg,
 				u32 bits, u32 mask)
@@ -277,8 +278,8 @@ static inline void il_clear_bits_prph(struct il_priv
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
 	_il_grab_nic_access(il);
-	val = _il_read_prph(il, reg);
-	_il_write_prph(il, reg, (val & ~mask));
+	val = _il_rd_prph(il, reg);
+	_il_wr_prph(il, reg, (val & ~mask));
 	_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }

@@ -2122,14 +2122,14 @@ static int il3945_set_ucode_ptrs(struct il_priv *il)
 	pdata = il->ucode_data_backup.p_addr;
 
 	/* Tell bootstrap uCode where to find image to load */
-	il_write_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
-	il_write_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
-	il_write_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG,
+	il_wr_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
+	il_wr_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
+	il_wr_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG,
 				 il->ucode_data.len);
 
 	/* Inst byte count must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
-	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG,
+	il_wr_prph(il, BSM_DRAM_INST_BYTECOUNT_REG,
 				 il->ucode_code.len | BSM_DRAM_INST_LOAD);
 
 	D_INFO("Runtime uCode pointers are set.\n");
@@ -2210,7 +2210,7 @@ static void il3945_alive_start(struct il_priv *il)
 		goto restart;
 	}
 
-	rfkill = il_read_prph(il, APMG_RFKILL_REG);
+	rfkill = il_rd_prph(il, APMG_RFKILL_REG);
 	D_INFO("RFKILL status: 0x%x\n", rfkill);
 
 	if (rfkill & 0x1) {
@@ -2342,7 +2342,7 @@ static void __il3945_down(struct il_priv *il)
 	il3945_hw_rxq_stop(il);
 
 	/* Power-down device's busmaster DMA clocks */
-	il_write_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+	il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(5);
 
 	/* Stop the device, and put it in low power state */

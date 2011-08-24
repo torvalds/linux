@@ -754,7 +754,7 @@ static void il4965_tx_queue_stop_scheduler(struct il_priv *il,
 {
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
-	il_write_prph(il,
+	il_wr_prph(il,
 		IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
 		(0 << IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
 		(1 << IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));

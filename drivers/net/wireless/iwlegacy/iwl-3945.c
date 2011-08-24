@@ -797,18 +797,18 @@ static int il3945_tx_reset(struct il_priv *il)
 {
 
 	/* bypass mode */
-	il_write_prph(il, ALM_SCD_MODE_REG, 0x2);
+	il_wr_prph(il, ALM_SCD_MODE_REG, 0x2);
 
 	/* RA 0 is active */
-	il_write_prph(il, ALM_SCD_ARASTAT_REG, 0x01);
+	il_wr_prph(il, ALM_SCD_ARASTAT_REG, 0x01);
 
 	/* all 6 fifo are active */
-	il_write_prph(il, ALM_SCD_TXFACT_REG, 0x3f);
+	il_wr_prph(il, ALM_SCD_TXFACT_REG, 0x3f);
 
-	il_write_prph(il, ALM_SCD_SBYP_MODE_1_REG, 0x010000);
-	il_write_prph(il, ALM_SCD_SBYP_MODE_2_REG, 0x030002);
-	il_write_prph(il, ALM_SCD_TXF4MF_REG, 0x000004);
-	il_write_prph(il, ALM_SCD_TXF5MF_REG, 0x000005);
+	il_wr_prph(il, ALM_SCD_SBYP_MODE_1_REG, 0x010000);
+	il_wr_prph(il, ALM_SCD_SBYP_MODE_2_REG, 0x030002);
+	il_wr_prph(il, ALM_SCD_TXF4MF_REG, 0x000004);
+	il_wr_prph(il, ALM_SCD_TXF5MF_REG, 0x000005);
 
 	il_wr(il, FH39_TSSR_CBB_BASE,
 			     il->_3945.shared_phys);
@@ -878,8 +878,8 @@ static int il3945_apm_init(struct il_priv *il)
 	int ret = il_apm_init(il);
 
 	/* Clear APMG (NIC's internal power management) interrupts */
-	il_write_prph(il, APMG_RTC_INT_MSK_REG, 0x0);
-	il_write_prph(il, APMG_RTC_INT_STT_REG, 0xFFFFFFFF);
+	il_wr_prph(il, APMG_RTC_INT_MSK_REG, 0x0);
+	il_wr_prph(il, APMG_RTC_INT_STT_REG, 0xFFFFFFFF);
 
 	/* Reset radio chip */
 	il_set_bits_prph(il, APMG_PS_CTRL_REG,
@@ -1025,8 +1025,8 @@ void il3945_hw_txq_ctx_stop(struct il_priv *il)
 	int txq_id;
 
 	/* stop SCD */
-	il_write_prph(il, ALM_SCD_MODE_REG, 0);
-	il_write_prph(il, ALM_SCD_TXFACT_REG, 0);
+	il_wr_prph(il, ALM_SCD_MODE_REG, 0);
+	il_wr_prph(il, ALM_SCD_TXFACT_REG, 0);
 
 	/* reset TFD queues */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
@@ -2475,11 +2475,11 @@ static int il3945_verify_bsm(struct il_priv *il)
 	D_INFO("Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
-	val = il_read_prph(il, BSM_WR_DWCOUNT_REG);
+	val = il_rd_prph(il, BSM_WR_DWCOUNT_REG);
 	for (reg = BSM_SRAM_LOWER_BOUND;
 	     reg < BSM_SRAM_LOWER_BOUND + len;
 	     reg += sizeof(u32), image++) {
-		val = il_read_prph(il, reg);
+		val = il_rd_prph(il, reg);
 		if (val != le32_to_cpu(*image)) {
 			IL_ERR("BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
@@ -2583,16 +2583,16 @@ static int il3945_load_bsm(struct il_priv *il)
 	inst_len = il->ucode_init.len;
 	data_len = il->ucode_init_data.len;
 
-	il_write_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
-	il_write_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
-	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
-	il_write_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
+	il_wr_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
+	il_wr_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
+	il_wr_prph(il, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
+	il_wr_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
 
 	/* Fill BSM memory with bootstrap instructions */
 	for (reg_offset = BSM_SRAM_LOWER_BOUND;
 	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
 	     reg_offset += sizeof(u32), image++)
-		_il_write_prph(il, reg_offset,
+		_il_wr_prph(il, reg_offset,
 					  le32_to_cpu(*image));
 
 	rc = il3945_verify_bsm(il);
@@ -2600,19 +2600,19 @@ static int il3945_load_bsm(struct il_priv *il)
 		return rc;
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
-	il_write_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
-	il_write_prph(il, BSM_WR_MEM_DST_REG,
+	il_wr_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
+	il_wr_prph(il, BSM_WR_MEM_DST_REG,
 				 IWL39_RTC_INST_LOWER_BOUND);
-	il_write_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
+	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
 	 *   to prepare to load "initialize" uCode */
-	il_write_prph(il, BSM_WR_CTRL_REG,
+	il_wr_prph(il, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START);
 
 	/* Wait for load of bootstrap uCode to finish */
 	for (i = 0; i < 100; i++) {
-		done = il_read_prph(il, BSM_WR_CTRL_REG);
+		done = il_rd_prph(il, BSM_WR_CTRL_REG);
 		if (!(done & BSM_WR_CTRL_REG_BIT_START))
 			break;
 		udelay(10);
@@ -2626,7 +2626,7 @@ static int il3945_load_bsm(struct il_priv *il)
 
 	/* Enable future boot loads whenever power management unit triggers it
 	 *   (e.g. when powering back up after power-save shutdown) */
-	il_write_prph(il, BSM_WR_CTRL_REG,
+	il_wr_prph(il, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START_EN);
 
 	return 0;

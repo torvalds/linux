@@ -1069,7 +1069,7 @@ int il_apm_init(struct il_priv *il)
 
 	/*
 	 * Wait for clock stabilization; once stabilized, access to
-	 * device-internal resources is supported, e.g. il_write_prph()
+	 * device-internal resources is supported, e.g. il_wr_prph()
 	 * and accesses to uCode SRAM.
 	 */
 	ret = _il_poll_bit(il, CSR_GP_CNTRL,
@@ -1089,10 +1089,10 @@ int il_apm_init(struct il_priv *il)
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
 	if (il->cfg->base_params->use_bsm)
-		il_write_prph(il, APMG_CLK_EN_REG,
+		il_wr_prph(il, APMG_CLK_EN_REG,
 			APMG_CLK_VAL_DMA_CLK_RQT | APMG_CLK_VAL_BSM_CLK_RQT);
 	else
-		il_write_prph(il, APMG_CLK_EN_REG,
+		il_wr_prph(il, APMG_CLK_EN_REG,
 			APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(20);
 

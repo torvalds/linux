@@ -1622,7 +1622,7 @@ static int il4965_alive_notify(struct il_priv *il)
 	spin_lock_irqsave(&il->lock, flags);
 
 	/* Clear 4965's internal Tx Scheduler data base */
-	il->scd_base_addr = il_read_prph(il,
+	il->scd_base_addr = il_rd_prph(il,
 					IWL49_SCD_SRAM_BASE_ADDR);
 	a = il->scd_base_addr + IWL49_SCD_CONTEXT_DATA_OFFSET;
 	for (; a < il->scd_base_addr + IWL49_SCD_TX_STTS_BITMAP_OFFSET; a += 4)
@@ -1634,7 +1634,7 @@ static int il4965_alive_notify(struct il_priv *il)
 		il_write_targ_mem(il, a, 0);
 
 	/* Tel 4965 where to find Tx byte count tables */
-	il_write_prph(il, IWL49_SCD_DRAM_BASE_ADDR,
+	il_wr_prph(il, IWL49_SCD_DRAM_BASE_ADDR,
 			il->scd_bc_tbls.dma >> 10);
 
 	/* Enable DMA channel */
@@ -1650,13 +1650,13 @@ static int il4965_alive_notify(struct il_priv *il)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Disable chain mode for all queues */
-	il_write_prph(il, IWL49_SCD_QUEUECHAIN_SEL, 0);
+	il_wr_prph(il, IWL49_SCD_QUEUECHAIN_SEL, 0);
 
 	/* Initialize each Tx queue (including the command queue) */
 	for (i = 0; i < il->hw_params.max_txq_num; i++) {
 
 		/* TFD circular buffer read/write indexes */
-		il_write_prph(il, IWL49_SCD_QUEUE_RDPTR(i), 0);
+		il_wr_prph(il, IWL49_SCD_QUEUE_RDPTR(i), 0);
 		il_wr(il, HBUS_TARG_WRPTR, 0 | (i << 8));
 
 		/* Max Tx Window size for Scheduler-ACK mode */
@@ -1675,7 +1675,7 @@ static int il4965_alive_notify(struct il_priv *il)
 				IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
 	}
-	il_write_prph(il, IWL49_SCD_INTERRUPT_MASK,
+	il_wr_prph(il, IWL49_SCD_INTERRUPT_MASK,
 				 (1 << il->hw_params.max_txq_num) - 1);
 
 	/* Activate all Tx DMA/FIFO channels */
@@ -1868,7 +1868,7 @@ static void __il4965_down(struct il_priv *il)
 	il4965_rxq_stop(il);
 
 	/* Power-down device's busmaster DMA clocks */
-	il_write_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+	il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(5);
 
 	/* Make sure (redundant) we've released our request to stay awake */
@@ -2733,7 +2733,7 @@ void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 index)
 {
 	il_wr(il, HBUS_TARG_WRPTR,
 			     (index & 0xff) | (txq_id << 8));
-	il_write_prph(il, IWL49_SCD_QUEUE_RDPTR(txq_id), index);
+	il_wr_prph(il, IWL49_SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 void il4965_tx_queue_set_status(struct il_priv *il,
@@ -2746,7 +2746,7 @@ void il4965_tx_queue_set_status(struct il_priv *il,
 	int active = test_bit(txq_id, &il->txq_ctx_active_msk) ? 1 : 0;
 
 	/* Set up and activate */
-	il_write_prph(il, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
+	il_wr_prph(il, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
 			 (active << IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
 			 (tx_fifo_id << IWL49_SCD_QUEUE_STTS_REG_POS_TXF) |
 			 (scd_retry << IWL49_SCD_QUEUE_STTS_REG_POS_WSL) |
@@ -3195,7 +3195,7 @@ static void __devexit il4965_pci_remove(struct pci_dev *pdev)
  */
 void il4965_txq_set_sched(struct il_priv *il, u32 mask)
 {
-	il_write_prph(il, IWL49_SCD_TXFACT, mask);
+	il_wr_prph(il, IWL49_SCD_TXFACT, mask);
 }
 
 /*****************************************************************************

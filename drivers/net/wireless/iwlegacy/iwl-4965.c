@@ -72,11 +72,11 @@ static int il4965_verify_bsm(struct il_priv *il)
 	D_INFO("Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
-	val = il_read_prph(il, BSM_WR_DWCOUNT_REG);
+	val = il_rd_prph(il, BSM_WR_DWCOUNT_REG);
 	for (reg = BSM_SRAM_LOWER_BOUND;
 	     reg < BSM_SRAM_LOWER_BOUND + len;
 	     reg += sizeof(u32), image++) {
-		val = il_read_prph(il, reg);
+		val = il_rd_prph(il, reg);
 		if (val != le32_to_cpu(*image)) {
 			IL_ERR("BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
@@ -156,34 +156,34 @@ static int il4965_load_bsm(struct il_priv *il)
 	inst_len = il->ucode_init.len;
 	data_len = il->ucode_init_data.len;
 
-	il_write_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
-	il_write_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
-	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
-	il_write_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
+	il_wr_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
+	il_wr_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
+	il_wr_prph(il, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
+	il_wr_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
 
 	/* Fill BSM memory with bootstrap instructions */
 	for (reg_offset = BSM_SRAM_LOWER_BOUND;
 	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
 	     reg_offset += sizeof(u32), image++)
-		_il_write_prph(il, reg_offset, le32_to_cpu(*image));
+		_il_wr_prph(il, reg_offset, le32_to_cpu(*image));
 
 	ret = il4965_verify_bsm(il);
 	if (ret)
 		return ret;
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
-	il_write_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
-	il_write_prph(il,
+	il_wr_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
+	il_wr_prph(il,
 			BSM_WR_MEM_DST_REG, IWL49_RTC_INST_LOWER_BOUND);
-	il_write_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
+	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
 	 *   to prepare to load "initialize" uCode */
-	il_write_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
+	il_wr_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
 
 	/* Wait for load of bootstrap uCode to finish */
 	for (i = 0; i < 100; i++) {
-		done = il_read_prph(il, BSM_WR_CTRL_REG);
+		done = il_rd_prph(il, BSM_WR_CTRL_REG);
 		if (!(done & BSM_WR_CTRL_REG_BIT_START))
 			break;
 		udelay(10);
@@ -197,7 +197,7 @@ static int il4965_load_bsm(struct il_priv *il)
 
 	/* Enable future boot loads whenever power management unit triggers it
 	 *   (e.g. when powering back up after power-save shutdown) */
-	il_write_prph(il,
+	il_wr_prph(il,
 			BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START_EN);
 
 
@@ -224,14 +224,14 @@ static int il4965_set_ucode_ptrs(struct il_priv *il)
 	pdata = il->ucode_data_backup.p_addr >> 4;
 
 	/* Tell bootstrap uCode where to find image to load */
-	il_write_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
-	il_write_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
-	il_write_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG,
+	il_wr_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
+	il_wr_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
+	il_wr_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG,
 				 il->ucode_data.len);
 
 	/* Inst byte count must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
-	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG,
+	il_wr_prph(il, BSM_DRAM_INST_BYTECOUNT_REG,
 				 il->ucode_code.len | BSM_DRAM_INST_LOAD);
 	D_INFO("Runtime uCode pointers are set.\n");
 
