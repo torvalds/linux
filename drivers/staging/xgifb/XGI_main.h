@@ -163,7 +163,6 @@ static struct fb_fix_screeninfo XGIfb_fix = {
 	.xpanstep	= 1,
 	.ypanstep	= 1,
 };
-static char myid[20];
 static u32 pseudo_palette[17];
 
 
