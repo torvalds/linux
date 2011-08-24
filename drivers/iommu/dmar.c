@@ -551,22 +551,21 @@ int __init detect_intel_iommu(void)
 	if (ret)
 		ret = check_zero_address();
 	{
-#ifdef CONFIG_INTR_REMAP
 		struct acpi_table_dmar *dmar;
 
 		dmar = (struct acpi_table_dmar *) dmar_tbl;
-		if (ret && cpu_has_x2apic && dmar->flags & 0x1)
+
+		if (ret && intr_remapping_enabled && cpu_has_x2apic &&
+		    dmar->flags & 0x1)
 			printk(KERN_INFO
-			       "Queued invalidation will be enabled to support "
-			       "x2apic and Intr-remapping.\n");
-#endif
-#ifdef CONFIG_DMAR
+			       "Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
+
 		if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 			iommu_detected = 1;
 			/* Make sure ACS will be enabled */
 			pci_request_acs();
 		}
-#endif
+
 #ifdef CONFIG_X86
 		if (ret)
 			x86_init.iommu.iommu_init = intel_iommu_init;
