@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <plat/cpu-freq.h>
 #include <plat/clock.h>
@@ -21,11 +22,76 @@
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/exynos4.h>
+#include <plat/pm.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/sysmmu.h>
 #include <mach/exynos4-clock.h>
+
+static struct sleep_save exynos4_clock_save[] = {
+	SAVE_ITEM(S5P_CLKDIV_LEFTBUS),
+	SAVE_ITEM(S5P_CLKGATE_IP_LEFTBUS),
+	SAVE_ITEM(S5P_CLKDIV_RIGHTBUS),
+	SAVE_ITEM(S5P_CLKGATE_IP_RIGHTBUS),
+	SAVE_ITEM(S5P_CLKSRC_TOP0),
+	SAVE_ITEM(S5P_CLKSRC_TOP1),
+	SAVE_ITEM(S5P_CLKSRC_CAM),
+	SAVE_ITEM(S5P_CLKSRC_TV),
+	SAVE_ITEM(S5P_CLKSRC_MFC),
+	SAVE_ITEM(S5P_CLKSRC_G3D),
+	SAVE_ITEM(S5P_CLKSRC_LCD0),
+	SAVE_ITEM(S5P_CLKSRC_MAUDIO),
+	SAVE_ITEM(S5P_CLKSRC_FSYS),
+	SAVE_ITEM(S5P_CLKSRC_PERIL0),
+	SAVE_ITEM(S5P_CLKSRC_PERIL1),
+	SAVE_ITEM(S5P_CLKDIV_CAM),
+	SAVE_ITEM(S5P_CLKDIV_TV),
+	SAVE_ITEM(S5P_CLKDIV_MFC),
+	SAVE_ITEM(S5P_CLKDIV_G3D),
+	SAVE_ITEM(S5P_CLKDIV_LCD0),
+	SAVE_ITEM(S5P_CLKDIV_MAUDIO),
+	SAVE_ITEM(S5P_CLKDIV_FSYS0),
+	SAVE_ITEM(S5P_CLKDIV_FSYS1),
+	SAVE_ITEM(S5P_CLKDIV_FSYS2),
+	SAVE_ITEM(S5P_CLKDIV_FSYS3),
+	SAVE_ITEM(S5P_CLKDIV_PERIL0),
+	SAVE_ITEM(S5P_CLKDIV_PERIL1),
+	SAVE_ITEM(S5P_CLKDIV_PERIL2),
+	SAVE_ITEM(S5P_CLKDIV_PERIL3),
+	SAVE_ITEM(S5P_CLKDIV_PERIL4),
+	SAVE_ITEM(S5P_CLKDIV_PERIL5),
+	SAVE_ITEM(S5P_CLKDIV_TOP),
+	SAVE_ITEM(S5P_CLKSRC_MASK_TOP),
+	SAVE_ITEM(S5P_CLKSRC_MASK_CAM),
+	SAVE_ITEM(S5P_CLKSRC_MASK_TV),
+	SAVE_ITEM(S5P_CLKSRC_MASK_LCD0),
+	SAVE_ITEM(S5P_CLKSRC_MASK_MAUDIO),
+	SAVE_ITEM(S5P_CLKSRC_MASK_FSYS),
+	SAVE_ITEM(S5P_CLKSRC_MASK_PERIL0),
+	SAVE_ITEM(S5P_CLKSRC_MASK_PERIL1),
+	SAVE_ITEM(S5P_CLKDIV2_RATIO),
+	SAVE_ITEM(S5P_CLKGATE_SCLKCAM),
+	SAVE_ITEM(S5P_CLKGATE_IP_CAM),
+	SAVE_ITEM(S5P_CLKGATE_IP_TV),
+	SAVE_ITEM(S5P_CLKGATE_IP_MFC),
+	SAVE_ITEM(S5P_CLKGATE_IP_G3D),
+	SAVE_ITEM(S5P_CLKGATE_IP_LCD0),
+	SAVE_ITEM(S5P_CLKGATE_IP_FSYS),
+	SAVE_ITEM(S5P_CLKGATE_IP_GPS),
+	SAVE_ITEM(S5P_CLKGATE_IP_PERIL),
+	SAVE_ITEM(S5P_CLKGATE_BLOCK),
+	SAVE_ITEM(S5P_CLKSRC_MASK_DMC),
+	SAVE_ITEM(S5P_CLKSRC_DMC),
+	SAVE_ITEM(S5P_CLKDIV_DMC0),
+	SAVE_ITEM(S5P_CLKDIV_DMC1),
+	SAVE_ITEM(S5P_CLKGATE_IP_DMC),
+	SAVE_ITEM(S5P_CLKSRC_CPU),
+	SAVE_ITEM(S5P_CLKDIV_CPU),
+	SAVE_ITEM(S5P_CLKDIV_CPU + 0x4),
+	SAVE_ITEM(S5P_CLKGATE_SCLKCPU),
+	SAVE_ITEM(S5P_CLKGATE_IP_CPU),
+};
 
 struct clk clk_sclk_hdmi27m = {
 	.name		= "sclk_hdmi27m",
@@ -1180,6 +1246,28 @@ static struct clk *clks[] __initdata = {
 	/* Nothing here yet */
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int exynos4_clock_suspend(void)
+{
+	s3c_pm_do_save(exynos4_clock_save, ARRAY_SIZE(exynos4_clock_save));
+	return 0;
+}
+
+static void exynos4_clock_resume(void)
+{
+	s3c_pm_do_restore_core(exynos4_clock_save, ARRAY_SIZE(exynos4_clock_save));
+}
+
+#else
+#define exynos4_clock_suspend NULL
+#define exynos4_clock_resume NULL
+#endif
+
+struct syscore_ops exynos4_clock_syscore_ops = {
+	.suspend	= exynos4_clock_suspend,
+	.resume		= exynos4_clock_resume,
+};
+
 void __init exynos4_register_clocks(void)
 {
 	int ptr;
@@ -1195,5 +1283,6 @@ void __init exynos4_register_clocks(void)
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
+	register_syscore_ops(&exynos4_clock_syscore_ops);
 	s3c_pwmclk_init();
 }

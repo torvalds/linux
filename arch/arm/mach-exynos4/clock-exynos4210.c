@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <plat/cpu-freq.h>
 #include <plat/clock.h>
@@ -23,11 +24,23 @@
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/exynos4.h>
+#include <plat/pm.h>
 
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/exynos4-clock.h>
+
+static struct sleep_save exynos4210_clock_save[] = {
+	SAVE_ITEM(S5P_CLKSRC_IMAGE),
+	SAVE_ITEM(S5P_CLKSRC_LCD1),
+	SAVE_ITEM(S5P_CLKDIV_IMAGE),
+	SAVE_ITEM(S5P_CLKDIV_LCD1),
+	SAVE_ITEM(S5P_CLKSRC_MASK_LCD1),
+	SAVE_ITEM(S5P_CLKGATE_IP_IMAGE_4210),
+	SAVE_ITEM(S5P_CLKGATE_IP_LCD1),
+	SAVE_ITEM(S5P_CLKGATE_IP_PERIR_4210),
+};
 
 static struct clksrc_clk *sysclks[] = {
 	/* nothing here yet */
@@ -83,6 +96,29 @@ static struct clk init_clocks_off[] = {
 	},
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int exynos4210_clock_suspend(void)
+{
+	s3c_pm_do_save(exynos4210_clock_save, ARRAY_SIZE(exynos4210_clock_save));
+
+	return 0;
+}
+
+static void exynos4210_clock_resume(void)
+{
+	s3c_pm_do_restore_core(exynos4210_clock_save, ARRAY_SIZE(exynos4210_clock_save));
+}
+
+#else
+#define exynos4210_clock_suspend NULL
+#define exynos4210_clock_resume NULL
+#endif
+
+struct syscore_ops exynos4210_clock_syscore_ops = {
+	.suspend	= exynos4210_clock_suspend,
+	.resume		= exynos4210_clock_resume,
+};
+
 void __init exynos4210_register_clocks(void)
 {
 	int ptr;
@@ -98,4 +134,6 @@ void __init exynos4210_register_clocks(void)
 
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+
+	register_syscore_ops(&exynos4210_clock_syscore_ops);
 }
