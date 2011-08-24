@@ -3425,12 +3425,15 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 		/* It's not stale; let's assume it's expired: */
 		if (sop == NULL)
 			return nfserr_expired;
-		*sopp = sop;
+		nfs4_get_stateowner(sop);
+		cstate->replay_owner = sop;
 		goto check_replay;
 	}
 
 	*stpp = stp;
 	*sopp = sop = stp->st_stateowner;
+	nfs4_get_stateowner(sop);
+	cstate->replay_owner = sop;
 
 	if (nfs4_check_fh(current_fh, stp)) {
 		dprintk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
@@ -3501,10 +3504,6 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfsd4_create_clid_dir(sop->so_client);
 out:
-	if (oc->oc_stateowner) {
-		nfs4_get_stateowner(oc->oc_stateowner);
-		cstate->replay_owner = oc->oc_stateowner;
-	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -3574,10 +3573,6 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 	memcpy(&od->od_stateid, &stp->st_stateid, sizeof(stateid_t));
 	status = nfs_ok;
 out:
-	if (od->od_stateowner) {
-		nfs4_get_stateowner(od->od_stateowner);
-		cstate->replay_owner = od->od_stateowner;
-	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -3618,10 +3613,6 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (list_empty(&close->cl_stateowner->so_stateids))
 		move_to_close_lru(close->cl_stateowner);
 out:
-	if (close->cl_stateowner) {
-		nfs4_get_stateowner(close->cl_stateowner);
-		cstate->replay_owner = close->cl_stateowner;
-	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -4086,10 +4077,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out:
 	if (status && lock->lk_is_new && lock_sop)
 		release_lockowner(lock_sop);
-	if (lock->lk_replay_owner) {
-		nfs4_get_stateowner(lock->lk_replay_owner);
-		cstate->replay_owner = lock->lk_replay_owner;
-	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -4244,10 +4231,6 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	memcpy(&locku->lu_stateid, &stp->st_stateid, sizeof(stateid_t));
 
 out:
-	if (locku->lu_stateowner) {
-		nfs4_get_stateowner(locku->lu_stateowner);
-		cstate->replay_owner = locku->lu_stateowner;
-	}
 	nfs4_unlock_state();
 	return status;
 

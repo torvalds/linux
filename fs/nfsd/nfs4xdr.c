@@ -1630,15 +1630,19 @@ static void write_cinfo(__be32 **p, struct nfsd4_change_info *c)
  * we know whether the error to be returned is a sequence id mutating error.
  */
 
-#define ENCODE_SEQID_OP_TAIL(stateowner) do {			\
-	if (seqid_mutating_err(ntohl(nfserr)) && stateowner) { 	\
-		stateowner->so_seqid++;				\
-		stateowner->so_replay.rp_status = nfserr;   	\
-		stateowner->so_replay.rp_buflen = 		\
-			  (((char *)(resp)->p - (char *)save)); \
-		memcpy(stateowner->so_replay.rp_buf, save,      \
- 			stateowner->so_replay.rp_buflen); 	\
-	} } while (0);
+static void encode_seqid_op_tail(struct nfsd4_compoundres *resp, __be32 *save, __be32 nfserr)
+{
+	struct nfs4_stateowner *stateowner = resp->cstate.replay_owner;
+
+	if (seqid_mutating_err(ntohl(nfserr)) && stateowner) {
+		stateowner->so_seqid++;
+		stateowner->so_replay.rp_status = nfserr;
+		stateowner->so_replay.rp_buflen =
+			  (char *)resp->p - (char *)save;
+		memcpy(stateowner->so_replay.rp_buf, save,
+			stateowner->so_replay.rp_buflen);
+	}
+}
 
 /* Encode as an array of strings the string given with components
  * separated @sep.
@@ -2495,7 +2499,7 @@ nfsd4_encode_close(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_c
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &close->cl_stateid);
 
-	ENCODE_SEQID_OP_TAIL(close->cl_stateowner);
+	encode_seqid_op_tail(resp, save, nfserr);
 	return nfserr;
 }
 
@@ -2599,7 +2603,7 @@ nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_lo
 	else if (nfserr == nfserr_denied)
 		nfsd4_encode_lock_denied(resp, &lock->lk_denied);
 
-	ENCODE_SEQID_OP_TAIL(lock->lk_replay_owner);
+	encode_seqid_op_tail(resp, save, nfserr);
 	return nfserr;
 }
 
@@ -2619,7 +2623,7 @@ nfsd4_encode_locku(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_l
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &locku->lu_stateid);
 
-	ENCODE_SEQID_OP_TAIL(locku->lu_stateowner);
+	encode_seqid_op_tail(resp, save, nfserr);
 	return nfserr;
 }
 
@@ -2700,7 +2704,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 	}
 	/* XXX save filehandle here */
 out:
-	ENCODE_SEQID_OP_TAIL(open->op_stateowner);
+	encode_seqid_op_tail(resp, save, nfserr);
 	return nfserr;
 }
 
@@ -2712,7 +2716,7 @@ nfsd4_encode_open_confirm(struct nfsd4_compoundres *resp, __be32 nfserr, struct 
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &oc->oc_resp_stateid);
 
-	ENCODE_SEQID_OP_TAIL(oc->oc_stateowner);
+	encode_seqid_op_tail(resp, save, nfserr);
 	return nfserr;
 }
 
@@ -2724,7 +2728,7 @@ nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, __be32 nfserr, struc
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &od->od_stateid);
 
-	ENCODE_SEQID_OP_TAIL(od->od_stateowner);
+	encode_seqid_op_tail(resp, save, nfserr);
 	return nfserr;
 }
 
