@@ -226,7 +226,7 @@ int il_eeprom_init(struct il_priv *il)
 		_il_wr(il, CSR_EEPROM_REG,
 			     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-		ret = il_poll_bit(il, CSR_EEPROM_REG,
+		ret = _il_poll_bit(il, CSR_EEPROM_REG,
 					  CSR_EEPROM_REG_READ_VALID_MSK,
 					  CSR_EEPROM_REG_READ_VALID_MSK,
 					  IL_EEPROM_ACCESS_TIMEOUT);

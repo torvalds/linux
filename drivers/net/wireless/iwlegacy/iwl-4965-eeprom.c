@@ -98,7 +98,7 @@ int il4965_eeprom_acquire_semaphore(struct il_priv *il)
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
+		ret = _il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);

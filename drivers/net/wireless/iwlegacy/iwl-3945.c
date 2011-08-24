@@ -757,7 +757,7 @@ static void il3945_set_pwr_vmain(struct il_priv *il)
 					APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
 					~APMG_PS_CTRL_MSK_PWR_SRC);
 
-			il_poll_bit(il, CSR_GPIO_IN,
+			_il_poll_bit(il, CSR_GPIO_IN,
 				     CSR_GPIO_IN_VAL_VAUX_PWR_SRC,
 				     CSR_GPIO_IN_BIT_AUX_POWER, 5000);
 		}
@@ -767,7 +767,7 @@ static void il3945_set_pwr_vmain(struct il_priv *il)
 			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 			~APMG_PS_CTRL_MSK_PWR_SRC);
 
-	il_poll_bit(il, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
+	_il_poll_bit(il, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
 		     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
 }
 

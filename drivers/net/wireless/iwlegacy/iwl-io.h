@@ -66,7 +66,6 @@ _il_poll_bit(struct il_priv *il, u32 addr,
 
 	return -ETIMEDOUT;
 }
-#define il_poll_bit(p, a, b, m, t) _il_poll_bit(p, a, b, m, t)
 
 static inline void _il_set_bit(struct il_priv *il, u32 reg, u32 mask)
 {

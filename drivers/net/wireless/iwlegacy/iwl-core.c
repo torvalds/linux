@@ -960,7 +960,7 @@ static int il_apm_stop_master(struct il_priv *il)
 	/* stop device's busmaster DMA activity */
 	il_set_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-	ret = il_poll_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
+	ret = _il_poll_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	if (ret)
 		IL_WARN("Master Disable Timed Out, 100 usec\n");
@@ -1072,7 +1072,7 @@ int il_apm_init(struct il_priv *il)
 	 * device-internal resources is supported, e.g. il_write_prph()
 	 * and accesses to uCode SRAM.
 	 */
-	ret = il_poll_bit(il, CSR_GP_CNTRL,
+	ret = _il_poll_bit(il, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {

@@ -1907,7 +1907,7 @@ static int il4965_set_hw_ready(struct il_priv *il)
 		CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
 
 	/* See if we got it */
-	ret = il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
+	ret = _il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
 				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
 				HW_READY_TIMEOUT);
@@ -1935,7 +1935,7 @@ static int il4965_prepare_card_hw(struct il_priv *il)
 	il_set_bit(il, CSR_HW_IF_CONFIG_REG,
 			CSR_HW_IF_CONFIG_REG_PREPARE);
 
-	ret = il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
+	ret = _il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
 			~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
 			CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
 
