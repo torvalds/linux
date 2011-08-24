@@ -10,7 +10,6 @@ enum {
 	ALC662_3ST_6ch_DIG,
 	ALC662_3ST_6ch,
 	ALC662_5ST_DIG,
-	ALC662_ASUS_EEEPC_EP20,
 	ALC662_MODEL_LAST,
 };
 
@@ -194,20 +193,6 @@ static const struct snd_kcontrol_new alc662_3ST_6ch_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc662_eeepc_ep20_mixer[] = {
-	ALC262_HIPPO_MASTER_SWITCH,
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Surround Playback Volume", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x04, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x04, 2, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("MuteCtrl Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc662_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -275,23 +260,6 @@ static const struct hda_verb alc662_eapd_init_verbs[] = {
 	{ }
 };
 
-/* Set Unsolicited Event*/
-static const struct hda_verb alc662_eeepc_ep20_sue_init_verbs[] = {
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static void alc662_eeepc_ep20_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x1b;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
-}
-
 /*
  * configuration and preset
  */
@@ -300,13 +268,11 @@ static const char * const alc662_models[ALC662_MODEL_LAST] = {
 	[ALC662_3ST_6ch_DIG]	= "3stack-6ch-dig",
 	[ALC662_3ST_6ch]	= "3stack-6ch",
 	[ALC662_5ST_DIG]	= "5stack-dig",
-	[ALC662_ASUS_EEEPC_EP20] = "eeepc-ep20",
 	[ALC662_AUTO]		= "auto",
 };
 
 static const struct snd_pci_quirk alc662_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x8290, "ASUS P5GC-MX", ALC662_3ST_6ch_DIG),
-	SND_PCI_QUIRK(0x1043, 0x82d1, "ASUS Eeepc EP20", ALC662_ASUS_EEEPC_EP20),
 	SND_PCI_QUIRK(0x105b, 0x0d47, "Foxconn 45CMX/45GMX/45CMX-K",
 		      ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte 945GCM-S2L",
@@ -361,20 +327,5 @@ static const struct alc_config_preset alc662_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc662_5stack_modes),
 		.channel_mode = alc662_5stack_modes,
 		.input_mux = &alc662_capture_source,
-	},
-	[ALC662_ASUS_EEEPC_EP20] = {
-		.mixers = { alc662_eeepc_ep20_mixer,
-			    alc662_chmode_mixer },
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc662_eeepc_ep20_sue_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
-		.dac_nids = alc662_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_6ch_modes),
-		.channel_mode = alc662_3ST_6ch_modes,
-		.input_mux = &alc662_lenovo_101e_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc662_eeepc_ep20_setup,
-		.init_hook = alc_inithook,
 	},
 };
