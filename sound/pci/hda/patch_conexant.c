@@ -3866,7 +3866,7 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 	}
 	if (imux->num_items >= 2 && cfg->num_inputs == imux->num_items)
 		cx_auto_check_auto_mic(codec);
-	if (imux->num_items > 1 && !spec->auto_mic) {
+	if (imux->num_items > 1) {
 		for (i = 1; i < imux->num_items; i++) {
 			if (spec->imux_info[i].adc != spec->imux_info[0].adc) {
 				spec->adc_switching = 1;
