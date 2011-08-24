@@ -401,7 +401,7 @@ static int ad7793_ring_postdisable(struct iio_dev *indio_dev)
 static irqreturn_t ad7793_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	struct ad7793_state *st = iio_priv(indio_dev);
 	s64 dat64[2];

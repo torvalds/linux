@@ -160,7 +160,7 @@ static int lis3l02dq_get_ring_element(struct iio_dev *indio_dev,
 static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	int len = 0;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);

@@ -60,7 +60,7 @@ out:
 static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	struct ade7758_state *st = iio_priv(indio_dev);
 	s64 dat64[2];

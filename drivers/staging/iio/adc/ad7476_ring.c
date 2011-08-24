@@ -76,7 +76,7 @@ static int ad7476_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7476_state *st = iio_priv(indio_dev);
 	s64 time_ns;
 	__u8 *rxbuf;

@@ -104,7 +104,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t max1363_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1363_state *st = iio_priv(indio_dev);
 	s64 time_ns;
 	__u8 *rxbuf;

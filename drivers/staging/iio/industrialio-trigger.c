@@ -274,7 +274,7 @@ struct iio_poll_func
 *iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
 		    irqreturn_t (*thread)(int irq, void *p),
 		    int type,
-		    void *private,
+		    struct iio_dev *indio_dev,
 		    const char *fmt,
 		    ...)
 {
@@ -294,7 +294,7 @@ struct iio_poll_func
 	pf->h = h;
 	pf->thread = thread;
 	pf->type = type;
-	pf->private_data = private;
+	pf->indio_dev = indio_dev;
 
 	return pf;
 }

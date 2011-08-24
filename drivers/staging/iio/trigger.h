@@ -76,7 +76,7 @@ struct iio_trigger {
 /**
  * struct iio_poll_func - poll function pair
  *
- * @private_data:		data specific to device (passed into poll func)
+ * @indio_dev:			data specific to device (passed into poll func)
  * @h:				the function that is actually run on trigger
  * @thread:			threaded interrupt part
  * @type:			the type of interrupt (basically if oneshot)
@@ -88,7 +88,7 @@ struct iio_trigger {
  *				passes it via here.
  **/
 struct iio_poll_func {
-	void				*private_data;
+	struct iio_dev *indio_dev;
 	irqreturn_t (*h)(int irq, void *p);
 	irqreturn_t (*thread)(int irq, void *p);
 	int type;
@@ -180,7 +180,7 @@ struct iio_poll_func
 *iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
 		    irqreturn_t (*thread)(int irq, void *p),
 		    int type,
-		    void *private,
+		    struct iio_dev *indio_dev,
 		    const char *fmt,
 		    ...);
 void iio_dealloc_pollfunc(struct iio_poll_func *pf);
