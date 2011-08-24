@@ -1618,7 +1618,8 @@ static struct shutdown_action vmcmd_action = {SHUTDOWN_ACTION_VMCMD_STR,
 
 static void stop_run(struct shutdown_trigger *trigger)
 {
-	if (strcmp(trigger->name, ON_PANIC_STR) == 0)
+	if (strcmp(trigger->name, ON_PANIC_STR) == 0 ||
+	    strcmp(trigger->name, ON_RESTART_STR) == 0)
 		disabled_wait((unsigned long) __builtin_return_address(0));
 	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
 		cpu_relax();
@@ -1717,7 +1718,7 @@ static void do_panic(void)
 /* on restart */
 
 static struct shutdown_trigger on_restart_trigger = {ON_RESTART_STR,
-	&reipl_action};
+	&stop_action};
 
 static ssize_t on_restart_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *page)
