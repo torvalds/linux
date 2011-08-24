@@ -822,33 +822,47 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	int ret, msix_vec, i, j;
-	char desc[32];
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 
 	if (phba->msix_enabled) {
 		for (i = 0; i < phba->num_cpus; i++) {
-			sprintf(desc, "beiscsi_msix_%04x", i);
+			phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME,
+						    GFP_KERNEL);
+			if (!phba->msi_name[i]) {
+				ret = -ENOMEM;
+				goto free_msix_irqs;
+			}
+
+			sprintf(phba->msi_name[i], "beiscsi_%02x_%02x",
+				phba->shost->host_no, i);
 			msix_vec = phba->msix_entries[i].vector;
-			ret = request_irq(msix_vec, be_isr_msix, 0, desc,
+			ret = request_irq(msix_vec, be_isr_msix, 0,
+					  phba->msi_name[i],
 					  &phwi_context->be_eq[i]);
 			if (ret) {
 				shost_printk(KERN_ERR, phba->shost,
 					     "beiscsi_init_irqs-Failed to"
 					     "register msix for i = %d\n", i);
-				if (!i)
-					return ret;
+				kfree(phba->msi_name[i]);
 				goto free_msix_irqs;
 			}
 		}
+		phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME, GFP_KERNEL);
+		if (!phba->msi_name[i]) {
+			ret = -ENOMEM;
+			goto free_msix_irqs;
+		}
+		sprintf(phba->msi_name[i], "beiscsi_mcc_%02x",
+			phba->shost->host_no);
 		msix_vec = phba->msix_entries[i].vector;
-		ret = request_irq(msix_vec, be_isr_mcc, 0, "beiscsi_msix_mcc",
+		ret = request_irq(msix_vec, be_isr_mcc, 0, phba->msi_name[i],
 				  &phwi_context->be_eq[i]);
 		if (ret) {
 			shost_printk(KERN_ERR, phba->shost, "beiscsi_init_irqs-"
 				     "Failed to register beiscsi_msix_mcc\n");
-			i++;
+			kfree(phba->msi_name[i]);
 			goto free_msix_irqs;
 		}
 
@@ -863,8 +877,11 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	}
 	return 0;
 free_msix_irqs:
-	for (j = i - 1; j == 0; j++)
+	for (j = i - 1; j >= 0; j--) {
+		kfree(phba->msi_name[j]);
+		msix_vec = phba->msix_entries[j].vector;
 		free_irq(msix_vec, &phwi_context->be_eq[j]);
+	}
 	return ret;
 }
 
@@ -4125,6 +4142,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 		for (i = 0; i <= phba->num_cpus; i++) {
 			msix_vec = phba->msix_entries[i].vector;
 			free_irq(msix_vec, &phwi_context->be_eq[i]);
+			kfree(phba->msi_name[i]);
 		}
 	} else
 		if (phba->pcidev->irq)
