@@ -304,7 +304,8 @@ static int synaptics_set_advanced_gesture_mode(struct psmouse *psmouse)
 	static unsigned char param = 0xc8;
 	struct synaptics_data *priv = psmouse->private;
 
-	if (!SYN_CAP_ADV_GESTURE(priv->ext_cap_0c))
+	if (!(SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) ||
+			SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)))
 		return 0;
 
 	if (psmouse_sliced_command(psmouse, SYN_QUE_MODEL))
@@ -463,7 +464,9 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 			hw->down = ((buf[0] ^ buf[3]) & 0x02) ? 1 : 0;
 		}
 
-		if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) && hw->w == 2) {
+		if ((SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) ||
+			SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) &&
+		    hw->w == 2) {
 			synaptics_parse_agm(buf, priv);
 			return 1;
 		}
@@ -543,6 +546,94 @@ static void synaptics_report_semi_mt_data(struct input_dev *dev,
 	}
 }
 
+static void synaptics_report_buttons(struct psmouse *psmouse,
+				     const struct synaptics_hw_state *hw)
+{
+	struct input_dev *dev = psmouse->dev;
+	struct synaptics_data *priv = psmouse->private;
+	int i;
+
+	input_report_key(dev, BTN_LEFT, hw->left);
+	input_report_key(dev, BTN_RIGHT, hw->right);
+
+	if (SYN_CAP_MIDDLE_BUTTON(priv->capabilities))
+		input_report_key(dev, BTN_MIDDLE, hw->middle);
+
+	if (SYN_CAP_FOUR_BUTTON(priv->capabilities)) {
+		input_report_key(dev, BTN_FORWARD, hw->up);
+		input_report_key(dev, BTN_BACK, hw->down);
+	}
+
+	for (i = 0; i < SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap); i++)
+		input_report_key(dev, BTN_0 + i, hw->ext_buttons & (1 << i));
+}
+
+static void synaptics_report_slot(struct input_dev *dev, int slot,
+				  const struct synaptics_hw_state *hw)
+{
+	input_mt_slot(dev, slot);
+	input_mt_report_slot_state(dev, MT_TOOL_FINGER, (hw != NULL));
+	if (!hw)
+		return;
+
+	input_report_abs(dev, ABS_MT_POSITION_X, hw->x);
+	input_report_abs(dev, ABS_MT_POSITION_Y, synaptics_invert_y(hw->y));
+	input_report_abs(dev, ABS_MT_PRESSURE, hw->z);
+}
+
+static void synaptics_report_mt_data(struct psmouse *psmouse,
+				     int count,
+				     const struct synaptics_hw_state *sgm)
+{
+	struct input_dev *dev = psmouse->dev;
+	struct synaptics_data *priv = psmouse->private;
+	struct synaptics_hw_state *agm = &priv->agm;
+
+	switch (count) {
+	case 0:
+		synaptics_report_slot(dev, 0, NULL);
+		synaptics_report_slot(dev, 1, NULL);
+		break;
+	case 1:
+		synaptics_report_slot(dev, 0, sgm);
+		synaptics_report_slot(dev, 1, NULL);
+		break;
+	case 2:
+	case 3: /* Fall-through case */
+		synaptics_report_slot(dev, 0, sgm);
+		synaptics_report_slot(dev, 1, agm);
+		break;
+	}
+
+	/* Don't use active slot count to generate BTN_TOOL events. */
+	input_mt_report_pointer_emulation(dev, false);
+
+	/* Send the number of fingers reported by touchpad itself. */
+	input_mt_report_finger_count(dev, count);
+
+	synaptics_report_buttons(psmouse, sgm);
+
+	input_sync(dev);
+}
+
+static void synaptics_image_sensor_process(struct psmouse *psmouse,
+					   struct synaptics_hw_state *sgm)
+{
+	int count;
+
+	if (sgm->z == 0)
+		count = 0;
+	else if (sgm->w >= 4)
+		count = 1;
+	else if (sgm->w == 0)
+		count = 2;
+	else
+		count = 3;
+
+	/* Send resulting input events to user space */
+	synaptics_report_mt_data(psmouse, count, sgm);
+}
+
 /*
  *  called for each full received packet from the touchpad
  */
@@ -553,10 +644,14 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	struct synaptics_hw_state hw;
 	int num_fingers;
 	int finger_width;
-	int i;
 
 	if (synaptics_parse_hw_state(psmouse->packet, priv, &hw))
 		return;
+
+	if (SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) {
+		synaptics_image_sensor_process(psmouse, &hw);
+		return;
+	}
 
 	if (hw.scroll) {
 		priv->scroll += hw.scroll;
@@ -623,24 +718,12 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 		input_report_abs(dev, ABS_TOOL_WIDTH, finger_width);
 
 	input_report_key(dev, BTN_TOOL_FINGER, num_fingers == 1);
-	input_report_key(dev, BTN_LEFT, hw.left);
-	input_report_key(dev, BTN_RIGHT, hw.right);
-
 	if (SYN_CAP_MULTIFINGER(priv->capabilities)) {
 		input_report_key(dev, BTN_TOOL_DOUBLETAP, num_fingers == 2);
 		input_report_key(dev, BTN_TOOL_TRIPLETAP, num_fingers == 3);
 	}
 
-	if (SYN_CAP_MIDDLE_BUTTON(priv->capabilities))
-		input_report_key(dev, BTN_MIDDLE, hw.middle);
-
-	if (SYN_CAP_FOUR_BUTTON(priv->capabilities)) {
-		input_report_key(dev, BTN_FORWARD, hw.up);
-		input_report_key(dev, BTN_BACK, hw.down);
-	}
-
-	for (i = 0; i < SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap); i++)
-		input_report_key(dev, BTN_0 + i, hw.ext_buttons & (1 << i));
+	synaptics_report_buttons(psmouse, &hw);
 
 	input_sync(dev);
 }
@@ -739,7 +822,14 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	set_abs_position_params(dev, priv, ABS_X, ABS_Y);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
-	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
+	if (SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) {
+		input_mt_init_slots(dev, 2);
+		set_abs_position_params(dev, priv, ABS_MT_POSITION_X,
+					ABS_MT_POSITION_Y);
+		/* Image sensors can report per-contact pressure */
+		input_set_abs_params(dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	} else if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
+		/* Non-image sensors with AGM use semi-mt */
 		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 		input_mt_init_slots(dev, 2);
 		set_abs_position_params(dev, priv, ABS_MT_POSITION_X,
