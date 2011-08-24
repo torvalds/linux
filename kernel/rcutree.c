@@ -842,28 +842,24 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	if (!rcu_scheduler_fully_active ||
-	    !cpu_needs_another_gp(rsp, rdp) ||
-	    rsp->fqs_active) {
-		if (rcu_scheduler_fully_active &&
-		    cpu_needs_another_gp(rsp, rdp))
-			rsp->fqs_need_gp = 1;
-		if (rnp->completed == rsp->completed) {
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
-			return;
-		}
-		raw_spin_unlock(&rnp->lock);	 /* irqs remain disabled. */
-
+	    !cpu_needs_another_gp(rsp, rdp)) {
 		/*
-		 * Propagate new ->completed value to rcu_node structures
-		 * so that other CPUs don't have to wait until the start
-		 * of the next grace period to process their callbacks.
+		 * Either the scheduler hasn't yet spawned the first
+		 * non-idle task or this CPU does not need another
+		 * grace period.  Either way, don't start a new grace
+		 * period.
 		 */
-		rcu_for_each_node_breadth_first(rsp, rnp) {
-			raw_spin_lock(&rnp->lock); /* irqs already disabled. */
-			rnp->completed = rsp->completed;
-			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
-		}
-		local_irq_restore(flags);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		return;
+	}
+
+	if (rsp->fqs_active) {
+		/*
+		 * This CPU needs a grace period, but force_quiescent_state()
+		 * is running.  Tell it to start one on this CPU's behalf.
+		 */
+		rsp->fqs_need_gp = 1;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;
 	}
 
@@ -947,6 +943,8 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	__releases(rcu_get_root(rsp)->lock)
 {
 	unsigned long gp_duration;
+	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
 	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
 
@@ -958,7 +956,40 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	gp_duration = jiffies - rsp->gp_start;
 	if (gp_duration > rsp->gp_max)
 		rsp->gp_max = gp_duration;
-	rsp->completed = rsp->gpnum;
+
+	/*
+	 * We know the grace period is complete, but to everyone else
+	 * it appears to still be ongoing.  But it is also the case
+	 * that to everyone else it looks like there is nothing that
+	 * they can do to advance the grace period.  It is therefore
+	 * safe for us to drop the lock in order to mark the grace
+	 * period as completed in all of the rcu_node structures.
+	 *
+	 * But if this CPU needs another grace period, it will take
+	 * care of this while initializing the next grace period.
+	 * We use RCU_WAIT_TAIL instead of the usual RCU_DONE_TAIL
+	 * because the callbacks have not yet been advanced: Those
+	 * callbacks are waiting on the grace period that just now
+	 * completed.
+	 */
+	if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
+		raw_spin_unlock(&rnp->lock);	 /* irqs remain disabled. */
+
+		/*
+		 * Propagate new ->completed value to rcu_node structures
+		 * so that other CPUs don't have to wait until the start
+		 * of the next grace period to process their callbacks.
+		 */
+		rcu_for_each_node_breadth_first(rsp, rnp) {
+			raw_spin_lock(&rnp->lock); /* irqs already disabled. */
+			rnp->completed = rsp->gpnum;
+			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		}
+		rnp = rcu_get_root(rsp);
+		raw_spin_lock(&rnp->lock); /* irqs already disabled. */
+	}
+
+	rsp->completed = rsp->gpnum;  /* Declare the grace period complete. */
 	trace_rcu_grace_period(rsp->name, rsp->completed, "end");
 	rsp->signaled = RCU_GP_IDLE;
 	rcu_start_gp(rsp, flags);  /* releases root node's rnp->lock. */
