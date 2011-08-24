@@ -1867,39 +1867,6 @@ static const struct hda_verb cxt5051_hp_dv6736_init_verbs[] = {
 	{ } /* end */
 };
 
-static const struct hda_verb cxt5051_lenovo_x200_init_verbs[] = {
-	/* Line in, Mic */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x03},
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x03},
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x03},
-	/* SPK  */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* HP, Amp  */
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* Docking HP */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x19, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* DAC1 */
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Record selector: Internal mic */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x44},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1) | 0x44},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x44},
-	/* SPDIF route: PCM */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT}, /* needed for W500 Advanced Mini Dock 250410 */
-	{0x1c, AC_VERB_SET_CONNECT_SEL, 0x0},
-	/* EAPD */
-	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
-	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
-	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
-	{ } /* end */
-};
-
 static const struct hda_verb cxt5051_f700_init_verbs[] = {
 	/* Line in, Mic */
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x03},
@@ -1968,7 +1935,6 @@ enum {
 	CXT5051_LAPTOP,	 /* Laptops w/ EAPD support */
 	CXT5051_HP,	/* no docking */
 	CXT5051_HP_DV6736,	/* HP without mic switch */
-	CXT5051_LENOVO_X200,	/* Lenovo X200 laptop, also used for Advanced Mini Dock 250410 */
 	CXT5051_F700,       /* HP Compaq Presario F700 */
 	CXT5051_TOSHIBA,	/* Toshiba M300 & co */
 	CXT5051_IDEAPAD,	/* Lenovo IdeaPad Y430 */
@@ -1980,7 +1946,6 @@ static const char *const cxt5051_models[CXT5051_MODELS] = {
 	[CXT5051_LAPTOP]	= "laptop",
 	[CXT5051_HP]		= "hp",
 	[CXT5051_HP_DV6736]	= "hp-dv6736",
-	[CXT5051_LENOVO_X200]	= "lenovo-x200",
 	[CXT5051_F700]          = "hp-700",
 	[CXT5051_TOSHIBA]	= "toshiba",
 	[CXT5051_IDEAPAD]	= "ideapad",
@@ -1995,7 +1960,6 @@ static const struct snd_pci_quirk cxt5051_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x14f1, 0x0101, "Conexant Reference board",
 		      CXT5051_LAPTOP),
 	SND_PCI_QUIRK(0x14f1, 0x5051, "HP Spartan 1.1", CXT5051_HP),
-	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT5051_LENOVO_X200),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo IdeaPad", CXT5051_IDEAPAD),
 	{}
 };
@@ -2052,13 +2016,6 @@ static int patch_cxt5051(struct hda_codec *codec)
 		spec->init_verbs[0] = cxt5051_hp_dv6736_init_verbs;
 		spec->mixers[0] = cxt5051_hp_dv6736_mixers;
 		spec->auto_mic = 0;
-		break;
-	case CXT5051_LENOVO_X200:
-		spec->init_verbs[0] = cxt5051_lenovo_x200_init_verbs;
-		/* Thinkpad X301 does not have S/PDIF wired and no ability
-		   to use a docking station. */
-		if (codec->subsystem_id == 0x17aa211f)
-			spec->multiout.dig_out_nid = 0;
 		break;
 	case CXT5051_F700:
 		spec->init_verbs[0] = cxt5051_f700_init_verbs;
@@ -4385,6 +4342,53 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.reboot_notify = snd_hda_shutup_pins,
 };
 
+/*
+ * pin fix-up
+ */
+struct cxt_pincfg {
+	hda_nid_t nid;
+	u32 val;
+};
+
+static void apply_pincfg(struct hda_codec *codec, const struct cxt_pincfg *cfg)
+{
+	for (; cfg->nid; cfg++)
+		snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
+
+}
+
+static void apply_pin_fixup(struct hda_codec *codec,
+			    const struct snd_pci_quirk *quirk,
+			    const struct cxt_pincfg **table)
+{
+	quirk = snd_pci_quirk_lookup(codec->bus->pci, quirk);
+	if (quirk) {
+		snd_printdd(KERN_INFO "hda_codec: applying pincfg for %s\n",
+			    quirk->name);
+		apply_pincfg(codec, table[quirk->value]);
+	}
+}
+
+enum {
+	CXT_PINCFG_LENOVO_X200,
+};
+
+static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
+	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
+	{ 0x17, 0x21a11000 }, /* dock-mic */
+	{ 0x19, 0x2121103f }, /* dock-HP */
+	{}
+};
+
+static const struct cxt_pincfg *cxt_pincfg_tbl[] = {
+	[CXT_PINCFG_LENOVO_X200] = cxt_pincfg_lenovo_x200,
+};
+
+static const struct snd_pci_quirk cxt_fixups[] = {
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT_PINCFG_LENOVO_X200),
+	{}
+};
+
 static int patch_conexant_auto(struct hda_codec *codec)
 {
 	struct conexant_spec *spec;
@@ -4398,6 +4402,9 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		return -ENOMEM;
 	codec->spec = spec;
 	codec->pin_amp_workaround = 1;
+
+	apply_pin_fixup(codec, cxt_fixups, cxt_pincfg_tbl);
+
 	err = cx_auto_search_adcs(codec);
 	if (err < 0)
 		return err;
