@@ -40,7 +40,7 @@
 #define L3_SI_CONTROL			0x020
 #define L3_SI_FLAG_STATUS_0		0x510
 
-const u64 shift = 1;
+static const u64 shift = 1;
 
 #define L3_STATUS_0_MPUIA_BRST		(shift << 0)
 #define L3_STATUS_0_MPUIA_RSP		(shift << 1)

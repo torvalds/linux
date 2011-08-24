@@ -56,10 +56,9 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 {
 
 	struct omap4_l3		*l3 = _l3;
-	int inttype, i, j;
+	int inttype, i;
 	int err_src = 0;
-	u32 std_err_main_addr, std_err_main, err_reg;
-	u32 base, slave_addr, clear;
+	u32 std_err_main, err_reg, clear, base, l3_targ_base;
 	char *source_name;
 
 	/* Get the Type of interrupt */
@@ -71,42 +70,43 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		 * to determine the source
 		 */
 		base = (u32)l3->l3_base[i];
-		err_reg =  readl(base + l3_flagmux[i] + (inttype << 3));
+		err_reg = readl(base + l3_flagmux[i] +
+					+ L3_FLAGMUX_REGERR0 + (inttype << 3));
 
 		/* Get the corresponding error and analyse */
 		if (err_reg) {
 			/* Identify the source from control status register */
-			for (j = 0; !(err_reg & (1 << j)); j++)
-									;
+			err_src = __ffs(err_reg);
 
-			err_src = j;
 			/* Read the stderrlog_main_source from clk domain */
-			std_err_main_addr = base + *(l3_targ[i] + err_src);
-			std_err_main = readl(std_err_main_addr);
+			l3_targ_base = base + *(l3_targ[i] + err_src);
+			std_err_main =  readl(l3_targ_base +
+					L3_TARG_STDERRLOG_MAIN);
 
 			switch (std_err_main & CUSTOM_ERROR) {
 			case STANDARD_ERROR:
 				source_name =
-				l3_targ_stderrlog_main_name[i][err_src];
-
-				slave_addr = std_err_main_addr +
-						L3_SLAVE_ADDRESS_OFFSET;
+					l3_targ_inst_name[i][err_src];
 				WARN(true, "L3 standard error: SOURCE:%s at address 0x%x\n",
-					source_name, readl(slave_addr));
+					source_name,
+					readl(l3_targ_base +
+						L3_TARG_STDERRLOG_SLVOFSLSB));
 				/* clear the std error log*/
 				clear = std_err_main | CLEAR_STDERR_LOG;
-				writel(clear, std_err_main_addr);
+				writel(clear, l3_targ_base +
+					L3_TARG_STDERRLOG_MAIN);
 				break;
 
 			case CUSTOM_ERROR:
 				source_name =
-				l3_targ_stderrlog_main_name[i][err_src];
+					l3_targ_inst_name[i][err_src];
 
-				WARN(true, "CUSTOM SRESP error with SOURCE:%s\n",
-							source_name);
+				WARN(true, "L3 custom error: SOURCE:%s\n",
+					source_name);
 				/* clear the std error log*/
 				clear = std_err_main | CLEAR_STDERR_LOG;
-				writel(clear, std_err_main_addr);
+				writel(clear, l3_targ_base +
+					L3_TARG_STDERRLOG_MAIN);
 				break;
 
 			default:
@@ -123,9 +123,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 static int __init omap4_l3_probe(struct platform_device *pdev)
 {
 	static struct omap4_l3		*l3;
-	struct resource		*res;
-	int			ret;
-	int			irq;
+	struct resource	*res;
+	int ret, irq;
 
 	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
 	if (!l3)
