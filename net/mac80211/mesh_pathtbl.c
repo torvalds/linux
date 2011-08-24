@@ -307,14 +307,14 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 
 	while (num_skbs--) {
 		skb = __skb_dequeue(&failq);
-		if (copy)
+		if (copy) {
 			cp_skb = skb_copy(skb, GFP_ATOMIC);
+			if (cp_skb)
+				__skb_queue_tail(&failq, cp_skb);
+		}
 
 		prepare_for_gate(skb, gate_mpath->dst, gate_mpath);
 		__skb_queue_tail(&gateq, skb);
-
-		if (copy && cp_skb)
-			__skb_queue_tail(&failq, cp_skb);
 	}
 
 	spin_lock_irqsave(&gate_mpath->frame_queue.lock, flags);
