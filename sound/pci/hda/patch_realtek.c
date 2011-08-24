@@ -2814,8 +2814,9 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 		if (found_in_nid_list(nid, spec->multiout.dac_nids,
 				      spec->multiout.num_dacs))
 			continue;
-		if (spec->multiout.hp_out_nid[0] == nid)
-			continue;
+		if (found_in_nid_list(nid, spec->multiout.hp_out_nid,
+				      ARRAY_SIZE(spec->multiout.hp_out_nid)))
+		    continue;
 		if (found_in_nid_list(nid, spec->multiout.extra_out_nid,
 				      ARRAY_SIZE(spec->multiout.extra_out_nid)))
 		    continue;
@@ -2831,6 +2832,29 @@ static hda_nid_t get_dac_if_single(struct hda_codec *codec, hda_nid_t pin)
 		return alc_auto_look_for_dac(codec, pin);
 	return 0;
 }
+
+static int alc_auto_fill_extra_dacs(struct hda_codec *codec, int num_outs,
+				    const hda_nid_t *pins, hda_nid_t *dacs)
+{
+	int i;
+
+	if (num_outs && !dacs[0]) {
+		dacs[0] = alc_auto_look_for_dac(codec, pins[0]);
+		if (!dacs[0])
+			return 0;
+	}
+
+	for (i = 1; i < num_outs; i++)
+		dacs[i] = get_dac_if_single(codec, pins[i]);
+	for (i = 1; i < num_outs; i++) {
+		if (!dacs[i])
+			dacs[i] = alc_auto_look_for_dac(codec, pins[i]);
+	}
+	return 0;
+}
+
+static int alc_auto_fill_multi_ios(struct hda_codec *codec,
+				   unsigned int location);
 
 /* fill in the dac_nids table from the parsed pin configuration */
 static int alc_auto_fill_dac_nids(struct hda_codec *codec)
@@ -2886,35 +2910,27 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 				sizeof(hda_nid_t) * (cfg->line_outs - i - 1));
 	}
 
-	if (cfg->hp_outs && !spec->multiout.hp_out_nid[0])
-		spec->multiout.hp_out_nid[0] =
-			alc_auto_look_for_dac(codec, cfg->hp_pins[0]);
-	if (cfg->speaker_outs && !spec->multiout.extra_out_nid[0])
-		spec->multiout.extra_out_nid[0] =
-			alc_auto_look_for_dac(codec, cfg->speaker_pins[0]);
+	if (cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		/* try to fill multi-io first */
+		unsigned int location, defcfg;
+		int num_pins;
 
-	return 0;
-}
+		defcfg = snd_hda_codec_get_pincfg(codec, cfg->line_out_pins[0]);
+		location = get_defcfg_location(defcfg);
 
-/* fill in the dac_nids table for surround speakers, etc */
-static int alc_auto_fill_extra_dacs(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	const struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i;
-
-	if (cfg->speaker_outs < 2 || !spec->multiout.extra_out_nid[0])
-		return 0;
-
-	for (i = 1; i < cfg->speaker_outs; i++)
-		spec->multiout.extra_out_nid[i] =
-			get_dac_if_single(codec, cfg->speaker_pins[i]);
-	for (i = 1; i < cfg->speaker_outs; i++) {
-		if (spec->multiout.extra_out_nid[i])
-			continue;
-		spec->multiout.extra_out_nid[i] =
-			alc_auto_look_for_dac(codec, cfg->speaker_pins[0]);
+		num_pins = alc_auto_fill_multi_ios(codec, location);
+		if (num_pins > 0) {
+			spec->multi_ios = num_pins;
+			spec->ext_channel_count = 2;
+			spec->multiout.num_dacs = num_pins + 1;
+		}
 	}
+
+	alc_auto_fill_extra_dacs(codec, cfg->hp_outs, cfg->hp_pins,
+				 spec->multiout.hp_out_nid);
+	alc_auto_fill_extra_dacs(codec, cfg->speaker_outs, cfg->speaker_pins,
+				 spec->multiout.extra_out_nid);
+
 	return 0;
 }
 
@@ -3264,6 +3280,7 @@ static int alc_auto_fill_multi_ios(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t prime_dac = spec->private_dac_nids[0];
 	int type, i, num_pins = 0;
 
 	for (type = AUTO_PIN_LINE_IN; type >= AUTO_PIN_MIC; type--) {
@@ -3291,8 +3308,13 @@ static int alc_auto_fill_multi_ios(struct hda_codec *codec,
 		}
 	}
 	spec->multiout.num_dacs = 1;
-	if (num_pins < 2)
+	if (num_pins < 2) {
+		/* clear up again */
+		memset(spec->private_dac_nids, 0,
+		       sizeof(spec->private_dac_nids));
+		spec->private_dac_nids[0] = prime_dac;
 		return 0;
+	}
 	return num_pins;
 }
 
@@ -3381,19 +3403,8 @@ static const struct snd_kcontrol_new alc_auto_channel_mode_enum = {
 static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int location, defcfg;
-	int num_pins;
 
-	if (cfg->line_outs != 1 ||
-	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
-		return 0;
-
-	defcfg = snd_hda_codec_get_pincfg(codec, cfg->line_out_pins[0]);
-	location = get_defcfg_location(defcfg);
-
-	num_pins = alc_auto_fill_multi_ios(codec, location);
-	if (num_pins > 0) {
+	if (spec->multi_ios > 0) {
 		struct snd_kcontrol_new *knew;
 
 		knew = alc_kcontrol_new(spec);
@@ -3403,10 +3414,6 @@ static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 		knew->name = kstrdup("Channel Mode", GFP_KERNEL);
 		if (!knew->name)
 			return -ENOMEM;
-
-		spec->multi_ios = num_pins;
-		spec->ext_channel_count = 2;
-		spec->multiout.num_dacs = num_pins + 1;
 	}
 	return 0;
 }
@@ -3721,9 +3728,6 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 	err = alc_auto_add_multi_channel_mode(codec);
-	if (err < 0)
-		return err;
-	err = alc_auto_fill_extra_dacs(codec);
 	if (err < 0)
 		return err;
 	err = alc_auto_create_multi_out_ctls(codec, cfg);
