@@ -33,6 +33,8 @@ obj-$(CONFIG_MACH_ARMLEX4210)		+= mach-armlex4210.o
 obj-$(CONFIG_MACH_UNIVERSAL_C210)	+= mach-universal_c210.o
 obj-$(CONFIG_MACH_NURI)			+= mach-nuri.o
 
+obj-$(CONFIG_MACH_SMDK4212)		+= mach-smdk4212.o
+
 # device support
 
 obj-y					+= dev-audio.o
