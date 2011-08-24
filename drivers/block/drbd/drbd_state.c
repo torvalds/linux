@@ -1162,10 +1162,8 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 	struct drbd_device *device = w->device;
 
 	after_state_ch(device, ascw->os, ascw->ns, ascw->flags);
-	if (ascw->flags & CS_WAIT_COMPLETE) {
-		D_ASSERT(device, ascw->done != NULL);
+	if (ascw->flags & CS_WAIT_COMPLETE)
 		complete(ascw->done);
-	}
 	kfree(ascw);
 
 	return 0;
