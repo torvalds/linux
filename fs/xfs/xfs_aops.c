@@ -88,8 +88,10 @@ xfs_destroy_ioend(
 	}
 
 	if (ioend->io_iocb) {
-		if (ioend->io_isasync)
-			aio_complete(ioend->io_iocb, ioend->io_result, 0);
+		if (ioend->io_isasync) {
+			aio_complete(ioend->io_iocb, ioend->io_error ?
+					ioend->io_error : ioend->io_result, 0);
+		}
 		inode_dio_done(ioend->io_inode);
 	}
 
@@ -141,9 +143,6 @@ xfs_setfilesize(
 	xfs_inode_t		*ip = XFS_I(ioend->io_inode);
 	xfs_fsize_t		isize;
 
-	if (unlikely(ioend->io_error))
-		return 0;
-
 	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
 		return EAGAIN;
 
@@ -189,17 +188,24 @@ xfs_end_io(
 	struct xfs_inode *ip = XFS_I(ioend->io_inode);
 	int		error = 0;
 
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		error = -EIO;
+		goto done;
+	}
+	if (ioend->io_error)
+		goto done;
+
 	/*
 	 * For unwritten extents we need to issue transactions to convert a
 	 * range to normal written extens after the data I/O has finished.
 	 */
-	if (ioend->io_type == IO_UNWRITTEN &&
-	    likely(!ioend->io_error && !XFS_FORCED_SHUTDOWN(ip->i_mount))) {
-
+	if (ioend->io_type == IO_UNWRITTEN) {
 		error = xfs_iomap_write_unwritten(ip, ioend->io_offset,
 						 ioend->io_size);
-		if (error)
-			ioend->io_error = error;
+		if (error) {
+			ioend->io_error = -error;
+			goto done;
+		}
 	}
 
 	/*
@@ -209,6 +215,7 @@ xfs_end_io(
 	error = xfs_setfilesize(ioend);
 	ASSERT(!error || error == EAGAIN);
 
+done:
 	/*
 	 * If we didn't complete processing of the ioend, requeue it to the
 	 * tail of the workqueue for another attempt later. Otherwise destroy
