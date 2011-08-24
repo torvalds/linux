@@ -255,12 +255,11 @@ config USB_S3C_HSOTG
 	  integrated into the S3C64XX series SoC.
 
 config USB_IMX
-	tristate "Freescale IMX USB Peripheral Controller"
-	depends on ARCH_MX1
+	tristate "Freescale i.MX1 USB Peripheral Controller"
+	depends on ARCH_MXC
 	help
-	   Freescale's IMX series include an integrated full speed
-	   USB 1.1 device controller.  The controller in the IMX series
-	   is register-compatible.
+	   Freescale's i.MX1 includes an integrated full speed
+	   USB 1.1 device controller.
 
 	   It has Six fixed-function endpoints, as well as endpoint
 	   zero (for control transfers).
