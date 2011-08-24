@@ -499,12 +499,12 @@ static void w8001_disconnect(struct serio *serio)
 {
 	struct w8001 *w8001 = serio_get_drvdata(serio);
 
-	input_get_device(w8001->dev);
-	input_unregister_device(w8001->dev);
 	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
-	input_put_device(w8001->dev);
+
+	input_unregister_device(w8001->dev);
 	kfree(w8001);
+
+	serio_set_drvdata(serio, NULL);
 }
 
 /*
