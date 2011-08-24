@@ -86,13 +86,5 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
 extern void serial8250_set_isa_configurator(void (*v)
 					(int port, struct uart_port *up,
 						unsigned short *capabilities));
-#ifndef SERIAL_8250_DW
-extern int serial8250_use_designware_io(struct uart_port *up);
-#else
-static inline int serial8250_use_designware_io(struct uart_port *up)
-{
-	return -EIO;
-}
-#endif
 
 #endif
