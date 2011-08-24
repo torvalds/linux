@@ -773,20 +773,6 @@ struct nand_oobinfo {
 				done according to the default builtin scheme.
 			</para>
 		</sect2>
-		<sect2 id="User_space_placement_selection">
-			<title>User space placement selection</title>
-		<para>
-			All non ecc functions like mtd->read and mtd->write use an internal 
-			structure, which can be set by an ioctl. This structure is preset 
-			to the autoplacement default.
-	     		<programlisting>
-	ioctl (fd, MEMSETOOBSEL, oobsel);
-	     		</programlisting>
-			oobsel is a pointer to a user supplied structure of type
-			nand_oobconfig. The contents of this structure must match the 
-			criteria of the filesystem, which will be used. See an example in utils/nandwrite.c.
-		</para>
-		</sect2>
 	</sect1>	
 	<sect1 id="Spare_area_autoplacement_default">
 		<title>Spare area autoplacement default schemes</title>
