@@ -530,7 +530,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	 * Ask the driver how many buffers and planes per buffer it requires.
 	 * Driver also sets the size and allocator context for each plane.
 	 */
-	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
+	ret = call_qop(q, queue_setup, q, NULL, &num_buffers, &num_planes,
 		       q->plane_sizes, q->alloc_ctx);
 	if (ret)
 		return ret;
@@ -549,8 +549,8 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 		unsigned int orig_num_buffers;
 
 		orig_num_buffers = num_buffers = ret;
-		ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
-			       q->plane_sizes, q->alloc_ctx);
+		ret = call_qop(q, queue_setup, q, NULL, &num_buffers,
+			       &num_planes, q->plane_sizes, q->alloc_ctx);
 		if (ret)
 			goto free_mem;
 

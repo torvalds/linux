@@ -218,9 +218,9 @@ struct vb2_buffer {
  *			pre-queued buffers before calling STREAMON
  */
 struct vb2_ops {
-	int (*queue_setup)(struct vb2_queue *q, unsigned int *num_buffers,
-			   unsigned int *num_planes, unsigned int sizes[],
-			   void *alloc_ctxs[]);
+	int (*queue_setup)(struct vb2_queue *q, const struct v4l2_format *fmt,
+			   unsigned int *num_buffers, unsigned int *num_planes,
+			   unsigned int sizes[], void *alloc_ctxs[]);
 
 	void (*wait_prepare)(struct vb2_queue *q);
 	void (*wait_finish)(struct vb2_queue *q);
