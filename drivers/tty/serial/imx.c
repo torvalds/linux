@@ -508,8 +508,10 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 		if (uart_handle_sysrq_char(&sport->port, (unsigned char)rx))
 			continue;
 
-		if (rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) ) {
-			if (rx & URXD_PRERR)
+		if (unlikely(rx & URXD_ERR)) {
+			if (rx & URXD_BRK)
+				sport->port.icount.brk++;
+			else if (rx & URXD_PRERR)
 				sport->port.icount.parity++;
 			else if (rx & URXD_FRMERR)
 				sport->port.icount.frame++;
@@ -524,7 +526,9 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 
 			rx &= sport->port.read_status_mask;
 
-			if (rx & URXD_PRERR)
+			if (rx & URXD_BRK)
+				flg = TTY_BREAK;
+			else if (rx & URXD_PRERR)
 				flg = TTY_PARITY;
 			else if (rx & URXD_FRMERR)
 				flg = TTY_FRAME;
