@@ -279,7 +279,6 @@ config BACKLIGHT_RK29_BL
 config BACKLIGHT_RK29_NEWTON_BL
         bool "rk29 newton backlight driver"
 	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
-	default y
 	help
 	  rk29 newton backlight support.	
 
