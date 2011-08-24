@@ -174,13 +174,12 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {
 	int i;
-	if (!trig->use_count) {
+	if (!trig->use_count)
 		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
 			if (trig->subirqs[i].enabled) {
 				trig->use_count++;
 				generic_handle_irq(trig->subirq_base + i);
 			}
-	}
 }
 EXPORT_SYMBOL(iio_trigger_poll);
 
@@ -322,12 +321,10 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 					char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	int len = 0;
+
 	if (dev_info->trig)
-		len = sprintf(buf,
-			      "%s\n",
-			      dev_info->trig->name);
-	return len;
+		return sprintf(buf, "%s\n", dev_info->trig->name);
+	return 0;
 }
 
 /**
@@ -496,23 +493,18 @@ EXPORT_SYMBOL(iio_free_trigger);
 
 int iio_device_register_trigger_consumer(struct iio_dev *dev_info)
 {
-	int ret;
-	ret = sysfs_create_group(&dev_info->dev.kobj,
-				 &iio_trigger_consumer_attr_group);
-	return ret;
+	return sysfs_create_group(&dev_info->dev.kobj,
+				  &iio_trigger_consumer_attr_group);
 }
-EXPORT_SYMBOL(iio_device_register_trigger_consumer);
 
-int iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
+void iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
 {
 	/* Clean up and associated but not attached triggers references */
 	if (dev_info->trig)
 		iio_put_trigger(dev_info->trig);
 	sysfs_remove_group(&dev_info->dev.kobj,
 			   &iio_trigger_consumer_attr_group);
-	return 0;
 }
-EXPORT_SYMBOL(iio_device_unregister_trigger_consumer);
 
 int iio_triggered_ring_postenable(struct iio_dev *indio_dev)
 {
