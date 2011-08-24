@@ -115,9 +115,18 @@
 #define SYN_REDUCED_FILTER_FUZZ		8
 
 /*
+ * A structure to describe which internal touchpad finger slots are being
+ * reported in raw packets.
+ */
+struct synaptics_mt_state {
+	int count;			/* num fingers being tracked */
+	int sgm;			/* which slot is reported by sgm pkt */
+	int agm;			/* which slot is reported by agm pkt*/
+};
+
+/*
  * A structure to describe the state of the touchpad hardware (buttons and pad)
  */
-
 struct synaptics_hw_state {
 	int x;
 	int y;
@@ -130,6 +139,9 @@ struct synaptics_hw_state {
 	unsigned int down:1;
 	unsigned char ext_buttons;
 	signed char scroll;
+
+	/* As reported in last AGM-CONTACT packets */
+	struct synaptics_mt_state mt_state;
 };
 
 struct synaptics_data {

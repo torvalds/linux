@@ -420,15 +420,39 @@ static void synaptics_pt_create(struct psmouse *psmouse)
  *	Functions to interpret the absolute mode packets
  ****************************************************************************/
 
+static void synaptics_mt_state_set(struct synaptics_mt_state *state, int count,
+				   int sgm, int agm)
+{
+	state->count = count;
+	state->sgm = sgm;
+	state->agm = agm;
+}
+
 static void synaptics_parse_agm(const unsigned char buf[],
-				struct synaptics_data *priv)
+				struct synaptics_data *priv,
+				struct synaptics_hw_state *hw)
 {
 	struct synaptics_hw_state *agm = &priv->agm;
+	int agm_packet_type;
 
-	/* Gesture packet: (x, y, z) at half resolution */
-	agm->x = (((buf[4] & 0x0f) << 8) | buf[1]) << 1;
-	agm->y = (((buf[4] & 0xf0) << 4) | buf[2]) << 1;
-	agm->z = ((buf[3] & 0x30) | (buf[5] & 0x0f)) << 1;
+	agm_packet_type = (buf[5] & 0x30) >> 4;
+	switch (agm_packet_type) {
+	case 1:
+		/* Gesture packet: (x, y, z) half resolution */
+		agm->w = hw->w;
+		agm->x = (((buf[4] & 0x0f) << 8) | buf[1]) << 1;
+		agm->y = (((buf[4] & 0xf0) << 4) | buf[2]) << 1;
+		agm->z = ((buf[3] & 0x30) | (buf[5] & 0x0f)) << 1;
+		break;
+
+	case 2:
+		/* AGM-CONTACT packet: (count, sgm, agm) */
+		synaptics_mt_state_set(&agm->mt_state, buf[1], buf[2], buf[4]);
+		break;
+
+	default:
+		break;
+	}
 }
 
 static int synaptics_parse_hw_state(const unsigned char buf[],
@@ -467,7 +491,7 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 		if ((SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) ||
 			SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) &&
 		    hw->w == 2) {
-			synaptics_parse_agm(buf, priv);
+			synaptics_parse_agm(buf, priv, hw);
 			return 1;
 		}
 
