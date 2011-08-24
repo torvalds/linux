@@ -276,6 +276,7 @@ struct vb2_queue {
 	wait_queue_head_t		done_wq;
 
 	void				*alloc_ctx[VIDEO_MAX_PLANES];
+	unsigned long			plane_sizes[VIDEO_MAX_PLANES];
 
 	unsigned int			streaming:1;
 
