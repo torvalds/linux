@@ -540,9 +540,6 @@ int __init check_zero_address(void)
 	return 1;
 
 failed:
-#ifdef CONFIG_DMAR
-	dmar_disabled = 1;
-#endif
 	return 0;
 }
 
