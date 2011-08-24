@@ -622,7 +622,7 @@ struct snd_soc_codec_driver {
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 	int (*writable_register)(struct snd_soc_codec *, unsigned int);
-	short reg_cache_size;
+	unsigned int reg_cache_size;
 	short reg_cache_step;
 	short reg_word_size;
 	const void *reg_cache_default;
