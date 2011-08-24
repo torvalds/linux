@@ -506,7 +506,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	int len, k, off, valid_states = 0;
 	unsigned char *ucp;
 	unsigned err;
-	unsigned long expiry, interval = 10;
+	unsigned long expiry, interval = 1;
 
 	expiry = round_jiffies_up(jiffies + ALUA_FAILOVER_TIMEOUT);
  retry:
@@ -567,7 +567,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	case TPGS_STATE_TRANSITIONING:
 		if (time_before(jiffies, expiry)) {
 			/* State transition, retry */
-			interval *= 10;
+			interval *= 2;
 			msleep(interval);
 			goto retry;
 		}
