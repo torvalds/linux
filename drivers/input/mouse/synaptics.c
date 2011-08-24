@@ -712,39 +712,38 @@ static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 /*****************************************************************************
  *	Driver initialization/cleanup functions
  ****************************************************************************/
+static void set_abs_position_params(struct input_dev *dev,
+				    struct synaptics_data *priv, int x_code,
+				    int y_code)
+{
+	int x_min = priv->x_min ?: XMIN_NOMINAL;
+	int x_max = priv->x_max ?: XMAX_NOMINAL;
+	int y_min = priv->y_min ?: YMIN_NOMINAL;
+	int y_max = priv->y_max ?: YMAX_NOMINAL;
+	int fuzz = SYN_CAP_REDUCED_FILTERING(priv->ext_cap_0c) ?
+			SYN_REDUCED_FILTER_FUZZ : 0;
+
+	input_set_abs_params(dev, x_code, x_min, x_max, fuzz, 0);
+	input_set_abs_params(dev, y_code, y_min, y_max, fuzz, 0);
+	input_abs_set_res(dev, x_code, priv->x_res);
+	input_abs_set_res(dev, y_code, priv->y_res);
+}
+
 static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 {
 	int i;
-	int fuzz = SYN_CAP_REDUCED_FILTERING(priv->ext_cap_0c) ?
-			SYN_REDUCED_FILTER_FUZZ : 0;
 
 	__set_bit(INPUT_PROP_POINTER, dev->propbit);
 
 	__set_bit(EV_ABS, dev->evbit);
-	input_set_abs_params(dev, ABS_X,
-			     priv->x_min ?: XMIN_NOMINAL,
-			     priv->x_max ?: XMAX_NOMINAL,
-			     fuzz, 0);
-	input_set_abs_params(dev, ABS_Y,
-			     priv->y_min ?: YMIN_NOMINAL,
-			     priv->y_max ?: YMAX_NOMINAL,
-			     fuzz, 0);
+	set_abs_position_params(dev, priv, ABS_X, ABS_Y);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
 	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 		input_mt_init_slots(dev, 2);
-		input_set_abs_params(dev, ABS_MT_POSITION_X,
-				     priv->x_min ?: XMIN_NOMINAL,
-				     priv->x_max ?: XMAX_NOMINAL,
-				     fuzz, 0);
-		input_set_abs_params(dev, ABS_MT_POSITION_Y,
-				     priv->y_min ?: YMIN_NOMINAL,
-				     priv->y_max ?: YMAX_NOMINAL,
-				     fuzz, 0);
-
-		input_abs_set_res(dev, ABS_MT_POSITION_X, priv->x_res);
-		input_abs_set_res(dev, ABS_MT_POSITION_Y, priv->y_res);
+		set_abs_position_params(dev, priv, ABS_MT_POSITION_X,
+					ABS_MT_POSITION_Y);
 	}
 
 	if (SYN_CAP_PALMDETECT(priv->capabilities))
@@ -776,9 +775,6 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	__clear_bit(EV_REL, dev->evbit);
 	__clear_bit(REL_X, dev->relbit);
 	__clear_bit(REL_Y, dev->relbit);
-
-	input_abs_set_res(dev, ABS_X, priv->x_res);
-	input_abs_set_res(dev, ABS_Y, priv->y_res);
 
 	if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
