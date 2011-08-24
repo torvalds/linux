@@ -74,11 +74,13 @@ static void dso__set_sorted_by_name(struct dso *dso, enum map_type type)
 
 bool symbol_type__is_a(char symbol_type, enum map_type map_type)
 {
+	symbol_type = toupper(symbol_type);
+
 	switch (map_type) {
 	case MAP__FUNCTION:
 		return symbol_type == 'T' || symbol_type == 'W';
 	case MAP__VARIABLE:
-		return symbol_type == 'D' || symbol_type == 'd';
+		return symbol_type == 'D';
 	default:
 		return false;
 	}
@@ -463,7 +465,7 @@ int kallsyms__parse(const char *filename, void *arg,
 		if (len + 2 >= line_len)
 			continue;
 
-		symbol_type = toupper(line[len]);
+		symbol_type = line[len];
 		len += 2;
 		symbol_name = line + len;
 		len = line_len - len;
