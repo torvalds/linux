@@ -27,16 +27,30 @@
 #include "bu92725guw.h"
 #include "ir_serial.h"
 
+
+#define MAX_FRAME_NUM 20
+struct rev_frame_length {
+	unsigned long frame_length[MAX_FRAME_NUM];
+	int iRead;
+	int iWrite;
+	int iCount;
+};
+
+#define frame_read_empty(f)		  ((f)->iCount == 0)
+#define frame_write_full(f)		  ((f)->iCount == MAX_FRAME_NUM)
+#define frame_length_buf_clear(f) ((f)->iCount = (f)->iWrite = (f)->iRead = 0)
+
 struct bu92747_port {
 	struct device		*dev;
 	struct irda_info *pdata;
 	struct uart_port port;
 
 	/*for FIR fream read*/
-	unsigned long last_frame_length;
+	struct rev_frame_length rev_frames;
+	//unsigned long last_frame_length;
 	unsigned long cur_frame_length; 
-	wait_queue_head_t data_ready_wq;
-	atomic_t data_ready;
+	//wait_queue_head_t data_ready_wq;
+	//atomic_t data_ready;
 	spinlock_t data_lock; 
 
 	int tx_empty;		/* last TX empty bit */
@@ -74,6 +88,37 @@ static u8 g_receive_buf[BU92725GUW_FIFO_SIZE];
 #else
 #define BU92747_IRDA_DBG(x...)
 #endif
+
+static int add_frame_length(struct rev_frame_length *f, unsigned long length)
+{
+	if (frame_write_full(f))
+		return -1;
+
+	f->frame_length[f->iWrite] = length;
+	printk("add one frame, length=%d\n", f->frame_length[f->iWrite]);
+	f->iCount++;
+	printk("now frame iCount=%d\n", f->iCount);
+	f->iWrite = (f->iWrite+1) % MAX_FRAME_NUM;
+	printk("now frame iWrite=%d\n", f->iWrite);
+	
+	
+	return 0;
+}
+
+static int get_frame_length(struct rev_frame_length *f, unsigned long *length)
+{
+	if (frame_read_empty(f))
+		return -1;
+
+	*length = f->frame_length[f->iRead];
+	printk("read one frame, length=%d\n", *length);
+	f->iCount--;
+	printk("now frame iCount=%d\n", f->iCount);
+	f->iRead = (f->iRead+1) % MAX_FRAME_NUM;
+	printk("now frame iRead=%d\n", f->iRead);
+	
+	return 0;
+}
 
 static int bu92747_irda_do_rx(struct bu92747_port *s)
 {
@@ -171,6 +216,7 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	struct bu92747_port *s = dev_id;
 	u32 irq_src = 0;
 	unsigned long len;
+	struct rev_frame_length *f = &(s->rev_frames);
 
 	dev_dbg(s->dev, "%s\n", __func__);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
@@ -193,20 +239,25 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 		len = bu92747_irda_do_rx(s);
 		if (!IS_FIR(s))
 			tty_flip_buffer_push(s->port.state->port.tty);
-		else
+		else {
 			spin_lock(&s->data_lock);
 			s->cur_frame_length += len;
 			spin_unlock(&s->data_lock);
+		}
 	}
 	
 	if ((irq_src & REG_INT_EOF) && (s->port.state->port.tty != NULL)) {
 		tty_flip_buffer_push(s->port.state->port.tty);
 		if (IS_FIR(s)) {
 			spin_lock(&s->data_lock);
-			s->last_frame_length += s->cur_frame_length;
-			s->cur_frame_length = 0;
-			atomic_set(&(s->data_ready), 1);
-			wake_up(&(s->data_ready_wq) );
+			if (add_frame_length(f, s->cur_frame_length) == 0) {
+				s->cur_frame_length = 0;
+				//atomic_set(&(s->data_ready), 1);
+				//wake_up(&(s->data_ready_wq) );
+			}
+			else {
+				printk("line %d: FIR frame length buf full......\n", __LINE__);				
+			}
 			spin_unlock(&s->data_lock);
 		}
 	}
@@ -337,6 +388,7 @@ static void bu92747_irda_shutdown(struct uart_port *port)
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 	dev_dbg(s->dev, "%s\n", __func__);
+	struct rev_frame_length *f = &(s->rev_frames);
 
 	if (s->suspending)
 		return;
@@ -350,8 +402,8 @@ static void bu92747_irda_shutdown(struct uart_port *port)
 	}
 
 	spin_lock(&s->data_lock);
-	atomic_set(&(s->data_ready), 0);
-	s->last_frame_length = 0;
+	//atomic_set(&(s->data_ready), 0);
+	frame_length_buf_clear(f);
 	s->cur_frame_length = 0;
 	spin_unlock(&s->data_lock);
 		
@@ -370,6 +422,7 @@ static int bu92747_irda_startup(struct uart_port *port)
 						  struct bu92747_port,
 						  port);
 	char b[32];
+	struct rev_frame_length *f = &(s->rev_frames);
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 	dev_dbg(s->dev, "%s\n", __func__);
@@ -378,7 +431,7 @@ static int bu92747_irda_startup(struct uart_port *port)
 	s->rx_enabled = 1;
 	
 	spin_lock(&s->data_lock);
-	s->last_frame_length = 0;
+	frame_length_buf_clear(f);
 	s->cur_frame_length = 0;
 	spin_unlock(&s->data_lock);
 
@@ -396,7 +449,7 @@ static int bu92747_irda_startup(struct uart_port *port)
 	}
 	INIT_WORK(&s->work, bu92747_irda_work);
 
-	atomic_set(&(s->data_ready), 0);
+	//atomic_set(&(s->data_ready), 0);
 
 	if (request_irq(s->irq, bu92747_irda_irq,
 			IRQ_TYPE_LEVEL_LOW, "bu92747_irda", s) < 0) {
@@ -504,7 +557,9 @@ bu92747_irda_set_termios(struct uart_port *port, struct ktermios *termios,
 
 static int bu92747_get_frame_length(struct bu92747_port *s)
 {
-	unsigned long len;
+	struct rev_frame_length *f = &(s->rev_frames);
+	unsigned long len = 0;
+#if 0
 	wait_event_interruptible_timeout(s->data_ready_wq, 
 									 atomic_read(&(s->data_ready) ),
 									 msecs_to_jiffies(1000) );
@@ -512,11 +567,12 @@ static int bu92747_get_frame_length(struct bu92747_port *s)
 		printk("waiting 'data_ready_wq' timed out.");
 		return -1;
 	}
-
+#endif
 	spin_lock(&s->data_lock);
-	len = s->last_frame_length;
-	s->last_frame_length = 0;
-	atomic_set(&(s->data_ready), 0);
+	if (get_frame_length(f, &len) != 0) {
+		printk("line %d: FIR data not ready......\n", __LINE__);
+		//atomic_set(&(s->data_ready), 0);
+	}
 	spin_unlock(&s->data_lock);
 	
 	return len;
@@ -649,7 +705,7 @@ static int __devinit bu92747_irda_probe(struct platform_device *pdev)
 	if (bu92747s[i]->pdata->irda_pwr_ctl)
 		bu92747s[i]->pdata->irda_pwr_ctl(0);
 	
-	init_waitqueue_head(&(bu92747s[i]->data_ready_wq));
+	//init_waitqueue_head(&(bu92747s[i]->data_ready_wq));
 
 	spin_lock_init(&(bu92747s[i]->data_lock));
 
