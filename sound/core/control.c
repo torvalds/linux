@@ -1072,7 +1072,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	long private_size;
 	struct user_element *ue;
 	int idx, err;
-	
+
 	if (card->user_ctl_count >= MAX_USER_CONTROLS)
 		return -ENOMEM;
 	if (info->count < 1)
