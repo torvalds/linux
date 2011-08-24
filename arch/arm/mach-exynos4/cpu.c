@@ -188,6 +188,12 @@ void __init exynos4_init_clocks(int xtal)
 
 	s3c24xx_register_baseclocks(xtal);
 	s5p_register_clocks(xtal);
+
+	if (soc_is_exynos4210())
+		exynos4210_register_clocks();
+	else if (soc_is_exynos4212())
+		exynos4212_register_clocks();
+
 	exynos4_register_clocks();
 	exynos4_setup_clocks();
 }

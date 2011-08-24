@@ -14,6 +14,8 @@
 
 extern void exynos4_common_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 extern void exynos4_register_clocks(void);
+extern void exynos4210_register_clocks(void);
+extern void exynos4212_register_clocks(void);
 extern void exynos4_setup_clocks(void);
 
 #ifdef CONFIG_ARCH_EXYNOS4
