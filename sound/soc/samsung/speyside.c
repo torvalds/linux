@@ -223,7 +223,7 @@ static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
 	snd_soc_dapm_nc_pin(dapm, "LINEOUT");
 
 	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK,
+	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK, 0,
 					48000 * 256, 0);
 }
 
