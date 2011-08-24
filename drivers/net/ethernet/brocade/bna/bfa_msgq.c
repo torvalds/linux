@@ -483,7 +483,7 @@ bfa_msgq_rspq_pi_update(struct bfa_msgq_rspq *rspq, struct bfi_mbmsg *mb)
 		mc = msghdr->msg_class;
 		num_entries = ntohs(msghdr->num_entries);
 
-		if ((mc > BFI_MC_MAX) || (rspq->rsphdlr[mc].cbfn == NULL))
+		if ((mc >= BFI_MC_MAX) || (rspq->rsphdlr[mc].cbfn == NULL))
 			break;
 
 		(rspq->rsphdlr[mc].cbfn)(rspq->rsphdlr[mc].cbarg, msghdr);
