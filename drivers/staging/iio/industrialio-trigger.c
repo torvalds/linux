@@ -215,6 +215,26 @@ void iio_trigger_notify_done(struct iio_trigger *trig)
 EXPORT_SYMBOL(iio_trigger_notify_done);
 
 /* Trigger Consumer related functions */
+static int iio_trigger_get_irq(struct iio_trigger *trig)
+{
+	int ret;
+	mutex_lock(&trig->pool_lock);
+	ret = bitmap_find_free_region(trig->pool,
+				      CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+				      ilog2(1));
+	mutex_unlock(&trig->pool_lock);
+	if (ret >= 0)
+		ret += trig->subirq_base;
+
+	return ret;
+}
+
+static void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
+{
+	mutex_lock(&trig->pool_lock);
+	clear_bit(irq - trig->subirq_base, trig->pool);
+	mutex_unlock(&trig->pool_lock);
+}
 
 /* Complexity in here.  With certain triggers (datardy) an acknowledgement
  * may be needed if the pollfuncs do not include the data read for the
@@ -223,8 +243,8 @@ EXPORT_SYMBOL(iio_trigger_notify_done);
  * the relevant function is in there may be the best option.
  */
 /* Worth protecting against double additions?*/
-int iio_trigger_attach_poll_func(struct iio_trigger *trig,
-				 struct iio_poll_func *pf)
+static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
+					struct iio_poll_func *pf)
 {
 	int ret = 0;
 	bool notinuse
@@ -241,10 +261,9 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 
 	return ret;
 }
-EXPORT_SYMBOL(iio_trigger_attach_poll_func);
 
-int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
-				  struct iio_poll_func *pf)
+static int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
+					 struct iio_poll_func *pf)
 {
 	int ret = 0;
 	bool no_other_users
@@ -263,7 +282,6 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 error_ret:
 	return ret;
 }
-EXPORT_SYMBOL(iio_trigger_dettach_poll_func);
 
 irqreturn_t iio_pollfunc_store_time(int irq, void *p)
 {

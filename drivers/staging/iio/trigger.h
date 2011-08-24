@@ -104,23 +104,6 @@ int iio_trigger_register(struct iio_trigger *trig_info);
 void iio_trigger_unregister(struct iio_trigger *trig_info);
 
 /**
- * iio_trigger_attach_poll_func() - add a function pair to be run on trigger
- * @trig:	trigger to which the function pair are being added
- * @pf:		poll function pair
- **/
-int iio_trigger_attach_poll_func(struct iio_trigger *trig,
-				 struct iio_poll_func *pf);
-
-/**
- * iio_trigger_dettach_poll_func() -	remove function pair from those to be
- *					run on trigger
- * @trig:	trigger from which the function is being removed
- * @pf:		poll function pair
- **/
-int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
-				  struct iio_poll_func *pf);
-
-/**
  * iio_trigger_poll() - called on a trigger occurring
  * @trig: trigger which occurred
  *
@@ -129,29 +112,7 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 void iio_trigger_poll(struct iio_trigger *trig, s64 time);
 void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time);
 
-
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
-
-static inline int iio_trigger_get_irq(struct iio_trigger *trig)
-{
-	int ret;
-	mutex_lock(&trig->pool_lock);
-	ret = bitmap_find_free_region(trig->pool,
-				      CONFIG_IIO_CONSUMERS_PER_TRIGGER,
-				      ilog2(1));
-	mutex_unlock(&trig->pool_lock);
-	if (ret >= 0)
-		ret += trig->subirq_base;
-
-	return ret;
-};
-
-static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
-{
-	mutex_lock(&trig->pool_lock);
-	clear_bit(irq - trig->subirq_base, trig->pool);
-	mutex_unlock(&trig->pool_lock);
-};
 
 struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
 	__attribute__((format(printf, 1, 2)));
