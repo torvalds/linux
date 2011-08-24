@@ -46,7 +46,7 @@
  */
 LIST_HEAD(dmar_drhd_units);
 
-static struct acpi_table_header * __initdata dmar_tbl;
+struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
 
 static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
