@@ -179,7 +179,6 @@ static int XGIfb_userom ;
 /*static int XGIfb_useoem = -1; */
 
 /* global flags */
-static int XGIfb_registered;
 static int XGIfb_tvmode;
 static int XGIfb_pdc;
 static int enable_dstn;
@@ -192,13 +191,6 @@ static int XGIfb_CRT2_write_enable;
 static int XGIfb_crt2type = -1;
 /* PR: Tv plug type (for overriding autodetection) */
 static int XGIfb_tvplug = -1;
-
-static unsigned char XGIfb_detectedpdc;
-
-static unsigned char XGIfb_detectedlcda = 0xff;
-
-
-
 
 /* TW: For ioctl XGIFB_GET_INFO */
 /* XGIfb_info XGIfbinfo; */

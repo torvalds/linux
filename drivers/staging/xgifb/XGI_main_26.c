@@ -2046,8 +2046,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (XGIfb_off)
 		return -ENXIO;
 
-	XGIfb_registered = 0;
-
 	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	if (!fb_info)
@@ -2307,12 +2305,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		}
 	}
 
-	XGIfb_detectedpdc = 0;
-
-	XGIfb_detectedlcda = 0xff;
-
-	/* TW: Try to find about LCDA */
-
 	if ((XGIhw_ext.ujVBChipID == VB_CHIP_302B) ||
 			(XGIhw_ext.ujVBChipID == VB_CHIP_301LV) ||
 			(XGIhw_ext.ujVBChipID == VB_CHIP_302LV)) {
@@ -2475,8 +2467,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		ret = -EINVAL;
 		goto error_1;
 	}
-
-	XGIfb_registered = 1;
 
 	printk(KERN_INFO "fb%d: %s frame buffer device, Version %d.%d.%02d\n",
 	       fb_info->node, myid, VER_MAJOR, VER_MINOR, VER_LEVEL);
