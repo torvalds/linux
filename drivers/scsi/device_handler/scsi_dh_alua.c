@@ -677,23 +677,10 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 
 }
 
-static const struct scsi_dh_devlist alua_dev_list[] = {
-	{"HP", "MSA VOLUME" },
-	{"HP", "HSV101" },
-	{"HP", "HSV111" },
-	{"HP", "HSV200" },
-	{"HP", "HSV210" },
-	{"HP", "HSV300" },
-	{"IBM", "2107900" },
-	{"IBM", "2145" },
-	{"Pillar", "Axiom" },
-	{"Intel", "Multi-Flex"},
-	{"NETAPP", "LUN"},
-	{"NETAPP", "LUN C-Mode"},
-	{"AIX", "NVDISK"},
-	{"Promise", "VTrak"},
-	{NULL, NULL}
-};
+static bool alua_match(struct scsi_device *sdev)
+{
+	return (scsi_device_tpgs(sdev) != 0);
+}
 
 static int alua_bus_attach(struct scsi_device *sdev);
 static void alua_bus_detach(struct scsi_device *sdev);
@@ -701,12 +688,12 @@ static void alua_bus_detach(struct scsi_device *sdev);
 static struct scsi_device_handler alua_dh = {
 	.name = ALUA_DH_NAME,
 	.module = THIS_MODULE,
-	.devlist = alua_dev_list,
 	.attach = alua_bus_attach,
 	.detach = alua_bus_detach,
 	.prep_fn = alua_prep_fn,
 	.check_sense = alua_check_sense,
 	.activate = alua_activate,
+	.match = alua_match,
 };
 
 /*
