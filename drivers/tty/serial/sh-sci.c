@@ -1913,6 +1913,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 
 		port->dev = &dev->dev;
 
+		pm_runtime_irq_safe(&dev->dev);
 		pm_runtime_enable(&dev->dev);
 	}
 
