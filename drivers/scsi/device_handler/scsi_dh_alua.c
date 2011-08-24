@@ -504,7 +504,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 {
 	struct scsi_sense_hdr sense_hdr;
 	int len, k, off, valid_states = 0;
-	char *ucp;
+	unsigned char *ucp;
 	unsigned err;
 	unsigned long expiry, interval = 10;
 
