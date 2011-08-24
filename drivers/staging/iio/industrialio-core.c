@@ -22,8 +22,8 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include "iio.h"
-#include "trigger_consumer.h"
 #include "iio_core.h"
+#include "iio_core_trigger.h"
 
 #define IIO_ID_PREFIX "device"
 #define IIO_ID_FORMAT IIO_ID_PREFIX "%d"
