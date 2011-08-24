@@ -72,7 +72,7 @@ int debug_level = 7;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   1500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.01 The last modify date is 2011-08-19,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.04 The last modify date is 2011-08-24,modifyed by XBW." 
 
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
 #define RK29_CTRL_SDIO1_ID   1  //mainly used by sdio-wifi
@@ -269,7 +269,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     
     if( !strncmp(buf,"version" , strlen("version")))
     {
-        printk("The driver SDMMC named 'rk29_sdmmc.c' is %s. ====xbw====\n", RK29_SDMMC_VERSION);
+        printk("\n The driver SDMMC named 'rk29_sdmmc.c' is %s. ==xbw==\n", RK29_SDMMC_VERSION);
         return count;
     }
     
@@ -741,6 +741,10 @@ static void send_stop_cmd(struct rk29_sdmmc *host)
     host->stopcmd.mrq = NULL;
     host->stopcmd.retries = 0;
     host->stopcmd.error = 0;
+    if(host->mrq && host->mrq->stop)
+    {
+        host->mrq->stop->error = 0;
+    }
     
     host->cmdr = rk29_sdmmc_prepare_command(&host->stopcmd);
     rk29_sdmmc_start_command(host, &host->stopcmd, host->cmdr);    
@@ -1132,6 +1136,7 @@ static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *dat
     {
         host->data = data;
         data->error = 0;
+        host->cmd->data = data;
 
         data->bytes_xfered = 0;
         host->pbuf = (u32*)sg_virt(data->sg);
@@ -1719,6 +1724,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
 	mrq = host->mrq;
 	cmd = mrq->cmd;
 	cmd->error = 0;
+	cmd->data = NULL;
 
     host->cmdr = cmdr;
     host->cmd = cmd;
@@ -1813,6 +1819,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	    printk("%s..%d..  ==== The %s had been closed by myself for the experiment. ====xbw[%s]===\n",\
 				__FUNCTION__, __LINE__, host->dma_name, host->dma_name);
 
+        host->state = STATE_IDLE;
         spin_unlock_irqrestore(&host->lock, iflags);
 	    mmc_request_done(mmc, mrq);
 		goto request_ext;//return;
@@ -1857,9 +1864,10 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
                 		printk("%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  3==xbw[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name);
             		}
+            		host->old_cmd = mrq->cmd->opcode;
         	    }	    
     		}
-
+            host->state = STATE_IDLE;
             spin_unlock_irqrestore(&host->lock, iflags);
     		mmc_request_done(mmc, mrq);
     		goto request_ext;//return;
@@ -2204,6 +2212,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
             printk("%s..%d......CMD=%d error!!!, arg=%x, errorTimes=%d, errorStep=0x%x ! ====xbw[%s]====\n",\
                 __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, host->error_times,host->errorstep, host->dma_name);
         }
+        cmd->error = -ENODATA;
     }
 
 exit:
@@ -2499,8 +2508,11 @@ unlock:
     
 	 host->state = STATE_IDLE;
 	 spin_unlock(&host->lock);
-	 
-	 mmc_request_done(host->mmc, host->mrq);
+
+	 if(host->mrq)
+	 {
+	    mmc_request_done(host->mmc, host->mrq);
+	 }
 }
 
 
@@ -2798,6 +2810,8 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	host->error_times = 0;
 	host->state = STATE_IDLE;
 	host->complete_done = 0;
+	host->mrq = NULL;
+	host->new_mrq = NULL;
 	
 #ifdef CONFIG_PM
     host->gpio_det = pdata->detect_irq;
