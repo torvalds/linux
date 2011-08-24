@@ -4,7 +4,8 @@
 
 # Each configuration option enables a list of files.
 
-obj-$(CONFIG_KEYS_RK29)				+= rk29_keys.o
+obj-$(CONFIG_KEYS_RK29)			+= rk29_keys.o
+obj-$(CONFIG_KEYS_RK29_NEWTON)		+= rk29_newton_keys.o
 obj-$(CONFIG_KEYBOARD_AAED2000)		+= aaed2000_kbd.o
 obj-$(CONFIG_KEYBOARD_ADP5588)		+= adp5588-keys.o
 obj-$(CONFIG_KEYBOARD_AMIGA)		+= amikbd.o
@@ -14,7 +15,7 @@ obj-$(CONFIG_KEYBOARD_BFIN)		+= bf54x-keys.o
 obj-$(CONFIG_KEYBOARD_CORGI)		+= corgikbd.o
 obj-$(CONFIG_KEYBOARD_EP93XX)		+= ep93xx_keypad.o
 obj-$(CONFIG_KEYBOARD_GPIO)		+= gpio_keys.o
-obj-$(CONFIG_KEYBOARD_WM831X_GPIO)		+= wm831x_gpio_keys.o
+obj-$(CONFIG_KEYBOARD_WM831X_GPIO)	+= wm831x_gpio_keys.o
 obj-$(CONFIG_KEYBOARD_HIL)		+= hil_kbd.o
 obj-$(CONFIG_KEYBOARD_HIL_OLD)		+= hilkbd.o
 obj-$(CONFIG_KEYBOARD_HP6XX)		+= jornada680_kbd.o
