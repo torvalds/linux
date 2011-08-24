@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include "nvec.h"
 
 static unsigned char EC_DISABLE_EVENT_REPORTING[] =	{'\x04','\x00','\x00'};
@@ -29,6 +30,25 @@ static unsigned char EC_ENABLE_EVENT_REPORTING[] =	{'\x04','\x00','\x01'};
 static unsigned char EC_GET_FIRMWARE_VERSION[] =	{'\x07','\x15'};
 
 static struct nvec_chip *nvec_power_handle;
+
+static struct mfd_cell nvec_devices[] = {
+	{
+		.name	= "nvec-kbd",
+		.id	= 1,
+	},
+	{
+		.name	= "nvec-mouse",
+		.id	= 1,
+	},
+	{
+		.name	= "nvec-power",
+		.id	= 1,
+	},
+	{
+		.name	= "nvec-power",
+		.id	= 2,
+	},
+};
 
 int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
 				unsigned int events)
@@ -139,7 +159,7 @@ static void nvec_dispatch(struct work_struct *work)
 		} else {
 			parse_msg(nvec, msg);
 			if((!msg) || (!msg->data))
-				dev_warn(nvec->dev, "attempt access zero pointer");
+				dev_warn(nvec->dev, "attempt access zero pointer\n");
 			else {
 				kfree(msg->data);
 				kfree(msg);
@@ -148,16 +168,16 @@ static void nvec_dispatch(struct work_struct *work)
 	}
 }
 
-static irqreturn_t i2c_interrupt(int irq, void *dev)
+static irqreturn_t nvec_interrupt(int irq, void *dev)
 {
 	unsigned long status;
 	unsigned long received;
 	unsigned char to_send;
 	struct nvec_msg *msg;
 	struct nvec_chip *nvec = (struct nvec_chip *)dev;
-	unsigned char *i2c_regs = nvec->i2c_regs;
+	void __iomem *base = nvec->base;
 
-	status = readl(i2c_regs + I2C_SL_STATUS);
+	status = readl(base + I2C_SL_STATUS);
 
 	if(!(status & I2C_SL_IRQ))
 	{
@@ -222,7 +242,7 @@ static irqreturn_t i2c_interrupt(int irq, void *dev)
 				nvec->state = NVEC_WAIT;
 			}
 		}
-		writel(to_send, i2c_regs + I2C_SL_RCVD);
+		writel(to_send, base + I2C_SL_RCVD);
 
 		gpio_set_value(nvec->gpio, 1);
 
@@ -230,10 +250,10 @@ static irqreturn_t i2c_interrupt(int irq, void *dev)
 
 		goto handled;
 	} else {
-		received = readl(i2c_regs + I2C_SL_RCVD);
+		received = readl(base + I2C_SL_RCVD);
 		//Workaround?
 		if(status & RCVD) {
-			writel(0, i2c_regs + I2C_SL_RCVD);
+			writel(0, base + I2C_SL_RCVD);
 			goto handled;
 		}
 
@@ -258,37 +278,26 @@ handled:
 	return IRQ_HANDLED;
 }
 
-static int __devinit nvec_add_subdev(struct nvec_chip *nvec, struct nvec_subdev *subdev)
-{
-	struct platform_device *pdev;
-
-	pdev = platform_device_alloc(subdev->name, subdev->id);
-	pdev->dev.parent = nvec->dev;
-	pdev->dev.platform_data = subdev->platform_data;
-
-	return platform_device_add(pdev);
-}
-
-static void tegra_init_i2c_slave(struct nvec_platform_data *pdata, unsigned char *i2c_regs,
-					struct clk *i2c_clk)
+static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 {
 	u32 val;
 
-	clk_enable(i2c_clk);
-	tegra_periph_reset_assert(i2c_clk);
+	clk_enable(nvec->i2c_clk);
+
+	tegra_periph_reset_assert(nvec->i2c_clk);
 	udelay(2);
-	tegra_periph_reset_deassert(i2c_clk);
+	tegra_periph_reset_deassert(nvec->i2c_clk);
 
-	writel(pdata->i2c_addr>>1, i2c_regs + I2C_SL_ADDR1);
-	writel(0, i2c_regs + I2C_SL_ADDR2);
+	writel(nvec->i2c_addr>>1, nvec->base + I2C_SL_ADDR1);
+	writel(0, nvec->base + I2C_SL_ADDR2);
 
-	writel(0x1E, i2c_regs + I2C_SL_DELAY_COUNT);
+	writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
 	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
 		(0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
-	writel(val, i2c_regs + I2C_CNFG);
-	writel(I2C_SL_NEWL, i2c_regs + I2C_SL_CNFG);
+	writel(val, nvec->base + I2C_CNFG);
+	writel(I2C_SL_NEWL, nvec->base + I2C_SL_CNFG);
 
-	clk_disable(i2c_clk);
+	clk_disable(nvec->i2c_clk);
 }
 
 static void nvec_power_off(void)
@@ -299,12 +308,14 @@ static void nvec_power_off(void)
 
 static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 {
-	int err, i, ret;
+	int err, ret;
 	struct clk *i2c_clk;
 	struct nvec_platform_data *pdata = pdev->dev.platform_data;
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
-	unsigned char *i2c_regs;
+	struct resource *res;
+	struct resource *iomem;
+	void __iomem *base;
 
 	nvec = kzalloc(sizeof(struct nvec_chip), GFP_KERNEL);
 	if(nvec == NULL) {
@@ -314,48 +325,50 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = &pdev->dev;
 	nvec->gpio = pdata->gpio;
-	nvec->irq = pdata->irq;
+	nvec->i2c_addr = pdata->i2c_addr;
 
-/*
-	i2c_clk=clk_get_sys(NULL, "i2c");
-	if(IS_ERR_OR_NULL(i2c_clk))
-		printk(KERN_ERR"No such clock tegra-i2c.2\n");
-	else
-		clk_enable(i2c_clk);
-*/
-	i2c_regs = ioremap(pdata->base, pdata->size);
-	if(!i2c_regs) {
-		dev_err(nvec->dev, "failed to ioremap registers\n");
-		goto failed;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "no mem resource?\n");
+		return -ENODEV;
 	}
 
-	nvec->i2c_regs = i2c_regs;
-
-	i2c_clk = clk_get_sys(pdata->clock, NULL);
-	if(IS_ERR_OR_NULL(i2c_clk)) {
-		dev_err(nvec->dev, "failed to get clock tegra-i2c.2\n");
-		goto failed;
+	iomem = request_mem_region(res->start, resource_size(res), pdev->name);
+	if (!iomem) {
+		dev_err(&pdev->dev, "I2C region already claimed\n");
+		return -EBUSY;
 	}
 
-	tegra_init_i2c_slave(pdata, i2c_regs, i2c_clk);
+	base = ioremap(iomem->start, resource_size(iomem));
+	if (!base) {
+		dev_err(&pdev->dev, "Can't ioremap I2C region\n");
+		return -ENOMEM;
+	}
 
-	err = request_irq(nvec->irq, i2c_interrupt, IRQF_DISABLED, "nvec", nvec);
-	if(err) {
-		dev_err(nvec->dev, "couldn't request irq");
-		goto failed;
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "no irq resource?\n");
+		ret = -ENODEV;
+		goto err_iounmap;
+	}
+
+	i2c_clk = clk_get_sys("tegra-i2c.2", NULL);
+	if (IS_ERR(i2c_clk)) {
+		dev_err(nvec->dev, "failed to get controller clock\n");
+		goto err_iounmap;
 	}
 
 	clk_enable(i2c_clk);
 	clk_set_rate(i2c_clk, 8*80000);
 
+	nvec->base = base;
+	nvec->irq = res->start;
+	nvec->i2c_clk = i2c_clk;
+
 	/* Set the gpio to low when we've got something to say */
 	err = gpio_request(nvec->gpio, "nvec gpio");
 	if(err < 0)
 		dev_err(nvec->dev, "couldn't request gpio\n");
-
-	tegra_gpio_enable(nvec->gpio);
-	gpio_direction_output(nvec->gpio, 1);
-	gpio_set_value(nvec->gpio, 1);
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&nvec->notifier_list);
 
@@ -366,19 +379,20 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->rx_work, nvec_dispatch);
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 
+	err = request_irq(nvec->irq, nvec_interrupt, 0, "nvec", nvec);
+	if (err) {
+		dev_err(nvec->dev, "couldn't request irq\n");
+		goto failed;
+	}
+
+	tegra_init_i2c_slave(nvec);
+
+	gpio_direction_output(nvec->gpio, 1);
+	gpio_set_value(nvec->gpio, 1);
+
 	/* enable event reporting */
 	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING,
 				sizeof(EC_ENABLE_EVENT_REPORTING));
-
-	nvec_kbd_init(nvec);
-#ifdef CONFIG_SERIO_NVEC_PS2
-	nvec_ps2(nvec);
-#endif
-
-        /* setup subdevs */
-	for (i = 0; i < pdata->num_subdevs; i++) {
-		ret = nvec_add_subdev(nvec, &pdata->subdevs[i]);
-	}
 
 	nvec->nvec_status_notifier.notifier_call = nvec_status_notifier;
 	nvec_register_notifier(nvec, &nvec->nvec_status_notifier, 0);
@@ -396,6 +410,11 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	kfree(msg->data);
 	kfree(msg);
 
+	ret = mfd_add_devices(nvec->dev, -1, nvec_devices,
+			ARRAY_SIZE(nvec_devices), base, 0);
+	if(ret)
+		dev_err(nvec->dev, "error adding subdevices\n");
+
 	/* unmute speakers? */
 	nvec_write_async(nvec, "\x0d\x10\x59\x94", 4);
 
@@ -407,6 +426,8 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_iounmap:
+	iounmap(base);
 failed:
 	kfree(nvec);
 	return -ENOMEM;
@@ -414,7 +435,15 @@ failed:
 
 static int __devexit tegra_nvec_remove(struct platform_device *pdev)
 {
-	// TODO: unregister
+	struct nvec_chip *nvec = platform_get_drvdata(pdev);
+
+	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
+	mfd_remove_devices(nvec->dev);
+	free_irq(nvec->irq, &nvec_interrupt);
+	iounmap(nvec->base);
+	gpio_free(nvec->gpio);
+	kfree(nvec);
+
 	return 0;
 }
 
@@ -436,6 +465,7 @@ static int tegra_nvec_resume(struct platform_device *pdev) {
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
 	dev_dbg(nvec->dev, "resuming\n");
+	tegra_init_i2c_slave(nvec);
 	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING, 3);
 
 	return 0;

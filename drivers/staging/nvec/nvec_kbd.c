@@ -1,6 +1,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include "nvec-keytable.h"
 #include "nvec.h"
 
@@ -66,8 +67,9 @@ static int nvec_kbd_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
-int __init nvec_kbd_init(struct nvec_chip *nvec)
+static int __devinit nvec_kbd_probe(struct platform_device *pdev)
 {
+	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	int i, j, err;
 	struct input_dev *idev;
 
@@ -120,3 +122,18 @@ fail:
 	input_free_device(idev);
 	return err;
 }
+
+static struct platform_driver nvec_kbd_driver = {
+	.probe	= nvec_kbd_probe,
+	.driver	= {
+		.name   = "nvec-kbd",
+		.owner  = THIS_MODULE,
+	},
+};
+
+static int __init nvec_kbd_init(void)
+{
+	return platform_driver_register(&nvec_kbd_driver);
+}
+
+module_init(nvec_kbd_init);

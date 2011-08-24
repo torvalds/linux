@@ -45,21 +45,17 @@ struct nvec_subdev {
 };
 
 struct nvec_platform_data {
-	int num_subdevs;
 	int i2c_addr;
 	int gpio;
-	int irq;
-	int base;
-	int size;
-	char clock[16];
-	struct nvec_subdev *subdevs;
 };
 
 struct nvec_chip {
 	struct device *dev;
 	int gpio;
 	int irq;
-	unsigned char *i2c_regs;
+	int i2c_addr;
+	void __iomem *base;
+	struct clk *i2c_clk;
 	nvec_state state;
 	struct atomic_notifier_head notifier_list;
 	struct list_head rx_data, tx_data;
@@ -83,9 +79,6 @@ extern int nvec_unregister_notifier(struct device *dev,
 		struct notifier_block *nb, unsigned int events);
 
 const char *nvec_send_msg(unsigned char *src, unsigned char *dst_size, how_care care_resp, void (*rt_handler)(unsigned char *data));
-
-extern int nvec_ps2(struct nvec_chip *nvec);
-extern int nvec_kbd_init(struct nvec_chip *nvec);
 
 #define I2C_CNFG			0x00
 #define I2C_CNFG_PACKET_MODE_EN		(1<<10)

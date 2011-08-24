@@ -1,6 +1,7 @@
 #include <linux/slab.h>
 #include <linux/serio.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include "nvec.h"
 
 #define START_STREAMING	{'\x06','\x03','\x01'}
@@ -77,8 +78,9 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 }
 
 
-int __init nvec_ps2(struct nvec_chip *nvec)
+static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 {
+	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
 
 	ser_dev->id.type=SERIO_8042;
@@ -101,3 +103,18 @@ int __init nvec_ps2(struct nvec_chip *nvec)
 
 	return 0;
 }
+
+static struct platform_driver nvec_mouse_driver = {
+	.probe	= nvec_mouse_probe,
+	.driver	= {
+		.name	= "nvec-mouse",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init nvec_mouse_init(void)
+{
+	return platform_driver_register(&nvec_mouse_driver);
+}
+
+module_init(nvec_mouse_init);
