@@ -19,6 +19,17 @@
 #define B43_PHY_HT_BW5				0x1D2
 #define B43_PHY_HT_BW6				0x1D3
 
+#define B43_PHY_HT_RF_SEQ_MODE			B43_PHY_EXTG(0x000)
+#define B43_PHY_HT_RF_SEQ_TRIG			B43_PHY_EXTG(0x003)
+#define  B43_PHY_HT_RF_SEQ_TRIG_RX2TX		0x0001 /* RX2TX */
+#define  B43_PHY_HT_RF_SEQ_TRIG_TX2RX		0x0002 /* TX2RX */
+#define  B43_PHY_HT_RF_SEQ_TRIG_UPGH		0x0004 /* Update gain H */
+#define  B43_PHY_HT_RF_SEQ_TRIG_UPGL		0x0008 /* Update gain L */
+#define  B43_PHY_HT_RF_SEQ_TRIG_UPGU		0x0010 /* Update gain U */
+#define  B43_PHY_HT_RF_SEQ_TRIG_RST2RX		0x0020 /* Reset to RX */
+#define B43_PHY_HT_RF_SEQ_STATUS		B43_PHY_EXTG(0x004)
+/* Values for the status are the same as for the trigger */
+
 #define B43_PHY_HT_RF_CTL1			B43_PHY_EXTG(0x010)
 
 #define B43_PHY_HT_AFE_CTL1			B43_PHY_EXTG(0x110)
