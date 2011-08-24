@@ -22,6 +22,7 @@
 #include "../ring_generic.h"
 #include "../ring_sw.h"
 #include "../trigger.h"
+#include "../trigger_consumer.h"
 
 #include "ad7793.h"
 

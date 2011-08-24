@@ -9,6 +9,7 @@
 #include "../ring_sw.h"
 #include "../kfifo_buf.h"
 #include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "lis3l02dq.h"
 
 /**

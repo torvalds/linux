@@ -19,6 +19,7 @@
 #include "trigger.h"
 #include "iio_core.h"
 #include "iio_core_trigger.h"
+#include "trigger_consumer.h"
 
 /* RFC - Question of approach
  * Make the common case (single sensor single trigger)
