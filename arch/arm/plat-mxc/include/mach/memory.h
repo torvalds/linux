@@ -23,12 +23,6 @@
 #if !defined(CONFIG_RUNTIME_PHYS_OFFSET)
 # if defined CONFIG_ARCH_MX3
 #  define PLAT_PHYS_OFFSET		MX3x_PHYS_OFFSET
-# elif defined CONFIG_ARCH_MX50
-#  define PLAT_PHYS_OFFSET		MX50_PHYS_OFFSET
-# elif defined CONFIG_ARCH_MX51
-#  define PLAT_PHYS_OFFSET		MX51_PHYS_OFFSET
-# elif defined CONFIG_ARCH_MX53
-#  define PLAT_PHYS_OFFSET		MX53_PHYS_OFFSET
 # endif
 #endif
 
