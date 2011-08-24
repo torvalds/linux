@@ -11,10 +11,6 @@
 
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
 
-#define VER_MAJOR                 0
-#define VER_MINOR                 8
-#define VER_LEVEL                 1
-
 #ifndef PCI_VENDOR_ID_XG
 #define PCI_VENDOR_ID_XG          0x18CA
 #endif

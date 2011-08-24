@@ -2468,9 +2468,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		goto error_1;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device, Version %d.%d.%02d\n",
-	       fb_info->node, myid, VER_MAJOR, VER_MINOR, VER_LEVEL);
-
 	dumpVGAReg();
 
 	return 0;
