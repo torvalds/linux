@@ -3390,6 +3390,151 @@ static void __init init_iommu_pm_ops(void)
 static inline void init_iommu_pm_ops(void) {}
 #endif	/* CONFIG_PM */
 
+LIST_HEAD(dmar_rmrr_units);
+
+static void __init dmar_register_rmrr_unit(struct dmar_rmrr_unit *rmrr)
+{
+	list_add(&rmrr->list, &dmar_rmrr_units);
+}
+
+
+int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header)
+{
+	struct acpi_dmar_reserved_memory *rmrr;
+	struct dmar_rmrr_unit *rmrru;
+
+	rmrru = kzalloc(sizeof(*rmrru), GFP_KERNEL);
+	if (!rmrru)
+		return -ENOMEM;
+
+	rmrru->hdr = header;
+	rmrr = (struct acpi_dmar_reserved_memory *)header;
+	rmrru->base_address = rmrr->base_address;
+	rmrru->end_address = rmrr->end_address;
+
+	dmar_register_rmrr_unit(rmrru);
+	return 0;
+}
+
+static int __init
+rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
+{
+	struct acpi_dmar_reserved_memory *rmrr;
+	int ret;
+
+	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
+	ret = dmar_parse_dev_scope((void *)(rmrr + 1),
+		((void *)rmrr) + rmrr->header.length,
+		&rmrru->devices_cnt, &rmrru->devices, rmrr->segment);
+
+	if (ret || (rmrru->devices_cnt == 0)) {
+		list_del(&rmrru->list);
+		kfree(rmrru);
+	}
+	return ret;
+}
+
+static LIST_HEAD(dmar_atsr_units);
+
+int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
+{
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
+	atsru = kzalloc(sizeof(*atsru), GFP_KERNEL);
+	if (!atsru)
+		return -ENOMEM;
+
+	atsru->hdr = hdr;
+	atsru->include_all = atsr->flags & 0x1;
+
+	list_add(&atsru->list, &dmar_atsr_units);
+
+	return 0;
+}
+
+static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
+{
+	int rc;
+	struct acpi_dmar_atsr *atsr;
+
+	if (atsru->include_all)
+		return 0;
+
+	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+	rc = dmar_parse_dev_scope((void *)(atsr + 1),
+				(void *)atsr + atsr->header.length,
+				&atsru->devices_cnt, &atsru->devices,
+				atsr->segment);
+	if (rc || !atsru->devices_cnt) {
+		list_del(&atsru->list);
+		kfree(atsru);
+	}
+
+	return rc;
+}
+
+int dmar_find_matched_atsr_unit(struct pci_dev *dev)
+{
+	int i;
+	struct pci_bus *bus;
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	dev = pci_physfn(dev);
+
+	list_for_each_entry(atsru, &dmar_atsr_units, list) {
+		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+		if (atsr->segment == pci_domain_nr(dev->bus))
+			goto found;
+	}
+
+	return 0;
+
+found:
+	for (bus = dev->bus; bus; bus = bus->parent) {
+		struct pci_dev *bridge = bus->self;
+
+		if (!bridge || !pci_is_pcie(bridge) ||
+		    bridge->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+			return 0;
+
+		if (bridge->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
+			for (i = 0; i < atsru->devices_cnt; i++)
+				if (atsru->devices[i] == bridge)
+					return 1;
+			break;
+		}
+	}
+
+	if (atsru->include_all)
+		return 1;
+
+	return 0;
+}
+
+int dmar_parse_rmrr_atsr_dev(void)
+{
+	struct dmar_rmrr_unit *rmrr, *rmrr_n;
+	struct dmar_atsr_unit *atsr, *atsr_n;
+	int ret = 0;
+
+	list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
+		ret = rmrr_parse_dev(rmrr);
+		if (ret)
+			return ret;
+	}
+
+	list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
+		ret = atsr_parse_dev(atsr);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 /*
  * Here we only respond to action of unbound device from driver.
  *
@@ -3453,6 +3598,12 @@ int __init intel_iommu_init(void)
 			panic("tboot: Failed to initialize iommu memory\n");
 		return 	-ENODEV;
 	}
+
+	if (list_empty(&dmar_rmrr_units))
+		printk(KERN_INFO "DMAR: No RMRR found\n");
+
+	if (list_empty(&dmar_atsr_units))
+		printk(KERN_INFO "DMAR: No ATSR found\n");
 
 	if (dmar_init_reserved_ranges()) {
 		if (force_on)

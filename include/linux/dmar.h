@@ -237,9 +237,26 @@ struct dmar_atsr_unit {
 	u8 include_all:1;		/* include all ports */
 };
 
+int dmar_parse_rmrr_atsr_dev(void);
+extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
+extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
+extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
+				struct pci_dev ***devices, u16 segment);
 extern int intel_iommu_init(void);
 #else /* !CONFIG_DMAR: */
 static inline int intel_iommu_init(void) { return -ENODEV; }
+static inline int dmar_parse_one_rmrr(struct acpi_dmar_header *header)
+{
+	return 0;
+}
+static inline int dmar_parse_one_atsr(struct acpi_dmar_header *header)
+{
+	return 0;
+}
+static inline int dmar_parse_rmrr_atsr_dev(void)
+{
+	return 0;
+}
 #endif /* CONFIG_DMAR */
 
 #endif /* __DMAR_H__ */
