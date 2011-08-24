@@ -104,6 +104,12 @@ struct otp_info {
 	__u32 locked;
 };
 
+/*
+ * Note, the following ioctl existed in the past and was removed:
+ * #define MEMSETOOBSEL           _IOW('M', 9, struct nand_oobinfo)
+ * Try to avoid adding a new ioctl with the same ioctl number.
+ */
+
 #define MEMGETINFO		_IOR('M', 1, struct mtd_info_user)
 #define MEMERASE		_IOW('M', 2, struct erase_info_user)
 #define MEMWRITEOOB		_IOWR('M', 3, struct mtd_oob_buf)
@@ -112,7 +118,6 @@ struct otp_info {
 #define MEMUNLOCK		_IOW('M', 6, struct erase_info_user)
 #define MEMGETREGIONCOUNT	_IOR('M', 7, int)
 #define MEMGETREGIONINFO	_IOWR('M', 8, struct region_info_user)
-#define MEMSETOOBSEL		_IOW('M', 9, struct nand_oobinfo)
 #define MEMGETOOBSEL		_IOR('M', 10, struct nand_oobinfo)
 #define MEMGETBADBLOCK		_IOW('M', 11, __kernel_loff_t)
 #define MEMSETBADBLOCK		_IOW('M', 12, __kernel_loff_t)
