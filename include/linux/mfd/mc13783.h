@@ -89,18 +89,15 @@ static inline int mc13783_irq_ack(struct mc13783 *mc13783, int irq)
 	return mc13xxx_irq_ack(mc13783_to_mc13xxx(mc13783), irq);
 }
 
-#define MC13783_ADC0		43
-#define MC13783_ADC0_ADREFEN		(1 << 10)
-#define MC13783_ADC0_ADREFMODE		(1 << 11)
-#define MC13783_ADC0_TSMOD0		(1 << 12)
-#define MC13783_ADC0_TSMOD1		(1 << 13)
-#define MC13783_ADC0_TSMOD2		(1 << 14)
-#define MC13783_ADC0_ADINC1		(1 << 16)
-#define MC13783_ADC0_ADINC2		(1 << 17)
+#define MC13783_ADC0		MC13XXX_ADC0
+#define MC13783_ADC0_ADREFEN		MC13XXX_ADC0_ADREFEN
+#define MC13783_ADC0_TSMOD0		MC13XXX_ADC0_TSMOD0
+#define MC13783_ADC0_TSMOD1		MC13XXX_ADC0_TSMOD1
+#define MC13783_ADC0_TSMOD2		MC13XXX_ADC0_TSMOD2
+#define MC13783_ADC0_ADINC1		MC13XXX_ADC0_ADINC1
+#define MC13783_ADC0_ADINC2		MC13XXX_ADC0_ADINC2
 
-#define MC13783_ADC0_TSMOD_MASK		(MC13783_ADC0_TSMOD0 | \
-					MC13783_ADC0_TSMOD1 | \
-					MC13783_ADC0_TSMOD2)
+#define MC13783_ADC0_TSMOD_MASK		MC13XXX_ADC0_TSMOD_MASK
 
 #define mc13783_regulator_init_data mc13xxx_regulator_init_data
 #define mc13783_regulator_platform_data mc13xxx_regulator_platform_data
@@ -115,12 +112,16 @@ static inline int mc13783_irq_ack(struct mc13783 *mc13783, int irq)
 #define MC13783_USE_REGULATOR	MC13XXX_USE_REGULATOR
 #define MC13783_USE_LED		MC13XXX_USE_LED
 
-#define MC13783_ADC_MODE_TS		1
-#define MC13783_ADC_MODE_SINGLE_CHAN	2
-#define MC13783_ADC_MODE_MULT_CHAN	3
+#define MC13783_ADC_MODE_TS		MC13XXX_ADC_MODE_TS
+#define MC13783_ADC_MODE_SINGLE_CHAN	MC13XXX_ADC_MODE_SINGLE_CHAN
+#define MC13783_ADC_MODE_MULT_CHAN	MC13XXX_ADC_MODE_MULT_CHAN
 
-int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
-		unsigned int channel, unsigned int *sample);
+static inline int mc13783_adc_do_conversion(struct mc13783 *mc13783,
+		unsigned int mode, unsigned int channel, unsigned int *sample)
+{
+	return mc13xxx_adc_do_conversion(mc13783_to_mc13xxx(mc13783), mode,
+			channel, sample);
+}
 
 
 #define	MC13783_REG_SW1A		0

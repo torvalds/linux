@@ -37,6 +37,9 @@ int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq);
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx);
 
+int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
+		unsigned int mode, unsigned int channel, unsigned int *sample);
+
 #define MC13XXX_IRQ_ADCDONE	0
 #define MC13XXX_IRQ_ADCBISDONE	1
 #define MC13XXX_IRQ_TS		2
@@ -149,5 +152,21 @@ struct mc13xxx_platform_data {
 	struct mc13xxx_regulator_platform_data regulators;
 	struct mc13xxx_leds_platform_data *leds;
 };
+
+#define MC13XXX_ADC_MODE_TS		1
+#define MC13XXX_ADC_MODE_SINGLE_CHAN	2
+#define MC13XXX_ADC_MODE_MULT_CHAN	3
+
+#define MC13XXX_ADC0		43
+#define MC13XXX_ADC0_ADREFEN		(1 << 10)
+#define MC13XXX_ADC0_TSMOD0		(1 << 12)
+#define MC13XXX_ADC0_TSMOD1		(1 << 13)
+#define MC13XXX_ADC0_TSMOD2		(1 << 14)
+#define MC13XXX_ADC0_ADINC1		(1 << 16)
+#define MC13XXX_ADC0_ADINC2		(1 << 17)
+
+#define MC13XXX_ADC0_TSMOD_MASK		(MC13XXX_ADC0_TSMOD0 | \
+					MC13XXX_ADC0_TSMOD1 | \
+					MC13XXX_ADC0_TSMOD2)
 
 #endif /* ifndef __LINUX_MFD_MC13XXX_H */

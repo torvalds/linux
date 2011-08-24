@@ -26,12 +26,12 @@ struct mc13xxx {
 
 	irq_handler_t irqhandler[MC13XXX_NUM_IRQ];
 	void *irqdata[MC13XXX_NUM_IRQ];
+
+	int adcflags;
 };
 
 struct mc13783 {
 	struct mc13xxx mc13xxx;
-
-	int adcflags;
 };
 
 struct mc13xxx *mc13783_to_mc13xxx(struct mc13783 *mc13783)
@@ -136,14 +136,14 @@ EXPORT_SYMBOL(mc13783_to_mc13xxx);
 #define MC13XXX_REVISION_FAB		(0x03 << 11)
 #define MC13XXX_REVISION_ICIDCODE	(0x3f << 13)
 
-#define MC13783_ADC1		44
-#define MC13783_ADC1_ADEN		(1 << 0)
-#define MC13783_ADC1_RAND		(1 << 1)
-#define MC13783_ADC1_ADSEL		(1 << 3)
-#define MC13783_ADC1_ASC		(1 << 20)
-#define MC13783_ADC1_ADTRIGIGN		(1 << 21)
+#define MC13XXX_ADC1		44
+#define MC13XXX_ADC1_ADEN		(1 << 0)
+#define MC13XXX_ADC1_RAND		(1 << 1)
+#define MC13XXX_ADC1_ADSEL		(1 << 3)
+#define MC13XXX_ADC1_ASC		(1 << 20)
+#define MC13XXX_ADC1_ADTRIGIGN		(1 << 21)
 
-#define MC13783_ADC2		45
+#define MC13XXX_ADC2		45
 
 #define MC13XXX_NUMREGS 0x3f
 
@@ -569,15 +569,15 @@ int mc13xxx_get_flags(struct mc13xxx *mc13xxx)
 }
 EXPORT_SYMBOL(mc13xxx_get_flags);
 
-#define MC13783_ADC1_CHAN0_SHIFT	5
-#define MC13783_ADC1_CHAN1_SHIFT	8
+#define MC13XXX_ADC1_CHAN0_SHIFT	5
+#define MC13XXX_ADC1_CHAN1_SHIFT	8
 
 struct mc13xxx_adcdone_data {
 	struct mc13xxx *mc13xxx;
 	struct completion done;
 };
 
-static irqreturn_t mc13783_handler_adcdone(int irq, void *data)
+static irqreturn_t mc13xxx_handler_adcdone(int irq, void *data)
 {
 	struct mc13xxx_adcdone_data *adcdone_data = data;
 
@@ -588,12 +588,11 @@ static irqreturn_t mc13783_handler_adcdone(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#define MC13783_ADC_WORKING (1 << 0)
+#define MC13XXX_ADC_WORKING (1 << 0)
 
-int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
+int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 		unsigned int channel, unsigned int *sample)
 {
-	struct mc13xxx *mc13xxx = &mc13783->mc13xxx;
 	u32 adc0, adc1, old_adc0;
 	int i, ret;
 	struct mc13xxx_adcdone_data adcdone_data = {
@@ -605,51 +604,51 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 
 	mc13xxx_lock(mc13xxx);
 
-	if (mc13783->adcflags & MC13783_ADC_WORKING) {
+	if (mc13xxx->adcflags & MC13XXX_ADC_WORKING) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	mc13783->adcflags |= MC13783_ADC_WORKING;
+	mc13xxx->adcflags |= MC13XXX_ADC_WORKING;
 
-	mc13xxx_reg_read(mc13xxx, MC13783_ADC0, &old_adc0);
+	mc13xxx_reg_read(mc13xxx, MC13XXX_ADC0, &old_adc0);
 
-	adc0 = MC13783_ADC0_ADINC1 | MC13783_ADC0_ADINC2;
-	adc1 = MC13783_ADC1_ADEN | MC13783_ADC1_ADTRIGIGN | MC13783_ADC1_ASC;
+	adc0 = MC13XXX_ADC0_ADINC1 | MC13XXX_ADC0_ADINC2;
+	adc1 = MC13XXX_ADC1_ADEN | MC13XXX_ADC1_ADTRIGIGN | MC13XXX_ADC1_ASC;
 
 	if (channel > 7)
-		adc1 |= MC13783_ADC1_ADSEL;
+		adc1 |= MC13XXX_ADC1_ADSEL;
 
 	switch (mode) {
-	case MC13783_ADC_MODE_TS:
-		adc0 |= MC13783_ADC0_ADREFEN | MC13783_ADC0_TSMOD0 |
-			MC13783_ADC0_TSMOD1;
-		adc1 |= 4 << MC13783_ADC1_CHAN1_SHIFT;
+	case MC13XXX_ADC_MODE_TS:
+		adc0 |= MC13XXX_ADC0_ADREFEN | MC13XXX_ADC0_TSMOD0 |
+			MC13XXX_ADC0_TSMOD1;
+		adc1 |= 4 << MC13XXX_ADC1_CHAN1_SHIFT;
 		break;
 
-	case MC13783_ADC_MODE_SINGLE_CHAN:
-		adc0 |= old_adc0 & MC13783_ADC0_TSMOD_MASK;
-		adc1 |= (channel & 0x7) << MC13783_ADC1_CHAN0_SHIFT;
-		adc1 |= MC13783_ADC1_RAND;
+	case MC13XXX_ADC_MODE_SINGLE_CHAN:
+		adc0 |= old_adc0 & MC13XXX_ADC0_TSMOD_MASK;
+		adc1 |= (channel & 0x7) << MC13XXX_ADC1_CHAN0_SHIFT;
+		adc1 |= MC13XXX_ADC1_RAND;
 		break;
 
-	case MC13783_ADC_MODE_MULT_CHAN:
-		adc0 |= old_adc0 & MC13783_ADC0_TSMOD_MASK;
-		adc1 |= 4 << MC13783_ADC1_CHAN1_SHIFT;
+	case MC13XXX_ADC_MODE_MULT_CHAN:
+		adc0 |= old_adc0 & MC13XXX_ADC0_TSMOD_MASK;
+		adc1 |= 4 << MC13XXX_ADC1_CHAN1_SHIFT;
 		break;
 
 	default:
-		mc13783_unlock(mc13783);
+		mc13xxx_unlock(mc13xxx);
 		return -EINVAL;
 	}
 
-	dev_dbg(&mc13783->mc13xxx.spidev->dev, "%s: request irq\n", __func__);
-	mc13xxx_irq_request(mc13xxx, MC13783_IRQ_ADCDONE,
-			mc13783_handler_adcdone, __func__, &adcdone_data);
-	mc13xxx_irq_ack(mc13xxx, MC13783_IRQ_ADCDONE);
+	dev_dbg(&mc13xxx->spidev->dev, "%s: request irq\n", __func__);
+	mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_ADCDONE,
+			mc13xxx_handler_adcdone, __func__, &adcdone_data);
+	mc13xxx_irq_ack(mc13xxx, MC13XXX_IRQ_ADCDONE);
 
-	mc13xxx_reg_write(mc13xxx, MC13783_ADC0, adc0);
-	mc13xxx_reg_write(mc13xxx, MC13783_ADC1, adc1);
+	mc13xxx_reg_write(mc13xxx, MC13XXX_ADC0, adc0);
+	mc13xxx_reg_write(mc13xxx, MC13XXX_ADC1, adc1);
 
 	mc13xxx_unlock(mc13xxx);
 
@@ -660,27 +659,27 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 
 	mc13xxx_lock(mc13xxx);
 
-	mc13xxx_irq_free(mc13xxx, MC13783_IRQ_ADCDONE, &adcdone_data);
+	mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_ADCDONE, &adcdone_data);
 
 	if (ret > 0)
 		for (i = 0; i < 4; ++i) {
 			ret = mc13xxx_reg_read(mc13xxx,
-					MC13783_ADC2, &sample[i]);
+					MC13XXX_ADC2, &sample[i]);
 			if (ret)
 				break;
 		}
 
-	if (mode == MC13783_ADC_MODE_TS)
+	if (mode == MC13XXX_ADC_MODE_TS)
 		/* restore TSMOD */
-		mc13xxx_reg_write(mc13xxx, MC13783_ADC0, old_adc0);
+		mc13xxx_reg_write(mc13xxx, MC13XXX_ADC0, old_adc0);
 
-	mc13783->adcflags &= ~MC13783_ADC_WORKING;
+	mc13xxx->adcflags &= ~MC13XXX_ADC_WORKING;
 out:
 	mc13xxx_unlock(mc13xxx);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mc13783_adc_do_conversion);
+EXPORT_SYMBOL_GPL(mc13xxx_adc_do_conversion);
 
 static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 		const char *format, void *pdata, size_t pdata_size)
