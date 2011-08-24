@@ -410,7 +410,7 @@ static int mtd_do_writeoob(struct file *file, struct mtd_info *mtd,
 		return ret;
 
 	ops.ooblen = length;
-	ops.ooboffs = start & (mtd->oobsize - 1);
+	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
 	ops.mode = MTD_OOB_PLACE;
 
@@ -421,7 +421,7 @@ static int mtd_do_writeoob(struct file *file, struct mtd_info *mtd,
 	if (IS_ERR(ops.oobbuf))
 		return PTR_ERR(ops.oobbuf);
 
-	start &= ~((uint64_t)mtd->oobsize - 1);
+	start &= ~((uint64_t)mtd->writesize - 1);
 	ret = mtd->write_oob(mtd, start, &ops);
 
 	if (ops.oobretlen > 0xFFFFFFFFU)
@@ -452,7 +452,7 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 		return ret;
 
 	ops.ooblen = length;
-	ops.ooboffs = start & (mtd->oobsize - 1);
+	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
 	ops.mode = MTD_OOB_PLACE;
 
@@ -463,7 +463,7 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 	if (!ops.oobbuf)
 		return -ENOMEM;
 
-	start &= ~((uint64_t)mtd->oobsize - 1);
+	start &= ~((uint64_t)mtd->writesize - 1);
 	ret = mtd->read_oob(mtd, start, &ops);
 
 	if (put_user(ops.oobretlen, retp))
