@@ -20,6 +20,7 @@
 
 #include <media/media-entity.h>
 #include <media/videobuf2-core.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
@@ -62,6 +63,7 @@ enum fimc_dev_flags {
 	ST_CAPT_STREAM,
 	ST_CAPT_SHUT,
 	ST_CAPT_BUSY,
+	ST_CAPT_APPLY_CFG,
 };
 
 #define fimc_m2m_active(dev) test_bit(ST_M2M_RUN, &(dev)->state)
@@ -127,11 +129,6 @@ enum fimc_color_fmt {
 #define	FIMC_COLOR_RANGE_WIDE		(0 << 3)
 /* Y (16 ~ 235), Cb/Cr (16 ~ 240) */
 #define	FIMC_COLOR_RANGE_NARROW		(1 << 3)
-
-#define	FLIP_NONE			0
-#define	FLIP_X_AXIS			1
-#define	FLIP_Y_AXIS			2
-#define	FLIP_XY_AXIS			(FLIP_X_AXIS | FLIP_Y_AXIS)
 
 /**
  * struct fimc_fmt - the driver's internal color format data
@@ -455,12 +452,18 @@ struct fimc_dev {
  * @scaler:		image scaler properties
  * @effect:		image effect
  * @rotation:		image clockwise rotation in degrees
- * @flip:		image flip mode
+ * @hflip:		indicates image horizontal flip if set
+ * @vflip:		indicates image vertical flip if set
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
  * @fimc_dev:		the FIMC device this context applies to
  * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
+ * @ctrl_handler:	v4l2 controls handler
+ * @ctrl_rotate		image rotation control
+ * @ctrl_hflip		horizontal flip control
+ * @ctrl_vflip		vartical flip control
+ * @ctrls_rdy:		true if the control handler is initialized
  */
 struct fimc_ctx {
 	spinlock_t		slock;
@@ -475,12 +478,18 @@ struct fimc_ctx {
 	struct fimc_scaler	scaler;
 	struct fimc_effect	effect;
 	int			rotation;
-	u32			flip;
+	unsigned int		hflip:1;
+	unsigned int		vflip:1;
 	u32			flags;
 	u32			state;
 	struct fimc_dev		*fimc_dev;
 	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct v4l2_fh		fh;
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl	*ctrl_rotate;
+	struct v4l2_ctrl	*ctrl_hflip;
+	struct v4l2_ctrl	*ctrl_vflip;
+	bool			ctrls_rdy;
 };
 
 #define fh_to_ctx(__fh) container_of(__fh, struct fimc_ctx, fh)
@@ -636,15 +645,11 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 				struct v4l2_fmtdesc *f);
-int fimc_vidioc_queryctrl(struct file *file, void *priv,
-			  struct v4l2_queryctrl *qc);
-int fimc_vidioc_g_ctrl(struct file *file, void *priv,
-		       struct v4l2_control *ctrl);
-
 int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f);
 int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr);
-int check_ctrl_val(struct fimc_ctx *ctx,  struct v4l2_control *ctrl);
-int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl);
+int fimc_ctrls_create(struct fimc_ctx *ctx);
+void fimc_ctrls_delete(struct fimc_ctx *ctx);
+void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
 int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f);
 
 struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask);
@@ -667,6 +672,7 @@ void fimc_unregister_driver(void);
 int fimc_register_capture_device(struct fimc_dev *fimc,
 				 struct v4l2_device *v4l2_dev);
 void fimc_unregister_capture_device(struct fimc_dev *fimc);
+int fimc_capture_ctrls_create(struct fimc_dev *fimc);
 int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
 			     struct fimc_vid_buffer *fimc_vb);
 int fimc_capture_suspend(struct fimc_dev *fimc);

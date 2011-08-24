@@ -162,43 +162,6 @@ static struct fimc_fmt fimc_formats[] = {
 	},
 };
 
-static struct v4l2_queryctrl fimc_ctrls[] = {
-	{
-		.id		= V4L2_CID_HFLIP,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Horizontal flip",
-		.minimum	= 0,
-		.maximum	= 1,
-		.default_value	= 0,
-	}, {
-		.id		= V4L2_CID_VFLIP,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Vertical flip",
-		.minimum	= 0,
-		.maximum	= 1,
-		.default_value	= 0,
-	}, {
-		.id		= V4L2_CID_ROTATE,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Rotation (CCW)",
-		.minimum	= 0,
-		.maximum	= 270,
-		.step		= 90,
-		.default_value	= 0,
-	},
-};
-
-
-static struct v4l2_queryctrl *get_ctrl(int id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(fimc_ctrls); ++i)
-		if (id == fimc_ctrls[i].id)
-			return &fimc_ctrls[i];
-	return NULL;
-}
-
 int fimc_check_scaler_ratio(int sw, int sh, int dw, int dh, int rot)
 {
 	int tx, ty;
@@ -777,6 +740,116 @@ static struct vb2_ops fimc_qops = {
 	.start_streaming = start_streaming,
 };
 
+/*
+ * V4L2 controls handling
+ */
+#define ctrl_to_ctx(__ctrl) \
+	container_of((__ctrl)->handler, struct fimc_ctx, ctrl_handler)
+
+static int fimc_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct fimc_ctx *ctx = ctrl_to_ctx(ctrl);
+	struct fimc_dev *fimc = ctx->fimc_dev;
+	struct samsung_fimc_variant *variant = fimc->variant;
+	unsigned long flags;
+	int ret = 0;
+
+	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+		spin_lock_irqsave(&ctx->slock, flags);
+		ctx->hflip = ctrl->val;
+		break;
+
+	case V4L2_CID_VFLIP:
+		spin_lock_irqsave(&ctx->slock, flags);
+		ctx->vflip = ctrl->val;
+		break;
+
+	case V4L2_CID_ROTATE:
+		if (fimc_capture_pending(fimc) ||
+		    fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
+			ret = fimc_check_scaler_ratio(ctx->s_frame.width,
+					ctx->s_frame.height, ctx->d_frame.width,
+					ctx->d_frame.height, ctrl->val);
+		}
+		if (ret) {
+			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");
+			return -EINVAL;
+		}
+		if ((ctrl->val == 90 || ctrl->val == 270) &&
+		    !variant->has_out_rot)
+			return -EINVAL;
+		spin_lock_irqsave(&ctx->slock, flags);
+		ctx->rotation = ctrl->val;
+		break;
+
+	default:
+		v4l2_err(fimc->v4l2_dev, "Invalid control: 0x%X\n", ctrl->id);
+		return -EINVAL;
+	}
+	ctx->state |= FIMC_PARAMS;
+	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
+	spin_unlock_irqrestore(&ctx->slock, flags);
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops fimc_ctrl_ops = {
+	.s_ctrl = fimc_s_ctrl,
+};
+
+int fimc_ctrls_create(struct fimc_ctx *ctx)
+{
+	if (ctx->ctrls_rdy)
+		return 0;
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
+
+	ctx->ctrl_rotate = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
+				     V4L2_CID_HFLIP, 0, 1, 1, 0);
+	ctx->ctrl_hflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
+				    V4L2_CID_VFLIP, 0, 1, 1, 0);
+	ctx->ctrl_vflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
+				    V4L2_CID_ROTATE, 0, 270, 90, 0);
+	ctx->ctrls_rdy = ctx->ctrl_handler.error == 0;
+
+	return ctx->ctrl_handler.error;
+}
+
+void fimc_ctrls_delete(struct fimc_ctx *ctx)
+{
+	if (ctx->ctrls_rdy) {
+		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+		ctx->ctrls_rdy = false;
+	}
+}
+
+void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
+{
+	if (!ctx->ctrls_rdy)
+		return;
+
+	mutex_lock(&ctx->ctrl_handler.lock);
+	v4l2_ctrl_activate(ctx->ctrl_rotate, active);
+	v4l2_ctrl_activate(ctx->ctrl_hflip, active);
+	v4l2_ctrl_activate(ctx->ctrl_vflip, active);
+
+	if (active) {
+		ctx->rotation = ctx->ctrl_rotate->val;
+		ctx->hflip    = ctx->ctrl_hflip->val;
+		ctx->vflip    = ctx->ctrl_vflip->val;
+	} else {
+		ctx->rotation = 0;
+		ctx->hflip    = 0;
+		ctx->vflip    = 0;
+	}
+	mutex_unlock(&ctx->ctrl_handler.lock);
+}
+
+/*
+ * V4L2 ioctl handlers
+ */
 static int fimc_m2m_querycap(struct file *file, void *fh,
 			     struct v4l2_capability *cap)
 {
@@ -1073,136 +1146,6 @@ static int fimc_m2m_streamoff(struct file *file, void *fh,
 	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
-int fimc_vidioc_queryctrl(struct file *file, void *fh,
-			  struct v4l2_queryctrl *qc)
-{
-	struct fimc_ctx *ctx = fh_to_ctx(fh);
-	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct v4l2_queryctrl *c;
-	int ret = -EINVAL;
-
-	c = get_ctrl(qc->id);
-	if (c) {
-		*qc = *c;
-		return 0;
-	}
-
-	if (fimc_ctx_state_is_set(FIMC_CTX_CAP, ctx)) {
-		return v4l2_subdev_call(ctx->fimc_dev->vid_cap.sd,
-					core, queryctrl, qc);
-	}
-	return ret;
-}
-
-int fimc_vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *ctrl)
-{
-	struct fimc_ctx *ctx = fh_to_ctx(fh);
-	struct fimc_dev *fimc = ctx->fimc_dev;
-
-	switch (ctrl->id) {
-	case V4L2_CID_HFLIP:
-		ctrl->value = (FLIP_X_AXIS & ctx->flip) ? 1 : 0;
-		break;
-	case V4L2_CID_VFLIP:
-		ctrl->value = (FLIP_Y_AXIS & ctx->flip) ? 1 : 0;
-		break;
-	case V4L2_CID_ROTATE:
-		ctrl->value = ctx->rotation;
-		break;
-	default:
-		if (fimc_ctx_state_is_set(FIMC_CTX_CAP, ctx)) {
-			return v4l2_subdev_call(fimc->vid_cap.sd, core,
-						g_ctrl, ctrl);
-		} else {
-			v4l2_err(fimc->m2m.vfd, "Invalid control\n");
-			return -EINVAL;
-		}
-	}
-	dbg("ctrl->value= %d", ctrl->value);
-
-	return 0;
-}
-
-int check_ctrl_val(struct fimc_ctx *ctx,  struct v4l2_control *ctrl)
-{
-	struct v4l2_queryctrl *c;
-	c = get_ctrl(ctrl->id);
-	if (!c)
-		return -EINVAL;
-
-	if (ctrl->value < c->minimum || ctrl->value > c->maximum
-		|| (c->step != 0 && ctrl->value % c->step != 0)) {
-		v4l2_err(ctx->fimc_dev->m2m.vfd, "Invalid control value\n");
-		return -ERANGE;
-	}
-
-	return 0;
-}
-
-int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
-{
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
-	struct fimc_dev *fimc = ctx->fimc_dev;
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_HFLIP:
-		if (ctrl->value)
-			ctx->flip |= FLIP_X_AXIS;
-		else
-			ctx->flip &= ~FLIP_X_AXIS;
-		break;
-
-	case V4L2_CID_VFLIP:
-		if (ctrl->value)
-			ctx->flip |= FLIP_Y_AXIS;
-		else
-			ctx->flip &= ~FLIP_Y_AXIS;
-		break;
-
-	case V4L2_CID_ROTATE:
-		if (fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
-			ret = fimc_check_scaler_ratio(ctx->s_frame.width,
-					ctx->s_frame.height, ctx->d_frame.width,
-					ctx->d_frame.height, ctrl->value);
-		}
-
-		if (ret) {
-			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");
-			return -EINVAL;
-		}
-
-		/* Check for the output rotator availability */
-		if ((ctrl->value == 90 || ctrl->value == 270) &&
-		    (ctx->in_path == FIMC_DMA && !variant->has_out_rot))
-			return -EINVAL;
-		ctx->rotation = ctrl->value;
-		break;
-
-	default:
-		v4l2_err(fimc->v4l2_dev, "Invalid control\n");
-		return -EINVAL;
-	}
-
-	fimc_ctx_state_lock_set(FIMC_PARAMS, ctx);
-
-	return 0;
-}
-
-static int fimc_m2m_s_ctrl(struct file *file, void *fh,
-			   struct v4l2_control *ctrl)
-{
-	struct fimc_ctx *ctx = fh_to_ctx(fh);
-	int ret = 0;
-
-	ret = check_ctrl_val(ctx, ctrl);
-	if (ret)
-		return ret;
-
-	ret = fimc_s_ctrl(ctx, ctrl);
-	return 0;
-}
-
 static int fimc_m2m_cropcap(struct file *file, void *fh,
 			    struct v4l2_cropcap *cr)
 {
@@ -1368,10 +1311,6 @@ static const struct v4l2_ioctl_ops fimc_m2m_ioctl_ops = {
 	.vidioc_streamon		= fimc_m2m_streamon,
 	.vidioc_streamoff		= fimc_m2m_streamoff,
 
-	.vidioc_queryctrl		= fimc_vidioc_queryctrl,
-	.vidioc_g_ctrl			= fimc_vidioc_g_ctrl,
-	.vidioc_s_ctrl			= fimc_m2m_s_ctrl,
-
 	.vidioc_g_crop			= fimc_m2m_g_crop,
 	.vidioc_s_crop			= fimc_m2m_s_crop,
 	.vidioc_cropcap			= fimc_m2m_cropcap
@@ -1427,7 +1366,12 @@ static int fimc_m2m_open(struct file *file)
 	if (!ctx)
 		return -ENOMEM;
 	v4l2_fh_init(&ctx->fh, fimc->m2m.vfd);
+	ret = fimc_ctrls_create(ctx);
+	if (ret)
+		goto error_fh;
 
+	/* Use separate control handler per file handle */
+	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
 
@@ -1445,13 +1389,15 @@ static int fimc_m2m_open(struct file *file)
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(fimc->m2m.m2m_dev, ctx, queue_init);
 	if (IS_ERR(ctx->m2m_ctx)) {
 		ret = PTR_ERR(ctx->m2m_ctx);
-		goto error_fh;
+		goto error_c;
 	}
 
 	if (fimc->m2m.refcnt++ == 0)
 		set_bit(ST_M2M_RUN, &fimc->state);
 	return 0;
 
+error_c:
+	fimc_ctrls_delete(ctx);
 error_fh:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -1468,6 +1414,7 @@ static int fimc_m2m_release(struct file *file)
 		task_pid_nr(current), fimc->state, fimc->m2m.refcnt);
 
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+	fimc_ctrls_delete(ctx);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 

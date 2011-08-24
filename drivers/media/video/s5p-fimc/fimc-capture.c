@@ -27,6 +27,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
+#include "fimc-mdevice.h"
 #include "fimc-core.h"
 
 static void fimc_capture_state_cleanup(struct fimc_dev *fimc)
@@ -273,6 +274,31 @@ static struct vb2_ops fimc_capture_qops = {
 	.stop_streaming		= stop_streaming,
 };
 
+/**
+ * fimc_capture_ctrls_create - initialize the control handler
+ * Initialize the capture video node control handler and fill it
+ * with the FIMC controls. Inherit any sensor's controls if the
+ * 'user_subdev_api' flag is false (default behaviour).
+ * This function need to be called with the graph mutex held.
+ */
+int fimc_capture_ctrls_create(struct fimc_dev *fimc)
+{
+	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
+	int ret;
+
+	if (WARN_ON(vid_cap->ctx == NULL))
+		return -ENXIO;
+	if (vid_cap->ctx->ctrls_rdy)
+		return 0;
+
+	ret = fimc_ctrls_create(vid_cap->ctx);
+	if (ret || vid_cap->user_subdev_api)
+		return ret;
+
+	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrl_handler,
+				    fimc->pipeline.sensor->ctrl_handler);
+}
+
 static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
@@ -293,9 +319,10 @@ static int fimc_capture_open(struct file *file)
 		return ret;
 	}
 
-	++fimc->vid_cap.refcnt;
+	if (++fimc->vid_cap.refcnt == 1)
+		ret = fimc_capture_ctrls_create(fimc);
 
-	return 0;
+	return ret;
 }
 
 static int fimc_capture_close(struct file *file)
@@ -306,6 +333,7 @@ static int fimc_capture_close(struct file *file)
 
 	if (--fimc->vid_cap.refcnt == 0) {
 		fimc_stop_capture(fimc);
+		fimc_ctrls_delete(fimc->vid_cap.ctx);
 		vb2_queue_release(&fimc->vid_cap.vbq);
 	}
 
@@ -546,30 +574,6 @@ static int fimc_cap_dqbuf(struct file *file, void *priv,
 	return vb2_dqbuf(&fimc->vid_cap.vbq, buf, file->f_flags & O_NONBLOCK);
 }
 
-static int fimc_cap_s_ctrl(struct file *file, void *priv,
-			   struct v4l2_control *ctrl)
-{
-	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
-	int ret = -EINVAL;
-
-	/* Allow any controls but 90/270 rotation while streaming */
-	if (!fimc_capture_active(ctx->fimc_dev) ||
-	    ctrl->id != V4L2_CID_ROTATE ||
-	    (ctrl->value != 90 && ctrl->value != 270)) {
-		ret = check_ctrl_val(ctx, ctrl);
-		if (!ret) {
-			ret = fimc_s_ctrl(ctx, ctrl);
-			if (!ret)
-				ctx->state |= FIMC_PARAMS;
-		}
-	}
-	if (ret == -EINVAL)
-		ret = v4l2_subdev_call(ctx->fimc_dev->vid_cap.sd,
-				       core, s_ctrl, ctrl);
-	return ret;
-}
-
 static int fimc_cap_cropcap(struct file *file, void *fh,
 			    struct v4l2_cropcap *cr)
 {
@@ -656,10 +660,6 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_streamon		= fimc_cap_streamon,
 	.vidioc_streamoff		= fimc_cap_streamoff,
 
-	.vidioc_queryctrl		= fimc_vidioc_queryctrl,
-	.vidioc_g_ctrl			= fimc_vidioc_g_ctrl,
-	.vidioc_s_ctrl			= fimc_cap_s_ctrl,
-
 	.vidioc_g_crop			= fimc_cap_g_crop,
 	.vidioc_s_crop			= fimc_cap_s_crop,
 	.vidioc_cropcap			= fimc_cap_cropcap,
@@ -743,6 +743,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 	if (ret)
 		goto err_ent;
 
+	vfd->ctrl_handler = &ctx->ctrl_handler;
 	return 0;
 
 err_ent:

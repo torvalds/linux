@@ -41,19 +41,11 @@ static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
 {
 	u32 flip = S5P_MSCTRL_FLIP_NORMAL;
 
-	switch (ctx->flip) {
-	case FLIP_X_AXIS:
+	if (ctx->hflip)
 		flip = S5P_MSCTRL_FLIP_X_MIRROR;
-		break;
-	case FLIP_Y_AXIS:
+	if (ctx->vflip)
 		flip = S5P_MSCTRL_FLIP_Y_MIRROR;
-		break;
-	case FLIP_XY_AXIS:
-		flip = S5P_MSCTRL_FLIP_180;
-		break;
-	default:
-		break;
-	}
+
 	if (ctx->rotation <= 90)
 		return flip;
 
@@ -64,19 +56,11 @@ static u32 fimc_hw_get_target_flip(struct fimc_ctx *ctx)
 {
 	u32 flip = S5P_CITRGFMT_FLIP_NORMAL;
 
-	switch (ctx->flip) {
-	case FLIP_X_AXIS:
-		flip = S5P_CITRGFMT_FLIP_X_MIRROR;
-		break;
-	case FLIP_Y_AXIS:
-		flip = S5P_CITRGFMT_FLIP_Y_MIRROR;
-		break;
-	case FLIP_XY_AXIS:
-		flip = S5P_CITRGFMT_FLIP_180;
-		break;
-	default:
-		break;
-	}
+	if (ctx->hflip)
+		flip |= S5P_CITRGFMT_FLIP_X_MIRROR;
+	if (ctx->vflip)
+		flip |= S5P_CITRGFMT_FLIP_Y_MIRROR;
+
 	if (ctx->rotation <= 90)
 		return flip;
 

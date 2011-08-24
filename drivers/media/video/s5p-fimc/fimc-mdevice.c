@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/version.h>
+#include <media/v4l2-ctrls.h>
 #include <media/media-device.h>
 
 #include "fimc-core.h"
@@ -649,15 +650,23 @@ static int fimc_md_link_notify(struct media_pad *source,
 		ret = __fimc_pipeline_shutdown(fimc);
 		fimc->pipeline.sensor = NULL;
 		fimc->pipeline.csis = NULL;
+
+		mutex_lock(&fimc->lock);
+		fimc_ctrls_delete(fimc->vid_cap.ctx);
+		mutex_unlock(&fimc->lock);
 		return ret;
 	}
 	/*
 	 * Link activation. Enable power of pipeline elements only if the
 	 * pipeline is already in use, i.e. its video node is opened.
+	 * Recreate the controls destroyed during the link deactivation.
 	 */
 	mutex_lock(&fimc->lock);
-	if (fimc->vid_cap.refcnt > 0)
+	if (fimc->vid_cap.refcnt > 0) {
 		ret = __fimc_pipeline_initialize(fimc, source->entity, true);
+		if (!ret)
+			ret = fimc_capture_ctrls_create(fimc);
+	}
 	mutex_unlock(&fimc->lock);
 
 	return ret ? -EPIPE : ret;
