@@ -2254,7 +2254,7 @@ ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	return ret;
 }
 
-#ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_IRQ_REMAP
 
 /*
  * Migrate the IO-APIC irq in the presence of intr-remapping.
@@ -2560,7 +2560,7 @@ static void ack_apic_level(struct irq_data *data)
 	}
 }
 
-#ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_IRQ_REMAP
 static void ir_ack_apic_edge(struct irq_data *data)
 {
 	ack_APIC_irq();
@@ -2587,7 +2587,7 @@ static void irq_remap_modify_chip_defaults(struct irq_chip *chip)
 	chip->irq_set_affinity = ir_ioapic_set_affinity;
 #endif
 }
-#endif /* CONFIG_INTR_REMAP */
+#endif /* CONFIG_IRQ_REMAP */
 
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name			= "IO-APIC",
@@ -3285,7 +3285,7 @@ void native_teardown_msi_irq(unsigned int irq)
 	destroy_irq(irq);
 }
 
-#if defined (CONFIG_DMAR) || defined (CONFIG_INTR_REMAP)
+#ifdef CONFIG_DMAR_TABLE
 #ifdef CONFIG_SMP
 static int
 dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,

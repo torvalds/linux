@@ -393,11 +393,11 @@ static long list_size;
 
 static void domain_remove_dev_info(struct dmar_domain *domain);
 
-#ifdef CONFIG_DMAR_DEFAULT_ON
+#ifdef CONFIG_INTEL_IOMMU_DEFAULT_ON
 int dmar_disabled = 0;
 #else
 int dmar_disabled = 1;
-#endif /*CONFIG_DMAR_DEFAULT_ON*/
+#endif /*CONFIG_INTEL_IOMMU_DEFAULT_ON*/
 
 static int dmar_map_gfx = 1;
 static int dmar_forcedac;
@@ -2150,7 +2150,7 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 		rmrr->end_address);
 }
 
-#ifdef CONFIG_DMAR_FLOPPY_WA
+#ifdef CONFIG_INTEL_IOMMU_FLOPPY_WA
 static inline void iommu_prepare_isa(void)
 {
 	struct pci_dev *pdev;
@@ -2173,7 +2173,7 @@ static inline void iommu_prepare_isa(void)
 {
 	return;
 }
-#endif /* !CONFIG_DMAR_FLPY_WA */
+#endif /* !CONFIG_INTEL_IOMMU_FLPY_WA */
 
 static int md_domain_init(struct dmar_domain *domain, int guest_width);
 
@@ -2484,7 +2484,7 @@ static int __init init_dmars(void)
 	if (iommu_pass_through)
 		iommu_identity_mapping |= IDENTMAP_ALL;
 
-#ifdef CONFIG_DMAR_BROKEN_GFX_WA
+#ifdef CONFIG_INTEL_IOMMU_BROKEN_GFX_WA
 	iommu_identity_mapping |= IDENTMAP_GFX;
 #endif
 

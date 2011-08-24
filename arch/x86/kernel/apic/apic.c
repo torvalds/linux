@@ -1437,7 +1437,7 @@ void enable_x2apic(void)
 
 int __init enable_IR(void)
 {
-#ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_IRQ_REMAP
 	if (!intr_remapping_supported()) {
 		pr_debug("intr-remapping not supported\n");
 		return -1;

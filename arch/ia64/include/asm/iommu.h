@@ -7,7 +7,7 @@
 
 extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);
-#ifdef	CONFIG_DMAR
+#ifdef	CONFIG_INTEL_IOMMU
 extern int force_iommu, no_iommu;
 extern int iommu_pass_through;
 extern int iommu_detected;
