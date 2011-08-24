@@ -18,6 +18,13 @@ static inline int is_anon_memory(const char *filename)
 	return strcmp(filename, "//anon") == 0;
 }
 
+static inline int is_no_dso_memory(const char *filename)
+{
+	return !strcmp(filename, "[stack]") ||
+	       !strcmp(filename, "[vdso]")  ||
+	       !strcmp(filename, "[heap]");
+}
+
 void map__init(struct map *self, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
@@ -42,9 +49,10 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 	if (self != NULL) {
 		char newfilename[PATH_MAX];
 		struct dso *dso;
-		int anon;
+		int anon, no_dso;
 
 		anon = is_anon_memory(filename);
+		no_dso = is_no_dso_memory(filename);
 
 		if (anon) {
 			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", pid);
@@ -57,12 +65,16 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 
 		map__init(self, type, start, start + len, pgoff, dso);
 
-		if (anon) {
-set_identity:
+		if (anon || no_dso) {
 			self->map_ip = self->unmap_ip = identity__map_ip;
-		} else if (strcmp(filename, "[vdso]") == 0) {
-			dso__set_loaded(dso, self->type);
-			goto set_identity;
+
+			/*
+			 * Set memory without DSO as loaded. All map__find_*
+			 * functions still return NULL, and we avoid the
+			 * unnecessary map__load warning.
+			 */
+			if (no_dso)
+				dso__set_loaded(dso, self->type);
 		}
 	}
 	return self;
