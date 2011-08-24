@@ -15,6 +15,11 @@ config CPU_EXYNOS4210
 	help
 	  Enable EXYNOS4210 CPU support
 
+config SOC_EXYNOS4212
+	bool
+	help
+	  Enable EXYNOS4212 SoC support
+
 config EXYNOS4_MCT
 	bool
 	default y
