@@ -5532,6 +5532,7 @@ F:	include/media/*7146*
 
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Jassi Brar <jassisinghbrar@gmail.com>
+M:	Sangbeom Kim <sbkim73@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/samsung
