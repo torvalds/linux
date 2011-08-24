@@ -69,41 +69,45 @@ static int fimc_init_capture(struct fimc_dev *fimc)
 	return ret;
 }
 
-static int fimc_capture_state_cleanup(struct fimc_dev *fimc)
+static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
 	struct fimc_vid_buffer *buf;
 	unsigned long flags;
+	bool streaming;
 
 	spin_lock_irqsave(&fimc->slock, flags);
-	fimc->state &= ~(1 << ST_CAPT_RUN | 1 << ST_CAPT_PEND |
-			 1 << ST_CAPT_SHUT | 1 << ST_CAPT_STREAM |
-			 1 << ST_CAPT_ISP_STREAM);
+	streaming = fimc->state & (1 << ST_CAPT_ISP_STREAM);
 
-	fimc->vid_cap.active_buf_cnt = 0;
+	fimc->state &= ~(1 << ST_CAPT_RUN | 1 << ST_CAPT_SHUT |
+			 1 << ST_CAPT_STREAM | 1 << ST_CAPT_ISP_STREAM);
+	if (!suspend)
+		fimc->state &= ~(1 << ST_CAPT_PEND | 1 << ST_CAPT_SUSPENDED);
 
-	/* Release buffers that were enqueued in the driver by videobuf2. */
-	while (!list_empty(&cap->pending_buf_q)) {
+	/* Release unused buffers */
+	while (!suspend && !list_empty(&cap->pending_buf_q)) {
 		buf = fimc_pending_queue_pop(cap);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
-
+	/* If suspending put unused buffers onto pending queue */
 	while (!list_empty(&cap->active_buf_q)) {
 		buf = fimc_active_queue_pop(cap);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		if (suspend)
+			fimc_pending_queue_add(cap, buf);
+		else
+			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
-
+	set_bit(ST_CAPT_SUSPENDED, &fimc->state);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
-	if (test_bit(ST_CAPT_ISP_STREAM, &fimc->state))
+	if (streaming)
 		return fimc_pipeline_s_stream(fimc, 0);
 	else
 		return 0;
 }
 
-static int fimc_stop_capture(struct fimc_dev *fimc)
+static int fimc_stop_capture(struct fimc_dev *fimc, bool suspend)
 {
-	struct fimc_vid_cap *cap = &fimc->vid_cap;
 	unsigned long flags;
 
 	if (!fimc_capture_active(fimc))
@@ -116,9 +120,9 @@ static int fimc_stop_capture(struct fimc_dev *fimc)
 
 	wait_event_timeout(fimc->irq_queue,
 			   !test_bit(ST_CAPT_SHUT, &fimc->state),
-			   FIMC_SHUTDOWN_TIMEOUT);
+			   (2*HZ/10)); /* 200 ms */
 
-	return fimc_capture_state_cleanup(fimc);
+	return fimc_capture_state_cleanup(fimc, suspend);
 }
 
 /**
@@ -181,7 +185,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 
 	return 0;
 error:
-	fimc_capture_state_cleanup(fimc);
+	fimc_capture_state_cleanup(fimc, false);
 	return ret;
 }
 
@@ -193,17 +197,46 @@ static int stop_streaming(struct vb2_queue *q)
 	if (!fimc_capture_active(fimc))
 		return -EINVAL;
 
-	return fimc_stop_capture(fimc);
+	return fimc_stop_capture(fimc, false);
 }
 
 int fimc_capture_suspend(struct fimc_dev *fimc)
 {
-	return -EBUSY;
+	bool suspend = fimc_capture_busy(fimc);
+
+	int ret = fimc_stop_capture(fimc, suspend);
+	if (ret)
+		return ret;
+	return fimc_pipeline_shutdown(fimc);
 }
+
+static void buffer_queue(struct vb2_buffer *vb);
 
 int fimc_capture_resume(struct fimc_dev *fimc)
 {
+	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
+	struct fimc_vid_buffer *buf;
+	int i;
+
+	if (!test_and_clear_bit(ST_CAPT_SUSPENDED, &fimc->state))
+		return 0;
+
+	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
+	vid_cap->buf_index = 0;
+	fimc_pipeline_initialize(fimc, &fimc->vid_cap.vfd->entity,
+				 false);
+	fimc_init_capture(fimc);
+
+	clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
+
+	for (i = 0; i < vid_cap->reqbufs_count; i++) {
+		if (list_empty(&vid_cap->pending_buf_q))
+			break;
+		buf = fimc_pending_queue_pop(vid_cap);
+		buffer_queue(&buf->vb);
+	}
 	return 0;
+
 }
 
 static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
@@ -271,8 +304,9 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&fimc->slock, flags);
 	fimc_prepare_addr(ctx, &buf->vb, &ctx->d_frame, &buf->paddr);
 
-	if (!test_bit(ST_CAPT_STREAM, &fimc->state)
-	     && vid_cap->active_buf_cnt < FIMC_MAX_OUT_BUFS) {
+	if (!test_bit(ST_CAPT_SUSPENDED, &fimc->state) &&
+	    !test_bit(ST_CAPT_STREAM, &fimc->state) &&
+	    vid_cap->active_buf_cnt < FIMC_MAX_OUT_BUFS) {
 		/* Setup the buffer directly for processing. */
 		int buf_id = (vid_cap->reqbufs_count == 1) ? -1 :
 				vid_cap->buf_index;
@@ -366,6 +400,7 @@ static int fimc_capture_open(struct file *file)
 	if (fimc_m2m_active(fimc))
 		return -EBUSY;
 
+	set_bit(ST_CAPT_BUSY, &fimc->state);
 	pm_runtime_get_sync(&fimc->pdev->dev);
 
 	if (++fimc->vid_cap.refcnt == 1) {
@@ -377,6 +412,7 @@ static int fimc_capture_open(struct file *file)
 			pm_runtime_put_sync(&fimc->pdev->dev);
 			fimc->vid_cap.refcnt--;
 			v4l2_fh_release(file);
+			clear_bit(ST_CAPT_BUSY, &fimc->state);
 			return ret;
 		}
 		ret = fimc_capture_ctrls_create(fimc);
@@ -394,14 +430,18 @@ static int fimc_capture_close(struct file *file)
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
 	if (--fimc->vid_cap.refcnt == 0) {
-		fimc_stop_capture(fimc);
+		clear_bit(ST_CAPT_BUSY, &fimc->state);
+		fimc_stop_capture(fimc, false);
 		fimc_pipeline_shutdown(fimc);
-		fimc_ctrls_delete(fimc->vid_cap.ctx);
-		vb2_queue_release(&fimc->vid_cap.vbq);
+		clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
 	}
 
 	pm_runtime_put(&fimc->pdev->dev);
 
+	if (fimc->vid_cap.refcnt == 0) {
+		vb2_queue_release(&fimc->vid_cap.vbq);
+		fimc_ctrls_delete(fimc->vid_cap.ctx);
+	}
 	return v4l2_fh_release(file);
 }
 

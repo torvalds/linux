@@ -334,6 +334,11 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, bool final)
 	struct timeval *tv;
 	struct timespec ts;
 
+	if (test_and_clear_bit(ST_CAPT_SHUT, &fimc->state)) {
+		wake_up(&fimc->irq_queue);
+		return;
+	}
+
 	if (!list_empty(&cap->active_buf_q) &&
 	    test_bit(ST_CAPT_RUN, &fimc->state) && final) {
 		ktime_get_real_ts(&ts);
@@ -346,11 +351,6 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, bool final)
 		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
 
 		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
-	}
-
-	if (test_and_clear_bit(ST_CAPT_SHUT, &fimc->state)) {
-		wake_up(&fimc->irq_queue);
-		return;
 	}
 
 	if (!list_empty(&cap->pending_buf_q)) {
