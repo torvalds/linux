@@ -161,11 +161,15 @@ struct synaptics_data {
 
 	struct serio *pt_port;			/* Pass-through serio port */
 
+	struct synaptics_mt_state mt_state;	/* Current mt finger state */
+	bool mt_state_lost;			/* mt_state may be incorrect */
+
 	/*
 	 * Last received Advanced Gesture Mode (AGM) packet. An AGM packet
 	 * contains position data for a second contact, at half resolution.
 	 */
 	struct synaptics_hw_state agm;
+	bool agm_pending;			/* new AGM packet received */
 };
 
 void synaptics_module_init(void);

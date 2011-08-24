@@ -453,6 +453,9 @@ static void synaptics_parse_agm(const unsigned char buf[],
 	default:
 		break;
 	}
+
+	/* Record that at least one AGM has been received since last SGM */
+	priv->agm_pending = true;
 }
 
 static int synaptics_parse_hw_state(const unsigned char buf[],
@@ -606,26 +609,53 @@ static void synaptics_report_slot(struct input_dev *dev, int slot,
 }
 
 static void synaptics_report_mt_data(struct psmouse *psmouse,
-				     int count,
+				     struct synaptics_mt_state *mt_state,
 				     const struct synaptics_hw_state *sgm)
 {
 	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_hw_state *agm = &priv->agm;
+	struct synaptics_mt_state *old = &priv->mt_state;
 
-	switch (count) {
+	switch (mt_state->count) {
 	case 0:
 		synaptics_report_slot(dev, 0, NULL);
 		synaptics_report_slot(dev, 1, NULL);
 		break;
 	case 1:
-		synaptics_report_slot(dev, 0, sgm);
-		synaptics_report_slot(dev, 1, NULL);
+		if (mt_state->sgm == -1) {
+			synaptics_report_slot(dev, 0, NULL);
+			synaptics_report_slot(dev, 1, NULL);
+		} else if (mt_state->sgm == 0) {
+			synaptics_report_slot(dev, 0, sgm);
+			synaptics_report_slot(dev, 1, NULL);
+		} else {
+			synaptics_report_slot(dev, 0, NULL);
+			synaptics_report_slot(dev, 1, sgm);
+		}
 		break;
-	case 2:
-	case 3: /* Fall-through case */
-		synaptics_report_slot(dev, 0, sgm);
-		synaptics_report_slot(dev, 1, agm);
+	default:
+		/*
+		 * If the finger slot contained in SGM is valid, and either
+		 * hasn't changed, or is new, then report SGM in MTB slot 0.
+		 * Otherwise, empty MTB slot 0.
+		 */
+		if (mt_state->sgm != -1 &&
+		    (mt_state->sgm == old->sgm || old->sgm == -1))
+			synaptics_report_slot(dev, 0, sgm);
+		else
+			synaptics_report_slot(dev, 0, NULL);
+
+		/*
+		 * If the finger slot contained in AGM is valid, and either
+		 * hasn't changed, or is new, then report AGM in MTB slot 1.
+		 * Otherwise, empty MTB slot 1.
+		 */
+		if (mt_state->agm != -1 &&
+		    (mt_state->agm == old->agm || old->agm == -1))
+			synaptics_report_slot(dev, 1, agm);
+		else
+			synaptics_report_slot(dev, 1, NULL);
 		break;
 	}
 
@@ -633,29 +663,257 @@ static void synaptics_report_mt_data(struct psmouse *psmouse,
 	input_mt_report_pointer_emulation(dev, false);
 
 	/* Send the number of fingers reported by touchpad itself. */
-	input_mt_report_finger_count(dev, count);
+	input_mt_report_finger_count(dev, mt_state->count);
 
 	synaptics_report_buttons(psmouse, sgm);
 
 	input_sync(dev);
 }
 
+/* Handle case where mt_state->count = 0 */
+static void synaptics_image_sensor_0f(struct synaptics_data *priv,
+				      struct synaptics_mt_state *mt_state)
+{
+	synaptics_mt_state_set(mt_state, 0, -1, -1);
+	priv->mt_state_lost = false;
+}
+
+/* Handle case where mt_state->count = 1 */
+static void synaptics_image_sensor_1f(struct synaptics_data *priv,
+				      struct synaptics_mt_state *mt_state)
+{
+	struct synaptics_hw_state *agm = &priv->agm;
+	struct synaptics_mt_state *old = &priv->mt_state;
+
+	/*
+	 * If the last AGM was (0,0,0), and there is only one finger left,
+	 * then we absolutely know that SGM contains slot 0, and all other
+	 * fingers have been removed.
+	 */
+	if (priv->agm_pending && agm->z == 0) {
+		synaptics_mt_state_set(mt_state, 1, 0, -1);
+		priv->mt_state_lost = false;
+		return;
+	}
+
+	switch (old->count) {
+	case 0:
+		synaptics_mt_state_set(mt_state, 1, 0, -1);
+		break;
+	case 1:
+		/*
+		 * If mt_state_lost, then the previous transition was 3->1,
+		 * and SGM now contains either slot 0 or 1, but we don't know
+		 * which.  So, we just assume that the SGM now contains slot 1.
+		 *
+		 * If pending AGM and either:
+		 *   (a) the previous SGM slot contains slot 0, or
+		 *   (b) there was no SGM slot
+		 * then, the SGM now contains slot 1
+		 *
+		 * Case (a) happens with very rapid "drum roll" gestures, where
+		 * slot 0 finger is lifted and a new slot 1 finger touches
+		 * within one reporting interval.
+		 *
+		 * Case (b) happens if initially two or more fingers tap
+		 * briefly, and all but one lift before the end of the first
+		 * reporting interval.
+		 *
+		 * (In both these cases, slot 0 will becomes empty, so SGM
+		 * contains slot 1 with the new finger)
+		 *
+		 * Else, if there was no previous SGM, it now contains slot 0.
+		 *
+		 * Otherwise, SGM still contains the same slot.
+		 */
+		if (priv->mt_state_lost ||
+		    (priv->agm_pending && old->sgm <= 0))
+			synaptics_mt_state_set(mt_state, 1, 1, -1);
+		else if (old->sgm == -1)
+			synaptics_mt_state_set(mt_state, 1, 0, -1);
+		break;
+	case 2:
+		/*
+		 * If mt_state_lost, we don't know which finger SGM contains.
+		 *
+		 * So, report 1 finger, but with both slots empty.
+		 * We will use slot 1 on subsequent 1->1
+		 */
+		if (priv->mt_state_lost) {
+			synaptics_mt_state_set(mt_state, 1, -1, -1);
+			break;
+		}
+		/*
+		 * Since the last AGM was NOT (0,0,0), it was the finger in
+		 * slot 0 that has been removed.
+		 * So, SGM now contains previous AGM's slot, and AGM is now
+		 * empty.
+		 */
+		synaptics_mt_state_set(mt_state, 1, old->agm, -1);
+		break;
+	case 3:
+		/*
+		 * Since last AGM was not (0,0,0), we don't know which finger
+		 * is left.
+		 *
+		 * So, report 1 finger, but with both slots empty.
+		 * We will use slot 1 on subsequent 1->1
+		 */
+		synaptics_mt_state_set(mt_state, 1, -1, -1);
+		priv->mt_state_lost = true;
+		break;
+	}
+}
+
+/* Handle case where mt_state->count = 2 */
+static void synaptics_image_sensor_2f(struct synaptics_data *priv,
+				      struct synaptics_mt_state *mt_state)
+{
+	struct synaptics_mt_state *old = &priv->mt_state;
+
+	switch (old->count) {
+	case 0:
+		synaptics_mt_state_set(mt_state, 2, 0, 1);
+		break;
+	case 1:
+		/*
+		 * If previous SGM contained slot 1 or higher, SGM now contains
+		 * slot 0 (the newly touching finger) and AGM contains SGM's
+		 * previous slot.
+		 *
+		 * Otherwise, SGM still contains slot 0 and AGM now contains
+		 * slot 1.
+		 */
+		if (old->sgm >= 1)
+			synaptics_mt_state_set(mt_state, 2, 0, old->sgm);
+		else
+			synaptics_mt_state_set(mt_state, 2, 0, 1);
+		break;
+	case 2:
+		/*
+		 * If mt_state_lost, SGM now contains either finger 1 or 2, but
+		 * we don't know which.
+		 * So, we just assume that the SGM contains slot 0 and AGM 1.
+		 */
+		if (priv->mt_state_lost)
+			synaptics_mt_state_set(mt_state, 2, 0, 1);
+		/*
+		 * Otherwise, use the same mt_state, since it either hasn't
+		 * changed, or was updated by a recently received AGM-CONTACT
+		 * packet.
+		 */
+		break;
+	case 3:
+		/*
+		 * 3->2 transitions have two unsolvable problems:
+		 *  1) no indication is given which finger was removed
+		 *  2) no way to tell if agm packet was for finger 3
+		 *     before 3->2, or finger 2 after 3->2.
+		 *
+		 * So, report 2 fingers, but empty all slots.
+		 * We will guess slots [0,1] on subsequent 2->2.
+		 */
+		synaptics_mt_state_set(mt_state, 2, -1, -1);
+		priv->mt_state_lost = true;
+		break;
+	}
+}
+
+/* Handle case where mt_state->count = 3 */
+static void synaptics_image_sensor_3f(struct synaptics_data *priv,
+				      struct synaptics_mt_state *mt_state)
+{
+	struct synaptics_mt_state *old = &priv->mt_state;
+
+	switch (old->count) {
+	case 0:
+		synaptics_mt_state_set(mt_state, 3, 0, 2);
+		break;
+	case 1:
+		/*
+		 * If previous SGM contained slot 2 or higher, SGM now contains
+		 * slot 0 (one of the newly touching fingers) and AGM contains
+		 * SGM's previous slot.
+		 *
+		 * Otherwise, SGM now contains slot 0 and AGM contains slot 2.
+		 */
+		if (old->sgm >= 2)
+			synaptics_mt_state_set(mt_state, 3, 0, old->sgm);
+		else
+			synaptics_mt_state_set(mt_state, 3, 0, 2);
+		break;
+	case 2:
+		/*
+		 * After some 3->1 and all 3->2 transitions, we lose track
+		 * of which slot is reported by SGM and AGM.
+		 *
+		 * For 2->3 in this state, report 3 fingers, but empty all
+		 * slots, and we will guess (0,2) on a subsequent 0->3.
+		 *
+		 * To userspace, the resulting transition will look like:
+		 *    2:[0,1] -> 3:[-1,-1] -> 3:[0,2]
+		 */
+		if (priv->mt_state_lost) {
+			synaptics_mt_state_set(mt_state, 3, -1, -1);
+			break;
+		}
+
+		/*
+		 * If the (SGM,AGM) really previously contained slots (0, 1),
+		 * then we cannot know what slot was just reported by the AGM,
+		 * because the 2->3 transition can occur either before or after
+		 * the AGM packet. Thus, this most recent AGM could contain
+		 * either the same old slot 1 or the new slot 2.
+		 * Subsequent AGMs will be reporting slot 2.
+		 *
+		 * To userspace, the resulting transition will look like:
+		 *    2:[0,1] -> 3:[0,-1] -> 3:[0,2]
+		 */
+		synaptics_mt_state_set(mt_state, 3, 0, -1);
+		break;
+	case 3:
+		/*
+		 * If, for whatever reason, the previous agm was invalid,
+		 * Assume SGM now contains slot 0, AGM now contains slot 2.
+		 */
+		if (old->agm <= 2)
+			synaptics_mt_state_set(mt_state, 3, 0, 2);
+		/*
+		 * mt_state either hasn't changed, or was updated by a recently
+		 * received AGM-CONTACT packet.
+		 */
+		break;
+	}
+}
+
 static void synaptics_image_sensor_process(struct psmouse *psmouse,
 					   struct synaptics_hw_state *sgm)
 {
-	int count;
+	struct synaptics_data *priv = psmouse->private;
+	struct synaptics_hw_state *agm = &priv->agm;
+	struct synaptics_mt_state mt_state;
 
+	/* Initialize using current mt_state (as updated by last agm) */
+	mt_state = agm->mt_state;
+
+	/*
+	 * Update mt_state using the new finger count and current mt_state.
+	 */
 	if (sgm->z == 0)
-		count = 0;
+		synaptics_image_sensor_0f(priv, &mt_state);
 	else if (sgm->w >= 4)
-		count = 1;
+		synaptics_image_sensor_1f(priv, &mt_state);
 	else if (sgm->w == 0)
-		count = 2;
-	else
-		count = 3;
+		synaptics_image_sensor_2f(priv, &mt_state);
+	else if (sgm->w == 1)
+		synaptics_image_sensor_3f(priv, &mt_state);
 
 	/* Send resulting input events to user space */
-	synaptics_report_mt_data(psmouse, count, sgm);
+	synaptics_report_mt_data(psmouse, &mt_state, sgm);
+
+	/* Store updated mt_state */
+	priv->mt_state = agm->mt_state = mt_state;
+	priv->agm_pending = false;
 }
 
 /*
