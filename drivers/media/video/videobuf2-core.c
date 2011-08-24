@@ -277,6 +277,41 @@ static int __verify_planes_array(struct vb2_buffer *vb, struct v4l2_buffer *b)
 }
 
 /**
+ * __buffer_in_use() - return true if the buffer is in use and
+ * the queue cannot be freed (by the means of REQBUFS(0)) call
+ */
+static bool __buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
+{
+	unsigned int plane;
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		/*
+		 * If num_users() has not been provided, call_memop
+		 * will return 0, apparently nobody cares about this
+		 * case anyway. If num_users() returns more than 1,
+		 * we are not the only user of the plane's memory.
+		 */
+		if (call_memop(q, plane, num_users,
+				vb->planes[plane].mem_priv) > 1)
+			return true;
+	}
+	return false;
+}
+
+/**
+ * __buffers_in_use() - return true if any buffers on the queue are in use and
+ * the queue cannot be freed (by the means of REQBUFS(0)) call
+ */
+static bool __buffers_in_use(struct vb2_queue *q)
+{
+	unsigned int buffer;
+	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
+		if (__buffer_in_use(q, q->bufs[buffer]))
+			return true;
+	}
+	return false;
+}
+
+/**
  * __fill_v4l2_buffer() - fill in a struct v4l2_buffer with information to be
  * returned to userspace
  */
@@ -335,7 +370,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 		break;
 	}
 
-	if (vb->num_planes_mapped == vb->num_planes)
+	if (__buffer_in_use(q, vb))
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 
 	return ret;
@@ -397,33 +432,6 @@ static int __verify_mmap_ops(struct vb2_queue *q)
 		return -EINVAL;
 
 	return 0;
-}
-
-/**
- * __buffers_in_use() - return true if any buffers on the queue are in use and
- * the queue cannot be freed (by the means of REQBUFS(0)) call
- */
-static bool __buffers_in_use(struct vb2_queue *q)
-{
-	unsigned int buffer, plane;
-	struct vb2_buffer *vb;
-
-	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
-		vb = q->bufs[buffer];
-		for (plane = 0; plane < vb->num_planes; ++plane) {
-			/*
-			 * If num_users() has not been provided, call_memop
-			 * will return 0, apparently nobody cares about this
-			 * case anyway. If num_users() returns more than 1,
-			 * we are not the only user of the plane's memory.
-			 */
-			if (call_memop(q, plane, num_users,
-					vb->planes[plane].mem_priv) > 1)
-				return true;
-		}
-	}
-
-	return false;
 }
 
 /**
@@ -1342,9 +1350,6 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	ret = q->mem_ops->mmap(vb_plane->mem_priv, vma);
 	if (ret)
 		return ret;
-
-	vb_plane->mapped = 1;
-	vb->num_planes_mapped++;
 
 	dprintk(3, "Buffer %d, plane %d successfully mapped\n", buffer, plane);
 	return 0;

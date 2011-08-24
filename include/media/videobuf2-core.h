@@ -75,7 +75,6 @@ struct vb2_mem_ops {
 
 struct vb2_plane {
 	void			*mem_priv;
-	int			mapped:1;
 };
 
 /**
@@ -147,7 +146,6 @@ struct vb2_queue;
  * @done_entry:		entry on the list that stores all buffers ready to
  *			be dequeued to userspace
  * @planes:		private per-plane information; do not change
- * @num_planes_mapped:	number of mapped planes; do not change
  */
 struct vb2_buffer {
 	struct v4l2_buffer	v4l2_buf;
@@ -164,7 +162,6 @@ struct vb2_buffer {
 	struct list_head	done_entry;
 
 	struct vb2_plane	planes[VIDEO_MAX_PLANES];
-	unsigned int		num_planes_mapped;
 };
 
 /**
