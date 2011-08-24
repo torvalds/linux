@@ -44,6 +44,16 @@
 #define YMIN_NOMINAL 1408
 #define YMAX_NOMINAL 4448
 
+/*
+ * Synaptics touchpads report the y coordinate from bottom to top, which is
+ * opposite from what userspace expects.
+ * This function is used to invert y before reporting.
+ */
+static int synaptics_invert_y(int y)
+{
+	return YMAX_NOMINAL + YMIN_NOMINAL - y;
+}
+
 
 /*****************************************************************************
  *	Stuff we need even when we do not want native Synaptics support
@@ -502,8 +512,7 @@ static void synaptics_report_semi_mt_slot(struct input_dev *dev, int slot,
 	input_mt_report_slot_state(dev, MT_TOOL_FINGER, active);
 	if (active) {
 		input_report_abs(dev, ABS_MT_POSITION_X, x);
-		input_report_abs(dev, ABS_MT_POSITION_Y,
-				 YMAX_NOMINAL + YMIN_NOMINAL - y);
+		input_report_abs(dev, ABS_MT_POSITION_Y, synaptics_invert_y(y));
 	}
 }
 
@@ -597,7 +606,7 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 
 	if (num_fingers > 0) {
 		input_report_abs(dev, ABS_X, hw.x);
-		input_report_abs(dev, ABS_Y, YMAX_NOMINAL + YMIN_NOMINAL - hw.y);
+		input_report_abs(dev, ABS_Y, synaptics_invert_y(hw.y));
 	}
 	input_report_abs(dev, ABS_PRESSURE, hw.z);
 
