@@ -33,17 +33,19 @@
 #define MTD_CHAR_MAJOR 90
 #define MTD_BLOCK_MAJOR 31
 
-#define MTD_ERASE_PENDING      	0x01
+#define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04
-#define MTD_ERASE_DONE          0x08
-#define MTD_ERASE_FAILED        0x10
+#define MTD_ERASE_DONE		0x08
+#define MTD_ERASE_FAILED	0x10
 
 #define MTD_FAIL_ADDR_UNKNOWN -1LL
 
-/* If the erase fails, fail_addr might indicate exactly which block failed.  If
-   fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was not at the device level or was not
-   specific to any particular block. */
+/*
+ * If the erase fails, fail_addr might indicate exactly which block failed. If
+ * fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was not at the device level
+ * or was not specific to any particular block.
+ */
 struct erase_info {
 	struct mtd_info *mtd;
 	uint64_t addr;
@@ -60,7 +62,7 @@ struct erase_info {
 };
 
 struct mtd_erase_region_info {
-	uint64_t offset;			/* At which this region starts, from the beginning of the MTD */
+	uint64_t offset;		/* At which this region starts, from the beginning of the MTD */
 	uint32_t erasesize;		/* For this region */
 	uint32_t numblocks;		/* Number of blocks of erasesize in this region */
 	unsigned long *lockmap;		/* If keeping bitmap of locks */
