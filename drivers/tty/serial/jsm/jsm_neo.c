@@ -522,7 +522,7 @@ static void neo_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 
 			writeb(circ->buf[circ->tail], &ch->ch_neo_uart->txrx);
 			jsm_printk(WRITE, INFO, &ch->ch_bd->pci_dev,
-					"Tx data: %x\n", circ->buf[circ->head]);
+					"Tx data: %x\n", circ->buf[circ->tail]);
 			circ->tail = (circ->tail + 1) & (UART_XMIT_SIZE - 1);
 			ch->ch_txcount++;
 		}
