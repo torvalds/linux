@@ -1953,11 +1953,9 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 		amd64_handle_ue(mci, m);
 }
 
-void amd64_decode_bus_error(int node_id, struct mce *m, u32 nbcfg)
+void amd64_decode_bus_error(int node_id, struct mce *m)
 {
-	struct mem_ctl_info *mci = mcis[node_id];
-
-	__amd64_decode_bus_error(mci, m);
+	__amd64_decode_bus_error(mcis[node_id], m);
 }
 
 /*
