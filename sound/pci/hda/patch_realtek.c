@@ -5553,14 +5553,10 @@ static const struct alc_model_fixup alc662_fixup_models[] = {
 
 /*
  */
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-#include "alc662_quirks.c"
-#endif
-
 static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err, board_config;
+	int err;
 	int coef;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5588,36 +5584,15 @@ static int patch_alc662(struct hda_codec *codec)
 	else if (coef == 0x4011)
 		alc_codec_rename(codec, "ALC656");
 
-	board_config = alc_board_config(codec, ALC662_MODEL_LAST,
-					alc662_models, alc662_cfg_tbl);
-	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
-		board_config = ALC_MODEL_AUTO;
+	alc_pick_fixup(codec, alc662_fixup_models,
+		       alc662_fixup_tbl, alc662_fixups);
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+	/* automatic parse from the BIOS config */
+	err = alc662_parse_auto_config(codec);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		alc_pick_fixup(codec, alc662_fixup_models,
-			       alc662_fixup_tbl, alc662_fixups);
-		alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
-		/* automatic parse from the BIOS config */
-		err = alc662_parse_auto_config(codec);
-		if (err < 0) {
-			alc_free(codec);
-			return err;
-		}
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		else if (!err) {
-			printk(KERN_INFO
-			       "hda_codec: Cannot set up configuration "
-			       "from BIOS.  Using base mode...\n");
-			board_config = ALC662_3ST_2ch_DIG;
-		}
-#endif
-	}
-
-	if (board_config != ALC_MODEL_AUTO)
-		setup_preset(codec, &alc662_presets[board_config]);
 
 	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
@@ -5653,8 +5628,7 @@ static int patch_alc662(struct hda_codec *codec)
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC_MODEL_AUTO)
-		spec->init_hook = alc_auto_init_std;
+	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_init_jacks(codec);

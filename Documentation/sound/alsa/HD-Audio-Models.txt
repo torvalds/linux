@@ -67,10 +67,6 @@ ALC269
 
 ALC662/663/272
 ==============
-  3stack-dig	3-stack (2-channel) with SPDIF
-  3stack-6ch	 3-stack (6-channel)
-  3stack-6ch-dig 3-stack (6-channel) with SPDIF
-  5stack-dig	 5-stack with SPDIF
   asus-mode1	ASUS
   asus-mode2	ASUS
   asus-mode3	ASUS
@@ -79,7 +75,6 @@ ALC662/663/272
   asus-mode6	ASUS
   asus-mode7	ASUS
   asus-mode8	ASUS
-  auto		auto-config reading BIOS (default)
 
 ALC680
 ======
