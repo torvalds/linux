@@ -47,7 +47,8 @@ struct dentry;
 #define FBIOGET_DISPINFO        0x4618
 #define FBIOGET_OVERLAY_STATE   0X4619
 #define FBIOGET_SCREEN_STATE    0X4620
-
+#define FBIOGET_16OR32    0X4621
+#define FBIOGET_IDLEFBUff_16OR32    0X4622
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
 #define FB_TYPE_PLANES			1	/* Non interleaved planes */
