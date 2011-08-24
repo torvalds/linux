@@ -973,8 +973,8 @@ static int pm2fb_pan_display(struct fb_var_screeninfo *var,
 {
 	struct pm2fb_par *p = info->par;
 	u32 base;
-	u32 depth = (var->bits_per_pixel + 7) & ~7;
-	u32 xres = (var->xres + 31) & ~31;
+	u32 depth = (info->var.bits_per_pixel + 7) & ~7;
+	u32 xres = (info->var.xres + 31) & ~31;
 
 	depth = (depth > 32) ? 32 : depth;
 	base = to3264(var->yoffset * xres + var->xoffset, depth, 1);

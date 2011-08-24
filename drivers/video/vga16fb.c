@@ -207,7 +207,7 @@ static void vga16fb_pan_var(struct fb_info *info,
 	 * granularity if someone supports xoffset in bit resolution */
 	vga_io_r(VGA_IS1_RC);		/* reset flip-flop */
 	vga_io_w(VGA_ATT_IW, VGA_ATC_PEL);
-	if (var->bits_per_pixel == 8)
+	if (info->var.bits_per_pixel == 8)
 		vga_io_w(VGA_ATT_IW, (xoffset & 3) << 1);
 	else
 		vga_io_w(VGA_ATT_IW, xoffset & 7);
