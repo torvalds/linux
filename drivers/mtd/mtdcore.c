@@ -465,12 +465,13 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char **types,
 	struct mtd_partition *real_parts;
 
 	err = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
-	if (err <= 0 && nr_parts) {
+	if (err <= 0 && nr_parts && parts) {
 		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
 				     GFP_KERNEL);
-		err = nr_parts;
-		if (!parts)
+		if (!real_parts)
 			err = -ENOMEM;
+		else
+			err = nr_parts;
 	}
 
 	if (err > 0) {
