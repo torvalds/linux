@@ -572,7 +572,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 
 	if (cam->bus_type == FIMC_ITU_601 || cam->bus_type == FIMC_ITU_656) {
 		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
-			if (fimc->vid_cap.fmt.code == pix_desc[i].pixelcode) {
+			if (fimc->vid_cap.mf.code == pix_desc[i].pixelcode) {
 				cfg = pix_desc[i].cisrcfmt;
 				bus_width = pix_desc[i].bus_width;
 				break;
@@ -582,7 +582,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 		if (i == ARRAY_SIZE(pix_desc)) {
 			v4l2_err(fimc->vid_cap.vfd,
 				 "Camera color format not supported: %d\n",
-				 fimc->vid_cap.fmt.code);
+				 fimc->vid_cap.mf.code);
 			return -EINVAL;
 		}
 
@@ -642,12 +642,12 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			cfg |= S5P_CIGCTRL_SELCAM_MIPI_A;
 
 		/* TODO: add remaining supported formats. */
-		if (vid_cap->fmt.code == V4L2_MBUS_FMT_VYUY8_2X8) {
+		if (vid_cap->mf.code == V4L2_MBUS_FMT_VYUY8_2X8) {
 			tmp = S5P_CSIIMGFMT_YCBCR422_8BIT;
 		} else {
 			v4l2_err(fimc->vid_cap.vfd,
 				 "Not supported camera pixel format: %d",
-				 vid_cap->fmt.code);
+				 vid_cap->mf.code);
 			return -EINVAL;
 		}
 		tmp |= (cam->csi_data_align == 32) << 8;

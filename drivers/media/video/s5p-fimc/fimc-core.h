@@ -43,6 +43,7 @@
 #define SCALER_MAX_HRATIO	64
 #define SCALER_MAX_VRATIO	64
 #define DMA_MIN_SIZE		8
+#define FIMC_CAMIF_MAX_HEIGHT	0x2000
 
 /* indices to the clocks array */
 enum {
@@ -92,9 +93,11 @@ enum fimc_color_fmt {
 	S5P_FIMC_CBYCRY422,
 	S5P_FIMC_CRYCBY422,
 	S5P_FIMC_YCBCR444_LOCAL,
+	S5P_FIMC_JPEG = 0x40,
 };
 
-#define fimc_fmt_is_rgb(x) ((x) & 0x10)
+#define fimc_fmt_is_rgb(x) (!!((x) & 0x10))
+#define fimc_fmt_is_jpeg(x) (!!((x) & 0x40))
 
 #define IS_M2M(__strt) ((__strt) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE || \
 			__strt == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
@@ -116,9 +119,10 @@ enum fimc_color_fmt {
 #define	FIMC_DST_ADDR		(1 << 2)
 #define	FIMC_SRC_FMT		(1 << 3)
 #define	FIMC_DST_FMT		(1 << 4)
-#define	FIMC_CTX_M2M		(1 << 5)
-#define	FIMC_CTX_CAP		(1 << 6)
-#define	FIMC_CTX_SHUT		(1 << 7)
+#define	FIMC_DST_CROP		(1 << 5)
+#define	FIMC_CTX_M2M		(1 << 16)
+#define	FIMC_CTX_CAP		(1 << 17)
+#define	FIMC_CTX_SHUT		(1 << 18)
 
 /* Image conversion flags */
 #define	FIMC_IN_DMA_ACCESS_TILED	(1 << 0)
@@ -293,12 +297,18 @@ struct fimc_m2m_device {
 	int			refcnt;
 };
 
+#define FIMC_SD_PAD_SINK	0
+#define FIMC_SD_PAD_SOURCE	1
+#define FIMC_SD_PADS_NUM	2
+
 /**
  * struct fimc_vid_cap - camera capture device information
  * @ctx: hardware context data
  * @vfd: video device node for camera capture mode
+ * @subdev: subdev exposing the FIMC processing block
  * @vd_pad: fimc video capture node pad
- * @fmt: Media Bus format configured at selected image sensor
+ * @sd_pads: fimc video processing block pads
+ * @mf: media bus format at the FIMC camera input (and the scaler output) pad
  * @pending_buf_q: the pending buffer queue head
  * @active_buf_q: the queue head of buffers scheduled in hardware
  * @vbq: the capture am video buffer queue
@@ -315,8 +325,10 @@ struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		*vfd;
+	struct v4l2_subdev		*subdev;
 	struct media_pad		vd_pad;
-	struct v4l2_mbus_framefmt	fmt;
+	struct v4l2_mbus_framefmt	mf;
+	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
 	struct list_head		pending_buf_q;
 	struct list_head		active_buf_q;
 	struct vb2_queue		vbq;
@@ -498,6 +510,33 @@ struct fimc_ctx {
 
 #define fh_to_ctx(__fh) container_of(__fh, struct fimc_ctx, fh)
 
+static inline void set_frame_bounds(struct fimc_frame *f, u32 width, u32 height)
+{
+	f->o_width  = width;
+	f->o_height = height;
+	f->f_width  = width;
+	f->f_height = height;
+}
+
+static inline void set_frame_crop(struct fimc_frame *f,
+				  u32 left, u32 top, u32 width, u32 height)
+{
+	f->offs_h = left;
+	f->offs_v = top;
+	f->width  = width;
+	f->height = height;
+}
+
+static inline u32 fimc_get_format_depth(struct fimc_fmt *ff)
+{
+	u32 i, depth = 0;
+
+	if (ff != NULL)
+		for (i = 0; i < ff->colplanes; i++)
+			depth += ff->depth[i];
+	return depth;
+}
+
 static inline bool fimc_capture_active(struct fimc_dev *fimc)
 {
 	unsigned long flags;
@@ -649,7 +688,6 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 				struct v4l2_fmtdesc *f);
-int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr);
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
@@ -684,6 +722,7 @@ int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
 			     struct fimc_vid_buffer *fimc_vb);
 int fimc_capture_suspend(struct fimc_dev *fimc);
 int fimc_capture_resume(struct fimc_dev *fimc);
+int fimc_capture_config_update(struct fimc_ctx *ctx);
 
 /* Locking: the caller holds fimc->slock */
 static inline void fimc_activate_capture(struct fimc_ctx *ctx)

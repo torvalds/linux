@@ -416,7 +416,7 @@ static int __fimc_md_create_fimc_links(struct fimc_md *fmd,
 	struct fimc_sensor_info *s_info;
 	struct media_entity *sink;
 	unsigned int flags;
-	int ret, i, src_pad;
+	int ret, i;
 
 	for (i = 0; i < FIMC_MAX_DEVS; i++) {
 		if (!fmd->fimc[i])
@@ -425,20 +425,27 @@ static int __fimc_md_create_fimc_links(struct fimc_md *fmd,
 		 * Some FIMC variants are not fitted with camera capture
 		 * interface. Skip creating a link from sensor for those.
 		 */
-		if (sensor && sensor->grp_id == SENSOR_GROUP_ID &&
+		if (sensor->grp_id == SENSOR_GROUP_ID &&
 		    !fmd->fimc[i]->variant->has_cam_if)
 			continue;
 
 		flags = (i == fimc_id) ? MEDIA_LNK_FL_ENABLED : 0;
-		sink = &fmd->fimc[i]->vid_cap.vfd->entity;
-		ret = media_entity_create_link(source, 0, sink, 0, flags);
+		sink = &fmd->fimc[i]->vid_cap.subdev->entity;
+		ret = media_entity_create_link(source, pad, sink,
+					      FIMC_SD_PAD_SINK, flags);
 		if (ret)
 			return ret;
+
+		/* Notify FIMC capture subdev entity */
+		ret = media_entity_call(sink, link_setup, &sink->pads[0],
+					&source->pads[pad], flags);
+		if (ret)
+			break;
 
 		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]",
 			  source->name, flags ? '=' : '-', sink->name);
 
-		if (flags == 0 || sensor == NULL)
+		if (flags == 0)
 			continue;
 		s_info = v4l2_get_subdev_hostdata(sensor);
 		if (!WARN_ON(s_info == NULL)) {
@@ -468,10 +475,10 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 	struct v4l2_subdev *sensor, *csis;
 	struct s5p_fimc_isp_info *pdata;
 	struct fimc_sensor_info *s_info;
-	struct media_entity *source;
-	int fimc_id = 0;
-	int i, pad;
+	struct media_entity *source, *sink;
+	int i, pad, fimc_id = 0;
 	int ret = 0;
+	u32 flags;
 
 	for (i = 0; i < fmd->num_sensors; i++) {
 		if (fmd->sensor[i].subdev == NULL)
@@ -507,7 +514,6 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 			v4l2_info(&fmd->v4l2_dev, "created link [%s] => [%s]",
 				  sensor->entity.name, csis->entity.name);
 
-			sensor = NULL;
 			source = &csis->entity;
 			pad = CSIS_PAD_SOURCE;
 			break;
@@ -526,8 +532,21 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 			continue;
 
 		ret = __fimc_md_create_fimc_links(fmd, source, sensor, pad,
-						 fimc_id++);
+						  fimc_id++);
 	}
+	/* Create immutable links between each FIMC's subdev and video node */
+	flags = MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED;
+	for (i = 0; i < FIMC_MAX_DEVS; i++) {
+		if (!fmd->fimc[i])
+			continue;
+		source = &fmd->fimc[i]->vid_cap.subdev->entity;
+		sink = &fmd->fimc[i]->vid_cap.vfd->entity;
+		ret = media_entity_create_link(source, FIMC_SD_PAD_SOURCE,
+					      sink, 0, flags);
+		if (ret)
+			break;
+	}
+
 	return ret;
 }
 
@@ -636,15 +655,15 @@ int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on)
 static int fimc_md_link_notify(struct media_pad *source,
 			       struct media_pad *sink, u32 flags)
 {
-	struct video_device *vid_dev;
+	struct v4l2_subdev *sd;
 	struct fimc_dev *fimc;
 	int ret = 0;
 
-	if (WARN_ON(media_entity_type(sink->entity) != MEDIA_ENT_T_DEVNODE))
+	if (media_entity_type(sink->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return 0;
 
-	vid_dev = media_entity_to_video_device(sink->entity);
-	fimc = video_get_drvdata(vid_dev);
+	sd = media_entity_to_v4l2_subdev(sink->entity);
+	fimc = v4l2_get_subdevdata(sd);
 
 	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 		ret = __fimc_pipeline_shutdown(fimc);

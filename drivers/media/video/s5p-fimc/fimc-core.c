@@ -372,6 +372,8 @@ static void fimc_capture_irq_handler(struct fimc_dev *fimc)
 		set_bit(ST_CAPT_RUN, &fimc->state);
 	}
 
+	fimc_capture_config_update(cap->ctx);
+
 	dbg("frame: %d, active_buf_cnt: %d",
 	    fimc_hw_get_frame_index(fimc), cap->active_buf_cnt);
 }
@@ -1198,12 +1200,11 @@ static int fimc_m2m_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	return 0;
 }
 
-int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
+static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct fimc_frame *f;
 	u32 min_size, halign, depth = 0;
-	bool is_capture_ctx;
 	int i;
 
 	if (cr->c.top < 0 || cr->c.left < 0) {
@@ -1211,13 +1212,9 @@ int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 			"doesn't support negative values for top & left\n");
 		return -EINVAL;
 	}
-
-	is_capture_ctx = fimc_ctx_state_is_set(FIMC_CTX_CAP, ctx);
-
 	if (cr->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		f = is_capture_ctx ? &ctx->s_frame : &ctx->d_frame;
-	else if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
-		 !is_capture_ctx)
+		f = &ctx->d_frame;
+	else if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		f = &ctx->s_frame;
 	else
 		return -EINVAL;
@@ -1226,15 +1223,10 @@ int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 		fimc->variant->min_inp_pixsize : fimc->variant->min_out_pixsize;
 
 	/* Get pixel alignment constraints. */
-	if (is_capture_ctx) {
-		min_size = 16;
-		halign = 4;
-	} else {
-		if (fimc->id == 1 && fimc->variant->pix_hoff)
-			halign = fimc_fmt_is_rgb(f->fmt->color) ? 0 : 1;
-		else
-			halign = ffs(min_size) - 1;
-	}
+	if (fimc->id == 1 && fimc->variant->pix_hoff)
+		halign = fimc_fmt_is_rgb(f->fmt->color) ? 0 : 1;
+	else
+		halign = ffs(min_size) - 1;
 
 	for (i = 0; i < f->fmt->colplanes; i++)
 		depth += f->fmt->depth[i];
@@ -1251,7 +1243,7 @@ int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 		cr->c.top = f->o_height - cr->c.height;
 
 	cr->c.left = round_down(cr->c.left, min_size);
-	cr->c.top  = round_down(cr->c.top, is_capture_ctx ? 16 : 8);
+	cr->c.top  = round_down(cr->c.top, fimc->variant->hor_offs_align);
 
 	dbg("l:%d, t:%d, w:%d, h:%d, f_w: %d, f_h: %d",
 	    cr->c.left, cr->c.top, cr->c.width, cr->c.height,
@@ -1267,7 +1259,7 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	struct fimc_frame *f;
 	int ret;
 
-	ret = fimc_try_crop(ctx, cr);
+	ret = fimc_m2m_try_crop(ctx, cr);
 	if (ret)
 		return ret;
 
