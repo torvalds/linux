@@ -1,7 +1,7 @@
 #ifndef __LINUX_NETLINK_H
 #define __LINUX_NETLINK_H
 
-#include <linux/socket.h> /* for sa_family_t */
+#include <linux/socket.h> /* for __kernel_sa_family_t */
 #include <linux/types.h>
 
 #define NETLINK_ROUTE		0	/* Routing/device hook				*/
