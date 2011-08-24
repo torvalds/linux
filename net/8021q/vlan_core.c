@@ -167,6 +167,8 @@ struct sk_buff *vlan_untag(struct sk_buff *skb)
 	if (unlikely(!skb))
 		goto err_free;
 
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
 	return skb;
 
 err_free:

@@ -52,7 +52,8 @@ module parameter for specifying the number of hardware queues to
 configure. In the bnx2x driver, for instance, this parameter is called
 num_queues. A typical RSS configuration would be to have one receive queue
 for each CPU if the device supports enough queues, or otherwise at least
-one for each cache domain at a particular cache level (L1, L2, etc.).
+one for each memory domain, where a memory domain is a set of CPUs that
+share a particular memory level (L1, L2, NUMA node, etc.).
 
 The indirection table of an RSS device, which resolves a queue by masked
 hash, is usually programmed by the driver at initialization. The
@@ -82,11 +83,17 @@ RSS should be enabled when latency is a concern or whenever receive
 interrupt processing forms a bottleneck. Spreading load between CPUs
 decreases queue length. For low latency networking, the optimal setting
 is to allocate as many queues as there are CPUs in the system (or the
-NIC maximum, if lower). Because the aggregate number of interrupts grows
-with each additional queue, the most efficient high-rate configuration
+NIC maximum, if lower). The most efficient high-rate configuration
 is likely the one with the smallest number of receive queues where no
-CPU that processes receive interrupts reaches 100% utilization. Per-cpu
-load can be observed using the mpstat utility.
+receive queue overflows due to a saturated CPU, because in default
+mode with interrupt coalescing enabled, the aggregate number of
+interrupts (and thus work) grows with each additional queue.
+
+Per-cpu load can be observed using the mpstat utility, but note that on
+processors with hyperthreading (HT), each hyperthread is represented as
+a separate CPU. For interrupt handling, HT has shown no benefit in
+initial tests, so limit the number of queues to the number of CPU cores
+in the system.
 
 
 RPS: Receive Packet Steering
@@ -145,7 +152,7 @@ the bitmap.
 == Suggested Configuration
 
 For a single queue device, a typical RPS configuration would be to set
-the rps_cpus to the CPUs in the same cache domain of the interrupting
+the rps_cpus to the CPUs in the same memory domain of the interrupting
 CPU. If NUMA locality is not an issue, this could also be all CPUs in
 the system. At high interrupt rate, it might be wise to exclude the
 interrupting CPU from the map since that already performs much work.
@@ -154,7 +161,7 @@ For a multi-queue system, if RSS is configured so that a hardware
 receive queue is mapped to each CPU, then RPS is probably redundant
 and unnecessary. If there are fewer hardware queues than CPUs, then
 RPS might be beneficial if the rps_cpus for each queue are the ones that
-share the same cache domain as the interrupting CPU for that queue.
+share the same memory domain as the interrupting CPU for that queue.
 
 
 RFS: Receive Flow Steering
@@ -326,7 +333,7 @@ The queue chosen for transmitting a particular flow is saved in the
 corresponding socket structure for the flow (e.g. a TCP connection).
 This transmit queue is used for subsequent packets sent on the flow to
 prevent out of order (ooo) packets. The choice also amortizes the cost
-of calling get_xps_queues() over all packets in the connection. To avoid
+of calling get_xps_queues() over all packets in the flow. To avoid
 ooo packets, the queue for a flow can subsequently only be changed if
 skb->ooo_okay is set for a packet in the flow. This flag indicates that
 there are no outstanding packets in the flow, so the transmit queue can
