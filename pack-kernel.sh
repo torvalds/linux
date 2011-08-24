@@ -5,8 +5,7 @@ FILES=(
 # arch
 arch/arm/mach-rk29/clock.c
 arch/arm/mach-rk29/ddr.c
-arch/arm/mach-rk29/vpu.c
-arch/arm/mach-rk29/vpu_mem.c
+arch/arm/mach-rk29/vpu*.c
 
 drivers/staging/rk29/ipp/rk29-ipp.c
 sound/soc/codecs/rt5625.c
@@ -46,12 +45,15 @@ arch/arm/configs/rk29_FIH_defconfig
 
 arch/arm/mach-rk29/board-rk29-newton*
 arch/arm/configs/rk29_newton_defconfig
+
+arch/arm/mach-rk29/board-rk29-p91*
+arch/arm/configs/rk29_p91_defconfig
 )
 
 # ---------------------------------------------------------------------------
 usage() {
 	echo usage: $0 kerneldir defconfig
-	echo example: $0 . rk29_sdk_defconfig
+	echo example: $0 . rk29_ddr3sdk_defconfig
 	exit
 }
 
@@ -67,7 +69,7 @@ kerndir=${1-.}
 kerndir=$(cd $kerndir; pwd)	# get absolute path
 [ -d $kerndir ] || usage
 
-defconfig=${2-rk29_sdk_defconfig}
+defconfig=${2-rk29_ddr3sdk_defconfig}
 if [ "$defconfig" = ".config" ]; then
 	[ -f $kerndir/.config ] || usage
 else
