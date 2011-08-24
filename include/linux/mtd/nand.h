@@ -465,7 +465,7 @@ struct nand_buffers {
  * @controller:		[REPLACEABLE] a pointer to a hardware controller
  *			structure which is shared among multiple independent
  *			devices.
- * @priv:		[OPTIONAL] pointer to private chip date
+ * @priv:		[OPTIONAL] pointer to private chip data
  * @errstat:		[OPTIONAL] hardware specific function to perform
  *			additional error status checks (determine if errors are
  *			correctable).
