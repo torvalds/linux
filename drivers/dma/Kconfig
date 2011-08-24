@@ -124,7 +124,7 @@ config MV_XOR
 
 config MX3_IPU
 	bool "MX3x Image Processing Unit support"
-	depends on ARCH_MX3
+	depends on ARCH_MXC
 	select DMA_ENGINE
 	default y
 	help
@@ -216,11 +216,11 @@ config PCH_DMA
 
 config IMX_SDMA
 	tristate "i.MX SDMA support"
-	depends on ARCH_MX25 || ARCH_MX3 || ARCH_MX5
+	depends on ARCH_MXC
 	select DMA_ENGINE
 	help
 	  Support the i.MX SDMA engine. This engine is integrated into
-	  Freescale i.MX25/31/35/51 chips.
+	  Freescale i.MX25/31/35/51/53 chips.
 
 config IMX_DMA
 	tristate "i.MX DMA support"
