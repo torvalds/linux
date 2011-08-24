@@ -7,6 +7,8 @@
 #ifndef	ROSE_KERNEL_H
 #define	ROSE_KERNEL_H
 
+#include <linux/ax25.h>
+
 #define ROSE_MTU	251
 
 #define ROSE_MAX_DIGIS 6
