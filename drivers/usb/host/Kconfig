@@ -544,11 +544,11 @@ config USB_HWA_HCD
 	  will be called "hwa-hc".
 
 config USB_IMX21_HCD
-       tristate "iMX21 HCD support"
-       depends on USB && ARM && MACH_MX21
+       tristate "i.MX21 HCD support"
+       depends on USB && ARM && ARCH_MXC
        help
          This driver enables support for the on-chip USB host in the
-         iMX21 processor.
+         i.MX21 processor.
 
          To compile this driver as a module, choose M here: the
          module will be called "imx21-hcd".
