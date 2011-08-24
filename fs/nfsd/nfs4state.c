@@ -3388,7 +3388,6 @@ setlkflg (int type)
 static __be32
 nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 			 stateid_t *stateid, int flags,
-			 struct nfs4_stateowner **sopp,
 			 struct nfs4_stateid **stpp)
 {
 	struct nfs4_stateid *stp;
@@ -3400,7 +3399,6 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 		seqid, STATEID_VAL(stateid));
 
 	*stpp = NULL;
-	*sopp = NULL;
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid)) {
 		dprintk("NFSD: preprocess_seqid_op: magic stateid!\n");
@@ -3431,7 +3429,7 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	}
 
 	*stpp = stp;
-	*sopp = sop = stp->st_stateowner;
+	sop = stp->st_stateowner;
 	nfs4_get_stateowner(sop);
 	cstate->replay_owner = sop;
 
@@ -3467,7 +3465,6 @@ check_replay:
 	}
 	dprintk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d)\n",
 			sop->so_seqid, seqid);
-	*sopp = NULL;
 	return nfserr_bad_seqid;
 }
 
@@ -3489,13 +3486,13 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 
-	if ((status = nfs4_preprocess_seqid_op(cstate,
+	status = nfs4_preprocess_seqid_op(cstate,
 					oc->oc_seqid, &oc->oc_req_stateid,
-					CONFIRM | OPEN_STATE,
-					&oc->oc_stateowner, &stp)))
+					CONFIRM | OPEN_STATE, &stp);
+	if (status)
 		goto out; 
 
-	sop = oc->oc_stateowner;
+	sop = stp->st_stateowner;
 	sop->so_confirmed = 1;
 	update_stateid(&stp->st_stateid);
 	memcpy(&oc->oc_resp_stateid, &stp->st_stateid, sizeof(stateid_t));
@@ -3547,11 +3544,9 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 		return nfserr_inval;
 
 	nfs4_lock_state();
-	if ((status = nfs4_preprocess_seqid_op(cstate,
-					od->od_seqid,
-					&od->od_stateid, 
-					OPEN_STATE,
-					&od->od_stateowner, &stp)))
+	status = nfs4_preprocess_seqid_op(cstate, od->od_seqid,
+					&od->od_stateid, OPEN_STATE, &stp);
+	if (status)
 		goto out; 
 
 	status = nfserr_inval;
@@ -3586,6 +3581,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	__be32 status;
 	struct nfs4_stateid *stp;
+	struct nfs4_stateowner *so;
 
 	dprintk("NFSD: nfsd4_close on file %.*s\n", 
 			(int)cstate->current_fh.fh_dentry->d_name.len,
@@ -3593,12 +3589,12 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 	/* check close_lru for replay */
-	if ((status = nfs4_preprocess_seqid_op(cstate,
-					close->cl_seqid,
+	status = nfs4_preprocess_seqid_op(cstate, close->cl_seqid,
 					&close->cl_stateid, 
-					OPEN_STATE | CLOSE_STATE,
-					&close->cl_stateowner, &stp)))
+					OPEN_STATE | CLOSE_STATE, &stp);
+	if (status)
 		goto out; 
+	so = stp->st_stateowner;
 	status = nfs_ok;
 	update_stateid(&stp->st_stateid);
 	memcpy(&close->cl_stateid, &stp->st_stateid, sizeof(stateid_t));
@@ -3610,8 +3606,8 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * released by the laundromat service after the lease period
 	 * to enable us to handle CLOSE replay
 	 */
-	if (list_empty(&close->cl_stateowner->so_stateids))
-		move_to_close_lru(close->cl_stateowner);
+	if (list_empty(&so->so_stateids))
+		move_to_close_lru(so);
 out:
 	nfs4_unlock_state();
 	return status;
@@ -3962,12 +3958,11 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfs4_preprocess_seqid_op(cstate,
 				        lock->lk_new_open_seqid,
 		                        &lock->lk_new_open_stateid,
-					OPEN_STATE,
-		                        &lock->lk_replay_owner, &open_stp);
+					OPEN_STATE, &open_stp);
 		if (status)
 			goto out;
 		status = nfserr_bad_stateid;
-		open_sop = lock->lk_replay_owner;
+		open_sop = open_stp->st_stateowner;
 		if (!nfsd4_has_session(cstate) &&
 				!same_clid(&open_sop->so_client->cl_clientid,
 						&lock->v.new.clientid))
@@ -3993,14 +3988,13 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfs4_preprocess_seqid_op(cstate,
 				       lock->lk_old_lock_seqid, 
 				       &lock->lk_old_lock_stateid, 
-				       LOCK_STATE,
-				       &lock->lk_replay_owner, &lock_stp);
+				       LOCK_STATE, &lock_stp);
 		if (status)
 			goto out;
-		lock_sop = lock->lk_replay_owner;
+		lock_sop = lock_stp->st_stateowner;
 		fp = lock_stp->st_file;
 	}
-	/* lock->lk_replay_owner and lock_stp have been created or found */
+	/* lock_sop and lock_stp have been created or found */
 
 	lkflg = setlkflg(lock->lk_type);
 	status = nfs4_check_openmode(lock_stp, lkflg);
@@ -4191,13 +4185,10 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 									        
-	if ((status = nfs4_preprocess_seqid_op(cstate,
-					locku->lu_seqid, 
-					&locku->lu_stateid, 
-					LOCK_STATE,
-					&locku->lu_stateowner, &stp)))
+	status = nfs4_preprocess_seqid_op(cstate, locku->lu_seqid,
+					&locku->lu_stateid, LOCK_STATE, &stp);
+	if (status)
 		goto out;
-
 	filp = find_any_file(stp->st_file);
 	if (!filp) {
 		status = nfserr_lock_range;
@@ -4206,7 +4197,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	BUG_ON(!filp);
 	locks_init_lock(&file_lock);
 	file_lock.fl_type = F_UNLCK;
-	file_lock.fl_owner = (fl_owner_t) locku->lu_stateowner;
+	file_lock.fl_owner = (fl_owner_t) stp->st_stateowner;
 	file_lock.fl_pid = current->tgid;
 	file_lock.fl_file = filp;
 	file_lock.fl_flags = FL_POSIX; 

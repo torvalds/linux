@@ -456,7 +456,6 @@ nfsd4_decode_close(struct nfsd4_compoundargs *argp, struct nfsd4_close *close)
 {
 	DECODE_HEAD;
 
-	close->cl_stateowner = NULL;
 	READ_BUF(4);
 	READ32(close->cl_seqid);
 	return nfsd4_decode_stateid(argp, &close->cl_stateid);
@@ -551,7 +550,6 @@ nfsd4_decode_lock(struct nfsd4_compoundargs *argp, struct nfsd4_lock *lock)
 {
 	DECODE_HEAD;
 
-	lock->lk_replay_owner = NULL;
 	/*
 	* type, reclaim(boolean), offset, length, new_lock_owner(boolean)
 	*/
@@ -611,7 +609,6 @@ nfsd4_decode_locku(struct nfsd4_compoundargs *argp, struct nfsd4_locku *locku)
 {
 	DECODE_HEAD;
 
-	locku->lu_stateowner = NULL;
 	READ_BUF(8);
 	READ32(locku->lu_type);
 	if ((locku->lu_type < NFS4_READ_LT) || (locku->lu_type > NFS4_WRITEW_LT))
@@ -739,7 +736,6 @@ nfsd4_decode_open_confirm(struct nfsd4_compoundargs *argp, struct nfsd4_open_con
 {
 	DECODE_HEAD;
 		    
-	open_conf->oc_stateowner = NULL;
 	status = nfsd4_decode_stateid(argp, &open_conf->oc_req_stateid);
 	if (status)
 		return status;
@@ -754,7 +750,6 @@ nfsd4_decode_open_downgrade(struct nfsd4_compoundargs *argp, struct nfsd4_open_d
 {
 	DECODE_HEAD;
 		    
-	open_down->od_stateowner = NULL;
 	status = nfsd4_decode_stateid(argp, &open_down->od_stateid);
 	if (status)
 		return status;
