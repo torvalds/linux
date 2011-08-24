@@ -208,7 +208,7 @@ struct vb2_buffer {
  */
 struct vb2_ops {
 	int (*queue_setup)(struct vb2_queue *q, unsigned int *num_buffers,
-			   unsigned int *num_planes, unsigned long sizes[],
+			   unsigned int *num_planes, unsigned int sizes[],
 			   void *alloc_ctxs[]);
 
 	void (*wait_prepare)(struct vb2_queue *q);
@@ -273,7 +273,7 @@ struct vb2_queue {
 	wait_queue_head_t		done_wq;
 
 	void				*alloc_ctx[VIDEO_MAX_PLANES];
-	unsigned long			plane_sizes[VIDEO_MAX_PLANES];
+	unsigned int			plane_sizes[VIDEO_MAX_PLANES];
 
 	unsigned int			streaming:1;
 

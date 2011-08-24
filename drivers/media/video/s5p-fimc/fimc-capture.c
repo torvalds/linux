@@ -265,7 +265,7 @@ static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
 }
 
 static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
-		       unsigned int *num_planes, unsigned long sizes[],
+		       unsigned int *num_planes, unsigned int sizes[],
 		       void *allocators[])
 {
 	struct fimc_ctx *ctx = vq->drv_priv;

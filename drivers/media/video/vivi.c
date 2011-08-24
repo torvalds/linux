@@ -651,7 +651,7 @@ static void vivi_stop_generating(struct vivi_dev *dev)
 	Videobuf operations
    ------------------------------------------------------------------*/
 static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
-				unsigned int *nplanes, unsigned long sizes[],
+				unsigned int *nplanes, unsigned int sizes[],
 				void *alloc_ctxs[])
 {
 	struct vivi_dev *dev = vb2_get_drv_priv(vq);

@@ -1514,7 +1514,7 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		       unsigned int *buf_count, unsigned int *plane_count,
-		       unsigned long psize[], void *allocators[])
+		       unsigned int psize[], void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 
