@@ -21,7 +21,6 @@ config KEYS_RK29
 config KEYS_RK29_NEWTON
 	tristate "rk29 newton keyboard"
 	depends on ARCH_RK29
-	default y
 	help
 		rk29 newton keyboard drivers(gpio and adc)
 
