@@ -367,6 +367,20 @@ static int w8001_command(struct w8001 *w8001, unsigned char command,
 	return rc;
 }
 
+static int w8001_open(struct input_dev *dev)
+{
+	struct w8001 *w8001 = input_get_drvdata(dev);
+
+	return w8001_command(w8001, W8001_CMD_START, false);
+}
+
+static void w8001_close(struct input_dev *dev)
+{
+	struct w8001 *w8001 = input_get_drvdata(dev);
+
+	w8001_command(w8001, W8001_CMD_STOP, false);
+}
+
 static int w8001_setup(struct w8001 *w8001)
 {
 	struct input_dev *dev = w8001->dev;
@@ -474,7 +488,7 @@ static int w8001_setup(struct w8001 *w8001)
 
 	strlcat(w8001->name, " Touchscreen", sizeof(w8001->name));
 
-	return w8001_command(w8001, W8001_CMD_START, false);
+	return 0;
 }
 
 /*
@@ -533,6 +547,11 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = 0x056a;
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
+
+	input_dev->open = w8001_open;
+	input_dev->close = w8001_close;
+
+	input_set_drvdata(input_dev, w8001);
 
 	err = input_register_device(w8001->dev);
 	if (err)
