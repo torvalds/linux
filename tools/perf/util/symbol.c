@@ -1111,6 +1111,8 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
 	}
 
 	opdsec = elf_section_by_name(elf, &ehdr, &opdshdr, ".opd", &opdidx);
+	if (opdshdr.sh_type != SHT_PROGBITS)
+		opdsec = NULL;
 	if (opdsec)
 		opddata = elf_rawdata(opdsec, NULL);
 
