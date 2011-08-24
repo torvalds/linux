@@ -1038,6 +1038,12 @@ void nfs4_schedule_lease_recovery(struct nfs_client *clp)
 	nfs4_schedule_state_manager(clp);
 }
 
+void nfs4_schedule_path_down_recovery(struct nfs_client *clp)
+{
+	nfs_handle_cb_pathdown(clp);
+	nfs4_schedule_state_manager(clp);
+}
+
 static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
 {
 
