@@ -64,66 +64,6 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 	}
 }
 
-static void update_transtable(struct bat_priv *bat_priv,
-			      struct orig_node *orig_node,
-			      const unsigned char *tt_buff,
-			      uint8_t tt_num_changes, uint8_t ttvn,
-			      uint16_t tt_crc)
-{
-	uint8_t orig_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
-	bool full_table = true;
-
-	/* the ttvn increased by one -> we can apply the attached changes */
-	if (ttvn - orig_ttvn == 1) {
-		/* the OGM could not contain the changes because they were too
-		 * many to fit in one frame or because they have already been
-		 * sent TT_OGM_APPEND_MAX times. In this case send a tt
-		 * request */
-		if (!tt_num_changes) {
-			full_table = false;
-			goto request_table;
-		}
-
-		tt_update_changes(bat_priv, orig_node, tt_num_changes, ttvn,
-				  (struct tt_change *)tt_buff);
-
-		/* Even if we received the crc into the OGM, we prefer
-		 * to recompute it to spot any possible inconsistency
-		 * in the global table */
-		orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
-
-		/* The ttvn alone is not enough to guarantee consistency
-		 * because a single value could repesent different states
-		 * (due to the wrap around). Thus a node has to check whether
-		 * the resulting table (after applying the changes) is still
-		 * consistent or not. E.g. a node could disconnect while its
-		 * ttvn is X and reconnect on ttvn = X + TTVN_MAX: in this case
-		 * checking the CRC value is mandatory to detect the
-		 * inconsistency */
-		if (orig_node->tt_crc != tt_crc)
-			goto request_table;
-
-		/* Roaming phase is over: tables are in sync again. I can
-		 * unset the flag */
-		orig_node->tt_poss_change = false;
-	} else {
-		/* if we missed more than one change or our tables are not
-		 * in sync anymore -> request fresh tt data */
-		if (ttvn != orig_ttvn || orig_node->tt_crc != tt_crc) {
-request_table:
-			bat_dbg(DBG_TT, bat_priv, "TT inconsistency for %pM. "
-				"Need to retrieve the correct information "
-				"(ttvn: %u last_ttvn: %u crc: %u last_crc: "
-				"%u num_changes: %u)\n", orig_node->orig, ttvn,
-				orig_ttvn, tt_crc, orig_node->tt_crc,
-				tt_num_changes);
-			send_tt_request(bat_priv, orig_node, ttvn, tt_crc,
-					full_table);
-			return;
-		}
-	}
-}
-
 static void update_route(struct bat_priv *bat_priv,
 			 struct orig_node *orig_node,
 			 struct neigh_node *neigh_node)
@@ -228,7 +168,7 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	if (!neigh_node)
 		goto out;
 
-	/* if orig_node is direct neighbour update neigh_node last_valid */
+	/* if orig_node is direct neighbor update neigh_node last_valid */
 	if (orig_node == orig_neigh_node)
 		neigh_node->last_valid = jiffies;
 
@@ -473,7 +413,7 @@ static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	if (router && (router->tq_avg > neigh_node->tq_avg))
 		goto update_tt;
 
-	/* if the TQ is the same and the link not more symetric we
+	/* if the TQ is the same and the link not more symmetric we
 	 * won't consider it either */
 	if (router && (neigh_node->tq_avg == router->tq_avg)) {
 		orig_node_tmp = router->orig_node;
@@ -500,10 +440,9 @@ update_tt:
 	if (((batman_packet->orig != ethhdr->h_source) &&
 				(batman_packet->ttl > 2)) ||
 				(batman_packet->flags & PRIMARIES_FIRST_HOP))
-		update_transtable(bat_priv, orig_node, tt_buff,
-				  batman_packet->tt_num_changes,
-				  batman_packet->ttvn,
-				  batman_packet->tt_crc);
+		tt_update_orig(bat_priv, orig_node, tt_buff,
+			       batman_packet->tt_num_changes,
+			       batman_packet->ttvn, batman_packet->tt_crc);
 
 	if (orig_node->gw_flags != batman_packet->gw_flags)
 		gw_node_update(bat_priv, orig_node, batman_packet->gw_flags);
@@ -1243,7 +1182,7 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 		}
 		break;
 	case TT_RESPONSE:
-		/* packet needs to be linearised to access the TT changes */
+		/* packet needs to be linearized to access the TT changes */
 		if (skb_linearize(skb) < 0)
 			goto out;
 
@@ -1300,7 +1239,7 @@ int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 		roam_adv_packet->client);
 
 	tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
-		      atomic_read(&orig_node->last_ttvn) + 1, true);
+		      atomic_read(&orig_node->last_ttvn) + 1, true, false);
 
 	/* Roaming phase starts: I have new information but the ttvn has not
 	 * been incremented yet. This flag will make me check all the incoming
@@ -1536,7 +1475,7 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 
 		ethhdr = (struct ethhdr *)(skb->data +
 			sizeof(struct unicast_packet));
-		orig_node = transtable_search(bat_priv, ethhdr->h_dest);
+		orig_node = transtable_search(bat_priv, NULL, ethhdr->h_dest);
 
 		if (!orig_node) {
 			if (!is_my_client(bat_priv, ethhdr->h_dest))

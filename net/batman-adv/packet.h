@@ -84,6 +84,7 @@ enum tt_query_flags {
 enum tt_client_flags {
 	TT_CLIENT_DEL     = 1 << 0,
 	TT_CLIENT_ROAM    = 1 << 1,
+	TT_CLIENT_WIFI    = 1 << 2,
 	TT_CLIENT_NOPURGE = 1 << 8,
 	TT_CLIENT_NEW     = 1 << 9,
 	TT_CLIENT_PENDING = 1 << 10

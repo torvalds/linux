@@ -252,7 +252,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, const uint8_t *addr)
 
 	hash_added = hash_add(bat_priv->orig_hash, compare_orig,
 			      choose_orig, orig_node, &orig_node->hash_entry);
-	if (hash_added < 0)
+	if (hash_added != 0)
 		goto free_bcast_own_sum;
 
 	return orig_node;
