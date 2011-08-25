@@ -45,7 +45,7 @@
 #include <linux/if_arp.h>
 #include <linux/random.h>
 #include <linux/version.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "rtllib.h"
 
 #include "dot11d.h"
@@ -62,28 +62,35 @@
 #include "rtl_pci.h"
 #include "rtl_cam.h"
 
-#define DRV_COPYRIGHT  "Copyright(c) 2008 - 2010 Realsil Semiconductor Corporation"
+#define DRV_COPYRIGHT		\
+	"Copyright(c) 2008 - 2010 Realsil Semiconductor Corporation"
 #define DRV_AUTHOR  "<wlanfae@realtek.com>"
 #define DRV_VERSION  "0014.0401.2010"
 
 #define DRV_NAME "rtl819xE"
 
-#define IS_HARDWARE_TYPE_819xP(_priv) ((((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8190P)||\
-					(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192E))
-#define IS_HARDWARE_TYPE_8192SE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192SE)
-#define IS_HARDWARE_TYPE_8192CE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192CE)
-#define IS_HARDWARE_TYPE_8192CU(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192CU)
-#define IS_HARDWARE_TYPE_8192DE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192DE)
-#define IS_HARDWARE_TYPE_8192DU(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192DU)
+#define IS_HARDWARE_TYPE_819xP(_priv)		\
+	((((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8190P) || \
+	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192E))
+#define IS_HARDWARE_TYPE_8192SE(_priv)		\
+	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192SE)
+#define IS_HARDWARE_TYPE_8192CE(_priv)		\
+	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192CE)
+#define IS_HARDWARE_TYPE_8192CU(_priv)		\
+	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192CU)
+#define IS_HARDWARE_TYPE_8192DE(_priv)		\
+	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192DE)
+#define IS_HARDWARE_TYPE_8192DU(_priv)		\
+	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192DU)
 
 #define RTL_PCI_DEVICE(vend, dev, cfg) \
 	.vendor = (vend), .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice =PCI_ANY_ID , \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID , \
 	.driver_data = (kernel_ulong_t)&(cfg)
 
 #define irqreturn_type irqreturn_t
 
-#define rtl8192_interrupt(x,y,z) rtl8192_interrupt_rsl(x,y)
+#define rtl8192_interrupt(x, y, z) rtl8192_interrupt_rsl(x, y)
 
 #define RTL_MAX_SCAN_SIZE 128
 
@@ -100,8 +107,9 @@
 
 #define IS_ADAPTER_SENDS_BEACON(dev) 0
 
-#define IS_UNDER_11N_AES_MODE(_rtllib)  ((_rtllib->pHTInfo->bCurrentHTSupport == true) &&\
-					(_rtllib->pairwise_key_type == KEY_TYPE_CCMP))
+#define IS_UNDER_11N_AES_MODE(_rtllib)		\
+	((_rtllib->pHTInfo->bCurrentHTSupport == true) && \
+	(_rtllib->pairwise_key_type == KEY_TYPE_CCMP))
 
 #define HAL_MEMORY_MAPPED_IO_RANGE_8190PCI	0x1000
 #define HAL_HW_PCI_REVISION_ID_8190PCI			0x00
@@ -120,36 +128,38 @@
 #define HAL_HW_PCI_8198_DEVICE_ID			0x8198
 #define HAL_HW_PCI_8190_DEVICE_ID			0x8190
 #define HAL_HW_PCI_8192_DEVICE_ID			0x8192
-#define HAL_HW_PCI_8192SE_DEVICE_ID				0x8192
+#define HAL_HW_PCI_8192SE_DEVICE_ID			0x8192
 #define HAL_HW_PCI_8174_DEVICE_ID			0x8174
 #define HAL_HW_PCI_8173_DEVICE_ID			0x8173
 #define HAL_HW_PCI_8172_DEVICE_ID			0x8172
 #define HAL_HW_PCI_8171_DEVICE_ID			0x8171
-#define HAL_HW_PCI_0045_DEVICE_ID				0x0045
-#define HAL_HW_PCI_0046_DEVICE_ID				0x0046
-#define HAL_HW_PCI_0044_DEVICE_ID				0x0044
-#define HAL_HW_PCI_0047_DEVICE_ID				0x0047
-#define HAL_HW_PCI_700F_DEVICE_ID				0x700F
-#define HAL_HW_PCI_701F_DEVICE_ID				0x701F
-#define HAL_HW_PCI_DLINK_DEVICE_ID				0x3304
+#define HAL_HW_PCI_0045_DEVICE_ID			0x0045
+#define HAL_HW_PCI_0046_DEVICE_ID			0x0046
+#define HAL_HW_PCI_0044_DEVICE_ID			0x0044
+#define HAL_HW_PCI_0047_DEVICE_ID			0x0047
+#define HAL_HW_PCI_700F_DEVICE_ID			0x700F
+#define HAL_HW_PCI_701F_DEVICE_ID			0x701F
+#define HAL_HW_PCI_DLINK_DEVICE_ID			0x3304
 #define HAL_HW_PCI_8192CET_DEVICE_ID			0x8191
-#define HAL_HW_PCI_8192CE_DEVICE_ID				0x8178
-#define HAL_HW_PCI_8191CE_DEVICE_ID				0x8177
-#define HAL_HW_PCI_8188CE_DEVICE_ID				0x8176
-#define HAL_HW_PCI_8192CU_DEVICE_ID				0x8191
-#define HAL_HW_PCI_8192DE_DEVICE_ID				0x092D
-#define HAL_HW_PCI_8192DU_DEVICE_ID				0x092D
+#define HAL_HW_PCI_8192CE_DEVICE_ID			0x8178
+#define HAL_HW_PCI_8191CE_DEVICE_ID			0x8177
+#define HAL_HW_PCI_8188CE_DEVICE_ID			0x8176
+#define HAL_HW_PCI_8192CU_DEVICE_ID			0x8191
+#define HAL_HW_PCI_8192DE_DEVICE_ID			0x092D
+#define HAL_HW_PCI_8192DU_DEVICE_ID			0x092D
 
 #define RTL819X_DEFAULT_RF_TYPE		RF_1T2R
 
 #define RTLLIB_WATCH_DOG_TIME		2000
 
-#define MAX_DEV_ADDR_SIZE		8  /* support till 64 bit bus width OS */
+#define MAX_DEV_ADDR_SIZE		8  /*support till 64 bit bus width OS*/
 #define MAX_FIRMWARE_INFORMATION_SIZE   32
 #define MAX_802_11_HEADER_LENGTH	(40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
 #define MAX_FRAGMENT_COUNT		8
-#define MAX_TRANSMIT_BUFFER_SIZE	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
+#define MAX_TRANSMIT_BUFFER_SIZE	\
+	(1600 + (MAX_802_11_HEADER_LENGTH + ENCRYPTION_MAX_OVERHEAD) *	\
+	 MAX_FRAGMENT_COUNT)
 
 #define scrclng				4
 
@@ -164,13 +174,13 @@
 
 #define	PHY_RSSI_SLID_WIN_MAX			100
 
-#define RTL_IOCTL_WPA_SUPPLICANT		SIOCIWFIRSTPRIV+30
+#define RTL_IOCTL_WPA_SUPPLICANT		(SIOCIWFIRSTPRIV + 30)
 
-#define TxBBGainTableLength		        37
-#define CCKTxBBGainTableLength	                23
+#define TxBBGainTableLength			37
+#define CCKTxBBGainTableLength			23
 
 #define CHANNEL_PLAN_LEN			10
-#define sCrcLng			                4
+#define sCrcLng					4
 
 #define NIC_SEND_HANG_THRESHOLD_NORMAL		4
 #define NIC_SEND_HANG_THRESHOLD_POWERSAVE	8
@@ -179,30 +189,30 @@
 
 #define MAX_RX_QUEUE				1
 
-#define MAX_RX_COUNT                            64
-#define MAX_TX_QUEUE_COUNT                      9
+#define MAX_RX_COUNT				64
+#define MAX_TX_QUEUE_COUNT			9
 
 enum RTL819x_PHY_PARAM {
-	RTL819X_PHY_MACPHY_REG		= 0,
-	RTL819X_PHY_MACPHY_REG_PG	= 1,
-	RTL8188C_PHY_MACREG			=2,
-	RTL8192C_PHY_MACREG			=3,
+	RTL819X_PHY_MACPHY_REG			= 0,
+	RTL819X_PHY_MACPHY_REG_PG		= 1,
+	RTL8188C_PHY_MACREG			= 2,
+	RTL8192C_PHY_MACREG			= 3,
 	RTL819X_PHY_REG				= 4,
 	RTL819X_PHY_REG_1T2R			= 5,
-	RTL819X_PHY_REG_to1T1R		= 6,
-	RTL819X_PHY_REG_to1T2R		= 7,
-	RTL819X_PHY_REG_to2T2R		= 8,
+	RTL819X_PHY_REG_to1T1R			= 6,
+	RTL819X_PHY_REG_to1T2R			= 7,
+	RTL819X_PHY_REG_to2T2R			= 8,
 	RTL819X_PHY_REG_PG			= 9,
 	RTL819X_AGC_TAB				= 10,
-	RTL819X_PHY_RADIO_A			=11,
-	RTL819X_PHY_RADIO_A_1T		=12,
-	RTL819X_PHY_RADIO_A_2T		=13,
-	RTL819X_PHY_RADIO_B			=14,
-	RTL819X_PHY_RADIO_B_GM		=15,
-	RTL819X_PHY_RADIO_C			=16,
-	RTL819X_PHY_RADIO_D			=17,
-	RTL819X_EEPROM_MAP			=18,
-	RTL819X_EFUSE_MAP				=19,
+	RTL819X_PHY_RADIO_A			= 11,
+	RTL819X_PHY_RADIO_A_1T			= 12,
+	RTL819X_PHY_RADIO_A_2T			= 13,
+	RTL819X_PHY_RADIO_B			= 14,
+	RTL819X_PHY_RADIO_B_GM			= 15,
+	RTL819X_PHY_RADIO_C			= 16,
+	RTL819X_PHY_RADIO_D			= 17,
+	RTL819X_EEPROM_MAP			= 18,
+	RTL819X_EFUSE_MAP			= 19,
 };
 
 enum RTL_DEBUG {
@@ -212,27 +222,27 @@ enum RTL_DEBUG {
 	COMP_RECV		= BIT3,
 	COMP_SEND		= BIT4,
 	COMP_CMD		= BIT5,
-	COMP_POWER	        = BIT6,
-	COMP_EPROM	        = BIT7,
+	COMP_POWER		= BIT6,
+	COMP_EPROM		= BIT7,
 	COMP_SWBW		= BIT8,
 	COMP_SEC		= BIT9,
 	COMP_LPS		= BIT10,
 	COMP_QOS		= BIT11,
 	COMP_RATE		= BIT12,
-	COMP_RXDESC	        = BIT13,
+	COMP_RXDESC		= BIT13,
 	COMP_PHY		= BIT14,
 	COMP_DIG		= BIT15,
 	COMP_TXAGC		= BIT16,
-	COMP_HALDM	        = BIT17,
+	COMP_HALDM		= BIT17,
 	COMP_POWER_TRACKING	= BIT18,
-	COMP_CH		        = BIT19,
-	COMP_RF		        = BIT20,
-	COMP_FIRMWARE	        = BIT21,
-	COMP_HT		        = BIT22,
+	COMP_CH			= BIT19,
+	COMP_RF			= BIT20,
+	COMP_FIRMWARE		= BIT21,
+	COMP_HT			= BIT22,
 	COMP_RESET		= BIT23,
-	COMP_CMDPKT	        = BIT24,
+	COMP_CMDPKT		= BIT24,
 	COMP_SCAN		= BIT25,
-	COMP_PS		        = BIT26,
+	COMP_PS			= BIT26,
 	COMP_DOWN		= BIT27,
 	COMP_INTR		= BIT28,
 	COMP_LED		= BIT29,
@@ -245,11 +255,11 @@ enum nic_t {
 	NIC_8192E       = 1,
 	NIC_8190P       = 2,
 	NIC_8192SE      = 4,
-	NIC_8192CE		= 5,
-	NIC_8192CU		= 6,
-	NIC_8192DE		= 7,
-	NIC_8192DU		= 8,
-	};
+	NIC_8192CE	= 5,
+	NIC_8192CU	= 6,
+	NIC_8192DE	= 7,
+	NIC_8192DU	= 8,
+};
 
 enum rt_eeprom_type {
 	EEPROM_93C46,
@@ -258,7 +268,7 @@ enum rt_eeprom_type {
 };
 
 enum dcmg_txcmd_op {
-	TXCMD_TXRA_HISTORY_CTRL	        = 0xFF900000,
+	TXCMD_TXRA_HISTORY_CTRL		= 0xFF900000,
 	TXCMD_RESET_TX_PKT_BUFF		= 0xFF900001,
 	TXCMD_RESET_RX_PKT_BUFF		= 0xFF900002,
 	TXCMD_SET_TX_DURATION		= 0xFF900003,
@@ -268,18 +278,18 @@ enum dcmg_txcmd_op {
 };
 
 enum rt_rf_type_819xu {
-        RF_TYPE_MIN = 0,
-        RF_8225,
-        RF_8256,
-        RF_8258,
-        RF_6052=4,
-        RF_PSEUDO_11N = 5,
+	RF_TYPE_MIN = 0,
+	RF_8225,
+	RF_8256,
+	RF_8258,
+	RF_6052 = 4,
+	RF_PSEUDO_11N = 5,
 };
 
 enum rf_step {
-    RF_STEP_INIT = 0,
-    RF_STEP_NORMAL,
-    RF_STEP_MAX
+	RF_STEP_INIT = 0,
+	RF_STEP_NORMAL,
+	RF_STEP_MAX
 };
 
 enum rt_status {
@@ -290,32 +300,32 @@ enum rt_status {
 };
 
 enum rt_customer_id {
-	RT_CID_DEFAULT          = 0,
+	RT_CID_DEFAULT	  = 0,
 	RT_CID_8187_ALPHA0      = 1,
 	RT_CID_8187_SERCOMM_PS  = 2,
 	RT_CID_8187_HW_LED      = 3,
 	RT_CID_8187_NETGEAR     = 4,
-	RT_CID_WHQL             = 5,
+	RT_CID_WHQL	     = 5,
 	RT_CID_819x_CAMEO       = 6,
 	RT_CID_819x_RUNTOP      = 7,
 	RT_CID_819x_Senao       = 8,
-	RT_CID_TOSHIBA          = 9,
+	RT_CID_TOSHIBA	  = 9,
 	RT_CID_819x_Netcore     = 10,
-	RT_CID_Nettronix        = 11,
-	RT_CID_DLINK            = 12,
-	RT_CID_PRONET           = 13,
-	RT_CID_COREGA           = 14,
+	RT_CID_Nettronix	= 11,
+	RT_CID_DLINK	    = 12,
+	RT_CID_PRONET	   = 13,
+	RT_CID_COREGA	   = 14,
 	RT_CID_819x_ALPHA       = 15,
 	RT_CID_819x_Sitecom     = 16,
-	RT_CID_CCX              = 17,
+	RT_CID_CCX	      = 17,
 	RT_CID_819x_Lenovo      = 18,
-	RT_CID_819x_QMI         = 19,
+	RT_CID_819x_QMI	 = 19,
 	RT_CID_819x_Edimax_Belkin = 20,
 	RT_CID_819x_Sercomm_Belkin = 21,
 	RT_CID_819x_CAMEO1 = 22,
 	RT_CID_819x_MSI = 23,
 	RT_CID_819x_Acer = 24,
-	RT_CID_819x_HP	=27,
+	RT_CID_819x_HP	= 27,
 	RT_CID_819x_CLEVO = 28,
 	RT_CID_819x_Arcadyan_Belkin = 29,
 	RT_CID_819x_SAMSUNG = 30,
@@ -329,8 +339,8 @@ enum reset_type {
 };
 
 enum ic_inferiority_8192s {
-	IC_INFERIORITY_A            = 0,
-	IC_INFERIORITY_B            = 1,
+	IC_INFERIORITY_A	    = 0,
+	IC_INFERIORITY_B	    = 1,
 };
 
 enum pci_bridge_vendor {
@@ -350,20 +360,20 @@ struct buffer {
 };
 
 struct rtl_reg_debug {
-        unsigned int  cmd;
-        struct {
-                unsigned char type;
-                unsigned char addr;
-                unsigned char page;
-                unsigned char length;
-        } head;
-        unsigned char buf[0xff];
+	unsigned int  cmd;
+	struct {
+		unsigned char type;
+		unsigned char addr;
+		unsigned char page;
+		unsigned char length;
+	} head;
+	unsigned char buf[0xff];
 };
 
 struct rt_tx_rahis {
-	u32             cck[4];
-	u32             ofdm[8];
-	u32             ht_mcs[4][16];
+	u32	     cck[4];
+	u32	     ofdm[8];
+	u32	     ht_mcs[4][16];
 };
 
 struct rt_smooth_data_4rf {
@@ -449,7 +459,7 @@ struct rt_stats {
 	unsigned long txerrunicast;
 	unsigned long txretrycount;
 	unsigned long txfeedbackretry;
-	u8			last_packet_rate;
+	u8	last_packet_rate;
 	unsigned long slide_signal_strength[100];
 	unsigned long slide_evm[100];
 	unsigned long	slide_rssi_total;
@@ -496,51 +506,63 @@ struct ccktxbbgain {
 };
 
 struct init_gain {
-	u8				xaagccore1;
-	u8				xbagccore1;
-	u8				xcagccore1;
-	u8				xdagccore1;
-	u8				cca;
+	u8	xaagccore1;
+	u8	xbagccore1;
+	u8	xcagccore1;
+	u8	xdagccore1;
+	u8	cca;
 
 };
 
 struct tx_ring {
-	u32 * desc;
+	u32 *desc;
 	u8 nStuckCount;
-	struct tx_ring * next;
+	struct tx_ring *next;
 } __packed;
 
 struct rtl8192_tx_ring {
-    struct tx_desc *desc;
-    dma_addr_t dma;
-    unsigned int idx;
-    unsigned int entries;
-    struct sk_buff_head queue;
+	struct tx_desc *desc;
+	dma_addr_t dma;
+	unsigned int idx;
+	unsigned int entries;
+	struct sk_buff_head queue;
 };
 
 
 
-struct rtl819x_ops{
+struct rtl819x_ops {
 	enum nic_t nic_type;
-	void (* get_eeprom_size)(struct net_device* dev);
-	void (* init_adapter_variable)(struct net_device* dev);
-	void (* init_before_adapter_start)(struct net_device* dev);
-	bool (* initialize_adapter)(struct net_device* dev);
-	void (*link_change)(struct net_device* dev);
-	void (* tx_fill_descriptor)(struct net_device* dev, struct tx_desc *tx_desc, struct cb_desc *cb_desc, struct sk_buff *skb);
-	void (* tx_fill_cmd_descriptor)(struct net_device* dev, struct tx_desc_cmd * entry, struct cb_desc *cb_desc, struct sk_buff *skb);
-	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, struct rx_desc *pdesc, struct sk_buff* skb);
-	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, struct rx_desc *pdesc);
-	void (* stop_adapter)(struct net_device *dev, bool reset);
-	void (* update_ratr_table)(struct net_device* dev);
-	void (* irq_enable)(struct net_device* dev);
-	void (* irq_disable)(struct net_device* dev);
-	void (* irq_clear)(struct net_device* dev);
-	void (* rx_enable)(struct net_device* dev);
-	void (* tx_enable)(struct net_device* dev);
-	void (* interrupt_recognized)(struct net_device *dev, u32 *p_inta, u32 *p_intb);
-	bool (* TxCheckStuckHandler)(struct net_device* dev);
-	bool (* RxCheckStuckHandler)(struct net_device* dev);
+	void (*get_eeprom_size)(struct net_device *dev);
+	void (*init_adapter_variable)(struct net_device *dev);
+	void (*init_before_adapter_start)(struct net_device *dev);
+	bool (*initialize_adapter)(struct net_device *dev);
+	void (*link_change)(struct net_device *dev);
+	void (*tx_fill_descriptor)(struct net_device *dev,
+				   struct tx_desc *tx_desc,
+				   struct cb_desc *cb_desc,
+				   struct sk_buff *skb);
+	void (*tx_fill_cmd_descriptor)(struct net_device *dev,
+				       struct tx_desc_cmd *entry,
+				       struct cb_desc *cb_desc,
+				       struct sk_buff *skb);
+	bool (*rx_query_status_descriptor)(struct net_device *dev,
+					   struct rtllib_rx_stats *stats,
+					   struct rx_desc *pdesc,
+					   struct sk_buff *skb);
+	bool (*rx_command_packet_handler)(struct net_device *dev,
+					  struct sk_buff *skb,
+					  struct rx_desc *pdesc);
+	void (*stop_adapter)(struct net_device *dev, bool reset);
+	void (*update_ratr_table)(struct net_device *dev);
+	void (*irq_enable)(struct net_device *dev);
+	void (*irq_disable)(struct net_device *dev);
+	void (*irq_clear)(struct net_device *dev);
+	void (*rx_enable)(struct net_device *dev);
+	void (*tx_enable)(struct net_device *dev);
+	void (*interrupt_recognized)(struct net_device *dev,
+				     u32 *p_inta, u32 *p_intb);
+	bool (*TxCheckStuckHandler)(struct net_device *dev);
+	bool (*RxCheckStuckHandler)(struct net_device *dev);
 };
 
 struct r8192_priv {
@@ -630,8 +652,8 @@ struct r8192_priv {
 	struct iw_statistics			wstats;
 	struct proc_dir_entry		*dir_dev;
 
-	short (*rf_set_sens)(struct net_device *dev,short sens);
-	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
+	short (*rf_set_sens)(struct net_device *dev, short sens);
+	u8 (*rf_set_chan)(struct net_device *dev, u8 ch);
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
 
@@ -672,227 +694,229 @@ struct r8192_priv {
 
 	/**********************************************************/
 
-	enum card_type {PCI,MINIPCI,CARDBUS,USB}card_type;
+	enum card_type {
+		PCI, MINIPCI,
+		CARDBUS, USB
+	} card_type;
 
 	struct work_struct qos_activate;
 
-	u8		bIbssCoordinator;
+	u8 bIbssCoordinator;
 
 	short	promisc;
 	short	crcmon;
 
-	int		txbeaconcount;
+	int txbeaconcount;
 
 	short	chan;
 	short	sens;
 	short	max_sens;
-	u32		rx_prevlen;
+	u32 rx_prevlen;
 
-	u8		ScanDelay;
-	bool		ps_force;
+	u8 ScanDelay;
+	bool ps_force;
 
-	u32		irq_mask[2];
+	u32 irq_mask[2];
 
-	u8		Rf_Mode;
+	u8 Rf_Mode;
 	enum nic_t card_8192;
-	u8		card_8192_version;
+	u8 card_8192_version;
 
 	short	enable_gpio0;
 
-	u8		rf_type;
-	u8		IC_Cut;
-	char		nick[IW_ESSID_MAX_SIZE + 1];
+	u8 rf_type;
+	u8 IC_Cut;
+	char nick[IW_ESSID_MAX_SIZE + 1];
 
-	u8		RegBcnCtrlVal;
-	bool		bHwAntDiv;
+	u8 RegBcnCtrlVal;
+	bool bHwAntDiv;
 
-	bool		bTKIPinNmodeFromReg;
-	bool		bWEPinNmodeFromReg;
+	bool bTKIPinNmodeFromReg;
+	bool bWEPinNmodeFromReg;
 
-	bool		bLedOpenDrain;
+	bool bLedOpenDrain;
 
-	u8		check_roaming_cnt;
+	u8 check_roaming_cnt;
 
-	bool		bIgnoreSilentReset;
-	u32		SilentResetRxSoltNum;
-	u32		SilentResetRxSlotIndex;
-	u32		SilentResetRxStuckEvent[MAX_SILENT_RESET_RX_SLOT_NUM];
+	bool bIgnoreSilentReset;
+	u32 SilentResetRxSoltNum;
+	u32 SilentResetRxSlotIndex;
+	u32 SilentResetRxStuckEvent[MAX_SILENT_RESET_RX_SLOT_NUM];
 
-	void		*scan_cmd;
-	u8	hwscan_bw_40;
+	void *scan_cmd;
+	u8 hwscan_bw_40;
 
-	u16		nrxAMPDU_size;
-	u8		nrxAMPDU_aggr_num;
+	u16 nrxAMPDU_size;
+	u8 nrxAMPDU_aggr_num;
 
-	u32		last_rxdesc_tsf_high;
-	u32		last_rxdesc_tsf_low;
+	u32 last_rxdesc_tsf_high;
+	u32 last_rxdesc_tsf_low;
 
+	u16 basic_rate;
+	u8 short_preamble;
+	u8 dot11CurrentPreambleMode;
+	u8 slot_time;
+	u16 SifsTime;
 
-	u16		basic_rate;
-	u8		short_preamble;
-	u8		dot11CurrentPreambleMode;
-	u8		slot_time;
-	u16		SifsTime;
+	u8 RegWirelessMode;
 
-	u8		RegWirelessMode;
+	u8 firmware_version;
+	u16 FirmwareSubVersion;
+	u16 rf_pathmap;
+	bool AutoloadFailFlag;
 
-	u8		firmware_version;
-	u16		FirmwareSubVersion;
-	u16		rf_pathmap;
-	bool		AutoloadFailFlag;
+	u8 RegPciASPM;
+	u8 RegAMDPciASPM;
+	u8 RegHwSwRfOffD3;
+	u8 RegSupportPciASPM;
+	bool bSupportASPM;
 
-	u8		RegPciASPM;
-	u8		RegAMDPciASPM;
-	u8		RegHwSwRfOffD3;
-	u8		RegSupportPciASPM;
-	bool		bSupportASPM;
+	u32 RfRegChnlVal[2];
 
-	u32		RfRegChnlVal[2];
+	u8 ShowRateMode;
+	u8 RATRTableBitmap;
 
-	u8		ShowRateMode;
-	u8		RATRTableBitmap;
-
-	u8		EfuseMap[2][HWSET_MAX_SIZE_92S];
-	u16		EfuseUsedBytes;
-	u8		EfuseUsedPercentage;
+	u8 EfuseMap[2][HWSET_MAX_SIZE_92S];
+	u16 EfuseUsedBytes;
+	u8 EfuseUsedPercentage;
 
 	short	epromtype;
-	u16		eeprom_vid;
-	u16		eeprom_did;
-	u16		eeprom_svid;
-	u16		eeprom_smid;
-	u8		eeprom_CustomerID;
-	u16	eeprom_ChannelPlan;
-	u8		eeprom_version;
+	u16 eeprom_vid;
+	u16 eeprom_did;
+	u16 eeprom_svid;
+	u16 eeprom_smid;
+	u8 eeprom_CustomerID;
+	u16 eeprom_ChannelPlan;
+	u8 eeprom_version;
 
-	u8		EEPROMRegulatory;
-	u8		EEPROMPwrGroup[2][3];
-	u8		EEPROMOptional;
+	u8 EEPROMRegulatory;
+	u8 EEPROMPwrGroup[2][3];
+	u8 EEPROMOptional;
 
-	u8		EEPROMTxPowerLevelCCK[14];
-	u8		EEPROMTxPowerLevelOFDM24G[14];
-	u8		EEPROMTxPowerLevelOFDM5G[24];
-	u8		EEPROMRfACCKChnl1TxPwLevel[3];
-	u8		EEPROMRfAOfdmChnlTxPwLevel[3];
-	u8		EEPROMRfCCCKChnl1TxPwLevel[3];
-	u8		EEPROMRfCOfdmChnlTxPwLevel[3];
-	u16		EEPROMTxPowerDiff;
-	u16		EEPROMAntPwDiff;
-	u8		EEPROMThermalMeter;
-	u8		EEPROMPwDiff;
-	u8		EEPROMCrystalCap;
+	u8 EEPROMTxPowerLevelCCK[14];
+	u8 EEPROMTxPowerLevelOFDM24G[14];
+	u8 EEPROMTxPowerLevelOFDM5G[24];
+	u8 EEPROMRfACCKChnl1TxPwLevel[3];
+	u8 EEPROMRfAOfdmChnlTxPwLevel[3];
+	u8 EEPROMRfCCCKChnl1TxPwLevel[3];
+	u8 EEPROMRfCOfdmChnlTxPwLevel[3];
+	u16 EEPROMTxPowerDiff;
+	u16 EEPROMAntPwDiff;
+	u8 EEPROMThermalMeter;
+	u8 EEPROMPwDiff;
+	u8 EEPROMCrystalCap;
 
-	u8		EEPROMBluetoothCoexist;
-	u8		EEPROMBluetoothType;
-	u8		EEPROMBluetoothAntNum;
-	u8		EEPROMBluetoothAntIsolation;
-	u8		EEPROMBluetoothRadioShared;
+	u8 EEPROMBluetoothCoexist;
+	u8 EEPROMBluetoothType;
+	u8 EEPROMBluetoothAntNum;
+	u8 EEPROMBluetoothAntIsolation;
+	u8 EEPROMBluetoothRadioShared;
 
 
-	u8		EEPROMSupportWoWLAN;
-	u8		EEPROMBoardType;
-	u8		EEPROM_Def_Ver;
-	u8		EEPROMHT2T_TxPwr[6];
-	u8		EEPROMTSSI_A;
-	u8		EEPROMTSSI_B;
-	u8		EEPROMTxPowerLevelCCK_V1[3];
-	u8		EEPROMLegacyHTTxPowerDiff;
+	u8 EEPROMSupportWoWLAN;
+	u8 EEPROMBoardType;
+	u8 EEPROM_Def_Ver;
+	u8 EEPROMHT2T_TxPwr[6];
+	u8 EEPROMTSSI_A;
+	u8 EEPROMTSSI_B;
+	u8 EEPROMTxPowerLevelCCK_V1[3];
+	u8 EEPROMLegacyHTTxPowerDiff;
 
-	u8		BluetoothCoexist;
+	u8 BluetoothCoexist;
 
-	u8		CrystalCap;
-	u8		ThermalMeter[2];
+	u8 CrystalCap;
+	u8 ThermalMeter[2];
 
-	u16		FwCmdIOMap;
-	u32		FwCmdIOParam;
+	u16 FwCmdIOMap;
+	u32 FwCmdIOParam;
 
-	u8		SwChnlInProgress;
-	u8		SwChnlStage;
-	u8		SwChnlStep;
-	u8		SetBWModeInProgress;
+	u8 SwChnlInProgress;
+	u8 SwChnlStage;
+	u8 SwChnlStep;
+	u8 SetBWModeInProgress;
 
-	u8		nCur40MhzPrimeSC;
+	u8 nCur40MhzPrimeSC;
 
-	u32		RfReg0Value[4];
-	u8		NumTotalRFPath;
-	bool		brfpath_rxenable[4];
+	u32 RfReg0Value[4];
+	u8 NumTotalRFPath;
+	bool brfpath_rxenable[4];
 
-	bool		bTXPowerDataReadFromEEPORM;
+	bool bTXPowerDataReadFromEEPORM;
 
-	u16		RegChannelPlan;
-	u16		ChannelPlan;
-	bool		bChnlPlanFromHW;
+	u16 RegChannelPlan;
+	u16 ChannelPlan;
+	bool bChnlPlanFromHW;
 
-	bool		RegRfOff;
-	bool		isRFOff;
-	bool		bInPowerSaveMode;
-	u8		bHwRfOffAction;
+	bool RegRfOff;
+	bool isRFOff;
+	bool bInPowerSaveMode;
+	u8 bHwRfOffAction;
 
-	bool		aspm_clkreq_enable;
-	u32		pci_bridge_vendor;
-	u8		RegHostPciASPMSetting;
-	u8		RegDevicePciASPMSetting;
+	bool aspm_clkreq_enable;
+	u32 pci_bridge_vendor;
+	u8 RegHostPciASPMSetting;
+	u8 RegDevicePciASPMSetting;
 
-	bool		RFChangeInProgress;
-	bool		SetRFPowerStateInProgress;
-	bool		bdisable_nic;
+	bool RFChangeInProgress;
+	bool SetRFPowerStateInProgress;
+	bool bdisable_nic;
 
-	u8		pwrGroupCnt;
+	u8 pwrGroupCnt;
 
-	u8		ThermalValue_LCK;
-	u8		ThermalValue_IQK;
-	bool		bRfPiEnable;
+	u8 ThermalValue_LCK;
+	u8 ThermalValue_IQK;
+	bool bRfPiEnable;
 
-	u32		APKoutput[2][2];
-	bool		bAPKdone;
+	u32 APKoutput[2][2];
+	bool bAPKdone;
 
-	long		RegE94;
-	long		RegE9C;
-	long		RegEB4;
-	long		RegEBC;
+	long RegE94;
+	long RegE9C;
+	long RegEB4;
+	long RegEBC;
 
-	u32		RegC04;
-	u32		Reg874;
-	u32		RegC08;
-	u32		ADDA_backup[16];
-	u32		IQK_MAC_backup[3];
+	u32 RegC04;
+	u32 Reg874;
+	u32 RegC08;
+	u32 ADDA_backup[16];
+	u32 IQK_MAC_backup[3];
 
-	bool		SetFwCmdInProgress;
-	u8		CurrentFwCmdIO;
+	bool SetFwCmdInProgress;
+	u8 CurrentFwCmdIO;
 
-	u8		rssi_level;
+	u8 rssi_level;
 
-	bool		bInformFWDriverControlDM;
-	u8		PwrGroupHT20[2][14];
-	u8		PwrGroupHT40[2][14];
+	bool bInformFWDriverControlDM;
+	u8 PwrGroupHT20[2][14];
+	u8 PwrGroupHT40[2][14];
 
-	u8		ThermalValue;
-	long		EntryMinUndecoratedSmoothedPWDB;
-	long		EntryMaxUndecoratedSmoothedPWDB;
-	u8		DynamicTxHighPowerLvl;
-	u8		LastDTPLvl;
-	u32		CurrentRATR0;
+	u8 ThermalValue;
+	long EntryMinUndecoratedSmoothedPWDB;
+	long EntryMaxUndecoratedSmoothedPWDB;
+	u8 DynamicTxHighPowerLvl;
+	u8 LastDTPLvl;
+	u32 CurrentRATR0;
 	struct false_alarm_stats FalseAlmCnt;
 
-	u8		DMFlag;
-	u8		DM_Type;
+	u8 DMFlag;
+	u8 DM_Type;
 
-	u8		CckPwEnl;
-	u16		TSSI_13dBm;
-	u32		Pwr_Track;
-	u8		CCKPresentAttentuation_20Mdefault;
-	u8		CCKPresentAttentuation_40Mdefault;
-	char		CCKPresentAttentuation_difference;
-	char		CCKPresentAttentuation;
-	u8		bCckHighPower;
-	long		undecorated_smoothed_pwdb;
-	long		undecorated_smoothed_cck_adc_pwdb[4];
+	u8 CckPwEnl;
+	u16 TSSI_13dBm;
+	u32 Pwr_Track;
+	u8 CCKPresentAttentuation_20Mdefault;
+	u8 CCKPresentAttentuation_40Mdefault;
+	char CCKPresentAttentuation_difference;
+	char CCKPresentAttentuation;
+	u8 bCckHighPower;
+	long undecorated_smoothed_pwdb;
+	long undecorated_smoothed_cck_adc_pwdb[4];
 
-	u32		MCSTxPowerLevelOriginalOffset[6];
-	u32		CCKTxPowerLevelOriginalOffset;
-	u8		TxPowerLevelCCK[14];
-	u8		TxPowerLevelCCK_A[14];
-	u8		TxPowerLevelCCK_C[14];
+	u32 MCSTxPowerLevelOriginalOffset[6];
+	u32 CCKTxPowerLevelOriginalOffset;
+	u8 TxPowerLevelCCK[14];
+	u8 TxPowerLevelCCK_A[14];
+	u8 TxPowerLevelCCK_C[14];
 	u8		TxPowerLevelOFDM24G[14];
 	u8		TxPowerLevelOFDM5G[14];
 	u8		TxPowerLevelOFDM24G_A[14];
@@ -962,7 +986,7 @@ struct r8192_priv {
 	u8		framesyncMonitor;
 
 	bool		bDMInitialGainEnable;
-        bool		MutualAuthenticationFail;
+	bool		MutualAuthenticationFail;
 
 	bool		bDisableFrameBursting;
 
@@ -1016,41 +1040,42 @@ struct r8192_priv {
 extern const struct ethtool_ops rtl819x_ethtool_ops;
 
 void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
+short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 
 u8 read_nic_io_byte(struct net_device *dev, int x);
 u32 read_nic_io_dword(struct net_device *dev, int x);
 u16 read_nic_io_word(struct net_device *dev, int x) ;
-void write_nic_io_byte(struct net_device *dev, int x,u8 y);
-void write_nic_io_word(struct net_device *dev, int x,u16 y);
-void write_nic_io_dword(struct net_device *dev, int x,u32 y);
+void write_nic_io_byte(struct net_device *dev, int x, u8 y);
+void write_nic_io_word(struct net_device *dev, int x, u16 y);
+void write_nic_io_dword(struct net_device *dev, int x, u32 y);
 
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
 u16 read_nic_word(struct net_device *dev, int x) ;
-void write_nic_byte(struct net_device *dev, int x,u8 y);
-void write_nic_word(struct net_device *dev, int x,u16 y);
-void write_nic_dword(struct net_device *dev, int x,u32 y);
+void write_nic_byte(struct net_device *dev, int x, u8 y);
+void write_nic_word(struct net_device *dev, int x, u16 y);
+void write_nic_dword(struct net_device *dev, int x, u32 y);
 
 void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
-int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev);
-void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, int rate);
+int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
+void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
+			    int rate);
 void rtl8192_data_hard_stop(struct net_device *dev);
 void rtl8192_data_hard_resume(struct net_device *dev);
 void rtl8192_restart(void *data);
 void rtl819x_watchdog_wqcallback(void *data);
-void rtl8192_hw_sleep_wq (void *data);
+void rtl8192_hw_sleep_wq(void *data);
 void watch_dog_timer_callback(unsigned long data);
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
 void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
-int rtl8192_down(struct net_device *dev,bool shutdownrf);
+int rtl8192_down(struct net_device *dev, bool shutdownrf);
 int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
-void rtl8192_set_chan(struct net_device *dev,short ch);
+void rtl8192_set_chan(struct net_device *dev, short ch);
 
 void check_rfctrl_gpio_timer(unsigned long data);
 
@@ -1059,44 +1084,42 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
 
 short rtl8192_pci_initdescring(struct net_device *dev);
 
-void rtl8192_cancel_deferred_work(struct r8192_priv * priv);
+void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
 
-int _rtl8192_up(struct net_device *dev,bool is_silent_reset);
+int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
 
 short rtl8192_is_tx_queue_empty(struct net_device *dev);
 void rtl8192_irq_disable(struct net_device *dev);
 
 void rtl8192_tx_timeout(struct net_device *dev);
 void rtl8192_pci_resetdescring(struct net_device *dev);
-void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode);
+void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode);
 void rtl8192_irq_enable(struct net_device *dev);
-void rtl8192_config_rate(struct net_device* dev, u16* rate_config);
-void rtl8192_update_cap(struct net_device* dev, u16 cap);
+void rtl8192_config_rate(struct net_device *dev, u16 *rate_config);
+void rtl8192_update_cap(struct net_device *dev, u16 cap);
 void rtl8192_irq_disable(struct net_device *dev);
 
-void rtl819x_UpdateRxPktTimeStamp (struct net_device *dev, struct rtllib_rx_stats *stats);
-long rtl819x_translate_todbm(struct r8192_priv * priv, u8 signal_strength_index	);
-void rtl819x_update_rxsignalstatistics8190pci(struct r8192_priv * priv,struct rtllib_rx_stats * pprevious_stats);
+void rtl819x_UpdateRxPktTimeStamp(struct net_device *dev,
+				  struct rtllib_rx_stats *stats);
+long rtl819x_translate_todbm(struct r8192_priv *priv, u8 signal_strength_index);
+void rtl819x_update_rxsignalstatistics8190pci(struct r8192_priv *priv,
+				      struct rtllib_rx_stats *pprevious_stats);
 u8 rtl819x_evm_dbtopercentage(char value);
-void rtl819x_process_cck_rxpathsel(struct r8192_priv * priv,struct rtllib_rx_stats * pprevious_stats);
-u8 rtl819x_query_rxpwrpercentage(	char		antpower	);
-void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats * psrc_stats,struct rtllib_rx_stats * ptarget_stats);
+void rtl819x_process_cck_rxpathsel(struct r8192_priv *priv,
+				   struct rtllib_rx_stats *pprevious_stats);
+u8 rtl819x_query_rxpwrpercentage(char antpower);
+void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats *psrc_stats,
+				       struct rtllib_rx_stats *ptarget_stats);
 
-bool NicIFEnableNIC(struct net_device* dev);
-bool NicIFDisableNIC(struct net_device* dev);
+bool NicIFEnableNIC(struct net_device *dev);
+bool NicIFDisableNIC(struct net_device *dev);
 
-bool
-MgntActSet_RF_State(
-	struct net_device* dev,
-	enum rt_rf_power_state StateToSet,
-	RT_RF_CHANGE_SOURCE ChangeSource,
-	bool	ProtectOrNot
-	);
-void
-ActUpdateChannelAccessSetting(
-	struct net_device*			dev,
-	enum wireless_mode WirelessMode,
-	struct channel_access_setting *ChnlAccessSetting
-	);
+bool MgntActSet_RF_State(struct net_device *dev,
+			 enum rt_rf_power_state StateToSet,
+			 RT_RF_CHANGE_SOURCE ChangeSource,
+			 bool	ProtectOrNot);
+void ActUpdateChannelAccessSetting(struct net_device *dev,
+			   enum wireless_mode WirelessMode,
+			   struct channel_access_setting *ChnlAccessSetting);
 
 #endif
