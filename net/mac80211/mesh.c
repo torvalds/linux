@@ -537,8 +537,8 @@ static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
 
 	mesh_path_tx_root_frame(sdata);
 	mod_timer(&ifmsh->mesh_path_root_timer,
-		  round_jiffies(jiffies +
-			  usecs_to_jiffies(ifmsh->mshcfg.dot11MeshHWMPRannInterval * 1024)));
+		  round_jiffies(TU_TO_EXP_TIME(
+				  ifmsh->mshcfg.dot11MeshHWMPRannInterval)));
 }
 
 #ifdef CONFIG_PM

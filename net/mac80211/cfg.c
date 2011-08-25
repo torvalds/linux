@@ -1138,6 +1138,14 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		ieee80211_mesh_root_setup(ifmsh);
 	}
 	if (_chg_mesh_attr(NL80211_MESHCONF_GATE_ANNOUNCEMENTS, mask)) {
+		/* our current gate announcement implementation rides on root
+		 * announcements, so require this ifmsh to also be a root node
+		 * */
+		if (nconf->dot11MeshGateAnnouncementProtocol &&
+		    !conf->dot11MeshHWMPRootMode) {
+			conf->dot11MeshHWMPRootMode = 1;
+			ieee80211_mesh_root_setup(ifmsh);
+		}
 		conf->dot11MeshGateAnnouncementProtocol =
 			nconf->dot11MeshGateAnnouncementProtocol;
 	}
