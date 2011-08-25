@@ -409,7 +409,7 @@ int netvsc_device_remove(struct hv_device *device)
 	net_device = release_outbound_net_device(device);
 	if (!net_device) {
 		dev_err(&device->device, "No net device present!!");
-		return -1;
+		return -ENODEV;
 	}
 
 	/* Wait for all send completions */
@@ -499,7 +499,7 @@ int netvsc_send(struct hv_device *device,
 	if (!net_device) {
 		dev_err(&device->device, "net device (%p) shutting down..."
 			   "ignoring outbound packets", net_device);
-		return -2;
+		return -ENODEV;
 	}
 
 	sendMessage.hdr.msg_type = NVSP_MSG1_TYPE_SEND_RNDIS_PKT;
