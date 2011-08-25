@@ -126,7 +126,7 @@ struct tpacket2_hdr {
 	__u16		tp_padding;
 };
 
-struct hdr_variant1 {
+struct tpacket_hdr_variant1 {
 	__u32	tp_rxhash;
 	__u32	tp_vlan_tci;
 };
@@ -142,11 +142,11 @@ struct tpacket3_hdr {
 	__u16		tp_net;
 	/* pkt_hdr variants */
 	union {
-		struct hdr_variant1 hv1;
+		struct tpacket_hdr_variant1 hv1;
 	};
 };
 
-struct bd_ts {
+struct tpacket_bd_ts {
 	unsigned int ts_sec;
 	union {
 		unsigned int ts_usec;
@@ -154,7 +154,7 @@ struct bd_ts {
 	};
 };
 
-struct hdr_v1 {
+struct tpacket_hdr_v1 {
 	__u32	block_status;
 	__u32	num_pkts;
 	__u32	offset_to_first_pkt;
@@ -200,17 +200,17 @@ struct hdr_v1 {
 	 *			Use the ts of the first packet in the block.
 	 *
 	 */
-	struct bd_ts	ts_first_pkt, ts_last_pkt;
+	struct tpacket_bd_ts	ts_first_pkt, ts_last_pkt;
 };
 
-union bd_header_u {
-	struct hdr_v1 bh1;
+union tpacket_bd_header_u {
+	struct tpacket_hdr_v1 bh1;
 };
 
-struct block_desc {
+struct tpacket_block_desc {
 	__u32 version;
 	__u32 offset_to_priv;
-	union bd_header_u hdr;
+	union tpacket_bd_header_u hdr;
 };
 
 #define TPACKET2_HDRLEN		(TPACKET_ALIGN(sizeof(struct tpacket2_hdr)) + sizeof(struct sockaddr_ll))
