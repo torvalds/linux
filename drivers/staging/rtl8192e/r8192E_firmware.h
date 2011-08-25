@@ -21,7 +21,7 @@
 
 #define RTL8190_CPU_START_OFFSET	0x80
 
-#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8 )
+#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8)
 
 enum firmware_init_step {
 	FW_INIT_STEP0_BOOT = 0,
@@ -63,7 +63,7 @@ struct rt_firmware {
 	u16		  cmdpacket_frag_thresold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
 #define MAX_FW_INIT_STEP		3
-	u8		  firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
+	u8 firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
 };
 
