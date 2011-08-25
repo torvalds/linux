@@ -40,13 +40,7 @@ static int hdmi_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->panel.config = OMAP_DSS_LCD_TFT |
 			OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS;
 
-	/*
-	 * Initialize the timings to 640 * 480
-	 * This is only for framebuffer update not for TV timing setting
-	 * Setting TV timing will be done only on enable
-	 */
-	dssdev->panel.timings.x_res = 640;
-	dssdev->panel.timings.y_res = 480;
+	dssdev->panel.timings = (struct omap_video_timings){640, 480, 25175, 96, 16, 48, 2 , 11, 31};
 
 	DSSDBG("hdmi_panel_probe x_res= %d y_res = %d\n",
 		dssdev->panel.timings.x_res,
