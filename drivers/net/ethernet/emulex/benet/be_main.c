@@ -1139,7 +1139,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 		skb->rxhash = rxcp->rss_hash;
 
 
-	if (unlikely(rxcp->vlanf))
+	if (rxcp->vlanf)
 		__vlan_hwaccel_put_tag(skb, rxcp->vlan_tag);
 
 	netif_receive_skb(skb);
@@ -1196,7 +1196,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
-	if (unlikely(rxcp->vlanf))
+	if (rxcp->vlanf)
 		__vlan_hwaccel_put_tag(skb, rxcp->vlan_tag);
 
 	napi_gro_frags(&eq_obj->napi);
