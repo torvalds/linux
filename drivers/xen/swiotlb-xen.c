@@ -209,6 +209,8 @@ xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	int order = get_order(size);
 	u64 dma_mask = DMA_BIT_MASK(32);
 	unsigned long vstart;
+	phys_addr_t phys;
+	dma_addr_t dev_addr;
 
 	/*
 	* Ignore region specifiers - the kernel's ideas of
@@ -224,18 +226,26 @@ xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	vstart = __get_free_pages(flags, order);
 	ret = (void *)vstart;
 
-	if (hwdev && hwdev->coherent_dma_mask)
-		dma_mask = dma_alloc_coherent_mask(hwdev, flags);
+	if (!ret)
+		return ret;
 
-	if (ret) {
+	if (hwdev && hwdev->coherent_dma_mask)
+		dma_mask = hwdev->coherent_dma_mask;
+
+	phys = virt_to_phys(ret);
+	dev_addr = xen_phys_to_bus(phys);
+	if (((dev_addr + size - 1 <= dma_mask)) &&
+	    !range_straddles_page_boundary(phys, size))
+		*dma_handle = dev_addr;
+	else {
 		if (xen_create_contiguous_region(vstart, order,
 						 fls64(dma_mask)) != 0) {
 			free_pages(vstart, order);
 			return NULL;
 		}
-		memset(ret, 0, size);
 		*dma_handle = virt_to_machine(ret).maddr;
 	}
+	memset(ret, 0, size);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_alloc_coherent);
@@ -245,11 +255,21 @@ xen_swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 			  dma_addr_t dev_addr)
 {
 	int order = get_order(size);
+	phys_addr_t phys;
+	u64 dma_mask = DMA_BIT_MASK(32);
 
 	if (dma_release_from_coherent(hwdev, order, vaddr))
 		return;
 
-	xen_destroy_contiguous_region((unsigned long)vaddr, order);
+	if (hwdev && hwdev->coherent_dma_mask)
+		dma_mask = hwdev->coherent_dma_mask;
+
+	phys = virt_to_phys(vaddr);
+
+	if (((dev_addr + size - 1 > dma_mask)) ||
+	    range_straddles_page_boundary(phys, size))
+		xen_destroy_contiguous_region((unsigned long)vaddr, order);
+
 	free_pages((unsigned long)vaddr, order);
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_free_coherent);
