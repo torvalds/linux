@@ -369,9 +369,9 @@
 	using the pci_map_rom() call, a convenience function that
 	takes care of mapping the actual ROM, whether it has been
 	shadowed into memory (typically at address 0xc0000) or exists
-	on the PCI device in the ROM BAR.  Note that once you've
-	mapped the ROM and extracted any necessary information, be
-	sure to unmap it; on many devices the ROM address decoder is
+	on the PCI device in the ROM BAR.  Note that after the ROM
+	has been mapped and any necessary information has been extracted,
+	it should be unmapped; on many devices the ROM address decoder is
 	shared with other BARs, so leaving it mapped can cause
 	undesired behavior like hangs or memory corruption.
 <!--!Fdrivers/pci/rom.c pci_map_rom-->
