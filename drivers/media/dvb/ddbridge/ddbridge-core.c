@@ -507,15 +507,14 @@ static u32 ddb_input_avail(struct ddb_input *input)
 	return 0;
 }
 
-static size_t ddb_input_read(struct ddb_input *input, u8 *buf, size_t count)
+static ssize_t ddb_input_read(struct ddb_input *input, u8 *buf, size_t count)
 {
 	struct ddb *dev = input->port->dev;
 	u32 left = count;
-	u32 idx, off, free, stat = input->stat;
+	u32 idx, free, stat = input->stat;
 	int ret;
 
 	idx = (stat >> 11) & 0x1f;
-	off = (stat & 0x7ff) << 7;
 
 	while (left) {
 		if (input->cbuf == idx)
@@ -525,6 +524,8 @@ static size_t ddb_input_read(struct ddb_input *input, u8 *buf, size_t count)
 			free = left;
 		ret = copy_to_user(buf, input->vbuf[input->cbuf] +
 				   input->coff, free);
+		if (ret)
+			return -EFAULT;
 		input->coff += free;
 		if (input->coff == input->dma_buf_size) {
 			input->coff = 0;
@@ -939,6 +940,8 @@ static ssize_t ts_read(struct file *file, char *buf,
 				break;
 		}
 		read = ddb_input_read(input, buf, left);
+		if (read < 0)
+			return read;
 		left -= read;
 		buf += read;
 	}
