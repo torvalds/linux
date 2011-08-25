@@ -376,7 +376,7 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
 			 storvsc_on_channel_callback, device);
 
 	if (ret != 0)
-		return -1;
+		return ret;
 
 	ret = storvsc_channel_init(device);
 
