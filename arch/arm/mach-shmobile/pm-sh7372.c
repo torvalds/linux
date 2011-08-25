@@ -15,7 +15,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/pm_runtime.h>
+#include <linux/pm_clock.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <asm/system.h>

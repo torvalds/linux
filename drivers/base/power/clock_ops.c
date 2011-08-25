@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/pm.h>
-#include <linux/pm_runtime.h>
+#include <linux/pm_clock.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/err.h>
