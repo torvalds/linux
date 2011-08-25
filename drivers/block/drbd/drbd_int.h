@@ -357,7 +357,8 @@ struct digest_info {
 };
 
 struct drbd_peer_request {
-	struct drbd_device_work dw;
+	struct drbd_work w;
+	struct drbd_peer_device *peer_device;
 	struct drbd_epoch *epoch; /* for writes */
 	struct page *pages;
 	atomic_t pending_bios;

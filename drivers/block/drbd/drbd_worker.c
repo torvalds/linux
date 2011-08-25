@@ -100,11 +100,11 @@ void drbd_md_io_complete(struct bio *bio, int error)
 static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
-	struct drbd_device *device = peer_req->dw.device;
+	struct drbd_device *device = peer_req->peer_device->device;
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	device->read_cnt += peer_req->i.size >> 9;
-	list_del(&peer_req->dw.w.list);
+	list_del(&peer_req->w.list);
 	if (list_empty(&device->read_ee))
 		wake_up(&device->ee_wait);
 	if (test_bit(__EE_WAS_ERROR, &peer_req->flags))
@@ -112,7 +112,7 @@ static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __rele
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	drbd_queue_work(&first_peer_device(device)->connection->sender_work,
-			&peer_req->dw.w);
+			&peer_req->w);
 	put_ldev(device);
 }
 
@@ -121,7 +121,7 @@ static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __rele
 static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
-	struct drbd_device *device = peer_req->dw.device;
+	struct drbd_device *device = peer_req->peer_device->device;
 	struct drbd_interval i;
 	int do_wake;
 	u64 block_id;
@@ -137,7 +137,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	device->writ_cnt += peer_req->i.size >> 9;
-	list_move_tail(&peer_req->dw.w.list, &device->done_ee);
+	list_move_tail(&peer_req->w.list, &device->done_ee);
 
 	/*
 	 * Do not remove from the write_requests tree here: we did not send the
@@ -172,7 +172,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 void drbd_peer_request_endio(struct bio *bio, int error)
 {
 	struct drbd_peer_request *peer_req = bio->bi_private;
-	struct drbd_device *device = peer_req->dw.device;
+	struct drbd_device *device = peer_req->peer_device->device;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
 
@@ -333,9 +333,8 @@ void drbd_csum_bio(struct crypto_hash *tfm, struct bio *bio, void *digest)
 /* MAYBE merge common code with w_e_end_ov_req */
 static int w_e_send_csum(struct drbd_work *w, int cancel)
 {
-	struct drbd_device_work *dw = device_work(w);
-	struct drbd_peer_request *peer_req = container_of(dw, struct drbd_peer_request, dw);
-	struct drbd_device *device = dw->device;
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_device *device = peer_req->peer_device->device;
 	int digest_size;
 	void *digest;
 	int err = 0;
@@ -398,9 +397,9 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector, 
 	if (!peer_req)
 		goto defer;
 
-	peer_req->dw.w.cb = w_e_send_csum;
+	peer_req->w.cb = w_e_send_csum;
 	spin_lock_irq(&device->resource->req_lock);
-	list_add(&peer_req->dw.w.list, &device->read_ee);
+	list_add(&peer_req->w.list, &device->read_ee);
 	spin_unlock_irq(&device->resource->req_lock);
 
 	atomic_add(size >> 9, &device->rs_sect_ev);
@@ -412,7 +411,7 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector, 
 	 * retry may or may not help.
 	 * If it does not, you may need to force disconnect. */
 	spin_lock_irq(&device->resource->req_lock);
-	list_del(&peer_req->dw.w.list);
+	list_del(&peer_req->w.list);
 	spin_unlock_irq(&device->resource->req_lock);
 
 	drbd_free_peer_req(device, peer_req);
@@ -983,7 +982,7 @@ static void move_to_net_ee_or_free(struct drbd_device *device, struct drbd_peer_
 		atomic_add(i, &device->pp_in_use_by_net);
 		atomic_sub(i, &device->pp_in_use);
 		spin_lock_irq(&device->resource->req_lock);
-		list_add_tail(&peer_req->dw.w.list, &device->net_ee);
+		list_add_tail(&peer_req->w.list, &device->net_ee);
 		spin_unlock_irq(&device->resource->req_lock);
 		wake_up(&drbd_pp_wait);
 	} else
@@ -998,9 +997,8 @@ static void move_to_net_ee_or_free(struct drbd_device *device, struct drbd_peer_
  */
 int w_e_end_data_req(struct drbd_work *w, int cancel)
 {
-	struct drbd_device_work *dw = device_work(w);
-	struct drbd_peer_request *peer_req = container_of(dw, struct drbd_peer_request, dw);
-	struct drbd_device *device = dw->device;
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_device *device = peer_req->peer_device->device;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1035,9 +1033,8 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
  */
 int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 {
-	struct drbd_device_work *dw = device_work(w);
-	struct drbd_peer_request *peer_req = container_of(dw, struct drbd_peer_request, dw);
-	struct drbd_device *device = dw->device;
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_device *device = peer_req->peer_device->device;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1085,9 +1082,8 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 
 int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 {
-	struct drbd_device_work *dw = device_work(w);
-	struct drbd_peer_request *peer_req = container_of(dw, struct drbd_peer_request, dw);
-	struct drbd_device *device = dw->device;
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_device *device = peer_req->peer_device->device;
 	struct digest_info *di;
 	int digest_size;
 	void *digest = NULL;
@@ -1149,9 +1145,8 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 
 int w_e_end_ov_req(struct drbd_work *w, int cancel)
 {
-	struct drbd_device_work *dw = device_work(w);
-	struct drbd_peer_request *peer_req = container_of(dw, struct drbd_peer_request, dw);
-	struct drbd_device *device = dw->device;
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_device *device = peer_req->peer_device->device;
 	sector_t sector = peer_req->i.sector;
 	unsigned int size = peer_req->i.size;
 	int digest_size;
@@ -1206,9 +1201,8 @@ void drbd_ov_out_of_sync_found(struct drbd_device *device, sector_t sector, int 
 
 int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 {
-	struct drbd_device_work *dw = device_work(w);
-	struct drbd_peer_request *peer_req = container_of(dw, struct drbd_peer_request, dw);
-	struct drbd_device *device = dw->device;
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_device *device = peer_req->peer_device->device;
 	struct digest_info *di;
 	void *digest;
 	sector_t sector = peer_req->i.sector;
