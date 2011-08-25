@@ -895,7 +895,7 @@ int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	struct acx_header *acx = buf;
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "cmd configure");
+	wl1271_debug(DEBUG_CMD, "cmd configure (%d)", id);
 
 	acx->id = cpu_to_le16(id);
 
