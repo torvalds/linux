@@ -180,8 +180,6 @@ struct input_device_context {
 	int			connected;
 };
 
-static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
-
 static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
@@ -651,6 +649,68 @@ cleanup:
 	return ret;
 }
 
+static int mousevsc_hid_open(struct hid_device *hid)
+{
+	return 0;
+}
+
+static void mousevsc_hid_close(struct hid_device *hid)
+{
+}
+
+static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
+{
+	struct input_device_context *input_device_ctx =
+		dev_get_drvdata(&dev->device);
+	struct hid_device *hid_dev;
+
+	/* hid_debug = -1; */
+	hid_dev = kmalloc(sizeof(struct hid_device), GFP_KERNEL);
+
+	if (hid_parse_report(hid_dev, packet, len)) {
+		DPRINT_INFO(INPUTVSC_DRV, "Unable to call hd_parse_report");
+		return;
+	}
+
+	if (hid_dev) {
+		DPRINT_INFO(INPUTVSC_DRV, "hid_device created");
+
+		hid_dev->ll_driver->open  = mousevsc_hid_open;
+		hid_dev->ll_driver->close = mousevsc_hid_close;
+
+		hid_dev->bus = BUS_VIRTUAL;
+		hid_dev->vendor = input_device_ctx->device_info.vendor;
+		hid_dev->product = input_device_ctx->device_info.product;
+		hid_dev->version = input_device_ctx->device_info.version;
+		hid_dev->dev = dev->device;
+
+		sprintf(hid_dev->name, "%s",
+			input_device_ctx->device_info.name);
+
+		/*
+		 * HJ Do we want to call it with a 0
+		 */
+		if (!hidinput_connect(hid_dev, 0)) {
+			hid_dev->claimed |= HID_CLAIMED_INPUT;
+
+			input_device_ctx->connected = 1;
+
+			DPRINT_INFO(INPUTVSC_DRV,
+				     "HID device claimed by input\n");
+		}
+
+		if (!hid_dev->claimed) {
+			DPRINT_ERR(INPUTVSC_DRV,
+				    "HID device not claimed by "
+				    "input or hiddev\n");
+		}
+
+		input_device_ctx->hid_device = hid_dev;
+	}
+
+	kfree(hid_dev);
+}
+
 static int mousevsc_on_device_add(struct hv_device *device,
 					void *additional_info)
 {
@@ -762,15 +822,6 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 }
 
 
-static int mousevsc_hid_open(struct hid_device *hid)
-{
-	return 0;
-}
-
-static void mousevsc_hid_close(struct hid_device *hid)
-{
-}
-
 static int mousevsc_probe(struct hv_device *dev)
 {
 	int ret = 0;
@@ -824,59 +875,6 @@ static int mousevsc_remove(struct hv_device *dev)
 	kfree(input_dev_ctx);
 
 	return ret;
-}
-
-static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
-{
-	struct input_device_context *input_device_ctx =
-		dev_get_drvdata(&dev->device);
-	struct hid_device *hid_dev;
-
-	/* hid_debug = -1; */
-	hid_dev = kmalloc(sizeof(struct hid_device), GFP_KERNEL);
-
-	if (hid_parse_report(hid_dev, packet, len)) {
-		DPRINT_INFO(INPUTVSC_DRV, "Unable to call hd_parse_report");
-		return;
-	}
-
-	if (hid_dev) {
-		DPRINT_INFO(INPUTVSC_DRV, "hid_device created");
-
-		hid_dev->ll_driver->open  = mousevsc_hid_open;
-		hid_dev->ll_driver->close = mousevsc_hid_close;
-
-		hid_dev->bus = BUS_VIRTUAL;
-		hid_dev->vendor = input_device_ctx->device_info.vendor;
-		hid_dev->product = input_device_ctx->device_info.product;
-		hid_dev->version = input_device_ctx->device_info.version;
-		hid_dev->dev = dev->device;
-
-		sprintf(hid_dev->name, "%s",
-			input_device_ctx->device_info.name);
-
-		/*
-		 * HJ Do we want to call it with a 0
-		 */
-		if (!hidinput_connect(hid_dev, 0)) {
-			hid_dev->claimed |= HID_CLAIMED_INPUT;
-
-			input_device_ctx->connected = 1;
-
-			DPRINT_INFO(INPUTVSC_DRV,
-				     "HID device claimed by input\n");
-		}
-
-		if (!hid_dev->claimed) {
-			DPRINT_ERR(INPUTVSC_DRV,
-				    "HID device not claimed by "
-				    "input or hiddev\n");
-		}
-
-		input_device_ctx->hid_device = hid_dev;
-	}
-
-	kfree(hid_dev);
 }
 
 static const struct hv_vmbus_device_id id_table[] = {
