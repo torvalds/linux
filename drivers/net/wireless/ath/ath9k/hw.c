@@ -2754,6 +2754,7 @@ static struct {
 	{ AR_SREV_VERSION_9271,         "9271" },
 	{ AR_SREV_VERSION_9300,         "9300" },
 	{ AR_SREV_VERSION_9330,         "9330" },
+	{ AR_SREV_VERSION_9340,		"9340" },
 	{ AR_SREV_VERSION_9485,         "9485" },
 };
 
