@@ -115,7 +115,7 @@ void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
 	struct device *dev = &pdev->dev;
 
 	if (!dev->power.subsys_data) {
-		pm_clk_init(dev);
+		pm_clk_create(dev);
 		pm_clk_add(dev, NULL);
 	}
 	pm_genpd_add_device(&sh7372_pd->genpd, dev);
