@@ -2495,18 +2495,8 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 		open->op_stateowner = NULL;
 		goto renew;
 	}
-	if (open->op_seqid == sop->so_seqid - 1) {
-		if (sop->so_replay.rp_buflen)
-			return nfserr_replay_me;
-		/* The original OPEN failed so spectacularly
-		 * that we don't even have replay data saved!
-		 * Therefore, we have no choice but to continue
-		 * processing this OPEN; presumably, we'll
-		 * fail again for the same reason.
-		 */
-		dprintk("nfsd4_process_open1: replay with no replay cache\n");
-		goto renew;
-	}
+	if (open->op_seqid == sop->so_seqid - 1)
+		return nfserr_replay_me;
 	if (open->op_seqid != sop->so_seqid)
 		return nfserr_bad_seqid;
 renew:
