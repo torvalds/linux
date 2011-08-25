@@ -429,7 +429,7 @@
 	  object should be sizeof(struct ttm_mem_global), and the init and
 	  release hooks should point at your driver specific init and
 	  release routines, which probably eventually call
-	  ttm_mem_global_init and ttm_mem_global_release respectively.
+	  ttm_mem_global_init and ttm_mem_global_release, respectively.
 	</para>
 	<para>
 	  Once your global TTM accounting structure is set up and initialized
@@ -499,8 +499,8 @@
       <sect3>
 	<title>Output discovery and initialization</title>
 	<para>
-	  Several core functions exist to create CRTCs, encoders and
-	  connectors, namely drm_crtc_init(), drm_connector_init() and
+	  Several core functions exist to create CRTCs, encoders, and
+	  connectors, namely drm_crtc_init(), drm_connector_init(), and
 	  drm_encoder_init(), along with several "helper" functions to
 	  perform common tasks.
 	</para>
@@ -578,7 +578,7 @@ void intel_crt_init(struct drm_device *dev)
 	  </para>
 	</sect4>
 	<para>
-	  For each encoder, CRTC and connector, several functions must
+	  For each encoder, CRTC, and connector, several functions must
 	  be provided, depending on the object type.  Encoder objects
 	  need to provide a DPMS (basically on/off) function, mode fixup
 	  (for converting requested modes into native hardware timings),
@@ -727,7 +727,7 @@ void intel_crt_init(struct drm_device *dev)
     <title>Output management</title>
     <para>
       At the core of the DRM output management code is a set of
-      structures representing CRTCs, encoders and connectors.
+      structures representing CRTCs, encoders, and connectors.
     </para>
     <para>
       A CRTC is an abstraction representing a part of the chip that
