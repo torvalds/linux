@@ -67,5 +67,7 @@ struct rx_ts_record {
 	u8				num;
 };
 
+void _setup_timer(struct timer_list *, void *, unsigned long);
+
 
 #endif
