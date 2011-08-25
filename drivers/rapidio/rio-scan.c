@@ -505,8 +505,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	rdev->dev.dma_mask = &rdev->dma_mask;
 	rdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
-	if ((rdev->pef & RIO_PEF_INB_DOORBELL) &&
-	    (rdev->dst_ops & RIO_DST_OPS_DOORBELL))
+	if (rdev->dst_ops & RIO_DST_OPS_DOORBELL)
 		rio_init_dbell_res(&rdev->riores[RIO_DOORBELL_RESOURCE],
 				   0, 0xffff);
 
