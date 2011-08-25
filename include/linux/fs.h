@@ -2318,6 +2318,11 @@ extern struct inode * iget5_locked(struct super_block *, unsigned long, int (*te
 extern struct inode * iget_locked(struct super_block *, unsigned long);
 extern int insert_inode_locked4(struct inode *, unsigned long, int (*test)(struct inode *, void *), void *);
 extern int insert_inode_locked(struct inode *);
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+extern void lockdep_annotate_inode_mutex_key(struct inode *inode);
+#else
+static inline void lockdep_annotate_inode_mutex_key(struct inode *inode) { };
+#endif
 extern void unlock_new_inode(struct inode *);
 extern unsigned int get_next_ino(void);
 
