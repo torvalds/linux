@@ -392,10 +392,8 @@ int storvsc_dev_add(struct hv_device *device,
 
 	device_info = (struct storvsc_device_info *)additional_info;
 	stor_device = alloc_stor_device(device);
-	if (!stor_device) {
-		ret = -1;
-		goto cleanup;
-	}
+	if (!stor_device)
+		return -ENOMEM;
 
 	/* Save the channel properties to our storvsc channel */
 
@@ -409,11 +407,13 @@ int storvsc_dev_add(struct hv_device *device,
 	stor_device->port_number = device_info->port_number;
 	/* Send it back up */
 	ret = storvsc_connect_to_vsp(device, device_info->ring_buffer_size);
-
+	if (ret) {
+		free_stor_device(stor_device);
+		return ret;
+	}
 	device_info->path_id = stor_device->path_id;
 	device_info->target_id = stor_device->target_id;
 
-cleanup:
 	return ret;
 }
 
