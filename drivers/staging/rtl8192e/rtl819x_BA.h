@@ -38,11 +38,10 @@
 #define	DELBA_REASON_TIMEOUT			39
 union sequence_control {
 	u16 ShortData;
-	struct
-	{
+	struct {
 		u16	FragNum:4;
 		u16	SeqNum:12;
-	}field;
+	} field;
 };
 
 union ba_param_set {
