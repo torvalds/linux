@@ -173,8 +173,13 @@ struct mousevsc_dev {
 	struct hv_input_dev_info hid_dev_info;
 };
 
+struct input_device_context {
+	struct hv_device	*device_ctx;
+	struct hid_device	*hid_device;
+	struct hv_input_dev_info device_info;
+	int			connected;
+};
 
-static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info);
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
 
@@ -651,6 +656,7 @@ static int mousevsc_on_device_add(struct hv_device *device,
 	struct mousevsc_dev *input_dev;
 	struct hv_driver *input_drv;
 	struct hv_input_dev_info dev_info;
+	struct input_device_context *input_device_ctx;
 
 	input_dev = alloc_input_device(device);
 
@@ -697,7 +703,9 @@ static int mousevsc_on_device_add(struct hv_device *device,
 	strcpy(dev_info.name, "Microsoft Vmbus HID-compliant Mouse");
 
 	/* Send the device info back up */
-	deviceinfo_callback(device, &dev_info);
+	input_device_ctx = dev_get_drvdata(&device->device);
+	memcpy(&input_device_ctx->device_info, &dev_info,
+	       sizeof(struct hv_input_dev_info));
 
 	/* Send the report desc back up */
 	/* workaround SA-167 */
@@ -751,28 +759,6 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 	return ret;
 }
 
-
-/*
- * Data types
- */
-struct input_device_context {
-	struct hv_device	*device_ctx;
-	struct hid_device	*hid_device;
-	struct hv_input_dev_info device_info;
-	int			connected;
-};
-
-
-static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info)
-{
-	struct input_device_context *input_device_ctx =
-		dev_get_drvdata(&dev->device);
-
-	memcpy(&input_device_ctx->device_info, info,
-	       sizeof(struct hv_input_dev_info));
-
-	DPRINT_INFO(INPUTVSC_DRV, "%s", __func__);
-}
 
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len)
 {
