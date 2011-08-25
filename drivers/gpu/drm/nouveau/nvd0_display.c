@@ -391,6 +391,11 @@ nvd0_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int ret;
 
+	if (!crtc->fb) {
+		NV_DEBUG_KMS(crtc->dev, "No FB bound\n");
+		return 0;
+	}
+
 	ret = nvd0_crtc_swap_fbs(crtc, old_fb);
 	if (ret)
 		return ret;
