@@ -239,33 +239,6 @@ errorout:
 }
 EXPORT_SYMBOL_GPL(vmbus_open);
 
-
-/*
- * dump_gpadl_header - Dump the gpadl header message to the console for
- * debugging purposes.
- */
-static void dump_gpadl_header(struct vmbus_channel_gpadl_header *gpadl)
-{
-	int i, j;
-	int pagecount;
-
-	DPRINT_DBG(VMBUS,
-		   "gpadl header - relid %d, range count %d, range buflen %d",
-		   gpadl->child_relid, gpadl->rangecount, gpadl->range_buflen);
-	for (i = 0; i < gpadl->rangecount; i++) {
-		pagecount = gpadl->range[i].byte_count >> PAGE_SHIFT;
-		pagecount = (pagecount > 26) ? 26 : pagecount;
-
-		DPRINT_DBG(VMBUS, "gpadl range %d - len %d offset %d "
-			   "page count %d", i, gpadl->range[i].byte_count,
-			   gpadl->range[i].byte_offset, pagecount);
-
-		for (j = 0; j < pagecount; j++)
-			DPRINT_DBG(VMBUS, "%d) pfn %llu", j,
-				   gpadl->range[i].pfn_array[j]);
-	}
-}
-
 /*
  * create_gpadl_header - Creates a gpadl for the specified buffer
  */
@@ -443,7 +416,6 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	gpadlmsg->child_relid = channel->offermsg.child_relid;
 	gpadlmsg->gpadl = next_gpadl_handle;
 
-	dump_gpadl_header(gpadlmsg);
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&msginfo->msglistentry,
