@@ -1253,7 +1253,6 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 
 	pr_debug("uart_close(%d) called\n", uport->line);
 
-	mutex_lock(&port->mutex);
 	spin_lock_irqsave(&port->lock, flags);
 
 	if (tty_hung_up_p(filp)) {
@@ -1312,6 +1311,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		uart_wait_until_sent(tty, uport->timeout);
 	}
 
+	mutex_lock(&port->mutex);
 	uart_shutdown(tty, state);
 	uart_flush_buffer(tty);
 
