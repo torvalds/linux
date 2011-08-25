@@ -140,7 +140,7 @@ static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 	}
 }
 
-static inline s32 pm_qos_read_value(struct pm_qos_constraints *c)
+s32 pm_qos_read_value(struct pm_qos_constraints *c)
 {
 	return c->target_value;
 }
