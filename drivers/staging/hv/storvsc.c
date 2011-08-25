@@ -111,7 +111,7 @@ static int storvsc_channel_init(struct hv_device *device)
 
 	stor_device = get_stor_device(device);
 	if (!stor_device)
-		return -1;
+		return -ENODEV;
 
 	request = &stor_device->init_request;
 	vstor_packet = &request->vstor_packet;
