@@ -2244,13 +2244,10 @@ void rtl819x_UpdateRxPktTimeStamp (struct net_device *dev, struct rtllib_rx_stat
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-	if (stats->bIsAMPDU && !stats->bFirstMPDU) {
-		stats->mac_time[0] = priv->LastRxDescTSFLow;
-		stats->mac_time[1] = priv->LastRxDescTSFHigh;
-	} else {
-		priv->LastRxDescTSFLow = stats->mac_time[0];
-		priv->LastRxDescTSFHigh = stats->mac_time[1];
-	}
+	if (stats->bIsAMPDU && !stats->bFirstMPDU)
+		stats->mac_time = priv->LastRxDescTSF;
+	else
+		priv->LastRxDescTSF = stats->mac_time;
 }
 
 long rtl819x_translate_todbm(struct r8192_priv * priv, u8 signal_strength_index	)

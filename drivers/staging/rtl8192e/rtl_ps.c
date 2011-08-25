@@ -78,36 +78,33 @@ void rtl8192_hw_wakeup_wq(void *data)
 
 #define MIN_SLEEP_TIME 50
 #define MAX_SLEEP_TIME 10000
-void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
+void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	u32 rb = jiffies;
+	u32 tmp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->ps_lock,flags);
 
-	tl -= MSECS(8+16+7);
+	time -= MSECS(8+16+7);
 
-	if (((tl>=rb)&& (tl-rb) <= MSECS(MIN_SLEEP_TIME))
-			||((rb>tl)&& (rb-tl) < MSECS(MIN_SLEEP_TIME))) {
+	if ((time - jiffies) <= MSECS(MIN_SLEEP_TIME)) {
 		spin_unlock_irqrestore(&priv->ps_lock,flags);
-		printk("too short to sleep::%x, %x, %lx\n",tl, rb,  MSECS(MIN_SLEEP_TIME));
+		printk(KERN_INFO "too short to sleep::%lld < %ld\n",
+		       time - jiffies, MSECS(MIN_SLEEP_TIME));
 		return;
 	}
 
-	if (((tl > rb) && ((tl-rb) > MSECS(MAX_SLEEP_TIME)))||
-			((tl < rb) && (tl>MSECS(69)) && ((rb-tl) > MSECS(MAX_SLEEP_TIME)))||
-			((tl<rb)&&(tl<MSECS(69))&&((tl+0xffffffff-rb)>MSECS(MAX_SLEEP_TIME)))) {
-		printk("========>too long to sleep:%x, %x, %lx\n", tl, rb,  MSECS(MAX_SLEEP_TIME));
+	if ((time - jiffies) > MSECS(MAX_SLEEP_TIME)) {
+		printk(KERN_INFO "========>too long to sleep:%lld > %ld\n",
+		       time - jiffies,  MSECS(MAX_SLEEP_TIME));
 		spin_unlock_irqrestore(&priv->ps_lock,flags);
 		return;
 	}
-	{
-		u32 tmp = (tl>rb)?(tl-rb):(rb-tl);
-		queue_delayed_work_rsl(priv->rtllib->wq,
-				&priv->rtllib->hw_wakeup_wq,tmp);
-	}
+	tmp = time - jiffies;
+	queue_delayed_work_rsl(priv->rtllib->wq,
+			&priv->rtllib->hw_wakeup_wq,tmp);
 	queue_delayed_work_rsl(priv->rtllib->wq,
 			(void *)&priv->rtllib->hw_sleep_wq,0);
 	spin_unlock_irqrestore(&priv->ps_lock,flags);

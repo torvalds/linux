@@ -642,8 +642,7 @@ struct r8192_priv {
 	int		rxringcount;
 	u16		rxbuffersize;
 
-	u32		LastRxDescTSFHigh;
-	u32		LastRxDescTSFLow;
+	u64		LastRxDescTSF;
 
 	u16		EarlyRxThreshold;
 	u32		ReceiveConfig;

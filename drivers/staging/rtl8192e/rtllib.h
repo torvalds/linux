@@ -993,7 +993,7 @@ struct ieee_ibss_seq {
  *       any adverse affects. */
 struct rtllib_rx_stats {
 #if 1
-	u32 mac_time[2];
+	u64 mac_time;
 	s8  rssi;
 	u8  signal;
 	u8  noise;
@@ -1679,7 +1679,7 @@ struct rtllib_network {
         struct rtllib_tim_parameters tim;
 	u8  dtim_period;
 	u8  dtim_data;
-	u32 last_dtim_sta_time[2];
+	u64 last_dtim_sta_time;
 
         u8 wmm_info;
         struct rtllib_wmm_ac_param wmm_param[4];
@@ -2305,8 +2305,7 @@ struct rtllib_device {
 	int ps_timeout;
 	int ps_period;
 	struct tasklet_struct ps_task;
-	u32 ps_th;
-	u32 ps_tl;
+	u64 ps_time;
 	bool polling;
 
 	short raw_tx;
@@ -2498,7 +2497,7 @@ struct rtllib_device {
 
 	/* power save mode related */
 	void (*sta_wake_up) (struct net_device *dev);
-	void (*enter_sleep_state) (struct net_device *dev, u32 th, u32 tl);
+	void (*enter_sleep_state) (struct net_device *dev, u64 time);
 	short (*ps_is_queue_empty) (struct net_device *dev);
         int (*handle_beacon) (struct net_device * dev, struct rtllib_beacon * beacon, struct rtllib_network * network);
         int (*handle_assoc_response) (struct net_device * dev, struct rtllib_assoc_response_frame * resp, struct rtllib_network * network);

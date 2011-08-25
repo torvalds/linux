@@ -33,7 +33,7 @@ struct net_device;
 #define INIT_DEFAULT_CHAN	 1
 
 void rtl8192_hw_wakeup(struct net_device *dev);
-void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl);
+void rtl8192_hw_to_sleep(struct net_device *dev, u64 time);
 void rtllib_ips_leave_wq(struct net_device *dev);
 void rtllib_ips_leave(struct net_device *dev);
 void IPSLeave_wq (void *data);

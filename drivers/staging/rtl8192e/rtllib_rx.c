@@ -1867,8 +1867,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
                         network->dtim_period = info_element->data[1];
                         if (ieee->state != RTLLIB_LINKED)
                                 break;
-			network->last_dtim_sta_time[0] = jiffies;
-                        network->last_dtim_sta_time[1] = stats->mac_time[1];
+			network->last_dtim_sta_time = jiffies;
 
                         network->dtim_data = RTLLIB_DTIM_VALID;
 
@@ -2466,8 +2465,7 @@ static inline void update_network(struct rtllib_network *dst,
 	dst->atim_window = src->atim_window;
 	dst->dtim_period = src->dtim_period;
 	dst->dtim_data = src->dtim_data;
-	dst->last_dtim_sta_time[0] = src->last_dtim_sta_time[0];
-	dst->last_dtim_sta_time[1] = src->last_dtim_sta_time[1];
+	dst->last_dtim_sta_time = src->last_dtim_sta_time;
 	memcpy(&dst->tim, &src->tim, sizeof(struct rtllib_tim_parameters));
 
         dst->bssht.bdSupportHT = src->bssht.bdSupportHT;
