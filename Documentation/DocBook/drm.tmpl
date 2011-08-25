@@ -371,7 +371,7 @@
 	shadowed into memory (typically at address 0xc0000) or exists
 	on the PCI device in the ROM BAR.  Note that after the ROM
 	has been mapped and any necessary information has been extracted,
-	it should be unmapped; on many devices the ROM address decoder is
+	it should be unmapped; on many devices, the ROM address decoder is
 	shared with other BARs, so leaving it mapped can cause
 	undesired behavior like hangs or memory corruption.
 <!--!Fdrivers/pci/rom.c pci_map_rom-->
@@ -440,7 +440,7 @@
 	  and its size should be sizeof(struct ttm_bo_global).  Again,
 	  driver specific init and release functions may be provided,
 	  likely eventually calling ttm_bo_global_init and
-	  ttm_bo_global_release, respectively.  Also like the previous
+	  ttm_bo_global_release, respectively.  Also, like the previous
 	  object, ttm_global_item_ref is used to create an initial reference
 	  count for the TTM, which will call your initialization function.
 	</para>
@@ -613,7 +613,7 @@ void intel_crt_init(struct drm_device *dev)
     </para>
     <para>
       DRM_IOCTL_MODESET_CTL should be called by application level
-      drivers before and after mode setting, since on many devices the
+      drivers before and after mode setting, since on many devices, the
       vertical blank counter is reset at that time.  Internally,
       the DRM snapshots the last vblank count when the ioctl is called
       with the _DRM_PRE_MODESET command so that the counter won't go
@@ -696,7 +696,7 @@ void intel_crt_init(struct drm_device *dev)
 	set domain function, which evaluates an object's current domain and
 	performs any necessary flushing or synchronization to put the object
 	into the desired coherency domain (note that the object may be busy,
-	i.e. an active render target; in that case the set domain function
+	i.e. an active render target; in that case, the set domain function
 	blocks the client and waits for rendering to complete before
 	performing any necessary flushing operations).
       </para>
