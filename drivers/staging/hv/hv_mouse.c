@@ -847,15 +847,10 @@ static int mousevsc_probe(struct hv_device *dev)
 
 static int mousevsc_remove(struct hv_device *dev)
 {
-	int ret = 0;
-
 	struct input_device_context *input_dev_ctx;
+	int ret;
 
-	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
-				GFP_KERNEL);
-
-	dev_set_drvdata(&dev->device, input_dev_ctx);
-
+	input_dev_ctx = dev_get_drvdata(&dev->device);
 	if (input_dev_ctx->connected) {
 		hidinput_disconnect(input_dev_ctx->hid_device);
 		input_dev_ctx->connected = 0;
@@ -866,7 +861,6 @@ static int mousevsc_remove(struct hv_device *dev)
 	 * is being removed
 	 */
 	ret = mousevsc_on_device_remove(dev);
-
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV,
 			   "unable to remove vsc device (ret %d)", ret);
