@@ -1981,6 +1981,7 @@ static struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 	struct fc_exch *ep;
 	struct fc_seq *sp = NULL;
 	struct fc_frame_header *fh;
+	struct fc_fcp_pkt *fsp = NULL;
 	int rc = 1;
 
 	ep = fc_exch_alloc(lport, fp);
@@ -2003,8 +2004,10 @@ static struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 	fc_exch_setup_hdr(ep, fp, ep->f_ctl);
 	sp->cnt++;
 
-	if (ep->xid <= lport->lro_xid && fh->fh_r_ctl == FC_RCTL_DD_UNSOL_CMD)
+	if (ep->xid <= lport->lro_xid && fh->fh_r_ctl == FC_RCTL_DD_UNSOL_CMD) {
+		fsp = fr_fsp(fp);
 		fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
+	}
 
 	if (unlikely(lport->tt.frame_send(lport, fp)))
 		goto err;
@@ -2018,7 +2021,8 @@ static struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 	spin_unlock_bh(&ep->ex_lock);
 	return sp;
 err:
-	fc_fcp_ddp_done(fr_fsp(fp));
+	if (fsp)
+		fc_fcp_ddp_done(fsp);
 	rc = fc_exch_done_locked(ep);
 	spin_unlock_bh(&ep->ex_lock);
 	if (!rc)
