@@ -39,6 +39,7 @@
 #include <linux/pm_runtime.h>
 
 #include <video/omapdss.h>
+#include <video/mipi_display.h>
 #include <plat/clock.h>
 
 #include "dss.h"
@@ -197,18 +198,6 @@ struct dsi_reg { u16 idx; };
 	 DSI_CIO_IRQ_ERRCONTENTIONLP0_3 | DSI_CIO_IRQ_ERRCONTENTIONLP1_3 | \
 	 DSI_CIO_IRQ_ERRCONTENTIONLP0_4 | DSI_CIO_IRQ_ERRCONTENTIONLP1_4 | \
 	 DSI_CIO_IRQ_ERRCONTENTIONLP0_5 | DSI_CIO_IRQ_ERRCONTENTIONLP1_5)
-
-#define DSI_DT_DCS_SHORT_WRITE_0	0x05
-#define DSI_DT_DCS_SHORT_WRITE_1	0x15
-#define DSI_DT_DCS_READ			0x06
-#define DSI_DT_SET_MAX_RET_PKG_SIZE	0x37
-#define DSI_DT_NULL_PACKET		0x09
-#define DSI_DT_DCS_LONG_WRITE		0x39
-
-#define DSI_DT_RX_ACK_WITH_ERR		0x02
-#define DSI_DT_RX_DCS_LONG_READ		0x1c
-#define DSI_DT_RX_SHORT_READ_1		0x21
-#define DSI_DT_RX_SHORT_READ_2		0x22
 
 typedef void (*omap_dsi_isr_t) (void *arg, u32 mask);
 
@@ -2887,16 +2876,16 @@ static u16 dsi_vc_flush_receive_data(struct platform_device *dsidev,
 		val = dsi_read_reg(dsidev, DSI_VC_SHORT_PACKET_HEADER(channel));
 		DSSERR("\trawval %#08x\n", val);
 		dt = FLD_GET(val, 5, 0);
-		if (dt == DSI_DT_RX_ACK_WITH_ERR) {
+		if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
 			u16 err = FLD_GET(val, 23, 8);
 			dsi_show_rx_ack_with_err(err);
-		} else if (dt == DSI_DT_RX_SHORT_READ_1) {
+		} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE) {
 			DSSERR("\tDCS short response, 1 byte: %#x\n",
 					FLD_GET(val, 23, 8));
-		} else if (dt == DSI_DT_RX_SHORT_READ_2) {
+		} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE) {
 			DSSERR("\tDCS short response, 2 byte: %#x\n",
 					FLD_GET(val, 23, 8));
-		} else if (dt == DSI_DT_RX_DCS_LONG_READ) {
+		} else if (dt == MIPI_DSI_RX_DCS_LONG_READ_RESPONSE) {
 			DSSERR("\tDCS long response, len %d\n",
 					FLD_GET(val, 23, 8));
 			dsi_vc_flush_long_data(dsidev, channel);
@@ -3101,7 +3090,7 @@ int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel)
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	u8 nullpkg[] = {0, 0, 0, 0};
 
-	return dsi_vc_send_long(dsidev, channel, DSI_DT_NULL_PACKET, nullpkg,
+	return dsi_vc_send_long(dsidev, channel, MIPI_DSI_NULL_PACKET, nullpkg,
 		4, 0);
 }
 EXPORT_SYMBOL(dsi_vc_send_null);
@@ -3115,14 +3104,15 @@ int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
 	BUG_ON(len == 0);
 
 	if (len == 1) {
-		r = dsi_vc_send_short(dsidev, channel, DSI_DT_DCS_SHORT_WRITE_0,
-				data[0], 0);
+		r = dsi_vc_send_short(dsidev, channel,
+				MIPI_DSI_DCS_SHORT_WRITE, data[0], 0);
 	} else if (len == 2) {
-		r = dsi_vc_send_short(dsidev, channel, DSI_DT_DCS_SHORT_WRITE_1,
+		r = dsi_vc_send_short(dsidev, channel,
+				MIPI_DSI_DCS_SHORT_WRITE_PARAM,
 				data[0] | (data[1] << 8), 0);
 	} else {
 		/* 0x39 = DCS Long Write */
-		r = dsi_vc_send_long(dsidev, channel, DSI_DT_DCS_LONG_WRITE,
+		r = dsi_vc_send_long(dsidev, channel, MIPI_DSI_DCS_LONG_WRITE,
 				data, len, 0);
 	}
 
@@ -3188,7 +3178,7 @@ int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 	if (dsi->debug_read)
 		DSSDBG("dsi_vc_dcs_read(ch%d, dcs_cmd %x)\n", channel, dcs_cmd);
 
-	r = dsi_vc_send_short(dsidev, channel, DSI_DT_DCS_READ, dcs_cmd, 0);
+	r = dsi_vc_send_short(dsidev, channel, MIPI_DSI_DCS_READ, dcs_cmd, 0);
 	if (r)
 		goto err;
 
@@ -3207,13 +3197,13 @@ int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 	if (dsi->debug_read)
 		DSSDBG("\theader: %08x\n", val);
 	dt = FLD_GET(val, 5, 0);
-	if (dt == DSI_DT_RX_ACK_WITH_ERR) {
+	if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
 		u16 err = FLD_GET(val, 23, 8);
 		dsi_show_rx_ack_with_err(err);
 		r = -EIO;
 		goto err;
 
-	} else if (dt == DSI_DT_RX_SHORT_READ_1) {
+	} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE) {
 		u8 data = FLD_GET(val, 15, 8);
 		if (dsi->debug_read)
 			DSSDBG("\tDCS short response, 1 byte: %02x\n", data);
@@ -3226,7 +3216,7 @@ int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 		buf[0] = data;
 
 		return 1;
-	} else if (dt == DSI_DT_RX_SHORT_READ_2) {
+	} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE) {
 		u16 data = FLD_GET(val, 23, 8);
 		if (dsi->debug_read)
 			DSSDBG("\tDCS short response, 2 byte: %04x\n", data);
@@ -3240,7 +3230,7 @@ int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 		buf[1] = (data >> 8) & 0xff;
 
 		return 2;
-	} else if (dt == DSI_DT_RX_DCS_LONG_READ) {
+	} else if (dt == MIPI_DSI_RX_DCS_LONG_READ_RESPONSE) {
 		int w;
 		int len = FLD_GET(val, 23, 8);
 		if (dsi->debug_read)
@@ -3330,8 +3320,8 @@ int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 
-	return dsi_vc_send_short(dsidev, channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
-			len, 0);
+	return dsi_vc_send_short(dsidev, channel,
+			MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE, len, 0);
 }
 EXPORT_SYMBOL(dsi_vc_set_max_rx_packet_size);
 
@@ -3690,7 +3680,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	l = FLD_VAL(total_len, 23, 0); /* TE_SIZE */
 	dsi_write_reg(dsidev, DSI_VC_TE(channel), l);
 
-	dsi_vc_write_long_header(dsidev, channel, DSI_DT_DCS_LONG_WRITE,
+	dsi_vc_write_long_header(dsidev, channel, MIPI_DSI_DCS_LONG_WRITE,
 		packet_len, 0);
 
 	if (dsi->te_enabled)

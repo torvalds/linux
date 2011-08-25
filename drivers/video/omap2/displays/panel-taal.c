@@ -35,26 +35,12 @@
 
 #include <video/omapdss.h>
 #include <video/omap-panel-nokia-dsi.h>
+#include <video/mipi_display.h>
 
 /* DSI Virtual channel. Hardcoded for now. */
 #define TCH 0
 
 #define DCS_READ_NUM_ERRORS	0x05
-#define DCS_READ_POWER_MODE	0x0a
-#define DCS_READ_MADCTL		0x0b
-#define DCS_READ_PIXEL_FORMAT	0x0c
-#define DCS_RDDSDR		0x0f
-#define DCS_SLEEP_IN		0x10
-#define DCS_SLEEP_OUT		0x11
-#define DCS_DISPLAY_OFF		0x28
-#define DCS_DISPLAY_ON		0x29
-#define DCS_COLUMN_ADDR		0x2a
-#define DCS_PAGE_ADDR		0x2b
-#define DCS_MEMORY_WRITE	0x2c
-#define DCS_TEAR_OFF		0x34
-#define DCS_TEAR_ON		0x35
-#define DCS_MEM_ACC_CTRL	0x36
-#define DCS_PIXEL_FORMAT	0x3a
 #define DCS_BRIGHTNESS		0x51
 #define DCS_CTRL_DISPLAY	0x53
 #define DCS_WRITE_CABC		0x55
@@ -302,7 +288,7 @@ static int taal_sleep_in(struct taal_data *td)
 
 	hw_guard_wait(td);
 
-	cmd = DCS_SLEEP_IN;
+	cmd = MIPI_DCS_ENTER_SLEEP_MODE;
 	r = dsi_vc_dcs_write_nosync(td->dssdev, td->channel, &cmd, 1);
 	if (r)
 		return r;
@@ -321,7 +307,7 @@ static int taal_sleep_out(struct taal_data *td)
 
 	hw_guard_wait(td);
 
-	r = taal_dcs_write_0(td, DCS_SLEEP_OUT);
+	r = taal_dcs_write_0(td, MIPI_DCS_EXIT_SLEEP_MODE);
 	if (r)
 		return r;
 
@@ -356,7 +342,7 @@ static int taal_set_addr_mode(struct taal_data *td, u8 rotate, bool mirror)
 	u8 mode;
 	int b5, b6, b7;
 
-	r = taal_dcs_read_1(td, DCS_READ_MADCTL, &mode);
+	r = taal_dcs_read_1(td, MIPI_DCS_GET_ADDRESS_MODE, &mode);
 	if (r)
 		return r;
 
@@ -390,7 +376,7 @@ static int taal_set_addr_mode(struct taal_data *td, u8 rotate, bool mirror)
 	mode &= ~((1<<7) | (1<<6) | (1<<5));
 	mode |= (b7 << 7) | (b6 << 6) | (b5 << 5);
 
-	return taal_dcs_write_1(td, DCS_MEM_ACC_CTRL, mode);
+	return taal_dcs_write_1(td, MIPI_DCS_SET_ADDRESS_MODE, mode);
 }
 
 static int taal_set_update_window(struct taal_data *td,
@@ -403,7 +389,7 @@ static int taal_set_update_window(struct taal_data *td,
 	u16 y2 = y + h - 1;
 
 	u8 buf[5];
-	buf[0] = DCS_COLUMN_ADDR;
+	buf[0] = MIPI_DCS_SET_COLUMN_ADDRESS;
 	buf[1] = (x1 >> 8) & 0xff;
 	buf[2] = (x1 >> 0) & 0xff;
 	buf[3] = (x2 >> 8) & 0xff;
@@ -413,7 +399,7 @@ static int taal_set_update_window(struct taal_data *td,
 	if (r)
 		return r;
 
-	buf[0] = DCS_PAGE_ADDR;
+	buf[0] = MIPI_DCS_SET_PAGE_ADDRESS;
 	buf[1] = (y1 >> 8) & 0xff;
 	buf[2] = (y1 >> 0) & 0xff;
 	buf[3] = (y2 >> 8) & 0xff;
@@ -1195,7 +1181,8 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
-	r = taal_dcs_write_1(td, DCS_PIXEL_FORMAT, 0x7); /* 24bit/pixel */
+	r = taal_dcs_write_1(td, MIPI_DCS_SET_PIXEL_FORMAT,
+		MIPI_DCS_PIXEL_FMT_24BIT);
 	if (r)
 		goto err;
 
@@ -1209,7 +1196,7 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 			goto err;
 	}
 
-	r = taal_dcs_write_0(td, DCS_DISPLAY_ON);
+	r = taal_dcs_write_0(td, MIPI_DCS_SET_DISPLAY_ON);
 	if (r)
 		goto err;
 
@@ -1246,7 +1233,7 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
 
-	r = taal_dcs_write_0(td, DCS_DISPLAY_OFF);
+	r = taal_dcs_write_0(td, MIPI_DCS_SET_DISPLAY_OFF);
 	if (!r)
 		r = taal_sleep_in(td);
 
@@ -1529,9 +1516,9 @@ static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	int r;
 
 	if (enable)
-		r = taal_dcs_write_1(td, DCS_TEAR_ON, 0);
+		r = taal_dcs_write_1(td, MIPI_DCS_SET_TEAR_ON, 0);
 	else
-		r = taal_dcs_write_0(td, DCS_TEAR_OFF);
+		r = taal_dcs_write_0(td, MIPI_DCS_SET_TEAR_OFF);
 
 	if (!panel_data->use_ext_te)
 		omapdss_dsi_enable_te(dssdev, enable);
@@ -1851,7 +1838,7 @@ static void taal_esd_work(struct work_struct *work)
 		goto err;
 	}
 
-	r = taal_dcs_read_1(td, DCS_RDDSDR, &state1);
+	r = taal_dcs_read_1(td, MIPI_DCS_GET_DIAGNOSTIC_RESULT, &state1);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to read Taal status\n");
 		goto err;
@@ -1864,7 +1851,7 @@ static void taal_esd_work(struct work_struct *work)
 		goto err;
 	}
 
-	r = taal_dcs_read_1(td, DCS_RDDSDR, &state2);
+	r = taal_dcs_read_1(td, MIPI_DCS_GET_DIAGNOSTIC_RESULT, &state2);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to read Taal status\n");
 		goto err;
@@ -1880,7 +1867,7 @@ static void taal_esd_work(struct work_struct *work)
 	/* Self-diagnostics result is also shown on TE GPIO line. We need
 	 * to re-enable TE after self diagnostics */
 	if (td->te_enabled && panel_data->use_ext_te) {
-		r = taal_dcs_write_1(td, DCS_TEAR_ON, 0);
+		r = taal_dcs_write_1(td, MIPI_DCS_SET_TEAR_ON, 0);
 		if (r)
 			goto err;
 	}
