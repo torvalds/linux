@@ -670,7 +670,7 @@ static struct mpu3050_platform_data mpu3050_data = {
 				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
 				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
 				
-				.orientation = { -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+				.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
 				//.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, -1 },
 		},
 #endif
@@ -1200,11 +1200,14 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 };
 #endif
 #if defined (CONFIG_ANX7150)
-#define HDMI_VDD_CTL RK29_PIN6_PD3
+#define HDMI_V33_CTL RK29_PIN6_PD3 //3.3V power control
+#define HDMI_V5_CTL	RK29_PIN4_PD0  //5V power control
 int anx7150_io_init(void)
 {
-	gpio_request(HDMI_VDD_CTL, "hdmi pwr ctl");
-	gpio_direction_output(HDMI_VDD_CTL, GPIO_HIGH);
+	gpio_request(HDMI_V33_CTL, "hdmi pwr ctl 0");
+	gpio_request(HDMI_V5_CTL, "hdmi pwr ctl 1");
+	gpio_direction_output(HDMI_V33_CTL, GPIO_HIGH);
+	gpio_direction_output(HDMI_V5_CTL, GPIO_HIGH);
 	//gpio_set_value(HDMI_VDD_CTL, GPIO_HIGH); 
 	mdelay(10);
 	return 0;
