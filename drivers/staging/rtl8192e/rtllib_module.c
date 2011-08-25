@@ -48,7 +48,7 @@
 #include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/arp.h>
 
 #include "rtllib.h"
@@ -56,11 +56,11 @@
 
 #define DRV_NAME "rtllib_92e"
 
-void _setup_timer( struct timer_list* ptimer, void* fun, unsigned long data )
+void _setup_timer(struct timer_list* ptimer, void *fun, unsigned long data)
 {
-   ptimer->function = fun;
-   ptimer->data = data;
-   init_timer( ptimer );
+	ptimer->function = fun;
+	ptimer->data = data;
+	init_timer(ptimer);
 }
 
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
@@ -98,14 +98,15 @@ static inline void rtllib_networks_initialize(struct rtllib_device *ieee)
 	INIT_LIST_HEAD(&ieee->network_free_list);
 	INIT_LIST_HEAD(&ieee->network_list);
 	for (i = 0; i < MAX_NETWORK_COUNT; i++)
-		list_add_tail(&ieee->networks[i].list, &ieee->network_free_list);
+		list_add_tail(&ieee->networks[i].list,
+			      &ieee->network_free_list);
 }
 
 struct net_device *alloc_rtllib(int sizeof_priv)
 {
 	struct rtllib_device *ieee = NULL;
 	struct net_device *dev;
-	int i,err;
+	int i, err;
 
 	RTLLIB_DEBUG_INFO("Initializing...\n");
 
@@ -159,12 +160,11 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->raw_tx = 0;
 	ieee->hwsec_active = 0;
 
-	memset(ieee->swcamtable,0,sizeof(struct sw_cam_table)*32);
+	memset(ieee->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 	rtllib_softmac_init(ieee);
 
-	ieee->pHTInfo = (struct rt_hi_throughput*)kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL)
-	{
+	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
+	if (ieee->pHTInfo == NULL) {
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc memory for HTInfo\n");
 		return NULL;
 	}
@@ -192,10 +192,10 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	return NULL;
 }
 
-
 void free_rtllib(struct net_device *dev)
 {
-	struct rtllib_device *ieee = (struct rtllib_device *)netdev_priv_rsl(dev);
+	struct rtllib_device *ieee = (struct rtllib_device *)
+				      netdev_priv_rsl(dev);
 	int i;
 	if (ieee->pHTInfo != NULL) {
 		kfree(ieee->pHTInfo);
@@ -219,11 +219,11 @@ void free_rtllib(struct net_device *dev)
 	free_netdev(dev);
 }
 
-u32 rtllib_debug_level = 0;
+u32 rtllib_debug_level;
 static int debug = \
 			    RTLLIB_DL_ERR
 			    ;
-struct proc_dir_entry *rtllib_proc = NULL;
+struct proc_dir_entry *rtllib_proc;
 
 static int show_debug_level(char *page, char **start, off_t offset,
 			    int count, int *eof, void *data)
