@@ -360,9 +360,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 				tmp >>= 2;
 				buf[1] <<= 1;
 			}
-			if (tmp > 256) {
-				tmp %= 256;
-			}
 			buf[0] = tmp;
 		}
 	}
