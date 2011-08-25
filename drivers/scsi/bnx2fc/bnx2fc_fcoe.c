@@ -56,7 +56,7 @@ static struct scsi_host_template bnx2fc_shost_template;
 static struct fc_function_template bnx2fc_transport_function;
 static struct fc_function_template bnx2fc_vport_xport_function;
 static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode);
-static void __bnx2fc_destroy(struct bnx2fc_interface *interface, bool schedule);
+static void __bnx2fc_destroy(struct bnx2fc_interface *interface);
 static int bnx2fc_destroy(struct net_device *net_device);
 static int bnx2fc_enable(struct net_device *netdev);
 static int bnx2fc_disable(struct net_device *netdev);
@@ -840,7 +840,7 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 		list_for_each_entry_safe(interface, tmp, &if_list, list) {
 			if (interface->hba != hba)
 				continue;
-			__bnx2fc_destroy(interface, true);
+			__bnx2fc_destroy(interface);
 		}
 		mutex_unlock(&bnx2fc_dev_lock);
 		return;
@@ -1479,21 +1479,16 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 	scsi_host_put(lport->host);
 }
 
-static void __bnx2fc_destroy(struct bnx2fc_interface *interface, bool schedule)
+static void __bnx2fc_destroy(struct bnx2fc_interface *interface)
 {
 	struct fc_lport *lport = interface->ctlr.lp;
-	struct fcoe_port *port = lport_priv(lport);
 
 	bnx2fc_interface_cleanup(interface);
 	bnx2fc_stop(interface);
-
 	list_del(&interface->list);
 	lport = interface->ctlr.lp;
 	bnx2fc_interface_put(interface);
-	if (schedule)
-		queue_work(bnx2fc_wq, &port->destroy_work);
-	else
-		bnx2fc_if_destroy(lport);
+	bnx2fc_if_destroy(lport);
 }
 
 /**
@@ -1523,7 +1518,7 @@ static int bnx2fc_destroy(struct net_device *netdev)
 
 
 	destroy_workqueue(interface->timer_work_queue);
-	__bnx2fc_destroy(interface, false);
+	__bnx2fc_destroy(interface);
 
 netdev_err:
 	mutex_unlock(&bnx2fc_dev_lock);
@@ -2110,7 +2105,7 @@ static void bnx2fc_ulp_exit(struct cnic_dev *dev)
 	list_for_each_entry_safe(interface, tmp, &if_list, list)
 		/* destroy not called yet, move to quiesced list */
 		if (interface->hba == hba)
-			__bnx2fc_destroy(interface, false);
+			__bnx2fc_destroy(interface);
 	mutex_unlock(&bnx2fc_dev_lock);
 
 	bnx2fc_ulp_stop(hba);
