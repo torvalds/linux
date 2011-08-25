@@ -107,6 +107,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	u8 beacon = 0;
 	u8 is_data = 0;
 	u8 reserved = unaligned ? NET_IP_ALIGN : 0;
+	u16 seq_num;
 
 	/*
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
@@ -169,9 +170,11 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
-	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb,
+	seq_num = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
+	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d", skb,
 		     skb->len - desc->pad_len,
-		     beacon ? "beacon" : "");
+		     beacon ? "beacon" : "",
+		     seq_num);
 
 	skb_trim(skb, skb->len - desc->pad_len);
 
