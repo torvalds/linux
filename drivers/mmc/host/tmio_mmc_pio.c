@@ -48,14 +48,14 @@
 
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
-	u32 mask = sd_ctrl_read32(host, CTL_IRQ_MASK) & ~(i & TMIO_MASK_IRQ);
-	sd_ctrl_write32(host, CTL_IRQ_MASK, mask);
+	host->sdcard_irq_mask &= ~(i & TMIO_MASK_IRQ);
+	sd_ctrl_write32(host, CTL_IRQ_MASK, host->sdcard_irq_mask);
 }
 
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
-	u32 mask = sd_ctrl_read32(host, CTL_IRQ_MASK) | (i & TMIO_MASK_IRQ);
-	sd_ctrl_write32(host, CTL_IRQ_MASK, mask);
+	host->sdcard_irq_mask |= (i & TMIO_MASK_IRQ);
+	sd_ctrl_write32(host, CTL_IRQ_MASK, host->sdcard_irq_mask);
 }
 
 static void tmio_mmc_ack_mmc_irqs(struct tmio_mmc_host *host, u32 i)
@@ -127,11 +127,13 @@ static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 
 	if (enable) {
 		host->sdio_irq_enabled = 1;
+		host->sdio_irq_mask = TMIO_SDIO_MASK_ALL &
+					~TMIO_SDIO_STAT_IOIRQ;
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
-		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK,
-			(TMIO_SDIO_MASK_ALL & ~TMIO_SDIO_STAT_IOIRQ));
+		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 	} else {
-		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, TMIO_SDIO_MASK_ALL);
+		host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
+		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0000);
 		host->sdio_irq_enabled = 0;
 	}
@@ -548,26 +550,25 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	struct tmio_mmc_host *host = devid;
 	struct mmc_host *mmc = host->mmc;
 	struct tmio_mmc_data *pdata = host->pdata;
-	unsigned int ireg, irq_mask, status;
-	unsigned int sdio_ireg, sdio_irq_mask, sdio_status;
+	unsigned int ireg, status;
+	unsigned int sdio_ireg, sdio_status;
 
 	pr_debug("MMC IRQ begin\n");
 
 	status = sd_ctrl_read32(host, CTL_STATUS);
-	irq_mask = sd_ctrl_read32(host, CTL_IRQ_MASK);
-	ireg = status & TMIO_MASK_IRQ & ~irq_mask;
+	ireg = status & TMIO_MASK_IRQ & ~host->sdcard_irq_mask;
 
 	sdio_ireg = 0;
 	if (!ireg && pdata->flags & TMIO_MMC_SDIO_IRQ) {
 		sdio_status = sd_ctrl_read16(host, CTL_SDIO_STATUS);
-		sdio_irq_mask = sd_ctrl_read16(host, CTL_SDIO_IRQ_MASK);
-		sdio_ireg = sdio_status & TMIO_SDIO_MASK_ALL & ~sdio_irq_mask;
+		sdio_ireg = sdio_status & TMIO_SDIO_MASK_ALL &
+				~host->sdio_irq_mask;
 
 		sd_ctrl_write16(host, CTL_SDIO_STATUS, sdio_status & ~TMIO_SDIO_MASK_ALL);
 
 		if (sdio_ireg && !host->sdio_irq_enabled) {
 			pr_warning("tmio_mmc: Spurious SDIO IRQ, disabling! 0x%04x 0x%04x 0x%04x\n",
-				   sdio_status, sdio_irq_mask, sdio_ireg);
+				   sdio_status, host->sdio_irq_mask, sdio_ireg);
 			tmio_mmc_enable_sdio_irq(mmc, 0);
 			goto out;
 		}
@@ -623,9 +624,9 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	}
 
 	pr_warning("tmio_mmc: Spurious irq, disabling! "
-		"0x%08x 0x%08x 0x%08x\n", status, irq_mask, ireg);
+		"0x%08x 0x%08x 0x%08x\n", status, host->sdcard_irq_mask, ireg);
 	pr_debug_status(status);
-	tmio_mmc_disable_mmc_irqs(host, status & ~irq_mask);
+	tmio_mmc_disable_mmc_irqs(host, status & ~host->sdcard_irq_mask);
 
 out:
 	return IRQ_HANDLED;
@@ -882,6 +883,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	tmio_mmc_clk_stop(_host);
 	tmio_mmc_reset(_host);
 
+	_host->sdcard_irq_mask = sd_ctrl_read32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		tmio_mmc_enable_sdio_irq(mmc, 0);
