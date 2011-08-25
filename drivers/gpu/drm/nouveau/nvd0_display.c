@@ -522,6 +522,16 @@ static const struct drm_crtc_funcs nvd0_crtc_func = {
 	.destroy = nvd0_crtc_destroy,
 };
 
+static void
+nvd0_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
+{
+}
+
+static void
+nvd0_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
+{
+}
+
 static int
 nvd0_crtc_create(struct drm_device *dev, int index)
 {
@@ -536,6 +546,8 @@ nvd0_crtc_create(struct drm_device *dev, int index)
 	nv_crtc->index = index;
 	nv_crtc->set_dither = nvd0_crtc_set_dither;
 	nv_crtc->set_scale = nvd0_crtc_set_scale;
+	nv_crtc->cursor.set_offset = nvd0_cursor_set_offset;
+	nv_crtc->cursor.set_pos = nvd0_cursor_set_pos;
 	for (i = 0; i < 256; i++) {
 		nv_crtc->lut.r[i] = i << 8;
 		nv_crtc->lut.g[i] = i << 8;
