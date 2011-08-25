@@ -14,10 +14,22 @@
 extern struct device mxc_aips_bus;
 extern struct device mxc_ahb_bus;
 
-struct platform_device *imx_add_platform_device_dmamask(
+static inline struct platform_device *imx_add_platform_device_dmamask(
 		const char *name, int id,
 		const struct resource *res, unsigned int num_resources,
-		const void *data, size_t size_data, u64 dmamask);
+		const void *data, size_t size_data, u64 dmamask)
+{
+	struct platform_device_info pdevinfo = {
+		.name = name,
+		.id = id,
+		.res = res,
+		.num_res = num_resources,
+		.data = data,
+		.size_data = size_data,
+		.dma_mask = dmamask,
+	};
+	return platform_device_register_full(&pdevinfo);
+}
 
 static inline struct platform_device *imx_add_platform_device(
 		const char *name, int id,
