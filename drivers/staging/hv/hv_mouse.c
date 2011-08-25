@@ -180,7 +180,6 @@ struct input_device_context {
 	int			connected;
 };
 
-static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
 
 static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
@@ -403,6 +402,7 @@ static void mousevsc_on_receive_input_report(struct mousevsc_dev *input_device,
 				struct synthhid_input_report *input_report)
 {
 	struct hv_driver *input_drv;
+	struct input_device_context *input_dev_ctx;
 
 	if (!input_device->init_complete) {
 		pr_info("Initialization incomplete...ignoring input_report msg");
@@ -411,9 +411,11 @@ static void mousevsc_on_receive_input_report(struct mousevsc_dev *input_device,
 
 	input_drv = drv_to_hv_drv(input_device->device->device.driver);
 
-	inputreport_callback(input_device->device,
-			     input_report->buffer,
-			     input_report->header.size);
+	input_dev_ctx = dev_get_drvdata(&input_device->device->device);
+
+	hid_input_report(input_dev_ctx->hid_device,
+			      HID_INPUT_REPORT, input_report->buffer, input_report->header.size, 1);
+
 }
 
 static void mousevsc_on_receive(struct hv_device *device,
@@ -759,19 +761,6 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 	return ret;
 }
 
-
-static void inputreport_callback(struct hv_device *dev, void *packet, u32 len)
-{
-	int ret = 0;
-
-	struct input_device_context *input_dev_ctx =
-		dev_get_drvdata(&dev->device);
-
-	ret = hid_input_report(input_dev_ctx->hid_device,
-			      HID_INPUT_REPORT, packet, len, 1);
-
-	DPRINT_DBG(INPUTVSC_DRV, "hid_input_report (ret %d)", ret);
-}
 
 static int mousevsc_hid_open(struct hid_device *hid)
 {
