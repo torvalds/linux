@@ -84,8 +84,7 @@
 
 
 /*------------------------------Define structure----------------------------*/
-typedef struct _dynamic_initial_gain_threshold_
-{
+struct dig_t {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		Dig_TwoPort_Algorithm;
@@ -126,26 +125,23 @@ typedef struct _dynamic_initial_gain_threshold_
 	bool		initialgain_lowerbound_state;
 
 	long		rssi_val;
-}dig_t;
+};
 
-typedef enum tag_dynamic_init_gain_state_definition
-{
+enum dm_dig_sta {
 	DM_STA_DIG_OFF = 0,
 	DM_STA_DIG_ON,
 	DM_STA_DIG_MAX
-}dm_dig_sta_e;
+};
 
 
-typedef enum tag_dynamic_ratr_state_definition
-{
+enum dm_ratr_sta {
 	DM_RATR_STA_HIGH = 0,
 	DM_RATR_STA_MIDDLE = 1,
 	DM_RATR_STA_LOW = 2,
 	DM_RATR_STA_MAX
-}dm_ratr_sta_e;
+};
 
-typedef enum tag_dynamic_init_gain_operation_type_definition
-{
+enum dm_dig_op_sta {
 	DIG_TYPE_THRESH_HIGH	= 0,
 	DIG_TYPE_THRESH_LOW	= 1,
 	DIG_TYPE_THRESH_HIGHPWR_HIGH	= 2,
@@ -160,42 +156,37 @@ typedef enum tag_dynamic_init_gain_operation_type_definition
 	DIG_TYPE_ENABLE			= 20,
 	DIG_TYPE_DISABLE		= 30,
 	DIG_OP_TYPE_MAX
-}dm_dig_op_e;
+};
 
-typedef enum tag_dig_algorithm_definition
-{
+enum dm_dig_alg {
 	DIG_ALGO_BY_FALSE_ALARM = 0,
 	DIG_ALGO_BY_RSSI	= 1,
 	DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM = 2,
 	DIG_ALGO_BY_TOW_PORT = 3,
 	DIG_ALGO_MAX
-}dm_dig_alg_e;
+};
 
-typedef enum tag_DIG_TWO_PORT_ALGO_Definition
-{
+enum dm_dig_two_port_alg {
 	DIG_TWO_PORT_ALGO_RSSI = 0,
 	DIG_TWO_PORT_ALGO_FALSE_ALARM = 1,
-}DM_DIG_TWO_PORT_ALG_E;
+};
 
 
-typedef enum tag_DIG_EXT_PORT_ALGO_Definition
-{
+enum dm_dig_ext_port_alg {
 	DIG_EXT_PORT_STAGE_0 = 0,
 	DIG_EXT_PORT_STAGE_1 = 1,
 	DIG_EXT_PORT_STAGE_2 = 2,
 	DIG_EXT_PORT_STAGE_3 = 3,
 	DIG_EXT_PORT_STAGE_MAX = 4,
-}DM_DIG_EXT_PORT_ALG_E;
+};
 
-typedef enum tag_dig_dbgmode_definition
-{
+enum dm_dig_dbg {
 	DIG_DBG_OFF = 0,
 	DIG_DBG_ON = 1,
 	DIG_DBG_MAX
-}dm_dig_dbg_e;
+};
 
-typedef enum tag_dig_connect_definition
-{
+enum dm_dig_connect {
 	DIG_STA_DISCONNECT = 0,
 	DIG_STA_CONNECT = 1,
 	DIG_STA_BEFORE_CONNECT = 2,
@@ -203,24 +194,22 @@ typedef enum tag_dig_connect_definition
 	DIG_AP_CONNECT = 4,
 	DIG_AP_ADD_STATION = 5,
 	DIG_CONNECT_MAX
-}dm_dig_connect_e;
+};
 
-typedef enum tag_dig_packetdetection_threshold_definition
-{
+enum dm_dig_pd_th {
 	DIG_PD_AT_LOW_POWER = 0,
 	DIG_PD_AT_NORMAL_POWER = 1,
 	DIG_PD_AT_HIGH_POWER = 2,
 	DIG_PD_MAX
-}dm_dig_pd_th_e;
+};
 
-typedef enum tag_dig_cck_cs_ratio_state_definition
-{
+enum dm_dig_cs_ratio {
 	DIG_CS_RATIO_LOWER = 0,
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
-}dm_dig_cs_ratio_e;
-typedef struct _Dynamic_Rx_Path_Selection_
-{
+};
+
+struct drx_path_sel {
 	u8		Enable;
 	u8		DbgMode;
 	u8		cck_method;
@@ -234,36 +223,33 @@ typedef struct _Dynamic_Rx_Path_Selection_
 	u8		rf_rssi[4];
 	u8		rf_enable_rssi_th[4];
 	long		cck_pwdb_sta[4];
-}DRxPathSel;
+};
 
-typedef enum tag_CCK_Rx_Path_Method_Definition
-{
+enum dm_cck_rx_path_method {
 	CCK_Rx_Version_1 = 0,
 	CCK_Rx_Version_2= 1,
 	CCK_Rx_Version_MAX
-}DM_CCK_Rx_Path_Method;
+};
 
 
-typedef enum tag_DM_DbgMode_Definition
-{
+enum dm_dbg {
 	DM_DBG_OFF = 0,
 	DM_DBG_ON = 1,
 	DM_DBG_MAX
-}DM_DBG_E;
+};
 
-typedef struct tag_Tx_Config_Cmd_Format
-{
+struct dcmd_txcmd {
 	u32	Op;
 	u32	Length;
 	u32	Value;
-}DCMD_TXCMD_T, *PDCMD_TXCMD_T;
+};
 /*------------------------------Define structure----------------------------*/
 
 
 /*------------------------Export global variable----------------------------*/
-extern	dig_t	dm_digtable;
+extern	struct dig_t dm_digtable;
 extern	u8		dm_shadow[16][256];
-extern DRxPathSel      DM_RxPathSelTable;
+extern struct drx_path_sel DM_RxPathSelTable;
 
 extern	u8			test_flag;
 /*------------------------Export global variable----------------------------*/

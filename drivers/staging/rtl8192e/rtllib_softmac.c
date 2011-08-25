@@ -212,7 +212,7 @@ MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 
 u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 {
-	PRT_HIGH_THROUGHPUT      pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8 rate;
 
 	if (pHTInfo->IOTAction & HT_IOT_ACT_MGNT_USE_CCK_6M)
@@ -242,7 +242,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 	struct rtllib_hdr_3addr  *header=
 		(struct rtllib_hdr_3addr  *) skb->data;
 
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	/* called with 2nd param 0, no mgmt lock required */
@@ -311,7 +311,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb,
 	struct rtllib_hdr_3addr  *header =
 		(struct rtllib_hdr_3addr  *) skb->data;
 	u16 fc,type,stype;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
 
 	fc = header->frame_ctl;
 	type = WLAN_FC_GET_TYPE(fc);
@@ -884,7 +884,7 @@ static struct sk_buff* rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 	u8 tmp_ht_cap_len = 0;
 	u8* tmp_ht_info_buf = NULL;
 	u8 tmp_ht_info_len = 0;
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8* tmp_generic_ie_buf = NULL;
 	u8 tmp_generic_ie_len = 0;
 
@@ -1351,7 +1351,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 	{
 		static u8	AironetIeOui[] = {0x00, 0x01, 0x66};
 		u8	CcxAironetBuf[30];
-		OCTET_STRING	osCcxAironetIE;
+		struct octet_string osCcxAironetIE;
 
 		memset(CcxAironetBuf, 0,30);
 		osCcxAironetIE.Octet = CcxAironetBuf;
@@ -1369,7 +1369,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 	if (beacon->bCcxRmEnable)
 	{
 		static u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01, 0x00};
-		OCTET_STRING osCcxRmCap;
+		struct octet_string osCcxRmCap;
 
 		osCcxRmCap.Octet = CcxRmCapBuf;
 		osCcxRmCap.Length = sizeof(CcxRmCapBuf);
@@ -1383,7 +1383,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 	if ( beacon->BssCcxVerNumber >= 2 )
 	{
 		u8			CcxVerNumBuf[] = {0x00, 0x40, 0x96, 0x03, 0x00};
-		OCTET_STRING	osCcxVerNum;
+		struct octet_string osCcxVerNum;
 		CcxVerNumBuf[4] = beacon->BssCcxVerNumber;
 		osCcxVerNum.Octet = CcxVerNumBuf;
 		osCcxVerNum.Length = sizeof(CcxVerNumBuf);
@@ -1577,7 +1577,7 @@ void rtllib_associate_step2(struct rtllib_device *ieee)
 void rtllib_associate_complete_wq(void *data)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)container_of_work_rsl(data, struct rtllib_device, associate_complete_wq);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(ieee->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(ieee->PowerSaveControl));
 	printk(KERN_INFO "Associated successfully\n");
 	if (ieee->is_silent_reset == 0){
             printk("normal associate\n");
@@ -2041,7 +2041,7 @@ short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u32 *time_h, u32 *time_l)
 {
 	int timeout = ieee->ps_timeout;
 	u8 dtim;
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(ieee->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(ieee->PowerSaveControl));
 	/*if (ieee->ps == RTLLIB_PS_DISABLED ||
 		ieee->iw_mode != IW_MODE_INFRA ||
 		ieee->state != RTLLIB_LINKED)
@@ -2552,7 +2552,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	unsigned int queue_index = txb->queue_index;
 	unsigned long flags;
 	int  i;
-	cb_desc *tcb_desc = NULL;
+	struct cb_desc *tcb_desc = NULL;
 	unsigned long queue_len = 0;
 
 	spin_lock_irqsave(&ieee->lock,flags);
@@ -2561,7 +2561,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	rtllib_sta_wakeup(ieee,0);
 
 	/* update the tx status */
-	tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 	if (tcb_desc->bMulticast) {
 		ieee->stats.multicast++;
 	}

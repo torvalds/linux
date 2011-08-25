@@ -29,12 +29,12 @@
 #define RX_CMD_QUEUE				1
 
 
-typedef enum _rtl819x_loopback{
+enum rtl819x_loopback {
 	RTL819X_NO_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,
 	RTL819X_DMA_LOOPBACK = 2,
 	RTL819X_CCK_LOOPBACK = 3,
-}rtl819x_loopback_e;
+};
 
 
 #define RESET_DELAY_8185			20
@@ -129,37 +129,35 @@ typedef enum _rtl819x_loopback{
 #define HAL_PRIME_CHNL_OFFSET_UPPER		2
 
 
-typedef enum _VERSION_8190{
+enum version_8190_loopback {
 	VERSION_8190_BD=0x3,
 	VERSION_8190_BE
-}VERSION_8190,*PVERSION_8190;
+};
 
 #define IC_VersionCut_C	0x2
 #define IC_VersionCut_D	0x3
 #define IC_VersionCut_E	0x4
 
-typedef enum tag_Rf_OpType
-{
+enum rf_optype {
     RF_OP_By_SW_3wire = 0,
     RF_OP_By_FW,
     RF_OP_MAX
-}RF_OpType_E;
+};
 
 
-typedef	enum _POWER_SAVE_MODE
-{
+enum power_save_mode {
 	POWER_SAVE_MODE_ACTIVE,
 	POWER_SAVE_MODE_SAVE,
-}POWER_SAVE_MODE;
+};
 
-typedef	enum _INTERFACE_SELECT_8190PCI{
+enum interface_select_8190pci {
 	INTF_SEL1_MINICARD		= 0,
 	INTF_SEL0_PCIE			= 1,
 	INTF_SEL2_RSV			= 2,
 	INTF_SEL3_RSV			= 3,
-} INTERFACE_SELECT_8190PCI, *PINTERFACE_SELECT_8190PCI;
+};
 
-typedef struct _BB_REGISTER_DEFINITION{
+struct bb_reg_definition {
 	u32 rfintfs;
 	u32 rfintfi;
 	u32 rfintfo;
@@ -178,9 +176,9 @@ typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfTxAFE;
 	u32 rfLSSIReadBack;
 	u32 rfLSSIReadBackPi;
-}BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
+};
 
-typedef struct _TX_FWINFO_STRUCUTRE{
+struct tx_fwinfo {
 	u8			TxRate:7;
 	u8			CtsEnable:1;
 	u8			RtsRate:7;
@@ -205,9 +203,9 @@ typedef struct _TX_FWINFO_STRUCUTRE{
 	u32			TxAGCSign:1;
 	u32			Tx_INFO_RSVD:6;
 	u32			PacketID:13;
-}TX_FWINFO_T;
+};
 
-typedef struct _TX_FWINFO_8190PCI{
+struct tx_fwinfo_8190pci {
 	u8			TxRate:7;
 	u8			CtsEnable:1;
 	u8			RtsRate:7;
@@ -237,7 +235,7 @@ typedef struct _TX_FWINFO_8190PCI{
 	u32			PacketID:13;
 
 
-}TX_FWINFO_8190PCI, *PTX_FWINFO_8190PCI;
+};
 
 
 #define TX_DESC_SIZE			32
@@ -256,8 +254,7 @@ typedef struct _TX_FWINFO_8190PCI{
 
 #define RX_DRIVER_INFO_SIZE	8
 
-typedef struct _LOG_INTERRUPT_8190
-{
+struct log_int_8190 {
 	u32	nIMR_COMDOK;
 	u32	nIMR_MGNTDOK;
 	u32	nIMR_HIGH;
@@ -270,17 +267,16 @@ typedef struct _LOG_INTERRUPT_8190
 	u32	nIMR_TBDOK;
 	u32	nIMR_BDOK;
 	u32	nIMR_RXFOVW;
-} LOG_INTERRUPT_8190_T, *PLOG_INTERRUPT_8190_T;
+};
 
-typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag{
+struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-}phy_ofdm_rx_status_rxsc_sgien_exintfflag;
+};
 
-typedef struct _phy_ofdm_rx_status_report_819xpci
-{
+struct phy_sts_ofdm_819xpci {
 	u8	trsw_gain_X[4];
 	u8	pwdb_all;
 	u8	cfosho_X[4];
@@ -294,20 +290,19 @@ typedef struct _phy_ofdm_rx_status_report_819xpci
 	u8	max_ex_pwr;
 	u8	sgi_en;
 	u8	rxsc_sgien_exflg;
-}phy_sts_ofdm_819xpci_t;
+};
 
-typedef struct _phy_cck_rx_status_report_819xpci
-{
+struct phy_sts_cck_819xpci {
 	u8	adc_pwdb_X[4];
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
-}phy_sts_cck_819xpci_t, phy_sts_cck_8192s_t;
+};
 
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
 #define		PHY_Beacon_RSSI_SLID_WIN_MAX		10
 
-typedef struct _tx_desc_819x_pci {
+struct tx_desc {
         u16	PktSize;
         u8	Offset;
         u8	Reserved1:3;
@@ -343,10 +338,10 @@ typedef struct _tx_desc_819x_pci {
         u32	Reserved5;
         u32	Reserved6;
         u32	Reserved7;
-}tx_desc, *ptx_desc;
+};
 
 
-typedef struct _tx_desc_cmd_819x_pci {
+struct tx_desc_cmd {
 	u16	PktSize;
 	u8	Reserved1;
 	u8	CmdType:3;
@@ -367,9 +362,9 @@ typedef struct _tx_desc_cmd_819x_pci {
 	u32	Reserved4;
 	u32	Reserved5;
 	u32	Reserved6;
-}tx_desc_cmd, *ptx_desc_cmd;
+};
 
-typedef struct _rx_desc_819x_pci{
+struct rx_desc {
 	u16			Length:14;
 	u16			CRC32:1;
 	u16			ICV:1;
@@ -388,10 +383,10 @@ typedef struct _rx_desc_819x_pci{
 
 	u32	BufferAddress;
 
-}rx_desc, *prx_desc;
+};
 
 
-typedef struct _rx_fwinfo_819x_pci{
+struct rx_fwinfo {
 	u16			Reserved1:12;
 	u16			PartAggr:1;
 	u16			FirstAGGR:1;
@@ -410,6 +405,6 @@ typedef struct _rx_fwinfo_819x_pci{
 
 	u32			TSFL;
 
-}rx_fwinfo, *prx_fwinfo;
+};
 
 #endif

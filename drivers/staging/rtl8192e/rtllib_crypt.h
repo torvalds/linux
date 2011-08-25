@@ -61,7 +61,7 @@ struct rtllib_crypto_ops {
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
 	 * extra_postfix_len; encrypt need not use all this space, but
-	 * the result must start at the beginning of the buffer and correct
+	 * the result must start at the beginning of the struct buffer and correct
 	 * length must be returned */
 	int extra_prefix_len, extra_postfix_len;
 

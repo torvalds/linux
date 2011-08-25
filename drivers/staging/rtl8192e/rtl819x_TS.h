@@ -26,46 +26,46 @@
 #define TOTAL_TS_NUM		16
 #define TCLAS_NUM		4
 
-typedef enum _TR_SELECT {
+enum tr_select {
 	TX_DIR = 0,
 	RX_DIR = 1,
-} TR_SELECT, *PTR_SELECT;
+};
 
-typedef struct _TS_COMMON_INFO{
+struct ts_common_info {
 	struct list_head		List;
 	struct timer_list		SetupTimer;
 	struct timer_list		InactTimer;
 	u8				Addr[6];
-	TSPEC_BODY			TSpec;
-	QOS_TCLAS			TClass[TCLAS_NUM];
+	union tspec_body TSpec;
+	union qos_tclas TClass[TCLAS_NUM];
 	u8				TClasProc;
 	u8				TClasNum;
-} TS_COMMON_INFO, *PTS_COMMON_INFO;
+};
 
-typedef struct _TX_TS_RECORD{
-	TS_COMMON_INFO		TsCommonInfo;
+struct tx_ts_record {
+	struct ts_common_info TsCommonInfo;
 	u16				TxCurSeq;
-	BA_RECORD			TxPendingBARecord;
-	BA_RECORD			TxAdmittedBARecord;
+	struct ba_record TxPendingBARecord;
+	struct ba_record TxAdmittedBARecord;
 	u8				bAddBaReqInProgress;
 	u8				bAddBaReqDelayed;
 	u8				bUsingBa;
 	u8				bDisable_AddBa;
 	struct timer_list		TsAddBaTimer;
 	u8				num;
-} TX_TS_RECORD, *PTX_TS_RECORD;
+};
 
-typedef struct _RX_TS_RECORD {
-	TS_COMMON_INFO		TsCommonInfo;
+struct rx_ts_record {
+	struct ts_common_info TsCommonInfo;
 	u16				RxIndicateSeq;
 	u16				RxTimeoutIndicateSeq;
 	struct list_head		RxPendingPktList;
 	struct timer_list		RxPktPendingTimer;
-	BA_RECORD			RxAdmittedBARecord;
+	struct ba_record RxAdmittedBARecord;
 	u16				RxLastSeqNum;
 	u8				RxLastFragNum;
 	u8				num;
-} RX_TS_RECORD, *PRX_TS_RECORD;
+};
 
 
 #endif

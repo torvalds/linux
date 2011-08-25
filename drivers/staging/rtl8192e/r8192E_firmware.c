@@ -25,24 +25,24 @@
 
 extern void firmware_init_param(struct net_device *dev)
 {
-	struct r8192_priv	*priv = rtllib_priv(dev);
-	rt_firmware		*pfirmware = priv->pFirmware;
+	struct r8192_priv *priv = rtllib_priv(dev);
+	struct rt_firmware *pfirmware = priv->pFirmware;
 
 	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
 }
 
 bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
 {
-	struct r8192_priv   *priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	bool		    rt_status = true;
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
 	int		    i;
 
-	rt_firmware	    *pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
 	unsigned char	    *seg_ptr;
-	cb_desc		    *tcb_desc;
+	struct cb_desc *tcb_desc;
 	u8                  bLastIniPkt;
 
 	firmware_init_param(dev);
@@ -60,7 +60,7 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 
 		skb  = dev_alloc_skb(frag_length + 4);
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-		tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
@@ -101,16 +101,16 @@ fwSendNullPacket(
 )
 {
 	bool	rtStatus = true;
-	struct r8192_priv   *priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct sk_buff	    *skb;
-	cb_desc		    *tcb_desc;
+	struct cb_desc *tcb_desc;
 	unsigned char	    *ptr_buf;
 	bool	bLastInitPacket = false;
 
 
 	skb  = dev_alloc_skb(Length+ 4);
 	memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-	tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
 	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 	tcb_desc->bLastIniPkt = bLastInitPacket;
@@ -209,8 +209,8 @@ CPUCheckFirmwareReady_Fail:
 
 inline static bool firmware_check_ready(struct net_device *dev, u8 load_fw_status)
 {
-	struct r8192_priv	*priv = rtllib_priv(dev);
-	rt_firmware *pfirmware = priv->pFirmware;
+	struct r8192_priv *priv = rtllib_priv(dev);
+	struct rt_firmware *pfirmware = priv->pFirmware;
 	bool rt_status  = true;
 
 	switch (load_fw_status) {
@@ -253,7 +253,7 @@ inline static bool firmware_check_ready(struct net_device *dev, u8 load_fw_statu
 
 bool init_firmware(struct net_device *dev)
 {
-	struct r8192_priv	*priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	bool			rt_status = true;
 
 	u8	*firmware_img_buf[3] = { &Rtl8192PciEFwBootArray[0],
@@ -266,10 +266,10 @@ bool init_firmware(struct net_device *dev)
 	u32	file_length = 0;
 	u8	*mapped_file = NULL;
 	u8	init_step = 0;
-	opt_rst_type_e	rst_opt = OPT_SYSTEM_RESET;
-	firmware_init_step_e	starting_state = FW_INIT_STEP0_BOOT;
+	enum opt_rst_type rst_opt = OPT_SYSTEM_RESET;
+	enum firmware_init_step starting_state = FW_INIT_STEP0_BOOT;
 
-	rt_firmware		*pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 
 	RT_TRACE(COMP_FIRMWARE, " PlatformInitFirmware()==>\n");
 
@@ -303,7 +303,7 @@ bool init_firmware(struct net_device *dev)
 						goto download_firmware_fail;
 					}
 					if (fw_entry->size > sizeof(pfirmware->firmware_buf[init_step])) {
-						RT_TRACE(COMP_FIRMWARE, "img file size exceed the container buffer fail!\n");
+						RT_TRACE(COMP_FIRMWARE, "img file size exceed the container struct buffer fail!\n");
 						goto download_firmware_fail;
 					}
 

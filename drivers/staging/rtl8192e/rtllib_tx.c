@@ -287,10 +287,10 @@ rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 }
 
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
-void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, cb_desc* tcb_desc)
+void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, struct cb_desc * tcb_desc)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	PTX_TS_RECORD			pTxTs = NULL;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct tx_ts_record *pTxTs = NULL;
 	struct rtllib_hdr_1addr* hdr = (struct rtllib_hdr_1addr*)skb->data;
 
 	if (rtllib_act_scanning(ieee,false))
@@ -312,7 +312,7 @@ void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, cb
 	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 		return;
 	if (pHTInfo->bCurrentAMPDUEnable){
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true)){
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true)){
 			printk("%s: can't get TS\n", __func__);
 			return;
 		}
@@ -358,7 +358,7 @@ FORCED_AGG_SETTING:
 		return;
 }
 
-extern void rtllib_qurey_ShortPreambleMode(struct rtllib_device* ieee, cb_desc* tcb_desc)
+extern void rtllib_qurey_ShortPreambleMode(struct rtllib_device* ieee, struct cb_desc * tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -373,9 +373,9 @@ extern void rtllib_qurey_ShortPreambleMode(struct rtllib_device* ieee, cb_desc* 
 }
 
 extern	void
-rtllib_query_HTCapShortGI(struct rtllib_device *ieee, cb_desc *tcb_desc)
+rtllib_query_HTCapShortGI(struct rtllib_device *ieee, struct cb_desc *tcb_desc)
 {
-	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	tcb_desc->bUseShortGI		= false;
 
@@ -394,9 +394,9 @@ rtllib_query_HTCapShortGI(struct rtllib_device *ieee, cb_desc *tcb_desc)
 		tcb_desc->bUseShortGI = true;
 }
 
-void rtllib_query_BandwidthMode(struct rtllib_device* ieee, cb_desc *tcb_desc)
+void rtllib_query_BandwidthMode(struct rtllib_device* ieee, struct cb_desc *tcb_desc)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	tcb_desc->bPacketBW = false;
 
@@ -413,7 +413,7 @@ void rtllib_query_BandwidthMode(struct rtllib_device* ieee, cb_desc *tcb_desc)
 	return;
 }
 
-void rtllib_query_protectionmode(struct rtllib_device* ieee, cb_desc* tcb_desc, struct sk_buff* skb)
+void rtllib_query_protectionmode(struct rtllib_device* ieee, struct cb_desc * tcb_desc, struct sk_buff* skb)
 {
 	tcb_desc->bRTSSTBC			= false;
 	tcb_desc->bRTSUseShortGI		= false;
@@ -444,7 +444,7 @@ void rtllib_query_protectionmode(struct rtllib_device* ieee, cb_desc* tcb_desc, 
 	}
 	else
 	{
-		PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+		struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 		while (true)
 		{
 			if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF)
@@ -513,7 +513,7 @@ NO_PROTECTION:
 }
 
 
-void rtllib_txrate_selectmode(struct rtllib_device* ieee, cb_desc* tcb_desc)
+void rtllib_txrate_selectmode(struct rtllib_device* ieee, struct cb_desc * tcb_desc)
 {
 	if (ieee->bTxDisableRateFallBack)
 		tcb_desc->bTxDisableRateFallBack = true;
@@ -535,8 +535,8 @@ u16 rtllib_query_seqnum(struct rtllib_device*ieee, struct sk_buff* skb, u8* dst)
 		return 0;
 	if (IsQoSDataFrame(skb->data))
 	{
-		PTX_TS_RECORD pTS = NULL;
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTS), dst, skb->priority, TX_DIR, true))
+		struct tx_ts_record *pTS = NULL;
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst, skb->priority, TX_DIR, true))
 		{
 			return 0;
 		}
@@ -586,7 +586,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	int qos_actived = ieee->current_network.qos_data.active;
 	struct rtllib_crypt_data* crypt = NULL;
-	cb_desc *tcb_desc;
+	struct cb_desc *tcb_desc;
 	u8 bIsMulticast = false;
 	u8 IsAmsdu = false;
 
@@ -778,7 +778,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		for (i = 0; i < nr_frags; i++) {
 			skb_frag = txb->fragments[i];
-			tcb_desc = (cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
+			tcb_desc = (struct cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
 			if (qos_actived){
 				skb_frag->priority = skb->priority;
 				tcb_desc->queue_index =  UP2AC(skb->priority);
@@ -873,7 +873,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
  success:
 	if (txb)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		tcb_desc->priority = skb->priority;
 

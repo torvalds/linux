@@ -21,10 +21,10 @@
 #ifndef R8180_HW
 #define R8180_HW
 
-typedef enum _BaseBand_Config_Type {
+enum baseband_config {
 	BaseBand_Config_PHY_REG = 0,
 	BaseBand_Config_AGC_TAB = 1,
-} BaseBand_Config_Type, *PBaseBand_Config_Type;
+};
 
 #define	RTL8187_REQT_READ	0xc0
 #define	RTL8187_REQT_WRITE	0x40

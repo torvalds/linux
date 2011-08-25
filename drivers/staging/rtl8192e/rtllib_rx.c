@@ -291,7 +291,7 @@ rtllib_rx_frame_decrypt(struct rtllib_device* ieee, struct sk_buff *skb,
 
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 
 		if (ieee->need_sw_enc)
@@ -332,7 +332,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device* ieee, struct sk_buff *skb,
 		return 0;
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 
 		if (ieee->need_sw_enc)
@@ -447,19 +447,19 @@ drop:
 }
 bool
 AddReorderEntry(
-	PRX_TS_RECORD			pTS,
-	PRX_REORDER_ENTRY		pReorderEntry
+	struct rx_ts_record *pTS,
+	struct rx_reorder_entry *pReorderEntry
 	)
 {
 	struct list_head *pList = &pTS->RxPendingPktList;
 
 	while(pList->next != &pTS->RxPendingPktList)
 	{
-		if ( SN_LESS(pReorderEntry->SeqNum, ((PRX_REORDER_ENTRY)list_entry(pList->next,RX_REORDER_ENTRY,List))->SeqNum) )
+		if ( SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)list_entry(pList->next,struct rx_reorder_entry,List))->SeqNum) )
 		{
 			pList = pList->next;
 		}
-		else if ( SN_EQUAL(pReorderEntry->SeqNum, ((PRX_REORDER_ENTRY)list_entry(pList->next,RX_REORDER_ENTRY,List))->SeqNum) )
+		else if ( SN_EQUAL(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)list_entry(pList->next,struct rx_reorder_entry,List))->SeqNum) )
 		{
 			return false;
 		}
@@ -527,9 +527,9 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb** prx
 }
 
 void
-rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	PRX_TS_RECORD pTS)
+rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record *pTS)
 {
-	PRX_REORDER_ENTRY	pRxReorderEntry;
+	struct rx_reorder_entry *pRxReorderEntry;
 	struct rtllib_rxb*		RfdArray[REORDER_WIN_SIZE];
 	u8					RfdCnt = 0;
 
@@ -542,7 +542,7 @@ rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	PRX_TS_RECORD pTS)
 			break;
 		}
 
-		pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+		pRxReorderEntry = (struct rx_reorder_entry *)list_entry(pTS->RxPendingPktList.prev,struct rx_reorder_entry,List);
 		RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): Indicate SeqNum %d!\n",__func__, pRxReorderEntry->SeqNum);
 		list_del_init(&pRxReorderEntry->List);
 
@@ -559,11 +559,11 @@ rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	PRX_TS_RECORD pTS)
 
 void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		struct rtllib_rxb* prxb,
-		PRX_TS_RECORD		pTS,
+		struct rx_ts_record *pTS,
 		u16			SeqNum)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	PRX_REORDER_ENTRY	pReorderEntry = NULL;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct rx_reorder_entry *pReorderEntry = NULL;
 	struct rtllib_rxb* prxbIndicateArray[REORDER_WIN_SIZE];
 	u8			WinSize = pHTInfo->RxReorderWinSize;
 	u16			WinEnd = 0;
@@ -618,7 +618,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 	/*
 	 * Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can now just indicate the packets
-	 * with the SeqNum smaller than latest WinStart and buffer other packets.
+	 * with the SeqNum smaller than latest WinStart and struct buffer other packets.
 	 */
 	/* For Rx Reorder condition:
 	 * 1. All packets with SeqNum smaller than WinStart => Indicate
@@ -633,7 +633,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
 		if (!list_empty(&ieee->RxReorder_Unused_List)) {
-			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(ieee->RxReorder_Unused_List.next,RX_REORDER_ENTRY,List);
+			pReorderEntry = (struct rx_reorder_entry *)list_entry(ieee->RxReorder_Unused_List.next,struct rx_reorder_entry,List);
 			list_del_init(&pReorderEntry->List);
 
 			/* Make a reorder entry and insert into a the packet list.*/
@@ -654,14 +654,14 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 				}
 			} else {
 				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
-					 "Pkt insert into buffer!! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
+					 "Pkt insert into struct buffer!! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
 			}
 		}
 		else {
 			/*
 			 * Packets are dropped if there is not enough reorder entries.
 			 * This part shall be modified!! We can just indicate all the
-			 * packets in buffer and get reorder entries.
+			 * packets in struct buffer and get reorder entries.
 			 */
 			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): There is no reorder entry!! Packet is dropped!!\n");
 			{
@@ -679,11 +679,11 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 	while(!list_empty(&pTS->RxPendingPktList)) {
 		RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): start RREORDER indicate\n",__func__);
 
-		pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+		pReorderEntry = (struct rx_reorder_entry *)list_entry(pTS->RxPendingPktList.prev,struct rx_reorder_entry,List);
 		if ( SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
 				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
 		{
-			/* This protect buffer from overflow. */
+			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
 				RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Buffer overflow!! \n");
 				bPktInBuf = true;
@@ -714,7 +714,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		pTS->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index>REORDER_WIN_SIZE){
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Rx Reorer buffer full!! \n");
+			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Rx Reorer struct buffer full!! \n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 			return;
 		}
@@ -748,7 +748,7 @@ u8 parse_subframe(struct rtllib_device* ieee,struct sk_buff *skb,
 	/* just for debug purpose */
 	SeqNum = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctl));
 	if ((RTLLIB_QOS_HAS_SEQ(fc))&&\
-			(((frameqos *)(skb->data + RTLLIB_3ADDR_LEN))->field.reserved)) {
+			(((union frameqos *)(skb->data + RTLLIB_3ADDR_LEN))->field.reserved)) {
 		bIsAggregateFrame = true;
 	}
 
@@ -771,7 +771,7 @@ u8 parse_subframe(struct rtllib_device* ieee,struct sk_buff *skb,
 		rxb->nr_subframes = 1;
 
 		/* altered by clark 3/30/2010
-		 * The buffer size of the skb indicated to upper layer
+		 * The struct buffer size of the skb indicated to upper layer
 		 * must be less than 5000, or the defraged IP datagram
 		 * in the IP layer will exceed "ipfrag_high_tresh" and be
 		 * discarded. so there must not use the function
@@ -813,7 +813,7 @@ u8 parse_subframe(struct rtllib_device* ieee,struct sk_buff *skb,
 			skb_pull(skb, ETHERNET_HEADER_SIZE);
 
 			/* altered by clark 3/30/2010
-			 * The buffer size of the skb indicated to upper layer
+			 * The struct buffer size of the skb indicated to upper layer
 			 * must be less than 5000, or the defraged IP datagram
 			 * in the IP layer will exceed "ipfrag_high_tresh" and be
 			 * discarded. so there must not use the function
@@ -896,8 +896,8 @@ int rtllib_rx_check_duplicate(struct rtllib_device *ieee, struct sk_buff *skb, u
 			}
 		}
 	} else {
-		PRX_TS_RECORD pRxTS = NULL;
-		if (GetTs(ieee, (PTS_COMMON_INFO*) &pRxTS, hdr->addr2,
+		struct rx_ts_record *pRxTS = NULL;
+		if (GetTs(ieee, (struct ts_common_info **) &pRxTS, hdr->addr2,
 			(u8)Frame_QoSTID((u8*)(skb->data)), RX_DIR, true)) {
 			if ((fc & (1<<11)) && (frag == pRxTS->RxLastFragNum) &&
 			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)) {
@@ -1253,7 +1253,7 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	struct rtllib_crypt_data *crypt = NULL;
 	struct rtllib_rxb* rxb = NULL;
-	PRX_TS_RECORD pTS = NULL;
+	struct rx_ts_record *pTS = NULL;
 	u16 fc, sc, SeqNum = 0;
 	u8 type, stype, multicast = 0, unicast = 0, nr_subframes = 0, TID = 0;
 	u8 dst[ETH_ALEN], src[ETH_ALEN], bssid[ETH_ALEN] = {0}, *payload;
@@ -1356,7 +1356,7 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	{
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
-		GetTs(ieee,(PTS_COMMON_INFO*) &pTS,hdr->addr2,TID,RX_DIR,true);
+		GetTs(ieee,(struct ts_common_info **) &pTS,hdr->addr2,TID,RX_DIR,true);
 		if (TID !=0 && TID !=3){
 			ieee->bis_any_nonbepkts = true;
 		}
@@ -1949,7 +1949,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				}
 				if (tmp_htcap_len != 0){
 					network->bssht.bdSupportHT = true;
-					network->bssht.bdHT1R = ((((PHT_CAPABILITY_ELE)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
+					network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
 				}else{
 					network->bssht.bdSupportHT = false;
 					network->bssht.bdHT1R = false;
@@ -2155,9 +2155,9 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				memcpy(network->bssht.bdHTCapBuf,info_element->data,network->bssht.bdHTCapLen);
 
 				network->bssht.bdSupportHT = true;
-				network->bssht.bdHT1R = ((((PHT_CAPABILITY_ELE)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
+				network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
 
-				network->bssht.bdBandWidth = (HT_CHANNEL_WIDTH)(((PHT_CAPABILITY_ELE)(network->bssht.bdHTCapBuf))->ChlWidth);
+				network->bssht.bdBandWidth = (enum ht_channel_width)(((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->ChlWidth);
 			}
 			else{
 				network->bssht.bdSupportHT = false;

@@ -68,20 +68,20 @@
 
 #define DRV_NAME "rtl819xE"
 
-#define IS_HARDWARE_TYPE_819xP(_priv) ((((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8190P)||\
-					(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192E))
-#define IS_HARDWARE_TYPE_8192SE(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192SE)
-#define IS_HARDWARE_TYPE_8192CE(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192CE)
-#define IS_HARDWARE_TYPE_8192CU(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192CU)
-#define IS_HARDWARE_TYPE_8192DE(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192DE)
-#define IS_HARDWARE_TYPE_8192DU(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192DU)
+#define IS_HARDWARE_TYPE_819xP(_priv) ((((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8190P)||\
+					(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192E))
+#define IS_HARDWARE_TYPE_8192SE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192SE)
+#define IS_HARDWARE_TYPE_8192CE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192CE)
+#define IS_HARDWARE_TYPE_8192CU(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192CU)
+#define IS_HARDWARE_TYPE_8192DE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192DE)
+#define IS_HARDWARE_TYPE_8192DU(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192DU)
 
 #define RTL_PCI_DEVICE(vend, dev, cfg) \
 	.vendor = (vend), .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice =PCI_ANY_ID , \
 	.driver_data = (kernel_ulong_t)&(cfg)
-	typedef irqreturn_t irqreturn_type;
 
+#define irqreturn_type irqreturn_t
 
 #define rtl8192_interrupt(x,y,z) rtl8192_interrupt_rsl(x,y)
 
@@ -240,7 +240,7 @@ enum RTL_DEBUG {
 	COMP_ERR		= BIT31
 };
 
-typedef enum{
+enum nic_t {
 	NIC_UNKNOWN     = 0,
 	NIC_8192E       = 1,
 	NIC_8190P       = 2,
@@ -249,15 +249,15 @@ typedef enum{
 	NIC_8192CU		= 6,
 	NIC_8192DE		= 7,
 	NIC_8192DU		= 8,
-	} nic_t;
+	};
 
-typedef	enum _RT_EEPROM_TYPE{
+enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
 	EEPROM_BOOT_EFUSE,
-}RT_EEPROM_TYPE,*PRT_EEPROM_TYPE;
+};
 
-typedef enum _tag_TxCmd_Config_Index{
+enum dcmg_txcmd_op {
 	TXCMD_TXRA_HISTORY_CTRL	        = 0xFF900000,
 	TXCMD_RESET_TX_PKT_BUFF		= 0xFF900001,
 	TXCMD_RESET_RX_PKT_BUFF		= 0xFF900002,
@@ -265,33 +265,31 @@ typedef enum _tag_TxCmd_Config_Index{
 	TXCMD_SET_RX_RSSI		= 0xFF900004,
 	TXCMD_SET_TX_PWR_TRACKING	= 0xFF900005,
 	TXCMD_XXXX_CTRL,
-}DCMD_TXCMD_OP;
+};
 
-typedef enum _RT_RF_TYPE_819xU{
+enum rt_rf_type_819xu {
         RF_TYPE_MIN = 0,
         RF_8225,
         RF_8256,
         RF_8258,
         RF_6052=4,
         RF_PSEUDO_11N = 5,
-}RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
+};
 
-typedef enum tag_Rf_Operatetion_State
-{
+enum rf_step {
     RF_STEP_INIT = 0,
     RF_STEP_NORMAL,
     RF_STEP_MAX
-}RF_STEP_E;
+};
 
-typedef enum _RT_STATUS{
+enum rt_status {
 	RT_STATUS_SUCCESS,
 	RT_STATUS_FAILURE,
 	RT_STATUS_PENDING,
 	RT_STATUS_RESOURCE
-}RT_STATUS,*PRT_STATUS;
+};
 
-typedef enum _RT_CUSTOMER_ID
-{
+enum rt_customer_id {
 	RT_CID_DEFAULT          = 0,
 	RT_CID_8187_ALPHA0      = 1,
 	RT_CID_8187_SERCOMM_PS  = 2,
@@ -322,37 +320,36 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_819x_Arcadyan_Belkin = 29,
 	RT_CID_819x_SAMSUNG = 30,
 	RT_CID_819x_WNC_COREGA = 31,
-}RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
+};
 
-typedef enum _RESET_TYPE {
+enum reset_type {
 	RESET_TYPE_NORESET = 0x00,
 	RESET_TYPE_NORMAL = 0x01,
 	RESET_TYPE_SILENT = 0x02
-} RESET_TYPE;
+};
 
-typedef enum _IC_INFERIORITY_8192S{
+enum ic_inferiority_8192s {
 	IC_INFERIORITY_A            = 0,
 	IC_INFERIORITY_B            = 1,
-}IC_INFERIORITY_8192S, *PIC_INFERIORITY_8192S;
+};
 
-typedef enum _PCI_BRIDGE_VENDOR {
+enum pci_bridge_vendor {
 	PCI_BRIDGE_VENDOR_INTEL = 0x0,
 	PCI_BRIDGE_VENDOR_ATI,
 	PCI_BRIDGE_VENDOR_AMD,
 	PCI_BRIDGE_VENDOR_SIS ,
 	PCI_BRIDGE_VENDOR_UNKNOWN,
 	PCI_BRIDGE_VENDOR_MAX ,
-} PCI_BRIDGE_VENDOR;
+};
 
-typedef struct buffer
-{
+struct buffer {
 	struct buffer *next;
 	u32 *buf;
 	dma_addr_t dma;
 
-} buffer;
+};
 
-typedef struct rtl_reg_debug{
+struct rtl_reg_debug {
         unsigned int  cmd;
         struct {
                 unsigned char type;
@@ -361,23 +358,22 @@ typedef struct rtl_reg_debug{
                 unsigned char length;
         } head;
         unsigned char buf[0xff];
-}rtl_reg_debug;
+};
 
-typedef struct _rt_9x_tx_rate_history {
+struct rt_tx_rahis {
 	u32             cck[4];
 	u32             ofdm[8];
 	u32             ht_mcs[4][16];
-}rt_tx_rahis_t, *prt_tx_rahis_t;
+};
 
-typedef	struct _RT_SMOOTH_DATA_4RF {
+struct rt_smooth_data_4rf {
 	char	elements[4][100];
 	u32	index;
 	u32	TotalNum;
 	u32	TotalVal[4];
-}RT_SMOOTH_DATA_4RF, *PRT_SMOOTH_DATA_4RF;
+};
 
-typedef struct Stats
-{
+struct rt_stats {
 	unsigned long txrdu;
 	unsigned long rxrdu;
 	unsigned long rxok;
@@ -465,61 +461,57 @@ typedef struct Stats
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
 	long rxSNRdB[4];
-	rt_tx_rahis_t txrate;
+	struct rt_tx_rahis txrate;
 	u32 Slide_Beacon_pwdb[100];
 	u32 Slide_Beacon_Total;
-	RT_SMOOTH_DATA_4RF		cck_adc_pwdb;
+	struct rt_smooth_data_4rf cck_adc_pwdb;
 	u32	CurrentShowTxate;
-} Stats;
+};
 
-typedef struct	ChnlAccessSetting {
+struct channel_access_setting {
 	u16 SIFS_Timer;
 	u16 DIFS_Timer;
 	u16 SlotTimeTimer;
 	u16 EIFS_Timer;
 	u16 CWminIndex;
 	u16 CWmaxIndex;
-}*PCHANNEL_ACCESS_SETTING,CHANNEL_ACCESS_SETTING;
+};
 
-typedef enum _TWO_PORT_STATUS
-{
+enum two_port_status {
 	TWO_PORT_STATUS__DEFAULT_ONLY,
 	TWO_PORT_STATUS__EXTENSION_ONLY,
 	TWO_PORT_STATUS__EXTENSION_FOLLOW_DEFAULT,
 	TWO_PORT_STATUS__DEFAULT_G_EXTENSION_N20,
 	TWO_PORT_STATUS__ADHOC,
 	TWO_PORT_STATUS__WITHOUT_ANY_ASSOCIATE
-}TWO_PORT_STATUS;
+};
 
-typedef struct _txbbgain_struct
-{
+struct txbbgain_struct {
 	long	txbb_iq_amplifygain;
 	u32	txbbgain_value;
-} txbbgain_struct, *ptxbbgain_struct;
+};
 
-typedef struct _ccktxbbgain_struct
-{
+struct ccktxbbgain {
 	u8	ccktxbb_valuearray[8];
-} ccktxbbgain_struct,*pccktxbbgain_struct;
+};
 
-typedef struct _init_gain
-{
+struct init_gain {
 	u8				xaagccore1;
 	u8				xbagccore1;
 	u8				xcagccore1;
 	u8				xdagccore1;
 	u8				cca;
 
-} init_gain, *pinit_gain;
+};
 
-typedef struct _tx_ring{
+struct tx_ring {
 	u32 * desc;
 	u8 nStuckCount;
-	struct _tx_ring * next;
-}__attribute__ ((packed)) tx_ring, * ptx_ring;
+	struct tx_ring * next;
+} __packed;
 
 struct rtl8192_tx_ring {
-    tx_desc *desc;
+    struct tx_desc *desc;
     dma_addr_t dma;
     unsigned int idx;
     unsigned int entries;
@@ -529,16 +521,16 @@ struct rtl8192_tx_ring {
 
 
 struct rtl819x_ops{
-	nic_t nic_type;
+	enum nic_t nic_type;
 	void (* get_eeprom_size)(struct net_device* dev);
 	void (* init_adapter_variable)(struct net_device* dev);
 	void (* init_before_adapter_start)(struct net_device* dev);
 	bool (* initialize_adapter)(struct net_device* dev);
 	void (*link_change)(struct net_device* dev);
-	void (* tx_fill_descriptor)(struct net_device* dev, tx_desc * tx_desc, cb_desc * cb_desc, struct sk_buff *skb);
-	void (* tx_fill_cmd_descriptor)(struct net_device* dev, tx_desc_cmd * entry, cb_desc * cb_desc, struct sk_buff *skb);
-	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, rx_desc *pdesc, struct sk_buff* skb);
-	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, rx_desc *pdesc);
+	void (* tx_fill_descriptor)(struct net_device* dev, struct tx_desc *tx_desc, struct cb_desc *cb_desc, struct sk_buff *skb);
+	void (* tx_fill_cmd_descriptor)(struct net_device* dev, struct tx_desc_cmd * entry, struct cb_desc *cb_desc, struct sk_buff *skb);
+	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, struct rx_desc *pdesc, struct sk_buff* skb);
+	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, struct rx_desc *pdesc);
 	void (* stop_adapter)(struct net_device *dev, bool reset);
 	void (* update_ratr_table)(struct net_device* dev);
 	void (* irq_enable)(struct net_device* dev);
@@ -551,8 +543,7 @@ struct rtl819x_ops{
 	bool (* RxCheckStuckHandler)(struct net_device* dev);
 };
 
-typedef struct r8192_priv
-{
+struct r8192_priv {
 	struct pci_dev *pdev;
 	struct pci_dev *bridge_pdev;
 
@@ -567,48 +558,48 @@ typedef struct r8192_priv
 
 	short	up;
 	short	up_first_time;
-	delayed_work_struct_rsl		update_beacon_wq;
-	delayed_work_struct_rsl		watch_dog_wq;
-	delayed_work_struct_rsl		txpower_tracking_wq;
-	delayed_work_struct_rsl		rfpath_check_wq;
-	delayed_work_struct_rsl		gpio_change_rf_wq;
-	delayed_work_struct_rsl		initialgain_operate_wq;
-	delayed_work_struct_rsl		check_hw_scan_wq;
-	delayed_work_struct_rsl		hw_scan_simu_wq;
-	delayed_work_struct_rsl		start_hw_scan_wq;
+	struct delayed_work		update_beacon_wq;
+	struct delayed_work		watch_dog_wq;
+	struct delayed_work		txpower_tracking_wq;
+	struct delayed_work		rfpath_check_wq;
+	struct delayed_work		gpio_change_rf_wq;
+	struct delayed_work		initialgain_operate_wq;
+	struct delayed_work		check_hw_scan_wq;
+	struct delayed_work		hw_scan_simu_wq;
+	struct delayed_work		start_hw_scan_wq;
 
 	struct workqueue_struct		*priv_wq;
 
-	CHANNEL_ACCESS_SETTING	ChannelAccessSetting;
+	struct channel_access_setting ChannelAccessSetting;
 
-	mp_adapter				NdisAdapter;
+	struct mp_adapter NdisAdapter;
 
 	struct rtl819x_ops			*ops;
 	struct rtllib_device			*rtllib;
 
-	work_struct_rsl				reset_wq;
+	struct work_struct				reset_wq;
 
-	LOG_INTERRUPT_8190_T	InterruptLog;
+	struct log_int_8190 InterruptLog;
 
-	RT_CUSTOMER_ID			CustomerID;
+	enum rt_customer_id CustomerID;
 
 
-	RT_RF_TYPE_819xU		rf_chip;
-	IC_INFERIORITY_8192S		IC_Class;
-	HT_CHANNEL_WIDTH		CurrentChannelBW;
-	BB_REGISTER_DEFINITION_T	PHYRegDef[4];
-	rate_adaptive				rate_adaptive;
+	enum rt_rf_type_819xu rf_chip;
+	enum ic_inferiority_8192s IC_Class;
+	enum ht_channel_width CurrentChannelBW;
+	struct bb_reg_definition PHYRegDef[4];
+	struct rate_adaptive rate_adaptive;
 
-	ccktxbbgain_struct			cck_txbbgain_table[CCKTxBBGainTableLength];
-	ccktxbbgain_struct			cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
+	struct ccktxbbgain cck_txbbgain_table[CCKTxBBGainTableLength];
+	struct ccktxbbgain cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
 
-	txbbgain_struct				txbbgain_table[TxBBGainTableLength];
+	struct txbbgain_struct txbbgain_table[TxBBGainTableLength];
 
-	ACM_METHOD				AcmMethod;
+	enum acm_method AcmMethod;
 
-	prt_firmware				pFirmware;
-	rtl819x_loopback_e			LoopbackMode;
-	firmware_source_e			firmware_source;
+	struct rt_firmware			*pFirmware;
+	enum rtl819x_loopback LoopbackMode;
+	enum firmware_source firmware_source;
 
 	struct timer_list			watch_dog_timer;
 	struct timer_list			fsync_timer;
@@ -635,7 +626,7 @@ typedef struct r8192_priv
 	struct semaphore			rf_sem;
 	struct mutex				mutex;
 
-	struct Stats				stats;
+	struct rt_stats stats;
 	struct iw_statistics			wstats;
 	struct proc_dir_entry		*dir_dev;
 
@@ -644,7 +635,7 @@ typedef struct r8192_priv
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
 
-	rx_desc			*rx_ring[MAX_RX_QUEUE];
+	struct rx_desc *rx_ring[MAX_RX_QUEUE];
 	struct sk_buff	*rx_buf[MAX_RX_QUEUE][MAX_RX_COUNT];
 	dma_addr_t	rx_ring_dma[MAX_RX_QUEUE];
 	unsigned int	rx_idx[MAX_RX_QUEUE];
@@ -684,7 +675,7 @@ typedef struct r8192_priv
 
 	enum card_type {PCI,MINIPCI,CARDBUS,USB}card_type;
 
-	work_struct_rsl qos_activate;
+	struct work_struct qos_activate;
 
 	u8		bIbssCoordinator;
 
@@ -704,7 +695,7 @@ typedef struct r8192_priv
 	u32		irq_mask[2];
 
 	u8		Rf_Mode;
-	nic_t	card_8192;
+	enum nic_t card_8192;
 	u8		card_8192_version;
 
 	short	enable_gpio0;
@@ -882,7 +873,7 @@ typedef struct r8192_priv
 	u8		DynamicTxHighPowerLvl;
 	u8		LastDTPLvl;
 	u32		CurrentRATR0;
-	FALSE_ALARM_STATISTICS FalseAlmCnt;
+	struct false_alarm_stats FalseAlmCnt;
 
 	u8		DMFlag;
 	u8		DM_Type;
@@ -951,7 +942,7 @@ typedef struct r8192_priv
 	u8		Record_CCK_20Mindex;
 	u8		Record_CCK_40Mindex;
 
-	init_gain	initgain_backup;
+	struct init_gain initgain_backup;
 	u8		DefaultInitialGain[4];
 	bool		bis_any_nonbepkts;
 	bool		bcurrent_turbo_EDCA;
@@ -986,7 +977,7 @@ typedef struct r8192_priv
 	u32		ccktxpower_adjustcnt_not_ch14;
 	u32		ccktxpower_adjustcnt_ch14;
 
-	RESET_TYPE	ResetProgress;
+	enum reset_type ResetProgress;
 	bool		bForcedSilentReset;
 	bool		bDisableNormalResetCheck;
 	u16		TxCounter;
@@ -1021,7 +1012,7 @@ typedef struct r8192_priv
 	u8		H2CTxCmdSeq;
 
 
-}r8192_priv;
+};
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
 
@@ -1069,7 +1060,7 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
 
 short rtl8192_pci_initdescring(struct net_device *dev);
 
-void rtl8192_cancel_deferred_work(struct r8192_priv* priv);
+void rtl8192_cancel_deferred_work(struct r8192_priv * priv);
 
 int _rtl8192_up(struct net_device *dev,bool is_silent_reset);
 
@@ -1098,15 +1089,15 @@ bool NicIFDisableNIC(struct net_device* dev);
 bool
 MgntActSet_RF_State(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	StateToSet,
+	enum rt_rf_power_state StateToSet,
 	RT_RF_CHANGE_SOURCE ChangeSource,
 	bool	ProtectOrNot
 	);
 void
 ActUpdateChannelAccessSetting(
 	struct net_device*			dev,
-	WIRELESS_MODE			WirelessMode,
-	PCHANNEL_ACCESS_SETTING	ChnlAccessSetting
+	enum wireless_mode WirelessMode,
+	struct channel_access_setting *ChnlAccessSetting
 	);
 
 #endif

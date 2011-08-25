@@ -54,7 +54,7 @@
 #define BIT30                   0x40000000
 #define BIT31                   0x80000000
 
-typedef union _QOS_TSINFO{
+union qos_tsinfo {
 	u8		charData[3];
 	struct {
 		u8		ucTrafficType:1;
@@ -68,13 +68,14 @@ typedef union _QOS_TSINFO{
 		u8		ucSchedule:1;
 		u8		ucReserved:7;
 	}field;
-}QOS_TSINFO, *PQOS_TSINFO;
-typedef union _TSPEC_BODY{
+};
+
+union tspec_body {
 	u8		charData[55];
 
 	struct
 	{
-		QOS_TSINFO	TSInfo;
+		union qos_tsinfo TSInfo;
 		u16	NominalMSDUsize;
 		u16	MaxMSDUsize;
 		u32	MinServiceItv;
@@ -91,25 +92,26 @@ typedef union _TSPEC_BODY{
 		u16	SurplusBandwidthAllowance;
 		u16	MediumTime;
 	} f;
-}TSPEC_BODY, *PTSPEC_BODY;
+};
 
-typedef struct _WMM_TSPEC{
+struct wmm_tspec {
 	u8		ID;
 	u8		Length;
 	u8		OUI[3];
 	u8		OUI_Type;
 	u8		OUI_SubType;
 	u8		Version;
-	TSPEC_BODY	Body;
-} WMM_TSPEC, *PWMM_TSPEC;
+	union tspec_body Body;
+};
 
-typedef struct _OCTET_STRING{
+struct octet_string {
         u8		*Octet;
         u16             Length;
-}OCTET_STRING, *POCTET_STRING;
+};
 #define	MAX_WMMELE_LENGTH	64
 
-typedef u32 QOS_MODE, *PQOS_MODE;
+#define QOS_MODE u32
+
 #define QOS_DISABLE		0
 #define QOS_WMM		1
 #define QOS_WMMSA		2
@@ -135,10 +137,10 @@ typedef u32 QOS_MODE, *PQOS_MODE;
 #define ACM_TIMEOUT				1000
 #define SESSION_REJECT_TIMEOUT		60000
 
-typedef	enum _ACK_POLICY{
+enum ack_policy {
 	eAckPlc0_ACK		= 0x00,
 	eAckPlc1_NoACK		= 0x01,
-}ACK_POLICY,*PACK_POLICY;
+};
 
 
 #define SET_WMM_QOS_INFO_FIELD(_pStart, _val)						WriteEF1Byte(_pStart, _val)
@@ -164,16 +166,17 @@ typedef	enum _ACK_POLICY{
 #define GET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart)			LE_BITS_TO_1BYTE(_pStart, 5, 2)
 #define SET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart, _val)		SET_BITS_TO_LE_1BYTE(_pStart, 5, 2, _val)
 
-typedef enum {
+enum qos_ie_source {
 	QOSIE_SRC_ADDTSREQ,
 	QOSIE_SRC_ADDTSRSP,
 	QOSIE_SRC_REASOCREQ,
 	QOSIE_SRC_REASOCRSP,
 	QOSIE_SRC_DELTS,
-} QOSIE_SOURCE;
+};
 
 
-typedef u32 AC_CODING;
+#define AC_CODING u32
+
 #define AC0_BE	0
 #define AC1_BK	1
 #define AC2_VI	2
@@ -208,35 +211,35 @@ typedef u32 AC_CODING;
 
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
-typedef	enum _QOS_ELE_SUBTYPE{
+enum qos_ele_subtype {
 	QOSELE_TYPE_INFO		= 0x00,
 	QOSELE_TYPE_PARAM	= 0x01,
-}QOS_ELE_SUBTYPE,*PQOS_ELE_SUBTYPE;
+};
 
 
-typedef	enum _DIRECTION_VALUE{
+enum direction_value {
 	DIR_UP			= 0,
 	DIR_DOWN		= 1,
 	DIR_DIRECT		= 2,
 	DIR_BI_DIR		= 3,
-}DIRECTION_VALUE,*PDIRECTION_VALUE;
+};
 
-typedef	enum _ACM_METHOD{
+enum acm_method {
 	eAcmWay0_SwAndHw		= 0,
 	eAcmWay1_HW			= 1,
 	eAcmWay2_SW			= 2,
-}ACM_METHOD,*PACM_METHOD;
+};
 
 
-typedef struct _ACM{
+struct acm {
 	u64		UsedTime;
 	u64		MediumTime;
 	u8		HwAcmCtl;
-}ACM, *PACM;
+};
 
 
 
-typedef	u8		AC_UAPSD, *PAC_UAPSD;
+#define AC_UAPSD	u8
 
 #define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT0)
 #define	SET_VO_UAPSD(_apsd) ((_apsd) |= BIT0)
@@ -250,7 +253,7 @@ typedef	u8		AC_UAPSD, *PAC_UAPSD;
 #define	GET_BE_UAPSD(_apsd) ((_apsd) & BIT3)
 #define	SET_BE_UAPSD(_apsd) ((_apsd) |= BIT3)
 
-typedef union _QOS_TCLAS{
+union qos_tclas {
 
 	struct _TYPE_GENERAL{
 		u8		Priority;
@@ -299,21 +302,21 @@ typedef union _QOS_TCLAS{
 		u8		Mask;
 		u16		TagType;
 	} TYPE2_8021Q;
-} QOS_TCLAS, *PQOS_TCLAS;
+};
 
-typedef struct _QOS_TSTREAM{
+struct qos_tstream {
 
 	bool			bUsed;
 	u16			MsduLifetime;
 	bool			bEstablishing;
 	u8			TimeSlotCount;
 	u8			DialogToken;
-	WMM_TSPEC	TSpec;
-	WMM_TSPEC	OutStandingTSpec;
+	struct wmm_tspec TSpec;
+	struct wmm_tspec OutStandingTSpec;
 	u8			NominalPhyRate;
-} QOS_TSTREAM, *PQOS_TSTREAM;
+};
 
-typedef struct _STA_QOS{
+struct sta_qos {
 	u8				WMMIEBuf[MAX_WMMELE_LENGTH];
 	u8*				WMMIE;
 
@@ -329,12 +332,12 @@ typedef struct _STA_QOS{
 	u8 *				pWMMInfoEle;
 	u8				WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
 
-	ACM				acm[4];
-	ACM_METHOD		AcmMethod;
+	struct acm acm[4];
+	enum acm_method AcmMethod;
 
-	QOS_TSTREAM		StaTsArray[MAX_STA_TS_COUNT];
+	struct qos_tstream StaTsArray[MAX_STA_TS_COUNT];
 	u8				DialogToken;
-	WMM_TSPEC		TSpec;
+	struct wmm_tspec TSpec;
 
 	u8				QBssWirelessMode;
 
@@ -342,7 +345,7 @@ typedef struct _STA_QOS{
 
 	bool				bEnableRxImmBA;
 
-}STA_QOS, *PSTA_QOS;
+};
 
 #define QBSS_LOAD_SIZE 5
 #define GET_QBSS_LOAD_STA_COUNT(__pStart)					ReadEF2Byte(__pStart)
@@ -352,20 +355,20 @@ typedef struct _STA_QOS{
 #define GET_QBSS_LOAD_AVAILABLE_CAPACITY(__pStart)			ReadEF2Byte((u8*)(__pStart) + 3)
 #define SET_QBSS_LOAD_AVAILABLE_CAPACITY(__pStart, __Value)	WriteEF2Byte((u8*)(__pStart) + 3, __Value)
 
-typedef struct _BSS_QOS{
+struct bss_qos {
 
 	QOS_MODE			bdQoSMode;
 	u8					bdWMMIEBuf[MAX_WMMELE_LENGTH];
-	OCTET_STRING			bdWMMIE;
+	struct octet_string bdWMMIE;
 
-	QOS_ELE_SUBTYPE		EleSubType;
+	enum qos_ele_subtype EleSubType;
 
 	u8*					pWMMInfoEle;
 	u8*					pWMMParamEle;
 
 	u8					QBssLoad[QBSS_LOAD_SIZE];
 	bool					bQBssLoadValid;
-}BSS_QOS, *PBSS_QOS;
+};
 
 #define sQoSCtlLng	2
 #define QOS_CTRL_LEN(_QosMode)		( (_QosMode > QOS_DISABLE)? sQoSCtlLng : 0 )
@@ -374,41 +377,37 @@ typedef struct _BSS_QOS{
 #define IsACValid(ac)		( ( ac>=0 && ac<=7 )? true : false )
 
 
-typedef	union _ACI_AIFSN{
+union aci_aifsn {
 	u8	charData;
 
 	struct
 	{
 		u8	AIFSN:4;
-		u8	ACM:1;
+		u8	acm:1;
 		u8	ACI:2;
 		u8	Reserved:1;
 	}f;
-}ACI_AIFSN, *PACI_AIFSN;
+};
 
-typedef	union _ECW{
+union ecw {
 	u8	charData;
 	struct
 	{
 		u8	ECWmin:4;
 		u8	ECWmax:4;
 	}f;
-}ECW, *PECW;
+};
 
-typedef	union _AC_PARAM{
+union ac_param {
 	u32	longData;
 	u8	charData[4];
 
 	struct
 	{
-		ACI_AIFSN	AciAifsn;
-		ECW		Ecw;
+		union aci_aifsn AciAifsn;
+		union ecw Ecw;
 		u16		TXOPLimit;
 	}f;
-}AC_PARAM, *PAC_PARAM;
-
-
-
-
+};
 
 #endif

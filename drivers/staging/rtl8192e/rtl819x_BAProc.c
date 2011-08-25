@@ -20,22 +20,22 @@
 #include "rtl819x_BA.h"
 #include "rtl_core.h"
 
-void ActivateBAEntry(struct rtllib_device* ieee, PBA_RECORD pBA, u16 Time)
+void ActivateBAEntry(struct rtllib_device* ieee, struct ba_record *pBA, u16 Time)
 {
 	pBA->bValid = true;
 	if (Time != 0)
 		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
 }
 
-void DeActivateBAEntry( struct rtllib_device* ieee, PBA_RECORD pBA)
+void DeActivateBAEntry( struct rtllib_device* ieee, struct ba_record *pBA)
 {
 	pBA->bValid = false;
 	del_timer_sync(&pBA->Timer);
 }
-u8 TxTsDeleteBA( struct rtllib_device* ieee, PTX_TS_RECORD	pTxTs)
+u8 TxTsDeleteBA( struct rtllib_device* ieee, struct tx_ts_record *pTxTs)
 {
-	PBA_RECORD		pAdmittedBa = &pTxTs->TxAdmittedBARecord;
-	PBA_RECORD		pPendingBa = &pTxTs->TxPendingBARecord;
+	struct ba_record *pAdmittedBa = &pTxTs->TxAdmittedBARecord;
+	struct ba_record *pPendingBa = &pTxTs->TxPendingBARecord;
 	u8			bSendDELBA = false;
 
 	if (pPendingBa->bValid)
@@ -53,9 +53,9 @@ u8 TxTsDeleteBA( struct rtllib_device* ieee, PTX_TS_RECORD	pTxTs)
 	return bSendDELBA;
 }
 
-u8 RxTsDeleteBA( struct rtllib_device* ieee, PRX_TS_RECORD	pRxTs)
+u8 RxTsDeleteBA( struct rtllib_device* ieee, struct rx_ts_record *pRxTs)
 {
-	PBA_RECORD		pBa = &pRxTs->RxAdmittedBARecord;
+	struct ba_record *pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
 
 	if (pBa->bValid)
@@ -67,7 +67,7 @@ u8 RxTsDeleteBA( struct rtllib_device* ieee, PRX_TS_RECORD	pRxTs)
 	return bSendDELBA;
 }
 
-void ResetBaEntry( PBA_RECORD pBA)
+void ResetBaEntry( struct ba_record *pBA)
 {
 	pBA->bValid			= false;
 	pBA->BaParamSet.shortData	= 0;
@@ -75,7 +75,7 @@ void ResetBaEntry( PBA_RECORD pBA)
 	pBA->DialogToken		= 0;
 	pBA->BaStartSeqCtrl.ShortData	= 0;
 }
-static struct sk_buff* rtllib_ADDBA(struct rtllib_device* ieee, u8* Dst, PBA_RECORD pBA, u16 StatusCode, u8 type)
+static struct sk_buff* rtllib_ADDBA(struct rtllib_device* ieee, u8* Dst, struct ba_record *pBA, u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr* BAReq = NULL;
@@ -139,12 +139,12 @@ static struct sk_buff* rtllib_ADDBA(struct rtllib_device* ieee, u8* Dst, PBA_REC
 static struct sk_buff* rtllib_DELBA(
 	struct rtllib_device* ieee,
 	u8*		         dst,
-	PBA_RECORD		 pBA,
-	TR_SELECT		 TxRxSelect,
+	struct ba_record *pBA,
+	enum tr_select TxRxSelect,
 	u16			 ReasonCode
 	)
 {
-	DELBA_PARAM_SET	DelbaParamSet;
+	union delba_param_set DelbaParamSet;
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr* Delba = NULL;
 	u8* tag = NULL;
@@ -193,7 +193,7 @@ static struct sk_buff* rtllib_DELBA(
 	return skb;
 }
 
-void rtllib_send_ADDBAReq(struct rtllib_device* ieee, u8*	dst, PBA_RECORD	pBA)
+void rtllib_send_ADDBAReq(struct rtllib_device* ieee, u8*	dst, struct ba_record *pBA)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
@@ -207,7 +207,7 @@ void rtllib_send_ADDBAReq(struct rtllib_device* ieee, u8*	dst, PBA_RECORD	pBA)
 	return;
 }
 
-void rtllib_send_ADDBARsp(struct rtllib_device* ieee, u8* dst, PBA_RECORD pBA, u16 StatusCode)
+void rtllib_send_ADDBARsp(struct rtllib_device* ieee, u8* dst, struct ba_record *pBA, u16 StatusCode)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP);
@@ -220,7 +220,7 @@ void rtllib_send_ADDBARsp(struct rtllib_device* ieee, u8* dst, PBA_RECORD pBA, u
 
 }
 
-void rtllib_send_DELBA(struct rtllib_device* ieee, u8* dst, PBA_RECORD pBA, TR_SELECT TxRxSelect, u16 ReasonCode)
+void rtllib_send_DELBA(struct rtllib_device* ieee, u8* dst, struct ba_record *pBA, enum tr_select TxRxSelect, u16 ReasonCode)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode);
@@ -240,11 +240,11 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	 struct rtllib_hdr_3addr* req = NULL;
 	u16 rc = 0;
 	u8 * dst = NULL, *pDialogToken = NULL, *tag = NULL;
-	PBA_RECORD pBA = NULL;
-	PBA_PARAM_SET	pBaParamSet = NULL;
+	struct ba_record *pBA = NULL;
+	union ba_param_set *pBaParamSet = NULL;
 	u16* pBaTimeoutVal = NULL;
-	PSEQUENCE_CONTROL pBaStartSeqCtrl = NULL;
-	PRX_TS_RECORD	pTS = NULL;
+	union sequence_control *pBaStartSeqCtrl = NULL;
+	struct rx_ts_record *pTS = NULL;
 
 	if (skb->len < sizeof( struct rtllib_hdr_3addr) + 9)
 	{
@@ -259,9 +259,9 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	dst = (u8*)(&req->addr2[0]);
 	tag += sizeof( struct rtllib_hdr_3addr);
 	pDialogToken = tag + 2;
-	pBaParamSet = (PBA_PARAM_SET)(tag + 3);
+	pBaParamSet = (union ba_param_set *)(tag + 3);
 	pBaTimeoutVal = (u16*)(tag + 5);
-	pBaStartSeqCtrl = (PSEQUENCE_CONTROL)(req + 7);
+	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from :"MAC_FMT"\n", MAC_ARG(dst));
 	if (ieee->current_network.qos_data.active == 0  ||
@@ -273,7 +273,7 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	}
 	if (!GetTs(
 			ieee,
-			(PTS_COMMON_INFO*)(&pTS),
+			(struct ts_common_info **)(&pTS),
 			dst,
 			(u8)(pBaParamSet->field.TID),
 			RX_DIR,
@@ -314,7 +314,7 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 
 OnADDBAReq_Fail:
 	{
-		BA_RECORD	BA;
+		struct ba_record BA;
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.DialogToken = *pDialogToken;
@@ -328,11 +328,11 @@ OnADDBAReq_Fail:
 int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 {
 	 struct rtllib_hdr_3addr* rsp = NULL;
-	PBA_RECORD		pPendingBA, pAdmittedBA;
-	PTX_TS_RECORD		pTS = NULL;
+	struct ba_record *pPendingBA, *pAdmittedBA;
+	struct tx_ts_record *pTS = NULL;
 	u8* dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	u16* pStatusCode = NULL, *pBaTimeoutVal = NULL;
-	PBA_PARAM_SET		pBaParamSet = NULL;
+	union ba_param_set *pBaParamSet = NULL;
 	u16			ReasonCode;
 
 	if (skb->len < sizeof( struct rtllib_hdr_3addr) + 9)
@@ -346,7 +346,7 @@ int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 	tag += sizeof( struct rtllib_hdr_3addr);
 	pDialogToken = tag + 2;
 	pStatusCode = (u16*)(tag + 3);
-	pBaParamSet = (PBA_PARAM_SET)(tag + 5);
+	pBaParamSet = (union ba_param_set *)(tag + 5);
 	pBaTimeoutVal = (u16*)(tag + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from :"MAC_FMT"\n", MAC_ARG(dst));
@@ -361,7 +361,7 @@ int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 	}
 
 
-	if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTS), dst,
+	if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
 		   (u8)(pBaParamSet->field.TID), TX_DIR, false)) {
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't get TS in %s()\n", __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
@@ -419,7 +419,7 @@ int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 
 OnADDBARsp_Reject:
 	{
-		BA_RECORD	BA;
+		struct ba_record BA;
 		BA.BaParamSet = *pBaParamSet;
 		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
 		return 0;
@@ -430,7 +430,7 @@ OnADDBARsp_Reject:
 int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 {
 	 struct rtllib_hdr_3addr* delba = NULL;
-	PDELBA_PARAM_SET	pDelBaParamSet = NULL;
+	union delba_param_set *pDelBaParamSet = NULL;
 	u16*			pReasonCode = NULL;
 	u8*			dst = NULL;
 
@@ -452,16 +452,16 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 	delba = ( struct rtllib_hdr_3addr*)skb->data;
 	dst = (u8*)(&delba->addr2[0]);
 	delba += sizeof( struct rtllib_hdr_3addr);
-	pDelBaParamSet = (PDELBA_PARAM_SET)(delba+2);
+	pDelBaParamSet = (union delba_param_set *)(delba+2);
 	pReasonCode = (u16*)(delba+4);
 
 	if (pDelBaParamSet->field.Initiator == 1)
 	{
-		PRX_TS_RECORD	pRxTs;
+		struct rx_ts_record *pRxTs;
 
 		if ( !GetTs(
 				ieee,
-				(PTS_COMMON_INFO*)&pRxTs,
+				(struct ts_common_info **)&pRxTs,
 				dst,
 				(u8)pDelBaParamSet->field.TID,
 				RX_DIR,
@@ -475,11 +475,11 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 	}
 	else
 	{
-		PTX_TS_RECORD	pTxTs;
+		struct tx_ts_record *pTxTs;
 
 		if (!GetTs(
 			ieee,
-			(PTS_COMMON_INFO*)&pTxTs,
+			(struct ts_common_info **)&pTxTs,
 			dst,
 			(u8)pDelBaParamSet->field.TID,
 			TX_DIR,
@@ -501,12 +501,12 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 void
 TsInitAddBA(
 	struct rtllib_device* ieee,
-	PTX_TS_RECORD	pTS,
+	struct tx_ts_record *pTS,
 	u8		Policy,
 	u8		bOverwritePending
 	)
 {
-	PBA_RECORD			pBA = &pTS->TxPendingBARecord;
+	struct ba_record *pBA = &pTS->TxPendingBARecord;
 
 	if (pBA->bValid==true && bOverwritePending==false)
 		return;
@@ -527,12 +527,12 @@ TsInitAddBA(
 }
 
 void
-TsInitDelBA( struct rtllib_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect)
+TsInitDelBA( struct rtllib_device* ieee, struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect)
 {
 
 	if (TxRxSelect == TX_DIR)
 	{
-		PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)pTsCommonInfo;
+		struct tx_ts_record *pTxTs = (struct tx_ts_record *)pTsCommonInfo;
 
 		if (TxTsDeleteBA(ieee, pTxTs))
 			rtllib_send_DELBA(
@@ -544,7 +544,7 @@ TsInitDelBA( struct rtllib_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELEC
 	}
 	else if (TxRxSelect == RX_DIR)
 	{
-		PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)pTsCommonInfo;
+		struct rx_ts_record *pRxTs = (struct rx_ts_record *)pTsCommonInfo;
 		if (RxTsDeleteBA(ieee, pRxTs))
 			rtllib_send_DELBA(
 				ieee,
@@ -556,7 +556,7 @@ TsInitDelBA( struct rtllib_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELEC
 }
 void BaSetupTimeOut(unsigned long data)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
@@ -565,7 +565,7 @@ void BaSetupTimeOut(unsigned long data)
 
 void TxBaInactTimeout(unsigned long data)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device, TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
 	rtllib_send_DELBA(
@@ -578,7 +578,7 @@ void TxBaInactTimeout(unsigned long data)
 
 void RxBaInactTimeout(unsigned long data)
 {
-	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
+	struct rx_ts_record *pRxTs = (struct rx_ts_record *)data;
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device, RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);

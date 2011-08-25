@@ -589,7 +589,7 @@ static int proc_get_reg_rf_a(char *page, char **start,
 		len += snprintf(page + len, count - len, "\nD:  %2x > ",n);
 		for (i=0;i<4 && n<=max;n+=4,i++)
 			len += snprintf(page + len, count - len,
-					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,n, bMaskDWord));
+					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)RF90_PATH_A,n, bMaskDWord));
 	}
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;
@@ -615,7 +615,7 @@ static int proc_get_reg_rf_b(char *page, char **start,
 		len += snprintf(page + len, count - len, "\nD:  %2x > ",n);
 		for (i=0;i<4 && n<=max;n+=4,i++)
 			len += snprintf(page + len, count - len,
-					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_B, n, bMaskDWord));
+					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)RF90_PATH_B, n, bMaskDWord));
 	}
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;
@@ -641,7 +641,7 @@ static int proc_get_reg_rf_c(char *page, char **start,
 		len += snprintf(page + len, count - len, "\nD:  %2x > ",n);
 		for (i=0;i<4 && n<=max;n+=4,i++)
 			len += snprintf(page + len, count - len,
-					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_C, n, bMaskDWord));
+					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)RF90_PATH_C, n, bMaskDWord));
 	}
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;
@@ -667,7 +667,7 @@ static int proc_get_reg_rf_d(char *page, char **start,
 		len += snprintf(page + len, count - len, "\nD:  %2x > ",n);
 		for (i=0;i<4 && n<=max;n+=4,i++)
 			len += snprintf(page + len, count - len,
-					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_D, n, bMaskDWord));
+					"%8.8x ",rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)RF90_PATH_D, n, bMaskDWord));
 	}
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;

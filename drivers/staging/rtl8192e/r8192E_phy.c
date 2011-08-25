@@ -47,8 +47,8 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 
 /*************************Define local function prototype**********************/
 
-static u32 phy_FwRFSerialRead(struct net_device* dev,RF90_RADIO_PATH_E	eRFPath,u32 Offset);
-static void phy_FwRFSerialWrite(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32 Offset,u32	Data);
+static u32 phy_FwRFSerialRead(struct net_device* dev,enum rf90_radio_path eRFPath,u32 Offset);
+static void phy_FwRFSerialWrite(struct net_device* dev,enum rf90_radio_path eRFPath,u32 Offset,u32	Data);
 u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 {
 	u32 i;
@@ -99,12 +99,12 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask)
 
 	return (Ret);
 }
-u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset)
+u32 rtl8192_phy_RFSerialRead(struct net_device* dev, enum rf90_radio_path eRFPath, u32 Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ret = 0;
 	u32 NewOffset = 0;
-	BB_REGISTER_DEFINITION_T* pPhyReg = &priv->PHYRegDef[eRFPath];
+	struct bb_reg_definition* pPhyReg = &priv->PHYRegDef[eRFPath];
 	Offset &= 0x3f;
 
 	if (priv->rf_chip == RF_8256)
@@ -160,11 +160,11 @@ u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, 
 
 }
 
-void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset, u32 Data)
+void rtl8192_phy_RFSerialWrite(struct net_device* dev, enum rf90_radio_path eRFPath, u32 Offset, u32 Data)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 DataAndAddr = 0, NewOffset = 0;
-	BB_REGISTER_DEFINITION_T	*pPhyReg = &priv->PHYRegDef[eRFPath];
+	struct bb_reg_definition *pPhyReg = &priv->PHYRegDef[eRFPath];
 
 	Offset &= 0x3f;
 	if (priv->rf_chip == RF_8256)
@@ -218,7 +218,7 @@ void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath
 	return;
 }
 
-void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask, u32 Data)
+void rtl8192_phy_SetRFReg(struct net_device* dev, enum rf90_radio_path eRFPath, u32 RegAddr, u32 BitMask, u32 Data)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 Original_Value, BitShift, New_Value;
@@ -258,7 +258,7 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	return;
 }
 
-u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask)
+u32 rtl8192_phy_QueryRFReg(struct net_device* dev, enum rf90_radio_path eRFPath, u32 RegAddr, u32 BitMask)
 {
 	u32 Original_Value, Readback_Value, BitShift;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -285,7 +285,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 
 static u32 phy_FwRFSerialRead(
 	struct net_device* dev,
-	RF90_RADIO_PATH_E	eRFPath,
+	enum rf90_radio_path eRFPath,
 	u32				Offset	)
 {
 	u32		retValue = 0;
@@ -322,7 +322,7 @@ static u32 phy_FwRFSerialRead(
 static void
 phy_FwRFSerialWrite(
 		struct net_device* dev,
-		RF90_RADIO_PATH_E	eRFPath,
+		enum rf90_radio_path eRFPath,
 		u32				Offset,
 		u32				Data	)
 {
@@ -510,7 +510,7 @@ void rtl8192_InitBBRFRegDef(struct net_device* dev)
 	priv->PHYRegDef[RF90_PATH_D].rfLSSIReadBack = rFPGA0_XD_LSSIReadBack;
 
 }
-bool rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath)
+bool rtl8192_phy_checkBBAndRF(struct net_device* dev, enum hw90_block CheckBlock, enum rf90_radio_path eRFPath)
 {
 	bool ret = true;
 	u32 i, CheckTimes = 4, dwRegRead = 0;
@@ -576,9 +576,9 @@ bool rtl8192_BB_Config_ParaFile(struct net_device* dev)
 	dwRegValue = read_nic_dword(dev, CPU_GEN);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
 
-	for (eCheckItem=(HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++)
+	for (eCheckItem=(enum hw90_block)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++)
 	{
-		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem, (RF90_RADIO_PATH_E)0);
+		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (enum hw90_block)eCheckItem, (enum rf90_radio_path)0);
 		if (rtStatus != true)
 		{
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():Check PHY%d Fail!!\n", eCheckItem-1);
@@ -741,7 +741,7 @@ void rtl8192_phy_updateInitGain(struct net_device* dev)
 	return;
 }
 
-u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	eRFPath)
+u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, enum rf90_radio_path eRFPath)
 {
 
 	int i;
@@ -824,16 +824,16 @@ void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	return;
 }
 u8 rtl8192_phy_SetSwChnlCmdArray(
-	SwChnlCmd*		CmdTable,
+	struct sw_chnl_cmd*		CmdTable,
 	u32			CmdTableIdx,
 	u32			CmdTableSz,
-	SwChnlCmdID		CmdID,
+	enum sw_chnl_cmd_id CmdID,
 	u32			Para1,
 	u32			Para2,
 	u32			msDelay
 	)
 {
-	SwChnlCmd* pCmd;
+	struct sw_chnl_cmd* pCmd;
 
 	if (CmdTable == NULL)
 	{
@@ -858,13 +858,13 @@ u8 rtl8192_phy_SetSwChnlCmdArray(
 u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u8* step, u32* delay)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	SwChnlCmd				PreCommonCmd[MAX_PRECMD_CNT];
+	struct sw_chnl_cmd PreCommonCmd[MAX_PRECMD_CNT];
 	u32					PreCommonCmdCnt;
-	SwChnlCmd				PostCommonCmd[MAX_POSTCMD_CNT];
+	struct sw_chnl_cmd PostCommonCmd[MAX_POSTCMD_CNT];
 	u32					PostCommonCmdCnt;
-	SwChnlCmd				RfDependCmd[MAX_RFDEPENDCMD_CNT];
+	struct sw_chnl_cmd RfDependCmd[MAX_RFDEPENDCMD_CNT];
 	u32					RfDependCmdCnt;
-	SwChnlCmd				*CurrentCmd = NULL;
+	struct sw_chnl_cmd *CurrentCmd = NULL;
 	u8		eRFPath;
 
 	RT_TRACE(COMP_TRACE, "====>%s()====stage:%d, step:%d, channel:%d\n", __func__, *stage, *step, channel);
@@ -969,7 +969,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u
 				break;
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <priv->NumTotalRFPath; eRFPath++)
-					rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, bMask12Bits, CurrentCmd->Para2<<7);
+					rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, CurrentCmd->Para1, bMask12Bits, CurrentCmd->Para2<<7);
 				break;
 			default:
 				break;
@@ -1264,7 +1264,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb()");
 }
 
-void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET Offset)
+void rtl8192_SetBWMode(struct net_device *dev, enum ht_channel_width Bandwidth, enum ht_extchnl_offset Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1377,11 +1377,11 @@ PHY_SetRtl8192eRfOff(struct net_device* dev	)
 bool
 SetRFPowerState8190(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
+	enum rt_rf_power_state eRFPowerState
 	)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	bool bResult = true;
 	u8	i = 0, QueueID = 0;
 	struct rtl8192_tx_ring  *ring = NULL;
@@ -1547,7 +1547,7 @@ SetRFPowerState8190(
 bool
 SetRFPowerState(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
+	enum rt_rf_power_state eRFPowerState
 	)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);

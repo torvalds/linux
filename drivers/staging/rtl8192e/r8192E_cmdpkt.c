@@ -42,16 +42,16 @@
 {
 
 	bool				rt_status = true;
-	struct r8192_priv	*priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	u16				frag_threshold;
 	u16				frag_length = 0, frag_offset = 0;
-	rt_firmware		*pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 	struct sk_buff		*skb;
 	unsigned char		*seg_ptr;
-	cb_desc			*tcb_desc;
+	struct cb_desc *tcb_desc;
 	u8				bLastIniPkt;
 
-	PTX_FWINFO_8190PCI      pTxFwInfo = NULL;
+	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
 
 	RT_TRACE(COMP_CMDPKT,"%s(),buffer_len is %d\n",__func__,buffer_len);
 	firmware_init_param(dev);
@@ -75,15 +75,15 @@
 		}
 
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-		tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_NORMAL;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
 		tcb_desc->pkt_size = frag_length;
 
 		seg_ptr = skb_put(skb, priv->rtllib->tx_headroom);
-		pTxFwInfo = (PTX_FWINFO_8190PCI)seg_ptr;
-		memset(pTxFwInfo,0,sizeof(TX_FWINFO_8190PCI));
+		pTxFwInfo = (struct tx_fwinfo_8190pci *)seg_ptr;
+		memset(pTxFwInfo,0,sizeof(struct tx_fwinfo_8190pci));
 		memset(pTxFwInfo,0x12,8);
 
 		seg_ptr = skb_put(skb, frag_length);
@@ -104,11 +104,11 @@ Failed:
 static	void
 cmpk_count_txstatistic(
 	struct net_device *dev,
-	cmpk_txfb_t	*pstx_fb)
+	struct cmpk_txfb *pstx_fb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 #ifdef ENABLE_PS
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
 
@@ -158,12 +158,12 @@ cmpk_handle_tx_feedback(
 	u8	*	pmsg)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	cmpk_txfb_t		rx_tx_fb;	/* */
+	struct cmpk_txfb rx_tx_fb;	/* */
 
 	priv->stats.txfeedback++;
 
 
-	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
+	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(struct cmpk_txfb));
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
 
 }	/* cmpk_Handle_Tx_Feedback */
@@ -199,14 +199,14 @@ cmpk_handle_interrupt_status(
 	struct net_device *dev,
 	u8*	pmsg)
 {
-	cmpk_intr_sta_t		rx_intr_status;	/* */
+	struct cmpk_intr_sta rx_intr_status;	/* */
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
 
 
 	rx_intr_status.length = pmsg[1];
-	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2))
+	if (rx_intr_status.length != (sizeof(struct cmpk_intr_sta) - 2))
 	{
 		DMESG("cmpk_Handle_Interrupt_Status: wrong length!\n");
 		return;
@@ -266,13 +266,13 @@ cmpk_handle_query_config_rx(
 
 
 static	void	cmpk_count_tx_status(	struct net_device *dev,
-									cmpk_tx_status_t	*pstx_status)
+									struct cmpk_tx_status *pstx_status)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 #ifdef ENABLE_PS
 
-	RT_RF_POWER_STATE	rtstate;
+	enum rt_rf_power_state rtstate;
 
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
 
@@ -314,9 +314,9 @@ cmpk_handle_tx_status(
 	struct net_device *dev,
 	u8*	   pmsg)
 {
-	cmpk_tx_status_t	rx_tx_sts;	/* */
+	struct cmpk_tx_status rx_tx_sts;	/* */
 
-	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(cmpk_tx_status_t));
+	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(struct cmpk_tx_status));
 	cmpk_count_tx_status(dev, &rx_tx_sts);
 
 }
@@ -327,9 +327,9 @@ cmpk_handle_tx_rate_history(
 	struct net_device *dev,
 	u8*	   pmsg)
 {
-	cmpk_tx_rahis_t	*ptxrate;
+	struct cmpk_tx_rahis *ptxrate;
 	u8				i, j;
-	u16				length = sizeof(cmpk_tx_rahis_t);
+	u16				length = sizeof(struct cmpk_tx_rahis);
 	u32				*ptemp;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -354,7 +354,7 @@ cmpk_handle_tx_rate_history(
 		ptemp[i] = (temp1<<16)|temp2;
 	}
 
-	ptxrate = (cmpk_tx_rahis_t *)pmsg;
+	ptxrate = (struct cmpk_tx_rahis *)pmsg;
 
 	if (ptxrate == NULL )
 	{
@@ -416,7 +416,7 @@ cmpk_message_handle_rx(
 		case RX_INTERRUPT_STATUS:
 			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():RX_INTERRUPT_STATUS\n");
 			cmpk_handle_interrupt_status(dev, pcmd_buff);
-			cmd_length = sizeof(cmpk_intr_sta_t);
+			cmd_length = sizeof(struct cmpk_intr_sta);
 			break;
 		case BOTH_QUERY_CONFIG:
 			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():BOTH_QUERY_CONFIG\n");

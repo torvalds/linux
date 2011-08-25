@@ -43,8 +43,7 @@ struct net_device;
 			printk Fmt;					\
 		}
 
-typedef enum tag_DBGP_Flag_Type_Definition
-{
+enum dbgp_flag {
 	FQoS				= 0,
 	FTX					= 1,
 	FRX					= 2,
@@ -65,7 +64,7 @@ typedef enum tag_DBGP_Flag_Type_Definition
 	FINIT				= 17,
 	FIOCTL				= 18,
 	DBGP_TYPE_MAX
-}DBGP_FLAG_E;
+};
 
 #define		QoS_INIT				BIT0
 #define		QoS_VISTA				BIT1
@@ -257,15 +256,14 @@ do { if (rt_global_debug_component & component) \
                 }                                       \
         } while (0)
 
-typedef struct _rtl_fs_debug
-{
+struct rtl_fs_debug {
 	const char *name;
 	struct dentry *dir_drv;
 	struct dentry *debug_register;
 	u32 hw_type;
 	u32 hw_offset;
 	bool hw_holding;
-} rtl_fs_debug;
+};
 
 void print_buffer(u32 *buffer, int len);
 void dump_eprom(struct net_device *dev);

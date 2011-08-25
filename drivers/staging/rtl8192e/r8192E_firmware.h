@@ -23,49 +23,49 @@
 
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8 )
 
-typedef enum _firmware_init_step{
+enum firmware_init_step {
 	FW_INIT_STEP0_BOOT = 0,
 	FW_INIT_STEP1_MAIN = 1,
 	FW_INIT_STEP2_DATA = 2,
-}firmware_init_step_e;
+};
 
-typedef enum _opt_rst_type{
+enum opt_rst_type {
 	OPT_SYSTEM_RESET = 0,
 	OPT_FIRMWARE_RESET = 1,
-}opt_rst_type_e;
+};
 
-typedef enum _desc_packet_type_e{
+enum desc_packet_type {
 	DESC_PACKET_TYPE_INIT = 0,
 	DESC_PACKET_TYPE_NORMAL = 1,
-}desc_packet_type_e;
+};
 
-typedef enum _firmware_source{
+enum firmware_source {
 	FW_SOURCE_IMG_FILE = 0,
 	FW_SOURCE_HEADER_FILE = 1,
-}firmware_source_e, *pfirmware_source_e;
+};
 
-typedef enum _firmware_status{
+enum firmware_status {
 	FW_STATUS_0_INIT = 0,
 	FW_STATUS_1_MOVE_BOOT_CODE = 1,
 	FW_STATUS_2_MOVE_MAIN_CODE = 2,
 	FW_STATUS_3_TURNON_CPU = 3,
 	FW_STATUS_4_MOVE_DATA_CODE = 4,
 	FW_STATUS_5_READY = 5,
-}firmware_status_e;
+};
 
-typedef struct _rt_firmare_seg_container {
+struct fw_seg_container {
 	u16	seg_size;
 	u8	*seg_ptr;
-}fw_seg_container, *pfw_seg_container;
+};
 
-typedef struct _rt_firmware{
-	firmware_status_e firmware_status;
+struct rt_firmware {
+	enum firmware_status firmware_status;
 	u16		  cmdpacket_frag_thresold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
 #define MAX_FW_INIT_STEP		3
 	u8		  firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
-} rt_firmware, *prt_firmware;
+};
 
 bool init_firmware(struct net_device *dev);
 extern void firmware_init_param(struct net_device *dev);

@@ -186,17 +186,15 @@ static int r8192_wx_force_mic_error(struct net_device *dev,
 }
 
 #define MAX_ADHOC_PEER_NUM 64
-typedef struct
-{
+struct adhoc_peer_entry {
 	unsigned char MacAddr[ETH_ALEN];
 	unsigned char WirelessMode;
 	unsigned char bCurTxBW40MHz;
-} adhoc_peer_entry_t, *p_adhoc_peer_entry_t;
-typedef struct
-{
-	adhoc_peer_entry_t Entry[MAX_ADHOC_PEER_NUM];
+};
+struct adhoc_peers_info {
+	struct adhoc_peer_entry Entry[MAX_ADHOC_PEER_NUM];
 	unsigned char num;
-} adhoc_peers_info_t, *p_adhoc_peers_info_t;
+};
 
 int r8192_wx_get_adhoc_peers(struct net_device *dev,
 			       struct iw_request_info *info,
@@ -218,7 +216,7 @@ static int r8192_wx_adapter_power_status(struct net_device *dev,
 		union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	struct rtllib_device* ieee = priv->rtllib;
 
 	down(&priv->wx_sem);
@@ -266,7 +264,7 @@ static int r8192se_wx_set_lps_awake_interval(struct net_device *dev,
         union iwreq_data *wrqu, char *extra)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
-    PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+    struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
     down(&priv->wx_sem);
 
@@ -318,7 +316,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = netdev_priv_rsl(dev);
 
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	int ret;
 
 	if (priv->bHwRadioOff == true)
@@ -449,7 +447,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	int ret;
 
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)){
@@ -764,7 +762,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 	if (wrqu->encoding.flags & IW_ENCODE_DISABLED) {
 		ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
 		CamResetAllEntry(dev);
-		memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+		memset(priv->rtllib->swcamtable,0,sizeof(struct sw_cam_table)*32);
 		goto end_hw_sec;
 	}
 	if (wrqu->encoding.length!=0){
@@ -989,7 +987,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		{
 			ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
 			CamResetAllEntry(dev);
-			memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+			memset(priv->rtllib->swcamtable,0,sizeof(struct sw_cam_table)*32);
 			goto end_hw_sec;
 		}
 		alg =  (ext->alg == IW_ENCODE_ALG_CCMP)?KEY_TYPE_CCMP:ext->alg;

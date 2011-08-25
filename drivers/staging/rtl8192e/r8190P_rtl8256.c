@@ -22,7 +22,7 @@
 #include "r8192E_phy.h"
 #include "r8190P_rtl8256.h"
 
-void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
+void PHY_SetRF8256Bandwidth(struct net_device* dev , enum ht_channel_width Bandwidth)
 {
 	u8	eRFPath;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -34,9 +34,9 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 		switch (Bandwidth) {
 		case HT_CHANNEL_WIDTH_20:
 			if (priv->card_8192_version == VERSION_8190_BD || priv->card_8192_version == VERSION_8190_BE) {
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x0b, bMask12Bits, 0x100);
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3d7);
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x0e, bMask12Bits, 0x021);
+				rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, 0x0b, bMask12Bits, 0x100);
+				rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, 0x2c, bMask12Bits, 0x3d7);
+				rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, 0x0e, bMask12Bits, 0x021);
 
 			} else {
 				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown hardware version\n");
@@ -45,9 +45,9 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 			break;
 		case HT_CHANNEL_WIDTH_20_40:
 			if (priv->card_8192_version == VERSION_8190_BD ||priv->card_8192_version == VERSION_8190_BE) {
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x0b, bMask12Bits, 0x300);
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3ff);
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x0e, bMask12Bits, 0x0e1);
+				rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, 0x0b, bMask12Bits, 0x300);
+				rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, 0x2c, bMask12Bits, 0x3ff);
+				rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path)eRFPath, 0x0e, bMask12Bits, 0x0e1);
 
 			} else {
 				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown hardware version\n");
@@ -79,7 +79,7 @@ bool phy_RF8256_Config_ParaFile(struct net_device* dev)
 	u32	u4RegValue = 0;
 	u8	eRFPath;
 	bool rtStatus = true;
-	BB_REGISTER_DEFINITION_T	*pPhyReg;
+	struct bb_reg_definition *pPhyReg;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32	RegOffSetToBeCheck = 0x3;
 	u32	RegValueToBeCheck = 0x7f1;
@@ -87,7 +87,7 @@ bool phy_RF8256_Config_ParaFile(struct net_device* dev)
 	u8	ConstRetryTimes = 5, RetryTimes = 5;
 	u8 ret = 0;
 
-	for (eRFPath = (RF90_RADIO_PATH_E)RF90_PATH_A; eRFPath <priv->NumTotalRFPath; eRFPath++) {
+	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A; eRFPath <priv->NumTotalRFPath; eRFPath++) {
 		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 				continue;
 
@@ -112,9 +112,9 @@ bool phy_RF8256_Config_ParaFile(struct net_device* dev)
 		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);
 		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);
 
-		rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E) eRFPath, 0x0, bMask12Bits, 0xbf);
+		rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path) eRFPath, 0x0, bMask12Bits, 0xbf);
 
-		rtStatus = rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF, (RF90_RADIO_PATH_E)eRFPath);
+		rtStatus = rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF, (enum rf90_radio_path)eRFPath);
 		if (rtStatus!= true) {
 			RT_TRACE(COMP_ERR, "PHY_RF8256_Config():Check Radio[%d] Fail!!\n", eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
@@ -125,32 +125,32 @@ bool phy_RF8256_Config_ParaFile(struct net_device* dev)
 		switch (eRFPath) {
 		case RF90_PATH_A:
 			while (RF3_Final_Value!=RegValueToBeCheck && RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(RF90_RADIO_PATH_E)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, RegOffSetToBeCheck, bMask12Bits);
+				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(enum rf90_radio_path)eRFPath);
+				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)eRFPath, RegOffSetToBeCheck, bMask12Bits);
 				RT_TRACE(COMP_RF, "RF %d %d register final value: %x\n", eRFPath, RegOffSetToBeCheck, RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
 		case RF90_PATH_B:
 			while (RF3_Final_Value!=RegValueToBeCheck && RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(RF90_RADIO_PATH_E)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, RegOffSetToBeCheck, bMask12Bits);
+				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(enum rf90_radio_path)eRFPath);
+				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)eRFPath, RegOffSetToBeCheck, bMask12Bits);
 				RT_TRACE(COMP_RF, "RF %d %d register final value: %x\n", eRFPath, RegOffSetToBeCheck, RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
 		case RF90_PATH_C:
 			while (RF3_Final_Value!=RegValueToBeCheck && RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(RF90_RADIO_PATH_E)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, RegOffSetToBeCheck, bMask12Bits);
+				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(enum rf90_radio_path)eRFPath);
+				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)eRFPath, RegOffSetToBeCheck, bMask12Bits);
 				RT_TRACE(COMP_RF, "RF %d %d register final value: %x\n", eRFPath, RegOffSetToBeCheck, RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
 		case RF90_PATH_D:
 			while (RF3_Final_Value!=RegValueToBeCheck && RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(RF90_RADIO_PATH_E)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, RegOffSetToBeCheck, bMask12Bits);
+				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,(enum rf90_radio_path)eRFPath);
+				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev, (enum rf90_radio_path)eRFPath, RegOffSetToBeCheck, bMask12Bits);
 				RT_TRACE(COMP_RF, "RF %d %d register final value: %x\n", eRFPath, RegOffSetToBeCheck, RF3_Final_Value);
 				RetryTimes--;
 			}

@@ -64,9 +64,9 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 
 
 /*------------------------Define global variable-----------------------------*/
-dig_t	dm_digtable;
+struct dig_t dm_digtable;
 u8		dm_shadow[16][256] = {{0}};
-DRxPathSel	DM_RxPathSelTable;
+struct drx_path_sel DM_RxPathSelTable;
 /*------------------------Define global variable-----------------------------*/
 
 
@@ -251,7 +251,7 @@ extern void init_rate_adaptive(struct net_device * dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
-	prate_adaptive			pra = (prate_adaptive)&priv->rate_adaptive;
+	struct rate_adaptive *pra = (struct rate_adaptive *)&priv->rate_adaptive;
 
 	pra->ratr_state = DM_RATR_STA_MAX;
 	pra->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;
@@ -294,8 +294,8 @@ extern void init_rate_adaptive(struct net_device * dev)
 static void dm_check_rate_adaptive(struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
-	prate_adaptive			pra = (prate_adaptive)&priv->rate_adaptive;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
+	struct rate_adaptive *pra = (struct rate_adaptive *)&priv->rate_adaptive;
 	u32						currentRATR, targetRATR = 0;
 	u32						LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool						bshort_gi_enabled = false;
@@ -507,7 +507,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	{
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool						bHighpowerstate, viviflag = false;
-	DCMD_TXCMD_T			tx_cmd;
+	struct dcmd_txcmd tx_cmd;
 	u8					powerlevelOFDM24G;
 	int					i =0, j = 0, k = 0;
 	u8						RF_Type, tmp_report[5]={0, 0, 0, 0, 0};
@@ -534,7 +534,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	tx_cmd.Op		= TXCMD_SET_TX_PWR_TRACKING;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= Value;
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
+	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(struct dcmd_txcmd));
 	mdelay(1);
 	for (i = 0;i <= 30; i++)
 	{
@@ -884,7 +884,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 
 void	dm_txpower_trackingcallback(void *data)
 {
-	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,txpower_tracking_wq);
+	struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,txpower_tracking_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
 	if (priv->IC_Cut >= IC_VersionCut_D)
@@ -1801,7 +1801,7 @@ dm_change_rxpath_selection_setting(
 	s32		DM_Value)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	prate_adaptive	pRA = (prate_adaptive)&(priv->rate_adaptive);
+	struct rate_adaptive *pRA = (struct rate_adaptive *)&(priv->rate_adaptive);
 
 
 	if (DM_Type == 0)
@@ -1916,7 +1916,7 @@ void dm_FalseAlarmCounterStatistics(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ret_value;
-	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(priv->FalseAlmCnt);
+	struct false_alarm_stats *FalseAlmCnt = &(priv->FalseAlmCnt);
 
 	ret_value = rtl8192_QueryBBReg(dev, rOFDM_PHYCounter1, bMaskDWord);
         FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);
@@ -2493,7 +2493,7 @@ static void dm_check_edca_turbo(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 
 	static unsigned long			lastTxOkCnt = 0;
 	static unsigned long			lastRxOkCnt = 0;
@@ -2621,7 +2621,7 @@ static void dm_init_ctstoself(struct net_device * dev)
 static void dm_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 	static unsigned long				lastTxOkCnt = 0;
 	static unsigned long				lastRxOkCnt = 0;
 	unsigned long						curTxOkCnt = 0;
@@ -2655,7 +2655,7 @@ static	void
 dm_Init_WA_Broadcom_IOT(struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 
 	pHTInfo->bWAIotBroadcom = false;
 	pHTInfo->WAIotTH = WAIotTHVal;
@@ -2668,10 +2668,10 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 
 extern	void	dm_CheckRfCtrlGPIO(void *data)
 {
-       struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,gpio_change_rf_wq);
+       struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->rtllib->dev;
 	u8 tmp1byte;
-	RT_RF_POWER_STATE	eRfPowerStateToSet;
+	enum rt_rf_power_state eRfPowerStateToSet;
 	bool bActuallySet = false;
 
 	char *argv[3];
@@ -2735,7 +2735,7 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
 
 void	dm_rf_pathcheck_workitemcallback(void *data)
 {
-	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,rfpath_check_wq);
+	struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,rfpath_check_wq);
 	struct net_device *dev =priv->rtllib->dev;
 	u8 rfpath = 0, i;
 
@@ -3456,7 +3456,7 @@ static void dm_check_txrateandretrycount(struct net_device * dev)
 
 static void dm_send_rssi_tofw(struct net_device *dev)
 {
-	DCMD_TXCMD_T			tx_cmd;
+	struct dcmd_txcmd tx_cmd;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
@@ -3466,7 +3466,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
 
 	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
-								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
+								DESC_PACKET_TYPE_INIT, sizeof(struct dcmd_txcmd));
 }
 
 /*---------------------------Define function prototype------------------------*/

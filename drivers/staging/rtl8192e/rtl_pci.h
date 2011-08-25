@@ -54,7 +54,7 @@ static inline void NdisRawReadPortUlong(u32 port, u32 *pval)
 	*pval = inl(port);
 }
 
-typedef struct _mp_adapter{
+struct mp_adapter {
 	u8		LinkCtrlReg;
 
 	u8		BusNumber;
@@ -69,12 +69,12 @@ typedef struct _mp_adapter{
 	u16		PciBridgeDeviceId;
 	u8		PciBridgePCIeHdrOffset;
 	u8		PciBridgeLinkCtrlReg;
-}mp_adapter,*pmp_adapter;
+};//,*pmp_adapter;
 
-typedef struct _RT_PCI_CAPABILITIES_HEADER {
+struct rt_pci_capab_header {
     unsigned char   CapabilityID;
     unsigned char   Next;
-} RT_PCI_CAPABILITIES_HEADER, *PRT_PCI_CAPABILITIES_HEADER;
+};
 
 #define PCI_MAX_BRIDGE_NUMBER				255
 #define PCI_MAX_DEVICES						32

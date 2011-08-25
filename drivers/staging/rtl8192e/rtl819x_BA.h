@@ -36,16 +36,16 @@
 #define	DELBA_REASON_END_BA			37
 #define	DELBA_REASON_UNKNOWN_BA	38
 #define	DELBA_REASON_TIMEOUT			39
-typedef union _SEQUENCE_CONTROL{
+union sequence_control {
 	u16 ShortData;
 	struct
 	{
 		u16	FragNum:4;
 		u16	SeqNum:12;
 	}field;
-}SEQUENCE_CONTROL, *PSEQUENCE_CONTROL;
+};
 
-typedef union _BA_PARAM_SET {
+union ba_param_set {
 	u8 charData[2];
 	u16 shortData;
 	struct {
@@ -54,9 +54,9 @@ typedef union _BA_PARAM_SET {
 		u16 TID:4;
 		u16 BufferSize:10;
 	} field;
-} BA_PARAM_SET, *PBA_PARAM_SET;
+};
 
-typedef union _DELBA_PARAM_SET {
+union delba_param_set {
 	u8 charData[2];
 	u16 shortData;
 	struct {
@@ -64,15 +64,15 @@ typedef union _DELBA_PARAM_SET {
 		u16 Initiator:1;
 		u16 TID:4;
 	} field;
-} DELBA_PARAM_SET, *PDELBA_PARAM_SET;
+};
 
-typedef struct _BA_RECORD {
+struct ba_record {
 	struct timer_list		Timer;
 	u8				bValid;
 	u8				DialogToken;
-	BA_PARAM_SET		BaParamSet;
+	union ba_param_set BaParamSet;
 	u16				BaTimeoutValue;
-	SEQUENCE_CONTROL	BaStartSeqCtrl;
-} BA_RECORD, *PBA_RECORD;
+	union sequence_control BaStartSeqCtrl;
+};
 
 #endif

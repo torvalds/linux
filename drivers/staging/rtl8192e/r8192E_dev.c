@@ -61,7 +61,7 @@ void rtl8192e_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 msr;
-	LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
+	enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 	msr  = read_nic_byte(dev, MSR);
 	msr &= ~ MSR_LINK_MASK;
 
@@ -97,7 +97,7 @@ void rtl8192e_update_msr(struct net_device *dev)
 void
 rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 {
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 
 	switch (variable)
 	{
@@ -109,8 +109,8 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 		case HW_VAR_MEDIA_STATUS:
 		{
-			RT_OP_MODE	OpMode = *((RT_OP_MODE *)(val));
-			LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
+			enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
+			enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 			u8		btMsr = read_nic_byte(dev, MSR);
 
 			btMsr &= 0xfc;
@@ -235,14 +235,14 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			struct rtllib_qos_parameters *qos_parameters = &priv->rtllib->current_network.qos_data.parameters;
 			u8	pAcParam = *((u8*)val);
 			u32	eACI = pAcParam;
-			PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
-			u8		ACM = pAciAifsn->f.ACM;
+			union aci_aifsn *pAciAifsn = (union aci_aifsn *)&(qos_parameters->aifs[0]);
+			u8		acm = pAciAifsn->f.acm;
 			u8		AcmCtrl = read_nic_byte( dev, AcmHwCtrl);
 
 			RT_TRACE(COMP_DBG, "===========>%s():HW_VAR_ACM_CTRL:%x\n", __func__,eACI);
 			AcmCtrl = AcmCtrl | ((priv->AcmMethod == 2)?0x0:0x1);
 
-			if ( ACM )
+			if (acm)
 			{
 				switch (eACI)
 				{
@@ -259,7 +259,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 					break;
 
 				default:
-					RT_TRACE( COMP_QOS, "SetHwReg8185(): [HW_VAR_ACM_CTRL] ACM set failed: eACI is %d\n", eACI );
+					RT_TRACE( COMP_QOS, "SetHwReg8185(): [HW_VAR_ACM_CTRL] acm set failed: eACI is %d\n", eACI );
 					break;
 				}
 			}
@@ -1004,7 +1004,7 @@ void rtl8192_link_change(struct net_device *dev)
 void rtl8192_AllowAllDestAddr(struct net_device* dev,
                         bool bAllowAllDA, bool WriteIntoReg)
 {
-        struct r8192_priv* priv = rtllib_priv(dev);
+        struct r8192_priv * priv = rtllib_priv(dev);
 
         if (bAllowAllDA)
                 priv->ReceiveConfig |= RCR_AAP;
@@ -1155,13 +1155,13 @@ u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
 }
 
 
-void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb_desc, struct sk_buff* skb)
+void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, struct cb_desc *cb_desc, struct sk_buff* skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
-    TX_FWINFO_8190PCI *pTxFwInfo = NULL;
-    pTxFwInfo = (PTX_FWINFO_8190PCI)skb->data;
-    memset(pTxFwInfo,0,sizeof(TX_FWINFO_8190PCI));
+    struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
+    pTxFwInfo = (struct tx_fwinfo_8190pci *)skb->data;
+    memset(pTxFwInfo,0,sizeof(struct tx_fwinfo_8190pci));
     pTxFwInfo->TxHT = (cb_desc->data_rate&0x80)?1:0;
     pTxFwInfo->TxRate = MRateToHwRate8190Pci((u8)cb_desc->data_rate);
     pTxFwInfo->EnableCPUDur = cb_desc->bTxEnableFwCalcDur;
@@ -1205,8 +1205,8 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
     memset((u8*)pdesc,0,12);
     pdesc->LINIP = 0;
     pdesc->CmdInit = 1;
-    pdesc->Offset = sizeof(TX_FWINFO_8190PCI) + 8;
-    pdesc->PktSize = (u16)skb->len-sizeof(TX_FWINFO_8190PCI);
+    pdesc->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
+    pdesc->PktSize = (u16)skb->len-sizeof(struct tx_fwinfo_8190pci);
 
     pdesc->SecCAMID= 0;
     pdesc->RATid = cb_desc->RATRIndex;
@@ -1244,7 +1244,7 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
     pdesc->PktId = 0x0;
 
     pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(cb_desc->queue_index, cb_desc->priority);
-    pdesc->TxFWInfoSize = sizeof(TX_FWINFO_8190PCI);
+    pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
 
     pdesc->DISFB = cb_desc->bTxDisableRateFallBack;
     pdesc->USERATE = cb_desc->bTxUseDriverAssingedRate;
@@ -1256,8 +1256,8 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
     pdesc->TxBuffAddr = cpu_to_le32(mapping);
 }
 
-void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, tx_desc_cmd * entry,
-		cb_desc * cb_desc, struct sk_buff* skb)
+void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, struct tx_desc_cmd * entry,
+		struct cb_desc *cb_desc, struct sk_buff* skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
@@ -1269,9 +1269,9 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, tx_desc_cmd * entry,
     if (cb_desc->bCmdOrInit == DESC_PACKET_TYPE_INIT) {
         entry->CmdInit = DESC_PACKET_TYPE_INIT;
     } else {
-	tx_desc* entry_tmp = (tx_desc*)entry;
+	struct tx_desc * entry_tmp = (struct tx_desc *)entry;
         entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
-        entry_tmp->Offset = sizeof(TX_FWINFO_8190PCI) + 8;
+        entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
         entry_tmp->PktSize = (u16)(cb_desc->pkt_size + entry_tmp->Offset);
         entry_tmp->QueueSelect = QSLT_CMD;
         entry_tmp->TxFWInfoSize = 0x08;
@@ -1396,8 +1396,8 @@ rtl8192_signal_scale_mapping(struct r8192_priv * priv,
 void rtl8192_query_rxphystatus(
 	struct r8192_priv * priv,
 	struct rtllib_rx_stats * pstats,
-	prx_desc  pdesc,
-	prx_fwinfo   pdrvinfo,
+	struct rx_desc  *pdesc,
+	struct rx_fwinfo   *pdrvinfo,
 	struct rtllib_rx_stats * precord_stats,
 	bool bpacket_match_bssid,
 	bool bpacket_toself,
@@ -1405,9 +1405,9 @@ void rtl8192_query_rxphystatus(
 	bool bToSelfBA
 	)
 {
-	phy_sts_ofdm_819xpci_t* pofdm_buf;
-	phy_sts_cck_819xpci_t	*	pcck_buf;
-	phy_ofdm_rx_status_rxsc_sgien_exintfflag* prxsc;
+	struct phy_sts_ofdm_819xpci* pofdm_buf;
+	struct phy_sts_cck_819xpci *	pcck_buf;
+	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag * prxsc;
 	u8				*prxpkt;
 	u8				i,max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
 	char				rx_pwr[4], rx_pwr_all=0;
@@ -1439,10 +1439,10 @@ void rtl8192_query_rxphystatus(
 
 	prxpkt = (u8*)pdrvinfo;
 
-	prxpkt += sizeof(rx_fwinfo);
+	prxpkt += sizeof(struct rx_fwinfo);
 
-	pcck_buf = (phy_sts_cck_819xpci_t *)prxpkt;
-	pofdm_buf = (phy_sts_ofdm_819xpci_t *)prxpkt;
+	pcck_buf = (struct phy_sts_cck_819xpci *)prxpkt;
+	pofdm_buf = (struct phy_sts_ofdm_819xpci *)prxpkt;
 
 	pstats->RxMIMOSignalQuality[0] = -1;
 	pstats->RxMIMOSignalQuality[1] = -1;
@@ -1580,7 +1580,7 @@ void rtl8192_query_rxphystatus(
 
 
 		rxsc_sgien_exflg = pofdm_buf->rxsc_sgien_exflg;
-		prxsc = (phy_ofdm_rx_status_rxsc_sgien_exintfflag *)&rxsc_sgien_exflg;
+		prxsc = (struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *)&rxsc_sgien_exflg;
 		if (pdrvinfo->BW)
 			priv->stats.received_bwtype[1+prxsc->rxsc]++;
 		else
@@ -1599,7 +1599,7 @@ void rtl8192_query_rxphystatus(
 	}
 }
 
-void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct rtllib_rx_stats * pprevious_stats, struct rtllib_rx_stats * pcurrent_stats)
+void rtl8192_process_phyinfo(struct r8192_priv * priv, u8 *buffer,struct rtllib_rx_stats * pprevious_stats, struct rtllib_rx_stats * pcurrent_stats)
 {
 	bool bcheck = false;
 	u8	rfpath;
@@ -1768,8 +1768,8 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct rtllib_
 void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
         struct sk_buff *skb,
         struct rtllib_rx_stats * pstats,
-        prx_desc pdesc,
-        prx_fwinfo pdrvinfo)
+        struct rx_desc *pdesc,
+        struct rx_fwinfo *pdrvinfo)
 {
     struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
     bool bpacket_match_bssid, bpacket_toself;
@@ -1871,7 +1871,7 @@ void rtl8192_UpdateReceivedRateHistogramStatistics(
 }
 
 bool rtl8192_rx_query_status_desc(struct net_device* dev, struct rtllib_rx_stats*  stats,
-		rx_desc *pdesc, struct sk_buff* skb)
+		struct rx_desc *pdesc, struct sk_buff* skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1896,12 +1896,12 @@ bool rtl8192_rx_query_status_desc(struct net_device* dev, struct rtllib_rx_stats
 		}
 		return false;
 	} else {
-		prx_fwinfo pDrvInfo = NULL;
+		struct rx_fwinfo *pDrvInfo = NULL;
 		stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
 		stats->RxBufShift = ((pdesc->Shift)&0x03);
 		stats->Decrypted = !pdesc->SWDec;
 
-		pDrvInfo = (rx_fwinfo *)(skb->data + stats->RxBufShift);
+		pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
 
 		stats->rate = HwRateToMRate90((bool)pDrvInfo->RxHT, (u8)pDrvInfo->RxRate);
 		stats->bShortPreamble = pDrvInfo->SPLCP;
@@ -2001,7 +2001,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 
 void rtl8192_update_ratr_table(struct net_device* dev)
 {
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
 	u8* pMcsRate = ieee->dot11HTOperationalRateSet;
 	u32 ratr_value = 0;
@@ -2057,7 +2057,7 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE /* |
 		IEEE_SOFTMAC_BEACONS*/;
 
-	priv->rtllib->tx_headroom = sizeof(TX_FWINFO_8190PCI);
+	priv->rtllib->tx_headroom = sizeof(struct tx_fwinfo_8190pci);
 
 	priv->ShortRetryLimit = 0x30;
 	priv->LongRetryLimit = 0x30;
@@ -2254,7 +2254,7 @@ bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
 bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device* dev)
 {
 	bool			Reval;
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
 
 	if (ieee->bHalfWirelessN24GMode == true)
@@ -2265,7 +2265,7 @@ bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device* dev)
 	return Reval;
 }
 
-u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
+u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 {
 	u8   tmp_Short;
 
@@ -2279,11 +2279,11 @@ u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
 void
 ActUpdateChannelAccessSetting(
 	struct net_device*			dev,
-	WIRELESS_MODE			WirelessMode,
-	PCHANNEL_ACCESS_SETTING	ChnlAccessSetting
+	enum wireless_mode WirelessMode,
+	struct channel_access_setting *ChnlAccessSetting
 	)
 {
-		struct r8192_priv* priv = rtllib_priv(dev);
+		struct r8192_priv * priv = rtllib_priv(dev);
 
 		return;
 
