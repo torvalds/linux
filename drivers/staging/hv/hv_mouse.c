@@ -336,7 +336,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 
 	if (!input_device->hid_desc) {
 		pr_err("unable to allocate hid descriptor - size %d", desc->bLength);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	memcpy(input_device->hid_desc, desc, desc->bLength);
@@ -349,7 +349,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	if (!input_device->report_desc) {
 		pr_err("unable to allocate report descriptor - size %d",
 			   input_device->report_desc_size);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	memcpy(input_device->report_desc,
@@ -376,7 +376,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	if (ret != 0) {
 		pr_err("unable to send synthhid device info ack - ret %d",
 			   ret);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	input_device->device_wait_condition = 1;
@@ -384,7 +384,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 
 	return;
 
-Cleanup:
+cleanup:
 	kfree(input_device->hid_desc);
 	input_device->hid_desc = NULL;
 
@@ -603,7 +603,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 					VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		pr_err("unable to send synthhid protocol request.");
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	input_dev->protocol_wait_condition = 0;
@@ -611,7 +611,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		input_dev->protocol_wait_condition, msecs_to_jiffies(1000));
 	if (input_dev->protocol_wait_condition == 0) {
 		ret = -ETIMEDOUT;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	response = &input_dev->protocol_resp;
@@ -620,7 +620,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		pr_err("synthhid protocol request failed (version %d)",
 		       SYNTHHID_INPUT_VERSION);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	input_dev->device_wait_condition = 0;
@@ -628,7 +628,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		input_dev->device_wait_condition, msecs_to_jiffies(1000));
 	if (input_dev->device_wait_condition == 0) {
 		ret = -ETIMEDOUT;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/*
@@ -640,7 +640,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	else
 		ret = -1;
 
-Cleanup:
+cleanup:
 	put_input_device(device);
 
 	return ret;
@@ -658,7 +658,7 @@ static int mousevsc_on_device_add(struct hv_device *device,
 
 	if (!input_dev) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	input_dev->init_complete = false;
@@ -711,7 +711,7 @@ static int mousevsc_on_device_add(struct hv_device *device,
 
 	input_dev->init_complete = true;
 
-Cleanup:
+cleanup:
 	return ret;
 }
 
