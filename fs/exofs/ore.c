@@ -427,17 +427,6 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 	int ret = 0;
 
 	if (!ios->pages) {
-		if (ios->kern_buff) {
-			struct ore_per_dev_state *per_dev = &ios->per_dev[0];
-
-			per_dev->offset = si->obj_offset;
-			per_dev->dev = si->dev;
-
-			/* no cross device without page array */
-			BUG_ON((ios->layout->group_width > 1) &&
-			       (si->unit_off + ios->length >
-				ios->layout->stripe_unit));
-		}
 		ios->numdevs = ios->layout->mirrors_p1;
 		return 0;
 	}
@@ -557,7 +546,6 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 			goto out;
 		}
 		per_dev->or = or;
-		per_dev->offset = master_dev->offset;
 
 		if (ios->pages) {
 			struct bio *bio;
@@ -576,6 +564,7 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 				__bio_clone(bio, master_dev->bio);
 				bio->bi_bdev = NULL;
 				bio->bi_next = NULL;
+				per_dev->offset = master_dev->offset;
 				per_dev->length = master_dev->length;
 				per_dev->bio =  bio;
 				per_dev->dev = dev;
@@ -593,7 +582,15 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 				     _LLU(per_dev->offset),
 				     _LLU(per_dev->length), dev);
 		} else if (ios->kern_buff) {
-			ret = osd_req_write_kern(or, _ios_obj(ios, dev),
+			per_dev->offset = ios->si.obj_offset;
+			per_dev->dev = ios->si.dev + dev;
+
+			/* no cross device without page array */
+			BUG_ON((ios->layout->group_width > 1) &&
+			       (ios->si.unit_off + ios->length >
+				ios->layout->stripe_unit));
+
+			ret = osd_req_write_kern(or, _ios_obj(ios, per_dev->dev),
 						 per_dev->offset,
 						 ios->kern_buff, ios->length);
 			if (unlikely(ret))
@@ -602,7 +599,7 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 				      "length=0x%llx dev=%d\n",
 				     _LLU(_ios_obj(ios, dev)->id),
 				     _LLU(per_dev->offset),
-				     _LLU(ios->length), dev);
+				     _LLU(ios->length), per_dev->dev);
 		} else {
 			osd_req_set_attributes(or, _ios_obj(ios, dev));
 			ORE_DBGMSG2("obj(0x%llx) set_attributes=%d dev=%d\n",
@@ -668,16 +665,9 @@ static int _read_mirror(struct ore_io_state *ios, unsigned cur_comp)
 			     " dev=%d\n", _LLU(obj->id),
 			     _LLU(per_dev->offset), _LLU(per_dev->length),
 			     first_dev);
-	} else if (ios->kern_buff) {
-		int ret = osd_req_read_kern(or, obj, per_dev->offset,
-					    ios->kern_buff, ios->length);
-		ORE_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
-			      "length=0x%llx dev=%d ret=>%d\n",
-			      _LLU(obj->id), _LLU(per_dev->offset),
-			      _LLU(ios->length), first_dev, ret);
-		if (unlikely(ret))
-			return ret;
 	} else {
+		BUG_ON(ios->kern_buff);
+
 		osd_req_get_attributes(or, obj);
 		ORE_DBGMSG2("obj(0x%llx) get_attributes=%d dev=%d\n",
 			      _LLU(obj->id),
