@@ -1281,6 +1281,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 	struct sdma_platform_data *pdata = pdev->dev.platform_data;
 	int i;
 	struct sdma_engine *sdma;
+	s32 *saddr_arr;
 
 	sdma = kzalloc(sizeof(*sdma), GFP_KERNEL);
 	if (!sdma)
@@ -1323,6 +1324,11 @@ static int __init sdma_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
+
+	/* initially no scripts available */
+	saddr_arr = (s32 *)sdma->script_addrs;
+	for (i = 0; i < SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1; i++)
+		saddr_arr[i] = -EINVAL;
 
 	if (of_id)
 		pdev->id_entry = of_id->data;
