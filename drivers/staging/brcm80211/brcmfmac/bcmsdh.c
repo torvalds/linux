@@ -86,8 +86,7 @@ brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev, const char *name,
 	if (!set && !(arg && len))
 		return -EINVAL;
 
-	BRCMF_TRACE(("%s: Enter (%s %s)\n", __func__, (set ? "set" : "get"),
-		  name));
+	brcmf_dbg(TRACE, "Enter (%s %s)\n", set ? "set" : "get", name);
 
 	vi = brcmu_iovar_lookup(sdioh_iovars, name);
 	if (vi == NULL) {
@@ -168,7 +167,7 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 {
 	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
 
-	BRCMF_TRACE(("brcmf: ***IRQHandler\n"));
+	brcmf_dbg(TRACE, "***IRQHandler\n");
 
 	sdio_release_host(func);
 
@@ -179,7 +178,7 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
 {
-	BRCMF_TRACE(("%s: Entering\n", __func__));
+	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
 	sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
@@ -190,7 +189,7 @@ int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
 
 int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
 {
-	BRCMF_TRACE(("%s: Entering\n", __func__));
+	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
 	sdio_release_irq(sdiodev->func[1]);
@@ -216,8 +215,8 @@ u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 	if (err)
 		*err = status;
 
-	BRCMF_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
-		     __func__, fnc_num, addr, data));
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, u8data = 0x%x\n",
+		  fnc_num, addr, data);
 
 	return data;
 }
@@ -239,8 +238,8 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 	if (err)
 		*err = status;
 
-	BRCMF_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
-		     __func__, fnc_num, addr, data));
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, u8data = 0x%x\n",
+		  fnc_num, addr, data);
 }
 
 int brcmf_sdcard_cis_read(struct brcmf_sdio_dev *sdiodev, uint func, u8 * cis,
@@ -260,7 +259,7 @@ int brcmf_sdcard_cis_read(struct brcmf_sdio_dev *sdiodev, uint func, u8 * cis,
 			 into the provided buffer. */
 		tmp_buf = kmalloc(length, GFP_ATOMIC);
 		if (tmp_buf == NULL) {
-			BRCMF_ERROR(("%s: out of memory\n", __func__));
+			brcmf_dbg(ERROR, "out of memory\n");
 			return -ENOMEM;
 		}
 		memcpy(tmp_buf, cis, length);
@@ -302,7 +301,7 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
 	u32 word = 0;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 
-	BRCMF_INFO(("%s:fun = 1, addr = 0x%x, ", __func__, addr));
+	brcmf_dbg(INFO, "fun = 1, addr = 0x%x\n", addr);
 
 	if (bar0 != sdiodev->sbwad) {
 		if (brcmf_sdcard_set_sbaddr_window(sdiodev, bar0))
@@ -320,7 +319,7 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
 
 	sdiodev->regfail = (status != 0);
 
-	BRCMF_INFO(("u32data = 0x%x\n", word));
+	brcmf_dbg(INFO, "u32data = 0x%x\n", word);
 
 	/* if ok, return appropriately masked word */
 	if (status == 0) {
@@ -338,8 +337,7 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
 	}
 
 	/* otherwise, bad sdio access or invalid size */
-	BRCMF_ERROR(("%s: error reading addr 0x%04x size %d\n", __func__,
-		      addr, size));
+	brcmf_dbg(ERROR, "error reading addr 0x%04x size %d\n", addr, size);
 	return 0xFFFFFFFF;
 }
 
@@ -350,8 +348,8 @@ u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	BRCMF_INFO(("%s:fun = 1, addr = 0x%x, uint%ddata = 0x%x\n",
-		     __func__, addr, size * 8, data));
+	brcmf_dbg(INFO, "fun = 1, addr = 0x%x, uint%ddata = 0x%x\n",
+		  addr, size * 8, data);
 
 	if (bar0 != sdiodev->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
@@ -372,8 +370,8 @@ u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
 	if (status == 0)
 		return 0;
 
-	BRCMF_ERROR(("%s: error writing 0x%08x to addr 0x%04x size %d\n",
-		      __func__, data, addr, size));
+	brcmf_dbg(ERROR, "error writing 0x%08x to addr 0x%04x size %d\n",
+		  data, addr, size);
 	return 0xFFFFFFFF;
 }
 
@@ -393,8 +391,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	BRCMF_INFO(("%s:fun = %d, addr = 0x%x, size = %d\n",
-		     __func__, fn, addr, nbytes));
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n", fn, addr, nbytes);
 
 	/* Async not implemented yet */
 	if (flags & SDIO_REQ_ASYNC)
@@ -430,8 +427,7 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	BRCMF_INFO(("%s:fun = %d, addr = 0x%x, size = %d\n",
-		     __func__, fn, addr, nbytes));
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n", fn, addr, nbytes);
 
 	/* Async not implemented yet */
 	if (flags & SDIO_REQ_ASYNC)
@@ -470,13 +466,13 @@ int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 {
 	char t_func = (char)fn;
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	/* issue abort cmd52 command through F0 */
 	brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
 				 SDIO_CCCR_ABORT, &t_func);
 
-	BRCMF_TRACE(("%s: Exit\n", __func__));
+	brcmf_dbg(TRACE, "Exit\n");
 	return 0;
 }
 
@@ -502,7 +498,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* try to attach to the target device */
 	sdiodev->bus = brcmf_sdbrcm_probe(0, 0, 0, 0, regs, sdiodev);
 	if (!sdiodev->bus) {
-		BRCMF_ERROR(("%s: device attach failed\n", __func__));
+		brcmf_dbg(ERROR, "device attach failed\n");
 		ret = -ENODEV;
 		goto out;
 	}

@@ -104,7 +104,7 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 	int len = le32_to_cpu(prot->msg.len) +
 			sizeof(struct brcmf_proto_cdc_ioctl);
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	/* NOTE : cdc->msg.len holds the desired length of the buffer to be
 	 *        returned. Only up to CDC_MAX_MSG_SIZE of this buffer area
@@ -123,7 +123,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	int ret;
 	struct brcmf_proto *prot = drvr->prot;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	do {
 		ret = brcmf_sdbrcm_bus_rxctl(drvr->bus,
@@ -146,8 +146,8 @@ brcmf_proto_cdc_query_ioctl(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	int ret = 0, retries = 0;
 	u32 id, flags = 0;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
-	BRCMF_CTL(("%s: cmd %d len %d\n", __func__, cmd, len));
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CTL, "cmd %d len %d\n", cmd, len);
 
 	/* Respond "bcmerror" and "bcmerrorstr" with local cache */
 	if (cmd == BRCMF_C_GET_VAR && buf) {
@@ -174,8 +174,8 @@ brcmf_proto_cdc_query_ioctl(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	ret = brcmf_proto_cdc_msg(drvr);
 	if (ret < 0) {
-		BRCMF_ERROR(("brcmf_proto_cdc_query_ioctl: brcmf_proto_cdc_msg "
-			     "failed w/status %d\n", ret));
+		brcmf_dbg(ERROR, "brcmf_proto_cdc_msg failed w/status %d\n",
+			  ret);
 		goto done;
 	}
 
@@ -191,9 +191,8 @@ retry:
 	if ((id < prot->reqid) && (++retries < RETRIES))
 		goto retry;
 	if (id != prot->reqid) {
-		BRCMF_ERROR(("%s: %s: unexpected request id %d (expected %d)\n",
-			     brcmf_ifname(drvr, ifidx), __func__, id,
-			     prot->reqid));
+		brcmf_dbg(ERROR, "%s: unexpected request id %d (expected %d)\n",
+			  brcmf_ifname(drvr, ifidx), id, prot->reqid);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -227,8 +226,8 @@ int brcmf_proto_cdc_set_ioctl(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	int ret = 0;
 	u32 flags, id;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
-	BRCMF_CTL(("%s: cmd %d len %d\n", __func__, cmd, len));
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CTL, "cmd %d len %d\n", cmd, len);
 
 	memset(msg, 0, sizeof(struct brcmf_proto_cdc_ioctl));
 
@@ -253,9 +252,8 @@ int brcmf_proto_cdc_set_ioctl(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	id = (flags & CDCF_IOC_ID_MASK) >> CDCF_IOC_ID_SHIFT;
 
 	if (id != prot->reqid) {
-		BRCMF_ERROR(("%s: %s: unexpected request id %d (expected %d)\n",
-			     brcmf_ifname(drvr, ifidx), __func__, id,
-			     prot->reqid));
+		brcmf_dbg(ERROR, "%s: unexpected request id %d (expected %d)\n",
+			  brcmf_ifname(drvr, ifidx), id, prot->reqid);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -279,25 +277,23 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 	int ret = -1;
 
 	if (drvr->busstate == BRCMF_BUS_DOWN) {
-		BRCMF_ERROR(("%s : bus is down. we have nothing to do\n",
-			     __func__));
+		brcmf_dbg(ERROR, "bus is down. we have nothing to do.\n");
 		return ret;
 	}
 	brcmf_os_proto_block(drvr);
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	if (len > BRCMF_C_IOCTL_MAXLEN)
 		goto done;
 
 	if (prot->pending == true) {
-		BRCMF_TRACE(("CDC packet is pending!!!! cmd=0x%x (%lu) "
-			     "lastcmd=0x%x (%lu)\n",
-			     ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
-			     (unsigned long)prot->lastcmd));
+		brcmf_dbg(TRACE, "CDC packet is pending!!!! cmd=0x%x (%lu) lastcmd=0x%x (%lu)\n",
+			  ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
+			  (unsigned long)prot->lastcmd);
 		if ((ioc->cmd == BRCMF_C_SET_VAR) ||
 		    (ioc->cmd == BRCMF_C_GET_VAR))
-			BRCMF_TRACE(("iovar cmd=%s\n", (char *)buf));
+			brcmf_dbg(TRACE, "iovar cmd=%s\n", (char *)buf);
 
 		goto done;
 	}
@@ -358,7 +354,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 {
 	struct brcmf_proto_bdc_header *h;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Push BDC header used to convey priority for buses that don't */
 
@@ -381,13 +377,13 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, int *ifidx,
 {
 	struct brcmf_proto_bdc_header *h;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Pop BDC header used to convey priority for buses that don't */
 
 	if (pktbuf->len < BDC_HEADER_LEN) {
-		BRCMF_ERROR(("%s: rx data too short (%d < %d)\n", __func__,
-			     pktbuf->len, BDC_HEADER_LEN));
+		brcmf_dbg(ERROR, "rx data too short (%d < %d)\n",
+			  pktbuf->len, BDC_HEADER_LEN);
 		return -EBADE;
 	}
 
@@ -395,22 +391,20 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, int *ifidx,
 
 	*ifidx = BDC_GET_IF_IDX(h);
 	if (*ifidx >= BRCMF_MAX_IFS) {
-		BRCMF_ERROR(("%s: rx data ifnum out of range (%d)\n",
-			     __func__, *ifidx));
+		brcmf_dbg(ERROR, "rx data ifnum out of range (%d)\n", *ifidx);
 		return -EBADE;
 	}
 
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) !=
 	    BDC_PROTO_VER) {
-		BRCMF_ERROR(("%s: non-BDC packet received, flags 0x%x\n",
-			     brcmf_ifname(drvr, *ifidx), h->flags));
+		brcmf_dbg(ERROR, "%s: non-BDC packet received, flags 0x%x\n",
+			  brcmf_ifname(drvr, *ifidx), h->flags);
 		return -EBADE;
 	}
 
 	if (h->flags & BDC_FLAG_SUM_GOOD) {
-		BRCMF_INFO(("%s: BDC packet received with good rx-csum, "
-			    "flags 0x%x\n",
-			    brcmf_ifname(drvr, *ifidx), h->flags));
+		brcmf_dbg(INFO, "%s: BDC packet received with good rx-csum, flags 0x%x\n",
+			  brcmf_ifname(drvr, *ifidx), h->flags);
 		PKTSETSUMGOOD(pktbuf, true);
 	}
 
@@ -427,13 +421,13 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 
 	cdc = kzalloc(sizeof(struct brcmf_proto), GFP_ATOMIC);
 	if (!cdc) {
-		BRCMF_ERROR(("%s: kmalloc failed\n", __func__));
+		brcmf_dbg(ERROR, "kmalloc failed\n");
 		goto fail;
 	}
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
 	if ((unsigned long)(&cdc->msg + 1) != (unsigned long)cdc->buf) {
-		BRCMF_ERROR(("struct brcmf_proto is not correctly defined\n"));
+		brcmf_dbg(ERROR, "struct brcmf_proto is not correctly defined\n");
 		goto fail;
 	}
 
@@ -472,7 +466,7 @@ int brcmf_proto_init(struct brcmf_pub *drvr)
 	int ret = 0;
 	char buf[128];
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	brcmf_os_proto_block(drvr);
 

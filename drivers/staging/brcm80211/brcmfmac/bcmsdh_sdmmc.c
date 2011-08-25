@@ -111,21 +111,21 @@ static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 	u32 fbraddr;
 	u8 func;
 
-	BRCMF_TRACE(("%s\n", __func__));
+	brcmf_dbg(TRACE, "\n");
 
 	/* Get the Card's common CIS address */
 	sdiodev->func_cis_ptr[0] = brcmf_sdioh_get_cisaddr(sdiodev,
 							   SDIO_CCCR_CIS);
-	BRCMF_INFO(("%s: Card's Common CIS Ptr = 0x%x\n", __func__,
-		 sdiodev->func_cis_ptr[0]));
+	brcmf_dbg(INFO, "Card's Common CIS Ptr = 0x%x\n",
+		  sdiodev->func_cis_ptr[0]);
 
 	/* Get the Card's function CIS (for each function) */
 	for (fbraddr = SDIO_FBR_BASE(1), func = 1;
 	     func <= sdiodev->num_funcs; func++, fbraddr += SDIOD_FBR_SIZE) {
 		sdiodev->func_cis_ptr[func] =
 		    brcmf_sdioh_get_cisaddr(sdiodev, SDIO_FBR_CIS + fbraddr);
-		BRCMF_INFO(("%s: Function %d CIS Ptr = 0x%x\n", __func__, func,
-			 sdiodev->func_cis_ptr[func]));
+		brcmf_dbg(INFO, "Function %d CIS Ptr = 0x%x\n",
+			  func, sdiodev->func_cis_ptr[func]);
 	}
 
 	/* Enable Function 1 */
@@ -133,8 +133,7 @@ static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 	err_ret = sdio_enable_func(sdiodev->func[1]);
 	sdio_release_host(sdiodev->func[1]);
 	if (err_ret)
-		BRCMF_ERROR(("brcmf_sdioh_enablefuncs: Failed to enable F1 "
-			"Err: 0x%08x\n", err_ret));
+		brcmf_dbg(ERROR, "Failed to enable F1 Err: 0x%08x\n", err_ret);
 
 	return false;
 }
@@ -146,7 +145,7 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 {
 	int err_ret = 0;
 
-	BRCMF_TRACE(("%s\n", __func__));
+	brcmf_dbg(TRACE, "\n");
 
 	sdiodev->num_funcs = 2;
 
@@ -154,7 +153,7 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	err_ret = sdio_set_block_size(sdiodev->func[1], 64);
 	sdio_release_host(sdiodev->func[1]);
 	if (err_ret) {
-		BRCMF_ERROR(("%s: Failed to set F1 blocksize\n", __func__));
+		brcmf_dbg(ERROR, "Failed to set F1 blocksize\n");
 		goto out;
 	}
 
@@ -162,21 +161,21 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	err_ret = sdio_set_block_size(sdiodev->func[2], sd_f2_blocksize);
 	sdio_release_host(sdiodev->func[2]);
 	if (err_ret) {
-		BRCMF_ERROR(("%s: Failed to set F2 blocksize"
-			" to %d\n", __func__, sd_f2_blocksize));
+		brcmf_dbg(ERROR, "Failed to set F2 blocksize to %d\n",
+			  sd_f2_blocksize);
 		goto out;
 	}
 
 	brcmf_sdioh_enablefuncs(sdiodev);
 
 out:
-	BRCMF_TRACE(("%s: Done\n", __func__));
+	brcmf_dbg(TRACE, "Done\n");
 	return err_ret;
 }
 
 void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 {
-	BRCMF_TRACE(("%s\n", __func__));
+	brcmf_dbg(TRACE, "\n");
 
 	/* Disable Function 2 */
 	sdio_claim_host(sdiodev->func[2]);
@@ -199,7 +198,7 @@ static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 	for (i = 0; i < 3; i++) {
 		if ((brcmf_sdioh_card_regread(sdiodev, 0, regaddr, 1,
 				&regdata)) != SUCCESS)
-			BRCMF_ERROR(("%s: Can't read!\n", __func__));
+			brcmf_dbg(ERROR, "Can't read!\n");
 
 		*ptr++ = (u8) regdata;
 		regaddr++;
@@ -220,22 +219,21 @@ brcmf_sdioh_cis_read(struct brcmf_sdio_dev *sdiodev, uint func,
 	u32 foo;
 	u8 *cis = cisd;
 
-	BRCMF_TRACE(("%s: Func = %d\n", __func__, func));
+	brcmf_dbg(TRACE, "Func = %d\n", func);
 
 	if (!sdiodev->func_cis_ptr[func]) {
 		memset(cis, 0, length);
-		BRCMF_ERROR(("%s: no func_cis_ptr[%d]\n", __func__, func));
+		brcmf_dbg(ERROR, "no func_cis_ptr[%d]\n", func);
 		return -ENOTSUPP;
 	}
 
-	BRCMF_ERROR(("%s: func_cis_ptr[%d]=0x%04x\n", __func__, func,
-		sdiodev->func_cis_ptr[func]));
+	brcmf_dbg(ERROR, "func_cis_ptr[%d]=0x%04x\n",
+		  func, sdiodev->func_cis_ptr[func]);
 
 	for (count = 0; count < length; count++) {
 		offset = sdiodev->func_cis_ptr[func] + count;
 		if (brcmf_sdioh_card_regread(sdiodev, 0, offset, 1, &foo) < 0) {
-			BRCMF_ERROR(("%s: regread failed: Can't read CIS\n",
-				__func__));
+			brcmf_dbg(ERROR, "regread failed: Can't read CIS\n");
 			return -EIO;
 		}
 
@@ -252,8 +250,7 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 {
 	int err_ret;
 
-	BRCMF_INFO(("%s: rw=%d, func=%d, addr=0x%05x\n", __func__, rw, func,
-		 regaddr));
+	brcmf_dbg(INFO, "rw=%d, func=%d, addr=0x%05x\n", rw, func, regaddr);
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_byte_wait, sdiodev);
 	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
@@ -272,22 +269,18 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 						    sdio_enable_func
 						    (sdiodev->func[2]);
 						if (err_ret)
-							BRCMF_ERROR((
-								"request_byte: "
-								"enable F2 "
-								"failed:%d\n",
-								 err_ret));
+							brcmf_dbg(ERROR,
+								  "enable F2 failed:%d\n",
+								  err_ret);
 					} else {
 						/* Disable Function 2 */
 						err_ret =
 						    sdio_disable_func
 						    (sdiodev->func[2]);
 						if (err_ret)
-							BRCMF_ERROR((
-								"request_byte: "
-								"Disab F2 "
-								"failed:%d\n",
-								 err_ret));
+							brcmf_dbg(ERROR,
+								  "Disable F2 failed:%d\n",
+								  err_ret);
 					}
 					sdio_release_host(sdiodev->func[2]);
 				}
@@ -305,8 +298,8 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 					    regaddr, &err_ret);
 				sdio_release_host(sdiodev->func[func]);
 			} else if (regaddr < 0xF0) {
-				BRCMF_ERROR(("brcmf: F0 Wr:0x%02x: write "
-					"disallowed\n", regaddr));
+				brcmf_dbg(ERROR, "F0 Wr:0x%02x: write disallowed\n",
+					  regaddr);
 			} else {
 				/* Claim host controller, perform F0 write,
 				 and release */
@@ -341,9 +334,8 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 	}
 
 	if (err_ret)
-		BRCMF_ERROR(("brcmf: Failed to %s byte F%d:@0x%05x=%02x, "
-			"Err: %d\n", rw ? "Write" : "Read", func, regaddr,
-			*byte, err_ret));
+		brcmf_dbg(ERROR, "Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
+			  rw ? "write" : "read", func, regaddr, *byte, err_ret);
 
 	return err_ret;
 }
@@ -355,12 +347,12 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 	int err_ret = -EIO;
 
 	if (func == 0) {
-		BRCMF_ERROR(("%s: Only CMD52 allowed to F0.\n", __func__));
+		brcmf_dbg(ERROR, "Only CMD52 allowed to F0\n");
 		return -EINVAL;
 	}
 
-	BRCMF_INFO(("%s: cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
-		 __func__, cmd_type, rw, func, addr, nbytes));
+	brcmf_dbg(INFO, "cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
+		  cmd_type, rw, func, addr, nbytes);
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_word_wait, sdiodev);
 	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
@@ -375,8 +367,7 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 			sdio_writew(sdiodev->func[func], (*word & 0xFFFF),
 				    addr, &err_ret);
 		else
-			BRCMF_ERROR(("%s: Invalid nbytes: %d\n",
-				     __func__, nbytes));
+			brcmf_dbg(ERROR, "Invalid nbytes: %d\n", nbytes);
 	} else {		/* CMD52 Read */
 		if (nbytes == 4)
 			*word =
@@ -386,16 +377,15 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 			    sdio_readw(sdiodev->func[func], addr,
 				       &err_ret) & 0xFFFF;
 		else
-			BRCMF_ERROR(("%s: Invalid nbytes: %d\n",
-				     __func__, nbytes));
+			brcmf_dbg(ERROR, "Invalid nbytes: %d\n", nbytes);
 	}
 
 	/* Release host controller */
 	sdio_release_host(sdiodev->func[func]);
 
 	if (err_ret)
-		BRCMF_ERROR(("brcmf: Failed to %s word, Err: 0x%08x\n",
-			rw ? "Write" : "Read", err_ret));
+		brcmf_dbg(ERROR, "Failed to %s word, Err: 0x%08x\n",
+			  rw ? "write" : "read", err_ret);
 
 	return err_ret;
 }
@@ -411,7 +401,7 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 	struct sk_buff *pnext;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait, sdiodev);
 	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
@@ -442,15 +432,13 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 		}
 
 		if (err_ret) {
-			BRCMF_ERROR(("%s: %s FAILED %p[%d], addr=0x%05x, "
-				 "pkt_len=%d, ERR=0x%08x\n", __func__,
-				 (write) ? "TX" : "RX",
-				 pnext, SGCount, addr, pkt_len, err_ret));
+			brcmf_dbg(ERROR, "%s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
+				  write ? "TX" : "RX", pnext, SGCount, addr,
+				  pkt_len, err_ret);
 		} else {
-			BRCMF_TRACE(("%s: %s xfr'd %p[%d], addr=0x%05x, "
-				     "len=%d\n", __func__,
-				     (write) ? "TX" : "RX",
-				     pnext, SGCount, addr, pkt_len));
+			brcmf_dbg(TRACE, "%s xfr'd %p[%d], addr=0x%05x, len=%d\n",
+				  write ? "TX" : "RX", pnext, SGCount, addr,
+				  pkt_len);
 		}
 
 		if (!fifo)
@@ -462,7 +450,7 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 	/* Release host controller */
 	sdio_release_host(sdiodev->func[func]);
 
-	BRCMF_TRACE(("%s: Exit\n", __func__));
+	brcmf_dbg(TRACE, "Exit\n");
 	return err_ret;
 }
 
@@ -490,18 +478,18 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 	int Status;
 	struct sk_buff *mypkt = NULL;
 
-	BRCMF_TRACE(("%s: Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_buffer_wait, sdiodev);
 	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
 	/* Case 1: we don't have a packet. */
 	if (pkt == NULL) {
-		BRCMF_DATA(("%s: Creating new %s Packet, len=%d\n",
-			 __func__, write ? "TX" : "RX", buflen_u));
+		brcmf_dbg(DATA, "Creating new %s Packet, len=%d\n",
+			  write ? "TX" : "RX", buflen_u);
 		mypkt = brcmu_pkt_buf_get_skb(buflen_u);
 		if (!mypkt) {
-			BRCMF_ERROR(("%s: brcmu_pkt_buf_get_skb failed: "
-				     "len %d\n", __func__, buflen_u));
+			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+				  buflen_u);
 			return -EIO;
 		}
 
@@ -522,12 +510,12 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 		 * Case 2: We have a packet, but it is unaligned.
 		 * In this case, we cannot have a chain (pkt->next == NULL)
 		 */
-		BRCMF_DATA(("%s: Creating aligned %s Packet, len=%d\n",
-			 __func__, write ? "TX" : "RX", pkt->len));
+		brcmf_dbg(DATA, "Creating aligned %s Packet, len=%d\n",
+			  write ? "TX" : "RX", pkt->len);
 		mypkt = brcmu_pkt_buf_get_skb(pkt->len);
 		if (!mypkt) {
-			BRCMF_ERROR(("%s: brcmu_pkt_buf_get_skb failed: "
-				     "len %d\n", __func__, pkt->len));
+			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+				  pkt->len);
 			return -EIO;
 		}
 
@@ -545,8 +533,8 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 		brcmu_pkt_buf_free_skb(mypkt);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
-		BRCMF_DATA(("%s: Aligned %s Packet, direct DMA\n",
-			 __func__, write ? "Tx" : "Rx"));
+		brcmf_dbg(DATA, "Aligned %s Packet, direct DMA\n",
+			  write ? "Tx" : "Rx");
 		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
 						    func, addr, pkt);
 	}
@@ -567,14 +555,14 @@ brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
 					 &temp);
 		*data = temp;
 		*data &= 0xff;
-		BRCMF_DATA(("%s: byte read data=0x%02x\n", __func__, *data));
+		brcmf_dbg(DATA, "byte read data=0x%02x\n", *data);
 	} else {
 		brcmf_sdioh_request_word(sdiodev, 0, SDIOH_READ, func, regaddr,
 					 data, regsize);
 		if (regsize == 2)
 			*data &= 0xffff;
 
-		BRCMF_DATA(("%s: word read data=0x%08x\n", __func__, *data));
+		brcmf_dbg(DATA, "word read data=0x%08x\n", *data);
 	}
 
 	return SUCCESS;
@@ -585,16 +573,15 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 {
 	int ret = 0;
 	struct brcmf_sdio_dev *sdiodev;
-	BRCMF_TRACE(("sdio_probe: %s Enter\n", __func__));
-	BRCMF_TRACE(("sdio_probe: func->class=%x\n", func->class));
-	BRCMF_TRACE(("sdio_vendor: 0x%04x\n", func->vendor));
-	BRCMF_TRACE(("sdio_device: 0x%04x\n", func->device));
-	BRCMF_TRACE(("Function#: 0x%04x\n", func->num));
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(TRACE, "func->class=%x\n", func->class);
+	brcmf_dbg(TRACE, "sdio_vendor: 0x%04x\n", func->vendor);
+	brcmf_dbg(TRACE, "sdio_device: 0x%04x\n", func->device);
+	brcmf_dbg(TRACE, "Function#: 0x%04x\n", func->num);
 
 	if (func->num == 1) {
 		if (dev_get_drvdata(&func->card->dev)) {
-			BRCMF_ERROR(("%s: card private drvdata occupied.\n",
-				     __func__));
+			brcmf_dbg(ERROR, "card private drvdata occupied\n");
 			return -ENXIO;
 		}
 		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
@@ -614,7 +601,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdiodev->func[2] = func;
 
 		brcmf_cfg80211_sdio_func(func);
-		BRCMF_TRACE(("F2 found, calling brcmf_sdio_probe...\n"));
+		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
 		ret = brcmf_sdio_probe(sdiodev);
 	}
 
@@ -624,15 +611,15 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 static void brcmf_ops_sdio_remove(struct sdio_func *func)
 {
 	struct brcmf_sdio_dev *sdiodev;
-	BRCMF_TRACE(("%s Enter\n", __func__));
-	BRCMF_INFO(("func->class=%x\n", func->class));
-	BRCMF_INFO(("sdio_vendor: 0x%04x\n", func->vendor));
-	BRCMF_INFO(("sdio_device: 0x%04x\n", func->device));
-	BRCMF_INFO(("Function#: 0x%04x\n", func->num));
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(INFO, "func->class=%x\n", func->class);
+	brcmf_dbg(INFO, "sdio_vendor: 0x%04x\n", func->vendor);
+	brcmf_dbg(INFO, "sdio_device: 0x%04x\n", func->device);
+	brcmf_dbg(INFO, "Function#: 0x%04x\n", func->num);
 
 	if (func->num == 2) {
 		sdiodev = dev_get_drvdata(&func->card->dev);
-		BRCMF_TRACE(("F2 found, calling brcmf_sdio_remove...\n"));
+		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_remove...\n");
 		brcmf_sdio_remove(sdiodev);
 		dev_set_drvdata(&func->card->dev, NULL);
 		kfree(sdiodev);
@@ -648,7 +635,7 @@ static int brcmf_sdio_suspend(struct device *dev)
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	int ret = 0;
 
-	BRCMF_TRACE(("%s\n", __func__));
+	brcmf_dbg(TRACE, "\n");
 
 	sdiodev = dev_get_drvdata(&func->card->dev);
 
@@ -656,13 +643,13 @@ static int brcmf_sdio_suspend(struct device *dev)
 
 	sdio_flags = sdio_get_host_pm_caps(sdiodev->func[1]);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
-		BRCMF_ERROR(("Host can't keep power while suspended\n"));
+		brcmf_dbg(ERROR, "Host can't keep power while suspended\n");
 		return -EINVAL;
 	}
 
 	ret = sdio_set_host_pm_flags(sdiodev->func[1], MMC_PM_KEEP_POWER);
 	if (ret) {
-		BRCMF_ERROR(("Failed to set pm_flags\n"));
+		brcmf_dbg(ERROR, "Failed to set pm_flags\n");
 		return ret;
 	}
 
@@ -689,7 +676,7 @@ static int brcmf_sdio_resume(struct device *dev)
 int brcmf_sdio_function_init(void)
 {
 	int error = 0;
-	BRCMF_TRACE(("brcmf_sdio_function_init: %s Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	error = sdio_register_driver(&brcmf_sdmmc_driver);
 
@@ -701,7 +688,7 @@ int brcmf_sdio_function_init(void)
 */
 void brcmf_sdio_function_cleanup(void)
 {
-	BRCMF_TRACE(("%s Enter\n", __func__));
+	brcmf_dbg(TRACE, "Enter\n");
 
 	sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
