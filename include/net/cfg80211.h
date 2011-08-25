@@ -1792,6 +1792,7 @@ struct wiphy_wowlan_support {
  * @debugfsdir: debugfs directory used for this wiphy, will be renamed
  *	automatically on wiphy renames
  * @dev: (virtual) struct device for this wiphy
+ * @registered: helps synchronize suspend/resume with wiphy unregister
  * @wext: wireless extension handlers
  * @priv: driver private data (sized according to wiphy_new() parameter)
  * @interface_modes: bitmask of interfaces types valid for this wiphy,
