@@ -472,9 +472,9 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 	struct se_dev_entry *deve;
 	u32 i;
 
-	spin_lock_bh(&tpg->acl_node_lock);
+	spin_lock_irq(&tpg->acl_node_lock);
 	list_for_each_entry(nacl, &tpg->acl_node_list, acl_list) {
-		spin_unlock_bh(&tpg->acl_node_lock);
+		spin_unlock_irq(&tpg->acl_node_lock);
 
 		spin_lock_irq(&nacl->device_list_lock);
 		for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
@@ -491,9 +491,9 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 		}
 		spin_unlock_irq(&nacl->device_list_lock);
 
-		spin_lock_bh(&tpg->acl_node_lock);
+		spin_lock_irq(&tpg->acl_node_lock);
 	}
-	spin_unlock_bh(&tpg->acl_node_lock);
+	spin_unlock_irq(&tpg->acl_node_lock);
 }
 
 static struct se_port *core_alloc_port(struct se_device *dev)
@@ -839,6 +839,24 @@ int se_dev_check_shutdown(struct se_device *dev)
 	return ret;
 }
 
+u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
+{
+	u32 tmp, aligned_max_sectors;
+	/*
+	 * Limit max_sectors to a PAGE_SIZE aligned value for modern
+	 * transport_allocate_data_tasks() operation.
+	 */
+	tmp = rounddown((max_sectors * block_size), PAGE_SIZE);
+	aligned_max_sectors = (tmp / block_size);
+	if (max_sectors != aligned_max_sectors) {
+		printk(KERN_INFO "Rounding down aligned max_sectors from %u"
+				" to %u\n", max_sectors, aligned_max_sectors);
+		return aligned_max_sectors;
+	}
+
+	return max_sectors;
+}
+
 void se_dev_set_default_attribs(
 	struct se_device *dev,
 	struct se_dev_limits *dev_limits)
@@ -878,6 +896,11 @@ void se_dev_set_default_attribs(
 	 * max_sectors is based on subsystem plugin dependent requirements.
 	 */
 	dev->se_sub_dev->se_dev_attrib.hw_max_sectors = limits->max_hw_sectors;
+	/*
+	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
+	 */
+	limits->max_sectors = se_dev_align_max_sectors(limits->max_sectors,
+						limits->logical_block_size);
 	dev->se_sub_dev->se_dev_attrib.max_sectors = limits->max_sectors;
 	/*
 	 * Set optimal_sectors from max_sectors, which can be lowered via
@@ -1242,6 +1265,11 @@ int se_dev_set_max_sectors(struct se_device *dev, u32 max_sectors)
 			return -EINVAL;
 		}
 	}
+	/*
+	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
+	 */
+	max_sectors = se_dev_align_max_sectors(max_sectors,
+				dev->se_sub_dev->se_dev_attrib.block_size);
 
 	dev->se_sub_dev->se_dev_attrib.max_sectors = max_sectors;
 	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
@@ -1344,15 +1372,17 @@ struct se_lun *core_dev_add_lun(
 	 */
 	if (tpg->se_tpg_tfo->tpg_check_demo_mode(tpg)) {
 		struct se_node_acl *acl;
-		spin_lock_bh(&tpg->acl_node_lock);
+		spin_lock_irq(&tpg->acl_node_lock);
 		list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
-			if (acl->dynamic_node_acl) {
-				spin_unlock_bh(&tpg->acl_node_lock);
+			if (acl->dynamic_node_acl &&
+			    (!tpg->se_tpg_tfo->tpg_check_demo_mode_login_only ||
+			     !tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg))) {
+				spin_unlock_irq(&tpg->acl_node_lock);
 				core_tpg_add_node_to_devs(acl, tpg);
-				spin_lock_bh(&tpg->acl_node_lock);
+				spin_lock_irq(&tpg->acl_node_lock);
 			}
 		}
-		spin_unlock_bh(&tpg->acl_node_lock);
+		spin_unlock_irq(&tpg->acl_node_lock);
 	}
 
 	return lun_p;
