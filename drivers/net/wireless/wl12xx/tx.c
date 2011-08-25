@@ -891,6 +891,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 	/* TX failure */
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		for (i = 0; i < AP_MAX_LINKS; i++) {
+			wl1271_free_sta(wl, i);
 			wl1271_tx_reset_link_queues(wl, i);
 			wl->links[i].allocated_pkts = 0;
 			wl->links[i].prev_freed_pkts = 0;
@@ -910,9 +911,13 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 					ieee80211_tx_status_ni(wl->hw, skb);
 				}
 			}
-			wl->tx_queue_count[i] = 0;
 		}
+
+		wl->ba_rx_bitmap = 0;
 	}
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wl->tx_queue_count[i] = 0;
 
 	wl->stopped_queues_map = 0;
 

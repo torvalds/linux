@@ -216,4 +216,7 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid);
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl);
 bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb);
 
+/* from main.c */
+void wl1271_free_sta(struct wl1271 *wl, u8 hlid);
+
 #endif

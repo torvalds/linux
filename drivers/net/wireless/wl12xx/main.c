@@ -3757,11 +3757,14 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 	return 0;
 }
 
-static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
+void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 {
 	int id = hlid - WL1271_AP_STA_HLID_START;
 
-	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
+	if (hlid < WL1271_AP_STA_HLID_START)
+		return;
+
+	if (!test_bit(id, wl->ap_hlid_map))
 		return;
 
 	clear_bit(id, wl->ap_hlid_map);
