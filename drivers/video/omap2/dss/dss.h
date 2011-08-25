@@ -108,6 +108,11 @@ enum dss_hdmi_venc_clk_source_select {
 	DSS_HDMI_M_PCLK = 1,
 };
 
+enum dss_dsi_content_type {
+	DSS_DSI_CONTENT_DCS,
+	DSS_DSI_CONTENT_GENERIC,
+};
+
 struct dss_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fck;

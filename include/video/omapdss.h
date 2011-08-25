@@ -225,11 +225,19 @@ void dsi_bus_lock(struct omap_dss_device *dssdev);
 void dsi_bus_unlock(struct omap_dss_device *dssdev);
 int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
 		int len);
-int dsi_vc_dcs_write_0(struct omap_dss_device *dssdev, int channel,
-		u8 dcs_cmd);
+int dsi_vc_generic_write(struct omap_dss_device *dssdev, int channel, u8 *data,
+		int len);
+int dsi_vc_dcs_write_0(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd);
+int dsi_vc_generic_write_0(struct omap_dss_device *dssdev, int channel);
 int dsi_vc_dcs_write_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 		u8 param);
+int dsi_vc_generic_write_1(struct omap_dss_device *dssdev, int channel,
+		u8 param);
+int dsi_vc_generic_write_2(struct omap_dss_device *dssdev, int channel,
+		u8 param1, u8 param2);
 int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
+		u8 *data, int len);
+int dsi_vc_generic_write_nosync(struct omap_dss_device *dssdev, int channel,
 		u8 *data, int len);
 int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 		u8 *buf, int buflen);
