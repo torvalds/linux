@@ -626,6 +626,9 @@ struct wl1271 {
 
 	/* number of currently active RX BA sessions */
 	int ba_rx_session_count;
+
+	/* AP-mode - number of currently connected stations */
+	int active_sta_count;
 };
 
 struct wl1271_station {
