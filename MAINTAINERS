@@ -7087,7 +7087,7 @@ S:	Supported
 F:	drivers/mmc/host/vub300.c
 
 W1 DALLAS'S 1-WIRE BUS
-M:	Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+M:	Evgeniy Polyakov <zbr@ioremap.net>
 S:	Maintained
 F:	Documentation/w1/
 F:	drivers/w1/
