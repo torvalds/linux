@@ -1307,6 +1307,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	    ipu_submit_buffer(ichan, descnew, sgnew, ichan->active_buffer) < 0) {
 		callback = descnew->txd.callback;
 		callback_param = descnew->txd.callback_param;
+		list_del_init(&descnew->list);
 		spin_unlock(&ichan->lock);
 		if (callback)
 			callback(callback_param);
@@ -1428,39 +1429,58 @@ static int __idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	struct idmac *idmac = to_idmac(chan->device);
+	struct ipu *ipu = to_ipu(idmac);
+	struct list_head *list, *tmp;
 	unsigned long flags;
 	int i;
 
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
+	switch (cmd) {
+	case DMA_PAUSE:
+		spin_lock_irqsave(&ipu->lock, flags);
+		ipu_ic_disable_task(ipu, chan->chan_id);
 
-	ipu_disable_channel(idmac, ichan,
-			    ichan->status >= IPU_CHANNEL_ENABLED);
+		/* Return all descriptors into "prepared" state */
+		list_for_each_safe(list, tmp, &ichan->queue)
+			list_del_init(list);
 
-	tasklet_disable(&to_ipu(idmac)->tasklet);
+		ichan->sg[0] = NULL;
+		ichan->sg[1] = NULL;
 
-	/* ichan->queue is modified in ISR, have to spinlock */
-	spin_lock_irqsave(&ichan->lock, flags);
-	list_splice_init(&ichan->queue, &ichan->free_list);
+		spin_unlock_irqrestore(&ipu->lock, flags);
 
-	if (ichan->desc)
-		for (i = 0; i < ichan->n_tx_desc; i++) {
-			struct idmac_tx_desc *desc = ichan->desc + i;
-			if (list_empty(&desc->list))
-				/* Descriptor was prepared, but not submitted */
-				list_add(&desc->list, &ichan->free_list);
+		ichan->status = IPU_CHANNEL_INITIALIZED;
+		break;
+	case DMA_TERMINATE_ALL:
+		ipu_disable_channel(idmac, ichan,
+				    ichan->status >= IPU_CHANNEL_ENABLED);
 
-			async_tx_clear_ack(&desc->txd);
-		}
+		tasklet_disable(&ipu->tasklet);
 
-	ichan->sg[0] = NULL;
-	ichan->sg[1] = NULL;
-	spin_unlock_irqrestore(&ichan->lock, flags);
+		/* ichan->queue is modified in ISR, have to spinlock */
+		spin_lock_irqsave(&ichan->lock, flags);
+		list_splice_init(&ichan->queue, &ichan->free_list);
 
-	tasklet_enable(&to_ipu(idmac)->tasklet);
+		if (ichan->desc)
+			for (i = 0; i < ichan->n_tx_desc; i++) {
+				struct idmac_tx_desc *desc = ichan->desc + i;
+				if (list_empty(&desc->list))
+					/* Descriptor was prepared, but not submitted */
+					list_add(&desc->list, &ichan->free_list);
 
-	ichan->status = IPU_CHANNEL_INITIALIZED;
+				async_tx_clear_ack(&desc->txd);
+			}
+
+		ichan->sg[0] = NULL;
+		ichan->sg[1] = NULL;
+		spin_unlock_irqrestore(&ichan->lock, flags);
+
+		tasklet_enable(&ipu->tasklet);
+
+		ichan->status = IPU_CHANNEL_INITIALIZED;
+		break;
+	default:
+		return -ENOSYS;
+	}
 
 	return 0;
 }
@@ -1663,7 +1683,6 @@ static void __exit ipu_idmac_exit(struct ipu *ipu)
 		struct idmac_channel *ichan = ipu->channel + i;
 
 		idmac_control(&ichan->dma_chan, DMA_TERMINATE_ALL, 0);
-		idmac_prep_slave_sg(&ichan->dma_chan, NULL, 0, DMA_NONE, 0);
 	}
 
 	dma_async_device_unregister(&idmac->dma);
