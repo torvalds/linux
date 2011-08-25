@@ -33,6 +33,8 @@
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/pti.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #define DRIVERNAME		"pti"
 #define PCINAME			"pciPTI"
