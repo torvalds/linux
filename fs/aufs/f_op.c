@@ -427,6 +427,8 @@ static unsigned long au_flag_conv(unsigned long flags)
  * acquire aufs rwsem. It introduces a circular locking dependency.
  * To address this problem, aufs_mmap() delegates the part which requires aufs
  * rwsem to its internal workqueue.
+ * But it is just a fake. A deadlock MAY happen between write() and mmap() for
+ * the same file in a multi-threaded application.
  */
 
 struct au_mmap_pre_args {
