@@ -697,7 +697,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
  eirq:
 	free_irq(DCON_IRQ, dcon);
  einit:
-	i2c_set_clientdata(client, NULL);
 	kfree(dcon);
 	return rc;
 }
@@ -705,8 +704,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 static int dcon_remove(struct i2c_client *client)
 {
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
-
-	i2c_set_clientdata(client, NULL);
 
 	fb_unregister_client(&dcon->fbevent_nb);
 	unregister_reboot_notifier(&dcon->reboot_nb);
