@@ -531,6 +531,8 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p", conn);
 
+	hcon->pending_sec_level = BT_SECURITY_MEDIUM;
+
 	if (smp_ltk_encrypt(conn))
 		return 0;
 
