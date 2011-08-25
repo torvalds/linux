@@ -41,8 +41,6 @@ static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
-static const char *driver_name = "storvsc";
-
 struct hv_host_device {
 	struct hv_device *dev;
 	struct kmem_cache *request_pool;
@@ -718,6 +716,7 @@ static int storvsc_probe(struct hv_device *device)
 /* The one and only one */
 
 static struct hv_driver storvsc_drv = {
+	.name = "storvsc",
 	.id_table = id_table,
 	.probe = storvsc_probe,
 	.remove = storvsc_remove,
@@ -725,8 +724,6 @@ static struct hv_driver storvsc_drv = {
 
 static int __init storvsc_drv_init(void)
 {
-	int ret;
-	struct hv_driver *drv = &storvsc_drv;
 	u32 max_outstanding_req_per_channel;
 
 	/*
@@ -735,29 +732,22 @@ static int __init storvsc_drv_init(void)
 	 * the ring buffer indices) by the max request size (which is
 	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
 	 */
-
 	max_outstanding_req_per_channel =
-	((storvsc_ringbuffer_size - PAGE_SIZE) /
-	ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
-	sizeof(struct vstor_packet) + sizeof(u64),
-	sizeof(u64)));
+		((storvsc_ringbuffer_size - PAGE_SIZE) /
+		ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
+		sizeof(struct vstor_packet) + sizeof(u64),
+		sizeof(u64)));
 
 	if (max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)
 		return -1;
 
-	drv->driver.name = driver_name;
-
-
-	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv->driver);
-
-	return ret;
+	return vmbus_driver_register(&storvsc_drv);
 }
 
 static void __exit storvsc_drv_exit(void)
 {
-	vmbus_child_driver_unregister(&storvsc_drv.driver);
+	vmbus_driver_unregister(&storvsc_drv);
 }
 
 MODULE_LICENSE("GPL");

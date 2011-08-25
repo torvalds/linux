@@ -109,7 +109,6 @@ struct block_device_context {
 	int users;
 };
 
-static const char *drv_name = "blkvsc";
 
 /*
  * There is a circular dependency involving blkvsc_request_completion()
@@ -805,6 +804,7 @@ MODULE_DEVICE_TABLE(vmbus, id_table);
 
 /* The one and only one */
 static  struct hv_driver blkvsc_drv = {
+	.name = "blkvsc",
 	.id_table = id_table,
 	.probe =  blkvsc_probe,
 	.remove =  blkvsc_remove,
@@ -824,24 +824,13 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(void)
 {
-	struct hv_driver *drv = &blkvsc_drv;
-	int ret;
-
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
-
-	drv->driver.name = drv_name;
-
-	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv->driver);
-
-	return ret;
+	return vmbus_driver_register(&blkvsc_drv);
 }
-
 
 static void blkvsc_drv_exit(void)
 {
-
-	vmbus_child_driver_unregister(&blkvsc_drv.driver);
+	vmbus_driver_unregister(&blkvsc_drv);
 }
 
 /*

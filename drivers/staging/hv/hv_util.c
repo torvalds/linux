@@ -34,8 +34,6 @@ static u8 *shut_txf_buf;
 static u8 *time_txf_buf;
 static u8 *hbeat_txf_buf;
 
-static const char *driver_name = "hv_util";
-
 static void shutdown_onchannelcallback(void *context)
 {
 	struct vmbus_channel *channel = context;
@@ -244,6 +242,7 @@ MODULE_DEVICE_TABLE(vmbus, id_table);
 
 /* The one and only one */
 static  struct hv_driver util_drv = {
+	.name = "hv_util",
 	.id_table = id_table,
 	.probe =  util_probe,
 	.remove =  util_remove,
@@ -277,9 +276,7 @@ static int __init init_hyperv_utils(void)
 
 	hv_cb_utils[HV_KVP_MSG].callback = &hv_kvp_onchannelcallback;
 
-	util_drv.driver.name = driver_name;
-
-	return vmbus_child_driver_register(&util_drv.driver);
+	return vmbus_driver_register(&util_drv);
 }
 
 static void exit_hyperv_utils(void)
@@ -311,7 +308,7 @@ static void exit_hyperv_utils(void)
 	kfree(shut_txf_buf);
 	kfree(time_txf_buf);
 	kfree(hbeat_txf_buf);
-	vmbus_child_driver_unregister(&util_drv.driver);
+	vmbus_driver_unregister(&util_drv);
 }
 
 module_init(init_hyperv_utils);

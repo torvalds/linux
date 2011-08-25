@@ -552,51 +552,50 @@ static int vmbus_bus_init(int irq)
 }
 
 /**
- * vmbus_child_driver_register() - Register a vmbus's child driver
- * @drv:        Pointer to driver structure you want to register
- *
+ * __vmbus_child_driver_register - Register a vmbus's driver
+ * @drv: Pointer to driver structure you want to register
+ * @owner: owner module of the drv
+ * @mod_name: module name string
  *
  * Registers the given driver with Linux through the 'driver_register()' call
- * And sets up the hyper-v vmbus handling for this driver.
+ * and sets up the hyper-v vmbus handling for this driver.
  * It will return the state of the 'driver_register()' call.
  *
- * Mainly used by Hyper-V drivers.
  */
-int vmbus_child_driver_register(struct device_driver *drv)
+int __vmbus_driver_register(struct hv_driver *hv_driver, struct module *owner, const char *mod_name)
 {
 	int ret;
 
-	pr_info("child driver registering - name %s\n", drv->name);
+	pr_info("registering driver %s\n", hv_driver->name);
 
-	/* The child driver on this vmbus */
-	drv->bus = &hv_bus;
+	hv_driver->driver.name = hv_driver->name;
+	hv_driver->driver.owner = owner;
+	hv_driver->driver.mod_name = mod_name;
+	hv_driver->driver.bus = &hv_bus;
 
-	ret = driver_register(drv);
+	ret = driver_register(&hv_driver->driver);
 
 	vmbus_request_offers();
 
 	return ret;
 }
-EXPORT_SYMBOL(vmbus_child_driver_register);
+EXPORT_SYMBOL_GPL(__vmbus_driver_register);
 
 /**
- * vmbus_child_driver_unregister() - Unregister a vmbus's child driver
- * @drv:        Pointer to driver structure you want to un-register
+ * vmbus_driver_unregister() - Unregister a vmbus's driver
+ * @drv: Pointer to driver structure you want to un-register
  *
- *
- * Un-register the given driver with Linux through the 'driver_unregister()'
- * call. And ungegisters the driver from the Hyper-V vmbus handler.
- *
- * Mainly used by Hyper-V drivers.
+ * Un-register the given driver that was previous registered with a call to
+ * vmbus_driver_register()
  */
-void vmbus_child_driver_unregister(struct device_driver *drv)
+void vmbus_driver_unregister(struct hv_driver *hv_driver)
 {
-	pr_info("child driver unregistering - name %s\n", drv->name);
+	pr_info("unregistering driver %s\n", hv_driver->name);
 
-	driver_unregister(drv);
+	driver_unregister(&hv_driver->driver);
 
 }
-EXPORT_SYMBOL(vmbus_child_driver_unregister);
+EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
 
 /*
  * vmbus_child_device_create - Creates and registers a new child device

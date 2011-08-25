@@ -176,8 +176,6 @@ struct mousevsc_dev {
 };
 
 
-static const char *driver_name = "mousevsc";
-
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info);
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
@@ -921,33 +919,20 @@ static const struct hv_vmbus_device_id id_table[] = {
 /* MODULE_DEVICE_TABLE(vmbus, id_table); */
 
 static struct  hv_driver mousevsc_drv = {
+	.name = "mousevsc",
 	.id_table = id_table,
 	.probe = mousevsc_probe,
 	.remove = mousevsc_remove,
 };
 
-static void mousevsc_drv_exit(void)
-{
-	vmbus_child_driver_unregister(&mousevsc_drv.driver);
-}
-
 static int __init mousevsc_init(void)
 {
-	struct hv_driver *drv = &mousevsc_drv;
-
-	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
-
-	drv->driver.name = driver_name;
-
-	/* The driver belongs to vmbus */
-	vmbus_child_driver_register(&drv->driver);
-
-	return 0;
+	return vmbus_driver_register(&mousevsc_drv);
 }
 
 static void __exit mousevsc_exit(void)
 {
-	mousevsc_drv_exit();
+	vmbus_driver_unregister(&mousevsc_drv);
 }
 
 /*

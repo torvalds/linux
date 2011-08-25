@@ -845,8 +845,12 @@ static inline struct hv_driver *drv_to_hv_drv(struct device_driver *d)
 
 
 /* Vmbus interface */
-int vmbus_child_driver_register(struct device_driver *drv);
-void vmbus_child_driver_unregister(struct device_driver *drv);
+#define vmbus_driver_register(driver)	\
+	__vmbus_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
+int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
+					 struct module *owner,
+					 const char *mod_name);
+void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
 /**
  * VMBUS_DEVICE - macro used to describe a specific hyperv vmbus device

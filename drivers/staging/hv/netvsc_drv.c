@@ -422,6 +422,7 @@ MODULE_DEVICE_TABLE(vmbus, id_table);
 
 /* The one and only one */
 static struct  hv_driver netvsc_drv = {
+	.name = "netvsc",
 	.id_table = id_table,
 	.probe = netvsc_probe,
 	.remove = netvsc_remove,
@@ -429,26 +430,12 @@ static struct  hv_driver netvsc_drv = {
 
 static void __exit netvsc_drv_exit(void)
 {
-	vmbus_child_driver_unregister(&netvsc_drv.driver);
+	vmbus_driver_unregister(&netvsc_drv);
 }
-
 
 static int __init netvsc_drv_init(void)
 {
-	struct hv_driver *drv = &netvsc_drv;
-	int ret;
-
-	pr_info("initializing....");
-
-	/* Callback to client driver to complete the initialization */
-	netvsc_initialize(drv);
-
-	drv->driver.name = drv->name;
-
-	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv->driver);
-
-	return ret;
+	return vmbus_driver_register(&netvsc_drv);
 }
 
 MODULE_LICENSE("GPL");
