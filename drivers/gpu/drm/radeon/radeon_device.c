@@ -725,7 +725,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->vram_mutex);
-	rwlock_init(&rdev->fence_drv.lock);
+	rwlock_init(&rdev->fence_lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
@@ -857,7 +857,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	int r;
+	int i, r;
 
 	if (dev == NULL || dev->dev_private == NULL) {
 		return -ENODEV;
@@ -896,7 +896,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	/* wait for gpu to finish processing current batch */
-	radeon_fence_wait_last(rdev);
+	for (i = 0; i < RADEON_NUM_RINGS; i++)
+		radeon_fence_wait_last(rdev, i);
 
 	radeon_save_bios_scratch_regs(rdev);
 

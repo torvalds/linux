@@ -3018,11 +3018,11 @@ restart_ih:
 		case 177: /* CP_INT in IB1 */
 		case 178: /* CP_INT in IB2 */
 			DRM_DEBUG("IH: CP int: 0x%08x\n", src_data);
-			radeon_fence_process(rdev);
+			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
-			radeon_fence_process(rdev);
+			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");
@@ -3221,7 +3221,7 @@ int evergreen_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r)
 		return r;
 	/* initialize AGP */

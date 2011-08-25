@@ -642,7 +642,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 	while (status || rdev->irq.stat_regs.r500.disp_int) {
 		/* SW interrupt */
 		if (G_000044_SW_INT(status)) {
-			radeon_fence_process(rdev);
+			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 		}
 		/* GUI idle */
 		if (G_000040_GUI_IDLE(status)) {
@@ -962,7 +962,7 @@ int rs600_init(struct radeon_device *rdev)
 	rs600_mc_init(rdev);
 	rs600_debugfs(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r)
 		return r;
 	r = radeon_irq_kms_init(rdev);

@@ -387,7 +387,7 @@ int r420_init(struct radeon_device *rdev)
 	r300_mc_init(rdev);
 	r420_debugfs(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r) {
 		return r;
 	}

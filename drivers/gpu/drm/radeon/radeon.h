@@ -197,7 +197,6 @@ struct radeon_fence_driver {
 	unsigned long			last_jiffies;
 	unsigned long			last_timeout;
 	wait_queue_head_t		queue;
-	rwlock_t			lock;
 	struct list_head		created;
 	struct list_head		emitted;
 	struct list_head		signaled;
@@ -212,17 +211,19 @@ struct radeon_fence {
 	uint32_t			seq;
 	bool				emitted;
 	bool				signaled;
+	/* RB, DMA, etc. */
+	int				ring;
 };
 
-int radeon_fence_driver_init(struct radeon_device *rdev);
+int radeon_fence_driver_init(struct radeon_device *rdev, int num_rings);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
-int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence);
+int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence);
-void radeon_fence_process(struct radeon_device *rdev);
+void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
-int radeon_fence_wait_next(struct radeon_device *rdev);
-int radeon_fence_wait_last(struct radeon_device *rdev);
+int radeon_fence_wait_next(struct radeon_device *rdev, int ring);
+int radeon_fence_wait_last(struct radeon_device *rdev, int ring);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
 
@@ -459,6 +460,18 @@ void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
 /*
  * CP & ring.
  */
+
+/* max number of rings */
+#define RADEON_NUM_RINGS 3
+
+/* internal ring indices */
+/* r1xx+ has gfx CP ring */
+#define RADEON_RING_TYPE_GFX_INDEX  0
+
+/* cayman has 2 compute CP rings */
+#define CAYMAN_RING_TYPE_CP1_INDEX 1
+#define CAYMAN_RING_TYPE_CP2_INDEX 2
+
 struct radeon_ib {
 	struct list_head	list;
 	unsigned		idx;
@@ -1235,7 +1248,8 @@ struct radeon_device {
 	struct radeon_mode_info		mode_info;
 	struct radeon_scratch		scratch;
 	struct radeon_mman		mman;
-	struct radeon_fence_driver	fence_drv;
+	rwlock_t			fence_lock;
+	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	struct radeon_cp		cp;
 	/* cayman compute rings */
 	struct radeon_cp		cp1;

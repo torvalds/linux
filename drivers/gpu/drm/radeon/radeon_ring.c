@@ -113,7 +113,7 @@ int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib)
 	int r = 0, i, c;
 
 	*ib = NULL;
-	r = radeon_fence_create(rdev, &fence);
+	r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 	if (r) {
 		dev_err(rdev->dev, "failed to create fence for new IB\n");
 		return r;
@@ -314,7 +314,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, unsigned ndw)
 		if (ndw < rdev->cp.ring_free_dw) {
 			break;
 		}
-		r = radeon_fence_wait_next(rdev);
+		r = radeon_fence_wait_next(rdev, RADEON_RING_TYPE_GFX_INDEX);
 		if (r)
 			return r;
 	}

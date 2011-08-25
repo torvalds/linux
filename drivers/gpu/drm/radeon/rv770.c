@@ -1194,7 +1194,7 @@ int rv770_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r)
 		return r;
 	/* initialize AGP */

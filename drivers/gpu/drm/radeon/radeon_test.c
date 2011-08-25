@@ -104,7 +104,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(gtt_obj[i]);
 
-		r = radeon_fence_create(rdev, &fence);
+		r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 		if (r) {
 			DRM_ERROR("Failed to create GTT->VRAM fence %d\n", i);
 			goto out_cleanup;
@@ -153,7 +153,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(vram_obj);
 
-		r = radeon_fence_create(rdev, &fence);
+		r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 		if (r) {
 			DRM_ERROR("Failed to create VRAM->GTT fence %d\n", i);
 			goto out_cleanup;

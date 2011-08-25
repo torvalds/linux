@@ -735,7 +735,7 @@ int rs690_init(struct radeon_device *rdev)
 	rs690_mc_init(rdev);
 	rv515_debugfs(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r)
 		return r;
 	r = radeon_irq_kms_init(rdev);

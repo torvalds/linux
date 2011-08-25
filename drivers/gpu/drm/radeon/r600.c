@@ -2316,7 +2316,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 {
 	if (rdev->wb.use_event) {
 		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
-			(u64)(rdev->fence_drv.scratch_reg - rdev->scratch.reg_base);
+			(u64)(rdev->fence_drv[fence->ring].scratch_reg - rdev->scratch.reg_base);
 		/* flush read cache over gart */
 		radeon_ring_write(rdev, PACKET3(PACKET3_SURFACE_SYNC, 3));
 		radeon_ring_write(rdev, PACKET3_TC_ACTION_ENA |
@@ -2349,7 +2349,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
 		/* Emit fence sequence & fire IRQ */
 		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-		radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
+		radeon_ring_write(rdev, ((rdev->fence_drv[fence->ring].scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
 		radeon_ring_write(rdev, fence->seq);
 		/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
 		radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
@@ -2575,7 +2575,7 @@ int r600_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r)
 		return r;
 	if (rdev->flags & RADEON_IS_AGP) {
@@ -3459,11 +3459,11 @@ restart_ih:
 		case 177: /* CP_INT in IB1 */
 		case 178: /* CP_INT in IB2 */
 			DRM_DEBUG("IH: CP int: 0x%08x\n", src_data);
-			radeon_fence_process(rdev);
+			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
-			radeon_fence_process(rdev);
+			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");

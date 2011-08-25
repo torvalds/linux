@@ -271,7 +271,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		if (rdev->cp.ready) {
 			struct radeon_fence *fence;
 			radeon_ring_alloc(rdev, 64);
-			radeon_fence_create(rdev, &fence);
+			radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 			radeon_fence_emit(rdev, fence);
 			radeon_ring_commit(rdev);
 			radeon_fence_wait(fence, false);
@@ -797,17 +797,25 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 	if (rdev->pm.dynpm_state == DYNPM_STATE_ACTIVE) {
 		unsigned long irq_flags;
 		int not_processed = 0;
+		int i;
 
-		read_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
-		if (!list_empty(&rdev->fence_drv.emitted)) {
-			struct list_head *ptr;
-			list_for_each(ptr, &rdev->fence_drv.emitted) {
-				/* count up to 3, that's enought info */
-				if (++not_processed >= 3)
-					break;
+		read_lock_irqsave(&rdev->fence_lock, irq_flags);
+		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			if (!rdev->fence_drv[i].initialized)
+				continue;
+
+			if (!list_empty(&rdev->fence_drv[i].emitted)) {
+				struct list_head *ptr;
+				list_for_each(ptr, &rdev->fence_drv[i].emitted) {
+					/* count up to 3, that's enought info */
+					if (++not_processed >= 3)
+						break;
+				}
 			}
+			if (not_processed >= 3)
+				break;
 		}
-		read_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
+		read_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 
 		if (not_processed >= 3) { /* should upclock */
 			if (rdev->pm.dynpm_planned_action == DYNPM_ACTION_DOWNCLOCK) {

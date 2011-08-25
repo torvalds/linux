@@ -226,7 +226,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
-	r = radeon_fence_create(rdev, &fence);
+	r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 	if (unlikely(r)) {
 		return r;
 	}

@@ -198,7 +198,7 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
 	radeon_ring_write(rdev, rdev->config.r300.hdp_cntl);
 	/* Emit fence sequence & fire IRQ */
-	radeon_ring_write(rdev, PACKET0(rdev->fence_drv.scratch_reg, 0));
+	radeon_ring_write(rdev, PACKET0(rdev->fence_drv[fence->ring].scratch_reg, 0));
 	radeon_ring_write(rdev, fence->seq);
 	radeon_ring_write(rdev, PACKET0(RADEON_GEN_INT_STATUS, 0));
 	radeon_ring_write(rdev, RADEON_SW_INT_FIRE);
@@ -1518,7 +1518,7 @@ int r300_init(struct radeon_device *rdev)
 	/* initialize memory controller */
 	r300_mc_init(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
+	r = radeon_fence_driver_init(rdev, 1);
 	if (r)
 		return r;
 	r = radeon_irq_kms_init(rdev);
