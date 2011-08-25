@@ -389,7 +389,7 @@
       <para>
 	If your driver supports memory management (it should!), you
 	need to set that up at load time as well.  How you initialize
-	it depends on which memory manager you're using, TTM or GEM.
+	it depends on which memory manager you're using: TTM or GEM.
       </para>
       <sect3>
 	<title>TTM initialization</title>
@@ -647,7 +647,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       The memory manager lies at the heart of many DRM operations; it
       is required to support advanced client features like OpenGL
-      pbuffers.  The DRM currently contains two memory managers, TTM
+      pbuffers.  The DRM currently contains two memory managers: TTM
       and GEM.
     </para>
 
