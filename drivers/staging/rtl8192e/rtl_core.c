@@ -43,6 +43,7 @@
 
 #include <asm/uaccess.h>
 #include <linux/pci.h>
+#include <linux/vmalloc.h>
 #include "rtl_core.h"
 #include "r8192E_phy.h"
 #include "r8192E_phyreg.h"
