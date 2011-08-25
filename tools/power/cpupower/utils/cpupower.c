@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "builtin.h"
 #include "helpers/helpers.h"
@@ -19,13 +20,12 @@
 struct cmd_struct {
 	const char *cmd;
 	int (*main)(int, const char **);
-	void (*usage)(void);
 	int needs_root;
 };
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
-int cmd_help(int argc, const char **argv);
+static int cmd_help(int argc, const char **argv);
 
 /* Global cpu_info object available for all binaries
  * Info only retrieved from CPU 0
@@ -44,55 +44,66 @@ int be_verbose;
 static void print_help(void);
 
 static struct cmd_struct commands[] = {
-	{ "frequency-info",	cmd_freq_info,	freq_info_help,	0	},
-	{ "frequency-set",	cmd_freq_set,	freq_set_help,	1	},
-	{ "idle-info",		cmd_idle_info,	idle_info_help,	0	},
-	{ "set",		cmd_set,	set_help,	1	},
-	{ "info",		cmd_info,	info_help,	0	},
-	{ "monitor",		cmd_monitor,	monitor_help,	0	},
-	{ "help",		cmd_help,	print_help,	0	},
-	/*	{ "bench",	cmd_bench,	NULL,		1	}, */
+	{ "frequency-info",	cmd_freq_info,	0	},
+	{ "frequency-set",	cmd_freq_set,	1	},
+	{ "idle-info",		cmd_idle_info,	0	},
+	{ "set",		cmd_set,	1	},
+	{ "info",		cmd_info,	0	},
+	{ "monitor",		cmd_monitor,	0	},
+	{ "help",		cmd_help,	0	},
+	/*	{ "bench",	cmd_bench,	1	}, */
 };
-
-int cmd_help(int argc, const char **argv)
-{
-	unsigned int i;
-
-	if (argc > 1) {
-		for (i = 0; i < ARRAY_SIZE(commands); i++) {
-			struct cmd_struct *p = commands + i;
-			if (strcmp(p->cmd, argv[1]))
-				continue;
-			if (p->usage) {
-				p->usage();
-				return EXIT_SUCCESS;
-			}
-		}
-	}
-	print_help();
-	if (argc == 1)
-		return EXIT_SUCCESS; /* cpupower help */
-	return EXIT_FAILURE;
-}
 
 static void print_help(void)
 {
 	unsigned int i;
 
 #ifdef DEBUG
-	printf(_("cpupower [ -d ][ -c cpulist ] subcommand [ARGS]\n"));
-	printf(_("  -d, --debug      May increase output (stderr) on some subcommands\n"));
+	printf(_("Usage:\tcpupower [-d|--debug] [-c|--cpu cpulist ] <command> [<args>]\n"));
 #else
-	printf(_("cpupower [ -c cpulist ] subcommand [ARGS]\n"));
+	printf(_("Usage:\tcpupower [-c|--cpu cpulist ] <command> [<args>]\n"));
 #endif
-	printf(_("cpupower --version\n"));
-	printf(_("Supported subcommands are:\n"));
+	printf(_("Supported commands are:\n"));
 	for (i = 0; i < ARRAY_SIZE(commands); i++)
 		printf("\t%s\n", commands[i].cmd);
-	printf(_("\nSome subcommands can make use of the -c cpulist option.\n"));
-	printf(_("Look at the general cpupower manpage how to use it\n"));
-	printf(_("and read up the subcommand's manpage whether it is supported.\n"));
-	printf(_("\nUse cpupower help subcommand for getting help for above subcommands.\n"));
+	printf(_("\nNot all commands can make use of the -c cpulist option.\n"));
+	printf(_("\nUse 'cpupower help <command>' for getting help for above commands.\n"));
+}
+
+static int print_man_page(const char *subpage)
+{
+	int len;
+	char *page;
+
+	len = 10; /* enough for "cpupower-" */
+	if (subpage != NULL)
+		len += strlen(subpage);
+
+	page = malloc(len);
+	if (!page)
+		return -ENOMEM;
+
+	sprintf(page, "cpupower");
+	if ((subpage != NULL) && strcmp(subpage, "help")) {
+		strcat(page, "-");
+		strcat(page, subpage);
+	}
+
+	execlp("man", "man", page, NULL);
+
+	/* should not be reached */
+	return -EINVAL;
+}
+
+static int cmd_help(int argc, const char **argv)
+{
+	if (argc > 1) {
+		print_man_page(argv[1]); /* exits within execlp() */
+		return EXIT_FAILURE;
+	}
+
+	print_help();
+	return EXIT_SUCCESS;
 }
 
 static void print_version(void)
