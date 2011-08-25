@@ -36,8 +36,8 @@
 static const char *driver_name = "netvsc";
 
 /* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
-static const struct hv_guid netvsc_device_type = {
-	.data = {
+static const uuid_le netvsc_device_type = {
+	.b = {
 		0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
 		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E
 	}
@@ -1009,7 +1009,7 @@ int netvsc_initialize(struct hv_driver *drv)
 {
 
 	drv->name = driver_name;
-	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));
+	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(uuid_le));
 
 	return 0;
 }

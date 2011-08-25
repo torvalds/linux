@@ -45,8 +45,8 @@ MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 static const char *driver_name = "storvsc";
 
 /* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const struct hv_guid stor_vsci_device_type = {
-	.data = {
+static const uuid_le stor_vsci_device_type = {
+	.b = {
 		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
 		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
 	}
@@ -765,7 +765,7 @@ static int __init storvsc_drv_init(void)
 	sizeof(u64)));
 
 	memcpy(&drv->dev_type, &stor_vsci_device_type,
-	       sizeof(struct hv_guid));
+	       sizeof(uuid_le));
 
 	if (max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)

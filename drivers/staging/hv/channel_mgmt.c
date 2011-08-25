@@ -40,12 +40,12 @@ struct vmbus_channel_message_table_entry {
 #define MAX_MSG_TYPES                    4
 #define MAX_NUM_DEVICE_CLASSES_SUPPORTED 8
 
-static const struct hv_guid
+static const uuid_le
 	supported_device_classes[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
 	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
 	/* Storage - SCSI */
 	{
-		.data  = {
+		.b  = {
 			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
 			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
 		}
@@ -54,7 +54,7 @@ static const struct hv_guid
 	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
 	/* Network */
 	{
-		.data = {
+		.b = {
 			0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
 			0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E
 		}
@@ -63,7 +63,7 @@ static const struct hv_guid
 	/* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
 	/* Input */
 	{
-		.data = {
+		.b = {
 			0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c,
 			0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A
 		}
@@ -72,7 +72,7 @@ static const struct hv_guid
 	/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
 	/* IDE */
 	{
-		.data = {
+		.b = {
 			0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
 			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
 		}
@@ -80,7 +80,7 @@ static const struct hv_guid
 	/* 0E0B6031-5213-4934-818B-38D90CED39DB */
 	/* Shutdown */
 	{
-		.data = {
+		.b = {
 			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
 			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
 		}
@@ -88,7 +88,7 @@ static const struct hv_guid
 	/* {9527E630-D0AE-497b-ADCE-E80AB0175CAF} */
 	/* TimeSync */
 	{
-		.data = {
+		.b = {
 			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
 		}
@@ -96,7 +96,7 @@ static const struct hv_guid
 	/* {57164f39-9115-4e78-ab55-382f3bd5422d} */
 	/* Heartbeat */
 	{
-		.data = {
+		.b = {
 			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
 		}
@@ -104,7 +104,7 @@ static const struct hv_guid
 	/* {A9A0F4E7-5A45-4d96-B827-8A841E8C03E6} */
 	/* KVP */
 	{
-		.data = {
+		.b = {
 			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
 			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6
 	}
@@ -231,7 +231,7 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 	/* Shutdown */
 	{
 		.msg_type = HV_SHUTDOWN_MSG,
-		.data = {
+		.data.b = {
 			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
 			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
 		},
@@ -242,7 +242,7 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 	/* TimeSync */
 	{
 		.msg_type = HV_TIMESYNC_MSG,
-		.data = {
+		.data.b = {
 			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
 		},
@@ -252,7 +252,7 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 	/* Heartbeat */
 	{
 		.msg_type = HV_HEARTBEAT_MSG,
-		.data = {
+		.data.b = {
 			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
 		},
@@ -261,7 +261,7 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 	/* {A9A0F4E7-5A45-4d96-B827-8A841E8C03E6} */
 	/* KVP */
 	{
-		.data = {
+		.data.b = {
 			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
 			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6
 		},
@@ -358,12 +358,10 @@ static void vmbus_process_offer(struct work_struct *work)
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
-		if (!memcmp(&channel->offermsg.offer.if_type,
-			    &newchannel->offermsg.offer.if_type,
-			    sizeof(struct hv_guid)) &&
-		    !memcmp(&channel->offermsg.offer.if_instance,
-			    &newchannel->offermsg.offer.if_instance,
-			    sizeof(struct hv_guid))) {
+		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
+			newchannel->offermsg.offer.if_type) &&
+			!uuid_le_cmp(channel->offermsg.offer.if_instance,
+				newchannel->offermsg.offer.if_instance)) {
 			fnew = false;
 			break;
 		}
@@ -416,9 +414,8 @@ static void vmbus_process_offer(struct work_struct *work)
 
 		/* Open IC channels */
 		for (cnt = 0; cnt < MAX_MSG_TYPES; cnt++) {
-			if (memcmp(&newchannel->offermsg.offer.if_type,
-				   &hv_cb_utils[cnt].data,
-				   sizeof(struct hv_guid)) == 0 &&
+			if (!uuid_le_cmp(newchannel->offermsg.offer.if_type,
+				   hv_cb_utils[cnt].data) &&
 				vmbus_open(newchannel, 2 * PAGE_SIZE,
 						 2 * PAGE_SIZE, NULL, 0,
 						 chn_cb_negotiate,
@@ -444,16 +441,15 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_offer_channel *offer;
 	struct vmbus_channel *newchannel;
-	struct hv_guid *guidtype;
-	struct hv_guid *guidinstance;
+	uuid_le *guidtype;
+	uuid_le *guidinstance;
 	int i;
 	int fsupported = 0;
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 	for (i = 0; i < MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++) {
-		if (memcmp(&offer->offer.if_type,
-			&supported_device_classes[i],
-			sizeof(struct hv_guid)) == 0) {
+		if (!uuid_le_cmp(offer->offer.if_type,
+				supported_device_classes[i])) {
 			fsupported = 1;
 			break;
 		}

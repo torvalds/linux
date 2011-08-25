@@ -81,10 +81,10 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	debuginfo->relid = channel->offermsg.child_relid;
 	debuginfo->state = channel->state;
 	memcpy(&debuginfo->interfacetype,
-	       &channel->offermsg.offer.if_type, sizeof(struct hv_guid));
+	       &channel->offermsg.offer.if_type, sizeof(uuid_le));
 	memcpy(&debuginfo->interface_instance,
 	       &channel->offermsg.offer.if_instance,
-	       sizeof(struct hv_guid));
+	       sizeof(uuid_le));
 
 	monitorpage = (struct hv_monitor_page *)vmbus_connection.monitor_pages;
 

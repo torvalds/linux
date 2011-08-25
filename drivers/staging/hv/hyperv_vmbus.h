@@ -451,8 +451,8 @@ enum {
 /* #define VMBUS_PORT_ID		11 */
 
 /* 628180B8-308D-4c5e-B7DB-1BEB62E62EF4 */
-static const struct hv_guid VMBUS_SERVICE_ID = {
-	.data = {
+static const uuid_le VMBUS_SERVICE_ID = {
+	.b = {
 		0xb8, 0x80, 0x81, 0x62, 0x8d, 0x30, 0x5e, 0x4c,
 		0xb7, 0xdb, 0x1b, 0xeb, 0x62, 0xe6, 0x2e, 0xf4
 	},
@@ -601,8 +601,8 @@ extern struct vmbus_connection vmbus_connection;
 
 /* General vmbus interface */
 
-struct hv_device *vmbus_child_device_create(struct hv_guid *type,
-					 struct hv_guid *instance,
+struct hv_device *vmbus_child_device_create(uuid_le *type,
+					 uuid_le *instance,
 					 struct vmbus_channel *channel);
 
 int vmbus_child_device_register(struct hv_device *child_device_obj);
