@@ -59,15 +59,15 @@
 
 #define		WAIotTHVal						25
 
-#define		E_FOR_TX_POWER_TRACK               300
+#define		E_FOR_TX_POWER_TRACK	       300
 #define		TX_POWER_NEAR_FIELD_THRESH_HIGH		68
 #define		TX_POWER_NEAR_FIELD_THRESH_LOW		62
-#define         TX_POWER_ATHEROAP_THRESH_HIGH           78
+#define	 TX_POWER_ATHEROAP_THRESH_HIGH	   78
 #define		TX_POWER_ATHEROAP_THRESH_LOW		72
 
-#define			Current_Tx_Rate_Reg         0x1e0
-#define			Initial_Tx_Rate_Reg         0x1e1
-#define			Tx_Retry_Count_Reg         0x1ac
+#define			Current_Tx_Rate_Reg	 0x1e0
+#define			Initial_Tx_Rate_Reg	 0x1e1
+#define			Tx_Retry_Count_Reg	 0x1ac
 #define		RegC38_TH				 20
 
 #define		TX_POWER_NEAR_FIELD_THRESH_LVL2	74
@@ -227,7 +227,7 @@ struct drx_path_sel {
 
 enum dm_cck_rx_path_method {
 	CCK_Rx_Version_1 = 0,
-	CCK_Rx_Version_2= 1,
+	CCK_Rx_Version_2 = 1,
 	CCK_Rx_Version_MAX
 };
 
@@ -256,7 +256,10 @@ extern	u8			test_flag;
 
 
 /*------------------------Export Marco Definition---------------------------*/
-#define DM_APInitGainChangeNotify(Event) {dm_digtable.CurAPConnectState = Event;}
+#define DM_APInitGainChangeNotify(Event)		\
+	{						\
+		dm_digtable.CurAPConnectState = Event;	\
+	}
 /*------------------------Export Marco Definition---------------------------*/
 
 
@@ -271,19 +274,19 @@ extern void hal_dm_watchdog(struct net_device *dev);
 extern  void    init_rate_adaptive(struct net_device *dev);
 extern  void    dm_txpower_trackingcallback(void *data);
 
-extern  void dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
+extern  void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 
 extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_backup_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_change_dynamic_initgain_thresh(struct net_device *dev,
-                                                                u32             dm_type,
-                                                                u32             dm_value);
+					u32	     dm_type,
+					u32	     dm_value);
 extern  void    DM_ChangeFsyncSetting(struct net_device *dev,
-                                                                                                s32             DM_Type,
-                                                                                                s32             DM_Value);
+					s32	     DM_Type,
+					s32	     DM_Value);
 extern  void dm_force_tx_fw_info(struct net_device *dev,
-                                                                                u32             force_type,
-                                                                                u32             force_value);
+					u32	     force_type,
+					u32	     force_value);
 extern  void    dm_init_edca_turbo(struct net_device *dev);
 extern  void    dm_rf_operation_test_callback(unsigned long data);
 extern  void    dm_rf_pathcheck_workitemcallback(void *data);
@@ -291,11 +294,31 @@ extern  void dm_fsync_timer_callback(unsigned long data);
 extern  void dm_check_fsync(struct net_device *dev);
 extern  void    dm_shadow_init(struct net_device *dev);
 extern  void dm_initialize_txpower_tracking(struct net_device *dev);
-
+extern  void    dm_CheckRfCtrlGPIO(void *data);
+extern void dm_InitRateAdaptiveMask(struct net_device *dev);
+extern	void	init_hal_dm(struct net_device *dev);
+extern	void deinit_hal_dm(struct net_device *dev);
+extern void hal_dm_watchdog(struct net_device *dev);
+extern	void	init_rate_adaptive(struct net_device *dev);
+extern	void	dm_txpower_trackingcallback(void *data);
+extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
+extern	void	dm_backup_dynamic_mechanism_state(struct net_device *dev);
+extern	void	dm_change_dynamic_initgain_thresh(struct net_device *dev,
+					u32	dm_type,
+					u32	dm_value);
+extern	void	DM_ChangeFsyncSetting(struct net_device *dev,
+					s32		DM_Type,
+					s32		DM_Value);
+extern	void dm_force_tx_fw_info(struct net_device *dev,
+					u32		force_type,
+					u32		force_value);
+extern	void	dm_init_edca_turbo(struct net_device *dev);
+extern	void	dm_rf_operation_test_callback(unsigned long data);
+extern	void	dm_rf_pathcheck_workitemcallback(void *data);
+extern	void dm_fsync_timer_callback(unsigned long data);
+extern	void dm_check_fsync(struct net_device *dev);
+extern	void	dm_shadow_init(struct net_device *dev);
+extern	void dm_initialize_txpower_tracking(struct net_device *dev);
 extern  void    dm_CheckRfCtrlGPIO(void *data);
 
-extern void dm_InitRateAdaptiveMask(struct net_device * dev);
-
 #endif	/*__R8192UDM_H__ */
-
-/* End of r8192U_dm.h */
