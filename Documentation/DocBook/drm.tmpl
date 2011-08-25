@@ -57,10 +57,10 @@
       existing drivers.
     </para>
     <para>
-      First, we'll go over some typical driver initialization
+      First, we go over some typical driver initialization
       requirements, like setting up command buffers, creating an
       initial output configuration, and initializing core services.
-      Subsequent sections will cover core internals in more detail,
+      Subsequent sections cover core internals in more detail,
       providing implementation notes and examples.
     </para>
     <para>
@@ -74,7 +74,7 @@
     </para>
     <para>
       The core of every DRM driver is struct drm_driver.  Drivers
-      will typically statically initialize a drm_driver structure,
+      typically statically initialize a drm_driver structure,
       then pass it to drm_init() at load time.
     </para>
 
@@ -155,7 +155,7 @@
     <para>
       In the example above, taken from the i915 DRM driver, the driver
       sets several flags indicating what core features it supports.
-      We'll go over the individual callbacks in later sections.  Since
+      We go over the individual callbacks in later sections.  Since
       flags indicate which features your driver supports to the DRM
       core, you need to set most of them prior to calling drm_init().  Some,
       like DRIVER_MODESET can be set later based on user supplied parameters,
@@ -238,7 +238,7 @@
     </variablelist>
     <para>
       In this specific case, the driver requires AGP and supports
-      IRQs.  DMA, as we'll see, is handled by device specific ioctls
+      IRQs.  DMA, as discussed later, is handled by device specific ioctls
       in this case.  It also supports the kernel mode setting APIs, though
       unlike in the actual i915 driver source, this example unconditionally
       exports KMS capability.
@@ -315,7 +315,7 @@
     <sect2>
       <title>Configuring the device</title>
       <para>
-	Obviously, device configuration will be device specific.
+	Obviously, device configuration is device specific.
 	However, there are several common operations: finding a
 	device's PCI resources, mapping them, and potentially setting
 	up an IRQ handler.
@@ -326,7 +326,7 @@
 	drm_get_resource_len() can be used to find BARs on the given
 	drm_device struct.  Once those values have been retrieved, the
 	driver load function can call drm_addmap() to create a new
-	mapping for the BAR in question.  Note you'll probably want a
+	mapping for the BAR in question.  Note you probably want a
 	drm_local_map_t in your driver private structure to track any
 	mappings you create.
 <!-- !Fdrivers/gpu/drm/drm_bufs.c drm_get_resource_* -->
@@ -357,7 +357,7 @@
       </para>
 <!--!Fdrivers/char/drm/drm_irq.c drm_irq_install-->
       <para>
-	Once your interrupt handler is registered (it'll use your
+	Once your interrupt handler is registered (it uses your
 	drm_driver.irq_handler as the actual interrupt handling
 	function), you can safely enable interrupts on your device,
 	assuming any other state your interrupt handler uses is also
@@ -389,7 +389,7 @@
 	should support a memory manager.
       </para>
       <para>
-	If your driver supports memory management (it should!), you'll
+	If your driver supports memory management (it should!), you
 	need to set that up at load time as well.  How you initialize
 	it depends on which memory manager you're using, TTM or GEM.
       </para>
@@ -430,13 +430,13 @@
 	  have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
 	  object should be sizeof(struct ttm_mem_global), and the init and
 	  release hooks should point at your driver specific init and
-	  release routines, which will probably eventually call
+	  release routines, which probably eventually call
 	  ttm_mem_global_init and ttm_mem_global_release respectively.
 	</para>
 	<para>
 	  Once your global TTM accounting structure is set up and initialized
 	  (done by calling ttm_global_item_ref on the global object you
-	  just created), you'll need to create a buffer object TTM to
+	  just created), you need to create a buffer object TTM to
 	  provide a pool for buffer object allocation by clients and the
 	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
 	  and its size should be sizeof(struct ttm_bo_global).  Again,
@@ -455,8 +455,8 @@
 	  than TTM, but has no VRAM management capability.  Core GEM
 	  initialization is comprised of a basic drm_mm_init call to create
 	  a GTT DRM MM object, which provides an address space pool for
-	  object allocation.  In a KMS configuration, the driver will
-	  need to allocate and initialize a command ring buffer following
+	  object allocation.  In a KMS configuration, the driver
+	  needs to allocate and initialize a command ring buffer following
 	  basic GEM initialization.  Most UMA devices have a so-called
 	  "stolen" memory region, which provides space for the initial
 	  framebuffer and large, contiguous memory regions required by the
@@ -464,16 +464,16 @@
 	  be initialized separately into its own DRM MM object.
 	</para>
 	<para>
-	  Initialization will be driver specific, and will depend on
+	  Initialization is driver specific, and depends on
 	  the architecture of the device.  In the case of Intel
 	  integrated graphics chips like 965GM, GEM initialization can
 	  be done by calling the internal GEM init function,
 	  i915_gem_do_init().  Since the 965GM is a UMA device
-	  (i.e. it doesn't have dedicated VRAM), GEM will manage
+	  (i.e. it doesn't have dedicated VRAM), GEM manages
 	  making regular RAM available for GPU operations.  Memory set
 	  aside by the BIOS (called "stolen" memory by the i915
-	  driver) will be managed by the DRM memrange allocator; the
-	  rest of the aperture will be managed by GEM.
+	  driver) is managed by the DRM memrange allocator; the
+	  rest of the aperture is managed by GEM.
 	  <programlisting>
 	    /* Basic memrange allocator for stolen space (aka vram) */
 	    drm_memrange_init(&amp;dev_priv->vram, 0, prealloc_size);
@@ -616,7 +616,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       DRM_IOCTL_MODESET_CTL should be called by application level
       drivers before and after mode setting, since on many devices the
-      vertical blank counter will be reset at that time.  Internally,
+      vertical blank counter is reset at that time.  Internally,
       the DRM snapshots the last vblank count when the ioctl is called
       with the _DRM_PRE_MODESET command so that the counter won't go
       backwards (which is dealt with when _DRM_POST_MODESET is used).
@@ -632,8 +632,8 @@ void intel_crt_init(struct drm_device *dev)
       register.  The enable and disable vblank callbacks should enable
       and disable vertical blank interrupts, respectively.  In the
       absence of DRM clients waiting on vblank events, the core DRM
-      code will use the disable_vblank() function to disable
-      interrupts, which saves power.  They'll be re-enabled again when
+      code uses the disable_vblank() function to disable
+      interrupts, which saves power.  They are re-enabled again when
       a client calls the vblank wait ioctl above.
     </para>
     <para>
@@ -699,14 +699,14 @@ void intel_crt_init(struct drm_device *dev)
 	performs any necessary flushing or synchronization to put the object
 	into the desired coherency domain (note that the object may be busy,
 	i.e. an active render target; in that case the set domain function
-	will block the client and wait for rendering to complete before
+	blocks the client and waits for rendering to complete before
 	performing any necessary flushing operations).
       </para>
       <para>
 	Perhaps the most important GEM function is providing a command
 	execution interface to clients.  Client programs construct command
 	buffers containing references to previously allocated memory objects
-	and submit them to GEM.  At that point, GEM will take care to bind
+	and submit them to GEM.  At that point, GEM takes care to bind
 	all the objects into the GTT, execute the buffer, and provide
 	necessary synchronization between clients accessing the same buffers.
 	This often involves evicting some objects from the GTT and re-binding
@@ -767,7 +767,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       In order to set a mode on a given CRTC, encoder and connector
       configuration, clients need to provide a framebuffer object which
-      will provide a source of pixels for the CRTC to deliver to the encoder(s)
+      provides a source of pixels for the CRTC to deliver to the encoder(s)
       and ultimately the connector(s) in the configuration.  A framebuffer
       is fundamentally a driver specific memory object, made into an opaque
       handle by the DRM addfb function.  Once an fb has been created this
@@ -789,7 +789,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       The DRM core provides some suspend/resume code, but drivers
       wanting full suspend/resume support should provide save() and
-      restore() functions.  These will be called at suspend,
+      restore() functions.  These are called at suspend,
       hibernate, or resume time, and should perform any state save or
       restore required by your device across suspend or hibernate
       states.
@@ -823,7 +823,7 @@ void intel_crt_init(struct drm_device *dev)
     </para>
     <para>
       Cover generic ioctls and sysfs layout here.  Only need high
-      level info, since man pages will cover the rest.
+      level info, since man pages should cover the rest.
     </para>
   </chapter>
 
