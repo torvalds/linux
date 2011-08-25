@@ -745,9 +745,9 @@ static int do_vmbus_entry(const char *filename, struct hv_vmbus_device_id *id,
 			  char *alias)
 {
 	int i;
-	char guid_name[((sizeof(struct hv_vmbus_device_id) + 1)) * 2];
+	char guid_name[((sizeof(id->guid) + 1)) * 2];
 
-	for (i = 0; i < (sizeof(struct hv_vmbus_device_id) * 2); i += 2)
+	for (i = 0; i < (sizeof(id->guid) * 2); i += 2)
 		sprintf(&guid_name[i], "%02x", id->guid[i/2]);
 
 	strcpy(alias, "vmbus:");
