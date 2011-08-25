@@ -1292,7 +1292,8 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, msecs_to_jiffies(port->closing_wait));
+		tty_wait_until_sent_from_close(tty,
+				msecs_to_jiffies(port->closing_wait));
 
 	/*
 	 * At this point, we stop accepting input.  To do this, we

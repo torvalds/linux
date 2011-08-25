@@ -388,7 +388,7 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		 * there is no buffered data otherwise sleeps on a wait queue
 		 * waking periodically to check chars_in_buffer().
 		 */
-		tty_wait_until_sent(tty, HVC_CLOSE_WAIT);
+		tty_wait_until_sent_from_close(tty, HVC_CLOSE_WAIT);
 	} else {
 		if (hp->count < 0)
 			printk(KERN_ERR "hvc_close %X: oops, count is %d\n",
