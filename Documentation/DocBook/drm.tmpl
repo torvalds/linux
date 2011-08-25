@@ -32,7 +32,7 @@
       The Linux DRM layer contains code intended to support the needs
       of complex graphics devices, usually containing programmable
       pipelines well suited to 3D graphics acceleration.  Graphics
-      drivers in the kernel can make use of DRM functions to make
+      drivers in the kernel may make use of DRM functions to make
       tasks like memory management, interrupt handling and DMA easier,
       and provide a uniform interface to applications.
     </para>
@@ -293,12 +293,12 @@
 	can be used for tracking various device specific bits of
 	information, like register offsets, command buffer status,
 	register state for suspend/resume, etc.  At load time, a
-	driver can simply allocate one and set drm_device.dev_priv
+	driver may simply allocate one and set drm_device.dev_priv
 	appropriately; at unload the driver can free it and set
 	drm_device.dev_priv to NULL.
       </para>
       <para>
-	The DRM supports several counters which can be used for rough
+	The DRM supports several counters which may be used for rough
 	performance characterization.  Note that the DRM stat counter
 	system is not often used by applications, and supporting
 	additional counters is completely optional.
@@ -323,7 +323,7 @@
       <para>
 	Finding &amp; mapping resources is fairly straightforward.  The
 	DRM wrapper functions, drm_get_resource_start() and
-	drm_get_resource_len() can be used to find BARs on the given
+	drm_get_resource_len() may be used to find BARs on the given
 	drm_device struct.  Once those values have been retrieved, the
 	driver load function can call drm_addmap() to create a new
 	mapping for the BAR in question.  Note you probably want a
@@ -335,12 +335,12 @@
       <para>
 	if compatibility with other operating systems isn't a concern
 	(DRM drivers can run under various BSD variants and OpenSolaris),
-	native Linux calls can be used for the above, e.g. pci_resource_*
+	native Linux calls may be used for the above, e.g. pci_resource_*
 	and iomap*/iounmap.  See the Linux device driver book for more
 	info.
       </para>
       <para>
-	Once you have a register map, you can use the DRM_READn() and
+	Once you have a register map, you may use the DRM_READn() and
 	DRM_WRITEn() macros to access the registers on your device, or
 	use driver specific versions to offset into your MMIO space
 	relative to a driver specific base pointer (see I915_READ for
@@ -440,7 +440,7 @@
 	  provide a pool for buffer object allocation by clients and the
 	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
 	  and its size should be sizeof(struct ttm_bo_global).  Again,
-	  driver specific init and release functions can be provided,
+	  driver specific init and release functions may be provided,
 	  likely eventually calling ttm_bo_global_init and
 	  ttm_bo_global_release, respectively.  Also like the previous
 	  object, ttm_global_item_ref is used to create an initial reference
@@ -483,7 +483,7 @@
 <!--!Edrivers/char/drm/drm_memrange.c-->
 	</para>
 	<para>
-	  Once the memory manager has been set up, we can allocate the
+	  Once the memory manager has been set up, we may allocate the
 	  command buffer.  In the i915 case, this is also done with a
 	  GEM function, i915_gem_init_ringbuffer().
 	</para>
@@ -572,7 +572,7 @@ void intel_crt_init(struct drm_device *dev)
 	    devices with PC-style architectures (i.e. a set of display planes
 	    for feeding pixels to encoders which are in turn routed to
 	    connectors).  Devices with more complex requirements needing
-	    finer grained management can opt to use the core callbacks
+	    finer grained management may opt to use the core callbacks
 	    directly.
 	  </para>
 	  <para>
@@ -637,7 +637,7 @@ void intel_crt_init(struct drm_device *dev)
       a client calls the vblank wait ioctl above.
     </para>
     <para>
-      Devices that don't provide a count register can simply use an
+      Devices that don't provide a count register may simply use an
       internal atomic counter incremented on every vertical blank
       interrupt, and can make their enable and disable vblank
       functions into no-ops.
