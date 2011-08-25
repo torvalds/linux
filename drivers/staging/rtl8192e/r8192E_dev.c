@@ -1662,15 +1662,15 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv, u8 *buffer,struct rtllib_
 			if (pprevious_stats->RxMIMOSignalStrength[rfpath]  > priv->stats.rx_rssi_percentage[rfpath])
 			{
 				priv->stats.rx_rssi_percentage[rfpath] =
-					( (priv->stats.rx_rssi_percentage[rfpath]*(Rx_Smooth_Factor-1)) +
-					(pprevious_stats->RxMIMOSignalStrength[rfpath])) /(Rx_Smooth_Factor);
+					( (priv->stats.rx_rssi_percentage[rfpath]*(RX_SMOOTH-1)) +
+					(pprevious_stats->RxMIMOSignalStrength[rfpath])) /(RX_SMOOTH);
 				priv->stats.rx_rssi_percentage[rfpath] = priv->stats.rx_rssi_percentage[rfpath]  + 1;
 			}
 			else
 			{
 				priv->stats.rx_rssi_percentage[rfpath] =
-					( (priv->stats.rx_rssi_percentage[rfpath]*(Rx_Smooth_Factor-1)) +
-					(pprevious_stats->RxMIMOSignalStrength[rfpath])) /(Rx_Smooth_Factor);
+					( (priv->stats.rx_rssi_percentage[rfpath]*(RX_SMOOTH-1)) +
+					(pprevious_stats->RxMIMOSignalStrength[rfpath])) /(RX_SMOOTH);
 			}
 			RT_TRACE(COMP_DBG,"Jacken -> priv->RxStats.RxRSSIPercentage[rfPath]  = %d \n" ,priv->stats.rx_rssi_percentage[rfpath] );
 		}
@@ -1708,15 +1708,15 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv, u8 *buffer,struct rtllib_
 		if (pprevious_stats->RxPWDBAll > (u32)priv->undecorated_smoothed_pwdb)
 		{
 			priv->undecorated_smoothed_pwdb =
-					( ((priv->undecorated_smoothed_pwdb)*(Rx_Smooth_Factor-1)) +
-					(pprevious_stats->RxPWDBAll)) /(Rx_Smooth_Factor);
+					( ((priv->undecorated_smoothed_pwdb)*(RX_SMOOTH-1)) +
+					(pprevious_stats->RxPWDBAll)) /(RX_SMOOTH);
 			priv->undecorated_smoothed_pwdb = priv->undecorated_smoothed_pwdb + 1;
 		}
 		else
 		{
 			priv->undecorated_smoothed_pwdb =
-					( ((priv->undecorated_smoothed_pwdb)*(Rx_Smooth_Factor-1)) +
-					(pprevious_stats->RxPWDBAll)) /(Rx_Smooth_Factor);
+					( ((priv->undecorated_smoothed_pwdb)*(RX_SMOOTH-1)) +
+					(pprevious_stats->RxPWDBAll)) /(RX_SMOOTH);
 		}
 		rtl819x_update_rxsignalstatistics8190pci(priv,pprevious_stats);
 	}
@@ -1755,8 +1755,8 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv, u8 *buffer,struct rtllib_
 						priv->stats.rx_evm_percentage[nspatial_stream] = pprevious_stats->RxMIMOSignalQuality[nspatial_stream];
 					}
 					priv->stats.rx_evm_percentage[nspatial_stream] =
-						( (priv->stats.rx_evm_percentage[nspatial_stream]* (Rx_Smooth_Factor-1)) +
-						(pprevious_stats->RxMIMOSignalQuality[nspatial_stream]* 1)) / (Rx_Smooth_Factor);
+						( (priv->stats.rx_evm_percentage[nspatial_stream]* (RX_SMOOTH-1)) +
+						(pprevious_stats->RxMIMOSignalQuality[nspatial_stream]* 1)) / (RX_SMOOTH);
 				}
 			}
 		}

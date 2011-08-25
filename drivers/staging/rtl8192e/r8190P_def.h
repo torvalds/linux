@@ -39,7 +39,7 @@ enum rtl819x_loopback {
 
 #define RESET_DELAY_8185			20
 
-#define RT_IBSS_INT_MASKS			(IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER)
+#define RT_IBSS_INT_MASKS (IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER)
 
 #define DESC90_RATE1M				0x00
 #define DESC90_RATE2M				0x01
@@ -85,7 +85,7 @@ enum rtl819x_loopback {
 #define BT_QA_BOARD				1
 #define BT_FPGA					2
 
-#define	Rx_Smooth_Factor			20
+#define	RX_SMOOTH				20
 
 #define QSLT_BK					0x1
 #define QSLT_BE					0x0
@@ -130,7 +130,7 @@ enum rtl819x_loopback {
 
 
 enum version_8190_loopback {
-	VERSION_8190_BD=0x3,
+	VERSION_8190_BD = 0x3,
 	VERSION_8190_BE
 };
 
@@ -139,9 +139,9 @@ enum version_8190_loopback {
 #define IC_VersionCut_E	0x4
 
 enum rf_optype {
-    RF_OP_By_SW_3wire = 0,
-    RF_OP_By_FW,
-    RF_OP_MAX
+	RF_OP_By_SW_3wire = 0,
+	RF_OP_By_FW,
+	RF_OP_MAX
 };
 
 
@@ -303,41 +303,41 @@ struct phy_sts_cck_819xpci {
 #define		PHY_Beacon_RSSI_SLID_WIN_MAX		10
 
 struct tx_desc {
-        u16	PktSize;
-        u8	Offset;
-        u8	Reserved1:3;
-        u8	CmdInit:1;
-        u8	LastSeg:1;
-        u8	FirstSeg:1;
-        u8	LINIP:1;
-        u8	OWN:1;
+	u16	PktSize;
+	u8	Offset;
+	u8	Reserved1:3;
+	u8	CmdInit:1;
+	u8	LastSeg:1;
+	u8	FirstSeg:1;
+	u8	LINIP:1;
+	u8	OWN:1;
 
-        u8	TxFWInfoSize;
-        u8	RATid:3;
-        u8	DISFB:1;
-        u8	USERATE:1;
-        u8	MOREFRAG:1;
-        u8	NoEnc:1;
-        u8	PIFS:1;
-        u8	QueueSelect:5;
-        u8	NoACM:1;
-        u8	Resv:2;
-        u8	SecCAMID:5;
-        u8	SecDescAssign:1;
-        u8	SecType:2;
+	u8	TxFWInfoSize;
+	u8	RATid:3;
+	u8	DISFB:1;
+	u8	USERATE:1;
+	u8	MOREFRAG:1;
+	u8	NoEnc:1;
+	u8	PIFS:1;
+	u8	QueueSelect:5;
+	u8	NoACM:1;
+	u8	Resv:2;
+	u8	SecCAMID:5;
+	u8	SecDescAssign:1;
+	u8	SecType:2;
 
-        u16	TxBufferSize;
-        u8	PktId:7;
-        u8	Resv1:1;
-        u8	Reserved2;
+	u16	TxBufferSize;
+	u8	PktId:7;
+	u8	Resv1:1;
+	u8	Reserved2;
 
 	u32	TxBuffAddr;
 
 	u32	NextDescAddress;
 
-        u32	Reserved5;
-        u32	Reserved6;
-        u32	Reserved7;
+	u32	Reserved5;
+	u32	Reserved6;
+	u32	Reserved7;
 };
 
 
