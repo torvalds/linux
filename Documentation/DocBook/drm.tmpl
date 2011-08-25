@@ -490,10 +490,19 @@
     <sect2>
       <title>Output configuration</title>
       <para>
-	The final initialization task is output configuration.  This involves
-	finding and initializing the CRTCs, encoders and connectors
-	for your device, creating an initial configuration and
-	registering a framebuffer console driver.
+	The final initialization task is output configuration.  This involves:
+	<itemizedlist>
+	  <listitem>
+	    Finding and initializing the CRTCs, encoders, and connectors
+	    for the device.
+	  </listitem>
+	  <listitem>
+	    Creating an initial configuration.
+	  </listitem>
+	  <listitem>
+	    Registering a framebuffer console driver.
+	  </listitem>
+	</itemizedlist>
       </para>
       <sect3>
 	<title>Output discovery and initialization</title>
