@@ -1312,59 +1312,41 @@ int hci_blacklist_clear(struct hci_dev *hdev)
 int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct bdaddr_list *entry;
-	int err;
 
 	if (bacmp(bdaddr, BDADDR_ANY) == 0)
 		return -EBADF;
 
-	hci_dev_lock_bh(hdev);
-
-	if (hci_blacklist_lookup(hdev, bdaddr)) {
-		err = -EEXIST;
-		goto err;
-	}
+	if (hci_blacklist_lookup(hdev, bdaddr))
+		return -EEXIST;
 
 	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
-	if (!entry) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!entry)
+		return -ENOMEM;
 
 	bacpy(&entry->bdaddr, bdaddr);
 
 	list_add(&entry->list, &hdev->blacklist);
 
-	err = 0;
-
-err:
-	hci_dev_unlock_bh(hdev);
-	return err;
+	return mgmt_device_blocked(hdev->id, bdaddr);
 }
 
 int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct bdaddr_list *entry;
-	int err = 0;
-
-	hci_dev_lock_bh(hdev);
 
 	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
-		hci_blacklist_clear(hdev);
-		goto done;
+		return hci_blacklist_clear(hdev);
 	}
 
 	entry = hci_blacklist_lookup(hdev, bdaddr);
 	if (!entry) {
-		err = -ENOENT;
-		goto done;
+		return -ENOENT;
 	}
 
 	list_del(&entry->list);
 	kfree(entry);
 
-done:
-	hci_dev_unlock_bh(hdev);
-	return err;
+	return mgmt_device_unblocked(hdev->id, bdaddr);
 }
 
 static void hci_clear_adv_cache(unsigned long arg)
