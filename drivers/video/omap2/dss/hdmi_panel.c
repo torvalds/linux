@@ -170,11 +170,7 @@ static int hdmi_check_timings(struct omap_dss_device *dssdev,
 	mutex_lock(&hdmi.hdmi_lock);
 
 	r = omapdss_hdmi_display_check_timing(dssdev, timings);
-	if (r) {
-		DSSERR("Timing cannot be applied\n");
-		goto err;
-	}
-err:
+
 	mutex_unlock(&hdmi.hdmi_lock);
 	return r;
 }

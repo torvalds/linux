@@ -406,7 +406,6 @@ int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
 
 	cm = hdmi_get_code(timings);
 	if (cm.code == -1) {
-		DSSERR("Invalid timing entered\n");
 		return -EINVAL;
 	}
 
