@@ -32,6 +32,7 @@
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 
 #include <asm/hyperv.h>
@@ -805,6 +806,7 @@ struct hv_driver {
 
 	/* the device type supported by this driver */
 	uuid_le dev_type;
+	const struct hv_vmbus_device_id *id_table;
 
 	struct device_driver driver;
 
