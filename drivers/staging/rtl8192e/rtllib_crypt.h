@@ -61,8 +61,8 @@ struct rtllib_crypto_ops {
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
 	 * extra_postfix_len; encrypt need not use all this space, but
-	 * the result must start at the beginning of the struct buffer and correct
-	 * length must be returned */
+	 * the result must start at the beginning of the struct buffer and
+	 * correct length must be returned */
 	int extra_prefix_len, extra_postfix_len;
 
 	struct module *owner;
@@ -77,9 +77,9 @@ struct rtllib_crypt_data {
 
 int rtllib_register_crypto_ops(struct rtllib_crypto_ops *ops);
 int rtllib_unregister_crypto_ops(struct rtllib_crypto_ops *ops);
-struct rtllib_crypto_ops * rtllib_get_crypto_ops(const char *name);
+struct rtllib_crypto_ops *rtllib_get_crypto_ops(const char *name);
 void rtllib_crypt_deinit_entries(struct rtllib_device *, int);
 void rtllib_crypt_deinit_handler(unsigned long);
 void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
-				    struct rtllib_crypt_data **crypt);
+				 struct rtllib_crypt_data **crypt);
 #endif

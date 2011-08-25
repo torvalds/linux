@@ -15,8 +15,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/string.h>
-#include <asm/errno.h>
+#include <linux/string.h>
+#include <linux/errno.h>
 
 #include "rtllib.h"
 
@@ -152,7 +152,7 @@ int rtllib_unregister_crypto_ops(struct rtllib_crypto_ops *ops)
 }
 
 
-struct rtllib_crypto_ops * rtllib_get_crypto_ops(const char *name)
+struct rtllib_crypto_ops *rtllib_get_crypto_ops(const char *name)
 {
 	unsigned long flags;
 	struct list_head *ptr;
