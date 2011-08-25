@@ -451,7 +451,7 @@
 	  GEM is an alternative to TTM, designed specifically for UMA
 	  devices.  It has simpler initialization and execution requirements
 	  than TTM, but has no VRAM management capability.  Core GEM
-	  initialization is comprised of a basic drm_mm_init call to create
+	  is initialized by calling drm_mm_init() to create
 	  a GTT DRM MM object, which provides an address space pool for
 	  object allocation.  In a KMS configuration, the driver
 	  needs to allocate and initialize a command ring buffer following
