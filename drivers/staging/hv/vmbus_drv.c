@@ -255,21 +255,31 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	return ret;
 }
 
+static uuid_le null_guid;
+
+static inline bool is_null_guid(const __u8 *guid)
+{
+	if (memcmp(guid, &null_guid, sizeof(uuid_le)))
+		return false;
+	return true;
+}
+
 
 /*
  * vmbus_match - Attempt to match the specified device to the specified driver
  */
 static int vmbus_match(struct device *device, struct device_driver *driver)
 {
-	int match = 0;
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
+	const struct hv_vmbus_device_id *id_array = drv->id_table;
 
-	/* We found our driver ? */
-	if (!uuid_le_cmp(hv_dev->dev_type, drv->dev_type))
-		match = 1;
+	for (; !is_null_guid(id_array->guid); id_array++)
+		if (!memcmp(&id_array->guid, &hv_dev->dev_type.b,
+				sizeof(struct hv_vmbus_device_id)))
+			return 1;
 
-	return match;
+	return 0;
 }
 
 /*
