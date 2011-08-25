@@ -178,12 +178,6 @@ struct mousevsc_dev {
 
 static const char *driver_name = "mousevsc";
 
-/* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
-static const uuid_le mouse_guid = {
-	.b = {0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c,
-		 0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A}
-};
-
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info);
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
@@ -914,8 +908,26 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	kfree(hid_dev);
 }
 
+static const struct hv_vmbus_device_id id_table[] = {
+	{
+		/* Mouse guid */
+		.guid = {
+			0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c,
+			0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A
+		}
+	},
+	{
+		.guid = { }
+	},
+};
+
+/*
+ * The mouse driver is not functional; do not auto-load it.
+ */
+/* MODULE_DEVICE_TABLE(vmbus, id_table); */
 
 static struct  hv_driver mousevsc_drv = {
+	.id_table = id_table,
 	.probe = mousevsc_probe,
 	.remove = mousevsc_remove,
 };
@@ -930,9 +942,6 @@ static int __init mousevsc_init(void)
 	struct hv_driver *drv = &mousevsc_drv;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
-
-	memcpy(&drv->dev_type, &mouse_guid,
-	       sizeof(uuid_le));
 
 	drv->driver.name = driver_name;
 
