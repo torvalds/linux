@@ -318,6 +318,7 @@ struct sdma_engine {
 	dma_addr_t			context_phys;
 	struct dma_device		dma_device;
 	struct clk			*clk;
+	struct mutex			channel_0_lock;
 	struct sdma_script_start_addrs	*script_addrs;
 };
 
@@ -415,11 +416,15 @@ static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
 	dma_addr_t buf_phys;
 	int ret;
 
+	mutex_lock(&sdma->channel_0_lock);
+
 	buf_virt = dma_alloc_coherent(NULL,
 			size,
 			&buf_phys, GFP_KERNEL);
-	if (!buf_virt)
-		return -ENOMEM;
+	if (!buf_virt) {
+		ret = -ENOMEM;
+		goto err_out;
+	}
 
 	bd0->mode.command = C0_SETPM;
 	bd0->mode.status = BD_DONE | BD_INTR | BD_WRAP | BD_EXTD;
@@ -432,6 +437,9 @@ static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
 	ret = sdma_run_channel(&sdma->channel[0]);
 
 	dma_free_coherent(NULL, size, buf_virt, buf_phys);
+
+err_out:
+	mutex_unlock(&sdma->channel_0_lock);
 
 	return ret;
 }
@@ -656,6 +664,8 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	dev_dbg(sdma->dev, "event_mask0 = 0x%08x\n", sdmac->event_mask0);
 	dev_dbg(sdma->dev, "event_mask1 = 0x%08x\n", sdmac->event_mask1);
 
+	mutex_lock(&sdma->channel_0_lock);
+
 	memset(context, 0, sizeof(*context));
 	context->channel_state.pc = load_address;
 
@@ -675,6 +685,8 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	bd0->ext_buffer_addr = 2048 + (sizeof(*context) / 4) * channel;
 
 	ret = sdma_run_channel(&sdma->channel[0]);
+
+	mutex_unlock(&sdma->channel_0_lock);
 
 	return ret;
 }
@@ -1273,6 +1285,8 @@ static int __init sdma_probe(struct platform_device *pdev)
 	sdma = kzalloc(sizeof(*sdma), GFP_KERNEL);
 	if (!sdma)
 		return -ENOMEM;
+
+	mutex_init(&sdma->channel_0_lock);
 
 	sdma->dev = &pdev->dev;
 
