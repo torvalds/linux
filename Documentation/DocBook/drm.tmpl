@@ -269,8 +269,10 @@
       initial output configuration.
     </para>
     <para>
-      Note that the tasks performed at driver load time must not
-      conflict with DRM client requirements.  For instance, if user
+      If compatibility is a concern (e.g. with drivers converted over
+      to the new interfaces from the old ones), care must be taken to
+      prevent device initialization and control that is incompatible with
+      currently active userspace drivers.  For instance, if user
       level mode setting drivers are in use, it would be problematic
       to perform output discovery &amp; configuration at load time.
       Likewise, if user-level drivers unaware of memory management are
@@ -279,11 +281,7 @@
       needs to be taken to keep both old and new applications and
       libraries working.  The i915 driver supports the "modeset"
       module parameter to control whether advanced features are
-      enabled at load time or in legacy fashion.  If compatibility is
-      a concern (e.g. with drivers converted over to the new interfaces
-      from the old ones), care must be taken to prevent device
-      initialization and control that is incompatible with
-      currently active userspace drivers.
+      enabled at load time or in legacy fashion.
     </para>
 
     <sect2>
