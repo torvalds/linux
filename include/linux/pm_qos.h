@@ -19,10 +19,16 @@
 #define PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
 #define PM_QOS_NETWORK_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
 #define PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE	0
+#define PM_QOS_DEV_LAT_DEFAULT_VALUE		0
 
 struct pm_qos_request {
 	struct plist_node node;
 	int pm_qos_class;
+};
+
+struct dev_pm_qos_request {
+	struct plist_node node;
+	struct device *dev;
 };
 
 enum pm_qos_type {
@@ -51,6 +57,11 @@ enum pm_qos_req_action {
 	PM_QOS_REMOVE_REQ	/* Remove an existing request */
 };
 
+static inline int dev_pm_qos_request_active(struct dev_pm_qos_request *req)
+{
+	return req->dev != 0;
+}
+
 #ifdef CONFIG_PM
 int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 			 enum pm_qos_req_action action, int value);
@@ -64,6 +75,17 @@ int pm_qos_request(int pm_qos_class);
 int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_request_active(struct pm_qos_request *req);
+
+int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
+			   s32 value);
+int dev_pm_qos_update_request(struct dev_pm_qos_request *req, s32 new_value);
+int dev_pm_qos_remove_request(struct dev_pm_qos_request *req);
+int dev_pm_qos_add_notifier(struct device *dev,
+			    struct notifier_block *notifier);
+int dev_pm_qos_remove_notifier(struct device *dev,
+			       struct notifier_block *notifier);
+void dev_pm_qos_constraints_init(struct device *dev);
+void dev_pm_qos_constraints_destroy(struct device *dev);
 #else
 static inline int pm_qos_update_target(struct pm_qos_constraints *c,
 				       struct plist_node *node,
@@ -89,6 +111,26 @@ static inline int pm_qos_remove_notifier(int pm_qos_class,
 			{ return 0; }
 static inline int pm_qos_request_active(struct pm_qos_request *req)
 			{ return 0; }
+
+static inline int dev_pm_qos_add_request(struct device *dev,
+					 struct dev_pm_qos_request *req,
+					 s32 value)
+			{ return 0; }
+static inline int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
+					    s32 new_value)
+			{ return 0; }
+static inline int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
+			{ return 0; }
+static inline int dev_pm_qos_add_notifier(struct device *dev,
+					  struct notifier_block *notifier)
+			{ return 0; }
+static inline int dev_pm_qos_remove_notifier(struct device *dev,
+					     struct notifier_block *notifier)
+			{ return 0; }
+static inline void dev_pm_qos_constraints_init(struct device *dev)
+			{ return; }
+static inline void dev_pm_qos_constraints_destroy(struct device *dev)
+			{ return; }
 #endif
 
 #endif
