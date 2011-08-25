@@ -499,6 +499,29 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
+static u8 smp_ltk_encrypt(struct l2cap_conn *conn)
+{
+	struct link_key *key;
+	struct key_master_id *master;
+	struct hci_conn *hcon = conn->hcon;
+
+	key = hci_find_link_key_type(hcon->hdev, conn->dst,
+						HCI_LK_SMP_LTK);
+	if (!key)
+		return 0;
+
+	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND,
+					&hcon->pend))
+		return 1;
+
+	master = (void *) key->data;
+	hci_le_start_enc(hcon, master->ediv, master->rand,
+						key->val);
+	hcon->enc_key_size = key->pin_len;
+
+	return 1;
+
+}
 static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_security_req *rp = (void *) skb->data;
@@ -507,6 +530,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_chan *smp;
 
 	BT_DBG("conn %p", conn);
+
+	if (smp_ltk_encrypt(conn))
+		return 0;
 
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend))
 		return 0;
@@ -542,25 +568,9 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 	if (hcon->sec_level >= sec_level)
 		return 1;
 
-	if (hcon->link_mode & HCI_LM_MASTER) {
-		struct link_key *key;
-
-		key = hci_find_link_key_type(hcon->hdev, conn->dst,
-							HCI_LK_SMP_LTK);
-		if (key) {
-			struct key_master_id *master = (void *) key->data;
-
-			if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND,
-							&hcon->pend))
-				goto done;
-
-			hci_le_start_enc(hcon, master->ediv, master->rand,
-								key->val);
-			hcon->enc_key_size = key->pin_len;
-
+	if (hcon->link_mode & HCI_LM_MASTER)
+		if (smp_ltk_encrypt(conn))
 			goto done;
-		}
-	}
 
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend))
 		return 0;
