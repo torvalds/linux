@@ -45,7 +45,7 @@
 #include <linux/uaccess.h>
 
 /*
- * locking rule: all changes to requests or notifiers lists
+ * locking rule: all changes to constraints or notifiers lists
  * or pm_qos_object list and pm_qos_objects need to happen with pm_qos_lock
  * held, taken with _irqsave.  One lock to rule them all
  */
@@ -60,7 +60,7 @@ enum pm_qos_type {
  * types linux supports for 32 bit quantites
  */
 struct pm_qos_object {
-	struct plist_head requests;
+	struct plist_head constraints;
 	struct blocking_notifier_head *notifiers;
 	struct miscdevice pm_qos_power_miscdev;
 	char *name;
@@ -74,7 +74,7 @@ static DEFINE_SPINLOCK(pm_qos_lock);
 static struct pm_qos_object null_pm_qos;
 static BLOCKING_NOTIFIER_HEAD(cpu_dma_lat_notifier);
 static struct pm_qos_object cpu_dma_pm_qos = {
-	.requests = PLIST_HEAD_INIT(cpu_dma_pm_qos.requests),
+	.constraints = PLIST_HEAD_INIT(cpu_dma_pm_qos.constraints),
 	.notifiers = &cpu_dma_lat_notifier,
 	.name = "cpu_dma_latency",
 	.target_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
@@ -84,7 +84,7 @@ static struct pm_qos_object cpu_dma_pm_qos = {
 
 static BLOCKING_NOTIFIER_HEAD(network_lat_notifier);
 static struct pm_qos_object network_lat_pm_qos = {
-	.requests = PLIST_HEAD_INIT(network_lat_pm_qos.requests),
+	.constraints = PLIST_HEAD_INIT(network_lat_pm_qos.constraints),
 	.notifiers = &network_lat_notifier,
 	.name = "network_latency",
 	.target_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
@@ -95,7 +95,7 @@ static struct pm_qos_object network_lat_pm_qos = {
 
 static BLOCKING_NOTIFIER_HEAD(network_throughput_notifier);
 static struct pm_qos_object network_throughput_pm_qos = {
-	.requests = PLIST_HEAD_INIT(network_throughput_pm_qos.requests),
+	.constraints = PLIST_HEAD_INIT(network_throughput_pm_qos.constraints),
 	.notifiers = &network_throughput_notifier,
 	.name = "network_throughput",
 	.target_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
@@ -129,15 +129,15 @@ static const struct file_operations pm_qos_power_fops = {
 /* unlocked internal variant */
 static inline int pm_qos_get_value(struct pm_qos_object *o)
 {
-	if (plist_head_empty(&o->requests))
+	if (plist_head_empty(&o->constraints))
 		return o->default_value;
 
 	switch (o->type) {
 	case PM_QOS_MIN:
-		return plist_first(&o->requests)->prio;
+		return plist_first(&o->constraints)->prio;
 
 	case PM_QOS_MAX:
-		return plist_last(&o->requests)->prio;
+		return plist_last(&o->constraints)->prio;
 
 	default:
 		/* runtime check for not using enum */
@@ -170,13 +170,13 @@ static void update_target(struct pm_qos_object *o, struct plist_node *node,
 		 * with new value and add, then see if the extremal
 		 * changed
 		 */
-		plist_del(node, &o->requests);
+		plist_del(node, &o->constraints);
 		plist_node_init(node, value);
-		plist_add(node, &o->requests);
+		plist_add(node, &o->constraints);
 	} else if (del) {
-		plist_del(node, &o->requests);
+		plist_del(node, &o->constraints);
 	} else {
-		plist_add(node, &o->requests);
+		plist_add(node, &o->constraints);
 	}
 	curr_value = pm_qos_get_value(o);
 	pm_qos_set_value(o, curr_value);
@@ -222,7 +222,7 @@ int pm_qos_request(int pm_qos_class)
 }
 EXPORT_SYMBOL_GPL(pm_qos_request);
 
-int pm_qos_request_active(struct pm_qos_request_list *req)
+int pm_qos_request_active(struct pm_qos_request *req)
 {
 	return req->pm_qos_class != 0;
 }
@@ -230,24 +230,24 @@ EXPORT_SYMBOL_GPL(pm_qos_request_active);
 
 /**
  * pm_qos_add_request - inserts new qos request into the list
- * @dep: pointer to a preallocated handle
+ * @req: pointer to a preallocated handle
  * @pm_qos_class: identifies which list of qos request to use
  * @value: defines the qos request
  *
  * This function inserts a new entry in the pm_qos_class list of requested qos
  * performance characteristics.  It recomputes the aggregate QoS expectations
- * for the pm_qos_class of parameters and initializes the pm_qos_request_list
+ * for the pm_qos_class of parameters and initializes the pm_qos_request
  * handle.  Caller needs to save this handle for later use in updates and
  * removal.
  */
 
-void pm_qos_add_request(struct pm_qos_request_list *dep,
+void pm_qos_add_request(struct pm_qos_request *req,
 			int pm_qos_class, s32 value)
 {
 	struct pm_qos_object *o =  pm_qos_array[pm_qos_class];
 	int new_value;
 
-	if (pm_qos_request_active(dep)) {
+	if (pm_qos_request_active(req)) {
 		WARN(1, KERN_ERR "pm_qos_add_request() called for already added request\n");
 		return;
 	}
@@ -255,15 +255,15 @@ void pm_qos_add_request(struct pm_qos_request_list *dep,
 		new_value = o->default_value;
 	else
 		new_value = value;
-	plist_node_init(&dep->list, new_value);
-	dep->pm_qos_class = pm_qos_class;
-	update_target(o, &dep->list, 0, PM_QOS_DEFAULT_VALUE);
+	plist_node_init(&req->node, new_value);
+	req->pm_qos_class = pm_qos_class;
+	update_target(o, &req->node, 0, PM_QOS_DEFAULT_VALUE);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_request);
 
 /**
  * pm_qos_update_request - modifies an existing qos request
- * @pm_qos_req : handle to list element holding a pm_qos request to use
+ * @req : handle to list element holding a pm_qos request to use
  * @value: defines the qos request
  *
  * Updates an existing qos request for the pm_qos_class of parameters along
@@ -271,56 +271,56 @@ EXPORT_SYMBOL_GPL(pm_qos_add_request);
  *
  * Attempts are made to make this code callable on hot code paths.
  */
-void pm_qos_update_request(struct pm_qos_request_list *pm_qos_req,
+void pm_qos_update_request(struct pm_qos_request *req,
 			   s32 new_value)
 {
 	s32 temp;
 	struct pm_qos_object *o;
 
-	if (!pm_qos_req) /*guard against callers passing in null */
+	if (!req) /*guard against callers passing in null */
 		return;
 
-	if (!pm_qos_request_active(pm_qos_req)) {
+	if (!pm_qos_request_active(req)) {
 		WARN(1, KERN_ERR "pm_qos_update_request() called for unknown object\n");
 		return;
 	}
 
-	o = pm_qos_array[pm_qos_req->pm_qos_class];
+	o = pm_qos_array[req->pm_qos_class];
 
 	if (new_value == PM_QOS_DEFAULT_VALUE)
 		temp = o->default_value;
 	else
 		temp = new_value;
 
-	if (temp != pm_qos_req->list.prio)
-		update_target(o, &pm_qos_req->list, 0, temp);
+	if (temp != req->node.prio)
+		update_target(o, &req->node, 0, temp);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
 
 /**
  * pm_qos_remove_request - modifies an existing qos request
- * @pm_qos_req: handle to request list element
+ * @req: handle to request list element
  *
- * Will remove pm qos request from the list of requests and
+ * Will remove pm qos request from the list of constraints and
  * recompute the current target value for the pm_qos_class.  Call this
  * on slow code paths.
  */
-void pm_qos_remove_request(struct pm_qos_request_list *pm_qos_req)
+void pm_qos_remove_request(struct pm_qos_request *req)
 {
 	struct pm_qos_object *o;
 
-	if (pm_qos_req == NULL)
+	if (req == NULL)
 		return;
 		/* silent return to keep pcm code cleaner */
 
-	if (!pm_qos_request_active(pm_qos_req)) {
+	if (!pm_qos_request_active(req)) {
 		WARN(1, KERN_ERR "pm_qos_remove_request() called for unknown object\n");
 		return;
 	}
 
-	o = pm_qos_array[pm_qos_req->pm_qos_class];
-	update_target(o, &pm_qos_req->list, 1, PM_QOS_DEFAULT_VALUE);
-	memset(pm_qos_req, 0, sizeof(*pm_qos_req));
+	o = pm_qos_array[req->pm_qos_class];
+	update_target(o, &req->node, 1, PM_QOS_DEFAULT_VALUE);
+	memset(req, 0, sizeof(*req));
 }
 EXPORT_SYMBOL_GPL(pm_qos_remove_request);
 
@@ -368,7 +368,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 
 	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
 	if (pm_qos_class >= 0) {
-               struct pm_qos_request_list *req = kzalloc(sizeof(*req), GFP_KERNEL);
+		struct pm_qos_request *req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
 			return -ENOMEM;
 
@@ -383,7 +383,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 
 static int pm_qos_power_release(struct inode *inode, struct file *filp)
 {
-	struct pm_qos_request_list *req;
+	struct pm_qos_request *req;
 
 	req = filp->private_data;
 	pm_qos_remove_request(req);
@@ -399,14 +399,14 @@ static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
 	s32 value;
 	unsigned long flags;
 	struct pm_qos_object *o;
-	struct pm_qos_request_list *pm_qos_req = filp->private_data;
+	struct pm_qos_request *req = filp->private_data;
 
-	if (!pm_qos_req)
+	if (!req)
 		return -EINVAL;
-	if (!pm_qos_request_active(pm_qos_req))
+	if (!pm_qos_request_active(req))
 		return -EINVAL;
 
-	o = pm_qos_array[pm_qos_req->pm_qos_class];
+	o = pm_qos_array[req->pm_qos_class];
 	spin_lock_irqsave(&pm_qos_lock, flags);
 	value = pm_qos_get_value(o);
 	spin_unlock_irqrestore(&pm_qos_lock, flags);
@@ -418,7 +418,7 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	s32 value;
-	struct pm_qos_request_list *pm_qos_req;
+	struct pm_qos_request *req;
 
 	if (count == sizeof(s32)) {
 		if (copy_from_user(&value, buf, sizeof(s32)))
@@ -449,8 +449,8 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 		return -EINVAL;
 	}
 
-	pm_qos_req = filp->private_data;
-	pm_qos_update_request(pm_qos_req, value);
+	req = filp->private_data;
+	pm_qos_update_request(req, value);
 
 	return count;
 }
