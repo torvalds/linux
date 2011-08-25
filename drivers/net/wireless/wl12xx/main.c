@@ -362,6 +362,7 @@ static struct conf_drv_settings default_conf = {
 };
 
 static char *fwlog_param;
+static bool bug_on_recovery;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 bool reset_tx_queues);
@@ -1212,6 +1213,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
 		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
+
+	BUG_ON(bug_on_recovery);
 
 	/*
 	 * Advance security sequence number to overcome potential progress
@@ -4775,6 +4778,9 @@ MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
 module_param_named(fwlog, fwlog_param, charp, 0);
 MODULE_PARM_DESC(keymap,
 		 "FW logger options: continuous, ondemand, dbgpins or disable");
+
+module_param(bug_on_recovery, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(bug_on_recovery, "BUG() on fw recovery");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
