@@ -2561,7 +2561,10 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
 		md_error(rdev->mddev, rdev);
-		err = 0;
+		if (test_bit(Faulty, &rdev->flags))
+			err = 0;
+		else
+			err = -EBUSY;
 	} else if (cmd_match(buf, "remove")) {
 		if (rdev->raid_disk >= 0)
 			err = -EBUSY;
@@ -5983,6 +5986,8 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 		return -ENODEV;
 
 	md_error(mddev, rdev);
+	if (!test_bit(Faulty, &rdev->flags))
+		return -EBUSY;
 	return 0;
 }
 
