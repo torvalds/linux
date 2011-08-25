@@ -258,6 +258,12 @@ struct pm_clk_notifier_block {
 };
 
 #ifdef CONFIG_PM_CLK
+static inline bool pm_clk_no_clocks(struct device *dev)
+{
+	return dev && dev->power.subsys_data
+		&& list_empty(&dev->power.subsys_data->clock_list);
+}
+
 extern void pm_clk_init(struct device *dev);
 extern int pm_clk_create(struct device *dev);
 extern void pm_clk_destroy(struct device *dev);
@@ -266,6 +272,10 @@ extern void pm_clk_remove(struct device *dev, const char *con_id);
 extern int pm_clk_suspend(struct device *dev);
 extern int pm_clk_resume(struct device *dev);
 #else
+static inline bool pm_clk_no_clocks(struct device *dev)
+{
+	return true;
+}
 static inline void pm_clk_init(struct device *dev)
 {
 }
