@@ -210,20 +210,17 @@ static void hdmi_reg_init(struct hdmi_device *hdev)
 	/* enable HPD interrupts */
 	hdmi_write_mask(hdev, HDMI_INTC_CON, ~0, HDMI_INTC_EN_GLOBAL |
 		HDMI_INTC_EN_HPD_PLUG | HDMI_INTC_EN_HPD_UNPLUG);
-	/* choose HDMI mode */
+	/* choose DVI mode */
 	hdmi_write_mask(hdev, HDMI_MODE_SEL,
-		HDMI_MODE_HDMI_EN, HDMI_MODE_MASK);
+		HDMI_MODE_DVI_EN, HDMI_MODE_MASK);
+	hdmi_write_mask(hdev, HDMI_CON_2, ~0,
+		HDMI_DVI_PERAMBLE_EN | HDMI_DVI_BAND_EN);
 	/* disable bluescreen */
 	hdmi_write_mask(hdev, HDMI_CON_0, 0, HDMI_BLUE_SCR_EN);
 	/* choose bluescreen (fecal) color */
 	hdmi_writeb(hdev, HDMI_BLUE_SCREEN_0, 0x12);
 	hdmi_writeb(hdev, HDMI_BLUE_SCREEN_1, 0x34);
 	hdmi_writeb(hdev, HDMI_BLUE_SCREEN_2, 0x56);
-	/* enable AVI packet every vsync, fixes purple line problem */
-	hdmi_writeb(hdev, HDMI_AVI_CON, 0x02);
-	/* force YUV444, look to CEA-861-D, table 7 for more detail */
-	hdmi_writeb(hdev, HDMI_AVI_BYTE(0), 2 << 5);
-	hdmi_write_mask(hdev, HDMI_CON_1, 2, 3 << 5);
 }
 
 static void hdmi_timing_apply(struct hdmi_device *hdev,
