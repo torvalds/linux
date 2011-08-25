@@ -69,11 +69,11 @@ struct mp_adapter {
 	u16		PciBridgeDeviceId;
 	u8		PciBridgePCIeHdrOffset;
 	u8		PciBridgeLinkCtrlReg;
-};//,*pmp_adapter;
+};
 
 struct rt_pci_capab_header {
-    unsigned char   CapabilityID;
-    unsigned char   Next;
+	unsigned char   CapabilityID;
+	unsigned char   Next;
 };
 
 #define PCI_MAX_BRIDGE_NUMBER				255
