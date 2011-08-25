@@ -455,7 +455,7 @@
 	  a GTT DRM MM object, which provides an address space pool for
 	  object allocation.  In a KMS configuration, the driver
 	  needs to allocate and initialize a command ring buffer following
-	  core GEM initialization.  Most UMA devices have a so-called
+	  core GEM initialization.  A UMA device usually has a so-called
 	  "stolen" memory region, which provides space for the initial
 	  framebuffer and large, contiguous memory regions required by the
 	  device.  This space is not typically managed by GEM, and must
@@ -635,10 +635,10 @@ void intel_crt_init(struct drm_device *dev)
       a client calls the vblank wait ioctl above.
     </para>
     <para>
-      Devices that don't provide a count register may simply use an
+      A device that doesn't provide a count register may simply use an
       internal atomic counter incremented on every vertical blank
-      interrupt, and can make their enable and disable vblank
-      functions into no-ops.
+      interrupt (and then treat the enable_vblank() and disable_vblank()
+      callbacks as no-ops).
     </para>
   </sect1>
 
