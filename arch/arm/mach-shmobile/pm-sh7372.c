@@ -103,6 +103,7 @@ void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 	pm_genpd_init(genpd, NULL, false);
 	genpd->stop_device = pm_clk_suspend;
 	genpd->start_device = pm_clk_resume;
+	genpd->dev_irq_safe = true;
 	genpd->active_wakeup = pd_active_wakeup;
 	genpd->power_off = pd_power_down;
 	genpd->power_on = pd_power_up;

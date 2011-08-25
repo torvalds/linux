@@ -309,7 +309,8 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 
 	not_suspended = 0;
 	list_for_each_entry(pdd, &genpd->dev_list, list_node)
-		if (pdd->dev->driver && !pm_runtime_suspended(pdd->dev))
+		if (pdd->dev->driver && (!pm_runtime_suspended(pdd->dev)
+		    || pdd->dev->power.irq_safe))
 			not_suspended++;
 
 	if (not_suspended > genpd->in_progress)
@@ -417,11 +418,20 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
+	might_sleep_if(!genpd->dev_irq_safe);
+
 	if (genpd->stop_device) {
 		int ret = genpd->stop_device(dev);
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * If power.irq_safe is set, this routine will be run with interrupts
+	 * off, so it can't use mutexes.
+	 */
+	if (dev->power.irq_safe)
+		return 0;
 
 	mutex_lock(&genpd->lock);
 	genpd->in_progress++;
@@ -451,6 +461,12 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	genpd = dev_to_genpd(dev);
 	if (IS_ERR(genpd))
 		return -EINVAL;
+
+	might_sleep_if(!genpd->dev_irq_safe);
+
+	/* If power.irq_safe, the PM domain is never powered off. */
+	if (dev->power.irq_safe)
+		goto out;
 
 	mutex_lock(&genpd->lock);
 	ret = __pm_genpd_poweron(genpd);
@@ -483,6 +499,7 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	wake_up_all(&genpd->status_wait_queue);
 	mutex_unlock(&genpd->lock);
 
+ out:
 	if (genpd->start_device)
 		genpd->start_device(dev);
 
