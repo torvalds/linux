@@ -25,6 +25,25 @@ struct pm_qos_request {
 	int pm_qos_class;
 };
 
+enum pm_qos_type {
+	PM_QOS_UNITIALIZED,
+	PM_QOS_MAX,		/* return the largest value */
+	PM_QOS_MIN		/* return the smallest value */
+};
+
+/*
+ * Note: The lockless read path depends on the CPU accessing
+ * target_value atomically.  Atomic access is only guaranteed on all CPU
+ * types linux supports for 32 bit quantites
+ */
+struct pm_qos_constraints {
+	struct plist_head list;
+	s32 target_value;	/* Do not change to 64 bit */
+	s32 default_value;
+	enum pm_qos_type type;
+	struct blocking_notifier_head *notifiers;
+};
+
 #ifdef CONFIG_PM
 void pm_qos_add_request(struct pm_qos_request *req, int pm_qos_class,
 			s32 value);
