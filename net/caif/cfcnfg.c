@@ -78,10 +78,8 @@ struct cfcnfg *cfcnfg_create(void)
 
 	/* Initiate this layer */
 	this = kzalloc(sizeof(struct cfcnfg), GFP_ATOMIC);
-	if (!this) {
-		pr_warn("Out of memory\n");
+	if (!this)
 		return NULL;
-	}
 	this->mux = cfmuxl_create();
 	if (!this->mux)
 		goto out_of_mem;
@@ -108,8 +106,6 @@ struct cfcnfg *cfcnfg_create(void)
 
 	return this;
 out_of_mem:
-	pr_warn("Out of memory\n");
-
 	synchronize_rcu();
 
 	kfree(this->mux);
@@ -448,10 +444,8 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 				"- unknown channel type\n");
 		goto unlock;
 	}
-	if (!servicel) {
-		pr_warn("Out of memory\n");
+	if (!servicel)
 		goto unlock;
-	}
 	layer_set_dn(servicel, cnfg->mux);
 	cfmuxl_set_uplayer(cnfg->mux, servicel, channel_id);
 	layer_set_up(servicel, adapt_layer);
@@ -497,10 +491,8 @@ got_phyid:
 	case CFPHYTYPE_FRAG:
 		phy_driver =
 		    cfserl_create(CFPHYTYPE_FRAG, phyid, stx);
-		if (!phy_driver) {
-			pr_warn("Out of memory\n");
+		if (!phy_driver)
 			goto out;
-		}
 		break;
 	case CFPHYTYPE_CAIF:
 		phy_driver = NULL;
@@ -521,7 +513,6 @@ got_phyid:
 	frml = cffrml_create(phyid, fcs);
 
 	if (!frml) {
-		pr_warn("Out of memory\n");
 		kfree(phyinfo);
 		goto out;
 	}
