@@ -346,7 +346,7 @@
       </para>
       <para>
 	If your device supports interrupt generation, you may want to
-	set up an interrupt handler at driver load time as well.  This
+	set up an interrupt handler when the driver is loaded.  This
 	is done using the drm_irq_install() function.  If your device
 	supports vertical blank interrupts, it should call
 	drm_vblank_init() to initialize the core vblank handling code before
