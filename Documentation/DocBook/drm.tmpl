@@ -433,8 +433,8 @@
 	</para>
 	<para>
 	  Once your global TTM accounting structure is set up and initialized
-	  (done by calling ttm_global_item_ref on the global object you
-	  just created), you need to create a buffer object TTM to
+	  by calling ttm_global_item_ref on it,
+	  you need to create a buffer object TTM to
 	  provide a pool for buffer object allocation by clients and the
 	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
 	  and its size should be sizeof(struct ttm_bo_global).  Again,
