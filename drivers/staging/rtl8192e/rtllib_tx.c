@@ -632,15 +632,13 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			goto success;
 		}
 
-		if (skb->len > 282){
+		if (skb->len > 282) {
 			if (ETH_P_IP == ether_type) {
 				const struct iphdr *ip = (struct iphdr *)((u8 *)skb->data+14);
 				if (IPPROTO_UDP == ip->protocol) {
 					struct udphdr *udp = (struct udphdr *)((u8 *)ip + (ip->ihl << 2));
 					if (((((u8 *)udp)[1] == 68) && (((u8 *)udp)[3] == 67)) ||
 					    ((((u8 *)udp)[1] == 67) && (((u8 *)udp)[3] == 68))) {
-						printk("DHCP pkt src port:%d, dest port:%d!!\n", ((u8 *)udp)[1],((u8 *)udp)[3]);
-
 						bdhcp = true;
 						ieee->LPSDelayCnt = 200;
 					}
