@@ -586,17 +586,25 @@ void intel_crt_init(struct drm_device *dev)
 	  </para>
 	</sect4>
 	<para>
-	  For each encoder, CRTC, and connector, several functions must
-	  be provided, depending on the object type.  Encoder objects
-	  need to provide a DPMS (basically on/off) function, mode fixup
-	  (for converting requested modes into native hardware timings),
-	  and prepare, set and commit functions for use by the core DRM
-	  helper functions.  Connector helpers need to provide mode fetch and
-	  validity functions as well as an encoder matching function for
-	  returning an ideal encoder for a given connector.  The core
-	  connector functions include a DPMS callback, (deprecated)
-	  save/restore routines, detection, mode probing, property handling,
-	  and cleanup functions.
+	  Each encoder object needs to provide:
+	  <itemizedlist>
+	    <listitem>
+	      A DPMS (basically on/off) function.
+	    </listitem>
+	    <listitem>
+	      A mode-fixup function (for converting requested modes into
+	      native hardware timings).
+	    </listitem>
+	    <listitem>
+	      Functions (prepare, set, and commit) for use by the core DRM
+	      helper functions.
+	    </listitem>
+	  </itemizedlist>
+	  Connector helpers need to provide functions (mode-fetch, validity,
+	  and encoder-matching) for returning an ideal encoder for a given
+	  connector.  The core connector functions include a DPMS callback,
+	  save/restore routines (deprecated), detection, mode probing,
+	  property handling, and cleanup functions.
 	</para>
 <!--!Edrivers/char/drm/drm_crtc.h-->
 <!--!Edrivers/char/drm/drm_crtc.c-->
