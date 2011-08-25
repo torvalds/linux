@@ -44,14 +44,6 @@ MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
 static const char *driver_name = "storvsc";
 
-/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const uuid_le stor_vsci_device_type = {
-	.b = {
-		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
-		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
-	}
-};
-
 struct hv_host_device {
 	struct hv_device *dev;
 	struct kmem_cache *request_pool;
@@ -646,7 +638,20 @@ static struct scsi_host_template scsi_driver = {
 	.dma_boundary =		PAGE_SIZE-1,
 };
 
+static const struct hv_vmbus_device_id id_table[] = {
+	{
+		/* SCSI guid */
+		.guid = {
+			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
+			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
+		}
+	},
+	{
+		.guid = { }
+	},
+};
 
+MODULE_DEVICE_TABLE(vmbus, id_table);
 /*
  * storvsc_probe - Add a new device for this driver
  */
@@ -720,6 +725,7 @@ static int storvsc_probe(struct hv_device *device)
 /* The one and only one */
 
 static struct hv_driver storvsc_drv = {
+	.id_table = id_table,
 	.probe = storvsc_probe,
 	.remove = storvsc_remove,
 };
@@ -763,9 +769,6 @@ static int __init storvsc_drv_init(void)
 	ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
 	sizeof(struct vstor_packet) + sizeof(u64),
 	sizeof(u64)));
-
-	memcpy(&drv->dev_type, &stor_vsci_device_type,
-	       sizeof(uuid_le));
 
 	if (max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)
