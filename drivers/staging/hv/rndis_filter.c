@@ -511,7 +511,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
 			sizeof(u32));
 	if (!request) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto Cleanup;
 	}
 
@@ -531,7 +531,6 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
 
 	if (t == 0) {
-		ret = -1;
 		dev_err(&dev->net_dev->dev->device,
 			"timeout before we got a set response...\n");
 		/*
@@ -540,8 +539,6 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 		 */
 		goto Exit;
 	} else {
-		if (ret > 0)
-			ret = 0;
 		set_complete = &request->response_msg.msg.set_complete;
 		status = set_complete->status;
 	}
