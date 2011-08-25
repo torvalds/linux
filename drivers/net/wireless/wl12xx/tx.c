@@ -30,6 +30,7 @@
 #include "reg.h"
 #include "ps.h"
 #include "tx.h"
+#include "event.h"
 
 static int wl1271_set_default_wep_key(struct wl1271 *wl, u8 id)
 {
@@ -131,6 +132,9 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 	/* only regulate station links */
 	if (hlid < WL1271_AP_STA_HLID_START)
 		return;
+
+	if (WARN_ON(!wl1271_is_active_sta(wl, hlid)))
+	    return;
 
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 	tx_pkts = wl->links[hlid].allocated_pkts;
