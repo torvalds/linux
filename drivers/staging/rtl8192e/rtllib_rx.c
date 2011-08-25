@@ -305,8 +305,8 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		RTLLIB_DEBUG_DROP(
-			"decryption failed (SA=" MAC_FMT
-			") res=%d\n", MAC_ARG(hdr->addr2), res);
+			"decryption failed (SA= %pM"
+			") res=%d\n", hdr->addr2, res);
 		if (res == -2)
 			RTLLIB_DEBUG_DROP("Decryption failed ICV "
 					     "mismatch (key %d)\n",
@@ -345,8 +345,8 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
-		       " (SA=" MAC_FMT " keyidx=%d)\n",
-		       ieee->dev->name, MAC_ARG(hdr->addr2), keyidx);
+		       " (SA= %pM keyidx=%d)\n",
+		       ieee->dev->name, hdr->addr2, keyidx);
 		return -1;
 	}
 
@@ -1028,8 +1028,8 @@ int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			 * frames silently instead of filling system log with
 			 * these reports. */
 			RTLLIB_DEBUG_DROP("Decryption failed (not set)"
-					     " (SA=" MAC_FMT ")\n",
-					     MAC_ARG(hdr->addr2));
+					     " (SA= %pM)\n",
+					     hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			return -1;
 		}
@@ -1138,8 +1138,8 @@ int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		} else {
 			RTLLIB_DEBUG_DROP(
 				"encryption configured, but RX "
-				"frame not encrypted (SA=" MAC_FMT ")\n",
-				MAC_ARG(hdr->addr2));
+				"frame not encrypted (SA= %pM)\n",
+				hdr->addr2);
 			return -1;
 		}
 	}
@@ -1156,9 +1156,9 @@ int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	    !rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 		RTLLIB_DEBUG_DROP(
 			"dropped unencrypted RX data "
-			"frame from " MAC_FMT
+			"frame from %pM"
 			" (drop_unencrypted=1)\n",
-			MAC_ARG(hdr->addr2));
+			hdr->addr2);
 		return -1;
 	}
 
@@ -2309,11 +2309,11 @@ static inline int rtllib_network_init(
 	}
 
 	if (network->mode == 0) {
-		RTLLIB_DEBUG_SCAN("Filtered out '%s (" MAC_FMT ")' "
+		RTLLIB_DEBUG_SCAN("Filtered out '%s (%pM)' "
 				     "network.\n",
 				     escape_essid(network->ssid,
 						  network->ssid_len),
-				     MAC_ARG(network->bssid));
+				     network->bssid);
 		return 1;
 	}
 
@@ -2516,9 +2516,9 @@ static inline void rtllib_process_probe_response(
 		return;
 
 	RTLLIB_DEBUG_SCAN(
-		"'%s' (" MAC_FMT "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
+		"'%s' ( %pM ): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		escape_essid(info_element->data, info_element->len),
-		MAC_ARG(beacon->header.addr3),
+		beacon->header.addr3,
 		(beacon->capability & (1<<0xf)) ? '1' : '0',
 		(beacon->capability & (1<<0xe)) ? '1' : '0',
 		(beacon->capability & (1<<0xd)) ? '1' : '0',
@@ -2537,10 +2537,10 @@ static inline void rtllib_process_probe_response(
 		(beacon->capability & (1<<0x0)) ? '1' : '0');
 
 	if (rtllib_network_init(ieee, beacon, network, stats)) {
-		RTLLIB_DEBUG_SCAN("Dropped '%s' (" MAC_FMT ") via %s.\n",
+		RTLLIB_DEBUG_SCAN("Dropped '%s' ( %pM) via %s.\n",
 				  escape_essid(info_element->data,
 				  info_element->len),
-				  MAC_ARG(beacon->header.addr3),
+				  beacon->header.addr3,
 				  WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				  RTLLIB_STYPE_PROBE_RESP ?
 				  "PROBE RESPONSE" : "BEACON");
@@ -2604,11 +2604,11 @@ static inline void rtllib_process_probe_response(
 			/* If there are no more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
-			RTLLIB_DEBUG_SCAN("Expired '%s' (" MAC_FMT ") from "
+			RTLLIB_DEBUG_SCAN("Expired '%s' ( %pM) from "
 					     "network list.\n",
 					     escape_essid(target->ssid,
 							  target->ssid_len),
-					     MAC_ARG(target->bssid));
+					     target->bssid);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -2617,10 +2617,9 @@ static inline void rtllib_process_probe_response(
 		}
 
 
-		RTLLIB_DEBUG_SCAN("Adding '%s' (" MAC_FMT ") via %s.\n",
+		RTLLIB_DEBUG_SCAN("Adding '%s' ( %pM) via %s.\n",
 				  escape_essid(network->ssid,
-				  network->ssid_len),
-				  MAC_ARG(network->bssid),
+				  network->ssid_len), network->bssid,
 				  WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				  RTLLIB_STYPE_PROBE_RESP ?
 				  "PROBE RESPONSE" : "BEACON");
@@ -2629,10 +2628,9 @@ static inline void rtllib_process_probe_response(
 		if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
 			rtllib_softmac_new_net(ieee, network);
 	} else {
-		RTLLIB_DEBUG_SCAN("Updating '%s' (" MAC_FMT ") via %s.\n",
+		RTLLIB_DEBUG_SCAN("Updating '%s' ( %pM) via %s.\n",
 				  escape_essid(target->ssid,
-				  target->ssid_len),
-				  MAC_ARG(target->bssid),
+				  target->ssid_len), target->bssid,
 				  WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				  RTLLIB_STYPE_PROBE_RESP ?
 				  "PROBE RESPONSE" : "BEACON");

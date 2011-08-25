@@ -2322,9 +2322,9 @@ static void dm_check_edca_turbo(struct net_device *dev)
 		static int wb_tmp;
 		if (wb_tmp == 0) {
 			printk(KERN_INFO "%s():iot peer is %s, bssid:"
-			       MAC_FMT"\n", __func__,
+			       " %pM\n", __func__,
 			       peername[pHTInfo->IOTPeer],
-			       MAC_ARG(priv->rtllib->current_network.bssid));
+			       priv->rtllib->current_network.bssid);
 			wb_tmp = 1;
 		}
 	}
