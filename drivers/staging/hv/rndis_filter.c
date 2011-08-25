@@ -673,7 +673,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	rndisDevice = get_rndis_device();
 	if (!rndisDevice)
-		return -1;
+		return -ENODEV;
 
 	/*
 	 * Let the inner driver handle this first to create the netvsc channel
