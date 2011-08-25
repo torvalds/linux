@@ -878,7 +878,7 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 	int pp_reg, lvds_reg;
 	u32 val;
 	enum pipe panel_pipe = PIPE_A;
-	bool locked = locked;
+	bool locked = true;
 
 	if (HAS_PCH_SPLIT(dev_priv->dev)) {
 		pp_reg = PCH_PP_CONTROL;
