@@ -454,7 +454,7 @@ int storvsc_do_io(struct hv_device *device,
 	stor_device = get_stor_device(device);
 
 	if (!stor_device)
-		return -2;
+		return -ENODEV;
 
 
 	request->device  = device;
