@@ -440,6 +440,7 @@ static const struct hdmi_preset_conf hdmi_conf_480p = {
 		.height = 480,
 		.code = V4L2_MBUS_FMT_FIXED, /* means RGB888 */
 		.field = V4L2_FIELD_NONE,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 	},
 };
 
@@ -472,6 +473,7 @@ static const struct hdmi_preset_conf hdmi_conf_720p60 = {
 		.height = 720,
 		.code = V4L2_MBUS_FMT_FIXED, /* means RGB888 */
 		.field = V4L2_FIELD_NONE,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 	},
 };
 
@@ -504,6 +506,7 @@ static const struct hdmi_preset_conf hdmi_conf_1080p50 = {
 		.height = 1080,
 		.code = V4L2_MBUS_FMT_FIXED, /* means RGB888 */
 		.field = V4L2_FIELD_NONE,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 	},
 };
 
@@ -536,6 +539,7 @@ static const struct hdmi_preset_conf hdmi_conf_1080p60 = {
 		.height = 1080,
 		.code = V4L2_MBUS_FMT_FIXED, /* means RGB888 */
 		.field = V4L2_FIELD_NONE,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 	},
 };
 
