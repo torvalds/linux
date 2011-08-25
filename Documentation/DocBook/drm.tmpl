@@ -154,8 +154,8 @@
     </programlisting>
     <para>
       In the example above, taken from the i915 DRM driver, the driver
-      sets several flags indicating what core features it supports.
-      We go over the individual callbacks in later sections.  Since
+      sets several flags indicating what core features it supports;
+      we go over the individual callbacks in later sections.  Since
       flags indicate which features your driver supports to the DRM
       core, you need to set most of them prior to calling drm_init().  Some,
       like DRIVER_MODESET can be set later based on user supplied parameters,
@@ -647,8 +647,8 @@ void intel_crt_init(struct drm_device *dev)
   <sect1>
     <title>Memory management</title>
     <para>
-      The memory manager lies at the heart of many DRM operations, and
-      is also required to support advanced client features like OpenGL
+      The memory manager lies at the heart of many DRM operations; it
+      is required to support advanced client features like OpenGL
       pbuffers.  The DRM currently contains two memory managers, TTM
       and GEM.
     </para>
