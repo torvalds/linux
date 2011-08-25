@@ -638,7 +638,7 @@ void intel_crt_init(struct drm_device *dev)
               after mode setting, since on many devices the vertical blank
               counter is reset at that time.  Internally, the DRM snapshots
               the last vblank count when the ioctl is called with the
-              _DRM_PRE_MODESET command so that the counter won't go backwards
+              _DRM_PRE_MODESET command, so that the counter won't go backwards
               (which is dealt with when _DRM_POST_MODESET is used).
             </para>
           </listitem>
