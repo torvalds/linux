@@ -237,12 +237,40 @@ static irqreturn_t tsc2007_hard_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static void tsc2007_free_irq(struct tsc2007 *ts)
+static void tsc2007_stop(struct tsc2007 *ts)
 {
 	ts->stopped = true;
 	mb();
 	wake_up(&ts->wait);
-	free_irq(ts->irq, ts);
+
+	disable_irq(ts->irq);
+}
+
+static int tsc2007_open(struct input_dev *input_dev)
+{
+	struct tsc2007 *ts = input_get_drvdata(input_dev);
+	int err;
+
+	ts->stopped = false;
+	mb();
+
+	enable_irq(ts->irq);
+
+	/* Prepare for touch readings - power down ADC and enable PENIRQ */
+	err = tsc2007_xfer(ts, PWRDOWN);
+	if (err < 0) {
+		tsc2007_stop(ts);
+		return err;
+	}
+
+	return 0;
+}
+
+static void tsc2007_close(struct input_dev *input_dev)
+{
+	struct tsc2007 *ts = input_get_drvdata(input_dev);
+
+	tsc2007_stop(ts);
 }
 
 static int __devinit tsc2007_probe(struct i2c_client *client,
@@ -289,6 +317,11 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	input_dev->phys = ts->phys;
 	input_dev->id.bustype = BUS_I2C;
 
+	input_dev->open = tsc2007_open;
+	input_dev->close = tsc2007_close;
+
+	input_set_drvdata(input_dev, ts);
+
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
@@ -307,10 +340,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 		goto err_free_mem;
 	}
 
-	/* Prepare for touch readings - power down ADC and enable PENIRQ */
-	err = tsc2007_xfer(ts, PWRDOWN);
-	if (err < 0)
-		goto err_free_irq;
+	tsc2007_stop(ts);
 
 	err = input_register_device(input_dev);
 	if (err)
@@ -321,7 +351,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	return 0;
 
  err_free_irq:
-	tsc2007_free_irq(ts);
+	free_irq(ts->irq, ts);
 	if (pdata->exit_platform_hw)
 		pdata->exit_platform_hw();
  err_free_mem:
@@ -335,7 +365,7 @@ static int __devexit tsc2007_remove(struct i2c_client *client)
 	struct tsc2007	*ts = i2c_get_clientdata(client);
 	struct tsc2007_platform_data *pdata = client->dev.platform_data;
 
-	tsc2007_free_irq(ts);
+	free_irq(ts->irq, ts);
 
 	if (pdata->exit_platform_hw)
 		pdata->exit_platform_hw();
