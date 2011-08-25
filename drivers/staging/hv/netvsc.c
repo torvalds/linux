@@ -207,7 +207,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	if (!net_device) {
 		dev_err(&device->device, "unable to get net device..."
 			   "device being destroyed?");
-		return -1;
+		return -ENODEV;
 	}
 
 	net_device->recv_buf =
@@ -216,7 +216,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	if (!net_device->recv_buf) {
 		dev_err(&device->device, "unable to allocate receive "
 			"buffer of size %d", net_device->recv_buf_size);
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -269,7 +269,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 			   "initialzation with NetVsp - status %d",
 			   init_packet->msg.v1_msg.
 			   send_recv_buf_complete.status);
-		ret = -1;
+		ret = -EINVAL;
 		goto cleanup;
 	}
 
@@ -281,7 +281,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	net_device->recv_section = kmalloc(net_device->recv_section_cnt
 		* sizeof(struct nvsp_1_receive_buffer_section), GFP_KERNEL);
 	if (net_device->recv_section == NULL) {
-		ret = -1;
+		ret = -EINVAL;
 		goto cleanup;
 	}
 
@@ -297,7 +297,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	 */
 	if (net_device->recv_section_cnt != 1 ||
 	    net_device->recv_section->offset != 0) {
-		ret = -1;
+		ret = -EINVAL;
 		goto cleanup;
 	}
 
