@@ -44,7 +44,16 @@ struct pm_qos_constraints {
 	struct blocking_notifier_head *notifiers;
 };
 
+/* Action requested to pm_qos_update_target */
+enum pm_qos_req_action {
+	PM_QOS_ADD_REQ,		/* Add a new request */
+	PM_QOS_UPDATE_REQ,	/* Update an existing request */
+	PM_QOS_REMOVE_REQ	/* Remove an existing request */
+};
+
 #ifdef CONFIG_PM
+int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
+			 enum pm_qos_req_action action, int value);
 void pm_qos_add_request(struct pm_qos_request *req, int pm_qos_class,
 			s32 value);
 void pm_qos_update_request(struct pm_qos_request *req,
@@ -56,6 +65,11 @@ int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_request_active(struct pm_qos_request *req);
 #else
+static inline int pm_qos_update_target(struct pm_qos_constraints *c,
+				       struct plist_node *node,
+				       enum pm_qos_req_action action,
+				       int value)
+			{ return 0; }
 static inline void pm_qos_add_request(struct pm_qos_request *req,
 				      int pm_qos_class, s32 value)
 			{ return; }
