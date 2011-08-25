@@ -1288,6 +1288,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 * the line discipline to only process XON/XOFF characters by
 	 * setting tty->closing.
 	 */
+	set_bit(ASYNCB_CLOSING, &port->flags);
 	tty->closing = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -1335,8 +1336,10 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 * Wake up anyone trying to open this port.
 	 */
 	clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
+	clear_bit(ASYNCB_CLOSING, &port->flags);
 	spin_unlock_irqrestore(&port->lock, flags);
 	wake_up_interruptible(&port->open_wait);
+	wake_up_interruptible(&port->close_wait);
 
 done:
 	mutex_unlock(&port->mutex);
