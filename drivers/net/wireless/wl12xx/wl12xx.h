@@ -234,14 +234,14 @@ struct wl1271_stats {
 #define NUM_TX_QUEUES              4
 #define NUM_RX_PKT_DESC            8
 
-#define AP_MAX_STATIONS            5
+#define AP_MAX_STATIONS            8
 
 /* Broadcast and Global links + system link + links to stations */
 /*
  * TODO: when WL1271_AP_STA_HLID_START is no longer constant, change all
  * the places that use this.
  */
-#define AP_MAX_LINKS               (AP_MAX_STATIONS + 3)
+#define AP_MAX_LINKS               (AP_MAX_STATIONS + WL1271_AP_STA_HLID_START)
 
 /* FW status registers */
 struct wl12xx_fw_status {
