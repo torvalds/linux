@@ -160,7 +160,7 @@ static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 		if (ret != 0) {
 			dev_err(&net_device->dev->device, "unable to send "
 				"revoke receive buffer to netvsp");
-			return -1;
+			return ret;
 		}
 	}
 
@@ -175,7 +175,7 @@ static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 		if (ret != 0) {
 			dev_err(&net_device->dev->device,
 				   "unable to teardown receive buffer's gpadl");
-			return -1;
+			return -ret;
 		}
 		net_device->recv_buf_gpadl_handle = 0;
 	}
