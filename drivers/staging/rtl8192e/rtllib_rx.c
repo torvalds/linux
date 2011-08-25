@@ -442,15 +442,20 @@ drop:
 	return 1;
 }
 
-bool AddReorderEntry(struct rx_ts_record *pTS, struct rx_reorder_entry *pReorderEntry)
+static bool AddReorderEntry(struct rx_ts_record *pTS,
+			    struct rx_reorder_entry *pReorderEntry)
 {
 	struct list_head *pList = &pTS->RxPendingPktList;
 
 	while (pList->next != &pTS->RxPendingPktList) {
-		if (SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)list_entry(pList->next, struct rx_reorder_entry, List))->SeqNum))
+		if (SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)
+		    list_entry(pList->next, struct rx_reorder_entry,
+		    List))->SeqNum))
 			pList = pList->next;
-		else if (SN_EQUAL(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)list_entry(pList->next, struct rx_reorder_entry, List))->SeqNum))
-			return false;
+		else if (SN_EQUAL(pReorderEntry->SeqNum,
+			((struct rx_reorder_entry *)list_entry(pList->next,
+			struct rx_reorder_entry, List))->SeqNum))
+				return false;
 		else
 			break;
 	}
@@ -539,8 +544,9 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record
 	pTS->RxIndicateSeq = 0xffff;
 }
 
-void RxReorderIndicatePacket(struct rtllib_device *ieee, struct rtllib_rxb *prxb,
-		struct rx_ts_record *pTS, u16 SeqNum)
+static void RxReorderIndicatePacket(struct rtllib_device *ieee,
+				    struct rtllib_rxb *prxb,
+				    struct rx_ts_record *pTS, u16 SeqNum)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct rx_reorder_entry *pReorderEntry = NULL;
@@ -728,9 +734,9 @@ void RxReorderIndicatePacket(struct rtllib_device *ieee, struct rtllib_rxb *prxb
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
 
-u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
-		  struct rtllib_rx_stats *rx_stats,
-		  struct rtllib_rxb *rxb, u8 *src, u8 *dst)
+static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
+			 struct rtllib_rx_stats *rx_stats,
+			 struct rtllib_rxb *rxb, u8 *src, u8 *dst)
 {
 	struct rtllib_hdr_3addr  *hdr = (struct rtllib_hdr_3addr *)skb->data;
 	u16		fc = le16_to_cpu(hdr->frame_ctl);
@@ -853,8 +859,9 @@ u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 }
 
 
-size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee, struct sk_buff *skb,
-		 struct rtllib_rx_stats *rx_stats)
+static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
+				   struct sk_buff *skb,
+				   struct rtllib_rx_stats *rx_stats)
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
@@ -874,8 +881,8 @@ size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee, struct sk_buff *skb,
 	return hdrlen;
 }
 
-int rtllib_rx_check_duplicate(struct rtllib_device *ieee, struct sk_buff *skb,
-			      u8 multicast)
+static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
+				     struct sk_buff *skb, u8 multicast)
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	u16 fc, sc;
@@ -916,9 +923,9 @@ int rtllib_rx_check_duplicate(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-void rtllib_rx_extract_addr(struct rtllib_device *ieee,
-			    struct rtllib_hdr_4addr *hdr, u8 *dst, u8 *src,
-			    u8 *bssid)
+static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
+				   struct rtllib_hdr_4addr *hdr, u8 *dst,
+				   u8 *src, u8 *bssid)
 {
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 
@@ -946,8 +953,8 @@ void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 	}
 }
 
-int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc, u8 *dst, u8 *src,
-			  u8 *bssid, u8 *addr2)
+static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
+				 u8 *dst, u8 *src, u8 *bssid, u8 *addr2)
 {
 	u8 zero_addr[ETH_ALEN] = {0};
 	u8 type, stype;
@@ -1004,7 +1011,7 @@ int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc, u8 *dst, u8 *src,
 	return 0;
 }
 
-int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			struct rtllib_crypt_data **crypt, size_t hdrlen)
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
@@ -1038,7 +1045,7 @@ int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		      struct rtllib_rx_stats *rx_stats,
 		      struct rtllib_crypt_data *crypt, size_t hdrlen)
 {
@@ -1168,7 +1175,7 @@ int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8 nr_subframes)
+static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8 nr_subframes)
 {
 	if (unicast) {
 
@@ -1184,7 +1191,7 @@ void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8 nr_sub
 	ieee->last_rx_ps_time = jiffies;
 }
 
-void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
+static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 		struct rtllib_rx_stats *rx_stats,
 		struct rtllib_rxb *rxb,
 		u8 *dst,
@@ -1243,7 +1250,7 @@ void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 	rxb = NULL;
 }
 
-int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	struct net_device *dev = ieee->dev;
@@ -1412,13 +1419,13 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-int rtllib_rx_Master(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_Master(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	return 0;
 }
 
-int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
@@ -1443,7 +1450,7 @@ int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 1;
 }
 
-int rtllib_rx_Mesh(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_Mesh(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	return 0;
@@ -2223,7 +2230,7 @@ static inline u8 rtllib_SignalStrengthTranslate(u8  CurrSS)
 	return RetSS;
 }
 
-long rtllib_translate_todbm(u8 signal_strength_index)
+static long rtllib_translate_todbm(u8 signal_strength_index)
 {
 	long	signal_power;
 

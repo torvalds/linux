@@ -29,7 +29,7 @@
 #include "r8190P_rtl8256.h" /* RTL8225 Radio frontend */
 #include "r8192E_cmdpkt.h"
 
-void rtl8192_hw_sleep_down(struct net_device *dev)
+static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
@@ -115,7 +115,7 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 	spin_unlock_irqrestore(&priv->ps_lock, flags);
 }
 
-void InactivePsWorkItemCallback(struct net_device *dev)
+static void InactivePsWorkItemCallback(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -214,7 +214,8 @@ void rtllib_ips_leave(struct net_device *dev)
 	up(&priv->rtllib->ips_sem);
 }
 
-bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
+static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
+					    u8 rtPsMode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

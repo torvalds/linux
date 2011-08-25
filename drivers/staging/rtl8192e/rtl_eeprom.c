@@ -25,7 +25,7 @@
 #include "rtl_core.h"
 #include "rtl_eeprom.h"
 
-void eprom_cs(struct net_device *dev, short bit)
+static void eprom_cs(struct net_device *dev, short bit)
 {
 	if (bit)
 		write_nic_byte(dev, EPROM_CMD,
@@ -39,7 +39,7 @@ void eprom_cs(struct net_device *dev, short bit)
 }
 
 
-void eprom_ck_cycle(struct net_device *dev)
+static void eprom_ck_cycle(struct net_device *dev)
 {
 	write_nic_byte(dev, EPROM_CMD,
 		       (1<<EPROM_CK_SHIFT) | read_nic_byte(dev, EPROM_CMD));
@@ -50,7 +50,7 @@ void eprom_ck_cycle(struct net_device *dev)
 }
 
 
-void eprom_w(struct net_device *dev, short bit)
+static void eprom_w(struct net_device *dev, short bit)
 {
 	if (bit)
 		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
@@ -63,7 +63,7 @@ void eprom_w(struct net_device *dev, short bit)
 }
 
 
-short eprom_r(struct net_device *dev)
+static short eprom_r(struct net_device *dev)
 {
 	short bit;
 
@@ -75,8 +75,7 @@ short eprom_r(struct net_device *dev)
 	return 0;
 }
 
-
-void eprom_send_bits_string(struct net_device *dev, short b[], int len)
+static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 {
 	int i;
 

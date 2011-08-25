@@ -1110,7 +1110,6 @@ void rtl819x_process_cck_rxpathsel(struct r8192_priv *priv,
 u8 rtl819x_query_rxpwrpercentage(char antpower);
 void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats *psrc_stats,
 				       struct rtllib_rx_stats *ptarget_stats);
-
 bool NicIFEnableNIC(struct net_device *dev);
 bool NicIFDisableNIC(struct net_device *dev);
 

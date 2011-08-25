@@ -34,7 +34,7 @@
 }
 
 /*---------------------------Define functions---------------------------------*/
-extern	bool cmpk_message_handle_tx(
+bool cmpk_message_handle_tx(
 	struct net_device *dev,
 	u8	*code_virtual_address,
 	u32	packettype,
@@ -167,7 +167,7 @@ static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 
 }	/* cmpk_Handle_Tx_Feedback */
 
-void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
+static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u16 tx_rate;
@@ -339,10 +339,8 @@ static	void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 }
 
 
-extern	u32
-cmpk_message_handle_rx(
-	struct net_device *dev,
-	struct rtllib_rx_stats *pstats)
+u32 cmpk_message_handle_rx(struct net_device *dev,
+			   struct rtllib_rx_stats *pstats)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int			total_length;

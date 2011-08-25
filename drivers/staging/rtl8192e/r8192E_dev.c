@@ -57,7 +57,7 @@ void rtl8192e_start_beacon(struct net_device *dev)
 	rtl8192_irq_enable(dev);
 }
 
-void rtl8192e_update_msr(struct net_device *dev)
+static void rtl8192e_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 msr;
@@ -952,7 +952,7 @@ end:
 	return rtStatus;
 }
 
-void rtl8192_net_update(struct net_device *dev)
+static void rtl8192_net_update(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1127,7 +1127,7 @@ static u8 MRateToHwRate8190Pci(u8 rate)
 	return ret;
 }
 
-u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
+static u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
 {
 	u8 QueueSelect = 0x0;
 
@@ -1301,7 +1301,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 	entry->OWN = 1;
 }
 
-u8 HwRateToMRate90(bool bIsHT, u8 rate)
+static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 {
 	u8  ret_rate = 0x02;
 
@@ -1414,7 +1414,7 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
 	return ret_rate;
 }
 
-long rtl8192_signal_scale_mapping(struct r8192_priv *priv, long currsig)
+static long rtl8192_signal_scale_mapping(struct r8192_priv *priv, long currsig)
 {
 	long retsig;
 
@@ -1450,7 +1450,7 @@ long rtl8192_signal_scale_mapping(struct r8192_priv *priv, long currsig)
 			_pdrvinfo->RxRate == DESC90_RATE11M) &&\
 			!_pdrvinfo->RxHT)
 
-void rtl8192_query_rxphystatus(
+static void rtl8192_query_rxphystatus(
 	struct r8192_priv *priv,
 	struct rtllib_rx_stats *pstats,
 	struct rx_desc  *pdesc,
@@ -1664,9 +1664,9 @@ void rtl8192_query_rxphystatus(
 	}
 }
 
-void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
-			     struct rtllib_rx_stats *prev_st,
-			     struct rtllib_rx_stats *curr_st)
+static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
+				    struct rtllib_rx_stats *prev_st,
+				    struct rtllib_rx_stats *curr_st)
 {
 	bool bcheck = false;
 	u8	rfpath;
@@ -1839,10 +1839,11 @@ void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	}
 }
 
-void rtl8192_TranslateRxSignalStuff(struct net_device *dev, struct sk_buff *skb,
-					struct rtllib_rx_stats *pstats,
-					struct rx_desc *pdesc,
-					struct rx_fwinfo *pdrvinfo)
+static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
+					   struct sk_buff *skb,
+					   struct rtllib_rx_stats *pstats,
+					   struct rx_desc *pdesc,
+					   struct rx_fwinfo *pdrvinfo)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	bool bpacket_match_bssid, bpacket_toself;
@@ -1867,7 +1868,7 @@ void rtl8192_TranslateRxSignalStuff(struct net_device *dev, struct sk_buff *skb,
 			   (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
 			   (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
 		&& (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
-	bpacket_toself =  bpacket_match_bssid &
+	bpacket_toself =  bpacket_match_bssid &&	/* check this */
 			  (!compare_ether_addr(praddr,
 			  priv->rtllib->dev->dev_addr));
 	if (WLAN_FC_GET_FRAMETYPE(fc) == RTLLIB_STYPE_BEACON)
@@ -1883,7 +1884,8 @@ void rtl8192_TranslateRxSignalStuff(struct net_device *dev, struct sk_buff *skb,
 	rtl8192_record_rxdesc_forlateruse(pstats, &previous_stats);
 }
 
-void rtl8192_UpdateReceivedRateHistogramStatistics(struct net_device *dev,
+static void rtl8192_UpdateReceivedRateHistogramStatistics(
+					   struct net_device *dev,
 					   struct rtllib_rx_stats *pstats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
@@ -2254,17 +2256,6 @@ void rtl8192_enable_tx(struct net_device *dev)
 		write_nic_dword(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 }
 
-
-void rtl8192_beacon_disable(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	u32 reg;
-
-	reg = read_nic_dword(priv->rtllib->dev, INTA_MASK);
-
-	reg &= ~(IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
-	write_nic_dword(priv->rtllib->dev, INTA_MASK, reg);
-}
 
 void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta,
 				  u32 *p_intb)
