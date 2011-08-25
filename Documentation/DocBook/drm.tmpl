@@ -619,21 +619,32 @@ void intel_crt_init(struct drm_device *dev)
     <title>VBlank event handling</title>
     <para>
       The DRM core exposes two vertical blank related ioctls:
-      DRM_IOCTL_WAIT_VBLANK and DRM_IOCTL_MODESET_CTL.
+      <variablelist>
+        <varlistentry>
+          <term>DRM_IOCTL_WAIT_VBLANK</term>
+          <listitem>
+            <para>
+              This takes a struct drm_wait_vblank structure as its argument,
+              and it is used to block or request a signal when a specified
+              vblank event occurs.
+            </para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term>DRM_IOCTL_MODESET_CTL</term>
+          <listitem>
+            <para>
+              This should be called by application level drivers before and
+              after mode setting, since on many devices the vertical blank
+              counter is reset at that time.  Internally, the DRM snapshots
+              the last vblank count when the ioctl is called with the
+              _DRM_PRE_MODESET command so that the counter won't go backwards
+              (which is dealt with when _DRM_POST_MODESET is used).
+            </para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
 <!--!Edrivers/char/drm/drm_irq.c-->
-    </para>
-    <para>
-      DRM_IOCTL_WAIT_VBLANK takes a struct drm_wait_vblank structure
-      as its argument, and is used to block or request a signal when a
-      specified vblank event occurs.
-    </para>
-    <para>
-      DRM_IOCTL_MODESET_CTL should be called by application level
-      drivers before and after mode setting, since on many devices, the
-      vertical blank counter is reset at that time.  Internally,
-      the DRM snapshots the last vblank count when the ioctl is called
-      with the _DRM_PRE_MODESET command so that the counter won't go
-      backwards (which is dealt with when _DRM_POST_MODESET is used).
     </para>
     <para>
       To support the functions above, the DRM core provides several
