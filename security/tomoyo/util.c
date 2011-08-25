@@ -925,7 +925,8 @@ int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 		return TOMOYO_CONFIG_DISABLED;
 	mode = tomoyo_profile(ns, profile)->config[index];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(ns, profile)->config[category];
+		mode = tomoyo_profile(ns, profile)->config
+			[category + TOMOYO_MAX_MAC_INDEX];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
 		mode = tomoyo_profile(ns, profile)->default_config;
 	return mode & 3;
