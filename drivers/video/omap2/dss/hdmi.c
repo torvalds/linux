@@ -372,7 +372,7 @@ static void hdmi_read_edid(struct omap_video_timings *dp)
 	if (!hdmi.edid_set)
 		ret = hdmi.ip_data.ops->read_edid(&hdmi.ip_data, hdmi.edid,
 						HDMI_EDID_MAX_LENGTH);
-	if (!ret) {
+	if (ret > 0) {
 		if (!memcmp(hdmi.edid, edid_header, sizeof(edid_header))) {
 			/* search for timings of default resolution */
 			get_edid_timing_data(hdmi.edid);
@@ -585,6 +585,23 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 		if (r)
 			DSSERR("failed to power on device\n");
 	}
+}
+
+int omapdss_hdmi_read_edid(u8 *buf, int len)
+{
+	int r;
+
+	mutex_lock(&hdmi.lock);
+
+	r = hdmi_runtime_get();
+	BUG_ON(r);
+
+	r = hdmi.ip_data.ops->read_edid(&hdmi.ip_data, buf, len);
+
+	hdmi_runtime_put();
+	mutex_unlock(&hdmi.lock);
+
+	return r;
 }
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)

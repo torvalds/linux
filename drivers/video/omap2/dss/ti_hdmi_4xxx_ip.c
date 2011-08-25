@@ -370,29 +370,32 @@ int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
 {
 	int r = 0, n = 0, i = 0;
 	int max_ext_blocks = (max_length / 128) - 1;
+	int len;
 
 	r = hdmi_core_ddc_edid(ip_data, pedid, 0);
-	if (r) {
+	if (r)
 		return r;
-	} else {
-		n = pedid[0x7e];
 
-		/*
-		 * README: need to comply with max_length set by the caller.
-		 * Better implementation should be to allocate necessary
-		 * memory to store EDID according to nb_block field found
-		 * in first block
-		 */
-		if (n > max_ext_blocks)
-			n = max_ext_blocks;
+	len = 128;
+	n = pedid[0x7e];
 
-		for (i = 1; i <= n; i++) {
-			r = hdmi_core_ddc_edid(ip_data, pedid, i);
-			if (r)
-				return r;
-		}
+	/*
+	 * README: need to comply with max_length set by the caller.
+	 * Better implementation should be to allocate necessary
+	 * memory to store EDID according to nb_block field found
+	 * in first block
+	 */
+	if (n > max_ext_blocks)
+		n = max_ext_blocks;
+
+	for (i = 1; i <= n; i++) {
+		r = hdmi_core_ddc_edid(ip_data, pedid, i);
+		if (r)
+			return r;
+		len += 128;
 	}
-	return 0;
+
+	return len;
 }
 
 static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,

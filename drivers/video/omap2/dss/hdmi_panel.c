@@ -185,6 +185,29 @@ err:
 	return r;
 }
 
+static int hdmi_read_edid(struct omap_dss_device *dssdev, u8 *buf, int len)
+{
+	int r;
+
+	mutex_lock(&hdmi.hdmi_lock);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
+		r = omapdss_hdmi_display_enable(dssdev);
+		if (r)
+			goto err;
+	}
+
+	r = omapdss_hdmi_read_edid(buf, len);
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
+			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
+		omapdss_hdmi_display_disable(dssdev);
+err:
+	mutex_unlock(&hdmi.hdmi_lock);
+
+	return r;
+}
+
 static struct omap_dss_driver hdmi_driver = {
 	.probe		= hdmi_panel_probe,
 	.remove		= hdmi_panel_remove,
@@ -195,6 +218,7 @@ static struct omap_dss_driver hdmi_driver = {
 	.get_timings	= hdmi_get_timings,
 	.set_timings	= hdmi_set_timings,
 	.check_timings	= hdmi_check_timings,
+	.read_edid	= hdmi_read_edid,
 	.driver			= {
 		.name   = "hdmi_panel",
 		.owner  = THIS_MODULE,
