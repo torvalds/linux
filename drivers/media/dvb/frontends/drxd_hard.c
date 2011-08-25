@@ -931,16 +931,15 @@ static int DownloadMicrocode(struct drxd_state *state,
 			     const u8 *pMCImage, u32 Length)
 {
 	u8 *pSrc;
-	u16 Flags;
 	u32 Address;
 	u16 nBlocks;
 	u16 BlockSize;
-	u16 BlockCRC;
 	u32 offset = 0;
 	int i, status = 0;
 
 	pSrc = (u8 *) pMCImage;
-	Flags = (pSrc[0] << 8) | pSrc[1];
+	/* We're not using Flags */
+	/* Flags = (pSrc[0] << 8) | pSrc[1]; */
 	pSrc += sizeof(u16);
 	offset += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
@@ -957,11 +956,13 @@ static int DownloadMicrocode(struct drxd_state *state,
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
-		Flags = (pSrc[0] << 8) | pSrc[1];
+		/* We're not using Flags */
+		/* u16 Flags = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
-		BlockCRC = (pSrc[0] << 8) | pSrc[1];
+		/* We're not using BlockCRC */
+		/* u16 BlockCRC = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
