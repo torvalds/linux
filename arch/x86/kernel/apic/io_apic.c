@@ -394,13 +394,21 @@ union entry_union {
 	struct IO_APIC_route_entry entry;
 };
 
+static struct IO_APIC_route_entry __ioapic_read_entry(int apic, int pin)
+{
+	union entry_union eu;
+
+	eu.w1 = io_apic_read(apic, 0x10 + 2 * pin);
+	eu.w2 = io_apic_read(apic, 0x11 + 2 * pin);
+	return eu.entry;
+}
+
 static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 {
 	union entry_union eu;
 	unsigned long flags;
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	eu.w1 = io_apic_read(apic, 0x10 + 2 * pin);
-	eu.w2 = io_apic_read(apic, 0x11 + 2 * pin);
+	eu.entry = __ioapic_read_entry(apic, pin);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 	return eu.entry;
 }
@@ -527,18 +535,6 @@ static void io_apic_modify_irq(struct irq_cfg *cfg,
 
 	for_each_irq_pin(entry, cfg->irq_2_pin)
 		__io_apic_modify_irq(entry, mask_and, mask_or, final);
-}
-
-static void __mask_and_edge_IO_APIC_irq(struct irq_pin_list *entry)
-{
-	__io_apic_modify_irq(entry, ~IO_APIC_REDIR_LEVEL_TRIGGER,
-			     IO_APIC_REDIR_MASKED, NULL);
-}
-
-static void __unmask_and_level_IO_APIC_irq(struct irq_pin_list *entry)
-{
-	__io_apic_modify_irq(entry, ~IO_APIC_REDIR_MASKED,
-			     IO_APIC_REDIR_LEVEL_TRIGGER, NULL);
 }
 
 static void io_apic_sync(struct irq_pin_list *entry)
@@ -2496,8 +2492,23 @@ static void eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 			else
 				io_apic_eoi(entry->apic, cfg->vector);
 		} else {
-			__mask_and_edge_IO_APIC_irq(entry);
-			__unmask_and_level_IO_APIC_irq(entry);
+			struct IO_APIC_route_entry rte, rte1;
+
+			rte = rte1 =
+				__ioapic_read_entry(entry->apic, entry->pin);
+
+			/*
+			 * Mask the entry and change the trigger mode to edge.
+			 */
+			rte1.mask = 1;
+			rte1.trigger = IOAPIC_EDGE;
+
+			__ioapic_write_entry(apic, pin, rte1);
+
+			/*
+			 * Restore the previous level triggered entry.
+			 */
+			__ioapic_write_entry(apic, pin, rte);
 		}
 	}
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
