@@ -494,6 +494,9 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	 */
 	error = lport->tt.frame_send(lport, fp);
 
+	if (fh->fh_type == FC_TYPE_BLS)
+		return error;
+
 	/*
 	 * Update the exchange and sequence flags,
 	 * assuming all frames for the sequence have been sent.
@@ -575,42 +578,35 @@ static void fc_seq_set_resp(struct fc_seq *sp,
 }
 
 /**
- * fc_seq_exch_abort() - Abort an exchange and sequence
- * @req_sp:	The sequence to be aborted
+ * fc_exch_abort_locked() - Abort an exchange
+ * @ep:	The exchange to be aborted
  * @timer_msec: The period of time to wait before aborting
  *
- * Generally called because of a timeout or an abort from the upper layer.
+ * Locking notes:  Called with exch lock held
+ *
+ * Return value: 0 on success else error code
  */
-static int fc_seq_exch_abort(const struct fc_seq *req_sp,
-			     unsigned int timer_msec)
+static int fc_exch_abort_locked(struct fc_exch *ep,
+				unsigned int timer_msec)
 {
 	struct fc_seq *sp;
-	struct fc_exch *ep;
 	struct fc_frame *fp;
 	int error;
 
-	ep = fc_seq_exch(req_sp);
-
-	spin_lock_bh(&ep->ex_lock);
 	if (ep->esb_stat & (ESB_ST_COMPLETE | ESB_ST_ABNORMAL) ||
-	    ep->state & (FC_EX_DONE | FC_EX_RST_CLEANUP)) {
-		spin_unlock_bh(&ep->ex_lock);
+	    ep->state & (FC_EX_DONE | FC_EX_RST_CLEANUP))
 		return -ENXIO;
-	}
 
 	/*
 	 * Send the abort on a new sequence if possible.
 	 */
 	sp = fc_seq_start_next_locked(&ep->seq);
-	if (!sp) {
-		spin_unlock_bh(&ep->ex_lock);
+	if (!sp)
 		return -ENOMEM;
-	}
 
 	ep->esb_stat |= ESB_ST_SEQ_INIT | ESB_ST_ABNORMAL;
 	if (timer_msec)
 		fc_exch_timer_set_locked(ep, timer_msec);
-	spin_unlock_bh(&ep->ex_lock);
 
 	/*
 	 * If not logged into the fabric, don't send ABTS but leave
@@ -629,6 +625,28 @@ static int fc_seq_exch_abort(const struct fc_seq *req_sp,
 		error = fc_seq_send(ep->lp, sp, fp);
 	} else
 		error = -ENOBUFS;
+	return error;
+}
+
+/**
+ * fc_seq_exch_abort() - Abort an exchange and sequence
+ * @req_sp:	The sequence to be aborted
+ * @timer_msec: The period of time to wait before aborting
+ *
+ * Generally called because of a timeout or an abort from the upper layer.
+ *
+ * Return value: 0 on success else error code
+ */
+static int fc_seq_exch_abort(const struct fc_seq *req_sp,
+			     unsigned int timer_msec)
+{
+	struct fc_exch *ep;
+	int error;
+
+	ep = fc_seq_exch(req_sp);
+	spin_lock_bh(&ep->ex_lock);
+	error = fc_exch_abort_locked(ep, timer_msec);
+	spin_unlock_bh(&ep->ex_lock);
 	return error;
 }
 
@@ -1715,6 +1733,7 @@ static void fc_exch_reset(struct fc_exch *ep)
 	int rc = 1;
 
 	spin_lock_bh(&ep->ex_lock);
+	fc_exch_abort_locked(ep, 0);
 	ep->state |= FC_EX_RST_CLEANUP;
 	if (cancel_delayed_work(&ep->timeout_work))
 		atomic_dec(&ep->ex_refcnt);	/* drop hold for timer */
