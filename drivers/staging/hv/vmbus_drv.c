@@ -28,7 +28,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
-#include <linux/pci.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
@@ -753,18 +752,6 @@ static struct acpi_driver vmbus_acpi_driver = {
 		.add = vmbus_acpi_add,
 	},
 };
-
-/*
- * We use a PCI table to determine if we should autoload this driver  This is
- * needed by distro tools to determine if the hyperv drivers should be
- * installed and/or configured.  We don't do anything else with the table, but
- * it needs to be present.
- */
-static const struct pci_device_id microsoft_hv_pci_table[] = {
-	{ PCI_DEVICE(0x1414, 0x5353) },	/* VGA compatible controller */
-	{ 0 }
-};
-MODULE_DEVICE_TABLE(pci, microsoft_hv_pci_table);
 
 static int __init hv_acpi_init(void)
 {
