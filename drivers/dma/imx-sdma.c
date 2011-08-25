@@ -1143,18 +1143,17 @@ static void sdma_add_scripts(struct sdma_engine *sdma,
 			saddr_arr[i] = addr_arr[i];
 }
 
-static int __init sdma_get_firmware(struct sdma_engine *sdma,
-		const char *fw_name)
+static void sdma_load_firmware(const struct firmware *fw, void *context)
 {
-	const struct firmware *fw;
+	struct sdma_engine *sdma = context;
 	const struct sdma_firmware_header *header;
-	int ret;
 	const struct sdma_script_start_addrs *addr;
 	unsigned short *ram_code;
 
-	ret = request_firmware(&fw, fw_name, sdma->dev);
-	if (ret)
-		return ret;
+	if (!fw) {
+		dev_err(sdma->dev, "firmware not found\n");
+		return;
+	}
 
 	if (fw->size < sizeof(*header))
 		goto err_firmware;
@@ -1184,6 +1183,16 @@ static int __init sdma_get_firmware(struct sdma_engine *sdma,
 
 err_firmware:
 	release_firmware(fw);
+}
+
+static int __init sdma_get_firmware(struct sdma_engine *sdma,
+		const char *fw_name)
+{
+	int ret;
+
+	ret = request_firmware_nowait(THIS_MODULE,
+			FW_ACTION_HOTPLUG, fw_name, sdma->dev,
+			GFP_KERNEL, sdma, sdma_load_firmware);
 
 	return ret;
 }
