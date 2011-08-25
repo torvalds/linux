@@ -1413,7 +1413,7 @@ out:
 int wl12xx_cmd_add_peer(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 {
 	struct wl12xx_cmd_add_peer *cmd;
-	int ret;
+	int i, ret;
 	u32 sta_rates;
 
 	wl1271_debug(DEBUG_CMD, "cmd add peer %d", (int)hlid);
@@ -1424,14 +1424,18 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 		goto out;
 	}
 
-	/* currently we don't support UAPSD */
-	cmd->sp_len = 0;
-
 	memcpy(cmd->addr, sta->addr, ETH_ALEN);
 	cmd->bss_index = WL1271_AP_BSS_INDEX;
 	cmd->aid = sta->aid;
 	cmd->hlid = hlid;
+	cmd->sp_len = sta->max_sp;
 	cmd->wmm = sta->wme ? 1 : 0;
+
+	for (i = 0; i < NUM_ACCESS_CATEGORIES_COPY; i++)
+		if (sta->wme && (sta->uapsd_queues & BIT(i)))
+			cmd->psd_type[i] = WL1271_PSD_UPSD_TRIGGER;
+		else
+			cmd->psd_type[i] = WL1271_PSD_LEGACY;
 
 	sta_rates = sta->supp_rates[wl->band];
 	if (sta->ht_cap.ht_supported)
@@ -1440,7 +1444,8 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 	cmd->supported_rates =
 		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates));
 
-	wl1271_debug(DEBUG_CMD, "new peer rates: 0x%x", cmd->supported_rates);
+	wl1271_debug(DEBUG_CMD, "new peer rates=0x%x queues=0x%x",
+		     cmd->supported_rates, sta->uapsd_queues);
 
 	ret = wl1271_cmd_send(wl, CMD_ADD_PEER, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
