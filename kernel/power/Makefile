@@ -1,7 +1,7 @@
 
 ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
 
-obj-$(CONFIG_PM)		+= main.o
+obj-$(CONFIG_PM)		+= main.o qos.o
 obj-$(CONFIG_PM_SLEEP)		+= console.o
 obj-$(CONFIG_FREEZER)		+= process.o
 obj-$(CONFIG_SUSPEND)		+= suspend.o

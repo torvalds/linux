@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
 

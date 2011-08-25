@@ -1,5 +1,5 @@
-#ifndef _LINUX_PM_QOS_PARAMS_H
-#define _LINUX_PM_QOS_PARAMS_H
+#ifndef _LINUX_PM_QOS_H
+#define _LINUX_PM_QOS_H
 /* interface for the pm_qos_power infrastructure of the linux kernel.
  *
  * Mark Gross <mgross@linux.intel.com>
@@ -25,14 +25,37 @@ struct pm_qos_request_list {
 	int pm_qos_class;
 };
 
-void pm_qos_add_request(struct pm_qos_request_list *l, int pm_qos_class, s32 value);
+#ifdef CONFIG_PM
+void pm_qos_add_request(struct pm_qos_request_list *l,
+			int pm_qos_class, s32 value);
 void pm_qos_update_request(struct pm_qos_request_list *pm_qos_req,
-		s32 new_value);
+			   s32 new_value);
 void pm_qos_remove_request(struct pm_qos_request_list *pm_qos_req);
 
 int pm_qos_request(int pm_qos_class);
 int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_request_active(struct pm_qos_request_list *req);
+#else
+static inline void pm_qos_add_request(struct pm_qos_request_list *l,
+				      int pm_qos_class, s32 value)
+			{ return; }
+static inline void pm_qos_update_request(struct pm_qos_request_list *pm_qos_req,
+					 s32 new_value)
+			{ return; }
+static inline void pm_qos_remove_request(struct pm_qos_request_list *pm_qos_req)
+			{ return; }
+
+static inline int pm_qos_request(int pm_qos_class)
+			{ return 0; }
+static inline int pm_qos_add_notifier(int pm_qos_class,
+				      struct notifier_block *notifier)
+			{ return 0; }
+static inline int pm_qos_remove_notifier(int pm_qos_class,
+					 struct notifier_block *notifier)
+			{ return 0; }
+static inline int pm_qos_request_active(struct pm_qos_request_list *req)
+			{ return 0; }
+#endif
 
 #endif

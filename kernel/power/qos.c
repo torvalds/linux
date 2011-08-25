@@ -29,7 +29,7 @@
 
 /*#define DEBUG*/
 
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>

@@ -161,7 +161,7 @@ that only one external action is invoked at a time.
 #include <linux/firmware.h>
 #include <linux/acpi.h>
 #include <linux/ctype.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 
 #include <net/lib80211.h>
 
