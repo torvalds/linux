@@ -72,13 +72,13 @@ static int db8500_cpufreq_target(struct cpufreq_policy *policy,
 
 	freqs.old = policy->cur;
 	freqs.new = freq_table[idx].frequency;
-	freqs.cpu = policy->cpu;
 
 	if (freqs.old == freqs.new)
 		return 0;
 
 	/* pre-change notification */
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	for_each_cpu(freqs.cpu, policy->cpus)
+		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* request the PRCM unit for opp change */
 	if (prcmu_set_arm_opp(idx2opp[idx])) {
@@ -87,7 +87,8 @@ static int db8500_cpufreq_target(struct cpufreq_policy *policy,
 	}
 
 	/* post change notification */
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	for_each_cpu(freqs.cpu, policy->cpus)
+		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
