@@ -292,8 +292,8 @@
 	information, like register offsets, command buffer status,
 	register state for suspend/resume, etc.  At load time, a
 	driver may simply allocate one and set drm_device.dev_priv
-	appropriately; at unload the driver can free it and set
-	drm_device.dev_priv to NULL.
+	appropriately; it should be freed and drm_device.dev_priv set
+	to NULL when the driver is unloaded.
       </para>
       <para>
 	The DRM supports several counters which may be used for rough
