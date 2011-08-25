@@ -321,10 +321,10 @@
       <para>
 	Finding &amp; mapping resources is fairly straightforward.  The
 	DRM wrapper functions, drm_get_resource_start() and
-	drm_get_resource_len() may be used to find BARs on the given
+	drm_get_resource_len(), may be used to find BARs on the given
 	drm_device struct.  Once those values have been retrieved, the
 	driver load function can call drm_addmap() to create a new
-	mapping for the BAR in question.  Note you probably want a
+	mapping for the BAR in question.  Note that you probably want a
 	drm_local_map_t in your driver private structure to track any
 	mappings you create.
 <!-- !Fdrivers/gpu/drm/drm_bufs.c drm_get_resource_* -->
