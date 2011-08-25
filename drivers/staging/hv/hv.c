@@ -151,7 +151,6 @@ static u64 do_hypercall(u64 control, void *input, void *output)
  */
 int hv_init(void)
 {
-	int ret = 0;
 	int max_leaf;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 	void *virtaddr = NULL;
@@ -214,7 +213,7 @@ int hv_init(void)
 	hv_context.signal_event_param->flag_number = 0;
 	hv_context.signal_event_param->rsvdz = 0;
 
-	return ret;
+	return 0;
 
 cleanup:
 	if (virtaddr) {
@@ -225,8 +224,8 @@ cleanup:
 
 		vfree(virtaddr);
 	}
-	ret = -1;
-	return ret;
+
+	return -ENOTSUPP;
 }
 
 /*
