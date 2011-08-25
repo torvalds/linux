@@ -143,7 +143,7 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 		wl1271_ps_link_start(wl, hlid, true);
 }
 
-static bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
+bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
 {
 	return wl->dummy_packet == skb;
 }
