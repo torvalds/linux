@@ -119,7 +119,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		     u32 recv_ringbuffer_size, void *userdata, u32 userdatalen,
 		     void (*onchannelcallback)(void *context), void *context)
 {
-	struct vmbus_channel_open_channel *openMsg;
+	struct vmbus_channel_open_channel *open_msg;
 	struct vmbus_channel_msginfo *openInfo = NULL;
 	void *in, *out;
 	unsigned long flags;
@@ -183,14 +183,14 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	init_completion(&openInfo->waitevent);
 
-	openMsg = (struct vmbus_channel_open_channel *)openInfo->msg;
-	openMsg->header.msgtype = CHANNELMSG_OPENCHANNEL;
-	openMsg->openid = newchannel->offermsg.child_relid;
-	openMsg->child_relid = newchannel->offermsg.child_relid;
-	openMsg->ringbuffer_gpadlhandle = newchannel->ringbuffer_gpadlhandle;
-	openMsg->downstream_ringbuffer_pageoffset = send_ringbuffer_size >>
+	open_msg = (struct vmbus_channel_open_channel *)openInfo->msg;
+	open_msg->header.msgtype = CHANNELMSG_OPENCHANNEL;
+	open_msg->openid = newchannel->offermsg.child_relid;
+	open_msg->child_relid = newchannel->offermsg.child_relid;
+	open_msg->ringbuffer_gpadlhandle = newchannel->ringbuffer_gpadlhandle;
+	open_msg->downstream_ringbuffer_pageoffset = send_ringbuffer_size >>
 						  PAGE_SHIFT;
-	openMsg->server_contextarea_gpadlhandle = 0;
+	open_msg->server_contextarea_gpadlhandle = 0;
 
 	if (userdatalen > MAX_USER_DEFINED_BYTES) {
 		err = -EINVAL;
@@ -198,14 +198,14 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	}
 
 	if (userdatalen)
-		memcpy(openMsg->userdata, userdata, userdatalen);
+		memcpy(open_msg->userdata, userdata, userdatalen);
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&openInfo->msglistentry,
 		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	ret = vmbus_post_msg(openMsg,
+	ret = vmbus_post_msg(open_msg,
 			       sizeof(struct vmbus_channel_open_channel));
 
 	if (ret != 0)
