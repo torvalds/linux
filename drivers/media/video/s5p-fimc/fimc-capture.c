@@ -905,19 +905,8 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	if (ret)
 		goto err_ent;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
-	if (ret) {
-		v4l2_err(v4l2_dev, "Failed to register video device\n");
-		goto err_vd_reg;
-	}
-
-	v4l2_info(v4l2_dev,
-		  "FIMC capture driver registered as /dev/video%d\n",
-		  vfd->num);
 	return 0;
 
-err_vd_reg:
-	media_entity_cleanup(&vfd->entity);
 err_ent:
 	video_device_release(vfd);
 err_v4l2_reg:
@@ -934,7 +923,10 @@ void fimc_unregister_capture_device(struct fimc_dev *fimc)
 
 	if (vfd) {
 		media_entity_cleanup(&vfd->entity);
+		/* Can also be called if video device was
+		   not registered */
 		video_unregister_device(vfd);
 	}
 	kfree(fimc->vid_cap.ctx);
+	fimc->vid_cap.ctx = NULL;
 }

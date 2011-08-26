@@ -1494,7 +1494,7 @@ static struct v4l2_m2m_ops m2m_ops = {
 	.job_abort	= fimc_job_abort,
 };
 
-static int fimc_register_m2m_device(struct fimc_dev *fimc)
+int fimc_register_m2m_device(struct fimc_dev *fimc)
 {
 	struct video_device *vfd;
 	struct platform_device *pdev;
@@ -1541,22 +1541,9 @@ static int fimc_register_m2m_device(struct fimc_dev *fimc)
 	}
 
 	ret = media_entity_init(&vfd->entity, 0, NULL, 0);
-	if (ret)
-		goto err_m2m_r3;
+	if (!ret)
+		return 0;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
-	if (ret) {
-		v4l2_err(v4l2_dev,
-			 "%s(): failed to register video device\n", __func__);
-		goto err_m2m_r4;
-	}
-	v4l2_info(v4l2_dev,
-		  "FIMC m2m driver registered as /dev/video%d\n", vfd->num);
-
-	return 0;
-err_m2m_r4:
-	media_entity_cleanup(&vfd->entity);
-err_m2m_r3:
 	v4l2_m2m_release(fimc->m2m.m2m_dev);
 err_m2m_r2:
 	video_device_release(fimc->m2m.vfd);
@@ -1566,15 +1553,19 @@ err_m2m_r1:
 	return ret;
 }
 
-static void fimc_unregister_m2m_device(struct fimc_dev *fimc)
+void fimc_unregister_m2m_device(struct fimc_dev *fimc)
 {
-	if (fimc == NULL)
+	if (!fimc)
 		return;
 
-	v4l2_m2m_release(fimc->m2m.m2m_dev);
+	if (fimc->m2m.m2m_dev)
+		v4l2_m2m_release(fimc->m2m.m2m_dev);
 	v4l2_device_unregister(&fimc->m2m.v4l2_dev);
-	media_entity_cleanup(&fimc->m2m.vfd->entity);
-	video_unregister_device(fimc->m2m.vfd);
+	if (fimc->m2m.vfd) {
+		media_entity_cleanup(&fimc->m2m.vfd->entity);
+		/* Can also be called if video device wasn't registered */
+		video_unregister_device(fimc->m2m.vfd);
+	}
 }
 
 static void fimc_clk_put(struct fimc_dev *fimc)
@@ -1739,27 +1730,11 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_pm;
 	}
 
-	ret = fimc_register_m2m_device(fimc);
-	if (ret)
-		goto err_alloc;
-
-	/* At least one camera sensor is required to register capture node */
-	if (cap_input_index >= 0) {
-		ret = fimc_register_capture_device(fimc);
-		if (ret)
-			goto err_m2m;
-	}
-
-	dev_dbg(&pdev->dev, "%s(): fimc-%d registered successfully\n",
-		__func__, fimc->id);
+	dev_dbg(&pdev->dev, "FIMC.%d registered successfully\n", fimc->id);
 
 	pm_runtime_put(&pdev->dev);
 	return 0;
 
-err_m2m:
-	fimc_unregister_m2m_device(fimc);
-err_alloc:
-	vb2_dma_contig_cleanup_ctx(fimc->alloc_ctx);
 err_pm:
 	pm_runtime_put(&pdev->dev);
 err_irq:
@@ -1773,7 +1748,6 @@ err_req_region:
 	kfree(fimc->regs_res);
 err_info:
 	kfree(fimc);
-
 	return ret;
 }
 
@@ -1861,9 +1835,6 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	fimc_runtime_suspend(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-
-	fimc_unregister_m2m_device(fimc);
-	fimc_unregister_capture_device(fimc);
 
 	vb2_dma_contig_cleanup_ctx(fimc->alloc_ctx);
 
