@@ -135,6 +135,9 @@ enum {
 #define _PSB_IRQ_MSVDX_FLAG	  (1<<19)
 #define _LNC_IRQ_TOPAZ_FLAG	  (1<<20)
 
+#define _PSB_PIPE_EVENT_FLAG	(_PSB_VSYNC_PIPEA_FLAG | \
+				 _PSB_VSYNC_PIPEB_FLAG)
+
 /* This flag includes all the display IRQ bits excepts the vblank irqs. */
 #define _MDFLD_DISP_ALL_IRQ_FLAG (_MDFLD_PIPEC_EVENT_FLAG | \
 				  _MDFLD_PIPEB_EVENT_FLAG | \
