@@ -193,7 +193,7 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	calib_cfg_cmd.ucd_calib_cfg.flags =
 		IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK;
 
-	return trans_send_cmd(&priv->trans, &cmd);
+	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
@@ -291,7 +291,7 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 		/* coexistence is disabled */
 		memset(&coex_cmd, 0, sizeof(coex_cmd));
 	}
-	return trans_send_cmd_pdu(&priv->trans,
+	return iwl_trans_send_cmd_pdu(trans(priv),
 				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
 				sizeof(coex_cmd), &coex_cmd);
 }
@@ -324,7 +324,7 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 
 	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
 		sizeof(iwlagn_bt_prio_tbl));
-	if (trans_send_cmd_pdu(&priv->trans,
+	if (iwl_trans_send_cmd_pdu(trans(priv),
 				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
@@ -337,7 +337,7 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 	env_cmd.action = action;
 	env_cmd.type = type;
-	ret = trans_send_cmd_pdu(&priv->trans,
+	ret = iwl_trans_send_cmd_pdu(trans(priv),
 			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
@@ -350,7 +350,7 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 {
 	int ret;
 
-	trans_tx_start(&priv->trans);
+	iwl_trans_tx_start(trans(priv));
 
 	ret = iwlagn_send_wimax_coex(priv);
 	if (ret)
@@ -478,7 +478,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	int ret;
 	enum iwlagn_ucode_type old_type;
 
-	ret = trans_start_device(&priv->trans);
+	ret = iwl_trans_start_device(trans(priv));
 	if (ret)
 		return ret;
 
@@ -495,7 +495,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return ret;
 	}
 
-	trans_kick_nic(&priv->trans);
+	iwl_trans_kick_nic(trans(priv));
 
 	/*
 	 * Some things may run in the background now, but we
@@ -580,6 +580,6 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	iwlagn_remove_notification(priv, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
-	trans_stop_device(&priv->trans);
+	iwl_trans_stop_device(trans(priv));
 	return ret;
 }

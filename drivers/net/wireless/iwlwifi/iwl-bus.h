@@ -89,7 +89,7 @@ struct iwl_bus_ops {
 struct iwl_bus {
 	/* Common data to all buses */
 	struct device *dev;
-	struct iwl_bus_ops *ops;
+	const struct iwl_bus_ops *ops;
 	struct iwl_shared *shrd;
 
 	unsigned int irq;

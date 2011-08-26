@@ -443,7 +443,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		if (reclaim) {
 			/* Invoke any callbacks, transfer the buffer to caller,
 			 * and fire off the (possibly) blocking
-			 * trans_send_cmd()
+			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
 				iwl_tx_cmd_complete(priv, rxb);

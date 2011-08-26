@@ -200,7 +200,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	cmd.data[1] = priv->beacon_skb->data;
 	cmd.dataflags[1] = IWL_HCMD_DFL_NOCOPY;
 
-	return trans_send_cmd(&priv->trans, &cmd);
+	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -1685,7 +1685,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 		adv_cmd.critical_temperature_exit =
 			cpu_to_le32(hw_params(priv).ct_kill_exit_threshold);
 
-		ret = trans_send_cmd_pdu(&priv->trans,
+		ret = iwl_trans_send_cmd_pdu(trans(priv),
 				       REPLY_CT_KILL_CONFIG_CMD,
 				       CMD_SYNC, sizeof(adv_cmd), &adv_cmd);
 		if (ret)
@@ -1700,7 +1700,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 		cmd.critical_temperature_R =
 			cpu_to_le32(hw_params(priv).ct_kill_threshold);
 
-		ret = trans_send_cmd_pdu(&priv->trans,
+		ret = iwl_trans_send_cmd_pdu(trans(priv),
 				       REPLY_CT_KILL_CONFIG_CMD,
 				       CMD_SYNC, sizeof(cmd), &cmd);
 		if (ret)
@@ -1726,7 +1726,7 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
 	calib_cfg_cmd.ucd_calib_cfg.once.start = cpu_to_le32(cfg);
 
-	return trans_send_cmd(&priv->trans, &cmd);
+	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
 
@@ -1738,7 +1738,7 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 
 	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
 		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
-		return trans_send_cmd_pdu(&priv->trans,
+		return iwl_trans_send_cmd_pdu(trans(priv),
 					TX_ANT_CONFIGURATION_CMD,
 					CMD_SYNC,
 					sizeof(struct iwl_tx_ant_config_cmd),
@@ -1912,7 +1912,7 @@ static void __iwl_down(struct iwl_priv *priv)
 			test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) <<
 				STATUS_EXIT_PENDING;
 
-	trans_stop_device(&priv->trans);
+	iwl_trans_stop_device(trans(priv));
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
@@ -2336,7 +2336,7 @@ static int iwlagn_send_patterns(struct iwl_priv *priv,
 	}
 
 	cmd.data[0] = pattern_cmd;
-	err = trans_send_cmd(&priv->trans, &cmd);
+	err = iwl_trans_send_cmd(trans(priv), &cmd);
 	kfree(pattern_cmd);
 	return err;
 }
@@ -2591,7 +2591,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 
 	memcpy(&rxon, &ctx->active, sizeof(rxon));
 
-	trans_stop_device(&priv->trans);
+	iwl_trans_stop_device(trans(priv));
 
 	priv->wowlan = true;
 
@@ -2643,13 +2643,13 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 				.len[0] = sizeof(*key_data.rsc_tsc),
 			};
 
-			ret = trans_send_cmd(&priv->trans, &rsc_tsc_cmd);
+			ret = iwl_trans_send_cmd(trans(priv), &rsc_tsc_cmd);
 			if (ret)
 				goto error;
 		}
 
 		if (key_data.use_tkip) {
-			ret = trans_send_cmd_pdu(&priv->trans,
+			ret = iwl_trans_send_cmd_pdu(trans(priv),
 						 REPLY_WOWLAN_TKIP_PARAMS,
 						 CMD_SYNC, sizeof(tkip_cmd),
 						 &tkip_cmd);
@@ -2665,7 +2665,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 			kek_kck_cmd.kek_len = cpu_to_le16(NL80211_KEK_LEN);
 			kek_kck_cmd.replay_ctr = priv->replay_ctr;
 
-			ret = trans_send_cmd_pdu(&priv->trans,
+			ret = iwl_trans_send_cmd_pdu(trans(priv),
 						 REPLY_WOWLAN_KEK_KCK_MATERIAL,
 						 CMD_SYNC, sizeof(kek_kck_cmd),
 						 &kek_kck_cmd);
@@ -2674,7 +2674,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 		}
 	}
 
-	ret = trans_send_cmd_pdu(&priv->trans, REPLY_WOWLAN_WAKEUP_FILTER,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_WOWLAN_WAKEUP_FILTER,
 				 CMD_SYNC, sizeof(wakeup_filter_cmd),
 				 &wakeup_filter_cmd);
 	if (ret)
@@ -2943,7 +2943,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
-		trans_txq_agg_setup(&priv->trans, iwl_sta_id(sta), tid,
+		iwl_trans_txq_agg_setup(trans(priv), iwl_sta_id(sta), tid,
 				buf_size);
 
 		/*
@@ -3590,7 +3590,8 @@ out:
 	return hw;
 }
 
-int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
+int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
+		struct iwl_cfg *cfg)
 {
 	int err = 0;
 	struct iwl_priv *priv;
@@ -3613,6 +3614,12 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	priv->shrd->bus = bus;
 	priv->shrd->priv = priv;
 	bus_set_drv_data(priv->bus, priv->shrd);
+
+	priv->shrd->trans = trans_ops->alloc(priv->shrd);
+	if (priv->shrd->trans == NULL) {
+		err = -ENOMEM;
+		goto out_free_traffic_mem;
+	}
 
 	/* At this point both hw and priv are allocated. */
 
@@ -3656,11 +3663,11 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		priv->cfg->name, hw_rev);
 
-	err = iwl_trans_register(&priv->trans, priv);
+	err = iwl_trans_request_irq(trans(priv));
 	if (err)
-		goto out_free_traffic_mem;
+		goto out_free_trans;
 
-	if (trans_prepare_card_hw(&priv->trans)) {
+	if (iwl_trans_prepare_card_hw(trans(priv))) {
 		err = -EIO;
 		IWL_WARN(priv, "Failed, HW not ready\n");
 		goto out_free_trans;
@@ -3754,7 +3761,7 @@ out_destroy_workqueue:
 out_free_eeprom:
 	iwl_eeprom_free(priv);
 out_free_trans:
-	trans_free(&priv->trans);
+	iwl_trans_free(trans(priv));
 out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
 	ieee80211_free_hw(priv->hw);
@@ -3800,12 +3807,12 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
-	trans_sync_irq(&priv->trans);
+	iwl_trans_sync_irq(trans(priv));
 
 	iwl_dealloc_ucode(priv);
 
-	trans_rx_free(&priv->trans);
-	trans_tx_free(&priv->trans);
+	iwl_trans_rx_free(trans(priv));
+	iwl_trans_tx_free(trans(priv));
 
 	iwl_eeprom_free(priv);
 
@@ -3819,7 +3826,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	priv->shrd->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
 
-	trans_free(&priv->trans);
+	iwl_trans_free(trans(priv));
 
 	bus_set_drv_data(priv->bus, NULL);
 

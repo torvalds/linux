@@ -69,9 +69,12 @@
 struct iwl_priv;
 struct iwl_rxon_context;
 struct iwl_host_cmd;
+struct iwl_shared;
 
 /**
  * struct iwl_trans_ops - transport specific operations
+ * @alloc: allocates the meta data (not the queues themselves)
+ * @request_irq: requests IRQ - will be called before the FW load in probe flow
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
  * @prepare_card_hw: claim the ownership on the HW. Will be called during
@@ -98,6 +101,8 @@ struct iwl_host_cmd;
  */
 struct iwl_trans_ops {
 
+	struct iwl_trans *(*alloc)(struct iwl_shared *shrd);
+	int (*request_irq)(struct iwl_trans *iwl_trans);
 	int (*start_device)(struct iwl_priv *priv);
 	int (*prepare_card_hw)(struct iwl_priv *priv);
 	void (*stop_device)(struct iwl_priv *priv);
@@ -127,93 +132,105 @@ struct iwl_trans_ops {
 
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
-	struct iwl_priv *priv;
+	struct iwl_shared *shrd;
+
+	/* pointer to trans specific struct */
+	/*Ensure that this pointer will always be aligned to sizeof pointer */
+	char trans_specific[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
-static inline int trans_start_device(struct iwl_trans *trans)
+static inline int iwl_trans_request_irq(struct iwl_trans *trans)
 {
-	return trans->ops->start_device(trans->priv);
+	return trans->ops->request_irq(trans);
 }
 
-static inline int trans_prepare_card_hw(struct iwl_trans *trans)
+static inline int iwl_trans_start_device(struct iwl_trans *trans)
 {
-	return trans->ops->prepare_card_hw(trans->priv);
+	return trans->ops->start_device(priv(trans));
 }
 
-static inline void trans_stop_device(struct iwl_trans *trans)
+static inline int iwl_trans_prepare_card_hw(struct iwl_trans *trans)
 {
-	trans->ops->stop_device(trans->priv);
+	return trans->ops->prepare_card_hw(priv(trans));
 }
 
-static inline void trans_tx_start(struct iwl_trans *trans)
+static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
-	trans->ops->tx_start(trans->priv);
+	trans->ops->stop_device(priv(trans));
 }
 
-static inline void trans_rx_free(struct iwl_trans *trans)
+static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 {
-	trans->ops->rx_free(trans->priv);
+	trans->ops->tx_start(priv(trans));
 }
 
-static inline void trans_tx_free(struct iwl_trans *trans)
+static inline void iwl_trans_rx_free(struct iwl_trans *trans)
 {
-	trans->ops->tx_free(trans->priv);
+	trans->ops->rx_free(priv(trans));
 }
 
-static inline int trans_send_cmd(struct iwl_trans *trans,
+static inline void iwl_trans_tx_free(struct iwl_trans *trans)
+{
+	trans->ops->tx_free(priv(trans));
+}
+
+static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				struct iwl_host_cmd *cmd)
 {
-	return trans->ops->send_cmd(trans->priv, cmd);
+	return trans->ops->send_cmd(priv(trans), cmd);
 }
 
-static inline int trans_send_cmd_pdu(struct iwl_trans *trans, u8 id, u32 flags,
-					u16 len, const void *data)
+static inline int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
+					u32 flags, u16 len, const void *data)
 {
-	return trans->ops->send_cmd_pdu(trans->priv, id, flags, len, data);
+	return trans->ops->send_cmd_pdu(priv(trans), id, flags, len, data);
 }
 
-static inline struct iwl_tx_cmd *trans_get_tx_cmd(struct iwl_trans *trans,
+static inline struct iwl_tx_cmd *iwl_trans_get_tx_cmd(struct iwl_trans *trans,
 					int txq_id)
 {
-	return trans->ops->get_tx_cmd(trans->priv, txq_id);
+	return trans->ops->get_tx_cmd(priv(trans), txq_id);
 }
 
-static inline int trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
+static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx)
 {
-	return trans->ops->tx(trans->priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
+	return trans->ops->tx(priv(trans), skb, tx_cmd, txq_id, fc, ampdu, ctx);
 }
 
-static inline int trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id,
+static inline int iwl_trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id,
 			  u16 ssn_idx, u8 tx_fifo)
 {
-	return trans->ops->txq_agg_disable(trans->priv, txq_id,
+	return trans->ops->txq_agg_disable(priv(trans), txq_id,
 					   ssn_idx, tx_fifo);
 }
 
-static inline void trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
+static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
 						int tid, int frame_limit)
 {
-	trans->ops->txq_agg_setup(trans->priv, sta_id, tid, frame_limit);
+	trans->ops->txq_agg_setup(priv(trans), sta_id, tid, frame_limit);
 }
 
-static inline void trans_kick_nic(struct iwl_trans *trans)
+static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
 {
-	trans->ops->kick_nic(trans->priv);
+	trans->ops->kick_nic(priv(trans));
 }
 
-static inline void trans_sync_irq(struct iwl_trans *trans)
+static inline void iwl_trans_sync_irq(struct iwl_trans *trans)
 {
-	trans->ops->sync_irq(trans->priv);
+	trans->ops->sync_irq(priv(trans));
 }
 
-static inline void trans_free(struct iwl_trans *trans)
+static inline void iwl_trans_free(struct iwl_trans *trans)
 {
-	trans->ops->free(trans->priv);
+	trans->ops->free(priv(trans));
 }
 
-int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv);
+/*****************************************************
+* Transport layers implementations
+******************************************************/
+extern const struct iwl_trans_ops trans_ops_pcie;
 
 /*TODO: this functions should NOT be exported from trans module - export it
  * until the reclaim flow will be brought to the transport module too */

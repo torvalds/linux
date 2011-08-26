@@ -32,6 +32,12 @@
 /*This file includes the declaration that are internal to the
  * trans_pcie layer */
 
+/**
+ * struct iwl_trans_pcie - PCIe transport specific data
+ */
+struct iwl_trans_pcie {
+};
+
 /*****************************************************
 * RX
 ******************************************************/
@@ -62,21 +68,21 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 dma_addr_t addr, u16 len, u8 reset);
 int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 			  int count, int slots_num, u32 id);
-int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
-			u16 len, const void *data);
+int iwl_trans_pcie_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+int __must_check iwl_trans_pcie_send_cmd_pdu(struct iwl_priv *priv, u8 id,
+			u32 flags, u16 len, const void *data);
 void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
-int iwl_trans_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				  u16 ssn_idx, u8 tx_fifo);
 void iwl_trans_set_wr_ptrs(struct iwl_priv *priv,
 		     int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 			     struct iwl_tx_queue *txq,
 			     int tx_fifo_id, int scd_retry);
-void iwl_trans_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
+void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 						int frame_limit);
 
 #endif /* __iwl_trans_int_pcie_h__ */

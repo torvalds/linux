@@ -98,7 +98,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 			hcmd.len[0] = priv->calib_results[i].buf_len;
 			hcmd.data[0] = priv->calib_results[i].buf;
 			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = trans_send_cmd(&priv->trans, &hcmd);
+			ret = iwl_trans_send_cmd(trans(priv), &hcmd);
 			if (ret) {
 				IWL_ERR(priv, "Error %d iteration %d\n",
 					ret, i);
@@ -484,7 +484,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	return trans_send_cmd(&priv->trans, &cmd_out);
+	return iwl_trans_send_cmd(trans(priv), &cmd_out);
 }
 
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
@@ -573,7 +573,7 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
 	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
-	return trans_send_cmd(&priv->trans, &cmd_out);
+	return iwl_trans_send_cmd(trans(priv), &cmd_out);
 }
 
 void iwl_init_sensitivity(struct iwl_priv *priv)
@@ -918,7 +918,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			priv->phy_calib_chain_noise_gain_cmd);
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
-		trans_send_cmd_pdu(&priv->trans, REPLY_PHY_CALIBRATION_CMD,
+		iwl_trans_send_cmd_pdu(trans(priv), REPLY_PHY_CALIBRATION_CMD,
 			CMD_ASYNC, sizeof(cmd), &cmd);
 
 		data->radio_write = 1;

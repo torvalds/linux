@@ -63,10 +63,14 @@
 #ifndef __iwl_shared_h__
 #define __iwl_shared_h__
 
+/*This files includes all the types / functions that are exported by the
+ * upper layer to the bus and transport layer */
+
 struct iwl_cfg;
 struct iwl_bus;
 struct iwl_priv;
 struct iwl_sensitivity_ranges;
+struct iwl_trans_ops;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 
@@ -164,6 +168,7 @@ struct iwl_shared {
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;
+	struct iwl_trans *trans;
 	struct iwl_hw_params hw_params;
 
 	struct workqueue_struct *workqueue;
@@ -175,6 +180,7 @@ struct iwl_shared {
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
 #define priv(_m)	((_m)->shrd->priv)
 #define bus(_m)		((_m)->shrd->bus)
+#define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -204,7 +210,8 @@ int iwl_suspend(struct iwl_priv *priv);
 int iwl_resume(struct iwl_priv *priv);
 #endif /* !CONFIG_PM */
 
-int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg);
+int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
+		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
 
 #endif /* #__iwl_shared_h__ */

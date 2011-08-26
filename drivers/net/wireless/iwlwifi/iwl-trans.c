@@ -60,6 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#include <linux/interrupt.h>
+
 #include "iwl-dev.h"
 #include "iwl-trans.h"
 #include "iwl-core.h"
@@ -218,7 +220,7 @@ static int iwl_rx_init(struct iwl_priv *priv)
 	return 0;
 }
 
-static void iwl_trans_rx_free(struct iwl_priv *priv)
+static void iwl_trans_pcie_rx_free(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	unsigned long flags;
@@ -453,7 +455,7 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
  *
  * Destroy all TX DMA queues and structures
  */
-static void iwl_trans_tx_free(struct iwl_priv *priv)
+static void iwl_trans_pcie_tx_free(struct iwl_priv *priv)
 {
 	int txq_id;
 
@@ -528,7 +530,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 	return 0;
 
 error:
-	trans_tx_free(&priv->trans);
+	iwl_trans_tx_free(trans(priv));
 
 	return ret;
 }
@@ -572,7 +574,7 @@ static int iwl_tx_init(struct iwl_priv *priv)
 error:
 	/*Upon error, free only if we allocated something */
 	if (alloc)
-		trans_tx_free(&priv->trans);
+		iwl_trans_tx_free(trans(priv));
 	return ret;
 }
 
@@ -649,7 +651,7 @@ static int iwl_set_hw_ready(struct iwl_priv *priv)
 }
 
 /* Note: returns standard 0/-ERROR code */
-static int iwl_trans_prepare_card_hw(struct iwl_priv *priv)
+static int iwl_trans_pcie_prepare_card_hw(struct iwl_priv *priv)
 {
 	int ret;
 
@@ -677,14 +679,14 @@ static int iwl_trans_prepare_card_hw(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwl_trans_start_device(struct iwl_priv *priv)
+static int iwl_trans_pcie_start_device(struct iwl_priv *priv)
 {
 	int ret;
 
 	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
 
 	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
-	     iwl_trans_prepare_card_hw(priv)) {
+	     iwl_trans_pcie_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Exit HW not ready\n");
 		return -EIO;
 	}
@@ -768,7 +770,7 @@ static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
 	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
 	{ IWL_TX_FIFO_AUX, IWL_AC_UNSET, },
 };
-static void iwl_trans_tx_start(struct iwl_priv *priv)
+static void iwl_trans_pcie_tx_start(struct iwl_priv *priv)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
 	struct iwl_rxon_context *ctx;
@@ -916,7 +918,7 @@ static int iwl_trans_tx_stop(struct iwl_priv *priv)
 	return 0;
 }
 
-static void iwl_trans_stop_device(struct iwl_priv *priv)
+static void iwl_trans_pcie_stop_device(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
@@ -927,7 +929,7 @@ static void iwl_trans_stop_device(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
-	trans_sync_irq(&priv->trans);
+	iwl_trans_sync_irq(trans(priv));
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(priv);
@@ -956,7 +958,7 @@ static void iwl_trans_stop_device(struct iwl_priv *priv)
 	iwl_apm_stop(priv);
 }
 
-static struct iwl_tx_cmd *iwl_trans_get_tx_cmd(struct iwl_priv *priv,
+static struct iwl_tx_cmd *iwl_trans_pcie_get_tx_cmd(struct iwl_priv *priv,
 						int txq_id)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
@@ -980,7 +982,7 @@ static struct iwl_tx_cmd *iwl_trans_get_tx_cmd(struct iwl_priv *priv,
 	return &dev_cmd->cmd.tx;
 }
 
-static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
+static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx)
 {
@@ -1109,63 +1111,23 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return 0;
 }
 
-static void iwl_trans_kick_nic(struct iwl_priv *priv)
+static void iwl_trans_pcie_kick_nic(struct iwl_priv *priv)
 {
 	/* Remove all resets to allow NIC to operate */
 	iwl_write32(priv, CSR_RESET, 0);
 }
 
-static void iwl_trans_sync_irq(struct iwl_priv *priv)
+static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 {
-	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(priv->bus->irq);
-	tasklet_kill(&priv->irq_tasklet);
-}
-
-static void iwl_trans_free(struct iwl_priv *priv)
-{
-	free_irq(priv->bus->irq, priv);
-	iwl_free_isr_ict(priv);
-}
-
-static const struct iwl_trans_ops trans_ops = {
-	.start_device = iwl_trans_start_device,
-	.prepare_card_hw = iwl_trans_prepare_card_hw,
-	.stop_device = iwl_trans_stop_device,
-
-	.tx_start = iwl_trans_tx_start,
-
-	.rx_free = iwl_trans_rx_free,
-	.tx_free = iwl_trans_tx_free,
-
-	.send_cmd = iwl_send_cmd,
-	.send_cmd_pdu = iwl_send_cmd_pdu,
-
-	.get_tx_cmd = iwl_trans_get_tx_cmd,
-	.tx = iwl_trans_tx,
-
-	.txq_agg_disable = iwl_trans_txq_agg_disable,
-	.txq_agg_setup = iwl_trans_txq_agg_setup,
-
-	.kick_nic = iwl_trans_kick_nic,
-
-	.sync_irq = iwl_trans_sync_irq,
-	.free = iwl_trans_free,
-};
-
-int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv)
-{
+	struct iwl_priv *priv = priv(trans);
 	int err;
-
-	priv->trans.ops = &trans_ops;
-	priv->trans.priv = priv;
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		iwl_irq_tasklet, (unsigned long)priv);
 
 	iwl_alloc_isr_ict(priv);
 
-	err = request_irq(priv->bus->irq, iwl_isr_ict, IRQF_SHARED,
+	err = request_irq(bus(trans)->irq, iwl_isr_ict, IRQF_SHARED,
 		DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus->irq);
@@ -1174,6 +1136,63 @@ int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv)
 	}
 
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
-
 	return 0;
 }
+
+static void iwl_trans_pcie_sync_irq(struct iwl_priv *priv)
+{
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(priv->bus->irq);
+	tasklet_kill(&priv->irq_tasklet);
+}
+
+static void iwl_trans_pcie_free(struct iwl_priv *priv)
+{
+	free_irq(priv->bus->irq, priv);
+	iwl_free_isr_ict(priv);
+	kfree(trans(priv));
+	trans(priv) = NULL;
+}
+
+const struct iwl_trans_ops trans_ops_pcie;
+
+static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
+{
+	struct iwl_trans *iwl_trans = kzalloc(sizeof(struct iwl_trans) +
+					      sizeof(struct iwl_trans_pcie),
+					      GFP_KERNEL);
+	if (iwl_trans) {
+		iwl_trans->ops = &trans_ops_pcie;
+		iwl_trans->shrd = shrd;
+	}
+
+	return iwl_trans;
+}
+
+const struct iwl_trans_ops trans_ops_pcie = {
+	.alloc = iwl_trans_pcie_alloc,
+	.request_irq = iwl_trans_pcie_request_irq,
+	.start_device = iwl_trans_pcie_start_device,
+	.prepare_card_hw = iwl_trans_pcie_prepare_card_hw,
+	.stop_device = iwl_trans_pcie_stop_device,
+
+	.tx_start = iwl_trans_pcie_tx_start,
+
+	.rx_free = iwl_trans_pcie_rx_free,
+	.tx_free = iwl_trans_pcie_tx_free,
+
+	.send_cmd = iwl_trans_pcie_send_cmd,
+	.send_cmd_pdu = iwl_trans_pcie_send_cmd_pdu,
+
+	.get_tx_cmd = iwl_trans_pcie_get_tx_cmd,
+	.tx = iwl_trans_pcie_tx,
+
+	.txq_agg_disable = iwl_trans_pcie_txq_agg_disable,
+	.txq_agg_setup = iwl_trans_pcie_txq_agg_setup,
+
+	.kick_nic = iwl_trans_pcie_kick_nic,
+
+	.sync_irq = iwl_trans_pcie_sync_irq,
+	.free = iwl_trans_pcie_free,
+};
+

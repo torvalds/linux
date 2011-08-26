@@ -422,7 +422,7 @@ void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
 }
 
-void iwl_trans_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
+void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 						int frame_limit)
 {
 	int tx_fifo, txq_id, ssn_idx;
@@ -483,7 +483,7 @@ void iwl_trans_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
-int iwl_trans_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				  u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
@@ -1015,7 +1015,7 @@ fail:
 	return ret;
 }
 
-int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+int iwl_trans_pcie_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	if (cmd->flags & CMD_ASYNC)
 		return iwl_send_cmd_async(priv, cmd);
@@ -1023,8 +1023,8 @@ int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return iwl_send_cmd_sync(priv, cmd);
 }
 
-int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
-		     const void *data)
+int iwl_trans_pcie_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
+		u16 len, const void *data)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
@@ -1033,5 +1033,5 @@ int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
 		.flags = flags,
 	};
 
-	return iwl_send_cmd(priv, &cmd);
+	return iwl_trans_pcie_send_cmd(priv, &cmd);
 }

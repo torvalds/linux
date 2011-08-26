@@ -75,7 +75,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return -EIO;
 
-	ret = trans_send_cmd(&priv->trans, &cmd);
+	ret = iwl_trans_send_cmd(trans(priv), &cmd);
 	if (ret)
 		return ret;
 

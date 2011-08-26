@@ -66,6 +66,7 @@
 #include "iwl-bus.h"
 #include "iwl-shared.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 /* TODO: iwl_set_bit and friends should be implemented in bus layer
  * this would allow us not to include iwl-io.h here */
@@ -165,7 +166,7 @@ static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
 	return val;
 }
 
-static struct iwl_bus_ops pci_ops = {
+static const struct iwl_bus_ops bus_ops_pci = {
 	.get_pm_support = iwl_pci_is_pm_supported,
 	.apm_config = iwl_pci_apm_config,
 	.set_drv_data = iwl_pci_set_drv_data,
@@ -460,9 +461,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bus->dev = &pdev->dev;
 	bus->irq = pdev->irq;
-	bus->ops = &pci_ops;
+	bus->ops = &bus_ops_pci;
 
-	err = iwl_probe(bus, cfg);
+	err = iwl_probe(bus, &trans_ops_pcie, cfg);
 	if (err)
 		goto out_disable_msi;
 	return 0;

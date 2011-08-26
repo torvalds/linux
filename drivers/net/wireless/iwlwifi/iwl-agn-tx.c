@@ -429,7 +429,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		}
 	}
 
-	tx_cmd = trans_get_tx_cmd(&priv->trans, txq_id);
+	tx_cmd = iwl_trans_get_tx_cmd(trans(priv), txq_id);
 	if (unlikely(!tx_cmd))
 		goto drop_unlock_sta;
 
@@ -451,7 +451,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	iwl_update_stats(priv, true, fc, len);
 
-	if (trans_tx(&priv->trans, skb, tx_cmd, txq_id, fc, is_agg, ctx))
+	if (iwl_trans_tx(trans(priv), skb, tx_cmd, txq_id, fc, is_agg, ctx))
 		goto drop_unlock_sta;
 
 	if (ieee80211_is_data_qos(fc)) {
@@ -629,7 +629,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	 * to deactivate the uCode queue, just return "success" to allow
 	 *  mac80211 to clean up it own data.
 	 */
-	trans_txq_agg_disable(&priv->trans, txq_id, ssn, tx_fifo_id);
+	iwl_trans_txq_agg_disable(trans(priv), txq_id, ssn, tx_fifo_id);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -658,7 +658,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = get_fifo_from_tid(ctx, tid);
 			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
-			trans_txq_agg_disable(&priv->trans, txq_id,
+			iwl_trans_txq_agg_disable(trans(priv), txq_id,
 				ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
 			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
