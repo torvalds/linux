@@ -380,10 +380,10 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 	beacon_int = vif ? vif->bss_conf.beacon_int : 0;
 
 	/*
-	 * TODO: For IBSS we need to get atim_window from mac80211,
+	 * TODO: For IBSS we need to get atim_win from mac80211,
 	 *	 for now just always use 0
 	 */
-	ctx->timing.atim_window = 0;
+	ctx->timing.atim_win = 0;
 
 	beacon_int = il_adjust_beacon_interval(beacon_int,
 			il->hw_params.max_beacon_itrvl * TIME_UNIT);
@@ -400,7 +400,7 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 			"beacon interval %d beacon timer %d beacon tim %d\n",
 			le16_to_cpu(ctx->timing.beacon_interval),
 			le32_to_cpu(ctx->timing.beacon_init_val),
-			le16_to_cpu(ctx->timing.atim_window));
+			le16_to_cpu(ctx->timing.atim_win));
 
 	return il_send_cmd_pdu(il, ctx->rxon_timing_cmd,
 				sizeof(ctx->timing), &ctx->timing);

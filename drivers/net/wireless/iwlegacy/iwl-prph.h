@@ -274,13 +274,13 @@
  * The driver sets up each queue to work in one of two modes:
  *
  * 1)  Scheduler-Ack, in which the scheduler automatically supports a
- *     block-ack (BA) window of up to 64 TFDs.  In this mode, each queue
+ *     block-ack (BA) win of up to 64 TFDs.  In this mode, each queue
  *     contains TFDs for a unique combination of Recipient Address (RA)
  *     and Traffic Identifier (TID), that is, traffic of a given
  *     Quality-Of-Service (QOS) priority, destined for a single station.
  *
  *     In scheduler-ack mode, the scheduler keeps track of the Tx status of
- *     each frame within the BA window, including whether it's been transmitted,
+ *     each frame within the BA win, including whether it's been transmitted,
  *     and whether it's been acknowledged by the receiving station.  The device
  *     automatically processes block-acks received from the receiving STA,
  *     and reschedules un-acked frames to be retransmitted (successful
@@ -316,7 +316,7 @@
  */
 
 /**
- * Max Tx window size is the max number of contiguous TFDs that the scheduler
+ * Max Tx win size is the max number of contiguous TFDs that the scheduler
  * can keep track of at one time when creating block-ack chains of frames.
  * Note that "64" matches the number of ack bits in a block-ack packet.
  * Driver should use SCD_WIN_SIZE and SCD_FRAME_LIMIT values to initialize
@@ -377,7 +377,7 @@
 /*
  * Queue (x) Read Pointers (indexes, really!), one for each Tx queue.
  * For FIFO mode, index indicates next frame to transmit.
- * For Scheduler-ACK mode, index indicates first frame in Tx window.
+ * For Scheduler-ACK mode, index indicates first frame in Tx win.
  * Initialized by driver, updated by scheduler.
  */
 #define IL49_SCD_QUEUE_RDPTR(x)  (IL49_SCD_START_OFFSET + 0x64 + (x) * 4)
@@ -414,7 +414,7 @@
  *        Driver should init to "1" for aggregation mode, or "0" otherwise.
  *   7-6: Driver should init to "0"
  *     5: Window Size Left; indicates whether scheduler can request
- *        another TFD, based on window size, etc.  Driver should init
+ *        another TFD, based on win size, etc.  Driver should init
  *        this bit to "1" for aggregation mode, or "0" for non-agg.
  *   4-1: Tx FIFO to use (range 0-7).
  *     0: Queue is active (1), not active (0).
@@ -460,7 +460,7 @@
  * each queue's entry as follows:
  *
  * LS Dword bit fields:
- *  0-06:  Max Tx window size for Scheduler-ACK.  Driver should init to 64.
+ *  0-06:  Max Tx win size for Scheduler-ACK.  Driver should init to 64.
  *
  * MS Dword bit fields:
  * 16-22:  Frame limit.  Driver should init to 10 (0xa).

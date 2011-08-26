@@ -834,7 +834,7 @@ static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
 	il->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	il4965_set_wr_ptrs(il, txq_id, ssn_idx);
 
-	/* Set up Tx window size and frame limit for this queue */
+	/* Set up Tx win size and frame limit for this queue */
 	il_write_targ_mem(il,
 		il->scd_base_addr + IL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id),
 		(SCD_WIN_SIZE << IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
@@ -1171,7 +1171,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 	D_TX_REPLY("BA %d %d\n", agg->start_idx,
 							ba_resp->seq_ctl);
 
-	/* Calculate shift to align block-ack bits with our Tx window bits */
+	/* Calculate shift to align block-ack bits with our Tx win bits */
 	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl >> 4);
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
@@ -1260,8 +1260,8 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 	/* "flow" corresponds to Tx queue */
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
 
-	/* "ssn" is start of block-ack Tx window, corresponds to index
-	 * (in Tx queue's circular buffer) of first TFD/frame in window */
+	/* "ssn" is start of block-ack Tx win, corresponds to index
+	 * (in Tx queue's circular buffer) of first TFD/frame in win */
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
 	if (scd_flow >= il->hw_params.max_txq_num) {
@@ -1287,7 +1287,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 		return;
 	}
 
-	/* Find index just before block-ack window */
+	/* Find index just before block-ack win */
 	index = il_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
 	spin_lock_irqsave(&il->sta_lock, flags);
@@ -1309,11 +1309,11 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 			   agg->start_idx,
 			   (unsigned long long)agg->bitmap);
 
-	/* Update driver's record of ACK vs. not for each frame in window */
+	/* Update driver's record of ACK vs. not for each frame in win */
 	il4965_tx_status_reply_compressed_ba(il, agg, ba_resp);
 
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
-	 * block-ack window (we assume that they've been successfully
+	 * block-ack win (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
 	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
 		/* calculate mac80211 ampdu sw queue to wake */

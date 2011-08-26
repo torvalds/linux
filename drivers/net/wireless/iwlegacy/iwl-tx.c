@@ -165,7 +165,7 @@ void il_cmd_queue_unmap(struct il_priv *il)
 		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 
-	i = q->n_window;
+	i = q->n_win;
 	if (txq->meta[i].flags & CMD_MAPPED) {
 		pci_unmap_single(il->pci_dev,
 				 dma_unmap_addr(&txq->meta[i], mapping),
@@ -243,7 +243,7 @@ int il_queue_space(const struct il_queue *q)
 		s -= q->n_bd;
 
 	if (s <= 0)
-		s += q->n_window;
+		s += q->n_win;
 	/* keep some reserve to not confuse empty and full situations */
 	s -= 2;
 	if (s < 0)
@@ -260,7 +260,7 @@ static int il_queue_init(struct il_priv *il, struct il_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;
-	q->n_window = slots_num;
+	q->n_win = slots_num;
 	q->id = id;
 
 	/* count must be power-of-two size, otherwise il_queue_inc_wrap
@@ -271,11 +271,11 @@ static int il_queue_init(struct il_priv *il, struct il_queue *q,
 	 * il_get_cmd_index is broken. */
 	BUG_ON(!is_power_of_2(slots_num));
 
-	q->low_mark = q->n_window / 4;
+	q->low_mark = q->n_win / 4;
 	if (q->low_mark < 4)
 		q->low_mark = 4;
 
-	q->high_mark = q->n_window / 8;
+	q->high_mark = q->n_win / 8;
 	if (q->high_mark < 2)
 		q->high_mark = 2;
 

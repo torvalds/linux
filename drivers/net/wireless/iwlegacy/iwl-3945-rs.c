@@ -131,24 +131,24 @@ static u8 il3945_get_rate_index_by_rssi(s32 rssi, enum ieee80211_band band)
 	return tpt_table[index].index;
 }
 
-static void il3945_clear_window(struct il3945_rate_scale_data *window)
+static void il3945_clear_win(struct il3945_rate_scale_data *win)
 {
-	window->data = 0;
-	window->success_counter = 0;
-	window->success_ratio = -1;
-	window->counter = 0;
-	window->average_tpt = IL_INVALID_VALUE;
-	window->stamp = 0;
+	win->data = 0;
+	win->success_counter = 0;
+	win->success_ratio = -1;
+	win->counter = 0;
+	win->average_tpt = IL_INVALID_VALUE;
+	win->stamp = 0;
 }
 
 /**
- * il3945_rate_scale_flush_windows - flush out the rate scale windows
+ * il3945_rate_scale_flush_wins - flush out the rate scale wins
  *
- * Returns the number of windows that have gathered data but were
+ * Returns the number of wins that have gathered data but were
  * not flushed.  If there were any that were not flushed, then
  * reschedule the rate flushing routine.
  */
-static int il3945_rate_scale_flush_windows(struct il3945_rs_sta *rs_sta)
+static int il3945_rate_scale_flush_wins(struct il3945_rs_sta *rs_sta)
 {
 	int unflushed = 0;
 	int i;
@@ -170,7 +170,7 @@ static int il3945_rate_scale_flush_windows(struct il3945_rs_sta *rs_sta)
 			D_RATE("flushing %d samples of rate "
 				       "index %d\n",
 				       rs_sta->win[i].counter, i);
-			il3945_clear_window(&rs_sta->win[i]);
+			il3945_clear_win(&rs_sta->win[i]);
 		} else
 			unflushed++;
 		spin_unlock_irqrestore(&rs_sta->lock, flags);
@@ -193,7 +193,7 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 
 	D_RATE("enter\n");
 
-	unflushed = il3945_rate_scale_flush_windows(rs_sta);
+	unflushed = il3945_rate_scale_flush_wins(rs_sta);
 
 	spin_lock_irqsave(&rs_sta->lock, flags);
 
@@ -248,14 +248,14 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 }
 
 /**
- * il3945_collect_tx_data - Update the success/failure sliding window
+ * il3945_collect_tx_data - Update the success/failure sliding win
  *
- * We keep a sliding window of the last 64 packets transmitted
- * at this rate.  window->data contains the bitmask of successful
+ * We keep a sliding win of the last 64 packets transmitted
+ * at this rate.  win->data contains the bitmask of successful
  * packets.
  */
 static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
-				struct il3945_rate_scale_data *window,
+				struct il3945_rate_scale_data *win,
 				int success, int retries, int index)
 {
 	unsigned long flags;
@@ -271,34 +271,34 @@ static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 
 	/*
 	 * Keep track of only the latest 62 tx frame attempts in this rate's
-	 * history window; anything older isn't really relevant any more.
-	 * If we have filled up the sliding window, drop the oldest attempt;
+	 * history win; anything older isn't really relevant any more.
+	 * If we have filled up the sliding win, drop the oldest attempt;
 	 * if the oldest attempt (highest bit in bitmap) shows "success",
 	 * subtract "1" from the success counter (this is the main reason
 	 * we keep these bitmaps!).
 	 * */
 	while (retries > 0) {
-		if (window->counter >= IL_RATE_MAX_WINDOW) {
+		if (win->counter >= IL_RATE_MAX_WINDOW) {
 
 			/* remove earliest */
-			window->counter = IL_RATE_MAX_WINDOW - 1;
+			win->counter = IL_RATE_MAX_WINDOW - 1;
 
-			if (window->data & (1ULL << (IL_RATE_MAX_WINDOW - 1))) {
-				window->data &= ~(1ULL << (IL_RATE_MAX_WINDOW - 1));
-				window->success_counter--;
+			if (win->data & (1ULL << (IL_RATE_MAX_WINDOW - 1))) {
+				win->data &= ~(1ULL << (IL_RATE_MAX_WINDOW - 1));
+				win->success_counter--;
 			}
 		}
 
 		/* Increment frames-attempted counter */
-		window->counter++;
+		win->counter++;
 
 		/* Shift bitmap by one frame (throw away oldest history),
 		 * OR in "1", and increment "success" if this
 		 * frame was successful. */
-		window->data <<= 1;
+		win->data <<= 1;
 		if (success > 0) {
-			window->success_counter++;
-			window->data |= 0x1;
+			win->success_counter++;
+			win->data |= 0x1;
 			success--;
 		}
 
@@ -306,24 +306,24 @@ static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 	}
 
 	/* Calculate current success ratio, avoid divide-by-0! */
-	if (window->counter > 0)
-		window->success_ratio = 128 * (100 * window->success_counter)
-					/ window->counter;
+	if (win->counter > 0)
+		win->success_ratio = 128 * (100 * win->success_counter)
+					/ win->counter;
 	else
-		window->success_ratio = IL_INVALID_VALUE;
+		win->success_ratio = IL_INVALID_VALUE;
 
-	fail_count = window->counter - window->success_counter;
+	fail_count = win->counter - win->success_counter;
 
 	/* Calculate average throughput, if we have enough history. */
 	if (fail_count >= IL_RATE_MIN_FAILURE_TH ||
-	    window->success_counter >= IL_RATE_MIN_SUCCESS_TH)
-		window->average_tpt = ((window->success_ratio *
+	    win->success_counter >= IL_RATE_MIN_SUCCESS_TH)
+		win->average_tpt = ((win->success_ratio *
 				rs_sta->expected_tpt[index] + 64) / 128);
 	else
-		window->average_tpt = IL_INVALID_VALUE;
+		win->average_tpt = IL_INVALID_VALUE;
 
-	/* Tag this window as having been updated */
-	window->stamp = jiffies;
+	/* Tag this win as having been updated */
+	win->stamp = jiffies;
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
@@ -365,7 +365,7 @@ void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_i
 	rs_sta->rate_scale_flush.function = il3945_bg_rate_scale_flush;
 
 	for (i = 0; i < IL_RATE_COUNT_3945; i++)
-		il3945_clear_window(&rs_sta->win[i]);
+		il3945_clear_win(&rs_sta->win[i]);
 
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
 	 * the lowest or the highest rate.. Could consider using RSSI from
@@ -484,7 +484,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 	last_index = first_index;
 
 	/*
-	 * Update the window for each rate.  We determine which rates
+	 * Update the win for each rate.  We determine which rates
 	 * were Tx'd based on the total number of retries vs. the number
 	 * of retries configured for each rate -- currently set to the
 	 * il value 'retry_rate' vs. rate specific
@@ -517,7 +517,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 	}
 
 
-	/* Update the last index window with success/failure based on ACK */
+	/* Update the last index win with success/failure based on ACK */
 	D_RATE("Update rate %d with %s.\n",
 		       last_index,
 		       (info->flags & IEEE80211_TX_STAT_ACK) ?
@@ -526,7 +526,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 			    &rs_sta->win[last_index],
 			    info->flags & IEEE80211_TX_STAT_ACK, 1, last_index);
 
-	/* We updated the rate scale window -- if its been more than
+	/* We updated the rate scale win -- if its been more than
 	 * flush_time since the last run, schedule the flush
 	 * again */
 	spin_lock_irqsave(&rs_sta->lock, flags);
@@ -636,7 +636,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	u16 high_low;
 	int index;
 	struct il3945_rs_sta *rs_sta = il_sta;
-	struct il3945_rate_scale_data *window = NULL;
+	struct il3945_rate_scale_data *win = NULL;
 	int current_tpt = IL_INVALID_VALUE;
 	int low_tpt = IL_INVALID_VALUE;
 	int high_tpt = IL_INVALID_VALUE;
@@ -691,29 +691,29 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 			index = max_rate_idx;
 	}
 
-	window = &(rs_sta->win[index]);
+	win = &(rs_sta->win[index]);
 
-	fail_count = window->counter - window->success_counter;
+	fail_count = win->counter - win->success_counter;
 
 	if (fail_count < IL_RATE_MIN_FAILURE_TH &&
-	    window->success_counter < IL_RATE_MIN_SUCCESS_TH) {
+	    win->success_counter < IL_RATE_MIN_SUCCESS_TH) {
 		spin_unlock_irqrestore(&rs_sta->lock, flags);
 
 		D_RATE("Invalid average_tpt on rate %d: "
 			       "counter: %d, success_counter: %d, "
 			       "expected_tpt is %sNULL\n",
 			       index,
-			       window->counter,
-			       window->success_counter,
+			       win->counter,
+			       win->success_counter,
 			       rs_sta->expected_tpt ? "not " : "");
 
 	   /* Can't calculate this yet; not enough history */
-		window->average_tpt = IL_INVALID_VALUE;
+		win->average_tpt = IL_INVALID_VALUE;
 		goto out;
 
 	}
 
-	current_tpt = window->average_tpt;
+	current_tpt = win->average_tpt;
 
 	high_low = il3945_get_adjacent_rate(rs_sta, index, rate_mask,
 					     sband->band);
@@ -736,7 +736,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	scale_action = 0;
 
 	/* Low success ratio , need to drop the rate */
-	if (window->success_ratio < IL_RATE_DECREASE_TH || !current_tpt) {
+	if (win->success_ratio < IL_RATE_DECREASE_TH || !current_tpt) {
 		D_RATE("decrease rate because of low success_ratio\n");
 		scale_action = -1;
 	/* No throughput measured yet for adjacent rates,
@@ -744,7 +744,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	} else if (low_tpt == IL_INVALID_VALUE &&
 		   high_tpt == IL_INVALID_VALUE) {
 
-		if (high != IL_RATE_INVALID && window->success_ratio >= IL_RATE_INCREASE_TH)
+		if (high != IL_RATE_INVALID && win->success_ratio >= IL_RATE_INCREASE_TH)
 			scale_action = 1;
 		else if (low != IL_RATE_INVALID)
 			scale_action = 0;
@@ -768,7 +768,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 			/* High rate has better throughput, Increase
 			 * rate */
 			if (high_tpt > current_tpt &&
-				window->success_ratio >= IL_RATE_INCREASE_TH)
+				win->success_ratio >= IL_RATE_INCREASE_TH)
 				scale_action = 1;
 			else {
 				D_RATE(
@@ -780,7 +780,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 				D_RATE(
 				    "decrease rate because of low tpt\n");
 				scale_action = -1;
-			} else if (window->success_ratio >= IL_RATE_INCREASE_TH) {
+			} else if (win->success_ratio >= IL_RATE_INCREASE_TH) {
 				/* Lower rate has better
 				 * throughput,decrease rate */
 				scale_action = 1;
@@ -791,7 +791,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	/* Sanity check; asked for decrease, but success rate or throughput
 	 * has been good at old rate.  Don't change it. */
 	if (scale_action == -1 && low != IL_RATE_INVALID &&
-	    (window->success_ratio > IL_RATE_HIGH_TH ||
+	    (win->success_ratio > IL_RATE_HIGH_TH ||
 	     current_tpt > 100 * rs_sta->expected_tpt[low]))
 		scale_action = 0;
 

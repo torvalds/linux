@@ -129,7 +129,7 @@ struct il_queue {
 	int read_ptr;         /* last used entry (index) host_r*/
 	/* use for monitoring and recovering the stuck queue */
 	dma_addr_t dma_addr;   /* physical addr for BD's */
-	int n_window;	       /* safe queue window */
+	int n_win;	       /* safe queue win */
 	u32 id;
 	int low_mark;	       /* low watermark, resume queue if free
 				* space more than this */
@@ -377,9 +377,9 @@ struct il_rx_queue {
  * @txq_id: Tx queue used for Tx attempt
  * @frame_count: # frames attempted by Tx command
  * @wait_for_ba: Expect block-ack before next Tx reply
- * @start_idx: Index of 1st Transmit Frame Descriptor (TFD) in Tx window
- * @bitmap0: Low order bitmap, one bit for each frame pending ACK in Tx window
- * @bitmap1: High order, one bit for each frame pending ACK in Tx window
+ * @start_idx: Index of 1st Transmit Frame Descriptor (TFD) in Tx win
+ * @bitmap0: Low order bitmap, one bit for each frame pending ACK in Tx win
+ * @bitmap1: High order, one bit for each frame pending ACK in Tx win
  * @rate_n_flags: Rate at which Tx was attempted
  *
  * If REPLY_TX indicates that aggregation was attempted, driver must wait
@@ -645,10 +645,10 @@ static inline u8 il_get_cmd_index(struct il_queue *q, u32 index,
 	 * the big buffer at end of command array
 	 */
 	if (is_huge)
-		return q->n_window;	/* must be power of 2 */
+		return q->n_win;	/* must be power of 2 */
 
 	/* Otherwise, use normal size buffers */
-	return index & (q->n_window - 1);
+	return index & (q->n_win - 1);
 }
 
 

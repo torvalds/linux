@@ -754,7 +754,7 @@ struct il4965_rxon_assoc_cmd {
 struct il_rxon_time_cmd {
 	__le64 timestamp;
 	__le16 beacon_interval;
-	__le16 atim_window;
+	__le16 atim_win;
 	__le32 beacon_init_val;
 	__le16 listen_interval;
 	u8 dtim_period;
@@ -803,15 +803,15 @@ struct il_csa_notification {
  * struct il_ac_qos -- QOS timing params for REPLY_QOS_PARAM
  * One for each of 4 EDCA access categories in struct il_qosparam_cmd
  *
- * @cw_min: Contention window, start value in numbers of slots.
+ * @cw_min: Contention win, start value in numbers of slots.
  *          Should be a power-of-2, minus 1.  Device's default is 0x0f.
- * @cw_max: Contention window, max value in numbers of slots.
+ * @cw_max: Contention win, max value in numbers of slots.
  *          Should be a power-of-2, minus 1.  Device's default is 0x3f.
  * @aifsn:  Number of slots in Arbitration Interframe Space (before
  *          performing random backoff timing prior to Tx).  Device default 1.
  * @edca_txop:  Length of Tx opportunity, in uSecs.  Device default is 0.
  *
- * Device will automatically increase contention window by (2*CW) + 1 for each
+ * Device will automatically increase contention win by (2*CW) + 1 for each
  * transmission retry.  Device uses cw_max as a bit mask, ANDed with new CW
  * value, to cap the CW value.
  */
@@ -1948,13 +1948,13 @@ struct il_link_qual_agg_params {
  * speculative mode as the new current active mode.
  *
  * Each history set contains, separately for each possible rate, data for a
- * sliding window of the 62 most recent tx attempts at that rate.  The data
+ * sliding win of the 62 most recent tx attempts at that rate.  The data
  * includes a shifting bitmap of success(1)/failure(0), and sums of successful
  * and attempted frames, from which the driver can additionally calculate a
  * success ratio (success / attempted) and number of failures
- * (attempted - success), and control the size of the window (attempted).
+ * (attempted - success), and control the size of the win (attempted).
  * The driver uses the bit map to remove successes from the success sum, as
- * the oldest tx attempts fall out of the window.
+ * the oldest tx attempts fall out of the win.
  *
  * When the 4965 device makes multiple tx attempts for a given frame, each
  * attempt might be at a different rate, and have different modulation
@@ -2017,7 +2017,7 @@ struct il_link_qual_agg_params {
  *
  * 6)  Re-evaluate the rate after each tx frame.  If working with block-
  *     acknowledge, history and stats may be calculated for the entire
- *     block (including prior history that fits within the history windows),
+ *     block (including prior history that fits within the history wins),
  *     before re-evaluation.
  *
  * FINDING BEST STARTING MODULATION MODE:

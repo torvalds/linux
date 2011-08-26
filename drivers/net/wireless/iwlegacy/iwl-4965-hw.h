@@ -773,8 +773,8 @@ enum {
  *
  * Each Tx queue uses a byte-count table containing 320 entries:
  * one 16-bit entry for each of 256 TFDs, plus an additional 64 entries that
- * duplicate the first 64 entries (to avoid wrap-around within a Tx window;
- * max Tx window is 64 TFDs).
+ * duplicate the first 64 entries (to avoid wrap-around within a Tx win;
+ * max Tx win is 64 TFDs).
  *
  * When driver sets up a new TFD, it must also enter the total byte count
  * of the frame to be transmitted into the corresponding entry in the byte

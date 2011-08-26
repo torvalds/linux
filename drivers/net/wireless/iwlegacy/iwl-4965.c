@@ -1649,7 +1649,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 		u64 bitmap = 0;
 		int start = agg->start_idx;
 
-		/* Construct bit-map of pending frames within Tx window */
+		/* Construct bit-map of pending frames within Tx win */
 		for (i = 0; i < agg->frame_count; i++) {
 			u16 sc;
 			status = le16_to_cpu(frame_status[i].status);

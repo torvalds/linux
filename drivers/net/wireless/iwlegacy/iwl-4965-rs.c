@@ -46,7 +46,7 @@
 #define IL_NUMBER_TRY      1
 #define IL_HT_NUMBER_TRY   3
 
-#define IL_RATE_MAX_WINDOW		62	/* # tx in history window */
+#define IL_RATE_MAX_WINDOW		62	/* # tx in history win */
 #define IL_RATE_MIN_FAILURE_TH		6	/* min failures to calc tpt */
 #define IL_RATE_MIN_SUCCESS_TH		8	/* min successes to calc tpt */
 
@@ -226,14 +226,14 @@ static inline u8 il4965_rs_extract_rate(u32 rate_n_flags)
 }
 
 static void
-il4965_rs_rate_scale_clear_window(struct il_rate_scale_data *window)
+il4965_rs_rate_scale_clear_win(struct il_rate_scale_data *win)
 {
-	window->data = 0;
-	window->success_counter = 0;
-	window->success_ratio = IL_INVALID_VALUE;
-	window->counter = 0;
-	window->average_tpt = IL_INVALID_VALUE;
-	window->stamp = 0;
+	win->data = 0;
+	win->success_counter = 0;
+	win->success_ratio = IL_INVALID_VALUE;
+	win->counter = 0;
+	win->average_tpt = IL_INVALID_VALUE;
+	win->stamp = 0;
 }
 
 static inline u8 il4965_rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
@@ -408,58 +408,58 @@ il4965_get_expected_tpt(struct il_scale_tbl_info *tbl, int rs_index)
 }
 
 /**
- * il4965_rs_collect_tx_data - Update the success/failure sliding window
+ * il4965_rs_collect_tx_data - Update the success/failure sliding win
  *
- * We keep a sliding window of the last 62 packets transmitted
- * at this rate.  window->data contains the bitmask of successful
+ * We keep a sliding win of the last 62 packets transmitted
+ * at this rate.  win->data contains the bitmask of successful
  * packets.
  */
 static int il4965_rs_collect_tx_data(struct il_scale_tbl_info *tbl,
 			      int scale_index, int attempts, int successes)
 {
-	struct il_rate_scale_data *window = NULL;
+	struct il_rate_scale_data *win = NULL;
 	static const u64 mask = (((u64)1) << (IL_RATE_MAX_WINDOW - 1));
 	s32 fail_count, tpt;
 
 	if (scale_index < 0 || scale_index >= IL_RATE_COUNT)
 		return -EINVAL;
 
-	/* Select window for current tx bit rate */
-	window = &(tbl->win[scale_index]);
+	/* Select win for current tx bit rate */
+	win = &(tbl->win[scale_index]);
 
 	/* Get expected throughput */
 	tpt = il4965_get_expected_tpt(tbl, scale_index);
 
 	/*
 	 * Keep track of only the latest 62 tx frame attempts in this rate's
-	 * history window; anything older isn't really relevant any more.
-	 * If we have filled up the sliding window, drop the oldest attempt;
+	 * history win; anything older isn't really relevant any more.
+	 * If we have filled up the sliding win, drop the oldest attempt;
 	 * if the oldest attempt (highest bit in bitmap) shows "success",
 	 * subtract "1" from the success counter (this is the main reason
 	 * we keep these bitmaps!).
 	 */
 	while (attempts > 0) {
-		if (window->counter >= IL_RATE_MAX_WINDOW) {
+		if (win->counter >= IL_RATE_MAX_WINDOW) {
 
 			/* remove earliest */
-			window->counter = IL_RATE_MAX_WINDOW - 1;
+			win->counter = IL_RATE_MAX_WINDOW - 1;
 
-			if (window->data & mask) {
-				window->data &= ~mask;
-				window->success_counter--;
+			if (win->data & mask) {
+				win->data &= ~mask;
+				win->success_counter--;
 			}
 		}
 
 		/* Increment frames-attempted counter */
-		window->counter++;
+		win->counter++;
 
 		/* Shift bitmap by one frame to throw away oldest history */
-		window->data <<= 1;
+		win->data <<= 1;
 
 		/* Mark the most recent #successes attempts as successful */
 		if (successes > 0) {
-			window->success_counter++;
-			window->data |= 0x1;
+			win->success_counter++;
+			win->data |= 0x1;
 			successes--;
 		}
 
@@ -467,23 +467,23 @@ static int il4965_rs_collect_tx_data(struct il_scale_tbl_info *tbl,
 	}
 
 	/* Calculate current success ratio, avoid divide-by-0! */
-	if (window->counter > 0)
-		window->success_ratio = 128 * (100 * window->success_counter)
-					/ window->counter;
+	if (win->counter > 0)
+		win->success_ratio = 128 * (100 * win->success_counter)
+					/ win->counter;
 	else
-		window->success_ratio = IL_INVALID_VALUE;
+		win->success_ratio = IL_INVALID_VALUE;
 
-	fail_count = window->counter - window->success_counter;
+	fail_count = win->counter - win->success_counter;
 
 	/* Calculate average throughput, if we have enough history. */
 	if (fail_count >= IL_RATE_MIN_FAILURE_TH ||
-	    window->success_counter >= IL_RATE_MIN_SUCCESS_TH)
-		window->average_tpt = (window->success_ratio * tpt + 64) / 128;
+	    win->success_counter >= IL_RATE_MIN_SUCCESS_TH)
+		win->average_tpt = (win->success_ratio * tpt + 64) / 128;
 	else
-		window->average_tpt = IL_INVALID_VALUE;
+		win->average_tpt = IL_INVALID_VALUE;
 
-	/* Tag this window as having been updated */
-	window->stamp = jiffies;
+	/* Tag this win as having been updated */
+	win->stamp = jiffies;
 
 	return 0;
 }
@@ -817,7 +817,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
 	D_RATE(
-		"get frame ack response, update rate scale window\n");
+		"get frame ack response, update rate scale win\n");
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
@@ -1284,7 +1284,7 @@ static int il4965_rs_move_legacy_other(struct il_priv *il,
 	struct il_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct il_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-	struct il_rate_scale_data *window = &(tbl->win[index]);
+	struct il_rate_scale_data *win = &(tbl->win[index]);
 	u32 sz = (sizeof(struct il_scale_tbl_info) -
 		  (sizeof(struct il_rate_scale_data) * IL_RATE_COUNT));
 	u8 start_action;
@@ -1310,7 +1310,7 @@ static int il4965_rs_move_legacy_other(struct il_priv *il,
 				break;
 
 			/* Don't change antenna if success has been great */
-			if (window->success_ratio >= IL_RS_GOOD_RATIO)
+			if (win->success_ratio >= IL_RS_GOOD_RATIO)
 				break;
 
 			/* Set up search table to try other antenna */
@@ -1401,7 +1401,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *il,
 	struct il_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct il_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-	struct il_rate_scale_data *window = &(tbl->win[index]);
+	struct il_rate_scale_data *win = &(tbl->win[index]);
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct il_scale_tbl_info) -
 		  (sizeof(struct il_rate_scale_data) * IL_RATE_COUNT));
@@ -1425,7 +1425,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *il,
 						tx_chains_num <= 2))
 				break;
 
-			if (window->success_ratio >= IL_RS_GOOD_RATIO)
+			if (win->success_ratio >= IL_RS_GOOD_RATIO)
 				break;
 
 			memcpy(search_tbl, tbl, sz);
@@ -1523,7 +1523,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *il,
 	struct il_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct il_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-	struct il_rate_scale_data *window = &(tbl->win[index]);
+	struct il_rate_scale_data *win = &(tbl->win[index]);
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct il_scale_tbl_info) -
 		  (sizeof(struct il_rate_scale_data) * IL_RATE_COUNT));
@@ -1544,7 +1544,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *il,
 			if (tx_chains_num <= 2)
 				break;
 
-			if (window->success_ratio >= IL_RS_GOOD_RATIO)
+			if (win->success_ratio >= IL_RS_GOOD_RATIO)
 				break;
 
 			memcpy(search_tbl, tbl, sz);
@@ -1704,7 +1704,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 				D_RATE(
 					"LQ: stay in table clear win\n");
 				for (i = 0; i < IL_RATE_COUNT; i++)
-					il4965_rs_rate_scale_clear_window(
+					il4965_rs_rate_scale_clear_win(
 						&(tbl->win[i]));
 			}
 		}
@@ -1714,7 +1714,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 		 * "search" table). */
 		if (!lq_sta->stay_in_tbl) {
 			for (i = 0; i < IL_RATE_COUNT; i++)
-				il4965_rs_rate_scale_clear_window(
+				il4965_rs_rate_scale_clear_win(
 							&(tbl->win[i]));
 		}
 	}
@@ -1756,7 +1756,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	int high = IL_RATE_INVALID;
 	int index;
 	int i;
-	struct il_rate_scale_data *window = NULL;
+	struct il_rate_scale_data *win = NULL;
 	int current_tpt = IL_INVALID_VALUE;
 	int low_tpt = IL_INVALID_VALUE;
 	int high_tpt = IL_INVALID_VALUE;
@@ -1859,7 +1859,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 		return;
 	}
 
-	/* Get expected throughput table and history window for current rate */
+	/* Get expected throughput table and history win for current rate */
 	if (!tbl->expected_tpt) {
 		IL_ERR("tbl->expected_tpt is NULL\n");
 		return;
@@ -1870,11 +1870,11 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	    lq_sta->max_rate_idx < index) {
 		index = lq_sta->max_rate_idx;
 		update_lq = 1;
-		window = &(tbl->win[index]);
+		win = &(tbl->win[index]);
 		goto lq_update;
 	}
 
-	window = &(tbl->win[index]);
+	win = &(tbl->win[index]);
 
 	/*
 	 * If there is not enough history to calculate actual average
@@ -1883,15 +1883,15 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	 * Set up new rate table in uCode only if old rate is not supported
 	 * in current association (use new rate found above).
 	 */
-	fail_count = window->counter - window->success_counter;
+	fail_count = win->counter - win->success_counter;
 	if (fail_count < IL_RATE_MIN_FAILURE_TH &&
-	    window->success_counter < IL_RATE_MIN_SUCCESS_TH) {
+	    win->success_counter < IL_RATE_MIN_SUCCESS_TH) {
 		D_RATE("LQ: still below TH. succ=%d total=%d "
 			       "for index %d\n",
-			       window->success_counter, window->counter, index);
+			       win->success_counter, win->counter, index);
 
 		/* Can't calculate this yet; not enough history */
-		window->average_tpt = IL_INVALID_VALUE;
+		win->average_tpt = IL_INVALID_VALUE;
 
 		/* Should we stay with this modulation mode,
 		 * or search for a new one? */
@@ -1901,11 +1901,11 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	}
 	/* Else we have enough samples; calculate estimate of
 	 * actual average throughput */
-	if (window->average_tpt != ((window->success_ratio *
+	if (win->average_tpt != ((win->success_ratio *
 			tbl->expected_tpt[index] + 64) / 128)) {
 		IL_ERR(
 			 "expected_tpt should have been calculated by now\n");
-		window->average_tpt = ((window->success_ratio *
+		win->average_tpt = ((win->success_ratio *
 					tbl->expected_tpt[index] + 64) / 128);
 	}
 
@@ -1914,12 +1914,12 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 		/* If good success, continue using the "search" mode;
 		 * no need to send new link quality command, since we're
 		 * continuing to use the setup that we've been trying. */
-		if (window->average_tpt > lq_sta->last_tpt) {
+		if (win->average_tpt > lq_sta->last_tpt) {
 
 			D_RATE("LQ: SWITCHING TO NEW TABLE "
 					"suc=%d cur-tpt=%d old-tpt=%d\n",
-					window->success_ratio,
-					window->average_tpt,
+					win->success_ratio,
+					win->average_tpt,
 					lq_sta->last_tpt);
 
 			if (!is_legacy(tbl->lq_type))
@@ -1927,15 +1927,15 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 
 			/* Swap tables; "search" becomes "active" */
 			lq_sta->active_tbl = active_tbl;
-			current_tpt = window->average_tpt;
+			current_tpt = win->average_tpt;
 
 		/* Else poor success; go back to mode in "active" table */
 		} else {
 
 			D_RATE("LQ: GOING BACK TO THE OLD TABLE "
 					"suc=%d cur-tpt=%d old-tpt=%d\n",
-					window->success_ratio,
-					window->average_tpt,
+					win->success_ratio,
+					win->average_tpt,
 					lq_sta->last_tpt);
 
 			/* Nullify "search" table */
@@ -1973,10 +1973,10 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	    lq_sta->max_rate_idx < high)
 		high = IL_RATE_INVALID;
 
-	sr = window->success_ratio;
+	sr = win->success_ratio;
 
 	/* Collect measured throughputs for current and adjacent rates */
-	current_tpt = window->average_tpt;
+	current_tpt = win->average_tpt;
 	if (low != IL_RATE_INVALID)
 		low_tpt = tbl->win[low].average_tpt;
 	if (high != IL_RATE_INVALID)
@@ -2082,7 +2082,7 @@ lq_update:
 	 * 3)  Allowing a new search
 	 */
 	if (!update_lq && !done_search && !lq_sta->stay_in_tbl &&
-	    window->counter) {
+	    win->counter) {
 		/* Save current throughput to compare with "search" throughput*/
 		lq_sta->last_tpt = current_tpt;
 
@@ -2103,7 +2103,7 @@ lq_update:
 			/* Access the "search" table, clear its history. */
 			tbl = &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 			for (i = 0; i < IL_RATE_COUNT; i++)
-				il4965_rs_rate_scale_clear_window(
+				il4965_rs_rate_scale_clear_win(
 							&(tbl->win[i]));
 
 			/* Use new "search" start rate */
@@ -2314,7 +2314,7 @@ static void *il4965_rs_alloc_sta(void *il_rate, struct ieee80211_sta *sta,
 	struct il_priv *il;
 
 	il = (struct il_priv *)il_rate;
-	D_RATE("create station rate scale window\n");
+	D_RATE("create station rate scale win\n");
 
 	lq_sta = &sta_priv->lq_sta;
 
@@ -2346,14 +2346,14 @@ il4965_rs_rate_init(struct il_priv *il,
 
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IL_RATE_COUNT; i++)
-			il4965_rs_rate_scale_clear_window(
+			il4965_rs_rate_scale_clear_win(
 					&lq_sta->lq_info[j].win[i]);
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->supp_rates[sband->band];
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IL_RATE_COUNT; i++)
-			il4965_rs_rate_scale_clear_window(
+			il4965_rs_rate_scale_clear_win(
 					&lq_sta->lq_info[j].win[i]);
 
 	D_RATE("LQ:"
