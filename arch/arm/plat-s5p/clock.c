@@ -192,7 +192,7 @@ unsigned long s5p_spdif_get_rate(struct clk *clk)
 	if (IS_ERR(pclk))
 		return -EINVAL;
 
-	rate = pclk->ops->get_rate(clk);
+	rate = pclk->ops->get_rate(pclk);
 	clk_put(pclk);
 
 	return rate;

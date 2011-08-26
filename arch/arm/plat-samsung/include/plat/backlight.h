@@ -20,7 +20,7 @@ struct samsung_bl_gpio_info {
 	int func;
 };
 
-extern void samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
+extern void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 	struct platform_pwm_backlight_data *bl_data);
 
 #endif /* __ASM_PLAT_BACKLIGHT_H */

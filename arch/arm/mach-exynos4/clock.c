@@ -520,7 +520,7 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= (1 << 21),
 	}, {
 		.name		= "ac97",
-		.id		= -1,
+		.devname	= "samsung-ac97",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 27),
 	}, {
