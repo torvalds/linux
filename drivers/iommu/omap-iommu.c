@@ -918,14 +918,14 @@ int omap_iommu_set_isr(const char *name,
 		return -ENODEV;
 
 	obj = to_iommu(dev);
-	mutex_lock(&obj->iommu_lock);
+	spin_lock(&obj->iommu_lock);
 	if (obj->refcount != 0) {
-		mutex_unlock(&obj->iommu_lock);
+		spin_unlock(&obj->iommu_lock);
 		return -EBUSY;
 	}
 	obj->isr = isr;
 	obj->isr_priv = isr_priv;
-	mutex_unlock(&obj->iommu_lock);
+	spin_unlock(&obj->iommu_lock);
 
 	return 0;
 }
