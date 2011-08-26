@@ -1519,7 +1519,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	if (!exit_pending)
 		clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
-	if (priv->mac80211_registered)
+	if (priv->shrd->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
 
 	/* Clear out all status bits but a few that are stable across reset */
@@ -1863,7 +1863,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
 		return ret;
 	}
-	priv->mac80211_registered = 1;
+	priv->shrd->mac80211_registered = 1;
 
 	return 0;
 }
@@ -3243,6 +3243,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	priv->shrd = &priv->_shrd;
 	priv->shrd->bus = bus;
 	priv->shrd->priv = priv;
+	priv->shrd->hw = hw;
 	bus_set_drv_data(priv->bus, priv->shrd);
 
 	priv->shrd->trans = trans_ops->alloc(priv->shrd);
@@ -3418,9 +3419,9 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_testmode_cleanup(priv);
 	iwl_leds_exit(priv);
 
-	if (priv->mac80211_registered) {
+	if (priv->shrd->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
-		priv->mac80211_registered = 0;
+		priv->shrd->mac80211_registered = 0;
 	}
 
 	iwl_tt_exit(priv);

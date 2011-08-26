@@ -64,67 +64,6 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 	return --index & (n_bd - 1);
 }
 
-/*
- * we have 8 bits used like this:
- *
- * 7 6 5 4 3 2 1 0
- * | | | | | | | |
- * | | | | | | +-+-------- AC queue (0-3)
- * | | | | | |
- * | +-+-+-+-+------------ HW queue ID
- * |
- * +---------------------- unused
- */
-static inline void iwl_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
-{
-	BUG_ON(ac > 3);   /* only have 2 bits */
-	BUG_ON(hwq > 31); /* only use 5 bits */
-
-	txq->swq_id = (hwq << 2) | ac;
-}
-
-static inline void iwl_wake_queue(struct iwl_priv *priv,
-				  struct iwl_tx_queue *txq)
-{
-	u8 queue = txq->swq_id;
-	u8 ac = queue & 3;
-	u8 hwq = (queue >> 2) & 0x1f;
-
-	if (unlikely(!priv->mac80211_registered))
-		return;
-
-	if (test_and_clear_bit(hwq, priv->queue_stopped))
-		if (atomic_dec_return(&priv->queue_stop_count[ac]) <= 0)
-			ieee80211_wake_queue(priv->hw, ac);
-}
-
-static inline void iwl_stop_queue(struct iwl_priv *priv,
-				  struct iwl_tx_queue *txq)
-{
-	u8 queue = txq->swq_id;
-	u8 ac = queue & 3;
-	u8 hwq = (queue >> 2) & 0x1f;
-
-	if (unlikely(!priv->mac80211_registered))
-		return;
-
-	if (!test_and_set_bit(hwq, priv->queue_stopped))
-		if (atomic_inc_return(&priv->queue_stop_count[ac]) > 0)
-			ieee80211_stop_queue(priv->hw, ac);
-}
-
-#ifdef ieee80211_stop_queue
-#undef ieee80211_stop_queue
-#endif
-
-#define ieee80211_stop_queue DO_NOT_USE_ieee80211_stop_queue
-
-#ifdef ieee80211_wake_queue
-#undef ieee80211_wake_queue
-#endif
-
-#define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
-
 static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
 {
 	IWL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");

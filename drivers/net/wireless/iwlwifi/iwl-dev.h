@@ -1181,8 +1181,6 @@ struct iwl_priv {
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
 
-	u8 mac80211_registered;
-
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;

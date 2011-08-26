@@ -243,6 +243,12 @@ struct iwl_shared {
 	spinlock_t sta_lock;
 	struct mutex mutex;
 
+	/*these 2 shouldn't really be here, but they are needed for
+	 * iwl_queue_stop, which is called from the upper layer too
+	 */
+	u8 mac80211_registered;
+	struct ieee80211_hw *hw;
+
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 };
 

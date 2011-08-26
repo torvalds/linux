@@ -209,7 +209,7 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
 {
 	if (stop) {
 		IWL_DEBUG_TEMP(priv, "Stop all queues\n");
-		if (priv->mac80211_registered)
+		if (priv->shrd->mac80211_registered)
 			ieee80211_stop_queues(priv->hw);
 		IWL_DEBUG_TEMP(priv,
 				"Schedule 5 seconds CT_KILL Timer\n");
@@ -217,7 +217,7 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
 			  jiffies + CT_KILL_EXIT_DURATION * HZ);
 	} else {
 		IWL_DEBUG_TEMP(priv, "Wake all queues\n");
-		if (priv->mac80211_registered)
+		if (priv->shrd->mac80211_registered)
 			ieee80211_wake_queues(priv->hw);
 	}
 }

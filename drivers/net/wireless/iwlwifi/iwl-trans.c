@@ -1228,7 +1228,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			txq->need_update = 1;
 			iwl_txq_update_write_ptr(trans, txq);
 		} else {
-			iwl_stop_queue(priv(trans), txq);
+			iwl_stop_queue(trans, txq);
 		}
 	}
 	return 0;
@@ -1286,7 +1286,7 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 			iwl_stop_tx_ba_trans_ready(priv(trans),
 						   NUM_IWL_RXON_CTX,
 						   sta_id, tid);
-			iwl_wake_queue(priv(trans), &priv(trans)->txq[txq_id]);
+			iwl_wake_queue(trans, &priv(trans)->txq[txq_id]);
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1345,7 +1345,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 				ssn , tfd_num, txq_id, txq->swq_id);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
-			iwl_wake_queue(priv(trans), txq);
+			iwl_wake_queue(trans, txq);
 	}
 
 	iwl_free_tfds_in_queue(trans, sta_id, tid, freed);
@@ -1423,7 +1423,7 @@ static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
 			ac,
 			(atomic_read(&priv(trans)->queue_stop_count[ac]) > 0)
 			      ? "stopped" : "awake");
-		iwl_wake_queue(priv(trans), &priv(trans)->txq[txq_id]);
+		iwl_wake_queue(trans, &priv(trans)->txq[txq_id]);
 	}
 }
 
@@ -1444,6 +1444,11 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 	}
 
 	return iwl_trans;
+}
+
+static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id)
+{
+	iwl_stop_queue(trans, &priv(trans)->txq[txq_id]);
 }
 
 #define IWL_FLUSH_WAIT_MS	2000
@@ -2078,6 +2083,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.kick_nic = iwl_trans_pcie_kick_nic,
 
 	.free = iwl_trans_pcie_free,
+	.stop_queue = iwl_trans_pcie_stop_queue,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 

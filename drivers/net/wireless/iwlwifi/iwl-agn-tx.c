@@ -803,7 +803,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			    iwl_is_associated_ctx(ctx) && ctx->vif &&
 			    ctx->vif->type == NL80211_IFTYPE_STATION) {
 				ctx->last_tx_rejected = true;
-				iwl_stop_queue(priv, &priv->txq[txq_id]);
+				iwl_trans_stop_queue(trans(priv), txq_id);
 
 				IWL_DEBUG_TX_REPLY(priv,
 					   "TXQ %d status %s (0x%08x) "

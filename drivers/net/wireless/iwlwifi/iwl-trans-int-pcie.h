@@ -240,4 +240,65 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 	iwl_write32(bus(trans), CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
+/*
+ * we have 8 bits used like this:
+ *
+ * 7 6 5 4 3 2 1 0
+ * | | | | | | | |
+ * | | | | | | +-+-------- AC queue (0-3)
+ * | | | | | |
+ * | +-+-+-+-+------------ HW queue ID
+ * |
+ * +---------------------- unused
+ */
+static inline void iwl_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
+{
+	BUG_ON(ac > 3);   /* only have 2 bits */
+	BUG_ON(hwq > 31); /* only use 5 bits */
+
+	txq->swq_id = (hwq << 2) | ac;
+}
+
+static inline void iwl_wake_queue(struct iwl_trans *trans,
+				  struct iwl_tx_queue *txq)
+{
+	u8 queue = txq->swq_id;
+	u8 ac = queue & 3;
+	u8 hwq = (queue >> 2) & 0x1f;
+
+	if (unlikely(!trans->shrd->mac80211_registered))
+		return;
+
+	if (test_and_clear_bit(hwq, priv(trans)->queue_stopped))
+		if (atomic_dec_return(&priv(trans)->queue_stop_count[ac]) <= 0)
+			ieee80211_wake_queue(trans->shrd->hw, ac);
+}
+
+static inline void iwl_stop_queue(struct iwl_trans *trans,
+				  struct iwl_tx_queue *txq)
+{
+	u8 queue = txq->swq_id;
+	u8 ac = queue & 3;
+	u8 hwq = (queue >> 2) & 0x1f;
+
+	if (unlikely(!trans->shrd->mac80211_registered))
+		return;
+
+	if (!test_and_set_bit(hwq, priv(trans)->queue_stopped))
+		if (atomic_inc_return(&priv(trans)->queue_stop_count[ac]) > 0)
+			ieee80211_stop_queue(trans->shrd->hw, ac);
+}
+
+#ifdef ieee80211_stop_queue
+#undef ieee80211_stop_queue
+#endif
+
+#define ieee80211_stop_queue DO_NOT_USE_ieee80211_stop_queue
+
+#ifdef ieee80211_wake_queue
+#undef ieee80211_wake_queue
+#endif
+
+#define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
+
 #endif /* __iwl_trans_int_pcie_h__ */
