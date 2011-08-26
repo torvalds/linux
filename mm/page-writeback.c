@@ -792,12 +792,17 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
 				       unsigned long dirtied,
 				       unsigned long elapsed)
 {
+	unsigned long freerun = dirty_freerun_ceiling(thresh, bg_thresh);
+	unsigned long limit = hard_dirty_limit(thresh);
+	unsigned long setpoint = (freerun + limit) / 2;
 	unsigned long write_bw = bdi->avg_write_bandwidth;
 	unsigned long dirty_ratelimit = bdi->dirty_ratelimit;
 	unsigned long dirty_rate;
 	unsigned long task_ratelimit;
 	unsigned long balanced_dirty_ratelimit;
 	unsigned long pos_ratio;
+	unsigned long step;
+	unsigned long x;
 
 	/*
 	 * The dirty rate will match the writeout rate in long term, except
@@ -847,7 +852,71 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
 	balanced_dirty_ratelimit = div_u64((u64)task_ratelimit * write_bw,
 					   dirty_rate | 1);
 
-	bdi->dirty_ratelimit = max(balanced_dirty_ratelimit, 1UL);
+	/*
+	 * We could safely do this and return immediately:
+	 *
+	 *	bdi->dirty_ratelimit = balanced_dirty_ratelimit;
+	 *
+	 * However to get a more stable dirty_ratelimit, the below elaborated
+	 * code makes use of task_ratelimit to filter out sigular points and
+	 * limit the step size.
+	 *
+	 * The below code essentially only uses the relative value of
+	 *
+	 *	task_ratelimit - dirty_ratelimit
+	 *	= (pos_ratio - 1) * dirty_ratelimit
+	 *
+	 * which reflects the direction and size of dirty position error.
+	 */
+
+	/*
+	 * dirty_ratelimit will follow balanced_dirty_ratelimit iff
+	 * task_ratelimit is on the same side of dirty_ratelimit, too.
+	 * For example, when
+	 * - dirty_ratelimit > balanced_dirty_ratelimit
+	 * - dirty_ratelimit > task_ratelimit (dirty pages are above setpoint)
+	 * lowering dirty_ratelimit will help meet both the position and rate
+	 * control targets. Otherwise, don't update dirty_ratelimit if it will
+	 * only help meet the rate target. After all, what the users ultimately
+	 * feel and care are stable dirty rate and small position error.
+	 *
+	 * |task_ratelimit - dirty_ratelimit| is used to limit the step size
+	 * and filter out the sigular points of balanced_dirty_ratelimit. Which
+	 * keeps jumping around randomly and can even leap far away at times
+	 * due to the small 200ms estimation period of dirty_rate (we want to
+	 * keep that period small to reduce time lags).
+	 */
+	step = 0;
+	if (dirty < setpoint) {
+		x = min(bdi->balanced_dirty_ratelimit,
+			 min(balanced_dirty_ratelimit, task_ratelimit));
+		if (dirty_ratelimit < x)
+			step = x - dirty_ratelimit;
+	} else {
+		x = max(bdi->balanced_dirty_ratelimit,
+			 max(balanced_dirty_ratelimit, task_ratelimit));
+		if (dirty_ratelimit > x)
+			step = dirty_ratelimit - x;
+	}
+
+	/*
+	 * Don't pursue 100% rate matching. It's impossible since the balanced
+	 * rate itself is constantly fluctuating. So decrease the track speed
+	 * when it gets close to the target. Helps eliminate pointless tremors.
+	 */
+	step >>= dirty_ratelimit / (2 * step + 1);
+	/*
+	 * Limit the tracking speed to avoid overshooting.
+	 */
+	step = (step + 7) / 8;
+
+	if (dirty_ratelimit < balanced_dirty_ratelimit)
+		dirty_ratelimit += step;
+	else
+		dirty_ratelimit -= step;
+
+	bdi->dirty_ratelimit = max(dirty_ratelimit, 1UL);
+	bdi->balanced_dirty_ratelimit = balanced_dirty_ratelimit;
 }
 
 void __bdi_update_bandwidth(struct backing_dev_info *bdi,

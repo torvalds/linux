@@ -686,6 +686,7 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->bw_time_stamp = jiffies;
 	bdi->written_stamp = 0;
 
+	bdi->balanced_dirty_ratelimit = INIT_BW;
 	bdi->dirty_ratelimit = INIT_BW;
 	bdi->write_bandwidth = INIT_BW;
 	bdi->avg_write_bandwidth = INIT_BW;

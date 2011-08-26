@@ -83,8 +83,11 @@ struct backing_dev_info {
 	/*
 	 * The base dirty throttle rate, re-calculated on every 200ms.
 	 * All the bdi tasks' dirty rate will be curbed under it.
+	 * @dirty_ratelimit tracks the estimated @balanced_dirty_ratelimit
+	 * in small steps and is much more smooth/stable than the latter.
 	 */
 	unsigned long dirty_ratelimit;
+	unsigned long balanced_dirty_ratelimit;
 
 	struct prop_local_percpu completions;
 	int dirty_exceeded;
