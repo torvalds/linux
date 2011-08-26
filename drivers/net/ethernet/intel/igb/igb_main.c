@@ -3243,16 +3243,15 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
  **/
 static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 {
-	struct igb_buffer *buffer_info;
 	unsigned long size;
-	unsigned int i;
+	u16 i;
 
 	if (!rx_ring->buffer_info)
 		return;
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
-		buffer_info = &rx_ring->buffer_info[i];
+		struct igb_buffer *buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
 			dma_unmap_single(rx_ring->dev,
 			                 buffer_info->dma,
@@ -5764,7 +5763,7 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 	struct igb_buffer *buffer_info , *next_buffer;
 	struct sk_buff *skb;
 	bool cleaned = false;
-	int cleaned_count = 0;
+	u16 cleaned_count = igb_desc_unused(rx_ring);
 	int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
 	unsigned int i;
@@ -5848,7 +5847,6 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 		igb_rx_checksum_adv(rx_ring, staterr, skb);
 
 		skb->protocol = eth_type_trans(skb, netdev);
-		skb_record_rx_queue(skb, rx_ring->queue_index);
 
 		if (staterr & E1000_RXD_STAT_VP) {
 			u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
@@ -5858,8 +5856,6 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 		napi_gro_receive(&q_vector->napi, skb);
 
 next_desc:
-		rx_desc->wb.upper.status_error = 0;
-
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
 			igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
@@ -5873,110 +5869,130 @@ next_desc:
 	}
 
 	rx_ring->next_to_clean = i;
-	cleaned_count = igb_desc_unused(rx_ring);
-
-	if (cleaned_count)
-		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
-
-	rx_ring->total_packets += total_packets;
-	rx_ring->total_bytes += total_bytes;
 	u64_stats_update_begin(&rx_ring->rx_syncp);
 	rx_ring->rx_stats.packets += total_packets;
 	rx_ring->rx_stats.bytes += total_bytes;
 	u64_stats_update_end(&rx_ring->rx_syncp);
+	rx_ring->total_packets += total_packets;
+	rx_ring->total_bytes += total_bytes;
+
+	if (cleaned_count)
+		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
+
 	return cleaned;
+}
+
+static bool igb_alloc_mapped_skb(struct igb_ring *rx_ring,
+				 struct igb_buffer *bi)
+{
+	struct sk_buff *skb = bi->skb;
+	dma_addr_t dma = bi->dma;
+
+	if (dma)
+		return true;
+
+	if (likely(!skb)) {
+		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
+						IGB_RX_HDR_LEN);
+		bi->skb = skb;
+		if (!skb) {
+			rx_ring->rx_stats.alloc_failed++;
+			return false;
+		}
+
+		/* initialize skb for ring */
+		skb_record_rx_queue(skb, rx_ring->queue_index);
+	}
+
+	dma = dma_map_single(rx_ring->dev, skb->data,
+			     IGB_RX_HDR_LEN, DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(rx_ring->dev, dma)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	bi->dma = dma;
+	return true;
+}
+
+static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
+				  struct igb_buffer *bi)
+{
+	struct page *page = bi->page;
+	dma_addr_t page_dma = bi->page_dma;
+	unsigned int page_offset = bi->page_offset ^ (PAGE_SIZE / 2);
+
+	if (page_dma)
+		return true;
+
+	if (!page) {
+		page = netdev_alloc_page(rx_ring->netdev);
+		bi->page = page;
+		if (unlikely(!page)) {
+			rx_ring->rx_stats.alloc_failed++;
+			return false;
+		}
+	}
+
+	page_dma = dma_map_page(rx_ring->dev, page,
+				page_offset, PAGE_SIZE / 2,
+				DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(rx_ring->dev, page_dma)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	bi->page_dma = page_dma;
+	bi->page_offset = page_offset;
+	return true;
 }
 
 /**
  * igb_alloc_rx_buffers_adv - Replace used receive buffers; packet split
  * @adapter: address of board private structure
  **/
-void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
+void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, u16 cleaned_count)
 {
-	struct net_device *netdev = rx_ring->netdev;
 	union e1000_adv_rx_desc *rx_desc;
-	struct igb_buffer *buffer_info;
-	struct sk_buff *skb;
-	unsigned int i;
+	struct igb_buffer *bi;
+	u16 i = rx_ring->next_to_use;
 
-	i = rx_ring->next_to_use;
-	buffer_info = &rx_ring->buffer_info[i];
+	rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
+	bi = &rx_ring->buffer_info[i];
+	i -= rx_ring->count;
 
 	while (cleaned_count--) {
-		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
+		if (!igb_alloc_mapped_skb(rx_ring, bi))
+			break;
 
-		if (!buffer_info->page_dma) {
-			if (!buffer_info->page) {
-				buffer_info->page = netdev_alloc_page(netdev);
-				if (unlikely(!buffer_info->page)) {
-					u64_stats_update_begin(&rx_ring->rx_syncp);
-					rx_ring->rx_stats.alloc_failed++;
-					u64_stats_update_end(&rx_ring->rx_syncp);
-					goto no_buffers;
-				}
-				buffer_info->page_offset = 0;
-			} else {
-				buffer_info->page_offset ^= PAGE_SIZE / 2;
-			}
-			buffer_info->page_dma =
-				dma_map_page(rx_ring->dev, buffer_info->page,
-					     buffer_info->page_offset,
-					     PAGE_SIZE / 2,
-					     DMA_FROM_DEVICE);
-			if (dma_mapping_error(rx_ring->dev,
-					      buffer_info->page_dma)) {
-				buffer_info->page_dma = 0;
-				u64_stats_update_begin(&rx_ring->rx_syncp);
-				rx_ring->rx_stats.alloc_failed++;
-				u64_stats_update_end(&rx_ring->rx_syncp);
-				goto no_buffers;
-			}
-		}
+		/* Refresh the desc even if buffer_addrs didn't change
+		 * because each write-back erases this info. */
+		rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 
-		skb = buffer_info->skb;
-		if (!skb) {
-			skb = netdev_alloc_skb_ip_align(netdev, IGB_RX_HDR_LEN);
-			if (unlikely(!skb)) {
-				u64_stats_update_begin(&rx_ring->rx_syncp);
-				rx_ring->rx_stats.alloc_failed++;
-				u64_stats_update_end(&rx_ring->rx_syncp);
-				goto no_buffers;
-			}
+		if (!igb_alloc_mapped_page(rx_ring, bi))
+			break;
 
-			buffer_info->skb = skb;
-		}
-		if (!buffer_info->dma) {
-			buffer_info->dma = dma_map_single(rx_ring->dev,
-			                                  skb->data,
-							  IGB_RX_HDR_LEN,
-							  DMA_FROM_DEVICE);
-			if (dma_mapping_error(rx_ring->dev,
-					      buffer_info->dma)) {
-				buffer_info->dma = 0;
-				u64_stats_update_begin(&rx_ring->rx_syncp);
-				rx_ring->rx_stats.alloc_failed++;
-				u64_stats_update_end(&rx_ring->rx_syncp);
-				goto no_buffers;
-			}
-		}
-		/* Refresh the desc even if buffer_addrs didn't change because
-		 * each write-back erases this info. */
-		rx_desc->read.pkt_addr = cpu_to_le64(buffer_info->page_dma);
-		rx_desc->read.hdr_addr = cpu_to_le64(buffer_info->dma);
+		rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
 
+		rx_desc++;
+		bi++;
 		i++;
-		if (i == rx_ring->count)
-			i = 0;
-		buffer_info = &rx_ring->buffer_info[i];
+		if (unlikely(!i)) {
+			rx_desc = E1000_RX_DESC_ADV(*rx_ring, 0);
+			bi = rx_ring->buffer_info;
+			i -= rx_ring->count;
+		}
+
+		/* clear the hdr_addr for the next_to_use descriptor */
+		rx_desc->read.hdr_addr = 0;
 	}
 
-no_buffers:
+	i += rx_ring->count;
+
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
-		if (i == 0)
-			i = (rx_ring->count - 1);
-		else
-			i--;
 
 		/* Force memory writes to complete before letting h/w
 		 * know there are new descriptors to fetch.  (Only
