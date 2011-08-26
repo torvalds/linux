@@ -1548,9 +1548,8 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&main_bus_clk);
 
 	clk_enable(&iim_clk);
-	mx51_revision();
+	imx_print_silicon_rev("i.MX51", mx51_revision());
 	clk_disable(&iim_clk);
-	mx51_display_revision();
 
 	/* move usb_phy_clk to 24MHz */
 	clk_set_parent(&usb_phy1_clk, &osc_clk);
@@ -1592,9 +1591,8 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&main_bus_clk);
 
 	clk_enable(&iim_clk);
-	mx53_revision();
+	imx_print_silicon_rev("i.MX53", mx53_revision());
 	clk_disable(&iim_clk);
-	mx53_display_revision();
 
 	/* Set SDHC parents to be PLL2 */
 	clk_set_parent(&esdhc1_clk, &pll2_sw_clk);
