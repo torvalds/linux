@@ -69,6 +69,8 @@ struct v4l2_ctrl_ops {
   *		members are in 'automatic' mode or 'manual' mode. This is
   *		used for autogain/gain type clusters. Drivers should never
   *		set this flag directly.
+  * @has_volatiles: If set, then one or more members of the cluster are volatile.
+  *		Drivers should never touch this flag.
   * @manual_mode_value: If the is_auto flag is set, then this is the value
   *		of the auto control that determines if that control is in
   *		manual mode. So if the value of the auto control equals this
@@ -115,6 +117,7 @@ struct v4l2_ctrl {
 	unsigned int is_new:1;
 	unsigned int is_private:1;
 	unsigned int is_auto:1;
+	unsigned int has_volatiles:1;
 	unsigned int manual_mode_value:8;
 
 	const struct v4l2_ctrl_ops *ops;

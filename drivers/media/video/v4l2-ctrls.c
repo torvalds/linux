@@ -937,9 +937,14 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 		break;
 	}
 	if (update_inactive) {
-		ctrl->flags &= ~V4L2_CTRL_FLAG_INACTIVE;
-		if (!is_cur_manual(ctrl->cluster[0]))
+		/* Note: update_inactive can only be true for auto clusters. */
+		ctrl->flags &=
+			~(V4L2_CTRL_FLAG_INACTIVE | V4L2_CTRL_FLAG_VOLATILE);
+		if (!is_cur_manual(ctrl->cluster[0])) {
 			ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+			if (ctrl->cluster[0]->has_volatiles)
+				ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
+		}
 	}
 	if (changed || update_inactive) {
 		/* If a control was changed that was not one of the controls
@@ -1489,6 +1494,7 @@ EXPORT_SYMBOL(v4l2_ctrl_add_handler);
 /* Cluster controls */
 void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 {
+	bool has_volatiles = false;
 	int i;
 
 	/* The first control is the master control and it must not be NULL */
@@ -1498,8 +1504,11 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 		if (controls[i]) {
 			controls[i]->cluster = controls;
 			controls[i]->ncontrols = ncontrols;
+			if (controls[i]->flags & V4L2_CTRL_FLAG_VOLATILE)
+				has_volatiles = true;
 		}
 	}
+	controls[0]->has_volatiles = has_volatiles;
 }
 EXPORT_SYMBOL(v4l2_ctrl_cluster);
 
@@ -1507,18 +1516,21 @@ void v4l2_ctrl_auto_cluster(unsigned ncontrols, struct v4l2_ctrl **controls,
 			    u8 manual_val, bool set_volatile)
 {
 	struct v4l2_ctrl *master = controls[0];
-	u32 flag;
+	u32 flag = 0;
 	int i;
 
 	v4l2_ctrl_cluster(ncontrols, controls);
 	WARN_ON(ncontrols <= 1);
 	WARN_ON(manual_val < master->minimum || manual_val > master->maximum);
+	WARN_ON(set_volatile && !has_op(master, g_volatile_ctrl));
 	master->is_auto = true;
+	master->has_volatiles = set_volatile;
 	master->manual_mode_value = manual_val;
 	master->flags |= V4L2_CTRL_FLAG_UPDATE;
-	flag = is_cur_manual(master) ? 0 : V4L2_CTRL_FLAG_INACTIVE;
-	if (set_volatile)
-		flag |= V4L2_CTRL_FLAG_VOLATILE;
+
+	if (!is_cur_manual(master))
+		flag = V4L2_CTRL_FLAG_INACTIVE |
+			(set_volatile ? V4L2_CTRL_FLAG_VOLATILE : 0);
 
 	for (i = 1; i < ncontrols; i++)
 		if (controls[i])
@@ -1957,7 +1969,8 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 		v4l2_ctrl_lock(master);
 
 		/* g_volatile_ctrl will update the new control values */
-		if (has_op(master, g_volatile_ctrl) && !is_cur_manual(master)) {
+		if ((master->flags & V4L2_CTRL_FLAG_VOLATILE) ||
+			(master->has_volatiles && !is_cur_manual(master))) {
 			for (j = 0; j < master->ncontrols; j++)
 				cur_to_new(master->cluster[j]);
 			ret = call_op(master, g_volatile_ctrl);
@@ -2002,7 +2015,7 @@ static int get_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 
 	v4l2_ctrl_lock(master);
 	/* g_volatile_ctrl will update the current control values */
-	if ((ctrl->flags & V4L2_CTRL_FLAG_VOLATILE) && !is_cur_manual(master)) {
+	if (ctrl->flags & V4L2_CTRL_FLAG_VOLATILE) {
 		for (i = 0; i < master->ncontrols; i++)
 			cur_to_new(master->cluster[i]);
 		ret = call_op(master, g_volatile_ctrl);
@@ -2118,6 +2131,20 @@ static int validate_ctrls(struct v4l2_ext_controls *cs,
 	return 0;
 }
 
+/* Obtain the current volatile values of an autocluster and mark them
+   as new. */
+static void update_from_auto_cluster(struct v4l2_ctrl *master)
+{
+	int i;
+
+	for (i = 0; i < master->ncontrols; i++)
+		cur_to_new(master->cluster[i]);
+	if (!call_op(master, g_volatile_ctrl))
+		for (i = 1; i < master->ncontrols; i++)
+			if (master->cluster[i])
+				master->cluster[i]->is_new = 1;
+}
+
 /* Try or try-and-set controls */
 static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 			     struct v4l2_ext_controls *cs,
@@ -2162,6 +2189,31 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 		for (j = 0; j < master->ncontrols; j++)
 			if (master->cluster[j])
 				master->cluster[j]->is_new = 0;
+
+		/* For volatile autoclusters that are currently in auto mode
+		   we need to discover if it will be set to manual mode.
+		   If so, then we have to copy the current volatile values
+		   first since those will become the new manual values (which
+		   may be overwritten by explicit new values from this set
+		   of controls). */
+		if (master->is_auto && master->has_volatiles &&
+						!is_cur_manual(master)) {
+			/* Pick an initial non-manual value */
+			s32 new_auto_val = master->manual_mode_value + 1;
+			u32 tmp_idx = idx;
+
+			do {
+				/* Check if the auto control is part of the
+				   list, and remember the new value. */
+				if (helpers[tmp_idx].ctrl == master)
+					new_auto_val = cs->controls[tmp_idx].value;
+				tmp_idx = helpers[tmp_idx].next;
+			} while (tmp_idx);
+			/* If the new value == the manual value, then copy
+			   the current volatile values. */
+			if (new_auto_val == master->manual_mode_value)
+				update_from_auto_cluster(master);
+		}
 
 		/* Copy the new caller-supplied control values.
 		   user_to_new() sets 'is_new' to 1. */
@@ -2233,6 +2285,12 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, s32 *val)
 		if (master->cluster[i])
 			master->cluster[i]->is_new = 0;
 
+	/* For autoclusters with volatiles that are switched from auto to
+	   manual mode we have to update the current volatile values since
+	   those will become the initial manual values after such a switch. */
+	if (master->is_auto && master->has_volatiles && ctrl == master &&
+	    !is_cur_manual(master) && *val == master->manual_mode_value)
+		update_from_auto_cluster(master);
 	ctrl->val = *val;
 	ctrl->is_new = 1;
 	ret = try_or_set_cluster(fh, master, true);
