@@ -1875,7 +1875,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev_mq(sizeof(struct igb_adapter),
-	                           IGB_ABS_MAX_TX_QUEUES);
+				   IGB_MAX_TX_QUEUES);
 	if (!netdev)
 		goto err_alloc_etherdev;
 
@@ -2620,10 +2620,6 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 		}
 	}
 
-	for (i = 0; i < IGB_ABS_MAX_TX_QUEUES; i++) {
-		int r_idx = i % adapter->num_tx_queues;
-		adapter->multi_tx_table[i] = adapter->tx_ring[r_idx];
-	}
 	return err;
 }
 
@@ -4363,12 +4359,21 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
+						    struct sk_buff *skb)
+{
+	unsigned int r_idx = skb->queue_mapping;
+
+	if (r_idx >= adapter->num_tx_queues)
+		r_idx = r_idx % adapter->num_tx_queues;
+
+	return adapter->tx_ring[r_idx];
+}
+
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
 				  struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_ring *tx_ring;
-	int r_idx = 0;
 
 	if (test_bit(__IGB_DOWN, &adapter->state)) {
 		dev_kfree_skb_any(skb);
@@ -4380,14 +4385,17 @@ static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	r_idx = skb->queue_mapping & (IGB_ABS_MAX_TX_QUEUES - 1);
-	tx_ring = adapter->multi_tx_table[r_idx];
+	/*
+	 * The minimum packet size with TCTL.PSP set is 17 so pad the skb
+	 * in order to meet this minimum size requirement.
+	 */
+	if (skb->len < 17) {
+		if (skb_padto(skb, 17))
+			return NETDEV_TX_OK;
+		skb->len = 17;
+	}
 
-	/* This goes back to the question of how to logically map a tx queue
-	 * to a flow.  Right now, performance is impacted slightly negatively
-	 * if using multiple tx queues.  If the stack breaks away from a
-	 * single qdisc implementation, we can look at this again. */
-	return igb_xmit_frame_ring(skb, tx_ring);
+	return igb_xmit_frame_ring(skb, igb_tx_queue_mapping(adapter, skb));
 }
 
 /**
