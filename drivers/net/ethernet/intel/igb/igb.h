@@ -132,27 +132,24 @@ struct vf_data_storage {
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
-struct igb_buffer {
+struct igb_tx_buffer {
+	u16 next_to_watch;
+	unsigned long time_stamp;
+	dma_addr_t dma;
+	u32 length;
+	u32 tx_flags;
+	struct sk_buff *skb;
+	unsigned int bytecount;
+	u16 gso_segs;
+	u8 mapped_as_page;
+};
+
+struct igb_rx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	union {
-		/* TX */
-		struct {
-			unsigned long time_stamp;
-			u16 length;
-			u16 next_to_watch;
-			unsigned int bytecount;
-			u16 gso_segs;
-			u8 tx_flags;
-			u8 mapped_as_page;
-		};
-		/* RX */
-		struct {
-			struct page *page;
-			dma_addr_t page_dma;
-			u16 page_offset;
-		};
-	};
+	struct page *page;
+	dma_addr_t page_dma;
+	u32 page_offset;
 };
 
 struct igb_tx_queue_stats {
@@ -191,7 +188,10 @@ struct igb_ring {
 	struct igb_q_vector *q_vector;	/* backlink to q_vector */
 	struct net_device *netdev;	/* back pointer to net_device */
 	struct device *dev;		/* device pointer for dma mapping */
-	struct igb_buffer *buffer_info;	/* array of buffer info structs */
+	union {				/* array of buffer info structs */
+		struct igb_tx_buffer *tx_buffer_info;
+		struct igb_rx_buffer *rx_buffer_info;
+	};
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
@@ -377,7 +377,7 @@ extern void igb_setup_tctl(struct igb_adapter *);
 extern void igb_setup_rctl(struct igb_adapter *);
 extern netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
 extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
-					   struct igb_buffer *);
+					   struct igb_tx_buffer *);
 extern void igb_alloc_rx_buffers(struct igb_ring *, u16);
 extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);
