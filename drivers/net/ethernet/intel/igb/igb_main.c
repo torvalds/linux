@@ -764,10 +764,10 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 	int rx_queue = IGB_N0_QUEUE;
 	int tx_queue = IGB_N0_QUEUE;
 
-	if (q_vector->rx_ring)
-		rx_queue = q_vector->rx_ring->reg_idx;
-	if (q_vector->tx_ring)
-		tx_queue = q_vector->tx_ring->reg_idx;
+	if (q_vector->rx.ring)
+		rx_queue = q_vector->rx.ring->reg_idx;
+	if (q_vector->tx.ring)
+		tx_queue = q_vector->tx.ring->reg_idx;
 
 	switch (hw->mac.type) {
 	case e1000_82575:
@@ -950,15 +950,15 @@ static int igb_request_msix(struct igb_adapter *adapter)
 
 		q_vector->itr_register = hw->hw_addr + E1000_EITR(vector);
 
-		if (q_vector->rx_ring && q_vector->tx_ring)
+		if (q_vector->rx.ring && q_vector->tx.ring)
 			sprintf(q_vector->name, "%s-TxRx-%u", netdev->name,
-			        q_vector->rx_ring->queue_index);
-		else if (q_vector->tx_ring)
+				q_vector->rx.ring->queue_index);
+		else if (q_vector->tx.ring)
 			sprintf(q_vector->name, "%s-tx-%u", netdev->name,
-			        q_vector->tx_ring->queue_index);
-		else if (q_vector->rx_ring)
+				q_vector->tx.ring->queue_index);
+		else if (q_vector->rx.ring)
 			sprintf(q_vector->name, "%s-rx-%u", netdev->name,
-			        q_vector->rx_ring->queue_index);
+				q_vector->rx.ring->queue_index);
 		else
 			sprintf(q_vector->name, "%s-unused", netdev->name);
 
@@ -1157,8 +1157,9 @@ static void igb_map_rx_ring_to_vector(struct igb_adapter *adapter,
 {
 	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
-	q_vector->rx_ring = adapter->rx_ring[ring_idx];
-	q_vector->rx_ring->q_vector = q_vector;
+	q_vector->rx.ring = adapter->rx_ring[ring_idx];
+	q_vector->rx.ring->q_vector = q_vector;
+	q_vector->rx.count++;
 	q_vector->itr_val = adapter->rx_itr_setting;
 	if (q_vector->itr_val && q_vector->itr_val <= 3)
 		q_vector->itr_val = IGB_START_ITR;
@@ -1169,10 +1170,11 @@ static void igb_map_tx_ring_to_vector(struct igb_adapter *adapter,
 {
 	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
-	q_vector->tx_ring = adapter->tx_ring[ring_idx];
-	q_vector->tx_ring->q_vector = q_vector;
+	q_vector->tx.ring = adapter->tx_ring[ring_idx];
+	q_vector->tx.ring->q_vector = q_vector;
+	q_vector->tx.count++;
 	q_vector->itr_val = adapter->tx_itr_setting;
-	q_vector->tx_work_limit = adapter->tx_work_limit;
+	q_vector->tx.work_limit = adapter->tx_work_limit;
 	if (q_vector->itr_val && q_vector->itr_val <= 3)
 		q_vector->itr_val = IGB_START_ITR;
 }
@@ -3826,33 +3828,24 @@ static void igb_update_ring_itr(struct igb_q_vector *q_vector)
 	int new_val = q_vector->itr_val;
 	int avg_wire_size = 0;
 	struct igb_adapter *adapter = q_vector->adapter;
-	struct igb_ring *ring;
 	unsigned int packets;
 
 	/* For non-gigabit speeds, just fix the interrupt rate at 4000
 	 * ints/sec - ITR timer value of 120 ticks.
 	 */
 	if (adapter->link_speed != SPEED_1000) {
-		new_val = 976;
+		new_val = IGB_4K_ITR;
 		goto set_itr_val;
 	}
 
-	ring = q_vector->rx_ring;
-	if (ring) {
-		packets = ACCESS_ONCE(ring->total_packets);
+	packets = q_vector->rx.total_packets;
+	if (packets)
+		avg_wire_size = q_vector->rx.total_bytes / packets;
 
-		if (packets)
-			avg_wire_size = ring->total_bytes / packets;
-	}
-
-	ring = q_vector->tx_ring;
-	if (ring) {
-		packets = ACCESS_ONCE(ring->total_packets);
-
-		if (packets)
-			avg_wire_size = max_t(u32, avg_wire_size,
-			                      ring->total_bytes / packets);
-	}
+	packets = q_vector->tx.total_packets;
+	if (packets)
+		avg_wire_size = max_t(u32, avg_wire_size,
+				      q_vector->tx.total_bytes / packets);
 
 	/* if avg_wire_size isn't set no work was done */
 	if (!avg_wire_size)
@@ -3870,9 +3863,11 @@ static void igb_update_ring_itr(struct igb_q_vector *q_vector)
 	else
 		new_val = avg_wire_size / 2;
 
-	/* when in itr mode 3 do not exceed 20K ints/sec */
-	if (adapter->rx_itr_setting == 3 && new_val < 196)
-		new_val = 196;
+	/* conservative mode (itr 3) eliminates the lowest_latency setting */
+	if (new_val < IGB_20K_ITR &&
+	    ((q_vector->rx.ring && adapter->rx_itr_setting == 3) ||
+	     (!q_vector->rx.ring && adapter->tx_itr_setting == 3)))
+		new_val = IGB_20K_ITR;
 
 set_itr_val:
 	if (new_val != q_vector->itr_val) {
@@ -3880,14 +3875,10 @@ set_itr_val:
 		q_vector->set_itr = 1;
 	}
 clear_counts:
-	if (q_vector->rx_ring) {
-		q_vector->rx_ring->total_bytes = 0;
-		q_vector->rx_ring->total_packets = 0;
-	}
-	if (q_vector->tx_ring) {
-		q_vector->tx_ring->total_bytes = 0;
-		q_vector->tx_ring->total_packets = 0;
-	}
+	q_vector->rx.total_bytes = 0;
+	q_vector->rx.total_packets = 0;
+	q_vector->tx.total_bytes = 0;
+	q_vector->tx.total_packets = 0;
 }
 
 /**
@@ -3903,106 +3894,102 @@ clear_counts:
  *      parameter (see igb_param.c)
  *      NOTE:  These calculations are only valid when operating in a single-
  *             queue environment.
- * @adapter: pointer to adapter
- * @itr_setting: current q_vector->itr_val
- * @packets: the number of packets during this measurement interval
- * @bytes: the number of bytes during this measurement interval
+ * @q_vector: pointer to q_vector
+ * @ring_container: ring info to update the itr for
  **/
-static unsigned int igb_update_itr(struct igb_adapter *adapter, u16 itr_setting,
-				   int packets, int bytes)
+static void igb_update_itr(struct igb_q_vector *q_vector,
+			   struct igb_ring_container *ring_container)
 {
-	unsigned int retval = itr_setting;
+	unsigned int packets = ring_container->total_packets;
+	unsigned int bytes = ring_container->total_bytes;
+	u8 itrval = ring_container->itr;
 
+	/* no packets, exit with status unchanged */
 	if (packets == 0)
-		goto update_itr_done;
+		return;
 
-	switch (itr_setting) {
+	switch (itrval) {
 	case lowest_latency:
 		/* handle TSO and jumbo frames */
 		if (bytes/packets > 8000)
-			retval = bulk_latency;
+			itrval = bulk_latency;
 		else if ((packets < 5) && (bytes > 512))
-			retval = low_latency;
+			itrval = low_latency;
 		break;
 	case low_latency:  /* 50 usec aka 20000 ints/s */
 		if (bytes > 10000) {
 			/* this if handles the TSO accounting */
 			if (bytes/packets > 8000) {
-				retval = bulk_latency;
+				itrval = bulk_latency;
 			} else if ((packets < 10) || ((bytes/packets) > 1200)) {
-				retval = bulk_latency;
+				itrval = bulk_latency;
 			} else if ((packets > 35)) {
-				retval = lowest_latency;
+				itrval = lowest_latency;
 			}
 		} else if (bytes/packets > 2000) {
-			retval = bulk_latency;
+			itrval = bulk_latency;
 		} else if (packets <= 2 && bytes < 512) {
-			retval = lowest_latency;
+			itrval = lowest_latency;
 		}
 		break;
 	case bulk_latency: /* 250 usec aka 4000 ints/s */
 		if (bytes > 25000) {
 			if (packets > 35)
-				retval = low_latency;
+				itrval = low_latency;
 		} else if (bytes < 1500) {
-			retval = low_latency;
+			itrval = low_latency;
 		}
 		break;
 	}
 
-update_itr_done:
-	return retval;
+	/* clear work counters since we have the values we need */
+	ring_container->total_bytes = 0;
+	ring_container->total_packets = 0;
+
+	/* write updated itr to ring container */
+	ring_container->itr = itrval;
 }
 
-static void igb_set_itr(struct igb_adapter *adapter)
+static void igb_set_itr(struct igb_q_vector *q_vector)
 {
-	struct igb_q_vector *q_vector = adapter->q_vector[0];
-	u16 current_itr;
+	struct igb_adapter *adapter = q_vector->adapter;
 	u32 new_itr = q_vector->itr_val;
+	u8 current_itr = 0;
 
 	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
 	if (adapter->link_speed != SPEED_1000) {
 		current_itr = 0;
-		new_itr = 4000;
+		new_itr = IGB_4K_ITR;
 		goto set_itr_now;
 	}
 
-	adapter->rx_itr = igb_update_itr(adapter,
-				    adapter->rx_itr,
-				    q_vector->rx_ring->total_packets,
-				    q_vector->rx_ring->total_bytes);
+	igb_update_itr(q_vector, &q_vector->tx);
+	igb_update_itr(q_vector, &q_vector->rx);
 
-	adapter->tx_itr = igb_update_itr(adapter,
-				    adapter->tx_itr,
-				    q_vector->tx_ring->total_packets,
-				    q_vector->tx_ring->total_bytes);
-	current_itr = max(adapter->rx_itr, adapter->tx_itr);
+	current_itr = max(q_vector->rx.itr, q_vector->tx.itr);
 
 	/* conservative mode (itr 3) eliminates the lowest_latency setting */
-	if (adapter->rx_itr_setting == 3 && current_itr == lowest_latency)
+	if (current_itr == lowest_latency &&
+	    ((q_vector->rx.ring && adapter->rx_itr_setting == 3) ||
+	     (!q_vector->rx.ring && adapter->tx_itr_setting == 3)))
 		current_itr = low_latency;
 
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
 	case lowest_latency:
-		new_itr = 56;  /* aka 70,000 ints/sec */
+		new_itr = IGB_70K_ITR; /* 70,000 ints/sec */
 		break;
 	case low_latency:
-		new_itr = 196; /* aka 20,000 ints/sec */
+		new_itr = IGB_20K_ITR; /* 20,000 ints/sec */
 		break;
 	case bulk_latency:
-		new_itr = 980; /* aka 4,000 ints/sec */
+		new_itr = IGB_4K_ITR;  /* 4,000 ints/sec */
 		break;
 	default:
 		break;
 	}
 
 set_itr_now:
-	q_vector->rx_ring->total_bytes = 0;
-	q_vector->rx_ring->total_packets = 0;
-	q_vector->tx_ring->total_bytes = 0;
-	q_vector->tx_ring->total_packets = 0;
-
 	if (new_itr != q_vector->itr_val) {
 		/* this attempts to bias the interrupt rate towards Bulk
 		 * by adding intermediate steps when interrupt rate is
@@ -4010,7 +3997,7 @@ set_itr_now:
 		new_itr = new_itr > q_vector->itr_val ?
 		             max((new_itr * q_vector->itr_val) /
 		                 (new_itr + (q_vector->itr_val >> 2)),
-		                 new_itr) :
+				 new_itr) :
 			     new_itr;
 		/* Don't write the value here; it resets the adapter's
 		 * internal timer, and causes us to delay far longer than
@@ -4830,7 +4817,7 @@ static void igb_write_itr(struct igb_q_vector *q_vector)
 	if (adapter->hw.mac.type == e1000_82575)
 		itr_val |= itr_val << 16;
 	else
-		itr_val |= 0x8000000;
+		itr_val |= E1000_EITR_CNT_IGNR;
 
 	writel(itr_val, q_vector->itr_register);
 	q_vector->set_itr = 0;
@@ -4858,8 +4845,8 @@ static void igb_update_dca(struct igb_q_vector *q_vector)
 	if (q_vector->cpu == cpu)
 		goto out_no_update;
 
-	if (q_vector->tx_ring) {
-		int q = q_vector->tx_ring->reg_idx;
+	if (q_vector->tx.ring) {
+		int q = q_vector->tx.ring->reg_idx;
 		u32 dca_txctrl = rd32(E1000_DCA_TXCTRL(q));
 		if (hw->mac.type == e1000_82575) {
 			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK;
@@ -4872,8 +4859,8 @@ static void igb_update_dca(struct igb_q_vector *q_vector)
 		dca_txctrl |= E1000_DCA_TXCTRL_DESC_DCA_EN;
 		wr32(E1000_DCA_TXCTRL(q), dca_txctrl);
 	}
-	if (q_vector->rx_ring) {
-		int q = q_vector->rx_ring->reg_idx;
+	if (q_vector->rx.ring) {
+		int q = q_vector->rx.ring->reg_idx;
 		u32 dca_rxctrl = rd32(E1000_DCA_RXCTRL(q));
 		if (hw->mac.type == e1000_82575) {
 			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK;
@@ -5517,15 +5504,13 @@ static irqreturn_t igb_intr(int irq, void *data)
 	/* Interrupt Auto-Mask...upon reading ICR, interrupts are masked.  No
 	 * need for the IMC write */
 	u32 icr = rd32(E1000_ICR);
-	if (!icr)
-		return IRQ_NONE;  /* Not our interrupt */
-
-	igb_write_itr(q_vector);
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
 	 * not set, then the adapter didn't send an interrupt */
 	if (!(icr & E1000_ICR_INT_ASSERTED))
 		return IRQ_NONE;
+
+	igb_write_itr(q_vector);
 
 	if (icr & E1000_ICR_DRSTA)
 		schedule_work(&adapter->reset_task);
@@ -5547,15 +5532,15 @@ static irqreturn_t igb_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static inline void igb_ring_irq_enable(struct igb_q_vector *q_vector)
+void igb_ring_irq_enable(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
 
-	if ((q_vector->rx_ring && (adapter->rx_itr_setting & 3)) ||
-	    (!q_vector->rx_ring && (adapter->tx_itr_setting & 3))) {
-		if (!adapter->msix_entries)
-			igb_set_itr(adapter);
+	if ((q_vector->rx.ring && (adapter->rx_itr_setting & 3)) ||
+	    (!q_vector->rx.ring && (adapter->tx_itr_setting & 3))) {
+		if ((adapter->num_q_vectors == 1) && !adapter->vf_data)
+			igb_set_itr(q_vector);
 		else
 			igb_update_ring_itr(q_vector);
 	}
@@ -5584,10 +5569,10 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	if (q_vector->adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_dca(q_vector);
 #endif
-	if (q_vector->tx_ring)
+	if (q_vector->tx.ring)
 		clean_complete = igb_clean_tx_irq(q_vector);
 
-	if (q_vector->rx_ring)
+	if (q_vector->rx.ring)
 		clean_complete &= igb_clean_rx_irq(q_vector, budget);
 
 	/* If all work not completed, return budget and keep polling */
@@ -5667,11 +5652,11 @@ static void igb_tx_hwtstamp(struct igb_q_vector *q_vector,
 static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
-	struct igb_ring *tx_ring = q_vector->tx_ring;
+	struct igb_ring *tx_ring = q_vector->tx.ring;
 	struct igb_tx_buffer *tx_buffer;
 	union e1000_adv_tx_desc *tx_desc, *eop_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
-	unsigned int budget = q_vector->tx_work_limit;
+	unsigned int budget = q_vector->tx.work_limit;
 	unsigned int i = tx_ring->next_to_clean;
 
 	if (test_bit(__IGB_DOWN, &adapter->state))
@@ -5757,8 +5742,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	tx_ring->tx_stats.bytes += total_bytes;
 	tx_ring->tx_stats.packets += total_packets;
 	u64_stats_update_end(&tx_ring->tx_syncp);
-	tx_ring->total_bytes += total_bytes;
-	tx_ring->total_packets += total_packets;
+	q_vector->tx.total_bytes += total_bytes;
+	q_vector->tx.total_packets += total_packets;
 
 	if (tx_ring->detect_tx_hung) {
 		struct e1000_hw *hw = &adapter->hw;
@@ -5907,7 +5892,7 @@ static inline u16 igb_get_hlen(union e1000_adv_rx_desc *rx_desc)
 
 static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 {
-	struct igb_ring *rx_ring = q_vector->rx_ring;
+	struct igb_ring *rx_ring = q_vector->rx.ring;
 	union e1000_adv_rx_desc *rx_desc;
 	const int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
@@ -6024,8 +6009,8 @@ next_desc:
 	rx_ring->rx_stats.packets += total_packets;
 	rx_ring->rx_stats.bytes += total_bytes;
 	u64_stats_update_end(&rx_ring->rx_syncp);
-	rx_ring->total_packets += total_packets;
-	rx_ring->total_bytes += total_bytes;
+	q_vector->rx.total_packets += total_packets;
+	q_vector->rx.total_bytes += total_bytes;
 
 	if (cleaned_count)
 		igb_alloc_rx_buffers(rx_ring, cleaned_count);

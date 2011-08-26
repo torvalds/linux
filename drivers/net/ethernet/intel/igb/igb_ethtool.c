@@ -2013,8 +2013,8 @@ static int igb_set_coalesce(struct net_device *netdev,
 
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		struct igb_q_vector *q_vector = adapter->q_vector[i];
-		q_vector->tx_work_limit = adapter->tx_work_limit;
-		if (q_vector->rx_ring)
+		q_vector->tx.work_limit = adapter->tx_work_limit;
+		if (q_vector->rx.ring)
 			q_vector->itr_val = adapter->rx_itr_setting;
 		else
 			q_vector->itr_val = adapter->tx_itr_setting;

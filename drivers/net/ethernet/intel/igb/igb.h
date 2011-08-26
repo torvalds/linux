@@ -42,8 +42,11 @@
 
 struct igb_adapter;
 
-/* ((1000000000ns / (6000ints/s * 1024ns)) << 2 = 648 */
-#define IGB_START_ITR 648
+/* Interrupt defines */
+#define IGB_START_ITR                    648 /* ~6000 ints/sec */
+#define IGB_4K_ITR                       980
+#define IGB_20K_ITR                      196
+#define IGB_70K_ITR                       56
 
 /* TX/RX descriptor defines */
 #define IGB_DEFAULT_TXD                  256
@@ -175,16 +178,23 @@ struct igb_rx_queue_stats {
 	u64 alloc_failed;
 };
 
+struct igb_ring_container {
+	struct igb_ring *ring;		/* pointer to linked list of rings */
+	unsigned int total_bytes;	/* total bytes processed this int */
+	unsigned int total_packets;	/* total packets processed this int */
+	u16 work_limit;			/* total work allowed per interrupt */
+	u8 count;			/* total number of rings in vector */
+	u8 itr;				/* current ITR setting for ring */
+};
+
 struct igb_q_vector {
-	struct igb_adapter *adapter; /* backlink */
-	struct igb_ring *rx_ring;
-	struct igb_ring *tx_ring;
+	struct igb_adapter *adapter;	/* backlink */
+	int cpu;			/* CPU for DCA */
+	u32 eims_value;			/* EIMS mask value */
+
+	struct igb_ring_container rx, tx;
+
 	struct napi_struct napi;
-
-	u32 eims_value;
-	u16 cpu;
-	u16 tx_work_limit;
-
 	int numa_node;
 
 	u16 itr_val;
@@ -214,9 +224,6 @@ struct igb_ring {
 	/* everything past this point are written often */
 	u16 next_to_clean ____cacheline_aligned_in_smp;
 	u16 next_to_use;
-
-	unsigned int total_bytes;
-	unsigned int total_packets;
 
 	union {
 		/* TX */

@@ -409,6 +409,9 @@
 #define E1000_ICS_DRSTA     E1000_ICR_DRSTA     /* Device Reset Aserted */
 
 /* Extended Interrupt Cause Set */
+/* E1000_EITR_CNT_IGNR is only for 82576 and newer */
+#define E1000_EITR_CNT_IGNR     0x80000000 /* Don't reset counters on write */
+
 
 /* Transmit Descriptor Control */
 /* Enable the counting of descriptors still to be processed. */
