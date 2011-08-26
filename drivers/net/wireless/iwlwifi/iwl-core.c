@@ -1398,7 +1398,7 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {
 	u32 traffic_size = IWL_TRAFFIC_DUMP_SIZE;
 
-	if (iwl_debug_level & IWL_DL_TX) {
+	if (iwl_get_debug_level(priv) & IWL_DL_TX) {
 		if (!priv->tx_traffic) {
 			priv->tx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1406,7 +1406,7 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 				return -ENOMEM;
 		}
 	}
-	if (iwl_debug_level & IWL_DL_RX) {
+	if (iwl_get_debug_level(priv) & IWL_DL_RX) {
 		if (!priv->rx_traffic) {
 			priv->rx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1433,7 +1433,7 @@ void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_debug_level & IWL_DL_TX)))
+	if (likely(!(iwl_get_debug_level(priv) & IWL_DL_TX)))
 		return;
 
 	if (!priv->tx_traffic)
@@ -1457,7 +1457,7 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_debug_level & IWL_DL_RX)))
+	if (likely(!(iwl_get_debug_level(priv) & IWL_DL_RX)))
 		return;
 
 	if (!priv->rx_traffic)
