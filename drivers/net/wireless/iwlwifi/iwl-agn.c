@@ -251,7 +251,7 @@ static void iwl_bg_bt_runtime_config(struct work_struct *work)
 		return;
 
 	/* dont send host command if rf-kill is on */
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return;
 	iwlagn_send_advance_bt_config(priv);
 }
@@ -268,7 +268,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 		goto out;
 
 	/* dont send host command if rf-kill is on */
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		goto out;
 
 	IWL_DEBUG_INFO(priv, "BT coex in %s mode\n",
@@ -307,7 +307,7 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 		return;
 
 	/* dont send host command if rf-kill is on */
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return;
 
 	iwl_send_statistics_request(priv, CMD_ASYNC, false);
@@ -444,7 +444,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 		return;
 
 	/* do nothing if rf-kill is on */
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return;
 
 	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
@@ -510,7 +510,7 @@ static ssize_t show_temperature(struct device *d,
 	struct iwl_shared *shrd = dev_get_drvdata(d);
 	struct iwl_priv *priv = shrd->priv;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EAGAIN;
 
 	return sprintf(buf, "%d\n", priv->temperature);
@@ -523,7 +523,7 @@ static ssize_t show_tx_power(struct device *d,
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
 
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return sprintf(buf, "off\n");
 	else
 		return sprintf(buf, "%d\n", priv->tx_power_user_lmt);
@@ -1412,7 +1412,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	/* Enable watchdog to monitor the driver tx queues */
 	iwl_setup_watchdog(priv);
 
-	if (iwl_is_rfkill(priv))
+	if (iwl_is_rfkill(priv->shrd))
 		return -ERFKILL;
 
 	/* download priority table before any calibration request */
@@ -2701,7 +2701,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->shrd->mutex);
 
-	if (iwl_is_rfkill(priv))
+	if (iwl_is_rfkill(priv->shrd))
 		goto out;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) ||
@@ -2836,7 +2836,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 		IWL_DEBUG_TX(priv, "Aborting flush due to device shutdown\n");
 		goto done;
 	}
-	if (iwl_is_rfkill(priv)) {
+	if (iwl_is_rfkill(priv->shrd)) {
 		IWL_DEBUG_TX(priv, "Aborting flush due to RF Kill\n");
 		goto done;
 	}

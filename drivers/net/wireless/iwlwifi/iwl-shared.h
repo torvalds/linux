@@ -246,4 +246,69 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
 
+/*****************************************************
+* DRIVER STATUS FUNCTIONS
+******************************************************/
+#define STATUS_HCMD_ACTIVE	0	/* host command in progress */
+/* 1 is unused (used to be STATUS_HCMD_SYNC_ACTIVE) */
+#define STATUS_INT_ENABLED	2
+#define STATUS_RF_KILL_HW	3
+#define STATUS_CT_KILL		4
+#define STATUS_INIT		5
+#define STATUS_ALIVE		6
+#define STATUS_READY		7
+#define STATUS_TEMPERATURE	8
+#define STATUS_GEO_CONFIGURED	9
+#define STATUS_EXIT_PENDING	10
+#define STATUS_STATISTICS	12
+#define STATUS_SCANNING		13
+#define STATUS_SCAN_ABORTING	14
+#define STATUS_SCAN_HW		15
+#define STATUS_POWER_PMI	16
+#define STATUS_FW_ERROR		17
+#define STATUS_DEVICE_ENABLED	18
+#define STATUS_CHANNEL_SWITCH_PENDING 19
+
+static inline int iwl_is_ready(struct iwl_shared *shrd)
+{
+	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
+	 * set but EXIT_PENDING is not */
+	return test_bit(STATUS_READY, &shrd->status) &&
+	       test_bit(STATUS_GEO_CONFIGURED, &shrd->status) &&
+	       !test_bit(STATUS_EXIT_PENDING, &shrd->status);
+}
+
+static inline int iwl_is_alive(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_ALIVE, &shrd->status);
+}
+
+static inline int iwl_is_init(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_INIT, &shrd->status);
+}
+
+static inline int iwl_is_rfkill_hw(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_RF_KILL_HW, &shrd->status);
+}
+
+static inline int iwl_is_rfkill(struct iwl_shared *shrd)
+{
+	return iwl_is_rfkill_hw(shrd);
+}
+
+static inline int iwl_is_ctkill(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_CT_KILL, &shrd->status);
+}
+
+static inline int iwl_is_ready_rf(struct iwl_shared *shrd)
+{
+	if (iwl_is_rfkill(shrd))
+		return 0;
+
+	return iwl_is_ready(shrd);
+}
+
 #endif /* #__iwl_shared_h__ */

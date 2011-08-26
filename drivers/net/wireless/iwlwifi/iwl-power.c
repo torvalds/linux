@@ -392,7 +392,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 	if (!memcmp(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd)) && !force)
 		return 0;
 
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return -EIO;
 
 	/* scan complete use sleep_power_next, need to be updated */

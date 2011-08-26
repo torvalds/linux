@@ -468,7 +468,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 {
 	unsigned long flags;
 
-	if (!iwl_is_ready(priv)) {
+	if (!iwl_is_ready(priv->shrd)) {
 		IWL_DEBUG_INFO(priv,
 			"Unable to remove station %pM, device not ready.\n",
 			addr);
@@ -572,7 +572,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	int ret;
 	bool send_lq;
 
-	if (!iwl_is_ready(priv)) {
+	if (!iwl_is_ready(priv->shrd)) {
 		IWL_DEBUG_INFO(priv, "Not ready yet, not restoring any stations.\n");
 		return;
 	}

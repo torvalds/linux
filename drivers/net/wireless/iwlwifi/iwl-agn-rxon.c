@@ -426,7 +426,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return -EINVAL;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EBUSY;
 
 	/* This function hardcodes a bunch of dual-mode assumptions */
@@ -544,7 +544,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 	}
 
-	if (!iwl_is_ready(priv)) {
+	if (!iwl_is_ready(priv->shrd)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		goto out;
 	}
@@ -794,7 +794,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->shrd->mutex);
 
-	if (unlikely(!iwl_is_ready(priv))) {
+	if (unlikely(!iwl_is_ready(priv->shrd))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->shrd->mutex);
 		return;

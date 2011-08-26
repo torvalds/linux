@@ -715,7 +715,7 @@ static int iwl_trans_pcie_start_device(struct iwl_priv *priv)
 	else
 		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 
-	if (iwl_is_rfkill(priv)) {
+	if (iwl_is_rfkill(priv->shrd)) {
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
 		iwl_enable_interrupts(trans(priv));
 		return -ERFKILL;

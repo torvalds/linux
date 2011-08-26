@@ -1051,7 +1051,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return -EIO;
 
 	/* scan complete and commit_rxon use tx_power_next value,
@@ -1131,7 +1131,7 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (!iwl_is_ready_rf(priv)) {
+	if (!iwl_is_ready_rf(priv->shrd)) {
 		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
 		return -EIO;
 	}
@@ -1237,7 +1237,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	iwlagn_disable_roc(priv);
 
-	if (!iwl_is_ready_rf(priv)) {
+	if (!iwl_is_ready_rf(priv->shrd)) {
 		IWL_WARN(priv, "Try to add interface when device not ready\n");
 		err = -EINVAL;
 		goto out;
@@ -1657,7 +1657,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&priv->shrd->mutex);
 
-	if (!ctx->vif || !iwl_is_ready_rf(priv)) {
+	if (!ctx->vif || !iwl_is_ready_rf(priv->shrd)) {
 		/*
 		 * Huh? But wait ... this can maybe happen when
 		 * we're in the middle of a firmware restart!

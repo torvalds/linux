@@ -740,7 +740,7 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 	if (value != -1 && (value < 0 || value >= IWL_POWER_NUM))
 		return -EINVAL;
 
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		return -EAGAIN;
 
 	priv->power_data.debug_sleep_level_override = value;
@@ -851,7 +851,7 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 	struct statistics_rx_non_phy *delta_general, *max_general;
 	struct statistics_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1277,7 +1277,7 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	ssize_t ret;
 	struct statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1471,7 +1471,7 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct statistics_div *div, *accum_div, *delta_div, *max_div;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1584,7 +1584,7 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 	ssize_t ret;
 	struct statistics_bt_activity *bt, *accum_bt;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EAGAIN;
 
 	if (!priv->bt_enable_flag)
@@ -1672,7 +1672,7 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 		(sizeof(struct reply_agg_tx_error_statistics) * 24) + 200;
 	ssize_t ret;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -2259,7 +2259,7 @@ static ssize_t iwl_dbgfs_txfifo_flush_write(struct file *file,
 	if (sscanf(buf, "%d", &flush) != 1)
 		return -EINVAL;
 
-	if (iwl_is_rfkill(priv))
+	if (iwl_is_rfkill(priv->shrd))
 		return -EFAULT;
 
 	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);

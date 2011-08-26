@@ -599,9 +599,9 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (WARN_ON(copy_size > TFD_MAX_PAYLOAD_SIZE))
 		return -EINVAL;
 
-	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
+	if (iwl_is_rfkill(priv->shrd) || iwl_is_ctkill(priv->shrd)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
-			 iwl_is_rfkill(priv) ? "RF" : "CT");
+			 iwl_is_rfkill(priv->shrd) ? "RF" : "CT");
 		return -EIO;
 	}
 

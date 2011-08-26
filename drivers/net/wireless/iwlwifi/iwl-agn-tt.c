@@ -511,7 +511,7 @@ static void iwl_bg_ct_enter(struct work_struct *work)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	if (!iwl_is_ready(priv))
+	if (!iwl_is_ready(priv->shrd))
 		return;
 
 	if (tt->state != IWL_TI_CT_KILL) {
@@ -540,7 +540,7 @@ static void iwl_bg_ct_exit(struct work_struct *work)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	if (!iwl_is_ready(priv))
+	if (!iwl_is_ready(priv->shrd))
 		return;
 
 	/* stop ct_kill_exit_tm timer */

@@ -362,7 +362,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	cancel_delayed_work(&priv->scan_check);
 
-	if (!iwl_is_ready_rf(priv)) {
+	if (!iwl_is_ready_rf(priv->shrd)) {
 		IWL_WARN(priv, "Request scan called when driver not ready.\n");
 		return -EIO;
 	}
@@ -606,7 +606,7 @@ out_complete:
 
 out_settings:
 	/* Can we still talk to firmware ? */
-	if (!iwl_is_ready_rf(priv))
+	if (!iwl_is_ready_rf(priv->shrd))
 		goto out;
 
 	iwlagn_post_scan(priv);

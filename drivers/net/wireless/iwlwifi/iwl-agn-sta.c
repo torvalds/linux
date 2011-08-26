@@ -214,7 +214,7 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 		      keyconf->keyidx);
 
 	memset(&ctx->wep_keys[keyconf->keyidx], 0, sizeof(ctx->wep_keys[0]));
-	if (iwl_is_rfkill(priv)) {
+	if (iwl_is_rfkill(priv->shrd)) {
 		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
 		/* but keys in device are clear anyway so return success */
 		return 0;
