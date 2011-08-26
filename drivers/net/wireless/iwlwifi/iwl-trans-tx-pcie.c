@@ -480,6 +480,9 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl_trans_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
+	priv->txq[txq_id].sta_id = sta_id;
+	priv->txq[txq_id].tid = tid;
+
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
@@ -1034,4 +1037,56 @@ int iwl_trans_pcie_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
 	};
 
 	return iwl_trans_pcie_send_cmd(priv, &cmd);
+}
+
+/* Frees buffers until index _not_ inclusive */
+void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
+			    struct sk_buff_head *skbs)
+
+{
+	struct iwl_tx_queue *txq = &priv(trans)->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+	struct iwl_tx_info *tx_info;
+	struct ieee80211_tx_info *info;
+	int last_to_free;
+
+	/*Since we free until index _not_ inclusive, the one before index is
+	 * the last we will free. This one must be used */
+	last_to_free = iwl_queue_dec_wrap(index, q->n_bd);
+
+	if ((index >= q->n_bd) ||
+	   (iwl_queue_used(q, last_to_free) == 0)) {
+		IWL_ERR(trans, "%s: Read index for DMA queue txq id (%d), "
+			  "last_to_free %d is out of range [0-%d] %d %d.\n",
+			  __func__, txq_id, last_to_free, q->n_bd,
+			  q->write_ptr, q->read_ptr);
+		return;
+	}
+
+	IWL_DEBUG_TX_REPLY(trans, "reclaim: [%d, %d, %d]\n", txq_id,
+			   q->read_ptr, index);
+
+	if (WARN_ON(!skb_queue_empty(skbs)))
+		return;
+
+	for (;
+	     q->read_ptr != index;
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+
+		tx_info = &txq->txb[txq->q.read_ptr];
+
+		if (WARN_ON_ONCE(tx_info->skb == NULL))
+			continue;
+
+		info = IEEE80211_SKB_CB(tx_info->skb);
+		info->driver_data[0] = tx_info->ctx;
+
+		__skb_queue_tail(skbs, tx_info->skb);
+
+		tx_info->skb = NULL;
+
+		iwlagn_txq_inval_byte_cnt_tbl(priv(trans), txq);
+
+		iwlagn_txq_free_tfd(priv(trans), txq, txq->q.read_ptr);
+	}
 }

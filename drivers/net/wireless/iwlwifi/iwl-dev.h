@@ -166,6 +166,8 @@ struct iwl_tx_info {
  * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write index
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
+ * @sta_id: valid if sched_retry is set
+ * @tid: valid if sched_retry is set
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -184,6 +186,9 @@ struct iwl_tx_queue {
 	u8 sched_retry;
 	u8 active;
 	u8 swq_id;
+
+	u16 sta_id;
+	u16 tid;
 };
 
 #define IWL_NUM_SCAN_RATES         (2)

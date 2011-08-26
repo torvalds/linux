@@ -90,6 +90,7 @@ struct iwl_shared;
  * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
  * @tx: send an skb
+ * @reclaim: free packet until ssn. Returns a list of freed packets.
  * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *                 ready and a successful ADDBA response has been received.
  * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
@@ -123,6 +124,8 @@ struct iwl_trans_ops {
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx);
+	void (*reclaim)(struct iwl_trans *trans, int txq_id, int ssn,
+			u32 status, struct sk_buff_head *skbs);
 
 	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id,
 				  u16 ssn_idx, u8 tx_fifo);
@@ -211,6 +214,13 @@ static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_rxon_context *ctx)
 {
 	return trans->ops->tx(priv(trans), skb, tx_cmd, txq_id, fc, ampdu, ctx);
+}
+
+static inline void iwl_trans_reclaim(struct iwl_trans *trans, int txq_id,
+				 int ssn, u32 status,
+				 struct sk_buff_head *skbs)
+{
+	trans->ops->reclaim(trans, txq_id, ssn, status, skbs);
 }
 
 static inline int iwl_trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id,

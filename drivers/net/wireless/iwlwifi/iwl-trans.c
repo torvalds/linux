@@ -1106,7 +1106,7 @@ static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	 * regardless of the value of ret. "ret" only indicates
 	 * whether or not we should update the write pointer.
 	 */
-	if ((iwl_queue_space(q) < q->high_mark) && priv->mac80211_registered) {
+	if (iwl_queue_space(q) < q->high_mark) {
 		if (wait_write_ptr) {
 			txq->need_update = 1;
 			iwl_txq_update_write_ptr(priv, txq);
@@ -1146,6 +1146,34 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 
 	INIT_WORK(&trans_pcie->rx_replenish, iwl_bg_rx_replenish);
 	return 0;
+}
+
+static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id,
+		      int ssn, u32 status, struct sk_buff_head *skbs)
+{
+	struct iwl_priv *priv = priv(trans);
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	/* n_bd is usually 256 => n_bd - 1 = 0xff */
+	int tfd_num = ssn & (txq->q.n_bd - 1);
+	u8 agg_state;
+	bool cond;
+
+	if (txq->sched_retry) {
+		agg_state =
+			priv->stations[txq->sta_id].tid[txq->tid].agg.state;
+		cond = (agg_state != IWL_EMPTYING_HW_QUEUE_DELBA);
+	} else {
+		cond = (status != TX_STATUS_FAIL_PASSIVE_NO_RX);
+	}
+
+	if (txq->q.read_ptr != tfd_num) {
+		IWL_DEBUG_TX_REPLY(trans, "Retry scheduler reclaim "
+				"scd_ssn=%d idx=%d txq=%d swq=%d\n",
+				ssn , tfd_num, txq_id, txq->swq_id);
+		iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
+			iwl_wake_queue(priv, txq);
+	}
 }
 
 static void iwl_trans_pcie_disable_sync_irq(struct iwl_trans *trans)
@@ -1626,6 +1654,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.get_tx_cmd = iwl_trans_pcie_get_tx_cmd,
 	.tx = iwl_trans_pcie_tx,
+	.reclaim = iwl_trans_pcie_reclaim,
 
 	.txq_agg_disable = iwl_trans_pcie_txq_agg_disable,
 	.txq_agg_setup = iwl_trans_pcie_txq_agg_setup,

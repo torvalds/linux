@@ -90,6 +90,9 @@ static inline void iwl_wake_queue(struct iwl_priv *priv,
 	u8 ac = queue & 3;
 	u8 hwq = (queue >> 2) & 0x1f;
 
+	if (unlikely(!priv->mac80211_registered))
+		return;
+
 	if (test_and_clear_bit(hwq, priv->queue_stopped))
 		if (atomic_dec_return(&priv->queue_stop_count[ac]) <= 0)
 			ieee80211_wake_queue(priv->hw, ac);
@@ -101,6 +104,9 @@ static inline void iwl_stop_queue(struct iwl_priv *priv,
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
 	u8 hwq = (queue >> 2) & 0x1f;
+
+	if (unlikely(!priv->mac80211_registered))
+		return;
 
 	if (!test_and_set_bit(hwq, priv->queue_stopped))
 		if (atomic_inc_return(&priv->queue_stop_count[ac]) > 0)
