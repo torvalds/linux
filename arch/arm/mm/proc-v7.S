@@ -255,6 +255,7 @@ ENTRY(cpu_v7_do_resume)
 	mcr	p15, 0, r4, c10, c2, 0	@ write PRRR
 	mcr	p15, 0, r5, c10, c2, 1	@ write NMRR
 	isb
+	dsb
 	mov	r0, r9			@ control register
 	mov	r2, r7, lsr #14		@ get TTB0 base
 	mov	r2, r2, lsl #14
