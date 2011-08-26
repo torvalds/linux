@@ -245,7 +245,6 @@ struct igb_ring {
 };
 
 enum e1000_ring_flags_t {
-	IGB_RING_FLAG_RX_CSUM,
 	IGB_RING_FLAG_RX_SCTP_CSUM,
 	IGB_RING_FLAG_TX_CTX_IDX,
 	IGB_RING_FLAG_TX_DETECT_HANG

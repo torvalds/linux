@@ -732,8 +732,6 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
 		ring->numa_node = adapter->node;
-		/* enable rx checksum */
-		set_bit(IGB_RING_FLAG_RX_CSUM, &ring->flags);
 		/* set flag indicating ring supports SCTP checksum offload */
 		if (adapter->hw.mac.type >= e1000_82576)
 			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
@@ -1811,18 +1809,7 @@ static u32 igb_fix_features(struct net_device *netdev, u32 features)
 
 static int igb_set_features(struct net_device *netdev, u32 features)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	int i;
 	u32 changed = netdev->features ^ features;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		if (features & NETIF_F_RXCSUM)
-			set_bit(IGB_RING_FLAG_RX_CSUM,
-				&adapter->rx_ring[i]->flags);
-		else
-			clear_bit(IGB_RING_FLAG_RX_CSUM,
-				  &adapter->rx_ring[i]->flags);
-	}
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		igb_vlan_mode(netdev, features);
@@ -5807,9 +5794,12 @@ static inline void igb_rx_checksum(struct igb_ring *ring,
 {
 	skb_checksum_none_assert(skb);
 
-	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
-	if (!test_bit(IGB_RING_FLAG_RX_CSUM, &ring->flags) ||
-	     (status_err & E1000_RXD_STAT_IXSM))
+	/* Ignore Checksum bit is set */
+	if (status_err & E1000_RXD_STAT_IXSM)
+		return;
+
+	/* Rx checksum disabled via ethtool */
+	if (!(ring->netdev->features & NETIF_F_RXCSUM))
 		return;
 
 	/* TCP/UDP checksum error bit is set */
