@@ -1888,7 +1888,7 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
 int drbd_worker(struct drbd_thread *thi)
 {
 	struct drbd_connection *connection = thi->connection;
-	struct drbd_device_work *dw = NULL;
+	struct drbd_work *w = NULL;
 	struct drbd_peer_device *peer_device;
 	LIST_HEAD(work_list);
 	int vnr;
@@ -1914,9 +1914,9 @@ int drbd_worker(struct drbd_thread *thi)
 			break;
 
 		while (!list_empty(&work_list)) {
-			dw = list_first_entry(&work_list, struct drbd_device_work, w.list);
-			list_del_init(&dw->w.list);
-			if (dw->w.cb(&dw->w, connection->cstate < C_WF_REPORT_PARAMS) == 0)
+			w = list_first_entry(&work_list, struct drbd_work, list);
+			list_del_init(&w->list);
+			if (w->cb(w, connection->cstate < C_WF_REPORT_PARAMS) == 0)
 				continue;
 			if (connection->cstate >= C_WF_REPORT_PARAMS)
 				conn_request_state(connection, NS(conn, C_NETWORK_FAILURE), CS_HARD);
@@ -1925,9 +1925,9 @@ int drbd_worker(struct drbd_thread *thi)
 
 	do {
 		while (!list_empty(&work_list)) {
-			dw = list_first_entry(&work_list, struct drbd_device_work, w.list);
-			list_del_init(&dw->w.list);
-			dw->w.cb(&dw->w, 1);
+			w = list_first_entry(&work_list, struct drbd_work, list);
+			list_del_init(&w->list);
+			w->cb(w, 1);
 		}
 		dequeue_work_batch(&connection->sender_work, &work_list);
 	} while (!list_empty(&work_list));
