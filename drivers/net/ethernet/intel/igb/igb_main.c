@@ -138,7 +138,7 @@ static void igb_setup_dca(struct igb_adapter *);
 #endif /* CONFIG_IGB_DCA */
 static bool igb_clean_tx_irq(struct igb_q_vector *);
 static int igb_poll(struct napi_struct *, int);
-static bool igb_clean_rx_irq_adv(struct igb_q_vector *, int *, int);
+static bool igb_clean_rx_irq_adv(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
@@ -5481,28 +5481,27 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	struct igb_q_vector *q_vector = container_of(napi,
 	                                             struct igb_q_vector,
 	                                             napi);
-	int tx_clean_complete = 1, work_done = 0;
+	bool clean_complete = true;
 
 #ifdef CONFIG_IGB_DCA
 	if (q_vector->adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_dca(q_vector);
 #endif
 	if (q_vector->tx_ring)
-		tx_clean_complete = igb_clean_tx_irq(q_vector);
+		clean_complete = !!igb_clean_tx_irq(q_vector);
 
 	if (q_vector->rx_ring)
-		igb_clean_rx_irq_adv(q_vector, &work_done, budget);
+		clean_complete &= igb_clean_rx_irq_adv(q_vector, budget);
 
-	if (!tx_clean_complete)
-		work_done = budget;
+	/* If all work not completed, return budget and keep polling */
+	if (!clean_complete)
+		return budget;
 
 	/* If not enough Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		igb_ring_irq_enable(q_vector);
-	}
+	napi_complete(napi);
+	igb_ring_irq_enable(q_vector);
 
-	return work_done;
+	return 0;
 }
 
 /**
@@ -5751,37 +5750,26 @@ static inline u16 igb_get_hlen(union e1000_adv_rx_desc *rx_desc)
 	return hlen;
 }
 
-static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
-                                 int *work_done, int budget)
+static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector, int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx_ring;
-	struct net_device *netdev = rx_ring->netdev;
-	struct device *dev = rx_ring->dev;
-	union e1000_adv_rx_desc *rx_desc , *next_rxd;
-	struct igb_buffer *buffer_info , *next_buffer;
-	struct sk_buff *skb;
-	bool cleaned = false;
-	u16 cleaned_count = igb_desc_unused(rx_ring);
-	int current_node = numa_node_id();
+	union e1000_adv_rx_desc *rx_desc;
+	const int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
-	unsigned int i;
 	u32 staterr;
-	u16 length;
+	u16 cleaned_count = igb_desc_unused(rx_ring);
+	u16 i = rx_ring->next_to_clean;
 
-	i = rx_ring->next_to_clean;
-	buffer_info = &rx_ring->buffer_info[i];
 	rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
 	while (staterr & E1000_RXD_STAT_DD) {
-		if (*work_done >= budget)
-			break;
-		(*work_done)++;
-		rmb(); /* read descriptor and rx_buffer_info after status DD */
+		struct igb_buffer *buffer_info = &rx_ring->buffer_info[i];
+		struct sk_buff *skb = buffer_info->skb;
+		union e1000_adv_rx_desc *next_rxd;
 
-		skb = buffer_info->skb;
-		prefetch(skb->data - NET_IP_ALIGN);
 		buffer_info->skb = NULL;
+		prefetch(skb->data);
 
 		i++;
 		if (i == rx_ring->count)
@@ -5789,29 +5777,33 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 
 		next_rxd = E1000_RX_DESC_ADV(*rx_ring, i);
 		prefetch(next_rxd);
-		next_buffer = &rx_ring->buffer_info[i];
 
-		length = le16_to_cpu(rx_desc->wb.upper.length);
-		cleaned = true;
-		cleaned_count++;
+		/*
+		 * This memory barrier is needed to keep us from reading
+		 * any other fields out of the rx_desc until we know the
+		 * RXD_STAT_DD bit is set
+		 */
+		rmb();
 
-		if (buffer_info->dma) {
-			dma_unmap_single(dev, buffer_info->dma,
+		if (!skb_is_nonlinear(skb)) {
+			__skb_put(skb, igb_get_hlen(rx_desc));
+			dma_unmap_single(rx_ring->dev, buffer_info->dma,
 					 IGB_RX_HDR_LEN,
 					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
-			skb_put(skb, igb_get_hlen(rx_desc));
 		}
 
-		if (length) {
-			dma_unmap_page(dev, buffer_info->page_dma,
-				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
-			buffer_info->page_dma = 0;
+		if (rx_desc->wb.upper.length) {
+			u16 length = le16_to_cpu(rx_desc->wb.upper.length);
 
 			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 						buffer_info->page,
 						buffer_info->page_offset,
 						length);
+
+			skb->len += length;
+			skb->data_len += length;
+			skb->truesize += length;
 
 			if ((page_count(buffer_info->page) != 1) ||
 			    (page_to_nid(buffer_info->page) != current_node))
@@ -5819,12 +5811,14 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 			else
 				get_page(buffer_info->page);
 
-			skb->len += length;
-			skb->data_len += length;
-			skb->truesize += length;
+			dma_unmap_page(rx_ring->dev, buffer_info->page_dma,
+				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
+			buffer_info->page_dma = 0;
 		}
 
 		if (!(staterr & E1000_RXD_STAT_EOP)) {
+			struct igb_buffer *next_buffer;
+			next_buffer = &rx_ring->buffer_info[i];
 			buffer_info->skb = next_buffer->skb;
 			buffer_info->dma = next_buffer->dma;
 			next_buffer->skb = skb;
@@ -5833,7 +5827,7 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 		}
 
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
-			dev_kfree_skb_irq(skb);
+			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
 
@@ -5844,7 +5838,7 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 
 		igb_rx_checksum_adv(rx_ring, staterr, skb);
 
-		skb->protocol = eth_type_trans(skb, netdev);
+		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 		if (staterr & E1000_RXD_STAT_VP) {
 			u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
@@ -5853,7 +5847,12 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 		}
 		napi_gro_receive(&q_vector->napi, skb);
 
+		budget--;
 next_desc:
+		if (!budget)
+			break;
+
+		cleaned_count++;
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
 			igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
@@ -5862,7 +5861,6 @@ next_desc:
 
 		/* use prefetched values */
 		rx_desc = next_rxd;
-		buffer_info = next_buffer;
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
@@ -5877,7 +5875,7 @@ next_desc:
 	if (cleaned_count)
 		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
 
-	return cleaned;
+	return !!budget;
 }
 
 static bool igb_alloc_mapped_skb(struct igb_ring *rx_ring,
