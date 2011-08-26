@@ -503,13 +503,13 @@ static inline void dwc3_trb_to_nat(struct dwc3_trb_hw *hw, struct dwc3_trb *nat)
 
 /**
  * struct dwc3 - representation of our controller
- * ctrl_req: usb control request which is used for ep0
- * ep0_trb: trb which is used for the ctrl_req
- * setup_buf: used while precessing STD USB requests
- * ctrl_req_addr: dma address of ctrl_req
- * ep0_trb: dma address of ep0_trb
- * ep0_usb_req: dummy req used while handling STD USB requests
- * setup_buf_addr: dma address of setup_buf
+ * @ctrl_req: usb control request which is used for ep0
+ * @ep0_trb: trb which is used for the ctrl_req
+ * @setup_buf: used while precessing STD USB requests
+ * @ctrl_req_addr: dma address of ctrl_req
+ * @ep0_trb: dma address of ep0_trb
+ * @ep0_usb_req: dummy req used while handling STD USB requests
+ * @setup_buf_addr: dma address of setup_buf
  * @lock: for synchronizing
  * @dev: pointer to our struct device
  * @event_buffer_list: a list of event buffers
