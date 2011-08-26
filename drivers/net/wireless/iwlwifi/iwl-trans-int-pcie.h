@@ -130,7 +130,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 /*****************************************************
 * ICT
 ******************************************************/
-int iwl_reset_ict(struct iwl_priv *priv);
+int iwl_reset_ict(struct iwl_trans *trans);
 void iwl_disable_ict(struct iwl_trans *trans);
 int iwl_alloc_isr_ict(struct iwl_trans *trans);
 void iwl_free_isr_ict(struct iwl_trans *trans);
@@ -167,11 +167,10 @@ void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 /*****************************************************
 * Error handling
 ******************************************************/
-int iwl_dump_nic_event_log(struct iwl_priv *priv,
-			   bool full_log, char **buf, bool display);
+int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
+			    char **buf, bool display);
 int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display);
 void iwl_dump_csr(struct iwl_trans *trans);
-
 
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {

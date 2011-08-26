@@ -1528,7 +1528,7 @@ static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -ENOMEM;
 
-	ret = pos = iwl_dump_nic_event_log(priv(trans), true, &buf, true);
+	ret = pos = iwl_dump_nic_event_log(trans, true, &buf, true);
 	if (buf) {
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 		kfree(buf);
@@ -1552,7 +1552,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	if (sscanf(buf, "%d", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
-		iwl_dump_nic_event_log(priv(trans), true, NULL, false);
+		iwl_dump_nic_event_log(trans, true, NULL, false);
 
 	return count;
 }
