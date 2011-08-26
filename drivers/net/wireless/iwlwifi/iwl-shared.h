@@ -143,6 +143,7 @@ struct iwl_hw_params {
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
  *	iwlagn_mod_params.debug_level if set (!= 0)
+ * @cmd_queue: command queue number
  * @bus: pointer to the bus layer data
  * @priv: pointer to the upper layer data
  * @hw_params: see struct iwl_hw_params
@@ -151,6 +152,8 @@ struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 dbg_level_dev;
 #endif /* CONFIG_IWLWIFI_DEBUG */
+
+	u8 cmd_queue;
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;

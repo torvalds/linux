@@ -1103,7 +1103,7 @@ int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv)
 
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
-		if (cnt == priv->cmd_queue)
+		if (cnt == priv->shrd->cmd_queue)
 			continue;
 		txq = &priv->txq[cnt];
 		q = &txq->q;

@@ -1244,10 +1244,10 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
-		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+		priv->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	} else {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+		priv->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
 
 	/*

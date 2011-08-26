@@ -311,7 +311,7 @@ static int iwl_trans_txq_alloc(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	/* Alloc driver data array and TFD circular buffer */
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
-	if (txq_id != priv->cmd_queue) {
+	if (txq_id != priv->shrd->cmd_queue) {
 		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
@@ -515,7 +515,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++) {
-		slots_num = (txq_id == priv->cmd_queue) ?
+		slots_num = (txq_id == priv->shrd->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_trans_txq_alloc(priv, &priv->txq[txq_id], slots_num,
 				       txq_id);
@@ -558,7 +558,7 @@ static int iwl_tx_init(struct iwl_priv *priv)
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++) {
-		slots_num = (txq_id == priv->cmd_queue) ?
+		slots_num = (txq_id == priv->shrd->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_trans_txq_init(priv, &priv->txq[txq_id], slots_num,
 				       txq_id);
@@ -841,7 +841,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 	else
 		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
 
-	iwl_trans_set_wr_ptrs(priv, priv->cmd_queue, 0);
+	iwl_trans_set_wr_ptrs(priv, priv->shrd->cmd_queue, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));

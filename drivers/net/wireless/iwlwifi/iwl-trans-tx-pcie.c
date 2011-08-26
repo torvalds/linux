@@ -349,7 +349,7 @@ void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	if (txq_id != priv->cmd_queue)
+	if (txq_id != priv->shrd->cmd_queue)
 		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
@@ -526,7 +526,7 @@ int iwl_trans_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
  */
 static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct iwl_tx_queue *txq = &priv->txq[priv->shrd->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
@@ -618,8 +618,9 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	out_cmd->hdr.cmd = cmd->id;
 	out_cmd->hdr.flags = 0;
-	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(priv->cmd_queue) |
-					    INDEX_TO_SEQ(q->write_ptr));
+	out_cmd->hdr.sequence =
+		cpu_to_le16(QUEUE_TO_SEQ(priv->shrd->cmd_queue) |
+					 INDEX_TO_SEQ(q->write_ptr));
 
 	/* and copy the data that needs to be copied */
 
@@ -638,7 +639,7 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			get_cmd_string(out_cmd->hdr.cmd),
 			out_cmd->hdr.cmd,
 			le16_to_cpu(out_cmd->hdr.sequence), cmd_size,
-			q->write_ptr, idx, priv->cmd_queue);
+			q->write_ptr, idx, priv->shrd->cmd_queue);
 
 	phys_addr = dma_map_single(priv->bus->dev, &out_cmd->hdr, copy_size,
 				DMA_BIDIRECTIONAL);
@@ -752,17 +753,17 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	int cmd_index;
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct iwl_tx_queue *txq = &priv->txq[priv->shrd->cmd_queue];
 	unsigned long flags;
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (WARN(txq_id != priv->cmd_queue,
+	if (WARN(txq_id != priv->shrd->cmd_queue,
 		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
-		  txq_id, priv->cmd_queue, sequence,
-		  priv->txq[priv->cmd_queue].q.read_ptr,
-		  priv->txq[priv->cmd_queue].q.write_ptr)) {
+		  txq_id, priv->shrd->cmd_queue, sequence,
+		  priv->txq[priv->shrd->cmd_queue].q.read_ptr,
+		  priv->txq[priv->shrd->cmd_queue].q.write_ptr)) {
 		iwl_print_hex_error(priv, pkt, 32);
 		return;
 	}
@@ -1002,7 +1003,7 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		priv->txq[priv->cmd_queue].meta[cmd_idx].flags &=
+		priv->txq[priv->shrd->cmd_queue].meta[cmd_idx].flags &=
 							~CMD_WANT_SKB;
 	}
 fail:

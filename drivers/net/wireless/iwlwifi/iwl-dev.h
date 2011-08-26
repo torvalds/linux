@@ -1237,9 +1237,6 @@ struct iwl_priv {
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;
 
-	/* command queue number */
-	u8 cmd_queue;
-
 	/* max number of station keys */
 	u8 sta_key_max_num;
 
