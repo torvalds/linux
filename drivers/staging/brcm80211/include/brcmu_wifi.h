@@ -96,18 +96,6 @@
 #define CHSPEC_CHANNEL(chspec)	((u8)((chspec) & WL_CHANSPEC_CHAN_MASK))
 #define CHSPEC_BAND(chspec)	((chspec) & WL_CHANSPEC_BAND_MASK)
 
-#ifdef WL11N_20MHZONLY
-
-#define CHSPEC_CTL_SB(chspec)	WL_CHANSPEC_CTL_SB_NONE
-#define CHSPEC_BW(chspec)	WL_CHANSPEC_BW_20
-#define CHSPEC_IS10(chspec)	0
-#define CHSPEC_IS20(chspec)	1
-#ifndef CHSPEC_IS40
-#define CHSPEC_IS40(chspec)	0
-#endif
-
-#else				/* !WL11N_20MHZONLY */
-
 #define CHSPEC_CTL_SB(chspec)	((chspec) & WL_CHANSPEC_CTL_SB_MASK)
 #define CHSPEC_BW(chspec)	((chspec) & WL_CHANSPEC_BW_MASK)
 
@@ -121,8 +109,6 @@
 #define CHSPEC_IS40(chspec) \
 	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_40)
 #endif
-
-#endif				/* !WL11N_20MHZONLY */
 
 #define CHSPEC_IS5G(chspec) \
 	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_5G)
