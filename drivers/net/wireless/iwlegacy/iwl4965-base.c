@@ -428,7 +428,7 @@ int il4965_hw_tx_queue_init(struct il_priv *il,
  *
  ******************************************************************************/
 static void il4965_rx_reply_alive(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_alive_resp *palive;
@@ -488,7 +488,7 @@ static void il4965_bg_statistics_periodic(unsigned long data)
 }
 
 static void il4965_rx_beacon_notif(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il4965_beacon_notif *beacon =
@@ -530,7 +530,7 @@ static void il4965_perform_ct_kill_task(struct il_priv *il)
 /* Handle notification from uCode that card's power state is changing
  * due to software, hardware, or critical temperature RFKILL */
 static void il4965_rx_card_state_notif(struct il_priv *il,
-				    struct il_rx_mem_buffer *rxb)
+				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
@@ -633,7 +633,7 @@ static void il4965_setup_rx_handlers(struct il_priv *il)
  */
 void il4965_rx_handle(struct il_priv *il)
 {
-	struct il_rx_mem_buffer *rxb;
+	struct il_rx_buf *rxb;
 	struct il_rx_pkt *pkt;
 	struct il_rx_queue *rxq = &il->rxq;
 	u32 r, i;

@@ -370,11 +370,11 @@ static inline void il_update_stats(struct il_priv *il, bool is_tx,
  * RX handlers.
  * **************************************************/
 void il_rx_pm_sleep_notif(struct il_priv *il,
-			   struct il_rx_mem_buffer *rxb);
+			   struct il_rx_buf *rxb);
 void il_rx_pm_debug_statistics_notif(struct il_priv *il,
-				      struct il_rx_mem_buffer *rxb);
+				      struct il_rx_buf *rxb);
 void il_rx_reply_error(struct il_priv *il,
-			struct il_rx_mem_buffer *rxb);
+			struct il_rx_buf *rxb);
 
 /*****************************************************
 * RX
@@ -386,14 +386,14 @@ void il_rx_queue_update_write_ptr(struct il_priv *il,
 				  struct il_rx_queue *q);
 int il_rx_queue_space(const struct il_rx_queue *q);
 void il_tx_cmd_complete(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb);
+				struct il_rx_buf *rxb);
 /* Handlers */
 void il_rx_spectrum_measure_notif(struct il_priv *il,
-					  struct il_rx_mem_buffer *rxb);
+					  struct il_rx_buf *rxb);
 void il_recover_from_statistics(struct il_priv *il,
 				struct il_rx_pkt *pkt);
 void il_chswitch_done(struct il_priv *il, bool is_success);
-void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb);
+void il_rx_csa(struct il_priv *il, struct il_rx_buf *rxb);
 
 /* TX helpers */
 

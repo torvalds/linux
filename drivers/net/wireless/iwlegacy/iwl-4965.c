@@ -1772,7 +1772,7 @@ static int il4965_get_ra_sta_id(struct il_priv *il, struct ieee80211_hdr *hdr)
  * il4965_rx_reply_tx - Handle standard (non-aggregation) Tx response
  */
 static void il4965_rx_reply_tx(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -1875,7 +1875,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 }
 
 static void il4965_rx_beacon_notif(struct il_priv *il,
-				    struct il_rx_mem_buffer *rxb)
+				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il4965_beacon_notif *beacon = (void *)pkt->u.raw;

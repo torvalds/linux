@@ -230,7 +230,7 @@ void il4965_rx_queue_restock(struct il_priv *il)
 {
 	struct il_rx_queue *rxq = &il->rxq;
 	struct list_head *element;
-	struct il_rx_mem_buffer *rxb;
+	struct il_rx_buf *rxb;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rxq->lock, flags);
@@ -241,7 +241,7 @@ void il4965_rx_queue_restock(struct il_priv *il)
 
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
-		rxb = list_entry(element, struct il_rx_mem_buffer, list);
+		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
@@ -280,7 +280,7 @@ static void il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 {
 	struct il_rx_queue *rxq = &il->rxq;
 	struct list_head *element;
-	struct il_rx_mem_buffer *rxb;
+	struct il_rx_buf *rxb;
 	struct page *page;
 	unsigned long flags;
 	gfp_t gfp_mask = priority;
@@ -329,7 +329,7 @@ static void il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 			return;
 		}
 		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct il_rx_mem_buffer, list);
+		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 
 		spin_unlock_irqrestore(&rxq->lock, flags);
@@ -529,7 +529,7 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 					struct ieee80211_hdr *hdr,
 					u16 len,
 					u32 ampdu_status,
-					struct il_rx_mem_buffer *rxb,
+					struct il_rx_buf *rxb,
 					struct ieee80211_rx_status *stats)
 {
 	struct sk_buff *skb;
@@ -566,7 +566,7 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 /* Called for REPLY_RX (legacy ABG frames), or
  * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
 void il4965_rx_reply_rx(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
@@ -686,7 +686,7 @@ void il4965_rx_reply_rx(struct il_priv *il,
 /* Cache phy data (Rx signal strength, etc) for HT frame (REPLY_RX_PHY_CMD).
  * This will be used later in il_rx_reply_rx() for REPLY_RX_MPDU_CMD. */
 void il4965_rx_reply_rx_phy(struct il_priv *il,
-			    struct il_rx_mem_buffer *rxb)
+			    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	il->_4965.last_phy_res_valid = true;

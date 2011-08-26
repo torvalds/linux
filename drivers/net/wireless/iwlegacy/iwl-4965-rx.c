@@ -42,7 +42,7 @@
 #include "iwl-4965.h"
 
 void il4965_rx_missed_beacon_notif(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -152,7 +152,7 @@ static void il4965_accumulative_statistics(struct il_priv *il,
 #define REG_RECALIB_PERIOD (60)
 
 void il4965_rx_statistics(struct il_priv *il,
-			      struct il_rx_mem_buffer *rxb)
+			      struct il_rx_buf *rxb)
 {
 	int change;
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -196,7 +196,7 @@ void il4965_rx_statistics(struct il_priv *il,
 }
 
 void il4965_reply_statistics(struct il_priv *il,
-			      struct il_rx_mem_buffer *rxb)
+			      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 

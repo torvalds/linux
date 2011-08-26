@@ -95,7 +95,7 @@
  *                            are available, schedules il_rx_replenish
  *
  * -- enable interrupts --
- * ISR - il_rx()         Detach il_rx_mem_buffers from pool up to the
+ * ISR - il_rx()         Detach il_rx_bufs from pool up to the
  *                            READ INDEX, detaching the SKB from the pool.
  *                            Moves the packet buffer from queue to rx_used.
  *                            Calls il_rx_queue_restock to refill any empty
@@ -211,7 +211,7 @@ EXPORT_SYMBOL(il_rx_queue_alloc);
 
 
 void il_rx_spectrum_measure_notif(struct il_priv *il,
-					  struct il_rx_mem_buffer *rxb)
+					  struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_spectrum_notification *report = &(pkt->u.spectrum_notif);

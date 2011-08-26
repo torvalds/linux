@@ -745,7 +745,7 @@ static int il3945_get_measurement(struct il_priv *il,
 }
 
 static void il3945_rx_reply_alive(struct il_priv *il,
-			       struct il_rx_mem_buffer *rxb)
+			       struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_alive_resp *palive;
@@ -781,7 +781,7 @@ static void il3945_rx_reply_alive(struct il_priv *il,
 }
 
 static void il3945_rx_reply_add_sta(struct il_priv *il,
-				 struct il_rx_mem_buffer *rxb)
+				 struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -791,7 +791,7 @@ static void il3945_rx_reply_add_sta(struct il_priv *il,
 }
 
 static void il3945_rx_beacon_notif(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il3945_beacon_notif *beacon = &(pkt->u.beacon_status);
@@ -814,7 +814,7 @@ static void il3945_rx_beacon_notif(struct il_priv *il,
 /* Handle notification from uCode that card's power state is changing
  * due to software, hardware, or critical temperature RFKILL */
 static void il3945_rx_card_state_notif(struct il_priv *il,
-				    struct il_rx_mem_buffer *rxb)
+				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
@@ -935,7 +935,7 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  *                            are available, schedules il3945_rx_replenish
  *
  * -- enable interrupts --
- * ISR - il3945_rx()         Detach il_rx_mem_buffers from pool up to the
+ * ISR - il3945_rx()         Detach il_rx_bufs from pool up to the
  *                            READ INDEX, detaching the SKB from the pool.
  *                            Moves the packet buffer from queue to rx_used.
  *                            Calls il3945_rx_queue_restock to refill any empty
@@ -968,7 +968,7 @@ static void il3945_rx_queue_restock(struct il_priv *il)
 {
 	struct il_rx_queue *rxq = &il->rxq;
 	struct list_head *element;
-	struct il_rx_mem_buffer *rxb;
+	struct il_rx_buf *rxb;
 	unsigned long flags;
 	int write;
 
@@ -977,7 +977,7 @@ static void il3945_rx_queue_restock(struct il_priv *il)
 	while (il_rx_queue_space(rxq) > 0 && rxq->free_count) {
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
-		rxb = list_entry(element, struct il_rx_mem_buffer, list);
+		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
@@ -1016,7 +1016,7 @@ static void il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 {
 	struct il_rx_queue *rxq = &il->rxq;
 	struct list_head *element;
-	struct il_rx_mem_buffer *rxb;
+	struct il_rx_buf *rxb;
 	struct page *page;
 	unsigned long flags;
 	gfp_t gfp_mask = priority;
@@ -1059,7 +1059,7 @@ static void il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 			return;
 		}
 		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct il_rx_mem_buffer, list);
+		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
@@ -1201,7 +1201,7 @@ int il3945_calc_db_from_ratio(int sig_ratio)
  */
 static void il3945_rx_handle(struct il_priv *il)
 {
-	struct il_rx_mem_buffer *rxb;
+	struct il_rx_buf *rxb;
 	struct il_rx_pkt *pkt;
 	struct il_rx_queue *rxq = &il->rxq;
 	u32 r, i;

@@ -85,7 +85,7 @@ struct il_tx_queue;
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-struct il_rx_mem_buffer {
+struct il_rx_buf {
 	dma_addr_t page_dma;
 	struct page *page;
 	struct list_head list;
@@ -346,13 +346,13 @@ struct il_host_cmd {
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
  *
- * NOTE:  rx_free and rx_used are used as a FIFO for il_rx_mem_buffers
+ * NOTE:  rx_free and rx_used are used as a FIFO for il_rx_bufs
  */
 struct il_rx_queue {
 	__le32 *bd;
 	dma_addr_t bd_dma;
-	struct il_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
-	struct il_rx_mem_buffer *queue[RX_QUEUE_SIZE];
+	struct il_rx_buf pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
+	struct il_rx_buf *queue[RX_QUEUE_SIZE];
 	u32 read;
 	u32 write;
 	u32 free_count;
@@ -968,7 +968,7 @@ struct il_priv {
 	int alloc_rxb_page;
 
 	void (*rx_handlers[REPLY_MAX])(struct il_priv *il,
-				       struct il_rx_mem_buffer *rxb);
+				       struct il_rx_buf *rxb);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 

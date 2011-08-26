@@ -863,7 +863,7 @@ void il_chswitch_done(struct il_priv *il, bool is_success)
 }
 EXPORT_SYMBOL(il_chswitch_done);
 
-void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb)
+void il_rx_csa(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_csa_notification *csa = &(pkt->u.csa_notif);
@@ -1206,7 +1206,7 @@ int il_send_statistics_request(struct il_priv *il, u8 flags, bool clear)
 EXPORT_SYMBOL(il_send_statistics_request);
 
 void il_rx_pm_sleep_notif(struct il_priv *il,
-			   struct il_rx_mem_buffer *rxb)
+			   struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1218,7 +1218,7 @@ void il_rx_pm_sleep_notif(struct il_priv *il,
 EXPORT_SYMBOL(il_rx_pm_sleep_notif);
 
 void il_rx_pm_debug_statistics_notif(struct il_priv *il,
-				      struct il_rx_mem_buffer *rxb)
+				      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
@@ -1230,7 +1230,7 @@ void il_rx_pm_debug_statistics_notif(struct il_priv *il,
 EXPORT_SYMBOL(il_rx_pm_debug_statistics_notif);
 
 void il_rx_reply_error(struct il_priv *il,
-			struct il_rx_mem_buffer *rxb)
+			struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 

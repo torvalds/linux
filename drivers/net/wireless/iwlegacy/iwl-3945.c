@@ -302,7 +302,7 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
  * il3945_rx_reply_tx - Handle Tx response
  */
 static void il3945_rx_reply_tx(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -396,7 +396,7 @@ static void il3945_accumulative_statistics(struct il_priv *il,
 #endif
 
 void il3945_hw_rx_statistics(struct il_priv *il,
-		struct il_rx_mem_buffer *rxb)
+		struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
@@ -411,7 +411,7 @@ void il3945_hw_rx_statistics(struct il_priv *il,
 }
 
 void il3945_reply_statistics(struct il_priv *il,
-			      struct il_rx_mem_buffer *rxb)
+			      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	__le32 *flag = (__le32 *)&pkt->u.raw;
@@ -456,7 +456,7 @@ static int il3945_is_network_packet(struct il_priv *il,
 }
 
 static void il3945_pass_packet_to_mac80211(struct il_priv *il,
-				   struct il_rx_mem_buffer *rxb,
+				   struct il_rx_buf *rxb,
 				   struct ieee80211_rx_status *stats)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -506,7 +506,7 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 #define IL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 
 static void il3945_rx_reply_rx(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb)
+				struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;

@@ -1246,7 +1246,7 @@ void il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
  * of frames sent via aggregation.
  */
 void il4965_rx_reply_compressed_ba(struct il_priv *il,
-					   struct il_rx_mem_buffer *rxb)
+					   struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;

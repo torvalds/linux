@@ -183,7 +183,7 @@ EXPORT_SYMBOL(il_scan_cancel_timeout);
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
 static void il_rx_reply_scan(struct il_priv *il,
-			      struct il_rx_mem_buffer *rxb)
+			      struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -196,7 +196,7 @@ static void il_rx_reply_scan(struct il_priv *il,
 
 /* Service SCAN_START_NOTIFICATION (0x82) */
 static void il_rx_scan_start_notif(struct il_priv *il,
-				    struct il_rx_mem_buffer *rxb)
+				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scanstart_notification *notif =
@@ -214,7 +214,7 @@ static void il_rx_scan_start_notif(struct il_priv *il,
 
 /* Service SCAN_RESULTS_NOTIFICATION (0x83) */
 static void il_rx_scan_results_notif(struct il_priv *il,
-				      struct il_rx_mem_buffer *rxb)
+				      struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -236,7 +236,7 @@ static void il_rx_scan_results_notif(struct il_priv *il,
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
 static void il_rx_scan_complete_notif(struct il_priv *il,
-				       struct il_rx_mem_buffer *rxb)
+				       struct il_rx_buf *rxb)
 {
 
 #ifdef CONFIG_IWLEGACY_DEBUG

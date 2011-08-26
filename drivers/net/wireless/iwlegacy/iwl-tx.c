@@ -593,7 +593,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
  * if the callback returns 1
  */
 void
-il_tx_cmd_complete(struct il_priv *il, struct il_rx_mem_buffer *rxb)
+il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);

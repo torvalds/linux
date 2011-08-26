@@ -100,9 +100,9 @@ void il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_rxq_stop(struct il_priv *il);
 int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void il4965_rx_reply_rx(struct il_priv *il,
-		     struct il_rx_mem_buffer *rxb);
+		     struct il_rx_buf *rxb);
 void il4965_rx_reply_rx_phy(struct il_priv *il,
-			 struct il_rx_mem_buffer *rxb);
+			 struct il_rx_buf *rxb);
 void il4965_rx_handle(struct il_priv *il);
 
 /* tx */
@@ -122,7 +122,7 @@ int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 int il4965_txq_check_empty(struct il_priv *il,
 			   int sta_id, u8 tid, int txq_id);
 void il4965_rx_reply_compressed_ba(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb);
+				struct il_rx_buf *rxb);
 int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index);
 void il4965_hw_txq_ctx_free(struct il_priv *il);
 int il4965_txq_ctx_alloc(struct il_priv *il);
@@ -171,13 +171,13 @@ u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant_idx, u8 valid);
 
 /* rx */
 void il4965_rx_missed_beacon_notif(struct il_priv *il,
-				struct il_rx_mem_buffer *rxb);
+				struct il_rx_buf *rxb);
 bool il4965_good_plcp_health(struct il_priv *il,
 			  struct il_rx_pkt *pkt);
 void il4965_rx_statistics(struct il_priv *il,
-		       struct il_rx_mem_buffer *rxb);
+		       struct il_rx_buf *rxb);
 void il4965_reply_statistics(struct il_priv *il,
-			  struct il_rx_mem_buffer *rxb);
+			  struct il_rx_buf *rxb);
 
 /* scan */
 int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif);
