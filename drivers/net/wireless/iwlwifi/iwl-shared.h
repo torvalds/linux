@@ -229,6 +229,11 @@ static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
 }
 #endif
 
+static inline void iwl_free_pages(struct iwl_shared *shrd, unsigned long page)
+{
+	free_pages(page, shrd->hw_params.rx_page_order);
+}
+
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
 	struct page *page;

@@ -1023,7 +1023,7 @@ cancel:
 	}
 fail:
 	if (cmd->reply_page) {
-		iwl_free_pages(priv, cmd->reply_page);
+		iwl_free_pages(priv->shrd, cmd->reply_page);
 		cmd->reply_page = 0;
 	}
 

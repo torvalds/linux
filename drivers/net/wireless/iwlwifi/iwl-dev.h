@@ -1505,13 +1505,4 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
 
-static inline void __iwl_free_pages(struct iwl_priv *priv, struct page *page)
-{
-	__free_pages(page, hw_params(priv).rx_page_order);
-}
-
-static inline void iwl_free_pages(struct iwl_priv *priv, unsigned long page)
-{
-	free_pages(page, hw_params(priv).rx_page_order);
-}
 #endif				/* __iwl_dev_h__ */

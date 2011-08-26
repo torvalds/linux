@@ -91,7 +91,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 		ret = -EIO;
 	}
 
-	iwl_free_pages(priv, cmd.reply_page);
+	iwl_free_pages(priv->shrd, cmd.reply_page);
 	return ret;
 }
 

@@ -129,7 +129,8 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 			dma_unmap_page(bus(trans)->dev, rxq->pool[i].page_dma,
 				PAGE_SIZE << hw_params(trans).rx_page_order,
 				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv(trans), rxq->pool[i].page);
+			__free_pages(rxq->pool[i].page,
+				     hw_params(trans).rx_page_order);
 			rxq->pool[i].page = NULL;
 		}
 		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);

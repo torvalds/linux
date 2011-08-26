@@ -177,7 +177,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		pkt = (struct iwl_rx_packet *)cmd.reply_page;
 		ret = iwl_process_add_sta_resp(priv, sta, pkt, true);
 	}
-	iwl_free_pages(priv, cmd.reply_page);
+	iwl_free_pages(priv->shrd, cmd.reply_page);
 
 	return ret;
 }
@@ -455,7 +455,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 			break;
 		}
 	}
-	iwl_free_pages(priv, cmd.reply_page);
+	iwl_free_pages(priv->shrd, cmd.reply_page);
 
 	return ret;
 }
