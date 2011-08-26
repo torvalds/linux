@@ -754,15 +754,40 @@ err:
 	return -ENOMEM;
 }
 
+/**
+ *  igb_write_ivar - configure ivar for given MSI-X vector
+ *  @hw: pointer to the HW structure
+ *  @msix_vector: vector number we are allocating to a given ring
+ *  @index: row index of IVAR register to write within IVAR table
+ *  @offset: column offset of in IVAR, should be multiple of 8
+ *
+ *  This function is intended to handle the writing of the IVAR register
+ *  for adapters 82576 and newer.  The IVAR table consists of 2 columns,
+ *  each containing an cause allocation for an Rx and Tx ring, and a
+ *  variable number of rows depending on the number of queues supported.
+ **/
+static void igb_write_ivar(struct e1000_hw *hw, int msix_vector,
+			   int index, int offset)
+{
+	u32 ivar = array_rd32(E1000_IVAR0, index);
+
+	/* clear any bits that are currently set */
+	ivar &= ~((u32)0xFF << offset);
+
+	/* write vector and valid bit */
+	ivar |= (msix_vector | E1000_IVAR_VALID) << offset;
+
+	array_wr32(E1000_IVAR0, index, ivar);
+}
+
 #define IGB_N0_QUEUE -1
 static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 {
-	u32 msixbm = 0;
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ivar, index;
 	int rx_queue = IGB_N0_QUEUE;
 	int tx_queue = IGB_N0_QUEUE;
+	u32 msixbm = 0;
 
 	if (q_vector->rx.ring)
 		rx_queue = q_vector->rx.ring->reg_idx;
@@ -785,72 +810,39 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 		q_vector->eims_value = msixbm;
 		break;
 	case e1000_82576:
-		/* 82576 uses a table-based method for assigning vectors.
-		   Each queue has a single entry in the table to which we write
-		   a vector number along with a "valid" bit.  Sadly, the layout
-		   of the table is somewhat counterintuitive. */
-		if (rx_queue > IGB_N0_QUEUE) {
-			index = (rx_queue & 0x7);
-			ivar = array_rd32(E1000_IVAR0, index);
-			if (rx_queue < 8) {
-				/* vector goes into low byte of register */
-				ivar = ivar & 0xFFFFFF00;
-				ivar |= msix_vector | E1000_IVAR_VALID;
-			} else {
-				/* vector goes into third byte of register */
-				ivar = ivar & 0xFF00FFFF;
-				ivar |= (msix_vector | E1000_IVAR_VALID) << 16;
-			}
-			array_wr32(E1000_IVAR0, index, ivar);
-		}
-		if (tx_queue > IGB_N0_QUEUE) {
-			index = (tx_queue & 0x7);
-			ivar = array_rd32(E1000_IVAR0, index);
-			if (tx_queue < 8) {
-				/* vector goes into second byte of register */
-				ivar = ivar & 0xFFFF00FF;
-				ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
-			} else {
-				/* vector goes into high byte of register */
-				ivar = ivar & 0x00FFFFFF;
-				ivar |= (msix_vector | E1000_IVAR_VALID) << 24;
-			}
-			array_wr32(E1000_IVAR0, index, ivar);
-		}
+		/*
+		 * 82576 uses a table that essentially consists of 2 columns
+		 * with 8 rows.  The ordering is column-major so we use the
+		 * lower 3 bits as the row index, and the 4th bit as the
+		 * column offset.
+		 */
+		if (rx_queue > IGB_N0_QUEUE)
+			igb_write_ivar(hw, msix_vector,
+				       rx_queue & 0x7,
+				       (rx_queue & 0x8) << 1);
+		if (tx_queue > IGB_N0_QUEUE)
+			igb_write_ivar(hw, msix_vector,
+				       tx_queue & 0x7,
+				       ((tx_queue & 0x8) << 1) + 8);
 		q_vector->eims_value = 1 << msix_vector;
 		break;
 	case e1000_82580:
 	case e1000_i350:
-		/* 82580 uses the same table-based approach as 82576 but has fewer
-		   entries as a result we carry over for queues greater than 4. */
-		if (rx_queue > IGB_N0_QUEUE) {
-			index = (rx_queue >> 1);
-			ivar = array_rd32(E1000_IVAR0, index);
-			if (rx_queue & 0x1) {
-				/* vector goes into third byte of register */
-				ivar = ivar & 0xFF00FFFF;
-				ivar |= (msix_vector | E1000_IVAR_VALID) << 16;
-			} else {
-				/* vector goes into low byte of register */
-				ivar = ivar & 0xFFFFFF00;
-				ivar |= msix_vector | E1000_IVAR_VALID;
-			}
-			array_wr32(E1000_IVAR0, index, ivar);
-		}
-		if (tx_queue > IGB_N0_QUEUE) {
-			index = (tx_queue >> 1);
-			ivar = array_rd32(E1000_IVAR0, index);
-			if (tx_queue & 0x1) {
-				/* vector goes into high byte of register */
-				ivar = ivar & 0x00FFFFFF;
-				ivar |= (msix_vector | E1000_IVAR_VALID) << 24;
-			} else {
-				/* vector goes into second byte of register */
-				ivar = ivar & 0xFFFF00FF;
-				ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
-			}
-			array_wr32(E1000_IVAR0, index, ivar);
-		}
+		/*
+		 * On 82580 and newer adapters the scheme is similar to 82576
+		 * however instead of ordering column-major we have things
+		 * ordered row-major.  So we traverse the table by using
+		 * bit 0 as the column offset, and the remaining bits as the
+		 * row index.
+		 */
+		if (rx_queue > IGB_N0_QUEUE)
+			igb_write_ivar(hw, msix_vector,
+				       rx_queue >> 1,
+				       (rx_queue & 0x1) << 4);
+		if (tx_queue > IGB_N0_QUEUE)
+			igb_write_ivar(hw, msix_vector,
+				       tx_queue >> 1,
+				       ((tx_queue & 0x1) << 4) + 8);
 		q_vector->eims_value = 1 << msix_vector;
 		break;
 	default:
