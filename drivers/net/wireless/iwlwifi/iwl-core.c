@@ -894,7 +894,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 		if (iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 				  "Restarting adapter due to uCode error.\n");
-			queue_work(priv->workqueue, &priv->restart);
+			queue_work(priv->shrd->workqueue, &priv->restart);
 		} else
 			IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 				  "Detected FW error, but not restarting\n");

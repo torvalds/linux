@@ -2286,7 +2286,7 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	iwl_down(priv);
 
-	flush_workqueue(priv->workqueue);
+	flush_workqueue(priv->shrd->workqueue);
 
 	/* User space software may expect getting rfkill changes
 	 * even if interface is down */
@@ -3340,7 +3340,7 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 
 static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
-	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
+	priv->shrd->workqueue = create_singlethread_workqueue(DRV_NAME);
 
 	init_waitqueue_head(&priv->wait_command_queue);
 
@@ -3746,8 +3746,8 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	return 0;
 
 out_destroy_workqueue:
-	destroy_workqueue(priv->workqueue);
-	priv->workqueue = NULL;
+	destroy_workqueue(priv->shrd->workqueue);
+	priv->shrd->workqueue = NULL;
 	iwl_uninit_drv(priv);
 out_free_eeprom:
 	iwl_eeprom_free(priv);
@@ -3808,13 +3808,13 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_eeprom_free(priv);
 
 	/*netif_stop_queue(dev); */
-	flush_workqueue(priv->workqueue);
+	flush_workqueue(priv->shrd->workqueue);
 
 	/* ieee80211_unregister_hw calls iwl_mac_stop, which flushes
-	 * priv->workqueue... so we can't take down the workqueue
+	 * priv->shrd->workqueue... so we can't take down the workqueue
 	 * until now... */
-	destroy_workqueue(priv->workqueue);
-	priv->workqueue = NULL;
+	destroy_workqueue(priv->shrd->workqueue);
+	priv->shrd->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
 
 	trans_free(&priv->trans);

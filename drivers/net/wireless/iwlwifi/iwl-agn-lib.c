@@ -388,7 +388,7 @@ void iwl_check_abort_status(struct iwl_priv *priv,
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
 		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
-			queue_work(priv->workqueue, &priv->tx_flush);
+			queue_work(priv->shrd->workqueue, &priv->tx_flush);
 	}
 }
 
@@ -1620,7 +1620,7 @@ static void iwlagn_set_kill_msk(struct iwl_priv *priv,
 		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
 
 		/* schedule to send runtime bt_config */
-		queue_work(priv->workqueue, &priv->bt_runtime_config);
+		queue_work(priv->shrd->workqueue, &priv->bt_runtime_config);
 	}
 }
 
@@ -1664,7 +1664,7 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 			}
 			priv->bt_status = coex->bt_status;
-			queue_work(priv->workqueue,
+			queue_work(priv->shrd->workqueue,
 				   &priv->bt_traffic_change_work);
 		}
 	}

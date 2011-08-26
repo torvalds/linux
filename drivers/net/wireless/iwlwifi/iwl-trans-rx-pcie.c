@@ -224,7 +224,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 	/* If the pre-allocated buffer pool is dropping low, schedule to
 	 * refill it */
 	if (rxq->free_count <= RX_LOW_WATERMARK)
-		queue_work(priv->workqueue, &priv->rx_replenish);
+		queue_work(priv->shrd->workqueue, &priv->rx_replenish);
 
 
 	/* If we've added more space for the firmware to place data, tell it.

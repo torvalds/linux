@@ -1431,8 +1431,6 @@ struct iwl_priv {
 
 	u32 inta_mask;
 
-	struct workqueue_struct *workqueue;
-
 	struct work_struct restart;
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;

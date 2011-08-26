@@ -150,7 +150,7 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
-		queue_work(priv->workqueue, &priv->beacon_update);
+		queue_work(priv->shrd->workqueue, &priv->beacon_update);
 }
 
 /* the threshold ratio of actual_ack_cnt to expected_ack_cnt in percent */
@@ -487,7 +487,7 @@ static void iwl_rx_statistics(struct iwl_priv *priv,
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		iwl_rx_calc_noise(priv);
-		queue_work(priv->workqueue, &priv->run_time_calib_work);
+		queue_work(priv->shrd->workqueue, &priv->run_time_calib_work);
 	}
 	if (priv->cfg->lib->temperature && change)
 		priv->cfg->lib->temperature(priv);
