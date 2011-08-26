@@ -857,6 +857,7 @@ static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(&i2c->dev, &sta32x_codec, &sta32x_dai, 1);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register codec (%d)\n", ret);
+		kfree(sta32x);
 		return ret;
 	}
 
