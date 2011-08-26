@@ -743,10 +743,8 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
-static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
-				 const efx_qword_t *event,
-				 bool *rx_ev_pkt_ok,
-				 bool *discard)
+static u16 efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
+				const efx_qword_t *event)
 {
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	struct efx_nic *efx = rx_queue->efx;
@@ -791,10 +789,6 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			++channel->n_rx_tcp_udp_chksum_err;
 	}
 
-	/* The frame must be discarded if any of these are true. */
-	*discard = (rx_ev_eth_crc_err | rx_ev_frm_trunc | rx_ev_drib_nib |
-		    rx_ev_tobe_disc | rx_ev_pause_frm);
-
 	/* TOBE_DISC is expected on unicast mismatches; don't print out an
 	 * error message.  FRM_TRUNC indicates RXDP dropped the packet due
 	 * to a FIFO overflow.
@@ -817,6 +811,11 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			  rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
+
+	/* The frame must be discarded if any of these are true. */
+	return (rx_ev_eth_crc_err | rx_ev_frm_trunc | rx_ev_drib_nib |
+		rx_ev_tobe_disc | rx_ev_pause_frm) ?
+		EFX_RX_PKT_DISCARD : 0;
 }
 
 /* Handle receive events that are not in-order. */
@@ -849,7 +848,8 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	unsigned int rx_ev_desc_ptr, rx_ev_byte_cnt;
 	unsigned int rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned expected_ptr;
-	bool rx_ev_pkt_ok, discard = false, checksummed;
+	bool rx_ev_pkt_ok;
+	u16 flags;
 	struct efx_rx_queue *rx_queue;
 
 	/* Basic packet information */
@@ -872,12 +872,11 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 		/* If packet is marked as OK and packet type is TCP/IP or
 		 * UDP/IP, then we can rely on the hardware checksum.
 		 */
-		checksummed =
-			rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
-			rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP;
+		flags = (rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
+			 rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP) ?
+			EFX_RX_PKT_CSUMMED : 0;
 	} else {
-		efx_handle_rx_not_ok(rx_queue, event, &rx_ev_pkt_ok, &discard);
-		checksummed = false;
+		flags = efx_handle_rx_not_ok(rx_queue, event);
 	}
 
 	/* Detect multicast packets that didn't match the filter */
@@ -888,15 +887,14 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 
 		if (unlikely(!rx_ev_mcast_hash_match)) {
 			++channel->n_rx_mcast_mismatch;
-			discard = true;
+			flags |= EFX_RX_PKT_DISCARD;
 		}
 	}
 
 	channel->irq_mod_score += 2;
 
 	/* Handle received packet */
-	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt,
-		      checksummed, discard);
+	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt, flags);
 }
 
 static void

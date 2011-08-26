@@ -205,12 +205,12 @@ struct efx_tx_queue {
 /**
  * struct efx_rx_buffer - An Efx RX data buffer
  * @dma_addr: DMA base address of the buffer
- * @skb: The associated socket buffer, if any.
- *	If both this and page are %NULL, the buffer slot is currently free.
- * @page: The associated page buffer, if any.
- *	If both this and skb are %NULL, the buffer slot is currently free.
+ * @skb: The associated socket buffer. Valid iff !(@flags & %EFX_RX_BUF_PAGE).
+ *	Will be %NULL if the buffer slot is currently free.
+ * @page: The associated page buffer. Valif iff @flags & %EFX_RX_BUF_PAGE.
+ *	Will be %NULL if the buffer slot is currently free.
  * @len: Buffer length, in bytes.
- * @is_page: Indicates if @page is valid. If false, @skb is valid.
+ * @flags: Flags for buffer and packet state.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
@@ -219,8 +219,11 @@ struct efx_rx_buffer {
 		struct page *page;
 	} u;
 	unsigned int len;
-	bool is_page;
+	u16 flags;
 };
+#define EFX_RX_BUF_PAGE		0x0001
+#define EFX_RX_PKT_CSUMMED	0x0002
+#define EFX_RX_PKT_DISCARD	0x0004
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
@@ -378,7 +381,6 @@ struct efx_channel {
 	 * access with prefetches.
 	 */
 	struct efx_rx_buffer *rx_pkt;
-	bool rx_pkt_csummed;
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];

@@ -229,8 +229,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 
 	/* Deliver last RX packet. */
 	if (channel->rx_pkt) {
-		__efx_rx_packet(channel, channel->rx_pkt,
-				channel->rx_pkt_csummed);
+		__efx_rx_packet(channel, channel->rx_pkt);
 		channel->rx_pkt = NULL;
 	}
 
