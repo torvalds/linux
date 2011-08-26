@@ -114,7 +114,7 @@ enum {
 	SPECTRUM_MEASURE_NOTIFICATION = 0x75,
 
 	/* Power Management */
-	POWER_TABLE_CMD = 0x77,
+	POWER_TBL_CMD = 0x77,
 	PM_SLEEP_NOTIFICATION = 0x7A,
 	PM_DEBUG_STATISTIC_NOTIFIC = 0x7B,
 
@@ -130,7 +130,7 @@ enum {
 	REPLY_TX_BEACON = 0x91,
 
 	/* Miscellaneous commands */
-	REPLY_TX_PWR_TABLE_CMD = 0x97,
+	REPLY_TX_PWR_TBL_CMD = 0x97,
 
 	/* Bluetooth device coexistence config command */
 	REPLY_BT_CONFIG = 0x9b,
@@ -214,7 +214,7 @@ struct il_cmd_header {
 /**
  * struct il3945_tx_power
  *
- * Used in REPLY_TX_PWR_TABLE_CMD, REPLY_SCAN_CMD, REPLY_CHANNEL_SWITCH
+ * Used in REPLY_TX_PWR_TBL_CMD, REPLY_SCAN_CMD, REPLY_CHANNEL_SWITCH
  *
  * Each entry contains two values:
  * 1)  DSP gain (or sometimes called DSP attenuation).  This is a fine-grained
@@ -233,7 +233,7 @@ struct il3945_tx_power {
 /**
  * struct il3945_power_per_rate
  *
- * Used in REPLY_TX_PWR_TABLE_CMD, REPLY_CHANNEL_SWITCH
+ * Used in REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
  */
 struct il3945_power_per_rate {
 	u8 rate;		/* plcp */
@@ -326,9 +326,9 @@ struct il3945_power_per_rate {
 #define RATE_MCS_ANT_ABC_MSK	(RATE_MCS_ANT_AB_MSK | RATE_MCS_ANT_C_MSK)
 #define RATE_ANT_NUM 3
 
-#define POWER_TABLE_NUM_ENTRIES			33
-#define POWER_TABLE_NUM_HT_OFDM_ENTRIES		32
-#define POWER_TABLE_CCK_ENTRY			32
+#define POWER_TBL_NUM_ENTRIES			33
+#define POWER_TBL_NUM_HT_OFDM_ENTRIES		32
+#define POWER_TBL_CCK_ENTRY			32
 
 #define IL_PWR_NUM_HT_OFDM_ENTRIES		24
 #define IL_PWR_CCK_ENTRIES			2
@@ -336,7 +336,7 @@ struct il3945_power_per_rate {
 /**
  * union il4965_tx_power_dual_stream
  *
- * Host format used for REPLY_TX_PWR_TABLE_CMD, REPLY_CHANNEL_SWITCH
+ * Host format used for REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
  * Use __le32 version (struct tx_power_dual_stream) when building command.
  *
  * Driver provides radio gain and DSP attenuation settings to device in pairs,
@@ -360,7 +360,7 @@ union il4965_tx_power_dual_stream {
 /**
  * struct tx_power_dual_stream
  *
- * Table entries in REPLY_TX_PWR_TABLE_CMD, REPLY_CHANNEL_SWITCH
+ * Table entries in REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
  *
  * Same format as il_tx_power_dual_stream, but __le32
  */
@@ -371,10 +371,10 @@ struct tx_power_dual_stream {
 /**
  * struct il4965_tx_power_db
  *
- * Entire table within REPLY_TX_PWR_TABLE_CMD, REPLY_CHANNEL_SWITCH
+ * Entire table within REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
  */
 struct il4965_tx_power_db {
-	struct tx_power_dual_stream power_tbl[POWER_TABLE_NUM_ENTRIES];
+	struct tx_power_dual_stream power_tbl[POWER_TBL_NUM_ENTRIES];
 } __packed;
 
 /******************************************************************************
@@ -653,7 +653,7 @@ enum {
  *        channel.
  *
  * NOTE:  All RXONs wipe clean the internal txpower table.  Driver must
- *        issue a new REPLY_TX_PWR_TABLE_CMD after each REPLY_RXON (0x10),
+ *        issue a new REPLY_TX_PWR_TBL_CMD after each REPLY_RXON (0x10),
  *        regardless of whether RXON_FILTER_ASSOC_MSK is set.
  */
 
@@ -1067,7 +1067,7 @@ struct il_addsta_cmd {
 
 
 #define ADD_STA_SUCCESS_MSK		0x1
-#define ADD_STA_NO_ROOM_IN_TABLE	0x2
+#define ADD_STA_NO_ROOM_IN_TBL	0x2
 #define ADD_STA_NO_BLOCK_ACK_RESOURCE	0x4
 #define ADD_STA_MODIFY_NON_EXIST_STA	0x8
 /*
@@ -1271,7 +1271,7 @@ struct il_rx_mpdu_res_start {
  * command, as set up by the REPLY_RATE_SCALE (for 3945) or
  * REPLY_TX_LINK_QUALITY_CMD (4965).
  *
- * Driver sets up transmit power for various rates via REPLY_TX_PWR_TABLE_CMD.
+ * Driver sets up transmit power for various rates via REPLY_TX_PWR_TBL_CMD.
  * This command must be executed after every RXON command, before Tx can occur.
  *****************************************************************************/
 
@@ -1754,7 +1754,7 @@ struct il_compressed_ba_resp {
 } __packed;
 
 /*
- * REPLY_TX_PWR_TABLE_CMD = 0x97 (command, has simple generic response)
+ * REPLY_TX_PWR_TBL_CMD = 0x97 (command, has simple generic response)
  *
  * See details under "TXPOWER" in iwl-4965-hw.h.
  */
@@ -1909,7 +1909,7 @@ struct il_link_qual_agg_params {
  * procedures are possible, and may work better for particular environments.
  *
  *
- * FILLING THE RATE TABLE
+ * FILLING THE RATE TBL
  *
  * Given a particular initial rate and mode, as determined by the rate
  * scaling algorithm described below, the Linux driver uses the following
@@ -2263,7 +2263,7 @@ struct il_spectrum_notification {
  * struct il_powertable_cmd - Power Table Command
  * @flags: See below:
  *
- * POWER_TABLE_CMD = 0x77 (command, has simple generic response)
+ * POWER_TBL_CMD = 0x77 (command, has simple generic response)
  *
  * PM allow:
  *   bit 0 - '0' Driver not allow power management
@@ -2290,7 +2290,7 @@ struct il_spectrum_notification {
  *              '10' force xtal sleep
  *              '11' Illegal set
  *
- * NOTE: if sleep_interval[SLEEP_INTRVL_TABLE_SIZE-1] > DTIM period then
+ * NOTE: if sleep_interval[SLEEP_INTRVL_TBL_SIZE-1] > DTIM period then
  * ucode assume sleep over DTIM is allowed and we don't need to wake up
  * for every DTIM.
  */
@@ -3219,7 +3219,7 @@ struct il_missed_beacon_notif {
 /*
  * Table entries in SENSITIVITY_CMD (struct il_sensitivity_cmd)
  */
-#define HD_TABLE_SIZE  (11)	/* number of entries */
+#define HD_TBL_SIZE  (11)	/* number of entries */
 #define HD_MIN_ENERGY_CCK_DET_IDX                 (0)	/* table idxes */
 #define HD_MIN_ENERGY_OFDM_DET_IDX                (1)
 #define HD_AUTO_CORR32_X1_TH_ADD_MIN_IDX          (2)
@@ -3233,8 +3233,8 @@ struct il_missed_beacon_notif {
 #define HD_OFDM_ENERGY_TH_IN_IDX                  (10)
 
 /* Control field in struct il_sensitivity_cmd */
-#define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	cpu_to_le16(0)
-#define SENSITIVITY_CMD_CONTROL_WORK_TABLE	cpu_to_le16(1)
+#define SENSITIVITY_CMD_CONTROL_DEFAULT_TBL	cpu_to_le16(0)
+#define SENSITIVITY_CMD_CONTROL_WORK_TBL	cpu_to_le16(1)
 
 /**
  * struct il_sensitivity_cmd
@@ -3245,7 +3245,7 @@ struct il_missed_beacon_notif {
  */
 struct il_sensitivity_cmd {
 	__le16 control;			/* always use "1" */
-	__le16 table[HD_TABLE_SIZE];	/* use HD_* as idx */
+	__le16 table[HD_TBL_SIZE];	/* use HD_* as idx */
 } __packed;
 
 

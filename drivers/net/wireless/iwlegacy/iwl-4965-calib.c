@@ -429,18 +429,18 @@ static int il4965_sensitivity_write(struct il_priv *il)
 	il4965_prepare_legacy_sensitivity_tbl(il, data, &cmd.table[0]);
 
 	/* Update uCode's "work" table, and copy it to DSP */
-	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
+	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TBL;
 
 	/* Don't send command to uCode if nothing has changed */
 	if (!memcmp(&cmd.table[0], &(il->sensitivity_tbl[0]),
-		    sizeof(u16)*HD_TABLE_SIZE)) {
+		    sizeof(u16)*HD_TBL_SIZE)) {
 		D_CALIB("No change in SENSITIVITY_CMD\n");
 		return 0;
 	}
 
 	/* Copy table for comparison next time */
 	memcpy(&(il->sensitivity_tbl[0]), &(cmd.table[0]),
-	       sizeof(u16)*HD_TABLE_SIZE);
+	       sizeof(u16)*HD_TBL_SIZE);
 
 	return il_send_cmd(il, &cmd_out);
 }

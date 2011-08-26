@@ -885,7 +885,7 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  * Rx theory of operation
  *
  * The host allocates 32 DMA target addresses and passes the host address
- * to the firmware at register IL_RFDS_TABLE_LOWER + N * RFD_SIZE where N is
+ * to the firmware at register IL_RFDS_TBL_LOWER + N * RFD_SIZE where N is
  * 0 to 31
  *
  * Rx Queue Indexes

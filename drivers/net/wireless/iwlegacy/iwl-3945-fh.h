@@ -74,25 +74,25 @@
 #define FH39_MEM_LOWER_BOUND                   (0x0800)
 #define FH39_MEM_UPPER_BOUND                   (0x1000)
 
-#define FH39_CBCC_TABLE		(FH39_MEM_LOWER_BOUND + 0x140)
-#define FH39_TFDB_TABLE		(FH39_MEM_LOWER_BOUND + 0x180)
-#define FH39_RCSR_TABLE		(FH39_MEM_LOWER_BOUND + 0x400)
-#define FH39_RSSR_TABLE		(FH39_MEM_LOWER_BOUND + 0x4c0)
-#define FH39_TCSR_TABLE		(FH39_MEM_LOWER_BOUND + 0x500)
-#define FH39_TSSR_TABLE		(FH39_MEM_LOWER_BOUND + 0x680)
+#define FH39_CBCC_TBL		(FH39_MEM_LOWER_BOUND + 0x140)
+#define FH39_TFDB_TBL		(FH39_MEM_LOWER_BOUND + 0x180)
+#define FH39_RCSR_TBL		(FH39_MEM_LOWER_BOUND + 0x400)
+#define FH39_RSSR_TBL		(FH39_MEM_LOWER_BOUND + 0x4c0)
+#define FH39_TCSR_TBL		(FH39_MEM_LOWER_BOUND + 0x500)
+#define FH39_TSSR_TBL		(FH39_MEM_LOWER_BOUND + 0x680)
 
 /* TFDB (Transmit Frame Buffer Descriptor) */
-#define FH39_TFDB(_ch, buf)			(FH39_TFDB_TABLE + \
+#define FH39_TFDB(_ch, buf)			(FH39_TFDB_TBL + \
 						 ((_ch) * 2 + (buf)) * 0x28)
-#define FH39_TFDB_CHNL_BUF_CTRL_REG(_ch)	(FH39_TFDB_TABLE + 0x50 * (_ch))
+#define FH39_TFDB_CHNL_BUF_CTRL_REG(_ch)	(FH39_TFDB_TBL + 0x50 * (_ch))
 
 /* CBCC channel is [0,2] */
-#define FH39_CBCC(_ch)		(FH39_CBCC_TABLE + (_ch) * 0x8)
+#define FH39_CBCC(_ch)		(FH39_CBCC_TBL + (_ch) * 0x8)
 #define FH39_CBCC_CTRL(_ch)	(FH39_CBCC(_ch) + 0x00)
 #define FH39_CBCC_BASE(_ch)	(FH39_CBCC(_ch) + 0x04)
 
 /* RCSR channel is [0,2] */
-#define FH39_RCSR(_ch)			(FH39_RCSR_TABLE + (_ch) * 0x40)
+#define FH39_RCSR(_ch)			(FH39_RCSR_TBL + (_ch) * 0x40)
 #define FH39_RCSR_CONFIG(_ch)		(FH39_RCSR(_ch) + 0x00)
 #define FH39_RCSR_RBD_BASE(_ch)		(FH39_RCSR(_ch) + 0x04)
 #define FH39_RCSR_WPTR(_ch)		(FH39_RCSR(_ch) + 0x20)
@@ -101,19 +101,19 @@
 #define FH39_RSCSR_CHNL0_WPTR		(FH39_RCSR_WPTR(0))
 
 /* RSSR */
-#define FH39_RSSR_CTRL			(FH39_RSSR_TABLE + 0x000)
-#define FH39_RSSR_STATUS		(FH39_RSSR_TABLE + 0x004)
+#define FH39_RSSR_CTRL			(FH39_RSSR_TBL + 0x000)
+#define FH39_RSSR_STATUS		(FH39_RSSR_TBL + 0x004)
 
 /* TCSR */
-#define FH39_TCSR(_ch)			(FH39_TCSR_TABLE + (_ch) * 0x20)
+#define FH39_TCSR(_ch)			(FH39_TCSR_TBL + (_ch) * 0x20)
 #define FH39_TCSR_CONFIG(_ch)		(FH39_TCSR(_ch) + 0x00)
 #define FH39_TCSR_CREDIT(_ch)		(FH39_TCSR(_ch) + 0x04)
 #define FH39_TCSR_BUFF_STTS(_ch)	(FH39_TCSR(_ch) + 0x08)
 
 /* TSSR */
-#define FH39_TSSR_CBB_BASE        (FH39_TSSR_TABLE + 0x000)
-#define FH39_TSSR_MSG_CONFIG      (FH39_TSSR_TABLE + 0x008)
-#define FH39_TSSR_TX_STATUS       (FH39_TSSR_TABLE + 0x010)
+#define FH39_TSSR_CBB_BASE        (FH39_TSSR_TBL + 0x000)
+#define FH39_TSSR_MSG_CONFIG      (FH39_TSSR_TBL + 0x008)
+#define FH39_TSSR_TX_STATUS       (FH39_TSSR_TBL + 0x010)
 
 
 /* DBM */

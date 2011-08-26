@@ -83,7 +83,7 @@ static int il_process_add_sta_resp(struct il_priv *il,
 		il_sta_ucode_activate(il, sta_id);
 		ret = 0;
 		break;
-	case ADD_STA_NO_ROOM_IN_TABLE:
+	case ADD_STA_NO_ROOM_IN_TBL:
 		IL_ERR("Adding station %d failed, no room in table.\n",
 			sta_id);
 		break;

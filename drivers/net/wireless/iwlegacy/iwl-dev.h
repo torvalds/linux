@@ -1060,7 +1060,7 @@ struct il_priv {
 	u8 start_calib;
 	struct il_sensitivity_data sensitivity_data;
 	struct il_chain_noise_data chain_noise_data;
-	__le16 sensitivity_tbl[HD_TABLE_SIZE];
+	__le16 sensitivity_tbl[HD_TBL_SIZE];
 
 	struct il_ht_config current_ht_config;
 

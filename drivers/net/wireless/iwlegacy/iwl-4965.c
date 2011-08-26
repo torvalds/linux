@@ -1010,7 +1010,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 	}
 
 	/* for each of 33 bit-rates (including 1 for CCK) */
-	for (i = 0; i < POWER_TABLE_NUM_ENTRIES; i++) {
+	for (i = 0; i < POWER_TBL_NUM_ENTRIES; i++) {
 		u8 is_mimo_rate;
 		union il4965_tx_power_dual_stream tx_power;
 
@@ -1072,7 +1072,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 				power_idx += 9;
 
 			/* CCK, rate 32, reduce txpower for CCK */
-			if (i == POWER_TABLE_CCK_ENTRY)
+			if (i == POWER_TBL_CCK_ENTRY)
 				power_idx +=
 				    IL_TX_POWER_CCK_COMPENSATION_C_STEP;
 
@@ -1144,7 +1144,7 @@ static int il4965_send_tx_power(struct il_priv *il)
 		goto out;
 
 	ret = il_send_cmd_pdu(il,
-			 REPLY_TX_PWR_TABLE_CMD, sizeof(cmd), &cmd);
+			 REPLY_TX_PWR_TBL_CMD, sizeof(cmd), &cmd);
 
 out:
 	return ret;

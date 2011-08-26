@@ -60,8 +60,8 @@
 				    RATE_##rn##M_IDX, \
 				    RATE_##pp##M_IDX, \
 				    RATE_##np##M_IDX, \
-				    RATE_##r##M_IDX_TABLE, \
-				    RATE_##ip##M_IDX_TABLE }
+				    RATE_##r##M_IDX_TBL, \
+				    RATE_##ip##M_IDX_TBL }
 
 /*
  * Parameter order:
@@ -1330,7 +1330,7 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx,
 	/* use this channel group's 6Mbit clipping/saturation pwr,
 	 *   but cap at regulatory scan power restriction (set during init
 	 *   based on eeprom channel data) for this channel.  */
-	power = min(ch_info->scan_power, clip_pwrs[RATE_6M_IDX_TABLE]);
+	power = min(ch_info->scan_power, clip_pwrs[RATE_6M_IDX_TBL]);
 
 	power = min(power, il->tx_power_user_lmt);
 	scan_power_info->requested_power = power;
@@ -1342,7 +1342,7 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx,
 	 *   *idx*. */
 	power_idx = ch_info->power_info[rate_idx].power_table_idx
 	    - (power - ch_info->power_info
-	       [RATE_6M_IDX_TABLE].requested_power) * 2;
+	       [RATE_6M_IDX_TBL].requested_power) * 2;
 
 	/* store reference idx that we use when adjusting *all* scan
 	 *   powers.  So we can accommodate user (all channel) or spectrum
@@ -1394,7 +1394,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 	}
 
 	if (!il_is_channel_valid(ch_info)) {
-		D_POWER("Not calling TX_PWR_TABLE_CMD on "
+		D_POWER("Not calling TX_PWR_TBL_CMD on "
 				"non-Tx channel.\n");
 		return 0;
 	}
@@ -1428,7 +1428,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 				txpower.power[i].rate);
 	}
 
-	return il_send_cmd_pdu(il, REPLY_TX_PWR_TABLE_CMD,
+	return il_send_cmd_pdu(il, REPLY_TX_PWR_TBL_CMD,
 				sizeof(struct il3945_txpowertable_cmd),
 				&txpower);
 
@@ -1466,7 +1466,7 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	power_info = ch_info->power_info;
 
 	/* update OFDM Txpower settings */
-	for (i = RATE_6M_IDX_TABLE; i <= RATE_54M_IDX_TABLE;
+	for (i = RATE_6M_IDX_TBL; i <= RATE_54M_IDX_TBL;
 	     i++, ++power_info) {
 		int delta_idx;
 
@@ -1490,14 +1490,14 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	 *    ... all CCK power settings for a given channel are the *same*. */
 	if (power_changed) {
 		power =
-		    ch_info->power_info[RATE_12M_IDX_TABLE].
+		    ch_info->power_info[RATE_12M_IDX_TBL].
 		    requested_power + IL_CCK_FROM_OFDM_POWER_DIFF;
 
 		/* do all CCK rates' il3945_channel_power_info structures */
-		for (i = RATE_1M_IDX_TABLE; i <= RATE_11M_IDX_TABLE; i++) {
+		for (i = RATE_1M_IDX_TBL; i <= RATE_11M_IDX_TBL; i++) {
 			power_info->requested_power = power;
 			power_info->base_power_idx =
-			    ch_info->power_info[RATE_12M_IDX_TABLE].
+			    ch_info->power_info[RATE_12M_IDX_TBL].
 			    base_power_idx + IL_CCK_FROM_OFDM_IDX_DIFF;
 			++power_info;
 		}
@@ -1597,7 +1597,7 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 		for (scan_tbl_idx = 0;
 		     scan_tbl_idx < IL_NUM_SCAN_RATES; scan_tbl_idx++) {
 			s32 actual_idx = (scan_tbl_idx == 0) ?
-			    RATE_1M_IDX_TABLE : RATE_6M_IDX_TABLE;
+			    RATE_1M_IDX_TBL : RATE_6M_IDX_TBL;
 			il3945_hw_reg_set_scan_power(il, scan_tbl_idx,
 					   actual_idx, clip_pwrs,
 					   ch_info, a_band);
@@ -2012,19 +2012,19 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 		for (rate_idx = 0;
 		     rate_idx < RATE_COUNT_3945; rate_idx++, clip_pwrs++) {
 			switch (rate_idx) {
-			case RATE_36M_IDX_TABLE:
+			case RATE_36M_IDX_TBL:
 				if (i == 0)	/* B/G */
 					*clip_pwrs = satur_pwr;
 				else	/* A */
 					*clip_pwrs = satur_pwr - 5;
 				break;
-			case RATE_48M_IDX_TABLE:
+			case RATE_48M_IDX_TBL:
 				if (i == 0)
 					*clip_pwrs = satur_pwr - 7;
 				else
 					*clip_pwrs = satur_pwr - 10;
 				break;
-			case RATE_54M_IDX_TABLE:
+			case RATE_54M_IDX_TBL:
 				if (i == 0)
 					*clip_pwrs = satur_pwr - 9;
 				else
@@ -2139,7 +2139,7 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		}
 
 		/* set tx power for CCK rates, based on OFDM 12 Mbit settings*/
-		pwr_info = &ch_info->power_info[RATE_12M_IDX_TABLE];
+		pwr_info = &ch_info->power_info[RATE_12M_IDX_TBL];
 		power = pwr_info->requested_power +
 			IL_CCK_FROM_OFDM_POWER_DIFF;
 		pwr_idx = pwr_info->power_table_idx +
@@ -2169,7 +2169,7 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		for (scan_tbl_idx = 0;
 		     scan_tbl_idx < IL_NUM_SCAN_RATES; scan_tbl_idx++) {
 			s32 actual_idx = (scan_tbl_idx == 0) ?
-				RATE_1M_IDX_TABLE : RATE_6M_IDX_TABLE;
+				RATE_1M_IDX_TBL : RATE_6M_IDX_TBL;
 			il3945_hw_reg_set_scan_power(il, scan_tbl_idx,
 				actual_idx, clip_pwrs, ch_info, a_band);
 		}
@@ -2223,7 +2223,7 @@ static u16 il3945_get_hcmd_size(u8 cmd_id, u16 len)
 	switch (cmd_id) {
 	case REPLY_RXON:
 		return sizeof(struct il3945_rxon_cmd);
-	case POWER_TABLE_CMD:
+	case POWER_TBL_CMD:
 		return sizeof(struct il3945_powertable_cmd);
 	default:
 		return len;
@@ -2326,17 +2326,17 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		D_RATE("Select A mode rate scale\n");
 		/* If one of the following CCK rates is used,
 		 * have it fall back to the 6M OFDM rate */
-		for (i = RATE_1M_IDX_TABLE;
-			i <= RATE_11M_IDX_TABLE; i++)
+		for (i = RATE_1M_IDX_TBL;
+			i <= RATE_11M_IDX_TBL; i++)
 			table[i].next_rate_idx =
 			  il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
 
 		/* Don't fall back to CCK rates */
-		table[RATE_12M_IDX_TABLE].next_rate_idx =
-						RATE_9M_IDX_TABLE;
+		table[RATE_12M_IDX_TBL].next_rate_idx =
+						RATE_9M_IDX_TBL;
 
 		/* Don't drop out of OFDM rates */
-		table[RATE_6M_IDX_TABLE].next_rate_idx =
+		table[RATE_6M_IDX_TBL].next_rate_idx =
 		    il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
 		break;
 
@@ -2349,14 +2349,14 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		    il_is_associated(il)) {
 
 			idx = IL_FIRST_CCK_RATE;
-			for (i = RATE_6M_IDX_TABLE;
-			     i <= RATE_54M_IDX_TABLE; i++)
+			for (i = RATE_6M_IDX_TBL;
+			     i <= RATE_54M_IDX_TBL; i++)
 				table[i].next_rate_idx =
 					il3945_rates[idx].table_rs_idx;
 
-			idx = RATE_11M_IDX_TABLE;
+			idx = RATE_11M_IDX_TBL;
 			/* CCK shouldn't fall back to OFDM... */
-			table[idx].next_rate_idx = RATE_5M_IDX_TABLE;
+			table[idx].next_rate_idx = RATE_5M_IDX_TBL;
 		}
 		break;
 

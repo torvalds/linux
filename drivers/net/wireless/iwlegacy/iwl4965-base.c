@@ -1470,7 +1470,7 @@ static const char * const desc_lookup_text[] = {
 	"HW_ERROR_TUNE_LOCK",
 	"HW_ERROR_TEMPERATURE",
 	"ILLEGAL_CHAN_FREQ",
-	"VCC_NOT_STABLE",
+	"VCC_NOT_STBL",
 	"FH_ERROR",
 	"NMI_INTERRUPT_HOST",
 	"NMI_INTERRUPT_ACTION_PT",

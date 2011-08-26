@@ -1001,11 +1001,11 @@ static void il4965_rs_set_stay_in_table(struct il_priv *il, u8 is_legacy,
 	D_RATE("we are staying in the same table\n");
 	lq_sta->stay_in_tbl = 1;	/* only place this gets set */
 	if (is_legacy) {
-		lq_sta->table_count_limit = IL_LEGACY_TABLE_COUNT;
+		lq_sta->table_count_limit = IL_LEGACY_TBL_COUNT;
 		lq_sta->max_failure_limit = IL_LEGACY_FAILURE_LIMIT;
 		lq_sta->max_success_limit = IL_LEGACY_SUCCESS_LIMIT;
 	} else {
-		lq_sta->table_count_limit = IL_NONE_LEGACY_TABLE_COUNT;
+		lq_sta->table_count_limit = IL_NONE_LEGACY_TBL_COUNT;
 		lq_sta->max_failure_limit = IL_NONE_LEGACY_FAILURE_LIMIT;
 		lq_sta->max_success_limit = IL_NONE_LEGACY_SUCCESS_LIMIT;
 	}
@@ -1916,7 +1916,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 		 * continuing to use the setup that we've been trying. */
 		if (win->average_tpt > lq_sta->last_tpt) {
 
-			D_RATE("LQ: SWITCHING TO NEW TABLE "
+			D_RATE("LQ: SWITCHING TO NEW TBL "
 					"suc=%d cur-tpt=%d old-tpt=%d\n",
 					win->success_ratio,
 					win->average_tpt,
@@ -1932,7 +1932,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 		/* Else poor success; go back to mode in "active" table */
 		} else {
 
-			D_RATE("LQ: GOING BACK TO THE OLD TABLE "
+			D_RATE("LQ: GOING BACK TO THE OLD TBL "
 					"suc=%d cur-tpt=%d old-tpt=%d\n",
 					win->success_ratio,
 					win->average_tpt,

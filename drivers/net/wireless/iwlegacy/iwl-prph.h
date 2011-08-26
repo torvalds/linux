@@ -189,7 +189,7 @@
  *        procedure.
  *
  * This save/restore method is mostly for autonomous power management during
- * normal operation (result of POWER_TABLE_CMD).  Platform suspend/resume and
+ * normal operation (result of POWER_TBL_CMD).  Platform suspend/resume and
  * RFKILL should use complete restarts (with total re-initialization) of uCode,
  * allowing total shutdown (including BSM memory).
  *
@@ -494,7 +494,7 @@
  * When queue is in Scheduler-ACK mode, frames placed in a that queue must be
  * for only one combination of receiver address (RA) and traffic ID (TID), i.e.
  * one QOS priority level destined for one station (for this wireless link,
- * not final destination).  The SCD_TRANSLATE_TABLE area provides 16 16-bit
+ * not final destination).  The SCD_TRANSLATE_TBL area provides 16 16-bit
  * mappings, one for each of the 16 queues.  If queue is not in Scheduler-ACK
  * mode, the device ignores the mapping value.
  *
