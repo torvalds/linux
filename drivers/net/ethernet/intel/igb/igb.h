@@ -231,7 +231,6 @@ struct igb_ring {
 			struct igb_tx_queue_stats tx_stats;
 			struct u64_stats_sync tx_syncp;
 			struct u64_stats_sync tx_syncp2;
-			bool detect_tx_hung;
 		};
 		/* RX */
 		struct {

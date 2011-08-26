@@ -3754,7 +3754,7 @@ static void igb_watchdog_task(struct work_struct *work)
 		}
 
 		/* Force detection of hung controller every watchdog period */
-		tx_ring->detect_tx_hung = true;
+		set_bit(IGB_RING_FLAG_TX_DETECT_HANG, &tx_ring->flags);
 	}
 
 	/* Cause software interrupt to ensure rx ring is cleaned */
@@ -5721,14 +5721,14 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	q_vector->tx.total_bytes += total_bytes;
 	q_vector->tx.total_packets += total_packets;
 
-	if (tx_ring->detect_tx_hung) {
+	if (test_bit(IGB_RING_FLAG_TX_DETECT_HANG, &tx_ring->flags)) {
 		struct e1000_hw *hw = &adapter->hw;
 
 		eop_desc = tx_buffer->next_to_watch;
 
 		/* Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
-		tx_ring->detect_tx_hung = false;
+		clear_bit(IGB_RING_FLAG_TX_DETECT_HANG, &tx_ring->flags);
 		if (eop_desc &&
 		    time_after(jiffies, tx_buffer->time_stamp +
 			       (adapter->tx_timeout_factor * HZ)) &&
