@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
-#include <linux/irq.h>
 #include <linux/clk.h>
 
 #include <asm/mach-types.h>
