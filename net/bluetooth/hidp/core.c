@@ -255,6 +255,9 @@ static int __hidp_send_ctrl_message(struct hidp_session *session,
 
 	BT_DBG("session %p data %p size %d", session, data, size);
 
+	if (atomic_read(&session->terminate))
+		return -EIO;
+
 	skb = alloc_skb(size + 1, GFP_ATOMIC);
 	if (!skb) {
 		BT_ERR("Can't allocate memory for new frame");
@@ -329,6 +332,7 @@ static int hidp_get_raw_report(struct hid_device *hid,
 	struct sk_buff *skb;
 	size_t len;
 	int numbered_reports = hid->report_enum[report_type].numbered;
+	int ret;
 
 	switch (report_type) {
 	case HID_FEATURE_REPORT:
@@ -352,8 +356,9 @@ static int hidp_get_raw_report(struct hid_device *hid,
 	session->waiting_report_number = numbered_reports ? report_number : -1;
 	set_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
 	data[0] = report_number;
-	if (hidp_send_ctrl_message(hid->driver_data, report_type, data, 1))
-		goto err_eio;
+	ret = hidp_send_ctrl_message(hid->driver_data, report_type, data, 1);
+	if (ret)
+		goto err;
 
 	/* Wait for the return of the report. The returned report
 	   gets put in session->report_return.  */
@@ -365,11 +370,13 @@ static int hidp_get_raw_report(struct hid_device *hid,
 			5*HZ);
 		if (res == 0) {
 			/* timeout */
-			goto err_eio;
+			ret = -EIO;
+			goto err;
 		}
 		if (res < 0) {
 			/* signal */
-			goto err_restartsys;
+			ret = -ERESTARTSYS;
+			goto err;
 		}
 	}
 
@@ -390,14 +397,10 @@ static int hidp_get_raw_report(struct hid_device *hid,
 
 	return len;
 
-err_restartsys:
+err:
 	clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
 	mutex_unlock(&session->report_mutex);
-	return -ERESTARTSYS;
-err_eio:
-	clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
-	mutex_unlock(&session->report_mutex);
-	return -EIO;
+	return ret;
 }
 
 static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, size_t count,
@@ -422,11 +425,10 @@ static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, s
 
 	/* Set up our wait, and send the report request to the device. */
 	set_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
-	if (hidp_send_ctrl_message(hid->driver_data, report_type,
-			data, count)) {
-		ret = -ENOMEM;
+	ret = hidp_send_ctrl_message(hid->driver_data, report_type, data,
+									count);
+	if (ret)
 		goto err;
-	}
 
 	/* Wait for the ACK from the device. */
 	while (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)) {
@@ -738,6 +740,10 @@ static int hidp_session(void *arg)
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(intr_sk), &intr_wait);
 	remove_wait_queue(sk_sleep(ctrl_sk), &ctrl_wait);
+
+	clear_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
+	clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+	wake_up_interruptible(&session->report_queue);
 
 	down_write(&hidp_session_sem);
 
