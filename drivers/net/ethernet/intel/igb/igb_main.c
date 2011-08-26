@@ -338,14 +338,13 @@ static void igb_dump(struct igb_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	struct igb_reg_info *reginfo;
-	int n = 0;
 	struct igb_ring *tx_ring;
 	union e1000_adv_tx_desc *tx_desc;
 	struct my_u0 { u64 a; u64 b; } *u0;
 	struct igb_ring *rx_ring;
 	union e1000_adv_rx_desc *rx_desc;
 	u32 staterr;
-	int i = 0;
+	u16 i, n;
 
 	if (!netif_msg_hw(adapter))
 		return;
@@ -3239,7 +3238,7 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 {
 	struct igb_tx_buffer *buffer_info;
 	unsigned long size;
-	unsigned int i;
+	u16 i;
 
 	if (!tx_ring->tx_buffer_info)
 		return;
@@ -4355,7 +4354,7 @@ dma_error:
 	tx_ring->next_to_use = i;
 }
 
-static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
+static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 {
 	struct net_device *netdev = tx_ring->netdev;
 
@@ -4381,7 +4380,7 @@ static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 	return 0;
 }
 
-static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
+static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 {
 	if (igb_desc_unused(tx_ring) >= size)
 		return 0;

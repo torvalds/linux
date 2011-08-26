@@ -1581,8 +1581,8 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
 	struct igb_tx_buffer *tx_buffer_info;
-	int rx_ntc, tx_ntc, count = 0;
 	u32 staterr;
+	u16 rx_ntc, tx_ntc, count = 0;
 
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
@@ -1634,7 +1634,8 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 {
 	struct igb_ring *tx_ring = &adapter->test_tx_ring;
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
-	int i, j, lc, good_cnt, ret_val = 0;
+	u16 i, j, lc, good_cnt;
+	int ret_val = 0;
 	unsigned int size = IGB_RX_HDR_LEN;
 	netdev_tx_t tx_ret_val;
 	struct sk_buff *skb;
