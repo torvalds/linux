@@ -223,23 +223,6 @@
 #define BIGMAC_PHY_EXTERNAL   0 /* External transceiver */
 #define BIGMAC_PHY_INTERNAL   1 /* Internal transceiver */
 
-/* PHY registers */
-#define BIGMAC_BMCR           0x00 /* Basic mode control register	*/
-#define BIGMAC_BMSR           0x01 /* Basic mode status register	*/
-
-/* BMCR bits */
-#define BMCR_ISOLATE            0x0400  /* Disconnect DP83840 from MII */
-#define BMCR_PDOWN              0x0800  /* Powerdown the DP83840       */
-#define BMCR_ANENABLE           0x1000  /* Enable auto negotiation     */
-#define BMCR_SPEED100           0x2000  /* Select 100Mbps              */
-#define BMCR_LOOPBACK           0x4000  /* TXD loopback bits           */
-#define BMCR_RESET              0x8000  /* Reset the DP83840           */
-
-/* BMSR bits */
-#define BMSR_ERCAP              0x0001  /* Ext-reg capability          */
-#define BMSR_JCD                0x0002  /* Jabber detected             */
-#define BMSR_LSTATUS            0x0004  /* Link status                 */
-
 /* Ring descriptors and such, same as Quad Ethernet. */
 struct be_rxd {
 	u32 rx_flags;
