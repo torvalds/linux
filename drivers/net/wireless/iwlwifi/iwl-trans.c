@@ -555,7 +555,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	return 0;
 
 error:
-	iwl_trans_tx_free(trans);
+	iwl_trans_pcie_tx_free(trans);
 
 	return ret;
 }
@@ -603,7 +603,7 @@ static int iwl_tx_init(struct iwl_trans *trans)
 error:
 	/*Upon error, free only if we allocated something */
 	if (alloc)
-		iwl_trans_tx_free(trans);
+		iwl_trans_pcie_tx_free(trans);
 	return ret;
 }
 
@@ -958,13 +958,28 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 	return 0;
 }
 
+static void iwl_trans_pcie_disable_sync_irq(struct iwl_trans *trans)
+{
+	unsigned long flags;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwl_disable_interrupts(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(bus(trans)->irq);
+	tasklet_kill(&trans_pcie->irq_tasklet);
+}
+
 static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 {
 	/* stop and reset the on-board processor */
 	iwl_write32(bus(trans), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/* tell the device to stop sending interrupts */
-	iwl_trans_disable_sync_irq(trans);
+	iwl_trans_pcie_disable_sync_irq(trans);
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(trans);
@@ -1208,23 +1223,10 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id,
 	}
 }
 
-static void iwl_trans_pcie_disable_sync_irq(struct iwl_trans *trans)
-{
-	unsigned long flags;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	spin_lock_irqsave(&trans->shrd->lock, flags);
-	iwl_disable_interrupts(trans);
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
-
-	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(bus(trans)->irq);
-	tasklet_kill(&trans_pcie->irq_tasklet);
-}
-
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
+	iwl_trans_pcie_tx_free(trans);
+	iwl_trans_pcie_rx_free(trans);
 	free_irq(bus(trans)->irq, trans);
 	iwl_free_isr_ict(trans);
 	trans->shrd->trans = NULL;
@@ -1860,9 +1862,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.tx_start = iwl_trans_pcie_tx_start,
 
-	.rx_free = iwl_trans_pcie_rx_free,
-	.tx_free = iwl_trans_pcie_tx_free,
-
 	.send_cmd = iwl_trans_pcie_send_cmd,
 	.send_cmd_pdu = iwl_trans_pcie_send_cmd_pdu,
 
@@ -1875,7 +1874,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.kick_nic = iwl_trans_pcie_kick_nic,
 
-	.disable_sync_irq = iwl_trans_pcie_disable_sync_irq,
 	.free = iwl_trans_pcie_free,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,

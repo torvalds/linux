@@ -88,8 +88,6 @@ struct iwl_shared;
  * @tx_start: starts and configures all the Tx fifo - usually done once the fw
  *           is alive.
  * @stop_device:stops the whole device (embedded CPU put to reset)
- * @rx_free: frees the rx memory
- * @tx_free: frees the tx memory
  * @send_cmd:send a host command
  * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
@@ -99,9 +97,6 @@ struct iwl_shared;
  *                 ready and a successful ADDBA response has been received.
  * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
  * @kick_nic: remove the RESET from the embedded CPU and let it run
- * @disable_sync_irq: Disable and sync: after this handler returns, it is
- *	guaranteed that all the ISR / tasklet etc... have finished running
- *	and the transport layer shall not pass any Rx.
  * @free: release all the ressource for the transport layer itself such as
  *        irq, tasklet etc...
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
@@ -117,8 +112,6 @@ struct iwl_trans_ops {
 	int (*prepare_card_hw)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
 	void (*tx_start)(struct iwl_trans *trans);
-	void (*tx_free)(struct iwl_trans *trans);
-	void (*rx_free)(struct iwl_trans *trans);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -138,7 +131,6 @@ struct iwl_trans_ops {
 
 	void (*kick_nic)(struct iwl_trans *trans);
 
-	void (*disable_sync_irq)(struct iwl_trans *trans);
 	void (*free)(struct iwl_trans *trans);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
@@ -185,16 +177,6 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 {
 	trans->ops->tx_start(trans);
-}
-
-static inline void iwl_trans_rx_free(struct iwl_trans *trans)
-{
-	trans->ops->rx_free(trans);
-}
-
-static inline void iwl_trans_tx_free(struct iwl_trans *trans)
-{
-	trans->ops->tx_free(trans);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
@@ -245,11 +227,6 @@ static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
 static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
 {
 	trans->ops->kick_nic(trans);
-}
-
-static inline void iwl_trans_disable_sync_irq(struct iwl_trans *trans)
-{
-	trans->ops->disable_sync_irq(trans);
 }
 
 static inline void iwl_trans_free(struct iwl_trans *trans)

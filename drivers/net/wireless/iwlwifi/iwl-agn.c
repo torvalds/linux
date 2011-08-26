@@ -3443,19 +3443,12 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 		priv->mac80211_registered = 0;
 	}
 
-	/* Reset to low power before unloading driver. */
-	iwl_apm_stop(priv);
-
 	iwl_tt_exit(priv);
 
-	/* make sure we flush any pending irq or
-	 * tasklet for the driver */
-	iwl_trans_disable_sync_irq(trans(priv));
+	/*This will stop the queues, move the device to low power state */
+	iwl_trans_stop_device(trans(priv));
 
 	iwl_dealloc_ucode(priv);
-
-	iwl_trans_rx_free(trans(priv));
-	iwl_trans_tx_free(trans(priv));
 
 	iwl_eeprom_free(priv);
 
