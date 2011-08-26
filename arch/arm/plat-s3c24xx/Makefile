@@ -15,8 +15,6 @@ obj-				:=
 obj-y				+= cpu.o
 obj-y				+= irq.o
 obj-y				+= devs.o
-obj-y				+= gpio.o
-obj-y				+= gpiolib.o
 obj-y				+= clock.o
 obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 

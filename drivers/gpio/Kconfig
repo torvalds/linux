@@ -135,6 +135,10 @@ config GPIO_PLAT_SAMSUNG
 	def_bool y
 	depends on SAMSUNG_GPIOLIB_4BIT
 
+config GPIO_S3C24XX
+	def_bool y
+	depends on PLAT_S3C24XX
+
 config GPIO_S5PC100
 	def_bool y
 	depends on CPU_S5PC100
