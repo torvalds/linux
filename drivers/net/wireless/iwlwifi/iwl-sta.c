@@ -821,13 +821,13 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_INFO(priv, "received request to remove station %pM\n",
 			sta->addr);
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
 			sta->addr);
 	ret = iwl_remove_station(priv, sta_common->sta_id, sta->addr);
 	if (ret)
 		IWL_ERR(priv, "Error removing station %pM\n",
 			sta->addr);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 	return ret;
 }

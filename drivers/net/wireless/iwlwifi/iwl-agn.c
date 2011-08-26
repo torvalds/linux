@@ -135,7 +135,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	 * beacon contents.
 	 */
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	if (!priv->beacon_ctx) {
 		IWL_ERR(priv, "trying to build beacon w/o beacon context!\n");
@@ -209,7 +209,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 		container_of(work, struct iwl_priv, beacon_update);
 	struct sk_buff *beacon;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	if (!priv->beacon_ctx) {
 		IWL_ERR(priv, "updating beacon w/o beacon context!\n");
 		goto out;
@@ -239,7 +239,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 
 	iwlagn_send_beacon_cmd(priv);
  out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 static void iwl_bg_bt_runtime_config(struct work_struct *work)
@@ -262,7 +262,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 		container_of(work, struct iwl_priv, bt_full_concurrency);
 	struct iwl_rxon_context *ctx;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		goto out;
@@ -286,7 +286,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 
 	iwlagn_send_advance_bt_config(priv);
 out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 /**
@@ -1920,9 +1920,9 @@ static void __iwl_down(struct iwl_priv *priv)
 
 static void iwl_down(struct iwl_priv *priv)
 {
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	__iwl_down(priv);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	iwl_cancel_deferred_work(priv);
 }
@@ -1934,7 +1934,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	struct iwl_rxon_context *ctx;
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -1989,11 +1989,11 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 			run_time_calib_work);
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) ||
 	    test_bit(STATUS_SCANNING, &priv->shrd->status)) {
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 		return;
 	}
 
@@ -2002,7 +2002,7 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 		iwl_sensitivity_calibration(priv);
 	}
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 static void iwlagn_prepare_restart(struct iwl_priv *priv)
@@ -2014,7 +2014,7 @@ static void iwlagn_prepare_restart(struct iwl_priv *priv)
 	u8 bt_status;
 	bool bt_is_sco;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	for_each_context(priv, ctx)
 		ctx->vif = NULL;
@@ -2052,9 +2052,9 @@ static void iwl_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->shrd->status)) {
-		mutex_lock(&priv->mutex);
+		mutex_lock(&priv->shrd->mutex);
 		iwlagn_prepare_restart(priv);
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 		iwl_cancel_deferred_work(priv);
 		ieee80211_restart_hw(priv->hw);
 	} else {
@@ -2256,9 +2256,9 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	/* we should be verifying the device is ready to be opened */
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	ret = __iwl_up(priv);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 	if (ret)
 		return ret;
 
@@ -2351,7 +2351,7 @@ static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 	if (iwlagn_mod_params.sw_crypto)
 		return;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (priv->contexts[IWL_RXON_CTX_BSS].vif != vif)
 		goto out;
@@ -2362,7 +2362,7 @@ static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 	priv->have_rekey_data = true;
 
  out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 struct wowlan_key_data {
@@ -2400,7 +2400,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 	u16 p1k[IWLAGN_P1K_SIZE];
 	int ret, i;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
@@ -2505,7 +2505,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	}
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
@@ -2530,7 +2530,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (WARN_ON(!wowlan))
 		return -EINVAL;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	/* Don't attempt WoWLAN when not associated, tear down instead. */
 	if (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION ||
@@ -2624,11 +2624,11 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 		 * constraints. Since we're in the suspend path
 		 * that isn't really a problem though.
 		 */
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 		ieee80211_iter_keys(priv->hw, ctx->vif,
 				    iwlagn_wowlan_program_keys,
 				    &key_data);
-		mutex_lock(&priv->mutex);
+		mutex_lock(&priv->shrd->mutex);
 		if (key_data.error) {
 			ret = -EIO;
 			goto error;
@@ -2697,7 +2697,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	iwlagn_prepare_restart(priv);
 	ieee80211_restart_hw(priv->hw);
  out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 	kfree(key_data.rsc_tsc);
 	return ret;
 }
@@ -2711,7 +2711,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	u32 base, status = 0xffffffff;
 	int ret = -EIO;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
@@ -2755,7 +2755,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	iwl_connection_init_rx_config(priv, ctx);
 	iwlagn_set_rxon_chain(priv, ctx);
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	ieee80211_resume_disconnect(vif);
 
@@ -2824,7 +2824,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (cmd == DISABLE_KEY && key->hw_key_idx == WEP_INVALID_OFFSET)
 		return 0;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	iwl_scan_cancel_timeout(priv, 100);
 
 	BUILD_BUG_ON(WEP_INVALID_OFFSET == IWLAGN_HW_KEY_DEFAULT);
@@ -2875,7 +2875,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -2897,7 +2897,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	if (!(priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE))
 		return -EACCES;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -2988,7 +2988,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = 0;
 		break;
 	}
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	return ret;
 }
@@ -3006,7 +3006,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
 			sta->addr);
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to add station %pM\n",
 			sta->addr);
 	sta_priv->common.sta_id = IWL_INVALID_STATION;
@@ -3021,7 +3021,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 		return ret;
 	}
 
@@ -3031,7 +3031,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl_rs_rate_init(priv, sta, sta_id);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	return 0;
 }
@@ -3057,7 +3057,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (iwl_is_rfkill(priv))
 		goto out;
@@ -3129,7 +3129,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	}
 
 out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -3159,7 +3159,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 
 #undef CHK
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	for_each_context(priv, ctx) {
 		ctx->staging.filter_flags &= ~filter_nand;
@@ -3171,7 +3171,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 		 */
 	}
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	/*
 	 * Receiving all multicast frames is always enabled by the
@@ -3187,7 +3187,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct iwl_priv *priv = hw->priv;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
@@ -3213,7 +3213,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
 	iwlagn_wait_tx_queue_empty(priv);
 done:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -3221,7 +3221,7 @@ void iwlagn_disable_roc(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	if (!priv->hw_roc_setup)
 		return;
@@ -3244,9 +3244,9 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 					     hw_roc_disable_work.work);
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	iwlagn_disable_roc(priv);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
@@ -3264,7 +3264,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	/*
 	 * TODO: Remove this hack! Firmware needs to be updated
@@ -3314,7 +3314,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 		iwlagn_disable_roc(priv);
 
  out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	return err;
 }
@@ -3326,10 +3326,10 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	iwl_scan_cancel_timeout(priv, priv->hw_roc_duration);
 	iwlagn_disable_roc(priv);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	return 0;
 }
@@ -3419,7 +3419,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
-	mutex_init(&priv->mutex);
+	mutex_init(&priv->shrd->mutex);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -3492,7 +3492,7 @@ static void iwl_mac_rssi_callback(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (priv->cfg->bt_params &&
 			priv->cfg->bt_params->advanced_bt_coexist) {
@@ -3507,7 +3507,7 @@ static void iwl_mac_rssi_callback(struct ieee80211_hw *hw,
 				"ignoring RSSI callback\n");
 	}
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 struct ieee80211_ops iwlagn_hw_ops = {

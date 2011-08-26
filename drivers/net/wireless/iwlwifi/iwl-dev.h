@@ -1228,8 +1228,8 @@ struct iwl_priv {
 	/* spinlock */
 	spinlock_t hcmd_lock;	/* protect hcmd */
 	spinlock_t reg_lock;	/* protect hw register access */
-	struct mutex mutex;
 
+	/*TODO: remove these pointers - use bus(priv) instead */
 	struct iwl_bus *bus;	/* bus specific data */
 	struct iwl_trans trans;
 

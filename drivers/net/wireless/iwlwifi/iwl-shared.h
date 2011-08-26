@@ -150,6 +150,7 @@ struct iwl_hw_params {
  * @hw_params: see struct iwl_hw_params
  * @workqueue: the workqueue used by all the layers of the driver
  * @lock: protect general shared data
+ * @mutex:
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -165,6 +166,7 @@ struct iwl_shared {
 
 	struct workqueue_struct *workqueue;
 	spinlock_t lock;
+	struct mutex mutex;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */

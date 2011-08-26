@@ -116,7 +116,7 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 
 void iwl_force_scan_end(struct iwl_priv *priv)
 {
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Forcing scan end while not scanning\n");
@@ -134,7 +134,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 {
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Not performing scan to abort\n");
@@ -173,7 +173,7 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(ms);
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	IWL_DEBUG_SCAN(priv, "Scan cancel timeout\n");
 
@@ -358,7 +358,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 {
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	cancel_delayed_work(&priv->scan_check);
 
@@ -413,7 +413,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	if (req->n_channels == 0)
 		return -EINVAL;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (test_bit(STATUS_SCANNING, &priv->shrd->status) &&
 	    priv->scan_type != IWL_SCAN_NORMAL) {
@@ -440,7 +440,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 out_unlock:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 
 	return ret;
 }
@@ -461,7 +461,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 
 	IWL_DEBUG_SCAN(priv, "Start internal scan\n");
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	if (priv->scan_type == IWL_SCAN_RADIO_RESET) {
 		IWL_DEBUG_SCAN(priv, "Internal scan already in progress\n");
@@ -476,7 +476,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 	if (iwl_scan_initiate(priv, NULL, IWL_SCAN_RADIO_RESET, priv->band))
 		IWL_DEBUG_SCAN(priv, "failed to start internal short scan\n");
  unlock:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 static void iwl_bg_scan_check(struct work_struct *data)
@@ -489,9 +489,9 @@ static void iwl_bg_scan_check(struct work_struct *data)
 	/* Since we are here firmware does not finish scan and
 	 * most likely is in bad shape, so we don't bother to
 	 * send abort command, just force scan complete to mac80211 */
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	iwl_force_scan_end(priv);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 /**
@@ -549,9 +549,9 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 
 	/* We keep scan_check work queued in case when firmware will not
 	 * report back scan completed notification */
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	iwl_scan_cancel_timeout(priv, 200);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 static void iwl_bg_scan_completed(struct work_struct *work)
@@ -564,7 +564,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 
 	cancel_delayed_work(&priv->scan_check);
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->shrd->status);
 	if (aborted)
@@ -612,7 +612,7 @@ out_settings:
 	iwlagn_post_scan(priv);
 
 out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
@@ -630,8 +630,8 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->scan_completed);
 
 	if (cancel_delayed_work_sync(&priv->scan_check)) {
-		mutex_lock(&priv->mutex);
+		mutex_lock(&priv->shrd->mutex);
 		iwl_force_scan_end(priv);
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 	}
 }
