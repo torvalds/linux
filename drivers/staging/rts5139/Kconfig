@@ -1,6 +1,6 @@
 config RTS5139
 	tristate "Realtek RTS5139 USB card reader support"
-	depends on USB_SUPPORT && SCSI
+	depends on USB && SCSI
 	help
 	  Say Y here to include driver code to support the Realtek
 	  RTS5139 USB card readers.
