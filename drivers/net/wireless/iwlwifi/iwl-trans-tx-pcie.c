@@ -435,12 +435,12 @@ void iwl_trans_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	if (WARN_ON(tid >= MAX_TID_COUNT))
 		return;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn_idx = SEQ_TO_SN(tid_data->seq_number);
 	txq_id = tid_data->agg.txq_id;
 	tx_fifo = tid_data->agg.tx_fifo;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 

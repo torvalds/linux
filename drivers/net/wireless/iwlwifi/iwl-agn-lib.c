@@ -427,7 +427,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
 		IWLAGN_TX_RES_RA_POS;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
 	hdr = (void *)txb->skb->data;
 	if (!ieee80211_is_data_qos(hdr->frame_control))
@@ -482,7 +482,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 }
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
@@ -1079,7 +1079,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed)
 {
-	lockdep_assert_held(&priv->sta_lock);
+	lockdep_assert_held(&priv->shrd->sta_lock);
 
 	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
 		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;

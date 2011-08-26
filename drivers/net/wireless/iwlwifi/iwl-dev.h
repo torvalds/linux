@@ -1307,9 +1307,6 @@ struct iwl_priv {
 	struct iwl_tt_mgmt thermal_throttle;
 
 	/* station table variables */
-
-	/* Note: if lock and sta_lock are needed, lock must be acquired first */
-	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;

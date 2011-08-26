@@ -405,7 +405,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
 	/* irqs already disabled/saved above when locking priv->shrd->lock */
-	spin_lock(&priv->sta_lock);
+	spin_lock(&priv->shrd->sta_lock);
 
 	if (ieee80211_is_data_qos(fc)) {
 		u8 *qc = NULL;
@@ -460,7 +460,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			priv->stations[sta_id].tid[tid].seq_number = seq_number;
 	}
 
-	spin_unlock(&priv->sta_lock);
+	spin_unlock(&priv->shrd->sta_lock);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/*
@@ -476,7 +476,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	return 0;
 
 drop_unlock_sta:
-	spin_unlock(&priv->sta_lock);
+	spin_unlock(&priv->shrd->sta_lock);
 drop_unlock_priv:
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return -1;
@@ -534,19 +534,19 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	tid_data = &priv->stations[sta_id].tid[tid];
 	*ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
 	tid_data->agg.tx_fifo = tx_fifo;
 	iwl_set_swq_id(&priv->txq[txq_id], get_ac_from_tid(tid), txq_id);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	ret = iwlagn_txq_agg_enable(priv, txq_id, sta_id, tid);
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	tid_data = &priv->stations[sta_id].tid[tid];
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
@@ -557,7 +557,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			     tid_data->tfds_in_queue);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 	return ret;
 }
 
@@ -580,7 +580,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
@@ -610,7 +610,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		IWL_DEBUG_HT(priv, "Stopping a non empty AGG HW QUEUE\n");
 		priv->stations[sta_id].tid[tid].agg.state =
 				IWL_EMPTYING_HW_QUEUE_DELBA;
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return 0;
 	}
 
@@ -619,7 +619,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 
 	/* do not restore/save irqs */
-	spin_unlock(&priv->sta_lock);
+	spin_unlock(&priv->shrd->sta_lock);
 	spin_lock(&priv->shrd->lock);
 
 	/*
@@ -647,7 +647,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 
 	ctx = &priv->contexts[priv->stations[sta_id].ctxid];
 
-	lockdep_assert_held(&priv->sta_lock);
+	lockdep_assert_held(&priv->shrd->sta_lock);
 
 	switch (priv->stations[sta_id].tid[tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
@@ -890,7 +890,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	/* Find index just before block-ack window */
 	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
 	IWL_DEBUG_TX_REPLY(priv, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",
@@ -927,7 +927,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		iwlagn_txq_check_empty(priv, sta_id, tid, scd_flow);
 	}
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG

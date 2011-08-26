@@ -38,7 +38,7 @@
 #include "iwl-trans.h"
 #include "iwl-agn.h"
 
-/* priv->sta_lock must be held */
+/* priv->shrd->sta_lock must be held */
 static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 {
 
@@ -75,7 +75,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	IWL_DEBUG_INFO(priv, "Processing response for adding station %u\n",
 		       sta_id);
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
 	switch (pkt->u.add_sta.status) {
 	case ADD_STA_SUCCESS_MSK:
@@ -118,7 +118,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 		       priv->stations[sta_id].sta.mode ==
 		       STA_CONTROL_MODIFY_MSK ? "Modified" : "Added",
 		       addsta->sta.addr);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	return ret;
 }
@@ -337,12 +337,12 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	struct iwl_addsta_cmd sta_cmd;
 
 	*sta_id_r = 0;
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 	sta_id = iwl_prep_station(priv, ctx, addr, is_ap, sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Unable to prepare station %pM for addition\n",
 			addr);
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 		return -EINVAL;
 	}
 
@@ -354,7 +354,7 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	if (priv->stations[sta_id].used & IWL_STA_UCODE_INPROGRESS) {
 		IWL_DEBUG_INFO(priv, "STA %d already in process of being added.\n",
 			       sta_id);
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 		return -EEXIST;
 	}
 
@@ -362,23 +362,23 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	    (priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE)) {
 		IWL_DEBUG_ASSOC(priv, "STA %d (%pM) already added, not adding again.\n",
 				sta_id, addr);
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 		return -EEXIST;
 	}
 
 	priv->stations[sta_id].used |= IWL_STA_UCODE_INPROGRESS;
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 
 	/* Add station to device's station table */
 	ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 	if (ret) {
-		spin_lock_irqsave(&priv->sta_lock, flags_spin);
+		spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 		IWL_ERR(priv, "Adding station %pM failed.\n",
 			priv->stations[sta_id].sta.sta.addr);
 		priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
 		priv->stations[sta_id].used &= ~IWL_STA_UCODE_INPROGRESS;
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 	}
 	*sta_id_r = sta_id;
 	return ret;
@@ -387,7 +387,7 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 /**
  * iwl_sta_ucode_deactivate - deactivate ucode status for a station
  *
- * priv->sta_lock must be held
+ * priv->shrd->sta_lock must be held
  */
 static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, u8 sta_id)
 {
@@ -441,9 +441,11 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 		switch (pkt->u.rem_sta.status) {
 		case REM_STA_SUCCESS_MSK:
 			if (!temporary) {
-				spin_lock_irqsave(&priv->sta_lock, flags_spin);
+				spin_lock_irqsave(&priv->shrd->sta_lock,
+					flags_spin);
 				iwl_sta_ucode_deactivate(priv, sta_id);
-				spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+				spin_unlock_irqrestore(&priv->shrd->sta_lock,
+					flags_spin);
 			}
 			IWL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
 			break;
@@ -484,7 +486,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 	if (WARN_ON(sta_id == IWL_INVALID_STATION))
 		return -EINVAL;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
 		IWL_DEBUG_INFO(priv, "Removing %pM but non DRIVER active\n",
@@ -510,11 +512,11 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 	if (WARN_ON(priv->num_stations < 0))
 		priv->num_stations = 0;
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	return iwl_send_remove_station(priv, addr, sta_id, false);
 out_err:
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 	return -EINVAL;
 }
 
@@ -535,7 +537,7 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv,
 
 	IWL_DEBUG_INFO(priv, "Clearing ucode stations in driver\n");
 
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 	for (i = 0; i < hw_params(priv).max_stations; i++) {
 		if (ctx && ctx->ctxid != priv->stations[i].ctxid)
 			continue;
@@ -546,7 +548,7 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv,
 			cleared = true;
 		}
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 
 	if (!cleared)
 		IWL_DEBUG_INFO(priv, "No active stations found to be cleared\n");
@@ -576,7 +578,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 
 	IWL_DEBUG_ASSOC(priv, "Restoring all known stations ... start.\n");
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 	for (i = 0; i < hw_params(priv).max_stations; i++) {
 		if (ctx->ctxid != priv->stations[i].ctxid)
 			continue;
@@ -600,15 +602,18 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 				       sizeof(struct iwl_link_quality_cmd));
 				send_lq = true;
 			}
-			spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+			spin_unlock_irqrestore(&priv->shrd->sta_lock,
+					       flags_spin);
 			ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 			if (ret) {
-				spin_lock_irqsave(&priv->sta_lock, flags_spin);
+				spin_lock_irqsave(&priv->shrd->sta_lock,
+						  flags_spin);
 				IWL_ERR(priv, "Adding station %pM failed.\n",
 					priv->stations[i].sta.sta.addr);
 				priv->stations[i].used &= ~IWL_STA_DRIVER_ACTIVE;
 				priv->stations[i].used &= ~IWL_STA_UCODE_INPROGRESS;
-				spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+				spin_unlock_irqrestore(&priv->shrd->sta_lock,
+						       flags_spin);
 			}
 			/*
 			 * Rate scaling has already been initialized, send
@@ -616,12 +621,12 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			 */
 			if (send_lq)
 				iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
-			spin_lock_irqsave(&priv->sta_lock, flags_spin);
+			spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 			priv->stations[i].used &= ~IWL_STA_UCODE_INPROGRESS;
 		}
 	}
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 	if (!found)
 		IWL_DEBUG_INFO(priv, "Restoring all known stations .... no stations to be restored.\n");
 	else
@@ -637,9 +642,9 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	struct iwl_link_quality_cmd lq;
 	bool active;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return;
 	}
 
@@ -649,7 +654,7 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	active = priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE;
 	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	if (active) {
 		ret = iwl_send_remove_station(
@@ -659,9 +664,9 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			IWL_ERR(priv, "failed to remove STA %pM (%d)\n",
 				priv->stations[sta_id].sta.sta.addr, ret);
 	}
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	priv->stations[sta_id].used |= IWL_STA_DRIVER_ACTIVE;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 	if (ret)
@@ -686,7 +691,7 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	for (i = 0; i < hw_params(priv).max_stations; i++) {
 		if (!(priv->stations[i].used & IWL_STA_BCAST))
 			continue;
@@ -698,7 +703,7 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 		kfree(priv->stations[i].lq);
 		priv->stations[i].lq = NULL;
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -782,12 +787,12 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		return -EINVAL;
 
 
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 	if (!(priv->stations[lq->sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 
 	iwl_dump_lq_cmd(priv, lq);
 	if (WARN_ON(init && (cmd.flags & CMD_ASYNC)))
@@ -804,9 +809,9 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	if (init) {
 		IWL_DEBUG_INFO(priv, "init LQ command complete, clearing sta addition status for sta %d\n",
 			       lq->sta_id);
-		spin_lock_irqsave(&priv->sta_lock, flags_spin);
+		spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
 		priv->stations[lq->sta_id].used &= ~IWL_STA_UCODE_INPROGRESS;
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags_spin);
 	}
 	return ret;
 }

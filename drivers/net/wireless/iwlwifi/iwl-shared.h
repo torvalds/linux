@@ -150,6 +150,8 @@ struct iwl_hw_params {
  * @hw_params: see struct iwl_hw_params
  * @workqueue: the workqueue used by all the layers of the driver
  * @lock: protect general shared data
+ * @sta_lock: protects the station table.
+ *	If lock and sta_lock are needed, lock must be acquired first.
  * @mutex:
  */
 struct iwl_shared {
@@ -166,6 +168,7 @@ struct iwl_shared {
 
 	struct workqueue_struct *workqueue;
 	spinlock_t lock;
+	spinlock_t sta_lock;
 	struct mutex mutex;
 };
 

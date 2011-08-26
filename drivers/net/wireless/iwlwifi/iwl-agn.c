@@ -3416,7 +3416,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	spin_lock_init(&priv->sta_lock);
+	spin_lock_init(&priv->shrd->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
 	mutex_init(&priv->shrd->mutex);
