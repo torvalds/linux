@@ -123,8 +123,9 @@ struct iwl_trans_ops {
 		     const void *data);
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, u8 ctx, u8 sta_id);
-	void (*reclaim)(struct iwl_trans *trans, int txq_id, int ssn,
-			u32 status, struct sk_buff_head *skbs);
+	void (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
+			int txq_id, int ssn, u32 status,
+			struct sk_buff_head *skbs);
 
 	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id);
 	int (*tx_agg_alloc)(struct iwl_trans *trans,
@@ -208,11 +209,11 @@ static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id);
 }
 
-static inline void iwl_trans_reclaim(struct iwl_trans *trans, int txq_id,
-				 int ssn, u32 status,
+static inline void iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
+				 int tid, int txq_id, int ssn, u32 status,
 				 struct sk_buff_head *skbs)
 {
-	trans->ops->reclaim(trans, txq_id, ssn, status, skbs);
+	trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn, status, skbs);
 }
 
 static inline int iwl_trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id)

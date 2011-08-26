@@ -202,8 +202,8 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 					int sta_id, int tid, int frame_limit);
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	int index);
-void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
-			  struct sk_buff_head *skbs);
+int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
+			 struct sk_buff_head *skbs);
 
 /*****************************************************
 * Error handling

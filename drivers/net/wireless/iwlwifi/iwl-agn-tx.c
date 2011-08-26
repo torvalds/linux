@@ -477,43 +477,6 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int iwlagn_txq_check_empty(struct iwl_priv *priv,
-			   int sta_id, u8 tid, int txq_id)
-{
-	struct iwl_queue *q = &priv->txq[txq_id].q;
-	u8 *addr = priv->stations[sta_id].sta.sta.addr;
-	struct iwl_tid_data *tid_data = &priv->shrd->tid_data[sta_id][tid];
-	struct iwl_rxon_context *ctx;
-
-	ctx = &priv->contexts[priv->stations[sta_id].ctxid];
-
-	lockdep_assert_held(&priv->shrd->sta_lock);
-
-	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
-	case IWL_EMPTYING_HW_QUEUE_DELBA:
-		/* We are reclaiming the last packet of the */
-		/* aggregated HW queue */
-		if ((txq_id  == tid_data->agg.txq_id) &&
-		    (q->read_ptr == q->write_ptr)) {
-			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
-			iwl_trans_txq_agg_disable(trans(priv), txq_id);
-			tid_data->agg.state = IWL_AGG_OFF;
-			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
-		}
-		break;
-	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		/* We are reclaiming the last packet of the queue */
-		if (tid_data->tfds_in_queue == 0) {
-			IWL_DEBUG_HT(priv, "HW queue empty: continue ADDBA flow\n");
-			tid_data->agg.state = IWL_AGG_ON;
-			ieee80211_start_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
-		}
-		break;
-	}
-
-	return 0;
-}
-
 static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,
 				     struct iwl_rxon_context *ctx,
 				     const u8 *addr1)
@@ -724,21 +687,6 @@ static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
 			    tx_resp->frame_count) & MAX_SN;
 }
 
-static void iwl_free_tfds_in_queue(struct iwl_priv *priv,
-			    int sta_id, int tid, int freed)
-{
-	lockdep_assert_held(&priv->shrd->sta_lock);
-
-	if (priv->shrd->tid_data[sta_id][tid].tfds_in_queue >= freed)
-		priv->shrd->tid_data[sta_id][tid].tfds_in_queue -= freed;
-	else {
-		IWL_DEBUG_TX(priv, "free more than tfds_in_queue (%u:%d)\n",
-			priv->shrd->tid_data[sta_id][tid].tfds_in_queue,
-			freed);
-		priv->shrd->tid_data[sta_id][tid].tfds_in_queue = 0;
-	}
-}
-
 static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 {
 	status &= TX_STATUS_MSK;
@@ -889,7 +837,8 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 		__skb_queue_head_init(&skbs);
 		/*we can free until ssn % q.n_bd not inclusive */
-		iwl_trans_reclaim(trans(priv), txq_id, ssn, status, &skbs);
+		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
+				  ssn, status, &skbs);
 		freed = 0;
 		while (!skb_queue_empty(&skbs)) {
 			skb = __skb_dequeue(&skbs);
@@ -939,9 +888,6 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		}
 
 		WARN_ON(!is_agg && freed != 1);
-
-		iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
-		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 	}
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
@@ -1050,8 +996,8 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
-	iwl_trans_reclaim(trans(priv), scd_flow, ba_resp_scd_ssn, 0,
-			  &reclaimed_skbs);
+	iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow, ba_resp_scd_ssn,
+			  0, &reclaimed_skbs);
 	freed = 0;
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 
@@ -1081,9 +1027,6 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 		ieee80211_tx_status_irqsafe(priv->hw, skb);
 	}
-
-	iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
-	iwlagn_txq_check_empty(priv, sta_id, tid, scd_flow);
 
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 }

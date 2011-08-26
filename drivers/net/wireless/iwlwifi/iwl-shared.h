@@ -346,8 +346,12 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
 
-void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv, u8 ctx,
+void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
+				 enum iwl_rxon_context_id ctx,
 				 u8 sta_id, u8 tid);
+void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
+				enum iwl_rxon_context_id ctx,
+				u8 sta_id, u8 tid);
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS

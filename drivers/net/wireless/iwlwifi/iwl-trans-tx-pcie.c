@@ -1118,12 +1118,13 @@ int iwl_trans_pcie_send_cmd_pdu(struct iwl_trans *trans, u8 id, u32 flags,
 }
 
 /* Frees buffers until index _not_ inclusive */
-void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
-			    struct sk_buff_head *skbs)
+int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
+			 struct sk_buff_head *skbs)
 {
 	struct iwl_tx_queue *txq = &priv(trans)->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int last_to_free;
+	int freed = 0;
 
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
@@ -1135,14 +1136,14 @@ void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			  "last_to_free %d is out of range [0-%d] %d %d.\n",
 			  __func__, txq_id, last_to_free, q->n_bd,
 			  q->write_ptr, q->read_ptr);
-		return;
+		return 0;
 	}
 
 	IWL_DEBUG_TX_REPLY(trans, "reclaim: [%d, %d, %d]\n", txq_id,
 			   q->read_ptr, index);
 
 	if (WARN_ON(!skb_queue_empty(skbs)))
-		return;
+		return 0;
 
 	for (;
 	     q->read_ptr != index;
@@ -1158,5 +1159,7 @@ void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
 		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr);
+		freed++;
 	}
+	return freed;
 }

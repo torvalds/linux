@@ -1265,19 +1265,75 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 	return 0;
 }
 
-static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id,
-		      int ssn, u32 status, struct sk_buff_head *skbs)
+static int iwlagn_txq_check_empty(struct iwl_trans *trans,
+			   int sta_id, u8 tid, int txq_id)
 {
-	struct iwl_priv *priv = priv(trans);
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &priv(trans)->txq[txq_id].q;
+	struct iwl_tid_data *tid_data = &trans->shrd->tid_data[sta_id][tid];
+
+	lockdep_assert_held(&trans->shrd->sta_lock);
+
+	switch (trans->shrd->tid_data[sta_id][tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_DELBA:
+		/* We are reclaiming the last packet of the */
+		/* aggregated HW queue */
+		if ((txq_id  == tid_data->agg.txq_id) &&
+		    (q->read_ptr == q->write_ptr)) {
+			IWL_DEBUG_HT(trans,
+				"HW queue empty: continue DELBA flow\n");
+			iwl_trans_pcie_txq_agg_disable(priv(trans), txq_id);
+			tid_data->agg.state = IWL_AGG_OFF;
+			iwl_stop_tx_ba_trans_ready(priv(trans),
+						   NUM_IWL_RXON_CTX,
+						   sta_id, tid);
+			iwl_wake_queue(priv(trans), &priv(trans)->txq[txq_id]);
+		}
+		break;
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/* We are reclaiming the last packet of the queue */
+		if (tid_data->tfds_in_queue == 0) {
+			IWL_DEBUG_HT(trans,
+				"HW queue empty: continue ADDBA flow\n");
+			tid_data->agg.state = IWL_AGG_ON;
+			iwl_start_tx_ba_trans_ready(priv(trans),
+						    NUM_IWL_RXON_CTX,
+						    sta_id, tid);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static void iwl_free_tfds_in_queue(struct iwl_trans *trans,
+			    int sta_id, int tid, int freed)
+{
+	lockdep_assert_held(&trans->shrd->sta_lock);
+
+	if (trans->shrd->tid_data[sta_id][tid].tfds_in_queue >= freed)
+		trans->shrd->tid_data[sta_id][tid].tfds_in_queue -= freed;
+	else {
+		IWL_DEBUG_TX(trans, "free more than tfds_in_queue (%u:%d)\n",
+			trans->shrd->tid_data[sta_id][tid].tfds_in_queue,
+			freed);
+		trans->shrd->tid_data[sta_id][tid].tfds_in_queue = 0;
+	}
+}
+
+static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
+		      int txq_id, int ssn, u32 status,
+		      struct sk_buff_head *skbs)
+{
+	struct iwl_tx_queue *txq = &priv(trans)->txq[txq_id];
 	/* n_bd is usually 256 => n_bd - 1 = 0xff */
 	int tfd_num = ssn & (txq->q.n_bd - 1);
+	int freed = 0;
 	u8 agg_state;
 	bool cond;
 
 	if (txq->sched_retry) {
 		agg_state =
-			priv->shrd->tid_data[txq->sta_id][txq->tid].agg.state;
+			trans->shrd->tid_data[txq->sta_id][txq->tid].agg.state;
 		cond = (agg_state != IWL_EMPTYING_HW_QUEUE_DELBA);
 	} else {
 		cond = (status != TX_STATUS_FAIL_PASSIVE_NO_RX);
@@ -1287,10 +1343,13 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id,
 		IWL_DEBUG_TX_REPLY(trans, "Retry scheduler reclaim "
 				"scd_ssn=%d idx=%d txq=%d swq=%d\n",
 				ssn , tfd_num, txq_id, txq->swq_id);
-		iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
+		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
-			iwl_wake_queue(priv, txq);
+			iwl_wake_queue(priv(trans), txq);
 	}
+
+	iwl_free_tfds_in_queue(trans, sta_id, tid, freed);
+	iwlagn_txq_check_empty(trans, sta_id, tid, txq_id);
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
