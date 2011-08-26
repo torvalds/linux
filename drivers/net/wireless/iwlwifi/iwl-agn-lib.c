@@ -610,7 +610,7 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.bt_coex_active = true,
 	.no_sleep_autoadjust = true,
 	.power_level = IWL_POWER_INDEX_1,
-	.bt_ch_announce = 1,
+	.bt_ch_announce = true,
 	.wanted_ucode_alternative = 1,
 	.auto_agg = true,
 	/* the rest are 0 by default */

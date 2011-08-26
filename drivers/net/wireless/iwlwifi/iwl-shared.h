@@ -91,7 +91,7 @@ struct iwl_mod_params {
 	int power_level;	/* def: 1 = power level */
 	u32 debug_level;	/* levels are IWL_DL_* */
 	int ant_coupling;
-	bool bt_ch_announce;
+	bool bt_ch_announce;	/* def: enable = BT channel inhibition */
 	int wanted_ucode_alternative;
 	bool auto_agg;		/* def: true = enable agg. without check */
 };
