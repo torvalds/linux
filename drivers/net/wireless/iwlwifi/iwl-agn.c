@@ -3459,7 +3459,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 		goto err;
 	}
 
-	ret = iwlcore_init_geos(priv);
+	ret = iwl_init_geos(priv);
 	if (ret) {
 		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
 		goto err_free_channel_map;
@@ -3477,7 +3477,7 @@ err:
 static void iwl_uninit_drv(struct iwl_priv *priv)
 {
 	iwl_calib_free_results(priv);
-	iwlcore_free_geos(priv);
+	iwl_free_geos(priv);
 	iwl_free_channel_map(priv);
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);

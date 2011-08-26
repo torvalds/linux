@@ -51,7 +51,7 @@ const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 #define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
-static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
+static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 			      struct ieee80211_sta_ht_cap *ht_info,
 			      enum ieee80211_band band)
 {
@@ -107,9 +107,9 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 }
 
 /**
- * iwlcore_init_geos - Initialize mac80211's geo/channel info based from eeprom
+ * iwl_init_geos - Initialize mac80211's geo/channel info based from eeprom
  */
-int iwlcore_init_geos(struct iwl_priv *priv)
+int iwl_init_geos(struct iwl_priv *priv)
 {
 	struct iwl_channel_info *ch;
 	struct ieee80211_supported_band *sband;
@@ -146,7 +146,7 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY - IWL_FIRST_OFDM_RATE;
 
 	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
-		iwlcore_init_ht_hw_capab(priv, &sband->ht_cap,
+		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_5GHZ);
 
 	sband = &priv->bands[IEEE80211_BAND_2GHZ];
@@ -156,7 +156,7 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY;
 
 	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
-		iwlcore_init_ht_hw_capab(priv, &sband->ht_cap,
+		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_2GHZ);
 
 	priv->ieee_channels = channels;
@@ -228,9 +228,9 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 }
 
 /*
- * iwlcore_free_geos - undo allocations in iwlcore_init_geos
+ * iwl_free_geos - undo allocations in iwl_init_geos
  */
-void iwlcore_free_geos(struct iwl_priv *priv)
+void iwl_free_geos(struct iwl_priv *priv)
 {
 	kfree(priv->ieee_channels);
 	kfree(priv->ieee_rates);

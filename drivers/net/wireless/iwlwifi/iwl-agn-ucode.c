@@ -369,7 +369,7 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
+static int iwl_verify_inst_sparse(struct iwl_priv *priv,
 				      struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -427,7 +427,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
  */
 static int iwl_verify_ucode(struct iwl_priv *priv, struct fw_img *img)
 {
-	if (!iwlcore_verify_inst_sparse(priv, &img->code)) {
+	if (!iwl_verify_inst_sparse(priv, &img->code)) {
 		IWL_DEBUG_FW(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}

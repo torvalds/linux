@@ -226,7 +226,7 @@ static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
 			    CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
-static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
+static int iwl_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
 {
 	u32 otpgp;
 	int nvm_type;
@@ -431,7 +431,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	u16 validblockaddr = 0;
 	u16 cache_addr = 0;
 
-	priv->nvm_device_type = iwlcore_get_nvm_type(priv, hw_rev);
+	priv->nvm_device_type = iwl_get_nvm_type(priv, hw_rev);
 	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */

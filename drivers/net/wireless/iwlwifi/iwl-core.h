@@ -429,8 +429,8 @@ void iwl_clear_isr_stats(struct iwl_priv *priv);
 /*****************************************************
 *  GEOS
 ******************************************************/
-int iwlcore_init_geos(struct iwl_priv *priv);
-void iwlcore_free_geos(struct iwl_priv *priv);
+int iwl_init_geos(struct iwl_priv *priv);
+void iwl_free_geos(struct iwl_priv *priv);
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
