@@ -187,25 +187,25 @@ struct igb_q_vector {
 };
 
 struct igb_ring {
-	struct igb_q_vector *q_vector; /* backlink to q_vector */
-	struct net_device *netdev;     /* back pointer to net_device */
-	struct device *dev;            /* device pointer for dma mapping */
-	dma_addr_t dma;                /* phys address of the ring */
-	void *desc;                    /* descriptor ring memory */
-	unsigned int size;             /* length of desc. ring in bytes */
-	u16 count;                     /* number of desc. in the ring */
+	struct igb_q_vector *q_vector;	/* backlink to q_vector */
+	struct net_device *netdev;	/* back pointer to net_device */
+	struct device *dev;		/* device pointer for dma mapping */
+	struct igb_buffer *buffer_info;	/* array of buffer info structs */
+	void *desc;			/* descriptor ring memory */
+	unsigned long flags;		/* ring specific flags */
+	void __iomem *tail;		/* pointer to ring tail register */
+
+	u16 count;			/* number of desc. in the ring */
+	u8 queue_index;			/* logical index of the ring*/
+	u8 reg_idx;			/* physical index of the ring */
+	u32 size;			/* length of desc. ring in bytes */
+
+	/* everything past this point are written often */
+	u16 next_to_clean ____cacheline_aligned_in_smp;
 	u16 next_to_use;
-	u16 next_to_clean;
-	u8 queue_index;
-	u8 reg_idx;
-	void __iomem *head;
-	void __iomem *tail;
-	struct igb_buffer *buffer_info; /* array of buffer info structs */
 
 	unsigned int total_bytes;
 	unsigned int total_packets;
-
-	u32 flags;
 
 	union {
 		/* TX */
@@ -221,6 +221,8 @@ struct igb_ring {
 			struct u64_stats_sync rx_syncp;
 		};
 	};
+	/* Items past this point are only used during ring alloc / free */
+	dma_addr_t dma;                /* phys address of the ring */
 };
 
 #define IGB_RING_FLAG_RX_CSUM        0x00000001 /* RX CSUM enabled */
@@ -248,21 +250,43 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 
 /* board specific private data structure */
 struct igb_adapter {
-	struct timer_list watchdog_timer;
-	struct timer_list phy_info_timer;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	u16 mng_vlan_id;
-	u32 bd_number;
-	u32 wol;
-	u32 en_mng_pt;
-	u16 link_speed;
-	u16 link_duplex;
+
+	struct net_device *netdev;
+
+	unsigned long state;
+	unsigned int flags;
+
+	unsigned int num_q_vectors;
+	struct msix_entry *msix_entries;
 
 	/* Interrupt Throttle Rate */
 	u32 rx_itr_setting;
 	u32 tx_itr_setting;
 	u16 tx_itr;
 	u16 rx_itr;
+
+	/* TX */
+	u32 tx_timeout_count;
+	int num_tx_queues;
+	struct igb_ring *tx_ring[16];
+
+	/* RX */
+	int num_rx_queues;
+	struct igb_ring *rx_ring[16];
+
+	u32 max_frame_size;
+	u32 min_frame_size;
+
+	struct timer_list watchdog_timer;
+	struct timer_list phy_info_timer;
+
+	u16 mng_vlan_id;
+	u32 bd_number;
+	u32 wol;
+	u32 en_mng_pt;
+	u16 link_speed;
+	u16 link_duplex;
 
 	struct work_struct reset_task;
 	struct work_struct watchdog_task;
@@ -271,20 +295,7 @@ struct igb_adapter {
 	struct timer_list blink_timer;
 	unsigned long led_status;
 
-	/* TX */
-	struct igb_ring *tx_ring[16];
-	u32 tx_timeout_count;
-
-	/* RX */
-	struct igb_ring *rx_ring[16];
-	int num_tx_queues;
-	int num_rx_queues;
-
-	u32 max_frame_size;
-	u32 min_frame_size;
-
 	/* OS defined structs */
-	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct cyclecounter cycles;
 	struct timecounter clock;
@@ -306,15 +317,11 @@ struct igb_adapter {
 
 	int msg_enable;
 
-	unsigned int num_q_vectors;
 	struct igb_q_vector *q_vector[MAX_Q_VECTORS];
-	struct msix_entry *msix_entries;
 	u32 eims_enable_mask;
 	u32 eims_other;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	unsigned long state;
-	unsigned int flags;
 	u32 eeprom_wol;
 
 	struct igb_ring *multi_tx_table[IGB_ABS_MAX_TX_QUEUES];
