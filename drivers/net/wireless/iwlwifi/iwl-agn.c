@@ -1673,10 +1673,10 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
 
 	if (priv->cfg->base_params->support_ct_kill_exit) {
@@ -3083,7 +3083,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	spin_lock_irq(&priv->lock);
+	spin_lock_irq(&priv->shrd->lock);
 
 	priv->current_ht_config.smps = conf->smps_mode;
 
@@ -3113,7 +3113,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	iwl_set_rxon_ht(priv, ht_conf);
 	iwl_set_flags_for_band(priv, ctx, channel->band, ctx->vif);
 
-	spin_unlock_irq(&priv->lock);
+	spin_unlock_irq(&priv->shrd->lock);
 
 	iwl_set_rate(priv);
 	/*
@@ -3640,7 +3640,7 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	 * we should init now
 	 */
 	spin_lock_init(&priv->reg_lock);
-	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->shrd->lock);
 
 	/*
 	 * stop and reset the on-board processor just in case it is in a
@@ -3796,9 +3796,9 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	/* make sure we flush any pending irq or
 	 * tasklet for the driver
 	 */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	trans_sync_irq(&priv->trans);
 

@@ -69,7 +69,7 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 
 	iwl_rf_config(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
@@ -80,7 +80,7 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 				~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
 static struct iwl_sensitivity_ranges iwl5000_sensitivity = {

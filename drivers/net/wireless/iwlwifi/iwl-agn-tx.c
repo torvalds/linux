@@ -336,7 +336,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_DROP(priv, "Dropping - RF KILL\n");
 		goto drop_unlock_priv;
@@ -404,7 +404,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	else
 		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
-	/* irqs already disabled/saved above when locking priv->lock */
+	/* irqs already disabled/saved above when locking priv->shrd->lock */
 	spin_lock(&priv->sta_lock);
 
 	if (ieee80211_is_data_qos(fc)) {
@@ -461,7 +461,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	spin_unlock(&priv->sta_lock);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/*
 	 * Avoid atomic ops if it isn't an associated client.
@@ -478,7 +478,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 drop_unlock_sta:
 	spin_unlock(&priv->sta_lock);
 drop_unlock_priv:
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return -1;
 }
 
@@ -620,7 +620,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	/* do not restore/save irqs */
 	spin_unlock(&priv->sta_lock);
-	spin_lock(&priv->lock);
+	spin_lock(&priv->shrd->lock);
 
 	/*
 	 * the only reason this call can fail is queue number out of range,
@@ -630,7 +630,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	 *  mac80211 to clean up it own data.
 	 */
 	trans_txq_agg_disable(&priv->trans, txq_id, ssn, tx_fifo_id);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 

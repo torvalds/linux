@@ -149,6 +149,7 @@ struct iwl_hw_params {
  * @priv: pointer to the upper layer data
  * @hw_params: see struct iwl_hw_params
  * @workqueue: the workqueue used by all the layers of the driver
+ * @lock: protect general shared data
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -163,6 +164,7 @@ struct iwl_shared {
 	struct iwl_hw_params hw_params;
 
 	struct workqueue_struct *workqueue;
+	spinlock_t lock;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */

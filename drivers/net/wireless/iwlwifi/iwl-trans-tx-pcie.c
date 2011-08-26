@@ -444,7 +444,7 @@ void iwl_trans_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* Stop this Tx queue before configuring it */
 	iwlagn_tx_queue_stop_scheduler(priv, txq_id);
@@ -480,7 +480,7 @@ void iwl_trans_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl_trans_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
 int iwl_trans_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,

@@ -329,9 +329,9 @@ void iwlagn_rx_replenish(struct iwl_priv *priv)
 
 	iwlagn_rx_allocate(priv, GFP_KERNEL);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwlagn_rx_queue_restock(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
 static void iwlagn_rx_replenish_now(struct iwl_priv *priv)
@@ -499,7 +499,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	u32 inta_mask;
 #endif
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
@@ -525,7 +525,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 #endif
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/* saved interrupt in inta variable now we can reset priv->inta */
 	priv->inta = 0;
@@ -774,7 +774,7 @@ int iwl_reset_ict(struct iwl_priv *priv)
 	if (!priv->ict_tbl_vir)
 		return 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_disable_interrupts(priv);
 
 	memset(&priv->ict_tbl[0], 0, sizeof(u32) * ICT_COUNT);
@@ -794,7 +794,7 @@ int iwl_reset_ict(struct iwl_priv *priv)
 	priv->ict_index = 0;
 	iwl_write32(priv, CSR_INT, priv->inta_mask);
 	iwl_enable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	return 0;
 }
@@ -804,9 +804,9 @@ void iwl_disable_ict(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	priv->use_ict = false;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
 static irqreturn_t iwl_isr(int irq, void *data)
@@ -820,7 +820,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if (!priv)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
@@ -864,7 +864,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 		iwl_enable_interrupts(priv);
 
  unplugged:
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -873,7 +873,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status) && !priv->inta)
 		iwl_enable_interrupts(priv);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return IRQ_NONE;
 }
 
@@ -901,7 +901,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (!priv->use_ict)
 		return iwl_isr(irq, data);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 * back-to-back ISRs and sporadic interrupts from our NIC.
@@ -967,7 +967,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 		iwl_enable_interrupts(priv);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -977,6 +977,6 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status) && !priv->inta)
 		iwl_enable_interrupts(priv);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return IRQ_NONE;
 }

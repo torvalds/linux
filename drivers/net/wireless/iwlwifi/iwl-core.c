@@ -1186,7 +1186,7 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	q = AC_NUM - 1 - queue;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/*
 	 * MULTI-FIXME
@@ -1204,7 +1204,7 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return 0;

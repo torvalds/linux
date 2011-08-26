@@ -210,10 +210,10 @@ static int iwl_rx_init(struct iwl_priv *priv)
 
 	iwl_trans_rx_hw_init(priv, rxq);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	rxq->need_update = 1;
 	iwl_rx_queue_update_write_ptr(priv, rxq);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	return 0;
 }
@@ -546,7 +546,7 @@ static int iwl_tx_init(struct iwl_priv *priv)
 		alloc = true;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* Turn off all Tx DMA fifos */
 	iwl_write_prph(priv, SCD_TXFACT, 0);
@@ -554,7 +554,7 @@ static int iwl_tx_init(struct iwl_priv *priv)
 	/* Tell NIC where to find the "keep warm" buffer */
 	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++) {
@@ -598,13 +598,13 @@ static int iwl_nic_init(struct iwl_priv *priv)
 	unsigned long flags;
 
 	/* nic_init */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_apm_init(priv);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	iwl_set_pwr_vmain(priv);
 
@@ -728,7 +728,7 @@ static int iwl_trans_start_device(struct iwl_priv *priv)
 
 /*
  * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
- * must be called under priv->lock and mac access
+ * must be called under priv->shrd->lock and mac access
  */
 static void iwl_trans_txq_set_sched(struct iwl_priv *priv, u32 mask)
 {
@@ -777,7 +777,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 	int i, chan;
 	u32 reg_val;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	priv->scd_base_addr = iwl_read_prph(priv, SCD_SRAM_BASE_ADDR);
 	a = priv->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
@@ -872,7 +872,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 		iwl_trans_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/* Enable L1-Active */
 	iwl_clear_bits_prph(priv, APMG_PCIDEV_STT_REG,
@@ -888,7 +888,7 @@ static int iwl_trans_tx_stop(struct iwl_priv *priv)
 	unsigned long flags;
 
 	/* Turn off all Tx DMA fifos */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	iwl_trans_txq_set_sched(priv, 0);
 
@@ -902,7 +902,7 @@ static int iwl_trans_tx_stop(struct iwl_priv *priv)
 			    " DMA channel %d [0x%08x]", ch,
 			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	if (!priv->txq) {
 		IWL_WARN(priv, "Stopping tx queues that aren't allocated...");
@@ -924,9 +924,9 @@ static void iwl_trans_stop_device(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/* tell the device to stop sending interrupts */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	trans_sync_irq(&priv->trans);
 
 	/* device going down, Stop using ICT table */

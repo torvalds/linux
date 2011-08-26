@@ -1673,9 +1673,9 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 	/* FIXME: based on notification, adjust the prio_boost */
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
