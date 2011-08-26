@@ -742,7 +742,6 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int cmd_index = SEQ_TO_INDEX(sequence);
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwlagn_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	struct ieee80211_hdr *hdr;
 	u32 status = le16_to_cpu(tx_resp->status.status);
@@ -755,17 +754,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	struct sk_buff_head skbs;
 	struct sk_buff *skb;
 	struct iwl_rxon_context *ctx;
-
-	if ((cmd_index >= txq->q.n_bd) ||
-	    (iwl_queue_used(&txq->q, cmd_index) == 0)) {
-		IWL_ERR(priv, "%s: Read index for DMA queue txq_id (%d) "
-			  "cmd_index %d is out of range [0-%d] %d %d\n",
-			  __func__, txq_id, cmd_index, txq->q.n_bd,
-			  txq->q.write_ptr, txq->q.read_ptr);
-		return;
-	}
-
-	txq->time_stamp = jiffies;
+	bool is_agg = (txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
 
 	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
 		IWLAGN_TX_RES_TID_POS;
@@ -774,12 +763,10 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
-	if (txq->sched_retry)
+	if (is_agg)
 		iwl_rx_reply_tx_agg(priv, tx_resp);
 
 	if (tx_resp->frame_count == 1) {
-		bool is_agg = (txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
-
 		__skb_queue_head_init(&skbs);
 		/*we can free until ssn % q.n_bd not inclusive */
 		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
@@ -850,14 +837,12 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
-	struct iwl_tx_queue *txq = NULL;
 	struct iwl_ht_agg *agg;
 	struct sk_buff_head reclaimed_skbs;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
 	unsigned long flags;
-	int index;
 	int sta_id;
 	int tid;
 	int freed;
@@ -875,13 +860,9 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		return;
 	}
 
-	txq = &priv->txq[scd_flow];
 	sta_id = ba_resp->sta_id;
 	tid = ba_resp->tid;
 	agg = &priv->shrd->tid_data[sta_id][tid].agg;
-
-	/* Find index of block-ack window */
-	index = ba_resp_scd_ssn & (txq->q.n_bd - 1);
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 

@@ -1032,7 +1032,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		iwl_rx_queue_update_write_ptr(trans, &trans_pcie->rxq);
 		for (i = 0; i < hw_params(trans).max_txq_num; i++)
 			iwl_txq_update_write_ptr(trans,
-						 &priv(trans)->txq[i]);
+						 &trans_pcie->txq[i]);
 
 		isr_stats->wakeup++;
 

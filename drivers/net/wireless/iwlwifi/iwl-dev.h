@@ -574,19 +574,6 @@ struct iwl_sensitivity_ranges {
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-extern int iwl_queue_space(const struct iwl_queue *q);
-static inline int iwl_queue_used(const struct iwl_queue *q, int i)
-{
-	return q->write_ptr >= q->read_ptr ?
-		(i >= q->read_ptr && i < q->write_ptr) :
-		!(i < q->read_ptr && i >= q->write_ptr);
-}
-
-
-static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
-{
-	return index & (q->n_window - 1);
-}
 
 #define IWL_OPERATION_MODE_AUTO     0
 #define IWL_OPERATION_MODE_HT_ONLY  1
@@ -1156,10 +1143,6 @@ struct iwl_priv {
 
 	int activity_timer_active;
 
-	/* Tx DMA processing queues */
-	struct iwl_tx_queue *txq;
-	unsigned long txq_ctx_active_msk;
-
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
 	struct traffic_stats rx_stats;
@@ -1171,12 +1154,6 @@ struct iwl_priv {
 	int num_stations;
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;
-
-	/* queue refcounts */
-#define IWL_MAX_HW_QUEUES	32
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
-	/* for each AC */
-	atomic_t queue_stop_count[4];
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
@@ -1334,26 +1311,7 @@ struct iwl_priv {
 	bool have_rekey_data;
 }; /*iwl_priv */
 
-static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)
-{
-	set_bit(txq_id, &priv->txq_ctx_active_msk);
-}
-
-static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
-{
-	clear_bit(txq_id, &priv->txq_ctx_active_msk);
-}
-
 extern struct iwl_mod_params iwlagn_mod_params;
-
-static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
-							 int txq_id, int idx)
-{
-	if (priv->txq[txq_id].skbs[idx])
-		return (struct ieee80211_hdr *)priv->txq[txq_id].
-				skbs[idx]->data;
-	return NULL;
-}
 
 static inline struct iwl_rxon_context *
 iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)

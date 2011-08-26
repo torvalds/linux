@@ -125,6 +125,10 @@ struct iwl_dma_ptr {
  * @ac_to_fifo: to what fifo is a specifc AC mapped ?
  * @ac_to_queue: to what tx queue  is a specifc AC mapped ?
  * @mcast_queue:
+ * @txq: Tx DMA processing queues
+ * @txq_ctx_active_msk: what queue is active
+ * queue_stopped: tracks what queue is stopped
+ * queue_stop_count: tracks what SW queue is stopped
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -150,6 +154,12 @@ struct iwl_trans_pcie {
 	const u8 *ac_to_fifo[NUM_IWL_RXON_CTX];
 	const u8 *ac_to_queue[NUM_IWL_RXON_CTX];
 	u8 mcast_queue[NUM_IWL_RXON_CTX];
+
+	struct iwl_tx_queue *txq;
+	unsigned long txq_ctx_active_msk;
+#define IWL_MAX_HW_QUEUES	32
+	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
+	atomic_t queue_stop_count[4];
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -207,6 +217,7 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	int index);
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			 struct sk_buff_head *skbs);
+int iwl_queue_space(const struct iwl_queue *q);
 
 /*****************************************************
 * Error handling
@@ -216,6 +227,9 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display);
 void iwl_dump_csr(struct iwl_trans *trans);
 
+/*****************************************************
+* Helpers
+******************************************************/
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {
 	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);
@@ -265,12 +279,14 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
 	u8 hwq = (queue >> 2) & 0x1f;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (unlikely(!trans->shrd->mac80211_registered))
 		return;
 
-	if (test_and_clear_bit(hwq, priv(trans)->queue_stopped))
-		if (atomic_dec_return(&priv(trans)->queue_stop_count[ac]) <= 0)
+	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped))
+		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0)
 			ieee80211_wake_queue(trans->shrd->hw, ac);
 }
 
@@ -280,12 +296,14 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
 	u8 hwq = (queue >> 2) & 0x1f;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (unlikely(!trans->shrd->mac80211_registered))
 		return;
 
-	if (!test_and_set_bit(hwq, priv(trans)->queue_stopped))
-		if (atomic_inc_return(&priv(trans)->queue_stop_count[ac]) > 0)
+	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped))
+		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0)
 			ieee80211_stop_queue(trans->shrd->hw, ac);
 }
 
@@ -300,5 +318,29 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 #endif
 
 #define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
+
+static inline void iwl_txq_ctx_activate(struct iwl_trans_pcie *trans_pcie,
+					int txq_id)
+{
+	set_bit(txq_id, &trans_pcie->txq_ctx_active_msk);
+}
+
+static inline void iwl_txq_ctx_deactivate(struct iwl_trans_pcie *trans_pcie,
+					  int txq_id)
+{
+	clear_bit(txq_id, &trans_pcie->txq_ctx_active_msk);
+}
+
+static inline int iwl_queue_used(const struct iwl_queue *q, int i)
+{
+	return q->write_ptr >= q->read_ptr ?
+		(i >= q->read_ptr && i < q->write_ptr) :
+		!(i < q->read_ptr && i >= q->write_ptr);
+}
+
+static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
+{
+	return index & (q->n_window - 1);
+}
 
 #endif /* __iwl_trans_int_pcie_h__ */
