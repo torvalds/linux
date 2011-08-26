@@ -556,11 +556,12 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_dbgfs_interrupt_read(struct file *file,
+static ssize_t iwl_dbgfs_rx_handlers_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
 	struct iwl_priv *priv = file->private_data;
+
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
@@ -573,61 +574,25 @@ static ssize_t iwl_dbgfs_interrupt_read(struct file *file,
 		return -ENOMEM;
 	}
 
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"Interrupt Statistics Report:\n");
-
-	pos += scnprintf(buf + pos, bufsz - pos, "HW Error:\t\t\t %u\n",
-		priv->isr_stats.hw);
-	pos += scnprintf(buf + pos, bufsz - pos, "SW Error:\t\t\t %u\n",
-		priv->isr_stats.sw);
-	if (priv->isr_stats.sw || priv->isr_stats.hw) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-			"\tLast Restarting Code:  0x%X\n",
-			priv->isr_stats.err_code);
-	}
-#ifdef CONFIG_IWLWIFI_DEBUG
-	pos += scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
-		priv->isr_stats.sch);
-	pos += scnprintf(buf + pos, bufsz - pos, "Alive interrupt:\t\t %u\n",
-		priv->isr_stats.alive);
-#endif
-	pos += scnprintf(buf + pos, bufsz - pos,
-		"HW RF KILL switch toggled:\t %u\n",
-		priv->isr_stats.rfkill);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "CT KILL:\t\t\t %u\n",
-		priv->isr_stats.ctkill);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Wakeup Interrupt:\t\t %u\n",
-		priv->isr_stats.wakeup);
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-		"Rx command responses:\t\t %u\n",
-		priv->isr_stats.rx);
 	for (cnt = 0; cnt < REPLY_MAX; cnt++) {
-		if (priv->isr_stats.rx_handlers[cnt] > 0)
+		if (priv->rx_handlers_stats[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
 				get_cmd_string(cnt),
-				priv->isr_stats.rx_handlers[cnt]);
+				priv->rx_handlers_stats[cnt]);
 	}
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Tx/FH interrupt:\t\t %u\n",
-		priv->isr_stats.tx);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Unexpected INTA:\t\t %u\n",
-		priv->isr_stats.unhandled);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
+static ssize_t iwl_dbgfs_rx_handlers_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
+
 	char buf[8];
 	int buf_size;
 	u32 reset_flag;
@@ -639,7 +604,8 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 	if (sscanf(buf, "%x", &reset_flag) != 1)
 		return -EFAULT;
 	if (reset_flag == 0)
-		iwl_clear_isr_stats(priv);
+		memset(&priv->rx_handlers_stats[0], 0,
+			sizeof(priv->rx_handlers_stats));
 
 	return count;
 }
@@ -834,7 +800,7 @@ DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
-DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
+DEBUGFS_READ_WRITE_FILE_OPS(rx_handlers);
 DEBUGFS_READ_FILE_OPS(qos);
 DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
@@ -2471,7 +2437,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(rx_handlers, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);

@@ -810,22 +810,6 @@ enum iwl_pa_type {
 	IWL_PA_INTERNAL = 1,
 };
 
-/* interrupt statistics */
-struct isr_statistics {
-	u32 hw;
-	u32 sw;
-	u32 err_code;
-	u32 sch;
-	u32 alive;
-	u32 rfkill;
-	u32 ctkill;
-	u32 wakeup;
-	u32 rx;
-	u32 rx_handlers[REPLY_MAX];
-	u32 tx;
-	u32 unhandled;
-};
-
 /* reply_tx_statistics (for _agn devices) */
 struct reply_tx_error_statistics {
 	u32 pp_delay;
@@ -1155,6 +1139,9 @@ struct iwl_priv {
 	/* jiffies when last recovery from statistics was performed */
 	unsigned long rx_statistics_jiffies;
 
+	/*counters */
+	u32 rx_handlers_stats[REPLY_MAX];
+
 	/* force reset */
 	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
 
@@ -1257,10 +1244,6 @@ struct iwl_priv {
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
 	struct traffic_stats rx_stats;
-
-	/* counts interrupts */
-	/* TODO: move to the transport layer */
-	struct isr_statistics isr_stats;
 
 	struct iwl_power_mgr power_data;
 	struct iwl_tt_mgmt thermal_throttle;

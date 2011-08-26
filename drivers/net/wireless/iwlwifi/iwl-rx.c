@@ -1020,7 +1020,7 @@ void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	 *   handle those that need handling via function in
 	 *   rx_handlers table.  See iwl_setup_rx_handlers() */
 	if (priv->rx_handlers[pkt->hdr.cmd]) {
-		priv->isr_stats.rx_handlers[pkt->hdr.cmd]++;
+		priv->rx_handlers_stats[pkt->hdr.cmd]++;
 		priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
 	} else {
 		/* No handling needed */

@@ -69,6 +69,9 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
+#include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
+
 struct iwl_priv;
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */

@@ -387,8 +387,6 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-void iwl_clear_isr_stats(struct iwl_priv *priv);
-
 /*****************************************************
 *  GEOS
 ******************************************************/

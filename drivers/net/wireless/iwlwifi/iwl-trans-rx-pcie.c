@@ -569,6 +569,9 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 {
 	u32 base;
 	struct iwl_error_event_table table;
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	base = priv->device_pointers.error_event_table;
 	if (priv->ucode_type == IWL_UCODE_INIT) {
@@ -596,7 +599,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 			priv->shrd->status, table.valid);
 	}
 
-	priv->isr_stats.err_code = table.error_id;
+	trans_pcie->isr_stats.err_code = table.error_id;
 
 	trace_iwlwifi_dev_ucode_error(priv, table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.line,
@@ -905,6 +908,8 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
+
 
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 
@@ -945,7 +950,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(trans);
 
-		priv(trans)->isr_stats.hw++;
+		isr_stats->hw++;
 		iwl_irq_handle_error(priv(trans));
 
 		handled |= CSR_INT_BIT_HW_ERR;
@@ -959,13 +964,13 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(trans, "Scheduler finished to transmit "
 				      "the frame/frames.\n");
-			priv(trans)->isr_stats.sch++;
+			isr_stats->sch++;
 		}
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE) {
 			IWL_DEBUG_ISR(trans, "Alive interrupt\n");
-			priv(trans)->isr_stats.alive++;
+			isr_stats->alive++;
 		}
 	}
 #endif
@@ -982,7 +987,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
-		priv(trans)->isr_stats.rfkill++;
+		isr_stats->rfkill++;
 
 		/* driver only loads ucode once setting the interface up.
 		 * the driver allows loading the ucode even if the radio
@@ -1006,7 +1011,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	/* Chip got too hot and stopped itself */
 	if (inta & CSR_INT_BIT_CT_KILL) {
 		IWL_ERR(trans, "Microcode CT kill error detected.\n");
-		priv(trans)->isr_stats.ctkill++;
+		isr_stats->ctkill++;
 		handled |= CSR_INT_BIT_CT_KILL;
 	}
 
@@ -1014,7 +1019,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	if (inta & CSR_INT_BIT_SW_ERR) {
 		IWL_ERR(trans, "Microcode SW error detected. "
 			" Restarting 0x%X.\n", inta);
-		priv(trans)->isr_stats.sw++;
+		isr_stats->sw++;
 		iwl_irq_handle_error(priv(trans));
 		handled |= CSR_INT_BIT_SW_ERR;
 	}
@@ -1027,7 +1032,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 			iwl_txq_update_write_ptr(priv(trans),
 						 &priv(trans)->txq[i]);
 
-		priv(trans)->isr_stats.wakeup++;
+		isr_stats->wakeup++;
 
 		handled |= CSR_INT_BIT_WAKEUP;
 	}
@@ -1075,14 +1080,14 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 			iwl_write8(priv(trans), CSR_INT_PERIODIC_REG,
 				    CSR_INT_PERIODIC_ENA);
 
-		priv(trans)->isr_stats.rx++;
+		isr_stats->rx++;
 	}
 
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
 		iwl_write32(priv(trans), CSR_FH_INT_STATUS, CSR_FH_INT_TX_MASK);
 		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
-		priv(trans)->isr_stats.tx++;
+		isr_stats->tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
 		priv(trans)->ucode_write_complete = 1;
@@ -1091,7 +1096,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 
 	if (inta & ~handled) {
 		IWL_ERR(trans, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
-		priv(trans)->isr_stats.unhandled++;
+		isr_stats->unhandled++;
 	}
 
 	if (inta & ~(trans_pcie->inta_mask)) {

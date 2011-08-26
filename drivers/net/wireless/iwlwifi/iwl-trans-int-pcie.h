@@ -33,6 +33,24 @@
  * trans_pcie layer */
 
 /**
+ * struct isr_statistics - interrupt statistics
+ *
+ */
+struct isr_statistics {
+	u32 hw;
+	u32 sw;
+	u32 err_code;
+	u32 sch;
+	u32 alive;
+	u32 rfkill;
+	u32 ctkill;
+	u32 wakeup;
+	u32 rx;
+	u32 tx;
+	u32 unhandled;
+};
+
+/**
  * struct iwl_rx_queue - Rx queue
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
@@ -88,6 +106,7 @@ struct iwl_trans_pcie {
 	u32 inta;
 	bool use_ict;
 	struct tasklet_struct irq_tasklet;
+	struct isr_statistics isr_stats;
 
 	u32 inta_mask;
 };

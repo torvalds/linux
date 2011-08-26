@@ -1496,8 +1496,95 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_interrupt_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos) {
+
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
+
+	int pos = 0;
+	char *buf;
+	int bufsz = 24 * 64; /* 24 items * 64 char per item */
+	ssize_t ret;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERR(trans, "Can not allocate Buffer\n");
+		return -ENOMEM;
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"Interrupt Statistics Report:\n");
+
+	pos += scnprintf(buf + pos, bufsz - pos, "HW Error:\t\t\t %u\n",
+		isr_stats->hw);
+	pos += scnprintf(buf + pos, bufsz - pos, "SW Error:\t\t\t %u\n",
+		isr_stats->sw);
+	if (isr_stats->sw || isr_stats->hw) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"\tLast Restarting Code:  0x%X\n",
+			isr_stats->err_code);
+	}
+#ifdef CONFIG_IWLWIFI_DEBUG
+	pos += scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
+		isr_stats->sch);
+	pos += scnprintf(buf + pos, bufsz - pos, "Alive interrupt:\t\t %u\n",
+		isr_stats->alive);
+#endif
+	pos += scnprintf(buf + pos, bufsz - pos,
+		"HW RF KILL switch toggled:\t %u\n", isr_stats->rfkill);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "CT KILL:\t\t\t %u\n",
+		isr_stats->ctkill);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Wakeup Interrupt:\t\t %u\n",
+		isr_stats->wakeup);
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+		"Rx command responses:\t\t %u\n", isr_stats->rx);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Tx/FH interrupt:\t\t %u\n",
+		isr_stats->tx);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Unexpected INTA:\t\t %u\n",
+		isr_stats->unhandled);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
+
+	char buf[8];
+	int buf_size;
+	u32 reset_flag;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%x", &reset_flag) != 1)
+		return -EFAULT;
+	if (reset_flag == 0)
+		memset(isr_stats, 0, sizeof(*isr_stats));
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
+DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 
@@ -1512,6 +1599,7 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(log_event, dir, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
 	return 0;
 }
 #else

@@ -1121,11 +1121,6 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					&statistics_cmd);
 }
 
-void iwl_clear_isr_stats(struct iwl_priv *priv)
-{
-	memset(&priv->isr_stats, 0, sizeof(priv->isr_stats));
-}
-
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
