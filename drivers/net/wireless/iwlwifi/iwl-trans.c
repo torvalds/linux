@@ -61,6 +61,7 @@
  *
  *****************************************************************************/
 #include <linux/interrupt.h>
+#include <linux/debugfs.h>
 
 #include "iwl-dev.h"
 #include "iwl-trans.h"
@@ -1169,6 +1170,246 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 	return iwl_trans;
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+/* create and remove of files */
+#define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
+	if (!debugfs_create_file(#name, mode, parent, priv,		\
+				 &iwl_dbgfs_##name##_ops))		\
+		return -ENOMEM;						\
+} while (0)
+
+/* file operation */
+#define DEBUGFS_READ_FUNC(name)                                         \
+static ssize_t iwl_dbgfs_##name##_read(struct file *file,               \
+					char __user *user_buf,          \
+					size_t count, loff_t *ppos);
+
+#define DEBUGFS_WRITE_FUNC(name)                                        \
+static ssize_t iwl_dbgfs_##name##_write(struct file *file,              \
+					const char __user *user_buf,    \
+					size_t count, loff_t *ppos);
+
+
+static int iwl_dbgfs_open_file_generic(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+#define DEBUGFS_READ_FILE_OPS(name)					\
+	DEBUGFS_READ_FUNC(name);					\
+static const struct file_operations iwl_dbgfs_##name##_ops = {		\
+	.read = iwl_dbgfs_##name##_read,				\
+	.open = iwl_dbgfs_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
+};
+
+#define DEBUGFS_READ_WRITE_FILE_OPS(name)				\
+	DEBUGFS_READ_FUNC(name);					\
+	DEBUGFS_WRITE_FUNC(name);					\
+static const struct file_operations iwl_dbgfs_##name##_ops = {		\
+	.write = iwl_dbgfs_##name##_write,				\
+	.read = iwl_dbgfs_##name##_read,				\
+	.open = iwl_dbgfs_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
+};
+
+static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	int pos = 0, ofs = 0;
+	int cnt = 0, entry;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	char *buf;
+	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
+		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
+	const u8 *ptr;
+	ssize_t ret;
+
+	if (!priv->txq) {
+		IWL_ERR(priv, "txq not ready\n");
+		return -EAGAIN;
+	}
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERR(priv, "Can not allocate buffer\n");
+		return -ENOMEM;
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
+	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
+		txq = &priv->txq[cnt];
+		q = &txq->q;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"q[%d]: read_ptr: %u, write_ptr: %u\n",
+				cnt, q->read_ptr, q->write_ptr);
+	}
+	if (priv->tx_traffic &&
+		(iwl_get_debug_level(priv->shrd) & IWL_DL_TX)) {
+		ptr = priv->tx_traffic;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Tx Traffic idx: %u\n",	priv->tx_traffic_idx);
+		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+			     entry++,  ofs += 16) {
+				pos += scnprintf(buf + pos, bufsz - pos,
+						"0x%.4x ", ofs);
+				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
+						   buf + pos, bufsz - pos, 0);
+				pos += strlen(buf + pos);
+				if (bufsz - pos > 0)
+					buf[pos++] = '\n';
+			}
+		}
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Rx Queue\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"read: %u, write: %u\n",
+			 rxq->read, rxq->write);
+
+	if (priv->rx_traffic &&
+		(iwl_get_debug_level(priv->shrd) & IWL_DL_RX)) {
+		ptr = priv->rx_traffic;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Rx Traffic idx: %u\n",	priv->rx_traffic_idx);
+		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+			     entry++,  ofs += 16) {
+				pos += scnprintf(buf + pos, bufsz - pos,
+						"0x%.4x ", ofs);
+				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
+						   buf + pos, bufsz - pos, 0);
+				pos += strlen(buf + pos);
+				if (bufsz - pos > 0)
+					buf[pos++] = '\n';
+			}
+		}
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int traffic_log;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &traffic_log) != 1)
+		return -EFAULT;
+	if (traffic_log == 0)
+		iwl_reset_traffic_log(priv);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = file->private_data;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	char *buf;
+	int pos = 0;
+	int cnt;
+	int ret;
+	const size_t bufsz = sizeof(char) * 64 *
+				priv->cfg->base_params->num_of_queues;
+
+	if (!priv->txq) {
+		IWL_ERR(priv, "txq not ready\n");
+		return -EAGAIN;
+	}
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
+		txq = &priv->txq[cnt];
+		q = &txq->q;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"hwq %.2d: read=%u write=%u stop=%d"
+				" swq_id=%#.2x (ac %d/hwq %d)\n",
+				cnt, q->read_ptr, q->write_ptr,
+				!!test_bit(cnt, priv->queue_stopped),
+				txq->swq_id, txq->swq_id & 3,
+				(txq->swq_id >> 2) & 0x1f);
+		if (cnt >= 4)
+			continue;
+		/* for the ACs, display the stop count too */
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"        stop-count: %d\n",
+				atomic_read(&priv->queue_stop_count[cnt]));
+	}
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos) {
+	struct iwl_priv *priv = file->private_data;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	char buf[256];
+	int pos = 0;
+	const size_t bufsz = sizeof(buf);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "read: %u\n",
+						rxq->read);
+	pos += scnprintf(buf + pos, bufsz - pos, "write: %u\n",
+						rxq->write);
+	pos += scnprintf(buf + pos, bufsz - pos, "free_count: %u\n",
+						rxq->free_count);
+	if (rxq->rb_stts) {
+		pos += scnprintf(buf + pos, bufsz - pos, "closed_rb_num: %u\n",
+			 le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF);
+	} else {
+		pos += scnprintf(buf + pos, bufsz - pos,
+					"closed_rb_num: Not Allocated\n");
+	}
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
+DEBUGFS_READ_FILE_OPS(rx_queue);
+DEBUGFS_READ_FILE_OPS(tx_queue);
+
+/*
+ * Create the debugfs files and directories
+ *
+ */
+static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
+					struct dentry *dir)
+{
+	struct iwl_priv *priv = priv(trans);
+
+	DEBUGFS_ADD_FILE(traffic_log, dir, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
+	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);
+	return 0;
+}
+#else
+static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
+					struct dentry *dir)
+{ return 0; }
+
+#endif /*CONFIG_IWLWIFI_DEBUGFS */
+
 const struct iwl_trans_ops trans_ops_pcie = {
 	.alloc = iwl_trans_pcie_alloc,
 	.request_irq = iwl_trans_pcie_request_irq,
@@ -1194,5 +1435,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.sync_irq = iwl_trans_pcie_sync_irq,
 	.free = iwl_trans_pcie_free,
+
+	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 };
 
