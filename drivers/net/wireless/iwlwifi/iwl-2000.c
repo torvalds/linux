@@ -282,6 +282,11 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 	IWL_DEVICE_2000,
 };
 
+struct iwl_cfg iwl2000_2bgn_d_cfg = {
+	.name = "2000D Series 2x2 BGN",
+	IWL_DEVICE_2000,
+};
+
 #define IWL_DEVICE_2030						\
 	.fw_name_pre = IWL2030_FW_PRE,				\
 	.ucode_api_max = IWL2030_UCODE_API_MAX,			\

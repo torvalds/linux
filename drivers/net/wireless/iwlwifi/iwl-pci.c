@@ -332,6 +332,7 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0890, 0x4026, iwl2000_2bg_cfg)},
 	{IWL_PCI_DEVICE(0x0891, 0x4226, iwl2000_2bg_cfg)},
 	{IWL_PCI_DEVICE(0x0890, 0x4426, iwl2000_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4822, iwl2000_2bgn_d_cfg)},
 
 /* 2x30 Series */
 	{IWL_PCI_DEVICE(0x0887, 0x4062, iwl2030_2bgn_cfg)},
