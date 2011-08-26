@@ -109,18 +109,18 @@ struct iwl_trans_ops {
 
 	struct iwl_trans *(*alloc)(struct iwl_shared *shrd);
 	int (*request_irq)(struct iwl_trans *iwl_trans);
-	int (*start_device)(struct iwl_priv *priv);
-	int (*prepare_card_hw)(struct iwl_priv *priv);
-	void (*stop_device)(struct iwl_priv *priv);
-	void (*tx_start)(struct iwl_priv *priv);
-	void (*tx_free)(struct iwl_priv *priv);
+	int (*start_device)(struct iwl_trans *trans);
+	int (*prepare_card_hw)(struct iwl_trans *trans);
+	void (*stop_device)(struct iwl_trans *trans);
+	void (*tx_start)(struct iwl_trans *trans);
+	void (*tx_free)(struct iwl_trans *trans);
 	void (*rx_free)(struct iwl_trans *trans);
 
-	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
-	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
+	int (*send_cmd_pdu)(struct iwl_trans *trans, u8 id, u32 flags, u16 len,
 		     const void *data);
-	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_priv *priv, int txq_id);
+	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_trans *trans, int txq_id);
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx);
@@ -132,10 +132,10 @@ struct iwl_trans_ops {
 	void (*txq_agg_setup)(struct iwl_priv *priv, int sta_id, int tid,
 						int frame_limit);
 
-	void (*kick_nic)(struct iwl_priv *priv);
+	void (*kick_nic)(struct iwl_trans *trans);
 
 	void (*disable_sync_irq)(struct iwl_trans *trans);
-	void (*free)(struct iwl_priv *priv);
+	void (*free)(struct iwl_trans *trans);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*suspend)(struct iwl_trans *trans);
@@ -163,22 +163,22 @@ static inline int iwl_trans_request_irq(struct iwl_trans *trans)
 
 static inline int iwl_trans_start_device(struct iwl_trans *trans)
 {
-	return trans->ops->start_device(priv(trans));
+	return trans->ops->start_device(trans);
 }
 
 static inline int iwl_trans_prepare_card_hw(struct iwl_trans *trans)
 {
-	return trans->ops->prepare_card_hw(priv(trans));
+	return trans->ops->prepare_card_hw(trans);
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
-	trans->ops->stop_device(priv(trans));
+	trans->ops->stop_device(trans);
 }
 
 static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 {
-	trans->ops->tx_start(priv(trans));
+	trans->ops->tx_start(trans);
 }
 
 static inline void iwl_trans_rx_free(struct iwl_trans *trans)
@@ -188,25 +188,25 @@ static inline void iwl_trans_rx_free(struct iwl_trans *trans)
 
 static inline void iwl_trans_tx_free(struct iwl_trans *trans)
 {
-	trans->ops->tx_free(priv(trans));
+	trans->ops->tx_free(trans);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				struct iwl_host_cmd *cmd)
 {
-	return trans->ops->send_cmd(priv(trans), cmd);
+	return trans->ops->send_cmd(trans, cmd);
 }
 
 static inline int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
 					u32 flags, u16 len, const void *data)
 {
-	return trans->ops->send_cmd_pdu(priv(trans), id, flags, len, data);
+	return trans->ops->send_cmd_pdu(trans, id, flags, len, data);
 }
 
 static inline struct iwl_tx_cmd *iwl_trans_get_tx_cmd(struct iwl_trans *trans,
 					int txq_id)
 {
-	return trans->ops->get_tx_cmd(priv(trans), txq_id);
+	return trans->ops->get_tx_cmd(trans, txq_id);
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
@@ -238,7 +238,7 @@ static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
 
 static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
 {
-	trans->ops->kick_nic(priv(trans));
+	trans->ops->kick_nic(trans);
 }
 
 static inline void iwl_trans_disable_sync_irq(struct iwl_trans *trans)
@@ -248,7 +248,7 @@ static inline void iwl_trans_disable_sync_irq(struct iwl_trans *trans)
 
 static inline void iwl_trans_free(struct iwl_trans *trans)
 {
-	trans->ops->free(priv(trans));
+	trans->ops->free(trans);
 }
 
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
