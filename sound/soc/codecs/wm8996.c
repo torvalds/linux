@@ -414,6 +414,7 @@ static const DECLARE_TLV_DB_SCALE(out_digital_tlv, -1200, 150, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -900, 75, 0);
 static const DECLARE_TLV_DB_SCALE(spk_tlv, -900, 150, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
+static const DECLARE_TLV_DB_SCALE(threedstereo_tlv, -1600, 183, 1);
 
 static const char *sidetone_hpf_text[] = {
 	"2.9kHz", "1.5kHz", "735Hz", "403Hz", "196Hz", "98Hz", "49Hz"
@@ -607,6 +608,14 @@ SOC_SINGLE("DAC High Performance Switch", WM8996_OVERSAMPLING, 0, 1, 0),
 
 SOC_SINGLE("DAC Soft Mute Switch", WM8996_DAC_SOFTMUTE, 1, 1, 0),
 SOC_SINGLE("DAC Slow Soft Mute Switch", WM8996_DAC_SOFTMUTE, 0, 1, 0),
+
+SOC_SINGLE("DSP1 3D Stereo Switch", WM8996_DSP1_RX_FILTERS_2, 8, 1, 0),
+SOC_SINGLE("DSP2 3D Stereo Switch", WM8996_DSP2_RX_FILTERS_2, 8, 1, 0),
+
+SOC_SINGLE_TLV("DSP1 3D Stereo Volume", WM8996_DSP1_RX_FILTERS_2, 10, 15,
+		0, threedstereo_tlv),
+SOC_SINGLE_TLV("DSP2 3D Stereo Volume", WM8996_DSP2_RX_FILTERS_2, 10, 15,
+		0, threedstereo_tlv),
 
 SOC_DOUBLE_TLV("Digital Output 1 Volume", WM8996_DAC1_HPOUT1_VOLUME, 0, 4,
 	       8, 0, out_digital_tlv),
