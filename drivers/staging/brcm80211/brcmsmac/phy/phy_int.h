@@ -23,22 +23,6 @@
 
 #define	PHY_VERSION			{ 1, 82, 8, 0 }
 
-#define PHYHAL_ERROR	0x0001
-#define PHYHAL_TRACE	0x0002
-#define PHYHAL_INFORM	0x0004
-
-extern u32 phyhal_msg_level;
-
-#define PHY_INFORM_ON()		(phyhal_msg_level & PHYHAL_INFORM)
-#define PHY_THERMAL_ON()	(phyhal_msg_level & PHYHAL_THERMAL)
-#define PHY_CAL_ON()		(phyhal_msg_level & PHYHAL_CAL)
-
-#ifdef BOARD_TYPE
-#define BOARDTYPE(_type) BOARD_TYPE
-#else
-#define BOARDTYPE(_type) _type
-#endif
-
 #define LCNXN_BASEREV		16
 
 struct phy_shim_info;

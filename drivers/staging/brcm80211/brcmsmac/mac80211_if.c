@@ -105,8 +105,6 @@ MODULE_DEVICE_TABLE(pci, brcms_pci_id_table);
 #ifdef BCMDBG
 static int msglevel = 0xdeadbeef;
 module_param(msglevel, int, 0);
-static int phymsglevel = 0xdeadbeef;
-module_param(phymsglevel, int, 0);
 #endif				/* BCMDBG */
 
 #define HW_TO_WL(hw)	 (hw->priv)
@@ -1282,8 +1280,6 @@ static int __init brcms_module_init(void)
 #ifdef BCMDBG
 	if (msglevel != 0xdeadbeef)
 		brcm_msg_level = msglevel;
-	if (phymsglevel != 0xdeadbeef)
-		phyhal_msg_level = phymsglevel;
 #endif				/* BCMDBG */
 
 	error = pci_register_driver(&brcms_pci_driver);

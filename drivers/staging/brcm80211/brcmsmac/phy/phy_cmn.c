@@ -27,8 +27,6 @@
 #include "phy_lcn.h"
 #include "phyreg_n.h"
 
-u32 phyhal_msg_level = PHYHAL_ERROR;
-
 struct chan_info_basic {
 	u16 chan;
 	u16 freq;
