@@ -983,7 +983,7 @@ int ubifs_recover_inl_heads(struct ubifs_info *c, void *sbuf)
 }
 
 /**
- *  clean_an_unclean_leb - read and write a LEB to remove corruption.
+ * clean_an_unclean_leb - read and write a LEB to remove corruption.
  * @c: UBIFS file-system description object
  * @ucleb: unclean LEB information
  * @sbuf: LEB-sized buffer to use
