@@ -222,16 +222,7 @@ struct iwl_ht_params {
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
  * highest and @ucode_api_min the lowest). Firmware will only be loaded if
- * it has a supported API version. The firmware's API version will be
- * stored in @iwl_priv, enabling the driver to make runtime changes based
- * on firmware version used.
- *
- * For example,
- * if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
- *	Driver interacts with Firmware API version >= 2.
- * } else {
- *	Driver interacts with Firmware API version 1.
- * }
+ * it has a supported API version.
  *
  * The ideal usage of this infrastructure is to treat a new ucode API
  * release as a new hardware revision.
