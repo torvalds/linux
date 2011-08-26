@@ -217,7 +217,7 @@
 	((SCD_TRANS_TBL_MEM_LOWER_BOUND + ((x) * 2)) & 0xfffc)
 
 #define SCD_QUEUECHAIN_SEL_ALL(priv)	\
-	(((1<<(priv)->hw_params.max_txq_num) - 1) &\
+	(((1<<hw_params(priv).max_txq_num) - 1) &\
 	(~(1<<(priv)->cmd_queue)))
 
 #define SCD_BASE			(PRPH_BASE + 0xa02c00)

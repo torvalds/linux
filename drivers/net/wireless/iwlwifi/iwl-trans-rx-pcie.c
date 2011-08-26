@@ -265,16 +265,17 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		if (rxq->free_count > RX_LOW_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
 
-		if (priv->hw_params.rx_page_order > 0)
+		if (hw_params(priv).rx_page_order > 0)
 			gfp_mask |= __GFP_COMP;
 
 		/* Alloc a new receive buffer */
-		page = alloc_pages(gfp_mask, priv->hw_params.rx_page_order);
+		page = alloc_pages(gfp_mask,
+				  hw_params(priv).rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
 				IWL_DEBUG_INFO(priv, "alloc_pages failed, "
-					       "order: %d\n",
-					       priv->hw_params.rx_page_order);
+					   "order: %d\n",
+					   hw_params(priv).rx_page_order);
 
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
@@ -293,7 +294,7 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
-			__free_pages(page, priv->hw_params.rx_page_order);
+			__free_pages(page, hw_params(priv).rx_page_order);
 			return;
 		}
 		element = rxq->rx_used.next;
@@ -306,7 +307,7 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		rxb->page = page;
 		/* Get physical address of the RB */
 		rxb->page_dma = dma_map_page(priv->bus->dev, page, 0,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
+				PAGE_SIZE << hw_params(priv).rx_page_order,
 				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
@@ -405,7 +406,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		rxq->queue[i] = NULL;
 
 		dma_unmap_page(priv->bus->dev, rxb->page_dma,
-			       PAGE_SIZE << priv->hw_params.rx_page_order,
+			       PAGE_SIZE << hw_params(priv).rx_page_order,
 			       DMA_FROM_DEVICE);
 		pkt = rxb_addr(rxb);
 
@@ -456,7 +457,8 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		spin_lock_irqsave(&rxq->lock, flags);
 		if (rxb->page != NULL) {
 			rxb->page_dma = dma_map_page(priv->bus->dev, rxb->page,
-				0, PAGE_SIZE << priv->hw_params.rx_page_order,
+				0, PAGE_SIZE <<
+				    hw_params(priv).rx_page_order,
 				DMA_FROM_DEVICE);
 			list_add_tail(&rxb->list, &rxq->rx_free);
 			rxq->free_count++;
@@ -610,7 +612,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(priv, "Wakeup interrupt\n");
 		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
-		for (i = 0; i < priv->hw_params.max_txq_num; i++)
+		for (i = 0; i < hw_params(priv).max_txq_num; i++)
 			iwl_txq_update_write_ptr(priv, &priv->txq[i]);
 
 		priv->isr_stats.wakeup++;

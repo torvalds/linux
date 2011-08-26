@@ -180,7 +180,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		rate = info->control.rates[0].idx;
 
 	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-					      priv->hw_params.valid_tx_ant);
+					      hw_params(priv).valid_tx_ant);
 	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* In mac80211, rates for 5 GHz start at 0 */
@@ -1149,25 +1149,25 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		       pieces.init_data_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
-	if (pieces.inst_size > priv->hw_params.max_inst_size) {
+	if (pieces.inst_size > hw_params(priv).max_inst_size) {
 		IWL_ERR(priv, "uCode instr len %Zd too large to fit in\n",
 			pieces.inst_size);
 		goto try_again;
 	}
 
-	if (pieces.data_size > priv->hw_params.max_data_size) {
+	if (pieces.data_size > hw_params(priv).max_data_size) {
 		IWL_ERR(priv, "uCode data len %Zd too large to fit in\n",
 			pieces.data_size);
 		goto try_again;
 	}
 
-	if (pieces.init_size > priv->hw_params.max_inst_size) {
+	if (pieces.init_size > hw_params(priv).max_inst_size) {
 		IWL_ERR(priv, "uCode init instr len %Zd too large to fit in\n",
 			pieces.init_size);
 		goto try_again;
 	}
 
-	if (pieces.init_data_size > priv->hw_params.max_data_size) {
+	if (pieces.init_data_size > hw_params(priv).max_data_size) {
 		IWL_ERR(priv, "uCode init data len %Zd too large to fit in\n",
 			pieces.init_data_size);
 		goto try_again;
@@ -1681,9 +1681,9 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 	if (priv->cfg->base_params->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
-			cpu_to_le32(priv->hw_params.ct_kill_threshold);
+			cpu_to_le32(hw_params(priv).ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
-			cpu_to_le32(priv->hw_params.ct_kill_exit_threshold);
+			cpu_to_le32(hw_params(priv).ct_kill_exit_threshold);
 
 		ret = trans_send_cmd_pdu(&priv->trans,
 				       REPLY_CT_KILL_CONFIG_CMD,
@@ -1692,14 +1692,13 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 		else
 			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
-					"succeeded, "
-					"critical temperature enter is %d,"
-					"exit is %d\n",
-				       priv->hw_params.ct_kill_threshold,
-				       priv->hw_params.ct_kill_exit_threshold);
+				"succeeded, critical temperature enter is %d,"
+				"exit is %d\n",
+				hw_params(priv).ct_kill_threshold,
+				hw_params(priv).ct_kill_exit_threshold);
 	} else {
 		cmd.critical_temperature_R =
-			cpu_to_le32(priv->hw_params.ct_kill_threshold);
+			cpu_to_le32(hw_params(priv).ct_kill_threshold);
 
 		ret = trans_send_cmd_pdu(&priv->trans,
 				       REPLY_CT_KILL_CONFIG_CMD,
@@ -1708,9 +1707,9 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 		else
 			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
-					"succeeded, "
-					"critical temperature is %d\n",
-					priv->hw_params.ct_kill_threshold);
+				"succeeded, "
+				"critical temperature is %d\n",
+				hw_params(priv).ct_kill_threshold);
 	}
 }
 
@@ -1808,8 +1807,9 @@ int iwl_alive_start(struct iwl_priv *priv)
 		iwl_send_bt_config(priv);
 	}
 
-	if (priv->hw_params.calib_rt_cfg)
-		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
+	if (hw_params(priv).calib_rt_cfg)
+		iwlagn_send_calib_cfg_rt(priv,
+					 hw_params(priv).calib_rt_cfg);
 
 	ieee80211_wake_queues(priv->hw);
 
@@ -3548,14 +3548,16 @@ static u32 iwl_hw_detect(struct iwl_priv *priv)
 
 static int iwl_set_hw_params(struct iwl_priv *priv)
 {
-	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
-	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	hw_params(priv).max_rxq_size = RX_QUEUE_SIZE;
+	hw_params(priv).max_rxq_log = RX_QUEUE_SIZE_LOG;
 	if (iwlagn_mod_params.amsdu_size_8K)
-		priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_8K);
+		hw_params(priv).rx_page_order =
+			get_order(IWL_RX_BUF_SIZE_8K);
 	else
-		priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_4K);
+		hw_params(priv).rx_page_order =
+			get_order(IWL_RX_BUF_SIZE_4K);
 
-	priv->hw_params.max_beacon_itrvl = IWL_MAX_UCODE_BEACON_INTERVAL;
+	hw_params(priv).max_beacon_itrvl = IWL_MAX_UCODE_BEACON_INTERVAL;
 
 	if (iwlagn_mod_params.disable_11n)
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;

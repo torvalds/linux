@@ -340,7 +340,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 {
 	struct iwl_priv *priv = file->private_data;
 	struct iwl_station_entry *station;
-	int max_sta = priv->hw_params.max_stations;
+	int max_sta = hw_params(priv).max_stations;
 	char *buf;
 	int i, j, pos = 0;
 	ssize_t ret;
@@ -908,7 +908,7 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 		return -ENOMEM;
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
-	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
 		txq = &priv->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
@@ -1006,7 +1006,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
 		txq = &priv->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,

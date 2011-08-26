@@ -120,7 +120,7 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_priv *priv)
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].page != NULL) {
 			dma_unmap_page(priv->bus->dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
+				PAGE_SIZE << hw_params(priv).rx_page_order,
 				DMA_FROM_DEVICE);
 			__iwl_free_pages(priv, rxq->pool[i].page);
 			rxq->pool[i].page = NULL;
@@ -285,7 +285,7 @@ static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
 static int iwl_trans_txq_alloc(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 		      int slots_num, u32 txq_id)
 {
-	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
+	size_t tfd_sz = hw_params(priv).tfd_size * TFD_QUEUE_SIZE_MAX;
 	int i;
 
 	if (WARN_ON(txq->meta || txq->cmd || txq->txb || txq->tfds))
@@ -429,7 +429,7 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd) {
-		dma_free_coherent(dev, priv->hw_params.tfd_size *
+		dma_free_coherent(dev, hw_params(priv).tfd_size *
 				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 		memset(&txq->q.dma_addr, 0, sizeof(txq->q.dma_addr));
 	}
@@ -459,7 +459,8 @@ static void iwl_trans_tx_free(struct iwl_priv *priv)
 
 	/* Tx queues */
 	if (priv->txq) {
-		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		for (txq_id = 0;
+		     txq_id < hw_params(priv).max_txq_num; txq_id++)
 			iwl_tx_queue_free(priv, txq_id);
 	}
 
@@ -491,7 +492,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 	}
 
 	ret = iwlagn_alloc_dma_ptr(priv, &priv->scd_bc_tbls,
-				priv->hw_params.scd_bc_tbls_size);
+				hw_params(priv).scd_bc_tbls_size);
 	if (ret) {
 		IWL_ERR(priv, "Scheduler BC Table allocation failed\n");
 		goto error;
@@ -513,7 +514,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 	}
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++) {
 		slots_num = (txq_id == priv->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_trans_txq_alloc(priv, &priv->txq[txq_id], slots_num,
@@ -556,7 +557,7 @@ static int iwl_tx_init(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++) {
 		slots_num = (txq_id == priv->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_trans_txq_init(priv, &priv->txq[txq_id], slots_num,
@@ -789,7 +790,8 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 	for (; a < priv->scd_base_addr +
-	       SCD_TRANS_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
+	       SCD_TRANS_TBL_OFFSET_QUEUE(hw_params(priv).max_txq_num);
+	       a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 
 	iwl_write_prph(priv, SCD_DRAM_BASE_ADDR,
@@ -811,7 +813,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 	iwl_write_prph(priv, SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
-	for (i = 0; i < priv->hw_params.max_txq_num; i++) {
+	for (i = 0; i < hw_params(priv).max_txq_num; i++) {
 		iwl_write_prph(priv, SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
 		iwl_write_targ_mem(priv, priv->scd_base_addr +
@@ -828,7 +830,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 	}
 
 	iwl_write_prph(priv, SCD_INTERRUPT_MASK,
-			IWL_MASK(0, priv->hw_params.max_txq_num));
+			IWL_MASK(0, hw_params(priv).max_txq_num));
 
 	/* Activate all Tx DMA/FIFO channels */
 	iwl_trans_txq_set_sched(priv, IWL_MASK(0, 7));
@@ -908,7 +910,7 @@ static int iwl_trans_tx_stop(struct iwl_priv *priv)
 	}
 
 	/* Unmap DMA from host system and free skb's */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++)
 		iwl_tx_queue_unmap(priv, txq_id);
 
 	return 0;

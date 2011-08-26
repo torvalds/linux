@@ -770,12 +770,12 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
-	u8 rx_ant = priv->hw_params.valid_rx_ant;
+	u8 rx_ant = hw_params(priv).valid_rx_ant;
 	u8 rate;
 	bool is_active = false;
 	int  chan_mod;
 	u8 active_chains;
-	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
+	u8 scan_tx_antennas = hw_params(priv).valid_tx_ant;
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
@@ -965,7 +965,8 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	}
 
 	/* MIMO is not used here, but value is required */
-	rx_chain |= priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
+	rx_chain |=
+		hw_params(priv).valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
@@ -1101,7 +1102,7 @@ int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv)
 	int ret = 0;
 
 	/* waiting for all the tx frames complete might take a while */
-	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
 		if (cnt == priv->cmd_queue)
 			continue;
 		txq = &priv->txq[cnt];
@@ -1786,7 +1787,7 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->chain_noise_data.active_chains)
 		active_chains = priv->chain_noise_data.active_chains;
 	else
-		active_chains = priv->hw_params.valid_rx_ant;
+		active_chains = hw_params(priv).valid_rx_ant;
 
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist &&

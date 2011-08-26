@@ -55,8 +55,8 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 			      enum ieee80211_band band)
 {
 	u16 max_bit_rate = 0;
-	u8 rx_chains_num = priv->hw_params.rx_chains_num;
-	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+	u8 rx_chains_num = hw_params(priv).rx_chains_num;
+	u8 tx_chains_num = hw_params(priv).tx_chains_num;
 
 	ht_info->cap = 0;
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
@@ -68,7 +68,7 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
-	if (priv->hw_params.ht40_channel & BIT(band)) {
+	if (hw_params(priv).ht40_channel & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
 		ht_info->mcs.rx_mask[4] = 0x01;
@@ -359,7 +359,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		beacon_int = le16_to_cpu(ctx->timing.beacon_interval);
 	} else {
 		beacon_int = iwl_adjust_beacon_interval(beacon_int,
-				priv->hw_params.max_beacon_itrvl * TIME_UNIT);
+			hw_params(priv).max_beacon_itrvl * TIME_UNIT);
 		ctx->timing.beacon_interval = cpu_to_le16(beacon_int);
 	}
 
@@ -1823,7 +1823,7 @@ void iwl_bg_watchdog(unsigned long data)
 
 	/* monitor and check for other stuck queues */
 	if (iwl_is_any_associated(priv)) {
-		for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+		for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
 			/* skip as we already checked the command queue */
 			if (cnt == priv->cmd_queue)
 				continue;
@@ -1864,12 +1864,12 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval)
 
 	quot = (usec / interval) &
 		(iwl_beacon_time_mask_high(priv,
-		priv->hw_params.beacon_time_tsf_bits) >>
-		priv->hw_params.beacon_time_tsf_bits);
+		hw_params(priv).beacon_time_tsf_bits) >>
+		hw_params(priv).beacon_time_tsf_bits);
 	rem = (usec % interval) & iwl_beacon_time_mask_low(priv,
-				   priv->hw_params.beacon_time_tsf_bits);
+				   hw_params(priv).beacon_time_tsf_bits);
 
-	return (quot << priv->hw_params.beacon_time_tsf_bits) + rem;
+	return (quot << hw_params(priv).beacon_time_tsf_bits) + rem;
 }
 
 /* base is usually what we get from ucode with each received frame,
@@ -1879,22 +1879,22 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval)
 {
 	u32 base_low = base & iwl_beacon_time_mask_low(priv,
-					priv->hw_params.beacon_time_tsf_bits);
+				hw_params(priv).beacon_time_tsf_bits);
 	u32 addon_low = addon & iwl_beacon_time_mask_low(priv,
-					priv->hw_params.beacon_time_tsf_bits);
+				hw_params(priv).beacon_time_tsf_bits);
 	u32 interval = beacon_interval * TIME_UNIT;
 	u32 res = (base & iwl_beacon_time_mask_high(priv,
-				priv->hw_params.beacon_time_tsf_bits)) +
+				hw_params(priv).beacon_time_tsf_bits)) +
 				(addon & iwl_beacon_time_mask_high(priv,
-				priv->hw_params.beacon_time_tsf_bits));
+				hw_params(priv).beacon_time_tsf_bits));
 
 	if (base_low > addon_low)
 		res += base_low - addon_low;
 	else if (base_low < addon_low) {
 		res += interval + base_low - addon_low;
-		res += (1 << priv->hw_params.beacon_time_tsf_bits);
+		res += (1 << hw_params(priv).beacon_time_tsf_bits);
 	} else
-		res += (1 << priv->hw_params.beacon_time_tsf_bits);
+		res += (1 << hw_params(priv).beacon_time_tsf_bits);
 
 	return cpu_to_le32(res);
 }

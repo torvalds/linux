@@ -343,7 +343,7 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 
 void iwl_init_scan_params(struct iwl_priv *priv)
 {
-	u8 ant_idx = fls(priv->hw_params.valid_tx_ant) - 1;
+	u8 ant_idx = fls(hw_params(priv).valid_tx_ant) - 1;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_5GHZ])
 		priv->scan_tx_ant[IEEE80211_BAND_5GHZ] = ant_idx;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])

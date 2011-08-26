@@ -66,6 +66,7 @@
 struct iwl_cfg;
 struct iwl_bus;
 struct iwl_priv;
+struct iwl_sensitivity_ranges;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 
@@ -91,12 +92,60 @@ struct iwl_mod_params {
 };
 
 /**
+ * struct iwl_hw_params
+ * @max_txq_num: Max # Tx queues supported
+ * @scd_bc_tbls_size: size of scheduler byte count tables
+ * @tfd_size: TFD size
+ * @tx/rx_chains_num: Number of TX/RX chains
+ * @valid_tx/rx_ant: usable antennas
+ * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
+ * @max_rxq_log: Log-base-2 of max_rxq_size
+ * @rx_page_order: Rx buffer page order
+ * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
+ * @max_stations:
+ * @ht40_channel: is 40MHz width possible in band 2.4
+ * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
+ * @sw_crypto: 0 for hw, 1 for sw
+ * @max_xxx_size: for ucode uses
+ * @ct_kill_threshold: temperature threshold
+ * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
+ * @calib_init_cfg: setup initial calibrations for the hw
+ * @calib_rt_cfg: setup runtime calibrations for the hw
+ * @struct iwl_sensitivity_ranges: range of sensitivity values
+ */
+struct iwl_hw_params {
+	u8 max_txq_num;
+	u16 scd_bc_tbls_size;
+	u32 tfd_size;
+	u8  tx_chains_num;
+	u8  rx_chains_num;
+	u8  valid_tx_ant;
+	u8  valid_rx_ant;
+	u16 max_rxq_size;
+	u16 max_rxq_log;
+	u32 rx_page_order;
+	u8  max_stations;
+	u8  ht40_channel;
+	u8  max_beacon_itrvl;	/* in 1024 ms */
+	u32 max_inst_size;
+	u32 max_data_size;
+	u32 ct_kill_threshold; /* value in hw-dependent units */
+	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
+				    /* for 1000, 6000 series and up */
+	u16 beacon_time_tsf_bits;
+	u32 calib_init_cfg;
+	u32 calib_rt_cfg;
+	const struct iwl_sensitivity_ranges *sens;
+};
+
+/**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
  *	iwlagn_mod_params.debug_level if set (!= 0)
  * @bus: pointer to the bus layer data
  * @priv: pointer to the upper layer data
+ * @hw_params: see struct iwl_hw_params
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -105,11 +154,13 @@ struct iwl_shared {
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;
+	struct iwl_hw_params hw_params;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
 #define priv(_m)	((_m)->shrd->priv)
 #define bus(_m)		((_m)->shrd->bus)
+#define hw_params(_m)	((_m)->shrd->hw_params)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 /*
