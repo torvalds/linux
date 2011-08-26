@@ -95,6 +95,7 @@ struct iwl_rx_queue {
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
+ * @kw: keep warm address
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -115,6 +116,7 @@ struct iwl_trans_pcie {
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
+	struct iwl_dma_ptr kw;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \

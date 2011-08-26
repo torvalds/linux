@@ -489,7 +489,7 @@ static void iwl_trans_pcie_tx_free(struct iwl_trans *trans)
 	kfree(priv->txq);
 	priv->txq = NULL;
 
-	iwlagn_free_dma_ptr(trans, &priv->kw);
+	iwlagn_free_dma_ptr(trans, &trans_pcie->kw);
 
 	iwlagn_free_dma_ptr(trans, &trans_pcie->scd_bc_tbls);
 }
@@ -527,7 +527,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	}
 
 	/* Alloc keep-warm buffer */
-	ret = iwlagn_alloc_dma_ptr(trans, &priv->kw, IWL_KW_SIZE);
+	ret = iwlagn_alloc_dma_ptr(trans, &trans_pcie->kw, IWL_KW_SIZE);
 	if (ret) {
 		IWL_ERR(trans, "Keep Warm allocation failed\n");
 		goto error;
@@ -567,6 +567,8 @@ static int iwl_tx_init(struct iwl_trans *trans)
 	unsigned long flags;
 	bool alloc = false;
 	struct iwl_priv *priv = priv(trans);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!priv->txq) {
 		ret = iwl_trans_tx_alloc(trans);
@@ -581,7 +583,7 @@ static int iwl_tx_init(struct iwl_trans *trans)
 	iwl_write_prph(priv, SCD_TXFACT, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
+	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, trans_pcie->kw.dma >> 4);
 
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 

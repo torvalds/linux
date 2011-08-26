@@ -1239,7 +1239,6 @@ struct iwl_priv {
 	/* Tx DMA processing queues */
 	struct iwl_tx_queue *txq;
 	unsigned long txq_ctx_active_msk;
-	struct iwl_dma_ptr  kw;	/* keep warm address */
 
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
