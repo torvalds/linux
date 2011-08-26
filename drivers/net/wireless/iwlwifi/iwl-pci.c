@@ -517,7 +517,7 @@ static int iwl_pci_suspend(struct device *device)
 	 * WoWLAN is enabled - don't kill the NIC, someone may need it in Sx.
 	 */
 
-	return iwl_suspend(shrd->priv);
+	return iwl_trans_suspend(shrd->trans);
 }
 
 static int iwl_pci_resume(struct device *device)
@@ -536,7 +536,7 @@ static int iwl_pci_resume(struct device *device)
 	 */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
-	return iwl_resume(shrd->priv);
+	return iwl_trans_resume(shrd->trans);
 }
 
 static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);

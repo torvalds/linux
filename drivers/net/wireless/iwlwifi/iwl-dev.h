@@ -1280,8 +1280,6 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
-	bool wowlan;
-
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;

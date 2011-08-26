@@ -1818,7 +1818,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	/* Configure Tx antenna selection based on H/W config */
 	iwlagn_send_tx_ant_config(priv, priv->cfg->valid_tx_ant);
 
-	if (iwl_is_associated_ctx(ctx) && !priv->wowlan) {
+	if (iwl_is_associated_ctx(ctx) && !priv->shrd->wowlan) {
 		struct iwl_rxon_cmd *active_rxon =
 				(struct iwl_rxon_cmd *)&ctx->active;
 		/* apply any changes in staging */
@@ -1833,7 +1833,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 		iwlagn_set_rxon_chain(priv, ctx);
 	}
 
-	if (!priv->wowlan) {
+	if (!priv->shrd->wowlan) {
 		/* WoWLAN ucode will not reply in the same way, skip it */
 		iwl_reset_run_time_calib(priv);
 	}
@@ -2593,7 +2593,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 
 	iwl_trans_stop_device(trans(priv));
 
-	priv->wowlan = true;
+	priv->shrd->wowlan = true;
 
 	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_wowlan,
 					   IWL_UCODE_WOWLAN);
@@ -2693,7 +2693,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	goto out;
 
  error:
-	priv->wowlan = false;
+	priv->shrd->wowlan = false;
 	iwlagn_prepare_restart(priv);
 	ieee80211_restart_hw(priv->hw);
  out:
@@ -2745,7 +2745,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/* we'll clear ctx->vif during iwlagn_prepare_restart() */
 	vif = ctx->vif;
 
-	priv->wowlan = false;
+	priv->shrd->wowlan = false;
 
 	device_set_wakeup_enable(priv->bus->dev, false);
 

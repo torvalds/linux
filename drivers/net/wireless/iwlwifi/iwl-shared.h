@@ -165,6 +165,7 @@ struct iwl_shared {
 
 	u8 cmd_queue;
 	unsigned long status;
+	bool wowlan;
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;

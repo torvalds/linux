@@ -1167,6 +1167,54 @@ static void iwl_trans_pcie_free(struct iwl_priv *priv)
 	trans(priv) = NULL;
 }
 
+#ifdef CONFIG_PM
+
+static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
+{
+	/*
+	 * This function is called when system goes into suspend state
+	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
+	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
+	 * it will not call apm_ops.stop() to stop the DMA operation.
+	 * Calling apm_ops.stop here to make sure we stop the DMA.
+	 *
+	 * But of course ... if we have configured WoWLAN then we did other
+	 * things already :-)
+	 */
+	if (!trans->shrd->wowlan)
+		iwl_apm_stop(priv(trans));
+
+	return 0;
+}
+
+static int iwl_trans_pcie_resume(struct iwl_trans *trans)
+{
+	bool hw_rfkill = false;
+
+	iwl_enable_interrupts(priv(trans));
+
+	if (!(iwl_read32(priv(trans), CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
+		hw_rfkill = true;
+
+	if (hw_rfkill)
+		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
+	else
+		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
+
+	wiphy_rfkill_set_hw_state(priv(trans)->hw->wiphy, hw_rfkill);
+
+	return 0;
+}
+#else /* CONFIG_PM */
+static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
+{ return 0; }
+
+static int iwl_trans_pcie_resume(struct iwl_trans *trans)
+{ return 0; }
+
+#endif /* CONFIG_PM */
+
 const struct iwl_trans_ops trans_ops_pcie;
 
 static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
@@ -1456,5 +1504,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.free = iwl_trans_pcie_free,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
+	.suspend = iwl_trans_pcie_suspend,
+	.resume = iwl_trans_pcie_resume,
 };
 

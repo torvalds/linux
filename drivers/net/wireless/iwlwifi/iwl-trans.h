@@ -102,6 +102,8 @@ struct iwl_shared;
  *        irq, tasklet etc...
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
+ * @suspend: stop the device unless WoWLAN is configured
+ * @resume: resume activity of the device
  */
 struct iwl_trans_ops {
 
@@ -134,6 +136,8 @@ struct iwl_trans_ops {
 	void (*free)(struct iwl_priv *priv);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
+	int (*suspend)(struct iwl_trans *trans);
+	int (*resume)(struct iwl_trans *trans);
 };
 
 /**
@@ -242,6 +246,16 @@ static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
 					    struct dentry *dir)
 {
 	return trans->ops->dbgfs_register(trans, dir);
+}
+
+static inline int iwl_trans_suspend(struct iwl_trans *trans)
+{
+	return trans->ops->suspend(trans);
+}
+
+static inline int iwl_trans_resume(struct iwl_trans *trans)
+{
+	return trans->ops->resume(trans);
 }
 
 /*****************************************************
