@@ -272,7 +272,7 @@ out:
 	return -EIO;
 }
 
-static int wm8994_set_bit(unsigned short reg,unsigned short val)
+static int wm8994_set_bit(unsigned short reg,unsigned short mask, unsigned short val)
 {
 	int ret;
 	u16 r;
@@ -280,7 +280,8 @@ static int wm8994_set_bit(unsigned short reg,unsigned short val)
 	ret = wm8994_read(reg, &r);
 	if (ret < 0)
 		goto out;
-
+		
+	r &= ~mask;
 	r |= val;
 
 	ret = wm8994_write(reg, r);
@@ -546,7 +547,7 @@ static int wm8994_sysclk_config(void)
 		printk("wm8994->rate = %d!!!!\n",wm8994->rate);
 		break;
 	case 44100:
-		wm8994_write(0x210, 0x0073); // SR=48KHz
+		wm8994_write(0x210, 0x0073); // SR=44.1KHz
 		break;
 	case 48000:
 		wm8994_write(0x210, 0x0083); // SR=48KHz
@@ -794,17 +795,17 @@ void record_only(void)
 	msleep(WM8994_DELAY);
 //clk
 	wm8994_sysclk_config();
-	wm8994_write(0x300, 0xC010); //AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=00, AIF1_FMT=10
-//	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
+//	wm8994_write(0x300, 0xC010); //AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=00, AIF1_FMT=10
+	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
 //path
 	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
-	wm8994_write(0x2A,  0x0030); //IN1R_TO_MIXINR   IN1R_MIXINR_VOL
+	wm8994_write(0x2A,  0x0020); //IN1R_TO_MIXINR   IN1R_MIXINR_VOL
 	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
 	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
 	wm8994_write(0x620, 0x0000); //ADC_OSR128=0, DAC_OSR128=0	
 //DRC
-	wm8994_write(0x440, 0x01BF);
-	wm8994_write(0x450, 0x01BF);	
+	wm8994_write(0x440, 0x01BB);
+	wm8994_write(0x450, 0x01BB);	
 //valume
 //	wm8994_write(0x1A,  0x014B);//IN1_VU=1, IN1R_MUTE=0, IN1R_ZC=1, IN1R_VOL=0_1011
 	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
@@ -829,26 +830,33 @@ void recorder_add(void)
 	if(wm8994_current_mode==wm8994_record_add)return;
 	wm8994_current_mode=wm8994_record_add;	
 //path
-	wm8994_set_bit(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
-	wm8994_set_bit(0x2A,  0x0030); //IN1R_TO_MIXINR   IN1R_MIXINR_VOL
-	wm8994_set_bit(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
-	wm8994_set_bit(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
+	wm8994_set_bit(0x28, 0x0003 ,0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
+	wm8994_set_bit(0x2A, 0x0020 ,0x0020); //IN1R_TO_MIXINR   IN1R_MIXINR_VOL
+	wm8994_set_bit(0x606,0x0002 ,0x0002); // ADC1L_TO_AIF1ADC1L=1
+	wm8994_set_bit(0x607,0x0002 ,0x0002); // ADC1R_TO_AIF1ADC1R=1
 //DRC
-	wm8994_set_bit(0x440, 0x01BF);
-	wm8994_set_bit(0x450, 0x01BF);	
+	wm8994_set_bit(0x440,0x01BB,0x01BB);
+	wm8994_set_bit(0x450,0x01BB,0x01BB);	
 //valume
 //	wm8994_set_bit(0x1A,  0x014B);//IN1_VU=1, IN1R_MUTE=0, IN1R_ZC=1, IN1R_VOL=0_1011
-	wm8994_set_bit(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
-	wm8994_set_bit(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]	
+	wm8994_set_bit(0x402,0x01FF,0x01FF); // AIF1ADC1L_VOL [7:0]
+	wm8994_set_bit(0x403,0x01FF,0x01FF); // AIF1ADC1R_VOL [7:0]	
 //power
-	wm8994_set_bit(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
-	wm8994_set_bit(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1	
-	wm8994_set_bit(0x01,  0x0033);	
+	wm8994_set_bit(0x02, 0x6110,0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
+	wm8994_set_bit(0x04, 0x0303,0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1	
+	wm8994_set_bit(0x01, 0x0033,0x0033);	
 	
 out:
 	MAX_MIN(-16,pdata->recorder_vol,60);
 	DBG("recorder_vol = %ddB \n",pdata->recorder_vol);
-	wm8994_write(0x1A,  320+(pdata->recorder_vol+16)*10/15);  //mic vol	
+	if(pdata->recorder_vol <= 30)
+		wm8994_set_bit(0x1A,  0x1FF , 320+(pdata->recorder_vol+16)*10/15);  //mic vol	
+	else
+	{
+		pdata->recorder_vol -= 30;
+		wm8994_set_bit(0x2A,  0x0010, 0x0010); //IN1R_TO_MIXINR   IN1R_MIXINR_VOL
+		wm8994_set_bit(0x1A,  0x1FF , 320+(pdata->recorder_vol+16)*10/15);  //mic vol	
+	}	
 }
 
 void AP_to_speakers_and_headset(void)
@@ -1696,6 +1704,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			PA_ctrl(GPIO_LOW);
 			break;
 	}
+
 	//set rount
 	switch(route)
 	{
