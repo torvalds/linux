@@ -889,10 +889,15 @@ static int ReadIFAgc(struct drxd_state *state, u32 * pValue)
 			u32 R2 = state->if_agc_cfg.R2;
 			u32 R3 = state->if_agc_cfg.R3;
 
-			u32 Vmax = (3300 * R2) / (R1 + R2);
-			u32 Rpar = (R2 * R3) / (R3 + R2);
-			u32 Vmin = (3300 * Rpar) / (R1 + Rpar);
-			u32 Vout = Vmin + ((Vmax - Vmin) * Value) / 1024;
+			u32 Vmax, Rpar, Vmin, Vout;
+
+			if (R2 == 0 && (R1 == 0 || R3 == 0))
+				return 0;
+
+			Vmax = (3300 * R2) / (R1 + R2);
+			Rpar = (R2 * R3) / (R3 + R2);
+			Vmin = (3300 * Rpar) / (R1 + Rpar);
+			Vout = Vmin + ((Vmax - Vmin) * Value) / 1024;
 
 			*pValue = Vout;
 		}
