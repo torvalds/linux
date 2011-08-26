@@ -3975,10 +3975,11 @@ void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
 	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
 }
 
-static inline int igb_tso(struct igb_ring *tx_ring, struct sk_buff *skb,
-			  u32 tx_flags, __be16 protocol, u8 *hdr_len)
+static int igb_tso(struct igb_ring *tx_ring,
+		   struct igb_tx_buffer *first,
+		   u8 *hdr_len)
 {
-	int err;
+	struct sk_buff *skb = first->skb;
 	u32 vlan_macip_lens, type_tucmd;
 	u32 mss_l4len_idx, l4len;
 
@@ -3986,7 +3987,7 @@ static inline int igb_tso(struct igb_ring *tx_ring, struct sk_buff *skb,
 		return 0;
 
 	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+		int err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 		if (err)
 			return err;
 	}
@@ -3994,7 +3995,7 @@ static inline int igb_tso(struct igb_ring *tx_ring, struct sk_buff *skb,
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
 	type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
 
-	if (protocol == __constant_htons(ETH_P_IP)) {
+	if (first->protocol == __constant_htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
@@ -4003,15 +4004,25 @@ static inline int igb_tso(struct igb_ring *tx_ring, struct sk_buff *skb,
 							 IPPROTO_TCP,
 							 0);
 		type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
+		first->tx_flags |= IGB_TX_FLAGS_TSO |
+				   IGB_TX_FLAGS_CSUM |
+				   IGB_TX_FLAGS_IPV4;
 	} else if (skb_is_gso_v6(skb)) {
 		ipv6_hdr(skb)->payload_len = 0;
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						       &ipv6_hdr(skb)->daddr,
 						       0, IPPROTO_TCP, 0);
+		first->tx_flags |= IGB_TX_FLAGS_TSO |
+				   IGB_TX_FLAGS_CSUM;
 	}
 
+	/* compute header lengths */
 	l4len = tcp_hdrlen(skb);
 	*hdr_len = skb_transport_offset(skb) + l4len;
+
+	/* update gso size and bytecount with header size */
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
+	first->bytecount += (first->gso_segs - 1) * *hdr_len;
 
 	/* MSS L4LEN IDX */
 	mss_l4len_idx = l4len << E1000_ADVTXD_L4LEN_SHIFT;
@@ -4020,26 +4031,26 @@ static inline int igb_tso(struct igb_ring *tx_ring, struct sk_buff *skb,
 	/* VLAN MACLEN IPLEN */
 	vlan_macip_lens = skb_network_header_len(skb);
 	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
-	vlan_macip_lens |= tx_flags & IGB_TX_FLAGS_VLAN_MASK;
+	vlan_macip_lens |= first->tx_flags & IGB_TX_FLAGS_VLAN_MASK;
 
 	igb_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
 
 	return 1;
 }
 
-static inline bool igb_tx_csum(struct igb_ring *tx_ring, struct sk_buff *skb,
-			       u32 tx_flags, __be16 protocol)
+static void igb_tx_csum(struct igb_ring *tx_ring, struct igb_tx_buffer *first)
 {
+	struct sk_buff *skb = first->skb;
 	u32 vlan_macip_lens = 0;
 	u32 mss_l4len_idx = 0;
 	u32 type_tucmd = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (!(tx_flags & IGB_TX_FLAGS_VLAN))
-			return false;
+		if (!(first->tx_flags & IGB_TX_FLAGS_VLAN))
+			return;
 	} else {
 		u8 l4_hdr = 0;
-		switch (protocol) {
+		switch (first->protocol) {
 		case __constant_htons(ETH_P_IP):
 			vlan_macip_lens |= skb_network_header_len(skb);
 			type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
@@ -4053,7 +4064,7 @@ static inline bool igb_tx_csum(struct igb_ring *tx_ring, struct sk_buff *skb,
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
 				 "partial checksum but proto=%x!\n",
-				 protocol);
+				 first->protocol);
 			}
 			break;
 		}
@@ -4081,14 +4092,15 @@ static inline bool igb_tx_csum(struct igb_ring *tx_ring, struct sk_buff *skb,
 			}
 			break;
 		}
+
+		/* update TX checksum flag */
+		first->tx_flags |= IGB_TX_FLAGS_CSUM;
 	}
 
 	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
-	vlan_macip_lens |= tx_flags & IGB_TX_FLAGS_VLAN_MASK;
+	vlan_macip_lens |= first->tx_flags & IGB_TX_FLAGS_VLAN_MASK;
 
 	igb_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
-
-	return (skb->ip_summed == CHECKSUM_PARTIAL);
 }
 
 static __le32 igb_tx_cmd_type(u32 tx_flags)
@@ -4113,8 +4125,9 @@ static __le32 igb_tx_cmd_type(u32 tx_flags)
 	return cmd_type;
 }
 
-static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
-				   struct igb_ring *tx_ring)
+static void igb_tx_olinfo_status(struct igb_ring *tx_ring,
+				 union e1000_adv_tx_desc *tx_desc,
+				 u32 tx_flags, unsigned int paylen)
 {
 	u32 olinfo_status = paylen << E1000_ADVTXD_PAYLEN_SHIFT;
 
@@ -4132,7 +4145,7 @@ static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
 			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
 	}
 
-	return cpu_to_le32(olinfo_status);
+	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
 
 /*
@@ -4140,12 +4153,13 @@ static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
  * maintain a power of two alignment we have to limit ourselves to 32K.
  */
 #define IGB_MAX_TXD_PWR	15
-#define IGB_MAX_DATA_PER_TXD	(1 << IGB_MAX_TXD_PWR)
+#define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
 
-static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
-		       struct igb_tx_buffer *first, u32 tx_flags,
+static void igb_tx_map(struct igb_ring *tx_ring,
+		       struct igb_tx_buffer *first,
 		       const u8 hdr_len)
 {
+	struct sk_buff *skb = first->skb;
 	struct igb_tx_buffer *tx_buffer_info;
 	union e1000_adv_tx_desc *tx_desc;
 	dma_addr_t dma;
@@ -4154,24 +4168,12 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	unsigned int size = skb_headlen(skb);
 	unsigned int paylen = skb->len - hdr_len;
 	__le32 cmd_type;
+	u32 tx_flags = first->tx_flags;
 	u16 i = tx_ring->next_to_use;
-	u16 gso_segs;
-
-	if (tx_flags & IGB_TX_FLAGS_TSO)
-		gso_segs = skb_shinfo(skb)->gso_segs;
-	else
-		gso_segs = 1;
-
-	/* multiply data chunks by size of headers */
-	first->bytecount = paylen + (gso_segs * hdr_len);
-	first->gso_segs = gso_segs;
-	first->skb = skb;
 
 	tx_desc = IGB_TX_DESC(tx_ring, i);
 
-	tx_desc->read.olinfo_status =
-		igb_tx_olinfo_status(tx_flags, paylen, tx_ring);
-
+	igb_tx_olinfo_status(tx_ring, tx_desc, tx_flags, paylen);
 	cmd_type = igb_tx_cmd_type(tx_flags);
 
 	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
@@ -4181,7 +4183,6 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	/* record length, and DMA address */
 	first->length = size;
 	first->dma = dma;
-	first->tx_flags = tx_flags;
 	tx_desc->read.buffer_addr = cpu_to_le64(dma);
 
 	for (;;) {
@@ -4336,6 +4337,12 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+	/* record the location of the first descriptor for this packet */
+	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
+	first->skb = skb;
+	first->bytecount = skb->len;
+	first->gso_segs = 1;
+
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
@@ -4346,22 +4353,17 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= (vlan_tx_tag_get(skb) << IGB_TX_FLAGS_VLAN_SHIFT);
 	}
 
-	/* record the location of the first descriptor for this packet */
-	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
+	/* record initial flags and protocol */
+	first->tx_flags = tx_flags;
+	first->protocol = protocol;
 
-	tso = igb_tso(tx_ring, skb, tx_flags, protocol, &hdr_len);
-	if (tso < 0) {
+	tso = igb_tso(tx_ring, first, &hdr_len);
+	if (tso < 0)
 		goto out_drop;
-	} else if (tso) {
-		tx_flags |= IGB_TX_FLAGS_TSO | IGB_TX_FLAGS_CSUM;
-		if (protocol == htons(ETH_P_IP))
-			tx_flags |= IGB_TX_FLAGS_IPV4;
-	} else if (igb_tx_csum(tx_ring, skb, tx_flags, protocol) &&
-		   (skb->ip_summed == CHECKSUM_PARTIAL)) {
-		tx_flags |= IGB_TX_FLAGS_CSUM;
-	}
+	else if (!tso)
+		igb_tx_csum(tx_ring, first);
 
-	igb_tx_map(tx_ring, skb, first, tx_flags, hdr_len);
+	igb_tx_map(tx_ring, first, hdr_len);
 
 	/* Make sure there is space in the ring for the next send. */
 	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
@@ -4369,7 +4371,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 out_drop:
-	dev_kfree_skb_any(skb);
+	igb_unmap_and_free_tx_resource(tx_ring, first);
+
 	return NETDEV_TX_OK;
 }
 

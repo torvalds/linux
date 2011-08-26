@@ -146,6 +146,7 @@ struct igb_tx_buffer {
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	u16 gso_segs;
+	__be16 protocol;
 	dma_addr_t dma;
 	u32 length;
 	u32 tx_flags;
