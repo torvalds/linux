@@ -93,6 +93,7 @@ struct iwl_mod_params {
 	int ant_coupling;
 	bool bt_ch_announce;
 	int wanted_ucode_alternative;
+	bool auto_agg;		/* def: true = enable agg. without check */
 };
 
 /**

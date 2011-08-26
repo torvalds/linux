@@ -3588,6 +3588,11 @@ module_param_named(power_level, iwlagn_mod_params.power_level,
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
 
+module_param_named(auto_agg, iwlagn_mod_params.auto_agg,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(auto_agg,
+		 "enable agg w/o check traffic load (default: enable)");
+
 /*
  * For now, keep using power level 1 instead of automatically
  * adjusting ...
