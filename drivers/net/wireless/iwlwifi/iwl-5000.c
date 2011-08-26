@@ -157,10 +157,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).scd_bc_tbls_size =
-			priv->cfg->base_params->num_of_queues *
-			sizeof(struct iwlagn_scd_bc_tbl);
-	hw_params(priv).tfd_size = sizeof(struct iwl_tfd);
 	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
@@ -200,10 +196,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).scd_bc_tbls_size =
-			priv->cfg->base_params->num_of_queues *
-			sizeof(struct iwlagn_scd_bc_tbl);
-	hw_params(priv).tfd_size = sizeof(struct iwl_tfd);
 	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 

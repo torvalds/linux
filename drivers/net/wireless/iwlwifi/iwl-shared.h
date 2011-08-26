@@ -121,12 +121,8 @@ struct iwl_mod_params {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
- * @scd_bc_tbls_size: size of scheduler byte count tables
- * @tfd_size: TFD size
  * @tx/rx_chains_num: Number of TX/RX chains
  * @valid_tx/rx_ant: usable antennas
- * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
- * @max_rxq_log: Log-base-2 of max_rxq_size
  * @rx_page_order: Rx buffer page order
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
@@ -142,18 +138,13 @@ struct iwl_mod_params {
  */
 struct iwl_hw_params {
 	u8 max_txq_num;
-	u16 scd_bc_tbls_size;
-	u32 tfd_size;
 	u8  tx_chains_num;
 	u8  rx_chains_num;
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
-	u16 max_rxq_size;
-	u16 max_rxq_log;
 	u32 rx_page_order;
 	u8  max_stations;
 	u8  ht40_channel;
-	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
 	u32 max_data_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */

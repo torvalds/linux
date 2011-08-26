@@ -359,7 +359,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		beacon_int = le16_to_cpu(ctx->timing.beacon_interval);
 	} else {
 		beacon_int = iwl_adjust_beacon_interval(beacon_int,
-			hw_params(priv).max_beacon_itrvl * TIME_UNIT);
+			IWL_MAX_UCODE_BEACON_INTERVAL * TIME_UNIT);
 		ctx->timing.beacon_interval = cpu_to_le16(beacon_int);
 	}
 

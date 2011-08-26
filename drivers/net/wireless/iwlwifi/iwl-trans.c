@@ -302,7 +302,7 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 				struct iwl_tx_queue *txq, int slots_num,
 				u32 txq_id)
 {
-	size_t tfd_sz = hw_params(trans).tfd_size * TFD_QUEUE_SIZE_MAX;
+	size_t tfd_sz = sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX;
 	int i;
 
 	if (WARN_ON(txq->meta || txq->cmd || txq->txb || txq->tfds))
@@ -448,7 +448,7 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd) {
-		dma_free_coherent(dev, hw_params(trans).tfd_size *
+		dma_free_coherent(dev, sizeof(struct iwl_tfd) *
 				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 		memset(&txq->q.dma_addr, 0, sizeof(txq->q.dma_addr));
 	}
@@ -509,6 +509,9 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	u16 scd_bc_tbls_size = priv->cfg->base_params->num_of_queues *
+			sizeof(struct iwlagn_scd_bc_tbl);
+
 	/*It is not allowed to alloc twice, so warn when this happens.
 	 * We cannot rely on the previous allocation, so free and fail */
 	if (WARN_ON(priv->txq)) {
@@ -517,7 +520,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	}
 
 	ret = iwlagn_alloc_dma_ptr(trans, &trans_pcie->scd_bc_tbls,
-				hw_params(trans).scd_bc_tbls_size);
+				   scd_bc_tbls_size);
 	if (ret) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");
 		goto error;

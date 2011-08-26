@@ -3191,16 +3191,12 @@ static u32 iwl_hw_detect(struct iwl_priv *priv)
 
 static int iwl_set_hw_params(struct iwl_priv *priv)
 {
-	hw_params(priv).max_rxq_size = RX_QUEUE_SIZE;
-	hw_params(priv).max_rxq_log = RX_QUEUE_SIZE_LOG;
 	if (iwlagn_mod_params.amsdu_size_8K)
 		hw_params(priv).rx_page_order =
 			get_order(IWL_RX_BUF_SIZE_8K);
 	else
 		hw_params(priv).rx_page_order =
 			get_order(IWL_RX_BUF_SIZE_4K);
-
-	hw_params(priv).max_beacon_itrvl = IWL_MAX_UCODE_BEACON_INTERVAL;
 
 	if (iwlagn_mod_params.disable_11n)
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
