@@ -247,7 +247,7 @@ static void iwl_bg_bt_runtime_config(struct work_struct *work)
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, bt_runtime_config);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	/* dont send host command if rf-kill is on */
@@ -264,7 +264,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		goto out;
 
 	/* dont send host command if rf-kill is on */
@@ -303,7 +303,7 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	/* dont send host command if rf-kill is on */
@@ -424,7 +424,7 @@ static void iwl_bg_ucode_trace(unsigned long data)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	if (priv->event_log.ucode_trace) {
@@ -440,7 +440,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, tx_flush);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	/* do nothing if rf-kill is on */
@@ -1405,7 +1405,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
 		IWL_ERR(priv, "Status: 0x%08lX, count: %d\n",
-			priv->status, table.valid);
+			priv->shrd->status, table.valid);
 	}
 
 	priv->isr_stats.err_code = table.error_id;
@@ -1765,7 +1765,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
 
 	/* After the ALIVE response, we can send host commands to the uCode */
-	set_bit(STATUS_ALIVE, &priv->status);
+	set_bit(STATUS_ALIVE, &priv->shrd->status);
 
 	/* Enable watchdog to monitor the driver tx queues */
 	iwl_setup_watchdog(priv);
@@ -1838,7 +1838,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 		iwl_reset_run_time_calib(priv);
 	}
 
-	set_bit(STATUS_READY, &priv->status);
+	set_bit(STATUS_READY, &priv->shrd->status);
 
 	/* Configure the adapter for unassociated operation */
 	ret = iwlagn_commit_rxon(priv, ctx);
@@ -1870,7 +1870,8 @@ static void __iwl_down(struct iwl_priv *priv)
 	 */
 	ieee80211_remain_on_channel_expired(priv->hw);
 
-	exit_pending = test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
+	exit_pending =
+		test_and_set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
 	 * to prevent rearm timer */
@@ -1895,19 +1896,20 @@ static void __iwl_down(struct iwl_priv *priv)
 	/* Wipe out the EXIT_PENDING status bit if we are not actually
 	 * exiting the module */
 	if (!exit_pending)
-		clear_bit(STATUS_EXIT_PENDING, &priv->status);
+		clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
 
 	/* Clear out all status bits but a few that are stable across reset */
-	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
+	priv->shrd->status &=
+			test_bit(STATUS_RF_KILL_HW, &priv->shrd->status) <<
 				STATUS_RF_KILL_HW |
-			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
+			test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status) <<
 				STATUS_GEO_CONFIGURED |
-			test_bit(STATUS_FW_ERROR, &priv->status) <<
+			test_bit(STATUS_FW_ERROR, &priv->shrd->status) <<
 				STATUS_FW_ERROR |
-		       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
+			test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) <<
 				STATUS_EXIT_PENDING;
 
 	trans_stop_device(&priv->trans);
@@ -1934,7 +1936,7 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
 		return -EIO;
 	}
@@ -1967,9 +1969,9 @@ static int __iwl_up(struct iwl_priv *priv)
 	return 0;
 
  error:
-	set_bit(STATUS_EXIT_PENDING, &priv->status);
+	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 	__iwl_down(priv);
-	clear_bit(STATUS_EXIT_PENDING, &priv->status);
+	clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	IWL_ERR(priv, "Unable to initialize device.\n");
 	return ret;
@@ -1989,8 +1991,8 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    test_bit(STATUS_SCANNING, &priv->status)) {
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) ||
+	    test_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		mutex_unlock(&priv->mutex);
 		return;
 	}
@@ -2046,10 +2048,10 @@ static void iwl_bg_restart(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv, restart);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
+	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->shrd->status)) {
 		mutex_lock(&priv->mutex);
 		iwlagn_prepare_restart(priv);
 		mutex_unlock(&priv->mutex);
@@ -2263,7 +2265,7 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	IWL_DEBUG_INFO(priv, "Start UP work done.\n");
 
 	/* Now we should be done, and the READY bit should be set. */
-	if (WARN_ON(!test_bit(STATUS_READY, &priv->status)))
+	if (WARN_ON(!test_bit(STATUS_READY, &priv->shrd->status)))
 		ret = -EIO;
 
 	iwlagn_led_enable(priv);
@@ -2905,7 +2907,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT(priv, "stop Rx\n");
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 			ret = 0;
 		break;
 	case IEEE80211_AMPDU_TX_START:
@@ -2925,7 +2927,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 			IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
 				     priv->agg_tids_count);
 		}
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 			ret = 0;
 		if (priv->cfg->ht_params &&
 		    priv->cfg->ht_params->use_rts_for_aggregation) {
@@ -3060,9 +3062,9 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	if (iwl_is_rfkill(priv))
 		goto out;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    test_bit(STATUS_SCANNING, &priv->status) ||
-	    test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) ||
+	    test_bit(STATUS_SCANNING, &priv->shrd->status) ||
+	    test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status))
 		goto out;
 
 	if (!iwl_is_associated_ctx(ctx))
@@ -3118,10 +3120,10 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	 * at this point, staging_rxon has the
 	 * configuration for channel switch
 	 */
-	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
+	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status);
 	priv->switch_channel = cpu_to_le16(ch);
 	if (priv->cfg->lib->set_channel_switch(priv, ch_switch)) {
-		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
+		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status);
 		priv->switch_channel = 0;
 		ieee80211_chswitch_done(ctx->vif, false);
 	}
@@ -3188,7 +3190,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
 		IWL_DEBUG_TX(priv, "Aborting flush due to device shutdown\n");
 		goto done;
 	}
@@ -3273,7 +3275,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	if (iwl_is_associated(priv, IWL_RXON_CTX_BSS) && duration > 80)
 		duration = 80;
 
-	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status)) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -3727,12 +3729,12 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 	else
-		set_bit(STATUS_RF_KILL_HW, &priv->status);
+		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy,
-		test_bit(STATUS_RF_KILL_HW, &priv->status));
+		test_bit(STATUS_RF_KILL_HW, &priv->shrd->status));
 
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
@@ -3776,7 +3778,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	 * to be called and iwl_down since we are removing the device
 	 * we need to set STATUS_EXIT_PENDING bit.
 	 */
-	set_bit(STATUS_EXIT_PENDING, &priv->status);
+	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	iwl_testmode_cleanup(priv);
 	iwl_leds_exit(priv);

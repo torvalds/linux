@@ -96,7 +96,7 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 			    txq->q.write_ptr | (txq_id << 8));
 	} else {
 		/* if we're trying to save power */
-		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+		if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
 			/* wake up nic if it's powered down ...
 			 * uCode will wake up, and interrupt us again, so next
 			 * time we'll skip this part. */
@@ -544,7 +544,7 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int trace_idx;
 #endif
 
-	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
+	if (test_bit(STATUS_FW_ERROR, &priv->shrd->status)) {
 		IWL_WARN(priv, "fw recovery, no hcmd send\n");
 		return -EIO;
 	}
@@ -786,7 +786,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	iwl_hcmd_queue_reclaim(priv, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
-		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+		clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 		IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
 		wake_up_interruptible(&priv->wait_command_queue);
@@ -917,7 +917,7 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (!cmd->callback)
 		cmd->callback = iwl_generic_cmd_callback;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return -EBUSY;
 
 	ret = iwl_enqueue_hcmd(priv, cmd);
@@ -943,30 +943,30 @@ static int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	IWL_DEBUG_INFO(priv, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
 
-	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
+	set_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 	IWL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s\n",
 			get_cmd_string(cmd->id));
 
 	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
-		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+		clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 		IWL_ERR(priv, "Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
 		return ret;
 	}
 
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-			!test_bit(STATUS_HCMD_ACTIVE, &priv->status),
+			!test_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
-		if (test_bit(STATUS_HCMD_ACTIVE, &priv->status)) {
+		if (test_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status)) {
 			IWL_ERR(priv,
 				"Error sending %s: time out after %dms.\n",
 				get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
-			clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+			clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 			IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command"
 				 "%s\n", get_cmd_string(cmd->id));
 			ret = -ETIMEDOUT;
@@ -974,13 +974,13 @@ static int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		}
 	}
 
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
+	if (test_bit(STATUS_RF_KILL_HW, &priv->shrd->status)) {
 		IWL_ERR(priv, "Command %s aborted: RF KILL Switch\n",
 			       get_cmd_string(cmd->id));
 		ret = -ECANCELED;
 		goto fail;
 	}
-	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
+	if (test_bit(STATUS_FW_ERROR, &priv->shrd->status)) {
 		IWL_ERR(priv, "Command %s failed: FW Error\n",
 			       get_cmd_string(cmd->id));
 		ret = -EIO;

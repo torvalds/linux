@@ -145,7 +145,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write_actual);
 	} else {
 		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+		if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
 			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
@@ -346,7 +346,7 @@ void iwl_bg_rx_replenish(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, rx_replenish);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	mutex_lock(&priv->mutex);
@@ -581,11 +581,12 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 		 * is killed. Hence update the killswitch state here. The
 		 * rfkill handler will care about restarting if needed.
 		 */
-		if (!test_bit(STATUS_ALIVE, &priv->status)) {
+		if (!test_bit(STATUS_ALIVE, &priv->shrd->status)) {
 			if (hw_rf_kill)
-				set_bit(STATUS_RF_KILL_HW, &priv->status);
+				set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 			else
-				clear_bit(STATUS_RF_KILL_HW, &priv->status);
+				clear_bit(STATUS_RF_KILL_HW,
+					  &priv->shrd->status);
 			wiphy_rfkill_set_hw_state(priv->hw->wiphy, hw_rf_kill);
 		}
 
@@ -688,7 +689,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status))
+	if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status))
 		iwl_enable_interrupts(priv);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
@@ -858,7 +859,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	if (likely(inta))
 		tasklet_schedule(&priv->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &priv->status) &&
+	else if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status) &&
 			!priv->inta)
 		iwl_enable_interrupts(priv);
 
@@ -869,7 +870,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
  none:
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq  and no schedules tasklet. */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->inta)
+	if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status) && !priv->inta)
 		iwl_enable_interrupts(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -957,7 +958,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	if (likely(inta))
 		tasklet_schedule(&priv->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &priv->status) &&
+	else if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status) &&
 			!priv->inta) {
 		/* Allow interrupt if was disabled by this handler and
 		 * no tasklet was schedules, We should not enable interrupt,
@@ -973,7 +974,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* re-enable interrupts here since we don't have anything to service.
 	 * only Re-enable if disabled by irq.
 	 */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->inta)
+	if (test_bit(STATUS_INT_ENABLED, &priv->shrd->status) && !priv->inta)
 		iwl_enable_interrupts(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);

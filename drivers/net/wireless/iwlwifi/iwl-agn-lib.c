@@ -387,7 +387,7 @@ void iwl_check_abort_status(struct iwl_priv *priv,
 {
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
 		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
-		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
+		if (!test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 			queue_work(priv->shrd->workqueue, &priv->tx_flush);
 	}
 }
@@ -496,7 +496,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	struct iwlagn_tx_power_dbm_cmd tx_power_cmd;
 	u8 tx_ant_cfg_cmd;
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->shrd->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
@@ -945,7 +945,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
 	/* In power save mode use one chain, otherwise use all chains */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+	if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
 				((u8)(priv->chain_noise_data.active_chains));
@@ -1048,7 +1048,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->len = cpu_to_le16(cmd.len[0]);
 
 	/* set scan bit here for PAN params */
-	set_bit(STATUS_SCAN_HW, &priv->status);
+	set_bit(STATUS_SCAN_HW, &priv->shrd->status);
 
 	ret = iwlagn_set_pan_params(priv);
 	if (ret)
@@ -1056,7 +1056,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	ret = trans_send_cmd(&priv->trans, &cmd);
 	if (ret) {
-		clear_bit(STATUS_SCAN_HW, &priv->status);
+		clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
 		iwlagn_set_pan_params(priv);
 	}
 
@@ -1494,7 +1494,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 * STATUS_SCANNING to avoid race when queue_work two times from
 	 * different notifications, but quit and not perform any work at all.
 	 */
-	if (test_bit(STATUS_SCAN_HW, &priv->status))
+	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status))
 		goto out;
 
 	iwl_update_chain_flags(priv);
@@ -1775,7 +1775,7 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	bool is_single = is_single_rx_stream(priv);
-	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->shrd->status);
 	u8 idle_rx_cnt, active_rx_cnt, valid_rx_cnt;
 	u32 active_chains;
 	u16 rx_chain;

@@ -426,24 +426,24 @@ static inline int iwl_is_ready(struct iwl_priv *priv)
 {
 	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
 	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &priv->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &priv->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
+	return test_bit(STATUS_READY, &priv->shrd->status) &&
+	       test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status) &&
+	       !test_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 }
 
 static inline int iwl_is_alive(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_ALIVE, &priv->status);
+	return test_bit(STATUS_ALIVE, &priv->shrd->status);
 }
 
 static inline int iwl_is_init(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_INIT, &priv->status);
+	return test_bit(STATUS_INIT, &priv->shrd->status);
 }
 
 static inline int iwl_is_rfkill_hw(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_RF_KILL_HW, &priv->status);
+	return test_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 }
 
 static inline int iwl_is_rfkill(struct iwl_priv *priv)
@@ -453,7 +453,7 @@ static inline int iwl_is_rfkill(struct iwl_priv *priv)
 
 static inline int iwl_is_ctkill(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_CT_KILL, &priv->status);
+	return test_bit(STATUS_CT_KILL, &priv->shrd->status);
 }
 
 static inline int iwl_is_ready_rf(struct iwl_priv *priv)

@@ -68,11 +68,11 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	/* Exit instantly with error when device is not ready
 	 * to receive scan abort command or it does not perform
 	 * hardware scan currently */
-	if (!test_bit(STATUS_READY, &priv->status) ||
-	    !test_bit(STATUS_GEO_CONFIGURED, &priv->status) ||
-	    !test_bit(STATUS_SCAN_HW, &priv->status) ||
-	    test_bit(STATUS_FW_ERROR, &priv->status) ||
-	    test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (!test_bit(STATUS_READY, &priv->shrd->status) ||
+	    !test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status) ||
+	    !test_bit(STATUS_SCAN_HW, &priv->shrd->status) ||
+	    test_bit(STATUS_FW_ERROR, &priv->shrd->status) ||
+	    test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return -EIO;
 
 	ret = trans_send_cmd(&priv->trans, &cmd);
@@ -118,15 +118,15 @@ void iwl_force_scan_end(struct iwl_priv *priv)
 {
 	lockdep_assert_held(&priv->mutex);
 
-	if (!test_bit(STATUS_SCANNING, &priv->status)) {
+	if (!test_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Forcing scan end while not scanning\n");
 		return;
 	}
 
 	IWL_DEBUG_SCAN(priv, "Forcing scan end\n");
-	clear_bit(STATUS_SCANNING, &priv->status);
-	clear_bit(STATUS_SCAN_HW, &priv->status);
-	clear_bit(STATUS_SCAN_ABORTING, &priv->status);
+	clear_bit(STATUS_SCANNING, &priv->shrd->status);
+	clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
+	clear_bit(STATUS_SCAN_ABORTING, &priv->shrd->status);
 	iwl_complete_scan(priv, true);
 }
 
@@ -136,12 +136,12 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (!test_bit(STATUS_SCANNING, &priv->status)) {
+	if (!test_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Not performing scan to abort\n");
 		return;
 	}
 
-	if (test_and_set_bit(STATUS_SCAN_ABORTING, &priv->status)) {
+	if (test_and_set_bit(STATUS_SCAN_ABORTING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan abort in progress\n");
 		return;
 	}
@@ -180,12 +180,12 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 	iwl_do_scan_abort(priv);
 
 	while (time_before_eq(jiffies, timeout)) {
-		if (!test_bit(STATUS_SCAN_HW, &priv->status))
+		if (!test_bit(STATUS_SCAN_HW, &priv->shrd->status))
 			break;
 		msleep(20);
 	}
 
-	return test_bit(STATUS_SCAN_HW, &priv->status);
+	return test_bit(STATUS_SCAN_HW, &priv->shrd->status);
 }
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
@@ -257,7 +257,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		       scan_notif->tsf_high, scan_notif->status);
 
 	/* The HW is no longer scanning */
-	clear_bit(STATUS_SCAN_HW, &priv->status);
+	clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
 
 	IWL_DEBUG_SCAN(priv, "Scan on %sGHz took %dms\n",
 		       (priv->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
@@ -367,13 +367,13 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 		return -EIO;
 	}
 
-	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv,
 			"Multiple concurrent scan requests in parallel.\n");
 		return -EBUSY;
 	}
 
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
+	if (test_bit(STATUS_SCAN_ABORTING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan request while abort pending.\n");
 		return -EBUSY;
 	}
@@ -383,14 +383,14 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 			scan_type == IWL_SCAN_ROC ? "remain-on-channel " :
 			"internal short ");
 
-	set_bit(STATUS_SCANNING, &priv->status);
+	set_bit(STATUS_SCANNING, &priv->shrd->status);
 	priv->scan_type = scan_type;
 	priv->scan_start = jiffies;
 	priv->scan_band = band;
 
 	ret = iwlagn_request_scan(priv, vif);
 	if (ret) {
-		clear_bit(STATUS_SCANNING, &priv->status);
+		clear_bit(STATUS_SCANNING, &priv->shrd->status);
 		priv->scan_type = IWL_SCAN_NORMAL;
 		return ret;
 	}
@@ -415,7 +415,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (test_bit(STATUS_SCANNING, &priv->status) &&
+	if (test_bit(STATUS_SCANNING, &priv->shrd->status) &&
 	    priv->scan_type != IWL_SCAN_NORMAL) {
 		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
 		ret = -EAGAIN;
@@ -468,7 +468,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 		goto unlock;
 	}
 
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
+	if (test_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
 		goto unlock;
 	}
@@ -566,11 +566,11 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->status);
+	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->shrd->status);
 	if (aborted)
 		IWL_DEBUG_SCAN(priv, "Aborted scan completed.\n");
 
-	if (!test_and_clear_bit(STATUS_SCANNING, &priv->status)) {
+	if (!test_and_clear_bit(STATUS_SCANNING, &priv->shrd->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan already completed.\n");
 		goto out_settings;
 	}

@@ -134,7 +134,7 @@ static inline void iwl_wake_any_queue(struct iwl_priv *priv,
 
 static inline void iwl_disable_interrupts(struct iwl_priv *priv)
 {
-	clear_bit(STATUS_INT_ENABLED, &priv->status);
+	clear_bit(STATUS_INT_ENABLED, &priv->shrd->status);
 
 	/* disable interrupts from uCode/NIC to host */
 	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
@@ -155,7 +155,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
 static inline void iwl_enable_interrupts(struct iwl_priv *priv)
 {
 	IWL_DEBUG_ISR(priv, "Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &priv->status);
+	set_bit(STATUS_INT_ENABLED, &priv->shrd->status);
 	iwl_write32(priv, CSR_INT_MASK, priv->inta_mask);
 }
 

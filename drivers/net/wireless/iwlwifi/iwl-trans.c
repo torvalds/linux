@@ -623,7 +623,7 @@ static int iwl_nic_init(struct iwl_priv *priv)
 			0x800FFFFF);
 	}
 
-	set_bit(STATUS_INIT, &priv->status);
+	set_bit(STATUS_INIT, &priv->shrd->status);
 
 	return 0;
 }
@@ -692,9 +692,9 @@ static int iwl_trans_start_device(struct iwl_priv *priv)
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (iwl_read32(priv, CSR_GP_CNTRL) &
 			CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 	else
-		set_bit(STATUS_RF_KILL_HW, &priv->status);
+		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 
 	if (iwl_is_rfkill(priv)) {
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
@@ -939,7 +939,7 @@ static void iwl_trans_stop_device(struct iwl_priv *priv)
 	 * restart. So don't process again if the device is
 	 * already dead.
 	 */
-	if (test_bit(STATUS_DEVICE_ENABLED, &priv->status)) {
+	if (test_bit(STATUS_DEVICE_ENABLED, &priv->shrd->status)) {
 		iwl_trans_tx_stop(priv);
 		iwl_trans_rx_stop(priv);
 

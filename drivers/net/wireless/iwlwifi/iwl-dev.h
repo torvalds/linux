@@ -1297,8 +1297,6 @@ struct iwl_priv {
 
 	u32 scd_base_addr;	/* scheduler sram base address */
 
-	unsigned long status;
-
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
 	struct traffic_stats rx_stats;
