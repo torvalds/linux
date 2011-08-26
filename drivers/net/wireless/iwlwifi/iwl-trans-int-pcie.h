@@ -200,12 +200,12 @@ static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);
 
 	/* disable interrupts from uCode/NIC to host */
-	iwl_write32(priv(trans), CSR_INT_MASK, 0x00000000);
+	iwl_write32(bus(trans), CSR_INT_MASK, 0x00000000);
 
 	/* acknowledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl_write32(priv(trans), CSR_INT, 0xffffffff);
-	iwl_write32(priv(trans), CSR_FH_INT_STATUS, 0xffffffff);
+	iwl_write32(bus(trans), CSR_INT, 0xffffffff);
+	iwl_write32(bus(trans), CSR_FH_INT_STATUS, 0xffffffff);
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
 
@@ -216,7 +216,7 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 
 	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &trans->shrd->status);
-	iwl_write32(priv(trans), CSR_INT_MASK, trans_pcie->inta_mask);
+	iwl_write32(bus(trans), CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

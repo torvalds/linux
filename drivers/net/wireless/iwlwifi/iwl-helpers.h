@@ -141,7 +141,7 @@ static inline void iwl_wake_any_queue(struct iwl_priv *priv,
 static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
 {
 	IWL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
-	iwl_write32(priv, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+	iwl_write32(bus(priv), CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
 }
 
 /**

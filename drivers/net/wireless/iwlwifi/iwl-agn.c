@@ -329,14 +329,14 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&priv->reg_lock, reg_flags);
-	if (iwl_grab_nic_access(priv)) {
-		spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	spin_lock_irqsave(&bus(priv)->reg_lock, reg_flags);
+	if (iwl_grab_nic_access(bus(priv))) {
+		spin_unlock_irqrestore(&bus(priv)->reg_lock, reg_flags);
 		return;
 	}
 
 	/* Set starting address; reads will auto-increment */
-	iwl_write32(priv, HBUS_TARG_MEM_RADDR, ptr);
+	iwl_write32(bus(priv), HBUS_TARG_MEM_RADDR, ptr);
 	rmb();
 
 	/*
@@ -344,20 +344,20 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	 * place event id # at far right for easier visual parsing.
 	 */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
-		time = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+		ev = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			trace_iwlwifi_dev_ucode_cont_event(priv,
 							0, time, ev);
 		} else {
-			data = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+			data = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
 			trace_iwlwifi_dev_ucode_cont_event(priv,
 						time, data, ev);
 		}
 	}
 	/* Allow device to power down */
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	iwl_release_nic_access(bus(priv));
+	spin_unlock_irqrestore(&bus(priv)->reg_lock, reg_flags);
 }
 
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
@@ -370,10 +370,12 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		capacity = iwl_read_targ_mem(priv, base);
-		num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
-		mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
-		next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
+		capacity = iwl_read_targ_mem(bus(priv), base);
+		num_wraps = iwl_read_targ_mem(bus(priv),
+						base + (2 * sizeof(u32)));
+		mode = iwl_read_targ_mem(bus(priv), base + (1 * sizeof(u32)));
+		next_entry = iwl_read_targ_mem(bus(priv),
+						base + (3 * sizeof(u32)));
 	} else
 		return;
 
@@ -1316,7 +1318,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	int ret = 0;
 
 	spin_lock_irqsave(&priv->shrd->lock, flags);
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
@@ -1934,7 +1936,7 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	/* User space software may expect getting rfkill changes
 	 * even if interface is down */
-	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+	iwl_write32(bus(priv), CSR_INT, 0xFFFFFFFF);
 	iwl_enable_rfkill_int(priv);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -2329,7 +2331,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	device_set_wakeup_enable(priv->bus->dev, true);
 
 	/* Now let the ucode operate on its own */
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
+	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_SET,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	goto out;
@@ -2355,19 +2357,19 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->shrd->mutex);
 
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		spin_lock_irqsave(&priv->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(priv);
+		spin_lock_irqsave(&bus(priv)->reg_lock, flags);
+		ret = iwl_grab_nic_access_silent(bus(priv));
 		if (ret == 0) {
-			iwl_write32(priv, HBUS_TARG_MEM_RADDR, base);
-			status = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(priv);
+			iwl_write32(bus(priv), HBUS_TARG_MEM_RADDR, base);
+			status = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+			iwl_release_nic_access(bus(priv));
 		}
-		spin_unlock_irqrestore(&priv->reg_lock, flags);
+		spin_unlock_irqrestore(&bus(priv)->reg_lock, flags);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
@@ -2378,7 +2380,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
-					priv, 0x800000, priv->wowlan_sram,
+					bus(priv), 0x800000, priv->wowlan_sram,
 					priv->ucode_wowlan.data.len / 4);
 		}
 #endif
@@ -3186,7 +3188,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 
 static u32 iwl_hw_detect(struct iwl_priv *priv)
 {
-	return iwl_read32(priv, CSR_HW_REV);
+	return iwl_read32(bus(priv), CSR_HW_REV);
 }
 
 /* Size of one Rx buffer in host DRAM */
@@ -3286,7 +3288,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
-	spin_lock_init(&priv->reg_lock);
+	spin_lock_init(&bus(priv)->reg_lock);
 	spin_lock_init(&priv->shrd->lock);
 
 	/*
@@ -3294,7 +3296,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	 * strange state ... like being left stranded by a primary kernel
 	 * and this is now the kdump kernel trying to start up
 	 */
-	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+	iwl_write32(bus(priv), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/***********************
 	 * 3. Read REV register
@@ -3375,7 +3377,8 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_enable_rfkill_int(priv);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+	if (iwl_read32(bus(priv),
+			CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 	else
 		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);

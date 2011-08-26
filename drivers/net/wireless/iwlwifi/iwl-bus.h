@@ -66,6 +66,7 @@
 /*This file includes the declaration that are exported from the bus layer */
 
 #include <linux/types.h>
+#include <linux/spinlock.h>
 
 struct iwl_shared;
 struct iwl_bus;
@@ -96,6 +97,7 @@ struct iwl_bus_ops {
  * @ops - pointer to iwl_bus_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @irq - the irq number for the device
+ * @reg_lock - protect hw register access
  */
 struct iwl_bus {
 	/* Common data to all buses */
@@ -104,6 +106,7 @@ struct iwl_bus {
 	struct iwl_shared *shrd;
 
 	unsigned int irq;
+	spinlock_t reg_lock;
 
 	/* pointer to bus specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

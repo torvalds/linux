@@ -276,7 +276,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_REG_READ32:
-		val32 = iwl_read32(priv, ofs);
+		val32 = iwl_read32(bus(priv), ofs);
 		IWL_INFO(priv, "32bit value to read 0x%x\n", val32);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
@@ -298,7 +298,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 		} else {
 			val32 = nla_get_u32(tb[IWL_TM_ATTR_REG_VALUE32]);
 			IWL_INFO(priv, "32bit value to write 0x%x\n", val32);
-			iwl_write32(priv, ofs, val32);
+			iwl_write32(bus(priv), ofs, val32);
 		}
 		break;
 	case IWL_TM_CMD_APP2DEV_REG_WRITE8:
@@ -308,7 +308,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 		} else {
 			val8 = nla_get_u8(tb[IWL_TM_ATTR_REG_VALUE8]);
 			IWL_INFO(priv, "8bit value to write 0x%x\n", val8);
-			iwl_write8(priv, ofs, val8);
+			iwl_write8(bus(priv), ofs, val8);
 		}
 		break;
 	default:

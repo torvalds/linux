@@ -124,12 +124,12 @@ static void iwl_pci_apm_config(struct iwl_bus *bus)
 	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
 				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
 		/* L1-ASPM enabled; disable(!) L0S */
-		iwl_set_bit(priv(bus), CSR_GIO_REG,
+		iwl_set_bit(bus, CSR_GIO_REG,
 				CSR_GIO_REG_VAL_L0S_ENABLED);
 		dev_printk(KERN_INFO, bus->dev, "L1 Enabled; Disabling L0S\n");
 	} else {
 		/* L1-ASPM disabled; enable(!) L0S */
-		iwl_clear_bit(priv(bus), CSR_GIO_REG,
+		iwl_clear_bit(bus, CSR_GIO_REG,
 				CSR_GIO_REG_VAL_L0S_ENABLED);
 		dev_printk(KERN_INFO, bus->dev, "L1 Disabled; Enabling L0S\n");
 	}

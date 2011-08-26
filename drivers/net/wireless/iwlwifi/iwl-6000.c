@@ -83,7 +83,7 @@ static void iwl6050_additional_nic_config(struct iwl_priv *priv)
 {
 	/* Indicate calibration version to uCode. */
 	if (iwlagn_eeprom_calib_version(priv) >= 6)
-		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 }
 
@@ -91,9 +91,9 @@ static void iwl6150_additional_nic_config(struct iwl_priv *priv)
 {
 	/* Indicate calibration version to uCode. */
 	if (iwlagn_eeprom_calib_version(priv) >= 6)
-		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
-	iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+	iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 		    CSR_GP_DRIVER_REG_BIT_6050_1x2);
 }
 
@@ -105,7 +105,7 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 	/* no locking required for register write */
 	if (priv->cfg->pa_type == IWL_PA_INTERNAL) {
 		/* 2x2 IPA phy type */
-		iwl_write32(priv, CSR_GP_DRIVER_REG,
+		iwl_write32(bus(priv), CSR_GP_DRIVER_REG,
 			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 	}
 	/* do additional nic configuration if needed */
