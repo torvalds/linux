@@ -42,19 +42,19 @@
 
 #define RS_NAME "iwl-3945-rs"
 
-static s32 il3945_expected_tpt_g[IL_RATE_COUNT_3945] = {
+static s32 il3945_expected_tpt_g[RATE_COUNT_3945] = {
 	7, 13, 35, 58, 0, 0, 76, 104, 130, 168, 191, 202
 };
 
-static s32 il3945_expected_tpt_g_prot[IL_RATE_COUNT_3945] = {
+static s32 il3945_expected_tpt_g_prot[RATE_COUNT_3945] = {
 	7, 13, 35, 58, 0, 0, 0, 80, 93, 113, 123, 125
 };
 
-static s32 il3945_expected_tpt_a[IL_RATE_COUNT_3945] = {
+static s32 il3945_expected_tpt_a[RATE_COUNT_3945] = {
 	0, 0, 0, 0, 40, 57, 72, 98, 121, 154, 177, 186
 };
 
-static s32 il3945_expected_tpt_b[IL_RATE_COUNT_3945] = {
+static s32 il3945_expected_tpt_b[RATE_COUNT_3945] = {
 	7, 13, 35, 58, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
@@ -64,39 +64,39 @@ struct il3945_tpt_entry {
 };
 
 static struct il3945_tpt_entry il3945_tpt_table_a[] = {
-	{-60, IL_RATE_54M_INDEX},
-	{-64, IL_RATE_48M_INDEX},
-	{-72, IL_RATE_36M_INDEX},
-	{-80, IL_RATE_24M_INDEX},
-	{-84, IL_RATE_18M_INDEX},
-	{-85, IL_RATE_12M_INDEX},
-	{-87, IL_RATE_9M_INDEX},
-	{-89, IL_RATE_6M_INDEX}
+	{-60, RATE_54M_INDEX},
+	{-64, RATE_48M_INDEX},
+	{-72, RATE_36M_INDEX},
+	{-80, RATE_24M_INDEX},
+	{-84, RATE_18M_INDEX},
+	{-85, RATE_12M_INDEX},
+	{-87, RATE_9M_INDEX},
+	{-89, RATE_6M_INDEX}
 };
 
 static struct il3945_tpt_entry il3945_tpt_table_g[] = {
-	{-60, IL_RATE_54M_INDEX},
-	{-64, IL_RATE_48M_INDEX},
-	{-68, IL_RATE_36M_INDEX},
-	{-80, IL_RATE_24M_INDEX},
-	{-84, IL_RATE_18M_INDEX},
-	{-85, IL_RATE_12M_INDEX},
-	{-86, IL_RATE_11M_INDEX},
-	{-88, IL_RATE_5M_INDEX},
-	{-90, IL_RATE_2M_INDEX},
-	{-92, IL_RATE_1M_INDEX}
+	{-60, RATE_54M_INDEX},
+	{-64, RATE_48M_INDEX},
+	{-68, RATE_36M_INDEX},
+	{-80, RATE_24M_INDEX},
+	{-84, RATE_18M_INDEX},
+	{-85, RATE_12M_INDEX},
+	{-86, RATE_11M_INDEX},
+	{-88, RATE_5M_INDEX},
+	{-90, RATE_2M_INDEX},
+	{-92, RATE_1M_INDEX}
 };
 
-#define IL_RATE_MAX_WINDOW          62
-#define IL_RATE_FLUSH		(3*HZ)
-#define IL_RATE_WIN_FLUSH       (HZ/2)
+#define RATE_MAX_WINDOW          62
+#define RATE_FLUSH		(3*HZ)
+#define RATE_WIN_FLUSH       (HZ/2)
 #define IL39_RATE_HIGH_TH          11520
 #define IL_SUCCESS_UP_TH	   8960
 #define IL_SUCCESS_DOWN_TH	  10880
-#define IL_RATE_MIN_FAILURE_TH       6
-#define IL_RATE_MIN_SUCCESS_TH       8
-#define IL_RATE_DECREASE_TH       1920
-#define IL_RATE_RETRY_TH	     15
+#define RATE_MIN_FAILURE_TH       6
+#define RATE_MIN_SUCCESS_TH       8
+#define RATE_DECREASE_TH       1920
+#define RATE_RETRY_TH	     15
 
 static u8 il3945_get_rate_index_by_rssi(s32 rssi, enum ieee80211_band band)
 {
@@ -157,16 +157,16 @@ static int il3945_rate_scale_flush_wins(struct il3945_rs_sta *rs_sta)
 
 	/*
 	 * For each rate, if we have collected data on that rate
-	 * and it has been more than IL_RATE_WIN_FLUSH
+	 * and it has been more than RATE_WIN_FLUSH
 	 * since we flushed, clear out the gathered stats
 	 */
-	for (i = 0; i < IL_RATE_COUNT_3945; i++) {
+	for (i = 0; i < RATE_COUNT_3945; i++) {
 		if (!rs_sta->win[i].counter)
 			continue;
 
 		spin_lock_irqsave(&rs_sta->lock, flags);
 		if (time_after(jiffies, rs_sta->win[i].stamp +
-			       IL_RATE_WIN_FLUSH)) {
+			       RATE_WIN_FLUSH)) {
 			D_RATE("flushing %d samples of rate "
 				       "index %d\n",
 				       rs_sta->win[i].counter, i);
@@ -179,8 +179,8 @@ static int il3945_rate_scale_flush_wins(struct il3945_rs_sta *rs_sta)
 	return unflushed;
 }
 
-#define IL_RATE_FLUSH_MAX              5000	/* msec */
-#define IL_RATE_FLUSH_MIN              50	/* msec */
+#define RATE_FLUSH_MAX              5000	/* msec */
+#define RATE_FLUSH_MIN              50	/* msec */
 #define IL_AVERAGE_PACKETS             1500
 
 static void il3945_bg_rate_scale_flush(unsigned long data)
@@ -217,12 +217,12 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 
 		if (pps) {
 			duration = (IL_AVERAGE_PACKETS * 1000) / pps;
-			if (duration < IL_RATE_FLUSH_MIN)
-				duration = IL_RATE_FLUSH_MIN;
-			else if (duration > IL_RATE_FLUSH_MAX)
-				duration = IL_RATE_FLUSH_MAX;
+			if (duration < RATE_FLUSH_MIN)
+				duration = RATE_FLUSH_MIN;
+			else if (duration > RATE_FLUSH_MAX)
+				duration = RATE_FLUSH_MAX;
 		} else
-			duration = IL_RATE_FLUSH_MAX;
+			duration = RATE_FLUSH_MAX;
 
 		rs_sta->flush_time = msecs_to_jiffies(duration);
 
@@ -234,7 +234,7 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 
 		rs_sta->last_partial_flush = jiffies;
 	} else {
-		rs_sta->flush_time = IL_RATE_FLUSH;
+		rs_sta->flush_time = RATE_FLUSH;
 		rs_sta->flush_pending = 0;
 	}
 	/* If there weren't any unflushed entries, we don't schedule the timer
@@ -278,13 +278,13 @@ static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 	 * we keep these bitmaps!).
 	 * */
 	while (retries > 0) {
-		if (win->counter >= IL_RATE_MAX_WINDOW) {
+		if (win->counter >= RATE_MAX_WINDOW) {
 
 			/* remove earliest */
-			win->counter = IL_RATE_MAX_WINDOW - 1;
+			win->counter = RATE_MAX_WINDOW - 1;
 
-			if (win->data & (1ULL << (IL_RATE_MAX_WINDOW - 1))) {
-				win->data &= ~(1ULL << (IL_RATE_MAX_WINDOW - 1));
+			if (win->data & (1ULL << (RATE_MAX_WINDOW - 1))) {
+				win->data &= ~(1ULL << (RATE_MAX_WINDOW - 1));
 				win->success_counter--;
 			}
 		}
@@ -315,8 +315,8 @@ static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 	fail_count = win->counter - win->success_counter;
 
 	/* Calculate average throughput, if we have enough history. */
-	if (fail_count >= IL_RATE_MIN_FAILURE_TH ||
-	    win->success_counter >= IL_RATE_MIN_SUCCESS_TH)
+	if (fail_count >= RATE_MIN_FAILURE_TH ||
+	    win->success_counter >= RATE_MIN_SUCCESS_TH)
 		win->average_tpt = ((win->success_ratio *
 				rs_sta->expected_tpt[index] + 64) / 128);
 	else
@@ -351,20 +351,20 @@ void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_i
 
 	rs_sta->il = il;
 
-	rs_sta->start_rate = IL_RATE_INVALID;
+	rs_sta->start_rate = RATE_INVALID;
 
 	/* default to just 802.11b */
 	rs_sta->expected_tpt = il3945_expected_tpt_b;
 
 	rs_sta->last_partial_flush = jiffies;
 	rs_sta->last_flush = jiffies;
-	rs_sta->flush_time = IL_RATE_FLUSH;
+	rs_sta->flush_time = RATE_FLUSH;
 	rs_sta->last_tx_packets = 0;
 
 	rs_sta->rate_scale_flush.data = (unsigned long)rs_sta;
 	rs_sta->rate_scale_flush.function = il3945_bg_rate_scale_flush;
 
-	for (i = 0; i < IL_RATE_COUNT_3945; i++)
+	for (i = 0; i < RATE_COUNT_3945; i++)
 		il3945_clear_win(&rs_sta->win[i]);
 
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
@@ -457,11 +457,11 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 
 	retries = info->status.rates[0].count;
 	/* Sanity Check for retries */
-	if (retries > IL_RATE_RETRY_TH)
-		retries = IL_RATE_RETRY_TH;
+	if (retries > RATE_RETRY_TH)
+		retries = RATE_RETRY_TH;
 
 	first_index = sband->bitrates[info->status.rates[0].idx].hw_value;
-	if (first_index < 0 || first_index >= IL_RATE_COUNT_3945) {
+	if (first_index < 0 || first_index >= RATE_COUNT_3945) {
 		D_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
 	}
@@ -549,8 +549,8 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
 				 u8 index, u16 rate_mask, enum ieee80211_band band)
 {
-	u8 high = IL_RATE_INVALID;
-	u8 low = IL_RATE_INVALID;
+	u8 high = RATE_INVALID;
+	u8 low = RATE_INVALID;
 	struct il_priv *il __maybe_unused = rs_sta->il;
 
 	/* 802.11A walks to the next literal adjacent rate in
@@ -570,7 +570,7 @@ static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
 
 		/* Find the next rate that is in the rate mask */
 		i = index + 1;
-		for (mask = (1 << i); i < IL_RATE_COUNT_3945;
+		for (mask = (1 << i); i < RATE_COUNT_3945;
 		     i++, mask <<= 1) {
 			if (rate_mask & mask) {
 				high = i;
@@ -582,12 +582,12 @@ static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
 	}
 
 	low = index;
-	while (low != IL_RATE_INVALID) {
+	while (low != RATE_INVALID) {
 		if (rs_sta->tgg)
 			low = il3945_rates[low].prev_rs_tgg;
 		else
 			low = il3945_rates[low].prev_rs;
-		if (low == IL_RATE_INVALID)
+		if (low == RATE_INVALID)
 			break;
 		if (rate_mask & (1 << low))
 			break;
@@ -595,12 +595,12 @@ static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
 	}
 
 	high = index;
-	while (high != IL_RATE_INVALID) {
+	while (high != RATE_INVALID) {
 		if (rs_sta->tgg)
 			high = il3945_rates[high].next_rs_tgg;
 		else
 			high = il3945_rates[high].next_rs;
-		if (high == IL_RATE_INVALID)
+		if (high == RATE_INVALID)
 			break;
 		if (rate_mask & (1 << high))
 			break;
@@ -631,8 +631,8 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 {
 	struct ieee80211_supported_band *sband = txrc->sband;
 	struct sk_buff *skb = txrc->skb;
-	u8 low = IL_RATE_INVALID;
-	u8 high = IL_RATE_INVALID;
+	u8 low = RATE_INVALID;
+	u8 high = RATE_INVALID;
 	u16 high_low;
 	int index;
 	struct il3945_rs_sta *rs_sta = il_sta;
@@ -665,10 +665,10 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	max_rate_idx = txrc->max_rate_idx;
 	if (sband->band == IEEE80211_BAND_5GHZ && max_rate_idx != -1)
 		max_rate_idx += IL_FIRST_OFDM_RATE;
-	if (max_rate_idx < 0 || max_rate_idx >= IL_RATE_COUNT)
+	if (max_rate_idx < 0 || max_rate_idx >= RATE_COUNT)
 		max_rate_idx = -1;
 
-	index = min(rs_sta->last_txrate_idx & 0xffff, IL_RATE_COUNT_3945 - 1);
+	index = min(rs_sta->last_txrate_idx & 0xffff, RATE_COUNT_3945 - 1);
 
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		rate_mask = rate_mask << IL_FIRST_OFDM_RATE;
@@ -678,11 +678,11 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	/* for recent assoc, choose best rate regarding
 	 * to rssi value
 	 */
-	if (rs_sta->start_rate != IL_RATE_INVALID) {
+	if (rs_sta->start_rate != RATE_INVALID) {
 		if (rs_sta->start_rate < index &&
 		   (rate_mask & (1 << rs_sta->start_rate)))
 			index = rs_sta->start_rate;
-		rs_sta->start_rate = IL_RATE_INVALID;
+		rs_sta->start_rate = RATE_INVALID;
 	}
 
 	/* force user max rate if set by user */
@@ -695,8 +695,8 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	fail_count = win->counter - win->success_counter;
 
-	if (fail_count < IL_RATE_MIN_FAILURE_TH &&
-	    win->success_counter < IL_RATE_MIN_SUCCESS_TH) {
+	if (fail_count < RATE_MIN_FAILURE_TH &&
+	    win->success_counter < RATE_MIN_SUCCESS_TH) {
 		spin_unlock_irqrestore(&rs_sta->lock, flags);
 
 		D_RATE("Invalid average_tpt on rate %d: "
@@ -722,13 +722,13 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	/* If user set max rate, dont allow higher than user constrain */
 	if (max_rate_idx != -1 && max_rate_idx < high)
-		high = IL_RATE_INVALID;
+		high = RATE_INVALID;
 
 	/* Collect Measured throughputs of adjacent rates */
-	if (low != IL_RATE_INVALID)
+	if (low != RATE_INVALID)
 		low_tpt = rs_sta->win[low].average_tpt;
 
-	if (high != IL_RATE_INVALID)
+	if (high != RATE_INVALID)
 		high_tpt = rs_sta->win[high].average_tpt;
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
@@ -736,7 +736,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	scale_action = 0;
 
 	/* Low success ratio , need to drop the rate */
-	if (win->success_ratio < IL_RATE_DECREASE_TH || !current_tpt) {
+	if (win->success_ratio < RATE_DECREASE_TH || !current_tpt) {
 		D_RATE("decrease rate because of low success_ratio\n");
 		scale_action = -1;
 	/* No throughput measured yet for adjacent rates,
@@ -744,9 +744,9 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	} else if (low_tpt == IL_INVALID_VALUE &&
 		   high_tpt == IL_INVALID_VALUE) {
 
-		if (high != IL_RATE_INVALID && win->success_ratio >= IL_RATE_INCREASE_TH)
+		if (high != RATE_INVALID && win->success_ratio >= RATE_INCREASE_TH)
 			scale_action = 1;
-		else if (low != IL_RATE_INVALID)
+		else if (low != RATE_INVALID)
 			scale_action = 0;
 
 	/* Both adjacent throughputs are measured, but neither one has
@@ -768,7 +768,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 			/* High rate has better throughput, Increase
 			 * rate */
 			if (high_tpt > current_tpt &&
-				win->success_ratio >= IL_RATE_INCREASE_TH)
+				win->success_ratio >= RATE_INCREASE_TH)
 				scale_action = 1;
 			else {
 				D_RATE(
@@ -780,7 +780,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 				D_RATE(
 				    "decrease rate because of low tpt\n");
 				scale_action = -1;
-			} else if (win->success_ratio >= IL_RATE_INCREASE_TH) {
+			} else if (win->success_ratio >= RATE_INCREASE_TH) {
 				/* Lower rate has better
 				 * throughput,decrease rate */
 				scale_action = 1;
@@ -790,8 +790,8 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	/* Sanity check; asked for decrease, but success rate or throughput
 	 * has been good at old rate.  Don't change it. */
-	if (scale_action == -1 && low != IL_RATE_INVALID &&
-	    (win->success_ratio > IL_RATE_HIGH_TH ||
+	if (scale_action == -1 && low != RATE_INVALID &&
+	    (win->success_ratio > RATE_HIGH_TH ||
 	     current_tpt > 100 * rs_sta->expected_tpt[low]))
 		scale_action = 0;
 
@@ -799,13 +799,13 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	case -1:
 
 		/* Decrese rate */
-		if (low != IL_RATE_INVALID)
+		if (low != RATE_INVALID)
 			index = low;
 		break;
 
 	case 1:
 		/* Increase rate */
-		if (high != IL_RATE_INVALID)
+		if (high != RATE_INVALID)
 			index = high;
 
 		break;
@@ -860,7 +860,7 @@ static ssize_t il3945_sta_dbgfs_stats_table_read(struct file *file,
 			lq_sta->tx_packets,
 			lq_sta->last_txrate_idx,
 			lq_sta->start_rate, jiffies_to_msecs(lq_sta->flush_time));
-	for (j = 0; j < IL_RATE_COUNT_3945; j++) {
+	for (j = 0; j < RATE_COUNT_3945; j++) {
 		desc += sprintf(buff+desc,
 				"counter=%d success=%d %%=%d\n",
 				lq_sta->win[j].counter,

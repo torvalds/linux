@@ -1757,7 +1757,7 @@ static void il4965_alive_start(struct il_priv *il)
 
 	ieee80211_wake_queues(il->hw);
 
-	il->active_rate = IL_RATES_MASK;
+	il->active_rate = RATES_MASK;
 
 	if (il_is_associated_ctx(ctx)) {
 		struct il_rxon_cmd *active_rxon =
@@ -2711,7 +2711,7 @@ static void il4965_init_hw_rates(struct il_priv *il,
 {
 	int i;
 
-	for (i = 0; i < IL_RATE_COUNT_LEGACY; i++) {
+	for (i = 0; i < RATE_COUNT_LEGACY; i++) {
 		rates[i].bitrate = il_rates[i].ieee * 5;
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
@@ -2721,7 +2721,7 @@ static void il4965_init_hw_rates(struct il_priv *il,
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
 			rates[i].flags |=
-				(il_rates[i].plcp == IL_RATE_1M_PLCP) ?
+				(il_rates[i].plcp == RATE_1M_PLCP) ?
 					0 : IEEE80211_RATE_SHORT_PREAMBLE;
 		}
 	}

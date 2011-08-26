@@ -174,7 +174,7 @@ int il_init_geos(struct il_priv *il)
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kzalloc((sizeof(struct ieee80211_rate) * IL_RATE_COUNT_LEGACY),
+	rates = kzalloc((sizeof(struct ieee80211_rate) * RATE_COUNT_LEGACY),
 			GFP_KERNEL);
 	if (!rates) {
 		kfree(channels);
@@ -186,7 +186,7 @@ int il_init_geos(struct il_priv *il)
 	sband->channels = &channels[ARRAY_SIZE(il_eeprom_band_1)];
 	/* just OFDM */
 	sband->bitrates = &rates[IL_FIRST_OFDM_RATE];
-	sband->n_bitrates = IL_RATE_COUNT_LEGACY - IL_FIRST_OFDM_RATE;
+	sband->n_bitrates = RATE_COUNT_LEGACY - IL_FIRST_OFDM_RATE;
 
 	if (il->cfg->sku & IL_SKU_N)
 		il_init_ht_hw_capab(il, &sband->ht_cap,
@@ -196,7 +196,7 @@ int il_init_geos(struct il_priv *il)
 	sband->channels = channels;
 	/* OFDM & CCK */
 	sband->bitrates = rates;
-	sband->n_bitrates = IL_RATE_COUNT_LEGACY;
+	sband->n_bitrates = RATE_COUNT_LEGACY;
 
 	if (il->cfg->sku & IL_SKU_N)
 		il_init_ht_hw_capab(il, &sband->ht_cap,
@@ -454,8 +454,8 @@ il_check_rxon_cmd(struct il_priv *il, struct il_rxon_context *ctx)
 	}
 
 	/* make sure basic rates 6Mbps and 1Mbps are supported */
-	if ((rxon->ofdm_basic_rates & IL_RATE_6M_MASK) == 0 &&
-	    (rxon->cck_basic_rates & IL_RATE_1M_MASK) == 0) {
+	if ((rxon->ofdm_basic_rates & RATE_6M_MASK) == 0 &&
+	    (rxon->cck_basic_rates & RATE_1M_MASK) == 0) {
 		IL_WARN("neither 1 nor 6 are basic\n");
 		error = true;
 	}
@@ -566,9 +566,9 @@ u8 il_get_lowest_plcp(struct il_priv *il,
 	 * the beacon skb from mac80211.
 	 */
 	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK)
-		return IL_RATE_1M_PLCP;
+		return RATE_1M_PLCP;
 	else
-		return IL_RATE_6M_PLCP;
+		return RATE_6M_PLCP;
 }
 EXPORT_SYMBOL(il_get_lowest_plcp);
 
@@ -835,7 +835,7 @@ void il_set_rate(struct il_priv *il)
 
 	for (i = 0; i < hw->n_bitrates; i++) {
 		rate = &(hw->bitrates[i]);
-		if (rate->hw_value < IL_RATE_COUNT_LEGACY)
+		if (rate->hw_value < RATE_COUNT_LEGACY)
 			il->active_rate |= (1 << rate->hw_value);
 	}
 

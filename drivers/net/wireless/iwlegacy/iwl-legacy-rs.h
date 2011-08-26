@@ -28,10 +28,10 @@
 #define __il_rs_h__
 
 struct il_rate_info {
-	u8 plcp;	/* uCode API:  IL_RATE_6M_PLCP, etc. */
-	u8 plcp_siso;	/* uCode API:  IL_RATE_SISO_6M_PLCP, etc. */
-	u8 plcp_mimo2;	/* uCode API:  IL_RATE_MIMO2_6M_PLCP, etc. */
-	u8 ieee;	/* MAC header:  IL_RATE_6M_IEEE, etc. */
+	u8 plcp;	/* uCode API:  RATE_6M_PLCP, etc. */
+	u8 plcp_siso;	/* uCode API:  RATE_SISO_6M_PLCP, etc. */
+	u8 plcp_mimo2;	/* uCode API:  RATE_MIMO2_6M_PLCP, etc. */
+	u8 ieee;	/* MAC header:  RATE_6M_IEEE, etc. */
 	u8 prev_ieee;    /* previous rate in IEEE speeds */
 	u8 next_ieee;    /* next rate in IEEE speeds */
 	u8 prev_rs;      /* previous rate used in rs algo */
@@ -41,8 +41,8 @@ struct il_rate_info {
 };
 
 struct il3945_rate_info {
-	u8 plcp;		/* uCode API:  IL_RATE_6M_PLCP, etc. */
-	u8 ieee;		/* MAC header:  IL_RATE_6M_IEEE, etc. */
+	u8 plcp;		/* uCode API:  RATE_6M_PLCP, etc. */
+	u8 ieee;		/* MAC header:  RATE_6M_IEEE, etc. */
 	u8 prev_ieee;		/* previous rate in IEEE speeds */
 	u8 next_ieee;		/* next rate in IEEE speeds */
 	u8 prev_rs;		/* previous rate used in rs algo */
@@ -56,153 +56,153 @@ struct il3945_rate_info {
 
 /*
  * These serve as indexes into
- * struct il_rate_info il_rates[IL_RATE_COUNT];
+ * struct il_rate_info il_rates[RATE_COUNT];
  */
 enum {
-	IL_RATE_1M_INDEX = 0,
-	IL_RATE_2M_INDEX,
-	IL_RATE_5M_INDEX,
-	IL_RATE_11M_INDEX,
-	IL_RATE_6M_INDEX,
-	IL_RATE_9M_INDEX,
-	IL_RATE_12M_INDEX,
-	IL_RATE_18M_INDEX,
-	IL_RATE_24M_INDEX,
-	IL_RATE_36M_INDEX,
-	IL_RATE_48M_INDEX,
-	IL_RATE_54M_INDEX,
-	IL_RATE_60M_INDEX,
-	IL_RATE_COUNT,
-	IL_RATE_COUNT_LEGACY = IL_RATE_COUNT - 1,	/* Excluding 60M */
-	IL_RATE_COUNT_3945 = IL_RATE_COUNT - 1,
-	IL_RATE_INVM_INDEX = IL_RATE_COUNT,
-	IL_RATE_INVALID = IL_RATE_COUNT,
+	RATE_1M_INDEX = 0,
+	RATE_2M_INDEX,
+	RATE_5M_INDEX,
+	RATE_11M_INDEX,
+	RATE_6M_INDEX,
+	RATE_9M_INDEX,
+	RATE_12M_INDEX,
+	RATE_18M_INDEX,
+	RATE_24M_INDEX,
+	RATE_36M_INDEX,
+	RATE_48M_INDEX,
+	RATE_54M_INDEX,
+	RATE_60M_INDEX,
+	RATE_COUNT,
+	RATE_COUNT_LEGACY = RATE_COUNT - 1,	/* Excluding 60M */
+	RATE_COUNT_3945 = RATE_COUNT - 1,
+	RATE_INVM_INDEX = RATE_COUNT,
+	RATE_INVALID = RATE_COUNT,
 };
 
 enum {
-	IL_RATE_6M_INDEX_TABLE = 0,
-	IL_RATE_9M_INDEX_TABLE,
-	IL_RATE_12M_INDEX_TABLE,
-	IL_RATE_18M_INDEX_TABLE,
-	IL_RATE_24M_INDEX_TABLE,
-	IL_RATE_36M_INDEX_TABLE,
-	IL_RATE_48M_INDEX_TABLE,
-	IL_RATE_54M_INDEX_TABLE,
-	IL_RATE_1M_INDEX_TABLE,
-	IL_RATE_2M_INDEX_TABLE,
-	IL_RATE_5M_INDEX_TABLE,
-	IL_RATE_11M_INDEX_TABLE,
-	IL_RATE_INVM_INDEX_TABLE = IL_RATE_INVM_INDEX - 1,
+	RATE_6M_INDEX_TABLE = 0,
+	RATE_9M_INDEX_TABLE,
+	RATE_12M_INDEX_TABLE,
+	RATE_18M_INDEX_TABLE,
+	RATE_24M_INDEX_TABLE,
+	RATE_36M_INDEX_TABLE,
+	RATE_48M_INDEX_TABLE,
+	RATE_54M_INDEX_TABLE,
+	RATE_1M_INDEX_TABLE,
+	RATE_2M_INDEX_TABLE,
+	RATE_5M_INDEX_TABLE,
+	RATE_11M_INDEX_TABLE,
+	RATE_INVM_INDEX_TABLE = RATE_INVM_INDEX - 1,
 };
 
 enum {
-	IL_FIRST_OFDM_RATE = IL_RATE_6M_INDEX,
-	IL39_LAST_OFDM_RATE = IL_RATE_54M_INDEX,
-	IL_LAST_OFDM_RATE = IL_RATE_60M_INDEX,
-	IL_FIRST_CCK_RATE = IL_RATE_1M_INDEX,
-	IL_LAST_CCK_RATE = IL_RATE_11M_INDEX,
+	IL_FIRST_OFDM_RATE = RATE_6M_INDEX,
+	IL39_LAST_OFDM_RATE = RATE_54M_INDEX,
+	IL_LAST_OFDM_RATE = RATE_60M_INDEX,
+	IL_FIRST_CCK_RATE = RATE_1M_INDEX,
+	IL_LAST_CCK_RATE = RATE_11M_INDEX,
 };
 
 /* #define vs. enum to keep from defaulting to 'large integer' */
-#define	IL_RATE_6M_MASK   (1 << IL_RATE_6M_INDEX)
-#define	IL_RATE_9M_MASK   (1 << IL_RATE_9M_INDEX)
-#define	IL_RATE_12M_MASK  (1 << IL_RATE_12M_INDEX)
-#define	IL_RATE_18M_MASK  (1 << IL_RATE_18M_INDEX)
-#define	IL_RATE_24M_MASK  (1 << IL_RATE_24M_INDEX)
-#define	IL_RATE_36M_MASK  (1 << IL_RATE_36M_INDEX)
-#define	IL_RATE_48M_MASK  (1 << IL_RATE_48M_INDEX)
-#define	IL_RATE_54M_MASK  (1 << IL_RATE_54M_INDEX)
-#define IL_RATE_60M_MASK  (1 << IL_RATE_60M_INDEX)
-#define	IL_RATE_1M_MASK   (1 << IL_RATE_1M_INDEX)
-#define	IL_RATE_2M_MASK   (1 << IL_RATE_2M_INDEX)
-#define	IL_RATE_5M_MASK   (1 << IL_RATE_5M_INDEX)
-#define	IL_RATE_11M_MASK  (1 << IL_RATE_11M_INDEX)
+#define	RATE_6M_MASK   (1 << RATE_6M_INDEX)
+#define	RATE_9M_MASK   (1 << RATE_9M_INDEX)
+#define	RATE_12M_MASK  (1 << RATE_12M_INDEX)
+#define	RATE_18M_MASK  (1 << RATE_18M_INDEX)
+#define	RATE_24M_MASK  (1 << RATE_24M_INDEX)
+#define	RATE_36M_MASK  (1 << RATE_36M_INDEX)
+#define	RATE_48M_MASK  (1 << RATE_48M_INDEX)
+#define	RATE_54M_MASK  (1 << RATE_54M_INDEX)
+#define RATE_60M_MASK  (1 << RATE_60M_INDEX)
+#define	RATE_1M_MASK   (1 << RATE_1M_INDEX)
+#define	RATE_2M_MASK   (1 << RATE_2M_INDEX)
+#define	RATE_5M_MASK   (1 << RATE_5M_INDEX)
+#define	RATE_11M_MASK  (1 << RATE_11M_INDEX)
 
 /* uCode API values for legacy bit rates, both OFDM and CCK */
 enum {
-	IL_RATE_6M_PLCP  = 13,
-	IL_RATE_9M_PLCP  = 15,
-	IL_RATE_12M_PLCP = 5,
-	IL_RATE_18M_PLCP = 7,
-	IL_RATE_24M_PLCP = 9,
-	IL_RATE_36M_PLCP = 11,
-	IL_RATE_48M_PLCP = 1,
-	IL_RATE_54M_PLCP = 3,
-	IL_RATE_60M_PLCP = 3,/*FIXME:RS:should be removed*/
-	IL_RATE_1M_PLCP  = 10,
-	IL_RATE_2M_PLCP  = 20,
-	IL_RATE_5M_PLCP  = 55,
-	IL_RATE_11M_PLCP = 110,
-	/*FIXME:RS:add IL_RATE_LEGACY_INVM_PLCP = 0,*/
+	RATE_6M_PLCP  = 13,
+	RATE_9M_PLCP  = 15,
+	RATE_12M_PLCP = 5,
+	RATE_18M_PLCP = 7,
+	RATE_24M_PLCP = 9,
+	RATE_36M_PLCP = 11,
+	RATE_48M_PLCP = 1,
+	RATE_54M_PLCP = 3,
+	RATE_60M_PLCP = 3,/*FIXME:RS:should be removed*/
+	RATE_1M_PLCP  = 10,
+	RATE_2M_PLCP  = 20,
+	RATE_5M_PLCP  = 55,
+	RATE_11M_PLCP = 110,
+	/*FIXME:RS:add RATE_LEGACY_INVM_PLCP = 0,*/
 };
 
 /* uCode API values for OFDM high-throughput (HT) bit rates */
 enum {
-	IL_RATE_SISO_6M_PLCP = 0,
-	IL_RATE_SISO_12M_PLCP = 1,
-	IL_RATE_SISO_18M_PLCP = 2,
-	IL_RATE_SISO_24M_PLCP = 3,
-	IL_RATE_SISO_36M_PLCP = 4,
-	IL_RATE_SISO_48M_PLCP = 5,
-	IL_RATE_SISO_54M_PLCP = 6,
-	IL_RATE_SISO_60M_PLCP = 7,
-	IL_RATE_MIMO2_6M_PLCP  = 0x8,
-	IL_RATE_MIMO2_12M_PLCP = 0x9,
-	IL_RATE_MIMO2_18M_PLCP = 0xa,
-	IL_RATE_MIMO2_24M_PLCP = 0xb,
-	IL_RATE_MIMO2_36M_PLCP = 0xc,
-	IL_RATE_MIMO2_48M_PLCP = 0xd,
-	IL_RATE_MIMO2_54M_PLCP = 0xe,
-	IL_RATE_MIMO2_60M_PLCP = 0xf,
-	IL_RATE_SISO_INVM_PLCP,
-	IL_RATE_MIMO2_INVM_PLCP = IL_RATE_SISO_INVM_PLCP,
+	RATE_SISO_6M_PLCP = 0,
+	RATE_SISO_12M_PLCP = 1,
+	RATE_SISO_18M_PLCP = 2,
+	RATE_SISO_24M_PLCP = 3,
+	RATE_SISO_36M_PLCP = 4,
+	RATE_SISO_48M_PLCP = 5,
+	RATE_SISO_54M_PLCP = 6,
+	RATE_SISO_60M_PLCP = 7,
+	RATE_MIMO2_6M_PLCP  = 0x8,
+	RATE_MIMO2_12M_PLCP = 0x9,
+	RATE_MIMO2_18M_PLCP = 0xa,
+	RATE_MIMO2_24M_PLCP = 0xb,
+	RATE_MIMO2_36M_PLCP = 0xc,
+	RATE_MIMO2_48M_PLCP = 0xd,
+	RATE_MIMO2_54M_PLCP = 0xe,
+	RATE_MIMO2_60M_PLCP = 0xf,
+	RATE_SISO_INVM_PLCP,
+	RATE_MIMO2_INVM_PLCP = RATE_SISO_INVM_PLCP,
 };
 
 /* MAC header values for bit rates */
 enum {
-	IL_RATE_6M_IEEE  = 12,
-	IL_RATE_9M_IEEE  = 18,
-	IL_RATE_12M_IEEE = 24,
-	IL_RATE_18M_IEEE = 36,
-	IL_RATE_24M_IEEE = 48,
-	IL_RATE_36M_IEEE = 72,
-	IL_RATE_48M_IEEE = 96,
-	IL_RATE_54M_IEEE = 108,
-	IL_RATE_60M_IEEE = 120,
-	IL_RATE_1M_IEEE  = 2,
-	IL_RATE_2M_IEEE  = 4,
-	IL_RATE_5M_IEEE  = 11,
-	IL_RATE_11M_IEEE = 22,
+	RATE_6M_IEEE  = 12,
+	RATE_9M_IEEE  = 18,
+	RATE_12M_IEEE = 24,
+	RATE_18M_IEEE = 36,
+	RATE_24M_IEEE = 48,
+	RATE_36M_IEEE = 72,
+	RATE_48M_IEEE = 96,
+	RATE_54M_IEEE = 108,
+	RATE_60M_IEEE = 120,
+	RATE_1M_IEEE  = 2,
+	RATE_2M_IEEE  = 4,
+	RATE_5M_IEEE  = 11,
+	RATE_11M_IEEE = 22,
 };
 
 #define IL_CCK_BASIC_RATES_MASK    \
-	(IL_RATE_1M_MASK          | \
-	IL_RATE_2M_MASK)
+	(RATE_1M_MASK          | \
+	RATE_2M_MASK)
 
 #define IL_CCK_RATES_MASK          \
 	(IL_CCK_BASIC_RATES_MASK  | \
-	IL_RATE_5M_MASK          | \
-	IL_RATE_11M_MASK)
+	RATE_5M_MASK          | \
+	RATE_11M_MASK)
 
 #define IL_OFDM_BASIC_RATES_MASK   \
-	(IL_RATE_6M_MASK         | \
-	IL_RATE_12M_MASK         | \
-	IL_RATE_24M_MASK)
+	(RATE_6M_MASK         | \
+	RATE_12M_MASK         | \
+	RATE_24M_MASK)
 
 #define IL_OFDM_RATES_MASK         \
 	(IL_OFDM_BASIC_RATES_MASK | \
-	IL_RATE_9M_MASK          | \
-	IL_RATE_18M_MASK         | \
-	IL_RATE_36M_MASK         | \
-	IL_RATE_48M_MASK         | \
-	IL_RATE_54M_MASK)
+	RATE_9M_MASK          | \
+	RATE_18M_MASK         | \
+	RATE_36M_MASK         | \
+	RATE_48M_MASK         | \
+	RATE_54M_MASK)
 
 #define IL_BASIC_RATES_MASK         \
 	(IL_OFDM_BASIC_RATES_MASK | \
 	 IL_CCK_BASIC_RATES_MASK)
 
-#define IL_RATES_MASK ((1 << IL_RATE_COUNT) - 1)
-#define IL_RATES_MASK_3945 ((1 << IL_RATE_COUNT_3945) - 1)
+#define RATES_MASK ((1 << RATE_COUNT) - 1)
+#define RATES_MASK_3945 ((1 << RATE_COUNT_3945) - 1)
 
 #define IL_INVALID_VALUE    -1
 
@@ -221,10 +221,10 @@ enum {
 
 /* Success ratio (ACKed / attempted tx frames) values (perfect is 128 * 100) */
 #define IL_RS_GOOD_RATIO		12800	/* 100% */
-#define IL_RATE_SCALE_SWITCH		10880	/*  85% */
-#define IL_RATE_HIGH_TH		10880	/*  85% */
-#define IL_RATE_INCREASE_TH		6400	/*  50% */
-#define IL_RATE_DECREASE_TH		1920	/*  15% */
+#define RATE_SCALE_SWITCH		10880	/*  85% */
+#define RATE_HIGH_TH		10880	/*  85% */
+#define RATE_INCREASE_TH		6400	/*  50% */
+#define RATE_DECREASE_TH		1920	/*  15% */
 
 /* possible actions when in legacy mode */
 #define IL_LEGACY_SWITCH_ANTENNA1      0
@@ -268,7 +268,7 @@ enum {
 #define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
 #define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
 
-extern const struct il_rate_info il_rates[IL_RATE_COUNT];
+extern const struct il_rate_info il_rates[RATE_COUNT];
 
 enum il_table_type {
 	LQ_NONE,
@@ -331,7 +331,7 @@ struct il_scale_tbl_info {
 	u8 max_search;	/* maximun number of tables we can search */
 	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	u32 current_rate;  /* rate_n_flags, uCode API format */
-	struct il_rate_scale_data win[IL_RATE_COUNT]; /* rate histories */
+	struct il_rate_scale_data win[RATE_COUNT]; /* rate histories */
 };
 
 struct il_traffic_load {
@@ -371,7 +371,7 @@ struct il_lq_sta {
 	u8 is_dup;
 	enum ieee80211_band band;
 
-	/* The following are bitmaps of rates; IL_RATE_6M_MASK, etc. */
+	/* The following are bitmaps of rates; RATE_6M_MASK, etc. */
 	u32 supp_rates;
 	u16 active_legacy_rate;
 	u16 active_siso_rate;

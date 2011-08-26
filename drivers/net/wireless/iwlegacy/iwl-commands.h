@@ -2094,7 +2094,7 @@ struct il_link_quality_cmd {
 	 * 4965 devices works its way through table when retrying Tx.
 	 */
 	struct {
-		__le32 rate_n_flags;	/* RATE_MCS_*, IL_RATE_* */
+		__le32 rate_n_flags;	/* RATE_MCS_*, RATE_* */
 	} rs_table[LINK_QUAL_MAX_RETRY_NUM];
 	__le32 reserved2;
 } __packed;

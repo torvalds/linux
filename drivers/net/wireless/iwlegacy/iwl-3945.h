@@ -96,7 +96,7 @@ struct il3945_rs_sta {
 	u8 flush_pending;
 	u8 start_rate;
 	struct timer_list rate_scale_flush;
-	struct il3945_rate_scale_data win[IL_RATE_COUNT_3945];
+	struct il3945_rate_scale_data win[RATE_COUNT_3945];
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_stats_table_file;
 #endif
@@ -300,7 +300,7 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif);
 void il3945_post_scan(struct il_priv *il);
 
 /* rates */
-extern const struct il3945_rate_info il3945_rates[IL_RATE_COUNT_3945];
+extern const struct il3945_rate_info il3945_rates[RATE_COUNT_3945];
 
 /* Requires full declaration of il_priv before including */
 #include "iwl-io.h"

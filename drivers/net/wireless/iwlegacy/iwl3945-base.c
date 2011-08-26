@@ -1654,7 +1654,7 @@ static void il3945_init_hw_rates(struct il_priv *il,
 {
 	int i;
 
-	for (i = 0; i < IL_RATE_COUNT_LEGACY; i++) {
+	for (i = 0; i < RATE_COUNT_LEGACY; i++) {
 		rates[i].bitrate = il3945_rates[i].ieee * 5;
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
@@ -2239,7 +2239,7 @@ static void il3945_alive_start(struct il_priv *il)
 
 	ieee80211_wake_queues(il->hw);
 
-	il->active_rate = IL_RATES_MASK_3945;
+	il->active_rate = RATES_MASK_3945;
 
 	il_power_update_mode(il, true);
 
@@ -2642,11 +2642,11 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	switch (il->scan_band) {
 	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
-		scan->tx_cmd.rate = IL_RATE_1M_PLCP;
+		scan->tx_cmd.rate = RATE_1M_PLCP;
 		band = IEEE80211_BAND_2GHZ;
 		break;
 	case IEEE80211_BAND_5GHZ:
-		scan->tx_cmd.rate = IL_RATE_6M_PLCP;
+		scan->tx_cmd.rate = RATE_6M_PLCP;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	default:

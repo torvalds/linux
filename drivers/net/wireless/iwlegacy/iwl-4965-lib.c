@@ -423,7 +423,7 @@ int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 	} else {
 		if (band == IEEE80211_BAND_5GHZ)
 			band_offset = IL_FIRST_OFDM_RATE;
-		for (idx = band_offset; idx < IL_RATE_COUNT_LEGACY; idx++)
+		for (idx = band_offset; idx < RATE_COUNT_LEGACY; idx++)
 			if (il_rates[idx].plcp == (rate_n_flags & 0xFF))
 				return idx - band_offset;
 	}
@@ -870,14 +870,14 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
 		if (chan_mod == CHANNEL_MODE_PURE_40) {
-			rate = IL_RATE_6M_PLCP;
+			rate = RATE_6M_PLCP;
 		} else {
-			rate = IL_RATE_1M_PLCP;
+			rate = RATE_1M_PLCP;
 			rate_flags = RATE_MCS_CCK_MSK;
 		}
 		break;
 	case IEEE80211_BAND_5GHZ:
-		rate = IL_RATE_6M_PLCP;
+		rate = RATE_6M_PLCP;
 		break;
 	default:
 		IL_WARN("Invalid scan band\n");

@@ -314,7 +314,7 @@ u8 il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 
 	/* 3945 only */
 	rate = (il->band == IEEE80211_BAND_5GHZ) ?
-		IL_RATE_6M_PLCP : IL_RATE_1M_PLCP;
+		RATE_6M_PLCP : RATE_1M_PLCP;
 	/* Turn on both antennas for the station... */
 	station->sta.rate_n_flags = cpu_to_le16(rate | RATE_MCS_ANT_AB_MSK);
 
