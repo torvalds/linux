@@ -1581,16 +1581,14 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
 	struct igb_tx_buffer *tx_buffer_info;
-	u32 staterr;
 	u16 rx_ntc, tx_ntc, count = 0;
 
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
-	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
-	while (staterr & E1000_RXD_STAT_DD) {
+	while (igb_test_staterr(rx_desc, E1000_RXD_STAT_DD)) {
 		/* check rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
@@ -1619,7 +1617,6 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 
 		/* fetch next descriptor */
 		rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
-		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
 	/* re-map buffers to ring, store next to clean values */

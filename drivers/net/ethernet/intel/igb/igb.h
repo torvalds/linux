@@ -259,6 +259,13 @@ enum e1000_ring_flags_t {
 #define IGB_TX_CTXTDESC(R, i)	    \
 	(&(((struct e1000_adv_tx_context_desc *)((R)->desc))[i]))
 
+/* igb_test_staterr - tests bits within Rx descriptor status and error fields */
+static inline __le32 igb_test_staterr(union e1000_adv_rx_desc *rx_desc,
+				      const u32 stat_err_bits)
+{
+	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
+}
+
 /* igb_desc_unused - calculate if we have unused descriptors */
 static inline int igb_desc_unused(struct igb_ring *ring)
 {
