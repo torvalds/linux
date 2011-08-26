@@ -689,7 +689,9 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 			irq_attr.trigger = 1;
 			irq_attr.polarity = 1;
 			io_apic_set_pci_routing(NULL, pentry->irq, &irq_attr);
-		}
+		} else
+			pentry->irq = 0; /* No irq */
+
 		switch (pentry->type) {
 		case SFI_DEV_TYPE_IPC:
 			/* ID as IRQ is a hack that will go away */
