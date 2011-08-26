@@ -91,6 +91,7 @@ static void __init stmp378x_dvb_init(void)
 
 	mx23_add_duart();
 	mx23_add_auart0();
+	mx23_add_rtc_stmp3xxx();
 
 	/* power on mmc slot */
 	ret = gpio_request_one(STMP378X_DEVB_MMC0_SLOT_POWER,

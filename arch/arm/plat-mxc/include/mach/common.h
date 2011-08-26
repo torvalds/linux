@@ -72,4 +72,5 @@ extern void mxc_arch_reset_init(void __iomem *);
 extern void mx51_efikamx_reset(void);
 extern int mx53_revision(void);
 extern int mx53_display_revision(void);
+extern void imx_print_silicon_rev(const char *cpu, int srev);
 #endif

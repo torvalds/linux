@@ -76,3 +76,7 @@ extern const struct imx_spi_imx_data imx27_cspi_data[];
 #define imx27_add_spi_imx0(pdata)	imx27_add_cspi(0, pdata)
 #define imx27_add_spi_imx1(pdata)	imx27_add_cspi(1, pdata)
 #define imx27_add_spi_imx2(pdata)	imx27_add_cspi(2, pdata)
+
+extern const struct imx_pata_imx_data imx27_pata_imx_data;
+#define imx27_add_pata_imx() \
+	imx_add_pata_imx(&imx27_pata_imx_data)

@@ -18,6 +18,9 @@
 #include <linux/leds.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
+#include <linux/i2c.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -183,6 +186,24 @@ static const iomux_cfg_t mx28evk_pads[] __initconst = {
 
 	/* led */
 	MX28_PAD_AUART1_TX__GPIO_3_5 | MXS_PAD_CTRL,
+
+	/* I2C */
+	MX28_PAD_I2C0_SCL__I2C0_SCL |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_I2C0_SDA__I2C0_SDA |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+
+	/* saif0 & saif1 */
+	MX28_PAD_SAIF0_MCLK__SAIF0_MCLK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0 |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF1_SDATA0__SAIF1_SDATA0 |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
 };
 
 /* led */
@@ -352,6 +373,50 @@ static struct mxs_mmc_platform_data mx28evk_mmc_pdata[] __initdata = {
 	},
 };
 
+static struct i2c_board_info mxs_i2c0_board_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("sgtl5000", 0x0a),
+	},
+};
+
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
+static struct regulator_consumer_supply mx28evk_audio_consumer_supplies[] = {
+	REGULATOR_SUPPLY("VDDA", "0-000a"),
+	REGULATOR_SUPPLY("VDDIO", "0-000a"),
+};
+
+static struct regulator_init_data mx28evk_vdd_reg_init_data = {
+	.constraints	= {
+		.name	= "3V3",
+		.always_on = 1,
+	},
+	.consumer_supplies = mx28evk_audio_consumer_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(mx28evk_audio_consumer_supplies),
+};
+
+static struct fixed_voltage_config mx28evk_vdd_pdata = {
+	.supply_name	= "board-3V3",
+	.microvolts	= 3300000,
+	.gpio		= -EINVAL,
+	.enabled_at_boot = 1,
+	.init_data	= &mx28evk_vdd_reg_init_data,
+};
+static struct platform_device mx28evk_voltage_regulator = {
+	.name		= "reg-fixed-voltage",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &mx28evk_vdd_pdata,
+	},
+};
+static void __init mx28evk_add_regulators(void)
+{
+	platform_device_register(&mx28evk_voltage_regulator);
+}
+#else
+static void __init mx28evk_add_regulators(void) {}
+#endif
+
 static void __init mx28evk_init(void)
 {
 	int ret;
@@ -392,6 +457,18 @@ static void __init mx28evk_init(void)
 
 	mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
 
+	mx28_add_saif(0);
+	mx28_add_saif(1);
+
+	mx28_add_mxs_i2c(0);
+	i2c_register_board_info(0, mxs_i2c0_board_info,
+				ARRAY_SIZE(mxs_i2c0_board_info));
+
+	mx28evk_add_regulators();
+
+	mxs_add_platform_device("mxs-sgtl5000", 0, NULL, 0,
+			NULL, 0);
+
 	/* power on mmc slot by writing 0 to the gpio */
 	ret = gpio_request_one(MX28EVK_MMC0_SLOT_POWER, GPIOF_OUT_INIT_LOW,
 			       "mmc0-slot-power");
@@ -404,6 +481,7 @@ static void __init mx28evk_init(void)
 	if (ret)
 		pr_warn("failed to request gpio mmc1-slot-power: %d\n", ret);
 	mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
+	mx28_add_rtc_stmp3xxx();
 
 	gpio_led_register_device(0, &mx28evk_led_data);
 }

@@ -1418,6 +1418,10 @@ DEFINE_CLOCK(ipu_di0_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG5_OFFSET,
 DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
 		NULL, NULL, &pll3_sw_clk, NULL);
 
+/* PATA */
+DEFINE_CLOCK(pata_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG0_OFFSET,
+		NULL, NULL, &ipg_clk, &spba_clk);
+
 #define _REGISTER_CLOCK(d, n, c) \
        { \
 		.dev_id = d, \
@@ -1474,6 +1478,7 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-ipuv3", "di0", ipu_di0_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di1", ipu_di1_clk)
 	_REGISTER_CLOCK(NULL, "gpc_dvfs", gpc_dvfs_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
@@ -1507,6 +1512,7 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
 	_REGISTER_CLOCK("imx-keypad", NULL, dummy_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 };
 
 static void clk_tree_init(void)
@@ -1548,9 +1554,8 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&main_bus_clk);
 
 	clk_enable(&iim_clk);
-	mx51_revision();
+	imx_print_silicon_rev("i.MX51", mx51_revision());
 	clk_disable(&iim_clk);
-	mx51_display_revision();
 
 	/* move usb_phy_clk to 24MHz */
 	clk_set_parent(&usb_phy1_clk, &osc_clk);
@@ -1592,9 +1597,8 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&main_bus_clk);
 
 	clk_enable(&iim_clk);
-	mx53_revision();
+	imx_print_silicon_rev("i.MX53", mx53_revision());
 	clk_disable(&iim_clk);
-	mx53_display_revision();
 
 	/* Set SDHC parents to be PLL2 */
 	clk_set_parent(&esdhc1_clk, &pll2_sw_clk);
