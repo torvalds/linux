@@ -708,7 +708,7 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->numa_node = adapter->node;
 		/* For 82575, context index must be unique per ring. */
 		if (adapter->hw.mac.type == e1000_82575)
-			ring->flags = IGB_RING_FLAG_TX_CTX_IDX;
+			set_bit(IGB_RING_FLAG_TX_CTX_IDX, &ring->flags);
 		adapter->tx_ring[i] = ring;
 	}
 	/* Restore the adapter's original node */
@@ -732,10 +732,11 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
 		ring->numa_node = adapter->node;
-		ring->flags = IGB_RING_FLAG_RX_CSUM; /* enable rx checksum */
+		/* enable rx checksum */
+		set_bit(IGB_RING_FLAG_RX_CSUM, &ring->flags);
 		/* set flag indicating ring supports SCTP checksum offload */
 		if (adapter->hw.mac.type >= e1000_82576)
-			ring->flags |= IGB_RING_FLAG_RX_SCTP_CSUM;
+			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
 		adapter->rx_ring[i] = ring;
 	}
 	/* Restore the adapter's original node */
@@ -1822,9 +1823,11 @@ static int igb_set_features(struct net_device *netdev, u32 features)
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		if (features & NETIF_F_RXCSUM)
-			adapter->rx_ring[i]->flags |= IGB_RING_FLAG_RX_CSUM;
+			set_bit(IGB_RING_FLAG_RX_CSUM,
+				&adapter->rx_ring[i]->flags);
 		else
-			adapter->rx_ring[i]->flags &= ~IGB_RING_FLAG_RX_CSUM;
+			clear_bit(IGB_RING_FLAG_RX_CSUM,
+				  &adapter->rx_ring[i]->flags);
 	}
 
 	if (changed & NETIF_F_HW_VLAN_RX)
@@ -4035,7 +4038,7 @@ void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
 	type_tucmd |= E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT;
 
 	/* For 82575, context index must be unique per ring. */
-	if (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX)
+	if (test_bit(IGB_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
 		mss_l4len_idx |= tx_ring->reg_idx << 4;
 
 	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
@@ -4202,7 +4205,7 @@ static void igb_tx_olinfo_status(struct igb_ring *tx_ring,
 
 	/* 82575 requires a unique index per ring if any offload is enabled */
 	if ((tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_VLAN)) &&
-	    (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX))
+	    test_bit(IGB_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
 		olinfo_status |= tx_ring->reg_idx << 4;
 
 	/* insert L4 checksum */
@@ -5828,7 +5831,7 @@ static inline void igb_rx_checksum(struct igb_ring *ring,
 	skb_checksum_none_assert(skb);
 
 	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
-	if (!(ring->flags & IGB_RING_FLAG_RX_CSUM) ||
+	if (!test_bit(IGB_RING_FLAG_RX_CSUM, &ring->flags) ||
 	     (status_err & E1000_RXD_STAT_IXSM))
 		return;
 
@@ -5840,8 +5843,8 @@ static inline void igb_rx_checksum(struct igb_ring *ring,
 		 * L4E bit is set incorrectly on 64 byte (60 byte w/o crc)
 		 * packets, (aka let the stack check the crc32c)
 		 */
-		if ((skb->len == 60) &&
-		    (ring->flags & IGB_RING_FLAG_RX_SCTP_CSUM)) {
+		if (!((skb->len == 60) &&
+		      test_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags))) {
 			u64_stats_update_begin(&ring->rx_syncp);
 			ring->rx_stats.csum_err++;
 			u64_stats_update_end(&ring->rx_syncp);

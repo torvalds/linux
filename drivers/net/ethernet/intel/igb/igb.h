@@ -237,10 +237,12 @@ struct igb_ring {
 	int numa_node;                  /* node to alloc ring memory on */
 };
 
-#define IGB_RING_FLAG_RX_CSUM        0x00000001 /* RX CSUM enabled */
-#define IGB_RING_FLAG_RX_SCTP_CSUM   0x00000002 /* SCTP CSUM offload enabled */
-
-#define IGB_RING_FLAG_TX_CTX_IDX     0x00000001 /* HW requires context index */
+enum e1000_ring_flags_t {
+	IGB_RING_FLAG_RX_CSUM,
+	IGB_RING_FLAG_RX_SCTP_CSUM,
+	IGB_RING_FLAG_TX_CTX_IDX,
+	IGB_RING_FLAG_TX_DETECT_HANG
+};
 
 #define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
