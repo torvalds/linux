@@ -1284,6 +1284,7 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 		iwl_trans->ops = &trans_ops_pcie;
 		iwl_trans->shrd = shrd;
 		trans_pcie->trans = iwl_trans;
+		spin_lock_init(&iwl_trans->hcmd_lock);
 	}
 
 	return iwl_trans;

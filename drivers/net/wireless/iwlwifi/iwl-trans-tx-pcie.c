@@ -601,10 +601,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&priv->hcmd_lock, flags);
+	spin_lock_irqsave(&trans->hcmd_lock, flags);
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
-		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+		spin_unlock_irqrestore(&trans->hcmd_lock, flags);
 
 		IWL_ERR(trans, "No space in command queue\n");
 		is_ct_kill = iwl_check_for_ct_kill(priv);
@@ -713,7 +713,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	iwl_txq_update_write_ptr(priv, txq);
 
  out:
-	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+	spin_unlock_irqrestore(&trans->hcmd_lock, flags);
 	return idx;
 }
 
@@ -796,7 +796,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	} else if (meta->callback)
 		meta->callback(priv, cmd, pkt);
 
-	spin_lock_irqsave(&priv->hcmd_lock, flags);
+	spin_lock_irqsave(&trans->hcmd_lock, flags);
 
 	iwl_hcmd_queue_reclaim(priv, txq_id, index);
 
@@ -809,7 +809,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 	meta->flags = 0;
 
-	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+	spin_unlock_irqrestore(&trans->hcmd_lock, flags);
 }
 
 const char *get_cmd_string(u8 cmd)
