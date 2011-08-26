@@ -3189,6 +3189,10 @@ static u32 iwl_hw_detect(struct iwl_priv *priv)
 	return iwl_read32(priv, CSR_HW_REV);
 }
 
+/* Size of one Rx buffer in host DRAM */
+#define IWL_RX_BUF_SIZE_4K (4 * 1024)
+#define IWL_RX_BUF_SIZE_8K (8 * 1024)
+
 static int iwl_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.amsdu_size_8K)

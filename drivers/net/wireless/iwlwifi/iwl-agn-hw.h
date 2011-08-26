@@ -95,17 +95,4 @@
 #define IWLAGN_NUM_AMPDU_QUEUES		9
 #define IWLAGN_FIRST_AMPDU_QUEUE	11
 
-/* Fixed (non-configurable) rx data from phy */
-
-/**
- * struct iwlagn_schedq_bc_tbl scheduler byte count table
- *	base physical address provided by SCD_DRAM_BASE_ADDR
- * @tfd_offset  0-12 - tx command byte count
- *	       12-16 - station index
- */
-struct iwlagn_scd_bc_tbl {
-	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
-} __packed;
-
-
 #endif /* __iwl_agn_hw_h__ */

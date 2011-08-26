@@ -3911,6 +3911,7 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
  * Union of all expected notifications/responses:
  *
  *****************************************************************************/
+#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
 
 struct iwl_rx_packet {
 	/*

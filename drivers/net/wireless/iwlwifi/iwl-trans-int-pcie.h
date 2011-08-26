@@ -29,6 +29,8 @@
 #ifndef __iwl_trans_int_pcie_h__
 #define __iwl_trans_int_pcie_h__
 
+#include "iwl-fh.h"
+
 /*This file includes the declaration that are internal to the
  * trans_pcie layer */
 

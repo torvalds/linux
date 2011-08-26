@@ -41,7 +41,6 @@
 #include "iwl-eeprom.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-fh.h"
 #include "iwl-debug.h"
 #include "iwl-agn-hw.h"
 #include "iwl-led.h"

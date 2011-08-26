@@ -40,6 +40,7 @@
 #include "iwl-agn.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
+#include "iwl-fh.h"
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
