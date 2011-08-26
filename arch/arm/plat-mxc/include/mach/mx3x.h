@@ -187,14 +187,7 @@
 /* Mandatory defines used globally */
 
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
-extern unsigned int mx35_cpu_rev;
-extern void mx35_read_cpu_rev(void);
-
-static inline int mx35_revision(void)
-{
-	return mx35_cpu_rev;
-}
-
+extern int mx35_revision(void);
 extern int mx31_revision(void);
 #endif
 
