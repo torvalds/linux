@@ -381,7 +381,7 @@ static void igb_dump(struct igb_adapter *adapter)
 		struct igb_tx_buffer *buffer_info;
 		tx_ring = adapter->tx_ring[n];
 		buffer_info = &tx_ring->tx_buffer_info[tx_ring->next_to_clean];
-		printk(KERN_INFO " %5d %5X %5X %016llX %04X %3X %016llX\n",
+		printk(KERN_INFO " %5d %5X %5X %016llX %04X %p %016llX\n",
 			   n, tx_ring->next_to_use, tx_ring->next_to_clean,
 			   (u64)buffer_info->dma,
 			   buffer_info->length,
@@ -421,7 +421,7 @@ static void igb_dump(struct igb_adapter *adapter)
 			buffer_info = &tx_ring->tx_buffer_info[i];
 			u0 = (struct my_u0 *)tx_desc;
 			printk(KERN_INFO "T [0x%03X]    %016llX %016llX %016llX"
-				" %04X  %3X %016llX %p", i,
+				" %04X  %p %016llX %p", i,
 				le64_to_cpu(u0->a),
 				le64_to_cpu(u0->b),
 				(u64)buffer_info->dma,
@@ -3161,7 +3161,7 @@ void igb_unmap_and_free_tx_resource(struct igb_ring *tx_ring,
 	}
 	buffer_info->time_stamp = 0;
 	buffer_info->length = 0;
-	buffer_info->next_to_watch = 0;
+	buffer_info->next_to_watch = NULL;
 	buffer_info->mapped_as_page = false;
 }
 
@@ -4107,7 +4107,7 @@ static inline bool igb_tx_csum(struct igb_ring *tx_ring,
 #define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
 
 static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
-			     unsigned int first)
+			     struct igb_tx_buffer *first)
 {
 	struct igb_tx_buffer *buffer_info;
 	struct device *dev = tx_ring->dev;
@@ -4121,7 +4121,6 @@ static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	buffer_info = &tx_ring->tx_buffer_info[i];
 	BUG_ON(hlen >= IGB_MAX_DATA_PER_TXD);
 	buffer_info->length = hlen;
-	buffer_info->next_to_watch = i;
 	buffer_info->dma = dma_map_single(dev, skb->data, hlen,
 					  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, buffer_info->dma))
@@ -4139,7 +4138,6 @@ static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		BUG_ON(len >= IGB_MAX_DATA_PER_TXD);
 		buffer_info->length = len;
-		buffer_info->next_to_watch = i;
 		buffer_info->mapped_as_page = true;
 		buffer_info->dma = skb_frag_dma_map(dev, frag, 0, len,
 						DMA_TO_DEVICE);
@@ -4153,8 +4151,12 @@ static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	/* multiply data chunks by size of headers */
 	buffer_info->bytecount = ((gso_segs - 1) * hlen) + skb->len;
 	buffer_info->gso_segs = gso_segs;
-	tx_ring->tx_buffer_info[first].next_to_watch = i;
-	tx_ring->tx_buffer_info[first].time_stamp = jiffies;
+
+	/* set the timestamp */
+	first->time_stamp = jiffies;
+
+	/* set next_to_watch value indicating a packet is present */
+	first->next_to_watch = IGB_TX_DESC(tx_ring, i);
 
 	return ++count;
 
@@ -4165,7 +4167,6 @@ dma_error:
 	buffer_info->dma = 0;
 	buffer_info->time_stamp = 0;
 	buffer_info->length = 0;
-	buffer_info->next_to_watch = 0;
 	buffer_info->mapped_as_page = false;
 
 	/* clear timestamp and dma mappings for remaining portion of packet */
@@ -4283,9 +4284,9 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				struct igb_ring *tx_ring)
 {
+	struct igb_tx_buffer *first;
 	int tso, count;
 	u32 tx_flags = 0;
-	u16 first;
 	u8 hdr_len = 0;
 
 	/* need: 1 descriptor per page,
@@ -4311,7 +4312,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_IP))
 		tx_flags |= IGB_TX_FLAGS_IPV4;
 
-	first = tx_ring->next_to_use;
+	/* record the location of the first descriptor for this packet */
+	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
 
 	tso = igb_tso(tx_ring, skb, tx_flags, &hdr_len);
 
@@ -4330,8 +4332,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	count = igb_tx_map(tx_ring, skb, first);
 	if (!count) {
 		dev_kfree_skb_any(skb);
-		tx_ring->tx_buffer_info[first].time_stamp = 0;
-		tx_ring->next_to_use = first;
+		first->time_stamp = 0;
+		tx_ring->next_to_use = first - tx_ring->tx_buffer_info;
 		return NETDEV_TX_OK;
 	}
 
@@ -5568,29 +5570,34 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct igb_ring *tx_ring = q_vector->tx_ring;
 	struct igb_tx_buffer *tx_buffer;
-	union e1000_adv_tx_desc *tx_desc;
+	union e1000_adv_tx_desc *tx_desc, *eop_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
 	unsigned int budget = q_vector->tx_work_limit;
-	u16 i = tx_ring->next_to_clean;
+	unsigned int i = tx_ring->next_to_clean;
 
 	if (test_bit(__IGB_DOWN, &adapter->state))
 		return true;
 
 	tx_buffer = &tx_ring->tx_buffer_info[i];
 	tx_desc = IGB_TX_DESC(tx_ring, i);
+	i -= tx_ring->count;
 
 	for (; budget; budget--) {
-		u16 eop = tx_buffer->next_to_watch;
-		union e1000_adv_tx_desc *eop_desc;
+		eop_desc = tx_buffer->next_to_watch;
 
-		eop_desc = IGB_TX_DESC(tx_ring, eop);
+		/* prevent any other reads prior to eop_desc */
+		rmb();
+
+		/* if next_to_watch is not set then there is no work pending */
+		if (!eop_desc)
+			break;
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
 			break;
 
-		/* prevent any other reads prior to eop_desc being verified */
-		rmb();
+		/* clear next_to_watch to prevent false hangs */
+		tx_buffer->next_to_watch = NULL;
 
 		do {
 			tx_desc->wb.status = 0;
@@ -5607,14 +5614,15 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 			tx_buffer++;
 			tx_desc++;
 			i++;
-			if (unlikely(i == tx_ring->count)) {
-				i = 0;
+			if (unlikely(!i)) {
+				i -= tx_ring->count;
 				tx_buffer = tx_ring->tx_buffer_info;
 				tx_desc = IGB_TX_DESC(tx_ring, 0);
 			}
 		} while (eop_desc);
 	}
 
+	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
 	u64_stats_update_begin(&tx_ring->tx_syncp);
 	tx_ring->tx_stats.bytes += total_bytes;
@@ -5625,16 +5633,14 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 
 	if (tx_ring->detect_tx_hung) {
 		struct e1000_hw *hw = &adapter->hw;
-		u16 eop = tx_ring->tx_buffer_info[i].next_to_watch;
-		union e1000_adv_tx_desc *eop_desc;
 
-		eop_desc = IGB_TX_DESC(tx_ring, eop);
+		eop_desc = tx_buffer->next_to_watch;
 
 		/* Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
 		tx_ring->detect_tx_hung = false;
-		if (tx_ring->tx_buffer_info[i].time_stamp &&
-		    time_after(jiffies, tx_ring->tx_buffer_info[i].time_stamp +
+		if (eop_desc &&
+		    time_after(jiffies, tx_buffer->time_stamp +
 			       (adapter->tx_timeout_factor * HZ)) &&
 		    !(rd32(E1000_STATUS) & E1000_STATUS_TXOFF)) {
 
@@ -5648,7 +5654,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				"  next_to_clean        <%x>\n"
 				"buffer_info[next_to_clean]\n"
 				"  time_stamp           <%lx>\n"
-				"  next_to_watch        <%x>\n"
+				"  next_to_watch        <%p>\n"
 				"  jiffies              <%lx>\n"
 				"  desc.status          <%x>\n",
 				tx_ring->queue_index,
@@ -5656,8 +5662,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				readl(tx_ring->tail),
 				tx_ring->next_to_use,
 				tx_ring->next_to_clean,
-				tx_ring->tx_buffer_info[eop].time_stamp,
-				eop,
+				tx_buffer->time_stamp,
+				eop_desc,
 				jiffies,
 				eop_desc->wb.status);
 			netif_stop_subqueue(tx_ring->netdev,

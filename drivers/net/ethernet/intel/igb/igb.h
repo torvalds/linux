@@ -133,7 +133,7 @@ struct vf_data_storage {
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct igb_tx_buffer {
-	u16 next_to_watch;
+	union e1000_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
 	dma_addr_t dma;
 	u32 length;
