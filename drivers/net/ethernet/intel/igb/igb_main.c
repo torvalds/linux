@@ -1262,7 +1262,7 @@ static int igb_request_irq(struct igb_adapter *adapter)
 			goto request_done;
 		/* fall back to MSI */
 		igb_clear_interrupt_scheme(adapter);
-		if (!pci_enable_msi(adapter->pdev))
+		if (!pci_enable_msi(pdev))
 			adapter->flags |= IGB_FLAG_HAS_MSI;
 		igb_free_all_tx_resources(adapter);
 		igb_free_all_rx_resources(adapter);
@@ -1284,12 +1284,12 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		}
 		igb_setup_all_tx_resources(adapter);
 		igb_setup_all_rx_resources(adapter);
-	} else {
-		igb_assign_vector(adapter->q_vector[0], 0);
 	}
 
+	igb_assign_vector(adapter->q_vector[0], 0);
+
 	if (adapter->flags & IGB_FLAG_HAS_MSI) {
-		err = request_irq(adapter->pdev->irq, igb_intr_msi, 0,
+		err = request_irq(pdev->irq, igb_intr_msi, 0,
 				  netdev->name, adapter);
 		if (!err)
 			goto request_done;
@@ -1299,11 +1299,11 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		adapter->flags &= ~IGB_FLAG_HAS_MSI;
 	}
 
-	err = request_irq(adapter->pdev->irq, igb_intr, IRQF_SHARED,
+	err = request_irq(pdev->irq, igb_intr, IRQF_SHARED,
 			  netdev->name, adapter);
 
 	if (err)
-		dev_err(&adapter->pdev->dev, "Error %d getting interrupt\n",
+		dev_err(&pdev->dev, "Error %d getting interrupt\n",
 			err);
 
 request_done:
