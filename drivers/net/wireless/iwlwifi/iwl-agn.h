@@ -121,10 +121,6 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->data_valid = 1;
 }
 
-/* tx queue */
-void iwl_free_tfds_in_queue(struct iwl_priv *priv,
-			    int sta_id, int tid, int freed);
-
 /* RXON */
 int iwlagn_set_pan_params(struct iwl_priv *priv);
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
@@ -146,13 +142,6 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				 enum iwlagn_ucode_type ucode_type);
 
 /* lib */
-void iwlagn_set_tx_status(struct iwl_priv *priv,
-				 struct ieee80211_tx_info *info,
-				 struct iwlagn_tx_resp *tx_resp,
-				 bool is_agg);
-void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status);
-void iwl_check_abort_status(struct iwl_priv *priv,
-			    u8 frame_count, u32 status);
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
@@ -169,22 +158,14 @@ void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 
 /* tx */
-void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-				int index);
-void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
-			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
-int iwlagn_txq_check_empty(struct iwl_priv *priv,
-			   int sta_id, u8 tid, int txq_id);
 void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb);
 void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
-void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
-	struct sk_buff_head *skbs);
 
 static inline u32 iwl_tx_status_to_mac80211(u32 status)
 {

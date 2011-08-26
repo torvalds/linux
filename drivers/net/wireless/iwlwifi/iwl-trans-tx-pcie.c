@@ -332,13 +332,7 @@ int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 	return 0;
 }
 
-/*TODO: this functions should NOT be exported from trans module - export it
- * until the reclaim flow will be brought to the transport module too.
- * Add a declaration to make sparse happy */
-void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-					  struct iwl_tx_queue *txq);
-
-void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 					  struct iwl_tx_queue *txq)
 {
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
@@ -1042,7 +1036,6 @@ int iwl_trans_pcie_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
 /* Frees buffers until index _not_ inclusive */
 void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			    struct sk_buff_head *skbs)
-
 {
 	struct iwl_tx_queue *txq = &priv(trans)->txq[txq_id];
 	struct iwl_queue *q = &txq->q;

@@ -272,11 +272,4 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 ******************************************************/
 extern const struct iwl_trans_ops trans_ops_pcie;
 
-/*TODO: this functions should NOT be exported from trans module - export it
- * until the reclaim flow will be brought to the transport module too */
-
-struct iwl_tx_queue;
-void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-					  struct iwl_tx_queue *txq);
-
 #endif /* __iwl_trans_h__ */
