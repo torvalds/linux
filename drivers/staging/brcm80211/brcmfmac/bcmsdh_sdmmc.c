@@ -34,15 +34,11 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-#if !defined(SDIO_VENDOR_ID_BROADCOM)
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
-#endif				/* !defined(SDIO_VENDOR_ID_BROADCOM) */
 
 #define DMA_ALIGN_MASK	0x03
 
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4329)
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
-#endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
 
 static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr);
 static int brcmf_ops_sdio_probe(struct sdio_func *func,

@@ -17,11 +17,7 @@
 #ifndef	_BRCM_SOC_H
 #define	_BRCM_SOC_H
 
-#ifdef SI_ENUM_BASE_VARIABLE
-#define SI_ENUM_BASE		(sii->pub.si_enum_base)
-#else
 #define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
-#endif				/* SI_ENUM_BASE_VARIABLE */
 
 /* core codes */
 #define	NODEV_CORE_ID		0x700	/* Invalid coreid */

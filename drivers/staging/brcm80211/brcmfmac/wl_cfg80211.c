@@ -2337,14 +2337,10 @@ static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wdev->wiphy->cipher_suites = __wl_cipher_suites;
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(__wl_cipher_suites);
-#ifndef WL_POWERSAVE_DISABLED
 	wdev->wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;	/* enable power
 								 * save mode
 								 * by default
 								 */
-#else
-	wdev->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
-#endif				/* !WL_POWERSAVE_DISABLED */
 	err = wiphy_register(wdev->wiphy);
 	if (unlikely(err < 0)) {
 		WL_ERR("Couldn not register wiphy device (%d)\n", err);
@@ -3409,9 +3405,7 @@ static s32 wl_init_priv(struct brcmf_cfg80211_priv *cfg_priv)
 	s32 err = 0;
 
 	cfg_priv->scan_request = NULL;
-#ifndef WL_POWERSAVE_DISABLED
 	cfg_priv->pwr_save = true;
-#endif /* WL_POWERSAVE_DISABLED */
 	cfg_priv->iscan_on = true;	/* iscan on & off switch.
 				 we enable iscan per default */
 	cfg_priv->roam_on = true;	/* roam on & off switch.

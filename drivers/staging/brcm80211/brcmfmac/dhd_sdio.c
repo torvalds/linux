@@ -368,10 +368,8 @@ struct rte_console {
  * for HT availability, it could take a couple hundred ms more, so
  * max out at a 1 second (1000000us).
  */
-#if (PMU_MAX_TRANSITION_DLY <= 1000000)
 #undef PMU_MAX_TRANSITION_DLY
 #define PMU_MAX_TRANSITION_DLY 1000000
-#endif
 
 /* Value for ChipClockCSR during initial setup */
 #define BRCMF_INIT_CLKCTL1	(SBSDIO_FORCE_HW_CLKREQ_OFF |	\
@@ -3145,19 +3143,6 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
-#if defined(OOB_INTR_ONLY)
-	/* Host registration for OOB interrupt */
-	if (brcmf_sdio_register_oob_intr(bus->dhd)) {
-		brcmf_sdbrcm_wd_timer(bus, 0);
-		brcmf_dbg(ERROR, "Host failed to resgister for OOB\n");
-		ret = -ENODEV;
-		goto exit;
-	}
-
-	/* Enable oob at firmware */
-	brcmf_sdbrcm_enable_oob_intr(bus, true);
-#endif		/* defined(OOB_INTR_ONLY) */
-
 	/* If we didn't come up, turn off backplane clock */
 	if (drvr->busstate != BRCMF_BUS_DATA)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
@@ -4533,15 +4518,8 @@ void brcmf_sdbrcm_isr(void *arg)
 	if (!bus->intr)
 		brcmf_dbg(ERROR, "isr w/o interrupt configured!\n");
 
-#if defined(SDIO_ISR_THREAD)
-	brcmf_dbg(TRACE, "Calling brcmf_sdbrcm_dpc()\n");
-	while (brcmf_sdbrcm_dpc(bus))
-		;
-#else
 	bus->dpc_sched = true;
 	brcmf_sdbrcm_sched_dpc(bus);
-#endif
-
 }
 
 extern bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)

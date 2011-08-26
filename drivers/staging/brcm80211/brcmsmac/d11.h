@@ -47,11 +47,7 @@
 #define	TX_DATA_FIFO		TX_AC_BE_FIFO
 #define	TX_CTL_FIFO		TX_AC_VO_FIFO
 
-#ifndef WL_RSSI_ANT_MAX
 #define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
-#elif WL_RSSI_ANT_MAX != 4
-#error "WL_RSSI_ANT_MAX does not match"
-#endif
 
 struct intctrlregs {
 	u32 intstatus;

@@ -17,13 +17,8 @@
 #ifndef _BRCMF_PROTO_H_
 #define _BRCMF_PROTO_H_
 
-#ifndef IOCTL_RESP_TIMEOUT
 #define IOCTL_RESP_TIMEOUT  2000	/* In milli second */
-#endif
-
-#ifndef IOCTL_CHIP_ACTIVE_TIMEOUT
 #define IOCTL_CHIP_ACTIVE_TIMEOUT  10	/* In milli second */
-#endif
 
 /*
  * Exported from the brcmf protocol module (brcmf_cdc)

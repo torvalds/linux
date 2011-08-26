@@ -120,18 +120,6 @@ uint brcmf_radio_up = 1;
 char iface_name[IFNAMSIZ] = "wlan";
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
-/* The following are specific to the SDIO dongle */
-
-#ifdef SDTEST
-/* Echo packet generator (pkts/s) */
-uint brcmf_pktgen;
-module_param(brcmf_pktgen, uint, 0);
-
-/* Echo packet len (0 => sawtooth, max 2040) */
-uint brcmf_pktgen_len;
-module_param(brcmf_pktgen_len, uint, 0);
-#endif
-
 static int brcmf_toe_get(struct brcmf_info *drvr_priv, int idx, u32 *toe_ol);
 static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
 static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
@@ -1065,7 +1053,6 @@ done:
 
 static int brcmf_netdev_stop(struct net_device *net)
 {
-#if !defined(IGNORE_ETH0_DOWN)
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1076,9 +1063,6 @@ static int brcmf_netdev_stop(struct net_device *net)
 	/* Set state and stop OS transmissions */
 	drvr_priv->pub.up = 0;
 	netif_stop_queue(net);
-#else
-	brcmf_dbg(ERROR, "BYPASSed due to BRCM compilation: under investigation\n");
-#endif				/* !defined(IGNORE_ETH0_DOWN) */
 
 	return 0;
 }

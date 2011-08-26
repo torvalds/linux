@@ -27,14 +27,8 @@
 #define USB_BUS			5
 #define SPI_BUS			6
 
-#ifndef OFF
 #define	OFF	0
-#endif
-
-#ifndef ON
 #define	ON	1		/* ON = 1 */
-#endif
-
 #define	AUTO	(-1)		/* Auto = -1 */
 
 /*

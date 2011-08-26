@@ -107,9 +107,6 @@ static const struct locale_mimo_info *brcms_c_get_mimo_2g(u8 locale_idx);
 static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx);
 
 /* QDB() macro takes a dB value and converts to a quarter dB value */
-#ifdef QDB
-#undef QDB
-#endif
 #define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)
 
 /* Regulatory Matrix Spreadsheet (CLM) MIMO v3.7.9 */
@@ -489,19 +486,10 @@ static const struct locale_mimo_info *g_mimo_5g_table[] = {
 	&locale_11n
 };
 
-#ifdef LC
-#undef LC
-#endif
 #define LC(id)	LOCALE_MIMO_IDX_ ## id
 
-#ifdef LC_2G
-#undef LC_2G
-#endif
 #define LC_2G(id)	LOCALE_2G_IDX_ ## id
 
-#ifdef LC_5G
-#undef LC_5G
-#endif
 #define LC_5G(id)	LOCALE_5G_IDX_ ## id
 
 #define LOCALES(band2, band5, mimo2, mimo5) \

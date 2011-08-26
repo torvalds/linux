@@ -113,10 +113,8 @@
 #define ANTSWITCH_TYPE_3	3
 
 #define RXBUFSZ		PKTBUFSZ
-#ifndef AIDMAPSZ
 /* aid bitmap size in bytes */
 #define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)
-#endif				/* AIDMAPSZ */
 
 #define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
 
@@ -353,22 +351,10 @@ enum wlc_par_id {
 #define SUPPORT_11N	(ENAB_1x1|ENAB_2x2)
 #define SUPPORT_HT	(ENAB_1x1|ENAB_2x2|ENAB_3x3)
 /* WL11N Support */
-#if ((defined(NCONF) && (NCONF != 0)) || \
-	(defined(LCNCONF) && (LCNCONF != 0)) || \
-	(defined(HTCONF) && (HTCONF != 0)) || \
-	(defined(SSLPNCONF) && (SSLPNCONF != 0)))
 #define N_ENAB(pub) ((pub)->_n_enab & SUPPORT_11N)
 #define N_REQD(pub) ((pub)->_n_reqd)
-#else
-#define N_ENAB(pub)	0
-#define N_REQD(pub)	0
-#endif
 
-#if (defined(HTCONF) && (HTCONF != 0))
-#define HT_ENAB(pub) (((pub)->_n_enab & SUPPORT_HT) == SUPPORT_HT)
-#else
 #define HT_ENAB(pub) 0
-#endif
 
 #define AMPDU_AGG_HOST	1
 #define AMPDU_ENAB(pub) ((pub)->_ampdu)

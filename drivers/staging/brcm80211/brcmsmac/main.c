@@ -3540,11 +3540,6 @@ void brcms_c_set_bssid(struct brcms_bss_cfg *cfg)
 	/* if primary config, we need to update BSSID in RXE match registers */
 	if (cfg == wlc->cfg)
 		brcms_c_set_addrmatch(wlc, RCM_BSSID_OFFSET, cfg->BSSID);
-#ifdef SUPPORT_HWKEYS
-	else if (BSSCFG_STA(cfg) && cfg->BSS)
-		brcms_c_rcmta_add_bssid(wlc, cfg);
-
-#endif
 }
 
 void brcms_b_set_shortslot(struct brcms_hardware *wlc_hw, bool shortslot)
@@ -3774,15 +3769,13 @@ u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 			break;
 		}
 	}
-#if NCONF
+
 	/*
 	 * pick siso/cdd as default for OFDM (note no basic
 	 * rate MCSs are supported yet)
 	 */
 	if (IS_OFDM(lowest_basic_rspec))
 		lowest_basic_rspec |= (wlc->stf->ss_opmode << RSPEC_STF_SHIFT);
-
-#endif
 
 	return lowest_basic_rspec;
 }
@@ -4236,12 +4229,6 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 
 	/* WME QoS mode is Auto by default */
 	wlc->pub->_wme = AUTO;
-
-#ifdef BCMSDIODEV_ENABLED
-	/* enable priority flow control for sdio dongle */
-	wlc->pub->_priofc = true;
-#endif
-
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
 	wlc->pub->bcmerror = 0;
 	wlc->pub->_coex = ON;
@@ -7457,16 +7444,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			else
 				rspec[k] |= (mimo_ctlchbw << RSPEC_BW_SHIFT);
 
-			/* Set Short GI */
-#ifdef NOSGIYET
-			if (IS_MCS(rspec[k])
-			    && (txrate[k]->flags & IEEE80211_TX_RC_SHORT_GI))
-				rspec[k] |= RSPEC_SHORT_GI;
-			else if (!(txrate[k]->flags & IEEE80211_TX_RC_SHORT_GI))
-				rspec[k] &= ~RSPEC_SHORT_GI;
-#else
+			/* Disable short GI, not supported yet */
 			rspec[k] &= ~RSPEC_SHORT_GI;
-#endif
 
 			mimo_preamble_type = BRCMS_MM_PREAMBLE;
 			if (txrate[k]->flags & IEEE80211_TX_RC_GREEN_FIELD)
@@ -9582,15 +9561,7 @@ static void
 brcms_c_txflowcontrol_signal(struct brcms_c_info *wlc,
 			     struct brcms_txq_info *qi, bool on, int prio)
 {
-#ifdef NON_FUNCTIONAL
-	/* wlcif_list is never filled so this function is not functional */
-	struct brcms_c_if *wlcif;
-
-	for (wlcif = wlc->wlcif_list; wlcif != NULL; wlcif = wlcif->next) {
-		if (wlcif->qi == qi && wlcif->flags & BRCMS_IF_LINKED)
-			brcms_txflowcontrol(wlc->wl, wlcif->wlif, on, prio);
-	}
-#endif
+	/* wlcif_list is never filled so this function is not functional yet */
 }
 
 static struct brcms_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)

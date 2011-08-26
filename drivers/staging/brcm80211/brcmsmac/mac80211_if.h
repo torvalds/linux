@@ -75,9 +75,6 @@ struct brcms_info {
 
 	struct tasklet_struct tasklet;	/* dpc tasklet */
 	bool resched;		/* dpc needs to be and is rescheduled */
-#ifdef LINUXSTA_PS
-	u32 pci_psstate[16];	/* pci ps-state save/restore */
-#endif
 	struct brcms_firmware fw;
 	struct wiphy *wiphy;
 };

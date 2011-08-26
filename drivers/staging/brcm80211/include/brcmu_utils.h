@@ -45,12 +45,8 @@ struct brcmu_strbuf {
 }
 
 /* osl multi-precedence packet queue */
-#ifndef PKTQ_LEN_DEFAULT
 #define PKTQ_LEN_DEFAULT        128	/* Max 128 packets */
-#endif
-#ifndef PKTQ_MAX_PREC
 #define PKTQ_MAX_PREC           16	/* Maximum precedence levels */
-#endif
 
 struct pktq_prec {
 	struct sk_buff *head;	/* first packet to dequeue */
@@ -192,9 +188,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 
 #define BCME_STRLEN		64	/* Max string length for BCM errors */
 
-#ifndef ABS
 #define	ABS(a)			(((a) < 0) ? -(a) : (a))
-#endif				/* ABS */
 
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)

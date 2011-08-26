@@ -20,14 +20,6 @@
 #include <linux/types.h>
 #include <linux/io.h>
 
-#if 0
-/* Bus types */
-#define SDIO_BUS		3	/* SDIO target */
-#define USB_BUS			5	/* USB (does not support R/W REG) */
-#define SPI_BUS			6	/* gSPI target */
-#define RPC_BUS			7	/* RPC target */
-#endif
-
 #define WL_CHAN_FREQ_RANGE_2G      0
 #define WL_CHAN_FREQ_RANGE_5GL     1
 #define WL_CHAN_FREQ_RANGE_5GM     2

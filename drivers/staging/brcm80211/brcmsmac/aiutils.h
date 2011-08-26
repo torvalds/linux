@@ -33,12 +33,6 @@
 /* Region 2 for sdram (512 MB) */
 #define SI_SDRAM_R2		0x80000000
 
-#ifdef SI_ENUM_BASE_VARIABLE
-#define SI_ENUM_BASE		(sii->pub.si_enum_base)
-#else
-#define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
-#endif				/* SI_ENUM_BASE_VARIABLE */
-
 /* Wrapper space base */
 #define SI_WRAP_BASE		0x18100000
 /* each core gets 4Kbytes for registers */
@@ -337,10 +331,8 @@
 #define DEFAULT_GPIO_ONTIME	10	/* Default: 10% on */
 #define DEFAULT_GPIO_OFFTIME	90	/* Default: 10% on */
 
-#ifndef DEFAULT_GPIOTIMERVAL
 #define DEFAULT_GPIOTIMERVAL \
 	((DEFAULT_GPIO_ONTIME << GPIO_ONTIME_SHIFT) | DEFAULT_GPIO_OFFTIME)
-#endif
 
 /*
  * Data structure to export all chip specific common variables
@@ -412,20 +404,11 @@ struct si_pub {
 #define SI_PCIUP	3
 
 /* PMU clock/power control */
-#if defined(BCMPMUCTL)
-#define PMUCTL_ENAB(sih)	(BCMPMUCTL)
-#else
 #define PMUCTL_ENAB(sih)	((sih)->cccaps & CC_CAP_PMU)
-#endif
 
 /* chipcommon clock/power control (exclusive with PMU's) */
-#if defined(BCMPMUCTL) && BCMPMUCTL
-#define CCCTL_ENAB(sih)		(0)
-#define CCPLL_ENAB(sih)		(0)
-#else
 #define CCCTL_ENAB(sih)		((sih)->cccaps & CC_CAP_PWR_CTL)
 #define CCPLL_ENAB(sih)		((sih)->cccaps & CC_CAP_PLL_MASK)
-#endif
 
 /* External PA enable mask */
 #define GPIO_CTRL_EPA_EN_MASK 0x40
