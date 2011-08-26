@@ -903,6 +903,60 @@ int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f)
 	return 0;
 }
 
+void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f)
+{
+	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
+
+	frame->f_width  = pixm->plane_fmt[0].bytesperline;
+	if (frame->fmt->colplanes == 1)
+		frame->f_width = (frame->f_width * 8) / frame->fmt->depth[0];
+	frame->f_height	= pixm->height;
+	frame->width    = pixm->width;
+	frame->height   = pixm->height;
+	frame->o_width  = pixm->width;
+	frame->o_height = pixm->height;
+	frame->offs_h   = 0;
+	frame->offs_v   = 0;
+}
+
+/**
+ * fimc_adjust_mplane_format - adjust bytesperline/sizeimage for each plane
+ * @fmt: fimc pixel format description (input)
+ * @width: requested pixel width
+ * @height: requested pixel height
+ * @pix: multi-plane format to adjust
+ */
+void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
+			       struct v4l2_pix_format_mplane *pix)
+{
+	u32 bytesperline = 0;
+	int i;
+
+	pix->colorspace	= V4L2_COLORSPACE_JPEG;
+	pix->field = V4L2_FIELD_NONE;
+	pix->num_planes = fmt->memplanes;
+	pix->height = height;
+	pix->width = width;
+
+	for (i = 0; i < pix->num_planes; ++i) {
+		u32 bpl = pix->plane_fmt[i].bytesperline;
+		u32 *sizeimage = &pix->plane_fmt[i].sizeimage;
+
+		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
+			bpl = pix->width; /* Planar */
+
+		if (fmt->colplanes == 1 && /* Packed */
+		    (bpl == 0 || ((bpl * 8) / fmt->depth[i]) < pix->width))
+			bpl = (pix->width * fmt->depth[0]) / 8;
+
+		if (i == 0) /* Same bytesperline for each plane. */
+			bytesperline = bpl;
+
+		pix->plane_fmt[i].bytesperline = bytesperline;
+		*sizeimage = (pix->width * pix->height * fmt->depth[i]) / 8;
+	}
+}
+
 static int fimc_m2m_g_fmt_mplane(struct file *file, void *fh,
 				 struct v4l2_format *f)
 {
@@ -947,43 +1001,33 @@ struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
 	return def_fmt;
 }
 
-int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
+static int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct samsung_fimc_variant *variant = fimc->variant;
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct fimc_fmt *fmt;
-	u32 max_width, mod_x, mod_y, mask;
-	int i, is_output = 0;
+	u32 max_w, mod_x, mod_y;
 
-	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		if (fimc_ctx_state_is_set(FIMC_CTX_CAP, ctx))
-			return -EINVAL;
-		is_output = 1;
-	} else if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+	if (!IS_M2M(f->type))
 		return -EINVAL;
-	}
 
 	dbg("w: %d, h: %d", pix->width, pix->height);
 
-	mask = is_output ? FMT_FLAGS_M2M : FMT_FLAGS_M2M | FMT_FLAGS_CAM;
-	fmt = fimc_find_format(&pix->pixelformat, NULL, mask, -1);
-	if (!fmt) {
-		v4l2_err(fimc->v4l2_dev, "Fourcc format (0x%X) invalid.\n",
-			 pix->pixelformat);
+	fmt = fimc_find_format(&pix->pixelformat, NULL, FMT_FLAGS_M2M, 0);
+	if (WARN(fmt == NULL, "Pixel format lookup failed"))
 		return -EINVAL;
-	}
 
 	if (pix->field == V4L2_FIELD_ANY)
 		pix->field = V4L2_FIELD_NONE;
-	else if (V4L2_FIELD_NONE != pix->field)
+	else if (pix->field != V4L2_FIELD_NONE)
 		return -EINVAL;
 
-	if (is_output) {
-		max_width = variant->pix_limit->scaler_dis_w;
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		max_w = variant->pix_limit->scaler_dis_w;
 		mod_x = ffs(variant->min_inp_pixsize) - 1;
 	} else {
-		max_width = variant->pix_limit->out_rot_dis_w;
+		max_w = variant->pix_limit->out_rot_dis_w;
 		mod_x = ffs(variant->min_out_pixsize) - 1;
 	}
 
@@ -996,34 +1040,12 @@ int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 		else
 			mod_y = mod_x;
 	}
+	dbg("mod_x: %d, mod_y: %d, max_w: %d", mod_x, mod_y, max_w);
 
-	dbg("mod_x: %d, mod_y: %d, max_w: %d", mod_x, mod_y, max_width);
-
-	v4l_bound_align_image(&pix->width, 16, max_width, mod_x,
+	v4l_bound_align_image(&pix->width, 16, max_w, mod_x,
 		&pix->height, 8, variant->pix_limit->scaler_dis_w, mod_y, 0);
 
-	pix->num_planes = fmt->memplanes;
-	pix->colorspace	= V4L2_COLORSPACE_JPEG;
-
-
-	for (i = 0; i < pix->num_planes; ++i) {
-		u32 bpl = pix->plane_fmt[i].bytesperline;
-		u32 *sizeimage = &pix->plane_fmt[i].sizeimage;
-
-		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
-			bpl = pix->width; /* Planar */
-
-		if (fmt->colplanes == 1 && /* Packed */
-		    (bpl == 0 || ((bpl * 8) / fmt->depth[i]) < pix->width))
-			bpl = (pix->width * fmt->depth[0]) / 8;
-
-		if (i == 0) /* Same bytesperline for each plane. */
-			mod_x = bpl;
-
-		pix->plane_fmt[i].bytesperline = mod_x;
-		*sizeimage = (pix->width * pix->height * fmt->depth[i]) / 8;
-	}
-
+	fimc_adjust_mplane_format(fmt, pix->width, pix->height, &f->fmt.pix_mp);
 	return 0;
 }
 
@@ -1072,15 +1094,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 			(pix->width * pix->height * frame->fmt->depth[i]) / 8;
 	}
 
-	frame->f_width	= pix->plane_fmt[0].bytesperline * 8 /
-		frame->fmt->depth[0];
-	frame->f_height	= pix->height;
-	frame->width	= pix->width;
-	frame->height	= pix->height;
-	frame->o_width	= pix->width;
-	frame->o_height = pix->height;
-	frame->offs_h	= 0;
-	frame->offs_v	= 0;
+	fimc_fill_frame(frame, f);
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		fimc_ctx_state_lock_set(FIMC_PARAMS | FIMC_DST_FMT, ctx);
@@ -1160,8 +1174,8 @@ static int fimc_m2m_cropcap(struct file *file, void *fh,
 
 	cr->bounds.left		= 0;
 	cr->bounds.top		= 0;
-	cr->bounds.width	= frame->f_width;
-	cr->bounds.height	= frame->f_height;
+	cr->bounds.width	= frame->o_width;
+	cr->bounds.height	= frame->o_height;
 	cr->defrect		= cr->bounds;
 
 	return 0;
@@ -1612,7 +1626,6 @@ static int fimc_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&fimc->irq_queue);
 	spin_lock_init(&fimc->slock);
-
 	mutex_init(&fimc->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

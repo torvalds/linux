@@ -61,6 +61,7 @@ enum fimc_dev_flags {
 	ST_CAPT_PEND,
 	ST_CAPT_RUN,
 	ST_CAPT_STREAM,
+	ST_CAPT_ISP_STREAM,
 	ST_CAPT_SHUT,
 	ST_CAPT_BUSY,
 	ST_CAPT_APPLY_CFG,
@@ -94,6 +95,9 @@ enum fimc_color_fmt {
 };
 
 #define fimc_fmt_is_rgb(x) ((x) & 0x10)
+
+#define IS_M2M(__strt) ((__strt) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE || \
+			__strt == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 
 /* Cb/Cr chrominance components order for 2 plane Y/CbCr 4:2:2 formats. */
 #define	S5P_FIMC_LSB_CRCB	S5P_CIOCTRL_ORDER422_2P_LSB_CRCB
@@ -293,7 +297,6 @@ struct fimc_m2m_device {
  * struct fimc_vid_cap - camera capture device information
  * @ctx: hardware context data
  * @vfd: video device node for camera capture mode
- * @sd: pointer to camera sensor subdevice currently in use
  * @vd_pad: fimc video capture node pad
  * @fmt: Media Bus format configured at selected image sensor
  * @pending_buf_q: the pending buffer queue head
@@ -312,7 +315,6 @@ struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		*vfd;
-	struct v4l2_subdev		*sd;;
 	struct media_pad		vd_pad;
 	struct v4l2_mbus_framefmt	fmt;
 	struct list_head		pending_buf_q;
@@ -647,13 +649,13 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 				struct v4l2_fmtdesc *f);
-int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f);
 int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr);
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
 int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f);
-
+void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
+			       struct v4l2_pix_format_mplane *pix);
 struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
 				  unsigned int mask, int index);
 
@@ -664,6 +666,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 		      struct fimc_frame *frame, struct fimc_addr *paddr);
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f);
 void fimc_set_yuv_order(struct fimc_ctx *ctx);
+void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f);
 
 int fimc_register_m2m_device(struct fimc_dev *fimc,
 			     struct v4l2_device *v4l2_dev);
