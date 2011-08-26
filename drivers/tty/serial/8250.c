@@ -1588,6 +1588,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(serial8250_handle_irq);
 
 static int serial8250_default_handle_irq(struct uart_port *port)
 {
