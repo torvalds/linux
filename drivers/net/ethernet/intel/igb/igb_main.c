@@ -3139,29 +3139,26 @@ static void igb_free_all_tx_resources(struct igb_adapter *adapter)
 		igb_free_tx_resources(adapter->tx_ring[i]);
 }
 
-void igb_unmap_and_free_tx_resource(struct igb_ring *tx_ring,
-				    struct igb_tx_buffer *buffer_info)
+void igb_unmap_and_free_tx_resource(struct igb_ring *ring,
+				    struct igb_tx_buffer *tx_buffer)
 {
-	if (buffer_info->dma) {
-		if (buffer_info->tx_flags & IGB_TX_FLAGS_MAPPED_AS_PAGE)
-			dma_unmap_page(tx_ring->dev,
-					buffer_info->dma,
-					buffer_info->length,
-					DMA_TO_DEVICE);
-		else
-			dma_unmap_single(tx_ring->dev,
-					buffer_info->dma,
-					buffer_info->length,
-					DMA_TO_DEVICE);
-		buffer_info->dma = 0;
+	if (tx_buffer->skb) {
+		dev_kfree_skb_any(tx_buffer->skb);
+		if (tx_buffer->dma)
+			dma_unmap_single(ring->dev,
+					 tx_buffer->dma,
+					 tx_buffer->length,
+					 DMA_TO_DEVICE);
+	} else if (tx_buffer->dma) {
+		dma_unmap_page(ring->dev,
+			       tx_buffer->dma,
+			       tx_buffer->length,
+			       DMA_TO_DEVICE);
 	}
-	if (buffer_info->skb) {
-		dev_kfree_skb_any(buffer_info->skb);
-		buffer_info->skb = NULL;
-	}
-	buffer_info->time_stamp = 0;
-	buffer_info->length = 0;
-	buffer_info->next_to_watch = NULL;
+	tx_buffer->next_to_watch = NULL;
+	tx_buffer->skb = NULL;
+	tx_buffer->dma = 0;
+	/* buffer_info must be completely set up in the transmit path */
 }
 
 /**
@@ -4138,124 +4135,153 @@ static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
 	return cpu_to_le32(olinfo_status);
 }
 
-#define IGB_MAX_TXD_PWR	16
-#define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
+/*
+ * The largest size we can write to the descriptor is 65535.  In order to
+ * maintain a power of two alignment we have to limit ourselves to 32K.
+ */
+#define IGB_MAX_TXD_PWR	15
+#define IGB_MAX_DATA_PER_TXD	(1 << IGB_MAX_TXD_PWR)
 
-static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
-			     struct igb_tx_buffer *first, u32 tx_flags)
+static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
+		       struct igb_tx_buffer *first, u32 tx_flags,
+		       const u8 hdr_len)
 {
-	struct igb_tx_buffer *buffer_info;
-	struct device *dev = tx_ring->dev;
-	unsigned int hlen = skb_headlen(skb);
-	unsigned int count = 0, i;
-	unsigned int f;
-	u16 gso_segs = skb_shinfo(skb)->gso_segs ?: 1;
+	struct igb_tx_buffer *tx_buffer_info;
+	union e1000_adv_tx_desc *tx_desc;
+	dma_addr_t dma;
+	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+	unsigned int data_len = skb->data_len;
+	unsigned int size = skb_headlen(skb);
+	unsigned int paylen = skb->len - hdr_len;
+	__le32 cmd_type;
+	u16 i = tx_ring->next_to_use;
+	u16 gso_segs;
 
-	i = tx_ring->next_to_use;
+	if (tx_flags & IGB_TX_FLAGS_TSO)
+		gso_segs = skb_shinfo(skb)->gso_segs;
+	else
+		gso_segs = 1;
 
-	buffer_info = &tx_ring->tx_buffer_info[i];
-	BUG_ON(hlen >= IGB_MAX_DATA_PER_TXD);
-	buffer_info->length = hlen;
-	buffer_info->tx_flags = tx_flags;
-	buffer_info->dma = dma_map_single(dev, skb->data, hlen,
-					  DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, buffer_info->dma))
+	/* multiply data chunks by size of headers */
+	first->bytecount = paylen + (gso_segs * hdr_len);
+	first->gso_segs = gso_segs;
+	first->skb = skb;
+
+	tx_desc = IGB_TX_DESC(tx_ring, i);
+
+	tx_desc->read.olinfo_status =
+		igb_tx_olinfo_status(tx_flags, paylen, tx_ring);
+
+	cmd_type = igb_tx_cmd_type(tx_flags);
+
+	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
+	if (dma_mapping_error(tx_ring->dev, dma))
 		goto dma_error;
 
-	tx_flags |= IGB_TX_FLAGS_MAPPED_AS_PAGE;
+	/* record length, and DMA address */
+	first->length = size;
+	first->dma = dma;
+	first->tx_flags = tx_flags;
+	tx_desc->read.buffer_addr = cpu_to_le64(dma);
 
-	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[f];
-		unsigned int len = frag->size;
+	for (;;) {
+		while (unlikely(size > IGB_MAX_DATA_PER_TXD)) {
+			tx_desc->read.cmd_type_len =
+				cmd_type | cpu_to_le32(IGB_MAX_DATA_PER_TXD);
 
-		count++;
+			i++;
+			tx_desc++;
+			if (i == tx_ring->count) {
+				tx_desc = IGB_TX_DESC(tx_ring, 0);
+				i = 0;
+			}
+
+			dma += IGB_MAX_DATA_PER_TXD;
+			size -= IGB_MAX_DATA_PER_TXD;
+
+			tx_desc->read.olinfo_status = 0;
+			tx_desc->read.buffer_addr = cpu_to_le64(dma);
+		}
+
+		if (likely(!data_len))
+			break;
+
+		tx_desc->read.cmd_type_len = cmd_type | cpu_to_le32(size);
+
 		i++;
-		if (i == tx_ring->count)
+		tx_desc++;
+		if (i == tx_ring->count) {
+			tx_desc = IGB_TX_DESC(tx_ring, 0);
 			i = 0;
+		}
 
-		buffer_info = &tx_ring->tx_buffer_info[i];
-		BUG_ON(len >= IGB_MAX_DATA_PER_TXD);
-		buffer_info->length = len;
-		buffer_info->tx_flags = tx_flags;
-		buffer_info->dma = skb_frag_dma_map(dev, frag, 0, len,
-						DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, buffer_info->dma))
+		size = frag->size;
+		data_len -= size;
+
+		dma = skb_frag_dma_map(tx_ring->dev, frag, 0,
+				   size, DMA_TO_DEVICE);
+		if (dma_mapping_error(tx_ring->dev, dma))
 			goto dma_error;
 
+		tx_buffer_info = &tx_ring->tx_buffer_info[i];
+		tx_buffer_info->length = size;
+		tx_buffer_info->dma = dma;
+
+		tx_desc->read.olinfo_status = 0;
+		tx_desc->read.buffer_addr = cpu_to_le64(dma);
+
+		frag++;
 	}
 
-	buffer_info->skb = skb;
-	/* multiply data chunks by size of headers */
-	buffer_info->bytecount = ((gso_segs - 1) * hlen) + skb->len;
-	buffer_info->gso_segs = gso_segs;
+	/* write last descriptor with RS and EOP bits */
+	cmd_type |= cpu_to_le32(size) | cpu_to_le32(IGB_TXD_DCMD);
+	tx_desc->read.cmd_type_len = cmd_type;
 
 	/* set the timestamp */
 	first->time_stamp = jiffies;
 
-	/* set next_to_watch value indicating a packet is present */
-	first->next_to_watch = IGB_TX_DESC(tx_ring, i);
-
-	return ++count;
-
-dma_error:
-	dev_err(dev, "TX DMA map failed\n");
-
-	/* clear timestamp and dma mappings for failed buffer_info mapping */
-	buffer_info->dma = 0;
-	buffer_info->time_stamp = 0;
-	buffer_info->length = 0;
-
-	/* clear timestamp and dma mappings for remaining portion of packet */
-	while (count--) {
-		if (i == 0)
-			i = tx_ring->count;
-		i--;
-		buffer_info = &tx_ring->tx_buffer_info[i];
-		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
-	}
-
-	return 0;
-}
-
-static inline void igb_tx_queue(struct igb_ring *tx_ring,
-				u32 tx_flags, int count, u32 paylen,
-				u8 hdr_len)
-{
-	union e1000_adv_tx_desc *tx_desc;
-	struct igb_tx_buffer *buffer_info;
-	__le32 olinfo_status, cmd_type;
-	unsigned int i = tx_ring->next_to_use;
-
-	cmd_type = igb_tx_cmd_type(tx_flags);
-	olinfo_status = igb_tx_olinfo_status(tx_flags,
-					     paylen - hdr_len,
-					     tx_ring);
-
-	do {
-		buffer_info = &tx_ring->tx_buffer_info[i];
-		tx_desc = IGB_TX_DESC(tx_ring, i);
-		tx_desc->read.buffer_addr = cpu_to_le64(buffer_info->dma);
-		tx_desc->read.cmd_type_len = cmd_type |
-					     cpu_to_le32(buffer_info->length);
-		tx_desc->read.olinfo_status = olinfo_status;
-		count--;
-		i++;
-		if (i == tx_ring->count)
-			i = 0;
-	} while (count > 0);
-
-	tx_desc->read.cmd_type_len |= cpu_to_le32(IGB_TXD_DCMD);
-	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
-	 * applicable for weak-ordered memory model archs,
-	 * such as IA-64). */
+	/*
+	 * Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.  (Only applicable for weak-ordered
+	 * memory model archs, such as IA-64).
+	 *
+	 * We also need this memory barrier to make certain all of the
+	 * status bits have been updated before next_to_watch is written.
+	 */
 	wmb();
 
+	/* set next_to_watch value indicating a packet is present */
+	first->next_to_watch = tx_desc;
+
+	i++;
+	if (i == tx_ring->count)
+		i = 0;
+
 	tx_ring->next_to_use = i;
+
 	writel(i, tx_ring->tail);
+
 	/* we need this if more than one processor can write to our tail
 	 * at a time, it syncronizes IO on IA64/Altix systems */
 	mmiowb();
+
+	return;
+
+dma_error:
+	dev_err(tx_ring->dev, "TX DMA map failed\n");
+
+	/* clear dma mappings for failed tx_buffer_info map */
+	for (;;) {
+		tx_buffer_info = &tx_ring->tx_buffer_info[i];
+		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
+		if (tx_buffer_info == first)
+			break;
+		if (i == 0)
+			i = tx_ring->count;
+		i--;
+	}
+
+	tx_ring->next_to_use = i;
 }
 
 static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
@@ -4295,7 +4321,7 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				struct igb_ring *tx_ring)
 {
 	struct igb_tx_buffer *first;
-	int tso, count;
+	int tso;
 	u32 tx_flags = 0;
 	__be16 protocol = vlan_get_protocol(skb);
 	u8 hdr_len = 0;
@@ -4335,19 +4361,7 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= IGB_TX_FLAGS_CSUM;
 	}
 
-	/*
-	 * count reflects descriptors mapped, if 0 or less then mapping error
-	 * has occurred and we need to rewind the descriptor queue
-	 */
-	count = igb_tx_map(tx_ring, skb, first, tx_flags);
-	if (!count) {
-		dev_kfree_skb_any(skb);
-		first->time_stamp = 0;
-		tx_ring->next_to_use = first - tx_ring->tx_buffer_info;
-		return NETDEV_TX_OK;
-	}
-
-	igb_tx_queue(tx_ring, tx_flags, count, skb->len, hdr_len);
+	igb_tx_map(tx_ring, skb, first, tx_flags, hdr_len);
 
 	/* Make sure there is space in the ring for the next send. */
 	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
@@ -5609,17 +5623,26 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		/* clear next_to_watch to prevent false hangs */
 		tx_buffer->next_to_watch = NULL;
 
-		do {
-			tx_desc->wb.status = 0;
-			if (likely(tx_desc == eop_desc)) {
-				eop_desc = NULL;
+		/* update the statistics for this packet */
+		total_bytes += tx_buffer->bytecount;
+		total_packets += tx_buffer->gso_segs;
 
-				total_bytes += tx_buffer->bytecount;
-				total_packets += tx_buffer->gso_segs;
-				igb_tx_hwtstamp(q_vector, tx_buffer);
-			}
+		/* retrieve hardware timestamp */
+		igb_tx_hwtstamp(q_vector, tx_buffer);
 
-			igb_unmap_and_free_tx_resource(tx_ring, tx_buffer);
+		/* free the skb */
+		dev_kfree_skb_any(tx_buffer->skb);
+		tx_buffer->skb = NULL;
+
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 tx_buffer->dma,
+				 tx_buffer->length,
+				 DMA_TO_DEVICE);
+
+		/* clear last DMA location and unmap remaining buffers */
+		while (tx_desc != eop_desc) {
+			tx_buffer->dma = 0;
 
 			tx_buffer++;
 			tx_desc++;
@@ -5629,7 +5652,28 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				tx_buffer = tx_ring->tx_buffer_info;
 				tx_desc = IGB_TX_DESC(tx_ring, 0);
 			}
-		} while (eop_desc);
+
+			/* unmap any remaining paged data */
+			if (tx_buffer->dma) {
+				dma_unmap_page(tx_ring->dev,
+					       tx_buffer->dma,
+					       tx_buffer->length,
+					       DMA_TO_DEVICE);
+			}
+		}
+
+		/* clear last DMA location */
+		tx_buffer->dma = 0;
+
+		/* move us one more past the eop_desc for start of next pkt */
+		tx_buffer++;
+		tx_desc++;
+		i++;
+		if (unlikely(!i)) {
+			i -= tx_ring->count;
+			tx_buffer = tx_ring->tx_buffer_info;
+			tx_desc = IGB_TX_DESC(tx_ring, 0);
+		}
 	}
 
 	i += tx_ring->count;

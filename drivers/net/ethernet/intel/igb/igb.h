@@ -135,7 +135,6 @@ struct vf_data_storage {
 #define IGB_TX_FLAGS_TSO		0x00000004
 #define IGB_TX_FLAGS_IPV4		0x00000008
 #define IGB_TX_FLAGS_TSTAMP		0x00000010
-#define IGB_TX_FLAGS_MAPPED_AS_PAGE	0x00000020
 #define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT	16
 
@@ -144,13 +143,12 @@ struct vf_data_storage {
 struct igb_tx_buffer {
 	union e1000_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	dma_addr_t dma;
-	u32 length;
-	u32 tx_flags;
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	u16 gso_segs;
-	u8 mapped_as_page;
+	dma_addr_t dma;
+	u32 length;
+	u32 tx_flags;
 };
 
 struct igb_rx_buffer {
