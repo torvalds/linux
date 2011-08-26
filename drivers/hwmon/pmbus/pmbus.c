@@ -187,13 +187,12 @@ out:
 
 static int pmbus_remove(struct i2c_client *client)
 {
-	int ret;
 	const struct pmbus_driver_info *info;
 
 	info = pmbus_get_driver_info(client);
-	ret = pmbus_do_remove(client);
+	pmbus_do_remove(client);
 	kfree(info);
-	return ret;
+	return 0;
 }
 
 /*

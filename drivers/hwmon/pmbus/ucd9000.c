@@ -239,13 +239,12 @@ out:
 
 static int ucd9000_remove(struct i2c_client *client)
 {
-	int ret;
 	struct ucd9000_data *data;
 
 	data = to_ucd9000_data(pmbus_get_driver_info(client));
-	ret = pmbus_do_remove(client);
+	pmbus_do_remove(client);
 	kfree(data);
-	return ret;
+	return 0;
 }
 
 

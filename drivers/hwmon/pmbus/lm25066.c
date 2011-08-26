@@ -309,11 +309,10 @@ static int lm25066_remove(struct i2c_client *client)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	const struct lm25066_data *data = to_lm25066_data(info);
-	int ret;
 
-	ret = pmbus_do_remove(client);
+	pmbus_do_remove(client);
 	kfree(data);
-	return ret;
+	return 0;
 }
 
 static const struct i2c_device_id lm25066_id[] = {

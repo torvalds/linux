@@ -152,11 +152,10 @@ err_mem:
 static int adm1275_remove(struct i2c_client *client)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	int ret;
 
-	ret = pmbus_do_remove(client);
+	pmbus_do_remove(client);
 	kfree(info);
-	return ret;
+	return 0;
 }
 
 static const struct i2c_device_id adm1275_id[] = {

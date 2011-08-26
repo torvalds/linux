@@ -1764,7 +1764,7 @@ out_data:
 }
 EXPORT_SYMBOL_GPL(pmbus_do_probe);
 
-int pmbus_do_remove(struct i2c_client *client)
+void pmbus_do_remove(struct i2c_client *client)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
@@ -1774,7 +1774,6 @@ int pmbus_do_remove(struct i2c_client *client)
 	kfree(data->booleans);
 	kfree(data->sensors);
 	kfree(data);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(pmbus_do_remove);
 
