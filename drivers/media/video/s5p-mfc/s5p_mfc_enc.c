@@ -1814,7 +1814,7 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 			return ctx->ctrl_handler.error;
 		}
 		if (controls[i].is_volatile && ctx->ctrls[i])
-			ctx->ctrls[i]->is_volatile = 1;
+			ctx->ctrls[i]->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	}
 	return 0;
 }

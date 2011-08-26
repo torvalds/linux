@@ -640,7 +640,7 @@ static int pwc_set_awb(struct pwc_device *pdev)
 			return ret;
 
 		/* Update val when coming from auto or going to a preset */
-		if (pdev->red_balance->is_volatile ||
+		if ((pdev->red_balance->flags & V4L2_CTRL_FLAG_VOLATILE) ||
 		    pdev->auto_white_balance->val == awb_indoor ||
 		    pdev->auto_white_balance->val == awb_outdoor ||
 		    pdev->auto_white_balance->val == awb_fl) {
@@ -654,12 +654,12 @@ static int pwc_set_awb(struct pwc_device *pdev)
 					&pdev->blue_balance->val);
 		}
 		if (pdev->auto_white_balance->val == awb_auto) {
-			pdev->red_balance->is_volatile = true;
-			pdev->blue_balance->is_volatile = true;
+			pdev->red_balance->flags |= V4L2_CTRL_FLAG_VOLATILE;
+			pdev->blue_balance->flags |= V4L2_CTRL_FLAG_VOLATILE;
 			pdev->color_bal_valid = false; /* Force cache update */
 		} else {
-			pdev->red_balance->is_volatile = false;
-			pdev->blue_balance->is_volatile = false;
+			pdev->red_balance->flags &= ~V4L2_CTRL_FLAG_VOLATILE;
+			pdev->blue_balance->flags &= ~V4L2_CTRL_FLAG_VOLATILE;
 		}
 	}
 

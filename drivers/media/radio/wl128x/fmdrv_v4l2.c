@@ -559,7 +559,7 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 			255, 1, 255);
 
 	if (ctrl)
-		ctrl->is_volatile = 1;
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	return 0;
 }

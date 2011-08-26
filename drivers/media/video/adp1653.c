@@ -258,7 +258,7 @@ static int adp1653_init_controls(struct adp1653_flash *flash)
 	if (flash->ctrls.error)
 		return flash->ctrls.error;
 
-	fault->is_volatile = 1;
+	fault->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	flash->subdev.ctrl_handler = &flash->ctrls;
 	return 0;

@@ -65,10 +65,6 @@ struct v4l2_ctrl_ops {
   * @is_private: If set, then this control is private to its handler and it
   *		will not be added to any other handlers. Drivers can set
   *		this flag.
-  * @is_volatile: If set, then this control is volatile. This means that the
-  *		control's current value cannot be cached and needs to be
-  *		retrieved through the g_volatile_ctrl op. Drivers can set
-  *		this flag.
   * @is_auto:   If set, then this control selects whether the other cluster
   *		members are in 'automatic' mode or 'manual' mode. This is
   *		used for autogain/gain type clusters. Drivers should never
@@ -118,7 +114,6 @@ struct v4l2_ctrl {
 
 	unsigned int is_new:1;
 	unsigned int is_private:1;
-	unsigned int is_volatile:1;
 	unsigned int is_auto:1;
 	unsigned int manual_mode_value:8;
 
@@ -208,9 +203,6 @@ struct v4l2_ctrl_handler {
   *		must be NULL.
   * @is_private: If set, then this control is private to its handler and it
   *		will not be added to any other handlers.
-  * @is_volatile: If set, then this control is volatile. This means that the
-  *		control's current value cannot be cached and needs to be
-  *		retrieved through the g_volatile_ctrl op.
   */
 struct v4l2_ctrl_config {
 	const struct v4l2_ctrl_ops *ops;
@@ -225,7 +217,6 @@ struct v4l2_ctrl_config {
 	u32 menu_skip_mask;
 	const char * const *qmenu;
 	unsigned int is_private:1;
-	unsigned int is_volatile:1;
 };
 
 /** v4l2_ctrl_fill() - Fill in the control fields based on the control ID.
@@ -389,8 +380,7 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls);
   * @manual_val: The value for the first control in the cluster that equals the
   *		manual setting.
   * @set_volatile: If true, then all controls except the first auto control will
-  *		have is_volatile set to true. If false, then is_volatile will not
-  *		be touched.
+  *		be volatile.
   *
   * Use for control groups where one control selects some automatic feature and
   * the other controls are only active whenever the automatic feature is turned

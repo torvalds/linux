@@ -285,11 +285,11 @@ implement g_volatile_ctrl like this:
 Note that you use the 'new value' union as well in g_volatile_ctrl. In general
 controls that need to implement g_volatile_ctrl are read-only controls.
 
-To mark a control as volatile you have to set the is_volatile flag:
+To mark a control as volatile you have to set V4L2_CTRL_FLAG_VOLATILE:
 
 	ctrl = v4l2_ctrl_new_std(&sd->ctrl_handler, ...);
 	if (ctrl)
-		ctrl->is_volatile = 1;
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 For try/s_ctrl the new values (i.e. as passed by the user) are filled in and
 you can modify them in try_ctrl or set them in s_ctrl. The 'cur' union
@@ -367,8 +367,7 @@ Driver specific controls can be created using v4l2_ctrl_new_custom():
 The last argument is the priv pointer which can be set to driver-specific
 private data.
 
-The v4l2_ctrl_config struct also has fields to set the is_private and is_volatile
-flags.
+The v4l2_ctrl_config struct also has a field to set the is_private flag.
 
 If the name field is not set, then the framework will assume this is a standard
 control and will fill in the name, type and flags fields accordingly.
@@ -506,8 +505,8 @@ operation should return the value that the hardware's automatic mode set up
 automatically.
 
 If the cluster is put in manual mode, then the manual controls should become
-active again and the is_volatile flag should be ignored (so g_volatile_ctrl is
-no longer called while in manual mode).
+active again and V4L2_CTRL_FLAG_VOLATILE should be ignored (so g_volatile_ctrl
+is no longer called while in manual mode).
 
 Finally the V4L2_CTRL_FLAG_UPDATE should be set for the auto control since
 changing that control affects the control flags of the manual controls.
@@ -520,7 +519,7 @@ void v4l2_ctrl_auto_cluster(unsigned ncontrols, struct v4l2_ctrl **controls,
 
 The first two arguments are identical to v4l2_ctrl_cluster. The third argument
 tells the framework which value switches the cluster into manual mode. The
-last argument will optionally set the is_volatile flag for the non-auto controls.
+last argument will optionally set V4L2_CTRL_FLAG_VOLATILE for the non-auto controls.
 
 The first control of the cluster is assumed to be the 'auto' control.
 
