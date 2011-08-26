@@ -169,6 +169,9 @@ void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 ******************************************************/
 int iwl_dump_nic_event_log(struct iwl_priv *priv,
 			   bool full_log, char **buf, bool display);
+int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display);
+void iwl_dump_csr(struct iwl_trans *trans);
+
 
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {

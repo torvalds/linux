@@ -655,8 +655,8 @@ static void iwl_irq_handle_error(struct iwl_priv *priv)
 		priv->hw->wiphy->fw_version);
 
 	iwl_dump_nic_error_log(priv);
-	iwl_dump_csr(priv);
-	iwl_dump_fh(priv, NULL, false);
+	iwl_dump_csr(trans(priv));
+	iwl_dump_fh(trans(priv), NULL, false);
 	iwl_dump_nic_event_log(priv, false, NULL, false);
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS)

@@ -375,8 +375,6 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
-void iwl_dump_csr(struct iwl_priv *priv);
-int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
