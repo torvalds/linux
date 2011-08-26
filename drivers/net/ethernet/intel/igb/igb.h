@@ -232,12 +232,12 @@ struct igb_ring {
 
 #define IGB_ADVTXD_DCMD (E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS)
 
-#define E1000_RX_DESC_ADV(R, i)	    \
-	(&(((union e1000_adv_rx_desc *)((R).desc))[i]))
-#define E1000_TX_DESC_ADV(R, i)	    \
-	(&(((union e1000_adv_tx_desc *)((R).desc))[i]))
-#define E1000_TX_CTXTDESC_ADV(R, i)	    \
-	(&(((struct e1000_adv_tx_context_desc *)((R).desc))[i]))
+#define IGB_RX_DESC(R, i)	    \
+	(&(((union e1000_adv_rx_desc *)((R)->desc))[i]))
+#define IGB_TX_DESC(R, i)	    \
+	(&(((union e1000_adv_tx_desc *)((R)->desc))[i]))
+#define IGB_TX_CTXTDESC(R, i)	    \
+	(&(((struct e1000_adv_tx_context_desc *)((R)->desc))[i]))
 
 /* igb_desc_unused - calculate if we have unused descriptors */
 static inline int igb_desc_unused(struct igb_ring *ring)

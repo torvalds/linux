@@ -1586,7 +1586,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
 	tx_ntc = tx_ring->next_to_clean;
-	rx_desc = E1000_RX_DESC_ADV(*rx_ring, rx_ntc);
+	rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
 	while (staterr & E1000_RXD_STAT_DD) {
@@ -1617,7 +1617,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 			tx_ntc = 0;
 
 		/* fetch next descriptor */
-		rx_desc = E1000_RX_DESC_ADV(*rx_ring, rx_ntc);
+		rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
