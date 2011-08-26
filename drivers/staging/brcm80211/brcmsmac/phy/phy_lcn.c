@@ -1218,10 +1218,8 @@ void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi, u16 chanspec)
 	or_phy_reg(pi, 0x44a, 0x44);
 	write_phy_reg(pi, 0x44a, 0x80);
 
-	if (!NORADIO_ENAB(pi->pubpi)) {
-		wlc_lcnphy_radio_2064_channel_tune_4313(pi, channel);
-		udelay(1000);
-	}
+	wlc_lcnphy_radio_2064_channel_tune_4313(pi, channel);
+	udelay(1000);
 
 	wlc_lcnphy_toggle_afe_pwdn(pi);
 
@@ -1704,9 +1702,6 @@ static s8 wlc_lcnphy_tempcompensated_txpwrctrl(struct brcms_phy *pi)
 
 	index = FIXED_TXPWR;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return index;
-
 	if (pi_lcn->lcnphy_tempsense_slope == 0)
 		return index;
 
@@ -1874,9 +1869,6 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
 	uint i, n_cal_cmds = 0, n_cal_start = 0;
 	u16 *values_to_save;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	values_to_save = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
 	if (NULL == values_to_save)
@@ -2290,13 +2282,6 @@ static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 		(0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
-
-	if (NORADIO_ENAB(pi->pubpi)) {
-		wlc_lcnphy_set_bbmult(pi, 0x30);
-		if (!suspend)
-			wlapi_enable_mac(pi->sh->physhim);
-		return;
-	}
 
 	if (!pi->hwpwrctrl_capable) {
 		if (CHSPEC_IS2G(pi->radio_chanspec)) {
@@ -2965,9 +2950,6 @@ s16 wlc_lcnphy_tempsense_new(struct brcms_phy *pi, bool mode)
 	s16 avg = 0;
 	bool suspend = 0;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return -1;
-
 	if (mode == 1) {
 		suspend =
 			(0 ==
@@ -3011,9 +2993,6 @@ u16 wlc_lcnphy_tempsense(struct brcms_phy *pi, bool mode)
 	bool suspend = 0;
 	u16 SAVE_txpwrctrl = wlc_lcnphy_get_tx_pwr_ctrl(pi);
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return -1;
 
 	if (mode == 1) {
 		suspend =
@@ -3080,9 +3059,6 @@ s8 wlc_lcnphy_vbatsense(struct brcms_phy *pi, bool mode)
 	u16 vbatsenseval;
 	s32 avg = 0;
 	bool suspend = 0;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return -1;
 
 	if (mode == 1) {
 		suspend =
@@ -3420,8 +3396,6 @@ cal_done:
 
 static void wlc_lcnphy_temp_adj(struct brcms_phy *pi)
 {
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 }
 
 static void wlc_lcnphy_glacial_timer_based_cal(struct brcms_phy *pi)
@@ -3460,9 +3434,6 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 	s32 a1, b0, b1;
 	s32 tssi, pwr, maxtargetpwr, mintargetpwr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	pi->phy_lastcal = pi->sh->now;
 	pi->phy_forcecal = false;
@@ -3593,9 +3564,6 @@ wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi, u16 chanspec)
 {
 	u8 channel = CHSPEC_CHANNEL(chanspec);
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	if (channel == 14)
 		mod_phy_reg(pi, 0x448, (0x3 << 8), (2) << 8);
@@ -4444,9 +4412,6 @@ static void wlc_lcnphy_agc_temp_init(struct brcms_phy *pi)
 	u32 tableBuffer[2];
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	temp = (s16) read_phy_reg(pi, 0x4df);
 	pi_lcn->lcnphy_ofdmgainidxtableoffset = (temp & (0xff << 0)) >> 0;
 
@@ -4497,9 +4462,6 @@ static void wlc_lcnphy_agc_temp_init(struct brcms_phy *pi)
 
 static void wlc_lcnphy_bu_tweaks(struct brcms_phy *pi)
 {
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	or_phy_reg(pi, 0x805, 0x1);
 
 	mod_phy_reg(pi, 0x42f, (0x7 << 0), (0x3) << 0);
@@ -4623,18 +4585,12 @@ static void wlc_radio_2064_init(struct brcms_phy *pi)
 
 static void wlc_lcnphy_radio_init(struct brcms_phy *pi)
 {
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	wlc_radio_2064_init(pi);
 }
 
 static void wlc_lcnphy_rcal(struct brcms_phy *pi)
 {
 	u8 rcal_value;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	and_radio_reg(pi, RADIO_2064_REG05B, 0xfD);
 
@@ -4664,9 +4620,6 @@ static void wlc_lcnphy_rc_cal(struct brcms_phy *pi)
 {
 	u8 dflt_rc_cal_val;
 	u16 flt_val;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	dflt_rc_cal_val = 7;
 	if (LCNREV_IS(pi->pubpi.phy_rev, 1))
@@ -4830,8 +4783,7 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 	u8 d15, d16, f16, e44, e45;
 	u32 div_int, div_frac, fvco3, fpfd, fref3, fcal_div;
 	u16 loop_bw, d30, setCount;
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
+
 	ci = &chan_info_2064_lcnphy[0];
 	rfpll_doubler = 1;
 
@@ -5021,8 +4973,7 @@ bool wlc_phy_attach_lcnphy(struct brcms_phy *pi)
 
 	pi_lcn = pi->u.pi_lcnphy;
 
-	if ((0 == (pi->sh->boardflags & BFL_NOPA)) &&
-	    !NORADIO_ENAB(pi->pubpi)) {
+	if (0 == (pi->sh->boardflags & BFL_NOPA)) {
 		pi->hwpwrctrl = true;
 		pi->hwpwrctrl_capable = true;
 	}

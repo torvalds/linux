@@ -297,12 +297,6 @@ enum phy_cal_mode {
 #define PUB_NOT_ASSOC(pi) \
 	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_NOT_ASSOC))
 
-#if defined(EXT_CBALL)
-#define NORADIO_ENAB(pub) ((pub).radioid == NORADIO_ID)
-#else
-#define NORADIO_ENAB(pub) 0
-#endif
-
 #define PHY_LTRN_LIST_LEN	64
 extern u16 ltrn_list[PHY_LTRN_LIST_LEN];
 

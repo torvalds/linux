@@ -220,9 +220,6 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 	if ((addr == RADIO_IDCODE))
 		return 0xffff;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return NORADIO_IDCODE & 0xffff;
-
 	switch (pi->pubpi.phy_type) {
 	case PHY_TYPE_N:
 		CASECHECK(PHYTYPE, PHY_TYPE_N);
@@ -265,9 +262,6 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 
 void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	if ((D11REV_GE(pi->sh->corerev, 24)) ||
 	    (D11REV_IS(pi->sh->corerev, 22)
 	     && (pi->pubpi.phy_type != PHY_TYPE_SSN))) {
@@ -288,9 +282,6 @@ void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 static u32 read_radio_id(struct brcms_phy *pi)
 {
 	u32 id;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return NORADIO_IDCODE;
 
 	if (D11REV_GE(pi->sh->corerev, 24)) {
 		u32 b0, b1, b2;
@@ -317,9 +308,6 @@ void and_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
 	u16 rval;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	rval = read_radio_reg(pi, addr);
 	write_radio_reg(pi, addr, (rval & val));
 }
@@ -327,9 +315,6 @@ void and_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 void or_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
 	u16 rval;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	rval = read_radio_reg(pi, addr);
 	write_radio_reg(pi, addr, (rval | val));
@@ -339,9 +324,6 @@ void xor_radio_reg(struct brcms_phy *pi, u16 addr, u16 mask)
 {
 	u16 rval;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	rval = read_radio_reg(pi, addr);
 	write_radio_reg(pi, addr, (rval ^ mask));
 }
@@ -349,9 +331,6 @@ void xor_radio_reg(struct brcms_phy *pi, u16 addr, u16 mask)
 void mod_radio_reg(struct brcms_phy *pi, u16 addr, u16 mask, u16 val)
 {
 	u16 rval;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	rval = read_radio_reg(pi, addr);
 	write_radio_reg(pi, addr, (rval & ~mask) | (val & mask));
@@ -1224,9 +1203,6 @@ static bool wlc_phy_cal_txpower_recalc_sw(struct brcms_phy *pi)
 void wlc_phy_switch_radio(struct brcms_phy_pub *pih, bool on)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	{
 		uint mc;
@@ -2308,9 +2284,6 @@ wlc_phy_noise_sample_request(struct brcms_phy_pub *pih, u8 reason, u8 ch)
 	bool sampling_in_progress = (pi->phynoise_state != 0);
 	bool wait_for_intr = true;
 
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
-
 	switch (reason) {
 	case PHY_NOISE_SAMPLE_MON:
 		pi->phynoise_chan_watchdog = ch;
@@ -2618,11 +2591,6 @@ void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
 	uint radioid = pih->radioid;
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
 
-	if (NORADIO_ENAB(pi->pubpi)) {
-		rssi = BRCMS_RSSI_INVALID;
-		goto end;
-	}
-
 	if ((pi->sh->corerev >= 11)
 	    && !(le16_to_cpu(rxh->RxStatus2) & RXS_PHYRXST_VALID)) {
 		rssi = BRCMS_RSSI_INVALID;
@@ -2703,9 +2671,6 @@ void wlc_phy_watchdog(struct brcms_phy_pub *pih)
 		if (!SCAN_INPROG_PHY(pi) && wlc_phy_cal_txpower_recalc_sw(pi))
 			pi->phycal_txpower = pi->sh->now;
 	}
-
-	if (NORADIO_ENAB(pi->pubpi))
-		return;
 
 	if ((SCAN_RM_IN_PROGRESS(pi) || PLT_INPROG_PHY(pi)
 	     || ASSOC_INPROG_PHY(pi)))
