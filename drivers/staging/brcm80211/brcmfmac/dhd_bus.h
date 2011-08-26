@@ -18,12 +18,7 @@
 #define _BRCMF_BUS_H_
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
-#ifndef BRCMF_SDALIGN
-#define BRCMF_SDALIGN	32
-#endif
-#if !ISPOWEROF2(BRCMF_SDALIGN)
-#error BRCMF_SDALIGN is not a power of 2!
-#endif
+#define BRCMF_SDALIGN	(1 << 6)
 
 /*
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)

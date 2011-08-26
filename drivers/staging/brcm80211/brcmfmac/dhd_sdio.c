@@ -130,13 +130,8 @@ struct rte_console {
 #define MAX_DATA_BUF	(32 * 1024)	/* Must be large enough to hold
 				 biggest possible glom */
 
-#ifndef BRCMF_FIRSTREAD
-#define BRCMF_FIRSTREAD	32
-#endif
+#define BRCMF_FIRSTREAD	(1 << 6)
 
-#if !ISPOWEROF2(BRCMF_FIRSTREAD)
-#error BRCMF_FIRSTREAD is not a power of 2!
-#endif
 
 /* SBSDIO_DEVICE_CTL */
 
@@ -362,13 +357,7 @@ struct rte_console {
 
 
 /* Space for header read, limit for data packets */
-#ifndef MAX_HDR_READ
-#define MAX_HDR_READ	32
-#endif
-#if !ISPOWEROF2(MAX_HDR_READ)
-#error MAX_HDR_READ is not a power of 2!
-#endif
-
+#define MAX_HDR_READ	(1 << 6)
 #define MAX_RX_DATASZ	2048
 
 /* Maximum milliseconds to wait for F2 to come up */
