@@ -176,7 +176,7 @@ static inline void il_write_reg_buf(struct il_priv *il,
 {
 	u32 count = sizeof(u32);
 
-	if ((il != NULL) && (values != NULL)) {
+	if (il != NULL && values != NULL) {
 		for (; 0 < len; len -= count, reg += count, values++)
 			il_wr(il, reg, *values);
 	}

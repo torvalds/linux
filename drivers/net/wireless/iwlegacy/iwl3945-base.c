@@ -646,7 +646,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	il_txq_update_write_ptr(il, txq);
 	spin_unlock_irqrestore(&il->lock, flags);
 
-	if ((il_queue_space(q) < q->high_mark)
+	if (il_queue_space(q) < q->high_mark
 	    && il->mac80211_registered) {
 		if (wait_write_ptr) {
 			spin_lock_irqsave(&il->lock, flags);
@@ -974,7 +974,7 @@ static void il3945_rx_queue_restock(struct il_priv *il)
 
 	spin_lock_irqsave(&rxq->lock, flags);
 	write = rxq->write & ~0x7;
-	while ((il_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
+	while (il_rx_queue_space(rxq) > 0 && rxq->free_count) {
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
 		rxb = list_entry(element, struct il_rx_mem_buffer, list);
@@ -995,8 +995,8 @@ static void il3945_rx_queue_restock(struct il_priv *il)
 
 	/* If we've added more space for the firmware to place data, tell it.
 	 * Increment device's write pointer in multiples of 8. */
-	if ((rxq->write_actual != (rxq->write & ~0x7))
-	    || (abs(rxq->write - rxq->read) > 7)) {
+	if (rxq->write_actual != (rxq->write & ~0x7) ||
+	    abs(rxq->write - rxq->read) > 7) {
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
 		spin_unlock_irqrestore(&rxq->lock, flags);
@@ -1041,7 +1041,7 @@ static void il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 		if (!page) {
 			if (net_ratelimit())
 				D_INFO("Failed to allocate SKB buffer.\n");
-			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
+			if (rxq->free_count <= RX_LOW_WATERMARK &&
 			    net_ratelimit())
 				IL_ERR("Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
 					 priority == GFP_ATOMIC ?  "GFP_ATOMIC" : "GFP_KERNEL",
@@ -1254,8 +1254,8 @@ static void il3945_rx_handle(struct il_priv *il)
 		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
-			(pkt->hdr.cmd != REPLY_TX);
+			pkt->hdr.cmd != STATISTICS_NOTIFICATION &&
+			pkt->hdr.cmd != REPLY_TX;
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
@@ -1659,7 +1659,7 @@ static void il3945_init_hw_rates(struct il_priv *il,
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
-		if ((i > IWL39_LAST_OFDM_RATE) || (i < IL_FIRST_OFDM_RATE)) {
+		if (i > IWL39_LAST_OFDM_RATE || i < IL_FIRST_OFDM_RATE) {
 			/*
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
@@ -3294,7 +3294,7 @@ static ssize_t il3945_show_measurement(struct device *d,
 	il->measurement_status = 0;
 	spin_unlock_irqrestore(&il->lock, flags);
 
-	while (size && (PAGE_SIZE - len)) {
+	while (size && PAGE_SIZE - len) {
 		hex_dump_to_buffer(data + ofs, size, 16, 1, buf + len,
 				   PAGE_SIZE - len, 1);
 		len = strlen(buf);
@@ -3406,7 +3406,7 @@ static ssize_t il3945_store_antenna(struct device *d,
 		return count;
 	}
 
-	if ((ant >= 0) && (ant <= 2)) {
+	if (ant >= 0 && ant <= 2) {
 		D_INFO("Setting antenna select to %d.\n", ant);
 		il3945_mod_params.antenna = (enum il3945_antenna)ant;
 	} else

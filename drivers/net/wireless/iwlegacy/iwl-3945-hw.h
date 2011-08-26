@@ -264,8 +264,8 @@ struct il3945_eeprom {
 
 static inline int il3945_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= IWL39_RTC_DATA_LOWER_BOUND) &&
-	       (addr < IWL39_RTC_DATA_UPPER_BOUND);
+	return (addr >= IWL39_RTC_DATA_LOWER_BOUND &&
+		addr < IWL39_RTC_DATA_UPPER_BOUND);
 }
 
 /* Base physical address of il3945_shared is provided to FH_TSSR_CBB_BASE

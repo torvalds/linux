@@ -565,7 +565,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
 	struct il_queue *q = &txq->q;
 	int nfreed = 0;
 
-	if ((idx >= q->n_bd) || (il_queue_used(q, idx) == 0)) {
+	if (idx >= q->n_bd || il_queue_used(q, idx) == 0) {
 		IL_ERR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  idx, q->n_bd, q->write_ptr, q->read_ptr);

@@ -173,7 +173,7 @@ void il3945_disable_events(struct il_priv *il)
 	disable_ptr = il_read_targ_mem(il, base + (4 * sizeof(u32)));
 	array_size = il_read_targ_mem(il, base + (5 * sizeof(u32)));
 
-	if (IL_EVT_DISABLE && (array_size == IL_EVT_DISABLE_SIZE)) {
+	if (IL_EVT_DISABLE && array_size == IL_EVT_DISABLE_SIZE) {
 		D_INFO("Disabling selected uCode log events at 0x%x\n",
 			       disable_ptr);
 		for (i = 0; i < IL_EVT_DISABLE_SIZE; i++)
@@ -293,9 +293,8 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 		il->cfg->ops->lib->txq_free_tfd(il, txq);
 	}
 
-	if (il_queue_space(q) > q->low_mark && (txq_id >= 0) &&
-			(txq_id != IWL39_CMD_QUEUE_NUM) &&
-			il->mac80211_registered)
+	if (il_queue_space(q) > q->low_mark && txq_id >= 0 &&
+	    txq_id != IWL39_CMD_QUEUE_NUM && il->mac80211_registered)
 		il_wake_queue(il, txq);
 }
 
@@ -316,7 +315,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 	int rate_idx;
 	int fail;
 
-	if ((index >= txq->q.n_bd) || (il_queue_used(&txq->q, index) == 0)) {
+	if (index >= txq->q.n_bd || il_queue_used(&txq->q, index) == 0) {
 		IL_ERR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
@@ -544,8 +543,8 @@ static void il3945_rx_reply_rx(struct il_priv *il,
 		return;
 	}
 
-	if (!(rx_end->status & RX_RES_STATUS_NO_CRC32_ERROR)
-	    || !(rx_end->status & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
+	if (!(rx_end->status & RX_RES_STATUS_NO_CRC32_ERROR) ||
+	    !(rx_end->status & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
 		D_RX("Bad CRC or FIFO: 0x%08X.\n", rx_end->status);
 		return;
 	}
@@ -599,7 +598,7 @@ int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 
 	count = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 
-	if ((count >= NUM_TFD_CHUNKS) || (count < 0)) {
+	if (count >= NUM_TFD_CHUNKS || count < 0) {
 		IL_ERR("Error can not send more than %d chunks\n",
 			  NUM_TFD_CHUNKS);
 		return -EINVAL;
@@ -1053,7 +1052,7 @@ static int il3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
  */
 static inline int il3945_hw_reg_temp_out_of_range(int temperature)
 {
-	return ((temperature < -260) || (temperature > 25)) ? 1 : 0;
+	return (temperature < -260 || temperature > 25) ? 1 : 0;
 }
 
 int il3945_hw_get_temperature(struct il_priv *il)
@@ -1666,10 +1665,10 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
 	const struct il_rxon_cmd *rxon1 = &ctx->staging;
 	const struct il_rxon_cmd *rxon2 = &ctx->active;
 
-	if ((rxon1->flags == rxon2->flags) &&
-	    (rxon1->filter_flags == rxon2->filter_flags) &&
-	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
-	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
+	if (rxon1->flags == rxon2->flags &&
+	    rxon1->filter_flags == rxon2->filter_flags &&
+	    rxon1->cck_basic_rates == rxon2->cck_basic_rates &&
+	    rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates) {
 		D_INFO("Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}

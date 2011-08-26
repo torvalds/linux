@@ -284,8 +284,8 @@ static bool iw4965_is_ht40_channel(__le32 rxon_flags)
 {
 	int chan_mod = le32_to_cpu(rxon_flags & RXON_FLG_CHANNEL_MODE_MSK)
 				    >> RXON_FLG_CHANNEL_MODE_POS;
-	return ((chan_mod == CHANNEL_MODE_PURE_40) ||
-		  (chan_mod == CHANNEL_MODE_MIXED));
+	return (chan_mod == CHANNEL_MODE_PURE_40 ||
+		chan_mod == CHANNEL_MODE_MIXED);
 }
 
 static void il4965_nic_config(struct il_priv *il)
@@ -323,7 +323,7 @@ static void il4965_chain_noise_reset(struct il_priv *il)
 {
 	struct il_chain_noise_data *data = &(il->chain_noise_data);
 
-	if ((data->state == IL_CHAIN_NOISE_ALIVE) &&
+	if (data->state == IL_CHAIN_NOISE_ALIVE &&
 	    il_is_any_associated(il)) {
 		struct il_calib_diff_gain_cmd cmd;
 
@@ -458,8 +458,8 @@ static s32 il4965_get_voltage_compensation(s32 eeprom_voltage,
 {
 	s32 comp = 0;
 
-	if ((TX_POWER_IL_ILLEGAL_VOLTAGE == eeprom_voltage) ||
-	    (TX_POWER_IL_ILLEGAL_VOLTAGE == current_voltage))
+	if (TX_POWER_IL_ILLEGAL_VOLTAGE == eeprom_voltage ||
+	    TX_POWER_IL_ILLEGAL_VOLTAGE == current_voltage)
 		return 0;
 
 	il4965_math_div_round(current_voltage - eeprom_voltage,
@@ -506,8 +506,8 @@ static u32 il4965_get_sub_band(const struct il_priv *il, u32 channel)
 		if (il->calib_info->band_info[b].ch_from == 0)
 			continue;
 
-		if ((channel >= il->calib_info->band_info[b].ch_from)
-		    && (channel <= il->calib_info->band_info[b].ch_to))
+		if (channel >= il->calib_info->band_info[b].ch_from &&
+		    channel <= il->calib_info->band_info[b].ch_to)
 			break;
 	}
 
@@ -1158,15 +1158,15 @@ static int il4965_send_rxon_assoc(struct il_priv *il,
 	const struct il_rxon_cmd *rxon1 = &ctx->staging;
 	const struct il_rxon_cmd *rxon2 = &ctx->active;
 
-	if ((rxon1->flags == rxon2->flags) &&
-	    (rxon1->filter_flags == rxon2->filter_flags) &&
-	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
-	    (rxon1->ofdm_ht_single_stream_basic_rates ==
-	     rxon2->ofdm_ht_single_stream_basic_rates) &&
-	    (rxon1->ofdm_ht_dual_stream_basic_rates ==
-	     rxon2->ofdm_ht_dual_stream_basic_rates) &&
-	    (rxon1->rx_chain == rxon2->rx_chain) &&
-	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
+	if (rxon1->flags == rxon2->flags &&
+	    rxon1->filter_flags == rxon2->filter_flags &&
+	    rxon1->cck_basic_rates == rxon2->cck_basic_rates &&
+	    rxon1->ofdm_ht_single_stream_basic_rates ==
+		rxon2->ofdm_ht_single_stream_basic_rates &&
+	    rxon1->ofdm_ht_dual_stream_basic_rates ==
+		rxon2->ofdm_ht_dual_stream_basic_rates &&
+	    rxon1->rx_chain == rxon2->rx_chain &&
+	    rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates) {
 		D_INFO("Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}
@@ -1216,7 +1216,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * abort any previous channel switch if still in process
 	 */
 	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status) &&
-	    (il->switch_channel != ctx->staging.channel)) {
+	    il->switch_channel != ctx->staging.channel) {
 		D_11H("abort channel switch on %d\n",
 		      le16_to_cpu(il->switch_channel));
 		il_chswitch_done(il, false);
@@ -1366,7 +1366,7 @@ static int il4965_hw_channel_switch(struct il_priv *il,
 	 * calculate the ucode channel switch time
 	 * adding TSF as one of the factor for when to switch
 	 */
-	if ((il->ucode_beacon_time > tsf_low) && beacon_interval) {
+	if (il->ucode_beacon_time > tsf_low && beacon_interval) {
 		if (switch_count > ((il->ucode_beacon_time - tsf_low) /
 		    beacon_interval)) {
 			switch_count -= (il->ucode_beacon_time -
@@ -1789,7 +1789,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 	u8 *qc = NULL;
 	unsigned long flags;
 
-	if ((index >= txq->q.n_bd) || (il_queue_used(&txq->q, index) == 0)) {
+	if (index >= txq->q.n_bd || il_queue_used(&txq->q, index) == 0) {
 		IL_ERR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
@@ -1838,8 +1838,8 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 						       tid, freed);
 
 			if (il->mac80211_registered &&
-			    (il_queue_space(&txq->q) > txq->q.low_mark)
-				 && (agg->state != IL_EMPTYING_HW_QUEUE_DELBA))
+			    il_queue_space(&txq->q) > txq->q.low_mark &&
+			    agg->state != IL_EMPTYING_HW_QUEUE_DELBA)
 				il_wake_queue(il, txq);
 		}
 	} else {
@@ -1863,7 +1863,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 			D_TX_REPLY("Station not known\n");
 
 		if (il->mac80211_registered &&
-		    (il_queue_space(&txq->q) > txq->q.low_mark))
+		    il_queue_space(&txq->q) > txq->q.low_mark)
 			il_wake_queue(il, txq);
 	}
 	if (qc && likely(sta_id != IL_INVALID_STATION))

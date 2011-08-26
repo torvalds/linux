@@ -234,7 +234,7 @@ void il4965_rx_queue_restock(struct il_priv *il)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rxq->lock, flags);
-	while ((il_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
+	while (il_rx_queue_space(rxq) > 0 && rxq->free_count) {
 		/* The overwritten rxb must be a used one */
 		rxb = rxq->queue[rxq->write];
 		BUG_ON(rxb && rxb->page);
@@ -307,7 +307,7 @@ static void il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 					       "order: %d\n",
 					       il->hw_params.rx_page_order);
 
-			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
+			if (rxq->free_count <= RX_LOW_WATERMARK &&
 			    net_ratelimit())
 				IL_ERR(
 					"Failed to alloc_pages with %s. "
@@ -1106,7 +1106,7 @@ void il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx)
 
 	ctx->staging.rx_chain = cpu_to_le16(rx_chain);
 
-	if (!is_single && (active_rx_cnt >= IL_NUM_RX_CHAINS_SINGLE) && is_cam)
+	if (!is_single && active_rx_cnt >= IL_NUM_RX_CHAINS_SINGLE && is_cam)
 		ctx->staging.rx_chain |= RXON_RX_CHAIN_MIMO_FORCE_MSK;
 	else
 		ctx->staging.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;

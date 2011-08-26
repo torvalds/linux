@@ -198,8 +198,8 @@ static int il4965_sens_energy_cck(struct il_priv *il,
 			data->num_in_cck_no_fa);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
-	if ((false_alarms > max_false_alarms) &&
-		(data->auto_corr_cck > AUTO_CORR_MAX_TH_CCK)) {
+	if (false_alarms > max_false_alarms &&
+	    data->auto_corr_cck > AUTO_CORR_MAX_TH_CCK) {
 		D_CALIB("norm FA %u > max FA %u\n",
 		     false_alarms, max_false_alarms);
 		D_CALIB("... reducing sensitivity\n");
@@ -230,9 +230,9 @@ static int il4965_sens_energy_cck(struct il_priv *il,
 		 *      from a previous beacon with too many, or healthy # FAs
 		 * OR 2) We've seen a lot of beacons (100) with too few
 		 *       false alarms */
-		if ((data->nrg_prev_state != IL_FA_TOO_MANY) &&
-			((data->nrg_auto_corr_silence_diff > NRG_DIFF) ||
-			(data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA))) {
+		if (data->nrg_prev_state != IL_FA_TOO_MANY &&
+		    (data->nrg_auto_corr_silence_diff > NRG_DIFF ||
+		     data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA)) {
 
 			D_CALIB("... increasing sensitivity\n");
 			/* Increase nrg value to increase sensitivity */
@@ -289,9 +289,9 @@ static int il4965_sens_energy_cck(struct il_priv *il,
 		val = data->auto_corr_cck_mrc + AUTO_CORR_STEP_CCK;
 		data->auto_corr_cck_mrc =
 			min((u32)ranges->auto_corr_max_cck_mrc, val);
-	} else if ((false_alarms < min_false_alarms) &&
-	   ((data->nrg_auto_corr_silence_diff > NRG_DIFF) ||
-	   (data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA))) {
+	} else if (false_alarms < min_false_alarms &&
+		   (data->nrg_auto_corr_silence_diff > NRG_DIFF ||
+		    data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA)) {
 
 		/* Decrease auto_corr values to increase sensitivity */
 		val = data->auto_corr_cck - AUTO_CORR_STEP_CCK;
@@ -747,9 +747,8 @@ static void il4965_gain_computation(struct il_priv *il,
 	for (i = default_chain; i < NUM_RX_CHAINS; i++) {
 		s32 delta_g = 0;
 
-		if (!(data->disconn_array[i]) &&
-		    (data->delta_gain_code[i] ==
-			     CHAIN_NOISE_DELTA_GAIN_INIT_VAL)) {
+		if (!data->disconn_array[i] &&
+		    data->delta_gain_code[i] == CHAIN_NOISE_DELTA_GAIN_INIT_VAL) {
 			delta_g = average_noise[i] - min_average_noise;
 			data->delta_gain_code[i] = (u8)((delta_g * 10) / 15);
 			data->delta_gain_code[i] =
@@ -860,7 +859,7 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
-	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
+	if (rxon_chnum != stat_chnum || rxon_band24 != stat_band24) {
 		D_CALIB("Stats not from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
 		spin_unlock_irqrestore(&il->lock, flags);
@@ -920,8 +919,8 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 			   il->cfg->base_params->chain_noise_num_beacons;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
-		if (!(data->disconn_array[i]) &&
-		   (average_noise[i] <= min_average_noise)) {
+		if (!data->disconn_array[i] &&
+		    average_noise[i] <= min_average_noise) {
 			/* This means that chain i is active and has
 			 * lower noise values so far: */
 			min_average_noise = average_noise[i];

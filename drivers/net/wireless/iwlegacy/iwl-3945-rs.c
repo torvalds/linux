@@ -104,7 +104,7 @@ static u8 il3945_get_rate_index_by_rssi(s32 rssi, enum ieee80211_band band)
 	u32 table_size = 0;
 	struct il3945_tpt_entry *tpt_table = NULL;
 
-	if ((rssi < IL_MIN_RSSI_VAL) || (rssi > IL_MAX_RSSI_VAL))
+	if (rssi < IL_MIN_RSSI_VAL || rssi > IL_MAX_RSSI_VAL)
 		rssi = IL_MIN_RSSI_VAL;
 
 	switch (band) {
@@ -123,7 +123,7 @@ static u8 il3945_get_rate_index_by_rssi(s32 rssi, enum ieee80211_band band)
 		break;
 	}
 
-	while ((index < table_size) && (rssi < tpt_table[index].min_rssi))
+	while (index < table_size && rssi < tpt_table[index].min_rssi)
 		index++;
 
 	index = min(index, (table_size - 1));
@@ -315,8 +315,8 @@ static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 	fail_count = window->counter - window->success_counter;
 
 	/* Calculate average throughput, if we have enough history. */
-	if ((fail_count >= IL_RATE_MIN_FAILURE_TH) ||
-	    (window->success_counter >= IL_RATE_MIN_SUCCESS_TH))
+	if (fail_count >= IL_RATE_MIN_FAILURE_TH ||
+	    window->success_counter >= IL_RATE_MIN_SUCCESS_TH)
 		window->average_tpt = ((window->success_ratio *
 				rs_sta->expected_tpt[index] + 64) / 128);
 	else
@@ -461,7 +461,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 		retries = IL_RATE_RETRY_TH;
 
 	first_index = sband->bitrates[info->status.rates[0].idx].hw_value;
-	if ((first_index < 0) || (first_index >= IL_RATE_COUNT_3945)) {
+	if (first_index < 0 || first_index >= IL_RATE_COUNT_3945) {
 		D_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
 	}
@@ -663,9 +663,9 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	/* get user max rate if set */
 	max_rate_idx = txrc->max_rate_idx;
-	if ((sband->band == IEEE80211_BAND_5GHZ) && (max_rate_idx != -1))
+	if (sband->band == IEEE80211_BAND_5GHZ && max_rate_idx != -1)
 		max_rate_idx += IL_FIRST_OFDM_RATE;
-	if ((max_rate_idx < 0) || (max_rate_idx >= IL_RATE_COUNT))
+	if (max_rate_idx < 0 || max_rate_idx >= IL_RATE_COUNT)
 		max_rate_idx = -1;
 
 	index = min(rs_sta->last_txrate_idx & 0xffff, IL_RATE_COUNT_3945 - 1);
@@ -686,7 +686,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	}
 
 	/* force user max rate if set by user */
-	if ((max_rate_idx != -1) && (max_rate_idx < index)) {
+	if (max_rate_idx != -1 && max_rate_idx < index) {
 		if (rate_mask & (1 << max_rate_idx))
 			index = max_rate_idx;
 	}
@@ -695,8 +695,8 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	fail_count = window->counter - window->success_counter;
 
-	if (((fail_count < IL_RATE_MIN_FAILURE_TH) &&
-	     (window->success_counter < IL_RATE_MIN_SUCCESS_TH))) {
+	if (fail_count < IL_RATE_MIN_FAILURE_TH &&
+	    window->success_counter < IL_RATE_MIN_SUCCESS_TH) {
 		spin_unlock_irqrestore(&rs_sta->lock, flags);
 
 		D_RATE("Invalid average_tpt on rate %d: "
@@ -721,7 +721,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	high = (high_low >> 8) & 0xff;
 
 	/* If user set max rate, dont allow higher than user constrain */
-	if ((max_rate_idx != -1) && (max_rate_idx < high))
+	if (max_rate_idx != -1 && max_rate_idx < high)
 		high = IL_RATE_INVALID;
 
 	/* Collect Measured throughputs of adjacent rates */
@@ -736,13 +736,13 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	scale_action = 0;
 
 	/* Low success ratio , need to drop the rate */
-	if ((window->success_ratio < IL_RATE_DECREASE_TH) || !current_tpt) {
+	if (window->success_ratio < IL_RATE_DECREASE_TH || !current_tpt) {
 		D_RATE("decrease rate because of low success_ratio\n");
 		scale_action = -1;
 	/* No throughput measured yet for adjacent rates,
 	 * try increase */
-	} else if ((low_tpt == IL_INVALID_VALUE) &&
-		   (high_tpt == IL_INVALID_VALUE)) {
+	} else if (low_tpt == IL_INVALID_VALUE &&
+		   high_tpt == IL_INVALID_VALUE) {
 
 		if (high != IL_RATE_INVALID && window->success_ratio >= IL_RATE_INCREASE_TH)
 			scale_action = 1;
@@ -752,9 +752,9 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	/* Both adjacent throughputs are measured, but neither one has
 	 * better throughput; we're using the best rate, don't change
 	 * it! */
-	} else if ((low_tpt != IL_INVALID_VALUE) &&
-		 (high_tpt != IL_INVALID_VALUE) &&
-		 (low_tpt < current_tpt) && (high_tpt < current_tpt)) {
+	} else if (low_tpt != IL_INVALID_VALUE &&
+		 high_tpt != IL_INVALID_VALUE &&
+		 low_tpt < current_tpt && high_tpt < current_tpt) {
 
 		D_RATE("No action -- low [%d] & high [%d] < "
 			       "current_tpt [%d]\n",
@@ -790,9 +790,9 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	/* Sanity check; asked for decrease, but success rate or throughput
 	 * has been good at old rate.  Don't change it. */
-	if ((scale_action == -1) && (low != IL_RATE_INVALID) &&
-		    ((window->success_ratio > IL_RATE_HIGH_TH) ||
-		     (current_tpt > (100 * rs_sta->expected_tpt[low]))))
+	if (scale_action == -1 && low != IL_RATE_INVALID &&
+	    (window->success_ratio > IL_RATE_HIGH_TH ||
+	     current_tpt > 100 * rs_sta->expected_tpt[low]))
 		scale_action = 0;
 
 	switch (scale_action) {

@@ -251,8 +251,8 @@ int il_init_geos(struct il_priv *il)
 	il->tx_power_user_lmt = max_tx_power;
 	il->tx_power_next = max_tx_power;
 
-	if ((il->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
-	     il->cfg->sku & IL_SKU_A) {
+	if (il->bands[IEEE80211_BAND_5GHZ].n_channels == 0 &&
+	    (il->cfg->sku & IL_SKU_A)) {
 		IL_INFO("Incorrectly detected BG card as ABG. "
 			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
 			   il->pci_dev->device,
@@ -708,8 +708,7 @@ il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch,
 	enum ieee80211_band band = ch->band;
 	u16 channel = ch->hw_value;
 
-	if ((le16_to_cpu(ctx->staging.channel) == channel) &&
-	    (il->band == band))
+	if (le16_to_cpu(ctx->staging.channel) == channel && il->band == band)
 		return 0;
 
 	ctx->staging.channel = cpu_to_le16(channel);
@@ -2306,8 +2305,8 @@ static void il_ht_conf(struct il_priv *il,
 				>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
 			maxstreams += 1;
 
-			if ((ht_cap->mcs.rx_mask[1] == 0) &&
-			    (ht_cap->mcs.rx_mask[2] == 0))
+			if (ht_cap->mcs.rx_mask[1] == 0 &&
+			    ht_cap->mcs.rx_mask[2] == 0)
 				ht_conf->single_chain_sufficient = true;
 			if (maxstreams <= 1)
 				ht_conf->single_chain_sufficient = true;
@@ -2467,7 +2466,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * mac80211 decides to do both changes at once because
 	 * it will invoke post_associate.
 	 */
-	if (vif->type == NL80211_IFTYPE_ADHOC && changes & BSS_CHANGED_BEACON)
+	if (vif->type == NL80211_IFTYPE_ADHOC && (changes & BSS_CHANGED_BEACON))
 		il_beacon_update(hw, vif);
 
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
@@ -2482,8 +2481,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
 		D_MAC80211(
 			"ERP_CTS %d\n", bss_conf->use_cts_prot);
-		if (bss_conf->use_cts_prot &&
-			(il->band != IEEE80211_BAND_5GHZ))
+		if (bss_conf->use_cts_prot && il->band != IEEE80211_BAND_5GHZ)
 			ctx->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
 			ctx->staging.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
@@ -2596,7 +2594,7 @@ irqreturn_t il_isr(int irq, void *data)
 		goto none;
 	}
 
-	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
+	if (inta == 0xFFFFFFFF || (inta & 0xFFFFFFF0) == 0xa5a5a5a0) {
 		/* Hardware disappeared. It might have already raised
 		 * an interrupt */
 		IL_WARN("HARDWARE GONE?? INTA == 0x%08x\n", inta);

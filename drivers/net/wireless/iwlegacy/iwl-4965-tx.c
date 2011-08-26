@@ -195,8 +195,8 @@ static void il4965_tx_cmd_build_rate(struct il_priv *il,
 	 * index is invalid.
 	 */
 	rate_idx = info->control.rates[0].idx;
-	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS ||
-			(rate_idx < 0) || (rate_idx > IL_RATE_COUNT_LEGACY))
+	if ((info->control.rates[0].flags & IEEE80211_TX_RC_MCS) ||
+	    rate_idx < 0 || rate_idx > IL_RATE_COUNT_LEGACY)
 		rate_idx = rate_lowest_index(&il->bands[info->band],
 				info->control.sta);
 	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
@@ -208,7 +208,7 @@ static void il4965_tx_cmd_build_rate(struct il_priv *il,
 	rate_flags = 0;
 
 	/* Set CCK flag as needed */
-	if ((rate_idx >= IL_FIRST_CCK_RATE) && (rate_idx <= IL_LAST_CCK_RATE))
+	if (rate_idx >= IL_FIRST_CCK_RATE && rate_idx <= IL_LAST_CCK_RATE)
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
@@ -535,8 +535,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	if (sta_priv && sta_priv->client && !is_agg)
 		atomic_inc(&sta_priv->pending_frames);
 
-	if ((il_queue_space(q) < q->high_mark) &&
-			il->mac80211_registered) {
+	if (il_queue_space(q) < q->high_mark && il->mac80211_registered) {
 		if (wait_write_ptr) {
 			spin_lock_irqsave(&il->lock, flags);
 			txq->need_update = 1;
@@ -1050,8 +1049,8 @@ int il4965_txq_check_empty(struct il_priv *il,
 	case IL_EMPTYING_HW_QUEUE_DELBA:
 		/* We are reclaiming the last packet of the */
 		/* aggregated HW queue */
-		if ((txq_id  == tid_data->agg.txq_id) &&
-		    (q->read_ptr == q->write_ptr)) {
+		if (txq_id  == tid_data->agg.txq_id &&
+		    q->read_ptr == q->write_ptr) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = il4965_get_fifo_from_tid(ctx, tid);
 			D_HT(
@@ -1114,7 +1113,7 @@ int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index)
 	int nfreed = 0;
 	struct ieee80211_hdr *hdr;
 
-	if ((index >= q->n_bd) || (il_queue_used(q, index) == 0)) {
+	if (index >= q->n_bd || il_queue_used(q, index) == 0) {
 		IL_ERR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);
@@ -1321,9 +1320,9 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 		int freed = il4965_tx_queue_reclaim(il, scd_flow, index);
 		il4965_free_tfds_in_queue(il, sta_id, tid, freed);
 
-		if ((il_queue_space(&txq->q) > txq->q.low_mark) &&
+		if (il_queue_space(&txq->q) > txq->q.low_mark &&
 		    il->mac80211_registered &&
-		    (agg->state != IL_EMPTYING_HW_QUEUE_DELBA))
+		    agg->state != IL_EMPTYING_HW_QUEUE_DELBA)
 			il_wake_queue(il, txq);
 
 		il4965_txq_check_empty(il, sta_id, tid, scd_flow);

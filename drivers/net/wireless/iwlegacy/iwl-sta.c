@@ -595,7 +595,7 @@ il_restore_stations(struct il_priv *il, struct il_rxon_context *ctx)
 		if (ctx->ctxid != il->stations[i].ctxid)
 			continue;
 		if ((il->stations[i].used & IL_STA_DRIVER_ACTIVE) &&
-			    !(il->stations[i].used & IL_STA_UCODE_ACTIVE)) {
+		    !(il->stations[i].used & IL_STA_UCODE_ACTIVE)) {
 			D_ASSOC("Restoring sta %pM\n",
 					il->stations[i].sta.sta.addr);
 			il->stations[i].sta.mode = 0;

@@ -127,7 +127,7 @@ static int il4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 		/* skip 9M not supported in ht*/
 		if (idx >= IL_RATE_9M_INDEX)
 			idx += 1;
-		if ((idx >= IL_FIRST_OFDM_RATE) && (idx <= IL_LAST_OFDM_RATE))
+		if (idx >= IL_FIRST_OFDM_RATE && idx <= IL_LAST_OFDM_RATE)
 			return idx;
 
 	/* legacy rate format, search for match in table */
@@ -251,8 +251,7 @@ il4965_rs_tl_rm_old_stats(struct il_traffic_load *tl, u32 curr_time)
 	/* The oldest age we want to keep */
 	u32 oldest_time = curr_time - TID_MAX_TIME_DIFF;
 
-	while (tl->queue_count &&
-	       (tl->time_stamp < oldest_time)) {
+	while (tl->queue_count && tl->time_stamp < oldest_time) {
 		tl->total -= tl->packet_count[tl->head];
 		tl->packet_count[tl->head] = 0;
 		tl->time_stamp += TID_QUEUE_CELL_SPACING;
@@ -477,8 +476,8 @@ static int il4965_rs_collect_tx_data(struct il_scale_tbl_info *tbl,
 	fail_count = window->counter - window->success_counter;
 
 	/* Calculate average throughput, if we have enough history. */
-	if ((fail_count >= IL_RATE_MIN_FAILURE_TH) ||
-	    (window->success_counter >= IL_RATE_MIN_SUCCESS_TH))
+	if (fail_count >= IL_RATE_MIN_FAILURE_TH ||
+	    window->success_counter >= IL_RATE_MIN_SUCCESS_TH)
 		window->average_tpt = (window->success_ratio * tpt + 64) / 128;
 	else
 		window->average_tpt = IL_INVALID_VALUE;
@@ -619,7 +618,7 @@ static int il4965_rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 
 	new_ant_type = ant_toggle_lookup[tbl->ant_type];
 
-	while ((new_ant_type != tbl->ant_type) &&
+	while (new_ant_type != tbl->ant_type &&
 	       !il4965_rs_is_valid_ant(valid_ant, new_ant_type))
 		new_ant_type = ant_toggle_lookup[new_ant_type];
 
@@ -790,8 +789,8 @@ out:
 static bool il4965_table_type_matches(struct il_scale_tbl_info *a,
 			       struct il_scale_tbl_info *b)
 {
-	return (a->lq_type == b->lq_type) && (a->ant_type == b->ant_type) &&
-		(a->is_SGI == b->is_SGI);
+	return (a->lq_type == b->lq_type && a->ant_type == b->ant_type &&
+		a->is_SGI == b->is_SGI);
 }
 
 /*
@@ -830,7 +829,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	}
 
 	if (!ieee80211_is_data(hdr->frame_control) ||
-	    info->flags & IEEE80211_TX_CTL_NO_ACK)
+	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		return;
 
 	/* This packet was aggregated but doesn't carry status info */
@@ -867,19 +866,14 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 			mac_index += IL_FIRST_OFDM_RATE;
 	}
 	/* Here we actually compare this rate to the latest LQ command */
-	if ((mac_index < 0) ||
-	    (tbl_type.is_SGI !=
-			!!(mac_flags & IEEE80211_TX_RC_SHORT_GI)) ||
-	    (tbl_type.is_ht40 !=
-			!!(mac_flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) ||
-	    (tbl_type.is_dup !=
-			!!(mac_flags & IEEE80211_TX_RC_DUP_DATA)) ||
-	    (tbl_type.ant_type != info->antenna_sel_tx) ||
-	    (!!(tx_rate & RATE_MCS_HT_MSK) !=
-			!!(mac_flags & IEEE80211_TX_RC_MCS)) ||
-	    (!!(tx_rate & RATE_MCS_GF_MSK) !=
-			!!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
-	    (rs_index != mac_index)) {
+	if (mac_index < 0 ||
+	    tbl_type.is_SGI != !!(mac_flags & IEEE80211_TX_RC_SHORT_GI) ||
+	    tbl_type.is_ht40 != !!(mac_flags & IEEE80211_TX_RC_40_MHZ_WIDTH) ||
+	    tbl_type.is_dup != !!(mac_flags & IEEE80211_TX_RC_DUP_DATA) ||
+	    tbl_type.ant_type != info->antenna_sel_tx ||
+	    !!(tx_rate & RATE_MCS_HT_MSK) != !!(mac_flags & IEEE80211_TX_RC_MCS) ||
+	    !!(tx_rate & RATE_MCS_GF_MSK) != !!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD) ||
+	    rs_index != mac_index) {
 		D_RATE(
 		"initial rate %d does not match %d (0x%x)\n",
 			 mac_index, rs_index, tx_rate);
@@ -1119,12 +1113,12 @@ static s32 il4965_rs_get_best_rate(struct il_priv *il,
 		 *    conditions) at candidate rate is above expected
 		 *    "active" throughput (under perfect conditions).
 		 */
-		if ((((100 * tpt_tbl[rate]) > lq_sta->last_tpt) &&
-		     ((active_sr > IL_RATE_DECREASE_TH) &&
-		      (active_sr <= IL_RATE_HIGH_TH) &&
-		      (tpt_tbl[rate] <= active_tpt))) ||
-		    ((active_sr >= IL_RATE_SCALE_SWITCH) &&
-		     (tpt_tbl[rate] > active_tpt))) {
+		if ((100 * tpt_tbl[rate] > lq_sta->last_tpt &&
+		     (active_sr > IL_RATE_DECREASE_TH &&
+		      active_sr <= IL_RATE_HIGH_TH &&
+		      tpt_tbl[rate] <= active_tpt)) ||
+		    (active_sr >= IL_RATE_SCALE_SWITCH &&
+		     tpt_tbl[rate] > active_tpt)) {
 
 			/* (2nd or later pass)
 			 * If we've already tried to raise the rate, and are
@@ -1213,7 +1207,7 @@ static int il4965_rs_switch_to_mimo2(struct il_priv *il,
 
 	D_RATE("LQ: MIMO2 best rate %d mask %X\n",
 				rate, rate_mask);
-	if ((rate == IL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
+	if (rate == IL_RATE_INVALID || !((1 << rate) & rate_mask)) {
 		D_RATE(
 				"Can't switch with index %d rate mask %x\n",
 						rate, rate_mask);
@@ -1265,7 +1259,7 @@ static int il4965_rs_switch_to_siso(struct il_priv *il,
 	rate = il4965_rs_get_best_rate(il, lq_sta, tbl, rate_mask, index);
 
 	D_RATE("LQ: get best rate %d mask %X\n", rate, rate_mask);
-	if ((rate == IL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
+	if (rate == IL_RATE_INVALID || !((1 << rate) & rate_mask)) {
 		D_RATE(
 			"can not switch with index %d rate mask %x\n",
 			     rate, rate_mask);
@@ -1680,10 +1674,10 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 		 * stats in active history.
 		 */
 		if (force_search ||
-		    (lq_sta->total_failed > lq_sta->max_failure_limit) ||
-		    (lq_sta->total_success > lq_sta->max_success_limit) ||
-		    ((!lq_sta->search_better_tbl) && (lq_sta->flush_timer)
-		     && (flush_interval_passed))) {
+		    lq_sta->total_failed > lq_sta->max_failure_limit ||
+		    lq_sta->total_success > lq_sta->max_success_limit ||
+		    (!lq_sta->search_better_tbl && lq_sta->flush_timer &&
+		     flush_interval_passed)) {
 			D_RATE("LQ: stay is expired %d %d %d\n:",
 				     lq_sta->total_failed,
 				     lq_sta->total_success,
@@ -1788,7 +1782,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	/* Send management frames and NO_ACK data using lowest rate. */
 	/* TODO: this could probably be improved.. */
 	if (!ieee80211_is_data(hdr->frame_control) ||
-	    info->flags & IEEE80211_TX_CTL_NO_ACK)
+	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		return;
 
 	if (!sta || !lq_sta)
@@ -1797,7 +1791,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
 
 	tid = il4965_rs_tl_add_packet(lq_sta, hdr);
-	if ((tid != MAX_TID_COUNT) && (lq_sta->tx_agg_tid_en & (1 << tid))) {
+	if (tid != MAX_TID_COUNT && (lq_sta->tx_agg_tid_en & (1 << tid))) {
 		tid_data = &il->stations[lq_sta->lq.sta_id].tid[tid];
 		if (tid_data->agg.state == IL_AGG_OFF)
 			lq_sta->is_agg = 0;
@@ -1872,8 +1866,8 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	}
 
 	/* force user max rate if set by user */
-	if ((lq_sta->max_rate_idx != -1) &&
-	    (lq_sta->max_rate_idx < index)) {
+	if (lq_sta->max_rate_idx != -1 &&
+	    lq_sta->max_rate_idx < index) {
 		index = lq_sta->max_rate_idx;
 		update_lq = 1;
 		window = &(tbl->win[index]);
@@ -1890,8 +1884,8 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	 * in current association (use new rate found above).
 	 */
 	fail_count = window->counter - window->success_counter;
-	if ((fail_count < IL_RATE_MIN_FAILURE_TH) &&
-			(window->success_counter < IL_RATE_MIN_SUCCESS_TH)) {
+	if (fail_count < IL_RATE_MIN_FAILURE_TH &&
+	    window->success_counter < IL_RATE_MIN_SUCCESS_TH) {
 		D_RATE("LQ: still below TH. succ=%d total=%d "
 			       "for index %d\n",
 			       window->success_counter, window->counter, index);
@@ -1975,8 +1969,8 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	high = (high_low >> 8) & 0xff;
 
 	/* If user set max rate, dont allow higher than user constrain */
-	if ((lq_sta->max_rate_idx != -1) &&
-	    (lq_sta->max_rate_idx < high))
+	if (lq_sta->max_rate_idx != -1 &&
+	    lq_sta->max_rate_idx < high)
 		high = IL_RATE_INVALID;
 
 	sr = window->success_ratio;
@@ -1991,14 +1985,14 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 	scale_action = 0;
 
 	/* Too many failures, decrease rate */
-	if ((sr <= IL_RATE_DECREASE_TH) || (current_tpt == 0)) {
+	if (sr <= IL_RATE_DECREASE_TH || current_tpt == 0) {
 		D_RATE(
 			"decrease rate because of low success_ratio\n");
 		scale_action = -1;
 
 	/* No throughput measured yet for adjacent rates; try increase. */
-	} else if ((low_tpt == IL_INVALID_VALUE) &&
-		   (high_tpt == IL_INVALID_VALUE)) {
+	} else if (low_tpt == IL_INVALID_VALUE &&
+		   high_tpt == IL_INVALID_VALUE) {
 
 		if (high != IL_RATE_INVALID && sr >= IL_RATE_INCREASE_TH)
 			scale_action = 1;
@@ -2008,10 +2002,8 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 
 	/* Both adjacent throughputs are measured, but neither one has better
 	 * throughput; we're using the best rate, don't change it! */
-	else if ((low_tpt != IL_INVALID_VALUE) &&
-		 (high_tpt != IL_INVALID_VALUE) &&
-		 (low_tpt < current_tpt) &&
-		 (high_tpt < current_tpt))
+	else if (low_tpt != IL_INVALID_VALUE && high_tpt != IL_INVALID_VALUE &&
+		 low_tpt < current_tpt && high_tpt < current_tpt)
 		scale_action = 0;
 
 	/* At least one adjacent rate's throughput is measured,
@@ -2021,7 +2013,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 		if (high_tpt != IL_INVALID_VALUE) {
 			/* Higher rate has better throughput */
 			if (high_tpt > current_tpt &&
-					sr >= IL_RATE_INCREASE_TH) {
+			    sr >= IL_RATE_INCREASE_TH) {
 				scale_action = 1;
 			} else {
 				scale_action = 0;
@@ -2042,9 +2034,8 @@ static void il4965_rs_rate_scale_perform(struct il_priv *il,
 
 	/* Sanity check; asked for decrease, but success rate or throughput
 	 * has been good at old rate.  Don't change it. */
-	if ((scale_action == -1) && (low != IL_RATE_INVALID) &&
-		    ((sr > IL_RATE_HIGH_TH) ||
-		     (current_tpt > (100 * tbl->expected_tpt[low]))))
+	if (scale_action == -1 && low != IL_RATE_INVALID &&
+	    (sr > IL_RATE_HIGH_TH || current_tpt > 100 * tbl->expected_tpt[low]))
 		scale_action = 0;
 
 	switch (scale_action) {
@@ -2090,8 +2081,8 @@ lq_update:
 	 * 2)  Not just finishing up a search
 	 * 3)  Allowing a new search
 	 */
-	if (!update_lq && !done_search &&
-		!lq_sta->stay_in_tbl && window->counter) {
+	if (!update_lq && !done_search && !lq_sta->stay_in_tbl &&
+	    window->counter) {
 		/* Save current throughput to compare with "search" throughput*/
 		lq_sta->last_tpt = current_tpt;
 
@@ -2146,10 +2137,10 @@ lq_update:
 		 * have been tried and compared, stay in this best modulation
 		 * mode for a while before next round of mode comparisons. */
 		if (lq_sta->enable_counter &&
-		    (lq_sta->action_counter >= tbl1->max_search)) {
-			if ((lq_sta->last_tpt > IL_AGG_TPT_THREHOLD) &&
+		    lq_sta->action_counter >= tbl1->max_search) {
+			if (lq_sta->last_tpt > IL_AGG_TPT_THREHOLD &&
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
-			    (tid != MAX_TID_COUNT)) {
+			    tid != MAX_TID_COUNT) {
 				tid_data =
 				   &il->stations[lq_sta->lq.sta_id].tid[tid];
 				if (tid_data->agg.state == IL_AGG_OFF) {
@@ -2217,7 +2208,7 @@ static void il4965_rs_initialize_lq(struct il_priv *il,
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
 
-	if ((i < 0) || (i >= IL_RATE_COUNT))
+	if (i < 0 || i >= IL_RATE_COUNT)
 		i = 0;
 
 	rate = il_rates[i].plcp;
@@ -2256,11 +2247,11 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 	/* Get max rate if user set max rate */
 	if (lq_sta) {
 		lq_sta->max_rate_idx = txrc->max_rate_idx;
-		if ((sband->band == IEEE80211_BAND_5GHZ) &&
-		    (lq_sta->max_rate_idx != -1))
+		if (sband->band == IEEE80211_BAND_5GHZ &&
+		    lq_sta->max_rate_idx != -1)
 			lq_sta->max_rate_idx += IL_FIRST_OFDM_RATE;
-		if ((lq_sta->max_rate_idx < 0) ||
-		    (lq_sta->max_rate_idx >= IL_RATE_COUNT))
+		if (lq_sta->max_rate_idx < 0 ||
+		    lq_sta->max_rate_idx >= IL_RATE_COUNT)
 			lq_sta->max_rate_idx = -1;
 	}
 
@@ -2301,9 +2292,9 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 					IEEE80211_TX_RC_GREEN_FIELD;
 	} else {
 		/* Check for invalid rates */
-		if ((rate_idx < 0) || (rate_idx >= IL_RATE_COUNT_LEGACY) ||
-				((sband->band == IEEE80211_BAND_5GHZ) &&
-				 (rate_idx < IL_FIRST_OFDM_RATE)))
+		if (rate_idx < 0 || rate_idx >= IL_RATE_COUNT_LEGACY ||
+		    (sband->band == IEEE80211_BAND_5GHZ &&
+		     rate_idx < IL_FIRST_OFDM_RATE))
 			rate_idx = rate_lowest_index(sband, sta);
 		/* On valid 5 GHz rate, adjust index */
 		else if (sband->band == IEEE80211_BAND_5GHZ)
@@ -2475,7 +2466,7 @@ static void il4965_rs_fill_link_cmd(struct il_priv *il,
 		/* Repeat initial/next rate.
 		 * For legacy IL_NUMBER_TRY == 1, this loop will not execute.
 		 * For HT IL_HT_NUMBER_TRY == 3, this executes twice. */
-		while (repeat_rate > 0 && (index < LINK_QUAL_MAX_RETRY_NUM)) {
+		while (repeat_rate > 0 && index < LINK_QUAL_MAX_RETRY_NUM) {
 			if (is_legacy(tbl_type.lq_type)) {
 				if (ant_toggle_cnt < NUM_TRY_BEFORE_ANT_TOGGLE)
 					ant_toggle_cnt++;

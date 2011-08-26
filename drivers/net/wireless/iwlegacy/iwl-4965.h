@@ -163,8 +163,8 @@ static inline u32 il4965_tx_status_to_mac80211(u32 status)
 static inline bool il4965_is_tx_success(u32 status)
 {
 	status &= TX_STATUS_MSK;
-	return (status == TX_STATUS_SUCCESS) ||
-	       (status == TX_STATUS_DIRECT_DONE);
+	return (status == TX_STATUS_SUCCESS ||
+		status == TX_STATUS_DIRECT_DONE);
 }
 
 u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant_idx, u8 valid);

@@ -307,7 +307,7 @@ u16 il_get_passive_dwell_time(struct il_priv *il,
 			if (!il_is_associated_ctx(ctx))
 				continue;
 			value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
-			if ((value > IL_PASSIVE_DWELL_BASE) || !value)
+			if (value > IL_PASSIVE_DWELL_BASE || !value)
 				value = IL_PASSIVE_DWELL_BASE;
 			value = (value * 98) / 100 - IL_CHANNEL_TUNE_TIME * 2;
 			passive = min(value, passive);

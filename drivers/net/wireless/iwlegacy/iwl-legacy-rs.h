@@ -279,7 +279,7 @@ enum il_table_type {
 	LQ_MAX,
 };
 
-#define is_legacy(tbl) (((tbl) == LQ_G) || ((tbl) == LQ_A))
+#define is_legacy(tbl) ((tbl) == LQ_G || (tbl) == LQ_A)
 #define is_siso(tbl) ((tbl) == LQ_SISO)
 #define is_mimo2(tbl) ((tbl) == LQ_MIMO2)
 #define is_mimo(tbl) (is_mimo2(tbl))

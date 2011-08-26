@@ -102,8 +102,8 @@
 
 static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= IWL49_RTC_DATA_LOWER_BOUND) &&
-	       (addr < IWL49_RTC_DATA_UPPER_BOUND);
+	return (addr >= IWL49_RTC_DATA_LOWER_BOUND &&
+		addr < IWL49_RTC_DATA_UPPER_BOUND);
 }
 
 /********************* START TEMPERATURE *************************************/
@@ -147,8 +147,8 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
 #define IL_TX_POWER_TEMPERATURE_MAX  (410)
 
 #define IL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(t) \
-	(((t) < IL_TX_POWER_TEMPERATURE_MIN) || \
-	 ((t) > IL_TX_POWER_TEMPERATURE_MAX))
+	((t) < IL_TX_POWER_TEMPERATURE_MIN || \
+	 (t) > IL_TX_POWER_TEMPERATURE_MAX)
 
 /********************* END TEMPERATURE ***************************************/
 
