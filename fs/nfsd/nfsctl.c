@@ -9,7 +9,6 @@
 #include <linux/ctype.h>
 
 #include <linux/sunrpc/svcsock.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/gss_api.h>

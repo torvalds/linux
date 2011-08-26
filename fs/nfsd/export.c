@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/exportfs.h>
 
-#include <linux/nfsd/syscall.h>
 #include <net/ipv6.h>
 
 #include "nfsd.h"
