@@ -78,6 +78,18 @@ struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
 	struct work_struct rx_replenish;
 	struct iwl_trans *trans;
+
+	/* INT ICT Table */
+	__le32 *ict_tbl;
+	void *ict_tbl_vir;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	u32 inta;
+	bool use_ict;
+	struct tasklet_struct irq_tasklet;
+
+	u32 inta_mask;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -87,7 +99,7 @@ struct iwl_trans_pcie {
 * RX
 ******************************************************/
 void iwl_bg_rx_replenish(struct work_struct *data);
-void iwl_irq_tasklet(struct iwl_priv *priv);
+void iwl_irq_tasklet(struct iwl_trans *trans);
 void iwlagn_rx_replenish(struct iwl_trans *trans);
 void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 			struct iwl_rx_queue *q);
@@ -96,11 +108,10 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 * ICT
 ******************************************************/
 int iwl_reset_ict(struct iwl_priv *priv);
-void iwl_disable_ict(struct iwl_priv *priv);
-int iwl_alloc_isr_ict(struct iwl_priv *priv);
-void iwl_free_isr_ict(struct iwl_priv *priv);
+void iwl_disable_ict(struct iwl_trans *trans);
+int iwl_alloc_isr_ict(struct iwl_trans *trans);
+void iwl_free_isr_ict(struct iwl_trans *trans);
 irqreturn_t iwl_isr_ict(int irq, void *data);
-
 
 /*****************************************************
 * TX / HCMD
@@ -129,5 +140,29 @@ void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 			     int tx_fifo_id, int scd_retry);
 void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 						int frame_limit);
+
+static inline void iwl_disable_interrupts(struct iwl_trans *trans)
+{
+	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);
+
+	/* disable interrupts from uCode/NIC to host */
+	iwl_write32(priv(trans), CSR_INT_MASK, 0x00000000);
+
+	/* acknowledge/clear/reset any interrupts still pending
+	 * from uCode or flow handler (Rx/Tx DMA) */
+	iwl_write32(priv(trans), CSR_INT, 0xffffffff);
+	iwl_write32(priv(trans), CSR_FH_INT_STATUS, 0xffffffff);
+	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
+}
+
+static inline void iwl_enable_interrupts(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
+	set_bit(STATUS_INT_ENABLED, &trans->shrd->status);
+	iwl_write32(priv(trans), CSR_INT_MASK, trans_pcie->inta_mask);
+}
 
 #endif /* __iwl_trans_int_pcie_h__ */

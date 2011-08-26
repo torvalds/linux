@@ -711,7 +711,7 @@ static int iwl_trans_pcie_start_device(struct iwl_priv *priv)
 
 	if (iwl_is_rfkill(priv)) {
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
-		iwl_enable_interrupts(priv);
+		iwl_enable_interrupts(trans(priv));
 		return -ERFKILL;
 	}
 
@@ -730,7 +730,7 @@ static int iwl_trans_pcie_start_device(struct iwl_priv *priv)
 
 	/* clear (again), then enable host interrupts */
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
-	iwl_enable_interrupts(priv);
+	iwl_enable_interrupts(trans(priv));
 
 	/* really make sure rfkill handshake bits are cleared */
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
@@ -931,19 +931,14 @@ static int iwl_trans_tx_stop(struct iwl_priv *priv)
 
 static void iwl_trans_pcie_stop_device(struct iwl_priv *priv)
 {
-	unsigned long flags;
-
 	/* stop and reset the on-board processor */
 	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/* tell the device to stop sending interrupts */
-	spin_lock_irqsave(&priv->shrd->lock, flags);
-	iwl_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
-	iwl_trans_sync_irq(trans(priv));
+	iwl_trans_disable_sync_irq(trans(priv));
 
 	/* device going down, Stop using ICT table */
-	iwl_disable_ict(priv);
+	iwl_disable_ict(trans(priv));
 
 	/*
 	 * If a HW restart happens during firmware loading,
@@ -1132,19 +1127,20 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_priv *priv = priv(trans);
 	int err;
 
-	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
-		iwl_irq_tasklet, (unsigned long)priv);
+	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 
-	iwl_alloc_isr_ict(priv);
+	tasklet_init(&trans_pcie->irq_tasklet, (void (*)(unsigned long))
+		iwl_irq_tasklet, (unsigned long)trans);
+
+	iwl_alloc_isr_ict(trans);
 
 	err = request_irq(bus(trans)->irq, iwl_isr_ict, IRQF_SHARED,
-		DRV_NAME, priv);
+		DRV_NAME, trans);
 	if (err) {
-		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus->irq);
-		iwl_free_isr_ict(priv);
+		IWL_ERR(trans, "Error allocating IRQ %d\n", bus(trans)->irq);
+		iwl_free_isr_ict(trans);
 		return err;
 	}
 
@@ -1152,17 +1148,25 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 	return 0;
 }
 
-static void iwl_trans_pcie_sync_irq(struct iwl_priv *priv)
+static void iwl_trans_pcie_disable_sync_irq(struct iwl_trans *trans)
 {
+	unsigned long flags;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwl_disable_interrupts(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+
 	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(priv->bus->irq);
-	tasklet_kill(&priv->irq_tasklet);
+	synchronize_irq(bus(trans)->irq);
+	tasklet_kill(&trans_pcie->irq_tasklet);
 }
 
 static void iwl_trans_pcie_free(struct iwl_priv *priv)
 {
-	free_irq(priv->bus->irq, priv);
-	iwl_free_isr_ict(priv);
+	free_irq(priv->bus->irq, trans(priv));
+	iwl_free_isr_ict(trans(priv));
 	kfree(trans(priv));
 	trans(priv) = NULL;
 }
@@ -1191,7 +1195,7 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 {
 	bool hw_rfkill = false;
 
-	iwl_enable_interrupts(priv(trans));
+	iwl_enable_interrupts(trans);
 
 	if (!(iwl_read32(priv(trans), CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
@@ -1500,7 +1504,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.kick_nic = iwl_trans_pcie_kick_nic,
 
-	.sync_irq = iwl_trans_pcie_sync_irq,
+	.disable_sync_irq = iwl_trans_pcie_disable_sync_irq,
 	.free = iwl_trans_pcie_free,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,

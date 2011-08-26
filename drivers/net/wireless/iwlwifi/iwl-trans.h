@@ -94,10 +94,9 @@ struct iwl_shared;
  *                 ready and a successful ADDBA response has been received.
  * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
  * @kick_nic: remove the RESET from the embedded CPU and let it run
- * @sync_irq: the upper layer will typically disable interrupt and call this
- *            handler. After this handler returns, it is guaranteed that all
- *            the ISR / tasklet etc... have finished running and the transport
- *            layer shall not pass any Rx.
+ * @disable_sync_irq: Disable and sync: after this handler returns, it is
+ *	guaranteed that all the ISR / tasklet etc... have finished running
+ *	and the transport layer shall not pass any Rx.
  * @free: release all the ressource for the transport layer itself such as
  *        irq, tasklet etc...
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
@@ -132,7 +131,7 @@ struct iwl_trans_ops {
 
 	void (*kick_nic)(struct iwl_priv *priv);
 
-	void (*sync_irq)(struct iwl_priv *priv);
+	void (*disable_sync_irq)(struct iwl_trans *trans);
 	void (*free)(struct iwl_priv *priv);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
@@ -232,9 +231,9 @@ static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
 	trans->ops->kick_nic(priv(trans));
 }
 
-static inline void iwl_trans_sync_irq(struct iwl_trans *trans)
+static inline void iwl_trans_disable_sync_irq(struct iwl_trans *trans)
 {
-	trans->ops->sync_irq(priv(trans));
+	trans->ops->disable_sync_irq(trans);
 }
 
 static inline void iwl_trans_free(struct iwl_trans *trans)

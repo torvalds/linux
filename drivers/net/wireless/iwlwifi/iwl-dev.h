@@ -1259,6 +1259,7 @@ struct iwl_priv {
 	struct traffic_stats rx_stats;
 
 	/* counts interrupts */
+	/* TODO: move to the transport layer */
 	struct isr_statistics isr_stats;
 
 	struct iwl_power_mgr power_data;
@@ -1315,14 +1316,6 @@ struct iwl_priv {
 	} accum_stats, delta_stats, max_delta_stats;
 #endif
 
-	/* INT ICT Table */
-	__le32 *ict_tbl;
-	void *ict_tbl_vir;
-	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
-	int ict_index;
-	u32 inta;
-	bool use_ict;
 	/*
 	 * reporting the number of tids has AGG on. 0 means
 	 * no AGGREGATION
@@ -1379,8 +1372,6 @@ struct iwl_priv {
 	struct iwl_rxon_context *cur_rssi_ctx;
 	bool bt_is_sco;
 
-	u32 inta_mask;
-
 	struct work_struct restart;
 	struct work_struct scan_completed;
 	struct work_struct abort_scan;
@@ -1397,8 +1388,6 @@ struct iwl_priv {
 	struct work_struct tx_flush;
 	struct work_struct bt_full_concurrency;
 	struct work_struct bt_runtime_config;
-
-	struct tasklet_struct irq_tasklet;
 
 	struct delayed_work scan_check;
 

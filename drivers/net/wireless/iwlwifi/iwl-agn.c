@@ -3627,7 +3627,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
-	priv->inta_mask = CSR_INI_SET_MASK;
 
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
@@ -3771,8 +3770,6 @@ out:
 
 void __devexit iwl_remove(struct iwl_priv * priv)
 {
-	unsigned long flags;
-
 	wait_for_completion(&priv->firmware_loading_complete);
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
@@ -3801,13 +3798,8 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_tt_exit(priv);
 
 	/* make sure we flush any pending irq or
-	 * tasklet for the driver
-	 */
-	spin_lock_irqsave(&priv->shrd->lock, flags);
-	iwl_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
-
-	iwl_trans_sync_irq(trans(priv));
+	 * tasklet for the driver */
+	iwl_trans_disable_sync_irq(trans(priv));
 
 	iwl_dealloc_ucode(priv);
 
