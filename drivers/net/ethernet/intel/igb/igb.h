@@ -130,6 +130,15 @@ struct vf_data_storage {
 
 #define IGB_MNG_VLAN_NONE -1
 
+#define IGB_TX_FLAGS_CSUM		0x00000001
+#define IGB_TX_FLAGS_VLAN		0x00000002
+#define IGB_TX_FLAGS_TSO		0x00000004
+#define IGB_TX_FLAGS_IPV4		0x00000008
+#define IGB_TX_FLAGS_TSTAMP		0x00000010
+#define IGB_TX_FLAGS_MAPPED_AS_PAGE	0x00000020
+#define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
+#define IGB_TX_FLAGS_VLAN_SHIFT	16
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct igb_tx_buffer {
