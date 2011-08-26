@@ -573,6 +573,12 @@ struct ath6kl *ath6kl_core_alloc(struct device *sdev)
 	ar->wdev = wdev;
 	wdev->iftype = NL80211_IFTYPE_STATION;
 
+	if (ath6kl_debug_init(ar)) {
+		ath6kl_err("Failed to initialize debugfs\n");
+		ath6kl_cfg80211_deinit(ar);
+		return NULL;
+	}
+
 	dev = alloc_netdev(0, "wlan%d", ether_setup);
 	if (!dev) {
 		ath6kl_err("no memory for network device instance\n");

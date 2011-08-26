@@ -78,6 +78,7 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_proc_registers *irq_proc_reg,
 			   struct ath6kl_irq_enable_reg *irq_en_reg);
 void dump_cred_dist_stats(struct htc_target *target);
+int ath6kl_debug_init(struct ath6kl *ar);
 #else
 static inline int ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
 			     const char *fmt, ...)
@@ -100,6 +101,9 @@ static inline void ath6kl_dump_registers(struct ath6kl_device *dev,
 static inline void dump_cred_dist_stats(struct htc_target *target)
 {
 }
+static inline int ath6kl_debug_init(struct ath6kl *ar)
+{
+	return 0;
+}
 #endif
-
 #endif

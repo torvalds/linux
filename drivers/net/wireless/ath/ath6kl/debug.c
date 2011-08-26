@@ -147,4 +147,14 @@ void dump_cred_dist_stats(struct htc_target *target)
 		   target->cred_dist_cntxt->cur_free_credits);
 }
 
+int ath6kl_debug_init(struct ath6kl *ar)
+{
+	ar->debugfs_phy = debugfs_create_dir("ath6kl",
+					     ar->wdev->wiphy->debugfsdir);
+	if (!ar->debugfs_phy)
+		return -ENOMEM;
+
+	/* TODO: Create debugfs file entries for various target/host stats */
+	return 0;
+}
 #endif
