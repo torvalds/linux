@@ -67,6 +67,7 @@
 #define FCOE_KWQE_OPCODE_DESTROY		(10)
 #define FCOE_KWQE_OPCODE_STAT			(11)
 
+#define FCOE_KCQE_COMPLETION_STATUS_ERROR	(0x1)
 #define FCOE_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAILURE	(0x3)
 
 /* KCQ (kernel completion queue) response op codes */

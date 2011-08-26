@@ -1875,12 +1875,12 @@ static int cnic_bnx2x_destroy_ramrod(struct cnic_dev *dev, u32 l5_cid)
 				  hw_cid, NONE_CONNECTION_TYPE, &l5_data);
 
 	if (ret == 0) {
-		wait_event(ctx->waitq, ctx->wait_cond);
+		wait_event_timeout(ctx->waitq, ctx->wait_cond, CNIC_RAMROD_TMO);
 		if (unlikely(test_bit(CTX_FL_CID_ERROR, &ctx->ctx_flags)))
 			return -EBUSY;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int cnic_bnx2x_iscsi_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
@@ -2428,17 +2428,20 @@ static int cnic_bnx2x_fcoe_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	init_waitqueue_head(&ctx->waitq);
 	ctx->wait_cond = 0;
 
+	memset(&kcqe, 0, sizeof(kcqe));
+	kcqe.completion_status = FCOE_KCQE_COMPLETION_STATUS_ERROR;
 	memset(&l5_data, 0, sizeof(l5_data));
 	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_TERMINATE_CONN, cid,
 				  FCOE_CONNECTION_TYPE, &l5_data);
 	if (ret == 0) {
-		wait_event(ctx->waitq, ctx->wait_cond);
-		set_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags);
-		queue_delayed_work(cnic_wq, &cp->delete_task,
-				   msecs_to_jiffies(2000));
+		wait_event_timeout(ctx->waitq, ctx->wait_cond, CNIC_RAMROD_TMO);
+		if (ctx->wait_cond)
+			kcqe.completion_status = 0;
 	}
 
-	memset(&kcqe, 0, sizeof(kcqe));
+	set_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags);
+	queue_delayed_work(cnic_wq, &cp->delete_task, msecs_to_jiffies(2000));
+
 	kcqe.op_code = FCOE_KCQE_OPCODE_DESTROY_CONN;
 	kcqe.fcoe_conn_id = req->conn_id;
 	kcqe.fcoe_conn_context_id = cid;

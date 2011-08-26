@@ -474,5 +474,7 @@ struct bnx2x_bd_chain_next {
 	  MAX_STAT_COUNTER_ID_E1))
 #endif
 
+#define CNIC_RAMROD_TMO			(HZ / 4)
+
 #endif
 
