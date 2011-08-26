@@ -45,6 +45,9 @@
 #include <linux/pci-aspm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
+#include <linux/sctp.h>
 #include <linux/if_ether.h>
 #include <linux/aer.h>
 #include <linux/prefetch.h>
@@ -3960,16 +3963,39 @@ set_itr_now:
 #define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT		        16
 
+void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
+		     u32 type_tucmd, u32 mss_l4len_idx)
+{
+	struct e1000_adv_tx_context_desc *context_desc;
+	u16 i = tx_ring->next_to_use;
+
+	context_desc = IGB_TX_CTXTDESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+
+	/* set bits to identify this as an advanced context descriptor */
+	type_tucmd |= E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT;
+
+	/* For 82575, context index must be unique per ring. */
+	if (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX)
+		mss_l4len_idx |= tx_ring->reg_idx << 4;
+
+	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
+	context_desc->seqnum_seed	= 0;
+	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
+	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
+}
+
 static inline int igb_tso(struct igb_ring *tx_ring,
 			  struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
 {
-	struct e1000_adv_tx_context_desc *context_desc;
-	unsigned int i;
 	int err;
-	struct igb_tx_buffer *buffer_info;
-	u32 info = 0, tu_cmd = 0;
-	u32 mss_l4len_idx;
-	u8 l4len;
+	u32 vlan_macip_lens, type_tucmd;
+	u32 mss_l4len_idx, l4len;
+
+	if (!skb_is_gso(skb))
+		return 0;
 
 	if (skb_header_cloned(skb)) {
 		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
@@ -3977,8 +4003,8 @@ static inline int igb_tso(struct igb_ring *tx_ring,
 			return err;
 	}
 
-	l4len = tcp_hdrlen(skb);
-	*hdr_len += l4len;
+	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
+	type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
@@ -3988,6 +4014,7 @@ static inline int igb_tso(struct igb_ring *tx_ring,
 							 iph->daddr, 0,
 							 IPPROTO_TCP,
 							 0);
+		type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
 	} else if (skb_is_gso_v6(skb)) {
 		ipv6_hdr(skb)->payload_len = 0;
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
@@ -3995,131 +4022,85 @@ static inline int igb_tso(struct igb_ring *tx_ring,
 						       0, IPPROTO_TCP, 0);
 	}
 
-	i = tx_ring->next_to_use;
-
-	buffer_info = &tx_ring->tx_buffer_info[i];
-	context_desc = IGB_TX_CTXTDESC(tx_ring, i);
-	/* VLAN MACLEN IPLEN */
-	if (tx_flags & IGB_TX_FLAGS_VLAN)
-		info |= (tx_flags & IGB_TX_FLAGS_VLAN_MASK);
-	info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
-	*hdr_len += skb_network_offset(skb);
-	info |= skb_network_header_len(skb);
-	*hdr_len += skb_network_header_len(skb);
-	context_desc->vlan_macip_lens = cpu_to_le32(info);
-
-	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
-	tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
-
-	if (skb->protocol == htons(ETH_P_IP))
-		tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-	tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-
-	context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
+	l4len = tcp_hdrlen(skb);
+	*hdr_len = skb_transport_offset(skb) + l4len;
 
 	/* MSS L4LEN IDX */
-	mss_l4len_idx = (skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT);
-	mss_l4len_idx |= (l4len << E1000_ADVTXD_L4LEN_SHIFT);
+	mss_l4len_idx = l4len << E1000_ADVTXD_L4LEN_SHIFT;
+	mss_l4len_idx |= skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT;
 
-	/* For 82575, context index must be unique per ring. */
-	if (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX)
-		mss_l4len_idx |= tx_ring->reg_idx << 4;
+	/* VLAN MACLEN IPLEN */
+	vlan_macip_lens = skb_network_header_len(skb);
+	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IGB_TX_FLAGS_VLAN_MASK;
 
-	context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
-	context_desc->seqnum_seed = 0;
+	igb_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
 
-	buffer_info->time_stamp = jiffies;
-	buffer_info->next_to_watch = i;
-	buffer_info->dma = 0;
-	i++;
-	if (i == tx_ring->count)
-		i = 0;
-
-	tx_ring->next_to_use = i;
-
-	return true;
+	return 1;
 }
 
 static inline bool igb_tx_csum(struct igb_ring *tx_ring,
 			       struct sk_buff *skb, u32 tx_flags)
 {
-	struct e1000_adv_tx_context_desc *context_desc;
-	struct device *dev = tx_ring->dev;
-	struct igb_tx_buffer *buffer_info;
-	u32 info = 0, tu_cmd = 0;
-	unsigned int i;
+	u32 vlan_macip_lens = 0;
+	u32 mss_l4len_idx = 0;
+	u32 type_tucmd = 0;
 
-	if ((skb->ip_summed == CHECKSUM_PARTIAL) ||
-	    (tx_flags & IGB_TX_FLAGS_VLAN)) {
-		i = tx_ring->next_to_use;
-		buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IGB_TX_CTXTDESC(tx_ring, i);
-
-		if (tx_flags & IGB_TX_FLAGS_VLAN)
-			info |= (tx_flags & IGB_TX_FLAGS_VLAN_MASK);
-
-		info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
-		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			info |= skb_network_header_len(skb);
-
-		context_desc->vlan_macip_lens = cpu_to_le32(info);
-
-		tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
-
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			__be16 protocol;
-
-			if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
-				const struct vlan_ethhdr *vhdr =
-				          (const struct vlan_ethhdr*)skb->data;
-
-				protocol = vhdr->h_vlan_encapsulated_proto;
-			} else {
-				protocol = skb->protocol;
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		if (!(tx_flags & IGB_TX_FLAGS_VLAN))
+			return false;
+	} else {
+		u8 l4_hdr = 0;
+		switch (skb->protocol) {
+		case __constant_htons(ETH_P_IP):
+			vlan_macip_lens |= skb_network_header_len(skb);
+			type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
+			l4_hdr = ip_hdr(skb)->protocol;
+			break;
+		case __constant_htons(ETH_P_IPV6):
+			vlan_macip_lens |= skb_network_header_len(skb);
+			l4_hdr = ipv6_hdr(skb)->nexthdr;
+			break;
+		default:
+			if (unlikely(net_ratelimit())) {
+				dev_warn(tx_ring->dev,
+				 "partial checksum but proto=%x!\n",
+				 skb->protocol);
 			}
-
-			switch (protocol) {
-			case cpu_to_be16(ETH_P_IP):
-				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-				else if (ip_hdr(skb)->protocol == IPPROTO_SCTP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_SCTP;
-				break;
-			case cpu_to_be16(ETH_P_IPV6):
-				/* XXX what about other V6 headers?? */
-				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-				else if (ipv6_hdr(skb)->nexthdr == IPPROTO_SCTP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_SCTP;
-				break;
-			default:
-				if (unlikely(net_ratelimit()))
-					dev_warn(dev,
-					    "partial checksum but proto=%x!\n",
-					    skb->protocol);
-				break;
-			}
+			break;
 		}
 
-		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
-		context_desc->seqnum_seed = 0;
-		if (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX)
-			context_desc->mss_l4len_idx =
-				cpu_to_le32(tx_ring->reg_idx << 4);
-
-		buffer_info->time_stamp = jiffies;
-		buffer_info->next_to_watch = i;
-		buffer_info->dma = 0;
-
-		i++;
-		if (i == tx_ring->count)
-			i = 0;
-		tx_ring->next_to_use = i;
-
-		return true;
+		switch (l4_hdr) {
+		case IPPROTO_TCP:
+			type_tucmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+			mss_l4len_idx = tcp_hdrlen(skb) <<
+					E1000_ADVTXD_L4LEN_SHIFT;
+			break;
+		case IPPROTO_SCTP:
+			type_tucmd |= E1000_ADVTXD_TUCMD_L4T_SCTP;
+			mss_l4len_idx = sizeof(struct sctphdr) <<
+					E1000_ADVTXD_L4LEN_SHIFT;
+			break;
+		case IPPROTO_UDP:
+			mss_l4len_idx = sizeof(struct udphdr) <<
+					E1000_ADVTXD_L4LEN_SHIFT;
+			break;
+		default:
+			if (unlikely(net_ratelimit())) {
+				dev_warn(tx_ring->dev,
+				 "partial checksum but l4 proto=%x!\n",
+				 l4_hdr);
+			}
+			break;
+		}
 	}
-	return false;
+
+	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IGB_TX_FLAGS_VLAN_MASK;
+
+	igb_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
+
+	return (skb->ip_summed == CHECKSUM_PARTIAL);
 }
 
 #define IGB_MAX_TXD_PWR	16
@@ -4140,8 +4121,6 @@ static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	buffer_info = &tx_ring->tx_buffer_info[i];
 	BUG_ON(hlen >= IGB_MAX_DATA_PER_TXD);
 	buffer_info->length = hlen;
-	/* set time_stamp *before* dma to help avoid a possible race */
-	buffer_info->time_stamp = jiffies;
 	buffer_info->next_to_watch = i;
 	buffer_info->dma = dma_map_single(dev, skb->data, hlen,
 					  DMA_TO_DEVICE);
@@ -4160,7 +4139,6 @@ static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		BUG_ON(len >= IGB_MAX_DATA_PER_TXD);
 		buffer_info->length = len;
-		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
 		buffer_info->mapped_as_page = true;
 		buffer_info->dma = skb_frag_dma_map(dev, frag, 0, len,
@@ -4176,6 +4154,7 @@ static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	buffer_info->bytecount = ((gso_segs - 1) * hlen) + skb->len;
 	buffer_info->gso_segs = gso_segs;
 	tx_ring->tx_buffer_info[first].next_to_watch = i;
+	tx_ring->tx_buffer_info[first].time_stamp = jiffies;
 
 	return ++count;
 
@@ -4304,7 +4283,7 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				struct igb_ring *tx_ring)
 {
-	int tso = 0, count;
+	int tso, count;
 	u32 tx_flags = 0;
 	u16 first;
 	u8 hdr_len = 0;
@@ -4333,16 +4312,12 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= IGB_TX_FLAGS_IPV4;
 
 	first = tx_ring->next_to_use;
-	if (skb_is_gso(skb)) {
-		tso = igb_tso(tx_ring, skb, tx_flags, &hdr_len);
 
-		if (tso < 0) {
-			dev_kfree_skb_any(skb);
-			return NETDEV_TX_OK;
-		}
-	}
+	tso = igb_tso(tx_ring, skb, tx_flags, &hdr_len);
 
-	if (tso)
+	if (tso < 0)
+		goto out_drop;
+	else if (tso)
 		tx_flags |= IGB_TX_FLAGS_TSO;
 	else if (igb_tx_csum(tx_ring, skb, tx_flags) &&
 	         (skb->ip_summed == CHECKSUM_PARTIAL))
@@ -4365,6 +4340,10 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	/* Make sure there is space in the ring for the next send. */
 	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
 
+	return NETDEV_TX_OK;
+
+out_drop:
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
