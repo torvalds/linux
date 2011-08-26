@@ -215,15 +215,15 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 			 DMA_TO_DEVICE);
 
 	/* free SKB */
-	if (txq->txb) {
+	if (txq->skbs) {
 		struct sk_buff *skb;
 
-		skb = txq->txb[index].skb;
+		skb = txq->skbs[index];
 
 		/* can be called from irqs-disabled context */
 		if (skb) {
 			dev_kfree_skb_any(skb);
-			txq->txb[index].skb = NULL;
+			txq->skbs[index] = NULL;
 		}
 	}
 }
@@ -1056,8 +1056,6 @@ void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 {
 	struct iwl_tx_queue *txq = &priv(trans)->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
-	struct iwl_tx_info *tx_info;
-	struct ieee80211_tx_info *info;
 	int last_to_free;
 
 	/*Since we free until index _not_ inclusive, the one before index is
@@ -1083,17 +1081,12 @@ void iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 	     q->read_ptr != index;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
-		tx_info = &txq->txb[txq->q.read_ptr];
-
-		if (WARN_ON_ONCE(tx_info->skb == NULL))
+		if (WARN_ON_ONCE(txq->skbs[txq->q.read_ptr] == NULL))
 			continue;
 
-		info = IEEE80211_SKB_CB(tx_info->skb);
-		info->driver_data[0] = tx_info->ctx;
+		__skb_queue_tail(skbs, txq->skbs[txq->q.read_ptr]);
 
-		__skb_queue_tail(skbs, tx_info->skb);
-
-		tx_info->skb = NULL;
+		txq->skbs[txq->q.read_ptr] = NULL;
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 

@@ -304,7 +304,7 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 	size_t tfd_sz = sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX;
 	int i;
 
-	if (WARN_ON(txq->meta || txq->cmd || txq->txb || txq->tfds))
+	if (WARN_ON(txq->meta || txq->cmd || txq->skbs || txq->tfds))
 		return -EINVAL;
 
 	txq->q.n_window = slots_num;
@@ -328,15 +328,15 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (txq_id != trans->shrd->cmd_queue) {
-		txq->txb = kzalloc(sizeof(txq->txb[0]) *
+		txq->skbs = kzalloc(sizeof(txq->skbs[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
-		if (!txq->txb) {
+		if (!txq->skbs) {
 			IWL_ERR(trans, "kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
 	} else {
-		txq->txb = NULL;
+		txq->skbs = NULL;
 	}
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
@@ -351,8 +351,8 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	return 0;
 error:
-	kfree(txq->txb);
-	txq->txb = NULL;
+	kfree(txq->skbs);
+	txq->skbs = NULL;
 	/* since txq->cmd has been zeroed,
 	 * all non allocated cmd[i] will be NULL */
 	if (txq->cmd)
@@ -453,8 +453,8 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 	}
 
 	/* De-alloc array of per-TFD driver data */
-	kfree(txq->txb);
-	txq->txb = NULL;
+	kfree(txq->skbs);
+	txq->skbs = NULL;
 
 	/* deallocate arrays */
 	kfree(txq->cmd);
@@ -1035,8 +1035,7 @@ static struct iwl_tx_cmd *iwl_trans_pcie_get_tx_cmd(struct iwl_trans *trans,
 }
 
 static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
-		struct iwl_rxon_context *ctx)
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
@@ -1051,9 +1050,7 @@ static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	u8 hdr_len = ieee80211_hdrlen(fc);
 
 	/* Set up driver data for this TFD */
-	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
-	txq->txb[q->write_ptr].skb = skb;
-	txq->txb[q->write_ptr].ctx = ctx;
+	txq->skbs[q->write_ptr] = skb;
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->meta[q->write_ptr];

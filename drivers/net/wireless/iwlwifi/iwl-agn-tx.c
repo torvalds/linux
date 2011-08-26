@@ -454,7 +454,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	iwl_update_stats(priv, true, fc, len);
 
-	if (iwl_trans_tx(trans(priv), skb, tx_cmd, txq_id, fc, is_agg, ctx))
+	info->driver_data[0] = ctx;
+
+	if (iwl_trans_tx(trans(priv), skb, tx_cmd, txq_id, fc, is_agg))
 		goto drop_unlock_sta;
 
 	if (ieee80211_is_data_qos(fc)) {

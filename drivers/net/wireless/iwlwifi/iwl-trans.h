@@ -119,8 +119,7 @@ struct iwl_trans_ops {
 		     const void *data);
 	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_trans *trans, int txq_id);
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
-		struct iwl_rxon_context *ctx);
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu);
 	void (*reclaim)(struct iwl_trans *trans, int txq_id, int ssn,
 			u32 status, struct sk_buff_head *skbs);
 
@@ -198,10 +197,9 @@ static inline struct iwl_tx_cmd *iwl_trans_get_tx_cmd(struct iwl_trans *trans,
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
-		struct iwl_rxon_context *ctx)
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu)
 {
-	return trans->ops->tx(priv(trans), skb, tx_cmd, txq_id, fc, ampdu, ctx);
+	return trans->ops->tx(priv(trans), skb, tx_cmd, txq_id, fc, ampdu);
 }
 
 static inline void iwl_trans_reclaim(struct iwl_trans *trans, int txq_id,
