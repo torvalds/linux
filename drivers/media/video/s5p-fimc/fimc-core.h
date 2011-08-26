@@ -66,6 +66,7 @@ enum fimc_dev_flags {
 	ST_CAPT_SHUT,
 	ST_CAPT_BUSY,
 	ST_CAPT_APPLY_CFG,
+	ST_CAPT_JPEG,
 };
 
 #define fimc_m2m_active(dev) test_bit(ST_M2M_RUN, &(dev)->state)
@@ -669,7 +670,7 @@ void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
 void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
 void fimc_hw_en_capture(struct fimc_ctx *ctx);
-void fimc_hw_set_effect(struct fimc_ctx *ctx);
+void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
 void fimc_hw_set_input_path(struct fimc_ctx *ctx);
 void fimc_hw_set_output_path(struct fimc_ctx *ctx);
@@ -697,7 +698,8 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
 				  unsigned int mask, int index);
 
-int fimc_check_scaler_ratio(int sw, int sh, int dw, int dh, int rot);
+int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
+			    int dw, int dh, int rotation);
 int fimc_set_scaler_info(struct fimc_ctx *ctx);
 int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags);
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
@@ -705,6 +707,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f);
 void fimc_set_yuv_order(struct fimc_ctx *ctx);
 void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f);
+void fimc_capture_irq_handler(struct fimc_dev *fimc, bool done);
 
 int fimc_register_m2m_device(struct fimc_dev *fimc,
 			     struct v4l2_device *v4l2_dev);

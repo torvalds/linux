@@ -352,17 +352,19 @@ void fimc_hw_en_capture(struct fimc_ctx *ctx)
 	writel(cfg | S5P_CIIMGCPT_IMGCPTEN, dev->regs + S5P_CIIMGCPT);
 }
 
-void fimc_hw_set_effect(struct fimc_ctx *ctx)
+void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_effect *effect = &ctx->effect;
-	u32 cfg = (S5P_CIIMGEFF_IE_ENABLE | S5P_CIIMGEFF_IE_SC_AFTER);
+	u32 cfg = 0;
 
-	cfg |= effect->type;
-
-	if (effect->type == S5P_FIMC_EFFECT_ARBITRARY) {
-		cfg |= S5P_CIIMGEFF_PAT_CB(effect->pat_cb);
-		cfg |= S5P_CIIMGEFF_PAT_CR(effect->pat_cr);
+	if (active) {
+		cfg |= S5P_CIIMGEFF_IE_SC_AFTER | S5P_CIIMGEFF_IE_ENABLE;
+		cfg |= effect->type;
+		if (effect->type == S5P_FIMC_EFFECT_ARBITRARY) {
+			cfg |= S5P_CIIMGEFF_PAT_CB(effect->pat_cb);
+			cfg |= S5P_CIIMGEFF_PAT_CR(effect->pat_cr);
+		}
 	}
 
 	writel(cfg, dev->regs + S5P_CIIMGEFF);
@@ -592,6 +594,9 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			else if (bus_width == 16)
 				cfg |= S5P_CISRCFMT_ITU601_16BIT;
 		} /* else defaults to ITU-R BT.656 8-bit */
+	} else if (cam->bus_type == FIMC_MIPI_CSI2) {
+		if (fimc_fmt_is_jpeg(f->fmt->color))
+			cfg |= S5P_CISRCFMT_ITU601_8BIT;
 	}
 
 	cfg |= S5P_CISRCFMT_HSIZE(f->o_width) | S5P_CISRCFMT_VSIZE(f->o_height);
@@ -633,7 +638,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 	/* Select ITU B interface, disable Writeback path and test pattern. */
 	cfg &= ~(S5P_CIGCTRL_TESTPAT_MASK | S5P_CIGCTRL_SELCAM_ITU_A |
 		S5P_CIGCTRL_SELCAM_MIPI | S5P_CIGCTRL_CAMIF_SELWB |
-		S5P_CIGCTRL_SELCAM_MIPI_A);
+		S5P_CIGCTRL_SELCAM_MIPI_A | S5P_CIGCTRL_CAM_JPEG);
 
 	if (cam->bus_type == FIMC_MIPI_CSI2) {
 		cfg |= S5P_CIGCTRL_SELCAM_MIPI;
@@ -642,9 +647,15 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			cfg |= S5P_CIGCTRL_SELCAM_MIPI_A;
 
 		/* TODO: add remaining supported formats. */
-		if (vid_cap->mf.code == V4L2_MBUS_FMT_VYUY8_2X8) {
+		switch (vid_cap->mf.code) {
+		case V4L2_MBUS_FMT_VYUY8_2X8:
 			tmp = S5P_CSIIMGFMT_YCBCR422_8BIT;
-		} else {
+			break;
+		case V4L2_MBUS_FMT_JPEG_1X8:
+			tmp = S5P_CSIIMGFMT_USER(1);
+			cfg |= S5P_CIGCTRL_CAM_JPEG;
+			break;
+		default:
 			v4l2_err(fimc->vid_cap.vfd,
 				 "Not supported camera pixel format: %d",
 				 vid_cap->mf.code);

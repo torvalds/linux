@@ -159,22 +159,28 @@ static struct fimc_fmt fimc_formats[] = {
 		.memplanes	= 2,
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
+	}, {
+		.name		= "JPEG encoded data",
+		.fourcc		= V4L2_PIX_FMT_JPEG,
+		.color		= S5P_FIMC_JPEG,
+		.depth		= { 8 },
+		.memplanes	= 1,
+		.colplanes	= 1,
+		.mbus_code	= V4L2_MBUS_FMT_JPEG_1X8,
+		.flags		= FMT_FLAGS_CAM,
 	},
 };
 
-int fimc_check_scaler_ratio(int sw, int sh, int dw, int dh, int rot)
+int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
+			    int dw, int dh, int rotation)
 {
-	int tx, ty;
+	if (rotation == 90 || rotation == 270)
+		swap(dw, dh);
 
-	if (rot == 90 || rot == 270) {
-		ty = dw;
-		tx = dh;
-	} else {
-		tx = dw;
-		ty = dh;
-	}
+	if (!ctx->scaler.enabled)
+		return (sw == dw && sh == dh) ? 0 : -EINVAL;
 
-	if ((sw >= SCALER_MAX_HRATIO * tx) || (sh >= SCALER_MAX_VRATIO * ty))
+	if ((sw >= SCALER_MAX_HRATIO * dw) || (sh >= SCALER_MAX_VRATIO * dh))
 		return -EINVAL;
 
 	return 0;
@@ -321,7 +327,7 @@ static int stop_streaming(struct vb2_queue *q)
 	return 0;
 }
 
-static void fimc_capture_irq_handler(struct fimc_dev *fimc)
+void fimc_capture_irq_handler(struct fimc_dev *fimc, bool final)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
 	struct fimc_vid_buffer *v_buf;
@@ -329,7 +335,7 @@ static void fimc_capture_irq_handler(struct fimc_dev *fimc)
 	struct timespec ts;
 
 	if (!list_empty(&cap->active_buf_q) &&
-	    test_bit(ST_CAPT_RUN, &fimc->state)) {
+	    test_bit(ST_CAPT_RUN, &fimc->state) && final) {
 		ktime_get_real_ts(&ts);
 
 		v_buf = active_queue_pop(cap);
@@ -364,7 +370,8 @@ static void fimc_capture_irq_handler(struct fimc_dev *fimc)
 	}
 
 	if (cap->active_buf_cnt == 0) {
-		clear_bit(ST_CAPT_RUN, &fimc->state);
+		if (final)
+			clear_bit(ST_CAPT_RUN, &fimc->state);
 
 		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
 			cap->buf_index = 0;
@@ -407,14 +414,12 @@ static irqreturn_t fimc_irq_handler(int irq, void *priv)
 			spin_unlock(&ctx->slock);
 		}
 		return IRQ_HANDLED;
-	} else {
-		if (test_bit(ST_CAPT_PEND, &fimc->state)) {
-			fimc_capture_irq_handler(fimc);
-
-			if (cap->active_buf_cnt == 1) {
-				fimc_deactivate_capture(fimc);
-				clear_bit(ST_CAPT_STREAM, &fimc->state);
-			}
+	} else if (test_bit(ST_CAPT_PEND, &fimc->state)) {
+		fimc_capture_irq_handler(fimc,
+				 !test_bit(ST_CAPT_JPEG, &fimc->state));
+		if (cap->active_buf_cnt == 1) {
+			fimc_deactivate_capture(fimc);
+			clear_bit(ST_CAPT_STREAM, &fimc->state);
 		}
 	}
 out:
@@ -586,9 +591,6 @@ int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags)
 		fimc_set_yuv_order(ctx);
 	}
 
-	/* Input DMA mode is not allowed when the scaler is disabled. */
-	ctx->scaler.enabled = 1;
-
 	if (flags & FIMC_SRC_ADDR) {
 		vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 		ret = fimc_prepare_addr(ctx, vb, s_frame, &s_frame->paddr);
@@ -643,7 +645,7 @@ static void fimc_dma_run(void *priv)
 		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
-		fimc_hw_set_effect(ctx);
+		fimc_hw_set_effect(ctx, false);
 	}
 
 	fimc_hw_set_output_path(ctx);
@@ -773,7 +775,7 @@ static int fimc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_ROTATE:
 		if (fimc_capture_pending(fimc) ||
 		    fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
-			ret = fimc_check_scaler_ratio(ctx->s_frame.width,
+			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
 					ctx->s_frame.height, ctx->d_frame.width,
 					ctx->d_frame.height, ctrl->val);
 		}
@@ -1098,6 +1100,8 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 
 	fimc_fill_frame(frame, f);
 
+	ctx->scaler.enabled = 1;
+
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		fimc_ctx_state_lock_set(FIMC_PARAMS | FIMC_DST_FMT, ctx);
 	else
@@ -1269,15 +1273,13 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	/* Check to see if scaling ratio is within supported range */
 	if (fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
 		if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-			ret = fimc_check_scaler_ratio(cr->c.width, cr->c.height,
-						      ctx->d_frame.width,
-						      ctx->d_frame.height,
-						      ctx->rotation);
+			ret = fimc_check_scaler_ratio(ctx, cr->c.width,
+					cr->c.height, ctx->d_frame.width,
+					ctx->d_frame.height, ctx->rotation);
 		} else {
-			ret = fimc_check_scaler_ratio(ctx->s_frame.width,
-						      ctx->s_frame.height,
-						      cr->c.width, cr->c.height,
-						      ctx->rotation);
+			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
+					ctx->s_frame.height, cr->c.width,
+					cr->c.height, ctx->rotation);
 		}
 		if (ret) {
 			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");

@@ -60,7 +60,7 @@ static int fimc_init_capture(struct fimc_dev *fimc)
 		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
-		fimc_hw_set_effect(ctx);
+		fimc_hw_set_effect(ctx, false);
 		fimc_hw_set_output_path(ctx);
 		fimc_hw_set_out_dma(ctx);
 		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
@@ -731,6 +731,17 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	return 0;
 }
 
+static void fimc_capture_mark_jpeg_xfer(struct fimc_ctx *ctx, bool jpeg)
+{
+	ctx->scaler.enabled = !jpeg;
+	fimc_ctrls_activate(ctx, !jpeg);
+
+	if (jpeg)
+		set_bit(ST_CAPT_JPEG, &ctx->fimc_dev->state);
+	else
+		clear_bit(ST_CAPT_JPEG, &ctx->fimc_dev->state);
+}
+
 static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 {
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
@@ -782,6 +793,8 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 	/* Reset the composition rectangle if not yet configured */
 	if (!(ctx->state & FIMC_DST_CROP))
 		set_frame_crop(ff, 0, 0, pix->width, pix->height);
+
+	fimc_capture_mark_jpeg_xfer(ctx, fimc_fmt_is_jpeg(ff->fmt->color));
 
 	/* Reset cropping and set format at the camera interface input */
 	if (!fimc->vid_cap.user_subdev_api) {
@@ -1133,6 +1146,8 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 		*mf = fmt->format;
 		return 0;
 	}
+	fimc_capture_mark_jpeg_xfer(ctx, fimc_fmt_is_jpeg(ffmt->color));
+
 	ff = fmt->pad == FIMC_SD_PAD_SINK ?
 		&ctx->s_frame : &ctx->d_frame;
 
