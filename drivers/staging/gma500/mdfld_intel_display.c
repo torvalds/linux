@@ -282,7 +282,7 @@ static int mdfld_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 		return -EINVAL;
 	}
 		
-#if 1 /* FIXME_JLIU7 can't enalbe cursorB/C HW issue. need to remove after HW fix */
+#if 1 /* FIXME_JLIU7 can't enable cursorB/C HW issue. need to remove after HW fix */
 	if (pipe != 0)
 		return 0;
 #endif 
@@ -484,7 +484,7 @@ void mdfld_disable_crtc (struct drm_device *dev, int pipe)
 
 	/* FIXME_JLIU7 MDFLD_PO revisit */
 	/* Wait for vblank for the disable to take effect */
-// MDFLD_PO_JLIU7		psb_intel_wait_for_vblank(dev);
+/* MDFLD_PO_JLIU7		psb_intel_wait_for_vblank(dev); */
 
 	/* Next, disable display pipes */
 	temp = REG_READ(pipeconf_reg);
@@ -560,7 +560,6 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 		//this will be set in encoder such as mdfld_dsi_dbi_dpms
 	    //gbdispstatus = true;
 	}
-
 
 /* FIXME_JLIU7 MDFLD_PO replaced w/ the following function */
 /* mdfld_dbi_dpms (struct drm_device *dev, int pipe, bool enabled) */
@@ -1150,8 +1149,11 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {
-		/*Moorestown doesn't have register support for centering so we need to
-		  mess with the h/vblank and h/vsync start and ends to get centering*/
+		/*
+		 *	Medfield doesn't have register support for centering so
+		 *	we need to mess with the h/vblank and h/vsync start and
+		 *	ends to get central
+		 */
 		int offsetX = 0, offsetY = 0;
 
 		offsetX = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;

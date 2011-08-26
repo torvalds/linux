@@ -183,7 +183,6 @@ static void psb_lastclose(struct drm_device *dev)
 
 static void psb_do_takedown(struct drm_device *dev)
 {
-	/* FIXME: do we need to clean up the gtt here ? */
 }
 
 static int psb_do_init(struct drm_device *dev)

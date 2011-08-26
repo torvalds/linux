@@ -521,12 +521,11 @@ int mrst_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	/* struct drm_i915_master_private *master_priv; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
 	int pipe = psb_intel_crtc->pipe;
 	unsigned long start, offset;
-	/* FIXME: check if we need this surely MRST is pipe 0 only */
+
 	int dspbase = (pipe == 0 ? DSPALINOFF : DSPBBASE);
 	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
@@ -572,15 +571,10 @@ int mrst_pipe_set_base(struct drm_crtc *crtc,
 	}
 	REG_WRITE(dspcntr_reg, dspcntr);
 
-	if (0 /* FIXMEAC - check what PSB needs */) {
-		REG_WRITE(dspbase, offset);
-		REG_READ(dspbase);
-		REG_WRITE(dspsurf, start);
-		REG_READ(dspsurf);
-	} else {
-		REG_WRITE(dspbase, start + offset);
-		REG_READ(dspbase);
-	}
+	REG_WRITE(dspbase, offset);
+	REG_READ(dspbase);
+	REG_WRITE(dspsurf, start);
+	REG_READ(dspsurf);
 
 pipe_set_base_exit:
 	gma_power_end(dev);

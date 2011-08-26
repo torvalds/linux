@@ -72,9 +72,8 @@ u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *	@r: our GTT range
  *
  *	Take our preallocated GTT range and insert the GEM object into
- *	the GTT.
- *
- *	FIXME: gtt lock ?
+ *	the GTT. This is protected via the gtt mutex which the caller
+ *	must hold.
  */
 static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
@@ -111,7 +110,8 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
  *	@r: our GTT range
  *
  *	Remove a preallocated GTT range from the GTT. Overwrite all the
- *	page table entries with the dummy page
+ *	page table entries with the dummy page. This is protected via the gtt
+ *	mutex which the caller must hold.
  */
 
 static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
@@ -136,7 +136,8 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
  *	@gt: the gtt range
  *
  *	Pin and build an in kernel list of the pages that back our GEM object.
- *	While we hold this the pages cannot be swapped out
+ *	While we hold this the pages cannot be swapped out. This is protected
+ *	via the gtt mutex which the caller must hold.
  */
 static int psb_gtt_attach_pages(struct gtt_range *gt)
 {
@@ -158,7 +159,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	gt->npage = pages;
 
 	for (i = 0; i < pages; i++) {
-		/* FIXME: review flags later */
+		/* FIXME: needs updating as per mail from Hugh Dickins */
 		p = read_cache_page_gfp(mapping, i,
 					__GFP_COLD | GFP_KERNEL);
 		if (IS_ERR(p))
@@ -181,7 +182,8 @@ err:
  *
  *	Undo the effect of psb_gtt_attach_pages. At this point the pages
  *	must have been removed from the GTT as they could now be paged out
- *	and move bus address.
+ *	and move bus address. This is protected via the gtt mutex which the
+ *	caller must hold.
  */
 static void psb_gtt_detach_pages(struct gtt_range *gt)
 {
@@ -390,15 +392,18 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
 
 	/*
-	 *	FIXME: video mmu has hw bug to access 0x0D0000000,
-	 *	then make gatt start at 0x0e000,0000
+	 *	The video mmu has a hw bug when accessing 0x0D0000000.
+	 *	Make gatt start at 0x0e000,0000. This doesn't actually
+	 *	matter for us but may do if the video acceleration ever
+	 *	gets opened up.
 	 */
 	pg->mmu_gatt_start = 0xE0000000;
 
 	pg->gtt_start = pci_resource_start(dev->pdev, PSB_GTT_RESOURCE);
 	gtt_pages = pci_resource_len(dev->pdev, PSB_GTT_RESOURCE)
 								>> PAGE_SHIFT;
-	/* CDV workaround */
+	/* Some CDV firmware doesn't report this currently. In which case the
+	   system has 64 gtt pages */
 	if (pg->gtt_start == 0 || gtt_pages == 0) {
 		dev_err(dev->dev, "GTT PCI BAR not initialized.\n");
 		gtt_pages = 64;
@@ -412,13 +417,16 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
 		static struct resource fudge;	/* Preferably peppermint */
-
 		/* This can occur on CDV SDV systems. Fudge it in this case.
 		   We really don't care what imaginary space is being allocated
 		   at this point */
 		dev_err(dev->dev, "GATT PCI BAR not initialized.\n");
 		pg->gatt_start = 0x40000000;
 		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
+		/* This is a little confusing but in fact the GTT is providing
+		   a view from the GPU into memory and not vice versa. As such
+		   this is really allocating space that is not the same as the
+		   CPU address space on CDV */
 		fudge.start = 0x40000000;
 		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
 		fudge.name = "fudge";

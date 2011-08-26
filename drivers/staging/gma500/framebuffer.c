@@ -733,9 +733,12 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_MIPI2);
 			break;
 		case INTEL_OUTPUT_HDMI:
-			if (IS_MFLD(dev))
+		        /* HDMI on crtc 1 for SoC devices and crtc 0 for
+                           Cedarview. HDMI on Poulsbo is only via external
+			   logic */
+			if (IS_MFLD(dev) || IS_MRST(dev))
 				crtc_mask = (1 << 1);
-			else	/* FIXME: review Oaktrail */
+			else
 				crtc_mask = (1 << 0);	/* Cedarview */
 			clone_mask = (1 << INTEL_OUTPUT_HDMI);
 			break;
