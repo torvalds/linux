@@ -2654,7 +2654,6 @@ static void __init clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_dma1);
 	clk_enable_nolock(&clk_emem);
 	clk_enable_nolock(&clk_intmem);
-	clk_enable_nolock(&clk_ddr);
 	clk_enable_nolock(&clk_debug);
 	clk_enable_nolock(&clk_tpiu);
 	clk_enable_nolock(&clk_jtag);
@@ -2715,7 +2714,7 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-	printk(KERN_CONT " (20110812)\n");
+	printk(KERN_CONT " (20110826)\n");
 
 	preset_lpj = loops_per_jiffy;
 }
@@ -2789,6 +2788,8 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 		case CRU_GENERAL_MODE_SLOW27: seq_printf(s, "slow27 "); break;
 		}
 		if (cru_readl(CRU_GPLL_CON) & PLL_BYPASS) seq_printf(s, "bypass ");
+	} else if (clk == &clk_ddr) {
+		rate = clk->recalc(clk);
 	}
 
 	if (rate >= MHZ) {
