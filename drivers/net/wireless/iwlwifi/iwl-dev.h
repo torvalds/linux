@@ -331,46 +331,8 @@ struct iwl_host_cmd {
 
 #define IWL_SUPPORTED_RATES_IE_LEN         8
 
-#define MAX_TID_COUNT        9
-
 #define IWL_INVALID_RATE     0xFF
 #define IWL_INVALID_VALUE    -1
-
-/**
- * struct iwl_ht_agg -- aggregation status while waiting for block-ack
- * @txq_id: Tx queue used for Tx attempt
- * @frame_count: # frames attempted by Tx command
- * @wait_for_ba: Expect block-ack before next Tx reply
- * @start_idx: Index of 1st Transmit Frame Descriptor (TFD) in Tx window
- * @bitmap0: Low order bitmap, one bit for each frame pending ACK in Tx window
- * @bitmap1: High order, one bit for each frame pending ACK in Tx window
- * @rate_n_flags: Rate at which Tx was attempted
- *
- * If REPLY_TX indicates that aggregation was attempted, driver must wait
- * for block ack (REPLY_COMPRESSED_BA).  This struct stores tx reply info
- * until block ack arrives.
- */
-struct iwl_ht_agg {
-	u16 txq_id;
-	u16 frame_count;
-	u16 wait_for_ba;
-	u16 start_idx;
-	u64 bitmap;
-	u32 rate_n_flags;
-#define IWL_AGG_OFF 0
-#define IWL_AGG_ON 1
-#define IWL_EMPTYING_HW_QUEUE_ADDBA 2
-#define IWL_EMPTYING_HW_QUEUE_DELBA 3
-	u8 state;
-	u8 tx_fifo;
-};
-
-
-struct iwl_tid_data {
-	u16 seq_number; /* agn only */
-	u16 tfds_in_queue;
-	struct iwl_ht_agg agg;
-};
 
 union iwl_ht_rate_supp {
 	u16 rates;
@@ -422,7 +384,6 @@ struct iwl_qos_info {
  */
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
-	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used, ctxid;
 	struct iwl_link_quality_cmd *lq;
 };

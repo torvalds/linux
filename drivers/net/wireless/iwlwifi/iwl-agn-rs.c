@@ -297,10 +297,10 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	} else
-		return MAX_TID_COUNT;
+		return IWL_MAX_TID_COUNT;
 
 	if (unlikely(tid >= TID_MAX_LOAD_COUNT))
-		return MAX_TID_COUNT;
+		return IWL_MAX_TID_COUNT;
 
 	tl = &lq_data->load[tid];
 
@@ -313,7 +313,7 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 		tl->queue_count = 1;
 		tl->head = 0;
 		tl->packet_count[0] = 1;
-		return MAX_TID_COUNT;
+		return IWL_MAX_TID_COUNT;
 	}
 
 	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
@@ -2261,7 +2261,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u8 done_search = 0;
 	u16 high_low;
 	s32 sr;
-	u8 tid = MAX_TID_COUNT;
+	u8 tid = IWL_MAX_TID_COUNT;
 	struct iwl_tid_data *tid_data;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
@@ -2280,8 +2280,9 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
-	if ((tid != MAX_TID_COUNT) && (lq_sta->tx_agg_tid_en & (1 << tid))) {
-		tid_data = &priv->stations[lq_sta->lq.sta_id].tid[tid];
+	if ((tid != IWL_MAX_TID_COUNT) &&
+	    (lq_sta->tx_agg_tid_en & (1 << tid))) {
+		tid_data = &priv->shrd->tid_data[lq_sta->lq.sta_id][tid];
 		if (tid_data->agg.state == IWL_AGG_OFF)
 			lq_sta->is_agg = 0;
 		else
@@ -2651,9 +2652,10 @@ lq_update:
 		    iwl_ht_enabled(priv)) {
 			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
-			    (tid != MAX_TID_COUNT)) {
+			    (tid != IWL_MAX_TID_COUNT)) {
+				u8 sta_id = lq_sta->lq.sta_id;
 				tid_data =
-				   &priv->stations[lq_sta->lq.sta_id].tid[tid];
+				   &priv->shrd->tid_data[sta_id][tid];
 				if (tid_data->agg.state == IWL_AGG_OFF) {
 					IWL_DEBUG_RATE(priv,
 						       "try to aggregate tid %d\n",

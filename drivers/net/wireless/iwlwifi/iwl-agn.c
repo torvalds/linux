@@ -2203,7 +2203,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	 * since the uCode will add 0x10 before using the value.
 	 */
 	for (i = 0; i < 8; i++) {
-		seq = priv->stations[IWL_AP_ID].tid[i].seq_number;
+		seq = priv->shrd->tid_data[IWL_AP_ID][i].seq_number;
 		seq -= 0x10;
 		wakeup_filter_cmd.qos_seq[i] = cpu_to_le16(seq);
 	}

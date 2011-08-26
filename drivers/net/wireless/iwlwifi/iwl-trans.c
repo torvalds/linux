@@ -1193,7 +1193,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id,
 
 	if (txq->sched_retry) {
 		agg_state =
-			priv->stations[txq->sta_id].tid[txq->tid].agg.state;
+			priv->shrd->tid_data[txq->sta_id][txq->tid].agg.state;
 		cond = (agg_state != IWL_EMPTYING_HW_QUEUE_DELBA);
 	} else {
 		cond = (status != TX_STATUS_FAIL_PASSIVE_NO_RX);

@@ -410,13 +410,15 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	if (ieee80211_is_data_qos(fc)) {
 		u8 *qc = NULL;
+		struct iwl_tid_data *tid_data;
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		tid_data = &priv->shrd->tid_data[sta_id][tid];
 
-		if (WARN_ON_ONCE(tid >= MAX_TID_COUNT))
+		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 			goto drop_unlock_sta;
 
-		seq_number = priv->stations[sta_id].tid[tid].seq_number;
+		seq_number = tid_data->seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = hdr->seq_ctrl &
 				cpu_to_le16(IEEE80211_SCTL_FRAG);
@@ -424,8 +426,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
-		    priv->stations[sta_id].tid[tid].agg.state == IWL_AGG_ON) {
-			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
+		    tid_data->agg.state == IWL_AGG_ON) {
+			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
 		}
 	}
@@ -456,9 +458,10 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		goto drop_unlock_sta;
 
 	if (ieee80211_is_data_qos(fc)) {
-		priv->stations[sta_id].tid[tid].tfds_in_queue++;
+		priv->shrd->tid_data[sta_id][tid].tfds_in_queue++;
 		if (!ieee80211_has_morefrags(fc))
-			priv->stations[sta_id].tid[tid].seq_number = seq_number;
+			priv->shrd->tid_data[sta_id][tid].seq_number =
+				seq_number;
 	}
 
 	spin_unlock(&priv->shrd->sta_lock);
@@ -521,10 +524,10 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		IWL_ERR(priv, "Start AGG on invalid station\n");
 		return -ENXIO;
 	}
-	if (unlikely(tid >= MAX_TID_COUNT))
+	if (unlikely(tid >= IWL_MAX_TID_COUNT))
 		return -EINVAL;
 
-	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
+	if (priv->shrd->tid_data[sta_id][tid].agg.state != IWL_AGG_OFF) {
 		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
 		return -ENXIO;
 	}
@@ -536,7 +539,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	}
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	tid_data = &priv->stations[sta_id].tid[tid];
+	tid_data = &priv->shrd->tid_data[sta_id][tid];
 	*ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
 	tid_data->agg.tx_fifo = tx_fifo;
@@ -548,7 +551,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return ret;
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	tid_data = &priv->stations[sta_id].tid[tid];
+	tid_data = &priv->shrd->tid_data[sta_id][tid];
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
@@ -583,11 +586,11 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
-	tid_data = &priv->stations[sta_id].tid[tid];
+	tid_data = &priv->shrd->tid_data[sta_id][tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
 	txq_id = tid_data->agg.txq_id;
 
-	switch (priv->stations[sta_id].tid[tid].agg.state) {
+	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/*
 		 * This can happen if the peer stops aggregation
@@ -609,7 +612,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	/* The queue is not empty */
 	if (write_ptr != read_ptr) {
 		IWL_DEBUG_HT(priv, "Stopping a non empty AGG HW QUEUE\n");
-		priv->stations[sta_id].tid[tid].agg.state =
+		priv->shrd->tid_data[sta_id][tid].agg.state =
 				IWL_EMPTYING_HW_QUEUE_DELBA;
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return 0;
@@ -617,7 +620,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	IWL_DEBUG_HT(priv, "HW queue is empty\n");
  turn_off:
-	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
+	priv->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
 
 	/* do not restore/save irqs */
 	spin_unlock(&priv->shrd->sta_lock);
@@ -643,14 +646,14 @@ static int iwlagn_txq_check_empty(struct iwl_priv *priv,
 {
 	struct iwl_queue *q = &priv->txq[txq_id].q;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
-	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+	struct iwl_tid_data *tid_data = &priv->shrd->tid_data[sta_id][tid];
 	struct iwl_rxon_context *ctx;
 
 	ctx = &priv->contexts[priv->stations[sta_id].ctxid];
 
 	lockdep_assert_held(&priv->shrd->sta_lock);
 
-	switch (priv->stations[sta_id].tid[tid].agg.state) {
+	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
 		/* We are reclaiming the last packet of the */
 		/* aggregated HW queue */
@@ -815,7 +818,7 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 		IWLAGN_TX_RES_TID_POS;
 	int sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
 		IWLAGN_TX_RES_RA_POS;
-	struct iwl_ht_agg *agg = &priv->stations[sta_id].tid[tid].agg;
+	struct iwl_ht_agg *agg = &priv->shrd->tid_data[sta_id][tid].agg;
 	u32 status = le16_to_cpu(tx_resp->status.status);
 	int i;
 
@@ -893,13 +896,13 @@ static void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 {
 	lockdep_assert_held(&priv->shrd->sta_lock);
 
-	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
-		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
+	if (priv->shrd->tid_data[sta_id][tid].tfds_in_queue >= freed)
+		priv->shrd->tid_data[sta_id][tid].tfds_in_queue -= freed;
 	else {
 		IWL_DEBUG_TX(priv, "free more than tfds_in_queue (%u:%d)\n",
-			priv->stations[sta_id].tid[tid].tfds_in_queue,
+			priv->shrd->tid_data[sta_id][tid].tfds_in_queue,
 			freed);
-		priv->stations[sta_id].tid[tid].tfds_in_queue = 0;
+		priv->shrd->tid_data[sta_id][tid].tfds_in_queue = 0;
 	}
 }
 
@@ -1149,7 +1152,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	txq = &priv->txq[scd_flow];
 	sta_id = ba_resp->sta_id;
 	tid = ba_resp->tid;
-	agg = &priv->stations[sta_id].tid[tid].agg;
+	agg = &priv->shrd->tid_data[sta_id][tid].agg;
 
 	/* Find index of block-ack window */
 	index = ba_resp_scd_ssn & (txq->q.n_bd - 1);

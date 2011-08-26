@@ -438,11 +438,11 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 
 	if (WARN_ON(sta_id == IWL_INVALID_STATION))
 		return;
-	if (WARN_ON(tid >= MAX_TID_COUNT))
+	if (WARN_ON(tid >= IWL_MAX_TID_COUNT))
 		return;
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	tid_data = &priv->stations[sta_id].tid[tid];
+	tid_data = &priv->shrd->tid_data[sta_id][tid];
 	ssn_idx = SEQ_TO_SN(tid_data->seq_number);
 	txq_id = tid_data->agg.txq_id;
 	tx_fifo = tid_data->agg.tx_fifo;

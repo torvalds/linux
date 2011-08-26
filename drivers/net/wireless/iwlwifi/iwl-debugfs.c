@@ -340,6 +340,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 {
 	struct iwl_priv *priv = file->private_data;
 	struct iwl_station_entry *station;
+	struct iwl_tid_data *tid_data;
 	int max_sta = hw_params(priv).max_stations;
 	char *buf;
 	int i, j, pos = 0;
@@ -363,22 +364,18 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 				 i, station->sta.sta.addr,
 				 station->sta.station_flags_msk);
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"TID\tseq_num\ttxq_id\tframes\ttfds\t");
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"start_idx\tbitmap\t\t\trate_n_flags\n");
+				"TID\tseq_num\ttxq_id\ttfds\trate_n_flags\n");
 
-		for (j = 0; j < MAX_TID_COUNT; j++) {
+		for (j = 0; j < IWL_MAX_TID_COUNT; j++) {
+			tid_data = &priv->shrd->tid_data[i][j];
 			pos += scnprintf(buf + pos, bufsz - pos,
-				"%d:\t%#x\t%#x\t%u\t%u\t%u\t\t%#.16llx\t%#x",
-				j, station->tid[j].seq_number,
-				station->tid[j].agg.txq_id,
-				station->tid[j].agg.frame_count,
-				station->tid[j].tfds_in_queue,
-				station->tid[j].agg.start_idx,
-				station->tid[j].agg.bitmap,
-				station->tid[j].agg.rate_n_flags);
+				"%d:\t%#x\t%#x\t%u\t%#x",
+				j, tid_data->seq_number,
+				tid_data->agg.txq_id,
+				tid_data->tfds_in_queue,
+				tid_data->agg.rate_n_flags);
 
-			if (station->tid[j].agg.wait_for_ba)
+			if (tid_data->agg.wait_for_ba)
 				pos += scnprintf(buf + pos, bufsz - pos,
 						 " - waitforba");
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");

@@ -68,6 +68,8 @@
 #include <linux/mutex.h>
 #include <linux/gfp.h>
 
+#include "iwl-commands.h"
+
 /*This files includes all the types / functions that are exported by the
  * upper layer to the bus and transport layer */
 
@@ -167,6 +169,34 @@ struct iwl_hw_params {
 };
 
 /**
+ * struct iwl_ht_agg - aggregation status while waiting for block-ack
+ * @txq_id: Tx queue used for Tx attempt
+ * @wait_for_ba: Expect block-ack before next Tx reply
+ * @rate_n_flags: Rate at which Tx was attempted
+ *
+ * If REPLY_TX indicates that aggregation was attempted, driver must wait
+ * for block ack (REPLY_COMPRESSED_BA).  This struct stores tx reply info
+ * until block ack arrives.
+ */
+struct iwl_ht_agg {
+	u16 txq_id;
+	u16 wait_for_ba;
+	u32 rate_n_flags;
+#define IWL_AGG_OFF 0
+#define IWL_AGG_ON 1
+#define IWL_EMPTYING_HW_QUEUE_ADDBA 2
+#define IWL_EMPTYING_HW_QUEUE_DELBA 3
+	u8 state;
+	u8 tx_fifo;
+};
+
+struct iwl_tid_data {
+	u16 seq_number; /* agn only */
+	u16 tfds_in_queue;
+	struct iwl_ht_agg agg;
+};
+
+/**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
@@ -200,6 +230,8 @@ struct iwl_shared {
 	spinlock_t lock;
 	spinlock_t sta_lock;
 	struct mutex mutex;
+
+	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
