@@ -13,7 +13,6 @@ obj-				:=
 # Core files
 obj-y				+= cpu.o
 obj-y				+= clock.o
-obj-y				+= gpiolib.o
 
 # Core support for S3C6400 system
 
