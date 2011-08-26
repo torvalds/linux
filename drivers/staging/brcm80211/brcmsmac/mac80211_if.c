@@ -752,12 +752,11 @@ static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
  * is called in brcms_pci_probe() context, therefore no locking required.
  */
 static struct brcms_info *brcms_attach(u16 vendor, u16 device,
-				       unsigned long regs,
+				       resource_size_t regs,
 				       struct pci_dev *btparam, uint irq)
 {
 	struct brcms_info *wl = NULL;
 	int unit, err;
-	unsigned long base_addr;
 	struct ieee80211_hw *hw;
 	u8 perm[ETH_ALEN];
 
@@ -780,11 +779,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	/* setup the bottom half handler */
 	tasklet_init(&wl->tasklet, brcms_dpc, (unsigned long) wl);
 
-
-
-	base_addr = regs;
-
-	wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ);
+	wl->regsva = ioremap_nocache(regs, PCI_BAR0_WINSZ);
 	if (wl->regsva == NULL) {
 		wiphy_err(wl->wiphy, "wl%d: ioremap() failed\n", unit);
 		goto fail;
