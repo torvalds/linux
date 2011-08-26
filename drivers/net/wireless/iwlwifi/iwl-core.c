@@ -1724,32 +1724,12 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return err;
 }
 
-/*
- * On every watchdog tick we check (latest) time stamp. If it does not
- * change during timeout period and queue is not empty we reset firmware.
- */
-static int iwl_check_stuck_queue(struct iwl_priv *priv, int cnt)
+static inline int iwl_check_stuck_queue(struct iwl_priv *priv, int txq)
 {
-	struct iwl_tx_queue *txq = &priv->txq[cnt];
-	struct iwl_queue *q = &txq->q;
-	unsigned long timeout;
-	int ret;
-
-	if (q->read_ptr == q->write_ptr) {
-		txq->time_stamp = jiffies;
-		return 0;
-	}
-
-	timeout = txq->time_stamp +
-		  msecs_to_jiffies(priv->cfg->base_params->wd_timeout);
-
-	if (time_after(jiffies, timeout)) {
-		IWL_ERR(priv, "Queue %d stuck for %u ms.\n",
-				q->id, priv->cfg->base_params->wd_timeout);
-		ret = iwl_force_reset(priv, IWL_FW_RESET, false);
+	if (iwl_trans_check_stuck_queue(trans(priv), txq)) {
+		int ret = iwl_force_reset(priv, IWL_FW_RESET, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
-
 	return 0;
 }
 

@@ -147,6 +147,7 @@ struct iwl_mod_params {
  * @sw_crypto: 0 for hw, 1 for sw
  * @max_xxx_size: for ucode uses
  * @ct_kill_threshold: temperature threshold
+ * @wd_timeout: TX queues watchdog timeout
  * @calib_init_cfg: setup initial calibrations for the hw
  * @calib_rt_cfg: setup runtime calibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
@@ -169,6 +170,8 @@ struct iwl_hw_params {
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
 				    /* for 1000, 6000 series and up */
+	unsigned int wd_timeout;
+
 	u32 calib_init_cfg;
 	u32 calib_rt_cfg;
 	const struct iwl_sensitivity_ranges *sens;

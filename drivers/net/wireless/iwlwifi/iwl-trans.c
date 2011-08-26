@@ -1475,6 +1475,33 @@ static int iwl_trans_pcie_wait_tx_queue_empty(struct iwl_trans *trans)
 	return ret;
 }
 
+/*
+ * On every watchdog tick we check (latest) time stamp. If it does not
+ * change during timeout period and queue is not empty we reset firmware.
+ */
+static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
+{
+	struct iwl_tx_queue *txq = &priv(trans)->txq[cnt];
+	struct iwl_queue *q = &txq->q;
+	unsigned long timeout;
+
+	if (q->read_ptr == q->write_ptr) {
+		txq->time_stamp = jiffies;
+		return 0;
+	}
+
+	timeout = txq->time_stamp +
+		  msecs_to_jiffies(hw_params(trans).wd_timeout);
+
+	if (time_after(jiffies, timeout)) {
+		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
+			hw_params(trans).wd_timeout);
+		return 1;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
@@ -2055,6 +2082,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_tx_queue_empty,
+	.check_stuck_queue = iwl_trans_pcie_check_stuck_queue,
 
 	.suspend = iwl_trans_pcie_suspend,
 	.resume = iwl_trans_pcie_resume,
