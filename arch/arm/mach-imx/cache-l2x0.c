@@ -53,4 +53,4 @@ static int mxc_init_l2x0(void)
 
 	return 0;
 }
-arch_initcall(mxc_init_l2x0);
+early_initcall(mxc_init_l2x0);
