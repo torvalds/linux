@@ -4766,12 +4766,6 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	if (adapter->vfs_allocated_count)
-		wr32(E1000_IMS, E1000_IMS_LSC |
-				E1000_IMS_VMMB |
-				E1000_IMS_DOUTSYNC);
-	else
-		wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC);
 	wr32(E1000_EIMS, adapter->eims_other);
 
 	return IRQ_HANDLED;
