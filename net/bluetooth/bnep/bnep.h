@@ -155,6 +155,7 @@ struct bnep_session {
 	unsigned int  role;
 	unsigned long state;
 	unsigned long flags;
+	atomic_t      terminate;
 	struct task_struct *task;
 
 	struct ethhdr eh;

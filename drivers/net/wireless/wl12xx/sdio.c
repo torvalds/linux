@@ -164,7 +164,7 @@ static int wl1271_sdio_power_on(struct wl1271 *wl)
 	/* If enabled, tell runtime PM not to power off the card */
 	if (pm_runtime_enabled(&func->dev)) {
 		ret = pm_runtime_get_sync(&func->dev);
-		if (ret)
+		if (ret < 0)
 			goto out;
 	} else {
 		/* Runtime PM is disabled: power up the card manually */

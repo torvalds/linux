@@ -1209,7 +1209,6 @@ static void hci_cmd_timer(unsigned long arg)
 
 	BT_ERR("%s command tx timeout", hdev->name);
 	atomic_set(&hdev->cmd_cnt, 1);
-	clear_bit(HCI_RESET, &hdev->flags);
 	tasklet_schedule(&hdev->cmd_task);
 }
 
@@ -1327,7 +1326,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
 	if (!entry) {
-		return -ENOMEM;
+		err = -ENOMEM;
 		goto err;
 	}
 
@@ -2408,7 +2407,10 @@ static void hci_cmd_task(unsigned long arg)
 		if (hdev->sent_cmd) {
 			atomic_dec(&hdev->cmd_cnt);
 			hci_send_frame(skb);
-			mod_timer(&hdev->cmd_timer,
+			if (test_bit(HCI_RESET, &hdev->flags))
+				del_timer(&hdev->cmd_timer);
+			else
+				mod_timer(&hdev->cmd_timer,
 				  jiffies + msecs_to_jiffies(HCI_CMD_TIMEOUT));
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
