@@ -159,6 +159,22 @@
 #define CCTRL5357_EXTPA            (1<<14) /* extPA in ChipControl 1, bit 14 */
 #define CCTRL5357_ANT_MUX_2o3      (1<<15) /* 2o3 in ChipControl 1, bit 15 */
 
+#define NPHY_CAL_TSSISAMPS      64
+#define NPHY_TEST_TONE_FREQ_40MHz 4000
+#define NPHY_TEST_TONE_FREQ_20MHz 2500
+
+#define MAX_205x_RCAL_WAITLOOPS 10000
+
+#define NPHY_RXCAL_TONEAMP 181
+#define NPHY_RXCAL_TONEFREQ_40MHz 4000
+#define NPHY_RXCAL_TONEFREQ_20MHz 2000
+
+#define TXFILT_SHAPING_OFDM20   0
+#define TXFILT_SHAPING_OFDM40   1
+#define TXFILT_SHAPING_CCK      2
+#define TXFILT_DEFAULT_OFDM20   3
+#define TXFILT_DEFAULT_OFDM40   4
+
 struct nphy_iqcal_params {
 	u16 txlpf;
 	u16 txgm;
@@ -238,10 +254,6 @@ struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz_rev7[] = {
 	{0, 0, 6, 3, 0, 10}
 };
 
-#define NPHY_RXCAL_TONEAMP 181
-#define NPHY_RXCAL_TONEFREQ_40MHz 4000
-#define NPHY_RXCAL_TONEFREQ_20MHz 2000
-
 enum {
 	NPHY_RXCAL_GAIN_INIT = 0,
 	NPHY_RXCAL_GAIN_UP,
@@ -253,12 +265,6 @@ enum {
 	 ((0x1 << 15) |	\
 	  (0x1 << 14) |	\
 	  (0x1 << 13)))
-
-#define TXFILT_SHAPING_OFDM20   0
-#define TXFILT_SHAPING_OFDM40   1
-#define TXFILT_SHAPING_CCK      2
-#define TXFILT_DEFAULT_OFDM20   3
-#define TXFILT_DEFAULT_OFDM40   4
 
 u16 NPHY_IPA_REV4_txdigi_filtcoeffs[][NPHY_NUM_DIG_FILT_COEFFS] = {
 	{-377, 137, -407, 208, -1527, 956, 93, 186, 93,
@@ -14107,120 +14113,6 @@ static u8 ant_sw_ctrl_tbl_rev8_2057v7_core1[] = {
 	0x09, 0x0a, 0x09, 0x0a, 0x15, 0x16
 };
 
-static bool wlc_phy_chan2freq_nphy(struct brcms_phy *pi, uint channel, int *f,
-				   struct chan_info_nphy_radio2057 **t0,
-				   struct chan_info_nphy_radio205x **t1,
-				   struct chan_info_nphy_radio2057_rev5 **t2,
-				   struct chan_info_nphy_2055 **t3);
-static void wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chans,
-					const struct nphy_sfo_cfg *c);
-
-static void wlc_phy_adjust_rx_analpfbw_nphy(struct brcms_phy *pi,
-					    u16 reduction_factr);
-static void wlc_phy_adjust_min_noisevar_nphy(struct brcms_phy *pi,
-					     int ntones, int *, u32 *buf);
-static void wlc_phy_adjust_crsminpwr_nphy(struct brcms_phy *pi, u8 minpwr);
-static void wlc_phy_txlpfbw_nphy(struct brcms_phy *pi);
-static void wlc_phy_spurwar_nphy(struct brcms_phy *pi);
-
-static void wlc_phy_radio_preinit_2055(struct brcms_phy *pi);
-static void wlc_phy_radio_init_2055(struct brcms_phy *pi);
-static void wlc_phy_radio_postinit_2055(struct brcms_phy *pi);
-static void wlc_phy_radio_preinit_205x(struct brcms_phy *pi);
-static void wlc_phy_radio_init_2056(struct brcms_phy *pi);
-static void wlc_phy_radio_postinit_2056(struct brcms_phy *pi);
-static void wlc_phy_radio_init_2057(struct brcms_phy *pi);
-static void wlc_phy_radio_postinit_2057(struct brcms_phy *pi);
-static void wlc_phy_workarounds_nphy(struct brcms_phy *pi);
-static void wlc_phy_workarounds_nphy_gainctrl(struct brcms_phy *pi);
-static void wlc_phy_workarounds_nphy_gainctrl_2057_rev5(struct brcms_phy *pi);
-static void wlc_phy_workarounds_nphy_gainctrl_2057_rev6(struct brcms_phy *pi);
-static void wlc_phy_adjust_lnagaintbl_nphy(struct brcms_phy *pi);
-
-static void wlc_phy_restore_rssical_nphy(struct brcms_phy *pi);
-static void wlc_phy_reapply_txcal_coeffs_nphy(struct brcms_phy *pi);
-static void wlc_phy_tx_iq_war_nphy(struct brcms_phy *pi);
-static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
-				      struct nphy_txgains tg, u8 type, bool d);
-static void wlc_phy_rxcal_gainctrl_nphy_rev5(struct brcms_phy *pi, u8 rxcore,
-					     u16 *rg, u8 type);
-static void wlc_phy_update_mimoconfig_nphy(struct brcms_phy *pi, s32 preamble);
-static void wlc_phy_savecal_nphy(struct brcms_phy *pi);
-static void wlc_phy_restorecal_nphy(struct brcms_phy *pi);
-static void wlc_phy_resetcca_nphy(struct brcms_phy *pi);
-
-static void wlc_phy_txpwrctrl_config_nphy(struct brcms_phy *pi);
-static void wlc_phy_internal_cal_txgain_nphy(struct brcms_phy *pi);
-static void wlc_phy_precal_txgain_nphy(struct brcms_phy *pi);
-static void wlc_phy_update_txcal_ladder_nphy(struct brcms_phy *pi, u16 core);
-
-static void wlc_phy_extpa_set_tx_digi_filts_nphy(struct brcms_phy *pi);
-static void wlc_phy_ipa_set_tx_digi_filts_nphy(struct brcms_phy *pi);
-static void wlc_phy_ipa_restore_tx_digi_filts_nphy(struct brcms_phy *pi);
-static u16 wlc_phy_ipa_get_bbmult_nphy(struct brcms_phy *pi);
-static void wlc_phy_ipa_set_bbmult_nphy(struct brcms_phy *pi, u8 m0, u8 m1);
-static u32 *wlc_phy_get_ipa_gaintbl_nphy(struct brcms_phy *pi);
-
-static void wlc_phy_a1_nphy(struct brcms_phy *pi, u8 core, u32 winsz, u32,
-			    u32 e);
-static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core);
-static void wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *,
-			    enum phy_cal_mode, u8);
-
-static void
-wlc_phy_papd_cal_cleanup_nphy(struct brcms_phy *pi,
-			      struct nphy_papd_restore_state *state);
-
-static void wlc_phy_papd_cal_setup_nphy(struct brcms_phy *pi,
-					struct nphy_papd_restore_state *state,
-					u8);
-
-static void wlc_phy_clip_det_nphy(struct brcms_phy *pi, u8 write, u16 *vals);
-
-static void wlc_phy_set_rfseq_nphy(struct brcms_phy *pi, u8 cmd, u8 *evts,
-				   u8 *dlys, u8 len);
-
-static u16 wlc_phy_read_lpf_bw_ctl_nphy(struct brcms_phy *pi, u16 offset);
-
-static void
-wlc_phy_rfctrl_override_nphy_rev7(struct brcms_phy *pi, u16 field, u16 value,
-				  u8 core_mask, u8 off,
-				  u8 override_id);
-
-static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type);
-static void wlc_phy_rssi_cal_nphy_rev3(struct brcms_phy *pi);
-
-static bool wlc_phy_txpwr_srom_read_nphy(struct brcms_phy *pi);
-static void wlc_phy_txpwr_nphy_srom_convert(u8 *srom_max,
-					    u16 *pwr_offset,
-					    u8 tmp_max_pwr, u8 rate_start,
-					    u8 rate_end);
-
-static void wlc_phy_txpwr_limit_to_tbl_nphy(struct brcms_phy *pi);
-static void wlc_phy_txpwrctrl_coeff_setup_nphy(struct brcms_phy *pi);
-static void wlc_phy_txpwrctrl_idle_tssi_nphy(struct brcms_phy *pi);
-static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi);
-
-static bool wlc_phy_txpwr_ison_nphy(struct brcms_phy *pi);
-static u8 wlc_phy_txpwr_idx_cur_get_nphy(struct brcms_phy *pi, u8 core);
-static void wlc_phy_txpwr_idx_cur_set_nphy(struct brcms_phy *pi, u8 idx0,
-					   u8 idx1);
-static void wlc_phy_a4(struct brcms_phy *pi, bool full_cal);
-
-static u16 wlc_phy_radio205x_rcal(struct brcms_phy *pi);
-
-static u16 wlc_phy_radio2057_rccal(struct brcms_phy *pi);
-
-static u16 wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz,
-					 u16 max_val,
-					 u8 dac_test_mode);
-static void wlc_phy_loadsampletable_nphy(struct brcms_phy *pi,
-					 struct cordic_iq *tone_buf,
-					 u16 num_samps);
-static void wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 n, u16 lps,
-				    u16 wait, u8 iq, u8 dac_test_mode,
-				    bool modify_bbmult);
-
 bool wlc_phy_bist_check_phy(struct brcms_phy_pub *pih)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
@@ -14464,6 +14356,287 @@ void wlc_phy_nphy_tkip_rifs_war(struct brcms_phy *pi, u8 rifs)
 		pi->sh->_rifs_phy = rifs;
 }
 
+static void wlc_phy_txpwrctrl_config_nphy(struct brcms_phy *pi)
+{
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		pi->nphy_txpwrctrl = PHY_TPC_HW_ON;
+		pi->phy_5g_pwrgain = true;
+		return;
+	}
+
+	pi->nphy_txpwrctrl = PHY_TPC_HW_OFF;
+	pi->phy_5g_pwrgain = false;
+
+	if ((pi->sh->boardflags2 & BFL2_TXPWRCTRL_EN) &&
+	    NREV_GE(pi->pubpi.phy_rev, 2) && (pi->sh->sromrev >= 4))
+		pi->nphy_txpwrctrl = PHY_TPC_HW_ON;
+	else if ((pi->sh->sromrev >= 4)
+		 && (pi->sh->boardflags2 & BFL2_5G_PWRGAIN))
+		pi->phy_5g_pwrgain = true;
+}
+
+static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
+{
+	u16 bw40po, cddpo, stbcpo, bwduppo;
+	uint band_num;
+
+	if (pi->sh->sromrev >= 9)
+		return;
+
+	bw40po = (u16) PHY_GETINTVAR(pi, "bw40po");
+	pi->bw402gpo = bw40po & 0xf;
+	pi->bw405gpo = (bw40po & 0xf0) >> 4;
+	pi->bw405glpo = (bw40po & 0xf00) >> 8;
+	pi->bw405ghpo = (bw40po & 0xf000) >> 12;
+
+	cddpo = (u16) PHY_GETINTVAR(pi, "cddpo");
+	pi->cdd2gpo = cddpo & 0xf;
+	pi->cdd5gpo = (cddpo & 0xf0) >> 4;
+	pi->cdd5glpo = (cddpo & 0xf00) >> 8;
+	pi->cdd5ghpo = (cddpo & 0xf000) >> 12;
+
+	stbcpo = (u16) PHY_GETINTVAR(pi, "stbcpo");
+	pi->stbc2gpo = stbcpo & 0xf;
+	pi->stbc5gpo = (stbcpo & 0xf0) >> 4;
+	pi->stbc5glpo = (stbcpo & 0xf00) >> 8;
+	pi->stbc5ghpo = (stbcpo & 0xf000) >> 12;
+
+	bwduppo = (u16) PHY_GETINTVAR(pi, "bwduppo");
+	pi->bwdup2gpo = bwduppo & 0xf;
+	pi->bwdup5gpo = (bwduppo & 0xf0) >> 4;
+	pi->bwdup5glpo = (bwduppo & 0xf00) >> 8;
+	pi->bwdup5ghpo = (bwduppo & 0xf000) >> 12;
+
+	for (band_num = 0; band_num < (CH_2G_GROUP + CH_5G_GROUP);
+	     band_num++) {
+		switch (band_num) {
+		case 0:
+
+			pi->nphy_txpid2g[PHY_CORE_0] =
+				(u8) PHY_GETINTVAR(pi, "txpid2ga0");
+			pi->nphy_txpid2g[PHY_CORE_1] =
+				(u8) PHY_GETINTVAR(pi, "txpid2ga1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].max_pwr_2g =
+				(s8) PHY_GETINTVAR(pi, "maxp2ga0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_2g =
+				(s8) PHY_GETINTVAR(pi, "maxp2ga1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa2gw0a0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa2gw0a1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa2gw1a0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa2gw1a1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa2gw2a0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa2gw2a1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].idle_targ_2g =
+				(s8) PHY_GETINTVAR(pi, "itt2ga0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].idle_targ_2g =
+				(s8) PHY_GETINTVAR(pi, "itt2ga1");
+
+			pi->cck2gpo = (u16) PHY_GETINTVAR(pi, "cck2gpo");
+
+			pi->ofdm2gpo = (u32) PHY_GETINTVAR(pi, "ofdm2gpo");
+
+			pi->mcs2gpo[0] = (u16) PHY_GETINTVAR(pi, "mcs2gpo0");
+			pi->mcs2gpo[1] = (u16) PHY_GETINTVAR(pi, "mcs2gpo1");
+			pi->mcs2gpo[2] = (u16) PHY_GETINTVAR(pi, "mcs2gpo2");
+			pi->mcs2gpo[3] = (u16) PHY_GETINTVAR(pi, "mcs2gpo3");
+			pi->mcs2gpo[4] = (u16) PHY_GETINTVAR(pi, "mcs2gpo4");
+			pi->mcs2gpo[5] = (u16) PHY_GETINTVAR(pi, "mcs2gpo5");
+			pi->mcs2gpo[6] = (u16) PHY_GETINTVAR(pi, "mcs2gpo6");
+			pi->mcs2gpo[7] = (u16) PHY_GETINTVAR(pi, "mcs2gpo7");
+			break;
+		case 1:
+
+			pi->nphy_txpid5g[PHY_CORE_0] =
+				(u8) PHY_GETINTVAR(pi, "txpid5ga0");
+			pi->nphy_txpid5g[PHY_CORE_1] =
+				(u8) PHY_GETINTVAR(pi, "txpid5ga1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].max_pwr_5gm =
+				(s8) PHY_GETINTVAR(pi, "maxp5ga0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_5gm =
+				(s8) PHY_GETINTVAR(pi, "maxp5ga1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa5gw0a0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa5gw0a1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa5gw1a0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa5gw1a1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa5gw2a0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa5gw2a1");
+			pi->nphy_pwrctrl_info[PHY_CORE_0].idle_targ_5gm =
+				(s8) PHY_GETINTVAR(pi, "itt5ga0");
+			pi->nphy_pwrctrl_info[PHY_CORE_1].idle_targ_5gm =
+				(s8) PHY_GETINTVAR(pi, "itt5ga1");
+
+			pi->ofdm5gpo = (u32) PHY_GETINTVAR(pi, "ofdm5gpo");
+
+			pi->mcs5gpo[0] = (u16) PHY_GETINTVAR(pi, "mcs5gpo0");
+			pi->mcs5gpo[1] = (u16) PHY_GETINTVAR(pi, "mcs5gpo1");
+			pi->mcs5gpo[2] = (u16) PHY_GETINTVAR(pi, "mcs5gpo2");
+			pi->mcs5gpo[3] = (u16) PHY_GETINTVAR(pi, "mcs5gpo3");
+			pi->mcs5gpo[4] = (u16) PHY_GETINTVAR(pi, "mcs5gpo4");
+			pi->mcs5gpo[5] = (u16) PHY_GETINTVAR(pi, "mcs5gpo5");
+			pi->mcs5gpo[6] = (u16) PHY_GETINTVAR(pi, "mcs5gpo6");
+			pi->mcs5gpo[7] = (u16) PHY_GETINTVAR(pi, "mcs5gpo7");
+			break;
+		case 2:
+
+			pi->nphy_txpid5gl[0] =
+				(u8) PHY_GETINTVAR(pi, "txpid5gla0");
+			pi->nphy_txpid5gl[1] =
+				(u8) PHY_GETINTVAR(pi, "txpid5gla1");
+			pi->nphy_pwrctrl_info[0].max_pwr_5gl =
+				(s8) PHY_GETINTVAR(pi, "maxp5gla0");
+			pi->nphy_pwrctrl_info[1].max_pwr_5gl =
+				(s8) PHY_GETINTVAR(pi, "maxp5gla1");
+			pi->nphy_pwrctrl_info[0].pwrdet_5gl_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa5glw0a0");
+			pi->nphy_pwrctrl_info[1].pwrdet_5gl_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa5glw0a1");
+			pi->nphy_pwrctrl_info[0].pwrdet_5gl_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa5glw1a0");
+			pi->nphy_pwrctrl_info[1].pwrdet_5gl_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa5glw1a1");
+			pi->nphy_pwrctrl_info[0].pwrdet_5gl_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa5glw2a0");
+			pi->nphy_pwrctrl_info[1].pwrdet_5gl_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa5glw2a1");
+			pi->nphy_pwrctrl_info[0].idle_targ_5gl = 0;
+			pi->nphy_pwrctrl_info[1].idle_targ_5gl = 0;
+
+			pi->ofdm5glpo = (u32) PHY_GETINTVAR(pi, "ofdm5glpo");
+
+			pi->mcs5glpo[0] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo0");
+			pi->mcs5glpo[1] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo1");
+			pi->mcs5glpo[2] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo2");
+			pi->mcs5glpo[3] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo3");
+			pi->mcs5glpo[4] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo4");
+			pi->mcs5glpo[5] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo5");
+			pi->mcs5glpo[6] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo6");
+			pi->mcs5glpo[7] =
+				(u16) PHY_GETINTVAR(pi, "mcs5glpo7");
+			break;
+		case 3:
+
+			pi->nphy_txpid5gh[0] =
+				(u8) PHY_GETINTVAR(pi, "txpid5gha0");
+			pi->nphy_txpid5gh[1] =
+				(u8) PHY_GETINTVAR(pi, "txpid5gha1");
+			pi->nphy_pwrctrl_info[0].max_pwr_5gh =
+				(s8) PHY_GETINTVAR(pi, "maxp5gha0");
+			pi->nphy_pwrctrl_info[1].max_pwr_5gh =
+				(s8) PHY_GETINTVAR(pi, "maxp5gha1");
+			pi->nphy_pwrctrl_info[0].pwrdet_5gh_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa5ghw0a0");
+			pi->nphy_pwrctrl_info[1].pwrdet_5gh_a1 =
+				(s16) PHY_GETINTVAR(pi, "pa5ghw0a1");
+			pi->nphy_pwrctrl_info[0].pwrdet_5gh_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa5ghw1a0");
+			pi->nphy_pwrctrl_info[1].pwrdet_5gh_b0 =
+				(s16) PHY_GETINTVAR(pi, "pa5ghw1a1");
+			pi->nphy_pwrctrl_info[0].pwrdet_5gh_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa5ghw2a0");
+			pi->nphy_pwrctrl_info[1].pwrdet_5gh_b1 =
+				(s16) PHY_GETINTVAR(pi, "pa5ghw2a1");
+			pi->nphy_pwrctrl_info[0].idle_targ_5gh = 0;
+			pi->nphy_pwrctrl_info[1].idle_targ_5gh = 0;
+
+			pi->ofdm5ghpo = (u32) PHY_GETINTVAR(pi, "ofdm5ghpo");
+
+			pi->mcs5ghpo[0] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo0");
+			pi->mcs5ghpo[1] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo1");
+			pi->mcs5ghpo[2] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo2");
+			pi->mcs5ghpo[3] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo3");
+			pi->mcs5ghpo[4] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo4");
+			pi->mcs5ghpo[5] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo5");
+			pi->mcs5ghpo[6] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo6");
+			pi->mcs5ghpo[7] =
+				(u16) PHY_GETINTVAR(pi, "mcs5ghpo7");
+			break;
+		}
+	}
+
+	wlc_phy_txpwr_apply_nphy(pi);
+}
+
+static bool wlc_phy_txpwr_srom_read_nphy(struct brcms_phy *pi)
+{
+
+	pi->antswitch = (u8) PHY_GETINTVAR(pi, "antswitch");
+	pi->aa2g = (u8) PHY_GETINTVAR(pi, "aa2g");
+	pi->aa5g = (u8) PHY_GETINTVAR(pi, "aa5g");
+
+	pi->srom_fem2g.tssipos = (u8) PHY_GETINTVAR(pi, "tssipos2g");
+	pi->srom_fem2g.extpagain = (u8) PHY_GETINTVAR(pi, "extpagain2g");
+	pi->srom_fem2g.pdetrange = (u8) PHY_GETINTVAR(pi, "pdetrange2g");
+	pi->srom_fem2g.triso = (u8) PHY_GETINTVAR(pi, "triso2g");
+	pi->srom_fem2g.antswctrllut = (u8) PHY_GETINTVAR(pi, "antswctl2g");
+
+	pi->srom_fem5g.tssipos = (u8) PHY_GETINTVAR(pi, "tssipos5g");
+	pi->srom_fem5g.extpagain = (u8) PHY_GETINTVAR(pi, "extpagain5g");
+	pi->srom_fem5g.pdetrange = (u8) PHY_GETINTVAR(pi, "pdetrange5g");
+	pi->srom_fem5g.triso = (u8) PHY_GETINTVAR(pi, "triso5g");
+	if (PHY_GETVAR(pi, "antswctl5g"))
+		pi->srom_fem5g.antswctrllut =
+			(u8) PHY_GETINTVAR(pi, "antswctl5g");
+	else
+		pi->srom_fem5g.antswctrllut =
+			(u8) PHY_GETINTVAR(pi, "antswctl2g");
+
+	wlc_phy_txpower_ipa_upd(pi);
+
+	pi->phy_txcore_disable_temp = (s16) PHY_GETINTVAR(pi, "tempthresh");
+	if (pi->phy_txcore_disable_temp == 0)
+		pi->phy_txcore_disable_temp = PHY_CHAIN_TX_DISABLE_TEMP;
+
+	pi->phy_tempsense_offset = (s8) PHY_GETINTVAR(pi, "tempoffset");
+	if (pi->phy_tempsense_offset != 0) {
+		if (pi->phy_tempsense_offset >
+		    (NPHY_SROM_TEMPSHIFT + NPHY_SROM_MAXTEMPOFFSET))
+			pi->phy_tempsense_offset = NPHY_SROM_MAXTEMPOFFSET;
+		else if (pi->phy_tempsense_offset < (NPHY_SROM_TEMPSHIFT +
+						     NPHY_SROM_MINTEMPOFFSET))
+			pi->phy_tempsense_offset = NPHY_SROM_MINTEMPOFFSET;
+		else
+			pi->phy_tempsense_offset -= NPHY_SROM_TEMPSHIFT;
+	}
+
+	pi->phy_txcore_enable_temp =
+		pi->phy_txcore_disable_temp - PHY_HYSTERESIS_DELTATEMP;
+
+	pi->phycal_tempdelta = (u8) PHY_GETINTVAR(pi, "phycal_tempdelta");
+	if (pi->phycal_tempdelta > NPHY_CAL_MAXTEMPDELTA)
+		pi->phycal_tempdelta = 0;
+
+	wlc_phy_txpwr_srom_read_ppr_nphy(pi);
+
+	return true;
+}
+
 bool wlc_phy_attach_nphy(struct brcms_phy *pi)
 {
 	uint i;
@@ -14516,26 +14689,6 @@ bool wlc_phy_attach_nphy(struct brcms_phy *pi)
 	return true;
 }
 
-static void wlc_phy_txpwrctrl_config_nphy(struct brcms_phy *pi)
-{
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		pi->nphy_txpwrctrl = PHY_TPC_HW_ON;
-		pi->phy_5g_pwrgain = true;
-		return;
-	}
-
-	pi->nphy_txpwrctrl = PHY_TPC_HW_OFF;
-	pi->phy_5g_pwrgain = false;
-
-	if ((pi->sh->boardflags2 & BFL2_TXPWRCTRL_EN) &&
-	    NREV_GE(pi->pubpi.phy_rev, 2) && (pi->sh->sromrev >= 4))
-		pi->nphy_txpwrctrl = PHY_TPC_HW_ON;
-	else if ((pi->sh->sromrev >= 4)
-		 && (pi->sh->boardflags2 & BFL2_5G_PWRGAIN))
-		pi->phy_5g_pwrgain = true;
-}
-
 static s32 get_rf_pwr_offset(struct brcms_phy *pi, s16 pga_gn, s16 pad_gn)
 {
 	s32 rfpwr_offset = 0;
@@ -14574,362 +14727,6 @@ static s32 get_rf_pwr_offset(struct brcms_phy *pi, s16 pga_gn, s16 pad_gn)
 	return rfpwr_offset;
 }
 
-void wlc_phy_init_nphy(struct brcms_phy *pi)
-{
-	u16 val;
-	u16 clip1_ths[2];
-	struct nphy_txgains target_gain;
-	u8 tx_pwr_ctrl_state;
-	bool do_nphy_cal = false;
-	uint core;
-	uint origidx, intr_val;
-	struct d11regs *regs;
-	u32 d11_clk_ctl_st;
-	bool do_rssi_cal = false;
-
-	core = 0;
-
-	if (!(pi->measure_hold & PHY_HOLD_FOR_SCAN))
-		pi->measure_hold |= PHY_HOLD_FOR_NOT_ASSOC;
-
-	if ((ISNPHY(pi)) && (NREV_GE(pi->pubpi.phy_rev, 5)) &&
-	    ((pi->sh->chippkg == BCM4717_PKG_ID) ||
-	     (pi->sh->chippkg == BCM4718_PKG_ID))) {
-		if ((pi->sh->boardflags & BFL_EXTLNA) &&
-		    (CHSPEC_IS2G(pi->radio_chanspec)))
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, chipcontrol),
-				   0x40, 0x40);
-	}
-
-	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
-	    CHSPEC_IS40(pi->radio_chanspec)) {
-
-		regs = (struct d11regs *) ai_switch_core(pi->sh->sih,
-							 D11_CORE_ID, &origidx,
-							 &intr_val);
-		d11_clk_ctl_st = R_REG(&regs->clk_ctl_st);
-		AND_REG(&regs->clk_ctl_st,
-			~(CCS_FORCEHT | CCS_HTAREQ));
-
-		W_REG(&regs->clk_ctl_st, d11_clk_ctl_st);
-
-		ai_restore_core(pi->sh->sih, origidx, intr_val);
-	}
-
-	pi->use_int_tx_iqlo_cal_nphy =
-		(PHY_IPA(pi) ||
-		 (NREV_GE(pi->pubpi.phy_rev, 7) ||
-		  (NREV_GE(pi->pubpi.phy_rev, 5)
-		   && pi->sh->boardflags2 & BFL2_INTERNDET_TXIQCAL)));
-
-	pi->internal_tx_iqlo_cal_tapoff_intpa_nphy = false;
-
-	pi->nphy_deaf_count = 0;
-
-	wlc_phy_tbl_init_nphy(pi);
-
-	pi->nphy_crsminpwr_adjusted = false;
-	pi->nphy_noisevars_adjusted = false;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		write_phy_reg(pi, 0xe7, 0);
-		write_phy_reg(pi, 0xec, 0);
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			write_phy_reg(pi, 0x342, 0);
-			write_phy_reg(pi, 0x343, 0);
-			write_phy_reg(pi, 0x346, 0);
-			write_phy_reg(pi, 0x347, 0);
-		}
-		write_phy_reg(pi, 0xe5, 0);
-		write_phy_reg(pi, 0xe6, 0);
-	} else {
-		write_phy_reg(pi, 0xec, 0);
-	}
-
-	write_phy_reg(pi, 0x91, 0);
-	write_phy_reg(pi, 0x92, 0);
-	if (NREV_LT(pi->pubpi.phy_rev, 6)) {
-		write_phy_reg(pi, 0x93, 0);
-		write_phy_reg(pi, 0x94, 0);
-	}
-
-	and_phy_reg(pi, 0xa1, ~3);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		write_phy_reg(pi, 0x8f, 0);
-		write_phy_reg(pi, 0xa5, 0);
-	} else {
-		write_phy_reg(pi, 0xa5, 0);
-	}
-
-	if (NREV_IS(pi->pubpi.phy_rev, 2))
-		mod_phy_reg(pi, 0xdc, 0x00ff, 0x3b);
-	else if (NREV_LT(pi->pubpi.phy_rev, 2))
-		mod_phy_reg(pi, 0xdc, 0x00ff, 0x40);
-
-	write_phy_reg(pi, 0x203, 32);
-	write_phy_reg(pi, 0x201, 32);
-
-	if (pi->sh->boardflags2 & BFL2_SKWRKFEM_BRD)
-		write_phy_reg(pi, 0x20d, 160);
-	else
-		write_phy_reg(pi, 0x20d, 184);
-
-	write_phy_reg(pi, 0x13a, 200);
-
-	write_phy_reg(pi, 0x70, 80);
-
-	write_phy_reg(pi, 0x1ff, 48);
-
-	if (NREV_LT(pi->pubpi.phy_rev, 8))
-		wlc_phy_update_mimoconfig_nphy(pi, pi->n_preamble_override);
-
-	wlc_phy_stf_chain_upd_nphy(pi);
-
-	if (NREV_LT(pi->pubpi.phy_rev, 2)) {
-		write_phy_reg(pi, 0x180, 0xaa8);
-		write_phy_reg(pi, 0x181, 0x9a4);
-	}
-
-	if (PHY_IPA(pi)) {
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
-				    0x29b, (0x1 << 0), (1) << 0);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x298 :
-				    0x29c, (0x1ff << 7),
-				    (pi->nphy_papd_epsilon_offset[core]) << 7);
-
-		}
-
-		wlc_phy_ipa_set_tx_digi_filts_nphy(pi);
-	} else if (NREV_GE(pi->pubpi.phy_rev, 5)) {
-		wlc_phy_extpa_set_tx_digi_filts_nphy(pi);
-	}
-
-	wlc_phy_workarounds_nphy(pi);
-
-	wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
-
-	val = read_phy_reg(pi, 0x01);
-	write_phy_reg(pi, 0x01, val | BBCFG_RESETCCA);
-	write_phy_reg(pi, 0x01, val & (~BBCFG_RESETCCA));
-	wlapi_bmac_phyclk_fgc(pi->sh->physhim, OFF);
-
-	wlapi_bmac_macphyclk_set(pi->sh->physhim, ON);
-
-	wlc_phy_pa_override_nphy(pi, OFF);
-	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RX2TX);
-	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RESET2RX);
-	wlc_phy_pa_override_nphy(pi, ON);
-
-	wlc_phy_classifier_nphy(pi, 0, 0);
-	wlc_phy_clip_det_nphy(pi, 0, clip1_ths);
-
-	if (CHSPEC_IS2G(pi->radio_chanspec))
-		wlc_phy_bphy_init_nphy(pi);
-
-	tx_pwr_ctrl_state = pi->nphy_txpwrctrl;
-	wlc_phy_txpwrctrl_enable_nphy(pi, PHY_TPC_HW_OFF);
-
-	wlc_phy_txpwr_fixpower_nphy(pi);
-
-	wlc_phy_txpwrctrl_idle_tssi_nphy(pi);
-
-	wlc_phy_txpwrctrl_pwr_setup_nphy(pi);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		u32 *tx_pwrctrl_tbl = NULL;
-		u16 idx;
-		s16 pga_gn = 0;
-		s16 pad_gn = 0;
-		s32 rfpwr_offset;
-
-		if (PHY_IPA(pi)) {
-			tx_pwrctrl_tbl = wlc_phy_get_ipa_gaintbl_nphy(pi);
-		} else {
-			if (CHSPEC_IS5G(pi->radio_chanspec)) {
-				if (NREV_IS(pi->pubpi.phy_rev, 3))
-					tx_pwrctrl_tbl =
-						nphy_tpc_5GHz_txgain_rev3;
-				else if (NREV_IS(pi->pubpi.phy_rev, 4))
-					tx_pwrctrl_tbl =
-						(pi->srom_fem5g.extpagain ==
-						 3) ?
-						nphy_tpc_5GHz_txgain_HiPwrEPA :
-						nphy_tpc_5GHz_txgain_rev4;
-				else
-					tx_pwrctrl_tbl =
-						nphy_tpc_5GHz_txgain_rev5;
-			} else {
-				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-					if (pi->pubpi.radiorev == 5)
-						tx_pwrctrl_tbl =
-						   nphy_tpc_txgain_epa_2057rev5;
-					else if (pi->pubpi.radiorev == 3)
-						tx_pwrctrl_tbl =
-						   nphy_tpc_txgain_epa_2057rev3;
-				} else {
-					if (NREV_GE(pi->pubpi.phy_rev, 5) &&
-					    (pi->srom_fem2g.extpagain == 3))
-						tx_pwrctrl_tbl =
-						       nphy_tpc_txgain_HiPwrEPA;
-					else
-						tx_pwrctrl_tbl =
-							nphy_tpc_txgain_rev3;
-				}
-			}
-		}
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE1TXPWRCTL, 128,
-					 192, 32, tx_pwrctrl_tbl);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE2TXPWRCTL, 128,
-					 192, 32, tx_pwrctrl_tbl);
-
-		pi->nphy_gmval = (u16) ((*tx_pwrctrl_tbl >> 16) & 0x7000);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-			for (idx = 0; idx < 128; idx++) {
-				pga_gn = (tx_pwrctrl_tbl[idx] >> 24) & 0xf;
-				pad_gn = (tx_pwrctrl_tbl[idx] >> 19) & 0x1f;
-				rfpwr_offset = get_rf_pwr_offset(pi, pga_gn,
-								 pad_gn);
-				wlc_phy_table_write_nphy(
-					pi,
-					NPHY_TBL_ID_CORE1TXPWRCTL,
-					1, 576 + idx, 32,
-					&rfpwr_offset);
-				wlc_phy_table_write_nphy(
-					pi,
-					NPHY_TBL_ID_CORE2TXPWRCTL,
-					1, 576 + idx, 32,
-					&rfpwr_offset);
-			}
-		} else {
-
-			for (idx = 0; idx < 128; idx++) {
-				pga_gn = (tx_pwrctrl_tbl[idx] >> 24) & 0xf;
-				if (CHSPEC_IS2G(pi->radio_chanspec))
-					rfpwr_offset = (s16)
-						 nphy_papd_pga_gain_delta_ipa_2g
-								       [pga_gn];
-				else
-					rfpwr_offset = (s16)
-						 nphy_papd_pga_gain_delta_ipa_5g
-								       [pga_gn];
-
-				wlc_phy_table_write_nphy(
-					pi,
-					NPHY_TBL_ID_CORE1TXPWRCTL,
-					1, 576 + idx, 32,
-					&rfpwr_offset);
-				wlc_phy_table_write_nphy(
-					pi,
-					NPHY_TBL_ID_CORE2TXPWRCTL,
-					1, 576 + idx, 32,
-					&rfpwr_offset);
-			}
-
-		}
-	} else {
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE1TXPWRCTL, 128,
-					 192, 32, nphy_tpc_txgain);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE2TXPWRCTL, 128,
-					 192, 32, nphy_tpc_txgain);
-	}
-
-	if (pi->sh->phyrxchain != 0x3)
-		wlc_phy_rxcore_setstate_nphy((struct brcms_phy_pub *) pi,
-					     pi->sh->phyrxchain);
-
-	if (PHY_PERICAL_MPHASE_PENDING(pi))
-		wlc_phy_cal_perical_mphase_restart(pi);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		do_rssi_cal = (CHSPEC_IS2G(pi->radio_chanspec)) ?
-			      (pi->nphy_rssical_chanspec_2G == 0) :
-			      (pi->nphy_rssical_chanspec_5G == 0);
-
-		if (do_rssi_cal)
-			wlc_phy_rssi_cal_nphy(pi);
-		else
-			wlc_phy_restore_rssical_nphy(pi);
-	} else {
-		wlc_phy_rssi_cal_nphy(pi);
-	}
-
-	if (!SCAN_RM_IN_PROGRESS(pi))
-		do_nphy_cal = (CHSPEC_IS2G(pi->radio_chanspec)) ?
-			      (pi->nphy_iqcal_chanspec_2G == 0) :
-			      (pi->nphy_iqcal_chanspec_5G == 0);
-
-	if (!pi->do_initcal)
-		do_nphy_cal = false;
-
-	if (do_nphy_cal) {
-
-		target_gain = wlc_phy_get_tx_gain_nphy(pi);
-
-		if (pi->antsel_type == ANTSEL_2x3)
-			wlc_phy_antsel_init((struct brcms_phy_pub *) pi,
-					    true);
-
-		if (pi->nphy_perical != PHY_PERICAL_MPHASE) {
-			wlc_phy_rssi_cal_nphy(pi);
-
-			if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-				pi->nphy_cal_orig_pwr_idx[0] =
-					pi->nphy_txpwrindex[PHY_CORE_0]
-					.
-					index_internal;
-				pi->nphy_cal_orig_pwr_idx[1] =
-					pi->nphy_txpwrindex[PHY_CORE_1]
-					.
-					index_internal;
-
-				wlc_phy_precal_txgain_nphy(pi);
-				target_gain =
-					wlc_phy_get_tx_gain_nphy(pi);
-			}
-
-			if (wlc_phy_cal_txiqlo_nphy
-				    (pi, target_gain, true,
-				    false) == 0) {
-				if (wlc_phy_cal_rxiq_nphy
-					    (pi, target_gain, 2,
-					    false) == 0)
-					wlc_phy_savecal_nphy(pi);
-
-			}
-		} else if (pi->mphase_cal_phase_id ==
-			   MPHASE_CAL_STATE_IDLE) {
-			wlc_phy_cal_perical((struct brcms_phy_pub *) pi,
-					    PHY_PERICAL_PHYINIT);
-		}
-	} else {
-		wlc_phy_restorecal_nphy(pi);
-	}
-
-	wlc_phy_txpwrctrl_coeff_setup_nphy(pi);
-
-	wlc_phy_txpwrctrl_enable_nphy(pi, tx_pwr_ctrl_state);
-
-	wlc_phy_nphy_tkip_rifs_war(pi, pi->sh->_rifs_phy);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LE(pi->pubpi.phy_rev, 6))
-
-		write_phy_reg(pi, 0x70, 50);
-
-	wlc_phy_txlpfbw_nphy(pi);
-
-	wlc_phy_spurwar_nphy(pi);
-
-}
-
 static void wlc_phy_update_mimoconfig_nphy(struct brcms_phy *pi, s32 preamble)
 {
 	bool gf_preamble = false;
@@ -14948,271 +14745,437 @@ static void wlc_phy_update_mimoconfig_nphy(struct brcms_phy *pi, s32 preamble)
 	write_phy_reg(pi, 0xed, val);
 }
 
-static void wlc_phy_resetcca_nphy(struct brcms_phy *pi)
+static void wlc_phy_ipa_set_tx_digi_filts_nphy(struct brcms_phy *pi)
 {
-	u16 val;
+	int j, type;
+	u16 addr_offset[] = { 0x186, 0x195, 0x2c5};
 
-	wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
+	for (type = 0; type < 3; type++) {
+		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+			write_phy_reg(pi, addr_offset[type] + j,
+				      NPHY_IPA_REV4_txdigi_filtcoeffs[type][j]);
+	}
 
-	val = read_phy_reg(pi, 0x01);
-	write_phy_reg(pi, 0x01, val | BBCFG_RESETCCA);
-	udelay(1);
-	write_phy_reg(pi, 0x01, val & (~BBCFG_RESETCCA));
-
-	wlapi_bmac_phyclk_fgc(pi->sh->physhim, OFF);
-
-	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RESET2RX);
-}
-
-void wlc_phy_pa_override_nphy(struct brcms_phy *pi, bool en)
-{
-	u16 rfctrlintc_override_val;
-
-	if (!en) {
-
-		pi->rfctrlIntc1_save = read_phy_reg(pi, 0x91);
-		pi->rfctrlIntc2_save = read_phy_reg(pi, 0x92);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7))
-			rfctrlintc_override_val = 0x1480;
-		else if (NREV_GE(pi->pubpi.phy_rev, 3))
-			rfctrlintc_override_val =
-				CHSPEC_IS5G(pi->radio_chanspec) ? 0x600 : 0x480;
-		else
-			rfctrlintc_override_val =
-				CHSPEC_IS5G(pi->radio_chanspec) ? 0x180 : 0x120;
-
-		write_phy_reg(pi, 0x91, rfctrlintc_override_val);
-		write_phy_reg(pi, 0x92, rfctrlintc_override_val);
+	if (IS40MHZ(pi)) {
+		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+			write_phy_reg(pi, 0x186 + j,
+				      NPHY_IPA_REV4_txdigi_filtcoeffs[3][j]);
 	} else {
-		write_phy_reg(pi, 0x91, pi->rfctrlIntc1_save);
-		write_phy_reg(pi, 0x92, pi->rfctrlIntc2_save);
-	}
+		if (CHSPEC_IS5G(pi->radio_chanspec)) {
+			for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+				write_phy_reg(pi, 0x186 + j,
+					NPHY_IPA_REV4_txdigi_filtcoeffs[5][j]);
+		}
 
+		if (CHSPEC_CHANNEL(pi->radio_chanspec) == 14) {
+			for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+				write_phy_reg(pi, 0x2c5 + j,
+					NPHY_IPA_REV4_txdigi_filtcoeffs[6][j]);
+		}
+	}
 }
 
-void wlc_phy_stf_chain_upd_nphy(struct brcms_phy *pi)
+static void wlc_phy_ipa_restore_tx_digi_filts_nphy(struct brcms_phy *pi)
 {
+	int j;
 
-	u16 txrx_chain =
-		(NPHY_RfseqCoreActv_TxRxChain0 | NPHY_RfseqCoreActv_TxRxChain1);
-	bool CoreActv_override = false;
-
-	if (pi->nphy_txrx_chain == BRCMS_N_TXRX_CHAIN0) {
-		txrx_chain = NPHY_RfseqCoreActv_TxRxChain0;
-		CoreActv_override = true;
-
-		if (NREV_LE(pi->pubpi.phy_rev, 2))
-			and_phy_reg(pi, 0xa0, ~0x20);
-	} else if (pi->nphy_txrx_chain == BRCMS_N_TXRX_CHAIN1) {
-		txrx_chain = NPHY_RfseqCoreActv_TxRxChain1;
-		CoreActv_override = true;
-
-		if (NREV_LE(pi->pubpi.phy_rev, 2))
-			or_phy_reg(pi, 0xa0, 0x20);
-	}
-
-	mod_phy_reg(pi, 0xa2, ((0xf << 0) | (0xf << 4)), txrx_chain);
-
-	if (CoreActv_override) {
-		pi->nphy_perical = PHY_PERICAL_DISABLE;
-		or_phy_reg(pi, 0xa1, NPHY_RfseqMode_CoreActv_override);
+	if (IS40MHZ(pi)) {
+		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+			write_phy_reg(pi, 0x195 + j,
+				      NPHY_IPA_REV4_txdigi_filtcoeffs[4][j]);
 	} else {
-		pi->nphy_perical = PHY_PERICAL_MPHASE;
-		and_phy_reg(pi, 0xa1, ~NPHY_RfseqMode_CoreActv_override);
+		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+			write_phy_reg(pi, 0x186 + j,
+				      NPHY_IPA_REV4_txdigi_filtcoeffs[3][j]);
 	}
 }
 
-void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask)
+static void
+wlc_phy_set_rfseq_nphy(struct brcms_phy *pi, u8 cmd, u8 *events, u8 *dlys,
+		       u8 len)
 {
-	u16 regval;
-	u16 tbl_buf[16];
-	uint i;
-	struct brcms_phy *pi = (struct brcms_phy *) pih;
-	u16 tbl_opcode;
-	bool suspend;
-
-	pi->sh->phyrxchain = rxcore_bitmask;
-
-	if (!pi->sh->clk)
-		return;
-
-	suspend = (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
-	if (!suspend)
-		wlapi_suspend_mac_and_wait(pi->sh->physhim);
+	u32 t1_offset, t2_offset;
+	u8 ctr;
+	u8 end_event =
+		NREV_GE(pi->pubpi.phy_rev,
+			3) ? NPHY_REV3_RFSEQ_CMD_END : NPHY_RFSEQ_CMD_END;
+	u8 end_dly = 1;
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, true);
 
-	regval = read_phy_reg(pi, 0xa2);
-	regval &= ~(0xf << 4);
-	regval |= ((u16) (rxcore_bitmask & 0x3)) << 4;
-	write_phy_reg(pi, 0xa2, regval);
+	t1_offset = cmd << 4;
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, len, t1_offset, 8,
+				 events);
+	t2_offset = t1_offset + 0x080;
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, len, t2_offset, 8,
+				 dlys);
 
-	if ((rxcore_bitmask & 0x3) != 0x3) {
-
-		write_phy_reg(pi, 0x20e, 1);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-			if (pi->rx2tx_biasentry == -1) {
-				wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ,
-							ARRAY_SIZE(tbl_buf), 80,
-							16, tbl_buf);
-
-				for (i = 0; i < ARRAY_SIZE(tbl_buf); i++) {
-					if (tbl_buf[i] ==
-					    NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS) {
-						pi->rx2tx_biasentry = (u8) i;
-						tbl_opcode =
-							NPHY_REV3_RFSEQ_CMD_NOP;
-						wlc_phy_table_write_nphy(
-							pi,
-							NPHY_TBL_ID_RFSEQ,
-							1, i,
-							16,
-							&tbl_opcode);
-						break;
-					} else if (tbl_buf[i] ==
-						   NPHY_REV3_RFSEQ_CMD_END)
-						break;
-				}
-			}
-		}
-	} else {
-
-		write_phy_reg(pi, 0x20e, 30);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-			if (pi->rx2tx_biasentry != -1) {
-				tbl_opcode = NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS;
-				wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ,
-							 1, pi->rx2tx_biasentry,
-							 16, &tbl_opcode);
-				pi->rx2tx_biasentry = -1;
-			}
-		}
+	for (ctr = len; ctr < 16; ctr++) {
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 1,
+					 t1_offset + ctr, 8, &end_event);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 1,
+					 t2_offset + ctr, 8, &end_dly);
 	}
-
-	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RESET2RX);
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-
-	if (!suspend)
-		wlapi_enable_mac(pi->sh->physhim);
 }
 
-u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih)
+static u16 wlc_phy_read_lpf_bw_ctl_nphy(struct brcms_phy *pi, u16 offset)
 {
-	u16 regval, rxen_bits;
-	struct brcms_phy *pi = (struct brcms_phy *) pih;
+	u16 lpf_bw_ctl_val = 0;
+	u16 rx2tx_lpf_rc_lut_offset = 0;
 
-	regval = read_phy_reg(pi, 0xa2);
-	rxen_bits = (regval >> 4) & 0xf;
+	if (offset == 0) {
+		if (CHSPEC_IS40(pi->radio_chanspec))
+			rx2tx_lpf_rc_lut_offset = 0x159;
+		else
+			rx2tx_lpf_rc_lut_offset = 0x154;
+	} else {
+		rx2tx_lpf_rc_lut_offset = offset;
+	}
+	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 1,
+				(u32) rx2tx_lpf_rc_lut_offset, 16,
+				&lpf_bw_ctl_val);
 
-	return (u8) rxen_bits;
+	lpf_bw_ctl_val = lpf_bw_ctl_val & 0x7;
+
+	return lpf_bw_ctl_val;
 }
 
-bool wlc_phy_n_txpower_ipa_ison(struct brcms_phy *pi)
+static void
+wlc_phy_rfctrl_override_nphy_rev7(struct brcms_phy *pi, u16 field, u16 value,
+				  u8 core_mask, u8 off, u8 override_id)
 {
-	return PHY_IPA(pi);
-}
+	u8 core_num;
+	u16 addr = 0, en_addr = 0, val_addr = 0, en_mask = 0, val_mask = 0;
+	u8 val_shift = 0;
 
-static void wlc_phy_txpwr_limit_to_tbl_nphy(struct brcms_phy *pi)
-{
-	u8 idx, idx2, i, delta_ind;
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+		en_mask = field;
+		for (core_num = 0; core_num < 2; core_num++) {
+			if (override_id == NPHY_REV7_RFCTRLOVERRIDE_ID0) {
 
-	for (idx = TXP_FIRST_CCK; idx <= TXP_LAST_CCK; idx++)
-		pi->adj_pwr_tbl_nphy[idx] = pi->tx_power_offset[idx];
+				switch (field) {
+				case (0x1 << 2):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7a :
+						   0x7d;
+					val_mask = (0x1 << 1);
+					val_shift = 1;
+					break;
+				case (0x1 << 3):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7a :
+						   0x7d;
+					val_mask = (0x1 << 2);
+					val_shift = 2;
+					break;
+				case (0x1 << 4):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7a :
+						   0x7d;
+					val_mask = (0x1 << 4);
+					val_shift = 4;
+					break;
+				case (0x1 << 5):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7a :
+						   0x7d;
+					val_mask = (0x1 << 5);
+					val_shift = 5;
+					break;
+				case (0x1 << 6):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7a :
+						   0x7d;
+					val_mask = (0x1 << 6);
+					val_shift = 6;
+					break;
+				case (0x1 << 7):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7a :
+						   0x7d;
+					val_mask = (0x1 << 7);
+					val_shift = 7;
+					break;
+				case (0x1 << 10):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0xf8 :
+						   0xfa;
+					val_mask = (0x7 << 4);
+					val_shift = 4;
+					break;
+				case (0x1 << 11):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7b :
+						   0x7e;
+					val_mask = (0xffff << 0);
+					val_shift = 0;
+					break;
+				case (0x1 << 12):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x7c :
+						   0x7f;
+					val_mask = (0xffff << 0);
+					val_shift = 0;
+					break;
+				case (0x3 << 13):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x348 :
+						   0x349;
+					val_mask = (0xff << 0);
+					val_shift = 0;
+					break;
+				case (0x1 << 13):
+					en_addr = (core_num == 0) ? 0xe7 : 0xec;
+					val_addr = (core_num == 0) ? 0x348 :
+						   0x349;
+					val_mask = (0xf << 0);
+					val_shift = 0;
+					break;
+				default:
+					addr = 0xffff;
+					break;
+				}
+			} else if (override_id ==
+				   NPHY_REV7_RFCTRLOVERRIDE_ID1) {
 
-	for (i = 0; i < 4; i++) {
-		idx2 = 0;
+				switch (field) {
+				case (0x1 << 1):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 1);
+					val_shift = 1;
+					break;
+				case (0x1 << 3):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 3);
+					val_shift = 3;
+					break;
+				case (0x1 << 5):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 5);
+					val_shift = 5;
+					break;
+				case (0x1 << 4):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 4);
+					val_shift = 4;
+					break;
+				case (0x1 << 2):
 
-		delta_ind = 0;
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 2);
+					val_shift = 2;
+					break;
+				case (0x1 << 7):
 
-		switch (i) {
-		case 0:
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x7 << 8);
+					val_shift = 8;
+					break;
+				case (0x1 << 11):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 14);
+					val_shift = 14;
+					break;
+				case (0x1 << 10):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 13);
+					val_shift = 13;
+					break;
+				case (0x1 << 9):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 12);
+					val_shift = 12;
+					break;
+				case (0x1 << 8):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 11);
+					val_shift = 11;
+					break;
+				case (0x1 << 6):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 6);
+					val_shift = 6;
+					break;
+				case (0x1 << 0):
+					en_addr = (core_num == 0) ? 0x342 :
+						  0x343;
+					val_addr = (core_num == 0) ? 0x340 :
+						   0x341;
+					val_mask = (0x1 << 0);
+					val_shift = 0;
+					break;
+				default:
+					addr = 0xffff;
+					break;
+				}
+			} else if (override_id ==
+				   NPHY_REV7_RFCTRLOVERRIDE_ID2) {
 
-			if (CHSPEC_IS40(pi->radio_chanspec)
-			    && NPHY_IS_SROM_REINTERPRET) {
-				idx = TXP_FIRST_MCS_40_SISO;
-			} else {
-				idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
-				      TXP_FIRST_OFDM_40_SISO : TXP_FIRST_OFDM;
-				delta_ind = 1;
+				switch (field) {
+				case (0x1 << 3):
+					en_addr = (core_num == 0) ? 0x346 :
+						  0x347;
+					val_addr = (core_num == 0) ? 0x344 :
+						   0x345;
+					val_mask = (0x1 << 3);
+					val_shift = 3;
+					break;
+				case (0x1 << 1):
+					en_addr = (core_num == 0) ? 0x346 :
+						  0x347;
+					val_addr = (core_num == 0) ? 0x344 :
+						   0x345;
+					val_mask = (0x1 << 1);
+					val_shift = 1;
+					break;
+				case (0x1 << 0):
+					en_addr = (core_num == 0) ? 0x346 :
+						  0x347;
+					val_addr = (core_num == 0) ? 0x344 :
+						   0x345;
+					val_mask = (0x1 << 0);
+					val_shift = 0;
+					break;
+				case (0x1 << 2):
+					en_addr = (core_num == 0) ? 0x346 :
+						  0x347;
+					val_addr = (core_num == 0) ? 0x344 :
+						   0x345;
+					val_mask = (0x1 << 2);
+					val_shift = 2;
+					break;
+				case (0x1 << 4):
+					en_addr = (core_num == 0) ? 0x346 :
+						  0x347;
+					val_addr = (core_num == 0) ? 0x344 :
+						   0x345;
+					val_mask = (0x1 << 4);
+					val_shift = 4;
+					break;
+				default:
+					addr = 0xffff;
+					break;
+				}
 			}
-			break;
 
-		case 1:
+			if (off) {
+				and_phy_reg(pi, en_addr, ~en_mask);
+				and_phy_reg(pi, val_addr, ~val_mask);
+			} else {
 
-			idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
-			      TXP_FIRST_MCS_40_CDD : TXP_FIRST_MCS_20_CDD;
-			break;
+				if ((core_mask == 0)
+				    || (core_mask & (1 << core_num))) {
+					or_phy_reg(pi, en_addr, en_mask);
 
-		case 2:
-
-			idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
-			      TXP_FIRST_MCS_40_STBC : TXP_FIRST_MCS_20_STBC;
-			break;
-
-		case 3:
-
-			idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
-			      TXP_FIRST_MCS_40_SDM : TXP_FIRST_MCS_20_SDM;
-			break;
+					if (addr != 0xffff)
+						mod_phy_reg(pi, val_addr,
+							    val_mask,
+							    (value <<
+							     val_shift));
+				}
+			}
 		}
-
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		idx = idx + delta_ind;
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx++];
-
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx++];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx++];
-
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx++];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx++];
-
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx++];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		idx = idx + 1 - delta_ind;
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
-		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
-			pi->tx_power_offset[idx];
 	}
 }
 
-void wlc_phy_cal_init_nphy(struct brcms_phy *pi)
+static void wlc_phy_adjust_lnagaintbl_nphy(struct brcms_phy *pi)
 {
+	uint core;
+	int ctr;
+	s16 gain_delta[2];
+	u8 curr_channel;
+	u16 minmax_gain[2];
+	u16 regval[4];
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, true);
+
+	if (pi->nphy_gain_boost) {
+		if ((CHSPEC_IS2G(pi->radio_chanspec))) {
+
+			gain_delta[0] = 6;
+			gain_delta[1] = 6;
+		} else {
+
+			curr_channel = CHSPEC_CHANNEL(pi->radio_chanspec);
+			gain_delta[0] =
+				(s16)
+				PHY_HW_ROUND(((nphy_lnagain_est0[0] *
+					       curr_channel) +
+					      nphy_lnagain_est0[1]), 13);
+			gain_delta[1] =
+				(s16)
+				PHY_HW_ROUND(((nphy_lnagain_est1[0] *
+					       curr_channel) +
+					      nphy_lnagain_est1[1]), 13);
+		}
+	} else {
+
+		gain_delta[0] = 0;
+		gain_delta[1] = 0;
+	}
+
+	for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+		if (pi->nphy_elna_gain_config) {
+
+			regval[0] = nphy_def_lnagains[2] + gain_delta[core];
+			regval[1] = nphy_def_lnagains[3] + gain_delta[core];
+			regval[2] = nphy_def_lnagains[3] + gain_delta[core];
+			regval[3] = nphy_def_lnagains[3] + gain_delta[core];
+		} else {
+			for (ctr = 0; ctr < 4; ctr++)
+				regval[ctr] =
+					nphy_def_lnagains[ctr] +
+					gain_delta[core];
+		}
+		wlc_phy_table_write_nphy(pi, core, 4, 8, 16, regval);
+
+		minmax_gain[core] =
+			(u16) (nphy_def_lnagains[2] + gain_delta[core] + 4);
+	}
+
+	mod_phy_reg(pi, 0x1e, (0xff << 0), (minmax_gain[0] << 0));
+	mod_phy_reg(pi, 0x34, (0xff << 0), (minmax_gain[1] << 0));
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, false);
 }
 
 static void
@@ -15244,6 +15207,888 @@ static void wlc_phy_war_txchain_upd_nphy(struct brcms_phy *pi, u8 txchain)
 
 	if (!txchain1)
 		wlc_phy_war_force_trsw_to_R_cliplo_nphy(pi, PHY_CORE_1);
+}
+
+static void wlc_phy_workarounds_nphy_gainctrl_2057_rev5(struct brcms_phy *pi)
+{
+	s8 lna1_gain_db[] = { 8, 13, 17, 22 };
+	s8 lna2_gain_db[] = { -2, 7, 11, 15 };
+	s8 tia_gain_db[] = { -4, -1, 2, 5, 5, 5, 5, 5, 5, 5 };
+	s8 tia_gainbits[] = {
+		0x0, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
+
+	mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
+	mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
+
+	mod_phy_reg(pi, 0x289, (0xff << 0), (0x46 << 0));
+
+	mod_phy_reg(pi, 0x283, (0xff << 0), (0x3c << 0));
+	mod_phy_reg(pi, 0x280, (0xff << 0), (0x3c << 0));
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x8, 8,
+				 lna1_gain_db);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x8, 8,
+				 lna1_gain_db);
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x10, 8,
+				 lna2_gain_db);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x10, 8,
+				 lna2_gain_db);
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 10, 0x20, 8,
+				 tia_gain_db);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 10, 0x20, 8,
+				 tia_gain_db);
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 10, 0x20, 8,
+				 tia_gainbits);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 10, 0x20, 8,
+				 tia_gainbits);
+
+	write_phy_reg(pi, 0x37, 0x74);
+	write_phy_reg(pi, 0x2ad, 0x74);
+	write_phy_reg(pi, 0x38, 0x18);
+	write_phy_reg(pi, 0x2ae, 0x18);
+
+	write_phy_reg(pi, 0x2b, 0xe8);
+	write_phy_reg(pi, 0x41, 0xe8);
+
+	if (CHSPEC_IS20(pi->radio_chanspec)) {
+
+		mod_phy_reg(pi, 0x300, (0x3f << 0), (0x12 << 0));
+		mod_phy_reg(pi, 0x301, (0x3f << 0), (0x12 << 0));
+	} else {
+
+		mod_phy_reg(pi, 0x300, (0x3f << 0), (0x10 << 0));
+		mod_phy_reg(pi, 0x301, (0x3f << 0), (0x10 << 0));
+	}
+}
+
+static void wlc_phy_workarounds_nphy_gainctrl_2057_rev6(struct brcms_phy *pi)
+{
+	u16 currband;
+	s8 lna1G_gain_db_rev7[] = { 9, 14, 19, 24 };
+	s8 *lna1_gain_db = NULL;
+	s8 *lna1_gain_db_2 = NULL;
+	s8 *lna2_gain_db = NULL;
+	s8 tiaA_gain_db_rev7[] = { -9, -6, -3, 0, 3, 3, 3, 3, 3, 3 };
+	s8 *tia_gain_db;
+	s8 tiaA_gainbits_rev7[] = { 0, 1, 2, 3, 4, 4, 4, 4, 4, 4 };
+	s8 *tia_gainbits;
+	u16 rfseqA_init_gain_rev7[] = { 0x624f, 0x624f };
+	u16 *rfseq_init_gain;
+	u16 init_gaincode;
+	u16 clip1hi_gaincode;
+	u16 clip1md_gaincode = 0;
+	u16 clip1md_gaincode_B;
+	u16 clip1lo_gaincode;
+	u16 clip1lo_gaincode_B;
+	u8 crsminl_th = 0;
+	u8 crsminu_th;
+	u16 nbclip_th = 0;
+	u8 w1clip_th;
+	u16 freq;
+	s8 nvar_baseline_offset0 = 0, nvar_baseline_offset1 = 0;
+	u8 chg_nbclip_th = 0;
+
+	mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
+	mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
+
+	currband = read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
+	if (currband == 0) {
+
+		lna1_gain_db = lna1G_gain_db_rev7;
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 8, 8,
+					 lna1_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 8, 8,
+					 lna1_gain_db);
+
+		mod_phy_reg(pi, 0x283, (0xff << 0), (0x40 << 0));
+
+		if (CHSPEC_IS40(pi->radio_chanspec)) {
+			mod_phy_reg(pi, 0x280, (0xff << 0), (0x3e << 0));
+			mod_phy_reg(pi, 0x283, (0xff << 0), (0x3e << 0));
+		}
+
+		mod_phy_reg(pi, 0x289, (0xff << 0), (0x46 << 0));
+
+		if (CHSPEC_IS20(pi->radio_chanspec)) {
+			mod_phy_reg(pi, 0x300, (0x3f << 0), (13 << 0));
+			mod_phy_reg(pi, 0x301, (0x3f << 0), (13 << 0));
+		}
+	} else {
+
+		init_gaincode = 0x9e;
+		clip1hi_gaincode = 0x9e;
+		clip1md_gaincode_B = 0x24;
+		clip1lo_gaincode = 0x8a;
+		clip1lo_gaincode_B = 8;
+		rfseq_init_gain = rfseqA_init_gain_rev7;
+
+		tia_gain_db = tiaA_gain_db_rev7;
+		tia_gainbits = tiaA_gainbits_rev7;
+
+		freq = CHAN5G_FREQ(CHSPEC_CHANNEL(pi->radio_chanspec));
+		if (CHSPEC_IS20(pi->radio_chanspec)) {
+
+			w1clip_th = 25;
+			clip1md_gaincode = 0x82;
+
+			if ((freq <= 5080) || (freq == 5825)) {
+
+				s8 lna1A_gain_db_rev7[] = { 11, 16, 20, 24 };
+				s8 lna1A_gain_db_2_rev7[] = {
+					11, 17, 22, 25};
+				s8 lna2A_gain_db_rev7[] = { -1, 6, 10, 14 };
+
+				crsminu_th = 0x3e;
+				lna1_gain_db = lna1A_gain_db_rev7;
+				lna1_gain_db_2 = lna1A_gain_db_2_rev7;
+				lna2_gain_db = lna2A_gain_db_rev7;
+			} else if ((freq >= 5500) && (freq <= 5700)) {
+
+				s8 lna1A_gain_db_rev7[] = { 11, 17, 21, 25 };
+				s8 lna1A_gain_db_2_rev7[] = {
+					12, 18, 22, 26};
+				s8 lna2A_gain_db_rev7[] = { 1, 8, 12, 16 };
+
+				crsminu_th = 0x45;
+				clip1md_gaincode_B = 0x14;
+				nbclip_th = 0xff;
+				chg_nbclip_th = 1;
+				lna1_gain_db = lna1A_gain_db_rev7;
+				lna1_gain_db_2 = lna1A_gain_db_2_rev7;
+				lna2_gain_db = lna2A_gain_db_rev7;
+			} else {
+
+				s8 lna1A_gain_db_rev7[] = { 12, 18, 22, 26 };
+				s8 lna1A_gain_db_2_rev7[] = {
+					12, 18, 22, 26};
+				s8 lna2A_gain_db_rev7[] = { -1, 6, 10, 14 };
+
+				crsminu_th = 0x41;
+				lna1_gain_db = lna1A_gain_db_rev7;
+				lna1_gain_db_2 = lna1A_gain_db_2_rev7;
+				lna2_gain_db = lna2A_gain_db_rev7;
+			}
+
+			if (freq <= 4920) {
+				nvar_baseline_offset0 = 5;
+				nvar_baseline_offset1 = 5;
+			} else if ((freq > 4920) && (freq <= 5320)) {
+				nvar_baseline_offset0 = 3;
+				nvar_baseline_offset1 = 5;
+			} else if ((freq > 5320) && (freq <= 5700)) {
+				nvar_baseline_offset0 = 3;
+				nvar_baseline_offset1 = 2;
+			} else {
+				nvar_baseline_offset0 = 4;
+				nvar_baseline_offset1 = 0;
+			}
+		} else {
+
+			crsminu_th = 0x3a;
+			crsminl_th = 0x3a;
+			w1clip_th = 20;
+
+			if ((freq >= 4920) && (freq <= 5320)) {
+				nvar_baseline_offset0 = 4;
+				nvar_baseline_offset1 = 5;
+			} else if ((freq > 5320) && (freq <= 5550)) {
+				nvar_baseline_offset0 = 4;
+				nvar_baseline_offset1 = 2;
+			} else {
+				nvar_baseline_offset0 = 5;
+				nvar_baseline_offset1 = 3;
+			}
+		}
+
+		write_phy_reg(pi, 0x20, init_gaincode);
+		write_phy_reg(pi, 0x2a7, init_gaincode);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ,
+					 pi->pubpi.phy_corenum, 0x106, 16,
+					 rfseq_init_gain);
+
+		write_phy_reg(pi, 0x22, clip1hi_gaincode);
+		write_phy_reg(pi, 0x2a9, clip1hi_gaincode);
+
+		write_phy_reg(pi, 0x36, clip1md_gaincode_B);
+		write_phy_reg(pi, 0x2ac, clip1md_gaincode_B);
+
+		write_phy_reg(pi, 0x37, clip1lo_gaincode);
+		write_phy_reg(pi, 0x2ad, clip1lo_gaincode);
+		write_phy_reg(pi, 0x38, clip1lo_gaincode_B);
+		write_phy_reg(pi, 0x2ae, clip1lo_gaincode_B);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 10, 0x20, 8,
+					 tia_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 10, 0x20, 8,
+					 tia_gain_db);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 10, 0x20, 8,
+					 tia_gainbits);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 10, 0x20, 8,
+					 tia_gainbits);
+
+		mod_phy_reg(pi, 0x283, (0xff << 0), (crsminu_th << 0));
+
+		if (chg_nbclip_th == 1) {
+			write_phy_reg(pi, 0x2b, nbclip_th);
+			write_phy_reg(pi, 0x41, nbclip_th);
+		}
+
+		mod_phy_reg(pi, 0x300, (0x3f << 0), (w1clip_th << 0));
+		mod_phy_reg(pi, 0x301, (0x3f << 0), (w1clip_th << 0));
+
+		mod_phy_reg(pi, 0x2e4,
+			    (0x3f << 0), (nvar_baseline_offset0 << 0));
+
+		mod_phy_reg(pi, 0x2e4,
+			    (0x3f << 6), (nvar_baseline_offset1 << 6));
+
+		if (CHSPEC_IS20(pi->radio_chanspec)) {
+
+			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 8, 8,
+						 lna1_gain_db);
+			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 8, 8,
+						 lna1_gain_db_2);
+
+			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x10,
+						 8, lna2_gain_db);
+			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x10,
+						 8, lna2_gain_db);
+
+			write_phy_reg(pi, 0x24, clip1md_gaincode);
+			write_phy_reg(pi, 0x2ab, clip1md_gaincode);
+		} else {
+			mod_phy_reg(pi, 0x280, (0xff << 0), (crsminl_th << 0));
+		}
+	}
+}
+
+static void wlc_phy_workarounds_nphy_gainctrl(struct brcms_phy *pi)
+{
+	u16 w1th, hpf_code, currband;
+	int ctr;
+	u8 rfseq_updategainu_events[] = {
+		NPHY_RFSEQ_CMD_RX_GAIN,
+		NPHY_RFSEQ_CMD_CLR_HIQ_DIS,
+		NPHY_RFSEQ_CMD_SET_HPF_BW
+	};
+	u8 rfseq_updategainu_dlys[] = { 10, 30, 1 };
+	s8 lna1G_gain_db[] = { 7, 11, 16, 23 };
+	s8 lna1G_gain_db_rev4[] = { 8, 12, 17, 25 };
+	s8 lna1G_gain_db_rev5[] = { 9, 13, 18, 26 };
+	s8 lna1G_gain_db_rev6[] = { 8, 13, 18, 25 };
+	s8 lna1G_gain_db_rev6_224B0[] = { 10, 14, 19, 27 };
+	s8 lna1A_gain_db[] = { 7, 11, 17, 23 };
+	s8 lna1A_gain_db_rev4[] = { 8, 12, 18, 23 };
+	s8 lna1A_gain_db_rev5[] = { 6, 10, 16, 21 };
+	s8 lna1A_gain_db_rev6[] = { 6, 10, 16, 21 };
+	s8 *lna1_gain_db = NULL;
+	s8 lna2G_gain_db[] = { -5, 6, 10, 14 };
+	s8 lna2G_gain_db_rev5[] = { -3, 7, 11, 16 };
+	s8 lna2G_gain_db_rev6[] = { -5, 6, 10, 14 };
+	s8 lna2G_gain_db_rev6_224B0[] = { -5, 6, 10, 15 };
+	s8 lna2A_gain_db[] = { -6, 2, 6, 10 };
+	s8 lna2A_gain_db_rev4[] = { -5, 2, 6, 10 };
+	s8 lna2A_gain_db_rev5[] = { -7, 0, 4, 8 };
+	s8 lna2A_gain_db_rev6[] = { -7, 0, 4, 8 };
+	s8 *lna2_gain_db = NULL;
+	s8 tiaG_gain_db[] = {
+		0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A };
+	s8 tiaA_gain_db[] = {
+		0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13 };
+	s8 tiaA_gain_db_rev4[] = {
+		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
+	s8 tiaA_gain_db_rev5[] = {
+		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
+	s8 tiaA_gain_db_rev6[] = {
+		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
+	s8 *tia_gain_db;
+	s8 tiaG_gainbits[] = {
+		0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
+	s8 tiaA_gainbits[] = {
+		0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06 };
+	s8 tiaA_gainbits_rev4[] = {
+		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
+	s8 tiaA_gainbits_rev5[] = {
+		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
+	s8 tiaA_gainbits_rev6[] = {
+		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
+	s8 *tia_gainbits;
+	s8 lpf_gain_db[] = { 0x00, 0x06, 0x0c, 0x12, 0x12, 0x12 };
+	s8 lpf_gainbits[] = { 0x00, 0x01, 0x02, 0x03, 0x03, 0x03 };
+	u16 rfseqG_init_gain[] = { 0x613f, 0x613f, 0x613f, 0x613f };
+	u16 rfseqG_init_gain_rev4[] = { 0x513f, 0x513f, 0x513f, 0x513f };
+	u16 rfseqG_init_gain_rev5[] = { 0x413f, 0x413f, 0x413f, 0x413f };
+	u16 rfseqG_init_gain_rev5_elna[] = {
+		0x013f, 0x013f, 0x013f, 0x013f };
+	u16 rfseqG_init_gain_rev6[] = { 0x513f, 0x513f };
+	u16 rfseqG_init_gain_rev6_224B0[] = { 0x413f, 0x413f };
+	u16 rfseqG_init_gain_rev6_elna[] = { 0x113f, 0x113f };
+	u16 rfseqA_init_gain[] = { 0x516f, 0x516f, 0x516f, 0x516f };
+	u16 rfseqA_init_gain_rev4[] = { 0x614f, 0x614f, 0x614f, 0x614f };
+	u16 rfseqA_init_gain_rev4_elna[] = {
+		0x314f, 0x314f, 0x314f, 0x314f };
+	u16 rfseqA_init_gain_rev5[] = { 0x714f, 0x714f, 0x714f, 0x714f };
+	u16 rfseqA_init_gain_rev6[] = { 0x714f, 0x714f };
+	u16 *rfseq_init_gain;
+	u16 initG_gaincode = 0x627e;
+	u16 initG_gaincode_rev4 = 0x527e;
+	u16 initG_gaincode_rev5 = 0x427e;
+	u16 initG_gaincode_rev5_elna = 0x027e;
+	u16 initG_gaincode_rev6 = 0x527e;
+	u16 initG_gaincode_rev6_224B0 = 0x427e;
+	u16 initG_gaincode_rev6_elna = 0x127e;
+	u16 initA_gaincode = 0x52de;
+	u16 initA_gaincode_rev4 = 0x629e;
+	u16 initA_gaincode_rev4_elna = 0x329e;
+	u16 initA_gaincode_rev5 = 0x729e;
+	u16 initA_gaincode_rev6 = 0x729e;
+	u16 init_gaincode;
+	u16 clip1hiG_gaincode = 0x107e;
+	u16 clip1hiG_gaincode_rev4 = 0x007e;
+	u16 clip1hiG_gaincode_rev5 = 0x1076;
+	u16 clip1hiG_gaincode_rev6 = 0x007e;
+	u16 clip1hiA_gaincode = 0x00de;
+	u16 clip1hiA_gaincode_rev4 = 0x029e;
+	u16 clip1hiA_gaincode_rev5 = 0x029e;
+	u16 clip1hiA_gaincode_rev6 = 0x029e;
+	u16 clip1hi_gaincode;
+	u16 clip1mdG_gaincode = 0x0066;
+	u16 clip1mdA_gaincode = 0x00ca;
+	u16 clip1mdA_gaincode_rev4 = 0x1084;
+	u16 clip1mdA_gaincode_rev5 = 0x2084;
+	u16 clip1mdA_gaincode_rev6 = 0x2084;
+	u16 clip1md_gaincode = 0;
+	u16 clip1loG_gaincode = 0x0074;
+	u16 clip1loG_gaincode_rev5[] = {
+		0x0062, 0x0064, 0x006a, 0x106a, 0x106c, 0x1074, 0x107c, 0x207c
+	};
+	u16 clip1loG_gaincode_rev6[] = {
+		0x106a, 0x106c, 0x1074, 0x107c, 0x007e, 0x107e, 0x207e, 0x307e
+	};
+	u16 clip1loG_gaincode_rev6_224B0 = 0x1074;
+	u16 clip1loA_gaincode = 0x00cc;
+	u16 clip1loA_gaincode_rev4 = 0x0086;
+	u16 clip1loA_gaincode_rev5 = 0x2086;
+	u16 clip1loA_gaincode_rev6 = 0x2086;
+	u16 clip1lo_gaincode;
+	u8 crsminG_th = 0x18;
+	u8 crsminG_th_rev5 = 0x18;
+	u8 crsminG_th_rev6 = 0x18;
+	u8 crsminA_th = 0x1e;
+	u8 crsminA_th_rev4 = 0x24;
+	u8 crsminA_th_rev5 = 0x24;
+	u8 crsminA_th_rev6 = 0x24;
+	u8 crsmin_th;
+	u8 crsminlG_th = 0x18;
+	u8 crsminlG_th_rev5 = 0x18;
+	u8 crsminlG_th_rev6 = 0x18;
+	u8 crsminlA_th = 0x1e;
+	u8 crsminlA_th_rev4 = 0x24;
+	u8 crsminlA_th_rev5 = 0x24;
+	u8 crsminlA_th_rev6 = 0x24;
+	u8 crsminl_th = 0;
+	u8 crsminuG_th = 0x18;
+	u8 crsminuG_th_rev5 = 0x18;
+	u8 crsminuG_th_rev6 = 0x18;
+	u8 crsminuA_th = 0x1e;
+	u8 crsminuA_th_rev4 = 0x24;
+	u8 crsminuA_th_rev5 = 0x24;
+	u8 crsminuA_th_rev6 = 0x24;
+	u8 crsminuA_th_rev6_224B0 = 0x2d;
+	u8 crsminu_th;
+	u16 nbclipG_th = 0x20d;
+	u16 nbclipG_th_rev4 = 0x1a1;
+	u16 nbclipG_th_rev5 = 0x1d0;
+	u16 nbclipG_th_rev6 = 0x1d0;
+	u16 nbclipA_th = 0x1a1;
+	u16 nbclipA_th_rev4 = 0x107;
+	u16 nbclipA_th_rev5 = 0x0a9;
+	u16 nbclipA_th_rev6 = 0x0f0;
+	u16 nbclip_th = 0;
+	u8 w1clipG_th = 5;
+	u8 w1clipG_th_rev5 = 9;
+	u8 w1clipG_th_rev6 = 5;
+	u8 w1clipA_th = 25, w1clip_th;
+	u8 rssi_gain_default = 0x50;
+	u8 rssiG_gain_rev6_224B0 = 0x50;
+	u8 rssiA_gain_rev5 = 0x90;
+	u8 rssiA_gain_rev6 = 0x90;
+	u8 rssi_gain;
+	u16 regval[21];
+	u8 triso;
+
+	triso = (CHSPEC_IS5G(pi->radio_chanspec)) ? pi->srom_fem5g.triso :
+		pi->srom_fem2g.triso;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+		if (pi->pubpi.radiorev == 5) {
+			wlc_phy_workarounds_nphy_gainctrl_2057_rev5(pi);
+		} else if (pi->pubpi.radiorev == 7) {
+			wlc_phy_workarounds_nphy_gainctrl_2057_rev6(pi);
+
+			mod_phy_reg(pi, 0x283, (0xff << 0), (0x44 << 0));
+			mod_phy_reg(pi, 0x280, (0xff << 0), (0x44 << 0));
+
+		} else if ((pi->pubpi.radiorev == 3)
+			   || (pi->pubpi.radiorev == 8)) {
+			wlc_phy_workarounds_nphy_gainctrl_2057_rev6(pi);
+
+			if (pi->pubpi.radiorev == 8) {
+				mod_phy_reg(pi, 0x283,
+					    (0xff << 0), (0x44 << 0));
+				mod_phy_reg(pi, 0x280,
+					    (0xff << 0), (0x44 << 0));
+			}
+		} else {
+			wlc_phy_workarounds_nphy_gainctrl_2057_rev6(pi);
+		}
+	} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+
+		mod_phy_reg(pi, 0xa0, (0x1 << 6), (1 << 6));
+
+		mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
+		mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
+
+		currband =
+			read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
+		if (currband == 0) {
+			if (NREV_GE(pi->pubpi.phy_rev, 6)) {
+				if (pi->pubpi.radiorev == 11) {
+					lna1_gain_db = lna1G_gain_db_rev6_224B0;
+					lna2_gain_db = lna2G_gain_db_rev6_224B0;
+					rfseq_init_gain =
+						rfseqG_init_gain_rev6_224B0;
+					init_gaincode =
+						initG_gaincode_rev6_224B0;
+					clip1hi_gaincode =
+						clip1hiG_gaincode_rev6;
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev6_224B0;
+					nbclip_th = nbclipG_th_rev6;
+					w1clip_th = w1clipG_th_rev6;
+					crsmin_th = crsminG_th_rev6;
+					crsminl_th = crsminlG_th_rev6;
+					crsminu_th = crsminuG_th_rev6;
+					rssi_gain = rssiG_gain_rev6_224B0;
+				} else {
+					lna1_gain_db = lna1G_gain_db_rev6;
+					lna2_gain_db = lna2G_gain_db_rev6;
+					if (pi->sh->boardflags & BFL_EXTLNA) {
+
+						rfseq_init_gain =
+						     rfseqG_init_gain_rev6_elna;
+						init_gaincode =
+						       initG_gaincode_rev6_elna;
+					} else {
+						rfseq_init_gain =
+							rfseqG_init_gain_rev6;
+						init_gaincode =
+							initG_gaincode_rev6;
+					}
+					clip1hi_gaincode =
+						clip1hiG_gaincode_rev6;
+					switch (triso) {
+					case 0:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[0];
+						break;
+					case 1:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[1];
+						break;
+					case 2:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[2];
+						break;
+					case 3:
+					default:
+
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[3];
+						break;
+					case 4:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[4];
+						break;
+					case 5:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[5];
+						break;
+					case 6:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[6];
+						break;
+					case 7:
+						clip1lo_gaincode =
+							clip1loG_gaincode_rev6
+							[7];
+						break;
+					}
+					nbclip_th = nbclipG_th_rev6;
+					w1clip_th = w1clipG_th_rev6;
+					crsmin_th = crsminG_th_rev6;
+					crsminl_th = crsminlG_th_rev6;
+					crsminu_th = crsminuG_th_rev6;
+					rssi_gain = rssi_gain_default;
+				}
+			} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
+				lna1_gain_db = lna1G_gain_db_rev5;
+				lna2_gain_db = lna2G_gain_db_rev5;
+				if (pi->sh->boardflags & BFL_EXTLNA) {
+
+					rfseq_init_gain =
+						rfseqG_init_gain_rev5_elna;
+					init_gaincode =
+						initG_gaincode_rev5_elna;
+				} else {
+					rfseq_init_gain = rfseqG_init_gain_rev5;
+					init_gaincode = initG_gaincode_rev5;
+				}
+				clip1hi_gaincode = clip1hiG_gaincode_rev5;
+				switch (triso) {
+				case 0:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[0];
+					break;
+				case 1:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[1];
+					break;
+				case 2:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[2];
+					break;
+				case 3:
+
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[3];
+					break;
+				case 4:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[4];
+					break;
+				case 5:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[5];
+					break;
+				case 6:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[6];
+					break;
+				case 7:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[7];
+					break;
+				default:
+					clip1lo_gaincode =
+						clip1loG_gaincode_rev5[3];
+					break;
+				}
+				nbclip_th = nbclipG_th_rev5;
+				w1clip_th = w1clipG_th_rev5;
+				crsmin_th = crsminG_th_rev5;
+				crsminl_th = crsminlG_th_rev5;
+				crsminu_th = crsminuG_th_rev5;
+				rssi_gain = rssi_gain_default;
+			} else if (NREV_IS(pi->pubpi.phy_rev, 4)) {
+				lna1_gain_db = lna1G_gain_db_rev4;
+				lna2_gain_db = lna2G_gain_db;
+				rfseq_init_gain = rfseqG_init_gain_rev4;
+				init_gaincode = initG_gaincode_rev4;
+				clip1hi_gaincode = clip1hiG_gaincode_rev4;
+				clip1lo_gaincode = clip1loG_gaincode;
+				nbclip_th = nbclipG_th_rev4;
+				w1clip_th = w1clipG_th;
+				crsmin_th = crsminG_th;
+				crsminl_th = crsminlG_th;
+				crsminu_th = crsminuG_th;
+				rssi_gain = rssi_gain_default;
+			} else {
+				lna1_gain_db = lna1G_gain_db;
+				lna2_gain_db = lna2G_gain_db;
+				rfseq_init_gain = rfseqG_init_gain;
+				init_gaincode = initG_gaincode;
+				clip1hi_gaincode = clip1hiG_gaincode;
+				clip1lo_gaincode = clip1loG_gaincode;
+				nbclip_th = nbclipG_th;
+				w1clip_th = w1clipG_th;
+				crsmin_th = crsminG_th;
+				crsminl_th = crsminlG_th;
+				crsminu_th = crsminuG_th;
+				rssi_gain = rssi_gain_default;
+			}
+			tia_gain_db = tiaG_gain_db;
+			tia_gainbits = tiaG_gainbits;
+			clip1md_gaincode = clip1mdG_gaincode;
+		} else {
+			if (NREV_GE(pi->pubpi.phy_rev, 6)) {
+				lna1_gain_db = lna1A_gain_db_rev6;
+				lna2_gain_db = lna2A_gain_db_rev6;
+				tia_gain_db = tiaA_gain_db_rev6;
+				tia_gainbits = tiaA_gainbits_rev6;
+				rfseq_init_gain = rfseqA_init_gain_rev6;
+				init_gaincode = initA_gaincode_rev6;
+				clip1hi_gaincode = clip1hiA_gaincode_rev6;
+				clip1md_gaincode = clip1mdA_gaincode_rev6;
+				clip1lo_gaincode = clip1loA_gaincode_rev6;
+				crsmin_th = crsminA_th_rev6;
+				crsminl_th = crsminlA_th_rev6;
+				if ((pi->pubpi.radiorev == 11) &&
+				    (CHSPEC_IS40(pi->radio_chanspec) == 0))
+					crsminu_th = crsminuA_th_rev6_224B0;
+				else
+					crsminu_th = crsminuA_th_rev6;
+
+				nbclip_th = nbclipA_th_rev6;
+				rssi_gain = rssiA_gain_rev6;
+			} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
+				lna1_gain_db = lna1A_gain_db_rev5;
+				lna2_gain_db = lna2A_gain_db_rev5;
+				tia_gain_db = tiaA_gain_db_rev5;
+				tia_gainbits = tiaA_gainbits_rev5;
+				rfseq_init_gain = rfseqA_init_gain_rev5;
+				init_gaincode = initA_gaincode_rev5;
+				clip1hi_gaincode = clip1hiA_gaincode_rev5;
+				clip1md_gaincode = clip1mdA_gaincode_rev5;
+				clip1lo_gaincode = clip1loA_gaincode_rev5;
+				crsmin_th = crsminA_th_rev5;
+				crsminl_th = crsminlA_th_rev5;
+				crsminu_th = crsminuA_th_rev5;
+				nbclip_th = nbclipA_th_rev5;
+				rssi_gain = rssiA_gain_rev5;
+			} else if (NREV_IS(pi->pubpi.phy_rev, 4)) {
+				lna1_gain_db = lna1A_gain_db_rev4;
+				lna2_gain_db = lna2A_gain_db_rev4;
+				tia_gain_db = tiaA_gain_db_rev4;
+				tia_gainbits = tiaA_gainbits_rev4;
+				if (pi->sh->boardflags & BFL_EXTLNA_5GHz) {
+
+					rfseq_init_gain =
+						rfseqA_init_gain_rev4_elna;
+					init_gaincode =
+						initA_gaincode_rev4_elna;
+				} else {
+					rfseq_init_gain = rfseqA_init_gain_rev4;
+					init_gaincode = initA_gaincode_rev4;
+				}
+				clip1hi_gaincode = clip1hiA_gaincode_rev4;
+				clip1md_gaincode = clip1mdA_gaincode_rev4;
+				clip1lo_gaincode = clip1loA_gaincode_rev4;
+				crsmin_th = crsminA_th_rev4;
+				crsminl_th = crsminlA_th_rev4;
+				crsminu_th = crsminuA_th_rev4;
+				nbclip_th = nbclipA_th_rev4;
+				rssi_gain = rssi_gain_default;
+			} else {
+				lna1_gain_db = lna1A_gain_db;
+				lna2_gain_db = lna2A_gain_db;
+				tia_gain_db = tiaA_gain_db;
+				tia_gainbits = tiaA_gainbits;
+				rfseq_init_gain = rfseqA_init_gain;
+				init_gaincode = initA_gaincode;
+				clip1hi_gaincode = clip1hiA_gaincode;
+				clip1md_gaincode = clip1mdA_gaincode;
+				clip1lo_gaincode = clip1loA_gaincode;
+				crsmin_th = crsminA_th;
+				crsminl_th = crsminlA_th;
+				crsminu_th = crsminuA_th;
+				nbclip_th = nbclipA_th;
+				rssi_gain = rssi_gain_default;
+			}
+			w1clip_th = w1clipA_th;
+		}
+
+		write_radio_reg(pi,
+				(RADIO_2056_RX_BIASPOLE_LNAG1_IDAC |
+				 RADIO_2056_RX0), 0x17);
+		write_radio_reg(pi,
+				(RADIO_2056_RX_BIASPOLE_LNAG1_IDAC |
+				 RADIO_2056_RX1), 0x17);
+
+		write_radio_reg(pi, (RADIO_2056_RX_LNAG2_IDAC | RADIO_2056_RX0),
+				0xf0);
+		write_radio_reg(pi, (RADIO_2056_RX_LNAG2_IDAC | RADIO_2056_RX1),
+				0xf0);
+
+		write_radio_reg(pi, (RADIO_2056_RX_RSSI_POLE | RADIO_2056_RX0),
+				0x0);
+		write_radio_reg(pi, (RADIO_2056_RX_RSSI_POLE | RADIO_2056_RX1),
+				0x0);
+
+		write_radio_reg(pi, (RADIO_2056_RX_RSSI_GAIN | RADIO_2056_RX0),
+				rssi_gain);
+		write_radio_reg(pi, (RADIO_2056_RX_RSSI_GAIN | RADIO_2056_RX1),
+				rssi_gain);
+
+		write_radio_reg(pi,
+				(RADIO_2056_RX_BIASPOLE_LNAA1_IDAC |
+				 RADIO_2056_RX0), 0x17);
+		write_radio_reg(pi,
+				(RADIO_2056_RX_BIASPOLE_LNAA1_IDAC |
+				 RADIO_2056_RX1), 0x17);
+
+		write_radio_reg(pi, (RADIO_2056_RX_LNAA2_IDAC | RADIO_2056_RX0),
+				0xFF);
+		write_radio_reg(pi, (RADIO_2056_RX_LNAA2_IDAC | RADIO_2056_RX1),
+				0xFF);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 8,
+					 8, lna1_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 8,
+					 8, lna1_gain_db);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x10,
+					 8, lna2_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x10,
+					 8, lna2_gain_db);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 10, 0x20,
+					 8, tia_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 10, 0x20,
+					 8, tia_gain_db);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 10, 0x20,
+					 8, tia_gainbits);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 10, 0x20,
+					 8, tia_gainbits);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 6, 0x40,
+					 8, &lpf_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 6, 0x40,
+					 8, &lpf_gain_db);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 6, 0x40,
+					 8, &lpf_gainbits);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 6, 0x40,
+					 8, &lpf_gainbits);
+
+		write_phy_reg(pi, 0x20, init_gaincode);
+		write_phy_reg(pi, 0x2a7, init_gaincode);
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ,
+					 pi->pubpi.phy_corenum, 0x106, 16,
+					 rfseq_init_gain);
+
+		write_phy_reg(pi, 0x22, clip1hi_gaincode);
+		write_phy_reg(pi, 0x2a9, clip1hi_gaincode);
+
+		write_phy_reg(pi, 0x24, clip1md_gaincode);
+		write_phy_reg(pi, 0x2ab, clip1md_gaincode);
+
+		write_phy_reg(pi, 0x37, clip1lo_gaincode);
+		write_phy_reg(pi, 0x2ad, clip1lo_gaincode);
+
+		mod_phy_reg(pi, 0x27d, (0xff << 0), (crsmin_th << 0));
+		mod_phy_reg(pi, 0x280, (0xff << 0), (crsminl_th << 0));
+		mod_phy_reg(pi, 0x283, (0xff << 0), (crsminu_th << 0));
+
+		write_phy_reg(pi, 0x2b, nbclip_th);
+		write_phy_reg(pi, 0x41, nbclip_th);
+
+		mod_phy_reg(pi, 0x27, (0x3f << 0), (w1clip_th << 0));
+		mod_phy_reg(pi, 0x3d, (0x3f << 0), (w1clip_th << 0));
+
+		write_phy_reg(pi, 0x150, 0x809c);
+
+	} else {
+
+		mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
+		mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
+
+		write_phy_reg(pi, 0x2b, 0x84);
+		write_phy_reg(pi, 0x41, 0x84);
+
+		if (CHSPEC_IS20(pi->radio_chanspec)) {
+			write_phy_reg(pi, 0x6b, 0x2b);
+			write_phy_reg(pi, 0x6c, 0x2b);
+			write_phy_reg(pi, 0x6d, 0x9);
+			write_phy_reg(pi, 0x6e, 0x9);
+		}
+
+		w1th = NPHY_RSSICAL_W1_TARGET - 4;
+		mod_phy_reg(pi, 0x27, (0x3f << 0), (w1th << 0));
+		mod_phy_reg(pi, 0x3d, (0x3f << 0), (w1th << 0));
+
+		if (CHSPEC_IS20(pi->radio_chanspec)) {
+			mod_phy_reg(pi, 0x1c, (0x1f << 0), (0x1 << 0));
+			mod_phy_reg(pi, 0x32, (0x1f << 0), (0x1 << 0));
+
+			mod_phy_reg(pi, 0x1d, (0x1f << 0), (0x1 << 0));
+			mod_phy_reg(pi, 0x33, (0x1f << 0), (0x1 << 0));
+		}
+
+		write_phy_reg(pi, 0x150, 0x809c);
+
+		if (pi->nphy_gain_boost)
+			if ((CHSPEC_IS2G(pi->radio_chanspec)) &&
+			    (CHSPEC_IS40(pi->radio_chanspec)))
+				hpf_code = 4;
+			else
+				hpf_code = 5;
+		else if (CHSPEC_IS40(pi->radio_chanspec))
+			hpf_code = 6;
+		else
+			hpf_code = 7;
+
+		mod_phy_reg(pi, 0x20, (0x1f << 7), (hpf_code << 7));
+		mod_phy_reg(pi, 0x36, (0x1f << 7), (hpf_code << 7));
+
+		for (ctr = 0; ctr < 4; ctr++)
+			regval[ctr] = (hpf_code << 8) | 0x7c;
+		wlc_phy_table_write_nphy(pi, 7, 4, 0x106, 16, regval);
+
+		wlc_phy_adjust_lnagaintbl_nphy(pi);
+
+		if (pi->nphy_elna_gain_config) {
+			regval[0] = 0;
+			regval[1] = 1;
+			regval[2] = 1;
+			regval[3] = 1;
+			wlc_phy_table_write_nphy(pi, 2, 4, 8, 16, regval);
+			wlc_phy_table_write_nphy(pi, 3, 4, 8, 16, regval);
+
+			for (ctr = 0; ctr < 4; ctr++)
+				regval[ctr] = (hpf_code << 8) | 0x74;
+			wlc_phy_table_write_nphy(pi, 7, 4, 0x106, 16, regval);
+		}
+
+		if (NREV_IS(pi->pubpi.phy_rev, 2)) {
+			for (ctr = 0; ctr < 21; ctr++)
+				regval[ctr] = 3 * ctr;
+			wlc_phy_table_write_nphy(pi, 0, 21, 32, 16, regval);
+			wlc_phy_table_write_nphy(pi, 1, 21, 32, 16, regval);
+
+			for (ctr = 0; ctr < 21; ctr++)
+				regval[ctr] = (u16) ctr;
+			wlc_phy_table_write_nphy(pi, 2, 21, 32, 16, regval);
+			wlc_phy_table_write_nphy(pi, 3, 21, 32, 16, regval);
+		}
+
+		wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_UPDATEGAINU,
+				       rfseq_updategainu_events,
+				       rfseq_updategainu_dlys,
+				       sizeof(rfseq_updategainu_events) /
+				       sizeof(rfseq_updategainu_events[0]));
+
+		mod_phy_reg(pi, 0x153, (0xff << 8), (90 << 8));
+
+		if (CHSPEC_IS2G(pi->radio_chanspec))
+			mod_phy_reg(pi,
+				    (NPHY_TO_BPHY_OFF + BPHY_OPTIONAL_MODES),
+				    0x7f, 0x4);
+	}
 }
 
 static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
@@ -16331,1111 +17176,2709 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 		wlc_phy_stay_in_carriersearch_nphy(pi, false);
 }
 
-static void wlc_phy_workarounds_nphy_gainctrl(struct brcms_phy *pi)
+static void wlc_phy_extpa_set_tx_digi_filts_nphy(struct brcms_phy *pi)
 {
-	u16 w1th, hpf_code, currband;
-	int ctr;
-	u8 rfseq_updategainu_events[] = {
-		NPHY_RFSEQ_CMD_RX_GAIN,
-		NPHY_RFSEQ_CMD_CLR_HIQ_DIS,
-		NPHY_RFSEQ_CMD_SET_HPF_BW
-	};
-	u8 rfseq_updategainu_dlys[] = { 10, 30, 1 };
-	s8 lna1G_gain_db[] = { 7, 11, 16, 23 };
-	s8 lna1G_gain_db_rev4[] = { 8, 12, 17, 25 };
-	s8 lna1G_gain_db_rev5[] = { 9, 13, 18, 26 };
-	s8 lna1G_gain_db_rev6[] = { 8, 13, 18, 25 };
-	s8 lna1G_gain_db_rev6_224B0[] = { 10, 14, 19, 27 };
-	s8 lna1A_gain_db[] = { 7, 11, 17, 23 };
-	s8 lna1A_gain_db_rev4[] = { 8, 12, 18, 23 };
-	s8 lna1A_gain_db_rev5[] = { 6, 10, 16, 21 };
-	s8 lna1A_gain_db_rev6[] = { 6, 10, 16, 21 };
-	s8 *lna1_gain_db = NULL;
-	s8 lna2G_gain_db[] = { -5, 6, 10, 14 };
-	s8 lna2G_gain_db_rev5[] = { -3, 7, 11, 16 };
-	s8 lna2G_gain_db_rev6[] = { -5, 6, 10, 14 };
-	s8 lna2G_gain_db_rev6_224B0[] = { -5, 6, 10, 15 };
-	s8 lna2A_gain_db[] = { -6, 2, 6, 10 };
-	s8 lna2A_gain_db_rev4[] = { -5, 2, 6, 10 };
-	s8 lna2A_gain_db_rev5[] = { -7, 0, 4, 8 };
-	s8 lna2A_gain_db_rev6[] = { -7, 0, 4, 8 };
-	s8 *lna2_gain_db = NULL;
-	s8 tiaG_gain_db[] = {
-		0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A };
-	s8 tiaA_gain_db[] = {
-		0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13 };
-	s8 tiaA_gain_db_rev4[] = {
-		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
-	s8 tiaA_gain_db_rev5[] = {
-		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
-	s8 tiaA_gain_db_rev6[] = {
-		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
-	s8 *tia_gain_db;
-	s8 tiaG_gainbits[] = {
-		0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
-	s8 tiaA_gainbits[] = {
-		0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06 };
-	s8 tiaA_gainbits_rev4[] = {
-		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
-	s8 tiaA_gainbits_rev5[] = {
-		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
-	s8 tiaA_gainbits_rev6[] = {
-		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
-	s8 *tia_gainbits;
-	s8 lpf_gain_db[] = { 0x00, 0x06, 0x0c, 0x12, 0x12, 0x12 };
-	s8 lpf_gainbits[] = { 0x00, 0x01, 0x02, 0x03, 0x03, 0x03 };
-	u16 rfseqG_init_gain[] = { 0x613f, 0x613f, 0x613f, 0x613f };
-	u16 rfseqG_init_gain_rev4[] = { 0x513f, 0x513f, 0x513f, 0x513f };
-	u16 rfseqG_init_gain_rev5[] = { 0x413f, 0x413f, 0x413f, 0x413f };
-	u16 rfseqG_init_gain_rev5_elna[] = {
-		0x013f, 0x013f, 0x013f, 0x013f };
-	u16 rfseqG_init_gain_rev6[] = { 0x513f, 0x513f };
-	u16 rfseqG_init_gain_rev6_224B0[] = { 0x413f, 0x413f };
-	u16 rfseqG_init_gain_rev6_elna[] = { 0x113f, 0x113f };
-	u16 rfseqA_init_gain[] = { 0x516f, 0x516f, 0x516f, 0x516f };
-	u16 rfseqA_init_gain_rev4[] = { 0x614f, 0x614f, 0x614f, 0x614f };
-	u16 rfseqA_init_gain_rev4_elna[] = {
-		0x314f, 0x314f, 0x314f, 0x314f };
-	u16 rfseqA_init_gain_rev5[] = { 0x714f, 0x714f, 0x714f, 0x714f };
-	u16 rfseqA_init_gain_rev6[] = { 0x714f, 0x714f };
-	u16 *rfseq_init_gain;
-	u16 initG_gaincode = 0x627e;
-	u16 initG_gaincode_rev4 = 0x527e;
-	u16 initG_gaincode_rev5 = 0x427e;
-	u16 initG_gaincode_rev5_elna = 0x027e;
-	u16 initG_gaincode_rev6 = 0x527e;
-	u16 initG_gaincode_rev6_224B0 = 0x427e;
-	u16 initG_gaincode_rev6_elna = 0x127e;
-	u16 initA_gaincode = 0x52de;
-	u16 initA_gaincode_rev4 = 0x629e;
-	u16 initA_gaincode_rev4_elna = 0x329e;
-	u16 initA_gaincode_rev5 = 0x729e;
-	u16 initA_gaincode_rev6 = 0x729e;
-	u16 init_gaincode;
-	u16 clip1hiG_gaincode = 0x107e;
-	u16 clip1hiG_gaincode_rev4 = 0x007e;
-	u16 clip1hiG_gaincode_rev5 = 0x1076;
-	u16 clip1hiG_gaincode_rev6 = 0x007e;
-	u16 clip1hiA_gaincode = 0x00de;
-	u16 clip1hiA_gaincode_rev4 = 0x029e;
-	u16 clip1hiA_gaincode_rev5 = 0x029e;
-	u16 clip1hiA_gaincode_rev6 = 0x029e;
-	u16 clip1hi_gaincode;
-	u16 clip1mdG_gaincode = 0x0066;
-	u16 clip1mdA_gaincode = 0x00ca;
-	u16 clip1mdA_gaincode_rev4 = 0x1084;
-	u16 clip1mdA_gaincode_rev5 = 0x2084;
-	u16 clip1mdA_gaincode_rev6 = 0x2084;
-	u16 clip1md_gaincode = 0;
-	u16 clip1loG_gaincode = 0x0074;
-	u16 clip1loG_gaincode_rev5[] = {
-		0x0062, 0x0064, 0x006a, 0x106a, 0x106c, 0x1074, 0x107c, 0x207c
-	};
-	u16 clip1loG_gaincode_rev6[] = {
-		0x106a, 0x106c, 0x1074, 0x107c, 0x007e, 0x107e, 0x207e, 0x307e
-	};
-	u16 clip1loG_gaincode_rev6_224B0 = 0x1074;
-	u16 clip1loA_gaincode = 0x00cc;
-	u16 clip1loA_gaincode_rev4 = 0x0086;
-	u16 clip1loA_gaincode_rev5 = 0x2086;
-	u16 clip1loA_gaincode_rev6 = 0x2086;
-	u16 clip1lo_gaincode;
-	u8 crsminG_th = 0x18;
-	u8 crsminG_th_rev5 = 0x18;
-	u8 crsminG_th_rev6 = 0x18;
-	u8 crsminA_th = 0x1e;
-	u8 crsminA_th_rev4 = 0x24;
-	u8 crsminA_th_rev5 = 0x24;
-	u8 crsminA_th_rev6 = 0x24;
-	u8 crsmin_th;
-	u8 crsminlG_th = 0x18;
-	u8 crsminlG_th_rev5 = 0x18;
-	u8 crsminlG_th_rev6 = 0x18;
-	u8 crsminlA_th = 0x1e;
-	u8 crsminlA_th_rev4 = 0x24;
-	u8 crsminlA_th_rev5 = 0x24;
-	u8 crsminlA_th_rev6 = 0x24;
-	u8 crsminl_th = 0;
-	u8 crsminuG_th = 0x18;
-	u8 crsminuG_th_rev5 = 0x18;
-	u8 crsminuG_th_rev6 = 0x18;
-	u8 crsminuA_th = 0x1e;
-	u8 crsminuA_th_rev4 = 0x24;
-	u8 crsminuA_th_rev5 = 0x24;
-	u8 crsminuA_th_rev6 = 0x24;
-	u8 crsminuA_th_rev6_224B0 = 0x2d;
-	u8 crsminu_th;
-	u16 nbclipG_th = 0x20d;
-	u16 nbclipG_th_rev4 = 0x1a1;
-	u16 nbclipG_th_rev5 = 0x1d0;
-	u16 nbclipG_th_rev6 = 0x1d0;
-	u16 nbclipA_th = 0x1a1;
-	u16 nbclipA_th_rev4 = 0x107;
-	u16 nbclipA_th_rev5 = 0x0a9;
-	u16 nbclipA_th_rev6 = 0x0f0;
-	u16 nbclip_th = 0;
-	u8 w1clipG_th = 5;
-	u8 w1clipG_th_rev5 = 9;
-	u8 w1clipG_th_rev6 = 5;
-	u8 w1clipA_th = 25, w1clip_th;
-	u8 rssi_gain_default = 0x50;
-	u8 rssiG_gain_rev6_224B0 = 0x50;
-	u8 rssiA_gain_rev5 = 0x90;
-	u8 rssiA_gain_rev6 = 0x90;
-	u8 rssi_gain;
-	u16 regval[21];
-	u8 triso;
+	int j, type = 2;
+	u16 addr_offset = 0x2c5;
 
-	triso = (CHSPEC_IS5G(pi->radio_chanspec)) ? pi->srom_fem5g.triso :
-		pi->srom_fem2g.triso;
+	for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
+		write_phy_reg(pi, addr_offset + j,
+			      NPHY_IPA_REV4_txdigi_filtcoeffs[type][j]);
+}
+
+static void wlc_phy_clip_det_nphy(struct brcms_phy *pi, u8 write, u16 *vals)
+{
+
+	if (write == 0) {
+		vals[0] = read_phy_reg(pi, 0x2c);
+		vals[1] = read_phy_reg(pi, 0x42);
+	} else {
+		write_phy_reg(pi, 0x2c, vals[0]);
+		write_phy_reg(pi, 0x42, vals[1]);
+	}
+}
+
+static void wlc_phy_ipa_internal_tssi_setup_nphy(struct brcms_phy *pi)
+{
+	u8 core;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-		if (pi->pubpi.radiorev == 5) {
-			wlc_phy_workarounds_nphy_gainctrl_2057_rev5(pi);
-		} else if (pi->pubpi.radiorev == 7) {
-			wlc_phy_workarounds_nphy_gainctrl_2057_rev6(pi);
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TX_SSI_MASTER, 0x5);
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TX_SSI_MUX, 0xe);
 
-			mod_phy_reg(pi, 0x283, (0xff << 0), (0x44 << 0));
-			mod_phy_reg(pi, 0x280, (0xff << 0), (0x44 << 0));
+				if (pi->pubpi.radiorev != 5)
+					WRITE_RADIO_REG3(pi, RADIO_2057, TX,
+							 core, TSSIA, 0);
 
-		} else if ((pi->pubpi.radiorev == 3)
-			   || (pi->pubpi.radiorev == 8)) {
-			wlc_phy_workarounds_nphy_gainctrl_2057_rev6(pi);
-
-			if (pi->pubpi.radiorev == 8) {
-				mod_phy_reg(pi, 0x283,
-					    (0xff << 0), (0x44 << 0));
-				mod_phy_reg(pi, 0x280,
-					    (0xff << 0), (0x44 << 0));
-			}
-		} else {
-			wlc_phy_workarounds_nphy_gainctrl_2057_rev6(pi);
-		}
-	} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-
-		mod_phy_reg(pi, 0xa0, (0x1 << 6), (1 << 6));
-
-		mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
-		mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
-
-		currband =
-			read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
-		if (currband == 0) {
-			if (NREV_GE(pi->pubpi.phy_rev, 6)) {
-				if (pi->pubpi.radiorev == 11) {
-					lna1_gain_db = lna1G_gain_db_rev6_224B0;
-					lna2_gain_db = lna2G_gain_db_rev6_224B0;
-					rfseq_init_gain =
-						rfseqG_init_gain_rev6_224B0;
-					init_gaincode =
-						initG_gaincode_rev6_224B0;
-					clip1hi_gaincode =
-						clip1hiG_gaincode_rev6;
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev6_224B0;
-					nbclip_th = nbclipG_th_rev6;
-					w1clip_th = w1clipG_th_rev6;
-					crsmin_th = crsminG_th_rev6;
-					crsminl_th = crsminlG_th_rev6;
-					crsminu_th = crsminuG_th_rev6;
-					rssi_gain = rssiG_gain_rev6_224B0;
-				} else {
-					lna1_gain_db = lna1G_gain_db_rev6;
-					lna2_gain_db = lna2G_gain_db_rev6;
-					if (pi->sh->boardflags & BFL_EXTLNA) {
-
-						rfseq_init_gain =
-						     rfseqG_init_gain_rev6_elna;
-						init_gaincode =
-						       initG_gaincode_rev6_elna;
-					} else {
-						rfseq_init_gain =
-							rfseqG_init_gain_rev6;
-						init_gaincode =
-							initG_gaincode_rev6;
-					}
-					clip1hi_gaincode =
-						clip1hiG_gaincode_rev6;
-					switch (triso) {
-					case 0:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[0];
-						break;
-					case 1:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[1];
-						break;
-					case 2:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[2];
-						break;
-					case 3:
-					default:
-
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[3];
-						break;
-					case 4:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[4];
-						break;
-					case 5:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[5];
-						break;
-					case 6:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[6];
-						break;
-					case 7:
-						clip1lo_gaincode =
-							clip1loG_gaincode_rev6
-							[7];
-						break;
-					}
-					nbclip_th = nbclipG_th_rev6;
-					w1clip_th = w1clipG_th_rev6;
-					crsmin_th = crsminG_th_rev6;
-					crsminl_th = crsminlG_th_rev6;
-					crsminu_th = crsminuG_th_rev6;
-					rssi_gain = rssi_gain_default;
-				}
-			} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
-				lna1_gain_db = lna1G_gain_db_rev5;
-				lna2_gain_db = lna2G_gain_db_rev5;
-				if (pi->sh->boardflags & BFL_EXTLNA) {
-
-					rfseq_init_gain =
-						rfseqG_init_gain_rev5_elna;
-					init_gaincode =
-						initG_gaincode_rev5_elna;
-				} else {
-					rfseq_init_gain = rfseqG_init_gain_rev5;
-					init_gaincode = initG_gaincode_rev5;
-				}
-				clip1hi_gaincode = clip1hiG_gaincode_rev5;
-				switch (triso) {
-				case 0:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[0];
-					break;
-				case 1:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[1];
-					break;
-				case 2:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[2];
-					break;
-				case 3:
-
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[3];
-					break;
-				case 4:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[4];
-					break;
-				case 5:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[5];
-					break;
-				case 6:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[6];
-					break;
-				case 7:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[7];
-					break;
-				default:
-					clip1lo_gaincode =
-						clip1loG_gaincode_rev5[3];
-					break;
-				}
-				nbclip_th = nbclipG_th_rev5;
-				w1clip_th = w1clipG_th_rev5;
-				crsmin_th = crsminG_th_rev5;
-				crsminl_th = crsminlG_th_rev5;
-				crsminu_th = crsminuG_th_rev5;
-				rssi_gain = rssi_gain_default;
-			} else if (NREV_IS(pi->pubpi.phy_rev, 4)) {
-				lna1_gain_db = lna1G_gain_db_rev4;
-				lna2_gain_db = lna2G_gain_db;
-				rfseq_init_gain = rfseqG_init_gain_rev4;
-				init_gaincode = initG_gaincode_rev4;
-				clip1hi_gaincode = clip1hiG_gaincode_rev4;
-				clip1lo_gaincode = clip1loG_gaincode;
-				nbclip_th = nbclipG_th_rev4;
-				w1clip_th = w1clipG_th;
-				crsmin_th = crsminG_th;
-				crsminl_th = crsminlG_th;
-				crsminu_th = crsminuG_th;
-				rssi_gain = rssi_gain_default;
-			} else {
-				lna1_gain_db = lna1G_gain_db;
-				lna2_gain_db = lna2G_gain_db;
-				rfseq_init_gain = rfseqG_init_gain;
-				init_gaincode = initG_gaincode;
-				clip1hi_gaincode = clip1hiG_gaincode;
-				clip1lo_gaincode = clip1loG_gaincode;
-				nbclip_th = nbclipG_th;
-				w1clip_th = w1clipG_th;
-				crsmin_th = crsminG_th;
-				crsminl_th = crsminlG_th;
-				crsminu_th = crsminuG_th;
-				rssi_gain = rssi_gain_default;
-			}
-			tia_gain_db = tiaG_gain_db;
-			tia_gainbits = tiaG_gainbits;
-			clip1md_gaincode = clip1mdG_gaincode;
-		} else {
-			if (NREV_GE(pi->pubpi.phy_rev, 6)) {
-				lna1_gain_db = lna1A_gain_db_rev6;
-				lna2_gain_db = lna2A_gain_db_rev6;
-				tia_gain_db = tiaA_gain_db_rev6;
-				tia_gainbits = tiaA_gainbits_rev6;
-				rfseq_init_gain = rfseqA_init_gain_rev6;
-				init_gaincode = initA_gaincode_rev6;
-				clip1hi_gaincode = clip1hiA_gaincode_rev6;
-				clip1md_gaincode = clip1mdA_gaincode_rev6;
-				clip1lo_gaincode = clip1loA_gaincode_rev6;
-				crsmin_th = crsminA_th_rev6;
-				crsminl_th = crsminlA_th_rev6;
-				if ((pi->pubpi.radiorev == 11) &&
-				    (CHSPEC_IS40(pi->radio_chanspec) == 0))
-					crsminu_th = crsminuA_th_rev6_224B0;
+				if (!NREV_IS(pi->pubpi.phy_rev, 7))
+					WRITE_RADIO_REG3(pi, RADIO_2057, TX,
+							 core, TSSIG, 0x1);
 				else
-					crsminu_th = crsminuA_th_rev6;
+					WRITE_RADIO_REG3(pi, RADIO_2057, TX,
+							 core, TSSIG, 0x31);
+			} else {
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TX_SSI_MASTER, 0x9);
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TX_SSI_MUX, 0xc);
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TSSIG, 0);
 
-				nbclip_th = nbclipA_th_rev6;
-				rssi_gain = rssiA_gain_rev6;
-			} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
-				lna1_gain_db = lna1A_gain_db_rev5;
-				lna2_gain_db = lna2A_gain_db_rev5;
-				tia_gain_db = tiaA_gain_db_rev5;
-				tia_gainbits = tiaA_gainbits_rev5;
-				rfseq_init_gain = rfseqA_init_gain_rev5;
-				init_gaincode = initA_gaincode_rev5;
-				clip1hi_gaincode = clip1hiA_gaincode_rev5;
-				clip1md_gaincode = clip1mdA_gaincode_rev5;
-				clip1lo_gaincode = clip1loA_gaincode_rev5;
-				crsmin_th = crsminA_th_rev5;
-				crsminl_th = crsminlA_th_rev5;
-				crsminu_th = crsminuA_th_rev5;
-				nbclip_th = nbclipA_th_rev5;
-				rssi_gain = rssiA_gain_rev5;
-			} else if (NREV_IS(pi->pubpi.phy_rev, 4)) {
-				lna1_gain_db = lna1A_gain_db_rev4;
-				lna2_gain_db = lna2A_gain_db_rev4;
-				tia_gain_db = tiaA_gain_db_rev4;
-				tia_gainbits = tiaA_gainbits_rev4;
-				if (pi->sh->boardflags & BFL_EXTLNA_5GHz) {
-
-					rfseq_init_gain =
-						rfseqA_init_gain_rev4_elna;
-					init_gaincode =
-						initA_gaincode_rev4_elna;
-				} else {
-					rfseq_init_gain = rfseqA_init_gain_rev4;
-					init_gaincode = initA_gaincode_rev4;
+				if (pi->pubpi.radiorev != 5) {
+					if (!NREV_IS(pi->pubpi.phy_rev, 7))
+						WRITE_RADIO_REG3(pi, RADIO_2057,
+								 TX, core,
+								 TSSIA, 0x1);
+					else
+						WRITE_RADIO_REG3(pi, RADIO_2057,
+								 TX, core,
+								 TSSIA, 0x31);
 				}
-				clip1hi_gaincode = clip1hiA_gaincode_rev4;
-				clip1md_gaincode = clip1mdA_gaincode_rev4;
-				clip1lo_gaincode = clip1loA_gaincode_rev4;
-				crsmin_th = crsminA_th_rev4;
-				crsminl_th = crsminlA_th_rev4;
-				crsminu_th = crsminuA_th_rev4;
-				nbclip_th = nbclipA_th_rev4;
-				rssi_gain = rssi_gain_default;
-			} else {
-				lna1_gain_db = lna1A_gain_db;
-				lna2_gain_db = lna2A_gain_db;
-				tia_gain_db = tiaA_gain_db;
-				tia_gainbits = tiaA_gainbits;
-				rfseq_init_gain = rfseqA_init_gain;
-				init_gaincode = initA_gaincode;
-				clip1hi_gaincode = clip1hiA_gaincode;
-				clip1md_gaincode = clip1mdA_gaincode;
-				clip1lo_gaincode = clip1loA_gaincode;
-				crsmin_th = crsminA_th;
-				crsminl_th = crsminlA_th;
-				crsminu_th = crsminuA_th;
-				nbclip_th = nbclipA_th;
-				rssi_gain = rssi_gain_default;
 			}
-			w1clip_th = w1clipA_th;
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, IQCAL_VCM_HG,
+					 0);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, IQCAL_IDAC,
+					 0);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, TSSI_VCM,
+					 0x3);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, TSSI_MISC1,
+					 0x0);
 		}
-
-		write_radio_reg(pi,
-				(RADIO_2056_RX_BIASPOLE_LNAG1_IDAC |
-				 RADIO_2056_RX0), 0x17);
-		write_radio_reg(pi,
-				(RADIO_2056_RX_BIASPOLE_LNAG1_IDAC |
-				 RADIO_2056_RX1), 0x17);
-
-		write_radio_reg(pi, (RADIO_2056_RX_LNAG2_IDAC | RADIO_2056_RX0),
-				0xf0);
-		write_radio_reg(pi, (RADIO_2056_RX_LNAG2_IDAC | RADIO_2056_RX1),
-				0xf0);
-
-		write_radio_reg(pi, (RADIO_2056_RX_RSSI_POLE | RADIO_2056_RX0),
-				0x0);
-		write_radio_reg(pi, (RADIO_2056_RX_RSSI_POLE | RADIO_2056_RX1),
-				0x0);
-
-		write_radio_reg(pi, (RADIO_2056_RX_RSSI_GAIN | RADIO_2056_RX0),
-				rssi_gain);
-		write_radio_reg(pi, (RADIO_2056_RX_RSSI_GAIN | RADIO_2056_RX1),
-				rssi_gain);
-
-		write_radio_reg(pi,
-				(RADIO_2056_RX_BIASPOLE_LNAA1_IDAC |
-				 RADIO_2056_RX0), 0x17);
-		write_radio_reg(pi,
-				(RADIO_2056_RX_BIASPOLE_LNAA1_IDAC |
-				 RADIO_2056_RX1), 0x17);
-
-		write_radio_reg(pi, (RADIO_2056_RX_LNAA2_IDAC | RADIO_2056_RX0),
-				0xFF);
-		write_radio_reg(pi, (RADIO_2056_RX_LNAA2_IDAC | RADIO_2056_RX1),
-				0xFF);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 8,
-					 8, lna1_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 8,
-					 8, lna1_gain_db);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x10,
-					 8, lna2_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x10,
-					 8, lna2_gain_db);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 10, 0x20,
-					 8, tia_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 10, 0x20,
-					 8, tia_gain_db);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 10, 0x20,
-					 8, tia_gainbits);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 10, 0x20,
-					 8, tia_gainbits);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 6, 0x40,
-					 8, &lpf_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 6, 0x40,
-					 8, &lpf_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 6, 0x40,
-					 8, &lpf_gainbits);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 6, 0x40,
-					 8, &lpf_gainbits);
-
-		write_phy_reg(pi, 0x20, init_gaincode);
-		write_phy_reg(pi, 0x2a7, init_gaincode);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ,
-					 pi->pubpi.phy_corenum, 0x106, 16,
-					 rfseq_init_gain);
-
-		write_phy_reg(pi, 0x22, clip1hi_gaincode);
-		write_phy_reg(pi, 0x2a9, clip1hi_gaincode);
-
-		write_phy_reg(pi, 0x24, clip1md_gaincode);
-		write_phy_reg(pi, 0x2ab, clip1md_gaincode);
-
-		write_phy_reg(pi, 0x37, clip1lo_gaincode);
-		write_phy_reg(pi, 0x2ad, clip1lo_gaincode);
-
-		mod_phy_reg(pi, 0x27d, (0xff << 0), (crsmin_th << 0));
-		mod_phy_reg(pi, 0x280, (0xff << 0), (crsminl_th << 0));
-		mod_phy_reg(pi, 0x283, (0xff << 0), (crsminu_th << 0));
-
-		write_phy_reg(pi, 0x2b, nbclip_th);
-		write_phy_reg(pi, 0x41, nbclip_th);
-
-		mod_phy_reg(pi, 0x27, (0x3f << 0), (w1clip_th << 0));
-		mod_phy_reg(pi, 0x3d, (0x3f << 0), (w1clip_th << 0));
-
-		write_phy_reg(pi, 0x150, 0x809c);
-
 	} else {
+		WRITE_RADIO_SYN(pi, RADIO_2056, RESERVED_ADDR31,
+				(CHSPEC_IS2G(pi->radio_chanspec)) ? 0x128 :
+				0x80);
+		WRITE_RADIO_SYN(pi, RADIO_2056, RESERVED_ADDR30, 0x0);
+		WRITE_RADIO_SYN(pi, RADIO_2056, GPIO_MASTER1, 0x29);
 
-		mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
-		mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, IQCAL_VCM_HG,
+					 0x0);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, IQCAL_IDAC,
+					 0x0);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_VCM,
+					 0x3);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TX_AMP_DET,
+					 0x0);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_MISC1,
+					 0x8);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_MISC2,
+					 0x0);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_MISC3,
+					 0x0);
 
-		write_phy_reg(pi, 0x2b, 0x84);
-		write_phy_reg(pi, 0x41, 0x84);
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 TX_SSI_MASTER, 0x5);
 
-		if (CHSPEC_IS20(pi->radio_chanspec)) {
-			write_phy_reg(pi, 0x6b, 0x2b);
-			write_phy_reg(pi, 0x6c, 0x2b);
-			write_phy_reg(pi, 0x6d, 0x9);
-			write_phy_reg(pi, 0x6e, 0x9);
+				if (pi->pubpi.radiorev != 5)
+					WRITE_RADIO_REG2(pi, RADIO_2056, TX,
+							 core, TSSIA, 0x0);
+				if (NREV_GE(pi->pubpi.phy_rev, 5))
+					WRITE_RADIO_REG2(pi, RADIO_2056, TX,
+							 core, TSSIG, 0x31);
+				else
+					WRITE_RADIO_REG2(pi, RADIO_2056, TX,
+							 core, TSSIG, 0x11);
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 TX_SSI_MUX, 0xe);
+			} else {
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 TX_SSI_MASTER, 0x9);
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 TSSIA, 0x31);
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 TSSIG, 0x0);
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 TX_SSI_MUX, 0xc);
+			}
 		}
-
-		w1th = NPHY_RSSICAL_W1_TARGET - 4;
-		mod_phy_reg(pi, 0x27, (0x3f << 0), (w1th << 0));
-		mod_phy_reg(pi, 0x3d, (0x3f << 0), (w1th << 0));
-
-		if (CHSPEC_IS20(pi->radio_chanspec)) {
-			mod_phy_reg(pi, 0x1c, (0x1f << 0), (0x1 << 0));
-			mod_phy_reg(pi, 0x32, (0x1f << 0), (0x1 << 0));
-
-			mod_phy_reg(pi, 0x1d, (0x1f << 0), (0x1 << 0));
-			mod_phy_reg(pi, 0x33, (0x1f << 0), (0x1 << 0));
-		}
-
-		write_phy_reg(pi, 0x150, 0x809c);
-
-		if (pi->nphy_gain_boost)
-			if ((CHSPEC_IS2G(pi->radio_chanspec)) &&
-			    (CHSPEC_IS40(pi->radio_chanspec)))
-				hpf_code = 4;
-			else
-				hpf_code = 5;
-		else if (CHSPEC_IS40(pi->radio_chanspec))
-			hpf_code = 6;
-		else
-			hpf_code = 7;
-
-		mod_phy_reg(pi, 0x20, (0x1f << 7), (hpf_code << 7));
-		mod_phy_reg(pi, 0x36, (0x1f << 7), (hpf_code << 7));
-
-		for (ctr = 0; ctr < 4; ctr++)
-			regval[ctr] = (hpf_code << 8) | 0x7c;
-		wlc_phy_table_write_nphy(pi, 7, 4, 0x106, 16, regval);
-
-		wlc_phy_adjust_lnagaintbl_nphy(pi);
-
-		if (pi->nphy_elna_gain_config) {
-			regval[0] = 0;
-			regval[1] = 1;
-			regval[2] = 1;
-			regval[3] = 1;
-			wlc_phy_table_write_nphy(pi, 2, 4, 8, 16, regval);
-			wlc_phy_table_write_nphy(pi, 3, 4, 8, 16, regval);
-
-			for (ctr = 0; ctr < 4; ctr++)
-				regval[ctr] = (hpf_code << 8) | 0x74;
-			wlc_phy_table_write_nphy(pi, 7, 4, 0x106, 16, regval);
-		}
-
-		if (NREV_IS(pi->pubpi.phy_rev, 2)) {
-			for (ctr = 0; ctr < 21; ctr++)
-				regval[ctr] = 3 * ctr;
-			wlc_phy_table_write_nphy(pi, 0, 21, 32, 16, regval);
-			wlc_phy_table_write_nphy(pi, 1, 21, 32, 16, regval);
-
-			for (ctr = 0; ctr < 21; ctr++)
-				regval[ctr] = (u16) ctr;
-			wlc_phy_table_write_nphy(pi, 2, 21, 32, 16, regval);
-			wlc_phy_table_write_nphy(pi, 3, 21, 32, 16, regval);
-		}
-
-		wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_UPDATEGAINU,
-				       rfseq_updategainu_events,
-				       rfseq_updategainu_dlys,
-				       sizeof(rfseq_updategainu_events) /
-				       sizeof(rfseq_updategainu_events[0]));
-
-		mod_phy_reg(pi, 0x153, (0xff << 8), (90 << 8));
-
-		if (CHSPEC_IS2G(pi->radio_chanspec))
-			mod_phy_reg(pi,
-				    (NPHY_TO_BPHY_OFF + BPHY_OPTIONAL_MODES),
-				    0x7f, 0x4);
 	}
 }
 
-static void wlc_phy_workarounds_nphy_gainctrl_2057_rev5(struct brcms_phy *pi)
+static void
+wlc_phy_rfctrl_override_nphy(struct brcms_phy *pi, u16 field, u16 value,
+			     u8 core_mask, u8 off)
 {
-	s8 lna1_gain_db[] = { 8, 13, 17, 22 };
-	s8 lna2_gain_db[] = { -2, 7, 11, 15 };
-	s8 tia_gain_db[] = { -4, -1, 2, 5, 5, 5, 5, 5, 5, 5 };
-	s8 tia_gainbits[] = {
-		0x0, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
+	u8 core_num;
+	u16 addr = 0, mask = 0, en_addr = 0, val_addr = 0, en_mask =
+		0, val_mask = 0;
+	u8 shift = 0, val_shift = 0;
 
-	mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
-	mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
+	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LT(pi->pubpi.phy_rev, 7)) {
 
-	mod_phy_reg(pi, 0x289, (0xff << 0), (0x46 << 0));
+		en_mask = field;
+		for (core_num = 0; core_num < 2; core_num++) {
 
-	mod_phy_reg(pi, 0x283, (0xff << 0), (0x3c << 0));
-	mod_phy_reg(pi, 0x280, (0xff << 0), (0x3c << 0));
+			switch (field) {
+			case (0x1 << 1):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 0);
+				val_shift = 0;
+				break;
+			case (0x1 << 2):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 1);
+				val_shift = 1;
+				break;
+			case (0x1 << 3):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 2);
+				val_shift = 2;
+				break;
+			case (0x1 << 4):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 4);
+				val_shift = 4;
+				break;
+			case (0x1 << 5):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 5);
+				val_shift = 5;
+				break;
+			case (0x1 << 6):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 6);
+				val_shift = 6;
+				break;
+			case (0x1 << 7):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x1 << 7);
+				val_shift = 7;
+				break;
+			case (0x1 << 8):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x7 << 8);
+				val_shift = 8;
+				break;
+			case (0x1 << 11):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7a : 0x7d;
+				val_mask = (0x7 << 13);
+				val_shift = 13;
+				break;
 
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x8, 8,
-				 lna1_gain_db);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x8, 8,
-				 lna1_gain_db);
+			case (0x1 << 9):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0xf8 : 0xfa;
+				val_mask = (0x7 << 0);
+				val_shift = 0;
+				break;
 
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x10, 8,
-				 lna2_gain_db);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x10, 8,
-				 lna2_gain_db);
+			case (0x1 << 10):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0xf8 : 0xfa;
+				val_mask = (0x7 << 4);
+				val_shift = 4;
+				break;
 
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 10, 0x20, 8,
-				 tia_gain_db);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 10, 0x20, 8,
-				 tia_gain_db);
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 10, 0x20, 8,
-				 tia_gainbits);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 10, 0x20, 8,
-				 tia_gainbits);
-
-	write_phy_reg(pi, 0x37, 0x74);
-	write_phy_reg(pi, 0x2ad, 0x74);
-	write_phy_reg(pi, 0x38, 0x18);
-	write_phy_reg(pi, 0x2ae, 0x18);
-
-	write_phy_reg(pi, 0x2b, 0xe8);
-	write_phy_reg(pi, 0x41, 0xe8);
-
-	if (CHSPEC_IS20(pi->radio_chanspec)) {
-
-		mod_phy_reg(pi, 0x300, (0x3f << 0), (0x12 << 0));
-		mod_phy_reg(pi, 0x301, (0x3f << 0), (0x12 << 0));
-	} else {
-
-		mod_phy_reg(pi, 0x300, (0x3f << 0), (0x10 << 0));
-		mod_phy_reg(pi, 0x301, (0x3f << 0), (0x10 << 0));
-	}
-}
-
-static void wlc_phy_workarounds_nphy_gainctrl_2057_rev6(struct brcms_phy *pi)
-{
-	u16 currband;
-	s8 lna1G_gain_db_rev7[] = { 9, 14, 19, 24 };
-	s8 *lna1_gain_db = NULL;
-	s8 *lna1_gain_db_2 = NULL;
-	s8 *lna2_gain_db = NULL;
-	s8 tiaA_gain_db_rev7[] = { -9, -6, -3, 0, 3, 3, 3, 3, 3, 3 };
-	s8 *tia_gain_db;
-	s8 tiaA_gainbits_rev7[] = { 0, 1, 2, 3, 4, 4, 4, 4, 4, 4 };
-	s8 *tia_gainbits;
-	u16 rfseqA_init_gain_rev7[] = { 0x624f, 0x624f };
-	u16 *rfseq_init_gain;
-	u16 init_gaincode;
-	u16 clip1hi_gaincode;
-	u16 clip1md_gaincode = 0;
-	u16 clip1md_gaincode_B;
-	u16 clip1lo_gaincode;
-	u16 clip1lo_gaincode_B;
-	u8 crsminl_th = 0;
-	u8 crsminu_th;
-	u16 nbclip_th = 0;
-	u8 w1clip_th;
-	u16 freq;
-	s8 nvar_baseline_offset0 = 0, nvar_baseline_offset1 = 0;
-	u8 chg_nbclip_th = 0;
-
-	mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
-	mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
-
-	currband = read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
-	if (currband == 0) {
-
-		lna1_gain_db = lna1G_gain_db_rev7;
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 8, 8,
-					 lna1_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 8, 8,
-					 lna1_gain_db);
-
-		mod_phy_reg(pi, 0x283, (0xff << 0), (0x40 << 0));
-
-		if (CHSPEC_IS40(pi->radio_chanspec)) {
-			mod_phy_reg(pi, 0x280, (0xff << 0), (0x3e << 0));
-			mod_phy_reg(pi, 0x283, (0xff << 0), (0x3e << 0));
-		}
-
-		mod_phy_reg(pi, 0x289, (0xff << 0), (0x46 << 0));
-
-		if (CHSPEC_IS20(pi->radio_chanspec)) {
-			mod_phy_reg(pi, 0x300, (0x3f << 0), (13 << 0));
-			mod_phy_reg(pi, 0x301, (0x3f << 0), (13 << 0));
-		}
-	} else {
-
-		init_gaincode = 0x9e;
-		clip1hi_gaincode = 0x9e;
-		clip1md_gaincode_B = 0x24;
-		clip1lo_gaincode = 0x8a;
-		clip1lo_gaincode_B = 8;
-		rfseq_init_gain = rfseqA_init_gain_rev7;
-
-		tia_gain_db = tiaA_gain_db_rev7;
-		tia_gainbits = tiaA_gainbits_rev7;
-
-		freq = CHAN5G_FREQ(CHSPEC_CHANNEL(pi->radio_chanspec));
-		if (CHSPEC_IS20(pi->radio_chanspec)) {
-
-			w1clip_th = 25;
-			clip1md_gaincode = 0x82;
-
-			if ((freq <= 5080) || (freq == 5825)) {
-
-				s8 lna1A_gain_db_rev7[] = { 11, 16, 20, 24 };
-				s8 lna1A_gain_db_2_rev7[] = {
-					11, 17, 22, 25};
-				s8 lna2A_gain_db_rev7[] = { -1, 6, 10, 14 };
-
-				crsminu_th = 0x3e;
-				lna1_gain_db = lna1A_gain_db_rev7;
-				lna1_gain_db_2 = lna1A_gain_db_2_rev7;
-				lna2_gain_db = lna2A_gain_db_rev7;
-			} else if ((freq >= 5500) && (freq <= 5700)) {
-
-				s8 lna1A_gain_db_rev7[] = { 11, 17, 21, 25 };
-				s8 lna1A_gain_db_2_rev7[] = {
-					12, 18, 22, 26};
-				s8 lna2A_gain_db_rev7[] = { 1, 8, 12, 16 };
-
-				crsminu_th = 0x45;
-				clip1md_gaincode_B = 0x14;
-				nbclip_th = 0xff;
-				chg_nbclip_th = 1;
-				lna1_gain_db = lna1A_gain_db_rev7;
-				lna1_gain_db_2 = lna1A_gain_db_2_rev7;
-				lna2_gain_db = lna2A_gain_db_rev7;
-			} else {
-
-				s8 lna1A_gain_db_rev7[] = { 12, 18, 22, 26 };
-				s8 lna1A_gain_db_2_rev7[] = {
-					12, 18, 22, 26};
-				s8 lna2A_gain_db_rev7[] = { -1, 6, 10, 14 };
-
-				crsminu_th = 0x41;
-				lna1_gain_db = lna1A_gain_db_rev7;
-				lna1_gain_db_2 = lna1A_gain_db_2_rev7;
-				lna2_gain_db = lna2A_gain_db_rev7;
+			case (0x1 << 12):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7b : 0x7e;
+				val_mask = (0xffff << 0);
+				val_shift = 0;
+				break;
+			case (0x1 << 13):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0x7c : 0x7f;
+				val_mask = (0xffff << 0);
+				val_shift = 0;
+				break;
+			case (0x1 << 14):
+				en_addr = (core_num == 0) ? 0xe7 : 0xec;
+				val_addr = (core_num == 0) ? 0xf9 : 0xfb;
+				val_mask = (0x3 << 6);
+				val_shift = 6;
+				break;
+			case (0x1 << 0):
+				en_addr = (core_num == 0) ? 0xe5 : 0xe6;
+				val_addr = (core_num == 0) ? 0xf9 : 0xfb;
+				val_mask = (0x1 << 15);
+				val_shift = 15;
+				break;
+			default:
+				addr = 0xffff;
+				break;
 			}
 
-			if (freq <= 4920) {
-				nvar_baseline_offset0 = 5;
-				nvar_baseline_offset1 = 5;
-			} else if ((freq > 4920) && (freq <= 5320)) {
-				nvar_baseline_offset0 = 3;
-				nvar_baseline_offset1 = 5;
-			} else if ((freq > 5320) && (freq <= 5700)) {
-				nvar_baseline_offset0 = 3;
-				nvar_baseline_offset1 = 2;
+			if (off) {
+				and_phy_reg(pi, en_addr, ~en_mask);
+				and_phy_reg(pi, val_addr, ~val_mask);
 			} else {
-				nvar_baseline_offset0 = 4;
-				nvar_baseline_offset1 = 0;
+
+				if ((core_mask == 0)
+				    || (core_mask & (1 << core_num))) {
+					or_phy_reg(pi, en_addr, en_mask);
+
+					if (addr != 0xffff)
+						mod_phy_reg(pi, val_addr,
+							    val_mask,
+							    (value <<
+							     val_shift));
+				}
 			}
+		}
+	} else {
+
+		if (off) {
+			and_phy_reg(pi, 0xec, ~field);
+			value = 0x0;
 		} else {
+			or_phy_reg(pi, 0xec, field);
+		}
 
-			crsminu_th = 0x3a;
-			crsminl_th = 0x3a;
-			w1clip_th = 20;
+		for (core_num = 0; core_num < 2; core_num++) {
 
-			if ((freq >= 4920) && (freq <= 5320)) {
-				nvar_baseline_offset0 = 4;
-				nvar_baseline_offset1 = 5;
-			} else if ((freq > 5320) && (freq <= 5550)) {
-				nvar_baseline_offset0 = 4;
-				nvar_baseline_offset1 = 2;
-			} else {
-				nvar_baseline_offset0 = 5;
-				nvar_baseline_offset1 = 3;
+			switch (field) {
+			case (0x1 << 1):
+			case (0x1 << 9):
+			case (0x1 << 12):
+			case (0x1 << 13):
+			case (0x1 << 14):
+				addr = 0x78;
+
+				core_mask = 0x1;
+				break;
+			case (0x1 << 2):
+			case (0x1 << 3):
+			case (0x1 << 4):
+			case (0x1 << 5):
+			case (0x1 << 6):
+			case (0x1 << 7):
+			case (0x1 << 8):
+				addr = (core_num == 0) ? 0x7a : 0x7d;
+				break;
+			case (0x1 << 10):
+				addr = (core_num == 0) ? 0x7b : 0x7e;
+				break;
+			case (0x1 << 11):
+				addr = (core_num == 0) ? 0x7c : 0x7f;
+				break;
+			default:
+				addr = 0xffff;
 			}
+
+			switch (field) {
+			case (0x1 << 1):
+				mask = (0x7 << 3);
+				shift = 3;
+				break;
+			case (0x1 << 9):
+				mask = (0x1 << 2);
+				shift = 2;
+				break;
+			case (0x1 << 12):
+				mask = (0x1 << 8);
+				shift = 8;
+				break;
+			case (0x1 << 13):
+				mask = (0x1 << 9);
+				shift = 9;
+				break;
+			case (0x1 << 14):
+				mask = (0xf << 12);
+				shift = 12;
+				break;
+			case (0x1 << 2):
+				mask = (0x1 << 0);
+				shift = 0;
+				break;
+			case (0x1 << 3):
+				mask = (0x1 << 1);
+				shift = 1;
+				break;
+			case (0x1 << 4):
+				mask = (0x1 << 2);
+				shift = 2;
+				break;
+			case (0x1 << 5):
+				mask = (0x3 << 4);
+				shift = 4;
+				break;
+			case (0x1 << 6):
+				mask = (0x3 << 6);
+				shift = 6;
+				break;
+			case (0x1 << 7):
+				mask = (0x1 << 8);
+				shift = 8;
+				break;
+			case (0x1 << 8):
+				mask = (0x1 << 9);
+				shift = 9;
+				break;
+			case (0x1 << 10):
+				mask = 0x1fff;
+				shift = 0x0;
+				break;
+			case (0x1 << 11):
+				mask = 0x1fff;
+				shift = 0x0;
+				break;
+			default:
+				mask = 0x0;
+				shift = 0x0;
+				break;
+			}
+
+			if ((addr != 0xffff) && (core_mask & (1 << core_num)))
+				mod_phy_reg(pi, addr, mask, (value << shift));
 		}
 
-		write_phy_reg(pi, 0x20, init_gaincode);
-		write_phy_reg(pi, 0x2a7, init_gaincode);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ,
-					 pi->pubpi.phy_corenum, 0x106, 16,
-					 rfseq_init_gain);
-
-		write_phy_reg(pi, 0x22, clip1hi_gaincode);
-		write_phy_reg(pi, 0x2a9, clip1hi_gaincode);
-
-		write_phy_reg(pi, 0x36, clip1md_gaincode_B);
-		write_phy_reg(pi, 0x2ac, clip1md_gaincode_B);
-
-		write_phy_reg(pi, 0x37, clip1lo_gaincode);
-		write_phy_reg(pi, 0x2ad, clip1lo_gaincode);
-		write_phy_reg(pi, 0x38, clip1lo_gaincode_B);
-		write_phy_reg(pi, 0x2ae, clip1lo_gaincode_B);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 10, 0x20, 8,
-					 tia_gain_db);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 10, 0x20, 8,
-					 tia_gain_db);
-
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS1, 10, 0x20, 8,
-					 tia_gainbits);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAINBITS2, 10, 0x20, 8,
-					 tia_gainbits);
-
-		mod_phy_reg(pi, 0x283, (0xff << 0), (crsminu_th << 0));
-
-		if (chg_nbclip_th == 1) {
-			write_phy_reg(pi, 0x2b, nbclip_th);
-			write_phy_reg(pi, 0x41, nbclip_th);
-		}
-
-		mod_phy_reg(pi, 0x300, (0x3f << 0), (w1clip_th << 0));
-		mod_phy_reg(pi, 0x301, (0x3f << 0), (w1clip_th << 0));
-
-		mod_phy_reg(pi, 0x2e4,
-			    (0x3f << 0), (nvar_baseline_offset0 << 0));
-
-		mod_phy_reg(pi, 0x2e4,
-			    (0x3f << 6), (nvar_baseline_offset1 << 6));
-
-		if (CHSPEC_IS20(pi->radio_chanspec)) {
-
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 8, 8,
-						 lna1_gain_db);
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 8, 8,
-						 lna1_gain_db_2);
-
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN1, 4, 0x10,
-						 8, lna2_gain_db);
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_GAIN2, 4, 0x10,
-						 8, lna2_gain_db);
-
-			write_phy_reg(pi, 0x24, clip1md_gaincode);
-			write_phy_reg(pi, 0x2ab, clip1md_gaincode);
-		} else {
-			mod_phy_reg(pi, 0x280, (0xff << 0), (crsminl_th << 0));
-		}
+		or_phy_reg(pi, 0xec, (0x1 << 0));
+		or_phy_reg(pi, 0x78, (0x1 << 0));
+		udelay(1);
+		and_phy_reg(pi, 0xec, ~(0x1 << 0));
 	}
 }
 
-static void wlc_phy_adjust_lnagaintbl_nphy(struct brcms_phy *pi)
+static void wlc_phy_txpwrctrl_idle_tssi_nphy(struct brcms_phy *pi)
 {
-	uint core;
-	int ctr;
-	s16 gain_delta[2];
-	u8 curr_channel;
-	u16 minmax_gain[2];
-	u16 regval[4];
+	s32 rssi_buf[4];
+	s32 int_val;
+
+	if (SCAN_RM_IN_PROGRESS(pi) || PLT_INPROG_PHY(pi) || PHY_MUTED(pi))
+
+		return;
+
+	if (PHY_IPA(pi))
+		wlc_phy_ipa_internal_tssi_setup_nphy(pi);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7))
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 12),
+						  0, 0x3, 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+	else if (NREV_GE(pi->pubpi.phy_rev, 3))
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 13), 0, 3, 0);
+
+	wlc_phy_stopplayback_nphy(pi);
+
+	wlc_phy_tx_tone_nphy(pi, 4000, 0, 0, 0, false);
+
+	udelay(20);
+	int_val =
+		wlc_phy_poll_rssi_nphy(pi, (u8) NPHY_RSSI_SEL_TSSI_2G, rssi_buf,
+				       1);
+	wlc_phy_stopplayback_nphy(pi);
+	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_OFF, 0);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7))
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 12),
+						  0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+	else if (NREV_GE(pi->pubpi.phy_rev, 3))
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 13), 0, 3, 1);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+
+		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_2g =
+			(u8) ((int_val >> 24) & 0xff);
+		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_5g =
+			(u8) ((int_val >> 24) & 0xff);
+
+		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_2g =
+			(u8) ((int_val >> 8) & 0xff);
+		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_5g =
+			(u8) ((int_val >> 8) & 0xff);
+	} else {
+		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_2g =
+			(u8) ((int_val >> 24) & 0xff);
+
+		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_2g =
+			(u8) ((int_val >> 8) & 0xff);
+
+		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_5g =
+			(u8) ((int_val >> 16) & 0xff);
+		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_5g =
+			(u8) ((int_val) & 0xff);
+	}
+
+}
+
+static void wlc_phy_txpwr_limit_to_tbl_nphy(struct brcms_phy *pi)
+{
+	u8 idx, idx2, i, delta_ind;
+
+	for (idx = TXP_FIRST_CCK; idx <= TXP_LAST_CCK; idx++)
+		pi->adj_pwr_tbl_nphy[idx] = pi->tx_power_offset[idx];
+
+	for (i = 0; i < 4; i++) {
+		idx2 = 0;
+
+		delta_ind = 0;
+
+		switch (i) {
+		case 0:
+
+			if (CHSPEC_IS40(pi->radio_chanspec)
+			    && NPHY_IS_SROM_REINTERPRET) {
+				idx = TXP_FIRST_MCS_40_SISO;
+			} else {
+				idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
+				      TXP_FIRST_OFDM_40_SISO : TXP_FIRST_OFDM;
+				delta_ind = 1;
+			}
+			break;
+
+		case 1:
+
+			idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
+			      TXP_FIRST_MCS_40_CDD : TXP_FIRST_MCS_20_CDD;
+			break;
+
+		case 2:
+
+			idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
+			      TXP_FIRST_MCS_40_STBC : TXP_FIRST_MCS_20_STBC;
+			break;
+
+		case 3:
+
+			idx = (CHSPEC_IS40(pi->radio_chanspec)) ?
+			      TXP_FIRST_MCS_40_SDM : TXP_FIRST_MCS_20_SDM;
+			break;
+		}
+
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		idx = idx + delta_ind;
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx++];
+
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx++];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx++];
+
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx++];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx++];
+
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx++];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		idx = idx + 1 - delta_ind;
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+		pi->adj_pwr_tbl_nphy[4 + 4 * (idx2++) + i] =
+			pi->tx_power_offset[idx];
+	}
+}
+
+static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
+{
+	u32 idx;
+	s16 a1[2], b0[2], b1[2];
+	s8 target_pwr_qtrdbm[2];
+	s32 num, den, pwr_est;
+	u8 chan_freq_range;
+	u8 idle_tssi[2];
+	u32 tbl_id, tbl_len, tbl_offset;
+	u32 regval[64];
+	u8 core;
+
+	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
+		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
+		(void)R_REG(&pi->regs->maccontrol);
+		udelay(1);
+	}
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, true);
 
-	if (pi->nphy_gain_boost) {
-		if ((CHSPEC_IS2G(pi->radio_chanspec))) {
+	or_phy_reg(pi, 0x122, (0x1 << 0));
 
-			gain_delta[0] = 6;
-			gain_delta[1] = 6;
-		} else {
+	if (NREV_GE(pi->pubpi.phy_rev, 3))
+		and_phy_reg(pi, 0x1e7, (u16) (~(0x1 << 15)));
+	else
+		or_phy_reg(pi, 0x1e7, (0x1 << 15));
 
-			curr_channel = CHSPEC_CHANNEL(pi->radio_chanspec);
-			gain_delta[0] =
-				(s16)
-				PHY_HW_ROUND(((nphy_lnagain_est0[0] *
-					       curr_channel) +
-					      nphy_lnagain_est0[1]), 13);
-			gain_delta[1] =
-				(s16)
-				PHY_HW_ROUND(((nphy_lnagain_est1[0] *
-					       curr_channel) +
-					      nphy_lnagain_est1[1]), 13);
-		}
+	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12))
+		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, 0);
+
+	if (pi->sh->sromrev < 4) {
+		idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
+		idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
+		target_pwr_qtrdbm[0] = 13 * 4;
+		target_pwr_qtrdbm[1] = 13 * 4;
+		a1[0] = -424;
+		a1[1] = -424;
+		b0[0] = 5612;
+		b0[1] = 5612;
+		b1[1] = -1393;
+		b1[0] = -1393;
 	} else {
 
-		gain_delta[0] = 0;
-		gain_delta[1] = 0;
-	}
-
-	for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-		if (pi->nphy_elna_gain_config) {
-
-			regval[0] = nphy_def_lnagains[2] + gain_delta[core];
-			regval[1] = nphy_def_lnagains[3] + gain_delta[core];
-			regval[2] = nphy_def_lnagains[3] + gain_delta[core];
-			regval[3] = nphy_def_lnagains[3] + gain_delta[core];
-		} else {
-			for (ctr = 0; ctr < 4; ctr++)
-				regval[ctr] =
-					nphy_def_lnagains[ctr] +
-					gain_delta[core];
+		chan_freq_range = wlc_phy_get_chan_freq_range_nphy(pi, 0);
+		switch (chan_freq_range) {
+		case WL_CHAN_FREQ_RANGE_2G:
+			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
+			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
+			target_pwr_qtrdbm[0] =
+				pi->nphy_pwrctrl_info[0].max_pwr_2g;
+			target_pwr_qtrdbm[1] =
+				pi->nphy_pwrctrl_info[1].max_pwr_2g;
+			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_a1;
+			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_a1;
+			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_b0;
+			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_b0;
+			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_b1;
+			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_b1;
+			break;
+		case WL_CHAN_FREQ_RANGE_5GL:
+			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
+			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
+			target_pwr_qtrdbm[0] =
+				pi->nphy_pwrctrl_info[0].max_pwr_5gl;
+			target_pwr_qtrdbm[1] =
+				pi->nphy_pwrctrl_info[1].max_pwr_5gl;
+			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_a1;
+			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_a1;
+			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_b0;
+			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_b0;
+			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_b1;
+			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_b1;
+			break;
+		case WL_CHAN_FREQ_RANGE_5GM:
+			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
+			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
+			target_pwr_qtrdbm[0] =
+				pi->nphy_pwrctrl_info[0].max_pwr_5gm;
+			target_pwr_qtrdbm[1] =
+				pi->nphy_pwrctrl_info[1].max_pwr_5gm;
+			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_a1;
+			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_a1;
+			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_b0;
+			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_b0;
+			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_b1;
+			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_b1;
+			break;
+		case WL_CHAN_FREQ_RANGE_5GH:
+			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
+			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
+			target_pwr_qtrdbm[0] =
+				pi->nphy_pwrctrl_info[0].max_pwr_5gh;
+			target_pwr_qtrdbm[1] =
+				pi->nphy_pwrctrl_info[1].max_pwr_5gh;
+			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_a1;
+			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_a1;
+			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_b0;
+			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_b0;
+			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_b1;
+			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_b1;
+			break;
+		default:
+			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
+			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
+			target_pwr_qtrdbm[0] = 13 * 4;
+			target_pwr_qtrdbm[1] = 13 * 4;
+			a1[0] = -424;
+			a1[1] = -424;
+			b0[0] = 5612;
+			b0[1] = 5612;
+			b1[1] = -1393;
+			b1[0] = -1393;
+			break;
 		}
-		wlc_phy_table_write_nphy(pi, core, 4, 8, 16, regval);
-
-		minmax_gain[core] =
-			(u16) (nphy_def_lnagains[2] + gain_delta[core] + 4);
 	}
 
-	mod_phy_reg(pi, 0x1e, (0xff << 0), (minmax_gain[0] << 0));
-	mod_phy_reg(pi, 0x34, (0xff << 0), (minmax_gain[1] << 0));
+	target_pwr_qtrdbm[0] = (s8) pi->tx_power_max;
+	target_pwr_qtrdbm[1] = (s8) pi->tx_power_max;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		if (pi->srom_fem2g.tssipos)
+			or_phy_reg(pi, 0x1e9, (0x1 << 14));
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			for (core = 0; core <= 1; core++) {
+				if (PHY_IPA(pi)) {
+					if (CHSPEC_IS2G(pi->radio_chanspec))
+						WRITE_RADIO_REG3(pi, RADIO_2057,
+								 TX, core,
+								 TX_SSI_MUX,
+								 0xe);
+					else
+						WRITE_RADIO_REG3(pi, RADIO_2057,
+								 TX, core,
+								 TX_SSI_MUX,
+								 0xc);
+				}
+			}
+		} else {
+			if (PHY_IPA(pi)) {
+
+				write_radio_reg(pi, RADIO_2056_TX_TX_SSI_MUX |
+						RADIO_2056_TX0,
+						(CHSPEC_IS5G
+						 (pi->radio_chanspec)) ?
+						 0xc : 0xe);
+				write_radio_reg(pi,
+						RADIO_2056_TX_TX_SSI_MUX |
+						RADIO_2056_TX1,
+						(CHSPEC_IS5G
+						 (pi->radio_chanspec)) ?
+						 0xc : 0xe);
+			} else {
+
+				write_radio_reg(pi, RADIO_2056_TX_TX_SSI_MUX |
+						RADIO_2056_TX0, 0x11);
+				write_radio_reg(pi, RADIO_2056_TX_TX_SSI_MUX |
+						RADIO_2056_TX1, 0x11);
+			}
+		}
+	}
+
+	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
+		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
+		(void)R_REG(&pi->regs->maccontrol);
+		udelay(1);
+	}
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7))
+		mod_phy_reg(pi, 0x1e7, (0x7f << 0),
+			    (NPHY_TxPwrCtrlCmd_pwrIndex_init_rev7 << 0));
+	else
+		mod_phy_reg(pi, 0x1e7, (0x7f << 0),
+			    (NPHY_TxPwrCtrlCmd_pwrIndex_init << 0));
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7))
+		mod_phy_reg(pi, 0x222, (0xff << 0),
+			    (NPHY_TxPwrCtrlCmd_pwrIndex_init_rev7 << 0));
+	else if (NREV_GT(pi->pubpi.phy_rev, 1))
+		mod_phy_reg(pi, 0x222, (0xff << 0),
+			    (NPHY_TxPwrCtrlCmd_pwrIndex_init << 0));
+
+	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12))
+		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, 0);
+
+	write_phy_reg(pi, 0x1e8, (0x3 << 8) | (240 << 0));
+
+	write_phy_reg(pi, 0x1e9,
+		      (1 << 15) | (idle_tssi[0] << 0) | (idle_tssi[1] << 8));
+
+	write_phy_reg(pi, 0x1ea,
+		      (target_pwr_qtrdbm[0] << 0) |
+		      (target_pwr_qtrdbm[1] << 8));
+
+	tbl_len = 64;
+	tbl_offset = 0;
+	for (tbl_id = NPHY_TBL_ID_CORE1TXPWRCTL;
+	     tbl_id <= NPHY_TBL_ID_CORE2TXPWRCTL; tbl_id++) {
+
+		for (idx = 0; idx < tbl_len; idx++) {
+			num = 8 *
+			      (16 * b0[tbl_id - 26] + b1[tbl_id - 26] * idx);
+			den = 32768 + a1[tbl_id - 26] * idx;
+			pwr_est = max(((4 * num + den / 2) / den), -8);
+			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
+				if (idx <=
+				    (uint) (31 - idle_tssi[tbl_id - 26] + 1))
+					pwr_est =
+						max(pwr_est,
+						    target_pwr_qtrdbm
+						    [tbl_id - 26] + 1);
+			}
+			regval[idx] = (u32) pwr_est;
+		}
+		wlc_phy_table_write_nphy(pi, tbl_id, tbl_len, tbl_offset, 32,
+					 regval);
+	}
+
+	wlc_phy_txpwr_limit_to_tbl_nphy(pi);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE1TXPWRCTL, 84, 64, 8,
+				 pi->adj_pwr_tbl_nphy);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE2TXPWRCTL, 84, 64, 8,
+				 pi->adj_pwr_tbl_nphy);
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, false);
 }
 
-void wlc_phy_switch_radio_nphy(struct brcms_phy *pi, bool on)
+static u32 *wlc_phy_get_ipa_gaintbl_nphy(struct brcms_phy *pi)
 {
-	if (on) {
+	u32 *tx_pwrctrl_tbl = NULL;
+
+	if (CHSPEC_IS2G(pi->radio_chanspec)) {
 		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			if (!pi->radio_is_on) {
-				wlc_phy_radio_preinit_205x(pi);
-				wlc_phy_radio_init_2057(pi);
-				wlc_phy_radio_postinit_2057(pi);
+			if ((pi->pubpi.radiorev == 4)
+			    || (pi->pubpi.radiorev == 6))
+				tx_pwrctrl_tbl =
+					nphy_tpc_txgain_ipa_2g_2057rev4n6;
+			else if (pi->pubpi.radiorev == 3)
+				tx_pwrctrl_tbl =
+					nphy_tpc_txgain_ipa_2g_2057rev3;
+			else if (pi->pubpi.radiorev == 5)
+				tx_pwrctrl_tbl =
+					nphy_tpc_txgain_ipa_2g_2057rev5;
+			else if ((pi->pubpi.radiorev == 7)
+				 || (pi->pubpi.radiorev == 8))
+				tx_pwrctrl_tbl =
+					nphy_tpc_txgain_ipa_2g_2057rev7;
+		} else if (NREV_IS(pi->pubpi.phy_rev, 6)) {
+			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_rev6;
+		} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
+			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_rev5;
+		} else {
+			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa;
+		}
+	} else {
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			if ((pi->pubpi.radiorev == 3) ||
+			    (pi->pubpi.radiorev == 4) ||
+			    (pi->pubpi.radiorev == 6))
+				tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_5g_2057;
+			else if ((pi->pubpi.radiorev == 7)
+				 || (pi->pubpi.radiorev == 8))
+				tx_pwrctrl_tbl =
+					nphy_tpc_txgain_ipa_5g_2057rev7;
+		} else {
+			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_5g;
+		}
+	}
+
+	return tx_pwrctrl_tbl;
+}
+
+static void wlc_phy_restore_rssical_nphy(struct brcms_phy *pi)
+{
+	if (CHSPEC_IS2G(pi->radio_chanspec)) {
+		if (pi->nphy_rssical_chanspec_2G == 0)
+			return;
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE0,
+				      RADIO_2057_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_2G[0]);
+			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE1,
+				      RADIO_2057_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_2G[1]);
+		} else {
+			mod_radio_reg(pi,
+				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX0,
+				      RADIO_2056_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_2G[0]);
+			mod_radio_reg(pi,
+				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX1,
+				      RADIO_2056_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_2G[1]);
+		}
+
+		write_phy_reg(pi, 0x1a6,
+			      pi->rssical_cache.rssical_phyregs_2G[0]);
+		write_phy_reg(pi, 0x1ac,
+			      pi->rssical_cache.rssical_phyregs_2G[1]);
+		write_phy_reg(pi, 0x1b2,
+			      pi->rssical_cache.rssical_phyregs_2G[2]);
+		write_phy_reg(pi, 0x1b8,
+			      pi->rssical_cache.rssical_phyregs_2G[3]);
+		write_phy_reg(pi, 0x1a4,
+			      pi->rssical_cache.rssical_phyregs_2G[4]);
+		write_phy_reg(pi, 0x1aa,
+			      pi->rssical_cache.rssical_phyregs_2G[5]);
+		write_phy_reg(pi, 0x1b0,
+			      pi->rssical_cache.rssical_phyregs_2G[6]);
+		write_phy_reg(pi, 0x1b6,
+			      pi->rssical_cache.rssical_phyregs_2G[7]);
+		write_phy_reg(pi, 0x1a5,
+			      pi->rssical_cache.rssical_phyregs_2G[8]);
+		write_phy_reg(pi, 0x1ab,
+			      pi->rssical_cache.rssical_phyregs_2G[9]);
+		write_phy_reg(pi, 0x1b1,
+			      pi->rssical_cache.rssical_phyregs_2G[10]);
+		write_phy_reg(pi, 0x1b7,
+			      pi->rssical_cache.rssical_phyregs_2G[11]);
+
+	} else {
+		if (pi->nphy_rssical_chanspec_5G == 0)
+			return;
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE0,
+				      RADIO_2057_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_5G[0]);
+			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE1,
+				      RADIO_2057_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_5G[1]);
+		} else {
+			mod_radio_reg(pi,
+				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX0,
+				      RADIO_2056_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_5G[0]);
+			mod_radio_reg(pi,
+				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX1,
+				      RADIO_2056_VCM_MASK,
+				      pi->rssical_cache.
+				      rssical_radio_regs_5G[1]);
+		}
+
+		write_phy_reg(pi, 0x1a6,
+			      pi->rssical_cache.rssical_phyregs_5G[0]);
+		write_phy_reg(pi, 0x1ac,
+			      pi->rssical_cache.rssical_phyregs_5G[1]);
+		write_phy_reg(pi, 0x1b2,
+			      pi->rssical_cache.rssical_phyregs_5G[2]);
+		write_phy_reg(pi, 0x1b8,
+			      pi->rssical_cache.rssical_phyregs_5G[3]);
+		write_phy_reg(pi, 0x1a4,
+			      pi->rssical_cache.rssical_phyregs_5G[4]);
+		write_phy_reg(pi, 0x1aa,
+			      pi->rssical_cache.rssical_phyregs_5G[5]);
+		write_phy_reg(pi, 0x1b0,
+			      pi->rssical_cache.rssical_phyregs_5G[6]);
+		write_phy_reg(pi, 0x1b6,
+			      pi->rssical_cache.rssical_phyregs_5G[7]);
+		write_phy_reg(pi, 0x1a5,
+			      pi->rssical_cache.rssical_phyregs_5G[8]);
+		write_phy_reg(pi, 0x1ab,
+			      pi->rssical_cache.rssical_phyregs_5G[9]);
+		write_phy_reg(pi, 0x1b1,
+			      pi->rssical_cache.rssical_phyregs_5G[10]);
+		write_phy_reg(pi, 0x1b7,
+			      pi->rssical_cache.rssical_phyregs_5G[11]);
+	}
+}
+
+static void wlc_phy_internal_cal_txgain_nphy(struct brcms_phy *pi)
+{
+	u16 txcal_gain[2];
+
+	pi->nphy_txcal_pwr_idx[0] = pi->nphy_cal_orig_pwr_idx[0];
+	pi->nphy_txcal_pwr_idx[1] = pi->nphy_cal_orig_pwr_idx[0];
+	wlc_phy_txpwr_index_nphy(pi, 1, pi->nphy_cal_orig_pwr_idx[0], true);
+	wlc_phy_txpwr_index_nphy(pi, 2, pi->nphy_cal_orig_pwr_idx[1], true);
+
+	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16,
+				txcal_gain);
+
+	if (CHSPEC_IS2G(pi->radio_chanspec)) {
+		txcal_gain[0] = (txcal_gain[0] & 0xF000) | 0x0F40;
+		txcal_gain[1] = (txcal_gain[1] & 0xF000) | 0x0F40;
+	} else {
+		txcal_gain[0] = (txcal_gain[0] & 0xF000) | 0x0F60;
+		txcal_gain[1] = (txcal_gain[1] & 0xF000) | 0x0F60;
+	}
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16,
+				 txcal_gain);
+}
+
+static void wlc_phy_precal_txgain_nphy(struct brcms_phy *pi)
+{
+	bool save_bbmult = false;
+	u8 txcal_index_2057_rev5n7 = 0;
+	u8 txcal_index_2057_rev3n4n6 = 10;
+
+	if (pi->use_int_tx_iqlo_cal_nphy) {
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			if ((pi->pubpi.radiorev == 3) ||
+			    (pi->pubpi.radiorev == 4) ||
+			    (pi->pubpi.radiorev == 6)) {
+
+				pi->nphy_txcal_pwr_idx[0] =
+					txcal_index_2057_rev3n4n6;
+				pi->nphy_txcal_pwr_idx[1] =
+					txcal_index_2057_rev3n4n6;
+				wlc_phy_txpwr_index_nphy(
+					pi, 3,
+					txcal_index_2057_rev3n4n6,
+					false);
+			} else {
+
+				pi->nphy_txcal_pwr_idx[0] =
+					txcal_index_2057_rev5n7;
+				pi->nphy_txcal_pwr_idx[1] =
+					txcal_index_2057_rev5n7;
+				wlc_phy_txpwr_index_nphy(
+					pi, 3,
+					txcal_index_2057_rev5n7,
+					false);
+			}
+			save_bbmult = true;
+
+		} else if (NREV_LT(pi->pubpi.phy_rev, 5)) {
+			wlc_phy_cal_txgainctrl_nphy(pi, 11, false);
+			if (pi->sh->hw_phytxchain != 3) {
+				pi->nphy_txcal_pwr_idx[1] =
+					pi->nphy_txcal_pwr_idx[0];
+				wlc_phy_txpwr_index_nphy(pi, 3,
+							 pi->
+							 nphy_txcal_pwr_idx[0],
+							 true);
+				save_bbmult = true;
 			}
 
-			wlc_phy_chanspec_set((struct brcms_phy_pub *) pi,
-					     pi->radio_chanspec);
-		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-			wlc_phy_radio_preinit_205x(pi);
-			wlc_phy_radio_init_2056(pi);
-			wlc_phy_radio_postinit_2056(pi);
+		} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
+			if (PHY_IPA(pi)) {
+				if (CHSPEC_IS2G(pi->radio_chanspec)) {
+					wlc_phy_cal_txgainctrl_nphy(pi, 12,
+								    false);
+				} else {
+					pi->nphy_txcal_pwr_idx[0] = 80;
+					pi->nphy_txcal_pwr_idx[1] = 80;
+					wlc_phy_txpwr_index_nphy(pi, 3, 80,
+								 false);
+					save_bbmult = true;
+				}
+			} else {
+				wlc_phy_internal_cal_txgain_nphy(pi);
+				save_bbmult = true;
+			}
 
-			wlc_phy_chanspec_set((struct brcms_phy_pub *) pi,
-					     pi->radio_chanspec);
-		} else {
-			wlc_phy_radio_preinit_2055(pi);
-			wlc_phy_radio_init_2055(pi);
-			wlc_phy_radio_postinit_2055(pi);
+		} else if (NREV_IS(pi->pubpi.phy_rev, 6)) {
+			if (PHY_IPA(pi)) {
+				if (CHSPEC_IS2G(pi->radio_chanspec))
+					wlc_phy_cal_txgainctrl_nphy(pi, 12,
+								    false);
+				else
+					wlc_phy_cal_txgainctrl_nphy(pi, 14,
+								    false);
+			} else {
+				wlc_phy_internal_cal_txgain_nphy(pi);
+				save_bbmult = true;
+			}
 		}
-
-		pi->radio_is_on = true;
 
 	} else {
+		wlc_phy_cal_txgainctrl_nphy(pi, 10, false);
+	}
 
-		if (NREV_GE(pi->pubpi.phy_rev, 3)
-		    && NREV_LT(pi->pubpi.phy_rev, 7)) {
-			and_phy_reg(pi, 0x78, ~RFCC_CHIP0_PU);
-			mod_radio_reg(pi, RADIO_2056_SYN_COM_PU, 0x2, 0x0);
+	if (save_bbmult)
+		wlc_phy_table_read_nphy(pi, 15, 1, 87, 16,
+					&pi->nphy_txcal_bbmult);
+}
 
-			write_radio_reg(pi,
-					RADIO_2056_TX_PADA_BOOST_TUNE |
-					RADIO_2056_TX0, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_PADG_BOOST_TUNE |
-					RADIO_2056_TX0, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_PGAA_BOOST_TUNE |
-					RADIO_2056_TX0, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_PGAG_BOOST_TUNE |
-					RADIO_2056_TX0, 0);
-			mod_radio_reg(pi,
-				      RADIO_2056_TX_MIXA_BOOST_TUNE |
-				      RADIO_2056_TX0, 0xf0, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_MIXG_BOOST_TUNE |
-					RADIO_2056_TX0, 0);
+static void
+wlc_phy_rfctrlintc_override_nphy(struct brcms_phy *pi, u8 field, u16 value,
+				 u8 core_code)
+{
+	u16 mask;
+	u16 val;
+	u8 core;
 
-			write_radio_reg(pi,
-					RADIO_2056_TX_PADA_BOOST_TUNE |
-					RADIO_2056_TX1, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_PADG_BOOST_TUNE |
-					RADIO_2056_TX1, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_PGAA_BOOST_TUNE |
-					RADIO_2056_TX1, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_PGAG_BOOST_TUNE |
-					RADIO_2056_TX1, 0);
-			mod_radio_reg(pi,
-				      RADIO_2056_TX_MIXA_BOOST_TUNE |
-				      RADIO_2056_TX1, 0xf0, 0);
-			write_radio_reg(pi,
-					RADIO_2056_TX_MIXG_BOOST_TUNE |
-					RADIO_2056_TX1, 0);
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+			if (core_code == RADIO_MIMO_CORESEL_CORE1
+			    && core == PHY_CORE_1)
+				continue;
+			else if (core_code == RADIO_MIMO_CORESEL_CORE2
+				 && core == PHY_CORE_0)
+				continue;
 
-			pi->radio_is_on = false;
+			if (NREV_LT(pi->pubpi.phy_rev, 7)) {
+
+				mask = (0x1 << 10);
+				val = 1 << 10;
+				mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x91 :
+					    0x92, mask, val);
+			}
+
+			if (field == NPHY_RfctrlIntc_override_OFF) {
+
+				write_phy_reg(pi, (core == PHY_CORE_0) ? 0x91 :
+					      0x92, 0);
+
+				wlc_phy_force_rfseq_nphy(pi,
+							 NPHY_RFSEQ_RESET2RX);
+			} else if (field == NPHY_RfctrlIntc_override_TRSW) {
+
+				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+					mask = (0x1 << 6) | (0x1 << 7);
+
+					val = value << 6;
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+
+					or_phy_reg(pi,
+						   (core ==
+						    PHY_CORE_0) ? 0x91 : 0x92,
+						   (0x1 << 10));
+
+					and_phy_reg(pi, 0x2ff, (u16)
+						    ~(0x3 << 14));
+					or_phy_reg(pi, 0x2ff, (0x1 << 13));
+					or_phy_reg(pi, 0x2ff, (0x1 << 0));
+				} else {
+
+					mask = (0x1 << 6) |
+					       (0x1 << 7) |
+					       (0x1 << 8) | (0x1 << 9);
+					val = value << 6;
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+
+					mask = (0x1 << 0);
+					val = 1 << 0;
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0xe7 : 0xec,
+						    mask, val);
+
+					mask = (core == PHY_CORE_0) ?
+					       (0x1 << 0) : (0x1 << 1);
+					val = 1 << ((core == PHY_CORE_0) ?
+						    0 : 1);
+					mod_phy_reg(pi, 0x78, mask, val);
+
+					SPINWAIT(((read_phy_reg(pi, 0x78) & val)
+						  != 0), 10000);
+					if (WARN(read_phy_reg(pi, 0x78) & val,
+						 "HW error: override failed"))
+						return;
+
+					mask = (0x1 << 0);
+					val = 0 << 0;
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0xe7 : 0xec,
+						    mask, val);
+				}
+			} else if (field == NPHY_RfctrlIntc_override_PA) {
+				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+					mask = (0x1 << 4) | (0x1 << 5);
+
+					if (CHSPEC_IS5G(pi->radio_chanspec))
+						val = value << 5;
+					else
+						val = value << 4;
+
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+
+					or_phy_reg(pi,
+						   (core ==
+						    PHY_CORE_0) ? 0x91 : 0x92,
+						   (0x1 << 12));
+				} else {
+
+					if (CHSPEC_IS5G(pi->radio_chanspec)) {
+						mask = (0x1 << 5);
+						val = value << 5;
+					} else {
+						mask = (0x1 << 4);
+						val = value << 4;
+					}
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+				}
+			} else if (field ==
+				   NPHY_RfctrlIntc_override_EXT_LNA_PU) {
+				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+					if (CHSPEC_IS5G(pi->radio_chanspec)) {
+
+						mask = (0x1 << 0);
+						val = value << 0;
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, val);
+
+						mask = (0x1 << 2);
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, 0);
+					} else {
+
+						mask = (0x1 << 2);
+						val = value << 2;
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, val);
+
+						mask = (0x1 << 0);
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, 0);
+					}
+
+					mask = (0x1 << 11);
+					val = 1 << 11;
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+				} else {
+
+					if (CHSPEC_IS5G(pi->radio_chanspec)) {
+						mask = (0x1 << 0);
+						val = value << 0;
+					} else {
+						mask = (0x1 << 2);
+						val = value << 2;
+					}
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+				}
+			} else if (field ==
+				   NPHY_RfctrlIntc_override_EXT_LNA_GAIN) {
+				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+					if (CHSPEC_IS5G(pi->radio_chanspec)) {
+
+						mask = (0x1 << 1);
+						val = value << 1;
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, val);
+
+						mask = (0x1 << 3);
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, 0);
+					} else {
+
+						mask = (0x1 << 3);
+						val = value << 3;
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, val);
+
+						mask = (0x1 << 1);
+						mod_phy_reg(pi,
+							    (core ==
+							     PHY_CORE_0) ? 0x91
+							    : 0x92, mask, 0);
+					}
+
+					mask = (0x1 << 11);
+					val = 1 << 11;
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+				} else {
+
+					if (CHSPEC_IS5G(pi->radio_chanspec)) {
+						mask = (0x1 << 1);
+						val = value << 1;
+					} else {
+						mask = (0x1 << 3);
+						val = value << 3;
+					}
+					mod_phy_reg(pi,
+						    (core ==
+						     PHY_CORE_0) ? 0x91 : 0x92,
+						    mask, val);
+				}
+			}
 		}
-
-		if (NREV_GE(pi->pubpi.phy_rev, 8)) {
-			and_phy_reg(pi, 0x78, ~RFCC_CHIP0_PU);
-			pi->radio_is_on = false;
-		}
-
 	}
 }
 
-static void wlc_phy_radio_preinit_2055(struct brcms_phy *pi)
+void
+wlc_phy_cal_txgainctrl_nphy(struct brcms_phy *pi, s32 dBm_targetpower,
+			    bool debug)
 {
+	int gainctrl_loopidx;
+	uint core;
+	u16 m0m1, curr_m0m1;
+	s32 delta_power;
+	s32 txpwrindex;
+	s32 qdBm_power[2];
+	u16 orig_BBConfig;
+	u16 phy_saveregs[4];
+	u32 freq_test;
+	u16 ampl_test = 250;
+	uint stepsize;
+	bool phyhang_avoid_state = false;
 
-	and_phy_reg(pi, 0x78, ~RFCC_POR_FORCE);
-	or_phy_reg(pi, 0x78, RFCC_CHIP0_PU | RFCC_OE_POR_FORCE);
+	if (NREV_GE(pi->pubpi.phy_rev, 7))
+		stepsize = 2;
+	else
+		stepsize = 1;
 
-	or_phy_reg(pi, 0x78, RFCC_POR_FORCE);
-}
+	if (CHSPEC_IS40(pi->radio_chanspec))
+		freq_test = 5000;
+	else
+		freq_test = 2500;
 
-static void wlc_phy_radio_init_2055(struct brcms_phy *pi)
-{
-	wlc_phy_init_radio_regs(pi, regs_2055, RADIO_DEFAULT_CORE);
-}
+	wlc_phy_txpwr_index_nphy(pi, 1, pi->nphy_cal_orig_pwr_idx[0], true);
+	wlc_phy_txpwr_index_nphy(pi, 2, pi->nphy_cal_orig_pwr_idx[1], true);
 
-static void wlc_phy_radio_postinit_2055(struct brcms_phy *pi)
-{
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, true);
 
-	and_radio_reg(pi, RADIO_2055_MASTER_CNTRL1,
-		      ~(RADIO_2055_JTAGCTRL_MASK | RADIO_2055_JTAGSYNC_MASK));
+	phyhang_avoid_state = pi->phyhang_avoid;
+	pi->phyhang_avoid = false;
 
-	if (((pi->sh->sromrev >= 4)
-	     && !(pi->sh->boardflags2 & BFL2_RXBB_INT_REG_DIS))
-	    || ((pi->sh->sromrev < 4))) {
-		and_radio_reg(pi, RADIO_2055_CORE1_RXBB_REGULATOR, 0x7F);
-		and_radio_reg(pi, RADIO_2055_CORE2_RXBB_REGULATOR, 0x7F);
+	phy_saveregs[0] = read_phy_reg(pi, 0x91);
+	phy_saveregs[1] = read_phy_reg(pi, 0x92);
+	phy_saveregs[2] = read_phy_reg(pi, 0xe7);
+	phy_saveregs[3] = read_phy_reg(pi, 0xec);
+	wlc_phy_rfctrlintc_override_nphy(pi, NPHY_RfctrlIntc_override_PA, 1,
+					 RADIO_MIMO_CORESEL_CORE1 |
+					 RADIO_MIMO_CORESEL_CORE2);
+
+	if (!debug) {
+		wlc_phy_rfctrlintc_override_nphy(pi,
+						 NPHY_RfctrlIntc_override_TRSW,
+						 0x2, RADIO_MIMO_CORESEL_CORE1);
+		wlc_phy_rfctrlintc_override_nphy(pi,
+						 NPHY_RfctrlIntc_override_TRSW,
+						 0x8, RADIO_MIMO_CORESEL_CORE2);
+	} else {
+		wlc_phy_rfctrlintc_override_nphy(pi,
+						 NPHY_RfctrlIntc_override_TRSW,
+						 0x1, RADIO_MIMO_CORESEL_CORE1);
+		wlc_phy_rfctrlintc_override_nphy(pi,
+						 NPHY_RfctrlIntc_override_TRSW,
+						 0x7, RADIO_MIMO_CORESEL_CORE2);
 	}
 
-	mod_radio_reg(pi, RADIO_2055_RRCCAL_N_OPT_SEL, 0x3F, 0x2C);
-	write_radio_reg(pi, RADIO_2055_CAL_MISC, 0x3C);
+	orig_BBConfig = read_phy_reg(pi, 0x01);
+	mod_phy_reg(pi, 0x01, (0x1 << 15), 0);
 
-	and_radio_reg(pi, RADIO_2055_CAL_MISC,
-		      ~(RADIO_2055_RRCAL_START | RADIO_2055_RRCAL_RST_N));
+	wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &m0m1);
 
-	or_radio_reg(pi, RADIO_2055_CAL_LPO_CNTRL, RADIO_2055_CAL_LPO_ENABLE);
+	for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+		txpwrindex = (s32) pi->nphy_cal_orig_pwr_idx[core];
 
-	or_radio_reg(pi, RADIO_2055_CAL_MISC, RADIO_2055_RRCAL_RST_N);
+		for (gainctrl_loopidx = 0; gainctrl_loopidx < 2;
+		     gainctrl_loopidx++) {
+			wlc_phy_tx_tone_nphy(pi, freq_test, ampl_test, 0, 0,
+					     false);
 
-	udelay(1000);
+			if (core == PHY_CORE_0)
+				curr_m0m1 = m0m1 & 0xff00;
+			else
+				curr_m0m1 = m0m1 & 0x00ff;
 
-	or_radio_reg(pi, RADIO_2055_CAL_MISC, RADIO_2055_RRCAL_START);
+			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &curr_m0m1);
+			wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &curr_m0m1);
 
-	SPINWAIT(((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
-		   RADIO_2055_RCAL_DONE) != RADIO_2055_RCAL_DONE), 2000);
+			udelay(50);
 
-	if (WARN((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
-		  RADIO_2055_RCAL_DONE) != RADIO_2055_RCAL_DONE,
-		 "HW error: radio calibration1\n"))
+			wlc_phy_est_tonepwr_nphy(pi, qdBm_power,
+						 NPHY_CAL_TSSISAMPS);
+
+			pi->nphy_bb_mult_save = 0;
+			wlc_phy_stopplayback_nphy(pi);
+
+			delta_power = (dBm_targetpower * 4) - qdBm_power[core];
+
+			txpwrindex -= stepsize * delta_power;
+			if (txpwrindex < 0)
+				txpwrindex = 0;
+			else if (txpwrindex > 127)
+				txpwrindex = 127;
+
+			if (CHSPEC_IS5G(pi->radio_chanspec)) {
+				if (NREV_IS(pi->pubpi.phy_rev, 4) &&
+				    (pi->srom_fem5g.extpagain == 3)) {
+					if (txpwrindex < 30)
+						txpwrindex = 30;
+				}
+			} else {
+				if (NREV_GE(pi->pubpi.phy_rev, 5) &&
+				    (pi->srom_fem2g.extpagain == 3)) {
+					if (txpwrindex < 50)
+						txpwrindex = 50;
+				}
+			}
+
+			wlc_phy_txpwr_index_nphy(pi, (1 << core),
+						 (u8) txpwrindex, true);
+		}
+
+		pi->nphy_txcal_pwr_idx[core] = (u8) txpwrindex;
+
+		if (debug) {
+			u16 radio_gain;
+			u16 dbg_m0m1;
+
+			wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &dbg_m0m1);
+
+			wlc_phy_tx_tone_nphy(pi, freq_test, ampl_test, 0, 0,
+					     false);
+
+			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &dbg_m0m1);
+			wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &dbg_m0m1);
+
+			udelay(100);
+
+			wlc_phy_est_tonepwr_nphy(pi, qdBm_power,
+						 NPHY_CAL_TSSISAMPS);
+
+			wlc_phy_table_read_nphy(pi, 7, 1, (0x110 + core), 16,
+						&radio_gain);
+
+			mdelay(4000);
+			pi->nphy_bb_mult_save = 0;
+			wlc_phy_stopplayback_nphy(pi);
+		}
+	}
+
+	wlc_phy_txpwr_index_nphy(pi, 1, pi->nphy_txcal_pwr_idx[0], true);
+	wlc_phy_txpwr_index_nphy(pi, 2, pi->nphy_txcal_pwr_idx[1], true);
+
+	wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &pi->nphy_txcal_bbmult);
+
+	write_phy_reg(pi, 0x01, orig_BBConfig);
+
+	write_phy_reg(pi, 0x91, phy_saveregs[0]);
+	write_phy_reg(pi, 0x92, phy_saveregs[1]);
+	write_phy_reg(pi, 0xe7, phy_saveregs[2]);
+	write_phy_reg(pi, 0xec, phy_saveregs[3]);
+
+	pi->phyhang_avoid = phyhang_avoid_state;
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, false);
+}
+
+static void wlc_phy_savecal_nphy(struct brcms_phy *pi)
+{
+	void *tbl_ptr;
+	int coreNum;
+	u16 *txcal_radio_regs = NULL;
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, true);
+
+	if (CHSPEC_IS2G(pi->radio_chanspec)) {
+
+		wlc_phy_rx_iq_coeffs_nphy(pi, 0,
+					  &pi->calibration_cache.
+					  rxcal_coeffs_2G);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			txcal_radio_regs =
+				pi->calibration_cache.txcal_radio_regs_2G;
+		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+
+			pi->calibration_cache.txcal_radio_regs_2G[0] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_I |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_2G[1] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_Q |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_2G[2] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_I |
+					       RADIO_2056_TX1);
+			pi->calibration_cache.txcal_radio_regs_2G[3] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_Q |
+					       RADIO_2056_TX1);
+
+			pi->calibration_cache.txcal_radio_regs_2G[4] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_I |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_2G[5] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_Q |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_2G[6] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_I |
+					       RADIO_2056_TX1);
+			pi->calibration_cache.txcal_radio_regs_2G[7] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_Q |
+					       RADIO_2056_TX1);
+		} else {
+			pi->calibration_cache.txcal_radio_regs_2G[0] =
+			       read_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL);
+			pi->calibration_cache.txcal_radio_regs_2G[1] =
+			       read_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL);
+			pi->calibration_cache.txcal_radio_regs_2G[2] =
+			       read_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM);
+			pi->calibration_cache.txcal_radio_regs_2G[3] =
+			       read_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM);
+		}
+
+		pi->nphy_iqcal_chanspec_2G = pi->radio_chanspec;
+		tbl_ptr = pi->calibration_cache.txcal_coeffs_2G;
+	} else {
+
+		wlc_phy_rx_iq_coeffs_nphy(pi, 0,
+					  &pi->calibration_cache.
+					  rxcal_coeffs_5G);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			txcal_radio_regs =
+				pi->calibration_cache.txcal_radio_regs_5G;
+		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+
+			pi->calibration_cache.txcal_radio_regs_5G[0] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_I |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_5G[1] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_Q |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_5G[2] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_I |
+					       RADIO_2056_TX1);
+			pi->calibration_cache.txcal_radio_regs_5G[3] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_FINE_Q |
+					       RADIO_2056_TX1);
+
+			pi->calibration_cache.txcal_radio_regs_5G[4] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_I |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_5G[5] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_Q |
+					       RADIO_2056_TX0);
+			pi->calibration_cache.txcal_radio_regs_5G[6] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_I |
+					       RADIO_2056_TX1);
+			pi->calibration_cache.txcal_radio_regs_5G[7] =
+				read_radio_reg(pi,
+					       RADIO_2056_TX_LOFT_COARSE_Q |
+					       RADIO_2056_TX1);
+		} else {
+			pi->calibration_cache.txcal_radio_regs_5G[0] =
+			       read_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL);
+			pi->calibration_cache.txcal_radio_regs_5G[1] =
+			       read_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL);
+			pi->calibration_cache.txcal_radio_regs_5G[2] =
+			       read_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM);
+			pi->calibration_cache.txcal_radio_regs_5G[3] =
+			       read_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM);
+		}
+
+		pi->nphy_iqcal_chanspec_5G = pi->radio_chanspec;
+		tbl_ptr = pi->calibration_cache.txcal_coeffs_5G;
+	}
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+		for (coreNum = 0; coreNum <= 1; coreNum++) {
+
+			txcal_radio_regs[2 * coreNum] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+						LOFT_FINE_I);
+			txcal_radio_regs[2 * coreNum + 1] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+						LOFT_FINE_Q);
+
+			txcal_radio_regs[2 * coreNum + 4] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+						LOFT_COARSE_I);
+			txcal_radio_regs[2 * coreNum + 5] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+						LOFT_COARSE_Q);
+		}
+	}
+
+	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_IQLOCAL, 8, 80, 16, tbl_ptr);
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, false);
+}
+
+static void wlc_phy_tx_iq_war_nphy(struct brcms_phy *pi)
+{
+	struct nphy_iq_comp tx_comp;
+
+	wlc_phy_table_read_nphy(pi, 15, 4, 0x50, 16, &tx_comp);
+
+	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ, tx_comp.a0);
+	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 2, tx_comp.b0);
+	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 4, tx_comp.a1);
+	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 6, tx_comp.b1);
+}
+
+static void wlc_phy_restorecal_nphy(struct brcms_phy *pi)
+{
+	u16 *loft_comp;
+	u16 txcal_coeffs_bphy[4];
+	u16 *tbl_ptr;
+	int coreNum;
+	u16 *txcal_radio_regs = NULL;
+
+	if (CHSPEC_IS2G(pi->radio_chanspec)) {
+		if (pi->nphy_iqcal_chanspec_2G == 0)
+			return;
+
+		tbl_ptr = pi->calibration_cache.txcal_coeffs_2G;
+		loft_comp = &pi->calibration_cache.txcal_coeffs_2G[5];
+	} else {
+		if (pi->nphy_iqcal_chanspec_5G == 0)
+			return;
+
+		tbl_ptr = pi->calibration_cache.txcal_coeffs_5G;
+		loft_comp = &pi->calibration_cache.txcal_coeffs_5G[5];
+	}
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 4, 80, 16, tbl_ptr);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		txcal_coeffs_bphy[0] = tbl_ptr[0];
+		txcal_coeffs_bphy[1] = tbl_ptr[1];
+		txcal_coeffs_bphy[2] = tbl_ptr[2];
+		txcal_coeffs_bphy[3] = tbl_ptr[3];
+	} else {
+		txcal_coeffs_bphy[0] = 0;
+		txcal_coeffs_bphy[1] = 0;
+		txcal_coeffs_bphy[2] = 0;
+		txcal_coeffs_bphy[3] = 0;
+	}
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 4, 88, 16,
+				 txcal_coeffs_bphy);
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 2, 85, 16, loft_comp);
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 2, 93, 16, loft_comp);
+
+	if (NREV_LT(pi->pubpi.phy_rev, 2))
+		wlc_phy_tx_iq_war_nphy(pi);
+
+	if (CHSPEC_IS2G(pi->radio_chanspec)) {
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			txcal_radio_regs =
+				pi->calibration_cache.txcal_radio_regs_2G;
+		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_I |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[0]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_Q |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[1]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_I |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[2]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_Q |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[3]);
+
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_I |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[4]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_Q |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[5]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_I |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[6]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_Q |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[7]);
+		} else {
+			write_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[0]);
+			write_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[1]);
+			write_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[2]);
+			write_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM,
+					pi->calibration_cache.
+					txcal_radio_regs_2G[3]);
+		}
+
+		wlc_phy_rx_iq_coeffs_nphy(pi, 1,
+					  &pi->calibration_cache.
+					  rxcal_coeffs_2G);
+	} else {
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			txcal_radio_regs =
+				pi->calibration_cache.txcal_radio_regs_5G;
+		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_I |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[0]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_Q |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[1]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_I |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[2]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_FINE_Q |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[3]);
+
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_I |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[4]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_Q |
+					RADIO_2056_TX0,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[5]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_I |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[6]);
+			write_radio_reg(pi,
+					RADIO_2056_TX_LOFT_COARSE_Q |
+					RADIO_2056_TX1,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[7]);
+		} else {
+			write_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[0]);
+			write_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[1]);
+			write_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[2]);
+			write_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM,
+					pi->calibration_cache.
+					txcal_radio_regs_5G[3]);
+		}
+
+		wlc_phy_rx_iq_coeffs_nphy(pi, 1,
+					  &pi->calibration_cache.
+					  rxcal_coeffs_5G);
+	}
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+		for (coreNum = 0; coreNum <= 1; coreNum++) {
+
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+					 LOFT_FINE_I,
+					 txcal_radio_regs[2 * coreNum]);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+					 LOFT_FINE_Q,
+					 txcal_radio_regs[2 * coreNum + 1]);
+
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+					 LOFT_COARSE_I,
+					 txcal_radio_regs[2 * coreNum + 4]);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
+					 LOFT_COARSE_Q,
+					 txcal_radio_regs[2 * coreNum + 5]);
+		}
+	}
+}
+
+static void wlc_phy_txpwrctrl_coeff_setup_nphy(struct brcms_phy *pi)
+{
+	u32 idx;
+	u16 iqloCalbuf[7];
+	u32 iqcomp, locomp, curr_locomp;
+	s8 locomp_i, locomp_q;
+	s8 curr_locomp_i, curr_locomp_q;
+	u32 tbl_id, tbl_len, tbl_offset;
+	u32 regval[128];
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, true);
+
+	wlc_phy_table_read_nphy(pi, 15, 7, 80, 16, iqloCalbuf);
+
+	tbl_len = 128;
+	tbl_offset = 320;
+	for (tbl_id = NPHY_TBL_ID_CORE1TXPWRCTL;
+	     tbl_id <= NPHY_TBL_ID_CORE2TXPWRCTL; tbl_id++) {
+		iqcomp =
+			(tbl_id ==
+			 26) ? (((u32) (iqloCalbuf[0] & 0x3ff)) << 10) |
+			(iqloCalbuf[1] & 0x3ff)
+			: (((u32) (iqloCalbuf[2] & 0x3ff)) << 10) |
+			(iqloCalbuf[3] & 0x3ff);
+
+		for (idx = 0; idx < tbl_len; idx++)
+			regval[idx] = iqcomp;
+		wlc_phy_table_write_nphy(pi, tbl_id, tbl_len, tbl_offset, 32,
+					 regval);
+	}
+
+	tbl_offset = 448;
+	for (tbl_id = NPHY_TBL_ID_CORE1TXPWRCTL;
+	     tbl_id <= NPHY_TBL_ID_CORE2TXPWRCTL; tbl_id++) {
+
+		locomp =
+			(u32) ((tbl_id == 26) ? iqloCalbuf[5] : iqloCalbuf[6]);
+		locomp_i = (s8) ((locomp >> 8) & 0xff);
+		locomp_q = (s8) ((locomp) & 0xff);
+		for (idx = 0; idx < tbl_len; idx++) {
+			if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+				curr_locomp_i = locomp_i;
+				curr_locomp_q = locomp_q;
+			} else {
+				curr_locomp_i = (s8) ((locomp_i *
+						       nphy_tpc_loscale[idx] +
+						       128) >> 8);
+				curr_locomp_q =
+					(s8) ((locomp_q *
+					       nphy_tpc_loscale[idx] +
+					       128) >> 8);
+			}
+			curr_locomp = (u32) ((curr_locomp_i & 0xff) << 8);
+			curr_locomp |= (u32) (curr_locomp_q & 0xff);
+			regval[idx] = curr_locomp;
+		}
+		wlc_phy_table_write_nphy(pi, tbl_id, tbl_len, tbl_offset, 32,
+					 regval);
+	}
+
+	if (NREV_LT(pi->pubpi.phy_rev, 2)) {
+
+		wlapi_bmac_write_shm(pi->sh->physhim, M_CURR_IDX1, 0xFFFF);
+		wlapi_bmac_write_shm(pi->sh->physhim, M_CURR_IDX2, 0xFFFF);
+	}
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, false);
+}
+
+static void wlc_phy_txlpfbw_nphy(struct brcms_phy *pi)
+{
+	u8 tx_lpf_bw = 0;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LT(pi->pubpi.phy_rev, 7)) {
+		if (CHSPEC_IS40(pi->radio_chanspec))
+			tx_lpf_bw = 3;
+		else
+			tx_lpf_bw = 1;
+
+		if (PHY_IPA(pi)) {
+			if (CHSPEC_IS40(pi->radio_chanspec))
+				tx_lpf_bw = 5;
+			else
+				tx_lpf_bw = 4;
+		}
+
+		write_phy_reg(pi, 0xe8,
+			      (tx_lpf_bw << 0) |
+			      (tx_lpf_bw << 3) |
+			      (tx_lpf_bw << 6) | (tx_lpf_bw << 9));
+
+		if (PHY_IPA(pi)) {
+
+			if (CHSPEC_IS40(pi->radio_chanspec))
+				tx_lpf_bw = 4;
+			else
+				tx_lpf_bw = 1;
+
+			write_phy_reg(pi, 0xe9,
+				      (tx_lpf_bw << 0) |
+				      (tx_lpf_bw << 3) |
+				      (tx_lpf_bw << 6) | (tx_lpf_bw << 9));
+		}
+	}
+}
+
+static void
+wlc_phy_adjust_rx_analpfbw_nphy(struct brcms_phy *pi, u16 reduction_factr)
+{
+	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LT(pi->pubpi.phy_rev, 7)) {
+		if ((CHSPEC_CHANNEL(pi->radio_chanspec) == 11) &&
+		    CHSPEC_IS40(pi->radio_chanspec)) {
+			if (!pi->nphy_anarxlpf_adjusted) {
+				write_radio_reg(pi,
+						(RADIO_2056_RX_RXLPF_RCCAL_LPC |
+						 RADIO_2056_RX0),
+						((pi->nphy_rccal_value +
+						  reduction_factr) | 0x80));
+
+				pi->nphy_anarxlpf_adjusted = true;
+			}
+		} else {
+			if (pi->nphy_anarxlpf_adjusted) {
+				write_radio_reg(pi,
+						(RADIO_2056_RX_RXLPF_RCCAL_LPC |
+						 RADIO_2056_RX0),
+						(pi->nphy_rccal_value | 0x80));
+
+				pi->nphy_anarxlpf_adjusted = false;
+			}
+		}
+	}
+}
+
+static void
+wlc_phy_adjust_min_noisevar_nphy(struct brcms_phy *pi, int ntones,
+				 int *tone_id_buf, u32 *noise_var_buf)
+{
+	int i;
+	u32 offset;
+	int tone_id;
+	int tbllen =
+		CHSPEC_IS40(pi->radio_chanspec) ?
+		NPHY_NOISEVAR_TBLLEN40 : NPHY_NOISEVAR_TBLLEN20;
+
+	if (pi->nphy_noisevars_adjusted) {
+		for (i = 0; i < pi->nphy_saved_noisevars.bufcount; i++) {
+			tone_id = pi->nphy_saved_noisevars.tone_id[i];
+			offset = (tone_id >= 0) ?
+				 ((tone_id *
+				   2) + 1) : (tbllen + (tone_id * 2) + 1);
+			wlc_phy_table_write_nphy(
+				pi, NPHY_TBL_ID_NOISEVAR, 1,
+				offset, 32,
+				&pi->nphy_saved_noisevars.min_noise_vars[i]);
+		}
+
+		pi->nphy_saved_noisevars.bufcount = 0;
+		pi->nphy_noisevars_adjusted = false;
+	}
+
+	if ((noise_var_buf != NULL) && (tone_id_buf != NULL)) {
+		pi->nphy_saved_noisevars.bufcount = 0;
+
+		for (i = 0; i < ntones; i++) {
+			tone_id = tone_id_buf[i];
+			offset = (tone_id >= 0) ?
+				 ((tone_id * 2) + 1) :
+				 (tbllen + (tone_id * 2) + 1);
+			pi->nphy_saved_noisevars.tone_id[i] = tone_id;
+			wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+						offset, 32,
+						&pi->nphy_saved_noisevars.
+						min_noise_vars[i]);
+			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+						 offset, 32, &noise_var_buf[i]);
+			pi->nphy_saved_noisevars.bufcount++;
+		}
+
+		pi->nphy_noisevars_adjusted = true;
+	}
+}
+
+static void wlc_phy_adjust_crsminpwr_nphy(struct brcms_phy *pi, u8 minpwr)
+{
+	u16 regval;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		if ((CHSPEC_CHANNEL(pi->radio_chanspec) == 11) &&
+		    CHSPEC_IS40(pi->radio_chanspec)) {
+			if (!pi->nphy_crsminpwr_adjusted) {
+				regval = read_phy_reg(pi, 0x27d);
+				pi->nphy_crsminpwr[0] = regval & 0xff;
+				regval &= 0xff00;
+				regval |= (u16) minpwr;
+				write_phy_reg(pi, 0x27d, regval);
+
+				regval = read_phy_reg(pi, 0x280);
+				pi->nphy_crsminpwr[1] = regval & 0xff;
+				regval &= 0xff00;
+				regval |= (u16) minpwr;
+				write_phy_reg(pi, 0x280, regval);
+
+				regval = read_phy_reg(pi, 0x283);
+				pi->nphy_crsminpwr[2] = regval & 0xff;
+				regval &= 0xff00;
+				regval |= (u16) minpwr;
+				write_phy_reg(pi, 0x283, regval);
+
+				pi->nphy_crsminpwr_adjusted = true;
+			}
+		} else {
+			if (pi->nphy_crsminpwr_adjusted) {
+				regval = read_phy_reg(pi, 0x27d);
+				regval &= 0xff00;
+				regval |= pi->nphy_crsminpwr[0];
+				write_phy_reg(pi, 0x27d, regval);
+
+				regval = read_phy_reg(pi, 0x280);
+				regval &= 0xff00;
+				regval |= pi->nphy_crsminpwr[1];
+				write_phy_reg(pi, 0x280, regval);
+
+				regval = read_phy_reg(pi, 0x283);
+				regval &= 0xff00;
+				regval |= pi->nphy_crsminpwr[2];
+				write_phy_reg(pi, 0x283, regval);
+
+				pi->nphy_crsminpwr_adjusted = false;
+			}
+		}
+	}
+}
+
+static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
+{
+	u16 cur_channel = 0;
+	int nphy_adj_tone_id_buf[] = { 57, 58 };
+	u32 nphy_adj_noise_var_buf[] = { 0x3ff, 0x3ff };
+	bool isAdjustNoiseVar = false;
+	uint numTonesAdjust = 0;
+	u32 tempval = 0;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		if (pi->phyhang_avoid)
+			wlc_phy_stay_in_carriersearch_nphy(pi, true);
+
+		cur_channel = CHSPEC_CHANNEL(pi->radio_chanspec);
+
+		if (pi->nphy_gband_spurwar_en) {
+
+			wlc_phy_adjust_rx_analpfbw_nphy(
+				pi,
+				NPHY_ANARXLPFBW_REDUCTIONFACT);
+
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				if ((cur_channel == 11)
+				    && CHSPEC_IS40(pi->radio_chanspec))
+					wlc_phy_adjust_min_noisevar_nphy(
+						pi, 2,
+						nphy_adj_tone_id_buf,
+						nphy_adj_noise_var_buf);
+				else
+					wlc_phy_adjust_min_noisevar_nphy(pi, 0,
+									 NULL,
+									 NULL);
+			}
+
+			wlc_phy_adjust_crsminpwr_nphy(pi,
+						     NPHY_ADJUSTED_MINCRSPOWER);
+		}
+
+		if ((pi->nphy_gband_spurwar2_en)
+		    && CHSPEC_IS2G(pi->radio_chanspec)) {
+
+			if (CHSPEC_IS40(pi->radio_chanspec)) {
+				switch (cur_channel) {
+				case 3:
+					nphy_adj_tone_id_buf[0] = 57;
+					nphy_adj_tone_id_buf[1] = 58;
+					nphy_adj_noise_var_buf[0] = 0x22f;
+					nphy_adj_noise_var_buf[1] = 0x25f;
+					isAdjustNoiseVar = true;
+					break;
+				case 4:
+					nphy_adj_tone_id_buf[0] = 41;
+					nphy_adj_tone_id_buf[1] = 42;
+					nphy_adj_noise_var_buf[0] = 0x22f;
+					nphy_adj_noise_var_buf[1] = 0x25f;
+					isAdjustNoiseVar = true;
+					break;
+				case 5:
+					nphy_adj_tone_id_buf[0] = 25;
+					nphy_adj_tone_id_buf[1] = 26;
+					nphy_adj_noise_var_buf[0] = 0x24f;
+					nphy_adj_noise_var_buf[1] = 0x25f;
+					isAdjustNoiseVar = true;
+					break;
+				case 6:
+					nphy_adj_tone_id_buf[0] = 9;
+					nphy_adj_tone_id_buf[1] = 10;
+					nphy_adj_noise_var_buf[0] = 0x22f;
+					nphy_adj_noise_var_buf[1] = 0x24f;
+					isAdjustNoiseVar = true;
+					break;
+				case 7:
+					nphy_adj_tone_id_buf[0] = 121;
+					nphy_adj_tone_id_buf[1] = 122;
+					nphy_adj_noise_var_buf[0] = 0x18f;
+					nphy_adj_noise_var_buf[1] = 0x24f;
+					isAdjustNoiseVar = true;
+					break;
+				case 8:
+					nphy_adj_tone_id_buf[0] = 105;
+					nphy_adj_tone_id_buf[1] = 106;
+					nphy_adj_noise_var_buf[0] = 0x22f;
+					nphy_adj_noise_var_buf[1] = 0x25f;
+					isAdjustNoiseVar = true;
+					break;
+				case 9:
+					nphy_adj_tone_id_buf[0] = 89;
+					nphy_adj_tone_id_buf[1] = 90;
+					nphy_adj_noise_var_buf[0] = 0x22f;
+					nphy_adj_noise_var_buf[1] = 0x24f;
+					isAdjustNoiseVar = true;
+					break;
+				case 10:
+					nphy_adj_tone_id_buf[0] = 73;
+					nphy_adj_tone_id_buf[1] = 74;
+					nphy_adj_noise_var_buf[0] = 0x22f;
+					nphy_adj_noise_var_buf[1] = 0x24f;
+					isAdjustNoiseVar = true;
+					break;
+				default:
+					isAdjustNoiseVar = false;
+					break;
+				}
+			}
+
+			if (isAdjustNoiseVar) {
+				numTonesAdjust = sizeof(nphy_adj_tone_id_buf) /
+						sizeof(nphy_adj_tone_id_buf[0]);
+
+				wlc_phy_adjust_min_noisevar_nphy(
+					pi,
+					numTonesAdjust,
+					nphy_adj_tone_id_buf,
+					nphy_adj_noise_var_buf);
+
+				tempval = 0;
+
+			} else {
+				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
+								 NULL);
+			}
+		}
+
+		if ((pi->nphy_aband_spurwar_en) &&
+		    (CHSPEC_IS5G(pi->radio_chanspec))) {
+			switch (cur_channel) {
+			case 54:
+				nphy_adj_tone_id_buf[0] = 32;
+				nphy_adj_noise_var_buf[0] = 0x25f;
+				break;
+			case 38:
+			case 102:
+			case 118:
+				nphy_adj_tone_id_buf[0] = 0;
+				nphy_adj_noise_var_buf[0] = 0x0;
+				break;
+			case 134:
+				nphy_adj_tone_id_buf[0] = 32;
+				nphy_adj_noise_var_buf[0] = 0x21f;
+				break;
+			case 151:
+				nphy_adj_tone_id_buf[0] = 16;
+				nphy_adj_noise_var_buf[0] = 0x23f;
+				break;
+			case 153:
+			case 161:
+				nphy_adj_tone_id_buf[0] = 48;
+				nphy_adj_noise_var_buf[0] = 0x23f;
+				break;
+			default:
+				nphy_adj_tone_id_buf[0] = 0;
+				nphy_adj_noise_var_buf[0] = 0x0;
+				break;
+			}
+
+			if (nphy_adj_tone_id_buf[0]
+			    && nphy_adj_noise_var_buf[0])
+				wlc_phy_adjust_min_noisevar_nphy(
+					pi, 1,
+					nphy_adj_tone_id_buf,
+					nphy_adj_noise_var_buf);
+			else
+				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
+								 NULL);
+		}
+
+		if (pi->phyhang_avoid)
+			wlc_phy_stay_in_carriersearch_nphy(pi, false);
+	}
+}
+
+void wlc_phy_init_nphy(struct brcms_phy *pi)
+{
+	u16 val;
+	u16 clip1_ths[2];
+	struct nphy_txgains target_gain;
+	u8 tx_pwr_ctrl_state;
+	bool do_nphy_cal = false;
+	uint core;
+	uint origidx, intr_val;
+	struct d11regs *regs;
+	u32 d11_clk_ctl_st;
+	bool do_rssi_cal = false;
+
+	core = 0;
+
+	if (!(pi->measure_hold & PHY_HOLD_FOR_SCAN))
+		pi->measure_hold |= PHY_HOLD_FOR_NOT_ASSOC;
+
+	if ((ISNPHY(pi)) && (NREV_GE(pi->pubpi.phy_rev, 5)) &&
+	    ((pi->sh->chippkg == BCM4717_PKG_ID) ||
+	     (pi->sh->chippkg == BCM4718_PKG_ID))) {
+		if ((pi->sh->boardflags & BFL_EXTLNA) &&
+		    (CHSPEC_IS2G(pi->radio_chanspec)))
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
+				   offsetof(struct chipcregs, chipcontrol),
+				   0x40, 0x40);
+	}
+
+	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
+	    CHSPEC_IS40(pi->radio_chanspec)) {
+
+		regs = (struct d11regs *) ai_switch_core(pi->sh->sih,
+							 D11_CORE_ID, &origidx,
+							 &intr_val);
+		d11_clk_ctl_st = R_REG(&regs->clk_ctl_st);
+		AND_REG(&regs->clk_ctl_st,
+			~(CCS_FORCEHT | CCS_HTAREQ));
+
+		W_REG(&regs->clk_ctl_st, d11_clk_ctl_st);
+
+		ai_restore_core(pi->sh->sih, origidx, intr_val);
+	}
+
+	pi->use_int_tx_iqlo_cal_nphy =
+		(PHY_IPA(pi) ||
+		 (NREV_GE(pi->pubpi.phy_rev, 7) ||
+		  (NREV_GE(pi->pubpi.phy_rev, 5)
+		   && pi->sh->boardflags2 & BFL2_INTERNDET_TXIQCAL)));
+
+	pi->internal_tx_iqlo_cal_tapoff_intpa_nphy = false;
+
+	pi->nphy_deaf_count = 0;
+
+	wlc_phy_tbl_init_nphy(pi);
+
+	pi->nphy_crsminpwr_adjusted = false;
+	pi->nphy_noisevars_adjusted = false;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		write_phy_reg(pi, 0xe7, 0);
+		write_phy_reg(pi, 0xec, 0);
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			write_phy_reg(pi, 0x342, 0);
+			write_phy_reg(pi, 0x343, 0);
+			write_phy_reg(pi, 0x346, 0);
+			write_phy_reg(pi, 0x347, 0);
+		}
+		write_phy_reg(pi, 0xe5, 0);
+		write_phy_reg(pi, 0xe6, 0);
+	} else {
+		write_phy_reg(pi, 0xec, 0);
+	}
+
+	write_phy_reg(pi, 0x91, 0);
+	write_phy_reg(pi, 0x92, 0);
+	if (NREV_LT(pi->pubpi.phy_rev, 6)) {
+		write_phy_reg(pi, 0x93, 0);
+		write_phy_reg(pi, 0x94, 0);
+	}
+
+	and_phy_reg(pi, 0xa1, ~3);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		write_phy_reg(pi, 0x8f, 0);
+		write_phy_reg(pi, 0xa5, 0);
+	} else {
+		write_phy_reg(pi, 0xa5, 0);
+	}
+
+	if (NREV_IS(pi->pubpi.phy_rev, 2))
+		mod_phy_reg(pi, 0xdc, 0x00ff, 0x3b);
+	else if (NREV_LT(pi->pubpi.phy_rev, 2))
+		mod_phy_reg(pi, 0xdc, 0x00ff, 0x40);
+
+	write_phy_reg(pi, 0x203, 32);
+	write_phy_reg(pi, 0x201, 32);
+
+	if (pi->sh->boardflags2 & BFL2_SKWRKFEM_BRD)
+		write_phy_reg(pi, 0x20d, 160);
+	else
+		write_phy_reg(pi, 0x20d, 184);
+
+	write_phy_reg(pi, 0x13a, 200);
+
+	write_phy_reg(pi, 0x70, 80);
+
+	write_phy_reg(pi, 0x1ff, 48);
+
+	if (NREV_LT(pi->pubpi.phy_rev, 8))
+		wlc_phy_update_mimoconfig_nphy(pi, pi->n_preamble_override);
+
+	wlc_phy_stf_chain_upd_nphy(pi);
+
+	if (NREV_LT(pi->pubpi.phy_rev, 2)) {
+		write_phy_reg(pi, 0x180, 0xaa8);
+		write_phy_reg(pi, 0x181, 0x9a4);
+	}
+
+	if (PHY_IPA(pi)) {
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
+				    0x29b, (0x1 << 0), (1) << 0);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x298 :
+				    0x29c, (0x1ff << 7),
+				    (pi->nphy_papd_epsilon_offset[core]) << 7);
+
+		}
+
+		wlc_phy_ipa_set_tx_digi_filts_nphy(pi);
+	} else if (NREV_GE(pi->pubpi.phy_rev, 5)) {
+		wlc_phy_extpa_set_tx_digi_filts_nphy(pi);
+	}
+
+	wlc_phy_workarounds_nphy(pi);
+
+	wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
+
+	val = read_phy_reg(pi, 0x01);
+	write_phy_reg(pi, 0x01, val | BBCFG_RESETCCA);
+	write_phy_reg(pi, 0x01, val & (~BBCFG_RESETCCA));
+	wlapi_bmac_phyclk_fgc(pi->sh->physhim, OFF);
+
+	wlapi_bmac_macphyclk_set(pi->sh->physhim, ON);
+
+	wlc_phy_pa_override_nphy(pi, OFF);
+	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RX2TX);
+	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RESET2RX);
+	wlc_phy_pa_override_nphy(pi, ON);
+
+	wlc_phy_classifier_nphy(pi, 0, 0);
+	wlc_phy_clip_det_nphy(pi, 0, clip1_ths);
+
+	if (CHSPEC_IS2G(pi->radio_chanspec))
+		wlc_phy_bphy_init_nphy(pi);
+
+	tx_pwr_ctrl_state = pi->nphy_txpwrctrl;
+	wlc_phy_txpwrctrl_enable_nphy(pi, PHY_TPC_HW_OFF);
+
+	wlc_phy_txpwr_fixpower_nphy(pi);
+
+	wlc_phy_txpwrctrl_idle_tssi_nphy(pi);
+
+	wlc_phy_txpwrctrl_pwr_setup_nphy(pi);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		u32 *tx_pwrctrl_tbl = NULL;
+		u16 idx;
+		s16 pga_gn = 0;
+		s16 pad_gn = 0;
+		s32 rfpwr_offset;
+
+		if (PHY_IPA(pi)) {
+			tx_pwrctrl_tbl = wlc_phy_get_ipa_gaintbl_nphy(pi);
+		} else {
+			if (CHSPEC_IS5G(pi->radio_chanspec)) {
+				if (NREV_IS(pi->pubpi.phy_rev, 3))
+					tx_pwrctrl_tbl =
+						nphy_tpc_5GHz_txgain_rev3;
+				else if (NREV_IS(pi->pubpi.phy_rev, 4))
+					tx_pwrctrl_tbl =
+						(pi->srom_fem5g.extpagain ==
+						 3) ?
+						nphy_tpc_5GHz_txgain_HiPwrEPA :
+						nphy_tpc_5GHz_txgain_rev4;
+				else
+					tx_pwrctrl_tbl =
+						nphy_tpc_5GHz_txgain_rev5;
+			} else {
+				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+					if (pi->pubpi.radiorev == 5)
+						tx_pwrctrl_tbl =
+						   nphy_tpc_txgain_epa_2057rev5;
+					else if (pi->pubpi.radiorev == 3)
+						tx_pwrctrl_tbl =
+						   nphy_tpc_txgain_epa_2057rev3;
+				} else {
+					if (NREV_GE(pi->pubpi.phy_rev, 5) &&
+					    (pi->srom_fem2g.extpagain == 3))
+						tx_pwrctrl_tbl =
+						       nphy_tpc_txgain_HiPwrEPA;
+					else
+						tx_pwrctrl_tbl =
+							nphy_tpc_txgain_rev3;
+				}
+			}
+		}
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE1TXPWRCTL, 128,
+					 192, 32, tx_pwrctrl_tbl);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE2TXPWRCTL, 128,
+					 192, 32, tx_pwrctrl_tbl);
+
+		pi->nphy_gmval = (u16) ((*tx_pwrctrl_tbl >> 16) & 0x7000);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+			for (idx = 0; idx < 128; idx++) {
+				pga_gn = (tx_pwrctrl_tbl[idx] >> 24) & 0xf;
+				pad_gn = (tx_pwrctrl_tbl[idx] >> 19) & 0x1f;
+				rfpwr_offset = get_rf_pwr_offset(pi, pga_gn,
+								 pad_gn);
+				wlc_phy_table_write_nphy(
+					pi,
+					NPHY_TBL_ID_CORE1TXPWRCTL,
+					1, 576 + idx, 32,
+					&rfpwr_offset);
+				wlc_phy_table_write_nphy(
+					pi,
+					NPHY_TBL_ID_CORE2TXPWRCTL,
+					1, 576 + idx, 32,
+					&rfpwr_offset);
+			}
+		} else {
+
+			for (idx = 0; idx < 128; idx++) {
+				pga_gn = (tx_pwrctrl_tbl[idx] >> 24) & 0xf;
+				if (CHSPEC_IS2G(pi->radio_chanspec))
+					rfpwr_offset = (s16)
+						 nphy_papd_pga_gain_delta_ipa_2g
+								       [pga_gn];
+				else
+					rfpwr_offset = (s16)
+						 nphy_papd_pga_gain_delta_ipa_5g
+								       [pga_gn];
+
+				wlc_phy_table_write_nphy(
+					pi,
+					NPHY_TBL_ID_CORE1TXPWRCTL,
+					1, 576 + idx, 32,
+					&rfpwr_offset);
+				wlc_phy_table_write_nphy(
+					pi,
+					NPHY_TBL_ID_CORE2TXPWRCTL,
+					1, 576 + idx, 32,
+					&rfpwr_offset);
+			}
+
+		}
+	} else {
+
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE1TXPWRCTL, 128,
+					 192, 32, nphy_tpc_txgain);
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE2TXPWRCTL, 128,
+					 192, 32, nphy_tpc_txgain);
+	}
+
+	if (pi->sh->phyrxchain != 0x3)
+		wlc_phy_rxcore_setstate_nphy((struct brcms_phy_pub *) pi,
+					     pi->sh->phyrxchain);
+
+	if (PHY_PERICAL_MPHASE_PENDING(pi))
+		wlc_phy_cal_perical_mphase_restart(pi);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		do_rssi_cal = (CHSPEC_IS2G(pi->radio_chanspec)) ?
+			      (pi->nphy_rssical_chanspec_2G == 0) :
+			      (pi->nphy_rssical_chanspec_5G == 0);
+
+		if (do_rssi_cal)
+			wlc_phy_rssi_cal_nphy(pi);
+		else
+			wlc_phy_restore_rssical_nphy(pi);
+	} else {
+		wlc_phy_rssi_cal_nphy(pi);
+	}
+
+	if (!SCAN_RM_IN_PROGRESS(pi))
+		do_nphy_cal = (CHSPEC_IS2G(pi->radio_chanspec)) ?
+			      (pi->nphy_iqcal_chanspec_2G == 0) :
+			      (pi->nphy_iqcal_chanspec_5G == 0);
+
+	if (!pi->do_initcal)
+		do_nphy_cal = false;
+
+	if (do_nphy_cal) {
+
+		target_gain = wlc_phy_get_tx_gain_nphy(pi);
+
+		if (pi->antsel_type == ANTSEL_2x3)
+			wlc_phy_antsel_init((struct brcms_phy_pub *) pi,
+					    true);
+
+		if (pi->nphy_perical != PHY_PERICAL_MPHASE) {
+			wlc_phy_rssi_cal_nphy(pi);
+
+			if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+				pi->nphy_cal_orig_pwr_idx[0] =
+					pi->nphy_txpwrindex[PHY_CORE_0]
+					.
+					index_internal;
+				pi->nphy_cal_orig_pwr_idx[1] =
+					pi->nphy_txpwrindex[PHY_CORE_1]
+					.
+					index_internal;
+
+				wlc_phy_precal_txgain_nphy(pi);
+				target_gain =
+					wlc_phy_get_tx_gain_nphy(pi);
+			}
+
+			if (wlc_phy_cal_txiqlo_nphy
+				    (pi, target_gain, true,
+				    false) == 0) {
+				if (wlc_phy_cal_rxiq_nphy
+					    (pi, target_gain, 2,
+					    false) == 0)
+					wlc_phy_savecal_nphy(pi);
+
+			}
+		} else if (pi->mphase_cal_phase_id ==
+			   MPHASE_CAL_STATE_IDLE) {
+			wlc_phy_cal_perical((struct brcms_phy_pub *) pi,
+					    PHY_PERICAL_PHYINIT);
+		}
+	} else {
+		wlc_phy_restorecal_nphy(pi);
+	}
+
+	wlc_phy_txpwrctrl_coeff_setup_nphy(pi);
+
+	wlc_phy_txpwrctrl_enable_nphy(pi, tx_pwr_ctrl_state);
+
+	wlc_phy_nphy_tkip_rifs_war(pi, pi->sh->_rifs_phy);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LE(pi->pubpi.phy_rev, 6))
+
+		write_phy_reg(pi, 0x70, 50);
+
+	wlc_phy_txlpfbw_nphy(pi);
+
+	wlc_phy_spurwar_nphy(pi);
+
+}
+
+static void wlc_phy_resetcca_nphy(struct brcms_phy *pi)
+{
+	u16 val;
+
+	wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
+
+	val = read_phy_reg(pi, 0x01);
+	write_phy_reg(pi, 0x01, val | BBCFG_RESETCCA);
+	udelay(1);
+	write_phy_reg(pi, 0x01, val & (~BBCFG_RESETCCA));
+
+	wlapi_bmac_phyclk_fgc(pi->sh->physhim, OFF);
+
+	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RESET2RX);
+}
+
+void wlc_phy_pa_override_nphy(struct brcms_phy *pi, bool en)
+{
+	u16 rfctrlintc_override_val;
+
+	if (!en) {
+
+		pi->rfctrlIntc1_save = read_phy_reg(pi, 0x91);
+		pi->rfctrlIntc2_save = read_phy_reg(pi, 0x92);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7))
+			rfctrlintc_override_val = 0x1480;
+		else if (NREV_GE(pi->pubpi.phy_rev, 3))
+			rfctrlintc_override_val =
+				CHSPEC_IS5G(pi->radio_chanspec) ? 0x600 : 0x480;
+		else
+			rfctrlintc_override_val =
+				CHSPEC_IS5G(pi->radio_chanspec) ? 0x180 : 0x120;
+
+		write_phy_reg(pi, 0x91, rfctrlintc_override_val);
+		write_phy_reg(pi, 0x92, rfctrlintc_override_val);
+	} else {
+		write_phy_reg(pi, 0x91, pi->rfctrlIntc1_save);
+		write_phy_reg(pi, 0x92, pi->rfctrlIntc2_save);
+	}
+
+}
+
+void wlc_phy_stf_chain_upd_nphy(struct brcms_phy *pi)
+{
+
+	u16 txrx_chain =
+		(NPHY_RfseqCoreActv_TxRxChain0 | NPHY_RfseqCoreActv_TxRxChain1);
+	bool CoreActv_override = false;
+
+	if (pi->nphy_txrx_chain == BRCMS_N_TXRX_CHAIN0) {
+		txrx_chain = NPHY_RfseqCoreActv_TxRxChain0;
+		CoreActv_override = true;
+
+		if (NREV_LE(pi->pubpi.phy_rev, 2))
+			and_phy_reg(pi, 0xa0, ~0x20);
+	} else if (pi->nphy_txrx_chain == BRCMS_N_TXRX_CHAIN1) {
+		txrx_chain = NPHY_RfseqCoreActv_TxRxChain1;
+		CoreActv_override = true;
+
+		if (NREV_LE(pi->pubpi.phy_rev, 2))
+			or_phy_reg(pi, 0xa0, 0x20);
+	}
+
+	mod_phy_reg(pi, 0xa2, ((0xf << 0) | (0xf << 4)), txrx_chain);
+
+	if (CoreActv_override) {
+		pi->nphy_perical = PHY_PERICAL_DISABLE;
+		or_phy_reg(pi, 0xa1, NPHY_RfseqMode_CoreActv_override);
+	} else {
+		pi->nphy_perical = PHY_PERICAL_MPHASE;
+		and_phy_reg(pi, 0xa1, ~NPHY_RfseqMode_CoreActv_override);
+	}
+}
+
+void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask)
+{
+	u16 regval;
+	u16 tbl_buf[16];
+	uint i;
+	struct brcms_phy *pi = (struct brcms_phy *) pih;
+	u16 tbl_opcode;
+	bool suspend;
+
+	pi->sh->phyrxchain = rxcore_bitmask;
+
+	if (!pi->sh->clk)
 		return;
 
-	and_radio_reg(pi, RADIO_2055_CAL_LPO_CNTRL,
-		      ~(RADIO_2055_CAL_LPO_ENABLE));
+	suspend = (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
+	if (!suspend)
+		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 
-	wlc_phy_chanspec_set((struct brcms_phy_pub *) pi, pi->radio_chanspec);
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, true);
 
-	write_radio_reg(pi, RADIO_2055_CORE1_RXBB_LPF, 9);
-	write_radio_reg(pi, RADIO_2055_CORE2_RXBB_LPF, 9);
+	regval = read_phy_reg(pi, 0xa2);
+	regval &= ~(0xf << 4);
+	regval |= ((u16) (rxcore_bitmask & 0x3)) << 4;
+	write_phy_reg(pi, 0xa2, regval);
 
-	write_radio_reg(pi, RADIO_2055_CORE1_RXBB_MIDAC_HIPAS, 0x83);
-	write_radio_reg(pi, RADIO_2055_CORE2_RXBB_MIDAC_HIPAS, 0x83);
+	if ((rxcore_bitmask & 0x3) != 0x3) {
 
-	mod_radio_reg(pi, RADIO_2055_CORE1_LNA_GAINBST,
-		      RADIO_2055_GAINBST_VAL_MASK, RADIO_2055_GAINBST_CODE);
-	mod_radio_reg(pi, RADIO_2055_CORE2_LNA_GAINBST,
-		      RADIO_2055_GAINBST_VAL_MASK, RADIO_2055_GAINBST_CODE);
-	if (pi->nphy_gain_boost) {
-		and_radio_reg(pi, RADIO_2055_CORE1_RXRF_SPC1,
-			      ~(RADIO_2055_GAINBST_DISABLE));
-		and_radio_reg(pi, RADIO_2055_CORE2_RXRF_SPC1,
-			      ~(RADIO_2055_GAINBST_DISABLE));
+		write_phy_reg(pi, 0x20e, 1);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+			if (pi->rx2tx_biasentry == -1) {
+				wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ,
+							ARRAY_SIZE(tbl_buf), 80,
+							16, tbl_buf);
+
+				for (i = 0; i < ARRAY_SIZE(tbl_buf); i++) {
+					if (tbl_buf[i] ==
+					    NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS) {
+						pi->rx2tx_biasentry = (u8) i;
+						tbl_opcode =
+							NPHY_REV3_RFSEQ_CMD_NOP;
+						wlc_phy_table_write_nphy(
+							pi,
+							NPHY_TBL_ID_RFSEQ,
+							1, i,
+							16,
+							&tbl_opcode);
+						break;
+					} else if (tbl_buf[i] ==
+						   NPHY_REV3_RFSEQ_CMD_END)
+						break;
+				}
+			}
+		}
 	} else {
-		or_radio_reg(pi, RADIO_2055_CORE1_RXRF_SPC1,
-			     RADIO_2055_GAINBST_DISABLE);
-		or_radio_reg(pi, RADIO_2055_CORE2_RXRF_SPC1,
-			     RADIO_2055_GAINBST_DISABLE);
+
+		write_phy_reg(pi, 0x20e, 30);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+			if (pi->rx2tx_biasentry != -1) {
+				tbl_opcode = NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS;
+				wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ,
+							 1, pi->rx2tx_biasentry,
+							 16, &tbl_opcode);
+				pi->rx2tx_biasentry = -1;
+			}
+		}
 	}
 
-	udelay(2);
+	wlc_phy_force_rfseq_nphy(pi, NPHY_RFSEQ_RESET2RX);
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, false);
+
+	if (!suspend)
+		wlapi_enable_mac(pi->sh->physhim);
+}
+
+u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih)
+{
+	u16 regval, rxen_bits;
+	struct brcms_phy *pi = (struct brcms_phy *) pih;
+
+	regval = read_phy_reg(pi, 0xa2);
+	rxen_bits = (regval >> 4) & 0xf;
+
+	return (u8) rxen_bits;
+}
+
+bool wlc_phy_n_txpower_ipa_ison(struct brcms_phy *pi)
+{
+	return PHY_IPA(pi);
+}
+
+void wlc_phy_cal_init_nphy(struct brcms_phy *pi)
+{
 }
 
 static void wlc_phy_radio_preinit_205x(struct brcms_phy *pi)
@@ -17447,6 +19890,252 @@ static void wlc_phy_radio_preinit_205x(struct brcms_phy *pi)
 	or_phy_reg(pi, 0x78, ~RFCC_OE_POR_FORCE);
 	or_phy_reg(pi, 0x78, RFCC_CHIP0_PU);
 
+}
+
+static void wlc_phy_radio_init_2057(struct brcms_phy *pi)
+{
+	struct radio_20xx_regs *regs_2057_ptr = NULL;
+
+	if (NREV_IS(pi->pubpi.phy_rev, 7)) {
+		regs_2057_ptr = regs_2057_rev4;
+	} else if (NREV_IS(pi->pubpi.phy_rev, 8)
+		   || NREV_IS(pi->pubpi.phy_rev, 9)) {
+		switch (pi->pubpi.radiorev) {
+		case 5:
+
+			if (pi->pubpi.radiover == 0x0)
+				regs_2057_ptr = regs_2057_rev5;
+			else if (pi->pubpi.radiover == 0x1)
+				regs_2057_ptr = regs_2057_rev5v1;
+			else
+				break;
+
+		case 7:
+
+			regs_2057_ptr = regs_2057_rev7;
+			break;
+
+		case 8:
+
+			regs_2057_ptr = regs_2057_rev8;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	wlc_phy_init_radio_regs_allbands(pi, regs_2057_ptr);
+}
+
+static u16 wlc_phy_radio205x_rcal(struct brcms_phy *pi)
+{
+	u16 rcal_reg = 0;
+	int i;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+		if (pi->pubpi.radiorev == 5) {
+
+			and_phy_reg(pi, 0x342, ~(0x1 << 1));
+
+			udelay(10);
+
+			mod_radio_reg(pi, RADIO_2057_IQTEST_SEL_PU, 0x1, 0x1);
+			mod_radio_reg(pi, RADIO_2057v7_IQTEST_SEL_PU2, 0x2,
+				      0x1);
+		}
+		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x1, 0x1);
+
+		udelay(10);
+
+		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x3, 0x3);
+
+		for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
+			rcal_reg = read_radio_reg(pi, RADIO_2057_RCAL_STATUS);
+			if (rcal_reg & 0x1)
+				break;
+
+			udelay(100);
+		}
+
+		if (WARN(i == MAX_205x_RCAL_WAITLOOPS,
+			 "HW error: radio calib2"))
+			return 0;
+
+		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x2, 0x0);
+
+		rcal_reg = read_radio_reg(pi, RADIO_2057_RCAL_STATUS) & 0x3e;
+
+		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x1, 0x0);
+		if (pi->pubpi.radiorev == 5) {
+
+			mod_radio_reg(pi, RADIO_2057_IQTEST_SEL_PU, 0x1, 0x0);
+			mod_radio_reg(pi, RADIO_2057v7_IQTEST_SEL_PU2, 0x2,
+				      0x0);
+		}
+
+		if ((pi->pubpi.radiorev <= 4) || (pi->pubpi.radiorev == 6)) {
+
+			mod_radio_reg(pi, RADIO_2057_TEMPSENSE_CONFIG, 0x3c,
+				      rcal_reg);
+			mod_radio_reg(pi, RADIO_2057_BANDGAP_RCAL_TRIM, 0xf0,
+				      rcal_reg << 2);
+		}
+
+	} else if (NREV_IS(pi->pubpi.phy_rev, 3)) {
+		u16 savereg;
+
+		savereg =
+			read_radio_reg(
+				pi,
+				RADIO_2056_SYN_PLL_MAST2 |
+				RADIO_2056_SYN);
+		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN,
+				savereg | 0x7);
+		udelay(10);
+
+		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
+				0x1);
+		udelay(10);
+
+		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
+				0x9);
+
+		for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
+			rcal_reg = read_radio_reg(
+				pi,
+				RADIO_2056_SYN_RCAL_CODE_OUT |
+				RADIO_2056_SYN);
+			if (rcal_reg & 0x80)
+				break;
+
+			udelay(100);
+		}
+
+		if (WARN(i == MAX_205x_RCAL_WAITLOOPS,
+			 "HW error: radio calib3"))
+			return 0;
+
+		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
+				0x1);
+
+		rcal_reg =
+			read_radio_reg(pi,
+				       RADIO_2056_SYN_RCAL_CODE_OUT |
+				       RADIO_2056_SYN);
+
+		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
+				0x0);
+
+		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN,
+				savereg);
+
+		return rcal_reg & 0x1f;
+	}
+	return rcal_reg & 0x3e;
+}
+
+static u16 wlc_phy_radio2057_rccal(struct brcms_phy *pi)
+{
+	u16 rccal_valid;
+	int i;
+	bool chip43226_6362A0;
+
+	chip43226_6362A0 = ((pi->pubpi.radiorev == 3)
+			    || (pi->pubpi.radiorev == 4)
+			    || (pi->pubpi.radiorev == 6));
+
+	rccal_valid = 0;
+	if (chip43226_6362A0) {
+		write_radio_reg(pi, RADIO_2057_RCCAL_MASTER, 0x61);
+		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xc0);
+	} else {
+		write_radio_reg(pi, RADIO_2057v7_RCCAL_MASTER, 0x61);
+
+		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xe9);
+	}
+	write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x6e);
+	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x55);
+
+	for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
+		rccal_valid = read_radio_reg(pi, RADIO_2057_RCCAL_DONE_OSCCAP);
+		if (rccal_valid & 0x2)
+			break;
+
+		udelay(500);
+	}
+
+	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
+
+	rccal_valid = 0;
+	if (chip43226_6362A0) {
+		write_radio_reg(pi, RADIO_2057_RCCAL_MASTER, 0x69);
+		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xb0);
+	} else {
+		write_radio_reg(pi, RADIO_2057v7_RCCAL_MASTER, 0x69);
+
+		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xd5);
+	}
+	write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x6e);
+	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x55);
+
+	for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
+		rccal_valid = read_radio_reg(pi, RADIO_2057_RCCAL_DONE_OSCCAP);
+		if (rccal_valid & 0x2)
+			break;
+
+		udelay(500);
+	}
+
+	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
+
+	rccal_valid = 0;
+	if (chip43226_6362A0) {
+		write_radio_reg(pi, RADIO_2057_RCCAL_MASTER, 0x73);
+
+		write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x28);
+		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xb0);
+	} else {
+		write_radio_reg(pi, RADIO_2057v7_RCCAL_MASTER, 0x73);
+		write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x6e);
+		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0x99);
+	}
+	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x55);
+
+	for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
+		rccal_valid = read_radio_reg(pi, RADIO_2057_RCCAL_DONE_OSCCAP);
+		if (rccal_valid & 0x2)
+			break;
+
+		udelay(500);
+	}
+
+	if (WARN(!(rccal_valid & 0x2), "HW error: radio calib4"))
+		return 0;
+
+	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
+
+	return rccal_valid;
+}
+
+static void wlc_phy_radio_postinit_2057(struct brcms_phy *pi)
+{
+
+	mod_radio_reg(pi, RADIO_2057_XTALPUOVR_PINCTRL, 0x1, 0x1);
+
+	mod_radio_reg(pi, RADIO_2057_RFPLL_MISC_CAL_RESETN, 0x78, 0x78);
+	mod_radio_reg(pi, RADIO_2057_XTAL_CONFIG2, 0x80, 0x80);
+	mdelay(2);
+	mod_radio_reg(pi, RADIO_2057_RFPLL_MISC_CAL_RESETN, 0x78, 0x0);
+	mod_radio_reg(pi, RADIO_2057_XTAL_CONFIG2, 0x80, 0x0);
+
+	if (pi->phy_init_por) {
+		wlc_phy_radio205x_rcal(pi);
+		wlc_phy_radio2057_rccal(pi);
+	}
+
+	mod_radio_reg(pi, RADIO_2057_RFPLL_MASTER, 0x8, 0x0);
 }
 
 static void wlc_phy_radio_init_2056(struct brcms_phy *pi)
@@ -17533,59 +20222,166 @@ static void wlc_phy_radio_postinit_2056(struct brcms_phy *pi)
 		wlc_phy_radio205x_rcal(pi);
 }
 
-static void wlc_phy_radio_init_2057(struct brcms_phy *pi)
+static void wlc_phy_radio_preinit_2055(struct brcms_phy *pi)
 {
-	struct radio_20xx_regs *regs_2057_ptr = NULL;
 
-	if (NREV_IS(pi->pubpi.phy_rev, 7)) {
-		regs_2057_ptr = regs_2057_rev4;
-	} else if (NREV_IS(pi->pubpi.phy_rev, 8)
-		   || NREV_IS(pi->pubpi.phy_rev, 9)) {
-		switch (pi->pubpi.radiorev) {
-		case 5:
+	and_phy_reg(pi, 0x78, ~RFCC_POR_FORCE);
+	or_phy_reg(pi, 0x78, RFCC_CHIP0_PU | RFCC_OE_POR_FORCE);
 
-			if (pi->pubpi.radiover == 0x0)
-				regs_2057_ptr = regs_2057_rev5;
-			else if (pi->pubpi.radiover == 0x1)
-				regs_2057_ptr = regs_2057_rev5v1;
-			else
-				break;
-
-		case 7:
-
-			regs_2057_ptr = regs_2057_rev7;
-			break;
-
-		case 8:
-
-			regs_2057_ptr = regs_2057_rev8;
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	wlc_phy_init_radio_regs_allbands(pi, regs_2057_ptr);
+	or_phy_reg(pi, 0x78, RFCC_POR_FORCE);
 }
 
-static void wlc_phy_radio_postinit_2057(struct brcms_phy *pi)
+static void wlc_phy_radio_init_2055(struct brcms_phy *pi)
+{
+	wlc_phy_init_radio_regs(pi, regs_2055, RADIO_DEFAULT_CORE);
+}
+
+static void wlc_phy_radio_postinit_2055(struct brcms_phy *pi)
 {
 
-	mod_radio_reg(pi, RADIO_2057_XTALPUOVR_PINCTRL, 0x1, 0x1);
+	and_radio_reg(pi, RADIO_2055_MASTER_CNTRL1,
+		      ~(RADIO_2055_JTAGCTRL_MASK | RADIO_2055_JTAGSYNC_MASK));
 
-	mod_radio_reg(pi, RADIO_2057_RFPLL_MISC_CAL_RESETN, 0x78, 0x78);
-	mod_radio_reg(pi, RADIO_2057_XTAL_CONFIG2, 0x80, 0x80);
-	mdelay(2);
-	mod_radio_reg(pi, RADIO_2057_RFPLL_MISC_CAL_RESETN, 0x78, 0x0);
-	mod_radio_reg(pi, RADIO_2057_XTAL_CONFIG2, 0x80, 0x0);
-
-	if (pi->phy_init_por) {
-		wlc_phy_radio205x_rcal(pi);
-		wlc_phy_radio2057_rccal(pi);
+	if (((pi->sh->sromrev >= 4)
+	     && !(pi->sh->boardflags2 & BFL2_RXBB_INT_REG_DIS))
+	    || ((pi->sh->sromrev < 4))) {
+		and_radio_reg(pi, RADIO_2055_CORE1_RXBB_REGULATOR, 0x7F);
+		and_radio_reg(pi, RADIO_2055_CORE2_RXBB_REGULATOR, 0x7F);
 	}
 
-	mod_radio_reg(pi, RADIO_2057_RFPLL_MASTER, 0x8, 0x0);
+	mod_radio_reg(pi, RADIO_2055_RRCCAL_N_OPT_SEL, 0x3F, 0x2C);
+	write_radio_reg(pi, RADIO_2055_CAL_MISC, 0x3C);
+
+	and_radio_reg(pi, RADIO_2055_CAL_MISC,
+		      ~(RADIO_2055_RRCAL_START | RADIO_2055_RRCAL_RST_N));
+
+	or_radio_reg(pi, RADIO_2055_CAL_LPO_CNTRL, RADIO_2055_CAL_LPO_ENABLE);
+
+	or_radio_reg(pi, RADIO_2055_CAL_MISC, RADIO_2055_RRCAL_RST_N);
+
+	udelay(1000);
+
+	or_radio_reg(pi, RADIO_2055_CAL_MISC, RADIO_2055_RRCAL_START);
+
+	SPINWAIT(((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
+		   RADIO_2055_RCAL_DONE) != RADIO_2055_RCAL_DONE), 2000);
+
+	if (WARN((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
+		  RADIO_2055_RCAL_DONE) != RADIO_2055_RCAL_DONE,
+		 "HW error: radio calibration1\n"))
+		return;
+
+	and_radio_reg(pi, RADIO_2055_CAL_LPO_CNTRL,
+		      ~(RADIO_2055_CAL_LPO_ENABLE));
+
+	wlc_phy_chanspec_set((struct brcms_phy_pub *) pi, pi->radio_chanspec);
+
+	write_radio_reg(pi, RADIO_2055_CORE1_RXBB_LPF, 9);
+	write_radio_reg(pi, RADIO_2055_CORE2_RXBB_LPF, 9);
+
+	write_radio_reg(pi, RADIO_2055_CORE1_RXBB_MIDAC_HIPAS, 0x83);
+	write_radio_reg(pi, RADIO_2055_CORE2_RXBB_MIDAC_HIPAS, 0x83);
+
+	mod_radio_reg(pi, RADIO_2055_CORE1_LNA_GAINBST,
+		      RADIO_2055_GAINBST_VAL_MASK, RADIO_2055_GAINBST_CODE);
+	mod_radio_reg(pi, RADIO_2055_CORE2_LNA_GAINBST,
+		      RADIO_2055_GAINBST_VAL_MASK, RADIO_2055_GAINBST_CODE);
+	if (pi->nphy_gain_boost) {
+		and_radio_reg(pi, RADIO_2055_CORE1_RXRF_SPC1,
+			      ~(RADIO_2055_GAINBST_DISABLE));
+		and_radio_reg(pi, RADIO_2055_CORE2_RXRF_SPC1,
+			      ~(RADIO_2055_GAINBST_DISABLE));
+	} else {
+		or_radio_reg(pi, RADIO_2055_CORE1_RXRF_SPC1,
+			     RADIO_2055_GAINBST_DISABLE);
+		or_radio_reg(pi, RADIO_2055_CORE2_RXRF_SPC1,
+			     RADIO_2055_GAINBST_DISABLE);
+	}
+
+	udelay(2);
+}
+
+void wlc_phy_switch_radio_nphy(struct brcms_phy *pi, bool on)
+{
+	if (on) {
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			if (!pi->radio_is_on) {
+				wlc_phy_radio_preinit_205x(pi);
+				wlc_phy_radio_init_2057(pi);
+				wlc_phy_radio_postinit_2057(pi);
+			}
+
+			wlc_phy_chanspec_set((struct brcms_phy_pub *) pi,
+					     pi->radio_chanspec);
+		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+			wlc_phy_radio_preinit_205x(pi);
+			wlc_phy_radio_init_2056(pi);
+			wlc_phy_radio_postinit_2056(pi);
+
+			wlc_phy_chanspec_set((struct brcms_phy_pub *) pi,
+					     pi->radio_chanspec);
+		} else {
+			wlc_phy_radio_preinit_2055(pi);
+			wlc_phy_radio_init_2055(pi);
+			wlc_phy_radio_postinit_2055(pi);
+		}
+
+		pi->radio_is_on = true;
+
+	} else {
+
+		if (NREV_GE(pi->pubpi.phy_rev, 3)
+		    && NREV_LT(pi->pubpi.phy_rev, 7)) {
+			and_phy_reg(pi, 0x78, ~RFCC_CHIP0_PU);
+			mod_radio_reg(pi, RADIO_2056_SYN_COM_PU, 0x2, 0x0);
+
+			write_radio_reg(pi,
+					RADIO_2056_TX_PADA_BOOST_TUNE |
+					RADIO_2056_TX0, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_PADG_BOOST_TUNE |
+					RADIO_2056_TX0, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_PGAA_BOOST_TUNE |
+					RADIO_2056_TX0, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_PGAG_BOOST_TUNE |
+					RADIO_2056_TX0, 0);
+			mod_radio_reg(pi,
+				      RADIO_2056_TX_MIXA_BOOST_TUNE |
+				      RADIO_2056_TX0, 0xf0, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_MIXG_BOOST_TUNE |
+					RADIO_2056_TX0, 0);
+
+			write_radio_reg(pi,
+					RADIO_2056_TX_PADA_BOOST_TUNE |
+					RADIO_2056_TX1, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_PADG_BOOST_TUNE |
+					RADIO_2056_TX1, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_PGAA_BOOST_TUNE |
+					RADIO_2056_TX1, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_PGAG_BOOST_TUNE |
+					RADIO_2056_TX1, 0);
+			mod_radio_reg(pi,
+				      RADIO_2056_TX_MIXA_BOOST_TUNE |
+				      RADIO_2056_TX1, 0xf0, 0);
+			write_radio_reg(pi,
+					RADIO_2056_TX_MIXG_BOOST_TUNE |
+					RADIO_2056_TX1, 0);
+
+			pi->radio_is_on = false;
+		}
+
+		if (NREV_GE(pi->pubpi.phy_rev, 8)) {
+			and_phy_reg(pi, 0x78, ~RFCC_CHIP0_PU);
+			pi->radio_is_on = false;
+		}
+
+	}
 }
 
 static bool
@@ -18171,116 +20967,6 @@ void wlc_phy_radio205x_vcocal_nphy(struct brcms_phy *pi)
 	udelay(300);
 }
 
-#define MAX_205x_RCAL_WAITLOOPS 10000
-
-static u16 wlc_phy_radio205x_rcal(struct brcms_phy *pi)
-{
-	u16 rcal_reg = 0;
-	int i;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-		if (pi->pubpi.radiorev == 5) {
-
-			and_phy_reg(pi, 0x342, ~(0x1 << 1));
-
-			udelay(10);
-
-			mod_radio_reg(pi, RADIO_2057_IQTEST_SEL_PU, 0x1, 0x1);
-			mod_radio_reg(pi, RADIO_2057v7_IQTEST_SEL_PU2, 0x2,
-				      0x1);
-		}
-		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x1, 0x1);
-
-		udelay(10);
-
-		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x3, 0x3);
-
-		for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
-			rcal_reg = read_radio_reg(pi, RADIO_2057_RCAL_STATUS);
-			if (rcal_reg & 0x1)
-				break;
-
-			udelay(100);
-		}
-
-		if (WARN(i == MAX_205x_RCAL_WAITLOOPS,
-			 "HW error: radio calib2"))
-			return 0;
-
-		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x2, 0x0);
-
-		rcal_reg = read_radio_reg(pi, RADIO_2057_RCAL_STATUS) & 0x3e;
-
-		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x1, 0x0);
-		if (pi->pubpi.radiorev == 5) {
-
-			mod_radio_reg(pi, RADIO_2057_IQTEST_SEL_PU, 0x1, 0x0);
-			mod_radio_reg(pi, RADIO_2057v7_IQTEST_SEL_PU2, 0x2,
-				      0x0);
-		}
-
-		if ((pi->pubpi.radiorev <= 4) || (pi->pubpi.radiorev == 6)) {
-
-			mod_radio_reg(pi, RADIO_2057_TEMPSENSE_CONFIG, 0x3c,
-				      rcal_reg);
-			mod_radio_reg(pi, RADIO_2057_BANDGAP_RCAL_TRIM, 0xf0,
-				      rcal_reg << 2);
-		}
-
-	} else if (NREV_IS(pi->pubpi.phy_rev, 3)) {
-		u16 savereg;
-
-		savereg =
-			read_radio_reg(
-				pi,
-				RADIO_2056_SYN_PLL_MAST2 |
-				RADIO_2056_SYN);
-		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN,
-				savereg | 0x7);
-		udelay(10);
-
-		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
-				0x1);
-		udelay(10);
-
-		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
-				0x9);
-
-		for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
-			rcal_reg = read_radio_reg(
-				pi,
-				RADIO_2056_SYN_RCAL_CODE_OUT |
-				RADIO_2056_SYN);
-			if (rcal_reg & 0x80)
-				break;
-
-			udelay(100);
-		}
-
-		if (WARN(i == MAX_205x_RCAL_WAITLOOPS,
-			 "HW error: radio calib3"))
-			return 0;
-
-		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
-				0x1);
-
-		rcal_reg =
-			read_radio_reg(pi,
-				       RADIO_2056_SYN_RCAL_CODE_OUT |
-				       RADIO_2056_SYN);
-
-		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
-				0x0);
-
-		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN,
-				savereg);
-
-		return rcal_reg & 0x1f;
-	}
-	return rcal_reg & 0x3e;
-}
-
 static void
 wlc_phy_chanspec_radio2057_setup(
 	struct brcms_phy *pi,
@@ -18476,425 +21162,6 @@ wlc_phy_chanspec_radio2057_setup(
 	udelay(50);
 
 	wlc_phy_radio205x_vcocal_nphy(pi);
-}
-
-static u16 wlc_phy_radio2057_rccal(struct brcms_phy *pi)
-{
-	u16 rccal_valid;
-	int i;
-	bool chip43226_6362A0;
-
-	chip43226_6362A0 = ((pi->pubpi.radiorev == 3)
-			    || (pi->pubpi.radiorev == 4)
-			    || (pi->pubpi.radiorev == 6));
-
-	rccal_valid = 0;
-	if (chip43226_6362A0) {
-		write_radio_reg(pi, RADIO_2057_RCCAL_MASTER, 0x61);
-		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xc0);
-	} else {
-		write_radio_reg(pi, RADIO_2057v7_RCCAL_MASTER, 0x61);
-
-		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xe9);
-	}
-	write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x6e);
-	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x55);
-
-	for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
-		rccal_valid = read_radio_reg(pi, RADIO_2057_RCCAL_DONE_OSCCAP);
-		if (rccal_valid & 0x2)
-			break;
-
-		udelay(500);
-	}
-
-	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
-
-	rccal_valid = 0;
-	if (chip43226_6362A0) {
-		write_radio_reg(pi, RADIO_2057_RCCAL_MASTER, 0x69);
-		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xb0);
-	} else {
-		write_radio_reg(pi, RADIO_2057v7_RCCAL_MASTER, 0x69);
-
-		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xd5);
-	}
-	write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x6e);
-	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x55);
-
-	for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
-		rccal_valid = read_radio_reg(pi, RADIO_2057_RCCAL_DONE_OSCCAP);
-		if (rccal_valid & 0x2)
-			break;
-
-		udelay(500);
-	}
-
-	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
-
-	rccal_valid = 0;
-	if (chip43226_6362A0) {
-		write_radio_reg(pi, RADIO_2057_RCCAL_MASTER, 0x73);
-
-		write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x28);
-		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0xb0);
-	} else {
-		write_radio_reg(pi, RADIO_2057v7_RCCAL_MASTER, 0x73);
-		write_radio_reg(pi, RADIO_2057_RCCAL_X1, 0x6e);
-		write_radio_reg(pi, RADIO_2057_RCCAL_TRC0, 0x99);
-	}
-	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x55);
-
-	for (i = 0; i < MAX_205x_RCAL_WAITLOOPS; i++) {
-		rccal_valid = read_radio_reg(pi, RADIO_2057_RCCAL_DONE_OSCCAP);
-		if (rccal_valid & 0x2)
-			break;
-
-		udelay(500);
-	}
-
-	if (WARN(!(rccal_valid & 0x2), "HW error: radio calib4"))
-		return 0;
-
-	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
-
-	return rccal_valid;
-}
-
-static void
-wlc_phy_adjust_rx_analpfbw_nphy(struct brcms_phy *pi, u16 reduction_factr)
-{
-	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LT(pi->pubpi.phy_rev, 7)) {
-		if ((CHSPEC_CHANNEL(pi->radio_chanspec) == 11) &&
-		    CHSPEC_IS40(pi->radio_chanspec)) {
-			if (!pi->nphy_anarxlpf_adjusted) {
-				write_radio_reg(pi,
-						(RADIO_2056_RX_RXLPF_RCCAL_LPC |
-						 RADIO_2056_RX0),
-						((pi->nphy_rccal_value +
-						  reduction_factr) | 0x80));
-
-				pi->nphy_anarxlpf_adjusted = true;
-			}
-		} else {
-			if (pi->nphy_anarxlpf_adjusted) {
-				write_radio_reg(pi,
-						(RADIO_2056_RX_RXLPF_RCCAL_LPC |
-						 RADIO_2056_RX0),
-						(pi->nphy_rccal_value | 0x80));
-
-				pi->nphy_anarxlpf_adjusted = false;
-			}
-		}
-	}
-}
-
-static void
-wlc_phy_adjust_min_noisevar_nphy(struct brcms_phy *pi, int ntones,
-				 int *tone_id_buf, u32 *noise_var_buf)
-{
-	int i;
-	u32 offset;
-	int tone_id;
-	int tbllen =
-		CHSPEC_IS40(pi->radio_chanspec) ?
-		NPHY_NOISEVAR_TBLLEN40 : NPHY_NOISEVAR_TBLLEN20;
-
-	if (pi->nphy_noisevars_adjusted) {
-		for (i = 0; i < pi->nphy_saved_noisevars.bufcount; i++) {
-			tone_id = pi->nphy_saved_noisevars.tone_id[i];
-			offset = (tone_id >= 0) ?
-				 ((tone_id *
-				   2) + 1) : (tbllen + (tone_id * 2) + 1);
-			wlc_phy_table_write_nphy(
-				pi, NPHY_TBL_ID_NOISEVAR, 1,
-				offset, 32,
-				&pi->nphy_saved_noisevars.min_noise_vars[i]);
-		}
-
-		pi->nphy_saved_noisevars.bufcount = 0;
-		pi->nphy_noisevars_adjusted = false;
-	}
-
-	if ((noise_var_buf != NULL) && (tone_id_buf != NULL)) {
-		pi->nphy_saved_noisevars.bufcount = 0;
-
-		for (i = 0; i < ntones; i++) {
-			tone_id = tone_id_buf[i];
-			offset = (tone_id >= 0) ?
-				 ((tone_id * 2) + 1) :
-				 (tbllen + (tone_id * 2) + 1);
-			pi->nphy_saved_noisevars.tone_id[i] = tone_id;
-			wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
-						offset, 32,
-						&pi->nphy_saved_noisevars.
-						min_noise_vars[i]);
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
-						 offset, 32, &noise_var_buf[i]);
-			pi->nphy_saved_noisevars.bufcount++;
-		}
-
-		pi->nphy_noisevars_adjusted = true;
-	}
-}
-
-static void wlc_phy_adjust_crsminpwr_nphy(struct brcms_phy *pi, u8 minpwr)
-{
-	u16 regval;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		if ((CHSPEC_CHANNEL(pi->radio_chanspec) == 11) &&
-		    CHSPEC_IS40(pi->radio_chanspec)) {
-			if (!pi->nphy_crsminpwr_adjusted) {
-				regval = read_phy_reg(pi, 0x27d);
-				pi->nphy_crsminpwr[0] = regval & 0xff;
-				regval &= 0xff00;
-				regval |= (u16) minpwr;
-				write_phy_reg(pi, 0x27d, regval);
-
-				regval = read_phy_reg(pi, 0x280);
-				pi->nphy_crsminpwr[1] = regval & 0xff;
-				regval &= 0xff00;
-				regval |= (u16) minpwr;
-				write_phy_reg(pi, 0x280, regval);
-
-				regval = read_phy_reg(pi, 0x283);
-				pi->nphy_crsminpwr[2] = regval & 0xff;
-				regval &= 0xff00;
-				regval |= (u16) minpwr;
-				write_phy_reg(pi, 0x283, regval);
-
-				pi->nphy_crsminpwr_adjusted = true;
-			}
-		} else {
-			if (pi->nphy_crsminpwr_adjusted) {
-				regval = read_phy_reg(pi, 0x27d);
-				regval &= 0xff00;
-				regval |= pi->nphy_crsminpwr[0];
-				write_phy_reg(pi, 0x27d, regval);
-
-				regval = read_phy_reg(pi, 0x280);
-				regval &= 0xff00;
-				regval |= pi->nphy_crsminpwr[1];
-				write_phy_reg(pi, 0x280, regval);
-
-				regval = read_phy_reg(pi, 0x283);
-				regval &= 0xff00;
-				regval |= pi->nphy_crsminpwr[2];
-				write_phy_reg(pi, 0x283, regval);
-
-				pi->nphy_crsminpwr_adjusted = false;
-			}
-		}
-	}
-}
-
-static void wlc_phy_txlpfbw_nphy(struct brcms_phy *pi)
-{
-	u8 tx_lpf_bw = 0;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LT(pi->pubpi.phy_rev, 7)) {
-		if (CHSPEC_IS40(pi->radio_chanspec))
-			tx_lpf_bw = 3;
-		else
-			tx_lpf_bw = 1;
-
-		if (PHY_IPA(pi)) {
-			if (CHSPEC_IS40(pi->radio_chanspec))
-				tx_lpf_bw = 5;
-			else
-				tx_lpf_bw = 4;
-		}
-
-		write_phy_reg(pi, 0xe8,
-			      (tx_lpf_bw << 0) |
-			      (tx_lpf_bw << 3) |
-			      (tx_lpf_bw << 6) | (tx_lpf_bw << 9));
-
-		if (PHY_IPA(pi)) {
-
-			if (CHSPEC_IS40(pi->radio_chanspec))
-				tx_lpf_bw = 4;
-			else
-				tx_lpf_bw = 1;
-
-			write_phy_reg(pi, 0xe9,
-				      (tx_lpf_bw << 0) |
-				      (tx_lpf_bw << 3) |
-				      (tx_lpf_bw << 6) | (tx_lpf_bw << 9));
-		}
-	}
-}
-
-static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
-{
-	u16 cur_channel = 0;
-	int nphy_adj_tone_id_buf[] = { 57, 58 };
-	u32 nphy_adj_noise_var_buf[] = { 0x3ff, 0x3ff };
-	bool isAdjustNoiseVar = false;
-	uint numTonesAdjust = 0;
-	u32 tempval = 0;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		if (pi->phyhang_avoid)
-			wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-		cur_channel = CHSPEC_CHANNEL(pi->radio_chanspec);
-
-		if (pi->nphy_gband_spurwar_en) {
-
-			wlc_phy_adjust_rx_analpfbw_nphy(
-				pi,
-				NPHY_ANARXLPFBW_REDUCTIONFACT);
-
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				if ((cur_channel == 11)
-				    && CHSPEC_IS40(pi->radio_chanspec))
-					wlc_phy_adjust_min_noisevar_nphy(
-						pi, 2,
-						nphy_adj_tone_id_buf,
-						nphy_adj_noise_var_buf);
-				else
-					wlc_phy_adjust_min_noisevar_nphy(pi, 0,
-									 NULL,
-									 NULL);
-			}
-
-			wlc_phy_adjust_crsminpwr_nphy(pi,
-						     NPHY_ADJUSTED_MINCRSPOWER);
-		}
-
-		if ((pi->nphy_gband_spurwar2_en)
-		    && CHSPEC_IS2G(pi->radio_chanspec)) {
-
-			if (CHSPEC_IS40(pi->radio_chanspec)) {
-				switch (cur_channel) {
-				case 3:
-					nphy_adj_tone_id_buf[0] = 57;
-					nphy_adj_tone_id_buf[1] = 58;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
-					break;
-				case 4:
-					nphy_adj_tone_id_buf[0] = 41;
-					nphy_adj_tone_id_buf[1] = 42;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
-					break;
-				case 5:
-					nphy_adj_tone_id_buf[0] = 25;
-					nphy_adj_tone_id_buf[1] = 26;
-					nphy_adj_noise_var_buf[0] = 0x24f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
-					break;
-				case 6:
-					nphy_adj_tone_id_buf[0] = 9;
-					nphy_adj_tone_id_buf[1] = 10;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
-					break;
-				case 7:
-					nphy_adj_tone_id_buf[0] = 121;
-					nphy_adj_tone_id_buf[1] = 122;
-					nphy_adj_noise_var_buf[0] = 0x18f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
-					break;
-				case 8:
-					nphy_adj_tone_id_buf[0] = 105;
-					nphy_adj_tone_id_buf[1] = 106;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
-					break;
-				case 9:
-					nphy_adj_tone_id_buf[0] = 89;
-					nphy_adj_tone_id_buf[1] = 90;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
-					break;
-				case 10:
-					nphy_adj_tone_id_buf[0] = 73;
-					nphy_adj_tone_id_buf[1] = 74;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
-					break;
-				default:
-					isAdjustNoiseVar = false;
-					break;
-				}
-			}
-
-			if (isAdjustNoiseVar) {
-				numTonesAdjust = sizeof(nphy_adj_tone_id_buf) /
-						sizeof(nphy_adj_tone_id_buf[0]);
-
-				wlc_phy_adjust_min_noisevar_nphy(
-					pi,
-					numTonesAdjust,
-					nphy_adj_tone_id_buf,
-					nphy_adj_noise_var_buf);
-
-				tempval = 0;
-
-			} else {
-				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
-								 NULL);
-			}
-		}
-
-		if ((pi->nphy_aband_spurwar_en) &&
-		    (CHSPEC_IS5G(pi->radio_chanspec))) {
-			switch (cur_channel) {
-			case 54:
-				nphy_adj_tone_id_buf[0] = 32;
-				nphy_adj_noise_var_buf[0] = 0x25f;
-				break;
-			case 38:
-			case 102:
-			case 118:
-				nphy_adj_tone_id_buf[0] = 0;
-				nphy_adj_noise_var_buf[0] = 0x0;
-				break;
-			case 134:
-				nphy_adj_tone_id_buf[0] = 32;
-				nphy_adj_noise_var_buf[0] = 0x21f;
-				break;
-			case 151:
-				nphy_adj_tone_id_buf[0] = 16;
-				nphy_adj_noise_var_buf[0] = 0x23f;
-				break;
-			case 153:
-			case 161:
-				nphy_adj_tone_id_buf[0] = 48;
-				nphy_adj_noise_var_buf[0] = 0x23f;
-				break;
-			default:
-				nphy_adj_tone_id_buf[0] = 0;
-				nphy_adj_noise_var_buf[0] = 0x0;
-				break;
-			}
-
-			if (nphy_adj_tone_id_buf[0]
-			    && nphy_adj_noise_var_buf[0])
-				wlc_phy_adjust_min_noisevar_nphy(
-					pi, 1,
-					nphy_adj_tone_id_buf,
-					nphy_adj_noise_var_buf);
-			else
-				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
-								 NULL);
-		}
-
-		if (pi->phyhang_avoid)
-			wlc_phy_stay_in_carriersearch_nphy(pi, false);
-	}
 }
 
 static void
@@ -19099,353 +21366,6 @@ void wlc_phy_chanspec_set_nphy(struct brcms_phy *pi, u16 chanspec)
 
 }
 
-static void wlc_phy_savecal_nphy(struct brcms_phy *pi)
-{
-	void *tbl_ptr;
-	int coreNum;
-	u16 *txcal_radio_regs = NULL;
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-
-		wlc_phy_rx_iq_coeffs_nphy(pi, 0,
-					  &pi->calibration_cache.
-					  rxcal_coeffs_2G);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			txcal_radio_regs =
-				pi->calibration_cache.txcal_radio_regs_2G;
-		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-
-			pi->calibration_cache.txcal_radio_regs_2G[0] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_I |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_2G[1] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_Q |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_2G[2] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_I |
-					       RADIO_2056_TX1);
-			pi->calibration_cache.txcal_radio_regs_2G[3] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_Q |
-					       RADIO_2056_TX1);
-
-			pi->calibration_cache.txcal_radio_regs_2G[4] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_I |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_2G[5] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_Q |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_2G[6] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_I |
-					       RADIO_2056_TX1);
-			pi->calibration_cache.txcal_radio_regs_2G[7] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_Q |
-					       RADIO_2056_TX1);
-		} else {
-			pi->calibration_cache.txcal_radio_regs_2G[0] =
-			       read_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL);
-			pi->calibration_cache.txcal_radio_regs_2G[1] =
-			       read_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL);
-			pi->calibration_cache.txcal_radio_regs_2G[2] =
-			       read_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM);
-			pi->calibration_cache.txcal_radio_regs_2G[3] =
-			       read_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM);
-		}
-
-		pi->nphy_iqcal_chanspec_2G = pi->radio_chanspec;
-		tbl_ptr = pi->calibration_cache.txcal_coeffs_2G;
-	} else {
-
-		wlc_phy_rx_iq_coeffs_nphy(pi, 0,
-					  &pi->calibration_cache.
-					  rxcal_coeffs_5G);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			txcal_radio_regs =
-				pi->calibration_cache.txcal_radio_regs_5G;
-		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-
-			pi->calibration_cache.txcal_radio_regs_5G[0] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_I |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_5G[1] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_Q |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_5G[2] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_I |
-					       RADIO_2056_TX1);
-			pi->calibration_cache.txcal_radio_regs_5G[3] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_FINE_Q |
-					       RADIO_2056_TX1);
-
-			pi->calibration_cache.txcal_radio_regs_5G[4] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_I |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_5G[5] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_Q |
-					       RADIO_2056_TX0);
-			pi->calibration_cache.txcal_radio_regs_5G[6] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_I |
-					       RADIO_2056_TX1);
-			pi->calibration_cache.txcal_radio_regs_5G[7] =
-				read_radio_reg(pi,
-					       RADIO_2056_TX_LOFT_COARSE_Q |
-					       RADIO_2056_TX1);
-		} else {
-			pi->calibration_cache.txcal_radio_regs_5G[0] =
-			       read_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL);
-			pi->calibration_cache.txcal_radio_regs_5G[1] =
-			       read_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL);
-			pi->calibration_cache.txcal_radio_regs_5G[2] =
-			       read_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM);
-			pi->calibration_cache.txcal_radio_regs_5G[3] =
-			       read_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM);
-		}
-
-		pi->nphy_iqcal_chanspec_5G = pi->radio_chanspec;
-		tbl_ptr = pi->calibration_cache.txcal_coeffs_5G;
-	}
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-		for (coreNum = 0; coreNum <= 1; coreNum++) {
-
-			txcal_radio_regs[2 * coreNum] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-						LOFT_FINE_I);
-			txcal_radio_regs[2 * coreNum + 1] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-						LOFT_FINE_Q);
-
-			txcal_radio_regs[2 * coreNum + 4] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-						LOFT_COARSE_I);
-			txcal_radio_regs[2 * coreNum + 5] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-						LOFT_COARSE_Q);
-		}
-	}
-
-	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_IQLOCAL, 8, 80, 16, tbl_ptr);
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-}
-
-static void wlc_phy_restorecal_nphy(struct brcms_phy *pi)
-{
-	u16 *loft_comp;
-	u16 txcal_coeffs_bphy[4];
-	u16 *tbl_ptr;
-	int coreNum;
-	u16 *txcal_radio_regs = NULL;
-
-	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-		if (pi->nphy_iqcal_chanspec_2G == 0)
-			return;
-
-		tbl_ptr = pi->calibration_cache.txcal_coeffs_2G;
-		loft_comp = &pi->calibration_cache.txcal_coeffs_2G[5];
-	} else {
-		if (pi->nphy_iqcal_chanspec_5G == 0)
-			return;
-
-		tbl_ptr = pi->calibration_cache.txcal_coeffs_5G;
-		loft_comp = &pi->calibration_cache.txcal_coeffs_5G[5];
-	}
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 4, 80, 16, tbl_ptr);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		txcal_coeffs_bphy[0] = tbl_ptr[0];
-		txcal_coeffs_bphy[1] = tbl_ptr[1];
-		txcal_coeffs_bphy[2] = tbl_ptr[2];
-		txcal_coeffs_bphy[3] = tbl_ptr[3];
-	} else {
-		txcal_coeffs_bphy[0] = 0;
-		txcal_coeffs_bphy[1] = 0;
-		txcal_coeffs_bphy[2] = 0;
-		txcal_coeffs_bphy[3] = 0;
-	}
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 4, 88, 16,
-				 txcal_coeffs_bphy);
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 2, 85, 16, loft_comp);
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 2, 93, 16, loft_comp);
-
-	if (NREV_LT(pi->pubpi.phy_rev, 2))
-		wlc_phy_tx_iq_war_nphy(pi);
-
-	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			txcal_radio_regs =
-				pi->calibration_cache.txcal_radio_regs_2G;
-		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_I |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[0]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_Q |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[1]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_I |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[2]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_Q |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[3]);
-
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_I |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[4]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_Q |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[5]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_I |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[6]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_Q |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[7]);
-		} else {
-			write_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[0]);
-			write_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[1]);
-			write_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[2]);
-			write_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM,
-					pi->calibration_cache.
-					txcal_radio_regs_2G[3]);
-		}
-
-		wlc_phy_rx_iq_coeffs_nphy(pi, 1,
-					  &pi->calibration_cache.
-					  rxcal_coeffs_2G);
-	} else {
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			txcal_radio_regs =
-				pi->calibration_cache.txcal_radio_regs_5G;
-		} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_I |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[0]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_Q |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[1]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_I |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[2]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_FINE_Q |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[3]);
-
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_I |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[4]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_Q |
-					RADIO_2056_TX0,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[5]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_I |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[6]);
-			write_radio_reg(pi,
-					RADIO_2056_TX_LOFT_COARSE_Q |
-					RADIO_2056_TX1,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[7]);
-		} else {
-			write_radio_reg(pi, RADIO_2055_CORE1_TX_VOS_CNCL,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[0]);
-			write_radio_reg(pi, RADIO_2055_CORE2_TX_VOS_CNCL,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[1]);
-			write_radio_reg(pi, RADIO_2055_CORE1_TX_BB_MXGM,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[2]);
-			write_radio_reg(pi, RADIO_2055_CORE2_TX_BB_MXGM,
-					pi->calibration_cache.
-					txcal_radio_regs_5G[3]);
-		}
-
-		wlc_phy_rx_iq_coeffs_nphy(pi, 1,
-					  &pi->calibration_cache.
-					  rxcal_coeffs_5G);
-	}
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-		for (coreNum = 0; coreNum <= 1; coreNum++) {
-
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-					 LOFT_FINE_I,
-					 txcal_radio_regs[2 * coreNum]);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-					 LOFT_FINE_Q,
-					 txcal_radio_regs[2 * coreNum + 1]);
-
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-					 LOFT_COARSE_I,
-					 txcal_radio_regs[2 * coreNum + 4]);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, coreNum,
-					 LOFT_COARSE_Q,
-					 txcal_radio_regs[2 * coreNum + 5]);
-		}
-	}
-}
-
 void wlc_phy_antsel_init(struct brcms_phy_pub *ppi, bool lut_init)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) ppi;
@@ -19531,18 +21451,6 @@ u16 wlc_phy_classifier_nphy(struct brcms_phy *pi, u16 mask, u16 val)
 	return new_ctl;
 }
 
-static void wlc_phy_clip_det_nphy(struct brcms_phy *pi, u8 write, u16 *vals)
-{
-
-	if (write == 0) {
-		vals[0] = read_phy_reg(pi, 0x2c);
-		vals[1] = read_phy_reg(pi, 0x42);
-	} else {
-		write_phy_reg(pi, 0x2c, vals[0]);
-		write_phy_reg(pi, 0x42, vals[1]);
-	}
-}
-
 void wlc_phy_force_rfseq_nphy(struct brcms_phy *pi, u8 cmd)
 {
 	u16 trigger_mask, status_mask;
@@ -19585,575 +21493,6 @@ void wlc_phy_force_rfseq_nphy(struct brcms_phy *pi, u8 cmd)
 	SPINWAIT((read_phy_reg(pi, 0xa4) & status_mask), 200000);
 	write_phy_reg(pi, 0xa1, orig_RfseqCoreActv);
 	WARN(read_phy_reg(pi, 0xa4) & status_mask, "HW error in rf");
-}
-
-static void
-wlc_phy_set_rfseq_nphy(struct brcms_phy *pi, u8 cmd, u8 *events, u8 *dlys,
-		       u8 len)
-{
-	u32 t1_offset, t2_offset;
-	u8 ctr;
-	u8 end_event =
-		NREV_GE(pi->pubpi.phy_rev,
-			3) ? NPHY_REV3_RFSEQ_CMD_END : NPHY_RFSEQ_CMD_END;
-	u8 end_dly = 1;
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	t1_offset = cmd << 4;
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, len, t1_offset, 8,
-				 events);
-	t2_offset = t1_offset + 0x080;
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, len, t2_offset, 8,
-				 dlys);
-
-	for (ctr = len; ctr < 16; ctr++) {
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 1,
-					 t1_offset + ctr, 8, &end_event);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 1,
-					 t2_offset + ctr, 8, &end_dly);
-	}
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-}
-
-static u16 wlc_phy_read_lpf_bw_ctl_nphy(struct brcms_phy *pi, u16 offset)
-{
-	u16 lpf_bw_ctl_val = 0;
-	u16 rx2tx_lpf_rc_lut_offset = 0;
-
-	if (offset == 0) {
-		if (CHSPEC_IS40(pi->radio_chanspec))
-			rx2tx_lpf_rc_lut_offset = 0x159;
-		else
-			rx2tx_lpf_rc_lut_offset = 0x154;
-	} else {
-		rx2tx_lpf_rc_lut_offset = offset;
-	}
-	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 1,
-				(u32) rx2tx_lpf_rc_lut_offset, 16,
-				&lpf_bw_ctl_val);
-
-	lpf_bw_ctl_val = lpf_bw_ctl_val & 0x7;
-
-	return lpf_bw_ctl_val;
-}
-
-static void
-wlc_phy_rfctrl_override_nphy_rev7(struct brcms_phy *pi, u16 field, u16 value,
-				  u8 core_mask, u8 off, u8 override_id)
-{
-	u8 core_num;
-	u16 addr = 0, en_addr = 0, val_addr = 0, en_mask = 0, val_mask = 0;
-	u8 val_shift = 0;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-		en_mask = field;
-		for (core_num = 0; core_num < 2; core_num++) {
-			if (override_id == NPHY_REV7_RFCTRLOVERRIDE_ID0) {
-
-				switch (field) {
-				case (0x1 << 2):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7a :
-						   0x7d;
-					val_mask = (0x1 << 1);
-					val_shift = 1;
-					break;
-				case (0x1 << 3):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7a :
-						   0x7d;
-					val_mask = (0x1 << 2);
-					val_shift = 2;
-					break;
-				case (0x1 << 4):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7a :
-						   0x7d;
-					val_mask = (0x1 << 4);
-					val_shift = 4;
-					break;
-				case (0x1 << 5):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7a :
-						   0x7d;
-					val_mask = (0x1 << 5);
-					val_shift = 5;
-					break;
-				case (0x1 << 6):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7a :
-						   0x7d;
-					val_mask = (0x1 << 6);
-					val_shift = 6;
-					break;
-				case (0x1 << 7):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7a :
-						   0x7d;
-					val_mask = (0x1 << 7);
-					val_shift = 7;
-					break;
-				case (0x1 << 10):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0xf8 :
-						   0xfa;
-					val_mask = (0x7 << 4);
-					val_shift = 4;
-					break;
-				case (0x1 << 11):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7b :
-						   0x7e;
-					val_mask = (0xffff << 0);
-					val_shift = 0;
-					break;
-				case (0x1 << 12):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x7c :
-						   0x7f;
-					val_mask = (0xffff << 0);
-					val_shift = 0;
-					break;
-				case (0x3 << 13):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x348 :
-						   0x349;
-					val_mask = (0xff << 0);
-					val_shift = 0;
-					break;
-				case (0x1 << 13):
-					en_addr = (core_num == 0) ? 0xe7 : 0xec;
-					val_addr = (core_num == 0) ? 0x348 :
-						   0x349;
-					val_mask = (0xf << 0);
-					val_shift = 0;
-					break;
-				default:
-					addr = 0xffff;
-					break;
-				}
-			} else if (override_id ==
-				   NPHY_REV7_RFCTRLOVERRIDE_ID1) {
-
-				switch (field) {
-				case (0x1 << 1):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 1);
-					val_shift = 1;
-					break;
-				case (0x1 << 3):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 3);
-					val_shift = 3;
-					break;
-				case (0x1 << 5):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 5);
-					val_shift = 5;
-					break;
-				case (0x1 << 4):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 4);
-					val_shift = 4;
-					break;
-				case (0x1 << 2):
-
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 2);
-					val_shift = 2;
-					break;
-				case (0x1 << 7):
-
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x7 << 8);
-					val_shift = 8;
-					break;
-				case (0x1 << 11):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 14);
-					val_shift = 14;
-					break;
-				case (0x1 << 10):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 13);
-					val_shift = 13;
-					break;
-				case (0x1 << 9):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 12);
-					val_shift = 12;
-					break;
-				case (0x1 << 8):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 11);
-					val_shift = 11;
-					break;
-				case (0x1 << 6):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 6);
-					val_shift = 6;
-					break;
-				case (0x1 << 0):
-					en_addr = (core_num == 0) ? 0x342 :
-						  0x343;
-					val_addr = (core_num == 0) ? 0x340 :
-						   0x341;
-					val_mask = (0x1 << 0);
-					val_shift = 0;
-					break;
-				default:
-					addr = 0xffff;
-					break;
-				}
-			} else if (override_id ==
-				   NPHY_REV7_RFCTRLOVERRIDE_ID2) {
-
-				switch (field) {
-				case (0x1 << 3):
-					en_addr = (core_num == 0) ? 0x346 :
-						  0x347;
-					val_addr = (core_num == 0) ? 0x344 :
-						   0x345;
-					val_mask = (0x1 << 3);
-					val_shift = 3;
-					break;
-				case (0x1 << 1):
-					en_addr = (core_num == 0) ? 0x346 :
-						  0x347;
-					val_addr = (core_num == 0) ? 0x344 :
-						   0x345;
-					val_mask = (0x1 << 1);
-					val_shift = 1;
-					break;
-				case (0x1 << 0):
-					en_addr = (core_num == 0) ? 0x346 :
-						  0x347;
-					val_addr = (core_num == 0) ? 0x344 :
-						   0x345;
-					val_mask = (0x1 << 0);
-					val_shift = 0;
-					break;
-				case (0x1 << 2):
-					en_addr = (core_num == 0) ? 0x346 :
-						  0x347;
-					val_addr = (core_num == 0) ? 0x344 :
-						   0x345;
-					val_mask = (0x1 << 2);
-					val_shift = 2;
-					break;
-				case (0x1 << 4):
-					en_addr = (core_num == 0) ? 0x346 :
-						  0x347;
-					val_addr = (core_num == 0) ? 0x344 :
-						   0x345;
-					val_mask = (0x1 << 4);
-					val_shift = 4;
-					break;
-				default:
-					addr = 0xffff;
-					break;
-				}
-			}
-
-			if (off) {
-				and_phy_reg(pi, en_addr, ~en_mask);
-				and_phy_reg(pi, val_addr, ~val_mask);
-			} else {
-
-				if ((core_mask == 0)
-				    || (core_mask & (1 << core_num))) {
-					or_phy_reg(pi, en_addr, en_mask);
-
-					if (addr != 0xffff)
-						mod_phy_reg(pi, val_addr,
-							    val_mask,
-							    (value <<
-							     val_shift));
-				}
-			}
-		}
-	}
-}
-
-static void
-wlc_phy_rfctrl_override_nphy(struct brcms_phy *pi, u16 field, u16 value,
-			     u8 core_mask, u8 off)
-{
-	u8 core_num;
-	u16 addr = 0, mask = 0, en_addr = 0, val_addr = 0, en_mask =
-		0, val_mask = 0;
-	u8 shift = 0, val_shift = 0;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3) && NREV_LT(pi->pubpi.phy_rev, 7)) {
-
-		en_mask = field;
-		for (core_num = 0; core_num < 2; core_num++) {
-
-			switch (field) {
-			case (0x1 << 1):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 0);
-				val_shift = 0;
-				break;
-			case (0x1 << 2):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 1);
-				val_shift = 1;
-				break;
-			case (0x1 << 3):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 2);
-				val_shift = 2;
-				break;
-			case (0x1 << 4):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 4);
-				val_shift = 4;
-				break;
-			case (0x1 << 5):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 5);
-				val_shift = 5;
-				break;
-			case (0x1 << 6):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 6);
-				val_shift = 6;
-				break;
-			case (0x1 << 7):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x1 << 7);
-				val_shift = 7;
-				break;
-			case (0x1 << 8):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x7 << 8);
-				val_shift = 8;
-				break;
-			case (0x1 << 11):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7a : 0x7d;
-				val_mask = (0x7 << 13);
-				val_shift = 13;
-				break;
-
-			case (0x1 << 9):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0xf8 : 0xfa;
-				val_mask = (0x7 << 0);
-				val_shift = 0;
-				break;
-
-			case (0x1 << 10):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0xf8 : 0xfa;
-				val_mask = (0x7 << 4);
-				val_shift = 4;
-				break;
-
-			case (0x1 << 12):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7b : 0x7e;
-				val_mask = (0xffff << 0);
-				val_shift = 0;
-				break;
-			case (0x1 << 13):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0x7c : 0x7f;
-				val_mask = (0xffff << 0);
-				val_shift = 0;
-				break;
-			case (0x1 << 14):
-				en_addr = (core_num == 0) ? 0xe7 : 0xec;
-				val_addr = (core_num == 0) ? 0xf9 : 0xfb;
-				val_mask = (0x3 << 6);
-				val_shift = 6;
-				break;
-			case (0x1 << 0):
-				en_addr = (core_num == 0) ? 0xe5 : 0xe6;
-				val_addr = (core_num == 0) ? 0xf9 : 0xfb;
-				val_mask = (0x1 << 15);
-				val_shift = 15;
-				break;
-			default:
-				addr = 0xffff;
-				break;
-			}
-
-			if (off) {
-				and_phy_reg(pi, en_addr, ~en_mask);
-				and_phy_reg(pi, val_addr, ~val_mask);
-			} else {
-
-				if ((core_mask == 0)
-				    || (core_mask & (1 << core_num))) {
-					or_phy_reg(pi, en_addr, en_mask);
-
-					if (addr != 0xffff)
-						mod_phy_reg(pi, val_addr,
-							    val_mask,
-							    (value <<
-							     val_shift));
-				}
-			}
-		}
-	} else {
-
-		if (off) {
-			and_phy_reg(pi, 0xec, ~field);
-			value = 0x0;
-		} else {
-			or_phy_reg(pi, 0xec, field);
-		}
-
-		for (core_num = 0; core_num < 2; core_num++) {
-
-			switch (field) {
-			case (0x1 << 1):
-			case (0x1 << 9):
-			case (0x1 << 12):
-			case (0x1 << 13):
-			case (0x1 << 14):
-				addr = 0x78;
-
-				core_mask = 0x1;
-				break;
-			case (0x1 << 2):
-			case (0x1 << 3):
-			case (0x1 << 4):
-			case (0x1 << 5):
-			case (0x1 << 6):
-			case (0x1 << 7):
-			case (0x1 << 8):
-				addr = (core_num == 0) ? 0x7a : 0x7d;
-				break;
-			case (0x1 << 10):
-				addr = (core_num == 0) ? 0x7b : 0x7e;
-				break;
-			case (0x1 << 11):
-				addr = (core_num == 0) ? 0x7c : 0x7f;
-				break;
-			default:
-				addr = 0xffff;
-			}
-
-			switch (field) {
-			case (0x1 << 1):
-				mask = (0x7 << 3);
-				shift = 3;
-				break;
-			case (0x1 << 9):
-				mask = (0x1 << 2);
-				shift = 2;
-				break;
-			case (0x1 << 12):
-				mask = (0x1 << 8);
-				shift = 8;
-				break;
-			case (0x1 << 13):
-				mask = (0x1 << 9);
-				shift = 9;
-				break;
-			case (0x1 << 14):
-				mask = (0xf << 12);
-				shift = 12;
-				break;
-			case (0x1 << 2):
-				mask = (0x1 << 0);
-				shift = 0;
-				break;
-			case (0x1 << 3):
-				mask = (0x1 << 1);
-				shift = 1;
-				break;
-			case (0x1 << 4):
-				mask = (0x1 << 2);
-				shift = 2;
-				break;
-			case (0x1 << 5):
-				mask = (0x3 << 4);
-				shift = 4;
-				break;
-			case (0x1 << 6):
-				mask = (0x3 << 6);
-				shift = 6;
-				break;
-			case (0x1 << 7):
-				mask = (0x1 << 8);
-				shift = 8;
-				break;
-			case (0x1 << 8):
-				mask = (0x1 << 9);
-				shift = 9;
-				break;
-			case (0x1 << 10):
-				mask = 0x1fff;
-				shift = 0x0;
-				break;
-			case (0x1 << 11):
-				mask = 0x1fff;
-				shift = 0x0;
-				break;
-			default:
-				mask = 0x0;
-				shift = 0x0;
-				break;
-			}
-
-			if ((addr != 0xffff) && (core_mask & (1 << core_num)))
-				mod_phy_reg(pi, addr, mask, (value << shift));
-		}
-
-		or_phy_reg(pi, 0xec, (0x1 << 0));
-		or_phy_reg(pi, 0x78, (0x1 << 0));
-		udelay(1);
-		and_phy_reg(pi, 0xec, ~(0x1 << 0));
-	}
 }
 
 static void
@@ -21067,491 +22406,6 @@ wlc_phy_set_rssi_2055_vcm(struct brcms_phy *pi, u8 rssi_type, u8 *vcm_buf)
 	}
 }
 
-void wlc_phy_rssi_cal_nphy(struct brcms_phy *pi)
-{
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		wlc_phy_rssi_cal_nphy_rev3(pi);
-	} else {
-		wlc_phy_rssi_cal_nphy_rev2(pi, NPHY_RSSI_SEL_NB);
-		wlc_phy_rssi_cal_nphy_rev2(pi, NPHY_RSSI_SEL_W1);
-		wlc_phy_rssi_cal_nphy_rev2(pi, NPHY_RSSI_SEL_W2);
-	}
-}
-
-static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
-{
-	s32 target_code;
-	u16 classif_state;
-	u16 clip_state[2];
-	u16 rssi_ctrl_state[2], pd_state[2];
-	u16 rfctrlintc_state[2], rfpdcorerxtx_state[2];
-	u16 rfctrlintc_override_val;
-	u16 clip_off[] = { 0xffff, 0xffff };
-	u16 rf_pd_val, pd_mask, rssi_ctrl_mask;
-	u8 vcm, min_vcm, vcm_tmp[4];
-	u8 vcm_final[4] = { 0, 0, 0, 0 };
-	u8 result_idx, ctr;
-	s32 poll_results[4][4] = {
-		{0, 0, 0, 0},
-		{0, 0, 0, 0},
-		{0, 0, 0, 0},
-		{0, 0, 0, 0}
-	};
-	s32 poll_miniq[4][2] = {
-		{0, 0},
-		{0, 0},
-		{0, 0},
-		{0, 0}
-	};
-	s32 min_d, curr_d;
-	s32 fine_digital_offset[4];
-	s32 poll_results_min[4] = { 0, 0, 0, 0 };
-	s32 min_poll;
-
-	switch (rssi_type) {
-	case NPHY_RSSI_SEL_NB:
-		target_code = NPHY_RSSICAL_NB_TARGET;
-		break;
-	case NPHY_RSSI_SEL_W1:
-		target_code = NPHY_RSSICAL_W1_TARGET;
-		break;
-	case NPHY_RSSI_SEL_W2:
-		target_code = NPHY_RSSICAL_W2_TARGET;
-		break;
-	default:
-		return;
-		break;
-	}
-
-	classif_state = wlc_phy_classifier_nphy(pi, 0, 0);
-	wlc_phy_classifier_nphy(pi, (0x7 << 0), 4);
-	wlc_phy_clip_det_nphy(pi, 0, clip_state);
-	wlc_phy_clip_det_nphy(pi, 1, clip_off);
-
-	rf_pd_val = (rssi_type == NPHY_RSSI_SEL_NB) ? 0x6 : 0x4;
-	rfctrlintc_override_val =
-		CHSPEC_IS5G(pi->radio_chanspec) ? 0x140 : 0x110;
-
-	rfctrlintc_state[0] = read_phy_reg(pi, 0x91);
-	rfpdcorerxtx_state[0] = read_radio_reg(pi, RADIO_2055_PD_CORE1_RXTX);
-	write_phy_reg(pi, 0x91, rfctrlintc_override_val);
-	write_radio_reg(pi, RADIO_2055_PD_CORE1_RXTX, rf_pd_val);
-
-	rfctrlintc_state[1] = read_phy_reg(pi, 0x92);
-	rfpdcorerxtx_state[1] = read_radio_reg(pi, RADIO_2055_PD_CORE2_RXTX);
-	write_phy_reg(pi, 0x92, rfctrlintc_override_val);
-	write_radio_reg(pi, RADIO_2055_PD_CORE2_RXTX, rf_pd_val);
-
-	pd_mask = RADIO_2055_NBRSSI_PD | RADIO_2055_WBRSSI_G1_PD |
-		  RADIO_2055_WBRSSI_G2_PD;
-	pd_state[0] =
-		read_radio_reg(pi, RADIO_2055_PD_CORE1_RSSI_MISC) & pd_mask;
-	pd_state[1] =
-		read_radio_reg(pi, RADIO_2055_PD_CORE2_RSSI_MISC) & pd_mask;
-	mod_radio_reg(pi, RADIO_2055_PD_CORE1_RSSI_MISC, pd_mask, 0);
-	mod_radio_reg(pi, RADIO_2055_PD_CORE2_RSSI_MISC, pd_mask, 0);
-	rssi_ctrl_mask = RADIO_2055_NBRSSI_SEL | RADIO_2055_WBRSSI_G1_SEL |
-			 RADIO_2055_WBRSSI_G2_SEL;
-	rssi_ctrl_state[0] =
-		read_radio_reg(pi, RADIO_2055_SP_RSSI_CORE1) & rssi_ctrl_mask;
-	rssi_ctrl_state[1] =
-		read_radio_reg(pi, RADIO_2055_SP_RSSI_CORE2) & rssi_ctrl_mask;
-	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_ALLRX, rssi_type);
-
-	wlc_phy_scale_offset_rssi_nphy(pi, 0x0, 0x0, RADIO_MIMO_CORESEL_ALLRX,
-				       NPHY_RAIL_I, rssi_type);
-	wlc_phy_scale_offset_rssi_nphy(pi, 0x0, 0x0, RADIO_MIMO_CORESEL_ALLRX,
-				       NPHY_RAIL_Q, rssi_type);
-
-	for (vcm = 0; vcm < 4; vcm++) {
-
-		vcm_tmp[0] = vcm_tmp[1] = vcm_tmp[2] = vcm_tmp[3] = vcm;
-		if (rssi_type != NPHY_RSSI_SEL_W2)
-			wlc_phy_set_rssi_2055_vcm(pi, rssi_type, vcm_tmp);
-
-		wlc_phy_poll_rssi_nphy(pi, rssi_type, &poll_results[vcm][0],
-				       NPHY_RSSICAL_NPOLL);
-
-		if ((rssi_type == NPHY_RSSI_SEL_W1)
-		    || (rssi_type == NPHY_RSSI_SEL_W2)) {
-			for (ctr = 0; ctr < 2; ctr++)
-				poll_miniq[vcm][ctr] =
-					min(poll_results[vcm][ctr * 2 + 0],
-					    poll_results[vcm][ctr * 2 + 1]);
-		}
-	}
-
-	for (result_idx = 0; result_idx < 4; result_idx++) {
-		min_d = NPHY_RSSICAL_MAXD;
-		min_vcm = 0;
-		min_poll = NPHY_RSSICAL_MAXREAD * NPHY_RSSICAL_NPOLL + 1;
-		for (vcm = 0; vcm < 4; vcm++) {
-			curr_d = ABS(((rssi_type == NPHY_RSSI_SEL_NB) ?
-				      poll_results[vcm][result_idx] :
-				      poll_miniq[vcm][result_idx / 2]) -
-				     (target_code * NPHY_RSSICAL_NPOLL));
-			if (curr_d < min_d) {
-				min_d = curr_d;
-				min_vcm = vcm;
-			}
-			if (poll_results[vcm][result_idx] < min_poll)
-				min_poll = poll_results[vcm][result_idx];
-		}
-		vcm_final[result_idx] = min_vcm;
-		poll_results_min[result_idx] = min_poll;
-	}
-
-	if (rssi_type != NPHY_RSSI_SEL_W2)
-		wlc_phy_set_rssi_2055_vcm(pi, rssi_type, vcm_final);
-
-	for (result_idx = 0; result_idx < 4; result_idx++) {
-		fine_digital_offset[result_idx] =
-			(target_code * NPHY_RSSICAL_NPOLL) -
-			poll_results[vcm_final[result_idx]][result_idx];
-		if (fine_digital_offset[result_idx] < 0) {
-			fine_digital_offset[result_idx] =
-				ABS(fine_digital_offset[result_idx]);
-			fine_digital_offset[result_idx] +=
-				(NPHY_RSSICAL_NPOLL / 2);
-			fine_digital_offset[result_idx] /= NPHY_RSSICAL_NPOLL;
-			fine_digital_offset[result_idx] =
-				-fine_digital_offset[result_idx];
-		} else {
-			fine_digital_offset[result_idx] +=
-				(NPHY_RSSICAL_NPOLL / 2);
-			fine_digital_offset[result_idx] /= NPHY_RSSICAL_NPOLL;
-		}
-
-		if (poll_results_min[result_idx] ==
-		    NPHY_RSSICAL_MAXREAD * NPHY_RSSICAL_NPOLL)
-			fine_digital_offset[result_idx] =
-				(target_code - NPHY_RSSICAL_MAXREAD - 1);
-
-		wlc_phy_scale_offset_rssi_nphy(pi, 0x0,
-					       (s8)
-					       fine_digital_offset[result_idx],
-					       (result_idx / 2 ==
-						0) ? RADIO_MIMO_CORESEL_CORE1 :
-					       RADIO_MIMO_CORESEL_CORE2,
-					       (result_idx % 2 ==
-						0) ? NPHY_RAIL_I : NPHY_RAIL_Q,
-					       rssi_type);
-	}
-
-	mod_radio_reg(pi, RADIO_2055_PD_CORE1_RSSI_MISC, pd_mask, pd_state[0]);
-	mod_radio_reg(pi, RADIO_2055_PD_CORE2_RSSI_MISC, pd_mask, pd_state[1]);
-	if (rssi_ctrl_state[0] == RADIO_2055_NBRSSI_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
-				     NPHY_RSSI_SEL_NB);
-	else if (rssi_ctrl_state[0] == RADIO_2055_WBRSSI_G1_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
-				     NPHY_RSSI_SEL_W1);
-	else if (rssi_ctrl_state[0] == RADIO_2055_WBRSSI_G2_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
-				     NPHY_RSSI_SEL_W2);
-	else
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
-				     NPHY_RSSI_SEL_W2);
-	if (rssi_ctrl_state[1] == RADIO_2055_NBRSSI_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
-				     NPHY_RSSI_SEL_NB);
-	else if (rssi_ctrl_state[1] == RADIO_2055_WBRSSI_G1_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
-				     NPHY_RSSI_SEL_W1);
-	else if (rssi_ctrl_state[1] == RADIO_2055_WBRSSI_G2_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
-				     NPHY_RSSI_SEL_W2);
-	else
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
-				     NPHY_RSSI_SEL_W2);
-
-	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_OFF, rssi_type);
-
-	write_phy_reg(pi, 0x91, rfctrlintc_state[0]);
-	write_radio_reg(pi, RADIO_2055_PD_CORE1_RXTX, rfpdcorerxtx_state[0]);
-	write_phy_reg(pi, 0x92, rfctrlintc_state[1]);
-	write_radio_reg(pi, RADIO_2055_PD_CORE2_RXTX, rfpdcorerxtx_state[1]);
-
-	wlc_phy_classifier_nphy(pi, (0x7 << 0), classif_state);
-	wlc_phy_clip_det_nphy(pi, 1, clip_state);
-
-	wlc_phy_resetcca_nphy(pi);
-}
-
-int
-wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct brcms_d11rxhdr *wlc_rxh)
-{
-	struct d11rxhdr *rxh = &wlc_rxh->rxhdr;
-	s16 rxpwr, rxpwr0, rxpwr1;
-	s16 phyRx0_l, phyRx2_l;
-
-	rxpwr = 0;
-	rxpwr0 = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR0_MASK;
-	rxpwr1 = (le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR1_MASK) >> 8;
-
-	if (rxpwr0 > 127)
-		rxpwr0 -= 256;
-	if (rxpwr1 > 127)
-		rxpwr1 -= 256;
-
-	phyRx0_l = le16_to_cpu(rxh->PhyRxStatus_0) & 0x00ff;
-	phyRx2_l = le16_to_cpu(rxh->PhyRxStatus_2) & 0x00ff;
-	if (phyRx2_l > 127)
-		phyRx2_l -= 256;
-
-	if (((rxpwr0 == 16) || (rxpwr0 == 32))) {
-		rxpwr0 = rxpwr1;
-		rxpwr1 = phyRx2_l;
-	}
-
-	wlc_rxh->rxpwr[0] = (s8) rxpwr0;
-	wlc_rxh->rxpwr[1] = (s8) rxpwr1;
-	wlc_rxh->do_rssi_ma = 0;
-
-	if (pi->sh->rssi_mode == RSSI_ANT_MERGE_MAX)
-		rxpwr = (rxpwr0 > rxpwr1) ? rxpwr0 : rxpwr1;
-	else if (pi->sh->rssi_mode == RSSI_ANT_MERGE_MIN)
-		rxpwr = (rxpwr0 < rxpwr1) ? rxpwr0 : rxpwr1;
-	else if (pi->sh->rssi_mode == RSSI_ANT_MERGE_AVG)
-		rxpwr = (rxpwr0 + rxpwr1) >> 1;
-
-	return rxpwr;
-}
-
-static void
-wlc_phy_rfctrlintc_override_nphy(struct brcms_phy *pi, u8 field, u16 value,
-				 u8 core_code)
-{
-	u16 mask;
-	u16 val;
-	u8 core;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-			if (core_code == RADIO_MIMO_CORESEL_CORE1
-			    && core == PHY_CORE_1)
-				continue;
-			else if (core_code == RADIO_MIMO_CORESEL_CORE2
-				 && core == PHY_CORE_0)
-				continue;
-
-			if (NREV_LT(pi->pubpi.phy_rev, 7)) {
-
-				mask = (0x1 << 10);
-				val = 1 << 10;
-				mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x91 :
-					    0x92, mask, val);
-			}
-
-			if (field == NPHY_RfctrlIntc_override_OFF) {
-
-				write_phy_reg(pi, (core == PHY_CORE_0) ? 0x91 :
-					      0x92, 0);
-
-				wlc_phy_force_rfseq_nphy(pi,
-							 NPHY_RFSEQ_RESET2RX);
-			} else if (field == NPHY_RfctrlIntc_override_TRSW) {
-
-				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-					mask = (0x1 << 6) | (0x1 << 7);
-
-					val = value << 6;
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-
-					or_phy_reg(pi,
-						   (core ==
-						    PHY_CORE_0) ? 0x91 : 0x92,
-						   (0x1 << 10));
-
-					and_phy_reg(pi, 0x2ff, (u16)
-						    ~(0x3 << 14));
-					or_phy_reg(pi, 0x2ff, (0x1 << 13));
-					or_phy_reg(pi, 0x2ff, (0x1 << 0));
-				} else {
-
-					mask = (0x1 << 6) |
-					       (0x1 << 7) |
-					       (0x1 << 8) | (0x1 << 9);
-					val = value << 6;
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-
-					mask = (0x1 << 0);
-					val = 1 << 0;
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0xe7 : 0xec,
-						    mask, val);
-
-					mask = (core == PHY_CORE_0) ?
-					       (0x1 << 0) : (0x1 << 1);
-					val = 1 << ((core == PHY_CORE_0) ?
-						    0 : 1);
-					mod_phy_reg(pi, 0x78, mask, val);
-
-					SPINWAIT(((read_phy_reg(pi, 0x78) & val)
-						  != 0), 10000);
-					if (WARN(read_phy_reg(pi, 0x78) & val,
-						 "HW error: override failed"))
-						return;
-
-					mask = (0x1 << 0);
-					val = 0 << 0;
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0xe7 : 0xec,
-						    mask, val);
-				}
-			} else if (field == NPHY_RfctrlIntc_override_PA) {
-				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-					mask = (0x1 << 4) | (0x1 << 5);
-
-					if (CHSPEC_IS5G(pi->radio_chanspec))
-						val = value << 5;
-					else
-						val = value << 4;
-
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-
-					or_phy_reg(pi,
-						   (core ==
-						    PHY_CORE_0) ? 0x91 : 0x92,
-						   (0x1 << 12));
-				} else {
-
-					if (CHSPEC_IS5G(pi->radio_chanspec)) {
-						mask = (0x1 << 5);
-						val = value << 5;
-					} else {
-						mask = (0x1 << 4);
-						val = value << 4;
-					}
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-				}
-			} else if (field ==
-				   NPHY_RfctrlIntc_override_EXT_LNA_PU) {
-				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-					if (CHSPEC_IS5G(pi->radio_chanspec)) {
-
-						mask = (0x1 << 0);
-						val = value << 0;
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, val);
-
-						mask = (0x1 << 2);
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, 0);
-					} else {
-
-						mask = (0x1 << 2);
-						val = value << 2;
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, val);
-
-						mask = (0x1 << 0);
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, 0);
-					}
-
-					mask = (0x1 << 11);
-					val = 1 << 11;
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-				} else {
-
-					if (CHSPEC_IS5G(pi->radio_chanspec)) {
-						mask = (0x1 << 0);
-						val = value << 0;
-					} else {
-						mask = (0x1 << 2);
-						val = value << 2;
-					}
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-				}
-			} else if (field ==
-				   NPHY_RfctrlIntc_override_EXT_LNA_GAIN) {
-				if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-					if (CHSPEC_IS5G(pi->radio_chanspec)) {
-
-						mask = (0x1 << 1);
-						val = value << 1;
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, val);
-
-						mask = (0x1 << 3);
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, 0);
-					} else {
-
-						mask = (0x1 << 3);
-						val = value << 3;
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, val);
-
-						mask = (0x1 << 1);
-						mod_phy_reg(pi,
-							    (core ==
-							     PHY_CORE_0) ? 0x91
-							    : 0x92, mask, 0);
-					}
-
-					mask = (0x1 << 11);
-					val = 1 << 11;
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-				} else {
-
-					if (CHSPEC_IS5G(pi->radio_chanspec)) {
-						mask = (0x1 << 1);
-						val = value << 1;
-					} else {
-						mask = (0x1 << 3);
-						val = value << 3;
-					}
-					mod_phy_reg(pi,
-						    (core ==
-						     PHY_CORE_0) ? 0x91 : 0x92,
-						    mask, val);
-				}
-			}
-		}
-	}
-}
-
 static void wlc_phy_rssi_cal_nphy_rev3(struct brcms_phy *pi)
 {
 	u16 classif_state;
@@ -22041,110 +22895,281 @@ static void wlc_phy_rssi_cal_nphy_rev3(struct brcms_phy *pi)
 	wlc_phy_clip_det_nphy(pi, 1, clip_state);
 }
 
-static void wlc_phy_restore_rssical_nphy(struct brcms_phy *pi)
+static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 {
-	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-		if (pi->nphy_rssical_chanspec_2G == 0)
-			return;
+	s32 target_code;
+	u16 classif_state;
+	u16 clip_state[2];
+	u16 rssi_ctrl_state[2], pd_state[2];
+	u16 rfctrlintc_state[2], rfpdcorerxtx_state[2];
+	u16 rfctrlintc_override_val;
+	u16 clip_off[] = { 0xffff, 0xffff };
+	u16 rf_pd_val, pd_mask, rssi_ctrl_mask;
+	u8 vcm, min_vcm, vcm_tmp[4];
+	u8 vcm_final[4] = { 0, 0, 0, 0 };
+	u8 result_idx, ctr;
+	s32 poll_results[4][4] = {
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0}
+	};
+	s32 poll_miniq[4][2] = {
+		{0, 0},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+	};
+	s32 min_d, curr_d;
+	s32 fine_digital_offset[4];
+	s32 poll_results_min[4] = { 0, 0, 0, 0 };
+	s32 min_poll;
 
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE0,
-				      RADIO_2057_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_2G[0]);
-			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE1,
-				      RADIO_2057_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_2G[1]);
-		} else {
-			mod_radio_reg(pi,
-				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX0,
-				      RADIO_2056_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_2G[0]);
-			mod_radio_reg(pi,
-				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX1,
-				      RADIO_2056_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_2G[1]);
-		}
-
-		write_phy_reg(pi, 0x1a6,
-			      pi->rssical_cache.rssical_phyregs_2G[0]);
-		write_phy_reg(pi, 0x1ac,
-			      pi->rssical_cache.rssical_phyregs_2G[1]);
-		write_phy_reg(pi, 0x1b2,
-			      pi->rssical_cache.rssical_phyregs_2G[2]);
-		write_phy_reg(pi, 0x1b8,
-			      pi->rssical_cache.rssical_phyregs_2G[3]);
-		write_phy_reg(pi, 0x1a4,
-			      pi->rssical_cache.rssical_phyregs_2G[4]);
-		write_phy_reg(pi, 0x1aa,
-			      pi->rssical_cache.rssical_phyregs_2G[5]);
-		write_phy_reg(pi, 0x1b0,
-			      pi->rssical_cache.rssical_phyregs_2G[6]);
-		write_phy_reg(pi, 0x1b6,
-			      pi->rssical_cache.rssical_phyregs_2G[7]);
-		write_phy_reg(pi, 0x1a5,
-			      pi->rssical_cache.rssical_phyregs_2G[8]);
-		write_phy_reg(pi, 0x1ab,
-			      pi->rssical_cache.rssical_phyregs_2G[9]);
-		write_phy_reg(pi, 0x1b1,
-			      pi->rssical_cache.rssical_phyregs_2G[10]);
-		write_phy_reg(pi, 0x1b7,
-			      pi->rssical_cache.rssical_phyregs_2G[11]);
-
-	} else {
-		if (pi->nphy_rssical_chanspec_5G == 0)
-			return;
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE0,
-				      RADIO_2057_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_5G[0]);
-			mod_radio_reg(pi, RADIO_2057_NB_MASTER_CORE1,
-				      RADIO_2057_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_5G[1]);
-		} else {
-			mod_radio_reg(pi,
-				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX0,
-				      RADIO_2056_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_5G[0]);
-			mod_radio_reg(pi,
-				      RADIO_2056_RX_RSSI_MISC | RADIO_2056_RX1,
-				      RADIO_2056_VCM_MASK,
-				      pi->rssical_cache.
-				      rssical_radio_regs_5G[1]);
-		}
-
-		write_phy_reg(pi, 0x1a6,
-			      pi->rssical_cache.rssical_phyregs_5G[0]);
-		write_phy_reg(pi, 0x1ac,
-			      pi->rssical_cache.rssical_phyregs_5G[1]);
-		write_phy_reg(pi, 0x1b2,
-			      pi->rssical_cache.rssical_phyregs_5G[2]);
-		write_phy_reg(pi, 0x1b8,
-			      pi->rssical_cache.rssical_phyregs_5G[3]);
-		write_phy_reg(pi, 0x1a4,
-			      pi->rssical_cache.rssical_phyregs_5G[4]);
-		write_phy_reg(pi, 0x1aa,
-			      pi->rssical_cache.rssical_phyregs_5G[5]);
-		write_phy_reg(pi, 0x1b0,
-			      pi->rssical_cache.rssical_phyregs_5G[6]);
-		write_phy_reg(pi, 0x1b6,
-			      pi->rssical_cache.rssical_phyregs_5G[7]);
-		write_phy_reg(pi, 0x1a5,
-			      pi->rssical_cache.rssical_phyregs_5G[8]);
-		write_phy_reg(pi, 0x1ab,
-			      pi->rssical_cache.rssical_phyregs_5G[9]);
-		write_phy_reg(pi, 0x1b1,
-			      pi->rssical_cache.rssical_phyregs_5G[10]);
-		write_phy_reg(pi, 0x1b7,
-			      pi->rssical_cache.rssical_phyregs_5G[11]);
+	switch (rssi_type) {
+	case NPHY_RSSI_SEL_NB:
+		target_code = NPHY_RSSICAL_NB_TARGET;
+		break;
+	case NPHY_RSSI_SEL_W1:
+		target_code = NPHY_RSSICAL_W1_TARGET;
+		break;
+	case NPHY_RSSI_SEL_W2:
+		target_code = NPHY_RSSICAL_W2_TARGET;
+		break;
+	default:
+		return;
+		break;
 	}
+
+	classif_state = wlc_phy_classifier_nphy(pi, 0, 0);
+	wlc_phy_classifier_nphy(pi, (0x7 << 0), 4);
+	wlc_phy_clip_det_nphy(pi, 0, clip_state);
+	wlc_phy_clip_det_nphy(pi, 1, clip_off);
+
+	rf_pd_val = (rssi_type == NPHY_RSSI_SEL_NB) ? 0x6 : 0x4;
+	rfctrlintc_override_val =
+		CHSPEC_IS5G(pi->radio_chanspec) ? 0x140 : 0x110;
+
+	rfctrlintc_state[0] = read_phy_reg(pi, 0x91);
+	rfpdcorerxtx_state[0] = read_radio_reg(pi, RADIO_2055_PD_CORE1_RXTX);
+	write_phy_reg(pi, 0x91, rfctrlintc_override_val);
+	write_radio_reg(pi, RADIO_2055_PD_CORE1_RXTX, rf_pd_val);
+
+	rfctrlintc_state[1] = read_phy_reg(pi, 0x92);
+	rfpdcorerxtx_state[1] = read_radio_reg(pi, RADIO_2055_PD_CORE2_RXTX);
+	write_phy_reg(pi, 0x92, rfctrlintc_override_val);
+	write_radio_reg(pi, RADIO_2055_PD_CORE2_RXTX, rf_pd_val);
+
+	pd_mask = RADIO_2055_NBRSSI_PD | RADIO_2055_WBRSSI_G1_PD |
+		  RADIO_2055_WBRSSI_G2_PD;
+	pd_state[0] =
+		read_radio_reg(pi, RADIO_2055_PD_CORE1_RSSI_MISC) & pd_mask;
+	pd_state[1] =
+		read_radio_reg(pi, RADIO_2055_PD_CORE2_RSSI_MISC) & pd_mask;
+	mod_radio_reg(pi, RADIO_2055_PD_CORE1_RSSI_MISC, pd_mask, 0);
+	mod_radio_reg(pi, RADIO_2055_PD_CORE2_RSSI_MISC, pd_mask, 0);
+	rssi_ctrl_mask = RADIO_2055_NBRSSI_SEL | RADIO_2055_WBRSSI_G1_SEL |
+			 RADIO_2055_WBRSSI_G2_SEL;
+	rssi_ctrl_state[0] =
+		read_radio_reg(pi, RADIO_2055_SP_RSSI_CORE1) & rssi_ctrl_mask;
+	rssi_ctrl_state[1] =
+		read_radio_reg(pi, RADIO_2055_SP_RSSI_CORE2) & rssi_ctrl_mask;
+	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_ALLRX, rssi_type);
+
+	wlc_phy_scale_offset_rssi_nphy(pi, 0x0, 0x0, RADIO_MIMO_CORESEL_ALLRX,
+				       NPHY_RAIL_I, rssi_type);
+	wlc_phy_scale_offset_rssi_nphy(pi, 0x0, 0x0, RADIO_MIMO_CORESEL_ALLRX,
+				       NPHY_RAIL_Q, rssi_type);
+
+	for (vcm = 0; vcm < 4; vcm++) {
+
+		vcm_tmp[0] = vcm_tmp[1] = vcm_tmp[2] = vcm_tmp[3] = vcm;
+		if (rssi_type != NPHY_RSSI_SEL_W2)
+			wlc_phy_set_rssi_2055_vcm(pi, rssi_type, vcm_tmp);
+
+		wlc_phy_poll_rssi_nphy(pi, rssi_type, &poll_results[vcm][0],
+				       NPHY_RSSICAL_NPOLL);
+
+		if ((rssi_type == NPHY_RSSI_SEL_W1)
+		    || (rssi_type == NPHY_RSSI_SEL_W2)) {
+			for (ctr = 0; ctr < 2; ctr++)
+				poll_miniq[vcm][ctr] =
+					min(poll_results[vcm][ctr * 2 + 0],
+					    poll_results[vcm][ctr * 2 + 1]);
+		}
+	}
+
+	for (result_idx = 0; result_idx < 4; result_idx++) {
+		min_d = NPHY_RSSICAL_MAXD;
+		min_vcm = 0;
+		min_poll = NPHY_RSSICAL_MAXREAD * NPHY_RSSICAL_NPOLL + 1;
+		for (vcm = 0; vcm < 4; vcm++) {
+			curr_d = ABS(((rssi_type == NPHY_RSSI_SEL_NB) ?
+				      poll_results[vcm][result_idx] :
+				      poll_miniq[vcm][result_idx / 2]) -
+				     (target_code * NPHY_RSSICAL_NPOLL));
+			if (curr_d < min_d) {
+				min_d = curr_d;
+				min_vcm = vcm;
+			}
+			if (poll_results[vcm][result_idx] < min_poll)
+				min_poll = poll_results[vcm][result_idx];
+		}
+		vcm_final[result_idx] = min_vcm;
+		poll_results_min[result_idx] = min_poll;
+	}
+
+	if (rssi_type != NPHY_RSSI_SEL_W2)
+		wlc_phy_set_rssi_2055_vcm(pi, rssi_type, vcm_final);
+
+	for (result_idx = 0; result_idx < 4; result_idx++) {
+		fine_digital_offset[result_idx] =
+			(target_code * NPHY_RSSICAL_NPOLL) -
+			poll_results[vcm_final[result_idx]][result_idx];
+		if (fine_digital_offset[result_idx] < 0) {
+			fine_digital_offset[result_idx] =
+				ABS(fine_digital_offset[result_idx]);
+			fine_digital_offset[result_idx] +=
+				(NPHY_RSSICAL_NPOLL / 2);
+			fine_digital_offset[result_idx] /= NPHY_RSSICAL_NPOLL;
+			fine_digital_offset[result_idx] =
+				-fine_digital_offset[result_idx];
+		} else {
+			fine_digital_offset[result_idx] +=
+				(NPHY_RSSICAL_NPOLL / 2);
+			fine_digital_offset[result_idx] /= NPHY_RSSICAL_NPOLL;
+		}
+
+		if (poll_results_min[result_idx] ==
+		    NPHY_RSSICAL_MAXREAD * NPHY_RSSICAL_NPOLL)
+			fine_digital_offset[result_idx] =
+				(target_code - NPHY_RSSICAL_MAXREAD - 1);
+
+		wlc_phy_scale_offset_rssi_nphy(pi, 0x0,
+					       (s8)
+					       fine_digital_offset[result_idx],
+					       (result_idx / 2 ==
+						0) ? RADIO_MIMO_CORESEL_CORE1 :
+					       RADIO_MIMO_CORESEL_CORE2,
+					       (result_idx % 2 ==
+						0) ? NPHY_RAIL_I : NPHY_RAIL_Q,
+					       rssi_type);
+	}
+
+	mod_radio_reg(pi, RADIO_2055_PD_CORE1_RSSI_MISC, pd_mask, pd_state[0]);
+	mod_radio_reg(pi, RADIO_2055_PD_CORE2_RSSI_MISC, pd_mask, pd_state[1]);
+	if (rssi_ctrl_state[0] == RADIO_2055_NBRSSI_SEL)
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
+				     NPHY_RSSI_SEL_NB);
+	else if (rssi_ctrl_state[0] == RADIO_2055_WBRSSI_G1_SEL)
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
+				     NPHY_RSSI_SEL_W1);
+	else if (rssi_ctrl_state[0] == RADIO_2055_WBRSSI_G2_SEL)
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
+				     NPHY_RSSI_SEL_W2);
+	else
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
+				     NPHY_RSSI_SEL_W2);
+	if (rssi_ctrl_state[1] == RADIO_2055_NBRSSI_SEL)
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
+				     NPHY_RSSI_SEL_NB);
+	else if (rssi_ctrl_state[1] == RADIO_2055_WBRSSI_G1_SEL)
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
+				     NPHY_RSSI_SEL_W1);
+	else if (rssi_ctrl_state[1] == RADIO_2055_WBRSSI_G2_SEL)
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
+				     NPHY_RSSI_SEL_W2);
+	else
+		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
+				     NPHY_RSSI_SEL_W2);
+
+	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_OFF, rssi_type);
+
+	write_phy_reg(pi, 0x91, rfctrlintc_state[0]);
+	write_radio_reg(pi, RADIO_2055_PD_CORE1_RXTX, rfpdcorerxtx_state[0]);
+	write_phy_reg(pi, 0x92, rfctrlintc_state[1]);
+	write_radio_reg(pi, RADIO_2055_PD_CORE2_RXTX, rfpdcorerxtx_state[1]);
+
+	wlc_phy_classifier_nphy(pi, (0x7 << 0), classif_state);
+	wlc_phy_clip_det_nphy(pi, 1, clip_state);
+
+	wlc_phy_resetcca_nphy(pi);
+}
+
+void wlc_phy_rssi_cal_nphy(struct brcms_phy *pi)
+{
+	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
+		wlc_phy_rssi_cal_nphy_rev3(pi);
+	} else {
+		wlc_phy_rssi_cal_nphy_rev2(pi, NPHY_RSSI_SEL_NB);
+		wlc_phy_rssi_cal_nphy_rev2(pi, NPHY_RSSI_SEL_W1);
+		wlc_phy_rssi_cal_nphy_rev2(pi, NPHY_RSSI_SEL_W2);
+	}
+}
+
+int
+wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct brcms_d11rxhdr *wlc_rxh)
+{
+	struct d11rxhdr *rxh = &wlc_rxh->rxhdr;
+	s16 rxpwr, rxpwr0, rxpwr1;
+	s16 phyRx0_l, phyRx2_l;
+
+	rxpwr = 0;
+	rxpwr0 = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR0_MASK;
+	rxpwr1 = (le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR1_MASK) >> 8;
+
+	if (rxpwr0 > 127)
+		rxpwr0 -= 256;
+	if (rxpwr1 > 127)
+		rxpwr1 -= 256;
+
+	phyRx0_l = le16_to_cpu(rxh->PhyRxStatus_0) & 0x00ff;
+	phyRx2_l = le16_to_cpu(rxh->PhyRxStatus_2) & 0x00ff;
+	if (phyRx2_l > 127)
+		phyRx2_l -= 256;
+
+	if (((rxpwr0 == 16) || (rxpwr0 == 32))) {
+		rxpwr0 = rxpwr1;
+		rxpwr1 = phyRx2_l;
+	}
+
+	wlc_rxh->rxpwr[0] = (s8) rxpwr0;
+	wlc_rxh->rxpwr[1] = (s8) rxpwr1;
+	wlc_rxh->do_rssi_ma = 0;
+
+	if (pi->sh->rssi_mode == RSSI_ANT_MERGE_MAX)
+		rxpwr = (rxpwr0 > rxpwr1) ? rxpwr0 : rxpwr1;
+	else if (pi->sh->rssi_mode == RSSI_ANT_MERGE_MIN)
+		rxpwr = (rxpwr0 < rxpwr1) ? rxpwr0 : rxpwr1;
+	else if (pi->sh->rssi_mode == RSSI_ANT_MERGE_AVG)
+		rxpwr = (rxpwr0 + rxpwr1) >> 1;
+
+	return rxpwr;
+}
+
+static void
+wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cordic_iq *tone_buf,
+			     u16 num_samps)
+{
+	u16 t;
+	u32 *data_buf = NULL;
+
+	data_buf = kmalloc(sizeof(u32) * num_samps, GFP_ATOMIC);
+	if (data_buf == NULL)
+		return;
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, true);
+
+	for (t = 0; t < num_samps; t++)
+		data_buf[t] = ((((unsigned int)tone_buf[t].i) & 0x3ff) << 10) |
+			      (((unsigned int)tone_buf[t].q) & 0x3ff);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SAMPLEPLAY, num_samps, 0, 32,
+				 data_buf);
+
+	kfree(data_buf);
+
+	if (pi->phyhang_avoid)
+		wlc_phy_stay_in_carriersearch_nphy(pi, false);
 }
 
 static u16
@@ -22193,51 +23218,6 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 	kfree(tone_buf);
 
 	return num_samps;
-}
-
-int
-wlc_phy_tx_tone_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
-		     u8 iqmode, u8 dac_test_mode, bool modify_bbmult)
-{
-	u16 num_samps;
-	u16 loops = 0xffff;
-	u16 wait = 0;
-
-	num_samps = wlc_phy_gen_load_samples_nphy(pi, f_kHz, max_val,
-						  dac_test_mode);
-	if (num_samps == 0)
-		return -EBADE;
-
-	wlc_phy_runsamples_nphy(pi, num_samps, loops, wait, iqmode,
-				dac_test_mode, modify_bbmult);
-
-	return 0;
-}
-
-static void
-wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cordic_iq *tone_buf,
-			     u16 num_samps)
-{
-	u16 t;
-	u32 *data_buf = NULL;
-
-	data_buf = kmalloc(sizeof(u32) * num_samps, GFP_ATOMIC);
-	if (data_buf == NULL)
-		return;
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	for (t = 0; t < num_samps; t++)
-		data_buf[t] = ((((unsigned int)tone_buf[t].i) & 0x3ff) << 10) |
-			      (((unsigned int)tone_buf[t].q) & 0x3ff);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SAMPLEPLAY, num_samps, 0, 32,
-				 data_buf);
-
-	kfree(data_buf);
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
 }
 
 static void
@@ -22328,6 +23308,25 @@ wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 num_samps, u16 loops,
 	SPINWAIT(((read_phy_reg(pi, 0xa4) & 0x1) == 1), 1000);
 
 	write_phy_reg(pi, 0xa1, orig_RfseqCoreActv);
+}
+
+int
+wlc_phy_tx_tone_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
+		     u8 iqmode, u8 dac_test_mode, bool modify_bbmult)
+{
+	u16 num_samps;
+	u16 loops = 0xffff;
+	u16 wait = 0;
+
+	num_samps = wlc_phy_gen_load_samples_nphy(pi, f_kHz, max_val,
+						  dac_test_mode);
+	if (num_samps == 0)
+		return -EBADE;
+
+	wlc_phy_runsamples_nphy(pi, num_samps, loops, wait, iqmode,
+				dac_test_mode, modify_bbmult);
+
+	return 0;
 }
 
 void wlc_phy_stopplayback_nphy(struct brcms_phy *pi)
@@ -23273,10 +24272,6 @@ static void wlc_phy_txcal_phycleanup_nphy(struct brcms_phy *pi)
 	}
 }
 
-#define NPHY_CAL_TSSISAMPS      64
-#define NPHY_TEST_TONE_FREQ_40MHz 4000
-#define NPHY_TEST_TONE_FREQ_20MHz 2500
-
 void
 wlc_phy_est_tonepwr_nphy(struct brcms_phy *pi, s32 *qdBm_pwrbuf, u8 num_samps)
 {
@@ -23323,276 +24318,6 @@ wlc_phy_est_tonepwr_nphy(struct brcms_phy *pi, s32 *qdBm_pwrbuf, u8 num_samps)
 				(u32) pwrindex[1], 32, &qdBm_pwrbuf[1]);
 }
 
-static void wlc_phy_internal_cal_txgain_nphy(struct brcms_phy *pi)
-{
-	u16 txcal_gain[2];
-
-	pi->nphy_txcal_pwr_idx[0] = pi->nphy_cal_orig_pwr_idx[0];
-	pi->nphy_txcal_pwr_idx[1] = pi->nphy_cal_orig_pwr_idx[0];
-	wlc_phy_txpwr_index_nphy(pi, 1, pi->nphy_cal_orig_pwr_idx[0], true);
-	wlc_phy_txpwr_index_nphy(pi, 2, pi->nphy_cal_orig_pwr_idx[1], true);
-
-	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16,
-				txcal_gain);
-
-	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-		txcal_gain[0] = (txcal_gain[0] & 0xF000) | 0x0F40;
-		txcal_gain[1] = (txcal_gain[1] & 0xF000) | 0x0F40;
-	} else {
-		txcal_gain[0] = (txcal_gain[0] & 0xF000) | 0x0F60;
-		txcal_gain[1] = (txcal_gain[1] & 0xF000) | 0x0F60;
-	}
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16,
-				 txcal_gain);
-}
-
-static void wlc_phy_precal_txgain_nphy(struct brcms_phy *pi)
-{
-	bool save_bbmult = false;
-	u8 txcal_index_2057_rev5n7 = 0;
-	u8 txcal_index_2057_rev3n4n6 = 10;
-
-	if (pi->use_int_tx_iqlo_cal_nphy) {
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			if ((pi->pubpi.radiorev == 3) ||
-			    (pi->pubpi.radiorev == 4) ||
-			    (pi->pubpi.radiorev == 6)) {
-
-				pi->nphy_txcal_pwr_idx[0] =
-					txcal_index_2057_rev3n4n6;
-				pi->nphy_txcal_pwr_idx[1] =
-					txcal_index_2057_rev3n4n6;
-				wlc_phy_txpwr_index_nphy(
-					pi, 3,
-					txcal_index_2057_rev3n4n6,
-					false);
-			} else {
-
-				pi->nphy_txcal_pwr_idx[0] =
-					txcal_index_2057_rev5n7;
-				pi->nphy_txcal_pwr_idx[1] =
-					txcal_index_2057_rev5n7;
-				wlc_phy_txpwr_index_nphy(
-					pi, 3,
-					txcal_index_2057_rev5n7,
-					false);
-			}
-			save_bbmult = true;
-
-		} else if (NREV_LT(pi->pubpi.phy_rev, 5)) {
-			wlc_phy_cal_txgainctrl_nphy(pi, 11, false);
-			if (pi->sh->hw_phytxchain != 3) {
-				pi->nphy_txcal_pwr_idx[1] =
-					pi->nphy_txcal_pwr_idx[0];
-				wlc_phy_txpwr_index_nphy(pi, 3,
-							 pi->
-							 nphy_txcal_pwr_idx[0],
-							 true);
-				save_bbmult = true;
-			}
-
-		} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
-			if (PHY_IPA(pi)) {
-				if (CHSPEC_IS2G(pi->radio_chanspec)) {
-					wlc_phy_cal_txgainctrl_nphy(pi, 12,
-								    false);
-				} else {
-					pi->nphy_txcal_pwr_idx[0] = 80;
-					pi->nphy_txcal_pwr_idx[1] = 80;
-					wlc_phy_txpwr_index_nphy(pi, 3, 80,
-								 false);
-					save_bbmult = true;
-				}
-			} else {
-				wlc_phy_internal_cal_txgain_nphy(pi);
-				save_bbmult = true;
-			}
-
-		} else if (NREV_IS(pi->pubpi.phy_rev, 6)) {
-			if (PHY_IPA(pi)) {
-				if (CHSPEC_IS2G(pi->radio_chanspec))
-					wlc_phy_cal_txgainctrl_nphy(pi, 12,
-								    false);
-				else
-					wlc_phy_cal_txgainctrl_nphy(pi, 14,
-								    false);
-			} else {
-				wlc_phy_internal_cal_txgain_nphy(pi);
-				save_bbmult = true;
-			}
-		}
-
-	} else {
-		wlc_phy_cal_txgainctrl_nphy(pi, 10, false);
-	}
-
-	if (save_bbmult)
-		wlc_phy_table_read_nphy(pi, 15, 1, 87, 16,
-					&pi->nphy_txcal_bbmult);
-}
-
-void
-wlc_phy_cal_txgainctrl_nphy(struct brcms_phy *pi, s32 dBm_targetpower,
-			    bool debug)
-{
-	int gainctrl_loopidx;
-	uint core;
-	u16 m0m1, curr_m0m1;
-	s32 delta_power;
-	s32 txpwrindex;
-	s32 qdBm_power[2];
-	u16 orig_BBConfig;
-	u16 phy_saveregs[4];
-	u32 freq_test;
-	u16 ampl_test = 250;
-	uint stepsize;
-	bool phyhang_avoid_state = false;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7))
-		stepsize = 2;
-	else
-		stepsize = 1;
-
-	if (CHSPEC_IS40(pi->radio_chanspec))
-		freq_test = 5000;
-	else
-		freq_test = 2500;
-
-	wlc_phy_txpwr_index_nphy(pi, 1, pi->nphy_cal_orig_pwr_idx[0], true);
-	wlc_phy_txpwr_index_nphy(pi, 2, pi->nphy_cal_orig_pwr_idx[1], true);
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	phyhang_avoid_state = pi->phyhang_avoid;
-	pi->phyhang_avoid = false;
-
-	phy_saveregs[0] = read_phy_reg(pi, 0x91);
-	phy_saveregs[1] = read_phy_reg(pi, 0x92);
-	phy_saveregs[2] = read_phy_reg(pi, 0xe7);
-	phy_saveregs[3] = read_phy_reg(pi, 0xec);
-	wlc_phy_rfctrlintc_override_nphy(pi, NPHY_RfctrlIntc_override_PA, 1,
-					 RADIO_MIMO_CORESEL_CORE1 |
-					 RADIO_MIMO_CORESEL_CORE2);
-
-	if (!debug) {
-		wlc_phy_rfctrlintc_override_nphy(pi,
-						 NPHY_RfctrlIntc_override_TRSW,
-						 0x2, RADIO_MIMO_CORESEL_CORE1);
-		wlc_phy_rfctrlintc_override_nphy(pi,
-						 NPHY_RfctrlIntc_override_TRSW,
-						 0x8, RADIO_MIMO_CORESEL_CORE2);
-	} else {
-		wlc_phy_rfctrlintc_override_nphy(pi,
-						 NPHY_RfctrlIntc_override_TRSW,
-						 0x1, RADIO_MIMO_CORESEL_CORE1);
-		wlc_phy_rfctrlintc_override_nphy(pi,
-						 NPHY_RfctrlIntc_override_TRSW,
-						 0x7, RADIO_MIMO_CORESEL_CORE2);
-	}
-
-	orig_BBConfig = read_phy_reg(pi, 0x01);
-	mod_phy_reg(pi, 0x01, (0x1 << 15), 0);
-
-	wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &m0m1);
-
-	for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-		txpwrindex = (s32) pi->nphy_cal_orig_pwr_idx[core];
-
-		for (gainctrl_loopidx = 0; gainctrl_loopidx < 2;
-		     gainctrl_loopidx++) {
-			wlc_phy_tx_tone_nphy(pi, freq_test, ampl_test, 0, 0,
-					     false);
-
-			if (core == PHY_CORE_0)
-				curr_m0m1 = m0m1 & 0xff00;
-			else
-				curr_m0m1 = m0m1 & 0x00ff;
-
-			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &curr_m0m1);
-			wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &curr_m0m1);
-
-			udelay(50);
-
-			wlc_phy_est_tonepwr_nphy(pi, qdBm_power,
-						 NPHY_CAL_TSSISAMPS);
-
-			pi->nphy_bb_mult_save = 0;
-			wlc_phy_stopplayback_nphy(pi);
-
-			delta_power = (dBm_targetpower * 4) - qdBm_power[core];
-
-			txpwrindex -= stepsize * delta_power;
-			if (txpwrindex < 0)
-				txpwrindex = 0;
-			else if (txpwrindex > 127)
-				txpwrindex = 127;
-
-			if (CHSPEC_IS5G(pi->radio_chanspec)) {
-				if (NREV_IS(pi->pubpi.phy_rev, 4) &&
-				    (pi->srom_fem5g.extpagain == 3)) {
-					if (txpwrindex < 30)
-						txpwrindex = 30;
-				}
-			} else {
-				if (NREV_GE(pi->pubpi.phy_rev, 5) &&
-				    (pi->srom_fem2g.extpagain == 3)) {
-					if (txpwrindex < 50)
-						txpwrindex = 50;
-				}
-			}
-
-			wlc_phy_txpwr_index_nphy(pi, (1 << core),
-						 (u8) txpwrindex, true);
-		}
-
-		pi->nphy_txcal_pwr_idx[core] = (u8) txpwrindex;
-
-		if (debug) {
-			u16 radio_gain;
-			u16 dbg_m0m1;
-
-			wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &dbg_m0m1);
-
-			wlc_phy_tx_tone_nphy(pi, freq_test, ampl_test, 0, 0,
-					     false);
-
-			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &dbg_m0m1);
-			wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &dbg_m0m1);
-
-			udelay(100);
-
-			wlc_phy_est_tonepwr_nphy(pi, qdBm_power,
-						 NPHY_CAL_TSSISAMPS);
-
-			wlc_phy_table_read_nphy(pi, 7, 1, (0x110 + core), 16,
-						&radio_gain);
-
-			mdelay(4000);
-			pi->nphy_bb_mult_save = 0;
-			wlc_phy_stopplayback_nphy(pi);
-		}
-	}
-
-	wlc_phy_txpwr_index_nphy(pi, 1, pi->nphy_txcal_pwr_idx[0], true);
-	wlc_phy_txpwr_index_nphy(pi, 2, pi->nphy_txcal_pwr_idx[1], true);
-
-	wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &pi->nphy_txcal_bbmult);
-
-	write_phy_reg(pi, 0x01, orig_BBConfig);
-
-	write_phy_reg(pi, 0x91, phy_saveregs[0]);
-	write_phy_reg(pi, 0x92, phy_saveregs[1]);
-	write_phy_reg(pi, 0xe7, phy_saveregs[2]);
-	write_phy_reg(pi, 0xec, phy_saveregs[3]);
-
-	pi->phyhang_avoid = phyhang_avoid_state;
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-}
-
 static void wlc_phy_update_txcal_ladder_nphy(struct brcms_phy *pi, u16 core)
 {
 	int index;
@@ -23633,6 +24358,1199 @@ static void wlc_phy_update_txcal_ladder_nphy(struct brcms_phy *pi, u16 core)
 		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 1, index + 32,
 					 16, &tblentry);
 	}
+}
+
+static u8 wlc_phy_txpwr_idx_cur_get_nphy(struct brcms_phy *pi, u8 core)
+{
+	u16 tmp;
+	tmp = read_phy_reg(pi, ((core == PHY_CORE_0) ? 0x1ed : 0x1ee));
+
+	tmp = (tmp & (0x7f << 8)) >> 8;
+	return (u8) tmp;
+}
+
+static void
+wlc_phy_txpwr_idx_cur_set_nphy(struct brcms_phy *pi, u8 idx0, u8 idx1)
+{
+	mod_phy_reg(pi, 0x1e7, (0x7f << 0), idx0);
+
+	if (NREV_GT(pi->pubpi.phy_rev, 1))
+		mod_phy_reg(pi, 0x222, (0xff << 0), idx1);
+}
+
+static u16 wlc_phy_ipa_get_bbmult_nphy(struct brcms_phy *pi)
+{
+	u16 m0m1;
+
+	wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &m0m1);
+
+	return m0m1;
+}
+
+static void wlc_phy_ipa_set_bbmult_nphy(struct brcms_phy *pi, u8 m0, u8 m1)
+{
+	u16 m0m1 = (u16) ((m0 << 8) | m1);
+
+	wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &m0m1);
+	wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &m0m1);
+}
+
+static void
+wlc_phy_papd_cal_setup_nphy(struct brcms_phy *pi,
+			    struct nphy_papd_restore_state *state, u8 core)
+{
+	s32 tone_freq;
+	u8 off_core;
+	u16 mixgain = 0;
+
+	off_core = core ^ 0x1;
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+		if (NREV_IS(pi->pubpi.phy_rev, 7)
+		    || NREV_GE(pi->pubpi.phy_rev, 8))
+			wlc_phy_rfctrl_override_nphy_rev7(
+				pi, (0x1 << 7),
+				wlc_phy_read_lpf_bw_ctl_nphy
+					(pi,
+					0), 0, 0,
+				NPHY_REV7_RFCTRLOVERRIDE_ID1);
+
+		if (CHSPEC_IS2G(pi->radio_chanspec)) {
+			if (pi->pubpi.radiorev == 5)
+				mixgain = (core == 0) ? 0x20 : 0x00;
+			else if ((pi->pubpi.radiorev == 7)
+				 || (pi->pubpi.radiorev == 8))
+				mixgain = 0x00;
+			else if ((pi->pubpi.radiorev <= 4)
+				 || (pi->pubpi.radiorev == 6))
+				mixgain = 0x00;
+		} else {
+			if ((pi->pubpi.radiorev == 4) ||
+			    (pi->pubpi.radiorev == 6))
+				mixgain = 0x50;
+			else if ((pi->pubpi.radiorev == 3)
+				 || (pi->pubpi.radiorev == 7)
+				 || (pi->pubpi.radiorev == 8))
+				mixgain = 0x0;
+		}
+
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 11),
+						  mixgain, (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+
+		wlc_phy_rfctrl_override_1tomany_nphy(
+			pi,
+			NPHY_REV7_RfctrlOverride_cmd_tx_pu,
+			1, (1 << core), 0);
+		wlc_phy_rfctrl_override_1tomany_nphy(
+			pi,
+			NPHY_REV7_RfctrlOverride_cmd_tx_pu,
+			0, (1 << off_core), 0);
+
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
+						  0, 0x3, 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 2), 1,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 0), 0,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 1), 1,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 8), 0,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 9), 1,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 10), 0,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3), 1,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 5),
+						  0, (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 4), 0,
+						  (1 << core), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+
+		state->afectrl[core] = read_phy_reg(pi, (core == PHY_CORE_0) ?
+						    0xa6 : 0xa7);
+		state->afeoverride[core] =
+			read_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f : 0xa5);
+		state->afectrl[off_core] =
+			read_phy_reg(pi, (core == PHY_CORE_0) ? 0xa7 : 0xa6);
+		state->afeoverride[off_core] =
+			read_phy_reg(pi, (core == PHY_CORE_0) ? 0xa5 : 0x8f);
+
+		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa6 : 0xa7),
+			    (0x1 << 2), 0);
+		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0x8f :
+				 0xa5), (0x1 << 2), (0x1 << 2));
+
+		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa7 : 0xa6),
+			    (0x1 << 2), (0x1 << 2));
+		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa5 :
+				 0x8f), (0x1 << 2), (0x1 << 2));
+
+		if (CHSPEC_IS2G(pi->radio_chanspec)) {
+			state->pwrup[core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
+						TXRXCOUPLE_2G_PWRUP);
+			state->atten[core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
+						TXRXCOUPLE_2G_ATTEN);
+			state->pwrup[off_core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+						TXRXCOUPLE_2G_PWRUP);
+			state->atten[off_core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+						TXRXCOUPLE_2G_ATTEN);
+
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+					 TXRXCOUPLE_2G_PWRUP, 0xc);
+
+			if ((pi->pubpi.radiorev == 3) ||
+			    (pi->pubpi.radiorev == 4) ||
+			    (pi->pubpi.radiorev == 6))
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_2G_ATTEN, 0xf0);
+			else if (pi->pubpi.radiorev == 5)
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_2G_ATTEN,
+						 (core == 0) ? 0xf7 : 0xf2);
+			else if ((pi->pubpi.radiorev == 7)
+				 || (pi->pubpi.radiorev == 8))
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_2G_ATTEN, 0xf0);
+
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+					 TXRXCOUPLE_2G_PWRUP, 0x0);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+					 TXRXCOUPLE_2G_ATTEN, 0xff);
+		} else {
+			state->pwrup[core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
+						TXRXCOUPLE_5G_PWRUP);
+			state->atten[core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
+						TXRXCOUPLE_5G_ATTEN);
+			state->pwrup[off_core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+						TXRXCOUPLE_5G_PWRUP);
+			state->atten[off_core] =
+				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+						TXRXCOUPLE_5G_ATTEN);
+
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+					 TXRXCOUPLE_5G_PWRUP, 0xc);
+
+			if ((pi->pubpi.radiorev == 7)
+			    || (pi->pubpi.radiorev == 8))
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_5G_ATTEN, 0xf4);
+
+			else
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_5G_ATTEN, 0xf0);
+
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+					 TXRXCOUPLE_5G_PWRUP, 0x0);
+			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
+					 TXRXCOUPLE_5G_ATTEN, 0xff);
+		}
+
+		tone_freq = 4000;
+
+		wlc_phy_tx_tone_nphy(pi, tone_freq, 181, 0, 0, false);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_ON) << 0);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 13), (1) << 13);
+
+		mod_phy_reg(pi, (off_core == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_OFF) << 0);
+
+		mod_phy_reg(pi, (off_core == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 13), (0) << 13);
+
+	} else {
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 12), 0, 0x3, 0);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 1, 0, 0);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 0), 0, 0x3, 0);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 2), 1, 0x3, 0);
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 1), 1, 0x3, 0);
+
+		state->afectrl[core] = read_phy_reg(pi, (core == PHY_CORE_0) ?
+						    0xa6 : 0xa7);
+		state->afeoverride[core] =
+			read_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f : 0xa5);
+
+		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa6 : 0xa7),
+			    (0x1 << 0) | (0x1 << 1) | (0x1 << 2), 0);
+		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0x8f :
+				 0xa5),
+			    (0x1 << 0) |
+			    (0x1 << 1) |
+			    (0x1 << 2), (0x1 << 0) | (0x1 << 1) | (0x1 << 2));
+
+		state->vga_master[core] =
+			READ_RADIO_REG2(pi, RADIO_2056, RX, core, VGA_MASTER);
+		WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, VGA_MASTER, 0x2b);
+		if (CHSPEC_IS2G(pi->radio_chanspec)) {
+			state->fbmix[core] =
+				READ_RADIO_REG2(pi, RADIO_2056, RX, core,
+						TXFBMIX_G);
+			state->intpa_master[core] =
+				READ_RADIO_REG2(pi, RADIO_2056, TX, core,
+						INTPAG_MASTER);
+
+			WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, TXFBMIX_G,
+					 0x03);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+					 INTPAG_MASTER, 0x04);
+		} else {
+			state->fbmix[core] =
+				READ_RADIO_REG2(pi, RADIO_2056, RX, core,
+						TXFBMIX_A);
+			state->intpa_master[core] =
+				READ_RADIO_REG2(pi, RADIO_2056, TX, core,
+						INTPAA_MASTER);
+
+			WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, TXFBMIX_A,
+					 0x03);
+			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+					 INTPAA_MASTER, 0x04);
+
+		}
+
+		tone_freq = 4000;
+
+		wlc_phy_tx_tone_nphy(pi, tone_freq, 181, 0, 0, false);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (1) << 0);
+
+		mod_phy_reg(pi, (off_core == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (0) << 0);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 0, 0x3, 0);
+	}
+}
+
+static void
+wlc_phy_papd_cal_cleanup_nphy(struct brcms_phy *pi,
+			      struct nphy_papd_restore_state *state)
+{
+	u8 core;
+
+	wlc_phy_stopplayback_nphy(pi);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_2G_PWRUP, 0);
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_2G_ATTEN,
+						 state->atten[core]);
+			} else {
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_5G_PWRUP, 0);
+				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
+						 TXRXCOUPLE_5G_ATTEN,
+						 state->atten[core]);
+			}
+		}
+
+		if ((pi->pubpi.radiorev == 4) || (pi->pubpi.radiorev == 6))
+			wlc_phy_rfctrl_override_nphy_rev7(
+				pi, (0x1 << 2),
+				1, 0x3, 0,
+				NPHY_REV7_RFCTRLOVERRIDE_ID0);
+		else
+			wlc_phy_rfctrl_override_nphy_rev7(
+				pi, (0x1 << 2),
+				0, 0x3, 1,
+				NPHY_REV7_RFCTRLOVERRIDE_ID0);
+
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 1),
+						  0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 0), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 2), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 11), 1, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 11), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 12), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 2), 1, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 0), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 1), 1, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 8), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 9), 1, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 10), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3), 1, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 5), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 4), 0, 0x3, 1,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
+
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+
+			write_phy_reg(pi, (core == PHY_CORE_0) ?
+				      0xa6 : 0xa7, state->afectrl[core]);
+			write_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f :
+				      0xa5, state->afeoverride[core]);
+		}
+
+		wlc_phy_ipa_set_bbmult_nphy(pi, (state->mm >> 8) & 0xff,
+					    (state->mm & 0xff));
+
+		if (NREV_IS(pi->pubpi.phy_rev, 7)
+		    || NREV_GE(pi->pubpi.phy_rev, 8))
+			wlc_phy_rfctrl_override_nphy_rev7(
+				pi, (0x1 << 7), 0, 0,
+				1,
+				NPHY_REV7_RFCTRLOVERRIDE_ID1);
+	} else {
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 12), 0, 0x3, 1);
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 13), 0, 0x3, 1);
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 0), 0, 0x3, 1);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 2), 0, 0x3, 1);
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 1), 0, 0x3, 1);
+
+		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
+
+			WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, VGA_MASTER,
+					 state->vga_master[core]);
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				WRITE_RADIO_REG2(pi, RADIO_2056, RX, core,
+						 TXFBMIX_G, state->fbmix[core]);
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 INTPAG_MASTER,
+						 state->intpa_master[core]);
+			} else {
+				WRITE_RADIO_REG2(pi, RADIO_2056, RX, core,
+						 TXFBMIX_A, state->fbmix[core]);
+				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
+						 INTPAA_MASTER,
+						 state->intpa_master[core]);
+			}
+
+			write_phy_reg(pi, (core == PHY_CORE_0) ?
+				      0xa6 : 0xa7, state->afectrl[core]);
+			write_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f :
+				      0xa5, state->afeoverride[core]);
+		}
+
+		wlc_phy_ipa_set_bbmult_nphy(pi, (state->mm >> 8) & 0xff,
+					    (state->mm & 0xff));
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 0, 0x3, 1);
+	}
+}
+
+static void
+wlc_phy_a1_nphy(struct brcms_phy *pi, u8 core, u32 winsz, u32 start,
+		u32 end)
+{
+	u32 *buf, *src, *dst, sz;
+
+	sz = end - start + 1;
+
+	buf = kmalloc(2 * sizeof(u32) * NPHY_PAPD_EPS_TBL_SIZE, GFP_ATOMIC);
+	if (NULL == buf)
+		return;
+
+	src = buf;
+	dst = buf + NPHY_PAPD_EPS_TBL_SIZE;
+
+	wlc_phy_table_read_nphy(pi,
+				(core ==
+				 PHY_CORE_0 ? NPHY_TBL_ID_EPSILONTBL0 :
+				 NPHY_TBL_ID_EPSILONTBL1),
+				NPHY_PAPD_EPS_TBL_SIZE, 0, 32, src);
+
+	do {
+		u32 phy_a1, phy_a2;
+		s32 phy_a3, phy_a4, phy_a5, phy_a6, phy_a7;
+
+		phy_a1 = end - min(end, (winsz >> 1));
+		phy_a2 = min_t(u32, NPHY_PAPD_EPS_TBL_SIZE - 1,
+			       end + (winsz >> 1));
+		phy_a3 = phy_a2 - phy_a1 + 1;
+		phy_a6 = 0;
+		phy_a7 = 0;
+
+		do {
+			wlc_phy_papd_decode_epsilon(src[phy_a2], &phy_a4,
+						    &phy_a5);
+			phy_a6 += phy_a4;
+			phy_a7 += phy_a5;
+		} while (phy_a2-- != phy_a1);
+
+		phy_a6 /= phy_a3;
+		phy_a7 /= phy_a3;
+		dst[end] = ((u32) phy_a7 << 13) | ((u32) phy_a6 & 0x1fff);
+	} while (end-- != start);
+
+	wlc_phy_table_write_nphy(pi,
+				 (core ==
+				  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0 :
+				 NPHY_TBL_ID_EPSILONTBL1, sz, start, 32, dst);
+
+	kfree(buf);
+}
+
+static void
+wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *txgains,
+		enum phy_cal_mode cal_mode, u8 core)
+{
+	u16 phy_a1, phy_a2, phy_a3;
+	u16 phy_a4, phy_a5;
+	bool phy_a6;
+	u8 phy_a7, m[2];
+	u32 phy_a8 = 0;
+	struct nphy_txgains phy_a9;
+
+	if (NREV_LT(pi->pubpi.phy_rev, 3))
+		return;
+
+	phy_a7 = (core == PHY_CORE_0) ? 1 : 0;
+
+	phy_a6 = ((cal_mode == CAL_GCTRL)
+		  || (cal_mode == CAL_SOFT)) ? true : false;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+		phy_a9 = wlc_phy_get_tx_gain_nphy(pi);
+
+		if (CHSPEC_IS2G(pi->radio_chanspec))
+			phy_a5 = ((phy_a9.txlpf[core] << 15) |
+				  (phy_a9.txgm[core] << 12) |
+				  (phy_a9.pga[core] << 8) |
+				  (txgains->gains.pad[core] << 3) |
+				  (phy_a9.ipa[core]));
+		else
+			phy_a5 = ((phy_a9.txlpf[core] << 15) |
+				  (phy_a9.txgm[core] << 12) |
+				  (txgains->gains.pga[core] << 8) |
+				  (phy_a9.pad[core] << 3) | (phy_a9.ipa[core]));
+
+		wlc_phy_rfctrl_override_1tomany_nphy(
+			pi,
+			NPHY_REV7_RfctrlOverride_cmd_txgain,
+			phy_a5, (1 << core), 0);
+
+		if (CHSPEC_IS2G(pi->radio_chanspec)) {
+			if ((pi->pubpi.radiorev <= 4)
+			    || (pi->pubpi.radiorev == 6))
+				m[core] = IS40MHZ(pi) ? 60 : 79;
+			else
+				m[core] = IS40MHZ(pi) ? 45 : 64;
+		} else {
+			m[core] = IS40MHZ(pi) ? 75 : 107;
+		}
+
+		m[phy_a7] = 0;
+		wlc_phy_ipa_set_bbmult_nphy(pi, m[0], m[1]);
+
+		phy_a2 = 63;
+
+		if (CHSPEC_IS2G(pi->radio_chanspec)) {
+			if ((pi->pubpi.radiorev == 4)
+			    || (pi->pubpi.radiorev == 6)) {
+				phy_a1 = 30;
+				phy_a3 = 30;
+			} else {
+				phy_a1 = 25;
+				phy_a3 = 25;
+			}
+		} else {
+			if ((pi->pubpi.radiorev == 5)
+			    || (pi->pubpi.radiorev == 7)
+			    || (pi->pubpi.radiorev == 8)) {
+				phy_a1 = 25;
+				phy_a3 = 25;
+			} else {
+				phy_a1 = 35;
+				phy_a3 = 35;
+			}
+		}
+
+		if (cal_mode == CAL_GCTRL) {
+			if ((pi->pubpi.radiorev == 5)
+			    && (CHSPEC_IS2G(pi->radio_chanspec)))
+				phy_a1 = 55;
+			else if (((pi->pubpi.radiorev == 7) &&
+				  (CHSPEC_IS2G(pi->radio_chanspec))) ||
+				 ((pi->pubpi.radiorev == 8) &&
+				  (CHSPEC_IS2G(pi->radio_chanspec))))
+				phy_a1 = 60;
+			else
+				phy_a1 = 63;
+
+		} else if ((cal_mode != CAL_FULL) && (cal_mode != CAL_SOFT)) {
+
+			phy_a1 = 35;
+			phy_a3 = 35;
+		}
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (1) << 0);
+
+		mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (0) << 0);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 13), (1) << 13);
+
+		mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 13), (0) << 13);
+
+		write_phy_reg(pi, 0x2a1, 0x80);
+		write_phy_reg(pi, 0x2a2, 0x100);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x7 << 4), (11) << 4);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x7 << 8), (11) << 8);
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x7 << 0), (0x3) << 0);
+
+		write_phy_reg(pi, 0x2e5, 0x20);
+
+		mod_phy_reg(pi, 0x2a0, (0x3f << 0), (phy_a3) << 0);
+
+		mod_phy_reg(pi, 0x29f, (0x3f << 0), (phy_a1) << 0);
+
+		mod_phy_reg(pi, 0x29f, (0x3f << 8), (phy_a2) << 8);
+
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
+						  1, ((core == 0) ? 1 : 2), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
+						  0, ((core == 0) ? 2 : 1), 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+
+		write_phy_reg(pi, 0x2be, 1);
+		SPINWAIT(read_phy_reg(pi, 0x2be), 10 * 1000 * 1000);
+
+		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
+						  0, 0x3, 0,
+						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
+
+		wlc_phy_table_write_nphy(pi,
+					 (core ==
+					  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0
+					 : NPHY_TBL_ID_EPSILONTBL1, 1, phy_a3,
+					 32, &phy_a8);
+
+		if (cal_mode != CAL_GCTRL) {
+			if (CHSPEC_IS5G(pi->radio_chanspec))
+				wlc_phy_a1_nphy(pi, core, 5, 0, 35);
+		}
+
+		wlc_phy_rfctrl_override_1tomany_nphy(
+			pi,
+			NPHY_REV7_RfctrlOverride_cmd_txgain,
+			phy_a5, (1 << core), 1);
+
+	} else {
+
+		if (txgains) {
+			if (txgains->useindex) {
+				phy_a4 = 15 - ((txgains->index) >> 3);
+				if (CHSPEC_IS2G(pi->radio_chanspec)) {
+					if (NREV_GE(pi->pubpi.phy_rev, 6))
+						phy_a5 = 0x00f7 | (phy_a4 << 8);
+
+					else
+					if (NREV_IS(pi->pubpi.phy_rev, 5))
+						phy_a5 = 0x10f7 | (phy_a4 << 8);
+					else
+						phy_a5 = 0x50f7 | (phy_a4 << 8);
+				} else {
+					phy_a5 = 0x70f7 | (phy_a4 << 8);
+				}
+				wlc_phy_rfctrl_override_nphy(pi,
+							     (0x1 << 13),
+							     phy_a5,
+							     (1 << core), 0);
+			} else {
+				wlc_phy_rfctrl_override_nphy(pi,
+							     (0x1 << 13),
+							     0x5bf7,
+							     (1 << core), 0);
+			}
+		}
+
+		if (CHSPEC_IS2G(pi->radio_chanspec))
+			m[core] = IS40MHZ(pi) ? 45 : 64;
+		else
+			m[core] = IS40MHZ(pi) ? 75 : 107;
+
+		m[phy_a7] = 0;
+		wlc_phy_ipa_set_bbmult_nphy(pi, m[0], m[1]);
+
+		phy_a2 = 63;
+
+		if (cal_mode == CAL_FULL) {
+			phy_a1 = 25;
+			phy_a3 = 25;
+		} else if (cal_mode == CAL_SOFT) {
+			phy_a1 = 25;
+			phy_a3 = 25;
+		} else if (cal_mode == CAL_GCTRL) {
+			phy_a1 = 63;
+			phy_a3 = 25;
+		} else {
+
+			phy_a1 = 25;
+			phy_a3 = 25;
+		}
+
+		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (1) << 0);
+
+		mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x297 :
+			    0x29b, (0x1 << 0), (0) << 0);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 6)) {
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x1 << 13), (1) << 13);
+
+			mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x1 << 13), (0) << 13);
+
+			write_phy_reg(pi, 0x2a1, 0x20);
+			write_phy_reg(pi, 0x2a2, 0x60);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0xf << 4), (9) << 4);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0xf << 8), (9) << 8);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0xf << 0), (0x2) << 0);
+
+			write_phy_reg(pi, 0x2e5, 0x20);
+		} else {
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x1 << 11), (1) << 11);
+
+			mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x1 << 11), (0) << 11);
+
+			write_phy_reg(pi, 0x2a1, 0x80);
+			write_phy_reg(pi, 0x2a2, 0x600);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x7 << 4), (0) << 4);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x7 << 8), (0) << 8);
+
+			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
+				    0x2a4, (0x7 << 0), (0x3) << 0);
+
+			mod_phy_reg(pi, 0x2a0, (0x3f << 8), (0x20) << 8);
+
+		}
+
+		mod_phy_reg(pi, 0x2a0, (0x3f << 0), (phy_a3) << 0);
+
+		mod_phy_reg(pi, 0x29f, (0x3f << 0), (phy_a1) << 0);
+
+		mod_phy_reg(pi, 0x29f, (0x3f << 8), (phy_a2) << 8);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 1, 0x3, 0);
+
+		write_phy_reg(pi, 0x2be, 1);
+		SPINWAIT(read_phy_reg(pi, 0x2be), 10 * 1000 * 1000);
+
+		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 0, 0x3, 0);
+
+		wlc_phy_table_write_nphy(pi,
+					 (core ==
+					  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0
+					 : NPHY_TBL_ID_EPSILONTBL1, 1, phy_a3,
+					 32, &phy_a8);
+
+		if (cal_mode != CAL_GCTRL)
+			wlc_phy_a1_nphy(pi, core, 5, 0, 40);
+	}
+}
+
+static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
+{
+	int phy_a1;
+	int phy_a2;
+	bool phy_a3;
+	struct nphy_ipa_txcalgains phy_a4;
+	bool phy_a5 = false;
+	bool phy_a6 = true;
+	s32 phy_a7, phy_a8;
+	u32 phy_a9;
+	int phy_a10;
+	bool phy_a11 = false;
+	int phy_a12;
+	u8 phy_a13 = 0;
+	u8 phy_a14;
+	u8 *phy_a15 = NULL;
+
+	phy_a4.useindex = true;
+	phy_a12 = start_gain;
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+
+		phy_a2 = 20;
+		phy_a1 = 1;
+
+		if (CHSPEC_IS2G(pi->radio_chanspec)) {
+			if (pi->pubpi.radiorev == 5) {
+
+				phy_a15 = pad_gain_codes_used_2057rev5;
+				phy_a13 =
+					sizeof(pad_gain_codes_used_2057rev5) /
+					sizeof(pad_gain_codes_used_2057rev5
+						[0]) - 1;
+
+			} else if ((pi->pubpi.radiorev == 7)
+				   || (pi->pubpi.radiorev == 8)) {
+
+				phy_a15 = pad_gain_codes_used_2057rev7;
+				phy_a13 =
+					sizeof(pad_gain_codes_used_2057rev7) /
+					sizeof(pad_gain_codes_used_2057rev7
+						[0]) - 1;
+
+			} else {
+
+				phy_a15 = pad_all_gain_codes_2057;
+				phy_a13 = sizeof(pad_all_gain_codes_2057) /
+					  sizeof(pad_all_gain_codes_2057[0]) -
+					  1;
+			}
+
+		} else {
+
+			phy_a15 = pga_all_gain_codes_2057;
+			phy_a13 = sizeof(pga_all_gain_codes_2057) /
+				  sizeof(pga_all_gain_codes_2057[0]) - 1;
+		}
+
+		phy_a14 = 0;
+
+		for (phy_a10 = 0; phy_a10 < phy_a2; phy_a10++) {
+			if (CHSPEC_IS2G(pi->radio_chanspec))
+				phy_a4.gains.pad[core] =
+					(u16) phy_a15[phy_a12];
+			else
+				phy_a4.gains.pga[core] =
+					(u16) phy_a15[phy_a12];
+
+			wlc_phy_a2_nphy(pi, &phy_a4, CAL_GCTRL, core);
+
+			wlc_phy_table_read_nphy(pi,
+						(core ==
+						 PHY_CORE_0 ?
+						 NPHY_TBL_ID_EPSILONTBL0 :
+						 NPHY_TBL_ID_EPSILONTBL1), 1,
+						63, 32, &phy_a9);
+
+			wlc_phy_papd_decode_epsilon(phy_a9, &phy_a7, &phy_a8);
+
+			phy_a3 = ((phy_a7 == 4095) || (phy_a7 == -4096) ||
+				  (phy_a8 == 4095) || (phy_a8 == -4096));
+
+			if (!phy_a6 && (phy_a3 != phy_a5)) {
+				if (!phy_a3)
+					phy_a12 -= (u8) phy_a1;
+
+				phy_a11 = true;
+				break;
+			}
+
+			if (phy_a3)
+				phy_a12 += (u8) phy_a1;
+			else
+				phy_a12 -= (u8) phy_a1;
+
+			if ((phy_a12 < phy_a14) || (phy_a12 > phy_a13)) {
+				if (phy_a12 < phy_a14)
+					phy_a12 = phy_a14;
+				else
+					phy_a12 = phy_a13;
+
+				phy_a11 = true;
+				break;
+			}
+
+			phy_a6 = false;
+			phy_a5 = phy_a3;
+		}
+
+	} else {
+		phy_a2 = 10;
+		phy_a1 = 8;
+		for (phy_a10 = 0; phy_a10 < phy_a2; phy_a10++) {
+			phy_a4.index = (u8) phy_a12;
+			wlc_phy_a2_nphy(pi, &phy_a4, CAL_GCTRL, core);
+
+			wlc_phy_table_read_nphy(pi,
+						(core ==
+						 PHY_CORE_0 ?
+						 NPHY_TBL_ID_EPSILONTBL0 :
+						 NPHY_TBL_ID_EPSILONTBL1), 1,
+						63, 32, &phy_a9);
+
+			wlc_phy_papd_decode_epsilon(phy_a9, &phy_a7, &phy_a8);
+
+			phy_a3 = ((phy_a7 == 4095) || (phy_a7 == -4096) ||
+				  (phy_a8 == 4095) || (phy_a8 == -4096));
+
+			if (!phy_a6 && (phy_a3 != phy_a5)) {
+				if (!phy_a3)
+					phy_a12 -= (u8) phy_a1;
+
+				phy_a11 = true;
+				break;
+			}
+
+			if (phy_a3)
+				phy_a12 += (u8) phy_a1;
+			else
+				phy_a12 -= (u8) phy_a1;
+
+			if ((phy_a12 < 0) || (phy_a12 > 127)) {
+				if (phy_a12 < 0)
+					phy_a12 = 0;
+				else
+					phy_a12 = 127;
+
+				phy_a11 = true;
+				break;
+			}
+
+			phy_a6 = false;
+			phy_a5 = phy_a3;
+		}
+
+	}
+
+	if (NREV_GE(pi->pubpi.phy_rev, 7))
+		return (u8) phy_a15[phy_a12];
+	else
+		return (u8) phy_a12;
+
+}
+
+static void wlc_phy_a4(struct brcms_phy *pi, bool full_cal)
+{
+	struct nphy_ipa_txcalgains phy_b1[2];
+	struct nphy_papd_restore_state phy_b2;
+	bool phy_b3;
+	u8 phy_b4;
+	u8 phy_b5;
+	s16 phy_b6, phy_b7, phy_b8;
+	u16 phy_b9;
+	s16 phy_b10, phy_b11, phy_b12;
+
+	phy_b11 = 0;
+	phy_b12 = 0;
+	phy_b7 = 0;
+	phy_b8 = 0;
+	phy_b6 = 0;
+
+	if (pi->nphy_papd_skip == 1)
+		return;
+
+	phy_b3 = (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
+	if (!phy_b3)
+		wlapi_suspend_mac_and_wait(pi->sh->physhim);
+
+	wlc_phy_stay_in_carriersearch_nphy(pi, true);
+
+	pi->nphy_force_papd_cal = false;
+
+	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++)
+		pi->nphy_papd_tx_gain_at_last_cal[phy_b5] =
+			wlc_phy_txpwr_idx_cur_get_nphy(pi, phy_b5);
+
+	pi->nphy_papd_last_cal = pi->sh->now;
+	pi->nphy_papd_recal_counter++;
+
+	phy_b4 = pi->nphy_txpwrctrl;
+	wlc_phy_txpwrctrl_enable_nphy(pi, PHY_TPC_HW_OFF);
+
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SCALARTBL0, 64, 0, 32,
+				 nphy_papd_scaltbl);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SCALARTBL1, 64, 0, 32,
+				 nphy_papd_scaltbl);
+
+	phy_b9 = read_phy_reg(pi, 0x01);
+	mod_phy_reg(pi, 0x01, (0x1 << 15), 0);
+
+	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++) {
+		s32 i, val = 0;
+		for (i = 0; i < 64; i++)
+			wlc_phy_table_write_nphy(pi,
+						 ((phy_b5 ==
+						   PHY_CORE_0) ?
+						  NPHY_TBL_ID_EPSILONTBL0 :
+						  NPHY_TBL_ID_EPSILONTBL1), 1,
+						 i, 32, &val);
+	}
+
+	wlc_phy_ipa_restore_tx_digi_filts_nphy(pi);
+
+	phy_b2.mm = wlc_phy_ipa_get_bbmult_nphy(pi);
+	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++) {
+		wlc_phy_papd_cal_setup_nphy(pi, &phy_b2, phy_b5);
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				if ((pi->pubpi.radiorev == 3)
+				    || (pi->pubpi.radiorev == 4)
+				    || (pi->pubpi.radiorev == 6)) {
+					pi->nphy_papd_cal_gain_index[phy_b5] =
+						23;
+				} else if (pi->pubpi.radiorev == 5) {
+					pi->nphy_papd_cal_gain_index[phy_b5] =
+						0;
+					pi->nphy_papd_cal_gain_index[phy_b5] =
+						wlc_phy_a3_nphy(
+							pi,
+							pi->
+							nphy_papd_cal_gain_index
+							[phy_b5],
+							phy_b5);
+
+				} else if ((pi->pubpi.radiorev == 7)
+					   || (pi->pubpi.radiorev == 8)) {
+
+					pi->nphy_papd_cal_gain_index[phy_b5] =
+						0;
+					pi->nphy_papd_cal_gain_index[phy_b5] =
+						wlc_phy_a3_nphy(
+							pi,
+							pi->
+							nphy_papd_cal_gain_index
+							[phy_b5],
+							phy_b5);
+
+				}
+
+				phy_b1[phy_b5].gains.pad[phy_b5] =
+					pi->nphy_papd_cal_gain_index[phy_b5];
+
+			} else {
+				pi->nphy_papd_cal_gain_index[phy_b5] = 0;
+				pi->nphy_papd_cal_gain_index[phy_b5] =
+					wlc_phy_a3_nphy(
+						pi,
+						pi->
+						nphy_papd_cal_gain_index
+						[phy_b5], phy_b5);
+				phy_b1[phy_b5].gains.pga[phy_b5] =
+					pi->nphy_papd_cal_gain_index[phy_b5];
+			}
+		} else {
+			phy_b1[phy_b5].useindex = true;
+			phy_b1[phy_b5].index = 16;
+			phy_b1[phy_b5].index =
+				wlc_phy_a3_nphy(pi, phy_b1[phy_b5].index,
+						phy_b5);
+
+			pi->nphy_papd_cal_gain_index[phy_b5] =
+				15 - ((phy_b1[phy_b5].index) >> 3);
+		}
+
+		switch (pi->nphy_papd_cal_type) {
+		case 0:
+			wlc_phy_a2_nphy(pi, &phy_b1[phy_b5], CAL_FULL, phy_b5);
+			break;
+		case 1:
+			wlc_phy_a2_nphy(pi, &phy_b1[phy_b5], CAL_SOFT, phy_b5);
+			break;
+		}
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7))
+			wlc_phy_papd_cal_cleanup_nphy(pi, &phy_b2);
+	}
+
+	if (NREV_LT(pi->pubpi.phy_rev, 7))
+		wlc_phy_papd_cal_cleanup_nphy(pi, &phy_b2);
+
+	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++) {
+		int eps_offset = 0;
+
+		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				if (pi->pubpi.radiorev == 3)
+					eps_offset = -2;
+				else if (pi->pubpi.radiorev == 5)
+					eps_offset = 3;
+				else
+					eps_offset = -1;
+			} else {
+				eps_offset = 2;
+			}
+
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				phy_b8 = phy_b1[phy_b5].gains.pad[phy_b5];
+				phy_b10 = 0;
+				if ((pi->pubpi.radiorev == 3) ||
+				    (pi->pubpi.radiorev == 4) ||
+				    (pi->pubpi.radiorev == 6)) {
+					phy_b12 = -(
+					    nphy_papd_padgain_dlt_2g_2057rev3n4
+							     [phy_b8] + 1) / 2;
+					phy_b10 = -1;
+				} else if (pi->pubpi.radiorev == 5) {
+					phy_b12 = -(
+					    nphy_papd_padgain_dlt_2g_2057rev5
+							     [phy_b8] + 1) / 2;
+				} else if ((pi->pubpi.radiorev == 7) ||
+					   (pi->pubpi.radiorev == 8)) {
+					phy_b12 = -(
+					    nphy_papd_padgain_dlt_2g_2057rev7
+							     [phy_b8] + 1) / 2;
+				}
+			} else {
+				phy_b7 = phy_b1[phy_b5].gains.pga[phy_b5];
+				if ((pi->pubpi.radiorev == 3) ||
+				    (pi->pubpi.radiorev == 4) ||
+				    (pi->pubpi.radiorev == 6))
+					phy_b11 =
+						-(nphy_papd_pgagain_dlt_5g_2057
+						  [phy_b7]
+						  + 1) / 2;
+				else if ((pi->pubpi.radiorev == 7)
+					 || (pi->pubpi.radiorev == 8))
+					phy_b11 = -(
+					      nphy_papd_pgagain_dlt_5g_2057rev7
+							     [phy_b7] + 1) / 2;
+
+				phy_b10 = -9;
+			}
+
+			if (CHSPEC_IS2G(pi->radio_chanspec))
+				phy_b6 =
+					-60 + 27 + eps_offset + phy_b12 +
+					phy_b10;
+			else
+				phy_b6 =
+					-60 + 27 + eps_offset + phy_b11 +
+					phy_b10;
+
+			mod_phy_reg(pi, (phy_b5 == PHY_CORE_0) ? 0x298 :
+				    0x29c, (0x1ff << 7), (phy_b6) << 7);
+
+			pi->nphy_papd_epsilon_offset[phy_b5] = phy_b6;
+		} else {
+			if (NREV_LT(pi->pubpi.phy_rev, 5))
+				eps_offset = 4;
+			else
+				eps_offset = 2;
+
+			phy_b7 = 15 - ((phy_b1[phy_b5].index) >> 3);
+
+			if (CHSPEC_IS2G(pi->radio_chanspec)) {
+				phy_b11 =
+					-(nphy_papd_pga_gain_delta_ipa_2g[
+						  phy_b7] +
+					  1) / 2;
+				phy_b10 = 0;
+			} else {
+				phy_b11 =
+					-(nphy_papd_pga_gain_delta_ipa_5g[
+						  phy_b7] +
+					  1) / 2;
+				phy_b10 = -9;
+			}
+
+			phy_b6 = -60 + 27 + eps_offset + phy_b11 + phy_b10;
+
+			mod_phy_reg(pi, (phy_b5 == PHY_CORE_0) ? 0x298 :
+				    0x29c, (0x1ff << 7), (phy_b6) << 7);
+
+			pi->nphy_papd_epsilon_offset[phy_b5] = phy_b6;
+		}
+	}
+
+	mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x297 :
+		    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_ON) << 0);
+
+	mod_phy_reg(pi, (1 == PHY_CORE_0) ? 0x297 :
+		    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_ON) << 0);
+
+	if (NREV_GE(pi->pubpi.phy_rev, 6)) {
+		mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 13), (0) << 13);
+
+		mod_phy_reg(pi, (1 == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 13), (0) << 13);
+
+	} else {
+		mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 11), (0) << 11);
+
+		mod_phy_reg(pi, (1 == PHY_CORE_0) ? 0x2a3 :
+			    0x2a4, (0x1 << 11), (0) << 11);
+
+	}
+	pi->nphy_papdcomp = NPHY_PAPD_COMP_ON;
+
+	write_phy_reg(pi, 0x01, phy_b9);
+
+	wlc_phy_ipa_set_tx_digi_filts_nphy(pi);
+
+	wlc_phy_txpwrctrl_enable_nphy(pi, phy_b4);
+	if (phy_b4 == PHY_TPC_HW_OFF) {
+		wlc_phy_txpwr_index_nphy(pi, (1 << 0),
+					 (s8) (pi->nphy_txpwrindex[0].
+					       index_internal), false);
+		wlc_phy_txpwr_index_nphy(pi, (1 << 1),
+					 (s8) (pi->nphy_txpwrindex[1].
+					       index_internal), false);
+	}
+
+	wlc_phy_stay_in_carriersearch_nphy(pi, false);
+
+	if (!phy_b3)
+		wlapi_enable_mac(pi->sh->physhim);
 }
 
 void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype)
@@ -24269,18 +26187,6 @@ static void wlc_phy_reapply_txcal_coeffs_nphy(struct brcms_phy *pi)
 						 &pi->nphy_txiqlocal_bestc[5]);
 		}
 	}
-}
-
-static void wlc_phy_tx_iq_war_nphy(struct brcms_phy *pi)
-{
-	struct nphy_iq_comp tx_comp;
-
-	wlc_phy_table_read_nphy(pi, 15, 4, 0x50, 16, &tx_comp);
-
-	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ, tx_comp.a0);
-	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 2, tx_comp.b0);
-	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 4, tx_comp.a1);
-	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 6, tx_comp.b1);
 }
 
 void
@@ -25958,1282 +27864,6 @@ wlc_phy_cal_rxiq_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 		return wlc_phy_cal_rxiq_nphy_rev2(pi, target_gain, debug);
 }
 
-static void wlc_phy_extpa_set_tx_digi_filts_nphy(struct brcms_phy *pi)
-{
-	int j, type = 2;
-	u16 addr_offset = 0x2c5;
-
-	for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-		write_phy_reg(pi, addr_offset + j,
-			      NPHY_IPA_REV4_txdigi_filtcoeffs[type][j]);
-}
-
-static void wlc_phy_ipa_set_tx_digi_filts_nphy(struct brcms_phy *pi)
-{
-	int j, type;
-	u16 addr_offset[] = { 0x186, 0x195, 0x2c5};
-
-	for (type = 0; type < 3; type++) {
-		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-			write_phy_reg(pi, addr_offset[type] + j,
-				      NPHY_IPA_REV4_txdigi_filtcoeffs[type][j]);
-	}
-
-	if (IS40MHZ(pi)) {
-		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-			write_phy_reg(pi, 0x186 + j,
-				      NPHY_IPA_REV4_txdigi_filtcoeffs[3][j]);
-	} else {
-		if (CHSPEC_IS5G(pi->radio_chanspec)) {
-			for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-				write_phy_reg(pi, 0x186 + j,
-					NPHY_IPA_REV4_txdigi_filtcoeffs[5][j]);
-		}
-
-		if (CHSPEC_CHANNEL(pi->radio_chanspec) == 14) {
-			for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-				write_phy_reg(pi, 0x2c5 + j,
-					NPHY_IPA_REV4_txdigi_filtcoeffs[6][j]);
-		}
-	}
-}
-
-static void wlc_phy_ipa_restore_tx_digi_filts_nphy(struct brcms_phy *pi)
-{
-	int j;
-
-	if (IS40MHZ(pi)) {
-		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-			write_phy_reg(pi, 0x195 + j,
-				      NPHY_IPA_REV4_txdigi_filtcoeffs[4][j]);
-	} else {
-		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
-			write_phy_reg(pi, 0x186 + j,
-				      NPHY_IPA_REV4_txdigi_filtcoeffs[3][j]);
-	}
-}
-
-static u16 wlc_phy_ipa_get_bbmult_nphy(struct brcms_phy *pi)
-{
-	u16 m0m1;
-
-	wlc_phy_table_read_nphy(pi, 15, 1, 87, 16, &m0m1);
-
-	return m0m1;
-}
-
-static void wlc_phy_ipa_set_bbmult_nphy(struct brcms_phy *pi, u8 m0, u8 m1)
-{
-	u16 m0m1 = (u16) ((m0 << 8) | m1);
-
-	wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &m0m1);
-	wlc_phy_table_write_nphy(pi, 15, 1, 95, 16, &m0m1);
-}
-
-static u32 *wlc_phy_get_ipa_gaintbl_nphy(struct brcms_phy *pi)
-{
-	u32 *tx_pwrctrl_tbl = NULL;
-
-	if (CHSPEC_IS2G(pi->radio_chanspec)) {
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			if ((pi->pubpi.radiorev == 4)
-			    || (pi->pubpi.radiorev == 6))
-				tx_pwrctrl_tbl =
-					nphy_tpc_txgain_ipa_2g_2057rev4n6;
-			else if (pi->pubpi.radiorev == 3)
-				tx_pwrctrl_tbl =
-					nphy_tpc_txgain_ipa_2g_2057rev3;
-			else if (pi->pubpi.radiorev == 5)
-				tx_pwrctrl_tbl =
-					nphy_tpc_txgain_ipa_2g_2057rev5;
-			else if ((pi->pubpi.radiorev == 7)
-				 || (pi->pubpi.radiorev == 8))
-				tx_pwrctrl_tbl =
-					nphy_tpc_txgain_ipa_2g_2057rev7;
-		} else if (NREV_IS(pi->pubpi.phy_rev, 6)) {
-			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_rev6;
-		} else if (NREV_IS(pi->pubpi.phy_rev, 5)) {
-			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_rev5;
-		} else {
-			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa;
-		}
-	} else {
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			if ((pi->pubpi.radiorev == 3) ||
-			    (pi->pubpi.radiorev == 4) ||
-			    (pi->pubpi.radiorev == 6))
-				tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_5g_2057;
-			else if ((pi->pubpi.radiorev == 7)
-				 || (pi->pubpi.radiorev == 8))
-				tx_pwrctrl_tbl =
-					nphy_tpc_txgain_ipa_5g_2057rev7;
-		} else {
-			tx_pwrctrl_tbl = nphy_tpc_txgain_ipa_5g;
-		}
-	}
-
-	return tx_pwrctrl_tbl;
-}
-
-static void
-wlc_phy_papd_cal_setup_nphy(struct brcms_phy *pi,
-			    struct nphy_papd_restore_state *state, u8 core)
-{
-	s32 tone_freq;
-	u8 off_core;
-	u16 mixgain = 0;
-
-	off_core = core ^ 0x1;
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-		if (NREV_IS(pi->pubpi.phy_rev, 7)
-		    || NREV_GE(pi->pubpi.phy_rev, 8))
-			wlc_phy_rfctrl_override_nphy_rev7(
-				pi, (0x1 << 7),
-				wlc_phy_read_lpf_bw_ctl_nphy
-					(pi,
-					0), 0, 0,
-				NPHY_REV7_RFCTRLOVERRIDE_ID1);
-
-		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			if (pi->pubpi.radiorev == 5)
-				mixgain = (core == 0) ? 0x20 : 0x00;
-			else if ((pi->pubpi.radiorev == 7)
-				 || (pi->pubpi.radiorev == 8))
-				mixgain = 0x00;
-			else if ((pi->pubpi.radiorev <= 4)
-				 || (pi->pubpi.radiorev == 6))
-				mixgain = 0x00;
-		} else {
-			if ((pi->pubpi.radiorev == 4) ||
-			    (pi->pubpi.radiorev == 6))
-				mixgain = 0x50;
-			else if ((pi->pubpi.radiorev == 3)
-				 || (pi->pubpi.radiorev == 7)
-				 || (pi->pubpi.radiorev == 8))
-				mixgain = 0x0;
-		}
-
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 11),
-						  mixgain, (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-
-		wlc_phy_rfctrl_override_1tomany_nphy(
-			pi,
-			NPHY_REV7_RfctrlOverride_cmd_tx_pu,
-			1, (1 << core), 0);
-		wlc_phy_rfctrl_override_1tomany_nphy(
-			pi,
-			NPHY_REV7_RfctrlOverride_cmd_tx_pu,
-			0, (1 << off_core), 0);
-
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
-						  0, 0x3, 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 2), 1,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 0), 0,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 1), 1,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 8), 0,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 9), 1,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 10), 0,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3), 1,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 5),
-						  0, (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 4), 0,
-						  (1 << core), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-
-		state->afectrl[core] = read_phy_reg(pi, (core == PHY_CORE_0) ?
-						    0xa6 : 0xa7);
-		state->afeoverride[core] =
-			read_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f : 0xa5);
-		state->afectrl[off_core] =
-			read_phy_reg(pi, (core == PHY_CORE_0) ? 0xa7 : 0xa6);
-		state->afeoverride[off_core] =
-			read_phy_reg(pi, (core == PHY_CORE_0) ? 0xa5 : 0x8f);
-
-		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa6 : 0xa7),
-			    (0x1 << 2), 0);
-		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0x8f :
-				 0xa5), (0x1 << 2), (0x1 << 2));
-
-		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa7 : 0xa6),
-			    (0x1 << 2), (0x1 << 2));
-		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa5 :
-				 0x8f), (0x1 << 2), (0x1 << 2));
-
-		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			state->pwrup[core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
-						TXRXCOUPLE_2G_PWRUP);
-			state->atten[core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
-						TXRXCOUPLE_2G_ATTEN);
-			state->pwrup[off_core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-						TXRXCOUPLE_2G_PWRUP);
-			state->atten[off_core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-						TXRXCOUPLE_2G_ATTEN);
-
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-					 TXRXCOUPLE_2G_PWRUP, 0xc);
-
-			if ((pi->pubpi.radiorev == 3) ||
-			    (pi->pubpi.radiorev == 4) ||
-			    (pi->pubpi.radiorev == 6))
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_2G_ATTEN, 0xf0);
-			else if (pi->pubpi.radiorev == 5)
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_2G_ATTEN,
-						 (core == 0) ? 0xf7 : 0xf2);
-			else if ((pi->pubpi.radiorev == 7)
-				 || (pi->pubpi.radiorev == 8))
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_2G_ATTEN, 0xf0);
-
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-					 TXRXCOUPLE_2G_PWRUP, 0x0);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-					 TXRXCOUPLE_2G_ATTEN, 0xff);
-		} else {
-			state->pwrup[core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
-						TXRXCOUPLE_5G_PWRUP);
-			state->atten[core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, core,
-						TXRXCOUPLE_5G_ATTEN);
-			state->pwrup[off_core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-						TXRXCOUPLE_5G_PWRUP);
-			state->atten[off_core] =
-				READ_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-						TXRXCOUPLE_5G_ATTEN);
-
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-					 TXRXCOUPLE_5G_PWRUP, 0xc);
-
-			if ((pi->pubpi.radiorev == 7)
-			    || (pi->pubpi.radiorev == 8))
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_5G_ATTEN, 0xf4);
-
-			else
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_5G_ATTEN, 0xf0);
-
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-					 TXRXCOUPLE_5G_PWRUP, 0x0);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, off_core,
-					 TXRXCOUPLE_5G_ATTEN, 0xff);
-		}
-
-		tone_freq = 4000;
-
-		wlc_phy_tx_tone_nphy(pi, tone_freq, 181, 0, 0, false);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_ON) << 0);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 13), (1) << 13);
-
-		mod_phy_reg(pi, (off_core == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_OFF) << 0);
-
-		mod_phy_reg(pi, (off_core == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 13), (0) << 13);
-
-	} else {
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 12), 0, 0x3, 0);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 1, 0, 0);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 0), 0, 0x3, 0);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 2), 1, 0x3, 0);
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 1), 1, 0x3, 0);
-
-		state->afectrl[core] = read_phy_reg(pi, (core == PHY_CORE_0) ?
-						    0xa6 : 0xa7);
-		state->afeoverride[core] =
-			read_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f : 0xa5);
-
-		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0xa6 : 0xa7),
-			    (0x1 << 0) | (0x1 << 1) | (0x1 << 2), 0);
-		mod_phy_reg(pi, ((core == PHY_CORE_0) ? 0x8f :
-				 0xa5),
-			    (0x1 << 0) |
-			    (0x1 << 1) |
-			    (0x1 << 2), (0x1 << 0) | (0x1 << 1) | (0x1 << 2));
-
-		state->vga_master[core] =
-			READ_RADIO_REG2(pi, RADIO_2056, RX, core, VGA_MASTER);
-		WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, VGA_MASTER, 0x2b);
-		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			state->fbmix[core] =
-				READ_RADIO_REG2(pi, RADIO_2056, RX, core,
-						TXFBMIX_G);
-			state->intpa_master[core] =
-				READ_RADIO_REG2(pi, RADIO_2056, TX, core,
-						INTPAG_MASTER);
-
-			WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, TXFBMIX_G,
-					 0x03);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-					 INTPAG_MASTER, 0x04);
-		} else {
-			state->fbmix[core] =
-				READ_RADIO_REG2(pi, RADIO_2056, RX, core,
-						TXFBMIX_A);
-			state->intpa_master[core] =
-				READ_RADIO_REG2(pi, RADIO_2056, TX, core,
-						INTPAA_MASTER);
-
-			WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, TXFBMIX_A,
-					 0x03);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-					 INTPAA_MASTER, 0x04);
-
-		}
-
-		tone_freq = 4000;
-
-		wlc_phy_tx_tone_nphy(pi, tone_freq, 181, 0, 0, false);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (1) << 0);
-
-		mod_phy_reg(pi, (off_core == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (0) << 0);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 0, 0x3, 0);
-	}
-}
-
-static void
-wlc_phy_papd_cal_cleanup_nphy(struct brcms_phy *pi,
-			      struct nphy_papd_restore_state *state)
-{
-	u8 core;
-
-	wlc_phy_stopplayback_nphy(pi);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_2G_PWRUP, 0);
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_2G_ATTEN,
-						 state->atten[core]);
-			} else {
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_5G_PWRUP, 0);
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TXRXCOUPLE_5G_ATTEN,
-						 state->atten[core]);
-			}
-		}
-
-		if ((pi->pubpi.radiorev == 4) || (pi->pubpi.radiorev == 6))
-			wlc_phy_rfctrl_override_nphy_rev7(
-				pi, (0x1 << 2),
-				1, 0x3, 0,
-				NPHY_REV7_RFCTRLOVERRIDE_ID0);
-		else
-			wlc_phy_rfctrl_override_nphy_rev7(
-				pi, (0x1 << 2),
-				0, 0x3, 1,
-				NPHY_REV7_RFCTRLOVERRIDE_ID0);
-
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 1),
-						  0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 0), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 2), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 11), 1, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 11), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 12), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 2), 1, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 0), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 1), 1, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID2);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 8), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 9), 1, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 10), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3), 1, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 5), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 4), 0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID1);
-
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-
-			write_phy_reg(pi, (core == PHY_CORE_0) ?
-				      0xa6 : 0xa7, state->afectrl[core]);
-			write_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f :
-				      0xa5, state->afeoverride[core]);
-		}
-
-		wlc_phy_ipa_set_bbmult_nphy(pi, (state->mm >> 8) & 0xff,
-					    (state->mm & 0xff));
-
-		if (NREV_IS(pi->pubpi.phy_rev, 7)
-		    || NREV_GE(pi->pubpi.phy_rev, 8))
-			wlc_phy_rfctrl_override_nphy_rev7(
-				pi, (0x1 << 7), 0, 0,
-				1,
-				NPHY_REV7_RFCTRLOVERRIDE_ID1);
-	} else {
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 12), 0, 0x3, 1);
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 13), 0, 0x3, 1);
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 0), 0, 0x3, 1);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 2), 0, 0x3, 1);
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 1), 0, 0x3, 1);
-
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-
-			WRITE_RADIO_REG2(pi, RADIO_2056, RX, core, VGA_MASTER,
-					 state->vga_master[core]);
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				WRITE_RADIO_REG2(pi, RADIO_2056, RX, core,
-						 TXFBMIX_G, state->fbmix[core]);
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 INTPAG_MASTER,
-						 state->intpa_master[core]);
-			} else {
-				WRITE_RADIO_REG2(pi, RADIO_2056, RX, core,
-						 TXFBMIX_A, state->fbmix[core]);
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 INTPAA_MASTER,
-						 state->intpa_master[core]);
-			}
-
-			write_phy_reg(pi, (core == PHY_CORE_0) ?
-				      0xa6 : 0xa7, state->afectrl[core]);
-			write_phy_reg(pi, (core == PHY_CORE_0) ? 0x8f :
-				      0xa5, state->afeoverride[core]);
-		}
-
-		wlc_phy_ipa_set_bbmult_nphy(pi, (state->mm >> 8) & 0xff,
-					    (state->mm & 0xff));
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 0, 0x3, 1);
-	}
-}
-
-static void
-wlc_phy_a1_nphy(struct brcms_phy *pi, u8 core, u32 winsz, u32 start,
-		u32 end)
-{
-	u32 *buf, *src, *dst, sz;
-
-	sz = end - start + 1;
-
-	buf = kmalloc(2 * sizeof(u32) * NPHY_PAPD_EPS_TBL_SIZE, GFP_ATOMIC);
-	if (NULL == buf)
-		return;
-
-	src = buf;
-	dst = buf + NPHY_PAPD_EPS_TBL_SIZE;
-
-	wlc_phy_table_read_nphy(pi,
-				(core ==
-				 PHY_CORE_0 ? NPHY_TBL_ID_EPSILONTBL0 :
-				 NPHY_TBL_ID_EPSILONTBL1),
-				NPHY_PAPD_EPS_TBL_SIZE, 0, 32, src);
-
-	do {
-		u32 phy_a1, phy_a2;
-		s32 phy_a3, phy_a4, phy_a5, phy_a6, phy_a7;
-
-		phy_a1 = end - min(end, (winsz >> 1));
-		phy_a2 = min_t(u32, NPHY_PAPD_EPS_TBL_SIZE - 1,
-			       end + (winsz >> 1));
-		phy_a3 = phy_a2 - phy_a1 + 1;
-		phy_a6 = 0;
-		phy_a7 = 0;
-
-		do {
-			wlc_phy_papd_decode_epsilon(src[phy_a2], &phy_a4,
-						    &phy_a5);
-			phy_a6 += phy_a4;
-			phy_a7 += phy_a5;
-		} while (phy_a2-- != phy_a1);
-
-		phy_a6 /= phy_a3;
-		phy_a7 /= phy_a3;
-		dst[end] = ((u32) phy_a7 << 13) | ((u32) phy_a6 & 0x1fff);
-	} while (end-- != start);
-
-	wlc_phy_table_write_nphy(pi,
-				 (core ==
-				  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0 :
-				 NPHY_TBL_ID_EPSILONTBL1, sz, start, 32, dst);
-
-	kfree(buf);
-}
-
-static void
-wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *txgains,
-		enum phy_cal_mode cal_mode, u8 core)
-{
-	u16 phy_a1, phy_a2, phy_a3;
-	u16 phy_a4, phy_a5;
-	bool phy_a6;
-	u8 phy_a7, m[2];
-	u32 phy_a8 = 0;
-	struct nphy_txgains phy_a9;
-
-	if (NREV_LT(pi->pubpi.phy_rev, 3))
-		return;
-
-	phy_a7 = (core == PHY_CORE_0) ? 1 : 0;
-
-	phy_a6 = ((cal_mode == CAL_GCTRL)
-		  || (cal_mode == CAL_SOFT)) ? true : false;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-		phy_a9 = wlc_phy_get_tx_gain_nphy(pi);
-
-		if (CHSPEC_IS2G(pi->radio_chanspec))
-			phy_a5 = ((phy_a9.txlpf[core] << 15) |
-				  (phy_a9.txgm[core] << 12) |
-				  (phy_a9.pga[core] << 8) |
-				  (txgains->gains.pad[core] << 3) |
-				  (phy_a9.ipa[core]));
-		else
-			phy_a5 = ((phy_a9.txlpf[core] << 15) |
-				  (phy_a9.txgm[core] << 12) |
-				  (txgains->gains.pga[core] << 8) |
-				  (phy_a9.pad[core] << 3) | (phy_a9.ipa[core]));
-
-		wlc_phy_rfctrl_override_1tomany_nphy(
-			pi,
-			NPHY_REV7_RfctrlOverride_cmd_txgain,
-			phy_a5, (1 << core), 0);
-
-		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			if ((pi->pubpi.radiorev <= 4)
-			    || (pi->pubpi.radiorev == 6))
-				m[core] = IS40MHZ(pi) ? 60 : 79;
-			else
-				m[core] = IS40MHZ(pi) ? 45 : 64;
-		} else {
-			m[core] = IS40MHZ(pi) ? 75 : 107;
-		}
-
-		m[phy_a7] = 0;
-		wlc_phy_ipa_set_bbmult_nphy(pi, m[0], m[1]);
-
-		phy_a2 = 63;
-
-		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			if ((pi->pubpi.radiorev == 4)
-			    || (pi->pubpi.radiorev == 6)) {
-				phy_a1 = 30;
-				phy_a3 = 30;
-			} else {
-				phy_a1 = 25;
-				phy_a3 = 25;
-			}
-		} else {
-			if ((pi->pubpi.radiorev == 5)
-			    || (pi->pubpi.radiorev == 7)
-			    || (pi->pubpi.radiorev == 8)) {
-				phy_a1 = 25;
-				phy_a3 = 25;
-			} else {
-				phy_a1 = 35;
-				phy_a3 = 35;
-			}
-		}
-
-		if (cal_mode == CAL_GCTRL) {
-			if ((pi->pubpi.radiorev == 5)
-			    && (CHSPEC_IS2G(pi->radio_chanspec)))
-				phy_a1 = 55;
-			else if (((pi->pubpi.radiorev == 7) &&
-				  (CHSPEC_IS2G(pi->radio_chanspec))) ||
-				 ((pi->pubpi.radiorev == 8) &&
-				  (CHSPEC_IS2G(pi->radio_chanspec))))
-				phy_a1 = 60;
-			else
-				phy_a1 = 63;
-
-		} else if ((cal_mode != CAL_FULL) && (cal_mode != CAL_SOFT)) {
-
-			phy_a1 = 35;
-			phy_a3 = 35;
-		}
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (1) << 0);
-
-		mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (0) << 0);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 13), (1) << 13);
-
-		mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 13), (0) << 13);
-
-		write_phy_reg(pi, 0x2a1, 0x80);
-		write_phy_reg(pi, 0x2a2, 0x100);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x7 << 4), (11) << 4);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x7 << 8), (11) << 8);
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x7 << 0), (0x3) << 0);
-
-		write_phy_reg(pi, 0x2e5, 0x20);
-
-		mod_phy_reg(pi, 0x2a0, (0x3f << 0), (phy_a3) << 0);
-
-		mod_phy_reg(pi, 0x29f, (0x3f << 0), (phy_a1) << 0);
-
-		mod_phy_reg(pi, 0x29f, (0x3f << 8), (phy_a2) << 8);
-
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
-						  1, ((core == 0) ? 1 : 2), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
-						  0, ((core == 0) ? 2 : 1), 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-
-		write_phy_reg(pi, 0x2be, 1);
-		SPINWAIT(read_phy_reg(pi, 0x2be), 10 * 1000 * 1000);
-
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 3),
-						  0, 0x3, 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-
-		wlc_phy_table_write_nphy(pi,
-					 (core ==
-					  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0
-					 : NPHY_TBL_ID_EPSILONTBL1, 1, phy_a3,
-					 32, &phy_a8);
-
-		if (cal_mode != CAL_GCTRL) {
-			if (CHSPEC_IS5G(pi->radio_chanspec))
-				wlc_phy_a1_nphy(pi, core, 5, 0, 35);
-		}
-
-		wlc_phy_rfctrl_override_1tomany_nphy(
-			pi,
-			NPHY_REV7_RfctrlOverride_cmd_txgain,
-			phy_a5, (1 << core), 1);
-
-	} else {
-
-		if (txgains) {
-			if (txgains->useindex) {
-				phy_a4 = 15 - ((txgains->index) >> 3);
-				if (CHSPEC_IS2G(pi->radio_chanspec)) {
-					if (NREV_GE(pi->pubpi.phy_rev, 6))
-						phy_a5 = 0x00f7 | (phy_a4 << 8);
-
-					else
-					if (NREV_IS(pi->pubpi.phy_rev, 5))
-						phy_a5 = 0x10f7 | (phy_a4 << 8);
-					else
-						phy_a5 = 0x50f7 | (phy_a4 << 8);
-				} else {
-					phy_a5 = 0x70f7 | (phy_a4 << 8);
-				}
-				wlc_phy_rfctrl_override_nphy(pi,
-							     (0x1 << 13),
-							     phy_a5,
-							     (1 << core), 0);
-			} else {
-				wlc_phy_rfctrl_override_nphy(pi,
-							     (0x1 << 13),
-							     0x5bf7,
-							     (1 << core), 0);
-			}
-		}
-
-		if (CHSPEC_IS2G(pi->radio_chanspec))
-			m[core] = IS40MHZ(pi) ? 45 : 64;
-		else
-			m[core] = IS40MHZ(pi) ? 75 : 107;
-
-		m[phy_a7] = 0;
-		wlc_phy_ipa_set_bbmult_nphy(pi, m[0], m[1]);
-
-		phy_a2 = 63;
-
-		if (cal_mode == CAL_FULL) {
-			phy_a1 = 25;
-			phy_a3 = 25;
-		} else if (cal_mode == CAL_SOFT) {
-			phy_a1 = 25;
-			phy_a3 = 25;
-		} else if (cal_mode == CAL_GCTRL) {
-			phy_a1 = 63;
-			phy_a3 = 25;
-		} else {
-
-			phy_a1 = 25;
-			phy_a3 = 25;
-		}
-
-		mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (1) << 0);
-
-		mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x297 :
-			    0x29b, (0x1 << 0), (0) << 0);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 6)) {
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x1 << 13), (1) << 13);
-
-			mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x1 << 13), (0) << 13);
-
-			write_phy_reg(pi, 0x2a1, 0x20);
-			write_phy_reg(pi, 0x2a2, 0x60);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0xf << 4), (9) << 4);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0xf << 8), (9) << 8);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0xf << 0), (0x2) << 0);
-
-			write_phy_reg(pi, 0x2e5, 0x20);
-		} else {
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x1 << 11), (1) << 11);
-
-			mod_phy_reg(pi, (phy_a7 == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x1 << 11), (0) << 11);
-
-			write_phy_reg(pi, 0x2a1, 0x80);
-			write_phy_reg(pi, 0x2a2, 0x600);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x7 << 4), (0) << 4);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x7 << 8), (0) << 8);
-
-			mod_phy_reg(pi, (core == PHY_CORE_0) ? 0x2a3 :
-				    0x2a4, (0x7 << 0), (0x3) << 0);
-
-			mod_phy_reg(pi, 0x2a0, (0x3f << 8), (0x20) << 8);
-
-		}
-
-		mod_phy_reg(pi, 0x2a0, (0x3f << 0), (phy_a3) << 0);
-
-		mod_phy_reg(pi, 0x29f, (0x3f << 0), (phy_a1) << 0);
-
-		mod_phy_reg(pi, 0x29f, (0x3f << 8), (phy_a2) << 8);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 1, 0x3, 0);
-
-		write_phy_reg(pi, 0x2be, 1);
-		SPINWAIT(read_phy_reg(pi, 0x2be), 10 * 1000 * 1000);
-
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 3), 0, 0x3, 0);
-
-		wlc_phy_table_write_nphy(pi,
-					 (core ==
-					  PHY_CORE_0) ? NPHY_TBL_ID_EPSILONTBL0
-					 : NPHY_TBL_ID_EPSILONTBL1, 1, phy_a3,
-					 32, &phy_a8);
-
-		if (cal_mode != CAL_GCTRL)
-			wlc_phy_a1_nphy(pi, core, 5, 0, 40);
-	}
-}
-
-static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
-{
-	int phy_a1;
-	int phy_a2;
-	bool phy_a3;
-	struct nphy_ipa_txcalgains phy_a4;
-	bool phy_a5 = false;
-	bool phy_a6 = true;
-	s32 phy_a7, phy_a8;
-	u32 phy_a9;
-	int phy_a10;
-	bool phy_a11 = false;
-	int phy_a12;
-	u8 phy_a13 = 0;
-	u8 phy_a14;
-	u8 *phy_a15 = NULL;
-
-	phy_a4.useindex = true;
-	phy_a12 = start_gain;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-
-		phy_a2 = 20;
-		phy_a1 = 1;
-
-		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			if (pi->pubpi.radiorev == 5) {
-
-				phy_a15 = pad_gain_codes_used_2057rev5;
-				phy_a13 =
-					sizeof(pad_gain_codes_used_2057rev5) /
-					sizeof(pad_gain_codes_used_2057rev5
-						[0]) - 1;
-
-			} else if ((pi->pubpi.radiorev == 7)
-				   || (pi->pubpi.radiorev == 8)) {
-
-				phy_a15 = pad_gain_codes_used_2057rev7;
-				phy_a13 =
-					sizeof(pad_gain_codes_used_2057rev7) /
-					sizeof(pad_gain_codes_used_2057rev7
-						[0]) - 1;
-
-			} else {
-
-				phy_a15 = pad_all_gain_codes_2057;
-				phy_a13 = sizeof(pad_all_gain_codes_2057) /
-					  sizeof(pad_all_gain_codes_2057[0]) -
-					  1;
-			}
-
-		} else {
-
-			phy_a15 = pga_all_gain_codes_2057;
-			phy_a13 = sizeof(pga_all_gain_codes_2057) /
-				  sizeof(pga_all_gain_codes_2057[0]) - 1;
-		}
-
-		phy_a14 = 0;
-
-		for (phy_a10 = 0; phy_a10 < phy_a2; phy_a10++) {
-			if (CHSPEC_IS2G(pi->radio_chanspec))
-				phy_a4.gains.pad[core] =
-					(u16) phy_a15[phy_a12];
-			else
-				phy_a4.gains.pga[core] =
-					(u16) phy_a15[phy_a12];
-
-			wlc_phy_a2_nphy(pi, &phy_a4, CAL_GCTRL, core);
-
-			wlc_phy_table_read_nphy(pi,
-						(core ==
-						 PHY_CORE_0 ?
-						 NPHY_TBL_ID_EPSILONTBL0 :
-						 NPHY_TBL_ID_EPSILONTBL1), 1,
-						63, 32, &phy_a9);
-
-			wlc_phy_papd_decode_epsilon(phy_a9, &phy_a7, &phy_a8);
-
-			phy_a3 = ((phy_a7 == 4095) || (phy_a7 == -4096) ||
-				  (phy_a8 == 4095) || (phy_a8 == -4096));
-
-			if (!phy_a6 && (phy_a3 != phy_a5)) {
-				if (!phy_a3)
-					phy_a12 -= (u8) phy_a1;
-
-				phy_a11 = true;
-				break;
-			}
-
-			if (phy_a3)
-				phy_a12 += (u8) phy_a1;
-			else
-				phy_a12 -= (u8) phy_a1;
-
-			if ((phy_a12 < phy_a14) || (phy_a12 > phy_a13)) {
-				if (phy_a12 < phy_a14)
-					phy_a12 = phy_a14;
-				else
-					phy_a12 = phy_a13;
-
-				phy_a11 = true;
-				break;
-			}
-
-			phy_a6 = false;
-			phy_a5 = phy_a3;
-		}
-
-	} else {
-		phy_a2 = 10;
-		phy_a1 = 8;
-		for (phy_a10 = 0; phy_a10 < phy_a2; phy_a10++) {
-			phy_a4.index = (u8) phy_a12;
-			wlc_phy_a2_nphy(pi, &phy_a4, CAL_GCTRL, core);
-
-			wlc_phy_table_read_nphy(pi,
-						(core ==
-						 PHY_CORE_0 ?
-						 NPHY_TBL_ID_EPSILONTBL0 :
-						 NPHY_TBL_ID_EPSILONTBL1), 1,
-						63, 32, &phy_a9);
-
-			wlc_phy_papd_decode_epsilon(phy_a9, &phy_a7, &phy_a8);
-
-			phy_a3 = ((phy_a7 == 4095) || (phy_a7 == -4096) ||
-				  (phy_a8 == 4095) || (phy_a8 == -4096));
-
-			if (!phy_a6 && (phy_a3 != phy_a5)) {
-				if (!phy_a3)
-					phy_a12 -= (u8) phy_a1;
-
-				phy_a11 = true;
-				break;
-			}
-
-			if (phy_a3)
-				phy_a12 += (u8) phy_a1;
-			else
-				phy_a12 -= (u8) phy_a1;
-
-			if ((phy_a12 < 0) || (phy_a12 > 127)) {
-				if (phy_a12 < 0)
-					phy_a12 = 0;
-				else
-					phy_a12 = 127;
-
-				phy_a11 = true;
-				break;
-			}
-
-			phy_a6 = false;
-			phy_a5 = phy_a3;
-		}
-
-	}
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7))
-		return (u8) phy_a15[phy_a12];
-	else
-		return (u8) phy_a12;
-
-}
-
-static void wlc_phy_a4(struct brcms_phy *pi, bool full_cal)
-{
-	struct nphy_ipa_txcalgains phy_b1[2];
-	struct nphy_papd_restore_state phy_b2;
-	bool phy_b3;
-	u8 phy_b4;
-	u8 phy_b5;
-	s16 phy_b6, phy_b7, phy_b8;
-	u16 phy_b9;
-	s16 phy_b10, phy_b11, phy_b12;
-
-	phy_b11 = 0;
-	phy_b12 = 0;
-	phy_b7 = 0;
-	phy_b8 = 0;
-	phy_b6 = 0;
-
-	if (pi->nphy_papd_skip == 1)
-		return;
-
-	phy_b3 = (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
-	if (!phy_b3)
-		wlapi_suspend_mac_and_wait(pi->sh->physhim);
-
-	wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	pi->nphy_force_papd_cal = false;
-
-	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++)
-		pi->nphy_papd_tx_gain_at_last_cal[phy_b5] =
-			wlc_phy_txpwr_idx_cur_get_nphy(pi, phy_b5);
-
-	pi->nphy_papd_last_cal = pi->sh->now;
-	pi->nphy_papd_recal_counter++;
-
-	phy_b4 = pi->nphy_txpwrctrl;
-	wlc_phy_txpwrctrl_enable_nphy(pi, PHY_TPC_HW_OFF);
-
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SCALARTBL0, 64, 0, 32,
-				 nphy_papd_scaltbl);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SCALARTBL1, 64, 0, 32,
-				 nphy_papd_scaltbl);
-
-	phy_b9 = read_phy_reg(pi, 0x01);
-	mod_phy_reg(pi, 0x01, (0x1 << 15), 0);
-
-	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++) {
-		s32 i, val = 0;
-		for (i = 0; i < 64; i++)
-			wlc_phy_table_write_nphy(pi,
-						 ((phy_b5 ==
-						   PHY_CORE_0) ?
-						  NPHY_TBL_ID_EPSILONTBL0 :
-						  NPHY_TBL_ID_EPSILONTBL1), 1,
-						 i, 32, &val);
-	}
-
-	wlc_phy_ipa_restore_tx_digi_filts_nphy(pi);
-
-	phy_b2.mm = wlc_phy_ipa_get_bbmult_nphy(pi);
-	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++) {
-		wlc_phy_papd_cal_setup_nphy(pi, &phy_b2, phy_b5);
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				if ((pi->pubpi.radiorev == 3)
-				    || (pi->pubpi.radiorev == 4)
-				    || (pi->pubpi.radiorev == 6)) {
-					pi->nphy_papd_cal_gain_index[phy_b5] =
-						23;
-				} else if (pi->pubpi.radiorev == 5) {
-					pi->nphy_papd_cal_gain_index[phy_b5] =
-						0;
-					pi->nphy_papd_cal_gain_index[phy_b5] =
-						wlc_phy_a3_nphy(
-							pi,
-							pi->
-							nphy_papd_cal_gain_index
-							[phy_b5],
-							phy_b5);
-
-				} else if ((pi->pubpi.radiorev == 7)
-					   || (pi->pubpi.radiorev == 8)) {
-
-					pi->nphy_papd_cal_gain_index[phy_b5] =
-						0;
-					pi->nphy_papd_cal_gain_index[phy_b5] =
-						wlc_phy_a3_nphy(
-							pi,
-							pi->
-							nphy_papd_cal_gain_index
-							[phy_b5],
-							phy_b5);
-
-				}
-
-				phy_b1[phy_b5].gains.pad[phy_b5] =
-					pi->nphy_papd_cal_gain_index[phy_b5];
-
-			} else {
-				pi->nphy_papd_cal_gain_index[phy_b5] = 0;
-				pi->nphy_papd_cal_gain_index[phy_b5] =
-					wlc_phy_a3_nphy(
-						pi,
-						pi->
-						nphy_papd_cal_gain_index
-						[phy_b5], phy_b5);
-				phy_b1[phy_b5].gains.pga[phy_b5] =
-					pi->nphy_papd_cal_gain_index[phy_b5];
-			}
-		} else {
-			phy_b1[phy_b5].useindex = true;
-			phy_b1[phy_b5].index = 16;
-			phy_b1[phy_b5].index =
-				wlc_phy_a3_nphy(pi, phy_b1[phy_b5].index,
-						phy_b5);
-
-			pi->nphy_papd_cal_gain_index[phy_b5] =
-				15 - ((phy_b1[phy_b5].index) >> 3);
-		}
-
-		switch (pi->nphy_papd_cal_type) {
-		case 0:
-			wlc_phy_a2_nphy(pi, &phy_b1[phy_b5], CAL_FULL, phy_b5);
-			break;
-		case 1:
-			wlc_phy_a2_nphy(pi, &phy_b1[phy_b5], CAL_SOFT, phy_b5);
-			break;
-		}
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7))
-			wlc_phy_papd_cal_cleanup_nphy(pi, &phy_b2);
-	}
-
-	if (NREV_LT(pi->pubpi.phy_rev, 7))
-		wlc_phy_papd_cal_cleanup_nphy(pi, &phy_b2);
-
-	for (phy_b5 = 0; phy_b5 < pi->pubpi.phy_corenum; phy_b5++) {
-		int eps_offset = 0;
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				if (pi->pubpi.radiorev == 3)
-					eps_offset = -2;
-				else if (pi->pubpi.radiorev == 5)
-					eps_offset = 3;
-				else
-					eps_offset = -1;
-			} else {
-				eps_offset = 2;
-			}
-
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				phy_b8 = phy_b1[phy_b5].gains.pad[phy_b5];
-				phy_b10 = 0;
-				if ((pi->pubpi.radiorev == 3) ||
-				    (pi->pubpi.radiorev == 4) ||
-				    (pi->pubpi.radiorev == 6)) {
-					phy_b12 = -(
-					    nphy_papd_padgain_dlt_2g_2057rev3n4
-							     [phy_b8] + 1) / 2;
-					phy_b10 = -1;
-				} else if (pi->pubpi.radiorev == 5) {
-					phy_b12 = -(
-					    nphy_papd_padgain_dlt_2g_2057rev5
-							     [phy_b8] + 1) / 2;
-				} else if ((pi->pubpi.radiorev == 7) ||
-					   (pi->pubpi.radiorev == 8)) {
-					phy_b12 = -(
-					    nphy_papd_padgain_dlt_2g_2057rev7
-							     [phy_b8] + 1) / 2;
-				}
-			} else {
-				phy_b7 = phy_b1[phy_b5].gains.pga[phy_b5];
-				if ((pi->pubpi.radiorev == 3) ||
-				    (pi->pubpi.radiorev == 4) ||
-				    (pi->pubpi.radiorev == 6))
-					phy_b11 =
-						-(nphy_papd_pgagain_dlt_5g_2057
-						  [phy_b7]
-						  + 1) / 2;
-				else if ((pi->pubpi.radiorev == 7)
-					 || (pi->pubpi.radiorev == 8))
-					phy_b11 = -(
-					      nphy_papd_pgagain_dlt_5g_2057rev7
-							     [phy_b7] + 1) / 2;
-
-				phy_b10 = -9;
-			}
-
-			if (CHSPEC_IS2G(pi->radio_chanspec))
-				phy_b6 =
-					-60 + 27 + eps_offset + phy_b12 +
-					phy_b10;
-			else
-				phy_b6 =
-					-60 + 27 + eps_offset + phy_b11 +
-					phy_b10;
-
-			mod_phy_reg(pi, (phy_b5 == PHY_CORE_0) ? 0x298 :
-				    0x29c, (0x1ff << 7), (phy_b6) << 7);
-
-			pi->nphy_papd_epsilon_offset[phy_b5] = phy_b6;
-		} else {
-			if (NREV_LT(pi->pubpi.phy_rev, 5))
-				eps_offset = 4;
-			else
-				eps_offset = 2;
-
-			phy_b7 = 15 - ((phy_b1[phy_b5].index) >> 3);
-
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				phy_b11 =
-					-(nphy_papd_pga_gain_delta_ipa_2g[
-						  phy_b7] +
-					  1) / 2;
-				phy_b10 = 0;
-			} else {
-				phy_b11 =
-					-(nphy_papd_pga_gain_delta_ipa_5g[
-						  phy_b7] +
-					  1) / 2;
-				phy_b10 = -9;
-			}
-
-			phy_b6 = -60 + 27 + eps_offset + phy_b11 + phy_b10;
-
-			mod_phy_reg(pi, (phy_b5 == PHY_CORE_0) ? 0x298 :
-				    0x29c, (0x1ff << 7), (phy_b6) << 7);
-
-			pi->nphy_papd_epsilon_offset[phy_b5] = phy_b6;
-		}
-	}
-
-	mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x297 :
-		    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_ON) << 0);
-
-	mod_phy_reg(pi, (1 == PHY_CORE_0) ? 0x297 :
-		    0x29b, (0x1 << 0), (NPHY_PAPD_COMP_ON) << 0);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 6)) {
-		mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 13), (0) << 13);
-
-		mod_phy_reg(pi, (1 == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 13), (0) << 13);
-
-	} else {
-		mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 11), (0) << 11);
-
-		mod_phy_reg(pi, (1 == PHY_CORE_0) ? 0x2a3 :
-			    0x2a4, (0x1 << 11), (0) << 11);
-
-	}
-	pi->nphy_papdcomp = NPHY_PAPD_COMP_ON;
-
-	write_phy_reg(pi, 0x01, phy_b9);
-
-	wlc_phy_ipa_set_tx_digi_filts_nphy(pi);
-
-	wlc_phy_txpwrctrl_enable_nphy(pi, phy_b4);
-	if (phy_b4 == PHY_TPC_HW_OFF) {
-		wlc_phy_txpwr_index_nphy(pi, (1 << 0),
-					 (s8) (pi->nphy_txpwrindex[0].
-					       index_internal), false);
-		wlc_phy_txpwr_index_nphy(pi, (1 << 1),
-					 (s8) (pi->nphy_txpwrindex[1].
-					       index_internal), false);
-	}
-
-	wlc_phy_stay_in_carriersearch_nphy(pi, false);
-
-	if (!phy_b3)
-		wlapi_enable_mac(pi->sh->physhim);
-}
-
 void wlc_phy_txpwr_fixpower_nphy(struct brcms_phy *pi)
 {
 	uint core;
@@ -27637,267 +28267,6 @@ void wlc_phy_txpwr_apply_nphy(struct brcms_phy *pi)
 	return;
 }
 
-static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
-{
-	u16 bw40po, cddpo, stbcpo, bwduppo;
-	uint band_num;
-
-	if (pi->sh->sromrev >= 9)
-		return;
-
-	bw40po = (u16) PHY_GETINTVAR(pi, "bw40po");
-	pi->bw402gpo = bw40po & 0xf;
-	pi->bw405gpo = (bw40po & 0xf0) >> 4;
-	pi->bw405glpo = (bw40po & 0xf00) >> 8;
-	pi->bw405ghpo = (bw40po & 0xf000) >> 12;
-
-	cddpo = (u16) PHY_GETINTVAR(pi, "cddpo");
-	pi->cdd2gpo = cddpo & 0xf;
-	pi->cdd5gpo = (cddpo & 0xf0) >> 4;
-	pi->cdd5glpo = (cddpo & 0xf00) >> 8;
-	pi->cdd5ghpo = (cddpo & 0xf000) >> 12;
-
-	stbcpo = (u16) PHY_GETINTVAR(pi, "stbcpo");
-	pi->stbc2gpo = stbcpo & 0xf;
-	pi->stbc5gpo = (stbcpo & 0xf0) >> 4;
-	pi->stbc5glpo = (stbcpo & 0xf00) >> 8;
-	pi->stbc5ghpo = (stbcpo & 0xf000) >> 12;
-
-	bwduppo = (u16) PHY_GETINTVAR(pi, "bwduppo");
-	pi->bwdup2gpo = bwduppo & 0xf;
-	pi->bwdup5gpo = (bwduppo & 0xf0) >> 4;
-	pi->bwdup5glpo = (bwduppo & 0xf00) >> 8;
-	pi->bwdup5ghpo = (bwduppo & 0xf000) >> 12;
-
-	for (band_num = 0; band_num < (CH_2G_GROUP + CH_5G_GROUP);
-	     band_num++) {
-		switch (band_num) {
-		case 0:
-
-			pi->nphy_txpid2g[PHY_CORE_0] =
-				(u8) PHY_GETINTVAR(pi, "txpid2ga0");
-			pi->nphy_txpid2g[PHY_CORE_1] =
-				(u8) PHY_GETINTVAR(pi, "txpid2ga1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].max_pwr_2g =
-				(s8) PHY_GETINTVAR(pi, "maxp2ga0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_2g =
-				(s8) PHY_GETINTVAR(pi, "maxp2ga1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa2gw0a0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa2gw0a1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa2gw1a0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa2gw1a1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_2g_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa2gw2a0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_2g_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa2gw2a1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].idle_targ_2g =
-				(s8) PHY_GETINTVAR(pi, "itt2ga0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].idle_targ_2g =
-				(s8) PHY_GETINTVAR(pi, "itt2ga1");
-
-			pi->cck2gpo = (u16) PHY_GETINTVAR(pi, "cck2gpo");
-
-			pi->ofdm2gpo = (u32) PHY_GETINTVAR(pi, "ofdm2gpo");
-
-			pi->mcs2gpo[0] = (u16) PHY_GETINTVAR(pi, "mcs2gpo0");
-			pi->mcs2gpo[1] = (u16) PHY_GETINTVAR(pi, "mcs2gpo1");
-			pi->mcs2gpo[2] = (u16) PHY_GETINTVAR(pi, "mcs2gpo2");
-			pi->mcs2gpo[3] = (u16) PHY_GETINTVAR(pi, "mcs2gpo3");
-			pi->mcs2gpo[4] = (u16) PHY_GETINTVAR(pi, "mcs2gpo4");
-			pi->mcs2gpo[5] = (u16) PHY_GETINTVAR(pi, "mcs2gpo5");
-			pi->mcs2gpo[6] = (u16) PHY_GETINTVAR(pi, "mcs2gpo6");
-			pi->mcs2gpo[7] = (u16) PHY_GETINTVAR(pi, "mcs2gpo7");
-			break;
-		case 1:
-
-			pi->nphy_txpid5g[PHY_CORE_0] =
-				(u8) PHY_GETINTVAR(pi, "txpid5ga0");
-			pi->nphy_txpid5g[PHY_CORE_1] =
-				(u8) PHY_GETINTVAR(pi, "txpid5ga1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].max_pwr_5gm =
-				(s8) PHY_GETINTVAR(pi, "maxp5ga0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_5gm =
-				(s8) PHY_GETINTVAR(pi, "maxp5ga1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa5gw0a0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa5gw0a1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa5gw1a0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa5gw1a1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].pwrdet_5gm_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa5gw2a0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].pwrdet_5gm_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa5gw2a1");
-			pi->nphy_pwrctrl_info[PHY_CORE_0].idle_targ_5gm =
-				(s8) PHY_GETINTVAR(pi, "itt5ga0");
-			pi->nphy_pwrctrl_info[PHY_CORE_1].idle_targ_5gm =
-				(s8) PHY_GETINTVAR(pi, "itt5ga1");
-
-			pi->ofdm5gpo = (u32) PHY_GETINTVAR(pi, "ofdm5gpo");
-
-			pi->mcs5gpo[0] = (u16) PHY_GETINTVAR(pi, "mcs5gpo0");
-			pi->mcs5gpo[1] = (u16) PHY_GETINTVAR(pi, "mcs5gpo1");
-			pi->mcs5gpo[2] = (u16) PHY_GETINTVAR(pi, "mcs5gpo2");
-			pi->mcs5gpo[3] = (u16) PHY_GETINTVAR(pi, "mcs5gpo3");
-			pi->mcs5gpo[4] = (u16) PHY_GETINTVAR(pi, "mcs5gpo4");
-			pi->mcs5gpo[5] = (u16) PHY_GETINTVAR(pi, "mcs5gpo5");
-			pi->mcs5gpo[6] = (u16) PHY_GETINTVAR(pi, "mcs5gpo6");
-			pi->mcs5gpo[7] = (u16) PHY_GETINTVAR(pi, "mcs5gpo7");
-			break;
-		case 2:
-
-			pi->nphy_txpid5gl[0] =
-				(u8) PHY_GETINTVAR(pi, "txpid5gla0");
-			pi->nphy_txpid5gl[1] =
-				(u8) PHY_GETINTVAR(pi, "txpid5gla1");
-			pi->nphy_pwrctrl_info[0].max_pwr_5gl =
-				(s8) PHY_GETINTVAR(pi, "maxp5gla0");
-			pi->nphy_pwrctrl_info[1].max_pwr_5gl =
-				(s8) PHY_GETINTVAR(pi, "maxp5gla1");
-			pi->nphy_pwrctrl_info[0].pwrdet_5gl_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa5glw0a0");
-			pi->nphy_pwrctrl_info[1].pwrdet_5gl_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa5glw0a1");
-			pi->nphy_pwrctrl_info[0].pwrdet_5gl_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa5glw1a0");
-			pi->nphy_pwrctrl_info[1].pwrdet_5gl_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa5glw1a1");
-			pi->nphy_pwrctrl_info[0].pwrdet_5gl_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa5glw2a0");
-			pi->nphy_pwrctrl_info[1].pwrdet_5gl_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa5glw2a1");
-			pi->nphy_pwrctrl_info[0].idle_targ_5gl = 0;
-			pi->nphy_pwrctrl_info[1].idle_targ_5gl = 0;
-
-			pi->ofdm5glpo = (u32) PHY_GETINTVAR(pi, "ofdm5glpo");
-
-			pi->mcs5glpo[0] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo0");
-			pi->mcs5glpo[1] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo1");
-			pi->mcs5glpo[2] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo2");
-			pi->mcs5glpo[3] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo3");
-			pi->mcs5glpo[4] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo4");
-			pi->mcs5glpo[5] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo5");
-			pi->mcs5glpo[6] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo6");
-			pi->mcs5glpo[7] =
-				(u16) PHY_GETINTVAR(pi, "mcs5glpo7");
-			break;
-		case 3:
-
-			pi->nphy_txpid5gh[0] =
-				(u8) PHY_GETINTVAR(pi, "txpid5gha0");
-			pi->nphy_txpid5gh[1] =
-				(u8) PHY_GETINTVAR(pi, "txpid5gha1");
-			pi->nphy_pwrctrl_info[0].max_pwr_5gh =
-				(s8) PHY_GETINTVAR(pi, "maxp5gha0");
-			pi->nphy_pwrctrl_info[1].max_pwr_5gh =
-				(s8) PHY_GETINTVAR(pi, "maxp5gha1");
-			pi->nphy_pwrctrl_info[0].pwrdet_5gh_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa5ghw0a0");
-			pi->nphy_pwrctrl_info[1].pwrdet_5gh_a1 =
-				(s16) PHY_GETINTVAR(pi, "pa5ghw0a1");
-			pi->nphy_pwrctrl_info[0].pwrdet_5gh_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa5ghw1a0");
-			pi->nphy_pwrctrl_info[1].pwrdet_5gh_b0 =
-				(s16) PHY_GETINTVAR(pi, "pa5ghw1a1");
-			pi->nphy_pwrctrl_info[0].pwrdet_5gh_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa5ghw2a0");
-			pi->nphy_pwrctrl_info[1].pwrdet_5gh_b1 =
-				(s16) PHY_GETINTVAR(pi, "pa5ghw2a1");
-			pi->nphy_pwrctrl_info[0].idle_targ_5gh = 0;
-			pi->nphy_pwrctrl_info[1].idle_targ_5gh = 0;
-
-			pi->ofdm5ghpo = (u32) PHY_GETINTVAR(pi, "ofdm5ghpo");
-
-			pi->mcs5ghpo[0] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo0");
-			pi->mcs5ghpo[1] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo1");
-			pi->mcs5ghpo[2] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo2");
-			pi->mcs5ghpo[3] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo3");
-			pi->mcs5ghpo[4] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo4");
-			pi->mcs5ghpo[5] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo5");
-			pi->mcs5ghpo[6] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo6");
-			pi->mcs5ghpo[7] =
-				(u16) PHY_GETINTVAR(pi, "mcs5ghpo7");
-			break;
-		}
-	}
-
-	wlc_phy_txpwr_apply_nphy(pi);
-}
-
-static bool wlc_phy_txpwr_srom_read_nphy(struct brcms_phy *pi)
-{
-
-	pi->antswitch = (u8) PHY_GETINTVAR(pi, "antswitch");
-	pi->aa2g = (u8) PHY_GETINTVAR(pi, "aa2g");
-	pi->aa5g = (u8) PHY_GETINTVAR(pi, "aa5g");
-
-	pi->srom_fem2g.tssipos = (u8) PHY_GETINTVAR(pi, "tssipos2g");
-	pi->srom_fem2g.extpagain = (u8) PHY_GETINTVAR(pi, "extpagain2g");
-	pi->srom_fem2g.pdetrange = (u8) PHY_GETINTVAR(pi, "pdetrange2g");
-	pi->srom_fem2g.triso = (u8) PHY_GETINTVAR(pi, "triso2g");
-	pi->srom_fem2g.antswctrllut = (u8) PHY_GETINTVAR(pi, "antswctl2g");
-
-	pi->srom_fem5g.tssipos = (u8) PHY_GETINTVAR(pi, "tssipos5g");
-	pi->srom_fem5g.extpagain = (u8) PHY_GETINTVAR(pi, "extpagain5g");
-	pi->srom_fem5g.pdetrange = (u8) PHY_GETINTVAR(pi, "pdetrange5g");
-	pi->srom_fem5g.triso = (u8) PHY_GETINTVAR(pi, "triso5g");
-	if (PHY_GETVAR(pi, "antswctl5g"))
-		pi->srom_fem5g.antswctrllut =
-			(u8) PHY_GETINTVAR(pi, "antswctl5g");
-	else
-		pi->srom_fem5g.antswctrllut =
-			(u8) PHY_GETINTVAR(pi, "antswctl2g");
-
-	wlc_phy_txpower_ipa_upd(pi);
-
-	pi->phy_txcore_disable_temp = (s16) PHY_GETINTVAR(pi, "tempthresh");
-	if (pi->phy_txcore_disable_temp == 0)
-		pi->phy_txcore_disable_temp = PHY_CHAIN_TX_DISABLE_TEMP;
-
-	pi->phy_tempsense_offset = (s8) PHY_GETINTVAR(pi, "tempoffset");
-	if (pi->phy_tempsense_offset != 0) {
-		if (pi->phy_tempsense_offset >
-		    (NPHY_SROM_TEMPSHIFT + NPHY_SROM_MAXTEMPOFFSET))
-			pi->phy_tempsense_offset = NPHY_SROM_MAXTEMPOFFSET;
-		else if (pi->phy_tempsense_offset < (NPHY_SROM_TEMPSHIFT +
-						     NPHY_SROM_MINTEMPOFFSET))
-			pi->phy_tempsense_offset = NPHY_SROM_MINTEMPOFFSET;
-		else
-			pi->phy_tempsense_offset -= NPHY_SROM_TEMPSHIFT;
-	}
-
-	pi->phy_txcore_enable_temp =
-		pi->phy_txcore_disable_temp - PHY_HYSTERESIS_DELTATEMP;
-
-	pi->phycal_tempdelta = (u8) PHY_GETINTVAR(pi, "phycal_tempdelta");
-	if (pi->phycal_tempdelta > NPHY_CAL_MAXTEMPDELTA)
-		pi->phycal_tempdelta = 0;
-
-	wlc_phy_txpwr_srom_read_ppr_nphy(pi);
-
-	return true;
-}
-
 void wlc_phy_txpower_recalc_target_nphy(struct brcms_phy *pi)
 {
 	u8 tx_pwr_ctrl_state;
@@ -27918,493 +28287,10 @@ void wlc_phy_txpower_recalc_target_nphy(struct brcms_phy *pi)
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, 0);
 }
 
-static void wlc_phy_txpwrctrl_coeff_setup_nphy(struct brcms_phy *pi)
-{
-	u32 idx;
-	u16 iqloCalbuf[7];
-	u32 iqcomp, locomp, curr_locomp;
-	s8 locomp_i, locomp_q;
-	s8 curr_locomp_i, curr_locomp_q;
-	u32 tbl_id, tbl_len, tbl_offset;
-	u32 regval[128];
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	wlc_phy_table_read_nphy(pi, 15, 7, 80, 16, iqloCalbuf);
-
-	tbl_len = 128;
-	tbl_offset = 320;
-	for (tbl_id = NPHY_TBL_ID_CORE1TXPWRCTL;
-	     tbl_id <= NPHY_TBL_ID_CORE2TXPWRCTL; tbl_id++) {
-		iqcomp =
-			(tbl_id ==
-			 26) ? (((u32) (iqloCalbuf[0] & 0x3ff)) << 10) |
-			(iqloCalbuf[1] & 0x3ff)
-			: (((u32) (iqloCalbuf[2] & 0x3ff)) << 10) |
-			(iqloCalbuf[3] & 0x3ff);
-
-		for (idx = 0; idx < tbl_len; idx++)
-			regval[idx] = iqcomp;
-		wlc_phy_table_write_nphy(pi, tbl_id, tbl_len, tbl_offset, 32,
-					 regval);
-	}
-
-	tbl_offset = 448;
-	for (tbl_id = NPHY_TBL_ID_CORE1TXPWRCTL;
-	     tbl_id <= NPHY_TBL_ID_CORE2TXPWRCTL; tbl_id++) {
-
-		locomp =
-			(u32) ((tbl_id == 26) ? iqloCalbuf[5] : iqloCalbuf[6]);
-		locomp_i = (s8) ((locomp >> 8) & 0xff);
-		locomp_q = (s8) ((locomp) & 0xff);
-		for (idx = 0; idx < tbl_len; idx++) {
-			if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-				curr_locomp_i = locomp_i;
-				curr_locomp_q = locomp_q;
-			} else {
-				curr_locomp_i = (s8) ((locomp_i *
-						       nphy_tpc_loscale[idx] +
-						       128) >> 8);
-				curr_locomp_q =
-					(s8) ((locomp_q *
-					       nphy_tpc_loscale[idx] +
-					       128) >> 8);
-			}
-			curr_locomp = (u32) ((curr_locomp_i & 0xff) << 8);
-			curr_locomp |= (u32) (curr_locomp_q & 0xff);
-			regval[idx] = curr_locomp;
-		}
-		wlc_phy_table_write_nphy(pi, tbl_id, tbl_len, tbl_offset, 32,
-					 regval);
-	}
-
-	if (NREV_LT(pi->pubpi.phy_rev, 2)) {
-
-		wlapi_bmac_write_shm(pi->sh->physhim, M_CURR_IDX1, 0xFFFF);
-		wlapi_bmac_write_shm(pi->sh->physhim, M_CURR_IDX2, 0xFFFF);
-	}
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-}
-
-static void wlc_phy_ipa_internal_tssi_setup_nphy(struct brcms_phy *pi)
-{
-	u8 core;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TX_SSI_MASTER, 0x5);
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TX_SSI_MUX, 0xe);
-
-				if (pi->pubpi.radiorev != 5)
-					WRITE_RADIO_REG3(pi, RADIO_2057, TX,
-							 core, TSSIA, 0);
-
-				if (!NREV_IS(pi->pubpi.phy_rev, 7))
-					WRITE_RADIO_REG3(pi, RADIO_2057, TX,
-							 core, TSSIG, 0x1);
-				else
-					WRITE_RADIO_REG3(pi, RADIO_2057, TX,
-							 core, TSSIG, 0x31);
-			} else {
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TX_SSI_MASTER, 0x9);
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TX_SSI_MUX, 0xc);
-				WRITE_RADIO_REG3(pi, RADIO_2057, TX, core,
-						 TSSIG, 0);
-
-				if (pi->pubpi.radiorev != 5) {
-					if (!NREV_IS(pi->pubpi.phy_rev, 7))
-						WRITE_RADIO_REG3(pi, RADIO_2057,
-								 TX, core,
-								 TSSIA, 0x1);
-					else
-						WRITE_RADIO_REG3(pi, RADIO_2057,
-								 TX, core,
-								 TSSIA, 0x31);
-				}
-			}
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, IQCAL_VCM_HG,
-					 0);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, IQCAL_IDAC,
-					 0);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, TSSI_VCM,
-					 0x3);
-			WRITE_RADIO_REG3(pi, RADIO_2057, TX, core, TSSI_MISC1,
-					 0x0);
-		}
-	} else {
-		WRITE_RADIO_SYN(pi, RADIO_2056, RESERVED_ADDR31,
-				(CHSPEC_IS2G(pi->radio_chanspec)) ? 0x128 :
-				0x80);
-		WRITE_RADIO_SYN(pi, RADIO_2056, RESERVED_ADDR30, 0x0);
-		WRITE_RADIO_SYN(pi, RADIO_2056, GPIO_MASTER1, 0x29);
-
-		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, IQCAL_VCM_HG,
-					 0x0);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, IQCAL_IDAC,
-					 0x0);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_VCM,
-					 0x3);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TX_AMP_DET,
-					 0x0);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_MISC1,
-					 0x8);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_MISC2,
-					 0x0);
-			WRITE_RADIO_REG2(pi, RADIO_2056, TX, core, TSSI_MISC3,
-					 0x0);
-
-			if (CHSPEC_IS2G(pi->radio_chanspec)) {
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 TX_SSI_MASTER, 0x5);
-
-				if (pi->pubpi.radiorev != 5)
-					WRITE_RADIO_REG2(pi, RADIO_2056, TX,
-							 core, TSSIA, 0x0);
-				if (NREV_GE(pi->pubpi.phy_rev, 5))
-					WRITE_RADIO_REG2(pi, RADIO_2056, TX,
-							 core, TSSIG, 0x31);
-				else
-					WRITE_RADIO_REG2(pi, RADIO_2056, TX,
-							 core, TSSIG, 0x11);
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 TX_SSI_MUX, 0xe);
-			} else {
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 TX_SSI_MASTER, 0x9);
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 TSSIA, 0x31);
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 TSSIG, 0x0);
-				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
-						 TX_SSI_MUX, 0xc);
-			}
-		}
-	}
-}
-
-static void wlc_phy_txpwrctrl_idle_tssi_nphy(struct brcms_phy *pi)
-{
-	s32 rssi_buf[4];
-	s32 int_val;
-
-	if (SCAN_RM_IN_PROGRESS(pi) || PLT_INPROG_PHY(pi) || PHY_MUTED(pi))
-
-		return;
-
-	if (PHY_IPA(pi))
-		wlc_phy_ipa_internal_tssi_setup_nphy(pi);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7))
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 12),
-						  0, 0x3, 0,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-	else if (NREV_GE(pi->pubpi.phy_rev, 3))
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 13), 0, 3, 0);
-
-	wlc_phy_stopplayback_nphy(pi);
-
-	wlc_phy_tx_tone_nphy(pi, 4000, 0, 0, 0, false);
-
-	udelay(20);
-	int_val =
-		wlc_phy_poll_rssi_nphy(pi, (u8) NPHY_RSSI_SEL_TSSI_2G, rssi_buf,
-				       1);
-	wlc_phy_stopplayback_nphy(pi);
-	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_OFF, 0);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7))
-		wlc_phy_rfctrl_override_nphy_rev7(pi, (0x1 << 12),
-						  0, 0x3, 1,
-						  NPHY_REV7_RFCTRLOVERRIDE_ID0);
-	else if (NREV_GE(pi->pubpi.phy_rev, 3))
-		wlc_phy_rfctrl_override_nphy(pi, (0x1 << 13), 0, 3, 1);
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-
-		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_2g =
-			(u8) ((int_val >> 24) & 0xff);
-		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_5g =
-			(u8) ((int_val >> 24) & 0xff);
-
-		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_2g =
-			(u8) ((int_val >> 8) & 0xff);
-		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_5g =
-			(u8) ((int_val >> 8) & 0xff);
-	} else {
-		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_2g =
-			(u8) ((int_val >> 24) & 0xff);
-
-		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_2g =
-			(u8) ((int_val >> 8) & 0xff);
-
-		pi->nphy_pwrctrl_info[PHY_CORE_0].idle_tssi_5g =
-			(u8) ((int_val >> 16) & 0xff);
-		pi->nphy_pwrctrl_info[PHY_CORE_1].idle_tssi_5g =
-			(u8) ((int_val) & 0xff);
-	}
-
-}
-
-static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
-{
-	u32 idx;
-	s16 a1[2], b0[2], b1[2];
-	s8 target_pwr_qtrdbm[2];
-	s32 num, den, pwr_est;
-	u8 chan_freq_range;
-	u8 idle_tssi[2];
-	u32 tbl_id, tbl_len, tbl_offset;
-	u32 regval[64];
-	u8 core;
-
-	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
-		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
-		(void)R_REG(&pi->regs->maccontrol);
-		udelay(1);
-	}
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, true);
-
-	or_phy_reg(pi, 0x122, (0x1 << 0));
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3))
-		and_phy_reg(pi, 0x1e7, (u16) (~(0x1 << 15)));
-	else
-		or_phy_reg(pi, 0x1e7, (0x1 << 15));
-
-	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12))
-		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, 0);
-
-	if (pi->sh->sromrev < 4) {
-		idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
-		idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
-		target_pwr_qtrdbm[0] = 13 * 4;
-		target_pwr_qtrdbm[1] = 13 * 4;
-		a1[0] = -424;
-		a1[1] = -424;
-		b0[0] = 5612;
-		b0[1] = 5612;
-		b1[1] = -1393;
-		b1[0] = -1393;
-	} else {
-
-		chan_freq_range = wlc_phy_get_chan_freq_range_nphy(pi, 0);
-		switch (chan_freq_range) {
-		case WL_CHAN_FREQ_RANGE_2G:
-			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
-			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_2g;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_2g;
-			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_a1;
-			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_a1;
-			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_b0;
-			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_b0;
-			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_b1;
-			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_b1;
-			break;
-		case WL_CHAN_FREQ_RANGE_5GL:
-			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
-			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_5gl;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_5gl;
-			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_a1;
-			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_a1;
-			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_b0;
-			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_b0;
-			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_b1;
-			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_b1;
-			break;
-		case WL_CHAN_FREQ_RANGE_5GM:
-			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
-			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_5gm;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_5gm;
-			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_a1;
-			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_a1;
-			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_b0;
-			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_b0;
-			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_b1;
-			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_b1;
-			break;
-		case WL_CHAN_FREQ_RANGE_5GH:
-			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
-			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_5gh;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_5gh;
-			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_a1;
-			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_a1;
-			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_b0;
-			b0[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_b0;
-			b1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_b1;
-			b1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_b1;
-			break;
-		default:
-			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
-			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
-			target_pwr_qtrdbm[0] = 13 * 4;
-			target_pwr_qtrdbm[1] = 13 * 4;
-			a1[0] = -424;
-			a1[1] = -424;
-			b0[0] = 5612;
-			b0[1] = 5612;
-			b1[1] = -1393;
-			b1[0] = -1393;
-			break;
-		}
-	}
-
-	target_pwr_qtrdbm[0] = (s8) pi->tx_power_max;
-	target_pwr_qtrdbm[1] = (s8) pi->tx_power_max;
-
-	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-		if (pi->srom_fem2g.tssipos)
-			or_phy_reg(pi, 0x1e9, (0x1 << 14));
-
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-			for (core = 0; core <= 1; core++) {
-				if (PHY_IPA(pi)) {
-					if (CHSPEC_IS2G(pi->radio_chanspec))
-						WRITE_RADIO_REG3(pi, RADIO_2057,
-								 TX, core,
-								 TX_SSI_MUX,
-								 0xe);
-					else
-						WRITE_RADIO_REG3(pi, RADIO_2057,
-								 TX, core,
-								 TX_SSI_MUX,
-								 0xc);
-				}
-			}
-		} else {
-			if (PHY_IPA(pi)) {
-
-				write_radio_reg(pi, RADIO_2056_TX_TX_SSI_MUX |
-						RADIO_2056_TX0,
-						(CHSPEC_IS5G
-						 (pi->radio_chanspec)) ?
-						 0xc : 0xe);
-				write_radio_reg(pi,
-						RADIO_2056_TX_TX_SSI_MUX |
-						RADIO_2056_TX1,
-						(CHSPEC_IS5G
-						 (pi->radio_chanspec)) ?
-						 0xc : 0xe);
-			} else {
-
-				write_radio_reg(pi, RADIO_2056_TX_TX_SSI_MUX |
-						RADIO_2056_TX0, 0x11);
-				write_radio_reg(pi, RADIO_2056_TX_TX_SSI_MUX |
-						RADIO_2056_TX1, 0x11);
-			}
-		}
-	}
-
-	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
-		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
-		(void)R_REG(&pi->regs->maccontrol);
-		udelay(1);
-	}
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7))
-		mod_phy_reg(pi, 0x1e7, (0x7f << 0),
-			    (NPHY_TxPwrCtrlCmd_pwrIndex_init_rev7 << 0));
-	else
-		mod_phy_reg(pi, 0x1e7, (0x7f << 0),
-			    (NPHY_TxPwrCtrlCmd_pwrIndex_init << 0));
-
-	if (NREV_GE(pi->pubpi.phy_rev, 7))
-		mod_phy_reg(pi, 0x222, (0xff << 0),
-			    (NPHY_TxPwrCtrlCmd_pwrIndex_init_rev7 << 0));
-	else if (NREV_GT(pi->pubpi.phy_rev, 1))
-		mod_phy_reg(pi, 0x222, (0xff << 0),
-			    (NPHY_TxPwrCtrlCmd_pwrIndex_init << 0));
-
-	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12))
-		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, 0);
-
-	write_phy_reg(pi, 0x1e8, (0x3 << 8) | (240 << 0));
-
-	write_phy_reg(pi, 0x1e9,
-		      (1 << 15) | (idle_tssi[0] << 0) | (idle_tssi[1] << 8));
-
-	write_phy_reg(pi, 0x1ea,
-		      (target_pwr_qtrdbm[0] << 0) |
-		      (target_pwr_qtrdbm[1] << 8));
-
-	tbl_len = 64;
-	tbl_offset = 0;
-	for (tbl_id = NPHY_TBL_ID_CORE1TXPWRCTL;
-	     tbl_id <= NPHY_TBL_ID_CORE2TXPWRCTL; tbl_id++) {
-
-		for (idx = 0; idx < tbl_len; idx++) {
-			num = 8 *
-			      (16 * b0[tbl_id - 26] + b1[tbl_id - 26] * idx);
-			den = 32768 + a1[tbl_id - 26] * idx;
-			pwr_est = max(((4 * num + den / 2) / den), -8);
-			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
-				if (idx <=
-				    (uint) (31 - idle_tssi[tbl_id - 26] + 1))
-					pwr_est =
-						max(pwr_est,
-						    target_pwr_qtrdbm
-						    [tbl_id - 26] + 1);
-			}
-			regval[idx] = (u32) pwr_est;
-		}
-		wlc_phy_table_write_nphy(pi, tbl_id, tbl_len, tbl_offset, 32,
-					 regval);
-	}
-
-	wlc_phy_txpwr_limit_to_tbl_nphy(pi);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE1TXPWRCTL, 84, 64, 8,
-				 pi->adj_pwr_tbl_nphy);
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_CORE2TXPWRCTL, 84, 64, 8,
-				 pi->adj_pwr_tbl_nphy);
-
-	if (pi->phyhang_avoid)
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-}
-
 static bool wlc_phy_txpwr_ison_nphy(struct brcms_phy *pi)
 {
 	return read_phy_reg((pi), 0x1e7) & ((0x1 << 15) |
 					    (0x1 << 14) | (0x1 << 13));
-}
-
-static u8 wlc_phy_txpwr_idx_cur_get_nphy(struct brcms_phy *pi, u8 core)
-{
-	u16 tmp;
-	tmp = read_phy_reg(pi, ((core == PHY_CORE_0) ? 0x1ed : 0x1ee));
-
-	tmp = (tmp & (0x7f << 8)) >> 8;
-	return (u8) tmp;
-}
-
-static void
-wlc_phy_txpwr_idx_cur_set_nphy(struct brcms_phy *pi, u8 idx0, u8 idx1)
-{
-	mod_phy_reg(pi, 0x1e7, (0x7f << 0), idx0);
-
-	if (NREV_GT(pi->pubpi.phy_rev, 1))
-		mod_phy_reg(pi, 0x222, (0xff << 0), idx1);
 }
 
 u16 wlc_phy_txpwr_idx_get_nphy(struct brcms_phy *pi)
