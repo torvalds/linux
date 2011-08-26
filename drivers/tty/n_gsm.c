@@ -2003,6 +2003,7 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 	int i;
 	struct gsm_dlci *dlci = gsm->dlci[0];
 	struct gsm_msg *txq;
+	struct gsm_control *gc;
 
 	gsm->dead = 1;
 
@@ -2016,6 +2017,13 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 	spin_unlock(&gsm_mux_lock);
 	WARN_ON(i == MAX_MUX);
 
+	/* In theory disconnecting DLCI 0 is sufficient but for some
+	   modems this is apparently not the case. */
+	if (dlci) {
+		gc = gsm_control_send(gsm, CMD_CLD, NULL, 0);
+		if (gc)
+			gsm_control_wait(gsm, gc);
+	}
 	del_timer_sync(&gsm->t2_timer);
 	/* Now we are sure T2 has stopped */
 	if (dlci) {
