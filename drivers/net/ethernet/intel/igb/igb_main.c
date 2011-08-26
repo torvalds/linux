@@ -2396,7 +2396,8 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
 	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
 
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
+				  VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	spin_lock_init(&adapter->stats64_lock);
@@ -2962,16 +2963,19 @@ static inline int igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
  **/
 static void igb_rlpml_set(struct igb_adapter *adapter)
 {
-	u32 max_frame_size;
+	u32 max_frame_size = adapter->max_frame_size;
 	struct e1000_hw *hw = &adapter->hw;
 	u16 pf_id = adapter->vfs_allocated_count;
 
-	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
-
-	/* if vfs are enabled we set RLPML to the largest possible request
-	 * size and set the VMOLR RLPML to the size we need */
 	if (pf_id) {
 		igb_set_vf_rlpml(adapter, max_frame_size, pf_id);
+		/*
+		 * If we're in VMDQ or SR-IOV mode, then set global RLPML
+		 * to our max jumbo frame size, in case we need to enable
+		 * jumbo frames on one of the rings later.
+		 * This will not pass over-length frames into the default
+		 * queue because it's gated by the VMOLR.RLPML.
+		 */
 		max_frame_size = MAX_JUMBO_FRAME_SIZE;
 	}
 
@@ -4461,7 +4465,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct pci_dev *pdev = adapter->pdev;
-	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	u32 rx_buffer_len, i;
 
 	if ((new_mtu < 68) || (max_frame > MAX_JUMBO_FRAME_SIZE)) {
@@ -4469,6 +4473,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
+#define MAX_STD_JUMBO_FRAME_SIZE 9238
 	if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
 		dev_err(&pdev->dev, "MTU > 9216 not supported.\n");
 		return -EINVAL;
