@@ -329,6 +329,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
 
+	if (!IS_PSB(dev)) {
+		if (pci_enable_msi(dev->pdev))
+			dev_warn(dev->dev, "Enabling MSI failed!\n");
+	}
+
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
@@ -1207,9 +1212,6 @@ static struct pci_driver psb_pci_driver = {
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	/* MLD Added this from Inaky's patch */
-	if (pci_enable_msi(pdev))
-		dev_warn(&pdev->dev, "Enable MSI failed!\n");
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
