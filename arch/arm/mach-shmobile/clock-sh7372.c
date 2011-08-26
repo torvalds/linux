@@ -513,7 +513,7 @@ enum { MSTP001, MSTP000,
        MSTP206, MSTP205, MSTP204, MSTP203, MSTP202, MSTP201, MSTP200,
        MSTP328, MSTP323, MSTP322, MSTP314, MSTP313, MSTP312,
        MSTP423, MSTP415, MSTP413, MSTP411, MSTP410, MSTP407, MSTP406,
-       MSTP403, MSTP400,
+       MSTP405, MSTP404, MSTP403, MSTP400,
        MSTP_NR };
 
 #define MSTP(_parent, _reg, _bit, _flags) \
@@ -563,6 +563,8 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP410] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR4, 10, 0), /* IIC4 */
 	[MSTP407] = MSTP(&div4_clks[DIV4_HP], SMSTPCR4, 7, 0), /* USB-DMAC1 */
 	[MSTP406] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR4, 6, 0), /* USB1 */
+	[MSTP405] = MSTP(&r_clk, SMSTPCR4, 5, 0), /* CMT4 */
+	[MSTP404] = MSTP(&r_clk, SMSTPCR4, 4, 0), /* CMT3 */
 	[MSTP403] = MSTP(&r_clk, SMSTPCR4, 3, 0), /* KEYSC */
 	[MSTP400] = MSTP(&r_clk, SMSTPCR4, 0, 0), /* CMT2 */
 };
@@ -663,6 +665,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("r8a66597_hcd.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("r8a66597_udc.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("renesas_usbhs.1", &mstp_clks[MSTP406]), /* USB1 */
+	CLKDEV_DEV_ID("sh_cmt.4", &mstp_clks[MSTP405]), /* CMT4 */
+	CLKDEV_DEV_ID("sh_cmt.3", &mstp_clks[MSTP404]), /* CMT3 */
 	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC */
 	CLKDEV_DEV_ID("sh_cmt.2", &mstp_clks[MSTP400]), /* CMT2 */
 
