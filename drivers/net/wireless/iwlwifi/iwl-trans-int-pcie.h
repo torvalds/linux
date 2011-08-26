@@ -141,6 +141,12 @@ void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 						int frame_limit);
 
+/*****************************************************
+* Error handling
+******************************************************/
+int iwl_dump_nic_event_log(struct iwl_priv *priv,
+			   bool full_log, char **buf, bool display);
+
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {
 	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);

@@ -266,7 +266,6 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
-void iwl_irq_handle_error(struct iwl_priv *priv);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
@@ -376,9 +375,6 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
-void iwl_dump_nic_error_log(struct iwl_priv *priv);
-int iwl_dump_nic_event_log(struct iwl_priv *priv,
-			   bool full_log, char **buf, bool display);
 void iwl_dump_csr(struct iwl_priv *priv);
 int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG

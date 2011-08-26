@@ -442,46 +442,6 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_log_event_read(struct file *file,
-					 char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-	ssize_t ret = -ENOMEM;
-
-	ret = pos = iwl_dump_nic_event_log(priv, true, &buf, true);
-	if (buf) {
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-		kfree(buf);
-	}
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_log_event_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	u32 event_log_flag;
-	char buf[8];
-	int buf_size;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &event_log_flag) != 1)
-		return -EFAULT;
-	if (event_log_flag == 1)
-		iwl_dump_nic_event_log(priv, true, NULL, false);
-
-	return count;
-}
-
-
-
 static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
@@ -870,7 +830,6 @@ static ssize_t iwl_dbgfs_current_sleep_command_read(struct file *file,
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_READ_FILE_OPS(wowlan_sram);
-DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(channels);
@@ -2509,7 +2468,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(nvm, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(sram, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(log_event, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);

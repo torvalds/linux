@@ -902,44 +902,6 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 }
 
-/**
- * iwl_irq_handle_error - called for HW or SW error interrupt from card
- */
-void iwl_irq_handle_error(struct iwl_priv *priv)
-{
-	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
-	if (priv->cfg->internal_wimax_coex &&
-	    (!(iwl_read_prph(priv, APMG_CLK_CTRL_REG) &
-			APMS_CLK_VAL_MRB_FUNC_MODE) ||
-	     (iwl_read_prph(priv, APMG_PS_CTRL_REG) &
-			APMG_PS_CTRL_VAL_RESET_REQ))) {
-		/*
-		 * Keep the restart process from trying to send host
-		 * commands by clearing the ready bit.
-		 */
-		clear_bit(STATUS_READY, &priv->shrd->status);
-		clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
-		wake_up_interruptible(&priv->wait_command_queue);
-		IWL_ERR(priv, "RF is used by WiMAX\n");
-		return;
-	}
-
-	IWL_ERR(priv, "Loaded firmware version: %s\n",
-		priv->hw->wiphy->fw_version);
-
-	iwl_dump_nic_error_log(priv);
-	iwl_dump_csr(priv);
-	iwl_dump_fh(priv, NULL, false);
-	iwl_dump_nic_event_log(priv, false, NULL, false);
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS)
-		iwl_print_rx_config_cmd(priv,
-					&priv->contexts[IWL_RXON_CTX_BSS]);
-#endif
-
-	iwlagn_fw_error(priv, false);
-}
-
 static int iwl_apm_stop_master(struct iwl_priv *priv)
 {
 	int ret = 0;
