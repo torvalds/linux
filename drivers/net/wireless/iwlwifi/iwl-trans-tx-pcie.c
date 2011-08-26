@@ -29,7 +29,6 @@
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <net/mac80211.h>
 
 #include "iwl-agn.h"
 #include "iwl-dev.h"
@@ -509,6 +508,58 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
+/*
+ * Find first available (lowest unused) Tx Queue, mark it "active".
+ * Called only when finding queue for aggregation.
+ * Should never return anything < 7, because they should already
+ * be in use as EDCA AC (0-3), Command (4), reserved (5, 6)
+ */
+static int iwlagn_txq_ctx_activate_free(struct iwl_trans *trans)
+{
+	int txq_id;
+
+	for (txq_id = 0; txq_id < hw_params(trans).max_txq_num; txq_id++)
+		if (!test_and_set_bit(txq_id,
+					&priv(trans)->txq_ctx_active_msk))
+			return txq_id;
+	return -1;
+}
+
+int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
+				enum iwl_rxon_context_id ctx, int sta_id,
+				int tid, u16 *ssn)
+{
+	struct iwl_tid_data *tid_data;
+	unsigned long flags;
+	u16 txq_id;
+	struct iwl_priv *priv = priv(trans);
+
+	txq_id = iwlagn_txq_ctx_activate_free(trans);
+	if (txq_id == -1) {
+		IWL_ERR(trans, "No free aggregation queue available\n");
+		return -ENXIO;
+	}
+
+	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
+	tid_data = &trans->shrd->tid_data[sta_id][tid];
+	*ssn = SEQ_TO_SN(tid_data->seq_number);
+	tid_data->agg.txq_id = txq_id;
+	iwl_set_swq_id(&priv->txq[txq_id], get_ac_from_tid(tid), txq_id);
+
+	tid_data = &trans->shrd->tid_data[sta_id][tid];
+	if (tid_data->tfds_in_queue == 0) {
+		IWL_DEBUG_HT(trans, "HW queue is empty\n");
+		tid_data->agg.state = IWL_AGG_ON;
+		iwl_start_tx_ba_trans_ready(priv(trans), ctx, sta_id, tid);
+	} else {
+		IWL_DEBUG_HT(trans, "HW queue is NOT empty: %d packets in HW"
+			     "queue\n", tid_data->tfds_in_queue);
+		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
+	}
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+
+	return 0;
+}
 int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id)
 {
 	struct iwl_trans *trans = trans(priv);

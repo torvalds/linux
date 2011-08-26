@@ -94,6 +94,7 @@ struct iwl_device_cmd;
  * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @tx: send an skb
  * @reclaim: free packet until ssn. Returns a list of freed packets.
+ * @tx_agg_alloc: allocate resources for a TX BA session
  * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *                 ready and a successful ADDBA response has been received.
  * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
@@ -126,6 +127,9 @@ struct iwl_trans_ops {
 			u32 status, struct sk_buff_head *skbs);
 
 	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id);
+	int (*tx_agg_alloc)(struct iwl_trans *trans,
+			    enum iwl_rxon_context_id ctx, int sta_id, int tid,
+			    u16 *ssn);
 	void (*txq_agg_setup)(struct iwl_priv *priv,
 			      enum iwl_rxon_context_id ctx, int sta_id,
 			      int tid, int frame_limit);
@@ -215,6 +219,14 @@ static inline int iwl_trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id)
 {
 	return trans->ops->txq_agg_disable(priv(trans), txq_id);
 }
+
+static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
+					 enum iwl_rxon_context_id ctx,
+					 int sta_id, int tid, u16 *ssn)
+{
+	return trans->ops->tx_agg_alloc(trans, ctx, sta_id, tid, ssn);
+}
+
 
 static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans,
 					   enum iwl_rxon_context_id ctx,

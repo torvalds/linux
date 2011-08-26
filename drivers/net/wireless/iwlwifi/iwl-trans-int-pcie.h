@@ -194,6 +194,9 @@ void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 			     struct iwl_tx_queue *txq,
 			     int tx_fifo_id, int scd_retry);
+int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
+				enum iwl_rxon_context_id ctx, int sta_id,
+				int tid, u16 *ssn);
 void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 					enum iwl_rxon_context_id ctx,
 					int sta_id, int tid, int frame_limit);

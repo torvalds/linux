@@ -42,33 +42,6 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
-static inline int get_ac_from_tid(u16 tid)
-{
-	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return tid_to_ac[tid];
-
-	/* no support for TIDs 8-15 yet */
-	return -EINVAL;
-}
-
-static int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id, int sta_id,
-				int tid)
-{
-	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE +
-		hw_params(priv).num_ampdu_queues <= txq_id)) {
-		IWL_WARN(priv,
-			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
-			IWLAGN_FIRST_AMPDU_QUEUE +
-			hw_params(priv).num_ampdu_queues - 1);
-		return -EINVAL;
-	}
-
-	/* Modify device's station table to Tx this TID */
-	return iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
-}
-
 static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
 				     struct ieee80211_tx_info *info,
 				     __le16 fc, __le32 *tx_flags)
@@ -399,30 +372,12 @@ drop_unlock_priv:
 	return -1;
 }
 
-/*
- * Find first available (lowest unused) Tx Queue, mark it "active".
- * Called only when finding queue for aggregation.
- * Should never return anything < 7, because they should already
- * be in use as EDCA AC (0-3), Command (4), reserved (5, 6)
- */
-static int iwlagn_txq_ctx_activate_free(struct iwl_priv *priv)
-{
-	int txq_id;
-
-	for (txq_id = 0; txq_id < hw_params(priv).max_txq_num; txq_id++)
-		if (!test_and_set_bit(txq_id, &priv->txq_ctx_active_msk))
-			return txq_id;
-	return -1;
-}
-
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	int sta_id;
-	int txq_id;
 	int ret;
-	unsigned long flags;
-	struct iwl_tid_data *tid_data;
 
 	IWL_DEBUG_HT(priv, "TX AGG request on ra = %pM tid = %d\n",
 		     sta->addr, tid);
@@ -440,35 +395,13 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
-	txq_id = iwlagn_txq_ctx_activate_free(priv);
-	if (txq_id == -1) {
-		IWL_ERR(priv, "No free aggregation queue available\n");
-		return -ENXIO;
-	}
-
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	tid_data = &priv->shrd->tid_data[sta_id][tid];
-	*ssn = SEQ_TO_SN(tid_data->seq_number);
-	tid_data->agg.txq_id = txq_id;
-	iwl_set_swq_id(&priv->txq[txq_id], get_ac_from_tid(tid), txq_id);
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-
-	ret = iwlagn_txq_agg_enable(priv, txq_id, sta_id, tid);
+	ret = iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	tid_data = &priv->shrd->tid_data[sta_id][tid];
-	if (tid_data->tfds_in_queue == 0) {
-		IWL_DEBUG_HT(priv, "HW queue is empty\n");
-		tid_data->agg.state = IWL_AGG_ON;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-	} else {
-		IWL_DEBUG_HT(priv, "HW queue is NOT empty: %d packets in HW queue\n",
-			     tid_data->tfds_in_queue);
-		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
-	}
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	ret = iwl_trans_tx_agg_alloc(trans(priv), vif_priv->ctx->ctxid, sta_id,
+				     tid, ssn);
+
 	return ret;
 }
 

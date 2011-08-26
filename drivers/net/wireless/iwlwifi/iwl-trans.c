@@ -1957,6 +1957,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.reclaim = iwl_trans_pcie_reclaim,
 
 	.txq_agg_disable = iwl_trans_pcie_txq_agg_disable,
+	.tx_agg_alloc = iwl_trans_pcie_tx_agg_alloc,
 	.txq_agg_setup = iwl_trans_pcie_txq_agg_setup,
 
 	.kick_nic = iwl_trans_pcie_kick_nic,

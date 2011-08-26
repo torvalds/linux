@@ -321,6 +321,15 @@ static const u8 tid_to_ac[] = {
 	IEEE80211_AC_VO
 };
 
+static inline int get_ac_from_tid(u16 tid)
+{
+	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
+		return tid_to_ac[tid];
+
+	/* no support for TIDs 8-15 yet */
+	return -EINVAL;
+}
+
 enum iwl_rxon_context_id {
 	IWL_RXON_CTX_BSS,
 	IWL_RXON_CTX_PAN,
@@ -336,6 +345,9 @@ int iwl_resume(struct iwl_priv *priv);
 int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
+
+void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv, u8 ctx,
+				 u8 sta_id, u8 tid);
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
