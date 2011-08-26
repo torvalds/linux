@@ -795,12 +795,12 @@ static void iface_stat_update(struct net_device *dev)
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(dev->name);
 	if (entry == NULL) {
-		IF_DEBUG("qtaguid: iface_stat_update: dev=%s not tracked\n",
+		IF_DEBUG("qtaguid: iface_stat: update(%s): not tracked\n",
 			 dev->name);
 		spin_unlock_bh(&iface_stat_list_lock);
 		return;
 	}
-	IF_DEBUG("qtaguid: iface_stat_update: dev=%s entry=%p\n",
+	IF_DEBUG("qtaguid: iface_stat: update(%s): entry=%p\n",
 		 dev->name, entry);
 	if (entry->active) {
 		entry->tx_bytes += stats->tx_bytes;
@@ -808,8 +808,11 @@ static void iface_stat_update(struct net_device *dev)
 		entry->rx_bytes += stats->rx_bytes;
 		entry->rx_packets += stats->rx_packets;
 		entry->active = false;
+		IF_DEBUG("qtaguid: iface_stat: update(%s): "
+			 " disable tracking. rx/tx=%llu/%llu\n",
+			 dev->name, stats->rx_bytes, stats->tx_bytes);
 	} else {
-		IF_DEBUG("qtaguid: iface_stat_update: dev=%s inactive\n",
+		IF_DEBUG("qtaguid: iface_stat: update(%s): disabled\n",
 			dev->name);
 	}
 	spin_unlock_bh(&iface_stat_list_lock);
@@ -951,7 +954,7 @@ static int iface_netdev_event_handler(struct notifier_block *nb,
 	case NETDEV_UP:
 		iface_stat_create(dev, NULL);
 		break;
-	case NETDEV_UNREGISTER:
+	case NETDEV_DOWN:
 		iface_stat_update(dev);
 		break;
 	}
@@ -978,6 +981,12 @@ static int iface_inet6addr_event_handler(struct notifier_block *nb,
 		iface_stat_create_ipv6(dev, ifa);
 		atomic64_inc(&qtu_events.iface_events);
 		break;
+	case NETDEV_DOWN:
+		BUG_ON(!ifa || !ifa->idev);
+		dev = (struct net_device *)ifa->idev->dev;
+		iface_stat_update(dev);
+		atomic64_inc(&qtu_events.iface_events);
+		break;
 	}
 	return NOTIFY_DONE;
 }
@@ -1000,6 +1009,12 @@ static int iface_inetaddr_event_handler(struct notifier_block *nb,
 		BUG_ON(!ifa || !ifa->ifa_dev);
 		dev = ifa->ifa_dev->dev;
 		iface_stat_create(dev, ifa);
+		atomic64_inc(&qtu_events.iface_events);
+		break;
+	case NETDEV_DOWN:
+		BUG_ON(!ifa || !ifa->ifa_dev);
+		dev = ifa->ifa_dev->dev;
+		iface_stat_update(dev);
 		atomic64_inc(&qtu_events.iface_events);
 		break;
 	}
