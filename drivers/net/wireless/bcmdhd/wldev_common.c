@@ -309,11 +309,19 @@ int wldev_set_country(
 	if (!country_code)
 		return error;
 
-	bzero(&scbval, sizeof(scb_val_t));
-	error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), 1);
-	if (error < 0) {
-		DHD_ERROR(("%s: set country failed due to Disassoc error\n", __FUNCTION__));
-		return error;
+	error = wldev_iovar_getbuf(dev, "country", &cspec, sizeof(cspec),
+					smbuf, sizeof(smbuf));
+	if (error < 0)
+		DHD_ERROR(("%s: get country failed = %d\n", __FUNCTION__, error));
+
+	if ((error < 0) ||
+	    (strncmp(country_code, smbuf, WLC_CNTRY_BUF_SZ) != 0)) {
+		bzero(&scbval, sizeof(scb_val_t));
+		error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), 1);
+		if (error < 0) {
+			DHD_ERROR(("%s: set country failed due to Disassoc error\n", __FUNCTION__));
+			return error;
+		}
 	}
 	cspec.rev = -1;
 	memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
