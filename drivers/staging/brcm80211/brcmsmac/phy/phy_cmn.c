@@ -1666,13 +1666,10 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 			}
 		}
 	}
-#if WL11N
+
 	max_num_rate = ((ISNPHY(pi)) ? (TXP_NUM_RATES) :
 			((ISLCNPHY(pi)) ?
 			 (TXP_LAST_SISO_MCS_20 + 1) : (TXP_LAST_OFDM + 1)));
-#else
-	max_num_rate = ((ISNPHY(pi)) ? (TXP_NUM_RATES) : (TXP_LAST_OFDM + 1));
-#endif
 
 	wlc_phy_upd_env_txpwr_rate_limits(pi, band);
 

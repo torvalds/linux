@@ -798,9 +798,7 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 			     uint *count);
 static int sprom_read_pci(struct si_pub *sih, u16 *sprom,
 			  uint wordoff, u16 *buf, uint nwords, bool check_crc);
-#if defined(BCMNVRAMR)
 static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz);
-#endif
 
 static int initvars_table(char *start, char *end,
 			  char **vars, uint *count);
@@ -940,7 +938,6 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 	return err;
 }
 
-#if defined(BCMNVRAMR)
 static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 {
 	u8 *otp;
@@ -976,7 +973,7 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 
 	return err;
 }
-#endif				/* defined(BCMNVRAMR) */
+
 /*
 * Create variable table from memory.
 * Return 0 on success, nonzero on error.
@@ -1208,18 +1205,13 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 				sromrev = 1;
 		}
 	}
-#if defined(BCMNVRAMR)
-	/* Use OTP if SPROM not available */
 	else {
+		/* Use OTP if SPROM not available */
 		err = otp_read_pci(sih, srom, SROM_MAX);
 		if (err == 0)
 			/* OTP only contain SROM rev8/rev9 for now */
 			sromrev = srom[SROM4_CRCREV] & 0xff;
 	}
-#else
-	else
-		err = -ENODEV;
-#endif
 
 	if (!err) {
 		/* Bitmask for the sromrev */
