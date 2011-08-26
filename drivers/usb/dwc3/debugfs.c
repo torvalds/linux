@@ -445,8 +445,10 @@ static int dwc3_testmode_open(struct inode *inode, struct file *file)
 	if (!buf0)
 		return -ENOMEM;
 	buf1 = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!buf1)
+	if (!buf1) {
+		kfree(buf0);
 		return -ENOMEM;
+	}
 
 	memset(buf0, 0xaa, BUF_SIZE);
 	memset(buf1, 0x33, BUF_SIZE);
