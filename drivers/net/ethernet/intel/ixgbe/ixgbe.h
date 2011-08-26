@@ -72,10 +72,13 @@
 
 /* Supported Rx Buffer Sizes */
 #define IXGBE_RXBUFFER_512   512    /* Used for packet split */
-#define IXGBE_RXBUFFER_2048  2048
-#define IXGBE_RXBUFFER_4096  4096
-#define IXGBE_RXBUFFER_8192  8192
-#define IXGBE_MAX_RXBUFFER   16384  /* largest size for a single descriptor */
+#define IXGBE_RXBUFFER_2K   2048
+#define IXGBE_RXBUFFER_3K   3072
+#define IXGBE_RXBUFFER_4K   4096
+#define IXGBE_RXBUFFER_7K   7168
+#define IXGBE_RXBUFFER_8K   8192
+#define IXGBE_RXBUFFER_15K  15360
+#define IXGBE_MAX_RXBUFFER  16384  /* largest size for a single descriptor */
 
 /*
  * NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN mans we

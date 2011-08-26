@@ -499,7 +499,7 @@ rx_ring_summary:
 					   rx_ring->rx_buf_len, true);
 
 					if (rx_ring->rx_buf_len
-						< IXGBE_RXBUFFER_2048)
+						< IXGBE_RXBUFFER_2K)
 						print_hex_dump(KERN_INFO, "",
 						  DUMP_PREFIX_ADDRESS, 16, 1,
 						  phys_to_virt(
@@ -2644,9 +2644,9 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
 #endif
 	} else {
-		if (rx_buf_len < IXGBE_RXBUFFER_4096)
+		if (rx_buf_len < IXGBE_RXBUFFER_4K)
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-		else if (rx_buf_len < IXGBE_RXBUFFER_8192)
+		else if (rx_buf_len < IXGBE_RXBUFFER_8K)
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
 		else
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
@@ -2879,17 +2879,6 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82599EB)
 		adapter->flags &= ~IXGBE_FLAG_RX_PS_ENABLED;
 
-	/* Set the RX buffer length according to the mode */
-	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
-		rx_buf_len = IXGBE_RX_HDR_SIZE;
-	} else {
-		if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
-		    (netdev->mtu <= ETH_DATA_LEN))
-			rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
-		else
-			rx_buf_len = ALIGN(max_frame + VLAN_HLEN, 1024);
-	}
-
 #ifdef IXGBE_FCOE
 	/* adjust max frame to be able to do baby jumbo for FCoE */
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
@@ -2903,6 +2892,30 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		mhadd |= max_frame << IXGBE_MHADD_MFS_SHIFT;
 
 		IXGBE_WRITE_REG(hw, IXGBE_MHADD, mhadd);
+	}
+
+	/* MHADD will allow an extra 4 bytes past for vlan tagged frames */
+	max_frame += VLAN_HLEN;
+
+	/* Set the RX buffer length according to the mode */
+	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+		rx_buf_len = IXGBE_RX_HDR_SIZE;
+	} else {
+		if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
+		    (netdev->mtu <= ETH_DATA_LEN))
+			rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
+		/*
+		 * Make best use of allocation by using all but 1K of a
+		 * power of 2 allocation that will be used for skb->head.
+		 */
+		else if (max_frame <= IXGBE_RXBUFFER_3K)
+			rx_buf_len = IXGBE_RXBUFFER_3K;
+		else if (max_frame <= IXGBE_RXBUFFER_7K)
+			rx_buf_len = IXGBE_RXBUFFER_7K;
+		else if (max_frame <= IXGBE_RXBUFFER_15K)
+			rx_buf_len = IXGBE_RXBUFFER_15K;
+		else
+			rx_buf_len = IXGBE_MAX_RXBUFFER;
 	}
 
 	hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);

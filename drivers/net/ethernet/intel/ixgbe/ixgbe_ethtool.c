@@ -1539,7 +1539,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->netdev = adapter->netdev;
 	rx_ring->reg_idx = adapter->rx_ring[0]->reg_idx;
-	rx_ring->rx_buf_len = IXGBE_RXBUFFER_2048;
+	rx_ring->rx_buf_len = IXGBE_RXBUFFER_2K;
 	rx_ring->numa_node = adapter->node;
 
 	err = ixgbe_setup_rx_resources(rx_ring);
