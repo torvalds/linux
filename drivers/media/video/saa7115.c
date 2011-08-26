@@ -793,7 +793,6 @@ static int saa711x_s_ctrl(struct v4l2_ctrl *ctrl)
 			saa711x_write(sd, R_0F_CHROMA_GAIN_CNTL, state->gain->val);
 		else
 			saa711x_write(sd, R_0F_CHROMA_GAIN_CNTL, state->gain->val | 0x80);
-		v4l2_ctrl_activate(state->gain, !state->agc->val);
 		break;
 
 	default:
@@ -1601,7 +1600,6 @@ static int saa711x_probe(struct i2c_client *client,
 			V4L2_CID_CHROMA_AGC, 0, 1, 1, 1);
 	state->gain = v4l2_ctrl_new_std(hdl, &saa711x_ctrl_ops,
 			V4L2_CID_CHROMA_GAIN, 0, 127, 1, 40);
-	state->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	sd->ctrl_handler = hdl;
 	if (hdl->error) {
 		int err = hdl->error;
@@ -1610,8 +1608,7 @@ static int saa711x_probe(struct i2c_client *client,
 		kfree(state);
 		return err;
 	}
-	state->agc->flags |= V4L2_CTRL_FLAG_UPDATE;
-	v4l2_ctrl_cluster(2, &state->agc);
+	v4l2_ctrl_auto_cluster(2, &state->agc, 0, true);
 
 	state->input = -1;
 	state->output = SAA7115_IPORT_ON;
