@@ -185,6 +185,8 @@ struct igb_q_vector {
 	u16 cpu;
 	u16 tx_work_limit;
 
+	int numa_node;
+
 	u16 itr_val;
 	u8 set_itr;
 	void __iomem *itr_register;
@@ -232,6 +234,7 @@ struct igb_ring {
 	};
 	/* Items past this point are only used during ring alloc / free */
 	dma_addr_t dma;                /* phys address of the ring */
+	int numa_node;                  /* node to alloc ring memory on */
 };
 
 #define IGB_RING_FLAG_RX_CSUM        0x00000001 /* RX CSUM enabled */
@@ -341,6 +344,7 @@ struct igb_adapter {
 	int vf_rate_link_speed;
 	u32 rss_queues;
 	u32 wvbr;
+	int node;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
