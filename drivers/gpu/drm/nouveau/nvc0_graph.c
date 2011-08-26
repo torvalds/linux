@@ -700,22 +700,6 @@ nvc0_graph_isr(struct drm_device *dev)
 	nv_wr32(dev, 0x400500, 0x00010001);
 }
 
-static void
-nvc0_runk140_isr(struct drm_device *dev)
-{
-	u32 units = nv_rd32(dev, 0x00017c) & 0x1f;
-
-	while (units) {
-		u32 unit = ffs(units) - 1;
-		u32 reg = 0x140000 + unit * 0x2000;
-		u32 st0 = nv_mask(dev, reg + 0x1020, 0, 0);
-		u32 st1 = nv_mask(dev, reg + 0x1420, 0, 0);
-
-		NV_DEBUG(dev, "PRUNK140: %d 0x%08x 0x%08x\n", unit, st0, st1);
-		units &= ~(1 << unit);
-	}
-}
-
 static int
 nvc0_graph_create_fw(struct drm_device *dev, const char *fwname,
 		     struct nvc0_graph_fuc *fuc)
@@ -764,7 +748,6 @@ nvc0_graph_destroy(struct drm_device *dev, int engine)
 	}
 
 	nouveau_irq_unregister(dev, 12);
-	nouveau_irq_unregister(dev, 25);
 
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b8);
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b4);
@@ -803,7 +786,6 @@ nvc0_graph_create(struct drm_device *dev)
 
 	NVOBJ_ENGINE_ADD(dev, GR, &priv->base);
 	nouveau_irq_register(dev, 12, nvc0_graph_isr);
-	nouveau_irq_register(dev, 25, nvc0_runk140_isr);
 
 	if (nouveau_ctxfw) {
 		NV_INFO(dev, "PGRAPH: using external firmware\n");
