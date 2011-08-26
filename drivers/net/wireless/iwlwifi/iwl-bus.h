@@ -63,13 +63,14 @@
 #ifndef __iwl_pci_h__
 #define __iwl_pci_h__
 
+struct iwl_shared;
 struct iwl_bus;
 
 /**
  * struct iwl_bus_ops - bus specific operations
  * @get_pm_support: must returns true if the bus can go to sleep
  * @apm_config: will be called during the config of the APM configuration
- * @set_drv_data: set the drv_data pointer to the bus layer
+ * @set_drv_data: set the shared data pointer to the bus layer
  * @get_hw_id: prints the hw_id in the provided buffer
  * @write8: write a byte to register at offset ofs
  * @write32: write a dword to register at offset ofs
@@ -78,7 +79,7 @@ struct iwl_bus;
 struct iwl_bus_ops {
 	bool (*get_pm_support)(struct iwl_bus *bus);
 	void (*apm_config)(struct iwl_bus *bus);
-	void (*set_drv_data)(struct iwl_bus *bus, void *drv_data);
+	void (*set_drv_data)(struct iwl_bus *bus, struct iwl_shared *shrd);
 	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
 	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
 	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
@@ -87,9 +88,9 @@ struct iwl_bus_ops {
 
 struct iwl_bus {
 	/* Common data to all buses */
-	void *drv_data; /* driver's context */
 	struct device *dev;
 	struct iwl_bus_ops *ops;
+	struct iwl_shared *shrd;
 
 	unsigned int irq;
 
@@ -108,9 +109,10 @@ static inline void bus_apm_config(struct iwl_bus *bus)
 	bus->ops->apm_config(bus);
 }
 
-static inline void bus_set_drv_data(struct iwl_bus *bus, void *drv_data)
+static inline void bus_set_drv_data(struct iwl_bus *bus,
+				struct iwl_shared *shrd)
 {
-	bus->ops->set_drv_data(bus, drv_data);
+	bus->ops->set_drv_data(bus, shrd);
 }
 
 static inline void bus_get_hw_id(struct iwl_bus *bus, char buf[], int buf_len)

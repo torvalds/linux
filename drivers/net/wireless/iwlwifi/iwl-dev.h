@@ -1210,6 +1210,10 @@ struct iwl_testmode_trace {
 
 struct iwl_priv {
 
+	/*data shared among all the driver's layers */
+	struct iwl_shared _shrd;
+	struct iwl_shared *shrd;
+
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;

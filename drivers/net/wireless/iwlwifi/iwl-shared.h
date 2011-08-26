@@ -64,6 +64,7 @@
 #define __iwl_shared_h__
 
 struct iwl_cfg;
+struct iwl_bus;
 struct iwl_priv;
 
 extern struct iwl_mod_params iwlagn_mod_params;
@@ -88,6 +89,21 @@ struct iwl_mod_params {
 	bool bt_ch_announce;
 	int wanted_ucode_alternative;
 };
+
+/**
+ * struct iwl_shared - shared fields for all the layers of the driver
+ *
+ * @bus: pointer to the bus layer data
+ * @priv: pointer to the upper layer data
+ */
+struct iwl_shared {
+	struct iwl_bus *bus;
+	struct iwl_priv *priv;
+};
+
+/*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
+#define priv(_m)	((_m)->shrd->priv)
+#define bus(_m)		((_m)->shrd->bus)
 
 #ifdef CONFIG_PM
 int iwl_suspend(struct iwl_priv *priv);

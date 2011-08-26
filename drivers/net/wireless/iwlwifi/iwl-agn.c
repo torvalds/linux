@@ -473,14 +473,15 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(priv));
+	struct iwl_shared *shrd = dev_get_drvdata(d);
+	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(shrd->priv));
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct iwl_priv *priv = dev_get_drvdata(d);
+	struct iwl_shared *shrd = dev_get_drvdata(d);
+	struct iwl_priv *priv = shrd->priv;
 	unsigned long val;
 	int ret;
 
@@ -506,7 +507,8 @@ static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
 static ssize_t show_temperature(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = dev_get_drvdata(d);
+	struct iwl_shared *shrd = dev_get_drvdata(d);
+	struct iwl_priv *priv = shrd->priv;
 
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
@@ -3603,7 +3605,10 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 
 	priv = hw->priv;
 	priv->bus = bus;
-	bus_set_drv_data(priv->bus, priv);
+	priv->shrd = &priv->_shrd;
+	priv->shrd->bus = bus;
+	priv->shrd->priv = priv;
+	bus_set_drv_data(priv->bus, priv->shrd);
 
 	/* At this point both hw and priv are allocated. */
 
