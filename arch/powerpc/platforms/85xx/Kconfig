@@ -171,8 +171,8 @@ config SBC8560
 	help
 	  This option enables support for the Wind River SBC8560 board
 
-config P2040_RDB
-	bool "Freescale P2040 RDB"
+config P2041_RDB
+	bool "Freescale P2041 RDB"
 	select DEFAULT_UIMAGE
 	select PPC_E500MC
 	select PHYS_64BIT
@@ -182,7 +182,7 @@ config P2040_RDB
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help
-	  This option enables support for the P2040 RDB board
+	  This option enables support for the P2041 RDB board
 
 config P3041_DS
 	bool "Freescale P3041 DS"

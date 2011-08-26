@@ -1,5 +1,5 @@
 /*
- * P2040 RDB Setup
+ * P2041 RDB Setup
  *
  * Copyright 2011 Freescale Semiconductor Inc.
  *
@@ -35,18 +35,18 @@
 /*
  * Called very early, device-tree isn't unflattened
  */
-static int __init p2040_rdb_probe(void)
+static int __init p2041_rdb_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 #ifdef CONFIG_SMP
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_flat_dt_is_compatible(root, "fsl,P2040RDB"))
+	if (of_flat_dt_is_compatible(root, "fsl,P2041RDB"))
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */
-	if (of_flat_dt_is_compatible(root, "fsl,P2040RDB-hv")) {
+	if (of_flat_dt_is_compatible(root, "fsl,P2041RDB-hv")) {
 		ppc_md.init_IRQ = ehv_pic_init;
 		ppc_md.get_irq = ehv_pic_get_irq;
 		ppc_md.restart = fsl_hv_restart;
@@ -66,9 +66,9 @@ static int __init p2040_rdb_probe(void)
 	return 0;
 }
 
-define_machine(p2040_rdb) {
-	.name			= "P2040 RDB",
-	.probe			= p2040_rdb_probe,
+define_machine(p2041_rdb) {
+	.name			= "P2041 RDB",
+	.probe			= p2041_rdb_probe,
 	.setup_arch		= corenet_ds_setup_arch,
 	.init_IRQ		= corenet_ds_pic_init,
 #ifdef CONFIG_PCI
@@ -81,8 +81,8 @@ define_machine(p2040_rdb) {
 	.power_save		= e500_idle,
 };
 
-machine_device_initcall(p2040_rdb, corenet_ds_publish_devices);
+machine_device_initcall(p2041_rdb, corenet_ds_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
-machine_arch_initcall(p2040_rdb, swiotlb_setup_bus_notifier);
+machine_arch_initcall(p2041_rdb, swiotlb_setup_bus_notifier);
 #endif
