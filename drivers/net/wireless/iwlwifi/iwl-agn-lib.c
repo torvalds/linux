@@ -634,37 +634,6 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 				  vif->bss_conf.bssid);
 }
 
-#define IWL_FLUSH_WAIT_MS	2000
-
-int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv)
-{
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
-	int cnt;
-	unsigned long now = jiffies;
-	int ret = 0;
-
-	/* waiting for all the tx frames complete might take a while */
-	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
-		if (cnt == priv->shrd->cmd_queue)
-			continue;
-		txq = &priv->txq[cnt];
-		q = &txq->q;
-		while (q->read_ptr != q->write_ptr && !time_after(jiffies,
-		       now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS)))
-				msleep(1);
-
-		if (q->read_ptr != q->write_ptr) {
-			IWL_ERR(priv, "fail to flush all tx fifo queues\n");
-			ret = -ETIMEDOUT;
-			break;
-		}
-	}
-	return ret;
-}
-
-#define IWL_TX_QUEUE_MSK	0xfffff
-
 /**
  * iwlagn_txfifo_flush: send REPLY_TXFIFO_FLUSH command to uCode
  *
@@ -715,7 +684,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		goto done;
 	}
 	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
-	iwlagn_wait_tx_queue_empty(priv);
+	iwl_trans_wait_tx_queue_empty(trans(priv));
 done:
 	ieee80211_wake_queues(priv->hw);
 	mutex_unlock(&priv->shrd->mutex);

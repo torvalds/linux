@@ -2833,7 +2833,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 		}
 	}
 	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
-	iwlagn_wait_tx_queue_empty(priv);
+	iwl_trans_wait_tx_queue_empty(trans(priv));
 done:
 	mutex_unlock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");

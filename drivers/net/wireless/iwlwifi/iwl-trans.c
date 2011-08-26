@@ -1446,6 +1446,35 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 	return iwl_trans;
 }
 
+#define IWL_FLUSH_WAIT_MS	2000
+
+static int iwl_trans_pcie_wait_tx_queue_empty(struct iwl_trans *trans)
+{
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	int cnt;
+	unsigned long now = jiffies;
+	int ret = 0;
+
+	/* waiting for all the tx frames complete might take a while */
+	for (cnt = 0; cnt < hw_params(trans).max_txq_num; cnt++) {
+		if (cnt == trans->shrd->cmd_queue)
+			continue;
+		txq = &priv(trans)->txq[cnt];
+		q = &txq->q;
+		while (q->read_ptr != q->write_ptr && !time_after(jiffies,
+		       now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS)))
+			msleep(1);
+
+		if (q->read_ptr != q->write_ptr) {
+			IWL_ERR(trans, "fail to flush all tx fifo queues\n");
+			ret = -ETIMEDOUT;
+			break;
+		}
+	}
+	return ret;
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
@@ -2024,6 +2053,9 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.free = iwl_trans_pcie_free,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
+
+	.wait_tx_queue_empty = iwl_trans_pcie_wait_tx_queue_empty,
+
 	.suspend = iwl_trans_pcie_suspend,
 	.resume = iwl_trans_pcie_resume,
 };

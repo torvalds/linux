@@ -101,6 +101,7 @@ struct iwl_device_cmd;
  * @kick_nic: remove the RESET from the embedded CPU and let it run
  * @free: release all the ressource for the transport layer itself such as
  *        irq, tasklet etc...
+ * @wait_tx_queue_empty: wait until all tx queues are empty
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
  * @suspend: stop the device unless WoWLAN is configured
@@ -142,6 +143,8 @@ struct iwl_trans_ops {
 	void (*free)(struct iwl_trans *trans);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
+	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
+
 	int (*suspend)(struct iwl_trans *trans);
 	int (*resume)(struct iwl_trans *trans);
 };
@@ -249,6 +252,11 @@ static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
 static inline void iwl_trans_free(struct iwl_trans *trans)
 {
 	trans->ops->free(trans);
+}
+
+static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
+{
+	return trans->ops->wait_tx_queue_empty(trans);
 }
 
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
