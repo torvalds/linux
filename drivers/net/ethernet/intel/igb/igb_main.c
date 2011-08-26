@@ -2666,14 +2666,12 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
                            struct igb_ring *ring)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 txdctl;
+	u32 txdctl = 0;
 	u64 tdba = ring->dma;
 	int reg_idx = ring->reg_idx;
 
 	/* disable the queue */
-	txdctl = rd32(E1000_TXDCTL(reg_idx));
-	wr32(E1000_TXDCTL(reg_idx),
-	                txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+	wr32(E1000_TXDCTL(reg_idx), 0);
 	wrfl();
 	mdelay(10);
 
@@ -2685,7 +2683,7 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
 
 	ring->head = hw->hw_addr + E1000_TDH(reg_idx);
 	ring->tail = hw->hw_addr + E1000_TDT(reg_idx);
-	writel(0, ring->head);
+	wr32(E1000_TDH(reg_idx), 0);
 	writel(0, ring->tail);
 
 	txdctl |= IGB_TX_PTHRESH;
@@ -3028,12 +3026,10 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	struct e1000_hw *hw = &adapter->hw;
 	u64 rdba = ring->dma;
 	int reg_idx = ring->reg_idx;
-	u32 srrctl, rxdctl;
+	u32 srrctl = 0, rxdctl = 0;
 
 	/* disable the queue */
-	rxdctl = rd32(E1000_RXDCTL(reg_idx));
-	wr32(E1000_RXDCTL(reg_idx),
-	                rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+	wr32(E1000_RXDCTL(reg_idx), 0);
 
 	/* Set DMA base address registers */
 	wr32(E1000_RDBAL(reg_idx),
@@ -3045,7 +3041,7 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	/* initialize head and tail */
 	ring->head = hw->hw_addr + E1000_RDH(reg_idx);
 	ring->tail = hw->hw_addr + E1000_RDT(reg_idx);
-	writel(0, ring->head);
+	wr32(E1000_RDH(reg_idx), 0);
 	writel(0, ring->tail);
 
 	/* set descriptor configuration */
@@ -3076,13 +3072,12 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	/* set filtering for VMDQ pools */
 	igb_set_vmolr(adapter, reg_idx & 0x7, true);
 
-	/* enable receive descriptor fetching */
-	rxdctl = rd32(E1000_RXDCTL(reg_idx));
-	rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
-	rxdctl &= 0xFFF00000;
 	rxdctl |= IGB_RX_PTHRESH;
 	rxdctl |= IGB_RX_HTHRESH << 8;
 	rxdctl |= IGB_RX_WTHRESH << 16;
+
+	/* enable receive descriptor fetching */
+	rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
 	wr32(E1000_RXDCTL(reg_idx), rxdctl);
 }
 
