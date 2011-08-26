@@ -515,7 +515,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	inta = priv->inta;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv->shrd) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x\n ",
@@ -544,7 +544,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv->shrd) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -845,7 +845,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv->shrd) & (IWL_DL_ISR)) {
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
 		IWL_DEBUG_ISR(priv, "ISR inta 0x%08x, enabled 0x%08x, "
 			      "fh 0x%08x\n", inta, inta_mask, inta_fh);

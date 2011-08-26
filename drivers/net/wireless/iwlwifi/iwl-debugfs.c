@@ -915,7 +915,8 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 				"q[%d]: read_ptr: %u, write_ptr: %u\n",
 				cnt, q->read_ptr, q->write_ptr);
 	}
-	if (priv->tx_traffic && (iwl_get_debug_level(priv) & IWL_DL_TX)) {
+	if (priv->tx_traffic &&
+		(iwl_get_debug_level(priv->shrd) & IWL_DL_TX)) {
 		ptr = priv->tx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"Tx Traffic idx: %u\n",	priv->tx_traffic_idx);
@@ -938,7 +939,8 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 			"read: %u, write: %u\n",
 			 rxq->read, rxq->write);
 
-	if (priv->rx_traffic && (iwl_get_debug_level(priv) & IWL_DL_RX)) {
+	if (priv->rx_traffic &&
+		(iwl_get_debug_level(priv->shrd) & IWL_DL_RX)) {
 		ptr = priv->rx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"Rx Traffic idx: %u\n",	priv->rx_traffic_idx);

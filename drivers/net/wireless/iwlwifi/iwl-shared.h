@@ -93,10 +93,16 @@ struct iwl_mod_params {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
+ * @dbg_level_dev: dbg level set per device. Prevails on
+ *	iwlagn_mod_params.debug_level if set (!= 0)
  * @bus: pointer to the bus layer data
  * @priv: pointer to the upper layer data
  */
 struct iwl_shared {
+#ifdef CONFIG_IWLWIFI_DEBUG
+	u32 dbg_level_dev;
+#endif /* CONFIG_IWLWIFI_DEBUG */
+
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;
 };
@@ -104,6 +110,28 @@ struct iwl_shared {
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
 #define priv(_m)	((_m)->shrd->priv)
 #define bus(_m)		((_m)->shrd->bus)
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+/*
+ * iwl_get_debug_level: Return active debug level for device
+ *
+ * Using sysfs it is possible to set per device debug level. This debug
+ * level will be used if set, otherwise the global debug level which can be
+ * set via module parameter is used.
+ */
+static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
+{
+	if (shrd->dbg_level_dev)
+		return shrd->dbg_level_dev;
+	else
+		return iwlagn_mod_params.debug_level;
+}
+#else
+static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
+{
+	return iwlagn_mod_params.debug_level;
+}
+#endif
 
 #ifdef CONFIG_PM
 int iwl_suspend(struct iwl_priv *priv);

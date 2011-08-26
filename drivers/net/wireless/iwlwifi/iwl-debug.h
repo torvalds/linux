@@ -45,7 +45,7 @@ do {									\
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG(__priv, level, fmt, args...)				\
 do {									\
-	if (iwl_get_debug_level(__priv) & (level))					\
+	if (iwl_get_debug_level(__priv->shrd) & (level))		\
 		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
 			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			__func__ , ## args);				\
@@ -53,7 +53,7 @@ do {									\
 
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)			\
 do {									\
-	if ((iwl_get_debug_level(__priv) & (level)) && net_ratelimit())		\
+	if ((iwl_get_debug_level(__priv->shrd) & (level)) && net_ratelimit())\
 		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
 			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			 __func__ , ## args);				\
@@ -61,7 +61,7 @@ do {									\
 
 #define iwl_print_hex_dump(priv, level, p, len) 			\
 do {                                            			\
-	if (iwl_get_debug_level(priv) & level) 				\
+	if (iwl_get_debug_level(priv->shrd) & level)			\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)

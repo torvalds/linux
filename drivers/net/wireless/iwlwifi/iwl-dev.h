@@ -1514,12 +1514,6 @@ struct iwl_priv {
 	s8 tx_power_lmt_in_half_dbm; /* max tx power in half-dBm format */
 	s8 tx_power_next;
 
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	/* debugging info */
-	u32 debug_level; /* per device debugging will override global
-			    iwlagn_mod_params.debug_level if set */
-#endif /* CONFIG_IWLWIFI_DEBUG */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
 	u16 tx_traffic_idx;
@@ -1568,29 +1562,6 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 }
 
 extern struct iwl_mod_params iwlagn_mod_params;
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-/*
- * iwl_get_debug_level: Return active debug level for device
- *
- * Using sysfs it is possible to set per device debug level. This debug
- * level will be used if set, otherwise the global debug level which can be
- * set via module parameter is used.
- */
-static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
-{
-	if (priv->debug_level)
-		return priv->debug_level;
-	else
-		return iwlagn_mod_params.debug_level;
-}
-#else
-static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
-{
-	return iwlagn_mod_params.debug_level;
-}
-#endif
-
 
 static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
 							 int txq_id, int idx)

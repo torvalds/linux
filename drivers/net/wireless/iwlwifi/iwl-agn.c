@@ -474,7 +474,7 @@ static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl_shared *shrd = dev_get_drvdata(d);
-	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(shrd->priv));
+	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(shrd));
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -489,9 +489,9 @@ static ssize_t store_debug_level(struct device *d,
 	if (ret)
 		IWL_ERR(priv, "%s is not in hex or decimal form.\n", buf);
 	else {
-		priv->debug_level = val;
+		shrd->dbg_level_dev = val;
 		if (iwl_alloc_traffic_mem(priv))
-			IWL_ERR(priv,
+			IWL_ERR(shrd->priv,
 				"Not enough memory to generate traffic log\n");
 	}
 	return strnlen(buf, count);
@@ -1621,7 +1621,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	priv->bt_ch_announce = iwlagn_mod_params.bt_ch_announce;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) && !full_log)
+	if (!(iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS) && !full_log)
 		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
 			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
 #else
@@ -1641,7 +1641,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		if (!*buf)
 			return -ENOMEM;
 	}
-	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
+	if ((iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS) || full_log) {
 		/*
 		 * if uCode has wrapped back to top of log,
 		 * start at the oldest entry,
