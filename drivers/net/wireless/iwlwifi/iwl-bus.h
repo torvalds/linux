@@ -65,6 +65,8 @@
 
 /*This file includes the declaration that are exported from the bus layer */
 
+#include <linux/types.h>
+
 struct iwl_shared;
 struct iwl_bus;
 

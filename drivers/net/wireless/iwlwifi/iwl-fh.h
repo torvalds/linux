@@ -63,6 +63,8 @@
 #ifndef __iwl_fh_h__
 #define __iwl_fh_h__
 
+#include <linux/types.h>
+
 /****************************/
 /* Flow Handler Definitions */
 /****************************/

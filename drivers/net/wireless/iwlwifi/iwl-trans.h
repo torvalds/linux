@@ -64,6 +64,10 @@
 #define __iwl_trans_h__
 
 #include <linux/debugfs.h>
+#include <linux/skbuff.h>
+
+#include "iwl-shared.h"
+#include "iwl-commands.h"
 
  /*This file includes the declaration that are exported from the transport
  * layer */

@@ -72,7 +72,6 @@
 #include "iwl-trans-int-pcie.h"
 /*TODO remove uneeded includes when the transport layer tx_free will be here */
 #include "iwl-agn.h"
-#include "iwl-core.h"
 #include "iwl-shared.h"
 
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)

@@ -29,7 +29,20 @@
 #ifndef __iwl_trans_int_pcie_h__
 #define __iwl_trans_int_pcie_h__
 
+#include <linux/spinlock.h>
+#include <linux/interrupt.h>
+#include <linux/skbuff.h>
+
 #include "iwl-fh.h"
+#include "iwl-csr.h"
+#include "iwl-shared.h"
+#include "iwl-trans.h"
+#include "iwl-debug.h"
+#include "iwl-io.h"
+
+struct iwl_tx_queue;
+struct iwl_queue;
+struct iwl_host_cmd;
 
 /*This file includes the declaration that are internal to the
  * trans_pcie layer */
@@ -86,6 +99,12 @@ struct iwl_rx_queue {
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
+};
+
+struct iwl_dma_ptr {
+	dma_addr_t dma;
+	void *addr;
+	size_t size;
 };
 
 /**

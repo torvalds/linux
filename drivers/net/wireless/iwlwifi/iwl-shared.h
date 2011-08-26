@@ -63,6 +63,11 @@
 #ifndef __iwl_shared_h__
 #define __iwl_shared_h__
 
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <linux/gfp.h>
+
 /*This files includes all the types / functions that are exported by the
  * upper layer to the bus and transport layer */
 
