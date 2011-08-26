@@ -1177,7 +1177,7 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 	cp->fcoe_start_cid = start_cid + MAX_ISCSI_TBL_SZ;
 
 	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
-		cp->max_cid_space += BNX2X_FCOE_NUM_CONNECTIONS;
+		cp->max_cid_space += dev->max_fcoe_conn;
 		cp->fcoe_init_cid = ethdev->fcoe_init_cid;
 		if (!cp->fcoe_init_cid)
 			cp->fcoe_init_cid = 0x10;
@@ -2280,7 +2280,7 @@ static int cnic_bnx2x_fcoe_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 	*work = 4;
 
 	l5_cid = req1->fcoe_conn_id;
-	if (l5_cid >= BNX2X_FCOE_NUM_CONNECTIONS)
+	if (l5_cid >= dev->max_fcoe_conn)
 		goto err_reply;
 
 	l5_cid += BNX2X_FCOE_L5_CID_BASE;
@@ -2384,7 +2384,7 @@ static int cnic_bnx2x_fcoe_disable(struct cnic_dev *dev, struct kwqe *kwqe)
 	req = (struct fcoe_kwqe_conn_enable_disable *) kwqe;
 	cid = req->context_id;
 	l5_cid = req->conn_id;
-	if (l5_cid >= BNX2X_FCOE_NUM_CONNECTIONS)
+	if (l5_cid >= dev->max_fcoe_conn)
 		return -EINVAL;
 
 	l5_cid += BNX2X_FCOE_L5_CID_BASE;
@@ -2418,7 +2418,7 @@ static int cnic_bnx2x_fcoe_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	req = (struct fcoe_kwqe_conn_destroy *) kwqe;
 	cid = req->context_id;
 	l5_cid = req->conn_id;
-	if (l5_cid >= BNX2X_FCOE_NUM_CONNECTIONS)
+	if (l5_cid >= dev->max_fcoe_conn)
 		return -EINVAL;
 
 	l5_cid += BNX2X_FCOE_L5_CID_BASE;
@@ -4850,8 +4850,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 		return -ENOMEM;
 
 	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
-		ret = cnic_init_id_tbl(&cp->fcoe_cid_tbl,
-					BNX2X_FCOE_NUM_CONNECTIONS,
+		ret = cnic_init_id_tbl(&cp->fcoe_cid_tbl, dev->max_fcoe_conn,
 					cp->fcoe_start_cid, 0);
 
 		if (ret)
@@ -5291,6 +5290,9 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id) &&
 	    !(ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE))
 		cdev->max_fcoe_conn = ethdev->max_fcoe_conn;
+
+	if (cdev->max_fcoe_conn > BNX2X_FCOE_NUM_CONNECTIONS)
+		cdev->max_fcoe_conn = BNX2X_FCOE_NUM_CONNECTIONS;
 
 	memcpy(cdev->mac_addr, ethdev->iscsi_mac, 6);
 
