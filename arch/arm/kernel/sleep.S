@@ -27,7 +27,7 @@ ENTRY(__cpu_suspend)
 	sub	sp, sp, r5		@ allocate CPU state on stack
 	mov	r0, sp			@ save pointer to CPU save block
 	add	ip, ip, r1		@ convert resume fn to phys
-	stmfd	sp!, {r1, r6, ip}	@ save v:p, virt SP, phys resume fn
+	stmfd	sp!, {r6, ip}		@ save virt SP, phys resume fn
 	ldr	r5, =sleep_save_sp
 	add	r6, sp, r1		@ convert SP to phys
 	stmfd	sp!, {r2, r3}		@ save suspend func arg and pointer
@@ -60,7 +60,7 @@ ENDPROC(__cpu_suspend)
 	.ltorg
 
 cpu_suspend_abort:
-	ldmia	sp!, {r1 - r3}		@ pop v:p, virt SP, phys resume fn
+	ldmia	sp!, {r2 - r3}		@ pop virt SP, phys resume fn
 	teq	r0, #0
 	moveq	r0, #1			@ force non-zero value
 	mov	sp, r2
@@ -74,28 +74,19 @@ ENDPROC(cpu_suspend_abort)
  * r3 = L1 section flags
  */
 ENTRY(cpu_resume_mmu)
-	adr	r4, cpu_resume_turn_mmu_on
-	mov	r4, r4, lsr #20
-	orr	r3, r3, r4, lsl #20
-	ldr	r5, [r2, r4, lsl #2]	@ save old mapping
-	str	r3, [r2, r4, lsl #2]	@ setup 1:1 mapping for mmu code
-	sub	r2, r2, r1
 	ldr	r3, =cpu_resume_after_mmu
-	bic	r1, r0, #CR_C		@ ensure D-cache is disabled
 	b	cpu_resume_turn_mmu_on
 ENDPROC(cpu_resume_mmu)
 	.ltorg
 	.align	5
-cpu_resume_turn_mmu_on:
-	mcr	p15, 0, r1, c1, c0, 0	@ turn on MMU, I-cache, etc
-	mrc	p15, 0, r1, c0, c0, 0	@ read id reg
-	mov	r1, r1
-	mov	r1, r1
+ENTRY(cpu_resume_turn_mmu_on)
+	mcr	p15, 0, r0, c1, c0, 0	@ turn on MMU, I-cache, etc
+	mrc	p15, 0, r0, c0, c0, 0	@ read id reg
+	mov	r0, r0
+	mov	r0, r0
 	mov	pc, r3			@ jump to virtual address
 ENDPROC(cpu_resume_turn_mmu_on)
 cpu_resume_after_mmu:
-	str	r5, [r2, r4, lsl #2]	@ restore old mapping
-	mcr	p15, 0, r0, c1, c0, 0	@ turn on D-cache
 	bl	cpu_init		@ restore the und/abt/irq banked regs
 	mov	r0, #0			@ return zero on success
 	ldmfd	sp!, {r4 - r11, pc}
@@ -121,11 +112,11 @@ ENTRY(cpu_resume)
 	ldr	r0, sleep_save_sp	@ stack phys addr
 #endif
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
-	@ load v:p, stack, resume fn
-  ARM(	ldmia	r0!, {r1, sp, pc}	)
-THUMB(	ldmia	r0!, {r1, r2, r3}	)
-THUMB(	mov	sp, r2			)
-THUMB(	bx	r3			)
+	@ load stack, resume fn
+  ARM(	ldmia	r0!, {sp, pc}	)
+THUMB(	ldmia	r0!, {r2, r3}	)
+THUMB(	mov	sp, r2		)
+THUMB(	bx	r3		)
 ENDPROC(cpu_resume)
 
 sleep_save_sp:

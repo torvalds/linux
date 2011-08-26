@@ -259,14 +259,8 @@ ENTRY(cpu_v7_do_resume)
 	isb
 	dsb
 	mov	r0, r9			@ control register
-	mov	r2, r7, lsr #14		@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, cpu_resume_l1_flags
 	b	cpu_resume_mmu
 ENDPROC(cpu_v7_do_resume)
-cpu_resume_l1_flags:
-	ALT_SMP(.long PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_FLAGS_SMP)
-	ALT_UP(.long  PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_FLAGS_UP)
 #endif
 
 	__CPUINIT

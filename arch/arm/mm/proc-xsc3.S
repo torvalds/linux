@@ -435,13 +435,7 @@ ENTRY(cpu_xsc3_do_resume)
 	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
 	mcr	p15, 0, r8, c2, c0, 0	@ translation table base addr
 	mcr	p15, 0, r9, c1, c0, 1	@ auxiliary control reg
-
-	@ temporarily map resume_turn_on_mmu into the page table,
-	@ otherwise prefetch abort occurs after MMU is turned on
 	mov	r0, r10			@ control register
-	mov	r2, r8, lsr #14		@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, =0x542e		@ section flags
 	b	cpu_resume_mmu
 ENDPROC(cpu_xsc3_do_resume)
 #endif

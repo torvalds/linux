@@ -192,10 +192,6 @@ ENTRY(cpu_sa1100_do_resume)
 	mcr	p15, 0, r5, c2, c0, 0		@ translation table base addr
 	mcr	p15, 0, r6, c13, c0, 0		@ PID
 	mov	r0, r7				@ control register
-	mov	r2, r5, lsr #14			@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
-		     PMD_SECT_CACHEABLE | PMD_SECT_AP_WRITE
 	b	cpu_resume_mmu
 ENDPROC(cpu_sa1100_do_resume)
 #endif

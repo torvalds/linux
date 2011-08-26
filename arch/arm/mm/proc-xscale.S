@@ -548,10 +548,6 @@ ENTRY(cpu_xscale_do_resume)
 	mcr	p15, 0, r8, c2, c0, 0	@ translation table base addr
 	mcr	p15, 0, r9, c1, c1, 0	@ auxiliary control reg
 	mov	r0, r10			@ control register
-	mov	r2, r8, lsr #14		@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
-		     PMD_SECT_CACHEABLE | PMD_SECT_AP_WRITE
 	b	cpu_resume_mmu
 ENDPROC(cpu_xscale_do_resume)
 #endif

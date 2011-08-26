@@ -161,14 +161,8 @@ ENTRY(cpu_v6_do_resume)
 	mcr	p15, 0, ip, c2, c0, 2	@ TTB control register
 	mcr	p15, 0, ip, c7, c5, 4	@ ISB
 	mov	r0, r11			@ control register
-	mov	r2, r7, lsr #14		@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, cpu_resume_l1_flags
 	b	cpu_resume_mmu
 ENDPROC(cpu_v6_do_resume)
-cpu_resume_l1_flags:
-	ALT_SMP(.long PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_FLAGS_SMP)
-	ALT_UP(.long  PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_FLAGS_UP)
 #endif
 
 	string	cpu_v6_name, "ARMv6-compatible processor"
