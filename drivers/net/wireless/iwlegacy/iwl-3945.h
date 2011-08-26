@@ -60,7 +60,7 @@ extern const struct pci_device_id il3945_hw_card_ids[];
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon statistics being sent to driver)
+ *   1)  Not associated (4965, no beacon stats being sent to driver)
  *   2)  Scanning (noise measurement does not apply to associated channel)
  *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
  * Use default noise value of -127 ... this is below the range of measurable
@@ -258,9 +258,9 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 				  int sta_id, int tx_id);
 extern int il3945_hw_reg_send_txpower(struct il_priv *il);
 extern int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power);
-extern void il3945_hw_rx_statistics(struct il_priv *il,
+extern void il3945_hw_rx_stats(struct il_priv *il,
 				 struct il_rx_buf *rxb);
-void il3945_reply_statistics(struct il_priv *il,
+void il3945_reply_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb);
 extern void il3945_disable_events(struct il_priv *il);
 extern int il4965_get_temperature(const struct il_priv *il);

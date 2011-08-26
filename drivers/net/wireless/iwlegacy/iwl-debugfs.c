@@ -102,7 +102,7 @@ static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.llseek = generic_file_llseek,					\
 };
 
-static ssize_t il_dbgfs_tx_statistics_read(struct file *file,
+static ssize_t il_dbgfs_tx_stats_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
@@ -142,7 +142,7 @@ static ssize_t il_dbgfs_tx_statistics_read(struct file *file,
 }
 
 static ssize_t
-il_dbgfs_clear_traffic_statistics_write(struct file *file,
+il_dbgfs_clear_traffic_stats_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
@@ -162,7 +162,7 @@ il_dbgfs_clear_traffic_statistics_write(struct file *file,
 	return count;
 }
 
-static ssize_t il_dbgfs_rx_statistics_read(struct file *file,
+static ssize_t il_dbgfs_rx_stats_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
@@ -1031,7 +1031,7 @@ static ssize_t il_dbgfs_power_save_status_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t il_dbgfs_clear_ucode_statistics_write(struct file *file,
+static ssize_t il_dbgfs_clear_ucode_stats_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
@@ -1047,9 +1047,9 @@ static ssize_t il_dbgfs_clear_ucode_statistics_write(struct file *file,
 	if (sscanf(buf, "%d", &clear) != 1)
 		return -EFAULT;
 
-	/* make request to uCode to retrieve statistics information */
+	/* make request to uCode to retrieve stats information */
 	mutex_lock(&il->mutex);
-	il_send_statistics_request(il, CMD_SYNC, true);
+	il_send_stats_request(il, CMD_SYNC, true);
 	mutex_unlock(&il->mutex);
 
 	return count;
@@ -1206,8 +1206,8 @@ static ssize_t il_dbgfs_wd_timeout_write(struct file *file,
 	return count;
 }
 
-DEBUGFS_READ_FILE_OPS(rx_statistics);
-DEBUGFS_READ_FILE_OPS(tx_statistics);
+DEBUGFS_READ_FILE_OPS(rx_stats);
+DEBUGFS_READ_FILE_OPS(tx_stats);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
@@ -1217,8 +1217,8 @@ DEBUGFS_READ_FILE_OPS(ucode_general_stats);
 DEBUGFS_READ_FILE_OPS(sensitivity);
 DEBUGFS_READ_FILE_OPS(chain_noise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
-DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
-DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
+DEBUGFS_WRITE_FILE_OPS(clear_ucode_stats);
+DEBUGFS_WRITE_FILE_OPS(clear_traffic_stats);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
 DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
@@ -1259,14 +1259,14 @@ int il_dbgfs_register(struct il_priv *il, const char *name)
 	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_statistics, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(rx_stats, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(tx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(traffic_log, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_queue, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(clear_traffic_statistics, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(clear_ucode_stats, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(clear_traffic_stats, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(force_reset, dir_debug, S_IWUSR | S_IRUSR);

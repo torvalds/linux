@@ -71,7 +71,7 @@
  * INIT calibrations framework
  *****************************************************************************/
 
-struct statistics_general_data {
+struct stats_general_data {
 	u32 beacon_silence_rssi_a;
 	u32 beacon_silence_rssi_b;
 	u32 beacon_silence_rssi_c;
@@ -106,7 +106,7 @@ void il4965_calib_free_results(struct il_priv *il)
 static int il4965_sens_energy_cck(struct il_priv *il,
 				   u32 norm_fa,
 				   u32 rx_enable_time,
-				   struct statistics_general_data *rx_info)
+				   struct stats_general_data *rx_info)
 {
 	u32 max_nrg_cck = 0;
 	int i = 0;
@@ -509,10 +509,10 @@ void il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 	u32 norm_fa_ofdm;
 	u32 norm_fa_cck;
 	struct il_sensitivity_data *data = NULL;
-	struct statistics_rx_non_phy *rx_info;
-	struct statistics_rx_phy *ofdm, *cck;
+	struct stats_rx_non_phy *rx_info;
+	struct stats_rx_phy *ofdm, *cck;
 	unsigned long flags;
-	struct statistics_general_data statis;
+	struct stats_general_data statis;
 
 	if (il->disable_sens_cal)
 		return;
@@ -526,9 +526,9 @@ void il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	rx_info = &(((struct il_notif_statistics *)resp)->rx.general);
-	ofdm = &(((struct il_notif_statistics *)resp)->rx.ofdm);
-	cck = &(((struct il_notif_statistics *)resp)->rx.cck);
+	rx_info = &(((struct il_notif_stats *)resp)->rx.general);
+	ofdm = &(((struct il_notif_stats *)resp)->rx.ofdm);
+	cck = &(((struct il_notif_stats *)resp)->rx.cck);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		D_CALIB("<< invalid data.\n");
@@ -565,9 +565,9 @@ void il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 		return;
 	}
 
-	/* These statistics increase monotonically, and do not reset
+	/* These stats increase monotonically, and do not reset
 	 *   at each beacon.  Calculate difference from last value, or just
-	 *   use the new statistics value if it has reset or wrapped around. */
+	 *   use the new stats value if it has reset or wrapped around. */
 	if (data->last_bad_plcp_cnt_cck > bad_plcp_cck)
 		data->last_bad_plcp_cnt_cck = bad_plcp_cck;
 	else {
@@ -793,7 +793,7 @@ static void il4965_gain_computation(struct il_priv *il,
 
 
 /*
- * Accumulate 16 beacons of signal and noise statistics for each of
+ * Accumulate 16 beacons of signal and noise stats for each of
  *   3 receivers/antennas/rx-chains, then figure out:
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
@@ -818,7 +818,7 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	u8 rxon_band24;
 	u8 stat_band24;
 	unsigned long flags;
-	struct statistics_rx_non_phy *rx_info;
+	struct stats_rx_non_phy *rx_info;
 
 	struct il_rxon_context *ctx = &il->ctx;
 
@@ -839,7 +839,7 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	rx_info = &(((struct il_notif_statistics *)stat_resp)->
+	rx_info = &(((struct il_notif_stats *)stat_resp)->
 		      rx.general);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
@@ -851,10 +851,10 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(ctx->staging.channel);
 
-	stat_band24 = !!(((struct il_notif_statistics *)
+	stat_band24 = !!(((struct il_notif_stats *)
 			 stat_resp)->flag &
 			 STATISTICS_REPLY_FLG_BAND_24G_MSK);
-	stat_chnum = le32_to_cpu(((struct il_notif_statistics *)
+	stat_chnum = le32_to_cpu(((struct il_notif_stats *)
 				 stat_resp)->flag) >> 16;
 
 	/* Make sure we accumulate data for just the associated channel
@@ -867,7 +867,7 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	}
 
 	/*
-	 *  Accumulate beacon statistics values across
+	 *  Accumulate beacon stats values across
 	 * "chain_noise_num_beacons"
 	 */
 	chain_noise_a = le32_to_cpu(rx_info->beacon_silence_rssi_a) &
@@ -960,7 +960,7 @@ void il4965_reset_run_time_calib(struct il_priv *il)
 		il->chain_noise_data.delta_gain_code[i] =
 				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
 
-	/* Ask for statistics now, the uCode will send notification
+	/* Ask for stats now, the uCode will send notification
 	 * periodically after association */
-	il_send_statistics_request(il, CMD_ASYNC, true);
+	il_send_stats_request(il, CMD_ASYNC, true);
 }

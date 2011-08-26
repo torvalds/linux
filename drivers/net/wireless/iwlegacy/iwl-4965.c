@@ -1436,9 +1436,9 @@ static void il4965_txq_update_byte_cnt_tbl(struct il_priv *il,
 
 /**
  * il4965_hw_get_temperature - return the calibrated temperature (in Kelvin)
- * @statistics: Provides the temperature reading from the uCode
+ * @stats: Provides the temperature reading from the uCode
  *
- * A return of <0 indicates bogus data in the statistics
+ * A return of <0 indicates bogus data in the stats
  */
 static int il4965_hw_get_temperature(struct il_priv *il)
 {
@@ -1448,7 +1448,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	u32 R4;
 
 	if (test_bit(STATUS_TEMPERATURE, &il->status) &&
-	    (il->_4965.statistics.flag &
+	    (il->_4965.stats.flag &
 			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
 		D_TEMP("Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(il->card_alive_init.therm_r1[1]);
@@ -1466,14 +1466,14 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	/*
 	 * Temperature is only 23 bits, so sign extend out to 32.
 	 *
-	 * NOTE If we haven't received a statistics notification yet
+	 * NOTE If we haven't received a stats notification yet
 	 * with an updated temperature, use R4 provided to us in the
 	 * "initialize" ALIVE response.
 	 */
 	if (!test_bit(STATUS_TEMPERATURE, &il->status))
 		vt = sign_extend32(R4, 23);
 	else
-		vt = sign_extend32(le32_to_cpu(il->_4965.statistics.
+		vt = sign_extend32(le32_to_cpu(il->_4965.stats.
 				 general.common.temperature), 23);
 
 	D_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
@@ -1512,7 +1512,7 @@ static int il4965_is_temp_calib_needed(struct il_priv *il)
 	int temp_diff;
 
 	if (!test_bit(STATUS_STATISTICS, &il->status)) {
-		D_TEMP("Temperature not updated -- no statistics.\n");
+		D_TEMP("Temperature not updated -- no stats.\n");
 		return 0;
 	}
 

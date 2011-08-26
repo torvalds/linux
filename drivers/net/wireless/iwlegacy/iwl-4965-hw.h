@@ -119,7 +119,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * uCode provides all 4 values to the driver via the "initialize alive"
  * notification (see struct il4965_init_alive_resp).  After the runtime uCode
- * image loads, uCode updates the R4 value via statistics notifications
+ * image loads, uCode updates the R4 value via stats notifications
  * (see STATISTICS_NOTIFICATION), which occur after each received beacon
  * when associated, or can be requested via REPLY_STATISTICS_CMD.
  *
@@ -159,7 +159,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *
  *     1) EEPROM
  *     2) "initialize" alive notification
- *     3) statistics notifications
+ *     3) stats notifications
  *
  * EEPROM data consists of:
  *

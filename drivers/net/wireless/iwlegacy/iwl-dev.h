@@ -57,7 +57,7 @@ struct il_tx_queue;
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon statistics being sent to driver)
+ *   1)  Not associated (4965, no beacon stats being sent to driver)
  *   2)  Scanning (noise measurement does not apply to associated channel)
  *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
  * Use default noise value of -127 ... this is below the range of measurable
@@ -801,8 +801,8 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
-/* interrupt statistics */
-struct isr_statistics {
+/* interrupt stats */
+struct isr_stats {
 	u32 hw;
 	u32 sw;
 	u32 err_code;
@@ -817,7 +817,7 @@ struct isr_statistics {
 	u32 unhandled;
 };
 
-/* management statistics */
+/* management stats */
 enum il_mgmt_stats {
 	MANAGEMENT_ASSOC_REQ = 0,
 	MANAGEMENT_ASSOC_RESP,
@@ -833,7 +833,7 @@ enum il_mgmt_stats {
 	MANAGEMENT_ACTION,
 	MANAGEMENT_MAX,
 };
-/* control statistics */
+/* control stats */
 enum il_ctrl_stats {
 	CONTROL_BACK_REQ =  0,
 	CONTROL_BACK,
@@ -1087,7 +1087,7 @@ struct il_priv {
 	struct traffic_stats rx_stats;
 
 	/* counts interrupts */
-	struct isr_statistics isr_stats;
+	struct isr_stats isr_stats;
 
 	struct il_power_mgr power_data;
 
@@ -1131,15 +1131,15 @@ struct il_priv {
 			struct delayed_work thermal_periodic;
 			struct delayed_work rfkill_poll;
 
-			struct il3945_notif_statistics statistics;
+			struct il3945_notif_stats stats;
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-			struct il3945_notif_statistics accum_statistics;
-			struct il3945_notif_statistics delta_statistics;
-			struct il3945_notif_statistics max_delta;
+			struct il3945_notif_stats accum_stats;
+			struct il3945_notif_stats delta_stats;
+			struct il3945_notif_stats max_delta;
 #endif
 
 			u32 sta_supp_rates;
-			int last_rx_rssi;	/* From Rx packet statistics */
+			int last_rx_rssi;	/* From Rx packet stats */
 
 			/* Rx'd packet timing information */
 			u32 last_beacon_time;
@@ -1169,11 +1169,11 @@ struct il_priv {
 			u8 phy_calib_chain_noise_reset_cmd;
 			u8 phy_calib_chain_noise_gain_cmd;
 
-			struct il_notif_statistics statistics;
+			struct il_notif_stats stats;
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-			struct il_notif_statistics accum_statistics;
-			struct il_notif_statistics delta_statistics;
-			struct il_notif_statistics max_delta;
+			struct il_notif_stats accum_stats;
+			struct il_notif_stats delta_stats;
+			struct il_notif_stats max_delta;
 #endif
 
 		} _4965;
@@ -1229,7 +1229,7 @@ struct il_priv {
 	u32 disable_chain_noise_cal;
 	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
-	struct timer_list statistics_periodic;
+	struct timer_list stats_periodic;
 	struct timer_list watchdog;
 	bool hw_ready;
 

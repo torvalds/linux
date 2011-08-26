@@ -229,7 +229,7 @@ static void il_rx_scan_results_notif(struct il_priv *il,
 		       notif->band ? "bg" : "a",
 		       le32_to_cpu(notif->tsf_high),
 		       le32_to_cpu(notif->tsf_low),
-		       le32_to_cpu(notif->statistics[0]),
+		       le32_to_cpu(notif->stats[0]),
 		       le32_to_cpu(notif->tsf_low) - il->scan_start_tsf);
 #endif
 }

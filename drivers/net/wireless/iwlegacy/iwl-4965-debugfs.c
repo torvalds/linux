@@ -33,12 +33,12 @@ static const char *fmt_table = "  %-30s %10u  %10u  %10u  %10u\n";
 static const char *fmt_header =
 	"%-32s    current  cumulative       delta         max\n";
 
-static int il4965_statistics_flag(struct il_priv *il, char *buf, int bufsz)
+static int il4965_stats_flag(struct il_priv *il, char *buf, int bufsz)
 {
 	int p = 0;
 	u32 flag;
 
-	flag = le32_to_cpu(il->_4965.statistics.flag);
+	flag = le32_to_cpu(il->_4965.stats.flag);
 
 	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n", flag);
 	if (flag & UCODE_STATISTICS_CLEAR_MSK)
@@ -60,15 +60,15 @@ ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char *buf;
-	int bufsz = sizeof(struct statistics_rx_phy) * 40 +
-		    sizeof(struct statistics_rx_non_phy) * 40 +
-		    sizeof(struct statistics_rx_ht_phy) * 40 + 400;
+	int bufsz = sizeof(struct stats_rx_phy) * 40 +
+		    sizeof(struct stats_rx_non_phy) * 40 +
+		    sizeof(struct stats_rx_ht_phy) * 40 + 400;
 	ssize_t ret;
-	struct statistics_rx_phy *ofdm, *accum_ofdm, *delta_ofdm, *max_ofdm;
-	struct statistics_rx_phy *cck, *accum_cck, *delta_cck, *max_cck;
-	struct statistics_rx_non_phy *general, *accum_general;
-	struct statistics_rx_non_phy *delta_general, *max_general;
-	struct statistics_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
+	struct stats_rx_phy *ofdm, *accum_ofdm, *delta_ofdm, *max_ofdm;
+	struct stats_rx_phy *cck, *accum_cck, *delta_cck, *max_cck;
+	struct stats_rx_non_phy *general, *accum_general;
+	struct stats_rx_non_phy *delta_general, *max_general;
+	struct stats_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
 	if (!il_is_alive(il))
 		return -EAGAIN;
@@ -81,27 +81,27 @@ ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 
 	/*
 	 * the statistic information display here is based on
-	 * the last statistics notification from uCode
+	 * the last stats notification from uCode
 	 * might not reflect the current uCode activity
 	 */
-	ofdm = &il->_4965.statistics.rx.ofdm;
-	cck = &il->_4965.statistics.rx.cck;
-	general = &il->_4965.statistics.rx.general;
-	ht = &il->_4965.statistics.rx.ofdm_ht;
-	accum_ofdm = &il->_4965.accum_statistics.rx.ofdm;
-	accum_cck = &il->_4965.accum_statistics.rx.cck;
-	accum_general = &il->_4965.accum_statistics.rx.general;
-	accum_ht = &il->_4965.accum_statistics.rx.ofdm_ht;
-	delta_ofdm = &il->_4965.delta_statistics.rx.ofdm;
-	delta_cck = &il->_4965.delta_statistics.rx.cck;
-	delta_general = &il->_4965.delta_statistics.rx.general;
-	delta_ht = &il->_4965.delta_statistics.rx.ofdm_ht;
+	ofdm = &il->_4965.stats.rx.ofdm;
+	cck = &il->_4965.stats.rx.cck;
+	general = &il->_4965.stats.rx.general;
+	ht = &il->_4965.stats.rx.ofdm_ht;
+	accum_ofdm = &il->_4965.accum_stats.rx.ofdm;
+	accum_cck = &il->_4965.accum_stats.rx.cck;
+	accum_general = &il->_4965.accum_stats.rx.general;
+	accum_ht = &il->_4965.accum_stats.rx.ofdm_ht;
+	delta_ofdm = &il->_4965.delta_stats.rx.ofdm;
+	delta_cck = &il->_4965.delta_stats.rx.cck;
+	delta_general = &il->_4965.delta_stats.rx.general;
+	delta_ht = &il->_4965.delta_stats.rx.ofdm_ht;
 	max_ofdm = &il->_4965.max_delta.rx.ofdm;
 	max_cck = &il->_4965.max_delta.rx.cck;
 	max_general = &il->_4965.max_delta.rx.general;
 	max_ht = &il->_4965.max_delta.rx.ofdm_ht;
 
-	pos += il4965_statistics_flag(il, buf, bufsz);
+	pos += il4965_stats_flag(il, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_Rx - OFDM:");
 	pos += scnprintf(buf + pos, bufsz - pos,
@@ -492,9 +492,9 @@ ssize_t il4965_ucode_tx_stats_read(struct file *file,
 	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char *buf;
-	int bufsz = (sizeof(struct statistics_tx) * 48) + 250;
+	int bufsz = (sizeof(struct stats_tx) * 48) + 250;
 	ssize_t ret;
-	struct statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
+	struct stats_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
 	if (!il_is_alive(il))
 		return -EAGAIN;
@@ -506,15 +506,15 @@ ssize_t il4965_ucode_tx_stats_read(struct file *file,
 	}
 
 	/* the statistic information display here is based on
-	  * the last statistics notification from uCode
+	  * the last stats notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	tx = &il->_4965.statistics.tx;
-	accum_tx = &il->_4965.accum_statistics.tx;
-	delta_tx = &il->_4965.delta_statistics.tx;
+	tx = &il->_4965.stats.tx;
+	accum_tx = &il->_4965.accum_stats.tx;
+	delta_tx = &il->_4965.delta_stats.tx;
 	max_tx = &il->_4965.max_delta.tx;
 
-	pos += il4965_statistics_flag(il, buf, bufsz);
+	pos += il4965_stats_flag(il, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_Tx:");
 	pos += scnprintf(buf + pos, bufsz - pos,
@@ -667,12 +667,12 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char *buf;
-	int bufsz = sizeof(struct statistics_general) * 10 + 300;
+	int bufsz = sizeof(struct stats_general) * 10 + 300;
 	ssize_t ret;
-	struct statistics_general_common *general, *accum_general;
-	struct statistics_general_common *delta_general, *max_general;
-	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
-	struct statistics_div *div, *accum_div, *delta_div, *max_div;
+	struct stats_general_common *general, *accum_general;
+	struct stats_general_common *delta_general, *max_general;
+	struct stats_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
+	struct stats_div *div, *accum_div, *delta_div, *max_div;
 
 	if (!il_is_alive(il))
 		return -EAGAIN;
@@ -684,23 +684,23 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	}
 
 	/* the statistic information display here is based on
-	  * the last statistics notification from uCode
+	  * the last stats notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	general = &il->_4965.statistics.general.common;
-	dbg = &il->_4965.statistics.general.common.dbg;
-	div = &il->_4965.statistics.general.common.div;
-	accum_general = &il->_4965.accum_statistics.general.common;
-	accum_dbg = &il->_4965.accum_statistics.general.common.dbg;
-	accum_div = &il->_4965.accum_statistics.general.common.div;
-	delta_general = &il->_4965.delta_statistics.general.common;
+	general = &il->_4965.stats.general.common;
+	dbg = &il->_4965.stats.general.common.dbg;
+	div = &il->_4965.stats.general.common.div;
+	accum_general = &il->_4965.accum_stats.general.common;
+	accum_dbg = &il->_4965.accum_stats.general.common.dbg;
+	accum_div = &il->_4965.accum_stats.general.common.div;
+	delta_general = &il->_4965.delta_stats.general.common;
 	max_general = &il->_4965.max_delta.general.common;
-	delta_dbg = &il->_4965.delta_statistics.general.common.dbg;
+	delta_dbg = &il->_4965.delta_stats.general.common.dbg;
 	max_dbg = &il->_4965.max_delta.general.common.dbg;
-	delta_div = &il->_4965.delta_statistics.general.common.div;
+	delta_div = &il->_4965.delta_stats.general.common.div;
 	max_div = &il->_4965.max_delta.general.common.div;
 
-	pos += il4965_statistics_flag(il, buf, bufsz);
+	pos += il4965_stats_flag(il, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_General:");
 	pos += scnprintf(buf + pos, bufsz - pos,

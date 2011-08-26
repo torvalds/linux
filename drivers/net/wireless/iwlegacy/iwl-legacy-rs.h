@@ -335,7 +335,7 @@ struct il_scale_tbl_info {
 };
 
 struct il_traffic_load {
-	unsigned long time_stamp;	/* age of the oldest statistics */
+	unsigned long time_stamp;	/* age of the oldest stats */
 	u32 packet_count[TID_QUEUE_MAX_SIZE];   /* packet count in this time
 						 * slice */
 	u32 total;			/* total num of packets during the

@@ -174,9 +174,9 @@ void il4965_rx_missed_beacon_notif(struct il_priv *il,
 				struct il_rx_buf *rxb);
 bool il4965_good_plcp_health(struct il_priv *il,
 			  struct il_rx_pkt *pkt);
-void il4965_rx_statistics(struct il_priv *il,
+void il4965_rx_stats(struct il_priv *il,
 		       struct il_rx_buf *rxb);
-void il4965_reply_statistics(struct il_priv *il,
+void il4965_reply_stats(struct il_priv *il,
 			  struct il_rx_buf *rxb);
 
 /* scan */

@@ -371,7 +371,7 @@ static inline void il_update_stats(struct il_priv *il, bool is_tx,
  * **************************************************/
 void il_rx_pm_sleep_notif(struct il_priv *il,
 			   struct il_rx_buf *rxb);
-void il_rx_pm_debug_statistics_notif(struct il_priv *il,
+void il_rx_pm_debug_stats_notif(struct il_priv *il,
 				      struct il_rx_buf *rxb);
 void il_rx_reply_error(struct il_priv *il,
 			struct il_rx_buf *rxb);
@@ -390,7 +390,7 @@ void il_tx_cmd_complete(struct il_priv *il,
 /* Handlers */
 void il_rx_spectrum_measure_notif(struct il_priv *il,
 					  struct il_rx_buf *rxb);
-void il_recover_from_statistics(struct il_priv *il,
+void il_recover_from_stats(struct il_priv *il,
 				struct il_rx_pkt *pkt);
 void il_chswitch_done(struct il_priv *il, bool is_success);
 void il_rx_csa(struct il_priv *il, struct il_rx_buf *rxb);
@@ -596,7 +596,7 @@ static inline int il_is_ready_rf(struct il_priv *il)
 }
 
 extern void il_send_bt_config(struct il_priv *il);
-extern int il_send_statistics_request(struct il_priv *il,
+extern int il_send_stats_request(struct il_priv *il,
 				       u8 flags, bool clear);
 void il_apm_stop(struct il_priv *il);
 int il_apm_init(struct il_priv *il);

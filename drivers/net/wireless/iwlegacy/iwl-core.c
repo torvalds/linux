@@ -1187,23 +1187,23 @@ void il_send_bt_config(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_send_bt_config);
 
-int il_send_statistics_request(struct il_priv *il, u8 flags, bool clear)
+int il_send_stats_request(struct il_priv *il, u8 flags, bool clear)
 {
-	struct il_statistics_cmd statistics_cmd = {
+	struct il_stats_cmd stats_cmd = {
 		.configuration_flags =
 			clear ? IL_STATS_CONF_CLEAR_STATS : 0,
 	};
 
 	if (flags & CMD_ASYNC)
 		return il_send_cmd_pdu_async(il, REPLY_STATISTICS_CMD,
-					sizeof(struct il_statistics_cmd),
-					&statistics_cmd, NULL);
+					sizeof(struct il_stats_cmd),
+					&stats_cmd, NULL);
 	else
 		return il_send_cmd_pdu(il, REPLY_STATISTICS_CMD,
-					sizeof(struct il_statistics_cmd),
-					&statistics_cmd);
+					sizeof(struct il_stats_cmd),
+					&stats_cmd);
 }
-EXPORT_SYMBOL(il_send_statistics_request);
+EXPORT_SYMBOL(il_send_stats_request);
 
 void il_rx_pm_sleep_notif(struct il_priv *il,
 			   struct il_rx_buf *rxb)
@@ -1217,7 +1217,7 @@ void il_rx_pm_sleep_notif(struct il_priv *il,
 }
 EXPORT_SYMBOL(il_rx_pm_sleep_notif);
 
-void il_rx_pm_debug_statistics_notif(struct il_priv *il,
+void il_rx_pm_debug_stats_notif(struct il_priv *il,
 				      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1227,7 +1227,7 @@ void il_rx_pm_debug_statistics_notif(struct il_priv *il,
 			il_get_cmd_string(pkt->hdr.cmd));
 	il_print_hex_dump(il, IL_DL_RADIO, pkt->u.raw, len);
 }
-EXPORT_SYMBOL(il_rx_pm_debug_statistics_notif);
+EXPORT_SYMBOL(il_rx_pm_debug_stats_notif);
 
 void il_rx_reply_error(struct il_priv *il,
 			struct il_rx_buf *rxb)
@@ -1614,7 +1614,7 @@ void il_clear_traffic_stats(struct il_priv *il)
  * if CONFIG_IWLEGACY_DEBUGFS defined,
  * il_update_stats function will
  * record all the MGMT, CTRL and DATA pkt for both TX and Rx pass
- * Use debugFs to display the rx/rx_statistics
+ * Use debugFs to display the rx/rx_stats
  * if CONFIG_IWLEGACY_DEBUGFS not being defined, then no MGMT and CTRL
  * information will be recorded, but DATA pkt still will be recorded
  * for the reason of il_led.c need to control the led blinking based on

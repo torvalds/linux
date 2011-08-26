@@ -158,7 +158,7 @@ static int il3945_rate_scale_flush_windows(struct il3945_rs_sta *rs_sta)
 	/*
 	 * For each rate, if we have collected data on that rate
 	 * and it has been more than IL_RATE_WIN_FLUSH
-	 * since we flushed, clear out the gathered statistics
+	 * since we flushed, clear out the gathered stats
 	 */
 	for (i = 0; i < IL_RATE_COUNT_3945; i++) {
 		if (!rs_sta->win[i].counter)

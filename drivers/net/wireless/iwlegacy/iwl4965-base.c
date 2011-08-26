@@ -464,16 +464,16 @@ static void il4965_rx_reply_alive(struct il_priv *il,
 }
 
 /**
- * il4965_bg_statistics_periodic - Timer callback to queue statistics
+ * il4965_bg_stats_periodic - Timer callback to queue stats
  *
- * This callback is provided in order to send a statistics request.
+ * This callback is provided in order to send a stats request.
  *
  * This timer function is continually reset to execute within
  * REG_RECALIB_PERIOD seconds since the last STATISTICS_NOTIFICATION
- * was received.  We need to ensure we receive the statistics in order
+ * was received.  We need to ensure we receive the stats in order
  * to update the temperature used for calibrating the TXPOWER.
  */
-static void il4965_bg_statistics_periodic(unsigned long data)
+static void il4965_bg_stats_periodic(unsigned long data)
 {
 	struct il_priv *il = (struct il_priv *)data;
 
@@ -484,7 +484,7 @@ static void il4965_bg_statistics_periodic(unsigned long data)
 	if (!il_is_ready_rf(il))
 		return;
 
-	il_send_statistics_request(il, CMD_ASYNC, false);
+	il_send_stats_request(il, CMD_ASYNC, false);
 }
 
 static void il4965_rx_beacon_notif(struct il_priv *il,
@@ -596,16 +596,16 @@ static void il4965_setup_rx_handlers(struct il_priv *il)
 			il_rx_spectrum_measure_notif;
 	il->rx_handlers[PM_SLEEP_NOTIFICATION] = il_rx_pm_sleep_notif;
 	il->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
-	    il_rx_pm_debug_statistics_notif;
+	    il_rx_pm_debug_stats_notif;
 	il->rx_handlers[BEACON_NOTIFICATION] = il4965_rx_beacon_notif;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
-	 * statistics request from the host as well as for the periodic
-	 * statistics notifications (after received beacons) from the uCode.
+	 * stats request from the host as well as for the periodic
+	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[REPLY_STATISTICS_CMD] = il4965_reply_statistics;
-	il->rx_handlers[STATISTICS_NOTIFICATION] = il4965_rx_statistics;
+	il->rx_handlers[REPLY_STATISTICS_CMD] = il4965_reply_stats;
+	il->rx_handlers[STATISTICS_NOTIFICATION] = il4965_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
 
@@ -2105,9 +2105,9 @@ static void il4965_bg_run_time_calib_work(struct work_struct *work)
 
 	if (il->start_calib) {
 		il4965_chain_noise_calibration(il,
-				(void *)&il->_4965.statistics);
+				(void *)&il->_4965.stats);
 		il4965_sensitivity_calibration(il,
-				(void *)&il->_4965.statistics);
+				(void *)&il->_4965.stats);
 	}
 
 	mutex_unlock(&il->mutex);
@@ -2647,7 +2647,7 @@ static void il4965_bg_txpower_work(struct work_struct *work)
 	mutex_lock(&il->mutex);
 
 	/* If a scan happened to start before we got here
-	 * then just return; the statistics notification will
+	 * then just return; the stats notification will
 	 * kick off another scheduled work to compensate for
 	 * any temperature delta we missed here. */
 	if (test_bit(STATUS_EXIT_PENDING, &il->status) ||
@@ -2682,9 +2682,9 @@ static void il4965_setup_deferred_work(struct il_priv *il)
 
 	INIT_WORK(&il->txpower_work, il4965_bg_txpower_work);
 
-	init_timer(&il->statistics_periodic);
-	il->statistics_periodic.data = (unsigned long)il;
-	il->statistics_periodic.function = il4965_bg_statistics_periodic;
+	init_timer(&il->stats_periodic);
+	il->stats_periodic.data = (unsigned long)il;
+	il->stats_periodic.function = il4965_bg_stats_periodic;
 
 	init_timer(&il->watchdog);
 	il->watchdog.data = (unsigned long)il;
@@ -2703,7 +2703,7 @@ static void il4965_cancel_deferred_work(struct il_priv *il)
 
 	il_cancel_scan_deferred_work(il);
 
-	del_timer_sync(&il->statistics_periodic);
+	del_timer_sync(&il->stats_periodic);
 }
 
 static void il4965_init_hw_rates(struct il_priv *il,

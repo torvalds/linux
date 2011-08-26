@@ -2016,7 +2016,7 @@ struct il_link_qual_agg_params {
  *         good performance; higher rate is sure to have poorer success.
  *
  * 6)  Re-evaluate the rate after each tx frame.  If working with block-
- *     acknowledge, history and statistics may be calculated for the entire
+ *     acknowledge, history and stats may be calculated for the entire
  *     block (including prior history that fits within the history windows),
  *     before re-evaluation.
  *
@@ -2637,7 +2637,7 @@ struct il_scanresults_notification {
 	u8 num_probe_not_sent; /* not enough time to send */
 	__le32 tsf_low;
 	__le32 tsf_high;
-	__le32 statistics[NUMBER_OF_STATISTICS];
+	__le32 stats[NUMBER_OF_STATISTICS];
 } __packed;
 
 /*
@@ -2727,9 +2727,9 @@ struct rate_histogram {
 	} failed;
 } __packed;
 
-/* statistics command response */
+/* stats command response */
 
-struct iwl39_statistics_rx_phy {
+struct iwl39_stats_rx_phy {
 	__le32 ina_cnt;
 	__le32 fina_cnt;
 	__le32 plcp_err;
@@ -2747,7 +2747,7 @@ struct iwl39_statistics_rx_phy {
 	__le32 sent_cts_cnt;
 } __packed;
 
-struct iwl39_statistics_rx_non_phy {
+struct iwl39_stats_rx_non_phy {
 	__le32 bogus_cts;	/* CTS received when not expecting CTS */
 	__le32 bogus_ack;	/* ACK received when not expecting ACK */
 	__le32 non_bssid_frames;	/* number of frames with BSSID that
@@ -2758,13 +2758,13 @@ struct iwl39_statistics_rx_non_phy {
 					 * our serving channel */
 } __packed;
 
-struct iwl39_statistics_rx {
-	struct iwl39_statistics_rx_phy ofdm;
-	struct iwl39_statistics_rx_phy cck;
-	struct iwl39_statistics_rx_non_phy general;
+struct iwl39_stats_rx {
+	struct iwl39_stats_rx_phy ofdm;
+	struct iwl39_stats_rx_phy cck;
+	struct iwl39_stats_rx_non_phy general;
 } __packed;
 
-struct iwl39_statistics_tx {
+struct iwl39_stats_tx {
 	__le32 preamble_cnt;
 	__le32 rx_detected_cnt;
 	__le32 bt_prio_defer_cnt;
@@ -2776,31 +2776,31 @@ struct iwl39_statistics_tx {
 	__le32 actual_ack_cnt;
 } __packed;
 
-struct statistics_dbg {
+struct stats_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
 	__le32 wait_for_silence_timeout_cnt;
 	__le32 reserved[3];
 } __packed;
 
-struct iwl39_statistics_div {
+struct iwl39_stats_div {
 	__le32 tx_on_a;
 	__le32 tx_on_b;
 	__le32 exec_time;
 	__le32 probe_time;
 } __packed;
 
-struct iwl39_statistics_general {
+struct iwl39_stats_general {
 	__le32 temperature;
-	struct statistics_dbg dbg;
+	struct stats_dbg dbg;
 	__le32 sleep_time;
 	__le32 slots_out;
 	__le32 slots_idle;
 	__le32 ttl_timestamp;
-	struct iwl39_statistics_div div;
+	struct iwl39_stats_div div;
 } __packed;
 
-struct statistics_rx_phy {
+struct stats_rx_phy {
 	__le32 ina_cnt;
 	__le32 fina_cnt;
 	__le32 plcp_err;
@@ -2823,7 +2823,7 @@ struct statistics_rx_phy {
 	__le32 reserved3;
 } __packed;
 
-struct statistics_rx_ht_phy {
+struct stats_rx_ht_phy {
 	__le32 plcp_err;
 	__le32 overrun_err;
 	__le32 early_overrun_err;
@@ -2838,7 +2838,7 @@ struct statistics_rx_ht_phy {
 
 #define INTERFERENCE_DATA_AVAILABLE      cpu_to_le32(1)
 
-struct statistics_rx_non_phy {
+struct stats_rx_non_phy {
 	__le32 bogus_cts;	/* CTS received when not expecting CTS */
 	__le32 bogus_ack;	/* ACK received when not expecting ACK */
 	__le32 non_bssid_frames;	/* number of frames with BSSID that
@@ -2871,28 +2871,28 @@ struct statistics_rx_non_phy {
 	__le32 beacon_energy_c;
 } __packed;
 
-struct statistics_rx {
-	struct statistics_rx_phy ofdm;
-	struct statistics_rx_phy cck;
-	struct statistics_rx_non_phy general;
-	struct statistics_rx_ht_phy ofdm_ht;
+struct stats_rx {
+	struct stats_rx_phy ofdm;
+	struct stats_rx_phy cck;
+	struct stats_rx_non_phy general;
+	struct stats_rx_ht_phy ofdm_ht;
 } __packed;
 
 /**
- * struct statistics_tx_power - current tx power
+ * struct stats_tx_power - current tx power
  *
  * @ant_a: current tx power on chain a in 1/2 dB step
  * @ant_b: current tx power on chain b in 1/2 dB step
  * @ant_c: current tx power on chain c in 1/2 dB step
  */
-struct statistics_tx_power {
+struct stats_tx_power {
 	u8 ant_a;
 	u8 ant_b;
 	u8 ant_c;
 	u8 reserved;
 } __packed;
 
-struct statistics_tx_non_phy_agg {
+struct stats_tx_non_phy_agg {
 	__le32 ba_timeout;
 	__le32 ba_reschedule_frames;
 	__le32 scd_query_agg_frame_cnt;
@@ -2905,7 +2905,7 @@ struct statistics_tx_non_phy_agg {
 	__le32 rx_ba_rsp_cnt;
 } __packed;
 
-struct statistics_tx {
+struct stats_tx {
 	__le32 preamble_cnt;
 	__le32 rx_detected_cnt;
 	__le32 bt_prio_defer_cnt;
@@ -2920,13 +2920,13 @@ struct statistics_tx {
 	__le32 burst_abort_missing_next_frame_cnt;
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
-	struct statistics_tx_non_phy_agg agg;
+	struct stats_tx_non_phy_agg agg;
 
 	__le32 reserved1;
 } __packed;
 
 
-struct statistics_div {
+struct stats_div {
 	__le32 tx_on_a;
 	__le32 tx_on_b;
 	__le32 exec_time;
@@ -2935,14 +2935,14 @@ struct statistics_div {
 	__le32 reserved2;
 } __packed;
 
-struct statistics_general_common {
+struct stats_general_common {
 	__le32 temperature;   /* radio temperature */
-	struct statistics_dbg dbg;
+	struct stats_dbg dbg;
 	__le32 sleep_time;
 	__le32 slots_out;
 	__le32 slots_idle;
 	__le32 ttl_timestamp;
-	struct statistics_div div;
+	struct stats_div div;
 	__le32 rx_enable_counter;
 	/*
 	 * num_of_sos_states:
@@ -2952,8 +2952,8 @@ struct statistics_general_common {
 	__le32 num_of_sos_states;
 } __packed;
 
-struct statistics_general {
-	struct statistics_general_common common;
+struct stats_general {
+	struct stats_general_common common;
 	__le32 reserved2;
 	__le32 reserved3;
 } __packed;
@@ -2966,11 +2966,11 @@ struct statistics_general {
  * REPLY_STATISTICS_CMD = 0x9c,
  * all devices identical.
  *
- * This command triggers an immediate response containing uCode statistics.
+ * This command triggers an immediate response containing uCode stats.
  * The response is in the same format as STATISTICS_NOTIFICATION 0x9d, below.
  *
  * If the CLEAR_STATS configuration flag is set, uCode will clear its
- * internal copy of the statistics (counters) after issuing the response.
+ * internal copy of the stats (counters) after issuing the response.
  * This flag does not affect STATISTICS_NOTIFICATIONs after beacons (see below).
  *
  * If the DISABLE_NOTIF configuration flag is set, uCode will not issue
@@ -2979,7 +2979,7 @@ struct statistics_general {
  */
 #define IL_STATS_CONF_CLEAR_STATS cpu_to_le32(0x1)	/* see above */
 #define IL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)/* see above */
-struct il_statistics_cmd {
+struct il_stats_cmd {
 	__le32 configuration_flags;	/* IL_STATS_CONF_* */
 } __packed;
 
@@ -2994,25 +2994,25 @@ struct il_statistics_cmd {
  * cleared when changing channels or when driver issues REPLY_STATISTICS_CMD
  * 0x9c with CLEAR_STATS bit set (see above).
  *
- * uCode also issues this notification during scans.  uCode clears statistics
- * appropriately so that each notification contains statistics for only the
+ * uCode also issues this notification during scans.  uCode clears stats
+ * appropriately so that each notification contains stats for only the
  * one channel that has just been scanned.
  */
 #define STATISTICS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
 #define STATISTICS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
 
-struct il3945_notif_statistics {
+struct il3945_notif_stats {
 	__le32 flag;
-	struct iwl39_statistics_rx rx;
-	struct iwl39_statistics_tx tx;
-	struct iwl39_statistics_general general;
+	struct iwl39_stats_rx rx;
+	struct iwl39_stats_tx tx;
+	struct iwl39_stats_general general;
 } __packed;
 
-struct il_notif_statistics {
+struct il_notif_stats {
 	__le32 flag;
-	struct statistics_rx rx;
-	struct statistics_tx tx;
-	struct statistics_general general;
+	struct stats_rx rx;
+	struct stats_tx tx;
+	struct stats_general general;
 } __packed;
 
 /*
@@ -3078,10 +3078,10 @@ struct il_missed_beacon_notif {
  *
  * While associated, uCode delivers STATISTICS_NOTIFICATIONs after each
  * received beacon.  These provide information to the driver to analyze the
- * sensitivity.  Don't analyze statistics that come in from scanning, or any
- * other non-associated-network source.  Pertinent statistics include:
+ * sensitivity.  Don't analyze stats that come in from scanning, or any
+ * other non-associated-network source.  Pertinent stats include:
  *
- * From "general" statistics (struct statistics_rx_non_phy):
+ * From "general" stats (struct stats_rx_non_phy):
  *
  * (beacon_energy_[abc] & 0x0FF00) >> 8 (unsigned, higher value is lower level)
  *   Measure of energy of desired signal.  Used for establishing a level
@@ -3094,7 +3094,7 @@ struct il_missed_beacon_notif {
  *   uSecs of actual Rx time during beacon period (varies according to
  *   how much time was spent transmitting).
  *
- * From "cck" and "ofdm" statistics (struct statistics_rx_phy), separately:
+ * From "cck" and "ofdm" stats (struct stats_rx_phy), separately:
  *
  * false_alarm_cnt
  *   Signal locks abandoned early (before phy-level header).
@@ -3255,8 +3255,8 @@ struct il_sensitivity_cmd {
  * This command sets the relative gains of 4965 device's 3 radio receiver chains.
  *
  * After the first association, driver should accumulate signal and noise
- * statistics from the STATISTICS_NOTIFICATIONs that follow the first 20
- * beacons from the associated network (don't collect statistics that come
+ * stats from the STATISTICS_NOTIFICATIONs that follow the first 20
+ * beacons from the associated network (don't collect stats that come
  * in from scanning, or any other non-network source).
  *
  * DISCONNECTED ANTENNA:
@@ -3264,7 +3264,7 @@ struct il_sensitivity_cmd {
  * Driver should determine which antennas are actually connected, by comparing
  * average beacon signal levels for the 3 Rx chains.  Accumulate (add) the
  * following values over 20 beacons, one accumulator for each of the chains
- * a/b/c, from struct statistics_rx_non_phy:
+ * a/b/c, from struct stats_rx_non_phy:
  *
  * beacon_rssi_[abc] & 0x0FF (unsigned, units in dB)
  *
@@ -3283,7 +3283,7 @@ struct il_sensitivity_cmd {
  * to antennas, see above) for gain, by comparing the average signal levels
  * detected during the silence after each beacon (background noise).
  * Accumulate (add) the following values over 20 beacons, one accumulator for
- * each of the chains a/b/c, from struct statistics_rx_non_phy:
+ * each of the chains a/b/c, from struct stats_rx_non_phy:
  *
  * beacon_silence_rssi_[abc] & 0x0FF (unsigned, units in dB)
  *
@@ -3387,7 +3387,7 @@ struct il_rx_pkt {
 		struct il_rem_sta_resp rem_sta;
 		struct il_sleep_notification sleep_notif;
 		struct il_spectrum_resp spectrum;
-		struct il_notif_statistics stats;
+		struct il_notif_stats stats;
 		struct il_compressed_ba_resp compressed_ba;
 		struct il_missed_beacon_notif missed_beacon;
 		__le32 status;

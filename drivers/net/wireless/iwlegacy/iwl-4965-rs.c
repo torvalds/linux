@@ -242,7 +242,7 @@ static inline u8 il4965_rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 }
 
 /*
- *	removes the old data from the statistics. All data that is older than
+ *	removes the old data from the stats. All data that is older than
  *	TID_MAX_TIME_DIFF, will be deleted.
  */
 static void
@@ -991,7 +991,7 @@ done:
  * Begin a period of staying with a selected modulation mode.
  * Set "stay_in_tbl" flag to prevent any mode switches.
  * Set frame tx success limits according to legacy vs. high-throughput,
- * and reset overall (spanning all rates) tx success history statistics.
+ * and reset overall (spanning all rates) tx success history stats.
  * These control how long we stay using same modulation mode before
  * searching for a new mode.
  */

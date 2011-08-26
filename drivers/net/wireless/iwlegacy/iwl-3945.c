@@ -362,7 +362,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
  *
  *****************************************************************************/
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-static void il3945_accumulative_statistics(struct il_priv *il,
+static void il3945_accumulative_stats(struct il_priv *il,
 					    __le32 *stats)
 {
 	int i;
@@ -370,12 +370,12 @@ static void il3945_accumulative_statistics(struct il_priv *il,
 	u32 *accum_stats;
 	u32 *delta, *max_delta;
 
-	prev_stats = (__le32 *)&il->_3945.statistics;
-	accum_stats = (u32 *)&il->_3945.accum_statistics;
-	delta = (u32 *)&il->_3945.delta_statistics;
+	prev_stats = (__le32 *)&il->_3945.stats;
+	accum_stats = (u32 *)&il->_3945.accum_stats;
+	delta = (u32 *)&il->_3945.delta_stats;
 	max_delta = (u32 *)&il->_3945.max_delta;
 
-	for (i = sizeof(__le32); i < sizeof(struct il3945_notif_statistics);
+	for (i = sizeof(__le32); i < sizeof(struct il3945_notif_stats);
 	     i += sizeof(__le32), stats++, prev_stats++, delta++,
 	     max_delta++, accum_stats++) {
 		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats)) {
@@ -387,30 +387,30 @@ static void il3945_accumulative_statistics(struct il_priv *il,
 		}
 	}
 
-	/* reset accumulative statistics for "no-counter" type statistics */
-	il->_3945.accum_statistics.general.temperature =
-		il->_3945.statistics.general.temperature;
-	il->_3945.accum_statistics.general.ttl_timestamp =
-		il->_3945.statistics.general.ttl_timestamp;
+	/* reset accumulative stats for "no-counter" type stats */
+	il->_3945.accum_stats.general.temperature =
+		il->_3945.stats.general.temperature;
+	il->_3945.accum_stats.general.ttl_timestamp =
+		il->_3945.stats.general.ttl_timestamp;
 }
 #endif
 
-void il3945_hw_rx_statistics(struct il_priv *il,
+void il3945_hw_rx_stats(struct il_priv *il,
 		struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	D_RX("Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(struct il3945_notif_statistics),
+		     (int)sizeof(struct il3945_notif_stats),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-	il3945_accumulative_statistics(il, (__le32 *)&pkt->u.raw);
+	il3945_accumulative_stats(il, (__le32 *)&pkt->u.raw);
 #endif
 
-	memcpy(&il->_3945.statistics, pkt->u.raw, sizeof(il->_3945.statistics));
+	memcpy(&il->_3945.stats, pkt->u.raw, sizeof(il->_3945.stats));
 }
 
-void il3945_reply_statistics(struct il_priv *il,
+void il3945_reply_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -418,16 +418,16 @@ void il3945_reply_statistics(struct il_priv *il,
 
 	if (le32_to_cpu(*flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-		memset(&il->_3945.accum_statistics, 0,
-			sizeof(struct il3945_notif_statistics));
-		memset(&il->_3945.delta_statistics, 0,
-			sizeof(struct il3945_notif_statistics));
+		memset(&il->_3945.accum_stats, 0,
+			sizeof(struct il3945_notif_stats));
+		memset(&il->_3945.delta_stats, 0,
+			sizeof(struct il3945_notif_stats));
 		memset(&il->_3945.max_delta, 0,
-			sizeof(struct il3945_notif_statistics));
+			sizeof(struct il3945_notif_stats));
 #endif
 		D_RX("Statistics have been cleared\n");
 	}
-	il3945_hw_rx_statistics(il, rxb);
+	il3945_hw_rx_stats(il, rxb);
 }
 
 
@@ -437,7 +437,7 @@ void il3945_reply_statistics(struct il_priv *il,
  *
  ******************************************************************************/
 
-/* This is necessary only for a number of statistics, see the caller. */
+/* This is necessary only for a number of stats, see the caller. */
 static int il3945_is_network_packet(struct il_priv *il,
 		struct ieee80211_hdr *header)
 {

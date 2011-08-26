@@ -862,16 +862,16 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
 			il_rx_spectrum_measure_notif;
 	il->rx_handlers[PM_SLEEP_NOTIFICATION] = il_rx_pm_sleep_notif;
 	il->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
-	    il_rx_pm_debug_statistics_notif;
+	    il_rx_pm_debug_stats_notif;
 	il->rx_handlers[BEACON_NOTIFICATION] = il3945_rx_beacon_notif;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
-	 * statistics request from the host as well as for the periodic
-	 * statistics notifications (after received beacons) from the uCode.
+	 * stats request from the host as well as for the periodic
+	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[REPLY_STATISTICS_CMD] = il3945_reply_statistics;
-	il->rx_handlers[STATISTICS_NOTIFICATION] = il3945_hw_rx_statistics;
+	il->rx_handlers[REPLY_STATISTICS_CMD] = il3945_reply_stats;
+	il->rx_handlers[STATISTICS_NOTIFICATION] = il3945_hw_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
 	il->rx_handlers[CARD_STATE_NOTIFICATION] = il3945_rx_card_state_notif;

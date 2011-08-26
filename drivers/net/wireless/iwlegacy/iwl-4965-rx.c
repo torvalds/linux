@@ -67,13 +67,13 @@ void il4965_rx_missed_beacon_notif(struct il_priv *il,
  *   exactly when to expect beacons, therefore only when we're associated. */
 static void il4965_rx_calc_noise(struct il_priv *il)
 {
-	struct statistics_rx_non_phy *rx_info;
+	struct stats_rx_non_phy *rx_info;
 	int num_active_rx = 0;
 	int total_silence = 0;
 	int bcn_silence_a, bcn_silence_b, bcn_silence_c;
 	int last_rx_noise;
 
-	rx_info = &(il->_4965.statistics.rx.general);
+	rx_info = &(il->_4965.stats.rx.general);
 	bcn_silence_a =
 		le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
 	bcn_silence_b =
@@ -107,28 +107,28 @@ static void il4965_rx_calc_noise(struct il_priv *il)
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 /*
- *  based on the assumption of all statistics counter are in DWORD
+ *  based on the assumption of all stats counter are in DWORD
  *  FIXME: This function is for debugging, do not deal with
  *  the case of counters roll-over.
  */
-static void il4965_accumulative_statistics(struct il_priv *il,
+static void il4965_accumulative_stats(struct il_priv *il,
 					__le32 *stats)
 {
 	int i, size;
 	__le32 *prev_stats;
 	u32 *accum_stats;
 	u32 *delta, *max_delta;
-	struct statistics_general_common *general, *accum_general;
-	struct statistics_tx *tx, *accum_tx;
+	struct stats_general_common *general, *accum_general;
+	struct stats_tx *tx, *accum_tx;
 
-	prev_stats = (__le32 *)&il->_4965.statistics;
-	accum_stats = (u32 *)&il->_4965.accum_statistics;
-	size = sizeof(struct il_notif_statistics);
-	general = &il->_4965.statistics.general.common;
-	accum_general = &il->_4965.accum_statistics.general.common;
-	tx = &il->_4965.statistics.tx;
-	accum_tx = &il->_4965.accum_statistics.tx;
-	delta = (u32 *)&il->_4965.delta_statistics;
+	prev_stats = (__le32 *)&il->_4965.stats;
+	accum_stats = (u32 *)&il->_4965.accum_stats;
+	size = sizeof(struct il_notif_stats);
+	general = &il->_4965.stats.general.common;
+	accum_general = &il->_4965.accum_stats.general.common;
+	tx = &il->_4965.stats.tx;
+	accum_tx = &il->_4965.accum_stats.tx;
+	delta = (u32 *)&il->_4965.delta_stats;
 	max_delta = (u32 *)&il->_4965.max_delta;
 
 	for (i = sizeof(__le32); i < size;
@@ -143,7 +143,7 @@ static void il4965_accumulative_statistics(struct il_priv *il,
 		}
 	}
 
-	/* reset accumulative statistics for "no-counter" type statistics */
+	/* reset accumulative stats for "no-counter" type stats */
 	accum_general->temperature = general->temperature;
 	accum_general->ttl_timestamp = general->ttl_timestamp;
 }
@@ -151,7 +151,7 @@ static void il4965_accumulative_statistics(struct il_priv *il,
 
 #define REG_RECALIB_PERIOD (60)
 
-void il4965_rx_statistics(struct il_priv *il,
+void il4965_rx_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 	int change;
@@ -159,31 +159,31 @@ void il4965_rx_statistics(struct il_priv *il,
 
 	D_RX(
 		     "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(struct il_notif_statistics),
+		     (int)sizeof(struct il_notif_stats),
 		     le32_to_cpu(pkt->len_n_flags) &
 		     FH_RSCSR_FRAME_SIZE_MSK);
 
-	change = ((il->_4965.statistics.general.common.temperature !=
+	change = ((il->_4965.stats.general.common.temperature !=
 		   pkt->u.stats.general.common.temperature) ||
-		   ((il->_4965.statistics.flag &
+		   ((il->_4965.stats.flag &
 		   STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
 		   (pkt->u.stats.flag &
 		   STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-	il4965_accumulative_statistics(il, (__le32 *)&pkt->u.stats);
+	il4965_accumulative_stats(il, (__le32 *)&pkt->u.stats);
 #endif
 
-	/* TODO: reading some of statistics is unneeded */
-	memcpy(&il->_4965.statistics, &pkt->u.stats,
-		sizeof(il->_4965.statistics));
+	/* TODO: reading some of stats is unneeded */
+	memcpy(&il->_4965.stats, &pkt->u.stats,
+		sizeof(il->_4965.stats));
 
 	set_bit(STATUS_STATISTICS, &il->status);
 
-	/* Reschedule the statistics timer to occur in
+	/* Reschedule the stats timer to occur in
 	 * REG_RECALIB_PERIOD seconds to ensure we get a
 	 * thermal update even if the uCode doesn't give
 	 * us one */
-	mod_timer(&il->statistics_periodic, jiffies +
+	mod_timer(&il->stats_periodic, jiffies +
 		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
 
 	if (unlikely(!test_bit(STATUS_SCANNING, &il->status)) &&
@@ -195,21 +195,21 @@ void il4965_rx_statistics(struct il_priv *il,
 		il->cfg->ops->lib->temp_ops.temperature(il);
 }
 
-void il4965_reply_statistics(struct il_priv *il,
+void il4965_reply_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-		memset(&il->_4965.accum_statistics, 0,
-			sizeof(struct il_notif_statistics));
-		memset(&il->_4965.delta_statistics, 0,
-			sizeof(struct il_notif_statistics));
+		memset(&il->_4965.accum_stats, 0,
+			sizeof(struct il_notif_stats));
+		memset(&il->_4965.delta_stats, 0,
+			sizeof(struct il_notif_stats));
 		memset(&il->_4965.max_delta, 0,
-			sizeof(struct il_notif_statistics));
+			sizeof(struct il_notif_stats));
 #endif
 		D_RX("Statistics have been cleared\n");
 	}
-	il4965_rx_statistics(il, rxb);
+	il4965_rx_stats(il, rxb);
 }
