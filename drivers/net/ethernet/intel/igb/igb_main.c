@@ -517,16 +517,14 @@ rx_ring_summary:
 						DUMP_PREFIX_ADDRESS,
 						16, 1,
 						phys_to_virt(buffer_info->dma),
-						rx_ring->rx_buffer_len, true);
-					if (rx_ring->rx_buffer_len
-						< IGB_RXBUFFER_1024)
-						print_hex_dump(KERN_INFO, "",
-						  DUMP_PREFIX_ADDRESS,
-						  16, 1,
-						  phys_to_virt(
-						    buffer_info->page_dma +
-						    buffer_info->page_offset),
-						  PAGE_SIZE/2, true);
+						IGB_RX_HDR_LEN, true);
+					print_hex_dump(KERN_INFO, "",
+					  DUMP_PREFIX_ADDRESS,
+					  16, 1,
+					  phys_to_virt(
+					    buffer_info->page_dma +
+					    buffer_info->page_offset),
+					  PAGE_SIZE/2, true);
 				}
 			}
 
@@ -707,7 +705,6 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->queue_index = i;
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
-		ring->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 		ring->flags = IGB_RING_FLAG_RX_CSUM; /* enable rx checksum */
 		/* set flag indicating ring supports SCTP checksum offload */
 		if (adapter->hw.mac.type >= e1000_82576)
@@ -3049,22 +3046,13 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	writel(0, ring->tail);
 
 	/* set descriptor configuration */
-	if (ring->rx_buffer_len < IGB_RXBUFFER_1024) {
-		srrctl = ALIGN(ring->rx_buffer_len, 64) <<
-		         E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
+	srrctl = IGB_RX_HDR_LEN << E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
 #if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
-		srrctl |= IGB_RXBUFFER_16384 >>
-		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= IGB_RXBUFFER_16384 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 #else
-		srrctl |= (PAGE_SIZE / 2) >>
-		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= (PAGE_SIZE / 2) >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 #endif
-		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-	} else {
-		srrctl = ALIGN(ring->rx_buffer_len, 1024) >>
-		         E1000_SRRCTL_BSIZEPKT_SHIFT;
-		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
-	}
+	srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
 	if (hw->mac.type == e1000_82580)
 		srrctl |= E1000_SRRCTL_TIMESTAMP;
 	/* Only set Drop Enable if we are supporting multiple queues */
@@ -3268,7 +3256,7 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 		if (buffer_info->dma) {
 			dma_unmap_single(rx_ring->dev,
 			                 buffer_info->dma,
-					 rx_ring->rx_buffer_len,
+					 IGB_RX_HDR_LEN,
 					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 		}
@@ -4466,7 +4454,6 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct pci_dev *pdev = adapter->pdev;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
-	u32 rx_buffer_len, i;
 
 	if ((new_mtu < 68) || (max_frame > MAX_JUMBO_FRAME_SIZE)) {
 		dev_err(&pdev->dev, "Invalid MTU setting\n");
@@ -4485,39 +4472,12 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	/* igb_down has a dependency on max_frame_size */
 	adapter->max_frame_size = max_frame;
 
-	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
-	 * means we reserve 2 more, this pushes us to allocate from the next
-	 * larger slab size.
-	 * i.e. RXBUFFER_2048 --> size-4096 slab
-	 */
-
-	if (adapter->hw.mac.type == e1000_82580)
-		max_frame += IGB_TS_HDR_LEN;
-
-	if (max_frame <= IGB_RXBUFFER_1024)
-		rx_buffer_len = IGB_RXBUFFER_1024;
-	else if (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE)
-		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
-	else
-		rx_buffer_len = IGB_RXBUFFER_128;
-
-	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN + IGB_TS_HDR_LEN) ||
-	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN))
-		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN;
-
-	if ((adapter->hw.mac.type == e1000_82580) &&
-	    (rx_buffer_len == IGB_RXBUFFER_128))
-		rx_buffer_len += IGB_RXBUFFER_64;
-
 	if (netif_running(netdev))
 		igb_down(adapter);
 
 	dev_info(&pdev->dev, "changing MTU from %d to %d\n",
 		 netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
-
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		adapter->rx_ring[i]->rx_buffer_len = rx_buffer_len;
 
 	if (netif_running(netdev))
 		igb_up(adapter);
@@ -5781,8 +5741,7 @@ static void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
 
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
-static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
-                               union e1000_adv_rx_desc *rx_desc)
+static inline u16 igb_get_hlen(union e1000_adv_rx_desc *rx_desc)
 {
 	/* HW will not DMA in data larger than the given buffer, even if it
 	 * parses the (NFS, of course) header to be larger.  In that case, it
@@ -5790,8 +5749,8 @@ static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
 	 */
 	u16 hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
 	           E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
-	if (hlen > rx_ring->rx_buffer_len)
-		hlen = rx_ring->rx_buffer_len;
+	if (hlen > IGB_RX_HDR_LEN)
+		hlen = IGB_RX_HDR_LEN;
 	return hlen;
 }
 
@@ -5841,14 +5800,10 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 
 		if (buffer_info->dma) {
 			dma_unmap_single(dev, buffer_info->dma,
-					 rx_ring->rx_buffer_len,
+					 IGB_RX_HDR_LEN,
 					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
-			if (rx_ring->rx_buffer_len >= IGB_RXBUFFER_1024) {
-				skb_put(skb, length);
-				goto send_up;
-			}
-			skb_put(skb, igb_get_hlen(rx_ring, rx_desc));
+			skb_put(skb, igb_get_hlen(rx_desc));
 		}
 
 		if (length) {
@@ -5879,7 +5834,7 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 			next_buffer->dma = 0;
 			goto next_desc;
 		}
-send_up:
+
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
@@ -5943,17 +5898,14 @@ void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
 	struct igb_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
-	int bufsz;
 
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
 
-	bufsz = rx_ring->rx_buffer_len;
-
 	while (cleaned_count--) {
 		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
 
-		if ((bufsz < IGB_RXBUFFER_1024) && !buffer_info->page_dma) {
+		if (!buffer_info->page_dma) {
 			if (!buffer_info->page) {
 				buffer_info->page = netdev_alloc_page(netdev);
 				if (unlikely(!buffer_info->page)) {
@@ -5983,7 +5935,7 @@ void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
 
 		skb = buffer_info->skb;
 		if (!skb) {
-			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
+			skb = netdev_alloc_skb_ip_align(netdev, IGB_RX_HDR_LEN);
 			if (unlikely(!skb)) {
 				u64_stats_update_begin(&rx_ring->rx_syncp);
 				rx_ring->rx_stats.alloc_failed++;
@@ -5996,7 +5948,7 @@ void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
 		if (!buffer_info->dma) {
 			buffer_info->dma = dma_map_single(rx_ring->dev,
 			                                  skb->data,
-							  bufsz,
+							  IGB_RX_HDR_LEN,
 							  DMA_FROM_DEVICE);
 			if (dma_mapping_error(rx_ring->dev,
 					      buffer_info->dma)) {
@@ -6009,14 +5961,8 @@ void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
-		if (bufsz < IGB_RXBUFFER_1024) {
-			rx_desc->read.pkt_addr =
-			     cpu_to_le64(buffer_info->page_dma);
-			rx_desc->read.hdr_addr = cpu_to_le64(buffer_info->dma);
-		} else {
-			rx_desc->read.pkt_addr = cpu_to_le64(buffer_info->dma);
-			rx_desc->read.hdr_addr = 0;
-		}
+		rx_desc->read.pkt_addr = cpu_to_le64(buffer_info->page_dma);
+		rx_desc->read.hdr_addr = cpu_to_le64(buffer_info->dma);
 
 		i++;
 		if (i == rx_ring->count)

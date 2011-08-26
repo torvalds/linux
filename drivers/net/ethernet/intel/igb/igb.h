@@ -111,11 +111,9 @@ struct vf_data_storage {
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 
 /* Supported Rx Buffer Sizes */
-#define IGB_RXBUFFER_64    64     /* Used for packet split */
-#define IGB_RXBUFFER_128   128    /* Used for packet split */
-#define IGB_RXBUFFER_1024  1024
-#define IGB_RXBUFFER_2048  2048
+#define IGB_RXBUFFER_512   512
 #define IGB_RXBUFFER_16384 16384
+#define IGB_RX_HDR_LEN     IGB_RXBUFFER_512
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define IGB_TX_QUEUE_WAKE	16
@@ -221,7 +219,6 @@ struct igb_ring {
 		struct {
 			struct igb_rx_queue_stats rx_stats;
 			struct u64_stats_sync rx_syncp;
-			u32 rx_buffer_len;
 		};
 	};
 };

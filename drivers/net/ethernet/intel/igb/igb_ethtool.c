@@ -1368,7 +1368,6 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	rx_ring->count = IGB_DEFAULT_RXD;
 	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->netdev = adapter->netdev;
-	rx_ring->rx_buffer_len = IGB_RXBUFFER_2048;
 	rx_ring->reg_idx = adapter->vfs_allocated_count;
 
 	if (igb_setup_rx_resources(rx_ring)) {
@@ -1597,7 +1596,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
 		dma_unmap_single(rx_ring->dev,
 		                 buffer_info->dma,
-				 rx_ring->rx_buffer_len,
+				 IGB_RX_HDR_LEN,
 				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
@@ -1635,7 +1634,7 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 	struct igb_ring *tx_ring = &adapter->test_tx_ring;
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
 	int i, j, lc, good_cnt, ret_val = 0;
-	unsigned int size = 1024;
+	unsigned int size = IGB_RX_HDR_LEN;
 	netdev_tx_t tx_ret_val;
 	struct sk_buff *skb;
 
