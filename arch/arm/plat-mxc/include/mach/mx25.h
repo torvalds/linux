@@ -104,4 +104,8 @@
 #define MX25_DMA_REQ_SSI1_RX0	28
 #define MX25_DMA_REQ_SSI1_TX0	29
 
+#ifndef __ASSEMBLY__
+extern int mx25_revision(void);
+#endif
+
 #endif /* ifndef __MACH_MX25_H__ */
