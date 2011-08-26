@@ -347,7 +347,7 @@ receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 	if (!port->state)
 		return 0;
 
-	tty = port->state->port.tty;
+	tty = tty_port_tty_get(&port->state->port);
 	if (!tty)
 		return 0;
 
@@ -364,8 +364,10 @@ receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 		}
 	}
 
-	if (!w)
+	if (!w) {
+		tty_kref_put(tty);
 		return 0;
+	}
 
 	for (r = 0; w; r += usable, w -= usable) {
 		usable = tty_buffer_request_room(tty, w);
@@ -375,6 +377,7 @@ receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 		}
 	}
 	tty_flip_buffer_push(tty);
+	tty_kref_put(tty);
 
 	return r;
 }
