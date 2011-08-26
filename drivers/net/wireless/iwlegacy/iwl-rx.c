@@ -213,7 +213,7 @@ EXPORT_SYMBOL(il_rx_queue_alloc);
 void il_rx_spectrum_measure_notif(struct il_priv *il,
 					  struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {

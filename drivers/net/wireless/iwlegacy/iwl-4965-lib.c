@@ -570,7 +570,7 @@ void il4965_rx_reply_rx(struct il_priv *il,
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
 	struct il_rx_mpdu_res_start *amsdu;
@@ -688,7 +688,7 @@ void il4965_rx_reply_rx(struct il_priv *il,
 void il4965_rx_reply_rx_phy(struct il_priv *il,
 			    struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	il->_4965.last_phy_res_valid = true;
 	memcpy(&il->_4965.last_phy_res, pkt->u.raw,
 	       sizeof(struct il_rx_phy_res));

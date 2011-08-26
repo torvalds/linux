@@ -57,7 +57,7 @@
 static int il_send_scan_abort(struct il_priv *il)
 {
 	int ret;
-	struct il_rx_packet *pkt;
+	struct il_rx_pkt *pkt;
 	struct il_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
 		.flags = CMD_WANT_SKB,
@@ -77,7 +77,7 @@ static int il_send_scan_abort(struct il_priv *il)
 	if (ret)
 		return ret;
 
-	pkt = (struct il_rx_packet *)cmd.reply_page;
+	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->u.status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
@@ -186,7 +186,7 @@ static void il_rx_reply_scan(struct il_priv *il,
 			      struct il_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scanreq_notification *notif =
 	    (struct il_scanreq_notification *)pkt->u.raw;
 
@@ -198,7 +198,7 @@ static void il_rx_reply_scan(struct il_priv *il,
 static void il_rx_scan_start_notif(struct il_priv *il,
 				    struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scanstart_notification *notif =
 	    (struct il_scanstart_notification *)pkt->u.raw;
 	il->scan_start_tsf = le32_to_cpu(notif->tsf_low);
@@ -217,7 +217,7 @@ static void il_rx_scan_results_notif(struct il_priv *il,
 				      struct il_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scanresults_notification *notif =
 	    (struct il_scanresults_notification *)pkt->u.raw;
 
@@ -240,7 +240,7 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 {
 
 #ifdef CONFIG_IWLEGACY_DEBUG
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
 #endif
 

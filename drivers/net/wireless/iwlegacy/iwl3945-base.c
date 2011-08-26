@@ -671,7 +671,7 @@ static int il3945_get_measurement(struct il_priv *il,
 			       u8 type)
 {
 	struct il_spectrum_cmd spectrum;
-	struct il_rx_packet *pkt;
+	struct il_rx_pkt *pkt;
 	struct il_host_cmd cmd = {
 		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
 		.data = (void *)&spectrum,
@@ -716,7 +716,7 @@ static int il3945_get_measurement(struct il_priv *il,
 	if (rc)
 		return rc;
 
-	pkt = (struct il_rx_packet *)cmd.reply_page;
+	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
 		IL_ERR("Bad return from REPLY_RX_ON_ASSOC command\n");
 		rc = -EIO;
@@ -747,7 +747,7 @@ static int il3945_get_measurement(struct il_priv *il,
 static void il3945_rx_reply_alive(struct il_priv *il,
 			       struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_alive_resp *palive;
 	struct delayed_work *pwork;
 
@@ -784,7 +784,7 @@ static void il3945_rx_reply_add_sta(struct il_priv *il,
 				 struct il_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 #endif
 
 	D_RX("Received REPLY_ADD_STA: 0x%02X\n", pkt->u.status);
@@ -793,7 +793,7 @@ static void il3945_rx_reply_add_sta(struct il_priv *il,
 static void il3945_rx_beacon_notif(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il3945_beacon_notif *beacon = &(pkt->u.beacon_status);
 #ifdef CONFIG_IWLEGACY_DEBUG
 	u8 rate = beacon->beacon_notify_hdr.rate;
@@ -816,7 +816,7 @@ static void il3945_rx_beacon_notif(struct il_priv *il,
 static void il3945_rx_card_state_notif(struct il_priv *il,
 				    struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = il->status;
 
@@ -1202,7 +1202,7 @@ int il3945_calc_db_from_ratio(int sig_ratio)
 static void il3945_rx_handle(struct il_priv *il)
 {
 	struct il_rx_mem_buffer *rxb;
-	struct il_rx_packet *pkt;
+	struct il_rx_pkt *pkt;
 	struct il_rx_queue *rxq = &il->rxq;
 	u32 r, i;
 	int reclaim;

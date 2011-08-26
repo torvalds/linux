@@ -92,7 +92,7 @@ EXPORT_SYMBOL(il_get_cmd_string);
 
 static void il_generic_cmd_callback(struct il_priv *il,
 				     struct il_device_cmd *cmd,
-				     struct il_rx_packet *pkt)
+				     struct il_rx_pkt *pkt)
 {
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
 		IL_ERR("Bad return from %s (0x%08X)\n",
@@ -255,7 +255,7 @@ int il_send_cmd_pdu_async(struct il_priv *il,
 			   u8 id, u16 len, const void *data,
 			   void (*callback)(struct il_priv *il,
 					    struct il_device_cmd *cmd,
-					    struct il_rx_packet *pkt))
+					    struct il_rx_pkt *pkt))
 {
 	struct il_host_cmd cmd = {
 		.id = id,

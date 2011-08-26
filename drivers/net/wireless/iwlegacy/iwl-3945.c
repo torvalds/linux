@@ -304,7 +304,7 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 static void il3945_rx_reply_tx(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
@@ -398,7 +398,7 @@ static void il3945_accumulative_statistics(struct il_priv *il,
 void il3945_hw_rx_statistics(struct il_priv *il,
 		struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	D_RX("Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct il3945_notif_statistics),
@@ -413,7 +413,7 @@ void il3945_hw_rx_statistics(struct il_priv *il,
 void il3945_reply_statistics(struct il_priv *il,
 			      struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	__le32 *flag = (__le32 *)&pkt->u.raw;
 
 	if (le32_to_cpu(*flag) & UCODE_STATISTICS_CLEAR_MSK) {
@@ -459,7 +459,7 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 				   struct il_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_status *stats)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IL_RX_DATA(pkt);
 	struct il3945_rx_frame_hdr *rx_hdr = IL_RX_HDR(pkt);
 	struct il3945_rx_frame_end *rx_end = IL_RX_END(pkt);
@@ -510,7 +510,7 @@ static void il3945_rx_reply_rx(struct il_priv *il,
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il3945_rx_frame_stats *rx_stats = IL_RX_STATS(pkt);
 	struct il3945_rx_frame_hdr *rx_hdr = IL_RX_HDR(pkt);
 	struct il3945_rx_frame_end *rx_end = IL_RX_END(pkt);
@@ -1654,7 +1654,7 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
 				   struct il_rxon_context *ctx)
 {
 	int rc = 0;
-	struct il_rx_packet *pkt;
+	struct il_rx_pkt *pkt;
 	struct il3945_rxon_assoc_cmd rxon_assoc;
 	struct il_host_cmd cmd = {
 		.id = REPLY_RXON_ASSOC,
@@ -1683,7 +1683,7 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
 	if (rc)
 		return rc;
 
-	pkt = (struct il_rx_packet *)cmd.reply_page;
+	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
 		IL_ERR("Bad return from REPLY_RXON_ASSOC command\n");
 		rc = -EIO;

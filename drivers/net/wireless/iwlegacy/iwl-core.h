@@ -391,7 +391,7 @@ void il_tx_cmd_complete(struct il_priv *il,
 void il_rx_spectrum_measure_notif(struct il_priv *il,
 					  struct il_rx_mem_buffer *rxb);
 void il_recover_from_statistics(struct il_priv *il,
-				struct il_rx_packet *pkt);
+				struct il_rx_pkt *pkt);
 void il_chswitch_done(struct il_priv *il, bool is_success);
 void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb);
 
@@ -472,7 +472,7 @@ int il_send_cmd_pdu_async(struct il_priv *il, u8 id, u16 len,
 			   const void *data,
 			   void (*callback)(struct il_priv *il,
 					    struct il_device_cmd *cmd,
-					    struct il_rx_packet *pkt));
+					    struct il_rx_pkt *pkt));
 
 int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
 

@@ -108,7 +108,7 @@ struct il_cmd_meta {
 	 */
 	void (*callback)(struct il_priv *il,
 			 struct il_device_cmd *cmd,
-			 struct il_rx_packet *pkt);
+			 struct il_rx_pkt *pkt);
 
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
 	 * structure is stored at the end of the shared queue memory. */
@@ -323,7 +323,7 @@ struct il_host_cmd {
 	unsigned long reply_page;
 	void (*callback)(struct il_priv *il,
 			 struct il_device_cmd *cmd,
-			 struct il_rx_packet *pkt);
+			 struct il_rx_pkt *pkt);
 	u32 flags;
 	u16 len;
 	u8 id;

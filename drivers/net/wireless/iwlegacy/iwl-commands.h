@@ -3360,7 +3360,7 @@ struct il_led_cmd {
  *
  *****************************************************************************/
 
-struct il_rx_packet {
+struct il_rx_pkt {
 	/*
 	 * The first 4 bytes of the RX frame header contain both the RX frame
 	 * size and some flags.

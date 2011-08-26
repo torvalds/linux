@@ -45,7 +45,7 @@ void il4965_rx_missed_beacon_notif(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb)
 
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_missed_beacon_notif *missed_beacon;
 
 	missed_beacon = &pkt->u.missed_beacon;
@@ -155,7 +155,7 @@ void il4965_rx_statistics(struct il_priv *il,
 			      struct il_rx_mem_buffer *rxb)
 {
 	int change;
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	D_RX(
 		     "Statistics notification received (%d vs %d).\n",
@@ -198,7 +198,7 @@ void il4965_rx_statistics(struct il_priv *il,
 void il4965_reply_statistics(struct il_priv *il,
 			      struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS

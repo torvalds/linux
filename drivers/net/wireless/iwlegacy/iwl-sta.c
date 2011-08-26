@@ -59,7 +59,7 @@ static void il_sta_ucode_activate(struct il_priv *il, u8 sta_id)
 
 static int il_process_add_sta_resp(struct il_priv *il,
 				    struct il_addsta_cmd *addsta,
-				    struct il_rx_packet *pkt,
+				    struct il_rx_pkt *pkt,
 				    bool sync)
 {
 	u8 sta_id = addsta->sta.sta_id;
@@ -126,7 +126,7 @@ static int il_process_add_sta_resp(struct il_priv *il,
 
 static void il_add_sta_callback(struct il_priv *il,
 				 struct il_device_cmd *cmd,
-				 struct il_rx_packet *pkt)
+				 struct il_rx_pkt *pkt)
 {
 	struct il_addsta_cmd *addsta =
 		(struct il_addsta_cmd *)cmd->cmd.payload;
@@ -138,7 +138,7 @@ static void il_add_sta_callback(struct il_priv *il,
 int il_send_add_sta(struct il_priv *il,
 		     struct il_addsta_cmd *sta, u8 flags)
 {
-	struct il_rx_packet *pkt = NULL;
+	struct il_rx_pkt *pkt = NULL;
 	int ret = 0;
 	u8 data[sizeof(*sta)];
 	struct il_host_cmd cmd = {
@@ -165,7 +165,7 @@ int il_send_add_sta(struct il_priv *il,
 		return ret;
 
 	if (ret == 0) {
-		pkt = (struct il_rx_packet *)cmd.reply_page;
+		pkt = (struct il_rx_pkt *)cmd.reply_page;
 		ret = il_process_add_sta_resp(il, sta, pkt, true);
 	}
 	il_free_pages(il, cmd.reply_page);
@@ -414,7 +414,7 @@ static int il_send_remove_station(struct il_priv *il,
 				   const u8 *addr, int sta_id,
 				   bool temporary)
 {
-	struct il_rx_packet *pkt;
+	struct il_rx_pkt *pkt;
 	int ret;
 
 	unsigned long flags_spin;
@@ -438,7 +438,7 @@ static int il_send_remove_station(struct il_priv *il,
 	if (ret)
 		return ret;
 
-	pkt = (struct il_rx_packet *)cmd.reply_page;
+	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
 		IL_ERR("Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 			  pkt->hdr.flags);

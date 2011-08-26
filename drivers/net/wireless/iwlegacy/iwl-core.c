@@ -865,7 +865,7 @@ EXPORT_SYMBOL(il_chswitch_done);
 
 void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_csa_notification *csa = &(pkt->u.csa_notif);
 
 	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
@@ -1209,7 +1209,7 @@ void il_rx_pm_sleep_notif(struct il_priv *il,
 			   struct il_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	D_RX("sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
@@ -1220,7 +1220,7 @@ EXPORT_SYMBOL(il_rx_pm_sleep_notif);
 void il_rx_pm_debug_statistics_notif(struct il_priv *il,
 				      struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	D_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n", len,
@@ -1232,7 +1232,7 @@ EXPORT_SYMBOL(il_rx_pm_debug_statistics_notif);
 void il_rx_reply_error(struct il_priv *il,
 			struct il_rx_mem_buffer *rxb)
 {
-	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	IL_ERR("Error Reply type 0x%08X cmd %s (0x%02X) "
 		"seq 0x%04X ser 0x%08X\n",

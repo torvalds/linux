@@ -173,7 +173,7 @@ u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant_idx, u8 valid);
 void il4965_rx_missed_beacon_notif(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb);
 bool il4965_good_plcp_health(struct il_priv *il,
-			  struct il_rx_packet *pkt);
+			  struct il_rx_pkt *pkt);
 void il4965_rx_statistics(struct il_priv *il,
 		       struct il_rx_mem_buffer *rxb);
 void il4965_reply_statistics(struct il_priv *il,
