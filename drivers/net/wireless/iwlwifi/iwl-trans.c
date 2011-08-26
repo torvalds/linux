@@ -138,13 +138,12 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 	}
 }
 
-static void iwl_trans_rx_hw_init(struct iwl_priv *priv,
+static void iwl_trans_rx_hw_init(struct iwl_trans *trans,
 				 struct iwl_rx_queue *rxq)
 {
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
-	struct iwl_trans *trans = trans(priv);
 
 	rb_timeout = RX_RB_TIMEOUT;
 
@@ -221,7 +220,7 @@ static int iwl_rx_init(struct iwl_trans *trans)
 
 	iwlagn_rx_replenish(trans);
 
-	iwl_trans_rx_hw_init(priv(trans), rxq);
+	iwl_trans_rx_hw_init(trans, rxq);
 
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 	rxq->need_update = 1;
@@ -509,7 +508,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	u16 scd_bc_tbls_size = priv->cfg->base_params->num_of_queues *
+	u16 scd_bc_tbls_size = hw_params(trans).max_txq_num *
 			sizeof(struct iwlagn_scd_bc_tbl);
 
 	/*It is not allowed to alloc twice, so warn when this happens.
@@ -534,7 +533,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	}
 
 	priv->txq = kzalloc(sizeof(struct iwl_tx_queue) *
-			priv->cfg->base_params->num_of_queues, GFP_KERNEL);
+			hw_params(trans).max_txq_num, GFP_KERNEL);
 	if (!priv->txq) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
 		ret = ENOMEM;
@@ -652,7 +651,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 	if (iwl_tx_init(trans))
 		return -ENOMEM;
 
-	if (priv->cfg->base_params->shadow_reg_enable) {
+	if (hw_params(trans).shadow_reg_enable) {
 		/* enable shadow regs in HW */
 		iwl_set_bit(bus(trans), CSR_MAC_SHADOW_REG_CTRL,
 			0x800FFFFF);
@@ -717,9 +716,9 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 	int ret;
 	struct iwl_priv *priv = priv(trans);
 
-	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
+	priv->shrd->ucode_owner = IWL_OWNERSHIP_DRIVER;
 
-	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
+	if ((hw_params(priv).sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
 	     iwl_trans_pcie_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
@@ -1131,7 +1130,7 @@ static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl_txq_update_write_ptr(priv, txq);
+	iwl_txq_update_write_ptr(trans(priv), txq);
 
 	/*
 	 * At this point the frame is "transmitted" successfully
@@ -1142,7 +1141,7 @@ static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	if (iwl_queue_space(q) < q->high_mark) {
 		if (wait_write_ptr) {
 			txq->need_update = 1;
-			iwl_txq_update_write_ptr(priv, txq);
+			iwl_txq_update_write_ptr(trans(priv), txq);
 		} else {
 			iwl_stop_queue(priv, txq);
 		}
@@ -1366,7 +1365,7 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	char *buf;
 	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
+		(hw_params(trans).max_txq_num * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
@@ -1468,8 +1467,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	int pos = 0;
 	int cnt;
 	int ret;
-	const size_t bufsz = sizeof(char) * 64 *
-				priv->cfg->base_params->num_of_queues;
+	const size_t bufsz = sizeof(char) * 64 * hw_params(trans).max_txq_num;
 
 	if (!priv->txq) {
 		IWL_ERR(priv, "txq not ready\n");

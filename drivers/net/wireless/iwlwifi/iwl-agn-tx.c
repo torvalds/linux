@@ -102,12 +102,12 @@ static int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id, int sta_id,
 {
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWLAGN_FIRST_AMPDU_QUEUE +
-		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
+		hw_params(priv).num_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
 			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->base_params->num_of_ampdu_queues - 1);
+			hw_params(priv).num_ampdu_queues - 1);
 		return -EINVAL;
 	}
 

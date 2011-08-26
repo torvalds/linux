@@ -86,7 +86,7 @@ void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 /**
  * iwl_txq_update_write_ptr - Send new write index to hardware
  */
-void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+void iwl_txq_update_write_ptr(struct iwl_trans *trans, struct iwl_tx_queue *txq)
 {
 	u32 reg = 0;
 	int txq_id = txq->q.id;
@@ -94,28 +94,28 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	if (txq->need_update == 0)
 		return;
 
-	if (priv->cfg->base_params->shadow_reg_enable) {
+	if (hw_params(trans).shadow_reg_enable) {
 		/* shadow register enabled */
-		iwl_write32(bus(priv), HBUS_TARG_WRPTR,
+		iwl_write32(bus(trans), HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 	} else {
 		/* if we're trying to save power */
-		if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
+		if (test_bit(STATUS_POWER_PMI, &trans->shrd->status)) {
 			/* wake up nic if it's powered down ...
 			 * uCode will wake up, and interrupt us again, so next
 			 * time we'll skip this part. */
-			reg = iwl_read32(bus(priv), CSR_UCODE_DRV_GP1);
+			reg = iwl_read32(bus(trans), CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-				IWL_DEBUG_INFO(priv,
+				IWL_DEBUG_INFO(trans,
 					"Tx queue %d requesting wakeup,"
 					" GP1 = 0x%x\n", txq_id, reg);
-				iwl_set_bit(bus(priv), CSR_GP_CNTRL,
+				iwl_set_bit(bus(trans), CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 				return;
 			}
 
-			iwl_write_direct32(bus(priv), HBUS_TARG_WRPTR,
+			iwl_write_direct32(bus(trans), HBUS_TARG_WRPTR,
 				     txq->q.write_ptr | (txq_id << 8));
 
 		/*
@@ -124,7 +124,7 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		 * trying to tx (during RFKILL, we're not trying to tx).
 		 */
 		} else
-			iwl_write32(bus(priv), HBUS_TARG_WRPTR,
+			iwl_write32(bus(trans), HBUS_TARG_WRPTR,
 				    txq->q.write_ptr | (txq_id << 8));
 	}
 	txq->need_update = 0;
@@ -498,12 +498,12 @@ int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	struct iwl_trans *trans = trans(priv);
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWLAGN_FIRST_AMPDU_QUEUE +
-		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
+		hw_params(priv).num_ampdu_queues <= txq_id)) {
 		IWL_ERR(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
 			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->base_params->num_of_ampdu_queues - 1);
+			hw_params(priv).num_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -536,8 +536,7 @@ int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
  */
 static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
-	struct iwl_priv *priv = priv(trans);
-	struct iwl_tx_queue *txq = &priv->txq[priv->shrd->cmd_queue];
+	struct iwl_tx_queue *txq = &priv(trans)->txq[trans->shrd->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
@@ -560,7 +559,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	if ((priv->ucode_owner == IWL_OWNERSHIP_TM) &&
+	if ((trans->shrd->ucode_owner == IWL_OWNERSHIP_TM) &&
 	    !(cmd->flags & CMD_ON_DEMAND)) {
 		IWL_DEBUG_HC(trans, "tm own the uCode, no regular hcmd send\n");
 		return -EIO;
@@ -607,10 +606,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		spin_unlock_irqrestore(&trans->hcmd_lock, flags);
 
 		IWL_ERR(trans, "No space in command queue\n");
-		is_ct_kill = iwl_check_for_ct_kill(priv);
+		is_ct_kill = iwl_check_for_ct_kill(priv(trans));
 		if (!is_ct_kill) {
 			IWL_ERR(trans, "Restarting adapter queue is full\n");
-			iwlagn_fw_error(priv, false);
+			iwlagn_fw_error(priv(trans), false);
 		}
 		return -ENOSPC;
 	}
@@ -702,7 +701,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	/* check that tracing gets all possible blocks */
 	BUILD_BUG_ON(IWL_MAX_CMD_TFDS + 1 != 3);
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-	trace_iwlwifi_dev_hcmd(priv, cmd->flags,
+	trace_iwlwifi_dev_hcmd(priv(trans), cmd->flags,
 			       trace_bufs[0], trace_lens[0],
 			       trace_bufs[1], trace_lens[1],
 			       trace_bufs[2], trace_lens[2]);
@@ -710,7 +709,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl_txq_update_write_ptr(priv, txq);
+	iwl_txq_update_write_ptr(trans, txq);
 
  out:
 	spin_unlock_irqrestore(&trans->hcmd_lock, flags);

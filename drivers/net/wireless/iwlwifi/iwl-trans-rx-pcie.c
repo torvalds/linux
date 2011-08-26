@@ -130,7 +130,6 @@ static int iwl_rx_queue_space(const struct iwl_rx_queue *q)
 void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 			struct iwl_rx_queue *q)
 {
-	struct iwl_priv *priv = priv(trans);
 	unsigned long flags;
 	u32 reg;
 
@@ -139,34 +138,34 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	if (priv->cfg->base_params->shadow_reg_enable) {
+	if (hw_params(trans).shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		iwl_write32(bus(priv), FH_RSCSR_CHNL0_WPTR, q->write_actual);
+		iwl_write32(bus(trans), FH_RSCSR_CHNL0_WPTR, q->write_actual);
 	} else {
 		/* If power-saving is in use, make sure device is awake */
 		if (test_bit(STATUS_POWER_PMI, &trans->shrd->status)) {
-			reg = iwl_read32(bus(priv), CSR_UCODE_DRV_GP1);
+			reg = iwl_read32(bus(trans), CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 				IWL_DEBUG_INFO(trans,
 					"Rx queue requesting wakeup,"
 					" GP1 = 0x%x\n", reg);
-				iwl_set_bit(bus(priv), CSR_GP_CNTRL,
+				iwl_set_bit(bus(trans), CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 				goto exit_unlock;
 			}
 
 			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(bus(priv), FH_RSCSR_CHNL0_WPTR,
+			iwl_write_direct32(bus(trans), FH_RSCSR_CHNL0_WPTR,
 					q->write_actual);
 
 		/* Else device is assumed to be awake */
 		} else {
 			/* Device expects a multiple of 8 */
 			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(bus(priv), FH_RSCSR_CHNL0_WPTR,
+			iwl_write_direct32(bus(trans), FH_RSCSR_CHNL0_WPTR,
 				q->write_actual);
 		}
 	}
@@ -1032,7 +1031,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
 		iwl_rx_queue_update_write_ptr(trans, &trans_pcie->rxq);
 		for (i = 0; i < hw_params(trans).max_txq_num; i++)
-			iwl_txq_update_write_ptr(priv(trans),
+			iwl_txq_update_write_ptr(trans,
 						 &priv(trans)->txq[i]);
 
 		isr_stats->wakeup++;

@@ -3207,6 +3207,13 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 	if (iwlagn_mod_params.disable_11n)
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
+	hw_params(priv).num_ampdu_queues =
+		priv->cfg->base_params->num_of_ampdu_queues;
+	hw_params(priv).shadow_reg_enable =
+		priv->cfg->base_params->shadow_reg_enable;
+	hw_params(priv).sku =
+		priv->cfg->sku;
+
 	/* Device-specific setup */
 	return priv->cfg->lib->set_hw_params(priv);
 }

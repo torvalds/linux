@@ -612,7 +612,7 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	owner = nla_get_u8(tb[IWL_TM_ATTR_UCODE_OWNER]);
 	if ((owner == IWL_OWNERSHIP_DRIVER) || (owner == IWL_OWNERSHIP_TM))
-		priv->ucode_owner = owner;
+		priv->shrd->ucode_owner = owner;
 	else {
 		IWL_DEBUG_INFO(priv, "Invalid owner\n");
 		return -EINVAL;

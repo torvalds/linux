@@ -133,36 +133,41 @@ struct iwl_mod_params {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
+ * @num_ampdu_queues: num of ampdu queues
  * @tx/rx_chains_num: Number of TX/RX chains
  * @valid_tx/rx_ant: usable antennas
- * @rx_page_order: Rx buffer page order
- * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
  * @ht40_channel: is 40MHz width possible in band 2.4
+ * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
+ * @sku:
+ * @rx_page_order: Rx buffer page order
+ * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
  * @sw_crypto: 0 for hw, 1 for sw
  * @max_xxx_size: for ucode uses
  * @ct_kill_threshold: temperature threshold
- * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
  * @calib_init_cfg: setup initial calibrations for the hw
  * @calib_rt_cfg: setup runtime calibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
 struct iwl_hw_params {
-	u8 max_txq_num;
+	u8  max_txq_num;
+	u8  num_ampdu_queues;
 	u8  tx_chains_num;
 	u8  rx_chains_num;
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
-	u32 rx_page_order;
 	u8  max_stations;
 	u8  ht40_channel;
+	bool shadow_reg_enable;
+	u16 beacon_time_tsf_bits;
+	u16 sku;
+	u32 rx_page_order;
 	u32 max_inst_size;
 	u32 max_data_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
 				    /* for 1000, 6000 series and up */
-	u16 beacon_time_tsf_bits;
 	u32 calib_init_cfg;
 	u32 calib_rt_cfg;
 	const struct iwl_sensitivity_ranges *sens;
@@ -201,6 +206,7 @@ struct iwl_tid_data {
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
  *	iwlagn_mod_params.debug_level if set (!= 0)
+ * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
  * @bus: pointer to the bus layer data
@@ -217,6 +223,9 @@ struct iwl_shared {
 	u32 dbg_level_dev;
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
+#define IWL_OWNERSHIP_DRIVER	0
+#define IWL_OWNERSHIP_TM	1
+	u8 ucode_owner;
 	u8 cmd_queue;
 	unsigned long status;
 	bool wowlan;

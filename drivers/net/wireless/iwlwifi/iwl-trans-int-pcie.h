@@ -162,7 +162,8 @@ irqreturn_t iwl_isr_ict(int irq, void *data);
 /*****************************************************
 * TX / HCMD
 ******************************************************/
-void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+void iwl_txq_update_write_ptr(struct iwl_trans *trans,
+			struct iwl_tx_queue *txq);
 int iwlagn_txq_attach_buf_to_tfd(struct iwl_trans *trans,
 				 struct iwl_tx_queue *txq,
 				 dma_addr_t addr, u16 len, u8 reset);
