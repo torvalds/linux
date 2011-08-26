@@ -130,6 +130,11 @@ struct iwl_trans_ops {
 	void (*free)(struct iwl_priv *priv);
 };
 
+/**
+ * struct iwl_trans - transport common data
+ * @ops - pointer to iwl_trans_ops
+ * @shrd - pointer to iwl_shared which holds shared data from the upper layer
+ */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_shared *shrd;

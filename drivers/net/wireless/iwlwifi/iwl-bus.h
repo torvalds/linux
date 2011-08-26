@@ -60,8 +60,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_pci_h__
-#define __iwl_pci_h__
+#ifndef __iwl_bus_h__
+#define __iwl_bus_h__
+
+/*This file includes the declaration that are exported from the bus layer */
 
 struct iwl_shared;
 struct iwl_bus;
@@ -86,6 +88,13 @@ struct iwl_bus_ops {
 	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
 };
 
+/**
+ * struct iwl_bus - bus common data
+ * @dev - pointer to struct device * that represent the device
+ * @ops - pointer to iwl_bus_ops
+ * @shrd - pointer to iwl_shared which holds shared data from the upper layer
+ * @irq - the irq number for the device
+ */
 struct iwl_bus {
 	/* Common data to all buses */
 	struct device *dev;
@@ -138,4 +147,4 @@ static inline u32 bus_read32(struct iwl_bus *bus, u32 ofs)
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 
-#endif
+#endif /* __iwl_bus_h__ */
