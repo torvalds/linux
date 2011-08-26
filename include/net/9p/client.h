@@ -151,7 +151,7 @@ struct p9_req_t {
 
 struct p9_client {
 	spinlock_t lock; /* protect client structure */
-	int msize;
+	unsigned int msize;
 	unsigned char proto_version;
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;

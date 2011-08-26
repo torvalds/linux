@@ -201,7 +201,8 @@ free_and_return:
  *
  */
 
-static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag, int max_size)
+static struct p9_req_t *
+p9_tag_alloc(struct p9_client *c, u16 tag, unsigned int max_size)
 {
 	unsigned long flags;
 	int row, col;
