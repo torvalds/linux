@@ -639,7 +639,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	struct usb_request	*ur;
 	struct dwc3_trb		trb;
 	struct dwc3_ep		*dep;
-	u32			transfered;
+	u32			transferred;
 	u8			epnum;
 
 	epnum = event->endpoint_number;
@@ -655,8 +655,8 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
 
-	transfered = ur->length - trb.length;
-	ur->actual += transfered;
+	transferred = ur->length - trb.length;
+	ur->actual += transferred;
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */
