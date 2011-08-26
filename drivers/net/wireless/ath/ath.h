@@ -178,8 +178,9 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry);
 void ath_hw_cycle_counters_update(struct ath_common *common);
 int32_t ath_hw_get_listen_time(struct ath_common *common);
 
-extern __attribute__ ((format (printf, 3, 4))) int
-ath_printk(const char *level, struct ath_common *common, const char *fmt, ...);
+extern __attribute__((format (printf, 3, 4)))
+int ath_printk(const char *level, struct ath_common *common,
+	       const char *fmt, ...);
 
 #define ath_emerg(common, fmt, ...)				\
 	ath_printk(KERN_EMERG, common, fmt, ##__VA_ARGS__)
@@ -246,27 +247,21 @@ enum ATH_DEBUG {
 
 #ifdef CONFIG_ATH_DEBUG
 
-#define ath_dbg(common, dbg_mask, fmt, ...)			\
-({								\
-	int rtn;						\
-	if ((common)->debug_mask & dbg_mask)			\
-		rtn = ath_printk(KERN_DEBUG, common, fmt,	\
-				 ##__VA_ARGS__);		\
-	else							\
-		rtn = 0;					\
-								\
-	rtn;							\
-})
+#define ath_dbg(common, dbg_mask, fmt, ...)				\
+do {									\
+	if ((common)->debug_mask & dbg_mask)				\
+		ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
+} while (0)
+
 #define ATH_DBG_WARN(foo, arg...) WARN(foo, arg)
 #define ATH_DBG_WARN_ON_ONCE(foo) WARN_ON_ONCE(foo)
 
 #else
 
-static inline  __attribute__ ((format (printf, 3, 4))) int
-ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
-	const char *fmt, ...)
+static inline  __attribute__((format (printf, 3, 4)))
+void ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
+	     const char *fmt, ...)
 {
-	return 0;
 }
 #define ATH_DBG_WARN(foo, arg...) do {} while (0)
 #define ATH_DBG_WARN_ON_ONCE(foo) ({				\
