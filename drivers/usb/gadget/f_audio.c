@@ -681,17 +681,18 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 	status = -ENOMEM;
 
-	/* supcard all relevant hardware speeds... we expect that when
+	/* copy descriptors, and track endpoint copies */
+	f->descriptors = usb_copy_descriptors(f_audio_desc);
+
+	/*
+	 * support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-
-	/* copy descriptors, and track endpoint copies */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
 		c->highspeed = true;
 		f->hs_descriptors = usb_copy_descriptors(f_audio_desc);
-	} else
-		f->descriptors = usb_copy_descriptors(f_audio_desc);
+	}
 
 	return 0;
 
