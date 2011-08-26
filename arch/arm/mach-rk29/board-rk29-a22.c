@@ -654,7 +654,7 @@ int wm831x_post_init(struct wm831x *parm)
 
 	dcdc = regulator_get(NULL, "dcdc3");		// 1th IO
 	regulator_set_voltage(dcdc,3000000,3000000);
-	regulator_set_suspend_voltage(dcdc, 3000000);
+	regulator_set_suspend_voltage(dcdc, 2800000);
 	regulator_enable(dcdc);			
 	printk("%s set dcdc3=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);

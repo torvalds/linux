@@ -471,21 +471,30 @@ int __sramdata crumode;
 //static GRF_REG_SAVE __sramdata pm_grf;
 static void  pm_keygpio_prepare(void)
 {	
-	
 	gpio6_pull = grf_readl(GRF_GPIO6_PULL);
 	gpio2_pull = grf_readl(GRF_GPIO2_PULL);
-	
 }
- void  pm_keygpio_suspend(void)
+ void  pm_keygpio_sdk_suspend(void)
 {
 	grf_writel(gpio6_pull|0x7f,GRF_GPIO6_PULL);//key pullup/pulldown disable
 	grf_writel(gpio2_pull|0x00000f30,GRF_GPIO2_PULL);
 }
- void  pm_keygpio_resume(void)
+ void  pm_keygpio_sdk_resume(void)
 {
 	grf_writel(gpio6_pull,GRF_GPIO6_PULL);//key pullup/pulldown enable
 	grf_writel(gpio2_pull,GRF_GPIO2_PULL);
 }
+ void  pm_keygpio_a22_suspend(void)
+{
+	grf_writel(gpio6_pull|0x7f,GRF_GPIO6_PULL);//key pullup/pulldown disable
+	grf_writel(gpio2_pull|0x00000900,GRF_GPIO2_PULL);
+}
+ void  pm_keygpio_a22_resume(void)
+{
+	grf_writel(gpio6_pull,GRF_GPIO6_PULL);//key pullup/pulldown enable
+	grf_writel(gpio2_pull,GRF_GPIO2_PULL);
+}
+
 
 static void  pm_spi_gpio_prepare(void)
 {
@@ -542,7 +551,11 @@ void pm_gpio_suspend(void)
 {
 	pm_spi_gpio_suspend(); // spi  pullup/pulldown  disable....
 	#if defined(CONFIG_MACH_RK29_PHONESDK)
-	{	pm_keygpio_suspend();// key  pullup/pulldown  disable.....
+	{	pm_keygpio_sdk_suspend();// key  pullup/pulldown  disable.....
+	}	
+	#endif
+	#if defined(CONFIG_MACH_RK29_A22)
+	{	pm_keygpio_a22_suspend();// key  pullup/pulldown  disable.....
 	}	
 	#endif
 }
@@ -550,7 +563,11 @@ void pm_gpio_resume(void)
 {
 	pm_spi_gpio_resume(); // spi  pullup/pulldown  enable.....
 	#if defined(CONFIG_MACH_RK29_PHONESDK)
-	{	pm_keygpio_resume();// key  pullup/pulldown  enable.....
+	{	pm_keygpio_sdk_resume();// key  pullup/pulldown  enable.....
+	}
+	#endif
+	#if defined(CONFIG_MACH_RK29_A22)
+	{	pm_keygpio_a22_resume();// key  pullup/pulldown  enable.....
 	}
 	#endif
 }
