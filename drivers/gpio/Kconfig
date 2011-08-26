@@ -143,6 +143,10 @@ config GPIO_S3C64XX
 	def_bool y
 	depends on ARCH_S3C64XX
 
+config GPIO_S5P64X0
+	def_bool y
+	depends on ARCH_S5P64X0
+
 config GPIO_S5PC100
 	def_bool y
 	depends on CPU_S5PC100
