@@ -403,14 +403,15 @@ void iwl_trans_set_wr_ptrs(struct iwl_trans *trans,
 	iwl_write_prph(bus(trans), SCD_QUEUE_RDPTR(txq_id), index);
 }
 
-void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
+void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 					struct iwl_tx_queue *txq,
 					int tx_fifo_id, int scd_retry)
 {
 	int txq_id = txq->q.id;
-	int active = test_bit(txq_id, &priv->txq_ctx_active_msk) ? 1 : 0;
+	int active =
+		test_bit(txq_id, &priv(trans)->txq_ctx_active_msk) ? 1 : 0;
 
-	iwl_write_prph(bus(priv), SCD_QUEUE_STATUS_BITS(txq_id),
+	iwl_write_prph(bus(trans), SCD_QUEUE_STATUS_BITS(txq_id),
 			(active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
 			(tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
 			(1 << SCD_QUEUE_STTS_REG_POS_WSL) |
@@ -418,7 +419,7 @@ void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_INFO(priv, "%s %s Queue %d on FIFO %d\n",
+	IWL_DEBUG_INFO(trans, "%s %s Queue %d on FIFO %d\n",
 		       active ? "Activate" : "Deactivate",
 		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
 }
@@ -434,16 +435,15 @@ static inline int get_fifo_from_tid(struct iwl_trans_pcie *trans_pcie,
 	return -EINVAL;
 }
 
-void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
-				  enum iwl_rxon_context_id ctx, int sta_id,
-				  int tid, int frame_limit)
+void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
+				 enum iwl_rxon_context_id ctx, int sta_id,
+				 int tid, int frame_limit)
 {
 	int tx_fifo, txq_id, ssn_idx;
 	u16 ra_tid;
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
 
-	struct iwl_trans *trans = trans(priv);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -458,15 +458,15 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 		return;
 	}
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	tid_data = &priv->shrd->tid_data[sta_id][tid];
+	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
+	tid_data = &trans->shrd->tid_data[sta_id][tid];
 	ssn_idx = SEQ_TO_SN(tid_data->seq_number);
 	txq_id = tid_data->agg.txq_id;
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
 
 	/* Stop this Tx queue before configuring it */
 	iwlagn_tx_queue_stop_scheduler(trans, txq_id);
@@ -475,19 +475,19 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 	iwlagn_tx_queue_set_q2ratid(trans, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(bus(priv), SCD_QUEUECHAIN_SEL, (1<<txq_id));
+	iwl_set_bits_prph(bus(trans), SCD_QUEUECHAIN_SEL, (1<<txq_id));
 
 	/* enable aggregations for the queue */
-	iwl_set_bits_prph(bus(priv), SCD_AGGR_SEL, (1<<txq_id));
+	iwl_set_bits_prph(bus(trans), SCD_AGGR_SEL, (1<<txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
-	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
+	priv(trans)->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
+	priv(trans)->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	iwl_trans_set_wr_ptrs(trans, txq_id, ssn_idx);
 
 	/* Set up Tx window size and frame limit for this queue */
-	iwl_write_targ_mem(bus(priv), trans_pcie->scd_base_addr +
+	iwl_write_targ_mem(bus(trans), trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
 			sizeof(u32),
 			((frame_limit <<
@@ -497,15 +497,16 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
 			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
-	iwl_set_bits_prph(bus(priv), SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_set_bits_prph(bus(trans), SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
-	iwl_trans_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
+	iwl_trans_tx_queue_set_status(trans, &priv(trans)->txq[txq_id],
+					tx_fifo, 1);
 
-	priv->txq[txq_id].sta_id = sta_id;
-	priv->txq[txq_id].tid = tid;
+	priv(trans)->txq[txq_id].sta_id = sta_id;
+	priv(trans)->txq[txq_id].tid = tid;
 
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 }
 
 /*
@@ -574,8 +575,7 @@ void iwl_trans_pcie_txq_agg_disable(struct iwl_trans *trans, int txq_id)
 
 	iwl_clear_bits_prph(bus(trans), SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv(trans), txq_id);
-	iwl_trans_tx_queue_set_status(priv(trans),
-					&priv(trans)->txq[txq_id], 0, 0);
+	iwl_trans_tx_queue_set_status(trans, &priv(trans)->txq[txq_id], 0, 0);
 }
 
 int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,

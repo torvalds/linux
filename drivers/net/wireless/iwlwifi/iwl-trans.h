@@ -95,7 +95,7 @@ struct iwl_device_cmd;
  * @tx: send an skb
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  * @tx_agg_alloc: allocate resources for a TX BA session
- * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
+ * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *                 ready and a successful ADDBA response has been received.
  * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
  * @kick_nic: remove the RESET from the embedded CPU and let it run
@@ -128,14 +128,14 @@ struct iwl_trans_ops {
 			struct sk_buff_head *skbs);
 
 	int (*tx_agg_disable)(struct iwl_trans *trans,
-			       enum iwl_rxon_context_id ctx, int sta_id,
-			       int tid);
+			      enum iwl_rxon_context_id ctx, int sta_id,
+			      int tid);
 	int (*tx_agg_alloc)(struct iwl_trans *trans,
 			    enum iwl_rxon_context_id ctx, int sta_id, int tid,
 			    u16 *ssn);
-	void (*txq_agg_setup)(struct iwl_priv *priv,
-			      enum iwl_rxon_context_id ctx, int sta_id,
-			      int tid, int frame_limit);
+	void (*tx_agg_setup)(struct iwl_trans *trans,
+			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
+			     int frame_limit);
 
 	void (*kick_nic)(struct iwl_trans *trans);
 
@@ -233,12 +233,12 @@ static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
 }
 
 
-static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans,
+static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 					   enum iwl_rxon_context_id ctx,
 					   int sta_id, int tid,
 					   int frame_limit)
 {
-	trans->ops->txq_agg_setup(priv(trans), ctx, sta_id, tid, frame_limit);
+	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit);
 }
 
 static inline void iwl_trans_kick_nic(struct iwl_trans *trans)

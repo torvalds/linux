@@ -774,7 +774,7 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	priv->shrd->ucode_owner = IWL_OWNERSHIP_DRIVER;
+	trans->shrd->ucode_owner = IWL_OWNERSHIP_DRIVER;
 	trans_pcie->ac_to_queue[IWL_RXON_CTX_BSS] = iwlagn_bss_ac_to_queue;
 	trans_pcie->ac_to_queue[IWL_RXON_CTX_PAN] = iwlagn_pan_ac_to_queue;
 
@@ -784,7 +784,7 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 	trans_pcie->mcast_queue[IWL_RXON_CTX_BSS] = 0;
 	trans_pcie->mcast_queue[IWL_RXON_CTX_PAN] = IWL_IPAN_MCAST_QUEUE;
 
-	if ((hw_params(priv).sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
+	if ((hw_params(trans).sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
 	     iwl_trans_pcie_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
@@ -862,7 +862,7 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 		a += 4)
 		iwl_write_targ_mem(bus(trans), a, 0);
 	for (; a < trans_pcie->scd_base_addr +
-	       SCD_TRANS_TBL_OFFSET_QUEUE(hw_params(priv).max_txq_num);
+	       SCD_TRANS_TBL_OFFSET_QUEUE(hw_params(trans).max_txq_num);
 	       a += 4)
 		iwl_write_targ_mem(bus(trans), a, 0);
 
@@ -881,11 +881,11 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	iwl_write_prph(bus(trans), SCD_QUEUECHAIN_SEL,
-		SCD_QUEUECHAIN_SEL_ALL(priv));
+		SCD_QUEUECHAIN_SEL_ALL(trans));
 	iwl_write_prph(bus(trans), SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
-	for (i = 0; i < hw_params(priv).max_txq_num; i++) {
+	for (i = 0; i < hw_params(trans).max_txq_num; i++) {
 		iwl_write_prph(bus(trans), SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_direct32(bus(trans), HBUS_TARG_WRPTR, 0 | (i << 8));
 		iwl_write_targ_mem(bus(trans), trans_pcie->scd_base_addr +
@@ -941,7 +941,7 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 
 		if (ac != IWL_AC_UNSET)
 			iwl_set_swq_id(&priv->txq[i], ac, i);
-		iwl_trans_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
+		iwl_trans_tx_queue_set_status(trans, &priv->txq[i], fifo, 0);
 	}
 
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
@@ -2017,7 +2017,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.tx_agg_disable = iwl_trans_pcie_tx_agg_disable,
 	.tx_agg_alloc = iwl_trans_pcie_tx_agg_alloc,
-	.txq_agg_setup = iwl_trans_pcie_txq_agg_setup,
+	.tx_agg_setup = iwl_trans_pcie_tx_agg_setup,
 
 	.kick_nic = iwl_trans_pcie_kick_nic,
 
