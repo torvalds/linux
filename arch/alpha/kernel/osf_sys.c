@@ -771,6 +771,9 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
  		return 0;
 	}
  
+	case SSI_LMF:
+		return 0;
+
 	default:
 		break;
 	}
