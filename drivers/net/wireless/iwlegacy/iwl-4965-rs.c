@@ -56,13 +56,13 @@
 #define RATE_SCALE_FLUSH_INTVL   (3*HZ)
 
 static u8 rs_ht_to_legacy[] = {
-	RATE_6M_INDEX, RATE_6M_INDEX,
-	RATE_6M_INDEX, RATE_6M_INDEX,
-	RATE_6M_INDEX,
-	RATE_6M_INDEX, RATE_9M_INDEX,
-	RATE_12M_INDEX, RATE_18M_INDEX,
-	RATE_24M_INDEX, RATE_36M_INDEX,
-	RATE_48M_INDEX, RATE_54M_INDEX
+	RATE_6M_IDX, RATE_6M_IDX,
+	RATE_6M_IDX, RATE_6M_IDX,
+	RATE_6M_IDX,
+	RATE_6M_IDX, RATE_9M_IDX,
+	RATE_12M_IDX, RATE_18M_IDX,
+	RATE_24M_IDX, RATE_36M_IDX,
+	RATE_48M_IDX, RATE_54M_IDX
 };
 
 static const u8 ant_toggle_lookup[] = {
@@ -77,16 +77,16 @@ static const u8 ant_toggle_lookup[] = {
 };
 
 #define IL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
-	[RATE_##r##M_INDEX] = { RATE_##r##M_PLCP,      \
+	[RATE_##r##M_IDX] = { RATE_##r##M_PLCP,      \
 				    RATE_SISO_##s##M_PLCP, \
 				    RATE_MIMO2_##s##M_PLCP,\
 				    RATE_##r##M_IEEE,      \
-				    RATE_##ip##M_INDEX,    \
-				    RATE_##in##M_INDEX,    \
-				    RATE_##rp##M_INDEX,    \
-				    RATE_##rn##M_INDEX,    \
-				    RATE_##pp##M_INDEX,    \
-				    RATE_##np##M_INDEX }
+				    RATE_##ip##M_IDX,    \
+				    RATE_##in##M_IDX,    \
+				    RATE_##rp##M_IDX,    \
+				    RATE_##rn##M_IDX,    \
+				    RATE_##pp##M_IDX,    \
+				    RATE_##np##M_IDX }
 
 /*
  * Parameter order:
@@ -125,7 +125,7 @@ static int il4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 
 		idx += IL_FIRST_OFDM_RATE;
 		/* skip 9M not supported in ht*/
-		if (idx >= RATE_9M_INDEX)
+		if (idx >= RATE_9M_IDX)
 			idx += 1;
 		if (idx >= IL_FIRST_OFDM_RATE && idx <= IL_LAST_OFDM_RATE)
 			return idx;
@@ -218,7 +218,7 @@ static const struct il_rate_mcs_info il_rate_mcs[RATE_COUNT] = {
 	{ "60", "64QAM 5/6"},
 };
 
-#define MCS_INDEX_PER_STREAM	(8)
+#define MCS_IDX_PER_STREAM	(8)
 
 static inline u8 il4965_rs_extract_rate(u32 rate_n_flags)
 {
@@ -856,7 +856,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	/* For HT packets, map MCS to PLCP */
 	if (mac_flags & IEEE80211_TX_RC_MCS) {
 		mac_index &= RATE_MCS_CODE_MSK;	/* Remove # of streams */
-		if (mac_index >= (RATE_9M_INDEX - IL_FIRST_OFDM_RATE))
+		if (mac_index >= (RATE_9M_IDX - IL_FIRST_OFDM_RATE))
 			mac_index++;
 		/*
 		 * mac80211 HT index is always zero-indexed; we need to move
@@ -2276,7 +2276,7 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		rate_idx = (rate_idx > 0) ? (rate_idx - 1) : 0;
 		if (il4965_rs_extract_rate(lq_sta->last_rate_n_flags) >=
 			 RATE_MIMO2_6M_PLCP)
-			rate_idx = rate_idx + MCS_INDEX_PER_STREAM;
+			rate_idx = rate_idx + MCS_IDX_PER_STREAM;
 		info->control.rates[0].flags = IEEE80211_TX_RC_MCS;
 		if (lq_sta->last_rate_n_flags & RATE_MCS_SGI_MSK)
 			info->control.rates[0].flags |=

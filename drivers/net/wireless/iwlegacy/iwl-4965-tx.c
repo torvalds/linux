@@ -423,7 +423,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	 */
 	out_cmd->hdr.cmd = REPLY_TX;
 	out_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
-				INDEX_TO_SEQ(q->write_ptr)));
+				IDX_TO_SEQ(q->write_ptr)));
 
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
@@ -1172,7 +1172,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 							ba_resp->seq_ctl);
 
 	/* Calculate shift to align block-ack bits with our Tx win bits */
-	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl >> 4);
+	sh = agg->start_idx - SEQ_TO_IDX(seq_ctl >> 4);
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 

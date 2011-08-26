@@ -52,16 +52,16 @@
 #include "iwl-3945-debugfs.h"
 
 #define IL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
-	[RATE_##r##M_INDEX] = { RATE_##r##M_PLCP,   \
+	[RATE_##r##M_IDX] = { RATE_##r##M_PLCP,   \
 				    RATE_##r##M_IEEE,   \
-				    RATE_##ip##M_INDEX, \
-				    RATE_##in##M_INDEX, \
-				    RATE_##rp##M_INDEX, \
-				    RATE_##rn##M_INDEX, \
-				    RATE_##pp##M_INDEX, \
-				    RATE_##np##M_INDEX, \
-				    RATE_##r##M_INDEX_TABLE, \
-				    RATE_##ip##M_INDEX_TABLE }
+				    RATE_##ip##M_IDX, \
+				    RATE_##in##M_IDX, \
+				    RATE_##rp##M_IDX, \
+				    RATE_##rn##M_IDX, \
+				    RATE_##pp##M_IDX, \
+				    RATE_##np##M_IDX, \
+				    RATE_##r##M_IDX_TABLE, \
+				    RATE_##ip##M_IDX_TABLE }
 
 /*
  * Parameter order:
@@ -246,16 +246,16 @@ int il3945_rs_next_rate(struct il_priv *il, int rate)
 
 	switch (il->band) {
 	case IEEE80211_BAND_5GHZ:
-		if (rate == RATE_12M_INDEX)
-			next_rate = RATE_9M_INDEX;
-		else if (rate == RATE_6M_INDEX)
-			next_rate = RATE_6M_INDEX;
+		if (rate == RATE_12M_IDX)
+			next_rate = RATE_9M_IDX;
+		else if (rate == RATE_6M_IDX)
+			next_rate = RATE_6M_IDX;
 		break;
 	case IEEE80211_BAND_2GHZ:
 		if (!(il->_3945.sta_supp_rates & IL_OFDM_RATES_MASK) &&
 		    il_is_associated(il)) {
-			if (rate == RATE_11M_INDEX)
-				next_rate = RATE_5M_INDEX;
+			if (rate == RATE_11M_IDX)
+				next_rate = RATE_5M_IDX;
 		}
 		break;
 
@@ -307,7 +307,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_INDEX(sequence);
+	int index = SEQ_TO_IDX(sequence);
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct ieee80211_tx_info *info;
 	struct il3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
@@ -1133,7 +1133,7 @@ static int il3945_is_temp_calib_needed(struct il_priv *il)
 
 #define IL_MAX_GAIN_ENTRIES 78
 #define IL_CCK_FROM_OFDM_POWER_DIFF  -5
-#define IL_CCK_FROM_OFDM_INDEX_DIFF (10)
+#define IL_CCK_FROM_OFDM_IDX_DIFF (10)
 
 /* radio and DSP power table, each step is 1/2 dB.
  * 1st number is for RF analog gain, 2nd number is for DSP pre-DAC gain. */
@@ -1330,7 +1330,7 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_index,
 	/* use this channel group's 6Mbit clipping/saturation pwr,
 	 *   but cap at regulatory scan power restriction (set during init
 	 *   based on eeprom channel data) for this channel.  */
-	power = min(ch_info->scan_power, clip_pwrs[RATE_6M_INDEX_TABLE]);
+	power = min(ch_info->scan_power, clip_pwrs[RATE_6M_IDX_TABLE]);
 
 	power = min(power, il->tx_power_user_lmt);
 	scan_power_info->requested_power = power;
@@ -1342,7 +1342,7 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_index,
 	 *   *index*. */
 	power_index = ch_info->power_info[rate_index].power_table_index
 	    - (power - ch_info->power_info
-	       [RATE_6M_INDEX_TABLE].requested_power) * 2;
+	       [RATE_6M_IDX_TABLE].requested_power) * 2;
 
 	/* store reference index that we use when adjusting *all* scan
 	 *   powers.  So we can accommodate user (all channel) or spectrum
@@ -1466,7 +1466,7 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	power_info = ch_info->power_info;
 
 	/* update OFDM Txpower settings */
-	for (i = RATE_6M_INDEX_TABLE; i <= RATE_54M_INDEX_TABLE;
+	for (i = RATE_6M_IDX_TABLE; i <= RATE_54M_IDX_TABLE;
 	     i++, ++power_info) {
 		int delta_idx;
 
@@ -1490,15 +1490,15 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	 *    ... all CCK power settings for a given channel are the *same*. */
 	if (power_changed) {
 		power =
-		    ch_info->power_info[RATE_12M_INDEX_TABLE].
+		    ch_info->power_info[RATE_12M_IDX_TABLE].
 		    requested_power + IL_CCK_FROM_OFDM_POWER_DIFF;
 
 		/* do all CCK rates' il3945_channel_power_info structures */
-		for (i = RATE_1M_INDEX_TABLE; i <= RATE_11M_INDEX_TABLE; i++) {
+		for (i = RATE_1M_IDX_TABLE; i <= RATE_11M_IDX_TABLE; i++) {
 			power_info->requested_power = power;
 			power_info->base_power_index =
-			    ch_info->power_info[RATE_12M_INDEX_TABLE].
-			    base_power_index + IL_CCK_FROM_OFDM_INDEX_DIFF;
+			    ch_info->power_info[RATE_12M_IDX_TABLE].
+			    base_power_index + IL_CCK_FROM_OFDM_IDX_DIFF;
 			++power_info;
 		}
 	}
@@ -1597,7 +1597,7 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 		for (scan_tbl_index = 0;
 		     scan_tbl_index < IL_NUM_SCAN_RATES; scan_tbl_index++) {
 			s32 actual_index = (scan_tbl_index == 0) ?
-			    RATE_1M_INDEX_TABLE : RATE_6M_INDEX_TABLE;
+			    RATE_1M_IDX_TABLE : RATE_6M_IDX_TABLE;
 			il3945_hw_reg_set_scan_power(il, scan_tbl_index,
 					   actual_index, clip_pwrs,
 					   ch_info, a_band);
@@ -2012,19 +2012,19 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 		for (rate_index = 0;
 		     rate_index < RATE_COUNT_3945; rate_index++, clip_pwrs++) {
 			switch (rate_index) {
-			case RATE_36M_INDEX_TABLE:
+			case RATE_36M_IDX_TABLE:
 				if (i == 0)	/* B/G */
 					*clip_pwrs = satur_pwr;
 				else	/* A */
 					*clip_pwrs = satur_pwr - 5;
 				break;
-			case RATE_48M_INDEX_TABLE:
+			case RATE_48M_IDX_TABLE:
 				if (i == 0)
 					*clip_pwrs = satur_pwr - 7;
 				else
 					*clip_pwrs = satur_pwr - 10;
 				break;
-			case RATE_54M_INDEX_TABLE:
+			case RATE_54M_IDX_TABLE:
 				if (i == 0)
 					*clip_pwrs = satur_pwr - 9;
 				else
@@ -2139,13 +2139,13 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		}
 
 		/* set tx power for CCK rates, based on OFDM 12 Mbit settings*/
-		pwr_info = &ch_info->power_info[RATE_12M_INDEX_TABLE];
+		pwr_info = &ch_info->power_info[RATE_12M_IDX_TABLE];
 		power = pwr_info->requested_power +
 			IL_CCK_FROM_OFDM_POWER_DIFF;
 		pwr_index = pwr_info->power_table_index +
-			IL_CCK_FROM_OFDM_INDEX_DIFF;
+			IL_CCK_FROM_OFDM_IDX_DIFF;
 		base_pwr_index = pwr_info->base_power_index +
-			IL_CCK_FROM_OFDM_INDEX_DIFF;
+			IL_CCK_FROM_OFDM_IDX_DIFF;
 
 		/* stay within table range */
 		pwr_index = il3945_hw_reg_fix_power_index(pwr_index);
@@ -2169,7 +2169,7 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		for (scan_tbl_index = 0;
 		     scan_tbl_index < IL_NUM_SCAN_RATES; scan_tbl_index++) {
 			s32 actual_index = (scan_tbl_index == 0) ?
-				RATE_1M_INDEX_TABLE : RATE_6M_INDEX_TABLE;
+				RATE_1M_IDX_TABLE : RATE_6M_IDX_TABLE;
 			il3945_hw_reg_set_scan_power(il, scan_tbl_index,
 				actual_index, clip_pwrs, ch_info, a_band);
 		}
@@ -2326,17 +2326,17 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		D_RATE("Select A mode rate scale\n");
 		/* If one of the following CCK rates is used,
 		 * have it fall back to the 6M OFDM rate */
-		for (i = RATE_1M_INDEX_TABLE;
-			i <= RATE_11M_INDEX_TABLE; i++)
+		for (i = RATE_1M_IDX_TABLE;
+			i <= RATE_11M_IDX_TABLE; i++)
 			table[i].next_rate_index =
 			  il3945_rates[IL_FIRST_OFDM_RATE].table_rs_index;
 
 		/* Don't fall back to CCK rates */
-		table[RATE_12M_INDEX_TABLE].next_rate_index =
-						RATE_9M_INDEX_TABLE;
+		table[RATE_12M_IDX_TABLE].next_rate_index =
+						RATE_9M_IDX_TABLE;
 
 		/* Don't drop out of OFDM rates */
-		table[RATE_6M_INDEX_TABLE].next_rate_index =
+		table[RATE_6M_IDX_TABLE].next_rate_index =
 		    il3945_rates[IL_FIRST_OFDM_RATE].table_rs_index;
 		break;
 
@@ -2349,14 +2349,14 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		    il_is_associated(il)) {
 
 			index = IL_FIRST_CCK_RATE;
-			for (i = RATE_6M_INDEX_TABLE;
-			     i <= RATE_54M_INDEX_TABLE; i++)
+			for (i = RATE_6M_IDX_TABLE;
+			     i <= RATE_54M_IDX_TABLE; i++)
 				table[i].next_rate_index =
 					il3945_rates[index].table_rs_index;
 
-			index = RATE_11M_INDEX_TABLE;
+			index = RATE_11M_IDX_TABLE;
 			/* CCK shouldn't fall back to OFDM... */
-			table[index].next_rate_index = RATE_5M_INDEX_TABLE;
+			table[index].next_rate_index = RATE_5M_IDX_TABLE;
 		}
 		break;
 

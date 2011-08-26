@@ -50,9 +50,9 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
 	if (il->band == IEEE80211_BAND_5GHZ)
-		r = RATE_6M_INDEX;
+		r = RATE_6M_IDX;
 	else
-		r = RATE_1M_INDEX;
+		r = RATE_1M_IDX;
 
 	if (r >= IL_FIRST_CCK_RATE && r <= IL_LAST_CCK_RATE)
 		rate_flags |= RATE_MCS_CCK_MSK;

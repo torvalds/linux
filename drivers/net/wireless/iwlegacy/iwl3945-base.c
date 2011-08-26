@@ -563,7 +563,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	 */
 	out_cmd->hdr.cmd = REPLY_TX;
 	out_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
-				INDEX_TO_SEQ(q->write_ptr)));
+				IDX_TO_SEQ(q->write_ptr)));
 
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
@@ -903,7 +903,7 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  * WRITE = READ.
  *
  * During initialization, the host sets up the READ queue position to the first
- * INDEX position, and WRITE to the last (READ - 1 wrapped)
+ * IDX position, and WRITE to the last (READ - 1 wrapped)
  *
  * When the firmware places a packet in a buffer, it will advance the READ index
  * and fire the RX interrupt.  The driver can then query the READ index and
@@ -915,13 +915,13 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  *   iwl->rxq->free_count drops to or below RX_LOW_WATERMARK, work is scheduled
  *   to replenish the iwl->rxq->rx_free.
  * + In il3945_rx_replenish (scheduled) if 'processed' != 'read' then the
- *   iwl->rxq is replenished and the READ INDEX is updated (updating the
+ *   iwl->rxq is replenished and the READ IDX is updated (updating the
  *   'processed' and 'read' driver indexes as well)
  * + A received packet is processed and handed to the kernel network stack,
  *   detached from the iwl->rxq.  The driver 'processed' index is updated.
  * + The Host/Firmware iwl->rxq is replenished at tasklet time from the rx_free
  *   list. If there are no allocated buffers in iwl->rxq->rx_free, the READ
- *   INDEX is not incremented and iwl->status(RX_STALLED) is set.  If there
+ *   IDX is not incremented and iwl->status(RX_STALLED) is set.  If there
  *   were enough free buffers and RX_STALLED is set it is cleared.
  *
  *
@@ -936,7 +936,7 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  *
  * -- enable interrupts --
  * ISR - il3945_rx()         Detach il_rx_bufs from pool up to the
- *                            READ INDEX, detaching the SKB from the pool.
+ *                            READ IDX, detaching the SKB from the pool.
  *                            Moves the packet buffer from queue to rx_used.
  *                            Calls il3945_rx_queue_restock to refill any empty
  *                            slots.

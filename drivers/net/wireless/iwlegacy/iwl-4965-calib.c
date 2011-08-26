@@ -374,30 +374,30 @@ static void il4965_prepare_legacy_sensitivity_tbl(struct il_priv *il,
 				struct il_sensitivity_data *data,
 				__le16 *tbl)
 {
-	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX] =
+	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_IDX] =
 				cpu_to_le16((u16)data->auto_corr_ofdm);
-	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX] =
+	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_IDX] =
 				cpu_to_le16((u16)data->auto_corr_ofdm_mrc);
-	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX] =
+	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_IDX] =
 				cpu_to_le16((u16)data->auto_corr_ofdm_x1);
-	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX] =
+	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_IDX] =
 				cpu_to_le16((u16)data->auto_corr_ofdm_mrc_x1);
 
-	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX] =
+	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX] =
 				cpu_to_le16((u16)data->auto_corr_cck);
-	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX] =
+	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_IDX] =
 				cpu_to_le16((u16)data->auto_corr_cck_mrc);
 
-	tbl[HD_MIN_ENERGY_CCK_DET_INDEX] =
+	tbl[HD_MIN_ENERGY_CCK_DET_IDX] =
 				cpu_to_le16((u16)data->nrg_th_cck);
-	tbl[HD_MIN_ENERGY_OFDM_DET_INDEX] =
+	tbl[HD_MIN_ENERGY_OFDM_DET_IDX] =
 				cpu_to_le16((u16)data->nrg_th_ofdm);
 
-	tbl[HD_BARKER_CORR_TH_ADD_MIN_INDEX] =
+	tbl[HD_BARKER_CORR_TH_ADD_MIN_IDX] =
 				cpu_to_le16(data->barker_corr_th_min);
-	tbl[HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX] =
+	tbl[HD_BARKER_CORR_TH_ADD_MIN_MRC_IDX] =
 				cpu_to_le16(data->barker_corr_th_min_mrc);
-	tbl[HD_OFDM_ENERGY_TH_IN_INDEX] =
+	tbl[HD_OFDM_ENERGY_TH_IN_IDX] =
 				cpu_to_le16(data->nrg_th_cca);
 
 	D_CALIB("ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",

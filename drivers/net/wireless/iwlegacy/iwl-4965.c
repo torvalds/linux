@@ -632,9 +632,9 @@ static s32 get_min_power_index(s32 rate_power_index, u32 band)
 {
 	if (!band) {
 		if ((rate_power_index & 7) <= 4)
-			return MIN_TX_GAIN_INDEX_52GHZ_EXT;
+			return MIN_TX_GAIN_IDX_52GHZ_EXT;
 	}
-	return MIN_TX_GAIN_INDEX;
+	return MIN_TX_GAIN_IDX;
 }
 
 struct gain_entry {
@@ -1654,7 +1654,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 			u16 sc;
 			status = le16_to_cpu(frame_status[i].status);
 			seq  = le16_to_cpu(frame_status[i].sequence);
-			idx = SEQ_TO_INDEX(seq);
+			idx = SEQ_TO_IDX(seq);
 			txq_id = SEQ_TO_QUEUE(seq);
 
 			if (status & (AGG_TX_STATE_FEW_BYTES_MSK |
@@ -1777,7 +1777,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_INDEX(sequence);
+	int index = SEQ_TO_IDX(sequence);
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info;

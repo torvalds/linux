@@ -64,27 +64,27 @@ struct il3945_tpt_entry {
 };
 
 static struct il3945_tpt_entry il3945_tpt_table_a[] = {
-	{-60, RATE_54M_INDEX},
-	{-64, RATE_48M_INDEX},
-	{-72, RATE_36M_INDEX},
-	{-80, RATE_24M_INDEX},
-	{-84, RATE_18M_INDEX},
-	{-85, RATE_12M_INDEX},
-	{-87, RATE_9M_INDEX},
-	{-89, RATE_6M_INDEX}
+	{-60, RATE_54M_IDX},
+	{-64, RATE_48M_IDX},
+	{-72, RATE_36M_IDX},
+	{-80, RATE_24M_IDX},
+	{-84, RATE_18M_IDX},
+	{-85, RATE_12M_IDX},
+	{-87, RATE_9M_IDX},
+	{-89, RATE_6M_IDX}
 };
 
 static struct il3945_tpt_entry il3945_tpt_table_g[] = {
-	{-60, RATE_54M_INDEX},
-	{-64, RATE_48M_INDEX},
-	{-68, RATE_36M_INDEX},
-	{-80, RATE_24M_INDEX},
-	{-84, RATE_18M_INDEX},
-	{-85, RATE_12M_INDEX},
-	{-86, RATE_11M_INDEX},
-	{-88, RATE_5M_INDEX},
-	{-90, RATE_2M_INDEX},
-	{-92, RATE_1M_INDEX}
+	{-60, RATE_54M_IDX},
+	{-64, RATE_48M_IDX},
+	{-68, RATE_36M_IDX},
+	{-80, RATE_24M_IDX},
+	{-84, RATE_18M_IDX},
+	{-85, RATE_12M_IDX},
+	{-86, RATE_11M_IDX},
+	{-88, RATE_5M_IDX},
+	{-90, RATE_2M_IDX},
+	{-92, RATE_1M_IDX}
 };
 
 #define RATE_MAX_WINDOW          62

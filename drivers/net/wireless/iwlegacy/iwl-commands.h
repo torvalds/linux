@@ -168,8 +168,8 @@ enum {
 
 #define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
 #define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
-#define SEQ_TO_INDEX(s)	((s) & 0xff)
-#define INDEX_TO_SEQ(i)	((i) & 0xff)
+#define SEQ_TO_IDX(s)	((s) & 0xff)
+#define IDX_TO_SEQ(i)	((i) & 0xff)
 #define SEQ_HUGE_FRAME	cpu_to_le16(0x4000)
 #define SEQ_RX_FRAME	cpu_to_le16(0x8000)
 
@@ -3116,10 +3116,10 @@ struct il_missed_beacon_notif {
  * maximum sensitivity):
  *
  *                                             START  /  MIN  /  MAX
- *   HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX          90   /   85  /  120
- *   HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX     170   /  170  /  210
- *   HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX         105   /  105  /  140
- *   HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX     220   /  220  /  270
+ *   HD_AUTO_CORR32_X1_TH_ADD_MIN_IDX          90   /   85  /  120
+ *   HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_IDX     170   /  170  /  210
+ *   HD_AUTO_CORR32_X4_TH_ADD_MIN_IDX         105   /  105  /  140
+ *   HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_IDX     220   /  220  /  270
  *
  *   If actual rate of OFDM false alarms (+ plcp_errors) is too high
  *   (greater than 50 for each 204.8 msecs listening), reduce sensitivity
@@ -3156,26 +3156,26 @@ struct il_missed_beacon_notif {
  * (notice that the start points for CCK are at maximum sensitivity):
  *
  *                                             START  /  MIN  /  MAX
- *   HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX         125   /  125  /  200
- *   HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX     200   /  200  /  400
- *   HD_MIN_ENERGY_CCK_DET_INDEX                100   /    0  /  100
+ *   HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX         125   /  125  /  200
+ *   HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_IDX     200   /  200  /  400
+ *   HD_MIN_ENERGY_CCK_DET_IDX                100   /    0  /  100
  *
  *   If actual rate of CCK false alarms (+ plcp_errors) is too high
  *   (greater than 50 for each 204.8 msecs listening), method for reducing
  *   sensitivity is:
  *
- *   1)  *Add* 3 to value in HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX,
+ *   1)  *Add* 3 to value in HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_IDX,
  *       up to max 400.
  *
- *   2)  If current value in HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX is < 160,
+ *   2)  If current value in HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX is < 160,
  *       sensitivity has been reduced a significant amount; bring it up to
  *       a moderate 161.  Otherwise, *add* 3, up to max 200.
  *
- *   3)  a)  If current value in HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX is > 160,
+ *   3)  a)  If current value in HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX is > 160,
  *       sensitivity has been reduced only a moderate or small amount;
- *       *subtract* 2 from value in HD_MIN_ENERGY_CCK_DET_INDEX,
+ *       *subtract* 2 from value in HD_MIN_ENERGY_CCK_DET_IDX,
  *       down to min 0.  Otherwise (if gain has been significantly reduced),
- *       don't change the HD_MIN_ENERGY_CCK_DET_INDEX value.
+ *       don't change the HD_MIN_ENERGY_CCK_DET_IDX value.
  *
  *       b)  Save a snapshot of the "silence reference".
  *
@@ -3191,13 +3191,13 @@ struct il_missed_beacon_notif {
  *
  *   Method for increasing sensitivity:
  *
- *   1)  *Subtract* 3 from value in HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX,
+ *   1)  *Subtract* 3 from value in HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX,
  *       down to min 125.
  *
- *   2)  *Subtract* 3 from value in HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX,
+ *   2)  *Subtract* 3 from value in HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_IDX,
  *       down to min 200.
  *
- *   3)  *Add* 2 to value in HD_MIN_ENERGY_CCK_DET_INDEX, up to max 100.
+ *   3)  *Add* 2 to value in HD_MIN_ENERGY_CCK_DET_IDX, up to max 100.
  *
  *   If actual rate of CCK false alarms (+ plcp_errors) is within good range
  *   (between 5 and 50 for each 204.8 msecs listening):
@@ -3206,13 +3206,13 @@ struct il_missed_beacon_notif {
  *
  *   2)  If previous beacon had too many CCK false alarms (+ plcp_errors),
  *       give some extra margin to energy threshold by *subtracting* 8
- *       from value in HD_MIN_ENERGY_CCK_DET_INDEX.
+ *       from value in HD_MIN_ENERGY_CCK_DET_IDX.
  *
  *   For all cases (too few, too many, good range), make sure that the CCK
  *   detection threshold (energy) is below the energy level for robust
  *   detection over the past 10 beacon periods, the "Max cck energy".
  *   Lower values mean higher energy; this means making sure that the value
- *   in HD_MIN_ENERGY_CCK_DET_INDEX is at or *above* "Max cck energy".
+ *   in HD_MIN_ENERGY_CCK_DET_IDX is at or *above* "Max cck energy".
  *
  */
 
@@ -3220,17 +3220,17 @@ struct il_missed_beacon_notif {
  * Table entries in SENSITIVITY_CMD (struct il_sensitivity_cmd)
  */
 #define HD_TABLE_SIZE  (11)	/* number of entries */
-#define HD_MIN_ENERGY_CCK_DET_INDEX                 (0)	/* table indexes */
-#define HD_MIN_ENERGY_OFDM_DET_INDEX                (1)
-#define HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX          (2)
-#define HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX      (3)
-#define HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX      (4)
-#define HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX          (5)
-#define HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX      (6)
-#define HD_BARKER_CORR_TH_ADD_MIN_INDEX             (7)
-#define HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX         (8)
-#define HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX          (9)
-#define HD_OFDM_ENERGY_TH_IN_INDEX                  (10)
+#define HD_MIN_ENERGY_CCK_DET_IDX                 (0)	/* table indexes */
+#define HD_MIN_ENERGY_OFDM_DET_IDX                (1)
+#define HD_AUTO_CORR32_X1_TH_ADD_MIN_IDX          (2)
+#define HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_IDX      (3)
+#define HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_IDX      (4)
+#define HD_AUTO_CORR32_X4_TH_ADD_MIN_IDX          (5)
+#define HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_IDX      (6)
+#define HD_BARKER_CORR_TH_ADD_MIN_IDX             (7)
+#define HD_BARKER_CORR_TH_ADD_MIN_MRC_IDX         (8)
+#define HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX          (9)
+#define HD_OFDM_ENERGY_TH_IN_IDX                  (10)
 
 /* Control field in struct il_sensitivity_cmd */
 #define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	cpu_to_le16(0)

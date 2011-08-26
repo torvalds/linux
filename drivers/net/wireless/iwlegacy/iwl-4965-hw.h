@@ -433,8 +433,8 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  * present during factory calibration).  A 5 Ghz EEPROM index of "40"
  * corresponds to the 49th entry in the table used by the driver.
  */
-#define MIN_TX_GAIN_INDEX		(0)  /* highest gain, lowest idx, 2.4 */
-#define MIN_TX_GAIN_INDEX_52GHZ_EXT	(-9) /* highest gain, lowest idx, 5 */
+#define MIN_TX_GAIN_IDX		(0)  /* highest gain, lowest idx, 2.4 */
+#define MIN_TX_GAIN_IDX_52GHZ_EXT	(-9) /* highest gain, lowest idx, 5 */
 
 /**
  * 2.4 GHz gain table

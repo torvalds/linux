@@ -31,11 +31,11 @@
 #include "iwl-commands.h"
 
 enum il_power_level {
-	IL_POWER_INDEX_1,
-	IL_POWER_INDEX_2,
-	IL_POWER_INDEX_3,
-	IL_POWER_INDEX_4,
-	IL_POWER_INDEX_5,
+	IL_POWER_IDX_1,
+	IL_POWER_IDX_2,
+	IL_POWER_IDX_3,
+	IL_POWER_IDX_4,
+	IL_POWER_IDX_5,
 	IL_POWER_NUM
 };
 
