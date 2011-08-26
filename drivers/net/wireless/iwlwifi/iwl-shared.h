@@ -205,6 +205,14 @@ static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
 }
 #endif
 
+struct iwl_rx_mem_buffer {
+	dma_addr_t page_dma;
+	struct page *page;
+	struct list_head list;
+};
+
+#define rxb_addr(r) page_address(r->page)
+
 #ifdef CONFIG_PM
 int iwl_suspend(struct iwl_priv *priv);
 int iwl_resume(struct iwl_priv *priv);

@@ -127,9 +127,10 @@ static int iwl_rx_queue_space(const struct iwl_rx_queue *q)
 /**
  * iwl_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
-void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
+void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 			struct iwl_rx_queue *q)
 {
+	struct iwl_priv *priv = priv(trans);
 	unsigned long flags;
 	u32 reg;
 
@@ -145,11 +146,11 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write_actual);
 	} else {
 		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
+		if (test_bit(STATUS_POWER_PMI, &trans->shrd->status)) {
 			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-				IWL_DEBUG_INFO(priv,
+				IWL_DEBUG_INFO(trans,
 					"Rx queue requesting wakeup,"
 					" GP1 = 0x%x\n", reg);
 				iwl_set_bit(priv, CSR_GP_CNTRL,
@@ -178,8 +179,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 /**
  * iwlagn_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
-static inline __le32 iwlagn_dma_addr2rbd_ptr(struct iwl_priv *priv,
-					  dma_addr_t dma_addr)
+static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 {
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
@@ -195,9 +195,12 @@ static inline __le32 iwlagn_dma_addr2rbd_ptr(struct iwl_priv *priv,
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
-static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
+static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
@@ -214,8 +217,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
-		rxq->bd[rxq->write] = iwlagn_dma_addr2rbd_ptr(priv,
-							      rxb->page_dma);
+		rxq->bd[rxq->write] = iwlagn_dma_addr2rbd_ptr(rxb->page_dma);
 		rxq->queue[rxq->write] = rxb;
 		rxq->write = (rxq->write + 1) & RX_QUEUE_MASK;
 		rxq->free_count--;
@@ -224,7 +226,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 	/* If the pre-allocated buffer pool is dropping low, schedule to
 	 * refill it */
 	if (rxq->free_count <= RX_LOW_WATERMARK)
-		queue_work(priv->shrd->workqueue, &priv->rx_replenish);
+		queue_work(trans->shrd->workqueue, &trans_pcie->rx_replenish);
 
 
 	/* If we've added more space for the firmware to place data, tell it.
@@ -233,7 +235,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
 		spin_unlock_irqrestore(&rxq->lock, flags);
-		iwl_rx_queue_update_write_ptr(priv, rxq);
+		iwl_rx_queue_update_write_ptr(trans, rxq);
 	}
 }
 
@@ -245,9 +247,12 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
  * Also restock the Rx queue via iwl_rx_queue_restock.
  * This is called as a scheduled work item (except for during initialization)
  */
-static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
+static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	struct page *page;
@@ -265,21 +270,21 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		if (rxq->free_count > RX_LOW_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
 
-		if (hw_params(priv).rx_page_order > 0)
+		if (hw_params(trans).rx_page_order > 0)
 			gfp_mask |= __GFP_COMP;
 
 		/* Alloc a new receive buffer */
 		page = alloc_pages(gfp_mask,
-				  hw_params(priv).rx_page_order);
+				  hw_params(trans).rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
-				IWL_DEBUG_INFO(priv, "alloc_pages failed, "
+				IWL_DEBUG_INFO(trans, "alloc_pages failed, "
 					   "order: %d\n",
-					   hw_params(priv).rx_page_order);
+					   hw_params(trans).rx_page_order);
 
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
-				IWL_CRIT(priv, "Failed to alloc_pages with %s."
+				IWL_CRIT(trans, "Failed to alloc_pages with %s."
 					 "Only %u free buffers remaining.\n",
 					 priority == GFP_ATOMIC ?
 					 "GFP_ATOMIC" : "GFP_KERNEL",
@@ -294,7 +299,7 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
-			__free_pages(page, hw_params(priv).rx_page_order);
+			__free_pages(page, hw_params(trans).rx_page_order);
 			return;
 		}
 		element = rxq->rx_used.next;
@@ -306,8 +311,8 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
-		rxb->page_dma = dma_map_page(priv->bus->dev, page, 0,
-				PAGE_SIZE << hw_params(priv).rx_page_order,
+		rxb->page_dma = dma_map_page(bus(trans)->dev, page, 0,
+				PAGE_SIZE << hw_params(trans).rx_page_order,
 				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
@@ -323,35 +328,36 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 	}
 }
 
-void iwlagn_rx_replenish(struct iwl_priv *priv)
+void iwlagn_rx_replenish(struct iwl_trans *trans)
 {
 	unsigned long flags;
 
-	iwlagn_rx_allocate(priv, GFP_KERNEL);
+	iwlagn_rx_allocate(trans, GFP_KERNEL);
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
-	iwlagn_rx_queue_restock(priv);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwlagn_rx_queue_restock(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 }
 
-static void iwlagn_rx_replenish_now(struct iwl_priv *priv)
+static void iwlagn_rx_replenish_now(struct iwl_trans *trans)
 {
-	iwlagn_rx_allocate(priv, GFP_ATOMIC);
+	iwlagn_rx_allocate(trans, GFP_ATOMIC);
 
-	iwlagn_rx_queue_restock(priv);
+	iwlagn_rx_queue_restock(trans);
 }
 
 void iwl_bg_rx_replenish(struct work_struct *data)
 {
-	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, rx_replenish);
+	struct iwl_trans_pcie *trans_pcie =
+	    container_of(data, struct iwl_trans_pcie, rx_replenish);
+	struct iwl_trans *trans = trans_pcie->trans;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
 		return;
 
-	mutex_lock(&priv->shrd->mutex);
-	iwlagn_rx_replenish(priv);
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_lock(&trans->shrd->mutex);
+	iwlagn_rx_replenish(trans);
+	mutex_unlock(&trans->shrd->mutex);
 }
 
 /**
@@ -361,11 +367,13 @@ void iwl_bg_rx_replenish(struct work_struct *data)
  * the appropriate handlers, including command responses,
  * frame-received notifications, and other notifications.
  */
-static void iwl_rx_handle(struct iwl_priv *priv)
+static void iwl_rx_handle(struct iwl_trans *trans)
 {
 	struct iwl_rx_mem_buffer *rxb;
 	struct iwl_rx_packet *pkt;
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	u32 r, i;
 	int reclaim;
 	unsigned long flags;
@@ -380,7 +388,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
+		IWL_DEBUG_RX(trans, "r = %d, i = %d\n", r, i);
 
 	/* calculate total frames need to be restock after handling RX */
 	total_empty = r - rxq->write_actual;
@@ -405,17 +413,17 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 		rxq->queue[i] = NULL;
 
-		dma_unmap_page(priv->bus->dev, rxb->page_dma,
-			       PAGE_SIZE << hw_params(priv).rx_page_order,
+		dma_unmap_page(bus(trans)->dev, rxb->page_dma,
+			       PAGE_SIZE << hw_params(trans).rx_page_order,
 			       DMA_FROM_DEVICE);
 		pkt = rxb_addr(rxb);
 
-		IWL_DEBUG_RX(priv, "r = %d, i = %d, %s, 0x%02x\n", r,
+		IWL_DEBUG_RX(trans, "r = %d, i = %d, %s, 0x%02x\n", r,
 			i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
 
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
-		trace_iwlwifi_dev_rx(priv, pkt, len);
+		trace_iwlwifi_dev_rx(priv(trans), pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -431,7 +439,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
 
-		iwl_rx_dispatch(priv, rxb);
+		iwl_rx_dispatch(priv(trans), rxb);
 
 		/*
 		 * XXX: After here, we should always check rxb->page
@@ -446,9 +454,9 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
-				iwl_tx_cmd_complete(priv, rxb);
+				iwl_tx_cmd_complete(priv(trans), rxb);
 			else
-				IWL_WARN(priv, "Claim null rxb?\n");
+				IWL_WARN(trans, "Claim null rxb?\n");
 		}
 
 		/* Reuse the page if possible. For notification packets and
@@ -456,9 +464,9 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		 * rx_free list for reuse later. */
 		spin_lock_irqsave(&rxq->lock, flags);
 		if (rxb->page != NULL) {
-			rxb->page_dma = dma_map_page(priv->bus->dev, rxb->page,
+			rxb->page_dma = dma_map_page(bus(trans)->dev, rxb->page,
 				0, PAGE_SIZE <<
-				    hw_params(priv).rx_page_order,
+				    hw_params(trans).rx_page_order,
 				DMA_FROM_DEVICE);
 			list_add_tail(&rxb->list, &rxq->rx_free);
 			rxq->free_count++;
@@ -474,7 +482,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				rxq->read = i;
-				iwlagn_rx_replenish_now(priv);
+				iwlagn_rx_replenish_now(trans);
 				count = 0;
 			}
 		}
@@ -483,9 +491,9 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 	/* Backtrack one entry */
 	rxq->read = i;
 	if (fill_rx)
-		iwlagn_rx_replenish_now(priv);
+		iwlagn_rx_replenish_now(trans);
 	else
-		iwlagn_rx_queue_restock(priv);
+		iwlagn_rx_queue_restock(trans);
 }
 
 /* tasklet for iwlagn interrupt */
@@ -611,8 +619,10 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	/* uCode wakes up after power-down sleep */
 	if (inta & CSR_INT_BIT_WAKEUP) {
+		struct iwl_trans_pcie *trans_pcie =
+			IWL_TRANS_GET_PCIE_TRANS(trans(priv));
 		IWL_DEBUG_ISR(priv, "Wakeup interrupt\n");
-		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
+		iwl_rx_queue_update_write_ptr(trans(priv), &trans_pcie->rxq);
 		for (i = 0; i < hw_params(priv).max_txq_num; i++)
 			iwl_txq_update_write_ptr(priv, &priv->txq[i]);
 
@@ -650,7 +660,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 		/* Disable periodic interrupt; we use it as just a one-shot. */
 		iwl_write8(priv, CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
-		iwl_rx_handle(priv);
+		iwl_rx_handle(trans(priv));
 
 		/*
 		 * Enable periodic interrupt in 8 msec only if we received

@@ -73,12 +73,14 @@
 #include "iwl-core.h"
 #include "iwl-shared.h"
 
-static int iwl_trans_rx_alloc(struct iwl_priv *priv)
+static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
-	struct device *dev = priv->bus->dev;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct device *dev = bus(trans)->dev;
 
-	memset(&priv->rxq, 0, sizeof(priv->rxq));
+	memset(&trans_pcie->rxq, 0, sizeof(trans_pcie->rxq));
 
 	spin_lock_init(&rxq->lock);
 	INIT_LIST_HEAD(&rxq->rx_free);
@@ -112,9 +114,11 @@ err_bd:
 	return -ENOMEM;
 }
 
-static void iwl_trans_rxq_free_rx_bufs(struct iwl_priv *priv)
+static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	int i;
 
 	/* Fill the rx_used queue with _all_ of the Rx buffers */
@@ -122,10 +126,10 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_priv *priv)
 		/* In the reset function, these buffers may have been allocated
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus->dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << hw_params(priv).rx_page_order,
+			dma_unmap_page(bus(trans)->dev, rxq->pool[i].page_dma,
+				PAGE_SIZE << hw_params(trans).rx_page_order,
 				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
+			__iwl_free_pages(priv(trans), rxq->pool[i].page);
 			rxq->pool[i].page = NULL;
 		}
 		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
@@ -181,14 +185,17 @@ static void iwl_trans_rx_hw_init(struct iwl_priv *priv,
 	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 }
 
-static int iwl_rx_init(struct iwl_priv *priv)
+static int iwl_rx_init(struct iwl_trans *trans)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+
 	int i, err;
 	unsigned long flags;
 
 	if (!rxq->bd) {
-		err = iwl_trans_rx_alloc(priv);
+		err = iwl_trans_rx_alloc(trans);
 		if (err)
 			return err;
 	}
@@ -197,7 +204,7 @@ static int iwl_rx_init(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&rxq->rx_free);
 	INIT_LIST_HEAD(&rxq->rx_used);
 
-	iwl_trans_rxq_free_rx_bufs(priv);
+	iwl_trans_rxq_free_rx_bufs(trans);
 
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
 		rxq->queue[i] = NULL;
@@ -209,45 +216,48 @@ static int iwl_rx_init(struct iwl_priv *priv)
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	iwlagn_rx_replenish(priv);
+	iwlagn_rx_replenish(trans);
 
-	iwl_trans_rx_hw_init(priv, rxq);
+	iwl_trans_rx_hw_init(priv(trans), rxq);
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
 	rxq->need_update = 1;
-	iwl_rx_queue_update_write_ptr(priv, rxq);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	iwl_rx_queue_update_write_ptr(trans, rxq);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 
 	return 0;
 }
 
-static void iwl_trans_pcie_rx_free(struct iwl_priv *priv)
+static void iwl_trans_pcie_rx_free(struct iwl_trans *trans)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+
 	unsigned long flags;
 
 	/*if rxq->bd is NULL, it means that nothing has been allocated,
 	 * exit now */
 	if (!rxq->bd) {
-		IWL_DEBUG_INFO(priv, "Free NULL rx context\n");
+		IWL_DEBUG_INFO(trans, "Free NULL rx context\n");
 		return;
 	}
 
 	spin_lock_irqsave(&rxq->lock, flags);
-	iwl_trans_rxq_free_rx_bufs(priv);
+	iwl_trans_rxq_free_rx_bufs(trans);
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	dma_free_coherent(priv->bus->dev, sizeof(__le32) * RX_QUEUE_SIZE,
+	dma_free_coherent(bus(trans)->dev, sizeof(__le32) * RX_QUEUE_SIZE,
 			  rxq->bd, rxq->bd_dma);
 	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
 	rxq->bd = NULL;
 
 	if (rxq->rb_stts)
-		dma_free_coherent(priv->bus->dev,
+		dma_free_coherent(bus(trans)->dev,
 				  sizeof(struct iwl_rb_status),
 				  rxq->rb_stts, rxq->rb_stts_dma);
 	else
-		IWL_DEBUG_INFO(priv, "Free rxq->rb_stts which is NULL\n");
+		IWL_DEBUG_INFO(trans, "Free rxq->rb_stts which is NULL\n");
 	memset(&rxq->rb_stts_dma, 0, sizeof(rxq->rb_stts_dma));
 	rxq->rb_stts = NULL;
 }
@@ -614,7 +624,7 @@ static int iwl_nic_init(struct iwl_priv *priv)
 	priv->cfg->lib->nic_config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	iwl_rx_init(priv);
+	iwl_rx_init(trans(priv));
 
 	/* Allocate or reset and init all Tx and Command queues */
 	if (iwl_tx_init(priv))
@@ -1120,6 +1130,8 @@ static void iwl_trans_pcie_kick_nic(struct iwl_priv *priv)
 
 static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_priv *priv = priv(trans);
 	int err;
 
@@ -1136,7 +1148,7 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 		return err;
 	}
 
-	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
+	INIT_WORK(&trans_pcie->rx_replenish, iwl_bg_rx_replenish);
 	return 0;
 }
 
@@ -1163,8 +1175,11 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 					      sizeof(struct iwl_trans_pcie),
 					      GFP_KERNEL);
 	if (iwl_trans) {
+		struct iwl_trans_pcie *trans_pcie =
+			IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 		iwl_trans->ops = &trans_ops_pcie;
 		iwl_trans->shrd = shrd;
+		trans_pcie->trans = iwl_trans;
 	}
 
 	return iwl_trans;
@@ -1173,7 +1188,7 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, priv,		\
+	if (!debugfs_create_file(#name, mode, parent, trans,		\
 				 &iwl_dbgfs_##name##_ops))		\
 		return -ENOMEM;						\
 } while (0)
@@ -1218,12 +1233,15 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_priv *priv = priv(trans);
 	int pos = 0, ofs = 0;
 	int cnt = 0, entry;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	char *buf;
 	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
 		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
@@ -1231,16 +1249,16 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 	ssize_t ret;
 
 	if (!priv->txq) {
-		IWL_ERR(priv, "txq not ready\n");
+		IWL_ERR(trans, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate buffer\n");
+		IWL_ERR(trans, "Can not allocate buffer\n");
 		return -ENOMEM;
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
-	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
+	for (cnt = 0; cnt < hw_params(trans).max_txq_num; cnt++) {
 		txq = &priv->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
@@ -1248,10 +1266,10 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 				cnt, q->read_ptr, q->write_ptr);
 	}
 	if (priv->tx_traffic &&
-		(iwl_get_debug_level(priv->shrd) & IWL_DL_TX)) {
+		(iwl_get_debug_level(trans->shrd) & IWL_DL_TX)) {
 		ptr = priv->tx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"Tx Traffic idx: %u\n",	priv->tx_traffic_idx);
+				"Tx Traffic idx: %u\n", priv->tx_traffic_idx);
 		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
 			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
 			     entry++,  ofs += 16) {
@@ -1272,10 +1290,10 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 			 rxq->read, rxq->write);
 
 	if (priv->rx_traffic &&
-		(iwl_get_debug_level(priv->shrd) & IWL_DL_RX)) {
+		(iwl_get_debug_level(trans->shrd) & IWL_DL_RX)) {
 		ptr = priv->rx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"Rx Traffic idx: %u\n",	priv->rx_traffic_idx);
+				"Rx Traffic idx: %u\n", priv->rx_traffic_idx);
 		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
 			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
 			     entry++,  ofs += 16) {
@@ -1299,7 +1317,7 @@ static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct iwl_trans *trans = file->private_data;
 	char buf[8];
 	int buf_size;
 	int traffic_log;
@@ -1311,7 +1329,7 @@ static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
 	if (sscanf(buf, "%d", &traffic_log) != 1)
 		return -EFAULT;
 	if (traffic_log == 0)
-		iwl_reset_traffic_log(priv);
+		iwl_reset_traffic_log(priv(trans));
 
 	return count;
 }
@@ -1320,7 +1338,8 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_priv *priv = priv(trans);
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	char *buf;
@@ -1338,7 +1357,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
+	for (cnt = 0; cnt < hw_params(trans).max_txq_num; cnt++) {
 		txq = &priv->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
@@ -1363,8 +1382,10 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
-	struct iwl_priv *priv = file->private_data;
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	char buf[256];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
@@ -1396,8 +1417,6 @@ DEBUGFS_READ_FILE_OPS(tx_queue);
 static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 					struct dentry *dir)
 {
-	struct iwl_priv *priv = priv(trans);
-
 	DEBUGFS_ADD_FILE(traffic_log, dir, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);

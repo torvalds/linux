@@ -112,7 +112,7 @@ struct iwl_trans_ops {
 	void (*stop_device)(struct iwl_priv *priv);
 	void (*tx_start)(struct iwl_priv *priv);
 	void (*tx_free)(struct iwl_priv *priv);
-	void (*rx_free)(struct iwl_priv *priv);
+	void (*rx_free)(struct iwl_trans *trans);
 
 	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
@@ -177,7 +177,7 @@ static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 
 static inline void iwl_trans_rx_free(struct iwl_trans *trans)
 {
-	trans->ops->rx_free(priv(trans));
+	trans->ops->rx_free(trans);
 }
 
 static inline void iwl_trans_tx_free(struct iwl_trans *trans)

@@ -33,18 +33,63 @@
  * trans_pcie layer */
 
 /**
+ * struct iwl_rx_queue - Rx queue
+ * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
+ * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
+ * @pool:
+ * @queue:
+ * @read: Shared index to newest available Rx buffer
+ * @write: Shared index to oldest written Rx packet
+ * @free_count: Number of pre-allocated buffers in rx_free
+ * @write_actual:
+ * @rx_free: list of free SKBs for use
+ * @rx_used: List of Rx buffers with no SKB
+ * @need_update: flag to indicate we need to update read/write index
+ * @rb_stts: driver's pointer to receive buffer status
+ * @rb_stts_dma: bus address of receive buffer status
+ * @lock:
+ *
+ * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
+ */
+struct iwl_rx_queue {
+	__le32 *bd;
+	dma_addr_t bd_dma;
+	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
+	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
+	u32 read;
+	u32 write;
+	u32 free_count;
+	u32 write_actual;
+	struct list_head rx_free;
+	struct list_head rx_used;
+	int need_update;
+	struct iwl_rb_status *rb_stts;
+	dma_addr_t rb_stts_dma;
+	spinlock_t lock;
+};
+
+/**
  * struct iwl_trans_pcie - PCIe transport specific data
+ * @rxq: all the RX queue data
+ * @rx_replenish: work that will be called when buffers need to be allocated
+ * @trans: pointer to the generic transport area
  */
 struct iwl_trans_pcie {
+	struct iwl_rx_queue rxq;
+	struct work_struct rx_replenish;
+	struct iwl_trans *trans;
 };
+
+#define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
+	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
 
 /*****************************************************
 * RX
 ******************************************************/
 void iwl_bg_rx_replenish(struct work_struct *data);
 void iwl_irq_tasklet(struct iwl_priv *priv);
-void iwlagn_rx_replenish(struct iwl_priv *priv);
-void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
+void iwlagn_rx_replenish(struct iwl_trans *trans);
+void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 			struct iwl_rx_queue *q);
 
 /*****************************************************
