@@ -408,10 +408,8 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid)
 {
-	int txq_id, sta_id, ssn;
-	struct iwl_tid_data *tid_data;
-	int write_ptr, read_ptr;
-	unsigned long flags;
+	int sta_id;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 
 	sta_id = iwl_sta_id(sta);
 
@@ -420,61 +418,8 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-
-	tid_data = &priv->shrd->tid_data[sta_id][tid];
-	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
-	txq_id = tid_data->agg.txq_id;
-
-	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
-	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		/*
-		 * This can happen if the peer stops aggregation
-		 * again before we've had a chance to drain the
-		 * queue we selected previously, i.e. before the
-		 * session was really started completely.
-		 */
-		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
-		goto turn_off;
-	case IWL_AGG_ON:
-		break;
-	default:
-		IWL_WARN(priv, "Stopping AGG while state not ON or starting\n");
-	}
-
-	write_ptr = priv->txq[txq_id].q.write_ptr;
-	read_ptr = priv->txq[txq_id].q.read_ptr;
-
-	/* The queue is not empty */
-	if (write_ptr != read_ptr) {
-		IWL_DEBUG_HT(priv, "Stopping a non empty AGG HW QUEUE\n");
-		priv->shrd->tid_data[sta_id][tid].agg.state =
-				IWL_EMPTYING_HW_QUEUE_DELBA;
-		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-		return 0;
-	}
-
-	IWL_DEBUG_HT(priv, "HW queue is empty\n");
- turn_off:
-	priv->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
-
-	/* do not restore/save irqs */
-	spin_unlock(&priv->shrd->sta_lock);
-	spin_lock(&priv->shrd->lock);
-
-	/*
-	 * the only reason this call can fail is queue number out of range,
-	 * which can happen if uCode is reloaded and all the station
-	 * information are lost. if it is outside the range, there is no need
-	 * to deactivate the uCode queue, just return "success" to allow
-	 *  mac80211 to clean up it own data.
-	 */
-	iwl_trans_txq_agg_disable(trans(priv), txq_id);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
-
-	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-
-	return 0;
+	return iwl_trans_tx_agg_disable(trans(priv), vif_priv->ctx->ctxid,
+					sta_id, tid);
 }
 
 static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,

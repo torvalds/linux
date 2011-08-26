@@ -1281,7 +1281,7 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 		    (q->read_ptr == q->write_ptr)) {
 			IWL_DEBUG_HT(trans,
 				"HW queue empty: continue DELBA flow\n");
-			iwl_trans_pcie_txq_agg_disable(priv(trans), txq_id);
+			iwl_trans_pcie_txq_agg_disable(trans, txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			iwl_stop_tx_ba_trans_ready(priv(trans),
 						   NUM_IWL_RXON_CTX,
@@ -2015,7 +2015,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.tx = iwl_trans_pcie_tx,
 	.reclaim = iwl_trans_pcie_reclaim,
 
-	.txq_agg_disable = iwl_trans_pcie_txq_agg_disable,
+	.tx_agg_disable = iwl_trans_pcie_tx_agg_disable,
 	.tx_agg_alloc = iwl_trans_pcie_tx_agg_alloc,
 	.txq_agg_setup = iwl_trans_pcie_txq_agg_setup,
 
