@@ -424,10 +424,12 @@ void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
 }
 
-static inline int get_fifo_from_tid(struct iwl_rxon_context *ctx, u16 tid)
+static inline int get_fifo_from_tid(struct iwl_trans_pcie *trans_pcie,
+				    u8 ctx, u16 tid)
 {
+	const u8 *ac_to_fifo = trans_pcie->ac_to_fifo[ctx];
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return ctx->ac_to_fifo[tid_to_ac[tid]];
+		return ac_to_fifo[tid_to_ac[tid]];
 
 	/* no support for TIDs 8-15 yet */
 	return -EINVAL;
@@ -451,7 +453,7 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
 	if (WARN_ON(tid >= IWL_MAX_TID_COUNT))
 		return;
 
-	tx_fifo = get_fifo_from_tid(&priv->contexts[ctx], tid);
+	tx_fifo = get_fifo_from_tid(trans_pcie, ctx, tid);
 	if (WARN_ON(tx_fifo < 0)) {
 		IWL_ERR(trans, "txq_agg_setup, bad fifo: %d\n", tx_fifo);
 		return;

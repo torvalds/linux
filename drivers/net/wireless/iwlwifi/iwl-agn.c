@@ -617,24 +617,6 @@ static int iwl_alloc_fw_desc(struct iwl_priv *priv, struct fw_desc *desc,
 
 static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 {
-	static const u8 iwlagn_bss_ac_to_fifo[] = {
-		IWL_TX_FIFO_VO,
-		IWL_TX_FIFO_VI,
-		IWL_TX_FIFO_BE,
-		IWL_TX_FIFO_BK,
-	};
-	static const u8 iwlagn_bss_ac_to_queue[] = {
-		0, 1, 2, 3,
-	};
-	static const u8 iwlagn_pan_ac_to_fifo[] = {
-		IWL_TX_FIFO_VO_IPAN,
-		IWL_TX_FIFO_VI_IPAN,
-		IWL_TX_FIFO_BE_IPAN,
-		IWL_TX_FIFO_BK_IPAN,
-	};
-	static const u8 iwlagn_pan_ac_to_queue[] = {
-		7, 6, 5, 4,
-	};
 	int i;
 
 	/*
@@ -656,8 +638,6 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	priv->contexts[IWL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
 	priv->contexts[IWL_RXON_CTX_BSS].ap_sta_id = IWL_AP_ID;
 	priv->contexts[IWL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
-	priv->contexts[IWL_RXON_CTX_BSS].ac_to_fifo = iwlagn_bss_ac_to_fifo;
-	priv->contexts[IWL_RXON_CTX_BSS].ac_to_queue = iwlagn_bss_ac_to_queue;
 	priv->contexts[IWL_RXON_CTX_BSS].exclusive_interface_modes =
 		BIT(NL80211_IFTYPE_ADHOC);
 	priv->contexts[IWL_RXON_CTX_BSS].interface_modes =
@@ -677,9 +657,6 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	priv->contexts[IWL_RXON_CTX_PAN].wep_key_cmd = REPLY_WIPAN_WEPKEY;
 	priv->contexts[IWL_RXON_CTX_PAN].bcast_sta_id = IWLAGN_PAN_BCAST_ID;
 	priv->contexts[IWL_RXON_CTX_PAN].station_flags = STA_FLG_PAN_STATION;
-	priv->contexts[IWL_RXON_CTX_PAN].ac_to_fifo = iwlagn_pan_ac_to_fifo;
-	priv->contexts[IWL_RXON_CTX_PAN].ac_to_queue = iwlagn_pan_ac_to_queue;
-	priv->contexts[IWL_RXON_CTX_PAN].mcast_queue = IWL_IPAN_MCAST_QUEUE;
 	priv->contexts[IWL_RXON_CTX_PAN].interface_modes =
 		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP);
 

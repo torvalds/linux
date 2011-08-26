@@ -244,13 +244,6 @@ struct iwl_channel_info {
 #define IWL_DEFAULT_CMD_QUEUE_NUM	4
 #define IWL_IPAN_CMD_QUEUE_NUM		9
 
-/*
- * This queue number is required for proper operation
- * because the ucode will stop/start the scheduler as
- * required.
- */
-#define IWL_IPAN_MCAST_QUEUE		8
-
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
@@ -964,10 +957,6 @@ struct iwl_notification_wait {
 
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
-
-	const u8 *ac_to_fifo;
-	const u8 *ac_to_queue;
-	u8 mcast_queue;
 
 	/*
 	 * We could use the vif to indicate active, but we

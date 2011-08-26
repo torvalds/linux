@@ -107,6 +107,13 @@ struct iwl_dma_ptr {
 	size_t size;
 };
 
+/*
+ * This queue number is required for proper operation
+ * because the ucode will stop/start the scheduler as
+ * required.
+ */
+#define IWL_IPAN_MCAST_QUEUE		8
+
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
@@ -115,6 +122,9 @@ struct iwl_dma_ptr {
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
+ * @ac_to_fifo: to what fifo is a specifc AC mapped ?
+ * @ac_to_queue: to what tx queue  is a specifc AC mapped ?
+ * @mcast_queue:
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -136,6 +146,10 @@ struct iwl_trans_pcie {
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
 	struct iwl_dma_ptr kw;
+
+	const u8 *ac_to_fifo[NUM_IWL_RXON_CTX];
+	const u8 *ac_to_queue[NUM_IWL_RXON_CTX];
+	u8 mcast_queue[NUM_IWL_RXON_CTX];
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \

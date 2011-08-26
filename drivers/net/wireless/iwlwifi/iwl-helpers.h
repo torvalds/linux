@@ -113,19 +113,6 @@ static inline void iwl_stop_queue(struct iwl_priv *priv,
 			ieee80211_stop_queue(priv->hw, ac);
 }
 
-static inline void iwl_wake_any_queue(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx)
-{
-	u8 ac;
-
-	for (ac = 0; ac < AC_NUM; ac++) {
-		IWL_DEBUG_INFO(priv, "Queue Status: Q[%d] %s\n",
-			ac, (atomic_read(&priv->queue_stop_count[ac]) > 0)
-			      ? "stopped" : "awake");
-		iwl_wake_queue(priv, &priv->txq[ctx->ac_to_queue[ac]]);
-	}
-}
-
 #ifdef ieee80211_stop_queue
 #undef ieee80211_stop_queue
 #endif

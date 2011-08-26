@@ -278,14 +278,11 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_device_cmd *dev_cmd = NULL;
 	struct iwl_tx_cmd *tx_cmd;
-	int txq_id;
 
-	u16 seq_number = 0;
 	__le16 fc;
 	u8 hdr_len;
 	u16 len;
 	u8 sta_id;
-	u8 tid = 0;
 	unsigned long flags;
 	bool is_agg = false;
 
@@ -343,49 +340,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
-	/*
-	 * Send this frame after DTIM -- there's a special queue
-	 * reserved for this for contexts that support AP mode.
-	 */
-	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
-		txq_id = ctx->mcast_queue;
-		/*
-		 * The microcode will clear the more data
-		 * bit in the last frame it transmits.
-		 */
-		hdr->frame_control |=
-			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	} else if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		txq_id = IWL_AUX_QUEUE;
-	else
-		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
-
 	/* irqs already disabled/saved above when locking priv->shrd->lock */
 	spin_lock(&priv->shrd->sta_lock);
-
-	if (ieee80211_is_data_qos(fc)) {
-		u8 *qc = NULL;
-		struct iwl_tid_data *tid_data;
-		qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
-		tid_data = &priv->shrd->tid_data[sta_id][tid];
-
-		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
-			goto drop_unlock_sta;
-
-		seq_number = tid_data->seq_number;
-		seq_number &= IEEE80211_SCTL_SEQ;
-		hdr->seq_ctrl = hdr->seq_ctrl &
-				cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(seq_number);
-		seq_number += 0x10;
-		/* aggregation is on for this <sta,tid> */
-		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
-		    tid_data->agg.state == IWL_AGG_ON) {
-			txq_id = tid_data->agg.txq_id;
-			is_agg = true;
-		}
-	}
 
 	dev_cmd = kmem_cache_alloc(priv->tx_cmd_pool, GFP_ATOMIC);
 
@@ -416,15 +372,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
 
-	if (iwl_trans_tx(trans(priv), skb, dev_cmd, txq_id, fc, is_agg))
+	if (iwl_trans_tx(trans(priv), skb, dev_cmd, ctx->ctxid, sta_id))
 		goto drop_unlock_sta;
-
-	if (ieee80211_is_data_qos(fc)) {
-		priv->shrd->tid_data[sta_id][tid].tfds_in_queue++;
-		if (!ieee80211_has_morefrags(fc))
-			priv->shrd->tid_data[sta_id][tid].seq_number =
-				seq_number;
-	}
 
 	spin_unlock(&priv->shrd->sta_lock);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);

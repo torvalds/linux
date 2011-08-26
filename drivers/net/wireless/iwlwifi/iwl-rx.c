@@ -699,7 +699,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 					       ctx->active.bssid_addr))
 				continue;
 			ctx->last_tx_rejected = false;
-			iwl_wake_any_queue(priv, ctx);
+			iwl_trans_wake_any_queue(trans(priv), ctx->ctxid);
 		}
 	}
 
