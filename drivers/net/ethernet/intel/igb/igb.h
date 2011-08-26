@@ -231,7 +231,7 @@ struct igb_ring {
 
 #define IGB_RING_FLAG_TX_CTX_IDX     0x00000001 /* HW requires context index */
 
-#define IGB_ADVTXD_DCMD (E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS)
+#define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
 #define IGB_RX_DESC(R, i)	    \
 	(&(((union e1000_adv_rx_desc *)((R)->desc))[i]))

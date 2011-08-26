@@ -4103,6 +4103,50 @@ static inline bool igb_tx_csum(struct igb_ring *tx_ring,
 	return (skb->ip_summed == CHECKSUM_PARTIAL);
 }
 
+static __le32 igb_tx_cmd_type(u32 tx_flags)
+{
+	/* set type for advanced descriptor with frame checksum insertion */
+	__le32 cmd_type = cpu_to_le32(E1000_ADVTXD_DTYP_DATA |
+				      E1000_ADVTXD_DCMD_IFCS |
+				      E1000_ADVTXD_DCMD_DEXT);
+
+	/* set HW vlan bit if vlan is present */
+	if (tx_flags & IGB_TX_FLAGS_VLAN)
+		cmd_type |= cpu_to_le32(E1000_ADVTXD_DCMD_VLE);
+
+	/* set timestamp bit if present */
+	if (tx_flags & IGB_TX_FLAGS_TSTAMP)
+		cmd_type |= cpu_to_le32(E1000_ADVTXD_MAC_TSTAMP);
+
+	/* set segmentation bits for TSO */
+	if (tx_flags & IGB_TX_FLAGS_TSO)
+		cmd_type |= cpu_to_le32(E1000_ADVTXD_DCMD_TSE);
+
+	return cmd_type;
+}
+
+static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
+				   struct igb_ring *tx_ring)
+{
+	u32 olinfo_status = paylen << E1000_ADVTXD_PAYLEN_SHIFT;
+
+	/* 82575 requires a unique index per ring if any offload is enabled */
+	if ((tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_VLAN)) &&
+	    (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX))
+		olinfo_status |= tx_ring->reg_idx << 4;
+
+	/* insert L4 checksum */
+	if (tx_flags & IGB_TX_FLAGS_CSUM) {
+		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+
+		/* insert IPv4 checksum */
+		if (tx_flags & IGB_TX_FLAGS_IPV4)
+			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
+	}
+
+	return cpu_to_le32(olinfo_status);
+}
+
 #define IGB_MAX_TXD_PWR	16
 #define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
 
@@ -4187,54 +4231,28 @@ static inline void igb_tx_queue(struct igb_ring *tx_ring,
 {
 	union e1000_adv_tx_desc *tx_desc;
 	struct igb_tx_buffer *buffer_info;
-	u32 olinfo_status = 0, cmd_type_len;
+	__le32 olinfo_status, cmd_type;
 	unsigned int i = tx_ring->next_to_use;
 
-	cmd_type_len = (E1000_ADVTXD_DTYP_DATA | E1000_ADVTXD_DCMD_IFCS |
-			E1000_ADVTXD_DCMD_DEXT);
-
-	if (tx_flags & IGB_TX_FLAGS_VLAN)
-		cmd_type_len |= E1000_ADVTXD_DCMD_VLE;
-
-	if (tx_flags & IGB_TX_FLAGS_TSTAMP)
-		cmd_type_len |= E1000_ADVTXD_MAC_TSTAMP;
-
-	if (tx_flags & IGB_TX_FLAGS_TSO) {
-		cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
-
-		/* insert tcp checksum */
-		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-
-		/* insert ip checksum */
-		if (tx_flags & IGB_TX_FLAGS_IPV4)
-			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
-
-	} else if (tx_flags & IGB_TX_FLAGS_CSUM) {
-		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-	}
-
-	if ((tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX) &&
-	    (tx_flags & (IGB_TX_FLAGS_CSUM |
-	                 IGB_TX_FLAGS_TSO |
-			 IGB_TX_FLAGS_VLAN)))
-		olinfo_status |= tx_ring->reg_idx << 4;
-
-	olinfo_status |= ((paylen - hdr_len) << E1000_ADVTXD_PAYLEN_SHIFT);
+	cmd_type = igb_tx_cmd_type(tx_flags);
+	olinfo_status = igb_tx_olinfo_status(tx_flags,
+					     paylen - hdr_len,
+					     tx_ring);
 
 	do {
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		tx_desc = IGB_TX_DESC(tx_ring, i);
 		tx_desc->read.buffer_addr = cpu_to_le64(buffer_info->dma);
-		tx_desc->read.cmd_type_len =
-			cpu_to_le32(cmd_type_len | buffer_info->length);
-		tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
+		tx_desc->read.cmd_type_len = cmd_type |
+					     cpu_to_le32(buffer_info->length);
+		tx_desc->read.olinfo_status = olinfo_status;
 		count--;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
 	} while (count > 0);
 
-	tx_desc->read.cmd_type_len |= cpu_to_le32(IGB_ADVTXD_DCMD);
+	tx_desc->read.cmd_type_len |= cpu_to_le32(IGB_TXD_DCMD);
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
@@ -4309,21 +4327,22 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= (vlan_tx_tag_get(skb) << IGB_TX_FLAGS_VLAN_SHIFT);
 	}
 
-	if (skb->protocol == htons(ETH_P_IP))
-		tx_flags |= IGB_TX_FLAGS_IPV4;
-
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
 
 	tso = igb_tso(tx_ring, skb, tx_flags, &hdr_len);
 
-	if (tso < 0)
+	if (tso < 0) {
 		goto out_drop;
-	else if (tso)
-		tx_flags |= IGB_TX_FLAGS_TSO;
-	else if (igb_tx_csum(tx_ring, skb, tx_flags) &&
-	         (skb->ip_summed == CHECKSUM_PARTIAL))
+	} else if (tso) {
+		tx_flags |= IGB_TX_FLAGS_TSO | IGB_TX_FLAGS_CSUM;
+		if (skb->protocol == htons(ETH_P_IP))
+			tx_flags |= IGB_TX_FLAGS_IPV4;
+
+	} else if (igb_tx_csum(tx_ring, skb, tx_flags) &&
+		   (skb->ip_summed == CHECKSUM_PARTIAL)) {
 		tx_flags |= IGB_TX_FLAGS_CSUM;
+	}
 
 	/*
 	 * count reflects descriptors mapped, if 0 or less then mapping error
