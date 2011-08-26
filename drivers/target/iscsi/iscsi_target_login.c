@@ -1013,19 +1013,9 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 					ISCSI_LOGIN_STATUS_TARGET_ERROR);
 			goto new_sess_out;
 		}
-#if 0
-		if (!iscsi_ntop6((const unsigned char *)
-				&sock_in6.sin6_addr.in6_u,
-				(char *)&conn->ipv6_login_ip[0],
-				IPV6_ADDRESS_SPACE)) {
-			pr_err("iscsi_ntop6() failed\n");
-			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-					ISCSI_LOGIN_STATUS_TARGET_ERROR);
-			goto new_sess_out;
-		}
-#else
-		pr_debug("Skipping iscsi_ntop6()\n");
-#endif
+		snprintf(conn->login_ip, sizeof(conn->login_ip), "%pI6c",
+				&sock_in6.sin6_addr.in6_u);
+		conn->login_port = ntohs(sock_in6.sin6_port);
 	} else {
 		memset(&sock_in, 0, sizeof(struct sockaddr_in));
 

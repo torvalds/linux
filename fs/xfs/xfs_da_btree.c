@@ -2050,7 +2050,7 @@ xfs_da_do_buf(
 		case 0:
 			bp = xfs_trans_get_buf(trans, mp->m_ddev_targp,
 				mappedbno, nmapped, 0);
-			error = bp ? XFS_BUF_GETERROR(bp) : XFS_ERROR(EIO);
+			error = bp ? bp->b_error : XFS_ERROR(EIO);
 			break;
 		case 1:
 		case 2:
@@ -2268,7 +2268,7 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps)
 		dabuf->nbuf = 1;
 		bp = bps[0];
 		dabuf->bbcount = (short)BTOBB(XFS_BUF_COUNT(bp));
-		dabuf->data = XFS_BUF_PTR(bp);
+		dabuf->data = bp->b_addr;
 		dabuf->bps[0] = bp;
 	} else {
 		dabuf->nbuf = nbuf;
@@ -2279,7 +2279,7 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps)
 		dabuf->data = kmem_alloc(BBTOB(dabuf->bbcount), KM_SLEEP);
 		for (i = off = 0; i < nbuf; i++, off += XFS_BUF_COUNT(bp)) {
 			bp = bps[i];
-			memcpy((char *)dabuf->data + off, XFS_BUF_PTR(bp),
+			memcpy((char *)dabuf->data + off, bp->b_addr,
 				XFS_BUF_COUNT(bp));
 		}
 	}
@@ -2302,8 +2302,8 @@ xfs_da_buf_clean(xfs_dabuf_t *dabuf)
 		for (i = off = 0; i < dabuf->nbuf;
 				i++, off += XFS_BUF_COUNT(bp)) {
 			bp = dabuf->bps[i];
-			memcpy(XFS_BUF_PTR(bp), (char *)dabuf->data + off,
-				XFS_BUF_COUNT(bp));
+			memcpy(bp->b_addr, dabuf->data + off,
+						XFS_BUF_COUNT(bp));
 		}
 	}
 }
@@ -2340,7 +2340,7 @@ xfs_da_log_buf(xfs_trans_t *tp, xfs_dabuf_t *dabuf, uint first, uint last)
 
 	ASSERT(dabuf->nbuf && dabuf->data && dabuf->bbcount && dabuf->bps[0]);
 	if (dabuf->nbuf == 1) {
-		ASSERT(dabuf->data == (void *)XFS_BUF_PTR(dabuf->bps[0]));
+		ASSERT(dabuf->data == dabuf->bps[0]->b_addr);
 		xfs_trans_log_buf(tp, dabuf->bps[0], first, last);
 		return;
 	}

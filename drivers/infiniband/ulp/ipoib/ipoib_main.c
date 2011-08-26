@@ -717,11 +717,13 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh;
-	struct neighbour *n;
+	struct neighbour *n = NULL;
 	unsigned long flags;
 
-	n = dst_get_neighbour(skb_dst(skb));
-	if (likely(skb_dst(skb) && n)) {
+	if (likely(skb_dst(skb)))
+		n = dst_get_neighbour(skb_dst(skb));
+
+	if (likely(n)) {
 		if (unlikely(!*to_ipoib_neigh(n))) {
 			ipoib_path_lookup(skb, dev);
 			return NETDEV_TX_OK;

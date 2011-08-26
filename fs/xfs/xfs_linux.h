@@ -32,13 +32,12 @@
 # define XFS_BIG_INUMS	0
 #endif
 
-#include <xfs_types.h>
+#include "xfs_types.h"
 
-#include <kmem.h>
-#include <mrlock.h>
-#include <time.h>
-
-#include <support/uuid.h>
+#include "kmem.h"
+#include "mrlock.h"
+#include "time.h"
+#include "uuid.h"
 
 #include <linux/semaphore.h>
 #include <linux/mm.h>
@@ -78,14 +77,14 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include <xfs_vnode.h>
-#include <xfs_stats.h>
-#include <xfs_sysctl.h>
-#include <xfs_iops.h>
-#include <xfs_aops.h>
-#include <xfs_super.h>
-#include <xfs_buf.h>
-#include <xfs_message.h>
+#include "xfs_vnode.h"
+#include "xfs_stats.h"
+#include "xfs_sysctl.h"
+#include "xfs_iops.h"
+#include "xfs_aops.h"
+#include "xfs_super.h"
+#include "xfs_buf.h"
+#include "xfs_message.h"
 
 #ifdef __BIG_ENDIAN
 #define XFS_NATIVE_HOST 1

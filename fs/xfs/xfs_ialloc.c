@@ -202,8 +202,7 @@ xfs_ialloc_inode_init(
 		fbuf = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
 					 mp->m_bsize * blks_per_cluster,
 					 XBF_LOCK);
-		ASSERT(fbuf);
-		ASSERT(!XFS_BUF_GETERROR(fbuf));
+		ASSERT(!xfs_buf_geterror(fbuf));
 
 		/*
 		 * Initialize all inodes in this buffer and then log them.
@@ -1486,7 +1485,7 @@ xfs_read_agi(
 	if (error)
 		return error;
 
-	ASSERT(*bpp && !XFS_BUF_GETERROR(*bpp));
+	ASSERT(!xfs_buf_geterror(*bpp));
 	agi = XFS_BUF_TO_AGI(*bpp);
 
 	/*

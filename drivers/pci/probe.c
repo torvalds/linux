@@ -856,6 +856,8 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
 	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
+	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
+	pdev->pcie_mpss = reg16 & PCI_EXP_DEVCAP_PAYLOAD;
 }
 
 void set_pcie_hotplug_bridge(struct pci_dev *pdev)
@@ -1325,6 +1327,150 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 
 	return nr;
 }
+
+static int pcie_find_smpss(struct pci_dev *dev, void *data)
+{
+	u8 *smpss = data;
+
+	if (!pci_is_pcie(dev))
+		return 0;
+
+	/* For PCIE hotplug enabled slots not connected directly to a
+	 * PCI-E root port, there can be problems when hotplugging
+	 * devices.  This is due to the possibility of hotplugging a
+	 * device into the fabric with a smaller MPS that the devices
+	 * currently running have configured.  Modifying the MPS on the
+	 * running devices could cause a fatal bus error due to an
+	 * incoming frame being larger than the newly configured MPS.
+	 * To work around this, the MPS for the entire fabric must be
+	 * set to the minimum size.  Any devices hotplugged into this
+	 * fabric will have the minimum MPS set.  If the PCI hotplug
+	 * slot is directly connected to the root port and there are not
+	 * other devices on the fabric (which seems to be the most
+	 * common case), then this is not an issue and MPS discovery
+	 * will occur as normal.
+	 */
+	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
+	    dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT))
+		*smpss = 0;
+
+	if (*smpss > dev->pcie_mpss)
+		*smpss = dev->pcie_mpss;
+
+	return 0;
+}
+
+static void pcie_write_mps(struct pci_dev *dev, int mps)
+{
+	int rc, dev_mpss;
+
+	dev_mpss = 128 << dev->pcie_mpss;
+
+	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
+		if (dev->bus->self) {
+			dev_dbg(&dev->bus->dev, "Bus MPSS %d\n",
+				128 << dev->bus->self->pcie_mpss);
+
+			/* For "MPS Force Max", the assumption is made that
+			 * downstream communication will never be larger than
+			 * the MRRS.  So, the MPS only needs to be configured
+			 * for the upstream communication.  This being the case,
+			 * walk from the top down and set the MPS of the child
+			 * to that of the parent bus.
+			 */
+			mps = 128 << dev->bus->self->pcie_mpss;
+			if (mps > dev_mpss)
+				dev_warn(&dev->dev, "MPS configured higher than"
+					 " maximum supported by the device.  If"
+					 " a bus issue occurs, try running with"
+					 " pci=pcie_bus_safe.\n");
+		}
+
+		dev->pcie_mpss = ffs(mps) - 8;
+	}
+
+	rc = pcie_set_mps(dev, mps);
+	if (rc)
+		dev_err(&dev->dev, "Failed attempting to set the MPS\n");
+}
+
+static void pcie_write_mrrs(struct pci_dev *dev, int mps)
+{
+	int rc, mrrs;
+
+	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
+		int dev_mpss = 128 << dev->pcie_mpss;
+
+		/* For Max performance, the MRRS must be set to the largest
+		 * supported value.  However, it cannot be configured larger
+		 * than the MPS the device or the bus can support.  This assumes
+		 * that the largest MRRS available on the device cannot be
+		 * smaller than the device MPSS.
+		 */
+		mrrs = mps < dev_mpss ? mps : dev_mpss;
+	} else
+		/* In the "safe" case, configure the MRRS for fairness on the
+		 * bus by making all devices have the same size
+		 */
+		mrrs = mps;
+
+
+	/* MRRS is a R/W register.  Invalid values can be written, but a
+	 * subsiquent read will verify if the value is acceptable or not.
+	 * If the MRRS value provided is not acceptable (e.g., too large),
+	 * shrink the value until it is acceptable to the HW.
+ 	 */
+	while (mrrs != pcie_get_readrq(dev) && mrrs >= 128) {
+		rc = pcie_set_readrq(dev, mrrs);
+		if (rc)
+			dev_err(&dev->dev, "Failed attempting to set the MRRS\n");
+
+		mrrs /= 2;
+	}
+}
+
+static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
+{
+	int mps = 128 << *(u8 *)data;
+
+	if (!pci_is_pcie(dev))
+		return 0;
+
+	dev_info(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
+		 pcie_get_mps(dev), 128<<dev->pcie_mpss, pcie_get_readrq(dev));
+
+	pcie_write_mps(dev, mps);
+	pcie_write_mrrs(dev, mps);
+
+	dev_info(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
+		 pcie_get_mps(dev), 128<<dev->pcie_mpss, pcie_get_readrq(dev));
+
+	return 0;
+}
+
+/* pcie_bus_configure_mps requires that pci_walk_bus work in a top-down,
+ * parents then children fashion.  If this changes, then this code will not
+ * work as designed.
+ */
+void pcie_bus_configure_settings(struct pci_bus *bus, u8 mpss)
+{
+	u8 smpss = mpss;
+
+	if (!bus->self)
+		return;
+
+	if (!pci_is_pcie(bus->self))
+		return;
+
+	if (pcie_bus_config == PCIE_BUS_SAFE) {
+		pcie_find_smpss(bus->self, &smpss);
+		pci_walk_bus(bus, pcie_find_smpss, &smpss);
+	}
+
+	pcie_bus_configure_set(bus->self, &smpss);
+	pci_walk_bus(bus, pcie_bus_configure_set, &smpss);
+}
+EXPORT_SYMBOL_GPL(pcie_bus_configure_settings);
 
 unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 {

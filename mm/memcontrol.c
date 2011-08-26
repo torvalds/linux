@@ -1841,29 +1841,23 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
  */
 static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
 {
-	int lock_count = -1;
 	struct mem_cgroup *iter, *failed = NULL;
 	bool cond = true;
 
 	for_each_mem_cgroup_tree_cond(iter, mem, cond) {
-		bool locked = iter->oom_lock;
-
-		iter->oom_lock = true;
-		if (lock_count == -1)
-			lock_count = iter->oom_lock;
-		else if (lock_count != locked) {
+		if (iter->oom_lock) {
 			/*
 			 * this subtree of our hierarchy is already locked
 			 * so we cannot give a lock.
 			 */
-			lock_count = 0;
 			failed = iter;
 			cond = false;
-		}
+		} else
+			iter->oom_lock = true;
 	}
 
 	if (!failed)
-		goto done;
+		return true;
 
 	/*
 	 * OK, we failed to lock the whole subtree so we have to clean up
@@ -1877,8 +1871,7 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
 		}
 		iter->oom_lock = false;
 	}
-done:
-	return lock_count;
+	return false;
 }
 
 /*
@@ -2091,6 +2084,7 @@ struct memcg_stock_pcp {
 #define FLUSHING_CACHED_CHARGE	(0)
 };
 static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+static DEFINE_MUTEX(percpu_charge_mutex);
 
 /*
  * Try to consume stocked charge on this cpu. If success, one page is consumed
@@ -2168,13 +2162,7 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
 
 	/* Notify other cpus that system-wide "drain" is running */
 	get_online_cpus();
-	/*
-	 * Get a hint for avoiding draining charges on the current cpu,
-	 * which must be exhausted by our charging.  It is not required that
-	 * this be a precise check, so we use raw_smp_processor_id() instead of
-	 * getcpu()/putcpu().
-	 */
-	curcpu = raw_smp_processor_id();
+	curcpu = get_cpu();
 	for_each_online_cpu(cpu) {
 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
 		struct mem_cgroup *mem;
@@ -2191,14 +2179,14 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
 				schedule_work_on(cpu, &stock->work);
 		}
 	}
+	put_cpu();
 
 	if (!sync)
 		goto out;
 
 	for_each_online_cpu(cpu) {
 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-		if (mem_cgroup_same_or_subtree(root_mem, stock->cached) &&
-				test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+		if (test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
 			flush_work(&stock->work);
 	}
 out:
@@ -2213,14 +2201,22 @@ out:
  */
 static void drain_all_stock_async(struct mem_cgroup *root_mem)
 {
+	/*
+	 * If someone calls draining, avoid adding more kworker runs.
+	 */
+	if (!mutex_trylock(&percpu_charge_mutex))
+		return;
 	drain_all_stock(root_mem, false);
+	mutex_unlock(&percpu_charge_mutex);
 }
 
 /* This is a synchronous drain interface. */
 static void drain_all_stock_sync(struct mem_cgroup *root_mem)
 {
 	/* called when force_empty is called */
+	mutex_lock(&percpu_charge_mutex);
 	drain_all_stock(root_mem, true);
+	mutex_unlock(&percpu_charge_mutex);
 }
 
 /*

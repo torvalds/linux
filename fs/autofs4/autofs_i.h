@@ -39,27 +39,17 @@
 
 /* #define DEBUG */
 
-#ifdef DEBUG
-#define DPRINTK(fmt, args...)				\
-do {							\
-	printk(KERN_DEBUG "pid %d: %s: " fmt "\n",	\
-		current->pid, __func__, ##args);	\
-} while (0)
-#else
-#define DPRINTK(fmt, args...) do {} while (0)
-#endif
+#define DPRINTK(fmt, ...)				\
+	pr_debug("pid %d: %s: " fmt "\n",		\
+		current->pid, __func__, ##__VA_ARGS__)
 
-#define AUTOFS_WARN(fmt, args...)			\
-do {							\
+#define AUTOFS_WARN(fmt, ...)				\
 	printk(KERN_WARNING "pid %d: %s: " fmt "\n",	\
-		current->pid, __func__, ##args);	\
-} while (0)
+		current->pid, __func__, ##__VA_ARGS__)
 
-#define AUTOFS_ERROR(fmt, args...)			\
-do {							\
+#define AUTOFS_ERROR(fmt, ...)				\
 	printk(KERN_ERR "pid %d: %s: " fmt "\n",	\
-		current->pid, __func__, ##args);	\
-} while (0)
+		current->pid, __func__, ##__VA_ARGS__)
 
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this

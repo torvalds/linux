@@ -2179,8 +2179,13 @@ static int ohci_enable(struct fw_card *card,
 			ohci_driver_name, ohci)) {
 		fw_error("Failed to allocate interrupt %d.\n", dev->irq);
 		pci_disable_msi(dev);
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  ohci->config_rom, ohci->config_rom_bus);
+
+		if (config_rom) {
+			dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+					  ohci->next_config_rom,
+					  ohci->next_config_rom_bus);
+			ohci->next_config_rom = NULL;
+		}
 		return -EIO;
 	}
 

@@ -2060,6 +2060,7 @@ static int s3c2410_udc_resume(struct platform_device *pdev)
 static const struct platform_device_id s3c_udc_ids[] = {
 	{ "s3c2410-usbgadget", },
 	{ "s3c2440-usbgadget", },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, s3c_udc_ids);
 

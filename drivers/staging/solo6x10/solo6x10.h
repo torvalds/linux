@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/atomic.h>
 #include <linux/videodev2.h>

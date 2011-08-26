@@ -992,7 +992,7 @@ bindv6only - BOOLEAN
 		TRUE: disable IPv4-mapped address feature
 		FALSE: enable IPv4-mapped address feature
 
-	Default: FALSE (as specified in RFC2553bis)
+	Default: FALSE (as specified in RFC3493)
 
 IPv6 Fragmentation:
 

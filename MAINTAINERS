@@ -1883,7 +1883,7 @@ S:	Maintained
 F:	drivers/connector/
 
 CONTROL GROUPS (CGROUPS)
-M:	Paul Menage <menage@google.com>
+M:	Paul Menage <paul@paulmenage.org>
 M:	Li Zefan <lizf@cn.fujitsu.com>
 L:	containers@lists.linux-foundation.org
 S:	Maintained
@@ -1932,7 +1932,7 @@ S:	Maintained
 F:	tools/power/cpupower
 
 CPUSETS
-M:	Paul Menage <menage@google.com>
+M:	Paul Menage <paul@paulmenage.org>
 W:	http://www.bullopensource.org/cpuset/
 W:	http://oss.sgi.com/projects/cpusets/
 S:	Supported
@@ -3905,9 +3905,9 @@ F:	arch/powerpc/platforms/powermac/
 F:	drivers/macintosh/
 
 LINUX FOR POWERPC EMBEDDED MPC5XXX
-M:	Grant Likely <grant.likely@secretlab.ca>
+M:	Anatolij Gustschin <agust@denx.de>
 L:	linuxppc-dev@lists.ozlabs.org
-T:	git git://git.secretlab.ca/git/linux-2.6.git
+T:	git git://git.denx.de/linux-2.6-agust.git
 S:	Maintained
 F:	arch/powerpc/platforms/512x/
 F:	arch/powerpc/platforms/52xx/
@@ -4604,7 +4604,7 @@ F:	arch/arm/mach-omap2/clockdomain2xxx_3xxx.c
 F:	arch/arm/mach-omap2/clockdomain44xx.c
 
 OMAP AUDIO SUPPORT
-M:	Jarkko Nikula <jhnikula@gmail.com>
+M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
 L:	alsa-devel@alsa-project.org (subscribers-only)
 L:	linux-omap@vger.kernel.org
 S:	Maintained
@@ -4971,7 +4971,7 @@ M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Supported
-F:	kernel/perf_event*.c
+F:	kernel/events/*
 F:	include/linux/perf_event.h
 F:	arch/*/kernel/perf_event*.c
 F:	arch/*/kernel/*/perf_event*.c
@@ -7087,7 +7087,7 @@ S:	Supported
 F:	drivers/mmc/host/vub300.c
 
 W1 DALLAS'S 1-WIRE BUS
-M:	Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+M:	Evgeniy Polyakov <zbr@ioremap.net>
 S:	Maintained
 F:	Documentation/w1/
 F:	drivers/w1/
@@ -7357,7 +7357,7 @@ THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>
 L:	linux-kernel@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/LKML/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 S:	Buried alive in reporters
 F:	*
 F:	*/

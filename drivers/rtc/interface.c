@@ -639,7 +639,7 @@ EXPORT_SYMBOL_GPL(rtc_irq_unregister);
 static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
 {
 	/*
-	 * We unconditionally cancel the timer here, because otherwise
+	 * We always cancel the timer here first, because otherwise
 	 * we could run into BUG_ON(timer->state != HRTIMER_STATE_CALLBACK);
 	 * when we manage to start the timer before the callback
 	 * returns HRTIMER_RESTART.
@@ -708,7 +708,7 @@ int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 	int err = 0;
 	unsigned long flags;
 
-	if (freq <= 0 || freq > 5000)
+	if (freq <= 0 || freq > RTC_MAX_FREQ)
 		return -EINVAL;
 retry:
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);

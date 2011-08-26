@@ -182,6 +182,24 @@ int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 }
 EXPORT_SYMBOL_GPL(pmbus_write_byte);
 
+/*
+ * _pmbus_write_byte() is similar to pmbus_write_byte(), but checks if
+ * a device specific mapping funcion exists and calls it if necessary.
+ */
+static int _pmbus_write_byte(struct i2c_client *client, int page, u8 value)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->write_byte) {
+		status = info->write_byte(client, page, value);
+		if (status != -ENODATA)
+			return status;
+	}
+	return pmbus_write_byte(client, page, value);
+}
+
 int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word)
 {
 	int rv;
@@ -281,7 +299,7 @@ static int _pmbus_read_byte_data(struct i2c_client *client, int page, int reg)
 
 static void pmbus_clear_fault_page(struct i2c_client *client, int page)
 {
-	pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
+	_pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
 }
 
 void pmbus_clear_faults(struct i2c_client *client)

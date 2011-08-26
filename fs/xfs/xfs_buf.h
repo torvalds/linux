@@ -228,11 +228,15 @@ extern void xfs_buf_delwri_promote(xfs_buf_t *);
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
 
-#define xfs_buf_target_name(target)	\
-	({ char __b[BDEVNAME_SIZE]; bdevname((target)->bt_bdev, __b); __b; })
+static inline const char *
+xfs_buf_target_name(struct xfs_buftarg *target)
+{
+	static char __b[BDEVNAME_SIZE];
+
+	return bdevname(target->bt_bdev, __b);
+}
 
 
-#define XFS_BUF_BFLAGS(bp)	((bp)->b_flags)
 #define XFS_BUF_ZEROFLAGS(bp) \
 	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI| \
 			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH))
@@ -251,23 +255,14 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_UNDELAYWRITE(bp)	xfs_buf_delwri_dequeue(bp)
 #define XFS_BUF_ISDELAYWRITE(bp)	((bp)->b_flags & XBF_DELWRI)
 
-#define XFS_BUF_ERROR(bp,no)	xfs_buf_ioerror(bp,no)
-#define XFS_BUF_GETERROR(bp)	xfs_buf_geterror(bp)
-#define XFS_BUF_ISERROR(bp)	(xfs_buf_geterror(bp) ? 1 : 0)
-
 #define XFS_BUF_DONE(bp)	((bp)->b_flags |= XBF_DONE)
 #define XFS_BUF_UNDONE(bp)	((bp)->b_flags &= ~XBF_DONE)
 #define XFS_BUF_ISDONE(bp)	((bp)->b_flags & XBF_DONE)
-
-#define XFS_BUF_BUSY(bp)	do { } while (0)
-#define XFS_BUF_UNBUSY(bp)	do { } while (0)
-#define XFS_BUF_ISBUSY(bp)	(1)
 
 #define XFS_BUF_ASYNC(bp)	((bp)->b_flags |= XBF_ASYNC)
 #define XFS_BUF_UNASYNC(bp)	((bp)->b_flags &= ~XBF_ASYNC)
 #define XFS_BUF_ISASYNC(bp)	((bp)->b_flags & XBF_ASYNC)
 
-#define XFS_BUF_HOLD(bp)	xfs_buf_hold(bp)
 #define XFS_BUF_READ(bp)	((bp)->b_flags |= XBF_READ)
 #define XFS_BUF_UNREAD(bp)	((bp)->b_flags &= ~XBF_READ)
 #define XFS_BUF_ISREAD(bp)	((bp)->b_flags & XBF_READ)
@@ -276,10 +271,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_UNWRITE(bp)	((bp)->b_flags &= ~XBF_WRITE)
 #define XFS_BUF_ISWRITE(bp)	((bp)->b_flags & XBF_WRITE)
 
-#define XFS_BUF_SET_START(bp)			do { } while (0)
-
-#define XFS_BUF_PTR(bp)			(xfs_caddr_t)((bp)->b_addr)
-#define XFS_BUF_SET_PTR(bp, val, cnt)	xfs_buf_associate_memory(bp, val, cnt)
 #define XFS_BUF_ADDR(bp)		((bp)->b_bn)
 #define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_bn = (xfs_daddr_t)(bno))
 #define XFS_BUF_OFFSET(bp)		((bp)->b_file_offset)
@@ -299,13 +290,12 @@ xfs_buf_set_ref(
 #define XFS_BUF_SET_VTYPE_REF(bp, type, ref)	xfs_buf_set_ref(bp, ref)
 #define XFS_BUF_SET_VTYPE(bp, type)		do { } while (0)
 
-#define XFS_BUF_ISPINNED(bp)	atomic_read(&((bp)->b_pin_count))
+static inline int xfs_buf_ispinned(struct xfs_buf *bp)
+{
+	return atomic_read(&bp->b_pin_count);
+}
 
 #define XFS_BUF_FINISH_IOWAIT(bp)	complete(&bp->b_iowait);
-
-#define XFS_BUF_SET_TARGET(bp, target)	((bp)->b_target = (target))
-#define XFS_BUF_TARGET(bp)		((bp)->b_target)
-#define XFS_BUFTARG_NAME(target)	xfs_buf_target_name(target)
 
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {

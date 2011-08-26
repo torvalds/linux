@@ -231,6 +231,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
+	int res;
 
 	dev = alloc_netdev(sizeof(struct net_bridge), name,
 			   br_dev_setup);
@@ -240,7 +241,10 @@ int br_add_bridge(struct net *net, const char *name)
 
 	dev_net_set(dev, net);
 
-	return register_netdev(dev);
+	res = register_netdev(dev);
+	if (res)
+		free_netdev(dev);
+	return res;
 }
 
 int br_del_bridge(struct net *net, const char *name)
@@ -417,6 +421,7 @@ put_back:
 int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
+	bool changed_addr;
 
 	p = br_port_get_rtnl(dev);
 	if (!p || p->br != br)
@@ -425,8 +430,11 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	del_nbp(p);
 
 	spin_lock_bh(&br->lock);
-	br_stp_recalculate_bridge_id(br);
+	changed_addr = br_stp_recalculate_bridge_id(br);
 	spin_unlock_bh(&br->lock);
+
+	if (changed_addr)
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
 	netdev_update_features(br->dev);
 
