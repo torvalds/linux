@@ -961,13 +961,6 @@ struct iwl_notification_wait {
 	bool triggered, aborted;
 };
 
-enum iwl_rxon_context_id {
-	IWL_RXON_CTX_BSS,
-	IWL_RXON_CTX_PAN,
-
-	NUM_IWL_RXON_CTX
-};
-
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
 

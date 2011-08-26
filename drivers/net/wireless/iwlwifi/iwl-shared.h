@@ -67,6 +67,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <net/mac80211.h>
 
 #include "iwl-commands.h"
 
@@ -192,7 +193,6 @@ struct iwl_ht_agg {
 #define IWL_EMPTYING_HW_QUEUE_ADDBA 2
 #define IWL_EMPTYING_HW_QUEUE_DELBA 3
 	u8 state;
-	u8 tx_fifo;
 };
 
 struct iwl_tid_data {
@@ -283,6 +283,50 @@ struct iwl_rx_mem_buffer {
 };
 
 #define rxb_addr(r) page_address(r->page)
+
+/*
+ * mac80211 queues, ACs, hardware queues, FIFOs.
+ *
+ * Cf. http://wireless.kernel.org/en/developers/Documentation/mac80211/queues
+ *
+ * Mac80211 uses the following numbers, which we get as from it
+ * by way of skb_get_queue_mapping(skb):
+ *
+ *	VO	0
+ *	VI	1
+ *	BE	2
+ *	BK	3
+ *
+ *
+ * Regular (not A-MPDU) frames are put into hardware queues corresponding
+ * to the FIFOs, see comments in iwl-prph.h. Aggregated frames get their
+ * own queue per aggregation session (RA/TID combination), such queues are
+ * set up to map into FIFOs too, for which we need an AC->FIFO mapping. In
+ * order to map frames to the right queue, we also need an AC->hw queue
+ * mapping. This is implemented here.
+ *
+ * Due to the way hw queues are set up (by the hw specific modules like
+ * iwl-4965.c, iwl-5000.c etc.), the AC->hw queue mapping is the identity
+ * mapping.
+ */
+
+static const u8 tid_to_ac[] = {
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VO
+};
+
+enum iwl_rxon_context_id {
+	IWL_RXON_CTX_BSS,
+	IWL_RXON_CTX_PAN,
+
+	NUM_IWL_RXON_CTX
+};
 
 #ifdef CONFIG_PM
 int iwl_suspend(struct iwl_priv *priv);

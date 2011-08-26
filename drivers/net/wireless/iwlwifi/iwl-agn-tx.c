@@ -42,56 +42,10 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
-/*
- * mac80211 queues, ACs, hardware queues, FIFOs.
- *
- * Cf. http://wireless.kernel.org/en/developers/Documentation/mac80211/queues
- *
- * Mac80211 uses the following numbers, which we get as from it
- * by way of skb_get_queue_mapping(skb):
- *
- *	VO	0
- *	VI	1
- *	BE	2
- *	BK	3
- *
- *
- * Regular (not A-MPDU) frames are put into hardware queues corresponding
- * to the FIFOs, see comments in iwl-prph.h. Aggregated frames get their
- * own queue per aggregation session (RA/TID combination), such queues are
- * set up to map into FIFOs too, for which we need an AC->FIFO mapping. In
- * order to map frames to the right queue, we also need an AC->hw queue
- * mapping. This is implemented here.
- *
- * Due to the way hw queues are set up (by the hw specific modules like
- * iwl-4965.c, iwl-5000.c etc.), the AC->hw queue mapping is the identity
- * mapping.
- */
-
-static const u8 tid_to_ac[] = {
-	IEEE80211_AC_BE,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BE,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VO,
-	IEEE80211_AC_VO
-};
-
 static inline int get_ac_from_tid(u16 tid)
 {
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
 		return tid_to_ac[tid];
-
-	/* no support for TIDs 8-15 yet */
-	return -EINVAL;
-}
-
-static inline int get_fifo_from_tid(struct iwl_rxon_context *ctx, u16 tid)
-{
-	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return ctx->ac_to_fifo[tid_to_ac[tid]];
 
 	/* no support for TIDs 8-15 yet */
 	return -EINVAL;
@@ -508,15 +462,10 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	int sta_id;
-	int tx_fifo;
 	int txq_id;
 	int ret;
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
-
-	tx_fifo = get_fifo_from_tid(iwl_rxon_ctx_from_vif(vif), tid);
-	if (unlikely(tx_fifo < 0))
-		return tx_fifo;
 
 	IWL_DEBUG_HT(priv, "TX AGG request on ra = %pM tid = %d\n",
 		     sta->addr, tid);
@@ -544,7 +493,6 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	tid_data = &priv->shrd->tid_data[sta_id][tid];
 	*ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
-	tid_data->agg.tx_fifo = tx_fifo;
 	iwl_set_swq_id(&priv->txq[txq_id], get_ac_from_tid(tid), txq_id);
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
@@ -570,14 +518,10 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid)
 {
-	int tx_fifo_id, txq_id, sta_id, ssn;
+	int txq_id, sta_id, ssn;
 	struct iwl_tid_data *tid_data;
 	int write_ptr, read_ptr;
 	unsigned long flags;
-
-	tx_fifo_id = get_fifo_from_tid(iwl_rxon_ctx_from_vif(vif), tid);
-	if (unlikely(tx_fifo_id < 0))
-		return tx_fifo_id;
 
 	sta_id = iwl_sta_id(sta);
 
@@ -635,7 +579,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	 * to deactivate the uCode queue, just return "success" to allow
 	 *  mac80211 to clean up it own data.
 	 */
-	iwl_trans_txq_agg_disable(trans(priv), txq_id, ssn, tx_fifo_id);
+	iwl_trans_txq_agg_disable(trans(priv), txq_id);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -661,11 +605,8 @@ static int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		/* aggregated HW queue */
 		if ((txq_id  == tid_data->agg.txq_id) &&
 		    (q->read_ptr == q->write_ptr)) {
-			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
-			int tx_fifo = get_fifo_from_tid(ctx, tid);
 			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
-			iwl_trans_txq_agg_disable(trans(priv), txq_id,
-				ssn, tx_fifo);
+			iwl_trans_txq_agg_disable(trans(priv), txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
 		}

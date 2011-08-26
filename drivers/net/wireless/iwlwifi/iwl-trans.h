@@ -123,10 +123,10 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int txq_id, int ssn,
 			u32 status, struct sk_buff_head *skbs);
 
-	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id,
-				  u16 ssn_idx, u8 tx_fifo);
-	void (*txq_agg_setup)(struct iwl_priv *priv, int sta_id, int tid,
-						int frame_limit);
+	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id);
+	void (*txq_agg_setup)(struct iwl_priv *priv,
+			      enum iwl_rxon_context_id ctx, int sta_id,
+			      int tid, int frame_limit);
 
 	void (*kick_nic)(struct iwl_trans *trans);
 
@@ -209,17 +209,17 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int txq_id,
 	trans->ops->reclaim(trans, txq_id, ssn, status, skbs);
 }
 
-static inline int iwl_trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id,
-			  u16 ssn_idx, u8 tx_fifo)
+static inline int iwl_trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id)
 {
-	return trans->ops->txq_agg_disable(priv(trans), txq_id,
-					   ssn_idx, tx_fifo);
+	return trans->ops->txq_agg_disable(priv(trans), txq_id);
 }
 
-static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
-						int tid, int frame_limit)
+static inline void iwl_trans_txq_agg_setup(struct iwl_trans *trans,
+					   enum iwl_rxon_context_id ctx,
+					   int sta_id, int tid,
+					   int frame_limit)
 {
-	trans->ops->txq_agg_setup(priv(trans), sta_id, tid, frame_limit);
+	trans->ops->txq_agg_setup(priv(trans), ctx, sta_id, tid, frame_limit);
 }
 
 static inline void iwl_trans_kick_nic(struct iwl_trans *trans)

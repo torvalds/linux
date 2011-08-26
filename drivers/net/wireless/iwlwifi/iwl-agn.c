@@ -2534,6 +2534,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	int ret = -EINVAL;
 	struct iwl_station_priv *sta_priv = (void *) sta->drv_priv;
+	struct iwl_rxon_context *ctx =  iwl_rxon_ctx_from_vif(vif);
 
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
@@ -2587,8 +2588,8 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
-		iwl_trans_txq_agg_setup(trans(priv), iwl_sta_id(sta), tid,
-				buf_size);
+		iwl_trans_txq_agg_setup(trans(priv), ctx->ctxid, iwl_sta_id(sta),
+				tid, buf_size);
 
 		/*
 		 * If the limit is 0, then it wasn't initialised yet,

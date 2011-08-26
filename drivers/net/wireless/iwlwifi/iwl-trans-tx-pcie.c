@@ -424,8 +424,18 @@ void iwl_trans_tx_queue_set_status(struct iwl_priv *priv,
 		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
 }
 
-void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
-						int frame_limit)
+static inline int get_fifo_from_tid(struct iwl_rxon_context *ctx, u16 tid)
+{
+	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
+		return ctx->ac_to_fifo[tid_to_ac[tid]];
+
+	/* no support for TIDs 8-15 yet */
+	return -EINVAL;
+}
+
+void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv,
+				  enum iwl_rxon_context_id ctx, int sta_id,
+				  int tid, int frame_limit)
 {
 	int tx_fifo, txq_id, ssn_idx;
 	u16 ra_tid;
@@ -441,11 +451,16 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	if (WARN_ON(tid >= IWL_MAX_TID_COUNT))
 		return;
 
+	tx_fifo = get_fifo_from_tid(&priv->contexts[ctx], tid);
+	if (WARN_ON(tx_fifo < 0)) {
+		IWL_ERR(trans, "txq_agg_setup, bad fifo: %d\n", tx_fifo);
+		return;
+	}
+
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	tid_data = &priv->shrd->tid_data[sta_id][tid];
 	ssn_idx = SEQ_TO_SN(tid_data->seq_number);
 	txq_id = tid_data->agg.txq_id;
-	tx_fifo = tid_data->agg.tx_fifo;
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
@@ -492,8 +507,7 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
-int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-				  u16 ssn_idx, u8 tx_fifo)
+int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id)
 {
 	struct iwl_trans *trans = trans(priv);
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
@@ -511,14 +525,14 @@ int iwl_trans_pcie_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	iwl_clear_bits_prph(bus(priv), SCD_AGGR_SEL, (1 << txq_id));
 
-	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.read_ptr = 0;
+	priv->txq[txq_id].q.write_ptr = 0;
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
-	iwl_trans_set_wr_ptrs(trans, txq_id, ssn_idx);
+	iwl_trans_set_wr_ptrs(trans, txq_id, 0);
 
 	iwl_clear_bits_prph(bus(priv), SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv, txq_id);
-	iwl_trans_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
+	iwl_trans_tx_queue_set_status(priv, &priv->txq[txq_id], 0, 0);
 
 	return 0;
 }
