@@ -31,6 +31,7 @@
 #include "iwl-agn-calib.h"
 #include "iwl-helpers.h"
 #include "iwl-trans.h"
+#include "iwl-shared.h"
 
 static int iwlagn_disable_bss(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,

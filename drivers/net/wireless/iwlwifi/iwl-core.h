@@ -101,23 +101,6 @@ struct iwl_lib_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-struct iwl_mod_params {
-	int sw_crypto;		/* def: 0 = using hardware encryption */
-	int num_of_queues;	/* def: HW dependent */
-	int disable_11n;	/* def: 0 = 11n capabilities enabled */
-	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
-	int antenna;  		/* def: 0 = both antennas (use diversity) */
-	int restart_fw;		/* def: 1 = restart firmware */
-	bool plcp_check;	/* def: true = enable plcp health check */
-	bool ack_check;		/* def: false = disable ack health check */
-	bool wd_disable;	/* def: false = enable stuck queue check */
-	bool bt_coex_active;	/* def: true = enable bt coex */
-	int led_mode;		/* def: 0 = system default */
-	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
-	bool power_save;	/* def: false = disable power save */
-	int power_level;	/* def: 1 = power level */
-};
-
 /*
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
@@ -389,13 +372,6 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
-#ifdef CONFIG_PM
-int iwl_suspend(struct iwl_priv *priv);
-int iwl_resume(struct iwl_priv *priv);
-#endif /* !CONFIG_PM */
-
-int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg);
-void __devexit iwl_remove(struct iwl_priv * priv);
 
 /*****************************************************
 *  Error Handling Debugging

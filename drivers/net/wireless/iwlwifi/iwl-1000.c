@@ -43,6 +43,7 @@
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
+#include "iwl-shared.h"
 
 /* Highest firmware API version supported */
 #define IWL1000_UCODE_API_MAX 6

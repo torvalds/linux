@@ -50,6 +50,7 @@
 #include "iwl-agn-tt.h"
 #include "iwl-bus.h"
 #include "iwl-trans.h"
+#include "iwl-shared.h"
 
 #define DRV_NAME        "iwlagn"
 
@@ -1513,7 +1514,7 @@ struct iwl_priv {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */
 	u32 debug_level; /* per device debugging will override global
-			    iwl_debug_level if set */
+			    iwlagn_mod_params.debug_level if set */
 #endif /* CONFIG_IWLWIFI_DEBUG */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
@@ -1562,6 +1563,8 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 	clear_bit(txq_id, &priv->txq_ctx_active_msk);
 }
 
+extern struct iwl_mod_params iwlagn_mod_params;
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 /*
  * iwl_get_debug_level: Return active debug level for device
@@ -1575,12 +1578,12 @@ static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 	if (priv->debug_level)
 		return priv->debug_level;
 	else
-		return iwl_debug_level;
+		return iwlagn_mod_params.debug_level;
 }
 #else
 static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 {
-	return iwl_debug_level;
+	return iwlagn_mod_params.debug_level;
 }
 #endif
 

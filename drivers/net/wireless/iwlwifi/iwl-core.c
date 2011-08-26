@@ -42,10 +42,9 @@
 #include "iwl-sta.h"
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
+#include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
-
-u32 iwl_debug_level;
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 

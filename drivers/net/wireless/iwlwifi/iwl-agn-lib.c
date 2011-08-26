@@ -40,6 +40,7 @@
 #include "iwl-agn.h"
 #include "iwl-sta.h"
 #include "iwl-trans.h"
+#include "iwl-shared.h"
 
 static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
 {
@@ -609,6 +610,8 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.bt_coex_active = true,
 	.no_sleep_autoadjust = true,
 	.power_level = IWL_POWER_INDEX_1,
+	.bt_ch_announce = 1,
+	.wanted_ucode_alternative = 1,
 	/* the rest are 0 by default */
 };
 

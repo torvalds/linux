@@ -44,6 +44,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
+#include "iwl-shared.h"
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 6

@@ -30,7 +30,6 @@
 #define __iwl_debug_h__
 
 struct iwl_priv;
-extern u32 iwl_debug_level;
 
 #define IWL_ERR(p, f, a...) dev_err(p->bus->dev, f, ## a)
 #define IWL_WARN(p, f, a...) dev_warn(p->bus->dev, f, ## a)

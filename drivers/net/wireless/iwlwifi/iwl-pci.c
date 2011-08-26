@@ -64,8 +64,11 @@
 #include <linux/pci-aspm.h>
 
 #include "iwl-bus.h"
+#include "iwl-shared.h"
 #include "iwl-agn.h"
-#include "iwl-core.h"
+
+/* TODO: iwl_set_bit and friends should be implemented in bus layer
+ * this would allow us not to include iwl-io.h here */
 #include "iwl-io.h"
 
 /* PCI registers */

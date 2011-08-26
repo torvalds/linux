@@ -108,8 +108,6 @@ extern struct iwl_cfg iwl105_bgn_cfg;
 extern struct iwl_cfg iwl135_bg_cfg;
 extern struct iwl_cfg iwl135_bgn_cfg;
 
-extern struct iwl_mod_params iwlagn_mod_params;
-
 extern struct ieee80211_ops iwlagn_hw_ops;
 
 int iwl_reset_ict(struct iwl_priv *priv);

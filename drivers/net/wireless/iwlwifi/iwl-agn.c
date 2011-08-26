@@ -51,6 +51,7 @@
 #include "iwl-sta.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
+#include "iwl-shared.h"
 #include "iwl-bus.h"
 #include "iwl-trans.h"
 
@@ -78,9 +79,6 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
-
-static int iwlagn_ant_coupling;
-static bool iwlagn_bt_ch_announce = 1;
 
 void iwl_update_chain_flags(struct iwl_priv *priv)
 {
@@ -818,8 +816,6 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 	return 0;
 }
 
-static int iwlagn_wanted_ucode_alternative = 1;
-
 static int iwlagn_load_firmware(struct iwl_priv *priv,
 				const struct firmware *ucode_raw,
 				struct iwlagn_firmware_pieces *pieces,
@@ -829,7 +825,8 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 	struct iwl_ucode_tlv *tlv;
 	size_t len = ucode_raw->size;
 	const u8 *data;
-	int wanted_alternative = iwlagn_wanted_ucode_alternative, tmp;
+	int wanted_alternative = iwlagn_mod_params.wanted_ucode_alternative;
+	int tmp;
 	u64 alternatives;
 	u32 tlv_len;
 	enum iwl_ucode_tlv_type tlv_type;
@@ -1619,7 +1616,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	}
 
 	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlagn_bt_ch_announce;
+	priv->bt_ch_announce = iwlagn_mod_params.bt_ch_announce;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) && !full_log)
@@ -3618,11 +3615,12 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
-		(iwlagn_ant_coupling > IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
-		true : false;
+		(iwlagn_mod_params.ant_coupling >
+			IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
+			true : false;
 
 	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlagn_bt_ch_announce;
+	priv->bt_ch_announce = iwlagn_mod_params.bt_ch_announce;
 	IWL_DEBUG_INFO(priv, "BT channel inhibition is %s\n",
 		       (priv->bt_ch_announce) ? "On" : "Off");
 
@@ -3863,7 +3861,8 @@ module_exit(iwl_exit);
 module_init(iwl_init);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, iwlagn_mod_params.debug_level, uint,
+		   S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
@@ -3879,16 +3878,19 @@ MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 
-module_param_named(ucode_alternative, iwlagn_wanted_ucode_alternative, int,
-		   S_IRUGO);
+module_param_named(ucode_alternative,
+		   iwlagn_mod_params.wanted_ucode_alternative,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(ucode_alternative,
 		 "specify ucode alternative to use from ucode file");
 
-module_param_named(antenna_coupling, iwlagn_ant_coupling, int, S_IRUGO);
+module_param_named(antenna_coupling, iwlagn_mod_params.ant_coupling,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (defualt: 0 dB)");
 
-module_param_named(bt_ch_inhibition, iwlagn_bt_ch_announce, bool, S_IRUGO);
+module_param_named(bt_ch_inhibition, iwlagn_mod_params.bt_ch_announce,
+		   bool, S_IRUGO);
 MODULE_PARM_DESC(bt_ch_inhibition,
 		 "Disable BT channel inhibition (default: enable)");
 

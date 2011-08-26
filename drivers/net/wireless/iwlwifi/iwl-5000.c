@@ -46,6 +46,7 @@
 #include "iwl-agn-hw.h"
 #include "iwl-5000-hw.h"
 #include "iwl-trans.h"
+#include "iwl-shared.h"
 
 /* Highest firmware API version supported */
 #define IWL5000_UCODE_API_MAX 5
