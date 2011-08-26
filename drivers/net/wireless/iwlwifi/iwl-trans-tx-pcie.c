@@ -45,13 +45,18 @@ void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt)
 {
-	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
+	struct iwlagn_scd_bc_tbl *scd_bc_tbl;
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 	int write_ptr = txq->q.write_ptr;
 	int txq_id = txq->q.id;
 	u8 sec_ctl = 0;
 	u8 sta_id = 0;
 	u16 len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 	__le16 bc_ent;
+
+	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
 
 	WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX);
 
@@ -335,11 +340,16 @@ int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 					  struct iwl_tx_queue *txq)
 {
-	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
+	struct iwlagn_scd_bc_tbl *scd_bc_tbl;
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 	int txq_id = txq->q.id;
 	int read_ptr = txq->q.read_ptr;
 	u8 sta_id = 0;
 	__le16 bc_ent;
+
+	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
@@ -361,9 +371,13 @@ static int iwlagn_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
 	u32 tbl_dw;
 	u16 scd_q2ratid;
 
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	scd_q2ratid = ra_tid & SCD_QUEUE_RA_TID_MAP_RATID_MSK;
 
-	tbl_dw_addr = priv->scd_base_addr +
+	tbl_dw_addr = trans_pcie->scd_base_addr +
 			SCD_TRANS_TBL_OFFSET_QUEUE(txq_id);
 
 	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
@@ -424,6 +438,10 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
 
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	if (WARN_ON(sta_id == IWL_INVALID_STATION))
 		return;
 	if (WARN_ON(tid >= MAX_TID_COUNT))
@@ -459,7 +477,7 @@ void iwl_trans_pcie_txq_agg_setup(struct iwl_priv *priv, int sta_id, int tid,
 	iwl_trans_set_wr_ptrs(priv, txq_id, ssn_idx);
 
 	/* Set up Tx window size and frame limit for this queue */
-	iwl_write_targ_mem(priv, priv->scd_base_addr +
+	iwl_write_targ_mem(priv, trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
 			sizeof(u32),
 			((frame_limit <<

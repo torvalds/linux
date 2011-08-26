@@ -1242,9 +1242,6 @@ struct iwl_priv {
 	struct iwl_tx_queue *txq;
 	unsigned long txq_ctx_active_msk;
 	struct iwl_dma_ptr  kw;	/* keep warm address */
-	struct iwl_dma_ptr  scd_bc_tbls;
-
-	u32 scd_base_addr;	/* scheduler sram base address */
 
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;

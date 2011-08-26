@@ -91,6 +91,8 @@ struct iwl_rx_queue {
  * @rxq: all the RX queue data
  * @rx_replenish: work that will be called when buffers need to be allocated
  * @trans: pointer to the generic transport area
+ * @scd_base_addr: scheduler sram base address in SRAM
+ * @scd_bc_tbls: pointer to the byte count table of the scheduler
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -109,6 +111,8 @@ struct iwl_trans_pcie {
 	struct isr_statistics isr_stats;
 
 	u32 inta_mask;
+	u32 scd_base_addr;
+	struct iwl_dma_ptr scd_bc_tbls;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \

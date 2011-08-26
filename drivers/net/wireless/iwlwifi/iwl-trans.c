@@ -469,6 +469,9 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 static void iwl_trans_pcie_tx_free(struct iwl_priv *priv)
 {
 	int txq_id;
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/* Tx queues */
 	if (priv->txq) {
@@ -482,7 +485,7 @@ static void iwl_trans_pcie_tx_free(struct iwl_priv *priv)
 
 	iwlagn_free_dma_ptr(priv, &priv->kw);
 
-	iwlagn_free_dma_ptr(priv, &priv->scd_bc_tbls);
+	iwlagn_free_dma_ptr(priv, &trans_pcie->scd_bc_tbls);
 }
 
 /**
@@ -496,6 +499,9 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 {
 	int ret;
 	int txq_id, slots_num;
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/*It is not allowed to alloc twice, so warn when this happens.
 	 * We cannot rely on the previous allocation, so free and fail */
@@ -504,7 +510,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 		goto error;
 	}
 
-	ret = iwlagn_alloc_dma_ptr(priv, &priv->scd_bc_tbls,
+	ret = iwlagn_alloc_dma_ptr(priv, &trans_pcie->scd_bc_tbls,
 				hw_params(priv).scd_bc_tbls_size);
 	if (ret) {
 		IWL_ERR(priv, "Scheduler BC Table allocation failed\n");
@@ -785,30 +791,33 @@ static void iwl_trans_pcie_tx_start(struct iwl_priv *priv)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
 	struct iwl_rxon_context *ctx;
+	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 a;
 	unsigned long flags;
 	int i, chan;
 	u32 reg_val;
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
 
-	priv->scd_base_addr = iwl_read_prph(priv, SCD_SRAM_BASE_ADDR);
-	a = priv->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
+	trans_pcie->scd_base_addr = iwl_read_prph(priv, SCD_SRAM_BASE_ADDR);
+	a = trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
 	/* reset conext data memory */
-	for (; a < priv->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
+	for (; a < trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 	/* reset tx status memory */
-	for (; a < priv->scd_base_addr + SCD_TX_STTS_MEM_UPPER_BOUND;
+	for (; a < trans_pcie->scd_base_addr + SCD_TX_STTS_MEM_UPPER_BOUND;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < priv->scd_base_addr +
+	for (; a < trans_pcie->scd_base_addr +
 	       SCD_TRANS_TBL_OFFSET_QUEUE(hw_params(priv).max_txq_num);
 	       a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 
 	iwl_write_prph(priv, SCD_DRAM_BASE_ADDR,
-		       priv->scd_bc_tbls.dma >> 10);
+		       trans_pcie->scd_bc_tbls.dma >> 10);
 
 	/* Enable DMA channel */
 	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
@@ -829,9 +838,9 @@ static void iwl_trans_pcie_tx_start(struct iwl_priv *priv)
 	for (i = 0; i < hw_params(priv).max_txq_num; i++) {
 		iwl_write_prph(priv, SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
-		iwl_write_targ_mem(priv, priv->scd_base_addr +
+		iwl_write_targ_mem(priv, trans_pcie->scd_base_addr +
 				SCD_CONTEXT_QUEUE_OFFSET(i), 0);
-		iwl_write_targ_mem(priv, priv->scd_base_addr +
+		iwl_write_targ_mem(priv, trans_pcie->scd_base_addr +
 				SCD_CONTEXT_QUEUE_OFFSET(i) +
 				sizeof(u32),
 				((SCD_WIN_SIZE <<
@@ -843,7 +852,7 @@ static void iwl_trans_pcie_tx_start(struct iwl_priv *priv)
 	}
 
 	iwl_write_prph(priv, SCD_INTERRUPT_MASK,
-			IWL_MASK(0, hw_params(priv).max_txq_num));
+			IWL_MASK(0, hw_params(trans).max_txq_num));
 
 	/* Activate all Tx DMA/FIFO channels */
 	iwl_trans_txq_set_sched(priv, IWL_MASK(0, 7));
