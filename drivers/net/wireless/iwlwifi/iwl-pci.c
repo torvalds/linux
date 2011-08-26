@@ -64,13 +64,11 @@
 #include <linux/pci-aspm.h>
 
 #include "iwl-bus.h"
-#include "iwl-shared.h"
-#include "iwl-agn.h"
-#include "iwl-trans.h"
-
-/* TODO: iwl_set_bit and friends should be implemented in bus layer
- * this would allow us not to include iwl-io.h here */
 #include "iwl-io.h"
+#include "iwl-shared.h"
+#include "iwl-trans.h"
+#include "iwl-csr.h"
+#include "iwl-pci.h"
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -95,6 +93,7 @@ static u16 iwl_pciexp_link_ctrl(struct iwl_bus *bus)
 {
 	int pos;
 	u16 pci_lnk_ctl;
+
 	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
 
 	pos = pci_pcie_cap(pci_dev);

@@ -77,6 +77,11 @@ struct iwl_priv;
 struct iwl_sensitivity_ranges;
 struct iwl_trans_ops;
 
+#define DRV_NAME        "iwlagn"
+#define IWLWIFI_VERSION "in-tree:"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
+#define DRV_AUTHOR     "<ilw@linux.intel.com>"
+
 extern struct iwl_mod_params iwlagn_mod_params;
 
 /**

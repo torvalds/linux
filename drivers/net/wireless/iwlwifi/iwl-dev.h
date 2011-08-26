@@ -51,8 +51,6 @@
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 
-#define DRV_NAME        "iwlagn"
-
 struct iwl_tx_queue;
 
 /* CT-KILL constants */

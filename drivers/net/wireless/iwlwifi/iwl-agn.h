@@ -65,50 +65,6 @@
 
 #include "iwl-dev.h"
 
-/* configuration for the _agn devices */
-extern struct iwl_cfg iwl5300_agn_cfg;
-extern struct iwl_cfg iwl5100_agn_cfg;
-extern struct iwl_cfg iwl5350_agn_cfg;
-extern struct iwl_cfg iwl5100_bgn_cfg;
-extern struct iwl_cfg iwl5100_abg_cfg;
-extern struct iwl_cfg iwl5150_agn_cfg;
-extern struct iwl_cfg iwl5150_abg_cfg;
-extern struct iwl_cfg iwl6005_2agn_cfg;
-extern struct iwl_cfg iwl6005_2abg_cfg;
-extern struct iwl_cfg iwl6005_2bg_cfg;
-extern struct iwl_cfg iwl6005_2agn_sff_cfg;
-extern struct iwl_cfg iwl1030_bgn_cfg;
-extern struct iwl_cfg iwl1030_bg_cfg;
-extern struct iwl_cfg iwl6030_2agn_cfg;
-extern struct iwl_cfg iwl6030_2abg_cfg;
-extern struct iwl_cfg iwl6030_2bgn_cfg;
-extern struct iwl_cfg iwl6030_2bg_cfg;
-extern struct iwl_cfg iwl6000i_2agn_cfg;
-extern struct iwl_cfg iwl6000i_2abg_cfg;
-extern struct iwl_cfg iwl6000i_2bg_cfg;
-extern struct iwl_cfg iwl6000_3agn_cfg;
-extern struct iwl_cfg iwl6050_2agn_cfg;
-extern struct iwl_cfg iwl6050_2abg_cfg;
-extern struct iwl_cfg iwl6150_bgn_cfg;
-extern struct iwl_cfg iwl6150_bg_cfg;
-extern struct iwl_cfg iwl1000_bgn_cfg;
-extern struct iwl_cfg iwl1000_bg_cfg;
-extern struct iwl_cfg iwl100_bgn_cfg;
-extern struct iwl_cfg iwl100_bg_cfg;
-extern struct iwl_cfg iwl130_bgn_cfg;
-extern struct iwl_cfg iwl130_bg_cfg;
-extern struct iwl_cfg iwl2000_2bgn_cfg;
-extern struct iwl_cfg iwl2000_2bg_cfg;
-extern struct iwl_cfg iwl2030_2bgn_cfg;
-extern struct iwl_cfg iwl2030_2bg_cfg;
-extern struct iwl_cfg iwl6035_2agn_cfg;
-extern struct iwl_cfg iwl6035_2abg_cfg;
-extern struct iwl_cfg iwl6035_2bg_cfg;
-extern struct iwl_cfg iwl105_bg_cfg;
-extern struct iwl_cfg iwl105_bgn_cfg;
-extern struct iwl_cfg iwl135_bg_cfg;
-extern struct iwl_cfg iwl135_bgn_cfg;
-
 extern struct ieee80211_ops iwlagn_hw_ops;
 
 int iwl_reset_ict(struct iwl_trans *trans);

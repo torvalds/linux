@@ -71,11 +71,6 @@
 struct iwl_host_cmd;
 struct iwl_cmd;
 
-
-#define IWLWIFI_VERSION "in-tree:"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
-#define DRV_AUTHOR     "<ilw@linux.intel.com>"
-
 #define TIME_UNIT		1024
 
 #define IWL_CMD(x) case x: return #x
