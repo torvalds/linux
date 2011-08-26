@@ -27,11 +27,6 @@ struct ad193x_priv {
 	int sysclk;
 };
 
-/* ad193x register cache & default register settings */
-static const u8 ad193x_reg[AD193X_NUM_REGS] = {
-	0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0,
-};
-
 /*
  * AD193X volume/mute/de-emphasis etc. controls
  */
@@ -307,7 +302,8 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_write(codec, AD193X_PLL_CLK_CTRL0, reg);
 
 	reg = snd_soc_read(codec, AD193X_DAC_CTRL2);
-	reg = (reg & (~AD193X_DAC_WORD_LEN_MASK)) | word_len;
+	reg = (reg & (~AD193X_DAC_WORD_LEN_MASK))
+		| (word_len << AD193X_DAC_WORD_LEN_SHFT);
 	snd_soc_write(codec, AD193X_DAC_CTRL2, reg);
 
 	reg = snd_soc_read(codec, AD193X_ADC_CTRL1);
@@ -389,9 +385,6 @@ static int ad193x_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_ad193x = {
 	.probe = 	ad193x_probe,
-	.reg_cache_default = ad193x_reg,
-	.reg_cache_size = AD193X_NUM_REGS,
-	.reg_word_size = sizeof(u16),
 };
 
 #if defined(CONFIG_SPI_MASTER)
