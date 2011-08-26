@@ -276,6 +276,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_station_priv *sta_priv = NULL;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	struct iwl_device_cmd *dev_cmd = NULL;
 	struct iwl_tx_cmd *tx_cmd;
 	int txq_id;
 
@@ -386,9 +387,13 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		}
 	}
 
-	tx_cmd = iwl_trans_get_tx_cmd(trans(priv), txq_id);
-	if (unlikely(!tx_cmd))
+	dev_cmd = kmem_cache_alloc(priv->tx_cmd_pool, GFP_ATOMIC);
+
+	if (unlikely(!dev_cmd))
 		goto drop_unlock_sta;
+
+	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	tx_cmd = &dev_cmd->cmd.tx;
 
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
@@ -409,8 +414,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	iwl_update_stats(priv, true, fc, len);
 
 	info->driver_data[0] = ctx;
+	info->driver_data[1] = dev_cmd;
 
-	if (iwl_trans_tx(trans(priv), skb, tx_cmd, txq_id, fc, is_agg))
+	if (iwl_trans_tx(trans(priv), skb, dev_cmd, txq_id, fc, is_agg))
 		goto drop_unlock_sta;
 
 	if (ieee80211_is_data_qos(fc)) {
@@ -436,6 +442,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	return 0;
 
 drop_unlock_sta:
+	if (dev_cmd)
+		kmem_cache_free(priv->tx_cmd_pool, dev_cmd);
 	spin_unlock(&priv->shrd->sta_lock);
 drop_unlock_priv:
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
@@ -1010,6 +1018,8 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 			info = IEEE80211_SKB_CB(skb);
 			ctx = info->driver_data[0];
+			kmem_cache_free(priv->tx_cmd_pool,
+					(info->driver_data[1]));
 
 			memset(&info->status, 0, sizeof(info->status));
 
@@ -1183,6 +1193,9 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags,
 						    info);
 		}
+
+		info = IEEE80211_SKB_CB(skb);
+		kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
 
 		ieee80211_tx_status_irqsafe(priv->hw, skb);
 	}

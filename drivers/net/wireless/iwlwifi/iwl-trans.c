@@ -317,12 +317,13 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 	if (!txq->meta || !txq->cmd)
 		goto error;
 
-	for (i = 0; i < slots_num; i++) {
-		txq->cmd[i] = kmalloc(sizeof(struct iwl_device_cmd),
-					GFP_KERNEL);
-		if (!txq->cmd[i])
-			goto error;
-	}
+	if (txq_id == trans->shrd->cmd_queue)
+		for (i = 0; i < slots_num; i++) {
+			txq->cmd[i] = kmalloc(sizeof(struct iwl_device_cmd),
+						GFP_KERNEL);
+			if (!txq->cmd[i])
+				goto error;
+		}
 
 	/* Alloc driver data array and TFD circular buffer */
 	/* Driver private data, only for Tx (not command) queues,
@@ -355,7 +356,7 @@ error:
 	txq->skbs = NULL;
 	/* since txq->cmd has been zeroed,
 	 * all non allocated cmd[i] will be NULL */
-	if (txq->cmd)
+	if (txq->cmd && txq_id == trans->shrd->cmd_queue)
 		for (i = 0; i < slots_num; i++)
 			kfree(txq->cmd[i]);
 	kfree(txq->meta);
@@ -442,8 +443,10 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 	iwl_tx_queue_unmap(trans, txq_id);
 
 	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < txq->q.n_window; i++)
-		kfree(txq->cmd[i]);
+
+	if (txq_id == trans->shrd->cmd_queue)
+		for (i = 0; i < txq->q.n_window; i++)
+			kfree(txq->cmd[i]);
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd) {
@@ -1009,37 +1012,13 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	iwl_apm_stop(priv(trans));
 }
 
-static struct iwl_tx_cmd *iwl_trans_pcie_get_tx_cmd(struct iwl_trans *trans,
-						int txq_id)
-{
-	struct iwl_priv *priv = priv(trans);
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
-	struct iwl_device_cmd *dev_cmd;
-
-	if (unlikely(iwl_queue_space(q) < q->high_mark))
-		return NULL;
-
-	/*
-	 * Set up the Tx-command (not MAC!) header.
-	 * Store the chosen Tx queue and TFD index within the sequence field;
-	 * after Tx, uCode's Tx response will return this value so driver can
-	 * locate the frame within the tx queue and do post-tx processing.
-	 */
-	dev_cmd = txq->cmd[q->write_ptr];
-	memset(dev_cmd, 0, sizeof(*dev_cmd));
-	dev_cmd->hdr.cmd = REPLY_TX;
-	dev_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
-				INDEX_TO_SEQ(q->write_ptr)));
-	return &dev_cmd->cmd.tx;
-}
-
 static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu)
+		struct iwl_device_cmd *dev_cmd, int txq_id,
+		__le16 fc, bool ampdu)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
-	struct iwl_device_cmd *dev_cmd = txq->cmd[q->write_ptr];
+	struct iwl_tx_cmd *tx_cmd = &dev_cmd->cmd.tx;
 	struct iwl_cmd_meta *out_meta;
 
 	dma_addr_t phys_addr = 0;
@@ -1051,6 +1030,11 @@ static int iwl_trans_pcie_tx(struct iwl_priv *priv, struct sk_buff *skb,
 
 	/* Set up driver data for this TFD */
 	txq->skbs[q->write_ptr] = skb;
+	txq->cmd[q->write_ptr] = dev_cmd;
+
+	dev_cmd->hdr.cmd = REPLY_TX;
+	dev_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
+				INDEX_TO_SEQ(q->write_ptr)));
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->meta[q->write_ptr];
@@ -1862,7 +1846,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.send_cmd = iwl_trans_pcie_send_cmd,
 	.send_cmd_pdu = iwl_trans_pcie_send_cmd_pdu,
 
-	.get_tx_cmd = iwl_trans_pcie_get_tx_cmd,
 	.tx = iwl_trans_pcie_tx,
 	.reclaim = iwl_trans_pcie_reclaim,
 

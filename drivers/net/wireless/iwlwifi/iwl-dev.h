@@ -36,6 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "iwl-eeprom.h"
@@ -1053,6 +1054,7 @@ struct iwl_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
+	struct kmem_cache *tx_cmd_pool;
 	struct iwl_cfg *cfg;
 
 	enum ieee80211_band band;

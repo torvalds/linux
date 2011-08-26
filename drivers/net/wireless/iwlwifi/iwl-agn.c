@@ -3124,6 +3124,8 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	iwl_calib_free_results(priv);
 	iwl_free_geos(priv);
 	iwl_free_channel_map(priv);
+	if (priv->tx_cmd_pool)
+		kmem_cache_destroy(priv->tx_cmd_pool);
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS

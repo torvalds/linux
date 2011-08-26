@@ -76,6 +76,7 @@ struct iwl_priv;
 struct iwl_rxon_context;
 struct iwl_host_cmd;
 struct iwl_shared;
+struct iwl_device_cmd;
 
 /**
  * struct iwl_trans_ops - transport specific operations
@@ -90,7 +91,6 @@ struct iwl_shared;
  * @stop_device:stops the whole device (embedded CPU put to reset)
  * @send_cmd:send a host command
  * @send_cmd_pdu:send a host command: flags can be CMD_*
- * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
  * @tx: send an skb
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
@@ -117,9 +117,9 @@ struct iwl_trans_ops {
 
 	int (*send_cmd_pdu)(struct iwl_trans *trans, u8 id, u32 flags, u16 len,
 		     const void *data);
-	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_trans *trans, int txq_id);
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu);
+		struct iwl_device_cmd *dev_cmd,
+		int txq_id, __le16 fc, bool ampdu);
 	void (*reclaim)(struct iwl_trans *trans, int txq_id, int ssn,
 			u32 status, struct sk_buff_head *skbs);
 
@@ -190,16 +190,11 @@ static inline int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
 	return trans->ops->send_cmd_pdu(trans, id, flags, len, data);
 }
 
-static inline struct iwl_tx_cmd *iwl_trans_get_tx_cmd(struct iwl_trans *trans,
-					int txq_id)
-{
-	return trans->ops->get_tx_cmd(trans, txq_id);
-}
-
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu)
+		struct iwl_device_cmd *dev_cmd,
+		int txq_id, __le16 fc, bool ampdu)
 {
-	return trans->ops->tx(priv(trans), skb, tx_cmd, txq_id, fc, ampdu);
+	return trans->ops->tx(priv(trans), skb, dev_cmd, txq_id, fc, ampdu);
 }
 
 static inline void iwl_trans_reclaim(struct iwl_trans *trans, int txq_id,
