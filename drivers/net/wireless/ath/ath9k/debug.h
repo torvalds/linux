@@ -177,14 +177,57 @@ struct ath_stats {
 	struct ath_rx_stats rxstats;
 };
 
+#define ATH_DBG_MAX_SAMPLES	10
+struct ath_dbg_bb_mac_samp {
+	u32 dma_dbg_reg_vals[ATH9K_NUM_DMA_DEBUG_REGS];
+	u32 pcu_obs, pcu_cr, noise;
+	struct {
+		u64 jiffies;
+		int8_t rssi_ctl0;
+		int8_t rssi_ctl1;
+		int8_t rssi_ctl2;
+		int8_t rssi_ext0;
+		int8_t rssi_ext1;
+		int8_t rssi_ext2;
+		int8_t rssi;
+		bool isok;
+		u8 rts_fail_cnt;
+		u8 data_fail_cnt;
+		u8 rateindex;
+		u8 qid;
+		u8 tid;
+	} ts[ATH_DBG_MAX_SAMPLES];
+	struct {
+		u64 jiffies;
+		int8_t rssi_ctl0;
+		int8_t rssi_ctl1;
+		int8_t rssi_ctl2;
+		int8_t rssi_ext0;
+		int8_t rssi_ext1;
+		int8_t rssi_ext2;
+		int8_t rssi;
+		bool is_mybeacon;
+		u8 antenna;
+		u8 rate;
+	} rs[ATH_DBG_MAX_SAMPLES];
+	struct ath_cycle_counters cc;
+	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+};
+
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
 	u32 regidx;
 	struct ath_stats stats;
+	spinlock_t samp_lock;
+	struct ath_dbg_bb_mac_samp bb_mac_samp[ATH_DBG_MAX_SAMPLES];
+	u8 sampidx;
+	u8 tsidx;
+	u8 rsidx;
 };
 
 int ath9k_init_debug(struct ath_hw *ah);
 
+void ath9k_debug_samp_bb_mac(struct ath_softc *sc);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq);
@@ -195,6 +238,10 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 static inline int ath9k_init_debug(struct ath_hw *ah)
 {
 	return 0;
+}
+
+static inline void ath9k_debug_samp_bb_mac(struct ath_softc *sc)
+{
 }
 
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,

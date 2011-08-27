@@ -952,22 +952,11 @@ static void ath9k_process_rssi(struct ath_common *common,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = common->ah;
 	int last_rssi;
-	__le16 fc;
 
-	if ((ah->opmode != NL80211_IFTYPE_STATION) &&
-	    (ah->opmode != NL80211_IFTYPE_ADHOC))
+	if (!rx_stats->is_mybeacon ||
+	    ((ah->opmode != NL80211_IFTYPE_STATION) &&
+	     (ah->opmode != NL80211_IFTYPE_ADHOC)))
 		return;
-
-	fc = hdr->frame_control;
-	if (!ieee80211_is_beacon(fc) ||
-	    compare_ether_addr(hdr->addr3, common->curbssid)) {
-		/* TODO:  This doesn't work well if you have stations
-		 * associated to two different APs because curbssid
-		 * is just the last AP that any of the stations associated
-		 * with.
-		 */
-		return;
-	}
 
 	if (rx_stats->rs_rssi != ATH9K_RSSI_BAD && !rx_stats->rs_moreaggr)
 		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
@@ -1838,6 +1827,11 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		hdr = (struct ieee80211_hdr *) (hdr_skb->data + rx_status_len);
 		rxs = IEEE80211_SKB_RXCB(hdr_skb);
+		if (ieee80211_is_beacon(hdr->frame_control) &&
+		    !compare_ether_addr(hdr->addr3, common->curbssid))
+			rs.is_mybeacon = true;
+		else
+			rs.is_mybeacon = false;
 
 		ath_debug_stat_rx(sc, &rs);
 

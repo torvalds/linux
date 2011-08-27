@@ -572,6 +572,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	mutex_init(&sc->mutex);
 #ifdef CONFIG_ATH9K_DEBUGFS
 	spin_lock_init(&sc->nodes_lock);
+	spin_lock_init(&sc->debug.samp_lock);
 	INIT_LIST_HEAD(&sc->nodes);
 #endif
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);

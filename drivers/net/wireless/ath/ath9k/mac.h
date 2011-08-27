@@ -146,6 +146,7 @@ struct ath_rx_status {
 	u8 rs_moreaggr;
 	u8 rs_num_delims;
 	u8 rs_flags;
+	bool is_mybeacon;
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
