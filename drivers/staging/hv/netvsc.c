@@ -88,23 +88,6 @@ static void put_net_device(struct hv_device *device)
 	atomic_dec(&net_device->refcnt);
 }
 
-static struct netvsc_device *release_inbound_net_device(
-		struct hv_device *device)
-{
-	struct netvsc_device *net_device;
-
-	net_device = device->ext;
-	if (net_device == NULL)
-		return NULL;
-
-	/* Busy wait until the ref drop to 1, then set it to 0 */
-	while (atomic_cmpxchg(&net_device->refcnt, 1, 0) != 1)
-		udelay(100);
-
-	device->ext = NULL;
-	return net_device;
-}
-
 static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 {
 	struct nvsp_message *revoke_packet;
@@ -400,9 +383,8 @@ int netvsc_device_remove(struct hv_device *device)
 
 	netvsc_disconnect_vsp(net_device);
 
-	/* Stop inbound traffic ie receives and sends completions */
-	net_device = release_inbound_net_device(device);
-
+	atomic_dec(&net_device->refcnt);
+	device->ext = NULL;
 	/*
 	 * Wait until the ref cnt falls to 0.
 	 * We have already stopped any new references
@@ -966,8 +948,6 @@ cleanup:
 			list_del(&packet->list_ent);
 			kfree(packet);
 		}
-
-		release_inbound_net_device(device);
 
 		kfree(net_device);
 	}
