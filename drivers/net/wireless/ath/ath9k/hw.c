@@ -960,7 +960,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	const struct ath9k_channel *chan = ah->curchan;
-	int acktimeout;
+	int acktimeout, ctstimeout;
 	int slottime;
 	int sifstime;
 	int rx_lat = 0, tx_lat = 0, eifs = 0;
@@ -1017,6 +1017,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 
 	/* As defined by IEEE 802.11-2007 17.3.8.6 */
 	acktimeout = slottime + sifstime + 3 * ah->coverage_class;
+	ctstimeout = acktimeout;
 
 	/*
 	 * Workaround for early ACK timeouts, add an offset to match the
@@ -1031,7 +1032,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	ath9k_hw_set_sifs_time(ah, sifstime);
 	ath9k_hw_setslottime(ah, slottime);
 	ath9k_hw_set_ack_timeout(ah, acktimeout);
-	ath9k_hw_set_cts_timeout(ah, acktimeout);
+	ath9k_hw_set_cts_timeout(ah, ctstimeout);
 	if (ah->globaltxtimeout != (u32) -1)
 		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
 
