@@ -273,7 +273,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 
 	for (; !is_null_guid(id_array->guid); id_array++)
 		if (!memcmp(&id_array->guid, &hv_dev->dev_type.b,
-				sizeof(struct hv_vmbus_device_id)))
+				sizeof(uuid_le)))
 			return 1;
 
 	return 0;
