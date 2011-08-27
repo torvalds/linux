@@ -369,7 +369,6 @@ struct nvsp_message {
 struct netvsc_device {
 	struct hv_device *dev;
 
-	atomic_t refcnt;
 	atomic_t num_outstanding_sends;
 	bool destroy;
 	/*

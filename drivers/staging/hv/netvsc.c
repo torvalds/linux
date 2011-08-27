@@ -40,8 +40,6 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	if (!net_device)
 		return NULL;
 
-	/* Set to 2 to allow both inbound and outbound traffic */
-	atomic_set(&net_device->refcnt, 2);
 
 	net_device->destroy = false;
 	net_device->dev = device;
@@ -50,43 +48,37 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	return net_device;
 }
 
-/* Get the net device object iff exists and its refcount > 1 */
 static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
 
 	net_device = device->ext;
-	if (net_device && (atomic_read(&net_device->refcnt) > 1) &&
-		!net_device->destroy)
-		atomic_inc(&net_device->refcnt);
-	else
+	if (net_device && net_device->destroy)
 		net_device = NULL;
 
 	return net_device;
 }
 
-/* Get the net device object iff exists and its refcount > 0 */
 static struct netvsc_device *get_inbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
+	unsigned long flags;
 
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	net_device = device->ext;
-	if (net_device && atomic_read(&net_device->refcnt))
-		atomic_inc(&net_device->refcnt);
-	else
+
+	if (!net_device)
+		goto get_in_err;
+
+	if (net_device->destroy &&
+		atomic_read(&net_device->num_outstanding_sends) == 0)
 		net_device = NULL;
 
+get_in_err:
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 	return net_device;
 }
 
-static void put_net_device(struct hv_device *device)
-{
-	struct netvsc_device *net_device;
-
-	net_device = device->ext;
-
-	atomic_dec(&net_device->refcnt);
-}
 
 static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 {
@@ -268,7 +260,6 @@ cleanup:
 	netvsc_destroy_recv_buf(net_device);
 
 exit:
-	put_net_device(device);
 	return ret;
 }
 
@@ -349,7 +340,6 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	ret = netvsc_init_recv_buf(device);
 
 cleanup:
-	put_net_device(device);
 	return ret;
 }
 
@@ -368,7 +358,6 @@ int netvsc_device_remove(struct hv_device *device)
 	unsigned long flags;
 
 	net_device = (struct netvsc_device *)device->ext;
-	atomic_dec(&net_device->refcnt);
 	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	net_device->destroy = true;
 	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
@@ -383,19 +372,17 @@ int netvsc_device_remove(struct hv_device *device)
 
 	netvsc_disconnect_vsp(net_device);
 
-	atomic_dec(&net_device->refcnt);
-	device->ext = NULL;
 	/*
-	 * Wait until the ref cnt falls to 0.
-	 * We have already stopped any new references
-	 * for outgoing traffic. Also, at this point we don't have any
-	 * incoming traffic as well. So this must be outgoing refrences
-	 * established prior to marking the device as being destroyed.
-	 * Since the send path is non-blocking, it is reasonable to busy
-	 * wait here.
+	 * Since we have already drained, we don't need to busy wait
+	 * as was done in final_release_stor_device()
+	 * Note that we cannot set the ext pointer to NULL until
+	 * we have drained - to drain the outgoing packets, we need to
+	 * allow incoming packets.
 	 */
-	while (atomic_read(&net_device->refcnt))
-		udelay(100);
+
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
+	device->ext = NULL;
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* At this point, no one should be accessing netDevice except in here */
 	dev_notice(&device->device, "net device safe to remove");
@@ -456,7 +443,6 @@ static void netvsc_send_completion(struct hv_device *device,
 			   "%d received!!", nvsp_packet->hdr.msg_type);
 	}
 
-	put_net_device(device);
 }
 
 int netvsc_send(struct hv_device *device,
@@ -509,7 +495,6 @@ int netvsc_send(struct hv_device *device,
 			   packet, ret);
 
 	atomic_inc(&net_device->num_outstanding_sends);
-	put_net_device(device);
 	return ret;
 }
 
@@ -602,7 +587,6 @@ static void netvsc_receive_completion(void *context)
 	if (fsend_receive_comp)
 		netvsc_send_recv_completion(device, transaction_id);
 
-	put_net_device(device);
 }
 
 static void netvsc_receive(struct hv_device *device,
@@ -636,7 +620,6 @@ static void netvsc_receive(struct hv_device *device,
 	if (packet->type != VM_PKT_DATA_USING_XFER_PAGES) {
 		dev_err(&device->device, "Unknown packet type received - %d",
 			   packet->type);
-		put_net_device(device);
 		return;
 	}
 
@@ -648,7 +631,6 @@ static void netvsc_receive(struct hv_device *device,
 	    NVSP_MSG1_TYPE_SEND_RNDIS_PKT) {
 		dev_err(&device->device, "Unknown nvsp packet type received-"
 			" %d", nvsp_packet->hdr.msg_type);
-		put_net_device(device);
 		return;
 	}
 
@@ -658,7 +640,6 @@ static void netvsc_receive(struct hv_device *device,
 		dev_err(&device->device, "Invalid xfer page set id - "
 			   "expecting %x got %x", NETVSC_RECEIVE_BUFFER_ID,
 			   vmxferpage_packet->xfer_pageset_id);
-		put_net_device(device);
 		return;
 	}
 
@@ -698,7 +679,6 @@ static void netvsc_receive(struct hv_device *device,
 		netvsc_send_recv_completion(device,
 					    vmxferpage_packet->d.trans_id);
 
-		put_net_device(device);
 		return;
 	}
 
@@ -786,7 +766,6 @@ static void netvsc_receive(struct hv_device *device,
 				completion.recv.recv_completion_ctx);
 	}
 
-	put_net_device(device);
 }
 
 static void netvsc_channel_cb(void *context)
@@ -869,7 +848,6 @@ static void netvsc_channel_cb(void *context)
 		}
 	} while (1);
 
-	put_net_device(device);
 out:
 	kfree(buffer);
 	return;
