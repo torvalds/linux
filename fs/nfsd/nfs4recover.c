@@ -45,6 +45,7 @@
 
 /* Globals */
 static struct file *rec_file;
+static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 
 static int
 nfs4_save_creds(const struct cred **original_creds)
@@ -354,13 +355,13 @@ nfsd4_recdir_load(void) {
  */
 
 void
-nfsd4_init_recdir(char *rec_dirname)
+nfsd4_init_recdir()
 {
 	const struct cred *original_cred;
 	int status;
 
 	printk("NFSD: Using %s as the NFSv4 state recovery directory\n",
-			rec_dirname);
+			user_recovery_dirname);
 
 	BUG_ON(rec_file);
 
@@ -372,10 +373,10 @@ nfsd4_init_recdir(char *rec_dirname)
 		return;
 	}
 
-	rec_file = filp_open(rec_dirname, O_RDONLY | O_DIRECTORY, 0);
+	rec_file = filp_open(user_recovery_dirname, O_RDONLY | O_DIRECTORY, 0);
 	if (IS_ERR(rec_file)) {
 		printk("NFSD: unable to find recovery directory %s\n",
-				rec_dirname);
+				user_recovery_dirname);
 		rec_file = NULL;
 	}
 
@@ -389,4 +390,31 @@ nfsd4_shutdown_recdir(void)
 		return;
 	fput(rec_file);
 	rec_file = NULL;
+}
+
+/*
+ * Change the NFSv4 recovery directory to recdir.
+ */
+int
+nfs4_reset_recoverydir(char *recdir)
+{
+	int status;
+	struct path path;
+
+	status = kern_path(recdir, LOOKUP_FOLLOW, &path);
+	if (status)
+		return status;
+	status = -ENOTDIR;
+	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
+		strcpy(user_recovery_dirname, recdir);
+		status = 0;
+	}
+	path_put(&path);
+	return status;
+}
+
+char *
+nfs4_recoverydir(void)
+{
+	return user_recovery_dirname;
 }

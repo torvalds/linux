@@ -64,8 +64,6 @@ static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
 static struct nfs4_stateid * search_for_stateid(stateid_t *stid);
 static struct nfs4_delegation * search_for_delegation(stateid_t *stid);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
-static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
-static void nfs4_set_recdir(char *recdir);
 static int check_for_locks(struct nfs4_file *filp, struct nfs4_stateowner *lowner);
 
 /* Locking: */
@@ -4523,7 +4521,7 @@ nfsd4_load_reboot_recovery_data(void)
 	int status;
 
 	nfs4_lock_state();
-	nfsd4_init_recdir(user_recovery_dirname);
+	nfsd4_init_recdir();
 	status = nfsd4_recdir_load();
 	nfs4_unlock_state();
 	if (status)
@@ -4631,41 +4629,4 @@ nfs4_state_shutdown(void)
 	__nfs4_state_shutdown();
 	nfs4_unlock_state();
 	nfsd4_destroy_callback_queue();
-}
-
-/*
- * user_recovery_dirname is protected by the nfsd_mutex since it's only
- * accessed when nfsd is starting.
- */
-static void
-nfs4_set_recdir(char *recdir)
-{
-	strcpy(user_recovery_dirname, recdir);
-}
-
-/*
- * Change the NFSv4 recovery directory to recdir.
- */
-int
-nfs4_reset_recoverydir(char *recdir)
-{
-	int status;
-	struct path path;
-
-	status = kern_path(recdir, LOOKUP_FOLLOW, &path);
-	if (status)
-		return status;
-	status = -ENOTDIR;
-	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
-		nfs4_set_recdir(recdir);
-		status = 0;
-	}
-	path_put(&path);
-	return status;
-}
-
-char *
-nfs4_recoverydir(void)
-{
-	return user_recovery_dirname;
 }
