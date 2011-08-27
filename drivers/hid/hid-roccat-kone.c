@@ -37,6 +37,12 @@
 
 static uint profile_numbers[5] = {0, 1, 2, 3, 4};
 
+static void kone_profile_activated(struct kone_device *kone, uint new_profile)
+{
+	kone->actual_profile = new_profile;
+	kone->actual_dpi = kone->profiles[new_profile - 1].startup_dpi;
+}
+
 static int kone_receive(struct usb_device *usb_dev, uint usb_command,
 		void *data, uint size)
 {
@@ -294,21 +300,16 @@ static ssize_t kone_sysfs_write_settings(struct file *fp, struct kobject *kobj,
 	if (difference) {
 		retval = kone_set_settings(usb_dev,
 				(struct kone_settings const *)buf);
-		if (!retval)
-			memcpy(&kone->settings, buf,
-					sizeof(struct kone_settings));
+		if (retval) {
+			mutex_unlock(&kone->kone_lock);
+			return retval;
+		}
+
+		memcpy(&kone->settings, buf, sizeof(struct kone_settings));
+
+		kone_profile_activated(kone, kone->settings.startup_profile);
 	}
 	mutex_unlock(&kone->kone_lock);
-
-	if (retval)
-		return retval;
-
-	/*
-	 * If we get here, treat settings as okay and update actual values
-	 * according to startup_profile
-	 */
-	kone->actual_profile = kone->settings.startup_profile;
-	kone->actual_dpi = kone->profiles[kone->actual_profile - 1].startup_dpi;
 
 	return sizeof(struct kone_settings);
 }
@@ -501,6 +502,8 @@ static ssize_t kone_sysfs_set_tcu(struct device *dev,
 				goto exit_no_settings;
 			goto exit_unlock;
 		}
+		/* calibration resets profile */
+		kone_profile_activated(kone, kone->settings.startup_profile);
 	}
 
 	retval = size;
@@ -544,16 +547,15 @@ static ssize_t kone_sysfs_set_startup_profile(struct device *dev,
 	kone_set_settings_checksum(&kone->settings);
 
 	retval = kone_set_settings(usb_dev, &kone->settings);
-
-	mutex_unlock(&kone->kone_lock);
-
-	if (retval)
+	if (retval) {
+		mutex_unlock(&kone->kone_lock);
 		return retval;
+	}
 
 	/* changing the startup profile immediately activates this profile */
-	kone->actual_profile = new_startup_profile;
-	kone->actual_dpi = kone->profiles[kone->actual_profile - 1].startup_dpi;
+	kone_profile_activated(kone, new_startup_profile);
 
+	mutex_unlock(&kone->kone_lock);
 	return size;
 }
 
@@ -665,8 +667,7 @@ static int kone_init_kone_device_struct(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	kone->actual_profile = kone->settings.startup_profile;
-	kone->actual_dpi = kone->profiles[kone->actual_profile].startup_dpi;
+	kone_profile_activated(kone, kone->settings.startup_profile);
 
 	return 0;
 }
