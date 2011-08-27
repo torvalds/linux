@@ -344,7 +344,7 @@ static int storvsc_host_reset(struct hv_device *device)
 	int ret, t;
 
 
-	stor_device = get_stor_device(device);
+	stor_device = get_out_stor_device(device);
 	if (!stor_device)
 		return -ENODEV;
 

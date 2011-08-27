@@ -288,7 +288,8 @@ struct storvsc_device {
 
 
 /* Get the stordevice object iff exists and its refcount > 1 */
-static inline struct storvsc_device *get_stor_device(struct hv_device *device)
+static inline struct storvsc_device *get_out_stor_device(
+					struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 

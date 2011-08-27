@@ -41,7 +41,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 		return NULL;
 
 	/* Set to 2 to allow both inbound and outbound traffics */
-	/* (ie get_stor_device() and get_in_stor_device()) to proceed. */
+	/* (ie get_out_stor_device() and get_in_stor_device()) to proceed. */
 	atomic_cmpxchg(&stor_device->ref_count, 0, 2);
 
 	init_waitqueue_head(&stor_device->waiting_to_drain);
@@ -67,7 +67,7 @@ static inline struct storvsc_device *get_in_stor_device(
 	return stor_device;
 }
 
-/* Drop ref count to 1 to effectively disable get_stor_device() */
+/* Drop ref count to 1 to effectively disable get_out_stor_device() */
 static inline struct storvsc_device *release_stor_device(
 					struct hv_device *device)
 {
@@ -105,7 +105,7 @@ static int storvsc_channel_init(struct hv_device *device)
 	struct vstor_packet *vstor_packet;
 	int ret, t;
 
-	stor_device = get_stor_device(device);
+	stor_device = get_out_stor_device(device);
 	if (!stor_device)
 		return -ENODEV;
 
@@ -427,7 +427,7 @@ int storvsc_do_io(struct hv_device *device,
 	int ret = 0;
 
 	vstor_packet = &request->vstor_packet;
-	stor_device = get_stor_device(device);
+	stor_device = get_out_stor_device(device);
 
 	if (!stor_device)
 		return -ENODEV;
