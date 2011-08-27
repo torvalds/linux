@@ -377,8 +377,8 @@ static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 	unsigned pg = *cur_pg;
 	struct request_queue *q =
 			osd_request_queue(_ios_od(ios, per_dev->dev));
-
-	per_dev->length += cur_len;
+	unsigned len = cur_len;
+	int ret;
 
 	if (per_dev->bio == NULL) {
 		unsigned pages_in_stripe = ios->layout->group_width *
@@ -390,7 +390,8 @@ static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 		if (unlikely(!per_dev->bio)) {
 			ORE_DBGMSG("Failed to allocate BIO size=%u\n",
 				     bio_size);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
@@ -403,15 +404,24 @@ static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 
 		added_len = bio_add_pc_page(q, per_dev->bio, ios->pages[pg],
 					    pglen, pgbase);
-		if (unlikely(pglen != added_len))
-			return -ENOMEM;
+		if (unlikely(pglen != added_len)) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		pgbase = 0;
 		++pg;
 	}
 	BUG_ON(cur_len);
 
+	per_dev->length += len;
 	*cur_pg = pg;
-	return 0;
+	ret = 0;
+out:	/* we fail the complete unit on an error eg don't advance
+	 * per_dev->length and cur_pg. This means that we might have a bigger
+	 * bio than the CDB requested length (per_dev->length). That's fine
+	 * only the oposite is fatal.
+	 */
+	return ret;
 }
 
 static int _prepare_for_striping(struct ore_io_state *ios)
@@ -472,7 +482,13 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 out:
 	ios->numdevs = devs_in_group;
 	ios->pages_consumed = cur_pg;
-	return ret;
+	if (unlikely(ret)) {
+		if (length == ios->length)
+			return ret;
+		else
+			ios->length -= length;
+	}
+	return 0;
 }
 
 int ore_create(struct ore_io_state *ios)
