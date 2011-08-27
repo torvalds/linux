@@ -19,11 +19,17 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *   K. Y. Srinivasan <kys@microsoft.com>
  */
+
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/completion.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/blkdev.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -37,39 +43,28 @@
 #include "hyperv_storage.h"
 
 
-/*
- * Copyright (c) 2009, Microsoft Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
- *
- * Authors:
- *   Haiyang Zhang <haiyangz@microsoft.com>
- *   Hank Janssen  <hjanssen@microsoft.com>
- *   K. Y. Srinivasan <kys@microsoft.com>
- *
- */
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/completion.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/delay.h>
+static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 
-#include "hyperv.h"
-#include "hyperv_storage.h"
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
+struct hv_host_device {
+	struct hv_device *dev;
+	struct kmem_cache *request_pool;
+	unsigned int port;
+	unsigned char path;
+	unsigned char target;
+};
+
+struct storvsc_cmd_request {
+	struct list_head entry;
+	struct scsi_cmnd *cmd;
+
+	unsigned int bounce_sgl_count;
+	struct scatterlist *bounce_sgl;
+
+	struct hv_storvsc_request request;
+};
 
 static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 {
@@ -499,94 +494,6 @@ int storvsc_do_io(struct hv_device *device,
 
 	return ret;
 }
-
-/*
- * The channel properties uniquely specify how the device is to be
- * presented to the guest. Map this information for use by the block
- * driver. For Linux guests on Hyper-V, we emulate a scsi HBA in the guest
- * (storvsc_drv) and so scsi devices in the guest  are handled by
- * native upper level Linux drivers. Consequently, Hyper-V
- * block driver, while being a generic block driver, presently does not
- * deal with anything other than devices that would need to be presented
- * to the guest as an IDE disk.
- *
- * This function maps the channel properties as embedded in the input
- * parameter device_info onto information necessary to register the
- * corresponding block device.
- *
- * Currently, there is no way to stop the emulation of the block device
- * on the host side. And so, to prevent the native IDE drivers in Linux
- * from taking over these devices (to be managedby Hyper-V block
- * driver), we will take over if need be the major of the IDE controllers.
- *
- */
-
-int storvsc_get_major_info(struct storvsc_device_info *device_info,
-			    struct storvsc_major_info *major_info)
-{
-	static bool ide0_registered;
-	static bool ide1_registered;
-
-	/*
-	 * For now we only support IDE disks.
-	 */
-	major_info->devname = "ide";
-	major_info->diskname = "hd";
-
-	if (device_info->path_id) {
-		major_info->major = 22;
-		if (!ide1_registered) {
-			major_info->do_register = true;
-			ide1_registered = true;
-		} else
-			major_info->do_register = false;
-
-		if (device_info->target_id)
-			major_info->index = 3;
-		else
-			major_info->index = 2;
-
-		return 0;
-	} else {
-		major_info->major = 3;
-		if (!ide0_registered) {
-			major_info->do_register = true;
-			ide0_registered = true;
-		} else
-			major_info->do_register = false;
-
-		if (device_info->target_id)
-			major_info->index = 1;
-		else
-			major_info->index = 0;
-
-		return 0;
-	}
-
-	return -ENODEV;
-}
-static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
-
-module_param(storvsc_ringbuffer_size, int, S_IRUGO);
-MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
-
-struct hv_host_device {
-	struct hv_device *dev;
-	struct kmem_cache *request_pool;
-	unsigned int port;
-	unsigned char path;
-	unsigned char target;
-};
-
-struct storvsc_cmd_request {
-	struct list_head entry;
-	struct scsi_cmnd *cmd;
-
-	unsigned int bounce_sgl_count;
-	struct scatterlist *bounce_sgl;
-
-	struct hv_storvsc_request request;
-};
 
 static void storvsc_get_ide_info(struct hv_device *dev, int *target, int *path)
 {
