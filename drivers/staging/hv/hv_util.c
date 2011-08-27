@@ -107,6 +107,24 @@ static inline void do_adj_guesttime(u64 hosttime)
 }
 
 /*
+ * Set the host time in a process context.
+ */
+
+struct adj_time_work {
+	struct work_struct work;
+	u64	host_time;
+};
+
+static void hv_set_host_time(struct work_struct *work)
+{
+	struct adj_time_work	*wrk;
+
+	wrk = container_of(work, struct adj_time_work, work);
+	do_adj_guesttime(wrk->host_time);
+	kfree(wrk);
+}
+
+/*
  * Synchronize time with host after reboot, restore, etc.
  *
  * ICTIMESYNCFLAG_SYNC flag bit indicates reboot, restore events of the VM.
@@ -119,17 +137,26 @@ static inline void do_adj_guesttime(u64 hosttime)
  */
 static inline void adj_guesttime(u64 hosttime, u8 flags)
 {
+	struct adj_time_work    *wrk;
 	static s32 scnt = 50;
 
+	wrk = kmalloc(sizeof(struct adj_time_work), GFP_ATOMIC);
+	if (wrk == NULL)
+		return;
+
+	wrk->host_time = hosttime;
 	if ((flags & ICTIMESYNCFLAG_SYNC) != 0) {
-		do_adj_guesttime(hosttime);
+		INIT_WORK(&wrk->work, hv_set_host_time);
+		schedule_work(&wrk->work);
 		return;
 	}
 
 	if ((flags & ICTIMESYNCFLAG_SAMPLE) != 0 && scnt > 0) {
 		scnt--;
-		do_adj_guesttime(hosttime);
-	}
+		INIT_WORK(&wrk->work, hv_set_host_time);
+		schedule_work(&wrk->work);
+	} else
+		kfree(wrk);
 }
 
 /*
