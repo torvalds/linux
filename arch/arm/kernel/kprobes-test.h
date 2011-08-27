@@ -382,3 +382,9 @@ struct test_arg_end {
 #define VALR	0xdeaddead
 #define HH1	0x0123fecb
 #define HH2	0xa9874567
+
+
+#ifdef CONFIG_THUMB2_KERNEL
+void kprobe_thumb16_test_cases(void);
+void kprobe_thumb32_test_cases(void);
+#endif

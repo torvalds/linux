@@ -1117,6 +1117,15 @@ end:
  * Top level test functions
  */
 
+static int run_test_cases(void (*tests)(void))
+{
+	pr_info("    Run test cases\n");
+	tests();
+
+	return 0;
+}
+
+
 static int __init run_all_tests(void)
 {
 	int ret = 0;
@@ -1147,7 +1156,23 @@ static int __init run_all_tests(void)
 	if (ret)
 		goto out;
 
+	pr_info("16-bit Thumb instruction simulation\n");
+	ret = run_test_cases(kprobe_thumb16_test_cases);
+	if (ret)
+		goto out;
+
+	pr_info("32-bit Thumb instruction simulation\n");
+	ret = run_test_cases(kprobe_thumb32_test_cases);
+	if (ret)
+		goto out;
 #endif
+
+	pr_info("Total instruction simulation tests=%d, pass=%d fail=%d\n",
+		test_try_count, test_pass_count, test_fail_count);
+	if (test_fail_count) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 out:
 	if (ret == 0)
