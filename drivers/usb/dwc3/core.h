@@ -634,6 +634,12 @@ struct dwc3_event_depevt {
 #define DEPEVT_STATUS_SHORT     (1 << 1)
 #define DEPEVT_STATUS_IOC       (1 << 2)
 #define DEPEVT_STATUS_LST	(1 << 3)
+
+/* Control-only Status */
+#define DEPEVT_STATUS_CONTROL_SETUP	0
+#define DEPEVT_STATUS_CONTROL_DATA	1
+#define DEPEVT_STATUS_CONTROL_STATUS	2
+
 	u32	parameters:16;
 } __packed;
 
