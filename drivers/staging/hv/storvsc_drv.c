@@ -42,6 +42,12 @@
 
 #include "hyperv.h"
 
+#define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)
+static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
+
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
+
 /* to alert the user that structure sizes may be mismatched even though the */
 /* protocol versions match. */
 
@@ -214,8 +220,6 @@ struct vstor_packet {
 
 
 /* Defines */
-#define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)
-#define BLKVSC_RING_BUFFER_SIZE				(20*PAGE_SIZE)
 
 #define STORVSC_MAX_IO_REQUESTS				128
 
@@ -262,13 +266,6 @@ struct storvsc_device_info {
 	unsigned char target_id;
 };
 
-struct storvsc_major_info {
-	int major;
-	int index;
-	bool do_register;
-	char *devname;
-	char *diskname;
-};
 
 /* A storvsc device is a device object that contains a vmbus channel */
 struct storvsc_device {
@@ -294,6 +291,23 @@ struct storvsc_device {
 	struct hv_storvsc_request reset_request;
 };
 
+struct hv_host_device {
+	struct hv_device *dev;
+	struct kmem_cache *request_pool;
+	unsigned int port;
+	unsigned char path;
+	unsigned char target;
+};
+
+struct storvsc_cmd_request {
+	struct list_head entry;
+	struct scsi_cmnd *cmd;
+
+	unsigned int bounce_sgl_count;
+	struct scatterlist *bounce_sgl;
+
+	struct hv_storvsc_request request;
+};
 
 static inline struct storvsc_device *get_out_stor_device(
 					struct hv_device *device)
@@ -316,30 +330,6 @@ static inline void storvsc_wait_to_drain(struct storvsc_device *dev)
 		   atomic_read(&dev->num_outstanding_req) == 0);
 	dev->drain_notify = false;
 }
-
-
-static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
-
-module_param(storvsc_ringbuffer_size, int, S_IRUGO);
-MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
-
-struct hv_host_device {
-	struct hv_device *dev;
-	struct kmem_cache *request_pool;
-	unsigned int port;
-	unsigned char path;
-	unsigned char target;
-};
-
-struct storvsc_cmd_request {
-	struct list_head entry;
-	struct scsi_cmnd *cmd;
-
-	unsigned int bounce_sgl_count;
-	struct scatterlist *bounce_sgl;
-
-	struct hv_storvsc_request request;
-};
 
 static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 {
@@ -646,7 +636,7 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
 	return ret;
 }
 
-int storvsc_dev_add(struct hv_device *device,
+static int storvsc_dev_add(struct hv_device *device,
 					void *additional_info)
 {
 	struct storvsc_device *stor_device;
@@ -681,7 +671,7 @@ int storvsc_dev_add(struct hv_device *device,
 	return ret;
 }
 
-int storvsc_dev_remove(struct hv_device *device)
+static int storvsc_dev_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 	unsigned long flags;
@@ -718,7 +708,7 @@ int storvsc_dev_remove(struct hv_device *device)
 	return 0;
 }
 
-int storvsc_do_io(struct hv_device *device,
+static int storvsc_do_io(struct hv_device *device,
 			      struct hv_storvsc_request *request)
 {
 	struct storvsc_device *stor_device;
