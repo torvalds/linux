@@ -1139,6 +1139,11 @@ static int __init run_all_tests(void)
 	if (ret)
 		goto out;
 
+	pr_info("ARM instruction simulation\n");
+	ret = run_test_cases(kprobe_arm_test_cases);
+	if (ret)
+		goto out;
+
 #else /* CONFIG_THUMB2_KERNEL */
 
 	pr_info("Probe 16-bit Thumb code\n");

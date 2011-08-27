@@ -387,4 +387,6 @@ struct test_arg_end {
 #ifdef CONFIG_THUMB2_KERNEL
 void kprobe_thumb16_test_cases(void);
 void kprobe_thumb32_test_cases(void);
+#else
+void kprobe_arm_test_cases(void);
 #endif
