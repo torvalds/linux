@@ -24,14 +24,17 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		return -EINVAL;
 
 	/*
-	 * Temporarily switch the page tables to our suspend page
-	 * tables, which contain the temporary identity mapping
-	 * required for resuming.
+	 * Provide a temporary page table with an identity mapping for
+	 * the MMU-enable code, required for resuming.  On successful
+	 * resume (indicated by a zero return code), we need to switch
+	 * back to the correct page tables.
 	 */
-	cpu_switch_mm(suspend_pgd, mm);
-	ret = __cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, arg, fn);
-	cpu_switch_mm(mm->pgd, mm);
-	local_flush_tlb_all();
+	ret = __cpu_suspend(virt_to_phys(suspend_pgd),
+			    PHYS_OFFSET - PAGE_OFFSET, arg, fn);
+	if (ret == 0) {
+		cpu_switch_mm(mm->pgd, mm);
+		local_flush_tlb_all();
+	}
 
 	return ret;
 }

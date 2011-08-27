@@ -128,20 +128,19 @@ ENTRY(cpu_v6_set_pte_ext)
 
 /* Suspend/resume support: taken from arch/arm/mach-s3c64xx/sleep.S */
 .globl	cpu_v6_suspend_size
-.equ	cpu_v6_suspend_size, 4 * 8
+.equ	cpu_v6_suspend_size, 4 * 7
 #ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_v6_do_suspend)
-	stmfd	sp!, {r4 - r11, lr}
+	stmfd	sp!, {r4 - r10, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ FCSE/PID
 	mrc	p15, 0, r5, c13, c0, 1	@ Context ID
 	mrc	p15, 0, r6, c3, c0, 0	@ Domain ID
-	mrc	p15, 0, r7, c2, c0, 0	@ Translation table base 0
-	mrc	p15, 0, r8, c2, c0, 1	@ Translation table base 1
-	mrc	p15, 0, r9, c1, c0, 1	@ auxiliary control register
-	mrc	p15, 0, r10, c1, c0, 2	@ co-processor access control
-	mrc	p15, 0, r11, c1, c0, 0	@ control register
-	stmia	r0, {r4 - r11}
-	ldmfd	sp!, {r4- r11, pc}
+	mrc	p15, 0, r7, c2, c0, 1	@ Translation table base 1
+	mrc	p15, 0, r8, c1, c0, 1	@ auxiliary control register
+	mrc	p15, 0, r9, c1, c0, 2	@ co-processor access control
+	mrc	p15, 0, r10, c1, c0, 0	@ control register
+	stmia	r0, {r4 - r10}
+	ldmfd	sp!, {r4- r10, pc}
 ENDPROC(cpu_v6_do_suspend)
 
 ENTRY(cpu_v6_do_resume)
@@ -150,17 +149,19 @@ ENTRY(cpu_v6_do_resume)
 	mcr	p15, 0, ip, c7, c5, 0	@ invalidate I cache
 	mcr	p15, 0, ip, c7, c15, 0	@ clean+invalidate cache
 	mcr	p15, 0, ip, c7, c10, 4	@ drain write buffer
-	ldmia	r0, {r4 - r11}
+	ldmia	r0, {r4 - r10}
 	mcr	p15, 0, r4, c13, c0, 0	@ FCSE/PID
 	mcr	p15, 0, r5, c13, c0, 1	@ Context ID
 	mcr	p15, 0, r6, c3, c0, 0	@ Domain ID
-	mcr	p15, 0, r7, c2, c0, 0	@ Translation table base 0
-	mcr	p15, 0, r8, c2, c0, 1	@ Translation table base 1
-	mcr	p15, 0, r9, c1, c0, 1	@ auxiliary control register
-	mcr	p15, 0, r10, c1, c0, 2	@ co-processor access control
+	ALT_SMP(orr	r1, r1, #TTB_FLAGS_SMP)
+	ALT_UP(orr	r1, r1, #TTB_FLAGS_UP)
+	mcr	p15, 0, r1, c2, c0, 0	@ Translation table base 0
+	mcr	p15, 0, r7, c2, c0, 1	@ Translation table base 1
+	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control register
+	mcr	p15, 0, r9, c1, c0, 2	@ co-processor access control
 	mcr	p15, 0, ip, c2, c0, 2	@ TTB control register
 	mcr	p15, 0, ip, c7, c5, 4	@ ISB
-	mov	r0, r11			@ control register
+	mov	r0, r10			@ control register
 	b	cpu_resume_mmu
 ENDPROC(cpu_v6_do_resume)
 #endif

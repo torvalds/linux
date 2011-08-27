@@ -9,12 +9,14 @@
 
 /*
  * Save CPU state for a suspend
+ *  r0 = phys addr of temporary page tables
  *  r1 = v:p offset
  *  r2 = suspend function arg0
  *  r3 = suspend function
  */
 ENTRY(__cpu_suspend)
 	stmfd	sp!, {r4 - r11, lr}
+	mov	r4, r0
 #ifdef MULTI_CPU
 	ldr	r10, =processor
 	ldr	r5, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
@@ -27,7 +29,7 @@ ENTRY(__cpu_suspend)
 	sub	sp, sp, r5		@ allocate CPU state on stack
 	mov	r0, sp			@ save pointer to CPU save block
 	add	ip, ip, r1		@ convert resume fn to phys
-	stmfd	sp!, {r6, ip}		@ save virt SP, phys resume fn
+	stmfd	sp!, {r4, r6, ip}	@ save phys pgd, virt SP, phys resume fn
 	ldr	r5, =sleep_save_sp
 	add	r6, sp, r1		@ convert SP to phys
 	stmfd	sp!, {r2, r3}		@ save suspend func arg and pointer
@@ -60,7 +62,7 @@ ENDPROC(__cpu_suspend)
 	.ltorg
 
 cpu_suspend_abort:
-	ldmia	sp!, {r2 - r3}		@ pop virt SP, phys resume fn
+	ldmia	sp!, {r1 - r3}		@ pop phys pgd, virt SP, phys resume fn
 	teq	r0, #0
 	moveq	r0, #1			@ force non-zero value
 	mov	sp, r2
@@ -69,9 +71,6 @@ ENDPROC(cpu_suspend_abort)
 
 /*
  * r0 = control register value
- * r1 = v:p offset (preserved by cpu_do_resume)
- * r2 = phys page table base
- * r3 = L1 section flags
  */
 ENTRY(cpu_resume_mmu)
 	ldr	r3, =cpu_resume_after_mmu
@@ -112,11 +111,11 @@ ENTRY(cpu_resume)
 	ldr	r0, sleep_save_sp	@ stack phys addr
 #endif
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
-	@ load stack, resume fn
-  ARM(	ldmia	r0!, {sp, pc}	)
-THUMB(	ldmia	r0!, {r2, r3}	)
-THUMB(	mov	sp, r2		)
-THUMB(	bx	r3		)
+	@ load phys pgd, stack, resume fn
+  ARM(	ldmia	r0!, {r1, sp, pc}	)
+THUMB(	ldmia	r0!, {r1, r2, r3}	)
+THUMB(	mov	sp, r2			)
+THUMB(	bx	r3			)
 ENDPROC(cpu_resume)
 
 sleep_save_sp:
