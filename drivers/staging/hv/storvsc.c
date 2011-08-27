@@ -51,10 +51,6 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 	return stor_device;
 }
 
-static inline void free_stor_device(struct storvsc_device *device)
-{
-	kfree(device);
-}
 
 /* Get the stordevice object iff exists and its refcount > 0 */
 static inline struct storvsc_device *must_get_stor_device(
@@ -394,7 +390,7 @@ int storvsc_dev_add(struct hv_device *device,
 	/* Send it back up */
 	ret = storvsc_connect_to_vsp(device, device_info->ring_buffer_size);
 	if (ret) {
-		free_stor_device(stor_device);
+		kfree(stor_device);
 		return ret;
 	}
 	device_info->path_id = stor_device->path_id;
@@ -422,7 +418,7 @@ int storvsc_dev_remove(struct hv_device *device)
 	/* Close the channel */
 	vmbus_close(device->channel);
 
-	free_stor_device(stor_device);
+	kfree(stor_device);
 	return 0;
 }
 
