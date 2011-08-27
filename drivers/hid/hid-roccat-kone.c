@@ -776,10 +776,10 @@ static void kone_keep_values_up_to_date(struct kone_device *kone,
 {
 	switch (event->event) {
 	case kone_mouse_event_switch_profile:
+		kone->actual_dpi = kone->profiles[event->value - 1].
+				startup_dpi;
 	case kone_mouse_event_osd_profile:
 		kone->actual_profile = event->value;
-		kone->actual_dpi = kone->profiles[kone->actual_profile - 1].
-				startup_dpi;
 		break;
 	case kone_mouse_event_switch_dpi:
 	case kone_mouse_event_osd_dpi:
