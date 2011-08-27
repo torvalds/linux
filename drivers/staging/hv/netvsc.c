@@ -43,6 +43,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	/* Set to 2 to allow both inbound and outbound traffic */
 	atomic_set(&net_device->refcnt, 2);
 
+	net_device->destroy = false;
 	net_device->dev = device;
 	device->ext = net_device;
 
@@ -396,6 +397,7 @@ int netvsc_device_remove(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
 	struct hv_netvsc_packet *netvsc_packet, *pos;
+	unsigned long flags;
 
 	/* Stop outbound traffic ie sends and receives completions */
 	net_device = release_outbound_net_device(device);
@@ -403,6 +405,10 @@ int netvsc_device_remove(struct hv_device *device)
 		dev_err(&device->device, "No net device present!!");
 		return -ENODEV;
 	}
+
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
+	net_device->destroy = true;
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* Wait for all send completions */
 	while (atomic_read(&net_device->num_outstanding_sends)) {
