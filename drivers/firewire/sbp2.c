@@ -1110,7 +1110,7 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 }
 
 static struct scsi_host_template scsi_driver_template;
-static void sbp2_release_target(struct sbp2_target *tgt);
+static int sbp2_remove(struct device *dev);
 
 static int sbp2_probe(struct device *dev)
 {
@@ -1153,7 +1153,7 @@ static int sbp2_probe(struct device *dev)
 
 	if (sbp2_scan_unit_dir(tgt, unit->directory, &model,
 			       &firmware_revision) < 0)
-		goto fail_release_target;
+		goto fail_remove;
 
 	sbp2_clamp_management_orb_timeout(tgt);
 	sbp2_init_workarounds(tgt, model, firmware_revision);
@@ -1173,8 +1173,8 @@ static int sbp2_probe(struct device *dev)
 
 	return 0;
 
- fail_release_target:
-	sbp2_release_target(tgt);
+ fail_remove:
+	sbp2_remove(dev);
 	return -ENOMEM;
 
  fail_shost_put:
@@ -1200,18 +1200,21 @@ static void sbp2_update(struct fw_unit *unit)
 	}
 }
 
-static void sbp2_release_target(struct sbp2_target *tgt)
+static int sbp2_remove(struct device *dev)
 {
+	struct fw_unit *unit = fw_unit(dev);
+	struct fw_device *device = fw_parent_device(unit);
+	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
 	struct sbp2_logical_unit *lu, *next;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
 	struct scsi_device *sdev;
-	struct fw_device *device = target_device(tgt);
 
 	/* prevent deadlocks */
 	sbp2_unblock(tgt);
 
 	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
+		cancel_delayed_work_sync(&lu->work);
 		sdev = scsi_device_lookup(shost, 0, 0, sbp2_lun2int(lu->lun));
 		if (sdev) {
 			scsi_remove_device(sdev);
@@ -1239,19 +1242,6 @@ static void sbp2_release_target(struct sbp2_target *tgt)
 	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
 
 	scsi_host_put(shost);
-}
-
-static int sbp2_remove(struct device *dev)
-{
-	struct fw_unit *unit = fw_unit(dev);
-	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
-	struct sbp2_logical_unit *lu;
-
-	list_for_each_entry(lu, &tgt->lu_list, link)
-		cancel_delayed_work_sync(&lu->work);
-
-	sbp2_release_target(tgt);
-
 	return 0;
 }
 
