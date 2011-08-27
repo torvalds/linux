@@ -513,9 +513,12 @@ void vmbus_close(struct vmbus_channel *channel)
 {
 	struct vmbus_channel_close_channel *msg;
 	int ret;
+	unsigned long flags;
 
 	/* Stop callback and cancel the timer asap */
+	spin_lock_irqsave(&channel->inbound_lock, flags);
 	channel->onchannel_callback = NULL;
+	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 
 	/* Send a closing message */
 
@@ -735,19 +738,15 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	u32 packetlen;
 	u32 userlen;
 	int ret;
-	unsigned long flags;
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
 
-	spin_lock_irqsave(&channel->inbound_lock, flags);
 
 	ret = hv_ringbuffer_peek(&channel->inbound, &desc,
 			     sizeof(struct vmpacket_descriptor));
-	if (ret != 0) {
-		spin_unlock_irqrestore(&channel->inbound_lock, flags);
+	if (ret != 0)
 		return 0;
-	}
 
 	packetlen = desc.len8 << 3;
 	userlen = packetlen - (desc.offset8 << 3);
@@ -755,7 +754,6 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	*buffer_actual_len = userlen;
 
 	if (userlen > bufferlen) {
-		spin_unlock_irqrestore(&channel->inbound_lock, flags);
 
 		pr_err("Buffer too small - got %d needs %d\n",
 			   bufferlen, userlen);
@@ -768,7 +766,6 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	ret = hv_ringbuffer_read(&channel->inbound, buffer, userlen,
 			     (desc.offset8 << 3));
 
-	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 
 	return 0;
 }
@@ -785,19 +782,15 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	u32 packetlen;
 	u32 userlen;
 	int ret;
-	unsigned long flags;
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
 
-	spin_lock_irqsave(&channel->inbound_lock, flags);
 
 	ret = hv_ringbuffer_peek(&channel->inbound, &desc,
 			     sizeof(struct vmpacket_descriptor));
-	if (ret != 0) {
-		spin_unlock_irqrestore(&channel->inbound_lock, flags);
+	if (ret != 0)
 		return 0;
-	}
 
 
 	packetlen = desc.len8 << 3;
@@ -806,8 +799,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	*buffer_actual_len = packetlen;
 
 	if (packetlen > bufferlen) {
-		spin_unlock_irqrestore(&channel->inbound_lock, flags);
-
 		pr_err("Buffer too small - needed %d bytes but "
 			"got space for only %d bytes\n",
 			packetlen, bufferlen);
@@ -819,7 +810,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	/* Copy over the entire packet to the user buffer */
 	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0);
 
-	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);

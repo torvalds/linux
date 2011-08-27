@@ -352,9 +352,7 @@ static inline struct storvsc_device *get_in_stor_device(
 					struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
-	unsigned long flags;
 
-	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	stor_device = (struct storvsc_device *)device->ext;
 
 	if (!stor_device)
@@ -370,7 +368,6 @@ static inline struct storvsc_device *get_in_stor_device(
 		stor_device = NULL;
 
 get_in_err:
-	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 	return stor_device;
 
 }

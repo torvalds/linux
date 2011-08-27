@@ -215,6 +215,7 @@ struct vmbus_channel *relid2channel(u32 relid)
 static void process_chn_event(u32 relid)
 {
 	struct vmbus_channel *channel;
+	unsigned long flags;
 
 	/*
 	 * Find the channel based on this relid and invokes the
@@ -222,11 +223,13 @@ static void process_chn_event(u32 relid)
 	 */
 	channel = relid2channel(relid);
 
+	spin_lock_irqsave(&channel->inbound_lock, flags);
 	if (channel && (channel->onchannel_callback != NULL)) {
 		channel->onchannel_callback(channel->channel_callback_context);
 	} else {
 		pr_err("channel not found for relid - %u\n", relid);
 	}
+	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 }
 
 /*

@@ -62,9 +62,7 @@ static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 static struct netvsc_device *get_inbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
-	unsigned long flags;
 
-	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	net_device = device->ext;
 
 	if (!net_device)
@@ -75,7 +73,6 @@ static struct netvsc_device *get_inbound_net_device(struct hv_device *device)
 		net_device = NULL;
 
 get_in_err:
-	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 	return net_device;
 }
 
