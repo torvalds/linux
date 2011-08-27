@@ -308,7 +308,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
 	uint32_t ret = 0;
 	uint32_t deinterlace_config = 0;
-
+	
 	//printk("ipp_blit\n");
 	if (drvdata == NULL) {			/* ddl@rock-chips.com : check driver is normal or not */
 		printk("%s drvdata is NULL, IPP driver probe is fail!!\n", __FUNCTION__);
@@ -846,8 +846,12 @@ int ipp_blit(const struct rk29_ipp_req *req)
 				{
 					deinterlace_config = (req->deinterlace_enable<<24) | (req->deinterlace_para0<<19) | (req->deinterlace_para1<<14) | (req->deinterlace_para2<<9);
 					DBG("para0 %d, para1 %d, para2 %d,deinterlace_config  %x\n",req->deinterlace_para0,req->deinterlace_para1,req->deinterlace_para2,deinterlace_config);
-					ipp_write((ipp_read(IPP_CONFIG)&0xFE0001FF)|deinterlace_config, IPP_CONFIG);
-					//printk("IPP_CONFIG2 = 0x%x\n",ipp_read(IPP_CONFIG));
+					#ifdef CONFIG_DEINTERLACE
+						ipp_write((ipp_read(IPP_CONFIG)&0xFE0001FF)|deinterlace_config, IPP_CONFIG);
+					#else
+						printk("does not support deinterlacing!\n");
+						ipp_write(ipp_read(IPP_CONFIG)&(~DEINTERLACE_ENABLE), IPP_CONFIG); //disable deinterlace
+					#endif
 				}
 				else
 				{
@@ -877,6 +881,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		ipp_write(ipp_read(IPP_CONFIG)&(~STORE_CLIP_MODE), IPP_CONFIG);
 	}
+
 
 	/* Start the operation */
 	ipp_write(8, IPP_INT);//		
@@ -931,7 +936,6 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
 	int wait_ret;
 
 	//printk("ipp_blit_sync -------------------\n");
-
 
 	////If IPP is busy now,wait until it becomes idle
 	mutex_lock(&drvdata->mutex);
@@ -1026,7 +1030,17 @@ static int stretch_blit(/*struct ipp_context *ctx,*/  unsigned long arg ,unsigne
 		goto err_noput;
 	}
 	
-	
+	if(req.deinterlace_enable==2)
+	{
+		#ifdef	CONFIG_DEINTERLACE
+			printk("ipp support deinterlacing\n");
+    		return 0;
+		#else
+			printk("ipp dose not support deinterlacing\n");
+			return -EPERM;
+		#endif
+	}
+
 	if(cmd == IPP_BLIT_SYNC)
 	{
 		ret = ipp_blit_sync(&req);

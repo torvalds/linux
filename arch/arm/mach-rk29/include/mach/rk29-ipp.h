@@ -34,7 +34,7 @@ struct rk29_ipp_req {
 	*/
 	uint8_t store_clip_mode;
 	
-	//deinterlace_enable 1:enable 0:disable
+	//deinterlace_enable  0:disable 1:enable 2:query
 	uint8_t deinterlace_enable;
 	//the sum of three paras should be 32,and single para should be less than 32
 	uint8_t deinterlace_para0;
