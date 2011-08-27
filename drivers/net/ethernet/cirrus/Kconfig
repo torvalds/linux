@@ -4,6 +4,7 @@
 
 config NET_VENDOR_CIRRUS
 	bool "Cirrus devices"
+	default y
 	depends on ARM && ARCH_EP93XX
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

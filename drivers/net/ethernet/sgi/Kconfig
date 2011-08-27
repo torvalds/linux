@@ -4,6 +4,7 @@
 
 config NET_VENDOR_SGI
 	bool "SGI devices"
+	default y
 	depends on (PCI && SGI_IP27) || SGI_IP32
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

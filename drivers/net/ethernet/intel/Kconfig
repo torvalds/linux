@@ -4,6 +4,7 @@
 
 config NET_VENDOR_INTEL
 	bool "Intel devices"
+	default y
 	depends on PCI || PCI_MSI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

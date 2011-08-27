@@ -4,6 +4,7 @@
 
 config NET_VENDOR_REALTEK
 	bool "Realtek devices"
+	default y
 	depends on PCI || (PARPORT && X86)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

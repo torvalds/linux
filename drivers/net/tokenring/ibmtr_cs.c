@@ -66,7 +66,7 @@
 #include <asm/system.h>
 
 #define PCMCIA
-#include "../tokenring/ibmtr.c"
+#include "ibmtr.c"
 
 
 /*====================================================================*/

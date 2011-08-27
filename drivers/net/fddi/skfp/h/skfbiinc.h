@@ -15,7 +15,7 @@
 #ifndef	_SKFBIINC_
 #define _SKFBIINC_
 
-#include "h/supern_2.h"
+#include "supern_2.h"
 
 /*
  * special defines for use into .asm files

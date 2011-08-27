@@ -4,6 +4,7 @@
 
 config NET_VENDOR_DEC
 	bool "Digital Equipment devices"
+	default y
 	depends on PCI || EISA || CARDBUS
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

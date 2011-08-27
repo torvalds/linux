@@ -2113,7 +2113,7 @@ F:	net/decnet/
 DEFXX FDDI NETWORK DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
-F:	drivers/net/defxx.*
+F:	drivers/net/fddi/defxx.*
 
 DELL LAPTOP DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
@@ -3049,6 +3049,7 @@ S:	Maintained
 F:	include/linux/hippidevice.h
 F:	include/linux/if_hippi.h
 F:	net/802/hippi.c
+F:	drivers/net/hippi/
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>
@@ -5066,7 +5067,7 @@ PPP PROTOCOL DRIVERS AND COMPRESSORS
 M:	Paul Mackerras <paulus@samba.org>
 L:	linux-ppp@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ppp_*
+F:	drivers/net/ppp/ppp_*
 
 PPP OVER ATM (RFC 2364)
 M:	Mitchell Blank Jr <mitch@sfgoth.com>
@@ -5077,8 +5078,8 @@ F:	include/linux/atmppp.h
 PPP OVER ETHERNET
 M:	Michal Ostrowski <mostrows@earthlink.net>
 S:	Maintained
-F:	drivers/net/pppoe.c
-F:	drivers/net/pppox.c
+F:	drivers/net/ppp/pppoe.c
+F:	drivers/net/ppp/pppox.c
 
 PPP OVER L2TP
 M:	James Chapman <jchapman@katalix.com>
@@ -5099,7 +5100,7 @@ PPTP DRIVER
 M:	Dmitry Kozlov <xeb@mail.ru>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/pptp.c
+F:	drivers/net/ppp/pptp.c
 W:	http://sourceforge.net/projects/accel-pptp
 
 PREEMPTIBLE KERNEL

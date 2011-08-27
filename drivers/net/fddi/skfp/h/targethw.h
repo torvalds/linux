@@ -25,11 +25,11 @@
 #define SK_ML_ID_2	0x30
 #endif
 
-#include	"h/skfbi.h"
+#include	"skfbi.h"
 #ifndef TAG_MODE	
-#include	"h/fplus.h"
+#include	"fplus.h"
 #else
-#include	"h/fplustm.h"
+#include	"fplustm.h"
 #endif
 
 #ifndef	HW_PTR

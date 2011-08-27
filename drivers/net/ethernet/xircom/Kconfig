@@ -4,6 +4,7 @@
 
 config NET_VENDOR_XIRCOM
 	bool "Xircom devices"
+	default y
 	depends on PCMCIA
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

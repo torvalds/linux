@@ -25,18 +25,32 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
-config IFB
-	tristate "Intermediate Functional Block support"
-	depends on NET_CLS_ACT
+config NET_CORE
+	default y
+	bool "Network core driver support"
 	---help---
-	  This is an intermediate driver that allows sharing of
-	  resources.
+	  You can say N here if you do not intend to use any of the
+	  networking core drivers (i.e. VLAN, bridging, bonding, etc.)
+
+if NET_CORE
+
+config BONDING
+	tristate "Bonding driver support"
+	depends on INET
+	depends on IPV6 || IPV6=n
+	---help---
+	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
+	  Channels together. This is called 'Etherchannel' by Cisco,
+	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
+
+	  The driver supports multiple bonding modes to allow for both high
+	  performance and high availability operation.
+
+	  Refer to <file:Documentation/networking/bonding.txt> for more
+	  information.
+
 	  To compile this driver as a module, choose M here: the module
-	  will be called ifb.  If you want to use more than one ifb
-	  device at a time, you need to compile this driver as a module.
-	  Instead of 'ifb', the devices will then be called 'ifb0',
-	  'ifb1' etc.
-	  Look at the iproute2 documentation directory for usage etc
+	  will be called bonding.
 
 config DUMMY
 	tristate "Dummy net driver support"
@@ -57,23 +71,59 @@ config DUMMY
 	  Instead of 'dummy', the devices will then be called 'dummy0',
 	  'dummy1' etc.
 
-config BONDING
-	tristate "Bonding driver support"
-	depends on INET
-	depends on IPV6 || IPV6=n
+config EQUALIZER
+	tristate "EQL (serial line load balancing) support"
 	---help---
-	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
-	  Channels together. This is called 'Etherchannel' by Cisco,
-	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
+	  If you have two serial connections to some other computer (this
+	  usually requires two modems and two telephone lines) and you use
+	  SLIP (the protocol for sending Internet traffic over telephone
+	  lines) or PPP (a better SLIP) on them, you can make them behave like
+	  one double speed connection using this driver.  Naturally, this has
+	  to be supported at the other end as well, either with a similar EQL
+	  Linux driver or with a Livingston Portmaster 2e.
 
-	  The driver supports multiple bonding modes to allow for both high
-	  performance and high availability operation.
-
-	  Refer to <file:Documentation/networking/bonding.txt> for more
-	  information.
+	  Say Y if you want this and read
+	  <file:Documentation/networking/eql.txt>.  You may also want to read
+	  section 6.2 of the NET-3-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called bonding.
+	  will be called eql.  If unsure, say N.
+
+config NET_FC
+	bool "Fibre Channel driver support"
+	depends on SCSI && PCI
+	help
+	  Fibre Channel is a high speed serial protocol mainly used to connect
+	  large storage devices to the computer; it is compatible with and
+	  intended to replace SCSI.
+
+	  If you intend to use Fibre Channel, you need to have a Fibre channel
+	  adaptor card in your computer; say Y here and to the driver for your
+	  adaptor below. You also should have said Y to "SCSI support" and
+	  "SCSI generic support".
+
+config MII
+	tristate "Generic Media Independent Interface device support"
+	help
+	  Most ethernet controllers have MII transceiver either as an external
+	  or internal device.  It is safe to say Y or M here even if your
+	  ethernet card lacks MII.
+
+source "drivers/ieee802154/Kconfig"
+
+config IFB
+	tristate "Intermediate Functional Block support"
+	depends on NET_CLS_ACT
+	---help---
+	  This is an intermediate driver that allows sharing of
+	  resources.
+	  To compile this driver as a module, choose M here: the module
+	  will be called ifb.  If you want to use more than one ifb
+	  device at a time, you need to compile this driver as a module.
+	  Instead of 'ifb', the devices will then be called 'ifb0',
+	  'ifb1' etc.
+	  Look at the iproute2 documentation directory for usage etc
 
 config MACVLAN
 	tristate "MAC-VLAN support (EXPERIMENTAL)"
@@ -102,24 +152,46 @@ config MACVTAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
 
-config EQUALIZER
-	tristate "EQL (serial line load balancing) support"
+config NETCONSOLE
+	tristate "Network console logging support"
 	---help---
-	  If you have two serial connections to some other computer (this
-	  usually requires two modems and two telephone lines) and you use
-	  SLIP (the protocol for sending Internet traffic over telephone
-	  lines) or PPP (a better SLIP) on them, you can make them behave like
-	  one double speed connection using this driver.  Naturally, this has
-	  to be supported at the other end as well, either with a similar EQL
-	  Linux driver or with a Livingston Portmaster 2e.
+	If you want to log kernel messages over the network, enable this.
+	See <file:Documentation/networking/netconsole.txt> for details.
 
-	  Say Y if you want this and read
-	  <file:Documentation/networking/eql.txt>.  You may also want to read
-	  section 6.2 of the NET-3-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+config NETCONSOLE_DYNAMIC
+	bool "Dynamic reconfiguration of logging targets"
+	depends on NETCONSOLE && SYSFS && CONFIGFS_FS && \
+			!(NETCONSOLE=y && CONFIGFS_FS=m)
+	help
+	  This option enables the ability to dynamically reconfigure target
+	  parameters (interface, IP addresses, port numbers, MAC addresses)
+	  at runtime through a userspace interface exported using configfs.
+	  See <file:Documentation/networking/netconsole.txt> for details.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called eql.  If unsure, say N.
+config NETPOLL
+	def_bool NETCONSOLE
+
+config NETPOLL_TRAP
+	bool "Netpoll traffic trapping"
+	default n
+	depends on NETPOLL
+
+config NET_POLL_CONTROLLER
+	def_bool NETPOLL
+
+config RIONET
+	tristate "RapidIO Ethernet over messaging driver support"
+	depends on RAPIDIO
+
+config RIONET_TX_SIZE
+	int "Number of outbound queue entries"
+	depends on RIONET
+	default "128"
+
+config RIONET_RX_SIZE
+	int "Number of inbound queue entries"
+	depends on RIONET
+	default "128"
 
 config TUN
 	tristate "Universal TUN/TAP device driver support"
@@ -151,6 +223,28 @@ config VETH
 	  When one end receives the packet it appears on its pair and vice
 	  versa.
 
+config VIRTIO_NET
+	tristate "Virtio network driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && VIRTIO
+	---help---
+	  This is the virtual network driver for virtio.  It can be used with
+	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+endif # NET_CORE
+
+config SUNGEM_PHY
+	tristate
+
+source "drivers/net/arcnet/Kconfig"
+
+source "drivers/atm/Kconfig"
+
+source "drivers/net/caif/Kconfig"
+
+source "drivers/net/ethernet/Kconfig"
+
+source "drivers/net/fddi/Kconfig"
+
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
 	depends on PNP
@@ -175,45 +269,25 @@ config NET_SB1000
 
 	  If you don't have this card, of course say N.
 
-source "drivers/net/arcnet/Kconfig"
-
-config MII
-	tristate "Generic Media Independent Interface device support"
-	help
-	  Most ethernet controllers have MII transceiver either as an external
-	  or internal device.  It is safe to say Y or M here even if your
-	  ethernet card lacks MII.
-
 source "drivers/net/phy/Kconfig"
 
-config SUNGEM_PHY
-	tristate
+source "drivers/net/plip/Kconfig"
 
-#
-#	Ethernet
-#
+source "drivers/net/ppp/Kconfig"
 
-source "drivers/net/ethernet/Kconfig"
+source "drivers/net/slip/Kconfig"
+
+source "drivers/s390/net/Kconfig"
 
 source "drivers/net/tokenring/Kconfig"
+
+source "drivers/net/usb/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
 
 source "drivers/net/wimax/Kconfig"
 
-source "drivers/net/usb/Kconfig"
-
-source "drivers/net/pcmcia/Kconfig"
-
 source "drivers/net/wan/Kconfig"
-
-source "drivers/atm/Kconfig"
-
-source "drivers/ieee802154/Kconfig"
-
-source "drivers/s390/net/Kconfig"
-
-source "drivers/net/caif/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
@@ -253,444 +327,6 @@ config XEN_NETDEV_BACKEND
 	  domain (often this is domain 0) you should say Y here. To
 	  compile this driver as a module, chose M here: the module
 	  will be called xen-netback.
-
-config RIONET
-	tristate "RapidIO Ethernet over messaging driver support"
-	depends on RAPIDIO
-
-config RIONET_TX_SIZE
-	int "Number of outbound queue entries"
-	depends on RIONET
-	default "128"
-
-config RIONET_RX_SIZE
-	int "Number of inbound queue entries"
-	depends on RIONET
-	default "128"
-
-config FDDI
-	tristate "FDDI driver support"
-	depends on (PCI || EISA || TC)
-	help
-	  Fiber Distributed Data Interface is a high speed local area network
-	  design; essentially a replacement for high speed Ethernet. FDDI can
-	  run over copper or fiber. If you are connected to such a network and
-	  want a driver for the FDDI card in your computer, say Y here (and
-	  then also Y to the driver for your FDDI card, below). Most people
-	  will say N.
-
-config DEFXX
-	tristate "Digital DEFTA/DEFEA/DEFPA adapter support"
-	depends on FDDI && (PCI || EISA || TC)
-	---help---
-	  This is support for the DIGITAL series of TURBOchannel (DEFTA),
-	  EISA (DEFEA) and PCI (DEFPA) controllers which can connect you
-	  to a local FDDI network.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called defxx.  If unsure, say N.
-
-config DEFXX_MMIO
-	bool
-	prompt "Use MMIO instead of PIO" if PCI || EISA
-	depends on DEFXX
-	default n if PCI || EISA
-	default y
-	---help---
-	  This instructs the driver to use EISA or PCI memory-mapped I/O
-	  (MMIO) as appropriate instead of programmed I/O ports (PIO).
-	  Enabling this gives an improvement in processing time in parts
-	  of the driver, but it may cause problems with EISA (DEFEA)
-	  adapters.  TURBOchannel does not have the concept of I/O ports,
-	  so MMIO is always used for these (DEFTA) adapters.
-
-	  If unsure, say N.
-
-config SKFP
-	tristate "SysKonnect FDDI PCI support"
-	depends on FDDI && PCI
-	select BITREVERSE
-	---help---
-	  Say Y here if you have a SysKonnect FDDI PCI adapter.
-	  The following adapters are supported by this driver:
-	  - SK-5521 (SK-NET FDDI-UP)
-	  - SK-5522 (SK-NET FDDI-UP DAS)
-	  - SK-5541 (SK-NET FDDI-FP)
-	  - SK-5543 (SK-NET FDDI-LP)
-	  - SK-5544 (SK-NET FDDI-LP DAS)
-	  - SK-5821 (SK-NET FDDI-UP64)
-	  - SK-5822 (SK-NET FDDI-UP64 DAS)
-	  - SK-5841 (SK-NET FDDI-FP64)
-	  - SK-5843 (SK-NET FDDI-LP64)
-	  - SK-5844 (SK-NET FDDI-LP64 DAS)
-	  - Netelligent 100 FDDI DAS Fibre SC
-	  - Netelligent 100 FDDI SAS Fibre SC
-	  - Netelligent 100 FDDI DAS UTP
-	  - Netelligent 100 FDDI SAS UTP
-	  - Netelligent 100 FDDI SAS Fibre MIC
-
-	  Read <file:Documentation/networking/skfp.txt> for information about
-	  the driver.
-
-	  Questions concerning this driver can be addressed to:
-	  <linux@syskonnect.de>
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called skfp.  This is recommended.
-
-config HIPPI
-	bool "HIPPI driver support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && INET && PCI
-	help
-	  HIgh Performance Parallel Interface (HIPPI) is a 800Mbit/sec and
-	  1600Mbit/sec dual-simplex switched or point-to-point network. HIPPI
-	  can run over copper (25m) or fiber (300m on multi-mode or 10km on
-	  single-mode). HIPPI networks are commonly used for clusters and to
-	  connect to super computers. If you are connected to a HIPPI network
-	  and have a HIPPI network card in your computer that you want to use
-	  under Linux, say Y here (you must also remember to enable the driver
-	  for your HIPPI card below). Most people will say N here.
-
-config ROADRUNNER
-	tristate "Essential RoadRunner HIPPI PCI adapter support (EXPERIMENTAL)"
-	depends on HIPPI && PCI
-	help
-	  Say Y here if this is your PCI HIPPI network card.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called rrunner.  If unsure, say N.
-
-config ROADRUNNER_LARGE_RINGS
-	bool "Use large TX/RX rings (EXPERIMENTAL)"
-	depends on ROADRUNNER
-	help
-	  If you say Y here, the RoadRunner driver will preallocate up to 2 MB
-	  of additional memory to allow for fastest operation, both for
-	  transmitting and receiving. This memory cannot be used by any other
-	  kernel code or by user space programs. Say Y here only if you have
-	  the memory.
-
-config PLIP
-	tristate "PLIP (parallel port) support"
-	depends on PARPORT
-	---help---
-	  PLIP (Parallel Line Internet Protocol) is used to create a
-	  reasonably fast mini network consisting of two (or, rarely, more)
-	  local machines.  A PLIP link from a Linux box is a popular means to
-	  install a Linux distribution on a machine which doesn't have a
-	  CD-ROM drive (a minimal system has to be transferred with floppies
-	  first). The kernels on both machines need to have this PLIP option
-	  enabled for this to work.
-
-	  The PLIP driver has two modes, mode 0 and mode 1.  The parallel
-	  ports (the connectors at the computers with 25 holes) are connected
-	  with "null printer" or "Turbo Laplink" cables which can transmit 4
-	  bits at a time (mode 0) or with special PLIP cables, to be used on
-	  bidirectional parallel ports only, which can transmit 8 bits at a
-	  time (mode 1); you can find the wiring of these cables in
-	  <file:Documentation/networking/PLIP.txt>.  The cables can be up to
-	  15m long.  Mode 0 works also if one of the machines runs DOS/Windows
-	  and has some PLIP software installed, e.g. the Crynwr PLIP packet
-	  driver (<http://oak.oakland.edu/simtel.net/msdos/pktdrvr-pre.html>)
-	  and winsock or NCSA's telnet.
-
-	  If you want to use PLIP, say Y and read the PLIP mini-HOWTO as well
-	  as the NET-3-HOWTO, both available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that the PLIP
-	  protocol has been changed and this PLIP driver won't work together
-	  with the PLIP support in Linux versions 1.0.x.  This option enlarges
-	  your kernel by about 8 KB.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called plip. If unsure, say Y or M, in case you buy
-	  a laptop later.
-
-config PPP
-	tristate "PPP (point-to-point protocol) support"
-	select SLHC
-	---help---
-	  PPP (Point to Point Protocol) is a newer and better SLIP.  It serves
-	  the same purpose: sending Internet traffic over telephone (and other
-	  serial) lines.  Ask your access provider if they support it, because
-	  otherwise you can't use it; most Internet access providers these
-	  days support PPP rather than SLIP.
-
-	  To use PPP, you need an additional program called pppd as described
-	  in the PPP-HOWTO, available at
-	  <http://www.tldp.org/docs.html#howto>.  Make sure that you have
-	  the version of pppd recommended in <file:Documentation/Changes>.
-	  The PPP option enlarges your kernel by about 16 KB.
-
-	  There are actually two versions of PPP: the traditional PPP for
-	  asynchronous lines, such as regular analog phone lines, and
-	  synchronous PPP which can be used over digital ISDN lines for
-	  example.  If you want to use PPP over phone lines or other
-	  asynchronous serial lines, you need to say Y (or M) here and also to
-	  the next option, "PPP support for async serial ports".  For PPP over
-	  synchronous lines, you should say Y (or M) here and to "Support
-	  synchronous PPP", below.
-
-	  If you said Y to "Version information on all symbols" above, then
-	  you cannot compile the PPP driver into the kernel; you can then only
-	  compile it as a module. To compile this driver as a module, choose M
-	  here. The module will be called ppp_generic.
-
-config PPP_MULTILINK
-	bool "PPP multilink support (EXPERIMENTAL)"
-	depends on PPP && EXPERIMENTAL
-	help
-	  PPP multilink is a protocol (defined in RFC 1990) which allows you
-	  to combine several (logical or physical) lines into one logical PPP
-	  connection, so that you can utilize your full bandwidth.
-
-	  This has to be supported at the other end as well and you need a
-	  version of the pppd daemon which understands the multilink protocol.
-
-	  If unsure, say N.
-
-config PPP_FILTER
-	bool "PPP filtering"
-	depends on PPP
-	help
-	  Say Y here if you want to be able to filter the packets passing over
-	  PPP interfaces.  This allows you to control which packets count as
-	  activity (i.e. which packets will reset the idle timer or bring up
-	  a demand-dialed link) and which packets are to be dropped entirely.
-	  You need to say Y here if you wish to use the pass-filter and
-	  active-filter options to pppd.
-
-	  If unsure, say N.
-
-config PPP_ASYNC
-	tristate "PPP support for async serial ports"
-	depends on PPP
-	select CRC_CCITT
-	---help---
-	  Say Y (or M) here if you want to be able to use PPP over standard
-	  asynchronous serial ports, such as COM1 or COM2 on a PC.  If you use
-	  a modem (not a synchronous or ISDN modem) to contact your ISP, you
-	  need this option.
-
-	  To compile this driver as a module, choose M here.
-
-	  If unsure, say Y.
-
-config PPP_SYNC_TTY
-	tristate "PPP support for sync tty ports"
-	depends on PPP
-	help
-	  Say Y (or M) here if you want to be able to use PPP over synchronous
-	  (HDLC) tty devices, such as the SyncLink adapter. These devices
-	  are often used for high-speed leased lines like T1/E1.
-
-	  To compile this driver as a module, choose M here.
-
-config PPP_DEFLATE
-	tristate "PPP Deflate compression"
-	depends on PPP
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
-	---help---
-	  Support for the Deflate compression method for PPP, which uses the
-	  Deflate algorithm (the same algorithm that gzip uses) to compress
-	  each PPP packet before it is sent over the wire.  The machine at the
-	  other end of the PPP link (usually your ISP) has to support the
-	  Deflate compression method as well for this to be useful.  Even if
-	  they don't support it, it is safe to say Y here.
-
-	  To compile this driver as a module, choose M here.
-
-config PPP_BSDCOMP
-	tristate "PPP BSD-Compress compression"
-	depends on PPP
-	---help---
-	  Support for the BSD-Compress compression method for PPP, which uses
-	  the LZW compression method to compress each PPP packet before it is
-	  sent over the wire. The machine at the other end of the PPP link
-	  (usually your ISP) has to support the BSD-Compress compression
-	  method as well for this to be useful. Even if they don't support it,
-	  it is safe to say Y here.
-
-	  The PPP Deflate compression method ("PPP Deflate compression",
-	  above) is preferable to BSD-Compress, because it compresses better
-	  and is patent-free.
-
-	  Note that the BSD compression code will always be compiled as a
-	  module; it is called bsd_comp and will show up in the directory
-	  modules once you have said "make modules". If unsure, say N.
-
-config PPP_MPPE
-	tristate "PPP MPPE compression (encryption) (EXPERIMENTAL)"
-	depends on PPP && EXPERIMENTAL
-	select CRYPTO
-	select CRYPTO_SHA1
-	select CRYPTO_ARC4
-	select CRYPTO_ECB
-	---help---
-	  Support for the MPPE Encryption protocol, as employed by the
-	  Microsoft Point-to-Point Tunneling Protocol.
-
-	  See http://pptpclient.sourceforge.net/ for information on
-	  configuring PPTP clients and servers to utilize this method.
-
-config PPPOE
-	tristate "PPP over Ethernet (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PPP
-	help
-	  Support for PPP over Ethernet.
-
-	  This driver requires the latest version of pppd from the CVS
-	  repository at cvs.samba.org.  Alternatively, see the 
-	  RoaringPenguin package (<http://www.roaringpenguin.com/pppoe>)
-	  which contains instruction on how to use this driver (under 
-	  the heading "Kernel mode PPPoE").
-
-config PPTP
-	tristate "PPP over IPv4 (PPTP) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PPP && NET_IPGRE_DEMUX
-	help
-	  Support for PPP over IPv4.(Point-to-Point Tunneling Protocol)
-
-	  This driver requires pppd plugin to work in client mode or
-	  modified pptpd (poptop) to work in server mode.
-	  See http://accel-pptp.sourceforge.net/ for information how to
-	  utilize this module.
-
-config PPPOATM
-	tristate "PPP over ATM"
-	depends on ATM && PPP
-	help
-	  Support PPP (Point to Point Protocol) encapsulated in ATM frames.
-	  This implementation does not yet comply with section 8 of RFC2364,
-	  which can lead to bad results if the ATM peer loses state and
-	  changes its encapsulation unilaterally.
-
-config PPPOL2TP
-	tristate "PPP over L2TP (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && L2TP && PPP
-	help
-	  Support for PPP-over-L2TP socket family. L2TP is a protocol
-	  used by ISPs and enterprises to tunnel PPP traffic over UDP
-	  tunnels. L2TP is replacing PPTP for VPN uses.
-
-config SLIP
-	tristate "SLIP (serial line) support"
-	---help---
-	  Say Y if you intend to use SLIP or CSLIP (compressed SLIP) to
-	  connect to your Internet service provider or to connect to some
-	  other local Unix box or if you want to configure your Linux box as a
-	  Slip/CSlip server for other people to dial in. SLIP (Serial Line
-	  Internet Protocol) is a protocol used to send Internet traffic over
-	  serial connections such as telephone lines or null modem cables;
-	  nowadays, the protocol PPP is more commonly used for this same
-	  purpose.
-
-	  Normally, your access provider has to support SLIP in order for you
-	  to be able to use it, but there is now a SLIP emulator called SLiRP
-	  around (available from
-	  <ftp://ibiblio.org/pub/Linux/system/network/serial/>) which
-	  allows you to use SLIP over a regular dial up shell connection. If
-	  you plan to use SLiRP, make sure to say Y to CSLIP, below. The
-	  NET-3-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, explains how to
-	  configure SLIP. Note that you don't need this option if you just
-	  want to run term (term is a program which gives you almost full
-	  Internet connectivity if you have a regular dial up shell account on
-	  some Internet connected Unix computer. Read
-	  <http://www.bart.nl/~patrickr/term-howto/Term-HOWTO.html>). SLIP
-	  support will enlarge your kernel by about 4 KB. If unsure, say N.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called slip.
-
-config SLIP_COMPRESSED
-	bool "CSLIP compressed headers"
-	depends on SLIP
-	select SLHC
-	---help---
-	  This protocol is faster than SLIP because it uses compression on the
-	  TCP/IP headers (not on the data itself), but it has to be supported
-	  on both ends. Ask your access provider if you are not sure and
-	  answer Y, just in case. You will still be able to use plain SLIP. If
-	  you plan to use SLiRP, the SLIP emulator (available from
-	  <ftp://ibiblio.org/pub/Linux/system/network/serial/>) which
-	  allows you to use SLIP over a regular dial up shell connection, you
-	  definitely want to say Y here. The NET-3-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, explains how to configure
-	  CSLIP. This won't enlarge your kernel.
-
-config SLHC
-	tristate
-	help
-	  This option enables Van Jacobsen serial line header compression
-	  routines.
-
-config SLIP_SMART
-	bool "Keepalive and linefill"
-	depends on SLIP
-	help
-	  Adds additional capabilities to the SLIP driver to support the
-	  RELCOM line fill and keepalive monitoring. Ideal on poor quality
-	  analogue lines.
-
-config SLIP_MODE_SLIP6
-	bool "Six bit SLIP encapsulation"
-	depends on SLIP
-	help
-	  Just occasionally you may need to run IP over hostile serial
-	  networks that don't pass all control characters or are only seven
-	  bit. Saying Y here adds an extra mode you can use with SLIP:
-	  "slip6". In this mode, SLIP will only send normal ASCII symbols over
-	  the serial device. Naturally, this has to be supported at the other
-	  end of the link as well. It's good enough, for example, to run IP
-	  over the async ports of a Camtec JNT Pad. If unsure, say N.
-
-config NET_FC
-	bool "Fibre Channel driver support"
-	depends on SCSI && PCI
-	help
-	  Fibre Channel is a high speed serial protocol mainly used to connect
-	  large storage devices to the computer; it is compatible with and
-	  intended to replace SCSI.
-
-	  If you intend to use Fibre Channel, you need to have a Fibre channel
-	  adaptor card in your computer; say Y here and to the driver for your
-	  adaptor below. You also should have said Y to "SCSI support" and
-	  "SCSI generic support".
-
-config NETCONSOLE
-	tristate "Network console logging support"
-	---help---
-	If you want to log kernel messages over the network, enable this.
-	See <file:Documentation/networking/netconsole.txt> for details.
-
-config NETCONSOLE_DYNAMIC
-	bool "Dynamic reconfiguration of logging targets"
-	depends on NETCONSOLE && SYSFS && CONFIGFS_FS && \
-			!(NETCONSOLE=y && CONFIGFS_FS=m)
-	help
-	  This option enables the ability to dynamically reconfigure target
-	  parameters (interface, IP addresses, port numbers, MAC addresses)
-	  at runtime through a userspace interface exported using configfs.
-	  See <file:Documentation/networking/netconsole.txt> for details.
-
-config NETPOLL
-	def_bool NETCONSOLE
-
-config NETPOLL_TRAP
-	bool "Netpoll traffic trapping"
-	default n
-	depends on NETPOLL
-
-config NET_POLL_CONTROLLER
-	def_bool NETPOLL
-
-config VIRTIO_NET
-	tristate "Virtio network driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
-	---help---
-	  This is the virtual network driver for virtio.  It can be used with
-	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 config VMXNET3
 	tristate "VMware VMXNET3 ethernet driver"

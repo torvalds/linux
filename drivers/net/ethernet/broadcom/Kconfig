@@ -4,6 +4,7 @@
 
 config NET_VENDOR_BROADCOM
 	bool "Broadcom devices"
+	default y
 	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
 		   SIBYTE_SB1xxx_SOC
 	---help---

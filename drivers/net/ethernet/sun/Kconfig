@@ -4,6 +4,7 @@
 
 config NET_VENDOR_SUN
 	bool "Sun devices"
+	default y
 	depends on SUN3 || SBUS || PCI || SUN_LDOMS
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say

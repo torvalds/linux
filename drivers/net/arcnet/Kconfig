@@ -3,8 +3,8 @@
 #
 
 menuconfig ARCNET
-	depends on NETDEVICES && (ISA || PCI)
-	tristate "ARCnet support"
+	depends on NETDEVICES && (ISA || PCI || PCMCIA)
+	bool "ARCnet support"
 	---help---
 	  If you have a network card of this type, say Y and check out the
 	  (arguably) beautiful poetry in
@@ -122,5 +122,15 @@ config ARCNET_COM20020_ISA
 config ARCNET_COM20020_PCI
 	tristate "Support for COM20020 on PCI"
 	depends on ARCNET_COM20020 && PCI
+
+config ARCNET_COM20020_CS
+	tristate "COM20020 ARCnet PCMCIA support"
+	depends on ARCNET_COM20020 && PCMCIA
+	help
+	  Say Y here if you intend to attach this type of ARCnet PCMCIA card
+	  to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called com20020_cs.  If unsure, say N.
 
 endif # ARCNET

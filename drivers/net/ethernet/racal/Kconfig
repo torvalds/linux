@@ -4,6 +4,7 @@
 
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI devices"
+	default y
 	depends on ISA
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, such
