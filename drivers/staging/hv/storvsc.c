@@ -40,9 +40,6 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 	if (!stor_device)
 		return NULL;
 
-	/* Set to 2 to allow both inbound and outbound traffics */
-	/* (ie get_out_stor_device() and get_in_stor_device()) to proceed. */
-	atomic_set(&stor_device->ref_count, 2);
 	stor_device->destroy = false;
 	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
@@ -52,19 +49,31 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 }
 
 
-/* Get the stordevice object iff exists and its refcount > 0 */
 static inline struct storvsc_device *get_in_stor_device(
 					struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
+	unsigned long flags;
 
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	stor_device = (struct storvsc_device *)device->ext;
-	if (stor_device && atomic_read(&stor_device->ref_count))
-		atomic_inc(&stor_device->ref_count);
-	else
+
+	if (!stor_device)
+		goto get_in_err;
+
+	/*
+	 * If the device is being destroyed; allow incoming
+	 * traffic only to cleanup outstanding requests.
+	 */
+
+	if (stor_device->destroy  &&
+		(atomic_read(&stor_device->num_outstanding_req) == 0))
 		stor_device = NULL;
 
+get_in_err:
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 	return stor_device;
+
 }
 
 static int storvsc_channel_init(struct hv_device *device)
@@ -190,7 +199,6 @@ static int storvsc_channel_init(struct hv_device *device)
 
 
 cleanup:
-	put_stor_device(device);
 	return ret;
 }
 
@@ -303,7 +311,6 @@ static void storvsc_on_channel_callback(void *context)
 		}
 	} while (1);
 
-	put_stor_device(device);
 	return;
 }
 
@@ -371,7 +378,6 @@ int storvsc_dev_remove(struct hv_device *device)
 	unsigned long flags;
 
 	stor_device = (struct storvsc_device *)device->ext;
-	atomic_dec(&stor_device->ref_count);
 
 	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	stor_device->destroy = true;
@@ -388,9 +394,13 @@ int storvsc_dev_remove(struct hv_device *device)
 	/*
 	 * Since we have already drained, we don't need to busy wait
 	 * as was done in final_release_stor_device()
+	 * Note that we cannot set the ext pointer to NULL until
+	 * we have drained - to drain the outgoing packets, we need to
+	 * allow incoming packets.
 	 */
-	atomic_set(&stor_device->ref_count, 0);
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	device->ext = NULL;
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* Close the channel */
 	vmbus_close(device->channel);
@@ -448,7 +458,6 @@ int storvsc_do_io(struct hv_device *device,
 
 	atomic_inc(&stor_device->num_outstanding_req);
 
-	put_stor_device(device);
 	return ret;
 }
 

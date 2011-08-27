@@ -378,7 +378,6 @@ static int storvsc_host_reset(struct hv_device *device)
 	 */
 
 cleanup:
-	put_stor_device(device);
 	return ret;
 }
 
