@@ -4131,10 +4131,13 @@ out_unlock:
  * because the core might be gone away while we unlocked the mutex. */
 static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev)
 {
-	struct b43_wl *wl = dev->wl;
+	struct b43_wl *wl;
 	struct b43_wldev *orig_dev;
 	u32 mask;
 
+	if (!dev)
+		return NULL;
+	wl = dev->wl;
 redo:
 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
 		return dev;
