@@ -1191,13 +1191,13 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case PL:
 	case PTU:
 	case DTU:
-		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
-		__set_bit(BTN_STYLUS, input_dev->keybit);
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
 		/* fall through */
 
 	case PENPARTNER:
+		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
 		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+		__set_bit(BTN_STYLUS, input_dev->keybit);
 		break;
 
 	case BAMBOO_PT:
