@@ -1957,6 +1957,14 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 		goto err2;
 	}
 
+	dwc->ep0_bounce = dma_alloc_coherent(dwc->dev,
+			512, &dwc->ep0_bounce_addr, GFP_KERNEL);
+	if (!dwc->ep0_bounce) {
+		dev_err(dwc->dev, "failed to allocate ep0 bounce buffer\n");
+		ret = -ENOMEM;
+		goto err3;
+	}
+
 	dev_set_name(&dwc->gadget.dev, "gadget");
 
 	dwc->gadget.ops			= &dwc3_gadget_ops;
@@ -1978,7 +1986,7 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 
 	ret = dwc3_gadget_init_endpoints(dwc);
 	if (ret)
-		goto err3;
+		goto err4;
 
 	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
 
@@ -1987,7 +1995,7 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 	if (ret) {
 		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
 				irq, ret);
-		goto err4;
+		goto err5;
 	}
 
 	/* Enable all but Start and End of Frame IRQs */
@@ -2006,26 +2014,30 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 	if (ret) {
 		dev_err(dwc->dev, "failed to register gadget device\n");
 		put_device(&dwc->gadget.dev);
-		goto err5;
+		goto err6;
 	}
 
 	ret = usb_add_gadget_udc(dwc->dev, &dwc->gadget);
 	if (ret) {
 		dev_err(dwc->dev, "failed to register udc\n");
-		goto err6;
+		goto err7;
 	}
 
 	return 0;
 
-err6:
+err7:
 	device_unregister(&dwc->gadget.dev);
 
-err5:
+err6:
 	dwc3_writel(dwc->regs, DWC3_DEVTEN, 0x00);
 	free_irq(irq, dwc);
 
-err4:
+err5:
 	dwc3_gadget_free_endpoints(dwc);
+
+err4:
+	dma_free_coherent(dwc->dev, 512, dwc->ep0_bounce,
+			dwc->ep0_bounce_addr);
 
 err3:
 	dma_free_coherent(dwc->dev, sizeof(*dwc->setup_buf) * 2,
@@ -2058,6 +2070,9 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 		__dwc3_gadget_ep_disable(dwc->eps[i]);
 
 	dwc3_gadget_free_endpoints(dwc);
+
+	dma_free_coherent(dwc->dev, 512, dwc->ep0_bounce,
+			dwc->ep0_bounce_addr);
 
 	dma_free_coherent(dwc->dev, sizeof(*dwc->setup_buf) * 2,
 			dwc->setup_buf, dwc->setup_buf_addr);
