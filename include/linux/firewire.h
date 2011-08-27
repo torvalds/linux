@@ -203,18 +203,6 @@ static inline int fw_device_is_shutdown(struct fw_device *device)
 	return atomic_read(&device->state) == FW_DEVICE_SHUTDOWN;
 }
 
-static inline struct fw_device *fw_device_get(struct fw_device *device)
-{
-	get_device(&device->device);
-
-	return device;
-}
-
-static inline void fw_device_put(struct fw_device *device)
-{
-	put_device(&device->device);
-}
-
 int fw_device_enable_phys_dma(struct fw_device *device);
 
 /*

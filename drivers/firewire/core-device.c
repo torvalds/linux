@@ -641,6 +641,7 @@ static void fw_unit_release(struct device *dev)
 {
 	struct fw_unit *unit = fw_unit(dev);
 
+	fw_device_put(fw_parent_device(unit));
 	kfree(unit);
 }
 
@@ -692,6 +693,7 @@ static void create_units(struct fw_device *device)
 		if (device_register(&unit->device) < 0)
 			goto skip_unit;
 
+		fw_device_get(device);
 		continue;
 
 	skip_unit:
