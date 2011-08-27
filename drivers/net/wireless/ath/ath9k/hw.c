@@ -997,8 +997,14 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		slottime = 21;
 		sifstime = 64;
 	} else {
-		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS)/common->clockrate;
-		reg = REG_READ(ah, AR_USEC);
+		if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
+			eifs = AR_D_GBL_IFS_EIFS_ASYNC_FIFO;
+			reg = AR_USEC_ASYNC_FIFO;
+		} else {
+			eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS)/
+				common->clockrate;
+			reg = REG_READ(ah, AR_USEC);
+		}
 		rx_lat = MS(reg, AR_USEC_RX_LAT);
 		tx_lat = MS(reg, AR_USEC_TX_LAT);
 
