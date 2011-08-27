@@ -391,9 +391,6 @@ static void vmbus_onmessage_work(struct work_struct *work)
 	kfree(ctx);
 }
 
-/*
- * vmbus_on_msg_dpc - DPC routine to handle messages from the hypervisior
- */
 static void vmbus_on_msg_dpc(unsigned long data)
 {
 	int cpu = smp_processor_id();
@@ -490,16 +487,13 @@ static int vmbus_bus_init(int irq)
 		return ret;
 	}
 
-	/* Initialize the bus context */
 	tasklet_init(&msg_dpc, vmbus_on_msg_dpc, 0);
 	tasklet_init(&event_dpc, vmbus_on_event, 0);
 
-	/* Now, register the bus  with LDM */
 	ret = bus_register(&hv_bus);
 	if (ret)
 		return ret;
 
-	/* Get the interrupt resource */
 	ret = request_irq(irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
 			driver_name, hv_acpi_dev);
 
@@ -588,7 +582,6 @@ struct hv_device *vmbus_child_device_create(uuid_le *type,
 {
 	struct hv_device *child_device_obj;
 
-	/* Allocate the new child device */
 	child_device_obj = kzalloc(sizeof(struct hv_device), GFP_KERNEL);
 	if (!child_device_obj) {
 		pr_err("Unable to allocate device object for child device\n");
@@ -613,12 +606,10 @@ int vmbus_child_device_register(struct hv_device *child_device_obj)
 
 	static atomic_t device_num = ATOMIC_INIT(0);
 
-	/* Set the device name. Otherwise, device_register() will fail. */
 	dev_set_name(&child_device_obj->device, "vmbus_0_%d",
 		     atomic_inc_return(&device_num));
 
-	/* The new device belongs to this bus */
-	child_device_obj->device.bus = &hv_bus; /* device->dev.bus; */
+	child_device_obj->device.bus = &hv_bus;
 	child_device_obj->device.parent = &hv_acpi_dev->dev;
 	child_device_obj->device.release = vmbus_device_release;
 
