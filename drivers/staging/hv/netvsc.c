@@ -88,22 +88,6 @@ static void put_net_device(struct hv_device *device)
 	atomic_dec(&net_device->refcnt);
 }
 
-static struct netvsc_device *release_outbound_net_device(
-		struct hv_device *device)
-{
-	struct netvsc_device *net_device;
-
-	net_device = device->ext;
-	if (net_device == NULL)
-		return NULL;
-
-	/* Busy wait until the ref drop to 2, then set it to 1 */
-	while (atomic_cmpxchg(&net_device->refcnt, 2, 1) != 2)
-		udelay(100);
-
-	return net_device;
-}
-
 static struct netvsc_device *release_inbound_net_device(
 		struct hv_device *device)
 {
@@ -400,13 +384,8 @@ int netvsc_device_remove(struct hv_device *device)
 	struct hv_netvsc_packet *netvsc_packet, *pos;
 	unsigned long flags;
 
-	/* Stop outbound traffic ie sends and receives completions */
-	net_device = release_outbound_net_device(device);
-	if (!net_device) {
-		dev_err(&device->device, "No net device present!!");
-		return -ENODEV;
-	}
-
+	net_device = (struct netvsc_device *)device->ext;
+	atomic_dec(&net_device->refcnt);
 	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	net_device->destroy = true;
 	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
@@ -423,6 +402,18 @@ int netvsc_device_remove(struct hv_device *device)
 
 	/* Stop inbound traffic ie receives and sends completions */
 	net_device = release_inbound_net_device(device);
+
+	/*
+	 * Wait until the ref cnt falls to 0.
+	 * We have already stopped any new references
+	 * for outgoing traffic. Also, at this point we don't have any
+	 * incoming traffic as well. So this must be outgoing refrences
+	 * established prior to marking the device as being destroyed.
+	 * Since the send path is non-blocking, it is reasonable to busy
+	 * wait here.
+	 */
+	while (atomic_read(&net_device->refcnt))
+		udelay(100);
 
 	/* At this point, no one should be accessing netDevice except in here */
 	dev_notice(&device->device, "net device safe to remove");
@@ -976,7 +967,6 @@ cleanup:
 			kfree(packet);
 		}
 
-		release_outbound_net_device(device);
 		release_inbound_net_device(device);
 
 		kfree(net_device);
