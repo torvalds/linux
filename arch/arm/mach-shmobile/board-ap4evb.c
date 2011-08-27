@@ -1412,7 +1412,7 @@ static void __init ap4evb_init(void)
 	fsi_init_pm_clock();
 	sh7372_pm_init();
 	pm_clk_add(&fsi_device.dev, "spu2");
-	pm_clk_add(&hdmi_lcdc_device.dev, "hdmi");
+	pm_clk_add(&lcdc1_device.dev, "hdmi");
 }
 
 static void __init ap4evb_timer_init(void)
