@@ -130,7 +130,7 @@ static inline int minix_find_first_zero_bit(const void *vaddr, unsigned size)
 	if (!size)
 		return 0;
 
-	size = (size >> 4) + ((size & 15) > 0);
+	size >>= 4;
 	while (*p++ == 0xffff) {
 		if (--size == 0)
 			return (p - addr) << 4;
