@@ -678,9 +678,8 @@ static int vmbus_acpi_add(struct acpi_device *device)
 
 	hv_acpi_dev = device;
 
-	result =
-	acpi_walk_resources(device->handle, METHOD_NAME__CRS,
-			vmbus_walk_resources, &irq);
+	result = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
+					vmbus_walk_resources, &irq);
 
 	if (ACPI_FAILURE(result)) {
 		complete(&probe_event);
