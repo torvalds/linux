@@ -159,7 +159,6 @@ struct sbp2_logical_unit {
  * and one struct Scsi_Host per sbp2_target.
  */
 struct sbp2_target {
-	struct kref kref;
 	struct fw_unit *unit;
 	const char *bus_id;
 	struct list_head lu_list;
@@ -772,9 +771,8 @@ static int sbp2_lun2int(u16 lun)
 	return scsilun_to_int(&eight_bytes_lun);
 }
 
-static void sbp2_release_target(struct kref *kref)
+static void sbp2_release_target(struct sbp2_target *tgt)
 {
-	struct sbp2_target *tgt = container_of(kref, struct sbp2_target, kref);
 	struct sbp2_logical_unit *lu, *next;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
@@ -811,30 +809,12 @@ static void sbp2_release_target(struct kref *kref)
 	scsi_remove_host(shost);
 	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
 
-	fw_unit_put(tgt->unit);
 	scsi_host_put(shost);
-	fw_device_put(device);
 }
 
-static void sbp2_target_get(struct sbp2_target *tgt)
-{
-	kref_get(&tgt->kref);
-}
-
-static void sbp2_target_put(struct sbp2_target *tgt)
-{
-	kref_put(&tgt->kref, sbp2_release_target);
-}
-
-/*
- * Always get the target's kref when scheduling work on one its units.
- * Each workqueue job is responsible to call sbp2_target_put() upon return.
- */
 static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
 {
-	sbp2_target_get(lu->tgt);
-	if (!queue_delayed_work(fw_workqueue, &lu->work, delay))
-		sbp2_target_put(lu->tgt);
+	queue_delayed_work(fw_workqueue, &lu->work, delay);
 }
 
 /*
@@ -877,7 +857,7 @@ static void sbp2_login(struct work_struct *work)
 	int generation, node_id, local_node_id;
 
 	if (fw_device_is_shutdown(device))
-		goto out;
+		return;
 
 	generation    = device->generation;
 	smp_rmb();    /* node IDs must not be older than generation */
@@ -899,7 +879,7 @@ static void sbp2_login(struct work_struct *work)
 			/* Let any waiting I/O fail from now on. */
 			sbp2_unblock(lu->tgt);
 		}
-		goto out;
+		return;
 	}
 
 	tgt->node_id	  = node_id;
@@ -925,7 +905,8 @@ static void sbp2_login(struct work_struct *work)
 	if (lu->has_sdev) {
 		sbp2_cancel_orbs(lu);
 		sbp2_conditionally_unblock(lu);
-		goto out;
+
+		return;
 	}
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_DELAY_INQUIRY)
@@ -957,7 +938,8 @@ static void sbp2_login(struct work_struct *work)
 	lu->has_sdev = true;
 	scsi_device_put(sdev);
 	sbp2_allow_block(lu);
-	goto out;
+
+	return;
 
  out_logout_login:
 	smp_rmb(); /* generation may have changed */
@@ -971,8 +953,6 @@ static void sbp2_login(struct work_struct *work)
 	 * lu->work already.  Reset the work from reconnect to login.
 	 */
 	PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
- out:
-	sbp2_target_put(tgt);
 }
 
 static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
@@ -1141,7 +1121,6 @@ static int sbp2_probe(struct device *dev)
 	tgt = (struct sbp2_target *)shost->hostdata;
 	dev_set_drvdata(&unit->device, tgt);
 	tgt->unit = unit;
-	kref_init(&tgt->kref);
 	INIT_LIST_HEAD(&tgt->lu_list);
 	tgt->bus_id = dev_name(&unit->device);
 	tgt->guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
@@ -1154,9 +1133,6 @@ static int sbp2_probe(struct device *dev)
 	if (scsi_add_host(shost, &unit->device) < 0)
 		goto fail_shost_put;
 
-	fw_device_get(device);
-	fw_unit_get(unit);
-
 	/* implicit directory ID */
 	tgt->directory_id = ((unit->directory - device->config_rom) * 4
 			     + CSR_CONFIG_ROM) & 0xffffff;
@@ -1166,7 +1142,7 @@ static int sbp2_probe(struct device *dev)
 
 	if (sbp2_scan_unit_dir(tgt, unit->directory, &model,
 			       &firmware_revision) < 0)
-		goto fail_tgt_put;
+		goto fail_release_target;
 
 	sbp2_clamp_management_orb_timeout(tgt);
 	sbp2_init_workarounds(tgt, model, firmware_revision);
@@ -1183,10 +1159,11 @@ static int sbp2_probe(struct device *dev)
 	/* Do the login in a workqueue so we can easily reschedule retries. */
 	list_for_each_entry(lu, &tgt->lu_list, link)
 		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
+
 	return 0;
 
- fail_tgt_put:
-	sbp2_target_put(tgt);
+ fail_release_target:
+	sbp2_release_target(tgt);
 	return -ENOMEM;
 
  fail_shost_put:
@@ -1203,7 +1180,8 @@ static int sbp2_remove(struct device *dev)
 	list_for_each_entry(lu, &tgt->lu_list, link)
 		cancel_delayed_work_sync(&lu->work);
 
-	sbp2_target_put(tgt);
+	sbp2_release_target(tgt);
+
 	return 0;
 }
 
@@ -1216,7 +1194,7 @@ static void sbp2_reconnect(struct work_struct *work)
 	int generation, node_id, local_node_id;
 
 	if (fw_device_is_shutdown(device))
-		goto out;
+		return;
 
 	generation    = device->generation;
 	smp_rmb();    /* node IDs must not be older than generation */
@@ -1241,7 +1219,8 @@ static void sbp2_reconnect(struct work_struct *work)
 			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
 		}
 		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
-		goto out;
+
+		return;
 	}
 
 	tgt->node_id      = node_id;
@@ -1255,8 +1234,6 @@ static void sbp2_reconnect(struct work_struct *work)
 	sbp2_agent_reset(lu);
 	sbp2_cancel_orbs(lu);
 	sbp2_conditionally_unblock(lu);
- out:
-	sbp2_target_put(tgt);
 }
 
 static void sbp2_update(struct fw_unit *unit)
