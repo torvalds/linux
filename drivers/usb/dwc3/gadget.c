@@ -169,8 +169,8 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 	do {
 		reg = dwc3_readl(dwc->regs, DWC3_DEPCMD(ep));
 		if (!(reg & DWC3_DEPCMD_CMDACT)) {
-			dev_vdbg(dwc->dev, "CMD Compl Status %d DEPCMD %04x\n",
-					((reg & 0xf000) >> 12), reg);
+			dev_vdbg(dwc->dev, "Command Complete --> %d\n",
+					DWC3_DEPCMD_STATUS(reg));
 			return 0;
 		}
 
