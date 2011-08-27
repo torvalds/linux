@@ -185,10 +185,29 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 	req->epnum		= dep->number;
 
 	list_add_tail(&req->list, &dep->request_list);
-	dwc3_map_buffer_to_dma(req);
+	if (req->request.length == 0) {
+		ret = dwc3_ep0_start_trans(dwc, dep->number,
+				dwc->ctrl_req_addr, 0);
+	} else if ((req->request.length % dep->endpoint.maxpacket)
+			&& (dep->number == 0)) {
+		dwc->ep0_bounced = true;
 
-	ret = dwc3_ep0_start_trans(dwc, dep->number, req->request.dma,
-			req->request.length);
+		WARN_ON(req->request.length > dep->endpoint.maxpacket);
+
+		/*
+		 * REVISIT in case request length is bigger than EP0
+		 * wMaxPacketSize, we will need two chained TRBs to handle
+		 * the transfer.
+		 */
+		ret = dwc3_ep0_start_trans(dwc, dep->number,
+				dwc->ep0_bounce_addr, dep->endpoint.maxpacket);
+	} else {
+		dwc3_map_buffer_to_dma(req);
+
+		ret = dwc3_ep0_start_trans(dwc, dep->number,
+				req->request.dma, req->request.length);
+	}
+
 	if (ret < 0) {
 		list_del(&req->list);
 		dwc3_unmap_buffer_from_dma(req);
@@ -655,8 +674,16 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
 
-	transferred = ur->length - trb.length;
-	ur->actual += transferred;
+	if (dwc->ep0_bounced) {
+		struct dwc3_ep	*ep0 = dwc->eps[0];
+
+		transferred = min(ur->length, dep->endpoint.maxpacket - trb.length);
+		memcpy(ur->buf, dwc->ep0_bounce, transferred);
+		dwc->ep0_bounced = false;
+	} else {
+		transferred = ur->length - trb.length;
+		ur->actual += transferred;
+	}
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */
