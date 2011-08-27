@@ -981,11 +981,11 @@ static void dice_remove(struct fw_unit *unit)
 {
 	struct dice *dice = dev_get_drvdata(&unit->device);
 
-	mutex_lock(&dice->mutex);
-
 	amdtp_out_stream_pcm_abort(&dice->stream);
 
 	snd_card_disconnect(dice->card);
+
+	mutex_lock(&dice->mutex);
 
 	dice_stream_stop(dice);
 	dice_owner_clear(dice);
@@ -999,8 +999,6 @@ static void dice_bus_reset(struct fw_unit *unit)
 {
 	struct dice *dice = dev_get_drvdata(&unit->device);
 
-	mutex_lock(&dice->mutex);
-
 	/*
 	 * On a bus reset, the DICE firmware disables streaming and then goes
 	 * off contemplating its own navel for hundreds of milliseconds before
@@ -1010,6 +1008,8 @@ static void dice_bus_reset(struct fw_unit *unit)
 	 * manner.
 	 */
 	amdtp_out_stream_pcm_abort(&dice->stream);
+
+	mutex_lock(&dice->mutex);
 
 	dice->global_enabled = false;
 	dice_stream_stop_packets(dice);
