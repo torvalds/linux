@@ -1300,6 +1300,7 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	if (priv->op_flags & OP_INVALID) {
 		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_ANY,
 			"Unable to configure filter on invalid state\n");
+		mutex_unlock(&priv->mutex);
 		return;
 	}
 	ath9k_htc_ps_wakeup(priv);

@@ -3318,7 +3318,7 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 
 	word = kzalloc(2048, GFP_KERNEL);
 	if (!word)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(mptr, &ar9300_default, mdata_size);
 
