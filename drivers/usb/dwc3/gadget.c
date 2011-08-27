@@ -1178,7 +1178,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	}
 
 	/* begin to receive SETUP packets */
-	dwc->ep0state = EP0_IDLE;
+	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -1728,7 +1728,6 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 
 	memset(&params, 0x00, sizeof(params));
 
-	dwc->ep0state = EP0_IDLE;
 	reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 	speed = reg & DWC3_DSTS_CONNECTSPD;
 	dwc->speed = speed;
