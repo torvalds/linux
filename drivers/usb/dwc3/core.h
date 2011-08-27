@@ -350,6 +350,9 @@ struct dwc3_ep {
 #define DWC3_EP_PENDING_REQUEST	(1 << 5)
 #define DWC3_EP_WILL_SHUTDOWN	(1 << 6)
 
+	/* This last one is specific to EP0 */
+#define DWC3_EP0_DIR_IN		(1 << 31)
+
 	unsigned		current_trb;
 
 	u8			number;
