@@ -41,7 +41,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 		return NULL;
 
 	/* Set to 2 to allow both inbound and outbound traffic */
-	atomic_cmpxchg(&net_device->refcnt, 0, 2);
+	atomic_set(&net_device->refcnt, 2);
 
 	net_device->dev = device;
 	device->ext = net_device;
