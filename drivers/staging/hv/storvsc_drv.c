@@ -1130,9 +1130,9 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 
 
 /*
- * storvsc_commmand_completion - Command completion processing
+ * storvsc_command_completion - Command completion processing
  */
-static void storvsc_commmand_completion(struct hv_storvsc_request *request)
+static void storvsc_command_completion(struct hv_storvsc_request *request)
 {
 	struct storvsc_cmd_request *cmd_request =
 		(struct storvsc_cmd_request *)request->context;
@@ -1240,7 +1240,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 		break;
 	}
 
-	request->on_io_completion = storvsc_commmand_completion;
+	request->on_io_completion = storvsc_command_completion;
 	request->context = cmd_request;/* scmnd; */
 
 	vm_srb->port_number = host_dev->port;
