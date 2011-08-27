@@ -59,6 +59,17 @@ struct storvsc_cmd_request {
 	struct hv_storvsc_request request;
 };
 
+static void storvsc_get_ide_info(struct hv_device *dev, int *target, int *path)
+{
+	*target =
+		dev->dev_instance.b[5] << 8 | dev->dev_instance.b[4];
+
+	*path =
+		dev->dev_instance.b[3] << 24 |
+		dev->dev_instance.b[2] << 16 |
+		dev->dev_instance.b[1] << 8  | dev->dev_instance.b[0];
+}
+
 
 static int storvsc_device_alloc(struct scsi_device *sdevice)
 {
@@ -642,6 +653,20 @@ static const struct hv_vmbus_device_id id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(vmbus, id_table);
+
+/*
+ * This declaration is temporary; once we get the
+ * infrastructure in place, we will integrate with
+ * id_table.
+ */
+
+static const uuid_le ide_blk_guid = {
+	.b = {
+		0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
+		0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
+	}
+};
+
 /*
  * storvsc_probe - Add a new device for this driver
  */
@@ -652,6 +677,14 @@ static int storvsc_probe(struct hv_device *device)
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
 	struct storvsc_device_info device_info;
+	bool dev_is_ide;
+	int path = 0;
+	int target = 0;
+
+	if (!uuid_le_cmp(device->dev_type, ide_blk_guid))
+		dev_is_ide = true;
+	else
+		dev_is_ide = false;
 
 	host = scsi_host_alloc(&scsi_driver,
 			       sizeof(struct hv_host_device));
@@ -687,6 +720,9 @@ static int storvsc_probe(struct hv_device *device)
 		return -ENODEV;
 	}
 
+	if (dev_is_ide)
+		storvsc_get_ide_info(device, &target, &path);
+
 	host_dev->path = device_info.path_id;
 	host_dev->target = device_info.target_id;
 
@@ -699,17 +735,25 @@ static int storvsc_probe(struct hv_device *device)
 
 	/* Register the HBA and start the scsi bus scan */
 	ret = scsi_add_host(host, &device->device);
-	if (ret != 0) {
+	if (ret != 0)
+		goto err_out;
 
-		storvsc_dev_remove(device);
-
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		return -ENODEV;
+	if (!dev_is_ide) {
+		scsi_scan_host(host);
+		return 0;
 	}
+	ret = scsi_add_device(host, 0, target, 0);
+	if (ret) {
+		scsi_remove_host(host);
+		goto err_out;
+	}
+	return 0;
 
-	scsi_scan_host(host);
-	return ret;
+err_out:
+	storvsc_dev_remove(device);
+	kmem_cache_destroy(host_dev->request_pool);
+	scsi_host_put(host);
+	return -ENODEV;
 }
 
 /* The one and only one */
