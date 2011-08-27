@@ -437,53 +437,36 @@ static void vmbus_on_msg_dpc(unsigned long data)
 	}
 }
 
-/*
- * vmbus_on_isr - ISR routine
- */
-static int vmbus_on_isr(void)
+static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {
-	int ret = 0;
 	int cpu = smp_processor_id();
 	void *page_addr;
 	struct hv_message *msg;
 	union hv_synic_event_flags *event;
+	bool handled = false;
 
 	page_addr = hv_context.synic_message_page[cpu];
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be process */
-	if (msg->header.message_type != HVMSG_NONE)
-		ret |= 0x1;
+	if (msg->header.message_type != HVMSG_NONE) {
+		handled = true;
+		tasklet_schedule(&msg_dpc);
+	}
 
 	page_addr = hv_context.synic_event_page[cpu];
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
-	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0]))
-		ret |= 0x2;
-
-	return ret;
-}
-
-
-static irqreturn_t vmbus_isr(int irq, void *dev_id)
-{
-	int ret;
-
-	ret = vmbus_on_isr();
-
-	/* Schedules a dpc if necessary */
-	if (ret > 0) {
-		if (test_bit(0, (unsigned long *)&ret))
-			tasklet_schedule(&msg_dpc);
-
-		if (test_bit(1, (unsigned long *)&ret))
-			tasklet_schedule(&event_dpc);
-
-		return IRQ_HANDLED;
-	} else {
-		return IRQ_NONE;
+	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+		handled = true;
+		tasklet_schedule(&event_dpc);
 	}
+
+	if (handled)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
 }
 
 /*
