@@ -41,7 +41,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 		return NULL;
 
 	/* Set to 2 to allow both inbound and outbound traffics */
-	/* (ie get_stor_device() and must_get_stor_device()) to proceed. */
+	/* (ie get_stor_device() and get_in_stor_device()) to proceed. */
 	atomic_cmpxchg(&stor_device->ref_count, 0, 2);
 
 	init_waitqueue_head(&stor_device->waiting_to_drain);
@@ -53,7 +53,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 
 
 /* Get the stordevice object iff exists and its refcount > 0 */
-static inline struct storvsc_device *must_get_stor_device(
+static inline struct storvsc_device *get_in_stor_device(
 					struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
@@ -305,7 +305,7 @@ static void storvsc_on_channel_callback(void *context)
 	int ret;
 
 
-	stor_device = must_get_stor_device(device);
+	stor_device = get_in_stor_device(device);
 	if (!stor_device)
 		return;
 
