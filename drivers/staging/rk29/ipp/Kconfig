@@ -3,6 +3,14 @@ config RK29_IPP
 	tristate "ROCKCHIP RK29 IPP"
 	default y
 	help
-          rk29 ipp module.
+          rk29 ipp module.	
+          
+config DEINTERLACE
+	bool "Deinterlacing support"
+	depends on 	RK29_IPP	
+	default y
+	help 
+					Mobile phone dose not support deinterlacing
+	
 endmenu
 
