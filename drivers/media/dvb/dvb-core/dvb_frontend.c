@@ -537,7 +537,6 @@ static int dvb_frontend_thread(void *data)
 {
 	struct dvb_frontend *fe = data;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	unsigned long timeout;
 	fe_status_t s;
 	enum dvbfe_algo algo;
 
@@ -558,7 +557,7 @@ static int dvb_frontend_thread(void *data)
 	while (1) {
 		up(&fepriv->sem);	    /* is locked when we enter the thread... */
 restart:
-		timeout = wait_event_interruptible_timeout(fepriv->wait_queue,
+		wait_event_interruptible_timeout(fepriv->wait_queue,
 			dvb_frontend_should_wakeup(fe) || kthread_should_stop()
 				|| freezing(current),
 			fepriv->delay);
