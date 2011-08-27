@@ -56,7 +56,8 @@ static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 	struct netvsc_device *net_device;
 
 	net_device = device->ext;
-	if (net_device && atomic_read(&net_device->refcnt) > 1)
+	if (net_device && (atomic_read(&net_device->refcnt) > 1) &&
+		!net_device->destroy)
 		atomic_inc(&net_device->refcnt);
 	else
 		net_device = NULL;
