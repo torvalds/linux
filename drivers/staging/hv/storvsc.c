@@ -42,7 +42,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 
 	/* Set to 2 to allow both inbound and outbound traffics */
 	/* (ie get_out_stor_device() and get_in_stor_device()) to proceed. */
-	atomic_cmpxchg(&stor_device->ref_count, 0, 2);
+	atomic_set(&stor_device->ref_count, 2);
 
 	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
