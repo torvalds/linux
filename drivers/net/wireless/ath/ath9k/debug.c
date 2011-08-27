@@ -711,7 +711,7 @@ static ssize_t read_file_stations(struct file *file, char __user *user_buf,
 					" tid: %p %s %s %i %p %p\n",
 					tid, tid->sched ? "sched" : "idle",
 					tid->paused ? "paused" : "running",
-					list_empty(&tid->buf_q),
+					skb_queue_empty(&tid->buf_q),
 					tid->an, tid->ac);
 			if (len >= size)
 				goto done;
