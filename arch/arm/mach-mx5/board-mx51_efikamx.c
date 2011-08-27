@@ -163,6 +163,11 @@ static const struct gpio_led_platform_data
 	.num_leds = ARRAY_SIZE(mx51_efikamx_leds),
 };
 
+static struct esdhc_platform_data sd_pdata = {
+	.cd_type = ESDHC_CD_CONTROLLER,
+	.wp_type = ESDHC_WP_CONTROLLER,
+};
+
 static struct gpio_keys_button mx51_efikamx_powerkey[] = {
 	{
 		.code = KEY_POWER,
@@ -239,9 +244,11 @@ static void __init mx51_efikamx_init(void)
 
 	/* on < 1.2 boards both SD controllers are used */
 	if (system_rev < 0x12) {
-		imx51_add_sdhci_esdhc_imx(1, NULL);
+		imx51_add_sdhci_esdhc_imx(0, NULL);
+		imx51_add_sdhci_esdhc_imx(1, &sd_pdata);
 		mx51_efikamx_leds[2].default_trigger = "mmc1";
-	}
+	} else
+		imx51_add_sdhci_esdhc_imx(0, &sd_pdata);
 
 	gpio_led_register_device(-1, &mx51_efikamx_leds_data);
 	imx_add_gpio_keys(&mx51_efikamx_powerkey_data);

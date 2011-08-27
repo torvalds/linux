@@ -609,7 +609,6 @@ void __init efika_board_common_init(void)
 					ARRAY_SIZE(mx51efika_pads));
 	imx51_add_imx_uart(0, &uart_pdata);
 	mx51_efika_usb();
-	imx51_add_sdhci_esdhc_imx(0, NULL);
 
 	/* FIXME: comes from original code. check this. */
 	if (mx51_revision() < IMX_CHIP_REVISION_2_0)
