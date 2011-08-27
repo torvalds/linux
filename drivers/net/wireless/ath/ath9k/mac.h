@@ -195,7 +195,7 @@ struct ath_htc_rx_status {
 #define ATH9K_RX_DECRYPT_BUSY     0x40
 
 #define ATH9K_RXKEYIX_INVALID	((u8)-1)
-#define ATH9K_TXKEYIX_INVALID	((u32)-1)
+#define ATH9K_TXKEYIX_INVALID	((u8)-1)
 
 enum ath9k_phyerr {
 	ATH9K_PHYERR_UNDERRUN             = 0,  /* Transmit underrun */

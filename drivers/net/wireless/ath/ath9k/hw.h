@@ -623,7 +623,7 @@ struct ath_hw_ops {
 			   struct ath_tx_status *ts);
 	void (*set11n_txdesc)(struct ath_hw *ah, void *ds,
 			      u32 pktLen, enum ath9k_pkt_type type,
-			      u32 txPower, u32 keyIx,
+			      u32 txPower, u8 keyIx,
 			      enum ath9k_key_type keyType,
 			      u32 flags);
 	void (*set11n_ratescenario)(struct ath_hw *ah, void *ds,

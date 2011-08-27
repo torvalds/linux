@@ -207,8 +207,8 @@ struct ath_atx_ac {
 
 struct ath_frame_info {
 	int framelen;
-	u32 keyix;
 	enum ath9k_key_type keytype;
+	u8 keyix;
 	u8 retries;
 	u16 seqno;
 };
