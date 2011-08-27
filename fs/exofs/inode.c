@@ -149,14 +149,17 @@ static int pcol_add_page(struct page_collect *pcol, struct page *page,
 	return 0;
 }
 
+enum {PAGE_WAS_NOT_IN_IO = 17};
 static int update_read_page(struct page *page, int ret)
 {
-	if (ret == 0) {
+	switch (ret) {
+	case 0:
 		/* Everything is OK */
 		SetPageUptodate(page);
 		if (PageError(page))
 			ClearPageError(page);
-	} else if (ret == -EFAULT) {
+		break;
+	case -EFAULT:
 		/* In this case we were trying to read something that wasn't on
 		 * disk yet - return a page full of zeroes.  This should be OK,
 		 * because the object should be empty (if there was a write
@@ -167,16 +170,22 @@ static int update_read_page(struct page *page, int ret)
 		SetPageUptodate(page);
 		if (PageError(page))
 			ClearPageError(page);
-		ret = 0; /* recovered error */
 		EXOFS_DBGMSG("recovered read error\n");
-	} else /* Error */
+		/* fall through */
+	case PAGE_WAS_NOT_IN_IO:
+		ret = 0; /* recovered error */
+		break;
+	default:
 		SetPageError(page);
-
+	}
 	return ret;
 }
 
 static void update_write_page(struct page *page, int ret)
 {
+	if (unlikely(ret == PAGE_WAS_NOT_IN_IO))
+		return; /* don't pass start don't collect $200 */
+
 	if (ret) {
 		mapping_set_error(page->mapping, ret);
 		SetPageError(page);
@@ -195,10 +204,14 @@ static int __readpages_done(struct page_collect *pcol)
 	u64 length = 0;
 	int ret = ore_check_io(pcol->ios, &resid);
 
-	if (likely(!ret))
+	if (likely(!ret)) {
 		good_bytes = pcol->length;
-	else
+		ret = PAGE_WAS_NOT_IN_IO;
+	} else {
 		good_bytes = pcol->length - resid;
+	}
+	if (good_bytes > pcol->ios->length)
+		good_bytes = pcol->ios->length;
 
 	EXOFS_DBGMSG2("readpages_done(0x%lx) good_bytes=0x%llx"
 		     " length=0x%lx nr_pages=%u\n",
@@ -518,10 +531,14 @@ static void writepages_done(struct ore_io_state *ios, void *p)
 
 	atomic_dec(&pcol->sbi->s_curr_pending);
 
-	if (likely(!ret))
+	if (likely(!ret)) {
 		good_bytes = pcol->length;
-	else
+		ret = PAGE_WAS_NOT_IN_IO;
+	} else {
 		good_bytes = pcol->length - resid;
+	}
+	if (good_bytes > pcol->ios->length)
+		good_bytes = pcol->ios->length;
 
 	EXOFS_DBGMSG2("writepages_done(0x%lx) good_bytes=0x%llx"
 		     " length=0x%lx nr_pages=%u\n",
