@@ -211,12 +211,12 @@ struct ath_frame_info {
 	enum ath9k_key_type keytype;
 	u8 keyix;
 	u8 retries;
-	u16 seqno;
 };
 
 struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
+	u16 seqno;
 	unsigned long bfs_paprd_timestamp;
 };
 
