@@ -1717,17 +1717,19 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 
 }
 
-static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
+static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 					   struct ath_txq *txq,
+					   struct ath_atx_tid *tid,
 					   struct sk_buff *skb)
 {
-	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_frame_info *fi = get_frame_info(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_buf *bf;
 	struct ath_desc *ds;
 	int frm_type;
+	u16 seqno;
 
 	bf = ath_tx_get_buffer(sc);
 	if (!bf) {
@@ -1736,6 +1738,13 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 	}
 
 	ATH_TXBUF_RESET(bf);
+
+	if (tid) {
+		seqno = tid->seq_next;
+		hdr->seq_ctrl = cpu_to_le16(tid->seq_next << IEEE80211_SEQ_SEQ_SHIFT);
+		INCR(tid->seq_next, IEEE80211_SEQ_MAX);
+		bf->bf_state.seqno = seqno;
+	}
 
 	bf->bf_flags = setup_tx_flags(skb);
 	bf->bf_mpdu = skb;
@@ -1773,15 +1782,15 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 }
 
 /* FIXME: tx power */
-static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
+static int ath_tx_start_dma(struct ath_softc *sc, struct sk_buff *skb,
 			     struct ath_tx_control *txctl)
 {
-	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct list_head bf_head;
 	struct ath_atx_tid *tid = NULL;
-	u16 seqno;
+	struct ath_buf *bf;
+	int ret = 0;
 	u8 tidno;
 
 	spin_lock_bh(&txctl->txq->axq_lock);
@@ -1791,13 +1800,13 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			IEEE80211_QOS_CTL_TID_MASK;
 		tid = ATH_AN_2_TID(txctl->an, tidno);
 
-		seqno = tid->seq_next;
-		hdr->seq_ctrl = cpu_to_le16(tid->seq_next << IEEE80211_SEQ_SEQ_SHIFT);
-		INCR(tid->seq_next, IEEE80211_SEQ_MAX);
-
-		bf->bf_state.seqno = seqno;
-
 		WARN_ON(tid->ac->txq != txctl->txq);
+	}
+
+	bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb);
+	if (unlikely(!bf)) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && tid) {
@@ -1825,7 +1834,9 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 		ath_tx_send_normal(sc, txctl->txq, tid, &bf_head);
 	}
 
+out:
 	spin_unlock_bh(&txctl->txq->axq_lock);
+	return ret;
 }
 
 /* Upon failure caller should free skb */
@@ -1838,7 +1849,6 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ath_softc *sc = hw->priv;
 	struct ath_txq *txq = txctl->txq;
-	struct ath_buf *bf;
 	int padpos, padsize;
 	int frmlen = skb->len + FCS_LEN;
 	int q;
@@ -1885,10 +1895,6 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * info are no longer valid (overwritten by the ath_frame_info data.
 	 */
 
-	bf = ath_tx_setup_buffer(hw, txctl->txq, skb);
-	if (unlikely(!bf))
-		return -ENOMEM;
-
 	q = skb_get_queue_mapping(skb);
 	spin_lock_bh(&txq->axq_lock);
 	if (txq == sc->tx.txq_map[q] &&
@@ -1898,9 +1904,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 	spin_unlock_bh(&txq->axq_lock);
 
-	ath_tx_start_dma(sc, bf, txctl);
-
-	return 0;
+	return ath_tx_start_dma(sc, skb, txctl);
 }
 
 /*****************/
