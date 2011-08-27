@@ -154,6 +154,11 @@ struct sbp2_logical_unit {
 	bool blocked;
 };
 
+static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
+{
+	queue_delayed_work(fw_workqueue, &lu->work, delay);
+}
+
 /*
  * We create one struct sbp2_target per IEEE 1212 Unit Directory
  * and one struct Scsi_Host per sbp2_target.
@@ -771,52 +776,6 @@ static int sbp2_lun2int(u16 lun)
 	return scsilun_to_int(&eight_bytes_lun);
 }
 
-static void sbp2_release_target(struct sbp2_target *tgt)
-{
-	struct sbp2_logical_unit *lu, *next;
-	struct Scsi_Host *shost =
-		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
-	struct scsi_device *sdev;
-	struct fw_device *device = target_device(tgt);
-
-	/* prevent deadlocks */
-	sbp2_unblock(tgt);
-
-	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
-		sdev = scsi_device_lookup(shost, 0, 0, sbp2_lun2int(lu->lun));
-		if (sdev) {
-			scsi_remove_device(sdev);
-			scsi_device_put(sdev);
-		}
-		if (lu->login_id != INVALID_LOGIN_ID) {
-			int generation, node_id;
-			/*
-			 * tgt->node_id may be obsolete here if we failed
-			 * during initial login or after a bus reset where
-			 * the topology changed.
-			 */
-			generation = device->generation;
-			smp_rmb(); /* node_id vs. generation */
-			node_id    = device->node_id;
-			sbp2_send_management_orb(lu, node_id, generation,
-						 SBP2_LOGOUT_REQUEST,
-						 lu->login_id, NULL);
-		}
-		fw_core_remove_address_handler(&lu->address_handler);
-		list_del(&lu->link);
-		kfree(lu);
-	}
-	scsi_remove_host(shost);
-	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
-
-	scsi_host_put(shost);
-}
-
-static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
-{
-	queue_delayed_work(fw_workqueue, &lu->work, delay);
-}
-
 /*
  * Write retransmit retry values into the BUSY_TIMEOUT register.
  * - The single-phase retry protocol is supported by all SBP-2 devices, but the
@@ -953,6 +912,57 @@ static void sbp2_login(struct work_struct *work)
 	 * lu->work already.  Reset the work from reconnect to login.
 	 */
 	PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
+}
+
+static void sbp2_reconnect(struct work_struct *work)
+{
+	struct sbp2_logical_unit *lu =
+		container_of(work, struct sbp2_logical_unit, work.work);
+	struct sbp2_target *tgt = lu->tgt;
+	struct fw_device *device = target_device(tgt);
+	int generation, node_id, local_node_id;
+
+	if (fw_device_is_shutdown(device))
+		return;
+
+	generation    = device->generation;
+	smp_rmb();    /* node IDs must not be older than generation */
+	node_id       = device->node_id;
+	local_node_id = device->card->node_id;
+
+	if (sbp2_send_management_orb(lu, node_id, generation,
+				     SBP2_RECONNECT_REQUEST,
+				     lu->login_id, NULL) < 0) {
+		/*
+		 * If reconnect was impossible even though we are in the
+		 * current generation, fall back and try to log in again.
+		 *
+		 * We could check for "Function rejected" status, but
+		 * looking at the bus generation as simpler and more general.
+		 */
+		smp_rmb(); /* get current card generation */
+		if (generation == device->card->generation ||
+		    lu->retries++ >= 5) {
+			fw_error("%s: failed to reconnect\n", tgt->bus_id);
+			lu->retries = 0;
+			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
+		}
+		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
+
+		return;
+	}
+
+	tgt->node_id      = node_id;
+	tgt->address_high = local_node_id << 16;
+	smp_wmb();	  /* node IDs must not be older than generation */
+	lu->generation	  = generation;
+
+	fw_notify("%s: reconnected to LUN %04x (%d retries)\n",
+		  tgt->bus_id, lu->lun, lu->retries);
+
+	sbp2_agent_reset(lu);
+	sbp2_cancel_orbs(lu);
+	sbp2_conditionally_unblock(lu);
 }
 
 static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
@@ -1100,6 +1110,7 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 }
 
 static struct scsi_host_template scsi_driver_template;
+static void sbp2_release_target(struct sbp2_target *tgt);
 
 static int sbp2_probe(struct device *dev)
 {
@@ -1171,71 +1182,6 @@ static int sbp2_probe(struct device *dev)
 	return -ENOMEM;
 }
 
-static int sbp2_remove(struct device *dev)
-{
-	struct fw_unit *unit = fw_unit(dev);
-	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
-	struct sbp2_logical_unit *lu;
-
-	list_for_each_entry(lu, &tgt->lu_list, link)
-		cancel_delayed_work_sync(&lu->work);
-
-	sbp2_release_target(tgt);
-
-	return 0;
-}
-
-static void sbp2_reconnect(struct work_struct *work)
-{
-	struct sbp2_logical_unit *lu =
-		container_of(work, struct sbp2_logical_unit, work.work);
-	struct sbp2_target *tgt = lu->tgt;
-	struct fw_device *device = target_device(tgt);
-	int generation, node_id, local_node_id;
-
-	if (fw_device_is_shutdown(device))
-		return;
-
-	generation    = device->generation;
-	smp_rmb();    /* node IDs must not be older than generation */
-	node_id       = device->node_id;
-	local_node_id = device->card->node_id;
-
-	if (sbp2_send_management_orb(lu, node_id, generation,
-				     SBP2_RECONNECT_REQUEST,
-				     lu->login_id, NULL) < 0) {
-		/*
-		 * If reconnect was impossible even though we are in the
-		 * current generation, fall back and try to log in again.
-		 *
-		 * We could check for "Function rejected" status, but
-		 * looking at the bus generation as simpler and more general.
-		 */
-		smp_rmb(); /* get current card generation */
-		if (generation == device->card->generation ||
-		    lu->retries++ >= 5) {
-			fw_error("%s: failed to reconnect\n", tgt->bus_id);
-			lu->retries = 0;
-			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
-		}
-		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
-
-		return;
-	}
-
-	tgt->node_id      = node_id;
-	tgt->address_high = local_node_id << 16;
-	smp_wmb();	  /* node IDs must not be older than generation */
-	lu->generation	  = generation;
-
-	fw_notify("%s: reconnected to LUN %04x (%d retries)\n",
-		  tgt->bus_id, lu->lun, lu->retries);
-
-	sbp2_agent_reset(lu);
-	sbp2_cancel_orbs(lu);
-	sbp2_conditionally_unblock(lu);
-}
-
 static void sbp2_update(struct fw_unit *unit)
 {
 	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
@@ -1252,6 +1198,61 @@ static void sbp2_update(struct fw_unit *unit)
 		lu->retries = 0;
 		sbp2_queue_work(lu, 0);
 	}
+}
+
+static void sbp2_release_target(struct sbp2_target *tgt)
+{
+	struct sbp2_logical_unit *lu, *next;
+	struct Scsi_Host *shost =
+		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+	struct scsi_device *sdev;
+	struct fw_device *device = target_device(tgt);
+
+	/* prevent deadlocks */
+	sbp2_unblock(tgt);
+
+	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
+		sdev = scsi_device_lookup(shost, 0, 0, sbp2_lun2int(lu->lun));
+		if (sdev) {
+			scsi_remove_device(sdev);
+			scsi_device_put(sdev);
+		}
+		if (lu->login_id != INVALID_LOGIN_ID) {
+			int generation, node_id;
+			/*
+			 * tgt->node_id may be obsolete here if we failed
+			 * during initial login or after a bus reset where
+			 * the topology changed.
+			 */
+			generation = device->generation;
+			smp_rmb(); /* node_id vs. generation */
+			node_id    = device->node_id;
+			sbp2_send_management_orb(lu, node_id, generation,
+						 SBP2_LOGOUT_REQUEST,
+						 lu->login_id, NULL);
+		}
+		fw_core_remove_address_handler(&lu->address_handler);
+		list_del(&lu->link);
+		kfree(lu);
+	}
+	scsi_remove_host(shost);
+	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
+
+	scsi_host_put(shost);
+}
+
+static int sbp2_remove(struct device *dev)
+{
+	struct fw_unit *unit = fw_unit(dev);
+	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
+	struct sbp2_logical_unit *lu;
+
+	list_for_each_entry(lu, &tgt->lu_list, link)
+		cancel_delayed_work_sync(&lu->work);
+
+	sbp2_release_target(tgt);
+
+	return 0;
 }
 
 #define SBP2_UNIT_SPEC_ID_ENTRY	0x0000609e
