@@ -266,7 +266,7 @@ struct storvsc_device {
 
 	/* 0 indicates the device is being destroyed */
 	atomic_t ref_count;
-
+	bool	 destroy;
 	bool	 drain_notify;
 	atomic_t num_outstanding_req;
 

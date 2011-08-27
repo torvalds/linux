@@ -43,7 +43,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 	/* Set to 2 to allow both inbound and outbound traffics */
 	/* (ie get_out_stor_device() and get_in_stor_device()) to proceed. */
 	atomic_set(&stor_device->ref_count, 2);
-
+	stor_device->destroy = false;
 	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
 	device->ext = stor_device;
@@ -399,8 +399,14 @@ int storvsc_dev_add(struct hv_device *device,
 int storvsc_dev_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
+	unsigned long flags;
+
 
 	stor_device = release_stor_device(device);
+
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
+	stor_device->destroy = true;
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/*
 	 * At this point, all outbound traffic should be disable. We
