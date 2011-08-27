@@ -67,22 +67,6 @@ static inline struct storvsc_device *get_in_stor_device(
 	return stor_device;
 }
 
-/* Drop ref count to 0. No one can use stor_device object. */
-static inline struct storvsc_device *final_release_stor_device(
-			struct hv_device *device)
-{
-	struct storvsc_device *stor_device;
-
-	stor_device = (struct storvsc_device *)device->ext;
-
-	/* Busy wait until the ref drop to 1, then set it to 0 */
-	while (atomic_cmpxchg(&stor_device->ref_count, 1, 0) != 1)
-		udelay(100);
-
-	device->ext = NULL;
-	return stor_device;
-}
-
 static int storvsc_channel_init(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
@@ -401,7 +385,12 @@ int storvsc_dev_remove(struct hv_device *device)
 
 	storvsc_wait_to_drain(stor_device);
 
-	stor_device = final_release_stor_device(device);
+	/*
+	 * Since we have already drained, we don't need to busy wait
+	 * as was done in final_release_stor_device()
+	 */
+	atomic_set(&stor_device->ref_count, 0);
+	device->ext = NULL;
 
 	/* Close the channel */
 	vmbus_close(device->channel);
