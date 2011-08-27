@@ -335,7 +335,8 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	input_device->hid_desc = kzalloc(desc->bLength, GFP_KERNEL);
 
 	if (!input_device->hid_desc) {
-		pr_err("unable to allocate hid descriptor - size %d", desc->bLength);
+		pr_err("unable to allocate hid descriptor - size %d",
+			 desc->bLength);
 		goto cleanup;
 	}
 
@@ -598,12 +599,12 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	pr_info("synthhid protocol request...");
 
 	ret = vmbus_sendpacket(device->channel, request,
-					sizeof(struct pipe_prt_msg) -
-					sizeof(unsigned char) +
-					sizeof(struct synthhid_protocol_request),
-					(unsigned long)request,
-					VM_PKT_DATA_INBAND,
-					VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+				sizeof(struct pipe_prt_msg) -
+				sizeof(unsigned char) +
+				sizeof(struct synthhid_protocol_request),
+				(unsigned long)request,
+				VM_PKT_DATA_INBAND,
+				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		pr_err("unable to send synthhid protocol request.");
 		goto cleanup;
