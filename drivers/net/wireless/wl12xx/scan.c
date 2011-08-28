@@ -65,8 +65,9 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	/* return to ROC if needed */
 	is_sta = (wl->bss_type == BSS_TYPE_STA_BSS);
 	is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
-	if ((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
-	    (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) {
+	if (((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
+	     (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) &&
+	    !test_bit(wl->dev_role_id, wl->roc_map)) {
 		/* restore remain on channel */
 		wl12xx_cmd_role_start_dev(wl);
 		wl12xx_roc(wl, wl->dev_role_id);
