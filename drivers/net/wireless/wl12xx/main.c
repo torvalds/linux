@@ -1540,7 +1540,13 @@ out:
 int wl1271_tx_dummy_packet(struct wl1271 *wl)
 {
 	unsigned long flags;
-	int q = wl1271_tx_get_queue(skb_get_queue_mapping(wl->dummy_packet));
+	int q;
+
+	/* no need to queue a new dummy packet if one is already pending */
+	if (test_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags))
+		return 0;
+
+	q = wl1271_tx_get_queue(skb_get_queue_mapping(wl->dummy_packet));
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
