@@ -127,11 +127,31 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	dev_kfree_skb(skb);
 }
 
+static void ieee80211_check_pending_bar(struct sta_info *sta, u8 *addr, u8 tid)
+{
+	struct tid_ampdu_tx *tid_tx;
+
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+	if (!tid_tx || !tid_tx->bar_pending)
+		return;
+
+	tid_tx->bar_pending = false;
+	ieee80211_send_bar(sta->sdata, addr, tid, tid_tx->failed_bar_ssn);
+}
+
 static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *) skb->data;
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+
+	if (ieee80211_is_data_qos(mgmt->frame_control)) {
+		struct ieee80211_hdr *hdr = (void *) skb->data;
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
+		u16 tid = qc[0] & 0xf;
+
+		ieee80211_check_pending_bar(sta, hdr->addr1, tid);
+	}
 
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    sdata->vif.type == NL80211_IFTYPE_STATION &&
@@ -159,6 +179,18 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 
 		ieee80211_queue_work(&local->hw, &local->recalc_smps);
 	}
+}
+
+static void ieee80211_set_bar_pending(struct sta_info *sta, u8 tid, u16 ssn)
+{
+	struct tid_ampdu_tx *tid_tx;
+
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+	if (!tid_tx)
+		return;
+
+	tid_tx->failed_bar_ssn = ssn;
+	tid_tx->bar_pending = true;
 }
 
 /*
@@ -254,10 +286,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			 */
 			bar = (struct ieee80211_bar *) skb->data;
 			if (!(bar->control & IEEE80211_BAR_CTRL_MULTI_TID)) {
+				u16 ssn = le16_to_cpu(bar->start_seq_num);
+
 				tid = (bar->control &
 				       IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
 				      IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
-				ieee80211_stop_tx_ba_session(&sta->sta, tid);
+
+				ieee80211_set_bar_pending(sta, tid, ssn);
 			}
 		}
 
