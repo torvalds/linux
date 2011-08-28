@@ -35,6 +35,7 @@
 #include <linux/file.h>
 #include <linux/slab.h>
 
+#include "idmap.h"
 #include "cache.h"
 #include "xdr4.h"
 #include "vfs.h"
@@ -1003,6 +1004,8 @@ static inline void nfsd4_increment_op_stats(u32 opnum)
 
 typedef __be32(*nfsd4op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
 			      void *);
+typedef u32(*nfsd4op_rsize)(struct svc_rqst *, struct nfsd4_op *op);
+
 enum nfsd4_op_flags {
 	ALLOWED_WITHOUT_FH = 1 << 0,	/* No current filehandle required */
 	ALLOWED_ON_ABSENT_FS = 1 << 1,	/* ops processed on absent fs */
@@ -1010,6 +1013,7 @@ enum nfsd4_op_flags {
 	/* For rfc 5661 section 2.6.3.1.1: */
 	OP_HANDLES_WRONGSEC = 1 << 3,
 	OP_IS_PUTFH_LIKE = 1 << 4,
+	OP_MODIFIES_SOMETHING = 1 << 5, /* op is non-idempotent */
 };
 
 struct nfsd4_operation {
@@ -1025,6 +1029,8 @@ struct nfsd4_operation {
 	 * the v4.0 case).
 	 */
 	bool op_cacheresult;
+	/* Try to get response size before operation */
+	nfsd4op_rsize op_rsize_bop;
 };
 
 static struct nfsd4_operation nfsd4_ops[];
@@ -1119,6 +1125,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
 	int		slack_bytes;
+	u32		plen = 0;
 	__be32		status;
 
 	resp->xbuf = &rqstp->rq_res;
@@ -1197,6 +1204,15 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			goto encode_op;
 		}
 
+		/* If op is non-idempotent */
+		if (opdesc->op_flags & OP_MODIFIES_SOMETHING) {
+			plen = opdesc->op_rsize_bop(rqstp, op);
+			op->status = nfsd4_check_resp_size(resp, plen);
+		}
+
+		if (op->status)
+			goto encode_op;
+
 		if (opdesc->op_func)
 			op->status = opdesc->op_func(rqstp, cstate, &op->u);
 		else
@@ -1247,6 +1263,144 @@ out:
 	return status;
 }
 
+#define op_encode_hdr_size		(2)
+#define op_encode_stateid_maxsz		(XDR_QUADLEN(NFS4_STATEID_SIZE))
+#define op_encode_verifier_maxsz	(XDR_QUADLEN(NFS4_VERIFIER_SIZE))
+#define op_encode_change_info_maxsz	(5)
+#define nfs4_fattr_bitmap_maxsz		(4)
+
+#define op_encode_lockowner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
+#define op_encode_lock_denied_maxsz	(8 + op_encode_lockowner_maxsz)
+
+#define nfs4_owner_maxsz		(1 + XDR_QUADLEN(IDMAP_NAMESZ))
+
+#define op_encode_ace_maxsz		(3 + nfs4_owner_maxsz)
+#define op_encode_delegation_maxsz	(1 + op_encode_stateid_maxsz + 1 + \
+					 op_encode_ace_maxsz)
+
+#define op_encode_channel_attrs_maxsz	(6 + 1 + 1)
+
+static inline u32 nfsd4_only_status_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_status_stateid_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_stateid_maxsz)* sizeof(__be32);
+}
+
+static inline u32 nfsd4_commit_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_verifier_maxsz) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_create_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_change_info_maxsz
+		+ nfs4_fattr_bitmap_maxsz) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_link_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_change_info_maxsz)
+		* sizeof(__be32);
+}
+
+static inline u32 nfsd4_lock_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_lock_denied_maxsz)
+		* sizeof(__be32);
+}
+
+static inline u32 nfsd4_open_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_stateid_maxsz
+		+ op_encode_change_info_maxsz + 1
+		+ nfs4_fattr_bitmap_maxsz
+		+ op_encode_delegation_maxsz) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_read_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	u32 maxcount = 0, rlen = 0;
+
+	maxcount = svc_max_payload(rqstp);
+	rlen = op->u.read.rd_length;
+
+	if (rlen > maxcount)
+		rlen = maxcount;
+
+	return (op_encode_hdr_size + 2) * sizeof(__be32) + rlen;
+}
+
+static inline u32 nfsd4_readdir_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	u32 rlen = op->u.readdir.rd_maxcount;
+
+	if (rlen > PAGE_SIZE)
+		rlen = PAGE_SIZE;
+
+	return (op_encode_hdr_size + op_encode_verifier_maxsz)
+		 * sizeof(__be32) + rlen;
+}
+
+static inline u32 nfsd4_remove_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_change_info_maxsz)
+		* sizeof(__be32);
+}
+
+static inline u32 nfsd4_rename_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_change_info_maxsz
+		+ op_encode_change_info_maxsz) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_setattr_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + nfs4_fattr_bitmap_maxsz) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_setclientid_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + 2 + 1024) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_write_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + op_encode_verifier_maxsz) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_exchange_id_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + 2 + 1 + /* eir_clientid, eir_sequenceid */\
+		1 + 1 + 0 + /* eir_flags, spr_how, SP4_NONE (for now) */\
+		2 + /*eir_server_owner.so_minor_id */\
+		/* eir_server_owner.so_major_id<> */\
+		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\
+		/* eir_server_scope<> */\
+		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\
+		1 + /* eir_server_impl_id array length */\
+		0 /* ignored eir_server_impl_id contents */) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_bind_conn_to_session_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + \
+		XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + /* bctsr_sessid */\
+		2 /* bctsr_dir, use_conn_in_rdma_mode */) * sizeof(__be32);
+}
+
+static inline u32 nfsd4_create_session_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size + \
+		XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + /* sessionid */\
+		2 + /* csr_sequence, csr_flags */\
+		op_encode_channel_attrs_maxsz + \
+		op_encode_channel_attrs_maxsz) * sizeof(__be32);
+}
+
 static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_ACCESS] = {
 		.op_func = (nfsd4op_func)nfsd4_access,
@@ -1254,20 +1408,28 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_CLOSE] = {
 		.op_func = (nfsd4op_func)nfsd4_close,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_CLOSE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
 	},
 	[OP_COMMIT] = {
 		.op_func = (nfsd4op_func)nfsd4_commit,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_COMMIT",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_commit_rsize,
 	},
 	[OP_CREATE] = {
 		.op_func = (nfsd4op_func)nfsd4_create,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_CREATE",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_create_rsize,
 	},
 	[OP_DELEGRETURN] = {
 		.op_func = (nfsd4op_func)nfsd4_delegreturn,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_DELEGRETURN",
+		.op_rsize_bop = nfsd4_only_status_rsize,
 	},
 	[OP_GETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_getattr,
@@ -1280,12 +1442,16 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_LINK] = {
 		.op_func = (nfsd4op_func)nfsd4_link,
+		.op_flags = ALLOWED_ON_ABSENT_FS | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_LINK",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_link_rsize,
 	},
 	[OP_LOCK] = {
 		.op_func = (nfsd4op_func)nfsd4_lock,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_LOCK",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_lock_rsize,
 	},
 	[OP_LOCKT] = {
 		.op_func = (nfsd4op_func)nfsd4_lockt,
@@ -1293,7 +1459,9 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_LOCKU] = {
 		.op_func = (nfsd4op_func)nfsd4_locku,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_LOCKU",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
 	},
 	[OP_LOOKUP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookup,
@@ -1311,42 +1479,54 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_OPEN] = {
 		.op_func = (nfsd4op_func)nfsd4_open,
-		.op_flags = OP_HANDLES_WRONGSEC,
+		.op_flags = OP_HANDLES_WRONGSEC | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_OPEN",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_open_rsize,
 	},
 	[OP_OPEN_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_open_confirm,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_OPEN_CONFIRM",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
 	},
 	[OP_OPEN_DOWNGRADE] = {
 		.op_func = (nfsd4op_func)nfsd4_open_downgrade,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_OPEN_DOWNGRADE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
 	},
 	[OP_PUTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE,
+				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_PUTFH",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_PUTPUBFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE,
+				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_PUTPUBFH",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_PUTROOTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE,
+				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_PUTROOTFH",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_READ] = {
 		.op_func = (nfsd4op_func)nfsd4_read,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_READ",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_read_rsize,
 	},
 	[OP_READDIR] = {
 		.op_func = (nfsd4op_func)nfsd4_readdir,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_READDIR",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_readdir_rsize,
 	},
 	[OP_READLINK] = {
 		.op_func = (nfsd4op_func)nfsd4_readlink,
@@ -1354,29 +1534,38 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_REMOVE] = {
 		.op_func = (nfsd4op_func)nfsd4_remove,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_REMOVE",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_remove_rsize,
 	},
 	[OP_RENAME] = {
-		.op_name = "OP_RENAME",
 		.op_func = (nfsd4op_func)nfsd4_rename,
+		.op_flags = OP_MODIFIES_SOMETHING,
+		.op_name = "OP_RENAME",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_rename_rsize,
 	},
 	[OP_RENEW] = {
 		.op_func = (nfsd4op_func)nfsd4_renew,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_RENEW",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
+
 	},
 	[OP_RESTOREFH] = {
 		.op_func = (nfsd4op_func)nfsd4_restorefh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE,
+				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_RESTOREFH",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SAVEFH] = {
 		.op_func = (nfsd4op_func)nfsd4_savefh,
-		.op_flags = OP_HANDLES_WRONGSEC,
+		.op_flags = OP_HANDLES_WRONGSEC | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_SAVEFH",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SECINFO] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo,
@@ -1386,19 +1575,25 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_SETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_setattr,
 		.op_name = "OP_SETATTR",
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_setattr_rsize,
 	},
 	[OP_SETCLIENTID] = {
 		.op_func = (nfsd4op_func)nfsd4_setclientid,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_SETCLIENTID",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_setclientid_rsize,
 	},
 	[OP_SETCLIENTID_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_setclientid_confirm,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_SETCLIENTID_CONFIRM",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_VERIFY] = {
 		.op_func = (nfsd4op_func)nfsd4_verify,
@@ -1406,35 +1601,47 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_WRITE] = {
 		.op_func = (nfsd4op_func)nfsd4_write,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_WRITE",
 		.op_cacheresult = true,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
 	},
 	[OP_RELEASE_LOCKOWNER] = {
 		.op_func = (nfsd4op_func)nfsd4_release_lockowner,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_RELEASE_LOCKOWNER",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 
 	/* NFSv4.1 operations */
 	[OP_EXCHANGE_ID] = {
 		.op_func = (nfsd4op_func)nfsd4_exchange_id,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_EXCHANGE_ID",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_exchange_id_rsize,
 	},
 	[OP_BIND_CONN_TO_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_bind_conn_to_session,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_BIND_CONN_TO_SESSION",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_bind_conn_to_session_rsize,
 	},
 	[OP_CREATE_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_create_session,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_CREATE_SESSION",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_create_session_rsize,
 	},
 	[OP_DESTROY_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_destroy_session,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_DESTROY_SESSION",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SEQUENCE] = {
 		.op_func = (nfsd4op_func)nfsd4_sequence,
@@ -1443,13 +1650,16 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_DESTROY_CLIENTID] = {
 		.op_func = NULL,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP
+				| OP_MODIFIES_SOMETHING,
 		.op_name = "OP_DESTROY_CLIENTID",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_RECLAIM_COMPLETE] = {
 		.op_func = (nfsd4op_func)nfsd4_reclaim_complete,
-		.op_flags = ALLOWED_WITHOUT_FH,
+		.op_flags = ALLOWED_WITHOUT_FH | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_RECLAIM_COMPLETE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SECINFO_NO_NAME] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo_no_name,
@@ -1463,8 +1673,9 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_FREE_STATEID] = {
 		.op_func = (nfsd4op_func)nfsd4_free_stateid,
-		.op_flags = ALLOWED_WITHOUT_FH,
+		.op_flags = ALLOWED_WITHOUT_FH | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_FREE_STATEID",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 };
 

@@ -3387,34 +3387,29 @@ static nfsd4_enc nfsd4_enc_ops[] = {
 
 /*
  * Calculate the total amount of memory that the compound response has taken
- * after encoding the current operation.
+ * after encoding the current operation with pad.
  *
- * pad: add on 8 bytes for the next operation's op_code and status so that
- * there is room to cache a failure on the next operation.
+ * pad: if operation is non-idempotent, pad was calculate by op_rsize_bop()
+ *      which was specified at nfsd4_operation, else pad is zero.
  *
- * Compare this length to the session se_fmaxresp_cached.
+ * Compare this length to the session se_fmaxresp_sz and se_fmaxresp_cached.
  *
  * Our se_fmaxresp_cached will always be a multiple of PAGE_SIZE, and so
  * will be at least a page and will therefore hold the xdr_buf head.
  */
-static int nfsd4_check_drc_limit(struct nfsd4_compoundres *resp)
+int nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 {
-	int status = 0;
 	struct xdr_buf *xb = &resp->rqstp->rq_res;
-	struct nfsd4_compoundargs *args = resp->rqstp->rq_argp;
 	struct nfsd4_session *session = NULL;
 	struct nfsd4_slot *slot = resp->cstate.slot;
-	u32 length, tlen = 0, pad = 8;
+	u32 length, tlen = 0;
 
 	if (!nfsd4_has_session(&resp->cstate))
-		return status;
+		return 0;
 
 	session = resp->cstate.session;
-	if (session == NULL || slot->sl_cachethis == 0)
-		return status;
-
-	if (resp->opcnt >= args->opcnt)
-		pad = 0; /* this is the last operation */
+	if (session == NULL)
+		return 0;
 
 	if (xb->page_len == 0) {
 		length = (char *)resp->p - (char *)xb->head[0].iov_base + pad;
@@ -3427,10 +3422,14 @@ static int nfsd4_check_drc_limit(struct nfsd4_compoundres *resp)
 	dprintk("%s length %u, xb->page_len %u tlen %u pad %u\n", __func__,
 		length, xb->page_len, tlen, pad);
 
-	if (length <= session->se_fchannel.maxresp_cached)
-		return status;
-	else
+	if (length > session->se_fchannel.maxresp_sz)
+		return nfserr_rep_too_big;
+
+	if (slot->sl_cachethis == 1 &&
+	    length > session->se_fchannel.maxresp_cached)
 		return nfserr_rep_too_big_to_cache;
+
+	return 0;
 }
 
 void
@@ -3450,8 +3449,8 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	       !nfsd4_enc_ops[op->opnum]);
 	op->status = nfsd4_enc_ops[op->opnum](resp, op->status, &op->u);
 	/* nfsd4_check_drc_limit guarantees enough room for error status */
-	if (!op->status && nfsd4_check_drc_limit(resp))
-		op->status = nfserr_rep_too_big_to_cache;
+	if (!op->status)
+		op->status = nfsd4_check_resp_size(resp, 0);
 status:
 	/*
 	 * Note: We write the status directly, instead of using WRITE32(),
