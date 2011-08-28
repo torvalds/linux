@@ -9,6 +9,27 @@
  */
 
 /*
+ * This file contains test code for ARM kprobes.
+ *
+ * The top level function run_all_tests() executes tests for all of the
+ * supported instruction sets: ARM, 16-bit Thumb, and 32-bit Thumb. These tests
+ * fall into two categories; run_api_tests() checks basic functionality of the
+ * kprobes API, and run_test_cases() is a comprehensive test for kprobes
+ * instruction decoding and simulation.
+ *
+ * run_test_cases() first checks the kprobes decoding table for self consistency
+ * (using table_test()) then executes a series of test cases for each of the CPU
+ * instruction forms. coverage_start() and coverage_end() are used to verify
+ * that these test cases cover all of the possible combinations of instructions
+ * described by the kprobes decoding tables.
+ *
+ * The individual test cases are in kprobes-test-arm.c and kprobes-test-thumb.c
+ * which use the macros defined in kprobes-test.h. The rest of this
+ * documentation will describe the operation of the framework used by these
+ * test cases.
+ */
+
+/*
  * TESTING METHODOLOGY
  * -------------------
  *
