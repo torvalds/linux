@@ -371,10 +371,10 @@ il4965_rs_tl_turn_on_agg_for_tid(struct il_priv *il, struct il_lq_sta *lq_data,
 			IL_ERR("Fail start Tx agg on tid: %d\n", tid);
 			ieee80211_stop_tx_ba_session(sta, tid);
 		}
-	} else {
-		IL_ERR("Aggregation not enabled for tid %d "
-		       "because load = %u\n", tid, load);
-	}
+	} else
+		D_HT("Aggregation not enabled for tid %d because load = %u\n",
+		     tid, load);
+
 	return ret;
 }
 
