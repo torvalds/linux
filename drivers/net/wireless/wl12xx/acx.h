@@ -1144,6 +1144,23 @@ struct wl12xx_acx_set_rate_mgmt_params {
 	u8 padding2[2];
 } __packed;
 
+struct wl12xx_acx_config_hangover {
+	struct acx_header header;
+
+	__le32 recover_time;
+	u8 hangover_period;
+	u8 dynamic_mode;
+	u8 early_termination_mode;
+	u8 max_period;
+	u8 min_period;
+	u8 increase_delta;
+	u8 decrease_delta;
+	u8 quiet_time;
+	u8 increase_time;
+	u8 window_size;
+	u8 padding[2];
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1281,5 +1298,6 @@ int wl1271_acx_config_ps(struct wl1271 *wl);
 int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
 int wl1271_acx_fm_coex(struct wl1271 *wl);
 int wl12xx_acx_set_rate_mgmt_params(struct wl1271 *wl);
+int wl12xx_acx_config_hangover(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

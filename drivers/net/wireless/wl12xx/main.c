@@ -239,7 +239,6 @@ static struct conf_drv_settings default_conf = {
 		.psm_entry_retries           = 8,
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
-		.psm_entry_hangover_period   = 1,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
@@ -358,6 +357,19 @@ static struct conf_drv_settings default_conf = {
 			0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00,
 		},
+	},
+	.hangover = {
+		.recover_time               = 0,
+		.hangover_period            = 20,
+		.dynamic_mode               = 1,
+		.early_termination_mode     = 1,
+		.max_period                 = 20,
+		.min_period                 = 1,
+		.increase_delta             = 1,
+		.decrease_delta             = 2,
+		.quiet_time                 = 4,
+		.increase_time              = 1,
+		.window_size                = 16,
 	},
 };
 
