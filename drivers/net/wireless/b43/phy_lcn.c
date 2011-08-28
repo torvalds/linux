@@ -213,6 +213,39 @@ static void b43_phy_lcn_pre_radio_init(struct b43_wldev *dev)
 	/* TODO: more ops */
 }
 
+static void b43_phy_lcn_save_configsth_restore(struct b43_wldev *dev)
+{
+	u8 i;
+
+	u16 save_radio_regs[6][2] = {
+		{ 0x007, 0 }, { 0x0ff, 0 }, { 0x11f, 0 }, { 0x005, 0 },
+		{ 0x025, 0 }, { 0x112, 0 },
+	};
+	u16 save_phy_regs[14][2] = {
+		{ 0x503, 0 }, { 0x4a4, 0 }, { 0x4d0, 0 }, { 0x4d9, 0 },
+		{ 0x4da, 0 }, { 0x4a6, 0 }, { 0x938, 0 }, { 0x939, 0 },
+		{ 0x4d8, 0 }, { 0x4d0, 0 }, { 0x4d7, 0 }, { 0x4a5, 0 },
+		{ 0x40d, 0 }, { 0x4a2, 0 },
+	};
+	u16 save_radio_4a4;
+
+	for (i = 0; i < 6; i++)
+		save_radio_regs[i][1] = b43_radio_read(dev,
+						       save_radio_regs[i][0]);
+	for (i = 0; i < 14; i++)
+		save_phy_regs[i][1] = b43_phy_read(dev, save_phy_regs[i][0]);
+	save_radio_4a4 = b43_radio_read(dev, 0x4a4);
+
+	/* TODO: config sth */
+
+	for (i = 0; i < 6; i++)
+		b43_radio_write(dev, save_radio_regs[i][0],
+				save_radio_regs[i][1]);
+	for (i = 0; i < 14; i++)
+		b43_phy_write(dev, save_phy_regs[i][0], save_phy_regs[i][1]);
+	b43_radio_write(dev, 0x4a4, save_radio_4a4);
+}
+
 /**************************************************
  * Channel switching ops.
  **************************************************/
@@ -296,6 +329,8 @@ static int b43_phy_lcn_op_init(struct b43_wldev *dev)
 		b43_radio_2064_init(dev);
 	else
 		B43_WARN_ON(1);
+
+	b43_phy_lcn_save_configsth_restore(dev);
 
 	return 0;
 }
