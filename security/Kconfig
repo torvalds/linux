@@ -38,7 +38,9 @@ config TRUSTED_KEYS
 
 config ENCRYPTED_KEYS
 	tristate "ENCRYPTED KEYS"
-	depends on KEYS && TRUSTED_KEYS
+	depends on KEYS
+	select CRYPTO
+	select CRYPTO_HMAC
 	select CRYPTO_AES
 	select CRYPTO_CBC
 	select CRYPTO_SHA256
