@@ -1225,9 +1225,6 @@ static void wl1271_recovery_work(struct work_struct *work)
 	    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
 		wl->tx_security_seq += WL1271_TX_SQN_POST_RECOVERY_PADDING;
 
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
-		ieee80211_connection_loss(wl->vif);
-
 	/* Prevent spurious TX during FW restart */
 	ieee80211_stop_queues(wl->hw);
 
