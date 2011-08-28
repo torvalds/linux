@@ -2252,7 +2252,7 @@ il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 	if (unlikely(tx_fifo < 0))
 		return tx_fifo;
 
-	IL_WARN("%s on ra = %pM tid = %d\n", __func__, sta->addr, tid);
+	D_HT("%s on ra = %pM tid = %d\n", __func__, sta->addr, tid);
 
 	sta_id = il_sta_id(sta);
 	if (sta_id == IL_INVALID_STATION) {
