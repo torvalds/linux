@@ -48,6 +48,9 @@
 
 #define XGIFB_ROM_SIZE	65536
 
+static char *mode;
+static int vesa;
+
 /* -------------------- Macro definitions ---------------------------- */
 
 #undef XGIFBDEBUG
@@ -1959,9 +1962,9 @@ static int __init XGIfb_setup(char *options)
 			continue;
 
 		if (!strncmp(this_opt, "mode:", 5)) {
-			XGIfb_search_mode(this_opt + 5);
+			mode = this_opt + 5;
 		} else if (!strncmp(this_opt, "vesa:", 5)) {
-			XGIfb_search_vesamode(xgifb_optval(this_opt, 5));
+			vesa = xgifb_optval(this_opt, 5);
 		} else if (!strncmp(this_opt, "vrate:", 6)) {
 			xgi_video_info.refresh_rate = xgifb_optval(this_opt, 6);
 		} else if (!strncmp(this_opt, "rate:", 5)) {
@@ -1987,7 +1990,7 @@ static int __init XGIfb_setup(char *options)
 		} else if (!strncmp(this_opt, "userom:", 7)) {
 			XGIfb_userom = xgifb_optval(this_opt, 7);
 		} else {
-			XGIfb_search_mode(this_opt);
+			mode = this_opt;
 		}
 	}
 	return 0;
@@ -2308,6 +2311,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	}
 
+	if (mode)
+		XGIfb_search_mode(mode);
+	else if (vesa != -1)
+		XGIfb_search_vesamode(vesa);
+
 	if (xgifb_mode_idx >= 0)
 		xgifb_mode_idx = XGIfb_validate_mode(xgifb_mode_idx);
 
@@ -2513,9 +2521,6 @@ module_init(xgifb_init);
 
 #ifdef MODULE
 
-static char *mode;
-static int vesa;
-
 MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XGITECH , Others");
@@ -2541,10 +2546,6 @@ MODULE_PARM_DESC(filter,
 static int __init xgifb_init_module(void)
 {
 	printk("\nXGIfb_init_module");
-	if (mode)
-		XGIfb_search_mode(mode);
-	else if (vesa != -1)
-		XGIfb_search_vesamode(vesa);
 
 	return xgifb_init();
 }
