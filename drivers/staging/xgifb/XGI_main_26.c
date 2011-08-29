@@ -1954,11 +1954,6 @@ static int __init XGIfb_setup(char *options)
 		} else if (!strncmp(this_opt, "vesa:", 5)) {
 			XGIfb_search_vesamode(simple_strtoul(
 						this_opt + 5, NULL, 0));
-		} else if (!strncmp(this_opt, "mode:", 5)) {
-			XGIfb_search_mode(this_opt + 5);
-		} else if (!strncmp(this_opt, "vesa:", 5)) {
-			XGIfb_search_vesamode(simple_strtoul(
-						this_opt + 5, NULL, 0));
 		} else if (!strncmp(this_opt, "vrate:", 6)) {
 			xgi_video_info.refresh_rate = simple_strtoul(
 						this_opt + 6, NULL, 0);
