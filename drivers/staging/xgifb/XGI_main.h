@@ -364,12 +364,7 @@ static struct _XGIbios_mode {
 };
 
 /* mode-related variables */
-#ifdef MODULE
-static int xgifb_mode_idx = 1;
-#else
-static int xgifb_mode_idx = -1; /* Use a default mode if we are
-					inside the kernel */
-#endif
+static int xgifb_mode_idx = -1;
 static u8  XGIfb_mode_no;
 static u8  XGIfb_rate_idx;
 
