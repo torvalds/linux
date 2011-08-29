@@ -709,7 +709,8 @@ static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 	 * Add delimiter when using RTS/CTS with aggregation
 	 * and non enterprise AR9003 card
 	 */
-	if (first_subfrm)
+	if (first_subfrm && !AR_SREV_9580_10_OR_LATER(sc->sc_ah) &&
+	    (sc->sc_ah->ent_mode & AR_ENT_OTP_MIN_PKT_SIZE_DISABLE))
 		ndelim = max(ndelim, FIRST_DESC_NDELIMS);
 
 	/*
