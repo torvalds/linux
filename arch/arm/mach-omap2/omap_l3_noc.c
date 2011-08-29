@@ -124,7 +124,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 {
 	static struct omap4_l3		*l3;
 	struct resource	*res;
-	int ret, irq;
+	int ret;
 
 	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
 	if (!l3)
@@ -176,8 +176,8 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 	/*
 	 * Setup interrupt Handlers
 	 */
-	irq = platform_get_irq(pdev, 0);
-	ret = request_irq(irq,
+	l3->debug_irq = platform_get_irq(pdev, 0);
+	ret = request_irq(l3->debug_irq,
 			l3_interrupt_handler,
 			IRQF_DISABLED, "l3-dbg-irq", l3);
 	if (ret) {
@@ -185,10 +185,9 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 					 OMAP44XX_IRQ_L3_DBG);
 		goto err3;
 	}
-	l3->debug_irq = irq;
 
-	irq = platform_get_irq(pdev, 1);
-	ret = request_irq(irq,
+	l3->app_irq = platform_get_irq(pdev, 1);
+	ret = request_irq(l3->app_irq,
 			l3_interrupt_handler,
 			IRQF_DISABLED, "l3-app-irq", l3);
 	if (ret) {
@@ -196,7 +195,6 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 					 OMAP44XX_IRQ_L3_APP);
 		goto err4;
 	}
-	l3->app_irq = irq;
 
 	return 0;
 
