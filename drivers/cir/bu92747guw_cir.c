@@ -58,20 +58,6 @@ static struct miscdevice bu92747guw_device;
 
 int repeat_flag=-1;
 int start_flag = 0;
-//mutex lock between remote and irda
-static DEFINE_MUTEX(bu92747_mutex);
-void bu92747_lock(void)
-{
-	mutex_lock(&bu92747_mutex);
-}
-void bu92747_unlock(void)
-{
-	mutex_unlock(&bu92747_mutex);
-}
-
-
-
-
 
 static int bu92747_cir_i2c_read_regs(struct i2c_client *client, u8 reg, u8 *buf, int len)
 {
