@@ -724,11 +724,11 @@ void intel_crt_init(struct drm_device *dev)
 	has finished rendering to the object, then the object must be made
 	coherent with the CPU's view
 	of memory, usually involving GPU cache flushing of various kinds.
-	This core CPU&lt;-&gt;GPU coherency management is provided by the GEM
-	set domain function, which evaluates an object's current domain and
+	This core CPU&lt;-&gt;GPU coherency management is provided by a
+	device-specific ioctl, which evaluates an object's current domain and
 	performs any necessary flushing or synchronization to put the object
 	into the desired coherency domain (note that the object may be busy,
-	i.e. an active render target; in that case, the set domain function
+	i.e. an active render target; in that case, setting the domain
 	blocks the client and waits for rendering to complete before
 	performing any necessary flushing operations).
       </para>
