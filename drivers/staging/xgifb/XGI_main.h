@@ -167,7 +167,6 @@ static u32 pseudo_palette[17];
 
 
 /* display status */
-static int XGIfb_off;
 static int XGIfb_crt1off;
 static int XGIfb_forcecrt1 = -1;
 static int XGIfb_userom ;

@@ -1960,8 +1960,6 @@ static int __init XGIfb_setup(char *options)
 		} else if (!strncmp(this_opt, "rate:", 5)) {
 			xgi_video_info.refresh_rate = simple_strtoul(
 						this_opt + 5, NULL, 0);
-		} else if (!strncmp(this_opt, "off", 3)) {
-			XGIfb_off = 1;
 		} else if (!strncmp(this_opt, "crt1off", 7)) {
 			XGIfb_crt1off = 1;
 		} else if (!strncmp(this_opt, "filter:", 7)) {
@@ -2022,9 +2020,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	u8 reg, reg1;
 	u8 CR48, CR38;
 	int ret;
-
-	if (XGIfb_off)
-		return -ENXIO;
 
 	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
