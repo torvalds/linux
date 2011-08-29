@@ -529,7 +529,7 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 	if (chan) {
 		if (err)
 			dmaengine_terminate_all(chan);
-		if (err || data->host_cookie)
+		if (data->host_cookie)
 			dma_unmap_sg(mmc_dev(host->mmc), data->sg,
 				     data->sg_len, dir);
 		mrq->data->host_cookie = 0;
