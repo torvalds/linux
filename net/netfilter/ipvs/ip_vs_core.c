@@ -1877,10 +1877,9 @@ static int __net_init __ip_vs_init(struct net *net)
 	struct netns_ipvs *ipvs;
 
 	ipvs = net_generic(net, ip_vs_net_id);
-	if (ipvs == NULL) {
-		pr_err("%s(): no memory.\n", __func__);
+	if (ipvs == NULL)
 		return -ENOMEM;
-	}
+
 	/* Hold the beast until a service is registerd */
 	ipvs->enable = 0;
 	ipvs->net = net;
