@@ -2498,14 +2498,12 @@ module_param(vesa, int, 0);
 module_param(filter, int, 0);
 
 MODULE_PARM_DESC(mode,
-		"\nSelects the desired default display mode in the format XxYxDepth,\n"
-		"eg. 1024x768x16. Other formats supported include XxY-Depth and\n"
-		"XxY-Depth@Rate. If the parameter is only one (decimal or hexadecimal)\n"
-		"number, it will be interpreted as a VESA mode number. (default: 800x600x8)\n");
+	"\nSelects the desired default display mode in the format XxYxDepth,\n"
+	"eg. 1024x768x16.\n");
 
 MODULE_PARM_DESC(vesa,
-		"\nSelects the desired default display mode by VESA defined mode number, eg.\n"
-		"0x117 (default: 0x0103)\n");
+	"\nSelects the desired default display mode by VESA mode number, eg.\n"
+	"0x117.\n");
 
 MODULE_PARM_DESC(filter,
 		"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
