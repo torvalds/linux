@@ -458,17 +458,6 @@ static void XGIfb_search_mode(const char *name)
 {
 	int i = 0, j = 0, l;
 
-	if (name == NULL) {
-		printk(KERN_ERR "XGIfb: Internal error, using default mode.\n");
-		xgifb_mode_idx = DEFAULT_MODE;
-		if ((xgi_video_info.chip == XG21)
-				&& ((xgi_video_info.disp_state & DISPTYPE_DISP2)
-						== DISPTYPE_LCD)) {
-			xgifb_mode_idx = XGIfb_GetXG21DefaultLVDSModeIdx();
-		}
-		return;
-	}
-
 	if (!strcmp(name, XGIbios_mode[MODE_INDEX_NONE].name)) {
 		printk(KERN_ERR "XGIfb: Mode 'none' not supported anymore. Using default.\n");
 		xgifb_mode_idx = DEFAULT_MODE;
