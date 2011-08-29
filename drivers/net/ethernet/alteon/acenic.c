@@ -2485,9 +2485,9 @@ restart:
 			info = ap->skb->tx_skbuff + idx;
 			desc = ap->tx_ring + idx;
 
-			mapping = pci_map_page(ap->pdev, frag->page,
-					       frag->page_offset, frag->size,
-					       PCI_DMA_TODEVICE);
+			mapping = skb_frag_dma_map(&ap->pdev->dev, frag, 0,
+						   frag->size,
+						   PCI_DMA_TODEVICE);
 
 			flagsize = (frag->size << 16);
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
