@@ -1939,10 +1939,10 @@ static int __init XGIfb_setup(char *options)
 
 	xgi_video_info.refresh_rate = 0;
 
-	printk(KERN_INFO "XGIfb: Options %s\n", options);
-
 	if (!options || !*options)
 		return 0;
+
+	pr_info("xgifb: options: %s\n", options);
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 
@@ -1984,11 +1984,8 @@ static int __init XGIfb_setup(char *options)
 						this_opt + 7, NULL, 0);
 		} else {
 			XGIfb_search_mode(this_opt);
-			/* printk(KERN_INFO "XGIfb: Invalid option %s\n",
-				  this_opt); */
 		}
 	}
-	printk("\nxgifb: outa xgifb_setup 3450");
 	return 0;
 }
 
