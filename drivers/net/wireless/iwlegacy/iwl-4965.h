@@ -279,4 +279,6 @@ int il4965_mac_sta_add(struct ieee80211_hw *hw,
 void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
 
+void il4965_led_enable(struct il_priv *il);
+
 #endif /* __il_4965_h__ */

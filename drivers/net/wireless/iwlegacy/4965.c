@@ -44,9 +44,38 @@
 #include "iwl-helpers.h"
 #include "iwl-4965-calib.h"
 #include "iwl-sta.h"
-#include "iwl-4965-led.h"
 #include "iwl-4965.h"
 #include "iwl-4965-debugfs.h"
+
+/* Send led command */
+static int
+il4965_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
+{
+	struct il_host_cmd cmd = {
+		.id = REPLY_LEDS_CMD,
+		.len = sizeof(struct il_led_cmd),
+		.data = led_cmd,
+		.flags = CMD_ASYNC,
+		.callback = NULL,
+	};
+	u32 reg;
+
+	reg = _il_rd(il, CSR_LED_REG);
+	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
+		_il_wr(il, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
+
+	return il_send_cmd(il, &cmd);
+}
+
+/* Set led register off */
+void il4965_led_enable(struct il_priv *il)
+{
+	_il_wr(il, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
+}
+
+const struct il_led_ops il4965_led_ops = {
+	.cmd = il4965_send_led_cmd,
+};
 
 static int il4965_send_tx_power(struct il_priv *il);
 static int il4965_hw_get_temperature(struct il_priv *il);
