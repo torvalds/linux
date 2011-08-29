@@ -2479,9 +2479,7 @@ static int __init xgifb_init(void)
 	return pci_register_driver(&xgifb_driver);
 }
 
-#ifndef MODULE
 module_init(xgifb_init);
-#endif
 
 /*****************************************************/
 /*                      MODULE                       */
@@ -2509,20 +2507,12 @@ MODULE_PARM_DESC(filter,
 		"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
 		"(Possible values 0-7, default: [no filter])\n");
 
-static int __init xgifb_init_module(void)
-{
-	printk("\nXGIfb_init_module");
-
-	return xgifb_init();
-}
-
 static void __exit xgifb_remove_module(void)
 {
 	pci_unregister_driver(&xgifb_driver);
 	printk(KERN_DEBUG "xgifb: Module unloaded\n");
 }
 
-module_init(xgifb_init_module);
 module_exit(xgifb_remove_module);
 
 #endif	/*  /MODULE  */
