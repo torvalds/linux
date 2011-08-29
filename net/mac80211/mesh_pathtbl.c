@@ -991,9 +991,14 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 
 		da = hdr->addr3;
 		ra = hdr->addr1;
+		rcu_read_lock();
 		mpath = mesh_path_lookup(da, sdata);
-		if (mpath)
+		if (mpath) {
+			spin_lock_bh(&mpath->state_lock);
 			sn = ++mpath->sn;
+			spin_unlock_bh(&mpath->state_lock);
+		}
+		rcu_read_unlock();
 		mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl, skb->data,
 				   cpu_to_le32(sn), reason, ra, sdata);
 	}
