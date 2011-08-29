@@ -36,8 +36,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 22
-#define QLCNIC_LINUX_VERSIONID  "5.0.22"
+#define _QLCNIC_LINUX_SUBVERSION 23
+#define QLCNIC_LINUX_VERSIONID  "5.0.23"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -456,6 +456,8 @@ struct qlcnic_hardware_context {
 	u8 loopback_state;
 	u16 port_type;
 	u16 board_type;
+
+	u8 beacon_state;
 
 	struct qlcnic_nic_intr_coalesce coal;
 	struct qlcnic_fw_dump fw_dump;
@@ -931,6 +933,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_START_FW 		4
 #define __QLCNIC_AER			5
 #define __QLCNIC_DIAG_RES_ALLOC		6
+#define __QLCNIC_LED_ENABLE		7
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1396,6 +1399,9 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 	qlcnic_pcie_sem_lock((a), 7, QLCNIC_CRB_WIN_LOCK_ID)
 #define crb_win_unlock(a)	\
 	qlcnic_pcie_sem_unlock((a), 7)
+
+#define __QLCNIC_MAX_LED_RATE	0xf
+#define __QLCNIC_MAX_LED_STATE	0x2
 
 int qlcnic_get_board_info(struct qlcnic_adapter *adapter);
 int qlcnic_wol_supported(struct qlcnic_adapter *adapter);

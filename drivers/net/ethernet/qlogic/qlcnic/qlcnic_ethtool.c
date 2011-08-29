@@ -939,6 +939,9 @@ static int qlcnic_set_led(struct net_device *dev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
+		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state))
+			return -EBUSY;
+
 		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 				return -EIO;
@@ -972,6 +975,8 @@ static int qlcnic_set_led(struct net_device *dev,
 		qlcnic_diag_free_res(dev, max_sds_rings);
 		clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	}
+
+	clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
 
 	return -EIO;
 }
