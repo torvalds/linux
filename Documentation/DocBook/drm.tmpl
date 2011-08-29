@@ -238,7 +238,7 @@
     </variablelist>
     <para>
       In this specific case, the driver requires AGP and supports
-      IRQs.  DMA, as discussed later, is handled by device specific ioctls
+      IRQs.  DMA, as discussed later, is handled by device-specific ioctls
       in this case.  It also supports the kernel mode setting APIs, though
       unlike in the actual i915 driver source, this example unconditionally
       exports KMS capability.
@@ -277,7 +277,7 @@
       to perform output discovery &amp; configuration at load time.
       Likewise, if user-level drivers unaware of memory management are
       in use, memory management and command buffer setup may need to
-      be omitted.  These requirements are driver specific, and care
+      be omitted.  These requirements are driver-specific, and care
       needs to be taken to keep both old and new applications and
       libraries working.  The i915 driver supports the "modeset"
       module parameter to control whether advanced features are
@@ -288,7 +288,7 @@
       <title>Driver private &amp; performance counters</title>
       <para>
 	The driver private hangs off the main drm_device structure and
-	can be used for tracking various device specific bits of
+	can be used for tracking various device-specific bits of
 	information, like register offsets, command buffer status,
 	register state for suspend/resume, etc.  At load time, a
 	driver may simply allocate one and set drm_device.dev_priv
@@ -313,7 +313,7 @@
     <sect2>
       <title>Configuring the device</title>
       <para>
-	Obviously, device configuration is device specific.
+	Obviously, device configuration is device-specific.
 	However, there are several common operations: finding a
 	device's PCI resources, mapping them, and potentially setting
 	up an IRQ handler.
@@ -340,8 +340,8 @@
       <para>
 	Once you have a register map, you may use the DRM_READn() and
 	DRM_WRITEn() macros to access the registers on your device, or
-	use driver specific versions to offset into your MMIO space
-	relative to a driver specific base pointer (see I915_READ for
+	use driver-specific versions to offset into your MMIO space
+	relative to a driver-specific base pointer (see I915_READ for
 	an example).
       </para>
       <para>
@@ -399,7 +399,7 @@
 	  and devices with dedicated video RAM (VRAM), i.e. most discrete
 	  graphics devices.  If your device has dedicated RAM, supporting
 	  TTM is desirable.  TTM also integrates tightly with your
-	  driver specific buffer execution function.  See the radeon
+	  driver-specific buffer execution function.  See the radeon
 	  driver for examples.
 	</para>
 	<para>
@@ -427,7 +427,7 @@
 	  created by the memory manager at runtime.  Your global TTM should
 	  have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
 	  object should be sizeof(struct ttm_mem_global), and the init and
-	  release hooks should point at your driver specific init and
+	  release hooks should point at your driver-specific init and
 	  release routines, which probably eventually call
 	  ttm_mem_global_init and ttm_mem_global_release, respectively.
 	</para>
@@ -438,7 +438,7 @@
 	  provide a pool for buffer object allocation by clients and the
 	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
 	  and its size should be sizeof(struct ttm_bo_global).  Again,
-	  driver specific init and release functions may be provided,
+	  driver-specific init and release functions may be provided,
 	  likely eventually calling ttm_bo_global_init() and
 	  ttm_bo_global_release(), respectively.  Also, like the previous
 	  object, ttm_global_item_ref() is used to create an initial reference
@@ -462,7 +462,7 @@
 	  be initialized separately into its own DRM MM object.
 	</para>
 	<para>
-	  Initialization is driver specific. In the case of Intel
+	  Initialization is driver-specific. In the case of Intel
 	  integrated graphics chips like 965GM, GEM initialization can
 	  be done by calling the internal GEM init function,
 	  i915_gem_do_init().  Since the 965GM is a UMA device
@@ -561,8 +561,8 @@ void intel_crt_init(struct drm_device *dev)
 	</programlisting>
 	<para>
 	  In the example above (again, taken from the i915 driver), a
-	  CRT connector and encoder combination is created.  A device
-	  specific i2c bus is also created for fetching EDID data and
+	  CRT connector and encoder combination is created.  A device-specific
+	  i2c bus is also created for fetching EDID data and
 	  performing monitor detection.  Once the process is complete,
 	  the new connector is registered with sysfs to make its
 	  properties available to applications.
@@ -704,8 +704,8 @@ void intel_crt_init(struct drm_device *dev)
       <para>
 	GEM-enabled drivers must provide gem_init_object() and
 	gem_free_object() callbacks to support the core memory
-	allocation routines.  They should also provide several driver
-	specific ioctls to support command execution, pinning, buffer
+	allocation routines.  They should also provide several driver-specific
+	ioctls to support command execution, pinning, buffer
 	read &amp; write, mapping, and domain ownership transfers.
       </para>
       <para>
@@ -797,7 +797,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       Clients need to provide a framebuffer object which provides a source
       of pixels for a CRTC to deliver to the encoder(s) and ultimately the
-      connector(s). A framebuffer is fundamentally a driver specific memory
+      connector(s). A framebuffer is fundamentally a driver-specific memory
       object, made into an opaque handle by the DRM's addfb() function.
       Once a framebuffer has been created this way, it may be passed to the
       KMS mode setting routines for use in a completed configuration.
@@ -807,7 +807,7 @@ void intel_crt_init(struct drm_device *dev)
   <sect1>
     <title>Command submission &amp; fencing</title>
     <para>
-      This should cover a few device specific command submission
+      This should cover a few device-specific command submission
       implementations.
     </para>
   </sect1>
@@ -840,7 +840,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       The DRM core exports several interfaces to applications,
       generally intended to be used through corresponding libdrm
-      wrapper functions.  In addition, drivers export device specific
+      wrapper functions.  In addition, drivers export device-specific
       interfaces for use by userspace drivers &amp; device aware
       applications through ioctls and sysfs files.
     </para>
