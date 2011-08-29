@@ -953,8 +953,10 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 	 *  peasycap, IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
 	 *  IF NECESSARY, BAIL OUT.
 	 */
-		if (kd != isdongle(peasycap))
+		if (kd != isdongle(peasycap)) {
+			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
+		}
 		if (!file) {
 			SAY("ERROR:  file is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
