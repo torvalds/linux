@@ -474,7 +474,10 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			    BTRFS_FSID_SIZE);
 
 	ret = update_ref_for_cow(trans, root, buf, cow, &last_ref);
-	BUG_ON(ret);
+	if (ret) {
+		btrfs_std_error(root->fs_info, ret);
+		return ret;
+	}
 
 	if (root->ref_cows)
 		btrfs_reloc_cow_block(trans, root, buf, cow);
