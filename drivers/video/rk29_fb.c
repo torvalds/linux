@@ -1007,11 +1007,14 @@ static int win0_blank(int blank_mode, struct fb_info *info)
     {
     case FB_BLANK_UNBLANK:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
-	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+	    LcdWrReg(inf, REG_CFG_DONE, 0x01);
         break;
+    case FB_BLANK_NORMAL:
+         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
+	     break;
     default:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
-	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+	    LcdWrReg(inf, REG_CFG_DONE, 0x01);
 #ifdef CONFIG_DDR_RECONFIG
 	msleep(40);
 #endif
@@ -1180,12 +1183,17 @@ static int win1_blank(int blank_mode, struct fb_info *info)
     {
     case FB_BLANK_UNBLANK:
         LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(1));
+        LcdWrReg(inf, REG_CFG_DONE, 0x01);
         break;
+    case FB_BLANK_NORMAL:
+         LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(0));
+	     break;
     default:
         LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(0));
+        LcdWrReg(inf, REG_CFG_DONE, 0x01);
         break;
     }
-    LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    
 
 	mcu_refresh(inf);
     return 0;
@@ -2163,9 +2171,9 @@ int fb1_open(struct fb_info *info, int user)
         return -EACCES;
     } else {
         par->refcount++;
+        win0_blank(FB_BLANK_NORMAL, info);
         fb0_set_par(inf->fb0);
-        fb0_pan_display(&inf->fb0->var, inf->fb0);
-        win0_blank(FB_BLANK_POWERDOWN, info);
+        
 	    rk29fb_notify(inf, RK29FB_EVENT_FB1_ON);
         return 0;
     }
@@ -2187,12 +2195,8 @@ int fb1_release(struct fb_info *info, int user)
         inf->video_mode = 0;
         par->par_seted = 0;
         par->addr_seted = 0;
-        //win0_blank(FB_BLANK_POWERDOWN, info);
+        win1_blank(FB_BLANK_NORMAL, info);
         fb0_set_par(inf->fb0);
-        fb0_pan_display(&inf->fb0->var, inf->fb0);
-        win1_blank(FB_BLANK_POWERDOWN, info);
-        // wait for lcdc stop access memory
-        //msleep(50);
 
         // unmap memory
         info->screen_base = 0;
@@ -2601,7 +2605,7 @@ static void rk29fb_early_suspend(struct early_suspend *h)
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-        clk_disable(inf->pd_display);
+        //clk_disable(inf->pd_display);
 
 		inf->in_suspend = 1;
 	}
@@ -2626,7 +2630,7 @@ static void rk29fb_early_resume(struct early_suspend *h)
 	{
 	    inf->in_suspend = 0;
     	fbprintk(">>>>>> enable the lcdc clk! \n");
-        clk_enable(inf->pd_display);
+       // clk_enable(inf->pd_display);
         clk_enable(inf->aclk_disp_matrix);
         clk_enable(inf->hclk_cpu_display);
         clk_enable(inf->clk);
