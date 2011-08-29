@@ -1126,17 +1126,16 @@ int unregister_ip_vs_pe(struct ip_vs_pe *pe);
 struct ip_vs_pe *ip_vs_pe_getbyname(const char *name);
 struct ip_vs_pe *__ip_vs_pe_getbyname(const char *pe_name);
 
-static inline void ip_vs_pe_get(const struct ip_vs_pe *pe)
-{
-	if (pe && pe->module)
+/*
+ * Use a #define to avoid all of module.h just for these trivial ops
+ */
+#define ip_vs_pe_get(pe)			\
+	if (pe && pe->module)			\
 		__module_get(pe->module);
-}
 
-static inline void ip_vs_pe_put(const struct ip_vs_pe *pe)
-{
-	if (pe && pe->module)
+#define ip_vs_pe_put(pe)			\
+	if (pe && pe->module)			\
 		module_put(pe->module);
-}
 
 /*
  *	IPVS protocol functions (from ip_vs_proto.c)
