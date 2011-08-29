@@ -239,6 +239,19 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 	irq_src = irda_hw_get_irqsrc();
 	printk("[%s][%d], 0x%x\n",__FUNCTION__,__LINE__, irq_src);
+
+	/* error */
+	if (irq_src & (REG_INT_CRC | REG_INT_OE | REG_INT_FE
+		| REG_INT_AC | REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX)) {
+		printk("[%s][%d]: do err\n", __FUNCTION__, __LINE__);
+		//BU92725GUW_dump_register();
+		BU92725GUW_clr_fifo();
+		BU92725GUW_reset();
+		if ((BU92725GUW_SEND==irda_hw_get_mode())
+			|| (BU92725GUW_MULTI_SEND==irda_hw_get_mode())) {
+			s->tx_empty = 1;
+		}
+	}
 	
 	if (irq_src & (REG_INT_DRX | FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE)) {
 		len = bu92747_irda_do_rx(s);
@@ -273,9 +286,8 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	}
 
 	/* error */
-	if (irq_src & (REG_INT_TO| REG_INT_CRC | REG_INT_OE | REG_INT_FE
-		| REG_INT_AC | REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX)) {
-		BU92747_IRDA_DBG("[%s][%d]: do err\n", __FUNCTION__, __LINE__);
+	if (irq_src & REG_INT_TO) {
+		BU92747_IRDA_DBG("[%s][%d]: do timeout err\n", __FUNCTION__, __LINE__);
 		//BU92725GUW_dump_register();
 		BU92725GUW_clr_fifo();
 		BU92725GUW_reset();
@@ -284,7 +296,7 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 			s->tx_empty = 1;
 		}
 	}
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -598,6 +610,7 @@ static int bu92747_get_frame_length(struct bu92747_port *s)
 	spin_lock(&s->data_lock);
 	if (get_frame_length(f, &len) != 0) {
 		printk("line %d: FIR data not ready......\n", __LINE__);
+		len = 0;
 		//atomic_set(&(s->data_ready), 0);
 	}
 	spin_unlock(&s->data_lock);
@@ -618,7 +631,7 @@ static int bu92747_irda_ioctl(struct uart_port *port, unsigned int cmd, unsigned
 	switch (cmd) {
 	case TTYIR_GETLENGTH:
 		len = bu92747_get_frame_length(s);
-		if (len > 0) {
+		if (len >= 0) {
 			if (copy_to_user(argp, &len, sizeof(len)))
 				ret = -EFAULT;
 		}
