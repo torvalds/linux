@@ -709,9 +709,13 @@ void intel_crt_init(struct drm_device *dev)
 	read &amp; write, mapping, and domain ownership transfers.
       </para>
       <para>
-	On a fundamental level, GEM involves several operations: memory
-	allocation and freeing, command execution, and aperture management
-	at command execution time.  Buffer object allocation is relatively
+	On a fundamental level, GEM involves several operations:
+	<itemizedlist>
+	  <listitem>Memory allocation and freeing</listitem>
+	  <listitem>Command execution</listitem>
+	  <listitem>Aperture management at command execution time</listitem>
+	</itemizedlist>
+	Buffer object allocation is relatively
 	straightforward and largely provided by Linux's shmem layer, which
 	provides memory to back each object.  When mapped into the GTT
 	or used in a command buffer, the backing pages for an object are
