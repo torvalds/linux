@@ -988,17 +988,6 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	}
 
 	if (len) {
-		if (adapter->replica_phy_loopbk == 1) {
-			buf = rx_local->fbr[ring_index]->virt[buff_index];
-
-			if (memcmp(&buf[6], adapter->addr, ETH_ALEN) == 0) {
-				if (memcmp(&buf[42], "Replica packet",
-					   ETH_HLEN)) {
-					adapter->replica_phy_loopbk_passfail = 1;
-				}
-			}
-		}
-
 		/* Determine if this is a multicast packet coming in */
 		if ((word0 & ALCATEL_MULTICAST_PKT) &&
 		    !(word0 & ALCATEL_BROADCAST_PKT)) {

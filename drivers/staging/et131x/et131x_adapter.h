@@ -222,10 +222,6 @@ struct et131x_adapter {
 	/* Rx Memory Variables */
 	struct rx_ring rx_ring;
 
-	/* Loopback specifics */
-	u8 replica_phy_loopbk;		/* Replica Enable */
-	u8 replica_phy_loopbk_passfail;	/* Replica Enable Pass/Fail */
-
 	/* Stats */
 	struct ce_stats stats;
 

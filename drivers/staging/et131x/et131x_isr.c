@@ -389,17 +389,15 @@ void et131x_isr_handler(struct work_struct *work)
 					(uint8_t) offsetof(struct mi_regs, isr),
 					&myisr);
 
-			if (!adapter->replica_phy_loopbk) {
-				et131x_mii_read(adapter,
-				       (uint8_t) offsetof(struct mi_regs, bmsr),
-				       &bmsr_data);
+			et131x_mii_read(adapter,
+			       (uint8_t) offsetof(struct mi_regs, bmsr),
+			       &bmsr_data);
 
-				bmsr_ints = adapter->bmsr ^ bmsr_data;
-				adapter->bmsr = bmsr_data;
+			bmsr_ints = adapter->bmsr ^ bmsr_data;
+			adapter->bmsr = bmsr_data;
 
-				/* Do all the cable in / cable out stuff */
-				et131x_mii_check(adapter, bmsr_data, bmsr_ints);
-			}
+			/* Do all the cable in / cable out stuff */
+			et131x_mii_check(adapter, bmsr_data, bmsr_ints);
 		}
 
 		/* Let's move on to the TxMac */

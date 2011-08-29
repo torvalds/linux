@@ -1,6 +1,6 @@
 /*
  * Agere Systems Inc.
- * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
+ * 10/100/1000 Base-T Ethernet Driver for the ET1310 and ET131x series MACs
  *
  * Copyright © 2005 Agere Systems Inc.
  * All rights reserved.
@@ -149,7 +149,7 @@
  * GLOBAL Module of JAGCore Address Mapping
  * Located at address 0x0000
  */
-struct global_regs {			/* Location: */
+struct global_regs {				/* Location: */
 	u32 txq_start_addr;			/*  0x0000 */
 	u32 txq_end_addr;			/*  0x0004 */
 	u32 rxq_start_addr;			/*  0x0008 */
@@ -163,7 +163,7 @@ struct global_regs {			/* Location: */
 	u32 sw_reset;				/*  0x0028 */
 	u32 slv_timer;				/*  0x002C */
 	u32 msi_config;				/*  0x0030 */
-	u32 loopback;			/*  0x0034 */
+	u32 loopback;				/*  0x0034 */
 	u32 watchdog_timer;			/*  0x0038 */
 };
 
