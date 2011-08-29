@@ -48,8 +48,26 @@
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 #include "iwl-led.h"
-#include "iwl-3945-led.h"
 #include "iwl-3945-debugfs.h"
+
+/* Send led command */
+static int il3945_send_led_cmd(struct il_priv *il,
+				struct il_led_cmd *led_cmd)
+{
+	struct il_host_cmd cmd = {
+		.id = REPLY_LEDS_CMD,
+		.len = sizeof(struct il_led_cmd),
+		.data = led_cmd,
+		.flags = CMD_ASYNC,
+		.callback = NULL,
+	};
+
+	return il_send_cmd(il, &cmd);
+}
+
+const struct il_led_ops il3945_led_ops = {
+	.cmd = il3945_send_led_cmd,
+};
 
 #define IL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[RATE_##r##M_IDX] = { RATE_##r##M_PLCP,   \
