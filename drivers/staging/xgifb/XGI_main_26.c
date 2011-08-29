@@ -1937,8 +1937,6 @@ static int __init XGIfb_setup(char *options)
 {
 	char *this_opt;
 
-	xgi_video_info.refresh_rate = 0;
-
 	if (!options || !*options)
 		return 0;
 
