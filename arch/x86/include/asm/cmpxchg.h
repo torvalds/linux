@@ -1,12 +1,19 @@
 #ifndef ASM_X86_CMPXCHG_H
 #define ASM_X86_CMPXCHG_H
 
+#include <linux/compiler.h>
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
-/* Non-existant functions to indicate usage errors at link time. */
-extern void __xchg_wrong_size(void);
-extern void __cmpxchg_wrong_size(void);
-extern void __xadd_wrong_size(void);
+/*
+ * Non-existant functions to indicate usage errors at link time
+ * (or compile-time if the compiler implements __compiletime_error().
+ */
+extern void __xchg_wrong_size(void)
+	__compiletime_error("Bad argument size for xchg");
+extern void __cmpxchg_wrong_size(void)
+	__compiletime_error("Bad argument size for cmpxchg");
+extern void __xadd_wrong_size(void)
+	__compiletime_error("Bad argument size for xadd");
 
 /*
  * Constants for operation sizes. On 32-bit, the 64-bit size it set to
