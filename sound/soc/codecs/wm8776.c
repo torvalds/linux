@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
@@ -452,6 +453,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.reg_cache_default = wm8776_reg,
 };
 
+static const struct of_device_id wm8776_of_match[] = {
+	{ .compatible = "wlf,wm8776", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8776_of_match);
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8776_spi_probe(struct spi_device *spi)
 {
@@ -483,6 +490,7 @@ static struct spi_driver wm8776_spi_driver = {
 	.driver = {
 		.name	= "wm8776",
 		.owner	= THIS_MODULE,
+		.of_match_table = wm8776_of_match,
 	},
 	.probe		= wm8776_spi_probe,
 	.remove		= __devexit_p(wm8776_spi_remove),
@@ -527,6 +535,7 @@ static struct i2c_driver wm8776_i2c_driver = {
 	.driver = {
 		.name = "wm8776",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8776_of_match,
 	},
 	.probe =    wm8776_i2c_probe,
 	.remove =   __devexit_p(wm8776_i2c_remove),
