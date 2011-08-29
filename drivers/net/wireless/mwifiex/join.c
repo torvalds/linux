@@ -147,13 +147,12 @@ static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
 	u8 *ptr = rate1, *tmp;
 	u32 i, j;
 
-	tmp = kmalloc(rate1_size, GFP_KERNEL);
+	tmp = kmemdup(rate1, rate1_size, GFP_KERNEL);
 	if (!tmp) {
 		dev_err(priv->adapter->dev, "failed to alloc tmp buf\n");
 		return -ENOMEM;
 	}
 
-	memcpy(tmp, rate1, rate1_size);
 	memset(rate1, 0, rate1_size);
 
 	for (i = 0; rate2[i] && i < rate2_size; i++) {
