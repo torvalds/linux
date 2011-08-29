@@ -41,6 +41,10 @@
 #include <linux/async.h>
 #include <mach/board.h>
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 //#define DEBUG
 #ifdef CONFIG_EETI_EGALAX_DEBUG
 	#define TS_DEBUG(fmt,args...)  printk( KERN_DEBUG "[egalax_i2c]: " fmt, ## args)
@@ -67,6 +71,8 @@ static int global_minor = 0;
 #define	EGALAX_IOCWAKEUP	_IO(EGALAX_IOC_MAGIC, 1)
 #define EGALAX_IOC_MAXNR	1
 
+#define EETI_EARLYSUSPEND_LEVEL	151
+
 struct point_data {
 	short Status;
 	short X;
@@ -82,6 +88,13 @@ struct _egalax_i2c {
 	char skip_packet;
 	int irq;
 };
+
+#ifdef CONFIG_HAS_EARLYSUSPEND 
+struct suspend_info {
+	struct early_suspend early_suspend;
+	struct _egalax_i2c *egalax_i2c;
+};
+#endif
 
 struct egalax_char_dev
 {
@@ -588,10 +601,44 @@ static int egalax_i2c_resume(struct i2c_client *client)
 
 	return 0;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND 
+
+static void egalax_i2c_early_suspend(struct early_suspend *h)
+{
+	pm_message_t mesg = {.event = 0};
+	struct suspend_info *info = container_of(h,struct suspend_info,early_suspend);
+	struct i2c_client *client = info->egalax_i2c->client;
+	egalax_i2c_suspend(client,mesg);
+
+}
+static void egalax_i2c_early_resume(struct early_suspend *h)
+{
+   
+    struct suspend_info *info = container_of(h,struct suspend_info,early_suspend);
+    struct i2c_client *client = info->egalax_i2c->client;
+
+    egalax_i2c_resume(client);
+
+}
+
+#endif
+
+
+
 #else
 #define egalax_i2c_suspend       NULL
 #define egalax_i2c_resume        NULL
 #endif
+
+#ifdef CONFIG_HAS_EARLYSUSPEND 
+static struct suspend_info suspend_info = {
+	.early_suspend.suspend = egalax_i2c_early_suspend,
+	.early_suspend.resume = egalax_i2c_early_resume,
+	.early_suspend.level = EETI_EARLYSUSPEND_LEVEL,
+};
+#endif
+
 
 static int __devinit egalax_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -652,6 +699,13 @@ if (pdata->init_platform_hw)
 
 #ifdef CONFIG_PM
 	device_init_wakeup(&client->dev, 0);
+#endif
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+
+
+ 	suspend_info.egalax_i2c = p_egalax_i2c_dev;
+	register_early_suspend(&suspend_info.early_suspend);
 #endif
 
 	printk(KERN_DEBUG "[egalax_i2c]: probe done\n");
@@ -722,8 +776,8 @@ static struct i2c_driver egalax_i2c_driver = {
 	.id_table	= egalax_i2c_idtable,
 	.probe		= egalax_i2c_probe,
 	.remove		= __devexit_p(egalax_i2c_remove),
-	.suspend	= egalax_i2c_suspend,
-	.resume		= egalax_i2c_resume,
+	//.suspend	= egalax_i2c_suspend,
+	//.resume		= egalax_i2c_resume,
 };
 
 static const struct file_operations egalax_cdev_fops = {
