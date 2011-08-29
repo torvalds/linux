@@ -449,7 +449,7 @@ static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
 		XGIfb_mode_idx++;
 	}
 	if (!found_mode)
-		XGIfb_mode_idx = 0;
+		XGIfb_mode_idx = -1;
 
 	return XGIfb_mode_idx;
 }
@@ -2311,6 +2311,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			xgifb_mode_idx = DEFAULT_MODE;
 			break;
 		}
+	}
+
+	if (xgifb_mode_idx < 0) {
+		dev_err(&pdev->dev, "no supported video mode found\n");
+		goto error_1;
 	}
 
 	if (xgi21_drvlcdcaplist) {
