@@ -241,6 +241,15 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 	u32			reg;
 	int			ret;
 
+	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
+	/* This should read as U3 followed by revision number */
+	if ((reg & DWC3_GSNPSID_MASK) != 0x55330000) {
+		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
+		ret = -ENODEV;
+		goto err0;
+	}
+	dwc->revision = reg & DWC3_GSNPSREV_MASK;
+
 	dwc3_core_soft_reset(dwc);
 
 	/* issue device SoftReset too */
@@ -259,16 +268,6 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 
 		cpu_relax();
 	} while (true);
-
-	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
-	/* This should read as U3 followed by revision number */
-	if ((reg & DWC3_GSNPSID_MASK) != 0x55330000) {
-		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
-		ret = -ENODEV;
-		goto err0;
-	}
-
-	dwc->revision = reg & DWC3_GSNPSREV_MASK;
 
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_NUM,
 			DWC3_EVENT_BUFFERS_SIZE);
