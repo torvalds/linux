@@ -1465,7 +1465,8 @@ int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[]);
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
 u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
-	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd);
+	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd,
+		u32 *rd_args[3]);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);

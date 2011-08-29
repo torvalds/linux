@@ -1889,8 +1889,8 @@ qlcnic_fetch_mac(struct qlcnic_adapter *adapter, u32 off1, u32 off2,
 	u32 mac_low, mac_high;
 	int i;
 
-	mac_low = QLCRD32(adapter, off1);
-	mac_high = QLCRD32(adapter, off2);
+	mac_low = off1;
+	mac_high = off2;
 
 	if (alt_mac) {
 		mac_low |= (mac_low >> 16) | (mac_high << 16);
