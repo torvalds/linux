@@ -1,6 +1,6 @@
 /*
  * Agere Systems Inc.
- * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
+ * 10/100/1000 Base-T Ethernet Driver for the ET1310 and ET131x series MACs
  *
  * Copyright * 2005 Agere Systems Inc.
  * All rights reserved.
@@ -82,6 +82,7 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/random.h>
+#include <linux/phy.h>
 
 #include "et1310_phy.h"
 
@@ -92,6 +93,40 @@
 #include "et1310_rx.h"
 
 #include "et131x.h"
+
+int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg)
+{
+	struct net_device *netdev = bus->priv;
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+	u16 value;
+	int ret;
+
+	ret = et131x_phy_mii_read(adapter, phy_addr, reg, &value);
+
+	if (ret < 0)
+		return ret;
+	else
+		return value;
+}
+
+int et131x_mdio_write(struct mii_bus *bus, int phy_addr, int reg, u16 value)
+{
+	struct net_device *netdev = bus->priv;
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+
+	/* mii_write always uses the same phy_addr, xcvr_addr */
+	return et131x_mii_write(adapter, reg, value);
+}
+
+int et131x_mdio_reset(struct mii_bus *bus)
+{
+	struct net_device *netdev = bus->priv;
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+
+	et1310_phy_reset(adapter);
+
+	return 0;
+}
 
 /**
  * et131x_phy_mii_read - Read from the PHY through the MII Interface on the MAC
@@ -107,7 +142,7 @@ int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvr_addr,
 {
 	struct mac_regs __iomem *mac = &adapter->regs->mac;
 	int status = 0;
-	u32 delay;
+	u32 delay = 0;
 	u32 mii_addr;
 	u32 mii_cmd;
 	u32 mii_indicator;
@@ -123,9 +158,6 @@ int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvr_addr,
 
 	/* Set up the register we need to read from on the correct PHY */
 	writel(MII_ADDR(xcvr_addr, xcvr_reg), &mac->mii_mgmt_addr);
-
-	/* Kick the read cycle off */
-	delay = 0;
 
 	writel(0x1, &mac->mii_mgmt_cmd);
 
@@ -176,7 +208,7 @@ int et131x_mii_write(struct et131x_adapter *adapter, u8 xcvr_reg, u16 value)
 	struct mac_regs __iomem *mac = &adapter->regs->mac;
 	int status = 0;
 	u8 xcvr_addr = adapter->stats.xcvr_addr;
-	u32 delay;
+	u32 delay = 0;
 	u32 mii_addr;
 	u32 mii_cmd;
 	u32 mii_indicator;
@@ -195,7 +227,6 @@ int et131x_mii_write(struct et131x_adapter *adapter, u8 xcvr_reg, u16 value)
 
 	/* Add the value to write to the registers to the mac */
 	writel(value, &mac->mii_mgmt_ctrl);
-	delay = 0;
 
 	do {
 		udelay(50);

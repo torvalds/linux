@@ -80,6 +80,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/phy.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
@@ -329,7 +330,7 @@ void et131x_configure_global_regs(struct et131x_adapter *adapter)
  */
 int et131x_adapter_setup(struct et131x_adapter *adapter)
 {
-	int status = 0;
+	int status;
 
 	/* Configure the JAGCore */
 	et131x_configure_global_regs(adapter);
@@ -351,7 +352,7 @@ int et131x_adapter_setup(struct et131x_adapter *adapter)
 	/* Move the following code to Timer function?? */
 	status = et131x_xcvr_find(adapter);
 
-	if (status != 0)
+	if (status)
 		dev_warn(&adapter->pdev->dev, "Could not find the xcvr\n");
 
 	/* Prepare the TRUEPHY library. */
@@ -471,6 +472,80 @@ void et131x_adapter_memory_free(struct et131x_adapter *adapter)
 	et131x_rx_dma_memory_free(adapter);
 }
 
+static void et131x_adjust_link(struct net_device *netdev)
+{
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct  phy_device *phydev = adapter->phydev;
+	struct address_map __iomem *iomem = adapter->regs;
+
+	u32 pm_csr;
+	u16 bmsr_ints;
+	u16 bmsr_data;
+
+	/* If we are in coma mode, we need to disable it. */
+	pm_csr = readl(&iomem->global.pm_csr);
+	if (pm_csr & ET_PM_PHY_SW_COMA) {
+		/*
+		 * Check to see if we are in coma mode and if
+		 * so, disable it because we will not be able
+		 * to read PHY values until we are out.
+		 */
+		et1310_disable_phy_coma(adapter);
+	}
+
+	et131x_mii_read(adapter,
+	       (uint8_t) offsetof(struct mi_regs, bmsr),
+	       &bmsr_data);
+
+	bmsr_ints = adapter->bmsr ^ bmsr_data;
+	adapter->bmsr = bmsr_data;
+
+	/* Do all the cable in / cable out stuff */
+	et131x_mii_check(adapter, bmsr_data, bmsr_ints);
+
+	phy_print_status(phydev);
+}
+
+int et131x_mii_probe(struct net_device *netdev)
+{
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct  phy_device *phydev = NULL;
+
+	phydev = phy_find_first(adapter->mii_bus);
+	if (!phydev) {
+		dev_err(&adapter->pdev->dev, "no PHY found\n");
+		return -ENODEV;
+	}
+
+	phydev = phy_connect(netdev, dev_name(&phydev->dev),
+			&et131x_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+
+	if(IS_ERR(phydev)) {
+		dev_err(&adapter->pdev->dev, "Could not attach to PHY\n");
+		return PTR_ERR(phydev);
+	}
+
+	phydev->supported &= (SUPPORTED_10baseT_Half
+                                | SUPPORTED_10baseT_Full
+                                | SUPPORTED_100baseT_Half
+                                | SUPPORTED_100baseT_Full
+                                | SUPPORTED_Autoneg
+                                | SUPPORTED_MII
+                                | SUPPORTED_TP);
+
+	if (adapter->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
+		phydev->supported |= SUPPORTED_1000baseT_Full;
+
+        phydev->advertising = phydev->supported;
+        adapter->phydev = phydev;
+
+        dev_info(&adapter->pdev->dev, "attached PHY driver [%s] "
+                "(mii_bus:phy_addr=%s)\n",
+                phydev->drv->name, dev_name(&phydev->dev));
+
+        return 0;
+}
+
 /**
  * et131x_adapter_init
  * @adapter: pointer to the private adapter struct
@@ -538,8 +613,8 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	int pm_cap;
 	struct net_device *netdev;
 	struct et131x_adapter *adapter;
+	int ii;
 
-	/* Enable the device via the PCI subsystem */
 	result = pci_enable_device(pdev);
 	if (result) {
 		dev_err(&pdev->dev, "pci_enable_device() failed\n");
@@ -602,8 +677,10 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
+	et131x_set_ethtool_ops(netdev);
 
 	adapter = et131x_adapter_init(netdev, pdev);
+
 	/* Initialise the PCI setup for the device */
 	et131x_pci_init(adapter, pdev);
 
@@ -650,11 +727,43 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	adapter->error_timer.function = et131x_error_timer_handler;
 	adapter->error_timer.data = (unsigned long)adapter;
 
-	/* Initialize link state */
-	netif_carrier_off(adapter->netdev);
-
 	/* Init variable for counting how long we do not have link status */
 	adapter->boot_coma = 0;
+	et1310_disable_phy_coma(adapter);
+
+	/* Setup the mii_bus struct */
+	adapter->mii_bus = mdiobus_alloc();
+	if (!adapter->mii_bus) {
+		dev_err(&pdev->dev, "Alloc of mii_bus struct failed\n");
+		goto err_mem_free;
+	}
+
+	adapter->mii_bus->name = "et131x_eth_mii";
+	snprintf(adapter->mii_bus->id, MII_BUS_ID_SIZE, "%x",
+		(adapter->pdev->bus->number << 8) | adapter->pdev->devfn);
+	adapter->mii_bus->priv = netdev;
+	adapter->mii_bus->read = et131x_mdio_read;
+	adapter->mii_bus->write = et131x_mdio_write;
+	adapter->mii_bus->reset = et131x_mdio_reset;
+	adapter->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+        if (!adapter->mii_bus->irq) {
+                dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
+		goto err_mdio_free;
+        }
+
+        for (ii = 0; ii < PHY_MAX_ADDR; ii++)
+                adapter->mii_bus->irq[ii] = PHY_POLL;
+
+        if (mdiobus_register(adapter->mii_bus)) {
+                dev_err(&pdev->dev, "failed to register MII bus\n");
+		mdiobus_free(adapter->mii_bus);
+		goto err_mdio_free_irq;
+        }
+
+	if (et131x_mii_probe(netdev)) {
+                dev_err(&pdev->dev, "failed to probe MII bus\n");
+		goto err_mdio_unregister;
+	}
 
 	/* We can enable interrupts now
 	 *
@@ -667,7 +776,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	result = register_netdev(netdev);
 	if (result != 0) {
 		dev_err(&pdev->dev, "register_netdev() failed\n");
-		goto err_mem_free;
+		goto err_mdio_unregister;
 	}
 
 	/* Register the net_device struct with the PCI subsystem. Save a copy
@@ -679,6 +788,12 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 
 	return result;
 
+err_mdio_unregister:
+	mdiobus_unregister(adapter->mii_bus);
+err_mdio_free_irq:
+	kfree(adapter->mii_bus->irq);
+err_mdio_free:
+	mdiobus_free(adapter->mii_bus);
 err_mem_free:
 	et131x_adapter_memory_free(adapter);
 err_iounmap:
@@ -704,20 +819,18 @@ err_out:
  */
 static void __devexit et131x_pci_remove(struct pci_dev *pdev)
 {
-	struct net_device *netdev;
-	struct et131x_adapter *adapter;
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	/* Retrieve the net_device pointer from the pci_dev struct, as well
-	 * as the private adapter struct
-	 */
-	netdev = pci_get_drvdata(pdev);
-	adapter = netdev_priv(netdev);
-
-	/* Perform device cleanup */
 	unregister_netdev(netdev);
+	mdiobus_unregister(adapter->mii_bus);
+	kfree(adapter->mii_bus->irq);
+	mdiobus_free(adapter->mii_bus);
+
 	et131x_adapter_memory_free(adapter);
 	iounmap(adapter->regs);
-	pci_dev_put(adapter->pdev);
+	pci_dev_put(pdev);
+
 	free_netdev(netdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

@@ -144,7 +144,8 @@ struct ce_stats {
 struct et131x_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-
+	struct mii_bus *mii_bus;
+	struct phy_device *phydev;
 	struct work_struct task;
 
 	/* Flags that indicate current state of the adapter */

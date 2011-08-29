@@ -121,8 +121,8 @@ struct mi_regs {
 	u8 imr;		/* Interrupt Mask Reg(Reg 0x18) */
 	u8 isr;		/* Interrupt Status Reg(Reg 0x19) */
 	u8 psr;		/* PHY Status Reg(Reg 0x1A) */
-	u8 lcr1;		/* LED Control 1 Reg(Reg 0x1B) */
-	u8 lcr2;		/* LED Control 2 Reg(Reg 0x1C) */
+	u8 lcr1;	/* LED Control 1 Reg(Reg 0x1B) */
+	u8 lcr2;	/* LED Control 2 Reg(Reg 0x1C) */
 	u8 mi_res4[3];	/* Future use by MI working group(Reg 0x1D - 0x1F) */
 };
 

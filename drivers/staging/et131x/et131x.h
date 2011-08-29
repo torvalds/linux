@@ -116,6 +116,10 @@ int32_t et131x_mii_write(struct et131x_adapter *adapter,
 void et131x_mii_check(struct et131x_adapter *pAdapter,
 		      u16 bmsr, u16 bmsr_ints);
 
+int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg);
+int et131x_mdio_write(struct mii_bus *bus, int phy_addr, int reg, u16 value);
+int et131x_mdio_reset(struct mii_bus *bus);
+
 /* et1310_rx.c */
 int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter);
 void et131x_rx_dma_memory_free(struct et131x_adapter *adapter);
@@ -145,3 +149,5 @@ void et131x_handle_send_interrupt(struct et131x_adapter *adapter);
 void et131x_free_busy_send_packets(struct et131x_adapter *adapter);
 int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev);
 
+/* et131x_ethtool.c */
+void et131x_set_ethtool_ops(struct net_device *netdev);

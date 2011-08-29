@@ -1,6 +1,6 @@
 /*
  * Agere Systems Inc.
- * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
+ * 10/100/1000 Base-T Ethernet Driver for the ET1310 and ET131x series MACs
  *
  * Copyright © 2005 Agere Systems Inc.
  * All rights reserved.
@@ -82,6 +82,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
+#include <linux/phy.h>
 
 #include "et1310_phy.h"
 #include "et1310_tx.h"
@@ -166,6 +167,8 @@ int et131x_open(struct net_device *netdev)
 	et131x_enable_interrupts(adapter);
 
 	adapter->flags |= fMP_ADAPTER_INTERRUPT_IN_USE;
+
+	phy_start(adapter->phydev);
 
 	/* We're ready to move some data, so start the queue */
 	netif_start_queue(netdev);
@@ -698,8 +701,6 @@ struct net_device *et131x_device_alloc(void)
 	 */
 	netdev->watchdog_timeo = ET131X_TX_TIMEOUT;
 	netdev->netdev_ops     = &et131x_netdev_ops;
-
-	/* netdev->ethtool_ops        = &et131x_ethtool_ops; */
 
 	/* Poll? */
 	/* netdev->poll               = &et131x_poll; */
