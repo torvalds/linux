@@ -1214,6 +1214,9 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 	list_del_rcu(&sdata->list);
 	mutex_unlock(&sdata->local->iflist_mtx);
 
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_path_flush_by_iface(sdata);
+
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
 }
@@ -1232,6 +1235,9 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
 		list_del(&sdata->list);
+
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			mesh_path_flush_by_iface(sdata);
 
 		unregister_netdevice_queue(sdata->dev, &unreg_list);
 	}

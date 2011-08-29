@@ -821,7 +821,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	rcu_read_unlock();
 }
 
-void mesh_path_flush(struct ieee80211_sub_if_data *sdata)
+static void mesh_path_flush(struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_table *tbl;
 	struct mesh_path *mpath;
@@ -848,6 +848,44 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
 	atomic_dec(&sdata->u.mesh.mpaths);
 	kfree(node->mpath);
 	kfree(node);
+}
+
+static void mpp_path_flush(struct ieee80211_sub_if_data *sdata)
+{
+	struct mesh_table *tbl;
+	struct mesh_path *mpath;
+	struct mpath_node *node;
+	struct hlist_node *p;
+	int i;
+
+	read_lock_bh(&pathtbl_resize_lock);
+	tbl = rcu_dereference_protected(mpp_paths,
+					lockdep_is_held(pathtbl_resize_lock));
+	for_each_mesh_entry(tbl, p, node, i) {
+		mpath = node->mpath;
+		if (mpath->sdata != sdata)
+			continue;
+		spin_lock_bh(&tbl->hashwlock[i]);
+		spin_lock_bh(&mpath->state_lock);
+		call_rcu(&node->rcu, mesh_path_node_reclaim);
+		atomic_dec(&tbl->entries);
+		spin_unlock_bh(&tbl->hashwlock[i]);
+	}
+	read_unlock_bh(&pathtbl_resize_lock);
+}
+
+/**
+ * mesh_path_flush_by_iface - Deletes all mesh paths associated with a given iface
+ *
+ * This function deletes both mesh paths as well as mesh portal paths.
+ *
+ * @sdata - interface data to match
+ *
+ */
+void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
+{
+	mesh_path_flush(sdata);
+	mpp_path_flush(sdata);
 }
 
 /**
