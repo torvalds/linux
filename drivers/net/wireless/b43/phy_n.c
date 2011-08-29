@@ -600,49 +600,17 @@ static void b43_nphy_tx_lp_fbw(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
-static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
-{
-	u32 tmp;
-
-	if (dev->phy.type != B43_PHYTYPE_N)
-		return;
-
-	switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
-	case B43_BUS_BCMA:
-		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
-		if (force)
-			tmp |= BCMA_IOCTL_FGC;
-		else
-			tmp &= ~BCMA_IOCTL_FGC;
-		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
-		break;
-#endif
-#ifdef CONFIG_B43_SSB
-	case B43_BUS_SSB:
-		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
-		if (force)
-			tmp |= SSB_TMSLOW_FGC;
-		else
-			tmp &= ~SSB_TMSLOW_FGC;
-		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
-		break;
-#endif
-	}
-}
-
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CCA */
 static void b43_nphy_reset_cca(struct b43_wldev *dev)
 {
 	u16 bbcfg;
 
-	b43_nphy_bmac_clock_fgc(dev, 1);
+	b43_phy_force_clock(dev, 1);
 	bbcfg = b43_phy_read(dev, B43_NPHY_BBCFG);
 	b43_phy_write(dev, B43_NPHY_BBCFG, bbcfg | B43_NPHY_BBCFG_RSTCCA);
 	udelay(1);
 	b43_phy_write(dev, B43_NPHY_BBCFG, bbcfg & ~B43_NPHY_BBCFG_RSTCCA);
-	b43_nphy_bmac_clock_fgc(dev, 0);
+	b43_phy_force_clock(dev, 0);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
 }
 
@@ -3715,11 +3683,11 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_nphy_workarounds(dev);
 
 	/* Reset CCA, in init code it differs a little from standard way */
-	b43_nphy_bmac_clock_fgc(dev, 1);
+	b43_phy_force_clock(dev, 1);
 	tmp = b43_phy_read(dev, B43_NPHY_BBCFG);
 	b43_phy_write(dev, B43_NPHY_BBCFG, tmp | B43_NPHY_BBCFG_RSTCCA);
 	b43_phy_write(dev, B43_NPHY_BBCFG, tmp & ~B43_NPHY_BBCFG_RSTCCA);
-	b43_nphy_bmac_clock_fgc(dev, 0);
+	b43_phy_force_clock(dev, 0);
 
 	b43_mac_phy_clock_set(dev, true);
 

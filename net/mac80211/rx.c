@@ -850,8 +850,21 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 		      ieee80211_is_pspoll(hdr->frame_control)) &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_WDS &&
-		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC))))
+		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC)))) {
+		if (rx->sta && rx->sta->dummy &&
+		    ieee80211_is_data_present(hdr->frame_control)) {
+			u16 ethertype;
+			u8 *payload;
+
+			payload = rx->skb->data +
+				ieee80211_hdrlen(hdr->frame_control);
+			ethertype = (payload[6] << 8) | payload[7];
+			if (cpu_to_be16(ethertype) ==
+			    rx->sdata->control_port_protocol)
+				return RX_CONTINUE;
+		}
 		return RX_DROP_MONITOR;
+	}
 
 	return RX_CONTINUE;
 }
@@ -2220,12 +2233,29 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			goto handled;
 		}
 		break;
+	case WLAN_CATEGORY_SELF_PROTECTED:
+		switch (mgmt->u.action.u.self_prot.action_code) {
+		case WLAN_SP_MESH_PEERING_OPEN:
+		case WLAN_SP_MESH_PEERING_CLOSE:
+		case WLAN_SP_MESH_PEERING_CONFIRM:
+			if (!ieee80211_vif_is_mesh(&sdata->vif))
+				goto invalid;
+			if (sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
+				/* userspace handles this frame */
+				break;
+			goto queue;
+		case WLAN_SP_MGK_INFORM:
+		case WLAN_SP_MGK_ACK:
+			if (!ieee80211_vif_is_mesh(&sdata->vif))
+				goto invalid;
+			break;
+		}
+		break;
 	case WLAN_CATEGORY_MESH_ACTION:
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
 			break;
-		goto queue;
-	case WLAN_CATEGORY_MESH_PATH_SEL:
-		if (!mesh_path_sel_is_hwmp(sdata))
+		if (mesh_action_is_path_sel(mgmt) &&
+		  (!mesh_path_sel_is_hwmp(sdata)))
 			break;
 		goto queue;
 	}
@@ -2686,7 +2716,9 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		} else if (!ieee80211_bssid_match(bssid,
 					sdata->vif.addr)) {
 			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
-			    !ieee80211_is_beacon(hdr->frame_control))
+			    !ieee80211_is_beacon(hdr->frame_control) &&
+			    !(ieee80211_is_action(hdr->frame_control) &&
+			      sdata->vif.p2p))
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		}
@@ -2791,7 +2823,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	if (ieee80211_is_data(fc)) {
 		prev_sta = NULL;
 
-		for_each_sta_info(local, hdr->addr2, sta, tmp) {
+		for_each_sta_info_rx(local, hdr->addr2, sta, tmp) {
 			if (!prev_sta) {
 				prev_sta = sta;
 				continue;
@@ -2835,7 +2867,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			continue;
 		}
 
-		rx.sta = sta_info_get_bss(prev, hdr->addr2);
+		rx.sta = sta_info_get_bss_rx(prev, hdr->addr2);
 		rx.sdata = prev;
 		ieee80211_prepare_and_rx_handle(&rx, skb, false);
 
@@ -2843,7 +2875,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	}
 
 	if (prev) {
-		rx.sta = sta_info_get_bss(prev, hdr->addr2);
+		rx.sta = sta_info_get_bss_rx(prev, hdr->addr2);
 		rx.sdata = prev;
 
 		if (ieee80211_prepare_and_rx_handle(&rx, skb, true))

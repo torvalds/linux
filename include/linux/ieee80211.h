@@ -629,8 +629,13 @@ struct ieee80211_rann_ie {
 	u8 rann_ttl;
 	u8 rann_addr[6];
 	u32 rann_seq;
+	u32 rann_interval;
 	u32 rann_metric;
 } __attribute__ ((packed));
+
+enum ieee80211_rann_flags {
+	RANN_FLAG_IS_GATE = 1 << 0,
+};
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 
@@ -736,19 +741,10 @@ struct ieee80211_mgmt {
 					__le16 params;
 					__le16 reason_code;
 				} __attribute__((packed)) delba;
-				struct{
+				struct {
 					u8 action_code;
-					/* capab_info for open and confirm,
-					 * reason for close
-					 */
-					__le16 aux;
-					/* Followed in plink_confirm by status
-					 * code, AID and supported rates,
-					 * and directly by supported rates in
-					 * plink_open and plink_close
-					 */
 					u8 variable[0];
-				} __attribute__((packed)) plink_action;
+				} __attribute__((packed)) self_prot;
 				struct{
 					u8 action_code;
 					u8 variable[0];
@@ -816,9 +812,11 @@ struct ieee80211_bar {
 } __attribute__((packed));
 
 /* 802.11 BAR control masks */
-#define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
-#define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
-
+#define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL	0x0000
+#define IEEE80211_BAR_CTRL_MULTI_TID		0x0002
+#define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA	0x0004
+#define IEEE80211_BAR_CTRL_TID_INFO_MASK	0xf000
+#define IEEE80211_BAR_CTRL_TID_INFO_SHIFT	12
 
 #define IEEE80211_HT_MCS_MASK_LEN		10
 
@@ -1194,11 +1192,6 @@ enum ieee80211_eid {
 	WLAN_EID_MESH_ID = 114,
 	WLAN_EID_LINK_METRIC_REPORT = 115,
 	WLAN_EID_CONGESTION_NOTIFICATION = 116,
-	/* Note that the Peer Link IE has been replaced with the similar
-	 * Peer Management IE.  We will keep the former definition until mesh
-	 * code is changed to comply with latest 802.11s drafts.
-	 */
-	WLAN_EID_PEER_LINK = 55,  /* no longer in 802.11s drafts */
 	WLAN_EID_PEER_MGMT = 117,
 	WLAN_EID_CHAN_SWITCH_PARAM = 118,
 	WLAN_EID_MESH_AWAKE_WINDOW = 119,
@@ -1281,9 +1274,6 @@ enum ieee80211_category {
 	WLAN_CATEGORY_MULTIHOP_ACTION = 14,
 	WLAN_CATEGORY_SELF_PROTECTED = 15,
 	WLAN_CATEGORY_WMM = 17,
-	/* TODO: remove MESH_PATH_SEL after mesh is updated
-	 * to current 802.11s draft  */
-	WLAN_CATEGORY_MESH_PATH_SEL = 32,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -1307,6 +1297,31 @@ enum ieee80211_ht_actioncode {
 	WLAN_HT_ACTION_NONCOMPRESSED_BF = 5,
 	WLAN_HT_ACTION_COMPRESSED_BF = 6,
 	WLAN_HT_ACTION_ASEL_IDX_FEEDBACK = 7,
+};
+
+/* Self Protected Action codes */
+enum ieee80211_self_protected_actioncode {
+	WLAN_SP_RESERVED = 0,
+	WLAN_SP_MESH_PEERING_OPEN = 1,
+	WLAN_SP_MESH_PEERING_CONFIRM = 2,
+	WLAN_SP_MESH_PEERING_CLOSE = 3,
+	WLAN_SP_MGK_INFORM = 4,
+	WLAN_SP_MGK_ACK = 5,
+};
+
+/* Mesh action codes */
+enum ieee80211_mesh_actioncode {
+	WLAN_MESH_ACTION_LINK_METRIC_REPORT,
+	WLAN_MESH_ACTION_HWMP_PATH_SELECTION,
+	WLAN_MESH_ACTION_GATE_ANNOUNCEMENT,
+	WLAN_MESH_ACTION_CONGESTION_CONTROL_NOTIFICATION,
+	WLAN_MESH_ACTION_MCCA_SETUP_REQUEST,
+	WLAN_MESH_ACTION_MCCA_SETUP_REPLY,
+	WLAN_MESH_ACTION_MCCA_ADVERTISEMENT_REQUEST,
+	WLAN_MESH_ACTION_MCCA_ADVERTISEMENT,
+	WLAN_MESH_ACTION_MCCA_TEARDOWN,
+	WLAN_MESH_ACTION_TBTT_ADJUSTMENT_REQUEST,
+	WLAN_MESH_ACTION_TBTT_ADJUSTMENT_RESPONSE,
 };
 
 /* Security key length */

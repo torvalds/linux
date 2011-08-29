@@ -28,12 +28,16 @@
 
 #include "wifi.h"
 
+static unsigned int debug = DBG_EMERG;
+module_param(debug, uint, 0);
+MODULE_PARM_DESC(debug, "Set global debug level for rtlwifi (0,2-5)");
+
 void rtl_dbgp_flag_init(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 i;
 
-	rtlpriv->dbg.global_debuglevel = DBG_EMERG;
+	rtlpriv->dbg.global_debuglevel = debug;
 
 	rtlpriv->dbg.global_debugcomponents =
 	    COMP_ERR | COMP_FW | COMP_INIT | COMP_RECV | COMP_SEND |

@@ -603,10 +603,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	ath9k_hw_init_mode_regs(ah);
 
-
-	if (ah->is_pciexpress)
-		ath9k_hw_aspm_init(ah);
-	else
+	if (!ah->is_pciexpress)
 		ath9k_hw_disablepcie(ah);
 
 	if (!AR_SREV_9300_20_OR_LATER(ah))
@@ -620,6 +617,9 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	r = ath9k_hw_fill_cap_info(ah);
 	if (r)
 		return r;
+
+	if (ah->is_pciexpress)
+		ath9k_hw_aspm_init(ah);
 
 	r = ath9k_hw_init_macaddr(ah);
 	if (r) {
@@ -663,6 +663,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9485_PCIE:
 	case AR9300_DEVID_AR9330:
 	case AR9300_DEVID_AR9340:
+	case AR9300_DEVID_AR9580:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -996,7 +997,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		slottime = 21;
 		sifstime = 64;
 	} else {
-		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS);
+		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS)/common->clockrate;
 		reg = REG_READ(ah, AR_USEC);
 		rx_lat = MS(reg, AR_USEC_RX_LAT);
 		tx_lat = MS(reg, AR_USEC_TX_LAT);

@@ -1480,8 +1480,8 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 		return -ENOMEM;
 	}
 	beacon_ie = kzalloc(ie_len, GFP_KERNEL);
-	if (!bss_desc) {
-		dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
+	if (!beacon_ie) {
+		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 		return -ENOMEM;
 	}
 	memcpy(beacon_ie, ie_buf, ie_len);

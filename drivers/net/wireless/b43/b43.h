@@ -17,11 +17,6 @@
 #include "phy_common.h"
 
 
-/* The unique identifier of the firmware that's officially supported by
- * this driver version. */
-#define B43_SUPPORTED_FIRMWARE_ID	"FW13"
-
-
 #ifdef CONFIG_B43_DEBUG
 # define B43_DEBUG	1
 #else
@@ -594,6 +589,7 @@ struct b43_dma {
 	struct b43_dmaring *rx_ring;
 
 	u32 translation; /* Routing bits */
+	bool translation_in_low; /* Should translation bit go into low addr? */
 	bool parity; /* Check for parity */
 };
 
@@ -694,6 +690,12 @@ struct b43_firmware_file {
 	enum b43_firmware_file_type type;
 };
 
+enum b43_firmware_hdr_format {
+	B43_FW_HDR_598,
+	B43_FW_HDR_410,
+	B43_FW_HDR_351,
+};
+
 /* Pointers to the firmware data and meta information about it. */
 struct b43_firmware {
 	/* Microcode */
@@ -709,6 +711,9 @@ struct b43_firmware {
 	u16 rev;
 	/* Firmware patchlevel */
 	u16 patch;
+
+	/* Format of header used by firmware */
+	enum b43_firmware_hdr_format hdr_format;
 
 	/* Set to true, if we are using an opensource firmware.
 	 * Use this to check for proprietary vs opensource. */
@@ -875,7 +880,7 @@ struct b43_wl {
 	struct b43_leds leds;
 
 	/* Kmalloc'ed scratch space for PIO TX/RX. Protected by wl->mutex. */
-	u8 pio_scratchspace[110] __attribute__((__aligned__(8)));
+	u8 pio_scratchspace[118] __attribute__((__aligned__(8)));
 	u8 pio_tailspace[4] __attribute__((__aligned__(8)));
 };
 
@@ -964,12 +969,6 @@ static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 {
 	return dev->__using_pio_transfers;
 }
-
-#ifdef CONFIG_B43_FORCE_PIO
-# define B43_PIO_DEFAULT 1
-#else
-# define B43_PIO_DEFAULT 0
-#endif
 
 /* Message printing */
 void b43info(struct b43_wl *wl, const char *fmt, ...)

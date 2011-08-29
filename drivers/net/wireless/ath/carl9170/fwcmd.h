@@ -55,6 +55,7 @@ enum carl9170_cmd_oids {
 	CARL9170_CMD_READ_TSF		= 0x06,
 	CARL9170_CMD_RX_FILTER		= 0x07,
 	CARL9170_CMD_WOL		= 0x08,
+	CARL9170_CMD_TALLY		= 0x09,
 
 	/* CAM */
 	CARL9170_CMD_EKEY		= 0x10,
@@ -286,6 +287,15 @@ struct carl9170_tsf_rsp {
 } __packed;
 #define CARL9170_TSF_RSP_SIZE		8
 
+struct carl9170_tally_rsp {
+	__le32 active;
+	__le32 cca;
+	__le32 tx_time;
+	__le32 rx_total;
+	__le32 rx_overrun;
+	__le32 tick;
+} __packed;
+
 struct carl9170_rsp {
 	struct carl9170_cmd_head hdr;
 
@@ -300,6 +310,7 @@ struct carl9170_rsp {
 		struct carl9170_gpio		gpio;
 		struct carl9170_tsf_rsp		tsf;
 		struct carl9170_psm		psm;
+		struct carl9170_tally_rsp	tally;
 		u8 data[CARL9170_MAX_CMD_PAYLOAD_LEN];
 	} __packed;
 } __packed __aligned(4);

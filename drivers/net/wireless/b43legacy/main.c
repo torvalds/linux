@@ -60,7 +60,6 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
-MODULE_FIRMWARE(B43legacy_SUPPORTED_FIRMWARE_ID);
 MODULE_FIRMWARE("b43legacy/ucode2.fw");
 MODULE_FIRMWARE("b43legacy/ucode4.fw");
 
@@ -3947,8 +3946,7 @@ static void b43legacy_print_driverinfo(void)
 	feat_dma = "D";
 #endif
 	printk(KERN_INFO "Broadcom 43xx-legacy driver loaded "
-	       "[ Features: %s%s%s%s, Firmware-ID: "
-	       B43legacy_SUPPORTED_FIRMWARE_ID " ]\n",
+	       "[ Features: %s%s%s%s ]\n",
 	       feat_pci, feat_leds, feat_pio, feat_dma);
 }
 

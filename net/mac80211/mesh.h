@@ -81,6 +81,7 @@ enum mesh_deferred_task_flags {
  * @discovery_retries: number of discovery retries
  * @flags: mesh path flags, as specified on &enum mesh_path_flags
  * @state_lock: mesh path state lock
+ * @is_gate: the destination station of this path is a mesh gate
  *
  *
  * The combination of dst and sdata is unique in the mesh path table. Since the
@@ -104,6 +105,7 @@ struct mesh_path {
 	u8 discovery_retries;
 	enum mesh_path_flags flags;
 	spinlock_t state_lock;
+	bool is_gate;
 };
 
 /**
@@ -120,6 +122,9 @@ struct mesh_path {
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
  *	reached, the table will grow
+ * @known_gates: list of known mesh gates and their mpaths by the station. The
+ * gate's mpath may or may not be resolved and active.
+ *
  * rcu_head: RCU head to free the table
  */
 struct mesh_table {
@@ -133,6 +138,8 @@ struct mesh_table {
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
+	struct hlist_head *known_gates;
+	spinlock_t gates_lock;
 
 	struct rcu_head rcu_head;
 };
@@ -166,6 +173,8 @@ struct mesh_rmc {
 	u32 idx_mask;
 };
 
+#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
+#define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 
 #define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
 
@@ -176,14 +185,6 @@ struct mesh_rmc {
 
 /* Maximum number of paths per interface */
 #define MESH_MAX_MPATHS		1024
-
-/* Pending ANA approval */
-#define MESH_PATH_SEL_ACTION	0
-
-/* PERR reason codes */
-#define PEER_RCODE_UNSPECIFIED  11
-#define PERR_RCODE_NO_ROUTE     12
-#define PERR_RCODE_DEST_UNREACH 13
 
 /* Public interfaces */
 /* Various */
@@ -199,6 +200,20 @@ bool mesh_matches_local(struct ieee802_11_elems *ie,
 void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 void mesh_mgmt_ies_add(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
+int mesh_add_meshconf_ie(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata);
+int mesh_add_meshid_ie(struct sk_buff *skb,
+		       struct ieee80211_sub_if_data *sdata);
+int mesh_add_rsn_ie(struct sk_buff *skb,
+		    struct ieee80211_sub_if_data *sdata);
+int mesh_add_vendor_ies(struct sk_buff *skb,
+			struct ieee80211_sub_if_data *sdata);
+int mesh_add_srates_ie(struct sk_buff *skb,
+		       struct ieee80211_sub_if_data *sdata);
+int mesh_add_ext_srates_ie(struct sk_buff *skb,
+			   struct ieee80211_sub_if_data *sdata);
+int mesh_add_ds_params_ie(struct sk_buff *skb,
+			  struct ieee80211_sub_if_data *sdata);
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
@@ -227,6 +242,10 @@ void mesh_path_flush(struct ieee80211_sub_if_data *sdata);
 void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_mgmt *mgmt, size_t len);
 int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
+
+int mesh_path_add_gate(struct mesh_path *mpath);
+int mesh_path_send_to_gates(struct mesh_path *mpath);
+int mesh_gate_num(struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
 void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 		struct ieee80211_sub_if_data *sdata,
@@ -262,6 +281,7 @@ void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
 void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
+bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
 extern int mesh_paths_generation;
 
 #ifdef CONFIG_MAC80211_MESH

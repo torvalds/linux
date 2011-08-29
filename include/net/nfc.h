@@ -82,6 +82,9 @@ struct nfc_dev {
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
+	int tx_headroom;
+	int tx_tailroom;
+
 	struct nfc_ops *ops;
 };
 #define to_nfc_dev(_dev) container_of(_dev, struct nfc_dev, dev)
@@ -89,7 +92,9 @@ struct nfc_dev {
 extern struct class nfc_class;
 
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
-					u32 supported_protocols);
+					u32 supported_protocols,
+					int tx_headroom,
+					int tx_tailroom);
 
 /**
  * nfc_free_device - free nfc device

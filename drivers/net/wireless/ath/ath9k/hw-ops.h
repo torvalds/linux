@@ -22,10 +22,12 @@
 /* Hardware core and driver accessible callbacks */
 
 static inline void ath9k_hw_configpcipowersave(struct ath_hw *ah,
-					       int restore,
-					       int power_off)
+					       bool power_off)
 {
-	ath9k_hw_ops(ah)->config_pci_powersave(ah, restore, power_off);
+	if (ah->aspm_enabled != true)
+		return;
+
+	ath9k_hw_ops(ah)->config_pci_powersave(ah, power_off);
 }
 
 static inline void ath9k_hw_rxena(struct ath_hw *ah)

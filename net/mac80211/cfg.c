@@ -697,6 +697,9 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	}
 	spin_unlock_irqrestore(&sta->flaglock, flags);
 
+	sta->sta.uapsd_queues = params->uapsd_queues;
+	sta->sta.max_sp = params->max_sp;
+
 	/*
 	 * cfg80211 validates this (1-2007) and allows setting the AID
 	 * only when creating a new station entry
@@ -1136,6 +1139,22 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_ROOTMODE, mask)) {
 		conf->dot11MeshHWMPRootMode = nconf->dot11MeshHWMPRootMode;
 		ieee80211_mesh_root_setup(ifmsh);
+	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_GATE_ANNOUNCEMENTS, mask)) {
+		/* our current gate announcement implementation rides on root
+		 * announcements, so require this ifmsh to also be a root node
+		 * */
+		if (nconf->dot11MeshGateAnnouncementProtocol &&
+		    !conf->dot11MeshHWMPRootMode) {
+			conf->dot11MeshHWMPRootMode = 1;
+			ieee80211_mesh_root_setup(ifmsh);
+		}
+		conf->dot11MeshGateAnnouncementProtocol =
+			nconf->dot11MeshGateAnnouncementProtocol;
+	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_RANN_INTERVAL, mask)) {
+		conf->dot11MeshHWMPRannInterval =
+			nconf->dot11MeshHWMPRannInterval;
 	}
 	return 0;
 }
