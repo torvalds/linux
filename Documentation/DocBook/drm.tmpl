@@ -795,14 +795,12 @@ void intel_crt_init(struct drm_device *dev)
   <sect1>
     <title>Framebuffer management</title>
     <para>
-      In order to set a mode on a given CRTC, encoder and connector
-      configuration, clients need to provide a framebuffer object which
-      provides a source of pixels for the CRTC to deliver to the encoder(s)
-      and ultimately the connector(s) in the configuration.  A framebuffer
-      is fundamentally a driver specific memory object, made into an opaque
-      handle by the DRM addfb function.  Once an fb has been created this
-      way it can be passed to the KMS mode setting routines for use in
-      a configuration.
+      Clients need to provide a framebuffer object which provides a source
+      of pixels for a CRTC to deliver to the encoder(s) and ultimately the
+      connector(s). A framebuffer is fundamentally a driver specific memory
+      object, made into an opaque handle by the DRM's addfb() function.
+      Once a framebuffer has been created this way, it may be passed to the
+      KMS mode setting routines for use in a completed configuration.
     </para>
   </sect1>
 
