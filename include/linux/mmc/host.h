@@ -109,6 +109,9 @@ struct mmc_host_ops {
 	 * It is optional for the host to implement pre_req and post_req in
 	 * order to support double buffering of requests (prepare one
 	 * request while another request is active).
+	 * pre_req() must always be followed by a post_req().
+	 * To undo a call made to pre_req(), call post_req() with
+	 * a nonzero err condition.
 	 */
 	void	(*post_req)(struct mmc_host *host, struct mmc_request *req,
 			    int err);

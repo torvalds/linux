@@ -320,8 +320,14 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		mmc_wait_for_req_done(host, host->areq->mrq);
 		err = host->areq->err_check(host->card, host->areq);
 		if (err) {
+			/* post process the completed failed request */
 			mmc_post_req(host, host->areq->mrq, 0);
 			if (areq)
+				/*
+				 * Cancel the new prepared request, because
+				 * it can't run until the failed
+				 * request has been properly handled.
+				 */
 				mmc_post_req(host, areq->mrq, -EINVAL);
 
 			host->areq = NULL;
