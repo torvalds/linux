@@ -3322,8 +3322,11 @@ static int find_data_references(struct reloc_control *rc,
 	}
 
 	key.objectid = ref_objectid;
-	key.offset = ref_offset;
 	key.type = BTRFS_EXTENT_DATA_KEY;
+	if (ref_offset > ((u64)-1 << 32))
+		key.offset = 0;
+	else
+		key.offset = ref_offset;
 
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
