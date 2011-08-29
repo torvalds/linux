@@ -686,7 +686,13 @@ qlcnic_check_flash_fw_ver(struct qlcnic_adapter *adapter)
 	u32 ver = -1, min_ver;
 	int ret;
 
-	ret = qlcnic_get_flt_entry(adapter, QLCNIC_FW_IMAGE_REGION, &fw_entry);
+	if (adapter->ahw->revision_id == QLCNIC_P3P_C0)
+		ret = qlcnic_get_flt_entry(adapter, QLCNIC_C0_FW_IMAGE_REGION,
+						 &fw_entry);
+	else
+		ret = qlcnic_get_flt_entry(adapter, QLCNIC_B0_FW_IMAGE_REGION,
+						 &fw_entry);
+
 	if (!ret)
 		/* 0-4:-signature,  4-8:-fw version */
 		qlcnic_rom_fast_read(adapter, fw_entry.start_addr + 4,

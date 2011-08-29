@@ -73,6 +73,7 @@
 	(sizeof(struct cmd_desc_type0) * tx_ring->num_desc)
 
 #define QLCNIC_P3P_A0		0x50
+#define QLCNIC_P3P_C0		0x58
 
 #define QLCNIC_IS_REVISION_P3P(REVISION)     (REVISION >= QLCNIC_P3P_A0)
 
@@ -291,7 +292,8 @@ struct uni_data_desc{
 
 /* Flash Defines and Structures */
 #define QLCNIC_FLT_LOCATION	0x3F1000
-#define QLCNIC_FW_IMAGE_REGION	0x74
+#define QLCNIC_B0_FW_IMAGE_REGION 0x74
+#define QLCNIC_C0_FW_IMAGE_REGION 0x97
 #define QLCNIC_BOOTLD_REGION    0X72
 struct qlcnic_flt_header {
 	u16 version;
