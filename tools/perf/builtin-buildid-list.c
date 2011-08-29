@@ -1,8 +1,8 @@
 /*
  * builtin-buildid-list.c
  *
- * Builtin buildid-list command: list buildids in perf.data or in the running
- * kernel.
+ * Builtin buildid-list command: list buildids in perf.data, in the running
+ * kernel and in ELF files.
  *
  * Copyright (C) 2009, Red Hat Inc.
  * Copyright (C) 2009, Arnaldo Carvalho de Melo <acme@redhat.com>
@@ -15,6 +15,8 @@
 #include "util/parse-options.h"
 #include "util/session.h"
 #include "util/symbol.h"
+
+#include <libelf.h>
 
 static char const *input_name = "perf.data";
 static bool force;
@@ -70,11 +72,30 @@ static int sysfs__fprintf_build_id(FILE *fp)
 	return 0;
 }
 
+static int filename__fprintf_build_id(const char *name, FILE *fp)
+{
+	u8 build_id[BUILD_ID_SIZE];
+	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+	if (filename__read_build_id(name, build_id,
+				    sizeof(build_id)) != sizeof(build_id))
+		return 0;
+
+	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+	return fprintf(fp, "%s\n", sbuild_id);
+}
+
 static int __cmd_buildid_list(void)
 {
-
 	if (show_kernel)
 		return sysfs__fprintf_build_id(stdout);
+
+	elf_version(EV_CURRENT);
+	/*
+ 	 * See if this is an ELF file first:
+ 	 */
+	if (filename__fprintf_build_id(input_name, stdout))
+		return 0;
 
 	return perf_session__list_build_ids();
 }
