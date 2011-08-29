@@ -195,7 +195,8 @@ config VECTORS_BASE
 	  The base address of exception vectors.
 
 config ARM_PATCH_PHYS_VIRT
-	bool "Patch physical to virtual translations at runtime"
+	bool "Patch physical to virtual translations at runtime" if EMBEDDED
+	default y
 	depends on !XIP_KERNEL && MMU
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
@@ -204,16 +205,12 @@ config ARM_PATCH_PHYS_VIRT
 	  kernel in system memory.
 
 	  This can only be used with non-XIP MMU kernels where the base
-	  of physical memory is at a 16MB boundary, or theoretically 64K
-	  for the MSM machine class.
+	  of physical memory is at a 16MB boundary.
 
-config ARM_PATCH_PHYS_VIRT_16BIT
-	def_bool y
-	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
-	help
-	  This option extends the physical to virtual translation patching
-	  to allow physical memory down to a theoretical minimum of 64K
-	  boundaries.
+	  Only disable this option if you know that you do not require
+	  this feature (eg, building a kernel for a single machine) and
+	  you need to shrink the kernel to the minimal size.
+
 
 source "init/Kconfig"
 
@@ -301,7 +298,6 @@ config ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
-	select ARM_PATCH_PHYS_VIRT if MMU
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
