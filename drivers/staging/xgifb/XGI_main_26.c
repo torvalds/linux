@@ -2021,6 +2021,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	u8 reg, reg1;
 	u8 CR48, CR38;
 	int ret;
+	bool xgi21_drvlcdcaplist = false;
 
 	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
@@ -2174,15 +2175,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		CR38 = xgifb_reg_get(XGICR, 0x38);
 		if ((CR38&0xE0) == 0xC0) {
 			xgi_video_info.disp_state = DISPTYPE_LCD;
-			if (!XGIfb_GetXG21LVDSData()) {
-				int m;
-				for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
-					if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
-					    (XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
-						xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
-					}
-				}
-			}
+			if (!XGIfb_GetXG21LVDSData())
+				xgi21_drvlcdcaplist = true;
 		} else if ((CR38&0xE0) == 0x60) {
 			xgi_video_info.hasVB = HASVB_CHRONTEL;
 		} else {
@@ -2332,6 +2326,19 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			xgifb_mode_idx = DEFAULT_MODE;
 			break;
 		}
+	}
+
+	if (xgi21_drvlcdcaplist) {
+		int m;
+
+		for (m = 0; m < ARRAY_SIZE(XGI21_LCDCapList); m++)
+			if ((XGI21_LCDCapList[m].LVDSHDE ==
+				XGIbios_mode[xgifb_mode_idx].xres) &&
+			    (XGI21_LCDCapList[m].LVDSVDE ==
+				XGIbios_mode[xgifb_mode_idx].yres)) {
+				xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
+				break;
+			}
 	}
 
 	XGIfb_mode_no = XGIbios_mode[xgifb_mode_idx].mode_no;
