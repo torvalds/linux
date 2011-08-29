@@ -735,8 +735,8 @@ void intel_crt_init(struct drm_device *dev)
       <para>
 	Perhaps the most important GEM function is providing a command
 	execution interface to clients.  Client programs construct command
-	buffers containing references to previously allocated memory objects
-	and submit them to GEM.  At that point, GEM takes care to bind
+	buffers containing references to previously allocated memory objects,
+	and then submit them to GEM.  At that point, GEM takes care to bind
 	all the objects into the GTT, execute the buffer, and provide
 	necessary synchronization between clients accessing the same buffers.
 	This often involves evicting some objects from the GTT and re-binding
