@@ -848,16 +848,9 @@ struct inode *new_inode(struct super_block *sb)
 }
 EXPORT_SYMBOL(new_inode);
 
-/**
- * unlock_new_inode - clear the I_NEW state and wake up any waiters
- * @inode:	new inode to unlock
- *
- * Called when the inode is fully initialised to clear the new state of the
- * inode and wake up anyone waiting for the inode to finish initialisation.
- */
-void unlock_new_inode(struct inode *inode)
-{
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
+void lockdep_annotate_inode_mutex_key(struct inode *inode)
+{
 	if (S_ISDIR(inode->i_mode)) {
 		struct file_system_type *type = inode->i_sb->s_type;
 
@@ -873,7 +866,20 @@ void unlock_new_inode(struct inode *inode)
 					  &type->i_mutex_dir_key);
 		}
 	}
+}
+EXPORT_SYMBOL(lockdep_annotate_inode_mutex_key);
 #endif
+
+/**
+ * unlock_new_inode - clear the I_NEW state and wake up any waiters
+ * @inode:	new inode to unlock
+ *
+ * Called when the inode is fully initialised to clear the new state of the
+ * inode and wake up anyone waiting for the inode to finish initialisation.
+ */
+void unlock_new_inode(struct inode *inode)
+{
+	lockdep_annotate_inode_mutex_key(inode);
 	spin_lock(&inode->i_lock);
 	WARN_ON(!(inode->i_state & I_NEW));
 	inode->i_state &= ~I_NEW;

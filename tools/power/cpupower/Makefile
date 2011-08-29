@@ -24,7 +24,7 @@
 
 # Set the following to `true' to make a unstripped, unoptimized
 # binary. Leave this set to `false' for production use.
-DEBUG ?=	false
+DEBUG ?=	true
 
 # make the build silent. Set this to something else to make it noisy again.
 V ?=		false
@@ -35,7 +35,7 @@ NLS ?=		true
 
 # Set the following to 'true' to build/install the
 # cpufreq-bench benchmarking tool
-CPUFRQ_BENCH ?= true
+CPUFREQ_BENCH ?= true
 
 # Prefix to the directories we're installing to
 DESTDIR ?=
@@ -137,9 +137,10 @@ CFLAGS +=	-pipe
 ifeq ($(strip $(NLS)),true)
 	INSTALL_NLS += install-gmo
 	COMPILE_NLS += create-gmo
+	CFLAGS += -DNLS
 endif
 
-ifeq ($(strip $(CPUFRQ_BENCH)),true)
+ifeq ($(strip $(CPUFREQ_BENCH)),true)
 	INSTALL_BENCH += install-bench
 	COMPILE_BENCH += compile-bench
 endif

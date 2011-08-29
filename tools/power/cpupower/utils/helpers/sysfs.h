@@ -7,6 +7,8 @@
 
 extern unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen);
 
+extern int sysfs_is_cpu_online(unsigned int cpu);
+
 extern unsigned long sysfs_get_idlestate_latency(unsigned int cpu,
 						unsigned int idlestate);
 extern unsigned long sysfs_get_idlestate_usage(unsigned int cpu,

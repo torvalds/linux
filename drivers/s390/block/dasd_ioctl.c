@@ -249,6 +249,7 @@ static int dasd_ioctl_reset_profile(struct dasd_block *block)
 static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 {
 	struct dasd_profile_info_t *data;
+	int rc = 0;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -279,11 +280,14 @@ static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 		spin_unlock_bh(&block->profile.lock);
 	} else {
 		spin_unlock_bh(&block->profile.lock);
-		return -EIO;
+		rc = -EIO;
+		goto out;
 	}
 	if (copy_to_user(argp, data, sizeof(*data)))
-		return -EFAULT;
-	return 0;
+		rc = -EFAULT;
+out:
+	kfree(data);
+	return rc;
 }
 #else
 static int dasd_ioctl_reset_profile(struct dasd_block *block)
