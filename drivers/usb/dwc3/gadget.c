@@ -359,34 +359,36 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 	return 0;
 }
 
-static void dwc3_gadget_nuke_reqs(struct dwc3_ep *dep, const int status)
+static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum);
+static void dwc3_remove_requests(struct dwc3 *dwc, struct dwc3_ep *dep)
 {
 	struct dwc3_request		*req;
+
+	if (!list_empty(&dep->req_queued))
+		dwc3_stop_active_transfer(dwc, dep->number);
 
 	while (!list_empty(&dep->request_list)) {
 		req = next_request(&dep->request_list);
 
-		dwc3_gadget_giveback(dep, req, status);
+		dwc3_gadget_giveback(dep, req, -ESHUTDOWN);
 	}
-	/* nuke queued TRBs as well on command complete */
-	dep->flags |= DWC3_EP_WILL_SHUTDOWN;
 }
 
 /**
  * __dwc3_gadget_ep_disable - Disables a HW endpoint
  * @dep: the endpoint to disable
  *
- * Caller should take care of locking
+ * This function also removes requests which are currently processed ny the
+ * hardware and those which are not yet scheduled.
+ * Caller should take care of locking.
  */
-static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum);
 static int __dwc3_gadget_ep_disable(struct dwc3_ep *dep)
 {
 	struct dwc3		*dwc = dep->dwc;
 	u32			reg;
 
 	dep->flags &= ~DWC3_EP_ENABLED;
-	dwc3_stop_active_transfer(dwc, dep->number);
-	dwc3_gadget_nuke_reqs(dep, -ESHUTDOWN);
+	dwc3_remove_requests(dwc, dep);
 
 	reg = dwc3_readl(dwc->regs, DWC3_DALEPENA);
 	reg &= ~DWC3_DALEPENA_EP(dep->number);
@@ -1416,16 +1418,6 @@ static void dwc3_process_ep_cmd_complete(struct dwc3_ep *dep,
 	dwc3_cleanup_done_reqs(dwc, dep, &mod_ev, -ESHUTDOWN);
 	dep->flags &= ~DWC3_EP_BUSY;
 	/* pending requets are ignored and are queued on XferNotReady */
-
-	if (dep->flags & DWC3_EP_WILL_SHUTDOWN) {
-		while (!list_empty(&dep->req_queued)) {
-			struct dwc3_request	*req;
-
-			req = next_request(&dep->req_queued);
-			dwc3_gadget_giveback(dep, req, -ESHUTDOWN);
-		}
-		dep->flags &= ~DWC3_EP_WILL_SHUTDOWN;
-	}
 }
 
 static void dwc3_ep_cmd_compl(struct dwc3_ep *dep,
@@ -1533,6 +1525,7 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum)
 
 	dep = dwc->eps[epnum];
 
+	WARN_ON(!dep->res_trans_idx);
 	if (dep->res_trans_idx) {
 		cmd = DWC3_DEPCMD_ENDTRANSFER;
 		cmd |= DWC3_DEPCMD_HIPRI_FORCERM | DWC3_DEPCMD_CMDIOC;
@@ -1555,7 +1548,7 @@ static void dwc3_stop_active_transfers(struct dwc3 *dwc)
 		if (!(dep->flags & DWC3_EP_ENABLED))
 			continue;
 
-		__dwc3_gadget_ep_disable(dep);
+		dwc3_remove_requests(dwc, dep);
 	}
 }
 
