@@ -1045,6 +1045,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_STA_WME: Nested attribute containing the wme configuration
  *	of the station, see &enum nl80211_sta_wme_attr.
  *
+ * @NL80211_ATTR_ROAM_SUPPORT: Indicates whether the firmware is capable of
+ *	roaming to another AP in the same ESS if the signal lever is low.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1256,6 +1259,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_IE_ASSOC_RESP,
 
 	NL80211_ATTR_STA_WME,
+
+	NL80211_ATTR_ROAM_SUPPORT,
 
 	/* add attributes here, update the policy in nl80211.c */
 
