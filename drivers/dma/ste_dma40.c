@@ -644,8 +644,11 @@ static struct d40_desc *d40_first_active_get(struct d40_chan *d40c)
 	return d;
 }
 
+/* remove desc from current queue and add it to the pending_queue */
 static void d40_desc_queue(struct d40_chan *d40c, struct d40_desc *desc)
 {
+	d40_desc_remove(desc);
+	desc->is_in_client_list = false;
 	list_add_tail(&desc->node, &d40c->pending_queue);
 }
 
@@ -803,6 +806,7 @@ done:
 static void d40_term_all(struct d40_chan *d40c)
 {
 	struct d40_desc *d40d;
+	struct d40_desc *_d;
 
 	/* Release active descriptors */
 	while ((d40d = d40_first_active_get(d40c))) {
@@ -821,6 +825,14 @@ static void d40_term_all(struct d40_chan *d40c)
 		d40_desc_remove(d40d);
 		d40_desc_free(d40c, d40d);
 	}
+
+	/* Release client owned descriptors */
+	if (!list_empty(&d40c->client))
+		list_for_each_entry_safe(d40d, _d, &d40c->client, node) {
+			d40_desc_remove(d40d);
+			d40_desc_free(d40c, d40d);
+		}
+
 
 	d40c->pending_tx = 0;
 	d40c->busy = false;
@@ -1594,19 +1606,9 @@ static int d40_free_dma(struct d40_chan *d40c)
 	u32 event;
 	struct d40_phy_res *phy = d40c->phy_chan;
 	bool is_src;
-	struct d40_desc *d;
-	struct d40_desc *_d;
-
 
 	/* Terminate all queued and active transfers */
 	d40_term_all(d40c);
-
-	/* Release client owned descriptors */
-	if (!list_empty(&d40c->client))
-		list_for_each_entry_safe(d, _d, &d40c->client, node) {
-			d40_desc_remove(d);
-			d40_desc_free(d40c, d);
-		}
 
 	if (phy == NULL) {
 		chan_err(d40c, "phy == null\n");
