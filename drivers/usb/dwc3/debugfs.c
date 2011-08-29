@@ -406,93 +406,6 @@ static const struct file_operations dwc3_regdump_fops = {
 	.release		= single_release,
 };
 
-
-static int dwc3_send_testmode_cmd(struct dwc3 *dwc, int mode)
-{
-	u32 timeout = 250;
-
-	dwc3_writel(dwc->regs, DWC3_DGCMDPAR, mode);
-	dwc3_writel(dwc->regs, DWC3_DGCMD, DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK |
-			DWC3_DEPCMD_CMDACT);
-	do {
-		u32 reg;
-
-		reg = dwc3_readl(dwc->regs, DWC3_DGCMD);
-		if (!(reg & DWC3_DEPCMD_CMDACT))
-			return 0;
-		timeout--;
-		if (!timeout)
-			return -ETIMEDOUT;
-		mdelay(1);
-	} while (1);
-}
-
-static struct dwc3_trb_hw trb_0 __aligned(16);
-static struct dwc3_trb_hw trb_1 __aligned(16);
-
-#define BUF_SIZE	4096
-static int dwc3_testmode_open(struct inode *inode, struct file *file)
-{
-	struct dwc3 *dwc = inode->i_private;
-	struct dwc3_gadget_ep_cmd_params par0;
-	struct dwc3_gadget_ep_cmd_params par1;
-	struct dwc3_trb         trb;
-	int ret;
-	u8 *buf0;
-	u8 *buf1;
-
-	buf0 = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!buf0)
-		return -ENOMEM;
-	buf1 = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!buf1) {
-		kfree(buf0);
-		return -ENOMEM;
-	}
-
-	memset(buf0, 0xaa, BUF_SIZE);
-	memset(buf1, 0x33, BUF_SIZE);
-
-	memset(&trb, 0, sizeof(trb));
-	memset(&par0, 0, sizeof(par0));
-	memset(&par1, 0, sizeof(par1));
-
-	trb.lst = 1;
-	trb.trbctl = DWC3_TRBCTL_NORMAL;
-	trb.length = BUF_SIZE;
-	trb.hwo = 1;
-
-	trb.bplh = virt_to_phys(buf0);
-	dwc3_trb_to_hw(&trb, &trb_0);
-
-	trb.bplh = virt_to_phys(buf1);
-	dwc3_trb_to_hw(&trb, &trb_1);
-
-	par0.param0.depstrtxfer.transfer_desc_addr_high =
-		upper_32_bits(virt_to_phys(&trb_0));
-	par0.param1.depstrtxfer.transfer_desc_addr_low =
-		lower_32_bits(virt_to_phys(&trb_0));
-
-	par1.param0.depstrtxfer.transfer_desc_addr_high =
-		upper_32_bits(virt_to_phys(&trb_1));
-	par1.param1.depstrtxfer.transfer_desc_addr_low =
-		lower_32_bits(virt_to_phys(&trb_1));
-
-	dwc3_send_testmode_cmd(dwc, 1);
-
-	ret = dwc3_send_gadget_ep_cmd(dwc, 0, DWC3_DEPCMD_STARTTRANSFER, &par0);
-	ret = dwc3_send_gadget_ep_cmd(dwc, 1, DWC3_DEPCMD_STARTTRANSFER, &par1);
-
-	dwc3_send_testmode_cmd(dwc, 0);
-	return -EBUSY;
-}
-
-static const struct file_operations dwc3_testmode_fops = {
-	.open			= dwc3_testmode_open,
-	.read			= seq_read,
-	.release		= single_release,
-};
-
 int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
@@ -513,13 +426,6 @@ int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 		ret = PTR_ERR(file);
 		goto err1;
 	}
-	file = debugfs_create_file("testmode", S_IRUGO, root, dwc,
-			&dwc3_testmode_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
-		goto err1;
-	}
-
 	return 0;
 
 err1:
