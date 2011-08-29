@@ -1779,14 +1779,14 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 	spin_unlock(&rds_ring->lock);
 }
 
-static void dump_skb(struct sk_buff *skb)
+static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 {
 	int i;
 	unsigned char *data = skb->data;
 
 	printk(KERN_INFO "\n");
 	for (i = 0; i < skb->len; i++) {
-		printk(KERN_INFO "%02x ", data[i]);
+		QLCDB(adapter, DRV, "%02x ", data[i]);
 		if ((i & 0x0f) == 8)
 			printk(KERN_INFO "\n");
 	}
@@ -1829,7 +1829,7 @@ void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 	if (!qlcnic_check_loopback_buff(skb->data, adapter->mac_addr))
 		adapter->diag_cnt++;
 	else
-		dump_skb(skb);
+		dump_skb(skb, adapter);
 
 	dev_kfree_skb_any(skb);
 	adapter->stats.rx_pkts++;
