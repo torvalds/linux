@@ -29,7 +29,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 
 #define _CONS(a,b) a##b
@@ -425,7 +425,18 @@ static struct reginfo sensor_init_data[] =
 	/////////////////////////////////////////////////////////////////////
 	/////////////////////////// eeintp_t///////////////////////////////
 #endif
-
+	{0x23,0x00},
+	{0x2d,0x0a}, // 0x08
+	{0x20,0xff},
+	{0xd2,0x90},
+	{0x73,0x00},
+	{0x77,0x54},
+			
+	{0xb3,0x40},
+	{0xb4,0x80},
+	{0xba,0x00},
+	{0xbb,0x00},
+    {0x00,0x00}
 };
 
 
@@ -1656,21 +1667,16 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct reginfo *winseqe_set_addr=NULL;
     int ret=0, set_w,set_h;
 
-	SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
-		SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 		switch (pix->pixelformat)
 		{
-			SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 			case V4L2_PIX_FMT_YUYV:
 			{
-				SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 				winseqe_set_addr = sensor_ClrFmt_YUYV;
 				break;
 			}
 			case V4L2_PIX_FMT_UYVY:
 			{
-				SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 				winseqe_set_addr = sensor_ClrFmt_UYVY;
 				break;
 			}
@@ -1689,7 +1695,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	
     set_w = pix->width;
     set_h = pix->height;
-	SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 	if (((set_w <= 176) && (set_h <= 144)) && sensor_qcif[0].reg)
 	{
 		winseqe_set_addr = sensor_qcif;
@@ -1755,9 +1760,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 			sensor->info_priv.snap2preview = false;
 		}
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
-    }
-    else
-    {
+    } else {
         SENSOR_DG("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
     }
 
