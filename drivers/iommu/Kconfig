@@ -110,6 +110,7 @@ config INTR_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
+	depends on ARCH_OMAP
 	select IOMMU_API
 
 config OMAP_IOVMM
