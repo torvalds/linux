@@ -599,26 +599,24 @@ il_dbgfs_qos_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	struct il_rxon_context *ctx;
+	struct il_rxon_context *ctx = &il->ctx;
 	int pos = 0, i;
 	char buf[256];
 	const size_t bufsz = sizeof(buf);
 
-	for_each_context(il, ctx) {
-		pos += scnprintf(buf + pos, bufsz - pos, "context %d:\n",
-				 ctx->ctxid);
-		for (i = 0; i < AC_NUM; i++) {
-			pos += scnprintf(buf + pos, bufsz - pos,
-				"\tcw_min\tcw_max\taifsn\ttxop\n");
-			pos += scnprintf(buf + pos, bufsz - pos,
-				"AC[%d]\t%u\t%u\t%u\t%u\n", i,
-				ctx->qos_data.def_qos_parm.ac[i].cw_min,
-				ctx->qos_data.def_qos_parm.ac[i].cw_max,
-				ctx->qos_data.def_qos_parm.ac[i].aifsn,
-				ctx->qos_data.def_qos_parm.ac[i].edca_txop);
-		}
-		pos += scnprintf(buf + pos, bufsz - pos, "\n");
+	pos += scnprintf(buf + pos, bufsz - pos, "context %d:\n",
+			 ctx->ctxid);
+	for (i = 0; i < AC_NUM; i++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"\tcw_min\tcw_max\taifsn\ttxop\n");
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"AC[%d]\t%u\t%u\t%u\t%u\n", i,
+			ctx->qos_data.def_qos_parm.ac[i].cw_min,
+			ctx->qos_data.def_qos_parm.ac[i].cw_max,
+			ctx->qos_data.def_qos_parm.ac[i].aifsn,
+			ctx->qos_data.def_qos_parm.ac[i].edca_txop);
 	}
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 

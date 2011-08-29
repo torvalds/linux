@@ -89,14 +89,10 @@ MODULE_ALIAS("iwl4965");
 
 void il4965_update_chain_flags(struct il_priv *il)
 {
-	struct il_rxon_context *ctx;
-
 	if (il->cfg->ops->hcmd->set_rxon_chain) {
-		for_each_context(il, ctx) {
-			il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
-			if (ctx->active.rx_chain != ctx->staging.rx_chain)
-				il_commit_rxon(il, ctx);
-		}
+		il->cfg->ops->hcmd->set_rxon_chain(il, &il->ctx);
+		if (il->ctx.active.rx_chain != il->ctx.staging.rx_chain)
+			il_commit_rxon(il, &il->ctx);
 	}
 }
 
@@ -1766,10 +1762,8 @@ static void il4965_alive_start(struct il_priv *il)
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
-		struct il_rxon_context *tmp;
 		/* Initialize our rx_config data */
-		for_each_context(il, tmp)
-			il_connection_init_rx_config(il, tmp);
+		il_connection_init_rx_config(il, &il->ctx);
 
 		if (il->cfg->ops->hcmd->set_rxon_chain)
 			il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
@@ -1950,7 +1944,6 @@ static int il4965_prepare_card_hw(struct il_priv *il)
 
 static int __il4965_up(struct il_priv *il)
 {
-	struct il_rxon_context *ctx;
 	int i;
 	int ret;
 
@@ -1964,12 +1957,10 @@ static int __il4965_up(struct il_priv *il)
 		return -EIO;
 	}
 
-	for_each_context(il, ctx) {
-		ret = il4965_alloc_bcast_station(il, ctx);
-		if (ret) {
-			il_dealloc_bcast_stations(il);
-			return ret;
-		}
+	ret = il4965_alloc_bcast_station(il, &il->ctx);
+	if (ret) {
+		il_dealloc_bcast_stations(il);
+		return ret;
 	}
 
 	il4965_prepare_card_hw(il);
@@ -2121,11 +2112,8 @@ static void il4965_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &il->status)) {
-		struct il_rxon_context *ctx;
-
 		mutex_lock(&il->mutex);
-		for_each_context(il, ctx)
-			ctx->vif = NULL;
+		il->ctx.vif = NULL;
 		il->is_open = 0;
 
 		__il4965_down(il);
@@ -2177,7 +2165,6 @@ static int il4965_mac_setup_register(struct il_priv *il,
 {
 	int ret;
 	struct ieee80211_hw *hw = il->hw;
-	struct il_rxon_context *ctx;
 
 	hw->rate_control_algorithm = "iwl-4965-rs";
 
@@ -2195,10 +2182,8 @@ static int il4965_mac_setup_register(struct il_priv *il,
 	hw->sta_data_size = sizeof(struct il_station_priv);
 	hw->vif_data_size = sizeof(struct il_vif_priv);
 
-	for_each_context(il, ctx) {
-		hw->wiphy->interface_modes |= ctx->interface_modes;
-		hw->wiphy->interface_modes |= ctx->exclusive_interface_modes;
-	}
+	hw->wiphy->interface_modes |= il->ctx.interface_modes;
+	hw->wiphy->interface_modes |= il->ctx.exclusive_interface_modes;
 
 	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS;
@@ -2590,7 +2575,6 @@ void il4965_configure_filter(struct ieee80211_hw *hw,
 {
 	struct il_priv *il = hw->priv;
 	__le32 filter_or = 0, filter_nand = 0;
-	struct il_rxon_context *ctx;
 
 #define CHK(test, flag)	do { \
 	if (*total_flags & (test))		\
@@ -2611,15 +2595,13 @@ void il4965_configure_filter(struct ieee80211_hw *hw,
 
 	mutex_lock(&il->mutex);
 
-	for_each_context(il, ctx) {
-		ctx->staging.filter_flags &= ~filter_nand;
-		ctx->staging.filter_flags |= filter_or;
+	il->ctx.staging.filter_flags &= ~filter_nand;
+	il->ctx.staging.filter_flags |= filter_or;
 
-		/*
-		 * Not committing directly because hardware can perform a scan,
-		 * but we'll eventually commit the filter flags change anyway.
-		 */
-	}
+	/*
+	 * Not committing directly because hardware can perform a scan,
+	 * but we'll eventually commit the filter flags change anyway.
+	 */
 
 	mutex_unlock(&il->mutex);
 

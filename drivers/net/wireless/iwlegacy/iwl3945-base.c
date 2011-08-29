@@ -2710,10 +2710,8 @@ static void il3945_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &il->status)) {
-		struct il_rxon_context *ctx;
 		mutex_lock(&il->mutex);
-		for_each_context(il, ctx)
-			ctx->vif = NULL;
+		il->ctx.vif = NULL;
 		il->is_open = 0;
 		mutex_unlock(&il->mutex);
 		il3945_down(il);

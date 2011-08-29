@@ -646,10 +646,7 @@ static void _il_set_rxon_ht(struct il_priv *il,
 
 void il_set_rxon_ht(struct il_priv *il, struct il_ht_config *ht_conf)
 {
-	struct il_rxon_context *ctx;
-
-	for_each_context(il, ctx)
-		_il_set_rxon_ht(il, ht_conf, ctx);
+	_il_set_rxon_ht(il, ht_conf, &il->ctx);
 }
 EXPORT_SYMBOL(il_set_rxon_ht);
 
@@ -661,7 +658,6 @@ u8 il_get_single_channel_number(struct il_priv *il,
 	int i;
 	u8 channel = 0;
 	u8 min, max;
-	struct il_rxon_context *ctx;
 
 	if (band == IEEE80211_BAND_5GHZ) {
 		min = 14;
@@ -672,19 +668,10 @@ u8 il_get_single_channel_number(struct il_priv *il,
 	}
 
 	for (i = min; i < max; i++) {
-		bool busy = false;
-
-		for_each_context(il, ctx) {
-			busy = il->channel_info[i].channel ==
-				le16_to_cpu(ctx->staging.channel);
-			if (busy)
-				break;
-		}
-
-		if (busy)
+		channel = il->channel_info[i].channel;
+		if (channel == le16_to_cpu(il->ctx.staging.channel))
 			continue;
 
-		channel = il->channel_info[i].channel;
 		ch_info = il_get_channel_info(il, band, channel);
 		if (il_is_channel_valid(ch_info))
 			break;
@@ -822,7 +809,6 @@ void il_set_rate(struct il_priv *il)
 {
 	const struct ieee80211_supported_band *hw = NULL;
 	struct ieee80211_rate *rate;
-	struct il_rxon_context *ctx;
 	int i;
 
 	hw = il_get_hw_mode(il, il->band);
@@ -841,13 +827,11 @@ void il_set_rate(struct il_priv *il)
 
 	D_RATE("Set active_rate = %0x\n", il->active_rate);
 
-	for_each_context(il, ctx) {
-		ctx->staging.cck_basic_rates =
+	il->ctx.staging.cck_basic_rates =
 		    (IL_CCK_BASIC_RATES_MASK >> IL_FIRST_CCK_RATE) & 0xF;
 
-		ctx->staging.ofdm_basic_rates =
+	il->ctx.staging.ofdm_basic_rates =
 		   (IL_OFDM_BASIC_RATES_MASK >> IL_FIRST_OFDM_RATE) & 0xFF;
-	}
 }
 EXPORT_SYMBOL(il_set_rate);
 
@@ -1254,7 +1238,6 @@ int il_mac_conf_tx(struct ieee80211_hw *hw,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct il_priv *il = hw->priv;
-	struct il_rxon_context *ctx;
 	unsigned long flags;
 	int q;
 
@@ -1274,17 +1257,15 @@ int il_mac_conf_tx(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	for_each_context(il, ctx) {
-		ctx->qos_data.def_qos_parm.ac[q].cw_min =
+	il->ctx.qos_data.def_qos_parm.ac[q].cw_min =
 			cpu_to_le16(params->cw_min);
-		ctx->qos_data.def_qos_parm.ac[q].cw_max =
+	il->ctx.qos_data.def_qos_parm.ac[q].cw_max =
 			cpu_to_le16(params->cw_max);
-		ctx->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
-		ctx->qos_data.def_qos_parm.ac[q].edca_txop =
+	il->ctx.qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
+	il->ctx.qos_data.def_qos_parm.ac[q].edca_txop =
 				cpu_to_le16((params->txop * 32));
 
-		ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
-	}
+	il->ctx.qos_data.def_qos_parm.ac[q].reserved1 = 0;
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -1344,8 +1325,8 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct il_priv *il = hw->priv;
 	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
-	struct il_rxon_context *tmp, *ctx = NULL;
 	int err;
+	u32 modes;
 
 	D_MAC80211("enter: type %d, addr %pM\n",
 			   vif->type, vif->addr);
@@ -1358,42 +1339,29 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	for_each_context(il, tmp) {
-		u32 possible_modes =
-			tmp->interface_modes | tmp->exclusive_interface_modes;
 
-		if (tmp->vif) {
-			/* check if this busy context is exclusive */
-			if (tmp->exclusive_interface_modes &
-						BIT(tmp->vif->type)) {
-				err = -EINVAL;
-				goto out;
-			}
-			continue;
-		}
-
-		if (!(possible_modes & BIT(vif->type)))
-			continue;
-
-		/* have maybe usable context w/o interface */
-		ctx = tmp;
-		break;
+	/* check if busy context is exclusive */
+	if (il->ctx.vif &&
+	    (il->ctx.exclusive_interface_modes & BIT(il->ctx.vif->type))) {
+		err = -EINVAL;
+		goto out;
 	}
 
-	if (!ctx) {
+	modes = il->ctx.interface_modes | il->ctx.exclusive_interface_modes;
+	if (!(modes & BIT(vif->type))) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	vif_priv->ctx = ctx;
-	ctx->vif = vif;
+	vif_priv->ctx = &il->ctx;
+	il->ctx.vif = vif;
 
-	err = il_setup_interface(il, ctx);
-	if (!err)
-		goto out;
+	err = il_setup_interface(il, &il->ctx);
+	if (err) {
+		il->ctx.vif = NULL;
+		il->iw_mode = NL80211_IFTYPE_STATION;
+	}
 
-	ctx->vif = NULL;
-	il->iw_mode = NL80211_IFTYPE_STATION;
  out:
 	mutex_unlock(&il->mutex);
 
@@ -1764,8 +1732,7 @@ il_mac_change_interface(struct ieee80211_hw *hw,
 {
 	struct il_priv *il = hw->priv;
 	struct il_rxon_context *ctx = il_rxon_ctx_from_vif(vif);
-	struct il_rxon_context *tmp;
-	u32 interface_modes;
+	u32 modes;
 	int err;
 
 	newtype = ieee80211_iftype_p2p(newtype, newp2p);
@@ -1781,28 +1748,16 @@ il_mac_change_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
-
-	if (!(interface_modes & BIT(newtype))) {
-		err = -EBUSY;
+	modes = ctx->interface_modes | ctx->exclusive_interface_modes;
+	if (!(modes & BIT(newtype))) {
+		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	if (ctx->exclusive_interface_modes & BIT(newtype)) {
-		for_each_context(il, tmp) {
-			if (ctx == tmp)
-				continue;
-
-			if (!tmp->vif)
-				continue;
-
-			/*
-			 * The current mode switch would be exclusive, but
-			 * another context is active ... refuse the switch.
-			 */
-			err = -EBUSY;
-			goto out;
-		}
+	if ((il->ctx.exclusive_interface_modes & BIT(il->ctx.vif->type)) ||
+	    (il->ctx.exclusive_interface_modes & BIT(newtype))) {
+		err = -EINVAL;
+		goto out;
 	}
 
 	/* success */
@@ -2064,7 +2019,7 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ieee80211_channel *channel = conf->channel;
 	struct il_ht_config *ht_conf = &il->current_ht_config;
-	struct il_rxon_context *ctx;
+	struct il_rxon_context *ctx = &il->ctx;
 	unsigned long flags = 0;
 	int ret = 0;
 	u16 ch;
@@ -2097,14 +2052,14 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * configured.
 		 */
 		if (il->cfg->ops->hcmd->set_rxon_chain)
-			for_each_context(il, ctx)
-				il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
+			il->cfg->ops->hcmd->set_rxon_chain(il, &il->ctx);
 	}
 
 	/* during scanning mac80211 will delay channel setting until
 	 * scan finish with changed = 0
 	 */
 	if (!changed || (changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
+
 		if (scan_active)
 			goto set_ch_out;
 
@@ -2125,48 +2080,46 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		spin_lock_irqsave(&il->lock, flags);
 
-		for_each_context(il, ctx) {
-			/* Configure HT40 channels */
-			if (ctx->ht.enabled != conf_is_ht(conf)) {
-				ctx->ht.enabled = conf_is_ht(conf);
-				ht_changed = true;
-			}
-			if (ctx->ht.enabled) {
-				if (conf_is_ht40_minus(conf)) {
-					ctx->ht.extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-					ctx->ht.is_40mhz = true;
-				} else if (conf_is_ht40_plus(conf)) {
-					ctx->ht.extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-					ctx->ht.is_40mhz = true;
-				} else {
-					ctx->ht.extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_NONE;
-					ctx->ht.is_40mhz = false;
-				}
-			} else
-				ctx->ht.is_40mhz = false;
-
-			/*
-			 * Default to no protection. Protection mode will
-			 * later be set from BSS config in il_ht_conf
-			 */
-			ctx->ht.protection =
-					IEEE80211_HT_OP_MODE_PROTECTION_NONE;
-
-			/* if we are switching from ht to 2.4 clear flags
-			 * from any ht related info since 2.4 does not
-			 * support ht */
-			if ((le16_to_cpu(ctx->staging.channel) != ch))
-				ctx->staging.flags = 0;
-
-			il_set_rxon_channel(il, channel, ctx);
-			il_set_rxon_ht(il, ht_conf);
-
-			il_set_flags_for_band(il, ctx, channel->band,
-					       ctx->vif);
+		/* Configure HT40 channels */
+		if (ctx->ht.enabled != conf_is_ht(conf)) {
+			ctx->ht.enabled = conf_is_ht(conf);
+			ht_changed = true;
 		}
+		if (ctx->ht.enabled) {
+			if (conf_is_ht40_minus(conf)) {
+				ctx->ht.extension_chan_offset =
+				IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+				ctx->ht.is_40mhz = true;
+			} else if (conf_is_ht40_plus(conf)) {
+				ctx->ht.extension_chan_offset =
+				IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+				ctx->ht.is_40mhz = true;
+			} else {
+				ctx->ht.extension_chan_offset =
+				IEEE80211_HT_PARAM_CHA_SEC_NONE;
+				ctx->ht.is_40mhz = false;
+			}
+		} else
+			ctx->ht.is_40mhz = false;
+
+		/*
+		 * Default to no protection. Protection mode will
+		 * later be set from BSS config in il_ht_conf
+		 */
+		ctx->ht.protection =
+				IEEE80211_HT_OP_MODE_PROTECTION_NONE;
+
+		/* if we are switching from ht to 2.4 clear flags
+		 * from any ht related info since 2.4 does not
+		 * support ht */
+		if ((le16_to_cpu(ctx->staging.channel) != ch))
+			ctx->staging.flags = 0;
+
+		il_set_rxon_channel(il, channel, ctx);
+		il_set_rxon_ht(il, ht_conf);
+
+		il_set_flags_for_band(il, ctx, channel->band,
+				       ctx->vif);
 
 		spin_unlock_irqrestore(&il->lock, flags);
 
@@ -2203,15 +2156,12 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	if (scan_active)
 		goto out;
 
-	for_each_context(il, ctx) {
-		if (memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging)))
-			il_commit_rxon(il, ctx);
-		else
-			D_INFO(
-				"Not re-sending same RXON configuration.\n");
-		if (ht_changed)
-			il_update_qos(il, ctx);
-	}
+	if (memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging)))
+		il_commit_rxon(il, ctx);
+	else
+		D_INFO("Not re-sending same RXON configuration.\n");
+	if (ht_changed)
+		il_update_qos(il, ctx);
 
 out:
 	D_MAC80211("leave\n");

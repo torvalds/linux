@@ -615,16 +615,7 @@ static int il4965_update_bcast_station(struct il_priv *il,
 
 int il4965_update_bcast_stations(struct il_priv *il)
 {
-	struct il_rxon_context *ctx;
-	int ret = 0;
-
-	for_each_context(il, ctx) {
-		ret = il4965_update_bcast_station(il, ctx);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return il4965_update_bcast_station(il, &il->ctx);
 }
 
 /**

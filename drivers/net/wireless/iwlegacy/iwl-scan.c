@@ -290,7 +290,9 @@ u16 il_get_passive_dwell_time(struct il_priv *il,
 			       enum ieee80211_band band,
 			       struct ieee80211_vif *vif)
 {
-	struct il_rxon_context *ctx;
+	struct il_rxon_context *ctx = &il->ctx;
+	u16 value;
+
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IL_PASSIVE_DWELL_BASE + IL_PASSIVE_DWELL_TIME_24 :
 	    IL_PASSIVE_DWELL_BASE + IL_PASSIVE_DWELL_TIME_52;
@@ -301,17 +303,11 @@ u16 il_get_passive_dwell_time(struct il_priv *il,
 		 * dwell time to be 98% of the smallest beacon interval
 		 * (minus 2 * channel tune time)
 		 */
-		for_each_context(il, ctx) {
-			u16 value;
-
-			if (!il_is_associated_ctx(ctx))
-				continue;
-			value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
-			if (value > IL_PASSIVE_DWELL_BASE || !value)
-				value = IL_PASSIVE_DWELL_BASE;
-			value = (value * 98) / 100 - IL_CHANNEL_TUNE_TIME * 2;
-			passive = min(value, passive);
-		}
+		value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
+		if (value > IL_PASSIVE_DWELL_BASE || !value)
+			value = IL_PASSIVE_DWELL_BASE;
+		value = (value * 98) / 100 - IL_CHANNEL_TUNE_TIME * 2;
+		passive = min(value, passive);
 	}
 
 	return passive;
