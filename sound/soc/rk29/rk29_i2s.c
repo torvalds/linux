@@ -271,7 +271,14 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
                         return -EINVAL;
         }
         I2S_DBG("Enter::%s----%d, I2S_TXCR=0x%X\n",__FUNCTION__,__LINE__,tx_ctl);
+#if defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+        rx_ctl = tx_ctl;
+        rx_ctl &= ~I2S_MODE_MASK;   
+        rx_ctl |= I2S_SLAVE_MODE;  // set tx slave, rx master
+        writel(rx_ctl, &(pheadi2s->I2S_TXCR));
+#else
         writel(tx_ctl, &(pheadi2s->I2S_TXCR));
+#endif
         rx_ctl = tx_ctl & 0x00007FFF;
         writel(rx_ctl, &(pheadi2s->I2S_RXCR));
         return 0;
@@ -338,7 +345,14 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 
         writel(dmarc, &(pheadi2s->I2S_DMACR));
         I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
+#if defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+        dmarc = iismod;
+        dmarc &= ~I2S_MODE_MASK;   
+        dmarc |= I2S_SLAVE_MODE;     // set tx slave, rx master
+        writel(dmarc, &(pheadi2s->I2S_TXCR));
+#else
         writel(iismod, &(pheadi2s->I2S_TXCR));
+#endif
         iismod = iismod & 0x00007FFF;
         writel(iismod, &(pheadi2s->I2S_RXCR));        
         return 0;
@@ -468,9 +482,13 @@ int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
 #define rockchip_i2s_resume NULL
 #endif
 
+#if defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_44100)  //zyy 20110704, playback and record use same sample rate
+#else
 #define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		            SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		            SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+#endif
 
 static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 	.trigger = rockchip_i2s_trigger,
