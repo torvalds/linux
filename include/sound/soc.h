@@ -851,8 +851,6 @@ struct snd_soc_pcm_runtime  {
 	unsigned int complete:1;
 	unsigned int dev_registered:1;
 
-	/* Symmetry data - only valid if symmetry is being enforced */
-	unsigned int rate;
 	long pmdown_time;
 
 	/* runtime devices */

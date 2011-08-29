@@ -27,15 +27,13 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 
-static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
+static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *soc_dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	if (!codec_dai->driver->symmetric_rates &&
-	    !cpu_dai->driver->symmetric_rates &&
+	if (!soc_dai->driver->symmetric_rates &&
 	    !rtd->dai_link->symmetric_rates)
 		return 0;
 
@@ -43,19 +41,19 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
 	 * the second can need to get its constraints before the first has
 	 * picked a rate.  Complain and allow the application to carry on.
 	 */
-	if (!rtd->rate) {
-		dev_warn(&rtd->dev,
+	if (!soc_dai->rate) {
+		dev_warn(soc_dai->dev,
 			 "Not enforcing symmetric_rates due to race\n");
 		return 0;
 	}
 
-	dev_dbg(&rtd->dev, "Symmetry forces %dHz rate\n", rtd->rate);
+	dev_dbg(soc_dai->dev, "Symmetry forces %dHz rate\n", soc_dai->rate);
 
 	ret = snd_pcm_hw_constraint_minmax(substream->runtime,
 					   SNDRV_PCM_HW_PARAM_RATE,
-					   rtd->rate, rtd->rate);
+					   soc_dai->rate, soc_dai->rate);
 	if (ret < 0) {
-		dev_err(&rtd->dev,
+		dev_err(soc_dai->dev,
 			"Unable to apply rate symmetry constraint: %d\n", ret);
 		return ret;
 	}
@@ -185,8 +183,14 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	/* Symmetry only applies if we've already got an active stream. */
-	if (cpu_dai->active || codec_dai->active) {
-		ret = soc_pcm_apply_symmetry(substream);
+	if (cpu_dai->active) {
+		ret = soc_pcm_apply_symmetry(substream, cpu_dai);
+		if (ret != 0)
+			goto config_err;
+	}
+
+	if (codec_dai->active) {
+		ret = soc_pcm_apply_symmetry(substream, codec_dai);
 		if (ret != 0)
 			goto config_err;
 	}
@@ -288,8 +292,12 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	codec_dai->active--;
 	codec->active--;
 
-	if (!cpu_dai->active && !codec_dai->active)
-		rtd->rate = 0;
+	/* clear the corresponding DAIs rate when inactive */
+	if (!cpu_dai->active)
+		cpu_dai->rate = 0;
+
+	if (!codec_dai->active)
+		codec_dai->rate = 0;
 
 	/* Muting the DAC suppresses artifacts caused during digital
 	 * shutdown, for example from stopping clocks.
@@ -447,7 +455,9 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	rtd->rate = params_rate(params);
+	/* store the rate for each DAIs */
+	cpu_dai->rate = params_rate(params);
+	codec_dai->rate = params_rate(params);
 
 out:
 	mutex_unlock(&rtd->pcm_mutex);
