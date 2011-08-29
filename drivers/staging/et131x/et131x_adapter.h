@@ -115,7 +115,6 @@ struct ce_stats {
 
 	/* Transceiver state informations. */
 	u8		xcvr_addr;
-	u32		xcvr_id;
 
 	/* Tx Statistics. */
 	u32		tx_underflows;

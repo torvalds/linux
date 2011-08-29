@@ -242,7 +242,6 @@ int et131x_xcvr_find(struct et131x_adapter *adapter)
 	u8 xcvr_addr;
 	u16 idr1;
 	u16 idr2;
-	u32 xcvr_id;
 
 	/* We need to get xcvr id and address we just get the first one */
 	for (xcvr_addr = 0; xcvr_addr < 32; xcvr_addr++) {
@@ -254,10 +253,7 @@ int et131x_xcvr_find(struct et131x_adapter *adapter)
 			     (u8) offsetof(struct mi_regs, idr2),
 			     &idr2);
 
-		xcvr_id = (u32) ((idr1 << 16) | idr2);
-
 		if (idr1 != 0 && idr1 != 0xffff) {
-			adapter->stats.xcvr_id = xcvr_id;
 			adapter->stats.xcvr_addr = xcvr_addr;
 			return 0;
 		}
