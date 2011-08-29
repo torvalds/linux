@@ -460,7 +460,7 @@ static int audio_set_endpoint_req(struct usb_function *f,
 
 	switch (ctrl->bRequest) {
 	case UAC_SET_CUR:
-		value = 0;
+		value = len;
 		break;
 
 	case UAC_SET_MIN:
@@ -499,7 +499,7 @@ static int audio_get_endpoint_req(struct usb_function *f,
 	case UAC_GET_MIN:
 	case UAC_GET_MAX:
 	case UAC_GET_RES:
-		value = 3;
+		value = len;
 		break;
 	case UAC_GET_MEM:
 		break;
