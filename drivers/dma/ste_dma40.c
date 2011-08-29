@@ -478,7 +478,6 @@ static struct d40_desc *d40_desc_get(struct d40_chan *d40c)
 
 		list_for_each_entry_safe(d, _d, &d40c->client, node)
 			if (async_tx_test_ack(&d->txd)) {
-				d40_pool_lli_free(d40c, d);
 				d40_desc_remove(d);
 				desc = d;
 				memset(desc, 0, sizeof(*desc));
@@ -1209,7 +1208,6 @@ static void dma_tasklet(unsigned long data)
 
 	if (!d40d->cyclic) {
 		if (async_tx_test_ack(&d40d->txd)) {
-			d40_pool_lli_free(d40c, d40d);
 			d40_desc_remove(d40d);
 			d40_desc_free(d40c, d40d);
 		} else {
@@ -1606,7 +1604,6 @@ static int d40_free_dma(struct d40_chan *d40c)
 	/* Release client owned descriptors */
 	if (!list_empty(&d40c->client))
 		list_for_each_entry_safe(d, _d, &d40c->client, node) {
-			d40_pool_lli_free(d40c, d);
 			d40_desc_remove(d);
 			d40_desc_free(d40c, d);
 		}
