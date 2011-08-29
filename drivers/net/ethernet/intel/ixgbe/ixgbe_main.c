@@ -6494,8 +6494,7 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 		offset = 0;
 		tx_flags |= IXGBE_TX_FLAGS_MAPPED_AS_PAGE;
 
-		dma = dma_map_page(dev, frag->page, frag->page_offset,
-				   size, DMA_TO_DEVICE);
+		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma))
 			goto dma_error;
 

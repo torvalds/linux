@@ -2061,10 +2061,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
 		buffer_info->mapped_as_page = true;
-		buffer_info->dma = dma_map_page(&pdev->dev,
-						frag->page,
-						frag->page_offset,
-						len,
+		buffer_info->dma = skb_frag_dma_map(&pdev->dev, frag, 0, len,
 						DMA_TO_DEVICE);
 		if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 			goto dma_error;
