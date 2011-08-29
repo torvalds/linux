@@ -776,18 +776,17 @@ void mesh_plink_broken(struct sta_info *sta)
 	tbl = rcu_dereference(mesh_paths);
 	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
-		spin_lock_bh(&mpath->state_lock);
 		if (rcu_dereference(mpath->next_hop) == sta &&
 		    mpath->flags & MESH_PATH_ACTIVE &&
 		    !(mpath->flags & MESH_PATH_FIXED)) {
+			spin_lock_bh(&mpath->state_lock);
 			mpath->flags &= ~MESH_PATH_ACTIVE;
 			++mpath->sn;
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl,
 					mpath->dst, cpu_to_le32(mpath->sn),
 					reason, bcast, sdata);
-		} else
-		spin_unlock_bh(&mpath->state_lock);
+		}
 	}
 	rcu_read_unlock();
 }
@@ -866,7 +865,7 @@ static void mpp_path_flush(struct ieee80211_sub_if_data *sdata)
 		if (mpath->sdata != sdata)
 			continue;
 		spin_lock_bh(&tbl->hashwlock[i]);
-		spin_lock_bh(&mpath->state_lock);
+		hlist_del_rcu(&node->list);
 		call_rcu(&node->rcu, mesh_path_node_reclaim);
 		atomic_dec(&tbl->entries);
 		spin_unlock_bh(&tbl->hashwlock[i]);
@@ -1160,15 +1159,10 @@ void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 		if (node->mpath->sdata != sdata)
 			continue;
 		mpath = node->mpath;
-		spin_lock_bh(&mpath->state_lock);
 		if ((!(mpath->flags & MESH_PATH_RESOLVING)) &&
 		    (!(mpath->flags & MESH_PATH_FIXED)) &&
-		     time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE)) {
-			spin_unlock_bh(&mpath->state_lock);
+		     time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE))
 			mesh_path_del(mpath->dst, mpath->sdata);
-		} else
-			spin_unlock_bh(&mpath->state_lock);
-	}
 	rcu_read_unlock();
 }
 

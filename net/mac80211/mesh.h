@@ -80,7 +80,9 @@ enum mesh_deferred_task_flags {
  * 	retry
  * @discovery_retries: number of discovery retries
  * @flags: mesh path flags, as specified on &enum mesh_path_flags
- * @state_lock: mesh path state lock
+ * @state_lock: mesh path state lock used to protect changes to the
+ * mpath itself.  No need to take this lock when adding or removing
+ * an mpath to a hash bucket on a path table.
  * @is_gate: the destination station of this path is a mesh gate
  *
  *
