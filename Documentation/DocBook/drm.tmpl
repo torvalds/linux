@@ -720,8 +720,9 @@ void intel_crt_init(struct drm_device *dev)
 	provides memory to back each object.  When mapped into the GTT
 	or used in a command buffer, the backing pages for an object are
 	flushed to memory and marked write combined so as to be coherent
-	with the GPU.  Likewise, when the GPU finishes rendering to an object,
-	if the CPU accesses it, it must be made coherent with the CPU's view
+	with the GPU.  Likewise, if the CPU accesses an object after the GPU
+	has finished rendering to the object, then the object must be made
+	coherent with the CPU's view
 	of memory, usually involving GPU cache flushing of various kinds.
 	This core CPU&lt;-&gt;GPU coherency management is provided by the GEM
 	set domain function, which evaluates an object's current domain and
