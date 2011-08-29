@@ -153,7 +153,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
 {
 	struct dwc3_ep		*dep = dwc->eps[ep];
-	unsigned long		timeout = 500;
+	u32			timeout = 500;
 	u32			reg;
 
 	dev_vdbg(dwc->dev, "%s: cmd '%s' params %08x %08x %08x\n",
@@ -175,7 +175,6 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		}
 
 		/*
-		 * XXX Figure out a sane timeout here. 500ms is way too much.
 		 * We can't sleep here, because it is also called from
 		 * interrupt context.
 		 */
@@ -183,7 +182,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		if (!timeout)
 			return -ETIMEDOUT;
 
-		mdelay(1);
+		udelay(1);
 	} while (1);
 }
 
@@ -1066,7 +1065,7 @@ static int dwc3_gadget_set_selfpowered(struct usb_gadget *g,
 static void dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 {
 	u32			reg;
-	unsigned long		timeout = 500;
+	u32			timeout = 500;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 	if (is_on)
@@ -1085,13 +1084,10 @@ static void dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 			if (reg & DWC3_DSTS_DEVCTRLHLT)
 				break;
 		}
-		/*
-		 * XXX reduce the 500ms delay
-		 */
 		timeout--;
 		if (!timeout)
 			break;
-		mdelay(1);
+		udelay(1);
 	} while (1);
 
 	dev_vdbg(dwc->dev, "gadget %s data soft-%s\n",
