@@ -441,6 +441,8 @@ static __devinit int max8925_power_probe(struct platform_device *pdev)
 	info->ac.properties = max8925_ac_props;
 	info->ac.num_properties = ARRAY_SIZE(max8925_ac_props);
 	info->ac.get_property = max8925_ac_get_prop;
+	info->ac.supplied_to = pdata->supplied_to;
+	info->ac.num_supplicants = pdata->num_supplicants;
 	ret = power_supply_register(&pdev->dev, &info->ac);
 	if (ret)
 		goto out;
@@ -451,6 +453,9 @@ static __devinit int max8925_power_probe(struct platform_device *pdev)
 	info->usb.properties = max8925_usb_props;
 	info->usb.num_properties = ARRAY_SIZE(max8925_usb_props);
 	info->usb.get_property = max8925_usb_get_prop;
+	info->usb.supplied_to = pdata->supplied_to;
+	info->usb.num_supplicants = pdata->num_supplicants;
+
 	ret = power_supply_register(&pdev->dev, &info->usb);
 	if (ret)
 		goto out_usb;
