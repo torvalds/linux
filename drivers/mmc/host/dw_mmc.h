@@ -82,7 +82,7 @@
 #define SDMMC_CTYPE_4BIT		BIT(0)
 #define SDMMC_CTYPE_1BIT		0
 /* Interrupt status & mask register defines */
-#define SDMMC_INT_SDIO			BIT(16)
+#define SDMMC_INT_SDIO(n)		BIT(16 + (n))
 #define SDMMC_INT_EBE			BIT(15)
 #define SDMMC_INT_ACD			BIT(14)
 #define SDMMC_INT_SBE			BIT(13)

@@ -764,11 +764,29 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
+static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
+{
+	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci *host = slot->host;
+	u32 int_mask;
+
+	/* Enable/disable Slot Specific SDIO interrupt */
+	int_mask = mci_readl(host, INTMASK);
+	if (enb) {
+		mci_writel(host, INTMASK,
+			   (int_mask | (1 << SDMMC_INT_SDIO(slot->id))));
+	} else {
+		mci_writel(host, INTMASK,
+			   (int_mask & ~(1 << SDMMC_INT_SDIO(slot->id))));
+	}
+}
+
 static const struct mmc_host_ops dw_mci_ops = {
-	.request	= dw_mci_request,
-	.set_ios	= dw_mci_set_ios,
-	.get_ro		= dw_mci_get_ro,
-	.get_cd		= dw_mci_get_cd,
+	.request		= dw_mci_request,
+	.set_ios		= dw_mci_set_ios,
+	.get_ro			= dw_mci_get_ro,
+	.get_cd			= dw_mci_get_cd,
+	.enable_sdio_irq	= dw_mci_enable_sdio_irq,
 };
 
 static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
@@ -1406,6 +1424,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	struct dw_mci *host = dev_id;
 	u32 status, pending;
 	unsigned int pass_count = 0;
+	int i;
 
 	do {
 		status = mci_readl(host, RINTSTS);
@@ -1475,6 +1494,15 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		if (pending & SDMMC_INT_CD) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
 			queue_work(dw_mci_card_workqueue, &host->card_work);
+		}
+
+		/* Handle SDIO Interrupts */
+		for (i = 0; i < host->num_slots; i++) {
+			struct dw_mci_slot *slot = host->slot[i];
+			if (pending & SDMMC_INT_SDIO(i)) {
+				mci_writel(host, RINTSTS, SDMMC_INT_SDIO(i));
+				mmc_signal_sdio_irq(slot->mmc);
+			}
 		}
 
 	} while (pass_count++ < 5);
