@@ -370,7 +370,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 
 	ep->pipectr = get_pipectr_addr(pipenum);
 	ep->pipenum = pipenum;
-	ep->ep.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	ep->ep.maxpacket = usb_endpoint_maxp(desc);
 	m66592->pipenum2ep[pipenum] = ep;
 	m66592->epaddr2ep[desc->bEndpointAddress&USB_ENDPOINT_NUMBER_MASK] = ep;
 	INIT_LIST_HEAD(&ep->queue);
@@ -447,7 +447,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 	ep->type = info.type;
 
 	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-	info.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	info.maxpacket = usb_endpoint_maxp(desc);
 	info.interval = desc->bInterval;
 	if (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
 		info.dir_in = 1;

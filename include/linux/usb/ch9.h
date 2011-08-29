@@ -34,6 +34,7 @@
 #define __LINUX_USB_CH9_H
 
 #include <linux/types.h>	/* __u8 etc */
+#include <asm/byteorder.h>	/* le16_to_cpu */
 
 /*-------------------------------------------------------------------------*/
 
@@ -143,6 +144,11 @@
 #define USB_INTRF_FUNC_SUSPEND	0	/* function suspend */
 
 #define USB_INTR_FUNC_SUSPEND_OPT_MASK	0xFF00
+/*
+ * Suspend Options, Table 9-7 USB 3.0 spec
+ */
+#define USB_INTRF_FUNC_SUSPEND_LP	(1 << (8 + 0))
+#define USB_INTRF_FUNC_SUSPEND_RW	(1 << (8 + 1))
 
 #define USB_ENDPOINT_HALT		0	/* IN/OUT will STALL */
 
@@ -568,6 +574,17 @@ static inline int usb_endpoint_is_isoc_out(
 				const struct usb_endpoint_descriptor *epd)
 {
 	return usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_out(epd);
+}
+
+/**
+ * usb_endpoint_maxp - get endpoint's max packet size
+ * @epd: endpoint to be checked
+ *
+ * Returns @epd's max packet
+ */
+static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
+{
+	return le16_to_cpu(epd->wMaxPacketSize);
 }
 
 /*-------------------------------------------------------------------------*/

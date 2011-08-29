@@ -35,6 +35,13 @@ extern struct pxa_device_desc pxa168_device_fb;
 extern struct pxa_device_desc pxa168_device_keypad;
 extern struct pxa_device_desc pxa168_device_eth;
 
+struct pxa168_usb_pdata {
+	/* If NULL, default phy init routine for PXA168 would be called */
+	int (*phy_init)(void __iomem *usb_phy_reg_base);
+};
+/* pdata can be NULL */
+int __init pxa168_add_usb_host(struct pxa168_usb_pdata *pdata);
+
 static inline int pxa168_add_uart(int id)
 {
 	struct pxa_device_desc *d = NULL;

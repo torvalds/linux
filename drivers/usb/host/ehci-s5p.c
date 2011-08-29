@@ -270,7 +270,7 @@ static int s5p_ehci_resume(struct device *dev)
 	/* here we "know" root ports should always stay powered */
 	ehci_port_power(ehci, 1);
 
-	hcd->state = HC_STATE_SUSPENDED;
+	ehci->rh_state = EHCI_RH_SUSPENDED;
 
 	return 0;
 }

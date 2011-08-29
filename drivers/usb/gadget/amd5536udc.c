@@ -354,7 +354,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 	writel(tmp, &dev->ep[ep->num].regs->ctl);
 
 	/* set max packet size */
-	maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	maxpacket = usb_endpoint_maxp(desc);
 	tmp = readl(&dev->ep[ep->num].regs->bufout_maxpkt);
 	tmp = AMD_ADDBITS(tmp, maxpacket, UDC_EP_MAX_PKT_SIZE);
 	ep->ep.maxpacket = maxpacket;

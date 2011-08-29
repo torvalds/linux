@@ -153,7 +153,7 @@ static void ehci_clear_tt_buffer_complete(struct usb_hcd *hcd,
 	spin_lock_irqsave(&ehci->lock, flags);
 	qh->clearing_tt = 0;
 	if (qh->qh_state == QH_STATE_IDLE && !list_empty(&qh->qtd_list)
-			&& HC_IS_RUNNING(hcd->state))
+			&& ehci->rh_state == EHCI_RH_RUNNING)
 		qh_link_async(ehci, qh);
 	spin_unlock_irqrestore(&ehci->lock, flags);
 }
@@ -425,7 +425,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 		/* stop scanning when we reach qtds the hc is using */
 		} else if (likely (!stopped
-				&& HC_IS_RUNNING (ehci_to_hcd(ehci)->state))) {
+				&& ehci->rh_state == EHCI_RH_RUNNING)) {
 			break;
 
 		/* scan the whole queue for unlinks whenever it stops */
@@ -433,7 +433,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			stopped = 1;
 
 			/* cancel everything if we halt, suspend, etc */
-			if (!HC_IS_RUNNING(ehci_to_hcd(ehci)->state))
+			if (ehci->rh_state != EHCI_RH_RUNNING)
 				last_status = -ESHUTDOWN;
 
 			/* this qtd is active; skip it unless a previous qtd
@@ -977,9 +977,8 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			/* in case a clear of CMD_ASE didn't take yet */
 			(void)handshake(ehci, &ehci->regs->status,
 					STS_ASS, 0, 150);
-			cmd |= CMD_ASE | CMD_RUN;
+			cmd |= CMD_ASE;
 			ehci_writel(ehci, cmd, &ehci->regs->command);
-			ehci_to_hcd(ehci)->state = HC_STATE_RUNNING;
 			/* posted write need not be known to HC yet ... */
 		}
 	}
@@ -1168,14 +1167,13 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 
 	qh_completions (ehci, qh);
 
-	if (!list_empty (&qh->qtd_list)
-			&& HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
+	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING) {
 		qh_link_async (ehci, qh);
-	else {
+	} else {
 		/* it's not free to turn the async schedule on/off; leave it
 		 * active but idle for a while once it empties.
 		 */
-		if (HC_IS_RUNNING (ehci_to_hcd(ehci)->state)
+		if (ehci->rh_state == EHCI_RH_RUNNING
 				&& ehci->async->qh_next.qh == NULL)
 			timer_action (ehci, TIMER_ASYNC_OFF);
 	}
@@ -1211,7 +1209,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* stop async schedule right now? */
 	if (unlikely (qh == ehci->async)) {
 		/* can't get here without STS_ASS set */
-		if (ehci_to_hcd(ehci)->state != HC_STATE_HALT
+		if (ehci->rh_state != EHCI_RH_HALTED
 				&& !ehci->reclaim) {
 			/* ... and CMD_IAAD clear */
 			ehci_writel(ehci, cmd & ~CMD_ASE,
@@ -1237,7 +1235,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	wmb ();
 
 	/* If the controller isn't running, we don't have to wait for it */
-	if (unlikely(!HC_IS_RUNNING(ehci_to_hcd(ehci)->state))) {
+	if (unlikely(ehci->rh_state != EHCI_RH_RUNNING)) {
 		/* if (unlikely (qh->reclaim != 0))
 		 *	this will recurse, probably not much
 		 */
@@ -1260,7 +1258,7 @@ static void scan_async (struct ehci_hcd *ehci)
 	enum ehci_timer_action	action = TIMER_IO_WATCHDOG;
 
 	timer_action_done (ehci, TIMER_ASYNC_SHRINK);
-	stopped = !HC_IS_RUNNING(ehci_to_hcd(ehci)->state);
+	stopped = (ehci->rh_state != EHCI_RH_RUNNING);
 
 	ehci->qh_scan_next = ehci->async->qh_next.qh;
 	while (ehci->qh_scan_next) {

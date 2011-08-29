@@ -621,12 +621,15 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 		goto err_pram;
 	}
 
-	pram_addr = cpm_muram_alloc_fixed(iprop[2], FHCI_PRAM_SIZE);
+	pram_addr = cpm_muram_alloc(FHCI_PRAM_SIZE, 64);
 	if (IS_ERR_VALUE(pram_addr)) {
 		dev_err(dev, "failed to allocate usb pram\n");
 		ret = -ENOMEM;
 		goto err_pram;
 	}
+
+	qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, QE_CR_SUBBLOCK_USB,
+		     QE_CR_PROTOCOL_UNSPECIFIED, pram_addr);
 	fhci->pram = cpm_muram_addr(pram_addr);
 
 	/* GPIOs and pins */

@@ -2297,7 +2297,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 		return -EINVAL;
 	}
 
-	mps = le16_to_cpu(desc->wMaxPacketSize);
+	mps = usb_endpoint_maxp(desc);
 
 	/* note, we handle this here instead of s3c_hsotg_set_ep_maxpacket */
 

@@ -1141,8 +1141,8 @@ static u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
 	if (udev->speed == USB_SPEED_SUPER)
 		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
 
-	max_packet = GET_MAX_PACKET(le16_to_cpu(ep->desc.wMaxPacketSize));
-	max_burst = (le16_to_cpu(ep->desc.wMaxPacketSize) & 0x1800) >> 11;
+	max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&ep->desc));
+	max_burst = (usb_endpoint_maxp(&ep->desc) & 0x1800) >> 11;
 	/* A 0 in max burst means 1 transfer per ESIT */
 	return max_packet * (max_burst + 1);
 }
@@ -1211,7 +1211,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	/* Set the max packet size and max burst */
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
-		max_packet = le16_to_cpu(ep->desc.wMaxPacketSize);
+		max_packet = usb_endpoint_maxp(&ep->desc);
 		ep_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(max_packet));
 		/* dig out max burst from ep companion desc */
 		max_packet = ep->ss_ep_comp.bMaxBurst;
@@ -1223,14 +1223,14 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		 */
 		if (usb_endpoint_xfer_isoc(&ep->desc) ||
 				usb_endpoint_xfer_int(&ep->desc)) {
-			max_burst = (le16_to_cpu(ep->desc.wMaxPacketSize)
+			max_burst = (usb_endpoint_maxp(&ep->desc)
 				     & 0x1800) >> 11;
 			ep_ctx->ep_info2 |= cpu_to_le32(MAX_BURST(max_burst));
 		}
 		/* Fall through */
 	case USB_SPEED_FULL:
 	case USB_SPEED_LOW:
-		max_packet = GET_MAX_PACKET(le16_to_cpu(ep->desc.wMaxPacketSize));
+		max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&ep->desc));
 		ep_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(max_packet));
 		break;
 	default:

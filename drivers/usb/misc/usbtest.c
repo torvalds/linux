@@ -359,8 +359,10 @@ static int simple_io(
 	urb->context = &completion;
 	while (retval == 0 && iterations-- > 0) {
 		init_completion(&completion);
-		if (usb_pipeout(urb->pipe))
+		if (usb_pipeout(urb->pipe)) {
 			simple_fill_buf(urb);
+			urb->transfer_flags |= URB_ZERO_PACKET;
+		}
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 		if (retval != 0)
 			break;
@@ -1583,8 +1585,8 @@ static struct urb *iso_alloc_urb(
 
 	if (bytes < 0 || !desc)
 		return NULL;
-	maxp = 0x7ff & le16_to_cpu(desc->wMaxPacketSize);
-	maxp *= 1 + (0x3 & (le16_to_cpu(desc->wMaxPacketSize) >> 11));
+	maxp = 0x7ff & usb_endpoint_maxp(desc);
+	maxp *= 1 + (0x3 & (usb_endpoint_maxp(desc) >> 11));
 	packets = DIV_ROUND_UP(bytes, maxp);
 
 	urb = usb_alloc_urb(packets, GFP_KERNEL);
@@ -1654,7 +1656,7 @@ test_iso_queue(struct usbtest_dev *dev, struct usbtest_param *param,
 		"... iso period %d %sframes, wMaxPacket %04x\n",
 		1 << (desc->bInterval - 1),
 		(udev->speed == USB_SPEED_HIGH) ? "micro" : "",
-		le16_to_cpu(desc->wMaxPacketSize));
+		usb_endpoint_maxp(desc));
 
 	for (i = 0; i < param->sglen; i++) {
 		urbs[i] = iso_alloc_urb(udev, pipe, desc,

@@ -320,6 +320,11 @@ static int rts51x_read_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 {
 	int retval;
 	u8 cmnd[12] = { 0 };
+	u8 *buf;
+
+	buf = kmalloc(len, GFP_NOIO);
+	if (buf == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
 
 	US_DEBUGP("%s, addr = 0x%x, len = %d\n", __func__, addr, len);
 
@@ -331,10 +336,14 @@ static int rts51x_read_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 	cmnd[5] = (u8) len;
 
 	retval = rts51x_bulk_transport(us, 0, cmnd, 12,
-				       data, len, DMA_FROM_DEVICE, NULL);
-	if (retval != USB_STOR_TRANSPORT_GOOD)
+				       buf, len, DMA_FROM_DEVICE, NULL);
+	if (retval != USB_STOR_TRANSPORT_GOOD) {
+		kfree(buf);
 		return -EIO;
+	}
 
+	memcpy(data, buf, len);
+	kfree(buf);
 	return 0;
 }
 
@@ -342,6 +351,12 @@ static int rts51x_write_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 {
 	int retval;
 	u8 cmnd[12] = { 0 };
+	u8 *buf;
+
+	buf = kmalloc(len, GFP_NOIO);
+	if (buf == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
+	memcpy(buf, data, len);
 
 	US_DEBUGP("%s, addr = 0x%x, len = %d\n", __func__, addr, len);
 
@@ -353,7 +368,8 @@ static int rts51x_write_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 	cmnd[5] = (u8) len;
 
 	retval = rts51x_bulk_transport(us, 0, cmnd, 12,
-				       data, len, DMA_TO_DEVICE, NULL);
+				       buf, len, DMA_TO_DEVICE, NULL);
+	kfree(buf);
 	if (retval != USB_STOR_TRANSPORT_GOOD)
 		return -EIO;
 
@@ -365,6 +381,11 @@ static int rts51x_read_status(struct us_data *us,
 {
 	int retval;
 	u8 cmnd[12] = { 0 };
+	u8 *buf;
+
+	buf = kmalloc(len, GFP_NOIO);
+	if (buf == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
 
 	US_DEBUGP("%s, lun = %d\n", __func__, lun);
 
@@ -372,10 +393,14 @@ static int rts51x_read_status(struct us_data *us,
 	cmnd[1] = 0x09;
 
 	retval = rts51x_bulk_transport(us, lun, cmnd, 12,
-				       status, len, DMA_FROM_DEVICE, actlen);
-	if (retval != USB_STOR_TRANSPORT_GOOD)
+				       buf, len, DMA_FROM_DEVICE, actlen);
+	if (retval != USB_STOR_TRANSPORT_GOOD) {
+		kfree(buf);
 		return -EIO;
+	}
 
+	memcpy(status, buf, len);
+	kfree(buf);
 	return 0;
 }
 

@@ -1114,6 +1114,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_ath79_driver
 #endif
 
+#ifdef CONFIG_NLM_XLR
+#include "ohci-xls.c"
+#define PLATFORM_DRIVER		ohci_xls_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OMAP1_PLATFORM_DRIVER) &&	\

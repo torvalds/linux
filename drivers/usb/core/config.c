@@ -124,9 +124,9 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 
 	if (usb_endpoint_xfer_isoc(&ep->desc))
 		max_tx = (desc->bMaxBurst + 1) * (desc->bmAttributes + 1) *
-			le16_to_cpu(ep->desc.wMaxPacketSize);
+			usb_endpoint_maxp(&ep->desc);
 	else if (usb_endpoint_xfer_int(&ep->desc))
-		max_tx = le16_to_cpu(ep->desc.wMaxPacketSize) *
+		max_tx = usb_endpoint_maxp(&ep->desc) *
 			(desc->bMaxBurst + 1);
 	else
 		max_tx = 999999;
@@ -241,7 +241,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 		    cfgno, inum, asnum, d->bEndpointAddress);
 		endpoint->desc.bmAttributes = USB_ENDPOINT_XFER_INT;
 		endpoint->desc.bInterval = 1;
-		if (le16_to_cpu(endpoint->desc.wMaxPacketSize) > 8)
+		if (usb_endpoint_maxp(&endpoint->desc) > 8)
 			endpoint->desc.wMaxPacketSize = cpu_to_le16(8);
 	}
 
@@ -254,7 +254,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 			&& usb_endpoint_xfer_bulk(d)) {
 		unsigned maxp;
 
-		maxp = le16_to_cpu(endpoint->desc.wMaxPacketSize) & 0x07ff;
+		maxp = usb_endpoint_maxp(&endpoint->desc) & 0x07ff;
 		if (maxp != 512)
 			dev_warn(ddev, "config %d interface %d altsetting %d "
 				"bulk endpoint 0x%X has invalid maxpacket %d\n",

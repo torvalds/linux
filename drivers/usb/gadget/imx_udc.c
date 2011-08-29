@@ -689,7 +689,7 @@ static int imx_ep_enable(struct usb_ep *usb_ep,
 		return -EINVAL;
 	}
 
-	if (imx_ep->fifosize < le16_to_cpu(desc->wMaxPacketSize)) {
+	if (imx_ep->fifosize < usb_endpoint_maxp(desc)) {
 		D_ERR(imx_usb->dev,
 			"<%s> bad %s maxpacket\n", __func__, usb_ep->name);
 		return -ERANGE;

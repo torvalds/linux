@@ -2692,7 +2692,7 @@ static u32 xhci_v1_0_td_remainder(int running_total, int trb_buff_len,
 	 * running_total.
 	 */
 	packets_transferred = (running_total + trb_buff_len) /
-		le16_to_cpu(urb->ep->desc.wMaxPacketSize);
+		usb_endpoint_maxp(&urb->ep->desc);
 
 	return xhci_td_remainder(total_packet_count - packets_transferred);
 }
@@ -2722,7 +2722,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	num_trbs = count_sg_trbs_needed(xhci, urb);
 	num_sgs = urb->num_sgs;
 	total_packet_count = roundup(urb->transfer_buffer_length,
-			le16_to_cpu(urb->ep->desc.wMaxPacketSize));
+			usb_endpoint_maxp(&urb->ep->desc));
 
 	trb_buff_len = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
@@ -2929,7 +2929,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	running_total = 0;
 	total_packet_count = roundup(urb->transfer_buffer_length,
-			le16_to_cpu(urb->ep->desc.wMaxPacketSize));
+			usb_endpoint_maxp(&urb->ep->desc));
 	/* How much data is in the first TRB? */
 	addr = (u64) urb->transfer_dma;
 	trb_buff_len = TRB_MAX_BUFF_SIZE -
@@ -3250,7 +3250,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		td_len = urb->iso_frame_desc[i].length;
 		td_remain_len = td_len;
 		total_packet_count = roundup(td_len,
-				le16_to_cpu(urb->ep->desc.wMaxPacketSize));
+				usb_endpoint_maxp(&urb->ep->desc));
 		/* A zero-length transfer still involves at least one packet. */
 		if (total_packet_count == 0)
 			total_packet_count++;

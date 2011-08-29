@@ -149,7 +149,7 @@ static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev,
 				IORESOURCE_MEM, "ohci");
-	if (!ret) {
+	if (!res) {
 		dev_err(dev, "UHH OHCI get resource failed\n");
 		return -ENOMEM;
 	}

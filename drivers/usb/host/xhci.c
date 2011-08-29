@@ -987,7 +987,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 	out_ctx = xhci->devs[slot_id]->out_ctx;
 	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
 	hw_max_packet_size = MAX_PACKET_DECODED(le32_to_cpu(ep_ctx->ep_info2));
-	max_packet_size = le16_to_cpu(urb->dev->ep0.desc.wMaxPacketSize);
+	max_packet_size = usb_endpoint_maxp(&urb->dev->ep0.desc);
 	if (hw_max_packet_size != max_packet_size) {
 		xhci_dbg(xhci, "Max Packet Size for ep 0 changed.\n");
 		xhci_dbg(xhci, "Max packet size in usb_device = %d\n",

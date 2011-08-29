@@ -255,12 +255,11 @@ config USB_S3C_HSOTG
 	  integrated into the S3C64XX series SoC.
 
 config USB_IMX
-	tristate "Freescale IMX USB Peripheral Controller"
-	depends on ARCH_MX1
+	tristate "Freescale i.MX1 USB Peripheral Controller"
+	depends on ARCH_MXC
 	help
-	   Freescale's IMX series include an integrated full speed
-	   USB 1.1 device controller.  The controller in the IMX series
-	   is register-compatible.
+	   Freescale's i.MX1 includes an integrated full speed
+	   USB 1.1 device controller.
 
 	   It has Six fixed-function endpoints, as well as endpoint
 	   zero (for control transfers).
@@ -302,6 +301,18 @@ config USB_PXA_U2O
 	help
 	  PXA9xx Processor series include a high speed USB2.0 device
 	  controller, which support high speed and full speed USB peripheral.
+
+config USB_GADGET_DWC3
+	tristate "DesignWare USB3.0 (DRD) Controller"
+	depends on USB_DWC3
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SUPERSPEED
+	help
+	  DesignWare USB3.0 controller is a SuperSpeed USB3.0 Controller
+	  which can be configured for peripheral-only, host-only, hub-only
+	  and Dual-Role operation. This Controller was first integrated into
+	  the OMAP5 series of processors. More information about the OMAP5
+	  version of this controller, refer to http://www.ti.com/omap5.
 
 #
 # Controllers available in both integrated and discrete versions

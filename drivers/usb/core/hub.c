@@ -1636,11 +1636,6 @@ void usb_disconnect(struct usb_device **pdev)
 	int			i;
 	struct usb_hcd		*hcd = bus_to_hcd(udev->bus);
 
-	if (!udev) {
-		pr_debug ("%s nodev\n", __func__);
-		return;
-	}
-
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
 	 * this quiesces everything except pending urbs.
@@ -3023,7 +3018,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		i = 512;
 	else
 		i = udev->descriptor.bMaxPacketSize0;
-	if (le16_to_cpu(udev->ep0.desc.wMaxPacketSize) != i) {
+	if (usb_endpoint_maxp(&udev->ep0.desc) != i) {
 		if (udev->speed == USB_SPEED_LOW ||
 				!(i == 8 || i == 16 || i == 32 || i == 64)) {
 			dev_err(&udev->dev, "Invalid ep0 maxpacket: %d\n", i);
