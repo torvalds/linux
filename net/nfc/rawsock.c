@@ -123,11 +123,7 @@ error:
 
 static int rawsock_add_header(struct sk_buff *skb)
 {
-
-	if (skb_cow_head(skb, 1))
-		return -ENOMEM;
-
-	*skb_push(skb, 1) = 0;
+	*skb_push(skb, NFC_HEADER_SIZE) = 0;
 
 	return 0;
 }
@@ -197,6 +193,7 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 					struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
+	struct nfc_dev *dev = nfc_rawsock(sk)->dev;
 	struct sk_buff *skb;
 	int rc;
 
@@ -208,10 +205,12 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;
 
-	skb = sock_alloc_send_skb(sk, len, msg->msg_flags & MSG_DONTWAIT,
-									&rc);
+	skb = sock_alloc_send_skb(sk, len + dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE,
+					msg->msg_flags & MSG_DONTWAIT, &rc);
 	if (!skb)
 		return rc;
+
+	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
 
 	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
 	if (rc < 0) {

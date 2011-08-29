@@ -253,8 +253,6 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 		return -EIO;
 	}
 
-	if (status & AR_TxOpExceeded)
-		ts->ts_status |= ATH9K_TXERR_XTXOP;
 	ts->ts_rateindex = MS(status, AR_FinalTxIdx);
 	ts->ts_seqnum = MS(status, AR_SeqNum);
 	ts->tid = MS(status, AR_TxTid);
@@ -264,6 +262,8 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_status = 0;
 	ts->ts_flags  = 0;
 
+	if (status & AR_TxOpExceeded)
+		ts->ts_status |= ATH9K_TXERR_XTXOP;
 	status = ACCESS_ONCE(ads->status2);
 	ts->ts_rssi_ctl0 = MS(status, AR_TxRSSIAnt00);
 	ts->ts_rssi_ctl1 = MS(status, AR_TxRSSIAnt01);
@@ -415,36 +415,12 @@ static void ar9003_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
 static void ar9003_hw_set11n_aggr_first(struct ath_hw *ah, void *ds,
 					u32 aggrLen)
 {
-#define FIRST_DESC_NDELIMS 60
 	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
 
 	ads->ctl12 |= (AR_IsAggr | AR_MoreAggr);
 
-	if (ah->ent_mode & AR_ENT_OTP_MPSD) {
-		u32 ctl17, ndelim;
-		/*
-		 * Add delimiter when using RTS/CTS with aggregation
-		 * and non enterprise AR9003 card
-		 */
-		ctl17 = ads->ctl17;
-		ndelim = MS(ctl17, AR_PadDelim);
-
-		if (ndelim < FIRST_DESC_NDELIMS) {
-			aggrLen += (FIRST_DESC_NDELIMS - ndelim) * 4;
-			ndelim = FIRST_DESC_NDELIMS;
-		}
-
-		ctl17 &= ~AR_AggrLen;
-		ctl17 |= SM(aggrLen, AR_AggrLen);
-
-		ctl17 &= ~AR_PadDelim;
-		ctl17 |= SM(ndelim, AR_PadDelim);
-
-		ads->ctl17 = ctl17;
-	} else {
-		ads->ctl17 &= ~AR_AggrLen;
-		ads->ctl17 |= SM(aggrLen, AR_AggrLen);
-	}
+	ads->ctl17 &= ~AR_AggrLen;
+	ads->ctl17 |= SM(aggrLen, AR_AggrLen);
 }
 
 static void ar9003_hw_set11n_aggr_middle(struct ath_hw *ah, void *ds,

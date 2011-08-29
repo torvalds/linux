@@ -32,8 +32,10 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x002E) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x0030) }, /* PCI-E  AR9300 */
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
+	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
 	{ 0 }
 };
+
 
 /* return bus cachesize in 4B word units */
 static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
@@ -88,23 +90,6 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 	return true;
 }
 
-/*
- * Bluetooth coexistance requires disabling ASPM.
- */
-static void ath_pci_bt_coex_prep(struct ath_common *common)
-{
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	struct pci_dev *pdev = to_pci_dev(sc->dev);
-	u8 aspm;
-
-	if (!pci_is_pcie(pdev))
-		return;
-
-	pci_read_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, &aspm);
-	aspm &= ~(ATH_PCIE_CAP_LINK_L0S | ATH_PCIE_CAP_LINK_L1);
-	pci_write_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, aspm);
-}
-
 static void ath_pci_extn_synch_enable(struct ath_common *common)
 {
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
@@ -116,6 +101,7 @@ static void ath_pci_extn_synch_enable(struct ath_common *common)
 	pci_write_config_byte(pdev, sc->sc_ah->caps.pcie_lcr_offset, lnkctl);
 }
 
+/* Need to be called after we discover btcoex capabilities */
 static void ath_pci_aspm_init(struct ath_common *common)
 {
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
@@ -125,19 +111,38 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	int pos;
 	u8 aspm;
 
-	if (!pci_is_pcie(pdev))
+	pos = pci_pcie_cap(pdev);
+	if (!pos)
 		return;
 
 	parent = pdev->bus->self;
-	if (WARN_ON(!parent))
+	if (!parent)
 		return;
+
+	if (ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) {
+		/* Bluetooth coexistance requires disabling ASPM. */
+		pci_read_config_byte(pdev, pos + PCI_EXP_LNKCTL, &aspm);
+		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
+		pci_write_config_byte(pdev, pos + PCI_EXP_LNKCTL, aspm);
+
+		/*
+		 * Both upstream and downstream PCIe components should
+		 * have the same ASPM settings.
+		 */
+		pos = pci_pcie_cap(parent);
+		pci_read_config_byte(parent, pos + PCI_EXP_LNKCTL, &aspm);
+		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
+		pci_write_config_byte(parent, pos + PCI_EXP_LNKCTL, aspm);
+
+		return;
+	}
 
 	pos = pci_pcie_cap(parent);
 	pci_read_config_byte(parent, pos +  PCI_EXP_LNKCTL, &aspm);
 	if (aspm & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
-		ath9k_hw_configpcipowersave(ah, 0, 0);
+		ath9k_hw_configpcipowersave(ah, false);
 	}
 }
 
@@ -145,7 +150,6 @@ static const struct ath_bus_ops ath_pci_bus_ops = {
 	.ath_bus_type = ATH_PCI,
 	.read_cachesize = ath_pci_read_cachesize,
 	.eeprom_read = ath_pci_eeprom_read,
-	.bt_coex_prep = ath_pci_bt_coex_prep,
 	.extn_synch_en = ath_pci_extn_synch_enable,
 	.aspm_init = ath_pci_aspm_init,
 };
@@ -338,7 +342,7 @@ static int ath_pci_resume(struct device *device)
 	   * semi-random values after suspend/resume.
 	   */
 	ath9k_ps_wakeup(sc);
-	ath9k_init_crypto(sc);
+	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_ps_restore(sc);
 
 	sc->ps_idle = true;

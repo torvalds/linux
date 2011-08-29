@@ -13,10 +13,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
-#define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
-#define IEEE80211_MESH_RANN_INTERVAL	     (1 * HZ)
-
 #define MESHCONF_CAPAB_ACCEPT_PLINKS 0x01
 #define MESHCONF_CAPAB_FORWARDING    0x08
 
@@ -26,6 +22,17 @@
 
 int mesh_allocated;
 static struct kmem_cache *rm_cache;
+
+#ifdef CONFIG_MAC80211_MESH
+bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
+{
+	return (mgmt->u.action.u.mesh_action.action_code ==
+			WLAN_MESH_ACTION_HWMP_PATH_SELECTION);
+}
+#else
+bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
+{ return false; }
+#endif
 
 void ieee80211s_init(void)
 {
@@ -204,36 +211,185 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	return 0;
 }
 
-void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+int
+mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u8 *pos, neighbors;
+	u8 meshconf_len = sizeof(struct ieee80211_meshconf_ie);
+
+	if (skb_tailroom(skb) < 2 + meshconf_len)
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + meshconf_len);
+	*pos++ = WLAN_EID_MESH_CONFIG;
+	*pos++ = meshconf_len;
+
+	/* Active path selection protocol ID */
+	*pos++ = ifmsh->mesh_pp_id;
+	/* Active path selection metric ID   */
+	*pos++ = ifmsh->mesh_pm_id;
+	/* Congestion control mode identifier */
+	*pos++ = ifmsh->mesh_cc_id;
+	/* Synchronization protocol identifier */
+	*pos++ = ifmsh->mesh_sp_id;
+	/* Authentication Protocol identifier */
+	*pos++ = ifmsh->mesh_auth_id;
+	/* Mesh Formation Info - number of neighbors */
+	neighbors = atomic_read(&ifmsh->mshstats.estab_plinks);
+	/* Number of neighbor mesh STAs or 15 whichever is smaller */
+	neighbors = (neighbors > 15) ? 15 : neighbors;
+	*pos++ = neighbors << 1;
+	/* Mesh capability */
+	ifmsh->accepting_plinks = mesh_plink_availables(sdata);
+	*pos = MESHCONF_CAPAB_FORWARDING;
+	*pos++ |= ifmsh->accepting_plinks ?
+	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
+	*pos++ = 0x00;
+
+	return 0;
+}
+
+int
+mesh_add_meshid_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u8 *pos;
+
+	if (skb_tailroom(skb) < 2 + ifmsh->mesh_id_len)
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + ifmsh->mesh_id_len);
+	*pos++ = WLAN_EID_MESH_ID;
+	*pos++ = ifmsh->mesh_id_len;
+	if (ifmsh->mesh_id_len)
+		memcpy(pos, ifmsh->mesh_id, ifmsh->mesh_id_len);
+
+	return 0;
+}
+
+int
+mesh_add_vendor_ies(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u8 offset, len;
+	const u8 *data;
+
+	if (!ifmsh->ie || !ifmsh->ie_len)
+		return 0;
+
+	/* fast-forward to vendor IEs */
+	offset = ieee80211_ie_split_vendor(ifmsh->ie, ifmsh->ie_len, 0);
+
+	if (offset) {
+		len = ifmsh->ie_len - offset;
+		data = ifmsh->ie + offset;
+		if (skb_tailroom(skb) < len)
+			return -ENOMEM;
+		memcpy(skb_put(skb, len), data, len);
+	}
+
+	return 0;
+}
+
+int
+mesh_add_rsn_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u8 len = 0;
+	const u8 *data;
+
+	if (!ifmsh->ie || !ifmsh->ie_len)
+		return 0;
+
+	/* find RSN IE */
+	data = ifmsh->ie;
+	while (data < ifmsh->ie + ifmsh->ie_len) {
+		if (*data == WLAN_EID_RSN) {
+			len = data[1] + 2;
+			break;
+		}
+		data++;
+	}
+
+	if (len) {
+		if (skb_tailroom(skb) < len)
+			return -ENOMEM;
+		memcpy(skb_put(skb, len), data, len);
+	}
+
+	return 0;
+}
+
+int
+mesh_add_srates_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	u8 *pos;
-	int len, i, rate;
-	u8 neighbors;
+	int rate;
+	u8 i, rates, *pos;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	len = sband->n_bitrates;
-	if (len > 8)
-		len = 8;
-	pos = skb_put(skb, len + 2);
+	rates = sband->n_bitrates;
+	if (rates > 8)
+		rates = 8;
+
+	if (skb_tailroom(skb) < rates + 2)
+		return -ENOMEM;
+
+	pos = skb_put(skb, rates + 2);
 	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = len;
-	for (i = 0; i < len; i++) {
+	*pos++ = rates;
+	for (i = 0; i < rates; i++) {
 		rate = sband->bitrates[i].bitrate;
 		*pos++ = (u8) (rate / 5);
 	}
 
-	if (sband->n_bitrates > len) {
-		pos = skb_put(skb, sband->n_bitrates - len + 2);
+	return 0;
+}
+
+int
+mesh_add_ext_srates_ie(struct sk_buff *skb,
+		       struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	int rate;
+	u8 i, exrates, *pos;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	exrates = sband->n_bitrates;
+	if (exrates > 8)
+		exrates -= 8;
+	else
+		exrates = 0;
+
+	if (skb_tailroom(skb) < exrates + 2)
+		return -ENOMEM;
+
+	if (exrates) {
+		pos = skb_put(skb, exrates + 2);
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = sband->n_bitrates - len;
-		for (i = len; i < sband->n_bitrates; i++) {
+		*pos++ = exrates;
+		for (i = 8; i < sband->n_bitrates; i++) {
 			rate = sband->bitrates[i].bitrate;
 			*pos++ = (u8) (rate / 5);
 		}
 	}
+	return 0;
+}
 
+int mesh_add_ds_params_ie(struct sk_buff *skb,
+			  struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	u8 *pos;
+
+	if (skb_tailroom(skb) < 3)
+		return -ENOMEM;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	if (sband->band == IEEE80211_BAND_2GHZ) {
 		pos = skb_put(skb, 2 + 1);
 		*pos++ = WLAN_EID_DS_PARAMS;
@@ -241,52 +397,8 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 		*pos++ = ieee80211_frequency_to_channel(local->hw.conf.channel->center_freq);
 	}
 
-	pos = skb_put(skb, 2 + sdata->u.mesh.mesh_id_len);
-	*pos++ = WLAN_EID_MESH_ID;
-	*pos++ = sdata->u.mesh.mesh_id_len;
-	if (sdata->u.mesh.mesh_id_len)
-		memcpy(pos, sdata->u.mesh.mesh_id, sdata->u.mesh.mesh_id_len);
-
-	pos = skb_put(skb, 2 + sizeof(struct ieee80211_meshconf_ie));
-	*pos++ = WLAN_EID_MESH_CONFIG;
-	*pos++ = sizeof(struct ieee80211_meshconf_ie);
-
-	/* Active path selection protocol ID */
-	*pos++ = sdata->u.mesh.mesh_pp_id;
-
-	/* Active path selection metric ID   */
-	*pos++ = sdata->u.mesh.mesh_pm_id;
-
-	/* Congestion control mode identifier */
-	*pos++ = sdata->u.mesh.mesh_cc_id;
-
-	/* Synchronization protocol identifier */
-	*pos++ = sdata->u.mesh.mesh_sp_id;
-
-	/* Authentication Protocol identifier */
-	*pos++ = sdata->u.mesh.mesh_auth_id;
-
-	/* Mesh Formation Info - number of neighbors */
-	neighbors = atomic_read(&sdata->u.mesh.mshstats.estab_plinks);
-	/* Number of neighbor mesh STAs or 15 whichever is smaller */
-	neighbors = (neighbors > 15) ? 15 : neighbors;
-	*pos++ = neighbors << 1;
-
-	/* Mesh capability */
-	sdata->u.mesh.accepting_plinks = mesh_plink_availables(sdata);
-	*pos = MESHCONF_CAPAB_FORWARDING;
-	*pos++ |= sdata->u.mesh.accepting_plinks ?
-	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
-	*pos++ = 0x00;
-
-	if (sdata->u.mesh.ie) {
-		int len = sdata->u.mesh.ie_len;
-		const u8 *data = sdata->u.mesh.ie;
-		if (skb_tailroom(skb) > len)
-			memcpy(skb_put(skb, len), data, len);
-	}
+	return 0;
 }
-
 
 static void ieee80211_mesh_path_timer(unsigned long data)
 {
@@ -425,7 +537,8 @@ static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
 
 	mesh_path_tx_root_frame(sdata);
 	mod_timer(&ifmsh->mesh_path_root_timer,
-		  round_jiffies(jiffies + IEEE80211_MESH_RANN_INTERVAL));
+		  round_jiffies(TU_TO_EXP_TIME(
+				  ifmsh->mshcfg.dot11MeshHWMPRannInterval)));
 }
 
 #ifdef CONFIG_PM
@@ -433,7 +546,7 @@ void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	/* use atomic bitops in case both timers fire at the same time */
+	/* use atomic bitops in case all timers fire at the same time */
 
 	if (del_timer_sync(&ifmsh->housekeeping_timer))
 		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
@@ -557,11 +670,18 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_rx_status *rx_status)
 {
 	switch (mgmt->u.action.category) {
-	case WLAN_CATEGORY_MESH_ACTION:
-		mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
+	case WLAN_CATEGORY_SELF_PROTECTED:
+		switch (mgmt->u.action.u.self_prot.action_code) {
+		case WLAN_SP_MESH_PEERING_OPEN:
+		case WLAN_SP_MESH_PEERING_CLOSE:
+		case WLAN_SP_MESH_PEERING_CONFIRM:
+			mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
+			break;
+		}
 		break;
-	case WLAN_CATEGORY_MESH_PATH_SEL:
-		mesh_rx_path_sel_frame(sdata, mgmt, len);
+	case WLAN_CATEGORY_MESH_ACTION:
+		if (mesh_action_is_path_sel(mgmt))
+			mesh_rx_path_sel_frame(sdata, mgmt, len);
 		break;
 	}
 }
@@ -633,6 +753,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmsh->accepting_plinks = true;
 	ifmsh->preq_id = 0;
 	ifmsh->sn = 0;
+	ifmsh->num_gates = 0;
 	atomic_set(&ifmsh->mpaths, 0);
 	mesh_rmc_init(sdata);
 	ifmsh->last_preq = jiffies;

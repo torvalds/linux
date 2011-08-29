@@ -51,104 +51,6 @@ static u8 _rtl92se_map_hwqueue_to_fwqueue(struct sk_buff *skb,	u8 skb_queue)
 	return skb->priority;
 }
 
-static int _rtl92se_rate_mapping(bool isht, u8 desc_rate, bool first_ampdu)
-{
-	int rate_idx = 0;
-
-	if (first_ampdu) {
-		if (false == isht) {
-			switch (desc_rate) {
-			case DESC92S_RATE1M:
-				rate_idx = 0;
-				break;
-			case DESC92S_RATE2M:
-				rate_idx = 1;
-				break;
-			case DESC92S_RATE5_5M:
-				rate_idx = 2;
-				break;
-			case DESC92S_RATE11M:
-				rate_idx = 3;
-				break;
-			case DESC92S_RATE6M:
-				rate_idx = 4;
-				break;
-			case DESC92S_RATE9M:
-				rate_idx = 5;
-				break;
-			case DESC92S_RATE12M:
-				rate_idx = 6;
-				break;
-			case DESC92S_RATE18M:
-				rate_idx = 7;
-				break;
-			case DESC92S_RATE24M:
-				rate_idx = 8;
-				break;
-			case DESC92S_RATE36M:
-				rate_idx = 9;
-				break;
-			case DESC92S_RATE48M:
-				rate_idx = 10;
-				break;
-			case DESC92S_RATE54M:
-				rate_idx = 11;
-				break;
-			default:
-				rate_idx = 0;
-				break;
-			}
-		} else {
-			rate_idx = 11;
-		}
-
-		return rate_idx;
-	}
-
-	switch (desc_rate) {
-	case DESC92S_RATE1M:
-		rate_idx = 0;
-		break;
-	case DESC92S_RATE2M:
-		rate_idx = 1;
-		break;
-	case DESC92S_RATE5_5M:
-		rate_idx = 2;
-		break;
-	case DESC92S_RATE11M:
-		rate_idx = 3;
-		break;
-	case DESC92S_RATE6M:
-		rate_idx = 4;
-		break;
-	case DESC92S_RATE9M:
-		rate_idx = 5;
-		break;
-	case DESC92S_RATE12M:
-		rate_idx = 6;
-		break;
-	case DESC92S_RATE18M:
-		rate_idx = 7;
-		break;
-	case DESC92S_RATE24M:
-		rate_idx = 8;
-		break;
-	case DESC92S_RATE36M:
-		rate_idx = 9;
-		break;
-	case DESC92S_RATE48M:
-		rate_idx = 10;
-		break;
-	case DESC92S_RATE54M:
-		rate_idx = 11;
-		break;
-	default:
-		rate_idx = 11;
-		break;
-	}
-	return rate_idx;
-}
-
 static u8 _rtl92s_query_rxpwrpercentage(char antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
@@ -345,8 +247,8 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 		pstats->recvsignalpower = rx_pwr_all;
 
 		if (GET_RX_STATUS_DESC_RX_HT(pdesc) &&
-			GET_RX_STATUS_DESC_RX_MCS(pdesc) >= DESC92S_RATEMCS8 &&
-		    GET_RX_STATUS_DESC_RX_MCS(pdesc) <= DESC92S_RATEMCS15)
+			GET_RX_STATUS_DESC_RX_MCS(pdesc) >= DESC92_RATEMCS8 &&
+		    GET_RX_STATUS_DESC_RX_MCS(pdesc) <= DESC92_RATEMCS15)
 			max_spatial_stream = 2;
 		else
 			max_spatial_stream = 1;
@@ -654,10 +556,10 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 
-	rx_status->rate_idx = _rtl92se_rate_mapping((bool)
-			GET_RX_STATUS_DESC_RX_HT(pdesc),
-			(u8)GET_RX_STATUS_DESC_RX_MCS(pdesc),
-			(bool)GET_RX_STATUS_DESC_PAGGR(pdesc));
+	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
+				(bool)GET_RX_STATUS_DESC_RX_HT(pdesc),
+				(u8)GET_RX_STATUS_DESC_RX_MCS(pdesc),
+				(bool)GET_RX_STATUS_DESC_PAGGR(pdesc));
 
 
 	rx_status->mactime = GET_RX_STATUS_DESC_TSFL(pdesc);
@@ -723,14 +625,14 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RSVD_MACID(pdesc, reserved_macid);
 
 		SET_TX_DESC_TXHT(pdesc, ((ptcb_desc->hw_rate >=
-				 DESC92S_RATEMCS0) ? 1 : 0));
+				 DESC92_RATEMCS0) ? 1 : 0));
 
 		if (rtlhal->version == VERSION_8192S_ACUT) {
-			if (ptcb_desc->hw_rate == DESC92S_RATE1M ||
-				ptcb_desc->hw_rate  == DESC92S_RATE2M ||
-				ptcb_desc->hw_rate == DESC92S_RATE5_5M ||
-				ptcb_desc->hw_rate == DESC92S_RATE11M) {
-				ptcb_desc->hw_rate = DESC92S_RATE12M;
+			if (ptcb_desc->hw_rate == DESC92_RATE1M ||
+				ptcb_desc->hw_rate  == DESC92_RATE2M ||
+				ptcb_desc->hw_rate == DESC92_RATE5_5M ||
+				ptcb_desc->hw_rate == DESC92_RATE11M) {
+				ptcb_desc->hw_rate = DESC92_RATE12M;
 			}
 		}
 
@@ -759,7 +661,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RTS_BANDWIDTH(pdesc, 0);
 		SET_TX_DESC_RTS_SUB_CARRIER(pdesc, ptcb_desc->rts_sc);
 		SET_TX_DESC_RTS_SHORT(pdesc, ((ptcb_desc->rts_rate <=
-		       DESC92S_RATE54M) ?
+		       DESC92_RATE54M) ?
 		       (ptcb_desc->rts_use_shortpreamble ? 1 : 0)
 		       : (ptcb_desc->rts_use_shortgi ? 1 : 0)));
 

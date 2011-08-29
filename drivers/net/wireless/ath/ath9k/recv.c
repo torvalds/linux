@@ -761,7 +761,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 	 * on.  All this is necessary because of our use of
 	 * a self-linked list to avoid rx overruns.
 	 */
-	ret = ath9k_hw_rxprocdesc(ah, ds, rs, 0);
+	ret = ath9k_hw_rxprocdesc(ah, ds, rs);
 	if (ret == -EINPROGRESS) {
 		struct ath_rx_status trs;
 		struct ath_buf *tbf;
@@ -787,7 +787,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 		 */
 
 		tds = tbf->bf_desc;
-		ret = ath9k_hw_rxprocdesc(ah, tds, &trs, 0);
+		ret = ath9k_hw_rxprocdesc(ah, tds, &trs);
 		if (ret == -EINPROGRESS)
 			return NULL;
 	}
@@ -824,7 +824,8 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	is_mc = !!is_multicast_ether_addr(hdr->addr1);
 	is_valid_tkip = rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID &&
 		test_bit(rx_stats->rs_keyix, common->tkip_keymap);
-	strip_mic = is_valid_tkip && !(rx_stats->rs_status &
+	strip_mic = is_valid_tkip && ieee80211_is_data(fc) &&
+		!(rx_stats->rs_status &
 		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC));
 
 	if (!rx_stats->rs_datalen)
@@ -1977,6 +1978,11 @@ requeue:
 	} while (1);
 
 	spin_unlock_bh(&sc->rx.rxbuflock);
+
+	if (!(ah->imask & ATH9K_INT_RXEOL)) {
+		ah->imask |= (ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+		ath9k_hw_set_interrupts(ah, ah->imask);
+	}
 
 	return 0;
 }
