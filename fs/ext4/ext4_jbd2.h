@@ -289,10 +289,10 @@ static inline int ext4_should_order_data(struct inode *inode)
 
 static inline int ext4_should_writeback_data(struct inode *inode)
 {
-	if (!S_ISREG(inode->i_mode))
-		return 0;
 	if (EXT4_JOURNAL(inode) == NULL)
 		return 1;
+	if (!S_ISREG(inode->i_mode))
+		return 0;
 	if (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
 		return 0;
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)

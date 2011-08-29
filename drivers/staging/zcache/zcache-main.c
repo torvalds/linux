@@ -19,6 +19,7 @@
  *   http://marc.info/?l=linux-mm&m=127811271605009
  */
 
+#include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/highmem.h>
 #include <linux/list.h>
@@ -27,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
+#include <linux/math64.h>
 #include "tmem.h"
 
 #include "../zram/xvmalloc.h" /* if built in drivers/staging */
@@ -53,6 +55,9 @@
 
 #define MAX_CLIENTS 16
 #define LOCAL_CLIENT ((uint16_t)-1)
+
+MODULE_LICENSE("GPL");
+
 struct zcache_client {
 	struct tmem_pool *tmem_pools[MAX_POOLS_PER_CLIENT];
 	struct xv_pool *xvpool;
@@ -1158,6 +1163,7 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
 	uint16_t client_id = get_client_id_from_client(cli);
 	unsigned long zv_mean_zsize;
 	unsigned long curr_pers_pampd_count;
+	u64 total_zsize;
 
 	if (eph) {
 		ret = zcache_compress(page, &cdata, &clen);
@@ -1190,8 +1196,9 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
 		}
 		/* reject if mean compression is too poor */
 		if ((clen > zv_max_mean_zsize) && (curr_pers_pampd_count > 0)) {
-			zv_mean_zsize = xv_get_total_size_bytes(cli->xvpool) /
-						curr_pers_pampd_count;
+			total_zsize = xv_get_total_size_bytes(cli->xvpool);
+			zv_mean_zsize = div_u64(total_zsize,
+						curr_pers_pampd_count);
 			if (zv_mean_zsize > zv_max_mean_zsize) {
 				zcache_mean_compress_poor++;
 				goto out;
@@ -1929,9 +1936,9 @@ __setup("nofrontswap", no_frontswap);
 
 static int __init zcache_init(void)
 {
-#ifdef CONFIG_SYSFS
 	int ret = 0;
 
+#ifdef CONFIG_SYSFS
 	ret = sysfs_create_group(mm_kobj, &zcache_attr_group);
 	if (ret) {
 		pr_err("zcache: can't create sysfs\n");

@@ -195,10 +195,10 @@ ENTRY(iwmmxt_task_disable)
 
 	@ enable access to CP0 and CP1
 	XSC(mrc	p15, 0, r4, c15, c1, 0)
-	XSC(orr	r4, r4, #0xf)
+	XSC(orr	r4, r4, #0x3)
 	XSC(mcr	p15, 0, r4, c15, c1, 0)
 	PJ4(mrc p15, 0, r4, c1, c0, 2)
-	PJ4(orr	r4, r4, #0x3)
+	PJ4(orr	r4, r4, #0xf)
 	PJ4(mcr	p15, 0, r4, c1, c0, 2)
 
 	mov	r0, #0				@ nothing to load
@@ -313,7 +313,7 @@ ENTRY(iwmmxt_task_switch)
 	teq	r2, r3				@ next task owns it?
 	movne	pc, lr				@ no: leave Concan disabled
 
-1:	@ flip Conan access
+1:	@ flip Concan access
 	XSC(eor	r1, r1, #0x3)
 	XSC(mcr	p15, 0, r1, c15, c1, 0)
 	PJ4(eor r1, r1, #0xf)

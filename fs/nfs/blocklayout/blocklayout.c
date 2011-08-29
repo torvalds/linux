@@ -36,6 +36,7 @@
 #include <linux/namei.h>
 #include <linux/bio.h>		/* struct bio */
 #include <linux/buffer_head.h>	/* various write calls */
+#include <linux/prefetch.h>
 
 #include "blocklayout.h"
 

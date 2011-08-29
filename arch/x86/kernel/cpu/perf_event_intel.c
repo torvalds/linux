@@ -1590,6 +1590,7 @@ static __init int intel_pmu_init(void)
 		break;
 
 	case 42: /* SandyBridge */
+	case 45: /* SandyBridge, "Romely-EP" */
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 

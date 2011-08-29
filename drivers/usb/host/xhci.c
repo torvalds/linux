@@ -345,7 +345,8 @@ static void xhci_event_ring_work(unsigned long arg)
 	spin_lock_irqsave(&xhci->lock, flags);
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_dbg(xhci, "op reg status = 0x%x\n", temp);
-	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING)) {
+	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING) ||
+			(xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "HW died, polling stopped.\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
@@ -939,8 +940,11 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 		return 0;
 	}
 
+	xhci = hcd_to_xhci(hcd);
+	if (xhci->xhc_state & XHCI_STATE_HALTED)
+		return -ENODEV;
+
 	if (check_virt_dev) {
-		xhci = hcd_to_xhci(hcd);
 		if (!udev->slot_id || !xhci->devs
 			|| !xhci->devs[udev->slot_id]) {
 			printk(KERN_DEBUG "xHCI %s called with unaddressed "
@@ -1242,7 +1246,8 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		xhci_urb_free_priv(xhci, urb_priv);
 		return ret;
 	}
-	if (xhci->xhc_state & XHCI_STATE_DYING) {
+	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
+			(xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "Ep 0x%x: URB %p to be canceled on "
 				"non-responsive xHCI host.\n",
 				urb->ep->desc.bEndpointAddress, urb);
@@ -2665,7 +2670,10 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	int i, ret;
 
 	ret = xhci_check_args(hcd, udev, NULL, 0, true, __func__);
-	if (ret <= 0)
+	/* If the host is halted due to driver unload, we still need to free the
+	 * device.
+	 */
+	if (ret <= 0 && ret != -ENODEV)
 		return;
 
 	virt_dev = xhci->devs[udev->slot_id];
@@ -2679,7 +2687,8 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* Don't disable the slot if the host controller is dead. */
 	state = xhci_readl(xhci, &xhci->op_regs->status);
-	if (state == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING)) {
+	if (state == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING) ||
+			(xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_free_virt_device(xhci, udev->slot_id);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;

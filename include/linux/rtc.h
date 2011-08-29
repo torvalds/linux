@@ -97,6 +97,9 @@ struct rtc_pll_info {
 #define RTC_AF 0x20	/* Alarm interrupt */
 #define RTC_UF 0x10	/* Update interrupt for 1Hz RTC */
 
+
+#define RTC_MAX_FREQ	8192
+
 #ifdef __KERNEL__
 
 #include <linux/types.h>

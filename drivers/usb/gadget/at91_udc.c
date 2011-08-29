@@ -35,6 +35,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
+#include <linux/prefetch.h>
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>

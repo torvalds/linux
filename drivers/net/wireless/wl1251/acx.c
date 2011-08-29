@@ -140,8 +140,6 @@ int wl1251_acx_sleep_auth(struct wl1251 *wl, u8 sleep_auth)
 	auth->sleep_auth = sleep_auth;
 
 	ret = wl1251_cmd_configure(wl, ACX_SLEEP_AUTH, auth, sizeof(*auth));
-	if (ret < 0)
-		return ret;
 
 out:
 	kfree(auth);
@@ -681,10 +679,8 @@ int wl1251_acx_cca_threshold(struct wl1251 *wl)
 
 	ret = wl1251_cmd_configure(wl, ACX_CCA_THRESHOLD,
 				   detection, sizeof(*detection));
-	if (ret < 0) {
+	if (ret < 0)
 		wl1251_warning("failed to set cca threshold: %d", ret);
-		return ret;
-	}
 
 out:
 	kfree(detection);

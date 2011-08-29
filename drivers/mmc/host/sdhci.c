@@ -628,12 +628,11 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	/* timeout in us */
 	if (!data)
 		target_timeout = cmd->cmd_timeout_ms * 1000;
-	else
-		target_timeout = data->timeout_ns / 1000 +
-			data->timeout_clks / host->clock;
-
-	if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)
-		host->timeout_clk = host->clock / 1000;
+	else {
+		target_timeout = data->timeout_ns / 1000;
+		if (host->clock)
+			target_timeout += data->timeout_clks / host->clock;
+	}
 
 	/*
 	 * Figure out needed cycles.
@@ -645,7 +644,6 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	 *     =>
 	 *     (1) / (2) > 2^6
 	 */
-	BUG_ON(!host->timeout_clk);
 	count = 0;
 	current_timeout = (1 << 13) * 1000 / host->timeout_clk;
 	while (current_timeout < target_timeout) {
@@ -1867,9 +1865,6 @@ static void sdhci_tasklet_finish(unsigned long param)
 
 	del_timer(&host->timer);
 
-	if (host->version >= SDHCI_SPEC_300)
-		del_timer(&host->tuning_timer);
-
 	mrq = host->mrq;
 
 	/*
@@ -2461,22 +2456,6 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->max_clk = host->ops->get_max_clock(host);
 	}
 
-	host->timeout_clk =
-		(caps[0] & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
-	if (host->timeout_clk == 0) {
-		if (host->ops->get_timeout_clock) {
-			host->timeout_clk = host->ops->get_timeout_clock(host);
-		} else if (!(host->quirks &
-				SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)) {
-			printk(KERN_ERR
-			       "%s: Hardware doesn't specify timeout clock "
-			       "frequency.\n", mmc_hostname(mmc));
-			return -ENODEV;
-		}
-	}
-	if (caps[0] & SDHCI_TIMEOUT_CLK_UNIT)
-		host->timeout_clk *= 1000;
-
 	/*
 	 * In case of Host Controller v3.00, find out whether clock
 	 * multiplier is supported.
@@ -2509,10 +2488,26 @@ int sdhci_add_host(struct sdhci_host *host)
 	} else
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
 
+	host->timeout_clk =
+		(caps[0] & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+	if (host->timeout_clk == 0) {
+		if (host->ops->get_timeout_clock) {
+			host->timeout_clk = host->ops->get_timeout_clock(host);
+		} else if (!(host->quirks &
+				SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)) {
+			printk(KERN_ERR
+			       "%s: Hardware doesn't specify timeout clock "
+			       "frequency.\n", mmc_hostname(mmc));
+			return -ENODEV;
+		}
+	}
+	if (caps[0] & SDHCI_TIMEOUT_CLK_UNIT)
+		host->timeout_clk *= 1000;
+
 	if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)
-		mmc->max_discard_to = (1 << 27) / (mmc->f_max / 1000);
-	else
-		mmc->max_discard_to = (1 << 27) / host->timeout_clk;
+		host->timeout_clk = mmc->f_max / 1000;
+
+	mmc->max_discard_to = (1 << 27) / host->timeout_clk;
 
 	mmc->caps |= MMC_CAP_SDIO_IRQ | MMC_CAP_ERASE | MMC_CAP_CMD23;
 

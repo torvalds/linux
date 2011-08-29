@@ -468,6 +468,15 @@ config PATA_ICSIDE
 	  interface card.  This is not required for ICS partition support.
 	  If you are unsure, say N to this.
 
+config PATA_IMX
+	tristate "PATA support for Freescale iMX"
+	depends on ARCH_MXC
+	help
+	  This option enables support for the PATA host available on Freescale
+          iMX SoCs.
+
+	  If unsure, say N.
+
 config PATA_IT8213
 	tristate "IT8213 PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
