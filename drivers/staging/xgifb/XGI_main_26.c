@@ -1933,6 +1933,17 @@ static void XGIfb_get_VB_type(void)
 	}
 }
 
+static int __init xgifb_optval(char *fullopt, int validx)
+{
+	unsigned long lres;
+
+	if (kstrtoul(fullopt + validx, 0, &lres) < 0 || lres > INT_MAX) {
+		pr_err("xgifb: invalid value for option: %s\n", fullopt);
+		return 0;
+	}
+	return lres;
+}
+
 static int __init XGIfb_setup(char *options)
 {
 	char *this_opt;
@@ -1950,23 +1961,19 @@ static int __init XGIfb_setup(char *options)
 		if (!strncmp(this_opt, "mode:", 5)) {
 			XGIfb_search_mode(this_opt + 5);
 		} else if (!strncmp(this_opt, "vesa:", 5)) {
-			XGIfb_search_vesamode(simple_strtoul(
-						this_opt + 5, NULL, 0));
+			XGIfb_search_vesamode(xgifb_optval(this_opt, 5));
 		} else if (!strncmp(this_opt, "vrate:", 6)) {
-			xgi_video_info.refresh_rate = simple_strtoul(
-						this_opt + 6, NULL, 0);
+			xgi_video_info.refresh_rate = xgifb_optval(this_opt, 6);
 		} else if (!strncmp(this_opt, "rate:", 5)) {
-			xgi_video_info.refresh_rate = simple_strtoul(
-						this_opt + 5, NULL, 0);
+			xgi_video_info.refresh_rate = xgifb_optval(this_opt, 5);
 		} else if (!strncmp(this_opt, "crt1off", 7)) {
 			XGIfb_crt1off = 1;
 		} else if (!strncmp(this_opt, "filter:", 7)) {
-			filter = (int)simple_strtoul(this_opt + 7, NULL, 0);
+			filter = xgifb_optval(this_opt, 7);
 		} else if (!strncmp(this_opt, "forcecrt2type:", 14)) {
 			XGIfb_search_crt2type(this_opt + 14);
 		} else if (!strncmp(this_opt, "forcecrt1:", 10)) {
-			XGIfb_forcecrt1 = (int)simple_strtoul(
-						this_opt + 10, NULL, 0);
+			XGIfb_forcecrt1 = xgifb_optval(this_opt, 10);
 		} else if (!strncmp(this_opt, "tvmode:", 7)) {
 			XGIfb_search_tvstd(this_opt + 7);
 		} else if (!strncmp(this_opt, "tvstandard:", 11)) {
@@ -1978,8 +1985,7 @@ static int __init XGIfb_setup(char *options)
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
 		} else if (!strncmp(this_opt, "userom:", 7)) {
-			XGIfb_userom = (int)simple_strtoul(
-						this_opt + 7, NULL, 0);
+			XGIfb_userom = xgifb_optval(this_opt, 7);
 		} else {
 			XGIfb_search_mode(this_opt);
 		}
