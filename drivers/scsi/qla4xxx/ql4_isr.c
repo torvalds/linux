@@ -576,6 +576,9 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
 
 			ql4_printk(KERN_INFO, ha, "%s: LINK UP\n", __func__);
+			qla4xxx_post_aen_work(ha, ISCSI_EVENT_LINKUP,
+					      sizeof(mbox_sts),
+					      (uint8_t *) mbox_sts);
 			break;
 
 		case MBOX_ASTS_LINK_DOWN:
@@ -584,6 +587,9 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
 
 			ql4_printk(KERN_INFO, ha, "%s: LINK DOWN\n", __func__);
+			qla4xxx_post_aen_work(ha, ISCSI_EVENT_LINKDOWN,
+					      sizeof(mbox_sts),
+					      (uint8_t *) mbox_sts);
 			break;
 
 		case MBOX_ASTS_HEARTBEAT:

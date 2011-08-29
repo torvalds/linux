@@ -301,7 +301,21 @@ struct ql4_tuple_ddb {
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
 
+enum qla4_work_type {
+	QLA4_EVENT_AEN,
+};
 
+struct qla4_work_evt {
+	struct list_head list;
+	enum qla4_work_type type;
+	union {
+		struct {
+			enum iscsi_host_event_code code;
+			uint32_t data_size;
+			uint8_t data[0];
+		} aen;
+	} u;
+};
 
 struct ql82xx_hw_data {
 	/* Offsets for flash/nvram access (set to ~0 if not used). */
@@ -672,6 +686,10 @@ struct scsi_qla_host {
 	uint16_t sec_ddb_idx;
 	int is_reset;
 	uint16_t temperature;
+
+	/* event work list */
+	struct list_head work_list;
+	spinlock_t work_lock;
 };
 
 struct ql4_task_data {

@@ -2282,6 +2282,10 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 		}
 	}
 
+	/* Process any deferred work. */
+	if (!list_empty(&ha->work_list))
+		start_dpc++;
+
 	/* Wakeup the dpc routine for this adapter, if needed. */
 	if (start_dpc ||
 	     test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
@@ -2847,6 +2851,81 @@ void qla4xxx_wake_dpc(struct scsi_qla_host *ha)
 		queue_work(ha->dpc_thread, &ha->dpc_work);
 }
 
+static struct qla4_work_evt *
+qla4xxx_alloc_work(struct scsi_qla_host *ha, uint32_t data_size,
+		   enum qla4_work_type type)
+{
+	struct qla4_work_evt *e;
+	uint32_t size = sizeof(struct qla4_work_evt) + data_size;
+
+	e = kzalloc(size, GFP_ATOMIC);
+	if (!e)
+		return NULL;
+
+	INIT_LIST_HEAD(&e->list);
+	e->type = type;
+	return e;
+}
+
+static void qla4xxx_post_work(struct scsi_qla_host *ha,
+			     struct qla4_work_evt *e)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->work_lock, flags);
+	list_add_tail(&e->list, &ha->work_list);
+	spin_unlock_irqrestore(&ha->work_lock, flags);
+	qla4xxx_wake_dpc(ha);
+}
+
+int qla4xxx_post_aen_work(struct scsi_qla_host *ha,
+			  enum iscsi_host_event_code aen_code,
+			  uint32_t data_size, uint8_t *data)
+{
+	struct qla4_work_evt *e;
+
+	e = qla4xxx_alloc_work(ha, data_size, QLA4_EVENT_AEN);
+	if (!e)
+		return QLA_ERROR;
+
+	e->u.aen.code = aen_code;
+	e->u.aen.data_size = data_size;
+	memcpy(e->u.aen.data, data, data_size);
+
+	qla4xxx_post_work(ha, e);
+
+	return QLA_SUCCESS;
+}
+
+void qla4xxx_do_work(struct scsi_qla_host *ha)
+{
+	struct qla4_work_evt *e, *tmp;
+	unsigned long flags;
+	LIST_HEAD(work);
+
+	spin_lock_irqsave(&ha->work_lock, flags);
+	list_splice_init(&ha->work_list, &work);
+	spin_unlock_irqrestore(&ha->work_lock, flags);
+
+	list_for_each_entry_safe(e, tmp, &work, list) {
+		list_del_init(&e->list);
+
+		switch (e->type) {
+		case QLA4_EVENT_AEN:
+			iscsi_post_host_event(ha->host_no,
+					      &qla4xxx_iscsi_transport,
+					      e->u.aen.code,
+					      e->u.aen.data_size,
+					      e->u.aen.data);
+			break;
+		default:
+			ql4_printk(KERN_WARNING, ha, "event type: 0x%x not "
+				   "supported", e->type);
+		}
+		kfree(e);
+	}
+}
+
 /**
  * qla4xxx_do_dpc - dpc routine
  * @data: in our case pointer to adapter structure
@@ -2877,6 +2956,9 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 		    ha->host_no, __func__, ha->flags));
 		return;
 	}
+
+	/* post events to application */
+	qla4xxx_do_work(ha);
 
 	if (is_qla8022(ha)) {
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
@@ -4449,6 +4531,9 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	init_completion(&ha->disable_acb_comp);
 
 	spin_lock_init(&ha->hardware_lock);
+
+	/* Initialize work list */
+	INIT_LIST_HEAD(&ha->work_list);
 
 	/* Allocate dma buffers */
 	if (qla4xxx_mem_alloc(ha)) {
