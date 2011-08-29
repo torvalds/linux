@@ -193,7 +193,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 		ret = request_firmware(&fw, WL128X_FW_NAME,
 				       wl1271_wl_to_dev(wl));
 	else
-		ret = request_firmware(&fw, WL1271_FW_NAME,
+		ret = request_firmware(&fw, WL127X_FW_NAME,
 				       wl1271_wl_to_dev(wl));
 
 	if (ret < 0) {
