@@ -687,7 +687,7 @@ struct net_device *et131x_device_alloc(void)
 	/* Alloc net_device and adapter structs */
 	netdev = alloc_etherdev(sizeof(struct et131x_adapter));
 
-	if (netdev == NULL) {
+	if (!netdev) {
 		printk(KERN_ERR "et131x: Alloc of net_device struct failed\n");
 		return NULL;
 	}
