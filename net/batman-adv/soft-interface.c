@@ -801,10 +801,8 @@ struct net_device *softif_create(const char *name)
 
 	soft_iface = alloc_netdev(sizeof(*bat_priv), name, interface_setup);
 
-	if (!soft_iface) {
-		pr_err("Unable to allocate the batman interface: %s\n", name);
+	if (!soft_iface)
 		goto out;
-	}
 
 	ret = register_netdevice(soft_iface);
 	if (ret < 0) {

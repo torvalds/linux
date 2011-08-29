@@ -117,8 +117,6 @@ int mesh_init(struct net_device *soft_iface)
 	goto end;
 
 err:
-	pr_err("Unable to allocate memory for mesh information structures: "
-	       "out of mem ?\n");
 	mesh_free(soft_iface);
 	return -1;
 
