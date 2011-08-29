@@ -297,6 +297,9 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	char *buf = kzalloc(mxln, GFP_KERNEL);
 	int sf = 0; /* how many written so far */
 
+	if (!buf)
+		return 0;
+
 	sf += snprintf(buf, mxln - sf, "0x%x\n", local->hw.flags);
 	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
 		sf += snprintf(buf + sf, mxln - sf, "HAS_RATE_CONTROL\n");

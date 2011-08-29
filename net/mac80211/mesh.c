@@ -200,10 +200,9 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	}
 
 	p = kmem_cache_alloc(rm_cache, GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_DEBUG "o11s: could not allocate RMC entry\n");
+	if (!p)
 		return 0;
-	}
+
 	p->seqnum = seqnum;
 	p->exp_time = jiffies + RMC_TIMEOUT;
 	memcpy(p->sa, sa, ETH_ALEN);
