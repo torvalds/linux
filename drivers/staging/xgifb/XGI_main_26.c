@@ -2297,20 +2297,12 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_mode_idx = XGIfb_validate_mode(xgifb_mode_idx);
 
 	if (xgifb_mode_idx < 0) {
-		switch (xgi_video_info.disp_state & DISPTYPE_DISP2) {
-		case DISPTYPE_LCD:
-			xgifb_mode_idx = DEFAULT_LCDMODE;
-			if (xgi_video_info.chip == XG21)
-				xgifb_mode_idx =
-				    XGIfb_GetXG21DefaultLVDSModeIdx();
-			break;
-		case DISPTYPE_TV:
-			xgifb_mode_idx = DEFAULT_TVMODE;
-			break;
-		default:
+		if ((xgi_video_info.disp_state & DISPTYPE_DISP2) ==
+			DISPTYPE_LCD &&
+		    xgi_video_info.chip == XG21)
+			xgifb_mode_idx = XGIfb_GetXG21DefaultLVDSModeIdx();
+		else
 			xgifb_mode_idx = DEFAULT_MODE;
-			break;
-		}
 	}
 
 	if (xgifb_mode_idx < 0) {

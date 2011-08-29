@@ -254,8 +254,6 @@ static struct _XGIbios_mode {
 	{"800x480x32",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30,
 	 MD_XGI300|MD_XGI315},
 #define DEFAULT_MODE              21 /* TW: index for 800x600x8 */
-#define DEFAULT_LCDMODE           21 /* TW: index for 800x600x8 */
-#define DEFAULT_TVMODE            21 /* TW: index for 800x600x8 */
 	{"800x600x8",    0x30, 0x0103, 0x0103,  800,  600,  8, 1, 100, 37,
 	 MD_XGI300|MD_XGI315},
 	{"800x600x16",   0x47, 0x0114, 0x0114,  800,  600, 16, 1, 100, 37,
