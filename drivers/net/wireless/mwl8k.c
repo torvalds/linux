@@ -5501,6 +5501,14 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	/* Set rssi values to dBm */
 	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_HAS_RATE_CONTROL;
+
+	/*
+	 * Ask mac80211 to not to trigger PS mode
+	 * based on PM bit of incoming frames.
+	 */
+	if (priv->ap_fw)
+		hw->flags |= IEEE80211_HW_AP_LINK_PS;
+
 	hw->vif_data_size = sizeof(struct mwl8k_vif);
 	hw->sta_data_size = sizeof(struct mwl8k_sta);
 
