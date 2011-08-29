@@ -743,7 +743,7 @@ void intel_crt_init(struct drm_device *dev)
 	others (a fairly expensive operation), and providing relocation
 	support which hides fixed GTT offsets from clients.  Clients must
 	take care not to submit command buffers that reference more objects
-	than can fit in the GTT or GEM will reject them and no rendering
+	than can fit in the GTT; otherwise, GEM will reject them and no rendering
 	will occur.  Similarly, if several objects in the buffer require
 	fence registers to be allocated for correct rendering (e.g. 2D blits
 	on pre-965 chips), care must be taken not to require more fence
