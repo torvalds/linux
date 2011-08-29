@@ -49,7 +49,9 @@ int mesh_paths_generation;
 
 /* This lock will have the grow table function as writer and add / delete nodes
  * as readers. When reading the table (i.e. doing lookups) we are well protected
- * by RCU
+ * by RCU.  We need to take this lock when modying the number of buckets
+ * on one of the path tables but we don't need to if adding or removing mpaths
+ * from hash buckets.
  */
 static DEFINE_RWLOCK(pathtbl_resize_lock);
 
@@ -817,6 +819,32 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	rcu_read_unlock();
 }
 
+static void mesh_path_node_reclaim(struct rcu_head *rp)
+{
+	struct mpath_node *node = container_of(rp, struct mpath_node, rcu);
+	struct ieee80211_sub_if_data *sdata = node->mpath->sdata;
+
+	del_timer_sync(&node->mpath->timer);
+	atomic_dec(&sdata->u.mesh.mpaths);
+	kfree(node->mpath);
+	kfree(node);
+}
+
+/* needs to be called with the corresponding hashwlock taken */
+static void __mesh_path_del(struct mesh_table *tbl, struct mpath_node *node)
+{
+	struct mesh_path *mpath;
+	mpath = node->mpath;
+	spin_lock(&mpath->state_lock);
+	mpath->flags |= MESH_PATH_RESOLVING;
+	if (mpath->is_gate)
+		mesh_gate_del(tbl, mpath);
+	hlist_del_rcu(&node->list);
+	call_rcu(&node->rcu, mesh_path_node_reclaim);
+	spin_unlock(&mpath->state_lock);
+	atomic_dec(&tbl->entries);
+}
+
 static void mesh_path_flush(struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_table *tbl;
@@ -829,21 +857,13 @@ static void mesh_path_flush(struct ieee80211_sub_if_data *sdata)
 	tbl = rcu_dereference(mesh_paths);
 	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
-		if (mpath->sdata == sdata)
-			mesh_path_del(mpath->dst, mpath->sdata);
+		if (mpath->sdata == sdata) {
+			spin_lock_bh(&tbl->hashwlock[i]);
+			__mesh_path_del(tbl, node);
+			spin_unlock_bh(&tbl->hashwlock[i]);
+		}
 	}
 	rcu_read_unlock();
-}
-
-static void mesh_path_node_reclaim(struct rcu_head *rp)
-{
-	struct mpath_node *node = container_of(rp, struct mpath_node, rcu);
-	struct ieee80211_sub_if_data *sdata = node->mpath->sdata;
-
-	del_timer_sync(&node->mpath->timer);
-	atomic_dec(&sdata->u.mesh.mpaths);
-	kfree(node->mpath);
-	kfree(node);
 }
 
 static void mpp_path_flush(struct ieee80211_sub_if_data *sdata)
@@ -859,12 +879,8 @@ static void mpp_path_flush(struct ieee80211_sub_if_data *sdata)
 					lockdep_is_held(pathtbl_resize_lock));
 	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
-		if (mpath->sdata != sdata)
-			continue;
 		spin_lock_bh(&tbl->hashwlock[i]);
-		hlist_del_rcu(&node->list);
-		call_rcu(&node->rcu, mesh_path_node_reclaim);
-		atomic_dec(&tbl->entries);
+		__mesh_path_del(tbl, node);
 		spin_unlock_bh(&tbl->hashwlock[i]);
 	}
 	read_unlock_bh(&pathtbl_resize_lock);
@@ -912,14 +928,7 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
 		    memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
-			spin_lock_bh(&mpath->state_lock);
-			if (mpath->is_gate)
-				mesh_gate_del(tbl, mpath);
-			mpath->flags |= MESH_PATH_RESOLVING;
-			hlist_del_rcu(&node->list);
-			call_rcu(&node->rcu, mesh_path_node_reclaim);
-			atomic_dec(&tbl->entries);
-			spin_unlock_bh(&mpath->state_lock);
+			__mesh_path_del(tbl, node);
 			goto enddel;
 		}
 	}
@@ -1160,6 +1169,7 @@ void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 		    (!(mpath->flags & MESH_PATH_FIXED)) &&
 		     time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE))
 			mesh_path_del(mpath->dst, mpath->sdata);
+	}
 	rcu_read_unlock();
 }
 
