@@ -832,7 +832,6 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		data[3] = qlcnic_loopback_test(dev, QLCNIC_ILB_MODE);
 		if (data[3])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
-
 		if (eth_test->flags & ETH_TEST_FL_EXTERNAL_LB) {
 			data[4] = qlcnic_loopback_test(dev, QLCNIC_ELB_MODE);
 			if (data[4])

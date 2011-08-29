@@ -2928,15 +2928,36 @@ qlcnic_detach_work(struct work_struct *work)
 
 	status = QLCRD32(adapter, QLCNIC_PEG_HALT_STATUS1);
 
-	if (status & QLCNIC_RCODE_FATAL_ERROR)
-		goto err_ret;
+	if (status & QLCNIC_RCODE_FATAL_ERROR) {
+		dev_err(&adapter->pdev->dev,
+			"Detaching the device: peg halt status1=0x%x\n",
+					status);
 
-	if (adapter->temp == QLCNIC_TEMP_PANIC)
+		if (QLCNIC_FWERROR_CODE(status) == QLCNIC_FWERROR_FAN_FAILURE) {
+			dev_err(&adapter->pdev->dev,
+			"On board active cooling fan failed. "
+				"Device has been halted.\n");
+			dev_err(&adapter->pdev->dev,
+				"Replace the adapter.\n");
+		}
+
 		goto err_ret;
+	}
+
+	if (adapter->temp == QLCNIC_TEMP_PANIC) {
+		dev_err(&adapter->pdev->dev, "Detaching the device: temp=%d\n",
+			adapter->temp);
+		goto err_ret;
+	}
+
 	/* Dont ack if this instance is the reset owner */
 	if (!(adapter->flags & QLCNIC_FW_RESET_OWNER)) {
-		if (qlcnic_set_drv_state(adapter, adapter->dev_state))
+		if (qlcnic_set_drv_state(adapter, adapter->dev_state)) {
+			dev_err(&adapter->pdev->dev,
+				"Failed to set driver state,"
+					"detaching the device.\n");
 			goto err_ret;
+		}
 	}
 
 	adapter->fw_wait_cnt = 0;
@@ -2946,8 +2967,6 @@ qlcnic_detach_work(struct work_struct *work)
 	return;
 
 err_ret:
-	dev_err(&adapter->pdev->dev, "detach failed; status=%d temp=%d\n",
-			status, adapter->temp);
 	netif_device_attach(netdev);
 	qlcnic_clr_all_drv_state(adapter, 1);
 }

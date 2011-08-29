@@ -609,6 +609,7 @@ enum {
 	QLCNIC_TEMP_PANIC	/* Fatal error, hardware has shut down. */
 };
 
+
 /* Lock IDs for PHY lock */
 #define PHY_LOCK_DRIVER		0x44524956
 
@@ -723,7 +724,8 @@ enum {
 #define QLCNIC_RCODE_DRIVER_CAN_RELOAD		BIT_30
 #define QLCNIC_RCODE_FATAL_ERROR		BIT_31
 #define QLCNIC_FWERROR_PEGNUM(code)		((code) & 0xff)
-#define QLCNIC_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
+#define QLCNIC_FWERROR_CODE(code)		((code >> 8) & 0x1fffff)
+#define QLCNIC_FWERROR_FAN_FAILURE		0x16
 
 #define FW_POLL_DELAY		(1 * HZ)
 #define FW_FAIL_THRESH		2
