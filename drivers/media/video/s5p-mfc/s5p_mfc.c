@@ -202,7 +202,7 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 	   appropraite flags */
 	src_buf = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	list_for_each_entry(dst_buf, &ctx->dst_queue, list) {
-		if (vb2_dma_contig_plane_paddr(dst_buf->b, 0) == dec_y_addr) {
+		if (vb2_dma_contig_plane_dma_addr(dst_buf->b, 0) == dec_y_addr) {
 			memcpy(&dst_buf->b->v4l2_buf.timecode,
 				&src_buf->b->v4l2_buf.timecode,
 				sizeof(struct v4l2_timecode));
@@ -248,7 +248,7 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	 * check which videobuf does it correspond to */
 	list_for_each_entry(dst_buf, &ctx->dst_queue, list) {
 		/* Check if this is the buffer we're looking for */
-		if (vb2_dma_contig_plane_paddr(dst_buf->b, 0) == dspl_y_addr) {
+		if (vb2_dma_contig_plane_dma_addr(dst_buf->b, 0) == dspl_y_addr) {
 			list_del(&dst_buf->list);
 			ctx->dst_queue_cnt--;
 			dst_buf->b->v4l2_buf.sequence = ctx->sequence;

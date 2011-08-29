@@ -824,7 +824,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 			return 0;
 		for (i = 0; i <= ctx->src_fmt->num_planes ; i++) {
 			if (IS_ERR_OR_NULL(ERR_PTR(
-					vb2_dma_contig_plane_paddr(vb, i)))) {
+					vb2_dma_contig_plane_dma_addr(vb, i)))) {
 				mfc_err("Plane mem not allocated\n");
 				return -EINVAL;
 			}
@@ -837,13 +837,13 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		i = vb->v4l2_buf.index;
 		ctx->dst_bufs[i].b = vb;
 		ctx->dst_bufs[i].cookie.raw.luma =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->dst_bufs[i].cookie.raw.chroma =
-					vb2_dma_contig_plane_paddr(vb, 1);
+					vb2_dma_contig_plane_dma_addr(vb, 1);
 		ctx->dst_bufs_cnt++;
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (IS_ERR_OR_NULL(ERR_PTR(
-					vb2_dma_contig_plane_paddr(vb, 0)))) {
+					vb2_dma_contig_plane_dma_addr(vb, 0)))) {
 			mfc_err("Plane memory not allocated\n");
 			return -EINVAL;
 		}
@@ -855,7 +855,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		i = vb->v4l2_buf.index;
 		ctx->src_bufs[i].b = vb;
 		ctx->src_bufs[i].cookie.stream =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->src_bufs_cnt++;
 	} else {
 		mfc_err("s5p_mfc_buf_init: unknown queue type\n");

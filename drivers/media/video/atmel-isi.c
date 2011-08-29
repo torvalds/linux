@@ -341,7 +341,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 			/* Initialize the dma descriptor */
 			desc->p_fbd->fb_address =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 			desc->p_fbd->next_fbd_address = 0;
 			set_dma_ctrl(desc->p_fbd, ISI_DMA_CTRL_WB);
 

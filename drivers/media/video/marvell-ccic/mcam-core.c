@@ -450,7 +450,7 @@ static void mcam_set_contig_buffer(struct mcam_camera *cam, int frame)
 		buf = cam->vb_bufs[frame ^ 0x1];
 		cam->vb_bufs[frame] = buf;
 		mcam_reg_write(cam, frame == 0 ? REG_Y0BAR : REG_Y1BAR,
-				vb2_dma_contig_plane_paddr(&buf->vb_buf, 0));
+				vb2_dma_contig_plane_dma_addr(&buf->vb_buf, 0));
 		set_bit(CF_SINGLE_BUFFER, &cam->flags);
 		singles++;
 		return;
@@ -461,7 +461,7 @@ static void mcam_set_contig_buffer(struct mcam_camera *cam, int frame)
 	buf = list_first_entry(&cam->buffers, struct mcam_vb_buffer, queue);
 	list_del_init(&buf->queue);
 	mcam_reg_write(cam, frame == 0 ? REG_Y0BAR : REG_Y1BAR,
-			vb2_dma_contig_plane_paddr(&buf->vb_buf, 0));
+			vb2_dma_contig_plane_dma_addr(&buf->vb_buf, 0));
 	cam->vb_bufs[frame] = buf;
 	clear_bit(CF_SINGLE_BUFFER, &cam->flags);
 }

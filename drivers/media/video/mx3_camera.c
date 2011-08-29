@@ -247,7 +247,7 @@ static int mx3_videobuf_prepare(struct vb2_buffer *vb)
 	}
 
 	if (buf->state == CSI_BUF_NEEDS_INIT) {
-		sg_dma_address(sg)	= vb2_dma_contig_plane_paddr(vb, 0);
+		sg_dma_address(sg)	= vb2_dma_contig_plane_dma_addr(vb, 0);
 		sg_dma_len(sg)		= new_size;
 
 		buf->txd = ichan->dma_chan.device->device_prep_slave_sg(
