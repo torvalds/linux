@@ -481,7 +481,7 @@ static int __devexit wm8776_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8776_spi_driver = {
 	.driver = {
-		.name	= "wm8776-codec",
+		.name	= "wm8776",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8776_spi_probe,
@@ -525,7 +525,7 @@ MODULE_DEVICE_TABLE(i2c, wm8776_i2c_id);
 
 static struct i2c_driver wm8776_i2c_driver = {
 	.driver = {
-		.name = "wm8776-codec",
+		.name = "wm8776",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8776_i2c_probe,
