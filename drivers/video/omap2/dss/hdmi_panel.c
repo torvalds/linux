@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <video/omapdss.h>
+#include <linux/slab.h>
 
 #include "dss.h"
 
@@ -198,6 +199,29 @@ err:
 	return r;
 }
 
+static bool hdmi_detect(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	mutex_lock(&hdmi.hdmi_lock);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
+		r = omapdss_hdmi_display_enable(dssdev);
+		if (r)
+			goto err;
+	}
+
+	r = omapdss_hdmi_detect();
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
+			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
+		omapdss_hdmi_display_disable(dssdev);
+err:
+	mutex_unlock(&hdmi.hdmi_lock);
+
+	return r;
+}
+
 static struct omap_dss_driver hdmi_driver = {
 	.probe		= hdmi_panel_probe,
 	.remove		= hdmi_panel_remove,
@@ -209,6 +233,7 @@ static struct omap_dss_driver hdmi_driver = {
 	.set_timings	= hdmi_set_timings,
 	.check_timings	= hdmi_check_timings,
 	.read_edid	= hdmi_read_edid,
+	.detect		= hdmi_detect,
 	.driver			= {
 		.name   = "hdmi_panel",
 		.owner  = THIS_MODULE,

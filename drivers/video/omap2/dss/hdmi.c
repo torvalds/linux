@@ -449,6 +449,23 @@ int omapdss_hdmi_read_edid(u8 *buf, int len)
 	return r;
 }
 
+bool omapdss_hdmi_detect(void)
+{
+	int r;
+
+	mutex_lock(&hdmi.lock);
+
+	r = hdmi_runtime_get();
+	BUG_ON(r);
+
+	r = hdmi.ip_data.ops->detect(&hdmi.ip_data);
+
+	hdmi_runtime_put();
+	mutex_unlock(&hdmi.lock);
+
+	return r == 1;
+}
+
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r = 0;
