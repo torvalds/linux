@@ -25,6 +25,8 @@ sound/*rk28*.c
 sound/*rk28*.h
 include/*rk28*
 
+arch/arm/mach-rk29/ddr_reconfig.c
+
 drivers/staging/rk29/vivante/*.c
 drivers/staging/rk29/vivante/*.h
 
