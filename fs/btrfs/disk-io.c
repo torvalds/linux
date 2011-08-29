@@ -2543,8 +2543,6 @@ int close_ctree(struct btrfs_root *root)
 	/* clear out the rbtree of defraggable inodes */
 	btrfs_run_defrag_inodes(root->fs_info);
 
-	btrfs_put_block_group_cache(fs_info);
-
 	/*
 	 * Here come 2 situations when btrfs is broken to flip readonly:
 	 *
@@ -2569,6 +2567,8 @@ int close_ctree(struct btrfs_root *root)
 		if (ret)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
+
+	btrfs_put_block_group_cache(fs_info);
 
 	kthread_stop(root->fs_info->transaction_kthread);
 	kthread_stop(root->fs_info->cleaner_kthread);

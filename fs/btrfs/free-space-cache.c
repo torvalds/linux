@@ -105,7 +105,7 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 		block_group->disk_cache_state = BTRFS_DC_CLEAR;
 	}
 
-	if (!btrfs_fs_closing(root->fs_info)) {
+	if (!block_group->iref) {
 		block_group->inode = igrab(inode);
 		block_group->iref = 1;
 	}
