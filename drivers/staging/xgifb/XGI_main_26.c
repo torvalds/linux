@@ -1994,10 +1994,6 @@ static int __init XGIfb_setup(char *options)
 			/* printk(KERN_INFO "XGIfb: Invalid option %s\n",
 				  this_opt); */
 		}
-
-		/* TW: Panning only with acceleration */
-		XGIfb_ypan = 0;
-
 	}
 	printk("\nxgifb: outa xgifb_setup 3450");
 	return 0;
