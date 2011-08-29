@@ -211,9 +211,6 @@ static struct _XGIbios_mode {
 	u16 rows;
 	u8  chipset;
 } XGIbios_mode[] = {
-#define MODE_INDEX_NONE           0  /* TW: index for mode=none */
-	{"none",         0xFF, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0,
-	 MD_XGI300|MD_XGI315},  /* TW: for mode "none" */
 	{"320x240x16",   0x56, 0x0000, 0x0000,  320,  240, 16, 1,  40, 15,
 	 MD_XGI315},
 	{"320x480x8",    0x5A, 0x0000, 0x0000,  320,  480,  8, 1,  40, 30,
@@ -255,7 +252,7 @@ static struct _XGIbios_mode {
 	 MD_XGI300|MD_XGI315},
 	{"800x600x8",    0x30, 0x0103, 0x0103,  800,  600,  8, 1, 100, 37,
 	 MD_XGI300|MD_XGI315},
-#define DEFAULT_MODE              21 /* index for 800x600x16 */
+#define DEFAULT_MODE              20 /* index for 800x600x16 */
 	{"800x600x16",   0x47, 0x0114, 0x0114,  800,  600, 16, 1, 100, 37,
 	 MD_XGI300|MD_XGI315},
 	{"800x600x24",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37,

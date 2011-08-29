@@ -49,7 +49,7 @@
 #define XGIFB_ROM_SIZE	65536
 
 static char *mode;
-static int vesa;
+static int vesa = -1;
 
 /* -------------------- Macro definitions ---------------------------- */
 
@@ -458,11 +458,6 @@ static void XGIfb_search_mode(const char *name)
 {
 	int i = 0, j = 0, l;
 
-	if (!strcmp(name, XGIbios_mode[MODE_INDEX_NONE].name)) {
-		printk(KERN_ERR "XGIfb: Mode 'none' not supported anymore. Using default.\n");
-		return;
-	}
-
 	while (XGIbios_mode[i].mode_no != 0) {
 		l = min(strlen(name), strlen(XGIbios_mode[i].name));
 		if (!strncmp(name, XGIbios_mode[i].name, l)) {
@@ -480,11 +475,8 @@ static void XGIfb_search_vesamode(unsigned int vesamode)
 {
 	int i = 0, j = 0;
 
-	if (vesamode == 0) {
-
-		printk(KERN_ERR "XGIfb: Mode 'none' not supported anymore. Using default.\n");
-		return;
-	}
+	if (vesamode == 0)
+		goto invalid;
 
 	vesamode &= 0x1dff; /* Clean VESA mode number from other flags */
 
@@ -497,6 +489,8 @@ static void XGIfb_search_vesamode(unsigned int vesamode)
 		}
 		i++;
 	}
+
+invalid:
 	if (!j)
 		printk(KERN_INFO "XGIfb: Invalid VESA mode 0x%x'\n", vesamode);
 }
