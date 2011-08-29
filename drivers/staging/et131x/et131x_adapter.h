@@ -105,40 +105,39 @@ struct ce_stats {
 	 * MUST have 32, then we'll need another way to perform atomic
 	 * operations
 	 */
-	u32 unircv;	/* # multicast packets received */
-	atomic_t unixmt;	/* # multicast packets for Tx */
-	u32 multircv;	/* # multicast packets received */
-	atomic_t multixmt;	/* # multicast packets for Tx */
-	u32 brdcstrcv;	/* # broadcast packets received */
-	atomic_t brdcstxmt;	/* # broadcast packets for Tx */
-	u32 norcvbuf;	/* # Rx packets discarded */
-	u32 noxmtbuf;	/* # Tx packets discarded */
+	u32		unicast_pkts_rcvd;
+	atomic_t	unicast_pkts_xmtd;
+	u32		multicast_pkts_rcvd;
+	atomic_t	multicast_pkts_xmtd;
+	u32		broadcast_pkts_rcvd;
+	atomic_t	broadcast_pkts_xmtd;
+	u32		rcvd_pkts_dropped;
 
 	/* Transceiver state informations. */
-	u8 xcvr_addr;
-	u32 xcvr_id;
+	u8		xcvr_addr;
+	u32		xcvr_id;
 
 	/* Tx Statistics. */
-	u32 tx_uflo;		/* Tx Underruns */
+	u32		tx_underflows;
 
-	u32 collisions;
-	u32 excessive_collisions;
-	u32 first_collision;
-	u32 late_collisions;
-	u32 max_pkt_error;
-	u32 tx_deferred;
+	u32		tx_collisions;
+	u32		tx_excessive_collisions;
+	u32		tx_first_collisions;
+	u32		tx_late_collisions;
+	u32		tx_max_pkt_errs;
+	u32		tx_deferred;
 
 	/* Rx Statistics. */
-	u32 rx_ov_flow;	/* Rx Overflow */
+	u32		rx_overflows;
 
-	u32 length_err;
-	u32 alignment_err;
-	u32 crc_err;
-	u32 code_violations;
-	u32 other_errors;
+	u32		rx_length_errs;
+	u32		rx_align_errs;
+	u32		rx_crc_errs;
+	u32		rx_code_violations;
+	u32		rx_other_errs;
 
-	u32 SynchrounousIterations;
-	u32 InterruptStatus;
+	u32		synchronous_iterations;
+	u32		interrupt_status;
 };
 
 
@@ -151,7 +150,7 @@ struct et131x_adapter {
 
 	/* Flags that indicate current state of the adapter */
 	u32 flags;
-	u32 HwErrCount;
+	u32 hw_errs;
 
 	/* Configuration  */
 	u8 rom_addr[ETH_ALEN];
@@ -160,52 +159,46 @@ struct et131x_adapter {
 	u8 eeprom_data[2];
 
 	/* Spinlocks */
-	spinlock_t Lock;
+	spinlock_t lock;
 
-	spinlock_t TCBSendQLock;
-	spinlock_t TCBReadyQLock;
+	spinlock_t tcb_send_qlock;
+	spinlock_t tcb_ready_qlock;
 	spinlock_t send_hw_lock;
 
 	spinlock_t rcv_lock;
-	spinlock_t RcvPendLock;
-	spinlock_t FbrLock;
+	spinlock_t rcv_pend_lock;
+	spinlock_t fbr_lock;
 
-	spinlock_t PHYLock;
+	spinlock_t phy_lock;
 
 	/* Packet Filter and look ahead size */
-	u32 PacketFilter;
+	u32 packet_filter;
 	u32 linkspeed;
 	u32 duplex_mode;
 
 	/* multicast list */
-	u32 MCAddressCount;
-	u8 MCList[NIC_MAX_MCAST_LIST][ETH_ALEN];
+	u32 multicast_addr_count;
+	u8 multicast_list[NIC_MAX_MCAST_LIST][ETH_ALEN];
 
 	/* Pointer to the device's PCI register space */
 	struct address_map __iomem *regs;
 
 	/* Registry parameters */
-	u8 SpeedDuplex;		/* speed/duplex */
+	u8 speed_duplex;	/* speed/duplex */
 	u8 wanted_flow;		/* Flow we want for 802.3x flow control */
-	u8 RegistryPhyComa;	/* Phy Coma mode enable/disable */
+	u8 registry_phy_coma;	/* Phy Coma mode enable/disable */
 
-	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
-	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
+	u32 registry_rx_mem_end;	/* Size of internal rx memory */
+	u32 registry_jumbo_packet;	/* Max supported ethernet packet size */
 
 
 	/* Derived from the registry: */
-	u8 AiForceDpx;		/* duplex setting */
-	u16 AiForceSpeed;	/* 'Speed', user over-ride of line speed */
+	u8 ai_force_duplex;	/* duplex setting */
+	u16 ai_force_speed;	/* 'Speed', user over-ride of line speed */
 	u8 flowcontrol;		/* flow control validated by the far-end */
-	enum {
-		NETIF_STATUS_INVALID = 0,
-		NETIF_STATUS_MEDIA_CONNECT,
-		NETIF_STATUS_MEDIA_DISCONNECT,
-		NETIF_STATUS_MAX
-	} MediaState;
 
 	/* Minimize init-time */
-	struct timer_list ErrorTimer;
+	struct timer_list error_timer;
 
 	/* variable putting the phy into coma mode when boot up with no cable
 	 * plugged in after 5 seconds
@@ -219,7 +212,7 @@ struct et131x_adapter {
 	u16 pdown_speed;
 	u8 pdown_duplex;
 
-	u32 CachedMaskValue;
+	u32 cached_mask_value;
 
 	/* Xcvr status at last poll */
 	u16 bmsr;
@@ -231,8 +224,8 @@ struct et131x_adapter {
 	struct rx_ring rx_ring;
 
 	/* Loopback specifics */
-	u8 ReplicaPhyLoopbk;	/* Replica Enable */
-	u8 ReplicaPhyLoopbkPF;	/* Replica Enable Pass/Fail */
+	u8 replica_phy_loopbk;		/* Replica Enable */
+	u8 replica_phy_loopbk_passfail;	/* Replica Enable Pass/Fail */
 
 	/* Stats */
 	struct ce_stats stats;

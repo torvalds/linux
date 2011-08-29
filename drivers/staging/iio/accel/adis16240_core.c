@@ -17,12 +17,11 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-#include "accel.h"
-#include "../adc/adc.h"
 
 #include "adis16240.h"
 

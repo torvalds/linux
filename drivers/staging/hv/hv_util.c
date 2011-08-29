@@ -26,8 +26,6 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/reboot.h>
-#include <linux/dmi.h>
-#include <linux/pci.h>
 
 #include "hyperv.h"
 #include "hv_kvp.h"
@@ -210,28 +208,45 @@ static void heartbeat_onchannelcallback(void *context)
 	}
 }
 
-static const struct pci_device_id __initconst
-hv_utils_pci_table[] __maybe_unused = {
-	{ PCI_DEVICE(0x1414, 0x5353) }, /* Hyper-V emulated VGA controller */
-	{ 0 }
-};
-MODULE_DEVICE_TABLE(pci, hv_utils_pci_table);
+/*
+ * The devices managed by the util driver don't need any additional
+ * setup.
+ */
+static int util_probe(struct hv_device *dev)
+{
+	return 0;
+}
 
+static int util_remove(struct hv_device *dev)
+{
+	return 0;
+}
 
-static const struct dmi_system_id __initconst
-hv_utils_dmi_table[] __maybe_unused  = {
-	{
-		.ident = "Hyper-V",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
-			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
-		},
-	},
+static const struct hv_vmbus_device_id id_table[] = {
+	/* Shutdown guid */
+	{ VMBUS_DEVICE(0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
+		       0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB) },
+	/* Time synch guid */
+	{ VMBUS_DEVICE(0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
+		       0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf) },
+	/* Heartbeat guid */
+	{ VMBUS_DEVICE(0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
+		       0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d) },
+	/* KVP guid */
+	{ VMBUS_DEVICE(0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+		       0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6) },
 	{ },
 };
-MODULE_DEVICE_TABLE(dmi, hv_utils_dmi_table);
 
+MODULE_DEVICE_TABLE(vmbus, id_table);
+
+/* The one and only one */
+static  struct hv_driver util_drv = {
+	.name = "hv_util",
+	.id_table = id_table,
+	.probe =  util_probe,
+	.remove =  util_remove,
+};
 
 static int __init init_hyperv_utils(void)
 {
@@ -240,9 +255,6 @@ static int __init init_hyperv_utils(void)
 	if (hv_kvp_init())
 		return -ENODEV;
 
-
-	if (!dmi_check_system(hv_utils_dmi_table))
-		return -ENODEV;
 
 	shut_txf_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	time_txf_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -264,7 +276,7 @@ static int __init init_hyperv_utils(void)
 
 	hv_cb_utils[HV_KVP_MSG].callback = &hv_kvp_onchannelcallback;
 
-	return 0;
+	return vmbus_driver_register(&util_drv);
 }
 
 static void exit_hyperv_utils(void)
@@ -296,6 +308,7 @@ static void exit_hyperv_utils(void)
 	kfree(shut_txf_buf);
 	kfree(time_txf_buf);
 	kfree(hbeat_txf_buf);
+	vmbus_driver_unregister(&util_drv);
 }
 
 module_init(init_hyperv_utils);

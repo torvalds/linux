@@ -2,7 +2,7 @@ What:		/sys/bus/iio/devices/deviceX
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Hardware chip or device accessed by on communication port.
+		Hardware chip or device accessed by one communication port.
 		Corresponds to a grouping of sensor channels. X is the IIO
 		index of the device.
 
@@ -711,3 +711,24 @@ Contact:	linux-iio@xxxxxxxxxxxxxxx
 Description:
 		This attribute is used to read the amount of quadrature error
 		present in the device at a given time.
+
+What:		/sys/.../iio:deviceX/ac_excitation_en
+KernelVersion:	3.1.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute, if available, is used to enable the AC
+		excitation mode found on some converters. In ac excitation mode,
+		the polarity of the excitation voltage is reversed on
+		alternate cycles, to eliminate DC errors.
+
+What:		/sys/.../iio:deviceX/bridge_switch_en
+KernelVersion:	3.1.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute, if available, is used to close or open the
+		bridge power down switch found on some converters.
+		In bridge applications, such as strain gauges and load cells,
+		the bridge itself consumes the majority of the current in the
+		system. To minimize the current consumption of the system,
+		the bridge can be disconnected (when it is not being used
+		using the bridge_switch_en attribute.

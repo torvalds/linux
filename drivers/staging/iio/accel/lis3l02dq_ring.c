@@ -1,19 +1,15 @@
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-#include <linux/sysfs.h>
 #include <linux/slab.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
 #include "../kfifo_buf.h"
-#include "accel.h"
 #include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "lis3l02dq.h"
 
 /**
@@ -165,7 +161,7 @@ static int lis3l02dq_get_ring_element(struct iio_dev *indio_dev,
 static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	int len = 0;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);
@@ -306,6 +302,12 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 	return 0;
 }
 
+static const struct iio_trigger_ops lis3l02dq_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = &lis3l02dq_data_rdy_trigger_set_state,
+	.try_reenable = &lis3l02dq_trig_try_reen,
+};
+
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -318,10 +320,8 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	}
 
 	st->trig->dev.parent = &st->us->dev;
-	st->trig->owner = THIS_MODULE;
+	st->trig->ops = &lis3l02dq_trigger_ops;
 	st->trig->private_data = indio_dev;
-	st->trig->set_trigger_state = &lis3l02dq_data_rdy_trigger_set_state;
-	st->trig->try_reenable = &lis3l02dq_trig_try_reen;
 	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto error_free_trig;

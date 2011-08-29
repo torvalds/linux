@@ -20,8 +20,8 @@
 #include "types.h"
 
 /* Prototypes */
-extern int srom_var_init(struct si_pub *sih, uint bus, void *curmap,
-			 char **vars, uint *count);
+extern int srom_var_init(struct si_pub *sih, void *curmap, char **vars,
+			 uint *count);
 
 extern int srom_read(struct si_pub *sih, uint bus, void *curmap,
 		     uint byteoff, uint nbytes, u16 *buf, bool check_crc);

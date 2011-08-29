@@ -16,6 +16,7 @@
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <asm/div64.h>
 
 #include "../iio.h"

@@ -28,10 +28,6 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 
-#ifndef XGIFB_PAN
-#define XGIFB_PAN
-#endif
-
 #include <linux/io.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
@@ -45,11 +41,9 @@
 #include "vb_setmode.h"
 
 #define Index_CR_GPIO_Reg1 0x48
-#define Index_CR_GPIO_Reg2 0x49
 #define Index_CR_GPIO_Reg3 0x4a
 
 #define GPIOG_EN    (1<<6)
-#define GPIOG_WRITE (1<<6)
 #define GPIOG_READ  (1<<1)
 
 #define XGIFB_ROM_SIZE	65536
@@ -396,8 +390,8 @@ static unsigned char XGIfb_query_VGA_config_space(
 		struct xgi_hw_device_info *pXGIhw_ext, unsigned long offset,
 		unsigned long set, unsigned long *value)
 {
-	static struct pci_dev *pdev = NULL;
-	static unsigned char init = 0, valid_pdev = 0;
+	static struct pci_dev *pdev;
+	static unsigned char init, valid_pdev;
 
 	if (!set)
 		DPRINTK("XGIfb: Get VGA offset 0x%lx\n", offset);
@@ -1363,7 +1357,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	return 0;
 }
 
-#ifdef XGIFB_PAN
 static int XGIfb_pan_var(struct fb_var_screeninfo *var)
 {
 	unsigned int base;
@@ -1416,7 +1409,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var)
 	/* printk("End of pan_var"); */
 	return 0;
 }
-#endif
 
 static int XGIfb_open(struct fb_info *info, int user)
 {
@@ -1489,23 +1481,19 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	DEBUGPRN("inside get_fix");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
-	strcpy(fix->id, myid);
-
 	fix->smem_start = xgi_video_info.video_base;
 
 	fix->smem_len = xgi_video_info.video_size;
 
-	fix->type = video_type;
+	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
 	if (xgi_video_info.video_bpp == 8)
 		fix->visual = FB_VISUAL_PSEUDOCOLOR;
 	else
 		fix->visual = FB_VISUAL_DIRECTCOLOR;
 	fix->xpanstep = 0;
-#ifdef XGIFB_PAN
 	if (XGIfb_ypan)
 		fix->ypanstep = 1;
-#endif
 	fix->ywrapstep = 0;
 	fix->line_length = xgi_video_info.video_linelength;
 	fix->mmio_start = xgi_video_info.mmio_base;
@@ -1673,7 +1661,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-#ifdef XGIFB_PAN
 static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *info)
 {
@@ -1710,7 +1697,6 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 	/* printk("End of pan_display\n"); */
 	return 0;
 }
-#endif
 
 static int XGIfb_blank(int blank, struct fb_info *info)
 {
@@ -1736,9 +1722,7 @@ static struct fb_ops XGIfb_ops = {
 	.fb_check_var = XGIfb_check_var,
 	.fb_set_par = XGIfb_set_par,
 	.fb_setcolreg = XGIfb_setcolreg,
-#ifdef XGIFB_PAN
 	.fb_pan_display = XGIfb_pan_display,
-#endif
 	.fb_blank = XGIfb_blank,
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
@@ -1949,7 +1933,7 @@ static void XGIfb_get_VB_type(void)
 	}
 }
 
-XGIINITSTATIC int __init XGIfb_setup(char *options)
+static int __init XGIfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -2060,8 +2044,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (XGIfb_off)
 		return -ENXIO;
 
-	XGIfb_registered = 0;
-
 	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	if (!fb_info)
@@ -2157,15 +2139,12 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		goto error;
 	}
 
-	if ((xgifb_mode_idx < 0) ||
-	    ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
-		/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
-		xgifb_reg_or(XGISR,
-			     IND_XGI_PCI_ADDRESS_SET,
-			     (XGI_PCI_ADDR_ENABLE | XGI_MEM_MAP_IO_ENABLE));
-		/* Enable 2D accelerator engine */
-		xgifb_reg_or(XGISR, IND_XGI_MODULE_ENABLE, XGI_ENABLE_2D);
-	}
+	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
+	xgifb_reg_or(XGISR,
+		     IND_XGI_PCI_ADDRESS_SET,
+		     (XGI_PCI_ADDR_ENABLE | XGI_MEM_MAP_IO_ENABLE));
+	/* Enable 2D accelerator engine */
+	xgifb_reg_or(XGISR, IND_XGI_MODULE_ENABLE, XGI_ENABLE_2D);
 
 	XGIhw_ext.ulVideoMemorySize = xgi_video_info.video_size;
 
@@ -2209,297 +2188,282 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	xgi_video_info.mtrr = (unsigned int) 0;
 
-	if ((xgifb_mode_idx < 0) ||
-	    ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
+	xgi_video_info.hasVB = HASVB_NONE;
+	if ((xgi_video_info.chip == XG20) ||
+	    (xgi_video_info.chip == XG27)) {
 		xgi_video_info.hasVB = HASVB_NONE;
-		if ((xgi_video_info.chip == XG20) ||
-		    (xgi_video_info.chip == XG27)) {
-			xgi_video_info.hasVB = HASVB_NONE;
-		} else if (xgi_video_info.chip == XG21) {
-			CR38 = xgifb_reg_get(XGICR, 0x38);
-			if ((CR38&0xE0) == 0xC0) {
-				xgi_video_info.disp_state = DISPTYPE_LCD;
-				if (!XGIfb_GetXG21LVDSData()) {
-					int m;
-					for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
-						if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
-						    (XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
-							xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
-						}
+	} else if (xgi_video_info.chip == XG21) {
+		CR38 = xgifb_reg_get(XGICR, 0x38);
+		if ((CR38&0xE0) == 0xC0) {
+			xgi_video_info.disp_state = DISPTYPE_LCD;
+			if (!XGIfb_GetXG21LVDSData()) {
+				int m;
+				for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
+					if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
+					    (XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
+						xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
 					}
 				}
-			} else if ((CR38&0xE0) == 0x60) {
-				xgi_video_info.hasVB = HASVB_CHRONTEL;
-			} else {
-				xgi_video_info.hasVB = HASVB_NONE;
 			}
+		} else if ((CR38&0xE0) == 0x60) {
+			xgi_video_info.hasVB = HASVB_CHRONTEL;
 		} else {
-			XGIfb_get_VB_type();
+			xgi_video_info.hasVB = HASVB_NONE;
 		}
+	} else {
+		XGIfb_get_VB_type();
+	}
 
-		XGIhw_ext.ujVBChipID = VB_CHIP_UNKNOWN;
+	XGIhw_ext.ujVBChipID = VB_CHIP_UNKNOWN;
 
-		XGIhw_ext.ulExternalChip = 0;
+	XGIhw_ext.ulExternalChip = 0;
 
-		switch (xgi_video_info.hasVB) {
-		case HASVB_301:
-			reg = xgifb_reg_get(XGIPART4, 0x01);
-			if (reg >= 0xE0) {
-				XGIhw_ext.ujVBChipID = VB_CHIP_302LV;
-				printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
-			} else if (reg >= 0xD0) {
-				XGIhw_ext.ujVBChipID = VB_CHIP_301LV;
-				printk(KERN_INFO "XGIfb: XGI301LV bridge detected (revision 0x%02x)\n", reg);
-			}
-			/* else if (reg >= 0xB0) {
-				XGIhw_ext.ujVBChipID = VB_CHIP_301B;
-				reg1 = xgifb_reg_get(XGIPART4, 0x23);
-				printk("XGIfb: XGI301B bridge detected\n");
-			} */
-			else {
-				XGIhw_ext.ujVBChipID = VB_CHIP_301;
-				printk("XGIfb: XGI301 bridge detected\n");
-			}
-			break;
-		case HASVB_302:
-			reg = xgifb_reg_get(XGIPART4, 0x01);
-			if (reg >= 0xE0) {
-				XGIhw_ext.ujVBChipID = VB_CHIP_302LV;
-				printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
-			} else if (reg >= 0xD0) {
-				XGIhw_ext.ujVBChipID = VB_CHIP_301LV;
-				printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
-			} else if (reg >= 0xB0) {
-				reg1 = xgifb_reg_get(XGIPART4, 0x23);
-
-				XGIhw_ext.ujVBChipID = VB_CHIP_302B;
-
-			} else {
-				XGIhw_ext.ujVBChipID = VB_CHIP_302;
-				printk(KERN_INFO "XGIfb: XGI302 bridge detected\n");
-			}
-			break;
-		case HASVB_LVDS:
-			XGIhw_ext.ulExternalChip = 0x1;
-			printk(KERN_INFO "XGIfb: LVDS transmitter detected\n");
-			break;
-		case HASVB_TRUMPION:
-			XGIhw_ext.ulExternalChip = 0x2;
-			printk(KERN_INFO "XGIfb: Trumpion Zurac LVDS scaler detected\n");
-			break;
-		case HASVB_CHRONTEL:
-			XGIhw_ext.ulExternalChip = 0x4;
-			printk(KERN_INFO "XGIfb: Chrontel TV encoder detected\n");
-			break;
-		case HASVB_LVDS_CHRONTEL:
-			XGIhw_ext.ulExternalChip = 0x5;
-			printk(KERN_INFO "XGIfb: LVDS transmitter and Chrontel TV encoder detected\n");
-			break;
-		default:
-			printk(KERN_INFO "XGIfb: No or unknown bridge type detected\n");
-			break;
+	switch (xgi_video_info.hasVB) {
+	case HASVB_301:
+		reg = xgifb_reg_get(XGIPART4, 0x01);
+		if (reg >= 0xE0) {
+			XGIhw_ext.ujVBChipID = VB_CHIP_302LV;
+			printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
+		} else if (reg >= 0xD0) {
+			XGIhw_ext.ujVBChipID = VB_CHIP_301LV;
+			printk(KERN_INFO "XGIfb: XGI301LV bridge detected (revision 0x%02x)\n", reg);
 		}
+		/* else if (reg >= 0xB0) {
+			XGIhw_ext.ujVBChipID = VB_CHIP_301B;
+			reg1 = xgifb_reg_get(XGIPART4, 0x23);
+			printk("XGIfb: XGI301B bridge detected\n");
+		} */
+		else {
+			XGIhw_ext.ujVBChipID = VB_CHIP_301;
+			printk("XGIfb: XGI301 bridge detected\n");
+		}
+		break;
+	case HASVB_302:
+		reg = xgifb_reg_get(XGIPART4, 0x01);
+		if (reg >= 0xE0) {
+			XGIhw_ext.ujVBChipID = VB_CHIP_302LV;
+			printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
+		} else if (reg >= 0xD0) {
+			XGIhw_ext.ujVBChipID = VB_CHIP_301LV;
+			printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
+		} else if (reg >= 0xB0) {
+			reg1 = xgifb_reg_get(XGIPART4, 0x23);
 
-		if (xgi_video_info.hasVB != HASVB_NONE)
-			XGIfb_detect_VB();
+			XGIhw_ext.ujVBChipID = VB_CHIP_302B;
 
-		if (xgi_video_info.disp_state & DISPTYPE_DISP2) {
-			if (XGIfb_crt1off)
-				xgi_video_info.disp_state |= DISPMODE_SINGLE;
-			else
-				xgi_video_info.disp_state |= (DISPMODE_MIRROR |
-							      DISPTYPE_CRT1);
 		} else {
-			xgi_video_info.disp_state = DISPMODE_SINGLE |
-						    DISPTYPE_CRT1;
+			XGIhw_ext.ujVBChipID = VB_CHIP_302;
+			printk(KERN_INFO "XGIfb: XGI302 bridge detected\n");
 		}
+		break;
+	case HASVB_LVDS:
+		XGIhw_ext.ulExternalChip = 0x1;
+		printk(KERN_INFO "XGIfb: LVDS transmitter detected\n");
+		break;
+	case HASVB_TRUMPION:
+		XGIhw_ext.ulExternalChip = 0x2;
+		printk(KERN_INFO "XGIfb: Trumpion Zurac LVDS scaler detected\n");
+		break;
+	case HASVB_CHRONTEL:
+		XGIhw_ext.ulExternalChip = 0x4;
+		printk(KERN_INFO "XGIfb: Chrontel TV encoder detected\n");
+		break;
+	case HASVB_LVDS_CHRONTEL:
+		XGIhw_ext.ulExternalChip = 0x5;
+		printk(KERN_INFO "XGIfb: LVDS transmitter and Chrontel TV encoder detected\n");
+		break;
+	default:
+		printk(KERN_INFO "XGIfb: No or unknown bridge type detected\n");
+		break;
+	}
 
-		if (xgi_video_info.disp_state & DISPTYPE_LCD) {
-			if (!enable_dstn) {
-				reg = xgifb_reg_get(XGICR, IND_XGI_LCD_PANEL);
-				reg &= 0x0f;
-				XGIhw_ext.ulCRT2LCDType = XGI310paneltype[reg];
+	if (xgi_video_info.hasVB != HASVB_NONE)
+		XGIfb_detect_VB();
 
+	if (xgi_video_info.disp_state & DISPTYPE_DISP2) {
+		if (XGIfb_crt1off)
+			xgi_video_info.disp_state |= DISPMODE_SINGLE;
+		else
+			xgi_video_info.disp_state |= (DISPMODE_MIRROR |
+						      DISPTYPE_CRT1);
+	} else {
+		xgi_video_info.disp_state = DISPMODE_SINGLE |
+					    DISPTYPE_CRT1;
+	}
+
+	if (xgi_video_info.disp_state & DISPTYPE_LCD) {
+		if (!enable_dstn) {
+			reg = xgifb_reg_get(XGICR, IND_XGI_LCD_PANEL);
+			reg &= 0x0f;
+			XGIhw_ext.ulCRT2LCDType = XGI310paneltype[reg];
+
+		} else {
+			/* TW: FSTN/DSTN */
+			XGIhw_ext.ulCRT2LCDType = LCD_320x480;
+		}
+	}
+
+	if ((XGIhw_ext.ujVBChipID == VB_CHIP_302B) ||
+			(XGIhw_ext.ujVBChipID == VB_CHIP_301LV) ||
+			(XGIhw_ext.ujVBChipID == VB_CHIP_302LV)) {
+		int tmp;
+		tmp = xgifb_reg_get(XGICR, 0x34);
+		if (tmp <= 0x13) {
+			/* Currently on LCDA?
+			 *(Some BIOSes leave CR38) */
+			tmp = xgifb_reg_get(XGICR, 0x38);
+			if ((tmp & 0x03) == 0x03) {
+				/* XGI_Pr.XGI_UseLCDA = 1; */
 			} else {
-				/* TW: FSTN/DSTN */
-				XGIhw_ext.ulCRT2LCDType = LCD_320x480;
-			}
-		}
-
-		XGIfb_detectedpdc = 0;
-
-		XGIfb_detectedlcda = 0xff;
-
-		/* TW: Try to find about LCDA */
-
-		if ((XGIhw_ext.ujVBChipID == VB_CHIP_302B) ||
-				(XGIhw_ext.ujVBChipID == VB_CHIP_301LV) ||
-				(XGIhw_ext.ujVBChipID == VB_CHIP_302LV)) {
-			int tmp;
-			tmp = xgifb_reg_get(XGICR, 0x34);
-			if (tmp <= 0x13) {
 				/* Currently on LCDA?
-				 *(Some BIOSes leave CR38) */
-				tmp = xgifb_reg_get(XGICR, 0x38);
-				if ((tmp & 0x03) == 0x03) {
+				 *(Some newer BIOSes set D0 in CR35) */
+				tmp = xgifb_reg_get(XGICR, 0x35);
+				if (tmp & 0x01) {
 					/* XGI_Pr.XGI_UseLCDA = 1; */
 				} else {
-					/* Currently on LCDA?
-					 *(Some newer BIOSes set D0 in CR35) */
-					tmp = xgifb_reg_get(XGICR, 0x35);
-					if (tmp & 0x01) {
-						/* XGI_Pr.XGI_UseLCDA = 1; */
-					} else {
-						tmp = xgifb_reg_get(XGICR,
-								    0x30);
-						if (tmp & 0x20) {
-							tmp = xgifb_reg_get(
-								XGIPART1, 0x13);
-							if (tmp & 0x04) {
-								/* XGI_Pr.XGI_UseLCDA = 1; */
-							}
+					tmp = xgifb_reg_get(XGICR,
+							    0x30);
+					if (tmp & 0x20) {
+						tmp = xgifb_reg_get(
+							XGIPART1, 0x13);
+						if (tmp & 0x04) {
+							/* XGI_Pr.XGI_UseLCDA = 1; */
 						}
 					}
 				}
 			}
-
 		}
 
-		if (xgifb_mode_idx >= 0)
-			xgifb_mode_idx = XGIfb_validate_mode(xgifb_mode_idx);
+	}
 
-		if (xgifb_mode_idx < 0) {
-			switch (xgi_video_info.disp_state & DISPTYPE_DISP2) {
-			case DISPTYPE_LCD:
-				xgifb_mode_idx = DEFAULT_LCDMODE;
-				if (xgi_video_info.chip == XG21)
-					xgifb_mode_idx =
-					    XGIfb_GetXG21DefaultLVDSModeIdx();
-				break;
-			case DISPTYPE_TV:
-				xgifb_mode_idx = DEFAULT_TVMODE;
-				break;
-			default:
-				xgifb_mode_idx = DEFAULT_MODE;
-				break;
-			}
-		}
+	if (xgifb_mode_idx >= 0)
+		xgifb_mode_idx = XGIfb_validate_mode(xgifb_mode_idx);
 
-		XGIfb_mode_no = XGIbios_mode[xgifb_mode_idx].mode_no;
-
-		/* yilin set default refresh rate */
-		if (xgi_video_info.refresh_rate == 0)
-			xgi_video_info.refresh_rate = 60;
-		if (XGIfb_search_refresh_rate(
-				xgi_video_info.refresh_rate) == 0) {
-			XGIfb_rate_idx = XGIbios_mode[xgifb_mode_idx].rate_idx;
-			xgi_video_info.refresh_rate = 60;
-		}
-
-		xgi_video_info.video_bpp = XGIbios_mode[xgifb_mode_idx].bpp;
-		xgi_video_info.video_vwidth =
-			xgi_video_info.video_width =
-				XGIbios_mode[xgifb_mode_idx].xres;
-		xgi_video_info.video_vheight =
-			xgi_video_info.video_height =
-				XGIbios_mode[xgifb_mode_idx].yres;
-		xgi_video_info.org_x = xgi_video_info.org_y = 0;
-		xgi_video_info.video_linelength =
-			xgi_video_info.video_width *
-			(xgi_video_info.video_bpp >> 3);
-		switch (xgi_video_info.video_bpp) {
-		case 8:
-			xgi_video_info.DstColor = 0x0000;
-			xgi_video_info.XGI310_AccelDepth = 0x00000000;
-			xgi_video_info.video_cmap_len = 256;
+	if (xgifb_mode_idx < 0) {
+		switch (xgi_video_info.disp_state & DISPTYPE_DISP2) {
+		case DISPTYPE_LCD:
+			xgifb_mode_idx = DEFAULT_LCDMODE;
+			if (xgi_video_info.chip == XG21)
+				xgifb_mode_idx =
+				    XGIfb_GetXG21DefaultLVDSModeIdx();
 			break;
-		case 16:
-			xgi_video_info.DstColor = 0x8000;
-			xgi_video_info.XGI310_AccelDepth = 0x00010000;
-			xgi_video_info.video_cmap_len = 16;
-			break;
-		case 32:
-			xgi_video_info.DstColor = 0xC000;
-			xgi_video_info.XGI310_AccelDepth = 0x00020000;
-			xgi_video_info.video_cmap_len = 16;
+		case DISPTYPE_TV:
+			xgifb_mode_idx = DEFAULT_TVMODE;
 			break;
 		default:
-			xgi_video_info.video_cmap_len = 16;
-			printk(KERN_INFO "XGIfb: Unsupported depth %d",
-			       xgi_video_info.video_bpp);
+			xgifb_mode_idx = DEFAULT_MODE;
 			break;
 		}
+	}
 
-		printk(KERN_INFO "XGIfb: Default mode is %dx%dx%d (%dHz)\n",
-		       xgi_video_info.video_width,
-		       xgi_video_info.video_height,
-		       xgi_video_info.video_bpp,
-		       xgi_video_info.refresh_rate);
+	XGIfb_mode_no = XGIbios_mode[xgifb_mode_idx].mode_no;
 
-		default_var.xres =
-			default_var.xres_virtual =
-				xgi_video_info.video_width;
-		default_var.yres =
-			default_var.yres_virtual =
-				xgi_video_info.video_height;
-		default_var.bits_per_pixel = xgi_video_info.video_bpp;
+	/* yilin set default refresh rate */
+	if (xgi_video_info.refresh_rate == 0)
+		xgi_video_info.refresh_rate = 60;
+	if (XGIfb_search_refresh_rate(
+			xgi_video_info.refresh_rate) == 0) {
+		XGIfb_rate_idx = XGIbios_mode[xgifb_mode_idx].rate_idx;
+		xgi_video_info.refresh_rate = 60;
+	}
 
-		XGIfb_bpp_to_var(&default_var);
+	xgi_video_info.video_bpp = XGIbios_mode[xgifb_mode_idx].bpp;
+	xgi_video_info.video_vwidth =
+		xgi_video_info.video_width =
+			XGIbios_mode[xgifb_mode_idx].xres;
+	xgi_video_info.video_vheight =
+		xgi_video_info.video_height =
+			XGIbios_mode[xgifb_mode_idx].yres;
+	xgi_video_info.org_x = xgi_video_info.org_y = 0;
+	xgi_video_info.video_linelength =
+		xgi_video_info.video_width *
+		(xgi_video_info.video_bpp >> 3);
+	switch (xgi_video_info.video_bpp) {
+	case 8:
+		xgi_video_info.DstColor = 0x0000;
+		xgi_video_info.XGI310_AccelDepth = 0x00000000;
+		xgi_video_info.video_cmap_len = 256;
+		break;
+	case 16:
+		xgi_video_info.DstColor = 0x8000;
+		xgi_video_info.XGI310_AccelDepth = 0x00010000;
+		xgi_video_info.video_cmap_len = 16;
+		break;
+	case 32:
+		xgi_video_info.DstColor = 0xC000;
+		xgi_video_info.XGI310_AccelDepth = 0x00020000;
+		xgi_video_info.video_cmap_len = 16;
+		break;
+	default:
+		xgi_video_info.video_cmap_len = 16;
+		printk(KERN_INFO "XGIfb: Unsupported depth %d",
+		       xgi_video_info.video_bpp);
+		break;
+	}
 
-		default_var.pixclock = (u32) (1000000000 /
-				XGIfb_mode_rate_to_dclock(&XGI_Pr, &XGIhw_ext,
-						XGIfb_mode_no, XGIfb_rate_idx));
+	printk(KERN_INFO "XGIfb: Default mode is %dx%dx%d (%dHz)\n",
+	       xgi_video_info.video_width,
+	       xgi_video_info.video_height,
+	       xgi_video_info.video_bpp,
+	       xgi_video_info.refresh_rate);
 
-		if (XGIfb_mode_rate_to_ddata(&XGI_Pr, &XGIhw_ext,
-			XGIfb_mode_no, XGIfb_rate_idx,
-			&default_var.left_margin, &default_var.right_margin,
-			&default_var.upper_margin, &default_var.lower_margin,
-			&default_var.hsync_len, &default_var.vsync_len,
-			&default_var.sync, &default_var.vmode)) {
+	default_var.xres =
+		default_var.xres_virtual =
+			xgi_video_info.video_width;
+	default_var.yres =
+		default_var.yres_virtual =
+			xgi_video_info.video_height;
+	default_var.bits_per_pixel = xgi_video_info.video_bpp;
 
-			if ((default_var.vmode & FB_VMODE_MASK) ==
-			    FB_VMODE_INTERLACED) {
-				default_var.yres <<= 1;
-				default_var.yres_virtual <<= 1;
-			} else if ((default_var.vmode & FB_VMODE_MASK) ==
-				   FB_VMODE_DOUBLE) {
-				default_var.pixclock >>= 1;
-				default_var.yres >>= 1;
-				default_var.yres_virtual >>= 1;
-			}
+	XGIfb_bpp_to_var(&default_var);
 
+	default_var.pixclock = (u32) (1000000000 /
+			XGIfb_mode_rate_to_dclock(&XGI_Pr, &XGIhw_ext,
+					XGIfb_mode_no, XGIfb_rate_idx));
+
+	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, &XGIhw_ext,
+		XGIfb_mode_no, XGIfb_rate_idx,
+		&default_var.left_margin, &default_var.right_margin,
+		&default_var.upper_margin, &default_var.lower_margin,
+		&default_var.hsync_len, &default_var.vsync_len,
+		&default_var.sync, &default_var.vmode)) {
+
+		if ((default_var.vmode & FB_VMODE_MASK) ==
+		    FB_VMODE_INTERLACED) {
+			default_var.yres <<= 1;
+			default_var.yres_virtual <<= 1;
+		} else if ((default_var.vmode & FB_VMODE_MASK) ==
+			   FB_VMODE_DOUBLE) {
+			default_var.pixclock >>= 1;
+			default_var.yres >>= 1;
+			default_var.yres_virtual >>= 1;
 		}
 
-		fb_info->flags = FBINFO_FLAG_DEFAULT;
-		fb_info->var = default_var;
-		fb_info->fix = XGIfb_fix;
-		fb_info->par = &xgi_video_info;
-		fb_info->screen_base = xgi_video_info.video_vbase;
-		fb_info->fbops = &XGIfb_ops;
-		XGIfb_get_fix(&fb_info->fix, -1, fb_info);
-		fb_info->pseudo_palette = pseudo_palette;
+	}
 
-		fb_alloc_cmap(&fb_info->cmap, 256 , 0);
+	fb_info->flags = FBINFO_FLAG_DEFAULT;
+	fb_info->var = default_var;
+	fb_info->fix = XGIfb_fix;
+	fb_info->par = &xgi_video_info;
+	fb_info->screen_base = xgi_video_info.video_vbase;
+	fb_info->fbops = &XGIfb_ops;
+	XGIfb_get_fix(&fb_info->fix, -1, fb_info);
+	fb_info->pseudo_palette = pseudo_palette;
+
+	fb_alloc_cmap(&fb_info->cmap, 256 , 0);
 
 #ifdef CONFIG_MTRR
-		xgi_video_info.mtrr = mtrr_add(
-			(unsigned int) xgi_video_info.video_base,
-			(unsigned int) xgi_video_info.video_size,
-			MTRR_TYPE_WRCOMB, 1);
-		if (xgi_video_info.mtrr)
-			printk(KERN_INFO "XGIfb: Added MTRRs\n");
+	xgi_video_info.mtrr = mtrr_add(
+		(unsigned int) xgi_video_info.video_base,
+		(unsigned int) xgi_video_info.video_size,
+		MTRR_TYPE_WRCOMB, 1);
+	if (xgi_video_info.mtrr)
+		printk(KERN_INFO "XGIfb: Added MTRRs\n");
 #endif
 
-		if (register_framebuffer(fb_info) < 0) {
-			ret = -EINVAL;
-			goto error_1;
-		}
-
-		XGIfb_registered = 1;
-
-		printk(KERN_INFO "fb%d: %s frame buffer device, Version %d.%d.%02d\n",
-		       fb_info->node, myid, VER_MAJOR, VER_MINOR, VER_LEVEL);
-
+	if (register_framebuffer(fb_info) < 0) {
+		ret = -EINVAL;
+		goto error_1;
 	}
 
 	dumpVGAReg();
@@ -2543,7 +2507,7 @@ static struct pci_driver xgifb_driver = {
 	.remove = __devexit_p(xgifb_remove)
 };
 
-XGIINITSTATIC int __init xgifb_init(void)
+static int __init xgifb_init(void)
 {
 	char *option = NULL;
 
@@ -2564,26 +2528,26 @@ module_init(xgifb_init);
 
 #ifdef MODULE
 
-static char *mode = NULL;
-static int vesa = 0;
-static unsigned int rate = 0;
-static unsigned int mem = 0;
-static char *forcecrt2type = NULL;
+static char *mode;
+static int vesa;
+static unsigned int rate;
+static unsigned int mem;
+static char *forcecrt2type;
 static int forcecrt1 = -1;
 static int pdc = -1;
 static int pdc1 = -1;
 static int noypan = -1;
 static int userom = -1;
 static int useoem = -1;
-static char *tvstandard = NULL;
-static int nocrt2rate = 0;
+static char *tvstandard;
+static int nocrt2rate;
 static int scalelcd = -1;
-static char *specialtiming = NULL;
+static char *specialtiming;
 static int lvdshl = -1;
-static int tvxposoffset = 0, tvyposoffset = 0;
+static int tvxposoffset, tvyposoffset;
 #if !defined(__i386__) && !defined(__x86_64__)
-static int resetcard = 0;
-static int videoram = 0;
+static int resetcard;
+static int videoram;
 #endif
 
 MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");

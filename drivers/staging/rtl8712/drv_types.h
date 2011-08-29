@@ -117,6 +117,11 @@ struct dvobj_priv {
 	struct usb_device *pusbdev;
 };
 
+/**
+ * struct _adapter - the main adapter structure for this device.
+ *
+ * bup: True indicates that the interface is Up.
+ */
 struct _adapter {
 	struct	dvobj_priv dvobjpriv;
 	struct	mlme_priv mlmepriv;

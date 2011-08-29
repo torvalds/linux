@@ -22,7 +22,8 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include "iio.h"
-#include "trigger_consumer.h"
+#include "iio_core.h"
+#include "iio_core_trigger.h"
 
 #define IIO_ID_PREFIX "device"
 #define IIO_ID_FORMAT IIO_ID_PREFIX "%d"
@@ -35,7 +36,6 @@ static DEFINE_IDA(iio_chrdev_ida);
 static DEFINE_SPINLOCK(iio_ida_lock);
 
 dev_t iio_devt;
-EXPORT_SYMBOL(iio_devt);
 
 #define IIO_DEV_MAX 256
 struct bus_type iio_bus_type = {
@@ -85,7 +85,37 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
 	[IIO_CHAN_INFO_PEAK_SHARED/2] = "peak_raw",
 	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
+	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
+	= "quadrature_correction_raw",
 };
+
+/* Return a negative errno on failure */
+static int iio_get_new_ida_val(struct ida *this_ida)
+{
+	int ret;
+	int val;
+
+ida_again:
+	if (unlikely(ida_pre_get(this_ida, GFP_KERNEL) == 0))
+		return -ENOMEM;
+
+	spin_lock(&iio_ida_lock);
+	ret = ida_get_new(this_ida, &val);
+	spin_unlock(&iio_ida_lock);
+	if (unlikely(ret == -EAGAIN))
+		goto ida_again;
+	else if (unlikely(ret))
+		return ret;
+
+	return val;
+}
+
+static void iio_free_ida_val(struct ida *this_ida, int id)
+{
+	spin_lock(&iio_ida_lock);
+	ida_remove(this_ida, id);
+	spin_unlock(&iio_ida_lock);
+}
 
 int iio_push_event(struct iio_dev *dev_info,
 		   int ev_line,
@@ -246,28 +276,18 @@ static struct device_type iio_event_type = {
 
 int iio_device_get_chrdev_minor(void)
 {
-	int ret, val;
+	int ret;
 
-ida_again:
-	if (unlikely(ida_pre_get(&iio_chrdev_ida, GFP_KERNEL) == 0))
-		return -ENOMEM;
-	spin_lock(&iio_ida_lock);
-	ret = ida_get_new(&iio_chrdev_ida, &val);
-	spin_unlock(&iio_ida_lock);
-	if (unlikely(ret == -EAGAIN))
-		goto ida_again;
-	else if (unlikely(ret))
+	ret = iio_get_new_ida_val(&iio_chrdev_ida);
+	if (ret < IIO_DEV_MAX) /* both errors and valid */
 		return ret;
-	if (val > IIO_DEV_MAX)
+	else
 		return -ENOMEM;
-	return val;
 }
 
 void iio_device_free_chrdev_minor(int val)
 {
-	spin_lock(&iio_ida_lock);
-	ida_remove(&iio_chrdev_ida, val);
-	spin_unlock(&iio_ida_lock);
+	iio_free_ida_val(&iio_chrdev_ida, val);
 }
 
 static int iio_setup_ev_int(struct iio_event_interface *ev_int,
@@ -329,24 +349,6 @@ static void iio_free_ev_int(struct iio_event_interface *ev_int)
 	put_device(&ev_int->dev);
 }
 
-static int __init iio_dev_init(void)
-{
-	int err;
-
-	err = alloc_chrdev_region(&iio_devt, 0, IIO_DEV_MAX, "iio");
-	if (err < 0)
-		printk(KERN_ERR "%s: failed to allocate char dev region\n",
-		       __FILE__);
-
-	return err;
-}
-
-static void __exit iio_dev_exit(void)
-{
-	if (iio_devt)
-		unregister_chrdev_region(iio_devt, IIO_DEV_MAX);
-}
-
 static int __init iio_init(void)
 {
 	int ret;
@@ -360,9 +362,12 @@ static int __init iio_init(void)
 		goto error_nothing;
 	}
 
-	ret = iio_dev_init();
-	if (ret < 0)
+	ret = alloc_chrdev_region(&iio_devt, 0, IIO_DEV_MAX, "iio");
+	if (ret < 0) {
+		printk(KERN_ERR "%s: failed to allocate char dev region\n",
+		       __FILE__);
 		goto error_unregister_bus_type;
+	}
 
 	return 0;
 
@@ -374,7 +379,8 @@ error_nothing:
 
 static void __exit iio_exit(void)
 {
-	iio_dev_exit();
+	if (iio_devt)
+		unregister_chrdev_region(iio_devt, IIO_DEV_MAX);
 	bus_unregister(&iio_bus_type);
 }
 
@@ -524,6 +530,7 @@ static int __iio_build_postfix(struct iio_chan_spec const *chan,
 	return 0;
 }
 
+static
 int __iio_device_attr_init(struct device_attribute *dev_attr,
 			   const char *postfix,
 			   struct iio_chan_spec const *chan,
@@ -596,7 +603,7 @@ error_ret:
 	return ret;
 }
 
-void __iio_device_attr_deinit(struct device_attribute *dev_attr)
+static void __iio_device_attr_deinit(struct device_attribute *dev_attr)
 {
 	kfree(dev_attr->attr.name);
 }
@@ -725,19 +732,29 @@ static ssize_t iio_show_dev_name(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
 
+static struct attribute *iio_base_dummy_attrs[] = {
+	NULL
+};
+static struct attribute_group iio_base_dummy_group = {
+	.attrs = iio_base_dummy_attrs,
+};
+
 static int iio_device_register_sysfs(struct iio_dev *dev_info)
 {
 	int i, ret = 0;
 	struct iio_dev_attr *p, *n;
 
-	if (dev_info->info->attrs) {
+	if (dev_info->info->attrs)
 		ret = sysfs_create_group(&dev_info->dev.kobj,
 					 dev_info->info->attrs);
-		if (ret) {
-			dev_err(dev_info->dev.parent,
-				"Failed to register sysfs hooks\n");
-			goto error_ret;
-		}
+	else
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 &iio_base_dummy_group);
+	
+	if (ret) {
+		dev_err(dev_info->dev.parent,
+			"Failed to register sysfs hooks\n");
+		goto error_ret;
 	}
 
 	/*
@@ -753,7 +770,7 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 			if (ret < 0)
 				goto error_clear_attrs;
 		}
-	if (dev_info->name) {
+	if (dev_info->name) { 
 		ret = sysfs_add_file_to_group(&dev_info->dev.kobj,
 					      &dev_attr_name.attr,
 					      NULL);
@@ -770,6 +787,8 @@ error_clear_attrs:
 	}
 	if (dev_info->info->attrs)
 		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj, &iio_base_dummy_group);
 error_ret:
 	return ret;
 
@@ -790,37 +809,9 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 
 	if (dev_info->info->attrs)
 		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj, &iio_base_dummy_group);
 }
-
-/* Return a negative errno on failure */
-int iio_get_new_ida_val(struct ida *this_ida)
-{
-	int ret;
-	int val;
-
-ida_again:
-	if (unlikely(ida_pre_get(this_ida, GFP_KERNEL) == 0))
-		return -ENOMEM;
-
-	spin_lock(&iio_ida_lock);
-	ret = ida_get_new(this_ida, &val);
-	spin_unlock(&iio_ida_lock);
-	if (unlikely(ret == -EAGAIN))
-		goto ida_again;
-	else if (unlikely(ret))
-		return ret;
-
-	return val;
-}
-EXPORT_SYMBOL(iio_get_new_ida_val);
-
-void iio_free_ida_val(struct ida *this_ida, int id)
-{
-	spin_lock(&iio_ida_lock);
-	ida_remove(this_ida, id);
-	spin_unlock(&iio_ida_lock);
-}
-EXPORT_SYMBOL(iio_free_ida_val);
 
 static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH] = "thresh",
@@ -911,7 +902,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 				      struct iio_chan_spec const *chan)
 {
 
-	int ret = 0, i, mask;
+	int ret = 0, i, mask = 0;
 	char *postfix;
 	if (!chan->event_mask)
 		return 0;
@@ -944,6 +935,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			break;
 		default:
 			printk(KERN_INFO "currently unhandled type of event\n");
+			continue;
 		}
 		ret = __iio_add_chan_devattr(postfix,
 					     NULL,
@@ -989,18 +981,17 @@ error_ret:
 	return ret;
 }
 
-static inline void __iio_remove_all_event_sysfs(struct iio_dev *dev_info,
-						const char *groupname,
-						int num)
+static inline void __iio_remove_event_config_attrs(struct iio_dev *dev_info,
+						  int i)
 {
 	struct iio_dev_attr *p, *n;
 	list_for_each_entry_safe(p, n,
-				 &dev_info->event_interfaces[num].
+				 &dev_info->event_interfaces[i].
 				 dev_attr_list, l) {
 		sysfs_remove_file_from_group(&dev_info
-					     ->event_interfaces[num].dev.kobj,
+					     ->event_interfaces[i].dev.kobj,
 					     &p->dev_attr.attr,
-					     groupname);
+					     NULL);
 		kfree(p->dev_attr.attr.name);
 		kfree(p);
 	}
@@ -1010,7 +1001,7 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 {
 	int j;
 	int ret;
-	INIT_LIST_HEAD(&dev_info->event_interfaces[0].dev_attr_list);
+	INIT_LIST_HEAD(&dev_info->event_interfaces[i].dev_attr_list);
 	/* Dynically created from the channels array */
 	if (dev_info->channels) {
 		for (j = 0; j < dev_info->num_channels; j++) {
@@ -1024,16 +1015,9 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 	return 0;
 
 error_clear_attrs:
-	__iio_remove_all_event_sysfs(dev_info, NULL, i);
+	__iio_remove_event_config_attrs(dev_info, i);
 
 	return ret;
-}
-
-static inline int __iio_remove_event_config_attrs(struct iio_dev *dev_info,
-						  int i)
-{
-	__iio_remove_all_event_sysfs(dev_info, NULL, i);
-	return 0;
 }
 
 static int iio_device_register_eventset(struct iio_dev *dev_info)
@@ -1061,7 +1045,7 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		if (ret) {
 			dev_err(&dev_info->dev,
 				"Could not get chrdev interface\n");
-			goto error_free_setup_ev_ints;
+			goto error_free_setup_event_lines;
 		}
 
 		dev_set_drvdata(&dev_info->event_interfaces[i].dev,
@@ -1077,31 +1061,33 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		if (ret) {
 			dev_err(&dev_info->dev,
 				"Failed to register sysfs for event attrs");
-			goto error_remove_sysfs_interfaces;
+			iio_free_ev_int(&dev_info->event_interfaces[i]);
+			goto error_free_setup_event_lines;
 		}
-	}
-
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
 		ret = __iio_add_event_config_attrs(dev_info, i);
-		if (ret)
-			goto error_unregister_config_attrs;
+		if (ret) {
+			if (dev_info->info->event_attrs != NULL)
+				sysfs_remove_group(&dev_info
+						   ->event_interfaces[i]
+						   .dev.kobj,
+						   &dev_info->info
+						   ->event_attrs[i]);
+			iio_free_ev_int(&dev_info->event_interfaces[i]);
+			goto error_free_setup_event_lines;
+		}
 	}
 
 	return 0;
 
-error_unregister_config_attrs:
-	for (j = 0; j < i; j++)
-		__iio_remove_event_config_attrs(dev_info, i);
-	i = dev_info->info->num_interrupt_lines - 1;
-error_remove_sysfs_interfaces:
-	for (j = 0; j < i; j++)
+error_free_setup_event_lines:
+	for (j = 0; j < i; j++) {
+		__iio_remove_event_config_attrs(dev_info, j);
 		if (dev_info->info->event_attrs != NULL)
 			sysfs_remove_group(&dev_info
-				   ->event_interfaces[j].dev.kobj,
-				   &dev_info->info->event_attrs[j]);
-error_free_setup_ev_ints:
-	for (j = 0; j < i; j++)
+					   ->event_interfaces[j].dev.kobj,
+					   &dev_info->info->event_attrs[j]);
 		iio_free_ev_int(&dev_info->event_interfaces[j]);
+	}
 	kfree(dev_info->event_interfaces);
 error_ret:
 
@@ -1120,17 +1106,16 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 			sysfs_remove_group(&dev_info
 					   ->event_interfaces[i].dev.kobj,
 					   &dev_info->info->event_attrs[i]);
-	}
-
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++)
 		iio_free_ev_int(&dev_info->event_interfaces[i]);
+	}
 	kfree(dev_info->event_interfaces);
 }
 
 static void iio_dev_release(struct device *device)
 {
+	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
 	iio_put();
-	kfree(to_iio_dev(device));
+	kfree(dev_info);
 }
 
 static struct device_type iio_dev_type = {

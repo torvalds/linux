@@ -23,13 +23,15 @@
 #include "types.h"
 
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
+
 /* structure to store per-tid state for the ampdu initiator */
 struct scb_ampdu_tid_ini {
-	u8 tx_in_transit;	/* number of pending mpdus in transit in driver */
-	u8 tid;		/* initiator tid for easy lookup */
-	u8 txretry[AMPDU_TX_BA_MAX_WSIZE];	/* tx retry count; indexed by seq modulo */
-	struct scb *scb;	/* backptr for easy lookup */
-	u8 ba_wsize;		/* negotiated ba window size (in pdu) */
+	u8 tx_in_transit; /* number of pending mpdus in transit in driver */
+	u8 tid;		  /* initiator tid for easy lookup */
+	/* tx retry count; indexed by seq modulo */
+	u8 txretry[AMPDU_TX_BA_MAX_WSIZE];
+	struct scb *scb;  /* backptr for easy lookup */
+	u8 ba_wsize;	  /* negotiated ba window size (in pdu) */
 };
 
 #define AMPDU_MAX_SCB_TID	NUMPRIO
@@ -43,9 +45,10 @@ struct scb_ampdu {
 	u32 max_rx_ampdu_bytes;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
 	struct pktq txq;	/* sdu transmit queue pending aggregation */
 
-	/* This could easily be a ini[] pointer and we keep this info in wl itself instead
-	 * of having mac80211 hold it for us.  Also could be made dynamic per tid instead of
-	 * static.
+	/*
+	 * This could easily be a ini[] pointer and we keep this info in wl
+	 * itself instead of having mac80211 hold it for us. Also could be made
+	 * dynamic per tid instead of static.
 	 */
 	/* initiator info - per tid (NUMPRIO): */
 	struct scb_ampdu_tid_ini ini[AMPDU_MAX_SCB_TID];
@@ -56,18 +59,17 @@ struct scb_ampdu {
 /* station control block - one per remote MAC address */
 struct scb {
 	u32 magic;
-	u32 flags;		/* various bit flags as defined below */
-	u32 flags2;		/* various bit flags2 as defined below */
-	u8 state;		/* current state bitfield of auth/assoc process */
+	u32 flags;	/* various bit flags as defined below */
+	u32 flags2;	/* various bit flags2 as defined below */
+	u8 state;	/* current state bitfield of auth/assoc process */
 	u8 ea[ETH_ALEN];	/* station address */
-	void *fragbuf[NUMPRIO];	/* defragmentation buffer per prio */
-	uint fragresid[NUMPRIO];	/* #bytes unused in frag buffer per prio */
+	uint fragresid[NUMPRIO];/* #bytes unused in frag buffer per prio */
 
 	u16 seqctl[NUMPRIO];	/* seqctl of last received frame (for dups) */
-	u16 seqctl_nonqos;	/* seqctl of last received frame (for dups) for
-				 * non-QoS data and management
-				 */
-	u16 seqnum[NUMPRIO];	/* WME: driver maintained sw seqnum per priority */
+	/* seqctl of last received frame (for dups) for non-QoS data and
+	 * management */
+	u16 seqctl_nonqos;
+	u16 seqnum[NUMPRIO];/* WME: driver maintained sw seqnum per priority */
 
 	struct scb_ampdu scb_ampdu;	/* AMPDU state including per tid info */
 };

@@ -109,15 +109,6 @@ struct block_device_context {
 	int users;
 };
 
-static const char *drv_name = "blkvsc";
-
-/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
-static const struct hv_guid dev_type = {
-	.data = {
-		0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
-		0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
-	}
-};
 
 /*
  * There is a circular dependency involving blkvsc_request_completion()
@@ -155,13 +146,13 @@ static int blkvsc_device_add(struct hv_device *device,
 	 * id. For IDE devices, the device instance id is formatted as
 	 * <bus id> * - <device id> - 8899 - 000000000000.
 	 */
-	device_info->path_id = device->dev_instance.data[3] << 24 |
-			     device->dev_instance.data[2] << 16 |
-			     device->dev_instance.data[1] << 8  |
-			     device->dev_instance.data[0];
+	device_info->path_id = device->dev_instance.b[3] << 24 |
+			     device->dev_instance.b[2] << 16 |
+			     device->dev_instance.b[1] << 8  |
+			     device->dev_instance.b[0];
 
-	device_info->target_id = device->dev_instance.data[5] << 8 |
-			       device->dev_instance.data[4];
+	device_info->target_id = device->dev_instance.b[5] << 8 |
+			       device->dev_instance.b[4];
 
 	return ret;
 }
@@ -734,7 +725,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 		} else {
 			ret = blkvsc_submit_request(blkvsc_req,
 						    blkvsc_request_completion);
-			if (ret == -1) {
+			if (ret == -EAGAIN) {
 				pending = 1;
 				list_add_tail(&blkvsc_req->pend_entry,
 					      &blkdev->pending_list);
@@ -802,10 +793,19 @@ static void blkvsc_request(struct request_queue *queue)
 	}
 }
 
+static const struct hv_vmbus_device_id id_table[] = {
+	/* IDE guid */
+	{ VMBUS_DEVICE(0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
+		       0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5) },
+	{ },
+};
 
+MODULE_DEVICE_TABLE(vmbus, id_table);
 
 /* The one and only one */
 static  struct hv_driver blkvsc_drv = {
+	.name = "blkvsc",
+	.id_table = id_table,
 	.probe =  blkvsc_probe,
 	.remove =  blkvsc_remove,
 	.shutdown = blkvsc_shutdown,
@@ -824,25 +824,13 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(void)
 {
-	struct hv_driver *drv = &blkvsc_drv;
-	int ret;
-
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
-
-	memcpy(&drv->dev_type, &dev_type, sizeof(struct hv_guid));
-	drv->driver.name = drv_name;
-
-	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv->driver);
-
-	return ret;
+	return vmbus_driver_register(&blkvsc_drv);
 }
-
 
 static void blkvsc_drv_exit(void)
 {
-
-	vmbus_child_driver_unregister(&blkvsc_drv.driver);
+	vmbus_driver_unregister(&blkvsc_drv);
 }
 
 /*

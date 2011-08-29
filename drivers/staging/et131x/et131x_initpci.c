@@ -263,76 +263,55 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
  */
 void et131x_error_timer_handler(unsigned long data)
 {
-	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
+	struct et131x_adapter *adapter = (struct et131x_adapter *) data;
 	u32 pm_csr;
 
-	pm_csr = readl(&etdev->regs->global.pm_csr);
+	pm_csr = readl(&adapter->regs->global.pm_csr);
 
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
-		UpdateMacStatHostCounters(etdev);
+		et1310_update_macstat_host_counters(adapter);
 	else
-		dev_err(&etdev->pdev->dev,
+		dev_err(&adapter->pdev->dev,
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
-	if (!(etdev->bmsr & MI_BMSR_LINK_STATUS) &&
-	    etdev->RegistryPhyComa &&
-	    etdev->boot_coma < 11) {
-		etdev->boot_coma++;
+	if (!(adapter->bmsr & MI_BMSR_LINK_STATUS) &&
+	    adapter->registry_phy_coma &&
+	    adapter->boot_coma < 11) {
+		adapter->boot_coma++;
 	}
 
-	if (etdev->boot_coma == 10) {
-		if (!(etdev->bmsr & MI_BMSR_LINK_STATUS)
-		    && etdev->RegistryPhyComa) {
+	if (adapter->boot_coma == 10) {
+		if (!(adapter->bmsr & MI_BMSR_LINK_STATUS)
+		    && adapter->registry_phy_coma) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?
 				 */
-				et131x_enable_interrupts(etdev);
-				EnablePhyComa(etdev);
+				et131x_enable_interrupts(adapter);
+				et1310_enable_phy_coma(adapter);
 			}
 		}
 	}
 
 	/* This is a periodic timer, so reschedule */
-	mod_timer(&etdev->ErrorTimer, jiffies +
+	mod_timer(&adapter->error_timer, jiffies +
 					  TX_ERROR_PERIOD * HZ / 1000);
 }
 
 /**
- * et131x_link_detection_handler
- *
- * Timer function for link up at driver load time
- */
-void et131x_link_detection_handler(unsigned long data)
-{
-	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
-	unsigned long flags;
-
-	if (etdev->MediaState == 0) {
-		spin_lock_irqsave(&etdev->Lock, flags);
-
-		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
-
-		spin_unlock_irqrestore(&etdev->Lock, flags);
-
-		netif_carrier_off(etdev->netdev);
-	}
-}
-
-/**
  * et131x_configure_global_regs	-	configure JAGCore global regs
- * @etdev: pointer to our adapter structure
+ * @adapter: pointer to our adapter structure
  *
  * Used to configure the global registers on the JAGCore
  */
-void ConfigGlobalRegs(struct et131x_adapter *etdev)
+void et131x_configure_global_regs(struct et131x_adapter *adapter)
 {
-	struct global_regs __iomem *regs = &etdev->regs->global;
+	struct global_regs __iomem *regs = &adapter->regs->global;
 
 	writel(0, &regs->rxq_start_addr);
 	writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 
-	if (etdev->RegistryJumboPacket < 2048) {
+	if (adapter->registry_jumbo_packet < 2048) {
 		/* Tx / RxDMA and Tx/Rx MAC interfaces have a 1k word
 		 * block of RAM that the driver can split between Tx
 		 * and Rx as it desires.  Our default is to split it
@@ -340,7 +319,7 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 		 */
 		writel(PARM_RX_MEM_END_DEF, &regs->rxq_end_addr);
 		writel(PARM_RX_MEM_END_DEF + 1, &regs->txq_start_addr);
-	} else if (etdev->RegistryJumboPacket < 8192) {
+	} else if (adapter->registry_jumbo_packet < 8192) {
 		/* For jumbo packets > 2k but < 8k, split 50-50. */
 		writel(INTERNAL_MEM_RX_OFFSET, &regs->rxq_end_addr);
 		writel(INTERNAL_MEM_RX_OFFSET + 1, &regs->txq_start_addr);
@@ -366,63 +345,62 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 	writel(0, &regs->watchdog_timer);
 }
 
-
 /**
  * et131x_adapter_setup - Set the adapter up as per cassini+ documentation
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_adapter_setup(struct et131x_adapter *etdev)
+int et131x_adapter_setup(struct et131x_adapter *adapter)
 {
 	int status = 0;
 
 	/* Configure the JAGCore */
-	ConfigGlobalRegs(etdev);
+	et131x_configure_global_regs(adapter);
 
-	ConfigMACRegs1(etdev);
+	et1310_config_mac_regs1(adapter);
 
 	/* Configure the MMC registers */
 	/* All we need to do is initialize the Memory Control Register */
-	writel(ET_MMC_ENABLE, &etdev->regs->mmc.mmc_ctrl);
+	writel(ET_MMC_ENABLE, &adapter->regs->mmc.mmc_ctrl);
 
-	ConfigRxMacRegs(etdev);
-	ConfigTxMacRegs(etdev);
+	et1310_config_rxmac_regs(adapter);
+	et1310_config_txmac_regs(adapter);
 
-	ConfigRxDmaRegs(etdev);
-	ConfigTxDmaRegs(etdev);
+	et131x_config_rx_dma_regs(adapter);
+	et131x_config_tx_dma_regs(adapter);
 
-	ConfigMacStatRegs(etdev);
+	et1310_config_macstat_regs(adapter);
 
 	/* Move the following code to Timer function?? */
-	status = et131x_xcvr_find(etdev);
+	status = et131x_xcvr_find(adapter);
 
 	if (status != 0)
-		dev_warn(&etdev->pdev->dev, "Could not find the xcvr\n");
+		dev_warn(&adapter->pdev->dev, "Could not find the xcvr\n");
 
 	/* Prepare the TRUEPHY library. */
-	ET1310_PhyInit(etdev);
+	et1310_phy_init(adapter);
 
 	/* Reset the phy now so changes take place */
-	ET1310_PhyReset(etdev);
+	et1310_phy_reset(adapter);
 
 	/* Power down PHY */
-	ET1310_PhyPowerDown(etdev, 1);
+	et1310_phy_power_down(adapter, 1);
 
 	/*
 	 * We need to turn off 1000 base half dulplex, the mac does not
 	 * support it. For the 10/100 part, turn off all gig advertisement
 	 */
-	if (etdev->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
-		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_FULL);
+	if (adapter->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
+		et1310_phy_advertise_1000BaseT(adapter, TRUEPHY_ADV_DUPLEX_FULL);
 	else
-		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
+		et1310_phy_advertise_1000BaseT(adapter, TRUEPHY_ADV_DUPLEX_NONE);
 
 	/* Power up PHY */
-	ET1310_PhyPowerDown(etdev, 0);
+	et1310_phy_power_down(adapter, 0);
 
-	et131x_setphy_normal(etdev);
-;	return status;
+	et131x_setphy_normal(adapter);
+	return status;
 }
 
 /**
@@ -517,18 +495,14 @@ void et131x_adapter_memory_free(struct et131x_adapter *adapter)
 	et131x_rx_dma_memory_free(adapter);
 }
 
-
-
 /**
  * et131x_adapter_init
- * @etdev: pointer to the private adapter struct
+ * @adapter: pointer to the private adapter struct
  * @pdev: pointer to the PCI device
  *
  * Initialize the data structures for the et131x_adapter object and link
  * them together with the platform provided device structures.
  */
-
-
 static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 		struct pci_dev *pdev)
 {
@@ -536,43 +510,43 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	static const u8 duplex[] = { 0, 1, 2, 1, 2, 2 };
 	static const u16 speed[] = { 0, 10, 10, 100, 100, 1000 };
 
-	struct et131x_adapter *etdev;
+	struct et131x_adapter *adapter;
 
 	/* Setup the fundamental net_device and private adapter structure
 	 * elements  */
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	/* Allocate private adapter struct and copy in relevant information */
-	etdev = netdev_priv(netdev);
-	etdev->pdev = pci_dev_get(pdev);
-	etdev->netdev = netdev;
+	adapter = netdev_priv(netdev);
+	adapter->pdev = pci_dev_get(pdev);
+	adapter->netdev = netdev;
 
 	/* Do the same for the netdev struct */
 	netdev->irq = pdev->irq;
 	netdev->base_addr = pci_resource_start(pdev, 0);
 
 	/* Initialize spinlocks here */
-	spin_lock_init(&etdev->Lock);
-	spin_lock_init(&etdev->TCBSendQLock);
-	spin_lock_init(&etdev->TCBReadyQLock);
-	spin_lock_init(&etdev->send_hw_lock);
-	spin_lock_init(&etdev->rcv_lock);
-	spin_lock_init(&etdev->RcvPendLock);
-	spin_lock_init(&etdev->FbrLock);
-	spin_lock_init(&etdev->PHYLock);
+	spin_lock_init(&adapter->lock);
+	spin_lock_init(&adapter->tcb_send_qlock);
+	spin_lock_init(&adapter->tcb_ready_qlock);
+	spin_lock_init(&adapter->send_hw_lock);
+	spin_lock_init(&adapter->rcv_lock);
+	spin_lock_init(&adapter->rcv_pend_lock);
+	spin_lock_init(&adapter->fbr_lock);
+	spin_lock_init(&adapter->phy_lock);
 
 	/* Parse configuration parameters into the private adapter struct */
 	if (et131x_speed_set)
-		dev_info(&etdev->pdev->dev,
+		dev_info(&adapter->pdev->dev,
 			"Speed set manually to : %d\n", et131x_speed_set);
 
-	etdev->SpeedDuplex = et131x_speed_set;
-	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
+	adapter->speed_duplex = et131x_speed_set;
+	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
 	/* Set the MAC address to a default */
-	memcpy(etdev->addr, default_mac, ETH_ALEN);
+	memcpy(adapter->addr, default_mac, ETH_ALEN);
 
-	/* Decode SpeedDuplex
+	/* Decode speed_duplex
 	 *
 	 * Set up as if we are auto negotiating always and then change if we
 	 * go into force mode
@@ -580,14 +554,14 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	 * If we are the 10/100 device, and gigabit is somehow requested then
 	 * knock it down to 100 full.
 	 */
-	if (etdev->pdev->device == ET131X_PCI_DEVICE_ID_FAST &&
-	    etdev->SpeedDuplex == 5)
-		etdev->SpeedDuplex = 4;
+	if (adapter->pdev->device == ET131X_PCI_DEVICE_ID_FAST &&
+	    adapter->speed_duplex == 5)
+		adapter->speed_duplex = 4;
 
-	etdev->AiForceSpeed = speed[etdev->SpeedDuplex];
-	etdev->AiForceDpx = duplex[etdev->SpeedDuplex];	/* Auto FDX */
+	adapter->ai_force_speed = speed[adapter->speed_duplex];
+	adapter->ai_force_duplex = duplex[adapter->speed_duplex];	/* Auto FDX */
 
-	return etdev;
+	return adapter;
 }
 
 /**
@@ -602,7 +576,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
  * contained in the pci_device_id table. This routine is the equivalent to
  * a device insertion routine.
  */
-
 static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
@@ -717,14 +690,14 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	et131x_adapter_setup(adapter);
 
 	/* Create a timer to count errors received by the NIC */
-	init_timer(&adapter->ErrorTimer);
+	init_timer(&adapter->error_timer);
 
-	adapter->ErrorTimer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
-	adapter->ErrorTimer.function = et131x_error_timer_handler;
-	adapter->ErrorTimer.data = (unsigned long)adapter;
+	adapter->error_timer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
+	adapter->error_timer.function = et131x_error_timer_handler;
+	adapter->error_timer.data = (unsigned long)adapter;
 
 	/* Initialize link state */
-	et131x_link_detection_handler((unsigned long)adapter);
+	netif_carrier_off(adapter->netdev);
 
 	/* Initialize variable for counting how long we do not have
 							link status */
@@ -774,7 +747,6 @@ err_disable:
  * PCI subsystem detects that a PCI device which matches the information
  * contained in the pci_device_id table has been removed.
  */
-
 static void __devexit et131x_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev;
@@ -814,7 +786,6 @@ static struct pci_driver et131x_driver = {
 	.suspend	= NULL,		/* et131x_pci_suspend */
 	.resume		= NULL,		/* et131x_pci_resume */
 };
-
 
 /**
  * et131x_init_module - The "main" entry point called on driver initialization

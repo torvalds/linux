@@ -20,8 +20,10 @@
 #include <linux/if_ether.h>		/* for ETH_ALEN */
 #include <linux/ieee80211.h>		/* for WLAN_PMKID_LEN */
 
-/* A chanspec holds the channel number, band, bandwidth and control sideband */
-typedef u16 chanspec_t;
+/*
+ * A chanspec (u16) holds the channel number, band, bandwidth and control
+ * sideband
+ */
 
 /* channel defines */
 #define CH_UPPER_SB			0x01
@@ -29,13 +31,16 @@ typedef u16 chanspec_t;
 #define CH_EWA_VALID			0x04
 #define CH_20MHZ_APART			4
 #define CH_10MHZ_APART			2
-#define CH_5MHZ_APART			1	/* 2G band channels are 5 Mhz apart */
+#define CH_5MHZ_APART			1 /* 2G band channels are 5 Mhz apart */
 #define CH_MAX_2G_CHANNEL		14	/* Max channel in 2G band */
 #define BRCM_MAX_2G_CHANNEL	CH_MAX_2G_CHANNEL	/* legacy define */
-#define	MAXCHANNEL		224	/* max # supported channels. The max channel no is 216,
-					 * this is that + 1 rounded up to a multiple of NBBY (8).
-					 * DO NOT MAKE it > 255: channels are u8's all over
-					 */
+
+/*
+ * max # supported channels. The max channel no is 216, this is that + 1
+ * rounded up to a multiple of NBBY (8). DO NOT MAKE it > 255: channels are
+ * u8's all over
+*/
+#define	MAXCHANNEL		224
 
 #define WL_CHANSPEC_CHAN_MASK		0x00ff
 #define WL_CHANSPEC_CHAN_SHIFT		0
@@ -64,53 +69,67 @@ typedef u16 chanspec_t;
 #define WF_CHAN_FACTOR_4_G		8000	/* 4.9 GHz band for Japan */
 
 /* channel defines */
-#define LOWER_20_SB(channel)	(((channel) > CH_10MHZ_APART) ? ((channel) - CH_10MHZ_APART) : 0)
-#define UPPER_20_SB(channel)	(((channel) < (MAXCHANNEL - CH_10MHZ_APART)) ? \
-				((channel) + CH_10MHZ_APART) : 0)
-#define CHSPEC_BANDUNIT(chspec)	(CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : \
-						       BAND_2G_INDEX)
-#define CH20MHZ_CHSPEC(channel)	(chanspec_t)((chanspec_t)(channel) | WL_CHANSPEC_BW_20 | \
-				WL_CHANSPEC_CTL_SB_NONE | (((channel) <= CH_MAX_2G_CHANNEL) ? \
-				WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
-#define NEXT_20MHZ_CHAN(channel)	(((channel) < (MAXCHANNEL - CH_20MHZ_APART)) ? \
-					((channel) + CH_20MHZ_APART) : 0)
-#define CH40MHZ_CHSPEC(channel, ctlsb)	(chanspec_t) \
-					((channel) | (ctlsb) | WL_CHANSPEC_BW_40 | \
-					((channel) <= CH_MAX_2G_CHANNEL ? WL_CHANSPEC_BAND_2G : \
-					WL_CHANSPEC_BAND_5G))
+#define LOWER_20_SB(channel) \
+	(((channel) > CH_10MHZ_APART) ? ((channel) - CH_10MHZ_APART) : 0)
+
+#define UPPER_20_SB(channel) \
+	(((channel) < (MAXCHANNEL - CH_10MHZ_APART)) ? \
+	 ((channel) + CH_10MHZ_APART) : 0)
+
+#define CHSPEC_BANDUNIT(chspec) \
+	(CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : BAND_2G_INDEX)
+
+#define CH20MHZ_CHSPEC(channel) \
+	(u16)((u16)(channel) | WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE | \
+		    (((channel) <= CH_MAX_2G_CHANNEL) ? \
+		    WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
+
+#define NEXT_20MHZ_CHAN(channel) \
+	(((channel) < (MAXCHANNEL - CH_20MHZ_APART)) ? \
+	 ((channel) + CH_20MHZ_APART) : 0)
+
+#define CH40MHZ_CHSPEC(channel, ctlsb) \
+	(u16)((channel) | (ctlsb) | WL_CHANSPEC_BW_40 | \
+	      ((channel) <= CH_MAX_2G_CHANNEL ? \
+		WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
+
 #define CHSPEC_CHANNEL(chspec)	((u8)((chspec) & WL_CHANSPEC_CHAN_MASK))
 #define CHSPEC_BAND(chspec)	((chspec) & WL_CHANSPEC_BAND_MASK)
 
-#ifdef WL11N_20MHZONLY
-
-#define CHSPEC_CTL_SB(chspec)	WL_CHANSPEC_CTL_SB_NONE
-#define CHSPEC_BW(chspec)	WL_CHANSPEC_BW_20
-#define CHSPEC_IS10(chspec)	0
-#define CHSPEC_IS20(chspec)	1
-#ifndef CHSPEC_IS40
-#define CHSPEC_IS40(chspec)	0
-#endif
-
-#else				/* !WL11N_20MHZONLY */
-
 #define CHSPEC_CTL_SB(chspec)	((chspec) & WL_CHANSPEC_CTL_SB_MASK)
 #define CHSPEC_BW(chspec)	((chspec) & WL_CHANSPEC_BW_MASK)
-#define CHSPEC_IS10(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_10)
-#define CHSPEC_IS20(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_20)
+
+#define CHSPEC_IS10(chspec) \
+	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_10)
+
+#define CHSPEC_IS20(chspec) \
+	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_20)
+
 #ifndef CHSPEC_IS40
-#define CHSPEC_IS40(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_40)
+#define CHSPEC_IS40(chspec) \
+	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_40)
 #endif
 
-#endif				/* !WL11N_20MHZONLY */
+#define CHSPEC_IS5G(chspec) \
+	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_5G)
 
-#define CHSPEC_IS5G(chspec)	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_5G)
-#define CHSPEC_IS2G(chspec)	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_2G)
-#define CHSPEC_SB_NONE(chspec)	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_NONE)
-#define CHSPEC_SB_UPPER(chspec)	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_UPPER)
-#define CHSPEC_SB_LOWER(chspec)	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_LOWER)
-#define CHSPEC_CTL_CHAN(chspec)  ((CHSPEC_SB_LOWER(chspec)) ? \
-				  (LOWER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))) : \
-				  (UPPER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))))
+#define CHSPEC_IS2G(chspec) \
+	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_2G)
+
+#define CHSPEC_SB_NONE(chspec) \
+	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_NONE)
+
+#define CHSPEC_SB_UPPER(chspec) \
+	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_UPPER)
+
+#define CHSPEC_SB_LOWER(chspec) \
+	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_LOWER)
+
+#define CHSPEC_CTL_CHAN(chspec) \
+	((CHSPEC_SB_LOWER(chspec)) ? \
+	(LOWER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))) : \
+	(UPPER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))))
+
 #define CHSPEC2BAND(chspec) (CHSPEC_IS5G(chspec) ? BRCM_BAND_5G : BRCM_BAND_2G)
 
 #define CHANSPEC_STR_LEN    8
@@ -142,14 +161,14 @@ typedef u16 chanspec_t;
  * combination could be legal given any set of circumstances.
  * RETURNS: true is the chanspec is malformed, false if it looks good.
  */
-extern bool brcmu_chspec_malformed(chanspec_t chanspec);
+extern bool brcmu_chspec_malformed(u16 chanspec);
 
 /*
- * This function returns the channel number that control traffic is being sent on, for legacy
- * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
- * sideband depending on the chanspec selected
+ * This function returns the channel number that control traffic is being sent
+ * on, for legacy channels this is just the channel number, for 40MHZ channels
+ * it is the upper or lower 20MHZ sideband depending on the chanspec selected.
  */
-extern u8 brcmu_chspec_ctlchan(chanspec_t chspec);
+extern u8 brcmu_chspec_ctlchan(u16 chspec);
 
 /*
  * Return the channel number for a given frequency and base frequency.
@@ -183,11 +202,13 @@ extern int brcmu_mhz2channel(uint freq, uint start_factor);
 #define CRYPTO_ALGO_NALG		7
 
 /* wireless security bitvec */
+
 #define WEP_ENABLED		0x0001
 #define TKIP_ENABLED		0x0002
 #define AES_ENABLED		0x0004
 #define WSEC_SWFLAG		0x0008
-#define SES_OW_ENABLED		0x0040	/* to go into transition mode without setting wep */
+/* to go into transition mode without setting wep */
+#define SES_OW_ENABLED		0x0040
 
 /* WPA authentication mode bitvec */
 #define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., non-WPA) */
@@ -196,7 +217,7 @@ extern int brcmu_mhz2channel(uint freq, uint start_factor);
 #define WPA_AUTH_PSK		0x0004	/* Pre-shared key */
 #define WPA_AUTH_RESERVED1	0x0008
 #define WPA_AUTH_RESERVED2	0x0010
-					/* #define WPA_AUTH_8021X 0x0020 *//* 802.1x, reserved */
+
 #define WPA2_AUTH_RESERVED1	0x0020
 #define WPA2_AUTH_UNSPECIFIED	0x0040	/* over 802.1x */
 #define WPA2_AUTH_PSK		0x0080	/* Pre-shared key */
@@ -218,26 +239,24 @@ extern int brcmu_mhz2channel(uint freq, uint start_factor);
 #define HT_CAP_RX_STBC_NO		0x0
 #define HT_CAP_RX_STBC_ONE_STREAM	0x1
 
-typedef struct _pmkid {
+struct pmkid {
 	u8 BSSID[ETH_ALEN];
 	u8 PMKID[WLAN_PMKID_LEN];
-} pmkid_t;
+};
 
-typedef struct _pmkid_list {
+struct pmkid_list {
 	u32 npmkid;
-	pmkid_t pmkid[1];
-} pmkid_list_t;
+	struct pmkid pmkid[1];
+};
 
-typedef struct _pmkid_cand {
+struct pmkid_cand {
 	u8 BSSID[ETH_ALEN];
 	u8 preauth;
-} pmkid_cand_t;
+};
 
-typedef struct _pmkid_cand_list {
+struct pmkid_cand_list {
 	u32 npmkid_cand;
-	pmkid_cand_t pmkid_cand[1];
-} pmkid_cand_list_t;
-
-typedef u8 ac_bitmap_t;
+	struct pmkid_cand pmkid_cand[1];
+};
 
 #endif				/* _BRCMU_WIFI_H_ */

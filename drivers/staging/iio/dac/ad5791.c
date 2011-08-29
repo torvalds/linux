@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -381,7 +382,6 @@ error_put_reg_pos:
 	if (!IS_ERR(reg_vdd))
 		regulator_put(reg_vdd);
 
-error_ret:
 	return ret;
 }
 

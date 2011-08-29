@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "altera.h"
 #include "altera-exprt.h"
 #include "altera-jtag.h"
@@ -2384,7 +2385,7 @@ static int altera_get_act_info(u8 *p,
 		act_proc_attribute =
 			(p[proc_table + (13 * act_proc_id) + 8] & 0x03);
 
-		procptr = (struct altera_procinfo *)
+		procptr =
 				kzalloc(sizeof(struct altera_procinfo),
 								GFP_KERNEL);
 

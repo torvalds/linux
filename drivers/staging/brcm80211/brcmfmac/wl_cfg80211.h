@@ -249,7 +249,7 @@ struct brcmf_cfg80211_iscan_ctrl {
 	u32 timer_on;
 	s32 state;
 	struct task_struct *tsk;
-	struct semaphore sync;
+	wait_queue_head_t waitq;
 	struct brcmf_cfg80211_iscan_eloop el;
 	void *data;
 	s8 ioctl_buf[BRCMF_C_IOCTL_SMLEN];
@@ -272,8 +272,8 @@ struct brcmf_cfg80211_assoc_ielen {
 
 /* wpa2 pmk list */
 struct brcmf_cfg80211_pmk_list {
-	pmkid_list_t pmkids;
-	pmkid_t foo[MAXPMKID - 1];
+	struct pmkid_list pmkids;
+	struct pmkid foo[MAXPMKID - 1];
 };
 
 /* dongle private data of cfg80211 interface */
@@ -295,13 +295,12 @@ struct brcmf_cfg80211_priv {
 						 cfg80211 layer */
 	struct brcmf_cfg80211_ie ie;	/* information element object for
 					 internal purpose */
-	struct semaphore event_sync;	/* for synchronization of main event
-					 thread */
 	struct brcmf_cfg80211_profile *profile;	/* holding dongle profile */
 	struct brcmf_cfg80211_iscan_ctrl *iscan;	/* iscan controller */
 	struct brcmf_cfg80211_connect_info conn_info; /* association info */
 	struct brcmf_cfg80211_pmk_list *pmk_list;	/* wpa2 pmk list */
 	struct task_struct *event_tsk;	/* task of main event handler thread */
+	wait_queue_head_t event_waitq;	/* wait queue for main event handling */
 	unsigned long status;		/* current dongle status */
 	void *pub;
 	u32 channel;		/* current channel */
@@ -318,7 +317,7 @@ struct brcmf_cfg80211_priv {
 	u8 *ioctl_buf;	/* ioctl buffer */
 	u8 *extra_buf;	/* maily to grab assoc information */
 	struct dentry *debugfsdir;
-	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
+	u8 ci[0] __aligned(NETDEV_ALIGN);
 };
 
 #define cfg_to_wiphy(w) (w->wdev->wiphy)
@@ -341,7 +340,8 @@ static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
 }
 
 #define for_each_bss(list, bss, __i)	\
-	for (__i = 0; __i < list->count && __i < WL_AP_MAX; __i++, bss = next_bss(list, bss))
+	for (__i = 0; __i < list->count && __i < WL_AP_MAX; __i++, \
+	     bss = next_bss(list, bss))
 
 extern s32 brcmf_cfg80211_attach(struct net_device *ndev, void *data);
 extern void brcmf_cfg80211_detach(void);

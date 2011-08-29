@@ -29,11 +29,11 @@
 #define	RX_FIFO			0	/* data and ctl frames */
 #define	RX_TXSTATUS_FIFO	3	/* RX fifo for tx status packages */
 
-/* TX FIFO numbers using WME Access Classes */
-#define	TX_AC_BK_FIFO		0	/* Access Category Background TX FIFO */
-#define	TX_AC_BE_FIFO		1	/* Access Category Best-Effort TX FIFO */
-#define	TX_AC_VI_FIFO		2	/* Access Class Video TX FIFO */
-#define	TX_AC_VO_FIFO		3	/* Access Class Voice TX FIFO */
+/* TX FIFO numbers using WME Access Category */
+#define	TX_AC_BK_FIFO		0	/* Background TX FIFO */
+#define	TX_AC_BE_FIFO		1	/* Best-Effort TX FIFO */
+#define	TX_AC_VI_FIFO		2	/* Video TX FIFO */
+#define	TX_AC_VO_FIFO		3	/* Voice TX FIFO */
 #define	TX_BCMC_FIFO		4	/* Broadcast/Multicast TX FIFO */
 #define	TX_ATIM_FIFO		5	/* TX fifo for ATIM window info */
 
@@ -47,11 +47,7 @@
 #define	TX_DATA_FIFO		TX_AC_BE_FIFO
 #define	TX_CTL_FIFO		TX_AC_VO_FIFO
 
-#ifndef WL_RSSI_ANT_MAX
 #define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
-#elif WL_RSSI_ANT_MAX != 4
-#error "WL_RSSI_ANT_MAX does not match"
-#endif
 
 struct intctrlregs {
 	u32 intstatus;
@@ -73,8 +69,8 @@ struct pio2regs {
 
 /* a pair of pio channels(tx and rx) */
 struct pio2regp {
-	pio2regs_t tx;
-	pio2regs_t rx;
+	struct pio2regs tx;
+	struct pio2regs rx;
 };
 
 /* 4byte-wide pio register set per channel(xmt or rcv) */
@@ -85,8 +81,8 @@ struct pio4regs {
 
 /* a pair of pio channels(tx and rx) */
 struct pio4regp {
-	pio4regs_t tx;
-	pio4regs_t rx;
+	struct pio4regs tx;
+	struct pio4regs rx;
 };
 
 /* read: 32-bit register that can be read as 32-bit or as 2 16-bit
@@ -101,10 +97,10 @@ union pmqreg {
 };
 
 struct fifo64 {
-	dma64regs_t dmaxmt;	/* dma tx */
-	pio4regs_t piotx;	/* pio tx */
-	dma64regs_t dmarcv;	/* dma rx */
-	pio4regs_t piorx;	/* pio rx */
+	struct dma64regs dmaxmt;	/* dma tx */
+	struct pio4regs piotx;	/* pio tx */
+	struct dma64regs dmarcv;	/* dma rx */
+	struct pio4regs piorx;	/* pio rx */
 };
 
 /*
@@ -120,7 +116,7 @@ struct d11regs {
 	u32 usectimer;	/* 0x1c *//* for corerev >= 26 */
 
 	/* Interrupt Control *//* 0x20 */
-	intctrlregs_t intctrlregs[8];
+	struct intctrlregs intctrlregs[8];
 
 	u32 PAD[40];		/* 0x60 - 0xFC */
 
@@ -139,7 +135,7 @@ struct d11regs {
 	u32 PAD[2];		/* 0x138 - 0x13C */
 
 	/* PMQ registers */
-	pmqreg_t pmqreg;	/* 0x140 */
+	union pmqreg pmqreg;	/* 0x140 */
 	u32 pmqpatl;		/* 0x144 */
 	u32 pmqpath;		/* 0x148 */
 	u32 PAD;		/* 0x14C */
@@ -179,10 +175,10 @@ struct d11regs {
 	u32 PAD[5];		/* 0x1ec - 0x1fc */
 
 	/* 0x200-0x37F dma/pio registers */
-	fifo64_t fifo64regs[6];
+	struct fifo64 fifo64regs[6];
 
 	/* FIFO diagnostic port access */
-	dma32diag_t dmafifo;	/* 0x380 - 0x38C */
+	struct dma32diag dmafifo;	/* 0x380 - 0x38C */
 
 	u32 aggfifocnt;	/* 0x390 */
 	u32 aggfifodata;	/* 0x394 */
@@ -457,7 +453,7 @@ struct d11regs {
 #define	IRL_FC_MASK		0xff000000	/* frame count */
 #define	IRL_FC_SHIFT		24	/* frame count */
 
-/* maccontrol register */
+/*== maccontrol register ==*/
 #define	MCTL_GMODE		(1U << 31)
 #define	MCTL_DISCARD_PMQ	(1 << 30)
 #define	MCTL_WAKE		(1 << 26)
@@ -481,75 +477,119 @@ struct d11regs {
 #define	MCTL_PSM_RUN		(1 <<  1)
 #define	MCTL_EN_MAC		(1 <<  0)
 
-/* maccommand register */
+/*== maccommand register ==*/
 #define	MCMD_BCN0VLD		(1 <<  0)
 #define	MCMD_BCN1VLD		(1 <<  1)
 #define	MCMD_DIRFRMQVAL		(1 <<  2)
 #define	MCMD_CCA		(1 <<  3)
 #define	MCMD_BG_NOISE		(1 <<  4)
 #define	MCMD_SKIP_SHMINIT	(1 <<  5)	/* only used for simulation */
-#define MCMD_SAMPLECOLL		MCMD_SKIP_SHMINIT	/* reuse for sample collect */
+#define MCMD_SAMPLECOLL		MCMD_SKIP_SHMINIT /* reuse for sample collect */
 
-/* macintstatus/macintmask */
-#define	MI_MACSSPNDD		(1 <<  0)	/* MAC has gracefully suspended */
-#define	MI_BCNTPL		(1 <<  1)	/* beacon template available */
-#define	MI_TBTT			(1 <<  2)	/* TBTT indication */
-#define	MI_BCNSUCCESS		(1 <<  3)	/* beacon successfully tx'd */
-#define	MI_BCNCANCLD		(1 <<  4)	/* beacon canceled (IBSS) */
-#define	MI_ATIMWINEND		(1 <<  5)	/* end of ATIM-window (IBSS) */
-#define	MI_PMQ			(1 <<  6)	/* PMQ entries available */
-#define	MI_NSPECGEN_0		(1 <<  7)	/* non-specific gen-stat bits that are set by PSM */
-#define	MI_NSPECGEN_1		(1 <<  8)	/* non-specific gen-stat bits that are set by PSM */
-#define	MI_MACTXERR		(1 <<  9)	/* MAC level Tx error */
-#define	MI_NSPECGEN_3		(1 << 10)	/* non-specific gen-stat bits that are set by PSM */
-#define	MI_PHYTXERR		(1 << 11)	/* PHY Tx error */
-#define	MI_PME			(1 << 12)	/* Power Management Event */
-#define	MI_GP0			(1 << 13)	/* General-purpose timer0 */
-#define	MI_GP1			(1 << 14)	/* General-purpose timer1 */
-#define	MI_DMAINT		(1 << 15)	/* (ORed) DMA-interrupts */
-#define	MI_TXSTOP		(1 << 16)	/* MAC has completed a TX FIFO Suspend/Flush */
-#define	MI_CCA			(1 << 17)	/* MAC has completed a CCA measurement */
-#define	MI_BG_NOISE		(1 << 18)	/* MAC has collected background noise samples */
-#define	MI_DTIM_TBTT		(1 << 19)	/* MBSS DTIM TBTT indication */
-#define MI_PRQ			(1 << 20)	/* Probe response queue needs attention */
-#define	MI_PWRUP		(1 << 21)	/* Radio/PHY has been powered back up. */
+/*== macintstatus/macintmask ==*/
+/* gracefully suspended */
+#define	MI_MACSSPNDD		(1 <<  0)
+/* beacon template available */
+#define	MI_BCNTPL		(1 <<  1)
+/* TBTT indication */
+#define	MI_TBTT			(1 <<  2)
+/* beacon successfully tx'd */
+#define	MI_BCNSUCCESS		(1 <<  3)
+/* beacon canceled (IBSS) */
+#define	MI_BCNCANCLD		(1 <<  4)
+/* end of ATIM-window (IBSS) */
+#define	MI_ATIMWINEND		(1 <<  5)
+/* PMQ entries available */
+#define	MI_PMQ			(1 <<  6)
+/* non-specific gen-stat bits that are set by PSM */
+#define	MI_NSPECGEN_0		(1 <<  7)
+/* non-specific gen-stat bits that are set by PSM */
+#define	MI_NSPECGEN_1		(1 <<  8)
+/* MAC level Tx error */
+#define	MI_MACTXERR		(1 <<  9)
+/* non-specific gen-stat bits that are set by PSM */
+#define	MI_NSPECGEN_3		(1 << 10)
+/* PHY Tx error */
+#define	MI_PHYTXERR		(1 << 11)
+/* Power Management Event */
+#define	MI_PME			(1 << 12)
+/* General-purpose timer0 */
+#define	MI_GP0			(1 << 13)
+/* General-purpose timer1 */
+#define	MI_GP1			(1 << 14)
+/* (ORed) DMA-interrupts */
+#define	MI_DMAINT		(1 << 15)
+/* MAC has completed a TX FIFO Suspend/Flush */
+#define	MI_TXSTOP		(1 << 16)
+/* MAC has completed a CCA measurement */
+#define	MI_CCA			(1 << 17)
+/* MAC has collected background noise samples */
+#define	MI_BG_NOISE		(1 << 18)
+/* MBSS DTIM TBTT indication */
+#define	MI_DTIM_TBTT		(1 << 19)
+/* Probe response queue needs attention */
+#define MI_PRQ			(1 << 20)
+/* Radio/PHY has been powered back up. */
+#define	MI_PWRUP		(1 << 21)
 #define	MI_RESERVED3		(1 << 22)
 #define	MI_RESERVED2		(1 << 23)
 #define MI_RESERVED1		(1 << 25)
 /* MAC detected change on RF Disable input*/
 #define MI_RFDISABLE		(1 << 28)
-#define	MI_TFS			(1 << 29)	/* MAC has completed a TX */
-#define	MI_PHYCHANGED		(1 << 30)	/* A phy status change wrt G mode */
-#define	MI_TO			(1U << 31)	/* general purpose timeout */
+/* MAC has completed a TX */
+#define	MI_TFS			(1 << 29)
+/* A phy status change wrt G mode */
+#define	MI_PHYCHANGED		(1 << 30)
+/* general purpose timeout */
+#define	MI_TO			(1U << 31)
 
 /* Mac capabilities registers */
-/* machwcap */
+/*== machwcap ==*/
 #define	MCAP_TKIPMIC		0x80000000	/* TKIP MIC hardware present */
 
-/* pmqhost data */
-#define	PMQH_DATA_MASK		0xffff0000	/* data entry of head pmq entry */
-#define	PMQH_BSSCFG		0x00100000	/* PM entry for BSS config */
-#define	PMQH_PMOFF		0x00010000	/* PM Mode OFF: power save off */
-#define	PMQH_PMON		0x00020000	/* PM Mode ON: power save on */
-#define	PMQH_DASAT		0x00040000	/* Dis-associated or De-authenticated */
-#define	PMQH_ATIMFAIL		0x00080000	/* ATIM not acknowledged */
-#define	PMQH_DEL_ENTRY		0x00000001	/* delete head entry */
-#define	PMQH_DEL_MULT		0x00000002	/* delete head entry to cur read pointer -1 */
-#define	PMQH_OFLO		0x00000004	/* pmq overflow indication */
-#define	PMQH_NOT_EMPTY		0x00000008	/* entries are present in pmq */
+/*== pmqhost data ==*/
+/* data entry of head pmq entry */
+#define	PMQH_DATA_MASK		0xffff0000
+/* PM entry for BSS config */
+#define	PMQH_BSSCFG		0x00100000
+/* PM Mode OFF: power save off */
+#define	PMQH_PMOFF		0x00010000
+/* PM Mode ON: power save on */
+#define	PMQH_PMON		0x00020000
+/* Dis-associated or De-authenticated */
+#define	PMQH_DASAT		0x00040000
+/* ATIM not acknowledged */
+#define	PMQH_ATIMFAIL		0x00080000
+/* delete head entry */
+#define	PMQH_DEL_ENTRY		0x00000001
+/* delete head entry to cur read pointer -1 */
+#define	PMQH_DEL_MULT		0x00000002
+/* pmq overflow indication */
+#define	PMQH_OFLO		0x00000004
+/* entries are present in pmq */
+#define	PMQH_NOT_EMPTY		0x00000008
 
-/* phydebug */
-#define	PDBG_CRS		(1 << 0)	/* phy is asserting carrier sense */
-#define	PDBG_TXA		(1 << 1)	/* phy is taking xmit byte from mac this cycle */
-#define	PDBG_TXF		(1 << 2)	/* mac is instructing the phy to transmit a frame */
-#define	PDBG_TXE		(1 << 3)	/* phy is signalling a transmit Error to the mac */
-#define	PDBG_RXF		(1 << 4)	/* phy detected the end of a valid frame preamble */
-#define	PDBG_RXS		(1 << 5)	/* phy detected the end of a valid PLCP header */
-#define	PDBG_RXFRG		(1 << 6)	/* rx start not asserted */
-#define	PDBG_RXV		(1 << 7)	/* mac is taking receive byte from phy this cycle */
-#define	PDBG_RFD		(1 << 16)	/* RF portion of the radio is disabled */
+/*== phydebug ==*/
+/* phy is asserting carrier sense */
+#define	PDBG_CRS		(1 << 0)
+/* phy is taking xmit byte from mac this cycle */
+#define	PDBG_TXA		(1 << 1)
+/* mac is instructing the phy to transmit a frame */
+#define	PDBG_TXF		(1 << 2)
+/* phy is signalling a transmit Error to the mac */
+#define	PDBG_TXE		(1 << 3)
+/* phy detected the end of a valid frame preamble */
+#define	PDBG_RXF		(1 << 4)
+/* phy detected the end of a valid PLCP header */
+#define	PDBG_RXS		(1 << 5)
+/* rx start not asserted */
+#define	PDBG_RXFRG		(1 << 6)
+/* mac is taking receive byte from phy this cycle */
+#define	PDBG_RXV		(1 << 7)
+/* RF portion of the radio is disabled */
+#define	PDBG_RFD		(1 << 16)
 
-/* objaddr register */
+/*== objaddr register ==*/
 #define	OBJADDR_SEL_MASK	0x000F0000
 #define	OBJADDR_UCM_SEL		0x00000000
 #define	OBJADDR_SHM_SEL		0x00010000
@@ -564,20 +604,20 @@ struct d11regs {
 #define	WEP_PCMADDR		0x07d4
 #define	WEP_PCMDATA		0x07d6
 
-/* frmtxstatus */
+/*== frmtxstatus ==*/
 #define	TXS_V			(1 << 0)	/* valid bit */
 #define	TXS_STATUS_MASK		0xffff
 #define	TXS_FID_MASK		0xffff0000
 #define	TXS_FID_SHIFT		16
 
-/* frmtxstatus2 */
+/*== frmtxstatus2 ==*/
 #define	TXS_SEQ_MASK		0xffff
 #define	TXS_PTX_MASK		0xff0000
 #define	TXS_PTX_SHIFT		16
 #define	TXS_MU_MASK		0x01000000
 #define	TXS_MU_SHIFT		24
 
-/* clk_ctl_st */
+/*== clk_ctl_st ==*/
 #define CCS_ERSRC_REQ_D11PLL	0x00000100	/* d11 core pll request */
 #define CCS_ERSRC_REQ_PHYPLL	0x00000200	/* PHY pll request */
 #define CCS_ERSRC_AVAIL_D11PLL	0x01000000	/* d11 core pll available */
@@ -602,22 +642,27 @@ struct d11regs {
 #define TXFIFO_SIZE_UNIT	256	/* one unit corresponds to 256 bytes */
 #define MBSS16_TEMPLMEM_MINBLKS	65	/* one unit corresponds to 256 bytes */
 
-/* phy versions, PhyVersion:Revision field */
-#define	PV_AV_MASK		0xf000	/* analog block version */
-#define	PV_AV_SHIFT		12	/* analog block version bitfield offset */
-#define	PV_PT_MASK		0x0f00	/* phy type */
-#define	PV_PT_SHIFT		8	/* phy type bitfield offset */
-#define	PV_PV_MASK		0x000f	/* phy version */
+/*== phy versions (PhyVersion:Revision field) ==*/
+/* analog block version */
+#define	PV_AV_MASK		0xf000
+/* analog block version bitfield offset */
+#define	PV_AV_SHIFT		12
+/* phy type */
+#define	PV_PT_MASK		0x0f00
+/* phy type bitfield offset */
+#define	PV_PT_SHIFT		8
+/* phy version */
+#define	PV_PV_MASK		0x000f
 #define	PHY_TYPE(v)		((v & PV_PT_MASK) >> PV_PT_SHIFT)
 
-/* phy types, PhyVersion:PhyType field */
+/*== phy types (PhyVersion:PhyType field) ==*/
 #define	PHY_TYPE_N		4	/* N-Phy value */
 #define	PHY_TYPE_SSN		6	/* SSLPN-Phy value */
 #define	PHY_TYPE_LCN		8	/* LCN-Phy value */
 #define	PHY_TYPE_LCNXN		9	/* LCNXN-Phy value */
 #define	PHY_TYPE_NULL		0xf	/* Invalid Phy value */
 
-/* analog types, PhyVersion:AnalogType field */
+/*== analog types (PhyVersion:AnalogType field) ==*/
 #define	ANA_11N_013		5
 
 /* 802.11a PLCP header def */
@@ -693,9 +738,10 @@ struct cck_phy_hdr {
 #define BRCMS_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)
 #define BRCMS_IS_MIMO_PLCP_AMPDU(plcp) (plcp[3] & MIMO_PLCP_AMPDU)
 
-/* The dot11a PLCP header is 5 bytes.  To simplify the software (so that we
- * don't need e.g. different tx DMA headers for 11a and 11b), the PLCP header has
- * padding added in the ucode.
+/*
+ * The dot11a PLCP header is 5 bytes.  To simplify the software (so that we
+ * don't need e.g. different tx DMA headers for 11a and 11b), the PLCP header
+ * has padding added in the ucode.
  */
 #define	D11_PHY_HDR_LEN	6
 
@@ -745,14 +791,17 @@ struct d11txh {
 #define FT_HT	2
 #define FT_N	3
 
-/* Position of MPDU inside A-MPDU; indicated with bits 10:9 of MacTxControlLow */
+/*
+ * Position of MPDU inside A-MPDU; indicated with bits 10:9
+ * of MacTxControlLow
+ */
 #define TXC_AMPDU_SHIFT		9	/* shift for ampdu settings */
 #define TXC_AMPDU_NONE		0	/* Regular MPDU, not an A-MPDU */
 #define TXC_AMPDU_FIRST		1	/* first MPDU of an A-MPDU */
 #define TXC_AMPDU_MIDDLE	2	/* intermediate MPDU of an A-MPDU */
 #define TXC_AMPDU_LAST		3	/* last (or single) MPDU of an A-MPDU */
 
-/* MacTxControlLow */
+/*== MacTxControlLow ==*/
 #define TXC_AMIC		0x8000
 #define	TXC_SENDCTS		0x0800
 #define TXC_AMPDU_MASK		0x0600
@@ -766,18 +815,25 @@ struct d11txh {
 #define	TXC_LONGFRAME		0x0002
 #define	TXC_IMMEDACK		0x0001
 
-/* MacTxControlHigh */
-#define TXC_PREAMBLE_RTS_FB_SHORT	0x8000	/* RTS fallback preamble type 1 = SHORT 0 = LONG */
-#define TXC_PREAMBLE_RTS_MAIN_SHORT	0x4000	/* RTS main rate preamble type 1 = SHORT 0 = LONG */
-#define TXC_PREAMBLE_DATA_FB_SHORT	0x2000	/* Main fallback rate preamble type
-						 * 1 = SHORT for OFDM/GF for MIMO
-						 * 0 = LONG for CCK/MM for MIMO
-						 */
+/*== MacTxControlHigh ==*/
+/* RTS fallback preamble type 1 = SHORT 0 = LONG */
+#define TXC_PREAMBLE_RTS_FB_SHORT	0x8000
+/* RTS main rate preamble type 1 = SHORT 0 = LONG */
+#define TXC_PREAMBLE_RTS_MAIN_SHORT	0x4000
+/*
+ * Main fallback rate preamble type
+ *   1 = SHORT for OFDM/GF for MIMO
+ *   0 = LONG for CCK/MM for MIMO
+ */
+#define TXC_PREAMBLE_DATA_FB_SHORT	0x2000
+
 /* TXC_PREAMBLE_DATA_MAIN is in PhyTxControl bit 5 */
-#define	TXC_AMPDU_FBR		0x1000	/* use fallback rate for this AMPDU */
+/* use fallback rate for this AMPDU */
+#define	TXC_AMPDU_FBR		0x1000
 #define	TXC_SECKEY_MASK		0x0FF0
 #define	TXC_SECKEY_SHIFT	4
-#define	TXC_ALT_TXPWR		0x0008	/* Use alternate txpwr defined at loc. M_ALT_TXPWR_IDX */
+/* Use alternate txpwr defined at loc. M_ALT_TXPWR_IDX */
+#define	TXC_ALT_TXPWR		0x0008
 #define	TXC_SECTYPE_MASK	0x0007
 #define	TXC_SECTYPE_SHIFT	0
 
@@ -817,7 +873,7 @@ struct d11txh {
 #define PHY_TXC1_MODE_SDM		3
 
 /* PhyTxControl for HTphy that are different from Mimophy */
-#define	PHY_TXC_HTANT_MASK		0x3fC0	/* bit 6, 7, 8, 9, 10, 11, 12, 13 */
+#define	PHY_TXC_HTANT_MASK		0x3fC0	/* bits 6-13 */
 
 /* XtraFrameTypes */
 #define XFTS_RTS_FT_SHIFT	2
@@ -862,23 +918,23 @@ struct tx_status {
 #define	TX_STATUS_RTS_RTX_MASK	0x0F00
 #define	TX_STATUS_RTS_RTX_SHIFT	8
 #define TX_STATUS_MASK		0x00FE
-#define	TX_STATUS_PMINDCTD	(1 << 7)	/* PM mode indicated to AP */
-#define	TX_STATUS_INTERMEDIATE	(1 << 6)	/* intermediate or 1st ampdu pkg */
-#define	TX_STATUS_AMPDU		(1 << 5)	/* AMPDU status */
-#define TX_STATUS_SUPR_MASK	0x1C	/* suppress status bits (4:2) */
+#define	TX_STATUS_PMINDCTD	(1 << 7) /* PM mode indicated to AP */
+#define	TX_STATUS_INTERMEDIATE	(1 << 6) /* intermediate or 1st ampdu pkg */
+#define	TX_STATUS_AMPDU		(1 << 5) /* AMPDU status */
+#define TX_STATUS_SUPR_MASK	0x1C	 /* suppress status bits (4:2) */
 #define TX_STATUS_SUPR_SHIFT	2
-#define	TX_STATUS_ACK_RCV	(1 << 1)	/* ACK received */
-#define	TX_STATUS_VALID		(1 << 0)	/* Tx status valid */
+#define	TX_STATUS_ACK_RCV	(1 << 1) /* ACK received */
+#define	TX_STATUS_VALID		(1 << 0) /* Tx status valid */
 #define	TX_STATUS_NO_ACK	0
 
 /* suppress status reason codes */
-#define	TX_STATUS_SUPR_PMQ	(1 << 2)	/* PMQ entry */
-#define	TX_STATUS_SUPR_FLUSH	(2 << 2)	/* flush request */
-#define	TX_STATUS_SUPR_FRAG	(3 << 2)	/* previous frag failure */
-#define	TX_STATUS_SUPR_TBTT	(3 << 2)	/* SHARED: Probe response supr for TBTT */
-#define	TX_STATUS_SUPR_BADCH	(4 << 2)	/* channel mismatch */
-#define	TX_STATUS_SUPR_EXPTIME	(5 << 2)	/* lifetime expiry */
-#define	TX_STATUS_SUPR_UF	(6 << 2)	/* underflow */
+#define	TX_STATUS_SUPR_PMQ	(1 << 2) /* PMQ entry */
+#define	TX_STATUS_SUPR_FLUSH	(2 << 2) /* flush request */
+#define	TX_STATUS_SUPR_FRAG	(3 << 2) /* previous frag failure */
+#define	TX_STATUS_SUPR_TBTT	(3 << 2) /* SHARED: Probe resp supr for TBTT */
+#define	TX_STATUS_SUPR_BADCH	(4 << 2) /* channel mismatch */
+#define	TX_STATUS_SUPR_EXPTIME	(5 << 2) /* lifetime expiry */
+#define	TX_STATUS_SUPR_UF	(6 << 2) /* underflow */
 
 /* Unexpected tx status for rate update */
 #define TX_STATUS_UNEXP(status) \
@@ -939,8 +995,8 @@ struct tx_status {
 #define ADDR_BMP_RA		(1 << 0)	/* Receiver Address (RA) */
 #define ADDR_BMP_TA		(1 << 1)	/* Transmitter Address (TA) */
 #define ADDR_BMP_BSSID		(1 << 2)	/* BSSID */
-#define ADDR_BMP_AP		(1 << 3)	/* Infra-BSS Access Point (AP) */
-#define ADDR_BMP_STA		(1 << 4)	/* Infra-BSS Station (STA) */
+#define ADDR_BMP_AP		(1 << 3)	/* Infra-BSS Access Point */
+#define ADDR_BMP_STA		(1 << 4)	/* Infra-BSS Station */
 #define ADDR_BMP_RESERVED1	(1 << 5)
 #define ADDR_BMP_RESERVED2	(1 << 6)
 #define ADDR_BMP_RESERVED3	(1 << 7)
@@ -1012,9 +1068,10 @@ struct tx_status {
 #define	T_BCN0_TPL_BASE		(0x34 * 2)
 #define	T_PRS_TPL_BASE		(0x134 * 2)
 #define	T_BCN1_TPL_BASE		(0x234 * 2)
-#define T_TX_FIFO_TXRAM_BASE	(T_ACTS_TPL_BASE + (TXFIFO_START_BLK * TXFIFO_SIZE_UNIT))
+#define T_TX_FIFO_TXRAM_BASE	(T_ACTS_TPL_BASE + \
+				 (TXFIFO_START_BLK * TXFIFO_SIZE_UNIT))
 
-#define T_BA_TPL_BASE		T_QNULL_TPL_BASE	/* template area for BA */
+#define T_BA_TPL_BASE		T_QNULL_TPL_BASE /* template area for BA */
 
 #define T_RAM_ACCESS_SZ		4	/* template ram is 4 byte access only */
 
@@ -1207,14 +1264,18 @@ struct tx_status {
 #define WATCHDOG_8TU_MAX	10
 
 /* Manufacturing Test Variables */
-#define M_PKTENG_CTRL		(0x6c * 2)	/* PER test mode */
-#define M_PKTENG_IFS		(0x6d * 2)	/* IFS for TX mode */
-#define M_PKTENG_FRMCNT_LO		(0x6e * 2)	/* Lower word of tx frmcnt/rx lostcnt */
-#define M_PKTENG_FRMCNT_HI		(0x6f * 2)	/* Upper word of tx frmcnt/rx lostcnt */
+/* PER test mode */
+#define M_PKTENG_CTRL		(0x6c * 2)
+/* IFS for TX mode */
+#define M_PKTENG_IFS		(0x6d * 2)
+/* Lower word of tx frmcnt/rx lostcnt */
+#define M_PKTENG_FRMCNT_LO	(0x6e * 2)
+/* Upper word of tx frmcnt/rx lostcnt */
+#define M_PKTENG_FRMCNT_HI	(0x6f * 2)
 
 /* Index variation in vbat ripple */
-#define M_LCN_PWR_IDX_MAX	(0x67 * 2)	/* highest index read by ucode */
-#define M_LCN_PWR_IDX_MIN	(0x66 * 2)	/* lowest index read by ucode */
+#define M_LCN_PWR_IDX_MAX	(0x67 * 2) /* highest index read by ucode */
+#define M_LCN_PWR_IDX_MIN	(0x66 * 2) /* lowest index read by ucode */
 
 /* M_PKTENG_CTRL bit definitions */
 #define M_PKTENG_MODE_TX		0x0001
@@ -1223,11 +1284,14 @@ struct tx_status {
 #define M_PKTENG_MODE_RX		0x0002
 #define M_PKTENG_MODE_RX_WITH_ACK	0x0402
 #define M_PKTENG_MODE_MASK		0x0003
-#define M_PKTENG_FRMCNT_VLD		0x0100	/* TX frames indicated in the frmcnt reg */
+/* TX frames indicated in the frmcnt reg */
+#define M_PKTENG_FRMCNT_VLD		0x0100
 
 /* Sample Collect parameters (bitmap and type) */
-#define M_SMPL_COL_BMP		(0x37d * 2)	/* Trigger bitmap for sample collect */
-#define M_SMPL_COL_CTL		(0x3b2 * 2)	/* Sample collect type */
+/* Trigger bitmap for sample collect */
+#define M_SMPL_COL_BMP		(0x37d * 2)
+/* Sample collect type */
+#define M_SMPL_COL_CTL		(0x3b2 * 2)
 
 #define ANTSEL_CLKDIV_4MHZ	6
 #define MIMO_ANTSEL_BUSY	0x4000	/* bit 14 (busy) */
@@ -1259,27 +1323,37 @@ struct shm_acparams {
 #define MHF5		4	/* Hostflag 5 index */
 
 /* Flags in M_HOST_FLAGS */
-#define	MHF1_ANTDIV		0x0001	/* Enable ucode antenna diversity help */
-#define	MHF1_EDCF		0x0100	/* Enable EDCF access control */
+/* Enable ucode antenna diversity help */
+#define	MHF1_ANTDIV		0x0001
+/* Enable EDCF access control */
+#define	MHF1_EDCF		0x0100
 #define MHF1_IQSWAP_WAR		0x0200
-#define	MHF1_FORCEFASTCLK	0x0400	/* Disable Slow clock request, for corerev < 11 */
+/* Disable Slow clock request, for corerev < 11 */
+#define	MHF1_FORCEFASTCLK	0x0400
 
 /* Flags in M_HOST_FLAGS2 */
-#define MHF2_PCISLOWCLKWAR	0x0008	/* PR16165WAR : Enable ucode PCI slow clock WAR */
-#define MHF2_TXBCMC_NOW		0x0040	/* Flush BCMC FIFO immediately */
-#define MHF2_HWPWRCTL		0x0080	/* Enable ucode/hw power control */
+/* PR16165WAR : Enable ucode PCI slow clock WAR */
+#define MHF2_PCISLOWCLKWAR	0x0008
+/* Flush BCMC FIFO immediately */
+#define MHF2_TXBCMC_NOW		0x0040
+/* Enable ucode/hw power control */
+#define MHF2_HWPWRCTL		0x0080
 #define MHF2_NPHY40MHZ_WAR	0x0800
 
 /* Flags in M_HOST_FLAGS3 */
-#define MHF3_ANTSEL_EN		0x0001	/* enabled mimo antenna selection */
-#define MHF3_ANTSEL_MODE	0x0002	/* antenna selection mode: 0: 2x3, 1: 2x4 */
+/* enabled mimo antenna selection */
+#define MHF3_ANTSEL_EN		0x0001
+/* antenna selection mode: 0: 2x3, 1: 2x4 */
+#define MHF3_ANTSEL_MODE	0x0002
 #define MHF3_RESERVED1		0x0004
 #define MHF3_RESERVED2		0x0008
 #define MHF3_NPHY_MLADV_WAR	0x0010
 
 /* Flags in M_HOST_FLAGS4 */
-#define MHF4_BPHY_TXCORE0	0x0080	/* force bphy Tx on core 0 (board level WAR) */
-#define MHF4_EXTPA_ENABLE	0x4000	/* for 4313A0 FEM boards */
+/* force bphy Tx on core 0 (board level WAR) */
+#define MHF4_BPHY_TXCORE0	0x0080
+/* for 4313A0 FEM boards */
+#define MHF4_EXTPA_ENABLE	0x4000
 
 /* Flags in M_HOST_FLAGS5 */
 #define MHF5_4313_GPIOCTRL	0x0001
@@ -1292,52 +1366,87 @@ struct shm_acparams {
 #define	M_PHY_NOISE		(0x037 * 2)
 #define	PHY_NOISE_MASK		0x00ff
 
-/* Receive Frame Data Header for 802.11b DCF-only frames */
+/*
+ * Receive Frame Data Header for 802.11b DCF-only frames
+ *
+ * RxFrameSize: Actual byte length of the frame data received
+ * PAD: padding (not used)
+ * PhyRxStatus_0: PhyRxStatus 15:0
+ * PhyRxStatus_1: PhyRxStatus 31:16
+ * PhyRxStatus_2: PhyRxStatus 47:32
+ * PhyRxStatus_3: PhyRxStatus 63:48
+ * PhyRxStatus_4: PhyRxStatus 79:64
+ * PhyRxStatus_5: PhyRxStatus 95:80
+ * RxStatus1: MAC Rx Status
+ * RxStatus2: extended MAC Rx status
+ * RxTSFTime: RxTSFTime time of first MAC symbol + M_PHY_PLCPRX_DLY
+ * RxChan: gain code, channel radio code, and phy type
+ */
 struct d11rxhdr {
-	u16 RxFrameSize;	/* Actual byte length of the frame data received */
+	u16 RxFrameSize;
 	u16 PAD;
-	u16 PhyRxStatus_0;	/* PhyRxStatus 15:0 */
-	u16 PhyRxStatus_1;	/* PhyRxStatus 31:16 */
-	u16 PhyRxStatus_2;	/* PhyRxStatus 47:32 */
-	u16 PhyRxStatus_3;	/* PhyRxStatus 63:48 */
-	u16 PhyRxStatus_4;	/* PhyRxStatus 79:64 */
-	u16 PhyRxStatus_5;	/* PhyRxStatus 95:80 */
-	u16 RxStatus1;	/* MAC Rx Status */
-	u16 RxStatus2;	/* extended MAC Rx status */
-	u16 RxTSFTime;	/* RxTSFTime time of first MAC symbol + M_PHY_PLCPRX_DLY */
-	u16 RxChan;		/* gain code, channel radio code, and phy type */
+	u16 PhyRxStatus_0;
+	u16 PhyRxStatus_1;
+	u16 PhyRxStatus_2;
+	u16 PhyRxStatus_3;
+	u16 PhyRxStatus_4;
+	u16 PhyRxStatus_5;
+	u16 RxStatus1;
+	u16 RxStatus2;
+	u16 RxTSFTime;
+	u16 RxChan;
 } __packed;
 
 #define	RXHDR_LEN		24	/* sizeof struct d11rxhdr */
 #define	FRAMELEN(h)		((h)->RxFrameSize)
 
+/*
+ * rxhdr: received frame header data
+ * tsf_l: TSF_L reading
+ * rssi: computed instanteneous rssi in BMAC
+ * rxpwr0: obsoleted, place holder for legacy ROM code. use rxpwr[]
+ * rxpwr1: obsoleted, place holder for legacy ROM code. use rxpwr[]
+ * do_rssi_ma: do per-pkt sampling for per-antenna ma in HIGH
+ * rxpwr: rssi for supported antennas
+ */
 struct brcms_d11rxhdr {
 	struct d11rxhdr rxhdr;
-	u32 tsf_l;		/* TSF_L reading */
-	s8 rssi;		/* computed instanteneous rssi in BMAC */
-	s8 rxpwr0;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
-	s8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
-	s8 do_rssi_ma;	/* do per-pkt sampling for per-antenna ma in HIGH */
-	s8 rxpwr[WL_RSSI_ANT_MAX];	/* rssi for supported antennas */
+	u32 tsf_l;
+	s8 rssi;
+	s8 rxpwr0;
+	s8 rxpwr1;
+	s8 do_rssi_ma;
+	s8 rxpwr[WL_RSSI_ANT_MAX];
 } __packed;
 
 /* PhyRxStatus_0: */
-#define	PRXS0_FT_MASK		0x0003	/* NPHY only: CCK, OFDM, preN, N */
-#define	PRXS0_CLIP_MASK		0x000C	/* NPHY only: clip count adjustment steps by AGC */
+/* NPHY only: CCK, OFDM, preN, N */
+#define	PRXS0_FT_MASK		0x0003
+/* NPHY only: clip count adjustment steps by AGC */
+#define	PRXS0_CLIP_MASK		0x000C
 #define	PRXS0_CLIP_SHIFT	2
-#define	PRXS0_UNSRATE		0x0010	/* PHY received a frame with unsupported rate */
-#define	PRXS0_RXANT_UPSUBBAND	0x0020	/* GPHY: rx ant, NPHY: upper sideband */
-#define	PRXS0_LCRS		0x0040	/* CCK frame only: lost crs during cck frame reception */
-#define	PRXS0_SHORTH		0x0080	/* Short Preamble */
-#define	PRXS0_PLCPFV		0x0100	/* PLCP violation */
-#define	PRXS0_PLCPHCF		0x0200	/* PLCP header integrity check failed */
-#define	PRXS0_GAIN_CTL		0x4000	/* legacy PHY gain control */
-#define PRXS0_ANTSEL_MASK	0xF000	/* NPHY: Antennas used for received frame, bitmask */
+/* PHY received a frame with unsupported rate */
+#define	PRXS0_UNSRATE		0x0010
+/* GPHY: rx ant, NPHY: upper sideband */
+#define	PRXS0_RXANT_UPSUBBAND	0x0020
+/* CCK frame only: lost crs during cck frame reception */
+#define	PRXS0_LCRS		0x0040
+/* Short Preamble */
+#define	PRXS0_SHORTH		0x0080
+/* PLCP violation */
+#define	PRXS0_PLCPFV		0x0100
+/* PLCP header integrity check failed */
+#define	PRXS0_PLCPHCF		0x0200
+/* legacy PHY gain control */
+#define	PRXS0_GAIN_CTL		0x4000
+/* NPHY: Antennas used for received frame, bitmask */
+#define PRXS0_ANTSEL_MASK	0xF000
 #define PRXS0_ANTSEL_SHIFT	0x12
 
 /* subfield PRXS0_FT_MASK */
 #define	PRXS0_CCK		0x0000
-#define	PRXS0_OFDM		0x0001	/* valid only for G phy, use rxh->RxChan for A phy */
+/* valid only for G phy, use rxh->RxChan for A phy */
+#define	PRXS0_OFDM		0x0001
 #define	PRXS0_PREN		0x0002
 #define	PRXS0_STDN		0x0003
 
@@ -1364,35 +1473,51 @@ struct brcms_d11rxhdr {
 #define PRXS0_UNUSED	        0xF000	/* unused and not defined; set to 0 */
 
 /* htphy PhyRxStatus_1: */
-#define PRXS1_HTPHY_CORE_MASK	0x000F	/* core enables for {3..0}, 0=disabled, 1=enabled */
-#define PRXS1_HTPHY_ANTCFG_MASK	0x00F0	/* antenna configation */
-#define PRXS1_HTPHY_MMPLCPLenL_MASK	0xFF00	/* Mixmode PLCP Length low byte mask */
+/* core enables for {3..0}, 0=disabled, 1=enabled */
+#define PRXS1_HTPHY_CORE_MASK	0x000F
+/* antenna configation */
+#define PRXS1_HTPHY_ANTCFG_MASK	0x00F0
+/* Mixmode PLCP Length low byte mask */
+#define PRXS1_HTPHY_MMPLCPLenL_MASK	0xFF00
 
 /* htphy PhyRxStatus_2: */
-#define PRXS2_HTPHY_MMPLCPLenH_MASK	0x000F	/* Mixmode PLCP Length high byte maskw */
-#define PRXS2_HTPHY_MMPLCH_RATE_MASK	0x00F0	/* Mixmode PLCP rate mask */
-#define PRXS2_HTPHY_RXPWR_ANT0	0xFF00	/* Rx power on core 0 */
+/* Mixmode PLCP Length high byte maskw */
+#define PRXS2_HTPHY_MMPLCPLenH_MASK	0x000F
+/* Mixmode PLCP rate mask */
+#define PRXS2_HTPHY_MMPLCH_RATE_MASK	0x00F0
+/* Rx power on core 0 */
+#define PRXS2_HTPHY_RXPWR_ANT0	0xFF00
 
 /* htphy PhyRxStatus_3: */
-#define PRXS3_HTPHY_RXPWR_ANT1	0x00FF	/* Rx power on core 1 */
-#define PRXS3_HTPHY_RXPWR_ANT2	0xFF00	/* Rx power on core 2 */
+/* Rx power on core 1 */
+#define PRXS3_HTPHY_RXPWR_ANT1	0x00FF
+/* Rx power on core 2 */
+#define PRXS3_HTPHY_RXPWR_ANT2	0xFF00
 
 /* htphy PhyRxStatus_4: */
-#define PRXS4_HTPHY_RXPWR_ANT3	0x00FF	/* Rx power on core 3 */
-#define PRXS4_HTPHY_CFO		0xFF00	/* Coarse frequency offset */
+/* Rx power on core 3 */
+#define PRXS4_HTPHY_RXPWR_ANT3	0x00FF
+/* Coarse frequency offset */
+#define PRXS4_HTPHY_CFO		0xFF00
 
 /* htphy PhyRxStatus_5: */
-#define PRXS5_HTPHY_FFO	        0x00FF	/* Fine frequency offset */
-#define PRXS5_HTPHY_AR	        0xFF00	/* Advance Retard */
+/* Fine frequency offset */
+#define PRXS5_HTPHY_FFO	        0x00FF
+/* Advance Retard */
+#define PRXS5_HTPHY_AR	        0xFF00
 
-#define HTPHY_MMPLCPLen(rxs)	((((rxs)->PhyRxStatus_1 & PRXS1_HTPHY_MMPLCPLenL_MASK) >> 8) | \
+#define HTPHY_MMPLCPLen(rxs) \
+	((((rxs)->PhyRxStatus_1 & PRXS1_HTPHY_MMPLCPLenL_MASK) >> 8) | \
 	(((rxs)->PhyRxStatus_2 & PRXS2_HTPHY_MMPLCPLenH_MASK) << 8))
 /* Get Rx power on core 0 */
-#define HTPHY_RXPWR_ANT0(rxs)	((((rxs)->PhyRxStatus_2) & PRXS2_HTPHY_RXPWR_ANT0) >> 8)
+#define HTPHY_RXPWR_ANT0(rxs) \
+	((((rxs)->PhyRxStatus_2) & PRXS2_HTPHY_RXPWR_ANT0) >> 8)
 /* Get Rx power on core 1 */
-#define HTPHY_RXPWR_ANT1(rxs)	(((rxs)->PhyRxStatus_3) & PRXS3_HTPHY_RXPWR_ANT1)
+#define HTPHY_RXPWR_ANT1(rxs) \
+	(((rxs)->PhyRxStatus_3) & PRXS3_HTPHY_RXPWR_ANT1)
 /* Get Rx power on core 2 */
-#define HTPHY_RXPWR_ANT2(rxs)	((((rxs)->PhyRxStatus_3) & PRXS3_HTPHY_RXPWR_ANT2) >> 8)
+#define HTPHY_RXPWR_ANT2(rxs) \
+	((((rxs)->PhyRxStatus_3) & PRXS3_HTPHY_RXPWR_ANT2) >> 8)
 
 /* ucode RxStatus1: */
 #define	RXS_BCNSENT		0x8000
@@ -1400,7 +1525,8 @@ struct brcms_d11rxhdr {
 #define	RXS_SECKINDX_SHIFT	5
 #define	RXS_DECERR		(1 << 4)
 #define	RXS_DECATMPT		(1 << 3)
-#define	RXS_PBPRES		(1 << 2)	/* PAD bytes to make IP data 4 bytes aligned */
+/* PAD bytes to make IP data 4 bytes aligned */
+#define	RXS_PBPRES		(1 << 2)
 #define	RXS_RESPFRAMETX		(1 << 1)
 #define	RXS_FCSERR		(1 << 0)
 
@@ -1433,16 +1559,17 @@ struct brcms_d11rxhdr {
 #define	M_PSM_SOFT_REGS	0x0
 #define	M_BOM_REV_MAJOR	(M_PSM_SOFT_REGS + 0x0)
 #define	M_BOM_REV_MINOR	(M_PSM_SOFT_REGS + 0x2)
-#define	M_UCODE_DBGST	(M_PSM_SOFT_REGS + 0x40)	/* ucode debug status code */
-#define	M_UCODE_MACSTAT	(M_PSM_SOFT_REGS + 0xE0)	/* macstat counters */
+#define	M_UCODE_DBGST	(M_PSM_SOFT_REGS + 0x40) /* ucode debug status code */
+#define	M_UCODE_MACSTAT	(M_PSM_SOFT_REGS + 0xE0) /* macstat counters */
 
-#define M_AGING_THRSH	(0x3e * 2)	/* max time waiting for medium before tx */
-#define	M_MBURST_SIZE	(0x40 * 2)	/* max frames in a frameburst */
-#define	M_MBURST_TXOP	(0x41 * 2)	/* max frameburst TXOP in unit of us */
-#define M_SYNTHPU_DLY	(0x4a * 2)	/* pre-wakeup for synthpu, default: 500 */
+#define M_AGING_THRSH	(0x3e * 2) /* max time waiting for medium before tx */
+#define	M_MBURST_SIZE	(0x40 * 2) /* max frames in a frameburst */
+#define	M_MBURST_TXOP	(0x41 * 2) /* max frameburst TXOP in unit of us */
+#define M_SYNTHPU_DLY	(0x4a * 2) /* pre-wakeup for synthpu, default: 500 */
 #define	M_PRETBTT	(0x4b * 2)
 
-#define M_ALT_TXPWR_IDX		(M_PSM_SOFT_REGS + (0x3b * 2))	/* offset to the target txpwr */
+/* offset to the target txpwr */
+#define M_ALT_TXPWR_IDX		(M_PSM_SOFT_REGS + (0x3b * 2))
 #define M_PHY_TX_FLT_PTR	(M_PSM_SOFT_REGS + (0x3d * 2))
 #define M_CTS_DURATION		(M_PSM_SOFT_REGS + (0x5c * 2))
 #define M_LP_RCCAL_OVR		(M_PSM_SOFT_REGS + (0x6b * 2))
@@ -1451,11 +1578,16 @@ struct brcms_d11rxhdr {
 #define M_RXSTATS_BLK_PTR	(M_PSM_SOFT_REGS + (0x65 * 2))
 
 /* ucode debug status codes */
-#define	DBGST_INACTIVE		0	/* not valid really */
-#define	DBGST_INIT		1	/* after zeroing SHM, before suspending at init */
-#define	DBGST_ACTIVE		2	/* "normal" state */
-#define	DBGST_SUSPENDED		3	/* suspended */
-#define	DBGST_ASLEEP		4	/* asleep (PS mode) */
+/* not valid really */
+#define	DBGST_INACTIVE		0
+/* after zeroing SHM, before suspending at init */
+#define	DBGST_INIT		1
+/* "normal" state */
+#define	DBGST_ACTIVE		2
+/* suspended */
+#define	DBGST_SUSPENDED		3
+/* asleep (PS mode) */
+#define	DBGST_ASLEEP		4
 
 /* Scratch Reg defs */
 enum _ePsmScratchPadRegDefinitions {
@@ -1463,66 +1595,66 @@ enum _ePsmScratchPadRegDefinitions {
 	S_RSV1,
 	S_RSV2,
 
-	/* scratch registers for Dot11-contants */
-	S_DOT11_CWMIN,		/* CW-minimum                                   0x03 */
-	S_DOT11_CWMAX,		/* CW-maximum                                   0x04 */
-	S_DOT11_CWCUR,		/* CW-current                                   0x05 */
-	S_DOT11_SRC_LMT,	/* short retry count limit                      0x06 */
-	S_DOT11_LRC_LMT,	/* long retry count limit                       0x07 */
-	S_DOT11_DTIMCOUNT,	/* DTIM-count                                   0x08 */
+	/* offset 0x03: scratch registers for Dot11-contants */
+	S_DOT11_CWMIN,		/* CW-minimum */
+	S_DOT11_CWMAX,		/* CW-maximum */
+	S_DOT11_CWCUR,		/* CW-current */
+	S_DOT11_SRC_LMT,	/* short retry count limit */
+	S_DOT11_LRC_LMT,	/* long retry count limit */
+	S_DOT11_DTIMCOUNT,	/* DTIM-count */
 
-	/* Tx-side scratch registers */
-	S_SEQ_NUM,		/* hardware sequence number reg                 0x09 */
-	S_SEQ_NUM_FRAG,		/* seq-num for frags (Set at the start os MSDU  0x0A */
-	S_FRMRETX_CNT,		/* frame retx count                             0x0B */
-	S_SSRC,			/* Station short retry count                    0x0C */
-	S_SLRC,			/* Station long retry count                     0x0D */
-	S_EXP_RSP,		/* Expected response frame                      0x0E */
-	S_OLD_BREM,		/* Remaining backoff ctr                        0x0F */
-	S_OLD_CWWIN,		/* saved-off CW-cur                             0x10 */
-	S_TXECTL,		/* TXE-Ctl word constructed in scr-pad          0x11 */
-	S_CTXTST,		/* frm type-subtype as read from Tx-descr       0x12 */
+	/* offset 0x09: Tx-side scratch registers */
+	S_SEQ_NUM,		/* hardware sequence number reg */
+	S_SEQ_NUM_FRAG,		/* seq num for frags (at the start of MSDU) */
+	S_FRMRETX_CNT,		/* frame retx count */
+	S_SSRC,			/* Station short retry count */
+	S_SLRC,			/* Station long retry count */
+	S_EXP_RSP,		/* Expected response frame */
+	S_OLD_BREM,		/* Remaining backoff ctr */
+	S_OLD_CWWIN,		/* saved-off CW-cur */
+	S_TXECTL,		/* TXE-Ctl word constructed in scr-pad */
+	S_CTXTST,		/* frm type-subtype as read from Tx-descr */
 
-	/* Rx-side scratch registers */
-	S_RXTST,		/* Type and subtype in Rxframe                  0x13 */
+	/* offset 0x13: Rx-side scratch registers */
+	S_RXTST,		/* Type and subtype in Rxframe */
 
 	/* Global state register */
-	S_STREG,		/* state storage actual bit maps below          0x14 */
+	S_STREG,		/* state storage actual bit maps below */
 
-	S_TXPWR_SUM,		/* Tx power control: accumulator                0x15 */
-	S_TXPWR_ITER,		/* Tx power control: iteration                  0x16 */
-	S_RX_FRMTYPE,		/* Rate and PHY type for frames                 0x17 */
-	S_THIS_AGG,		/* Size of this AGG (A-MSDU)                    0x18 */
+	S_TXPWR_SUM,		/* Tx power control: accumulator */
+	S_TXPWR_ITER,		/* Tx power control: iteration */
+	S_RX_FRMTYPE,		/* Rate and PHY type for frames */
+	S_THIS_AGG,		/* Size of this AGG (A-MSDU) */
 
-	S_KEYINDX,		/*                                              0x19 */
-	S_RXFRMLEN,		/* Receive MPDU length in bytes                 0x1A */
+	S_KEYINDX,
+	S_RXFRMLEN,		/* Receive MPDU length in bytes */
 
-	/* Receive TSF time stored in SCR */
-	S_RXTSFTMRVAL_WD3,	/* TSF value at the start of rx                 0x1B */
-	S_RXTSFTMRVAL_WD2,	/* TSF value at the start of rx                 0x1C */
-	S_RXTSFTMRVAL_WD1,	/* TSF value at the start of rx                 0x1D */
-	S_RXTSFTMRVAL_WD0,	/* TSF value at the start of rx                 0x1E */
-	S_RXSSN,		/* Received start seq number for A-MPDU BA      0x1F */
-	S_RXQOSFLD,		/* Rx-QoS field (if present)                    0x20 */
+	/* offset 0x1B: Receive TSF time stored in SCR */
+	S_RXTSFTMRVAL_WD3,	/* TSF value at the start of rx */
+	S_RXTSFTMRVAL_WD2,	/* TSF value at the start of rx */
+	S_RXTSFTMRVAL_WD1,	/* TSF value at the start of rx */
+	S_RXTSFTMRVAL_WD0,	/* TSF value at the start of rx */
+	S_RXSSN,		/* Received start seq number for A-MPDU BA */
+	S_RXQOSFLD,		/* Rx-QoS field (if present) */
 
-	/* Scratch pad regs used in microcode as temp storage */
-	S_TMP0,			/* stmp0                                        0x21 */
-	S_TMP1,			/* stmp1                                        0x22 */
-	S_TMP2,			/* stmp2                                        0x23 */
-	S_TMP3,			/* stmp3                                        0x24 */
-	S_TMP4,			/* stmp4                                        0x25 */
-	S_TMP5,			/* stmp5                                        0x26 */
-	S_PRQPENALTY_CTR,	/* Probe response queue penalty counter         0x27 */
-	S_ANTCNT,		/* unsuccessful attempts on current ant.        0x28 */
-	S_SYMBOL,		/* flag for possible symbol ctl frames          0x29 */
-	S_RXTP,			/* rx frame type                                0x2A */
-	S_STREG2,		/* extra state storage                          0x2B */
-	S_STREG3,		/* even more extra state storage                0x2C */
-	S_STREG4,		/* ...                                          0x2D */
-	S_STREG5,		/* remember to initialize it to zero            0x2E */
+	/* offset 0x21: Scratch pad regs used in microcode as temp storage */
+	S_TMP0,			/* stmp0 */
+	S_TMP1,			/* stmp1 */
+	S_TMP2,			/* stmp2 */
+	S_TMP3,			/* stmp3 */
+	S_TMP4,			/* stmp4 */
+	S_TMP5,			/* stmp5 */
+	S_PRQPENALTY_CTR,	/* Probe response queue penalty counter */
+	S_ANTCNT,		/* unsuccessful attempts on current ant. */
+	S_SYMBOL,		/* flag for possible symbol ctl frames */
+	S_RXTP,			/* rx frame type */
+	S_STREG2,		/* extra state storage */
+	S_STREG3,		/* even more extra state storage */
+	S_STREG4,		/* ... */
+	S_STREG5,		/* remember to initialize it to zero */
 
 	S_ADJPWR_IDX,
-	S_CUR_PTR,		/* Temp pointer for A-MPDU re-Tx SHM table      0x32 */
+	S_CUR_PTR,		/* Temp pointer for A-MPDU re-Tx SHM table */
 	S_REVID4,		/* 0x33 */
 	S_INDX,			/* 0x34 */
 	S_ADDR0,		/* 0x35 */
@@ -1532,9 +1664,9 @@ enum _ePsmScratchPadRegDefinitions {
 	S_ADDR4,		/* 0x39 */
 	S_ADDR5,		/* 0x3A */
 	S_TMP6,			/* 0x3B */
-	S_KEYINDX_BU,		/* Backup for Key index                         0x3C */
-	S_MFGTEST_TMP0,		/* Temp register used for RX test calculations  0x3D */
-	S_RXESN,		/* Received end sequence number for A-MPDU BA   0x3E */
+	S_KEYINDX_BU,		/* Backup for Key index */
+	S_MFGTEST_TMP0,		/* Temp regs used for RX test calculations */
+	S_RXESN,		/* Received end sequence number for A-MPDU BA */
 	S_STREG6,		/* 0x3F */
 };
 
@@ -1628,7 +1760,8 @@ struct macstat {
 #define	SISF_FCLKA		0x0004	/* FastClkAvailable */
 #define	SISF_DB_PHY		0x0008	/* Dualband phy */
 
-/* === End of MAC reg, Beginning of PHY(b/a/g/n) reg, radio and LPPHY regs are separated === */
+/* === End of MAC reg, Beginning of PHY(b/a/g/n) reg === */
+/* radio and LPPHY regs are separated */
 
 #define	BPHY_REG_OFT_BASE	0x0
 /* offsets for indirect access to bphy registers */

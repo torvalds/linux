@@ -1,17 +1,12 @@
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
-#include "accel.h"
-#include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "adis16201.h"
 
 
@@ -38,10 +33,12 @@ static int adis16201_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 		xfers[i].cs_change = 1;
 		xfers[i].len = 2;
 		xfers[i].delay_usecs = 20;
-		xfers[i].tx_buf = st->tx + 2 * i;
-		st->tx[2 * i] = ADIS16201_READ_REG(ADIS16201_SUPPLY_OUT +
-						   2 * i);
-		st->tx[2 * i + 1] = 0;
+		if (i < ADIS16201_OUTPUTS) {
+			xfers[i].tx_buf = st->tx + 2 * i;
+			st->tx[2 * i] = ADIS16201_READ_REG(ADIS16201_SUPPLY_OUT +
+							   2 * i);
+			st->tx[2 * i + 1] = 0;
+		}
 		if (i >= 1)
 			xfers[i].rx_buf = rx + 2 * (i - 1);
 		spi_message_add_tail(&xfers[i], &msg);
@@ -62,7 +59,7 @@ static int adis16201_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16201_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 

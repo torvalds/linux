@@ -116,7 +116,16 @@ void kvp_get_os_info(void)
 
 	uname(&uts_buf);
 	os_build = uts_buf.release;
-	processor_arch= uts_buf.machine;
+	processor_arch = uts_buf.machine;
+
+	/*
+	 * The current windows host (win7) expects the build
+	 * string to be of the form: x.y.z
+	 * Strip additional information we may have.
+	 */
+	p = strchr(os_build, '-');
+	if (p)
+		*p = '\0';
 
 	file = fopen("/etc/SuSE-release", "r");
 	if (file != NULL)
@@ -264,22 +273,20 @@ static int
 kvp_get_domain_name(char *buffer, int length)
 {
 	struct addrinfo	hints, *info ;
-	gethostname(buffer, length);
 	int error = 0;
 
+	gethostname(buffer, length);
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET; /*Get only ipv4 addrinfo. */
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_CANONNAME;
 
-	error = getaddrinfo(buffer, "http", &hints, &info);
+	error = getaddrinfo(buffer, NULL, &hints, &info);
 	if (error != 0) {
 		strcpy(buffer, "getaddrinfo failed\n");
-		error = 1;
-		goto get_domain_done;
+		return error;
 	}
 	strcpy(buffer, info->ai_canonname);
-get_domain_done:
 	freeaddrinfo(info);
 	return error;
 }

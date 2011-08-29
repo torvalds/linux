@@ -10,10 +10,8 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
 #include <linux/bitops.h>
@@ -21,8 +19,7 @@
 #include "../iio.h"
 #include "../ring_generic.h"
 #include "../ring_sw.h"
-#include "../trigger.h"
-#include "../sysfs.h"
+#include "../trigger_consumer.h"
 
 #include "ad799x.h"
 
@@ -108,7 +105,7 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad799x_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	s64 time_ns;
@@ -207,12 +204,6 @@ error_ret:
 
 void ad799x_ring_cleanup(struct iio_dev *indio_dev)
 {
-	/* ensure that the trigger has been detached */
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }

@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -617,6 +618,8 @@ static IIO_DEV_ATTR_POWERDOWN_TIMER(S_IRUGO | S_IWUSR,
 		ad7150_store_powerdown_timer);
 
 static struct attribute *ad7150_attributes[] = {
+	&iio_dev_attr_available_conversion_modes.dev_attr.attr,
+	&iio_dev_attr_conversion_mode.dev_attr.attr,
 	&iio_dev_attr_available_threshold_modes.dev_attr.attr,
 	&iio_dev_attr_threshold_mode.dev_attr.attr,
 	&iio_dev_attr_ch1_threshold.dev_attr.attr,
@@ -652,14 +655,14 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 
 	if ((int_status & AD7150_STATUS_OUT1) && !(chip->old_state & AD7150_STATUS_OUT1))
 		iio_push_event(indio_dev, 0,
-			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_IN,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 				timestamp);
 	else if ((!(int_status & AD7150_STATUS_OUT1)) && (chip->old_state & AD7150_STATUS_OUT1))
 		iio_push_event(indio_dev, 0,
-			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_IN,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
@@ -667,14 +670,14 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 
 	if ((int_status & AD7150_STATUS_OUT2) && !(chip->old_state & AD7150_STATUS_OUT2))
 		iio_push_event(indio_dev, 0,
-			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_IN,
 						    1,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 			       timestamp);
 	else if ((!(int_status & AD7150_STATUS_OUT2)) && (chip->old_state & AD7150_STATUS_OUT2))
 		iio_push_event(indio_dev, 0,
-			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_IN,
 						    1,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),

@@ -40,12 +40,14 @@
  */
 
 /* macro to get 2.4 GHz channel group index for tx power */
-#define CHANNEL_POWER_IDX_2G_CCK(c) (((c) < 2) ? 0 : (((c) < 11) ? 1 : 2))	/* cck index */
-#define CHANNEL_POWER_IDX_2G_OFDM(c) (((c) < 2) ? 3 : (((c) < 11) ? 4 : 5))	/* ofdm index */
+#define CHANNEL_POWER_IDX_2G_CCK(c) (((c) < 2) ? 0 : (((c) < 11) ? 1 : 2))
+#define CHANNEL_POWER_IDX_2G_OFDM(c) (((c) < 2) ? 3 : (((c) < 11) ? 4 : 5))
 
 /* macro to get 5 GHz channel group index for tx power */
-#define CHANNEL_POWER_IDX_5G(c) \
-	(((c) < 52) ? 0 : (((c) < 62) ? 1 : (((c) < 100) ? 2 : (((c) < 149) ? 3 : 4))))
+#define CHANNEL_POWER_IDX_5G(c) (((c) < 52) ? 0 : \
+				 (((c) < 62) ? 1 : \
+				 (((c) < 100) ? 2 : \
+				 (((c) < 149) ? 3 : 4))))
 
 /* max of BAND_5G_PWR_LVLS and 6 for 2.4 GHz */
 #define BRCMS_MAXPWR_TBL_SIZE		6
@@ -67,9 +69,8 @@ struct locale_info {
 	u8 restricted_channels;
 	/* Max tx pwr in qdBm for each sub-band */
 	s8 maxpwr[BRCMS_MAXPWR_TBL_SIZE];
-	s8 pub_maxpwr[BAND_5G_PWR_LVLS];	/* Country IE advertised max tx pwr in dBm
-						 * per sub-band
-						 */
+	/* Country IE advertised max tx pwr in dBm per sub-band */
+	s8 pub_maxpwr[BAND_5G_PWR_LVLS];
 	u8 flags;
 };
 
@@ -98,8 +99,8 @@ struct locale_mimo_info {
 	u8 flags;
 };
 
-extern const chanvec_t chanvec_all_2G;
-extern const chanvec_t chanvec_all_5G;
+extern const struct brcms_chanvec chanvec_all_2G;
+extern const struct brcms_chanvec chanvec_all_5G;
 
 /*
  * Country names and abbreviations with locale defined from ISO 3166
@@ -120,13 +121,13 @@ extern u8 brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
 					   uint bandunit);
 
 extern bool brcms_c_valid_chanspec_db(struct brcms_cm_info *wlc_cm,
-				      chanspec_t chspec);
+				      u16 chspec);
 
 extern void brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm,
-				   chanspec_t chanspec,
+				   u16 chanspec,
 				   struct txpwr_limits *txpwr);
 extern void brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm,
-				     chanspec_t chanspec,
+				     u16 chanspec,
 				     u8 local_constraint_qdbm);
 
 #endif				/* _WLC_CHANNEL_H */

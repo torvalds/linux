@@ -20,14 +20,15 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 
+/*
+ * Starting index for 5G rates in the
+ * legacy rate table.
+ */
+#define BRCMS_LEGACY_5G_RATE_OFFSET	4
+
 /* softmac ioctl definitions */
 #define BRCMS_SET_SHORTSLOT_OVERRIDE		146
 
-
-/* BMAC Note: High-only driver is no longer working in softirq context as it needs to block and
- * sleep so perimeter lock has to be a semaphore instead of spinlock. This requires timers to be
- * submitted to workqueue instead of being on kernel timer
- */
 struct brcms_timer {
 	struct timer_list timer;
 	struct brcms_info *wl;
@@ -57,7 +58,7 @@ struct brcms_firmware {
 
 struct brcms_info {
 	struct brcms_pub *pub;		/* pointer to public wlc state */
-	void *wlc;		/* pointer to private common os-independent data */
+	struct brcms_c_info *wlc;	/* pointer to private common data */
 	u32 magic;
 
 	int irq;
@@ -65,8 +66,7 @@ struct brcms_info {
 	spinlock_t lock;	/* per-device perimeter lock */
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
 
-	/* bus type and regsva for unmap in brcms_free() */
-	uint bcm_bustype;	/* bus type */
+	/* regsva for unmap in brcms_free() */
 	void *regsva;		/* opaque chip registers virtual address */
 
 	/* timer related fields */
@@ -75,9 +75,6 @@ struct brcms_info {
 
 	struct tasklet_struct tasklet;	/* dpc tasklet */
 	bool resched;		/* dpc needs to be and is rescheduled */
-#ifdef LINUXSTA_PS
-	u32 pci_psstate[16];	/* pci ps-state save/restore */
-#endif
 	struct brcms_firmware fw;
 	struct wiphy *wiphy;
 };
@@ -92,7 +89,6 @@ extern int brcms_up(struct brcms_info *wl);
 extern void brcms_down(struct brcms_info *wl);
 extern void brcms_txflowcontrol(struct brcms_info *wl, struct brcms_if *wlif,
 				bool state, int prio);
-extern bool wl_alloc_dma_resources(struct brcms_info *wl, uint dmaddrwidth);
 extern bool brcms_rfkill_set_hw_state(struct brcms_info *wl);
 
 /* timer functions */

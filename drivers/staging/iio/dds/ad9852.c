@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -217,7 +218,6 @@ static struct attribute *ad9852_attributes[] = {
 };
 
 static const struct attribute_group ad9852_attribute_group = {
-	.name = DRV_NAME,
 	.attrs = ad9852_attributes,
 };
 

@@ -203,7 +203,6 @@ static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 
 static inline void thread_enter(void *context)
 {
-	daemonize("%s", "RTKTHREAD");
 	allow_signal(SIGTERM);
 }
 

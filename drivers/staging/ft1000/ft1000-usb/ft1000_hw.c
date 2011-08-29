@@ -485,7 +485,7 @@ void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer,
 
 	DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
 
-	commandbuf = (unsigned char *)kmalloc(size + 2, GFP_KERNEL);
+	commandbuf = kmalloc(size + 2, GFP_KERNEL);
 	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
 
 	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);

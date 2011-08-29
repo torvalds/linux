@@ -31,12 +31,12 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-
 #include "../ring_generic.h"
-#include "adc.h"
+
 #include "ad799x.h"
 
 /*
@@ -336,8 +336,14 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 		if (status & (1 << i))
 			iio_push_event(indio_dev, 0,
 				       i & 0x1 ?
-				       IIO_EVENT_CODE_IN_HIGH_THRESH(i >> 1) :
-				       IIO_EVENT_CODE_IN_LOW_THRESH(i >> 1),
+				       IIO_UNMOD_EVENT_CODE(IIO_IN,
+							    (i >> 1),
+							    IIO_EV_TYPE_THRESH,
+							    IIO_EV_DIR_RISING) :
+				       IIO_UNMOD_EVENT_CODE(IIO_IN,
+							    (i >> 1),
+							    IIO_EV_TYPE_THRESH,
+							    IIO_EV_DIR_FALLING),
 				       iio_get_time_ns());
 	}
 

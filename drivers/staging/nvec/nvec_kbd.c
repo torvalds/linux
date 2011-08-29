@@ -1,10 +1,11 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include "nvec-keytable.h"
 #include "nvec.h"
 
-#define ACK_KBD_EVENT {'\x05','\xed','\x01'}
+#define ACK_KBD_EVENT {'\x05', '\xed', '\x01'}
 
 static unsigned char keycodes[ARRAY_SIZE(code_tab_102us)
 			+ ARRAY_SIZE(extcode_tab_us102)];
@@ -27,10 +28,10 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 		nvec_size _size = (msg[0] & (3 << 5)) >> 5;
 
 /* power on/off button */
-		if(_size == NVEC_VAR_SIZE)
+		if (_size == NVEC_VAR_SIZE)
 			return NOTIFY_STOP;
 
-		if(_size == NVEC_3BYTES)
+		if (_size == NVEC_3BYTES)
 			msg++;
 
 		code = msg[1] & 0x7f;
@@ -51,13 +52,13 @@ static int nvec_kbd_event(struct input_dev *dev, unsigned int type,
 	unsigned char buf[] = ACK_KBD_EVENT;
 	struct nvec_chip *nvec = keys_dev.nvec;
 
-	if(type==EV_REP)
+	if (type == EV_REP)
 		return 0;
 
-	if(type!=EV_LED)
+	if (type != EV_LED)
 		return -1;
 
-	if(code!=LED_CAPSL)
+	if (code != LED_CAPSL)
 		return -1;
 
 	buf[2] = !!value;
@@ -66,18 +67,19 @@ static int nvec_kbd_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
-int __init nvec_kbd_init(struct nvec_chip *nvec)
+static int __devinit nvec_kbd_probe(struct platform_device *pdev)
 {
+	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	int i, j, err;
 	struct input_dev *idev;
 
 	j = 0;
 
-	for(i = 0; i < ARRAY_SIZE(code_tab_102us); ++i)
+	for (i = 0; i < ARRAY_SIZE(code_tab_102us); ++i)
 		keycodes[j++] = code_tab_102us[i];
 
-	for(i = 0; i < ARRAY_SIZE(extcode_tab_us102); ++i)
-		keycodes[j++]=extcode_tab_us102[i];
+	for (i = 0; i < ARRAY_SIZE(extcode_tab_us102); ++i)
+		keycodes[j++] = extcode_tab_us102[i];
 
 	idev = input_allocate_device();
 	idev->name = "Tegra nvec keyboard";
@@ -89,12 +91,12 @@ int __init nvec_kbd_init(struct nvec_chip *nvec)
 	idev->keycodesize = sizeof(unsigned char);
 	idev->keycodemax = ARRAY_SIZE(keycodes);
 
-	for( i = 0; i < ARRAY_SIZE(keycodes); ++i)
+	for (i = 0; i < ARRAY_SIZE(keycodes); ++i)
 		set_bit(keycodes[i], idev->keybit);
 
 	clear_bit(0, idev->keybit);
 	err = input_register_device(idev);
-	if(err)
+	if (err)
 		goto fail;
 
 	keys_dev.input = idev;
@@ -120,3 +122,18 @@ fail:
 	input_free_device(idev);
 	return err;
 }
+
+static struct platform_driver nvec_kbd_driver = {
+	.probe	= nvec_kbd_probe,
+	.driver	= {
+		.name   = "nvec-kbd",
+		.owner  = THIS_MODULE,
+	},
+};
+
+static int __init nvec_kbd_init(void)
+{
+	return platform_driver_register(&nvec_kbd_driver);
+}
+
+module_init(nvec_kbd_init);

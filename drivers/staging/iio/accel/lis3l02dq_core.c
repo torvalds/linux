@@ -21,12 +21,11 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-
-#include "accel.h"
 
 #include "lis3l02dq.h"
 
@@ -454,54 +453,54 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Z,
+						  IIO_MOD_Z,
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_RISING),
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Z,
+						  IIO_MOD_Z,
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_FALLING),
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Y,
+						  IIO_MOD_Y,
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_RISING),
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Y,
+						  IIO_MOD_Y,
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_FALLING),
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_X,
+						  IIO_MOD_X,
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_RISING),
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_X,
+						  IIO_MOD_X,
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_FALLING),
 			       timestamp);

@@ -124,7 +124,7 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
 
-	adapter->CachedMaskValue = mask;
+	adapter->cached_mask_value = mask;
 	writel(mask, &adapter->regs->global.int_mask);
 }
 
@@ -138,7 +138,7 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 void et131x_disable_interrupts(struct et131x_adapter *adapter)
 {
 	/* Disable all global interrupts */
-	adapter->CachedMaskValue = INT_MASK_DISABLE;
+	adapter->cached_mask_value = INT_MASK_DISABLE;
 	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
 }
 
@@ -200,7 +200,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 			if (++tcb->stale > 1)
 				status |= ET_INTR_TXDMA_ISR;
 
-		if (adapter->rx_ring.UnfinishedReceives)
+		if (adapter->rx_ring.unfinished_receives)
 			status |= ET_INTR_RXDMA_XFR_DONE;
 		else if (tcb == NULL)
 			writel(0, &adapter->regs->global.watchdog_timer);
@@ -222,7 +222,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	 * DPC. We will clear the software copy of that in that
 	 * routine.
 	 */
-	adapter->stats.InterruptStatus = status;
+	adapter->stats.interrupt_status = status;
 
 	/* Schedule the ISR handler as a bottom-half task in the
 	 * kernel's tq_immediate queue, and mark the queue for
@@ -242,10 +242,10 @@ out:
  */
 void et131x_isr_handler(struct work_struct *work)
 {
-	struct et131x_adapter *etdev =
+	struct et131x_adapter *adapter =
 		container_of(work, struct et131x_adapter, task);
-	u32 status = etdev->stats.InterruptStatus;
-	struct address_map __iomem *iomem = etdev->regs;
+	u32 status = adapter->stats.interrupt_status;
+	struct address_map __iomem *iomem = adapter->regs;
 
 	/*
 	 * These first two are by far the most common.  Once handled, we clear
@@ -254,11 +254,11 @@ void et131x_isr_handler(struct work_struct *work)
 	 */
 	/* Handle all the completed Transmit interrupts */
 	if (status & ET_INTR_TXDMA_ISR)
-		et131x_handle_send_interrupt(etdev);
+		et131x_handle_send_interrupt(adapter);
 
 	/* Handle all the completed Receives interrupts */
 	if (status & ET_INTR_RXDMA_XFR_DONE)
-		et131x_handle_recv_interrupt(etdev);
+		et131x_handle_recv_interrupt(adapter);
 
 	status &= 0xffffffd7;
 
@@ -270,7 +270,7 @@ void et131x_isr_handler(struct work_struct *work)
 			/* Following read also clears the register (COR) */
 			txdma_err = readl(&iomem->txdma.tx_dma_error);
 
-			dev_warn(&etdev->pdev->dev,
+			dev_warn(&adapter->pdev->dev,
 				    "TXDMA_ERR interrupt, error = %d\n",
 				    txdma_err);
 		}
@@ -295,8 +295,8 @@ void et131x_isr_handler(struct work_struct *work)
 			/* If the user has flow control on, then we will
 			 * send a pause packet, otherwise just exit
 			 */
-			if (etdev->flowcontrol == FLOW_TXONLY ||
-			    etdev->flowcontrol == FLOW_BOTH) {
+			if (adapter->flowcontrol == FLOW_TXONLY ||
+			    adapter->flowcontrol == FLOW_BOTH) {
 				u32 pm_csr;
 
 				/* Tell the device to send a pause packet via
@@ -345,7 +345,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			/* TRAP();*/
 
-			dev_warn(&etdev->pdev->dev,
+			dev_warn(&adapter->pdev->dev,
 				    "RxDMA_ERR interrupt, error %x\n",
 				    readl(&iomem->txmac.tx_test));
 		}
@@ -359,7 +359,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * message when we are in DBG mode, otherwise we
 			 * will ignore it.
 			 */
-			dev_err(&etdev->pdev->dev, "WAKE_ON_LAN interrupt\n");
+			dev_err(&adapter->pdev->dev, "WAKE_ON_LAN interrupt\n");
 		}
 
 		/* Handle the PHY interrupt */
@@ -379,25 +379,26 @@ void et131x_isr_handler(struct work_struct *work)
 				 * so, disable it because we will not be able
 				 * to read PHY values until we are out.
 				 */
-				DisablePhyComa(etdev);
+				et1310_disable_phy_coma(adapter);
 			}
 
 			/* Read the PHY ISR to clear the reason for the
 			 * interrupt.
 			 */
-			MiRead(etdev, (uint8_t) offsetof(struct mi_regs, isr),
-			       &myisr);
+			et131x_mii_read(adapter,
+					(uint8_t) offsetof(struct mi_regs, isr),
+					&myisr);
 
-			if (!etdev->ReplicaPhyLoopbk) {
-				MiRead(etdev,
+			if (!adapter->replica_phy_loopbk) {
+				et131x_mii_read(adapter,
 				       (uint8_t) offsetof(struct mi_regs, bmsr),
 				       &bmsr_data);
 
-				bmsr_ints = etdev->bmsr ^ bmsr_data;
-				etdev->bmsr = bmsr_data;
+				bmsr_ints = adapter->bmsr ^ bmsr_data;
+				adapter->bmsr = bmsr_data;
 
 				/* Do all the cable in / cable out stuff */
-				et131x_Mii_check(etdev, bmsr_data, bmsr_ints);
+				et131x_mii_check(adapter, bmsr_data, bmsr_ints);
 			}
 		}
 
@@ -415,7 +416,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * a nutshell, the whole Tx path will have to be reset
 			 * and re-configured afterwards.
 			 */
-			dev_warn(&etdev->pdev->dev,
+			dev_warn(&adapter->pdev->dev,
 				    "TXMAC interrupt, error 0x%08x\n",
 				    err);
 
@@ -433,14 +434,14 @@ void et131x_isr_handler(struct work_struct *work)
 			 * set the flag to cause us to reset so we can solve
 			 * this issue.
 			 */
-			/* MP_SET_FLAG( etdev,
+			/* MP_SET_FLAG( adapter,
 						fMP_ADAPTER_HARDWARE_ERROR); */
 
-			dev_warn(&etdev->pdev->dev,
+			dev_warn(&adapter->pdev->dev,
 			  "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
 				    readl(&iomem->rxmac.err_reg));
 
-			dev_warn(&etdev->pdev->dev,
+			dev_warn(&adapter->pdev->dev,
 				    "Enable 0x%08x, Diag 0x%08x\n",
 				    readl(&iomem->rxmac.ctrl),
 				    readl(&iomem->rxmac.rxq_diag));
@@ -460,7 +461,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * to maintain the top, software managed bits of the
 			 * counter(s).
 			 */
-			HandleMacStatInterrupt(etdev);
+			et1310_handle_macstat_interrupt(adapter);
 		}
 
 		/* Handle SLV Timeout Interrupt */
@@ -476,5 +477,5 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 		}
 	}
-	et131x_enable_interrupts(etdev);
+	et131x_enable_interrupts(adapter);
 }

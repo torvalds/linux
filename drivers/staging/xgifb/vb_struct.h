@@ -1,16 +1,6 @@
 #ifndef _VB_STRUCT_
 #define _VB_STRUCT_
 
-#ifdef _INITNEW_
-#define EXTERN
-#else
-#define EXTERN extern
-#endif
-
-struct XGI_PanelDelayTblStruct {
-	unsigned char timer[2];
-};
-
 struct XGI_LCDDataStruct {
 	unsigned short RVBHCMAX;
 	unsigned short RVBHCFACT;
@@ -44,24 +34,6 @@ struct XGI_TVDataStruct {
 	unsigned char RY3COE;
 	unsigned char RY4COE;
 };
-
-struct XGI_LVDSDataStruct {
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
-};
-
-struct XGI_LVDSDesStruct {
-	unsigned short LCDHDES;
-	unsigned short LCDVDES;
-};
-
-struct XGI_LVDSCRT1DataStruct {
-	unsigned char CR[15];
-};
-
-/*add for LCDA*/
 
 struct XGI_StStruct {
 	unsigned char St_ModeID;
@@ -146,10 +118,6 @@ struct XGI_ModeResInfoStruct {
 	unsigned char  YChar;
 };
 
-struct XGI_LCDNBDesStruct {
-	unsigned char NB[12];
-};
-
 /*add for new UNIVGABIOS*/
 struct XGI_LCDDesStruct {
 	unsigned short LCDHDES;
@@ -160,12 +128,6 @@ struct XGI_LCDDesStruct {
 
 struct XGI_LCDDataTablStruct {
 	unsigned char  PANELID;
-	unsigned short MASK;
-	unsigned short CAP;
-	unsigned short DATAPTR;
-};
-
-struct XGI_TVTablDataStruct {
 	unsigned short MASK;
 	unsigned short CAP;
 	unsigned short DATAPTR;
@@ -258,10 +220,6 @@ struct XGI_XG21CRT1Struct {
 	unsigned char ModeID, CR02, CR03, CR15, CR16;
 };
 
-struct XGI330_CHTVRegDataStruct {
-	unsigned char Reg[16];
-};
-
 struct XGI330_LCDCapStruct {
 	unsigned char	LCD_ID;
 	unsigned short	LCD_Capability;
@@ -322,18 +280,6 @@ struct XGI330_VCLKDataStruct {
 struct XGI301C_Tap4TimingStruct {
 	unsigned short DE;
 	unsigned char  Reg[64];   /* C0-FF */
-};
-
-struct XGI_New_StandTableStruct {
-	unsigned char  CRT_COLS;
-	unsigned char  ROWS;
-	unsigned char  CHAR_HEIGHT;
-	unsigned short CRT_LEN;
-	unsigned char  SR[4];
-	unsigned char  MISC;
-	unsigned char  CRTC[0x19];
-	unsigned char  ATTR[0x14];
-	unsigned char  GRC[9];
 };
 
 struct vb_device_info {
@@ -462,21 +408,4 @@ struct vb_device_info {
 	struct XGI_XG21CRT1Struct	  *UpdateCRT1;
 };  /* _struct vb_device_info */
 
-
-struct TimingInfo {
-	unsigned short Horizontal_ACTIVE;
-	unsigned short Horizontal_FP;
-	unsigned short Horizontal_SYNC;
-	unsigned short Horizontal_BP;
-	unsigned short Vertical_ACTIVE;
-	unsigned short Vertical_FP;
-	unsigned short Vertical_SYNC;
-	unsigned short Vertical_BP;
-	double	       DCLK;
-	unsigned char  FrameRate;
-	unsigned char  Interlace;
-	unsigned short Margin;
-};
-
-#define _VB_STRUCT_
 #endif /* _VB_STRUCT_ */

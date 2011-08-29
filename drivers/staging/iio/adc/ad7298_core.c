@@ -14,11 +14,11 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-#include "adc.h"
 
 #include "ad7298.h"
 

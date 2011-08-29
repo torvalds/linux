@@ -219,7 +219,7 @@ EXPORT_SYMBOL(brcmu_pktq_pdeq_tail);
 
 void
 brcmu_pktq_pflush(struct pktq *pq, int prec, bool dir,
-	    ifpkt_cb_t fn, void *arg)
+		  bool (*fn)(struct sk_buff *, void *), void *arg)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p, *prev = NULL;
@@ -244,14 +244,13 @@ brcmu_pktq_pflush(struct pktq *pq, int prec, bool dir,
 		}
 	}
 
-	if (q->head == NULL) {
+	if (q->head == NULL)
 		q->tail = NULL;
-	}
 }
 EXPORT_SYMBOL(brcmu_pktq_pflush);
 
 void brcmu_pktq_flush(struct pktq *pq, bool dir,
-		ifpkt_cb_t fn, void *arg)
+		      bool (*fn)(struct sk_buff *, void *), void *arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
@@ -350,21 +349,6 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 EXPORT_SYMBOL(brcmu_pktq_mdeq);
 
-/* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int brcmu_ether_atoe(char *p, u8 *ea)
-{
-	int i = 0;
-
-	for (;;) {
-		ea[i++] = (char)simple_strtoul(p, &p, 16);
-		if (!*p++ || i == 6)
-			break;
-	}
-
-	return i == 6;
-}
-EXPORT_SYMBOL(brcmu_ether_atoe);
-
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
 void brcmu_prpkt(const char *msg, struct sk_buff *p0)
@@ -419,26 +403,23 @@ int brcmu_iovar_lencheck(const struct brcmu_iovar *vi, void *arg, int len,
 	case IOVT_UINT16:
 	case IOVT_UINT32:
 		/* all integers are s32 sized args at the ioctl interface */
-		if (len < (int)sizeof(int)) {
+		if (len < (int)sizeof(int))
 			bcmerror = -EOVERFLOW;
-		}
 		break;
 
 	case IOVT_BUFFER:
 		/* buffer must meet minimum length requirement */
-		if (len < vi->minlen) {
+		if (len < vi->minlen)
 			bcmerror = -EOVERFLOW;
-		}
 		break;
 
 	case IOVT_VOID:
-		if (!set) {
+		if (!set)
 			/* Cannot return nil... */
 			bcmerror = -ENOTSUPP;
-		} else if (len) {
+		else if (len)
 			/* Set is an action w/o parameters */
 			bcmerror = -ENOBUFS;
-		}
 		break;
 
 	default:
@@ -449,75 +430,6 @@ int brcmu_iovar_lencheck(const struct brcmu_iovar *vi, void *arg, int len,
 	return bcmerror;
 }
 EXPORT_SYMBOL(brcmu_iovar_lencheck);
-
-/*******************************************************************************
- * crc8
- *
- * Computes a crc8 over the input data using the polynomial:
- *
- *       x^8 + x^7 +x^6 + x^4 + x^2 + 1
- *
- * The caller provides the initial value (either CRC8_INIT_VALUE
- * or the previous returned value) to allow for processing of
- * discontiguous blocks of data.  When generating the CRC the
- * caller is responsible for complementing the final return value
- * and inserting it into the byte stream.  When checking, a final
- * return value of CRC8_GOOD_VALUE indicates a valid CRC.
- *
- * Reference: Dallas Semiconductor Application Note 27
- *   Williams, Ross N., "A Painless Guide to CRC Error Detection Algorithms",
- *     ver 3, Aug 1993, ross@guest.adelaide.edu.au, Rocksoft Pty Ltd.,
- *     ftp://ftp.rocksoft.com/clients/rocksoft/papers/crc_v3.txt
- *
- * ****************************************************************************
- */
-
-static const u8 crc8_table[256] = {
-	0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
-	0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
-	0x94, 0x63, 0x2D, 0xDA, 0xB1, 0x46, 0x08, 0xFF,
-	0xDE, 0x29, 0x67, 0x90, 0xFB, 0x0C, 0x42, 0xB5,
-	0x7F, 0x88, 0xC6, 0x31, 0x5A, 0xAD, 0xE3, 0x14,
-	0x35, 0xC2, 0x8C, 0x7B, 0x10, 0xE7, 0xA9, 0x5E,
-	0xEB, 0x1C, 0x52, 0xA5, 0xCE, 0x39, 0x77, 0x80,
-	0xA1, 0x56, 0x18, 0xEF, 0x84, 0x73, 0x3D, 0xCA,
-	0xFE, 0x09, 0x47, 0xB0, 0xDB, 0x2C, 0x62, 0x95,
-	0xB4, 0x43, 0x0D, 0xFA, 0x91, 0x66, 0x28, 0xDF,
-	0x6A, 0x9D, 0xD3, 0x24, 0x4F, 0xB8, 0xF6, 0x01,
-	0x20, 0xD7, 0x99, 0x6E, 0x05, 0xF2, 0xBC, 0x4B,
-	0x81, 0x76, 0x38, 0xCF, 0xA4, 0x53, 0x1D, 0xEA,
-	0xCB, 0x3C, 0x72, 0x85, 0xEE, 0x19, 0x57, 0xA0,
-	0x15, 0xE2, 0xAC, 0x5B, 0x30, 0xC7, 0x89, 0x7E,
-	0x5F, 0xA8, 0xE6, 0x11, 0x7A, 0x8D, 0xC3, 0x34,
-	0xAB, 0x5C, 0x12, 0xE5, 0x8E, 0x79, 0x37, 0xC0,
-	0xE1, 0x16, 0x58, 0xAF, 0xC4, 0x33, 0x7D, 0x8A,
-	0x3F, 0xC8, 0x86, 0x71, 0x1A, 0xED, 0xA3, 0x54,
-	0x75, 0x82, 0xCC, 0x3B, 0x50, 0xA7, 0xE9, 0x1E,
-	0xD4, 0x23, 0x6D, 0x9A, 0xF1, 0x06, 0x48, 0xBF,
-	0x9E, 0x69, 0x27, 0xD0, 0xBB, 0x4C, 0x02, 0xF5,
-	0x40, 0xB7, 0xF9, 0x0E, 0x65, 0x92, 0xDC, 0x2B,
-	0x0A, 0xFD, 0xB3, 0x44, 0x2F, 0xD8, 0x96, 0x61,
-	0x55, 0xA2, 0xEC, 0x1B, 0x70, 0x87, 0xC9, 0x3E,
-	0x1F, 0xE8, 0xA6, 0x51, 0x3A, 0xCD, 0x83, 0x74,
-	0xC1, 0x36, 0x78, 0x8F, 0xE4, 0x13, 0x5D, 0xAA,
-	0x8B, 0x7C, 0x32, 0xC5, 0xAE, 0x59, 0x17, 0xE0,
-	0x2A, 0xDD, 0x93, 0x64, 0x0F, 0xF8, 0xB6, 0x41,
-	0x60, 0x97, 0xD9, 0x2E, 0x45, 0xB2, 0xFC, 0x0B,
-	0xBE, 0x49, 0x07, 0xF0, 0x9B, 0x6C, 0x22, 0xD5,
-	0xF4, 0x03, 0x4D, 0xBA, 0xD1, 0x26, 0x68, 0x9F
-};
-
-u8 brcmu_crc8(u8 *pdata,	/* pointer to array of data to process */
-			 uint nbytes,	/* number of input data bytes to process */
-			 u8 crc	/* either CRC8_INIT_VALUE or previous return value */
-	) {
-	/* loop over the buffer data */
-	while (nbytes-- > 0)
-		crc = crc8_table[(crc ^ *pdata++) & 0xff];
-
-	return crc;
-}
-EXPORT_SYMBOL(brcmu_crc8);
 
 /*
  * Traverse a string of 1-byte tag/1-byte length/variable-length value
@@ -605,7 +517,10 @@ brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags, char *buf,
 }
 EXPORT_SYMBOL(brcmu_format_flags);
 
-/* print bytes formatted as hex to a string. return the resulting string length */
+/*
+ * print bytes formatted as hex to a string. return the resulting
+ * string length
+ */
 int brcmu_format_hex(char *str, const void *bytes, int len)
 {
 	int i;
@@ -685,10 +600,9 @@ u16 brcmu_qdbm_to_mw(u8 qdbm)
 	uint factor = 1;
 	int idx = qdbm - QDBM_OFFSET;
 
-	if (idx >= QDBM_TABLE_LEN) {
+	if (idx >= QDBM_TABLE_LEN)
 		/* clamp to max u16 mW value */
 		return 0xFFFF;
-	}
 
 	/* scale the qdBm index up to the range of the table 0-40
 	 * where an offset of 40 qdBm equals a factor of 10 mW.

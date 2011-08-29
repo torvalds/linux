@@ -61,8 +61,6 @@ static void _brcms_timer(struct brcms_timer *t);
 static int ieee_hw_init(struct ieee80211_hw *hw);
 static int ieee_hw_rate_init(struct ieee80211_hw *hw);
 
-static int wl_linux_watchdog(void *ctx);
-
 /* Flags we support */
 #define MAC_FILTERS (FIF_PROMISC_IN_BSS | \
 	FIF_ALLMULTI | \
@@ -85,7 +83,8 @@ static int __devinit brcms_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent);
 static void brcms_remove(struct pci_dev *pdev);
 static void brcms_free(struct brcms_info *wl);
-static void brcms_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br);
+static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate,
+				 bool is_br);
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
@@ -94,11 +93,10 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 /* recognized PCI IDs */
 static DEFINE_PCI_DEVICE_TABLE(brcms_pci_id_table) = {
-	{PCI_VENDOR_ID_BROADCOM, 0x4357, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 43225 2G */
-	{PCI_VENDOR_ID_BROADCOM, 0x4353, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 43224 DUAL */
-	{PCI_VENDOR_ID_BROADCOM, 0x4727, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 4313 DUAL */
-	/* 43224 Ven */
-	{PCI_VENDOR_ID_BROADCOM, 0x0576, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4357) }, /* 43225 2G */
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4353) }, /* 43224 DUAL */
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4727) }, /* 4313 DUAL */
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x0576) }, /* 43224 Ven */
 	{0}
 };
 
@@ -107,8 +105,6 @@ MODULE_DEVICE_TABLE(pci, brcms_pci_id_table);
 #ifdef BCMDBG
 static int msglevel = 0xdeadbeef;
 module_param(msglevel, int, 0);
-static int phymsglevel = 0xdeadbeef;
-module_param(phymsglevel, int, 0);
 #endif				/* BCMDBG */
 
 #define HW_TO_WL(hw)	 (hw->priv)
@@ -216,10 +212,10 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	err = brcms_up(wl);
 	UNLOCK(wl);
 
-	if (err != 0) {
+	if (err != 0)
 		wiphy_err(hw->wiphy, "%s: brcms_up() returned %d\n", __func__,
 			  err);
-	}
+
 	return err;
 }
 
@@ -306,9 +302,9 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 				  "\n", __func__, conf->power_level * 4,
 				  new_int);
 	}
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		err = ieee_set_channel(hw, conf->channel, conf->channel_type);
-	}
+
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
 		if (brcms_c_set
 		    (wl->wlc, BRCM_SET_SRL,
@@ -377,7 +373,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		struct ieee80211_supported_band *bi;
 		u32 br_mask, i;
 		u16 rate;
-		struct wl_rateset rs;
+		struct brcm_rateset rs;
 		int error;
 
 		/* retrieve the current rates */
@@ -419,32 +415,36 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 				  info->bssid);
 		UNLOCK(wl);
 	}
-	if (changed & BSS_CHANGED_BEACON) {
+	if (changed & BSS_CHANGED_BEACON)
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
 		wiphy_err(wiphy, "%s: beacon changed\n", __func__);
-	}
+
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 		wiphy_err(wiphy, "%s: Beacon enabled: %s\n", __func__,
 			  info->enable_beacon ? "true" : "false");
 	}
+
 	if (changed & BSS_CHANGED_CQM) {
 		/* Connection quality monitor config changed */
 		wiphy_err(wiphy, "%s: cqm change: threshold %d, hys %d "
 			  " (implement)\n", __func__, info->cqm_rssi_thold,
 			  info->cqm_rssi_hyst);
 	}
+
 	if (changed & BSS_CHANGED_IBSS) {
 		/* IBSS join status changed */
 		wiphy_err(wiphy, "%s: IBSS joined: %s (implement)\n", __func__,
 			  info->ibss_joined ? "true" : "false");
 	}
+
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		/* Hardware ARP filter address list or state changed */
 		wiphy_err(wiphy, "%s: arp filtering: enabled %s, count %d"
 			  " (implement)\n", __func__, info->arp_filter_enabled ?
 			  "true" : "false", info->arp_addr_cnt);
 	}
+
 	if (changed & BSS_CHANGED_QOS) {
 		/*
 		 * QoS for this association was enabled/disabled.
@@ -602,7 +602,10 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT;
 
-	/* minstrel_ht initiates addBA on our behalf by calling ieee80211_start_tx_ba_session() */
+	/*
+	 * minstrel_ht initiates addBA on our behalf by calling
+	 * ieee80211_start_tx_ba_session()
+	 */
 	return 0;
 }
 
@@ -640,7 +643,10 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 				  tid);
 			return -EINVAL;
 		}
-		/* Future improvement: Use the starting sequence number provided ... */
+		/*
+		 * Future improvement:
+		 *   Use the starting sequence number provided ...
+		 */
 		*ssn = 0;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -744,21 +750,19 @@ static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
  * is called in brcms_pci_probe() context, therefore no locking required.
  */
 static struct brcms_info *brcms_attach(u16 vendor, u16 device,
-				       unsigned long regs,
-			    uint bustype, void *btparam, uint irq)
+				       resource_size_t regs,
+				       struct pci_dev *btparam, uint irq)
 {
 	struct brcms_info *wl = NULL;
 	int unit, err;
-	unsigned long base_addr;
 	struct ieee80211_hw *hw;
 	u8 perm[ETH_ALEN];
 
 	unit = n_adapters_found;
 	err = 0;
 
-	if (unit < 0) {
+	if (unit < 0)
 		return NULL;
-	}
 
 	/* allocate private info */
 	hw = pci_get_drvdata(btparam);	/* btparam == pdev */
@@ -773,19 +777,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	/* setup the bottom half handler */
 	tasklet_init(&wl->tasklet, brcms_dpc, (unsigned long) wl);
 
-
-
-	base_addr = regs;
-
-	if (bustype == PCI_BUS || bustype == RPC_BUS) {
-		/* Do nothing */
-	} else {
-		bustype = PCI_BUS;
-		BCMMSG(wl->wiphy, "force to PCI\n");
-	}
-	wl->bcm_bustype = bustype;
-
-	wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ);
+	wl->regsva = ioremap_nocache(regs, PCI_BAR0_WINSZ);
 	if (wl->regsva == NULL) {
 		wiphy_err(wl->wiphy, "wl%d: ioremap() failed\n", unit);
 		goto fail;
@@ -794,17 +786,17 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	spin_lock_init(&wl->isr_lock);
 
 	/* prepare ucode */
-	if (brcms_request_fw(wl, (struct pci_dev *)btparam) < 0) {
+	if (brcms_request_fw(wl, btparam) < 0) {
 		wiphy_err(wl->wiphy, "%s: Failed to find firmware usually in "
 			  "%s\n", KBUILD_MODNAME, "/lib/firmware/brcm");
 		brcms_release_fw(wl);
-		brcms_remove((struct pci_dev *)btparam);
+		brcms_remove(btparam);
 		return NULL;
 	}
 
 	/* common load-time initialization */
-	wl->wlc = brcms_c_attach((void *)wl, vendor, device, unit, false,
-			     wl->regsva, wl->bcm_bustype, btparam, &err);
+	wl->wlc = brcms_c_attach(wl, vendor, device, unit, false,
+				 wl->regsva, btparam, &err);
 	brcms_release_fw(wl);
 	if (!wl->wlc) {
 		wiphy_err(wl->wiphy, "%s: attach() failed with code %d\n",
@@ -815,10 +807,9 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 
 	wl->pub->ieee_hw = hw;
 
-	if (brcms_c_set_par(wl->wlc, IOV_MPC, 0) < 0) {
+	if (brcms_c_set_par(wl->wlc, IOV_MPC, 0) < 0)
 		wiphy_err(wl->wiphy, "wl%d: Error setting MPC variable to 0\n",
 			  unit);
-	}
 
 	/* register our interrupt handler */
 	if (request_irq(irq, brcms_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
@@ -828,7 +819,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	wl->irq = irq;
 
 	/* register module */
-	brcms_c_module_register(wl->pub, "linux", wl, wl_linux_watchdog, NULL);
+	brcms_c_module_register(wl->pub, "linux", wl, NULL);
 
 	if (ieee_hw_init(hw)) {
 		wiphy_err(wl->wiphy, "wl%d: %s: ieee_hw_init failed!\n", unit,
@@ -842,19 +833,17 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	SET_IEEE80211_PERM_ADDR(hw, perm);
 
 	err = ieee80211_register_hw(hw);
-	if (err) {
+	if (err)
 		wiphy_err(wl->wiphy, "%s: ieee80211_register_hw failed, status"
 			  "%d\n", __func__, err);
-	}
 
 	if (wl->pub->srom_ccode[0])
 		err = brcms_set_hint(wl, wl->pub->srom_ccode);
 	else
 		err = brcms_set_hint(wl, "US");
-	if (err) {
+	if (err)
 		wiphy_err(wl->wiphy, "%s: regulatory_hint failed, status %d\n",
 			  __func__, err);
-	}
 
 	n_adapters_found++;
 	return wl;
@@ -975,6 +964,10 @@ static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
 	.hw_value = (rate100m / 5), \
 }
 
+/*
+ * The rate table is used for both 2.4G and 5G rates. The
+ * latter being a subset as it does not support CCK rates.
+ */
 static struct ieee80211_rate legacy_ratetable[] = {
 	RATE(10, 0),
 	RATE(20, IEEE80211_RATE_SHORT_PREAMBLE),
@@ -1016,11 +1009,13 @@ static struct ieee80211_supported_band brcms_band_5GHz_nphy = {
 	.band = IEEE80211_BAND_5GHZ,
 	.channels = brcms_5ghz_nphy_chantable,
 	.n_channels = ARRAY_SIZE(brcms_5ghz_nphy_chantable),
-	.bitrates = legacy_ratetable + 4,
-	.n_bitrates = ARRAY_SIZE(legacy_ratetable) - 4,
+	.bitrates = legacy_ratetable + BRCMS_LEGACY_5G_RATE_OFFSET,
+	.n_bitrates = ARRAY_SIZE(legacy_ratetable) -
+			BRCMS_LEGACY_5G_RATE_OFFSET,
 	.ht_cap = {
-		   /* use IEEE80211_HT_CAP_* from include/linux/ieee80211.h */
-		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,	/* No 40 mhz yet */
+		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
+			  IEEE80211_HT_CAP_SGI_40 |
+			  IEEE80211_HT_CAP_40MHZ_INTOLERANT, /* No 40 mhz yet */
 		   .ht_supported = true,
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
@@ -1063,12 +1058,11 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	/* Assume all bands use the same phy.  True for 11n devices. */
 	if (NBANDS_PUB(wl->pub) > 1) {
 		has_5g++;
-		if (phy_list[0] == 'n' || phy_list[0] == 'c') {
+		if (phy_list[0] == 'n' || phy_list[0] == 'c')
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			    &brcms_band_5GHz_nphy;
-		} else {
+		else
 			return -EPERM;
-		}
 	}
 	return 0;
 }
@@ -1087,7 +1081,8 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	hw->queues = N_TX_QUEUES;
 	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
 
-	hw->channel_change_time = 7 * 1000;	/* channel change time is dependent on chip and band  */
+	/* channel change time is dependent on chip and band  */
+	hw->channel_change_time = 7 * 1000;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	hw->rate_control_algorithm = "minstrel_ht";
@@ -1149,7 +1144,7 @@ brcms_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memset(hw->priv, 0, sizeof(*wl));
 
 	wl = brcms_attach(pdev->vendor, pdev->device,
-			  pci_resource_start(pdev, 0), PCI_BUS, pdev,
+			  pci_resource_start(pdev, 0), pdev,
 			  pdev->irq);
 
 	if (!wl) {
@@ -1285,8 +1280,6 @@ static int __init brcms_module_init(void)
 #ifdef BCMDBG
 	if (msglevel != 0xdeadbeef)
 		brcm_msg_level = msglevel;
-	if (phymsglevel != 0xdeadbeef)
-		phyhal_msg_level = phymsglevel;
 #endif				/* BCMDBG */
 
 	error = pci_register_driver(&brcms_pci_driver);
@@ -1336,9 +1329,8 @@ static void brcms_free(struct brcms_info *wl)
 	/* kill dpc */
 	tasklet_kill(&wl->tasklet);
 
-	if (wl->pub) {
+	if (wl->pub)
 		brcms_c_module_unregister(wl->pub, "linux", wl);
-	}
 
 	/* free common resources */
 	if (wl->wlc) {
@@ -1363,18 +1355,18 @@ static void brcms_free(struct brcms_info *wl)
 	}
 
 	/*
-	 * unregister_netdev() calls get_stats() which may read chip registers
-	 * so we cannot unmap the chip registers until after calling unregister_netdev() .
+	 * unregister_netdev() calls get_stats() which may read chip
+	 * registers so we cannot unmap the chip registers until
+	 * after calling unregister_netdev() .
 	 */
-	if (wl->regsva && wl->bcm_bustype != SDIO_BUS &&
-	    wl->bcm_bustype != JTAG_BUS) {
+	if (wl->regsva)
 		iounmap((void *)wl->regsva);
-	}
+
 	wl->regsva = NULL;
 }
 
 /* flags the given rate in rateset as requested */
-static void brcms_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br)
+static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
 {
 	u32 i;
 
@@ -1435,14 +1427,6 @@ void brcms_intrson(struct brcms_info *wl)
 	INT_LOCK(wl, flags);
 	brcms_c_intrson(wl->wlc);
 	INT_UNLOCK(wl, flags);
-}
-
-/*
- * precondition: perimeter lock has been acquired
- */
-bool wl_alloc_dma_resources(struct brcms_info *wl, uint addrwidth)
-{
-	return true;
 }
 
 u32 brcms_intrsoff(struct brcms_info *wl)
@@ -1557,10 +1541,9 @@ static void brcms_dpc(unsigned long data)
 	/* re-schedule dpc */
 	if (wl->resched)
 		tasklet_schedule(&wl->tasklet);
-	else {
+	else
 		/* re-enable interrupts */
 		brcms_intrson(wl);
-	}
 
  done:
 	UNLOCK(wl);
@@ -1635,7 +1618,8 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	return t;
 }
 
-/* BMAC_NOTE: Add timer adds only the kernel timer since it's going to be more accurate
+/*
+ * adds only the kernel timer since it's going to be more accurate
  * as well as it's easier to make it periodic
  *
  * precondition: perimeter lock has been acquired
@@ -1644,10 +1628,10 @@ void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *t, uint ms,
 		     int periodic)
 {
 #ifdef BCMDBG
-	if (t->set) {
+	if (t->set)
 		wiphy_err(wl->wiphy, "%s: Already set. Name: %s, per %d\n",
 			  __func__, t->name, periodic);
-	}
+
 #endif
 	t->ms = ms;
 	t->periodic = (bool) periodic;
@@ -1667,9 +1651,9 @@ bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *t)
 {
 	if (t->set) {
 		t->set = false;
-		if (!del_timer(&t->timer)) {
+		if (!del_timer(&t->timer))
 			return false;
-		}
+
 		atomic_dec(&wl->callbacks);
 	}
 
@@ -1711,16 +1695,6 @@ void brcms_free_timer(struct brcms_info *wl, struct brcms_timer *t)
 
 }
 
-/*
- * runs in software irq context
- *
- * precondition: perimeter lock is not acquired
- */
-static int wl_linux_watchdog(void *ctx)
-{
-	return 0;
-}
-
 struct firmware_hdr {
 	u32 offset;
 	u32 len;
@@ -1744,15 +1718,17 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 		hdr = (struct firmware_hdr *)wl->fw.fw_hdr[i]->data;
 		for (entry = 0; entry < wl->fw.hdr_num_entries[i];
 		     entry++, hdr++) {
-			if (hdr->idx == idx) {
-				pdata = wl->fw.fw_bin[i]->data + hdr->offset;
-				*pbuf = kmalloc(hdr->len, GFP_ATOMIC);
+			u32 len = le32_to_cpu(hdr->len);
+			if (le32_to_cpu(hdr->idx) == idx) {
+				pdata = wl->fw.fw_bin[i]->data +
+					le32_to_cpu(hdr->offset);
+				*pbuf = kmalloc(len, GFP_ATOMIC);
 				if (*pbuf == NULL) {
 					wiphy_err(wl->wiphy, "fail to alloc %d"
-						  " bytes\n", hdr->len);
+						  " bytes\n", len);
 					goto fail;
 				}
-				memcpy(*pbuf, pdata, hdr->len);
+				memcpy(*pbuf, pdata, len);
 				return 0;
 			}
 		}
@@ -1777,14 +1753,15 @@ int brcms_ucode_init_uint(struct brcms_info *wl, u32 *data, u32 idx)
 		hdr = (struct firmware_hdr *)wl->fw.fw_hdr[i]->data;
 		for (entry = 0; entry < wl->fw.hdr_num_entries[i];
 		     entry++, hdr++) {
-			if (hdr->idx == idx) {
-				pdata = wl->fw.fw_bin[i]->data + hdr->offset;
-				if (hdr->len != 4) {
+			if (le32_to_cpu(hdr->idx) == idx) {
+				pdata = wl->fw.fw_bin[i]->data +
+					le32_to_cpu(hdr->offset);
+				if (le32_to_cpu(hdr->len) != 4) {
 					wiphy_err(wl->wiphy,
 						  "ERROR: fw hdr len\n");
 					return -ENOMSG;
 				}
-				*data = *((u32 *) pdata);
+				*data = le32_to_cpu(*((u32 *) pdata));
 				return 0;
 			}
 		}
@@ -1804,7 +1781,7 @@ static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev)
 	char fw_name[100];
 	int i;
 
-	memset((void *)&wl->fw, 0, sizeof(struct brcms_firmware));
+	memset(&wl->fw, 0, sizeof(struct brcms_firmware));
 	for (i = 0; i < MAX_FW_IMAGES; i++) {
 		if (brcms_firmwares[i] == NULL)
 			break;
@@ -1890,7 +1867,8 @@ int brcms_check_firmwares(struct brcms_info *wl)
 			ucode_hdr = (struct firmware_hdr *)fw_hdr->data;
 			for (entry = 0; entry < wl->fw.hdr_num_entries[i] &&
 			     !rc; entry++, ucode_hdr++) {
-				if (ucode_hdr->offset + ucode_hdr->len >
+				if (le32_to_cpu(ucode_hdr->offset) +
+				    le32_to_cpu(ucode_hdr->len) >
 				    fw->size) {
 					wiphy_err(wl->wiphy,
 						  "%s: conflicting bin/hdr\n",

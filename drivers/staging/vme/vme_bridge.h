@@ -98,8 +98,6 @@ struct vme_irq {
 /* This structure stores all the information about one bridge
  * The structure should be dynamically allocated by the driver and one instance
  * of the structure should be present for each VME chip present in the system.
- *
- * Currently we assume that all chips are PCI-based
  */
 struct vme_bridge {
 	char name[VMENAMSIZ];
@@ -112,8 +110,9 @@ struct vme_bridge {
 	struct list_head vme_errors;	/* List for errors generated on VME */
 
 	/* Bridge Info - XXX Move to private structure? */
-	struct device *parent;	/* Generic device struct (pdev->dev for PCI) */
+	struct device *parent;	/* Parent device (eg. pdev->dev for PCI) */
 	void *driver_priv;	/* Private pointer for the bridge driver */
+	struct list_head bus_list; /* list of VME buses */
 
 	struct device dev[VME_SLOTS_MAX];	/* Device registered with
 						 * device model on VME bus
@@ -165,6 +164,12 @@ struct vme_bridge {
 
 	/* CR/CSR space functions */
 	int (*slot_get) (struct vme_bridge *);
+
+	/* Bridge parent interface */
+	void *(*alloc_consistent)(struct device *dev, size_t size,
+		dma_addr_t *dma);
+	void (*free_consistent)(struct device *dev, size_t size,
+		void *vaddr, dma_addr_t dma);
 };
 
 void vme_irq_handler(struct vme_bridge *, int, int);

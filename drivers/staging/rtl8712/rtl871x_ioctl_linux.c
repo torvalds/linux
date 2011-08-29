@@ -975,6 +975,13 @@ static int r871x_wx_set_priv(struct net_device *dev,
  * s2. set_802_11_authentication_mode()
  * s3. set_802_11_encryption_mode()
  * s4. set_802_11_bssid()
+ *
+ * This function intends to handle the Set AP command, which specifies the
+ * MAC# of a preferred Access Point.
+ * Currently, the request comes via Wireless Extensions' SIOCSIWAP ioctl.
+ *
+ * For this operation to succeed, there is no need for the interface to be Up.
+ *
  */
 static int r8711_wx_set_wap(struct net_device *dev,
 			 struct iw_request_info *info,
@@ -992,8 +999,6 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	struct wlan_network *pnetwork = NULL;
 	enum NDIS_802_11_AUTHENTICATION_MODE	authmode;
 
-	if (padapter->bup == false)
-		return -1;
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true)
 		return -1;
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
@@ -1074,6 +1079,14 @@ static int r871x_wx_set_mlme(struct net_device *dev,
 	return ret;
 }
 
+/**
+ *
+ * This function intends to handle the Set Scan command.
+ * Currently, the request comes via Wireless Extensions' SIOCSIWSCAN ioctl.
+ *
+ * For this operation to succeed, the interface is brought Up beforehand.
+ *
+ */
 static int r8711_wx_set_scan(struct net_device *dev,
 			struct iw_request_info *a,
 			union iwreq_data *wrqu, char *extra)
@@ -1169,6 +1182,12 @@ static int r8711_wx_get_scan(struct net_device *dev,
  * s2. set_802_11_authenticaion_mode()
  * s3. set_802_11_encryption_mode()
  * s4. set_802_11_ssid()
+ *
+ * This function intends to handle the Set ESSID command.
+ * Currently, the request comes via the Wireless Extensions' SIOCSIWESSID ioctl.
+ *
+ * For this operation to succeed, there is no need for the interface to be Up.
+ *
  */
 static int r8711_wx_set_essid(struct net_device *dev,
 				struct iw_request_info *a,
@@ -1184,8 +1203,6 @@ static int r8711_wx_set_essid(struct net_device *dev,
 	struct list_head *phead;
 	u32 len;
 
-	if (padapter->bup == false)
-		return -1;
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
 		return -1;
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
@@ -2072,9 +2089,10 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	param = (struct ieee_param *)_malloc(p->length);
 	if (param == NULL)
 		return -ENOMEM;
-	if (copy_from_user(param, p->pointer, p->length))
+	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree((u8 *)param);
 		return -EFAULT;
+	}
 	switch (param->cmd) {
 	case IEEE_CMD_SET_WPA_PARAM:
 		ret = wpa_set_param(dev, param->u.wpa_param.name,

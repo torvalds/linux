@@ -45,12 +45,8 @@ struct brcmu_strbuf {
 }
 
 /* osl multi-precedence packet queue */
-#ifndef PKTQ_LEN_DEFAULT
 #define PKTQ_LEN_DEFAULT        128	/* Max 128 packets */
-#endif
-#ifndef PKTQ_MAX_PREC
 #define PKTQ_MAX_PREC           16	/* Maximum precedence levels */
-#endif
 
 struct pktq_prec {
 	struct sk_buff *head;	/* first packet to dequeue */
@@ -71,9 +67,6 @@ struct pktq {
 	 */
 	struct pktq_prec q[PKTQ_MAX_PREC];
 };
-
-/* fn(pkt, arg).  return true if pkt belongs to if */
-typedef bool(*ifpkt_cb_t) (struct sk_buff *, void *);
 
 /* operations on a specific precedence in packet queue */
 
@@ -98,8 +91,9 @@ extern struct sk_buff *brcmu_pkt_buf_get_skb(uint len);
 extern void brcmu_pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
+/* callback function fn(pkt, arg) returns true if pkt belongs to if */
 extern void brcmu_pktq_pflush(struct pktq *pq, int prec,
-	bool dir, ifpkt_cb_t fn, void *arg);
+	bool dir, bool (*fn)(struct sk_buff *, void *), void *arg);
 
 /* operations on a set of precedences in packet queue */
 
@@ -127,16 +121,13 @@ extern void brcmu_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
 extern struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out);
 extern void brcmu_pktq_flush(struct pktq *pq, bool dir,
-	ifpkt_cb_t fn, void *arg);
+		bool (*fn)(struct sk_buff *, void *), void *arg);
 
 /* externs */
 /* packet */
 extern uint brcmu_pktfrombuf(struct sk_buff *p,
 	uint offset, int len, unsigned char *buf);
 extern uint brcmu_pkttotlen(struct sk_buff *p);
-
-/* ethernet address */
-extern int brcmu_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
 struct ipv4_addr;
@@ -197,9 +188,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 
 #define BCME_STRLEN		64	/* Max string length for BCM errors */
 
-#ifndef ABS
 #define	ABS(a)			(((a) < 0) ? -(a) : (a))
-#endif				/* ABS */
 
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
@@ -251,8 +240,6 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 #define MODSUB_POW2(x, y, bound) (((x) - (y)) & ((bound) - 1))
 
 /* crc defines */
-#define CRC8_INIT_VALUE  0xff	/* Initial CRC8 checksum value */
-#define CRC8_GOOD_VALUE  0x9f	/* Good final CRC8 checksum value */
 #define CRC16_INIT_VALUE 0xffff	/* Initial CRC16 checksum value */
 #define CRC16_GOOD_VALUE 0xf0b8	/* Good final CRC16 checksum value */
 
@@ -269,12 +256,10 @@ struct brcmu_tlv {
 	u8 data[1];
 };
 
-#define ETHER_ADDR_STR_LEN	18	/* 18-bytes of Ethernet address buffer length */
+/* 18-bytes of Ethernet address buffer length */
+#define ETHER_ADDR_STR_LEN	18
 
 /* externs */
-/* crc */
-extern u8 brcmu_crc8(u8 *p, uint nbytes, u8 crc);
-
 /* format/print */
 #if defined(BCMDBG)
 extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,

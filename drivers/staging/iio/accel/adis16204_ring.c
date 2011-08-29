@@ -1,20 +1,12 @@
 #include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
-#include "accel.h"
-#include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "adis16204.h"
 
 /**
@@ -65,7 +57,7 @@ static int adis16204_read_ring_data(struct device *dev, u8 *rx)
 static irqreturn_t adis16204_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16204_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	int i = 0;

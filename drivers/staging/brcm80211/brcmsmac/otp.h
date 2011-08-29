@@ -24,7 +24,8 @@
 #define OTP_SW_RGN	2
 #define OTP_CI_RGN	4
 #define OTP_FUSE_RGN	8
-#define OTP_ALL_RGN	0xf	/* From h/w region to end of OTP including checksum */
+/* From h/w region to end of OTP including checksum */
+#define OTP_ALL_RGN	0xf
 
 /* OTP Size */
 #define OTP_SZ_MAX		(6144/8)	/* maximum bytes in one CIS */
@@ -35,13 +36,15 @@
 /* OTP usage */
 #define OTP4325_FM_DISABLED_OFFSET	188
 
+struct otpinfo;
+
 /* Exported functions */
-extern int otp_status(void *oh);
-extern int otp_size(void *oh);
-extern u16 otp_read_bit(void *oh, uint offset);
-extern void *otp_init(struct si_pub *sih);
+extern int otp_status(struct otpinfo *oi);
+extern int otp_size(struct otpinfo *oi);
+extern u16 otp_read_bit(struct otpinfo *oi, uint offset);
+extern struct otpinfo *otp_init(struct si_pub *sih);
 extern int otp_read_region(struct si_pub *sih, int region, u16 *data,
 			   uint *wlen);
-extern int otp_nvread(void *oh, char *data, uint *len);
+extern int otp_nvread(struct otpinfo *oi, char *data, uint *len);
 
 #endif				/* _BRCM_OTP_H_ */

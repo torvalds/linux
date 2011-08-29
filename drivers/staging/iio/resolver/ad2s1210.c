@@ -16,6 +16,7 @@
 #include <linux/sysfs.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -639,7 +640,6 @@ static struct attribute *ad2s1210_attributes[] = {
 };
 
 static const struct attribute_group ad2s1210_attribute_group = {
-	.name = DRV_NAME,
 	.attrs = ad2s1210_attributes,
 };
 

@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/io.h>
 #include <linux/etherdevice.h>
+#include <linux/crc8.h>
 #include <stdarg.h>
 
 #include <chipcommon.h>
@@ -33,9 +34,18 @@
 	((u8 *)curmap + PCI_BAR0_SPROM_OFFSET))
 
 #if defined(BCMDBG)
-#define WRITE_ENABLE_DELAY	500	/* 500 ms after write enable/disable toggle */
-#define WRITE_WORD_DELAY	20	/* 20 ms between each word write */
+/* 500 ms after write enable/disable toggle */
+#define WRITE_ENABLE_DELAY	500
+/* 20 ms between each word write */
+#define WRITE_WORD_DELAY	20
 #endif
+
+/*
+ * SROM CRC8 polynomial value:
+ *
+ * x^8 + x^7 +x^6 + x^4 + x^2 + 1
+ */
+#define SROM_CRC8_POLY		0xAB
 
 /* Maximum srom: 6 Kilobits == 768 bytes */
 #define	SROM_MAX		768
@@ -260,7 +270,8 @@
 /* Temp sense related entries */
 #define SROM8_MPWR_RAWTS		90
 #define SROM8_TS_SLP_OPT_CORRX	91
-/* FOC: freiquency offset correction, HWIQ: H/W IOCAL enable, IQSWP: IQ CAL swap disable */
+/* FOC: freiquency offset correction, HWIQ: H/W IOCAL enable,
+ * IQSWP: IQ CAL swap disable */
 #define SROM8_FOC_HWIQ_IQSWP	92
 
 /* Temperature delta for PHY calibration */
@@ -349,14 +360,17 @@
 #define SROM9_PO_LOFDM40DUP	203
 
 /* SROM flags (see sromvar_t) */
-#define SRFL_MORE	1	/* value continues as described by the next entry */
+
+/* value continues as described by the next entry */
+#define SRFL_MORE	1
 #define	SRFL_NOFFS	2	/* value bits can't be all one's */
 #define	SRFL_PRHEX	4	/* value is in hexdecimal format */
 #define	SRFL_PRSIGN	8	/* value is in signed decimal format */
 #define	SRFL_CCODE	0x10	/* value is in country code format */
 #define	SRFL_ETHADDR	0x20	/* value is an Ethernet address */
 #define SRFL_LEDDC	0x40	/* value is an LED duty cycle */
-#define SRFL_NOVAR	0x80	/* do not generate a nvram param, entry is for mfgc */
+/* do not generate a nvram param, entry is for mfgc */
+#define SRFL_NOVAR	0x80
 
 /* Max. nvram variable table size */
 #define	MAXSZ_NVRAM_VARS	4096
@@ -375,17 +389,18 @@ struct brcms_varbuf {
 	unsigned int size;	/* current (residual) size in bytes */
 };
 
-/* Assumptions:
- * - Ethernet address spans across 3 consective words
+/*
+ * Assumptions:
+ * - Ethernet address spans across 3 consecutive words
  *
  * Table rules:
- * - Add multiple entries next to each other if a value spans across multiple words
- *   (even multiple fields in the same word) with each entry except the last having
- *   it's SRFL_MORE bit set.
- * - Ethernet address entry does not follow above rule and must not have SRFL_MORE
- *   bit set. Its SRFL_ETHADDR bit implies it takes multiple words.
- * - The last entry's name field must be NULL to indicate the end of the table. Other
- *   entries must have non-NULL name.
+ * - Add multiple entries next to each other if a value spans across multiple
+ *   words (even multiple fields in the same word) with each entry except the
+ *   last having it's SRFL_MORE bit set.
+ * - Ethernet address entry does not follow above rule and must not have
+ *   SRFL_MORE bit set. Its SRFL_ETHADDR bit implies it takes multiple words.
+ * - The last entry's name field must be NULL to indicate the end of the table.
+ *   Other entries must have non-NULL name.
  */
 static const struct brcms_sromvar pci_sromvars[] = {
 	{"devid", 0xffffff00, SRFL_PRHEX | SRFL_NOVAR, PCI_F0DEVID, 0xffff},
@@ -775,15 +790,15 @@ static const struct brcms_sromvar perpath_pci_sromvars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
+static u8 srom_crc8_table[CRC8_TABLE_SIZE];
+
 static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off,
 			       struct brcms_varbuf *b);
 static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 			     uint *count);
 static int sprom_read_pci(struct si_pub *sih, u16 *sprom,
 			  uint wordoff, u16 *buf, uint nwords, bool check_crc);
-#if defined(BCMNVRAMR)
 static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz);
-#endif
 
 static int initvars_table(char *start, char *end,
 			  char **vars, uint *count);
@@ -810,12 +825,12 @@ static int varbuf_append(struct brcms_varbuf *b, const char *fmt, ...)
 	r = vsnprintf(b->buf, b->size, fmt, ap);
 	va_end(ap);
 
-	/* C99 snprintf behavior returns r >= size on overflow,
-	 * others return -1 on overflow.
-	 * All return -1 on format error.
-	 * We need to leave room for 2 null terminations, one for the current var
-	 * string, and one for final null of the var table. So check that the
-	 * strlen written, r, leaves room for 2 chars.
+	/*
+	 * C99 snprintf behavior returns r >= size on overflow,
+	 * others return -1 on overflow. All return -1 on format error.
+	 * We need to leave room for 2 null terminations, one for the current
+	 * var string, and one for final null of the var table. So check that
+	 * the strlen written, r, leaves room for 2 chars.
 	 */
 	if ((r == -1) || (r > (int)(b->size - 2))) {
 		b->size = 0;
@@ -853,8 +868,7 @@ static int varbuf_append(struct brcms_varbuf *b, const char *fmt, ...)
  * Initialize local vars from the right source for this platform.
  * Return 0 on success, nonzero on error.
  */
-int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
-		  char **vars, uint *count)
+int srom_var_init(struct si_pub *sih, void *curmap, char **vars, uint *count)
 {
 	uint len;
 
@@ -866,7 +880,7 @@ int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
 	*vars = NULL;
 	*count = 0;
 
-	if (curmap != NULL && bustype == PCI_BUS)
+	if (curmap != NULL)
 		return initvars_srom_pci(sih, curmap, vars, count);
 
 	return -EINVAL;
@@ -874,13 +888,15 @@ int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
 
 static inline void ltoh16_buf(u16 *buf, unsigned int size)
 {
-	for (size /= 2; size; size--)
+	size /= 2;
+	while (size--)
 		*(buf + size) = le16_to_cpu(*(buf + size));
 }
 
 static inline void htol16_buf(u16 *buf, unsigned int size)
 {
-	for (size /= 2; size; size--)
+	size /= 2;
+	while (size--)
 		*(buf + size) = cpu_to_le16(*(buf + size));
 }
 
@@ -901,28 +917,27 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 
 	if (check_crc) {
 
-		if (buf[0] == 0xffff) {
-			/* The hardware thinks that an srom that starts with 0xffff
-			 * is blank, regardless of the rest of the content, so declare
-			 * it bad.
+		if (buf[0] == 0xffff)
+			/*
+			 * The hardware thinks that an srom that starts with
+			 * 0xffff is blank, regardless of the rest of the
+			 * content, so declare it bad.
 			 */
 			return -ENODATA;
-		}
 
 		/* fixup the endianness so crc8 will pass */
 		htol16_buf(buf, nwords * 2);
-		if (brcmu_crc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
-		    CRC8_GOOD_VALUE) {
+		if (crc8(srom_crc8_table, (u8 *) buf, nwords * 2,
+			 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
 			/* DBG only pci always read srom4 first, then srom8/9 */
 			err = -EIO;
-		}
+
 		/* now correct the endianness of the byte array */
 		ltoh16_buf(buf, nwords * 2);
 	}
 	return err;
 }
 
-#if defined(BCMNVRAMR)
 static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 {
 	u8 *otp;
@@ -930,9 +945,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 	int err = 0;
 
 	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
-	if (otp == NULL) {
+	if (otp == NULL)
 		return -ENOMEM;
-	}
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
 
@@ -941,26 +955,25 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 	kfree(otp);
 
 	/* Check CRC */
-	if (buf[0] == 0xffff) {
+	if (buf[0] == 0xffff)
 		/* The hardware thinks that an srom that starts with 0xffff
 		 * is blank, regardless of the rest of the content, so declare
 		 * it bad.
 		 */
 		return -ENODATA;
-	}
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
-	if (brcmu_crc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
-	    CRC8_GOOD_VALUE) {
+	if (crc8(srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
+		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
 		err = -EIO;
-	}
+
 	/* now correct the endianness of the byte array */
 	ltoh16_buf(buf, bufsz);
 
 	return err;
 }
-#endif				/* defined(BCMNVRAMR) */
+
 /*
 * Create variable table from memory.
 * Return 0 on success, nonzero on error.
@@ -1084,8 +1097,10 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 			 *(oncount >> 24) (offcount >> 8)
 			 */
 			else if (flags & SRFL_LEDDC) {
-				u32 w32 = (((val >> 8) & 0xff) << 24) |	/* oncount */
-				    (((val & 0xff)) << 8);	/* offcount */
+				u32 w32 = /* oncount */
+					  (((val >> 8) & 0xff) << 24) |
+					  /* offcount */
+					  (((val & 0xff)) << 8);
 				varbuf_append(b, "leddc=%d", w32);
 			} else if (flags & SRFL_PRHEX)
 				varbuf_append(b, "%s=0x%x", name, val);
@@ -1119,7 +1134,6 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 				if (pb + srv->off < off)
 					continue;
 
-				/* This entry is for mfgc only. Don't generate param for it, */
 				if (srv->flags & SRFL_NOVAR)
 					continue;
 
@@ -1127,8 +1141,8 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 				val = (w & srv->mask) >> mask_shift(srv->mask);
 				width = mask_width(srv->mask);
 
-				/* Cheating: no per-path var is more than 1 word */
-
+				/* Cheating: no per-path var is more than
+				 * 1 word */
 				if ((srv->flags & SRFL_NOFFS)
 				    && ((int)val == (1 << width) - 1))
 					continue;
@@ -1167,6 +1181,8 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		return -ENOMEM;
 
 	sromwindow = (u16 *) SROM_OFFSET(sih);
+
+	crc8_populate_lsb(srom_crc8_table, SROM_CRC8_POLY);
 	if (ai_is_sprom_available(sih)) {
 		err = sprom_read_pci(sih, sromwindow, 0, srom, SROM_WORDS,
 				     true);
@@ -1189,24 +1205,22 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 				sromrev = 1;
 		}
 	}
-#if defined(BCMNVRAMR)
-	/* Use OTP if SPROM not available */
 	else {
+		/* Use OTP if SPROM not available */
 		err = otp_read_pci(sih, srom, SROM_MAX);
 		if (err == 0)
 			/* OTP only contain SROM rev8/rev9 for now */
 			sromrev = srom[SROM4_CRCREV] & 0xff;
 	}
-#else
-	else
-		err = -ENODEV;
-#endif
 
 	if (!err) {
 		/* Bitmask for the sromrev */
 		sr = 1 << sromrev;
 
-		/* srom version check: Current valid versions: 1, 2, 3, 4, 5, 8, 9 */
+		/*
+		 * srom version check: Current valid versions: 1, 2, 3, 4, 5, 8,
+		 * 9
+		 */
 		if ((sr & 0x33e) == 0) {
 			err = -EINVAL;
 			goto errout;

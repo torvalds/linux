@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -251,7 +252,7 @@ static struct attribute_group ad5504_ev_attribute_group = {
 static irqreturn_t ad5504_event_handler(int irq, void *private)
 {
 	iio_push_event(private, 0,
-		       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_TEMP,
+		       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 					    0,
 					    IIO_EV_TYPE_THRESH,
 					    IIO_EV_DIR_RISING),
@@ -338,7 +339,7 @@ error_free_dev:
 	iio_free_device(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(reg))
-		regulator_disable(st->reg);
+		regulator_disable(reg);
 error_put_reg:
 	if (!IS_ERR(reg))
 		regulator_put(reg);

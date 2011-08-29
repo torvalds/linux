@@ -4139,7 +4139,7 @@ int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		cmd[3] = srb->cmnd[5];
 		cmd[4] = srb->cmnd[6];
 
-		buf = (u8 *)kmalloc(data_len, GFP_KERNEL);
+		buf = kmalloc(data_len, GFP_KERNEL);
 		if (buf == NULL) {
 			TRACE_RET(chip, TRANSPORT_ERROR);
 		}
@@ -4385,7 +4385,7 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		u16 i;
 		u8 *buf;
 
-		buf = (u8 *)kmalloc(data_len, GFP_KERNEL);
+		buf = kmalloc(data_len, GFP_KERNEL);
 		if (buf == NULL) {
 			TRACE_RET(chip, TRANSPORT_ERROR);
 		}

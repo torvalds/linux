@@ -30,16 +30,8 @@
 #define SI_PCI_MEM_SZ		(64 * 1024 * 1024)
 /* Host Mode sb2pcitranslation1 (64 MB) */
 #define SI_PCI_CFG		0x0c000000
-/* Byteswapped Physical SDRAM */
-#define	SI_SDRAM_SWAPPED	0x10000000
 /* Region 2 for sdram (512 MB) */
 #define SI_SDRAM_R2		0x80000000
-
-#ifdef SI_ENUM_BASE_VARIABLE
-#define SI_ENUM_BASE		(sii->pub.si_enum_base)
-#else
-#define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
-#endif				/* SI_ENUM_BASE_VARIABLE */
 
 /* Wrapper space base */
 #define SI_WRAP_BASE		0x18100000
@@ -242,16 +234,23 @@
 #define	SRC_PRESENT		0x00000001
 
 /* 4330 chip-specific ChipStatus register bits */
-#define CST4330_CHIPMODE_SDIOD(cs)	(((cs) & 0x7) < 6)	/* SDIO || gSPI */
-#define CST4330_CHIPMODE_USB20D(cs)	(((cs) & 0x7) >= 6)	/* USB || USBDA */
-#define CST4330_CHIPMODE_SDIO(cs)	(((cs) & 0x4) == 0)	/* SDIO */
-#define CST4330_CHIPMODE_GSPI(cs)	(((cs) & 0x6) == 4)	/* gSPI */
-#define CST4330_CHIPMODE_USB(cs)	(((cs) & 0x7) == 6)	/* USB packet-oriented */
-#define CST4330_CHIPMODE_USBDA(cs)	(((cs) & 0x7) == 7)	/* USB Direct Access */
+ /* SDIO || gSPI */
+#define CST4330_CHIPMODE_SDIOD(cs)	(((cs) & 0x7) < 6)
+ /* USB || USBDA */
+#define CST4330_CHIPMODE_USB20D(cs)	(((cs) & 0x7) >= 6)
+ /* SDIO */
+#define CST4330_CHIPMODE_SDIO(cs)	(((cs) & 0x4) == 0)
+ /* gSPI */
+#define CST4330_CHIPMODE_GSPI(cs)	(((cs) & 0x6) == 4)
+ /* USB packet-oriented */
+#define CST4330_CHIPMODE_USB(cs)	(((cs) & 0x7) == 6)
+ /* USB Direct Access */
+#define CST4330_CHIPMODE_USBDA(cs)	(((cs) & 0x7) == 7)
 #define	CST4330_OTP_PRESENT		0x00000010
 #define	CST4330_LPO_AUTODET_EN		0x00000020
 #define	CST4330_ARMREMAP_0		0x00000040
-#define	CST4330_SPROM_PRESENT		0x00000080	/* takes priority over OTP if both set */
+ /* takes priority over OTP if both set */
+#define	CST4330_SPROM_PRESENT		0x00000080
 #define	CST4330_ILPDIV_EN		0x00000100
 #define	CST4330_LPO_SEL			0x00000200
 #define	CST4330_RES_INIT_MODE_SHIFT	10
@@ -323,10 +322,8 @@
 #define	ILP_DIV_5MHZ		0	/* ILP = 5 MHz */
 #define	ILP_DIV_1MHZ		4	/* ILP = 1 MHz */
 
-#define PCI(si)		(((si)->pub.bustype == PCI_BUS) &&	\
-			 ((si)->pub.buscoretype == PCI_CORE_ID))
-#define PCIE(si)	(((si)->pub.bustype == PCI_BUS) &&	\
-			 ((si)->pub.buscoretype == PCIE_CORE_ID))
+#define PCI(si)		((si)->pub.buscoretype == PCI_CORE_ID)
+#define PCIE(si)	((si)->pub.buscoretype == PCIE_CORE_ID)
 #define PCI_FORCEHT(si)	\
 	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))
 
@@ -334,17 +331,14 @@
 #define DEFAULT_GPIO_ONTIME	10	/* Default: 10% on */
 #define DEFAULT_GPIO_OFFTIME	90	/* Default: 10% on */
 
-#ifndef DEFAULT_GPIOTIMERVAL
 #define DEFAULT_GPIOTIMERVAL \
 	((DEFAULT_GPIO_ONTIME << GPIO_ONTIME_SHIFT) | DEFAULT_GPIO_OFFTIME)
-#endif
 
 /*
  * Data structure to export all chip specific common variables
  *   public (read-only) portion of aiutils handle returned by si_attach()
  */
 struct si_pub {
-	uint bustype;		/* SI_BUS, PCI_BUS */
 	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
 	uint buscorerev;	/* buscore rev */
 	uint buscoreidx;	/* buscore index */
@@ -410,22 +404,11 @@ struct si_pub {
 #define SI_PCIUP	3
 
 /* PMU clock/power control */
-#if defined(BCMPMUCTL)
-#define PMUCTL_ENAB(sih)	(BCMPMUCTL)
-#else
 #define PMUCTL_ENAB(sih)	((sih)->cccaps & CC_CAP_PMU)
-#endif
 
 /* chipcommon clock/power control (exclusive with PMU's) */
-#if defined(BCMPMUCTL) && BCMPMUCTL
-#define CCCTL_ENAB(sih)		(0)
-#define CCPLL_ENAB(sih)		(0)
-#else
 #define CCCTL_ENAB(sih)		((sih)->cccaps & CC_CAP_PWR_CTL)
 #define CCPLL_ENAB(sih)		((sih)->cccaps & CC_CAP_PLL_MASK)
-#endif
-
-typedef void (*gpio_handler_t) (u32 stat, void *arg);
 
 /* External PA enable mask */
 #define GPIO_CTRL_EPA_EN_MASK 0x40
@@ -444,14 +427,12 @@ typedef void (*gpio_handler_t) (u32 stat, void *arg);
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-typedef u32(*si_intrsoff_t) (void *intr_arg);
-typedef void (*si_intrsrestore_t) (void *intr_arg, u32 arg);
-typedef bool(*si_intrsenabled_t) (void *intr_arg);
+struct pci_dev;
 
 struct gpioh_item {
 	void *arg;
 	bool level;
-	gpio_handler_t handler;
+	void (*handler) (u32 stat, void *arg);
 	u32 event;
 	struct gpioh_item *next;
 };
@@ -459,14 +440,16 @@ struct gpioh_item {
 /* misc si info needed by some of the routines */
 struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
-	void *pbus;		/* handle to bus (pci/sdio/..) */
+	struct pci_dev *pbus;	/* handle to pci bus */
 	uint dev_coreid;	/* the core provides driver functions */
 	void *intr_arg;		/* interrupt callback function arg */
-	si_intrsoff_t intrsoff_fn;	/* turns chip interrupts off */
-	si_intrsrestore_t intrsrestore_fn; /* restore chip interrupts */
-	si_intrsenabled_t intrsenabled_fn; /* check if interrupts are enabled */
+	u32 (*intrsoff_fn) (void *intr_arg); /* turns chip interrupts off */
+	/* restore chip interrupts */
+	void (*intrsrestore_fn) (void *intr_arg, u32 arg);
+	/* check if interrupts are enabled */
+	bool (*intrsenabled_fn) (void *intr_arg);
 
-	void *pch;		/* PCI/E core handle */
+	struct pcicore_info *pch; /* PCI/E core handle */
 
 	char *vars;
 	uint varsz;
@@ -493,15 +476,12 @@ struct si_info {
 };
 
 /* AMBA Interconnect exported externs */
-extern void ai_scan(struct si_pub *sih, void *regs);
-
 extern uint ai_flag(struct si_pub *sih);
 extern void ai_setint(struct si_pub *sih, int siflag);
 extern uint ai_coreidx(struct si_pub *sih);
 extern uint ai_corevendor(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
 extern bool ai_iscoreup(struct si_pub *sih);
-extern void *ai_setcoreidx(struct si_pub *sih, uint coreidx);
 extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
 extern void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val);
 extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);
@@ -515,9 +495,8 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(void *regs, uint bustype,
-		       void *sdh, char **vars, uint *varsz);
-
+extern struct si_pub *ai_attach(void *regs, struct pci_dev *sdh, char **vars,
+				uint *varsz);
 extern void ai_detach(struct si_pub *sih);
 extern bool ai_pci_war16165(struct si_pub *sih);
 

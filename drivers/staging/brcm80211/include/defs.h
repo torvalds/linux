@@ -27,14 +27,8 @@
 #define USB_BUS			5
 #define SPI_BUS			6
 
-#ifndef OFF
 #define	OFF	0
-#endif
-
-#ifndef ON
 #define	ON	1		/* ON = 1 */
-#endif
-
 #define	AUTO	(-1)		/* Auto = -1 */
 
 /*
@@ -54,10 +48,12 @@
 
 #define WL_NUMRATES		16	/* max # of rates in a rateset */
 
-typedef struct wl_rateset {
-	u32 count;		/* # rates in this set */
-	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
-} wl_rateset_t;
+struct brcm_rateset {
+	/* # rates in this set */
+	u32 count;
+	/* rates in 500kbps units w/hi bit set if basic */
+	u8 rates[WL_NUMRATES];
+};
 
 #define BRCM_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
 
@@ -71,10 +67,12 @@ typedef struct wl_rateset {
 #define BRCM_GET_PHYLIST				180
 
 /* Bit masks for radio disabled status - returned by WL_GET_RADIO */
+
 #define WL_RADIO_SW_DISABLE		(1<<0)
 #define WL_RADIO_HW_DISABLE		(1<<1)
 #define WL_RADIO_MPC_DISABLE		(1<<2)
-#define WL_RADIO_COUNTRY_DISABLE	(1<<3)	/* some countries don't support any channel */
+/* some countries don't support any channel */
+#define WL_RADIO_COUNTRY_DISABLE	(1<<3)
 
 /* Override bit for SET_TXPWR.  if set, ignore other level limits */
 #define WL_TXPWR_OVERRIDE	(1U<<31)
@@ -100,7 +98,9 @@ typedef struct wl_rateset {
 /*
  * Sonics Configuration Space Registers.
  */
-#define	SBCONFIGOFF		0xf00	/* core sbconfig regs are top 256bytes of regs */
+
+/* core sbconfig regs are top 256bytes of regs */
+#define	SBCONFIGOFF		0xf00
 
 /* cpp contortions to concatenate w/arg prescan */
 #ifndef	PAD

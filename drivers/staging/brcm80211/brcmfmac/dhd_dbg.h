@@ -19,25 +19,21 @@
 
 #if defined(BCMDBG)
 
-#define BRCMF_ERROR(args) \
-	do {if ((brcmf_msg_level & BRCMF_ERROR_VAL) && (net_ratelimit())) \
-		printk args; } while (0)
-#define BRCMF_TRACE(args)	do {if (brcmf_msg_level & BRCMF_TRACE_VAL) \
-					printk args; } while (0)
-#define BRCMF_INFO(args)	do {if (brcmf_msg_level & BRCMF_INFO_VAL) \
-					printk args; } while (0)
-#define BRCMF_DATA(args)	do {if (brcmf_msg_level & BRCMF_DATA_VAL) \
-					printk args; } while (0)
-#define BRCMF_CTL(args)		do {if (brcmf_msg_level & BRCMF_CTL_VAL) \
-					printk args; } while (0)
-#define BRCMF_TIMER(args)	do {if (brcmf_msg_level & BRCMF_TIMER_VAL) \
-					printk args; } while (0)
-#define BRCMF_INTR(args)	do {if (brcmf_msg_level & BRCMF_INTR_VAL) \
-					printk args; } while (0)
-#define BRCMF_GLOM(args)	do {if (brcmf_msg_level & BRCMF_GLOM_VAL) \
-					printk args; } while (0)
-#define BRCMF_EVENT(args)	do {if (brcmf_msg_level & BRCMF_EVENT_VAL) \
-					printk args; } while (0)
+#define brcmf_dbg(level, fmt, ...)					\
+do {									\
+	if (BRCMF_ERROR_VAL == BRCMF_##level##_VAL) {			\
+		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
+			if (net_ratelimit())				\
+				printk(KERN_DEBUG "%s: " fmt,		\
+				       __func__, ##__VA_ARGS__);	\
+		}							\
+	} else {							\
+		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
+			printk(KERN_DEBUG "%s: " fmt,			\
+			       __func__, ##__VA_ARGS__);		\
+		}							\
+	}								\
+} while (0)
 
 #define BRCMF_DATA_ON()		(brcmf_msg_level & BRCMF_DATA_VAL)
 #define BRCMF_CTL_ON()		(brcmf_msg_level & BRCMF_CTL_VAL)
@@ -47,20 +43,12 @@
 
 #else	/* (defined BCMDBG) || (defined BCMDBG) */
 
-#define BRCMF_ERROR(args)  do {if (net_ratelimit()) printk args; } while (0)
-#define BRCMF_TRACE(args)
-#define BRCMF_INFO(args)
-#define BRCMF_DATA(args)
-#define BRCMF_CTL(args)
-#define BRCMF_TIMER(args)
-#define BRCMF_INTR(args)
-#define BRCMF_GLOM(args)
-#define BRCMF_EVENT(args)
+#define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
 #define BRCMF_DATA_ON()		0
 #define BRCMF_CTL_ON()		0
 #define BRCMF_HDRS_ON()		0
-#define BRCMF_BYTES_ON()		0
+#define BRCMF_BYTES_ON()	0
 #define BRCMF_GLOM_ON()		0
 
 #endif				/* defined(BCMDBG) */

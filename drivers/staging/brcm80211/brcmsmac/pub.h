@@ -69,37 +69,52 @@
 #define	BRCMS_RATE_MASK	0x7f	/* Rate value mask w/o basic rate flag */
 
 /* legacy rx Antenna diversity for SISO rates */
-#define	ANT_RX_DIV_FORCE_0		0	/* Use antenna 0 */
-#define	ANT_RX_DIV_FORCE_1		1	/* Use antenna 1 */
-#define	ANT_RX_DIV_START_1		2	/* Choose starting with 1 */
-#define	ANT_RX_DIV_START_0		3	/* Choose starting with 0 */
-#define	ANT_RX_DIV_ENABLE		3	/* APHY bbConfig Enable RX Diversity */
-#define ANT_RX_DIV_DEF		ANT_RX_DIV_START_0	/* default antdiv setting */
+#define	ANT_RX_DIV_FORCE_0	0	/* Use antenna 0 */
+#define	ANT_RX_DIV_FORCE_1	1	/* Use antenna 1 */
+#define	ANT_RX_DIV_START_1	2	/* Choose starting with 1 */
+#define	ANT_RX_DIV_START_0	3	/* Choose starting with 0 */
+#define	ANT_RX_DIV_ENABLE	3	/* APHY bbConfig Enable RX Diversity */
+/* default antdiv setting */
+#define ANT_RX_DIV_DEF		ANT_RX_DIV_START_0
 
 /* legacy rx Antenna diversity for SISO rates */
-#define ANT_TX_FORCE_0		0	/* Tx on antenna 0, "legacy term Main" */
-#define ANT_TX_FORCE_1		1	/* Tx on antenna 1, "legacy term Aux" */
-#define ANT_TX_LAST_RX		3	/* Tx on phy's last good Rx antenna */
-#define ANT_TX_DEF			3	/* driver's default tx antenna setting */
+/* Tx on antenna 0, "legacy term Main" */
+#define ANT_TX_FORCE_0		0
+/* Tx on antenna 1, "legacy term Aux" */
+#define ANT_TX_FORCE_1		1
+/* Tx on phy's last good Rx antenna */
+#define ANT_TX_LAST_RX		3
+/* driver's default tx antenna setting */
+#define ANT_TX_DEF		3
 
-#define TXCORE_POLICY_ALL	0x1	/* use all available core for transmit */
+/* use all available core for transmit */
+#define TXCORE_POLICY_ALL	0x1
 
 /* Tx Chain values */
-#define TXCHAIN_DEF		0x1	/* def bitmap of txchain */
-#define TXCHAIN_DEF_NPHY	0x3	/* default bitmap of tx chains for nphy */
-#define TXCHAIN_DEF_HTPHY	0x7	/* default bitmap of tx chains for nphy */
-#define RXCHAIN_DEF		0x1	/* def bitmap of rxchain */
-#define RXCHAIN_DEF_NPHY	0x3	/* default bitmap of rx chains for nphy */
-#define RXCHAIN_DEF_HTPHY	0x7	/* default bitmap of rx chains for nphy */
-#define ANTSWITCH_NONE		0	/* no antenna switch */
-#define ANTSWITCH_TYPE_1	1	/* antenna switch on 4321CB2, 2of3 */
-#define ANTSWITCH_TYPE_2	2	/* antenna switch on 4321MPCI, 2of3 */
-#define ANTSWITCH_TYPE_3	3	/* antenna switch on 4322, 2of3 */
+/* def bitmap of txchain */
+#define TXCHAIN_DEF		0x1
+/* default bitmap of tx chains for nphy */
+#define TXCHAIN_DEF_NPHY	0x3
+/* default bitmap of tx chains for nphy */
+#define TXCHAIN_DEF_HTPHY	0x7
+/* def bitmap of rxchain */
+#define RXCHAIN_DEF		0x1
+/* default bitmap of rx chains for nphy */
+#define RXCHAIN_DEF_NPHY	0x3
+/* default bitmap of rx chains for nphy */
+#define RXCHAIN_DEF_HTPHY	0x7
+/* no antenna switch */
+#define ANTSWITCH_NONE		0
+/* antenna switch on 4321CB2, 2of3 */
+#define ANTSWITCH_TYPE_1	1
+/* antenna switch on 4321MPCI, 2of3 */
+#define ANTSWITCH_TYPE_2	2
+/* antenna switch on 4322, 2of3 */
+#define ANTSWITCH_TYPE_3	3
 
 #define RXBUFSZ		PKTBUFSZ
-#ifndef AIDMAPSZ
-#define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)	/* aid bitmap size in bytes */
-#endif				/* AIDMAPSZ */
+/* aid bitmap size in bytes */
+#define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)
 
 #define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
 
@@ -108,24 +123,24 @@
 #define	WL_SPURAVOID_ON2	2
 
 struct brcms_tunables {
-	int ntxd;		/* size of tx descriptor table */
-	int nrxd;		/* size of rx descriptor table */
-	int rxbufsz;		/* size of rx buffers to post */
-	int nrxbufpost;		/* # of rx buffers to post */
-	int maxscb;		/* # of SCBs supported */
+	int ntxd;	/* size of tx descriptor table */
+	int nrxd;	/* size of rx descriptor table */
+	int rxbufsz;	/* size of rx buffers to post */
+	int nrxbufpost;	/* # of rx buffers to post */
+	int maxscb;	/* # of SCBs supported */
 	int ampdunummpdu;	/* max number of mpdu in an ampdu */
-	int maxpktcb;		/* max # of packet callbacks */
-	int maxucodebss;	/* max # of BSS handled in ucode bcn/prb */
+	int maxpktcb;	/* max # of packet callbacks */
+	int maxucodebss;/* max # of BSS handled in ucode bcn/prb */
 	int maxucodebss4;	/* max # of BSS handled in sw bcn/prb */
-	int maxbss;		/* max # of bss info elements in scan list */
-	int datahiwat;		/* data msg txq hiwat mark */
+	int maxbss;	/* max # of bss info elements in scan list */
+	int datahiwat;	/* data msg txq hiwat mark */
 	int ampdudatahiwat;	/* AMPDU msg txq hiwat mark */
-	int rxbnd;		/* max # of rx bufs to process before deferring to dpc */
-	int txsbnd;		/* max # tx status to process in wlc_txstatus() */
-	int memreserved;	/* memory reserved for BMAC's USB dma rx */
+	int rxbnd;	/* max # rx bufs to process before deferring to dpc */
+	int txsbnd;	/* max # tx status to process in wlc_txstatus() */
+	int memreserved;/* memory reserved for BMAC's USB dma rx */
 };
 
-struct brcms_rateset {
+struct brcms_c_rateset {
 	uint count;		/* number of rates in rates[] */
 	 /* rates in 500kbps units w/hi bit set if basic */
 	u8 rates[BRCMS_NUMRATES];
@@ -171,9 +186,9 @@ struct brcms_bss_info {
 	s16 SNR;		/* receive signal SNR in dB */
 	u16 beacon_period;	/* units are Kusec */
 	u16 atim_window;	/* units are Kusec */
-	chanspec_t chanspec;	/* Channel num, bw, ctrl_sb and band */
+	u16 chanspec;	/* Channel num, bw, ctrl_sb and band */
 	s8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
-	wlc_rateset_t rateset;	/* supported rates */
+	struct brcms_c_rateset rateset;	/* supported rates */
 	u8 dtim_period;	/* DTIM period */
 	s8 phy_noise;		/* noise right after tx (in dBm) */
 	u16 capability;	/* Capability information */
@@ -181,7 +196,7 @@ struct brcms_bss_info {
 	struct rsn_parms wpa;
 	struct rsn_parms wpa2;
 	u16 qbss_load_aac;	/* qbss load available admission capacity */
-	/* qbss_load_chan_free <- (0xff - channel_utilization of qbss_load_ie_t) */
+	/* qbss_load_chan_free <- (0xff - chan utilization of qbss_load_ie_t) */
 	u8 qbss_load_chan_free;	/* indicates how free the channel is */
 	u8 mcipher;		/* multicast cipher */
 	u8 wpacfg;		/* wpa config index */
@@ -203,39 +218,15 @@ struct brcms_bss_info {
 #define IOVF_GET_BAND	(1<<13)	/* get requires fixed band */
 #define IOVF_OPEN_ALLOW	(1<<14)	/* set allowed iovar for opensrc */
 
-/* watchdog down and dump callback function proto's */
-typedef int (*watchdog_fn_t) (void *handle);
-typedef int (*down_fn_t) (void *handle);
-typedef int (*dump_fn_t) (void *handle, struct brcmu_strbuf *b);
-
-/* IOVar handler
- *
- * handle - a pointer value registered with the function
- * vi - iovar_info that was looked up
- * actionid - action ID, calculated by IOV_GVAL() and IOV_SVAL() based on varid.
- * name - the actual iovar name
- * params/plen - parameters and length for a get, input only.
- * arg/len - buffer and length for value to be set or retrieved, input or output.
- * vsize - value size, valid for integer type only.
- * wlcif - interface context (brcms_c_if pointer)
- *
- * All pointers may point into the same buffer.
- */
-typedef int (*iovar_fn_t) (void *handle, const struct brcmu_iovar *vi,
-			   u32 actionid, const char *name, void *params,
-			   uint plen, void *arg, int alen, int vsize,
-			   struct brcms_c_if *wlcif);
-
 #define MAC80211_PROMISC_BCNS	(1 << 0)
 #define MAC80211_SCAN		(1 << 1)
 
 /*
- * Public portion of "common" os-independent state structure.
+ * Public portion of common driver state structure.
  * The wlc handle points at this.
  */
 struct brcms_pub {
-	void *wlc;
-
+	struct brcms_c_info *wlc;
 	struct ieee80211_hw *ieee_hw;
 	struct scb *global_scb;
 	struct scb_ampdu *global_ampdu;
@@ -248,8 +239,8 @@ struct brcms_pub {
 	bool hw_off;		/* HW is off */
 	/* tunables: ntxd, nrxd, maxscb, etc. */
 	struct brcms_tunables *tunables;
-	bool hw_up;		/* one time hw up/down(from boot or hibernation) */
-	bool _piomode;		/* true if pio mode *//* BMAC_NOTE: NEED In both */
+	bool hw_up;		/* one time hw up/down */
+	bool _piomode;		/* true if pio mode */
 	uint _nbands;		/* # bands supported */
 	uint now;		/* # elapsed seconds */
 
@@ -270,7 +261,7 @@ struct brcms_pub {
 	u8 _n_enab;		/* bitmap of 11N + HT support */
 	bool _n_reqd;		/* N support required for clients */
 
-	s8 _coex;		/* 20/40 MHz BSS Management AUTO, ENAB, DISABLE */
+	s8 _coex;	/* 20/40 MHz BSS Management AUTO, ENAB, DISABLE */
 	bool _priofc;		/* Priority-based flowcontrol */
 
 	u8 cur_etheraddr[ETH_ALEN];	/* our local ethernet address */
@@ -288,7 +279,7 @@ struct brcms_pub {
 
 	int bcmerror;		/* last bcm error */
 
-	mbool radio_disabled;	/* bit vector for radio disabled reasons */
+	u32 radio_disabled;	/* bit vector for radio disabled reasons */
 	bool radio_active;	/* radio on/off state */
 	u16 roam_time_thresh;	/* Max. # secs. of not hearing beacons
 					 * before roaming.
@@ -331,39 +322,6 @@ struct wl_rxsts {
 	struct brcms_if *wlif;	/* wl interface */
 };
 
-/* status per error RX pkt */
-#define WL_RXS_CRC_ERROR		0x00000001	/* CRC Error in packet */
-#define WL_RXS_RUNT_ERROR		0x00000002	/* Runt packet */
-#define WL_RXS_ALIGN_ERROR		0x00000004	/* Misaligned packet */
-#define WL_RXS_OVERSIZE_ERROR		0x00000008	/* packet bigger than RX_LENGTH (usually 1518) */
-#define WL_RXS_WEP_ICV_ERROR		0x00000010	/* Integrity Check Value error */
-#define WL_RXS_WEP_ENCRYPTED		0x00000020	/* Encrypted with WEP */
-#define WL_RXS_PLCP_SHORT		0x00000040	/* Short PLCP error */
-#define WL_RXS_DECRYPT_ERR		0x00000080	/* Decryption error */
-#define WL_RXS_OTHER_ERR		0x80000000	/* Other errors */
-
-/* phy type */
-#define WL_RXS_PHY_A			0x00000000	/* A phy type */
-#define WL_RXS_PHY_B			0x00000001	/* B phy type */
-#define WL_RXS_PHY_G			0x00000002	/* G phy type */
-#define WL_RXS_PHY_N			0x00000004	/* N phy type */
-
-/* encoding */
-#define WL_RXS_ENCODING_CCK		0x00000000	/* CCK encoding */
-#define WL_RXS_ENCODING_OFDM		0x00000001	/* OFDM encoding */
-
-/* preamble */
-#define WL_RXS_UNUSED_STUB		0x0	/* stub to match with wlc_ethereal.h */
-#define WL_RXS_PREAMBLE_SHORT		0x00000001	/* Short preamble */
-#define WL_RXS_PREAMBLE_LONG		0x00000002	/* Long preamble */
-#define WL_RXS_PREAMBLE_MIMO_MM		0x00000003	/* MIMO mixed mode preamble */
-#define WL_RXS_PREAMBLE_MIMO_GF		0x00000004	/* MIMO green field preamble */
-
-#define WL_RXS_NFRM_AMPDU_FIRST		0x00000001	/* first MPDU in A-MPDU */
-#define WL_RXS_NFRM_AMPDU_SUB		0x00000002	/* subsequent MPDU(s) in A-MPDU */
-#define WL_RXS_NFRM_AMSDU_FIRST		0x00000004	/* first MSDU in A-MSDU */
-#define WL_RXS_NFRM_AMSDU_SUB		0x00000008	/* subsequent MSDU(s) in A-MSDU */
-
 enum wlc_par_id {
 	IOV_MPC = 1,
 	IOV_RTSTHRESH,
@@ -393,20 +351,10 @@ enum wlc_par_id {
 #define SUPPORT_11N	(ENAB_1x1|ENAB_2x2)
 #define SUPPORT_HT	(ENAB_1x1|ENAB_2x2|ENAB_3x3)
 /* WL11N Support */
-#if ((defined(NCONF) && (NCONF != 0)) || (defined(LCNCONF) && (LCNCONF != 0)) || \
-	(defined(HTCONF) && (HTCONF != 0)) || (defined(SSLPNCONF) && (SSLPNCONF != 0)))
 #define N_ENAB(pub) ((pub)->_n_enab & SUPPORT_11N)
 #define N_REQD(pub) ((pub)->_n_reqd)
-#else
-#define N_ENAB(pub)	0
-#define N_REQD(pub)	0
-#endif
 
-#if (defined(HTCONF) && (HTCONF != 0))
-#define HT_ENAB(pub) (((pub)->_n_enab & SUPPORT_HT) == SUPPORT_HT)
-#else
 #define HT_ENAB(pub) 0
-#endif
 
 #define AMPDU_AGG_HOST	1
 #define AMPDU_ENAB(pub) ((pub)->_ampdu)
@@ -426,8 +374,10 @@ enum wlc_par_id {
 extern const u8 wlc_prio2prec_map[];
 #define BRCMS_PRIO_TO_PREC(pri)	wlc_prio2prec_map[(pri) & 7]
 
-/* This maps priority to one precedence higher - Used by PS-Poll response packets to
- * simulate enqueue-at-head operation, but still maintain the order on the queue
+/*
+ * This maps priority to one precedence higher - Used by PS-Poll response
+ * packets to simulate enqueue-at-head operation, but still maintain the
+ * order on the queue
  */
 #define BRCMS_PRIO_TO_HI_PREC(pri)	min(BRCMS_PRIO_TO_PREC(pri) + 1,\
 					    BRCMS_PREC_COUNT - 1)
@@ -480,28 +430,34 @@ extern const u8 wme_fifo2ac[];
 /*
  * 54g modes (basic bits may still be overridden)
  *
- * GMODE_LEGACY_B			Rateset: 1b, 2b, 5.5, 11
- *					Preamble: Long
- *					Shortslot: Off
- * GMODE_AUTO				Rateset: 1b, 2b, 5.5b, 11b, 18, 24, 36, 54
- *					Extended Rateset: 6, 9, 12, 48
- *					Preamble: Long
- *					Shortslot: Auto
- * GMODE_ONLY				Rateset: 1b, 2b, 5.5b, 11b, 18, 24b, 36, 54
- *					Extended Rateset: 6b, 9, 12b, 48
- *					Preamble: Short required
- *					Shortslot: Auto
- * GMODE_B_DEFERRED			Rateset: 1b, 2b, 5.5b, 11b, 18, 24, 36, 54
- *					Extended Rateset: 6, 9, 12, 48
- *					Preamble: Long
- *					Shortslot: On
- * GMODE_PERFORMANCE			Rateset: 1b, 2b, 5.5b, 6b, 9, 11b, 12b, 18, 24b, 36, 48, 54
- *					Preamble: Short required
- *					Shortslot: On and required
- * GMODE_LRS				Rateset: 1b, 2b, 5.5b, 11b
- *					Extended Rateset: 6, 9, 12, 18, 24, 36, 48, 54
- *					Preamble: Long
- *					Shortslot: Auto
+ * GMODE_LEGACY_B
+ *	Rateset: 1b, 2b, 5.5, 11
+ *	Preamble: Long
+ *	Shortslot: Off
+ * GMODE_AUTO
+ *	Rateset: 1b, 2b, 5.5b, 11b, 18, 24, 36, 54
+ *	Extended Rateset: 6, 9, 12, 48
+ *	Preamble: Long
+ *	Shortslot: Auto
+ * GMODE_ONLY
+ *	Rateset: 1b, 2b, 5.5b, 11b, 18, 24b, 36, 54
+ *	Extended Rateset: 6b, 9, 12b, 48
+ *	Preamble: Short required
+ *	Shortslot: Auto
+ * GMODE_B_DEFERRED
+ *	Rateset: 1b, 2b, 5.5b, 11b, 18, 24, 36, 54
+ *	Extended Rateset: 6, 9, 12, 48
+ *	Preamble: Long
+ *	Shortslot: On
+ * GMODE_PERFORMANCE
+ *	Rateset: 1b, 2b, 5.5b, 6b, 9, 11b, 12b, 18, 24b, 36, 48, 54
+ *	Preamble: Short required
+ *	Shortslot: On and required
+ * GMODE_LRS
+ *	Rateset: 1b, 2b, 5.5b, 11b
+ *	Extended Rateset: 6, 9, 12, 18, 24, 36, 48, 54
+ *	Preamble: Long
+ *	Shortslot: Auto
  */
 #define GMODE_LEGACY_B		0
 #define GMODE_AUTO		1
@@ -544,12 +500,18 @@ extern const u8 wme_fifo2ac[];
 #define BRCMS_N_SGI_40			0x02
 
 /* defines used by the nrate iovar */
-#define NRATE_MCS_INUSE	0x00000080	/* MSC in use,indicates b0-6 holds an mcs */
-#define NRATE_RATE_MASK 0x0000007f	/* rate/mcs value */
-#define NRATE_STF_MASK	0x0000ff00	/* stf mode mask: siso, cdd, stbc, sdm */
-#define NRATE_STF_SHIFT	8	/* stf mode shift */
-#define NRATE_OVERRIDE	0x80000000	/* bit indicates override both rate & mode */
-#define NRATE_OVERRIDE_MCS_ONLY 0x40000000	/* bit indicate to override mcs only */
+/* MSC in use,indicates b0-6 holds an mcs */
+#define NRATE_MCS_INUSE	0x00000080
+/* rate/mcs value */
+#define NRATE_RATE_MASK 0x0000007f
+/* stf mode mask: siso, cdd, stbc, sdm */
+#define NRATE_STF_MASK	0x0000ff00
+/* stf mode shift */
+#define NRATE_STF_SHIFT	8
+/* bit indicates override both rate & mode */
+#define NRATE_OVERRIDE	0x80000000
+/* bit indicate to override mcs only */
+#define NRATE_OVERRIDE_MCS_ONLY 0x40000000
 #define NRATE_SGI_MASK  0x00800000	/* sgi mode */
 #define NRATE_SGI_SHIFT 23	/* sgi mode */
 #define NRATE_LDPC_CODING 0x00400000	/* bit indicates adv coding in use */
@@ -560,9 +522,11 @@ extern const u8 wme_fifo2ac[];
 #define NRATE_STF_STBC	2	/* stf mode STBC */
 #define NRATE_STF_SDM	3	/* stf mode SDM */
 
-#define ANT_SELCFG_MAX		4	/* max number of antenna configurations */
+/* max number of antenna configurations */
+#define ANT_SELCFG_MAX		4
 
-#define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
+/* MCS values greater than this enable multiple streams */
+#define HIGHEST_SINGLE_STREAM_MCS	7
 
 struct brcms_antselcfg {
 	u8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
@@ -570,9 +534,9 @@ struct brcms_antselcfg {
 };
 
 /* common functions for every port */
-extern void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device,
-			uint unit, bool piomode, void *regsva, uint bustype,
-			void *btparam, uint *perr);
+struct brcms_c_info *
+brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
+	       bool piomode, void *regsva, struct pci_dev *btparam, uint *perr);
 extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);
@@ -609,14 +573,15 @@ extern void brcms_c_set_addrmatch(struct brcms_c_info *wlc,
 extern void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 			      const struct ieee80211_tx_queue_params *arg,
 			      bool suspend);
-extern struct brcms_pub *brcms_c_pub(void *wlc);
+extern struct brcms_pub *brcms_c_pub(struct brcms_c_info *wlc);
 
 /* common functions for every port */
 extern void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
 extern void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
-				     wlc_rateset_t *rateset);
-extern void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs);
+				     struct brcms_c_rateset *rateset);
+extern void brcms_default_rateset(struct brcms_c_info *wlc,
+				  struct brcms_c_rateset *rs);
 
 extern void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
@@ -634,10 +599,10 @@ extern void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc);
 extern void brcms_c_mctrl(struct brcms_c_info *wlc, u32 mask, u32 val);
 
 extern int brcms_c_module_register(struct brcms_pub *pub,
-			       const char *name, void *hdl,
-			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
+				   const char *name, struct brcms_info *hdl,
+				   int (*down_fn)(void *handle));
 extern int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
-				 void *hdl);
+				     struct brcms_info *hdl);
 extern void brcms_c_suspend_mac_and_wait(struct brcms_c_info *wlc);
 extern void brcms_c_enable_mac(struct brcms_c_info *wlc);
 extern void brcms_c_associate_upd(struct brcms_c_info *wlc, bool state);
@@ -658,8 +623,5 @@ extern bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc);
 
 #define BAND_2G_NAME		"2.4G"
 #define BAND_5G_NAME		"5G"
-
-/* BMAC RPC: 7 u32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
-#define BRCMS_RPCTX_PARAMS		32
 
 #endif				/* _BRCM_PUB_H_ */

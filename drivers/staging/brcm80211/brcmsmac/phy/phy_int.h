@@ -23,42 +23,22 @@
 
 #define	PHY_VERSION			{ 1, 82, 8, 0 }
 
-#define PHYHAL_ERROR	0x0001
-#define PHYHAL_TRACE	0x0002
-#define PHYHAL_INFORM	0x0004
-
-extern u32 phyhal_msg_level;
-
-#define PHY_INFORM_ON()		(phyhal_msg_level & PHYHAL_INFORM)
-#define PHY_THERMAL_ON()	(phyhal_msg_level & PHYHAL_THERMAL)
-#define PHY_CAL_ON()		(phyhal_msg_level & PHYHAL_CAL)
-
-#ifdef BOARD_TYPE
-#define BOARDTYPE(_type) BOARD_TYPE
-#else
-#define BOARDTYPE(_type) _type
-#endif
-
 #define LCNXN_BASEREV		16
 
-struct brcms_phy_srom_fem {
-	u8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */
-	u8 extpagain;	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
-	u8 pdetrange;	/* support 32 combinations of different Pdet dynamic ranges */
-	u8 triso;		/* TR switch isolation */
-	u8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
-};
+struct phy_shim_info;
 
-typedef void (*initfn_t) (struct brcms_phy *);
-typedef void (*chansetfn_t) (struct brcms_phy *, chanspec_t);
-typedef int (*longtrnfn_t) (struct brcms_phy *, int);
-typedef void (*txiqccgetfn_t) (struct brcms_phy *, u16 *, u16 *);
-typedef void (*txiqccsetfn_t) (struct brcms_phy *, u16, u16);
-typedef u16(*txloccgetfn_t) (struct brcms_phy *);
-typedef void (*radioloftgetfn_t) (struct brcms_phy *, u8 *, u8 *, u8 *,
-				  u8 *);
-typedef s32(*rxsigpwrfn_t) (struct brcms_phy *, s32);
-typedef void (*detachfn_t) (struct brcms_phy *);
+struct brcms_phy_srom_fem {
+	/* TSSI positive slope, 1: positive, 0: negative */
+	u8 tssipos;
+	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
+	u8 extpagain;
+	/* support 32 combinations of different Pdet dynamic ranges */
+	u8 pdetrange;
+	/* TR switch isolation */
+	u8 triso;
+	/* antswctrl lookup table configuration: 32 possible choices */
+	u8 antswctrllut;
+};
 
 #undef ISNPHY
 #undef ISLCNPHY
@@ -203,7 +183,9 @@ typedef void (*detachfn_t) (struct brcms_phy *);
 #define PHY_PERICAL_WDOG_DELAY	5
 
 #define MPHASE_TXCAL_NUMCMDS	2
-#define PHY_PERICAL_MPHASE_PENDING(pi)	(pi->mphase_cal_phase_id > MPHASE_CAL_STATE_IDLE)
+
+#define PHY_PERICAL_MPHASE_PENDING(pi) \
+	(pi->mphase_cal_phase_id > MPHASE_CAL_STATE_IDLE)
 
 enum {
 	MPHASE_CAL_STATE_IDLE = 0,
@@ -248,7 +230,9 @@ enum phy_cal_mode {
 #define CORDIC_AG	39797
 #define	CORDIC_NI	18
 #define	FIXED(X)	((s32)((X) << 16))
-#define	FLOAT(X)	(((X) >= 0) ? ((((X) >> 15) + 1) >> 1) : -((((-(X)) >> 15) + 1) >> 1))
+
+#define	FLOAT(X) \
+	(((X) >= 0) ? ((((X) >> 15) + 1) >> 1) : -((((-(X)) >> 15) + 1) >> 1))
 
 #define PHY_CHAIN_TX_DISABLE_TEMP	115
 #define PHY_HYSTERESIS_DELTATEMP	5
@@ -256,36 +240,46 @@ enum phy_cal_mode {
 #define PHY_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
 
 #define MOD_PHY_REG(pi, phy_type, reg_name, field, value) \
-	mod_phy_reg(pi, phy_type##_##reg_name, phy_type##_##reg_name##_##field##_MASK, \
-	(value) << phy_type##_##reg_name##_##field##_##SHIFT);
+	mod_phy_reg(pi, phy_type##_##reg_name, \
+		    phy_type##_##reg_name##_##field##_MASK, \
+		    (value) << phy_type##_##reg_name##_##field##_##SHIFT)
+
 #define READ_PHY_REG(pi, phy_type, reg_name, field) \
-	((read_phy_reg(pi, phy_type##_##reg_name) & phy_type##_##reg_name##_##field##_##MASK)\
-	>> phy_type##_##reg_name##_##field##_##SHIFT)
+	((read_phy_reg(pi, phy_type##_##reg_name) & \
+	  phy_type##_##reg_name##_##field##_##MASK) \
+	 >> phy_type##_##reg_name##_##field##_##SHIFT)
 
 #define	VALID_PHYTYPE(phytype)	(((uint)phytype == PHY_TYPE_N) || \
 				((uint)phytype == PHY_TYPE_LCN))
 
-#define VALID_N_RADIO(radioid)	((radioid == BCM2055_ID) || (radioid == BCM2056_ID) || \
-				(radioid == BCM2057_ID))
+#define VALID_N_RADIO(radioid) ((radioid == BCM2055_ID) || \
+				 (radioid == BCM2056_ID) || \
+				 (radioid == BCM2057_ID))
+
 #define VALID_LCN_RADIO(radioid)	(radioid == BCM2064_ID)
 
-#define	VALID_RADIO(pi, radioid)	(\
-	(ISNPHY(pi) ? VALID_N_RADIO(radioid) : false) || \
-	(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : false))
+#define VALID_RADIO(pi, radioid)        ( \
+		(ISNPHY(pi) ? VALID_N_RADIO(radioid) : false) || \
+		(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : false))
 
-#define SCAN_INPROG_PHY(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_SCAN))
-#define RM_INPROG_PHY(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_RM))
-#define PLT_INPROG_PHY(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_PLT))
-#define ASSOC_INPROG_PHY(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_ASSOC))
-#define SCAN_RM_IN_PROGRESS(pi) (mboolisset(pi->measure_hold, PHY_HOLD_FOR_SCAN | PHY_HOLD_FOR_RM))
-#define PHY_MUTED(pi)		(mboolisset(pi->measure_hold, PHY_HOLD_FOR_MUTE))
-#define PUB_NOT_ASSOC(pi)	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_NOT_ASSOC))
+#define SCAN_INPROG_PHY(pi) \
+	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_SCAN))
 
-#if defined(EXT_CBALL)
-#define NORADIO_ENAB(pub) ((pub).radioid == NORADIO_ID)
-#else
-#define NORADIO_ENAB(pub) 0
-#endif
+#define RM_INPROG_PHY(pi)       (mboolisset(pi->measure_hold, PHY_HOLD_FOR_RM))
+
+#define PLT_INPROG_PHY(pi)      (mboolisset(pi->measure_hold, PHY_HOLD_FOR_PLT))
+
+#define ASSOC_INPROG_PHY(pi) \
+	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_ASSOC))
+
+#define SCAN_RM_IN_PROGRESS(pi) \
+	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_SCAN | PHY_HOLD_FOR_RM))
+
+#define PHY_MUTED(pi) \
+	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_MUTE))
+
+#define PUB_NOT_ASSOC(pi) \
+	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_NOT_ASSOC))
 
 #define PHY_LTRN_LIST_LEN	64
 extern u16 ltrn_list[PHY_LTRN_LIST_LEN];
@@ -532,7 +526,7 @@ struct shared_phy {
 	struct brcms_phy *phy_head;
 	uint unit;
 	struct si_pub *sih;
-	void *physhim;
+	struct phy_shim_info *physhim;
 	uint corerev;
 	u32 machwcap;
 	bool up;
@@ -549,7 +543,6 @@ struct shared_phy {
 	uint boardvendor;
 	u32 boardflags;
 	u32 boardflags2;
-	uint bustype;
 	uint buscorerev;
 	uint fast_timer;
 	uint slow_timer;
@@ -579,32 +572,31 @@ struct brcms_phy_pub {
 };
 
 struct phy_func_ptr {
-	initfn_t init;
-	initfn_t calinit;
-	chansetfn_t chanset;
-	initfn_t txpwrrecalc;
-	longtrnfn_t longtrn;
-	txiqccgetfn_t txiqccget;
-	txiqccsetfn_t txiqccset;
-	txloccgetfn_t txloccget;
-	radioloftgetfn_t radioloftget;
-	initfn_t carrsuppr;
-	rxsigpwrfn_t rxsigpwr;
-	detachfn_t detach;
+	void (*init)(struct brcms_phy *);
+	void (*calinit)(struct brcms_phy *);
+	void (*chanset)(struct brcms_phy *, u16 chanspec);
+	void (*txpwrrecalc)(struct brcms_phy *);
+	int (*longtrn)(struct brcms_phy *, int);
+	void (*txiqccget)(struct brcms_phy *, u16 *, u16 *);
+	void (*txiqccset)(struct brcms_phy *, u16, u16);
+	u16 (*txloccget)(struct brcms_phy *);
+	void (*radioloftget)(struct brcms_phy *, u8 *, u8 *, u8 *, u8 *);
+	void (*carrsuppr)(struct brcms_phy *);
+	s32 (*rxsigpwr)(struct brcms_phy *, s32);
+	void (*detach)(struct brcms_phy *);
 };
 
 struct brcms_phy {
 	struct brcms_phy_pub pubpi_ro;
 	struct shared_phy *sh;
 	struct phy_func_ptr pi_fptr;
-	void *pi_ptr;
 
 	union {
 		struct brcms_phy_lcnphy *pi_lcnphy;
 	} u;
 	bool user_txpwr_at_rfport;
 
-	d11regs_t *regs;
+	struct d11regs *regs;
 	struct brcms_phy *next;
 	char *vars;
 	struct brcms_phy_pub pubpi;
@@ -613,7 +605,7 @@ struct brcms_phy {
 	bool phytest_on;
 	bool ofdm_rateset_war;
 	bool bf_preempt_4306;
-	chanspec_t radio_chanspec;
+	u16 radio_chanspec;
 	u8 antsel_type;
 	u16 bw;
 	u8 txpwr_percent;
@@ -629,7 +621,7 @@ struct brcms_phy {
 	int phynoise_chan_watchdog;
 	bool phynoise_polling;
 	bool disable_percal;
-	mbool measure_hold;
+	u32 measure_hold;
 
 	s16 txpa_2g[PWRTBL_NUM_COEFF];
 	s16 txpa_2g_low_temp[PWRTBL_NUM_COEFF];
@@ -723,7 +715,7 @@ struct brcms_phy {
 	u16 mintxbias;
 	u16 mintxmag;
 	struct lo_complex_abgphy_info gphy_locomp_iq
-					[STATIC_NUM_RF][STATIC_NUM_BB];
+			[STATIC_NUM_RF][STATIC_NUM_BB];
 	s8 stats_11b_txpower[STATIC_NUM_RF][STATIC_NUM_BB];
 	u16 gain_table[TX_GAIN_TABLE_LENGTH];
 	bool loopback_gain;
@@ -840,11 +832,11 @@ struct brcms_phy {
 	u8 mphase_txcal_cmdidx;
 	u8 mphase_txcal_numcmds;
 	u16 mphase_txcal_bestcoeffs[11];
-	chanspec_t nphy_txiqlocal_chanspec;
-	chanspec_t nphy_iqcal_chanspec_2G;
-	chanspec_t nphy_iqcal_chanspec_5G;
-	chanspec_t nphy_rssical_chanspec_2G;
-	chanspec_t nphy_rssical_chanspec_5G;
+	u16 nphy_txiqlocal_chanspec;
+	u16 nphy_iqcal_chanspec_2G;
+	u16 nphy_iqcal_chanspec_5G;
+	u16 nphy_rssical_chanspec_2G;
+	u16 nphy_rssical_chanspec_5G;
 	struct wlapi_timer *phycal_timer;
 	bool use_int_tx_iqlo_cal_nphy;
 	bool internal_tx_iqlo_cal_tapoff_intpa_nphy;
@@ -937,9 +929,9 @@ struct brcms_phy {
 	struct wiphy *wiphy;
 };
 
-struct _cs32 {
-	fixed q;
-	fixed i;
+struct cs32 {
+	s32 q;
+	s32 i;
 };
 
 struct radio_regs {
@@ -966,26 +958,29 @@ struct lcnphy_radio_regs {
 
 extern struct lcnphy_radio_regs lcnphy_radio_regs_2064[];
 extern struct lcnphy_radio_regs lcnphy_radio_regs_2066[];
+
 extern struct radio_regs regs_2055[], regs_SYN_2056[], regs_TX_2056[],
-	regs_RX_2056[];
+			 regs_RX_2056[];
 extern struct radio_regs regs_SYN_2056_A1[], regs_TX_2056_A1[],
-	      regs_RX_2056_A1[];
+			 regs_RX_2056_A1[];
 extern struct radio_regs regs_SYN_2056_rev5[], regs_TX_2056_rev5[],
-	regs_RX_2056_rev5[];
+			 regs_RX_2056_rev5[];
 extern struct radio_regs regs_SYN_2056_rev6[], regs_TX_2056_rev6[],
-	regs_RX_2056_rev6[];
+			 regs_RX_2056_rev6[];
 extern struct radio_regs regs_SYN_2056_rev7[], regs_TX_2056_rev7[],
-	regs_RX_2056_rev7[];
+			 regs_RX_2056_rev7[];
 extern struct radio_regs regs_SYN_2056_rev8[], regs_TX_2056_rev8[],
-	regs_RX_2056_rev8[];
+			 regs_RX_2056_rev8[];
+
 extern struct radio_20xx_regs regs_2057_rev4[], regs_2057_rev5[],
-	      regs_2057_rev5v1[];
+			      regs_2057_rev5v1[];
 extern struct radio_20xx_regs regs_2057_rev7[], regs_2057_rev8[];
 
 extern char *phy_getvar(struct brcms_phy *pi, const char *name);
 extern int phy_getintvar(struct brcms_phy *pi, const char *name);
-#define PHY_GETVAR(pi, name)	phy_getvar(pi, name)
-#define PHY_GETINTVAR(pi, name)	phy_getintvar(pi, name)
+
+#define PHY_GETVAR(pi, name)    phy_getvar(pi, name)
+#define PHY_GETINTVAR(pi, name) phy_getintvar(pi, name)
 
 extern u16 read_phy_reg(struct brcms_phy *pi, u16 addr);
 extern void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val);
@@ -1022,7 +1017,6 @@ extern void wlc_phy_table_data_write(struct brcms_phy *pi, uint width, u32 val);
 extern void write_phy_channel_reg(struct brcms_phy *pi, uint val);
 extern void wlc_phy_txpower_update_shm(struct brcms_phy *pi);
 
-extern void wlc_phy_cordic(fixed theta, cs32 *val);
 extern u8 wlc_phy_nbits(s32 value);
 extern void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_dB, u8 core);
 
@@ -1053,14 +1047,14 @@ extern void wlc_phy_cal_init_nphy(struct brcms_phy *pi);
 extern void wlc_phy_cal_init_lcnphy(struct brcms_phy *pi);
 
 extern void wlc_phy_chanspec_set_nphy(struct brcms_phy *pi,
-				      chanspec_t chanspec);
+				      u16 chanspec);
 extern void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi,
-					chanspec_t chanspec);
+					u16 chanspec);
 extern void wlc_phy_chanspec_set_fixup_lcnphy(struct brcms_phy *pi,
-					      chanspec_t chanspec);
+					      u16 chanspec);
 extern int wlc_phy_channel2freq(uint channel);
 extern int wlc_phy_chanspec_freq2bandrange_lpssn(uint);
-extern int wlc_phy_chanspec_bandrange_get(struct brcms_phy *, chanspec_t);
+extern int wlc_phy_chanspec_bandrange_get(struct brcms_phy *, u16 chanspec);
 
 extern void wlc_lcnphy_set_tx_pwr_ctrl(struct brcms_phy *pi, u16 mode);
 extern s8 wlc_lcnphy_get_current_tx_pwr_idx(struct brcms_phy *pi);
@@ -1142,13 +1136,17 @@ extern void wlc_phy_stay_in_carriersearch_nphy(struct brcms_phy *pi,
 					       bool enable);
 extern void wlc_nphy_deaf_mode(struct brcms_phy *pi, bool mode);
 
-#define wlc_phy_write_table_nphy(pi, pti)	wlc_phy_write_table(pi, pti, 0x72, \
-	0x74, 0x73)
-#define wlc_phy_read_table_nphy(pi, pti)	wlc_phy_read_table(pi, pti, 0x72, \
-	0x74, 0x73)
-#define wlc_nphy_table_addr(pi, id, off)	wlc_phy_table_addr((pi), (id), (off), \
-	0x72, 0x74, 0x73)
-#define wlc_nphy_table_data_write(pi, w, v)	wlc_phy_table_data_write((pi), (w), (v))
+#define wlc_phy_write_table_nphy(pi, pti) \
+	wlc_phy_write_table(pi, pti, 0x72, 0x74, 0x73)
+
+#define wlc_phy_read_table_nphy(pi, pti) \
+	wlc_phy_read_table(pi, pti, 0x72, 0x74, 0x73)
+
+#define wlc_nphy_table_addr(pi, id, off) \
+	wlc_phy_table_addr((pi), (id), (off), 0x72, 0x74, 0x73)
+
+#define wlc_nphy_table_data_write(pi, w, v) \
+	wlc_phy_table_data_write((pi), (w), (v))
 
 extern void wlc_phy_table_read_nphy(struct brcms_phy *pi, u32, u32 l, u32 o,
 				    u32 w, void *d);
@@ -1160,7 +1158,7 @@ extern void wlc_phy_table_write_nphy(struct brcms_phy *pi, u32, u32, u32,
 	 (pi->ipa5g_on && CHSPEC_IS5G(pi->radio_chanspec)))
 
 #define BRCMS_PHY_WAR_PR51571(pi) \
-	if (((pi)->sh->bustype == PCI_BUS) && NREV_LT((pi)->pubpi.phy_rev, 3)) \
+	if (NREV_LT((pi)->pubpi.phy_rev, 3)) \
 		(void)R_REG(&(pi)->regs->maccontrol)
 
 extern void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype);
@@ -1229,7 +1227,7 @@ extern void wlc_phy_nphy_tkip_rifs_war(struct brcms_phy *pi, u8 rifs);
 void wlc_phy_get_pwrdet_offsets(struct brcms_phy *pi, s8 *cckoffset,
 				s8 *ofdmoffset);
 extern s8 wlc_phy_upd_rssi_offset(struct brcms_phy *pi, s8 rssi,
-				    chanspec_t chanspec);
+				  u16 chanspec);
 
 extern bool wlc_phy_n_txpower_ipa_ison(struct brcms_phy *pih);
 #endif				/* _BRCM_PHY_INT_H_ */

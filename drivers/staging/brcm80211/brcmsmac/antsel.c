@@ -18,7 +18,6 @@
 #include <net/mac80211.h>
 
 #include "types.h"
-#include "bmac.h"
 #include "main.h"
 #include "phy_shim.h"
 #include "antsel.h"
@@ -111,17 +110,16 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 			if (((u16) getintvar(asi->pub->vars, "aa2g") == 7) ||
 			    ((u16) getintvar(asi->pub->vars, "aa5g") == 7)) {
 				asi->antsel_avail = true;
-			} else
-			    if (((u16) getintvar(asi->pub->vars, "aa2g") ==
-				 3)
-				|| ((u16) getintvar(asi->pub->vars, "aa5g")
-				    == 3)) {
+			} else if (
+				(u16) getintvar(asi->pub->vars, "aa2g") == 3 ||
+				(u16) getintvar(asi->pub->vars, "aa5g") == 3) {
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
 				wiphy_err(wlc->wiphy, "antsel_attach: 2o3 "
 					  "board cfg invalid\n");
 			}
+
 			break;
 		default:
 			break;
@@ -261,7 +259,10 @@ static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id)
 	return antcfg;
 }
 
-/* boardlevel antenna selection: convert ant_cfg to mimo_antsel (ucode interface) */
+/*
+ * boardlevel antenna selection:
+ *   convert ant_cfg to mimo_antsel (ucode interface)
+ */
 static u16 brcms_c_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg)
 {
 	u8 idx = BRCMS_ANTIDX_11N(BRCMS_ANTSEL_11N(ant_cfg));
@@ -295,7 +296,10 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	ant_cfg = antsel->ant_config[ANT_SELCFG_TX_DEF];
 	mimo_antsel = brcms_c_antsel_antcfg2antsel(asi, ant_cfg);
 	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_TXDFLT, mimo_antsel);
-	/* Update driver stats for currently selected default tx/rx antenna config */
+	/*
+	 * Update driver stats for currently selected
+	 * default tx/rx antenna config
+	 */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_TX_DEF] = ant_cfg;
 
 	/* 2) Update RX antconfig for all frames that are not unicast data
@@ -304,7 +308,10 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	ant_cfg = antsel->ant_config[ANT_SELCFG_RX_DEF];
 	mimo_antsel = brcms_c_antsel_antcfg2antsel(asi, ant_cfg);
 	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_RXDFLT, mimo_antsel);
-	/* Update driver stats for currently selected default tx/rx antenna config */
+	/*
+	 * Update driver stats for currently selected
+	 * default tx/rx antenna config
+	 */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_RX_DEF] = ant_cfg;
 
 	return 0;

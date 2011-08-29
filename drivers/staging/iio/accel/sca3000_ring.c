@@ -10,9 +10,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/fs.h>
-#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
@@ -24,7 +22,6 @@
 #include "../sysfs.h"
 #include "../ring_generic.h"
 #include "../ring_hw.h"
-#include "accel.h"
 #include "sca3000.h"
 
 /* RFC / future work
@@ -225,74 +222,6 @@ static IIO_DEVICE_ATTR(75_percent, S_IRUGO | S_IWUSR,
 		       sca3000_query_ring_int,
 		       sca3000_set_ring_int,
 		       SCA3000_INT_MASK_RING_THREE_QUARTER);
-
-
-/**
- * sca3000_show_ring_bpse() -sysfs function to query bits per sample from ring
- * @dev: ring buffer device
- * @attr: this device attribute
- * @buf: buffer to write to
- **/
-static ssize_t sca3000_show_ring_bpse(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
-{
-	int len = 0, ret;
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = iio_priv(indio_dev);
-
-	mutex_lock(&st->lock);
-	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
-	if (ret)
-		goto error_ret;
-	if (st->rx[0] & SCA3000_RING_BUF_8BIT)
-		len = sprintf(buf, "s8/8\n");
-	else
-		len = sprintf(buf, "s11/16\n");
-error_ret:
-	mutex_unlock(&st->lock);
-
-	return ret ? ret : len;
-}
-
-/**
- * sca3000_store_ring_bpse() - bits per scan element
- * @dev: ring buffer device
- * @attr: attribute called from
- * @buf: input from userspace
- * @len: length of input
- **/
-static ssize_t sca3000_store_ring_bpse(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf,
-				      size_t len)
-{
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->lock);
-
-	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
-	if (ret)
-		goto error_ret;
-	if (sysfs_streq(buf, "s8/8")) {
-		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-					st->rx[0] | SCA3000_RING_BUF_8BIT);
-		st->bpse = 8;
-	} else if (sysfs_streq(buf, "s11/16")) {
-		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-					st->rx[0] & ~SCA3000_RING_BUF_8BIT);
-		st->bpse = 11;
-	} else
-		ret = -EINVAL;
-error_ret:
-	mutex_unlock(&st->lock);
-
-	return ret ? ret : len;
-}
 
 static ssize_t sca3000_show_buffer_scale(struct device *dev,
 					 struct device_attribute *attr,

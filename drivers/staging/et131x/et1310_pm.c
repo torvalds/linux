@@ -87,8 +87,8 @@
 #include "et131x.h"
 
 /**
- * EnablePhyComa - called when network cable is unplugged
- * @etdev: pointer to our adapter structure
+ * et1310_enable_phy_coma - called when network cable is unplugged
+ * @adapter: pointer to our adapter structure
  *
  * driver receive an phy status change interrupt while in D0 and check that
  * phy_status is down.
@@ -106,75 +106,75 @@
  *       indicating linkup status, call the MPDisablePhyComa routine to
  *             restore JAGCore and gigE PHY
  */
-void EnablePhyComa(struct et131x_adapter *etdev)
+void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 {
 	unsigned long flags;
 	u32 pmcsr;
 
-	pmcsr = readl(&etdev->regs->global.pm_csr);
+	pmcsr = readl(&adapter->regs->global.pm_csr);
 
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
 	 */
-	etdev->pdown_speed = etdev->AiForceSpeed;
-	etdev->pdown_duplex = etdev->AiForceDpx;
+	adapter->pdown_speed = adapter->ai_force_speed;
+	adapter->pdown_duplex = adapter->ai_force_duplex;
 
 	/* Stop sending packets. */
-	spin_lock_irqsave(&etdev->send_hw_lock, flags);
-	etdev->flags |= fMP_ADAPTER_LOWER_POWER;
-	spin_unlock_irqrestore(&etdev->send_hw_lock, flags);
+	spin_lock_irqsave(&adapter->send_hw_lock, flags);
+	adapter->flags |= fMP_ADAPTER_LOWER_POWER;
+	spin_unlock_irqrestore(&adapter->send_hw_lock, flags);
 
 	/* Wait for outstanding Receive packets */
 
 	/* Gate off JAGCore 3 clock domains */
 	pmcsr &= ~ET_PMCSR_INIT;
-	writel(pmcsr, &etdev->regs->global.pm_csr);
+	writel(pmcsr, &adapter->regs->global.pm_csr);
 
 	/* Program gigE PHY in to Coma mode */
 	pmcsr |= ET_PM_PHY_SW_COMA;
-	writel(pmcsr, &etdev->regs->global.pm_csr);
+	writel(pmcsr, &adapter->regs->global.pm_csr);
 }
 
 /**
- * DisablePhyComa - Disable the Phy Coma Mode
- * @etdev: pointer to our adapter structure
+ * et1310_disable_phy_coma - Disable the Phy Coma Mode
+ * @adapter: pointer to our adapter structure
  */
-void DisablePhyComa(struct et131x_adapter *etdev)
+void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 {
 	u32 pmcsr;
 
-	pmcsr = readl(&etdev->regs->global.pm_csr);
+	pmcsr = readl(&adapter->regs->global.pm_csr);
 
 	/* Disable phy_sw_coma register and re-enable JAGCore clocks */
 	pmcsr |= ET_PMCSR_INIT;
 	pmcsr &= ~ET_PM_PHY_SW_COMA;
-	writel(pmcsr, &etdev->regs->global.pm_csr);
+	writel(pmcsr, &adapter->regs->global.pm_csr);
 
 	/* Restore the GbE PHY speed and duplex modes;
 	 * Reset JAGCore; re-configure and initialize JAGCore and gigE PHY
 	 */
-	etdev->AiForceSpeed = etdev->pdown_speed;
-	etdev->AiForceDpx = etdev->pdown_duplex;
+	adapter->ai_force_speed = adapter->pdown_speed;
+	adapter->ai_force_duplex = adapter->pdown_duplex;
 
 	/* Re-initialize the send structures */
-	et131x_init_send(etdev);
+	et131x_init_send(adapter);
 
 	/* Reset the RFD list and re-start RU  */
-	et131x_reset_recv(etdev);
+	et131x_reset_recv(adapter);
 
 	/* Bring the device back to the state it was during init prior to
 	 * autonegotiation being complete.  This way, when we get the auto-neg
 	 * complete interrupt, we can complete init by calling ConfigMacREGS2.
 	 */
-	et131x_soft_reset(etdev);
+	et131x_soft_reset(adapter);
 
 	/* setup et1310 as per the documentation ?? */
-	et131x_adapter_setup(etdev);
+	et131x_adapter_setup(adapter);
 
 	/* Allow Tx to restart */
-	etdev->flags &= ~fMP_ADAPTER_LOWER_POWER;
+	adapter->flags &= ~fMP_ADAPTER_LOWER_POWER;
 
 	/* Need to re-enable Rx. */
-	et131x_rx_dma_enable(etdev);
+	et131x_rx_dma_enable(adapter);
 }
 

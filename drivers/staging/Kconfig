@@ -64,6 +64,8 @@ source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rts_pstor/Kconfig"
 
+source "drivers/staging/rts5139/Kconfig"
+
 source "drivers/staging/frontier/Kconfig"
 
 source "drivers/staging/pohmelfs/Kconfig"
@@ -125,8 +127,6 @@ source "drivers/staging/tidspbridge/Kconfig"
 source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/sbe-2t3e3/Kconfig"
-
-source "drivers/staging/ath6kl/Kconfig"
 
 source "drivers/staging/keucr/Kconfig"
 

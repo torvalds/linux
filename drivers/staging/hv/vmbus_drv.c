@@ -28,8 +28,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
-#include <linux/pci.h>
-#include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
@@ -46,8 +44,6 @@ static struct tasklet_struct event_dpc;
 
 unsigned int vmbus_loglevel = (ALL_MODULES << 16 | INFO_LVL);
 EXPORT_SYMBOL(vmbus_loglevel);
-	/* (ALL_MODULES << 16 | DEBUG_LVL_ENTEREXIT); */
-	/* (((VMBUS | VMBUS_DRV)<<16) | DEBUG_LVL_ENTEREXIT); */
 
 static struct completion probe_event;
 static int irq;
@@ -65,9 +61,9 @@ static void get_channel_info(struct hv_device *device,
 	info->chn_id = debug_info.relid;
 	info->chn_state = debug_info.state;
 	memcpy(&info->chn_type, &debug_info.interfacetype,
-	       sizeof(struct hv_guid));
+	       sizeof(uuid_le));
 	memcpy(&info->chn_instance, &debug_info.interface_instance,
-	       sizeof(struct hv_guid));
+	       sizeof(uuid_le));
 
 	info->monitor_id = debug_info.monitorid;
 
@@ -117,41 +113,41 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	if (!strcmp(dev_attr->attr.name, "class_id")) {
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
 			       "%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			       device_info.chn_type.data[3],
-			       device_info.chn_type.data[2],
-			       device_info.chn_type.data[1],
-			       device_info.chn_type.data[0],
-			       device_info.chn_type.data[5],
-			       device_info.chn_type.data[4],
-			       device_info.chn_type.data[7],
-			       device_info.chn_type.data[6],
-			       device_info.chn_type.data[8],
-			       device_info.chn_type.data[9],
-			       device_info.chn_type.data[10],
-			       device_info.chn_type.data[11],
-			       device_info.chn_type.data[12],
-			       device_info.chn_type.data[13],
-			       device_info.chn_type.data[14],
-			       device_info.chn_type.data[15]);
+			       device_info.chn_type.b[3],
+			       device_info.chn_type.b[2],
+			       device_info.chn_type.b[1],
+			       device_info.chn_type.b[0],
+			       device_info.chn_type.b[5],
+			       device_info.chn_type.b[4],
+			       device_info.chn_type.b[7],
+			       device_info.chn_type.b[6],
+			       device_info.chn_type.b[8],
+			       device_info.chn_type.b[9],
+			       device_info.chn_type.b[10],
+			       device_info.chn_type.b[11],
+			       device_info.chn_type.b[12],
+			       device_info.chn_type.b[13],
+			       device_info.chn_type.b[14],
+			       device_info.chn_type.b[15]);
 	} else if (!strcmp(dev_attr->attr.name, "device_id")) {
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
 			       "%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			       device_info.chn_instance.data[3],
-			       device_info.chn_instance.data[2],
-			       device_info.chn_instance.data[1],
-			       device_info.chn_instance.data[0],
-			       device_info.chn_instance.data[5],
-			       device_info.chn_instance.data[4],
-			       device_info.chn_instance.data[7],
-			       device_info.chn_instance.data[6],
-			       device_info.chn_instance.data[8],
-			       device_info.chn_instance.data[9],
-			       device_info.chn_instance.data[10],
-			       device_info.chn_instance.data[11],
-			       device_info.chn_instance.data[12],
-			       device_info.chn_instance.data[13],
-			       device_info.chn_instance.data[14],
-			       device_info.chn_instance.data[15]);
+			       device_info.chn_instance.b[3],
+			       device_info.chn_instance.b[2],
+			       device_info.chn_instance.b[1],
+			       device_info.chn_instance.b[0],
+			       device_info.chn_instance.b[5],
+			       device_info.chn_instance.b[4],
+			       device_info.chn_instance.b[7],
+			       device_info.chn_instance.b[6],
+			       device_info.chn_instance.b[8],
+			       device_info.chn_instance.b[9],
+			       device_info.chn_instance.b[10],
+			       device_info.chn_instance.b[11],
+			       device_info.chn_instance.b[12],
+			       device_info.chn_instance.b[13],
+			       device_info.chn_instance.b[14],
+			       device_info.chn_instance.b[15]);
 	} else if (!strcmp(dev_attr->attr.name, "state")) {
 		return sprintf(buf, "%d\n", device_info.chn_state);
 	} else if (!strcmp(dev_attr->attr.name, "id")) {
@@ -238,58 +234,31 @@ static struct device_attribute vmbus_device_attrs[] = {
  * This routine is invoked when a device is added or removed on the vmbus to
  * generate a uevent to udev in the userspace. The udev will then look at its
  * rule and the uevent generated here to load the appropriate driver
+ *
+ * The alias string will be of the form vmbus:guid where guid is the string
+ * representation of the device guid (each byte of the guid will be
+ * represented with two hex characters.
  */
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct hv_device *dev = device_to_hv_device(device);
-	int ret;
+	int i, ret;
+	char alias_name[((sizeof((struct hv_vmbus_device_id *)0)->guid) + 1) * 2];
 
-	ret = add_uevent_var(env, "VMBUS_DEVICE_CLASS_GUID={"
-			     "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-			     "%02x%02x%02x%02x%02x%02x%02x%02x}",
-			     dev->dev_type.data[3],
-			     dev->dev_type.data[2],
-			     dev->dev_type.data[1],
-			     dev->dev_type.data[0],
-			     dev->dev_type.data[5],
-			     dev->dev_type.data[4],
-			     dev->dev_type.data[7],
-			     dev->dev_type.data[6],
-			     dev->dev_type.data[8],
-			     dev->dev_type.data[9],
-			     dev->dev_type.data[10],
-			     dev->dev_type.data[11],
-			     dev->dev_type.data[12],
-			     dev->dev_type.data[13],
-			     dev->dev_type.data[14],
-			     dev->dev_type.data[15]);
+	for (i = 0; i < ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2); i += 2)
+		sprintf(&alias_name[i], "%02x", dev->dev_type.b[i/2]);
 
-	if (ret)
-		return ret;
+	ret = add_uevent_var(env, "MODALIAS=vmbus:%s", alias_name);
+	return ret;
+}
 
-	ret = add_uevent_var(env, "VMBUS_DEVICE_DEVICE_GUID={"
-			     "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-			     "%02x%02x%02x%02x%02x%02x%02x%02x}",
-			     dev->dev_instance.data[3],
-			     dev->dev_instance.data[2],
-			     dev->dev_instance.data[1],
-			     dev->dev_instance.data[0],
-			     dev->dev_instance.data[5],
-			     dev->dev_instance.data[4],
-			     dev->dev_instance.data[7],
-			     dev->dev_instance.data[6],
-			     dev->dev_instance.data[8],
-			     dev->dev_instance.data[9],
-			     dev->dev_instance.data[10],
-			     dev->dev_instance.data[11],
-			     dev->dev_instance.data[12],
-			     dev->dev_instance.data[13],
-			     dev->dev_instance.data[14],
-			     dev->dev_instance.data[15]);
-	if (ret)
-		return ret;
+static uuid_le null_guid;
 
-	return 0;
+static inline bool is_null_guid(const __u8 *guid)
+{
+	if (memcmp(guid, &null_guid, sizeof(uuid_le)))
+		return false;
+	return true;
 }
 
 
@@ -298,16 +267,16 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
  */
 static int vmbus_match(struct device *device, struct device_driver *driver)
 {
-	int match = 0;
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
+	const struct hv_vmbus_device_id *id_array = drv->id_table;
 
-	/* We found our driver ? */
-	if (memcmp(&hv_dev->dev_type, &drv->dev_type,
-		   sizeof(struct hv_guid)) == 0)
-		match = 1;
+	for (; !is_null_guid(id_array->guid); id_array++)
+		if (!memcmp(&id_array->guid, &hv_dev->dev_type.b,
+				sizeof(struct hv_vmbus_device_id)))
+			return 1;
 
-	return match;
+	return 0;
 }
 
 /*
@@ -581,58 +550,57 @@ static int vmbus_bus_init(int irq)
 }
 
 /**
- * vmbus_child_driver_register() - Register a vmbus's child driver
- * @drv:        Pointer to driver structure you want to register
- *
+ * __vmbus_child_driver_register - Register a vmbus's driver
+ * @drv: Pointer to driver structure you want to register
+ * @owner: owner module of the drv
+ * @mod_name: module name string
  *
  * Registers the given driver with Linux through the 'driver_register()' call
- * And sets up the hyper-v vmbus handling for this driver.
+ * and sets up the hyper-v vmbus handling for this driver.
  * It will return the state of the 'driver_register()' call.
  *
- * Mainly used by Hyper-V drivers.
  */
-int vmbus_child_driver_register(struct device_driver *drv)
+int __vmbus_driver_register(struct hv_driver *hv_driver, struct module *owner, const char *mod_name)
 {
 	int ret;
 
-	pr_info("child driver registering - name %s\n", drv->name);
+	pr_info("registering driver %s\n", hv_driver->name);
 
-	/* The child driver on this vmbus */
-	drv->bus = &hv_bus;
+	hv_driver->driver.name = hv_driver->name;
+	hv_driver->driver.owner = owner;
+	hv_driver->driver.mod_name = mod_name;
+	hv_driver->driver.bus = &hv_bus;
 
-	ret = driver_register(drv);
+	ret = driver_register(&hv_driver->driver);
 
 	vmbus_request_offers();
 
 	return ret;
 }
-EXPORT_SYMBOL(vmbus_child_driver_register);
+EXPORT_SYMBOL_GPL(__vmbus_driver_register);
 
 /**
- * vmbus_child_driver_unregister() - Unregister a vmbus's child driver
- * @drv:        Pointer to driver structure you want to un-register
+ * vmbus_driver_unregister() - Unregister a vmbus's driver
+ * @drv: Pointer to driver structure you want to un-register
  *
- *
- * Un-register the given driver with Linux through the 'driver_unregister()'
- * call. And ungegisters the driver from the Hyper-V vmbus handler.
- *
- * Mainly used by Hyper-V drivers.
+ * Un-register the given driver that was previous registered with a call to
+ * vmbus_driver_register()
  */
-void vmbus_child_driver_unregister(struct device_driver *drv)
+void vmbus_driver_unregister(struct hv_driver *hv_driver)
 {
-	pr_info("child driver unregistering - name %s\n", drv->name);
+	pr_info("unregistering driver %s\n", hv_driver->name);
 
-	driver_unregister(drv);
+	driver_unregister(&hv_driver->driver);
 
 }
-EXPORT_SYMBOL(vmbus_child_driver_unregister);
+EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
 
 /*
  * vmbus_child_device_create - Creates and registers a new child device
  * on the vmbus.
  */
-struct hv_device *vmbus_child_device_create(struct hv_guid *type,
-					    struct hv_guid *instance,
+struct hv_device *vmbus_child_device_create(uuid_le *type,
+					    uuid_le *instance,
 					    struct vmbus_channel *channel)
 {
 	struct hv_device *child_device_obj;
@@ -645,9 +613,9 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 	}
 
 	child_device_obj->channel = channel;
-	memcpy(&child_device_obj->dev_type, type, sizeof(struct hv_guid));
+	memcpy(&child_device_obj->dev_type, type, sizeof(uuid_le));
 	memcpy(&child_device_obj->dev_instance, instance,
-	       sizeof(struct hv_guid));
+	       sizeof(uuid_le));
 
 
 	return child_device_obj;
@@ -754,21 +722,9 @@ static struct acpi_driver vmbus_acpi_driver = {
 	},
 };
 
-/*
- * We use a PCI table to determine if we should autoload this driver  This is
- * needed by distro tools to determine if the hyperv drivers should be
- * installed and/or configured.  We don't do anything else with the table, but
- * it needs to be present.
- */
-static const struct pci_device_id microsoft_hv_pci_table[] = {
-	{ PCI_DEVICE(0x1414, 0x5353) },	/* VGA compatible controller */
-	{ 0 }
-};
-MODULE_DEVICE_TABLE(pci, microsoft_hv_pci_table);
-
 static int __init hv_acpi_init(void)
 {
-	int ret;
+	int ret, t;
 
 	init_completion(&probe_event);
 
@@ -781,16 +737,25 @@ static int __init hv_acpi_init(void)
 	if (ret)
 		return ret;
 
-	wait_for_completion(&probe_event);
+	t = wait_for_completion_timeout(&probe_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 	if (irq <= 0) {
-		acpi_bus_unregister_driver(&vmbus_acpi_driver);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto cleanup;
 	}
 
 	ret = vmbus_bus_init(irq);
 	if (ret)
-		acpi_bus_unregister_driver(&vmbus_acpi_driver);
+		goto cleanup;
+
+	return 0;
+
+cleanup:
+	acpi_bus_unregister_driver(&vmbus_acpi_driver);
 	return ret;
 }
 

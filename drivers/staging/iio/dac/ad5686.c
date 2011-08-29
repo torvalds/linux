@@ -10,6 +10,7 @@
 #include <linux/gpio.h>
 #include <linux/fs.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>

@@ -14,13 +14,11 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-#include "accel.h"
-#include "inclinometer.h"
-#include "../adc/adc.h"
 
 #include "adis16209.h"
 

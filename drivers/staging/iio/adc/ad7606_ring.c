@@ -10,13 +10,11 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 #include "../iio.h"
 #include "../ring_generic.h"
 #include "../ring_sw.h"
-#include "../trigger.h"
-#include "../sysfs.h"
+#include "../trigger_consumer.h"
 
 #include "ad7606.h"
 
@@ -82,8 +80,7 @@ static int ad7606_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t ad7606_trigger_handler_th_bh(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
-	struct ad7606_state *st = iio_priv(indio_dev);
+	struct ad7606_state *st = iio_priv(pf->indio_dev);
 
 	gpio_set_value(st->pdata->gpio_convst, 1);
 
@@ -200,11 +197,6 @@ error_ret:
 
 void ad7606_ring_cleanup(struct iio_dev *indio_dev)
 {
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }

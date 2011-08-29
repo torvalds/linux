@@ -30,12 +30,12 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-
 #include "../ring_generic.h"
-#include "adc.h"
+
 #include "max1363.h"
 
 #define MAX1363_MODE_SINGLE(_num, _mask) {				\
@@ -255,7 +255,7 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 	switch (m) {
 	case 0:
 		ret = max1363_read_single_chan(indio_dev, chan, val, m);
-		if (ret)
+		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
@@ -592,10 +592,14 @@ static int max1363_write_thresh(struct iio_dev *indio_dev,
 }
 
 static const int max1363_event_codes[] = {
-	IIO_EVENT_CODE_IN_LOW_THRESH(3), IIO_EVENT_CODE_IN_HIGH_THRESH(3),
-	IIO_EVENT_CODE_IN_LOW_THRESH(2), IIO_EVENT_CODE_IN_HIGH_THRESH(2),
-	IIO_EVENT_CODE_IN_LOW_THRESH(1), IIO_EVENT_CODE_IN_HIGH_THRESH(1),
-	IIO_EVENT_CODE_IN_LOW_THRESH(0), IIO_EVENT_CODE_IN_HIGH_THRESH(0)
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 1, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 2, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 3, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 1, IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 2, IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
+	IIO_UNMOD_EVENT_CODE(IIO_IN, 3, IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
 };
 
 static irqreturn_t max1363_event_handler(int irq, void *private)
@@ -1295,6 +1299,8 @@ static int __devinit max1363_probe(struct i2c_client *client,
 
 	indio_dev->info = st->chip_info->info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
 	ret = max1363_initial_setup(st);
 	if (ret < 0)
 		goto error_free_available_scan_masks;

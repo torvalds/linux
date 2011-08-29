@@ -83,7 +83,7 @@ static void gma_suspend_display(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->suspended)
+	if (!dev_priv->display_power)
 		return;
 	dev_priv->ops->save_regs(dev);
 	dev_priv->ops->power_down(dev);
@@ -101,7 +101,7 @@ static void gma_resume_display(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->suspended == false)
+	if (dev_priv->display_power)
 		return;
 
 	/* turn on the display power island */
@@ -265,6 +265,8 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 	/* Ok power up needed */
 	ret = gma_resume_pci(dev->pdev);
 	if (ret == 0) {
+		/* FIXME: we want to defer this for Medfield/Oaktrail */
+		gma_resume_display(dev);
 		psb_irq_preinstall(dev);
 		psb_irq_postinstall(dev);
 		pm_runtime_get(&dev->pdev->dev);
@@ -302,7 +304,7 @@ int psb_runtime_suspend(struct device *dev)
 
 int psb_runtime_resume(struct device *dev)
 {
-	return 0;
+	return gma_power_resume(dev);;
 }
 
 int psb_runtime_idle(struct device *dev)

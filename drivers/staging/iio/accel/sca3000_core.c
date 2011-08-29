@@ -18,11 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
+#include <linux/module.h>
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
 
-#include "accel.h"
 #include "sca3000.h"
 
 enum sca3000_variant {
@@ -422,7 +422,7 @@ static IIO_DEVICE_ATTR(measurement_mode, S_IRUGO | S_IWUSR,
 
 /* More standard attributes */
 
-static IIO_DEV_ATTR_REV(sca3000_show_rev);
+static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 
 #define SCA3000_INFO_MASK			\
 	(1 << IIO_CHAN_INFO_SCALE_SHARED)
@@ -816,36 +816,36 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 
 	if (val & SCA3000_INT_STATUS_FREE_FALL)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_X_AND_Y_AND_Z,
+						  IIO_MOD_X_AND_Y_AND_Z,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_FALLING),
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_Y_TRIGGER)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Y,
+						  IIO_MOD_Y,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_RISING),
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_X_TRIGGER)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_X,
+						  IIO_MOD_X,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_RISING),
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_Z_TRIGGER)
 		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Z,
+						  IIO_MOD_Z,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_RISING),
 			       last_timestamp);

@@ -45,17 +45,17 @@
 #define FRA_ERR_20MHZ	60
 #define FRA_ERR_40MHZ	120
 
-#define ANTSEL_NA		0	/* No boardlevel selection available */
-#define ANTSEL_2x4		1	/* 2x4 boardlevel selection available */
-#define ANTSEL_2x3		2	/* 2x3 CB2 boardlevel selection available */
+#define ANTSEL_NA		0 /* No boardlevel selection available */
+#define ANTSEL_2x4		1 /* 2x4 boardlevel selection available */
+#define ANTSEL_2x3		2 /* 2x3 CB2 boardlevel selection available */
 
 /* Rx Antenna diversity control values */
-#define	ANT_RX_DIV_FORCE_0		0	/* Use antenna 0 */
-#define	ANT_RX_DIV_FORCE_1		1	/* Use antenna 1 */
-#define	ANT_RX_DIV_START_1		2	/* Choose starting with 1 */
-#define	ANT_RX_DIV_START_0		3	/* Choose starting with 0 */
-#define	ANT_RX_DIV_ENABLE		3	/* APHY bbConfig Enable RX Diversity */
-#define ANT_RX_DIV_DEF		ANT_RX_DIV_START_0	/* default antdiv setting */
+#define	ANT_RX_DIV_FORCE_0	0	/* Use antenna 0 */
+#define	ANT_RX_DIV_FORCE_1	1	/* Use antenna 1 */
+#define	ANT_RX_DIV_START_1	2	/* Choose starting with 1 */
+#define	ANT_RX_DIV_START_0	3	/* Choose starting with 0 */
+#define	ANT_RX_DIV_ENABLE	3	/* APHY bbConfig Enable RX Diversity */
+#define ANT_RX_DIV_DEF		ANT_RX_DIV_START_0 /* default antdiv setting */
 
 #define WL_ANT_RX_MAX		2	/* max 2 receive antennas */
 #define WL_ANT_HT_RX_MAX	3	/* max 3 receive antennas/cores */
@@ -77,26 +77,40 @@
 #define WL_TX_POWER_RATES	       101
 #define WL_TX_POWER_CCK_FIRST	       0
 #define WL_TX_POWER_CCK_NUM	       4
-#define WL_TX_POWER_OFDM_FIRST	       4	/* Index for first 20MHz OFDM SISO rate */
-#define WL_TX_POWER_OFDM20_CDD_FIRST   12	/* Index for first 20MHz OFDM CDD rate */
-#define WL_TX_POWER_OFDM40_SISO_FIRST  52	/* Index for first 40MHz OFDM SISO rate */
-#define WL_TX_POWER_OFDM40_CDD_FIRST   60	/* Index for first 40MHz OFDM CDD rate */
+/* Index for first 20MHz OFDM SISO rate */
+#define WL_TX_POWER_OFDM_FIRST	       4
+/* Index for first 20MHz OFDM CDD rate */
+#define WL_TX_POWER_OFDM20_CDD_FIRST   12
+/* Index for first 40MHz OFDM SISO rate */
+#define WL_TX_POWER_OFDM40_SISO_FIRST  52
+/* Index for first 40MHz OFDM CDD rate */
+#define WL_TX_POWER_OFDM40_CDD_FIRST   60
 #define WL_TX_POWER_OFDM_NUM	       8
-#define WL_TX_POWER_MCS20_SISO_FIRST   20	/* Index for first 20MHz MCS SISO rate */
-#define WL_TX_POWER_MCS20_CDD_FIRST    28	/* Index for first 20MHz MCS CDD rate */
-#define WL_TX_POWER_MCS20_STBC_FIRST   36	/* Index for first 20MHz MCS STBC rate */
-#define WL_TX_POWER_MCS20_SDM_FIRST    44	/* Index for first 20MHz MCS SDM rate */
-#define WL_TX_POWER_MCS40_SISO_FIRST   68	/* Index for first 40MHz MCS SISO rate */
-#define WL_TX_POWER_MCS40_CDD_FIRST    76	/* Index for first 40MHz MCS CDD rate */
-#define WL_TX_POWER_MCS40_STBC_FIRST   84	/* Index for first 40MHz MCS STBC rate */
-#define WL_TX_POWER_MCS40_SDM_FIRST    92	/* Index for first 40MHz MCS SDM rate */
+/* Index for first 20MHz MCS SISO rate */
+#define WL_TX_POWER_MCS20_SISO_FIRST   20
+/* Index for first 20MHz MCS CDD rate */
+#define WL_TX_POWER_MCS20_CDD_FIRST    28
+/* Index for first 20MHz MCS STBC rate */
+#define WL_TX_POWER_MCS20_STBC_FIRST   36
+/* Index for first 20MHz MCS SDM rate */
+#define WL_TX_POWER_MCS20_SDM_FIRST    44
+/* Index for first 40MHz MCS SISO rate */
+#define WL_TX_POWER_MCS40_SISO_FIRST   68
+/* Index for first 40MHz MCS CDD rate */
+#define WL_TX_POWER_MCS40_CDD_FIRST    76
+/* Index for first 40MHz MCS STBC rate */
+#define WL_TX_POWER_MCS40_STBC_FIRST   84
+/* Index for first 40MHz MCS SDM rate */
+#define WL_TX_POWER_MCS40_SDM_FIRST    92
 #define WL_TX_POWER_MCS_1_STREAM_NUM   8
 #define WL_TX_POWER_MCS_2_STREAM_NUM   8
-#define WL_TX_POWER_MCS_32	       100	/* Index for 40MHz rate MCS 32 */
+/* Index for 40MHz rate MCS 32 */
+#define WL_TX_POWER_MCS_32	       100
 #define WL_TX_POWER_MCS_32_NUM	       1
 
 /* sslpnphy specifics */
-#define WL_TX_POWER_MCS20_SISO_FIRST_SSN   12	/* Index for first 20MHz MCS SISO rate */
+/* Index for first 20MHz MCS SISO rate */
+#define WL_TX_POWER_MCS20_SISO_FIRST_SSN   12
 
 /* struct tx_power::flags bits */
 #define WL_TX_POWER_F_ENABLED	1
@@ -108,14 +122,17 @@
 #define BRCMS_N_TXRX_CHAIN0		0
 #define BRCMS_N_TXRX_CHAIN1		1
 
+struct brcms_phy;
+
 extern struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
-						void *wl, void *wlc);
+						 struct brcms_info *wl,
+						 struct brcms_c_info *wlc);
 extern void wlc_phy_shim_detach(struct phy_shim_info *physhim);
 
 /* PHY to WL utility functions */
 extern struct wlapi_timer *wlapi_init_timer(struct phy_shim_info *physhim,
-					    void (*fn) (void *arg), void *arg,
-					    const char *name);
+					    void (*fn) (struct brcms_phy *pi),
+					    void *arg, const char *name);
 extern void wlapi_free_timer(struct phy_shim_info *physhim,
 			     struct wlapi_timer *t);
 extern void wlapi_add_timer(struct phy_shim_info *physhim,

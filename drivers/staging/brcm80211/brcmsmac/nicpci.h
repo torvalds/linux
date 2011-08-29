@@ -70,16 +70,24 @@
 #define SRSH_PI_MASK	0xf000	/* bit 15:12 */
 #define SRSH_PI_SHIFT	12	/* bit 15:12 */
 
-extern void *pcicore_init(struct si_pub *sih, void *pdev, void *regs);
-extern void pcicore_deinit(void *pch);
-extern void pcicore_attach(void *pch, char *pvars, int state);
-extern void pcicore_hwup(void *pch);
-extern void pcicore_up(void *pch, int state);
-extern void pcicore_sleep(void *pch);
-extern void pcicore_down(void *pch, int state);
-extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
-					 unsigned char *buf, u32 *buflen);
-extern void pcicore_fixcfg(void *pch, void *regs);
-extern void pcicore_pci_setup(void *pch, void *regs);
+struct sbpciregs;
+struct sbpcieregs;
+
+extern struct pcicore_info *pcicore_init(struct si_pub *sih,
+					 struct pci_dev *pdev, void *regs);
+extern void pcicore_deinit(struct pcicore_info *pch);
+extern void pcicore_attach(struct pcicore_info *pch, char *pvars, int state);
+extern void pcicore_hwup(struct pcicore_info *pch);
+extern void pcicore_up(struct pcicore_info *pch, int state);
+extern void pcicore_sleep(struct pcicore_info *pch);
+extern void pcicore_down(struct pcicore_info *pch, int state);
+extern u8 pcicore_find_pci_capability(struct pci_dev *dev, u8 req_cap_id,
+				      unsigned char *buf, u32 *buflen);
+extern void pcicore_fixcfg_pci(struct pcicore_info *pch,
+			       struct sbpciregs *pciregs);
+extern void pcicore_fixcfg_pcie(struct pcicore_info *pch,
+				struct sbpcieregs *pciregs);
+extern void pcicore_pci_setup(struct pcicore_info *pch,
+			      struct sbpciregs *pciregs);
 
 #endif /* _BRCM_NICPCI_H_ */

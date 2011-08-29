@@ -14,9 +14,6 @@
 
 
 #define  IndexMask 0xff
-#ifndef XGI_MASK_DUAL_CHIP
-#define XGI_MASK_DUAL_CHIP	  0x04  /* SR3A */
-#endif
 
 static unsigned short XGINew_MDA_DAC[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

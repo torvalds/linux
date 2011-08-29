@@ -15,15 +15,15 @@
  */
 
 /*
- * This is "two-way" interface, acting as the SHIM layer between WL and PHY layer.
- *   WL driver can optinally call this translation layer to do some preprocessing, then reach PHY.
- *   On the PHY->WL driver direction, all calls go through this layer since PHY doesn't have the
- *   access to wlc_hw pointer.
+ * This is "two-way" interface, acting as the SHIM layer between driver
+ * and PHY layer. The driver can optionally call this translation layer
+ * to do some preprocessing, then reach PHY. On the PHY->driver direction,
+ * all calls go through this layer since PHY doesn't have access to the
+ * driver's brcms_hardware pointer.
  */
 #include <linux/slab.h>
 #include <net/mac80211.h>
 
-#include "bmac.h"
 #include "main.h"
 #include "mac80211_if.h"
 #include "phy_shim.h"
@@ -31,12 +31,13 @@
 /* PHY SHIM module specific state */
 struct phy_shim_info {
 	struct brcms_hardware *wlc_hw;	/* pointer to main wlc_hw structure */
-	void *wlc;		/* pointer to main wlc structure */
-	void *wl;		/* pointer to os-specific private state */
+	struct brcms_c_info *wlc;	/* pointer to main wlc structure */
+	struct brcms_info *wl; /* pointer to os-specific private state */
 };
 
 struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
-						       void *wl, void *wlc) {
+					  struct brcms_info *wl,
+					  struct brcms_c_info *wlc) {
 	struct phy_shim_info *physhim = NULL;
 
 	physhim = kzalloc(sizeof(struct phy_shim_info), GFP_ATOMIC);
@@ -59,11 +60,12 @@ void wlc_phy_shim_detach(struct phy_shim_info *physhim)
 }
 
 struct wlapi_timer *wlapi_init_timer(struct phy_shim_info *physhim,
-				     void (*fn) (void *arg), void *arg,
-				     const char *name)
+				     void (*fn)(struct brcms_phy *pi),
+				     void *arg, const char *name)
 {
 	return (struct wlapi_timer *)
-			brcms_init_timer(physhim->wl, fn, arg, name);
+			brcms_init_timer(physhim->wl, (void (*)(void *))fn,
+					 arg, name);
 }
 
 void wlapi_free_timer(struct phy_shim_info *physhim, struct wlapi_timer *t)

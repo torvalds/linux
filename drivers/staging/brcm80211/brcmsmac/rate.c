@@ -21,7 +21,10 @@
 #include "pub.h"
 #include "rate.h"
 
-/* Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate value */
+/*
+ * Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate
+ * value
+ */
 const u8 rate_info[BRCM_MAXRATE + 1] = {
 	/*  0     1     2     3     4     5     6     7     8     9 */
 /*   0 */ 0x00, 0x00, 0x0a, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -139,20 +142,25 @@ const struct brcms_mcs_info mcs_table[MCS_TABLE_SIZE] = {
 	{0, 6000, 0, CEIL(6000 * 10, 9), 0x00, BRCM_RATE_6M},
 };
 
-/* phycfg for legacy OFDM frames: code rate, modulation scheme, spatial streams
- *   Number of spatial streams: always 1
- *   other fields: refer to table 78 of section 17.3.2.2 of the original .11a standard
+/*
+ * phycfg for legacy OFDM frames: code rate, modulation scheme, spatial streams
+ * Number of spatial streams: always 1 other fields: refer to table 78 of
+ * section 17.3.2.2 of the original .11a standard
  */
 struct legacy_phycfg {
 	u32 rate_ofdm;	/* ofdm mac rate */
-	u8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
+	/* phy ctl byte 3, code rate, modulation type, # of streams */
+	u8 tx_phy_ctl3;
 };
 
-#define LEGACY_PHYCFG_TABLE_SIZE	12	/* Number of legacy_rate_cfg entries in the table */
+/* Number of legacy_rate_cfg entries in the table */
+#define LEGACY_PHYCFG_TABLE_SIZE	12
 
-/* In CCK mode LPPHY overloads OFDM Modulation bits with CCK Data Rate */
-/* Eventually MIMOPHY would also be converted to this format */
-/* 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps */
+/*
+ * In CCK mode LPPHY overloads OFDM Modulation bits with CCK Data Rate
+ * Eventually MIMOPHY would also be converted to this format
+ * 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps
+ */
 static const struct
 legacy_phycfg legacy_phycfg_table[LEGACY_PHYCFG_TABLE_SIZE] = {
 	{BRCM_RATE_1M, 0x00},	/* CCK  1Mbps,  data rate  0 */
@@ -179,86 +187,89 @@ legacy_phycfg legacy_phycfg_table[LEGACY_PHYCFG_TABLE_SIZE] = {
 
 /* Hardware rates (also encodes default basic rates) */
 
-const wlc_rateset_t cck_ofdm_mimo_rates = {
+const struct brcms_c_rateset cck_ofdm_mimo_rates = {
 	12,
-	{			/*    1b,   2b,   5.5b, 6,    9,    11b,  12,   18,   24,   36,   48,   54 Mbps */
-	 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
-	 0x6c},
+	/*  1b,   2b,   5.5b, 6,    9,    11b,  12,   18,   24,   36,   48, */
+	{ 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
+	/* 54 Mbps */
+	  0x6c},
 	0x00,
-	{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const wlc_rateset_t ofdm_mimo_rates = {
+const struct brcms_c_rateset ofdm_mimo_rates = {
 	8,
-	{			/*    6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
-	 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},
+	/*  6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
+	{ 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},
 	0x00,
-	{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
 /* Default ratesets that include MCS32 for 40BW channels */
-const wlc_rateset_t cck_ofdm_40bw_mimo_rates = {
+const struct brcms_c_rateset cck_ofdm_40bw_mimo_rates = {
 	12,
-	{			/*    1b,   2b,   5.5b, 6,    9,    11b,  12,   18,   24,   36,   48,   54 Mbps */
-	 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
-	 0x6c},
+	/*  1b,   2b,   5.5b, 6,    9,    11b,  12,   18,   24,   36,   48 */
+	{ 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
+	/* 54 Mbps */
+	  0x6c},
 	0x00,
-	{0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const wlc_rateset_t ofdm_40bw_mimo_rates = {
+const struct brcms_c_rateset ofdm_40bw_mimo_rates = {
 	8,
-	{			/*    6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
-	 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},
+	/*  6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
+	{ 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},
 	0x00,
-	{0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const wlc_rateset_t cck_ofdm_rates = {
+const struct brcms_c_rateset cck_ofdm_rates = {
 	12,
-	{			/*    1b,   2b,   5.5b, 6,    9,    11b,  12,   18,   24,   36,   48,   54 Mbps */
-	 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
-	 0x6c},
+	/*  1b,   2b, 5.5b, 6,    9,    11b,  12,   18,   24,   36,   48,*/
+	{ 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
+	/*54 Mbps */
+	  0x6c},
 	0x00,
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const wlc_rateset_t gphy_legacy_rates = {
+const struct brcms_c_rateset gphy_legacy_rates = {
 	4,
-	{			/*    1b,   2b,   5.5b,  11b Mbps */
-	 0x82, 0x84, 0x8b, 0x96},
+	/*  1b,   2b,   5.5b, 11b Mbps */
+	{ 0x82, 0x84, 0x8b, 0x96},
 	0x00,
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const wlc_rateset_t ofdm_rates = {
+const struct brcms_c_rateset ofdm_rates = {
 	8,
-	{			/*    6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
-	 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},
+	/*  6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
+	{ 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},
 	0x00,
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const wlc_rateset_t cck_rates = {
+const struct brcms_c_rateset cck_rates = {
 	4,
-	{			/*    1b,   2b,   5.5,  11 Mbps */
-	 0x82, 0x84, 0x0b, 0x16},
+	/*  1b,   2b,   5.5,  11 Mbps */
+	{ 0x82, 0x84, 0x0b, 0x16},
 	0x00,
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x00}
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
 /* check if rateset is valid.
  * if check_brate is true, rateset without a basic rate is considered NOT valid.
  */
-static bool brcms_c_rateset_valid(wlc_rateset_t *rs, bool check_brate)
+static bool brcms_c_rateset_valid(struct brcms_c_rateset *rs, bool check_brate)
 {
 	uint idx;
 
@@ -276,19 +287,20 @@ static bool brcms_c_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 	return false;
 }
 
-void brcms_c_rateset_mcs_upd(wlc_rateset_t *rs, u8 txstreams)
+void brcms_c_rateset_mcs_upd(struct brcms_c_rateset *rs, u8 txstreams)
 {
 	int i;
 	for (i = txstreams; i < MAX_STREAMS_SUPPORTED; i++)
 		rs->mcs[i] = 0;
 }
 
-/* filter based on hardware rateset, and sort filtered rateset with basic bit(s) preserved,
- * and check if resulting rateset is valid.
+/*
+ * filter based on hardware rateset, and sort filtered rateset with basic
+ * bit(s) preserved, and check if resulting rateset is valid.
 */
 bool
-brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
-				   const wlc_rateset_t *hw_rs,
+brcms_c_rate_hwrs_filter_sort_validate(struct brcms_c_rateset *rs,
+				   const struct brcms_c_rateset *hw_rs,
 				   bool check_brate, u8 txstreams)
 {
 	u8 rateset[BRCM_MAXRATE + 1];
@@ -328,10 +340,10 @@ brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 }
 
 /* calculate the rate of a rx'd frame and return it as a ratespec */
-ratespec_t brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
+u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 {
 	int phy_type;
-	ratespec_t rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
+	u32 rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
 
 	phy_type =
 	    ((rxh->RxChan & RXS_CHAN_PHYTYPE_MASK) >> RXS_CHAN_PHYTYPE_SHIFT);
@@ -377,9 +389,10 @@ ratespec_t brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 }
 
 /* copy rateset src to dst as-is (no masking or sorting) */
-void brcms_c_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
+void brcms_c_rateset_copy(const struct brcms_c_rateset *src,
+			  struct brcms_c_rateset *dst)
 {
-	memcpy(dst, src, sizeof(wlc_rateset_t));
+	memcpy(dst, src, sizeof(struct brcms_c_rateset));
 }
 
 /*
@@ -392,8 +405,8 @@ void brcms_c_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
  * 'xmask' is the copy mask (typically 0x7f or 0xff).
  */
 void
-brcms_c_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
-		   u8 rates, uint xmask, bool mcsallow)
+brcms_c_rateset_filter(struct brcms_c_rateset *src, struct brcms_c_rateset *dst,
+		       bool basic_only, u8 rates, uint xmask, bool mcsallow)
 {
 	uint i;
 	uint r;
@@ -423,24 +436,24 @@ brcms_c_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
  * and fill rs_tgt with result
  */
 void
-brcms_c_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
-		    uint phy_type, int bandtype, bool cck_only, uint rate_mask,
-		    bool mcsallow, u8 bw, u8 txstreams)
+brcms_c_rateset_default(struct brcms_c_rateset *rs_tgt,
+			const struct brcms_c_rateset *rs_hw,
+			uint phy_type, int bandtype, bool cck_only,
+			uint rate_mask, bool mcsallow, u8 bw, u8 txstreams)
 {
-	const wlc_rateset_t *rs_dflt;
-	wlc_rateset_t rs_sel;
+	const struct brcms_c_rateset *rs_dflt;
+	struct brcms_c_rateset rs_sel;
 	if ((PHYTYPE_IS(phy_type, PHY_TYPE_HT)) ||
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_N)) ||
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_LCN)) ||
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_SSN))) {
-		if (BAND_5G(bandtype)) {
+		if (BAND_5G(bandtype))
 			rs_dflt = (bw == BRCMS_20_MHZ ?
 				   &ofdm_mimo_rates : &ofdm_40bw_mimo_rates);
-		} else {
+		else
 			rs_dflt = (bw == BRCMS_20_MHZ ?
 				   &cck_ofdm_mimo_rates :
 				   &cck_ofdm_40bw_mimo_rates);
-		}
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_LP)) {
 		rs_dflt = (BAND_5G(bandtype)) ? &ofdm_rates : &cck_ofdm_rates;
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_A)) {
@@ -475,21 +488,21 @@ s16 brcms_c_rate_legacy_phyctl(uint rate)
 	return -1;
 }
 
-void brcms_c_rateset_mcs_clear(wlc_rateset_t *rateset)
+void brcms_c_rateset_mcs_clear(struct brcms_c_rateset *rateset)
 {
 	uint i;
 	for (i = 0; i < MCSSET_LEN; i++)
 		rateset->mcs[i] = 0;
 }
 
-void brcms_c_rateset_mcs_build(wlc_rateset_t *rateset, u8 txstreams)
+void brcms_c_rateset_mcs_build(struct brcms_c_rateset *rateset, u8 txstreams)
 {
 	memcpy(&rateset->mcs[0], &cck_ofdm_mimo_rates.mcs[0], MCSSET_LEN);
 	brcms_c_rateset_mcs_upd(rateset, txstreams);
 }
 
 /* Based on bandwidth passed, allow/disallow MCS 32 in the rateset */
-void brcms_c_rateset_bw_mcs_filter(wlc_rateset_t *rateset, u8 bw)
+void brcms_c_rateset_bw_mcs_filter(struct brcms_c_rateset *rateset, u8 bw)
 {
 	if (bw == BRCMS_40_MHZ)
 		setbit(rateset->mcs, 32);
