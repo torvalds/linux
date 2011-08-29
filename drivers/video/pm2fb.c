@@ -1773,7 +1773,7 @@ MODULE_DEVICE_TABLE(pci, pm2fb_id_table);
 
 #ifndef MODULE
 /**
- * Parse user speficied options.
+ * Parse user specified options.
  *
  * This is, comma-separated options following `video=pm2fb:'.
  */

@@ -1505,7 +1505,7 @@ static struct pci_driver s3fb_pci_driver = {
 	.resume		= s3_pci_resume,
 };
 
-/* Parse user speficied options */
+/* Parse user specified options */
 
 #ifndef MODULE
 static int  __init s3fb_setup(char *options)
