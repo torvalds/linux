@@ -458,6 +458,7 @@ static void igep2_disable_dvi(struct omap_dss_device *dssdev)
 static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= igep2_enable_dvi,
 	.platform_disable	= igep2_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 static struct omap_dss_device igep2_dvi_device = {

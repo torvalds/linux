@@ -206,6 +206,7 @@ static void beagle_disable_dvi(struct omap_dss_device *dssdev)
 static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable = beagle_enable_dvi,
 	.platform_disable = beagle_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 static struct omap_dss_device beagle_dvi_device = {
