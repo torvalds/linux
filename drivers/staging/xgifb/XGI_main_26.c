@@ -1984,20 +1984,11 @@ static int __init XGIfb_setup(char *options)
 			enable_dstn = 1;
 			/* TW: DSTN overrules forcecrt2type */
 			XGIfb_crt2type = DISPTYPE_LCD;
-		} else if (!strncmp(this_opt, "pdc:", 4)) {
-			XGIfb_pdc = simple_strtoul(this_opt + 4, NULL, 0);
-			if (XGIfb_pdc & ~0x3c) {
-				printk(KERN_INFO "XGIfb: Illegal pdc parameter\n");
-				XGIfb_pdc = 0;
-			}
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
 		} else if (!strncmp(this_opt, "userom:", 7)) {
 			XGIfb_userom = (int)simple_strtoul(
 						this_opt + 7, NULL, 0);
-			/* } else if (!strncmp(this_opt, "useoem:", 7)) { */
-			/* XGIfb_useoem = (int)simple_strtoul(
-						this_opt + 7, NULL, 0); */
 		} else {
 			XGIfb_search_mode(this_opt);
 			/* printk(KERN_INFO "XGIfb: Invalid option %s\n",
@@ -2530,57 +2521,14 @@ module_init(xgifb_init);
 
 static char *mode;
 static int vesa;
-static unsigned int rate;
-static unsigned int mem;
-static char *forcecrt2type;
-static int forcecrt1 = -1;
-static int pdc = -1;
-static int pdc1 = -1;
-static int noypan = -1;
-static int userom = -1;
-static int useoem = -1;
-static char *tvstandard;
-static int nocrt2rate;
-static int scalelcd = -1;
-static char *specialtiming;
-static int lvdshl = -1;
-static int tvxposoffset, tvyposoffset;
-#if !defined(__i386__) && !defined(__x86_64__)
-static int resetcard;
-static int videoram;
-#endif
 
 MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XGITECH , Others");
 
-module_param(mem, int, 0);
-module_param(noypan, int, 0);
-module_param(userom, int, 0);
-module_param(useoem, int, 0);
 module_param(mode, charp, 0);
 module_param(vesa, int, 0);
-module_param(rate, int, 0);
-module_param(forcecrt1, int, 0);
-module_param(forcecrt2type, charp, 0);
-module_param(scalelcd, int, 0);
-module_param(pdc, int, 0);
-module_param(pdc1, int, 0);
-module_param(specialtiming, charp, 0);
-module_param(lvdshl, int, 0);
-module_param(tvstandard, charp, 0);
-module_param(tvxposoffset, int, 0);
-module_param(tvyposoffset, int, 0);
 module_param(filter, int, 0);
-module_param(nocrt2rate, int, 0);
-#if !defined(__i386__) && !defined(__x86_64__)
-module_param(resetcard, int, 0);
-module_param(videoram, int, 0);
-#endif
-
-MODULE_PARM_DESC(noypan,
-		"\nIf set to anything other than 0, y-panning will be disabled and scrolling\n"
-		"will be performed by redrawing the screen. (default: 0)\n");
 
 MODULE_PARM_DESC(mode,
 		"\nSelects the desired default display mode in the format XxYxDepth,\n"
@@ -2592,71 +2540,9 @@ MODULE_PARM_DESC(vesa,
 		"\nSelects the desired default display mode by VESA defined mode number, eg.\n"
 		"0x117 (default: 0x0103)\n");
 
-MODULE_PARM_DESC(rate,
-		"\nSelects the desired vertical refresh rate for CRT1 (external VGA) in Hz.\n"
-		"If the mode is specified in the format XxY-Depth@Rate, this parameter\n"
-		"will be ignored (default: 60)\n");
-
-MODULE_PARM_DESC(forcecrt1,
-		"\nNormally, the driver autodetects whether or not CRT1 (external VGA) is\n"
-		"connected. With this option, the detection can be overridden (1=CRT1 ON,\n"
-		"0=CRT1 OFF) (default: [autodetected])\n");
-
-MODULE_PARM_DESC(forcecrt2type,
-		"\nIf this option is omitted, the driver autodetects CRT2 output devices, such as\n"
-		"LCD, TV or secondary VGA. With this option, this autodetection can be\n"
-		"overridden. Possible parameters are LCD, TV, VGA or NONE. NONE disables CRT2.\n"
-		"On systems with a SiS video bridge, parameters SVIDEO, COMPOSITE or SCART can\n"
-		"be used instead of TV to override the TV detection. Furthermore, on systems\n"
-		"with a SiS video bridge, SVIDEO+COMPOSITE, HIVISION, YPBPR480I, YPBPR480P,\n"
-		"YPBPR720P and YPBPR1080I are understood. However, whether or not these work\n"
-		"depends on the very hardware in use. (default: [autodetected])\n");
-
-MODULE_PARM_DESC(scalelcd,
-		"\nSetting this to 1 will force the driver to scale the LCD image to the panel's\n"
-		"native resolution. Setting it to 0 will disable scaling; LVDS panels will\n"
-		"show black bars around the image, TMDS panels will probably do the scaling\n"
-		"themselves. Default: 1 on LVDS panels, 0 on TMDS panels\n");
-
-MODULE_PARM_DESC(pdc,
-		"\nThis is for manually selecting the LCD panel delay compensation. The driver\n"
-		"should detect this correctly in most cases; however, sometimes this is not\n"
-		"possible. If you see 'small waves' on the LCD, try setting this to 4, 32 or 24\n"
-		"on a 300 series chipset; 6 on a 315 series chipset. If the problem persists,\n"
-		"try other values (on 300 series: between 4 and 60 in steps of 4; on 315 series:\n"
-		"any value from 0 to 31). (default: autodetected, if LCD is active during start)\n");
-
-MODULE_PARM_DESC(pdc1,
-		"\nThis is same as pdc, but for LCD-via CRT1. Hence, this is for the 315/330\n"
-		"series only. (default: autodetected if LCD is in LCD-via-CRT1 mode during\n"
-		"startup) - Note: currently, this has no effect because LCD-via-CRT1 is not\n"
-		"implemented yet.\n");
-
-MODULE_PARM_DESC(specialtiming,
-		"\nPlease refer to documentation for more information on this option.\n");
-
-MODULE_PARM_DESC(lvdshl,
-		"\nPlease refer to documentation for more information on this option.\n");
-
-MODULE_PARM_DESC(tvstandard,
-		"\nThis allows overriding the BIOS default for the TV standard. Valid choices are\n"
-		"pal, ntsc, palm and paln. (default: [auto; pal or ntsc only])\n");
-
-MODULE_PARM_DESC(tvxposoffset,
-		"\nRelocate TV output horizontally. Possible parameters: -32 through 32.\n"
-		"Default: 0\n");
-
-MODULE_PARM_DESC(tvyposoffset,
-		"\nRelocate TV output vertically. Possible parameters: -32 through 32.\n"
-		"Default: 0\n");
-
 MODULE_PARM_DESC(filter,
 		"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
 		"(Possible values 0-7, default: [no filter])\n");
-
-MODULE_PARM_DESC(nocrt2rate,
-		"\nSetting this to 1 will force the driver to use the default refresh rate for\n"
-		"CRT2 if CRT2 type is VGA. (default: 0, use same rate as CRT1)\n");
 
 static int __init xgifb_init_module(void)
 {

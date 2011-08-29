@@ -171,11 +171,9 @@ static int XGIfb_off;
 static int XGIfb_crt1off;
 static int XGIfb_forcecrt1 = -1;
 static int XGIfb_userom ;
-/*static int XGIfb_useoem = -1; */
 
 /* global flags */
 static int XGIfb_tvmode;
-static int XGIfb_pdc;
 static int enable_dstn;
 static int XGIfb_ypan = -1;
 
