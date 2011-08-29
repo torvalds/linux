@@ -104,7 +104,7 @@
 #else
 #define MEM_CAMIPP_SIZE     0
 #endif
-#define MEM_FB_SIZE         (3*SZ_2M)
+#define MEM_FB_SIZE         (9*SZ_1M)
 #ifdef CONFIG_FB_WORK_IPP
 #define MEM_FBIPP_SIZE      SZ_8M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
 #else

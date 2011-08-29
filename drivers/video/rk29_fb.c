@@ -1384,7 +1384,7 @@ static int fb0_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     }
 
     if( (var->xoffset+var->xres)>var->xres_virtual ||
-        (var->yoffset+var->yres)>var->yres_virtual )
+        (var->yoffset+var->yres)>var->yres_virtual*2 )
     {
         printk(">>>>>> fb0_check_var fail 2!!! \n");
         printk(">>>>>> (%d+%d)>%d || ", var->xoffset,var->xres,var->xres_virtual);
@@ -1456,6 +1456,8 @@ static int fb0_set_par(struct fb_info *info)
         ipp_req.dst0.fmt = IPP_RGB_565;
         #endif
         offset = (ypos_virtual*xres_virtual + xpos_virtual)*(inf->fb0_color_deepth ? 4:2);
+        if(ypos_virtual == 3*var->yres && inf->fb0_color_deepth)
+            offset -= var->yres * var->xres *2;
         break;
     case 32:    // rgb888
     default:
@@ -1466,11 +1468,26 @@ static int fb0_set_par(struct fb_info *info)
             fb0_second_buff_bits = 32;
         fix->line_length = 4 * xres_virtual;
         #ifdef CONFIG_FB_SCALING_OSD
-        dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
+        dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;       
+
         ipp_req.src0.fmt = IPP_XRGB_8888;
         ipp_req.dst0.fmt = IPP_XRGB_8888;
         #endif
         offset = (ypos_virtual*xres_virtual + xpos_virtual)*4;
+        
+        if(ypos_virtual >= 2*var->yres)
+        {
+            par->format = 1;
+            #ifdef CONFIG_FB_SCALING_OSD
+            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+            ipp_req.src0.fmt = IPP_RGB_565;
+            ipp_req.dst0.fmt = IPP_RGB_565;
+            #endif
+            if(ypos_virtual == 3*var->yres)
+            {            
+                offset -= var->yres * var->xres *2;
+            }
+        }
         break;
     }
 
@@ -1579,6 +1596,8 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         ipp_req.dst0.fmt = IPP_RGB_565;
         #endif
         offset = (ypos_virtual*var1->xres_virtual + xpos_virtual)*(inf->fb0_color_deepth ? 4:2);
+        if(ypos_virtual == 3*var->yres && inf->fb0_color_deepth)
+            offset -= var->yres * var->xres *2;
         break;
     case 32:    // rgb888
         #ifdef CONFIG_FB_SCALING_OSD
@@ -1587,6 +1606,19 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         ipp_req.dst0.fmt = IPP_XRGB_8888;
         #endif
         offset = (ypos_virtual*var1->xres_virtual + xpos_virtual)*4;
+        if(ypos_virtual >= 2*var->yres)
+        {
+            par->format = 1;
+            #ifdef CONFIG_FB_SCALING_OSD
+            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+            ipp_req.src0.fmt = IPP_RGB_565;
+            ipp_req.dst0.fmt = IPP_RGB_565;
+            #endif
+            if(ypos_virtual == 3*var->yres)
+            {            
+                offset -= var->yres * var->xres *2;
+            }
+        }
         break;
     default:
         return -EINVAL;
