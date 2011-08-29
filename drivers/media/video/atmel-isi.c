@@ -404,12 +404,13 @@ static void buffer_queue(struct vb2_buffer *vb)
 
 	if (isi->active == NULL) {
 		isi->active = buf;
-		start_dma(isi, buf);
+		if (vb2_is_streaming(vb->vb2_queue))
+			start_dma(isi, buf);
 	}
 	spin_unlock_irqrestore(&isi->lock, flags);
 }
 
-static int start_streaming(struct vb2_queue *vq)
+static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -431,17 +432,26 @@ static int start_streaming(struct vb2_queue *vq)
 	ret = wait_event_interruptible(isi->vsync_wq,
 				       isi->state != ISI_STATE_IDLE);
 	if (ret)
-		return ret;
+		goto err;
 
-	if (isi->state != ISI_STATE_READY)
-		return -EIO;
+	if (isi->state != ISI_STATE_READY) {
+		ret = -EIO;
+		goto err;
+	}
 
 	spin_lock_irq(&isi->lock);
 	isi->state = ISI_STATE_WAIT_SOF;
 	isi_writel(isi, ISI_INTDIS, ISI_SR_VSYNC);
+	if (count)
+		start_dma(isi, isi->active);
 	spin_unlock_irq(&isi->lock);
 
 	return 0;
+err:
+	isi->active = NULL;
+	isi->sequence = 0;
+	INIT_LIST_HEAD(&isi->video_buffer_list);
+	return ret;
 }
 
 /* abort streaming and wait for last buffer */

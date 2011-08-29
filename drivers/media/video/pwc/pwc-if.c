@@ -816,7 +816,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
 }
 
-static int start_streaming(struct vb2_queue *vq)
+static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 

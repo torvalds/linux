@@ -1111,73 +1111,6 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 EXPORT_SYMBOL_GPL(vb2_dqbuf);
 
 /**
- * vb2_streamon - start streaming
- * @q:		videobuf2 queue
- * @type:	type argument passed from userspace to vidioc_streamon handler
- *
- * Should be called from vidioc_streamon handler of a driver.
- * This function:
- * 1) verifies current state
- * 2) starts streaming and passes any previously queued buffers to the driver
- *
- * The return values from this function are intended to be directly returned
- * from vidioc_streamon handler in the driver.
- */
-int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
-{
-	struct vb2_buffer *vb;
-	int ret;
-
-	if (q->fileio) {
-		dprintk(1, "streamon: file io in progress\n");
-		return -EBUSY;
-	}
-
-	if (type != q->type) {
-		dprintk(1, "streamon: invalid stream type\n");
-		return -EINVAL;
-	}
-
-	if (q->streaming) {
-		dprintk(1, "streamon: already streaming\n");
-		return -EBUSY;
-	}
-
-	/*
-	 * Cannot start streaming on an OUTPUT device if no buffers have
-	 * been queued yet.
-	 */
-	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
-		if (list_empty(&q->queued_list)) {
-			dprintk(1, "streamon: no output buffers queued\n");
-			return -EINVAL;
-		}
-	}
-
-	/*
-	 * Let driver notice that streaming state has been enabled.
-	 */
-	ret = call_qop(q, start_streaming, q);
-	if (ret) {
-		dprintk(1, "streamon: driver refused to start streaming\n");
-		return ret;
-	}
-
-	q->streaming = 1;
-
-	/*
-	 * If any buffers were queued before streamon,
-	 * we can now pass them to driver for processing.
-	 */
-	list_for_each_entry(vb, &q->queued_list, queued_entry)
-		__enqueue_in_driver(vb);
-
-	dprintk(3, "Streamon successful\n");
-	return 0;
-}
-EXPORT_SYMBOL_GPL(vb2_streamon);
-
-/**
  * __vb2_queue_cancel() - cancel and stop (pause) streaming
  *
  * Removes all queued buffers from driver's queue and all buffers queued by
@@ -1213,6 +1146,64 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	for (i = 0; i < q->num_buffers; ++i)
 		q->bufs[i]->state = VB2_BUF_STATE_DEQUEUED;
 }
+
+/**
+ * vb2_streamon - start streaming
+ * @q:		videobuf2 queue
+ * @type:	type argument passed from userspace to vidioc_streamon handler
+ *
+ * Should be called from vidioc_streamon handler of a driver.
+ * This function:
+ * 1) verifies current state
+ * 2) passes any previously queued buffers to the driver and starts streaming
+ *
+ * The return values from this function are intended to be directly returned
+ * from vidioc_streamon handler in the driver.
+ */
+int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
+{
+	struct vb2_buffer *vb;
+	int ret;
+
+	if (q->fileio) {
+		dprintk(1, "streamon: file io in progress\n");
+		return -EBUSY;
+	}
+
+	if (type != q->type) {
+		dprintk(1, "streamon: invalid stream type\n");
+		return -EINVAL;
+	}
+
+	if (q->streaming) {
+		dprintk(1, "streamon: already streaming\n");
+		return -EBUSY;
+	}
+
+	/*
+	 * If any buffers were queued before streamon,
+	 * we can now pass them to driver for processing.
+	 */
+	list_for_each_entry(vb, &q->queued_list, queued_entry)
+		__enqueue_in_driver(vb);
+
+	/*
+	 * Let driver notice that streaming state has been enabled.
+	 */
+	ret = call_qop(q, start_streaming, q, atomic_read(&q->queued_count));
+	if (ret) {
+		dprintk(1, "streamon: driver refused to start streaming\n");
+		__vb2_queue_cancel(q);
+		return ret;
+	}
+
+	q->streaming = 1;
+
+	dprintk(3, "Streamon successful\n");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vb2_streamon);
+
 
 /**
  * vb2_streamoff - stop streaming

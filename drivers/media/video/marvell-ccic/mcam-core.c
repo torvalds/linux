@@ -940,12 +940,14 @@ static void mcam_vb_wait_finish(struct vb2_queue *vq)
 /*
  * These need to be called with the mutex held from vb2
  */
-static int mcam_vb_start_streaming(struct vb2_queue *vq)
+static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 
-	if (cam->state != S_IDLE)
+	if (cam->state != S_IDLE) {
+		INIT_LIST_HEAD(&cam->buffers);
 		return -EINVAL;
+	}
 	cam->sequence = 0;
 	/*
 	 * Videobuf2 sneakily hoards all the buffers and won't
