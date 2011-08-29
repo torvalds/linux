@@ -333,7 +333,11 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 					       buf->len, &refs, &flags);
 		if (ret)
 			return ret;
-		BUG_ON(refs == 0);
+		if (refs == 0) {
+			ret = -EROFS;
+			btrfs_std_error(root->fs_info, ret);
+			return ret;
+		}
 	} else {
 		refs = 1;
 		if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
