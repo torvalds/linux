@@ -190,6 +190,10 @@ struct omap_gpio_reg_offs {
 	u16 debounce_en;
 	u16 ctrl;
 	u16 wkup_en;
+	u16 leveldetect0;
+	u16 leveldetect1;
+	u16 risingdetect;
+	u16 fallingdetect;
 
 	bool irqenable_inv;
 };
