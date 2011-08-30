@@ -26,13 +26,8 @@
 #include "iio_core.h"
 #include "iio_core_trigger.h"
 #include "chrdev.h"
-
-/* IDR to assign each registered device a unique id*/
+/* IDA to assign each registered device a unique id*/
 static DEFINE_IDA(iio_ida);
-/* IDR to allocate character device minor numbers */
-static DEFINE_IDA(iio_chrdev_ida);
-/* Lock used to protect both of the above */
-static DEFINE_SPINLOCK(iio_ida_lock);
 
 static dev_t iio_devt;
 
@@ -87,34 +82,6 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
 	= "quadrature_correction_raw",
 };
-
-/* Return a negative errno on failure */
-static int iio_get_new_ida_val(struct ida *this_ida)
-{
-	int ret;
-	int val;
-
-ida_again:
-	if (unlikely(ida_pre_get(this_ida, GFP_KERNEL) == 0))
-		return -ENOMEM;
-
-	spin_lock(&iio_ida_lock);
-	ret = ida_get_new(this_ida, &val);
-	spin_unlock(&iio_ida_lock);
-	if (unlikely(ret == -EAGAIN))
-		goto ida_again;
-	else if (unlikely(ret))
-		return ret;
-
-	return val;
-}
-
-static void iio_free_ida_val(struct ida *this_ida, int id)
-{
-	spin_lock(&iio_ida_lock);
-	ida_remove(this_ida, id);
-	spin_unlock(&iio_ida_lock);
-}
 
 /**
  * struct iio_detected_event_list - list element for events that have occurred
@@ -268,22 +235,6 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 };
-
-static int iio_device_get_chrdev_minor(void)
-{
-	int ret;
-
-	ret = iio_get_new_ida_val(&iio_chrdev_ida);
-	if (ret < IIO_DEV_MAX) /* both errors and valid */
-		return ret;
-	else
-		return -ENOMEM;
-}
-
-static void iio_device_free_chrdev_minor(int val)
-{
-	iio_free_ida_val(&iio_chrdev_ida, val);
-}
 
 static int iio_event_getfd(struct iio_dev *indio_dev)
 {
@@ -1067,7 +1018,6 @@ static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
 	cdev_del(&dev_info->chrdev);
-	iio_device_free_chrdev_minor(MINOR(device->devt));
 	iio_put();
 	kfree(dev_info);
 }
@@ -1168,19 +1118,16 @@ int iio_device_register(struct iio_dev *dev_info)
 {
 	int ret;
 
-	dev_info->id = iio_get_new_ida_val(&iio_ida);
+	dev_info->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 	if (dev_info->id < 0) {
 		ret = dev_info->id;
 		dev_err(&dev_info->dev, "Failed to get id\n");
 		goto error_ret;
 	}
 	dev_set_name(&dev_info->dev, "iio:device%d", dev_info->id);
-	ret = iio_device_get_chrdev_minor();
-	if (ret < 0)
-		goto error_free_ida;
 
 	/* configure elements for the chrdev */
-	dev_info->dev.devt = MKDEV(MAJOR(iio_devt), ret);
+	dev_info->dev.devt = MKDEV(MAJOR(iio_devt), dev_info->id);
 
 	ret = device_add(&dev_info->dev);
 	if (ret)
@@ -1210,7 +1157,7 @@ error_free_sysfs:
 error_del_device:
 	device_del(&dev_info->dev);
 error_free_ida:
-	iio_free_ida_val(&iio_ida, dev_info->id);
+	ida_simple_remove(&iio_ida, dev_info->id);
 error_ret:
 	return ret;
 }
@@ -1222,7 +1169,7 @@ void iio_device_unregister(struct iio_dev *dev_info)
 		iio_device_unregister_trigger_consumer(dev_info);
 	iio_device_unregister_eventset(dev_info);
 	iio_device_unregister_sysfs(dev_info);
-	iio_free_ida_val(&iio_ida, dev_info->id);
+	ida_simple_remove(&iio_ida, dev_info->id);
 	device_unregister(&dev_info->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);

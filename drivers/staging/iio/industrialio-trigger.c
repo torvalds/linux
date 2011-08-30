@@ -32,8 +32,7 @@
  * Any other suggestions?
  */
 
-static DEFINE_IDR(iio_trigger_idr);
-static DEFINE_SPINLOCK(iio_trigger_idr_lock);
+static DEFINE_IDA(iio_trigger_ida);
 
 /* Single list of all available triggers */
 static LIST_HEAD(iio_trigger_list);
@@ -72,48 +71,15 @@ static void iio_trigger_unregister_sysfs(struct iio_trigger *trig_info)
 					   NULL);
 }
 
-
-/**
- * iio_trigger_register_id() - get a unique id for this trigger
- * @trig_info:	the trigger
- **/
-static int iio_trigger_register_id(struct iio_trigger *trig_info)
-{
-	int ret = 0;
-
-idr_again:
-	if (unlikely(idr_pre_get(&iio_trigger_idr, GFP_KERNEL) == 0))
-		return -ENOMEM;
-
-	spin_lock(&iio_trigger_idr_lock);
-	ret = idr_get_new(&iio_trigger_idr, NULL, &trig_info->id);
-	spin_unlock(&iio_trigger_idr_lock);
-	if (unlikely(ret == -EAGAIN))
-		goto idr_again;
-	else if (likely(!ret))
-		trig_info->id = trig_info->id & MAX_ID_MASK;
-
-	return ret;
-}
-
-/**
- * iio_trigger_unregister_id() - free up unique id for use by another trigger
- * @trig_info: the trigger
- **/
-static void iio_trigger_unregister_id(struct iio_trigger *trig_info)
-{
-	spin_lock(&iio_trigger_idr_lock);
-	idr_remove(&iio_trigger_idr, trig_info->id);
-	spin_unlock(&iio_trigger_idr_lock);
-}
-
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
 	int ret;
 
-	ret = iio_trigger_register_id(trig_info);
-	if (ret)
+	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
+	if (trig_info->id < 0) {
+		ret = trig_info->id;
 		goto error_ret;
+	}
 	/* Set the name used for the sysfs directory etc */
 	dev_set_name(&trig_info->dev, "trigger%ld",
 		     (unsigned long) trig_info->id);
@@ -136,7 +102,7 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 error_device_del:
 	device_del(&trig_info->dev);
 error_unregister_id:
-	iio_trigger_unregister_id(trig_info);
+	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 error_ret:
 	return ret;
 }
@@ -149,7 +115,7 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 	mutex_unlock(&iio_trigger_list_lock);
 
 	iio_trigger_unregister_sysfs(trig_info);
-	iio_trigger_unregister_id(trig_info);
+	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	/* Possible issue in here */
 	device_unregister(&trig_info->dev);
 }
