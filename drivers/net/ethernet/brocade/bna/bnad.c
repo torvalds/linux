@@ -586,10 +586,11 @@ bnad_msix_mbox_handler(int irq, void *data)
 	unsigned long flags;
 	struct bnad *bnad = (struct bnad *)data;
 
-	if (unlikely(test_bit(BNAD_RF_MBOX_IRQ_DISABLED, &bnad->run_flags)))
-		return IRQ_HANDLED;
-
 	spin_lock_irqsave(&bnad->bna_lock, flags);
+	if (unlikely(test_bit(BNAD_RF_MBOX_IRQ_DISABLED, &bnad->run_flags))) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+		return IRQ_HANDLED;
+	}
 
 	bna_intr_status_get(&bnad->bna, intr_status);
 
@@ -612,15 +613,18 @@ bnad_isr(int irq, void *data)
 	struct bnad_rx_ctrl *rx_ctrl;
 	struct bna_tcb *tcb = NULL;
 
-	if (unlikely(test_bit(BNAD_RF_MBOX_IRQ_DISABLED, &bnad->run_flags)))
+	spin_lock_irqsave(&bnad->bna_lock, flags);
+	if (unlikely(test_bit(BNAD_RF_MBOX_IRQ_DISABLED, &bnad->run_flags))) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 		return IRQ_NONE;
+	}
 
 	bna_intr_status_get(&bnad->bna, intr_status);
 
-	if (unlikely(!intr_status))
+	if (unlikely(!intr_status)) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 		return IRQ_NONE;
-
-	spin_lock_irqsave(&bnad->bna_lock, flags);
+	}
 
 	if (BNA_IS_MBOX_ERR_INTR(&bnad->bna, intr_status))
 		bna_mbox_handler(&bnad->bna, intr_status);
