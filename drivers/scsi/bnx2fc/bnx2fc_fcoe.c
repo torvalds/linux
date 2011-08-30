@@ -865,8 +865,11 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 		if (link_possible && !bnx2fc_link_ok(lport)) {
 			/* Reset max recv frame size to default */
 			fc_set_mfs(lport, BNX2FC_MFS);
-			printk(KERN_ERR "indicate_netevent: ctlr_link_up\n");
-			fcoe_ctlr_link_up(&interface->ctlr);
+			/*
+			 * ctlr link up will only be handled during
+			 * enable to avoid sending discovery solicitation
+			 * on a stale vlan
+			 */
 		} else if (fcoe_ctlr_link_down(&interface->ctlr)) {
 			mutex_lock(&lport->lp_mutex);
 			list_for_each_entry(vport, &lport->vports, list)
@@ -1784,7 +1787,7 @@ static void bnx2fc_start_disc(struct bnx2fc_interface *interface)
 	lport = interface->ctlr.lp;
 	BNX2FC_HBA_DBG(lport, "calling fc_fabric_login\n");
 
-	if (!bnx2fc_link_ok(lport)) {
+	if (!bnx2fc_link_ok(lport) && interface->enabled) {
 		BNX2FC_HBA_DBG(lport, "ctlr_link_up\n");
 		fcoe_ctlr_link_up(&interface->ctlr);
 		fc_host_port_type(lport->host) = FC_PORTTYPE_NPORT;
@@ -1866,6 +1869,7 @@ static int bnx2fc_disable(struct net_device *netdev)
 		rc = -ENODEV;
 		printk(KERN_ERR PFX "bnx2fc_disable: interface or lport not found\n");
 	} else {
+		interface->enabled = false;
 		fcoe_ctlr_link_down(&interface->ctlr);
 		fcoe_clean_pending_queue(interface->ctlr.lp);
 	}
@@ -1888,8 +1892,10 @@ static int bnx2fc_enable(struct net_device *netdev)
 	if (!interface || !interface->ctlr.lp) {
 		rc = -ENODEV;
 		printk(KERN_ERR PFX "bnx2fc_enable: interface or lport not found\n");
-	} else if (!bnx2fc_link_ok(interface->ctlr.lp))
+	} else if (!bnx2fc_link_ok(interface->ctlr.lp)) {
 		fcoe_ctlr_link_up(&interface->ctlr);
+		interface->enabled = true;
+	}
 
 	mutex_unlock(&bnx2fc_dev_lock);
 	rtnl_unlock();
@@ -2002,8 +2008,15 @@ static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode)
 	/* Make this master N_port */
 	interface->ctlr.lp = lport;
 
+	if (!bnx2fc_link_ok(lport)) {
+		fcoe_ctlr_link_up(&interface->ctlr);
+		fc_host_port_type(lport->host) = FC_PORTTYPE_NPORT;
+		set_bit(ADAPTER_STATE_READY, &interface->hba->adapter_state);
+	}
+
 	BNX2FC_HBA_DBG(lport, "create: START DISC\n");
 	bnx2fc_start_disc(interface);
+	interface->enabled = true;
 	/*
 	 * Release from kref_init in bnx2fc_interface_setup, on success
 	 * lport should be holding a reference taken in bnx2fc_if_create
