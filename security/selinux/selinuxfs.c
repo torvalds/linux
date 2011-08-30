@@ -278,7 +278,6 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	char *page = NULL;
 	ssize_t length;
 	int new_value;
-	extern int selinux_disable(void);
 
 	length = -ENOMEM;
 	if (count >= PAGE_SIZE)
