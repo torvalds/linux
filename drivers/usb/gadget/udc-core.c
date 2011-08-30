@@ -375,23 +375,8 @@ static ssize_t usb_udc_speed_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
-	struct usb_gadget	*gadget = udc->gadget;
-
-	switch (gadget->speed) {
-	case USB_SPEED_LOW:
-		return snprintf(buf, PAGE_SIZE, "low-speed\n");
-	case USB_SPEED_FULL:
-		return snprintf(buf, PAGE_SIZE, "full-speed\n");
-	case USB_SPEED_HIGH:
-		return snprintf(buf, PAGE_SIZE, "high-speed\n");
-	case USB_SPEED_WIRELESS:
-		return snprintf(buf, PAGE_SIZE, "wireless\n");
-	case USB_SPEED_SUPER:
-		return snprintf(buf, PAGE_SIZE, "super-speed\n");
-	case USB_SPEED_UNKNOWN:	/* FALLTHROUGH */
-	default:
-		return snprintf(buf, PAGE_SIZE, "UNKNOWN\n");
-	}
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			usb_speed_string(udc->gadget->speed));
 }
 static DEVICE_ATTR(speed, S_IRUSR, usb_udc_speed_show, NULL);
 

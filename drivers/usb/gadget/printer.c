@@ -962,23 +962,15 @@ printer_set_config(struct printer_dev *dev, unsigned number)
 		usb_gadget_vbus_draw(dev->gadget,
 				dev->gadget->is_otg ? 8 : 100);
 	} else {
-		char *speed;
 		unsigned power;
 
 		power = 2 * config_desc.bMaxPower;
 		usb_gadget_vbus_draw(dev->gadget, power);
 
-		switch (gadget->speed) {
-		case USB_SPEED_FULL:	speed = "full"; break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-		case USB_SPEED_HIGH:	speed = "high"; break;
-#endif
-		default:		speed = "?"; break;
-		}
-
 		dev->config = number;
-		INFO(dev, "%s speed config #%d: %d mA, %s\n",
-				speed, number, power, driver_desc);
+		INFO(dev, "%s config #%d: %d mA, %s\n",
+		     usb_speed_string(gadget->speed),
+		     number, power, driver_desc);
 	}
 	return result;
 }

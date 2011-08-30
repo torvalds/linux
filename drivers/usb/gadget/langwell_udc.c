@@ -1690,20 +1690,7 @@ static ssize_t show_langwell_udc(struct device *_dev,
 		"BmAttributes: %d\n\n",
 		LPM_PTS(tmp_reg),
 		(tmp_reg & LPM_STS) ? 1 : 0,
-		({
-			char	*s;
-			switch (LPM_PSPD(tmp_reg)) {
-			case LPM_SPEED_FULL:
-				s = "Full Speed"; break;
-			case LPM_SPEED_LOW:
-				s = "Low Speed"; break;
-			case LPM_SPEED_HIGH:
-				s = "High Speed"; break;
-			default:
-				s = "Unknown Speed"; break;
-			}
-			s;
-		}),
+		usb_speed_string(lpm_device_speed(tmp_reg)),
 		(tmp_reg & LPM_PFSC) ? "Force Full Speed" : "Not Force",
 		(tmp_reg & LPM_PHCD) ? "Disabled" : "Enabled",
 		LPM_BA(tmp_reg));
@@ -2647,12 +2634,24 @@ done:
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 }
 
+static inline enum usb_device_speed lpm_device_speed(u32 reg)
+{
+	switch (LPM_PSPD(reg)) {
+	case LPM_SPEED_HIGH:
+		return USB_SPEED_HIGH;
+	case LPM_SPEED_FULL:
+		return USB_SPEED_FULL;
+	case LPM_SPEED_LOW:
+		return USB_SPEED_LOW;
+	default:
+		return USB_SPEED_UNKNOWN;
+	}
+}
 
 /* port change detect interrupt handler */
 static void handle_port_change(struct langwell_udc *dev)
 {
 	u32	portsc1, devlc;
-	u32	speed;
 
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -2667,24 +2666,9 @@ static void handle_port_change(struct langwell_udc *dev)
 	/* bus reset is finished */
 	if (!(portsc1 & PORTS_PR)) {
 		/* get the speed */
-		speed = LPM_PSPD(devlc);
-		switch (speed) {
-		case LPM_SPEED_HIGH:
-			dev->gadget.speed = USB_SPEED_HIGH;
-			break;
-		case LPM_SPEED_FULL:
-			dev->gadget.speed = USB_SPEED_FULL;
-			break;
-		case LPM_SPEED_LOW:
-			dev->gadget.speed = USB_SPEED_LOW;
-			break;
-		default:
-			dev->gadget.speed = USB_SPEED_UNKNOWN;
-			break;
-		}
-		dev_vdbg(&dev->pdev->dev,
-				"speed = %d, dev->gadget.speed = %d\n",
-				speed, dev->gadget.speed);
+		dev->gadget.speed = lpm_device_speed(devlc);
+		dev_vdbg(&dev->pdev->dev, "dev->gadget.speed = %d\n",
+			dev->gadget.speed);
 	}
 
 	/* LPM L0 to L1 */

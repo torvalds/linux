@@ -2793,7 +2793,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	int			i, j, retval;
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
-	char 			*speed, *type;
+	const char		*speed;
 	int			devnum = udev->devnum;
 
 	/* root hub ports have a slightly longer reset period
@@ -2853,25 +2853,16 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	default:
 		goto fail;
 	}
- 
-	type = "";
-	switch (udev->speed) {
-	case USB_SPEED_LOW:	speed = "low";	break;
-	case USB_SPEED_FULL:	speed = "full";	break;
-	case USB_SPEED_HIGH:	speed = "high";	break;
-	case USB_SPEED_SUPER:
-				speed = "super";
-				break;
-	case USB_SPEED_WIRELESS:
-				speed = "variable";
-				type = "Wireless ";
-				break;
-	default: 		speed = "?";	break;
-	}
+
+	if (udev->speed == USB_SPEED_WIRELESS)
+		speed = "variable speed Wireless";
+	else
+		speed = usb_speed_string(udev->speed);
+
 	if (udev->speed != USB_SPEED_SUPER)
 		dev_info(&udev->dev,
-				"%s %s speed %sUSB device number %d using %s\n",
-				(udev->config) ? "reset" : "new", speed, type,
+				"%s %s USB device number %d using %s\n",
+				(udev->config) ? "reset" : "new", speed,
 				devnum, udev->bus->controller->driver->name);
 
 	/* Set up TT records, if needed  */

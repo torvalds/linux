@@ -12,6 +12,11 @@ menuconfig USB_SUPPORT
 
 if USB_SUPPORT
 
+config USB_COMMON
+	tristate
+	default y
+	depends on USB || USB_GADGET
+
 # Host-side USB depends on having a host controller
 # NOTE:  dummy_hcd is always an option, but it's ignored here ...
 # NOTE:  SL-811 option should be board-specific ...

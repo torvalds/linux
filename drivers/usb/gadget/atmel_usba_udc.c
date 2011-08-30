@@ -1718,13 +1718,12 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 			spin_lock(&udc->lock);
 		}
 
-		if (status & USBA_HIGH_SPEED) {
-			DBG(DBG_BUS, "High-speed bus reset detected\n");
+		if (status & USBA_HIGH_SPEED)
 			udc->gadget.speed = USB_SPEED_HIGH;
-		} else {
-			DBG(DBG_BUS, "Full-speed bus reset detected\n");
+		else
 			udc->gadget.speed = USB_SPEED_FULL;
-		}
+		DBG(DBG_BUS, "%s bus reset detected\n",
+		    usb_speed_string(udc->gadget.speed));
 
 		ep0 = &usba_ep[0];
 		ep0->desc = &usba_ep0_desc;

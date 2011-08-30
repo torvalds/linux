@@ -2257,9 +2257,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			else
 				dev->gadget.speed = USB_SPEED_FULL;
 			net2280_led_speed (dev, dev->gadget.speed);
-			DEBUG (dev, "%s speed\n",
-				(dev->gadget.speed == USB_SPEED_HIGH)
-					? "high" : "full");
+			DEBUG(dev, "%s\n", usb_speed_string(dev->gadget.speed));
 		}
 
 		ep = &dev->ep [0];

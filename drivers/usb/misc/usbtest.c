@@ -2300,25 +2300,8 @@ usbtest_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	usb_set_intfdata(intf, dev);
 	dev_info(&intf->dev, "%s\n", info->name);
-	dev_info(&intf->dev, "%s speed {control%s%s%s%s%s} tests%s\n",
-			({ char *tmp;
-			switch (udev->speed) {
-			case USB_SPEED_LOW:
-				tmp = "low";
-				break;
-			case USB_SPEED_FULL:
-				tmp = "full";
-				break;
-			case USB_SPEED_HIGH:
-				tmp = "high";
-				break;
-			case USB_SPEED_SUPER:
-				tmp = "super";
-				break;
-			default:
-				tmp = "unknown";
-				break;
-			}; tmp; }),
+	dev_info(&intf->dev, "%s {control%s%s%s%s%s} tests%s\n",
+			usb_speed_string(udev->speed),
 			info->ctrl_out ? " in/out" : "",
 			rtest, wtest,
 			irtest, iwtest,
