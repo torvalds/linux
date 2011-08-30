@@ -9623,13 +9623,6 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	/* port info */
 	bnx2x_get_port_hwinfo(bp);
 
-	if (!BP_NOMCP(bp)) {
-		bp->fw_seq =
-			(SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
-			 DRV_MSG_SEQ_NUMBER_MASK);
-		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
-	}
-
 	/* Get MAC addresses */
 	bnx2x_get_mac_hwinfo(bp);
 
@@ -9794,6 +9787,14 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	/* need to reset chip if undi was active */
 	if (!BP_NOMCP(bp))
 		bnx2x_undi_unload(bp);
+
+	/* init fw_seq after undi_unload! */
+	if (!BP_NOMCP(bp)) {
+		bp->fw_seq =
+			(SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
+			 DRV_MSG_SEQ_NUMBER_MASK);
+		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
+	}
 
 	if (CHIP_REV_IS_FPGA(bp))
 		dev_err(&bp->pdev->dev, "FPGA detected\n");
