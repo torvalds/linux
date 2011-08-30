@@ -532,6 +532,19 @@ out:
 	return ret;
 }
 
+/**
+ * __btrfs_write_out_cache - write out cached info to an inode
+ * @root - the root the inode belongs to
+ * @ctl - the free space cache we are going to write out
+ * @block_group - the block_group for this cache if it belongs to a block_group
+ * @trans - the trans handle
+ * @path - the path to use
+ * @offset - the offset for the key we'll insert
+ *
+ * This function writes out a free space cache struct to disk for quick recovery
+ * on mount.  This will return 0 if it was successfull in writing the cache out,
+ * and -1 if it was not.
+ */
 int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 			    struct btrfs_free_space_ctl *ctl,
 			    struct btrfs_block_group_cache *block_group,
@@ -555,7 +568,8 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	int index = 0, num_pages = 0;
 	int entries = 0;
 	int bitmaps = 0;
-	int ret = -1;
+	int ret;
+	int err = -1;
 	bool next_page = false;
 	bool out_of_space = false;
 
@@ -563,7 +577,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	node = rb_first(&ctl->free_space_offset);
 	if (!node)
-		return 0;
+		return -1;
 
 	if (!i_size_read(inode))
 		return -1;
@@ -767,7 +781,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
 				     i_size_read(inode) - 1, &cached_state,
 				     GFP_NOFS);
-		ret = 0;
 		goto out;
 	}
 
@@ -789,10 +802,8 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
 			     i_size_read(inode) - 1, &cached_state, GFP_NOFS);
 
-	if (ret) {
-		ret = 0;
+	if (ret)
 		goto out;
-	}
 
 	BTRFS_I(inode)->generation = trans->transid;
 
@@ -804,7 +815,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {
-		ret = -1;
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, bytes - 1,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_DO_ACCOUNTING, 0, 0, NULL, GFP_NOFS);
@@ -818,7 +828,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		if (found_key.objectid != BTRFS_FREE_SPACE_OBJECTID ||
 		    found_key.offset != offset) {
-			ret = -1;
 			clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, bytes - 1,
 					 EXTENT_DIRTY | EXTENT_DELALLOC |
 					 EXTENT_DO_ACCOUNTING, 0, 0, NULL,
@@ -835,16 +844,15 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
 
-	ret = 1;
-
+	err = 0;
 out:
 	kfree(pages);
-	if (ret != 1) {
+	if (err) {
 		invalidate_inode_pages2_range(inode->i_mapping, 0, index);
 		BTRFS_I(inode)->generation = 0;
 	}
 	btrfs_update_inode(trans, root, inode);
-	return ret;
+	return err;
 }
 
 int btrfs_write_out_cache(struct btrfs_root *root,
@@ -871,14 +879,16 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 
 	ret = __btrfs_write_out_cache(root, inode, ctl, block_group, trans,
 				      path, block_group->key.objectid);
-	if (ret < 0) {
+	if (ret) {
+		btrfs_delalloc_release_metadata(inode, inode->i_size);
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_ERROR;
 		spin_unlock(&block_group->lock);
 		ret = 0;
-
+#ifdef DEBUG
 		printk(KERN_ERR "btrfs: failed to write free space cace "
 		       "for block group %llu\n", block_group->key.objectid);
+#endif
 	}
 
 	iput(inode);
@@ -2662,9 +2672,13 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 		return 0;
 
 	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, trans, path, 0);
-	if (ret < 0)
+	if (ret) {
+		btrfs_delalloc_release_metadata(inode, inode->i_size);
+#ifdef DEBUG
 		printk(KERN_ERR "btrfs: failed to write free ino cache "
 		       "for root %llu\n", root->root_key.objectid);
+#endif
+	}
 
 	iput(inode);
 	return ret;

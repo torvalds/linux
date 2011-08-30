@@ -1792,11 +1792,11 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	}
 	ret = 0;
 out:
+	btrfs_delalloc_release_metadata(inode, ordered_extent->len);
 	if (nolock) {
 		if (trans)
 			btrfs_end_transaction_nolock(trans, root);
 	} else {
-		btrfs_delalloc_release_metadata(inode, ordered_extent->len);
 		if (trans)
 			btrfs_end_transaction(trans, root);
 	}

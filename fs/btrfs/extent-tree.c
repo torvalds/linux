@@ -2755,16 +2755,20 @@ again:
 	num_pages *= 16;
 	num_pages *= PAGE_CACHE_SIZE;
 
-	ret = btrfs_check_data_free_space(inode, num_pages);
+	ret = btrfs_delalloc_reserve_space(inode, num_pages);
 	if (ret)
 		goto out_put;
 
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
 					      num_pages, num_pages,
 					      &alloc_hint);
-	if (!ret)
+	if (!ret) {
 		dcs = BTRFS_DC_SETUP;
-	btrfs_free_reserved_data_space(inode, num_pages);
+		btrfs_free_reserved_data_space(inode, num_pages);
+	} else {
+		btrfs_delalloc_release_space(inode, num_pages);
+	}
+
 out_put:
 	iput(inode);
 out_free:
@@ -4002,9 +4006,13 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	struct btrfs_block_rsv *block_rsv = &root->fs_info->delalloc_block_rsv;
 	u64 to_reserve = 0;
 	unsigned nr_extents = 0;
+	int flush = 1;
 	int ret;
 
-	if (btrfs_transaction_in_commit(root->fs_info))
+	if (btrfs_is_free_space_inode(root, inode))
+		flush = 0;
+
+	if (flush && btrfs_transaction_in_commit(root->fs_info))
 		schedule_timeout(1);
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
@@ -4023,7 +4031,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
 	spin_unlock(&BTRFS_I(inode)->lock);
 
-	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
+	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, flush);
 	if (ret) {
 		u64 to_free = 0;
 		unsigned dropped;
