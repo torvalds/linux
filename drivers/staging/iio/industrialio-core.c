@@ -292,7 +292,7 @@ void iio_device_free_chrdev_minor(int val)
 	iio_free_ida_val(&iio_chrdev_ida, val);
 }
 
-int iio_event_getfd(struct iio_dev *indio_dev)
+static int iio_event_getfd(struct iio_dev *indio_dev)
 {
 	if (indio_dev->event_interfaces == NULL)
 		return -ENODEV;
@@ -1079,6 +1079,8 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
+	cdev_del(&dev_info->chrdev);
+	iio_device_free_chrdev_minor(MINOR(device->devt));
 	iio_put();
 	kfree(dev_info);
 }
@@ -1118,10 +1120,62 @@ EXPORT_SYMBOL(iio_allocate_device);
 
 void iio_free_device(struct iio_dev *dev)
 {
-	if (dev)
-		iio_put_device(dev);
+	if (dev) {
+		iio_put();
+		kfree(dev);
+	}
 }
 EXPORT_SYMBOL(iio_free_device);
+
+/**
+ * iio_chrdev_open() - chrdev file open for ring buffer access and ioctls
+ **/
+static int iio_chrdev_open(struct inode *inode, struct file *filp)
+{
+	struct iio_dev *dev_info = container_of(inode->i_cdev,
+						struct iio_dev, chrdev);
+	filp->private_data = dev_info;
+	iio_chrdev_ring_open(dev_info);
+	return 0;
+}
+
+/**
+ * iio_chrdev_release() - chrdev file close ring buffer access and ioctls
+ **/
+static int iio_chrdev_release(struct inode *inode, struct file *filp)
+{
+	iio_chrdev_ring_release(container_of(inode->i_cdev,
+					     struct iio_dev, chrdev));
+	return 0;
+}
+
+/* Somewhat of a cross file organization violation - ioctls here are actually
+ * event related */
+static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct iio_dev *indio_dev = filp->private_data;
+	int __user *ip = (int __user *)arg;
+	int fd;
+
+	if (cmd == IIO_GET_EVENT_FD_IOCTL) {
+		fd = iio_event_getfd(indio_dev);
+		if (copy_to_user(ip, &fd, sizeof(fd)))
+			return -EFAULT;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static const struct file_operations iio_ring_fileops = {
+	.read = iio_ring_read_first_n_outer_addr,
+	.release = iio_chrdev_release,
+	.open = iio_chrdev_open,
+	.poll = iio_ring_poll_addr,
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.unlocked_ioctl = iio_ioctl,
+	.compat_ioctl = iio_ioctl,
+};
 
 int iio_device_register(struct iio_dev *dev_info)
 {
@@ -1133,7 +1187,13 @@ int iio_device_register(struct iio_dev *dev_info)
 		dev_err(&dev_info->dev, "Failed to get id\n");
 		goto error_ret;
 	}
-	dev_set_name(&dev_info->dev, "device%d", dev_info->id);
+	dev_set_name(&dev_info->dev, "iio:device%d", dev_info->id);
+	ret = iio_device_get_chrdev_minor();
+	if (ret < 0)
+		goto error_free_ida;
+
+	/* configure elements for the chrdev */
+	dev_info->dev.devt = MKDEV(MAJOR(iio_devt), ret);
 
 	ret = device_add(&dev_info->dev);
 	if (ret)
@@ -1153,6 +1213,9 @@ int iio_device_register(struct iio_dev *dev_info)
 	if (dev_info->modes & INDIO_RING_TRIGGERED)
 		iio_device_register_trigger_consumer(dev_info);
 
+	cdev_init(&dev_info->chrdev, &iio_ring_fileops);
+	dev_info->chrdev.owner = dev_info->info->driver_module;
+	ret = cdev_add(&dev_info->chrdev, dev_info->dev.devt, 1);
 	return 0;
 
 error_free_sysfs:

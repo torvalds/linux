@@ -223,7 +223,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev, 0,
 					  &ad7298_channels[1], /* skip temp0 */
 					  ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
@@ -253,7 +253,7 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7298_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 	ad7298_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg)) {

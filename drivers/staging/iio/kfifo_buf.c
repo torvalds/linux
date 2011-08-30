@@ -87,24 +87,7 @@ static struct attribute *iio_kfifo_attributes[] = {
 
 static struct attribute_group iio_kfifo_attribute_group = {
 	.attrs = iio_kfifo_attributes,
-};
-
-static const struct attribute_group *iio_kfifo_attribute_groups[] = {
-	&iio_kfifo_attribute_group,
-	NULL
-};
-
-static void iio_kfifo_release(struct device *dev)
-{
-	struct iio_ring_buffer *r = to_iio_ring_buffer(dev);
-	struct iio_kfifo *kf = iio_to_kfifo(r);
-	kfifo_free(&kf->kf);
-	kfree(kf);
-}
-
-static struct device_type iio_kfifo_type = {
-	.release = iio_kfifo_release,
-	.groups = iio_kfifo_attribute_groups,
+	.name = "buffer",
 };
 
 struct iio_ring_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
@@ -116,10 +99,8 @@ struct iio_ring_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 		return NULL;
 	kf->update_needed = true;
 	iio_ring_buffer_init(&kf->ring, indio_dev);
+	kf->ring.attrs = &iio_kfifo_attribute_group;
 	__iio_init_kfifo(kf);
-	kf->ring.dev.type = &iio_kfifo_type;
-	kf->ring.dev.parent = &indio_dev->dev;
-	dev_set_drvdata(&kf->ring.dev, (void *)&(kf->ring));
 
 	return &kf->ring;
 }
@@ -159,8 +140,7 @@ static int iio_set_length_kfifo(struct iio_ring_buffer *r, int length)
 
 void iio_kfifo_free(struct iio_ring_buffer *r)
 {
-	if (r)
-		iio_put_ring_buffer(r);
+	kfree(iio_to_kfifo(r));
 }
 EXPORT_SYMBOL(iio_kfifo_free);
 

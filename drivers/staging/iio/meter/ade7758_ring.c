@@ -200,7 +200,7 @@ error_iio_sw_rb_free:
 	return ret;
 }
 
-void ade7758_uninitialize_ring(struct iio_ring_buffer *ring)
+void ade7758_uninitialize_ring(struct iio_dev *indio_dev)
 {
-	iio_ring_buffer_unregister(ring);
+	iio_ring_buffer_unregister(indio_dev);
 }

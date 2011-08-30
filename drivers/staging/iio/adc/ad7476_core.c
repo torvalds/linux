@@ -186,7 +186,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev, 0,
 					  st->chip_info->channel,
 					  ARRAY_SIZE(st->chip_info->channel));
 	if (ret)
@@ -215,7 +215,7 @@ static int ad7476_remove(struct spi_device *spi)
 	/* copy needed as st will have been freed */
 	struct regulator *reg = st->reg;
 
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 	ad7476_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(reg)) {

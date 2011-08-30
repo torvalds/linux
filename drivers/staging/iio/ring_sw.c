@@ -392,13 +392,6 @@ static int iio_mark_update_needed_sw_rb(struct iio_ring_buffer *r)
 	return 0;
 }
 
-static void iio_sw_rb_release(struct device *dev)
-{
-	struct iio_ring_buffer *r = to_iio_ring_buffer(dev);
-	iio_ring_access_release(&r->dev);
-	kfree(iio_to_sw_ring(r));
-}
-
 static IIO_RING_ENABLE_ATTR;
 static IIO_RING_BYTES_PER_DATUM_ATTR;
 static IIO_RING_LENGTH_ATTR;
@@ -413,16 +406,7 @@ static struct attribute *iio_ring_attributes[] = {
 
 static struct attribute_group iio_ring_attribute_group = {
 	.attrs = iio_ring_attributes,
-};
-
-static const struct attribute_group *iio_ring_attribute_groups[] = {
-	&iio_ring_attribute_group,
-	NULL
-};
-
-static struct device_type iio_sw_ring_type = {
-	.release = iio_sw_rb_release,
-	.groups = iio_ring_attribute_groups,
+	.name = "buffer",
 };
 
 struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
@@ -437,9 +421,7 @@ struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 	buf = &ring->buf;
 	iio_ring_buffer_init(buf, indio_dev);
 	__iio_init_sw_ring_buffer(ring);
-	buf->dev.type = &iio_sw_ring_type;
-	buf->dev.parent = &indio_dev->dev;
-	dev_set_drvdata(&buf->dev, (void *)buf);
+	buf->attrs = &iio_ring_attribute_group;
 
 	return buf;
 }
@@ -447,8 +429,7 @@ EXPORT_SYMBOL(iio_sw_rb_allocate);
 
 void iio_sw_rb_free(struct iio_ring_buffer *r)
 {
-	if (r)
-		iio_put_ring_buffer(r);
+	kfree(iio_to_sw_ring(r));
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
 

@@ -780,7 +780,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev, 0,
 					  &ade7758_channels[0],
 					  ARRAY_SIZE(ade7758_channels));
 	if (ret) {
@@ -805,7 +805,7 @@ error_remove_trigger:
 	if (indio_dev->modes & INDIO_RING_TRIGGERED)
 		ade7758_remove_trigger(indio_dev);
 error_uninitialize_ring:
-	ade7758_uninitialize_ring(indio_dev->ring);
+	ade7758_uninitialize_ring(indio_dev);
 error_unreg_ring_funcs:
 	ade7758_unconfigure_ring(indio_dev);
 error_free_tx:
@@ -832,7 +832,7 @@ static int ade7758_remove(struct spi_device *spi)
 		goto err_ret;
 
 	ade7758_remove_trigger(indio_dev);
-	ade7758_uninitialize_ring(indio_dev->ring);
+	ade7758_uninitialize_ring(indio_dev);
 	ade7758_unconfigure_ring(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);

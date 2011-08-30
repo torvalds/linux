@@ -506,7 +506,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 		goto error_free_irq;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev, 0,
 					  indio_dev->channels,
 					  indio_dev->num_channels);
 	if (ret)
@@ -541,7 +541,7 @@ int ad7606_remove(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 	ad7606_ring_cleanup(indio_dev);
 
 	free_irq(st->irq, indio_dev);

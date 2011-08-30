@@ -552,7 +552,7 @@ static int __devinit adis16240_probe(struct spi_device *spi)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev, 0,
 					  adis16240_channels,
 					  ARRAY_SIZE(adis16240_channels));
 	if (ret) {
@@ -575,7 +575,7 @@ static int __devinit adis16240_probe(struct spi_device *spi)
 error_remove_trigger:
 	adis16240_remove_trigger(indio_dev);
 error_uninitialize_ring:
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 error_unreg_ring_funcs:
 	adis16240_unconfigure_ring(indio_dev);
 error_free_dev:
@@ -595,7 +595,7 @@ static int adis16240_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	adis16240_remove_trigger(indio_dev);
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 	iio_device_unregister(indio_dev);
 	adis16240_unconfigure_ring(indio_dev);
 

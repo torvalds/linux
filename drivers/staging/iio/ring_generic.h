@@ -94,7 +94,6 @@ struct iio_ring_setup_ops {
  * @flags:		[INTERN] file ops related flags including busy flag.
  **/
 struct iio_ring_buffer {
-	struct device				dev;
 	struct iio_dev				*indio_dev;
 	struct module				*owner;
 	int					length;
@@ -111,7 +110,7 @@ struct iio_ring_buffer {
 	wait_queue_head_t			pollq;
 	bool					stufftoread;
 	unsigned long				flags;
-	struct cdev				chrdev;
+	const struct attribute_group *attrs;
 };
 
 /**
@@ -200,24 +199,15 @@ static inline int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit)
 	return 0;
 };
 
-/**
- * iio_put_ring_buffer() - notify done with buffer
- * @ring: the buffer we are done with.
- **/
-static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
-{
-	put_device(&ring->dev);
-};
-
 #define to_iio_ring_buffer(d)				\
 	container_of(d, struct iio_ring_buffer, dev)
 
 /**
  * iio_ring_buffer_register_ex() - register the buffer with IIO core
- * @ring: the buffer to be registered
+ * @indio_dev: device with the buffer to be registered
  * @id: the id of the buffer (typically 0)
  **/
-int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
+int iio_ring_buffer_register_ex(struct iio_dev *indio_dev, int id,
 				const struct iio_chan_spec *channels,
 				int num_channels);
 
@@ -225,9 +215,9 @@ void iio_ring_access_release(struct device *dev);
 
 /**
  * iio_ring_buffer_unregister() - unregister the buffer from IIO core
- * @ring: the buffer to be unregistered
+ * @indio_dev: the device with the buffer to be unregistered
  **/
-void iio_ring_buffer_unregister(struct iio_ring_buffer *ring);
+void iio_ring_buffer_unregister(struct iio_dev *indio_dev);
 
 /**
  * iio_read_ring_length() - attr func to get number of datums in the buffer
@@ -274,7 +264,7 @@ int iio_sw_ring_preenable(struct iio_dev *indio_dev);
 
 #else /* CONFIG_IIO_RING_BUFFER */
 
-static inline int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring,
+static inline int iio_ring_buffer_register_ex(struct iio_dev *indio_dev,
 					      int id,
 					      struct iio_chan_spec *channels,
 					      int num_channels)
@@ -282,7 +272,7 @@ static inline int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring,
 	return 0;
 }
 
-static inline void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
+static inline void iio_ring_buffer_unregister(struct iio_dev *indio_dev)
 {};
 
 #endif /* CONFIG_IIO_RING_BUFFER */

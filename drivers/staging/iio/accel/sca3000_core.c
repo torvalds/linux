@@ -1157,7 +1157,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	if (ret < 0)
 		goto error_free_dev;
 	regdone = 1;
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev, 0,
 					  sca3000_channels,
 					  ARRAY_SIZE(sca3000_channels));
 	if (ret < 0)
@@ -1182,7 +1182,7 @@ error_free_irq:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(spi->irq, indio_dev);
 error_unregister_ring:
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 error_unregister_dev:
 error_free_dev:
 	if (regdone)
@@ -1223,7 +1223,7 @@ static int sca3000_remove(struct spi_device *spi)
 		return ret;
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(spi->irq, indio_dev);
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev);
 	sca3000_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 

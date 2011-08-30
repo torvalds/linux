@@ -10,6 +10,9 @@
  * drivers.
  */
 
+#ifndef _IIO_CORE_H_
+#define _IIO_CORE_H_
+
 /**
  * iio_device_get_chrdev_minor() - get an unused minor number
  **/
@@ -46,3 +49,32 @@ int __iio_add_chan_devattr(const char *postfix,
 
 /* Event interface flags */
 #define IIO_BUSY_BIT_POS 1
+
+#ifdef CONFIG_IIO_RING_BUFFER
+struct poll_table_struct;
+
+void iio_chrdev_ring_open(struct iio_dev *indio_dev);
+void iio_chrdev_ring_release(struct iio_dev *indio_dev);
+
+unsigned int iio_ring_poll(struct file *filp,
+			   struct poll_table_struct *wait);
+ssize_t iio_ring_read_first_n_outer(struct file *filp, char __user *buf,
+				    size_t n, loff_t *f_ps);
+
+
+#define iio_ring_poll_addr (&iio_ring_poll)
+#define iio_ring_read_first_n_outer_addr (&iio_ring_read_first_n_outer)
+
+#else
+
+static inline void iio_chrdev_ring_open(struct iio_dev *indio_dev)
+{}
+static inline void iio_chrdev_ring_release(struct iio_dev *indio_dev)
+{}
+
+#define iio_ring_poll_addr NULL
+#define iio_ring_read_first_n_outer_addr NULL
+
+#endif
+
+#endif

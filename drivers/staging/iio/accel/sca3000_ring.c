@@ -144,11 +144,6 @@ static int sca3000_ring_get_bytes_per_datum(struct iio_ring_buffer *r)
 {
 	return 6;
 }
-static void sca3000_ring_release(struct device *dev)
-{
-	struct iio_ring_buffer *r = to_iio_ring_buffer(dev);
-	kfree(iio_to_hw_ring_buf(r));
-}
 
 static IIO_RING_ENABLE_ATTR;
 static IIO_RING_BYTES_PER_DATUM_ATTR;
@@ -258,16 +253,7 @@ static struct attribute *sca3000_ring_attributes[] = {
 
 static struct attribute_group sca3000_ring_attr = {
 	.attrs = sca3000_ring_attributes,
-};
-
-static const struct attribute_group *sca3000_ring_attr_groups[] = {
-	&sca3000_ring_attr,
-	NULL
-};
-
-static struct device_type sca3000_ring_type = {
-	.release = sca3000_ring_release,
-	.groups = sca3000_ring_attr_groups,
+	.name = "buffer",
 };
 
 static struct iio_ring_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
@@ -282,18 +268,15 @@ static struct iio_ring_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	ring->private = indio_dev;
 	buf = &ring->buf;
 	buf->stufftoread = 0;
+	buf->attrs = &sca3000_ring_attr;
 	iio_ring_buffer_init(buf, indio_dev);
-	buf->dev.type = &sca3000_ring_type;
-	buf->dev.parent = &indio_dev->dev;
-	dev_set_drvdata(&buf->dev, (void *)buf);
 
 	return buf;
 }
 
 static inline void sca3000_rb_free(struct iio_ring_buffer *r)
 {
-	if (r)
-		iio_put_ring_buffer(r);
+	kfree(iio_to_hw_ring_buf(r));
 }
 
 static const struct iio_ring_access_funcs sca3000_ring_access_funcs = {
