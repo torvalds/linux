@@ -2097,9 +2097,6 @@ static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 	return (atsecure || cap_bprm_secureexec(bprm));
 }
 
-extern struct vfsmount *selinuxfs_mount;
-extern struct dentry *selinux_null;
-
 /* Derived from fs/exec.c:flush_old_files. */
 static inline void flush_unauthorized_files(const struct cred *cred,
 					    struct files_struct *files)
@@ -5803,8 +5800,6 @@ static int selinux_disabled;
 
 int selinux_disable(void)
 {
-	extern void exit_sel_fs(void);
-
 	if (ss_initialized) {
 		/* Not permitted after initial policy load. */
 		return -EINVAL;

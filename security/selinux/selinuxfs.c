@@ -477,7 +477,7 @@ static struct vm_operations_struct sel_mmap_policy_ops = {
 	.page_mkwrite = sel_mmap_policy_fault,
 };
 
-int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
+static int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & VM_SHARED) {
 		/* do not allow mprotect to make mapping writable */
