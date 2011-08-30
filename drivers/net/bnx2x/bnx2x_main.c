@@ -4828,6 +4828,37 @@ void bnx2x_setup_ndsb_state_machine(struct hc_status_block_sm *hc_sm,
 	hc_sm->time_to_expire = 0xFFFFFFFF;
 }
 
+
+/* allocates state machine ids. */
+static inline
+void bnx2x_map_sb_state_machines(struct hc_index_data *index_data)
+{
+	/* zero out state machine indices */
+	/* rx indices */
+	index_data[HC_INDEX_ETH_RX_CQ_CONS].flags &= ~HC_INDEX_DATA_SM_ID;
+
+	/* tx indices */
+	index_data[HC_INDEX_OOO_TX_CQ_CONS].flags &= ~HC_INDEX_DATA_SM_ID;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS0].flags &= ~HC_INDEX_DATA_SM_ID;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS1].flags &= ~HC_INDEX_DATA_SM_ID;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS2].flags &= ~HC_INDEX_DATA_SM_ID;
+
+	/* map indices */
+	/* rx indices */
+	index_data[HC_INDEX_ETH_RX_CQ_CONS].flags |=
+		SM_RX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+
+	/* tx indices */
+	index_data[HC_INDEX_OOO_TX_CQ_CONS].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS0].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS1].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS2].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+}
+
 static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 			  u8 vf_valid, int fw_sb_id, int igu_sb_id)
 {
@@ -4859,6 +4890,7 @@ static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 		hc_sm_p = sb_data_e2.common.state_machine;
 		sb_data_p = (u32 *)&sb_data_e2;
 		data_size = sizeof(struct hc_status_block_data_e2)/sizeof(u32);
+		bnx2x_map_sb_state_machines(sb_data_e2.index_data);
 	} else {
 		memset(&sb_data_e1x, 0,
 		       sizeof(struct hc_status_block_data_e1x));
@@ -4873,6 +4905,7 @@ static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 		hc_sm_p = sb_data_e1x.common.state_machine;
 		sb_data_p = (u32 *)&sb_data_e1x;
 		data_size = sizeof(struct hc_status_block_data_e1x)/sizeof(u32);
+		bnx2x_map_sb_state_machines(sb_data_e1x.index_data);
 	}
 
 	bnx2x_setup_ndsb_state_machine(&hc_sm_p[SM_RX_ID],

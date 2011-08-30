@@ -751,24 +751,17 @@ struct bnx2x_fastpath {
 #define FP_CSB_FUNC_OFF	\
 			offsetof(struct cstorm_status_block_c, func)
 
-#define HC_INDEX_TOE_RX_CQ_CONS		0 /* Formerly Ustorm TOE CQ index */
-					  /* (HC_INDEX_U_TOE_RX_CQ_CONS)  */
-#define HC_INDEX_ETH_RX_CQ_CONS		1 /* Formerly Ustorm ETH CQ index */
-					  /* (HC_INDEX_U_ETH_RX_CQ_CONS)  */
-#define HC_INDEX_ETH_RX_BD_CONS		2 /* Formerly Ustorm ETH BD index */
-					  /* (HC_INDEX_U_ETH_RX_BD_CONS)  */
+#define HC_INDEX_ETH_RX_CQ_CONS		1
 
-#define HC_INDEX_TOE_TX_CQ_CONS		4 /* Formerly Cstorm TOE CQ index   */
-					  /* (HC_INDEX_C_TOE_TX_CQ_CONS)    */
-#define HC_INDEX_ETH_TX_CQ_CONS_COS0	5 /* Formerly Cstorm ETH CQ index   */
-					  /* (HC_INDEX_C_ETH_TX_CQ_CONS)    */
-#define HC_INDEX_ETH_TX_CQ_CONS_COS1	6 /* Formerly Cstorm ETH CQ index   */
-					  /* (HC_INDEX_C_ETH_TX_CQ_CONS)    */
-#define HC_INDEX_ETH_TX_CQ_CONS_COS2	7 /* Formerly Cstorm ETH CQ index   */
-					  /* (HC_INDEX_C_ETH_TX_CQ_CONS)    */
+#define HC_INDEX_OOO_TX_CQ_CONS		4
+
+#define HC_INDEX_ETH_TX_CQ_CONS_COS0	5
+
+#define HC_INDEX_ETH_TX_CQ_CONS_COS1	6
+
+#define HC_INDEX_ETH_TX_CQ_CONS_COS2	7
 
 #define HC_INDEX_ETH_FIRST_TX_CQ_CONS	HC_INDEX_ETH_TX_CQ_CONS_COS0
-
 
 #define BNX2X_RX_SB_INDEX \
 	(&fp->sb_index_values[HC_INDEX_ETH_RX_CQ_CONS])
