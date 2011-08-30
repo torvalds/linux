@@ -137,7 +137,6 @@ void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	}
 }
 
-
 /**
  * et131x_pci_init	 - initial PCI setup
  * @adapter: pointer to our private adapter structure
@@ -146,7 +145,6 @@ void et131x_hwaddr_init(struct et131x_adapter *adapter)
  * Perform the initial setup of PCI registers and if possible initialise
  * the MAC address. At this point the I/O registers have yet to be mapped
  */
-
 static int et131x_pci_init(struct et131x_adapter *adapter,
 						struct pci_dev *pdev)
 {
@@ -347,28 +345,8 @@ void et131x_adapter_setup(struct et131x_adapter *adapter)
 
 	et1310_config_macstat_regs(adapter);
 
-	/* Prepare the TRUEPHY library. */
-	et1310_phy_init(adapter);
-
-	/* Reset the phy now so changes take place */
-	et1310_phy_reset(adapter);
-
-	/* Power down PHY */
-	et1310_phy_power_down(adapter, 1);
-
-	/*
-	 * We need to turn off 1000 base half dulplex, the mac does not
-	 * support it. For the 10/100 part, turn off all gig advertisement
-	 */
-	if (adapter->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
-		et1310_phy_advertise_1000BaseT(adapter, TRUEPHY_ADV_DUPLEX_FULL);
-	else
-		et1310_phy_advertise_1000BaseT(adapter, TRUEPHY_ADV_DUPLEX_NONE);
-
-	/* Power up PHY */
 	et1310_phy_power_down(adapter, 0);
-
-	et131x_setphy_normal(adapter);
+	et131x_xcvr_init(adapter);
 }
 
 /**
@@ -547,8 +525,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 		struct pci_dev *pdev)
 {
 	static const u8 default_mac[] = { 0x00, 0x05, 0x3d, 0x00, 0x02, 0x00 };
-	static const u8 duplex[] = { 0, 1, 2, 1, 2, 2 };
-	static const u16 speed[] = { 0, 10, 10, 100, 100, 1000 };
 
 	struct et131x_adapter *adapter;
 
@@ -571,14 +547,10 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	spin_lock_init(&adapter->fbr_lock);
 	spin_lock_init(&adapter->phy_lock);
 
-	adapter->speed_duplex = 0; /* Auto Speed Auto Duplex */
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
 	/* Set the MAC address to a default */
 	memcpy(adapter->addr, default_mac, ETH_ALEN);
-
-	adapter->ai_force_speed = speed[adapter->speed_duplex];
-	adapter->ai_force_duplex = duplex[adapter->speed_duplex];	/* Auto FDX */
 
 	return adapter;
 }

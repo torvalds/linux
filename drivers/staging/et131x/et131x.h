@@ -89,17 +89,12 @@ void et1310_enable_phy_coma(struct et131x_adapter *adapter);
 void et1310_disable_phy_coma(struct et131x_adapter *adapter);
 
 /* et1310_phy.c */
-void et1310_phy_init(struct et131x_adapter *adapter);
-void et1310_phy_reset(struct et131x_adapter *adapter);
 void et1310_phy_power_down(struct et131x_adapter *adapter, bool down);
-void et1310_phy_advertise_1000BaseT(struct et131x_adapter *adapter,
-				    u16 duplex);
 void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
 			       u16 action,
 			       u16 regnum, u16 bitnum, u8 *value);
 
-int et131x_xcvr_find(struct et131x_adapter *adapter);
-void et131x_setphy_normal(struct et131x_adapter *adapter);
+void et131x_xcvr_init(struct et131x_adapter *adapter);
 
 /* static inline function does not work because et131x_adapter is not always
  * defined

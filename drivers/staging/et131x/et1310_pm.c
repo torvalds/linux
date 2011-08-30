@@ -116,8 +116,12 @@ void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
 	 */
-	adapter->pdown_speed = adapter->ai_force_speed;
-	adapter->pdown_duplex = adapter->ai_force_duplex;
+	/*
+	 * TODO - when PM is re-enabled, check if we need to
+	 * perform a similar task as this -
+	 * adapter->pdown_speed = adapter->ai_force_speed;
+	 * adapter->pdown_duplex = adapter->ai_force_duplex;
+	 */
 
 	/* Stop sending packets. */
 	spin_lock_irqsave(&adapter->send_hw_lock, flags);
@@ -153,8 +157,11 @@ void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 	/* Restore the GbE PHY speed and duplex modes;
 	 * Reset JAGCore; re-configure and initialize JAGCore and gigE PHY
 	 */
-	adapter->ai_force_speed = adapter->pdown_speed;
-	adapter->ai_force_duplex = adapter->pdown_duplex;
+	/* TODO - when PM is re-enabled, check if we need to
+	 * perform a similar task as this -
+	 * adapter->ai_force_speed = adapter->pdown_speed;
+	 * adapter->ai_force_duplex = adapter->pdown_duplex;
+	 */
 
 	/* Re-initialize the send structures */
 	et131x_init_send(adapter);
