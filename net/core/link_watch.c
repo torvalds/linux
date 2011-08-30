@@ -78,8 +78,13 @@ static void rfc2863_policy(struct net_device *dev)
 
 static bool linkwatch_urgent_event(struct net_device *dev)
 {
-	return netif_running(dev) && netif_carrier_ok(dev) &&
-		qdisc_tx_changing(dev);
+	if (!netif_running(dev))
+		return false;
+
+	if (dev->ifindex != dev->iflink)
+		return true;
+
+	return netif_carrier_ok(dev) &&	qdisc_tx_changing(dev);
 }
 
 
