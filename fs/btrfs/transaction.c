@@ -275,7 +275,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	 */
 	if (num_items > 0 && root != root->fs_info->chunk_root) {
 		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
-		ret = btrfs_block_rsv_add(NULL, root,
+		ret = btrfs_block_rsv_add(root,
 					  &root->fs_info->trans_block_rsv,
 					  num_bytes);
 		if (ret)
@@ -418,8 +418,8 @@ static int should_end_transaction(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
 	int ret;
-	ret = btrfs_block_rsv_check(trans, root,
-				    &root->fs_info->global_block_rsv, 0, 5, 0);
+	ret = btrfs_block_rsv_check(root, &root->fs_info->global_block_rsv, 0,
+				    5, 0);
 	return ret ? 1 : 0;
 }
 
@@ -914,7 +914,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
 
 	if (to_reserve > 0) {
-		ret = btrfs_block_rsv_add(trans, root, &pending->block_rsv,
+		ret = btrfs_block_rsv_add(root, &pending->block_rsv,
 					  to_reserve);
 		if (ret) {
 			pending->error = ret;
