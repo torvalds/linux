@@ -3091,15 +3091,20 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	struct bnx2x_fastpath *fp = &bp->fp[index];
 	int ring_size = 0;
 	u8 cos;
+	int rx_ring_size = 0;
 
 	/* if rx_ring_size specified - use it */
-	int rx_ring_size = bp->rx_ring_size ? bp->rx_ring_size :
-			   MAX_RX_AVAIL/BNX2X_NUM_RX_QUEUES(bp);
+	if (!bp->rx_ring_size) {
 
-	/* allocate at least number of buffers required by FW */
-	rx_ring_size = max_t(int, bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
-						    MIN_RX_SIZE_TPA,
-				  rx_ring_size);
+		rx_ring_size = MAX_RX_AVAIL/BNX2X_NUM_RX_QUEUES(bp);
+
+		/* allocate at least number of buffers required by FW */
+		rx_ring_size = max_t(int, bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
+				     MIN_RX_SIZE_TPA, rx_ring_size);
+
+		bp->rx_ring_size = rx_ring_size;
+	} else
+		rx_ring_size = bp->rx_ring_size;
 
 	/* Common */
 	sb = &bnx2x_fp(bp, index, status_blk);
