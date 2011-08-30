@@ -30,6 +30,10 @@
  * SW imposed limits
  *
  */
+#define BFI_ENET_DEF_TXQ		1
+#define BFI_ENET_DEF_RXP		1
+#define BFI_ENET_DEF_UCAM		1
+#define BFI_ENET_DEF_RITSZ		1
 
 #define BFI_ENET_MAX_MCAM		256
 

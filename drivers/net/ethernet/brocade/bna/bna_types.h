@@ -323,6 +323,7 @@ struct bna_qpt {
 };
 
 struct bna_attr {
+	bool			fw_query_complete;
 	int			num_txq;
 	int			num_rxp;
 	int			num_ucmac;

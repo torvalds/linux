@@ -167,13 +167,14 @@ bna_bfi_attr_get_rsp(struct bna_ioceth *ioceth,
 	 * Store only if not set earlier, since BNAD can override the HW
 	 * attributes
 	 */
-	if (!ioceth->attr.num_txq)
+	if (!ioceth->attr.fw_query_complete) {
 		ioceth->attr.num_txq = ntohl(rsp->max_cfg);
-	if (!ioceth->attr.num_rxp)
 		ioceth->attr.num_rxp = ntohl(rsp->max_cfg);
-	ioceth->attr.num_ucmac = ntohl(rsp->max_ucmac);
-	ioceth->attr.num_mcmac = BFI_ENET_MAX_MCAM;
-	ioceth->attr.max_rit_size = ntohl(rsp->rit_size);
+		ioceth->attr.num_ucmac = ntohl(rsp->max_ucmac);
+		ioceth->attr.num_mcmac = BFI_ENET_MAX_MCAM;
+		ioceth->attr.max_rit_size = ntohl(rsp->rit_size);
+		ioceth->attr.fw_query_complete = true;
+	}
 
 	bfa_fsm_send_event(ioceth, IOCETH_E_ENET_ATTR_RESP);
 }
@@ -1693,6 +1694,16 @@ static struct bfa_ioc_cbfn bna_ioceth_cbfn = {
 	bna_cb_ioceth_reset
 };
 
+static void bna_attr_init(struct bna_ioceth *ioceth)
+{
+	ioceth->attr.num_txq = BFI_ENET_DEF_TXQ;
+	ioceth->attr.num_rxp = BFI_ENET_DEF_RXP;
+	ioceth->attr.num_ucmac = BFI_ENET_DEF_UCAM;
+	ioceth->attr.num_mcmac = BFI_ENET_MAX_MCAM;
+	ioceth->attr.max_rit_size = BFI_ENET_DEF_RITSZ;
+	ioceth->attr.fw_query_complete = false;
+}
+
 static void
 bna_ioceth_init(struct bna_ioceth *ioceth, struct bna *bna,
 		struct bna_res_info *res_info)
@@ -1737,6 +1748,8 @@ bna_ioceth_init(struct bna_ioceth *ioceth, struct bna *bna,
 
 	ioceth->stop_cbfn = NULL;
 	ioceth->stop_cbarg = NULL;
+
+	bna_attr_init(ioceth);
 
 	bfa_fsm_set_state(ioceth, bna_ioceth_sm_stopped);
 }
@@ -2036,7 +2049,8 @@ bna_uninit(struct bna *bna)
 int
 bna_num_txq_set(struct bna *bna, int num_txq)
 {
-	if (num_txq > 0 && (num_txq <= bna->ioceth.attr.num_txq)) {
+	if (bna->ioceth.attr.fw_query_complete &&
+		(num_txq <= bna->ioceth.attr.num_txq)) {
 		bna->ioceth.attr.num_txq = num_txq;
 		return BNA_CB_SUCCESS;
 	}
@@ -2047,7 +2061,8 @@ bna_num_txq_set(struct bna *bna, int num_txq)
 int
 bna_num_rxp_set(struct bna *bna, int num_rxp)
 {
-	if (num_rxp > 0 && (num_rxp <= bna->ioceth.attr.num_rxp)) {
+	if (bna->ioceth.attr.fw_query_complete &&
+		(num_rxp <= bna->ioceth.attr.num_rxp)) {
 		bna->ioceth.attr.num_rxp = num_rxp;
 		return BNA_CB_SUCCESS;
 	}
