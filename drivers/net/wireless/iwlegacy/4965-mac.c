@@ -608,8 +608,8 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 	rxb->page = NULL;
 }
 
-/* Called for REPLY_RX (legacy ABG frames), or
- * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
+/* Called for N_RX (legacy ABG frames), or
+ * N_RX_MPDU (HT high-throughput N frames). */
 void il4965_rx_reply_rx(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
@@ -624,15 +624,15 @@ void il4965_rx_reply_rx(struct il_priv *il,
 	u32 rate_n_flags;
 
 	/**
-	 * REPLY_RX and REPLY_RX_MPDU_CMD are handled differently.
-	 *	REPLY_RX: physical layer info is in this buffer
-	 *	REPLY_RX_MPDU_CMD: physical layer info was sent in separate
+	 * N_RX and N_RX_MPDU are handled differently.
+	 *	N_RX: physical layer info is in this buffer
+	 *	N_RX_MPDU: physical layer info was sent in separate
 	 *		command and cached in il->last_phy_res
 	 *
 	 * Here we set up local variables depending on which command is
 	 * received.
 	 */
-	if (pkt->hdr.cmd == REPLY_RX) {
+	if (pkt->hdr.cmd == N_RX) {
 		phy_res = (struct il_rx_phy_res *)pkt->u.raw;
 		header = (struct ieee80211_hdr *)(pkt->u.raw + sizeof(*phy_res)
 				+ phy_res->cfg_phy_cnt);
@@ -728,8 +728,8 @@ void il4965_rx_reply_rx(struct il_priv *il,
 				    rxb, &rx_status);
 }
 
-/* Cache phy data (Rx signal strength, etc) for HT frame (REPLY_RX_PHY_CMD).
- * This will be used later in il_rx_reply_rx() for REPLY_RX_MPDU_CMD. */
+/* Cache phy data (Rx signal strength, etc) for HT frame (N_RX_PHY).
+ * This will be used later in il_rx_reply_rx() for N_RX_MPDU. */
 void il4965_rx_reply_rx_phy(struct il_priv *il,
 			    struct il_rx_buf *rxb)
 {
@@ -827,7 +827,7 @@ static inline u32 il4965_ant_idx_to_flags(u8 ant_idx)
 int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 {
 	struct il_host_cmd cmd = {
-		.id = REPLY_SCAN_CMD,
+		.id = C_SCAN,
 		.len = sizeof(struct il_scan_cmd),
 		.flags = CMD_SIZE_HUGE,
 	};
@@ -1388,7 +1388,7 @@ void il4965_rx_stats(struct il_priv *il,
 		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
 
 	if (unlikely(!test_bit(S_SCANNING, &il->status)) &&
-	    (pkt->hdr.cmd == STATS_NOTIFICATION)) {
+	    (pkt->hdr.cmd == N_STATS)) {
 		il4965_rx_calc_noise(il);
 		queue_work(il->workqueue, &il->run_time_calib_work);
 	}
@@ -1473,7 +1473,7 @@ il4965_get_fifo_from_tid(struct il_rxon_context *ctx, u16 tid)
 }
 
 /*
- * handle build REPLY_TX command notification.
+ * handle build C_TX command notification.
  */
 static void il4965_tx_cmd_build_basic(struct il_priv *il,
 					struct sk_buff *skb,
@@ -1640,7 +1640,7 @@ static void il4965_tx_cmd_build_hwcrypto(struct il_priv *il,
 }
 
 /*
- * start REPLY_TX command process
+ * start C_TX command process
  */
 int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 {
@@ -1797,7 +1797,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	 * after Tx, uCode's Tx response will return this value so driver can
 	 * locate the frame within the tx queue and do post-tx processing.
 	 */
-	out_cmd->hdr.cmd = REPLY_TX;
+	out_cmd->hdr.cmd = C_TX;
 	out_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
 				IDX_TO_SEQ(q->write_ptr)));
 
@@ -2616,7 +2616,7 @@ void il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
 }
 
 /**
- * il4965_rx_reply_compressed_ba - Handler for REPLY_COMPRESSED_BA
+ * il4965_rx_reply_compressed_ba - Handler for N_COMPRESSED_BA
  *
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
@@ -2668,7 +2668,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 
-	D_TX_REPLY("REPLY_COMPRESSED_BA [%d] Received from %pM, "
+	D_TX_REPLY("N_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",
 			   agg->wait_for_ba,
 			   (u8 *) &ba_resp->sta_addr_lo32,
@@ -2917,7 +2917,7 @@ int il4965_remove_default_wep_key(struct il_priv *il,
 	memset(&ctx->wep_keys[keyconf->keyidx], 0, sizeof(ctx->wep_keys[0]));
 	if (il_is_rfkill(il)) {
 		D_WEP(
-		"Not sending REPLY_WEPKEY command due to RFKILL.\n");
+		"Not sending C_WEPKEY command due to RFKILL.\n");
 		/* but keys in device are clear anyway so return success */
 		return 0;
 	}
@@ -3201,7 +3201,7 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 
 	if (il_is_rfkill(il)) {
 		D_WEP(
-		 "Not sending REPLY_ADD_STA command because RFKILL enabled.\n");
+		 "Not sending C_ADD_STA command because RFKILL enabled.\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
 		return 0;
 	}
@@ -3598,7 +3598,7 @@ int il4965_send_beacon_cmd(struct il_priv *il)
 		return -EINVAL;
 	}
 
-	rc = il_send_cmd_pdu(il, REPLY_TX_BEACON, frame_size,
+	rc = il_send_cmd_pdu(il, C_TX_BEACON, frame_size,
 			      &frame->u.cmd[0]);
 
 	il4965_free_frame(il, frame);
@@ -3801,7 +3801,7 @@ static void il4965_rx_reply_alive(struct il_priv *il,
  * This callback is provided in order to send a stats request.
  *
  * This timer function is continually reset to execute within
- * REG_RECALIB_PERIOD seconds since the last STATS_NOTIFICATION
+ * REG_RECALIB_PERIOD seconds since the last N_STATS
  * was received.  We need to ensure we receive the stats in order
  * to update the temperature used for calibrating the TXPOWER.
  */
@@ -3921,37 +3921,37 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
  */
 static void il4965_setup_rx_handlers(struct il_priv *il)
 {
-	il->rx_handlers[REPLY_ALIVE] = il4965_rx_reply_alive;
-	il->rx_handlers[REPLY_ERROR] = il_rx_reply_error;
-	il->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = il_rx_csa;
-	il->rx_handlers[SPECTRUM_MEASURE_NOTIFICATION] =
+	il->rx_handlers[N_ALIVE] = il4965_rx_reply_alive;
+	il->rx_handlers[N_ERROR] = il_rx_reply_error;
+	il->rx_handlers[N_CHANNEL_SWITCH] = il_rx_csa;
+	il->rx_handlers[N_SPECTRUM_MEASUREMENT] =
 			il_rx_spectrum_measure_notif;
-	il->rx_handlers[PM_SLEEP_NOTIFICATION] = il_rx_pm_sleep_notif;
-	il->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
+	il->rx_handlers[N_PM_SLEEP] = il_rx_pm_sleep_notif;
+	il->rx_handlers[N_PM_DEBUG_STATS] =
 	    il_rx_pm_debug_stats_notif;
-	il->rx_handlers[BEACON_NOTIFICATION] = il4965_rx_beacon_notif;
+	il->rx_handlers[N_BEACON] = il4965_rx_beacon_notif;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[REPLY_STATS_CMD] = il4965_reply_stats;
-	il->rx_handlers[STATS_NOTIFICATION] = il4965_rx_stats;
+	il->rx_handlers[C_STATS] = il4965_reply_stats;
+	il->rx_handlers[N_STATS] = il4965_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
 
 	/* status change handler */
-	il->rx_handlers[CARD_STATE_NOTIFICATION] =
+	il->rx_handlers[N_CARD_STATE] =
 					il4965_rx_card_state_notif;
 
-	il->rx_handlers[MISSED_BEACONS_NOTIFICATION] =
+	il->rx_handlers[N_MISSED_BEACONS] =
 	    il4965_rx_missed_beacon_notif;
 	/* Rx handlers */
-	il->rx_handlers[REPLY_RX_PHY_CMD] = il4965_rx_reply_rx_phy;
-	il->rx_handlers[REPLY_RX_MPDU_CMD] = il4965_rx_reply_rx;
+	il->rx_handlers[N_RX_PHY] = il4965_rx_reply_rx_phy;
+	il->rx_handlers[N_RX_MPDU] = il4965_rx_reply_rx;
 	/* block ack */
-	il->rx_handlers[REPLY_COMPRESSED_BA] = il4965_rx_reply_compressed_ba;
+	il->rx_handlers[N_COMPRESSED_BA] = il4965_rx_reply_compressed_ba;
 	/* Set up hardware specific Rx handlers */
 	il->cfg->ops->lib->rx_handler_setup(il);
 }
@@ -4019,12 +4019,12 @@ void il4965_rx_handle(struct il_priv *il)
 		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-			(pkt->hdr.cmd != REPLY_RX_PHY_CMD) &&
-			(pkt->hdr.cmd != REPLY_RX) &&
-			(pkt->hdr.cmd != REPLY_RX_MPDU_CMD) &&
-			(pkt->hdr.cmd != REPLY_COMPRESSED_BA) &&
-			(pkt->hdr.cmd != STATS_NOTIFICATION) &&
-			(pkt->hdr.cmd != REPLY_TX);
+			(pkt->hdr.cmd != N_RX_PHY) &&
+			(pkt->hdr.cmd != N_RX) &&
+			(pkt->hdr.cmd != N_RX_MPDU) &&
+			(pkt->hdr.cmd != N_COMPRESSED_BA) &&
+			(pkt->hdr.cmd != N_STATS) &&
+			(pkt->hdr.cmd != C_TX);
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
@@ -4923,12 +4923,12 @@ static void il4965_rf_kill_ct_config(struct il_priv *il)
 	cmd.critical_temperature_R =
 		cpu_to_le32(il->hw_params.ct_kill_threshold);
 
-	ret = il_send_cmd_pdu(il, REPLY_CT_KILL_CONFIG_CMD,
+	ret = il_send_cmd_pdu(il, C_CT_KILL_CONFIG,
 			       sizeof(cmd), &cmd);
 	if (ret)
-		IL_ERR("REPLY_CT_KILL_CONFIG_CMD failed\n");
+		IL_ERR("C_CT_KILL_CONFIG failed\n");
 	else
-		D_INFO("REPLY_CT_KILL_CONFIG_CMD "
+		D_INFO("C_CT_KILL_CONFIG "
 				"succeeded, "
 				"critical temperature is %d\n",
 				il->hw_params.ct_kill_threshold);
@@ -5042,7 +5042,7 @@ static int il4965_alive_notify(struct il_priv *il)
 }
 
 /**
- * il4965_alive_start - called after REPLY_ALIVE notification received
+ * il4965_alive_start - called after N_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by il_init_alive_start()).
  */
@@ -6200,12 +6200,12 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il->ctx.always_active = true;
 	il->ctx.is_active = true;
-	il->ctx.rxon_cmd = REPLY_RXON;
-	il->ctx.rxon_timing_cmd = REPLY_RXON_TIMING;
-	il->ctx.rxon_assoc_cmd = REPLY_RXON_ASSOC;
-	il->ctx.qos_cmd = REPLY_QOS_PARAM;
+	il->ctx.rxon_cmd = C_RXON;
+	il->ctx.rxon_timing_cmd = C_RXON_TIMING;
+	il->ctx.rxon_assoc_cmd = C_RXON_ASSOC;
+	il->ctx.qos_cmd = C_QOS_PARAM;
 	il->ctx.ap_sta_id = IL_AP_ID;
-	il->ctx.wep_key_cmd = REPLY_WEPKEY;
+	il->ctx.wep_key_cmd = C_WEPKEY;
 	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
 	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
 	il->ctx.exclusive_interface_modes =

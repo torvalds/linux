@@ -348,7 +348,7 @@ static int il3945_send_beacon_cmd(struct il_priv *il)
 
 	frame_size = il3945_hw_get_beacon_cmd(il, frame, rate);
 
-	rc = il_send_cmd_pdu(il, REPLY_TX_BEACON, frame_size,
+	rc = il_send_cmd_pdu(il, C_TX_BEACON, frame_size,
 			      &frame->u.cmd[0]);
 
 	il3945_free_frame(il, frame);
@@ -406,7 +406,7 @@ static void il3945_build_tx_cmd_hwcrypto(struct il_priv *il,
 }
 
 /*
- * handle build REPLY_TX command notification.
+ * handle build C_TX command notification.
  */
 static void il3945_build_tx_cmd_basic(struct il_priv *il,
 				  struct il_device_cmd *cmd,
@@ -460,7 +460,7 @@ static void il3945_build_tx_cmd_basic(struct il_priv *il,
 }
 
 /*
- * start REPLY_TX command process
+ * start C_TX command process
  */
 static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 {
@@ -560,7 +560,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	 * after Tx, uCode's Tx response will return this value so driver can
 	 * locate the frame within the tx queue and do post-tx processing.
 	 */
-	out_cmd->hdr.cmd = REPLY_TX;
+	out_cmd->hdr.cmd = C_TX;
 	out_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
 				IDX_TO_SEQ(q->write_ptr)));
 
@@ -672,7 +672,7 @@ static int il3945_get_measurement(struct il_priv *il,
 	struct il_spectrum_cmd spectrum;
 	struct il_rx_pkt *pkt;
 	struct il_host_cmd cmd = {
-		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
+		.id = C_SPECTRUM_MEASUREMENT,
 		.data = (void *)&spectrum,
 		.flags = CMD_WANT_SKB,
 	};
@@ -717,7 +717,7 @@ static int il3945_get_measurement(struct il_priv *il,
 
 	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR("Bad return from REPLY_RX_ON_ASSOC command\n");
+		IL_ERR("Bad return from N_RX_ON_ASSOC command\n");
 		rc = -EIO;
 	}
 
@@ -786,7 +786,7 @@ static void il3945_rx_reply_add_sta(struct il_priv *il,
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 #endif
 
-	D_RX("Received REPLY_ADD_STA: 0x%02X\n", pkt->u.status);
+	D_RX("Received C_ADD_STA: 0x%02X\n", pkt->u.status);
 }
 
 static void il3945_rx_beacon_notif(struct il_priv *il,
@@ -853,27 +853,27 @@ static void il3945_rx_card_state_notif(struct il_priv *il,
  */
 static void il3945_setup_rx_handlers(struct il_priv *il)
 {
-	il->rx_handlers[REPLY_ALIVE] = il3945_rx_reply_alive;
-	il->rx_handlers[REPLY_ADD_STA] = il3945_rx_reply_add_sta;
-	il->rx_handlers[REPLY_ERROR] = il_rx_reply_error;
-	il->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = il_rx_csa;
-	il->rx_handlers[SPECTRUM_MEASURE_NOTIFICATION] =
+	il->rx_handlers[N_ALIVE] = il3945_rx_reply_alive;
+	il->rx_handlers[C_ADD_STA] = il3945_rx_reply_add_sta;
+	il->rx_handlers[N_ERROR] = il_rx_reply_error;
+	il->rx_handlers[N_CHANNEL_SWITCH] = il_rx_csa;
+	il->rx_handlers[N_SPECTRUM_MEASUREMENT] =
 			il_rx_spectrum_measure_notif;
-	il->rx_handlers[PM_SLEEP_NOTIFICATION] = il_rx_pm_sleep_notif;
-	il->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
+	il->rx_handlers[N_PM_SLEEP] = il_rx_pm_sleep_notif;
+	il->rx_handlers[N_PM_DEBUG_STATS] =
 	    il_rx_pm_debug_stats_notif;
-	il->rx_handlers[BEACON_NOTIFICATION] = il3945_rx_beacon_notif;
+	il->rx_handlers[N_BEACON] = il3945_rx_beacon_notif;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[REPLY_STATS_CMD] = il3945_reply_stats;
-	il->rx_handlers[STATS_NOTIFICATION] = il3945_hw_rx_stats;
+	il->rx_handlers[C_STATS] = il3945_reply_stats;
+	il->rx_handlers[N_STATS] = il3945_hw_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
-	il->rx_handlers[CARD_STATE_NOTIFICATION] = il3945_rx_card_state_notif;
+	il->rx_handlers[N_CARD_STATE] = il3945_rx_card_state_notif;
 
 	/* Set up hardware specific Rx handlers */
 	il3945_hw_rx_handler_setup(il);
@@ -1253,8 +1253,8 @@ static void il3945_rx_handle(struct il_priv *il)
 		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-			pkt->hdr.cmd != STATS_NOTIFICATION &&
-			pkt->hdr.cmd != REPLY_TX;
+			pkt->hdr.cmd != N_STATS &&
+			pkt->hdr.cmd != C_TX;
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
@@ -2137,9 +2137,9 @@ static int il3945_set_ucode_ptrs(struct il_priv *il)
 }
 
 /**
- * il3945_init_alive_start - Called after REPLY_ALIVE notification received
+ * il3945_init_alive_start - Called after N_ALIVE notification received
  *
- * Called after REPLY_ALIVE notification received from "initialize" uCode.
+ * Called after N_ALIVE notification received from "initialize" uCode.
  *
  * Tell "initialize" uCode to go ahead and load the runtime uCode.
  */
@@ -2180,7 +2180,7 @@ static void il3945_init_alive_start(struct il_priv *il)
 }
 
 /**
- * il3945_alive_start - called after REPLY_ALIVE notification received
+ * il3945_alive_start - called after N_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by il3945_init_alive_start()).
  */
@@ -2553,7 +2553,7 @@ static void il3945_rfkill_poll(struct work_struct *data)
 int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 {
 	struct il_host_cmd cmd = {
-		.id = REPLY_SCAN_CMD,
+		.id = C_SCAN,
 		.len = sizeof(struct il3945_scan_cmd),
 		.flags = CMD_SIZE_HUGE,
 	};
@@ -2767,7 +2767,7 @@ void il3945_post_associate(struct il_priv *il)
 
 	rc = il_send_rxon_timing(il, ctx);
 	if (rc)
-		IL_WARN("REPLY_RXON_TIMING failed - "
+		IL_WARN("C_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
 
 	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
@@ -2931,7 +2931,7 @@ void il3945_config_ap(struct il_priv *il)
 		/* RXON Timing */
 		rc = il_send_rxon_timing(il, ctx);
 		if (rc)
-			IL_WARN("REPLY_RXON_TIMING failed - "
+			IL_WARN("C_RXON_TIMING failed - "
 					"Attempting to continue.\n");
 
 		ctx->staging.assoc_id = 0;
@@ -3657,12 +3657,12 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	il->ctx.ctxid = 0;
 
-	il->ctx.rxon_cmd = REPLY_RXON;
-	il->ctx.rxon_timing_cmd = REPLY_RXON_TIMING;
-	il->ctx.rxon_assoc_cmd = REPLY_RXON_ASSOC;
-	il->ctx.qos_cmd = REPLY_QOS_PARAM;
+	il->ctx.rxon_cmd = C_RXON;
+	il->ctx.rxon_timing_cmd = C_RXON_TIMING;
+	il->ctx.rxon_assoc_cmd = C_RXON_ASSOC;
+	il->ctx.qos_cmd = C_QOS_PARAM;
 	il->ctx.ap_sta_id = IL_AP_ID;
-	il->ctx.wep_key_cmd = REPLY_WEPKEY;
+	il->ctx.wep_key_cmd = C_WEPKEY;
 	il->ctx.interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);

@@ -249,7 +249,7 @@ static int
 il4965_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
 {
 	struct il_host_cmd cmd = {
-		.id = REPLY_LEDS_CMD,
+		.id = C_LEDS,
 		.len = sizeof(struct il_led_cmd),
 		.data = led_cmd,
 		.flags = CMD_ASYNC,
@@ -465,9 +465,9 @@ static int il4965_set_ucode_ptrs(struct il_priv *il)
 }
 
 /**
- * il4965_init_alive_start - Called after REPLY_ALIVE notification received
+ * il4965_init_alive_start - Called after N_ALIVE notification received
  *
- * Called after REPLY_ALIVE notification received from "initialize" uCode.
+ * Called after N_ALIVE notification received from "initialize" uCode.
  *
  * The 4965 "initialize" ALIVE reply contains calibration data for:
  *   Voltage, temperature, and MIMO tx gain correction, now stored in il
@@ -567,10 +567,10 @@ static void il4965_chain_noise_reset(struct il_priv *il)
 		cmd.diff_gain_a = 0;
 		cmd.diff_gain_b = 0;
 		cmd.diff_gain_c = 0;
-		if (il_send_cmd_pdu(il, REPLY_PHY_CALIBRATION_CMD,
+		if (il_send_cmd_pdu(il, C_PHY_CALIBRATION,
 				 sizeof(cmd), &cmd))
 			IL_ERR(
-				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
+				"Could not send C_PHY_CALIBRATION\n");
 		data->state = IL_CHAIN_NOISE_ACCUMULATE;
 		D_CALIB("Run chain_noise_calibrate\n");
 	}
@@ -1370,7 +1370,7 @@ static int il4965_send_tx_power(struct il_priv *il)
 		goto out;
 
 	ret = il_send_cmd_pdu(il,
-			 REPLY_TX_PWR_TBL_CMD, sizeof(cmd), &cmd);
+			 C_TX_PWR_TBL, sizeof(cmd), &cmd);
 
 out:
 	return ret;
@@ -1408,7 +1408,7 @@ static int il4965_send_rxon_assoc(struct il_priv *il,
 	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
 	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
 
-	ret = il_send_cmd_pdu_async(il, REPLY_RXON_ASSOC,
+	ret = il_send_cmd_pdu_async(il, C_RXON_ASSOC,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
 
 	return ret;
@@ -1632,7 +1632,7 @@ static int il4965_hw_channel_switch(struct il_priv *il,
 	}
 
 	return il_send_cmd_pdu(il,
-			 REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
+			 C_CHANNEL_SWITCH, sizeof(cmd), &cmd);
 }
 
 /**
@@ -1795,7 +1795,7 @@ static void il4965_temperature_calib(struct il_priv *il)
 static u16 il4965_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	switch (cmd_id) {
-	case REPLY_RXON:
+	case C_RXON:
 		return (u16) sizeof(struct il4965_rxon_cmd);
 	default:
 		return len;
@@ -2145,10 +2145,10 @@ static void il4965_rx_beacon_notif(struct il_priv *il,
 static void il4965_rx_handler_setup(struct il_priv *il)
 {
 	/* Legacy Rx frames */
-	il->rx_handlers[REPLY_RX] = il4965_rx_reply_rx;
+	il->rx_handlers[N_RX] = il4965_rx_reply_rx;
 	/* Tx response */
-	il->rx_handlers[REPLY_TX] = il4965_rx_reply_tx;
-	il->rx_handlers[BEACON_NOTIFICATION] = il4965_rx_beacon_notif;
+	il->rx_handlers[C_TX] = il4965_rx_reply_tx;
+	il->rx_handlers[N_BEACON] = il4965_rx_beacon_notif;
 }
 
 static struct il_hcmd_ops il4965_hcmd = {

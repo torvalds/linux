@@ -67,7 +67,7 @@ static int il_process_add_sta_resp(struct il_priv *il,
 	int ret = -EIO;
 
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR("Bad return from REPLY_ADD_STA (0x%08X)\n",
+		IL_ERR("Bad return from C_ADD_STA (0x%08X)\n",
 			pkt->hdr.flags);
 		return ret;
 	}
@@ -79,7 +79,7 @@ static int il_process_add_sta_resp(struct il_priv *il,
 
 	switch (pkt->u.add_sta.status) {
 	case ADD_STA_SUCCESS_MSK:
-		D_INFO("REPLY_ADD_STA PASSED\n");
+		D_INFO("C_ADD_STA PASSED\n");
 		il_sta_ucode_activate(il, sta_id);
 		ret = 0;
 		break;
@@ -97,7 +97,7 @@ static int il_process_add_sta_resp(struct il_priv *il,
 			sta_id);
 		break;
 	default:
-		D_ASSOC("Received REPLY_ADD_STA:(0x%08X)\n",
+		D_ASSOC("Received C_ADD_STA:(0x%08X)\n",
 				pkt->u.add_sta.status);
 		break;
 	}
@@ -142,7 +142,7 @@ int il_send_add_sta(struct il_priv *il,
 	int ret = 0;
 	u8 data[sizeof(*sta)];
 	struct il_host_cmd cmd = {
-		.id = REPLY_ADD_STA,
+		.id = C_ADD_STA,
 		.flags = flags,
 		.data = data,
 	};
@@ -290,7 +290,7 @@ u8 il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 			sta_id, addr);
 	il->num_stations++;
 
-	/* Set up the REPLY_ADD_STA command to send to device */
+	/* Set up the C_ADD_STA command to send to device */
 	memset(&station->sta, 0, sizeof(struct il_addsta_cmd));
 	memcpy(station->sta.sta.addr, addr, ETH_ALEN);
 	station->sta.mode = 0;
@@ -421,7 +421,7 @@ static int il_send_remove_station(struct il_priv *il,
 	struct il_rem_sta_cmd rm_sta_cmd;
 
 	struct il_host_cmd cmd = {
-		.id = REPLY_REMOVE_STA,
+		.id = C_REM_STA,
 		.len = sizeof(struct il_rem_sta_cmd),
 		.flags = CMD_SYNC,
 		.data = &rm_sta_cmd,
@@ -440,7 +440,7 @@ static int il_send_remove_station(struct il_priv *il,
 
 	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR("Bad return from REPLY_REMOVE_STA (0x%08X)\n",
+		IL_ERR("Bad return from C_REM_STA (0x%08X)\n",
 			  pkt->hdr.flags);
 		ret = -EIO;
 	}
@@ -454,11 +454,11 @@ static int il_send_remove_station(struct il_priv *il,
 				spin_unlock_irqrestore(&il->sta_lock,
 								flags_spin);
 			}
-			D_ASSOC("REPLY_REMOVE_STA PASSED\n");
+			D_ASSOC("C_REM_STA PASSED\n");
 			break;
 		default:
 			ret = -EIO;
-			IL_ERR("REPLY_REMOVE_STA failed\n");
+			IL_ERR("C_REM_STA failed\n");
 			break;
 		}
 	}
@@ -753,7 +753,7 @@ int il_send_lq_cmd(struct il_priv *il, struct il_rxon_context *ctx,
 	unsigned long flags_spin;
 
 	struct il_host_cmd cmd = {
-		.id = REPLY_TX_LINK_QUALITY_CMD,
+		.id = C_TX_LINK_QUALITY_CMD,
 		.len = sizeof(struct il_link_quality_cmd),
 		.flags = flags,
 		.data = lq,

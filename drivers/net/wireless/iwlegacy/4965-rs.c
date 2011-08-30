@@ -2172,8 +2172,8 @@ out:
  *       if the driver's iwl-4965-rs rate scaling algorithm is used, instead of
  *       rc80211_simple.
  *
- * NOTE: Run REPLY_ADD_STA command to set up station table entry, before
- *       calling this function (which runs REPLY_TX_LINK_QUALITY_CMD,
+ * NOTE: Run C_ADD_STA command to set up station table entry, before
+ *       calling this function (which runs C_TX_LINK_QUALITY_CMD,
  *       which requires station table entry to exist).
  */
 static void il4965_rs_initialize_lq(struct il_priv *il,

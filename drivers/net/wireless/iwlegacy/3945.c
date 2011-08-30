@@ -53,7 +53,7 @@ static int il3945_send_led_cmd(struct il_priv *il,
 				struct il_led_cmd *led_cmd)
 {
 	struct il_host_cmd cmd = {
-		.id = REPLY_LEDS_CMD,
+		.id = C_LEDS,
 		.len = sizeof(struct il_led_cmd),
 		.data = led_cmd,
 		.flags = CMD_ASYNC,
@@ -1444,7 +1444,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 				txpower.power[i].rate);
 	}
 
-	return il_send_cmd_pdu(il, REPLY_TX_PWR_TBL_CMD,
+	return il_send_cmd_pdu(il, C_TX_PWR_TBL,
 				sizeof(struct il3945_txpowertable_cmd),
 				&txpower);
 
@@ -1673,7 +1673,7 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
 	struct il_rx_pkt *pkt;
 	struct il3945_rxon_assoc_cmd rxon_assoc;
 	struct il_host_cmd cmd = {
-		.id = REPLY_RXON_ASSOC,
+		.id = C_RXON_ASSOC,
 		.len = sizeof(rxon_assoc),
 		.flags = CMD_WANT_SKB,
 		.data = &rxon_assoc,
@@ -1701,7 +1701,7 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
 
 	pkt = (struct il_rx_pkt *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR("Bad return from REPLY_RXON_ASSOC command\n");
+		IL_ERR("Bad return from C_RXON_ASSOC command\n");
 		rc = -EIO;
 	}
 
@@ -1782,7 +1782,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		 */
 		active_rxon->reserved4 = 0;
 		active_rxon->reserved5 = 0;
-		rc = il_send_cmd_pdu(il, REPLY_RXON,
+		rc = il_send_cmd_pdu(il, C_RXON,
 				      sizeof(struct il3945_rxon_cmd),
 				      &il->ctx.active);
 
@@ -1818,7 +1818,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	il_set_rxon_hwcrypto(il, ctx, !il3945_mod_params.sw_crypto);
 
 	/* Apply the new configuration */
-	rc = il_send_cmd_pdu(il, REPLY_RXON,
+	rc = il_send_cmd_pdu(il, C_RXON,
 			      sizeof(struct il3945_rxon_cmd),
 			      staging_rxon);
 	if (rc) {
@@ -2237,9 +2237,9 @@ int il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq)
 static u16 il3945_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	switch (cmd_id) {
-	case REPLY_RXON:
+	case C_RXON:
 		return sizeof(struct il3945_rxon_cmd);
-	case POWER_TBL_CMD:
+	case C_POWER_TBL:
 		return sizeof(struct il3945_powertable_cmd);
 	default:
 		return len;
@@ -2383,14 +2383,14 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 
 	/* Update the rate scaling for control frame Tx */
 	rate_cmd.table_id = 0;
-	rc = il_send_cmd_pdu(il, REPLY_RATE_SCALE, sizeof(rate_cmd),
+	rc = il_send_cmd_pdu(il, C_RATE_SCALE, sizeof(rate_cmd),
 			      &rate_cmd);
 	if (rc)
 		return rc;
 
 	/* Update the rate scaling for data frame Tx */
 	rate_cmd.table_id = 1;
-	return il_send_cmd_pdu(il, REPLY_RATE_SCALE, sizeof(rate_cmd),
+	return il_send_cmd_pdu(il, C_RATE_SCALE, sizeof(rate_cmd),
 				&rate_cmd);
 }
 
@@ -2464,8 +2464,8 @@ unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 
 void il3945_hw_rx_handler_setup(struct il_priv *il)
 {
-	il->rx_handlers[REPLY_TX] = il3945_rx_reply_tx;
-	il->rx_handlers[REPLY_3945_RX] = il3945_rx_reply_rx;
+	il->rx_handlers[C_TX] = il3945_rx_reply_tx;
+	il->rx_handlers[N_3945_RX] = il3945_rx_reply_rx;
 }
 
 void il3945_hw_setup_deferred_work(struct il_priv *il)

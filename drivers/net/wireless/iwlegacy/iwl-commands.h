@@ -84,76 +84,76 @@ struct il_priv;
 #define IL_MAX_RATES	(IL_CCK_RATES + IL_OFDM_RATES)
 
 enum {
-	REPLY_ALIVE = 0x1,
-	REPLY_ERROR = 0x2,
+	N_ALIVE = 0x1,
+	N_ERROR = 0x2,
 
 	/* RXON and QOS commands */
-	REPLY_RXON = 0x10,
-	REPLY_RXON_ASSOC = 0x11,
-	REPLY_QOS_PARAM = 0x13,
-	REPLY_RXON_TIMING = 0x14,
+	C_RXON = 0x10,
+	C_RXON_ASSOC = 0x11,
+	C_QOS_PARAM = 0x13,
+	C_RXON_TIMING = 0x14,
 
 	/* Multi-Station support */
-	REPLY_ADD_STA = 0x18,
-	REPLY_REMOVE_STA = 0x19,
+	C_ADD_STA = 0x18,
+	C_REM_STA = 0x19,
 
 	/* Security */
-	REPLY_WEPKEY = 0x20,
+	C_WEPKEY = 0x20,
 
 	/* RX, TX, LEDs */
-	REPLY_3945_RX = 0x1b,           /* 3945 only */
-	REPLY_TX = 0x1c,
-	REPLY_RATE_SCALE = 0x47,	/* 3945 only */
-	REPLY_LEDS_CMD = 0x48,
-	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* for 4965 and up */
+	N_3945_RX = 0x1b,           /* 3945 only */
+	C_TX = 0x1c,
+	C_RATE_SCALE = 0x47,	/* 3945 only */
+	C_LEDS = 0x48,
+	C_TX_LINK_QUALITY_CMD = 0x4e, /* for 4965 */
 
 	/* 802.11h related */
-	REPLY_CHANNEL_SWITCH = 0x72,
-	CHANNEL_SWITCH_NOTIFICATION = 0x73,
-	REPLY_SPECTRUM_MEASUREMENT_CMD = 0x74,
-	SPECTRUM_MEASURE_NOTIFICATION = 0x75,
+	C_CHANNEL_SWITCH = 0x72,
+	N_CHANNEL_SWITCH = 0x73,
+	C_SPECTRUM_MEASUREMENT = 0x74,
+	N_SPECTRUM_MEASUREMENT = 0x75,
 
 	/* Power Management */
-	POWER_TBL_CMD = 0x77,
-	PM_SLEEP_NOTIFICATION = 0x7A,
-	PM_DEBUG_STATISTIC_NOTIFIC = 0x7B,
+	C_POWER_TBL = 0x77,
+	N_PM_SLEEP = 0x7A,
+	N_PM_DEBUG_STATS = 0x7B,
 
 	/* Scan commands and notifications */
-	REPLY_SCAN_CMD = 0x80,
-	REPLY_SCAN_ABORT_CMD = 0x81,
-	SCAN_START_NOTIFICATION = 0x82,
-	SCAN_RESULTS_NOTIFICATION = 0x83,
-	SCAN_COMPLETE_NOTIFICATION = 0x84,
+	C_SCAN = 0x80,
+	C_SCAN_ABORT = 0x81,
+	N_SCAN_START = 0x82,
+	N_SCAN_RESULTS = 0x83,
+	N_SCAN_COMPLETE = 0x84,
 
 	/* IBSS/AP commands */
-	BEACON_NOTIFICATION = 0x90,
-	REPLY_TX_BEACON = 0x91,
+	N_BEACON = 0x90,
+	C_TX_BEACON= 0x91,
 
 	/* Miscellaneous commands */
-	REPLY_TX_PWR_TBL_CMD = 0x97,
+	C_TX_PWR_TBL = 0x97,
 
 	/* Bluetooth device coexistence config command */
-	REPLY_BT_CONFIG = 0x9b,
+	C_BT_CONFIG = 0x9b,
 
 	/* Statistics */
-	REPLY_STATS_CMD = 0x9c,
-	STATS_NOTIFICATION = 0x9d,
+	C_STATS = 0x9c,
+	N_STATS = 0x9d,
 
 	/* RF-KILL commands and notifications */
-	CARD_STATE_NOTIFICATION = 0xa1,
+	N_CARD_STATE = 0xa1,
 
 	/* Missed beacons notification */
-	MISSED_BEACONS_NOTIFICATION = 0xa2,
+	N_MISSED_BEACONS = 0xa2,
 
-	REPLY_CT_KILL_CONFIG_CMD = 0xa4,
-	SENSITIVITY_CMD = 0xa8,
-	REPLY_PHY_CALIBRATION_CMD = 0xb0,
-	REPLY_RX_PHY_CMD = 0xc0,
-	REPLY_RX_MPDU_CMD = 0xc1,
-	REPLY_RX = 0xc3,
-	REPLY_COMPRESSED_BA = 0xc5,
+	C_CT_KILL_CONFIG = 0xa4,
+	C_SENSITIVITY = 0xa8,
+	C_PHY_CALIBRATION = 0xb0,
+	N_RX_PHY = 0xc0,
+	N_RX_MPDU = 0xc1,
+	N_RX = 0xc3,
+	N_COMPRESSED_BA = 0xc5,
 
-	REPLY_MAX = 0xff
+	IL_CN_MAX = 0xff
 };
 
 /******************************************************************************
@@ -180,7 +180,7 @@ enum {
  * driver, and each response/notification received from uCode.
  */
 struct il_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
+	u8 cmd;		/* Command ID:  C_RXON, etc. */
 	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
 	/*
 	 * The driver sets up the sequence number to values of its choosing.
@@ -192,7 +192,7 @@ struct il_cmd_header {
 	 * There is one exception:  uCode sets bit 15 when it originates
 	 * the response/notification, i.e. when the response/notification
 	 * is not a direct response to a command sent by the driver.  For
-	 * example, uCode issues REPLY_3945_RX when it sends a received frame
+	 * example, uCode issues N_3945_RX when it sends a received frame
 	 * to the driver; it is not a direct response to any driver command.
 	 *
 	 * The Linux driver uses the following format:
@@ -214,7 +214,7 @@ struct il_cmd_header {
 /**
  * struct il3945_tx_power
  *
- * Used in REPLY_TX_PWR_TBL_CMD, REPLY_SCAN_CMD, REPLY_CHANNEL_SWITCH
+ * Used in C_TX_PWR_TBL, C_SCAN, C_CHANNEL_SWITCH
  *
  * Each entry contains two values:
  * 1)  DSP gain (or sometimes called DSP attenuation).  This is a fine-grained
@@ -233,7 +233,7 @@ struct il3945_tx_power {
 /**
  * struct il3945_power_per_rate
  *
- * Used in REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
+ * Used in C_TX_PWR_TBL, C_CHANNEL_SWITCH
  */
 struct il3945_power_per_rate {
 	u8 rate;		/* plcp */
@@ -245,10 +245,10 @@ struct il3945_power_per_rate {
  * iwl4965 rate_n_flags bit fields
  *
  * rate_n_flags format is used in following iwl4965 commands:
- *  REPLY_RX (response only)
- *  REPLY_RX_MPDU (response only)
- *  REPLY_TX (both command and response)
- *  REPLY_TX_LINK_QUALITY_CMD
+ *  N_RX (response only)
+ *  N_RX_MPDU (response only)
+ *  C_TX (both command and response)
+ *  C_TX_LINK_QUALITY_CMD
  *
  * High-throughput (HT) rate format for bits 7:0 (bit 8 must be "1"):
  *  2-0:  0)   6 Mbps
@@ -336,7 +336,7 @@ struct il3945_power_per_rate {
 /**
  * union il4965_tx_power_dual_stream
  *
- * Host format used for REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
+ * Host format used for C_TX_PWR_TBL, C_CHANNEL_SWITCH
  * Use __le32 version (struct tx_power_dual_stream) when building command.
  *
  * Driver provides radio gain and DSP attenuation settings to device in pairs,
@@ -360,7 +360,7 @@ union il4965_tx_power_dual_stream {
 /**
  * struct tx_power_dual_stream
  *
- * Table entries in REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
+ * Table entries in C_TX_PWR_TBL, C_CHANNEL_SWITCH
  *
  * Same format as il_tx_power_dual_stream, but __le32
  */
@@ -371,7 +371,7 @@ struct tx_power_dual_stream {
 /**
  * struct il4965_tx_power_db
  *
- * Entire table within REPLY_TX_PWR_TBL_CMD, REPLY_CHANNEL_SWITCH
+ * Entire table within C_TX_PWR_TBL, C_CHANNEL_SWITCH
  */
 struct il4965_tx_power_db {
 	struct tx_power_dual_stream power_tbl[POWER_TBL_NUM_ENTRIES];
@@ -387,7 +387,7 @@ struct il4965_tx_power_db {
 #define INITIALIZE_SUBTYPE    (9)
 
 /*
- * ("Initialize") REPLY_ALIVE = 0x1 (response only, not a command)
+ * ("Initialize") N_ALIVE = 0x1 (response only, not a command)
  *
  * uCode issues this "initialize alive" notification once the initialization
  * uCode image has completed its work, and is ready to load the runtime image.
@@ -435,7 +435,7 @@ struct il_init_alive_resp {
 
 
 /**
- * REPLY_ALIVE = 0x1 (response only, not a command)
+ * N_ALIVE = 0x1 (response only, not a command)
  *
  * uCode issues this "alive" notification once the runtime image is ready
  * to receive commands from the driver.  This is the *second* "alive"
@@ -526,7 +526,7 @@ struct il_alive_resp {
 } __packed;
 
 /*
- * REPLY_ERROR = 0x2 (response only, not a command)
+ * N_ERROR = 0x2 (response only, not a command)
  */
 struct il_error_resp {
 	__le32 error_type;
@@ -640,7 +640,7 @@ enum {
 #define RXON_FILTER_BCON_AWARE_MSK      cpu_to_le32(1 << 6)
 
 /**
- * REPLY_RXON = 0x10 (command, has simple generic response)
+ * C_RXON = 0x10 (command, has simple generic response)
  *
  * RXON tunes the radio tuner to a service channel, and sets up a number
  * of parameters that are used primarily for Rx, but also for Tx operations.
@@ -653,7 +653,7 @@ enum {
  *        channel.
  *
  * NOTE:  All RXONs wipe clean the internal txpower table.  Driver must
- *        issue a new REPLY_TX_PWR_TBL_CMD after each REPLY_RXON (0x10),
+ *        issue a new C_TX_PWR_TBL after each C_RXON (0x10),
  *        regardless of whether RXON_FILTER_ASSOC_MSK is set.
  */
 
@@ -723,7 +723,7 @@ struct il_rxon_cmd {
 
 
 /*
- * REPLY_RXON_ASSOC = 0x11 (command, has simple generic response)
+ * C_RXON_ASSOC = 0x11 (command, has simple generic response)
  */
 struct il3945_rxon_assoc_cmd {
 	__le32 flags;
@@ -749,7 +749,7 @@ struct il4965_rxon_assoc_cmd {
 #define IL39_MAX_UCODE_BEACON_INTERVAL	1 /* 1024 */
 
 /*
- * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
+ * C_RXON_TIMING = 0x14 (command, has simple generic response)
  */
 struct il_rxon_time_cmd {
 	__le64 timestamp;
@@ -762,7 +762,7 @@ struct il_rxon_time_cmd {
 } __packed;
 
 /*
- * REPLY_CHANNEL_SWITCH = 0x72 (command, has simple generic response)
+ * C_CHANNEL_SWITCH = 0x72 (command, has simple generic response)
  */
 struct il3945_channel_switch_cmd {
 	u8 band;
@@ -785,7 +785,7 @@ struct il4965_channel_switch_cmd {
 } __packed;
 
 /*
- * CHANNEL_SWITCH_NOTIFICATION = 0x73 (notification only, not a command)
+ * N_CHANNEL_SWITCH = 0x73 (notification only, not a command)
  */
 struct il_csa_notification {
 	__le16 band;
@@ -800,7 +800,7 @@ struct il_csa_notification {
  *****************************************************************************/
 
 /**
- * struct il_ac_qos -- QOS timing params for REPLY_QOS_PARAM
+ * struct il_ac_qos -- QOS timing params for C_QOS_PARAM
  * One for each of 4 EDCA access categories in struct il_qosparam_cmd
  *
  * @cw_min: Contention win, start value in numbers of slots.
@@ -832,7 +832,7 @@ struct il_ac_qos {
 #define AC_NUM                4
 
 /*
- * REPLY_QOS_PARAM = 0x13 (command, has simple generic response)
+ * C_QOS_PARAM = 0x13 (command, has simple generic response)
  *
  * This command sets up timings for each of the 4 prioritized EDCA Tx FIFOs
  * 0: Background, 1: Best Effort, 2: Video, 3: Voice.
@@ -936,15 +936,15 @@ struct sta_id_modify {
 } __packed;
 
 /*
- * REPLY_ADD_STA = 0x18 (command)
+ * C_ADD_STA = 0x18 (command)
  *
  * The device contains an internal table of per-station information,
  * with info on security keys, aggregation parameters, and Tx rates for
  * initial Tx attempt and any retries (4965 devices uses
- * REPLY_TX_LINK_QUALITY_CMD,
- * 3945 uses REPLY_RATE_SCALE to set up rate tables).
+ * C_TX_LINK_QUALITY_CMD,
+ * 3945 uses C_RATE_SCALE to set up rate tables).
  *
- * REPLY_ADD_STA sets up the table entry for one station, either creating
+ * C_ADD_STA sets up the table entry for one station, either creating
  * a new entry, or modifying a pre-existing one.
  *
  * NOTE:  RXON command (without "associated" bit set) wipes the station table
@@ -1071,7 +1071,7 @@ struct il_addsta_cmd {
 #define ADD_STA_NO_BLOCK_ACK_RESOURCE	0x4
 #define ADD_STA_MODIFY_NON_EXIST_STA	0x8
 /*
- * REPLY_ADD_STA = 0x18 (response)
+ * C_ADD_STA = 0x18 (response)
  */
 struct il_add_sta_resp {
 	u8 status;	/* ADD_STA_* */
@@ -1079,14 +1079,14 @@ struct il_add_sta_resp {
 
 #define REM_STA_SUCCESS_MSK              0x1
 /*
- *  REPLY_REM_STA = 0x19 (response)
+ *  C_REM_STA = 0x19 (response)
  */
 struct il_rem_sta_resp {
 	u8 status;
 } __packed;
 
 /*
- *  REPLY_REM_STA = 0x19 (command)
+ *  C_REM_STA = 0x19 (command)
  */
 struct il_rem_sta_cmd {
 	u8 num_sta;     /* number of removed stations */
@@ -1195,7 +1195,7 @@ struct il3945_rx_frame_end {
 } __packed;
 
 /*
- * REPLY_3945_RX = 0x1b (response only, not a command)
+ * N_3945_RX = 0x1b (response only, not a command)
  *
  * NOTE:  DO NOT dereference from casts to this structure
  * It is provided only for calculating minimum data set size.
@@ -1226,7 +1226,7 @@ struct il4965_rx_non_cfg_phy {
 
 
 /*
- * REPLY_RX = 0xc3 (response only, not a command)
+ * N_RX = 0xc3 (response only, not a command)
  * Used only for legacy (non 11n) frames.
  */
 struct il_rx_phy_res {
@@ -1254,7 +1254,7 @@ struct il_rx_mpdu_res_start {
  * (5)
  * Tx Commands & Responses:
  *
- * Driver must place each REPLY_TX command into one of the prioritized Tx
+ * Driver must place each C_TX command into one of the prioritized Tx
  * queues in host DRAM, shared between driver and device (see comments for
  * SCD registers and Tx/Rx Queues).  When the device's Tx scheduler and uCode
  * are preparing to transmit, the device pulls the Tx command over the PCI
@@ -1264,18 +1264,18 @@ struct il_rx_mpdu_res_start {
  * uCode handles all timing and protocol related to control frames
  * (RTS/CTS/ACK), based on flags in the Tx command.  uCode and Tx scheduler
  * handle reception of block-acks; uCode updates the host driver via
- * REPLY_COMPRESSED_BA.
+ * N_COMPRESSED_BA.
  *
  * uCode handles retrying Tx when an ACK is expected but not received.
  * This includes trying lower data rates than the one requested in the Tx
- * command, as set up by the REPLY_RATE_SCALE (for 3945) or
- * REPLY_TX_LINK_QUALITY_CMD (4965).
+ * command, as set up by the C_RATE_SCALE (for 3945) or
+ * C_TX_LINK_QUALITY_CMD (4965).
  *
- * Driver sets up transmit power for various rates via REPLY_TX_PWR_TBL_CMD.
+ * Driver sets up transmit power for various rates via C_TX_PWR_TBL.
  * This command must be executed after every RXON command, before Tx can occur.
  *****************************************************************************/
 
-/* REPLY_TX Tx flags field */
+/* C_TX Tx flags field */
 
 /*
  * 1: Use Request-To-Send protocol before this frame.
@@ -1296,7 +1296,7 @@ struct il_rx_mpdu_res_start {
 #define TX_CMD_FLG_ACK_MSK cpu_to_le32(1 << 3)
 
 /* For 4965 devices:
- * 1: Use rate scale table (see REPLY_TX_LINK_QUALITY_CMD).
+ * 1: Use rate scale table (see C_TX_LINK_QUALITY_CMD).
  *    Tx command's initial_rate_idx indicates first rate to try;
  *    uCode walks through table for additional Tx attempts.
  * 0: Use Tx rate/MCS from Tx command's rate_n_flags field.
@@ -1322,7 +1322,7 @@ struct il_rx_mpdu_res_start {
 /* 1: uCode overrides sequence control field in MAC header.
  * 0: Driver provides sequence control field in MAC header.
  * Set this for management frames, non-QOS data frames, non-unicast frames,
- * and also in Tx command embedded in REPLY_SCAN_CMD for active scans. */
+ * and also in Tx command embedded in C_SCAN for active scans. */
 #define TX_CMD_FLG_SEQ_CTL_MSK cpu_to_le32(1 << 13)
 
 /* 1: This frame is non-last MPDU; more fragments are coming.
@@ -1369,7 +1369,7 @@ struct il_rx_mpdu_res_start {
 #define TKIP_ICV_LEN 4
 
 /*
- * REPLY_TX = 0x1c (command)
+ * C_TX = 0x1c (command)
  */
 
 struct il3945_tx_cmd {
@@ -1434,7 +1434,7 @@ struct il3945_tx_cmd {
 } __packed;
 
 /*
- * REPLY_TX = 0x1c (response)
+ * C_TX = 0x1c (response)
  */
 struct il3945_tx_resp {
 	u8 failure_rts;
@@ -1493,7 +1493,7 @@ struct il_tx_cmd {
 	u8 sec_ctl;		/* TX_CMD_SEC_* */
 
 	/*
-	 * Index into rate table (see REPLY_TX_LINK_QUALITY_CMD) for initial
+	 * Index into rate table (see C_TX_LINK_QUALITY_CMD) for initial
 	 * Tx attempt, if TX_CMD_FLG_STA_RATE_MSK is set.  Normally "0" for
 	 * data frames, this field may be used to selectively reduce initial
 	 * rate (via non-0 value) for special frames (e.g. management), while
@@ -1671,7 +1671,7 @@ enum {
 #define AGG_TX_STATE_SEQ_NUM_MSK 0xffff0000
 
 /*
- * REPLY_TX = 0x1c (response)
+ * C_TX = 0x1c (response)
  *
  * This response may be in one of two slightly different formats, indicated
  * by the frame_count field:
@@ -1735,7 +1735,7 @@ struct il4965_tx_resp {
 } __packed;
 
 /*
- * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
+ * N_COMPRESSED_BA = 0xc5 (response only, not a command)
  *
  * Reports Block-Acknowledge from recipient station
  */
@@ -1754,7 +1754,7 @@ struct il_compressed_ba_resp {
 } __packed;
 
 /*
- * REPLY_TX_PWR_TBL_CMD = 0x97 (command, has simple generic response)
+ * C_TX_PWR_TBL = 0x97 (command, has simple generic response)
  *
  * See details under "TXPOWER" in 4965.h.
  */
@@ -1777,7 +1777,7 @@ struct il4965_txpowertable_cmd {
 /**
  * struct il3945_rate_scaling_cmd - Rate Scaling Command & Response
  *
- * REPLY_RATE_SCALE = 0x47 (command, has simple generic response)
+ * C_RATE_SCALE = 0x47 (command, has simple generic response)
  *
  * NOTE: The table of rates passed to the uCode via the
  * RATE_SCALE command sets up the corresponding order of
@@ -1786,7 +1786,7 @@ struct il4965_txpowertable_cmd {
  *
  * For example, if you set 9MB (PLCP 0x0f) as the first
  * rate in the rate table, the bit mask for that rate
- * when passed through ofdm_basic_rates on the REPLY_RXON
+ * when passed through ofdm_basic_rates on the C_RXON
  * command would be bit 0 (1 << 0)
  */
 struct il3945_rate_scaling_info {
@@ -1820,7 +1820,7 @@ struct il3945_rate_scaling_cmd {
 /**
  * struct il_link_qual_general_params
  *
- * Used in REPLY_TX_LINK_QUALITY_CMD
+ * Used in C_TX_LINK_QUALITY_CMD
  */
 struct il_link_qual_general_params {
 	u8 flags;
@@ -1863,7 +1863,7 @@ struct il_link_qual_general_params {
 /**
  * struct il_link_qual_agg_params
  *
- * Used in REPLY_TX_LINK_QUALITY_CMD
+ * Used in C_TX_LINK_QUALITY_CMD
  */
 struct il_link_qual_agg_params {
 
@@ -1892,9 +1892,9 @@ struct il_link_qual_agg_params {
 } __packed;
 
 /*
- * REPLY_TX_LINK_QUALITY_CMD = 0x4e (command, has simple generic response)
+ * C_TX_LINK_QUALITY_CMD = 0x4e (command, has simple generic response)
  *
- * For 4965 devices only; 3945 uses REPLY_RATE_SCALE.
+ * For 4965 devices only; 3945 uses C_RATE_SCALE.
  *
  * Each station in the 4965 device's internal station table has its own table
  * of 16
@@ -1903,7 +1903,7 @@ struct il_link_qual_agg_params {
  * one station.
  *
  * NOTE:  Station must already be in 4965 device's station table.
- *	  Use REPLY_ADD_STA.
+ *	  Use C_ADD_STA.
  *
  * The rate scaling procedures described below work well.  Of course, other
  * procedures are possible, and may work better for particular environments.
@@ -2117,7 +2117,7 @@ struct il_link_quality_cmd {
 #define BT_MAX_KILL_DEF (0x5)
 
 /*
- * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
+ * C_BT_CONFIG = 0x9b (command, has simple generic response)
  *
  * 3945 and 4965 devices support hardware handshake with Bluetooth device on
  * same platform.  Bluetooth device alerts wireless device when it will Tx;
@@ -2159,7 +2159,7 @@ struct il_measure_channel {
 } __packed;
 
 /*
- * REPLY_SPECTRUM_MEASUREMENT_CMD = 0x74 (command)
+ * C_SPECTRUM_MEASUREMENT = 0x74 (command)
  */
 struct il_spectrum_cmd {
 	__le16 len;		/* number of bytes starting from token */
@@ -2178,7 +2178,7 @@ struct il_spectrum_cmd {
 } __packed;
 
 /*
- * REPLY_SPECTRUM_MEASUREMENT_CMD = 0x74 (response)
+ * C_SPECTRUM_MEASUREMENT = 0x74 (response)
  */
 struct il_spectrum_resp {
 	u8 token;
@@ -2228,7 +2228,7 @@ enum il_measure_type {
 };
 
 /*
- * SPECTRUM_MEASURE_NOTIFICATION = 0x75 (notification only, not a command)
+ * N_SPECTRUM_MEASUREMENT = 0x75 (notification only, not a command)
  */
 struct il_spectrum_notification {
 	u8 id;			/* measurement id -- 0 or 1 */
@@ -2263,7 +2263,7 @@ struct il_spectrum_notification {
  * struct il_powertable_cmd - Power Table Command
  * @flags: See below:
  *
- * POWER_TBL_CMD = 0x77 (command, has simple generic response)
+ * C_POWER_TBL = 0x77 (command, has simple generic response)
  *
  * PM allow:
  *   bit 0 - '0' Driver not allow power management
@@ -2318,7 +2318,7 @@ struct il_powertable_cmd {
 } __packed;
 
 /*
- * PM_SLEEP_NOTIFICATION = 0x7A (notification only, not a command)
+ * N_PM_SLEEP = 0x7A (notification only, not a command)
  * all devices identical.
  */
 struct il_sleep_notification {
@@ -2346,7 +2346,7 @@ enum {
 };
 
 /*
- * CARD_STATE_NOTIFICATION = 0xa1 (notification only, not a command)
+ * N_CARD_STATE = 0xa1 (notification only, not a command)
  */
 struct il_card_state_notif {
 	__le32 flags;
@@ -2373,7 +2373,7 @@ struct il_ct_kill_config {
 #define SCAN_CHANNEL_TYPE_ACTIVE  cpu_to_le32(1)
 
 /**
- * struct il_scan_channel - entry in REPLY_SCAN_CMD channel table
+ * struct il_scan_channel - entry in C_SCAN channel table
  *
  * One for each channel in the scan list.
  * Each channel can independently select:
@@ -2431,7 +2431,7 @@ struct il_scan_channel {
 /**
  * struct il_ssid_ie - directed scan network information element
  *
- * Up to 20 of these may appear in REPLY_SCAN_CMD (Note: Only 4 are in
+ * Up to 20 of these may appear in C_SCAN (Note: Only 4 are in
  * 3945 SCAN api), selected by "type" bit field in struct il_scan_channel;
  * each channel may select different ssids from among the 20 (4) entries.
  * SSID IEs get transmitted in reverse order of entry.
@@ -2452,7 +2452,7 @@ struct il_ssid_ie {
 #define IL_MAX_CMD_SIZE 4096
 
 /*
- * REPLY_SCAN_CMD = 0x80 (command)
+ * C_SCAN = 0x80 (command)
  *
  * The hardware scan command is very powerful; the driver can set it up to
  * maintain (relatively) normal network traffic while doing a scan in the
@@ -2542,7 +2542,7 @@ struct il3945_scan_cmd {
 	 *
 	 * NOTE:  Only one band of channels can be scanned per pass.  You
 	 * must not mix 2.4GHz channels and 5.2GHz channels, and you must wait
-	 * for one scan to complete (i.e. receive SCAN_COMPLETE_NOTIFICATION)
+	 * for one scan to complete (i.e. receive N_SCAN_COMPLETE)
 	 * before requesting another scan.
 	 */
 	u8 data[0];
@@ -2586,7 +2586,7 @@ struct il_scan_cmd {
 	 *
 	 * NOTE:  Only one band of channels can be scanned per pass.  You
 	 * must not mix 2.4GHz channels and 5.2GHz channels, and you must wait
-	 * for one scan to complete (i.e. receive SCAN_COMPLETE_NOTIFICATION)
+	 * for one scan to complete (i.e. receive N_SCAN_COMPLETE)
 	 * before requesting another scan.
 	 */
 	u8 data[0];
@@ -2598,14 +2598,14 @@ struct il_scan_cmd {
 #define ABORT_STATUS            0x2
 
 /*
- * REPLY_SCAN_CMD = 0x80 (response)
+ * C_SCAN = 0x80 (response)
  */
 struct il_scanreq_notification {
 	__le32 status;		/* 1: okay, 2: cannot fulfill request */
 } __packed;
 
 /*
- * SCAN_START_NOTIFICATION = 0x82 (notification only, not a command)
+ * N_SCAN_START = 0x82 (notification only, not a command)
  */
 struct il_scanstart_notification {
 	__le32 tsf_low;
@@ -2628,7 +2628,7 @@ struct il_scanstart_notification {
 
 #define NUMBER_OF_STATS 1	/* first __le32 is good CRC */
 /*
- * SCAN_RESULTS_NOTIFICATION = 0x83 (notification only, not a command)
+ * N_SCAN_RESULTS = 0x83 (notification only, not a command)
  */
 struct il_scanresults_notification {
 	u8 channel;
@@ -2641,7 +2641,7 @@ struct il_scanresults_notification {
 } __packed;
 
 /*
- * SCAN_COMPLETE_NOTIFICATION = 0x84 (notification only, not a command)
+ * N_SCAN_COMPLETE = 0x84 (notification only, not a command)
  */
 struct il_scancomplete_notification {
 	u8 scanned_channels;
@@ -2664,7 +2664,7 @@ enum il_ibss_manager {
 };
 
 /*
- * BEACON_NOTIFICATION = 0x90 (notification only, not a command)
+ * N_BEACON = 0x90 (notification only, not a command)
  */
 
 struct il3945_beacon_notif {
@@ -2682,7 +2682,7 @@ struct il4965_beacon_notif {
 } __packed;
 
 /*
- * REPLY_TX_BEACON = 0x91 (command, has simple generic response)
+ * C_TX_BEACON= 0x91 (command, has simple generic response)
  */
 
 struct il3945_tx_beacon_cmd {
@@ -2963,19 +2963,19 @@ struct stats_general {
 #define UCODE_STATS_NARROW_BAND_MSK	(0x1 << 2)
 
 /*
- * REPLY_STATS_CMD = 0x9c,
+ * C_STATS = 0x9c,
  * all devices identical.
  *
  * This command triggers an immediate response containing uCode stats.
- * The response is in the same format as STATS_NOTIFICATION 0x9d, below.
+ * The response is in the same format as N_STATS 0x9d, below.
  *
  * If the CLEAR_STATS configuration flag is set, uCode will clear its
  * internal copy of the stats (counters) after issuing the response.
- * This flag does not affect STATS_NOTIFICATIONs after beacons (see below).
+ * This flag does not affect N_STATSs after beacons (see below).
  *
  * If the DISABLE_NOTIF configuration flag is set, uCode will not issue
- * STATS_NOTIFICATIONs after received beacons (see below).  This flag
- * does not affect the response to the REPLY_STATS_CMD 0x9c itself.
+ * N_STATSs after received beacons (see below).  This flag
+ * does not affect the response to the C_STATS 0x9c itself.
  */
 #define IL_STATS_CONF_CLEAR_STATS cpu_to_le32(0x1)	/* see above */
 #define IL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)/* see above */
@@ -2984,14 +2984,14 @@ struct il_stats_cmd {
 } __packed;
 
 /*
- * STATS_NOTIFICATION = 0x9d (notification only, not a command)
+ * N_STATS = 0x9d (notification only, not a command)
  *
  * By default, uCode issues this notification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
- * REPLY_STATS_CMD 0x9c, above.
+ * C_STATS 0x9c, above.
  *
  * Statistics counters continue to increment beacon after beacon, but are
- * cleared when changing channels or when driver issues REPLY_STATS_CMD
+ * cleared when changing channels or when driver issues C_STATS
  * 0x9c with CLEAR_STATS bit set (see above).
  *
  * uCode also issues this notification during scans.  uCode clears stats
@@ -3016,9 +3016,9 @@ struct il_notif_stats {
 } __packed;
 
 /*
- * MISSED_BEACONS_NOTIFICATION = 0xa2 (notification only, not a command)
+ * N_MISSED_BEACONS = 0xa2 (notification only, not a command)
  *
- * uCode send MISSED_BEACONS_NOTIFICATION to driver when detect beacon missed
+ * uCode send N_MISSED_BEACONS to driver when detect beacon missed
  * in regardless of how many missed beacons, which mean when driver receive the
  * notification, inside the command, it can find all the beacons information
  * which include number of total missed beacons, number of consecutive missed
@@ -3062,7 +3062,7 @@ struct il_missed_beacon_notif {
  *****************************************************************************/
 
 /**
- * SENSITIVITY_CMD = 0xa8 (command, has simple generic response)
+ * C_SENSITIVITY = 0xa8 (command, has simple generic response)
  *
  * This command sets up the Rx signal detector for a sensitivity level that
  * is high enough to lock onto all signals within the associated network,
@@ -3076,7 +3076,7 @@ struct il_missed_beacon_notif {
  * time listening, not transmitting).  Driver must adjust sensitivity so that
  * the ratio of actual false alarms to actual Rx time falls within this range.
  *
- * While associated, uCode delivers STATS_NOTIFICATIONs after each
+ * While associated, uCode delivers N_STATSs after each
  * received beacon.  These provide information to the driver to analyze the
  * sensitivity.  Don't analyze stats that come in from scanning, or any
  * other non-associated-network source.  Pertinent stats include:
@@ -3217,7 +3217,7 @@ struct il_missed_beacon_notif {
  */
 
 /*
- * Table entries in SENSITIVITY_CMD (struct il_sensitivity_cmd)
+ * Table entries in C_SENSITIVITY (struct il_sensitivity_cmd)
  */
 #define HD_TBL_SIZE  (11)	/* number of entries */
 #define HD_MIN_ENERGY_CCK_DET_IDX                 (0)	/* table idxes */
@@ -3233,8 +3233,8 @@ struct il_missed_beacon_notif {
 #define HD_OFDM_ENERGY_TH_IN_IDX                  (10)
 
 /* Control field in struct il_sensitivity_cmd */
-#define SENSITIVITY_CMD_CONTROL_DEFAULT_TBL	cpu_to_le16(0)
-#define SENSITIVITY_CMD_CONTROL_WORK_TBL	cpu_to_le16(1)
+#define C_SENSITIVITY_CONTROL_DEFAULT_TBL	cpu_to_le16(0)
+#define C_SENSITIVITY_CONTROL_WORK_TBL	cpu_to_le16(1)
 
 /**
  * struct il_sensitivity_cmd
@@ -3250,12 +3250,12 @@ struct il_sensitivity_cmd {
 
 
 /**
- * REPLY_PHY_CALIBRATION_CMD = 0xb0 (command, has simple generic response)
+ * C_PHY_CALIBRATION = 0xb0 (command, has simple generic response)
  *
  * This command sets the relative gains of 4965 device's 3 radio receiver chains.
  *
  * After the first association, driver should accumulate signal and noise
- * stats from the STATS_NOTIFICATIONs that follow the first 20
+ * stats from the N_STATSs that follow the first 20
  * beacons from the associated network (don't collect stats that come
  * in from scanning, or any other non-network source).
  *
@@ -3338,7 +3338,7 @@ struct il_calib_diff_gain_cmd {
 
 /*
  * LEDs Command & Response
- * REPLY_LEDS_CMD = 0x48 (command, has simple generic response)
+ * C_LEDS = 0x48 (command, has simple generic response)
  *
  * For each of 3 possible LEDs (Activity/Link/Tech, selected by "id" field),
  * this command turns it on or off, or sets up a periodic blinking cycle.

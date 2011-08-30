@@ -509,8 +509,8 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 
 #ifdef CONFIG_IWLEGACY_DEBUG
 	switch (out_cmd->hdr.cmd) {
-	case REPLY_TX_LINK_QUALITY_CMD:
-	case SENSITIVITY_CMD:
+	case C_TX_LINK_QUALITY_CMD:
+	case C_SENSITIVITY:
 		D_HC_DUMP(
 				"Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",

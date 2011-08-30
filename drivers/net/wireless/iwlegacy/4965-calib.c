@@ -410,13 +410,13 @@ static void il4965_prepare_legacy_sensitivity_tbl(struct il_priv *il,
 			data->nrg_th_cck);
 }
 
-/* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
+/* Prepare a C_SENSITIVITY, send to uCode if values have changed */
 static int il4965_sensitivity_write(struct il_priv *il)
 {
 	struct il_sensitivity_cmd cmd;
 	struct il_sensitivity_data *data = NULL;
 	struct il_host_cmd cmd_out = {
-		.id = SENSITIVITY_CMD,
+		.id = C_SENSITIVITY,
 		.len = sizeof(struct il_sensitivity_cmd),
 		.flags = CMD_ASYNC,
 		.data = &cmd,
@@ -429,12 +429,12 @@ static int il4965_sensitivity_write(struct il_priv *il)
 	il4965_prepare_legacy_sensitivity_tbl(il, data, &cmd.table[0]);
 
 	/* Update uCode's "work" table, and copy it to DSP */
-	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TBL;
+	cmd.control = C_SENSITIVITY_CONTROL_WORK_TBL;
 
 	/* Don't send command to uCode if nothing has changed */
 	if (!memcmp(&cmd.table[0], &(il->sensitivity_tbl[0]),
 		    sizeof(u16)*HD_TBL_SIZE)) {
-		D_CALIB("No change in SENSITIVITY_CMD\n");
+		D_CALIB("No change in C_SENSITIVITY\n");
 		return 0;
 	}
 
@@ -776,11 +776,11 @@ static void il4965_gain_computation(struct il_priv *il,
 		cmd.diff_gain_a = data->delta_gain_code[0];
 		cmd.diff_gain_b = data->delta_gain_code[1];
 		cmd.diff_gain_c = data->delta_gain_code[2];
-		ret = il_send_cmd_pdu(il, REPLY_PHY_CALIBRATION_CMD,
+		ret = il_send_cmd_pdu(il, C_PHY_CALIBRATION,
 				      sizeof(cmd), &cmd);
 		if (ret)
 			D_CALIB("fail sending cmd "
-				     "REPLY_PHY_CALIBRATION_CMD\n");
+				     "C_PHY_CALIBRATION\n");
 
 		/* TODO we might want recalculate
 		 * rx_chain in rxon cmd */

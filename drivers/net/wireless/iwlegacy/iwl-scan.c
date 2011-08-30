@@ -59,7 +59,7 @@ static int il_send_scan_abort(struct il_priv *il)
 	int ret;
 	struct il_rx_pkt *pkt;
 	struct il_host_cmd cmd = {
-		.id = REPLY_SCAN_ABORT_CMD,
+		.id = C_SCAN_ABORT,
 		.flags = CMD_WANT_SKB,
 	};
 
@@ -181,7 +181,7 @@ int il_scan_cancel_timeout(struct il_priv *il, unsigned long ms)
 }
 EXPORT_SYMBOL(il_scan_cancel_timeout);
 
-/* Service response to REPLY_SCAN_CMD (0x80) */
+/* Service response to C_SCAN (0x80) */
 static void il_rx_reply_scan(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
@@ -194,7 +194,7 @@ static void il_rx_reply_scan(struct il_priv *il,
 #endif
 }
 
-/* Service SCAN_START_NOTIFICATION (0x82) */
+/* Service N_SCAN_START (0x82) */
 static void il_rx_scan_start_notif(struct il_priv *il,
 				    struct il_rx_buf *rxb)
 {
@@ -212,7 +212,7 @@ static void il_rx_scan_start_notif(struct il_priv *il,
 		       notif->status, notif->beacon_timer);
 }
 
-/* Service SCAN_RESULTS_NOTIFICATION (0x83) */
+/* Service N_SCAN_RESULTS (0x83) */
 static void il_rx_scan_results_notif(struct il_priv *il,
 				      struct il_rx_buf *rxb)
 {
@@ -234,7 +234,7 @@ static void il_rx_scan_results_notif(struct il_priv *il,
 #endif
 }
 
-/* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
+/* Service N_SCAN_COMPLETE (0x84) */
 static void il_rx_scan_complete_notif(struct il_priv *il,
 				       struct il_rx_buf *rxb)
 {
@@ -263,12 +263,12 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 void il_setup_rx_scan_handlers(struct il_priv *il)
 {
 	/* scan handlers */
-	il->rx_handlers[REPLY_SCAN_CMD] = il_rx_reply_scan;
-	il->rx_handlers[SCAN_START_NOTIFICATION] =
+	il->rx_handlers[C_SCAN] = il_rx_reply_scan;
+	il->rx_handlers[N_SCAN_START] =
 					il_rx_scan_start_notif;
-	il->rx_handlers[SCAN_RESULTS_NOTIFICATION] =
+	il->rx_handlers[N_SCAN_RESULTS] =
 					il_rx_scan_results_notif;
-	il->rx_handlers[SCAN_COMPLETE_NOTIFICATION] =
+	il->rx_handlers[N_SCAN_COMPLETE] =
 					il_rx_scan_complete_notif;
 }
 EXPORT_SYMBOL(il_setup_rx_scan_handlers);

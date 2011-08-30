@@ -189,7 +189,7 @@
  *        procedure.
  *
  * This save/restore method is mostly for autonomous power management during
- * normal operation (result of POWER_TBL_CMD).  Platform suspend/resume and
+ * normal operation (result of C_POWER_TBL).  Platform suspend/resume and
  * RFKILL should use complete restarts (with total re-initialization) of uCode,
  * allowing total shutdown (including BSM memory).
  *

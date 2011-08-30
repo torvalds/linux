@@ -1165,7 +1165,7 @@ void il_send_bt_config(struct il_priv *il)
 	D_INFO("BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
-	if (il_send_cmd_pdu(il, REPLY_BT_CONFIG,
+	if (il_send_cmd_pdu(il, C_BT_CONFIG,
 			     sizeof(struct il_bt_cmd), &bt_cmd))
 		IL_ERR("failed to send BT Coex Config\n");
 }
@@ -1179,11 +1179,11 @@ int il_send_stats_request(struct il_priv *il, u8 flags, bool clear)
 	};
 
 	if (flags & CMD_ASYNC)
-		return il_send_cmd_pdu_async(il, REPLY_STATS_CMD,
+		return il_send_cmd_pdu_async(il, C_STATS,
 					sizeof(struct il_stats_cmd),
 					&stats_cmd, NULL);
 	else
-		return il_send_cmd_pdu(il, REPLY_STATS_CMD,
+		return il_send_cmd_pdu(il, C_STATS,
 					sizeof(struct il_stats_cmd),
 					&stats_cmd);
 }

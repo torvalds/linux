@@ -88,7 +88,7 @@ il_set_power(struct il_priv *il, struct il_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return il_send_cmd_pdu(il, POWER_TBL_CMD,
+	return il_send_cmd_pdu(il, C_POWER_TBL,
 				sizeof(struct il_powertable_cmd), cmd);
 }
 

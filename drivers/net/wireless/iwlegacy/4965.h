@@ -278,8 +278,8 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  * uCode provides all 4 values to the driver via the "initialize alive"
  * notification (see struct il4965_init_alive_resp).  After the runtime uCode
  * image loads, uCode updates the R4 value via stats notifications
- * (see STATS_NOTIFICATION), which occur after each received beacon
- * when associated, or can be requested via REPLY_STATS_CMD.
+ * (see N_STATS), which occur after each received beacon
+ * when associated, or can be requested via C_STATS.
  *
  * NOTE:  uCode provides the R4 value as a 23-bit signed value.  Driver
  *        must sign-extend to 32 bits before applying formula below.

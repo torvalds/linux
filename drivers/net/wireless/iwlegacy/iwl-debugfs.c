@@ -554,7 +554,7 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos,
 		"Rx command responses:\t\t %u\n",
 		il->isr_stats.rx);
-	for (cnt = 0; cnt < REPLY_MAX; cnt++) {
+	for (cnt = 0; cnt < IL_CN_MAX; cnt++) {
 		if (il->isr_stats.rx_handlers[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
