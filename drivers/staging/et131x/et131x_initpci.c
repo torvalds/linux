@@ -328,10 +328,8 @@ void et131x_configure_global_regs(struct et131x_adapter *adapter)
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_adapter_setup(struct et131x_adapter *adapter)
+void et131x_adapter_setup(struct et131x_adapter *adapter)
 {
-	int status;
-
 	/* Configure the JAGCore */
 	et131x_configure_global_regs(adapter);
 
@@ -348,12 +346,6 @@ int et131x_adapter_setup(struct et131x_adapter *adapter)
 	et131x_config_tx_dma_regs(adapter);
 
 	et1310_config_macstat_regs(adapter);
-
-	/* Move the following code to Timer function?? */
-	status = et131x_xcvr_find(adapter);
-
-	if (status)
-		dev_warn(&adapter->pdev->dev, "Could not find the xcvr\n");
 
 	/* Prepare the TRUEPHY library. */
 	et1310_phy_init(adapter);
@@ -377,7 +369,6 @@ int et131x_adapter_setup(struct et131x_adapter *adapter)
 	et1310_phy_power_down(adapter, 0);
 
 	et131x_setphy_normal(adapter);
-	return status;
 }
 
 /**
@@ -493,9 +484,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 		et1310_disable_phy_coma(adapter);
 	}
 
-	et131x_mii_read(adapter,
-	       (uint8_t) offsetof(struct mi_regs, bmsr),
-	       &bmsr_data);
+	et131x_phy_mii_read(adapter, phydev->addr, MII_BMSR, &bmsr_data);
 
 	bmsr_ints = adapter->bmsr ^ bmsr_data;
 	adapter->bmsr = bmsr_data;

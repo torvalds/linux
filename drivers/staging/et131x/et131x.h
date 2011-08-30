@@ -59,7 +59,7 @@ void et131x_align_allocated_memory(struct et131x_adapter *adapter,
 				   u64 *phys_addr,
 				   u64 *offset, u64 mask);
 
-int et131x_adapter_setup(struct et131x_adapter *adapter);
+void et131x_adapter_setup(struct et131x_adapter *adapter);
 int et131x_adapter_memory_alloc(struct et131x_adapter *adapter);
 void et131x_adapter_memory_free(struct et131x_adapter *adapter);
 void et131x_hwaddr_init(struct et131x_adapter *adapter);
@@ -104,16 +104,13 @@ void et131x_setphy_normal(struct et131x_adapter *adapter);
 /* static inline function does not work because et131x_adapter is not always
  * defined
  */
-int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvrAddr,
-	      u8 xcvrReg, u16 *value);
-#define et131x_mii_read(adapter, xcvrReg, value) \
-	et131x_phy_mii_read((adapter), \
-			    (adapter)->stats.xcvr_addr, \
-			    (xcvrReg), (value))
-
+int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
+	      u8 reg, u16 *value);
+int32_t et131x_mii_read(struct et131x_adapter *adapter,
+		u8 reg, u16 *value);
 int32_t et131x_mii_write(struct et131x_adapter *adapter,
-		u8 xcvReg, u16 value);
-void et131x_mii_check(struct et131x_adapter *pAdapter,
+		u8 reg, u16 value);
+void et131x_mii_check(struct et131x_adapter *adapter,
 		      u16 bmsr, u16 bmsr_ints);
 
 int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg);

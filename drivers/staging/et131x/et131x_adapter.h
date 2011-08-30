@@ -113,9 +113,6 @@ struct ce_stats {
 	atomic_t	broadcast_pkts_xmtd;
 	u32		rcvd_pkts_dropped;
 
-	/* Transceiver state informations. */
-	u8		xcvr_addr;
-
 	/* Tx Statistics. */
 	u32		tx_underflows;
 

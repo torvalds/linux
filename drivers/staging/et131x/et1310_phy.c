@@ -114,7 +114,6 @@ int et131x_mdio_write(struct mii_bus *bus, int phy_addr, int reg, u16 value)
 	struct net_device *netdev = bus->priv;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	/* mii_write always uses the same phy_addr, xcvr_addr */
 	return et131x_mii_write(adapter, reg, value);
 }
 
@@ -128,17 +127,28 @@ int et131x_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
+
+int et131x_mii_read(struct et131x_adapter *adapter, u8 reg, u16 *value)
+{
+	struct phy_device *phydev = adapter->phydev;
+
+	if(!phydev)
+		return -EIO;
+
+	return et131x_phy_mii_read(adapter, phydev->addr, reg, value);
+}
+
 /**
  * et131x_phy_mii_read - Read from the PHY through the MII Interface on the MAC
  * @adapter: pointer to our private adapter structure
- * @xcvr_addr: the address of the transceiver
- * @xcvr_reg: the register to read
+ * @addr: the address of the transceiver
+ * @reg: the register to read
  * @value: pointer to a 16-bit value in which the value will be stored
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvr_addr,
-	      u8 xcvr_reg, u16 *value)
+int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
+	      u8 reg, u16 *value)
 {
 	struct mac_regs __iomem *mac = &adapter->regs->mac;
 	int status = 0;
@@ -157,7 +167,7 @@ int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvr_addr,
 	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to read from on the correct PHY */
-	writel(MII_ADDR(xcvr_addr, xcvr_reg), &mac->mii_mgmt_addr);
+	writel(MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
 
 	writel(0x1, &mac->mii_mgmt_cmd);
 
@@ -170,7 +180,7 @@ int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvr_addr,
 	/* If we hit the max delay, we could not read the register */
 	if (delay == 50) {
 		dev_warn(&adapter->pdev->dev,
-			    "xcvrReg 0x%08x could not be read\n", xcvr_reg);
+			    "reg 0x%08x could not be read\n", reg);
 		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
 			    mii_indicator);
 
@@ -196,22 +206,28 @@ int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvr_addr,
 /**
  * et131x_mii_write - Write to a PHY register through the MII interface of the MAC
  * @adapter: pointer to our private adapter structure
- * @xcvr_reg: the register to read
+ * @reg: the register to read
  * @value: 16-bit value to write
  *
  * FIXME: one caller in netdev still
  *
  * Return 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_mii_write(struct et131x_adapter *adapter, u8 xcvr_reg, u16 value)
+int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 {
 	struct mac_regs __iomem *mac = &adapter->regs->mac;
+	struct phy_device *phydev = adapter->phydev;
 	int status = 0;
-	u8 xcvr_addr = adapter->stats.xcvr_addr;
+	u8 addr;
 	u32 delay = 0;
 	u32 mii_addr;
 	u32 mii_cmd;
 	u32 mii_indicator;
+
+	if(!phydev)
+		return -EIO;
+
+	addr = phydev->addr;
 
 	/* Save a local copy of the registers we are dealing with so we can
 	 * set them back
@@ -223,7 +239,7 @@ int et131x_mii_write(struct et131x_adapter *adapter, u8 xcvr_reg, u16 value)
 	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to write to on the correct PHY */
-	writel(MII_ADDR(xcvr_addr, xcvr_reg), &mac->mii_mgmt_addr);
+	writel(MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
 
 	/* Add the value to write to the registers to the mac */
 	writel(value, &mac->mii_mgmt_ctrl);
@@ -239,13 +255,13 @@ int et131x_mii_write(struct et131x_adapter *adapter, u8 xcvr_reg, u16 value)
 		u16 tmp;
 
 		dev_warn(&adapter->pdev->dev,
-		    "xcvrReg 0x%08x could not be written", xcvr_reg);
+		    "reg 0x%08x could not be written", reg);
 		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
 			    mii_indicator);
 		dev_warn(&adapter->pdev->dev, "command is  0x%08x\n",
 			    readl(&mac->mii_mgmt_cmd));
 
-		et131x_mii_read(adapter, xcvr_reg, &tmp);
+		et131x_mii_read(adapter, reg, &tmp);
 
 		status = -EIO;
 	}
@@ -260,36 +276,6 @@ int et131x_mii_write(struct et131x_adapter *adapter, u8 xcvr_reg, u16 value)
 	writel(mii_cmd, &mac->mii_mgmt_cmd);
 
 	return status;
-}
-
-/**
- * et131x_xcvr_find - Find the PHY ID
- * @adapter: pointer to our private adapter structure
- *
- * Returns 0 on success, errno on failure (as defined in errno.h)
- */
-int et131x_xcvr_find(struct et131x_adapter *adapter)
-{
-	u8 xcvr_addr;
-	u16 idr1;
-	u16 idr2;
-
-	/* We need to get xcvr id and address we just get the first one */
-	for (xcvr_addr = 0; xcvr_addr < 32; xcvr_addr++) {
-		/* Read the ID from the PHY */
-		et131x_phy_mii_read(adapter, xcvr_addr,
-			     (u8) offsetof(struct mi_regs, idr1),
-			     &idr1);
-		et131x_phy_mii_read(adapter, xcvr_addr,
-			     (u8) offsetof(struct mi_regs, idr2),
-			     &idr2);
-
-		if (idr1 != 0 && idr1 != 0xffff) {
-			adapter->stats.xcvr_addr = xcvr_addr;
-			return 0;
-		}
-	}
-	return -ENODEV;
 }
 
 void et1310_phy_reset(struct et131x_adapter *adapter)
