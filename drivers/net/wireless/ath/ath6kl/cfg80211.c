@@ -1658,6 +1658,35 @@ static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
 				      0);
 }
 
+static int ath6kl_remain_on_channel(struct wiphy *wiphy,
+				    struct net_device *dev,
+				    struct ieee80211_channel *chan,
+				    enum nl80211_channel_type channel_type,
+				    unsigned int duration,
+				    u64 *cookie)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	/* TODO: if already pending or ongoing remain-on-channel,
+	 * return -EBUSY */
+	*cookie = 1; /* only a single pending request is supported */
+
+	return ath6kl_wmi_remain_on_chnl_cmd(ar->wmi, chan->center_freq,
+					     duration);
+}
+
+static int ath6kl_cancel_remain_on_channel(struct wiphy *wiphy,
+					   struct net_device *dev,
+					   u64 cookie)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (cookie != 1)
+		return -ENOENT;
+
+	return ath6kl_wmi_cancel_remain_on_chnl_cmd(ar->wmi);
+}
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1685,6 +1714,8 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.set_beacon = ath6kl_set_beacon,
 	.del_beacon = ath6kl_del_beacon,
 	.change_station = ath6kl_change_station,
+	.remain_on_channel = ath6kl_remain_on_channel,
+	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
@@ -1705,6 +1736,8 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 		kfree(wdev);
 		return NULL;
 	}
+
+	wdev->wiphy->max_remain_on_channel_duration = 5000;
 
 	/* set device pointer for wiphy */
 	set_wiphy_dev(wdev->wiphy, dev);
