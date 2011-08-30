@@ -85,7 +85,7 @@ void ath6kl_init_profile_info(struct ath6kl *ar)
 	ar->prwise_crypto = NONE_CRYPT;
 	ar->prwise_crypto_len = 0;
 	ar->grp_crypto = NONE_CRYPT;
-	ar->grp_crpto_len = 0;
+	ar->grp_crypto_len = 0;
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
 	memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
 	memset(ar->bssid, 0, sizeof(ar->bssid));

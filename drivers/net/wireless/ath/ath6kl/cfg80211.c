@@ -168,7 +168,8 @@ static int ath6kl_set_auth_type(struct ath6kl *ar,
 static int ath6kl_set_cipher(struct ath6kl *ar, u32 cipher, bool ucast)
 {
 	u8 *ar_cipher = ucast ? &ar->prwise_crypto : &ar->grp_crypto;
-	u8 *ar_cipher_len = ucast ? &ar->prwise_crypto_len : &ar->grp_crpto_len;
+	u8 *ar_cipher_len = ucast ? &ar->prwise_crypto_len :
+		&ar->grp_crypto_len;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: cipher 0x%x, ucast %u\n",
 		   __func__, cipher, ucast);
@@ -371,14 +372,14 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		   __func__,
 		   ar->auth_mode, ar->dot11_auth_mode, ar->prwise_crypto,
 		   ar->prwise_crypto_len, ar->grp_crypto,
-		   ar->grp_crpto_len, ar->ch_hint);
+		   ar->grp_crypto_len, ar->ch_hint);
 
 	ar->reconnect_flag = 0;
 	status = ath6kl_wmi_connect_cmd(ar->wmi, ar->nw_type,
 					ar->dot11_auth_mode, ar->auth_mode,
 					ar->prwise_crypto,
 					ar->prwise_crypto_len,
-					ar->grp_crypto, ar->grp_crpto_len,
+					ar->grp_crypto, ar->grp_crypto_len,
 					ar->ssid_len, ar->ssid,
 					ar->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);
@@ -688,7 +689,7 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 					ar->prwise_crypto,
 					ar->prwise_crypto_len,
 					ar->grp_crypto,
-					ar->grp_crpto_len,
+					ar->grp_crypto_len,
 					ar->ssid_len,
 					ar->ssid,
 					ar->req_bssid,
@@ -1277,13 +1278,13 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		   __func__,
 		   ar->auth_mode, ar->dot11_auth_mode, ar->prwise_crypto,
 		   ar->prwise_crypto_len, ar->grp_crypto,
-		   ar->grp_crpto_len, ar->ch_hint);
+		   ar->grp_crypto_len, ar->ch_hint);
 
 	status = ath6kl_wmi_connect_cmd(ar->wmi, ar->nw_type,
 					ar->dot11_auth_mode, ar->auth_mode,
 					ar->prwise_crypto,
 					ar->prwise_crypto_len,
-					ar->grp_crypto, ar->grp_crpto_len,
+					ar->grp_crypto, ar->grp_crypto_len,
 					ar->ssid_len, ar->ssid,
 					ar->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);

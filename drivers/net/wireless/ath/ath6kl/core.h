@@ -380,7 +380,7 @@ struct ath6kl {
 	u8 prwise_crypto;
 	u8 prwise_crypto_len;
 	u8 grp_crypto;
-	u8 grp_crpto_len;
+	u8 grp_crypto_len;
 	u8 def_txkey_index;
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	u8 bssid[ETH_ALEN];
