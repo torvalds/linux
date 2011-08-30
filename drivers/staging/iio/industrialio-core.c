@@ -1018,7 +1018,6 @@ static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
 	cdev_del(&dev_info->chrdev);
-	iio_put();
 	kfree(dev_info);
 }
 
@@ -1048,7 +1047,6 @@ struct iio_dev *iio_allocate_device(int sizeof_priv)
 		device_initialize(&dev->dev);
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
-		iio_get();
 	}
 
 	return dev;
@@ -1057,10 +1055,8 @@ EXPORT_SYMBOL(iio_allocate_device);
 
 void iio_free_device(struct iio_dev *dev)
 {
-	if (dev) {
-		iio_put();
+	if (dev)
 		kfree(dev);
-	}
 }
 EXPORT_SYMBOL(iio_free_device);
 
@@ -1173,17 +1169,6 @@ void iio_device_unregister(struct iio_dev *dev_info)
 	device_unregister(&dev_info->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
-
-void iio_put(void)
-{
-	module_put(THIS_MODULE);
-}
-
-void iio_get(void)
-{
-	__module_get(THIS_MODULE);
-}
-
 subsys_initcall(iio_init);
 module_exit(iio_exit);
 

@@ -13,16 +13,6 @@
 #ifndef _IIO_CORE_H_
 #define _IIO_CORE_H_
 
-/**
- * iio_put() - internal module reference count reduce
- **/
-void iio_put(void);
-
-/**
- * iio_get() - internal module reference count increase
- **/
-void iio_get(void);
-
 int __iio_add_chan_devattr(const char *postfix,
 			   const char *group,
 			   struct iio_chan_spec const *chan,

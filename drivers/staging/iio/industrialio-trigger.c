@@ -394,7 +394,6 @@ static void iio_trig_release(struct device *device)
 	}
 	kfree(trig->name);
 	kfree(trig);
-	iio_put();
 }
 
 static struct device_type iio_trig_type = {
@@ -461,7 +460,6 @@ struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
 					  IRQ_NOREQUEST | IRQ_NOAUTOEN,
 					  IRQ_NOPROBE);
 		}
-		iio_get();
 		get_device(&trig->dev);
 	}
 	return trig;
