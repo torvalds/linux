@@ -101,9 +101,6 @@ struct reg_beacon {
 	struct ieee80211_channel chan;
 };
 
-static void wiphy_update_regulatory(struct wiphy *wiphy,
-				    enum nl80211_reg_initiator initiator);
-
 static void reg_todo(struct work_struct *work);
 static DECLARE_WORK(reg_work, reg_todo);
 
@@ -914,14 +911,6 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	return false;
 }
 
-static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
-{
-	struct cfg80211_registered_device *rdev;
-
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
-		wiphy_update_regulatory(&rdev->wiphy, initiator);
-}
-
 static void handle_reg_beacon(struct wiphy *wiphy,
 			      unsigned int chan_idx,
 			      struct reg_beacon *reg_beacon)
@@ -1148,6 +1137,14 @@ void regulatory_update(struct wiphy *wiphy,
 	mutex_lock(&reg_mutex);
 	wiphy_update_regulatory(wiphy, setby);
 	mutex_unlock(&reg_mutex);
+}
+
+static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
+{
+	struct cfg80211_registered_device *rdev;
+
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+		wiphy_update_regulatory(&rdev->wiphy, initiator);
 }
 
 static void handle_channel_custom(struct wiphy *wiphy,
