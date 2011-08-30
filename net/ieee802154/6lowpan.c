@@ -793,8 +793,11 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	mutex_init(&lowpan_dev_info(dev)->dev_list_mtx);
 
 	entry = kzalloc(sizeof(struct lowpan_dev_record), GFP_KERNEL);
-	if (!entry)
+	if (!entry) {
+		dev_put(real_dev);
+		lowpan_dev_info(dev)->real_dev = NULL;
 		return -ENOMEM;
+	}
 
 	entry->ldev = dev;
 
