@@ -1639,6 +1639,25 @@ static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 
+static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
+				 u8 *mac, struct station_parameters *params)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (ar->nw_type != AP_NETWORK)
+		return -EOPNOTSUPP;
+
+	/* Use this only for authorizing/unauthorizing a station */
+	if (!(params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)))
+		return -EOPNOTSUPP;
+
+	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED))
+		return ath6kl_wmi_ap_set_mlme(ar->wmi, WMI_AP_MLME_AUTHORIZE,
+					      mac, 0);
+	return ath6kl_wmi_ap_set_mlme(ar->wmi, WMI_AP_MLME_UNAUTHORIZE, mac,
+				      0);
+}
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1665,6 +1684,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.add_beacon = ath6kl_add_beacon,
 	.set_beacon = ath6kl_set_beacon,
 	.del_beacon = ath6kl_del_beacon,
+	.change_station = ath6kl_change_station,
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)

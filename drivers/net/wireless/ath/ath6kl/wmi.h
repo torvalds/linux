@@ -1804,6 +1804,23 @@ struct wmi_tx_complete_event {
 
 /* Used with WMI_AP_SET_NUM_STA_CMDID */
 
+/*
+ * Used with WMI_AP_SET_MLME_CMDID
+ */
+
+/* MLME Commands */
+#define WMI_AP_MLME_ASSOC       1   /* associate station */
+#define WMI_AP_DISASSOC         2   /* disassociate station */
+#define WMI_AP_DEAUTH           3   /* deauthenticate station */
+#define WMI_AP_MLME_AUTHORIZE   4   /* authorize station */
+#define WMI_AP_MLME_UNAUTHORIZE 5   /* unauthorize station */
+
+struct wmi_ap_set_mlme_cmd {
+	u8 mac[ETH_ALEN];
+	__le16 reason;		/* 802.11 reason code */
+	u8 cmd;			/* operation to perform (WMI_AP_*) */
+} __packed;
+
 struct wmi_ap_set_pvb_cmd {
 	__le32 flag;
 	__le16 aid;
@@ -2022,6 +2039,8 @@ void ath6kl_wmi_node_return(struct wmi *wmi, struct bss *bss);
 
 /* AP mode */
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p);
+
+int ath6kl_wmi_ap_set_mlme(struct wmi *wmip, u8 cmd, const u8 *mac, u16 reason);
 
 int ath6kl_wmi_set_pvb_cmd(struct wmi *wmi, u16 aid, bool flag);
 

@@ -2421,6 +2421,24 @@ int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p)
 	return res;
 }
 
+int ath6kl_wmi_ap_set_mlme(struct wmi *wmip, u8 cmd, const u8 *mac, u16 reason)
+{
+	struct sk_buff *skb;
+	struct wmi_ap_set_mlme_cmd *cm;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cm));
+	if (!skb)
+		return -ENOMEM;
+
+	cm = (struct wmi_ap_set_mlme_cmd *) skb->data;
+	memcpy(cm->mac, mac, ETH_ALEN);
+	cm->reason = cpu_to_le16(reason);
+	cm->cmd = cmd;
+
+	return ath6kl_wmi_cmd_send(wmip, skb, WMI_AP_SET_MLME_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
 static int ath6kl_wmi_pspoll_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
 	struct wmi_pspoll_event *ev;
