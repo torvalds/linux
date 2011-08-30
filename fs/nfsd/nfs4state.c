@@ -1257,20 +1257,6 @@ find_unconfirmed_client_by_str(const char *dname, unsigned int hashval)
 	return NULL;
 }
 
-static void rpc_svcaddr2sockaddr(struct sockaddr *sa, unsigned short family, union svc_addr_u *svcaddr)
-{
-	switch (family) {
-	case AF_INET:
-		((struct sockaddr_in *)sa)->sin_family = AF_INET;
-		((struct sockaddr_in *)sa)->sin_addr = svcaddr->addr;
-		return;
-	case AF_INET6:
-		((struct sockaddr_in6 *)sa)->sin6_family = AF_INET6;
-		((struct sockaddr_in6 *)sa)->sin6_addr = svcaddr->addr6;
-		return;
-	}
-}
-
 static void
 gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, struct svc_rqst *rqstp)
 {
@@ -1302,7 +1288,7 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, struct svc_r
 
 	conn->cb_prog = se->se_callback_prog;
 	conn->cb_ident = se->se_callback_ident;
-	rpc_svcaddr2sockaddr((struct sockaddr *)&conn->cb_saddr, expected_family, &rqstp->rq_daddr);
+	memcpy(&conn->cb_saddr, &rqstp->rq_daddr, rqstp->rq_daddrlen);
 	return;
 out_err:
 	conn->cb_addr.ss_family = AF_UNSPEC;

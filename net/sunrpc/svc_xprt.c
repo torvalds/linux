@@ -254,8 +254,6 @@ EXPORT_SYMBOL_GPL(svc_create_xprt);
  */
 void svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 {
-	struct sockaddr *sin;
-
 	memcpy(&rqstp->rq_addr, &xprt->xpt_remote, xprt->xpt_remotelen);
 	rqstp->rq_addrlen = xprt->xpt_remotelen;
 
@@ -263,15 +261,8 @@ void svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 	 * Destination address in request is needed for binding the
 	 * source address in RPC replies/callbacks later.
 	 */
-	sin = (struct sockaddr *)&xprt->xpt_local;
-	switch (sin->sa_family) {
-	case AF_INET:
-		rqstp->rq_daddr.addr = ((struct sockaddr_in *)sin)->sin_addr;
-		break;
-	case AF_INET6:
-		rqstp->rq_daddr.addr6 = ((struct sockaddr_in6 *)sin)->sin6_addr;
-		break;
-	}
+	memcpy(&rqstp->rq_daddr, &xprt->xpt_local, xprt->xpt_locallen);
+	rqstp->rq_daddrlen = xprt->xpt_locallen;
 }
 EXPORT_SYMBOL_GPL(svc_xprt_copy_addrs);
 

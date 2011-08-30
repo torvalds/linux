@@ -212,11 +212,6 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
 	iov->iov_len += sizeof(__be32);
 }
 
-union svc_addr_u {
-    struct in_addr	addr;
-    struct in6_addr	addr6;
-};
-
 /*
  * The context of a single thread, including the request currently being
  * processed.
@@ -225,8 +220,12 @@ struct svc_rqst {
 	struct list_head	rq_list;	/* idle list */
 	struct list_head	rq_all;		/* all threads list */
 	struct svc_xprt *	rq_xprt;	/* transport ptr */
+
 	struct sockaddr_storage	rq_addr;	/* peer address */
 	size_t			rq_addrlen;
+	struct sockaddr_storage	rq_daddr;	/* dest addr of request
+						 *  - reply from here */
+	size_t			rq_daddrlen;
 
 	struct svc_serv *	rq_server;	/* RPC service definition */
 	struct svc_pool *	rq_pool;	/* thread pool */
@@ -254,9 +253,6 @@ struct svc_rqst {
 	u32			rq_prot;	/* IP protocol */
 	unsigned short
 				rq_secure  : 1;	/* secure port */
-
-	union svc_addr_u	rq_daddr;	/* dest addr of request
-						 *  - reply from here */
 
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
@@ -300,6 +296,21 @@ static inline struct sockaddr *svc_addr(const struct svc_rqst *rqst)
 	return (struct sockaddr *) &rqst->rq_addr;
 }
 
+static inline struct sockaddr_in *svc_daddr_in(const struct svc_rqst *rqst)
+{
+	return (struct sockaddr_in *) &rqst->rq_daddr;
+}
+
+static inline struct sockaddr_in6 *svc_daddr_in6(const struct svc_rqst *rqst)
+{
+	return (struct sockaddr_in6 *) &rqst->rq_daddr;
+}
+
+static inline struct sockaddr *svc_daddr(const struct svc_rqst *rqst)
+{
+	return (struct sockaddr *) &rqst->rq_daddr;
+}
+
 /*
  * Check buffer bounds after decoding arguments
  */
@@ -340,7 +351,8 @@ struct svc_deferred_req {
 	struct svc_xprt		*xprt;
 	struct sockaddr_storage	addr;	/* where reply must go */
 	size_t			addrlen;
-	union svc_addr_u	daddr;	/* where reply must come from */
+	struct sockaddr_storage	daddr;	/* where reply must come from */
+	size_t			daddrlen;
 	struct cache_deferred_req handle;
 	size_t			xprt_hlen;
 	int			argslen;
