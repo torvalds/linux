@@ -33,3 +33,5 @@ ath6kl-y += txrx.o
 ath6kl-y += wmi.o
 ath6kl-y += node.o
 ath6kl-y += sdio.o
+
+ccflags-y += -D__CHECK_ENDIAN__
