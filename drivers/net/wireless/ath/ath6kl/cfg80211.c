@@ -1687,6 +1687,29 @@ static int ath6kl_cancel_remain_on_channel(struct wiphy *wiphy,
 	return ath6kl_wmi_cancel_remain_on_chnl_cmd(ar->wmi);
 }
 
+static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
+			  struct ieee80211_channel *chan, bool offchan,
+			  enum nl80211_channel_type channel_type,
+			  bool channel_type_valid, unsigned int wait,
+			  const u8 *buf, size_t len, u64 *cookie)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+	u32 id;
+
+	id = ar->send_action_id++;
+	if (id == 0) {
+		/*
+		 * 0 is a reserved value in the WMI command and shall not be
+		 * used for the command.
+		 */
+		id = ar->send_action_id++;
+	}
+
+	*cookie = id;
+	return ath6kl_wmi_send_action_cmd(ar->wmi, id, chan->center_freq, wait,
+					  buf, len);
+}
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1716,6 +1739,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_station = ath6kl_change_station,
 	.remain_on_channel = ath6kl_remain_on_channel,
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
+	.mgmt_tx = ath6kl_mgmt_tx,
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
