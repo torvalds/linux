@@ -776,6 +776,16 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 						  request->ssids[i].ssid);
 	}
 
+	if (request->ie) {
+		ret = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_PROBE_REQ,
+					       request->ie, request->ie_len);
+		if (ret) {
+			ath6kl_err("failed to set Probe Request appie for "
+				   "scan");
+			return ret;
+		}
+	}
+
 	if (ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, 0,
 				     false, 0, 0, 0, NULL) != 0) {
 		ath6kl_err("wmi_startscan_cmd failed\n");
@@ -1770,6 +1780,7 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 	    BIT(NL80211_IFTYPE_ADHOC);
 	/* max num of ssids that can be probed during scanning */
 	wdev->wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
+	wdev->wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &ath6kl_band_2ghz;
 	wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &ath6kl_band_5ghz;
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
