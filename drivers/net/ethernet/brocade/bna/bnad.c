@@ -535,16 +535,11 @@ next:
 
 	BNA_QE_INDX_ADD(ccb->producer_index, wis, ccb->q_depth);
 
-	if (likely(ccb)) {
-		if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags)))
-			bna_ib_ack(ccb->i_dbell, packets);
-		bnad_refill_rxq(bnad, ccb->rcb[0]);
-		if (ccb->rcb[1])
-			bnad_refill_rxq(bnad, ccb->rcb[1]);
-	} else {
-		if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags)))
-			bna_ib_ack(ccb->i_dbell, 0);
-	}
+	if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags)))
+		bna_ib_ack(ccb->i_dbell, packets);
+	bnad_refill_rxq(bnad, ccb->rcb[0]);
+	if (ccb->rcb[1])
+		bnad_refill_rxq(bnad, ccb->rcb[1]);
 
 	clear_bit(BNAD_FP_IN_RX_PATH, &rx_ctrl->flags);
 
@@ -590,9 +585,9 @@ static irqreturn_t
 bnad_msix_rx(int irq, void *data)
 {
 	struct bna_ccb *ccb = (struct bna_ccb *)data;
-	struct bnad *bnad = ccb->bnad;
 
-	bnad_netif_rx_schedule_poll(bnad, ccb);
+	if (ccb)
+		bnad_netif_rx_schedule_poll(ccb->bnad, ccb);
 
 	return IRQ_HANDLED;
 }
@@ -1658,18 +1653,14 @@ bnad_napi_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct bnad_rx_ctrl *rx_ctrl =
 		container_of(napi, struct bnad_rx_ctrl, napi);
-	struct bna_ccb *ccb;
-	struct bnad *bnad;
+	struct bnad *bnad = rx_ctrl->bnad;
 	int rcvd = 0;
 
-	ccb = rx_ctrl->ccb;
-
-	bnad = ccb->bnad;
 
 	if (!netif_carrier_ok(bnad->netdev))
 		goto poll_exit;
 
-	rcvd = bnad_poll_cq(bnad, ccb, budget);
+	rcvd = bnad_poll_cq(bnad, rx_ctrl->ccb, budget);
 	if (rcvd == budget)
 		return rcvd;
 
@@ -1678,8 +1669,25 @@ poll_exit:
 
 	BNAD_UPDATE_CTR(bnad, netif_rx_complete);
 
-	bnad_enable_rx_irq(bnad, ccb);
+
+	if (rx_ctrl->ccb)
+		bnad_enable_rx_irq(bnad, rx_ctrl->ccb);
 	return rcvd;
+}
+
+#define BNAD_NAPI_POLL_QUOTA		64
+static void
+bnad_napi_init(struct bnad *bnad, u32 rx_id)
+{
+	struct bnad_rx_ctrl *rx_ctrl;
+	int i;
+
+	/* Initialize & enable NAPI */
+	for (i = 0; i <	bnad->num_rxp_per_rx; i++) {
+		rx_ctrl = &bnad->rx_info[rx_id].rx_ctrl[i];
+		netif_napi_add(bnad->netdev, &rx_ctrl->napi,
+			       bnad_napi_poll_rx, BNAD_NAPI_POLL_QUOTA);
+	}
 }
 
 static void
@@ -1691,9 +1699,6 @@ bnad_napi_enable(struct bnad *bnad, u32 rx_id)
 	/* Initialize & enable NAPI */
 	for (i = 0; i <	bnad->num_rxp_per_rx; i++) {
 		rx_ctrl = &bnad->rx_info[rx_id].rx_ctrl[i];
-
-		netif_napi_add(bnad->netdev, &rx_ctrl->napi,
-			       bnad_napi_poll_rx, 64);
 
 		napi_enable(&rx_ctrl->napi);
 	}
@@ -1732,15 +1737,15 @@ bnad_cleanup_tx(struct bnad *bnad, u32 tx_id)
 		bnad_tx_msix_unregister(bnad, tx_info,
 			bnad->num_txq_per_tx);
 
+	if (0 == tx_id)
+		tasklet_kill(&bnad->tx_free_tasklet);
+
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_tx_destroy(tx_info->tx);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	tx_info->tx = NULL;
 	tx_info->tx_id = 0;
-
-	if (0 == tx_id)
-		tasklet_kill(&bnad->tx_free_tasklet);
 
 	bnad_tx_res_free(bnad, res_info);
 }
@@ -1852,6 +1857,16 @@ bnad_init_rx_config(struct bnad *bnad, struct bna_rx_config *rx_config)
 	rx_config->vlan_strip_status = BNA_STATUS_T_ENABLED;
 }
 
+static void
+bnad_rx_ctrl_init(struct bnad *bnad, u32 rx_id)
+{
+	struct bnad_rx_info *rx_info = &bnad->rx_info[rx_id];
+	int i;
+
+	for (i = 0; i < bnad->num_rxp_per_rx; i++)
+		rx_info->rx_ctrl[i].bnad = bnad;
+}
+
 /* Called with mutex_lock(&bnad->conf_mutex) held */
 void
 bnad_cleanup_rx(struct bnad *bnad, u32 rx_id)
@@ -1875,8 +1890,6 @@ bnad_cleanup_rx(struct bnad *bnad, u32 rx_id)
 			del_timer_sync(&bnad->dim_timer);
 	}
 
-	bnad_napi_disable(bnad, rx_id);
-
 	init_completion(&bnad->bnad_completions.rx_comp);
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_rx_disable(rx_info->rx, BNA_HARD_CLEANUP, bnad_cb_rx_disabled);
@@ -1885,6 +1898,8 @@ bnad_cleanup_rx(struct bnad *bnad, u32 rx_id)
 
 	if (rx_info->rx_ctrl[0].ccb->intr_type == BNA_INTR_T_MSIX)
 		bnad_rx_msix_unregister(bnad, rx_info, rx_config->num_paths);
+
+	bnad_napi_disable(bnad, rx_id);
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_rx_destroy(rx_info->rx);
@@ -1939,6 +1954,8 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 	if (err)
 		return err;
 
+	bnad_rx_ctrl_init(bnad, rx_id);
+
 	/* Ask BNA to create one Rx object, supplying required resources */
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	rx = bna_rx_create(&bnad->bna, bnad, rx_config, &rx_cbfn, res_info,
@@ -1948,6 +1965,12 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 		goto err_return;
 	rx_info->rx = rx;
 
+	/*
+	 * Init NAPI, so that state is set to NAPI_STATE_SCHED,
+	 * so that IRQ handler cannot schedule NAPI at this point.
+	 */
+	bnad_napi_init(bnad, rx_id);
+
 	/* Register ISR for the Rx object */
 	if (intr_info->intr_type == BNA_INTR_T_MSIX) {
 		err = bnad_rx_msix_register(bnad, rx_info, rx_id,
@@ -1955,9 +1978,6 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 		if (err)
 			goto err_return;
 	}
-
-	/* Enable NAPI */
-	bnad_napi_enable(bnad, rx_id);
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	if (0 == rx_id) {
@@ -1974,6 +1994,9 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 
 	bna_rx_enable(rx);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+
+	/* Enable scheduling of NAPI */
+	bnad_napi_enable(bnad, rx_id);
 
 	return 0;
 

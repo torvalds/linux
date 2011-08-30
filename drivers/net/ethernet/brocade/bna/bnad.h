@@ -53,6 +53,7 @@
  */
 struct bnad_rx_ctrl {
 	struct bna_ccb *ccb;
+	struct bnad *bnad;
 	unsigned long  flags;
 	struct napi_struct	napi;
 };
