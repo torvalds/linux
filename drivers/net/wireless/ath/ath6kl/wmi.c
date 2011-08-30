@@ -425,11 +425,14 @@ static int ath6kl_wmi_tx_complete_event_rx(u8 *datap, int len)
 	return 0;
 }
 
-static int ath6kl_wmi_remain_on_chnl_event_rx(u8 *datap, int len)
+static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
+					      int len)
 {
 	struct wmi_remain_on_chnl_event *ev;
 	u32 freq;
 	u32 dur;
+	struct ieee80211_channel *chan;
+	struct ath6kl *ar = wmi->parent_dev;
 
 	if (len < sizeof(*ev))
 		return -EINVAL;
@@ -439,15 +442,26 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(u8 *datap, int len)
 	dur = le32_to_cpu(ev->duration);
 	ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl: freq=%u dur=%u\n",
 		   freq, dur);
+	chan = ieee80211_get_channel(ar->wdev->wiphy, freq);
+	if (!chan) {
+		ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl: Unknown channel "
+			   "(freq=%u)\n", freq);
+		return -EINVAL;
+	}
+	cfg80211_ready_on_channel(ar->net_dev, 1, chan, NL80211_CHAN_NO_HT,
+				  dur, GFP_ATOMIC);
 
 	return 0;
 }
 
-static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(u8 *datap, int len)
+static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
+						     u8 *datap, int len)
 {
 	struct wmi_cancel_remain_on_chnl_event *ev;
 	u32 freq;
 	u32 dur;
+	struct ieee80211_channel *chan;
+	struct ath6kl *ar = wmi->parent_dev;
 
 	if (len < sizeof(*ev))
 		return -EINVAL;
@@ -457,6 +471,14 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(u8 *datap, int len)
 	dur = le32_to_cpu(ev->duration);
 	ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: freq=%u dur=%u "
 		   "status=%u\n", freq, dur, ev->status);
+	chan = ieee80211_get_channel(ar->wdev->wiphy, freq);
+	if (!chan) {
+		ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: Unknown "
+			   "channel (freq=%u)\n", freq);
+		return -EINVAL;
+	}
+	cfg80211_remain_on_channel_expired(ar->net_dev, 1, chan,
+					   NL80211_CHAN_NO_HT, GFP_ATOMIC);
 
 	return 0;
 }
@@ -3009,12 +3031,13 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_REMAIN_ON_CHNL_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REMAIN_ON_CHNL_EVENTID\n");
-		ret = ath6kl_wmi_remain_on_chnl_event_rx(datap, len);
+		ret = ath6kl_wmi_remain_on_chnl_event_rx(wmi, datap, len);
 		break;
 	case WMI_CANCEL_REMAIN_ON_CHNL_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI,
 			   "WMI_CANCEL_REMAIN_ON_CHNL_EVENTID\n");
-		ret = ath6kl_wmi_cancel_remain_on_chnl_event_rx(datap, len);
+		ret = ath6kl_wmi_cancel_remain_on_chnl_event_rx(wmi, datap,
+								len);
 		break;
 	case WMI_TX_STATUS_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TX_STATUS_EVENTID\n");
