@@ -265,8 +265,10 @@ struct iio_info {
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of chanels specified in @channels.
  * @channel_attr_list:	[INTERN] keep track of automatically created channel
- *			attributes.
+ *			attributes
  * @name:		[DRIVER] name of the device.
+ * @info:		[DRIVER] callbacks and constant info from driver
+ * @chrdev:		[INTERN] associated character device
  **/
 struct iio_dev {
 	int				id;
@@ -284,13 +286,13 @@ struct iio_dev {
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
 
-	struct iio_chan_spec const *channels;
-	int num_channels;
+	struct iio_chan_spec const	*channels;
+	int				num_channels;
 
-	struct list_head channel_attr_list;
-	const char *name;
-	const struct iio_info *info;
-	struct cdev				chrdev;
+	struct list_head		channel_attr_list;
+	const char			*name;
+	const struct iio_info		*info;
+	struct cdev			chrdev;
 };
 
 /**
@@ -308,11 +310,10 @@ void iio_device_unregister(struct iio_dev *dev_info);
 /**
  * iio_push_event() - try to add event to the list for userspace reading
  * @dev_info:		IIO device structure
- * @ev_line:		Which event line (hardware interrupt)
  * @ev_code:		What event
  * @timestamp:		When the event occurred
  **/
-int iio_push_event(struct iio_dev *dev_info, int ev_code,  s64 timestamp);
+int iio_push_event(struct iio_dev *dev_info, int ev_code, s64 timestamp);
 
 extern struct bus_type iio_bus_type;
 
