@@ -457,6 +457,7 @@ struct ath6kl {
 	struct dentry *debugfs_phy;
 
 	u32 send_action_id;
+	bool probe_req_report;
 	u16 next_chan;
 };
 

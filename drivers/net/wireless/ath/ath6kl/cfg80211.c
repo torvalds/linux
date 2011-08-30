@@ -1740,6 +1740,24 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 					  buf, len);
 }
 
+static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       u16 frame_type, bool reg)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
+		   __func__, frame_type, reg);
+	if (frame_type == IEEE80211_STYPE_PROBE_REQ) {
+		/*
+		 * Note: This notification callback is not allowed to sleep, so
+		 * we cannot send WMI_PROBE_REQ_REPORT_CMD here. Instead, we
+		 * hardcode target to report Probe Request frames all the time.
+		 */
+		ar->probe_req_report = reg;
+	}
+}
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1770,6 +1788,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.remain_on_channel = ath6kl_remain_on_channel,
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
 	.mgmt_tx = ath6kl_mgmt_tx,
+	.mgmt_frame_register = ath6kl_mgmt_frame_register,
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
