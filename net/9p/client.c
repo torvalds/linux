@@ -123,21 +123,19 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
+		int token, r;
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
-		if (token < Opt_trans) {
-			int r = match_int(&args[0], &option);
+		switch (token) {
+		case Opt_msize:
+			r = match_int(&args[0], &option);
 			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
-					"integer field, but no integer?\n");
+					   "integer field, but no integer?\n");
 				ret = r;
 				continue;
 			}
-		}
-		switch (token) {
-		case Opt_msize:
 			clnt->msize = option;
 			break;
 		case Opt_trans:
