@@ -32,11 +32,10 @@
  **/
 static int iio_ring_open(struct inode *inode, struct file *filp)
 {
-	struct iio_handler *hand
-		= container_of(inode->i_cdev, struct iio_handler, chrdev);
-	struct iio_ring_buffer *rb = hand->private;
-
-	filp->private_data = hand->private;
+	struct iio_ring_buffer *rb
+		= container_of(inode->i_cdev,
+			       struct iio_ring_buffer, chrdev);
+	filp->private_data = rb;
 	if (rb->access->mark_in_use)
 		rb->access->mark_in_use(rb);
 
@@ -51,11 +50,11 @@ static int iio_ring_open(struct inode *inode, struct file *filp)
  **/
 static int iio_ring_release(struct inode *inode, struct file *filp)
 {
-	struct cdev *cd = inode->i_cdev;
-	struct iio_handler *hand = iio_cdev_to_handler(cd);
-	struct iio_ring_buffer *rb = hand->private;
+	struct iio_ring_buffer *rb
+		= container_of(inode->i_cdev,
+			       struct iio_ring_buffer, chrdev);
 
-	clear_bit(IIO_BUSY_BIT_POS, &rb->access_handler.flags);
+	clear_bit(IIO_BUSY_BIT_POS, &rb->flags);
 	if (rb->access->unmark_in_use)
 		rb->access->unmark_in_use(rb);
 
@@ -127,7 +126,7 @@ void iio_ring_access_release(struct device *dev)
 {
 	struct iio_ring_buffer *buf
 		= container_of(dev, struct iio_ring_buffer, dev);
-	cdev_del(&buf->access_handler.chrdev);
+	cdev_del(&buf->chrdev);
 	iio_device_free_chrdev_minor(MINOR(dev->devt));
 }
 EXPORT_SYMBOL(iio_ring_access_release);
@@ -139,7 +138,7 @@ __iio_request_ring_buffer_chrdev(struct iio_ring_buffer *buf,
 {
 	int ret;
 
-	buf->access_handler.flags = 0;
+	buf->flags = 0;
 	buf->dev.bus = &iio_bus_type;
 	device_initialize(&buf->dev);
 
@@ -156,9 +155,9 @@ __iio_request_ring_buffer_chrdev(struct iio_ring_buffer *buf,
 		printk(KERN_ERR "failed to add the ring dev\n");
 		goto error_device_put;
 	}
-	cdev_init(&buf->access_handler.chrdev, &iio_ring_fileops);
-	buf->access_handler.chrdev.owner = owner;
-	ret = cdev_add(&buf->access_handler.chrdev, buf->dev.devt, 1);
+	cdev_init(&buf->chrdev, &iio_ring_fileops);
+	buf->chrdev.owner = owner;
+	ret = cdev_add(&buf->chrdev, buf->dev.devt, 1);
 	if (ret) {
 		printk(KERN_ERR "failed to allocate ring chrdev\n");
 		goto error_device_unregister;
@@ -182,7 +181,6 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 			  struct iio_dev *dev_info)
 {
 	ring->indio_dev = dev_info;
-	ring->access_handler.private = ring;
 	init_waitqueue_head(&ring->pollq);
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);

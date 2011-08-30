@@ -85,13 +85,13 @@ struct iio_ring_setup_ops {
  * @scan_count:	[INTERN] the number of elements in the current scan mode
  * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
- * @access_handler:	[INTERN] chrdev access handling
  * @access:		[DRIVER] ring access functions associated with the
  *			implementation.
  * @preenable:		[DRIVER] function to run prior to marking ring enabled
  * @postenable:		[DRIVER] function to run after marking ring enabled
  * @predisable:		[DRIVER] function to run prior to marking ring disabled
  * @postdisable:	[DRIVER] function to run after marking ring disabled
+ * @flags:		[INTERN] file ops related flags including busy flag.
  **/
 struct iio_ring_buffer {
 	struct device				dev;
@@ -104,13 +104,14 @@ struct iio_ring_buffer {
 	int					scan_count;
 	unsigned long				scan_mask;
 	bool					scan_timestamp;
-	struct iio_handler			access_handler;
 	const struct iio_ring_access_funcs	*access;
 	const struct iio_ring_setup_ops		*setup_ops;
 	struct list_head			scan_el_dev_attr_list;
 
 	wait_queue_head_t			pollq;
 	bool					stufftoread;
+	unsigned long				flags;
+	struct cdev				chrdev;
 };
 
 /**

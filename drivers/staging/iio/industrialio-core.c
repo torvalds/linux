@@ -129,25 +129,24 @@ struct iio_detected_event_list {
 	struct iio_event_data		ev;
 };
 
-
 /**
  * struct iio_event_interface - chrdev interface for an event line
  * @dev:		device assocated with event interface
- * @handler:		fileoperations and related control for the chrdev
  * @wait:		wait queue to allow blocking reads of events
  * @event_list_lock:	mutex to protect the list of detected events
  * @det_events:		list of detected events
  * @max_events:		maximum number of events before new ones are dropped
  * @current_events:	number of events in detected list
+ * @flags:		file operations related flags including busy flag.
  */
 struct iio_event_interface {
-	struct iio_handler			handler;
 	wait_queue_head_t			wait;
 	struct mutex				event_list_lock;
 	struct list_head			det_events;
 	int					max_events;
 	int					current_events;
 	struct list_head dev_attr_list;
+	unsigned long flags;
 };
 
 int iio_push_event(struct iio_dev *dev_info,
@@ -162,7 +161,7 @@ int iio_push_event(struct iio_dev *dev_info,
 
 	/* Does anyone care? */
 	mutex_lock(&ev_int->event_list_lock);
-	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->handler.flags)) {
+	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
 		if (ev_int->current_events == ev_int->max_events) {
 			mutex_unlock(&ev_int->event_list_lock);
 			return 0;
@@ -188,6 +187,7 @@ error_ret:
 }
 EXPORT_SYMBOL(iio_push_event);
 
+
 /* This turns up an awful lot */
 ssize_t iio_read_const_attr(struct device *dev,
 			    struct device_attribute *attr,
@@ -207,6 +207,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	struct iio_detected_event_list *el;
 	int ret;
 	size_t len;
+
 	mutex_lock(&ev_int->event_list_lock);
 	if (list_empty(&ev_int->det_events)) {
 		if (filep->f_flags & O_NONBLOCK) {
@@ -250,8 +251,9 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
 	struct iio_event_interface *ev_int = filep->private_data;
 	struct iio_detected_event_list *el, *t;
+
 	mutex_lock(&ev_int->event_list_lock);
-	clear_bit(IIO_BUSY_BIT_POS, &ev_int->handler.flags);
+	clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 	/*
 	 * In order to maintain a clean state for reopening,
 	 * clear out any awaiting events. The mask will prevent
@@ -297,7 +299,7 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 
 	mutex_lock(&indio_dev->event_interfaces->event_list_lock);
 	if (test_and_set_bit(IIO_BUSY_BIT_POS,
-			     &indio_dev->event_interfaces->handler.flags)) {
+			     &indio_dev->event_interfaces->flags)) {
 		mutex_unlock(&indio_dev->event_interfaces->event_list_lock);
 		return -EBUSY;
 	}
@@ -307,11 +309,7 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 				&indio_dev->event_interfaces[0], O_RDONLY);
 }
 
-static void iio_setup_ev_int(struct iio_event_interface *ev_int,
-			    const char *dev_name,
-			    int index,
-			    struct module *owner,
-			    struct device *dev)
+static void iio_setup_ev_int(struct iio_event_interface *ev_int)
 {
 	mutex_init(&ev_int->event_list_lock);
 	/* discussion point - make this variable? */
@@ -319,8 +317,6 @@ static void iio_setup_ev_int(struct iio_event_interface *ev_int,
 	ev_int->current_events = 0;
 	INIT_LIST_HEAD(&ev_int->det_events);
 	init_waitqueue_head(&ev_int->wait);
-	ev_int->handler.private = ev_int;
-	ev_int->handler.flags = 0;
 }
 
 static int __init iio_init(void)
@@ -1018,12 +1014,7 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 	}
 
 	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
-		iio_setup_ev_int(&dev_info->event_interfaces[i],
-				 dev_name(&dev_info->dev),
-				 i,
-				 dev_info->info->driver_module,
-				 &dev_info->dev);
-
+		iio_setup_ev_int(&dev_info->event_interfaces[i]);
 		if (dev_info->info->event_attrs != NULL)
 			ret = sysfs_create_group(&dev_info->dev.kobj,
 						 &dev_info->info
