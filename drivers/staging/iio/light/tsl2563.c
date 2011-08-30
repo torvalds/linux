@@ -31,9 +31,7 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
 #include <linux/pm.h>
-#include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
