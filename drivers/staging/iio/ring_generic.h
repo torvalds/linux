@@ -211,8 +211,6 @@ int iio_ring_buffer_register_ex(struct iio_dev *indio_dev, int id,
 				const struct iio_chan_spec *channels,
 				int num_channels);
 
-void iio_ring_access_release(struct device *dev);
-
 /**
  * iio_ring_buffer_unregister() - unregister the buffer from IIO core
  * @indio_dev: the device with the buffer to be unregistered
