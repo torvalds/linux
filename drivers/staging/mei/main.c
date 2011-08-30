@@ -413,7 +413,7 @@ static int mei_open(struct inode *inode, struct file *file)
 	err = -ENOMEM;
 	cl = mei_cl_allocate(dev);
 	if (!cl)
-		goto out;
+		goto out_unlock;
 
 	err = -ENODEV;
 	if (dev->mei_state != MEI_ENABLED) {
