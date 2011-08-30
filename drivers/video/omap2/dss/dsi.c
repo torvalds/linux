@@ -3196,25 +3196,34 @@ int dsi_vc_generic_write_2(struct omap_dss_device *dssdev, int channel,
 }
 EXPORT_SYMBOL(dsi_vc_generic_write_2);
 
-int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 *buf, int buflen)
+static int dsi_vc_dcs_send_read_request(struct omap_dss_device *dssdev,
+		int channel, u8 dcs_cmd)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	int r;
+
+	if (dsi->debug_read)
+		DSSDBG("dsi_vc_dcs_send_read_request(ch%d, dcs_cmd %x)\n",
+			channel, dcs_cmd);
+
+	r = dsi_vc_send_short(dsidev, channel, MIPI_DSI_DCS_READ, dcs_cmd, 0);
+	if (r) {
+		DSSERR("dsi_vc_dcs_send_read_request(ch %d, cmd 0x%02x)"
+			" failed\n", channel, dcs_cmd);
+		return r;
+	}
+
+	return 0;
+}
+
+static int dsi_vc_dcs_read_rx_fifo(struct platform_device *dsidev, int channel,
+		u8 *buf, int buflen)
+{
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 val;
 	u8 dt;
 	int r;
-
-	if (dsi->debug_read)
-		DSSDBG("dsi_vc_dcs_read(ch%d, dcs_cmd %x)\n", channel, dcs_cmd);
-
-	r = dsi_vc_send_short(dsidev, channel, MIPI_DSI_DCS_READ, dcs_cmd, 0);
-	if (r)
-		goto err;
-
-	r = dsi_vc_send_bta_sync(dssdev, channel);
-	if (r)
-		goto err;
 
 	/* RX_FIFO_NOT_EMPTY */
 	if (REG_GET(dsidev, DSI_VC_CTRL(channel), 20, 20) == 0) {
@@ -3300,10 +3309,38 @@ int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 
 	BUG();
 err:
-	DSSERR("dsi_vc_dcs_read(ch %d, cmd 0x%02x) failed\n",
-			channel, dcs_cmd);
-	return r;
+	DSSERR("dsi_vc_dcs_read_rx_fifo(ch %d) failed\n", channel);
 
+	return r;
+}
+
+int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+		u8 *buf, int buflen)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	int r;
+
+	r = dsi_vc_dcs_send_read_request(dssdev, channel, dcs_cmd);
+	if (r)
+		goto err;
+
+	r = dsi_vc_send_bta_sync(dssdev, channel);
+	if (r)
+		goto err;
+
+	r = dsi_vc_dcs_read_rx_fifo(dsidev, channel, buf, buflen);
+	if (r < 0)
+		goto err;
+
+	if (r != buflen) {
+		r = -EIO;
+		goto err;
+	}
+
+	return 0;
+err:
+	DSSERR("dsi_vc_dcs_read(ch %d, cmd 0x%02x) failed\n", channel, dcs_cmd);
+	return r;
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read);
 
