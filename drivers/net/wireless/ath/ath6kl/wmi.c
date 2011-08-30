@@ -425,6 +425,148 @@ static int ath6kl_wmi_tx_complete_event_rx(u8 *datap, int len)
 	return 0;
 }
 
+static int ath6kl_wmi_remain_on_chnl_event_rx(u8 *datap, int len)
+{
+	struct wmi_remain_on_chnl_event *ev;
+	u32 freq;
+	u32 dur;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_remain_on_chnl_event *) datap;
+	freq = le32_to_cpu(ev->freq);
+	dur = le32_to_cpu(ev->duration);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl: freq=%u dur=%u\n",
+		   freq, dur);
+
+	return 0;
+}
+
+static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(u8 *datap, int len)
+{
+	struct wmi_cancel_remain_on_chnl_event *ev;
+	u32 freq;
+	u32 dur;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_cancel_remain_on_chnl_event *) datap;
+	freq = le32_to_cpu(ev->freq);
+	dur = le32_to_cpu(ev->duration);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: freq=%u dur=%u "
+		   "status=%u\n", freq, dur, ev->status);
+
+	return 0;
+}
+
+static int ath6kl_wmi_tx_status_event_rx(u8 *datap, int len)
+{
+	struct wmi_tx_status_event *ev;
+	u32 id;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_tx_status_event *) datap;
+	id = le32_to_cpu(ev->id);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "tx_status: id=%x ack_status=%u\n",
+		   id, ev->ack_status);
+
+	return 0;
+}
+
+static int ath6kl_wmi_rx_probe_req_event_rx(u8 *datap, int len)
+{
+	struct wmi_p2p_rx_probe_req_event *ev;
+	u16 dlen;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_p2p_rx_probe_req_event *) datap;
+	dlen = le16_to_cpu(ev->len);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_probe_req: len=%u\n",
+		   dlen);
+
+	return 0;
+}
+
+static int ath6kl_wmi_p2p_capabilities_event_rx(u8 *datap, int len)
+{
+	struct wmi_p2p_capabilities_event *ev;
+	u16 dlen;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_p2p_capabilities_event *) datap;
+	dlen = le16_to_cpu(ev->len);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "p2p_capab: len=%u\n", dlen);
+
+	return 0;
+}
+
+static int ath6kl_wmi_rx_action_event_rx(u8 *datap, int len)
+{
+	struct wmi_rx_action_event *ev;
+	u16 dlen;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_rx_action_event *) datap;
+	dlen = le16_to_cpu(ev->len);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_action: len=%u\n", dlen);
+
+	return 0;
+}
+
+static int ath6kl_wmi_p2p_info_event_rx(u8 *datap, int len)
+{
+	struct wmi_p2p_info_event *ev;
+	u32 flags;
+	u16 dlen;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	ev = (struct wmi_p2p_info_event *) datap;
+	flags = le32_to_cpu(ev->info_req_flags);
+	dlen = le16_to_cpu(ev->len);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "p2p_info: flags=%x len=%d\n", flags, dlen);
+
+	if (flags & P2P_FLAG_CAPABILITIES_REQ) {
+		struct wmi_p2p_capabilities *cap;
+		if (dlen < sizeof(*cap))
+			return -EINVAL;
+		cap = (struct wmi_p2p_capabilities *) ev->data;
+		ath6kl_dbg(ATH6KL_DBG_WMI, "p2p_info: GO Power Save = %d\n",
+			   cap->go_power_save);
+	}
+
+	if (flags & P2P_FLAG_MACADDR_REQ) {
+		struct wmi_p2p_macaddr *mac;
+		if (dlen < sizeof(*mac))
+			return -EINVAL;
+		mac = (struct wmi_p2p_macaddr *) ev->data;
+		ath6kl_dbg(ATH6KL_DBG_WMI, "p2p_info: MAC Address = %pM\n",
+			   mac->mac_addr);
+	}
+
+	if (flags & P2P_FLAG_HMODEL_REQ) {
+		struct wmi_p2p_hmodel *mod;
+		if (dlen < sizeof(*mod))
+			return -EINVAL;
+		mod = (struct wmi_p2p_hmodel *) ev->data;
+		ath6kl_dbg(ATH6KL_DBG_WMI, "p2p_info: P2P Model = %d (%s)\n",
+			   mod->p2p_model,
+			   mod->p2p_model ? "host" : "firmware");
+	}
+	return 0;
+}
+
 static inline struct sk_buff *ath6kl_wmi_get_new_buf(u32 size)
 {
 	struct sk_buff *skb;
@@ -2523,6 +2665,129 @@ int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 mgmt_frm_type, const u8 *ie,
 				   NO_SYNC_WMIFLAG);
 }
 
+int ath6kl_wmi_disable_11b_rates_cmd(struct wmi *wmi, bool disable)
+{
+	struct sk_buff *skb;
+	struct wmi_disable_11b_rates_cmd *cmd;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "disable_11b_rates_cmd: disable=%u\n",
+		   disable);
+	cmd = (struct wmi_disable_11b_rates_cmd *) skb->data;
+	cmd->disable = disable ? 1 : 0;
+
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_DISABLE_11B_RATES_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u32 freq, u32 dur)
+{
+	struct sk_buff *skb;
+	struct wmi_remain_on_chnl_cmd *p;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p));
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl_cmd: freq=%u dur=%u\n",
+		   freq, dur);
+	p = (struct wmi_remain_on_chnl_cmd *) skb->data;
+	p->freq = cpu_to_le32(freq);
+	p->duration = cpu_to_le32(dur);
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_REMAIN_ON_CHNL_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u32 id, u32 freq, u32 wait,
+			       const u8 *data, u16 data_len)
+{
+	struct sk_buff *skb;
+	struct wmi_send_action_cmd *p;
+
+	if (wait)
+		return -EINVAL; /* Offload for wait not supported */
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + data_len);
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "send_action_cmd: id=%u freq=%u wait=%u "
+		   "len=%u\n", id, freq, wait, data_len);
+	p = (struct wmi_send_action_cmd *) skb->data;
+	p->id = cpu_to_le32(id);
+	p->freq = cpu_to_le32(freq);
+	p->wait = cpu_to_le32(wait);
+	p->len = cpu_to_le16(data_len);
+	memcpy(p->data, data, data_len);
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_SEND_ACTION_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u32 freq,
+				       const u8 *dst,
+				       const u8 *data, u16 data_len)
+{
+	struct sk_buff *skb;
+	struct wmi_p2p_probe_response_cmd *p;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + data_len);
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "send_probe_response_cmd: freq=%u dst=%pM "
+		   "len=%u\n", freq, dst, data_len);
+	p = (struct wmi_p2p_probe_response_cmd *) skb->data;
+	p->freq = cpu_to_le32(freq);
+	memcpy(p->destination_addr, dst, ETH_ALEN);
+	p->len = cpu_to_le16(data_len);
+	memcpy(p->data, data, data_len);
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_SEND_PROBE_RESPONSE_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_probe_report_req_cmd(struct wmi *wmi, bool enable)
+{
+	struct sk_buff *skb;
+	struct wmi_probe_req_report_cmd *p;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p));
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "probe_report_req_cmd: enable=%u\n",
+		   enable);
+	p = (struct wmi_probe_req_report_cmd *) skb->data;
+	p->enable = enable ? 1 : 0;
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_PROBE_REQ_REPORT_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_info_req_cmd(struct wmi *wmi, u32 info_req_flags)
+{
+	struct sk_buff *skb;
+	struct wmi_get_p2p_info *p;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p));
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "info_req_cmd: flags=%x\n",
+		   info_req_flags);
+	p = (struct wmi_get_p2p_info *) skb->data;
+	p->info_req_flags = cpu_to_le32(info_req_flags);
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_GET_P2P_INFO_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi)
+{
+	ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl_cmd\n");
+	return ath6kl_wmi_simple_cmd(wmi, WMI_CANCEL_REMAIN_ON_CHNL_CMDID);
+}
+
 static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 {
 	struct wmix_cmd_hdr *cmd;
@@ -2741,6 +3006,35 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	case WMI_TX_COMPLETE_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TX_COMPLETE_EVENTID\n");
 		ret = ath6kl_wmi_tx_complete_event_rx(datap, len);
+		break;
+	case WMI_REMAIN_ON_CHNL_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REMAIN_ON_CHNL_EVENTID\n");
+		ret = ath6kl_wmi_remain_on_chnl_event_rx(datap, len);
+		break;
+	case WMI_CANCEL_REMAIN_ON_CHNL_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI,
+			   "WMI_CANCEL_REMAIN_ON_CHNL_EVENTID\n");
+		ret = ath6kl_wmi_cancel_remain_on_chnl_event_rx(datap, len);
+		break;
+	case WMI_TX_STATUS_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TX_STATUS_EVENTID\n");
+		ret = ath6kl_wmi_tx_status_event_rx(datap, len);
+		break;
+	case WMI_RX_PROBE_REQ_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_RX_PROBE_REQ_EVENTID\n");
+		ret = ath6kl_wmi_rx_probe_req_event_rx(datap, len);
+		break;
+	case WMI_P2P_CAPABILITIES_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_P2P_CAPABILITIES_EVENTID\n");
+		ret = ath6kl_wmi_p2p_capabilities_event_rx(datap, len);
+		break;
+	case WMI_RX_ACTION_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_RX_ACTION_EVENTID\n");
+		ret = ath6kl_wmi_rx_action_event_rx(datap, len);
+		break;
+	case WMI_P2P_INFO_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_P2P_INFO_EVENTID\n");
+		ret = ath6kl_wmi_p2p_info_event_rx(datap, len);
 		break;
 	default:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "unknown cmd id 0x%x\n", id);

@@ -490,17 +490,52 @@ enum wmi_cmd_id {
 	WMI_SET_PASSPHRASE_CMDID,
 	WMI_SEND_ASSOC_RES_CMDID,
 	WMI_SET_ASSOC_REQ_RELAY_CMDID,
-	WMI_GET_RFKILL_MODE_CMDID,
 
 	/* ACS command, consists of sub-commands */
 	WMI_ACS_CTRL_CMDID,
+	WMI_SET_EXCESS_TX_RETRY_THRES_CMDID,
+	WMI_SET_TBD_TIME_CMDID, /*added for wmiconfig command for TBD */
 
+	/* Pktlog cmds */
+	WMI_PKTLOG_ENABLE_CMDID,
+	WMI_PKTLOG_DISABLE_CMDID,
+
+	/* More P2P Cmds */
+	WMI_P2P_GO_NEG_REQ_RSP_CMDID,
+	WMI_P2P_GRP_INIT_CMDID,
+	WMI_P2P_GRP_FORMATION_DONE_CMDID,
+	WMI_P2P_INVITE_CMDID,
+	WMI_P2P_INVITE_REQ_RSP_CMDID,
+	WMI_P2P_PROV_DISC_REQ_CMDID,
+	WMI_P2P_SET_CMDID,
+
+	WMI_GET_RFKILL_MODE_CMDID,
+	WMI_SET_RFKILL_MODE_CMDID,
+	WMI_AP_SET_APSD_CMDID,
+	WMI_AP_APSD_BUFFERED_TRAFFIC_CMDID,
+
+	WMI_P2P_SDPD_TX_CMDID, /* F05C */
+	WMI_P2P_STOP_SDPD_CMDID,
+	WMI_P2P_CANCEL_CMDID,
 	/* Ultra low power store / recall commands */
 	WMI_STORERECALL_CONFIGURE_CMDID,
 	WMI_STORERECALL_RECALL_CMDID,
 	WMI_STORERECALL_HOST_READY_CMDID,
 	WMI_FORCE_TARGET_ASSERT_CMDID,
-	WMI_SET_EXCESS_TX_RETRY_THRES_CMDID,
+
+	WMI_SET_PROBED_SSID_EX_CMDID,
+	WMI_SET_NETWORK_LIST_OFFLOAD_CMDID,
+	WMI_SET_ARP_NS_OFFLOAD_CMDID,
+	WMI_ADD_WOW_EXT_PATTERN_CMDID,
+	WMI_GTK_OFFLOAD_OP_CMDID,
+	WMI_REMAIN_ON_CHNL_CMDID,
+	WMI_CANCEL_REMAIN_ON_CHNL_CMDID,
+	WMI_SEND_ACTION_CMDID,
+	WMI_PROBE_REQ_REPORT_CMDID,
+	WMI_DISABLE_11B_RATES_CMDID,
+	WMI_SEND_PROBE_RESPONSE_CMDID,
+	WMI_GET_P2P_INFO_CMDID,
+	WMI_AP_JOIN_BSS_CMDID,
 };
 
 enum wmi_mgmt_frame_type {
@@ -1188,15 +1223,26 @@ enum wmi_event_id {
 	WMI_WAC_START_WPS_EVENTID,
 	WMI_WAC_CTRL_REQ_REPLY_EVENTID,
 
+	WMI_REPORT_WMM_PARAMS_EVENTID,
+	WMI_WAC_REJECT_WPS_EVENTID,
+
+	/* More P2P Events */
+	WMI_P2P_GO_NEG_REQ_EVENTID,
+	WMI_P2P_INVITE_REQ_EVENTID,
+	WMI_P2P_INVITE_RCVD_RESULT_EVENTID,
+	WMI_P2P_INVITE_SENT_RESULT_EVENTID,
+	WMI_P2P_PROV_DISC_RESP_EVENTID,
+	WMI_P2P_PROV_DISC_REQ_EVENTID,
+
 	/* RFKILL Events */
 	WMI_RFKILL_STATE_CHANGE_EVENTID,
 	WMI_RFKILL_GET_MODE_CMD_EVENTID,
-	WMI_THIN_RESERVED_START_EVENTID = 0x8000,
 
-	/*
-	 * Events in this range are reserved for thinmode
-	 * See wmi_thin.h for actual definitions
-	 */
+	WMI_P2P_START_SDPD_EVENTID,
+	WMI_P2P_SDPD_RX_EVENTID,
+
+	WMI_THIN_RESERVED_START_EVENTID = 0x8000,
+	/* Events in this range are reserved for thinmode */
 	WMI_THIN_RESERVED_END_EVENTID = 0x8fff,
 
 	WMI_SET_CHANNEL_EVENTID,
@@ -1204,7 +1250,17 @@ enum wmi_event_id {
 
 	/* Generic ACS event */
 	WMI_ACS_EVENTID,
-	WMI_REPORT_WMM_PARAMS_EVENTID
+	WMI_STORERECALL_STORE_EVENTID,
+	WMI_WOW_EXT_WAKE_EVENTID,
+	WMI_GTK_OFFLOAD_STATUS_EVENTID,
+	WMI_NETWORK_LIST_OFFLOAD_EVENTID,
+	WMI_REMAIN_ON_CHNL_EVENTID,
+	WMI_CANCEL_REMAIN_ON_CHNL_EVENTID,
+	WMI_TX_STATUS_EVENTID,
+	WMI_RX_PROBE_REQ_EVENTID,
+	WMI_P2P_CAPABILITIES_EVENTID,
+	WMI_RX_ACTION_EVENTID,
+	WMI_P2P_INFO_EVENTID,
 };
 
 struct wmi_ready_event_2 {
@@ -1872,6 +1928,100 @@ struct wmi_ap_mode_stat {
 
 /* End of AP mode definitions */
 
+struct wmi_remain_on_chnl_cmd {
+	__le32 freq;
+	__le32 duration;
+} __packed;
+
+struct wmi_send_action_cmd {
+	__le32 id;
+	__le32 freq;
+	__le32 wait;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+struct wmi_tx_status_event {
+	__le32 id;
+	u8 ack_status;
+} __packed;
+
+struct wmi_probe_req_report_cmd {
+	u8 enable;
+} __packed;
+
+struct wmi_disable_11b_rates_cmd {
+	u8 disable;
+} __packed;
+
+struct wmi_set_appie_extended_cmd {
+	u8 role_id;
+	u8 mgmt_frm_type;
+	u8 ie_len;
+	u8 ie_info[0];
+} __packed;
+
+struct wmi_remain_on_chnl_event {
+	__le32 freq;
+	__le32 duration;
+} __packed;
+
+struct wmi_cancel_remain_on_chnl_event {
+	__le32 freq;
+	__le32 duration;
+	u8 status;
+} __packed;
+
+struct wmi_rx_action_event {
+	__le32 freq;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+struct wmi_p2p_capabilities_event {
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+struct wmi_p2p_rx_probe_req_event {
+	__le32 freq;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+#define P2P_FLAG_CAPABILITIES_REQ   (0x00000001)
+#define P2P_FLAG_MACADDR_REQ        (0x00000002)
+#define P2P_FLAG_HMODEL_REQ         (0x00000002)
+
+struct wmi_get_p2p_info {
+	__le32 info_req_flags;
+} __packed;
+
+struct wmi_p2p_info_event {
+	__le32 info_req_flags;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+struct wmi_p2p_capabilities {
+	u8 go_power_save;
+} __packed;
+
+struct wmi_p2p_macaddr {
+	u8 mac_addr[ETH_ALEN];
+} __packed;
+
+struct wmi_p2p_hmodel {
+	u8 p2p_model;
+} __packed;
+
+struct wmi_p2p_probe_response_cmd {
+	__le32 freq;
+	u8 destination_addr[ETH_ALEN];
+	__le16 len;
+	u8 data[0];
+} __packed;
+
 /* Extended WMI (WMIX)
  *
  * Extended WMIX commands are encapsulated in a WMI message with
@@ -2049,6 +2199,24 @@ int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 rx_meta_version,
 
 int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 mgmt_frm_type, const u8 *ie,
 			     u8 ie_len);
+
+/* P2P */
+int ath6kl_wmi_disable_11b_rates_cmd(struct wmi *wmi, bool disable);
+
+int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u32 freq, u32 dur);
+
+int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u32 id, u32 freq, u32 wait,
+			       const u8 *data, u16 data_len);
+
+int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u32 freq,
+				       const u8 *dst,
+				       const u8 *data, u16 data_len);
+
+int ath6kl_wmi_probe_report_req_cmd(struct wmi *wmi, bool enable);
+
+int ath6kl_wmi_info_req_cmd(struct wmi *wmi, u32 info_req_flags);
+
+int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi);
 
 void *ath6kl_wmi_init(struct ath6kl *devt);
 void ath6kl_wmi_shutdown(struct wmi *wmi);
