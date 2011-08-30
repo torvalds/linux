@@ -2462,10 +2462,10 @@ unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 	return sizeof(struct il3945_tx_beacon_cmd) + frame_size;
 }
 
-void il3945_hw_rx_handler_setup(struct il_priv *il)
+void il3945_hw_handler_setup(struct il_priv *il)
 {
-	il->rx_handlers[C_TX] = il3945_rx_reply_tx;
-	il->rx_handlers[N_3945_RX] = il3945_rx_reply_rx;
+	il->handlers[C_TX] = il3945_rx_reply_tx;
+	il->handlers[N_3945_RX] = il3945_rx_reply_rx;
 }
 
 void il3945_hw_setup_deferred_work(struct il_priv *il)

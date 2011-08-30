@@ -555,11 +555,11 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 		"Rx command responses:\t\t %u\n",
 		il->isr_stats.rx);
 	for (cnt = 0; cnt < IL_CN_MAX; cnt++) {
-		if (il->isr_stats.rx_handlers[cnt] > 0)
+		if (il->isr_stats.handlers[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
 				il_get_cmd_string(cnt),
-				il->isr_stats.rx_handlers[cnt]);
+				il->isr_stats.handlers[cnt]);
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx/FH interrupt:\t\t %u\n",

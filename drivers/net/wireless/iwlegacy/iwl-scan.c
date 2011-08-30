@@ -263,12 +263,12 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 void il_setup_rx_scan_handlers(struct il_priv *il)
 {
 	/* scan handlers */
-	il->rx_handlers[C_SCAN] = il_rx_reply_scan;
-	il->rx_handlers[N_SCAN_START] =
+	il->handlers[C_SCAN] = il_rx_reply_scan;
+	il->handlers[N_SCAN_START] =
 					il_rx_scan_start_notif;
-	il->rx_handlers[N_SCAN_RESULTS] =
+	il->handlers[N_SCAN_RESULTS] =
 					il_rx_scan_results_notif;
-	il->rx_handlers[N_SCAN_COMPLETE] =
+	il->handlers[N_SCAN_COMPLETE] =
 					il_rx_scan_complete_notif;
 }
 EXPORT_SYMBOL(il_setup_rx_scan_handlers);

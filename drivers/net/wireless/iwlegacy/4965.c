@@ -2142,13 +2142,13 @@ static void il4965_rx_beacon_notif(struct il_priv *il,
 }
 
 /* Set up 4965-specific Rx frame reply handlers */
-static void il4965_rx_handler_setup(struct il_priv *il)
+static void il4965_handler_setup(struct il_priv *il)
 {
 	/* Legacy Rx frames */
-	il->rx_handlers[N_RX] = il4965_rx_reply_rx;
+	il->handlers[N_RX] = il4965_rx_reply_rx;
 	/* Tx response */
-	il->rx_handlers[C_TX] = il4965_rx_reply_tx;
-	il->rx_handlers[N_BEACON] = il4965_rx_beacon_notif;
+	il->handlers[C_TX] = il4965_rx_reply_tx;
+	il->handlers[N_BEACON] = il4965_rx_beacon_notif;
 }
 
 static struct il_hcmd_ops il4965_hcmd = {
@@ -2316,7 +2316,7 @@ static struct il_lib_ops il4965_lib = {
 	.txq_attach_buf_to_tfd = il4965_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = il4965_hw_txq_free_tfd,
 	.txq_init = il4965_hw_tx_queue_init,
-	.rx_handler_setup = il4965_rx_handler_setup,
+	.handler_setup = il4965_handler_setup,
 	.is_valid_rtc_data_addr = il4965_hw_valid_rtc_data_addr,
 	.init_alive_start = il4965_init_alive_start,
 	.load_ucode = il4965_load_bsm,

@@ -813,7 +813,7 @@ struct isr_stats {
 	u32 ctkill;
 	u32 wakeup;
 	u32 rx;
-	u32 rx_handlers[IL_CN_MAX];
+	u32 handlers[IL_CN_MAX];
 	u32 tx;
 	u32 unhandled;
 };
@@ -968,7 +968,7 @@ struct il_priv {
 	enum ieee80211_band band;
 	int alloc_rxb_page;
 
-	void (*rx_handlers[IL_CN_MAX])(struct il_priv *il,
+	void (*handlers[IL_CN_MAX])(struct il_priv *il,
 				       struct il_rx_buf *rxb);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];

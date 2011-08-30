@@ -225,7 +225,7 @@ extern void il3945_dump_nic_error_log(struct il_priv *il);
  * il3945_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void il3945_hw_rx_handler_setup(struct il_priv *il);
+extern void il3945_hw_handler_setup(struct il_priv *il);
 extern void il3945_hw_setup_deferred_work(struct il_priv *il);
 extern void il3945_hw_cancel_deferred_work(struct il_priv *il);
 extern int il3945_hw_rxq_stop(struct il_priv *il);

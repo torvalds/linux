@@ -136,7 +136,7 @@ struct il_lib_ops {
 	int (*txq_init)(struct il_priv *il,
 			struct il_tx_queue *txq);
 	/* setup Rx handler */
-	void (*rx_handler_setup)(struct il_priv *il);
+	void (*handler_setup)(struct il_priv *il);
 	/* alive notification after init uCode load */
 	void (*init_alive_start)(struct il_priv *il);
 	/* check validity of rtc data address */

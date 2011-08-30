@@ -3911,7 +3911,7 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
 }
 
 /**
- * il4965_setup_rx_handlers - Initialize Rx handler callbacks
+ * il4965_setup_handlers - Initialize Rx handler callbacks
  *
  * Setup the RX handlers for each of the reply types sent from the uCode
  * to the host.
@@ -3919,47 +3919,47 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
  * This function chains into the hardware specific files for them to setup
  * any hardware specific handlers as well.
  */
-static void il4965_setup_rx_handlers(struct il_priv *il)
+static void il4965_setup_handlers(struct il_priv *il)
 {
-	il->rx_handlers[N_ALIVE] = il4965_rx_reply_alive;
-	il->rx_handlers[N_ERROR] = il_rx_reply_error;
-	il->rx_handlers[N_CHANNEL_SWITCH] = il_rx_csa;
-	il->rx_handlers[N_SPECTRUM_MEASUREMENT] =
+	il->handlers[N_ALIVE] = il4965_rx_reply_alive;
+	il->handlers[N_ERROR] = il_rx_reply_error;
+	il->handlers[N_CHANNEL_SWITCH] = il_rx_csa;
+	il->handlers[N_SPECTRUM_MEASUREMENT] =
 			il_rx_spectrum_measure_notif;
-	il->rx_handlers[N_PM_SLEEP] = il_rx_pm_sleep_notif;
-	il->rx_handlers[N_PM_DEBUG_STATS] =
+	il->handlers[N_PM_SLEEP] = il_rx_pm_sleep_notif;
+	il->handlers[N_PM_DEBUG_STATS] =
 	    il_rx_pm_debug_stats_notif;
-	il->rx_handlers[N_BEACON] = il4965_rx_beacon_notif;
+	il->handlers[N_BEACON] = il4965_rx_beacon_notif;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[C_STATS] = il4965_reply_stats;
-	il->rx_handlers[N_STATS] = il4965_rx_stats;
+	il->handlers[C_STATS] = il4965_reply_stats;
+	il->handlers[N_STATS] = il4965_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
 
 	/* status change handler */
-	il->rx_handlers[N_CARD_STATE] =
+	il->handlers[N_CARD_STATE] =
 					il4965_rx_card_state_notif;
 
-	il->rx_handlers[N_MISSED_BEACONS] =
+	il->handlers[N_MISSED_BEACONS] =
 	    il4965_rx_missed_beacon_notif;
 	/* Rx handlers */
-	il->rx_handlers[N_RX_PHY] = il4965_rx_reply_rx_phy;
-	il->rx_handlers[N_RX_MPDU] = il4965_rx_reply_rx;
+	il->handlers[N_RX_PHY] = il4965_rx_reply_rx_phy;
+	il->handlers[N_RX_MPDU] = il4965_rx_reply_rx;
 	/* block ack */
-	il->rx_handlers[N_COMPRESSED_BA] = il4965_rx_reply_compressed_ba;
+	il->handlers[N_COMPRESSED_BA] = il4965_rx_reply_compressed_ba;
 	/* Set up hardware specific Rx handlers */
-	il->cfg->ops->lib->rx_handler_setup(il);
+	il->cfg->ops->lib->handler_setup(il);
 }
 
 /**
  * il4965_rx_handle - Main entry function for receiving responses from uCode
  *
- * Uses the il->rx_handlers callback function array to invoke
+ * Uses the il->handlers callback function array to invoke
  * the appropriate handlers, including command responses,
  * frame-received notifications, and other notifications.
  */
@@ -4028,13 +4028,13 @@ void il4965_rx_handle(struct il_priv *il)
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
-		 *   rx_handlers table.  See il4965_setup_rx_handlers() */
-		if (il->rx_handlers[pkt->hdr.cmd]) {
+		 *   handlers table.  See il4965_setup_handlers() */
+		if (il->handlers[pkt->hdr.cmd]) {
 			D_RX("r = %d, i = %d, %s, 0x%02x\n", r,
 				i, il_get_cmd_string(pkt->hdr.cmd),
 				pkt->hdr.cmd);
-			il->isr_stats.rx_handlers[pkt->hdr.cmd]++;
-			il->rx_handlers[pkt->hdr.cmd] (il, rxb);
+			il->isr_stats.handlers[pkt->hdr.cmd]++;
+			il->handlers[pkt->hdr.cmd] (il, rxb);
 		} else {
 			/* No handling needed */
 			D_RX(
@@ -4046,7 +4046,7 @@ void il4965_rx_handle(struct il_priv *il)
 		/*
 		 * XXX: After here, we should always check rxb->page
 		 * against NULL before touching it or its virtual
-		 * memory (pkt). Because some rx_handler might have
+		 * memory (pkt). Because some handler might have
 		 * already taken or freed the pages.
 		 */
 
@@ -6358,7 +6358,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	il4965_setup_deferred_work(il);
-	il4965_setup_rx_handlers(il);
+	il4965_setup_handlers(il);
 
 	/*********************************************
 	 * 8. Enable interrupts and read RFKILL state
