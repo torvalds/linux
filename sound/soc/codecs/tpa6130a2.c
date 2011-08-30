@@ -383,7 +383,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 	data->power_gpio = pdata->power_gpio;
-	data->id = pdata->id;
+	data->id = id->driver_data;
 
 	mutex_init(&data->mutex);
 
@@ -405,7 +405,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 	switch (data->id) {
 	default:
 		dev_warn(dev, "Unknown TPA model (%d). Assuming 6130A2\n",
-			 pdata->id);
+			 data->id);
 	case TPA6130A2:
 		regulator = "Vdd";
 		break;
@@ -469,7 +469,8 @@ static int __devexit tpa6130a2_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tpa6130a2_id[] = {
-	{ "tpa6130a2", 0 },
+	{ "tpa6130a2", TPA6130A2 },
+	{ "tpa6140a2", TPA6140A2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tpa6130a2_id);
