@@ -407,8 +407,8 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 	opcode |= (DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET);
 
 	opcode |= (BP_PORT(bp) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0);
-	opcode |= ((BP_E1HVN(bp) << DMAE_CMD_E1HVN_SHIFT) |
-		   (BP_E1HVN(bp) << DMAE_COMMAND_DST_VN_SHIFT));
+	opcode |= ((BP_VN(bp) << DMAE_CMD_E1HVN_SHIFT) |
+		   (BP_VN(bp) << DMAE_COMMAND_DST_VN_SHIFT));
 	opcode |= (DMAE_COM_SET_ERR << DMAE_COMMAND_ERR_POLICY_SHIFT);
 
 #ifdef __BIG_ENDIAN
@@ -1419,7 +1419,7 @@ static void bnx2x_hc_int_enable(struct bnx2x *bp)
 	if (!CHIP_IS_E1(bp)) {
 		/* init leading/trailing edge */
 		if (IS_MF(bp)) {
-			val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
+			val = (0xee0f | (1 << (BP_VN(bp) + 4)));
 			if (bp->port.pmf)
 				/* enable nig and gpio3 attention */
 				val |= 0x1100;
@@ -1471,7 +1471,7 @@ static void bnx2x_igu_int_enable(struct bnx2x *bp)
 
 	/* init leading/trailing edge */
 	if (IS_MF(bp)) {
-		val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
+		val = (0xee0f | (1 << (BP_VN(bp) + 4)));
 		if (bp->port.pmf)
 			/* enable nig and gpio3 attention */
 			val |= 0x1100;
@@ -2287,7 +2287,7 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 	int vn;
 
 	bp->vn_weight_sum = 0;
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
 		u32 vn_cfg = bp->mf_config[vn];
 		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
 				   FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
@@ -2320,12 +2320,18 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 }
 
+/* returns func by VN for current port */
+static inline int func_by_vn(struct bnx2x *bp, int vn)
+{
+	return 2 * vn + BP_PORT(bp);
+}
+
 static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
 {
 	struct rate_shaping_vars_per_vn m_rs_vn;
 	struct fairness_vars_per_vn m_fair_vn;
 	u32 vn_cfg = bp->mf_config[vn];
-	int func = 2*vn + BP_PORT(bp);
+	int func = func_by_vn(bp, vn);
 	u16 vn_min_rate, vn_max_rate;
 	int i;
 
@@ -2422,7 +2428,7 @@ void bnx2x_read_mf_cfg(struct bnx2x *bp)
 	 *
 	 *      and there are 2 functions per port
 	 */
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
 		int /*abs*/func = n * (2 * vn + BP_PORT(bp)) + BP_PATH(bp);
 
 		if (func >= E1H_FUNC_MAX)
@@ -2454,7 +2460,7 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 
 		/* calculate and set min-max rate for each vn */
 		if (bp->port.pmf)
-			for (vn = VN_0; vn < E1HVN_MAX; vn++)
+			for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++)
 				bnx2x_init_vn_minmax(bp, vn);
 
 		/* always enable rate shaping and fairness */
@@ -2473,16 +2479,15 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 
 static inline void bnx2x_link_sync_notify(struct bnx2x *bp)
 {
-	int port = BP_PORT(bp);
 	int func;
 	int vn;
 
 	/* Set the attention towards other drivers on the same port */
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
-		if (vn == BP_E1HVN(bp))
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
+		if (vn == BP_VN(bp))
 			continue;
 
-		func = ((vn << 1) | port);
+		func = func_by_vn(bp, vn);
 		REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_0 +
 		       (LINK_SYNC_ATTENTION_BIT_FUNC_0 + func)*4, 1);
 	}
@@ -2577,7 +2582,7 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
 	bnx2x_dcbx_pmf_update(bp);
 
 	/* enable nig attention */
-	val = (0xff0f | (1 << (BP_E1HVN(bp) + 4)));
+	val = (0xff0f | (1 << (BP_VN(bp) + 4)));
 	if (bp->common.int_block == INT_BLOCK_HC) {
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, val);
 		REG_WR(bp, HC_REG_LEADING_EDGE_0 + port*8, val);
@@ -6686,12 +6691,16 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 			if (CHIP_MODE_IS_4_PORT(bp))
 				dsb_idx = BP_FUNC(bp);
 			else
-				dsb_idx = BP_E1HVN(bp);
+				dsb_idx = BP_VN(bp);
 
 			prod_offset = (CHIP_INT_MODE_IS_BC(bp) ?
 				       IGU_BC_BASE_DSB_PROD + dsb_idx :
 				       IGU_NORM_BASE_DSB_PROD + dsb_idx);
 
+			/*
+			 * igu prods come in chunks of E1HVN_MAX (4) -
+			 * does not matters what is the current chip mode
+			 */
 			for (i = 0; i < (num_segs * E1HVN_MAX);
 			     i += E1HVN_MAX) {
 				addr = IGU_REG_PROD_CONS_MEMORY +
@@ -7585,7 +7594,7 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		u32 val;
 		/* The mac address is written to entries 1-4 to
 		   preserve entry 0 which is used by the PMF */
-		u8 entry = (BP_E1HVN(bp) + 1)*8;
+		u8 entry = (BP_VN(bp) + 1)*8;
 
 		val = (mac_addr[0] << 8) | mac_addr[1];
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry, val);
@@ -8792,13 +8801,13 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 {
 	int pfid = BP_FUNC(bp);
-	int vn = BP_E1HVN(bp);
 	int igu_sb_id;
 	u32 val;
 	u8 fid, igu_sb_cnt = 0;
 
 	bp->igu_base_sb = 0xff;
 	if (CHIP_INT_MODE_IS_BC(bp)) {
+		int vn = BP_VN(bp);
 		igu_sb_cnt = bp->igu_sb_cnt;
 		bp->igu_base_sb = (CHIP_MODE_IS_4_PORT(bp) ? pfid : vn) *
 			FP_SB_MAX_E1x;
@@ -9488,7 +9497,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	bp->mf_ov = 0;
 	bp->mf_mode = 0;
-	vn = BP_E1HVN(bp);
+	vn = BP_VN(bp);
 
 	if (!CHIP_IS_E1(bp) && !BP_NOMCP(bp)) {
 		BNX2X_DEV_INFO("shmem2base 0x%x, size %d, mfcfg offset %d\n",

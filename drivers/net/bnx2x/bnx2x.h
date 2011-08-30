@@ -1166,11 +1166,12 @@ struct bnx2x {
 #define BP_PORT(bp)			(bp->pfid & 1)
 #define BP_FUNC(bp)			(bp->pfid)
 #define BP_ABS_FUNC(bp)			(bp->pf_num)
-#define BP_E1HVN(bp)			(bp->pfid >> 1)
-#define BP_VN(bp)			(BP_E1HVN(bp)) /*remove when approved*/
-#define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
-#define BP_FW_MB_IDX(bp)		(BP_PORT(bp) +\
-	  BP_VN(bp) * ((CHIP_IS_E1x(bp) || (CHIP_MODE_IS_4_PORT(bp))) ? 2  : 1))
+#define BP_VN(bp)			((bp)->pfid >> 1)
+#define BP_MAX_VN_NUM(bp)		(CHIP_MODE_IS_4_PORT(bp) ? 2 : 4)
+#define BP_L_ID(bp)			(BP_VN(bp) << 2)
+#define BP_FW_MB_IDX_VN(bp, vn)		(BP_PORT(bp) +\
+	  (vn) * ((CHIP_IS_E1x(bp) || (CHIP_MODE_IS_4_PORT(bp))) ? 2  : 1))
+#define BP_FW_MB_IDX(bp)		BP_FW_MB_IDX_VN(bp, BP_VN(bp))
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -1833,7 +1834,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 #define MAX_DMAE_C_PER_PORT		8
 #define INIT_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
-					 BP_E1HVN(bp))
+					 BP_VN(bp))
 #define PMF_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 E1HVN_MAX)
 
@@ -1859,7 +1860,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 /* must be used on a CID before placing it on a HW ring */
 #define HW_CID(bp, x)			((BP_PORT(bp) << 23) | \
-					 (BP_E1HVN(bp) << BNX2X_SWCID_SHIFT) | \
+					 (BP_VN(bp) << BNX2X_SWCID_SHIFT) | \
 					 (x))
 
 #define SP_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_spe))
