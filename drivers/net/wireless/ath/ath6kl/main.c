@@ -437,10 +437,14 @@ static void ath6kl_connect_ap_mode(struct ath6kl *ar, u16 channel, u8 *bssid,
 	size_t ies_len = 0;
 	struct station_info sinfo;
 	struct ath6kl_req_key *ik;
-	enum crypto_type keyType = NONE_CRYPT;
+	int res;
+	u8 key_rsc[ATH6KL_KEY_SEQ_LEN];
 
 	if (memcmp(dev->dev_addr, bssid, ETH_ALEN) == 0) {
 		ik = &ar->ap_mode_bkey;
+
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "AP mode started on %u MHz\n",
+			   channel);
 
 		switch (ar->auth_mode) {
 		case NONE_AUTH:
@@ -450,26 +454,26 @@ static void ath6kl_connect_ap_mode(struct ath6kl *ar, u16 channel, u8 *bssid,
 		case WPA_PSK_AUTH:
 		case WPA2_PSK_AUTH:
 		case (WPA_PSK_AUTH|WPA2_PSK_AUTH):
-			switch (ik->ik_type) {
-			case ATH6KL_CIPHER_TKIP:
-				keyType = TKIP_CRYPT;
+			if (!ik->valid)
 				break;
-			case ATH6KL_CIPHER_AES_CCM:
-				keyType = AES_CRYPT;
-				break;
-			default:
-				goto skip_key;
+
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed addkey for "
+				   "the initial group key for AP mode\n");
+			memset(key_rsc, 0, sizeof(key_rsc));
+			res = ath6kl_wmi_addkey_cmd(
+				ar->wmi, ik->key_index, ik->key_type,
+				GROUP_USAGE, ik->key_len, key_rsc, ik->key,
+				KEY_OP_INIT_VAL, NULL, SYNC_BOTH_WMIFLAG);
+			if (res) {
+				ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed "
+					   "addkey failed: %d\n", res);
 			}
-			ath6kl_wmi_addkey_cmd(ar->wmi, ik->ik_keyix, keyType,
-					      GROUP_USAGE, ik->ik_keylen,
-					      (u8 *)&ik->ik_keyrsc,
-					      ik->ik_keydata,
-					      KEY_OP_INIT_VAL, ik->ik_macaddr,
-					      SYNC_BOTH_WMIFLAG);
 			break;
 		}
-skip_key:
+
+		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
 		set_bit(CONNECTED, &ar->flag);
+		netif_carrier_on(ar->net_dev);
 		return;
 	}
 

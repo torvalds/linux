@@ -888,6 +888,26 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		   key_usage, key->seq_len);
 
 	ar->def_txkey_index = key_index;
+
+	if (ar->nw_type == AP_NETWORK && !pairwise &&
+	    (key_type == TKIP_CRYPT || key_type == AES_CRYPT) && params) {
+		ar->ap_mode_bkey.valid = true;
+		ar->ap_mode_bkey.key_index = key_index;
+		ar->ap_mode_bkey.key_type = key_type;
+		ar->ap_mode_bkey.key_len = key->key_len;
+		memcpy(ar->ap_mode_bkey.key, key->key, key->key_len);
+		if (!test_bit(CONNECTED, &ar->flag)) {
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay initial group "
+				   "key configuration until AP mode has been "
+				   "started\n");
+			/*
+			 * The key will be set in ath6kl_connect_ap_mode() once
+			 * the connected event is received from the target.
+			 */
+			return 0;
+		}
+	}
+
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
 				       key_type, key_usage, key->key_len,
 				       key->seq, key->key, KEY_OP_INIT_VAL,
@@ -996,6 +1016,9 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	key_usage = GROUP_USAGE;
 	if (ar->prwise_crypto == WEP_CRYPT)
 		key_usage |= TX_USAGE;
+
+	if (ar->nw_type == AP_NETWORK && !test_bit(CONNECTED, &ar->flag))
+		return 0; /* Delay until AP mode has been started */
 
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
 				       ar->prwise_crypto, key_usage,
@@ -1495,6 +1518,8 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (!add)
 		return 0;
 
+	ar->ap_mode_bkey.valid = false;
+
 	/* TODO:
 	 * info->interval
 	 * info->dtim_period
@@ -1580,7 +1605,11 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	p.dot11_auth_mode = ar->dot11_auth_mode;
 	p.ch = cpu_to_le16(ar->next_chan);
 
-	return ath6kl_wmi_ap_profile_commit(ar->wmi, &p);
+	res = ath6kl_wmi_ap_profile_commit(ar->wmi, &p);
+	if (res < 0)
+		return res;
+
+	return 0;
 }
 
 static int ath6kl_add_beacon(struct wiphy *wiphy, struct net_device *dev,

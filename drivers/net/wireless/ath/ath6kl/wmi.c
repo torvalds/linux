@@ -1764,6 +1764,10 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 key_index,
 	struct wmi_add_cipher_key_cmd *cmd;
 	int ret;
 
+	ath6kl_dbg(ATH6KL_DBG_WMI, "addkey cmd: key_index=%u key_type=%d "
+		   "key_usage=%d key_len=%d key_op_ctrl=%d\n",
+		   key_index, key_type, key_usage, key_len, key_op_ctrl);
+
 	if ((key_index > WMI_MAX_KEY_INDEX) || (key_len > WMI_MAX_KEY_LEN) ||
 	    (key_material == NULL))
 		return -EINVAL;
