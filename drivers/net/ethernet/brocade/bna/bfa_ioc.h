@@ -274,8 +274,10 @@ void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 	((__ioc)->ioc_hwif->ioc_pll_init((__ioc)->pcidev.pci_bar_kva, \
 			   (__ioc)->asic_mode))
 
-#define	bfa_ioc_isr_mode_set(__ioc, __msix)			\
-			((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix))
+#define	bfa_ioc_isr_mode_set(__ioc, __msix) do {			\
+	if ((__ioc)->ioc_hwif->ioc_isr_mode_set)			\
+		((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix));	\
+} while (0)
 #define	bfa_ioc_ownership_reset(__ioc)				\
 			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
 

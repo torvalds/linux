@@ -251,10 +251,10 @@ struct bfa_mfg_block {
  * ---------------------- pci definitions ------------
  */
 
-#define bfa_asic_id_ct(devid)			\
-	((devid) == PCI_DEVICE_ID_BROCADE_CT ||	\
-	(devid) == PCI_DEVICE_ID_BROCADE_CT_FC)
-#define bfa_asic_id_ctc(devid) (bfa_asic_id_ct(devid))
+#define bfa_asic_id_ct(device)			\
+	((device) == PCI_DEVICE_ID_BROCADE_CT ||	\
+	 (device) == PCI_DEVICE_ID_BROCADE_CT_FC)
+#define bfa_asic_id_ctc(device) (bfa_asic_id_ct(device))
 
 enum bfa_mode {
 	BFA_MODE_HBA		= 1,

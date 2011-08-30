@@ -1001,7 +1001,7 @@ bnad_cb_rx_cleanup(struct bnad *bnad, struct bna_rx *rx)
 
 	mdelay(BNAD_TXRX_SYNC_MDELAY);
 
-	for (i = 0; i < BNAD_MAX_RXPS_PER_RX; i++) {
+	for (i = 0; i < BNAD_MAX_RXP_PER_RX; i++) {
 		rx_ctrl = &rx_info->rx_ctrl[i];
 		ccb = rx_ctrl->ccb;
 		if (!ccb)
@@ -1030,7 +1030,7 @@ bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 	int i;
 	int j;
 
-	for (i = 0; i < BNAD_MAX_RXPS_PER_RX; i++) {
+	for (i = 0; i < BNAD_MAX_RXP_PER_RX; i++) {
 		rx_ctrl = &rx_info->rx_ctrl[i];
 		ccb = rx_ctrl->ccb;
 		if (!ccb)
@@ -2227,7 +2227,7 @@ bnad_q_num_init(struct bnad *bnad)
 	int rxps;
 
 	rxps = min((uint)num_online_cpus(),
-			(uint)(BNAD_MAX_RXS * BNAD_MAX_RXPS_PER_RX));
+			(uint)(BNAD_MAX_RX * BNAD_MAX_RXP_PER_RX));
 
 	if (!(bnad->cfg_flags & BNAD_CF_MSIX))
 		rxps = 1;	/* INTx */
