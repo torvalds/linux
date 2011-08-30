@@ -23,6 +23,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "drmP.h"
 

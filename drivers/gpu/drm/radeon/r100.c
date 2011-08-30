@@ -41,6 +41,7 @@
 
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 
 #include "r100_reg_safe.h"
 #include "rn50_reg_safe.h"

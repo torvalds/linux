@@ -23,6 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/module.h>
+
 #include "drmP.h"
 #include "savage_drm.h"
 #include "savage_drv.h"

@@ -29,6 +29,8 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
+#include <linux/module.h>
+
 #include "drmP.h"
 #include "drm.h"
 #include "mga_drm.h"
