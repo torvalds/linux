@@ -42,10 +42,8 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
-#include "iwl-4965-calib.h"
 #include "iwl-sta.h"
-#include "iwl-4965.h"
-#include "iwl-4965-debugfs.h"
+#include "4965.h"
 
 #define IL_AC_UNSET -1
 
@@ -1827,6 +1825,28 @@ static u16 il4965_build_addsta_hcmd(const struct il_addsta_cmd *cmd,
 static inline u32 il4965_get_scd_ssn(struct il4965_tx_resp *tx_resp)
 {
 	return le32_to_cpup(&tx_resp->u.status + tx_resp->frame_count) & MAX_SN;
+}
+
+static inline u32 il4965_tx_status_to_mac80211(u32 status)
+{
+	status &= TX_STATUS_MSK;
+
+	switch (status) {
+	case TX_STATUS_SUCCESS:
+	case TX_STATUS_DIRECT_DONE:
+		return IEEE80211_TX_STAT_ACK;
+	case TX_STATUS_FAIL_DEST_PS:
+		return IEEE80211_TX_STAT_TX_FILTERED;
+	default:
+		return 0;
+	}
+}
+
+static inline bool il4965_is_tx_success(u32 status)
+{
+	status &= TX_STATUS_MSK;
+	return (status == TX_STATUS_SUCCESS ||
+		status == TX_STATUS_DIRECT_DONE);
 }
 
 /**

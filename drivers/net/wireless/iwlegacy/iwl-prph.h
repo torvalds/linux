@@ -255,7 +255,7 @@
  * but one DMA channel may take input from several queues.
  *
  * Tx DMA FIFOs have dedicated purposes.  For 4965, they are used as follows
- * (cf. default_queue_to_tx_fifo in iwl-4965.c):
+ * (cf. default_queue_to_tx_fifo in 4965.c):
  *
  * 0 -- EDCA BK (background) frames, lowest priority
  * 1 -- EDCA BE (best effort) frames, normal priority

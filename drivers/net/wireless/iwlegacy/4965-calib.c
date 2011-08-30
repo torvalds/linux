@@ -65,7 +65,7 @@
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
-#include "iwl-4965-calib.h"
+#include "4965.h"
 
 /*****************************************************************************
  * INIT calibrations framework

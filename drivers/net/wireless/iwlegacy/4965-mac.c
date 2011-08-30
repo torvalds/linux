@@ -56,8 +56,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-sta.h"
-#include "iwl-4965-calib.h"
-#include "iwl-4965.h"
+#include "4965.h"
 
 
 /******************************************************************************
@@ -820,6 +819,11 @@ static int il4965_get_channels_for_scan(struct il_priv *il,
 	return added;
 }
 
+static inline u32 il4965_ant_idx_to_flags(u8 ant_idx)
+{
+	return BIT(ant_idx) << RATE_MCS_ANT_POS;
+}
+
 int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 {
 	struct il_host_cmd cmd = {
@@ -1434,7 +1438,7 @@ void il4965_reply_stats(struct il_priv *il,
  * mapping. This is implemented here.
  *
  * Due to the way hw queues are set up (by the hw specific modules like
- * iwl-4965.c), the AC->hw queue mapping is the identity
+ * 4965.c), the AC->hw queue mapping is the identity
  * mapping.
  */
 

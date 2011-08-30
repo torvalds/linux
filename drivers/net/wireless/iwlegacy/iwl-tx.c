@@ -232,7 +232,7 @@ EXPORT_SYMBOL(il_cmd_queue_free);
  * reclaiming packets (on 'tx done IRQ), if free space become > high mark,
  * Tx queue resumed.
  *
- * See more detailed info in iwl-4965-hw.h.
+ * See more detailed info in 4965.h.
  ***************************************************/
 
 int il_queue_space(const struct il_queue *q)

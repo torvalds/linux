@@ -347,7 +347,7 @@ struct il3945_power_per_rate {
  * For MIMO rates, one value may be different from the other,
  * in order to balance the Tx output between the two transmitters.
  *
- * See more details in doc for TXPOWER in iwl-4965-hw.h.
+ * See more details in doc for TXPOWER in 4965.h.
  */
 union il4965_tx_power_dual_stream {
 	struct {
@@ -1756,7 +1756,7 @@ struct il_compressed_ba_resp {
 /*
  * REPLY_TX_PWR_TBL_CMD = 0x97 (command, has simple generic response)
  *
- * See details under "TXPOWER" in iwl-4965-hw.h.
+ * See details under "TXPOWER" in 4965.h.
  */
 
 struct il3945_txpowertable_cmd {

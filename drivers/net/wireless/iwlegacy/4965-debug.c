@@ -25,8 +25,9 @@
 *  Intel Linux Wireless <ilw@linux.intel.com>
 * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 *****************************************************************************/
-#include "iwl-4965.h"
-#include "iwl-4965-debugfs.h"
+#include "iwl-dev.h"
+#include "iwl-core.h"
+#include "4965.h"
 
 static const char *fmt_value = "  %-30s %10u\n";
 static const char *fmt_table = "  %-30s %10u  %10u  %10u  %10u\n";
