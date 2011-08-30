@@ -393,6 +393,7 @@ bnad_alloc_n_post_rxbufs(struct bnad *bnad, struct bna_rcb *rcb)
 						rcb->rxq->buffer_size);
 		if (unlikely(!skb)) {
 			BNAD_UPDATE_CTR(bnad, rxbuf_alloc_failed);
+			rcb->rxq->rxbuf_alloc_failed++;
 			goto finishing;
 		}
 		unmap_array[unmap_prod].skb = skb;
@@ -1892,6 +1893,7 @@ bnad_cleanup_rx(struct bnad *bnad, u32 rx_id)
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	rx_info->rx = NULL;
+	rx_info->rx_id = 0;
 
 	bnad_rx_res_free(bnad, res_info);
 }
@@ -1947,8 +1949,10 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 	rx = bna_rx_create(&bnad->bna, bnad, rx_config, &rx_cbfn, res_info,
 			rx_info);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
-	if (!rx)
+	if (!rx) {
+		err = -ENOMEM;
 		goto err_return;
+	}
 	rx_info->rx = rx;
 
 	/*
@@ -3206,7 +3210,7 @@ static int __devinit
 bnad_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *pcidev_id)
 {
-	bool	using_dac = false;
+	bool	using_dac;
 	int	err;
 	struct bnad *bnad;
 	struct bna *bna;
@@ -3329,6 +3333,11 @@ bnad_pci_probe(struct pci_dev *pdev,
 			bna_num_rxp_set(bna, BNAD_NUM_RXP + 1))
 			err = -EIO;
 	}
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	if (err)
+		goto disable_ioceth;
+
+	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_mod_res_req(&bnad->bna, &bnad->mod_res_info[0]);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 

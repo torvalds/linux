@@ -99,6 +99,7 @@
 	(_bna)->bits.error_status_bits = (__HFN_INT_ERR_MASK);		\
 	(_bna)->bits.error_mask_bits = (__HFN_INT_ERR_MASK);		\
 	(_bna)->bits.halt_status_bits = __HFN_INT_LL_HALT;		\
+	(_bna)->bits.halt_mask_bits = __HFN_INT_LL_HALT;		\
 }
 
 #define ct2_reg_addr_init(_bna, _pcidev)				\
