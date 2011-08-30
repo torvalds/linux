@@ -2530,6 +2530,18 @@ static void igbvf_print_device_info(struct igbvf_adapter *adapter)
 	dev_info(&pdev->dev, "MAC: %d\n", hw->mac.type);
 }
 
+static int igbvf_set_features(struct net_device *netdev, u32 features)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+
+	if (features & NETIF_F_RXCSUM)
+		adapter->flags &= ~IGBVF_FLAG_RX_CSUM_DISABLED;
+	else
+		adapter->flags |= IGBVF_FLAG_RX_CSUM_DISABLED;
+
+	return 0;
+}
+
 static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_open                       = igbvf_open,
 	.ndo_stop                       = igbvf_close,
@@ -2545,6 +2557,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller            = igbvf_netpoll,
 #endif
+	.ndo_set_features               = igbvf_set_features,
 };
 
 /**
@@ -2652,15 +2665,17 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 
 	adapter->bd_number = cards_found++;
 
-	netdev->features = NETIF_F_SG |
+	netdev->hw_features = NETIF_F_SG |
 	                   NETIF_F_IP_CSUM |
+			   NETIF_F_IPV6_CSUM |
+			   NETIF_F_TSO |
+			   NETIF_F_TSO6 |
+			   NETIF_F_RXCSUM;
+
+	netdev->features = netdev->hw_features |
 	                   NETIF_F_HW_VLAN_TX |
 	                   NETIF_F_HW_VLAN_RX |
 	                   NETIF_F_HW_VLAN_FILTER;
-
-	netdev->features |= NETIF_F_IPV6_CSUM;
-	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
