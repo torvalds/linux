@@ -1399,6 +1399,8 @@ int ath6kl_wmi_cmd_send(struct wmi *wmi, struct sk_buff *skb,
 	enum htc_endpoint_id ep_id = wmi->ep_id;
 	int ret;
 
+	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: cmd_id=%d\n", __func__, cmd_id);
+
 	if (WARN_ON(skb == NULL))
 		return -EINVAL;
 
@@ -2392,6 +2394,29 @@ static int ath6kl_wmi_delba_req_event_rx(struct wmi *wmi, u8 *datap, int len)
 }
 
 /*  AP mode functions */
+
+int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p)
+{
+	struct sk_buff *skb;
+	struct wmi_connect_cmd *cm;
+	int res;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cm));
+	if (!skb)
+		return -ENOMEM;
+
+	cm = (struct wmi_connect_cmd *) skb->data;
+	memcpy(cm, p, sizeof(*cm));
+
+	res = ath6kl_wmi_cmd_send(wmip, skb, WMI_AP_CONFIG_COMMIT_CMDID,
+				  NO_SYNC_WMIFLAG);
+	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: nw_type=%u auth_mode=%u ch=%u "
+		   "ctrl_flags=0x%x-> res=%d\n",
+		   __func__, p->nw_type, p->auth_mode, le16_to_cpu(p->ch),
+		   le32_to_cpu(p->ctrl_flags), res);
+	return res;
+}
+
 static int ath6kl_wmi_pspoll_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
 	struct wmi_pspoll_event *ev;
@@ -2454,6 +2479,26 @@ int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 rx_meta_ver,
 				  NO_SYNC_WMIFLAG);
 
 	return ret;
+}
+
+int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 mgmt_frm_type, const u8 *ie,
+			     u8 ie_len)
+{
+	struct sk_buff *skb;
+	struct wmi_set_appie_cmd *p;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + ie_len);
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "set_appie_cmd: mgmt_frm_type=%u "
+		   "ie_len=%u\n", mgmt_frm_type, ie_len);
+	p = (struct wmi_set_appie_cmd *) skb->data;
+	p->mgmt_frm_type = mgmt_frm_type;
+	p->ie_len = ie_len;
+	memcpy(p->ie_info, ie, ie_len);
+	return ath6kl_wmi_cmd_send(wmi, skb, WMI_SET_APPIE_CMDID,
+				   NO_SYNC_WMIFLAG);
 }
 
 static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)

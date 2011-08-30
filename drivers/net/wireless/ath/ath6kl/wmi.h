@@ -503,6 +503,15 @@ enum wmi_cmd_id {
 	WMI_SET_EXCESS_TX_RETRY_THRES_CMDID,
 };
 
+enum wmi_mgmt_frame_type {
+	WMI_FRAME_BEACON = 0,
+	WMI_FRAME_PROBE_REQ,
+	WMI_FRAME_PROBE_RESP,
+	WMI_FRAME_ASSOC_REQ,
+	WMI_FRAME_ASSOC_RESP,
+	WMI_NUM_MGMT_FRAME
+};
+
 /* WMI_CONNECT_CMDID  */
 enum network_type {
 	INFRA_NETWORK = 0x01,
@@ -1642,6 +1651,12 @@ struct wmi_get_keepalive_cmd {
 	u8 keep_alive_intvl;
 } __packed;
 
+struct wmi_set_appie_cmd {
+	u8 mgmt_frm_type; /* enum wmi_mgmt_frame_type */
+	u8 ie_len;
+	u8 ie_info[0];
+} __packed;
+
 /* Notify the WSC registration status to the target */
 #define WSC_REG_ACTIVE     1
 #define WSC_REG_INACTIVE   0
@@ -2006,10 +2021,15 @@ struct bss *ath6kl_wmi_find_ssid_node(struct wmi *wmi, u8 *ssid,
 void ath6kl_wmi_node_return(struct wmi *wmi, struct bss *bss);
 
 /* AP mode */
+int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p);
+
 int ath6kl_wmi_set_pvb_cmd(struct wmi *wmi, u16 aid, bool flag);
 
 int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 rx_meta_version,
 				       bool rx_dot11_hdr, bool defrag_on_host);
+
+int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 mgmt_frm_type, const u8 *ie,
+			     u8 ie_len);
 
 void *ath6kl_wmi_init(struct ath6kl *devt);
 void ath6kl_wmi_shutdown(struct wmi *wmi);

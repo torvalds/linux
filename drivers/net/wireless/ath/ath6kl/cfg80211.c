@@ -1435,6 +1435,181 @@ static int ar6k_cfg80211_suspend(struct wiphy *wiphy,
 }
 #endif
 
+static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
+			      struct ieee80211_channel *chan,
+			      enum nl80211_channel_type channel_type)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (!ath6kl_cfg80211_ready(ar))
+		return -EIO;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: center_freq=%u hw_value=%u\n",
+		   __func__, chan->center_freq, chan->hw_value);
+	ar->next_chan = chan->center_freq;
+
+	return 0;
+}
+
+static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
+			    struct beacon_parameters *info, bool add)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ieee80211_mgmt *mgmt;
+	u8 *ies;
+	int ies_len;
+	struct wmi_connect_cmd p;
+	int res;
+	int i;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: add=%d\n", __func__, add);
+
+	if (!ath6kl_cfg80211_ready(ar))
+		return -EIO;
+
+	if (ar->next_mode != AP_NETWORK)
+		return -EOPNOTSUPP;
+
+	if (info->beacon_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_BEACON,
+					       info->beacon_ies,
+					       info->beacon_ies_len);
+		if (res)
+			return res;
+	}
+	if (info->proberesp_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_PROBE_RESP,
+					       info->proberesp_ies,
+					       info->proberesp_ies_len);
+		if (res)
+			return res;
+	}
+	if (info->assocresp_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_ASSOC_RESP,
+					       info->assocresp_ies,
+					       info->assocresp_ies_len);
+		if (res)
+			return res;
+	}
+
+	if (!add)
+		return 0;
+
+	/* TODO:
+	 * info->interval
+	 * info->dtim_period
+	 */
+
+	if (info->head == NULL)
+		return -EINVAL;
+	mgmt = (struct ieee80211_mgmt *) info->head;
+	ies = mgmt->u.beacon.variable;
+	if (ies > info->head + info->head_len)
+		return -EINVAL;
+	ies_len = info->head + info->head_len - ies;
+
+	if (info->ssid == NULL)
+		return -EINVAL;
+	memcpy(ar->ssid, info->ssid, info->ssid_len);
+	ar->ssid_len = info->ssid_len;
+	if (info->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
+		return -EOPNOTSUPP; /* TODO */
+
+	ar->dot11_auth_mode = OPEN_AUTH;
+
+	memset(&p, 0, sizeof(p));
+
+	for (i = 0; i < info->crypto.n_akm_suites; i++) {
+		switch (info->crypto.akm_suites[i]) {
+		case WLAN_AKM_SUITE_8021X:
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				p.auth_mode |= WPA_AUTH;
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				p.auth_mode |= WPA2_AUTH;
+			break;
+		case WLAN_AKM_SUITE_PSK:
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				p.auth_mode |= WPA_PSK_AUTH;
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				p.auth_mode |= WPA2_PSK_AUTH;
+			break;
+		}
+	}
+	if (p.auth_mode == 0)
+		p.auth_mode = NONE_AUTH;
+	ar->auth_mode = p.auth_mode;
+
+	for (i = 0; i < info->crypto.n_ciphers_pairwise; i++) {
+		switch (info->crypto.ciphers_pairwise[i]) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			p.prwise_crypto_type |= WEP_CRYPT;
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			p.prwise_crypto_type |= TKIP_CRYPT;
+			break;
+		case WLAN_CIPHER_SUITE_CCMP:
+			p.prwise_crypto_type |= AES_CRYPT;
+			break;
+		}
+	}
+	if (p.prwise_crypto_type == 0)
+		p.prwise_crypto_type = NONE_CRYPT;
+
+	switch (info->crypto.cipher_group) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		p.grp_crypto_type = WEP_CRYPT;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		p.grp_crypto_type = TKIP_CRYPT;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		p.grp_crypto_type = AES_CRYPT;
+		break;
+	default:
+		p.grp_crypto_type = NONE_CRYPT;
+		break;
+	}
+
+	p.nw_type = AP_NETWORK;
+	ar->nw_type = ar->next_mode;
+
+	p.ssid_len = ar->ssid_len;
+	memcpy(p.ssid, ar->ssid, ar->ssid_len);
+	p.dot11_auth_mode = ar->dot11_auth_mode;
+	p.ch = cpu_to_le16(ar->next_chan);
+
+	return ath6kl_wmi_ap_profile_commit(ar->wmi, &p);
+}
+
+static int ath6kl_add_beacon(struct wiphy *wiphy, struct net_device *dev,
+			     struct beacon_parameters *info)
+{
+	return ath6kl_ap_beacon(wiphy, dev, info, true);
+}
+
+static int ath6kl_set_beacon(struct wiphy *wiphy, struct net_device *dev,
+			     struct beacon_parameters *info)
+{
+	return ath6kl_ap_beacon(wiphy, dev, info, false);
+}
+
+static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (ar->nw_type != AP_NETWORK)
+		return -EOPNOTSUPP;
+	if (!test_bit(CONNECTED, &ar->flag))
+		return -ENOTCONN;
+
+	ath6kl_wmi_disconnect_cmd(ar->wmi);
+	clear_bit(CONNECTED, &ar->flag);
+
+	return 0;
+}
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1457,6 +1632,10 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 #ifdef CONFIG_PM
 	.suspend = ar6k_cfg80211_suspend,
 #endif
+	.set_channel = ath6kl_set_channel,
+	.add_beacon = ath6kl_add_beacon,
+	.set_beacon = ath6kl_set_beacon,
+	.del_beacon = ath6kl_del_beacon,
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)

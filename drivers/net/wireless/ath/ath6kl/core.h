@@ -468,6 +468,8 @@ struct ath6kl {
 
 	struct ath6kl_node_table scan_table;
 	struct dentry *debugfs_phy;
+
+	u16 next_chan;
 };
 
 static inline void *ath6kl_priv(struct net_device *dev)
