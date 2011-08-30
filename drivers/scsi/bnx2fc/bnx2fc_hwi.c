@@ -1743,11 +1743,13 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 	/* Init state to NORMAL */
 	task->txwr_rxrd.const_ctx.init_flags |= task_type <<
 				FCOE_TCE_TX_WR_RX_RD_CONST_TASK_TYPE_SHIFT;
-	if (dev_type == TYPE_TAPE)
+	if (dev_type == TYPE_TAPE) {
 		task->txwr_rxrd.const_ctx.init_flags |=
 				FCOE_TASK_DEV_TYPE_TAPE <<
 				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;
-	else
+		io_req->rec_retry = 0;
+		io_req->rec_retry = 0;
+	} else
 		task->txwr_rxrd.const_ctx.init_flags |=
 				FCOE_TASK_DEV_TYPE_DISK <<
 				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;
