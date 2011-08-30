@@ -129,6 +129,20 @@ static struct clk lcdc_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 
+/* HClocks */
+static struct clk hck0 = {
+	.name		= "hck0",
+	.pmc_mask	= AT91_PMC_HCK0,
+	.type		= CLK_TYPE_SYSTEM,
+	.id		= 0,
+};
+static struct clk hck1 = {
+	.name		= "hck1",
+	.pmc_mask	= AT91_PMC_HCK1,
+	.type		= CLK_TYPE_SYSTEM,
+	.id		= 1,
+};
+
 static struct clk *periph_clocks[] __initdata = {
 	&pioA_clk,
 	&pioB_clk,
@@ -161,6 +175,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc0_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.1", &ssc1_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.2", &ssc2_clk),
+	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &hck0),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -197,20 +212,6 @@ static struct clk pck3 = {
 	.pmc_mask	= AT91_PMC_PCK3,
 	.type		= CLK_TYPE_PROGRAMMABLE,
 	.id		= 3,
-};
-
-/* HClocks */
-static struct clk hck0 = {
-	.name		= "hck0",
-	.pmc_mask	= AT91_PMC_HCK0,
-	.type		= CLK_TYPE_SYSTEM,
-	.id		= 0,
-};
-static struct clk hck1 = {
-	.name		= "hck1",
-	.pmc_mask	= AT91_PMC_HCK1,
-	.type		= CLK_TYPE_SYSTEM,
-	.id		= 1,
 };
 
 static void __init at91sam9261_register_clocks(void)
