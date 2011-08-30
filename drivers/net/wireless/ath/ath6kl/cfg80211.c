@@ -1025,6 +1025,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	struct ath6kl_key *key = NULL;
 	int status = 0;
 	u8 key_usage;
+	enum crypto_type key_type = NONE_CRYPT;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
@@ -1049,12 +1050,16 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	key_usage = GROUP_USAGE;
 	if (ar->prwise_crypto == WEP_CRYPT)
 		key_usage |= TX_USAGE;
+	if (unicast)
+		key_type = ar->prwise_crypto;
+	if (multicast)
+		key_type = ar->grp_crypto;
 
 	if (ar->nw_type == AP_NETWORK && !test_bit(CONNECTED, &ar->flag))
 		return 0; /* Delay until AP mode has been started */
 
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
-				       ar->prwise_crypto, key_usage,
+				       key_type, key_usage,
 				       key->key_len, key->seq, key->key,
 				       KEY_OP_INIT_VAL, NULL,
 				       SYNC_BOTH_WMIFLAG);
@@ -1617,8 +1622,11 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 	}
-	if (p.prwise_crypto_type == 0)
+	if (p.prwise_crypto_type == 0) {
 		p.prwise_crypto_type = NONE_CRYPT;
+		ath6kl_set_cipher(ar, 0, true);
+	} else if (info->crypto.n_ciphers_pairwise == 1)
+		ath6kl_set_cipher(ar, info->crypto.ciphers_pairwise[0], true);
 
 	switch (info->crypto.cipher_group) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -1635,6 +1643,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 		p.grp_crypto_type = NONE_CRYPT;
 		break;
 	}
+	ath6kl_set_cipher(ar, info->crypto.cipher_group, false);
 
 	p.nw_type = AP_NETWORK;
 	ar->nw_type = ar->next_mode;
