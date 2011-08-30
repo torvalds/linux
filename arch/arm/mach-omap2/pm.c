@@ -163,11 +163,11 @@ err:
 }
 
 /*
- * This API is to be called during init to put the various voltage
+ * This API is to be called during init to set the various voltage
  * domains to the voltage as per the opp table. Typically we boot up
  * at the nominal voltage. So this function finds out the rate of
  * the clock associated with the voltage domain, finds out the correct
- * opp entry and puts the voltage domain to the voltage specifies
+ * opp entry and sets the voltage domain to the voltage specified
  * in the opp entry
  */
 static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
@@ -218,7 +218,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	return 0;
 
 exit:
-	printk(KERN_ERR "%s: Unable to put vdd_%s to its init voltage\n\n",
+	printk(KERN_ERR "%s: Unable to set vdd_%s to its init voltage\n\n",
 		__func__, vdd_name);
 	return -EINVAL;
 }
