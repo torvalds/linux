@@ -10,7 +10,6 @@ config CPU_S3C2443
 	select CPU_LLSERIAL_S3C2440
 	select SAMSUNG_CLKSRC
 	select S3C2443_CLOCK
-	select S3C_GPIO_PULL_S3C2443
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
