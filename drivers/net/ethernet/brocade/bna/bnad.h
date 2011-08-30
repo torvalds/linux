@@ -86,6 +86,10 @@ struct bnad_rx_ctrl {
 #define BNAD_MAX_Q_DEPTH		0x10000
 #define BNAD_MIN_Q_DEPTH		0x200
 
+#define BNAD_MAX_RXQ_DEPTH		(BNAD_MAX_Q_DEPTH / bnad_rxqs_per_cq)
+/* keeping MAX TX and RX Q depth equal */
+#define BNAD_MAX_TXQ_DEPTH		BNAD_MAX_RXQ_DEPTH
+
 #define BNAD_JUMBO_MTU			9000
 
 #define BNAD_NETIF_WAKE_THRESHOLD	8

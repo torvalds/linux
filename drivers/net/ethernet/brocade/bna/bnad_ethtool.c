@@ -418,10 +418,10 @@ bnad_get_ringparam(struct net_device *netdev,
 {
 	struct bnad *bnad = netdev_priv(netdev);
 
-	ringparam->rx_max_pending = BNAD_MAX_Q_DEPTH / bnad_rxqs_per_cq;
+	ringparam->rx_max_pending = BNAD_MAX_RXQ_DEPTH;
 	ringparam->rx_mini_max_pending = 0;
 	ringparam->rx_jumbo_max_pending = 0;
-	ringparam->tx_max_pending = BNAD_MAX_Q_DEPTH;
+	ringparam->tx_max_pending = BNAD_MAX_TXQ_DEPTH;
 
 	ringparam->rx_pending = bnad->rxq_depth;
 	ringparam->rx_mini_max_pending = 0;
@@ -445,13 +445,13 @@ bnad_set_ringparam(struct net_device *netdev,
 	}
 
 	if (ringparam->rx_pending < BNAD_MIN_Q_DEPTH ||
-	    ringparam->rx_pending > BNAD_MAX_Q_DEPTH / bnad_rxqs_per_cq ||
+	    ringparam->rx_pending > BNAD_MAX_RXQ_DEPTH ||
 	    !BNA_POWER_OF_2(ringparam->rx_pending)) {
 		mutex_unlock(&bnad->conf_mutex);
 		return -EINVAL;
 	}
 	if (ringparam->tx_pending < BNAD_MIN_Q_DEPTH ||
-	    ringparam->tx_pending > BNAD_MAX_Q_DEPTH ||
+	    ringparam->tx_pending > BNAD_MAX_TXQ_DEPTH ||
 	    !BNA_POWER_OF_2(ringparam->tx_pending)) {
 		mutex_unlock(&bnad->conf_mutex);
 		return -EINVAL;
