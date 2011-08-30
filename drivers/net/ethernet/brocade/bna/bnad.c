@@ -137,39 +137,20 @@ bnad_free_all_txbufs(struct bnad *bnad,
 	struct bnad_unmap_q *unmap_q = tcb->unmap_q;
 	struct bnad_skb_unmap *unmap_array;
 	struct sk_buff		*skb = NULL;
-	int			i;
+	int			q;
 
 	unmap_array = unmap_q->unmap_array;
 
-	unmap_cons = 0;
-	while (unmap_cons < unmap_q->q_depth) {
-		skb = unmap_array[unmap_cons].skb;
-		if (!skb) {
-			unmap_cons++;
+	for (q = 0; q < unmap_q->q_depth; q++) {
+		skb = unmap_array[q].skb;
+		if (!skb)
 			continue;
-		}
-		unmap_array[unmap_cons].skb = NULL;
 
-		dma_unmap_single(&bnad->pcidev->dev,
-				 dma_unmap_addr(&unmap_array[unmap_cons],
-						dma_addr), skb_headlen(skb),
-						DMA_TO_DEVICE);
+		unmap_cons = q;
+		unmap_cons = bnad_pci_unmap_skb(&bnad->pcidev->dev, unmap_array,
+				unmap_cons, unmap_q->q_depth, skb,
+				skb_shinfo(skb)->nr_frags);
 
-		dma_unmap_addr_set(&unmap_array[unmap_cons], dma_addr, 0);
-		if (++unmap_cons >= unmap_q->q_depth)
-			break;
-
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			dma_unmap_page(&bnad->pcidev->dev,
-				       dma_unmap_addr(&unmap_array[unmap_cons],
-						      dma_addr),
-				       skb_shinfo(skb)->frags[i].size,
-				       DMA_TO_DEVICE);
-			dma_unmap_addr_set(&unmap_array[unmap_cons], dma_addr,
-					   0);
-			if (++unmap_cons >= unmap_q->q_depth)
-				break;
-		}
 		dev_kfree_skb_any(skb);
 	}
 }
