@@ -47,7 +47,6 @@ obj-$(CONFIG_PPTP) += ppp/
 obj-$(CONFIG_SLIP) += slip/
 obj-$(CONFIG_SLHC) += slip/
 obj-$(CONFIG_NET_SB1000) += sb1000.o
-obj-$(CONFIG_SLIP) += slip/
 obj-$(CONFIG_SUNGEM_PHY) += sungem_phy.o
 obj-$(CONFIG_TR) += tokenring/
 obj-$(CONFIG_WAN) += wan/
