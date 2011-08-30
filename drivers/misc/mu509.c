@@ -30,18 +30,19 @@ MODULE_LICENSE("GPL");
 #endif
 #define SLEEP 1
 #define READY 0
-#define MU509_RESET 0x01
 static struct wake_lock modem_wakelock;
 #define IRQ_BB_WAKEUP_AP_TRIGGER    IRQF_TRIGGER_FALLING
 //#define IRQ_BB_WAKEUP_AP_TRIGGER    IRQF_TRIGGER_RISING
+#define airplane_mode RK29_PIN6_PC1
+#define MU509_RESET 0x01
+#define AIRPLANE_MODE_OFF 0x03
+#define AIRPLANE_MODE_ON 0x00
 struct rk29_mu509_data *gpdata = NULL;
 static int do_wakeup_irq = 0;
 
 static void ap_wakeup_bp(struct platform_device *pdev, int wake)
 {
 	struct rk29_mu509_data *pdata = pdev->dev.platform_data;
-        //struct modem_dev *mu509_data = platform_get_drvdata(pdev);
-	MODEMDBG("ap_wakeup_bp\n");
 
 	gpio_set_value(pdata->ap_wakeup_bp, wake);  
 
@@ -50,7 +51,7 @@ extern void rk28_send_wakeup_key(void);
 
 static void do_wakeup(struct work_struct *work)
 {
-    printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
+//    MODEMDBG("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
     rk28_send_wakeup_key();
 }
 
@@ -60,7 +61,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
     if(do_wakeup_irq)
     {
         do_wakeup_irq = 0;
-        printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
+  //      MODEMDBG("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
         wake_lock_timeout(&modem_wakelock, 10 * HZ);
         schedule_delayed_work(&wakeup_work, HZ / 10);
     }
@@ -71,21 +72,17 @@ int modem_poweron_off(int on_off)
 	struct rk29_mu509_data *pdata = gpdata;		
   if(on_off)
   {
-		printk("------------modem_poweron\n");
-//		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-//		mdelay(300);
-//		gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-//		msleep(4000);
-//		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+		MODEMDBG("------------modem_poweron\n");
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
 		msleep(1000);
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
 		msleep(700);
 		gpio_set_value(pdata->ap_wakeup_bp, GPIO_LOW);
+		gpio_set_value(airplane_mode, GPIO_HIGH);
   }
   else
   {
-		printk("------------modem_poweroff\n");
+		MODEMDBG("------------modem_poweroff\n");
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
 		mdelay(2500);
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
@@ -94,22 +91,23 @@ int modem_poweron_off(int on_off)
 }
 static int mu509_open(struct inode *inode, struct file *file)
 {
-	printk("-------------%s\n",__FUNCTION__);
-	modem_poweron_off(1);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
+	struct rk29_mu509_data *pdata = gpdata;
+	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
+	device_init_wakeup(&pdev, 1);
 	return 0;
 }
 
 static int mu509_release(struct inode *inode, struct file *file)
 {
-	printk("-------------%s\n",__FUNCTION__);
-	//modem_poweron_off(0);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	return 0;
 }
 
 static int mu509_ioctl(struct inode *inode,struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rk29_mu509_data *pdata = gpdata;
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	switch(cmd)
 	{
 		case MU509_RESET:					
@@ -122,6 +120,13 @@ static int mu509_ioctl(struct inode *inode,struct file *file, unsigned int cmd, 
 			gpio_set_value(pdata->bp_power, GPIO_HIGH);
 			msleep(700);
 			gpio_set_value(pdata->ap_wakeup_bp, GPIO_LOW);
+			gpio_set_value(airplane_mode, GPIO_HIGH);
+			break;
+		case AIRPLANE_MODE_ON:
+			gpio_set_value(airplane_mode, GPIO_LOW);
+			break;
+		case AIRPLANE_MODE_OFF:
+			gpio_set_value(airplane_mode, GPIO_HIGH);
 			break;
 		default:
 			break;
@@ -147,7 +152,7 @@ static int mu509_probe(struct platform_device *pdev)
 	struct rk29_mu509_data *pdata = gpdata = pdev->dev.platform_data;
 	struct modem_dev *mu509_data = NULL;
 	int result, irq = 0;	
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	modem_poweron_off(1);
 	mu509_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(mu509_data == NULL)
@@ -182,11 +187,11 @@ static int mu509_probe(struct platform_device *pdev)
 		goto err0;
 	}
 	enable_irq_wake(gpio_to_irq(pdata->bp_wakeup_ap)); 
-	printk("%s: request_irq(%d) success\n", __func__, irq);
+
 	result = misc_register(&mu509_misc);
 	if(result)
 	{
-		MODEMDBG("misc_register err\n");
+		printk("misc_register err\n");
 	}	
 	return result;
 err0:
@@ -202,16 +207,14 @@ err2:
 int mu509_suspend(struct platform_device *pdev)
 {
 	do_wakeup_irq = 1;
-	//struct rk29_mu509_data *pdata = pdev->dev.platform_data;
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	ap_wakeup_bp(pdev, 1);
 	return 0;
 }
 
 int mu509_resume(struct platform_device *pdev)
 {
-	//struct rk29_mu509_data *pdata = pdev->dev.platform_data;
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	ap_wakeup_bp(pdev, 0);
 	return 0;
 }
@@ -221,7 +224,7 @@ void mu509_shutdown(struct platform_device *pdev, pm_message_t state)
 	struct rk29_mu509_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mu509_data = platform_get_drvdata(pdev);
 	
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	modem_poweron_off(0);
 	cancel_work_sync(&mu509_data->work);
 	gpio_free(pdata->bp_power);
@@ -244,13 +247,13 @@ static struct platform_driver mu509_driver = {
 
 static int __init mu509_init(void)
 {
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	return platform_driver_register(&mu509_driver);
 }
 
 static void __exit mu509_exit(void)
 {
-	printk("-------------%s\n",__FUNCTION__);
+	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	platform_driver_unregister(&mu509_driver);
 }
 
