@@ -56,8 +56,8 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 	if (status)
 		return;
 
-	if (test_bit(HCI_MGMT, &hdev->flags) &&
-				test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
+	if (test_and_clear_bit(HCI_INQUIRY, &hdev->flags) &&
+			test_bit(HCI_MGMT, &hdev->flags))
 		mgmt_discovering(hdev->id, 0);
 
 	hci_req_complete(hdev, HCI_OP_INQUIRY_CANCEL, status);
@@ -74,8 +74,8 @@ static void hci_cc_exit_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
 	if (status)
 		return;
 
-	if (test_bit(HCI_MGMT, &hdev->flags) &&
-				test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
+	if (test_and_clear_bit(HCI_INQUIRY, &hdev->flags) &&
+				test_bit(HCI_MGMT, &hdev->flags))
 		mgmt_discovering(hdev->id, 0);
 
 	hci_conn_check_pending(hdev);
@@ -851,9 +851,8 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 		return;
 	}
 
-	if (test_bit(HCI_MGMT, &hdev->flags) &&
-					!test_and_set_bit(HCI_INQUIRY,
-							&hdev->flags))
+	if (!test_and_set_bit(HCI_INQUIRY, &hdev->flags) &&
+				test_bit(HCI_MGMT, &hdev->flags))
 		mgmt_discovering(hdev->id, 1);
 }
 
@@ -1225,8 +1224,8 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 
 	BT_DBG("%s status %d", hdev->name, status);
 
-	if (test_bit(HCI_MGMT, &hdev->flags) &&
-				test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
+	if (test_and_clear_bit(HCI_INQUIRY, &hdev->flags) &&
+				test_bit(HCI_MGMT, &hdev->flags))
 		mgmt_discovering(hdev->id, 0);
 
 	hci_req_complete(hdev, HCI_OP_INQUIRY, status);
