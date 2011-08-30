@@ -1487,13 +1487,13 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 static void __bnx2fc_destroy(struct bnx2fc_interface *interface)
 {
 	struct fc_lport *lport = interface->ctlr.lp;
+	struct fcoe_port *port = lport_priv(lport);
 
 	bnx2fc_interface_cleanup(interface);
 	bnx2fc_stop(interface);
 	list_del(&interface->list);
-	lport = interface->ctlr.lp;
 	bnx2fc_interface_put(interface);
-	bnx2fc_if_destroy(lport);
+	queue_work(bnx2fc_wq, &port->destroy_work);
 }
 
 /**
@@ -1541,11 +1541,7 @@ static void bnx2fc_destroy_work(struct work_struct *work)
 
 	BNX2FC_HBA_DBG(lport, "Entered bnx2fc_destroy_work\n");
 
-	rtnl_lock();
-	mutex_lock(&bnx2fc_dev_lock);
 	bnx2fc_if_destroy(lport);
-	mutex_unlock(&bnx2fc_dev_lock);
-	rtnl_unlock();
 }
 
 static void bnx2fc_unbind_adapter_devices(struct bnx2fc_hba *hba)
