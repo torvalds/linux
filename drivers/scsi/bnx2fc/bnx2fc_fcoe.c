@@ -1441,6 +1441,14 @@ free_blport:
 	return NULL;
 }
 
+static void bnx2fc_net_cleanup(struct bnx2fc_interface *interface)
+{
+	/* Dont listen for Ethernet packets anymore */
+	__dev_remove_pack(&interface->fcoe_packet_type);
+	__dev_remove_pack(&interface->fip_packet_type);
+	synchronize_net();
+}
+
 static void bnx2fc_interface_cleanup(struct bnx2fc_interface *interface)
 {
 	struct fc_lport *lport = interface->ctlr.lp;
@@ -1453,10 +1461,7 @@ static void bnx2fc_interface_cleanup(struct bnx2fc_interface *interface)
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
 
-	/* Dont listen for Ethernet packets anymore */
-	__dev_remove_pack(&interface->fcoe_packet_type);
-	__dev_remove_pack(&interface->fip_packet_type);
-	synchronize_net();
+	bnx2fc_net_cleanup(interface);
 
 	bnx2fc_free_vport(hba, lport);
 }
@@ -1991,7 +1996,6 @@ static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode)
 	if (!lport) {
 		printk(KERN_ERR PFX "Failed to create interface (%s)\n",
 			netdev->name);
-		bnx2fc_interface_cleanup(interface);
 		rc = -EINVAL;
 		goto if_create_err;
 	}
@@ -2026,6 +2030,7 @@ static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode)
 if_create_err:
 	destroy_workqueue(interface->timer_work_queue);
 ifput_err:
+	bnx2fc_net_cleanup(interface);
 	bnx2fc_interface_put(interface);
 netdev_err:
 	module_put(THIS_MODULE);
