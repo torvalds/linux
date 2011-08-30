@@ -26,9 +26,6 @@
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
 
-/* things that live in capability.c */
-extern void __init security_fixup_ops(struct security_operations *ops);
-
 static struct security_operations *security_ops;
 static struct security_operations default_security_ops = {
 	.name	= "default",
