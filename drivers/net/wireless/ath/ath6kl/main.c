@@ -1284,7 +1284,8 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			cfg80211_del_sta(ar->net_dev, bssid, GFP_KERNEL);
 		}
 
-		clear_bit(CONNECTED, &ar->flag);
+		if (memcmp(ar->net_dev->dev_addr, bssid, ETH_ALEN) == 0)
+			clear_bit(CONNECTED, &ar->flag);
 		return;
 	}
 
