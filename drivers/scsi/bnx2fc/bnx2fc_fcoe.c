@@ -863,6 +863,8 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 		bnx2fc_link_speed_update(lport);
 
 		if (link_possible && !bnx2fc_link_ok(lport)) {
+			/* Reset max recv frame size to default */
+			fc_set_mfs(lport, BNX2FC_MFS);
 			printk(KERN_ERR "indicate_netevent: ctlr_link_up\n");
 			fcoe_ctlr_link_up(&interface->ctlr);
 		} else if (fcoe_ctlr_link_down(&interface->ctlr)) {
