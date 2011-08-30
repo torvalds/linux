@@ -328,6 +328,12 @@ extern u32		bnad_rxqs_per_cq;
  */
 extern u32 *cna_get_firmware_buf(struct pci_dev *pdev);
 /* Netdev entry point prototypes */
+extern void bnad_set_rx_mode(struct net_device *netdev);
+extern struct net_device_stats *bnad_get_netdev_stats(
+				struct net_device *netdev);
+extern int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
+extern int bnad_enable_default_bcast(struct bnad *bnad);
+extern void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
 extern void bnad_set_ethtool_ops(struct net_device *netdev);
 
 /* Configuration & setup */
@@ -365,9 +371,5 @@ extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
 		bna_ib_ack((_ccb)->i_dbell, 0);			\
 	}							\
 }
-
-#define bnad_dim_timer_running(_bnad)				\
-	(((_bnad)->cfg_flags & BNAD_CF_DIM_ENABLED) &&		\
-	(test_bit(BNAD_RF_DIM_TIMER_RUNNING, &((_bnad)->run_flags))))
 
 #endif /* __BNAD_H__ */

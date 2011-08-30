@@ -75,14 +75,25 @@ static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"tcpcsum_offload",
 	"udpcsum_offload",
 	"csum_help",
-	"csum_help_err",
+	"tx_skb_too_short",
+	"tx_skb_stopping",
+	"tx_skb_max_vectors",
+	"tx_skb_mss_too_long",
+	"tx_skb_tso_too_short",
+	"tx_skb_tso_prepare",
+	"tx_skb_non_tso_too_long",
+	"tx_skb_tcp_hdr",
+	"tx_skb_udp_hdr",
+	"tx_skb_csum_err",
+	"tx_skb_headlen_too_long",
+	"tx_skb_headlen_zero",
+	"tx_skb_frag_zero",
+	"tx_skb_len_mismatch",
 	"hw_stats_updates",
-	"netif_rx_schedule",
-	"netif_rx_complete",
 	"netif_rx_dropped",
 
 	"link_toggle",
-	"cee_up",
+	"cee_toggle",
 
 	"rxp_info_alloc_failed",
 	"mbox_intr_disabled",
@@ -200,6 +211,20 @@ static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"rad_rx_bcast_octets",
 	"rad_rx_bcast_vlan",
 	"rad_rx_drops",
+
+	"rlb_rad_rx_frames",
+	"rlb_rad_rx_octets",
+	"rlb_rad_rx_vlan_frames",
+	"rlb_rad_rx_ucast",
+	"rlb_rad_rx_ucast_octets",
+	"rlb_rad_rx_ucast_vlan",
+	"rlb_rad_rx_mcast",
+	"rlb_rad_rx_mcast_octets",
+	"rlb_rad_rx_mcast_vlan",
+	"rlb_rad_rx_bcast",
+	"rlb_rad_rx_bcast_octets",
+	"rlb_rad_rx_bcast_vlan",
+	"rlb_rad_rx_drops",
 
 	"fc_rx_ucast_octets",
 	"fc_rx_ucast",
@@ -321,7 +346,7 @@ bnad_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	unsigned long flags;
-	int dim_timer_del = 0;
+	int to_del = 0;
 
 	if (coalesce->rx_coalesce_usecs == 0 ||
 	    coalesce->rx_coalesce_usecs >
@@ -348,14 +373,17 @@ bnad_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	} else {
 		if (bnad->cfg_flags & BNAD_CF_DIM_ENABLED) {
 			bnad->cfg_flags &= ~BNAD_CF_DIM_ENABLED;
-			dim_timer_del = bnad_dim_timer_running(bnad);
-			if (dim_timer_del) {
+			if (bnad->cfg_flags & BNAD_CF_DIM_ENABLED &&
+			    test_bit(BNAD_RF_DIM_TIMER_RUNNING,
+			    &bnad->run_flags)) {
 				clear_bit(BNAD_RF_DIM_TIMER_RUNNING,
 							&bnad->run_flags);
-				spin_unlock_irqrestore(&bnad->bna_lock, flags);
-				del_timer_sync(&bnad->dim_timer);
-				spin_lock_irqsave(&bnad->bna_lock, flags);
+				to_del = 1;
 			}
+			spin_unlock_irqrestore(&bnad->bna_lock, flags);
+			if (to_del)
+				del_timer_sync(&bnad->dim_timer);
+			spin_lock_irqsave(&bnad->bna_lock, flags);
 			bnad_rx_coalescing_timeo_set(bnad);
 		}
 	}
@@ -407,6 +435,7 @@ bnad_set_ringparam(struct net_device *netdev,
 {
 	int i, current_err, err = 0;
 	struct bnad *bnad = netdev_priv(netdev);
+	unsigned long flags;
 
 	mutex_lock(&bnad->conf_mutex);
 	if (ringparam->rx_pending == bnad->rxq_depth &&
@@ -430,6 +459,11 @@ bnad_set_ringparam(struct net_device *netdev,
 
 	if (ringparam->rx_pending != bnad->rxq_depth) {
 		bnad->rxq_depth = ringparam->rx_pending;
+		if (!netif_running(netdev)) {
+			mutex_unlock(&bnad->conf_mutex);
+			return 0;
+		}
+
 		for (i = 0; i < bnad->num_rx; i++) {
 			if (!bnad->rx_info[i].rx)
 				continue;
@@ -437,10 +471,26 @@ bnad_set_ringparam(struct net_device *netdev,
 			current_err = bnad_setup_rx(bnad, i);
 			if (current_err && !err)
 				err = current_err;
+			if (!err)
+				bnad_restore_vlans(bnad, i);
+		}
+
+		if (!err && bnad->rx_info[0].rx) {
+			/* restore rx configuration */
+			bnad_enable_default_bcast(bnad);
+			spin_lock_irqsave(&bnad->bna_lock, flags);
+			bnad_mac_addr_set_locked(bnad, netdev->dev_addr);
+			spin_unlock_irqrestore(&bnad->bna_lock, flags);
+			bnad_set_rx_mode(netdev);
 		}
 	}
 	if (ringparam->tx_pending != bnad->txq_depth) {
 		bnad->txq_depth = ringparam->tx_pending;
+		if (!netif_running(netdev)) {
+			mutex_unlock(&bnad->conf_mutex);
+			return 0;
+		}
+
 		for (i = 0; i < bnad->num_tx; i++) {
 			if (!bnad->tx_info[i].tx)
 				continue;
@@ -578,6 +628,16 @@ bnad_get_strings(struct net_device *netdev, u32 stringset, u8 * string)
 				sprintf(string, "cq%d_hw_producer_index",
 					q_num);
 				string += ETH_GSTRING_LEN;
+				sprintf(string, "cq%d_intr", q_num);
+				string += ETH_GSTRING_LEN;
+				sprintf(string, "cq%d_poll", q_num);
+				string += ETH_GSTRING_LEN;
+				sprintf(string, "cq%d_schedule", q_num);
+				string += ETH_GSTRING_LEN;
+				sprintf(string, "cq%d_keep_poll", q_num);
+				string += ETH_GSTRING_LEN;
+				sprintf(string, "cq%d_complete", q_num);
+				string += ETH_GSTRING_LEN;
 				q_num++;
 			}
 		}
@@ -660,7 +720,7 @@ static int
 bnad_get_stats_count_locked(struct net_device *netdev)
 {
 	struct bnad *bnad = netdev_priv(netdev);
-	int i, j, count, rxf_active_num = 0, txf_active_num = 0;
+	int i, j, count = 0, rxf_active_num = 0, txf_active_num = 0;
 	u32 bmap;
 
 	bmap = bna_tx_rid_mask(&bnad->bna);
@@ -718,6 +778,17 @@ bnad_per_q_stats_fill(struct bnad *bnad, u64 *buf, int bi)
 				buf[bi++] = 0; /* ccb->consumer_index */
 				buf[bi++] = *(bnad->rx_info[i].rx_ctrl[j].
 						ccb->hw_producer_index);
+
+				buf[bi++] = bnad->rx_info[i].
+						rx_ctrl[j].rx_intr_ctr;
+				buf[bi++] = bnad->rx_info[i].
+						rx_ctrl[j].rx_poll_ctr;
+				buf[bi++] = bnad->rx_info[i].
+						rx_ctrl[j].rx_schedule;
+				buf[bi++] = bnad->rx_info[i].
+						rx_ctrl[j].rx_keep_poll;
+				buf[bi++] = bnad->rx_info[i].
+						rx_ctrl[j].rx_complete;
 			}
 	}
 	for (i = 0; i < bnad->num_rx; i++) {
