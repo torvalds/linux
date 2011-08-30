@@ -5822,7 +5822,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	 * take the UNDI lock to protect undi_unload flow from accessing
 	 * registers while we're resetting the chip
 	 */
-	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
 	bnx2x_reset_common(bp);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0xffffffff);
@@ -5834,7 +5834,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	}
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, val);
 
-	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
 	bnx2x_init_block(bp, BLOCK_MISC, PHASE_COMMON);
 
@@ -8570,10 +8570,12 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 	/* Check if there is any driver already loaded */
 	val = REG_RD(bp, MISC_REG_UNPREPARED);
 	if (val == 0x1) {
-		/* Check if it is the UNDI driver
+
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+		/*
+		 * Check if it is the UNDI driver
 		 * UNDI driver initializes CID offset for normal bell to 0x7
 		 */
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 		val = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
 		if (val == 0x7) {
 			u32 reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
@@ -8610,9 +8612,6 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 
 				bnx2x_fw_command(bp, reset_code, 0);
 			}
-
-			/* now it's safe to release the lock */
-			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
 			bnx2x_undi_int_disable(bp);
 			port = BP_PORT(bp);
@@ -8663,8 +8662,10 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			bp->fw_seq =
 			      (SHMEM_RD(bp, func_mb[bp->pf_num].drv_mb_header) &
 				DRV_MSG_SEQ_NUMBER_MASK);
-		} else
-			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+		}
+
+		/* now it's safe to release the lock */
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 	}
 }
 
@@ -9440,6 +9441,10 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		bp->igu_base_sb = 0;
 	} else {
 		bp->common.int_block = INT_BLOCK_IGU;
+
+		/* do not allow device reset during IGU info preocessing */
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+
 		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
 
 		if (val & IGU_BLOCK_CONFIGURATION_REG_BACKWARD_COMP_EN) {
@@ -9471,6 +9476,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 		bnx2x_get_igu_cam_info(bp);
 
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 	}
 
 	/*
