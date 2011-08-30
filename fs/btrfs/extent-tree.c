@@ -4707,7 +4707,6 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 			   struct extent_buffer *buf,
 			   u64 parent, int last_ref)
 {
-	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_group_cache *cache = NULL;
 	int ret;
 
@@ -4722,10 +4721,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 	if (!last_ref)
 		return;
 
-	block_rsv = get_block_rsv(trans, root);
 	cache = btrfs_lookup_block_group(root->fs_info, buf->start);
-	if (block_rsv->space_info != cache->space_info)
-		goto out;
 
 	if (btrfs_header_generation(buf) == trans->transid) {
 		if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
