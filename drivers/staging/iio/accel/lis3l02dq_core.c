@@ -695,9 +695,9 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  lis3l02dq_channels,
-					  ARRAY_SIZE(lis3l02dq_channels));
+	ret = iio_ring_buffer_register(indio_dev,
+				       lis3l02dq_channels,
+				       ARRAY_SIZE(lis3l02dq_channels));
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;

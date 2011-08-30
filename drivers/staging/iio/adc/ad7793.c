@@ -895,9 +895,9 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	if (ret)
 		goto error_unreg_ring;
 
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  indio_dev->channels,
-					  indio_dev->num_channels);
+	ret = iio_ring_buffer_register(indio_dev,
+				       indio_dev->channels,
+				       indio_dev->num_channels);
 	if (ret)
 		goto error_remove_trigger;
 

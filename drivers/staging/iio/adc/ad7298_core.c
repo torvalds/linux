@@ -223,9 +223,9 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  &ad7298_channels[1], /* skip temp0 */
-					  ARRAY_SIZE(ad7298_channels) - 1);
+	ret = iio_ring_buffer_register(indio_dev,
+				       &ad7298_channels[1], /* skip temp0 */
+				       ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
 		goto error_cleanup_ring;
 

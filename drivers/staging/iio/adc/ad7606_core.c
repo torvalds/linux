@@ -506,9 +506,9 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 		goto error_free_irq;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  indio_dev->channels,
-					  indio_dev->num_channels);
+	ret = iio_ring_buffer_register(indio_dev,
+				       indio_dev->channels,
+				       indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 

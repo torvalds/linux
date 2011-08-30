@@ -186,9 +186,9 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  st->chip_info->channel,
-					  ARRAY_SIZE(st->chip_info->channel));
+	ret = iio_ring_buffer_register(indio_dev,
+				       st->chip_info->channel,
+				       ARRAY_SIZE(st->chip_info->channel));
 	if (ret)
 		goto error_cleanup_ring;
 	return 0;

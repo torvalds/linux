@@ -1313,9 +1313,9 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_cleanup_ring;
 	regdone = 1;
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  st->chip_info->channels,
-					  st->chip_info->num_channels);
+	ret = iio_ring_buffer_register(indio_dev,
+				       st->chip_info->channels,
+				       st->chip_info->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 

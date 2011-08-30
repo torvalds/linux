@@ -277,9 +277,9 @@ static void __iio_ring_attr_cleanup(struct iio_dev *indio_dev)
 				   &iio_scan_el_dummy_group);
 }
 
-int iio_ring_buffer_register_ex(struct iio_dev *indio_dev, int id,
-				const struct iio_chan_spec *channels,
-				int num_channels)
+int iio_ring_buffer_register(struct iio_dev *indio_dev,
+			     const struct iio_chan_spec *channels,
+			     int num_channels)
 {
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	int ret, i;
@@ -325,7 +325,7 @@ error_cleanup_dynamic:
 error_ret:
 	return ret;
 }
-EXPORT_SYMBOL(iio_ring_buffer_register_ex);
+EXPORT_SYMBOL(iio_ring_buffer_register);
 
 void iio_ring_buffer_unregister(struct iio_dev *indio_dev)
 {

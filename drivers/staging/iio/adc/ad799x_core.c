@@ -706,9 +706,9 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 		goto error_cleanup_ring;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(indio_dev, 0,
-					  indio_dev->channels,
-					  indio_dev->num_channels);
+	ret = iio_ring_buffer_register(indio_dev,
+				       indio_dev->channels,
+				       indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 

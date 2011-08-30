@@ -733,7 +733,7 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 	regdone = 1;
 
 	/* skip temp0_input, register in0_(real|imag)_raw */
-	ret = iio_ring_buffer_register_ex(indio_dev, 0, &ad5933_channels[1], 2);
+	ret = iio_ring_buffer_register(indio_dev, &ad5933_channels[1], 2);
 	if (ret)
 		goto error_unreg_ring;
 
