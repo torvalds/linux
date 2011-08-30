@@ -22,6 +22,11 @@
  * Currently assumes nano seconds.
  */
 
+enum iio_data_type {
+	IIO_RAW,
+	IIO_PROCESSED,
+};
+
 enum iio_chan_type {
 	/* real channel types */
 	IIO_IN,
