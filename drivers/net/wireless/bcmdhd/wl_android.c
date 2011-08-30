@@ -448,6 +448,12 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
 		/* TBD: BTCOEXMODE */
+		uint mode = *(command + strlen(CMD_BTCOEXMODE) + 1) - '0';
+
+		if (mode == 1)
+			net_os_set_packet_filter(net, 0); /* DHCP starts */
+		else
+			net_os_set_packet_filter(net, 1); /* DHCP ends */
 	}
 	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd.total_len);
