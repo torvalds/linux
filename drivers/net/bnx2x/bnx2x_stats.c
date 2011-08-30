@@ -710,7 +710,8 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 		break;
 
 	case MAC_TYPE_NONE: /* unreached */
-		BNX2X_ERR("stats updated by DMAE but no MAC active\n");
+		DP(BNX2X_MSG_STATS,
+		   "stats updated by DMAE but no MAC active\n");
 		return -1;
 
 	default: /* unreached */
