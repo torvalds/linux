@@ -50,6 +50,7 @@ obj-$(CONFIG_TOUCHSCREEN_IT7250)	+= ctp_it7250.o
 obj-$(CONFIG_RK28_I2C_TS_NTP070)	+= ntp070.o
 obj-$(CONFIG_HANNSTAR_P1003)		+= hannstar_p1003.o
 obj-$(CONFIG_TOUCHSCREEN_IT7260)	+= it7260_ts.o
+obj-$(CONFIG_TOUCHSCREEN_IT7260_I2C)	+= IT7260_ts_i2c.o
 obj-$(CONFIG_SINTEK_3FA16)		+= sintek_3FA16.o
 obj-$(CONFIG_EETI_EGALAX)		+= eeti_egalax_i2c.o
 obj-$(CONFIG_ATMEL_MXT224)		+= atmel_maxtouch.o

@@ -723,6 +723,16 @@ config TOUCHSCREEN_IT7260
 	  code includes that in its table of I2C devices.
 
 	  If unsure, say N (but it's safe to say "Y").
+	  
+config TOUCHSCREEN_IT7260_I2C
+	tristate "IT7260 based touchscreens: IT7260 I2C Interface"
+	depends on I2C_RK29
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  IT7260 controller, and your board-specific initialization
+	  code includes that in its table of I2C devices.
+
+	  If unsure, say N (but it's safe to say "Y").
 
 config TOUCHSCREEN_NAS
         tristate "NAS based touchscreens: NAS Interface"
