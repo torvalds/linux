@@ -984,9 +984,9 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) || defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+#if defined(CONFIG_SND_SOC_ADAV80X) || defined(CONFIG_SND_SOC_ADV80X_MODULE)
 	{
-		.modalias = "adav80x",
+		.modalias = "adav801",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 1,
@@ -2101,7 +2101,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) || defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+#if defined(CONFIG_SND_SOC_ADAV80X) || defined(CONFIG_SND_SOC_ADAV80X_MODULE)
 	{
 		I2C_BOARD_INFO("adav803", 0x10),
 	},
@@ -2552,6 +2552,14 @@ static struct platform_device bfin_ad73311_codec_device = {
 };
 #endif
 
+#if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAV80X) || \
+	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAV80X_MODULE)
+static struct platform_device bfin_eval_adav801_device = {
+	.name = "bfin-eval-adav801",
+	.id = -1,
+};
+#endif
+
 #if defined(CONFIG_SND_BF5XX_SOC_I2S) || defined(CONFIG_SND_BF5XX_SOC_I2S_MODULE)
 static struct platform_device bfin_i2s = {
 	.name = "bfin-i2s",
@@ -2837,6 +2845,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1701) || \
 	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1701_MODULE)
 	&bf5xx_adau1701_device,
+#endif
+
+#if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAV80X) || \
+	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAV80X_MODULE)
+	&bfin_eval_adav801_device,
 #endif
 };
 
