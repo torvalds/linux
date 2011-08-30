@@ -34,6 +34,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
