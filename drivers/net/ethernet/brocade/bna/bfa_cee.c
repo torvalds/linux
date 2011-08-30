@@ -16,8 +16,6 @@
  * www.brocade.com
  */
 
-#include "bfa_defs_cna.h"
-#include "cna.h"
 #include "bfa_cee.h"
 #include "bfi_cna.h"
 #include "bfa_ioc.h"

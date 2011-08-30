@@ -21,21 +21,18 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/if_vlan.h>
 #include <linux/if_ether.h>
-#include <asm/page.h>
-#include <asm/io.h>
-#include <asm/string.h>
-
-#include <linux/list.h>
 
 #define bfa_sm_fault(__event)    do {                            \
-	pr_err("SM Assertion failure: %s: %d: event = %d", __FILE__, __LINE__, \
-		__event); \
+	pr_err("SM Assertion failure: %s: %d: event = %d\n",	\
+		 __FILE__, __LINE__, __event);			\
 } while (0)
 
 extern char bfa_version[];

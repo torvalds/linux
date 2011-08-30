@@ -21,7 +21,6 @@
 #include "cna.h"
 #include "bna_hw_defs.h"
 #include "bfa_cee.h"
-#include "bfi_enet.h"
 #include "bfa_msgq.h"
 
 /**

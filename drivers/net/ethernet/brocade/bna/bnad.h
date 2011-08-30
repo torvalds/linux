@@ -65,8 +65,6 @@ struct bnad_rx_ctrl {
 
 #define BNAD_RXMODE_PROMISC_DEFAULT	BNA_RXMODE_PROMISC
 
-#define BNAD_GET_TX_ID(_skb)	(0)
-
 /*
  * GLOBAL #defines (CONSTANTS)
  */
@@ -152,7 +150,6 @@ struct bnad_drv_stats {
 	u64		tcpcsum_offload;
 	u64		udpcsum_offload;
 	u64		csum_help;
-	u64		csum_help_err;
 	u64		tx_skb_too_short;
 	u64		tx_skb_stopping;
 	u64		tx_skb_max_vectors;
@@ -169,13 +166,10 @@ struct bnad_drv_stats {
 	u64		tx_skb_len_mismatch;
 
 	u64		hw_stats_updates;
-	u64		netif_rx_schedule;
-	u64		netif_rx_complete;
 	u64		netif_rx_dropped;
 
 	u64		link_toggle;
 	u64		cee_toggle;
-	u64		cee_up;
 
 	u64		rxp_info_alloc_failed;
 	u64		mbox_intr_disabled;

@@ -10,12 +10,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
+/*
+ * Copyright (c) 2005-2011 Brocade Communications Systems, Inc.
+ * All rights reserved
+ * www.brocade.com
+ */
 #ifndef __BNA_H__
 #define __BNA_H__
 
-#include "bfa_cs.h"
+#include "bfa_defs.h"
 #include "bfa_ioc.h"
-#include "cna.h"
+#include "bfi_enet.h"
 #include "bna_types.h"
 
 extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
@@ -395,11 +400,7 @@ void bna_mod_init(struct bna *bna, struct bna_res_info *res_info);
 void bna_uninit(struct bna *bna);
 int bna_num_txq_set(struct bna *bna, int num_txq);
 int bna_num_rxp_set(struct bna *bna, int num_rxp);
-void bna_stats_get(struct bna *bna);
-void bna_get_perm_mac(struct bna *bna, u8 *mac);
 void bna_hw_stats_get(struct bna *bna);
-
-/* APIs for Rx */
 
 /* APIs for RxF */
 struct bna_mac *bna_ucam_mod_mac_get(struct bna_ucam_mod *ucam_mod);
@@ -521,11 +522,6 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 void bna_rx_vlan_add(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlan_del(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlanfilter_enable(struct bna_rx *rx);
-void bna_rx_hds_enable(struct bna_rx *rx, struct bna_hds_config *hds_config,
-		       void (*cbfn)(struct bnad *, struct bna_rx *));
-void bna_rx_hds_disable(struct bna_rx *rx,
-			void (*cbfn)(struct bnad *, struct bna_rx *));
-
 /**
  * ENET
  */

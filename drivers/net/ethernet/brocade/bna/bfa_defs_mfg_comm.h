@@ -18,7 +18,6 @@
 #ifndef __BFA_DEFS_MFG_COMM_H__
 #define __BFA_DEFS_MFG_COMM_H__
 
-#include "cna.h"
 #include "bfa_defs.h"
 
 /**

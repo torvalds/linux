@@ -386,10 +386,9 @@ bnad_alloc_n_post_rxbufs(struct bnad *bnad, struct bna_rcb *rcb)
 	BNA_RXQ_QPGE_PTR_GET(unmap_prod, rcb->sw_qpt, rxent, wi_range);
 
 	while (to_alloc--) {
-		if (!wi_range) {
+		if (!wi_range)
 			BNA_RXQ_QPGE_PTR_GET(unmap_prod, rcb->sw_qpt, rxent,
 					     wi_range);
-		}
 		skb = netdev_alloc_skb_ip_align(bnad->netdev,
 						rcb->rxq->buffer_size);
 		if (unlikely(!skb)) {
@@ -548,27 +547,6 @@ next:
 	clear_bit(BNAD_FP_IN_RX_PATH, &rx_ctrl->flags);
 
 	return packets;
-}
-
-static void
-bnad_disable_rx_irq(struct bnad *bnad, struct bna_ccb *ccb)
-{
-	if (unlikely(!test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags)))
-		return;
-
-	bna_ib_coalescing_timer_set(ccb->i_dbell, 0);
-	bna_ib_ack(ccb->i_dbell, 0);
-}
-
-static void
-bnad_enable_rx_irq(struct bnad *bnad, struct bna_ccb *ccb)
-{
-	unsigned long flags;
-
-	/* Because of polling context */
-	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bnad_enable_rx_irq_unsafe(ccb);
-	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
 static void
@@ -1671,7 +1649,7 @@ bnad_napi_poll_rx(struct napi_struct *napi, int budget)
 		return rcvd;
 
 poll_exit:
-	napi_complete((napi));
+	napi_complete(napi);
 
 	rx_ctrl->rx_complete++;
 
@@ -2090,14 +2068,12 @@ bnad_enable_default_bcast(struct bnad *bnad)
 	return 0;
 }
 
-/* Called with bnad_conf_lock() held */
+/* Called with mutex_lock(&bnad->conf_mutex) held */
 static void
 bnad_restore_vlans(struct bnad *bnad, u32 rx_id)
 {
 	u16 vid;
 	unsigned long flags;
-
-	BUG_ON(!(VLAN_N_VID == BFI_ENET_VLAN_ID_MAX));
 
 	for_each_set_bit(vid, bnad->active_vlans, VLAN_N_VID) {
 		spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -2207,9 +2183,6 @@ bnad_tso_prepare(struct bnad *bnad, struct sk_buff *skb)
 {
 	int err;
 
-	/* SKB_GSO_TCPV4 and SKB_GSO_TCPV6 is defined since 2.6.18. */
-	BUG_ON(!(skb_shinfo(skb)->gso_type == SKB_GSO_TCPV4 ||
-		   skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6));
 	if (skb_header_cloned(skb)) {
 		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 		if (err) {
@@ -2236,7 +2209,6 @@ bnad_tso_prepare(struct bnad *bnad, struct sk_buff *skb)
 	} else {
 		struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 
-		BUG_ON(!(skb->protocol == htons(ETH_P_IPV6)));
 		ipv6h->payload_len = 0;
 		tcp_hdr(skb)->check =
 			~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, 0,
@@ -2387,6 +2359,8 @@ bnad_enable_msix(struct bnad *bnad)
 	ret = pci_enable_msix(bnad->pcidev, bnad->msix_table, bnad->msix_num);
 	if (ret > 0) {
 		/* Not enough MSI-X vectors. */
+		pr_warn("BNA: %d MSI-X vectors allocated < %d requested\n",
+			ret, bnad->msix_num);
 
 		spin_lock_irqsave(&bnad->bna_lock, flags);
 		/* ret = #of vectors that we got */
@@ -2415,6 +2389,7 @@ bnad_enable_msix(struct bnad *bnad)
 	return;
 
 intx_mode:
+	pr_warn("BNA: MSI-X enable failed - operating in INTx mode\n");
 
 	kfree(bnad->msix_table);
 	bnad->msix_table = NULL;
@@ -2577,7 +2552,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/*
 	 * Takes care of the Tx that is scheduled between clearing the flag
-	 * and the netif_stop_all_queue() call.
+	 * and the netif_tx_stop_all_queues() call.
 	 */
 	if (unlikely(!test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags))) {
 		dev_kfree_skb(skb);
@@ -2630,7 +2605,6 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	txq_prod = tcb->producer_index;
 	BNA_TXQ_QPGE_PTR_GET(txq_prod, tcb->sw_qpt, txqent, wi_range);
-	BUG_ON(!(wi_range <= tcb->q_depth));
 	txqent->hdr.wi.reserved = 0;
 	txqent->hdr.wi.num_vectors = vectors;
 
@@ -3036,6 +3010,12 @@ bnad_netpoll(struct net_device *netdev)
 		bnad_isr(bnad->pcidev->irq, netdev);
 		bna_intx_enable(&bnad->bna, curr_mask);
 	} else {
+		/*
+		 * Tx processing may happen in sending context, so no need
+		 * to explicitly process completions here
+		 */
+
+		/* Rx processing */
 		for (i = 0; i < bnad->num_rx; i++) {
 			rx_info = &bnad->rx_info[i];
 			if (!rx_info->rx)

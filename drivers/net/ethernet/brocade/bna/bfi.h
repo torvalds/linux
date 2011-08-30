@@ -73,20 +73,6 @@ struct bfi_mhdr {
  ****************************************************************************
  */
 
-#define BFI_SGE_INLINE	1
-#define BFI_SGE_INLINE_MAX	(BFI_SGE_INLINE + 1)
-
-/**
- * SG Flags
- */
-enum {
-	BFI_SGE_DATA		= 0,	/*!< data address, not last	     */
-	BFI_SGE_DATA_CPL	= 1,	/*!< data addr, last in current page */
-	BFI_SGE_DATA_LAST	= 3,	/*!< data address, last		     */
-	BFI_SGE_LINK		= 2,	/*!< link address		     */
-	BFI_SGE_PGDLEN		= 2,	/*!< cumulative data length for page */
-};
-
 /**
  * DMA addresses
  */
@@ -97,44 +83,12 @@ union bfi_addr_u {
 	} a32;
 };
 
-/**
- * Scatter Gather Element
- */
-struct bfi_sge {
-#ifdef __BIGENDIAN
-	u32	flags:2,
-			rsvd:2,
-			sg_len:28;
-#else
-	u32	sg_len:28,
-			rsvd:2,
-			flags:2;
-#endif
-	union bfi_addr_u sga;
-};
-
-/**
- * Scatter Gather Page
- */
-#define BFI_SGPG_DATA_SGES		7
-#define BFI_SGPG_SGES_MAX		(BFI_SGPG_DATA_SGES + 1)
-#define BFI_SGPG_RSVD_WD_LEN	8
-struct bfi_sgpg {
-	struct bfi_sge sges[BFI_SGPG_SGES_MAX];
-	u32	rsvd[BFI_SGPG_RSVD_WD_LEN];
-};
-
 /*
  * Large Message structure - 128 Bytes size Msgs
  */
 #define BFI_LMSG_SZ		128
 #define BFI_LMSG_PL_WSZ	\
 			((BFI_LMSG_SZ - sizeof(struct bfi_mhdr)) / 4)
-
-struct bfi_msg {
-	struct bfi_mhdr mhdr;
-	u32	pl[BFI_LMSG_PL_WSZ];
-};
 
 /**
  * Mailbox message structure
