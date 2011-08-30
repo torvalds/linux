@@ -375,7 +375,6 @@ enum dwc3_ep0_state {
 	EP0_SETUP_PHASE,
 	EP0_DATA_PHASE,
 	EP0_STATUS_PHASE,
-	EP0_STALL,
 };
 
 enum dwc3_link_state {

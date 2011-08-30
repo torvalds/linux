@@ -872,8 +872,14 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value)
 	memset(&params, 0x00, sizeof(params));
 
 	if (value) {
-		if (dep->number == 0 || dep->number == 1)
-			dwc->ep0state = EP0_STALL;
+		if (dep->number == 0 || dep->number == 1) {
+			/*
+			 * Whenever EP0 is stalled, we will restart
+			 * the state machine, thus moving back to
+			 * Setup Phase
+			 */
+			dwc->ep0state = EP0_SETUP_PHASE;
+		}
 
 		ret = dwc3_send_gadget_ep_cmd(dwc, dep->number,
 			DWC3_DEPCMD_SETSTALL, &params);

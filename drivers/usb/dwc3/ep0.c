@@ -68,8 +68,6 @@ static const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 		return "Data Phase";
 	case EP0_STATUS_PHASE:
 		return "Status Phase";
-	case EP0_STALL:
-		return "Stall";
 	default:
 		return "UNKNOWN";
 	}
