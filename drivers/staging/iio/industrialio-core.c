@@ -27,9 +27,6 @@
 #include "iio_core_trigger.h"
 #include "chrdev.h"
 
-#define IIO_ID_PREFIX "device"
-#define IIO_ID_FORMAT IIO_ID_PREFIX "%d"
-
 /* IDR to assign each registered device a unique id*/
 static DEFINE_IDA(iio_ida);
 /* IDR to allocate character device minor numbers */
@@ -37,7 +34,7 @@ static DEFINE_IDA(iio_chrdev_ida);
 /* Lock used to protect both of the above */
 static DEFINE_SPINLOCK(iio_ida_lock);
 
-dev_t iio_devt;
+static dev_t iio_devt;
 
 #define IIO_DEV_MAX 256
 struct bus_type iio_bus_type = {
@@ -276,7 +273,7 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.llseek = noop_llseek,
 };
 
-int iio_device_get_chrdev_minor(void)
+static int iio_device_get_chrdev_minor(void)
 {
 	int ret;
 
@@ -287,7 +284,7 @@ int iio_device_get_chrdev_minor(void)
 		return -ENOMEM;
 }
 
-void iio_device_free_chrdev_minor(int val)
+static void iio_device_free_chrdev_minor(int val)
 {
 	iio_free_ida_val(&iio_chrdev_ida, val);
 }

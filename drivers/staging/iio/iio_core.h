@@ -14,13 +14,6 @@
 #define _IIO_CORE_H_
 
 /**
- * iio_device_get_chrdev_minor() - get an unused minor number
- **/
-int iio_device_get_chrdev_minor(void);
-void iio_device_free_chrdev_minor(int val);
-
-
-/**
  * iio_put() - internal module reference count reduce
  **/
 void iio_put(void);
@@ -29,8 +22,6 @@ void iio_put(void);
  * iio_get() - internal module reference count increase
  **/
 void iio_get(void);
-
-extern dev_t iio_devt;
 
 int __iio_add_chan_devattr(const char *postfix,
 			   const char *group,
