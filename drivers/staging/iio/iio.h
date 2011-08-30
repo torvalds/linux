@@ -13,8 +13,6 @@
 
 #include <linux/device.h>
 #include <linux/cdev.h>
-#include <linux/irq.h>
-#include "sysfs.h"
 
 /* IIO TODO LIST */
 /*

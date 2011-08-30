@@ -22,6 +22,7 @@
 
 #include "iio.h"
 #include "iio_core.h"
+#include "sysfs.h"
 #include "ring_generic.h"
 
 

@@ -28,7 +28,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include "../iio.h"
-
+#include "../sysfs.h"
 #define CONVERSION_TIME_MS		100
 
 #define ISL29018_REG_ADD_COMMAND1	0x00

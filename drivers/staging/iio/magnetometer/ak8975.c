@@ -31,7 +31,7 @@
 #include <linux/gpio.h>
 
 #include "../iio.h"
-
+#include "../sysfs.h"
 /*
  * Register definitions, as well as various shifts and masks to get at the
  * individual fields of the registers.

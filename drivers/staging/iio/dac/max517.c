@@ -26,6 +26,7 @@
 #include <linux/err.h>
 
 #include "../iio.h"
+#include "../sysfs.h"
 #include "dac.h"
 
 #include "max517.h"

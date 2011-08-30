@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 
 #include "../iio.h"
+#include "../sysfs.h"
 #include "tsl2563.h"
 
 /* Use this many bits for fraction part. */
