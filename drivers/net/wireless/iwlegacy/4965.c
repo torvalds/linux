@@ -47,6 +47,80 @@
 #include "iwl-4965.h"
 #include "iwl-4965-debugfs.h"
 
+/******************************************************************************
+ *
+ * EEPROM related functions
+ *
+******************************************************************************/
+
+/*
+ * The device's EEPROM semaphore prevents conflicts between driver and uCode
+ * when accessing the EEPROM; each access is a series of pulses to/from the
+ * EEPROM chip, not a single event, so even reads could conflict if they
+ * weren't arbitrated by the semaphore.
+ */
+int il4965_eeprom_acquire_semaphore(struct il_priv *il)
+{
+	u16 count;
+	int ret;
+
+	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
+		/* Request semaphore */
+		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+		/* See if we got it */
+		ret = _il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				EEPROM_SEM_TIMEOUT);
+		if (ret >= 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+void il4965_eeprom_release_semaphore(struct il_priv *il)
+{
+	il_clear_bit(il, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+}
+
+int il4965_eeprom_check_version(struct il_priv *il)
+{
+	u16 eeprom_ver;
+	u16 calib_ver;
+
+	eeprom_ver = il_eeprom_query16(il, EEPROM_VERSION);
+	calib_ver = il_eeprom_query16(il,
+			EEPROM_4965_CALIB_VERSION_OFFSET);
+
+	if (eeprom_ver < il->cfg->eeprom_ver ||
+	    calib_ver < il->cfg->eeprom_calib_ver)
+		goto err;
+
+	IL_INFO("device EEPROM VER=0x%x, CALIB=0x%x\n",
+		 eeprom_ver, calib_ver);
+
+	return 0;
+err:
+	IL_ERR("Unsupported (too old) EEPROM VER=0x%x < 0x%x "
+		  "CALIB=0x%x < 0x%x\n",
+		  eeprom_ver, il->cfg->eeprom_ver,
+		  calib_ver,  il->cfg->eeprom_calib_ver);
+	return -EINVAL;
+
+}
+
+void il4965_eeprom_get_mac(const struct il_priv *il, u8 *mac)
+{
+	const u8 *addr = il_eeprom_query_addr(il,
+					EEPROM_MAC_ADDRESS);
+	memcpy(mac, addr, ETH_ALEN);
+}
+
 /* Send led command */
 static int
 il4965_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
