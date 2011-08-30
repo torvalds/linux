@@ -1205,7 +1205,7 @@ s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
  *  @data: value read
  *
  *  Performs byte read operation to SFP module's EEPROM over I2C interface at
- *  a specified deivce address.
+ *  a specified device address.
  **/
 s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
                                 u8 dev_addr, u8 *data)
@@ -1215,6 +1215,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 	u32 retry = 0;
 	u16 swfw_mask = 0;
 	bool nack = 1;
+	*data = 0;
 
 	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
 		swfw_mask = IXGBE_GSSR_PHY1_SM;
