@@ -451,7 +451,8 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	}
 
 	if (nw_type & INFRA_NETWORK) {
-		if (ar->wdev->iftype != NL80211_IFTYPE_STATION) {
+		if (ar->wdev->iftype != NL80211_IFTYPE_STATION &&
+		    ar->wdev->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in station mode\n", __func__);
 			return;
@@ -612,7 +613,8 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 	}
 
 	if (ar->nw_type & INFRA_NETWORK) {
-		if (ar->wdev->iftype != NL80211_IFTYPE_STATION) {
+		if (ar->wdev->iftype != NL80211_IFTYPE_STATION &&
+		    ar->wdev->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in station mode\n", __func__);
 			return;
@@ -1205,6 +1207,12 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		ar->next_mode = ADHOC_NETWORK;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		ar->next_mode = INFRA_NETWORK;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		ar->next_mode = AP_NETWORK;
 		break;
 	default:
 		ath6kl_err("invalid interface type %u\n", type);
