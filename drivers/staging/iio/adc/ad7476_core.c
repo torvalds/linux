@@ -130,7 +130,6 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
 	bool reg_done = false;
-	struct regulator *reg;
 
 	indio_dev = iio_allocate_device(sizeof(*st));
 	if (indio_dev == NULL) {
@@ -138,15 +137,14 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
+	st->reg = regulator_get(&spi->dev, "vcc");
+	if (!IS_ERR(st->reg)) {
+		ret = regulator_enable(st->reg);
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(reg);
+		voltage_uv = regulator_get_voltage(st->reg);
 	}
-	st->reg = reg;
 	st->chip_info =
 		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
@@ -197,11 +195,11 @@ error_cleanup_ring:
 	ad7476_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(reg))
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(reg))
-		regulator_put(reg);
+	if (!IS_ERR(st->reg))
+		regulator_put(st->reg);
 	if (!reg_done)
 		iio_free_device(indio_dev);
 error_ret:
@@ -212,16 +210,14 @@ static int ad7476_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7476_state *st = iio_priv(indio_dev);
-	/* copy needed as st will have been freed */
-	struct regulator *reg = st->reg;
 
 	iio_ring_buffer_unregister(indio_dev);
 	ad7476_ring_cleanup(indio_dev);
-	iio_device_unregister(indio_dev);
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
+	iio_device_unregister(indio_dev);
 
 	return 0;
 }

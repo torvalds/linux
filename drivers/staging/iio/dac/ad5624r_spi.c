@@ -228,24 +228,23 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 {
 	struct ad5624r_state *st;
 	struct iio_dev *indio_dev;
-	struct regulator *reg;
 	int ret, voltage_uv = 0;
 
-	reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
-		if (ret)
-			goto error_put_reg;
-
-		voltage_uv = regulator_get_voltage(reg);
-	}
 	indio_dev = iio_allocate_device(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
-		goto error_disable_reg;
+		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	st->reg = reg;
+	st->reg = regulator_get(&spi->dev, "vcc");
+	if (!IS_ERR(st->reg)) {
+		ret = regulator_enable(st->reg);
+		if (ret)
+			goto error_put_reg;
+
+		voltage_uv = regulator_get_voltage(st->reg);
+	}
+
 	spi_set_drvdata(spi, indio_dev);
 	st->chip_info =
 		&ad5624r_chip_info_tbl[spi_get_device_id(spi)->driver_data];
@@ -265,22 +264,23 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 	ret = ad5624r_spi_write(spi, AD5624R_CMD_INTERNAL_REFER_SETUP, 0,
 				!!voltage_uv, 16);
 	if (ret)
-		goto error_free_dev;
+		goto error_disable_reg;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		goto error_disable_reg;
 
 	return 0;
 
-error_free_dev:
-	iio_free_device(indio_dev);
+
 error_disable_reg:
-	if (!IS_ERR(reg))
-		regulator_disable(reg);
+	if (!IS_ERR(st->reg))
+		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(reg))
-		regulator_put(reg);
+	if (!IS_ERR(st->reg))
+		regulator_put(st->reg);
+	iio_free_device(indio_dev);
+error_ret:
 
 	return ret;
 }
@@ -289,13 +289,12 @@ static int __devexit ad5624r_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5624r_state *st = iio_priv(indio_dev);
-	struct regulator *reg = st->reg;
 
-	iio_device_unregister(indio_dev);
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
+	iio_device_unregister(indio_dev);
 
 	return 0;
 }
