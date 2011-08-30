@@ -297,4 +297,10 @@ extern int wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int c
 
 #define NETDEV_PRIV(dev)	(*(wl_iw_t **)netdev_priv(dev))
 
+#ifdef CONFIG_WPS2
+#define WPS_ADD_PROBE_REQ_IE_CMD "ADD_WPS_PROBE_REQ_IE "
+#define WPS_DEL_PROBE_REQ_IE_CMD "DEL_WPS_PROBE_REQ_IE "
+#define WPS_PROBE_REQ_IE_CMD_LENGTH 21
+#endif
+
 #endif 

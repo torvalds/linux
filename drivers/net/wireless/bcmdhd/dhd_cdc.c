@@ -47,13 +47,6 @@
 #include <dhd_wlfc.h>
 #endif
 
-/* Packet alignment for most efficient SDIO (can change based on platform) */
-#ifndef DHD_SDALIGN
-#define DHD_SDALIGN	32
-#endif
-#if !ISPOWEROF2(DHD_SDALIGN)
-#error DHD_SDALIGN is not a power of 2!
-#endif
 
 #define RETRIES 2		/* # of retries to retrieve matching ioctl response */
 #define BUS_HEADER_LEN	(16+DHD_SDALIGN)	/* Must be at least SDPCM_RESERVE
@@ -587,7 +580,7 @@ dhd_wlfc_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	return;
 }
 
-/* Create a place to store all packet pointers submitted to the firmware until 
+/* Create a place to store all packet pointers submitted to the firmware until
 	a status comes back, suppress or otherwise.
 
 	hang-er: noun, a contrivance on which things are hung, as a hook.

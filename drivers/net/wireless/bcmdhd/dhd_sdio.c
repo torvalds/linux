@@ -87,14 +87,6 @@
 #define MAX_NVRAMBUF_SIZE	4096	/* max nvram buf size */
 #define MAX_DATA_BUF	(32 * 1024)	/* Must be large enough to hold biggest possible glom */
 
-/* Packet alignment for most efficient SDIO (can change based on platform) */
-#ifndef DHD_SDALIGN
-#define DHD_SDALIGN	32
-#endif
-#if !ISPOWEROF2(DHD_SDALIGN)
-#error DHD_SDALIGN is not a power of 2!
-#endif
-
 #ifndef DHD_FIRSTREAD
 #define DHD_FIRSTREAD   32
 #endif
@@ -357,7 +349,7 @@ static const uint retry_limit = 2;
 static bool forcealign;
 
 /* Flag to indicate if we should download firmware on driver load */
-uint dhd_download_fw_on_driverload = FALSE;
+uint dhd_download_fw_on_driverload = TRUE;
 
 #define ALIGNMENT  4
 
@@ -389,7 +381,7 @@ static bool dhd_readahead;
 
 /* To check if there's window offered */
 #define DATAOK(bus) \
-	(((uint8)(bus->tx_max - bus->tx_seq) > 1) && \
+	(((uint8)(bus->tx_max - bus->tx_seq) > 2) && \
 	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
 
 /* To check if there's window offered for ctrl frame */
@@ -6220,6 +6212,7 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 
 			dhd_os_sdunlock(dhdp);
 		} else {
+			bcmerror = BCME_SDIO_ERROR;
 			DHD_INFO(("%s called when dongle is not in reset\n",
 				__FUNCTION__));
 			DHD_INFO(("Will call dhd_bus_start instead\n"));

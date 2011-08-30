@@ -122,6 +122,7 @@ s32
 wl_cfgp2p_set_firm_p2p(struct wl_priv *wl)
 {
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
+	struct ether_addr null_eth_addr = { { 0, 0, 0, 0, 0, 0 } };
 	s32 ret = BCME_OK;
 	s32 val = 0;
 	/* Do we have to check whether APSTA is enabled or not ? */
@@ -131,6 +132,18 @@ wl_cfgp2p_set_firm_p2p(struct wl_priv *wl)
 		wldev_ioctl(ndev, WLC_DOWN, &val, sizeof(s32), false);
 		wldev_iovar_setint(ndev, "apsta", val);
 		wldev_ioctl(ndev, WLC_UP, &val, sizeof(s32), false);
+	}
+	val = 1;
+	/* Disable firmware roaming for P2P  */
+	wldev_iovar_setint(ndev, "roam_off", val);
+	/* In case of COB type, firmware has default mac address
+	 * After Initializing firmware, we have to set current mac address to
+	 * firmware for P2P device address
+	 */
+	ret = wldev_iovar_setbuf_bsscfg(ndev, "p2p_da_override", &null_eth_addr,
+	            sizeof(null_eth_addr), ioctlbuf, sizeof(ioctlbuf), 0);
+	if (ret && ret != BCME_UNSUPPORTED) {
+		CFGP2P_ERR(("failed to update device address\n"));
 	}
 	return ret;
 }
@@ -179,10 +192,8 @@ wl_cfgp2p_ifdel(struct wl_priv *wl, struct ether_addr *mac)
 	CFGP2P_INFO(("------primary idx %d : wl p2p_ifdel %02x:%02x:%02x:%02x:%02x:%02x\n",
 	    netdev->ifindex, mac->octet[0], mac->octet[1], mac->octet[2],
 	    mac->octet[3], mac->octet[4], mac->octet[5]));
-
 	ret = wldev_iovar_setbuf(netdev, "p2p_ifdel", mac, sizeof(*mac),
 		ioctlbuf, sizeof(ioctlbuf));
-
 	if (unlikely(ret < 0)) {
 		printk("'wl p2p_ifdel' error %d\n", ret);
 	}
@@ -499,10 +510,11 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 	wl_escan_params_t *eparams;
 	wlc_ssid_t ssid;
 	/* Scan parameters */
-#define P2PAPI_SCAN_NPROBES 1
-#define P2PAPI_SCAN_DWELL_TIME_MS 40
+#define P2PAPI_SCAN_NPROBES 4
+#define P2PAPI_SCAN_DWELL_TIME_MS 80
+#define P2PAPI_SCAN_SOCIAL_DWELL_TIME_MS 100
 #define P2PAPI_SCAN_HOME_TIME_MS 10
-
+	struct net_device *pri_dev = wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_PRIMARY);
 	wl_set_p2p_status(wl, SCANNING);
 	/* Allocate scan params which need space for 3 channels and 0 ssids */
 	eparams_size = (WL_SCAN_PARAMS_FIXED_SIZE +
@@ -556,7 +568,12 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 
 	eparams->params.nprobes = htod32(P2PAPI_SCAN_NPROBES);
 	eparams->params.home_time = htod32(P2PAPI_SCAN_HOME_TIME_MS);
-	eparams->params.active_time = htod32(-1);
+	if (wl_get_drv_status(wl, CONNECTED))
+		eparams->params.active_time = htod32(-1);
+	else if (num_chans == 3)
+		eparams->params.active_time = htod32(P2PAPI_SCAN_SOCIAL_DWELL_TIME_MS);
+	else
+		eparams->params.active_time = htod32(P2PAPI_SCAN_DWELL_TIME_MS);
 	eparams->params.passive_time = htod32(-1);
 	eparams->params.channel_num = htod32((0 << WL_SCAN_PARAMS_NSSID_SHIFT) |
 	    (num_chans & WL_SCAN_PARAMS_COUNT_MASK));
@@ -576,7 +593,7 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 
 	CFGP2P_INFO(("\n"));
 
-	ret = wldev_iovar_setbuf_bsscfg(dev, "p2p_scan",
+	ret = wldev_iovar_setbuf_bsscfg(pri_dev, "p2p_scan",
 	            memblk, memsize, smbuf, sizeof(ioctlbuf), bssidx);
 	return ret;
 }
@@ -1058,9 +1075,7 @@ wl_cfgp2p_action_tx_complete(struct wl_priv *wl, struct net_device *ndev,
 	} else {
 		CFGP2P_INFO((" WLC_E_ACTION_FRAME_OFFCHAN_COMPLETE is received,"
 					"status : %d\n", status));
-
 	}
-
 	return ret;
 }
 /* Send an action frame immediately without doing channel synchronization.
@@ -1098,8 +1113,8 @@ wl_cfgp2p_tx_action_frame(struct wl_priv *wl, struct net_device *dev,
 		goto exit;
 	}
 	timeout = wait_event_interruptible_timeout(wl->dongle_event_wait,
-	(wl_get_p2p_status(wl, ACTION_TX_COMPLETED) ||wl_get_p2p_status(wl, ACTION_TX_NOACK)),
-	                    msecs_to_jiffies(MAX_WAIT_TIME));
+	(wl_get_p2p_status(wl, ACTION_TX_COMPLETED) || wl_get_p2p_status(wl, ACTION_TX_NOACK)),
+	msecs_to_jiffies(MAX_WAIT_TIME));
 
 	if (timeout > 0 && wl_get_p2p_status(wl, ACTION_TX_COMPLETED)) {
 		CFGP2P_INFO(("tx action frame operation is completed\n"));
