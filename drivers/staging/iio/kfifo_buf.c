@@ -8,6 +8,14 @@
 
 #include "kfifo_buf.h"
 
+struct iio_kfifo {
+	struct iio_ring_buffer ring;
+	struct kfifo kf;
+	int use_count;
+	int update_needed;
+	struct mutex use_lock;
+};
+
 #define iio_to_kfifo(r) container_of(r, struct iio_kfifo, ring)
 
 static inline int __iio_allocate_kfifo(struct iio_kfifo *buf,
