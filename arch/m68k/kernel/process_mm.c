@@ -33,22 +33,6 @@
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 
-/*
- * Initial task/thread structure. Make this a per-architecture thing,
- * because different architectures tend to have different
- * alignment requirements and potentially different initial
- * setup.
- */
-static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
-static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
-union thread_union init_thread_union __init_task_data
-	__attribute__((aligned(THREAD_SIZE))) =
-		{ INIT_THREAD_INFO(init_task) };
-
-/* initial task structure */
-struct task_struct init_task = INIT_TASK(init_task);
-
-EXPORT_SYMBOL(init_task);
 
 asmlinkage void ret_from_fork(void);
 
