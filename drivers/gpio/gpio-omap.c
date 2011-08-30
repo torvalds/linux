@@ -1369,45 +1369,43 @@ void omap2_gpio_resume_after_idle(void)
 static void omap_gpio_save_context(struct gpio_bank *bank)
 {
 	bank->context.irqenable1 =
-		__raw_readl(bank->base + OMAP24XX_GPIO_IRQENABLE1);
+			__raw_readl(bank->base + bank->regs->irqenable);
 	bank->context.irqenable2 =
-		__raw_readl(bank->base + OMAP24XX_GPIO_IRQENABLE2);
+			__raw_readl(bank->base + bank->regs->irqenable2);
 	bank->context.wake_en =
-		__raw_readl(bank->base + OMAP24XX_GPIO_WAKE_EN);
-	bank->context.ctrl = __raw_readl(bank->base + OMAP24XX_GPIO_CTRL);
-	bank->context.oe = __raw_readl(bank->base + OMAP24XX_GPIO_OE);
+			__raw_readl(bank->base + bank->regs->wkup_en);
+	bank->context.ctrl = __raw_readl(bank->base + bank->regs->ctrl);
+	bank->context.oe = __raw_readl(bank->base + bank->regs->direction);
 	bank->context.leveldetect0 =
-		__raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT0);
+			__raw_readl(bank->base + bank->regs->leveldetect0);
 	bank->context.leveldetect1 =
-		__raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT1);
+			__raw_readl(bank->base + bank->regs->leveldetect1);
 	bank->context.risingdetect =
-		__raw_readl(bank->base + OMAP24XX_GPIO_RISINGDETECT);
+			__raw_readl(bank->base + bank->regs->risingdetect);
 	bank->context.fallingdetect =
-		__raw_readl(bank->base + OMAP24XX_GPIO_FALLINGDETECT);
-	bank->context.dataout =
-		__raw_readl(bank->base + OMAP24XX_GPIO_DATAOUT);
+			__raw_readl(bank->base + bank->regs->fallingdetect);
+	bank->context.dataout = __raw_readl(bank->base + bank->regs->dataout);
 }
 
 static void omap_gpio_restore_context(struct gpio_bank *bank)
 {
 	__raw_writel(bank->context.irqenable1,
-			bank->base + OMAP24XX_GPIO_IRQENABLE1);
+				bank->base + bank->regs->irqenable);
 	__raw_writel(bank->context.irqenable2,
-			bank->base + OMAP24XX_GPIO_IRQENABLE2);
+				bank->base + bank->regs->irqenable2);
 	__raw_writel(bank->context.wake_en,
-			bank->base + OMAP24XX_GPIO_WAKE_EN);
-	__raw_writel(bank->context.ctrl, bank->base + OMAP24XX_GPIO_CTRL);
-	__raw_writel(bank->context.oe, bank->base + OMAP24XX_GPIO_OE);
+				bank->base + bank->regs->wkup_en);
+	__raw_writel(bank->context.ctrl, bank->base + bank->regs->ctrl);
+	__raw_writel(bank->context.oe, bank->base + bank->regs->direction);
 	__raw_writel(bank->context.leveldetect0,
-			bank->base + OMAP24XX_GPIO_LEVELDETECT0);
+				bank->base + bank->regs->leveldetect0);
 	__raw_writel(bank->context.leveldetect1,
-			bank->base + OMAP24XX_GPIO_LEVELDETECT1);
+				bank->base + bank->regs->leveldetect1);
 	__raw_writel(bank->context.risingdetect,
-			bank->base + OMAP24XX_GPIO_RISINGDETECT);
+				bank->base + bank->regs->risingdetect);
 	__raw_writel(bank->context.fallingdetect,
-			bank->base + OMAP24XX_GPIO_FALLINGDETECT);
-	__raw_writel(bank->context.dataout,
-			bank->base + OMAP24XX_GPIO_DATAOUT);
+				bank->base + bank->regs->fallingdetect);
+	__raw_writel(bank->context.dataout, bank->base + bank->regs->dataout);
 }
 #endif
 
