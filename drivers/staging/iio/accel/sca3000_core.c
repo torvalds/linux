@@ -815,7 +815,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 	sca3000_ring_int_process(val, indio_dev->ring);
 
 	if (val & SCA3000_INT_STATUS_FREE_FALL)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_X_AND_Y_AND_Z,
@@ -824,7 +824,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_Y_TRIGGER)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_Y,
@@ -833,7 +833,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_X_TRIGGER)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_X,
@@ -842,7 +842,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_Z_TRIGGER)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_Z,
@@ -1103,7 +1103,6 @@ error_ret:
 static const struct iio_info sca3000_info = {
 	.attrs = &sca3000_attribute_group,
 	.read_raw = &sca3000_read_raw,
-	.num_interrupt_lines = 1,
 	.event_attrs = &sca3000_event_attribute_group,
 	.read_event_value = &sca3000_read_thresh,
 	.write_event_value = &sca3000_write_thresh,

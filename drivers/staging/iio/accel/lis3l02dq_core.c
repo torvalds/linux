@@ -452,7 +452,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 				 &t);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_Z,
@@ -461,7 +461,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_Z,
@@ -470,7 +470,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_Y,
@@ -479,7 +479,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_Y,
@@ -488,7 +488,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_X,
@@ -497,7 +497,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 			       timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
 						  IIO_MOD_X,
@@ -651,7 +651,6 @@ static const struct attribute_group lis3l02dq_attribute_group = {
 };
 
 static const struct iio_info lis3l02dq_info = {
-	.num_interrupt_lines = 1,
 	.read_raw = &lis3l02dq_read_raw,
 	.write_raw = &lis3l02dq_write_raw,
 	.read_event_value = &lis3l02dq_read_thresh,

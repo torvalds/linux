@@ -265,7 +265,7 @@ static const struct attribute_group adt75_attribute_group = {
 
 static irqreturn_t adt75_event_handler(int irq, void *private)
 {
-	iio_push_event(private, 0,
+	iio_push_event(private,
 		       IIO_EVENT_CODE_ADT75_OTI,
 		       iio_get_time_ns());
 
@@ -535,7 +535,6 @@ static struct attribute_group adt75_event_attribute_group = {
 
 static const struct iio_info adt75_info = {
 	.attrs = &adt75_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &adt75_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };

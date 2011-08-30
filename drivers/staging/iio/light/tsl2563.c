@@ -595,7 +595,7 @@ static irqreturn_t tsl2563_event_handler(int irq, void *private)
 	struct iio_dev *dev_info = private;
 	struct tsl2563_chip *chip = iio_priv(dev_info);
 
-	iio_push_event(dev_info, 0,
+	iio_push_event(dev_info,
 		       IIO_UNMOD_EVENT_CODE(IIO_LIGHT,
 					    0,
 					    IIO_EV_TYPE_THRESH,
@@ -680,7 +680,6 @@ static const struct iio_info tsl2563_info_no_irq = {
 
 static const struct iio_info tsl2563_info = {
 	.driver_module = THIS_MODULE,
-	.num_interrupt_lines = 1,
 	.read_raw = &tsl2563_read_raw,
 	.write_raw = &tsl2563_write_raw,
 	.read_event_value = &tsl2563_read_thresh,

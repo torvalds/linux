@@ -1777,43 +1777,43 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 
 		time = iio_get_time_ns();
 		if (stat1 & (1 << 0))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
 				       time);
 		if (stat1 & (1 << 1))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
 				       time);
 		if (stat1 & (1 << 2))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
 				       time);
 		if (stat1 & (1 << 3))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
 				       time);
 		if (stat1 & (1 << 5))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_IN, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
 		if (stat1 & (1 << 6))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_IN, 2,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
 		if (stat1 & (1 << 7))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_IN, 3,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
@@ -1822,7 +1822,7 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 	ret = chip->bus.read(chip->bus.client, ADT7316_INT_STAT2, &stat2);
 	if (!ret) {
 		if (stat2 & ADT7316_INT_MASK2_VDD)
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_IN,
 							    0,
 							    IIO_EV_TYPE_THRESH,
@@ -2110,14 +2110,12 @@ EXPORT_SYMBOL(adt7316_enable);
 
 static const struct iio_info adt7316_info = {
 	.attrs = &adt7316_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &adt7316_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info adt7516_info = {
 	.attrs = &adt7516_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &adt7516_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };

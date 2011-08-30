@@ -540,12 +540,12 @@ static irqreturn_t ad774x_event_handler(int irq, void *private)
 	ad774x_i2c_read(chip, AD774X_STATUS, &int_status, 1);
 
 	if (int_status & AD774X_STATUS_RDYCAP)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_EVENT_CODE_CAP_RDY,
 			       iio_get_time_ns());
 
 	if (int_status & AD774X_STATUS_RDYVT)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_EVENT_CODE_VT_RDY,
 			       iio_get_time_ns());
 
@@ -569,7 +569,6 @@ static struct attribute_group ad774x_event_attribute_group = {
 static const struct iio_info ad774x_info = {
 	.attrs = &ad774x_event_attribute_group,
 	.event_attrs = &ad774x_event_attribute_group,
-	.num_interrupt_lines = 1,
 	.driver_module = THIS_MODULE,
 };
 /*

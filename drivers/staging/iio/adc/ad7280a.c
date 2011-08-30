@@ -691,7 +691,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 		if (((channels[i] >> 23) & 0xF) <= AD7280A_CELL_VOLTAGE_6) {
 			if (((channels[i] >> 11) & 0xFFF) >=
 				st->cell_threshhigh)
-				iio_push_event(dev_info, 0,
+				iio_push_event(dev_info,
 					IIO_UNMOD_EVENT_CODE(IIO_IN_DIFF,
 					0,
 					IIO_EV_TYPE_THRESH,
@@ -699,7 +699,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 					iio_get_time_ns());
 			else if (((channels[i] >> 11) & 0xFFF) <=
 				st->cell_threshlow)
-				iio_push_event(dev_info, 0,
+				iio_push_event(dev_info,
 					IIO_UNMOD_EVENT_CODE(IIO_IN_DIFF,
 					0,
 					IIO_EV_TYPE_THRESH,
@@ -707,7 +707,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 					iio_get_time_ns());
 		} else {
 			if (((channels[i] >> 11) & 0xFFF) >= st->aux_threshhigh)
-				iio_push_event(dev_info, 0,
+				iio_push_event(dev_info,
 					IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 					0,
 					IIO_EV_TYPE_THRESH,
@@ -715,7 +715,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 					iio_get_time_ns());
 			else if (((channels[i] >> 11) & 0xFFF) <=
 				st->aux_threshlow)
-				iio_push_event(dev_info, 0,
+				iio_push_event(dev_info,
 					IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 					0,
 					IIO_EV_TYPE_THRESH,
@@ -809,7 +809,6 @@ static int ad7280_read_raw(struct iio_dev *dev_info,
 
 static const struct iio_info ad7280_info = {
 	.read_raw = &ad7280_read_raw,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad7280_event_attrs_group,
 	.attrs = &ad7280_attrs_group,
 	.driver_module = THIS_MODULE,

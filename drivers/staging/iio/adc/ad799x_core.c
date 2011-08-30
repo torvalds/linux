@@ -334,7 +334,7 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 
 	for (i = 0; i < 8; i++) {
 		if (status & (1 << i))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       i & 0x1 ?
 				       IIO_UNMOD_EVENT_CODE(IIO_IN,
 							    (i >> 1),
@@ -474,14 +474,12 @@ static const struct iio_info ad7991_info = {
 
 static const struct iio_info ad7992_info = {
 	.read_raw = &ad799x_read_raw,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad7992_event_attrs_group,
 	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info ad7993_4_7_8_info = {
 	.read_raw = &ad799x_read_raw,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad7993_4_7_8_event_attrs_group,
 	.driver_module = THIS_MODULE,
 };

@@ -615,8 +615,7 @@ static irqreturn_t max1363_event_handler(int irq, void *private)
 	i2c_master_recv(st->client, &rx, 1);
 	mask = rx;
 	for_each_set_bit(loc, &mask, 8)
-		iio_push_event(indio_dev, 0, max1363_event_codes[loc],
-			       timestamp);
+		iio_push_event(indio_dev, max1363_event_codes[loc], timestamp);
 	i2c_master_send(st->client, tx, 2);
 
 	return IRQ_HANDLED;
@@ -845,7 +844,6 @@ static const struct iio_info max1363_info = {
 	.write_event_config = &max1363_write_event_config,
 	.read_raw = &max1363_read_raw,
 	.driver_module = THIS_MODULE,
-	.num_interrupt_lines = 1,
 	.event_attrs = &max1363_event_attribute_group,
 };
 

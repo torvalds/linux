@@ -183,7 +183,6 @@ struct iio_dev;
  * struct iio_info - constant information about device
  * @driver_module:	module structure used to ensure correct
  *			ownership of chrdevs etc
- * @num_interrupt_lines:number of physical interrupt lines from device
  * @event_attrs:	event control attributes
  * @attrs:		general purpose device attributes
  * @read_raw:		function to request a value from the device.
@@ -207,7 +206,6 @@ struct iio_dev;
  **/
 struct iio_info {
 	struct module			*driver_module;
-	int				num_interrupt_lines;
 	struct attribute_group		*event_attrs;
 	const struct attribute_group	*attrs;
 
@@ -252,7 +250,7 @@ struct iio_info {
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
- * @event_interfaces:	[INTERN] event chrdevs associated with interrupt lines
+ * @event_interface:	[INTERN] event chrdevs associated with interrupt lines
  * @ring:		[DRIVER] any ring buffer present
  * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
@@ -272,7 +270,7 @@ struct iio_dev {
 	int				currentmode;
 	struct device			dev;
 
-	struct iio_event_interface	*event_interfaces;
+	struct iio_event_interface	*event_interface;
 
 	struct iio_ring_buffer		*ring;
 	struct mutex			mlock;
@@ -309,10 +307,7 @@ void iio_device_unregister(struct iio_dev *dev_info);
  * @ev_code:		What event
  * @timestamp:		When the event occurred
  **/
-int iio_push_event(struct iio_dev *dev_info,
-		  int ev_line,
-		  int ev_code,
-		  s64 timestamp);
+int iio_push_event(struct iio_dev *dev_info, int ev_code,  s64 timestamp);
 
 extern struct bus_type iio_bus_type;
 

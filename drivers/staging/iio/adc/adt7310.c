@@ -400,19 +400,19 @@ static irqreturn_t adt7310_event_handler(int irq, void *private)
 		return ret;
 
 	if (status & ADT7310_STAT_T_HIGH)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 			       timestamp);
 	if (status & ADT7310_STAT_T_LOW)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
 			       timestamp);
 	if (status & ADT7310_STAT_T_CRIT)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
@@ -750,7 +750,6 @@ static struct attribute_group adt7310_event_attribute_group[ADT7310_IRQS] = {
 
 static const struct iio_info adt7310_info = {
 	.attrs = &adt7310_attribute_group,
-	.num_interrupt_lines = ADT7310_IRQS,
 	.event_attrs = adt7310_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };

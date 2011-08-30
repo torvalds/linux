@@ -146,13 +146,9 @@ struct iio_event_interface {
 	unsigned long flags;
 };
 
-int iio_push_event(struct iio_dev *dev_info,
-		   int ev_line,
-		   int ev_code,
-		   s64 timestamp)
+int iio_push_event(struct iio_dev *dev_info, int ev_code, s64 timestamp)
 {
-	struct iio_event_interface *ev_int
-		= &dev_info->event_interfaces[ev_line];
+	struct iio_event_interface *ev_int = dev_info->event_interface;
 	struct iio_detected_event_list *ev;
 	int ret = 0;
 
@@ -291,19 +287,19 @@ static void iio_device_free_chrdev_minor(int val)
 
 static int iio_event_getfd(struct iio_dev *indio_dev)
 {
-	if (indio_dev->event_interfaces == NULL)
+	if (indio_dev->event_interface == NULL)
 		return -ENODEV;
 
-	mutex_lock(&indio_dev->event_interfaces->event_list_lock);
+	mutex_lock(&indio_dev->event_interface->event_list_lock);
 	if (test_and_set_bit(IIO_BUSY_BIT_POS,
-			     &indio_dev->event_interfaces->flags)) {
-		mutex_unlock(&indio_dev->event_interfaces->event_list_lock);
+			     &indio_dev->event_interface->flags)) {
+		mutex_unlock(&indio_dev->event_interface->event_list_lock);
 		return -EBUSY;
 	}
-	mutex_unlock(&indio_dev->event_interfaces->event_list_lock);
+	mutex_unlock(&indio_dev->event_interface->event_list_lock);
 	return anon_inode_getfd("iio:event",
 				&iio_event_chrdev_fileops,
-				&indio_dev->event_interfaces[0], O_RDONLY);
+				indio_dev->event_interface, O_RDONLY);
 }
 
 static void iio_setup_ev_int(struct iio_event_interface *ev_int)
@@ -910,13 +906,9 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 					     &iio_ev_state_show,
 					     iio_ev_state_store,
 					     mask,
-					     /*HACK. - limits us to one
-					       event interface - fix by
-					       extending the bitmask - but
-					       how far*/
 					     0,
 					     &dev_info->dev,
-					     &dev_info->event_interfaces[0].
+					     &dev_info->event_interface->
 					     dev_attr_list);
 		kfree(postfix);
 		if (ret)
@@ -935,8 +927,8 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 					     mask,
 					     0,
 					     &dev_info->dev,
-					     &dev_info->event_interfaces[0]
-					     .dev_attr_list);
+					     &dev_info->event_interface->
+					     dev_attr_list);
 		kfree(postfix);
 		if (ret)
 			goto error_ret;
@@ -947,12 +939,11 @@ error_ret:
 	return ret;
 }
 
-static inline void __iio_remove_event_config_attrs(struct iio_dev *dev_info,
-						  int i)
+static inline void __iio_remove_event_config_attrs(struct iio_dev *dev_info)
 {
 	struct iio_dev_attr *p, *n;
 	list_for_each_entry_safe(p, n,
-				 &dev_info->event_interfaces[i].
+				 &dev_info->event_interface->
 				 dev_attr_list, l) {
 		sysfs_remove_file_from_group(&dev_info->dev.kobj,
 					     &p->dev_attr.attr,
@@ -962,25 +953,23 @@ static inline void __iio_remove_event_config_attrs(struct iio_dev *dev_info,
 	}
 }
 
-static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
+static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info)
 {
 	int j;
 	int ret;
-	INIT_LIST_HEAD(&dev_info->event_interfaces[i].dev_attr_list);
+	INIT_LIST_HEAD(&dev_info->event_interface->dev_attr_list);
 	/* Dynically created from the channels array */
-	if (dev_info->channels) {
-		for (j = 0; j < dev_info->num_channels; j++) {
-			ret = iio_device_add_event_sysfs(dev_info,
-							 &dev_info
-							 ->channels[j]);
-			if (ret)
-				goto error_clear_attrs;
-		}
+	for (j = 0; j < dev_info->num_channels; j++) {
+
+		ret = iio_device_add_event_sysfs(dev_info,
+						 &dev_info->channels[j]);
+		if (ret)
+			goto error_clear_attrs;
 	}
 	return 0;
 
 error_clear_attrs:
-	__iio_remove_event_config_attrs(dev_info, i);
+	__iio_remove_event_config_attrs(dev_info);
 
 	return ret;
 }
@@ -994,42 +983,49 @@ static struct attribute_group iio_events_dummy_group = {
 	.attrs = iio_events_dummy_attrs
 };
 
+static bool iio_check_for_dynamic_events(struct iio_dev *dev_info)
+{
+	int j;
+	for (j = 0; j < dev_info->num_channels; j++)
+		if (dev_info->channels[j].event_mask != 0)
+			return true;
+	return false;
+}
+
 static int iio_device_register_eventset(struct iio_dev *dev_info)
 {
-	int ret = 0, i, j;
+	int ret = 0;
 
-	if (dev_info->info->num_interrupt_lines == 0)
+	if (!(dev_info->info->event_attrs ||
+	      iio_check_for_dynamic_events(dev_info)))
 		return 0;
 
-	dev_info->event_interfaces =
-		kzalloc(sizeof(struct iio_event_interface)
-			*dev_info->info->num_interrupt_lines,
-			GFP_KERNEL);
-	if (dev_info->event_interfaces == NULL) {
+	dev_info->event_interface =
+		kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
+	if (dev_info->event_interface == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
-		iio_setup_ev_int(&dev_info->event_interfaces[i]);
-		if (dev_info->info->event_attrs != NULL)
-			ret = sysfs_create_group(&dev_info->dev.kobj,
-						 &dev_info->info
-						 ->event_attrs[i]);
-		else
-			ret = sysfs_create_group(&dev_info->dev.kobj,
-						 &iio_events_dummy_group);
-		if (ret) {
-			dev_err(&dev_info->dev,
-				"Failed to register sysfs for event attrs");
-			goto error_free_setup_event_lines;
-		}
-		ret = __iio_add_event_config_attrs(dev_info, i);
+	iio_setup_ev_int(dev_info->event_interface);
+	if (dev_info->info->event_attrs != NULL)
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 dev_info->info->event_attrs);
+	else
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 &iio_events_dummy_group);
+	if (ret) {
+		dev_err(&dev_info->dev,
+			"Failed to register sysfs for event attrs");
+		goto error_free_setup_event_lines;
+	}
+	if (dev_info->channels) {
+		ret = __iio_add_event_config_attrs(dev_info);
 		if (ret) {
 			if (dev_info->info->event_attrs != NULL)
 				sysfs_remove_group(&dev_info->dev.kobj,
-						   &dev_info->info
-						   ->event_attrs[i]);
+						   dev_info->info
+						   ->event_attrs);
 			else
 				sysfs_remove_group(&dev_info->dev.kobj,
 						   &iio_events_dummy_group);
@@ -1040,16 +1036,14 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 	return 0;
 
 error_free_setup_event_lines:
-	for (j = 0; j < i; j++) {
-		__iio_remove_event_config_attrs(dev_info, j);
-		if (dev_info->info->event_attrs != NULL) {
-			sysfs_remove_group(&dev_info->dev.kobj,
-					   &dev_info->info->event_attrs[j]);
-			sysfs_remove_group(&dev_info->dev.kobj,
-					   &iio_events_dummy_group);
-		}
-	}
-	kfree(dev_info->event_interfaces);
+	__iio_remove_event_config_attrs(dev_info);
+	if (dev_info->info->event_attrs != NULL)
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   dev_info->info->event_attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   &iio_events_dummy_group);
+	kfree(dev_info->event_interface);
 error_ret:
 
 	return ret;
@@ -1057,20 +1051,16 @@ error_ret:
 
 static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 {
-	int i;
-
-	if (dev_info->info->num_interrupt_lines == 0)
+	if (dev_info->event_interface == NULL)
 		return;
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
-		__iio_remove_event_config_attrs(dev_info, i);
-		if (dev_info->info->event_attrs != NULL)
-			sysfs_remove_group(&dev_info->dev.kobj,
-					   &dev_info->info->event_attrs[i]);
-		else
-			sysfs_remove_group(&dev_info->dev.kobj,
-					   &iio_events_dummy_group);
-	}
-	kfree(dev_info->event_interfaces);
+	__iio_remove_event_config_attrs(dev_info);
+	if (dev_info->info->event_attrs != NULL)
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   dev_info->info->event_attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   &iio_events_dummy_group);
+	kfree(dev_info->event_interface);
 }
 
 static void iio_dev_release(struct device *device)

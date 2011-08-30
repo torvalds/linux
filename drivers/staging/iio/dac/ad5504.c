@@ -252,7 +252,7 @@ static struct attribute_group ad5504_ev_attribute_group = {
 
 static irqreturn_t ad5504_event_handler(int irq, void *private)
 {
-	iio_push_event(private, 0,
+	iio_push_event(private,
 		       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 					    0,
 					    IIO_EV_TYPE_THRESH,
@@ -264,14 +264,12 @@ static irqreturn_t ad5504_event_handler(int irq, void *private)
 
 static const struct iio_info ad5504_info = {
 	.attrs = &ad5504_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad5504_ev_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info ad5501_info = {
 	.attrs = &ad5501_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad5504_ev_attribute_group,
 	.driver_module = THIS_MODULE,
 };

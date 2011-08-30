@@ -479,28 +479,28 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
 	if (t_status & (1 << 0))
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
 			       timestamp);
 	if (t_status & (1 << 1))
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 			       timestamp);
 	if (t_status & (1 << 2))
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
 			       timestamp);
 	if (t_status & (1 << 3))
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 						    0,
 						    IIO_EV_TYPE_THRESH,
@@ -509,14 +509,14 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 
 	for (i = 0; i < AD7291_VOLTAGE_LIMIT_COUNT*2; i += 2) {
 		if (v_status & (1 << i))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_IN,
 							    i/2,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
 				       timestamp);
 		if (v_status & (1 << (i + 1)))
-			iio_push_event(indio_dev, 0,
+			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_IN,
 							    i/2,
 							    IIO_EV_TYPE_THRESH,
@@ -780,7 +780,6 @@ static struct attribute_group ad7291_event_attribute_group = {
 
 static const struct iio_info ad7291_info = {
 	.attrs = &ad7291_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad7291_event_attribute_group,
 };
 
