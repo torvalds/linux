@@ -813,15 +813,17 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
 	struct lowpan_dev_record *entry;
+	struct lowpan_dev_record *tmp;
 
 	ASSERT_RTNL();
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
-	list_for_each_entry(entry, &lowpan_devices, list)
+	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
 		if (entry->ldev == dev) {
 			list_del(&entry->list);
 			kfree(entry);
 		}
+	}
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
 
 	mutex_destroy(&lowpan_dev_info(dev)->dev_list_mtx);
