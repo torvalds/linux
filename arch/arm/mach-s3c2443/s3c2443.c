@@ -90,8 +90,8 @@ void __init s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c2443_map_io(void)
 {
-	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_s3c2443;
-	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_s3c2443;
+	s3c24xx_gpiocfg_default.set_pull = s3c2443_gpio_setpull;
+	s3c24xx_gpiocfg_default.get_pull = s3c2443_gpio_getpull;
 
 	iotable_init(s3c2443_iodesc, ARRAY_SIZE(s3c2443_iodesc));
 }
