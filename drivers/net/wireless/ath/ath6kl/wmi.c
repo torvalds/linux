@@ -1709,7 +1709,7 @@ int ath6kl_wmi_startscan_cmd(struct wmi *wmi, enum wmi_scan_type scan_type,
 	struct sk_buff *skb;
 	struct wmi_start_scan_cmd *sc;
 	s8 size;
-	int ret;
+	int i, ret;
 
 	size = sizeof(struct wmi_start_scan_cmd);
 
@@ -1734,8 +1734,8 @@ int ath6kl_wmi_startscan_cmd(struct wmi *wmi, enum wmi_scan_type scan_type,
 	sc->force_scan_intvl = cpu_to_le32(force_scan_interval);
 	sc->num_ch = num_chan;
 
-	if (num_chan)
-		memcpy(sc->ch_list, ch_list, num_chan * sizeof(u16));
+	for (i = 0; i < num_chan; i++)
+		sc->ch_list[i] = cpu_to_le16(ch_list[i]);
 
 	ret = ath6kl_wmi_cmd_send(wmi, skb, WMI_START_SCAN_CMDID,
 				  NO_SYNC_WMIFLAG);
