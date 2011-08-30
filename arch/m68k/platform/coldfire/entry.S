@@ -54,7 +54,6 @@ sw_usp:
 .globl ret_from_signal
 .globl sys_call_table
 .globl inthandler
-.globl fasthandler
 
 enosys:
 	mov.l	#sys_ni_syscall,%d3
