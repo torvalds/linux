@@ -6,7 +6,7 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  *
- * These definitions are meant for use only within the IIO core, not indvidual
+ * These definitions are meant for use only within the IIO core, not individual
  * drivers.
  */
 
