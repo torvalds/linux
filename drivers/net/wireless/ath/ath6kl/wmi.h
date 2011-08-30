@@ -129,6 +129,9 @@ struct wmi {
 	u8 ht_allowed[A_NUM_BANDS];
 	u8 traffic_class;
 	bool is_probe_ssid;
+
+	u8 *last_mgmt_tx_frame;
+	size_t last_mgmt_tx_frame_len;
 };
 
 struct host_app_area {

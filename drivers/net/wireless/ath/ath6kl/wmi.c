@@ -483,10 +483,11 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	return 0;
 }
 
-static int ath6kl_wmi_tx_status_event_rx(u8 *datap, int len)
+static int ath6kl_wmi_tx_status_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
 	struct wmi_tx_status_event *ev;
 	u32 id;
+	struct ath6kl *ar = wmi->parent_dev;
 
 	if (len < sizeof(*ev))
 		return -EINVAL;
@@ -495,6 +496,15 @@ static int ath6kl_wmi_tx_status_event_rx(u8 *datap, int len)
 	id = le32_to_cpu(ev->id);
 	ath6kl_dbg(ATH6KL_DBG_WMI, "tx_status: id=%x ack_status=%u\n",
 		   id, ev->ack_status);
+	if (wmi->last_mgmt_tx_frame) {
+		cfg80211_mgmt_tx_status(ar->net_dev, id,
+					wmi->last_mgmt_tx_frame,
+					wmi->last_mgmt_tx_frame_len,
+					!!ev->ack_status, GFP_ATOMIC);
+		kfree(wmi->last_mgmt_tx_frame);
+		wmi->last_mgmt_tx_frame = NULL;
+		wmi->last_mgmt_tx_frame_len = 0;
+	}
 
 	return 0;
 }
@@ -2740,13 +2750,24 @@ int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u32 id, u32 freq, u32 wait,
 {
 	struct sk_buff *skb;
 	struct wmi_send_action_cmd *p;
+	u8 *buf;
 
 	if (wait)
 		return -EINVAL; /* Offload for wait not supported */
 
-	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + data_len);
-	if (!skb)
+	buf = kmalloc(data_len, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + data_len);
+	if (!skb) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	kfree(wmi->last_mgmt_tx_frame);
+	wmi->last_mgmt_tx_frame = buf;
+	wmi->last_mgmt_tx_frame_len = data_len;
 
 	ath6kl_dbg(ATH6KL_DBG_WMI, "send_action_cmd: id=%u freq=%u wait=%u "
 		   "len=%u\n", id, freq, wait, data_len);
@@ -3053,7 +3074,7 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_TX_STATUS_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TX_STATUS_EVENTID\n");
-		ret = ath6kl_wmi_tx_status_event_rx(datap, len);
+		ret = ath6kl_wmi_tx_status_event_rx(wmi, datap, len);
 		break;
 	case WMI_RX_PROBE_REQ_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_RX_PROBE_REQ_EVENTID\n");
@@ -3127,5 +3148,6 @@ void ath6kl_wmi_shutdown(struct wmi *wmi)
 	if (!wmi)
 		return;
 
+	kfree(wmi->last_mgmt_tx_frame);
 	kfree(wmi);
 }
