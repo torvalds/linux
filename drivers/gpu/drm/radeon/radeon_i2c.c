@@ -23,6 +23,8 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
+#include <linux/export.h>
+
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"

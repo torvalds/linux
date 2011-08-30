@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 
 #include <linux/vgaarb.h>
+#include <linux/export.h>
 
 /* Access macro for slots in vblank timestamp ringbuffer. */
 #define vblanktimestamp(dev, crtc, count) ( \

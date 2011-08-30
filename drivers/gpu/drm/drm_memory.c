@@ -34,6 +34,7 @@
  */
 
 #include <linux/highmem.h>
+#include <linux/export.h>
 #include "drmP.h"
 
 /**
