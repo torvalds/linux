@@ -133,9 +133,7 @@ retry_ofld:
 		printk(KERN_ERR PFX "map doorbell failed - no mem\n");
 		/* upload will take care of cleaning up sess resc */
 		lport->tt.rport_logoff(rdata);
-	} else
-		/* Arm CQ */
-		bnx2fc_arm_cq(tgt);
+	}
 	return;
 
 ofld_err:
