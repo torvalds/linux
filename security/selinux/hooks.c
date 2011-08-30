@@ -89,6 +89,7 @@
 #include "xfrm.h"
 #include "netlabel.h"
 #include "audit.h"
+#include "avc_ss.h"
 
 #define NUM_SEL_MNT_OPTS 5
 
@@ -277,10 +278,6 @@ static void superblock_free_security(struct super_block *sb)
 	sb->s_security = NULL;
 	kfree(sbsec);
 }
-
-/* The security server must be initialized before
-   any labeling or access decisions can be provided. */
-extern int ss_initialized;
 
 /* The file system's label must be initialized prior to use. */
 
