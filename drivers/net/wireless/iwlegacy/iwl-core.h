@@ -373,7 +373,7 @@ void il_rx_pm_sleep_notif(struct il_priv *il,
 			   struct il_rx_buf *rxb);
 void il_rx_pm_debug_stats_notif(struct il_priv *il,
 				      struct il_rx_buf *rxb);
-void il_rx_reply_error(struct il_priv *il,
+void il_hdl_error(struct il_priv *il,
 			struct il_rx_buf *rxb);
 
 /*****************************************************

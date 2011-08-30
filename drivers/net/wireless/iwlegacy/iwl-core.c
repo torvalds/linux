@@ -1213,7 +1213,7 @@ void il_rx_pm_debug_stats_notif(struct il_priv *il,
 }
 EXPORT_SYMBOL(il_rx_pm_debug_stats_notif);
 
-void il_rx_reply_error(struct il_priv *il,
+void il_hdl_error(struct il_priv *il,
 			struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1226,7 +1226,7 @@ void il_rx_reply_error(struct il_priv *il,
 		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
 		le32_to_cpu(pkt->u.err_resp.error_info));
 }
-EXPORT_SYMBOL(il_rx_reply_error);
+EXPORT_SYMBOL(il_hdl_error);
 
 void il_clear_isr_stats(struct il_priv *il)
 {

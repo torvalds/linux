@@ -182,7 +182,7 @@ int il_scan_cancel_timeout(struct il_priv *il, unsigned long ms)
 EXPORT_SYMBOL(il_scan_cancel_timeout);
 
 /* Service response to C_SCAN (0x80) */
-static void il_rx_reply_scan(struct il_priv *il,
+static void il_hdl_scan(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
@@ -263,7 +263,7 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 void il_setup_rx_scan_handlers(struct il_priv *il)
 {
 	/* scan handlers */
-	il->handlers[C_SCAN] = il_rx_reply_scan;
+	il->handlers[C_SCAN] = il_hdl_scan;
 	il->handlers[N_SCAN_START] =
 					il_rx_scan_start_notif;
 	il->handlers[N_SCAN_RESULTS] =

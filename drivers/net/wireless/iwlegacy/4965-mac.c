@@ -610,7 +610,7 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 
 /* Called for N_RX (legacy ABG frames), or
  * N_RX_MPDU (HT high-throughput N frames). */
-void il4965_rx_reply_rx(struct il_priv *il,
+void il4965_hdl_rx(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
@@ -729,8 +729,8 @@ void il4965_rx_reply_rx(struct il_priv *il,
 }
 
 /* Cache phy data (Rx signal strength, etc) for HT frame (N_RX_PHY).
- * This will be used later in il_rx_reply_rx() for N_RX_MPDU. */
-void il4965_rx_reply_rx_phy(struct il_priv *il,
+ * This will be used later in il_hdl_rx() for N_RX_MPDU. */
+void il4965_hdl_rx_phy(struct il_priv *il,
 			    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -2616,12 +2616,12 @@ void il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
 }
 
 /**
- * il4965_rx_reply_compressed_ba - Handler for N_COMPRESSED_BA
+ * il4965_hdl_compressed_ba - Handler for N_COMPRESSED_BA
  *
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
  */
-void il4965_rx_reply_compressed_ba(struct il_priv *il,
+void il4965_hdl_compressed_ba(struct il_priv *il,
 					   struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -3759,7 +3759,7 @@ int il4965_hw_tx_queue_init(struct il_priv *il,
  * Generic RX handler implementations
  *
  ******************************************************************************/
-static void il4965_rx_reply_alive(struct il_priv *il,
+static void il4965_hdl_alive(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -3921,8 +3921,8 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
  */
 static void il4965_setup_handlers(struct il_priv *il)
 {
-	il->handlers[N_ALIVE] = il4965_rx_reply_alive;
-	il->handlers[N_ERROR] = il_rx_reply_error;
+	il->handlers[N_ALIVE] = il4965_hdl_alive;
+	il->handlers[N_ERROR] = il_hdl_error;
 	il->handlers[N_CHANNEL_SWITCH] = il_rx_csa;
 	il->handlers[N_SPECTRUM_MEASUREMENT] =
 			il_rx_spectrum_measure_notif;
@@ -3948,10 +3948,10 @@ static void il4965_setup_handlers(struct il_priv *il)
 	il->handlers[N_MISSED_BEACONS] =
 	    il4965_rx_missed_beacon_notif;
 	/* Rx handlers */
-	il->handlers[N_RX_PHY] = il4965_rx_reply_rx_phy;
-	il->handlers[N_RX_MPDU] = il4965_rx_reply_rx;
+	il->handlers[N_RX_PHY] = il4965_hdl_rx_phy;
+	il->handlers[N_RX_MPDU] = il4965_hdl_rx;
 	/* block ack */
-	il->handlers[N_COMPRESSED_BA] = il4965_rx_reply_compressed_ba;
+	il->handlers[N_COMPRESSED_BA] = il4965_hdl_compressed_ba;
 	/* Set up hardware specific Rx handlers */
 	il->cfg->ops->lib->handler_setup(il);
 }

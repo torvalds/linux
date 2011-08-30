@@ -2017,9 +2017,9 @@ static int il4965_get_ra_sta_id(struct il_priv *il, struct ieee80211_hdr *hdr)
 }
 
 /**
- * il4965_rx_reply_tx - Handle standard (non-aggregation) Tx response
+ * il4965_hdl_tx - Handle standard (non-aggregation) Tx response
  */
-static void il4965_rx_reply_tx(struct il_priv *il,
+static void il4965_hdl_tx(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -2145,9 +2145,9 @@ static void il4965_rx_beacon_notif(struct il_priv *il,
 static void il4965_handler_setup(struct il_priv *il)
 {
 	/* Legacy Rx frames */
-	il->handlers[N_RX] = il4965_rx_reply_rx;
+	il->handlers[N_RX] = il4965_hdl_rx;
 	/* Tx response */
-	il->handlers[C_TX] = il4965_rx_reply_tx;
+	il->handlers[C_TX] = il4965_hdl_tx;
 	il->handlers[N_BEACON] = il4965_rx_beacon_notif;
 }
 

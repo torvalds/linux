@@ -73,9 +73,9 @@ void il4965_rx_replenish_now(struct il_priv *il);
 void il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_rxq_stop(struct il_priv *il);
 int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
-void il4965_rx_reply_rx(struct il_priv *il,
+void il4965_hdl_rx(struct il_priv *il,
 		     struct il_rx_buf *rxb);
-void il4965_rx_reply_rx_phy(struct il_priv *il,
+void il4965_hdl_rx_phy(struct il_priv *il,
 			 struct il_rx_buf *rxb);
 void il4965_rx_handle(struct il_priv *il);
 
@@ -95,7 +95,7 @@ int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
 int il4965_txq_check_empty(struct il_priv *il,
 			   int sta_id, u8 tid, int txq_id);
-void il4965_rx_reply_compressed_ba(struct il_priv *il,
+void il4965_hdl_compressed_ba(struct il_priv *il,
 				struct il_rx_buf *rxb);
 int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx);
 void il4965_hw_txq_ctx_free(struct il_priv *il);

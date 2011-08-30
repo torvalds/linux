@@ -315,9 +315,9 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 }
 
 /**
- * il3945_rx_reply_tx - Handle Tx response
+ * il3945_hdl_tx - Handle Tx response
  */
-static void il3945_rx_reply_tx(struct il_priv *il,
+static void il3945_hdl_tx(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -521,7 +521,7 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 
 #define IL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 
-static void il3945_rx_reply_rx(struct il_priv *il,
+static void il3945_hdl_rx(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
@@ -2464,8 +2464,8 @@ unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 
 void il3945_hw_handler_setup(struct il_priv *il)
 {
-	il->handlers[C_TX] = il3945_rx_reply_tx;
-	il->handlers[N_3945_RX] = il3945_rx_reply_rx;
+	il->handlers[C_TX] = il3945_hdl_tx;
+	il->handlers[N_3945_RX] = il3945_hdl_rx;
 }
 
 void il3945_hw_setup_deferred_work(struct il_priv *il)

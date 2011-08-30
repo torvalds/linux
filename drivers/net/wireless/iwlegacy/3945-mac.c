@@ -743,7 +743,7 @@ static int il3945_get_measurement(struct il_priv *il,
 	return rc;
 }
 
-static void il3945_rx_reply_alive(struct il_priv *il,
+static void il3945_hdl_alive(struct il_priv *il,
 			       struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -779,7 +779,7 @@ static void il3945_rx_reply_alive(struct il_priv *il,
 		IL_WARN("uCode did not respond OK.\n");
 }
 
-static void il3945_rx_reply_add_sta(struct il_priv *il,
+static void il3945_hdl_add_sta(struct il_priv *il,
 				 struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
@@ -853,9 +853,9 @@ static void il3945_rx_card_state_notif(struct il_priv *il,
  */
 static void il3945_setup_handlers(struct il_priv *il)
 {
-	il->handlers[N_ALIVE] = il3945_rx_reply_alive;
-	il->handlers[C_ADD_STA] = il3945_rx_reply_add_sta;
-	il->handlers[N_ERROR] = il_rx_reply_error;
+	il->handlers[N_ALIVE] = il3945_hdl_alive;
+	il->handlers[C_ADD_STA] = il3945_hdl_add_sta;
+	il->handlers[N_ERROR] = il_hdl_error;
 	il->handlers[N_CHANNEL_SWITCH] = il_rx_csa;
 	il->handlers[N_SPECTRUM_MEASUREMENT] =
 			il_rx_spectrum_measure_notif;
