@@ -15,7 +15,6 @@
 #include <linux/cdev.h>
 #include <linux/irq.h>
 #include "sysfs.h"
-#include "chrdev.h"
 
 /* IIO TODO LIST */
 /*
@@ -178,6 +177,7 @@ static inline s64 iio_get_time_ns(void)
 #define IIO_VAL_INT_PLUS_NANO 3
 
 struct iio_trigger; /* forward declaration */
+struct iio_dev;
 
 /**
  * struct iio_info - constant information about device

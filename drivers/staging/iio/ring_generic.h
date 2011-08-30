@@ -10,6 +10,7 @@
 #ifndef _IIO_RING_GENERIC_H_
 #define _IIO_RING_GENERIC_H_
 #include "iio.h"
+#include "chrdev.h"
 
 #ifdef CONFIG_IIO_RING_BUFFER
 
