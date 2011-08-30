@@ -120,6 +120,8 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 	dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
 			dep->number);
 
+	dwc->ep0_next_event = DWC3_EP0_COMPLETE;
+
 	return 0;
 }
 
@@ -250,7 +252,6 @@ static void dwc3_ep0_send_status_response(struct dwc3 *dwc)
 	dwc3_ep0_start_trans(dwc, 1, dwc->setup_buf_addr,
 			dwc->ep0_usb_req.length,
 			DWC3_TRBCTL_CONTROL_DATA);
-	dwc->ep0_status_pending = 1;
 }
 
 /*
@@ -295,7 +296,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl
 	response_pkt = (__le16 *) dwc->setup_buf;
 	*response_pkt = cpu_to_le16(usb_status);
 	dwc->ep0_usb_req.length = sizeof(*response_pkt);
-	dwc3_ep0_send_status_response(dwc);
+	dwc->ep0_status_pending = 1;
 
 	return 0;
 }
@@ -526,10 +527,13 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 		goto err;
 
 	len = le16_to_cpu(ctrl->wLength);
-	if (!len)
+	if (!len) {
 		dwc->three_stage_setup = 0;
-	else
+		dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
+	} else {
 		dwc->three_stage_setup = 1;
+		dwc->ep0_next_event = DWC3_EP0_NRDY_DATA;
+	}
 
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
 		ret = dwc3_ep0_std_request(dwc, ctrl);
@@ -555,6 +559,8 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	epnum = event->endpoint_number;
 	dep = dwc->eps[epnum];
+
+	dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
 
 	if (!dwc->ep0_status_pending) {
 		r = next_request(&dwc->eps[0]->request_list);
@@ -655,6 +661,11 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	dep = dwc->eps[0];
 	dwc->ep0state = EP0_DATA_PHASE;
 
+	if (dwc->ep0_status_pending) {
+		dwc3_ep0_send_status_response(dwc);
+		return;
+	}
+
 	if (list_empty(&dep->request_list)) {
 		dev_vdbg(dwc->dev, "pending request for EP0 Data phase\n");
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
@@ -724,12 +735,33 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		dev_vdbg(dwc->dev, "Control Setup\n");
 		dwc3_ep0_do_control_setup(dwc, event);
 		break;
+
 	case DEPEVT_STATUS_CONTROL_DATA:
 		dev_vdbg(dwc->dev, "Control Data\n");
+
+		if (dwc->ep0_next_event != DWC3_EP0_NRDY_DATA) {
+			dev_vdbg(dwc->dev, "Expected %d got %d\n",
+					DEPEVT_STATUS_CONTROL_DATA,
+					event->status);
+
+			dwc3_ep0_stall_and_restart(dwc);
+			return;
+		}
+
 		dwc3_ep0_do_control_data(dwc, event);
 		break;
+
 	case DEPEVT_STATUS_CONTROL_STATUS:
 		dev_vdbg(dwc->dev, "Control Status\n");
+
+		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS) {
+			dev_vdbg(dwc->dev, "Expected %d got %d\n",
+					DEPEVT_STATUS_CONTROL_STATUS,
+					event->status);
+
+			dwc3_ep0_stall_and_restart(dwc);
+			return;
+		}
 		dwc3_ep0_do_control_status(dwc, event);
 	}
 }
