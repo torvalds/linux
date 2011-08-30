@@ -674,7 +674,7 @@ lowpan_process_data(struct sk_buff *skb)
 							sizeof(hdr));
 	return lowpan_skb_deliver(skb, &hdr);
 drop:
-	kfree(skb);
+	kfree_skb(skb);
 	return -EINVAL;
 }
 
