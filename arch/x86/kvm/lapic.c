@@ -864,6 +864,15 @@ static int apic_mmio_write(struct kvm_io_device *this,
 	return 0;
 }
 
+void kvm_lapic_set_eoi(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	if (apic)
+		apic_reg_write(vcpu->arch.apic, APIC_EOI, 0);
+}
+EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
+
 void kvm_free_lapic(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu->arch.apic)

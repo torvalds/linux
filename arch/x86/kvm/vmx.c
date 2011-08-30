@@ -71,6 +71,9 @@ module_param(vmm_exclusive, bool, S_IRUGO);
 static int __read_mostly yield_on_hlt = 1;
 module_param(yield_on_hlt, bool, S_IRUGO);
 
+static int __read_mostly fasteoi = 1;
+module_param(fasteoi, bool, S_IRUGO);
+
 /*
  * If nested=1, nested virtualization is supported, i.e., guests may use
  * VMX and be a hypervisor for its own guests. If nested=0, guests may not
@@ -4540,6 +4543,24 @@ static int handle_xsetbv(struct kvm_vcpu *vcpu)
 
 static int handle_apic_access(struct kvm_vcpu *vcpu)
 {
+	if (likely(fasteoi)) {
+		unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+		int access_type, offset;
+
+		access_type = exit_qualification & APIC_ACCESS_TYPE;
+		offset = exit_qualification & APIC_ACCESS_OFFSET;
+		/*
+		 * Sane guest uses MOV to write EOI, with written value
+		 * not cared. So make a short-circuit here by avoiding
+		 * heavy instruction emulation.
+		 */
+		if ((access_type == TYPE_LINEAR_APIC_INST_WRITE) &&
+		    (offset == APIC_EOI)) {
+			kvm_lapic_set_eoi(vcpu);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+	}
 	return emulate_instruction(vcpu, 0) == EMULATE_DONE;
 }
 

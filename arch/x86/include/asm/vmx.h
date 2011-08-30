@@ -350,6 +350,18 @@ enum vmcs_field {
 #define DEBUG_REG_ACCESS_REG(eq)        (((eq) >> 8) & 0xf) /* 11:8, general purpose reg. */
 
 
+/*
+ * Exit Qualifications for APIC-Access
+ */
+#define APIC_ACCESS_OFFSET              0xfff   /* 11:0, offset within the APIC page */
+#define APIC_ACCESS_TYPE                0xf000  /* 15:12, access type */
+#define TYPE_LINEAR_APIC_INST_READ      (0 << 12)
+#define TYPE_LINEAR_APIC_INST_WRITE     (1 << 12)
+#define TYPE_LINEAR_APIC_INST_FETCH     (2 << 12)
+#define TYPE_LINEAR_APIC_EVENT          (3 << 12)
+#define TYPE_PHYSICAL_APIC_EVENT        (10 << 12)
+#define TYPE_PHYSICAL_APIC_INST         (15 << 12)
+
 /* segment AR */
 #define SEGMENT_AR_L_MASK (1 << 13)
 
