@@ -443,7 +443,6 @@ static int __devexit ad7816_remove(struct spi_device *spi_dev)
 	gpio_free(chip->convert_pin);
 	gpio_free(chip->rdwr_pin);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
 
 	return 0;
 }

@@ -864,7 +864,6 @@ static int __devexit adt7310_remove(struct spi_device *spi_dev)
 	if (spi_dev->irq)
 		free_irq(spi_dev->irq, indio_dev);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
 
 	return 0;
 }

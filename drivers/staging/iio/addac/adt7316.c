@@ -2225,7 +2225,6 @@ int __devexit adt7316_remove(struct device *dev)
 	if (chip->bus.irq)
 		free_irq(chip->bus.irq, indio_dev);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
 
 	return 0;
 }

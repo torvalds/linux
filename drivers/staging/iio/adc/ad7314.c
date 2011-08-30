@@ -240,7 +240,6 @@ static int __devexit ad7314_remove(struct spi_device *spi_dev)
 
 	dev_set_drvdata(&spi_dev->dev, NULL);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
 
 	return 0;
 }

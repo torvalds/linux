@@ -547,7 +547,6 @@ static int ak8975_remove(struct i2c_client *client)
 	int eoc_gpio = data->eoc_gpio;
 
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
 
 	if (eoc_gpio)
 		gpio_free(eoc_gpio);

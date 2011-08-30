@@ -262,12 +262,12 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 	indio_dev->info = &ad5624r_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
+	ret = ad5624r_spi_write(spi, AD5624R_CMD_INTERNAL_REFER_SETUP, 0,
+				!!voltage_uv, 16);
 	if (ret)
 		goto error_free_dev;
 
-	ret = ad5624r_spi_write(spi, AD5624R_CMD_INTERNAL_REFER_SETUP, 0,
-				!!voltage_uv, 16);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 

@@ -542,8 +542,8 @@ static int adis16209_remove(struct spi_device *spi)
 
 	adis16209_remove_trigger(indio_dev);
 	iio_ring_buffer_unregister(indio_dev);
-	iio_device_unregister(indio_dev);
 	adis16209_unconfigure_ring(indio_dev);
+	iio_device_unregister(indio_dev);
 
 	return 0;
 }
