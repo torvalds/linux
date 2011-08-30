@@ -1095,6 +1095,7 @@ static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 int mesh_pathtbl_init(void)
 {
 	struct mesh_table *tbl_path, *tbl_mpp;
+	int ret;
 
 	tbl_path = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
 	if (!tbl_path)
@@ -1103,18 +1104,26 @@ int mesh_pathtbl_init(void)
 	tbl_path->copy_node = &mesh_path_node_copy;
 	tbl_path->mean_chain_len = MEAN_CHAIN_LEN;
 	tbl_path->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
+	if (!tbl_path->known_gates) {
+		ret = -ENOMEM;
+		goto free_path;
+	}
 	INIT_HLIST_HEAD(tbl_path->known_gates);
 
 
 	tbl_mpp = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
 	if (!tbl_mpp) {
-		mesh_table_free(tbl_path, true);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_path;
 	}
 	tbl_mpp->free_node = &mesh_path_node_free;
 	tbl_mpp->copy_node = &mesh_path_node_copy;
 	tbl_mpp->mean_chain_len = MEAN_CHAIN_LEN;
 	tbl_mpp->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
+	if (!tbl_mpp->known_gates) {
+		ret = -ENOMEM;
+		goto free_mpp;
+	}
 	INIT_HLIST_HEAD(tbl_mpp->known_gates);
 
 	/* Need no locking since this is during init */
@@ -1122,6 +1131,12 @@ int mesh_pathtbl_init(void)
 	RCU_INIT_POINTER(mpp_paths, tbl_mpp);
 
 	return 0;
+
+free_mpp:
+	mesh_table_free(tbl_mpp, true);
+free_path:
+	mesh_table_free(tbl_path, true);
+	return ret;
 }
 
 void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
