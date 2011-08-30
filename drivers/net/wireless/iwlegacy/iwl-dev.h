@@ -45,10 +45,11 @@
 #include "iwl-fh.h"
 #include "iwl-debug.h"
 #include "4965.h"
-#include "iwl-3945-hw.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-legacy-rs.h"
+
+#define U32_PAD(n)		((4-(n))&0x3)
 
 struct il_tx_queue;
 

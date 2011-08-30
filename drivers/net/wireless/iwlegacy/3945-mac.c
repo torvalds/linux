@@ -52,10 +52,9 @@
 #define DRV_NAME	"iwl3945"
 
 #include "iwl-fh.h"
-#include "iwl-3945-fh.h"
 #include "iwl-commands.h"
 #include "iwl-sta.h"
-#include "iwl-3945.h"
+#include "3945.h"
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 #include "iwl-dev.h"

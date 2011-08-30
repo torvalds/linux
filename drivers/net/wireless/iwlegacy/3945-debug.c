@@ -26,8 +26,9 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
-#include "iwl-3945-debugfs.h"
-
+#include "iwl-dev.h"
+#include "iwl-core.h"
+#include "3945.h"
 
 static int il3945_stats_flag(struct il_priv *il, char *buf, int bufsz)
 {

@@ -40,15 +40,13 @@
 #include <net/mac80211.h>
 
 #include "iwl-fh.h"
-#include "iwl-3945-fh.h"
 #include "iwl-commands.h"
 #include "iwl-sta.h"
-#include "iwl-3945.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 #include "iwl-led.h"
-#include "iwl-3945-debugfs.h"
+#include "3945.h"
 
 /* Send led command */
 static int il3945_send_led_cmd(struct il_priv *il,
