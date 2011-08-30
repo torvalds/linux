@@ -40,8 +40,6 @@ static const char *logo_types[LINUX_LOGO_GRAY256+1] = {
 };
 
 #define MAX_LINUX_LOGO_COLORS	224
-#define MAX_LINUX_LOGO_WIDTH  1280
-#define MAX_LINUX_LOGO_HEIGHT 800
 
 struct color {
     unsigned char red;
@@ -393,6 +391,11 @@ static void write_logo_clut224(void)
 	/* write file header */
 	write_header();
 
+	write_hex((unsigned char)(logo_width >> 8));
+	write_hex((unsigned char)logo_width);
+	write_hex((unsigned char)(logo_height >> 8));
+	write_hex((unsigned char)logo_height);
+
 	for (i = 0; i < sizeof(data_name); i++){
 		write_hex(data_name[i]);
 	}
@@ -409,26 +412,6 @@ static void write_logo_clut224(void)
 					break;
 			write_hex(k+32);
 		}
-
-	if (logo_height < MAX_LINUX_LOGO_HEIGHT ||  logo_width < MAX_LINUX_LOGO_WIDTH) {
-		if (logo_height == MAX_LINUX_LOGO_HEIGHT) {
-			for (i = 0; i < MAX_LINUX_LOGO_HEIGHT; i++)
-				for (j = logo_width; j < MAX_LINUX_LOGO_WIDTH; j++)
-					write_hex(32);
-		} else if (logo_width == MAX_LINUX_LOGO_WIDTH) {
-			for (i = logo_height; i < MAX_LINUX_LOGO_HEIGHT; i++)
-				for (j = 0; j < MAX_LINUX_LOGO_WIDTH; j++)
-					write_hex(32);
-		} else {
-			for (i = logo_height; i < MAX_LINUX_LOGO_HEIGHT; i++)
-				for (j = 0; j < MAX_LINUX_LOGO_WIDTH; j++)
-					write_hex(32);
-
-			for (i = 0; i < logo_height; i++)
-				for (j = logo_width; j < MAX_LINUX_LOGO_WIDTH; j++)
-					write_hex(32);
-		}
-	}
 
 	fputs("\n};\n\n", out);
 
@@ -447,6 +430,11 @@ static void write_logo_clut224(void)
 		write_hex(logo_clut[i].red);
 		write_hex(logo_clut[i].green);
 		write_hex(logo_clut[i].blue);
+	}
+
+	for (i = logo_clutsize; i < (MAX_LINUX_LOGO_COLORS * 3); i++)
+	{
+		write_hex(32);
 	}
 
 	/* write logo structure and file footer */
