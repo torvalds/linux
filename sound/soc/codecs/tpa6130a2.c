@@ -33,6 +33,11 @@
 
 #include "tpa6130a2.h"
 
+enum tpa_model {
+	TPA6130A2,
+	TPA6140A2,
+};
+
 static struct i2c_client *tpa6130a2_client;
 
 /* This struct is used to save the context */
