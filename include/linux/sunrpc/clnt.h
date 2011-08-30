@@ -218,7 +218,13 @@ static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
 {
 	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sap1;
 	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
-	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
+
+	if (!ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr))
+		return false;
+	else if (ipv6_addr_type(&sin1->sin6_addr) & IPV6_ADDR_LINKLOCAL)
+		return sin1->sin6_scope_id == sin2->sin6_scope_id;
+
+	return true;
 }
 
 static inline bool __rpc_copy_addr6(struct sockaddr *dst,
