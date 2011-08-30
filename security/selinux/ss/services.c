@@ -70,8 +70,6 @@
 #include "ebitmap.h"
 #include "audit.h"
 
-extern void selnl_notify_policyload(u32 seqno);
-
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
 

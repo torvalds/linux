@@ -75,8 +75,6 @@ static char policy_opened;
 /* global data for policy capabilities */
 static struct dentry *policycap_dir;
 
-extern void selnl_notify_setenforce(int val);
-
 /* Check whether a task is allowed to use a security operation. */
 static int task_has_security(struct task_struct *tsk,
 			     u32 perms)

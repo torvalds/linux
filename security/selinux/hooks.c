@@ -92,7 +92,6 @@
 
 #define NUM_SEL_MNT_OPTS 5
 
-extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern struct security_operations *security_ops;
 
 /* SECMARK reference count */

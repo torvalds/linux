@@ -221,6 +221,9 @@ extern int selinux_disable(void);
 extern void exit_sel_fs(void);
 extern struct dentry *selinux_null;
 extern struct vfsmount *selinuxfs_mount;
+extern void selnl_notify_setenforce(int val);
+extern void selnl_notify_policyload(u32 seqno);
+extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 
 #endif /* _SELINUX_SECURITY_H_ */
 
