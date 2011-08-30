@@ -4506,7 +4506,9 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_SUPPORTS_CQM_RSSI |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SPECTRUM_MGMT |
-		IEEE80211_HW_AP_LINK_PS;
+		IEEE80211_HW_AP_LINK_PS |
+		IEEE80211_HW_AMPDU_AGGREGATION |
+		IEEE80211_HW_TX_AMPDU_SETUP_IN_HW;
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
