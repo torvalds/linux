@@ -285,6 +285,8 @@ static struct platform_device speyside_wm8962_device = {
 static struct regulator_consumer_supply wallvdd_consumers[] = {
 	REGULATOR_SUPPLY("SPKVDD1", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD2", "1-001a"),
+	REGULATOR_SUPPLY("SPKVDDL", "1-001a"),
+	REGULATOR_SUPPLY("SPKVDDR", "1-001a"),
 };
 
 static struct regulator_init_data wallvdd_data = {
@@ -561,6 +563,9 @@ static struct regulator_init_data pvdd_1v2 __initdata = {
 static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
 	REGULATOR_SUPPLY("PLLVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD1", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD2", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD3", "1-001a"),
 	REGULATOR_SUPPLY("CPVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD2", "1-001a"),
 	REGULATOR_SUPPLY("DCVDD", "1-001a"),
