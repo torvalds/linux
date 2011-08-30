@@ -245,6 +245,7 @@ struct iio_info {
 
 };
 
+int iio_event_getfd(struct iio_dev *indio_dev);
 /**
  * struct iio_dev - industrial I/O device
  * @id:			[INTERN] used to identify device internally

@@ -827,6 +827,7 @@ static struct attribute *max1363_event_attributes[] = {
 
 static struct attribute_group max1363_event_attribute_group = {
 	.attrs = max1363_event_attributes,
+	.name = "events",
 };
 
 #define MAX1363_EVENT_FUNCS						\
@@ -1296,7 +1297,8 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
-
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
 	indio_dev->info = st->chip_info->info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;

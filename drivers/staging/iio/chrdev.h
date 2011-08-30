@@ -40,4 +40,5 @@ struct iio_event_data {
 	s64	timestamp;
 };
 
+#define IIO_GET_EVENT_FD_IOCTL _IOR('i', 0x90, int)
 #endif

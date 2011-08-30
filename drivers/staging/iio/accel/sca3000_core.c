@@ -1036,6 +1036,7 @@ static struct attribute *sca3000_event_attributes[] = {
 
 static struct attribute_group sca3000_event_attribute_group = {
 	.attrs = sca3000_event_attributes,
+	.name = "events",
 };
 
 /**

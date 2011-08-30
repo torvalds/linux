@@ -741,8 +741,10 @@ static struct attribute *adt7310_event_ct_attributes[] = {
 static struct attribute_group adt7310_event_attribute_group[ADT7310_IRQS] = {
 	{
 		.attrs = adt7310_event_int_attributes,
+		.name = "events",
 	}, {
 		.attrs = adt7310_event_ct_attributes,
+		.name = "events",
 	}
 };
 

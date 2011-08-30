@@ -563,6 +563,7 @@ static struct attribute *ad774x_event_attributes[] = {
 
 static struct attribute_group ad774x_event_attribute_group = {
 	.attrs = ad774x_event_attributes,
+	.name = "events",
 };
 
 static const struct iio_info ad774x_info = {

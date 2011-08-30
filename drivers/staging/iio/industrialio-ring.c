@@ -93,6 +93,25 @@ static unsigned int iio_ring_poll(struct file *filp,
 	return 0;
 }
 
+/* Somewhat of a cross file organization violation - ioctls here are actually
+ * event related */
+static long iio_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+{
+
+	struct iio_ring_buffer *rb = f->private_data;
+	struct iio_dev *indio_dev = rb->indio_dev;
+	int __user *ip = (int __user *)arg;
+
+	if (cmd == IIO_GET_EVENT_FD_IOCTL) {
+		int fd;
+		fd = iio_event_getfd(indio_dev);
+		if (copy_to_user(ip, &fd, sizeof(fd)))
+			return -EFAULT;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static const struct file_operations iio_ring_fileops = {
 	.read = iio_ring_read_first_n_outer,
 	.release = iio_ring_release,
@@ -100,6 +119,8 @@ static const struct file_operations iio_ring_fileops = {
 	.poll = iio_ring_poll,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
+	.unlocked_ioctl = iio_ioctl,
+	.compat_ioctl = iio_ioctl,
 };
 
 void iio_ring_access_release(struct device *dev)

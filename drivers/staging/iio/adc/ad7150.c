@@ -700,6 +700,7 @@ static struct attribute *ad7150_event_attributes[] = {
 
 static struct attribute_group ad7150_event_attribute_group = {
 	.attrs = ad7150_event_attributes,
+	.name = "events",
 };
 
 static const struct iio_info ad7150_info = {
