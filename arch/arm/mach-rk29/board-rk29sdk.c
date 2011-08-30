@@ -478,6 +478,31 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
+
+#ifdef CONFIG_GS_KXTF9
+#include <linux/kxtf9.h>
+#define KXTF9_DEVICE_MAP 1
+#define KXTF9_MAP_X (KXTF9_DEVICE_MAP-1)%2
+#define KXTF9_MAP_Y KXTF9_DEVICE_MAP%2
+#define KXTF9_NEG_X (KXTF9_DEVICE_MAP/2)%2
+#define KXTF9_NEG_Y (KXTF9_DEVICE_MAP+1)/4
+#define KXTF9_NEG_Z (KXTF9_DEVICE_MAP-1)/4
+struct kxtf9_platform_data kxtf9_pdata = {
+	.min_interval = 1,
+	.poll_interval = 20,
+	.g_range = KXTF9_G_2G,
+	.axis_map_x = KXTF9_MAP_X,
+	.axis_map_y = KXTF9_MAP_Y,
+	.axis_map_z = 2,
+	.negate_x = KXTF9_NEG_X,
+	.negate_y = KXTF9_NEG_Y,
+	.negate_z = KXTF9_NEG_Z,
+	//.ctrl_regc_init = KXTF9_G_2G | ODR50F,
+	//.ctrl_regb_init = ENABLE,
+};
+#endif /* CONFIG_GS_KXTF9 */
+
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
