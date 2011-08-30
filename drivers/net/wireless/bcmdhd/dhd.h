@@ -269,7 +269,7 @@ void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 extern int dhd_os_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wake_unlock(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout(dhd_pub_t *pub);
-extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub);
+extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub, int val);
 
 inline static void MUTEX_LOCK_SOFTAP_SET_INIT(dhd_pub_t * dhdp)
 {
@@ -295,8 +295,9 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_LOCK(pub) 			dhd_os_wake_lock(pub)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
-#define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub)	dhd_os_wake_lock_timeout_enable(pub)
-
+#define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_timeout_enable(pub, val)
+#define DHD_PACKET_TIMEOUT	1
+#define DHD_EVENT_TIMEOUT	2
 
 /* interface operations (register, remove) should be atomic, use this lock to prevent race
  * condition among wifi on/off and interface operation functions

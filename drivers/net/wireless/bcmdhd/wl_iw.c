@@ -1625,7 +1625,7 @@ wl_iw_send_priv_event(
 	strcpy(extra, flag);
 	wrqu.data.length = strlen(extra);
 	wireless_send_event(dev, cmd, &wrqu, extra);
-	net_os_wake_lock_timeout_enable(dev);
+	net_os_wake_lock_timeout_enable(dev, DHD_EVENT_TIMEOUT);
 	WL_TRACE(("Send IWEVCUSTOM Event as %s\n", extra));
 
 	return 0;
@@ -8220,7 +8220,6 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 			WL_TRACE(("Link UP\n"));
 
 		}
-		net_os_wake_lock_timeout_enable(dev);
 		wrqu.addr.sa_family = ARPHRD_ETHER;
 		break;
 	case WLC_E_ACTION_FRAME:
@@ -8316,7 +8315,6 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 		WL_ERROR(("%s Event WLC_E_PFN_NET_FOUND, send %s up : find %s len=%d\n",
 		   __FUNCTION__, PNO_EVENT_UP, netinfo->pfnsubnet.SSID,
 		   netinfo->pfnsubnet.SSID_len));
-		net_os_wake_lock_timeout_enable(dev);
 		cmd = IWEVCUSTOM;
 		memset(&wrqu, 0, sizeof(wrqu));
 		strcpy(extra, PNO_EVENT_UP);

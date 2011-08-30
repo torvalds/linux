@@ -1393,6 +1393,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	int i;
 	dhd_if_t *ifp;
 	wl_event_msg_t event;
+	int tout = DHD_PACKET_TIMEOUT;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -1489,6 +1490,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			if (event.event_type == WLC_E_BTA_HCI_EVENT) {
 				dhd_bta_doevt(dhdp, data, event.datalen);
 			}
+			tout = DHD_EVENT_TIMEOUT;
 		}
 
 		ASSERT(ifidx < DHD_MAX_IFS && dhd->iflist[ifidx]);
@@ -1521,7 +1523,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) */
 		}
 	}
-	DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(dhdp);
+	DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(dhdp, tout);
 }
 
 void
@@ -4296,7 +4298,8 @@ int dhd_os_wake_lock_timeout(dhd_pub_t *pub)
 		ret = dhd->wakelock_timeout_enable;
 #ifdef CONFIG_HAS_WAKELOCK
 		if (dhd->wakelock_timeout_enable)
-			wake_lock_timeout(&dhd->wl_rxwake, HZ);
+			wake_lock_timeout(&dhd->wl_rxwake,
+					  dhd->wakelock_timeout_enable * HZ);
 #endif
 		dhd->wakelock_timeout_enable = 0;
 		spin_unlock_irqrestore(&dhd->wakelock_spinlock, flags);
@@ -4314,26 +4317,27 @@ int net_os_wake_lock_timeout(struct net_device *dev)
 	return ret;
 }
 
-int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub)
+int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub, int val)
 {
 	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
 	unsigned long flags;
 
 	if (dhd) {
 		spin_lock_irqsave(&dhd->wakelock_spinlock, flags);
-		dhd->wakelock_timeout_enable = 1;
+		if (val > dhd->wakelock_timeout_enable)
+			dhd->wakelock_timeout_enable = val;
 		spin_unlock_irqrestore(&dhd->wakelock_spinlock, flags);
 	}
 	return 0;
 }
 
-int net_os_wake_lock_timeout_enable(struct net_device *dev)
+int net_os_wake_lock_timeout_enable(struct net_device *dev, int val)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	int ret = 0;
 
 	if (dhd)
-		ret = dhd_os_wake_lock_timeout_enable(&dhd->pub);
+		ret = dhd_os_wake_lock_timeout_enable(&dhd->pub, val);
 	return ret;
 }
 
