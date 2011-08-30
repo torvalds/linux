@@ -719,6 +719,17 @@ static int tegra_i2c_resume(struct platform_device *pdev)
 }
 #endif
 
+#if defined(CONFIG_OF)
+/* Match table for of_platform binding */
+static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra20-i2c", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
+#else
+#define tegra_i2c_of_match NULL
+#endif
+
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
 	.remove  = tegra_i2c_remove,
@@ -729,6 +740,7 @@ static struct platform_driver tegra_i2c_driver = {
 	.driver  = {
 		.name  = "tegra-i2c",
 		.owner = THIS_MODULE,
+		.of_match_table = tegra_i2c_of_match,
 	},
 };
 
