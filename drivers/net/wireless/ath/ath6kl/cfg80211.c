@@ -759,12 +759,13 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		return -EIO;
 
 	if (!ar->usr_bss_filter) {
-		if (ath6kl_wmi_bssfilter_cmd(ar->wmi,
-					     (test_bit(CONNECTED, &ar->flag) ?
-					     ALL_BUT_BSS_FILTER :
-					     ALL_BSS_FILTER), 0) != 0) {
+		ret = ath6kl_wmi_bssfilter_cmd(
+			ar->wmi,
+			(test_bit(CONNECTED, &ar->flag) ?
+			 ALL_BUT_BSS_FILTER : ALL_BSS_FILTER), 0);
+		if (ret) {
 			ath6kl_err("couldn't set bss filtering\n");
-			return -EIO;
+			return ret;
 		}
 	}
 
@@ -807,11 +808,10 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			channels[i] = request->channels[i]->center_freq;
 	}
 
-	if (ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, 0,
-				     false, 0, 0, n_channels, channels) != 0) {
+	ret = ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, 0,
+				       false, 0, 0, n_channels, channels);
+	if (ret)
 		ath6kl_err("wmi_startscan_cmd failed\n");
-		ret = -EIO;
-	}
 
 	ar->scan_req = request;
 
