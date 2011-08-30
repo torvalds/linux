@@ -440,8 +440,14 @@ static void __init init_sparc64_elf_hwcap(void)
 			cap |= AV_SPARC_VIS;
 		if (tlb_type == cheetah || tlb_type == cheetah_plus)
 			cap |= AV_SPARC_VIS | AV_SPARC_VIS2;
-		if (tlb_type == cheetah_plus)
-			cap |= AV_SPARC_POPC;
+		if (tlb_type == cheetah_plus) {
+			unsigned long impl, ver;
+
+			__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
+			impl = ((ver >> 32) & 0xffff);
+			if (impl == PANTHER_IMPL)
+				cap |= AV_SPARC_POPC;
+		}
 		if (tlb_type == hypervisor) {
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1)
 				cap |= AV_SPARC_ASI_BLK_INIT;
