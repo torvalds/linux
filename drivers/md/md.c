@@ -2592,7 +2592,7 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		err = 0;
 	} else if (cmd_match(buf, "-blocked")) {
 		if (!test_bit(Faulty, &rdev->flags) &&
-		    test_bit(BlockedBadBlocks, &rdev->flags)) {
+		    rdev->badblocks.unacked_exist) {
 			/* metadata handler doesn't understand badblocks,
 			 * so we need to fail the device
 			 */
