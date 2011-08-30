@@ -208,47 +208,6 @@ int et131x_close(struct net_device *netdev)
 }
 
 /**
- * et131x_ioctl_mii - The function which handles MII IOCTLs
- * @netdev: device on which the query is being made
- * @reqbuf: the request-specific data buffer
- * @cmd: the command request code
- *
- * Returns 0 on success, errno on failure (as defined in errno.h)
- */
-int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
-{
-	int status = 0;
-	struct et131x_adapter *adapter = netdev_priv(netdev);
-	struct mii_ioctl_data *data = if_mii(reqbuf);
-
-	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = adapter->stats.xcvr_addr;
-		break;
-
-	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			status = -EPERM;
-		else
-			status = et131x_mii_read(adapter,
-					data->reg_num, &data->val_out);
-		break;
-
-	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			status = -EPERM;
-		else
-			status = et131x_mii_write(adapter, data->reg_num,
-					 data->val_in);
-		break;
-
-	default:
-		status = -EOPNOTSUPP;
-	}
-	return status;
-}
-
-/**
  * et131x_ioctl - The I/O Control handler for the driver
  * @netdev: device on which the control request is being made
  * @reqbuf: a pointer to the IOCTL request buffer
@@ -258,19 +217,12 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
  */
 int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 {
-	int status = 0;
+	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	switch (cmd) {
-	case SIOCGMIIPHY:
-	case SIOCGMIIREG:
-	case SIOCSMIIREG:
-		status = et131x_ioctl_mii(netdev, reqbuf, cmd);
-		break;
+	if (!adapter->phydev)
+		return -EINVAL;
 
-	default:
-		status = -EOPNOTSUPP;
-	}
-	return status;
+	return phy_mii_ioctl(adapter->phydev, reqbuf, cmd);
 }
 
 /**
