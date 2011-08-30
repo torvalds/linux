@@ -370,6 +370,14 @@ enum dwc3_phy {
 	DWC3_PHY_USB2,
 };
 
+enum dwc3_ep0_next {
+	DWC3_EP0_UNKNOWN = 0,
+	DWC3_EP0_COMPLETE,
+	DWC3_EP0_NRDY_SETUP,
+	DWC3_EP0_NRDY_DATA,
+	DWC3_EP0_NRDY_STATUS,
+};
+
 enum dwc3_ep0_state {
 	EP0_UNCONNECTED		= 0,
 	EP0_SETUP_PHASE,
@@ -520,6 +528,7 @@ static inline void dwc3_trb_to_nat(struct dwc3_trb_hw *hw, struct dwc3_trb *nat)
  * @three_stage_setup: set if we perform a three phase setup
  * @ep0_status_pending: ep0 status response without a req is pending
  * @ep0_bounced: true when we used bounce buffer
+ * @ep0_next_event: hold the next expected event
  * @ep0state: state of endpoint zero
  * @link_state: link state
  * @speed: device speed (super, high, full, low)
@@ -566,6 +575,7 @@ struct dwc3 {
 	unsigned		ep0_status_pending:1;
 	unsigned		ep0_bounced:1;
 
+	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
 	enum dwc3_link_state	link_state;
 	enum dwc3_device_state	dev_state;
