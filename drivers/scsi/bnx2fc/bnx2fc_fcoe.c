@@ -838,9 +838,9 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 			return;
 		mutex_lock(&bnx2fc_dev_lock);
 		list_for_each_entry_safe(interface, tmp, &if_list, list) {
-			if (interface->hba != hba)
-				continue;
-			__bnx2fc_destroy(interface);
+			if (interface->hba == hba &&
+			    interface->vlan_id == (vlan_id & VLAN_VID_MASK))
+				__bnx2fc_destroy(interface);
 		}
 		mutex_unlock(&bnx2fc_dev_lock);
 		return;
