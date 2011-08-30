@@ -555,7 +555,7 @@ static int cond_write_av_list(struct policydb *p,
 	return 0;
 }
 
-int cond_write_node(struct policydb *p, struct cond_node *node,
+static int cond_write_node(struct policydb *p, struct cond_node *node,
 		    struct policy_file *fp)
 {
 	struct cond_expr *cur_expr;
