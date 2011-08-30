@@ -408,8 +408,8 @@ out:
 	if (open->op_stateowner) {
 		nfs4_get_stateowner(open->op_stateowner);
 		cstate->replay_owner = open->op_stateowner;
-	}
-	nfs4_unlock_state();
+	} else
+		nfs4_unlock_state();
 	return status;
 }
 
@@ -1227,6 +1227,7 @@ encode_op:
 			be32_to_cpu(status));
 
 		if (cstate->replay_owner) {
+			nfs4_unlock_state();
 			nfs4_put_stateowner(cstate->replay_owner);
 			cstate->replay_owner = NULL;
 		}

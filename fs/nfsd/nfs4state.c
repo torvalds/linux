@@ -3501,7 +3501,8 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfsd4_create_clid_dir(sop->so_client);
 out:
-	nfs4_unlock_state();
+	if (!cstate->replay_owner)
+		nfs4_unlock_state();
 	return status;
 }
 
@@ -3568,7 +3569,8 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 	memcpy(&od->od_stateid, &stp->st_stateid, sizeof(stateid_t));
 	status = nfs_ok;
 out:
-	nfs4_unlock_state();
+	if (!cstate->replay_owner)
+		nfs4_unlock_state();
 	return status;
 }
 
@@ -3609,7 +3611,8 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (list_empty(&so->so_stateids))
 		move_to_close_lru(so);
 out:
-	nfs4_unlock_state();
+	if (!cstate->replay_owner)
+		nfs4_unlock_state();
 	return status;
 }
 
@@ -4071,7 +4074,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out:
 	if (status && lock->lk_is_new && lock_sop)
 		release_lockowner(lock_sop);
-	nfs4_unlock_state();
+	if (!cstate->replay_owner)
+		nfs4_unlock_state();
 	return status;
 }
 
