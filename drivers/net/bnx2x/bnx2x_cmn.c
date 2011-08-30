@@ -987,8 +987,6 @@ void __bnx2x_link_report(struct bnx2x *bp)
 void bnx2x_init_rx_rings(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
-	int max_agg_queues = CHIP_IS_E1(bp) ? ETH_MAX_AGGREGATION_QUEUES_E1 :
-					      ETH_MAX_AGGREGATION_QUEUES_E1H_E2;
 	u16 ring_prod;
 	int i, j;
 
@@ -1001,7 +999,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 
 		if (!fp->disable_tpa) {
 			/* Fill the per-aggregtion pool */
-			for (i = 0; i < max_agg_queues; i++) {
+			for (i = 0; i < MAX_AGG_QS(bp); i++) {
 				struct bnx2x_agg_info *tpa_info =
 					&fp->tpa_info[i];
 				struct sw_rx_bd *first_buf =
@@ -1041,7 +1039,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 					bnx2x_free_rx_sge_range(bp, fp,
 								ring_prod);
 					bnx2x_free_tpa_pool(bp, fp,
-							    max_agg_queues);
+							    MAX_AGG_QS(bp));
 					fp->disable_tpa = 1;
 					ring_prod = 0;
 					break;
@@ -1137,9 +1135,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 		bnx2x_free_rx_bds(fp);
 
 		if (!fp->disable_tpa)
-			bnx2x_free_tpa_pool(bp, fp, CHIP_IS_E1(bp) ?
-					    ETH_MAX_AGGREGATION_QUEUES_E1 :
-					    ETH_MAX_AGGREGATION_QUEUES_E1H_E2);
+			bnx2x_free_tpa_pool(bp, fp, MAX_AGG_QS(bp));
 	}
 }
 

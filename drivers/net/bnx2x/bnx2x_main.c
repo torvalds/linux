@@ -2756,8 +2756,14 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	u16 tpa_agg_size = 0;
 
 	if (!fp->disable_tpa) {
-		pause->sge_th_hi = 250;
-		pause->sge_th_lo = 150;
+		pause->sge_th_lo = SGE_TH_LO(bp);
+		pause->sge_th_hi = SGE_TH_HI(bp);
+
+		/* validate SGE ring has enough to cross high threshold */
+		WARN_ON(bp->dropless_fc &&
+				pause->sge_th_hi + FW_PREFETCH_CNT >
+				MAX_RX_SGE_CNT * NUM_RX_SGE_PAGES);
+
 		tpa_agg_size = min_t(u32,
 			(min_t(u32, 8, MAX_SKB_FRAGS) *
 			SGE_PAGE_SIZE * PAGES_PER_SGE), 0xffff);
@@ -2771,10 +2777,21 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 
 	/* pause - not for e1 */
 	if (!CHIP_IS_E1(bp)) {
-		pause->bd_th_hi = 350;
-		pause->bd_th_lo = 250;
-		pause->rcq_th_hi = 350;
-		pause->rcq_th_lo = 250;
+		pause->bd_th_lo = BD_TH_LO(bp);
+		pause->bd_th_hi = BD_TH_HI(bp);
+
+		pause->rcq_th_lo = RCQ_TH_LO(bp);
+		pause->rcq_th_hi = RCQ_TH_HI(bp);
+		/*
+		 * validate that rings have enough entries to cross
+		 * high thresholds
+		 */
+		WARN_ON(bp->dropless_fc &&
+				pause->bd_th_hi + FW_PREFETCH_CNT >
+				bp->rx_ring_size);
+		WARN_ON(bp->dropless_fc &&
+				pause->rcq_th_hi + FW_PREFETCH_CNT >
+				NUM_RCQ_RINGS * MAX_RCQ_DESC_CNT);
 
 		pause->pri_map = 1;
 	}
@@ -2802,9 +2819,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	 * For PF Clients it should be the maximum avaliable number.
 	 * VF driver(s) may want to define it to a smaller value.
 	 */
-	rxq_init->max_tpa_queues =
-		(CHIP_IS_E1(bp) ? ETH_MAX_AGGREGATION_QUEUES_E1 :
-		ETH_MAX_AGGREGATION_QUEUES_E1H_E2);
+	rxq_init->max_tpa_queues = MAX_AGG_QS(bp);
 
 	rxq_init->cache_line_log = BNX2X_RX_ALIGN_SHIFT;
 	rxq_init->fw_sb_id = fp->fw_sb_id;
