@@ -56,6 +56,11 @@ struct bnad_rx_ctrl {
 	struct bnad *bnad;
 	unsigned long  flags;
 	struct napi_struct	napi;
+	u64		rx_intr_ctr;
+	u64		rx_poll_ctr;
+	u64		rx_schedule;
+	u64		rx_keep_poll;
+	u64		rx_complete;
 };
 
 #define BNAD_RXMODE_PROMISC_DEFAULT	BNA_RXMODE_PROMISC
@@ -148,6 +153,20 @@ struct bnad_drv_stats {
 	u64		udpcsum_offload;
 	u64		csum_help;
 	u64		csum_help_err;
+	u64		tx_skb_too_short;
+	u64		tx_skb_stopping;
+	u64		tx_skb_max_vectors;
+	u64		tx_skb_mss_too_long;
+	u64		tx_skb_tso_too_short;
+	u64		tx_skb_tso_prepare;
+	u64		tx_skb_non_tso_too_long;
+	u64		tx_skb_tcp_hdr;
+	u64		tx_skb_udp_hdr;
+	u64		tx_skb_csum_err;
+	u64		tx_skb_headlen_too_long;
+	u64		tx_skb_headlen_zero;
+	u64		tx_skb_frag_zero;
+	u64		tx_skb_len_mismatch;
 
 	u64		hw_stats_updates;
 	u64		netif_rx_schedule;
@@ -346,7 +365,7 @@ extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
 
 #define bnad_enable_rx_irq_unsafe(_ccb)			\
 {							\
-	if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags))) {\
+	if (likely(test_bit(BNAD_RXQ_STARTED, &(_ccb)->rcb[0]->flags))) {\
 		bna_ib_coalescing_timer_set((_ccb)->i_dbell,	\
 			(_ccb)->rx_coalescing_timeo);		\
 		bna_ib_ack((_ccb)->i_dbell, 0);			\
