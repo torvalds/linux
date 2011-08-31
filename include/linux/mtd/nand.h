@@ -340,6 +340,7 @@ struct nand_hw_control {
  * @read_subpage:	function to read parts of the page covered by ECC.
  * @write_page:	function to write a page according to the ECC generator
  *		requirements.
+ * @write_oob_raw:	function to write chip OOB data without ECC
  * @read_oob:	function to read chip OOB data
  * @write_oob:	function to write chip OOB data
  */
@@ -368,6 +369,8 @@ struct nand_ecc_ctrl {
 			uint32_t offs, uint32_t len, uint8_t *buf);
 	void (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
 			const uint8_t *buf);
+	int (*write_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
+			int page);
 	int (*read_oob)(struct mtd_info *mtd, struct nand_chip *chip, int page,
 			int sndcmd);
 	int (*write_oob)(struct mtd_info *mtd, struct nand_chip *chip,

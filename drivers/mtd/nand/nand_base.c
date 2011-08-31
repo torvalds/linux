@@ -2404,7 +2404,11 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		chip->pagebuf = -1;
 
 	nand_fill_oob(mtd, ops->oobbuf, ops->ooblen, ops);
-	status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
+
+	if (ops->mode == MTD_OOB_RAW)
+		status = chip->ecc.write_oob_raw(mtd, chip, page & chip->pagemask);
+	else
+		status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
 
 	if (status)
 		return status;
@@ -3379,6 +3383,10 @@ int nand_scan_tail(struct mtd_info *mtd)
 		pr_warn("Invalid NAND_ECC_MODE %d\n", chip->ecc.mode);
 		BUG();
 	}
+
+	/* For many systems, the standard OOB write also works for raw */
+	if (!chip->ecc.write_oob_raw)
+		chip->ecc.write_oob_raw = chip->ecc.write_oob;
 
 	/*
 	 * The number of bytes available for a client to place data into
