@@ -35,9 +35,6 @@
 
 #include "iwl-io.h"
 
-#define IL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
-
-
 /**
  * il_queue_inc_wrap - increment queue idx, wrap back to beginning
  * @idx -- current idx

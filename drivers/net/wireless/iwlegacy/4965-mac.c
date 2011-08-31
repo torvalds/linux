@@ -4944,6 +4944,8 @@ static const s8 default_queue_to_tx_fifo[] = {
 	IL_TX_FIFO_UNUSED,
 };
 
+#define IL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+
 static int il4965_alive_notify(struct il_priv *il)
 {
 	u32 a;
