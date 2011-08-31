@@ -195,12 +195,7 @@ struct vmw_private {
 	struct vmw_vga_topology_state vga_save[VMWGFX_MAX_DISPLAYS];
 	uint32_t vga_width;
 	uint32_t vga_height;
-	uint32_t vga_depth;
 	uint32_t vga_bpp;
-	uint32_t vga_pseudo;
-	uint32_t vga_red_mask;
-	uint32_t vga_green_mask;
-	uint32_t vga_blue_mask;
 	uint32_t vga_bpl;
 	uint32_t vga_pitchlock;
 

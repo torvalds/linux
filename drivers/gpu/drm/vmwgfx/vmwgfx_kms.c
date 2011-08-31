@@ -1001,10 +1001,6 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, height);
 	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bbp);
-	vmw_write(vmw_priv, SVGA_REG_DEPTH, depth);
-	vmw_write(vmw_priv, SVGA_REG_RED_MASK, 0x00ff0000);
-	vmw_write(vmw_priv, SVGA_REG_GREEN_MASK, 0x0000ff00);
-	vmw_write(vmw_priv, SVGA_REG_BLUE_MASK, 0x000000ff);
 }
 
 int vmw_kms_save_vga(struct vmw_private *vmw_priv)
@@ -1014,12 +1010,7 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 
 	vmw_priv->vga_width = vmw_read(vmw_priv, SVGA_REG_WIDTH);
 	vmw_priv->vga_height = vmw_read(vmw_priv, SVGA_REG_HEIGHT);
-	vmw_priv->vga_depth = vmw_read(vmw_priv, SVGA_REG_DEPTH);
 	vmw_priv->vga_bpp = vmw_read(vmw_priv, SVGA_REG_BITS_PER_PIXEL);
-	vmw_priv->vga_pseudo = vmw_read(vmw_priv, SVGA_REG_PSEUDOCOLOR);
-	vmw_priv->vga_red_mask = vmw_read(vmw_priv, SVGA_REG_RED_MASK);
-	vmw_priv->vga_blue_mask = vmw_read(vmw_priv, SVGA_REG_BLUE_MASK);
-	vmw_priv->vga_green_mask = vmw_read(vmw_priv, SVGA_REG_GREEN_MASK);
 	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
 		vmw_priv->vga_pitchlock =
 		  vmw_read(vmw_priv, SVGA_REG_PITCHLOCK);
@@ -1068,12 +1059,7 @@ int vmw_kms_restore_vga(struct vmw_private *vmw_priv)
 
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, vmw_priv->vga_width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, vmw_priv->vga_height);
-	vmw_write(vmw_priv, SVGA_REG_DEPTH, vmw_priv->vga_depth);
 	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, vmw_priv->vga_bpp);
-	vmw_write(vmw_priv, SVGA_REG_PSEUDOCOLOR, vmw_priv->vga_pseudo);
-	vmw_write(vmw_priv, SVGA_REG_RED_MASK, vmw_priv->vga_red_mask);
-	vmw_write(vmw_priv, SVGA_REG_GREEN_MASK, vmw_priv->vga_green_mask);
-	vmw_write(vmw_priv, SVGA_REG_BLUE_MASK, vmw_priv->vga_blue_mask);
 	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
 		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK,
 			  vmw_priv->vga_pitchlock);
