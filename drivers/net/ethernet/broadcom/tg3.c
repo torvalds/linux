@@ -1396,6 +1396,22 @@ static void tg3_ump_link_report(struct tg3 *tp)
 	tg3_generate_fw_event(tp);
 }
 
+/* tp->lock is held. */
+static void tg3_stop_fw(struct tg3 *tp)
+{
+	if (tg3_flag(tp, ENABLE_ASF) && !tg3_flag(tp, ENABLE_APE)) {
+		/* Wait for RX cpu to ACK the previous event. */
+		tg3_wait_for_event_ack(tp);
+
+		tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_PAUSE_FW);
+
+		tg3_generate_fw_event(tp);
+
+		/* Wait for RX cpu to ACK this event. */
+		tg3_wait_for_event_ack(tp);
+	}
+}
+
 static void tg3_link_report(struct tg3 *tp)
 {
 	if (!netif_carrier_ok(tp->dev)) {
@@ -7424,8 +7440,6 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 	}
 }
 
-static void tg3_stop_fw(struct tg3 *);
-
 /* tp->lock is held. */
 static int tg3_chip_reset(struct tg3 *tp)
 {
@@ -7670,22 +7684,6 @@ static int tg3_chip_reset(struct tg3 *tp)
 	}
 
 	return 0;
-}
-
-/* tp->lock is held. */
-static void tg3_stop_fw(struct tg3 *tp)
-{
-	if (tg3_flag(tp, ENABLE_ASF) && !tg3_flag(tp, ENABLE_APE)) {
-		/* Wait for RX cpu to ACK the previous event. */
-		tg3_wait_for_event_ack(tp);
-
-		tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_PAUSE_FW);
-
-		tg3_generate_fw_event(tp);
-
-		/* Wait for RX cpu to ACK this event. */
-		tg3_wait_for_event_ack(tp);
-	}
 }
 
 /* tp->lock is held. */
