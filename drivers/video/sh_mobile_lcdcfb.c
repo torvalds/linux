@@ -877,12 +877,12 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	unsigned long base_addr_y, base_addr_c;
 	unsigned long c_offset;
 
-	if (!var->nonstd)
-		new_pan_offset = (var->yoffset * info->fix.line_length) +
-			(var->xoffset * (info->var.bits_per_pixel / 8));
+	if (!info->var.nonstd)
+		new_pan_offset = var->yoffset * info->fix.line_length
+			       + var->xoffset * (info->var.bits_per_pixel / 8);
 	else
-		new_pan_offset = (var->yoffset * info->fix.line_length) +
-			(var->xoffset);
+		new_pan_offset = var->yoffset * info->fix.line_length
+			       + var->xoffset;
 
 	if (new_pan_offset == ch->pan_offset)
 		return 0;	/* No change, do nothing */
@@ -891,13 +891,13 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 
 	/* Set the source address for the next refresh */
 	base_addr_y = ch->dma_handle + new_pan_offset;
-	if (var->nonstd) {
+	if (info->var.nonstd) {
 		/* Set y offset */
-		c_offset = (var->yoffset *
-			info->fix.line_length *
-			(info->var.bits_per_pixel - 8)) / 8;
-		base_addr_c = ch->dma_handle + var->xres * var->yres_virtual +
-			c_offset;
+		c_offset = var->yoffset * info->fix.line_length
+			 * (info->var.bits_per_pixel - 8) / 8;
+		base_addr_c = ch->dma_handle
+			    + info->var.xres * info->var.yres_virtual
+			    + c_offset;
 		/* Set x offset */
 		if (info->var.bits_per_pixel == 24)
 			base_addr_c += 2 * var->xoffset;
@@ -923,7 +923,7 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	ch->base_addr_c = base_addr_c;
 
 	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
-	if (var->nonstd)
+	if (info->var.nonstd)
 		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
 
 	if (lcdc_chan_is_sublcd(ch))
