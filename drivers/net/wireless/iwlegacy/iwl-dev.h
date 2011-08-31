@@ -40,7 +40,7 @@
 #include <net/ieee80211_radiotap.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-csr.h"
+#include "csr.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "4965.h"

@@ -34,7 +34,6 @@
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 extern const struct pci_device_id il3945_hw_card_ids[];
 
-#include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
