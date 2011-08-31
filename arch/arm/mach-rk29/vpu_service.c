@@ -182,27 +182,85 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
 	clk_enable(aclk_ddr_vepu);
+	service.reg_codec = NULL;
+	service.reg_pproc = NULL;
+	service.reg_resev = NULL;
+}
+
+static void reg_deinit(vpu_reg *reg);
+static void vpu_service_session_clear(vpu_session *session)
+{
+	unsigned long flag;
+	vpu_reg *reg, *n;
+	spin_lock_irqsave(&service.lock, flag);
+	list_for_each_entry_safe(reg, n, &session->waiting, session_link) {
+		reg_deinit(reg);
+	}
+	list_for_each_entry_safe(reg, n, &session->running, session_link) {
+		reg_deinit(reg);
+	}
+	list_for_each_entry_safe(reg, n, &session->done, session_link) {
+		reg_deinit(reg);
+	}
+	spin_unlock_irqrestore(&service.lock, flag);
+}
+
+static void vpu_service_dump(void)
+{
+	int running;
+	unsigned long flag;
+	vpu_reg *reg, *reg_tmp;
+	vpu_session *session, *session_tmp;
+
+	spin_lock_irqsave(&service.lock, flag);
+	running = atomic_read(&service.total_running);
+	printk("total_running %d\n", running);
+
+	printk("reg_codec 0x%.8x\n", (unsigned int)service.reg_codec);
+	printk("reg_pproc 0x%.8x\n", (unsigned int)service.reg_pproc);
+	printk("reg_resev 0x%.8x\n", (unsigned int)service.reg_resev);
+
+	list_for_each_entry_safe(session, session_tmp, &service.session, list_session) {
+		printk("session pid %d type %d:\n", session->pid, session->type);
+		running = atomic_read(&session->task_running);
+		printk("task_running %d\n", running);
+		list_for_each_entry_safe(reg, reg_tmp, &session->waiting, session_link) {
+			printk("waiting register set 0x%.8x\n", (unsigned int)reg);
+		}
+		list_for_each_entry_safe(reg, reg_tmp, &session->running, session_link) {
+			printk("running register set 0x%.8x\n", (unsigned int)reg);
+		}
+		list_for_each_entry_safe(reg, reg_tmp, &session->done, session_link) {
+			printk("done    register set 0x%.8x\n", (unsigned int)reg);
+		}
+	}
+	spin_unlock_irqrestore(&service.lock, flag);
 }
 
 static void vpu_service_power_off(void)
 {
+	int total_running;
+
 	if (!service.enabled)
 		return;
 
 	service.enabled = false;
-	printk("vpu: power off\n");
-
-	while(atomic_read(&service.total_running)) {
-		pr_alert("power off when task running!!\n");
-		udelay(10);
+	total_running = atomic_read(&service.total_running);
+	if (total_running) {
+		pr_alert("power off when %d task running!!\n", total_running);
+		mdelay(50);
+		pr_alert("delay 50 ms for running task\n");
+		vpu_service_dump();
 	}
 
+	printk("vpu: power off...");
 	pmu_set_power_domain(PD_VCODEC, false);
 	udelay(10);
 	clk_disable(hclk_cpu_vcodec);
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
+	printk("done\n");
 }
 
 static void vpu_service_power_off_work_func(unsigned long data)
@@ -413,9 +471,9 @@ static void try_set_reg(void)
 		vpu_reg *reg = list_entry(service.waiting.next, vpu_reg, status_link);
 
 		if (((VPU_DEC_PP == reg->type) && (NULL == service.reg_codec) && (NULL == service.reg_pproc)) ||
-       		    ((VPU_DEC == reg->type) && (NULL == service.reg_codec)) ||
-       		    ((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
-       		    ((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
+			((VPU_DEC == reg->type) && (NULL == service.reg_codec)) ||
+			((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
+			((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
 			reg_from_wait_to_run(reg);
 			vpu_service_power_on();
 			reg_copy_to_hw(reg);
@@ -520,8 +578,12 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			if (unlikely(ret < 0)) {
 				pr_err("pid %d wait task ret %d\n", session->pid, ret);
 			} else if (0 == ret) {
+				pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+				ret = -ETIMEDOUT;
+			}
+			if (ret < 0) {
 				int task_running = atomic_read(&session->task_running);
-				pr_err("pid %d wait %d task done timeout\n", session->pid, task_running);
+				vpu_service_dump();
 				if (task_running) {
 					atomic_set(&session->task_running, 0);
 					atomic_sub(task_running, &service.total_running);
@@ -529,21 +591,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 					vpu_reset();
 					pr_err("done\n");
 				}
-				ret = -ETIMEDOUT;
-			}
-			if (ret < 0) {
-				vpu_reg *reg, *n;
-				spin_lock_irqsave(&service.lock, flag);
-				list_for_each_entry_safe(reg, n, &session->waiting, session_link) {
-					reg_deinit(reg);
-				}
-				list_for_each_entry_safe(reg, n, &session->running, session_link) {
-					reg_deinit(reg);
-				}
-				list_for_each_entry_safe(reg, n, &session->done, session_link) {
-					reg_deinit(reg);
-				}
-				spin_unlock_irqrestore(&service.lock, flag);
+				vpu_service_session_clear(session);
 				return ret;
 			}
 		}
@@ -668,7 +716,6 @@ static int vpu_service_open(struct inode *inode, struct file *filp)
 
 static int vpu_service_release(struct inode *inode, struct file *filp)
 {
-	unsigned long flag;
 	int task_running;
 	vpu_session *session = (vpu_session *)filp->private_data;
 	if (NULL == session)
@@ -685,20 +732,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	//vpu_service_fasync(-1, filp, 0);
 	list_del(&session->list_session);
 
-	spin_lock_irqsave(&service.lock, flag);
-	{
-	vpu_reg *reg, *n;
-	list_for_each_entry_safe(reg, n, &session->waiting, session_link) {
-		reg_deinit(reg);
-	}
-	list_for_each_entry_safe(reg, n, &session->running, session_link) {
-		reg_deinit(reg);
-	}
-	list_for_each_entry_safe(reg, n, &session->done, session_link) {
-		reg_deinit(reg);
-	}
-	}
-	spin_unlock_irqrestore(&service.lock, flag);
+	vpu_service_session_clear(session);
 
 	kfree(session);
 
