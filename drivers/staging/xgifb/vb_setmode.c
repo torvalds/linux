@@ -6983,11 +6983,8 @@ static void XGI_SetYFilter(unsigned short ModeNo, unsigned short ModeIdIndex,
 	case 0x02:
 	case 0x05:
 	case 0x0D:
-		filterPtr = PALMYFilter1;
-		break;
-
 	case 0x03:
-		filterPtr = PALNYFilter1;
+		filterPtr = xgifb_palmn_yfilter1;
 		break;
 
 	case 0x08:
