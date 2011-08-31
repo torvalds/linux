@@ -3819,6 +3819,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 		if (tg3_ctrl != all_mask)
 			return 0;
 	}
+
 	return 1;
 }
 
@@ -4119,8 +4120,8 @@ relink:
 			newlnkctl = oldlnkctl | PCI_EXP_LNKCTL_CLKREQ_EN;
 		if (newlnkctl != oldlnkctl)
 			pci_write_config_word(tp->pdev,
-					      pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-					      newlnkctl);
+					      pci_pcie_cap(tp->pdev) +
+					      PCI_EXP_LNKCTL, newlnkctl);
 	}
 
 	if (current_link_up != netif_carrier_ok(tp->dev)) {
@@ -6733,16 +6734,16 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	if (tg3_flag(tp, USE_JUMBO_BDFLAG) &&
+	    !mss && skb->len > VLAN_ETH_FRAME_LEN)
+		base_flags |= TXD_FLAG_JMB_PKT;
+
 #ifdef BCM_KERNEL_SUPPORTS_8021Q
 	if (vlan_tx_tag_present(skb)) {
 		base_flags |= TXD_FLAG_VLAN;
 		vlan = vlan_tx_tag_get(skb);
 	}
 #endif
-
-	if (tg3_flag(tp, USE_JUMBO_BDFLAG) &&
-	    !mss && skb->len > VLAN_ETH_FRAME_LEN)
-		base_flags |= TXD_FLAG_JMB_PKT;
 
 	len = skb_headlen(skb);
 
@@ -14079,7 +14080,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		/* BCM5785 devices are effectively PCIe devices, and should
 		 * follow PCIe codepaths, but do not have a PCIe capabilities
 		 * section.
-		*/
+		 */
 		tg3_flag_set(tp, PCI_EXPRESS);
 	} else if (!tg3_flag(tp, 5705_PLUS) ||
 		   tg3_flag(tp, 5780_CLASS)) {
@@ -15539,7 +15540,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		tnapi->tx_pending = TG3_DEF_TX_RING_PENDING;
 
 		tnapi->int_mbox = intmbx;
-		if (i < 4)
+		if (i <= 4)
 			intmbx += 0x8;
 		else
 			intmbx += 0x4;
