@@ -627,9 +627,12 @@ static void ccdc_configure_lpf(struct isp_ccdc_device *ccdc)
 static void ccdc_configure_alaw(struct isp_ccdc_device *ccdc)
 {
 	struct isp_device *isp = to_isp_device(ccdc);
+	const struct isp_format_info *info;
 	u32 alaw = 0;
 
-	switch (ccdc->syncif.datsz) {
+	info = omap3isp_video_format_info(ccdc->formats[CCDC_PAD_SINK].code);
+
+	switch (info->width) {
 	case 8:
 		return;
 
@@ -813,6 +816,7 @@ static void ccdc_config_vp(struct isp_ccdc_device *ccdc)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
 	struct isp_device *isp = to_isp_device(ccdc);
+	const struct isp_format_info *info;
 	unsigned long l3_ick = pipe->l3_ick;
 	unsigned int max_div = isp->revision == ISP_REVISION_15_0 ? 64 : 8;
 	unsigned int div = 0;
@@ -821,7 +825,9 @@ static void ccdc_config_vp(struct isp_ccdc_device *ccdc)
 	fmtcfg_vp = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_FMTCFG)
 		  & ~(ISPCCDC_FMTCFG_VPIN_MASK | ISPCCDC_FMTCFG_VPIF_FRQ_MASK);
 
-	switch (ccdc->syncif.datsz) {
+	info = omap3isp_video_format_info(ccdc->formats[CCDC_PAD_SINK].code);
+
+	switch (info->width) {
 	case 8:
 	case 10:
 		fmtcfg_vp |= ISPCCDC_FMTCFG_VPIN_9_0;
@@ -959,17 +965,17 @@ void omap3isp_ccdc_max_rate(struct isp_ccdc_device *ccdc,
 /*
  * ccdc_config_sync_if - Set CCDC sync interface configuration
  * @ccdc: Pointer to ISP CCDC device.
- * @syncif: Structure containing the sync parameters like field state, CCDC in
- *          master/slave mode, raw/yuv data, polarity of data, field, hs, vs
- *          signals.
+ * @pdata: Parallel interface platform data (may be NULL)
+ * @data_size: Data size
  */
 static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
-				struct ispccdc_syncif *syncif)
+				struct isp_parallel_platform_data *pdata,
+				unsigned int data_size)
 {
 	struct isp_device *isp = to_isp_device(ccdc);
 	u32 syn_mode = ISPCCDC_SYN_MODE_VDHDEN;
 
-	switch (syncif->datsz) {
+	switch (data_size) {
 	case 8:
 		syn_mode |= ISPCCDC_SYN_MODE_DATSIZ_8;
 		break;
@@ -984,20 +990,16 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 		break;
 	}
 
-	if (syncif->datapol)
+	if (pdata && pdata->data_pol)
 		syn_mode |= ISPCCDC_SYN_MODE_DATAPOL;
 
-	if (syncif->hdpol)
+	if (pdata && pdata->hs_pol)
 		syn_mode |= ISPCCDC_SYN_MODE_HDPOL;
 
-	if (syncif->vdpol)
+	if (pdata && pdata->vs_pol)
 		syn_mode |= ISPCCDC_SYN_MODE_VDPOL;
 
 	isp_reg_writel(isp, syn_mode, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE);
-
-	if (!syncif->bt_r656_en)
-		isp_reg_clr(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_REC656IF,
-			    ISPCCDC_REC656IF_R656ON);
 }
 
 /* CCDC formats descriptions */
@@ -1111,11 +1113,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	shift = depth_in - depth_out;
 	omap3isp_configure_bridge(isp, ccdc->input, pdata, shift);
 
-	ccdc->syncif.datsz = depth_out;
-	ccdc->syncif.datapol = 0;
-	ccdc->syncif.hdpol = pdata ? pdata->hs_pol : 0;
-	ccdc->syncif.vdpol = pdata ? pdata->vs_pol : 0;
-	ccdc_config_sync_if(ccdc, &ccdc->syncif);
+	ccdc_config_sync_if(ccdc, pdata, depth_out);
 
 	/* CCDC_PAD_SINK */
 	format = &ccdc->formats[CCDC_PAD_SINK];
@@ -2445,8 +2443,6 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 	ccdc->lsc.state = LSC_STATE_STOPPED;
 	INIT_LIST_HEAD(&ccdc->lsc.free_queue);
 	spin_lock_init(&ccdc->lsc.req_lock);
-
-	ccdc->syncif.datsz = 0;
 
 	ccdc->clamp.oblen = 0;
 	ccdc->clamp.dcsubval = 0;

@@ -67,6 +67,8 @@ enum {
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity
  *		0 - Active high, 1 - Active low
+ * @data_pol: Data polarity
+ *		0 - Normal, 1 - One's complement
  * @bridge: CCDC Bridge input control
  *		ISP_BRIDGE_DISABLE - Disable
  *		ISP_BRIDGE_LITTLE_ENDIAN - Little endian
@@ -77,6 +79,7 @@ struct isp_parallel_platform_data {
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;
+	unsigned int data_pol:1;
 	unsigned int bridge:2;
 };
 
