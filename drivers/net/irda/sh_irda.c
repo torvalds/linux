@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
@@ -145,7 +146,7 @@ struct sh_irda_xir_func {
 struct sh_irda_self {
 	void __iomem		*membase;
 	unsigned int		irq;
-	struct clk		*clk;
+	struct platform_device	*pdev;
 
 	struct net_device	*ndev;
 
@@ -694,7 +695,7 @@ static int sh_irda_open(struct net_device *ndev)
 	struct sh_irda_self *self = netdev_priv(ndev);
 	int err;
 
-	clk_enable(self->clk);
+	pm_runtime_get_sync(&self->pdev->dev);
 	err = sh_irda_crc_init(self);
 	if (err)
 		goto open_err;
@@ -718,7 +719,7 @@ static int sh_irda_open(struct net_device *ndev)
 	return 0;
 
 open_err:
-	clk_disable(self->clk);
+	pm_runtime_put_sync(&self->pdev->dev);
 
 	return err;
 }
@@ -734,6 +735,7 @@ static int sh_irda_stop(struct net_device *ndev)
 	}
 
 	netif_stop_queue(ndev);
+	pm_runtime_put_sync(&self->pdev->dev);
 
 	dev_info(&ndev->dev, "stoped\n");
 
@@ -786,11 +788,8 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_2;
 
-	self->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(self->clk)) {
-		dev_err(&pdev->dev, "cannot get irda clock\n");
-		goto err_mem_3;
-	}
+	self->pdev = pdev;
+	pm_runtime_enable(&pdev->dev);
 
 	irda_init_max_qos_capabilies(&self->qos);
 
@@ -820,8 +819,7 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	goto exit;
 
 err_mem_4:
-	clk_put(self->clk);
-err_mem_3:
+	pm_runtime_disable(&pdev->dev);
 	sh_irda_remove_iobuf(self);
 err_mem_2:
 	iounmap(self->membase);
@@ -840,7 +838,7 @@ static int __devexit sh_irda_remove(struct platform_device *pdev)
 		return 0;
 
 	unregister_netdev(ndev);
-	clk_put(self->clk);
+	pm_runtime_disable(&pdev->dev);
 	sh_irda_remove_iobuf(self);
 	iounmap(self->membase);
 	free_netdev(ndev);
@@ -849,11 +847,29 @@ static int __devexit sh_irda_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int sh_irda_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops sh_irda_pm_ops = {
+	.runtime_suspend	= sh_irda_runtime_nop,
+	.runtime_resume		= sh_irda_runtime_nop,
+};
+
 static struct platform_driver sh_irda_driver = {
 	.probe	= sh_irda_probe,
 	.remove	= __devexit_p(sh_irda_remove),
 	.driver	= {
 		.name	= DRIVER_NAME,
+		.pm	= &sh_irda_pm_ops,
 	},
 };
 
