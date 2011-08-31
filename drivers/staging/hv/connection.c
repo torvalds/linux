@@ -219,11 +219,25 @@ static void process_chn_event(u32 relid)
 	 */
 	channel = relid2channel(relid);
 
+	if (!channel) {
+		pr_err("channel not found for relid - %u\n", relid);
+		return;
+	}
+
+	/*
+	 * A channel once created is persistent even when there
+	 * is no driver handling the device. An unloading driver
+	 * sets the onchannel_callback to NULL under the
+	 * protection of the channel inbound_lock. Thus, checking
+	 * and invoking the driver specific callback takes care of
+	 * orderly unloading of the driver.
+	 */
+
 	spin_lock_irqsave(&channel->inbound_lock, flags);
-	if (channel && (channel->onchannel_callback != NULL))
+	if (channel->onchannel_callback != NULL)
 		channel->onchannel_callback(channel->channel_callback_context);
 	else
-		pr_err("channel not found for relid - %u\n", relid);
+		pr_err("no channel callback for relid - %u\n", relid);
 
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 }
