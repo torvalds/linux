@@ -278,7 +278,7 @@ static void write_footer(void)
 
 	if (logo_type == LINUX_LOGO_CLUT224) {
 		fprintf(out, "\t.clut\t\t= &(%s_clut[%ld]),\n", logoname, sizeof(clut_name));
-		fprintf(out, "\t.data\t\t= &(%s_data[%ld])\n", logoname, sizeof(data_name));
+		fprintf(out, "\t.data\t\t= &(%s_data[%ld])\n", logoname, sizeof(data_name) + 4);
 	} else {
 		fprintf(out, "\t.width\t\t= %d,\n", logo_width);
 		fprintf(out, "\t.height\t\t= %d,\n", logo_height);
