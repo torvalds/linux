@@ -25,7 +25,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-dev.h) for driver implementation definitions.
- * Please use iwl-commands.h for uCode API definitions.
+ * Please use commands.h for uCode API definitions.
  * Please use 4965.h for hardware-related definitions.
  */
 
@@ -42,7 +42,6 @@
 #include "iwl-eeprom.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-fh.h"
 #include "iwl-debug.h"
 #include "4965.h"
 #include "iwl-led.h"

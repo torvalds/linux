@@ -60,11 +60,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-/*
- * Please use this file (iwl-commands.h) only for uCode API definitions.
- * Please use iwl-xxxx-hw.h for hardware-related definitions.
- * Please use iwl-dev.h for driver implementation definitions.
- */
 
 #ifndef __il_commands_h__
 #define __il_commands_h__

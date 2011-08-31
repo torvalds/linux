@@ -28,7 +28,7 @@
 #ifndef __il_power_setting_h__
 #define __il_power_setting_h__
 
-#include "iwl-commands.h"
+#include "commands.h"
 
 enum il_power_level {
 	IL_POWER_IDX_1,

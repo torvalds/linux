@@ -39,8 +39,7 @@
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 
-#include "iwl-fh.h"
-#include "iwl-commands.h"
+#include "commands.h"
 #include "iwl-sta.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"

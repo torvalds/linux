@@ -36,7 +36,7 @@
 
 #include <linux/workqueue.h>
 
-#include "iwl-commands.h"
+#include "commands.h"
 #include "3945.h"
 #include "iwl-sta.h"
 
