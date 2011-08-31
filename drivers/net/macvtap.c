@@ -503,10 +503,10 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 		skb->truesize += len;
 		atomic_add(len, &skb->sk->sk_wmem_alloc);
 		while (len) {
-			f = &skb_shinfo(skb)->frags[i];
-			f->page = page[i];
-			f->page_offset = base & ~PAGE_MASK;
-			f->size = min_t(int, len, PAGE_SIZE - f->page_offset);
+			__skb_fill_page_desc(
+				skb, i, page[i],
+				base & ~PAGE_MASK,
+				min_t(int, len, PAGE_SIZE - f->page_offset));
 			skb_shinfo(skb)->nr_frags++;
 			/* increase sk_wmem_alloc */
 			base += f->size;
