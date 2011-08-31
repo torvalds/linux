@@ -112,11 +112,11 @@ static int add_frame_length(struct rev_frame_length *f, unsigned long length)
 		return -1;
 
 	f->frame_length[f->iWrite] = length;
-	printk("add one frame, length=%ld\n", f->frame_length[f->iWrite]);
+	//printk("add one frame, length=%ld\n", f->frame_length[f->iWrite]);
 	f->iCount++;
-	printk("now frame iCount=%d\n", f->iCount);
+	//printk("now frame iCount=%d\n", f->iCount);
 	f->iWrite = (f->iWrite+1) % MAX_FRAME_NUM;
-	printk("now frame iWrite=%d\n", f->iWrite);
+	//printk("now frame iWrite=%d\n", f->iWrite);
 	
 	
 	return 0;
@@ -128,20 +128,21 @@ static int get_frame_length(struct rev_frame_length *f, unsigned long *length)
 		return -1;
 
 	*length = f->frame_length[f->iRead];
-	printk("read one frame, length=%ld\n", *length);
+	//printk("read one frame, length=%ld\n", *length);
 	f->iCount--;
-	printk("now frame iCount=%d\n", f->iCount);
+	//printk("now frame iCount=%d\n", f->iCount);
 	f->iRead = (f->iRead+1) % MAX_FRAME_NUM;
-	printk("now frame iRead=%d\n", f->iRead);
+	//printk("now frame iRead=%d\n", f->iRead);
 	
 	return 0;
 }
 
 static int bu92747_irda_do_rx(struct bu92747_port *s)
 {
-	int i;
-	unsigned int ch, flag;
+	//int i;
+	//unsigned int ch, flag;
 	int len;
+	struct tty_struct *tty = s->port.state->port.tty;
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 
 	if (s->rx_enabled == 0) {
@@ -151,6 +152,7 @@ static int bu92747_irda_do_rx(struct bu92747_port *s)
 	}
 	
 	len = BU92725GUW_get_data(g_receive_buf);
+	#if 0
 	flag = TTY_NORMAL;
 	//printk("receive data:\n");
 	for (i=0;i<len;i++) {
@@ -160,7 +162,12 @@ static int bu92747_irda_do_rx(struct bu92747_port *s)
 		//printk("%d ", ch);
 	}
 	//printk("\n");
-	
+	#else
+	if (len > 0) {
+		tty_insert_flip_string(tty, g_receive_buf, len);
+		s->port.icount.rx += len;
+	}
+	#endif
 	return len;
  }
 
@@ -213,7 +220,6 @@ static void bu92747_irda_work(struct work_struct *w)
 	struct bu92747_port *s = container_of(w, struct bu92747_port, work);
 	struct circ_buf *xmit = &s->port.state->xmit;
 
-	dev_dbg(s->dev, "%s\n", __func__);
 	printk("line %d, enter %s \n", __LINE__, __FUNCTION__);
 
 	if (!s->force_end_work && !freezing(current)) {
@@ -235,8 +241,6 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	unsigned long len;
 	struct rev_frame_length *f = &(s->rev_frames);
 
-	dev_dbg(s->dev, "%s\n", __func__);
-	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 	irq_src = irda_hw_get_irqsrc();
 	printk("[%s][%d], 0x%x\n",__FUNCTION__,__LINE__, irq_src);
 
@@ -303,12 +307,7 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 
 static void bu92747_irda_stop_tx(struct uart_port *port)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-
-	dev_dbg(s->dev, "%s\n", __func__);
 }
 
 static void bu92747_irda_start_tx(struct uart_port *port)
@@ -317,8 +316,6 @@ static void bu92747_irda_start_tx(struct uart_port *port)
 						  struct bu92747_port,
 						  port);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	//wait for start cmd
 	if (IS_FIR(s))
@@ -333,7 +330,6 @@ static void bu92747_irda_stop_rx(struct uart_port *port)
 						  struct bu92747_port,
 						  port);
 
-	dev_dbg(s->dev, "%s\n", __func__);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 
 	s->rx_enabled = 0;
@@ -348,7 +344,6 @@ static unsigned int bu92747_irda_tx_empty(struct uart_port *port)
 						  port);
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	/* may not be truly up-to-date */
 	//bu92747_irda_dowork(s);
@@ -362,19 +357,13 @@ static const char *bu92747_irda_type(struct uart_port *port)
 						  port);
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	return s->port.type == PORT_IRDA ? "BU92747" : NULL;
 }
 
 static void bu92747_irda_release_port(struct uart_port *port)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
-
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 }
 
 static void bu92747_irda_config_port(struct uart_port *port, int flags)
@@ -384,7 +373,6 @@ static void bu92747_irda_config_port(struct uart_port *port, int flags)
 						  port);
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	if (flags & UART_CONFIG_TYPE)
 		s->port.type = PORT_IRDA;
@@ -393,13 +381,9 @@ static void bu92747_irda_config_port(struct uart_port *port, int flags)
 static int bu92747_irda_verify_port(struct uart_port *port,
 				   struct serial_struct *ser)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
 	int ret = -EINVAL;
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	if (ser->type == PORT_UNKNOWN || ser->type == PORT_IRDA)
 		ret = 0;
@@ -415,7 +399,6 @@ static void bu92747_irda_shutdown(struct uart_port *port)
 	struct rev_frame_length *f = &(s->rev_frames);
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	if (s->suspending)
 		return;
@@ -454,7 +437,6 @@ static int bu92747_irda_startup(struct uart_port *port)
 	struct rev_frame_length *f = &(s->rev_frames);
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 
 	s->rx_enabled = 1;
 	
@@ -514,43 +496,22 @@ static int bu92747_irda_startup(struct uart_port *port)
 
 static int bu92747_irda_request_port(struct uart_port *port)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
-
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 	return 0;
 }
 
 static void bu92747_irda_break_ctl(struct uart_port *port, int break_state)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
-
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 }
 
 static unsigned int bu92747_irda_get_mctrl(struct uart_port *port)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
-
-	dev_dbg(s->dev, "%s\n", __func__);
-
 	return  TIOCM_DSR | TIOCM_CAR;
 }
 
 static void bu92747_irda_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	struct bu92747_port *s = container_of(port,
-						  struct bu92747_port,
-						  port);
-
-	dev_dbg(s->dev, "%s\n", __func__);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 }
 
@@ -566,7 +527,6 @@ bu92747_irda_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct tty_struct *tty = s->port.state->port.tty;
 
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
-	dev_dbg(s->dev, "%s\n", __func__);
 	if (!tty)
 		return;
 
@@ -792,8 +752,6 @@ static int bu92747_irda_suspend(struct platform_device *pdev, pm_message_t state
 {
 	struct bu92747_port *s = dev_get_drvdata(&pdev->dev);
 
-	dev_dbg(s->dev, "%s\n", __func__);
-
 	if (s->open_flag) {
 		printk("line %d, enter %s \n", __LINE__, __FUNCTION__);
 		disable_irq(s->irq);
@@ -812,8 +770,6 @@ static int bu92747_irda_suspend(struct platform_device *pdev, pm_message_t state
 static int bu92747_irda_resume(struct platform_device *pdev)
 {
 	struct bu92747_port *s = dev_get_drvdata(&pdev->dev);
-
-	dev_dbg(s->dev, "%s\n", __func__);
 	
 	if (s->open_flag) {
 		printk("line %d, enter %s \n", __LINE__, __FUNCTION__);
