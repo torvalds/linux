@@ -1154,6 +1154,19 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	return 0;
 }
 
+static int sh_mobile_set_par(struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	int ret;
+
+	sh_mobile_lcdc_stop(ch->lcdc);
+	ret = sh_mobile_lcdc_start(ch->lcdc);
+	if (ret < 0)
+		dev_err(info->dev, "%s: unable to restart LCDC\n", __func__);
+
+	return ret;
+}
+
 /*
  * Screen blanking. Behavior is as follows:
  * FB_BLANK_UNBLANK: screen unblanked, clocks enabled
@@ -1211,6 +1224,7 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_open	= sh_mobile_open,
 	.fb_release	= sh_mobile_release,
 	.fb_check_var	= sh_mobile_check_var,
+	.fb_set_par	= sh_mobile_set_par,
 };
 
 static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
