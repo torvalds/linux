@@ -394,6 +394,7 @@ struct ath6kl {
 	u16 bss_ch;
 	u16 listen_intvl_b;
 	u16 listen_intvl_t;
+	u8 lrssi_roam_threshold;
 	struct ath6kl_version version;
 	u32 target_type;
 	u8 tx_pwr;

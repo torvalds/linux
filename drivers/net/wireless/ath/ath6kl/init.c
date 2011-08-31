@@ -280,6 +280,7 @@ static void ath6kl_init_control_info(struct ath6kl *ar)
 	memset(&ar->sc_params, 0, sizeof(ar->sc_params));
 	ar->sc_params.short_scan_ratio = WMI_SHORTSCANRATIO_DEFAULT;
 	ar->sc_params.scan_ctrl_flags = DEFAULT_SCAN_CTRL_FLAGS;
+	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
 
 	memset((u8 *)ar->sta_list, 0,
 	       AP_MAX_NUM_STA * sizeof(struct ath6kl_sta));

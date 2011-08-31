@@ -1333,6 +1333,46 @@ enum wmi_bi_ftype {
 	PROBEREQ_FTYPE,
 };
 
+#define DEF_LRSSI_SCAN_PERIOD		 5
+#define DEF_LRSSI_ROAM_THRESHOLD	20
+#define DEF_LRSSI_ROAM_FLOOR		60
+#define DEF_SCAN_FOR_ROAM_INTVL		 2
+
+enum wmi_roam_ctrl {
+	WMI_FORCE_ROAM = 1,
+	WMI_SET_ROAM_MODE,
+	WMI_SET_HOST_BIAS,
+	WMI_SET_LRSSI_SCAN_PARAMS,
+};
+
+struct bss_bias {
+	u8 bssid[ETH_ALEN];
+	u8  bias;
+} __packed;
+
+struct bss_bias_info {
+	u8 num_bss;
+	struct bss_bias bss_bias[1];
+} __packed;
+
+struct low_rssi_scan_params {
+	__le16 lrssi_scan_period;
+	a_sle16 lrssi_scan_threshold;
+	a_sle16 lrssi_roam_threshold;
+	u8 roam_rssi_floor;
+	u8 reserved[1];
+} __packed;
+
+struct roam_ctrl_cmd {
+	union {
+		u8 bssid[ETH_ALEN];
+		u8 roam_mode;
+		struct bss_bias_info bss;
+		struct low_rssi_scan_params params;
+	} __packed info;
+	u8 roam_ctrl;
+} __packed;
+
 struct wmi_bss_info_hdr {
 	__le16 ch;
 
@@ -2190,6 +2230,7 @@ int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 s32 ath6kl_wmi_get_rate(s8 rate_index);
 
 int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
+int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
 
 struct bss *ath6kl_wmi_find_ssid_node(struct wmi *wmi, u8 *ssid,
 				      u32 ssid_len, bool is_wpa2,
