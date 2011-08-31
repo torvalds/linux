@@ -529,9 +529,9 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	dispc_set_digit_size(dssdev->panel.timings.x_res,
 			dssdev->panel.timings.y_res);
 
-	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 1);
-
 	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 1);
+
+	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 1);
 
 	return 0;
 err:
