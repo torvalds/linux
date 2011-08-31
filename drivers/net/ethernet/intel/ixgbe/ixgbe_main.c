@@ -804,7 +804,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	struct ixgbe_tx_buffer *tx_buffer;
 	union ixgbe_adv_tx_desc *tx_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
-	u16 budget = q_vector->tx.work_limit;
+	unsigned int budget = q_vector->tx.work_limit;
 	u16 i = tx_ring->next_to_clean;
 
 	tx_buffer = &tx_ring->tx_buffer_info[i];
@@ -891,7 +891,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		ixgbe_tx_timeout_reset(adapter);
 
 		/* the adapter is about to reset, no point in enabling stuff */
-		return budget;
+		return true;
 	}
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
@@ -908,7 +908,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		}
 	}
 
-	return budget;
+	return !!budget;
 }
 
 #ifdef CONFIG_IXGBE_DCA
@@ -5091,7 +5091,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
 
 	/* set default work limits */
-	adapter->tx_work_limit = adapter->tx_ring_count;
+	adapter->tx_work_limit = IXGBE_DEFAULT_TX_WORK;
 
 	/* initialize eeprom parameters */
 	if (ixgbe_init_eeprom_params_generic(hw)) {
