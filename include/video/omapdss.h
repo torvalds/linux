@@ -43,6 +43,9 @@
 #define DISPC_IRQ_VSYNC2		(1 << 18)
 #define DISPC_IRQ_ACBIAS_COUNT_STAT2	(1 << 21)
 #define DISPC_IRQ_FRAMEDONE2		(1 << 22)
+#define DISPC_IRQ_FRAMEDONEWB		(1 << 23)
+#define DISPC_IRQ_FRAMEDONETV		(1 << 24)
+#define DISPC_IRQ_WBBUFFEROVERFLOW	(1 << 25)
 
 struct omap_dss_device;
 struct omap_overlay_manager;
