@@ -3290,11 +3290,8 @@ static void niu_rx_skb_append(struct sk_buff *skb, struct page *page,
 			      u32 offset, u32 size)
 {
 	int i = skb_shinfo(skb)->nr_frags;
-	skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-	frag->page = page;
-	frag->page_offset = offset;
-	frag->size = size;
+	__skb_fill_page_desc(skb, i, page, offset, size);
 
 	skb->len += size;
 	skb->data_len += size;
@@ -6737,7 +6734,7 @@ static netdev_tx_t niu_start_xmit(struct sk_buff *skb,
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		len = frag->size;
-		mapping = np->ops->map_page(np->device, frag->page,
+		mapping = np->ops->map_page(np->device, skb_frag_page(frag),
 					    frag->page_offset, len,
 					    DMA_TO_DEVICE);
 
