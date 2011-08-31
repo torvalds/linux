@@ -975,7 +975,10 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	if (ah->misc_mode != 0)
 		REG_SET_BIT(ah, AR_PCU_MISC, ah->misc_mode);
 
-	rx_lat = 37;
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
+		rx_lat = 41;
+	else
+		rx_lat = 37;
 	tx_lat = 54;
 
 	if (IS_CHAN_HALF_RATE(chan)) {
@@ -989,7 +992,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		sifstime = 32;
 	} else if (IS_CHAN_QUARTER_RATE(chan)) {
 		eifs = 340;
-		rx_lat *= 4;
+		rx_lat = (rx_lat * 4) - 1;
 		tx_lat *= 4;
 		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		    tx_lat += 22;
