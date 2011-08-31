@@ -586,10 +586,9 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 				vpu_service_dump();
 				if (task_running) {
 					atomic_set(&session->task_running, 0);
-					atomic_sub(task_running, &service.total_running);
-					pr_err("%d task is running but not return, reset hardware...", task_running);
+					printk("%d task is running but not return, reset hardware...", task_running);
 					vpu_reset();
-					pr_err("done\n");
+					printk("done\n");
 				}
 				vpu_service_session_clear(session);
 				return ret;
