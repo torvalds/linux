@@ -8030,13 +8030,6 @@ static void XGI_CloseCRTC(struct xgi_hw_device_info *HwDeviceExtension,
 
 }
 
-void XGI_OpenCRTC(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short tempbx;
-	tempbx = 0;
-}
-
 void XGI_UnLockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
@@ -8745,7 +8738,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 		XGI_GetTVInfo(ModeNo, ModeIdIndex, pVBInfo);
 		XGI_GetLCDInfo(ModeNo, ModeIdIndex, pVBInfo);
 		XGI_DisableBridge(HwDeviceExtension, pVBInfo);
-		/* XGI_OpenCRTC(HwDeviceExtension, pVBInfo); */
 
 		if (pVBInfo->VBInfo & (SetSimuScanMode | SetCRT2ToLCDA)) {
 			XGI_SetCRT1Group(HwDeviceExtension, ModeNo,
