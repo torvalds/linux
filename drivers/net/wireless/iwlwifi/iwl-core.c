@@ -1842,7 +1842,7 @@ void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 				 enum iwl_rxon_context_id ctx,
 				 u8 sta_id, u8 tid)
 {
-	struct ieee80211_vif *vif = priv->contexts[ctx].vif;
+	struct ieee80211_vif *vif;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 
 	if (ctx == NUM_IWL_RXON_CTX)
