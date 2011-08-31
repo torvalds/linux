@@ -87,6 +87,8 @@
 
 #define DRIVER_NAME	"pl08xdmac"
 
+static struct amba_driver pl08x_amba_driver;
+
 /**
  * struct vendor_data - vendor-specific config parameters for PL08x derivatives
  * @channels: the number of channels available in this variant
@@ -1420,8 +1422,14 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
 {
-	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+	struct pl08x_dma_chan *plchan;
 	char *name = chan_id;
+
+	/* Reject channels for devices not bound to this driver */
+	if (chan->device->dev->driver != &pl08x_amba_driver.drv)
+		return false;
+
+	plchan = to_pl08x_chan(chan);
 
 	/* Check that the channel is not taken! */
 	if (!strcmp(plchan->name, name))
