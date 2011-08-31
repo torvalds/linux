@@ -129,10 +129,7 @@ struct mtd_info_user {
 	__u32 erasesize;
 	__u32 writesize;
 	__u32 oobsize;	/* Amount of OOB data per block (e.g. 16) */
-	/* The below two fields are obsolete and broken, do not use them
-	 * (TODO: remove at some point) */
-	__u32 ecctype;
-	__u32 eccsize;
+	__u64 padding;	/* Old obsolete field; do not use */
 };
 
 struct region_info_user {
