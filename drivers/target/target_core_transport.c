@@ -252,7 +252,7 @@ struct se_session *transport_init_session(void)
 EXPORT_SYMBOL(transport_init_session);
 
 /*
- * Called with spin_lock_bh(&struct se_portal_group->session_lock called.
+ * Called with spin_lock_irqsave(&struct se_portal_group->session_lock called.
  */
 void __transport_register_session(
 	struct se_portal_group *se_tpg,
@@ -305,9 +305,11 @@ void transport_register_session(
 	struct se_session *se_sess,
 	void *fabric_sess_ptr)
 {
-	spin_lock_bh(&se_tpg->session_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&se_tpg->session_lock, flags);
 	__transport_register_session(se_tpg, se_nacl, se_sess, fabric_sess_ptr);
-	spin_unlock_bh(&se_tpg->session_lock);
+	spin_unlock_irqrestore(&se_tpg->session_lock, flags);
 }
 EXPORT_SYMBOL(transport_register_session);
 
