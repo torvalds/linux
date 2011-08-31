@@ -24,6 +24,8 @@
 #include <plat/devs.h>
 #include <plat/sdhci.h>
 #include <plat/iic.h>
+#include <plat/ehci.h>
+#include <plat/clock.h>
 
 #include <mach/map.h>
 
@@ -79,10 +81,21 @@ static struct s3c_sdhci_platdata origen_hsmmc2_pdata __initdata = {
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
+/* USB EHCI */
+static struct s5p_ehci_platdata origen_ehci_pdata;
+
+static void __init origen_ehci_init(void)
+{
+	struct s5p_ehci_platdata *pdata = &origen_ehci_pdata;
+
+	s5p_ehci_set_platdata(pdata);
+}
+
 static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
+	&s5p_device_ehci,
 };
 
 static void __init origen_map_io(void)
@@ -95,6 +108,10 @@ static void __init origen_map_io(void)
 static void __init origen_machine_init(void)
 {
 	s3c_sdhci2_set_platdata(&origen_hsmmc2_pdata);
+
+	origen_ehci_init();
+	clk_xusbxti.rate = 24000000;
+
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 }
 
