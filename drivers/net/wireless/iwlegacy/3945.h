@@ -34,10 +34,10 @@
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 extern const struct pci_device_id il3945_hw_card_ids[];
 
+#include "common.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
-#include "iwl-dev.h"
 #include "iwl-led.h"
 #include "iwl-eeprom.h"
 
@@ -455,10 +455,6 @@ struct il3945_eeprom {
 #define RFD_SIZE                              4
 #define NUM_TFD_CHUNKS                        4
 
-#define RX_QUEUE_SIZE                         256
-#define RX_QUEUE_MASK                         255
-#define RX_QUEUE_SIZE_LOG                     8
-
 #define TFD_CTL_COUNT_SET(n)       (n << 24)
 #define TFD_CTL_COUNT_GET(ctl)     ((ctl >> 24) & 7)
 #define TFD_CTL_PAD_SET(n)         (n << 28)
@@ -658,8 +654,5 @@ static ssize_t il3945_ucode_general_stats_read(struct file *file,
 	return 0;
 }
 #endif
-
-/* Requires full declaration of il_priv before including */
-#include "iwl-io.h"
 
 #endif

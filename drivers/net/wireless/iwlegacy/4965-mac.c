@@ -51,11 +51,7 @@
 #define DRV_NAME        "iwl4965"
 
 #include "iwl-eeprom.h"
-#include "iwl-dev.h"
 #include "common.h"
-#include "iwl-io.h"
-#include "iwl-helpers.h"
-#include "iwl-sta.h"
 #include "4965.h"
 
 
@@ -1362,7 +1358,7 @@ void il4965_hdl_stats(struct il_priv *il,
 		     "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct il_notif_stats),
 		     le32_to_cpu(pkt->len_n_flags) &
-		     FH_RSCSR_FRAME_SIZE_MSK);
+		     IL_RX_FRAME_SIZE_MSK);
 
 	change = ((il->_4965.stats.general.common.temperature !=
 		   pkt->u.stats.general.common.temperature) ||
@@ -4009,7 +4005,7 @@ void il4965_rx_handle(struct il_priv *il)
 			       PCI_DMA_FROMDEVICE);
 		pkt = rxb_addr(rxb);
 
-		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
 
 		/* Reclaim a command buffer only if this packet is a response

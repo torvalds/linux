@@ -63,7 +63,6 @@
 #include <linux/slab.h>
 #include <net/mac80211.h>
 
-#include "iwl-dev.h"
 #include "common.h"
 #include "4965.h"
 

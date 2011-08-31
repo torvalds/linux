@@ -26,7 +26,6 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
-#include "iwl-dev.h"
 #include "common.h"
 #include "3945.h"
 

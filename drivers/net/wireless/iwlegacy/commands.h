@@ -3355,6 +3355,8 @@ struct il_led_cmd {
  *
  *****************************************************************************/
 
+#define IL_RX_FRAME_SIZE_MSK	0x00003fff
+
 struct il_rx_pkt {
 	/*
 	 * The first 4 bytes of the RX frame header contain both the RX frame

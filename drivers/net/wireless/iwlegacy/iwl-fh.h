@@ -266,8 +266,6 @@
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
-#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
-
 /**
  * Rx Shared Status Registers (RSSR)
  *
@@ -412,100 +410,6 @@
  * it is brought from the memory to TX-FIFO
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
-
-#define RX_QUEUE_SIZE                         256
-#define RX_QUEUE_MASK                         255
-#define RX_QUEUE_SIZE_LOG                     8
-
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
-
-/* Size of one Rx buffer in host DRAM */
-#define IL_RX_BUF_SIZE_3K (3 * 1000) /* 3945 only */
-#define IL_RX_BUF_SIZE_4K (4 * 1024)
-#define IL_RX_BUF_SIZE_8K (8 * 1024)
-
-/**
- * struct il_rb_status - reseve buffer status
- * 	host memory mapped FH registers
- * @closed_rb_num [0:11] - Indicates the idx of the RB which was closed
- * @closed_fr_num [0:11] - Indicates the idx of the RX Frame which was closed
- * @finished_rb_num [0:11] - Indicates the idx of the current RB
- * 	in which the last frame was written to
- * @finished_fr_num [0:11] - Indicates the idx of the RX Frame
- * 	which was transferred
- */
-struct il_rb_status {
-	__le16 closed_rb_num;
-	__le16 closed_fr_num;
-	__le16 finished_rb_num;
-	__le16 finished_fr_nam;
-	__le32 __unused; /* 3945 only */
-} __packed;
-
-
-#define TFD_QUEUE_SIZE_MAX      (256)
-#define TFD_QUEUE_SIZE_BC_DUP	(64)
-#define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define IL_TX_DMA_MASK        DMA_BIT_MASK(36)
-#define IL_NUM_OF_TBS		20
-
-static inline u8 il_get_dma_hi_addr(dma_addr_t addr)
-{
-	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
-}
-/**
- * struct il_tfd_tb transmit buffer descriptor within transmit frame descriptor
- *
- * This structure contains dma address and length of transmission address
- *
- * @lo: low [31:0] portion of the dma address of TX buffer
- * 	every even is unaligned on 16 bit boundary
- * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-15 length of the tx buffer
- */
-struct il_tfd_tb {
-	__le32 lo;
-	__le16 hi_n_len;
-} __packed;
-
-/**
- * struct il_tfd
- *
- * Transmit Frame Descriptor (TFD)
- *
- * @ __reserved1[3] reserved
- * @ num_tbs 0-4 number of active tbs
- *	     5   reserved
- * 	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad 	padding
- *
- * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
- * Both driver and device share these circular buffers, each of which must be
- * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
- *
- * Driver must indicate the physical address of the base of each
- * circular buffer via the FH_MEM_CBBC_QUEUE registers.
- *
- * Each TFD contains pointer/size information for up to 20 data buffers
- * in host DRAM.  These buffers collectively contain the (one) frame described
- * by the TFD.  Each buffer must be a single contiguous block of memory within
- * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
- * of (4K - 4).  The concatenates all of a TFD's buffers into a single
- * Tx frame, up to 8 KBytes in size.
- *
- * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
- */
-struct il_tfd {
-	u8 __reserved1[3];
-	u8 num_tbs;
-	struct il_tfd_tb tbs[IL_NUM_OF_TBS];
-	__le32 __pad;
-} __packed;
 
 /* Keep Warm Size */
 #define IL_KW_SIZE 0x1000	/* 4k */

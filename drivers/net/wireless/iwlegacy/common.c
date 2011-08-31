@@ -41,13 +41,9 @@
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "common.h"
-#include "iwl-io.h"
 #include "iwl-power.h"
-#include "iwl-sta.h"
-#include "iwl-helpers.h"
 
 const char *il_get_cmd_string(u8 cmd)
 {
@@ -4351,7 +4347,7 @@ void il_hdl_pm_debug_stats(struct il_priv *il,
 				      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+	u32 len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
 	D_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n", len,
 			il_get_cmd_string(pkt->hdr.cmd));

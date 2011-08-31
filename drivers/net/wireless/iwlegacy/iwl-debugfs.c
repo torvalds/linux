@@ -29,10 +29,8 @@
 #include <net/mac80211.h>
 
 
-#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "common.h"
-#include "iwl-io.h"
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\

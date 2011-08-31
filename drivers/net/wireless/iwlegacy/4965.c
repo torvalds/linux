@@ -37,12 +37,8 @@
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
-#include "iwl-eeprom.h"
-#include "iwl-dev.h"
 #include "common.h"
-#include "iwl-io.h"
-#include "iwl-helpers.h"
-#include "iwl-sta.h"
+#include "iwl-eeprom.h"
 #include "4965.h"
 
 #define IL_AC_UNSET -1

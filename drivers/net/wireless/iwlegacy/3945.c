@@ -39,11 +39,9 @@
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 
-#include "commands.h"
-#include "iwl-sta.h"
-#include "iwl-eeprom.h"
 #include "common.h"
-#include "iwl-helpers.h"
+#include "commands.h"
+#include "iwl-eeprom.h"
 #include "iwl-led.h"
 #include "3945.h"
 
@@ -417,7 +415,7 @@ void il3945_hdl_stats(struct il_priv *il,
 
 	D_RX("Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct il3945_notif_stats),
-		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+		     le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK);
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 	il3945_accumulative_stats(il, (__le32 *)&pkt->u.raw);
 #endif

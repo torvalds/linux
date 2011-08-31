@@ -52,11 +52,8 @@
 #define DRV_NAME	"iwl3945"
 
 #include "commands.h"
-#include "iwl-sta.h"
-#include "3945.h"
 #include "common.h"
-#include "iwl-helpers.h"
-#include "iwl-dev.h"
+#include "3945.h"
 #include "iwl-spectrum.h"
 
 /*
@@ -1242,7 +1239,7 @@ static void il3945_rx_handle(struct il_priv *il)
 			       PCI_DMA_FROMDEVICE);
 		pkt = rxb_addr(rxb);
 
-		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
 
 		/* Reclaim a command buffer only if this packet is a response

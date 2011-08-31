@@ -38,7 +38,6 @@
 
 #include "commands.h"
 #include "3945.h"
-#include "iwl-sta.h"
 
 #define RS_NAME "iwl-3945-rs"
 

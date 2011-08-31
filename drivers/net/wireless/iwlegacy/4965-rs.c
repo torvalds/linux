@@ -35,8 +35,6 @@
 
 #include <linux/workqueue.h>
 
-#include "iwl-dev.h"
-#include "iwl-sta.h"
 #include "common.h"
 #include "4965.h"
 
