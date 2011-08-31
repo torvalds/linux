@@ -639,6 +639,17 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select hdmi)
 	REG_FLD_MOD(DSS_CONTROL, hdmi, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
+enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void)
+{
+	enum omap_display_type displays;
+
+	displays = dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_DIGIT);
+	if ((displays & OMAP_DISPLAY_TYPE_HDMI) == 0)
+		return DSS_VENC_TV_CLK;
+
+	return REG_GET(DSS_CONTROL, 15, 15);
+}
+
 static int dss_get_clocks(void)
 {
 	struct clk *clk;
