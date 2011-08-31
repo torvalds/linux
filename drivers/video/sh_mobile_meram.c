@@ -373,8 +373,10 @@ static void meram_deinit(struct sh_mobile_meram_priv *priv,
 			struct sh_mobile_meram_icb *icb)
 {
 	/* disable ICB */
-	meram_write_icb(priv->base, icb->cache_icb,  MExxCTL, 0);
-	meram_write_icb(priv->base, icb->marker_icb, MExxCTL, 0);
+	meram_write_icb(priv->base, icb->cache_icb,  MExxCTL,
+			MExxCTL_WBF | MExxCTL_WF | MExxCTL_RF);
+	meram_write_icb(priv->base, icb->marker_icb, MExxCTL,
+			MExxCTL_WBF | MExxCTL_WF | MExxCTL_RF);
 	icb->cache_unit = 0;
 }
 
