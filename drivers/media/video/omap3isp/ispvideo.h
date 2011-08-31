@@ -51,7 +51,8 @@ struct v4l2_pix_format;
  * @flavor: V4L2 media bus format code for the same pixel layout but
  *	shifted to be 8 bits per pixel. =0 if format is not shiftable.
  * @pixelformat: V4L2 pixel format FCC identifier
- * @bpp: Bits per pixel
+ * @width: Bits per pixel (when transferred over a bus)
+ * @bpp: Bytes per pixel (when stored in memory)
  */
 struct isp_format_info {
 	enum v4l2_mbus_pixelcode code;
@@ -59,6 +60,7 @@ struct isp_format_info {
 	enum v4l2_mbus_pixelcode uncompressed;
 	enum v4l2_mbus_pixelcode flavor;
 	u32 pixelformat;
+	unsigned int width;
 	unsigned int bpp;
 };
 
@@ -106,7 +108,7 @@ struct isp_pipeline {
 	struct v4l2_fract max_timeperframe;
 	struct v4l2_subdev *external;
 	unsigned int external_rate;
-	unsigned int external_bpp;
+	unsigned int external_width;
 };
 
 #define to_isp_pipeline(__e) \
