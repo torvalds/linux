@@ -40,9 +40,6 @@
 #include <net/mac80211.h>
 
 #include "common.h"
-#include "commands.h"
-#include "iwl-eeprom.h"
-#include "iwl-led.h"
 #include "3945.h"
 
 /* Send led command */

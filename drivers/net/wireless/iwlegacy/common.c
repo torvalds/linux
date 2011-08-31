@@ -40,7 +40,6 @@
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
 
-#include "iwl-eeprom.h"
 #include "iwl-debug.h"
 #include "common.h"
 

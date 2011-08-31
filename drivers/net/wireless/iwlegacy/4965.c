@@ -38,7 +38,6 @@
 #include <asm/unaligned.h>
 
 #include "common.h"
-#include "iwl-eeprom.h"
 #include "4965.h"
 
 #define IL_AC_UNSET -1

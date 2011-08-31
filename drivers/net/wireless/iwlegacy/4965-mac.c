@@ -50,7 +50,6 @@
 
 #define DRV_NAME        "iwl4965"
 
-#include "iwl-eeprom.h"
 #include "common.h"
 #include "4965.h"
 
