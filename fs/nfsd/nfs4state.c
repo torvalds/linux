@@ -453,7 +453,7 @@ static void unhash_lockowner(struct nfs4_stateowner *sop)
 static void release_lockowner(struct nfs4_stateowner *sop)
 {
 	unhash_lockowner(sop);
-	nfs4_put_stateowner(sop);
+	nfs4_free_stateowner(sop);
 }
 
 static void
@@ -496,7 +496,7 @@ static void release_openowner(struct nfs4_stateowner *sop)
 {
 	unhash_openowner(sop);
 	list_del(&sop->so_close_lru);
-	nfs4_put_stateowner(sop);
+	nfs4_free_stateowner(sop);
 }
 
 #define SESSION_HASH_SIZE	512
@@ -2206,10 +2206,8 @@ out_nomem:
 }
 
 void
-nfs4_free_stateowner(struct kref *kref)
+nfs4_free_stateowner(struct nfs4_stateowner *sop)
 {
-	struct nfs4_stateowner *sop =
-		container_of(kref, struct nfs4_stateowner, so_ref);
 	kfree(sop->so_owner.data);
 	kmem_cache_free(stateowner_slab, sop);
 }
@@ -2236,7 +2234,6 @@ static inline struct nfs4_stateowner *alloc_stateowner(struct xdr_netobj *owner,
 	}
 	sop->so_owner.len = owner->len;
 
-	kref_init(&sop->so_ref);
 	INIT_LIST_HEAD(&sop->so_perclient);
 	INIT_LIST_HEAD(&sop->so_stateids);
 	INIT_LIST_HEAD(&sop->so_perstateid);
@@ -3413,14 +3410,12 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 		/* It's not stale; let's assume it's expired: */
 		if (sop == NULL)
 			return nfserr_expired;
-		nfs4_get_stateowner(sop);
 		cstate->replay_owner = sop;
 		goto check_replay;
 	}
 
 	*stpp = stp;
 	sop = stp->st_stateowner;
-	nfs4_get_stateowner(sop);
 	cstate->replay_owner = sop;
 
 	if (nfs4_check_fh(current_fh, stp)) {
@@ -3783,11 +3778,17 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 
 	if (fl->fl_lmops == &nfsd_posix_mng_ops) {
 		sop = (struct nfs4_stateowner *) fl->fl_owner;
-		kref_get(&sop->so_ref);
-		deny->ld_sop = sop;
+		deny->ld_owner.data = kmemdup(sop->so_owner.data,
+					sop->so_owner.len, GFP_KERNEL);
+		if (!deny->ld_owner.data)
+			/* We just don't care that much */
+			goto nevermind;
+		deny->ld_owner.len = sop->so_owner.len;
 		deny->ld_clientid = sop->so_client->cl_clientid;
 	} else {
-		deny->ld_sop = NULL;
+nevermind:
+		deny->ld_owner.len = 0;
+		deny->ld_owner.data = NULL;
 		deny->ld_clientid.cl_boot = 0;
 		deny->ld_clientid.cl_id = 0;
 	}

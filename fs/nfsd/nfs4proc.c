@@ -405,10 +405,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 */
 	status = nfsd4_process_open2(rqstp, &cstate->current_fh, open);
 out:
-	if (open->op_stateowner) {
-		nfs4_get_stateowner(open->op_stateowner);
+	if (open->op_stateowner)
 		cstate->replay_owner = open->op_stateowner;
-	} else
+	else
 		nfs4_unlock_state();
 	return status;
 }
@@ -1228,7 +1227,6 @@ encode_op:
 
 		if (cstate->replay_owner) {
 			nfs4_unlock_state();
-			nfs4_put_stateowner(cstate->replay_owner);
 			cstate->replay_owner = NULL;
 		}
 		/* XXX Ugh, we need to get rid of this kind of special case: */

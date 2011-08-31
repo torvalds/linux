@@ -130,7 +130,7 @@ struct nfsd4_link {
 
 struct nfsd4_lock_denied {
 	clientid_t	ld_clientid;
-	struct nfs4_stateowner   *ld_sop;
+	struct xdr_netobj	ld_owner;
 	u64             ld_start;
 	u64             ld_length;
 	u32             ld_type;

@@ -2570,17 +2570,18 @@ nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr, struct svc_fh 
 static void
 nfsd4_encode_lock_denied(struct nfsd4_compoundres *resp, struct nfsd4_lock_denied *ld)
 {
+	struct xdr_netobj *conf = &ld->ld_owner;
 	__be32 *p;
 
-	RESERVE_SPACE(32 + XDR_LEN(ld->ld_sop ? ld->ld_sop->so_owner.len : 0));
+	RESERVE_SPACE(32 + XDR_LEN(conf->len));
 	WRITE64(ld->ld_start);
 	WRITE64(ld->ld_length);
 	WRITE32(ld->ld_type);
-	if (ld->ld_sop) {
+	if (conf->len) {
 		WRITEMEM(&ld->ld_clientid, 8);
-		WRITE32(ld->ld_sop->so_owner.len);
-		WRITEMEM(ld->ld_sop->so_owner.data, ld->ld_sop->so_owner.len);
-		kref_put(&ld->ld_sop->so_ref, nfs4_free_stateowner);
+		WRITE32(conf->len);
+		WRITEMEM(conf->data, conf->len);
+		kfree(conf->data);
 	}  else {  /* non - nfsv4 lock in conflict, no clientid nor owner */
 		WRITE64((u64)0); /* clientid */
 		WRITE32(0); /* length of owner name */

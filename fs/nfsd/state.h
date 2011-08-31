@@ -338,7 +338,6 @@ struct nfs4_replay {
 *         reaped by laundramat thread after lease period.
 */
 struct nfs4_stateowner {
-	struct kref		so_ref;
 	struct list_head        so_idhash;   /* hash by so_id */
 	struct list_head        so_strhash;   /* hash by op_name */
 	struct list_head        so_perclient;
@@ -459,7 +458,7 @@ extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
 extern int nfs4_in_grace(void);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid);
-extern void nfs4_free_stateowner(struct kref *kref);
+extern void nfs4_free_stateowner(struct nfs4_stateowner *sop);
 extern int set_callback_cred(void);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
@@ -481,17 +480,5 @@ extern int nfsd4_create_clid_dir(struct nfs4_client *clp);
 extern void nfsd4_remove_clid_dir(struct nfs4_client *clp);
 extern void release_session_client(struct nfsd4_session *);
 extern __be32 nfs4_validate_stateid(stateid_t *, bool);
-
-static inline void
-nfs4_put_stateowner(struct nfs4_stateowner *so)
-{
-	kref_put(&so->so_ref, nfs4_free_stateowner);
-}
-
-static inline void
-nfs4_get_stateowner(struct nfs4_stateowner *so)
-{
-	kref_get(&so->so_ref);
-}
 
 #endif   /* NFSD4_STATE_H */
