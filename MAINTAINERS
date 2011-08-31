@@ -7200,6 +7200,9 @@ W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices
 S:	Supported
 F:	Documentation/hwmon/wm83??
 F:	drivers/leds/leds-wm83*.c
+F:	drivers/input/misc/wm831x-on.c
+F:	drivers/input/touchscreen/wm831x-ts.c
+F:	drivers/input/touchscreen/wm97*.c
 F:	drivers/mfd/wm8*.c
 F:	drivers/power/wm83*.c
 F:	drivers/rtc/rtc-wm83*.c
@@ -7209,6 +7212,7 @@ F:	drivers/watchdog/wm83*_wdt.c
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
 F:	include/linux/mfd/wm8400*
+F:	include/linux/wm97xx.h
 F:	include/sound/wm????.h
 F:	sound/soc/codecs/wm*
 

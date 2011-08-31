@@ -203,13 +203,13 @@ static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
 		rbnode = rb_entry(node, struct snd_soc_rbtree_node, node);
 		for (i = 0; i < rbnode->blklen; ++i) {
 			regtmp = rbnode->base_reg + i;
-			WARN_ON(codec->writable_register &&
-				codec->writable_register(codec, regtmp));
 			val = snd_soc_rbtree_get_register(rbnode, i);
 			def = snd_soc_get_cache_val(codec->reg_def_copy, i,
 						    rbnode->word_size);
 			if (val == def)
 				continue;
+
+			WARN_ON(!snd_soc_codec_writable_register(codec, regtmp));
 
 			codec->cache_bypass = 1;
 			ret = snd_soc_write(codec, regtmp, val);
@@ -560,8 +560,7 @@ static int snd_soc_lzo_cache_sync(struct snd_soc_codec *codec)
 
 	lzo_blocks = codec->reg_cache;
 	for_each_set_bit(i, lzo_blocks[0]->sync_bmp, lzo_blocks[0]->sync_bmp_nbits) {
-		WARN_ON(codec->writable_register &&
-			codec->writable_register(codec, i));
+		WARN_ON(!snd_soc_codec_writable_register(codec, i));
 		ret = snd_soc_cache_read(codec, i, &val);
 		if (ret)
 			return ret;
@@ -820,8 +819,6 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 
 	codec_drv = codec->driver;
 	for (i = 0; i < codec_drv->reg_cache_size; ++i) {
-		WARN_ON(codec->writable_register &&
-			codec->writable_register(codec, i));
 		ret = snd_soc_cache_read(codec, i, &val);
 		if (ret)
 			return ret;
@@ -829,6 +826,9 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 			if (snd_soc_get_cache_val(codec->reg_def_copy,
 						  i, codec_drv->reg_word_size) == val)
 				continue;
+
+		WARN_ON(!snd_soc_codec_writable_register(codec, i));
+
 		ret = snd_soc_write(codec, i, val);
 		if (ret)
 			return ret;
