@@ -319,8 +319,8 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 	return val;
 }
 
-int vmw_3d_resource_inc(struct vmw_private *dev_priv);
-void vmw_3d_resource_dec(struct vmw_private *dev_priv);
+int vmw_3d_resource_inc(struct vmw_private *dev_priv, bool unhide_svga);
+void vmw_3d_resource_dec(struct vmw_private *dev_priv, bool hide_svga);
 
 /**
  * GMR utilities - vmwgfx_gmr.c

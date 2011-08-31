@@ -209,7 +209,14 @@ static void vmw_release_device(struct vmw_private *dev_priv)
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
 }
 
-int vmw_3d_resource_inc(struct vmw_private *dev_priv)
+/**
+ * Increase the 3d resource refcount.
+ * If the count was prevously zero, initialize the fifo, switching to svga
+ * mode. Note that the master holds a ref as well, and may request an
+ * explicit switch to svga mode if fb is not running, using @unhide_svga.
+ */
+int vmw_3d_resource_inc(struct vmw_private *dev_priv,
+			bool unhide_svga)
 {
 	int ret = 0;
 
@@ -218,19 +225,42 @@ int vmw_3d_resource_inc(struct vmw_private *dev_priv)
 		ret = vmw_request_device(dev_priv);
 		if (unlikely(ret != 0))
 			--dev_priv->num_3d_resources;
+	} else if (unhide_svga) {
+		mutex_lock(&dev_priv->hw_mutex);
+		vmw_write(dev_priv, SVGA_REG_ENABLE,
+			  vmw_read(dev_priv, SVGA_REG_ENABLE) &
+			  ~SVGA_REG_ENABLE_HIDE);
+		mutex_unlock(&dev_priv->hw_mutex);
 	}
+
 	mutex_unlock(&dev_priv->release_mutex);
 	return ret;
 }
 
-
-void vmw_3d_resource_dec(struct vmw_private *dev_priv)
+/**
+ * Decrease the 3d resource refcount.
+ * If the count reaches zero, disable the fifo, switching to vga mode.
+ * Note that the master holds a refcount as well, and may request an
+ * explicit switch to vga mode when it releases its refcount to account
+ * for the situation of an X server vt switch to VGA with 3d resources
+ * active.
+ */
+void vmw_3d_resource_dec(struct vmw_private *dev_priv,
+			 bool hide_svga)
 {
 	int32_t n3d;
 
 	mutex_lock(&dev_priv->release_mutex);
 	if (unlikely(--dev_priv->num_3d_resources == 0))
 		vmw_release_device(dev_priv);
+	else if (hide_svga) {
+		mutex_lock(&dev_priv->hw_mutex);
+		vmw_write(dev_priv, SVGA_REG_ENABLE,
+			  vmw_read(dev_priv, SVGA_REG_ENABLE) |
+			  SVGA_REG_ENABLE_HIDE);
+		mutex_unlock(&dev_priv->hw_mutex);
+	}
+
 	n3d = (int32_t) dev_priv->num_3d_resources;
 	mutex_unlock(&dev_priv->release_mutex);
 
@@ -399,7 +429,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_no_kms;
 	vmw_overlay_init(dev_priv);
 	if (dev_priv->enable_fb) {
-		ret = vmw_3d_resource_inc(dev_priv);
+		ret = vmw_3d_resource_inc(dev_priv, false);
 		if (unlikely(ret != 0))
 			goto out_no_fifo;
 		vmw_kms_save_vga(dev_priv);
@@ -429,7 +459,7 @@ out_no_irq:
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv);
+		vmw_3d_resource_dec(dev_priv, false);
 	}
 out_no_fifo:
 	vmw_overlay_close(dev_priv);
@@ -474,7 +504,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv);
+		vmw_3d_resource_dec(dev_priv, false);
 	}
 	vmw_kms_close(dev_priv);
 	vmw_overlay_close(dev_priv);
@@ -648,7 +678,7 @@ static int vmw_master_set(struct drm_device *dev,
 	int ret = 0;
 
 	if (!dev_priv->enable_fb) {
-		ret = vmw_3d_resource_inc(dev_priv);
+		ret = vmw_3d_resource_inc(dev_priv, true);
 		if (unlikely(ret != 0))
 			return ret;
 		vmw_kms_save_vga(dev_priv);
@@ -690,7 +720,7 @@ out_no_active_lock:
 		vmw_write(dev_priv, SVGA_REG_TRACES, 1);
 		mutex_unlock(&dev_priv->hw_mutex);
 		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv);
+		vmw_3d_resource_dec(dev_priv, true);
 	}
 	return ret;
 }
@@ -728,7 +758,7 @@ static void vmw_master_drop(struct drm_device *dev,
 		vmw_write(dev_priv, SVGA_REG_TRACES, 1);
 		mutex_unlock(&dev_priv->hw_mutex);
 		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv);
+		vmw_3d_resource_dec(dev_priv, true);
 	}
 
 	dev_priv->active_master = &dev_priv->fbdev_master;
@@ -837,7 +867,7 @@ static int vmw_pm_prepare(struct device *kdev)
 	 */
 	dev_priv->suspended = true;
 	if (dev_priv->enable_fb)
-		vmw_3d_resource_dec(dev_priv);
+			vmw_3d_resource_dec(dev_priv, true);
 
 	if (dev_priv->num_3d_resources != 0) {
 
@@ -845,7 +875,7 @@ static int vmw_pm_prepare(struct device *kdev)
 			 "while 3D resources are active.\n");
 
 		if (dev_priv->enable_fb)
-			vmw_3d_resource_inc(dev_priv);
+			vmw_3d_resource_inc(dev_priv, true);
 		dev_priv->suspended = false;
 		return -EBUSY;
 	}
@@ -864,7 +894,7 @@ static void vmw_pm_complete(struct device *kdev)
 	 * start fifo.
 	 */
 	if (dev_priv->enable_fb)
-		vmw_3d_resource_inc(dev_priv);
+			vmw_3d_resource_inc(dev_priv, false);
 
 	dev_priv->suspended = false;
 }
