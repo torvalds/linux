@@ -1431,10 +1431,8 @@ static int ql_map_send(struct ql_adapter *qdev,
 			map_idx++;
 		}
 
-		map =
-		    pci_map_page(qdev->pdev, frag->page,
-				 frag->page_offset, frag->size,
-				 PCI_DMA_TODEVICE);
+		map = skb_frag_dma_map(&qdev->pdev->dev, frag, 0, frag->size,
+				       PCI_DMA_TODEVICE);
 
 		err = pci_dma_mapping_error(qdev->pdev, map);
 		if (err) {
@@ -1477,8 +1475,6 @@ static void ql_process_mac_rx_gro_page(struct ql_adapter *qdev,
 {
 	struct sk_buff *skb;
 	struct bq_desc *lbq_desc = ql_get_curr_lchunk(qdev, rx_ring);
-	struct skb_frag_struct *rx_frag;
-	int nr_frags;
 	struct napi_struct *napi = &rx_ring->napi;
 
 	napi->dev = qdev->ndev;
@@ -1492,12 +1488,10 @@ static void ql_process_mac_rx_gro_page(struct ql_adapter *qdev,
 		return;
 	}
 	prefetch(lbq_desc->p.pg_chunk.va);
-	rx_frag = skb_shinfo(skb)->frags;
-	nr_frags = skb_shinfo(skb)->nr_frags;
-	rx_frag += nr_frags;
-	rx_frag->page = lbq_desc->p.pg_chunk.page;
-	rx_frag->page_offset = lbq_desc->p.pg_chunk.offset;
-	rx_frag->size = length;
+	__skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
+			     lbq_desc->p.pg_chunk.page,
+			     lbq_desc->p.pg_chunk.offset,
+			     length);
 
 	skb->len += length;
 	skb->data_len += length;
