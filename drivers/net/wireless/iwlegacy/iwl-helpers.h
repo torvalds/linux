@@ -38,12 +38,6 @@
 #define IL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
 
-static inline struct ieee80211_conf *il_ieee80211_get_hw_conf(
-	struct ieee80211_hw *hw)
-{
-	return &hw->conf;
-}
-
 /**
  * il_queue_inc_wrap - increment queue idx, wrap back to beginning
  * @idx -- current idx

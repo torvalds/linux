@@ -2184,7 +2184,7 @@ static void il4965_post_associate(struct il_priv *il)
 
 	il_scan_cancel_timeout(il, 200);
 
-	conf = il_ieee80211_get_hw_conf(il->hw);
+	conf = &il->hw->conf;
 
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	il_commit_rxon(il, ctx);

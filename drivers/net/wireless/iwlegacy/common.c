@@ -3514,7 +3514,7 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 	u16 beacon_int;
 	struct ieee80211_vif *vif = ctx->vif;
 
-	conf = il_ieee80211_get_hw_conf(il->hw);
+	conf = &il->hw->conf;
 
 	lockdep_assert_held(&il->mutex);
 
