@@ -31,6 +31,7 @@
  * Radio 2064.
  **************************************************/
 
+/* wlc_lcnphy_radio_2064_channel_tune_4313 */
 static void b43_radio_2064_channel_setup(struct b43_wldev *dev)
 {
 	u16 save[2];
@@ -73,6 +74,7 @@ static void b43_radio_2064_channel_setup(struct b43_wldev *dev)
 	b43_radio_write(dev, 0x091, 0x7);
 }
 
+/* wlc_radio_2064_init */
 static void b43_radio_2064_init(struct b43_wldev *dev)
 {
 	b43_radio_write(dev, 0x09c, 0x0020);
@@ -122,6 +124,7 @@ static void b43_radio_2064_init(struct b43_wldev *dev)
  * Various PHY ops
  **************************************************/
 
+/* wlc_lcnphy_toggle_afe_pwdn */
 static void b43_phy_lcn_afe_set_unset(struct b43_wldev *dev)
 {
 	u16 afe_ctl2 = b43_phy_read(dev, B43_PHY_LCN_AFE_CTL2);
@@ -137,7 +140,8 @@ static void b43_phy_lcn_afe_set_unset(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_LCN_AFE_CTL1, afe_ctl1);
 }
 
-static void b43_phy_lcn_clear_0x07_table(struct b43_wldev *dev)
+/* wlc_lcnphy_clear_tx_power_offsets */
+static void b43_phy_lcn_clear_tx_power_offsets(struct b43_wldev *dev)
 {
 	u8 i;
 
@@ -154,7 +158,8 @@ static void b43_phy_lcn_clear_0x07_table(struct b43_wldev *dev)
 	}
 }
 
-static void b43_phy_lcn_pre_radio_init(struct b43_wldev *dev)
+/* wlc_lcnphy_rev0_baseband_init */
+static void b43_phy_lcn_rev0_baseband_init(struct b43_wldev *dev)
 {
 	b43_radio_write(dev, 0x11c, 0);
 
@@ -181,7 +186,11 @@ static void b43_phy_lcn_pre_radio_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, 0x448, ~0x300, 0x100);
 	b43_phy_maskset(dev, 0x608, ~0xff, 0x17);
 	b43_phy_maskset(dev, 0x604, ~0x7ff, 0x3ea);
+}
 
+/* wlc_lcnphy_bu_tweaks */
+static void b43_phy_lcn_bu_tweaks(struct b43_wldev *dev)
+{
 	b43_phy_set(dev, 0x805, 0x1);
 
 	b43_phy_maskset(dev, 0x42f, ~0x7, 0x3);
@@ -203,9 +212,16 @@ static void b43_phy_lcn_pre_radio_init(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x7d6, 0x0902);
 
 	/* TODO: more ops */
+
+	if (dev->phy.rev == 1) {
+		/* TODO: more ops */
+
+		b43_phy_lcn_clear_tx_power_offsets(dev);
+	}
 }
 
-static void b43_phy_lcn_save_configsth_restore(struct b43_wldev *dev)
+/* wlc_lcnphy_vbat_temp_sense_setup */
+static void b43_phy_lcn_sense_setup(struct b43_wldev *dev)
 {
 	u8 i;
 
@@ -297,6 +313,7 @@ static void b43_phy_lcn_op_prepare_structs(struct b43_wldev *dev)
 	memset(phy_lcn, 0, sizeof(*phy_lcn));
 }
 
+/* wlc_phy_init_lcnphy */
 static int b43_phy_lcn_op_init(struct b43_wldev *dev)
 {
 	b43_phy_set(dev, 0x44a, 0x80);
@@ -312,15 +329,15 @@ static int b43_phy_lcn_op_init(struct b43_wldev *dev)
 
 	b43_phy_lcn_tables_init(dev);
 
-	b43_phy_lcn_pre_radio_init(dev);
-	b43_phy_lcn_clear_0x07_table(dev);
+	b43_phy_lcn_rev0_baseband_init(dev);
+	b43_phy_lcn_bu_tweaks(dev);
 
 	if (dev->phy.radio_ver == 0x2064)
 		b43_radio_2064_init(dev);
 	else
 		B43_WARN_ON(1);
 
-	b43_phy_lcn_save_configsth_restore(dev);
+	b43_phy_lcn_sense_setup(dev);
 
 	return 0;
 }

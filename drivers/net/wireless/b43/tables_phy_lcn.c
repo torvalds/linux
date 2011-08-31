@@ -295,7 +295,7 @@ static const u32 b43_lcntab_0x18[] = {
 	0x00080000, 0x00080000, 0x00080000, 0x00080000,
 };
 
-const u16 b43_lcntab_0x0f_late[] = {
+const u16 b43_lcntab_sw_ctl_4313_epa_rev0[] = {
 	0x0002, 0x0008, 0x0004, 0x0001, 0x0002, 0x0008,
 	0x0004, 0x0001, 0x0002, 0x0008, 0x0004, 0x0001,
 	0x0002, 0x0008, 0x0004, 0x0001, 0x0002, 0x0008,
@@ -488,7 +488,8 @@ static void b43_phy_lcn_rewrite_tables(struct b43_wldev *dev)
 	}
 }
 
-static void b43_phy_lcn_clean_0x18_table(struct b43_wldev *dev)
+/* wlc_lcnphy_clear_papd_comptable */
+static void b43_phy_lcn_clean_papd_comp_table(struct b43_wldev *dev)
 {
 	u8 i;
 
@@ -501,8 +502,9 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 	b43_phy_lcn_upload_static_tables(dev);
 	/* TODO: various tables ops here */
 	b43_lcntab_write_bulk(dev, B43_LCNTAB16(0xf, 0),
-			ARRAY_SIZE(b43_lcntab_0x0f_late), b43_lcntab_0x0f_late);
+			ARRAY_SIZE(b43_lcntab_sw_ctl_4313_epa_rev0),
+			b43_lcntab_sw_ctl_4313_epa_rev0);
 	/* TODO: various tables ops here */
 	b43_phy_lcn_rewrite_tables(dev);
-	b43_phy_lcn_clean_0x18_table(dev);
+	b43_phy_lcn_clean_papd_comp_table(dev);
 }
