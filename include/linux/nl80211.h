@@ -1044,6 +1044,8 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_STA_WME: Nested attribute containing the wme configuration
  *	of the station, see &enum nl80211_sta_wme_attr.
+ * @NL80211_ATTR_SUPPORT_AP_UAPSD: the device supports uapsd when working
+ *	as AP.
  *
  * @NL80211_ATTR_ROAM_SUPPORT: Indicates whether the firmware is capable of
  *	roaming to another AP in the same ESS if the signal lever is low.
@@ -1259,6 +1261,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_IE_ASSOC_RESP,
 
 	NL80211_ATTR_STA_WME,
+	NL80211_ATTR_SUPPORT_AP_UAPSD,
 
 	NL80211_ATTR_ROAM_SUPPORT,
 
