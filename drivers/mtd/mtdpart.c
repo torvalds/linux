@@ -130,7 +130,7 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 	if (ops->oobbuf) {
 		size_t len, pages;
 
-		if (ops->mode == MTD_OOB_AUTO)
+		if (ops->mode == MTD_OPS_AUTO_OOB)
 			len = mtd->oobavail;
 		else
 			len = mtd->oobsize;

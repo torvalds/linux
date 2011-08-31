@@ -46,18 +46,18 @@ struct mtd_oob_buf64 {
 };
 
 /*
- * oob operation modes
+ * MTD operation modes
  *
- * MTD_OOB_PLACE:       oob data are placed at the given offset (default)
- * MTD_OOB_AUTO:        oob data are automatically placed at the free areas
- *                      which are defined by the internal ecclayout
- * MTD_OOB_RAW:         mode to read or write oob and data without doing ECC
+ * MTD_OPS_PLACE_OOB:	oob data are placed at the given offset (default)
+ * MTD_OPS_AUTO_OOB:	oob data are automatically placed at the free areas
+ *			which are defined by the internal ecclayout
+ * MTD_OPS_RAW:		mode to read or write oob and data without doing ECC
  *			checking
  */
 enum {
-	MTD_OOB_PLACE = 0,
-	MTD_OOB_AUTO = 1,
-	MTD_OOB_RAW = 2,
+	MTD_OPS_PLACE_OOB = 0,
+	MTD_OPS_AUTO_OOB = 1,
+	MTD_OPS_RAW = 2,
 };
 
 #define MTD_ABSENT		0

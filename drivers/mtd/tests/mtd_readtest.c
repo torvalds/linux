@@ -66,7 +66,7 @@ static int read_eraseblock_by_page(int ebnum)
 		if (mtd->oobsize) {
 			struct mtd_oob_ops ops;
 
-			ops.mode      = MTD_OOB_PLACE;
+			ops.mode      = MTD_OPS_PLACE_OOB;
 			ops.len       = 0;
 			ops.retlen    = 0;
 			ops.ooblen    = mtd->oobsize;

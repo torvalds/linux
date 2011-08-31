@@ -221,7 +221,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		{
 			struct mtd_oob_ops ops;
 
-			ops.mode = MTD_OOB_RAW;
+			ops.mode = MTD_OPS_RAW;
 			ops.datbuf = kbuf;
 			ops.oobbuf = NULL;
 			ops.len = len;
@@ -317,7 +317,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 		{
 			struct mtd_oob_ops ops;
 
-			ops.mode = MTD_OOB_RAW;
+			ops.mode = MTD_OPS_RAW;
 			ops.datbuf = kbuf;
 			ops.oobbuf = NULL;
 			ops.ooboffs = 0;
@@ -413,7 +413,8 @@ static int mtd_do_writeoob(struct file *file, struct mtd_info *mtd,
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
-	ops.mode = (mfi->mode == MTD_MODE_RAW) ? MTD_OOB_RAW : MTD_OOB_PLACE;
+	ops.mode = (mfi->mode == MTD_MODE_RAW) ? MTD_OPS_RAW :
+		MTD_OPS_PLACE_OOB;
 
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 		return -EINVAL;
@@ -457,7 +458,8 @@ static int mtd_do_readoob(struct file *file, struct mtd_info *mtd,
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
-	ops.mode = (mfi->mode == MTD_MODE_RAW) ? MTD_OOB_RAW : MTD_OOB_PLACE;
+	ops.mode = (mfi->mode == MTD_MODE_RAW) ? MTD_OPS_RAW :
+		MTD_OPS_PLACE_OOB;
 
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 		return -EINVAL;

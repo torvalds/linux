@@ -1104,7 +1104,7 @@ gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int page)
 	 * The BCH will use all the (page + oob).
 	 * Our gpmi_hw_ecclayout can only prohibit the JFFS2 to write the oob.
 	 * But it can not stop some ioctls such MEMWRITEOOB which uses
-	 * MTD_OOB_PLACE. So We have to implement this function to prohibit
+	 * MTD_OPS_PLACE_OOB. So We have to implement this function to prohibit
 	 * these ioctls too.
 	 */
 	return -EPERM;
