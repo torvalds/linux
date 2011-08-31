@@ -1674,6 +1674,9 @@ static int __devinit ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 	int result;
 
 	pr_debug("%s: called\n", __func__);
+
+	udbg_shutdown_ps3gelic();
+
 	result = ps3_open_hv_device(dev);
 
 	if (result) {
