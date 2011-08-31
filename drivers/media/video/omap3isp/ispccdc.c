@@ -967,17 +967,8 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 				struct ispccdc_syncif *syncif)
 {
 	struct isp_device *isp = to_isp_device(ccdc);
-	u32 syn_mode = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC,
-				     ISPCCDC_SYN_MODE);
+	u32 syn_mode = ISPCCDC_SYN_MODE_VDHDEN;
 
-	syn_mode |= ISPCCDC_SYN_MODE_VDHDEN;
-
-	if (syncif->fldstat)
-		syn_mode |= ISPCCDC_SYN_MODE_FLDSTAT;
-	else
-		syn_mode &= ~ISPCCDC_SYN_MODE_FLDSTAT;
-
-	syn_mode &= ~ISPCCDC_SYN_MODE_DATSIZ_MASK;
 	switch (syncif->datsz) {
 	case 8:
 		syn_mode |= ISPCCDC_SYN_MODE_DATSIZ_8;
@@ -993,47 +984,14 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 		break;
 	}
 
-	if (syncif->fldmode)
-		syn_mode |= ISPCCDC_SYN_MODE_FLDMODE;
-	else
-		syn_mode &= ~ISPCCDC_SYN_MODE_FLDMODE;
-
 	if (syncif->datapol)
 		syn_mode |= ISPCCDC_SYN_MODE_DATAPOL;
-	else
-		syn_mode &= ~ISPCCDC_SYN_MODE_DATAPOL;
-
-	if (syncif->fldpol)
-		syn_mode |= ISPCCDC_SYN_MODE_FLDPOL;
-	else
-		syn_mode &= ~ISPCCDC_SYN_MODE_FLDPOL;
 
 	if (syncif->hdpol)
 		syn_mode |= ISPCCDC_SYN_MODE_HDPOL;
-	else
-		syn_mode &= ~ISPCCDC_SYN_MODE_HDPOL;
 
 	if (syncif->vdpol)
 		syn_mode |= ISPCCDC_SYN_MODE_VDPOL;
-	else
-		syn_mode &= ~ISPCCDC_SYN_MODE_VDPOL;
-
-	if (syncif->ccdc_mastermode) {
-		syn_mode |= ISPCCDC_SYN_MODE_FLDOUT | ISPCCDC_SYN_MODE_VDHDOUT;
-		isp_reg_writel(isp,
-			       syncif->hs_width << ISPCCDC_HD_VD_WID_HDW_SHIFT
-			     | syncif->vs_width << ISPCCDC_HD_VD_WID_VDW_SHIFT,
-			       OMAP3_ISP_IOMEM_CCDC,
-			       ISPCCDC_HD_VD_WID);
-
-		isp_reg_writel(isp,
-			       syncif->ppln << ISPCCDC_PIX_LINES_PPLN_SHIFT
-			     | syncif->hlprf << ISPCCDC_PIX_LINES_HLPRF_SHIFT,
-			       OMAP3_ISP_IOMEM_CCDC,
-			       ISPCCDC_PIX_LINES);
-	} else
-		syn_mode &= ~(ISPCCDC_SYN_MODE_FLDOUT |
-			      ISPCCDC_SYN_MODE_VDHDOUT);
 
 	isp_reg_writel(isp, syn_mode, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE);
 
@@ -1154,6 +1112,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	omap3isp_configure_bridge(isp, ccdc->input, pdata, shift);
 
 	ccdc->syncif.datsz = depth_out;
+	ccdc->syncif.datapol = 0;
 	ccdc->syncif.hdpol = pdata ? pdata->hs_pol : 0;
 	ccdc->syncif.vdpol = pdata ? pdata->vs_pol : 0;
 	ccdc_config_sync_if(ccdc, &ccdc->syncif);
@@ -2487,13 +2446,7 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 	INIT_LIST_HEAD(&ccdc->lsc.free_queue);
 	spin_lock_init(&ccdc->lsc.req_lock);
 
-	ccdc->syncif.ccdc_mastermode = 0;
-	ccdc->syncif.datapol = 0;
 	ccdc->syncif.datsz = 0;
-	ccdc->syncif.fldmode = 0;
-	ccdc->syncif.fldout = 0;
-	ccdc->syncif.fldpol = 0;
-	ccdc->syncif.fldstat = 0;
 
 	ccdc->clamp.oblen = 0;
 	ccdc->clamp.dcsubval = 0;

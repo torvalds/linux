@@ -48,35 +48,17 @@ enum ccdc_input_entity {
 
 /*
  * struct ispccdc_syncif - Structure for Sync Interface between sensor and CCDC
- * @ccdc_mastermode: Master mode. 1 - Master, 0 - Slave.
- * @fldstat: Field state. 0 - Odd Field, 1 - Even Field.
  * @datsz: Data size.
- * @fldmode: 0 - Progressive, 1 - Interlaced.
  * @datapol: 0 - Positive, 1 - Negative.
- * @fldpol: 0 - Positive, 1 - Negative.
  * @hdpol: 0 - Positive, 1 - Negative.
  * @vdpol: 0 - Positive, 1 - Negative.
- * @fldout: 0 - Input, 1 - Output.
- * @hs_width: Width of the Horizontal Sync pulse, used for HS/VS Output.
- * @vs_width: Width of the Vertical Sync pulse, used for HS/VS Output.
- * @ppln: Number of pixels per line, used for HS/VS Output.
- * @hlprf: Number of half lines per frame, used for HS/VS Output.
  * @bt_r656_en: 1 - Enable ITU-R BT656 mode, 0 - Sync mode.
  */
 struct ispccdc_syncif {
-	u8 ccdc_mastermode;
-	u8 fldstat;
 	u8 datsz;
-	u8 fldmode;
 	u8 datapol;
-	u8 fldpol;
 	u8 hdpol;
 	u8 vdpol;
-	u8 fldout;
-	u8 hs_width;
-	u8 vs_width;
-	u8 ppln;
-	u8 hlprf;
 	u8 bt_r656_en;
 };
 
