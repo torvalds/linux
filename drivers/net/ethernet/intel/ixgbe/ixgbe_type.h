@@ -2682,6 +2682,8 @@ struct ixgbe_hw_stats {
 	u64 fcoeptc;
 	u64 fcoedwrc;
 	u64 fcoedwtc;
+	u64 fcoe_noddp;
+	u64 fcoe_noddp_ext_buff;
 	u64 b2ospc;
 	u64 b2ogprc;
 	u64 o2bgptc;

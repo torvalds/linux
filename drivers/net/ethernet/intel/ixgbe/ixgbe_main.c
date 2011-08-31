@@ -5552,6 +5552,11 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	u64 non_eop_descs = 0, restart_queue = 0, tx_busy = 0;
 	u64 alloc_rx_page_failed = 0, alloc_rx_buff_failed = 0;
 	u64 bytes = 0, packets = 0;
+#ifdef IXGBE_FCOE
+	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
+	unsigned int cpu;
+	u64 fcoe_noddp_counts_sum = 0, fcoe_noddp_ext_buff_counts_sum = 0;
+#endif /* IXGBE_FCOE */
 
 	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
 	    test_bit(__IXGBE_RESETTING, &adapter->state))
@@ -5679,6 +5684,18 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->fcoeptc += IXGBE_READ_REG(hw, IXGBE_FCOEPTC);
 		hwstats->fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
 		hwstats->fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
+		/* Add up per cpu counters for total ddp aloc fail */
+		if (fcoe->pcpu_noddp && fcoe->pcpu_noddp_ext_buff) {
+			for_each_possible_cpu(cpu) {
+				fcoe_noddp_counts_sum +=
+					*per_cpu_ptr(fcoe->pcpu_noddp, cpu);
+				fcoe_noddp_ext_buff_counts_sum +=
+					*per_cpu_ptr(fcoe->
+						pcpu_noddp_ext_buff, cpu);
+			}
+		}
+		hwstats->fcoe_noddp = fcoe_noddp_counts_sum;
+		hwstats->fcoe_noddp_ext_buff = fcoe_noddp_ext_buff_counts_sum;
 #endif /* IXGBE_FCOE */
 		break;
 	default:
