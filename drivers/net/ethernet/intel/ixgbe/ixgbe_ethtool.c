@@ -2026,39 +2026,20 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	ec->tx_max_coalesced_frames_irq = adapter->tx_work_limit;
 
 	/* only valid if in constant ITR mode */
-	switch (adapter->rx_itr_setting) {
-	case 0:
-		/* throttling disabled */
-		ec->rx_coalesce_usecs = 0;
-		break;
-	case 1:
-		/* dynamic ITR mode */
-		ec->rx_coalesce_usecs = 1;
-		break;
-	default:
-		/* fixed interrupt rate mode */
-		ec->rx_coalesce_usecs = 1000000/adapter->rx_eitr_param;
-		break;
-	}
+	if (adapter->rx_itr_setting <= 1)
+		ec->rx_coalesce_usecs = adapter->rx_itr_setting;
+	else
+		ec->rx_coalesce_usecs = adapter->rx_itr_setting >> 2;
 
 	/* if in mixed tx/rx queues per vector mode, report only rx settings */
 	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count)
 		return 0;
 
 	/* only valid if in constant ITR mode */
-	switch (adapter->tx_itr_setting) {
-	case 0:
-		/* throttling disabled */
-		ec->tx_coalesce_usecs = 0;
-		break;
-	case 1:
-		/* dynamic ITR mode */
-		ec->tx_coalesce_usecs = 1;
-		break;
-	default:
-		ec->tx_coalesce_usecs = 1000000/adapter->tx_eitr_param;
-		break;
-	}
+	if (adapter->tx_itr_setting <= 1)
+		ec->tx_coalesce_usecs = adapter->tx_itr_setting;
+	else
+		ec->tx_coalesce_usecs = adapter->tx_itr_setting >> 2;
 
 	return 0;
 }
@@ -2077,10 +2058,9 @@ static bool ixgbe_update_rsc(struct ixgbe_adapter *adapter,
 
 	/* if interrupt rate is too high then disable RSC */
 	if (ec->rx_coalesce_usecs != 1 &&
-	    ec->rx_coalesce_usecs <= 1000000/IXGBE_MAX_RSC_INT_RATE) {
+	    ec->rx_coalesce_usecs <= (IXGBE_MIN_RSC_ITR >> 2)) {
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
-			e_info(probe, "rx-usecs set too low, "
-				      "disabling RSC\n");
+			e_info(probe, "rx-usecs set too low, disabling RSC\n");
 			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
 			return true;
 		}
@@ -2088,8 +2068,7 @@ static bool ixgbe_update_rsc(struct ixgbe_adapter *adapter,
 		/* check the feature flag value and enable RSC if necessary */
 		if ((netdev->features & NETIF_F_LRO) &&
 		    !(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)) {
-			e_info(probe, "rx-usecs set to %d, "
-				      "re-enabling RSC\n",
+			e_info(probe, "rx-usecs set to %d, re-enabling RSC\n",
 			       ec->rx_coalesce_usecs);
 			adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
 			return true;
@@ -2104,97 +2083,59 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_q_vector *q_vector;
 	int i;
+	int num_vectors;
+	u16 tx_itr_param, rx_itr_param;
 	bool need_reset = false;
 
 	/* don't accept tx specific changes if we've got mixed RxTx vectors */
 	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count
-	   && ec->tx_coalesce_usecs)
+	    && ec->tx_coalesce_usecs)
 		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
 		adapter->tx_work_limit = ec->tx_max_coalesced_frames_irq;
 
-	if (ec->rx_coalesce_usecs > 1) {
-		/* check the limits */
-		if ((1000000/ec->rx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
-		    (1000000/ec->rx_coalesce_usecs < IXGBE_MIN_INT_RATE))
-			return -EINVAL;
+	if ((ec->rx_coalesce_usecs > (IXGBE_MAX_EITR >> 2)) ||
+	    (ec->tx_coalesce_usecs > (IXGBE_MAX_EITR >> 2)))
+		return -EINVAL;
 
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_update_rsc(adapter, ec);
+	/* check the old value and enable RSC if necessary */
+	need_reset = ixgbe_update_rsc(adapter, ec);
 
-		/* store the value in ints/second */
-		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
+	if (ec->rx_coalesce_usecs > 1)
+		adapter->rx_itr_setting = ec->rx_coalesce_usecs << 2;
+	else
+		adapter->rx_itr_setting = ec->rx_coalesce_usecs;
 
-		/* static value of interrupt rate */
-		adapter->rx_itr_setting = adapter->rx_eitr_param;
-		/* clear the lower bit as its used for dynamic state */
-		adapter->rx_itr_setting &= ~1;
-	} else if (ec->rx_coalesce_usecs == 1) {
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_update_rsc(adapter, ec);
+	if (adapter->rx_itr_setting == 1)
+		rx_itr_param = IXGBE_20K_ITR;
+	else
+		rx_itr_param = adapter->rx_itr_setting;
 
-		/* 1 means dynamic mode */
-		adapter->rx_eitr_param = 20000;
-		adapter->rx_itr_setting = 1;
-	} else {
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_update_rsc(adapter, ec);
-		/*
-		 * any other value means disable eitr, which is best
-		 * served by setting the interrupt rate very high
-		 */
-		adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
-		adapter->rx_itr_setting = 0;
-	}
+	if (ec->tx_coalesce_usecs > 1)
+		adapter->tx_itr_setting = ec->tx_coalesce_usecs << 2;
+	else
+		adapter->tx_itr_setting = ec->tx_coalesce_usecs;
 
-	if (ec->tx_coalesce_usecs > 1) {
-		/*
-		 * don't have to worry about max_int as above because
-		 * tx vectors don't do hardware RSC (an rx function)
-		 */
-		/* check the limits */
-		if ((1000000/ec->tx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
-		    (1000000/ec->tx_coalesce_usecs < IXGBE_MIN_INT_RATE))
-			return -EINVAL;
+	if (adapter->tx_itr_setting == 1)
+		tx_itr_param = IXGBE_10K_ITR;
+	else
+		tx_itr_param = adapter->tx_itr_setting;
 
-		/* store the value in ints/second */
-		adapter->tx_eitr_param = 1000000/ec->tx_coalesce_usecs;
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
+		num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	else
+		num_vectors = 1;
 
-		/* static value of interrupt rate */
-		adapter->tx_itr_setting = adapter->tx_eitr_param;
-
-		/* clear the lower bit as its used for dynamic state */
-		adapter->tx_itr_setting &= ~1;
-	} else if (ec->tx_coalesce_usecs == 1) {
-		/* 1 means dynamic mode */
-		adapter->tx_eitr_param = 10000;
-		adapter->tx_itr_setting = 1;
-	} else {
-		adapter->tx_eitr_param = IXGBE_MAX_INT_RATE;
-		adapter->tx_itr_setting = 0;
-	}
-
-	/* MSI/MSIx Interrupt Mode */
-	if (adapter->flags &
-	    (IXGBE_FLAG_MSIX_ENABLED | IXGBE_FLAG_MSI_ENABLED)) {
-		int num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-		for (i = 0; i < num_vectors; i++) {
-			q_vector = adapter->q_vector[i];
-			if (q_vector->tx.count && !q_vector->rx.count)
-				/* tx only */
-				q_vector->eitr = adapter->tx_eitr_param;
-			else
-				/* rx only or mixed */
-				q_vector->eitr = adapter->rx_eitr_param;
-			q_vector->tx.work_limit = adapter->tx_work_limit;
-			ixgbe_write_eitr(q_vector);
-		}
-	/* Legacy Interrupt Mode */
-	} else {
-		q_vector = adapter->q_vector[0];
-		q_vector->eitr = adapter->rx_eitr_param;
+	for (i = 0; i < num_vectors; i++) {
+		q_vector = adapter->q_vector[i];
 		q_vector->tx.work_limit = adapter->tx_work_limit;
+		if (q_vector->tx.count && !q_vector->rx.count)
+			/* tx only */
+			q_vector->itr = tx_itr_param;
+		else
+			/* rx only or mixed */
+			q_vector->itr = rx_itr_param;
 		ixgbe_write_eitr(q_vector);
 	}
 

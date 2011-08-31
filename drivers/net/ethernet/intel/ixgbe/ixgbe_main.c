@@ -1500,12 +1500,19 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 		for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
 			ixgbe_set_ivar(adapter, 1, ring->reg_idx, v_idx);
 
-		if (q_vector->tx.ring && !q_vector->rx.ring)
-			/* tx only */
-			q_vector->eitr = adapter->tx_eitr_param;
-		else if (q_vector->rx.ring)
-			/* rx or mixed */
-			q_vector->eitr = adapter->rx_eitr_param;
+		if (q_vector->tx.ring && !q_vector->rx.ring) {
+			/* tx only vector */
+			if (adapter->tx_itr_setting == 1)
+				q_vector->itr = IXGBE_10K_ITR;
+			else
+				q_vector->itr = adapter->tx_itr_setting;
+		} else {
+			/* rx or rx/tx vector */
+			if (adapter->rx_itr_setting == 1)
+				q_vector->itr = IXGBE_20K_ITR;
+			else
+				q_vector->itr = adapter->rx_itr_setting;
+		}
 
 		ixgbe_write_eitr(q_vector);
 	}
@@ -1519,7 +1526,6 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 	case ixgbe_mac_X540:
 		ixgbe_set_ivar(adapter, -1, 1, v_idx);
 		break;
-
 	default:
 		break;
 	}
@@ -1527,12 +1533,10 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 
 	/* set up to autoclear timer, and the vectors */
 	mask = IXGBE_EIMS_ENABLE_MASK;
-	if (adapter->num_vfs)
-		mask &= ~(IXGBE_EIMS_OTHER |
-			  IXGBE_EIMS_MAILBOX |
-			  IXGBE_EIMS_LSC);
-	else
-		mask &= ~(IXGBE_EIMS_OTHER | IXGBE_EIMS_LSC);
+	mask &= ~(IXGBE_EIMS_OTHER |
+		  IXGBE_EIMS_MAILBOX |
+		  IXGBE_EIMS_LSC);
+
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIAC, mask);
 }
 
@@ -1577,7 +1581,7 @@ static void ixgbe_update_itr(struct ixgbe_q_vector *q_vector,
 	 *  100-1249MB/s bulk (8000 ints/s)
 	 */
 	/* what was last interrupt timeslice? */
-	timepassed_us = 1000000/q_vector->eitr;
+	timepassed_us = q_vector->itr >> 2;
 	bytes_perint = bytes / timepassed_us; /* bytes/usec */
 
 	switch (itr_setting) {
@@ -1618,7 +1622,7 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int v_idx = q_vector->v_idx;
-	u32 itr_reg = EITR_INTS_PER_SEC_TO_REG(q_vector->eitr);
+	u32 itr_reg = q_vector->itr;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82598EB:
@@ -1627,15 +1631,6 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		/*
-		 * 82599 and X540 can support a value of zero, so allow it for
-		 * max interrupt rate, but there is an errata where it can
-		 * not be zero with RSC
-		 */
-		if (itr_reg == 8 &&
-		    !(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))
-			itr_reg = 0;
-
 		/*
 		 * set the WDIS bit to not clear the timer bits and cause an
 		 * immediate assertion of the interrupt
@@ -1650,7 +1645,7 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 
 static void ixgbe_set_itr(struct ixgbe_q_vector *q_vector)
 {
-	u32 new_itr = q_vector->eitr;
+	u32 new_itr = q_vector->itr;
 	u8 current_itr;
 
 	ixgbe_update_itr(q_vector, &q_vector->tx);
@@ -1661,24 +1656,25 @@ static void ixgbe_set_itr(struct ixgbe_q_vector *q_vector)
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
 	case lowest_latency:
-		new_itr = 100000;
+		new_itr = IXGBE_100K_ITR;
 		break;
 	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
+		new_itr = IXGBE_20K_ITR;
 		break;
 	case bulk_latency:
-		new_itr = 8000;
+		new_itr = IXGBE_8K_ITR;
 		break;
 	default:
 		break;
 	}
 
-	if (new_itr != q_vector->eitr) {
+	if (new_itr != q_vector->itr) {
 		/* do an exponential smoothing */
-		new_itr = ((q_vector->eitr * 9) + new_itr)/10;
+		new_itr = (10 * new_itr * q_vector->itr) /
+			  ((9 * new_itr) + q_vector->itr);
 
 		/* save the algorithm value here */
-		q_vector->eitr = new_itr;
+		q_vector->itr = new_itr & IXGBE_MAX_EITR;
 
 		ixgbe_write_eitr(q_vector);
 	}
@@ -2301,10 +2297,15 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_q_vector *q_vector = adapter->q_vector[0];
 
-	IXGBE_WRITE_REG(hw, IXGBE_EITR(0),
-			EITR_INTS_PER_SEC_TO_REG(adapter->rx_eitr_param));
+	/* rx/tx vector */
+	if (adapter->rx_itr_setting == 1)
+		q_vector->itr = IXGBE_20K_ITR;
+	else
+		q_vector->itr = adapter->rx_itr_setting;
+
+	ixgbe_write_eitr(q_vector);
 
 	ixgbe_set_ivar(adapter, 0, 0, 0);
 	ixgbe_set_ivar(adapter, 1, 0, 0);
@@ -4613,12 +4614,6 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 		if (!alloc_cpumask_var(&q_vector->affinity_mask, GFP_KERNEL))
 			goto err_out;
 		cpumask_set_cpu(v_idx, q_vector->affinity_mask);
-
-		if (q_vector->tx.count && !q_vector->rx.count)
-			q_vector->eitr = adapter->tx_eitr_param;
-		else
-			q_vector->eitr = adapter->rx_eitr_param;
-
 		netif_napi_add(adapter->netdev, &q_vector->napi,
 			       ixgbe_poll, 64);
 		adapter->q_vector[v_idx] = q_vector;
@@ -4864,9 +4859,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 
 	/* enable itr by default in dynamic mode */
 	adapter->rx_itr_setting = 1;
-	adapter->rx_eitr_param = 20000;
 	adapter->tx_itr_setting = 1;
-	adapter->tx_eitr_param = 10000;
 
 	/* set defaults for eitr in MegaBytes */
 	adapter->eitr_low = 10;
