@@ -2325,7 +2325,8 @@ static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 		tempdi = NULL; /*EPLCHTVCRT1Ptr_V;*/
 		break;
 	case 2:
-		tempdi = XGI_EPLCHTVDataPtr;
+	case 6:
+		tempdi = xgifb_chrontel_tv;
 		break;
 	case 3:
 		tempdi = NULL;
@@ -2335,9 +2336,6 @@ static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 		break;
 	case 5:
 		tempdi = NULL;
-		break;
-	case 6:
-		tempdi = XGI_EPLCHTVRegPtr;
 		break;
 	default:
 		break;

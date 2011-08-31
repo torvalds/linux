@@ -2476,21 +2476,12 @@ static struct XGI330_TVDataTablStruct XGI_TVDataTable[] = {
 	{0xffff, 0x0000, 12}  /* END */
 };
 
-/* ;;Chrontel 7017 TV Timing List */
-static struct XGI330_TVDataTablStruct XGI_EPLCHTVDataPtr[] = {
-	{0x0011, 0x0000, 0}, /* XGI_CHTVUNTSCData */
-	{0x0011, 0x0010, 1}, /* XGI_CHTVONTSCData */
-	{0x0011, 0x0001, 2}, /* XGI_CHTVUPALData */
-	{0x0011, 0x0011, 3}, /* XGI_CHTVOPALData */
-	{0xFFFF, 0x0000, 4}
-};
-
-/* ;;Chrontel 7017 TV Reg. List */
-static struct XGI330_TVDataTablStruct XGI_EPLCHTVRegPtr[] = {
-	{0x0011, 0x0000, 0}, /* XGI_CHTVRegUNTSC */
-	{0x0011, 0x0010, 1}, /* XGI_CHTVRegONTSC */
-	{0x0011, 0x0001, 2}, /* XGI_CHTVRegUPAL */
-	{0x0011, 0x0011, 3}, /* XGI_CHTVRegOPAL */
+/* Chrontel 7017 TV List */
+static struct XGI330_TVDataTablStruct xgifb_chrontel_tv[] = {
+	{0x0011, 0x0000, 0}, /* UNTSC */
+	{0x0011, 0x0010, 1}, /* ONTSC */
+	{0x0011, 0x0001, 2}, /* UPAL */
+	{0x0011, 0x0011, 3}, /* OPAL */
 	{0xFFFF, 0x0000, 4}
 };
 
