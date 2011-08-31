@@ -94,14 +94,32 @@ Features or just an idea in the future (see also design/*.txt),
 
 2. Download
 ----------------------------------------
-There were three GIT trees for aufs2, but for aufs3 two GIT trees,
-aufs3-standalone and aufs-util. Note that there is no "3" in "aufs-util."
-The aufs3-standalone tree has only aufs source files
+There were three GIT trees for aufs3, aufs3-linux.git,
+aufs3-standalone.git, and aufs-util.git. Note that there is no "3" in
+"aufs-util.git."
+While the aufs-util is always necessary, you need either of aufs3-linux
+or aufs3-standalone.
+
+The aufs3-linux tree includes the whole linux mainline GIT tree,
+git://git.kernel.org/.../torvalds/linux.git.
+And you cannot select CONFIG_AUFS_FS=m for this version, eg. you cannot
+build aufs3 as an externel kernel module.
+
+On the other hand, the aufs3-standalone tree has only aufs source files
 and necessary patches, and you can select CONFIG_AUFS_FS=m.
 
 You will find GIT branches whose name is in form of "aufs3.x" where "x"
 represents the linux kernel version, "linux-3.x". For instance,
-"aufs3.0" is for linux-3.0.
+"aufs3.0" is for linux-3.0. For latest "linux-3.x-rcN", use
+"aufs3.x-rcN" branch.
+
+o aufs3-linux tree
+$ git clone --reference /your/linux/git/tree \
+	git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-linux.git \
+	aufs3-linux.git
+- if you don't have linux GIT tree, then remove "--reference ..."
+$ cd aufs3-linux.git
+$ git checkout origin/aufs3.0
 
 o aufs3-standalone tree
 $ git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-standalone.git \
@@ -128,6 +146,10 @@ Also you can view all branches by
 3. Configuration and Compilation
 ----------------------------------------
 Make sure you have git-checkout'ed the correct branch.
+
+For aufs3-linux tree,
+- enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS.
+- set other aufs configurations if necessary.
 
 For aufs3-standalone tree,
 There are several ways to build.
