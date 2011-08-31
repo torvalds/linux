@@ -120,6 +120,10 @@ static struct isp_format_info formats[] = {
 	{ V4L2_MBUS_FMT_YUYV8_2X8, V4L2_MBUS_FMT_YUYV8_2X8,
 	  V4L2_MBUS_FMT_YUYV8_2X8, 0,
 	  V4L2_PIX_FMT_YUYV, 8, 2, },
+	/* Empty entry to catch the unsupported pixel code (0) used by the CCDC
+	 * module and avoid NULL pointer dereferences.
+	 */
+	{ 0, }
 };
 
 const struct isp_format_info *
