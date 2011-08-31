@@ -988,14 +988,10 @@ static void XGI_SetXG27CRTC(unsigned short ModeNo,
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetXG21LCD */
-/* Input : */
-/* Output : FCLK duty cycle, FCLK delay compensation */
-/* Description : All values set zero */
-/* --------------------------------------------------------------------- */
-static void XGI_SetXG21LCD(struct vb_device_info *pVBInfo,
-		unsigned short RefreshRateTableIndex, unsigned short ModeNo)
+static void xgifb_set_lcd(int chip_id,
+			  struct vb_device_info *pVBInfo,
+			  unsigned short RefreshRateTableIndex,
+			  unsigned short ModeNo)
 {
 	unsigned short Data, Temp, b3CC;
 	unsigned short XGI_P3cc;
@@ -1006,6 +1002,15 @@ static void XGI_SetXG21LCD(struct vb_device_info *pVBInfo,
 	xgifb_reg_set(pVBInfo->P3d4, 0x2F, 0x00);
 	xgifb_reg_set(pVBInfo->P3d4, 0x46, 0x00);
 	xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x00);
+
+	if (chip_id == XG27) {
+		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
+		if ((Temp & 0x03) == 0) { /* dual 12 */
+			xgifb_reg_set(pVBInfo->P3d4, 0x46, 0x13);
+			xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x13);
+		}
+	}
+
 	if (((*pVBInfo->pDVOSetting) & 0xC0) == 0xC0) {
 		xgifb_reg_set(pVBInfo->P3d4, 0x2E, *pVBInfo->pCR2E);
 		xgifb_reg_set(pVBInfo->P3d4, 0x2F, *pVBInfo->pCR2F);
@@ -1013,65 +1018,16 @@ static void XGI_SetXG21LCD(struct vb_device_info *pVBInfo,
 		xgifb_reg_set(pVBInfo->P3d4, 0x47, *pVBInfo->pCR47);
 	}
 
-	Temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
-
-	if (Temp & 0x01) {
-		xgifb_reg_or(pVBInfo->P3c4, 0x06, 0x40); /* 18 bits FP */
-		xgifb_reg_or(pVBInfo->P3c4, 0x09, 0x40);
-	}
-
-	xgifb_reg_or(pVBInfo->P3c4, 0x1E, 0x01); /* Negative blank polarity */
-
-	xgifb_reg_and(pVBInfo->P3c4, 0x30, ~0x20);
-	xgifb_reg_and(pVBInfo->P3c4, 0x35, ~0x80);
-
-	if (ModeNo <= 0x13) {
-		b3CC = (unsigned char) inb(XGI_P3cc);
-		if (b3CC & 0x40)
-			/* Hsync polarity */
-			xgifb_reg_or(pVBInfo->P3c4, 0x30, 0x20);
-		if (b3CC & 0x80)
-			/* Vsync polarity */
-			xgifb_reg_or(pVBInfo->P3c4, 0x35, 0x80);
+	if (chip_id == XG27) {
+		XGI_SetXG27FPBits(pVBInfo);
 	} else {
-		Data = pVBInfo->RefIndex[RefreshRateTableIndex].Ext_InfoFlag;
-		if (Data & 0x4000)
-			/* Hsync polarity */
-			xgifb_reg_or(pVBInfo->P3c4, 0x30, 0x20);
-		if (Data & 0x8000)
-			/* Vsync polarity */
-			xgifb_reg_or(pVBInfo->P3c4, 0x35, 0x80);
+		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
+		if (Temp & 0x01) {
+			/* 18 bits FP */
+			xgifb_reg_or(pVBInfo->P3c4, 0x06, 0x40);
+			xgifb_reg_or(pVBInfo->P3c4, 0x09, 0x40);
+		}
 	}
-}
-
-static void XGI_SetXG27LCD(struct vb_device_info *pVBInfo,
-			   unsigned short RefreshRateTableIndex,
-			   unsigned short ModeNo)
-{
-	unsigned short Data, Temp, b3CC;
-	unsigned short XGI_P3cc;
-
-	XGI_P3cc = pVBInfo->P3cc;
-
-	xgifb_reg_set(pVBInfo->P3d4, 0x2E, 0x00);
-	xgifb_reg_set(pVBInfo->P3d4, 0x2F, 0x00);
-	xgifb_reg_set(pVBInfo->P3d4, 0x46, 0x00);
-	xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x00);
-
-	Temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
-	if ((Temp & 0x03) == 0) { /* dual 12 */
-		xgifb_reg_set(pVBInfo->P3d4, 0x46, 0x13);
-		xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x13);
-	}
-
-	if (((*pVBInfo->pDVOSetting) & 0xC0) == 0xC0) {
-		xgifb_reg_set(pVBInfo->P3d4, 0x2E, *pVBInfo->pCR2E);
-		xgifb_reg_set(pVBInfo->P3d4, 0x2F, *pVBInfo->pCR2F);
-		xgifb_reg_set(pVBInfo->P3d4, 0x46, *pVBInfo->pCR46);
-		xgifb_reg_set(pVBInfo->P3d4, 0x47, *pVBInfo->pCR47);
-	}
-
-	XGI_SetXG27FPBits(pVBInfo);
 
 	xgifb_reg_or(pVBInfo->P3c4, 0x1E, 0x01); /* Negative blank polarity */
 
@@ -8278,12 +8234,8 @@ static void XGI_SetCRT1Group(struct xgi_hw_device_info *HwDeviceExtension,
 			XGI_UpdateXG21CRTC(ModeNo, pVBInfo,
 					RefreshRateTableIndex);
 
-			if (HwDeviceExtension->jChipType == XG27)
-				XGI_SetXG27LCD(pVBInfo, RefreshRateTableIndex,
-						ModeNo);
-			else
-				XGI_SetXG21LCD(pVBInfo, RefreshRateTableIndex,
-						ModeNo);
+			xgifb_set_lcd(HwDeviceExtension->jChipType,
+					pVBInfo, RefreshRateTableIndex, ModeNo);
 
 			if (pVBInfo->IF_DEF_LVDS == 1) {
 				if (HwDeviceExtension->jChipType == XG27)
