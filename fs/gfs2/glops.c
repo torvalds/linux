@@ -134,6 +134,8 @@ void gfs2_ail_flush(struct gfs2_glock *gl)
 static void rgrp_go_sync(struct gfs2_glock *gl)
 {
 	struct address_space *metamapping = gfs2_glock2aspace(gl);
+	struct gfs2_rgrpd *rgd = gl->gl_object;
+	unsigned int x;
 	int error;
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
@@ -145,6 +147,15 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 	error = filemap_fdatawait(metamapping);
         mapping_set_error(metamapping, error);
 	gfs2_ail_empty_gl(gl);
+
+	if (!rgd)
+		return;
+
+	for (x = 0; x < rgd->rd_length; x++) {
+		struct gfs2_bitmap *bi = rgd->rd_bits + x;
+		kfree(bi->bi_clone);
+		bi->bi_clone = NULL;
+	}
 }
 
 /**
@@ -445,33 +456,6 @@ static int inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 }
 
 /**
- * rgrp_go_lock - operation done after an rgrp lock is locked by
- *    a first holder on this node.
- * @gl: the glock
- * @flags:
- *
- * Returns: errno
- */
-
-static int rgrp_go_lock(struct gfs2_holder *gh)
-{
-	return gfs2_rgrp_bh_get(gh->gh_gl->gl_object);
-}
-
-/**
- * rgrp_go_unlock - operation done before an rgrp lock is unlocked by
- *    a last holder on this node.
- * @gl: the glock
- * @flags:
- *
- */
-
-static void rgrp_go_unlock(struct gfs2_holder *gh)
-{
-	gfs2_rgrp_bh_put(gh->gh_gl->gl_object);
-}
-
-/**
  * trans_go_sync - promote/demote the transaction glock
  * @gl: the glock
  * @state: the requested state
@@ -573,8 +557,8 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_xmote_th = rgrp_go_sync,
 	.go_inval = rgrp_go_inval,
-	.go_lock = rgrp_go_lock,
-	.go_unlock = rgrp_go_unlock,
+	.go_lock = gfs2_rgrp_go_lock,
+	.go_unlock = gfs2_rgrp_go_unlock,
 	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_flags = GLOF_ASPACE,

@@ -25,11 +25,8 @@ struct gfs2_rgrpd *gfs2_rgrpd_get_next(struct gfs2_rgrpd *rgd);
 extern void gfs2_clear_rgrpd(struct gfs2_sbd *sdp);
 extern int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh);
 
-extern int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd);
-extern void gfs2_rgrp_bh_hold(struct gfs2_rgrpd *rgd);
-extern void gfs2_rgrp_bh_put(struct gfs2_rgrpd *rgd);
-
-extern void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd);
+extern int gfs2_rgrp_go_lock(struct gfs2_holder *gh);
+extern void gfs2_rgrp_go_unlock(struct gfs2_holder *gh);
 
 extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
 static inline void gfs2_alloc_put(struct gfs2_inode *ip)
@@ -72,5 +69,8 @@ extern void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state);
 extern void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
 extern u64 gfs2_ri_total(struct gfs2_sbd *sdp);
 extern int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl);
+extern void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
+				    struct buffer_head *bh,
+				    const struct gfs2_bitmap *bi);
 
 #endif /* __RGRP_DOT_H__ */
