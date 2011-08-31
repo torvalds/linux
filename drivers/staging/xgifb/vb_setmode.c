@@ -2490,40 +2490,36 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	index = index & IndexMask;
 
-	if ((pVBInfo->IF_DEF_ScaleLCD == 0) ||
-	    ((pVBInfo->IF_DEF_ScaleLCD == 1) &&
-	    (!(pVBInfo->LCDInfo & EnableScalingLCD)))) {
-		tempbx = 0;
+	tempbx = 0;
 
-		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-			LCDPtr = (struct XGI_LVDSCRT1HDataStruct *)
-					XGI_GetLcdPtr(tempbx, ModeNo,
-						      ModeIdIndex,
-						      RefreshRateTableIndex,
-						      pVBInfo);
+	if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
+		LCDPtr = (struct XGI_LVDSCRT1HDataStruct *)
+				XGI_GetLcdPtr(tempbx, ModeNo,
+					      ModeIdIndex,
+					      RefreshRateTableIndex,
+					      pVBInfo);
 
-			for (i = 0; i < 8; i++)
-				pVBInfo->TimingH[0].data[i] = LCDPtr[0].Reg[i];
-		}
-
-		XGI_SetCRT1Timing_H(pVBInfo, HwDeviceExtension);
-
-		tempbx = 1;
-
-		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-			LCDPtr1 = (struct XGI_LVDSCRT1VDataStruct *)
-					XGI_GetLcdPtr(
-						tempbx,
-						ModeNo,
-						ModeIdIndex,
-						RefreshRateTableIndex,
-						pVBInfo);
-			for (i = 0; i < 7; i++)
-				pVBInfo->TimingV[0].data[i] = LCDPtr1[0].Reg[i];
-		}
-
-		XGI_SetCRT1Timing_V(ModeIdIndex, ModeNo, pVBInfo);
+		for (i = 0; i < 8; i++)
+			pVBInfo->TimingH[0].data[i] = LCDPtr[0].Reg[i];
 	}
+
+	XGI_SetCRT1Timing_H(pVBInfo, HwDeviceExtension);
+
+	tempbx = 1;
+
+	if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
+		LCDPtr1 = (struct XGI_LVDSCRT1VDataStruct *)
+				XGI_GetLcdPtr(
+					tempbx,
+					ModeNo,
+					ModeIdIndex,
+					RefreshRateTableIndex,
+					pVBInfo);
+		for (i = 0; i < 7; i++)
+			pVBInfo->TimingV[0].data[i] = LCDPtr1[0].Reg[i];
+	}
+
+	XGI_SetCRT1Timing_V(ModeIdIndex, ModeNo, pVBInfo);
 }
 
 static unsigned short XGI_GetLCDCapPtr(struct vb_device_info *pVBInfo)
@@ -2658,12 +2654,6 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 		pVBInfo->VDE = tempbx;
 		pVBInfo->VGAHDE = tempax;
 		pVBInfo->VGAVDE = tempbx;
-	}
-
-	if ((pVBInfo->IF_DEF_ScaleLCD == 1) &&
-	    (pVBInfo->LCDInfo & EnableScalingLCD)) {
-		tempax = pVBInfo->HDE;
-		tempbx = pVBInfo->VDE;
 	}
 
 	tempax = pVBInfo->HT;
@@ -2889,11 +2879,6 @@ static void XGI_GetLCDVCLKPtr(unsigned char *di_0, unsigned char *di_1,
 	unsigned short index;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-		if (pVBInfo->IF_DEF_ScaleLCD == 1) {
-			if (pVBInfo->LCDInfo & EnableScalingLCD)
-				return;
-		}
-
 		/* index = XGI_GetLCDCapPtr(pVBInfo); */
 		index = XGI_GetLCDCapPtr1(pVBInfo);
 
@@ -3544,9 +3529,6 @@ unsigned char XGI_GetLCDInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
 
 	temp &= (ScalingLCD | LCDNonExpanding | LCDSyncBit | SetPWDEnable);
-
-	if ((pVBInfo->IF_DEF_ScaleLCD == 1) && (temp & LCDNonExpanding))
-		temp &= ~EnableScalingLCD;
 
 	tempbx |= temp;
 
@@ -7800,7 +7782,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 	pVBInfo->IF_DEF_LVDS = 0;
 	pVBInfo->IF_DEF_LCDA = 1;
-	pVBInfo->IF_DEF_ScaleLCD = 0;
 
 	if (HwDeviceExtension->jChipType >= XG20) { /* kuku 2004/06/25 */
 		pVBInfo->IF_DEF_YPbPr = 0;

@@ -289,8 +289,7 @@ struct vb_device_info {
 	/* ,IF_DEF_FSTN; add for dstn */
 	unsigned short   IF_DEF_LVDS, IF_DEF_TRUMPION, IF_DEF_DSTN;
 	unsigned short   IF_DEF_CRT2Monitor;
-	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr,
-			 IF_DEF_ScaleLCD;
+	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr;
 	unsigned short   IF_DEF_ExpLink;
 	unsigned short   IF_DEF_HiVision;
 	unsigned short   LCDResInfo, LCDTypeInfo, VBType;/*301b*/
