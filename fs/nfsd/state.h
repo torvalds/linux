@@ -425,6 +425,9 @@ static inline struct file *find_any_file(struct nfs4_file *f)
 */
 
 struct nfs4_stateid {
+#define NFS4_OPEN_STID 1
+#define NFS4_LOCK_STID 2
+	char st_type;
 	struct list_head              st_hash; 
 	struct list_head              st_perfile;
 	struct list_head              st_perstateowner;

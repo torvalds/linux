@@ -2285,6 +2285,7 @@ init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *
 	list_add(&stp->st_hash, &stateid_hashtbl[hashval]);
 	list_add(&stp->st_perstateowner, &sop->so_stateids);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
+	stp->st_type = NFS4_OPEN_STID;
 	stp->st_stateowner = sop;
 	get_nfs4_file(fp);
 	stp->st_file = fp;
@@ -3201,11 +3202,6 @@ static int is_delegation_stateid(stateid_t *stateid)
 	return stateid->si_fileid == 0;
 }
 
-static int is_open_stateid(struct nfs4_stateid *stateid)
-{
-	return stateid->st_openstp == NULL;
-}
-
 __be32 nfs4_validate_stateid(stateid_t *stateid, bool has_session)
 {
 	struct nfs4_stateid *stp = NULL;
@@ -3369,7 +3365,7 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		}
 	}
 
-	if (is_open_stateid(stp)) {
+	if (stp->st_type == NFS4_OPEN_STID) {
 		ret = nfserr_locks_held;
 		goto out;
 	} else {
@@ -3928,6 +3924,7 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	list_add(&stp->st_perfile, &fp->fi_stateids);
 	list_add(&stp->st_perstateowner, &sop->so_stateids);
 	stp->st_stateowner = sop;
+	stp->st_type = NFS4_LOCK_STID;
 	get_nfs4_file(fp);
 	stp->st_file = fp;
 	stp->st_stateid.si_boot = boot_time;
