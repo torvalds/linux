@@ -250,7 +250,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	dp->dl_stateid.si_boot = boot_time;
 	dp->dl_stateid.si_stateownerid = current_delegid++;
 	dp->dl_stateid.si_fileid = 0;
-	dp->dl_stateid.si_generation = 0;
+	dp->dl_stateid.si_generation = 1;
 	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
@@ -2291,6 +2291,7 @@ init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *
 	stp->st_stateid.si_boot = boot_time;
 	stp->st_stateid.si_stateownerid = sop->so_id;
 	stp->st_stateid.si_fileid = fp->fi_id;
+	/* note will be incremented before first return to client: */
 	stp->st_stateid.si_generation = 0;
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = 0;
@@ -2894,7 +2895,6 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfs4_upgrade_open(rqstp, fp, current_fh, stp, open);
 		if (status)
 			goto out;
-		update_stateid(&stp->st_stateid);
 	} else {
 		status = nfs4_new_open(rqstp, &stp, fp, current_fh, open);
 		if (status)
@@ -2905,9 +2905,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 			release_open_stateid(stp);
 			goto out;
 		}
-		if (nfsd4_has_session(&resp->cstate))
-			update_stateid(&stp->st_stateid);
 	}
+	update_stateid(&stp->st_stateid);
 	memcpy(&open->op_stateid, &stp->st_stateid, sizeof(stateid_t));
 
 	if (nfsd4_has_session(&resp->cstate))
@@ -3893,6 +3892,7 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	stp->st_stateid.si_boot = boot_time;
 	stp->st_stateid.si_stateownerid = sop->so_id;
 	stp->st_stateid.si_fileid = fp->fi_id;
+	/* note will be incremented before first return to client: */
 	stp->st_stateid.si_generation = 0;
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
