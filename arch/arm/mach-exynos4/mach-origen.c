@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/input.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -26,6 +27,8 @@
 #include <plat/iic.h>
 #include <plat/ehci.h>
 #include <plat/clock.h>
+#include <plat/gpio-cfg.h>
+#include <plat/backlight.h>
 
 #include <mach/map.h>
 
@@ -102,6 +105,17 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_fimc3,
 };
 
+/* LCD Backlight data */
+static struct samsung_bl_gpio_info origen_bl_gpio_info = {
+	.no = EXYNOS4_GPD0(0),
+	.func = S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data origen_bl_data = {
+	.pwm_id = 0,
+	.pwm_period_ns = 1000,
+};
+
 static void __init origen_map_io(void)
 {
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
@@ -117,6 +131,8 @@ static void __init origen_machine_init(void)
 	clk_xusbxti.rate = 24000000;
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
+
+	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 }
 
 MACHINE_START(ORIGEN, "ORIGEN")
