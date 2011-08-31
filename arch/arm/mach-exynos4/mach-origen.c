@@ -78,9 +78,7 @@ static struct s3c2410_uartcfg origen_uartcfgs[] __initdata = {
 };
 
 static struct s3c_sdhci_platdata origen_hsmmc2_pdata __initdata = {
-	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= EXYNOS4_GPK2(2),
-	.ext_cd_gpio_invert	= 1,
+	.cd_type		= S3C_SDHCI_CD_INTERNAL,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
