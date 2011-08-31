@@ -2612,38 +2612,25 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	else
 		modeflag = pVBInfo->SModeIDTable[ModeIdIndex].St_ModeFlag;
 
-	if (pVBInfo->IF_DEF_OEMUtil == 1) {
-		tempbx = 8;
-		LCDPtr = (struct XGI330_LCDDataDesStruct *)
-			XGI_GetLcdPtr(tempbx,
-				      ModeNo,
-				      ModeIdIndex,
-				      RefreshRateTableIndex,
-				      pVBInfo);
-	}
-
-	if ((pVBInfo->IF_DEF_OEMUtil == 0) ||
-	    (LCDPtr == NULL)) {
-		tempbx = 3;
-		if (pVBInfo->LCDInfo & EnableScalingLCD)
-			LCDPtr1 =
-			    (struct XGI330_LCDDataDesStruct2 *)
-					XGI_GetLcdPtr(
+	tempbx = 3;
+	if (pVBInfo->LCDInfo & EnableScalingLCD)
+		LCDPtr1 =
+		    (struct XGI330_LCDDataDesStruct2 *)
+				XGI_GetLcdPtr(
 					  tempbx,
 					  ModeNo,
 					  ModeIdIndex,
 					  RefreshRateTableIndex,
 					  pVBInfo);
-		else
-			LCDPtr =
-			    (struct XGI330_LCDDataDesStruct *)
-					XGI_GetLcdPtr(
-						  tempbx,
-						  ModeNo,
-						  ModeIdIndex,
-						  RefreshRateTableIndex,
-						  pVBInfo);
-	}
+	else
+		LCDPtr =
+		    (struct XGI330_LCDDataDesStruct *)
+				XGI_GetLcdPtr(
+					  tempbx,
+					  ModeNo,
+					  ModeIdIndex,
+					  RefreshRateTableIndex,
+					  pVBInfo);
 
 	XGI_GetLCDSync(&tempax, &tempbx, pVBInfo);
 	push1 = tempbx;
@@ -3548,9 +3535,6 @@ unsigned char XGI_GetLCDInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	pVBInfo->LCDResInfo = tempbx;
 
 	/* End of LCD75 */
-
-	if (pVBInfo->IF_DEF_OEMUtil == 1)
-		pVBInfo->LCDTypeInfo = (temp & 0xf0) >> 4;
 
 	if (!(pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)))
 		return 0;
@@ -7827,7 +7811,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 	pVBInfo->IF_DEF_LVDS = 0;
 	pVBInfo->IF_DEF_LCDA = 1;
 	pVBInfo->IF_DEF_ScaleLCD = 0;
-	pVBInfo->IF_DEF_OEMUtil = 0;
 	pVBInfo->IF_DEF_PWD = 0;
 
 	if (HwDeviceExtension->jChipType >= XG20) { /* kuku 2004/06/25 */
