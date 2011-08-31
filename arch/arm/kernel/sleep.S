@@ -72,19 +72,15 @@ ENDPROC(cpu_suspend_abort)
 /*
  * r0 = control register value
  */
+	.align	5
 ENTRY(cpu_resume_mmu)
 	ldr	r3, =cpu_resume_after_mmu
-	b	cpu_resume_turn_mmu_on
-ENDPROC(cpu_resume_mmu)
-	.ltorg
-	.align	5
-ENTRY(cpu_resume_turn_mmu_on)
 	mcr	p15, 0, r0, c1, c0, 0	@ turn on MMU, I-cache, etc
 	mrc	p15, 0, r0, c0, c0, 0	@ read id reg
 	mov	r0, r0
 	mov	r0, r0
 	mov	pc, r3			@ jump to virtual address
-ENDPROC(cpu_resume_turn_mmu_on)
+ENDPROC(cpu_resume_mmu)
 cpu_resume_after_mmu:
 	bl	cpu_init		@ restore the und/abt/irq banked regs
 	mov	r0, #0			@ return zero on success

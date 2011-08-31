@@ -9,7 +9,7 @@
 static pgd_t *suspend_pgd;
 
 extern int __cpu_suspend(int, long, unsigned long, int (*)(unsigned long));
-extern void cpu_resume_turn_mmu_on(void);
+extern void cpu_resume_mmu(void);
 
 /*
  * Hide the first two arguments to __cpu_suspend - these are an implementation
@@ -43,7 +43,7 @@ static int __init cpu_suspend_init(void)
 {
 	suspend_pgd = pgd_alloc(&init_mm);
 	if (suspend_pgd) {
-		unsigned long addr = virt_to_phys(cpu_resume_turn_mmu_on);
+		unsigned long addr = virt_to_phys(cpu_resume_mmu);
 		identity_mapping_add(suspend_pgd, addr, addr + SECTION_SIZE);
 	}
 	return suspend_pgd ? 0 : -ENOMEM;
