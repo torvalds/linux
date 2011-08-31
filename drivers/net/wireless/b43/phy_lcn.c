@@ -137,14 +137,6 @@ static void b43_phy_lcn_afe_set_unset(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_LCN_AFE_CTL1, afe_ctl1);
 }
 
-static void b43_phy_lcn_clean_0x18_table(struct b43_wldev *dev)
-{
-	u8 i;
-
-	for (i = 0; i < 0x80; i++)
-		b43_lcntab_write(dev, B43_LCNTAB32(0x18, i), 0x80000);
-}
-
 static void b43_phy_lcn_clear_0x07_table(struct b43_wldev *dev)
 {
 	u8 i;
@@ -319,8 +311,6 @@ static int b43_phy_lcn_op_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, 0x663, 0xFF00, 0x64);
 
 	b43_phy_lcn_tables_init(dev);
-	/* TODO: various tables ops here */
-	b43_phy_lcn_clean_0x18_table(dev);
 
 	b43_phy_lcn_pre_radio_init(dev);
 	b43_phy_lcn_clear_0x07_table(dev);

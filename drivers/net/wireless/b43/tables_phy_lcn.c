@@ -445,7 +445,7 @@ void b43_lcntab_write_bulk(struct b43_wldev *dev, u32 offset,
 #define lcntab_upload(dev, offset, data) do { \
 		b43_lcntab_write_bulk(dev, offset, ARRAY_SIZE(data), data); \
 	} while (0)
-void b43_phy_lcn_tables_init(struct b43_wldev *dev)
+static void b43_phy_lcn_upload_static_tables(struct b43_wldev *dev)
 {
 	lcntab_upload(dev, B43_LCNTAB16(0x02, 0), b43_lcntab_0x02);
 	lcntab_upload(dev, B43_LCNTAB16(0x01, 0), b43_lcntab_0x01);
@@ -461,4 +461,19 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 	lcntab_upload(dev, B43_LCNTAB16(0x17, 0), b43_lcntab_0x17);
 	lcntab_upload(dev, B43_LCNTAB16(0x00, 0), b43_lcntab_0x00);
 	lcntab_upload(dev, B43_LCNTAB32(0x18, 0), b43_lcntab_0x18);
+}
+
+static void b43_phy_lcn_clean_0x18_table(struct b43_wldev *dev)
+{
+	u8 i;
+
+	for (i = 0; i < 0x80; i++)
+		b43_lcntab_write(dev, B43_LCNTAB32(0x18, i), 0x80000);
+}
+
+void b43_phy_lcn_tables_init(struct b43_wldev *dev)
+{
+	b43_phy_lcn_upload_static_tables(dev);
+	/* TODO: various tables ops here */
+	b43_phy_lcn_clean_0x18_table(dev);
 }
