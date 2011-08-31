@@ -61,6 +61,11 @@ void dwc3_map_buffer_to_dma(struct dwc3_request *req)
 {
 	struct dwc3			*dwc = req->dep->dwc;
 
+	if (req->request.length == 0) {
+		/* req->request.dma = dwc->setup_buf_addr; */
+		return;
+	}
+
 	if (req->request.dma == DMA_ADDR_INVALID) {
 		req->request.dma = dma_map_single(dwc->dev, req->request.buf,
 				req->request.length, req->direction
@@ -77,6 +82,11 @@ void dwc3_map_buffer_to_dma(struct dwc3_request *req)
 void dwc3_unmap_buffer_from_dma(struct dwc3_request *req)
 {
 	struct dwc3			*dwc = req->dep->dwc;
+
+	if (req->request.length == 0) {
+		req->request.dma = DMA_ADDR_INVALID;
+		return;
+	}
 
 	if (req->mapped) {
 		dma_unmap_single(dwc->dev, req->request.dma,
