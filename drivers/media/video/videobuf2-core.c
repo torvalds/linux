@@ -366,6 +366,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 		b->flags |= V4L2_BUF_FLAG_DONE;
 		break;
 	case VB2_BUF_STATE_DEQUEUED:
+	case VB2_BUF_STATE_PREPARED:
 		/* nothing */
 		break;
 	}
@@ -832,6 +833,33 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 	q->ops->buf_queue(vb);
 }
 
+static int __buf_prepare(struct vb2_buffer *vb, struct v4l2_buffer *b)
+{
+	struct vb2_queue *q = vb->vb2_queue;
+	int ret;
+
+	switch (q->memory) {
+	case V4L2_MEMORY_MMAP:
+		ret = __qbuf_mmap(vb, b);
+		break;
+	case V4L2_MEMORY_USERPTR:
+		ret = __qbuf_userptr(vb, b);
+		break;
+	default:
+		WARN(1, "Invalid queue type\n");
+		ret = -EINVAL;
+	}
+
+	if (!ret)
+		ret = call_qop(q, buf_prepare, vb);
+	if (ret)
+		dprintk(1, "qbuf: buffer preparation failed: %d\n", ret);
+	else
+		vb->state = VB2_BUF_STATE_PREPARED;
+
+	return ret;
+}
+
 /**
  * vb2_qbuf() - Queue a buffer from userspace
  * @q:		videobuf2 queue
@@ -841,8 +869,8 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
  * Should be called from vidioc_qbuf ioctl handler of a driver.
  * This function:
  * 1) verifies the passed buffer,
- * 2) calls buf_prepare callback in the driver (if provided), in which
- *    driver-specific buffer initialization can be performed,
+ * 2) if necessary, calls buf_prepare callback in the driver (if provided), in
+ *    which driver-specific buffer initialization can be performed,
  * 3) if streaming is on, queues the buffer in driver by the means of buf_queue
  *    callback for processing.
  *
@@ -852,7 +880,7 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
 	struct vb2_buffer *vb;
-	int ret = 0;
+	int ret;
 
 	if (q->fileio) {
 		dprintk(1, "qbuf: file io in progress\n");
@@ -881,27 +909,16 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		return -EINVAL;
 	}
 
-	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+	switch (vb->state) {
+	case VB2_BUF_STATE_DEQUEUED:
+		ret = __buf_prepare(vb, b);
+		if (ret)
+			return ret;
+	case VB2_BUF_STATE_PREPARED:
+		break;
+	default:
 		dprintk(1, "qbuf: buffer already in use\n");
 		return -EINVAL;
-	}
-
-	if (q->memory == V4L2_MEMORY_MMAP)
-		ret = __qbuf_mmap(vb, b);
-	else if (q->memory == V4L2_MEMORY_USERPTR)
-		ret = __qbuf_userptr(vb, b);
-	else {
-		WARN(1, "Invalid queue type\n");
-		return -EINVAL;
-	}
-
-	if (ret)
-		return ret;
-
-	ret = call_qop(q, buf_prepare, vb);
-	if (ret) {
-		dprintk(1, "qbuf: buffer preparation failed\n");
-		return ret;
 	}
 
 	/*
