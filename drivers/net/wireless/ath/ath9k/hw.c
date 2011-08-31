@@ -2451,13 +2451,13 @@ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath9k_channel *chan = ah->curchan;
 	struct ieee80211_channel *channel = chan->chan;
-	int reg_pwr = min_t(int, MAX_RATE_POWER, regulatory->power_limit);
+	int reg_pwr = min_t(int, MAX_RATE_POWER, limit);
 	int chan_pwr = channel->max_power * 2;
 
 	if (test)
 		reg_pwr = chan_pwr = MAX_RATE_POWER;
 
-	regulatory->power_limit = min(limit, (u32) MAX_RATE_POWER);
+	regulatory->power_limit = reg_pwr;
 
 	ah->eep_ops->set_txpower(ah, chan,
 				 ath9k_regd_get_ctl(regulatory, chan),
