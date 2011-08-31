@@ -5688,10 +5688,6 @@ static void XGI_SetTap4Regs(struct vb_device_info *pVBInfo)
 	if (!(pVBInfo->VBType & VB_XGI301C))
 		return;
 
-#ifndef Tap4
-	xgifb_reg_and(pVBInfo->Part2Port, 0x4E, 0xEB); /* Disable Tap4 */
-#else            /* Tap4 Setting */
-
 	Tap4TimingPtr = XGI_GetTap4Ptr(0, pVBInfo); /* Set Horizontal Scaling */
 	for (i = 0x80, j = 0; i <= 0xBF; i++, j++)
 		xgifb_reg_set(pVBInfo->Part2Port, i, Tap4TimingPtr->Reg[j]);
@@ -5713,7 +5709,6 @@ static void XGI_SetTap4Regs(struct vb_device_info *pVBInfo)
 	else
 		/* Enable H.Scaling */
 		xgifb_reg_and_or(pVBInfo->Part2Port, 0x4E, ~0x14, 0x10);
-#endif
 }
 
 static void XGI_SetGroup3(unsigned short ModeNo, unsigned short ModeIdIndex,

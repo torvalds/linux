@@ -1,5 +1,3 @@
-#define  Tap4
-
 /* yilin modify for xgi20 */
 static struct XGI_MCLKDataStruct XGI340New_MCLKData[] = {
 	{0x16, 0x01, 0x01, 166},
