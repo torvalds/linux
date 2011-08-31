@@ -208,14 +208,6 @@ struct XGI_TimingVStruct {
 	unsigned char data[7];
 };
 
-struct XGI_CH7007TV_TimingHStruct {
-	unsigned char data[10];
-};
-
-struct XGI_CH7007TV_TimingVStruct {
-	unsigned char data[10];
-};
-
 struct XGI_XG21CRT1Struct {
 	unsigned char ModeID, CR02, CR03, CR15, CR16;
 };
@@ -301,7 +293,6 @@ struct vb_device_info {
 			 IF_DEF_ScaleLCD, IF_DEF_OEMUtil, IF_DEF_PWD;
 	unsigned short   IF_DEF_ExpLink;
 	unsigned short   IF_DEF_HiVision;
-	unsigned short   IF_DEF_CH7007; /* Billy 2007/05/03 */
 	unsigned short   LCDResInfo, LCDTypeInfo, VBType;/*301b*/
 	unsigned short   VBInfo, TVInfo, LCDInfo, Set_VGAType;
 	unsigned short   VBExtInfo;/*301lv*/

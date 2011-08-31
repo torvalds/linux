@@ -1732,15 +1732,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 	printk("183");
 	/* XGINew_DetectMonitor(HwDeviceExtension); */
-	pVBInfo->IF_DEF_CH7007 = 0;
-	if ((HwDeviceExtension->jChipType == XG21) &&
-	    (pVBInfo->IF_DEF_CH7007)) {
-		printk("184");
-		/* sense CRT2 */
-		XGI_GetSenseStatus(HwDeviceExtension, pVBInfo);
-		printk("185");
-
-	}
 	if (HwDeviceExtension->jChipType == XG21) {
 		printk("186");
 

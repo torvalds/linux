@@ -2629,15 +2629,6 @@ static struct XGI330_TVDataTablStruct XGI_TVDataTable[] = {
 	{0xffff, 0x0000, 12}  /* END */
 };
 
-/* Chrontel 7017 TV CRT1 Timing List */
-static struct XGI330_TVDataTablStruct XGI_EPLCHTVCRT1Ptr[] = {
-	{0x0011, 0x0000, 0}, /* XGI_CHTVCRT1UNTSC */
-	{0x0011, 0x0010, 1}, /* XGI_CHTVCRT1ONTSC */
-	{0x0011, 0x0001, 2}, /* XGI_CHTVCRT1UPAL */
-	{0x0011, 0x0011, 3}, /* XGI_CHTVCRT1OPAL */
-	{0xFFFF, 0x0000, 4}
-};
-
 /* ;;Chrontel 7017 TV Timing List */
 static struct XGI330_TVDataTablStruct XGI_EPLCHTVDataPtr[] = {
 	{0x0011, 0x0000, 0}, /* XGI_CHTVUNTSCData */
@@ -3008,56 +2999,6 @@ static unsigned char XGI330_CHTVVCLKONTSC[] = {0x00};
 static unsigned char XGI330_CHTVVCLKUPAL[] = {0x00};
 
 static unsigned char XGI330_CHTVVCLKOPAL[] = {0x00};
-
-static unsigned char XGI7007_CHTVVCLKUNTSC[] = {
-	CH7007TVVCLK30_2,
-	CH7007TVVCLK30_2,
-	CH7007TVVCLK30_2,
-	CH7007TVVCLK30_2,
-	CH7007TVVCLK28_1,
-	CH7007TVVCLK47_8
-};
-
-static unsigned char XGI7007_CHTVVCLKONTSC[] = {
-	CH7007TVVCLK26_4,
-	CH7007TVVCLK26_4,
-	CH7007TVVCLK26_4,
-	CH7007TVVCLK26_4,
-	CH7007TVVCLK24_6,
-	CH7007TVVCLK43_6
-};
-
-static unsigned char XGI7007_CHTVVCLKUPAL[] = {
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK26_2,
-	CH7007TVVCLK39
-};
-
-static unsigned char XGI7007_CHTVVCLKOPAL[] = {
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK31_5,
-	CH7007TVVCLK26_2,
-	CH7007TVVCLK36
-};
-
-static struct XGI330_VCLKDataStruct XGI_CH7007VCLKData[] = {
-	{0x60, 0x36, 30},  /* 0 30.2 MHZ */
-	{0x40, 0x4A, 28},  /* 1 28.19 MHZ */
-	{0x9F, 0x46, 44},  /* 2 43.6 MHZ */
-	{0x97, 0x2C, 26},  /* 3 26.4 MHZ */
-	{0x44, 0xE4, 25},  /* 4 24.6 MHZ */
-	{0x7E, 0x32, 47},  /* 5 47.832 MHZ */
-	{0x8A, 0x24, 31},  /* 6 31.5 MHZ */
-	{0x97, 0x2C, 26},  /* 7 26.2 MHZ */
-	{0xCE, 0x3C, 39},  /* 8 39 MHZ   */
-	{0x52, 0x4A, 36},  /* 9 36 MHZ   */
-	{0xFF, 0x00,  0}   /* End mark      */
-};
 
 static struct XGI330_VCLKDataStruct XGI_VCLKData[] = {
 	/* SR2B,SR2C,SR2D */
