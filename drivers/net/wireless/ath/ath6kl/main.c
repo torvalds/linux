@@ -178,8 +178,8 @@ void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie)
 static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 {
 	int status;
-	u8 addr_val[4];
 	s32 i;
+	__le32 addr_val;
 
 	/*
 	 * Write bytes 1,2,3 of the register to set the upper address bytes,
@@ -189,16 +189,18 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	for (i = 1; i <= 3; i++) {
 		/*
 		 * Fill the buffer with the address byte value we want to
-		 * hit 4 times.
+		 * hit 4 times. No need to worry about endianness as the
+		 * same byte is copied to all four bytes of addr_val at
+		 * any time.
 		 */
-		memset(addr_val, ((u8 *)&addr)[i], 4);
+		memset((u8 *)&addr_val, ((u8 *)&addr)[i], 4);
 
 		/*
 		 * Hit each byte of the register address with a 4-byte
 		 * write operation to the same address, this is a harmless
 		 * operation.
 		 */
-		status = hif_read_write_sync(ar, reg_addr + i, addr_val,
+		status = hif_read_write_sync(ar, reg_addr + i, (u8 *)&addr_val,
 					     4, HIF_WR_SYNC_BYTE_FIX);
 		if (status)
 			break;
@@ -216,7 +218,9 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has no
 	 * effect since we are writing the same values again
 	 */
-	status = hif_read_write_sync(ar, reg_addr, (u8 *)(&addr),
+	addr_val = cpu_to_le32(addr);
+	status = hif_read_write_sync(ar, reg_addr,
+				     (u8 *)&(addr_val),
 				     4, HIF_WR_SYNC_BYTE_INC);
 
 	if (status) {
