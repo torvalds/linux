@@ -3221,9 +3221,9 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 	WRITEMEM(seq->sessionid.data, NFS4_MAX_SESSIONID_LEN);
 	WRITE32(seq->seqid);
 	WRITE32(seq->slotid);
-	WRITE32(seq->maxslots);
-	/* For now: target_maxslots = maxslots */
-	WRITE32(seq->maxslots);
+	/* Note slotid's are numbered from zero: */
+	WRITE32(seq->maxslots - 1); /* sr_highest_slotid */
+	WRITE32(seq->maxslots - 1); /* sr_target_highest_slotid */
 	WRITE32(seq->status_flags);
 
 	ADJUST_ARGS();
