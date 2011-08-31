@@ -998,11 +998,6 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 		/* Couldn't reconfigure, hopefully, can continue as before */
 		return;
 
-	if (info->var.nonstd)
-		info->fix.line_length = mode1.xres;
-	else
-		info->fix.line_length = mode1.xres * (ch->cfg.bpp / 8);
-
 	/*
 	 * fb_set_var() calls the notifier change internally, only if
 	 * FBINFO_MISC_USEREVENT flag is set. Since we do not want to fake a
@@ -1157,12 +1152,22 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 static int sh_mobile_set_par(struct fb_info *info)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
+	u32 line_length = info->fix.line_length;
 	int ret;
 
 	sh_mobile_lcdc_stop(ch->lcdc);
+
+	if (info->var.nonstd)
+		info->fix.line_length = info->var.xres;
+	else
+		info->fix.line_length = info->var.xres
+				      * info->var.bits_per_pixel / 8;
+
 	ret = sh_mobile_lcdc_start(ch->lcdc);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(info->dev, "%s: unable to restart LCDC\n", __func__);
+		info->fix.line_length = line_length;
+	}
 
 	return ret;
 }
