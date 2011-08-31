@@ -3334,8 +3334,9 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 	if (tg3_readphy(tp, MII_ADVERTISE, &adv_reg))
 		return 0;
 
-	if ((adv_reg & all_mask) != all_mask)
+	if ((adv_reg & ADVERTISE_ALL) != all_mask)
 		return 0;
+
 	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
 		u32 tg3_ctrl;
 
@@ -3348,7 +3349,8 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 		if (tg3_readphy(tp, MII_CTRL1000, &tg3_ctrl))
 			return 0;
 
-		if ((tg3_ctrl & all_mask) != all_mask)
+		tg3_ctrl &= (ADVERTISE_1000HALF | ADVERTISE_1000FULL);
+		if (tg3_ctrl != all_mask)
 			return 0;
 	}
 	return 1;
