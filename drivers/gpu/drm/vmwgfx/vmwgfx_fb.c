@@ -158,10 +158,14 @@ static int vmw_fb_set_par(struct fb_info *info)
 {
 	struct vmw_fb_par *par = info->par;
 	struct vmw_private *vmw_priv = par->vmw_priv;
+	int ret;
 
-	vmw_kms_write_svga(vmw_priv, info->var.xres, info->var.yres,
-			   info->fix.line_length,
-			   par->bpp, par->depth);
+	ret = vmw_kms_write_svga(vmw_priv, info->var.xres, info->var.yres,
+				 info->fix.line_length,
+				 par->bpp, par->depth);
+	if (ret)
+		return ret;
+
 	if (vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY) {
 		/* TODO check if pitch and offset changes */
 		vmw_write(vmw_priv, SVGA_REG_NUM_GUEST_DISPLAYS, 1);

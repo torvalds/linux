@@ -990,7 +990,7 @@ out:
 	return ret;
 }
 
-void vmw_kms_write_svga(struct vmw_private *vmw_priv,
+int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 			unsigned width, unsigned height, unsigned pitch,
 			unsigned bpp, unsigned depth)
 {
@@ -1001,6 +1001,14 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, height);
 	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bpp);
+
+	if (vmw_read(vmw_priv, SVGA_REG_DEPTH) != depth) {
+		DRM_ERROR("Invalid depth %u for %u bpp, host expects %u\n",
+			  depth, bpp, vmw_read(vmw_priv, SVGA_REG_DEPTH));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int vmw_kms_save_vga(struct vmw_private *vmw_priv)

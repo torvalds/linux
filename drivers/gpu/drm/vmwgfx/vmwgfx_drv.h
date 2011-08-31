@@ -503,9 +503,9 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
 			  SVGA3dCmdHeader *header);
-void vmw_kms_write_svga(struct vmw_private *vmw_priv,
-			unsigned width, unsigned height, unsigned pitch,
-			unsigned bpp, unsigned depth);
+int vmw_kms_write_svga(struct vmw_private *vmw_priv,
+		       unsigned width, unsigned height, unsigned pitch,
+		       unsigned bpp, unsigned depth);
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_idle_workqueues(struct vmw_master *vmaster);

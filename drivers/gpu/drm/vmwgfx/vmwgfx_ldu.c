@@ -123,10 +123,8 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 			return 0;
 		fb = entry->base.crtc.fb;
 
-		vmw_kms_write_svga(dev_priv, w, h, fb->pitch,
-				   fb->bits_per_pixel, fb->depth);
-
-		return 0;
+		return vmw_kms_write_svga(dev_priv, w, h, fb->pitch,
+					  fb->bits_per_pixel, fb->depth);
 	}
 
 	if (!list_empty(&lds->active)) {
@@ -274,9 +272,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 
 		vmw_ldu_del_active(dev_priv, ldu);
 
-		vmw_ldu_commit_list(dev_priv);
-
-		return 0;
+		return vmw_ldu_commit_list(dev_priv);
 	}
 
 
@@ -301,9 +297,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 
 	vmw_ldu_add_active(dev_priv, ldu, vfb);
 
-	vmw_ldu_commit_list(dev_priv);
-
-	return 0;
+	return vmw_ldu_commit_list(dev_priv);
 }
 
 static struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
