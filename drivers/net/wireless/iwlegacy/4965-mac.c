@@ -138,22 +138,22 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 	u32 rb_timeout = 0;
 
 	if (il->cfg->mod_params->amsdu_size_8K)
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
+		rb_size = FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
+		rb_size = FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
 
 	/* Stop Rx DMA */
-	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	il_wr(il, FH49_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 
 	/* Reset driver's Rx queue write idx */
-	il_wr(il, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
+	il_wr(il, FH49_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
 
 	/* Tell device where to find RBD circular buffer in DRAM */
-	il_wr(il, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+	il_wr(il, FH49_RSCSR_CHNL0_RBDCB_BASE_REG,
 			   (u32)(rxq->bd_dma >> 8));
 
 	/* Tell device where in DRAM to update its Rx status */
-	il_wr(il, FH_RSCSR_CHNL0_STTS_WPTR_REG,
+	il_wr(il, FH49_RSCSR_CHNL0_STTS_WPTR_REG,
 			   rxq->rb_stts_dma >> 4);
 
 	/* Enable Rx DMA
@@ -162,13 +162,13 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 	 * RB timeout 0x10
 	 * 256 RBDs
 	 */
-	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG,
-			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
-			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
-			   FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
+	il_wr(il, FH49_MEM_RCSR_CHNL0_CONFIG_REG,
+			   FH49_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
+			   FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
+			   FH49_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
 			   rb_size|
-			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
-			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
+			   (rb_timeout << FH49_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
+			   (rfdnlog << FH49_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
 	il_write8(il, CSR_INT_COALESCING, IL_HOST_INT_TIMEOUT_DEF);
@@ -443,9 +443,9 @@ int il4965_rxq_stop(struct il_priv *il)
 {
 
 	/* stop Rx DMA */
-	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	il_poll_bit(il, FH_MEM_RSSR_RX_STATUS_REG,
-			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+	il_wr(il, FH49_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	il_poll_bit(il, FH49_MEM_RSSR_RX_STATUS_REG,
+			    FH49_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 
 	return 0;
 }
@@ -1180,15 +1180,15 @@ u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant, u8 valid)
 static const char *il4965_get_fh_string(int cmd)
 {
 	switch (cmd) {
-	IL_CMD(FH_RSCSR_CHNL0_STTS_WPTR_REG);
-	IL_CMD(FH_RSCSR_CHNL0_RBDCB_BASE_REG);
-	IL_CMD(FH_RSCSR_CHNL0_WPTR);
-	IL_CMD(FH_MEM_RCSR_CHNL0_CONFIG_REG);
-	IL_CMD(FH_MEM_RSSR_SHARED_CTRL_REG);
-	IL_CMD(FH_MEM_RSSR_RX_STATUS_REG);
-	IL_CMD(FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV);
-	IL_CMD(FH_TSSR_TX_STATUS_REG);
-	IL_CMD(FH_TSSR_TX_ERROR_REG);
+	IL_CMD(FH49_RSCSR_CHNL0_STTS_WPTR_REG);
+	IL_CMD(FH49_RSCSR_CHNL0_RBDCB_BASE_REG);
+	IL_CMD(FH49_RSCSR_CHNL0_WPTR);
+	IL_CMD(FH49_MEM_RCSR_CHNL0_CONFIG_REG);
+	IL_CMD(FH49_MEM_RSSR_SHARED_CTRL_REG);
+	IL_CMD(FH49_MEM_RSSR_RX_STATUS_REG);
+	IL_CMD(FH49_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV);
+	IL_CMD(FH49_TSSR_TX_STATUS_REG);
+	IL_CMD(FH49_TSSR_TX_ERROR_REG);
 	default:
 		return "UNKNOWN";
 	}
@@ -1202,15 +1202,15 @@ int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 	size_t bufsz = 0;
 #endif
 	static const u32 fh_tbl[] = {
-		FH_RSCSR_CHNL0_STTS_WPTR_REG,
-		FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-		FH_RSCSR_CHNL0_WPTR,
-		FH_MEM_RCSR_CHNL0_CONFIG_REG,
-		FH_MEM_RSSR_SHARED_CTRL_REG,
-		FH_MEM_RSSR_RX_STATUS_REG,
-		FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV,
-		FH_TSSR_TX_STATUS_REG,
-		FH_TSSR_TX_ERROR_REG
+		FH49_RSCSR_CHNL0_STTS_WPTR_REG,
+		FH49_RSCSR_CHNL0_RBDCB_BASE_REG,
+		FH49_RSCSR_CHNL0_WPTR,
+		FH49_MEM_RCSR_CHNL0_CONFIG_REG,
+		FH49_MEM_RSSR_SHARED_CTRL_REG,
+		FH49_MEM_RSSR_RX_STATUS_REG,
+		FH49_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV,
+		FH49_TSSR_TX_STATUS_REG,
+		FH49_TSSR_TX_ERROR_REG
 	};
 #ifdef CONFIG_IWLEGACY_DEBUG
 	if (display) {
@@ -2010,7 +2010,7 @@ int il4965_txq_ctx_alloc(struct il_priv *il)
 	il4965_txq_set_sched(il, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	il_wr(il, FH_KW_MEM_ADDR_REG, il->kw.dma >> 4);
+	il_wr(il, FH49_KW_MEM_ADDR_REG, il->kw.dma >> 4);
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -2049,7 +2049,7 @@ void il4965_txq_ctx_reset(struct il_priv *il)
 	il4965_txq_set_sched(il, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	il_wr(il, FH_KW_MEM_ADDR_REG, il->kw.dma >> 4);
+	il_wr(il, FH49_KW_MEM_ADDR_REG, il->kw.dma >> 4);
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -2078,14 +2078,14 @@ void il4965_txq_ctx_stop(struct il_priv *il)
 	/* Stop each Tx DMA channel, and wait for it to be idle */
 	for (ch = 0; ch < il->hw_params.dma_chnl_num; ch++) {
 		il_wr(il,
-				FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
-		if (il_poll_bit(il, FH_TSSR_TX_STATUS_REG,
-				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
+				FH49_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
+		if (il_poll_bit(il, FH49_TSSR_TX_STATUS_REG,
+				    FH49_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
 				    1000))
 			IL_ERR("Failing on timeout while stopping"
 			    " DMA channel %d [0x%08x]", ch,
 			    il_rd(il,
-					FH_TSSR_TX_STATUS_REG));
+					FH49_TSSR_TX_STATUS_REG));
 	}
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -3743,7 +3743,7 @@ int il4965_hw_tx_queue_init(struct il_priv *il,
 	int txq_id = txq->q.id;
 
 	/* Circular buffer (TFD queue in DRAM) physical base address */
-	il_wr(il, FH_MEM_CBBC_QUEUE(txq_id),
+	il_wr(il, FH49_MEM_CBBC_QUEUE(txq_id),
 			     txq->q.dma_addr >> 8);
 
 	return 0;
@@ -4262,7 +4262,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	if (inta & ~(il->inta_mask)) {
 		IL_WARN("Disabled INTA bits 0x%08x were pending\n",
 			 inta & ~il->inta_mask);
-		IL_WARN("   with FH_INT = 0x%08x\n", inta_fh);
+		IL_WARN("   with FH49_INT = 0x%08x\n", inta_fh);
 	}
 
 	/* Re-enable all interrupts */
@@ -4798,7 +4798,7 @@ static const char * const desc_lookup_text[] = {
 	"HW_ERROR_TEMPERATURE",
 	"ILLEGAL_CHAN_FREQ",
 	"VCC_NOT_STBL",
-	"FH_ERROR",
+	"FH49_ERROR",
 	"NMI_INTERRUPT_HOST",
 	"NMI_INTERRUPT_ACTION_PT",
 	"NMI_INTERRUPT_UNKNOWN",
@@ -4969,14 +4969,14 @@ static int il4965_alive_notify(struct il_priv *il)
 	/* Enable DMA channel */
 	for (chan = 0; chan < FH49_TCSR_CHNL_NUM ; chan++)
 		il_wr(il,
-				FH_TCSR_CHNL_TX_CONFIG_REG(chan),
-				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+				FH49_TCSR_CHNL_TX_CONFIG_REG(chan),
+				FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+				FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
 
 	/* Update FH chicken bits */
-	reg_val = il_rd(il, FH_TX_CHICKEN_BITS_REG);
-	il_wr(il, FH_TX_CHICKEN_BITS_REG,
-			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
+	reg_val = il_rd(il, FH49_TX_CHICKEN_BITS_REG);
+	il_wr(il, FH49_TX_CHICKEN_BITS_REG,
+			   reg_val | FH49_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Disable chain mode for all queues */
 	il_wr_prph(il, IL49_SCD_QUEUECHAIN_SEL, 0);

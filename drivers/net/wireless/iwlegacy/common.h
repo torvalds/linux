@@ -2835,7 +2835,7 @@ struct il_tfd_tb {
  * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
  *
  * Driver must indicate the physical address of the base of each
- * circular buffer via the FH_MEM_CBBC_QUEUE registers.
+ * circular buffer via the FH49_MEM_CBBC_QUEUE registers.
  *
  * Each TFD contains pointer/size information for up to 20 data buffers
  * in host DRAM.  These buffers collectively contain the (one) frame described

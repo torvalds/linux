@@ -630,7 +630,7 @@ static int il4965_hw_set_hw_params(struct il_priv *il)
 	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
 	il->hw_params.ht40_channel = BIT(IEEE80211_BAND_5GHZ);
 
-	il->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
+	il->hw_params.rx_wrt_ptr_reg = FH49_RSCSR_CHNL0_WPTR;
 
 	il->hw_params.tx_chains_num = il4965_num_of_ant(il->cfg->valid_tx_ant);
 	il->hw_params.rx_chains_num = il4965_num_of_ant(il->cfg->valid_rx_ant);

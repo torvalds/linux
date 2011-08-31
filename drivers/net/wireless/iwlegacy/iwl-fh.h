@@ -71,8 +71,8 @@
  * This I/O area is directly read/writable by driver (e.g. Linux uses writel())
  * Addresses are offsets from device's PCI hardware base address.
  */
-#define FH_MEM_LOWER_BOUND                   (0x1000)
-#define FH_MEM_UPPER_BOUND                   (0x2000)
+#define FH49_MEM_LOWER_BOUND                   (0x1000)
+#define FH49_MEM_UPPER_BOUND                   (0x2000)
 
 /**
  * Keep-Warm (KW) buffer base address.
@@ -83,7 +83,7 @@
  * from going into a power-savings mode that would cause higher DRAM latency,
  * and possible data over/under-runs, before all Tx/Rx is complete.
  *
- * Driver loads FH_KW_MEM_ADDR_REG with the physical address (bits 35:4)
+ * Driver loads FH49_KW_MEM_ADDR_REG with the physical address (bits 35:4)
  * of the buffer, which must be 4K aligned.  Once this is set up, the 4965
  * automatically invokes keep-warm accesses when normal accesses might not
  * be sufficient to maintain fast DRAM response.
@@ -91,7 +91,7 @@
  * Bit fields:
  *  31-0:  Keep-warm buffer physical base address [35:4], must be 4K aligned
  */
-#define FH_KW_MEM_ADDR_REG		     (FH_MEM_LOWER_BOUND + 0x97C)
+#define FH49_KW_MEM_ADDR_REG		     (FH49_MEM_LOWER_BOUND + 0x97C)
 
 
 /**
@@ -106,11 +106,11 @@
  * Bit fields in each pointer register:
  *  27-0: TFD CB physical base address [35:8], must be 256-byte aligned
  */
-#define FH_MEM_CBBC_LOWER_BOUND          (FH_MEM_LOWER_BOUND + 0x9D0)
-#define FH_MEM_CBBC_UPPER_BOUND          (FH_MEM_LOWER_BOUND + 0xA10)
+#define FH49_MEM_CBBC_LOWER_BOUND          (FH49_MEM_LOWER_BOUND + 0x9D0)
+#define FH49_MEM_CBBC_UPPER_BOUND          (FH49_MEM_LOWER_BOUND + 0xA10)
 
 /* Find TFD CB base pointer for given queue (range 0-15). */
-#define FH_MEM_CBBC_QUEUE(x)  (FH_MEM_CBBC_LOWER_BOUND + (x) * 0x4)
+#define FH49_MEM_CBBC_QUEUE(x)  (FH49_MEM_CBBC_LOWER_BOUND + (x) * 0x4)
 
 
 /**
@@ -132,18 +132,18 @@
  *     Each entry (1 dword) points to a receive buffer (RB) of consistent size
  *     (typically 4K, although 8K or 16K are also selectable by driver).
  *     Driver sets up RB size and number of RBDs in the CB via Rx config
- *     register FH_MEM_RCSR_CHNL0_CONFIG_REG.
+ *     register FH49_MEM_RCSR_CHNL0_CONFIG_REG.
  *
  *     Bit fields within one RBD:
  *     27-0:  Receive Buffer physical address bits [35:8], 256-byte aligned
  *
  *     Driver sets physical address [35:8] of base of RBD circular buffer
- *     into FH_RSCSR_CHNL0_RBDCB_BASE_REG [27:0].
+ *     into FH49_RSCSR_CHNL0_RBDCB_BASE_REG [27:0].
  *
  * 2)  Rx status buffer, 8 bytes, in which 4965 indicates which Rx Buffers
  *     (RBs) have been filled, via a "write pointer", actually the idx of
  *     the RB's corresponding RBD within the circular buffer.  Driver sets
- *     physical address [35:4] into FH_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
+ *     physical address [35:4] into FH49_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
  *
  *     Bit fields in lower dword of Rx status buffer (upper dword not used
  *     by driver; see struct il4965_shared, val0):
@@ -154,7 +154,7 @@
  * As the driver prepares Receive Buffers (RBs) for 4965 to fill, driver must
  * enter pointers to these RBs into contiguous RBD circular buffer entries,
  * and update the 4965's "write" idx register,
- * FH_RSCSR_CHNL0_RBDCB_WPTR_REG.
+ * FH49_RSCSR_CHNL0_RBDCB_WPTR_REG.
  *
  * This "write" idx corresponds to the *next* RBD that the driver will make
  * available, i.e. one RBD past the tail of the ready-to-fill RBDs within
@@ -182,23 +182,23 @@
  * and "read" idxes; that is, make sure that there are no more than 254
  * buffers waiting to be filled.
  */
-#define FH_MEM_RSCSR_LOWER_BOUND	(FH_MEM_LOWER_BOUND + 0xBC0)
-#define FH_MEM_RSCSR_UPPER_BOUND	(FH_MEM_LOWER_BOUND + 0xC00)
-#define FH_MEM_RSCSR_CHNL0		(FH_MEM_RSCSR_LOWER_BOUND)
+#define FH49_MEM_RSCSR_LOWER_BOUND	(FH49_MEM_LOWER_BOUND + 0xBC0)
+#define FH49_MEM_RSCSR_UPPER_BOUND	(FH49_MEM_LOWER_BOUND + 0xC00)
+#define FH49_MEM_RSCSR_CHNL0		(FH49_MEM_RSCSR_LOWER_BOUND)
 
 /**
  * Physical base address of 8-byte Rx Status buffer.
  * Bit fields:
  *  31-0: Rx status buffer physical base address [35:4], must 16-byte aligned.
  */
-#define FH_RSCSR_CHNL0_STTS_WPTR_REG	(FH_MEM_RSCSR_CHNL0)
+#define FH49_RSCSR_CHNL0_STTS_WPTR_REG	(FH49_MEM_RSCSR_CHNL0)
 
 /**
  * Physical base address of Rx Buffer Descriptor Circular Buffer.
  * Bit fields:
  *  27-0:  RBD CD physical base address [35:8], must be 256-byte aligned.
  */
-#define FH_RSCSR_CHNL0_RBDCB_BASE_REG	(FH_MEM_RSCSR_CHNL0 + 0x004)
+#define FH49_RSCSR_CHNL0_RBDCB_BASE_REG	(FH49_MEM_RSCSR_CHNL0 + 0x004)
 
 /**
  * Rx write pointer (idx, really!).
@@ -206,20 +206,20 @@
  *  11-0:  Index of driver's most recent prepared-to-be-filled RBD, + 1.
  *         NOTE:  For 256-entry circular buffer, use only bits [7:0].
  */
-#define FH_RSCSR_CHNL0_RBDCB_WPTR_REG	(FH_MEM_RSCSR_CHNL0 + 0x008)
-#define FH_RSCSR_CHNL0_WPTR        (FH_RSCSR_CHNL0_RBDCB_WPTR_REG)
+#define FH49_RSCSR_CHNL0_RBDCB_WPTR_REG	(FH49_MEM_RSCSR_CHNL0 + 0x008)
+#define FH49_RSCSR_CHNL0_WPTR        (FH49_RSCSR_CHNL0_RBDCB_WPTR_REG)
 
 
 /**
  * Rx Config/Status Registers (RCSR)
  * Rx Config Reg for channel 0 (only channel used)
  *
- * Driver must initialize FH_MEM_RCSR_CHNL0_CONFIG_REG as follows for
+ * Driver must initialize FH49_MEM_RCSR_CHNL0_CONFIG_REG as follows for
  * normal operation (see bit fields).
  *
- * Clearing FH_MEM_RCSR_CHNL0_CONFIG_REG to 0 turns off Rx DMA.
- * Driver should poll FH_MEM_RSSR_RX_STATUS_REG	for
- * FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE (bit 24) before continuing.
+ * Clearing FH49_MEM_RCSR_CHNL0_CONFIG_REG to 0 turns off Rx DMA.
+ * Driver should poll FH49_MEM_RSSR_RX_STATUS_REG	for
+ * FH49_RSSR_CHNL0_RX_STATUS_CHNL_IDLE (bit 24) before continuing.
  *
  * Bit fields:
  * 31-30: Rx DMA channel enable: '00' off/pause, '01' pause at end of frame,
@@ -236,67 +236,67 @@
  *        typical value 0x10 (about 1/2 msec)
  *  3- 0: reserved
  */
-#define FH_MEM_RCSR_LOWER_BOUND      (FH_MEM_LOWER_BOUND + 0xC00)
-#define FH_MEM_RCSR_UPPER_BOUND      (FH_MEM_LOWER_BOUND + 0xCC0)
-#define FH_MEM_RCSR_CHNL0            (FH_MEM_RCSR_LOWER_BOUND)
+#define FH49_MEM_RCSR_LOWER_BOUND      (FH49_MEM_LOWER_BOUND + 0xC00)
+#define FH49_MEM_RCSR_UPPER_BOUND      (FH49_MEM_LOWER_BOUND + 0xCC0)
+#define FH49_MEM_RCSR_CHNL0            (FH49_MEM_RCSR_LOWER_BOUND)
 
-#define FH_MEM_RCSR_CHNL0_CONFIG_REG	(FH_MEM_RCSR_CHNL0)
+#define FH49_MEM_RCSR_CHNL0_CONFIG_REG	(FH49_MEM_RCSR_CHNL0)
 
-#define FH_RCSR_CHNL0_RX_CONFIG_RB_TIMEOUT_MSK (0x00000FF0) /* bits 4-11 */
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_MSK   (0x00001000) /* bits 12 */
-#define FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK (0x00008000) /* bit 15 */
-#define FH_RCSR_CHNL0_RX_CONFIG_RB_SIZE_MSK   (0x00030000) /* bits 16-17 */
-#define FH_RCSR_CHNL0_RX_CONFIG_RBDBC_SIZE_MSK (0x00F00000) /* bits 20-23 */
-#define FH_RCSR_CHNL0_RX_CONFIG_DMA_CHNL_EN_MSK (0xC0000000) /* bits 30-31*/
+#define FH49_RCSR_CHNL0_RX_CONFIG_RB_TIMEOUT_MSK (0x00000FF0) /* bits 4-11 */
+#define FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_MSK   (0x00001000) /* bits 12 */
+#define FH49_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK (0x00008000) /* bit 15 */
+#define FH49_RCSR_CHNL0_RX_CONFIG_RB_SIZE_MSK   (0x00030000) /* bits 16-17 */
+#define FH49_RCSR_CHNL0_RX_CONFIG_RBDBC_SIZE_MSK (0x00F00000) /* bits 20-23 */
+#define FH49_RCSR_CHNL0_RX_CONFIG_DMA_CHNL_EN_MSK (0xC0000000) /* bits 30-31*/
 
-#define FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS	(20)
-#define FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS	(4)
+#define FH49_RCSR_RX_CONFIG_RBDCB_SIZE_POS	(20)
+#define FH49_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS	(4)
 #define RX_RB_TIMEOUT	(0x10)
 
-#define FH_RCSR_RX_CONFIG_CHNL_EN_PAUSE_VAL         (0x00000000)
-#define FH_RCSR_RX_CONFIG_CHNL_EN_PAUSE_EOF_VAL     (0x40000000)
-#define FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL        (0x80000000)
+#define FH49_RCSR_RX_CONFIG_CHNL_EN_PAUSE_VAL         (0x00000000)
+#define FH49_RCSR_RX_CONFIG_CHNL_EN_PAUSE_EOF_VAL     (0x40000000)
+#define FH49_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL        (0x80000000)
 
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K    (0x00000000)
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K    (0x00010000)
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_12K   (0x00020000)
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_16K   (0x00030000)
+#define FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K    (0x00000000)
+#define FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K    (0x00010000)
+#define FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_12K   (0x00020000)
+#define FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_16K   (0x00030000)
 
-#define FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY              (0x00000004)
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
+#define FH49_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY              (0x00000004)
+#define FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
+#define FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
 /**
  * Rx Shared Status Registers (RSSR)
  *
  * After stopping Rx DMA channel (writing 0 to
- * FH_MEM_RCSR_CHNL0_CONFIG_REG), driver must poll
- * FH_MEM_RSSR_RX_STATUS_REG until Rx channel is idle.
+ * FH49_MEM_RCSR_CHNL0_CONFIG_REG), driver must poll
+ * FH49_MEM_RSSR_RX_STATUS_REG until Rx channel is idle.
  *
  * Bit fields:
  *  24:  1 = Channel 0 is idle
  *
- * FH_MEM_RSSR_SHARED_CTRL_REG and FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV
+ * FH49_MEM_RSSR_SHARED_CTRL_REG and FH49_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV
  * contain default values that should not be altered by the driver.
  */
-#define FH_MEM_RSSR_LOWER_BOUND           (FH_MEM_LOWER_BOUND + 0xC40)
-#define FH_MEM_RSSR_UPPER_BOUND           (FH_MEM_LOWER_BOUND + 0xD00)
+#define FH49_MEM_RSSR_LOWER_BOUND           (FH49_MEM_LOWER_BOUND + 0xC40)
+#define FH49_MEM_RSSR_UPPER_BOUND           (FH49_MEM_LOWER_BOUND + 0xD00)
 
-#define FH_MEM_RSSR_SHARED_CTRL_REG       (FH_MEM_RSSR_LOWER_BOUND)
-#define FH_MEM_RSSR_RX_STATUS_REG	(FH_MEM_RSSR_LOWER_BOUND + 0x004)
-#define FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV\
-					(FH_MEM_RSSR_LOWER_BOUND + 0x008)
+#define FH49_MEM_RSSR_SHARED_CTRL_REG       (FH49_MEM_RSSR_LOWER_BOUND)
+#define FH49_MEM_RSSR_RX_STATUS_REG	(FH49_MEM_RSSR_LOWER_BOUND + 0x004)
+#define FH49_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV\
+					(FH49_MEM_RSSR_LOWER_BOUND + 0x008)
 
-#define FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
+#define FH49_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
 
-#define FH_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
+#define FH49_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
 
 /* TFDB  Area - TFDs buffer table */
-#define FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
-#define FH_TFDIB_LOWER_BOUND       (FH_MEM_LOWER_BOUND + 0x900)
-#define FH_TFDIB_UPPER_BOUND       (FH_MEM_LOWER_BOUND + 0x958)
-#define FH_TFDIB_CTRL0_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl))
-#define FH_TFDIB_CTRL1_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl) + 0x4)
+#define FH49_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
+#define FH49_TFDIB_LOWER_BOUND       (FH49_MEM_LOWER_BOUND + 0x900)
+#define FH49_TFDIB_UPPER_BOUND       (FH49_MEM_LOWER_BOUND + 0x958)
+#define FH49_TFDIB_CTRL0_REG(_chnl)  (FH49_TFDIB_LOWER_BOUND + 0x8 * (_chnl))
+#define FH49_TFDIB_CTRL1_REG(_chnl)  (FH49_TFDIB_LOWER_BOUND + 0x8 * (_chnl) + 0x4)
 
 /**
  * Transmit DMA Channel Control/Status Registers (TCSR)
@@ -306,10 +306,10 @@
  * which feed the DMA/FIFO channels); config regs are separated by 0x20 bytes.
  *
  * To use a Tx DMA channel, driver must initialize its
- * FH_TCSR_CHNL_TX_CONFIG_REG(chnl) with:
+ * FH49_TCSR_CHNL_TX_CONFIG_REG(chnl) with:
  *
- * FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
- * FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL
+ * FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+ * FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL
  *
  * All other bits should be 0.
  *
@@ -320,62 +320,62 @@
  *     3: Enable internal DMA requests (1, normal operation), disable (0)
  *  2- 0: Reserved, set to "0"
  */
-#define FH_TCSR_LOWER_BOUND  (FH_MEM_LOWER_BOUND + 0xD00)
-#define FH_TCSR_UPPER_BOUND  (FH_MEM_LOWER_BOUND + 0xE60)
+#define FH49_TCSR_LOWER_BOUND  (FH49_MEM_LOWER_BOUND + 0xD00)
+#define FH49_TCSR_UPPER_BOUND  (FH49_MEM_LOWER_BOUND + 0xE60)
 
 /* Find Control/Status reg for given Tx DMA/FIFO channel */
 #define FH49_TCSR_CHNL_NUM                            (7)
 #define FH50_TCSR_CHNL_NUM                            (8)
 
 /* TCSR: tx_config register values */
-#define FH_TCSR_CHNL_TX_CONFIG_REG(_chnl)	\
-		(FH_TCSR_LOWER_BOUND + 0x20 * (_chnl))
-#define FH_TCSR_CHNL_TX_CREDIT_REG(_chnl)	\
-		(FH_TCSR_LOWER_BOUND + 0x20 * (_chnl) + 0x4)
-#define FH_TCSR_CHNL_TX_BUF_STS_REG(_chnl)	\
-		(FH_TCSR_LOWER_BOUND + 0x20 * (_chnl) + 0x8)
+#define FH49_TCSR_CHNL_TX_CONFIG_REG(_chnl)	\
+		(FH49_TCSR_LOWER_BOUND + 0x20 * (_chnl))
+#define FH49_TCSR_CHNL_TX_CREDIT_REG(_chnl)	\
+		(FH49_TCSR_LOWER_BOUND + 0x20 * (_chnl) + 0x4)
+#define FH49_TCSR_CHNL_TX_BUF_STS_REG(_chnl)	\
+		(FH49_TCSR_LOWER_BOUND + 0x20 * (_chnl) + 0x8)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_TXF		(0x00000000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_DRV		(0x00000001)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_TXF		(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_DRV		(0x00000001)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	(0x00000000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE	(0x00000008)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE	(0x00000008)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_NOINT	(0x00000000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD	(0x00100000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD	(0x00200000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_NOINT	(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD	(0x00100000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD	(0x00200000)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT	(0x00000000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ENDTFD	(0x00400000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_IFTFD	(0x00800000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT	(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ENDTFD	(0x00400000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_IFTFD	(0x00800000)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE	(0x00000000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE_EOF	(0x40000000)
-#define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	(0x80000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE	(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE_EOF	(0x40000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	(0x80000000)
 
-#define FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_EMPTY	(0x00000000)
-#define FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_WAIT	(0x00002000)
-#define FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID	(0x00000003)
+#define FH49_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_EMPTY	(0x00000000)
+#define FH49_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_WAIT	(0x00002000)
+#define FH49_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID	(0x00000003)
 
-#define FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM		(20)
-#define FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX		(12)
+#define FH49_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM		(20)
+#define FH49_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX		(12)
 
 /**
  * Tx Shared Status Registers (TSSR)
  *
  * After stopping Tx DMA channel (writing 0 to
- * FH_TCSR_CHNL_TX_CONFIG_REG(chnl)), driver must poll
- * FH_TSSR_TX_STATUS_REG until selected Tx channel is idle
+ * FH49_TCSR_CHNL_TX_CONFIG_REG(chnl)), driver must poll
+ * FH49_TSSR_TX_STATUS_REG until selected Tx channel is idle
  * (channel's buffers empty | no pending requests).
  *
  * Bit fields:
  * 31-24:  1 = Channel buffers empty (channel 7:0)
  * 23-16:  1 = No pending requests (channel 7:0)
  */
-#define FH_TSSR_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xEA0)
-#define FH_TSSR_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xEC0)
+#define FH49_TSSR_LOWER_BOUND		(FH49_MEM_LOWER_BOUND + 0xEA0)
+#define FH49_TSSR_UPPER_BOUND		(FH49_MEM_LOWER_BOUND + 0xEC0)
 
-#define FH_TSSR_TX_STATUS_REG		(FH_TSSR_LOWER_BOUND + 0x010)
+#define FH49_TSSR_TX_STATUS_REG		(FH49_TSSR_LOWER_BOUND + 0x010)
 
 /**
  * Bit fields for TSSR(Tx Shared Status & Control) error status register:
@@ -394,22 +394,22 @@
  *	synchronized to the TxFIFO status
  *	uCode/driver must write "1" in order to clear this flag
  */
-#define FH_TSSR_TX_ERROR_REG		(FH_TSSR_LOWER_BOUND + 0x018)
+#define FH49_TSSR_TX_ERROR_REG		(FH49_TSSR_LOWER_BOUND + 0x018)
 
-#define FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) ((1 << (_chnl)) << 16)
+#define FH49_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) ((1 << (_chnl)) << 16)
 
 /* Tx service channels */
-#define FH_SRVC_CHNL		(9)
-#define FH_SRVC_LOWER_BOUND	(FH_MEM_LOWER_BOUND + 0x9C8)
-#define FH_SRVC_UPPER_BOUND	(FH_MEM_LOWER_BOUND + 0x9D0)
-#define FH_SRVC_CHNL_SRAM_ADDR_REG(_chnl) \
-		(FH_SRVC_LOWER_BOUND + ((_chnl) - 9) * 0x4)
+#define FH49_SRVC_CHNL		(9)
+#define FH49_SRVC_LOWER_BOUND	(FH49_MEM_LOWER_BOUND + 0x9C8)
+#define FH49_SRVC_UPPER_BOUND	(FH49_MEM_LOWER_BOUND + 0x9D0)
+#define FH49_SRVC_CHNL_SRAM_ADDR_REG(_chnl) \
+		(FH49_SRVC_LOWER_BOUND + ((_chnl) - 9) * 0x4)
 
-#define FH_TX_CHICKEN_BITS_REG	(FH_MEM_LOWER_BOUND + 0xE98)
+#define FH49_TX_CHICKEN_BITS_REG	(FH49_MEM_LOWER_BOUND + 0xE98)
 /* Instruct FH to increment the retry count of a packet when
  * it is brought from the memory to TX-FIFO
  */
-#define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
+#define FH49_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
 /* Keep Warm Size */
 #define IL_KW_SIZE 0x1000	/* 4k */
