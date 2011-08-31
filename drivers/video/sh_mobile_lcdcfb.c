@@ -1291,66 +1291,6 @@ static void sh_mobile_lcdc_bl_remove(struct backlight_device *bdev)
 	backlight_device_unregister(bdev);
 }
 
-static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp,
-				   int nonstd)
-{
-	if (nonstd) {
-		switch (bpp) {
-		case 12:
-		case 16:
-		case 24:
-			var->bits_per_pixel = bpp;
-			var->nonstd = nonstd;
-			return 0;
-		default:
-			return -EINVAL;
-		}
-	}
-
-	switch (bpp) {
-	case 16: /* PKF[4:0] = 00011 - RGB 565 */
-		var->red.offset = 11;
-		var->red.length = 5;
-		var->green.offset = 5;
-		var->green.length = 6;
-		var->blue.offset = 0;
-		var->blue.length = 5;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-
-	case 24: /* PKF[4:0] = 01011 - RGB 888 */
-		var->red.offset = 16;
-		var->red.length = 8;
-		var->green.offset = 8;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-
-	case 32: /* PKF[4:0] = 00000 - RGBA 888 */
-		var->red.offset = 16;
-		var->red.length = 8;
-		var->green.offset = 8;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.offset = 24;
-		var->transp.length = 8;
-		break;
-	default:
-		return -EINVAL;
-	}
-	var->bits_per_pixel = bpp;
-	var->red.msb_right = 0;
-	var->green.msb_right = 0;
-	var->blue.msb_right = 0;
-	var->transp.msb_right = 0;
-	return 0;
-}
-
 static int sh_mobile_lcdc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1499,6 +1439,9 @@ static int __devinit sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch,
 	int ret;
 	int i;
 
+	mutex_init(&ch->open_lock);
+
+	/* Allocate the frame buffer device. */
 	ch->info = framebuffer_alloc(0, dev);
 	if (!ch->info) {
 		dev_err(dev, "unable to allocate fb_info\n");
@@ -1506,11 +1449,10 @@ static int __devinit sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch,
 	}
 
 	info = ch->info;
-	var = &info->var;
 	info->fbops = &sh_mobile_lcdc_ops;
 	info->par = ch;
-
-	mutex_init(&ch->open_lock);
+	info->pseudo_palette = &ch->pseudo_palette;
+	info->flags = FBINFO_FLAG_DEFAULT;
 
 	/* Iterate through the modes to validate them and find the highest
 	 * resolution.
@@ -1541,13 +1483,15 @@ static int __devinit sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch,
 		dev_dbg(dev, "Found largest videomode %ux%u\n",
 			max_mode->xres, max_mode->yres);
 
+	/* Initialize fixed screen information. Restrict pan to 2 lines steps
+	 * for NV12.
+	 */
 	info->fix = sh_mobile_lcdc_fix;
 	info->fix.smem_len = max_size * 2 * cfg->bpp / 8;
-
-	 /* Only pan in 2 line steps for NV12 */
 	if (cfg->nonstd && cfg->bpp == 12)
 		info->fix.ypanstep = 2;
 
+	/* Create the mode list. */
 	if (cfg->lcd_cfg == NULL) {
 		mode = &default_720p;
 		num_cfg = 1;
@@ -1558,26 +1502,29 @@ static int __devinit sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch,
 
 	fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
 
+	/* Initialize variable screen information using the first mode as
+	 * default. The default Y virtual resolution is twice the panel size to
+	 * allow for double-buffering.
+	 */
+	var = &info->var;
 	fb_videomode_to_var(var, mode);
+	var->bits_per_pixel = cfg->bpp;
 	var->width = cfg->lcd_size_cfg.width;
 	var->height = cfg->lcd_size_cfg.height;
-	/* Default Y virtual resolution is 2x panel size */
 	var->yres_virtual = var->yres * 2;
 	var->activate = FB_ACTIVATE_NOW;
 
-	ret = sh_mobile_lcdc_set_bpp(var, cfg->bpp, cfg->nonstd);
+	ret = sh_mobile_check_var(var, info);
 	if (ret)
 		return ret;
 
+	/* Allocate frame buffer memory and color map. */
 	buf = dma_alloc_coherent(dev, info->fix.smem_len, &ch->dma_handle,
 				 GFP_KERNEL);
 	if (!buf) {
 		dev_err(dev, "unable to allocate buffer\n");
 		return -ENOMEM;
 	}
-
-	info->pseudo_palette = &ch->pseudo_palette;
-	info->flags = FBINFO_FLAG_DEFAULT;
 
 	ret = fb_alloc_cmap(&info->cmap, PALETTE_NR, 0);
 	if (ret < 0) {
