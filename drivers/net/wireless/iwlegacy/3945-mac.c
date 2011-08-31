@@ -1528,7 +1528,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 	if (inta & ~il->inta_mask) {
 		IL_WARN("Disabled INTA bits 0x%08x were pending\n",
 			 inta & ~il->inta_mask);
-		IL_WARN("   with FH_INT = 0x%08x\n", inta_fh);
+		IL_WARN("   with inta_fh = 0x%08x\n", inta_fh);
 	}
 
 	/* Re-enable all interrupts */

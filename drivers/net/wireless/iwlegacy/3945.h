@@ -481,8 +481,8 @@ static inline int il3945_hw_valid_rtc_data_addr(u32 addr)
 		addr < IL39_RTC_DATA_UPPER_BOUND);
 }
 
-/* Base physical address of il3945_shared is provided to FH_TSSR_CBB_BASE
- * and &il3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
+/* Base physical address of il3945_shared is provided to FH39_TSSR_CBB_BASE
+ * and &il3945_shared.rx_read_ptr[0] is provided to FH39_RCSR_RPTR_ADDR(0) */
 struct il3945_shared {
 	__le32 tx_base_ptr[8];
 } __packed;
