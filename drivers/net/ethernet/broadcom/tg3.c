@@ -2999,6 +2999,228 @@ static int tg3_nvram_read_be32(struct tg3 *tp, u32 offset, __be32 *val)
 	return res;
 }
 
+#define RX_CPU_SCRATCH_BASE	0x30000
+#define RX_CPU_SCRATCH_SIZE	0x04000
+#define TX_CPU_SCRATCH_BASE	0x34000
+#define TX_CPU_SCRATCH_SIZE	0x04000
+
+/* tp->lock is held. */
+static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
+{
+	int i;
+
+	BUG_ON(offset == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS));
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val = tr32(GRC_VCPU_EXT_CTRL);
+
+		tw32(GRC_VCPU_EXT_CTRL, val | GRC_VCPU_EXT_CTRL_HALT_CPU);
+		return 0;
+	}
+	if (offset == RX_CPU_BASE) {
+		for (i = 0; i < 10000; i++) {
+			tw32(offset + CPU_STATE, 0xffffffff);
+			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
+			if (tr32(offset + CPU_MODE) & CPU_MODE_HALT)
+				break;
+		}
+
+		tw32(offset + CPU_STATE, 0xffffffff);
+		tw32_f(offset + CPU_MODE,  CPU_MODE_HALT);
+		udelay(10);
+	} else {
+		for (i = 0; i < 10000; i++) {
+			tw32(offset + CPU_STATE, 0xffffffff);
+			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
+			if (tr32(offset + CPU_MODE) & CPU_MODE_HALT)
+				break;
+		}
+	}
+
+	if (i >= 10000) {
+		netdev_err(tp->dev, "%s timed out, %s CPU\n",
+			   __func__, offset == RX_CPU_BASE ? "RX" : "TX");
+		return -ENODEV;
+	}
+
+	/* Clear firmware's nvram arbitration. */
+	if (tg3_flag(tp, NVRAM))
+		tw32(NVRAM_SWARB, SWARB_REQ_CLR0);
+	return 0;
+}
+
+struct fw_info {
+	unsigned int fw_base;
+	unsigned int fw_len;
+	const __be32 *fw_data;
+};
+
+/* tp->lock is held. */
+static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
+				 u32 cpu_scratch_base, int cpu_scratch_size,
+				 struct fw_info *info)
+{
+	int err, lock_err, i;
+	void (*write_op)(struct tg3 *, u32, u32);
+
+	if (cpu_base == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS)) {
+		netdev_err(tp->dev,
+			   "%s: Trying to load TX cpu firmware which is 5705\n",
+			   __func__);
+		return -EINVAL;
+	}
+
+	if (tg3_flag(tp, 5705_PLUS))
+		write_op = tg3_write_mem;
+	else
+		write_op = tg3_write_indirect_reg32;
+
+	/* It is possible that bootcode is still loading at this point.
+	 * Get the nvram lock first before halting the cpu.
+	 */
+	lock_err = tg3_nvram_lock(tp);
+	err = tg3_halt_cpu(tp, cpu_base);
+	if (!lock_err)
+		tg3_nvram_unlock(tp);
+	if (err)
+		goto out;
+
+	for (i = 0; i < cpu_scratch_size; i += sizeof(u32))
+		write_op(tp, cpu_scratch_base + i, 0);
+	tw32(cpu_base + CPU_STATE, 0xffffffff);
+	tw32(cpu_base + CPU_MODE, tr32(cpu_base+CPU_MODE)|CPU_MODE_HALT);
+	for (i = 0; i < (info->fw_len / sizeof(u32)); i++)
+		write_op(tp, (cpu_scratch_base +
+			      (info->fw_base & 0xffff) +
+			      (i * sizeof(u32))),
+			      be32_to_cpu(info->fw_data[i]));
+
+	err = 0;
+
+out:
+	return err;
+}
+
+/* tp->lock is held. */
+static int tg3_load_5701_a0_firmware_fix(struct tg3 *tp)
+{
+	struct fw_info info;
+	const __be32 *fw_data;
+	int err, i;
+
+	fw_data = (void *)tp->fw->data;
+
+	/* Firmware blob starts with version numbers, followed by
+	   start address and length. We are setting complete length.
+	   length = end_address_of_bss - start_address_of_text.
+	   Remainder is the blob to be loaded contiguously
+	   from start address. */
+
+	info.fw_base = be32_to_cpu(fw_data[1]);
+	info.fw_len = tp->fw->size - 12;
+	info.fw_data = &fw_data[3];
+
+	err = tg3_load_firmware_cpu(tp, RX_CPU_BASE,
+				    RX_CPU_SCRATCH_BASE, RX_CPU_SCRATCH_SIZE,
+				    &info);
+	if (err)
+		return err;
+
+	err = tg3_load_firmware_cpu(tp, TX_CPU_BASE,
+				    TX_CPU_SCRATCH_BASE, TX_CPU_SCRATCH_SIZE,
+				    &info);
+	if (err)
+		return err;
+
+	/* Now startup only the RX cpu. */
+	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
+	tw32_f(RX_CPU_BASE + CPU_PC, info.fw_base);
+
+	for (i = 0; i < 5; i++) {
+		if (tr32(RX_CPU_BASE + CPU_PC) == info.fw_base)
+			break;
+		tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
+		tw32(RX_CPU_BASE + CPU_MODE,  CPU_MODE_HALT);
+		tw32_f(RX_CPU_BASE + CPU_PC, info.fw_base);
+		udelay(1000);
+	}
+	if (i >= 5) {
+		netdev_err(tp->dev, "%s fails to set RX CPU PC, is %08x "
+			   "should be %08x\n", __func__,
+			   tr32(RX_CPU_BASE + CPU_PC), info.fw_base);
+		return -ENODEV;
+	}
+	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
+	tw32_f(RX_CPU_BASE + CPU_MODE,  0x00000000);
+
+	return 0;
+}
+
+/* tp->lock is held. */
+static int tg3_load_tso_firmware(struct tg3 *tp)
+{
+	struct fw_info info;
+	const __be32 *fw_data;
+	unsigned long cpu_base, cpu_scratch_base, cpu_scratch_size;
+	int err, i;
+
+	if (tg3_flag(tp, HW_TSO_1) ||
+	    tg3_flag(tp, HW_TSO_2) ||
+	    tg3_flag(tp, HW_TSO_3))
+		return 0;
+
+	fw_data = (void *)tp->fw->data;
+
+	/* Firmware blob starts with version numbers, followed by
+	   start address and length. We are setting complete length.
+	   length = end_address_of_bss - start_address_of_text.
+	   Remainder is the blob to be loaded contiguously
+	   from start address. */
+
+	info.fw_base = be32_to_cpu(fw_data[1]);
+	cpu_scratch_size = tp->fw_len;
+	info.fw_len = tp->fw->size - 12;
+	info.fw_data = &fw_data[3];
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) {
+		cpu_base = RX_CPU_BASE;
+		cpu_scratch_base = NIC_SRAM_MBUF_POOL_BASE5705;
+	} else {
+		cpu_base = TX_CPU_BASE;
+		cpu_scratch_base = TX_CPU_SCRATCH_BASE;
+		cpu_scratch_size = TX_CPU_SCRATCH_SIZE;
+	}
+
+	err = tg3_load_firmware_cpu(tp, cpu_base,
+				    cpu_scratch_base, cpu_scratch_size,
+				    &info);
+	if (err)
+		return err;
+
+	/* Now startup the cpu. */
+	tw32(cpu_base + CPU_STATE, 0xffffffff);
+	tw32_f(cpu_base + CPU_PC, info.fw_base);
+
+	for (i = 0; i < 5; i++) {
+		if (tr32(cpu_base + CPU_PC) == info.fw_base)
+			break;
+		tw32(cpu_base + CPU_STATE, 0xffffffff);
+		tw32(cpu_base + CPU_MODE,  CPU_MODE_HALT);
+		tw32_f(cpu_base + CPU_PC, info.fw_base);
+		udelay(1000);
+	}
+	if (i >= 5) {
+		netdev_err(tp->dev,
+			   "%s fails to set CPU PC, is %08x should be %08x\n",
+			   __func__, tr32(cpu_base + CPU_PC), info.fw_base);
+		return -ENODEV;
+	}
+	tw32(cpu_base + CPU_STATE, 0xffffffff);
+	tw32_f(cpu_base + CPU_MODE,  0x00000000);
+	return 0;
+}
+
+
 /* tp->lock is held. */
 static void __tg3_set_mac_addr(struct tg3 *tp, int skip_mac_1)
 {
@@ -7706,227 +7928,6 @@ static int tg3_halt(struct tg3 *tp, int kind, int silent)
 
 	return 0;
 }
-
-#define RX_CPU_SCRATCH_BASE	0x30000
-#define RX_CPU_SCRATCH_SIZE	0x04000
-#define TX_CPU_SCRATCH_BASE	0x34000
-#define TX_CPU_SCRATCH_SIZE	0x04000
-
-/* tp->lock is held. */
-static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
-{
-	int i;
-
-	BUG_ON(offset == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS));
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		u32 val = tr32(GRC_VCPU_EXT_CTRL);
-
-		tw32(GRC_VCPU_EXT_CTRL, val | GRC_VCPU_EXT_CTRL_HALT_CPU);
-		return 0;
-	}
-	if (offset == RX_CPU_BASE) {
-		for (i = 0; i < 10000; i++) {
-			tw32(offset + CPU_STATE, 0xffffffff);
-			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
-			if (tr32(offset + CPU_MODE) & CPU_MODE_HALT)
-				break;
-		}
-
-		tw32(offset + CPU_STATE, 0xffffffff);
-		tw32_f(offset + CPU_MODE,  CPU_MODE_HALT);
-		udelay(10);
-	} else {
-		for (i = 0; i < 10000; i++) {
-			tw32(offset + CPU_STATE, 0xffffffff);
-			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
-			if (tr32(offset + CPU_MODE) & CPU_MODE_HALT)
-				break;
-		}
-	}
-
-	if (i >= 10000) {
-		netdev_err(tp->dev, "%s timed out, %s CPU\n",
-			   __func__, offset == RX_CPU_BASE ? "RX" : "TX");
-		return -ENODEV;
-	}
-
-	/* Clear firmware's nvram arbitration. */
-	if (tg3_flag(tp, NVRAM))
-		tw32(NVRAM_SWARB, SWARB_REQ_CLR0);
-	return 0;
-}
-
-struct fw_info {
-	unsigned int fw_base;
-	unsigned int fw_len;
-	const __be32 *fw_data;
-};
-
-/* tp->lock is held. */
-static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_base,
-				 int cpu_scratch_size, struct fw_info *info)
-{
-	int err, lock_err, i;
-	void (*write_op)(struct tg3 *, u32, u32);
-
-	if (cpu_base == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS)) {
-		netdev_err(tp->dev,
-			   "%s: Trying to load TX cpu firmware which is 5705\n",
-			   __func__);
-		return -EINVAL;
-	}
-
-	if (tg3_flag(tp, 5705_PLUS))
-		write_op = tg3_write_mem;
-	else
-		write_op = tg3_write_indirect_reg32;
-
-	/* It is possible that bootcode is still loading at this point.
-	 * Get the nvram lock first before halting the cpu.
-	 */
-	lock_err = tg3_nvram_lock(tp);
-	err = tg3_halt_cpu(tp, cpu_base);
-	if (!lock_err)
-		tg3_nvram_unlock(tp);
-	if (err)
-		goto out;
-
-	for (i = 0; i < cpu_scratch_size; i += sizeof(u32))
-		write_op(tp, cpu_scratch_base + i, 0);
-	tw32(cpu_base + CPU_STATE, 0xffffffff);
-	tw32(cpu_base + CPU_MODE, tr32(cpu_base+CPU_MODE)|CPU_MODE_HALT);
-	for (i = 0; i < (info->fw_len / sizeof(u32)); i++)
-		write_op(tp, (cpu_scratch_base +
-			      (info->fw_base & 0xffff) +
-			      (i * sizeof(u32))),
-			      be32_to_cpu(info->fw_data[i]));
-
-	err = 0;
-
-out:
-	return err;
-}
-
-/* tp->lock is held. */
-static int tg3_load_5701_a0_firmware_fix(struct tg3 *tp)
-{
-	struct fw_info info;
-	const __be32 *fw_data;
-	int err, i;
-
-	fw_data = (void *)tp->fw->data;
-
-	/* Firmware blob starts with version numbers, followed by
-	   start address and length. We are setting complete length.
-	   length = end_address_of_bss - start_address_of_text.
-	   Remainder is the blob to be loaded contiguously
-	   from start address. */
-
-	info.fw_base = be32_to_cpu(fw_data[1]);
-	info.fw_len = tp->fw->size - 12;
-	info.fw_data = &fw_data[3];
-
-	err = tg3_load_firmware_cpu(tp, RX_CPU_BASE,
-				    RX_CPU_SCRATCH_BASE, RX_CPU_SCRATCH_SIZE,
-				    &info);
-	if (err)
-		return err;
-
-	err = tg3_load_firmware_cpu(tp, TX_CPU_BASE,
-				    TX_CPU_SCRATCH_BASE, TX_CPU_SCRATCH_SIZE,
-				    &info);
-	if (err)
-		return err;
-
-	/* Now startup only the RX cpu. */
-	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
-	tw32_f(RX_CPU_BASE + CPU_PC, info.fw_base);
-
-	for (i = 0; i < 5; i++) {
-		if (tr32(RX_CPU_BASE + CPU_PC) == info.fw_base)
-			break;
-		tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
-		tw32(RX_CPU_BASE + CPU_MODE,  CPU_MODE_HALT);
-		tw32_f(RX_CPU_BASE + CPU_PC, info.fw_base);
-		udelay(1000);
-	}
-	if (i >= 5) {
-		netdev_err(tp->dev, "%s fails to set RX CPU PC, is %08x "
-			   "should be %08x\n", __func__,
-			   tr32(RX_CPU_BASE + CPU_PC), info.fw_base);
-		return -ENODEV;
-	}
-	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
-	tw32_f(RX_CPU_BASE + CPU_MODE,  0x00000000);
-
-	return 0;
-}
-
-/* tp->lock is held. */
-static int tg3_load_tso_firmware(struct tg3 *tp)
-{
-	struct fw_info info;
-	const __be32 *fw_data;
-	unsigned long cpu_base, cpu_scratch_base, cpu_scratch_size;
-	int err, i;
-
-	if (tg3_flag(tp, HW_TSO_1) ||
-	    tg3_flag(tp, HW_TSO_2) ||
-	    tg3_flag(tp, HW_TSO_3))
-		return 0;
-
-	fw_data = (void *)tp->fw->data;
-
-	/* Firmware blob starts with version numbers, followed by
-	   start address and length. We are setting complete length.
-	   length = end_address_of_bss - start_address_of_text.
-	   Remainder is the blob to be loaded contiguously
-	   from start address. */
-
-	info.fw_base = be32_to_cpu(fw_data[1]);
-	cpu_scratch_size = tp->fw_len;
-	info.fw_len = tp->fw->size - 12;
-	info.fw_data = &fw_data[3];
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) {
-		cpu_base = RX_CPU_BASE;
-		cpu_scratch_base = NIC_SRAM_MBUF_POOL_BASE5705;
-	} else {
-		cpu_base = TX_CPU_BASE;
-		cpu_scratch_base = TX_CPU_SCRATCH_BASE;
-		cpu_scratch_size = TX_CPU_SCRATCH_SIZE;
-	}
-
-	err = tg3_load_firmware_cpu(tp, cpu_base,
-				    cpu_scratch_base, cpu_scratch_size,
-				    &info);
-	if (err)
-		return err;
-
-	/* Now startup the cpu. */
-	tw32(cpu_base + CPU_STATE, 0xffffffff);
-	tw32_f(cpu_base + CPU_PC, info.fw_base);
-
-	for (i = 0; i < 5; i++) {
-		if (tr32(cpu_base + CPU_PC) == info.fw_base)
-			break;
-		tw32(cpu_base + CPU_STATE, 0xffffffff);
-		tw32(cpu_base + CPU_MODE,  CPU_MODE_HALT);
-		tw32_f(cpu_base + CPU_PC, info.fw_base);
-		udelay(1000);
-	}
-	if (i >= 5) {
-		netdev_err(tp->dev,
-			   "%s fails to set CPU PC, is %08x should be %08x\n",
-			   __func__, tr32(cpu_base + CPU_PC), info.fw_base);
-		return -ENODEV;
-	}
-	tw32(cpu_base + CPU_STATE, 0xffffffff);
-	tw32_f(cpu_base + CPU_MODE,  0x00000000);
-	return 0;
-}
-
 
 static int tg3_set_mac_addr(struct net_device *dev, void *p)
 {
