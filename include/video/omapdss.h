@@ -510,6 +510,7 @@ struct omap_dss_device {
 		} dispc;
 
 		struct {
+			/* regn is one greater than TRM's REGN value */
 			u16 regn;
 			u16 regm;
 			u16 regm_dispc;
