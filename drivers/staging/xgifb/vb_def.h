@@ -148,7 +148,6 @@
 #define SetCRT2ToDualEdge   0x8000
 
 #define ProgrammingCRT2     0x0001       /* Set Flag */
-#define EnableVCMode        0x0002
 #define ReserveTVOption     0x0008
 #define Win9xDOSMode        0x0020
 #define GatingCRT           0x0800

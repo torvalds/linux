@@ -3379,34 +3379,6 @@ void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 						tempbx |= (SetInSlaveMode |
 							   SetSimuScanMode);
 				}
-
-				if (pVBInfo->IF_DEF_VideoCapture == 1) {
-					if (((HwDeviceExtension->jChipType ==
-					      XG40) &&
-					     (pVBInfo->Set_VGAType == XG40)) ||
-					    ((HwDeviceExtension->jChipType ==
-					      XG41) &&
-					     (pVBInfo->Set_VGAType == XG41)) ||
-					    ((HwDeviceExtension->jChipType ==
-					      XG42) &&
-					     (pVBInfo->Set_VGAType == XG42)) ||
-					    ((HwDeviceExtension->jChipType ==
-					      XG45) &&
-					     (pVBInfo->Set_VGAType == XG45))) {
-						if (ModeNo <= 13) {
-							if (!(tempbx &
-							     SetCRT2ToRAMDAC)) {
-								/*CRT2 not need
-								 * to support*/
-								tempbx &=
-								  (0x00FF |
-								  (~SetInSlaveMode));
-								pVBInfo->SetFlag
-										|= EnableVCMode;
-							}
-						}
-					}
-				}
 			}
 
 			/* LCD+TV can't support in slave mode
@@ -7878,7 +7850,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 	pVBInfo->IF_DEF_LVDS = 0;
 	pVBInfo->IF_DEF_LCDA = 1;
-	pVBInfo->IF_DEF_VideoCapture = 0;
 	pVBInfo->IF_DEF_ScaleLCD = 0;
 	pVBInfo->IF_DEF_OEMUtil = 0;
 	pVBInfo->IF_DEF_PWD = 0;
