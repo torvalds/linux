@@ -195,6 +195,7 @@ static void mmc_wait_done(struct mmc_request *mrq)
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
+    unsigned long waittime;
 	DECLARE_COMPLETION_ONSTACK(complete);
 
 	mrq->done_data = &complete;
@@ -203,7 +204,12 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_start_request(host, mrq);
 
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-    wait_for_completion_timeout(&complete,HZ*3); //for cmd dead. Modifyed by xbw at 2011-06-02
+    waittime = wait_for_completion_timeout(&complete,HZ*7); //for cmd dead. Modifyed by xbw at 2011-06-02
+    if(waittime <= 1)
+    {
+        host->doneflag = 0;
+        printk("%s...%d..  =====!!!!!!!!!CMD%d timeout ===xbw===\n",__FUNCTION__, __LINE__, mrq->cmd->opcode);
+    }
 #else    
 	wait_for_completion(&complete);
 #endif

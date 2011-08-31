@@ -204,6 +204,7 @@ struct mmc_host {
 #define MMC_BUSRESUME_NEEDS_RESUME	(1 << 1)
 
     unsigned int		re_initialized_flags; //in order to begin the rescan ;  added by xbw@2011-04-07
+    unsigned int        doneflag;//added by xbw at 2011-08-27
 
 	unsigned int		sdio_irqs;
 	struct task_struct	*sdio_irq_thread;
