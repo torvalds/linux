@@ -1055,28 +1055,101 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_priv *p = ch->lcdc;
+	unsigned int best_dist = (unsigned int)-1;
+	unsigned int best_xres = 0;
+	unsigned int best_yres = 0;
+	unsigned int i;
 
-	if (var->xres > MAX_XRES || var->yres > MAX_YRES ||
-	    var->xres * var->yres * (ch->cfg.bpp / 8) * 2 > info->fix.smem_len) {
-		dev_warn(info->dev, "Invalid info: %u-%u-%u-%u x %u-%u-%u-%u @ %lukHz!\n",
-			 var->left_margin, var->xres, var->right_margin, var->hsync_len,
-			 var->upper_margin, var->yres, var->lower_margin, var->vsync_len,
-			 PICOS2KHZ(var->pixclock));
+	if (var->xres > MAX_XRES || var->yres > MAX_YRES)
 		return -EINVAL;
+
+	/* If board code provides us with a list of available modes, make sure
+	 * we use one of them. Find the mode closest to the requested one. The
+	 * distance between two modes is defined as the size of the
+	 * non-overlapping parts of the two rectangles.
+	 */
+	for (i = 0; i < ch->cfg.num_cfg; ++i) {
+		const struct fb_videomode *mode = &ch->cfg.lcd_cfg[i];
+		unsigned int dist;
+
+		/* We can only round up. */
+		if (var->xres > mode->xres || var->yres > mode->yres)
+			continue;
+
+		dist = var->xres * var->yres + mode->xres * mode->yres
+		     - 2 * min(var->xres, mode->xres)
+			 * min(var->yres, mode->yres);
+
+		if (dist < best_dist) {
+			best_xres = mode->xres;
+			best_yres = mode->yres;
+			best_dist = dist;
+		}
 	}
+
+	/* If no available mode can be used, return an error. */
+	if (ch->cfg.num_cfg != 0) {
+		if (best_dist == (unsigned int)-1)
+			return -EINVAL;
+
+		var->xres = best_xres;
+		var->yres = best_yres;
+	}
+
+	/* Make sure the virtual resolution is at least as big as the visible
+	 * resolution.
+	 */
+	if (var->xres_virtual < var->xres)
+		var->xres_virtual = var->xres;
+	if (var->yres_virtual < var->yres)
+		var->yres_virtual = var->yres;
+
+	if (var->bits_per_pixel <= 16) {		/* RGB 565 */
+		var->bits_per_pixel = 16;
+		var->red.offset = 11;
+		var->red.length = 5;
+		var->green.offset = 5;
+		var->green.length = 6;
+		var->blue.offset = 0;
+		var->blue.length = 5;
+		var->transp.offset = 0;
+		var->transp.length = 0;
+	} else if (var->bits_per_pixel <= 24) {		/* RGB 888 */
+		var->bits_per_pixel = 24;
+		var->red.offset = 16;
+		var->red.length = 8;
+		var->green.offset = 8;
+		var->green.length = 8;
+		var->blue.offset = 0;
+		var->blue.length = 8;
+		var->transp.offset = 0;
+		var->transp.length = 0;
+	} else if (var->bits_per_pixel <= 32) {		/* RGBA 888 */
+		var->bits_per_pixel = 32;
+		var->red.offset = 16;
+		var->red.length = 8;
+		var->green.offset = 8;
+		var->green.length = 8;
+		var->blue.offset = 0;
+		var->blue.length = 8;
+		var->transp.offset = 24;
+		var->transp.length = 8;
+	} else
+		return -EINVAL;
+
+	var->red.msb_right = 0;
+	var->green.msb_right = 0;
+	var->blue.msb_right = 0;
+	var->transp.msb_right = 0;
+
+	/* Make sure we don't exceed our allocated memory. */
+	if (var->xres_virtual * var->yres_virtual * var->bits_per_pixel / 8 >
+	    info->fix.smem_len)
+		return -EINVAL;
 
 	/* only accept the forced_bpp for dual channel configurations */
 	if (p->forced_bpp && p->forced_bpp != var->bits_per_pixel)
 		return -EINVAL;
-
-	switch (var->bits_per_pixel) {
-	case 16: /* PKF[4:0] = 00011 - RGB 565 */
-	case 24: /* PKF[4:0] = 01011 - RGB 888 */
-	case 32: /* PKF[4:0] = 00000 - RGBA 888 */
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	return 0;
 }
