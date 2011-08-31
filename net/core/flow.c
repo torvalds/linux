@@ -30,6 +30,7 @@ struct flow_cache_entry {
 		struct hlist_node	hlist;
 		struct list_head	gc_list;
 	} u;
+	struct net			*net;
 	u16				family;
 	u8				dir;
 	u32				genid;
@@ -232,7 +233,8 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 
 	hash = flow_hash_code(fc, fcp, key);
 	hlist_for_each_entry(tfle, entry, &fcp->hash_table[hash], u.hlist) {
-		if (tfle->family == family &&
+		if (tfle->net == net &&
+		    tfle->family == family &&
 		    tfle->dir == dir &&
 		    flow_key_compare(key, &tfle->key) == 0) {
 			fle = tfle;
@@ -246,6 +248,7 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 
 		fle = kmem_cache_alloc(flow_cachep, GFP_ATOMIC);
 		if (fle) {
+			fle->net = net;
 			fle->family = family;
 			fle->dir = dir;
 			memcpy(&fle->key, key, sizeof(*key));
