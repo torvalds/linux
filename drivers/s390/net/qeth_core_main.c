@@ -3694,7 +3694,8 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
 		frag = &skb_shinfo(skb)->frags[cnt];
-		buffer->element[element].addr = (char *)page_to_phys(frag->page)
+		buffer->element[element].addr = (char *)
+			page_to_phys(skb_frag_page(frag))
 			+ frag->page_offset;
 		buffer->element[element].length = frag->size;
 		buffer->element[element].eflags = SBAL_EFLAGS_MIDDLE_FRAG;
