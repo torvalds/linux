@@ -189,6 +189,10 @@ static void vmw_print_capabilities(uint32_t capabilities)
 		DRM_INFO("  GMR.\n");
 	if (capabilities & SVGA_CAP_TRACES)
 		DRM_INFO("  Traces.\n");
+	if (capabilities & SVGA_CAP_GMR2)
+		DRM_INFO("  GMR2.\n");
+	if (capabilities & SVGA_CAP_SCREEN_OBJECT_2)
+		DRM_INFO("  Screen Object 2.\n");
 }
 
 static int vmw_request_device(struct vmw_private *dev_priv)

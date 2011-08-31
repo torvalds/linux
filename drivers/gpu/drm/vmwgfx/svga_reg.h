@@ -39,6 +39,15 @@
 #define PCI_DEVICE_ID_VMWARE_SVGA2      0x0405
 
 /*
+ * SVGA_REG_ENABLE bit definitions.
+ */
+#define SVGA_REG_ENABLE_DISABLE     0
+#define SVGA_REG_ENABLE_ENABLE      1
+#define SVGA_REG_ENABLE_HIDE        2
+#define SVGA_REG_ENABLE_ENABLE_HIDE (SVGA_REG_ENABLE_ENABLE |\
+				     SVGA_REG_ENABLE_HIDE)
+
+/*
  * Legal values for the SVGA_REG_CURSOR_ON register in old-fashioned
  * cursor bypass mode. This is still supported, but no new guest
  * drivers should use it.
@@ -158,7 +167,9 @@ enum {
    SVGA_REG_GMR_MAX_DESCRIPTOR_LENGTH = 44,
 
    SVGA_REG_TRACES = 45,            /* Enable trace-based updates even when FIFO is on */
-   SVGA_REG_TOP = 46,               /* Must be 1 more than the last register */
+   SVGA_REG_GMRS_MAX_PAGES = 46,    /* Maximum number of 4KB pages for all GMRs */
+   SVGA_REG_MEMORY_SIZE = 47,       /* Total dedicated device memory excluding FIFO */
+   SVGA_REG_TOP = 48,               /* Must be 1 more than the last register */
 
    SVGA_PALETTE_BASE = 1024,        /* Base of SVGA color map */
    /* Next 768 (== 256*3) registers exist for colormap */
@@ -370,6 +381,15 @@ struct SVGASignedPoint {
  *  Note the holes in the bitfield. Missing bits have been deprecated,
  *  and must not be reused. Those capabilities will never be reported
  *  by new versions of the SVGA device.
+ *
+ * SVGA_CAP_GMR2 --
+ *    Provides asynchronous commands to define and remap guest memory
+ *    regions.  Adds device registers SVGA_REG_GMRS_MAX_PAGES and
+ *    SVGA_REG_MEMORY_SIZE.
+ *
+ * SVGA_CAP_SCREEN_OBJECT_2 --
+ *    Allow screen object support, and require backing stores from the
+ *    guest for each screen object.
  */
 
 #define SVGA_CAP_NONE               0x00000000
@@ -387,6 +407,8 @@ struct SVGASignedPoint {
 #define SVGA_CAP_DISPLAY_TOPOLOGY   0x00080000   // Legacy multi-monitor support
 #define SVGA_CAP_GMR                0x00100000
 #define SVGA_CAP_TRACES             0x00200000
+#define SVGA_CAP_GMR2               0x00400000
+#define SVGA_CAP_SCREEN_OBJECT_2    0x00800000
 
 
 /*
@@ -885,6 +907,8 @@ typedef enum {
    SVGA_CMD_BLIT_SCREEN_TO_GMRFB  = 38,
    SVGA_CMD_ANNOTATION_FILL       = 39,
    SVGA_CMD_ANNOTATION_COPY       = 40,
+   SVGA_CMD_DEFINE_GMR2           = 41,
+   SVGA_CMD_REMAP_GMR2            = 42,
    SVGA_CMD_MAX
 } SVGAFifoCmdId;
 
@@ -1342,5 +1366,75 @@ struct {
    SVGASignedPoint  srcOrigin;
    uint32           srcScreenId;
 } SVGAFifoCmdAnnotationCopy;
+
+
+/*
+ * SVGA_CMD_DEFINE_GMR2 --
+ *
+ *    Define guest memory region v2.  See the description of GMRs above.
+ *
+ * Availability:
+ *    SVGA_CAP_GMR2
+ */
+
+typedef
+struct {
+   uint32 gmrId;
+   uint32 numPages;
+}
+SVGAFifoCmdDefineGMR2;
+
+
+/*
+ * SVGA_CMD_REMAP_GMR2 --
+ *
+ *    Remap guest memory region v2.  See the description of GMRs above.
+ *
+ *    This command allows guest to modify a portion of an existing GMR by
+ *    invalidating it or reassigning it to different guest physical pages.
+ *    The pages are identified by physical page number (PPN).  The pages
+ *    are assumed to be pinned and valid for DMA operations.
+ *
+ *    Description of command flags:
+ *
+ *    SVGA_REMAP_GMR2_VIA_GMR: If enabled, references a PPN list in a GMR.
+ *       The PPN list must not overlap with the remap region (this can be
+ *       handled trivially by referencing a separate GMR).  If flag is
+ *       disabled, PPN list is appended to SVGARemapGMR command.
+ *
+ *    SVGA_REMAP_GMR2_PPN64: If set, PPN list is in PPN64 format, otherwise
+ *       it is in PPN32 format.
+ *
+ *    SVGA_REMAP_GMR2_SINGLE_PPN: If set, PPN list contains a single entry.
+ *       A single PPN can be used to invalidate a portion of a GMR or
+ *       map it to to a single guest scratch page.
+ *
+ * Availability:
+ *    SVGA_CAP_GMR2
+ */
+
+typedef enum {
+   SVGA_REMAP_GMR2_PPN32         = 0,
+   SVGA_REMAP_GMR2_VIA_GMR       = (1 << 0),
+   SVGA_REMAP_GMR2_PPN64         = (1 << 1),
+   SVGA_REMAP_GMR2_SINGLE_PPN    = (1 << 2),
+} SVGARemapGMR2Flags;
+
+typedef
+struct {
+   uint32 gmrId;
+   SVGARemapGMR2Flags flags;
+	uint32 offsetPages; /* offset in pages to begin remap */
+	uint32 numPages; /* number of pages to remap */
+   /*
+    * Followed by additional data depending on SVGARemapGMR2Flags.
+    *
+    * If flag SVGA_REMAP_GMR2_VIA_GMR is set, single SVGAGuestPtr follows.
+    * Otherwise an array of page descriptors in PPN32 or PPN64 format
+    * (according to flag SVGA_REMAP_GMR2_PPN64) follows.  If flag
+    * SVGA_REMAP_GMR2_SINGLE_PPN is set, array contains a single entry.
+    */
+}
+SVGAFifoCmdRemapGMR2;
 
 #endif
