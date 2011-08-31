@@ -122,7 +122,7 @@ int et131x_mdio_reset(struct mii_bus *bus)
 	struct net_device *netdev = bus->priv;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	et131x_mii_write(adapter, PHY_CONTROL, 0x8000);
+	et131x_mii_write(adapter, MII_BMCR, 0x8000);
 
 	return 0;
 }
@@ -292,11 +292,11 @@ void et1310_phy_power_down(struct et131x_adapter *adapter, bool down)
 {
 	u16 data;
 
-	et131x_mii_read(adapter, PHY_CONTROL, &data);
+	et131x_mii_read(adapter, MII_BMCR, &data);
 	data &= ~0x0800;	/* Power UP */
 	if (down) /* Power DOWN */
 		data |= 0x0800;
-	et131x_mii_write(adapter, PHY_CONTROL, data);
+	et131x_mii_write(adapter, MII_BMCR, data);
 }
 
 /**
@@ -328,10 +328,10 @@ static void et1310_phy_link_status(struct et131x_adapter *adapter,
 	u16 vmi_phystatus = 0;
 	u16 control = 0;
 
-	et131x_mii_read(adapter, PHY_STATUS, &mistatus);
-	et131x_mii_read(adapter, PHY_1000_STATUS, &is1000BaseT);
+	et131x_mii_read(adapter, MII_BMSR, &mistatus);
+	et131x_mii_read(adapter, MII_STAT1000, &is1000BaseT);
 	et131x_mii_read(adapter, PHY_PHY_STATUS, &vmi_phystatus);
-	et131x_mii_read(adapter, PHY_CONTROL, &control);
+	et131x_mii_read(adapter, MII_BMCR, &control);
 
 	*link_status = (vmi_phystatus & 0x0040) ? 1 : 0;
 	*autoneg = (control & 0x1000) ? ((vmi_phystatus & 0x0020) ?
@@ -448,8 +448,8 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 	u32 masterslave;
 	u32 polarity;
 
-	if (bmsr_ints & MI_BMSR_LINK_STATUS) {
-		if (bmsr & MI_BMSR_LINK_STATUS) {
+	if (bmsr_ints & BMSR_LSTATUS) {
+		if (bmsr & BMSR_LSTATUS) {
 			adapter->boot_coma = 20;
 			netif_carrier_on(adapter->netdev);
 		} else {
@@ -505,9 +505,9 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 		}
 	}
 
-	if ((bmsr_ints & MI_BMSR_AUTO_NEG_COMPLETE) ||
-	   (adapter->ai_force_duplex == 3 && (bmsr_ints & MI_BMSR_LINK_STATUS))) {
-		if ((bmsr & MI_BMSR_AUTO_NEG_COMPLETE) ||
+	if ((bmsr_ints & BMSR_ANEGCOMPLETE) ||
+	   (adapter->ai_force_duplex == 3 && (bmsr_ints & BMSR_LSTATUS))) {
+		if ((bmsr & BMSR_ANEGCOMPLETE) ||
 		    adapter->ai_force_duplex == 3) {
 			et1310_phy_link_status(adapter,
 					     &link_status, &autoneg_status,

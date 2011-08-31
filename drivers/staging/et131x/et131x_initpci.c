@@ -249,14 +249,14 @@ void et131x_error_timer_handler(unsigned long data)
 		dev_err(&adapter->pdev->dev,
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
-	if (!(adapter->bmsr & MI_BMSR_LINK_STATUS) &&
+	if (!(adapter->bmsr & BMSR_LSTATUS) &&
 	    adapter->registry_phy_coma &&
 	    adapter->boot_coma < 11) {
 		adapter->boot_coma++;
 	}
 
 	if (adapter->boot_coma == 10) {
-		if (!(adapter->bmsr & MI_BMSR_LINK_STATUS)
+		if (!(adapter->bmsr & BMSR_LSTATUS)
 		    && adapter->registry_phy_coma) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
