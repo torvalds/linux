@@ -190,6 +190,8 @@ struct vmw_private {
 	uint32_t capabilities;
 	uint32_t max_gmr_descriptors;
 	uint32_t max_gmr_ids;
+	uint32_t max_gmr_pages;
+	uint32_t memory_size;
 	bool has_gmr;
 	struct mutex hw_mutex;
 

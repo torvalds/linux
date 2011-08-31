@@ -322,6 +322,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->max_gmr_ids =
 			vmw_read(dev_priv, SVGA_REG_GMR_MAX_IDS);
 	}
+	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
+		dev_priv->max_gmr_pages =
+			vmw_read(dev_priv, SVGA_REG_GMRS_MAX_PAGES);
+		dev_priv->memory_size =
+			vmw_read(dev_priv, SVGA_REG_MEMORY_SIZE);
+	}
 
 	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
 	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
@@ -337,6 +343,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			 (unsigned)dev_priv->max_gmr_ids);
 		DRM_INFO("Max GMR descriptors is %u\n",
 			 (unsigned)dev_priv->max_gmr_descriptors);
+	}
+	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
+		DRM_INFO("Max number of GMR pages is %u\n",
+			 (unsigned)dev_priv->max_gmr_pages);
+		DRM_INFO("Max dedicated hypervisor graphics memory is %u\n",
+			 (unsigned)dev_priv->memory_size);
 	}
 	DRM_INFO("VRAM at 0x%08x size is %u kiB\n",
 		 dev_priv->vram_start, dev_priv->vram_size / 1024);
