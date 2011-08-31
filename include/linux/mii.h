@@ -39,12 +39,12 @@
 #define BMCR_CTST		0x0080	/* Collision test              */
 #define BMCR_FULLDPLX		0x0100	/* Full duplex                 */
 #define BMCR_ANRESTART		0x0200	/* Auto negotiation restart    */
-#define BMCR_ISOLATE		0x0400	/* Disconnect DP83840 from MII */
-#define BMCR_PDOWN		0x0800	/* Powerdown the DP83840       */
+#define BMCR_ISOLATE		0x0400	/* Isolate data paths from MII */
+#define BMCR_PDOWN		0x0800	/* Enable low power state      */
 #define BMCR_ANENABLE		0x1000	/* Enable auto negotiation     */
 #define BMCR_SPEED100		0x2000	/* Select 100Mbps              */
 #define BMCR_LOOPBACK		0x4000	/* TXD loopback bits           */
-#define BMCR_RESET		0x8000	/* Reset the DP83840           */
+#define BMCR_RESET		0x8000	/* Reset to default state      */
 
 /* Basic mode status register. */
 #define BMSR_ERCAP		0x0001	/* Ext-reg capability          */
