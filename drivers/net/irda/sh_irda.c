@@ -2,7 +2,7 @@
  * SuperH IrDA Driver
  *
  * Copyright (C) 2010 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
  * Based on sh_sir.c
  * Copyright (C) 2009 Renesas Solutions Corp.
@@ -144,7 +144,7 @@ struct sh_irda_xir_func {
 
 struct sh_irda_self {
 	void __iomem		*membase;
-	unsigned int		 irq;
+	unsigned int		irq;
 	struct clk		*clk;
 
 	struct net_device	*ndev;
@@ -434,9 +434,9 @@ static void sh_irda_set_mode(struct sh_irda_self *self, enum sh_irda_mode mode)
 		func	= &sh_irda_mfir_func;
 		break;
 	default:
-		name = "NONE";
-		data = 0;
-		func = &sh_irda_xir_func;
+		name	= "NONE";
+		data	= 0;
+		func	= &sh_irda_xir_func;
 		break;
 	}
 
@@ -850,10 +850,10 @@ static int __devexit sh_irda_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver sh_irda_driver = {
-	.probe   = sh_irda_probe,
-	.remove  = __devexit_p(sh_irda_remove),
-	.driver  = {
-		.name = DRIVER_NAME,
+	.probe	= sh_irda_probe,
+	.remove	= __devexit_p(sh_irda_remove),
+	.driver	= {
+		.name	= DRIVER_NAME,
 	},
 };
 
@@ -870,6 +870,6 @@ static void __exit sh_irda_exit(void)
 module_init(sh_irda_init);
 module_exit(sh_irda_exit);
 
-MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("SuperH IrDA driver");
 MODULE_LICENSE("GPL");
