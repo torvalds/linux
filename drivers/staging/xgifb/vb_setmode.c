@@ -2155,10 +2155,8 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 			return &XGI_CetLCD1280x1024Data[tempal];
 			break;
 		case 6:
-			return &XGI_ExtLCD1400x1050Data[tempal];
-			break;
 		case 7:
-			return &XGI_StLCD1400x1050Data[tempal];
+			return &xgifb_lcd_1400x1050[tempal];
 			break;
 		case 8:
 			return &XGI_CetLCD1400x1050Data[tempal];
@@ -2182,10 +2180,8 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 			return &XGI_CetLCD1024x768x75Data[tempal];
 			break;
 		case 15:
-			return &XGI_ExtLCD1280x1024x75Data[tempal];
-			break;
 		case 16:
-			return &XGI_StLCD1280x1024x75Data[tempal];
+			return &xgifb_lcd_1280x1024x75[tempal];
 			break;
 		case 17:
 			return &XGI_CetLCD1280x1024x75Data[tempal];
@@ -2229,18 +2225,12 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 				return &XGI_CetLCDDes1280x1024Data[tempal];
 			break;
 		case 6:
-			if ((pVBInfo->VBType & VB_XGI301LV) ||
-			    (pVBInfo->VBType & VB_XGI302LV))
-				return &XGI_ExtLCDDLDes1400x1050Data[tempal];
-			else
-				return &XGI_ExtLCDDes1400x1050Data[tempal];
-			break;
 		case 7:
 			if ((pVBInfo->VBType & VB_XGI301LV) ||
 			    (pVBInfo->VBType & VB_XGI302LV))
-				return &XGI_StLCDDLDes1400x1050Data[tempal];
+				return &xgifb_lcddldes_1400x1050[tempal];
 			else
-				return &XGI_StLCDDes1400x1050Data[tempal];
+				return &xgifb_lcddes_1400x1050[tempal];
 			break;
 		case 8:
 			return &XGI_CetLCDDes1400x1050Data[tempal];
@@ -2266,27 +2256,19 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 			return &XGI_NoScalingDesData[tempal];
 			break;
 		case 13:
-			return &XGI_ExtLCDDes1024x768x75Data[tempal];
-			break;
 		case 14:
-			return &XGI_StLCDDes1024x768x75Data[tempal];
+			return &xgifb_lcddes_1024x768x75[tempal];
 			break;
 		case 15:
 			return &XGI_CetLCDDes1024x768x75Data[tempal];
 			break;
 		case 16:
-			if ((pVBInfo->VBType & VB_XGI301LV) ||
-			    (pVBInfo->VBType & VB_XGI302LV))
-				return &XGI_ExtLCDDLDes1280x1024x75Data[tempal];
-			else
-				return &XGI_ExtLCDDes1280x1024x75Data[tempal];
-			break;
 		case 17:
 			if ((pVBInfo->VBType & VB_XGI301LV) ||
 			    (pVBInfo->VBType & VB_XGI302LV))
-				return &XGI_StLCDDLDes1280x1024x75Data[tempal];
+				return &xgifb_lcddldes_1280x1024x75[tempal];
 			else
-				return &XGI_StLCDDes1280x1024x75Data[tempal];
+				return &xgifb_lcddes_1280x1024x75[tempal];
 			break;
 		case 18:
 			if ((pVBInfo->VBType & VB_XGI301LV) ||
