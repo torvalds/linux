@@ -20,6 +20,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/moduleparam.h>
 #include <linux/time.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
