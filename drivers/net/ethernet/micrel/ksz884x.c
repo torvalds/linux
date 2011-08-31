@@ -4704,8 +4704,7 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 
 			dma_buf->dma = pci_map_single(
 				hw_priv->pdev,
-				page_address(this_frag->page) +
-				this_frag->page_offset,
+				skb_frag_address(this_frag),
 				dma_buf->len,
 				PCI_DMA_TODEVICE);
 			set_tx_buf(desc, dma_buf->dma);
