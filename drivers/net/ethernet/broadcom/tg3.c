@@ -5712,7 +5712,7 @@ static irqreturn_t tg3_msi(int irq, void *dev_id)
 	 * NIC to stop sending us irqs, engaging "in-intr-handler"
 	 * event coalescing.
 	 */
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	tw32_mailbox(tnapi->int_mbox, 0x00000001);
 	if (likely(!tg3_irq_sync(tp)))
 		napi_schedule(&tnapi->napi);
 
@@ -8807,6 +8807,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tg3_flag(tp, USING_MSIX) && tp->irq_cnt > 1) {
 		val = tr32(MSGINT_MODE);
 		val |= MSGINT_MODE_MULTIVEC_EN | MSGINT_MODE_ENABLE;
+		if (!tg3_flag(tp, 1SHOT_MSI))
+			val |= MSGINT_MODE_ONE_SHOT_DISABLE;
 		tw32(MSGINT_MODE, val);
 	}
 
@@ -9422,7 +9424,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 
 	if (intr_ok) {
 		/* Reenable MSI one shot mode. */
-		if (tg3_flag(tp, 57765_PLUS)) {
+		if (tg3_flag(tp, 57765_PLUS) && tg3_flag(tp, 1SHOT_MSI)) {
 			val = tr32(MSGINT_MODE) & ~MSGINT_MODE_ONE_SHOT_DISABLE;
 			tw32(MSGINT_MODE, val);
 		}
@@ -9600,6 +9602,8 @@ static void tg3_ints_init(struct tg3 *tp)
 		u32 msi_mode = tr32(MSGINT_MODE);
 		if (tg3_flag(tp, USING_MSIX) && tp->irq_cnt > 1)
 			msi_mode |= MSGINT_MODE_MULTIVEC_EN;
+		if (!tg3_flag(tp, 1SHOT_MSI))
+			msi_mode |= MSGINT_MODE_ONE_SHOT_DISABLE;
 		tw32(MSGINT_MODE, msi_mode | MSGINT_MODE_ENABLE);
 	}
 defcfg:
