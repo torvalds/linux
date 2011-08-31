@@ -199,19 +199,6 @@ static unsigned char XGI_GetModePtr(unsigned short ModeNo,
 	return index; /* Get pVBInfo->StandTable index */
 }
 
-/*
-unsigned char XGI_SetBIOSData(unsigned short ModeNo,
-			      unsigned short ModeIdIndex) {
-	return (0);
-}
-*/
-
-/* unsigned char XGI_ClearBankRegs(unsigned short ModeNo,
-				   unsigned short ModeIdIndex) {
-	return( 0 ) ;
-}
-*/
-
 static void XGI_SetSeqRegs(unsigned short ModeNo,
 			   unsigned short StandTableIndex,
 			   unsigned short ModeIdIndex,
@@ -1678,60 +1665,6 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 	}
 
 }
-
-/*
-void XGI_VesaLowResolution(unsigned short ModeNo,
-			   unsigned short ModeIdIndex,
-			   struct vb_device_info *pVBInfo)
-{
-	unsigned short modeflag;
-
-	if (ModeNo > 0x13)
-		modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
-	else
-		modeflag = pVBInfo->SModeIDTable[ModeIdIndex].St_ModeFlag;
-
-	if (ModeNo > 0x13) {
-		if (modeflag & DoubleScanMode) {
-			if (modeflag & HalfDCLK) {
-				if (pVBInfo->VBType & VB_XGI301B |
-						      VB_XGI302B |
-						      VB_XGI301LV |
-						      VB_XGI302LV |
-						      VB_XGI301C)) {
-					if (!(pVBInfo->VBInfo &
-					     SetCRT2ToRAMDAC)) {
-						if (pVBInfo->VBInfo &
-						    SetInSlaveMode) {
-							xgifb_reg_and_or(
-								pVBInfo->P3c4,
-								0x01,
-								0xf7,
-								0x00);
-							xgifb_reg_and_or(
-								pVBInfo->P3c4,
-								0x0f,
-								0x7f,
-								0x00);
-							return;
-						}
-					}
-				}
-				xgifb_reg_and_or(pVBInfo->P3c4,
-						 0x0f,
-						 0xff,
-						 0x80);
-				xgifb_reg_and_or(pVBInfo->P3c4,
-						 0x01,
-						 0xf7,
-						 0x00);
-				return;
-			}
-		}
-	}
-	xgifb_reg_and_or(pVBInfo->P3c4, 0x0f, 0x7f, 0x00);
-}
-*/
 
 static void XGI_WriteDAC(unsigned short dl,
 			 unsigned short ah,
@@ -3829,102 +3762,6 @@ unsigned char XGI_SearchModeID(unsigned short ModeNo,
 	return 1;
 }
 
-/* win2000 MM adapter not support standard mode! */
-
-#if 0
-static unsigned char XGINew_CheckMemorySize(
-		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned short ModeNo,
-		unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short memorysize, modeflag, temp, temp1, tmp;
-
-	/*
-	if ((HwDeviceExtension->jChipType == XGI_650) ||
-	(HwDeviceExtension->jChipType == XGI_650M)) {
-		return 1;
-	}
-	*/
-
-	if (ModeNo <= 0x13)
-		modeflag = pVBInfo->SModeIDTable[ModeIdIndex].St_ModeFlag;
-	else
-		modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
-
-	/* ModeType = modeflag&ModeInfoFlag; // Get mode type */
-
-	memorysize = modeflag & MemoryInfoFlag;
-	memorysize = memorysize > MemorySizeShift;
-	memorysize++; /* Get memory size */
-
-	temp = xgifb_reg_get(pVBInfo->P3c4, 0x14); /* Get DRAM Size */
-	tmp = temp;
-
-	if (HwDeviceExtension->jChipType == XG40) {
-		/* memory size per channel SR14[7:4] */
-		temp = 1 << ((temp & 0x0F0) >> 4);
-		if ((tmp & 0x0c) == 0x0C) { /* Qual channels */
-			temp <<= 2;
-		} else if ((tmp & 0x0c) == 0x08) { /* Dual channels */
-			temp <<= 1;
-		}
-	} else if (HwDeviceExtension->jChipType == XG42) {
-		/* memory size per channel SR14[7:4] */
-		temp = 1 << ((temp & 0x0F0) >> 4);
-		if ((tmp & 0x04) == 0x04) { /* Dual channels */
-			temp <<= 1;
-		}
-	} else if (HwDeviceExtension->jChipType == XG45) {
-		/* memory size per channel SR14[7:4] */
-		temp = 1 << ((temp & 0x0F0) >> 4);
-		if ((tmp & 0x0c) == 0x0C) { /* Qual channels */
-			temp <<= 2;
-		} else if ((tmp & 0x0c) == 0x08) { /* triple channels */
-			temp1 = temp;
-			temp <<= 1;
-			temp += temp1;
-		} else if ((tmp & 0x0c) == 0x04) { /* Dual channels */
-			temp <<= 1;
-		}
-	}
-	if (temp < memorysize)
-		return 0;
-	else
-		return 1;
-}
-#endif
-
-/*
-void XGINew_IsLowResolution(unsigned short ModeNo,
-			    unsigned short ModeIdIndex,
-			    unsigned char XGINew_CheckMemorySize(
-				struct xgi_hw_device_info *HwDeviceExtension,
-				unsigned short ModeNo,
-				unsigned short ModeIdIndex,
-				struct vb_device_info *pVBInfo)
-{
-	unsigned short data ;
-	unsigned short ModeFlag ;
-
-	data = xgifb_reg_get(pVBInfo->P3c4, 0x0F);
-	data &= 0x7F;
-	xgifb_reg_set(pVBInfo->P3c4, 0x0F, data);
-
-	if (ModeNo > 0x13) {
-		ModeFlag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
-		if ((ModeFlag & HalfDCLK) && (ModeFlag & DoubleScanMode)) {
-			data = xgifb_reg_get(pVBInfo->P3c4, 0x0F);
-			data |= 0x80;
-			xgifb_reg_set(pVBInfo->P3c4, 0x0F, data);
-			data = xgifb_reg_get(pVBInfo->P3c4, 0x01);
-			data &= 0xF7;
-			xgifb_reg_set(pVBInfo->P3c4, 0x01, data);
-		}
-	}
-}
-*/
-
 static unsigned char XG21GPIODataTransfer(unsigned char ujDate)
 {
 	unsigned char ujRet = 0;
@@ -4067,16 +3904,6 @@ static void XGI_WaitDisply(struct vb_device_info *pVBInfo)
 	while (!(inb(pVBInfo->P3da) & 0x01))
 		break;
 }
-
-#if 0
-static void XGI_WaitDisplay(struct vb_device_info *pVBInfo)
-{
-	while (!(inb(pVBInfo->P3da) & 0x01))
-		;
-	while (inb(pVBInfo->P3da) & 0x01)
-		;
-}
-#endif
 
 static void XGI_AutoThreshold(struct vb_device_info *pVBInfo)
 {
