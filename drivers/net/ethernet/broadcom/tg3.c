@@ -187,6 +187,12 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 	#define TG3_RX_COPY_THRESH(tp)	((tp)->rx_copy_thresh)
 #endif
 
+#if (NET_IP_ALIGN != 0)
+#define TG3_RX_OFFSET(tp)	((tp)->rx_offset)
+#else
+#define TG3_RX_OFFSET(tp)	0
+#endif
+
 /* minimum number of free TX descriptors required to wake up TX process */
 #define TG3_TX_WAKEUP_THRESH(tnapi)		((tnapi)->tx_pending / 4)
 #define TG3_TX_BD_DMA_MAX		4096
@@ -4984,11 +4990,11 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 	 * Callers depend upon this behavior and assume that
 	 * we leave everything unchanged if we fail.
 	 */
-	skb = netdev_alloc_skb(tp->dev, skb_size + tp->rx_offset);
+	skb = netdev_alloc_skb(tp->dev, skb_size + TG3_RX_OFFSET(tp));
 	if (skb == NULL)
 		return -ENOMEM;
 
-	skb_reserve(skb, tp->rx_offset);
+	skb_reserve(skb, TG3_RX_OFFSET(tp));
 
 	mapping = pci_map_single(tp->pdev, skb->data, skb_size,
 				 PCI_DMA_FROMDEVICE);
