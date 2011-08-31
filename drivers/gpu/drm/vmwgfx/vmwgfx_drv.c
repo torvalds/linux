@@ -467,6 +467,8 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	unregister_pm_notifier(&dev_priv->pm_nb);
 
+	if (dev_priv->ctx.cmd_bounce)
+		vfree(dev_priv->ctx.cmd_bounce);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		drm_irq_uninstall(dev_priv->dev);
 	if (dev_priv->enable_fb) {

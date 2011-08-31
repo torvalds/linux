@@ -364,7 +364,8 @@ out_err:
 
 int vmw_context_check(struct vmw_private *dev_priv,
 		      struct ttm_object_file *tfile,
-		      int id)
+		      int id,
+		      struct vmw_resource **p_res)
 {
 	struct vmw_resource *res;
 	int ret = 0;
@@ -376,6 +377,8 @@ int vmw_context_check(struct vmw_private *dev_priv,
 			container_of(res, struct vmw_user_context, res);
 		if (ctx->base.tfile != tfile && !ctx->base.shareable)
 			ret = -EPERM;
+		if (p_res)
+			*p_res = vmw_resource_reference(res);
 	} else
 		ret = -EINVAL;
 	read_unlock(&dev_priv->resource_lock);

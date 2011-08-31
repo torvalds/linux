@@ -46,8 +46,9 @@
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
-#define VMWGFX_MAX_GMRS 2048
+#define VMWGFX_MAX_VALIDATIONS 2048
 #define VMWGFX_MAX_DISPLAYS 16
+#define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
 
 #define VMW_PL_GMR TTM_PL_PRIV0
 #define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
@@ -74,7 +75,7 @@ struct vmw_resource {
 	bool avail;
 	void (*hw_destroy) (struct vmw_resource *res);
 	void (*res_free) (struct vmw_resource *res);
-
+	bool on_validate_list;
 	/* TODO is a generic snooper needed? */
 #if 0
 	void (*snoop)(struct vmw_resource *res,
@@ -143,8 +144,12 @@ struct vmw_sw_context{
 	struct list_head validate_nodes;
 	struct vmw_relocation relocs[VMWGFX_MAX_RELOCATIONS];
 	uint32_t cur_reloc;
-	struct ttm_validate_buffer val_bufs[VMWGFX_MAX_GMRS];
+	struct ttm_validate_buffer val_bufs[VMWGFX_MAX_VALIDATIONS];
 	uint32_t cur_val_buf;
+	uint32_t *cmd_bounce;
+	uint32_t cmd_bounce_size;
+	struct vmw_resource *resources[VMWGFX_MAX_VALIDATIONS];
+	uint32_t num_ref_resources;
 };
 
 struct vmw_legacy_display;
@@ -340,7 +345,8 @@ extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 extern int vmw_context_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
-			     int id);
+			     int id,
+			     struct vmw_resource **p_res);
 extern void vmw_surface_res_free(struct vmw_resource *res);
 extern int vmw_surface_init(struct vmw_private *dev_priv,
 			    struct vmw_surface *srf,
