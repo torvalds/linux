@@ -29,7 +29,7 @@ config IWLEGACY_DEBUG
 		  % echo 0x43fff > /sys/class/net/wlan0/device/debug_level
 
 	  You can find the list of debug mask values in:
-		  drivers/net/wireless/iwlegacy/iwl-debug.h
+		  drivers/net/wireless/iwlegacy/common.h
 
 	  If this is your first time using this driver, you should say Y here
 	  as the debug information can assist others in helping you resolve

@@ -30,8 +30,6 @@
 #ifndef __il_4965_h__
 #define __il_4965_h__
 
-#include "iwl-debug.h"
-
 struct il_rx_queue;
 struct il_rx_buf;
 struct il_rx_pkt;

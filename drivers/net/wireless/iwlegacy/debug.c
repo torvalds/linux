@@ -28,8 +28,6 @@
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
 
-
-#include "iwl-debug.h"
 #include "common.h"
 
 /* create and remove of files */

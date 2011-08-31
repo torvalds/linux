@@ -40,7 +40,6 @@
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
 
-#include "iwl-debug.h"
 #include "common.h"
 
 const char *il_get_cmd_string(u8 cmd)
