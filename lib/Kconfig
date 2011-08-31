@@ -276,4 +276,11 @@ config CORDIC
 	  so its calculations are in fixed point. Modules can select this
 	  when they require this function. Module will be called cordic.
 
+config MPILIB
+	tristate "Multiprecision maths library"
+	help
+	  Multiprecision maths library from GnuPG.
+	  It is used to implement RSA digital signature verification,
+	  which is used by IMA/EVM digital signature extension.
+
 endmenu
