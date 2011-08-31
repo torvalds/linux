@@ -405,14 +405,14 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	struct fb_info *info;
 	unsigned initial_width, initial_height;
 	unsigned fb_width, fb_height;
-	unsigned fb_bbp, fb_depth, fb_offset, fb_pitch, fb_size;
+	unsigned fb_bpp, fb_depth, fb_offset, fb_pitch, fb_size;
 	int ret;
 
 	/* XXX These shouldn't be hardcoded. */
 	initial_width = 800;
 	initial_height = 600;
 
-	fb_bbp = 32;
+	fb_bpp = 32;
 	fb_depth = 24;
 
 	/* XXX As shouldn't these be as well. */
@@ -422,7 +422,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	initial_width = min(fb_width, initial_width);
 	initial_height = min(fb_height, initial_height);
 
-	fb_pitch = fb_width * fb_bbp / 8;
+	fb_pitch = fb_width * fb_bpp / 8;
 	fb_size = fb_pitch * fb_height;
 	fb_offset = vmw_read(vmw_priv, SVGA_REG_FB_OFFSET);
 
@@ -437,7 +437,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	par = info->par;
 	par->vmw_priv = vmw_priv;
 	par->depth = fb_depth;
-	par->bpp = fb_bbp;
+	par->bpp = fb_bpp;
 	par->vmalloc = NULL;
 	par->max_width = fb_width;
 	par->max_height = fb_height;

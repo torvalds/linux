@@ -992,7 +992,7 @@ out:
 
 void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 			unsigned width, unsigned height, unsigned pitch,
-			unsigned bbp, unsigned depth)
+			unsigned bpp, unsigned depth)
 {
 	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
 		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK, pitch);
@@ -1000,7 +1000,7 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 		iowrite32(pitch, vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, height);
-	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bbp);
+	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bpp);
 }
 
 int vmw_kms_save_vga(struct vmw_private *vmw_priv)
