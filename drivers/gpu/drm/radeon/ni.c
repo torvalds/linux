@@ -996,6 +996,9 @@ int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT1_CNTL, 0);
 
 	cayman_pcie_gart_tlb_flush(rdev);
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(rdev->mc.gtt_size >> 20),
+		 (unsigned long long)rdev->gart.table_addr);
 	rdev->gart.ready = true;
 	return 0;
 }

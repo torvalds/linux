@@ -484,6 +484,9 @@ static int rs600_gart_enable(struct radeon_device *rdev)
 	tmp = RREG32_MC(R_000009_MC_CNTL1);
 	WREG32_MC(R_000009_MC_CNTL1, (tmp | S_000009_ENABLE_PAGE_TABLES(1)));
 	rs600_gart_tlb_flush(rdev);
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(rdev->mc.gtt_size >> 20),
+		 (unsigned long long)rdev->gart.table_addr);
 	rdev->gart.ready = true;
 	return 0;
 }
