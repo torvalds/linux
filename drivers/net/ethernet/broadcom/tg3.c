@@ -8105,7 +8105,7 @@ static void tg3_rings_reset(struct tg3 *tp)
 				tw32_mailbox(tp->napi[i].prodmbox, 0);
 			tw32_rx_mbox(tp->napi[i].consmbox, 0);
 			tw32_mailbox_f(tp->napi[i].int_mbox, 1);
-			tp->napi[0].chk_msi_cnt = 0;
+			tp->napi[i].chk_msi_cnt = 0;
 			tp->napi[i].last_rx_cons = 0;
 			tp->napi[i].last_tx_cons = 0;
 		}
@@ -9185,8 +9185,7 @@ static void tg3_chk_missed_msi(struct tg3 *tp)
 					tnapi->chk_msi_cnt++;
 					return;
 				}
-				tw32_mailbox(tnapi->int_mbox,
-					     tnapi->last_tag << 24);
+				tg3_msi(0, tnapi);
 			}
 		}
 		tnapi->chk_msi_cnt = 0;
