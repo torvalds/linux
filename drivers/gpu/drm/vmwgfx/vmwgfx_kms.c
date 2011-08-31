@@ -567,6 +567,9 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	case 15:
 		format = SVGA3D_A1R5G5B5;
 		break;
+	case 8:
+		format = SVGA3D_LUMINANCE8;
+		break;
 	default:
 		DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
 		return -EINVAL;

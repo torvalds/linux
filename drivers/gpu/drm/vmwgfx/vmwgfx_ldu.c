@@ -83,6 +83,15 @@ static void vmw_ldu_crtc_gamma_set(struct drm_crtc *crtc,
 				   u16 *r, u16 *g, u16 *b,
 				   uint32_t start, uint32_t size)
 {
+	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+	int i;
+
+	for (i = 0; i < size; i++) {
+		DRM_DEBUG("%d r/g/b = 0x%04x / 0x%04x / 0x%04x\n", i, r[i], g[i], b[i]);
+		vmw_write(dev_priv, SVGA_PALETTE_BASE + i * 3 + 0, r[i] >> 8);
+		vmw_write(dev_priv, SVGA_PALETTE_BASE + i * 3 + 1, g[i] >> 8);
+		vmw_write(dev_priv, SVGA_PALETTE_BASE + i * 3 + 2, b[i] >> 8);
+	}
 }
 
 static void vmw_ldu_crtc_destroy(struct drm_crtc *crtc)
@@ -546,6 +555,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder->possible_clones = 0;
 
 	drm_crtc_init(dev, crtc, &vmw_legacy_crtc_funcs);
+
+	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	drm_connector_attach_property(connector,
 				      dev->mode_config.dirty_info_property,
