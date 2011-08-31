@@ -249,7 +249,7 @@ static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
 
 static void dwc3_ep0_send_status_response(struct dwc3 *dwc)
 {
-	dwc3_ep0_start_trans(dwc, 1, dwc->ctrl_req_addr,
+	dwc3_ep0_start_trans(dwc, 1, dwc->setup_buf_addr,
 			dwc->ep0_usb_req.length,
 			DWC3_TRBCTL_CONTROL_DATA);
 	dwc->ep0_status_pending = 1;
