@@ -64,6 +64,8 @@
 #ifndef __il_commands_h__
 #define __il_commands_h__
 
+#include <linux/ieee80211.h>
+
 struct il_priv;
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */

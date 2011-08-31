@@ -37,7 +37,6 @@ extern const struct pci_device_id il3945_hw_card_ids[];
 #include "common.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
-#include "iwl-power.h"
 #include "iwl-led.h"
 #include "iwl-eeprom.h"
 

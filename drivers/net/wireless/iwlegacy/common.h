@@ -33,12 +33,12 @@
 #include <linux/wait.h>
 #include <net/ieee80211_radiotap.h>
 
+#include "commands.h"
 #include "iwl-eeprom.h"
 #include "csr.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "iwl-led.h"
-#include "iwl-power.h"
 
 struct il_host_cmd;
 struct il_cmd;
@@ -936,6 +936,13 @@ struct il_rxon_context {
 		bool enabled, is_40mhz;
 		u8 extension_chan_offset;
 	} ht;
+};
+
+struct il_power_mgr {
+	struct il_powertable_cmd sleep_cmd;
+	struct il_powertable_cmd sleep_cmd_next;
+	int debug_sleep_level_override;
+	bool pci_pm;
 };
 
 struct il_priv {
@@ -2996,4 +3003,6 @@ extern int il3945_rate_control_register(void);
 extern void il4965_rate_control_unregister(void);
 extern void il3945_rate_control_unregister(void);
 
+extern int il_power_update_mode(struct il_priv *il, bool force);
+extern void il_power_initialize(struct il_priv *il);
 #endif /* __il_core_h__ */

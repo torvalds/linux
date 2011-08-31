@@ -43,7 +43,6 @@
 #include "iwl-eeprom.h"
 #include "iwl-debug.h"
 #include "common.h"
-#include "iwl-power.h"
 
 const char *il_get_cmd_string(u8 cmd)
 {
