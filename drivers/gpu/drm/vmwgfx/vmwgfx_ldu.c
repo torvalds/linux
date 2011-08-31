@@ -340,9 +340,16 @@ static enum drm_connector_status
 	vmw_ldu_connector_detect(struct drm_connector *connector,
 				 bool force)
 {
-	if (vmw_connector_to_ldu(connector)->pref_active)
-		return connector_status_connected;
-	return connector_status_disconnected;
+	uint32_t num_displays;
+	struct drm_device *dev = connector->dev;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	mutex_lock(&dev_priv->hw_mutex);
+	num_displays = vmw_read(dev_priv, SVGA_REG_NUM_DISPLAYS);
+	mutex_unlock(&dev_priv->hw_mutex);
+
+	return ((vmw_connector_to_ldu(connector)->base.unit < num_displays) ?
+		connector_status_connected : connector_status_disconnected);
 }
 
 static const struct drm_display_mode vmw_ldu_connector_builtin[] = {
