@@ -427,7 +427,6 @@ struct nand_buffers {
  * @ecc:		[BOARDSPECIFIC] ECC control structure
  * @buffers:		buffer structure for read/write
  * @hwcontrol:		platform-specific hardware control structure
- * @ops:		oob operation operands
  * @erase_cmd:		[INTERN] erase command write function, selectable due
  *			to AND support.
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
@@ -534,8 +533,6 @@ struct nand_chip {
 	struct nand_ecc_ctrl ecc;
 	struct nand_buffers *buffers;
 	struct nand_hw_control hwcontrol;
-
-	struct mtd_oob_ops ops;
 
 	uint8_t *bbt;
 	struct nand_bbt_descr *bbt_td;

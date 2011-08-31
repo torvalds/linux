@@ -406,6 +406,8 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
 		ret = nand_update_bbt(mtd, ofs);
 	else {
+		struct mtd_oob_ops ops;
+
 		nand_get_device(chip, mtd, FL_WRITING);
 
 		/*
@@ -414,13 +416,12 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		 * procedure. We write two bytes per location, so we dont have
 		 * to mess with 16 bit access.
 		 */
+		ops.len = ops.ooblen = 2;
+		ops.datbuf = NULL;
+		ops.oobbuf = buf;
+		ops.ooboffs = chip->badblockpos & ~0x01;
 		do {
-			chip->ops.len = chip->ops.ooblen = 2;
-			chip->ops.datbuf = NULL;
-			chip->ops.oobbuf = buf;
-			chip->ops.ooboffs = chip->badblockpos & ~0x01;
-
-			ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+			ret = nand_do_write_oob(mtd, ofs, &ops);
 
 			i++;
 			ofs += mtd->writesize;
@@ -1573,6 +1574,7 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 		     size_t *retlen, uint8_t *buf)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mtd_oob_ops ops;
 	int ret;
 
 	/* Do not allow reads past end of device */
@@ -1583,13 +1585,13 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	nand_get_device(chip, mtd, FL_READING);
 
-	chip->ops.len = len;
-	chip->ops.datbuf = buf;
-	chip->ops.oobbuf = NULL;
+	ops.len = len;
+	ops.datbuf = buf;
+	ops.oobbuf = NULL;
 
-	ret = nand_do_read_ops(mtd, from, &chip->ops);
+	ret = nand_do_read_ops(mtd, from, &ops);
 
-	*retlen = chip->ops.retlen;
+	*retlen = ops.retlen;
 
 	nand_release_device(mtd);
 
@@ -2278,6 +2280,7 @@ static int panic_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 			    size_t *retlen, const uint8_t *buf)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mtd_oob_ops ops;
 	int ret;
 
 	/* Do not allow reads past end of device */
@@ -2292,13 +2295,13 @@ static int panic_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Grab the device */
 	panic_nand_get_device(chip, mtd, FL_WRITING);
 
-	chip->ops.len = len;
-	chip->ops.datbuf = (uint8_t *)buf;
-	chip->ops.oobbuf = NULL;
+	ops.len = len;
+	ops.datbuf = (uint8_t *)buf;
+	ops.oobbuf = NULL;
 
-	ret = nand_do_write_ops(mtd, to, &chip->ops);
+	ret = nand_do_write_ops(mtd, to, &ops);
 
-	*retlen = chip->ops.retlen;
+	*retlen = ops.retlen;
 	return ret;
 }
 
@@ -2316,6 +2319,7 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 			  size_t *retlen, const uint8_t *buf)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mtd_oob_ops ops;
 	int ret;
 
 	/* Do not allow reads past end of device */
@@ -2326,13 +2330,13 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	nand_get_device(chip, mtd, FL_WRITING);
 
-	chip->ops.len = len;
-	chip->ops.datbuf = (uint8_t *)buf;
-	chip->ops.oobbuf = NULL;
+	ops.len = len;
+	ops.datbuf = (uint8_t *)buf;
+	ops.oobbuf = NULL;
 
-	ret = nand_do_write_ops(mtd, to, &chip->ops);
+	ret = nand_do_write_ops(mtd, to, &ops);
 
-	*retlen = chip->ops.retlen;
+	*retlen = ops.retlen;
 
 	nand_release_device(mtd);
 
