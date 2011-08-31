@@ -141,11 +141,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->TimingV = (struct XGI_TimingVStruct *) XGI_TimingV;
 	pVBInfo->UpdateCRT1 = (struct XGI_XG21CRT1Struct *) XGI_UpdateCRT1Table;
 
-	pVBInfo->CHTVVCLKUNTSC = XGI330_CHTVVCLKUNTSC;
-	pVBInfo->CHTVVCLKONTSC = XGI330_CHTVVCLKONTSC;
-	pVBInfo->CHTVVCLKUPAL = XGI330_CHTVVCLKUPAL;
-	pVBInfo->CHTVVCLKOPAL = XGI330_CHTVVCLKOPAL;
-
 	/* 310 customization related */
 	if ((pVBInfo->VBType & VB_XGI301LV) || (pVBInfo->VBType & VB_XGI302LV))
 		pVBInfo->LCDCapList = XGI_LCDDLCapList;

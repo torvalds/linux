@@ -2992,14 +2992,6 @@ static unsigned char XG27_CRDE[] = {0, 0};
 static unsigned char XG27_SR40 = 0x04 ;
 static unsigned char XG27_SR41 = 0x00 ;
 
-static unsigned char XGI330_CHTVVCLKUNTSC[] = {0x00};
-
-static unsigned char XGI330_CHTVVCLKONTSC[] = {0x00};
-
-static unsigned char XGI330_CHTVVCLKUPAL[] = {0x00};
-
-static unsigned char XGI330_CHTVVCLKOPAL[] = {0x00};
-
 static struct XGI330_VCLKDataStruct XGI_VCLKData[] = {
 	/* SR2B,SR2C,SR2D */
 	{0x1B, 0xE1,  25}, /* 00 (25.175MHz) */

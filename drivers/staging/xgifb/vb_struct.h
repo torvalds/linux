@@ -357,10 +357,6 @@ struct vb_device_info {
 
 	unsigned char   *XGI_TVDelayList;
 	unsigned char   *XGI_TVDelayList2;
-	unsigned char   *CHTVVCLKUNTSC;
-	unsigned char   *CHTVVCLKONTSC;
-	unsigned char   *CHTVVCLKUPAL;
-	unsigned char   *CHTVVCLKOPAL;
 	unsigned char   *NTSCTiming;
 	unsigned char   *PALTiming;
 	unsigned char   *HiTVExtTiming;
