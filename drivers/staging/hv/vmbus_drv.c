@@ -442,14 +442,11 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	union hv_synic_event_flags *event;
 	bool handled = false;
 
-	page_addr = hv_context.synic_message_page[cpu];
-	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
-
-	/* Check if there are actual msgs to be process */
-	if (msg->header.message_type != HVMSG_NONE) {
-		handled = true;
-		tasklet_schedule(&msg_dpc);
-	}
+	/*
+	 * Check for events before checking for messages. This is the order
+	 * in which events and messages are checked in Windows guests on
+	 * Hyper-V, and the Windows team suggested we do the same.
+	 */
 
 	page_addr = hv_context.synic_event_page[cpu];
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
@@ -458,6 +455,15 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
 		handled = true;
 		tasklet_schedule(&event_dpc);
+	}
+
+	page_addr = hv_context.synic_message_page[cpu];
+	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
+
+	/* Check if there are actual msgs to be processed */
+	if (msg->header.message_type != HVMSG_NONE) {
+		handled = true;
+		tasklet_schedule(&msg_dpc);
 	}
 
 	if (handled)
