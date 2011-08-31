@@ -3602,16 +3602,6 @@ unsigned char XGI_GetLCDInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	pVBInfo->LCDInfo = tempbx;
 
-	if (pVBInfo->IF_DEF_PWD == 1) {
-		if (pVBInfo->LCDInfo & SetPWDEnable) {
-			if ((pVBInfo->VBType & VB_XGI302LV) ||
-			    (pVBInfo->VBType & VB_XGI301C)) {
-				if (!(tempax & PWDEnable))
-					pVBInfo->LCDInfo &= ~SetPWDEnable;
-			}
-		}
-	}
-
 	if (pVBInfo->IF_DEF_LVDS == 0) {
 		if (tempax & (LockLCDBToA | StLCDBToA)) {
 			if (pVBInfo->VBInfo & SetInSlaveMode) {
@@ -7811,7 +7801,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 	pVBInfo->IF_DEF_LVDS = 0;
 	pVBInfo->IF_DEF_LCDA = 1;
 	pVBInfo->IF_DEF_ScaleLCD = 0;
-	pVBInfo->IF_DEF_PWD = 0;
 
 	if (HwDeviceExtension->jChipType >= XG20) { /* kuku 2004/06/25 */
 		pVBInfo->IF_DEF_YPbPr = 0;
