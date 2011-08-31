@@ -310,8 +310,8 @@ static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
 		u8 *pedid, int ext)
 {
 	void __iomem *base = hdmi_core_sys_base(ip_data);
-	u32 i, j;
-	char checksum = 0;
+	u32 i;
+	char checksum;
 	u32 offset = 0;
 
 	/* HDMI_CORE_DDC_STATUS_IN_PROG */
@@ -354,21 +354,31 @@ static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
 		return -EIO;
 	}
 
-	i = ext * 128;
-	j = 0;
-	while (((REG_GET(base, HDMI_CORE_DDC_STATUS, 4, 4) == 1) ||
-		(REG_GET(base, HDMI_CORE_DDC_STATUS, 2, 2) == 0)) &&
-			j < 128) {
+	for (i = 0; i < 0x80; ++i) {
+		int t;
 
-		if (REG_GET(base, HDMI_CORE_DDC_STATUS, 2, 2) == 0) {
-			/* FIFO not empty */
-			pedid[i++] = REG_GET(base, HDMI_CORE_DDC_DATA, 7, 0);
-			j++;
+		/* IN_PROG */
+		if (REG_GET(base, HDMI_CORE_DDC_STATUS, 4, 4) == 0) {
+			DSSERR("operation stopped when reading edid\n");
+			return -EIO;
 		}
+
+		t = 0;
+		/* FIFO_EMPTY */
+		while (REG_GET(base, HDMI_CORE_DDC_STATUS, 2, 2) == 1) {
+			if (t++ > 10000) {
+				DSSERR("timeout reading edid\n");
+				return -ETIMEDOUT;
+			}
+			udelay(1);
+		}
+
+		pedid[i] = REG_GET(base, HDMI_CORE_DDC_DATA, 7, 0);
 	}
 
-	for (j = 0; j < 128; j++)
-		checksum += pedid[j];
+	checksum = 0;
+	for (i = 0; i < 0x80; ++i)
+		checksum += pedid[i];
 
 	if (checksum != 0) {
 		pr_err("E-EDID checksum failed!!\n");
@@ -379,40 +389,31 @@ static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
 }
 
 int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
-				u8 *pedid, u16 max_length)
+				u8 *edid, int len)
 {
-	int r = 0, n = 0, i = 0;
-	int max_ext_blocks = (max_length / 128) - 1;
-	int len;
+	int r, l;
+
+	if (len < 128)
+		return -EINVAL;
 
 	r = hdmi_core_ddc_init(ip_data);
 	if (r)
 		return r;
 
-	r = hdmi_core_ddc_edid(ip_data, pedid, 0);
+	r = hdmi_core_ddc_edid(ip_data, edid, 0);
 	if (r)
 		return r;
 
-	len = 128;
-	n = pedid[0x7e];
+	l = 128;
 
-	/*
-	 * README: need to comply with max_length set by the caller.
-	 * Better implementation should be to allocate necessary
-	 * memory to store EDID according to nb_block field found
-	 * in first block
-	 */
-	if (n > max_ext_blocks)
-		n = max_ext_blocks;
-
-	for (i = 1; i <= n; i++) {
-		r = hdmi_core_ddc_edid(ip_data, pedid, i);
+	if (len >= 128 * 2 && edid[0x7e] > 0) {
+		r = hdmi_core_ddc_edid(ip_data, edid + 0x80, 1);
 		if (r)
 			return r;
-		len += 128;
+		l += 128;
 	}
 
-	return len;
+	return l;
 }
 
 static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
