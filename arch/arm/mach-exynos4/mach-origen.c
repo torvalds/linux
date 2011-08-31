@@ -77,6 +77,11 @@ static struct s3c2410_uartcfg origen_uartcfgs[] __initdata = {
 	},
 };
 
+static struct s3c_sdhci_platdata origen_hsmmc0_pdata __initdata = {
+	.cd_type		= S3C_SDHCI_CD_INTERNAL,
+	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
+};
+
 static struct s3c_sdhci_platdata origen_hsmmc2_pdata __initdata = {
 	.cd_type		= S3C_SDHCI_CD_INTERNAL,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
@@ -94,6 +99,7 @@ static void __init origen_ehci_init(void)
 
 static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
+	&s3c_device_hsmmc0,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&s5p_device_ehci,
@@ -123,7 +129,12 @@ static void __init origen_map_io(void)
 
 static void __init origen_machine_init(void)
 {
+	/*
+	 * Since sdhci instance 2 can contain a bootable media,
+	 * sdhci instance 0 is registered after instance 2.
+	 */
 	s3c_sdhci2_set_platdata(&origen_hsmmc2_pdata);
+	s3c_sdhci0_set_platdata(&origen_hsmmc0_pdata);
 
 	origen_ehci_init();
 	clk_xusbxti.rate = 24000000;

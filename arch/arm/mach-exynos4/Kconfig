@@ -223,6 +223,7 @@ config MACH_ORIGEN
 	select CPU_EXYNOS4210
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S5P_DEV_FIMC0
 	select S5P_DEV_FIMC1
