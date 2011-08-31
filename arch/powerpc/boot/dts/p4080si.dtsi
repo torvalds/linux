@@ -77,7 +77,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: PowerPC,4080@0 {
+		cpu0: PowerPC,e500mc@0 {
 			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2_0>;
@@ -85,7 +85,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu1: PowerPC,4080@1 {
+		cpu1: PowerPC,e500mc@1 {
 			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2_1>;
@@ -93,7 +93,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu2: PowerPC,4080@2 {
+		cpu2: PowerPC,e500mc@2 {
 			device_type = "cpu";
 			reg = <2>;
 			next-level-cache = <&L2_2>;
@@ -101,7 +101,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu3: PowerPC,4080@3 {
+		cpu3: PowerPC,e500mc@3 {
 			device_type = "cpu";
 			reg = <3>;
 			next-level-cache = <&L2_3>;
@@ -109,7 +109,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu4: PowerPC,4080@4 {
+		cpu4: PowerPC,e500mc@4 {
 			device_type = "cpu";
 			reg = <4>;
 			next-level-cache = <&L2_4>;
@@ -117,7 +117,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu5: PowerPC,4080@5 {
+		cpu5: PowerPC,e500mc@5 {
 			device_type = "cpu";
 			reg = <5>;
 			next-level-cache = <&L2_5>;
@@ -125,7 +125,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu6: PowerPC,4080@6 {
+		cpu6: PowerPC,e500mc@6 {
 			device_type = "cpu";
 			reg = <6>;
 			next-level-cache = <&L2_6>;
@@ -133,7 +133,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu7: PowerPC,4080@7 {
+		cpu7: PowerPC,e500mc@7 {
 			device_type = "cpu";
 			reg = <7>;
 			next-level-cache = <&L2_7>;
