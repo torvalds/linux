@@ -200,10 +200,10 @@ struct mtd_ecc_stats {
  * Read/write file modes for access to MTD
  */
 enum mtd_file_modes {
-	MTD_MODE_NORMAL = MTD_OTP_OFF,
-	MTD_MODE_OTP_FACTORY = MTD_OTP_FACTORY,
-	MTD_MODE_OTP_USER = MTD_OTP_USER,
-	MTD_MODE_RAW,
+	MTD_FILE_MODE_NORMAL = MTD_OTP_OFF,
+	MTD_FILE_MODE_OTP_FACTORY = MTD_OTP_FACTORY,
+	MTD_FILE_MODE_OTP_USER = MTD_OTP_USER,
+	MTD_FILE_MODE_RAW,
 };
 
 #endif /* __MTD_ABI_H__ */

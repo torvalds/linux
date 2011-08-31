@@ -211,13 +211,13 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		len = min_t(size_t, count, size);
 
 		switch (mfi->mode) {
-		case MTD_MODE_OTP_FACTORY:
+		case MTD_FILE_MODE_OTP_FACTORY:
 			ret = mtd->read_fact_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
-		case MTD_MODE_OTP_USER:
+		case MTD_FILE_MODE_OTP_USER:
 			ret = mtd->read_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
-		case MTD_MODE_RAW:
+		case MTD_FILE_MODE_RAW:
 		{
 			struct mtd_oob_ops ops;
 
@@ -302,10 +302,10 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 		}
 
 		switch (mfi->mode) {
-		case MTD_MODE_OTP_FACTORY:
+		case MTD_FILE_MODE_OTP_FACTORY:
 			ret = -EROFS;
 			break;
-		case MTD_MODE_OTP_USER:
+		case MTD_FILE_MODE_OTP_USER:
 			if (!mtd->write_user_prot_reg) {
 				ret = -EOPNOTSUPP;
 				break;
@@ -313,7 +313,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			ret = mtd->write_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
 
-		case MTD_MODE_RAW:
+		case MTD_FILE_MODE_RAW:
 		{
 			struct mtd_oob_ops ops;
 
@@ -368,13 +368,13 @@ static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 		if (!mtd->read_fact_prot_reg)
 			ret = -EOPNOTSUPP;
 		else
-			mfi->mode = MTD_MODE_OTP_FACTORY;
+			mfi->mode = MTD_FILE_MODE_OTP_FACTORY;
 		break;
 	case MTD_OTP_USER:
 		if (!mtd->read_fact_prot_reg)
 			ret = -EOPNOTSUPP;
 		else
-			mfi->mode = MTD_MODE_OTP_USER;
+			mfi->mode = MTD_FILE_MODE_OTP_USER;
 		break;
 	default:
 		ret = -EINVAL;
@@ -413,7 +413,7 @@ static int mtd_do_writeoob(struct file *file, struct mtd_info *mtd,
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
-	ops.mode = (mfi->mode == MTD_MODE_RAW) ? MTD_OPS_RAW :
+	ops.mode = (mfi->mode == MTD_FILE_MODE_RAW) ? MTD_OPS_RAW :
 		MTD_OPS_PLACE_OOB;
 
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
@@ -458,7 +458,7 @@ static int mtd_do_readoob(struct file *file, struct mtd_info *mtd,
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
-	ops.mode = (mfi->mode == MTD_MODE_RAW) ? MTD_OPS_RAW :
+	ops.mode = (mfi->mode == MTD_FILE_MODE_RAW) ? MTD_OPS_RAW :
 		MTD_OPS_PLACE_OOB;
 
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
@@ -849,7 +849,7 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (copy_from_user(&mode, argp, sizeof(int)))
 			return -EFAULT;
 
-		mfi->mode = MTD_MODE_NORMAL;
+		mfi->mode = MTD_FILE_MODE_NORMAL;
 
 		ret = otp_select_filemode(mfi, mode);
 
@@ -865,11 +865,11 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 			return -ENOMEM;
 		ret = -EOPNOTSUPP;
 		switch (mfi->mode) {
-		case MTD_MODE_OTP_FACTORY:
+		case MTD_FILE_MODE_OTP_FACTORY:
 			if (mtd->get_fact_prot_info)
 				ret = mtd->get_fact_prot_info(mtd, buf, 4096);
 			break;
-		case MTD_MODE_OTP_USER:
+		case MTD_FILE_MODE_OTP_USER:
 			if (mtd->get_user_prot_info)
 				ret = mtd->get_user_prot_info(mtd, buf, 4096);
 			break;
@@ -893,7 +893,7 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 	{
 		struct otp_info oinfo;
 
-		if (mfi->mode != MTD_MODE_OTP_USER)
+		if (mfi->mode != MTD_FILE_MODE_OTP_USER)
 			return -EINVAL;
 		if (copy_from_user(&oinfo, argp, sizeof(oinfo)))
 			return -EFAULT;
@@ -937,17 +937,17 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 		mfi->mode = 0;
 
 		switch(arg) {
-		case MTD_MODE_OTP_FACTORY:
-		case MTD_MODE_OTP_USER:
+		case MTD_FILE_MODE_OTP_FACTORY:
+		case MTD_FILE_MODE_OTP_USER:
 			ret = otp_select_filemode(mfi, arg);
 			break;
 
-		case MTD_MODE_RAW:
+		case MTD_FILE_MODE_RAW:
 			if (!mtd->read_oob || !mtd->write_oob)
 				return -EOPNOTSUPP;
 			mfi->mode = arg;
 
-		case MTD_MODE_NORMAL:
+		case MTD_FILE_MODE_NORMAL:
 			break;
 		default:
 			ret = -EINVAL;
