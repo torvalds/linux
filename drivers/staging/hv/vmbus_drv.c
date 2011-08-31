@@ -492,7 +492,7 @@ static int vmbus_bus_init(int irq)
 
 	ret = bus_register(&hv_bus);
 	if (ret)
-		return ret;
+		goto err_cleanup;
 
 	ret = request_irq(irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
 			driver_name, hv_acpi_dev);
@@ -500,10 +500,7 @@ static int vmbus_bus_init(int irq)
 	if (ret != 0) {
 		pr_err("Unable to request IRQ %d\n",
 			   irq);
-
-		bus_unregister(&hv_bus);
-
-		return ret;
+		goto err_unregister;
 	}
 
 	vector = IRQ0_VECTOR + irq;
@@ -514,16 +511,23 @@ static int vmbus_bus_init(int irq)
 	 */
 	on_each_cpu(hv_synic_init, (void *)&vector, 1);
 	ret = vmbus_connect();
-	if (ret) {
-		free_irq(irq, hv_acpi_dev);
-		bus_unregister(&hv_bus);
-		return ret;
-	}
-
+	if (ret)
+		goto err_irq;
 
 	vmbus_request_offers();
 
 	return 0;
+
+err_irq:
+	free_irq(irq, hv_acpi_dev);
+
+err_unregister:
+	bus_unregister(&hv_bus);
+
+err_cleanup:
+	hv_cleanup();
+
+	return ret;
 }
 
 /**
