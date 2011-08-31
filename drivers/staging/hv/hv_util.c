@@ -277,6 +277,7 @@ static  struct hv_driver util_drv = {
 
 static int __init init_hyperv_utils(void)
 {
+	int ret;
 	pr_info("Registering HyperV Utility Driver\n");
 
 	if (hv_kvp_init())
@@ -289,11 +290,14 @@ static int __init init_hyperv_utils(void)
 
 	if (!shut_txf_buf || !time_txf_buf || !hbeat_txf_buf) {
 		pr_info("Unable to allocate memory for receive buffer\n");
-		kfree(shut_txf_buf);
-		kfree(time_txf_buf);
-		kfree(hbeat_txf_buf);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
+
+	ret = vmbus_driver_register(&util_drv);
+
+	if (ret != 0)
+		goto err;
 
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
 
@@ -303,7 +307,14 @@ static int __init init_hyperv_utils(void)
 
 	hv_cb_utils[HV_KVP_MSG].callback = &hv_kvp_onchannelcallback;
 
-	return vmbus_driver_register(&util_drv);
+	return 0;
+
+err:
+	kfree(shut_txf_buf);
+	kfree(time_txf_buf);
+	kfree(hbeat_txf_buf);
+
+	return ret;
 }
 
 static void exit_hyperv_utils(void)
