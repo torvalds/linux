@@ -535,7 +535,7 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tid_data *tid_data;
 	unsigned long flags;
-	u16 txq_id;
+	int txq_id;
 	struct iwl_priv *priv = priv(trans);
 
 	txq_id = iwlagn_txq_ctx_activate_free(trans);
