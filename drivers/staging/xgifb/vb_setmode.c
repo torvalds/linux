@@ -487,11 +487,6 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 			}
 		}
 	} else { /* for LVDS */
-		if (pVBInfo->IF_DEF_CH7005 == 1) {
-			if (pVBInfo->VBInfo & SetCRT2ToTV)
-				tempax |= SupportCHTV;
-		}
-
 		if (pVBInfo->VBInfo & SetCRT2ToLCD) {
 			tempax |= SupportLCD;
 
@@ -1333,8 +1328,6 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short tempbx;
-
 	unsigned short LCDXlat1VCLK[4] = { VCLK65 + 2,
 					   VCLK65 + 2,
 					   VCLK65 + 2,
@@ -1355,7 +1348,6 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 
 	unsigned short CRT2Index, VCLKIndex;
 	unsigned short modeflag, resinfo;
-	unsigned char *CHTVVCLKPtr = NULL;
 
 	if (ModeNo <= 0x13) {
 		/* si+St_ResInfo */
@@ -1456,47 +1448,15 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 		else
 			VCLKIndex = CRT2Index;
 
-		if (pVBInfo->IF_DEF_CH7005 == 1) {
-			if (!(pVBInfo->VBInfo & SetCRT2ToLCD)) {
-				VCLKIndex &= 0x1f;
-				tempbx = 0;
-
-				if (pVBInfo->VBInfo & SetPALTV)
-					tempbx += 2;
-
-				if (pVBInfo->VBInfo & SetCHTVOverScan)
-					tempbx += 1;
-
-				switch (tempbx) {
-				case 0:
-					CHTVVCLKPtr = pVBInfo->CHTVVCLKUNTSC;
-					break;
-				case 1:
-					CHTVVCLKPtr = pVBInfo->CHTVVCLKONTSC;
-					break;
-				case 2:
-					CHTVVCLKPtr = pVBInfo->CHTVVCLKUPAL;
-					break;
-				case 3:
-					CHTVVCLKPtr = pVBInfo->CHTVVCLKOPAL;
-					break;
-				default:
-					break;
-				}
-
-				VCLKIndex = CHTVVCLKPtr[VCLKIndex];
-			}
-		} else {
-			VCLKIndex = VCLKIndex >> 6;
-			if ((pVBInfo->LCDResInfo == Panel800x600) ||
-			    (pVBInfo->LCDResInfo == Panel320x480))
-				VCLKIndex = LVDSXlat1VCLK[VCLKIndex];
-			else if ((pVBInfo->LCDResInfo == Panel1024x768) ||
-				 (pVBInfo->LCDResInfo == Panel1024x768x75))
-				VCLKIndex = LVDSXlat2VCLK[VCLKIndex];
-			else
-				VCLKIndex = LVDSXlat3VCLK[VCLKIndex];
-		}
+		VCLKIndex = VCLKIndex >> 6;
+		if ((pVBInfo->LCDResInfo == Panel800x600) ||
+		    (pVBInfo->LCDResInfo == Panel320x480))
+			VCLKIndex = LVDSXlat1VCLK[VCLKIndex];
+		else if ((pVBInfo->LCDResInfo == Panel1024x768) ||
+			 (pVBInfo->LCDResInfo == Panel1024x768x75))
+			VCLKIndex = LVDSXlat2VCLK[VCLKIndex];
+		else
+			VCLKIndex = LVDSXlat3VCLK[VCLKIndex];
 	}
 	/* VCLKIndex = VCLKIndex&IndexMask; */
 
@@ -4934,11 +4894,6 @@ static void XGI_SetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempcx = (pVBInfo->VGAVT - 1);
 	temp = tempcx & 0x00FF;
 
-	if (pVBInfo->IF_DEF_CH7005 == 1) {
-		if (pVBInfo->VBInfo & 0x0C)
-			temp--;
-	}
-
 	xgifb_reg_set(pVBInfo->Part1Port, 0x0E, temp);
 	tempbx = pVBInfo->VGAVDE - 1;
 	temp = tempbx & 0x00FF;
@@ -8017,13 +7972,6 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 	else
 		modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
-	if (pVBInfo->IF_DEF_CH7005 == 1) {
-		if (pVBInfo->VBInfo & SetCRT2ToTV) {
-			if (modeflag & HalfDCLK)
-				return 0;
-		}
-	}
-
 	if (ModeNo < 0x14)
 		return 0xFFFF;
 
@@ -8038,11 +7986,6 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 		index--;
 
 	if (pVBInfo->SetFlag & ProgrammingCRT2) {
-		if (pVBInfo->IF_DEF_CH7005 == 1) {
-			if (pVBInfo->VBInfo & SetCRT2ToTV)
-				index = 0;
-		}
-
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
 			if (pVBInfo->IF_DEF_LVDS == 0) {
 				if (pVBInfo->VBType & (VB_XGI301B | VB_XGI302B
@@ -8551,7 +8494,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 	pVBInfo->IF_DEF_LVDS = 0;
-	pVBInfo->IF_DEF_CH7005 = 0;
 	pVBInfo->IF_DEF_LCDA = 1;
 	pVBInfo->IF_DEF_CH7007 = 0; /* [Billy] 2007/05/14 */
 	pVBInfo->IF_DEF_VideoCapture = 0;

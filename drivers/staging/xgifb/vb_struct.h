@@ -300,7 +300,7 @@ struct vb_device_info {
 	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr,
 			 IF_DEF_ScaleLCD, IF_DEF_OEMUtil, IF_DEF_PWD;
 	unsigned short   IF_DEF_ExpLink;
-	unsigned short   IF_DEF_CH7005, IF_DEF_HiVision;
+	unsigned short   IF_DEF_HiVision;
 	unsigned short   IF_DEF_CH7007; /* Billy 2007/05/03 */
 	unsigned short   LCDResInfo, LCDTypeInfo, VBType;/*301b*/
 	unsigned short   VBInfo, TVInfo, LCDInfo, Set_VGAType;
