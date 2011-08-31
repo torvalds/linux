@@ -149,7 +149,6 @@
 
 #define ProgrammingCRT2     0x0001       /* Set Flag */
 #define ReserveTVOption     0x0008
-#define Win9xDOSMode        0x0020
 #define GatingCRT           0x0800
 #define DisableChB          0x1000
 #define EnableChB           0x2000
