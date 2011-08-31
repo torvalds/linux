@@ -501,9 +501,15 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 {
 	b43_phy_lcn_upload_static_tables(dev);
 	/* TODO: various tables ops here */
-	b43_lcntab_write_bulk(dev, B43_LCNTAB16(0xf, 0),
+
+	if (dev->dev->bus_sprom->boardflags_lo & B43_BFL_FEM &&
+	    !(dev->dev->bus_sprom->boardflags_hi & B43_BFH_FEM_BT))
+		b43_lcntab_write_bulk(dev, B43_LCNTAB16(0xf, 0),
 			ARRAY_SIZE(b43_lcntab_sw_ctl_4313_epa_rev0),
 			b43_lcntab_sw_ctl_4313_epa_rev0);
+	else
+		b43err(dev->wl, "SW ctl table is unknown for this card\n");
+
 	/* TODO: various tables ops here */
 	b43_phy_lcn_rewrite_tables(dev);
 	b43_phy_lcn_clean_papd_comp_table(dev);

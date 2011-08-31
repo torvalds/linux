@@ -39,6 +39,7 @@ static void b43_radio_2064_channel_setup(struct b43_wldev *dev)
 	b43_radio_set(dev, 0x09d, 0x4);
 	b43_radio_write(dev, 0x09e, 0xf);
 
+	/* Channel specific values in theory, in practice always the same */
 	b43_radio_write(dev, 0x02a, 0xb);
 	b43_radio_maskset(dev, 0x030, ~0x3, 0xa);
 	b43_radio_maskset(dev, 0x091, ~0x3, 0);
@@ -70,22 +71,31 @@ static void b43_radio_2064_channel_setup(struct b43_wldev *dev)
 	b43_radio_write(dev, 0x044, save[0]);
 	b43_radio_write(dev, 0x12b, save[1]);
 
-	b43_radio_write(dev, 0x038, 0x0);
-	b43_radio_write(dev, 0x091, 0x7);
+	if (dev->phy.rev == 1) {
+		/* brcmsmac uses outdated 0x3 for 0x038 */
+		b43_radio_write(dev, 0x038, 0x0);
+		b43_radio_write(dev, 0x091, 0x7);
+	}
 }
 
 /* wlc_radio_2064_init */
 static void b43_radio_2064_init(struct b43_wldev *dev)
 {
-	b43_radio_write(dev, 0x09c, 0x0020);
-	b43_radio_write(dev, 0x105, 0x0008);
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		b43_radio_write(dev, 0x09c, 0x0020);
+		b43_radio_write(dev, 0x105, 0x0008);
+	} else {
+		/* TODO */
+	}
 	b43_radio_write(dev, 0x032, 0x0062);
 	b43_radio_write(dev, 0x033, 0x0019);
 	b43_radio_write(dev, 0x090, 0x0010);
 	b43_radio_write(dev, 0x010, 0x0000);
-	b43_radio_write(dev, 0x060, 0x007f);
-	b43_radio_write(dev, 0x061, 0x0072);
-	b43_radio_write(dev, 0x062, 0x007f);
+	if (dev->phy.rev == 1) {
+		b43_radio_write(dev, 0x060, 0x007f);
+		b43_radio_write(dev, 0x061, 0x0072);
+		b43_radio_write(dev, 0x062, 0x007f);
+	}
 	b43_radio_write(dev, 0x01d, 0x0002);
 	b43_radio_write(dev, 0x01e, 0x0006);
 
@@ -145,10 +155,12 @@ static void b43_phy_lcn_clear_tx_power_offsets(struct b43_wldev *dev)
 {
 	u8 i;
 
-	b43_phy_write(dev, B43_PHY_LCN_TABLE_ADDR, (0x7 << 10) | 0x340);
-	for (i = 0; i < 30; i++) {
-		b43_phy_write(dev, B43_PHY_LCN_TABLE_DATAHI, 0);
-		b43_phy_write(dev, B43_PHY_LCN_TABLE_DATALO, 0);
+	if (1) { /* FIXME */
+		b43_phy_write(dev, B43_PHY_LCN_TABLE_ADDR, (0x7 << 10) | 0x340);
+		for (i = 0; i < 30; i++) {
+			b43_phy_write(dev, B43_PHY_LCN_TABLE_DATAHI, 0);
+			b43_phy_write(dev, B43_PHY_LCN_TABLE_DATALO, 0);
+		}
 	}
 
 	b43_phy_write(dev, B43_PHY_LCN_TABLE_ADDR, (0x7 << 10) | 0x80);
@@ -178,8 +190,13 @@ static void b43_phy_lcn_rev0_baseband_init(struct b43_wldev *dev)
 	b43_phy_set(dev, 0x44a, 0x44);
 	b43_phy_write(dev, 0x44a, 0x80);
 
+	if (!(dev->dev->bus_sprom->boardflags_lo & B43_BFL_FEM))
+		; /* TODO */
 	b43_phy_maskset(dev, 0x634, ~0xff, 0xc);
-	b43_phy_maskset(dev, 0x634, ~0xff, 0xa);
+	if (dev->dev->bus_sprom->boardflags_lo & B43_BFL_FEM) {
+		b43_phy_maskset(dev, 0x634, ~0xff, 0xa);
+		b43_phy_write(dev, 0x910, 0x1);
+	}
 
 	b43_phy_write(dev, 0x910, 0x1);
 
@@ -207,7 +224,8 @@ static void b43_phy_lcn_bu_tweaks(struct b43_wldev *dev)
 	b43_phy_maskset(dev, 0x434, ~0xff, 0xfd);
 	b43_phy_maskset(dev, 0x420, ~0xff, 0x10);
 
-	b43_radio_set(dev, 0x09b, 0xf0);
+	if (dev->dev->bus_sprom->board_rev >= 0x1204)
+		b43_radio_set(dev, 0x09b, 0xf0);
 
 	b43_phy_write(dev, 0x7d6, 0x0902);
 
