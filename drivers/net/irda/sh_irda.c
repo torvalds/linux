@@ -264,7 +264,7 @@ static int sh_irda_set_baudrate(struct sh_irda_self *self, int baudrate)
 	return 0;
 }
 
-static int xir_get_rcv_length(struct sh_irda_self *self)
+static int sh_irda_get_rcv_length(struct sh_irda_self *self)
 {
 	return RFL_MASK & sh_irda_read(self, IRRFLR);
 }
@@ -274,47 +274,47 @@ static int xir_get_rcv_length(struct sh_irda_self *self)
  *		NONE MODE
  *
  *=====================================*/
-static int xir_fre(struct sh_irda_self *self)
+static int sh_irda_xir_fre(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: frame recv\n");
 	return 0;
 }
 
-static int xir_trov(struct sh_irda_self *self)
+static int sh_irda_xir_trov(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: buffer ram over\n");
 	return 0;
 }
 
-static int xir_9(struct sh_irda_self *self)
+static int sh_irda_xir_9(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: time over\n");
 	return 0;
 }
 
-static int xir_8(struct sh_irda_self *self)
+static int sh_irda_xir_8(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: framing error\n");
 	return 0;
 }
 
-static int xir_fte(struct sh_irda_self *self)
+static int sh_irda_xir_fte(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: frame transmit end\n");
 	return 0;
 }
 
-static struct sh_irda_xir_func xir_func = {
-	.xir_fre	= xir_fre,
-	.xir_trov	= xir_trov,
-	.xir_9		= xir_9,
-	.xir_8		= xir_8,
-	.xir_fte	= xir_fte,
+static struct sh_irda_xir_func sh_irda_xir_func = {
+	.xir_fre	= sh_irda_xir_fre,
+	.xir_trov	= sh_irda_xir_trov,
+	.xir_9		= sh_irda_xir_9,
+	.xir_8		= sh_irda_xir_8,
+	.xir_fte	= sh_irda_xir_fte,
 };
 
 /*=====================================
@@ -323,12 +323,12 @@ static struct sh_irda_xir_func xir_func = {
  *
  * MIR/FIR are not supported now
  *=====================================*/
-static struct sh_irda_xir_func mfir_func = {
-	.xir_fre	= xir_fre,
-	.xir_trov	= xir_trov,
-	.xir_9		= xir_9,
-	.xir_8		= xir_8,
-	.xir_fte	= xir_fte,
+static struct sh_irda_xir_func sh_irda_mfir_func = {
+	.xir_fre	= sh_irda_xir_fre,
+	.xir_trov	= sh_irda_xir_trov,
+	.xir_9		= sh_irda_xir_9,
+	.xir_8		= sh_irda_xir_8,
+	.xir_fte	= sh_irda_xir_fte,
 };
 
 /*=====================================
@@ -336,12 +336,12 @@ static struct sh_irda_xir_func mfir_func = {
  *		SIR MODE
  *
  *=====================================*/
-static int sir_fre(struct sh_irda_self *self)
+static int sh_irda_sir_fre(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	u16 data16;
 	u8  *data = (u8 *)&data16;
-	int len = xir_get_rcv_length(self);
+	int len = sh_irda_get_rcv_length(self);
 	int i, j;
 
 	if (len > IRDARAM_LEN)
@@ -364,7 +364,7 @@ static int sir_fre(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_trov(struct sh_irda_self *self)
+static int sh_irda_sir_trov(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -373,7 +373,7 @@ static int sir_trov(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_tot(struct sh_irda_self *self)
+static int sh_irda_sir_tot(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -383,7 +383,7 @@ static int sir_tot(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_fer(struct sh_irda_self *self)
+static int sh_irda_sir_fer(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -392,7 +392,7 @@ static int sir_fer(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_fte(struct sh_irda_self *self)
+static int sh_irda_sir_fte(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -402,12 +402,12 @@ static int sir_fte(struct sh_irda_self *self)
 	return 0;
 }
 
-static struct sh_irda_xir_func sir_func = {
-	.xir_fre	= sir_fre,
-	.xir_trov	= sir_trov,
-	.xir_9		= sir_tot,
-	.xir_8		= sir_fer,
-	.xir_fte	= sir_fte,
+static struct sh_irda_xir_func sh_irda_sir_func = {
+	.xir_fre	= sh_irda_sir_fre,
+	.xir_trov	= sh_irda_sir_trov,
+	.xir_9		= sh_irda_sir_tot,
+	.xir_8		= sh_irda_sir_fer,
+	.xir_fte	= sh_irda_sir_fte,
 };
 
 static void sh_irda_set_mode(struct sh_irda_self *self, enum sh_irda_mode mode)
@@ -421,22 +421,22 @@ static void sh_irda_set_mode(struct sh_irda_self *self, enum sh_irda_mode mode)
 	case SH_IRDA_SIR:
 		name	= "SIR";
 		data	= TMD_SIR;
-		func	= &sir_func;
+		func	= &sh_irda_sir_func;
 		break;
 	case SH_IRDA_MIR:
 		name	= "MIR";
 		data	= TMD_MIR;
-		func	= &mfir_func;
+		func	= &sh_irda_mfir_func;
 		break;
 	case SH_IRDA_FIR:
 		name	= "FIR";
 		data	= TMD_FIR;
-		func	= &mfir_func;
+		func	= &sh_irda_mfir_func;
 		break;
 	default:
 		name = "NONE";
 		data = 0;
-		func = &xir_func;
+		func = &sh_irda_xir_func;
 		break;
 	}
 
