@@ -5626,27 +5626,24 @@ static struct XGI301C_Tap4TimingStruct *XGI_GetTap4Ptr(unsigned short tempcx,
 		tempbx = pVBInfo->VDE;
 	}
 
-	if (tempax < tempbx)
-		return &EnlargeTap4Timing[0];
-	else if (tempax == tempbx)
-		return &NoScaleTap4Timing[0]; /* 1:1 */
+	if (tempax <= tempbx)
+		return &xgifb_tap4_timing[0];
 	else
-		Tap4TimingPtr = NTSCTap4Timing; /* NTSC */
+		Tap4TimingPtr = xgifb_ntsc_525_tap4_timing; /* NTSC */
 
 	if (pVBInfo->TVInfo & SetPALTV)
 		Tap4TimingPtr = PALTap4Timing;
 
 	if (pVBInfo->VBInfo & SetCRT2ToYPbPr) {
-		if (pVBInfo->TVInfo & SetYPbPrMode525i)
-			Tap4TimingPtr = YPbPr525iTap4Timing;
-		if (pVBInfo->TVInfo & SetYPbPrMode525p)
-			Tap4TimingPtr = YPbPr525pTap4Timing;
+		if ((pVBInfo->TVInfo & SetYPbPrMode525i) ||
+			(pVBInfo->TVInfo & SetYPbPrMode525p))
+			Tap4TimingPtr = xgifb_ntsc_525_tap4_timing;
 		if (pVBInfo->TVInfo & SetYPbPrMode750p)
 			Tap4TimingPtr = YPbPr750pTap4Timing;
 	}
 
 	if (pVBInfo->VBInfo & SetCRT2ToHiVisionTV)
-		Tap4TimingPtr = HiTVTap4Timing;
+		Tap4TimingPtr = xgifb_tap4_timing;
 
 	i = 0;
 	while (Tap4TimingPtr[i].DE != 0xFFFF) {
