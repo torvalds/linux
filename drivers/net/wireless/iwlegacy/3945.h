@@ -35,7 +35,6 @@
 extern const struct pci_device_id il3945_hw_card_ids[];
 
 #include "common.h"
-#include "iwl-prph.h"
 #include "iwl-debug.h"
 
 /* Highest firmware API version supported */

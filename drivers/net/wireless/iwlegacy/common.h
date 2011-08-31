@@ -36,7 +36,7 @@
 
 #include "commands.h"
 #include "csr.h"
-#include "iwl-prph.h"
+#include "prph.h"
 #include "iwl-debug.h"
 
 struct il_host_cmd;
