@@ -46,11 +46,9 @@ omap_uart_virt:	.word	0x0
 		bne	99f			@ already configured
 
 		/* Check the debug UART configuration set in uncompress.h */
-		mrc	p15, 0, \rp, c1, c0
-		tst	\rp, #1			@ MMU enabled?
-		ldreq	\rp, =OMAP_UART_INFO	@ MMU not enabled
-		ldrne	\rp, =omap_uart_p2v(OMAP_UART_INFO)	@ MMU enabled
-		ldr	\rp, [\rp, #0]
+		and	\rp, pc, #0xff000000
+		ldr	\rv, =OMAP_UART_INFO_OFS
+		ldr	\rp, [\rp, \rv]
 
 		/* Select the UART to use based on the UART1 scratchpad value */
 10:		cmp	\rp, #0			@ no port configured?
