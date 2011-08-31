@@ -1807,10 +1807,6 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	if (error)
 		goto out_put;
 
-	error = gfs2_rindex_hold(sdp, &dip->i_alloc->al_ri_gh);
-	if (error)
-		goto out_qs;
-
 	/*  Count the number of leaves  */
 	bh = leaf_bh;
 
@@ -1889,8 +1885,6 @@ out_rg_gunlock:
 	gfs2_glock_dq_m(rlist.rl_rgrps, rlist.rl_ghs);
 out_rlist:
 	gfs2_rlist_free(&rlist);
-	gfs2_glock_dq_uninit(&dip->i_alloc->al_ri_gh);
-out_qs:
 	gfs2_quota_unhold(dip);
 out_put:
 	gfs2_alloc_put(dip);

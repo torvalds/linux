@@ -134,8 +134,7 @@ void gfs2_ail_flush(struct gfs2_glock *gl)
 static void rgrp_go_sync(struct gfs2_glock *gl)
 {
 	struct address_space *metamapping = gfs2_glock2aspace(gl);
-	struct gfs2_rgrpd *rgd = gl->gl_object;
-	unsigned int x;
+	struct gfs2_rgrpd *rgd;
 	int error;
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
@@ -148,14 +147,11 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
         mapping_set_error(metamapping, error);
 	gfs2_ail_empty_gl(gl);
 
-	if (!rgd)
-		return;
-
-	for (x = 0; x < rgd->rd_length; x++) {
-		struct gfs2_bitmap *bi = rgd->rd_bits + x;
-		kfree(bi->bi_clone);
-		bi->bi_clone = NULL;
-	}
+	spin_lock(&gl->gl_spin);
+	rgd = gl->gl_object;
+	if (rgd)
+		gfs2_free_clones(rgd);
+	spin_unlock(&gl->gl_spin);
 }
 
 /**

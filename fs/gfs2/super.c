@@ -1037,7 +1037,6 @@ static int statfs_slow_fill(struct gfs2_rgrpd *rgd,
 
 static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
 {
-	struct gfs2_holder ri_gh;
 	struct gfs2_rgrpd *rgd_next;
 	struct gfs2_holder *gha, *gh;
 	unsigned int slots = 64;
@@ -1049,10 +1048,6 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 	gha = kcalloc(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
 	if (!gha)
 		return -ENOMEM;
-
-	error = gfs2_rindex_hold(sdp, &ri_gh);
-	if (error)
-		goto out;
 
 	rgd_next = gfs2_rgrpd_get_first(sdp);
 
@@ -1096,9 +1091,6 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 		yield();
 	}
 
-	gfs2_glock_dq_uninit(&ri_gh);
-
-out:
 	kfree(gha);
 	return error;
 }
@@ -1149,6 +1141,10 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_statfs_change_host sc;
 	int error;
+
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
 
 	if (gfs2_tune_get(sdp, gt_statfs_slow))
 		error = gfs2_statfs_slow(sdp, &sc);
@@ -1420,21 +1416,17 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out;
 
-	error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
-	if (error)
-		goto out_qs;
-
 	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
 	if (!rgd) {
 		gfs2_consist_inode(ip);
 		error = -EIO;
-		goto out_rindex_relse;
+		goto out_qs;
 	}
 
 	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0,
 				   &al->al_rgd_gh);
 	if (error)
-		goto out_rindex_relse;
+		goto out_qs;
 
 	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_STATFS + RES_QUOTA,
 				 sdp->sd_jdesc->jd_blocks);
@@ -1449,8 +1441,6 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 
 out_rg_gunlock:
 	gfs2_glock_dq_uninit(&al->al_rgd_gh);
-out_rindex_relse:
-	gfs2_glock_dq_uninit(&al->al_ri_gh);
 out_qs:
 	gfs2_quota_unhold(ip);
 out:

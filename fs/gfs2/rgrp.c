@@ -332,14 +332,10 @@ struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk)
 	struct rb_node **newn, *parent = NULL;
 
 	spin_lock(&sdp->sd_rindex_spin);
-
 	newn = &sdp->sd_rindex_tree.rb_node;
-
-	/* Figure out where to put new node */
 	while (*newn) {
 		struct gfs2_rgrpd *cur = rb_entry(*newn, struct gfs2_rgrpd,
 						  rd_node);
-
 		parent = *newn;
 		if (blk < cur->rd_addr)
 			newn = &((*newn)->rb_left);
@@ -350,7 +346,6 @@ struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk)
 			return cur;
 		}
 	}
-
 	spin_unlock(&sdp->sd_rindex_spin);
 
 	return NULL;
@@ -368,8 +363,10 @@ struct gfs2_rgrpd *gfs2_rgrpd_get_first(struct gfs2_sbd *sdp)
 	const struct rb_node *n;
 	struct gfs2_rgrpd *rgd;
 
+	spin_lock(&sdp->sd_rindex_spin);
 	n = rb_first(&sdp->sd_rindex_tree);
 	rgd = rb_entry(n, struct gfs2_rgrpd, rd_node);
+	spin_unlock(&sdp->sd_rindex_spin);
 
 	return rgd;
 }
@@ -400,7 +397,18 @@ struct gfs2_rgrpd *gfs2_rgrpd_get_next(struct gfs2_rgrpd *rgd)
 	return rgd;
 }
 
-static void clear_rgrpdi(struct gfs2_sbd *sdp)
+void gfs2_free_clones(struct gfs2_rgrpd *rgd)
+{
+	int x;
+
+	for (x = 0; x < rgd->rd_length; x++) {
+		struct gfs2_bitmap *bi = rgd->rd_bits + x;
+		kfree(bi->bi_clone);
+		bi->bi_clone = NULL;
+	}
+}
+
+void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 {
 	struct rb_node *n;
 	struct gfs2_rgrpd *rgd;
@@ -413,21 +421,17 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 		rb_erase(n, &sdp->sd_rindex_tree);
 
 		if (gl) {
+			spin_lock(&gl->gl_spin);
 			gl->gl_object = NULL;
+			spin_unlock(&gl->gl_spin);
 			gfs2_glock_add_to_lru(gl);
 			gfs2_glock_put(gl);
 		}
 
+		gfs2_free_clones(rgd);
 		kfree(rgd->rd_bits);
 		kmem_cache_free(gfs2_rgrpd_cachep, rgd);
 	}
-}
-
-void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
-{
-	mutex_lock(&sdp->sd_rindex_mutex);
-	clear_rgrpdi(sdp);
-	mutex_unlock(&sdp->sd_rindex_mutex);
 }
 
 static void gfs2_rindex_print(const struct gfs2_rgrpd *rgd)
@@ -546,17 +550,6 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 	return total_data;
 }
 
-static void gfs2_rindex_in(struct gfs2_rgrpd *rgd, const void *buf)
-{
-	const struct gfs2_rindex *str = buf;
-
-	rgd->rd_addr = be64_to_cpu(str->ri_addr);
-	rgd->rd_length = be32_to_cpu(str->ri_length);
-	rgd->rd_data0 = be64_to_cpu(str->ri_data0);
-	rgd->rd_data = be32_to_cpu(str->ri_data);
-	rgd->rd_bitbytes = be32_to_cpu(str->ri_bitbytes);
-}
-
 static void rgd_insert(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
@@ -584,7 +577,7 @@ static void rgd_insert(struct gfs2_rgrpd *rgd)
  * read_rindex_entry - Pull in a new resource index entry from the disk
  * @gl: The glock covering the rindex inode
  *
- * Returns: 0 on success, error code otherwise
+ * Returns: 0 on success, > 0 on EOF, error code otherwise
  */
 
 static int read_rindex_entry(struct gfs2_inode *ip,
@@ -592,19 +585,18 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
-	char buf[sizeof(struct gfs2_rindex)];
+	struct gfs2_rindex buf;
 	int error;
 	struct gfs2_rgrpd *rgd;
 
-	error = gfs2_internal_read(ip, ra_state, buf, &pos,
+	if (pos >= i_size_read(&ip->i_inode))
+		return 1;
+
+	error = gfs2_internal_read(ip, ra_state, (char *)&buf, &pos,
 				   sizeof(struct gfs2_rindex));
-	if (!error)
-		return 0;
-	if (error != sizeof(struct gfs2_rindex)) {
-		if (error > 0)
-			error = -EIO;
-		return error;
-	}
+
+	if (error != sizeof(struct gfs2_rindex))
+		return (error == 0) ? 1 : error;
 
 	rgd = kmem_cache_zalloc(gfs2_rgrpd_cachep, GFP_NOFS);
 	error = -ENOMEM;
@@ -612,23 +604,34 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 		return error;
 
 	rgd->rd_sbd = sdp;
-
-	gfs2_rindex_in(rgd, buf);
-	rgd_insert(rgd);
+	rgd->rd_addr = be64_to_cpu(buf.ri_addr);
+	rgd->rd_length = be32_to_cpu(buf.ri_length);
+	rgd->rd_data0 = be64_to_cpu(buf.ri_data0);
+	rgd->rd_data = be32_to_cpu(buf.ri_data);
+	rgd->rd_bitbytes = be32_to_cpu(buf.ri_bitbytes);
 
 	error = compute_bitstructs(rgd);
 	if (error)
-		return error;
+		goto fail;
 
 	error = gfs2_glock_get(sdp, rgd->rd_addr,
 			       &gfs2_rgrp_glops, CREATE, &rgd->rd_gl);
 	if (error)
-		return error;
+		goto fail;
 
 	rgd->rd_gl->gl_object = rgd;
 	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
 	if (rgd->rd_data > sdp->sd_max_rg_data)
 		sdp->sd_max_rg_data = rgd->rd_data;
+	spin_lock(&sdp->sd_rindex_spin);
+	rgd_insert(rgd);
+	sdp->sd_rgrps++;
+	spin_unlock(&sdp->sd_rindex_spin);
+	return error;
+
+fail:
+	kfree(rgd->rd_bits);
+	kmem_cache_free(gfs2_rgrpd_cachep, rgd);
 	return error;
 }
 
@@ -639,34 +642,28 @@ static int read_rindex_entry(struct gfs2_inode *ip,
  * Returns: 0 on successful update, error code otherwise
  */
 
-int gfs2_ri_update(struct gfs2_inode *ip)
+static int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
 	struct file_ra_state ra_state;
-	u64 rgrp_count = i_size_read(inode);
 	int error;
 
-	do_div(rgrp_count, sizeof(struct gfs2_rindex));
-	clear_rgrpdi(sdp);
-
 	file_ra_state_init(&ra_state, inode->i_mapping);
-	for (sdp->sd_rgrps = 0; sdp->sd_rgrps < rgrp_count; sdp->sd_rgrps++) {
+	do {
 		error = read_rindex_entry(ip, &ra_state);
-		if (error) {
-			clear_rgrpdi(sdp);
-			return error;
-		}
-	}
+	} while (error == 0);
+
+	if (error < 0)
+		return error;
 
 	sdp->sd_rindex_uptodate = 1;
 	return 0;
 }
 
 /**
- * gfs2_rindex_hold - Grab a lock on the rindex
+ * gfs2_rindex_update - Update the rindex if required
  * @sdp: The GFS2 superblock
- * @ri_gh: the glock holder
  *
  * We grab a lock on the rindex inode to make sure that it doesn't
  * change whilst we are performing an operation. We keep this lock
@@ -678,29 +675,28 @@ int gfs2_ri_update(struct gfs2_inode *ip)
  * special file, which might have been updated if someone expanded the
  * filesystem (via gfs2_grow utility), which adds new resource groups.
  *
- * Returns: 0 on success, error code otherwise
+ * Returns: 0 on succeess, error code otherwise
  */
 
-int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh)
+int gfs2_rindex_update(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_rindex);
 	struct gfs2_glock *gl = ip->i_gl;
-	int error;
-
-	error = gfs2_glock_nq_init(gl, LM_ST_SHARED, 0, ri_gh);
-	if (error)
-		return error;
+	struct gfs2_holder ri_gh;
+	int error = 0;
 
 	/* Read new copy from disk if we don't have the latest */
 	if (!sdp->sd_rindex_uptodate) {
 		mutex_lock(&sdp->sd_rindex_mutex);
-		if (!sdp->sd_rindex_uptodate) {
+		error = gfs2_glock_nq_init(gl, LM_ST_SHARED, 0, &ri_gh);
+		if (error)
+			return error;
+		if (!sdp->sd_rindex_uptodate)
 			error = gfs2_ri_update(ip);
-			if (error)
-				gfs2_glock_dq_uninit(ri_gh);
-		}
+		gfs2_glock_dq_uninit(&ri_gh);
 		mutex_unlock(&sdp->sd_rindex_mutex);
 	}
+
 
 	return error;
 }
@@ -873,8 +869,13 @@ fail:
 
 struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	int error;
 	BUG_ON(ip->i_alloc != NULL);
 	ip->i_alloc = kzalloc(sizeof(struct gfs2_alloc), GFP_NOFS);
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		fs_warn(sdp, "rindex update returns %d\n", error);
 	return ip->i_alloc;
 }
 
@@ -1029,7 +1030,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
  * Returns: errno
  */
 
-int gfs2_inplace_reserve_i(struct gfs2_inode *ip, int hold_rindex,
+int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
 			   char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
@@ -1040,18 +1041,6 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, int hold_rindex,
 
 	if (gfs2_assert_warn(sdp, al->al_requested))
 		return -EINVAL;
-
-	if (hold_rindex) {
-		/* We need to hold the rindex unless the inode we're using is
-		   the rindex itself, in which case it's already held. */
-		if (ip != GFS2_I(sdp->sd_rindex))
-			error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
-		else if (!sdp->sd_rgrps) /* We may not have the rindex read
-					    in, so: */
-			error = gfs2_ri_update(ip);
-		if (error)
-			return error;
-	}
 
 try_again:
 	do {
@@ -1069,11 +1058,8 @@ try_again:
 		}
 	} while (error && tries++ < 3);
 
-	if (error) {
-		if (hold_rindex && ip != GFS2_I(sdp->sd_rindex))
-			gfs2_glock_dq_uninit(&al->al_ri_gh);
+	if (error)
 		return error;
-	}
 
 	/* no error, so we have the rgrp set in the inode's allocation. */
 	al->al_file = file;
@@ -1103,8 +1089,6 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 	al->al_rgd = NULL;
 	if (al->al_rgd_gh.gh_gl)
 		gfs2_glock_dq_uninit(&al->al_rgd_gh);
-	if (ip != GFS2_I(sdp->sd_rindex) && al->al_ri_gh.gh_gl)
-		gfs2_glock_dq_uninit(&al->al_ri_gh);
 }
 
 /**
@@ -1558,34 +1542,26 @@ void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
 {
 	struct gfs2_rgrpd *rgd;
-	struct gfs2_holder ri_gh, rgd_gh;
-	struct gfs2_inode *ip = GFS2_I(sdp->sd_rindex);
-	int ri_locked = 0;
+	struct gfs2_holder rgd_gh;
 	int error;
 
-	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
-		error = gfs2_rindex_hold(sdp, &ri_gh);
-		if (error)
-			goto fail;
-		ri_locked = 1;
-	}
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
 
 	error = -EINVAL;
 	rgd = gfs2_blk2rgrpd(sdp, no_addr);
 	if (!rgd)
-		goto fail_rindex;
+		goto fail;
 
 	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_SHARED, 0, &rgd_gh);
 	if (error)
-		goto fail_rindex;
+		goto fail;
 
 	if (gfs2_get_block_type(rgd, no_addr) != type)
 		error = -ESTALE;
 
 	gfs2_glock_dq_uninit(&rgd_gh);
-fail_rindex:
-	if (ri_locked)
-		gfs2_glock_dq_uninit(&ri_gh);
 fail:
 	return error;
 }

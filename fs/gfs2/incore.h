@@ -255,7 +255,6 @@ struct gfs2_alloc {
 
 	unsigned int al_line;
 	char *al_file;
-	struct gfs2_holder al_ri_gh;
 	struct gfs2_holder al_rgd_gh;
 	struct gfs2_rgrpd *al_rgd;
 

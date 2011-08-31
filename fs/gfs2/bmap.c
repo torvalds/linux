@@ -783,11 +783,6 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	else if (ip->i_depth)
 		revokes = sdp->sd_inptrs;
 
-	if (ip != GFS2_I(sdp->sd_rindex))
-		error = gfs2_rindex_hold(sdp, &ip->i_alloc->al_ri_gh);
-	else if (!sdp->sd_rgrps)
-		error = gfs2_ri_update(ip);
-
 	if (error)
 		return error;
 
@@ -887,8 +882,6 @@ out_rg_gunlock:
 out_rlist:
 	gfs2_rlist_free(&rlist);
 out:
-	if (ip != GFS2_I(sdp->sd_rindex))
-		gfs2_glock_dq_uninit(&ip->i_alloc->al_ri_gh);
 	return error;
 }
 
