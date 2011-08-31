@@ -463,6 +463,17 @@ static void b43_phy_lcn_upload_static_tables(struct b43_wldev *dev)
 	lcntab_upload(dev, B43_LCNTAB32(0x18, 0), b43_lcntab_0x18);
 }
 
+/* Not implemented in brcmsmac, noticed in wl in MMIO dump */
+static void b43_phy_lcn_rewrite_tables(struct b43_wldev *dev)
+{
+	int i;
+	u32 tmp;
+	for (i = 0; i < 128; i++) {
+		tmp = b43_lcntab_read(dev, B43_LCNTAB32(0x7, 0x240 + i));
+		b43_lcntab_write(dev, B43_LCNTAB32(0x7, 0x240 + i), tmp);
+	}
+}
+
 static void b43_phy_lcn_clean_0x18_table(struct b43_wldev *dev)
 {
 	u8 i;
@@ -475,5 +486,6 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 {
 	b43_phy_lcn_upload_static_tables(dev);
 	/* TODO: various tables ops here */
+	b43_phy_lcn_rewrite_tables(dev);
 	b43_phy_lcn_clean_0x18_table(dev);
 }
