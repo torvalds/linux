@@ -465,6 +465,14 @@ int dialog_inputbox(WINDOW *main_window,
 				cursor_form_win--;
 			}
 			break;
+		case KEY_HOME:
+			cursor_position = 0;
+			cursor_form_win = 0;
+			break;
+		case KEY_END:
+			cursor_position = len;
+			cursor_form_win = min(cursor_position, prompt_width-1);
+			break;
 		default:
 			if ((isgraph(res) || isspace(res))) {
 				/* one for new char, one for '\0' */
