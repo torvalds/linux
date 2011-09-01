@@ -90,16 +90,23 @@ DECLARE_WAIT_QUEUE_HEAD(sdioh_request_buffer_wait);
 			wait_event_timeout(a, false, HZ/100); \
 		} \
 	}	while (0)
-#define BRCMF_PM_RESUME_RETURN_ERROR(a, b)	\
-	do { if (atomic_read(&b->suspend)) return a; } while (0)
 #else
 #define BRCMF_PM_RESUME_WAIT(a, b)
-#define BRCMF_PM_RESUME_RETURN_ERROR(a, b)
 #endif		/* CONFIG_PM_SLEEP */
 
 static int
 brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
 			 int regsize, u32 *data);
+
+static bool
+brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
+{
+	bool is_err = false;
+#ifdef CONFIG_PM_SLEEP
+	is_err = atomic_read(&sdiodev->suspend);
+#endif
+	return is_err;
+}
 
 static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 {
@@ -249,7 +256,8 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 	brcmf_dbg(INFO, "rw=%d, func=%d, addr=0x%05x\n", rw, func, regaddr);
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_byte_wait, sdiodev);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
 	if (rw) {		/* CMD52 Write */
 		if (func == 0) {
 			/* Can only directly write to some F0 registers.
@@ -351,7 +359,8 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 		  cmd_type, rw, func, addr, nbytes);
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_word_wait, sdiodev);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
 	/* Claim host controller */
 	sdio_claim_host(sdiodev->func[func]);
 
@@ -400,7 +409,8 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 	brcmf_dbg(TRACE, "Enter\n");
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait, sdiodev);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
 
 	/* Claim host controller */
 	sdio_claim_host(sdiodev->func[func]);
@@ -477,7 +487,8 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 	brcmf_dbg(TRACE, "Enter\n");
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_buffer_wait, sdiodev);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
 	/* Case 1: we don't have a packet. */
 	if (pkt == NULL) {
 		brcmf_dbg(DATA, "Creating new %s Packet, len=%d\n",
