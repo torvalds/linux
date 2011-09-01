@@ -143,7 +143,6 @@ static void keys_timer(unsigned long _data)
 	struct rk29_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
 	unsigned int type = EV_KEY;
-
 	if((suspend)&&(!button->wakeup))
 		return;
 	if(button->gpio != INVALID_GPIO)
@@ -172,54 +171,9 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 				jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
 	return IRQ_HANDLED;
 }
+static void newton_key_early_suspend(struct early_suspend *h);
+static void newton_key_last_resume(struct early_suspend *h);
 
-static int keys_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
-	int i;
-
-	if (device_may_wakeup(&pdev->dev)) {
-		for (i = 0; i < pdata->nbuttons; i++) {
-			struct rk29_keys_button *button = &pdata->buttons[i];
-			int irq = gpio_to_irq(button->gpio);
-			enable_irq_wake(irq);
-		}
-	}
-	suspend = 1;
-	return 0;
-}
-
-static int keys_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
-	int i;
-
-	if (device_may_wakeup(&pdev->dev)) {
-		for (i = 0; i < pdata->nbuttons; i++) {
-			struct rk29_keys_button *button = &pdata->buttons[i];
-			if (button->wakeup) {
-				int irq = gpio_to_irq(button->gpio);
-				disable_irq_wake(irq);
-			}
-		}
-	}
-	suspend = 0;
-	return 0;
-}
-
-static void newton_key_early_suspend(struct early_suspend *h)
-{
-	dev_info(&input_dev->dev, "newton_key_early_suspend!\n");
-	keys_suspend(&input_dev->dev);
-}
-
-static void newton_key_last_resume(struct early_suspend *h)
-{
-	dev_info(&input_dev->dev, "newton_key_last_resume!\n");
-	keys_resume(&input_dev->dev);
-}
 
 static int __devinit keys_probe(struct platform_device *pdev)
 {
@@ -257,7 +211,6 @@ static int __devinit keys_probe(struct platform_device *pdev)
 		__set_bit(EV_REP, input->evbit);
 	ddata->nbuttons = pdata->nbuttons;
 	ddata->input = input;
-
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct rk29_keys_button *button = &pdata->buttons[i];
 		struct rk29_button_data *bdata = &ddata->data[i];
@@ -288,6 +241,7 @@ static int __devinit keys_probe(struct platform_device *pdev)
 				gpio_free(button->gpio);
 				goto fail2;
 			}
+
 			irq = gpio_to_irq(button->gpio);
 			if (irq < 0) {
 				error = irq;
@@ -372,6 +326,59 @@ static int __devexit keys_remove(struct platform_device *pdev)
 }
 
 
+#ifdef CONFIG_PM
+static int keys_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
+	int i;
+
+	if (device_may_wakeup(&pdev->dev)) {
+		for (i = 0; i < pdata->nbuttons; i++) {
+			struct rk29_keys_button *button = &pdata->buttons[i];
+			if (button->wakeup) {
+				int irq = gpio_to_irq(button->gpio);
+				enable_irq_wake(irq);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int keys_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
+	int i;
+
+	if (device_may_wakeup(&pdev->dev)) {
+		for (i = 0; i < pdata->nbuttons; i++) {
+			struct rk29_keys_button *button = &pdata->buttons[i];
+			if (button->wakeup) {
+				int irq = gpio_to_irq(button->gpio);
+				disable_irq_wake(irq);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void newton_key_early_suspend(struct early_suspend *h)
+{
+	suspend = 1;
+}
+
+static void newton_key_last_resume(struct early_suspend *h)
+{
+	suspend = 0;
+}
+static const struct dev_pm_ops keys_pm_ops = {
+	.suspend	= keys_suspend,
+	.resume		= keys_resume,
+};
+#endif
 
 static struct platform_driver keys_device_driver = {
 	.probe		= keys_probe,
@@ -379,6 +386,9 @@ static struct platform_driver keys_device_driver = {
 	.driver		= {
 		.name	= "rk29-keypad",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &keys_pm_ops,
+#endif
 	}
 };
 
