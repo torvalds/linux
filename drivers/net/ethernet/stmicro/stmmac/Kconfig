@@ -16,7 +16,8 @@ config STMMAC_DEBUG_FS
 	default n
 	depends on STMMAC_ETH && DEBUG_FS
 	-- help
-	  The stmmac entry in /sys reports DMA TX/RX rings.
+	  The stmmac entry in /sys reports DMA TX/RX rings
+	  or (if supported) the HW cap register.
 
 config STMMAC_DA
 	bool "STMMAC DMA arbitration scheme"

@@ -78,6 +78,7 @@ struct stmmac_priv {
 #endif
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_counters mmc;
+	struct dma_features dma_cap;
 };
 
 extern int stmmac_mdio_unregister(struct net_device *ndev);

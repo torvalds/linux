@@ -116,6 +116,37 @@ enum tx_dma_irq_status {
 	handle_tx_rx = 3,
 };
 
+/* DMA HW capabilities */
+struct dma_features {
+	unsigned int mbps_10_100;
+	unsigned int mbps_1000;
+	unsigned int half_duplex;
+	unsigned int hash_filter;
+	unsigned int multi_addr;
+	unsigned int pcs;
+	unsigned int sma_mdio;
+	unsigned int pmt_remote_wake_up;
+	unsigned int pmt_magic_frame;
+	unsigned int rmon;
+	/* IEEE 1588-2002*/
+	unsigned int time_stamp;
+	/* IEEE 1588-2008*/
+	unsigned int atime_stamp;
+	/* 802.3az - Energy-Efficient Ethernet (EEE) */
+	unsigned int eee;
+	unsigned int av;
+	/* TX and RX csum */
+	unsigned int tx_coe;
+	unsigned int rx_coe_type1;
+	unsigned int rx_coe_type2;
+	unsigned int rxfifo_over_2048;
+	/* TX and RX number of channels */
+	unsigned int number_rx_channel;
+	unsigned int number_tx_channel;
+	/* Alternate (enhanced) DESC mode*/
+	unsigned int enh_desc;
+};
+
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
 #define BUF_SIZE_16KiB 16384
 #define BUF_SIZE_8KiB 8192
@@ -188,6 +219,8 @@ struct stmmac_dma_ops {
 	void (*stop_rx) (void __iomem *ioaddr);
 	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x);
+	/* If supported then get the optional core features */
+	unsigned int (*get_hw_feature) (void __iomem *ioaddr);
 };
 
 struct stmmac_ops {
