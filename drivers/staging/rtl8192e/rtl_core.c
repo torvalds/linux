@@ -588,7 +588,6 @@ static void rtl8192_update_beacon(void *data)
 	rtl8192_update_cap(dev, net->capability);
 }
 
-#define MOVE_INTO_HANDLER
 int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
 
 static void rtl8192_qos_activate(void *data)
@@ -596,13 +595,6 @@ static void rtl8192_qos_activate(void *data)
 	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
 				  qos_activate);
 	struct net_device *dev = priv->rtllib->dev;
-#ifndef MOVE_INTO_HANDLER
-	struct rtllib_qos_parameters *qos_parameters =
-		 &priv->rtllib->current_network.qos_data.parameters;
-	u8 mode = priv->rtllib->current_network.mode;
-	u8  u1bAIFS;
-	u32 u4bAcParam;
-#endif
 	int i;
 
 	if (priv == NULL)
@@ -615,21 +607,7 @@ static void rtl8192_qos_activate(void *data)
 		 "received\n");
 
 	for (i = 0; i <  QOS_QUEUE_NUM; i++) {
-#ifndef MOVE_INTO_HANDLER
-		u1bAIFS = qos_parameters->aifs[i] *
-			  ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
-		u4bAcParam = ((((u32)(qos_parameters->tx_op_limit[i])) <<
-			     AC_PARAM_TXOP_LIMIT_OFFSET) |
-			     (((u32)(qos_parameters->cw_max[i])) <<
-			     AC_PARAM_ECW_MAX_OFFSET) |
-			     (((u32)(qos_parameters->cw_min[i])) <<
-			     AC_PARAM_ECW_MIN_OFFSET) |
-			     ((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-		RT_TRACE(COMP_DBG, "===>ACI:%d:u4bAcParam:%x\n", i, u4bAcParam);
-		write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);
-#else
 		priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8 *)(&i));
-#endif
 	}
 
 success:
