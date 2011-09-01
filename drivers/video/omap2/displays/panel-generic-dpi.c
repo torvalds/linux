@@ -232,6 +232,31 @@ static struct panel_config generic_dpi_panels[] = {
 		.power_off_delay	= 0,
 		.name			= "powertip_ph480272t",
 	},
+
+	/* Innolux AT070TN83 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 40000,
+
+			.hsw		= 48,
+			.hfp		= 1,
+			.hbp		= 1,
+
+			.vsw		= 3,
+			.vfp		= 12,
+			.vbp		= 25,
+		},
+		.acbi			= 0x0,
+		.acb			= 0x28,
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS,
+		.power_on_delay		= 0,
+		.power_off_delay	= 0,
+		.name			= "innolux_at070tn83",
+	},
 };
 
 struct panel_drv_data {
