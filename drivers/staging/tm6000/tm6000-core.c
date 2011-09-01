@@ -621,6 +621,12 @@ int tm6000_reset(struct tm6000_core *dev)
 
 	msleep(5);
 
+	/*
+	 * Not all devices have int_in defined
+	 */
+	if (!dev->int_in.endp)
+		return 0;
+
 	err = usb_set_interface(dev->udev, dev->isoc_in.bInterfaceNumber, 2);
 	if (err < 0) {
 		tm6000_err("failed to select interface %d, alt. setting 2\n",
