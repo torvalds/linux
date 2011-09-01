@@ -39,6 +39,9 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCI_VENDOR_ID_ROHM			0x10db
 #define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 
+/* Macros for ML7831 */
+#define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
+
 #define PCH_GBE_TX_WEIGHT         64
 #define PCH_GBE_RX_WEIGHT         64
 #define PCH_GBE_RX_BUFFER_WRITE   16
@@ -2454,6 +2457,13 @@ static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
 	 },
 	{.vendor = PCI_VENDOR_ID_ROHM,
 	 .device = PCI_DEVICE_ID_ROHM_ML7223_GBE,
+	 .subvendor = PCI_ANY_ID,
+	 .subdevice = PCI_ANY_ID,
+	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
+	 .class_mask = (0xFFFF00)
+	 },
+	{.vendor = PCI_VENDOR_ID_ROHM,
+	 .device = PCI_DEVICE_ID_ROHM_ML7831_GBE,
 	 .subvendor = PCI_ANY_ID,
 	 .subdevice = PCI_ANY_ID,
 	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
