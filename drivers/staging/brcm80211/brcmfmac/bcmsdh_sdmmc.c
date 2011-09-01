@@ -478,7 +478,7 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
  *
  */
 extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
+brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			   uint fix_inc, uint write, uint func, uint addr,
 			   uint reg_width, uint buflen_u, u8 *buffer,
 			   struct sk_buff *pkt)

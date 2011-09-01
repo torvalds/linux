@@ -41,9 +41,6 @@
 #define SDIOH_CMD_TYPE_APPEND   1	/* Append command */
 #define SDIOH_CMD_TYPE_CUTTHRU  2	/* Cut-through command */
 
-#define SDIOH_DATA_PIO          0	/* PIO mode */
-#define SDIOH_DATA_DMA          1	/* DMA mode */
-
 /* Module parameters specific to each host-controller driver */
 
 module_param(sd_f2_blocksize, int, 0);
@@ -412,8 +409,8 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_PIO,
-		incr_fix, SDIOH_READ, fn, addr, width, nbytes, buf, pkt);
+	status = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
+					    fn, addr, width, nbytes, buf, pkt);
 
 	return status;
 }
@@ -448,8 +445,8 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	return brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_PIO,
-		incr_fix, SDIOH_WRITE, fn, addr, width, nbytes, buf, pkt);
+	return brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
+					  addr, width, nbytes, buf, pkt);
 }
 
 int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
@@ -458,8 +455,8 @@ int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	return brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_PIO,
-		SDIOH_DATA_INC, (rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
+	return brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
+		(rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
 		addr, 4, nbytes, buf, NULL);
 }
 

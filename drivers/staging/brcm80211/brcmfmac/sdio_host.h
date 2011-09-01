@@ -253,7 +253,7 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type,
 
 /* read or write any buffer using cmd53 */
 extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
+brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			   uint fix_inc, uint rw, uint fnc_num,
 			   u32 addr, uint regwidth,
 			   u32 buflen, u8 *buffer, struct sk_buff *pkt);
