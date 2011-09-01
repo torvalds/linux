@@ -60,6 +60,8 @@
 					 * accumulate between resets.
 					 */
 
+#define AMPDU_DELIMITER_LEN	4
+
 #define TX_SEQ_TO_INDEX(seq) ((seq) % AMPDU_TX_BA_MAX_WSIZE)
 
 /* max possible overhead per mpdu in the ampdu; 3 is for roundup if needed */
@@ -677,7 +679,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 			if (is40)
 				mimo_ctlchbw =
-				   CHSPEC_SB_UPPER(BRCMS_BAND_PI_RADIO_CHANSPEC)
+				   CHSPEC_SB_UPPER(wlc_phy_chanspec_get(
+								 wlc->band->pi))
 				   ? PHY_TXC1_BW_20MHZ_UP : PHY_TXC1_BW_20MHZ;
 
 			/* rebuild the rspec and rspec_fallback */
@@ -748,7 +751,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 				 * check if there are enough
 				 * descriptors available
 				 */
-				if (TXAVAIL(wlc, fifo) <= (seg_cnt + 1)) {
+				if (*wlc->core->txavail[fifo] <= seg_cnt + 1) {
 					wiphy_err(wiphy, "%s: No fifo space  "
 						  "!!\n", __func__);
 					p = NULL;
@@ -1083,7 +1086,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		    TXC_AMPDU_LAST)
 			break;
 
-		p = GETNEXTTXP(wlc, queue);
+		p = dma_getnexttxp(wlc->hw->di[queue], DMA_RANGE_TRANSMITTED);
 	}
 	brcms_c_send_q(wlc);
 
@@ -1141,7 +1144,8 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 			if (((mcl & TXC_AMPDU_MASK) >> TXC_AMPDU_SHIFT) ==
 			    TXC_AMPDU_LAST)
 				break;
-			p = GETNEXTTXP(wlc, queue);
+			p = dma_getnexttxp(wlc->hw->di[queue],
+					   DMA_RANGE_TRANSMITTED);
 		}
 		brcms_c_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
 	}
