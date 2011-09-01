@@ -143,6 +143,9 @@ struct _gckOS
     gctINT                      cacheNum;
     gcsMapedNonPagedCache *     cacheHead;
     gcsMapedNonPagedCache *     cacheTail;
+
+    gctINT                      pageNum;
+    struct page *               pageCache[100];
 #endif
 };
 
@@ -526,6 +529,13 @@ gckOS_Construct(
     os->signal.currentID = 0;
 #endif
 
+#if gcdkUSE_MAPED_NONPAGE_CACHE
+    for(os->pageNum=0; os->pageNum<50; os->pageNum++) {
+        os->pageCache[os->pageNum] = alloc_pages(GFP_KERNEL | GFP_DMA, get_order(5 * PAGE_SIZE));
+    }
+    //printk("os->pageNum = %d\n", os->pageNum);
+#endif
+
     /* Return pointer to the gckOS object. */
     *Os = os;
 
@@ -601,6 +611,12 @@ gckOS_Destroy(
 // dkm : gcdkUSE_MAPED_NONPAGE_CACHE
 #if gcdkUSE_MAPED_NONPAGE_CACHE
     _FreeAllMapedNonPagedCache(Os, 0);
+
+    for(i=0; i<Os->pageNum; i++) {
+        if(Os->pageCache[i]) {
+            free_pages((unsigned long)page_address(Os->pageCache[i]), get_order(5 * PAGE_SIZE));
+        }
+    }
 #endif
 
 #if !USE_NEW_LINUX_SIGNAL
@@ -1496,7 +1512,19 @@ gckOS_AllocateNonPagedMemory(
 #else
     size    = mdl->numPages * PAGE_SIZE;
     order   = get_order(size);
+    
+#if gcdkUSE_MAPED_NONPAGE_CACHE
+    if(5==mdl->numPages && Os->pageNum>0 && Os->pageCache[Os->pageNum-1]) {
+        Os->pageNum--;
+        page    = Os->pageCache[Os->pageNum];
+        Os->pageCache[Os->pageNum] = gcvNULL;
+        //printk("pop pages, os->pageNum = %d\n", Os->pageNum);
+    } else {
+        page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
+    }
+#else
     page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
+#endif
 
     if (page == gcvNULL)
     {
@@ -1833,7 +1861,17 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
         size    -= PAGE_SIZE;
     }
 
+#if gcdkUSE_MAPED_NONPAGE_CACHE
+    if(5==mdl->numPages && Os->pageNum<100 && !Os->pageCache[Os->pageNum]) {
+        Os->pageCache[Os->pageNum] = virt_to_page(mdl->kaddr);
+        Os->pageNum ++;
+        //printk("push pages, os->pageNum = %d\n", Os->pageNum);
+    } else {
+        free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
+    }
+#else
     free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
+#endif
 
     iounmap(mdl->addr);
 #endif /* NO_DMA_COHERENT */
