@@ -617,6 +617,9 @@ struct cs42l52_platform_data cs42l52_info = {
 #if defined (CONFIG_BATTERY_BQ27541)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	1
+#define CHG_OK RK29_PIN4_PA3
+#define BAT_LOW	RK29_PIN4_PA2
+
 static int bq27541_init_dc_check_pin(void){	
 	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
 		gpio_free(DC_CHECK_PIN);      
@@ -631,6 +634,8 @@ struct bq27541_platform_data bq27541_info = {
 	.init_dc_check_pin = bq27541_init_dc_check_pin,	
 	.dc_check_pin =  DC_CHECK_PIN,		
 	.bat_num = LI_LION_BAT_NUM,
+	.chgok_check_pin =  CHG_OK,
+	.bat_check_pin =  BAT_LOW,
 };
 #endif
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -2203,24 +2208,9 @@ static struct cpufreq_frequency_table freq_table[] = {
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
-#define BAT_LOW	RK29_PIN4_PA2
-#define POWER_ON_PIN	RK29_PIN4_PA4
+
 static void __init machine_rk29_board_init(void)
 {
-	int val =0;
-	gpio_request(BAT_LOW, NULL);
-	gpio_direction_input(BAT_LOW);
-	val = gpio_get_value(BAT_LOW);
-	if (val == 0){
-		printk("no battery, no power up\n");
-		gpio_request(POWER_ON_PIN, "poweronpin");
-		gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-		while(1){
-			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
-			mdelay(100);
-		}
-	}
-	gpio_free(BAT_LOW);
 	rk29_board_iomux_init();
 
 	board_power_init();

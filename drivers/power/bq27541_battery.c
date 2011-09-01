@@ -25,6 +25,9 @@
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 #include <mach/board.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
+
 
 
 #define DRIVER_VERSION			"1.1.0"
@@ -46,13 +49,15 @@
 
 #define BQ27510_SPEED 			100 * 1000
 #define POWER_ON_PIN	RK29_PIN4_PA4
+//#define CHG_OK RK29_PIN4_PA3
 
-#define BAT_LOW	RK29_PIN4_PA2
+//#define BAT_LOW	RK29_PIN4_PA2
 
 
 int  virtual_battery_enable = 0;
 extern int dwc_vbus_status(void);
 static void bq27541_set(void);
+
 
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
@@ -70,9 +75,12 @@ struct bq27541_device_info {
 	struct power_supply	bat;
 	struct power_supply	ac;
 	struct delayed_work work;
+	struct delayed_work wakeup_work;
 	struct i2c_client	*client;
+	int wake_irq;
 	unsigned int interval;
 	unsigned int dc_check_pin;
+	unsigned int bat_check_pin;
 	unsigned int bat_num;
 	int power_down;
 };
@@ -156,6 +164,36 @@ static int bq27541_write(struct i2c_client *client, u8 reg, u8 const buf[], unsi
  * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
  */
+ 
+static irqreturn_t bq27541_bat_wakeup(int irq, void *dev_id)
+{	
+	struct bq27541_device_info *di = (struct bq27541_device_info *)dev_id;
+
+	printk("!!!  bq27541 bat_low irq low vol !!!\n\n\n");
+	disable_irq_wake(di->wake_irq);
+
+	schedule_delayed_work(&di->wakeup_work, msecs_to_jiffies(0));	
+	return IRQ_HANDLED;
+}
+
+static void bq27541_battery_wake_work(struct work_struct *work)
+{
+    int ret;
+    struct bq27541_device_info *di = 
+		(struct bq27541_device_info *)container_of(work, struct bq27541_device_info, wakeup_work.work);
+		
+    rk28_send_wakeup_key();
+    
+    free_irq(di->wake_irq, di);
+	di->wake_irq = gpio_to_irq(di->bat_check_pin);
+	
+	ret = request_irq(di->wake_irq, bq27541_bat_wakeup, IRQF_TRIGGER_FALLING, "bq27541_battery", di);
+	if (ret) {
+		printk("request faild!\n");
+		return;
+	}
+	enable_irq_wake(di->wake_irq);
+}
 
 
 static int bq27541_battery_temperature(struct bq27541_device_info *di)
@@ -187,6 +225,9 @@ static int bq27541_battery_temperature(struct bq27541_device_info *di)
  * Return the battery Voltage in milivolts
  * Or < 0 if something fails.
  */
+
+
+
 static int bq27541_battery_voltage(struct bq27541_device_info *di)
 {
 	int ret;
@@ -202,7 +243,6 @@ static int bq27541_battery_voltage(struct bq27541_device_info *di)
 	ret = bq27541_read(di->client,BQ27x00_REG_VOLT,buf,2); 
 	if (ret<0) {
 		dev_err(di->dev, "error reading voltage\n");
-		printk("vol smaller then 3.4V, shutdown");
 //		gpio_set_value(POWER_ON_PIN, GPIO_LOW);
 		return ret;
 	}
@@ -215,14 +255,15 @@ static int bq27541_battery_voltage(struct bq27541_device_info *di)
 		volt = volt * 1000;
 	}
 		
+
+
 	
-	if ((volt <= 3400000)  && (volt > 0)){
-		printk("vol smaller then 3.4V, shutdown");
+	if ((volt <= 3400000)  && (volt > 0) && gpio_get_value(di->dc_check_pin)){
+		printk("vol smaller then 3.4V, report to android!");
 		di->power_down = 1;
 	}else{
 		di->power_down = 0;
 	}
-
 
 	
 	DBG("Enter:%s %d--volt = %d\n",__FUNCTION__,__LINE__,volt);
@@ -468,7 +509,6 @@ static int bq27541_battery_get_property(struct power_supply *psy,
 					union power_supply_propval *val)
 {
 	int ret = 0;
-	int vals=0;
 	
 	struct bq27541_device_info *di = to_bq27541_device_info(psy);
 	DBG("Enter:%s %d psp= %d\n",__FUNCTION__,__LINE__,psp);
@@ -489,10 +529,10 @@ static int bq27541_battery_get_property(struct power_supply *psy,
 		val->intval = bq27541_battery_current(di);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (!(di->power_down)){      // < 3.4V    power down ,capacity = 0;
-			val->intval = bq27541_battery_rsoc(di);
-		}else{
+		if (di->power_down == 1){      // < 3.4V    power down ,capacity = 0;
 			val->intval = 0;
+		}else {
+			val->intval = bq27541_battery_rsoc(di);
 		}
 		break;
 
@@ -629,8 +669,8 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	int retval = 0;
 	struct bq27541_platform_data *pdata;
 	int val =0;
-	
-
+	char buf[2];
+	int volt;
 	DBG("**********  bq27541_battery_probe**************  ");
 	pdata = client->dev.platform_data;
 	
@@ -649,6 +689,7 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	
 	di->bat_num = pdata->bat_num;
 	di->dc_check_pin = pdata->dc_check_pin;
+	di->bat_check_pin = pdata->bat_check_pin;
 	
 	if (pdata->init_dc_check_pin)
 		pdata->init_dc_check_pin( );
@@ -671,11 +712,95 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&di->work, bq27541_battery_work);
 	schedule_delayed_work(&di->work, di->interval);
 	dev_info(&client->dev, "support ver. %s enabled\n", DRIVER_VERSION);
+
+#if  !defined (CONFIG_NO_BATTERY_IC)
+
+	// no battery  , no power up
+	gpio_request(POWER_ON_PIN, "poweronpin");
+	gpio_request(pdata->bat_check_pin, NULL);
+	gpio_direction_input(pdata->bat_check_pin);
+	gpio_request(pdata->chgok_check_pin, "CHG_OK");
+	gpio_direction_input(pdata->chgok_check_pin);
+
+	val = gpio_get_value(pdata->bat_check_pin);
+	if (val == 1){
+		printk("\n\n!!! bat_low  high !!!\n\n");
+		val = bq27541_read(di->client,BQ27x00_REG_VOLT,buf,2);
+		if (val < 0){
+			printk("\n\n!!! bq i2c err! no battery,  power down\n!!!\n\n");
+			gpio_direction_output(POWER_ON_PIN, GPIO_LOW);	
+			while(1){
+				gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+				mdelay(100);
+			}
+		}
+
+	}else{
+			
+		printk("\n\n!!! bat_low  low !!!\n\n");
+		val = gpio_get_value(pdata->chgok_check_pin);
+		if (val == 1){
+			printk("no battery, power down \n");
+			gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+			while(1){
+				gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+				mdelay(100);
+			}
+		}else{
+			mdelay(1000);
+			val = gpio_get_value(pdata->chgok_check_pin);
+			if (val == 1){
+				printk("no battery, power down \n");
+				gpio_direction_output(POWER_ON_PIN, GPIO_LOW);			
+				while(1){
+					gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+					mdelay(100);
+				}
+			}
+		}
+
+	}
+
+//	gpio_free(POWER_ON_PIN);
+//	gpio_free(pdata->bat_check_pin);
+	gpio_free(pdata->chgok_check_pin);
+
+
+	//smaller  3.4V , no power up
+	if (gpio_get_value(di->dc_check_pin) && (gpio_get_value(pdata->bat_check_pin) == 0)){
+			printk("no AC && battery low ,so power down \n");
+			gpio_direction_output(POWER_ON_PIN, GPIO_LOW);			
+			while(1){
+				printk("no AC && battery low ,so power down \n");
+				gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+				mdelay(100);
+			}
+	}	
+
+	
+	// battery low irq
+	di->wake_irq = gpio_to_irq(pdata->bat_check_pin);
+	retval = request_irq(di->wake_irq, bq27541_bat_wakeup, IRQF_TRIGGER_FALLING, "bq27541_battery", di);
+	if (retval) {
+		printk("failed to request bat det irq\n");
+		goto err_batirq_failed;
+	}
+	
+	INIT_DELAYED_WORK(&di->wakeup_work, bq27541_battery_wake_work);
+	enable_irq_wake(di->wake_irq);
+
+
+#endif
+	
 	return 0;
 
 batt_failed_4:
 	kfree(di);
 batt_failed_2:
+
+err_batirq_failed:
+	gpio_free(pdata->bat_check_pin);
+
 	return retval;
 }
 
@@ -718,6 +843,8 @@ static int __init bq27541_battery_init(void)
 }
 
 //module_init(bq27541_battery_init);
+//fs_initcall_sync(bq27541_battery_init);
+
 fs_initcall(bq27541_battery_init);
 //arch_initcall(bq27541_battery_init);
 

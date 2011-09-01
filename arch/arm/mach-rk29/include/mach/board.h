@@ -164,7 +164,9 @@ struct bq27510_platform_data {
 
 struct bq27541_platform_data {	
 	int (*init_dc_check_pin)(void);	
-	unsigned int dc_check_pin;	
+	unsigned int dc_check_pin;
+	unsigned int bat_check_pin;
+	unsigned int chgok_check_pin;
 	unsigned int bat_num;
 };
 
