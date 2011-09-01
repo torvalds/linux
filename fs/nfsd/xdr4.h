@@ -184,7 +184,6 @@ struct nfsd4_lockt {
 	struct xdr_netobj		lt_owner;
 	u64				lt_offset;
 	u64				lt_length;
-	struct nfs4_stateowner * 	lt_stateowner;
 	struct nfsd4_lock_denied  	lt_denied;
 };
 

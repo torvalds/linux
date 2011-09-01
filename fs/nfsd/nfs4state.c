@@ -4098,6 +4098,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	struct inode *inode;
 	struct file_lock file_lock;
+	struct nfs4_stateowner *so;
 	int error;
 	__be32 status;
 
@@ -4107,7 +4108,6 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (check_lock_length(lockt->lt_offset, lockt->lt_length))
 		 return nfserr_inval;
 
-	lockt->lt_stateowner = NULL;
 	nfs4_lock_state();
 
 	status = nfserr_stale_clientid;
@@ -4134,10 +4134,10 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	}
 
-	lockt->lt_stateowner = find_lockstateowner_str(inode,
+	so = find_lockstateowner_str(inode,
 			&lockt->lt_clientid, &lockt->lt_owner);
-	if (lockt->lt_stateowner)
-		file_lock.fl_owner = (fl_owner_t)lockt->lt_stateowner;
+	if (so)
+		file_lock.fl_owner = (fl_owner_t)so;
 	file_lock.fl_pid = current->tgid;
 	file_lock.fl_flags = FL_POSIX;
 
