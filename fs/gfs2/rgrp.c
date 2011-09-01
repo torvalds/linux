@@ -1077,14 +1077,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
 
 void gfs2_inplace_release(struct gfs2_inode *ip)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;
-
-	if (gfs2_assert_warn(sdp, al->al_alloced <= al->al_requested) == -1)
-		fs_warn(sdp, "al_alloced = %u, al_requested = %u "
-			     "al_file = %s, al_line = %u\n",
-		             al->al_alloced, al->al_requested, al->al_file,
-			     al->al_line);
 
 	if (al->al_rgd_gh.gh_gl)
 		gfs2_glock_dq_uninit(&al->al_rgd_gh);
