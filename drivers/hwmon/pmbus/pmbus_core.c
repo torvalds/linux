@@ -160,7 +160,7 @@ int pmbus_set_page(struct i2c_client *client, u8 page)
 		rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
 		newpage = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
 		if (newpage != page)
-			rv = -EINVAL;
+			rv = -EIO;
 		else
 			data->currpage = page;
 	}
@@ -229,7 +229,7 @@ static int _pmbus_write_word_data(struct i2c_client *client, int page, int reg,
 			return status;
 	}
 	if (reg >= PMBUS_VIRT_BASE)
-		return -EINVAL;
+		return -ENXIO;
 	return pmbus_write_word_data(client, page, reg, word);
 }
 
@@ -261,7 +261,7 @@ static int _pmbus_read_word_data(struct i2c_client *client, int page, int reg)
 			return status;
 	}
 	if (reg >= PMBUS_VIRT_BASE)
-		return -EINVAL;
+		return -ENXIO;
 	return pmbus_read_word_data(client, page, reg);
 }
 
@@ -320,7 +320,7 @@ static int pmbus_check_status_cml(struct i2c_client *client)
 	if (status < 0 || (status & PB_STATUS_CML)) {
 		status2 = pmbus_read_byte_data(client, -1, PMBUS_STATUS_CML);
 		if (status2 < 0 || (status2 & PB_CML_FAULT_INVALID_COMMAND))
-			return -EINVAL;
+			return -EIO;
 	}
 	return 0;
 }
@@ -1682,7 +1682,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	if (info->pages <= 0 || info->pages > PMBUS_PAGES) {
 		dev_err(&client->dev, "Bad number of PMBus pages: %d\n",
 			info->pages);
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto out_data;
 	}
 

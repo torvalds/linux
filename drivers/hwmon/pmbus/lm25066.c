@@ -57,7 +57,7 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 	int ret;
 
 	if (page > 1)
-		return -EINVAL;
+		return -ENXIO;
 
 	/* Map READ_VAUX into READ_VOUT register on page 1 */
 	if (page == 1) {
@@ -85,7 +85,7 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 			break;
 		default:
 			/* No other valid registers on page 1 */
-			ret = -EINVAL;
+			ret = -ENXIO;
 			break;
 		}
 		goto done;
@@ -138,7 +138,7 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	int ret;
 
 	if (page > 1)
-		return -EINVAL;
+		return -ENXIO;
 
 	switch (reg) {
 	case PMBUS_IIN_OC_WARN_LIMIT:
@@ -164,7 +164,7 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 static int lm25066_write_byte(struct i2c_client *client, int page, u8 value)
 {
 	if (page > 1)
-		return -EINVAL;
+		return -ENXIO;
 
 	if (page == 0)
 		return pmbus_write_byte(client, 0, value);
