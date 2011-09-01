@@ -917,7 +917,7 @@ struct sk_buff *dma_rx(struct dma_pub *pub)
 		tail = head;
 		while ((resid > 0) && (p = _dma_getnextrxp(di, false))) {
 			tail->next = p;
-			pkt_len = min(resid, (int)di->rxbufsize);
+			pkt_len = min_t(uint, resid, di->rxbufsize);
 			__skb_trim(p, pkt_len);
 
 			tail = p;
