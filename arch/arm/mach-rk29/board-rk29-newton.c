@@ -1529,7 +1529,12 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
           return -1;
     }
 
+// cwz 0: close for bt uart2 larkage.
+#if 0
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
+#else
+    gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+#endif
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
     gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
@@ -1547,6 +1552,8 @@ static int rk29sdk_wifi_power(int on)
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
+// cwz 0: close for bt uart2 larkage.
+#if 0
                 if (!rk29sdk_bt_power_state){
                         gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
                         mdelay(100);
@@ -1555,8 +1562,8 @@ static int rk29sdk_wifi_power(int on)
                 {
                         pr_info("wifi shouldn't shut off power, bt is using it!\n");
                 }
+#endif
                 gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
-
         }
 
         rk29sdk_wifi_power_state = on;
