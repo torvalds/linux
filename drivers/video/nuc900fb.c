@@ -39,7 +39,6 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-ldm.h>
 #include <mach/fb.h>
-#include <mach/clkdev.h>
 
 #include "nuc900fb.h"
 
