@@ -87,7 +87,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		     " sentd to: %pM, ieee->dev:%p\n", __func__,
 		     type, Dst, ieee->dev);
 	if (pBA == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA(%p) is NULL\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA is NULL\n");
 		return NULL;
 	}
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
