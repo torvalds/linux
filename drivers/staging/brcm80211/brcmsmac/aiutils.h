@@ -23,18 +23,6 @@
  * SOC Interconnect Address Map.
  * All regions may not exist on all chips.
  */
-/* Physical SDRAM */
-#define SI_SDRAM_BASE		0x00000000
-/* Host Mode sb2pcitranslation0 (64 MB) */
-#define SI_PCI_MEM		0x08000000
-#define SI_PCI_MEM_SZ		(64 * 1024 * 1024)
-/* Host Mode sb2pcitranslation1 (64 MB) */
-#define SI_PCI_CFG		0x0c000000
-/* Region 2 for sdram (512 MB) */
-#define SI_SDRAM_R2		0x80000000
-
-/* Wrapper space base */
-#define SI_WRAP_BASE		0x18100000
 /* each core gets 4Kbytes for registers */
 #define SI_CORE_SIZE		0x1000
 /*
@@ -44,39 +32,9 @@
  */
 #define	SI_MAXCORES		16
 
-/* On-chip RAM on chips that also have DDR */
-#define	SI_FASTRAM		0x19000000
-#define	SI_FASTRAM_SWAPPED	0x19800000
-
-/* Flash Region 2 (region 1 shadowed here) */
-#define	SI_FLASH2		0x1c000000
-/* Size of Flash Region 2 */
-#define	SI_FLASH2_SZ		0x02000000
-/* ARM Cortex-M3 ROM */
-#define	SI_ARMCM3_ROM		0x1e000000
-/* MIPS Flash Region 1 */
-#define	SI_FLASH1		0x1fc00000
-/* MIPS Size of Flash Region 1 */
-#define	SI_FLASH1_SZ		0x00400000
-/* ARM7TDMI-S ROM */
-#define	SI_ARM7S_ROM		0x20000000
-/* ARM Cortex-M3 SRAM Region 2 */
-#define	SI_ARMCM3_SRAM2		0x60000000
-/* ARM7TDMI-S SRAM Region 2 */
-#define	SI_ARM7S_SRAM2		0x80000000
-/* ARM Flash Region 1 */
-#define	SI_ARM_FLASH1		0xffff0000
-/* ARM Size of Flash Region 1 */
-#define	SI_ARM_FLASH1_SZ	0x00010000
-
-/* Client Mode sb2pcitranslation2 (1 GB) */
-#define SI_PCI_DMA		0x40000000
-/* Client Mode sb2pcitranslation2 (1 GB) */
-#define SI_PCI_DMA2		0x80000000
 /* Client Mode sb2pcitranslation2 size in bytes */
 #define SI_PCI_DMA_SZ		0x40000000
-/* PCIE Client Mode sb2pcitranslation2 (2 ZettaBytes), low 32 bits */
-#define SI_PCIE_DMA_L32		0x00000000
+
 /* PCIE Client Mode sb2pcitranslation2 (2 ZettaBytes), high 32 bits */
 #define SI_PCIE_DMA_H32		0x80000000
 
@@ -195,18 +153,6 @@
 /* Minumum amount of flash we support */
 #define FLASH_MIN		0x00020000	/* Minimum flash size */
 
-/* A boot/binary may have an embedded block that describes its size  */
-#define	BISZ_OFFSET		0x3e0	/* At this offset into the binary */
-#define	BISZ_MAGIC		0x4249535a	/* Marked with value: 'BISZ' */
-#define	BISZ_MAGIC_IDX		0	/* Word 0: magic */
-#define	BISZ_TXTST_IDX		1	/*      1: text start */
-#define	BISZ_TXTEND_IDX		2	/*      2: text end */
-#define	BISZ_DATAST_IDX		3	/*      3: data start */
-#define	BISZ_DATAEND_IDX	4	/*      4: data end */
-#define	BISZ_BSSST_IDX		5	/*      5: bss start */
-#define	BISZ_BSSEND_IDX		6	/*      6: bss end */
-#define BISZ_SIZE		7	/* descriptor size in 32-bit integers */
-
 #define	CC_SROM_OTP		0x800	/* SROM/OTP address space */
 
 /* gpiotimerval */
@@ -215,23 +161,6 @@
 /* Fields in clkdiv */
 #define	CLKD_OTP		0x000f0000
 #define	CLKD_OTP_SHIFT		16
-
-/* When Srom support present, fields in sromcontrol */
-#define	SRC_START		0x80000000
-#define	SRC_BUSY		0x80000000
-#define	SRC_OPCODE		0x60000000
-#define	SRC_OP_READ		0x00000000
-#define	SRC_OP_WRITE		0x20000000
-#define	SRC_OP_WRDIS		0x40000000
-#define	SRC_OP_WREN		0x60000000
-#define	SRC_OTPSEL		0x00000010
-#define	SRC_LOCK		0x00000008
-#define	SRC_SIZE_MASK		0x00000006
-#define	SRC_SIZE_1K		0x00000000
-#define	SRC_SIZE_4K		0x00000002
-#define	SRC_SIZE_16K		0x00000004
-#define	SRC_SIZE_SHIFT		1
-#define	SRC_PRESENT		0x00000001
 
 /* Package IDs */
 #define	BCM4717_PKG_ID		9	/* 4717 package id */
@@ -243,38 +172,6 @@
 #define	BCM47162_CHIP_ID	47162	/* 47162 chipcommon chipid */
 #define	BCM4748_CHIP_ID		0x4748	/* 4716 chipcommon chipid (OTP, RBBU) */
 
-#define	GOODCOREADDR(x, b) \
-	(((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
-		IS_ALIGNED((x), SI_CORE_SIZE))
-#define	GOODREGS(regs) \
-	((regs) != NULL && IS_ALIGNED((unsigned long)(regs), SI_CORE_SIZE))
-#define BADCOREADDR	0
-#define	GOODIDX(idx)	(((uint)idx) < SI_MAXCORES)
-#define	NOREV		-1	/* Invalid rev */
-
-/* Newer chips can access PCI/PCIE and CC core without requiring to change
- * PCI BAR0 WIN
- */
-#define SI_FAST(si) (((si)->pub.buscoretype == PCIE_CORE_ID) ||	\
-		     (((si)->pub.buscoretype == PCI_CORE_ID) && \
-		      (si)->pub.buscorerev >= 13))
-
-#define PCIEREGS(si) (((char *)((si)->curmap) + PCI_16KB0_PCIREGS_OFFSET))
-#define CCREGS_FAST(si) (((char *)((si)->curmap) + PCI_16KB0_CCREGS_OFFSET))
-
-/*
- * Macros to disable/restore function core(D11, ENET, ILINE20, etc) interrupts
- * before after core switching to avoid invalid register accesss inside ISR.
- */
-#define INTR_OFF(si, intr_val) \
-	if ((si)->intrsoff_fn && \
-	    (si)->coreid[(si)->curidx] == (si)->dev_coreid) \
-		intr_val = (*(si)->intrsoff_fn)((si)->intr_arg)
-#define INTR_RESTORE(si, intr_val) \
-	if ((si)->intrsrestore_fn && \
-	    (si)->coreid[(si)->curidx] == (si)->dev_coreid) \
-		(*(si)->intrsrestore_fn)((si)->intr_arg, intr_val)
-
 /* dynamic clock control defines */
 #define	LPOMINFREQ		25000	/* low power oscillator min */
 #define	LPOMAXFREQ		43000	/* low power oscillator max */
@@ -285,55 +182,6 @@
 
 #define	ILP_DIV_5MHZ		0	/* ILP = 5 MHz */
 #define	ILP_DIV_1MHZ		4	/* ILP = 1 MHz */
-
-#define PCI(si)		((si)->pub.buscoretype == PCI_CORE_ID)
-#define PCIE(si)	((si)->pub.buscoretype == PCIE_CORE_ID)
-#define PCI_FORCEHT(si)	\
-	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))
-
-/* GPIO Based LED powersave defines */
-#define DEFAULT_GPIO_ONTIME	10	/* Default: 10% on */
-#define DEFAULT_GPIO_OFFTIME	90	/* Default: 10% on */
-
-#define DEFAULT_GPIOTIMERVAL \
-	((DEFAULT_GPIO_ONTIME << GPIO_ONTIME_SHIFT) | DEFAULT_GPIO_OFFTIME)
-
-/*
- * Data structure to export all chip specific common variables
- *   public (read-only) portion of aiutils handle returned by si_attach()
- */
-struct si_pub {
-	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
-	uint buscorerev;	/* buscore rev */
-	uint buscoreidx;	/* buscore index */
-	int ccrev;		/* chip common core rev */
-	u32 cccaps;		/* chip common capabilities */
-	u32 cccaps_ext;	/* chip common capabilities extension */
-	int pmurev;		/* pmu core rev */
-	u32 pmucaps;		/* pmu capabilities */
-	uint boardtype;		/* board type */
-	uint boardvendor;	/* board vendor */
-	uint boardflags;	/* board flags */
-	uint boardflags2;	/* board flags2 */
-	uint chip;		/* chip number */
-	uint chiprev;		/* chip revision */
-	uint chippkg;		/* chip package option */
-	u32 chipst;		/* chip status */
-	bool issim;		/* chip is in simulation or emulation */
-	uint socirev;		/* SOC interconnect rev */
-	bool pci_pr32414;
-
-};
-
-/*
- * Many of the routines below take an 'sih' handle as their first arg.
- * Allocate this by calling si_attach().  Free it by calling si_detach().
- * At any one time, the sih is logically focused on one particular si core
- * (the "current core").
- * Use si_setcore() or si_setcoreidx() to change the association to another core
- */
-
-#define	BADIDX		(SI_MAXCORES + 1)
 
 /* clkctl xtal what flags */
 #define	XTAL			0x1	/* primary crystal oscillator (2050) */
@@ -367,26 +215,32 @@ struct si_pub {
 #define SI_PCIDOWN	2
 #define SI_PCIUP	3
 
-/* PMU clock/power control */
-#define PMUCTL_ENAB(sih)	((sih)->cccaps & CC_CAP_PMU)
+/*
+ * Data structure to export all chip specific common variables
+ *   public (read-only) portion of aiutils handle returned by si_attach()
+ */
+struct si_pub {
+	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
+	uint buscorerev;	/* buscore rev */
+	uint buscoreidx;	/* buscore index */
+	int ccrev;		/* chip common core rev */
+	u32 cccaps;		/* chip common capabilities */
+	u32 cccaps_ext;	/* chip common capabilities extension */
+	int pmurev;		/* pmu core rev */
+	u32 pmucaps;		/* pmu capabilities */
+	uint boardtype;		/* board type */
+	uint boardvendor;	/* board vendor */
+	uint boardflags;	/* board flags */
+	uint boardflags2;	/* board flags2 */
+	uint chip;		/* chip number */
+	uint chiprev;		/* chip revision */
+	uint chippkg;		/* chip package option */
+	u32 chipst;		/* chip status */
+	bool issim;		/* chip is in simulation or emulation */
+	uint socirev;		/* SOC interconnect rev */
+	bool pci_pr32414;
 
-/* chipcommon clock/power control (exclusive with PMU's) */
-#define CCCTL_ENAB(sih)		((sih)->cccaps & CC_CAP_PWR_CTL)
-#define CCPLL_ENAB(sih)		((sih)->cccaps & CC_CAP_PLL_MASK)
-
-/* External PA enable mask */
-#define GPIO_CTRL_EPA_EN_MASK 0x40
-
-#define	SI_ERROR(args)
-
-#ifdef BCMDBG
-#define	SI_MSG(args)	printk args
-#else
-#define	SI_MSG(args)
-#endif				/* BCMDBG */
-
-/* Define SI_VMSG to printf for verbose debugging, but don't check it in */
-#define	SI_VMSG(args)
+};
 
 struct pci_dev;
 
@@ -435,6 +289,15 @@ struct si_info {
 	u32 cib[SI_MAXCORES];	/* erom cia entry for each core */
 	u32 oob_router;	/* oob router registers for axi */
 };
+
+/*
+ * Many of the routines below take an 'sih' handle as their first arg.
+ * Allocate this by calling si_attach().  Free it by calling si_detach().
+ * At any one time, the sih is logically focused on one particular si core
+ * (the "current core").
+ * Use si_setcore() or si_setcoreidx() to change the association to another core
+ */
+
 
 /* AMBA Interconnect exported externs */
 extern uint ai_flag(struct si_pub *sih);

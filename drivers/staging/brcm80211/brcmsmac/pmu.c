@@ -206,7 +206,7 @@ u32 si_pmu_ilp_clock(struct si_pub *sih)
 {
 	static u32 ilpcycles_per_sec;
 
-	if (!PMUCTL_ENAB(sih))
+	if (!(sih->cccaps & CC_CAP_PMU))
 		return ILP_CLOCK;
 
 	if (ilpcycles_per_sec == 0) {
@@ -297,7 +297,7 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 	u32 clock = ALP_CLOCK;
 
 	/* bail out with default */
-	if (!PMUCTL_ENAB(sih))
+	if (!(sih->cccaps & CC_CAP_PMU))
 		return clock;
 
 	switch (sih->chip) {

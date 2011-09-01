@@ -285,6 +285,80 @@
 /* resetctrl */
 #define	AIRC_RESET		1
 
+#define	NOREV		-1	/* Invalid rev */
+
+/* GPIO Based LED powersave defines */
+#define DEFAULT_GPIO_ONTIME	10	/* Default: 10% on */
+#define DEFAULT_GPIO_OFFTIME	90	/* Default: 10% on */
+
+/* When Srom support present, fields in sromcontrol */
+#define	SRC_START		0x80000000
+#define	SRC_BUSY		0x80000000
+#define	SRC_OPCODE		0x60000000
+#define	SRC_OP_READ		0x00000000
+#define	SRC_OP_WRITE		0x20000000
+#define	SRC_OP_WRDIS		0x40000000
+#define	SRC_OP_WREN		0x60000000
+#define	SRC_OTPSEL		0x00000010
+#define	SRC_LOCK		0x00000008
+#define	SRC_SIZE_MASK		0x00000006
+#define	SRC_SIZE_1K		0x00000000
+#define	SRC_SIZE_4K		0x00000002
+#define	SRC_SIZE_16K		0x00000004
+#define	SRC_SIZE_SHIFT		1
+#define	SRC_PRESENT		0x00000001
+
+/* External PA enable mask */
+#define GPIO_CTRL_EPA_EN_MASK 0x40
+
+#define DEFAULT_GPIOTIMERVAL \
+	((DEFAULT_GPIO_ONTIME << GPIO_ONTIME_SHIFT) | DEFAULT_GPIO_OFFTIME)
+
+#define	BADIDX		(SI_MAXCORES + 1)
+
+/* Newer chips can access PCI/PCIE and CC core without requiring to change
+ * PCI BAR0 WIN
+ */
+#define SI_FAST(si) (((si)->pub.buscoretype == PCIE_CORE_ID) ||	\
+		     (((si)->pub.buscoretype == PCI_CORE_ID) && \
+		      (si)->pub.buscorerev >= 13))
+
+#define CCREGS_FAST(si) (((char *)((si)->curmap) + PCI_16KB0_CCREGS_OFFSET))
+
+#define	IS_SIM(chippkg)	\
+	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
+
+/*
+ * Macros to disable/restore function core(D11, ENET, ILINE20, etc) interrupts
+ * before after core switching to avoid invalid register accesss inside ISR.
+ */
+#define INTR_OFF(si, intr_val) \
+	if ((si)->intrsoff_fn && \
+	    (si)->coreid[(si)->curidx] == (si)->dev_coreid) \
+		intr_val = (*(si)->intrsoff_fn)((si)->intr_arg)
+
+#define INTR_RESTORE(si, intr_val) \
+	if ((si)->intrsrestore_fn && \
+	    (si)->coreid[(si)->curidx] == (si)->dev_coreid) \
+		(*(si)->intrsrestore_fn)((si)->intr_arg, intr_val)
+
+#define PCI(si)		((si)->pub.buscoretype == PCI_CORE_ID)
+#define PCIE(si)	((si)->pub.buscoretype == PCIE_CORE_ID)
+
+#define PCI_FORCEHT(si)	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))
+
+#ifdef BCMDBG
+#define	SI_MSG(args)	printk args
+#else
+#define	SI_MSG(args)
+#endif				/* BCMDBG */
+
+#define	GOODCOREADDR(x, b) \
+	(((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
+		IS_ALIGNED((x), SI_CORE_SIZE))
+
+#define PCIEREGS(si) (((char *)((si)->curmap) + PCI_16KB0_PCIREGS_OFFSET))
+
 struct aidmp {
 	u32 oobselina30;	/* 0x000 */
 	u32 oobselina74;	/* 0x004 */
@@ -435,11 +509,6 @@ get_erom_ent(struct si_pub *sih, u32 **eromptr, u32 mask, u32 match)
 		nom++;
 	}
 
-	SI_VMSG(("%s: Returning ent 0x%08x\n", __func__, ent));
-	if (inv + nom)
-		SI_VMSG(("  after %d invalid and %d non-matching entries\n",
-			 inv, nom));
-
 	return ent;
 }
 
@@ -472,9 +541,6 @@ get_asd(struct si_pub *sih, u32 **eromptr, uint sp, uint ad, uint st,
 	} else
 		*sizel = AD_SZ_BASE << (sz >> AD_SZ_SHIFT);
 
-	SI_VMSG(("  SP %d, ad %d: st = %d, 0x%08x_0x%08x @ 0x%08x_0x%08x\n",
-		 sp, ad, st, *sizeh, *sizel, *addrh, *addrl));
-
 	return asd;
 }
 
@@ -500,8 +566,6 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 	eromptr = regs;
 	eromlim = eromptr + (ER_REMAPCONTROL / sizeof(u32));
 
-	SI_VMSG(("ai_scan: regs = 0x%p, erombase = 0x%08x, eromptr = 0x%p, "
-		 "eromlim = 0x%p\n", regs, erombase, eromptr, eromlim));
 	while (eromptr < eromlim) {
 		u32 cia, cib, cid, mfg, crev, nmw, nsw, nmp, nsp;
 		u32 mpd, asd, addrl, addrh, sizel, sizeh;
@@ -514,8 +578,7 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 		/* Grok a component */
 		cia = get_erom_ent(sih, &eromptr, ER_TAG, ER_CI);
 		if (cia == (ER_END | ER_VALID)) {
-			SI_VMSG(("Found END of erom after %d cores\n",
-				 sii->numcores));
+			/*  Found END of erom */
 			ai_hwfixup(sii);
 			return;
 		}
@@ -523,7 +586,7 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 		cib = get_erom_ent(sih, &eromptr, 0, 0);
 
 		if ((cib & ER_TAG) != ER_CI) {
-			SI_ERROR(("CIA not followed by CIB\n"));
+			/* CIA not followed by CIB */
 			goto error;
 		}
 
@@ -534,10 +597,6 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 		nsw = (cib & CIB_NSW_MASK) >> CIB_NSW_SHIFT;
 		nmp = (cib & CIB_NMP_MASK) >> CIB_NMP_SHIFT;
 		nsp = (cib & CIB_NSP_MASK) >> CIB_NSP_SHIFT;
-
-		SI_VMSG(("Found component 0x%04x/0x%04x rev %d at erom addr "
-			 "0x%p, with nmw = %d, nsw = %d, nmp = %d & nsp = %d\n",
-			 mfg, cid, crev, base, nmw, nsw, nmp, nsp));
 
 		if (((mfg == MFGID_ARM) && (cid == DEF_AI_COMP)) || (nsp == 0))
 			continue;
@@ -561,13 +620,9 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 		for (i = 0; i < nmp; i++) {
 			mpd = get_erom_ent(sih, &eromptr, ER_VALID, ER_VALID);
 			if ((mpd & ER_TAG) != ER_MP) {
-				SI_ERROR(("Not enough MP entries for "
-					  "component 0x%x\n", cid));
+				/* Not enough MP entries for component */
 				goto error;
 			}
-			SI_VMSG(("  Master port %d, mp: %d id: %d\n", i,
-				 (mpd & MPD_MP_MASK) >> MPD_MP_SHIFT,
-				 (mpd & MPD_MUI_MASK) >> MPD_MUI_SHIFT));
 		}
 
 		/* First Slave Address Descriptor should be port 0:
@@ -585,8 +640,7 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 				br = true;
 			else if ((addrh != 0) || (sizeh != 0)
 				 || (sizel != SI_CORE_SIZE)) {
-				SI_ERROR(("First Slave ASD for core 0x%04x "
-					  "malformed (0x%08x)\n", cid, asd));
+				/* First Slave ASD for core malformed */
 				goto error;
 			}
 		}
@@ -614,8 +668,7 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 					    &addrl, &addrh, &sizel, &sizeh);
 			} while (asd != 0);
 			if (j == 0) {
-				SI_ERROR((" SP %d has no address descriptors\n",
-					  i));
+				/* SP has no address descriptors */
 				goto error;
 			}
 		}
@@ -626,11 +679,11 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 			    get_asd(sih, &eromptr, i, 0, AD_ST_MWRAP, &addrl,
 				    &addrh, &sizel, &sizeh);
 			if (asd == 0) {
-				SI_ERROR(("Missing descriptor for MW %d\n", i));
+				/* Missing descriptor for MW */
 				goto error;
 			}
 			if ((sizeh != 0) || (sizel != SI_CORE_SIZE)) {
-				SI_ERROR(("Master wrapper %d is not 4KB\n", i));
+				/* Master wrapper %d is not 4KB */
 				goto error;
 			}
 			if (i == 0)
@@ -644,11 +697,11 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 			    get_asd(sih, &eromptr, fwp + i, 0, AD_ST_SWRAP,
 				    &addrl, &addrh, &sizel, &sizeh);
 			if (asd == 0) {
-				SI_ERROR(("Missing descriptor for SW %d\n", i));
+				/* Missing descriptor for SW */
 				goto error;
 			}
 			if ((sizeh != 0) || (sizel != SI_CORE_SIZE)) {
-				SI_ERROR(("Slave wrapper %d is not 4KB\n", i));
+				/* Slave wrapper is not 4KB */
 				goto error;
 			}
 			if ((nmw == 0) && (i == 0))
@@ -663,9 +716,8 @@ static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 		sii->numcores++;
 	}
 
-	SI_ERROR(("Reached end of erom without finding END"));
-
  error:
+	/* Reached end of erom without finding END */
 	sii->numcores = 0;
 	return;
 }
@@ -715,8 +767,7 @@ u32 ai_addrspace(struct si_pub *sih, uint asidx)
 	else if (asidx == 1)
 		return sii->coresba2[cidx];
 	else {
-		SI_ERROR(("%s: Need to parse the erom again to find addr "
-			  "space %d\n", __func__, asidx));
+		/* Need to parse the erom again to find addr space */
 		return 0;
 	}
 }
@@ -735,8 +786,7 @@ u32 ai_addrspacesize(struct si_pub *sih, uint asidx)
 	else if (asidx == 1)
 		return sii->coresba2_size[cidx];
 	else {
-		SI_ERROR(("%s: Need to parse the erom again to find addr "
-			  "space %d\n", __func__, asidx));
+		/* Need to parse the erom again to find addr */
 		return 0;
 	}
 }
@@ -907,10 +957,6 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 		cid = ai_coreid(&sii->pub);
 		crev = ai_corerev(&sii->pub);
 
-		/* Display cores found */
-		SI_VMSG(("CORE[%d]: id 0x%x rev %d base 0x%x regs 0x%p\n",
-			 i, cid, crev, sii->coresba[i], sii->regs[i]));
-
 		if (cid == PCI_CORE_ID) {
 			pciidx = i;
 			pcirev = crev;
@@ -943,9 +989,6 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 		sii->pub.buscoreidx = pcieidx;
 	}
 
-	SI_VMSG(("Buscore id/type/rev %d/0x%x/%d\n", sii->pub.buscoreidx,
-		 sii->pub.buscoretype, sii->pub.buscorerev));
-
 	/* fixup necessary chip/core configurations */
 	if (SI_FAST(sii)) {
 		if (!sii->pch) {
@@ -956,7 +999,7 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 		}
 	}
 	if (ai_pci_fixcfg(&sii->pub)) {
-		SI_ERROR(("si_doattach: si_pci_fixcfg failed\n"));
+		/* si_doattach: si_pci_fixcfg failed */
 		return false;
 	}
 
@@ -980,20 +1023,11 @@ static __used void ai_nvram_process(struct si_info *sii, char *pvars)
 							"boardvendor");
 	if (sii->pub.boardvendor == 0)
 		sii->pub.boardvendor = w & 0xffff;
-	else
-		SI_ERROR(("Overriding boardvendor: 0x%x instead of "
-			  "0x%x\n", sii->pub.boardvendor, w & 0xffff));
 
 	sii->pub.boardtype = (u16)ai_getdevpathintvar(&sii->pub,
 		"boardtype");
 	if (sii->pub.boardtype == 0)
 		sii->pub.boardtype = (w >> 16) & 0xffff;
-	else
-		SI_ERROR(("Overriding boardtype: 0x%x instead of 0x%x\n"
-			  , sii->pub.boardtype, (w >> 16) & 0xffff));
-
-	if (sii->pub.boardtype == 0)
-		SI_ERROR(("si_doattach: unknown board type\n"));
 
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
@@ -1029,7 +1063,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	/* bus/core/clk setup for register access */
 	if (!ai_buscore_prep(sii)) {
-		SI_ERROR(("si_doattach: si_core_clk_prep failed\n"));
 		return NULL;
 	}
 
@@ -1055,24 +1088,21 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		/* pass chipc address instead of original core base */
 		ai_scan(&sii->pub, cc);
 	} else {
-		SI_ERROR(("Found chip of unknown type (0x%08x)\n", w));
+		/* Found chip of unknown type */
 		return NULL;
 	}
 	/* no cores found, bail out */
 	if (sii->numcores == 0) {
-		SI_ERROR(("si_doattach: could not find any cores\n"));
 		return NULL;
 	}
 	/* bus/core/clk setup */
 	origidx = SI_CC_IDX;
 	if (!ai_buscore_setup(sii, savewin, &origidx)) {
-		SI_ERROR(("si_doattach: si_buscore_setup failed\n"));
 		goto exit;
 	}
 
 	/* Init nvram from sprom/otp if they exist */
 	if (srom_var_init(&sii->pub, cc, vars, varsz)) {
-		SI_ERROR(("si_doattach: srom_var_init failed: bad srom\n"));
 		goto exit;
 	}
 	pvars = vars ? *vars : NULL;
@@ -1085,7 +1115,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	ai_setcoreidx(sih, origidx);
 
 	/* PMU specific initializations */
-	if (PMUCTL_ENAB(sih)) {
+	if (sih->cccaps & CC_CAP_PMU) {
 		u32 xtalfreq;
 		si_pmu_init(sih);
 		si_pmu_chip_init(sih);
@@ -1278,7 +1308,7 @@ void *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit)
 	uint idx;
 
 	idx = ai_findcoreidx(sih, coreid, coreunit);
-	if (!GOODIDX(idx))
+	if (idx >= SI_MAXCORES)
 		return NULL;
 
 	return ai_setcoreidx(sih, idx);
@@ -1562,7 +1592,7 @@ void ai_clkctl_init(struct si_pub *sih)
 	struct chipcregs *cc;
 	bool fast;
 
-	if (!CCCTL_ENAB(sih))
+	if (!(sih->cccaps & CC_CAP_PWR_CTL))
 		return;
 
 	sii = (struct si_info *)sih;
@@ -1604,14 +1634,14 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	bool fast;
 
 	sii = (struct si_info *)sih;
-	if (PMUCTL_ENAB(sih)) {
+	if (sih->cccaps & CC_CAP_PMU) {
 		INTR_OFF(sii, intr_val);
 		fpdelay = si_pmu_fast_pwrup_delay(sih);
 		INTR_RESTORE(sii, intr_val);
 		return fpdelay;
 	}
 
-	if (!CCCTL_ENAB(sih))
+	if (!(sih->cccaps & CC_CAP_PWR_CTL))
 		return 0;
 
 	fast = SI_FAST(sii);
@@ -1726,7 +1756,7 @@ static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
 			goto done;
 	}
 
-	if (!CCCTL_ENAB(&sii->pub) && (sii->pub.ccrev < 20))
+	if (!(sii->pub.cccaps & CC_CAP_PWR_CTL) && (sii->pub.ccrev < 20))
 		goto done;
 
 	switch (mode) {
@@ -1746,7 +1776,7 @@ static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
 		}
 
 		/* wait for the PLL */
-		if (PMUCTL_ENAB(&sii->pub)) {
+		if (sii->pub.cccaps & CC_CAP_PMU) {
 			u32 htavail = CCS_HTAVAIL;
 			SPINWAIT(((R_REG(&cc->clk_ctl_st) & htavail)
 				  == 0), PMU_MAX_TRANSITION_DLY);

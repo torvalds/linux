@@ -168,6 +168,8 @@
 #define AC_VI			2
 #define AC_VO			3
 
+#define	BCN_TMPL_LEN		512	/* length of the BCN template area */
+
 /*
  * driver maintains internal 'tick'(wlc->pub->now) which increments in 1s
  * OS timer(soft watchdog) it is not a wall clock and won't increment when
@@ -927,7 +929,7 @@ static int brcms_b_bandtype(struct brcms_hardware *wlc_hw)
 /* control chip clock to save power, enable dynamic clock or force fast clock */
 static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 {
-	if (PMUCTL_ENAB(wlc_hw->sih)) {
+	if (wlc_hw->sih->cccaps & CC_CAP_PMU) {
 		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock
 		 * on backplane, but mac core will still run on ALP(not HT) when
 		 * it enters powersave mode, which means the FCA bit may not be
@@ -1642,7 +1644,7 @@ static char *brcms_c_get_macaddr(struct brcms_hardware *wlc_hw)
 	if (macaddr != NULL)
 		return macaddr;
 
-	if (NBANDS_HW(wlc_hw) > 1)
+	if (wlc_hw->_nbands > 1)
 		varname = "et1macaddr";
 	else
 		varname = "il0macaddr";
@@ -1806,7 +1808,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 
 	brcms_c_mctrl_reset(wlc_hw);
 
-	if (PMUCTL_ENAB(wlc_hw->sih))
+	if (wlc_hw->sih->cccaps & CC_CAP_PMU)
 		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
 
 	brcms_b_phy_reset(wlc_hw);
@@ -3204,7 +3206,7 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 	 * We might have been bandlocked during down and the chip
 	 * power-cycled (hibernate). Figure out the right band to park on
 	 */
-	if (wlc->bandlocked || NBANDS(wlc) == 1) {
+	if (wlc->bandlocked || wlc->pub->_nbands == 1) {
 		/* updated in brcms_c_bandlock() */
 		parkband = wlc->band->bandunit;
 		band_order[0] = band_order[1] = parkband;
@@ -3218,7 +3220,7 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 	}
 
 	/* make each band operational, software state init */
-	for (i = 0; i < NBANDS(wlc); i++) {
+	for (i = 0; i < wlc->pub->_nbands; i++) {
 		uint j = band_order[i];
 
 		wlc->band = wlc->bandstate[j];
@@ -3659,7 +3661,7 @@ brcms_b_set_chanspec(struct brcms_hardware *wlc_hw, u16 chanspec,
 	wlc_hw->chanspec = chanspec;
 
 	/* Switch bands if necessary */
-	if (NBANDS_HW(wlc_hw) > 1) {
+	if (wlc_hw->_nbands > 1) {
 		bandunit = CHSPEC_BANDUNIT(chanspec);
 		if (wlc_hw->band->bandunit != bandunit) {
 			/* brcms_b_setband disables other bandunit,
@@ -3729,7 +3731,7 @@ void brcms_c_set_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 	}
 
 	/* Switch bands if necessary */
-	if (NBANDS(wlc) > 1) {
+	if (wlc->pub->_nbands > 1) {
 		bandunit = CHSPEC_BANDUNIT(chanspec);
 		if (wlc->band->bandunit != bandunit || wlc->bandinit_pending) {
 			switchband = true;
@@ -4594,15 +4596,11 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	}
 
 	/* initialize software state for each core and band */
-	for (j = 0; j < NBANDS_HW(wlc_hw); j++) {
+	for (j = 0; j < wlc_hw->_nbands; j++) {
 		/*
 		 * band0 is always 2.4Ghz
 		 * band1, if present, is 5Ghz
 		 */
-
-		/* So if this is a single band 11a card, use band 1 */
-		if (IS_SINGLEBAND_5G(wlc_hw->deviceid))
-			j = BAND_5G_INDEX;
 
 		brcms_c_setxband(wlc_hw, j);
 
@@ -4836,7 +4834,8 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 
 	/* find the band of our default channel */
 	band = wlc->band;
-	if (NBANDS(wlc) > 1 && band->bandunit != CHSPEC_BANDUNIT(chanspec))
+	if (wlc->pub->_nbands > 1 &&
+	    band->bandunit != CHSPEC_BANDUNIT(chanspec))
 		band = wlc->bandstate[OTHERBANDUNIT(wlc)];
 
 	/* init bss rates to the band specific default rate set */
@@ -4905,9 +4904,7 @@ static void brcms_c_update_mimo_band_bwcap(struct brcms_c_info *wlc, u8 bwcap)
 	uint i;
 	struct brcms_band *band;
 
-	for (i = 0; i < NBANDS(wlc); i++) {
-		if (IS_SINGLEBAND_5G(wlc->deviceid))
-			i = BAND_5G_INDEX;
+	for (i = 0; i < wlc->pub->_nbands; i++) {
 		band = wlc->bandstate[i];
 		if (band->bandtype == BRCM_BAND_5G) {
 			if ((bwcap == BRCMS_N_BW_40ALL)
@@ -5016,11 +5013,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 
 	memcpy(&pub->cur_etheraddr, &wlc->perm_etheraddr, ETH_ALEN);
 
-	for (j = 0; j < NBANDS(wlc); j++) {
-		/* Use band 1 for single band 11a */
-		if (IS_SINGLEBAND_5G(wlc->deviceid))
-			j = BAND_5G_INDEX;
-
+	for (j = 0; j < wlc->pub->_nbands; j++) {
 		wlc->band = wlc->bandstate[j];
 
 		if (!brcms_c_attach_stf_ant_init(wlc)) {
@@ -5233,7 +5226,7 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 	brcms_b_detach_dmapio(wlc_hw);
 
 	band = wlc_hw->band;
-	for (i = 0; i < NBANDS_HW(wlc_hw); i++) {
+	for (i = 0; i < wlc_hw->_nbands; i++) {
 		if (band->pi) {
 			/* Detach this band's phy */
 			wlc_phy_detach(band->pi);
@@ -5780,7 +5773,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	/* verify that we are dealing with 2G band and grab the band pointer */
 	if (wlc->band->bandtype == BRCM_BAND_2G)
 		band = wlc->band;
-	else if ((NBANDS(wlc) > 1) &&
+	else if ((wlc->pub->_nbands > 1) &&
 		 (wlc->bandstate[OTHERBANDUNIT(wlc)]->bandtype == BRCM_BAND_2G))
 		band = wlc->bandstate[OTHERBANDUNIT(wlc)];
 	else
@@ -5942,7 +5935,7 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 		wlc->default_bss->flags &= ~BRCMS_BSS_HT;
 		/* delete the mcs rates from the default and hw ratesets */
 		brcms_c_rateset_mcs_clear(&wlc->default_bss->rateset);
-		for (i = 0; i < NBANDS(wlc); i++) {
+		for (i = 0; i < wlc->pub->_nbands; i++) {
 			memset(wlc->bandstate[i]->hw_rateset.mcs, 0,
 			       MCSSET_LEN);
 			if (IS_MCS(wlc->band->rspec_override)) {
@@ -5971,7 +5964,7 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 		/* add the mcs rates to the default and hw ratesets */
 		brcms_c_rateset_mcs_build(&wlc->default_bss->rateset,
 				      wlc->stf->txstreams);
-		for (i = 0; i < NBANDS(wlc); i++)
+		for (i = 0; i < wlc->pub->_nbands; i++)
 			memcpy(wlc->bandstate[i]->hw_rateset.mcs,
 			       wlc->default_bss->rateset.mcs, MCSSET_LEN);
 		break;
@@ -8886,7 +8879,7 @@ bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rspec, int band,
 
 	if ((band == BRCM_BAND_AUTO) || (band == wlc->band->bandtype))
 		hw_rateset = &wlc->band->hw_rateset;
-	else if (NBANDS(wlc) > 1)
+	else if (wlc->pub->_nbands > 1)
 		hw_rateset = &wlc->bandstate[OTHERBANDUNIT(wlc)]->hw_rateset;
 	else
 		/* other band specified and we are a single band device */
