@@ -39,6 +39,9 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/loop.h>
+#include <linux/falloc.h>
+#include <linux/fs.h>
 
 #include <xen/events.h>
 #include <xen/page.h>
@@ -258,13 +261,16 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct xen_blkif *blkif)
 {
-	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d\n",
+	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d"
+		 "  |  ds %4d\n",
 		 current->comm, blkif->st_oo_req,
-		 blkif->st_rd_req, blkif->st_wr_req, blkif->st_f_req);
+		 blkif->st_rd_req, blkif->st_wr_req,
+		 blkif->st_f_req, blkif->st_ds_req);
 	blkif->st_print = jiffies + msecs_to_jiffies(10 * 1000);
 	blkif->st_rd_req = 0;
 	blkif->st_wr_req = 0;
 	blkif->st_oo_req = 0;
+	blkif->st_ds_req = 0;
 }
 
 int xen_blkif_schedule(void *arg)
@@ -408,6 +414,42 @@ static int xen_blkbk_map(struct blkif_request *req,
 			(req->u.rw.seg[i].first_sect << 9);
 	}
 	return ret;
+}
+
+static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
+{
+	int err = 0;
+	int status = BLKIF_RSP_OKAY;
+	struct block_device *bdev = blkif->vbd.bdev;
+
+	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY)
+		/* just forward the discard request */
+		err = blkdev_issue_discard(bdev,
+				req->u.discard.sector_number,
+				req->u.discard.nr_sectors,
+				GFP_KERNEL, 0);
+	else if (blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
+		/* punch a hole in the backing file */
+		struct loop_device *lo = bdev->bd_disk->private_data;
+		struct file *file = lo->lo_backing_file;
+
+		if (file->f_op->fallocate)
+			err = file->f_op->fallocate(file,
+				FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE,
+				req->u.discard.sector_number << 9,
+				req->u.discard.nr_sectors << 9);
+		else
+			err = -EOPNOTSUPP;
+	} else
+		err = -EOPNOTSUPP;
+
+	if (err == -EOPNOTSUPP) {
+		pr_debug(DRV_PFX "discard op failed, not supported\n");
+		status = BLKIF_RSP_EOPNOTSUPP;
+	} else if (err)
+		status = BLKIF_RSP_ERROR;
+
+	make_response(blkif, req->id, req->operation, status);
 }
 
 /*
@@ -563,6 +605,10 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
 		break;
+	case BLKIF_OP_DISCARD:
+		blkif->st_ds_req++;
+		operation = REQ_DISCARD;
+		break;
 	case BLKIF_OP_WRITE_BARRIER:
 	default:
 		operation = 0; /* make gcc happy */
@@ -572,7 +618,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	/* Check that the number of segments is sane. */
 	nseg = req->nr_segments;
-	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
+	if (unlikely(nseg == 0 && operation != WRITE_FLUSH &&
+				operation != REQ_DISCARD) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
 		pr_debug(DRV_PFX "Bad number of segments in request (%d)\n",
 			 nseg);
@@ -627,10 +674,14 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (xen_blkbk_map(req, pending_req, seg))
+	if (operation != BLKIF_OP_DISCARD &&
+			xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
-	/* This corresponding xen_blkif_put is done in __end_block_io_op */
+	/*
+	 * This corresponding xen_blkif_put is done in __end_block_io_op, or
+	 * below (in "!bio") if we are handling a BLKIF_OP_DISCARD.
+	 */
 	xen_blkif_get(blkif);
 
 	for (i = 0; i < nseg; i++) {
@@ -654,18 +705,25 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		preq.sector_number += seg[i].nsec;
 	}
 
-	/* This will be hit if the operation was a flush. */
+	/* This will be hit if the operation was a flush or discard. */
 	if (!bio) {
-		BUG_ON(operation != WRITE_FLUSH);
+		BUG_ON(operation != WRITE_FLUSH && operation != REQ_DISCARD);
 
-		bio = bio_alloc(GFP_KERNEL, 0);
-		if (unlikely(bio == NULL))
-			goto fail_put_bio;
+		if (operation == WRITE_FLUSH) {
+			bio = bio_alloc(GFP_KERNEL, 0);
+			if (unlikely(bio == NULL))
+				goto fail_put_bio;
 
-		biolist[nbio++] = bio;
-		bio->bi_bdev    = preq.bdev;
-		bio->bi_private = pending_req;
-		bio->bi_end_io  = end_block_io_op;
+			biolist[nbio++] = bio;
+			bio->bi_bdev    = preq.bdev;
+			bio->bi_private = pending_req;
+			bio->bi_end_io  = end_block_io_op;
+		} else if (operation == REQ_DISCARD) {
+			xen_blk_discard(blkif, req);
+			xen_blkif_put(blkif);
+			free_req(pending_req);
+			return 0;
+		}
 	}
 
 	/*
