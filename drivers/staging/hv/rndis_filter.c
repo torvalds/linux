@@ -249,6 +249,7 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 	struct rndis_request *request = NULL;
 	bool found = false;
 	unsigned long flags;
+	struct net_device *ndev = dev_get_drvdata(&dev->net_dev->dev->device);
 
 	spin_lock_irqsave(&dev->request_lock, flags);
 	list_for_each_entry(request, &dev->req_list, list_ent) {
@@ -269,7 +270,7 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 			memcpy(&request->response_msg, resp,
 			       resp->msg_len);
 		} else {
-			dev_err(&dev->net_dev->dev->device,
+			netdev_err(ndev,
 				"rndis response buffer overflow "
 				"detected (size %u max %zu)\n",
 				resp->msg_len,
@@ -289,7 +290,7 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 
 		complete(&request->wait_event);
 	} else {
-		dev_err(&dev->net_dev->dev->device,
+		netdev_err(ndev,
 			"no rndis request found for this response "
 			"(id 0x%x res type 0x%x)\n",
 			resp->msg.init_complete.req_id,
@@ -349,20 +350,21 @@ int rndis_filter_receive(struct hv_device *dev,
 	struct rndis_device *rndis_dev;
 	struct rndis_message rndis_msg;
 	struct rndis_message *rndis_hdr;
+	struct net_device *ndev = dev_get_drvdata(&dev->device);
 
 	if (!net_dev)
 		return -EINVAL;
 
 	/* Make sure the rndis device state is initialized */
 	if (!net_dev->extension) {
-		dev_err(&dev->device, "got rndis message but no rndis device - "
+		netdev_err(ndev, "got rndis message but no rndis device - "
 			  "dropping this message!\n");
 		return -ENODEV;
 	}
 
 	rndis_dev = (struct rndis_device *)net_dev->extension;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
-		dev_err(&dev->device, "got rndis message but rndis device "
+		netdev_err(ndev, "got rndis message but rndis device "
 			   "uninitialized...dropping this message!\n");
 		return -ENODEV;
 	}
@@ -376,7 +378,7 @@ int rndis_filter_receive(struct hv_device *dev,
 	/* Make sure we got a valid rndis message */
 	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
 	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
-		dev_err(&dev->device, "incoming rndis message buffer overflow "
+		netdev_err(ndev, "incoming rndis message buffer overflow "
 			   "detected (got %u, max %zu)..marking it an error!\n",
 			   rndis_hdr->msg_len,
 			   sizeof(struct rndis_message));
@@ -409,7 +411,7 @@ int rndis_filter_receive(struct hv_device *dev,
 		rndis_filter_receive_indicate_status(rndis_dev, &rndis_msg);
 		break;
 	default:
-		dev_err(&dev->device,
+		netdev_err(ndev,
 			"unhandled rndis message (type %u len %u)\n",
 			   rndis_msg.ndis_msg_type,
 			   rndis_msg.msg_len);
@@ -505,6 +507,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	struct rndis_set_complete *set_complete;
 	u32 status;
 	int ret, t;
+	struct net_device *ndev = dev_get_drvdata(&dev->net_dev->dev->device);
 
 	request = get_rndis_request(dev, REMOTE_NDIS_SET_MSG,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
@@ -530,7 +533,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
 
 	if (t == 0) {
-		dev_err(&dev->net_dev->dev->device,
+		netdev_err(ndev,
 			"timeout before we got a set response...\n");
 		/*
 		 * We can't deallocate the request since we may still receive a
