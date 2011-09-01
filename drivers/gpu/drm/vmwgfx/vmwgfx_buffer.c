@@ -295,18 +295,18 @@ static int vmw_sync_obj_flush(void *sync_obj, void *sync_arg)
 static bool vmw_sync_obj_signaled(void *sync_obj, void *sync_arg)
 {
 	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t sequence = (unsigned long) sync_obj;
+	uint32_t seqno = (unsigned long) sync_obj;
 
-	return vmw_fence_signaled(dev_priv, sequence);
+	return vmw_seqno_passed(dev_priv, seqno);
 }
 
 static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
 			     bool lazy, bool interruptible)
 {
 	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t sequence = (unsigned long) sync_obj;
+	uint32_t seqno = (unsigned long) sync_obj;
 
-	return vmw_wait_fence(dev_priv, false, sequence, false, 3*HZ);
+	return vmw_wait_seqno(dev_priv, false, seqno, false, 3*HZ);
 }
 
 struct ttm_bo_driver vmw_bo_driver = {

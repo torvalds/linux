@@ -105,7 +105,7 @@ struct vmw_surface {
 	struct vmw_cursor_snooper snooper;
 };
 
-struct vmw_fence_queue {
+struct vmw_marker_queue {
 	struct list_head head;
 	struct timespec lag;
 	struct timespec lag_time;
@@ -121,7 +121,7 @@ struct vmw_fifo_state {
 	uint32_t capabilities;
 	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
-	struct vmw_fence_queue fence_queue;
+	struct vmw_marker_queue marker_queue;
 };
 
 struct vmw_relocation {
@@ -238,12 +238,12 @@ struct vmw_private {
 	 * Fencing and IRQs.
 	 */
 
-	atomic_t fence_seq;
+	atomic_t marker_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
 	atomic_t fence_queue_waiters;
 	atomic_t fifo_queue_waiters;
-	uint32_t last_read_sequence;
+	uint32_t last_read_seqno;
 	spinlock_t irq_lock;
 
 	/*
@@ -411,7 +411,7 @@ extern void vmw_fifo_release(struct vmw_private *dev_priv,
 extern void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes);
 extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
 extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
-			       uint32_t *sequence);
+			       uint32_t *seqno);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
@@ -448,39 +448,39 @@ extern int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
  */
 
 extern irqreturn_t vmw_irq_handler(DRM_IRQ_ARGS);
-extern int vmw_wait_fence(struct vmw_private *dev_priv, bool lazy,
-			  uint32_t sequence, bool interruptible,
-			  unsigned long timeout);
+extern int vmw_wait_seqno(struct vmw_private *dev_priv, bool lazy,
+			     uint32_t seqno, bool interruptible,
+			     unsigned long timeout);
 extern void vmw_irq_preinstall(struct drm_device *dev);
 extern int vmw_irq_postinstall(struct drm_device *dev);
 extern void vmw_irq_uninstall(struct drm_device *dev);
-extern bool vmw_fence_signaled(struct vmw_private *dev_priv,
-			       uint32_t sequence);
+extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
+				uint32_t seqno);
 extern int vmw_fence_wait_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     bool lazy,
 			     bool fifo_idle,
-			     uint32_t sequence,
+			     uint32_t seqno,
 			     bool interruptible,
 			     unsigned long timeout);
-extern void vmw_update_sequence(struct vmw_private *dev_priv,
+extern void vmw_update_seqno(struct vmw_private *dev_priv,
 				struct vmw_fifo_state *fifo_state);
 
 
 /**
- * Rudimentary fence objects currently used only for throttling -
- * vmwgfx_fence.c
+ * Rudimentary fence-like objects currently used only for throttling -
+ * vmwgfx_marker.c
  */
 
-extern void vmw_fence_queue_init(struct vmw_fence_queue *queue);
-extern void vmw_fence_queue_takedown(struct vmw_fence_queue *queue);
-extern int vmw_fence_push(struct vmw_fence_queue *queue,
-			  uint32_t sequence);
-extern int vmw_fence_pull(struct vmw_fence_queue *queue,
-			  uint32_t signaled_sequence);
+extern void vmw_marker_queue_init(struct vmw_marker_queue *queue);
+extern void vmw_marker_queue_takedown(struct vmw_marker_queue *queue);
+extern int vmw_marker_push(struct vmw_marker_queue *queue,
+			  uint32_t seqno);
+extern int vmw_marker_pull(struct vmw_marker_queue *queue,
+			  uint32_t signaled_seqno);
 extern int vmw_wait_lag(struct vmw_private *dev_priv,
-			struct vmw_fence_queue *queue, uint32_t us);
+			struct vmw_marker_queue *queue, uint32_t us);
 
 /**
  * Kernel framebuffer - vmwgfx_fb.c

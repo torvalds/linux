@@ -686,7 +686,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	int ret;
 	void *user_cmd;
 	void *cmd;
-	uint32_t sequence;
+	uint32_t seqno;
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 
@@ -738,7 +738,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	vmw_apply_relocations(sw_context);
 
 	if (arg->throttle_us) {
-		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.fence_queue,
+		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
 				   arg->throttle_us);
 
 		if (unlikely(ret != 0))
@@ -755,10 +755,10 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	memcpy(cmd, sw_context->cmd_bounce, arg->command_size);
 	vmw_fifo_commit(dev_priv, arg->command_size);
 
-	ret = vmw_fifo_send_fence(dev_priv, &sequence);
+	ret = vmw_fifo_send_fence(dev_priv, &seqno);
 
 	ttm_eu_fence_buffer_objects(&sw_context->validate_nodes,
-				    (void *)(unsigned long) sequence);
+				    (void *)(unsigned long) seqno);
 	vmw_clear_validations(sw_context);
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 
@@ -771,7 +771,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 		DRM_ERROR("Fence submission error. Syncing.\n");
 
 	fence_rep.error = ret;
-	fence_rep.fence_seq = (uint64_t) sequence;
+	fence_rep.fence_seq = (uint64_t) seqno;
 	fence_rep.pad64 = 0;
 
 	user_fence_rep = (struct drm_vmw_fence_rep __user *)

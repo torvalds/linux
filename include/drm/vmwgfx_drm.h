@@ -289,7 +289,7 @@ union drm_vmw_surface_reference_arg {
  * DRM_VMW_EXECBUF
  *
  * Submit a command buffer for execution on the host, and return a
- * fence sequence that when signaled, indicates that the command buffer has
+ * fence seqno that when signaled, indicates that the command buffer has
  * executed.
  */
 
@@ -325,7 +325,7 @@ struct drm_vmw_execbuf_arg {
 /**
  * struct drm_vmw_fence_rep
  *
- * @fence_seq: Fence sequence associated with a command submission.
+ * @fence_seq: Fence seqno associated with a command submission.
  * @error: This member should've been set to -EFAULT on submission.
  * The following actions should be take on completion:
  * error == -EFAULT: Fence communication failed. The host is synchronized.
@@ -432,7 +432,7 @@ struct drm_vmw_unref_dmabuf_arg {
 
 
 struct drm_vmw_fence_wait_arg {
-	uint64_t sequence;
+	uint64_t seqno;
 	uint64_t kernel_cookie;
 	int32_t cookie_valid;
 	int32_t pad64;

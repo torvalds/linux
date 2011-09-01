@@ -28,13 +28,13 @@
 
 #include "vmwgfx_drv.h"
 
-struct vmw_fence {
+struct vmw_marker {
 	struct list_head head;
-	uint32_t sequence;
+	uint32_t seqno;
 	struct timespec submitted;
 };
 
-void vmw_fence_queue_init(struct vmw_fence_queue *queue)
+void vmw_marker_queue_init(struct vmw_marker_queue *queue)
 {
 	INIT_LIST_HEAD(&queue->head);
 	queue->lag = ns_to_timespec(0);
@@ -42,38 +42,38 @@ void vmw_fence_queue_init(struct vmw_fence_queue *queue)
 	spin_lock_init(&queue->lock);
 }
 
-void vmw_fence_queue_takedown(struct vmw_fence_queue *queue)
+void vmw_marker_queue_takedown(struct vmw_marker_queue *queue)
 {
-	struct vmw_fence *fence, *next;
+	struct vmw_marker *marker, *next;
 
 	spin_lock(&queue->lock);
-	list_for_each_entry_safe(fence, next, &queue->head, head) {
-		kfree(fence);
+	list_for_each_entry_safe(marker, next, &queue->head, head) {
+		kfree(marker);
 	}
 	spin_unlock(&queue->lock);
 }
 
-int vmw_fence_push(struct vmw_fence_queue *queue,
-		   uint32_t sequence)
+int vmw_marker_push(struct vmw_marker_queue *queue,
+		   uint32_t seqno)
 {
-	struct vmw_fence *fence = kmalloc(sizeof(*fence), GFP_KERNEL);
+	struct vmw_marker *marker = kmalloc(sizeof(*marker), GFP_KERNEL);
 
-	if (unlikely(!fence))
+	if (unlikely(!marker))
 		return -ENOMEM;
 
-	fence->sequence = sequence;
-	getrawmonotonic(&fence->submitted);
+	marker->seqno = seqno;
+	getrawmonotonic(&marker->submitted);
 	spin_lock(&queue->lock);
-	list_add_tail(&fence->head, &queue->head);
+	list_add_tail(&marker->head, &queue->head);
 	spin_unlock(&queue->lock);
 
 	return 0;
 }
 
-int vmw_fence_pull(struct vmw_fence_queue *queue,
-		   uint32_t signaled_sequence)
+int vmw_marker_pull(struct vmw_marker_queue *queue,
+		   uint32_t signaled_seqno)
 {
-	struct vmw_fence *fence, *next;
+	struct vmw_marker *marker, *next;
 	struct timespec now;
 	bool updated = false;
 
@@ -87,15 +87,15 @@ int vmw_fence_pull(struct vmw_fence_queue *queue,
 		goto out_unlock;
 	}
 
-	list_for_each_entry_safe(fence, next, &queue->head, head) {
-		if (signaled_sequence - fence->sequence > (1 << 30))
+	list_for_each_entry_safe(marker, next, &queue->head, head) {
+		if (signaled_seqno - marker->seqno > (1 << 30))
 			continue;
 
-		queue->lag = timespec_sub(now, fence->submitted);
+		queue->lag = timespec_sub(now, marker->submitted);
 		queue->lag_time = now;
 		updated = true;
-		list_del(&fence->head);
-		kfree(fence);
+		list_del(&marker->head);
+		kfree(marker);
 	}
 
 out_unlock:
@@ -117,7 +117,7 @@ static struct timespec vmw_timespec_add(struct timespec t1,
 	return t1;
 }
 
-static struct timespec vmw_fifo_lag(struct vmw_fence_queue *queue)
+static struct timespec vmw_fifo_lag(struct vmw_marker_queue *queue)
 {
 	struct timespec now;
 
@@ -131,7 +131,7 @@ static struct timespec vmw_fifo_lag(struct vmw_fence_queue *queue)
 }
 
 
-static bool vmw_lag_lt(struct vmw_fence_queue *queue,
+static bool vmw_lag_lt(struct vmw_marker_queue *queue,
 		       uint32_t us)
 {
 	struct timespec lag, cond;
@@ -142,32 +142,30 @@ static bool vmw_lag_lt(struct vmw_fence_queue *queue,
 }
 
 int vmw_wait_lag(struct vmw_private *dev_priv,
-		 struct vmw_fence_queue *queue, uint32_t us)
+		 struct vmw_marker_queue *queue, uint32_t us)
 {
-	struct vmw_fence *fence;
-	uint32_t sequence;
+	struct vmw_marker *marker;
+	uint32_t seqno;
 	int ret;
 
 	while (!vmw_lag_lt(queue, us)) {
 		spin_lock(&queue->lock);
 		if (list_empty(&queue->head))
-			sequence = atomic_read(&dev_priv->fence_seq);
+			seqno = atomic_read(&dev_priv->marker_seq);
 		else {
-			fence = list_first_entry(&queue->head,
-						 struct vmw_fence, head);
-			sequence = fence->sequence;
+			marker = list_first_entry(&queue->head,
+						 struct vmw_marker, head);
+			seqno = marker->seqno;
 		}
 		spin_unlock(&queue->lock);
 
-		ret = vmw_wait_fence(dev_priv, false, sequence, true,
-				     3*HZ);
+		ret = vmw_wait_seqno(dev_priv, false, seqno, true,
+					3*HZ);
 
 		if (unlikely(ret != 0))
 			return ret;
 
-		(void) vmw_fence_pull(queue, sequence);
+		(void) vmw_marker_pull(queue, seqno);
 	}
 	return 0;
 }
-
-
