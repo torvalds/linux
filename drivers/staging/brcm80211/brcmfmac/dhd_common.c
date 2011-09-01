@@ -411,7 +411,7 @@ int brcmf_c_ioctl(struct brcmf_pub *drvr, struct brcmf_c_ioctl *ioc, void *buf,
 	return bcmerror;
 }
 
-#ifdef SHOW_EVENTS
+#ifdef BCMDBG
 static void
 brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 {
@@ -705,7 +705,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		brcmf_dbg(EVENT, "\n");
 	}
 }
-#endif				/* SHOW_EVENTS */
+#endif				/* BCMDBG */
 
 int
 brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
@@ -796,9 +796,9 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 		break;
 	}
 
-#ifdef SHOW_EVENTS
+#ifdef BCMDBG
 	brcmf_c_show_host_event(event, event_data);
-#endif				/* SHOW_EVENTS */
+#endif				/* BCMDBG */
 
 	return 0;
 }

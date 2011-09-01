@@ -15,8 +15,6 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-ccflags-$(CONFIG_BRCMDBG)	+= -DSHOW_EVENTS
-
 ccflags-y += \
 	-Idrivers/staging/brcm80211/brcmfmac	\
 	-Idrivers/staging/brcm80211/include
