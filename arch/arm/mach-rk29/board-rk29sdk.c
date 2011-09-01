@@ -39,8 +39,8 @@
 #include <mach/rk29_iomap.h>
 #include <mach/board.h>
 #include <mach/rk29_nand.h>
+#include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
-#include <mach/rk29_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 #include <mach/ddr.h>
@@ -57,6 +57,9 @@
 #include "devices.h"
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
+#ifdef CONFIG_BU92747GUW_CIR
+#include "../../../drivers/cir/bu92747guw_cir.h"
+#endif
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -155,15 +158,10 @@ struct rk29_nand_platform_data rk29_nand_data = {
     .io_init   = rk29_nand_io_init,
 };
 
-/*****************************************************************************************
-* touch screen devices
-* author: cf@rock-chips.com
-*****************************************************************************************/
 #define TOUCH_SCREEN_STANDBY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
 #define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
-
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
@@ -372,6 +370,344 @@ struct platform_device rk29_device_dma_cpy = {
 
 #endif
 
+#if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
+#define BU92747GUW_RESET_PIN         RK29_PIN3_PD4// INVALID_GPIO //
+#define BU92747GUW_RESET_MUX_NAME    GPIO3D4_HOSTWRN_NAME//NULL //
+#define BU92747GUW_RESET_MUX_MODE    GPIO3H_GPIO3D4//NULL //
+
+#define BU92747GUW_PWDN_PIN          RK29_PIN3_PD3//RK29_PIN5_PA7 //
+#define BU92747GUW_PWDN_MUX_NAME     GPIO3D3_HOSTRDN_NAME//GPIO5A7_HSADCDATA2_NAME //
+#define BU92747GUW_PWDN_MUX_MODE     GPIO3H_GPIO3D3//GPIO5L_GPIO5A7  //
+
+static int bu92747guw_io_init(void)
+{
+	int ret;
+	
+	//reset pin
+    if(BU92747GUW_RESET_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(BU92747GUW_RESET_MUX_NAME, BU92747GUW_RESET_MUX_MODE);
+    }
+	ret = gpio_request(BU92747GUW_RESET_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(BU92747GUW_RESET_PIN);
+		printk(">>>>>> BU92747GUW_RESET_PIN gpio_request err \n ");
+	}
+	gpio_direction_output(BU92747GUW_RESET_PIN, GPIO_HIGH);
+
+	//power down pin
+    if(BU92747GUW_PWDN_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(BU92747GUW_PWDN_MUX_NAME, BU92747GUW_PWDN_MUX_MODE);
+    }
+	ret = gpio_request(BU92747GUW_PWDN_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(BU92747GUW_PWDN_PIN);
+		printk(">>>>>> BU92747GUW_PWDN_PIN gpio_request err \n ");
+	}
+
+	//power down as default
+	gpio_direction_output(BU92747GUW_PWDN_PIN, GPIO_LOW);
+	
+	return 0;
+}
+
+
+static int bu92747guw_io_deinit(void)
+{
+	gpio_free(BU92747GUW_PWDN_PIN);
+	gpio_free(BU92747GUW_RESET_PIN);
+	return 0;
+}
+
+//power ctl func is share with irda and remote
+static int nPowerOnCount = 0;
+static DEFINE_MUTEX(bu92747_power_mutex);
+
+//1---power on;  0---power off
+static int bu92747guw_power_ctl(int enable)
+{
+    printk("%s \n",__FUNCTION__);
+
+	mutex_lock(&bu92747_power_mutex);
+	if (enable) {
+		nPowerOnCount++;
+		if (nPowerOnCount == 1) {//power on first	
+			//smc0_init(NULL);
+   	 		gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_HIGH);
+			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_LOW);
+			mdelay(5);
+			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_HIGH);
+			mdelay(5);
+		}
+	}
+	else {
+		nPowerOnCount--;
+		if (nPowerOnCount <= 0) {//power down final
+			nPowerOnCount = 0;
+			//smc0_exit();
+			gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_LOW);
+		}
+	}
+	mutex_unlock(&bu92747_power_mutex);
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_RK_IRDA
+#define IRDA_IRQ_PIN           RK29_PIN5_PB2
+#define IRDA_IRQ_MUX_NAME      GPIO5B2_HSADCDATA5_NAME
+#define IRDA_IRQ_MUX_MODE      GPIO5L_GPIO5B2
+
+int irda_iomux_init(void)
+{
+    int ret = 0;
+
+	//irda irq pin
+    if(IRDA_IRQ_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(IRDA_IRQ_MUX_NAME, IRDA_IRQ_MUX_MODE);
+    }
+	ret = gpio_request(IRDA_IRQ_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(IRDA_IRQ_PIN);
+		printk(">>>>>> IRDA_IRQ_PIN gpio_request err \n ");
+	}
+	gpio_pull_updown(IRDA_IRQ_PIN, GPIO_HIGH);
+	gpio_direction_input(IRDA_IRQ_PIN);
+
+    return 0;
+}
+
+int irda_iomux_deinit(void)
+{
+	gpio_free(IRDA_IRQ_PIN);
+	return 0;
+}
+
+static struct irda_info rk29_irda_info = {
+    .intr_pin = IRDA_IRQ_PIN,
+    .iomux_init = irda_iomux_init,
+    .iomux_deinit = irda_iomux_deinit,
+	.irda_pwr_ctl = bu92747guw_power_ctl,
+};
+
+static struct platform_device irda_device = {
+#ifdef CONFIG_RK_IRDA_NET
+			.name	= "rk_irda",
+#else
+			.name = "bu92747_irda",
+#endif
+    .id		  = -1,
+	.dev            = {
+		.platform_data  = &rk29_irda_info,
+	}
+};
+#endif
+
+#ifdef CONFIG_BU92747GUW_CIR
+#define BU92747_CIR_IRQ_PIN RK29_PIN5_PB0
+#define CIR_IRQ_PIN_IOMUX_NAME GPIO5B0_HSADCDATA3_NAME
+#define CIR_IRQ_PIN_IOMUX_VALUE GPIO5L_GPIO5B0
+static int cir_iomux_init(void)
+{
+	if (CIR_IRQ_PIN_IOMUX_NAME)
+		rk29_mux_api_set(CIR_IRQ_PIN_IOMUX_NAME, CIR_IRQ_PIN_IOMUX_VALUE);
+	rk29_mux_api_set(GPIO5A7_HSADCDATA2_NAME, GPIO5L_GPIO5A7);
+	return 0;
+}
+
+static struct  bu92747guw_platform_data bu92747guw_pdata = {
+	.intr_pin = BU92747_CIR_IRQ_PIN,
+	.iomux_init = cir_iomux_init,
+	.iomux_deinit = NULL,
+	.cir_pwr_ctl = bu92747guw_power_ctl,
+};  
+#endif
+#ifdef CONFIG_RK29_NEWTON
+struct rk29_newton_data rk29_newton_info = {	
+};
+struct platform_device rk29_device_newton = {
+	.name          = "rk29_newton",
+	.id            = -1,		
+	.dev		   = {
+	.platform_data = &rk29_newton_info,	
+		}    	    
+	};
+#endif
+#if defined (CONFIG_TOUCHSCREEN_FT5406)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+int ft5406_init_platform_hw(void)
+{
+	printk("ft5406_init_platform_hw\n");
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("ft5406_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("ift5406_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(10);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+    return 0;
+}
+
+void ft5406_exit_platform_hw(void)
+{
+	printk("ft5406_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+}
+
+int ft5406_platform_sleep(void)
+{
+	printk("ft5406_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int ft5406_platform_wakeup(void)
+{
+	printk("ft5406_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+	return 0;
+}
+
+struct ft5406_platform_data ft5406_info = {
+
+  .init_platform_hw= ft5406_init_platform_hw,
+  .exit_platform_hw= ft5406_exit_platform_hw,
+  .platform_sleep  = ft5406_platform_sleep,
+  .platform_wakeup = ft5406_platform_wakeup,
+
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_GT819)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+int gt819_init_platform_hw(void)
+{
+	printk("gt819_init_platform_hw\n");
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("gt819_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("gt819_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(10);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+//	mdelay(10);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	gpio_direction_input(TOUCH_INT_PIN);
+//	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+    return 0;
+}
+
+
+void gt819_exit_platform_hw(void)
+{
+	printk("gt819_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+}
+
+int gt819_platform_sleep(void)
+{
+	printk("gt819_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int gt819_platform_wakeup(void)
+{
+	printk("gt819_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	//msleep(5);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
+	//msleep(20);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
+	return 0;
+}
+struct goodix_platform_data goodix_info = {
+
+  .init_platform_hw= gt819_init_platform_hw,
+  .exit_platform_hw= gt819_exit_platform_hw,
+  .platform_sleep  = gt819_platform_sleep,
+  .platform_wakeup = gt819_platform_wakeup,
+
+};
+#endif
+
+
+#if defined (CONFIG_SND_SOC_CS42L52)
+
+int cs42l52_init_platform_hw()
+{
+	printk("cs42l52_init_platform_hw\n");
+    if(gpio_request(RK29_PIN6_PB6,NULL) != 0){
+      gpio_free(RK29_PIN6_PB6);
+      printk("cs42l52_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_direction_output(RK29_PIN6_PB6, 0);
+	gpio_set_value(RK29_PIN6_PB6,GPIO_HIGH);
+	return 0;
+}
+struct cs42l52_platform_data cs42l52_info = {
+
+  .init_platform_hw= cs42l52_init_platform_hw,
+
+};
+#endif
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	1
+#define CHG_OK RK29_PIN4_PA3
+#define BAT_LOW	RK29_PIN4_PA2
+
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+	.chgok_check_pin =  CHG_OK,
+	.bat_check_pin =  BAT_LOW,
+};
+#endif
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
@@ -820,6 +1156,22 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.platform_data  = &mpu3050_data,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_CS42L52)
+	{
+		.type    		= "cs42l52",
+		.addr           = 0x4A,
+		.flags			= 0,
+		.platform_data	= &cs42l52_info,
+	},
+#endif
+#if defined (CONFIG_RTC_M41T66)
+	{
+		.type           = "rtc-M41T66",
+		.addr           = 0x68,
+		.flags          = 0,
+		.irq            = RK29_PIN0_PA1,
+	},
+#endif
 };
 #endif
 #if defined (CONFIG_ANX7150)
@@ -843,6 +1195,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
         .flags          = 0,
         .irq            = RK29_PIN1_PD7,
 		.platform_data  = &anx7150_data,
+    },
+#endif
+#ifdef CONFIG_BU92747GUW_CIR
+    {
+    	.type	="bu92747_cir",
+    	.addr 	= 0x77,    
+    	.flags      =0,
+    	.irq		= BU92747_CIR_IRQ_PIN,
+    	.platform_data = &bu92747guw_pdata,
     },
 #endif
 
@@ -870,11 +1231,37 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
+#if defined (CONFIG_TOUCHSCREEN_GT819)
+    {
+		.type	= "Goodix-TS",
+		.addr 	= 0x55,
+		.flags      =0,
+		.irq		=RK29_PIN0_PA2,
+		.platform_data = &goodix_info,
+    },
+#endif
+#if defined (CONFIG_TOUCHSCREEN_FT5406)
+    {
+		.type	="ft5x0x_ts",
+		.addr 	= 0x38,    //0x70,
+		.flags      =0,
+		.irq		=RK29_PIN0_PA2, // support goodix tp detect, 20110706
+		.platform_data = &ft5406_info,
+    },
+#endif
 };
 #endif
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
+#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
 };
 #endif
 
@@ -1400,144 +1787,6 @@ static struct platform_device rk29_device_gpu = {
 };
 #endif
 
-#if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
-#define BU92747GUW_RESET_PIN		 RK29_PIN3_PD4// INVALID_GPIO //
-#define BU92747GUW_RESET_MUX_NAME	 GPIO3D4_HOSTWRN_NAME//NULL //
-#define BU92747GUW_RESET_MUX_MODE	 GPIO3H_GPIO3D4//NULL //
-
-#define BU92747GUW_PWDN_PIN 		 RK29_PIN3_PD3//RK29_PIN5_PA7 //
-#define BU92747GUW_PWDN_MUX_NAME	 GPIO3D3_HOSTRDN_NAME//GPIO5A7_HSADCDATA2_NAME //
-#define BU92747GUW_PWDN_MUX_MODE	 GPIO3H_GPIO3D3//GPIO5L_GPIO5A7  //
-
-static int bu92747guw_io_init(void)
-{
-	int ret;
-	
-	//reset pin
-	if(BU92747GUW_RESET_MUX_NAME != NULL)
-	{
-		rk29_mux_api_set(BU92747GUW_RESET_MUX_NAME, BU92747GUW_RESET_MUX_MODE);
-	}
-	ret = gpio_request(BU92747GUW_RESET_PIN, NULL);
-	if(ret != 0)
-	{
-		gpio_free(BU92747GUW_RESET_PIN);
-		printk(">>>>>> BU92747GUW_RESET_PIN gpio_request err \n ");
-	}
-	gpio_direction_output(BU92747GUW_RESET_PIN, GPIO_HIGH);
-
-	//power down pin
-	if(BU92747GUW_PWDN_MUX_NAME != NULL)
-	{
-		rk29_mux_api_set(BU92747GUW_PWDN_MUX_NAME, BU92747GUW_PWDN_MUX_MODE);
-	}
-	ret = gpio_request(BU92747GUW_PWDN_PIN, NULL);
-	if(ret != 0)
-	{
-		gpio_free(BU92747GUW_PWDN_PIN);
-		printk(">>>>>> BU92747GUW_PWDN_PIN gpio_request err \n ");
-	}
-
-	//power down as default
-	gpio_direction_output(BU92747GUW_PWDN_PIN, GPIO_LOW);
-	
-	return 0;
-}
-
-
-static int bu92747guw_io_deinit(void)
-{
-	gpio_free(BU92747GUW_PWDN_PIN);
-	gpio_free(BU92747GUW_RESET_PIN);
-	return 0;
-}
-
-//power ctl func is share with irda and remote
-static int nPowerOnCount = 0;
-static DEFINE_MUTEX(bu92747_power_mutex);
-
-//1---power on;  0---power off
-static int bu92747guw_power_ctl(int enable)
-{
-	printk("%s \n",__FUNCTION__);
-
-	mutex_lock(&bu92747_power_mutex);
-	if (enable) {
-		nPowerOnCount++;
-		if (nPowerOnCount == 1) {//power on first	
-			//smc0_init(NULL);
-			gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_HIGH);
-			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_LOW);
-			mdelay(5);
-			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_HIGH);
-			mdelay(5);
-		}
-	}
-	else {
-		nPowerOnCount--;
-		if (nPowerOnCount <= 0) {//power down final
-			nPowerOnCount = 0;
-			//smc0_exit();
-			gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_LOW);
-		}
-	}
-	mutex_unlock(&bu92747_power_mutex);
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_RK_IRDA
-#define IRDA_IRQ_PIN		   RK29_PIN5_PB2
-#define IRDA_IRQ_MUX_NAME	   GPIO5B2_HSADCDATA5_NAME
-#define IRDA_IRQ_MUX_MODE	   GPIO5L_GPIO5B2
-
-int irda_iomux_init(void)
-{
-	int ret = 0;
-
-	//irda irq pin
-	if(IRDA_IRQ_MUX_NAME != NULL)
-	{
-		rk29_mux_api_set(IRDA_IRQ_MUX_NAME, IRDA_IRQ_MUX_MODE);
-	}
-	ret = gpio_request(IRDA_IRQ_PIN, NULL);
-	if(ret != 0)
-	{
-		gpio_free(IRDA_IRQ_PIN);
-		printk(">>>>>> IRDA_IRQ_PIN gpio_request err \n ");
-	}
-	gpio_pull_updown(IRDA_IRQ_PIN, GPIO_HIGH);
-	gpio_direction_input(IRDA_IRQ_PIN);
-
-	return 0;
-}
-
-int irda_iomux_deinit(void)
-{
-	gpio_free(IRDA_IRQ_PIN);
-	return 0;
-}
-
-static struct irda_info rk29_irda_info = {
-	.intr_pin = IRDA_IRQ_PIN,
-	.iomux_init = irda_iomux_init,
-	.iomux_deinit = irda_iomux_deinit,
-	.irda_pwr_ctl = bu92747guw_power_ctl,
-};
-
-static struct platform_device irda_device = {
-#ifdef CONFIG_RK_IRDA_NET
-			.name	= "rk_irda",
-#else
-			.name = "bu92747_irda",
-#endif
-	.id 	  = -1,
-	.dev			= {
-		.platform_data	= &rk29_irda_info,
-	}
-};
-#endif
-
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
@@ -1549,6 +1798,76 @@ static struct platform_device rk29_device_keys = {
 };
 #endif
 
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+struct gpio_led rk29_leds[] = {
+		{
+			.name = "rk29_red_led",
+			.gpio = RK29_PIN4_PB2,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 1,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+		{
+			.name = "rk29_green_led",
+			.gpio = RK29_PIN4_PB1,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 1,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+		{
+			.name = "rk29_blue_led",
+			.gpio = RK29_PIN4_PB0,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 1,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+};
+
+struct gpio_led_platform_data rk29_leds_pdata = {
+	.leds = &rk29_leds,
+	.num_leds	= ARRAY_SIZE(rk29_leds),
+};
+
+struct platform_device rk29_device_gpio_leds = {
+	.name	= "leds-gpio",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_leds_pdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_LEDS_NEWTON_PWM
+static struct led_newton_pwm rk29_pwm_leds[] = {
+		{
+			.name = "power_led",
+			.pwm_id = 1,
+			.pwm_gpio = RK29_PIN5_PD2,
+			.pwm_iomux_name = GPIO5D2_PWM1_UART1SIRIN_NAME,
+			.pwm_iomux_pwm = GPIO5H_PWM1,
+			.pwm_iomux_gpio = GPIO5H_GPIO5D2,
+			.freq = 1000,
+			.period = 255,
+		},
+};
+
+static struct led_newton_pwm_platform_data rk29_pwm_leds_pdata = {
+	.leds = &rk29_pwm_leds,
+	.num_leds	= ARRAY_SIZE(rk29_pwm_leds),
+};
+
+static struct platform_device rk29_device_pwm_leds = {
+	.name	= "leds_newton_pwm",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_pwm_leds_pdata,
+	},
+};
+
+#endif
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
@@ -1610,6 +1929,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
 #endif
+#ifdef CONFIG_KEYS_RK29_NEWTON
+	&rk29_device_keys,
+#endif
 #ifdef CONFIG_SDMMC0_RK29
 	&rk29_device_sdmmc0,
 #endif
@@ -1638,6 +1960,9 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_dma_cpy,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
+#endif
+#ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
 	&rk29_device_backlight,
 #endif
 #ifdef CONFIG_RK29_VMAC
@@ -1678,8 +2003,20 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
 #endif
+#ifdef CONFIG_RK29_NEWTON
+	&rk29_device_newton,
+#endif
 #ifdef CONFIG_RK_IRDA
-	&irda_device,
+    &irda_device,
+#endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
+#endif
+#ifdef CONFIG_LEDS_NEWTON_PWM
+	&rk29_device_pwm_leds,
+#endif
+#ifdef CONFIG_SND_RK29_SOC_CS42L52
+	&rk29_cs42l52_device,
 #endif
 };
 
