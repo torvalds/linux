@@ -999,6 +999,16 @@ static int fill_board_specific_data(struct tm6000_core *dev)
 	dev->vinput[2] = tm6000_boards[dev->model].vinput[2];
 	dev->rinput = tm6000_boards[dev->model].rinput;
 
+	/* setup per-model quirks */
+	switch (dev->model) {
+	case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+		dev->quirks |= TM6000_QUIRK_NO_USB_DELAY;
+		break;
+
+	default:
+		break;
+	}
+
 	/* initialize hardware */
 	rc = tm6000_init(dev);
 	if (rc < 0)
