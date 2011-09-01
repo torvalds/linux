@@ -323,6 +323,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 {
 	struct rndis_packet *rndis_pkt;
 	u32 data_offset;
+	int i;
 
 	rndis_pkt = &msg->msg.pkt;
 
@@ -337,6 +338,15 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	pkt->total_data_buflen -= data_offset;
 	pkt->page_buf[0].offset += data_offset;
 	pkt->page_buf[0].len -= data_offset;
+
+	/* Drop the 0th page, if rndis data go beyond page boundary */
+	if (pkt->page_buf[0].offset >= PAGE_SIZE) {
+		pkt->page_buf[1].offset = pkt->page_buf[0].offset - PAGE_SIZE;
+		pkt->page_buf[1].len -= pkt->page_buf[1].offset;
+		pkt->page_buf_cnt--;
+		for (i = 0; i < pkt->page_buf_cnt; i++)
+			pkt->page_buf[i] = pkt->page_buf[i+1];
+	}
 
 	pkt->is_data_pkt = true;
 
