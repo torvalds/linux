@@ -29,6 +29,7 @@
 #endif
 
 #include "descs.h"
+#include "mmc.h"
 
 #undef CHIP_DEBUG_PRINT
 /* Turn-on extra printk debug for MAC core, dma and descriptors */

@@ -77,6 +77,7 @@ struct stmmac_priv {
 	struct stmmac_timer *tm;
 #endif
 	struct plat_stmmacenet_data *plat;
+	struct stmmac_counters mmc;
 };
 
 extern int stmmac_mdio_unregister(struct net_device *ndev);

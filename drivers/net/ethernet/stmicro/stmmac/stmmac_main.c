@@ -748,6 +748,17 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 		stmmac_tx_err(priv);
 }
 
+static void stmmac_mmc_setup(struct stmmac_priv *priv)
+{
+	unsigned int mode = MMC_CNTRL_RESET_ON_READ | MMC_CNTRL_COUNTER_RESET |
+			    MMC_CNTRL_PRESET | MMC_CNTRL_FULL_HALF_PRESET;
+
+	/* Do not manage MMC IRQ (FIXME) */
+	dwmac_mmc_intr_all_mask(priv->ioaddr);
+	dwmac_mmc_ctrl(priv->ioaddr, mode);
+	memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
+}
+
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -845,6 +856,8 @@ static int stmmac_open(struct net_device *dev)
 	/* Extra statistics */
 	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
 	priv->xstats.threshold = tc;
+
+	stmmac_mmc_setup(priv);
 
 	/* Start the ball rolling... */
 	DBG(probe, DEBUG, "%s: DMA RX/TX processes started...\n", dev->name);

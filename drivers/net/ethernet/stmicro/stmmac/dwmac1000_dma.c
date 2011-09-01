@@ -118,13 +118,6 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-/* Not yet implemented --- no RMON module */
-static void dwmac1000_dma_diagnostic_fr(void *data,
-		  struct stmmac_extra_stats *x, void __iomem *ioaddr)
-{
-	return;
-}
-
 static void dwmac1000_dump_dma_regs(void __iomem *ioaddr)
 {
 	int i;
@@ -143,7 +136,6 @@ const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.init = dwmac1000_dma_init,
 	.dump_regs = dwmac1000_dump_dma_regs,
 	.dma_mode = dwmac1000_dma_operation_mode,
-	.dma_diagnostic_fr = dwmac1000_dma_diagnostic_fr,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
 	.enable_dma_irq = dwmac_enable_dma_irq,
 	.disable_dma_irq = dwmac_disable_dma_irq,
