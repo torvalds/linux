@@ -937,7 +937,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				break;
 			}
 
-			if (CurrentCmd->CmdID == CmdID_End) {
+			if (CurrentCmd && CurrentCmd->CmdID == CmdID_End) {
 				if ((*stage) == 2) {
 					return true;
 				} else {
@@ -947,6 +947,8 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				}
 			}
 
+			if (!CurrentCmd)
+				continue;
 			switch (CurrentCmd->CmdID) {
 			case CmdID_SetTxPowerLevel:
 				if (priv->IC_Cut > (u8)VERSION_8190_BD)
