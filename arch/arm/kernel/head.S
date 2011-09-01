@@ -234,7 +234,7 @@ __create_page_tables:
 	 * This allows debug messages to be output
 	 * via a serial console before paging_init.
 	 */
-	addruart r7, r3
+	addruart r7, r3, r0
 
 	mov	r3, r3, lsr #20
 	mov	r3, r3, lsl #2

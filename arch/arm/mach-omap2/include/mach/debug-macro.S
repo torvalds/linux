@@ -34,7 +34,7 @@ omap_uart_lsr:	.word	0
 		 * the desired UART phys and virt addresses temporarily into
 		 * the omap_uart_phys and omap_uart_virt above.
 		 */
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 
 		/* Use omap_uart_phys/virt if already configured */
 10:		mrc	p15, 0, \rp, c1, c0

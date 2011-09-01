@@ -32,7 +32,7 @@ davinci_uart_phys:	.word	0
 davinci_uart_virt:	.word	0
 		.popsection
 
-		.macro addruart, rp, rv
+		.macro addruart, rp, rv, tmp
 
 		/* Use davinci_uart_phys/virt if already configured */
 10:		mrc	p15, 0, \rp, c1, c0

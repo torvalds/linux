@@ -33,7 +33,7 @@
 #error "Unknown RealView platform"
 #endif
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		mov	\rp, #DEBUG_LL_UART_OFFSET
 		orr	\rv, \rp, #0xfb000000	@ virtual base
 		orr	\rp, \rp, #0x10000000	@ physical base
