@@ -784,7 +784,7 @@ void pcicore_down(struct pcicore_info *pi, int state)
 /* precondition: current core is sii->buscoretype */
 static void pcicore_fixcfg(struct pcicore_info *pi, u16 *reg16)
 {
-	struct si_info *sii = SI_INFO(pi->sih);
+	struct si_info *sii = (struct si_info *)(pi->sih);
 	u16 val16;
 	uint pciidx;
 
@@ -814,7 +814,7 @@ void pcicore_pci_setup(struct pcicore_info *pi, struct sbpciregs *pciregs)
 
 	OR_REG(&pciregs->sbtopci2, SBTOPCI_PREF | SBTOPCI_BURST);
 
-	if (SI_INFO(pi->sih)->pub.buscorerev >= 11) {
+	if (((struct si_info *)(pi->sih))->pub.buscorerev >= 11) {
 		OR_REG(&pciregs->sbtopci2, SBTOPCI_RC_READMULTI);
 		w = R_REG(&pciregs->clkrun);
 		W_REG(&pciregs->clkrun, w | PCI_CLKRUN_DSBL);
