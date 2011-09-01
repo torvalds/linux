@@ -255,6 +255,7 @@ static int r8192se_wx_set_radio(struct net_device *dev,
 	if ((*extra != 0) && (*extra != 1)) {
 		RT_TRACE(COMP_ERR, "%s(): set radio an err value,must 0(radio "
 			 "off) or 1(radio on)\n", __func__);
+		up(&priv->wx_sem);
 		return -1;
 	}
 	priv->sw_radio_on = *extra;
