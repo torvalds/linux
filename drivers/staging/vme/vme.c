@@ -1338,6 +1338,11 @@ static void vme_remove_bus(struct vme_bridge *bridge)
 	mutex_unlock(&vme_buses_lock);
 }
 
+static void vme_dev_release(struct device *dev)
+{
+	kfree(dev);
+}
+
 int vme_register_bridge(struct vme_bridge *bridge)
 {
 	struct device *dev;
@@ -1353,11 +1358,17 @@ int vme_register_bridge(struct vme_bridge *bridge)
 	 * specification.
 	 */
 	for (i = 0; i < VME_SLOTS_MAX; i++) {
-		dev = &bridge->dev[i];
+		bridge->dev[i] = kzalloc(sizeof(struct device), GFP_KERNEL);
+		if (!bridge->dev[i]) {
+			retval = -ENOMEM;
+			goto err_devalloc;
+		}
+		dev = bridge->dev[i];
 		memset(dev, 0, sizeof(struct device));
 
 		dev->parent = bridge->parent;
 		dev->bus = &vme_bus_type;
+		dev->release = vme_dev_release;
 		/*
 		 * We save a pointer to the bridge in platform_data so that we
 		 * can get to it later. We keep driver_data for use by the
@@ -1374,8 +1385,10 @@ int vme_register_bridge(struct vme_bridge *bridge)
 	return retval;
 
 err_reg:
+	kfree(dev);
+err_devalloc:
 	while (--i >= 0) {
-		dev = &bridge->dev[i];
+		dev = bridge->dev[i];
 		device_unregister(dev);
 	}
 	vme_remove_bus(bridge);
@@ -1390,7 +1403,7 @@ void vme_unregister_bridge(struct vme_bridge *bridge)
 
 
 	for (i = 0; i < VME_SLOTS_MAX; i++) {
-		dev = &bridge->dev[i];
+		dev = bridge->dev[i];
 		device_unregister(dev);
 	}
 	vme_remove_bus(bridge);
@@ -1427,7 +1440,7 @@ static int vme_calc_slot(struct device *dev)
 	/* Determine slot number */
 	num = 0;
 	while (num < VME_SLOTS_MAX) {
-		if (&bridge->dev[num] == dev)
+		if (bridge->dev[num] == dev)
 			break;
 
 		num++;
