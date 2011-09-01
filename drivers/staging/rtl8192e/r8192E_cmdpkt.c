@@ -415,6 +415,4 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 		pcmd_buff    += cmd_length;
 	}
 	return	1;
-
-	RT_TRACE(COMP_CMDPKT, "<----cmpk_message_handle_rx()\n");
 }
