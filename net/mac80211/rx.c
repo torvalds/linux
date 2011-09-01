@@ -476,7 +476,6 @@ static ieee80211_rx_result
 ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
-	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	char *dev_addr = rx->sdata->vif.addr;
 
 	if (ieee80211_is_data(hdr->frame_control)) {
@@ -523,14 +522,6 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 
 	}
-
-#define msh_h_get(h, l) ((struct ieee80211s_hdr *) ((u8 *)h + l))
-
-	if (ieee80211_is_data(hdr->frame_control) &&
-	    is_multicast_ether_addr(hdr->addr1) &&
-	    mesh_rmc_check(hdr->addr3, msh_h_get(hdr, hdrlen), rx->sdata))
-		return RX_DROP_MONITOR;
-#undef msh_h_get
 
 	return RX_CONTINUE;
 }
@@ -1839,6 +1830,12 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	mesh_hdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
+
+	/* frame is in RMC, don't forward */
+	if (ieee80211_is_data(hdr->frame_control) &&
+	    is_multicast_ether_addr(hdr->addr1) &&
+	    mesh_rmc_check(hdr->addr3, mesh_hdr, rx->sdata))
+		return RX_DROP_MONITOR;
 
 	if (!ieee80211_is_data(hdr->frame_control))
 		return RX_CONTINUE;
