@@ -328,13 +328,13 @@ do {						\
 		__typeof(*(r)) __osl_v; \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
-			__osl_v = readb((u8 *)(r)); \
+			__osl_v = readb((u8 __iomem *)(r)); \
 			break; \
 		case sizeof(u16): \
-			__osl_v = readw((u16 *)(r)); \
+			__osl_v = readw((u16 __iomem *)(r)); \
 			break; \
 		case sizeof(u32): \
-			__osl_v = readl((u32 *)(r)); \
+			__osl_v = readl((u32 __iomem *)(r)); \
 			break; \
 		} \
 		__osl_v; \
@@ -343,13 +343,13 @@ do {						\
 #define W_REG(r, v) do { \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
-			writeb((u8)(v), (u8 *)(r)); \
+			writeb((u8)((v) & 0xFF), (u8 __iomem *)(r)); \
 			break; \
 		case sizeof(u16):	\
-			writew((u16)(v), (u16 *)(r)); \
+			writew((u16)((v) & 0xFFFF), (u16 __iomem *)(r)); \
 			break; \
 		case sizeof(u32):	\
-			writel((u32)(v), (u32 *)(r)); \
+			writel((u32)(v), (u32 __iomem *)(r)); \
 			break; \
 		} \
 	} while (0)
