@@ -457,7 +457,7 @@ int dialog_inputbox(WINDOW *main_window,
 				/* insert the char at the proper position */
 				memmove(&result[cursor_position+1],
 						&result[cursor_position],
-						len+1);
+						len-cursor_position+1);
 				result[cursor_position] = res;
 				cursor_position++;
 			} else {
