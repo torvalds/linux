@@ -125,46 +125,6 @@ struct dwc3_omap {
 	u32			dma_status:1;
 };
 
-#ifdef CONFIG_PM
-static int dwc3_omap_suspend(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	memcpy_fromio(omap->context, omap->base, omap->resource_size);
-
-	return 0;
-}
-
-static int dwc3_omap_resume(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	memcpy_toio(omap->base, omap->context, omap->resource_size);
-
-	return 0;
-}
-
-static int dwc3_omap_idle(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-	u32			reg;
-
-	/* stop DMA Engine */
-	reg = dwc3_readl(omap->base, USBOTGSS_SYSCONFIG);
-	reg &= ~(USBOTGSS_SYSCONFIG_DMADISABLE);
-	dwc3_writel(omap->base, USBOTGSS_SYSCONFIG, reg);
-
-	return 0;
-}
-
-static UNIVERSAL_DEV_PM_OPS(dwc3_omap_pm_ops, dwc3_omap_suspend,
-		dwc3_omap_resume, dwc3_omap_idle);
-
-#define DEV_PM_OPS	(&dwc3_omap_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
-#endif
-
 static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 {
 	struct dwc3_omap	*omap = _omap;
@@ -388,7 +348,6 @@ static struct platform_driver dwc3_omap_driver = {
 	.remove		= __devexit_p(dwc3_omap_remove),
 	.driver		= {
 		.name	= "omap-dwc3",
-		.pm	= DEV_PM_OPS,
 		.of_match_table	= of_dwc3_matach,
 	},
 };
