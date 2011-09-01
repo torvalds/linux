@@ -487,7 +487,7 @@ static void ai_hwfixup(struct si_info *sii)
 }
 
 /* parse the enumeration rom to identify all cores */
-void ai_scan(struct si_pub *sih, struct chipcregs *cc)
+static void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 {
 	struct si_info *sii = SI_INFO(sih);
 	u32 erombase, *eromptr, *eromlim;
@@ -2057,12 +2057,12 @@ void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
 		if (sih->chippkg == 9 || sih->chippkg == 0xb)
 			/* Ext PA Controls for 4331 12x9 Package */
 			W_REG(&cc->chipcontrol, val |
-			      (CCTRL4331_EXTPA_EN |
-			       CCTRL4331_EXTPA_ON_GPIO2_5));
+			      CCTRL4331_EXTPA_EN |
+			      CCTRL4331_EXTPA_ON_GPIO2_5);
 		else
 			/* Ext PA Controls for 4331 12x12 Package */
 			W_REG(&cc->chipcontrol,
-			      val | (CCTRL4331_EXTPA_EN));
+			      val | CCTRL4331_EXTPA_EN);
 	} else {
 		val &= ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5);
 		W_REG(&cc->chipcontrol, val);

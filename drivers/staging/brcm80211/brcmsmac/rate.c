@@ -208,7 +208,7 @@ const struct brcms_c_rateset ofdm_mimo_rates = {
 };
 
 /* Default ratesets that include MCS32 for 40BW channels */
-const struct brcms_c_rateset cck_ofdm_40bw_mimo_rates = {
+static const struct brcms_c_rateset cck_ofdm_40bw_mimo_rates = {
 	12,
 	/*  1b,   2b,   5.5b, 6,    9,    11b,  12,   18,   24,   36,   48 */
 	{ 0x82, 0x84, 0x8b, 0x0c, 0x12, 0x96, 0x18, 0x24, 0x30, 0x48, 0x60,
@@ -219,7 +219,7 @@ const struct brcms_c_rateset cck_ofdm_40bw_mimo_rates = {
 	  0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-const struct brcms_c_rateset ofdm_40bw_mimo_rates = {
+static const struct brcms_c_rateset ofdm_40bw_mimo_rates = {
 	8,
 	/*  6b,   9,    12b,  18,   24b,  36,   48,   54 Mbps */
 	{ 0x8c, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6c},

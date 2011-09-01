@@ -218,7 +218,7 @@ struct nphy_ipa_txrxgain {
 
 #define NPHY_IPA_RXCAL_MAXGAININDEX (6 - 1)
 
-struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz[] = {
+static const struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz[] = {
 	{0, 0, 0, 0, 0, 100},
 	{0, 0, 0, 0, 0, 50},
 	{0, 0, 0, 0, 0, -1},
@@ -227,7 +227,7 @@ struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz[] = {
 	{0, 2, 3, 3, 0, -1}
 };
 
-struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz[] = {
+static const struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz[] = {
 	{0, 0, 0, 0, 0, 128},
 	{0, 0, 0, 0, 0, 70},
 	{0, 0, 0, 0, 0, 20},
@@ -236,7 +236,7 @@ struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz[] = {
 	{0, 2, 3, 3, 0, 20}
 };
 
-struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz_rev7[] = {
+static const struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz_rev7[] = {
 	{0, 0, 0, 0, 0, 100},
 	{0, 0, 0, 0, 0, 50},
 	{0, 0, 0, 0, 0, -1},
@@ -245,7 +245,7 @@ struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz_rev7[] = {
 	{0, 0, 5, 3, 0, -1}
 };
 
-struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz_rev7[] = {
+static const struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz_rev7[] = {
 	{0, 0, 0, 0, 0, 10},
 	{0, 0, 0, 1, 0, 10},
 	{0, 0, 1, 2, 0, 10},
@@ -266,7 +266,7 @@ enum {
 	  (0x1 << 14) |	\
 	  (0x1 << 13)))
 
-u16 NPHY_IPA_REV4_txdigi_filtcoeffs[][NPHY_NUM_DIG_FILT_COEFFS] = {
+static const u16 NPHY_IPA_REV4_txdigi_filtcoeffs[][NPHY_NUM_DIG_FILT_COEFFS] = {
 	{-377, 137, -407, 208, -1527, 956, 93, 186, 93,
 	 230, -44, 230, 201, -191, 201},
 	{-77, 20, -98, 49, -93, 60, 56, 111, 56, 26, -5,
@@ -10930,7 +10930,7 @@ struct radio_regs regs_RX_2056_rev8[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_SYN_2056_rev11[] = {
+static const struct radio_regs regs_SYN_2056_rev11[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -11115,7 +11115,7 @@ struct radio_regs regs_SYN_2056_rev11[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_TX_2056_rev11[] = {
+static const struct radio_regs regs_TX_2056_rev11[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -11272,7 +11272,7 @@ struct radio_regs regs_TX_2056_rev11[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_RX_2056_rev11[] = {
+static const struct radio_regs regs_RX_2056_rev11[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -20140,9 +20140,9 @@ static void wlc_phy_radio_postinit_2057(struct brcms_phy *pi)
 
 static void wlc_phy_radio_init_2056(struct brcms_phy *pi)
 {
-	struct radio_regs *regs_SYN_2056_ptr = NULL;
-	struct radio_regs *regs_TX_2056_ptr = NULL;
-	struct radio_regs *regs_RX_2056_ptr = NULL;
+	const struct radio_regs *regs_SYN_2056_ptr = NULL;
+	const struct radio_regs *regs_TX_2056_ptr = NULL;
+	const struct radio_regs *regs_RX_2056_ptr = NULL;
 
 	if (NREV_IS(pi->pubpi.phy_rev, 3)) {
 		regs_SYN_2056_ptr = regs_SYN_2056;
@@ -20637,7 +20637,7 @@ static void
 wlc_phy_chanspec_radio2056_setup(struct brcms_phy *pi,
 				 const struct chan_info_nphy_radio205x *ci)
 {
-	struct radio_regs *regs_SYN_2056_ptr = NULL;
+	const struct radio_regs *regs_SYN_2056_ptr = NULL;
 
 	write_radio_reg(pi,
 			RADIO_2056_SYN_PLL_VCOCAL1 | RADIO_2056_SYN,
@@ -27041,7 +27041,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(struct brcms_phy *pi, u8 rx_core,
 	s8 optim_gaintbl_index = 0, prev_gaintbl_index = 0;
 	s8 curr_gaintbl_index = 3;
 	u8 gainctrl_dirn = NPHY_RXCAL_GAIN_INIT;
-	struct nphy_ipa_txrxgain *nphy_rxcal_gaintbl;
+	const struct nphy_ipa_txrxgain *nphy_rxcal_gaintbl;
 	u16 hpvga, lpf_biq1, lpf_biq0, lna2, lna1;
 	int fine_gain_idx;
 	s8 txpwrindex;

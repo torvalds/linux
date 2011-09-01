@@ -50,8 +50,9 @@ u32 *bcm43xx_16_mimo;
 u32 bcm43xx_16_mimosz;
 u32 *bcm43xx_24_lcn;
 u32 bcm43xx_24_lcnsz;
-u32 *bcm43xx_bommajor;
-u32 *bcm43xx_bomminor;
+
+static u32 *bcm43xx_bommajor;
+static u32 *bcm43xx_bomminor;
 
 int brcms_ucode_data_init(struct brcms_info *wl)
 {

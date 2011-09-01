@@ -49,26 +49,26 @@
 #define ANT_SELCFG_NUM_2x4	4
 #define ANT_SELCFG_DEF_2x4	0x02	/* default antenna configuration */
 
-const u16 mimo_2x4_div_antselpat_tbl[] = {
+static const u16 mimo_2x4_div_antselpat_tbl[] = {
 	0, 0, 0x9, 0xa,		/* ant0: 0 ant1: 2,3 */
 	0, 0, 0x5, 0x6,		/* ant0: 1 ant1: 2,3 */
 	0, 0, 0, 0,		/* n.a.              */
 	0, 0, 0, 0		/* n.a.              */
 };
 
-const u8 mimo_2x4_div_antselid_tbl[16] = {
+static const u8 mimo_2x4_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 2, 3, 0,
 	0, 0, 1, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-const u16 mimo_2x3_div_antselpat_tbl[] = {
+static const u16 mimo_2x3_div_antselpat_tbl[] = {
 	16, 0, 1, 16,		/* ant0: 0 ant1: 1,2 */
 	16, 16, 16, 16,		/* n.a.              */
 	16, 2, 16, 16,		/* ant0: 2 ant1: 1   */
 	16, 16, 16, 16		/* n.a.              */
 };
 
-const u8 mimo_2x3_div_antselid_tbl[16] = {
+static const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 1, 2, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };

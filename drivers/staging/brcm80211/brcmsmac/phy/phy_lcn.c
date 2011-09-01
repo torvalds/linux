@@ -878,7 +878,7 @@ struct lcnphy_radio_regs lcnphy_radio_regs_2064[] = {
 #define LCNPHY_NUM_DIG_FILT_COEFFS 16
 #define LCNPHY_NUM_TX_DIG_FILTERS_CCK 13
 
-u16 LCNPHY_txdigfiltcoeffs_cck[LCNPHY_NUM_TX_DIG_FILTERS_CCK]
+static const u16 LCNPHY_txdigfiltcoeffs_cck[LCNPHY_NUM_TX_DIG_FILTERS_CCK]
 	[LCNPHY_NUM_DIG_FILT_COEFFS + 1] = {
 	{0, 1, 415, 1874, 64, 128, 64, 792, 1656, 64, 128, 64, 778, 1582, 64,
 	 128, 64,},
@@ -909,7 +909,7 @@ u16 LCNPHY_txdigfiltcoeffs_cck[LCNPHY_NUM_TX_DIG_FILTERS_CCK]
 };
 
 #define LCNPHY_NUM_TX_DIG_FILTERS_OFDM 3
-u16 LCNPHY_txdigfiltcoeffs_ofdm[LCNPHY_NUM_TX_DIG_FILTERS_OFDM]
+static const u16 LCNPHY_txdigfiltcoeffs_ofdm[LCNPHY_NUM_TX_DIG_FILTERS_OFDM]
 	[LCNPHY_NUM_DIG_FILT_COEFFS + 1] = {
 	{0, 0, 0xa2, 0x0, 0x100, 0x100, 0x0, 0x0, 0x0, 0x100, 0x0, 0x0,
 	 0x278, 0xfea0, 0x80, 0x100, 0x80,},

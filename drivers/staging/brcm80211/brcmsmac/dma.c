@@ -409,8 +409,9 @@ static bool _dma_descriptor_align(struct dma_info *di)
 	return true;
 }
 
-void *dma_alloc_consistent(struct pci_dev *pdev, uint size, u16 align_bits,
-			       uint *alloced, dma_addr_t *pap)
+static void *dma_alloc_consistent(struct pci_dev *pdev, uint size,
+				  u16 align_bits, uint *alloced,
+				  dma_addr_t *pap)
 {
 	if (align_bits) {
 		u16 align = (1 << align_bits);

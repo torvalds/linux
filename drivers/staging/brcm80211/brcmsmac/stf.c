@@ -34,7 +34,8 @@
 #define NSTS_2	2
 #define NSTS_3	3
 #define NSTS_4	4
-const u8 txcore_default[5] = {
+
+static const u8 txcore_default[5] = {
 	(0),			/* bitmap of the core enabled */
 	(0x01),			/* For Nsts = 1, enable core 1 */
 	(0x03),			/* For Nsts = 2, enable core 1 & 2 */

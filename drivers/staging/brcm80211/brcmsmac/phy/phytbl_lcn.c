@@ -17,7 +17,7 @@
 #include <types.h>
 #include "phytbl_lcn.h"
 
-const u32 dot11lcn_gain_tbl_rev0[] = {
+static const u32 dot11lcn_gain_tbl_rev0[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -116,7 +116,7 @@ const u32 dot11lcn_gain_tbl_rev0[] = {
 	0x00000000,
 };
 
-const u32 dot11lcn_gain_tbl_rev1[] = {
+static const u32 dot11lcn_gain_tbl_rev1[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -215,7 +215,7 @@ const u32 dot11lcn_gain_tbl_rev1[] = {
 	0x00000000,
 };
 
-const u16 dot11lcn_aux_gain_idx_tbl_rev0[] = {
+static const u16 dot11lcn_aux_gain_idx_tbl_rev0[] = {
 	0x0401,
 	0x0402,
 	0x0403,
@@ -256,7 +256,7 @@ const u16 dot11lcn_aux_gain_idx_tbl_rev0[] = {
 	0x0000,
 };
 
-const u32 dot11lcn_gain_idx_tbl_rev0[] = {
+static const u32 dot11lcn_gain_idx_tbl_rev0[] = {
 	0x00000000,
 	0x00000000,
 	0x10000000,
@@ -407,7 +407,7 @@ const u32 dot11lcn_gain_idx_tbl_rev0[] = {
 	0x0000001c,
 };
 
-const u16 dot11lcn_aux_gain_idx_tbl_2G[] = {
+static const u16 dot11lcn_aux_gain_idx_tbl_2G[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -448,7 +448,7 @@ const u16 dot11lcn_aux_gain_idx_tbl_2G[] = {
 	0x0000
 };
 
-const u8 dot11lcn_gain_val_tbl_2G[] = {
+static const u8 dot11lcn_gain_val_tbl_2G[] = {
 	0xfc,
 	0x02,
 	0x08,
@@ -519,7 +519,7 @@ const u8 dot11lcn_gain_val_tbl_2G[] = {
 	0x00
 };
 
-const u32 dot11lcn_gain_idx_tbl_2G[] = {
+static const u32 dot11lcn_gain_idx_tbl_2G[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -674,7 +674,7 @@ const u32 dot11lcn_gain_idx_tbl_2G[] = {
 	0x00000000
 };
 
-const u32 dot11lcn_gain_tbl_2G[] = {
+static const u32 dot11lcn_gain_tbl_2G[] = {
 	0x00000000,
 	0x00000004,
 	0x00000008,
@@ -773,7 +773,7 @@ const u32 dot11lcn_gain_tbl_2G[] = {
 	0x00000000
 };
 
-const u32 dot11lcn_gain_tbl_extlna_2G[] = {
+static const u32 dot11lcn_gain_tbl_extlna_2G[] = {
 	0x00000000,
 	0x00000004,
 	0x00000008,
@@ -872,7 +872,7 @@ const u32 dot11lcn_gain_tbl_extlna_2G[] = {
 	0x00000000
 };
 
-const u16 dot11lcn_aux_gain_idx_tbl_extlna_2G[] = {
+static const u16 dot11lcn_aux_gain_idx_tbl_extlna_2G[] = {
 	0x0400,
 	0x0400,
 	0x0400,
@@ -913,7 +913,7 @@ const u16 dot11lcn_aux_gain_idx_tbl_extlna_2G[] = {
 	0x0000
 };
 
-const u8 dot11lcn_gain_val_tbl_extlna_2G[] = {
+static const u8 dot11lcn_gain_val_tbl_extlna_2G[] = {
 	0xfc,
 	0x02,
 	0x08,
@@ -984,7 +984,7 @@ const u8 dot11lcn_gain_val_tbl_extlna_2G[] = {
 	0x00
 };
 
-const u32 dot11lcn_gain_idx_tbl_extlna_2G[] = {
+static const u32 dot11lcn_gain_idx_tbl_extlna_2G[] = {
 	0x00000000,
 	0x00000040,
 	0x00000000,
@@ -1139,7 +1139,7 @@ const u32 dot11lcn_gain_idx_tbl_extlna_2G[] = {
 	0x00000000
 };
 
-const u32 dot11lcn_aux_gain_idx_tbl_5G[] = {
+static const u32 dot11lcn_aux_gain_idx_tbl_5G[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -1180,7 +1180,7 @@ const u32 dot11lcn_aux_gain_idx_tbl_5G[] = {
 	0x0000
 };
 
-const u32 dot11lcn_gain_val_tbl_5G[] = {
+static const u32 dot11lcn_gain_val_tbl_5G[] = {
 	0xf7,
 	0xfd,
 	0x00,
@@ -1251,7 +1251,7 @@ const u32 dot11lcn_gain_val_tbl_5G[] = {
 	0x00
 };
 
-const u32 dot11lcn_gain_idx_tbl_5G[] = {
+static const u32 dot11lcn_gain_idx_tbl_5G[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -1406,7 +1406,7 @@ const u32 dot11lcn_gain_idx_tbl_5G[] = {
 	0x00000000
 };
 
-const u32 dot11lcn_gain_tbl_5G[] = {
+static const u32 dot11lcn_gain_tbl_5G[] = {
 	0x00000000,
 	0x00000040,
 	0x00000080,
@@ -1520,7 +1520,7 @@ const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev0[] = {
 	,
 };
 
-const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev1[] = {
+static const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev1[] = {
 	{&dot11lcn_gain_tbl_rev1,
 	 sizeof(dot11lcn_gain_tbl_rev1) / sizeof(dot11lcn_gain_tbl_rev1[0]), 18,
 	 0, 32}
@@ -1611,7 +1611,7 @@ const u32 dot11lcnphytbl_rx_gain_info_sz_rev0 =
 	sizeof(dot11lcnphytbl_rx_gain_info_rev0) /
 	sizeof(dot11lcnphytbl_rx_gain_info_rev0[0]);
 
-const u32 dot11lcnphytbl_rx_gain_info_sz_rev1 =
+static const u32 dot11lcnphytbl_rx_gain_info_sz_rev1 =
 	sizeof(dot11lcnphytbl_rx_gain_info_rev1) /
 	sizeof(dot11lcnphytbl_rx_gain_info_rev1[0]);
 
@@ -1623,7 +1623,7 @@ const u32 dot11lcnphytbl_rx_gain_info_5G_rev2_sz =
 	sizeof(dot11lcnphytbl_rx_gain_info_5G_rev2) /
 	sizeof(dot11lcnphytbl_rx_gain_info_5G_rev2[0]);
 
-const u16 dot11lcn_min_sig_sq_tbl_rev0[] = {
+static const u16 dot11lcn_min_sig_sq_tbl_rev0[] = {
 	0x014d,
 	0x014d,
 	0x014d,
@@ -1690,7 +1690,7 @@ const u16 dot11lcn_min_sig_sq_tbl_rev0[] = {
 	0x014d,
 };
 
-const u16 dot11lcn_noise_scale_tbl_rev0[] = {
+static const u16 dot11lcn_noise_scale_tbl_rev0[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -1757,7 +1757,7 @@ const u16 dot11lcn_noise_scale_tbl_rev0[] = {
 	0x0000,
 };
 
-const u32 dot11lcn_fltr_ctrl_tbl_rev0[] = {
+static const u32 dot11lcn_fltr_ctrl_tbl_rev0[] = {
 	0x000141f8,
 	0x000021f8,
 	0x000021fb,
@@ -1770,7 +1770,7 @@ const u32 dot11lcn_fltr_ctrl_tbl_rev0[] = {
 	0x0000024b,
 };
 
-const u32 dot11lcn_ps_ctrl_tbl_rev0[] = {
+static const u32 dot11lcn_ps_ctrl_tbl_rev0[] = {
 	0x00100001,
 	0x00200010,
 	0x00300001,
@@ -1793,7 +1793,7 @@ const u32 dot11lcn_ps_ctrl_tbl_rev0[] = {
 	0x00600f22,
 };
 
-const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0_combo[] = {
+static const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0_combo[] = {
 	0x0007,
 	0x0005,
 	0x0006,
@@ -1861,7 +1861,7 @@ const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0_combo[] = {
 
 };
 
-const u16 dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[] = {
+static const u16 dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[] = {
 	0x0007,
 	0x0005,
 	0x0002,
@@ -1928,7 +1928,7 @@ const u16 dot11lcn_sw_ctrl_tbl_4313_bt_epa_p250_rev0[] = {
 	0x0002,
 };
 
-const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0[] = {
+static const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0[] = {
 	0x0002,
 	0x0008,
 	0x0004,
@@ -1995,7 +1995,7 @@ const u16 dot11lcn_sw_ctrl_tbl_4313_epa_rev0[] = {
 	0x0001,
 };
 
-const u16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
+static const u16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
 	0x000a,
 	0x0009,
 	0x0006,
@@ -2062,7 +2062,7 @@ const u16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
 	0x0005,
 };
 
-const u16 dot11lcn_sw_ctrl_tbl_rev0[] = {
+static const u16 dot11lcn_sw_ctrl_tbl_rev0[] = {
 	0x0004,
 	0x0004,
 	0x0002,
@@ -2129,7 +2129,7 @@ const u16 dot11lcn_sw_ctrl_tbl_rev0[] = {
 	0x0002,
 };
 
-const u8 dot11lcn_nf_table_rev0[] = {
+static const u8 dot11lcn_nf_table_rev0[] = {
 	0x5f,
 	0x36,
 	0x29,
@@ -2148,7 +2148,7 @@ const u8 dot11lcn_nf_table_rev0[] = {
 	0x1f,
 };
 
-const u8 dot11lcn_gain_val_tbl_rev0[] = {
+static const u8 dot11lcn_gain_val_tbl_rev0[] = {
 	0x09,
 	0x0f,
 	0x14,
@@ -2211,7 +2211,7 @@ const u8 dot11lcn_gain_val_tbl_rev0[] = {
 	0x00,
 };
 
-const u8 dot11lcn_spur_tbl_rev0[] = {
+static const u8 dot11lcn_spur_tbl_rev0[] = {
 	0x01,
 	0x01,
 	0x01,
@@ -2342,7 +2342,7 @@ const u8 dot11lcn_spur_tbl_rev0[] = {
 	0x01,
 };
 
-const u16 dot11lcn_unsup_mcs_tbl_rev0[] = {
+static const u16 dot11lcn_unsup_mcs_tbl_rev0[] = {
 	0x001a,
 	0x0034,
 	0x004e,
@@ -2499,7 +2499,7 @@ const u16 dot11lcn_unsup_mcs_tbl_rev0[] = {
 	0x06f6,
 };
 
-const u16 dot11lcn_iq_local_tbl_rev0[] = {
+static const u16 dot11lcn_iq_local_tbl_rev0[] = {
 	0x0200,
 	0x0300,
 	0x0400,
@@ -2610,7 +2610,7 @@ const u16 dot11lcn_iq_local_tbl_rev0[] = {
 	0x0000,
 };
 
-const u32 dot11lcn_papd_compdelta_tbl_rev0[] = {
+static const u32 dot11lcn_papd_compdelta_tbl_rev0[] = {
 	0x00080000,
 	0x00080000,
 	0x00080000,

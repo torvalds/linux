@@ -1019,7 +1019,8 @@ wlc_phy_init_radio_regs_allbands(struct brcms_phy *pi,
 }
 
 uint
-wlc_phy_init_radio_regs(struct brcms_phy *pi, struct radio_regs *radioregs,
+wlc_phy_init_radio_regs(struct brcms_phy *pi,
+			const struct radio_regs *radioregs,
 			u16 core_offset)
 {
 	uint i = 0;
@@ -1724,7 +1725,7 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 		(*txpwr_recalc_fn)(pi);
 }
 
-void
+static void
 wlc_phy_txpower_reg_limit_calc(struct brcms_phy *pi, struct txpwr_limits *txpwr,
 			       u16 chanspec)
 {
@@ -2539,7 +2540,7 @@ void wlc_phy_noise_sample_request_external(struct brcms_phy_pub *pih)
 	wlc_phy_noise_sample_request(pih, PHY_NOISE_SAMPLE_EXTERNAL, channel);
 }
 
-s8 lcnphy_gain_index_offset_for_pkt_rssi[] = {
+static const s8 lcnphy_gain_index_offset_for_pkt_rssi[] = {
 	8,
 	8,
 	8,
