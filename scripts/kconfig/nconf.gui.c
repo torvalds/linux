@@ -461,7 +461,7 @@ int dialog_inputbox(WINDOW *main_window,
 				result[cursor_position] = res;
 				cursor_position++;
 			} else {
-				mvprintw(0, 0, "unknow key: %d\n", res);
+				mvprintw(0, 0, "unknown key: %d\n", res);
 			}
 			break;
 		}
