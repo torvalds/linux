@@ -23,8 +23,10 @@
 #include "hif-ops.h"
 
 unsigned int debug_mask;
+static unsigned int testmode;
 
 module_param(debug_mask, uint, 0644);
+module_param(testmode, uint, 0644);
 
 /*
  * Include definitions here that can be used to tune the WLAN module
@@ -901,6 +903,28 @@ static int ath6kl_upload_firmware(struct ath6kl *ar)
 	u32 address;
 	int ret;
 
+	if (testmode) {
+		switch (ar->version.target_ver) {
+		case AR6003_REV2_VERSION:
+			filename = AR6003_REV2_TCMD_FIRMWARE_FILE;
+			break;
+		case AR6003_REV3_VERSION:
+			filename = AR6003_REV3_TCMD_FIRMWARE_FILE;
+			break;
+		case AR6004_REV1_VERSION:
+			ath6kl_warn("testmode not supported with ar6004\n");
+			return -EOPNOTSUPP;
+		default:
+			ath6kl_warn("unknown target version: 0x%x\n",
+				       ar->version.target_ver);
+			return -EINVAL;
+		}
+
+		set_bit(TESTMODE, &ar->flag);
+
+		goto get_fw;
+	}
+
 	switch (ar->version.target_ver) {
 	case AR6003_REV2_VERSION:
 		filename = AR6003_REV2_FIRMWARE_FILE;
@@ -912,6 +936,8 @@ static int ath6kl_upload_firmware(struct ath6kl *ar)
 		filename = AR6003_REV3_FIRMWARE_FILE;
 		break;
 	}
+
+get_fw:
 
 	if (ar->fw == NULL) {
 		ret = ath6kl_get_fw(ar, filename, &ar->fw, &ar->fw_len);

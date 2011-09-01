@@ -64,6 +64,7 @@
 #define AR6003_REV2_PATCH_DOWNLOAD_ADDRESS  0x57e910
 #define AR6003_REV2_OTP_FILE                "ath6k/AR6003/hw2.0/otp.bin.z77"
 #define AR6003_REV2_FIRMWARE_FILE           "ath6k/AR6003/hw2.0/athwlan.bin.z77"
+#define AR6003_REV2_TCMD_FIRMWARE_FILE      "ath6k/AR6003/hw2.0/athtcmd_ram.bin"
 #define AR6003_REV2_PATCH_FILE              "ath6k/AR6003/hw2.0/data.patch.bin"
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.bin"
 #define AR6003_REV2_DEFAULT_BOARD_DATA_FILE "ath6k/AR6003/hw2.0/bdata.SD31.bin"
@@ -72,6 +73,7 @@
 #define AR6003_REV3_VERSION                 0x30000582
 #define AR6003_REV3_OTP_FILE                "ath6k/AR6003/hw2.1.1/otp.bin"
 #define AR6003_REV3_FIRMWARE_FILE           "ath6k/AR6003/hw2.1.1/athwlan.bin"
+#define AR6003_REV3_TCMD_FIRMWARE_FILE    "ath6k/AR6003/hw2.1.1/athtcmd_ram.bin"
 #define AR6003_REV3_PATCH_FILE            "ath6k/AR6003/hw2.1.1/data.patch.bin"
 #define AR6003_REV3_BOARD_DATA_FILE       "ath6k/AR6003/hw2.1.1/bdata.bin"
 #define AR6003_REV3_DEFAULT_BOARD_DATA_FILE	\
@@ -358,6 +360,7 @@ struct ath6kl_req_key {
 #define NETDEV_REGISTERED    10
 #define SKIP_SCAN	     11
 #define WLAN_ENABLED	     12
+#define TESTMODE	     13
 
 struct ath6kl {
 	struct device *dev;
@@ -430,6 +433,11 @@ struct ath6kl {
 	struct wmi_scan_params_cmd sc_params;
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
 	u8 auto_auth_stage;
+
+	struct {
+		void *rx_report;
+		size_t rx_report_len;
+	} tm;
 
 	u16 conf_flags;
 	wait_queue_head_t event_wq;

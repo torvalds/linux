@@ -915,9 +915,10 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	set_bit(WMI_READY, &ar->flag);
 	wake_up(&ar->event_wq);
 
-	ath6kl_info("hw %s fw %s\n",
+	ath6kl_info("hw %s fw %s%s\n",
 		    get_hw_id_string(ar->wdev->wiphy->hw_version),
-		    ar->wdev->wiphy->fw_version);
+		    ar->wdev->wiphy->fw_version,
+		    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
 }
 
 void ath6kl_scan_complete_evt(struct ath6kl *ar, int status)

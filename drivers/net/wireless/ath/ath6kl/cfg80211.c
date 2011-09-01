@@ -18,6 +18,7 @@
 #include "cfg80211.h"
 #include "debug.h"
 #include "hif-ops.h"
+#include "testmode.h"
 
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
@@ -1907,6 +1908,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.set_pmksa = ath6kl_set_pmksa,
 	.del_pmksa = ath6kl_del_pmksa,
 	.flush_pmksa = ath6kl_flush_pmksa,
+	CFG80211_TESTMODE_CMD(ath6kl_tm_cmd)
 #ifdef CONFIG_PM
 	.suspend = ar6k_cfg80211_suspend,
 #endif

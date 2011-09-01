@@ -17,6 +17,7 @@
 #include <linux/ip.h>
 #include "core.h"
 #include "debug.h"
+#include "testmode.h"
 
 static int ath6kl_wmi_sync_point(struct wmi *wmi);
 
@@ -1132,6 +1133,13 @@ static int ath6kl_wmi_bitrate_reply_rx(struct wmi *wmi, u8 *datap, int len)
 	}
 
 	ath6kl_wakeup_event(wmi->parent_dev);
+
+	return 0;
+}
+
+static int ath6kl_wmi_tcmd_test_report_rx(struct wmi *wmi, u8 *datap, int len)
+{
+	ath6kl_tm_rx_report_event(wmi->parent_dev, datap, len);
 
 	return 0;
 }
@@ -2509,6 +2517,23 @@ int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 keep_alive_intvl)
 	return ret;
 }
 
+int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len)
+{
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath6kl_wmi_get_new_buf(len);
+	if (!skb)
+		return -ENOMEM;
+
+	memcpy(skb->data, buf, len);
+
+	ret = ath6kl_wmi_cmd_send(wmi, skb, WMI_TEST_CMDID, NO_SYNC_WMIFLAG);
+
+	return ret;
+}
+
+
 s32 ath6kl_wmi_get_rate(s8 rate_index)
 {
 	if (rate_index == RATE_AUTO)
@@ -3006,6 +3031,10 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_REPORT_ROAM_DATA_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REPORT_ROAM_DATA_EVENTID\n");
+		break;
+	case WMI_TEST_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TEST_EVENTID\n");
+		ret = ath6kl_wmi_tcmd_test_report_rx(wmi, datap, len);
 		break;
 	case WMI_GET_FIXRATES_CMDID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_GET_FIXRATES_CMDID\n");
