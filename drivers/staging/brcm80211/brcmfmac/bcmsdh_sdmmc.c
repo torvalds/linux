@@ -347,7 +347,7 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 }
 
 extern int
-brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
+brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw,
 			 uint func, uint addr, u32 *word, uint nbytes)
 {
 	int err_ret = -EIO;
@@ -357,8 +357,8 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 		return -EINVAL;
 	}
 
-	brcmf_dbg(INFO, "cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
-		  cmd_type, rw, func, addr, nbytes);
+	brcmf_dbg(INFO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
+		  rw, func, addr, nbytes);
 
 	brcmf_pm_resume_wait(sdiodev, sdioh_request_word_wait);
 	if (brcmf_pm_resume_error(sdiodev))
@@ -566,7 +566,7 @@ brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
 		*data &= 0xff;
 		brcmf_dbg(DATA, "byte read data=0x%02x\n", *data);
 	} else {
-		brcmf_sdioh_request_word(sdiodev, 0, SDIOH_READ, func, regaddr,
+		brcmf_sdioh_request_word(sdiodev, SDIOH_READ, func, regaddr,
 					 data, regsize);
 		if (regsize == 2)
 			*data &= 0xffff;

@@ -247,7 +247,7 @@ extern int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
 
 /* read or write 2/4 bytes using cmd53 */
 extern int
-brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type,
+brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 			 uint rw, uint fnc, uint addr,
 			 u32 *word, uint nbyte);
 

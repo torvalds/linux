@@ -37,10 +37,6 @@
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
-#define SDIOH_CMD_TYPE_NORMAL   0	/* Normal command */
-#define SDIOH_CMD_TYPE_APPEND   1	/* Append command */
-#define SDIOH_CMD_TYPE_CUTTHRU  2	/* Cut-through command */
-
 /* Module parameters specific to each host-controller driver */
 
 module_param(sd_f2_blocksize, int, 0);
@@ -311,8 +307,8 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
 	if (size == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = brcmf_sdioh_request_word(sdiodev, SDIOH_CMD_TYPE_NORMAL,
-				    SDIOH_READ, SDIO_FUNC_1, addr, &word, size);
+	status = brcmf_sdioh_request_word(sdiodev, SDIOH_READ, SDIO_FUNC_1,
+					  addr, &word, size);
 
 	sdiodev->regfail = (status != 0);
 
@@ -360,8 +356,8 @@ u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
 	if (size == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 	status =
-	    brcmf_sdioh_request_word(sdiodev, SDIOH_CMD_TYPE_NORMAL,
-			       SDIOH_WRITE, SDIO_FUNC_1, addr, &data, size);
+	    brcmf_sdioh_request_word(sdiodev, SDIOH_WRITE, SDIO_FUNC_1,
+				     addr, &data, size);
 	sdiodev->regfail = (status != 0);
 
 	if (status == 0)
