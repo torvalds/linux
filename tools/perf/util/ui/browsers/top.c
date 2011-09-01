@@ -43,10 +43,10 @@ static void perf_top_browser__write(struct ui_browser *browser, void *entry, int
 
 	if (top->evlist->nr_entries == 1 || !top->display_weighted) {
 		slsmg_printf("%20.2f ", syme->weight);
-		width -= 24;
+		width -= 21;
 	} else {
 		slsmg_printf("%9.1f %10ld ", syme->weight, syme->snap_count);
-		width -= 23;
+		width -= 20;
 	}
 
 	slsmg_printf("%4.1f%%", pcnt);
