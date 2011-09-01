@@ -177,50 +177,50 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	ctrl = dwc3_readl(omap->base, USBOTGSS_UTMI_OTG_CTRL);
 
 	if (reg & USBOTGSS_IRQ1_DMADISABLECLR) {
-		dev_dbg(omap->base, "DMA Disable was Cleared\n");
+		dev_dbg(omap->dev, "DMA Disable was Cleared\n");
 		omap->dma_status = false;
 	}
 
 	if (reg & USBOTGSS_IRQ1_OEVT)
-		dev_dbg(omap->base, "OTG Event\n");
+		dev_dbg(omap->dev, "OTG Event\n");
 
 	if (reg & USBOTGSS_IRQ1_DRVVBUS_RISE) {
-		dev_dbg(omap->base, "DRVVBUS Rise\n");
+		dev_dbg(omap->dev, "DRVVBUS Rise\n");
 		ctrl |= USBOTGSS_UTMI_OTG_CTRL_DRVVBUS;
 	}
 
 	if (reg & USBOTGSS_IRQ1_CHRGVBUS_RISE) {
-		dev_dbg(omap->base, "CHRGVBUS Rise\n");
+		dev_dbg(omap->dev, "CHRGVBUS Rise\n");
 		ctrl |= USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS;
 	}
 
 	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_RISE) {
-		dev_dbg(omap->base, "DISCHRGVBUS Rise\n");
+		dev_dbg(omap->dev, "DISCHRGVBUS Rise\n");
 		ctrl |= USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS;
 	}
 
 	if (reg & USBOTGSS_IRQ1_IDPULLUP_RISE) {
-		dev_dbg(omap->base, "IDPULLUP Rise\n");
+		dev_dbg(omap->dev, "IDPULLUP Rise\n");
 		ctrl |= USBOTGSS_UTMI_OTG_CTRL_IDPULLUP;
 	}
 
 	if (reg & USBOTGSS_IRQ1_DRVVBUS_FALL) {
-		dev_dbg(omap->base, "DRVVBUS Fall\n");
+		dev_dbg(omap->dev, "DRVVBUS Fall\n");
 		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_DRVVBUS;
 	}
 
 	if (reg & USBOTGSS_IRQ1_CHRGVBUS_FALL) {
-		dev_dbg(omap->base, "CHRGVBUS Fall\n");
+		dev_dbg(omap->dev, "CHRGVBUS Fall\n");
 		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS;
 	}
 
 	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_FALL) {
-		dev_dbg(omap->base, "DISCHRGVBUS Fall\n");
+		dev_dbg(omap->dev, "DISCHRGVBUS Fall\n");
 		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS;
 	}
 
 	if (reg & USBOTGSS_IRQ1_IDPULLUP_FALL) {
-		dev_dbg(omap->base, "IDPULLUP Fall\n");
+		dev_dbg(omap->dev, "IDPULLUP Fall\n");
 		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_IDPULLUP;
 	}
 
