@@ -49,9 +49,6 @@
 #define DRM_VMW_REF_SURFACE          11
 #define DRM_VMW_EXECBUF              12
 #define DRM_VMW_FENCE_WAIT           13
-/* guarded by minor version >= 2 */
-#define DRM_VMW_UPDATE_LAYOUT        14
-
 
 /*************************************************************************/
 /**
