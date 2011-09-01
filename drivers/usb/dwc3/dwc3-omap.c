@@ -313,8 +313,7 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	/* enable all IRQs */
 	dwc3_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, 0x01);
 
-	reg = (USBOTGSS_IRQ1_DMADISABLECLR |
-			USBOTGSS_IRQ1_OEVT |
+	reg = (USBOTGSS_IRQ1_OEVT |
 			USBOTGSS_IRQ1_DRVVBUS_RISE |
 			USBOTGSS_IRQ1_CHRGVBUS_RISE |
 			USBOTGSS_IRQ1_DISCHRGVBUS_RISE |
