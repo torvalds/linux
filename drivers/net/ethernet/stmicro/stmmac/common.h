@@ -130,17 +130,6 @@ enum tx_dma_irq_status {
 #define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
 #define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
 
-/* MAC Management Counters register */
-#define MMC_CONTROL		0x00000100	/* MMC Control */
-#define MMC_HIGH_INTR		0x00000104	/* MMC High Interrupt */
-#define MMC_LOW_INTR		0x00000108	/* MMC Low Interrupt */
-#define MMC_HIGH_INTR_MASK	0x0000010c	/* MMC High Interrupt Mask */
-#define MMC_LOW_INTR_MASK	0x00000110	/* MMC Low Interrupt Mask */
-
-#define MMC_CONTROL_MAX_FRM_MASK	0x0003ff8	/* Maximum Frame Size */
-#define MMC_CONTROL_MAX_FRM_SHIFT	3
-#define MMC_CONTROL_MAX_FRAME		0x7FF
-
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
 	void (*init_rx_desc) (struct dma_desc *p, unsigned int ring_size,

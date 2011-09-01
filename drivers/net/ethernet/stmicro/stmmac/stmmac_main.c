@@ -827,10 +827,6 @@ static int stmmac_open(struct net_device *dev)
 		pr_info("\tTX Checksum insertion supported\n");
 	netdev_update_features(dev);
 
-	/* Initialise the MMC (if present) to disable all interrupts. */
-	writel(0xffffffff, priv->ioaddr + MMC_HIGH_INTR_MASK);
-	writel(0xffffffff, priv->ioaddr + MMC_LOW_INTR_MASK);
-
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, stmmac_interrupt,
 			 IRQF_SHARED, dev->name, dev);
