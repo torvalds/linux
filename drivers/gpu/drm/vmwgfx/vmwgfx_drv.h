@@ -241,7 +241,7 @@ struct vmw_private {
 	atomic_t marker_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
-	atomic_t fence_queue_waiters;
+	int fence_queue_waiters; /* Protected by hw_mutex */
 	atomic_t fifo_queue_waiters;
 	uint32_t last_read_seqno;
 	spinlock_t irq_lock;

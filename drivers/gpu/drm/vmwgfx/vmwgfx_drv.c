@@ -291,7 +291,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->init_mutex);
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
-	atomic_set(&dev_priv->fence_queue_waiters, 0);
+	dev_priv->fence_queue_waiters = 0;
 	atomic_set(&dev_priv->fifo_queue_waiters, 0);
 
 	dev_priv->io_start = pci_resource_start(dev->pdev, 0);

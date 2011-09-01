@@ -175,12 +175,43 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	return ret;
 }
 
+static void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
+{
+	mutex_lock(&dev_priv->hw_mutex);
+	if (dev_priv->fence_queue_waiters++ == 0) {
+		unsigned long irq_flags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
+		outl(SVGA_IRQFLAG_ANY_FENCE,
+		     dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
+		vmw_write(dev_priv, SVGA_REG_IRQMASK,
+			  vmw_read(dev_priv, SVGA_REG_IRQMASK) |
+			  SVGA_IRQFLAG_ANY_FENCE);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
+	}
+	mutex_unlock(&dev_priv->hw_mutex);
+}
+
+static void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
+{
+	mutex_lock(&dev_priv->hw_mutex);
+	if (--dev_priv->fence_queue_waiters == 0) {
+		unsigned long irq_flags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
+		vmw_write(dev_priv, SVGA_REG_IRQMASK,
+			  vmw_read(dev_priv, SVGA_REG_IRQMASK) &
+			  ~SVGA_IRQFLAG_ANY_FENCE);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
+	}
+	mutex_unlock(&dev_priv->hw_mutex);
+}
+
 int vmw_wait_seqno(struct vmw_private *dev_priv,
 		      bool lazy, uint32_t seqno,
 		      bool interruptible, unsigned long timeout)
 {
 	long ret;
-	unsigned long irq_flags;
 	struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
 	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
@@ -199,17 +230,7 @@ int vmw_wait_seqno(struct vmw_private *dev_priv,
 		return vmw_fallback_wait(dev_priv, lazy, false, seqno,
 					 interruptible, timeout);
 
-	mutex_lock(&dev_priv->hw_mutex);
-	if (atomic_add_return(1, &dev_priv->fence_queue_waiters) > 0) {
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		outl(SVGA_IRQFLAG_ANY_FENCE,
-		     dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-		vmw_write(dev_priv, SVGA_REG_IRQMASK,
-			  vmw_read(dev_priv, SVGA_REG_IRQMASK) |
-			  SVGA_IRQFLAG_ANY_FENCE);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	vmw_seqno_waiter_add(dev_priv);
 
 	if (interruptible)
 		ret = wait_event_interruptible_timeout
@@ -222,20 +243,12 @@ int vmw_wait_seqno(struct vmw_private *dev_priv,
 		     vmw_seqno_passed(dev_priv, seqno),
 		     timeout);
 
+	vmw_seqno_waiter_remove(dev_priv);
+
 	if (unlikely(ret == 0))
 		ret = -EBUSY;
 	else if (likely(ret > 0))
 		ret = 0;
-
-	mutex_lock(&dev_priv->hw_mutex);
-	if (atomic_dec_and_test(&dev_priv->fence_queue_waiters)) {
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		vmw_write(dev_priv, SVGA_REG_IRQMASK,
-			  vmw_read(dev_priv, SVGA_REG_IRQMASK) &
-			  ~SVGA_IRQFLAG_ANY_FENCE);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	mutex_unlock(&dev_priv->hw_mutex);
 
 	return ret;
 }
