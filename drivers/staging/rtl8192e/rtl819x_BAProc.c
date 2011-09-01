@@ -82,12 +82,12 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	u8 *tag = NULL;
 	u16 tmp = 0;
 	u16 len = ieee->tx_headroom + 9;
+
 	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "========>%s(), frame(%d)"
 		     " sentd to: %pM, ieee->dev:%p\n", __func__,
 		     type, Dst, ieee->dev);
-	if (pBA == NULL || ieee == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA(%p) is NULL or ieee(%p) is "
-			     "NULL\n", pBA, ieee);
+	if (pBA == NULL) {
+		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA(%p) is NULL\n");
 		return NULL;
 	}
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
