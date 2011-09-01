@@ -734,6 +734,20 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	struct vmw_fence_obj *fence;
 	uint32_t handle;
 
+	/*
+	 * This will allow us to extend the ioctl argument while
+	 * maintaining backwards compatibility:
+	 * We take different code paths depending on the value of
+	 * arg->version.
+	 */
+
+	if (unlikely(arg->version != DRM_VMW_EXECBUF_VERSION)) {
+		DRM_ERROR("Incorrect execbuf version.\n");
+		DRM_ERROR("You're running outdated experimental "
+			  "vmwgfx user-space drivers.");
+		return -EINVAL;
+	}
+
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
 		return ret;

@@ -31,7 +31,6 @@
 #define DRM_VMW_MAX_SURFACE_FACES 6
 #define DRM_VMW_MAX_MIP_LEVELS 24
 
-#define DRM_VMW_EXT_NAME_LEN 128
 
 #define DRM_VMW_GET_PARAM            0
 #define DRM_VMW_ALLOC_DMABUF         1
@@ -88,49 +87,6 @@ struct drm_vmw_getparam_arg {
 	uint64_t value;
 	uint32_t param;
 	uint32_t pad64;
-};
-
-/*************************************************************************/
-/**
- * DRM_VMW_EXTENSION - Query device extensions.
- */
-
-/**
- * struct drm_vmw_extension_rep
- *
- * @exists: The queried extension exists.
- * @driver_ioctl_offset: Ioctl number of the first ioctl in the extension.
- * @driver_sarea_offset: Offset to any space in the DRI SAREA
- * used by the extension.
- * @major: Major version number of the extension.
- * @minor: Minor version number of the extension.
- * @pl: Patch level version number of the extension.
- *
- * Output argument to the DRM_VMW_EXTENSION Ioctl.
- */
-
-struct drm_vmw_extension_rep {
-	int32_t exists;
-	uint32_t driver_ioctl_offset;
-	uint32_t driver_sarea_offset;
-	uint32_t major;
-	uint32_t minor;
-	uint32_t pl;
-	uint32_t pad64;
-};
-
-/**
- * union drm_vmw_extension_arg
- *
- * @extension - Ascii name of the extension to be queried. //In
- * @rep - Reply as defined above. //Out
- *
- * Argument to the DRM_VMW_EXTENSION Ioctl.
- */
-
-union drm_vmw_extension_arg {
-	char extension[DRM_VMW_EXT_NAME_LEN];
-	struct drm_vmw_extension_rep rep;
 };
 
 /*************************************************************************/
@@ -315,7 +271,7 @@ union drm_vmw_surface_reference_arg {
  * Argument to the DRM_VMW_EXECBUF Ioctl.
  */
 
-#define DRM_VMW_EXECBUF_VERSION 0
+#define DRM_VMW_EXECBUF_VERSION 1
 
 struct drm_vmw_execbuf_arg {
 	uint64_t commands;
