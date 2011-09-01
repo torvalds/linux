@@ -38,7 +38,7 @@ static struct sdio_func *cfg80211_sdio_func;
 static struct brcmf_cfg80211_dev *cfg80211_dev;
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 
-u32 brcmf_dbg_level = WL_DBG_ERR;
+static u32 brcmf_dbg_level = WL_DBG_ERR;
 
 /*
 ** cfg80211_ops api/callback list
@@ -3830,7 +3830,8 @@ dongle_scantime_out:
 	return err;
 }
 
-s32 brcmf_config_dongle(struct brcmf_cfg80211_priv *cfg_priv, bool need_lock)
+static s32 brcmf_config_dongle(struct brcmf_cfg80211_priv *cfg_priv,
+			       bool need_lock)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;

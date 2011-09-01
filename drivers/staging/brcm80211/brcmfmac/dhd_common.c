@@ -36,11 +36,12 @@ int brcmf_msg_level;
 #define MSGTRACE_VERSION	1
 
 #ifdef BCMDBG
-const char brcmf_version[] =
-"Dongle Host Driver, version " BRCMF_VERSION_STR "\nCompiled on " __DATE__
-" at " __TIME__;
+static const char brcmf_version[] =
+	"Dongle Host Driver, version " BRCMF_VERSION_STR "\nCompiled on "
+	__DATE__ " at " __TIME__;
 #else
-const char brcmf_version[] = "Dongle Host Driver, version " BRCMF_VERSION_STR;
+static const char brcmf_version[] =
+	"Dongle Host Driver, version " BRCMF_VERSION_STR;
 #endif
 
 /* IOVar table */
@@ -58,7 +59,7 @@ enum {
 	IOV_LAST
 };
 
-const struct brcmu_iovar brcmf_iovars[] = {
+static const struct brcmu_iovar brcmf_iovars[] = {
 	{"version", IOV_VERSION, 0, IOVT_BUFFER, sizeof(brcmf_version)}
 	,
 #ifdef BCMDBG
@@ -1038,7 +1039,7 @@ fail:
 	kfree(buf);
 }
 
-void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
+static void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
 {
 	char iovbuf[32];
 	int retcode;
@@ -1055,7 +1056,7 @@ void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
 			  arp_mode);
 }
 
-void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
+static void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
 {
 	char iovbuf[32];
 	int retcode;

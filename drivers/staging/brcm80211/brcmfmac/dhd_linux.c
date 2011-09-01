@@ -831,7 +831,7 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *net,
 		dev_name(&brcmf_cfg80211_get_sdio_func()->dev));
 }
 
-struct ethtool_ops brcmf_ethtool_ops = {
+static struct ethtool_ops brcmf_ethtool_ops = {
 	.get_drvinfo = brcmf_ethtool_get_drvinfo
 };
 
@@ -1492,15 +1492,6 @@ int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
 	}
 
 	return 0;
-}
-
-int brcmf_netdev_reset(struct net_device *dev, u8 flag)
-{
-	struct brcmf_info *drvr_priv = *(struct brcmf_info **)netdev_priv(dev);
-
-	brcmf_bus_devreset(&drvr_priv->pub, flag);
-
-	return 1;
 }
 
 static int brcmf_get_pend_8021x_cnt(struct brcmf_info *drvr_priv)

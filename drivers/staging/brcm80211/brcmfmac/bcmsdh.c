@@ -49,7 +49,7 @@ enum {
 	IOV_RXCHAIN
 };
 
-const struct brcmu_iovar sdioh_iovars[] = {
+static const struct brcmu_iovar sdioh_iovars[] = {
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
 	{"sd_rxchain", IOV_RXCHAIN, 0, IOVT_BOOL, 0}

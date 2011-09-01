@@ -769,7 +769,7 @@ uint brcmf_txbound;
 uint brcmf_rxbound;
 module_param(brcmf_txbound, uint, 0);
 module_param(brcmf_rxbound, uint, 0);
-uint brcmf_txminmax;
+static uint brcmf_txminmax;
 
 int brcmf_idletime = 1;
 module_param(brcmf_idletime, int, 0);
@@ -1151,7 +1151,7 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_bus *bus, uint target, bool pendok)
 	return 0;
 }
 
-int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
+static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 {
 	uint retries = 0;
 
@@ -1765,7 +1765,7 @@ enum {
 	IOV_VARS
 };
 
-const struct brcmu_iovar brcmf_sdio_iovars[] = {
+static const struct brcmu_iovar brcmf_sdio_iovars[] = {
 	{"intr", IOV_INTR, 0, IOVT_BOOL, 0},
 	{"sleep", IOV_SLEEP, 0, IOVT_BOOL, 0},
 	{"pollrate", IOV_POLLRATE, 0, IOVT_UINT32, 0},
@@ -2287,7 +2287,7 @@ break2:
 }
 #endif				/* BCMDBG */
 
-int brcmf_sdbrcm_downloadvars(struct brcmf_bus *bus, void *arg, int len)
+static int brcmf_sdbrcm_downloadvars(struct brcmf_bus *bus, void *arg, int len)
 {
 	int bcmerror = 0;
 
@@ -4497,7 +4497,7 @@ void brcmf_sdbrcm_isr(void *arg)
 	brcmf_sdbrcm_sched_dpc(bus);
 }
 
-extern bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
+static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
 {
 	struct brcmf_bus *bus;
 

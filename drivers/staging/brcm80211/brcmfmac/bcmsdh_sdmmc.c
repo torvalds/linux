@@ -50,10 +50,10 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
 #ifdef CONFIG_PM_SLEEP
-DECLARE_WAIT_QUEUE_HEAD(sdioh_request_byte_wait);
-DECLARE_WAIT_QUEUE_HEAD(sdioh_request_word_wait);
-DECLARE_WAIT_QUEUE_HEAD(sdioh_request_packet_wait);
-DECLARE_WAIT_QUEUE_HEAD(sdioh_request_buffer_wait);
+static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_byte_wait);
+static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_word_wait);
+static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_packet_wait);
+static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_buffer_wait);
 #endif		/* CONFIG_PM_SLEEP */
 
 static bool
@@ -379,7 +379,7 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 }
 
 /* Read client card reg */
-int
+static int
 brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
 			 int regsize, u32 *data)
 {
