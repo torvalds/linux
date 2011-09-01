@@ -34,7 +34,7 @@
 
 #include "bu92747guw_cir.h"
 
-#if 0
+#if 1
 #define BU92747_DBG(x...) printk(x)
 #else
 #define BU92747_DBG(x...)
@@ -58,6 +58,20 @@ static struct miscdevice bu92747guw_device;
 
 int repeat_flag=-1;
 int start_flag = 0;
+//mutex lock between remote and irda
+static DEFINE_MUTEX(bu92747_mutex);
+void bu92747_lock(void)
+{
+	mutex_lock(&bu92747_mutex);
+}
+void bu92747_unlock(void)
+{
+	mutex_unlock(&bu92747_mutex);
+}
+
+
+
+
 
 static int bu92747_cir_i2c_read_regs(struct i2c_client *client, u8 reg, u8 *buf, int len)
 {
@@ -366,8 +380,7 @@ static int bu92747_start(struct i2c_client *client)
 
 
 	start_flag = 1;
-	//enable_irq(bu92747->irq);
-	//enable clk
+	bu92747->state = 0;
 	bu92747_cir_i2c_read_regs(client, REG_SETTING0, reg_value, 1);
 	reg_value[0] = reg_value[0]|0x01;
 	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 1);
@@ -745,6 +758,8 @@ static int bu92747_open(struct inode *inode, struct file *file)
 
 	printk("bu92747_open\n");
 	bu92747->state = 0;
+	start_flag = 0;
+	repeat_flag = -1;
 //	if (BU92747_OPEN == bu92747->state) 
 //		return -EBUSY;
 //	bu92747->state = BU92747_OPEN;
@@ -762,7 +777,7 @@ static int bu92747_open(struct inode *inode, struct file *file)
 
 	//register init
 	bu92747_cir_init_device(client, bu92747);
-	start_flag = -1;
+	start_flag = 0;
 	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
 
 	return 0;
@@ -775,6 +790,8 @@ static int bu92747_release(struct inode *inode, struct file *file)
 	struct bu92747guw_platform_data *pdata = bu92747->platdata;
 
 	BU92747_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
+	smc0_write(REG_TRCR_ADDR, smc0_read(REG_TRCR_ADDR)|0x0040);
+	start_flag = -1;
 
 	//power down
 	if (pdata && pdata->cir_pwr_ctl) {
@@ -787,6 +804,70 @@ static int bu92747_release(struct inode *inode, struct file *file)
 	
 	return 0;
 }
+
+#if  CONFIG_PM
+static int bu92747_suspend(struct i2c_client *i, pm_message_t mesg)
+{
+	struct i2c_client *client = container_of(bu92747guw_device.parent, struct i2c_client, dev);
+	struct bu92747_data_info *bu92747 = (struct bu92747_data_info *)i2c_get_clientdata(client);
+	struct bu92747guw_platform_data *pdata = bu92747->platdata;
+
+	BU92747_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
+
+	if (start_flag == 0){
+		BU92747_DBG("realy suspend!\n");
+		disable_irq(bu92747->irq);
+		smc0_write(REG_TRCR_ADDR, smc0_read(REG_TRCR_ADDR)|0x0040);
+		start_flag = 0;
+		repeat_flag = -1;
+		
+		if (pdata && pdata->cir_pwr_ctl) {
+			pdata->cir_pwr_ctl(0);
+		}
+	}
+	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
+
+	return 0;
+}
+
+static int bu92747_resume(struct i2c_client *i)
+{
+	struct i2c_client *client = container_of(bu92747guw_device.parent, struct i2c_client, dev);
+	struct bu92747_data_info *bu92747 = (struct bu92747_data_info *)i2c_get_clientdata(client);
+	struct bu92747guw_platform_data *pdata = bu92747->platdata;
+	
+	BU92747_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
+
+	if (start_flag == 0){
+		BU92747_DBG("realy resume!\n");
+		enable_irq(bu92747->irq);
+		bu92747->state = 0;
+
+		//power on
+		if (pdata && pdata->cir_pwr_ctl) {
+			pdata->cir_pwr_ctl(1);
+		}
+			
+		//switch to remote control, mcr, ec_en=1,rc_mode=1
+		smc0_write(REG_MCR_ADDR, smc0_read(REG_MCR_ADDR)|(3<<10));
+		//set irda pwdownpin = 0
+		smc0_write(REG_TRCR_ADDR, smc0_read(REG_TRCR_ADDR)&0xffbf);
+		BU92747_DBG("irda power down pin = %d\n", gpio_get_value(RK29_PIN5_PA7));
+
+		//register init
+		bu92747_cir_init_device(client, bu92747);
+	}
+	
+	printk("line %d: exit %s\n", __LINE__, __FUNCTION__);
+
+
+	return 0;
+	
+}
+#else
+#define bu92747_suspend NULL
+#define bu92747_resume NULL
+#endif
 
 static struct file_operations bu92747_fops = {
 	.owner = THIS_MODULE,
@@ -827,7 +908,8 @@ static int __devinit bu92747_cir_probe(struct i2c_client *client, const struct i
 	bu92747->platdata = pdata;
 	bu92747->client = client;
 	i2c_set_clientdata(client, bu92747);
-	bu92747->state = BU92747_CLOSE;
+	bu92747->state = 0;
+	start_flag = -1;
 
 	//register device
 	bu92747guw_device.parent = &client->dev;
@@ -895,7 +977,7 @@ static int __devexit bu92747_cir_remove(struct i2c_client *client)
 	struct bu92747guw_platform_data *pdata = bu92747->platdata;
 
 	printk(" cir_remove \n");
-	start_flag = 0;
+	start_flag = -1;
 	free_irq(bu92747->irq, bu92747);
 	gpio_free(pdata->intr_pin);
     misc_deregister(&bu92747guw_device);
@@ -919,6 +1001,10 @@ static struct i2c_driver bu92747_cir_driver = {
 	.probe		= bu92747_cir_probe,
 	.remove		= __devexit_p(bu92747_cir_remove),
 	.id_table	= bu92747_cir_id,
+#ifdef CONFIG_PM
+	.suspend = bu92747_suspend,
+	.resume = bu92747_resume,
+#endif
 };
 
 static int __init bu92747_cir_init(void)
