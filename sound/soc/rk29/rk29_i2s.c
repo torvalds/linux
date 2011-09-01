@@ -658,8 +658,11 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->dma_capture->client = &rk29_dma_client_in;
 	i2s->dma_capture->dma_size = 4;
+	i2s->dma_capture->flag = 0;			//add by sxj, used for burst change
 	i2s->dma_playback->client = &rk29_dma_client_out;
 	i2s->dma_playback->dma_size = 4;
+	i2s->dma_playback->flag = 0;			//add by sxj, used for burst change
+
 
 	i2s->iis_clk = clk_get(&pdev->dev, "i2s");
 	I2S_DBG("Enter:%s, %d, iis_clk=%d\n", __FUNCTION__, __LINE__, i2s->iis_clk);
