@@ -36,6 +36,7 @@ struct i2c_board_info;
  * @csi_data_align: MIPI-CSI interface data alignment in bits
  * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
+ * @clk_id: index of the SoC peripheral clock for sensors
  * @flags: flags defining bus signals polarity inversion (High by default)
  */
 struct s5p_fimc_isp_info {
@@ -46,6 +47,7 @@ struct s5p_fimc_isp_info {
 	u16 i2c_bus_num;
 	u16 mux_id;
 	u16 flags;
+	u8 clk_id;
 };
 
 /**

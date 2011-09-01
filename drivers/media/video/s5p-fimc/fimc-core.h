@@ -36,7 +36,7 @@
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
 #define MAX_FIMC_CLOCKS		2
-#define MODULE_NAME		"s5p-fimc"
+#define FIMC_MODULE_NAME	"s5p-fimc"
 #define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
 #define SCALER_MAX_HRATIO	64
@@ -308,6 +308,7 @@ struct fimc_m2m_device {
  * @reqbufs_count: the number of buffers requested in REQBUFS ioctl
  * @input_index: input (camera sensor) index
  * @refcnt: driver's private reference counter
+ * @user_subdev_api: true if subdevs are not configured by the host driver
  */
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
@@ -325,6 +326,7 @@ struct fimc_vid_cap {
 	unsigned int			reqbufs_count;
 	int				input_index;
 	int				refcnt;
+	bool				user_subdev_api;
 };
 
 /**
@@ -355,6 +357,7 @@ struct fimc_pix_limit {
  * @has_cistatus2: 1 if CISTATUS2 register is present in this IP revision
  * @has_mainscaler_ext: 1 if extended mainscaler ratios in CIEXTEN register
  *			 are present in this IP revision
+ * @has_cam_if: set if this instance has a camera input interface
  * @pix_limit: pixel size constraints for the scaler
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
@@ -367,6 +370,7 @@ struct samsung_fimc_variant {
 	unsigned int	has_out_rot:1;
 	unsigned int	has_cistatus2:1;
 	unsigned int	has_mainscaler_ext:1;
+	unsigned int	has_cam_if:1;
 	struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
@@ -385,6 +389,12 @@ struct samsung_fimc_driverdata {
 	struct samsung_fimc_variant *variant[FIMC_MAX_DEVS];
 	unsigned long	lclk_frequency;
 	int		num_entities;
+};
+
+struct fimc_pipeline {
+	struct media_pipeline *pipe;
+	struct v4l2_subdev *sensor;
+	struct v4l2_subdev *csis;
 };
 
 struct fimc_ctx;
@@ -408,6 +418,7 @@ struct fimc_ctx;
  * @vid_cap:	camera capture device information
  * @state:	flags used to synchronize m2m and capture mode operation
  * @alloc_ctx:	videobuf2 memory allocator context
+ * @pipeline:	fimc video capture pipeline data structure
  */
 struct fimc_dev {
 	spinlock_t			slock;
@@ -427,6 +438,7 @@ struct fimc_dev {
 	struct fimc_vid_cap		vid_cap;
 	unsigned long			state;
 	struct vb2_alloc_ctx		*alloc_ctx;
+	struct fimc_pipeline		pipeline;
 };
 
 /**
@@ -645,6 +657,8 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 int fimc_register_m2m_device(struct fimc_dev *fimc,
 			     struct v4l2_device *v4l2_dev);
 void fimc_unregister_m2m_device(struct fimc_dev *fimc);
+int fimc_register_driver(void);
+void fimc_unregister_driver(void);
 
 /* -----------------------------------------------------*/
 /* fimc-capture.c					*/

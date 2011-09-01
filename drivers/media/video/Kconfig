@@ -949,8 +949,9 @@ config VIDEO_MX2
 	  Interface
 
 config  VIDEO_SAMSUNG_S5P_FIMC
-	tristate "Samsung S5P and EXYNOS4 camera host interface driver"
-	depends on VIDEO_V4L2 && PLAT_S5P && PM_RUNTIME
+	tristate "Samsung S5P and EXYNOS4 camera interface driver (EXPERIMENTAL)"
+	depends on VIDEO_V4L2 && I2C && PLAT_S5P && PM_RUNTIME && \
+		VIDEO_V4L2_SUBDEV_API && EXPERIMENTAL
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	---help---
