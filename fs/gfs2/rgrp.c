@@ -882,24 +882,21 @@ struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
 /**
  * try_rgrp_fit - See if a given reservation will fit in a given RG
  * @rgd: the RG data
- * @al: the struct gfs2_alloc structure describing the reservation
+ * @ip: the inode
  *
  * If there's room for the requested blocks to be allocated from the RG:
- *   Sets the $al_rgd field in @al.
  *
  * Returns: 1 on success (it fits), 0 on failure (it doesn't fit)
  */
 
-static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
+static int try_rgrp_fit(const struct gfs2_rgrpd *rgd, const struct gfs2_inode *ip)
 {
+	const struct gfs2_alloc *al = ip->i_alloc;
+
 	if (rgd->rd_flags & (GFS2_RGF_NOALLOC | GFS2_RDF_ERROR))
 		return 0;
-
-	if (rgd->rd_free_clone >= al->al_requested) {
-		al->al_rgd = rgd;
+	if (rgd->rd_free_clone >= al->al_requested)
 		return 1;
-	}
-
 	return 0;
 }
 
@@ -985,7 +982,10 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	int error, rg_locked;
 	int loops = 0;
 
-	rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal);
+	if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal))
+		rgd = begin = ip->i_rgd;
+	else
+		rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal);
 
 	if (rgd == NULL)
 		return -EBADSLT;
@@ -1002,8 +1002,10 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 		}
 		switch (error) {
 		case 0:
-			if (try_rgrp_fit(rgd, al))
+			if (try_rgrp_fit(rgd, ip)) {
+				ip->i_rgd = rgd;
 				return 0;
+			}
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
 				try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
 			if (!rg_locked)
@@ -1014,7 +1016,6 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (rgd == begin)
 				loops++;
 			break;
-
 		default:
 			return error;
 		}
@@ -1042,21 +1043,20 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
 	if (gfs2_assert_warn(sdp, al->al_requested))
 		return -EINVAL;
 
-try_again:
 	do {
 		error = get_local_rgrp(ip, &last_unlinked);
-		/* If there is no space, flushing the log may release some */
-		if (error) {
-			if (ip == GFS2_I(sdp->sd_rindex) &&
-			    !sdp->sd_rindex_uptodate) {
-				error = gfs2_ri_update(ip);
-				if (error)
-					return error;
-				goto try_again;
-			}
-			gfs2_log_flush(sdp, NULL);
+		if (error != -ENOSPC)
+			break;
+		/* Check that fs hasn't grown if writing to rindex */
+		if (ip == GFS2_I(sdp->sd_rindex) && !sdp->sd_rindex_uptodate) {
+			error = gfs2_ri_update(ip);
+			if (error)
+				break;
+			continue;
 		}
-	} while (error && tries++ < 3);
+		/* Flushing the log may release space */
+		gfs2_log_flush(sdp, NULL);
+	} while (tries++ < 3);
 
 	if (error)
 		return error;
@@ -1086,7 +1086,6 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 		             al->al_alloced, al->al_requested, al->al_file,
 			     al->al_line);
 
-	al->al_rgd = NULL;
 	if (al->al_rgd_gh.gh_gl)
 		gfs2_glock_dq_uninit(&al->al_rgd_gh);
 }
@@ -1339,7 +1338,7 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 	if (al == NULL)
 		return -ECANCELED;
 
-	rgd = al->al_rgd;
+	rgd = ip->i_rgd;
 
 	if (rgrp_contains_block(rgd, ip->i_goal))
 		goal = ip->i_goal - rgd->rd_data0;
@@ -1398,7 +1397,7 @@ int gfs2_alloc_di(struct gfs2_inode *dip, u64 *bn, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_alloc *al = dip->i_alloc;
-	struct gfs2_rgrpd *rgd = al->al_rgd;
+	struct gfs2_rgrpd *rgd = dip->i_rgd;
 	u32 blk;
 	u64 block;
 	unsigned int n = 1;

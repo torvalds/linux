@@ -256,8 +256,6 @@ struct gfs2_alloc {
 	unsigned int al_line;
 	char *al_file;
 	struct gfs2_holder al_rgd_gh;
-	struct gfs2_rgrpd *al_rgd;
-
 };
 
 enum {
@@ -279,6 +277,7 @@ struct gfs2_inode {
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc *i_alloc;
+	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_trunc_list;
