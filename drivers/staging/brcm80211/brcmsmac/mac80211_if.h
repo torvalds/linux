@@ -67,7 +67,7 @@ struct brcms_info {
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
 
 	/* regsva for unmap in brcms_free() */
-	void *regsva;		/* opaque chip registers virtual address */
+	void __iomem *regsva;	/* opaque chip registers virtual address */
 
 	/* timer related fields */
 	atomic_t callbacks;	/* # outstanding callback functions */

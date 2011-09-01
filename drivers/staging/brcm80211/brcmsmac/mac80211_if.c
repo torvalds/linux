@@ -96,7 +96,7 @@ struct firmware_hdr {
 	u32 idx;
 };
 
-char *brcms_firmwares[MAX_FW_IMAGES] = {
+static const char * const brcms_firmwares[MAX_FW_IMAGES] = {
 	"brcm/bcm43xx",
 	NULL
 };
@@ -1012,7 +1012,7 @@ static void brcms_free(struct brcms_info *wl)
 	 * after calling unregister_netdev() .
 	 */
 	if (wl->regsva)
-		iounmap((void *)wl->regsva);
+		iounmap(wl->regsva);
 
 	wl->regsva = NULL;
 }
@@ -1596,7 +1596,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	if (!t) {
 		wiphy_err(wl->wiphy, "wl%d: brcms_init_timer: out of memory\n",
 			  wl->pub->unit);
-		return 0;
+		return NULL;
 	}
 
 	init_timer(&t->timer);
