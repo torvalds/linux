@@ -194,10 +194,9 @@ void free_rtllib(struct net_device *dev)
 	struct rtllib_device *ieee = (struct rtllib_device *)
 				      netdev_priv_rsl(dev);
 	int i;
-	if (ieee->pHTInfo != NULL) {
-		kfree(ieee->pHTInfo);
-		ieee->pHTInfo = NULL;
-	}
+
+	kfree(ieee->pHTInfo);
+	ieee->pHTInfo = NULL;
 	rtllib_softmac_free(ieee);
 	del_timer_sync(&ieee->crypt_deinit_timer);
 	rtllib_crypt_deinit_entries(ieee, 1);

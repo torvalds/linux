@@ -277,7 +277,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 			break;
 	}
 
-	if (&pRet->List  != psearch_list)
+	if (pRet && &pRet->List  != psearch_list)
 		return pRet ;
 	else
 		return NULL;
