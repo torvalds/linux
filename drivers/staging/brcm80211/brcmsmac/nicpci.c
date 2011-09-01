@@ -215,24 +215,6 @@ struct pcicore_info {
 #define	PCI_ERROR(args)
 #define PCIE_PUB(sih) ((sih)->buscoretype == PCIE_CORE_ID)
 
-/* routines to access mdio slave device registers */
-static bool pcie_mdiosetblock(struct pcicore_info *pi, uint blk);
-static int pcie_mdioop(struct pcicore_info *pi, uint physmedia, uint regaddr,
-		       bool write, uint *val);
-static int pcie_mdiowrite(struct pcicore_info *pi, uint physmedia, uint readdr,
-			  uint val);
-static int pcie_mdioread(struct pcicore_info *pi, uint physmedia, uint readdr,
-			 uint *ret_val);
-
-static void pcie_extendL1timer(struct pcicore_info *pi, bool extend);
-static void pcie_clkreq_upd(struct pcicore_info *pi, uint state);
-
-static void pcie_war_aspm_clkreq(struct pcicore_info *pi);
-static void pcie_war_serdes(struct pcicore_info *pi);
-static void pcie_war_noplldown(struct pcicore_info *pi);
-static void pcie_war_polarity(struct pcicore_info *pi);
-static void pcie_war_pci_setup(struct pcicore_info *pi);
-
 #define PCIE_ASPM(sih)							\
 	((PCIE_PUB(sih)) &&						\
 	 (((sih)->buscorerev >= 3) &&					\

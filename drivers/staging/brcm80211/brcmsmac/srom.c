@@ -792,16 +792,45 @@ static const struct brcms_sromvar perpath_pci_sromvars[] = {
 
 static u8 srom_crc8_table[CRC8_TABLE_SIZE];
 
-static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off,
-			       struct brcms_varbuf *b);
-static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
-			     uint *count);
-static int sprom_read_pci(struct si_pub *sih, u16 *sprom,
-			  uint wordoff, u16 *buf, uint nwords, bool check_crc);
-static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz);
+/* Parse SROM and create name=value pairs. 'srom' points to
+ * the SROM word array. 'off' specifies the offset of the
+ * first word 'srom' points to, which should be either 0 or
+ * SROM3_SWRG_OFF (full SROM or software region).
+ */
 
-static int initvars_table(char *start, char *end,
-			  char **vars, uint *count);
+static uint mask_shift(u16 mask)
+{
+	uint i;
+	for (i = 0; i < (sizeof(mask) << 3); i++) {
+		if (mask & (1 << i))
+			return i;
+	}
+	return 0;
+}
+
+static uint mask_width(u16 mask)
+{
+	int i;
+	for (i = (sizeof(mask) << 3) - 1; i >= 0; i--) {
+		if (mask & (1 << i))
+			return (uint) (i - mask_shift(mask) + 1);
+	}
+	return 0;
+}
+
+static inline void ltoh16_buf(u16 *buf, unsigned int size)
+{
+	size /= 2;
+	while (size--)
+		*(buf + size) = le16_to_cpu(*(buf + size));
+}
+
+static inline void htol16_buf(u16 *buf, unsigned int size)
+{
+	size /= 2;
+	while (size--)
+		*(buf + size) = cpu_to_le16(*(buf + size));
+}
 
 /* Initialization of varbuf structure */
 static void varbuf_init(struct brcms_varbuf *b, char *buf, uint size)
@@ -862,167 +891,6 @@ static int varbuf_append(struct brcms_varbuf *b, const char *fmt, ...)
 	b->buf += r;
 
 	return r;
-}
-
-/*
- * Initialize local vars from the right source for this platform.
- * Return 0 on success, nonzero on error.
- */
-int srom_var_init(struct si_pub *sih, void *curmap, char **vars, uint *count)
-{
-	uint len;
-
-	len = 0;
-
-	if (vars == NULL || count == NULL)
-		return 0;
-
-	*vars = NULL;
-	*count = 0;
-
-	if (curmap != NULL)
-		return initvars_srom_pci(sih, curmap, vars, count);
-
-	return -EINVAL;
-}
-
-static inline void ltoh16_buf(u16 *buf, unsigned int size)
-{
-	size /= 2;
-	while (size--)
-		*(buf + size) = le16_to_cpu(*(buf + size));
-}
-
-static inline void htol16_buf(u16 *buf, unsigned int size)
-{
-	size /= 2;
-	while (size--)
-		*(buf + size) = cpu_to_le16(*(buf + size));
-}
-
-/*
- * Read in and validate sprom.
- * Return 0 on success, nonzero on error.
- */
-static int
-sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
-	       u16 *buf, uint nwords, bool check_crc)
-{
-	int err = 0;
-	uint i;
-
-	/* read the sprom */
-	for (i = 0; i < nwords; i++)
-		buf[i] = R_REG(&sprom[wordoff + i]);
-
-	if (check_crc) {
-
-		if (buf[0] == 0xffff)
-			/*
-			 * The hardware thinks that an srom that starts with
-			 * 0xffff is blank, regardless of the rest of the
-			 * content, so declare it bad.
-			 */
-			return -ENODATA;
-
-		/* fixup the endianness so crc8 will pass */
-		htol16_buf(buf, nwords * 2);
-		if (crc8(srom_crc8_table, (u8 *) buf, nwords * 2,
-			 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
-			/* DBG only pci always read srom4 first, then srom8/9 */
-			err = -EIO;
-
-		/* now correct the endianness of the byte array */
-		ltoh16_buf(buf, nwords * 2);
-	}
-	return err;
-}
-
-static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
-{
-	u8 *otp;
-	uint sz = OTP_SZ_MAX / 2;	/* size in words */
-	int err = 0;
-
-	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
-	if (otp == NULL)
-		return -ENOMEM;
-
-	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
-
-	memcpy(buf, otp, bufsz);
-
-	kfree(otp);
-
-	/* Check CRC */
-	if (buf[0] == 0xffff)
-		/* The hardware thinks that an srom that starts with 0xffff
-		 * is blank, regardless of the rest of the content, so declare
-		 * it bad.
-		 */
-		return -ENODATA;
-
-	/* fixup the endianness so crc8 will pass */
-	htol16_buf(buf, bufsz);
-	if (crc8(srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
-		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
-		err = -EIO;
-
-	/* now correct the endianness of the byte array */
-	ltoh16_buf(buf, bufsz);
-
-	return err;
-}
-
-/*
-* Create variable table from memory.
-* Return 0 on success, nonzero on error.
-*/
-static int initvars_table(char *start, char *end,
-			  char **vars, uint *count)
-{
-	int c = (int)(end - start);
-
-	/* do it only when there is more than just the null string */
-	if (c > 1) {
-		char *vp = kmalloc(c, GFP_ATOMIC);
-		if (!vp)
-			return -ENOMEM;
-		memcpy(vp, start, c);
-		*vars = vp;
-		*count = c;
-	} else {
-		*vars = NULL;
-		*count = 0;
-	}
-
-	return 0;
-}
-
-/* Parse SROM and create name=value pairs. 'srom' points to
- * the SROM word array. 'off' specifies the offset of the
- * first word 'srom' points to, which should be either 0 or
- * SROM3_SWRG_OFF (full SROM or software region).
- */
-
-static uint mask_shift(u16 mask)
-{
-	uint i;
-	for (i = 0; i < (sizeof(mask) << 3); i++) {
-		if (mask & (1 << i))
-			return i;
-	}
-	return 0;
-}
-
-static uint mask_width(u16 mask)
-{
-	int i;
-	for (i = (sizeof(mask) << 3) - 1; i >= 0; i--) {
-		if (mask & (1 << i))
-			return (uint) (i - mask_shift(mask) + 1);
-	}
-	return 0;
 }
 
 static void
@@ -1160,6 +1028,105 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 }
 
 /*
+ * Read in and validate sprom.
+ * Return 0 on success, nonzero on error.
+ */
+static int
+sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
+	       u16 *buf, uint nwords, bool check_crc)
+{
+	int err = 0;
+	uint i;
+
+	/* read the sprom */
+	for (i = 0; i < nwords; i++)
+		buf[i] = R_REG(&sprom[wordoff + i]);
+
+	if (check_crc) {
+
+		if (buf[0] == 0xffff)
+			/*
+			 * The hardware thinks that an srom that starts with
+			 * 0xffff is blank, regardless of the rest of the
+			 * content, so declare it bad.
+			 */
+			return -ENODATA;
+
+		/* fixup the endianness so crc8 will pass */
+		htol16_buf(buf, nwords * 2);
+		if (crc8(srom_crc8_table, (u8 *) buf, nwords * 2,
+			 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
+			/* DBG only pci always read srom4 first, then srom8/9 */
+			err = -EIO;
+
+		/* now correct the endianness of the byte array */
+		ltoh16_buf(buf, nwords * 2);
+	}
+	return err;
+}
+
+static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
+{
+	u8 *otp;
+	uint sz = OTP_SZ_MAX / 2;	/* size in words */
+	int err = 0;
+
+	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
+	if (otp == NULL)
+		return -ENOMEM;
+
+	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
+
+	memcpy(buf, otp, bufsz);
+
+	kfree(otp);
+
+	/* Check CRC */
+	if (buf[0] == 0xffff)
+		/* The hardware thinks that an srom that starts with 0xffff
+		 * is blank, regardless of the rest of the content, so declare
+		 * it bad.
+		 */
+		return -ENODATA;
+
+	/* fixup the endianness so crc8 will pass */
+	htol16_buf(buf, bufsz);
+	if (crc8(srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
+		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
+		err = -EIO;
+
+	/* now correct the endianness of the byte array */
+	ltoh16_buf(buf, bufsz);
+
+	return err;
+}
+
+/*
+* Create variable table from memory.
+* Return 0 on success, nonzero on error.
+*/
+static int initvars_table(char *start, char *end,
+			  char **vars, uint *count)
+{
+	int c = (int)(end - start);
+
+	/* do it only when there is more than just the null string */
+	if (c > 1) {
+		char *vp = kmalloc(c, GFP_ATOMIC);
+		if (!vp)
+			return -ENOMEM;
+		memcpy(vp, start, c);
+		*vars = vp;
+		*count = c;
+	} else {
+		*vars = NULL;
+		*count = 0;
+	}
+
+	return 0;
+}
+
+/*
  * Initialize nonvolatile variable table from sprom.
  * Return 0 on success, nonzero on error.
  */
@@ -1248,4 +1215,26 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 errout:
 	kfree(srom);
 	return err;
+}
+
+/*
+ * Initialize local vars from the right source for this platform.
+ * Return 0 on success, nonzero on error.
+ */
+int srom_var_init(struct si_pub *sih, void *curmap, char **vars, uint *count)
+{
+	uint len;
+
+	len = 0;
+
+	if (vars == NULL || count == NULL)
+		return 0;
+
+	*vars = NULL;
+	*count = 0;
+
+	if (curmap != NULL)
+		return initvars_srom_pci(sih, curmap, vars, count);
+
+	return -EINVAL;
 }

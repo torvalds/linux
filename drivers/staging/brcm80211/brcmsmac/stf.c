@@ -30,15 +30,6 @@
 #define BRCMS_STF_SS_STBC_RX(wlc) (BRCMS_ISNPHY(wlc->band) && \
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))
 
-static bool brcms_c_stf_stbc_tx_set(struct brcms_c_info *wlc, s32 int_val);
-static int brcms_c_stf_txcore_set(struct brcms_c_info *wlc, u8 Nsts, u8 val);
-static int brcms_c_stf_spatial_policy_set(struct brcms_c_info *wlc, int val);
-static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val);
-
-static void _brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc);
-static u16 _brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc,
-				       u32 rspec);
-
 #define NSTS_1	1
 #define NSTS_2	2
 #define NSTS_3	3
@@ -222,6 +213,60 @@ static int brcms_c_stf_spatial_policy_set(struct brcms_c_info *wlc, int val)
 	return 0;
 }
 
+/*
+ * Centralized txant update function. call it whenever wlc->stf->txant and/or
+ * wlc->stf->txchain change.
+ *
+ * Antennas are controlled by ucode indirectly, which drives PHY or GPIO to
+ * achieve various tx/rx antenna selection schemes
+ *
+ * legacy phy, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7
+ * means auto(last rx).
+ * for NREV<3, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7
+ * means last rx and do tx-antenna selection for SISO transmissions
+ * for NREV=3, bit 6 and bit _8_ means antenna 0 and 1 respectively, bit6+bit7
+ * means last rx and do tx-antenna selection for SISO transmissions
+ * for NREV>=7, bit 6 and bit 7 mean antenna 0 and 1 respectively, nit6+bit7
+ * means both cores active
+*/
+static void _brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc)
+{
+	s8 txant;
+
+	txant = (s8) wlc->stf->txant;
+	if (BRCMS_PHY_11N_CAP(wlc->band)) {
+		if (txant == ANT_TX_FORCE_0) {
+			wlc->stf->phytxant = PHY_TXC_ANT_0;
+		} else if (txant == ANT_TX_FORCE_1) {
+			wlc->stf->phytxant = PHY_TXC_ANT_1;
+
+			if (BRCMS_ISNPHY(wlc->band) &&
+			    NREV_GE(wlc->band->phyrev, 3)
+			    && NREV_LT(wlc->band->phyrev, 7))
+				wlc->stf->phytxant = PHY_TXC_ANT_2;
+		} else {
+			if (BRCMS_ISLCNPHY(wlc->band) ||
+			    BRCMS_ISSSLPNPHY(wlc->band))
+				wlc->stf->phytxant = PHY_TXC_LCNPHY_ANT_LAST;
+			else {
+				/* catch out of sync wlc->stf->txcore */
+				WARN_ON(wlc->stf->txchain <= 0);
+				wlc->stf->phytxant =
+				    wlc->stf->txchain << PHY_TXC_ANT_SHIFT;
+			}
+		}
+	} else {
+		if (txant == ANT_TX_FORCE_0)
+			wlc->stf->phytxant = PHY_TXC_OLD_ANT_0;
+		else if (txant == ANT_TX_FORCE_1)
+			wlc->stf->phytxant = PHY_TXC_OLD_ANT_1;
+		else
+			wlc->stf->phytxant = PHY_TXC_OLD_ANT_LAST;
+	}
+
+	brcms_b_txant_set(wlc->hw, wlc->stf->phytxant);
+}
+
 int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 {
 	u8 txchain = (u8) int_val;
@@ -356,60 +401,6 @@ int brcms_c_stf_attach(struct brcms_c_info *wlc)
 
 void brcms_c_stf_detach(struct brcms_c_info *wlc)
 {
-}
-
-/*
- * Centralized txant update function. call it whenever wlc->stf->txant and/or
- * wlc->stf->txchain change.
- *
- * Antennas are controlled by ucode indirectly, which drives PHY or GPIO to
- * achieve various tx/rx antenna selection schemes
- *
- * legacy phy, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7
- * means auto(last rx).
- * for NREV<3, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7
- * means last rx and do tx-antenna selection for SISO transmissions
- * for NREV=3, bit 6 and bit _8_ means antenna 0 and 1 respectively, bit6+bit7
- * means last rx and do tx-antenna selection for SISO transmissions
- * for NREV>=7, bit 6 and bit 7 mean antenna 0 and 1 respectively, nit6+bit7
- * means both cores active
-*/
-static void _brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc)
-{
-	s8 txant;
-
-	txant = (s8) wlc->stf->txant;
-	if (BRCMS_PHY_11N_CAP(wlc->band)) {
-		if (txant == ANT_TX_FORCE_0) {
-			wlc->stf->phytxant = PHY_TXC_ANT_0;
-		} else if (txant == ANT_TX_FORCE_1) {
-			wlc->stf->phytxant = PHY_TXC_ANT_1;
-
-			if (BRCMS_ISNPHY(wlc->band) &&
-			    NREV_GE(wlc->band->phyrev, 3)
-			    && NREV_LT(wlc->band->phyrev, 7))
-				wlc->stf->phytxant = PHY_TXC_ANT_2;
-		} else {
-			if (BRCMS_ISLCNPHY(wlc->band) ||
-			    BRCMS_ISSSLPNPHY(wlc->band))
-				wlc->stf->phytxant = PHY_TXC_LCNPHY_ANT_LAST;
-			else {
-				/* catch out of sync wlc->stf->txcore */
-				WARN_ON(wlc->stf->txchain <= 0);
-				wlc->stf->phytxant =
-				    wlc->stf->txchain << PHY_TXC_ANT_SHIFT;
-			}
-		}
-	} else {
-		if (txant == ANT_TX_FORCE_0)
-			wlc->stf->phytxant = PHY_TXC_OLD_ANT_0;
-		else if (txant == ANT_TX_FORCE_1)
-			wlc->stf->phytxant = PHY_TXC_OLD_ANT_1;
-		else
-			wlc->stf->phytxant = PHY_TXC_OLD_ANT_LAST;
-	}
-
-	brcms_b_txant_set(wlc->hw, wlc->stf->phytxant);
 }
 
 void brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc)
