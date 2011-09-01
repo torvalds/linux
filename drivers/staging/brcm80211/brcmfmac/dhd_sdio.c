@@ -1336,9 +1336,9 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
 			len = roundup(len, ALIGNMENT);
 
 	do {
-		ret = brcmf_sdbrcm_send_buf(bus,
-			brcmf_sdcard_cur_sbwad(bus->sdiodev),
-			SDIO_FUNC_2, F2SYNC, frame, len, pkt);
+		ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
+					    SDIO_FUNC_2, F2SYNC, frame,
+					    len, pkt);
 		bus->f2txdata++;
 
 		if (ret < 0) {
@@ -1625,10 +1625,8 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 
 		do {
 			bus->ctrl_frame_stat = false;
-			ret = brcmf_sdbrcm_send_buf(bus,
-				brcmf_sdcard_cur_sbwad(bus->sdiodev),
-				SDIO_FUNC_2,
-				F2SYNC, frame, len, NULL);
+			ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
+					SDIO_FUNC_2, F2SYNC, frame, len, NULL);
 
 			if (ret < 0) {
 				/* On failure, abort the command and
@@ -1976,11 +1974,9 @@ brcmf_sdbrcm_membytes(struct brcmf_bus *bus, bool write, u32 address, u8 *data,
 
 xfer_done:
 	/* Return the window to backplane enumeration space for core access */
-	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev,
-					   brcmf_sdcard_cur_sbwad(
-							bus->sdiodev)))
+	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev, bus->sdiodev->sbwad))
 		brcmf_dbg(ERROR, "FAILED to set window back to 0x%x\n",
-			  brcmf_sdcard_cur_sbwad(bus->sdiodev));
+			  bus->sdiodev->sbwad);
 
 	return bcmerror;
 }
@@ -3256,7 +3252,7 @@ brcmf_sdbrcm_read_control(struct brcmf_bus *bus, u8 *hdr, uint len, uint doff)
 
 	/* Read remainder of frame body into the rxctl buffer */
 	sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
-				brcmf_sdcard_cur_sbwad(bus->sdiodev),
+				bus->sdiodev->sbwad,
 				SDIO_FUNC_2,
 				F2SYNC, (bus->rxctl + firstread), rdlen,
 				NULL);
@@ -3412,13 +3408,13 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		 */
 		if (usechain) {
 			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
-					brcmf_sdcard_cur_sbwad(bus->sdiodev),
+					bus->sdiodev->sbwad,
 					SDIO_FUNC_2,
 					F2SYNC, (u8 *) pfirst->data, dlen,
 					pfirst);
 		} else if (bus->dataptr) {
 			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
-					brcmf_sdcard_cur_sbwad(bus->sdiodev),
+					bus->sdiodev->sbwad,
 					SDIO_FUNC_2,
 					F2SYNC, bus->dataptr, dlen,
 					NULL);
@@ -3756,8 +3752,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 				rxbuf = (u8 *) (pkt->data);
 				/* Read the entire frame */
 				sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
-						brcmf_sdcard_cur_sbwad(
-							bus->sdiodev),
+						bus->sdiodev->sbwad,
 						SDIO_FUNC_2, F2SYNC,
 						rxbuf, rdlen,
 						pkt);
@@ -3910,8 +3905,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 		}
 
 		/* Read frame header (hardware and software) */
-		sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
-				brcmf_sdcard_cur_sbwad(bus->sdiodev),
+		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
 				SDIO_FUNC_2, F2SYNC, bus->rxhdr, firstread,
 				NULL);
 		bus->f2rxhdrs++;
@@ -4061,8 +4055,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 		PKTALIGN(pkt, rdlen, BRCMF_SDALIGN);
 
 		/* Read the remaining frame data */
-		sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
-				brcmf_sdcard_cur_sbwad(bus->sdiodev),
+		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
 				SDIO_FUNC_2, F2SYNC, ((u8 *) (pkt->data)),
 				rdlen, pkt);
 		bus->f2rxdata++;
@@ -4388,8 +4381,7 @@ clkwait:
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
 
-		ret = brcmf_sdbrcm_send_buf(bus,
-			brcmf_sdcard_cur_sbwad(bus->sdiodev),
+		ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
 			SDIO_FUNC_2, F2SYNC, (u8 *) bus->ctrl_frame_buf,
 			(u32) bus->ctrl_frame_len, NULL);
 

@@ -231,9 +231,6 @@ extern void brcmf_sdio_function_cleanup(void);
 extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 
-/* Function to return current window addr */
-extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
-
 extern int brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
 					  u32 address);
 

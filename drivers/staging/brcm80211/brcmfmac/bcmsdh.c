@@ -476,11 +476,6 @@ int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 	return 0;
 }
 
-u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev)
-{
-	return sdiodev->sbwad;
-}
-
 int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	u32 regs = 0;
