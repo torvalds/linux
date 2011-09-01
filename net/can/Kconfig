@@ -40,5 +40,16 @@ config CAN_BCM
 	  CAN messages are used on the bus (e.g. in automotive environments).
 	  To use the Broadcast Manager, use AF_CAN with protocol CAN_BCM.
 
+config CAN_GW
+	tristate "CAN Gateway/Router (with netlink configuration)"
+	depends on CAN
+	default N
+	---help---
+	  The CAN Gateway/Router is used to route (and modify) CAN frames.
+	  It is based on the PF_CAN core infrastructure for msg filtering and
+	  msg sending and can optionally modify routed CAN frames on the fly.
+	  CAN frames can be routed between CAN network interfaces (one hop).
+	  They can be modified with AND/OR/XOR/SET operations as configured
+	  by the netlink configuration interface known e.g. from iptables.
 
 source "drivers/net/can/Kconfig"
