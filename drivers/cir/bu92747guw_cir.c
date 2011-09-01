@@ -64,10 +64,10 @@ void bu92747_lock(void)
 {
 	mutex_lock(&bu92747_mutex);
 }
-void bu92747_unlock(void)
-{
-	mutex_unlock(&bu92747_mutex);
-}
+//void bu92747_unlock(void)
+//{
+//	mutex_unlock(&bu92747_mutex);
+//}
 
 
 
