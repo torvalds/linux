@@ -1788,7 +1788,7 @@ static unsigned int handle_descr_data(struct e100_serial *info,
 	struct etrax_recv_buffer *buffer = phys_to_virt(descr->buf) - sizeof *buffer;
 
 	if (info->recv_cnt + recvl > 65536) {
-		printk(KERN_CRIT
+		printk(KERN_WARNING
 		       "%s: Too much pending incoming serial data! Dropping %u bytes.\n", __func__, recvl);
 		return 0;
 	}
@@ -3813,13 +3813,13 @@ rs_close(struct tty_struct *tty, struct file * filp)
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
-		printk(KERN_CRIT
+		printk(KERN_ERR
 		       "rs_close: bad serial port count; tty->count is 1, "
 		       "info->count is %d\n", info->count);
 		info->count = 1;
 	}
 	if (--info->count < 0) {
-		printk(KERN_CRIT "rs_close: bad serial port count for ttyS%d: %d\n",
+		printk(KERN_ERR "rs_close: bad serial port count for ttyS%d: %d\n",
 		       info->line, info->count);
 		info->count = 0;
 	}
@@ -4452,7 +4452,7 @@ static int __init rs_init(void)
 #if defined(CONFIG_ETRAX_RS485_ON_PA)
 	if (cris_io_interface_allocate_pins(if_serial_0, 'a', rs485_pa_bit,
 			rs485_pa_bit)) {
-		printk(KERN_CRIT "ETRAX100LX serial: Could not allocate "
+		printk(KERN_ERR "ETRAX100LX serial: Could not allocate "
 			"RS485 pin\n");
 		put_tty_driver(driver);
 		return -EBUSY;
@@ -4461,7 +4461,7 @@ static int __init rs_init(void)
 #if defined(CONFIG_ETRAX_RS485_ON_PORT_G)
 	if (cris_io_interface_allocate_pins(if_serial_0, 'g', rs485_pa_bit,
 			rs485_port_g_bit)) {
-		printk(KERN_CRIT "ETRAX100LX serial: Could not allocate "
+		printk(KERN_ERR "ETRAX100LX serial: Could not allocate "
 			"RS485 pin\n");
 		put_tty_driver(driver);
 		return -EBUSY;
@@ -4494,7 +4494,7 @@ static int __init rs_init(void)
 		if (info->enabled) {
 			if (cris_request_io_interface(info->io_if,
 					info->io_if_description)) {
-				printk(KERN_CRIT "ETRAX100LX async serial: "
+				printk(KERN_ERR "ETRAX100LX async serial: "
 					"Could not allocate IO pins for "
 					"%s, port %d\n",
 					info->io_if_description, i);
