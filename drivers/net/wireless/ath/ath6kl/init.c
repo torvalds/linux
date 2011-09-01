@@ -473,13 +473,6 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
 			   ret);
 	}
 
-	/* Enable Probe Request reporting for P2P */
-	ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, true);
-	if (ret) {
-		ath6kl_dbg(ATH6KL_DBG_TRC, "failed to enable Probe Request "
-			   "reporting (%d)\n", ret);
-	}
-
 	return status;
 }
 
