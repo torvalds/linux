@@ -45,9 +45,6 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_3D:
 		param->value = vmw_fifo_have_3d(dev_priv) ? 1 : 0;
 		break;
-	case DRM_VMW_PARAM_FIFO_OFFSET:
-		param->value = dev_priv->mmio_start;
-		break;
 	case DRM_VMW_PARAM_HW_CAPS:
 		param->value = dev_priv->capabilities;
 		break;

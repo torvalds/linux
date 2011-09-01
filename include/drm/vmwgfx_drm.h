@@ -65,10 +65,9 @@
 #define DRM_VMW_PARAM_NUM_STREAMS      0
 #define DRM_VMW_PARAM_NUM_FREE_STREAMS 1
 #define DRM_VMW_PARAM_3D               2
-#define DRM_VMW_PARAM_FIFO_OFFSET      3
-#define DRM_VMW_PARAM_HW_CAPS          4
-#define DRM_VMW_PARAM_FIFO_CAPS        5
-#define DRM_VMW_PARAM_MAX_FB_SIZE      6
+#define DRM_VMW_PARAM_HW_CAPS          3
+#define DRM_VMW_PARAM_FIFO_CAPS        4
+#define DRM_VMW_PARAM_MAX_FB_SIZE      5
 
 /**
  * struct drm_vmw_getparam_arg
