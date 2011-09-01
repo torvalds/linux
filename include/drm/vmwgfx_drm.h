@@ -48,10 +48,9 @@
 #define DRM_VMW_UNREF_SURFACE        10
 #define DRM_VMW_REF_SURFACE          11
 #define DRM_VMW_EXECBUF              12
-#define DRM_VMW_FIFO_DEBUG           13
-#define DRM_VMW_FENCE_WAIT           14
+#define DRM_VMW_FENCE_WAIT           13
 /* guarded by minor version >= 2 */
-#define DRM_VMW_UPDATE_LAYOUT        15
+#define DRM_VMW_UPDATE_LAYOUT        14
 
 
 /*************************************************************************/
@@ -433,31 +432,6 @@ struct drm_vmw_unref_dmabuf_arg {
 	uint32_t pad64;
 };
 
-/*************************************************************************/
-/**
- * DRM_VMW_FIFO_DEBUG - Get last FIFO submission.
- *
- * This IOCTL copies the last FIFO submission directly out of the FIFO buffer.
- */
-
-/**
- * struct drm_vmw_fifo_debug_arg
- *
- * @debug_buffer: User space address of a debug_buffer cast to an uint64_t //In
- * @debug_buffer_size: Size in bytes of debug buffer //In
- * @used_size: Number of bytes copied to the buffer // Out
- * @did_not_fit: Boolean indicating that the fifo contents did not fit. //Out
- *
- * Argument to the DRM_VMW_FIFO_DEBUG Ioctl.
- */
-
-struct drm_vmw_fifo_debug_arg {
-	uint64_t debug_buffer;
-	uint32_t debug_buffer_size;
-	uint32_t used_size;
-	int32_t did_not_fit;
-	uint32_t pad64;
-};
 
 struct drm_vmw_fence_wait_arg {
 	uint64_t sequence;

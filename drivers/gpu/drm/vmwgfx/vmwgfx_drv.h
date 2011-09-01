@@ -116,10 +116,6 @@ struct vmw_fifo_state {
 	unsigned long reserved_size;
 	__le32 *dynamic_buffer;
 	__le32 *static_buffer;
-	__le32 *last_buffer;
-	uint32_t last_data_size;
-	uint32_t last_buffer_size;
-	bool last_buffer_add;
 	unsigned long static_buffer_size;
 	bool using_bounce_buffer;
 	uint32_t capabilities;
@@ -401,8 +397,6 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 
 extern int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-extern int vmw_fifo_debug_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
 
 /**
  * Fifo utilities - vmwgfx_fifo.c

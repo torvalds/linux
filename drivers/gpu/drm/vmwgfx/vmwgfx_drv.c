@@ -82,9 +82,6 @@
 #define DRM_IOCTL_VMW_EXECBUF					\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_EXECBUF,		\
 		struct drm_vmw_execbuf_arg)
-#define DRM_IOCTL_VMW_FIFO_DEBUG				\
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_FIFO_DEBUG,		\
-		 struct drm_vmw_fifo_debug_arg)
 #define DRM_IOCTL_VMW_FENCE_WAIT				\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_FENCE_WAIT,		\
 		 struct drm_vmw_fence_wait_arg)
@@ -135,8 +132,6 @@ static struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(VMW_FIFO_DEBUG, vmw_fifo_debug_ioctl,
-		      DRM_AUTH | DRM_ROOT_ONLY | DRM_MASTER | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_wait_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_UPDATE_LAYOUT, vmw_kms_update_layout_ioctl,

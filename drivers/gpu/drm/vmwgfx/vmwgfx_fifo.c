@@ -72,21 +72,11 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	uint32_t max;
 	uint32_t min;
 	uint32_t dummy;
-	int ret;
 
 	fifo->static_buffer_size = VMWGFX_FIFO_STATIC_SIZE;
 	fifo->static_buffer = vmalloc(fifo->static_buffer_size);
 	if (unlikely(fifo->static_buffer == NULL))
 		return -ENOMEM;
-
-	fifo->last_buffer_size = VMWGFX_FIFO_STATIC_SIZE;
-	fifo->last_data_size = 0;
-	fifo->last_buffer_add = false;
-	fifo->last_buffer = vmalloc(fifo->last_buffer_size);
-	if (unlikely(fifo->last_buffer == NULL)) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
 
 	fifo->dynamic_buffer = NULL;
 	fifo->reserved_size = 0;
@@ -141,10 +131,6 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	iowrite32(dev_priv->last_read_sequence, fifo_mem + SVGA_FIFO_FENCE);
 	vmw_fence_queue_init(&fifo->fence_queue);
 	return vmw_fifo_send_fence(dev_priv, &dummy);
-out_err:
-	vfree(fifo->static_buffer);
-	fifo->static_buffer = NULL;
-	return ret;
 }
 
 void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)
@@ -181,11 +167,6 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 
 	mutex_unlock(&dev_priv->hw_mutex);
 	vmw_fence_queue_takedown(&fifo->fence_queue);
-
-	if (likely(fifo->last_buffer != NULL)) {
-		vfree(fifo->last_buffer);
-		fifo->last_buffer = NULL;
-	}
 
 	if (likely(fifo->static_buffer != NULL)) {
 		vfree(fifo->static_buffer);
@@ -503,9 +484,7 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *sequence)
 	    ((unsigned long)fm + sizeof(__le32));
 
 	iowrite32(*sequence, &cmd_fence->fence);
-	fifo_state->last_buffer_add = true;
 	vmw_fifo_commit(dev_priv, bytes);
-	fifo_state->last_buffer_add = false;
 	(void) vmw_fence_push(&fifo_state->fence_queue, *sequence);
 	vmw_update_sequence(dev_priv, fifo_state);
 
