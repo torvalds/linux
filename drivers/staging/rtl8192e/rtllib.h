@@ -43,6 +43,10 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
 
+#define MAX_PRECMD_CNT 16
+#define MAX_RFDEPENDCMD_CNT 16
+#define MAX_POSTCMD_CNT 16
+
 #ifndef WIRELESS_SPY
 #define WIRELESS_SPY
 #endif
@@ -207,6 +211,23 @@ struct cb_desc {
 	u8 bBTTxPacket;
 	u8 bIsBTProbRsp;
 };
+
+enum sw_chnl_cmd_id {
+	CmdID_End,
+	CmdID_SetTxPowerLevel,
+	CmdID_BBRegWrite10,
+	CmdID_WritePortUlong,
+	CmdID_WritePortUshort,
+	CmdID_WritePortUchar,
+	CmdID_RF_WriteReg,
+};
+
+struct sw_chnl_cmd {
+	enum sw_chnl_cmd_id CmdID;
+	u32			Para1;
+	u32			Para2;
+	u32			msDelay;
+} __packed;
 
 /*--------------------------Define -------------------------------------------*/
 #define MGN_1M		  0x02
@@ -2416,6 +2437,16 @@ struct rtllib_device {
 	struct work_struct wx_sync_scan_wq;
 
 	struct workqueue_struct *wq;
+	union {
+		struct rtllib_rxb *RfdArray[REORDER_WIN_SIZE];
+		struct rtllib_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
+		struct rtllib_rxb *prxbIndicateArray[REORDER_WIN_SIZE];
+		struct {
+			struct sw_chnl_cmd PreCommonCmd[MAX_PRECMD_CNT];
+			struct sw_chnl_cmd PostCommonCmd[MAX_POSTCMD_CNT];
+			struct sw_chnl_cmd RfDependCmd[MAX_RFDEPENDCMD_CNT];
+		};
+	};
 
 	/* Callback functions */
 	void (*set_security)(struct net_device *dev,

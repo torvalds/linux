@@ -37,7 +37,6 @@ static void RxPktPendingTimeout(unsigned long data)
 	struct rx_reorder_entry *pReorderEntry = NULL;
 
 	unsigned long flags = 0;
-	struct rtllib_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
 	u8 index = 0;
 	bool bPktInBuf = false;
 
@@ -62,7 +61,7 @@ static void RxPktPendingTimeout(unsigned long data)
 				RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate"
 					     " SeqNum: %d\n", __func__,
 					     pReorderEntry->SeqNum);
-				stats_IndicateArray[index] =
+				ieee->stats_IndicateArray[index] =
 							 pReorderEntry->prxb;
 				index++;
 
@@ -85,7 +84,7 @@ static void RxPktPendingTimeout(unsigned long data)
 					       flags);
 			return;
 		}
-		rtllib_indicate_packets(ieee, stats_IndicateArray, index);
+		rtllib_indicate_packets(ieee, ieee->stats_IndicateArray, index);
 		bPktInBuf = false;
 	}
 

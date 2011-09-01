@@ -21,10 +21,6 @@
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
 
-#define MAX_PRECMD_CNT 16
-#define MAX_RFDEPENDCMD_CNT 16
-#define MAX_POSTCMD_CNT 16
-
 #define AGCTAB_ArrayLength			AGCTAB_ArrayLengthPciE
 #define MACPHY_ArrayLength			MACPHY_ArrayLengthPciE
 #define RadioA_ArrayLength			RadioA_ArrayLengthPciE
@@ -44,26 +40,6 @@
 #define Rtl819XAGCTAB_Array			Rtl8192PciEAGCTAB_Array
 #define Rtl819XPHY_REGArray			Rtl8192PciEPHY_REGArray
 #define Rtl819XPHY_REG_1T2RArray		Rtl8192PciEPHY_REG_1T2RArray
-
-
-
-enum sw_chnl_cmd_id {
-	CmdID_End,
-	CmdID_SetTxPowerLevel,
-	CmdID_BBRegWrite10,
-	CmdID_WritePortUlong,
-	CmdID_WritePortUshort,
-	CmdID_WritePortUchar,
-	CmdID_RF_WriteReg,
-};
-
-/*--------------------------------Define structure----------------------------*/
-struct sw_chnl_cmd {
-	enum sw_chnl_cmd_id CmdID;
-	u32			Para1;
-	u32			Para2;
-	u32			msDelay;
-} __packed;
 
 extern u32 rtl819XMACPHY_Array_PG[];
 extern u32 rtl819XPHY_REG_1T2RArray[];

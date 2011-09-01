@@ -520,7 +520,6 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb **prx
 void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record *pTS)
 {
 	struct rx_reorder_entry *pRxReorderEntry;
-	struct rtllib_rxb *RfdArray[REORDER_WIN_SIZE];
 	u8 RfdCnt = 0;
 
 	del_timer_sync(&pTS->RxPktPendingTimer);
@@ -534,12 +533,12 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record
 		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate SeqNum %d!\n", __func__, pRxReorderEntry->SeqNum);
 		list_del_init(&pRxReorderEntry->List);
 
-		RfdArray[RfdCnt] = pRxReorderEntry->prxb;
+		ieee->RfdArray[RfdCnt] = pRxReorderEntry->prxb;
 
 		RfdCnt = RfdCnt + 1;
 		list_add_tail(&pRxReorderEntry->List, &ieee->RxReorder_Unused_List);
 	}
-	rtllib_indicate_packets(ieee, RfdArray, RfdCnt);
+	rtllib_indicate_packets(ieee, ieee->RfdArray, RfdCnt);
 
 	pTS->RxIndicateSeq = 0xffff;
 }
@@ -550,7 +549,6 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct rx_reorder_entry *pReorderEntry = NULL;
-	struct rtllib_rxb *prxbIndicateArray[REORDER_WIN_SIZE];
 	u8 WinSize = pHTInfo->RxReorderWinSize;
 	u16 WinEnd = 0;
 	u8 index = 0;
@@ -617,7 +615,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Packets indication!! "
 				"IndicateSeq: %d, NewSeq: %d\n",
 				pTS->RxIndicateSeq, SeqNum);
-		prxbIndicateArray[0] = prxb;
+		ieee->prxbIndicateArray[0] = prxb;
 		index = 1;
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
@@ -693,7 +691,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			if (SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
 				pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) % 4096;
 
-			prxbIndicateArray[index] = pReorderEntry->prxb;
+			ieee->prxbIndicateArray[index] = pReorderEntry->prxb;
 			RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate SeqNum"
 				     " %d!\n", __func__, pReorderEntry->SeqNum);
 			index++;
@@ -720,7 +718,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 					       flags);
 			return;
 		}
-		rtllib_indicate_packets(ieee, prxbIndicateArray, index);
+		rtllib_indicate_packets(ieee, ieee->prxbIndicateArray, index);
 		bPktInBuf = false;
 	}
 
