@@ -751,9 +751,10 @@ static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 		      chan->center_freq,
 		      KHZ_TO_MHZ(desired_bw_khz));
 
-	REG_DBG_PRINT("%d KHz - %d KHz @  KHz), (%s mBi, %d mBm)\n",
+	REG_DBG_PRINT("%d KHz - %d KHz @ %d KHz), (%s mBi, %d mBm)\n",
 		      freq_range->start_freq_khz,
 		      freq_range->end_freq_khz,
+		      freq_range->max_bandwidth_khz,
 		      max_antenna_gain,
 		      power_rule->max_eirp);
 }
