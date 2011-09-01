@@ -1515,7 +1515,7 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 
 	if (device_can_wakeup(priv->device)) {
 		priv->wolopts = WAKE_MAGIC; /* Magic Frame as default */
-		enable_irq_wake(dev->irq);
+		enable_irq_wake(priv->wol_irq);
 	}
 
 	return 0;
@@ -1588,6 +1588,18 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 		pr_info("\tPMT module supported\n");
 		device_set_wakeup_capable(&pdev->dev, 1);
 	}
+	/*
+	 * On some platforms e.g. SPEAr the wake up irq differs from the mac irq
+	 * The external wake up irq can be passed through the platform code
+	 * named as "eth_wake_irq"
+	 *
+	 * In case the wake up interrupt is not passed from the platform
+	 * so the driver will continue to use the mac irq (ndev->irq)
+	 */
+	priv->wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
+	if (priv->wol_irq == -ENXIO)
+		priv->wol_irq = ndev->irq;
+
 
 	platform_set_drvdata(pdev, ndev);
 
