@@ -75,7 +75,7 @@ module_param(limit_secs, int, 0644);
 static int limit_temp;
 module_param(limit_temp, int, 0444);
 
-#define LIMIT_AVG_VOLTAGE	1225000 /* vU */
+#define LIMIT_AVG_VOLTAGE	1200000 /* vU */
 #else /* !CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
 #define LIMIT_AVG_VOLTAGE	1400000 /* vU */
 #endif /* CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
@@ -92,15 +92,7 @@ module_param(debug_mask, uint, 0644);
 
 #define LIMIT_AVG_FREQ	(816 * KHZ) /* kHz */
 static unsigned int limit_avg_freq = LIMIT_AVG_FREQ;
-static int rk29_cpufreq_set_limit_avg_freq(const char *val, struct kernel_param *kp)
-{
-	int err = param_set_uint(val, kp);
-	if (!err) {
-		board_update_cpufreq_table(freq_table);
-	}
-	return err;
-}
-module_param_call(limit_avg_freq, rk29_cpufreq_set_limit_avg_freq, param_get_uint, &limit_avg_freq, 0644);
+module_param(limit_avg_freq, uint, 0444);
 
 static int limit_avg_index = -1;
 
@@ -120,7 +112,6 @@ module_param_call(limit_avg_voltage, rk29_cpufreq_set_limit_avg_voltage, param_g
 static bool limit_fb1_is_on;
 static bool limit_hdmi_is_on;
 static inline bool aclk_limit(void) { return limit_hdmi_is_on && limit_fb1_is_on; }
-static int limit_index_816 = -1;
 module_param(limit_fb1_is_on, bool, 0644);
 module_param(limit_hdmi_is_on, bool, 0644);
 #else
@@ -128,6 +119,8 @@ static inline bool aclk_limit(void) { return false; }
 #endif
 
 #if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
+static int limit_index_816 = -1;
+static unsigned int limit_freq_816;
 static int limit_index_1008 = -1;
 static unsigned int limit_freq_1008;
 #endif
@@ -152,10 +145,9 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 
 	limit_avg_freq = 0;
 	limit_avg_index = -1;
-#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
-	limit_index_816 = -1;
-#endif
 #if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
+	limit_index_816 = -1;
+	limit_freq_816 = 0;
 	limit_index_1008 = -1;
 	limit_freq_1008 = 0;
 #endif
@@ -166,13 +158,11 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 			limit_avg_freq = table[i].frequency;
 			limit_avg_index = i;
 		}
-#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+#if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
 		if (table[i].frequency <= 816 * KHZ &&
 		    (limit_index_816 < 0 ||
 		    (limit_index_816 >= 0 && table[limit_index_816].frequency < table[i].frequency)))
 			limit_index_816 = i;
-#endif
-#if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
 		if (table[i].frequency <= 1008 * KHZ &&
 		    (limit_index_1008 < 0 ||
 		    (limit_index_1008 >= 0 && table[limit_index_1008].frequency < table[i].frequency))) {
@@ -225,7 +215,7 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 	unsigned int target_freq;
 
 	if (!limit || !rk29_cpufreq_is_ondemand_policy(policy) ||
-	    (limit_avg_index < 0) || (relation & MASK_FURTHER_CPUFREQ)) {
+	    (limit_index_816 < 0) || (relation & MASK_FURTHER_CPUFREQ)) {
 		limit_temp = 0;
 		last.tv64 = 0;
 		return;
@@ -254,7 +244,7 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 		c = TEMP_COEFF_408;
 	else if (cur <= 624 * 1000)
 		c = TEMP_COEFF_624;
-	else if (cur <= limit_avg_freq)
+	else if (cur <= 816 * 1000)
 		c = TEMP_COEFF_816;
 	else if (cur <= 1008 * 1000)
 		c = TEMP_COEFF_1008;
@@ -270,9 +260,9 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 	overheat_temp = TEMP_COEFF_1008 * limit_secs * 1000;
 	overheat_temp_1200 = overheat_temp - TEMP_COEFF_1200 * (WORK_DELAY/HZ) * 1000;
 
-	if (temp > overheat_temp && target_freq > limit_avg_freq)
-		target_index = limit_avg_index;
-	else if (target_freq > limit_freq_1008 && limit_freq_1008 > limit_avg_freq &&
+	if (temp > overheat_temp && target_freq > limit_freq_816)
+		target_index = limit_index_816;
+	else if (target_freq > limit_freq_1008 && limit_freq_1008 > limit_freq_816 &&
 		 temp > overheat_temp_1200 && temp <= overheat_temp)
 		target_index = limit_index_1008;
 
@@ -738,7 +728,7 @@ static int rk29_cpufreq_pm_notifier_event(struct notifier_block *this,
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
-		ret = cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		ret = cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		if (ret < 0) {
 			ret = NOTIFY_BAD;
 			goto out;
@@ -747,7 +737,7 @@ static int rk29_cpufreq_pm_notifier_event(struct notifier_block *this,
 		break;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
-		cpufreq_driver_target(policy, limit_avg_freq, ENABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		cpufreq_driver_target(policy, limit_avg_freq, ENABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		ret = NOTIFY_OK;
 		break;
 	}
@@ -766,7 +756,7 @@ static int rk29_cpufreq_reboot_notifier_event(struct notifier_block *this,
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
 	if (policy) {
-		cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		cpufreq_cpu_put(policy);
 	}
 
