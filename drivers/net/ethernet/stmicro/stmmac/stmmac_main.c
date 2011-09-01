@@ -763,6 +763,23 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 	memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
 }
 
+static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
+{
+	u32 hwid = priv->hw->synopsys_uid;
+
+	/* Only check valid Synopsys Id because old MAC chips
+	 * have no HW registers where get the ID */
+	if (likely(hwid)) {
+		u32 uid = ((hwid & 0x0000ff00) >> 8);
+		u32 synid = (hwid & 0x000000ff);
+
+		pr_info("STMMAC - user ID: 0x%x, Synopsys ID: 0x%x\n",
+			uid, synid);
+
+		return synid;
+	}
+	return 0;
+}
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -835,7 +852,8 @@ static int stmmac_open(struct net_device *dev)
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
 
-	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
+	stmmac_get_synopsys_id(priv);
+
 	if (priv->rx_coe)
 		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
 	if (priv->plat->tx_coe)

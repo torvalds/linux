@@ -230,6 +230,7 @@ struct mac_device_info {
 	const struct stmmac_dma_ops	*dma;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
+	unsigned int synopsys_uid;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr);
