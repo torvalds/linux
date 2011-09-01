@@ -1638,7 +1638,7 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 			int size_num;
 			size_num = reg_num + 1;
 			
-			ptemp = phead = (u8*)kmalloc(size_num*sizeof(u8),GFP_KERNEL);
+			ptemp = phead = (u8*)kmalloc((size_num+10)*sizeof(u8),GFP_KERNEL);
 			if (!phead) {
 				SENSOR_DG("-------------write registers allocate memory fail!!!\n");
                 i = j;
