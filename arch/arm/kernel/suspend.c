@@ -8,8 +8,27 @@
 
 static pgd_t *suspend_pgd;
 
-extern int __cpu_suspend(int, long, unsigned long, int (*)(unsigned long));
+extern int __cpu_suspend(unsigned long, int (*)(unsigned long));
 extern void cpu_resume_mmu(void);
+
+/*
+ * This is called by __cpu_suspend() to save the state, and do whatever
+ * flushing is required to ensure that when the CPU goes to sleep we have
+ * the necessary data available when the caches are not searched.
+ */
+void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr)
+{
+	*save_ptr = virt_to_phys(ptr);
+
+	/* This must correspond to the LDM in cpu_resume() assembly */
+	*ptr++ = virt_to_phys(suspend_pgd);
+	*ptr++ = sp;
+	*ptr++ = virt_to_phys(cpu_do_resume);
+
+	cpu_do_suspend(ptr);
+
+	flush_cache_all();
+}
 
 /*
  * Hide the first two arguments to __cpu_suspend - these are an implementation
@@ -29,8 +48,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * resume (indicated by a zero return code), we need to switch
 	 * back to the correct page tables.
 	 */
-	ret = __cpu_suspend(virt_to_phys(suspend_pgd),
-			    PHYS_OFFSET - PAGE_OFFSET, arg, fn);
+	ret = __cpu_suspend(arg, fn);
 	if (ret == 0) {
 		cpu_switch_mm(mm->pgd, mm);
 		local_flush_tlb_all();

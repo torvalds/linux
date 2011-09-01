@@ -8,54 +8,35 @@
 	.text
 
 /*
- * Save CPU state for a suspend
- *  r0 = phys addr of temporary page tables
- *  r1 = v:p offset
- *  r2 = suspend function arg0
- *  r3 = suspend function
+ * Save CPU state for a suspend.  This saves the CPU general purpose
+ * registers, and allocates space on the kernel stack to save the CPU
+ * specific registers and some other data for resume.
+ *  r0 = suspend function arg0
+ *  r1 = suspend function
  */
 ENTRY(__cpu_suspend)
 	stmfd	sp!, {r4 - r11, lr}
-	mov	r4, r0
 #ifdef MULTI_CPU
 	ldr	r10, =processor
-	ldr	r5, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
-	ldr	ip, [r10, #CPU_DO_RESUME] @ virtual resume function
+	ldr	r4, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
 #else
-	ldr	r5, =cpu_suspend_size
-	ldr	ip, =cpu_do_resume
+	ldr	r4, =cpu_suspend_size
 #endif
-	mov	r6, sp			@ current virtual SP
-	sub	sp, sp, r5		@ allocate CPU state on stack
-	mov	r0, sp			@ save pointer to CPU save block
-	add	ip, ip, r1		@ convert resume fn to phys
-	stmfd	sp!, {r4, r6, ip}	@ save phys pgd, virt SP, phys resume fn
-	ldr	r5, =sleep_save_sp
-	add	r6, sp, r1		@ convert SP to phys
-	stmfd	sp!, {r2, r3}		@ save suspend func arg and pointer
+	mov	r5, sp			@ current virtual SP
+	add	r4, r4, #12		@ Space for pgd, virt sp, phys resume fn
+	sub	sp, sp, r4		@ allocate CPU state on stack
+	stmfd	sp!, {r0, r1}		@ save suspend func arg and pointer
+	add	r0, sp, #8		@ save pointer to save block
+	mov	r1, r4			@ size of save block
+	mov	r2, r5			@ virtual SP
+	ldr	r3, =sleep_save_sp
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
 	ALT_UP(mov lr, #0)
 	and	lr, lr, #15
-	str	r6, [r5, lr, lsl #2]	@ save phys SP
-#else
-	str	r6, [r5]		@ save phys SP
+	add	r3, r3, lr, lsl #2
 #endif
-#ifdef MULTI_CPU
-	mov	lr, pc
-	ldr	pc, [r10, #CPU_DO_SUSPEND] @ save CPU state
-#else
-	bl	cpu_do_suspend
-#endif
-
-	@ flush data cache
-#ifdef MULTI_CACHE
-	ldr	r10, =cpu_cache
-	mov	lr, pc
-	ldr	pc, [r10, #CACHE_FLUSH_KERN_ALL]
-#else
-	bl	__cpuc_flush_kern_all
-#endif
+	bl	__cpu_suspend_save
 	adr	lr, BSYM(cpu_suspend_abort)
 	ldmfd	sp!, {r0, pc}		@ call suspend fn
 ENDPROC(__cpu_suspend)
