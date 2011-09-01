@@ -67,6 +67,12 @@ config MACH_RK29_P91
 	  
 endchoice
 
+config RK29_NEWTON_CLOCK
+	depends on MACH_RK29_newton
+	bool "enable newton 1.2G cpu clock support"
+	help
+	  support for newton 1.2G cpu clock.
+
 choice DDR_TYPE
 	prompt "DDR Memory Type"
 	default DDR_TYPE_DDR3_DEFAULT 

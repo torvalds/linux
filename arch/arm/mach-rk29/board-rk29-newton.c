@@ -60,6 +60,12 @@
 #ifdef CONFIG_BU92747GUW_CIR
 #include "../../../drivers/cir/bu92747guw_cir.h"
 #endif
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+// 1: newton for 1.2G
+#define RK29_NEWTON_CPU_CLK     1
+// 1: newton for hardware 1.5V
+#define RK29_NEWTON_NEWBOARD    1
+#endif
 
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -1662,8 +1668,13 @@ static struct platform_device rk29sdk_rfkill = {
 
 
 #ifdef CONFIG_VIVANTE
+#ifdef RK29_NEWTON_CPU_CLK
+#define GPU_HIGH_CLOCK        504 // 504 456
+#define GPU_LOW_CLOCK         300
+#else
 #define GPU_HIGH_CLOCK        552
 #define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
+#endif
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
@@ -2203,9 +2214,38 @@ static void __init machine_rk29_init_irq(void)
 }
 
 static struct cpufreq_frequency_table freq_table[] = {
+#ifdef RK29_NEWTON_CPU_CLK
+/*
+ * hardware change the max vdd from 1.4 to 1.5, so new table is:
+ *           1.075 -> 1.133
+ *           1.125 -> 1.20
+ *           1.15  -> 1.225
+ *           1.225 -> 1.313
+ *           1.30  -> 1.404
+ *           1.325 -> 1.436
+ *           1.35  -> 1.46
+ *           1.40  -> 1.5
+ * 
+*/
+	{ .index = 1075000, .frequency =  408000 },
+	{ .index = 1150000, .frequency =  816000 },
+	{ .index = 1225000, .frequency = 1008000 },
+
+//	{ .index = 1300000, .frequency = 1200000 },
+//	{ .index = 1325000, .frequency = 1200000 },
+	{ .index = 1350000, .frequency = 1200000 },
+//	{ .index = 1400000, .frequency = 1200000 },
+#else
+#ifdef RK29_NEWTON_NEWBOARD
+	{ .index = 1075000, .frequency =  408000 },
+	{ .index = 1150000, .frequency =  816000 },
+	{ .index = 1225000, .frequency = 1008000 },
+#else
 	{ .index = 1200000, .frequency =  408000 },
 	{ .index = 1200000, .frequency =  816000 },
 	{ .index = 1300000, .frequency = 1008000 },
+#endif // RK29_NEWTON_NEWBOARD
+#endif // RK29_NEWTON_CPU_CLK
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
@@ -2270,7 +2310,11 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
+#ifdef RK29_NEWTON_CPU_CLK
+	rk29_clock_init(periph_pll_144mhz);
+#else
 	rk29_clock_init(periph_pll_default);
+#endif
 	rk29_iomux_init();
     ddr_init(DDR_TYPE,DDR_FREQ);  // DDR3_1333H, 400
 }
