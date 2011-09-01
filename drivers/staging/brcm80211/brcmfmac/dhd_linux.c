@@ -120,12 +120,6 @@ uint brcmf_radio_up = 1;
 char iface_name[IFNAMSIZ] = "wlan";
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
-static int brcmf_toe_get(struct brcmf_info *drvr_priv, int idx, u32 *toe_ol);
-static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
-static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
-			    void *pktdata, struct brcmf_event_msg *event_ptr,
-			    void **data_ptr);
-
 static int brcmf_net2idx(struct brcmf_info *drvr_priv, struct net_device *net)
 {
 	int i = 0;
@@ -598,6 +592,23 @@ void brcmf_txflowcontrol(struct brcmf_pub *drvr, int ifidx, bool state)
 		netif_stop_queue(net);
 	else
 		netif_wake_queue(net);
+}
+
+static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
+			    void *pktdata, struct brcmf_event_msg *event,
+			    void **data)
+{
+	int bcmerror = 0;
+
+	bcmerror = brcmf_c_host_event(drvr_priv, ifidx, pktdata, event, data);
+	if (bcmerror != 0)
+		return bcmerror;
+
+	if (drvr_priv->iflist[*ifidx]->net)
+		brcmf_cfg80211_event(drvr_priv->iflist[*ifidx]->net,
+				     event, *data);
+
+	return bcmerror;
 }
 
 void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
@@ -1481,23 +1492,6 @@ int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
 	}
 
 	return 0;
-}
-
-static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
-			    void *pktdata, struct brcmf_event_msg *event,
-			    void **data)
-{
-	int bcmerror = 0;
-
-	bcmerror = brcmf_c_host_event(drvr_priv, ifidx, pktdata, event, data);
-	if (bcmerror != 0)
-		return bcmerror;
-
-	if (drvr_priv->iflist[*ifidx]->net)
-		brcmf_cfg80211_event(drvr_priv->iflist[*ifidx]->net,
-				     event, *data);
-
-	return bcmerror;
 }
 
 int brcmf_netdev_reset(struct net_device *dev, u8 flag)
