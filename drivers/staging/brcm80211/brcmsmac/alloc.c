@@ -1,4 +1,4 @@
-/*
+#/*
  * Copyright (c) 2010 Broadcom Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -20,13 +20,6 @@
 #include "main.h"
 #include "alloc.h"
 
-static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit);
-static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg);
-static struct brcms_pub *brcms_c_pub_malloc(uint unit,
-				      uint *err, uint devid);
-static void brcms_c_pub_mfree(struct brcms_pub *pub);
-static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid);
-
 static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid)
 {
 	tunables->ntxd = NTXD;
@@ -43,6 +36,16 @@ static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid)
 	tunables->ampdudatahiwat = BRCMS_AMPDUDATAHIWAT;
 	tunables->rxbnd = RXBND;
 	tunables->txsbnd = TXSBND;
+}
+
+static void brcms_c_pub_mfree(struct brcms_pub *pub)
+{
+	if (pub == NULL)
+		return;
+
+	kfree(pub->multicast);
+	kfree(pub->tunables);
+	kfree(pub);
 }
 
 static struct brcms_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
@@ -77,14 +80,14 @@ static struct brcms_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
 	return NULL;
 }
 
-static void brcms_c_pub_mfree(struct brcms_pub *pub)
+static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg)
 {
-	if (pub == NULL)
+	if (cfg == NULL)
 		return;
 
-	kfree(pub->multicast);
-	kfree(pub->tunables);
-	kfree(pub);
+	kfree(cfg->maclist);
+	kfree(cfg->current_bss);
+	kfree(cfg);
 }
 
 static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)
@@ -104,16 +107,6 @@ static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)
  fail:
 	brcms_c_bsscfg_mfree(cfg);
 	return NULL;
-}
-
-static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg)
-{
-	if (cfg == NULL)
-		return;
-
-	kfree(cfg->maclist);
-	kfree(cfg->current_bss);
-	kfree(cfg);
 }
 
 static void brcms_c_bsscfg_ID_assign(struct brcms_c_info *wlc,
