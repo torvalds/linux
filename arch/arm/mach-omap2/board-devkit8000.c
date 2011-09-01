@@ -139,7 +139,7 @@ static struct regulator_consumer_supply devkit8000_vio_supply[] = {
 };
 
 static struct panel_generic_dpi_data lcd_panel = {
-	.name			= "generic",
+	.name			= "innolux_at070tn83",
 	.platform_enable        = devkit8000_panel_enable_lcd,
 	.platform_disable       = devkit8000_panel_disable_lcd,
 };
