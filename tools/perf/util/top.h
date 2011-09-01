@@ -10,6 +10,7 @@
 
 struct perf_evlist;
 struct perf_evsel;
+struct perf_session;
 
 struct sym_entry {
 	struct rb_node		rb_node;
@@ -38,6 +39,7 @@ struct perf_top {
 	u64		   kernel_samples, us_samples;
 	u64		   exact_samples;
 	u64		   guest_us_samples, guest_kernel_samples;
+	u64		   total_lost_warned;
 	int		   print_entries, count_filter, delay_secs;
 	int		   display_weighted, freq, rb_entries;
 	pid_t		   target_pid, target_tid;
@@ -45,6 +47,7 @@ struct perf_top {
 	const char	   *cpu_list;
 	struct sym_entry   *sym_filter_entry;
 	struct perf_evsel  *sym_evsel;
+	struct perf_session *session;
 };
 
 size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size);
