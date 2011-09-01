@@ -234,6 +234,9 @@ extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 /* Function to return current window addr */
 extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
 
+extern int brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
+					  u32 address);
+
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory

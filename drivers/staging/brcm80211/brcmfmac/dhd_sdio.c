@@ -948,24 +948,6 @@ static void brcmf_sdbrcm_setmemsize(struct brcmf_bus *bus, int mem_size)
 		bus->ramsize = brcmf_dongle_memsize;
 }
 
-static int brcmf_sdbrcm_set_siaddr_window(struct brcmf_bus *bus, u32 address)
-{
-	int err = 0;
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_SBADDRLOW,
-			       (address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
-	if (!err)
-		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				 SBSDIO_FUNC1_SBADDRMID,
-				 (address >> 16) & SBSDIO_SBADDRMID_MASK, &err);
-	if (!err)
-		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_SBADDRHIGH,
-				       (address >> 24) & SBSDIO_SBADDRHIGH_MASK,
-				       &err);
-	return err;
-}
-
 /* Turn backplane clock on or off */
 static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 {
@@ -1958,7 +1940,7 @@ brcmf_sdbrcm_membytes(struct brcmf_bus *bus, bool write, u32 address, u8 *data,
 		dsize = size;
 
 	/* Set the backplane window to include the start address */
-	bcmerror = brcmf_sdbrcm_set_siaddr_window(bus, address);
+	bcmerror = brcmf_sdcard_set_sbaddr_window(bus->sdiodev, address);
 	if (bcmerror) {
 		brcmf_dbg(ERROR, "window change failed\n");
 		goto xfer_done;
@@ -1981,7 +1963,8 @@ brcmf_sdbrcm_membytes(struct brcmf_bus *bus, bool write, u32 address, u8 *data,
 		if (size) {
 			data += dsize;
 			address += dsize;
-			bcmerror = brcmf_sdbrcm_set_siaddr_window(bus, address);
+			bcmerror = brcmf_sdcard_set_sbaddr_window(bus->sdiodev,
+								  address);
 			if (bcmerror) {
 				brcmf_dbg(ERROR, "window change failed\n");
 				break;
@@ -1993,7 +1976,7 @@ brcmf_sdbrcm_membytes(struct brcmf_bus *bus, bool write, u32 address, u8 *data,
 
 xfer_done:
 	/* Return the window to backplane enumeration space for core access */
-	if (brcmf_sdbrcm_set_siaddr_window(bus,
+	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev,
 					   brcmf_sdcard_cur_sbwad(
 							bus->sdiodev)))
 		brcmf_dbg(ERROR, "FAILED to set window back to 0x%x\n",
@@ -4838,7 +4821,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 	bus->alp_only = true;
 
 	/* Return the window to backplane enumeration space for core access */
-	if (brcmf_sdbrcm_set_siaddr_window(bus, SI_ENUM_BASE))
+	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev, SI_ENUM_BASE))
 		brcmf_dbg(ERROR, "FAILED to return to SI_ENUM_BASE\n");
 
 #ifdef BCMDBG
