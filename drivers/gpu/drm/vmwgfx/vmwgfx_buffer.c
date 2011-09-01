@@ -274,39 +274,39 @@ static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 static void *vmw_sync_obj_ref(void *sync_obj)
 {
-	return sync_obj;
+
+	return (void *)
+		vmw_fence_obj_reference((struct vmw_fence_obj *) sync_obj);
 }
 
 static void vmw_sync_obj_unref(void **sync_obj)
 {
-	*sync_obj = NULL;
+	vmw_fence_obj_unreference((struct vmw_fence_obj **) sync_obj);
 }
 
 static int vmw_sync_obj_flush(void *sync_obj, void *sync_arg)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-
-	mutex_lock(&dev_priv->hw_mutex);
-	vmw_write(dev_priv, SVGA_REG_SYNC, SVGA_SYNC_GENERIC);
-	mutex_unlock(&dev_priv->hw_mutex);
+	vmw_fence_obj_flush((struct vmw_fence_obj *) sync_obj);
 	return 0;
 }
 
 static bool vmw_sync_obj_signaled(void *sync_obj, void *sync_arg)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t seqno = (unsigned long) sync_obj;
+	unsigned long flags = (unsigned long) sync_arg;
+	return	vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj,
+				       (uint32_t) flags);
 
-	return vmw_seqno_passed(dev_priv, seqno);
 }
 
 static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
 			     bool lazy, bool interruptible)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t seqno = (unsigned long) sync_obj;
+	unsigned long flags = (unsigned long) sync_arg;
 
-	return vmw_wait_seqno(dev_priv, false, seqno, false, 3*HZ);
+	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
+				  (uint32_t) flags,
+				  lazy, interruptible,
+				  VMW_FENCE_WAIT_TIMEOUT);
 }
 
 struct ttm_bo_driver vmw_bo_driver = {

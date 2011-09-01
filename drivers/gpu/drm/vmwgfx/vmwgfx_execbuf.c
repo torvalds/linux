@@ -256,7 +256,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 		val_buf = &sw_context->val_bufs[cur_validate_node];
 		val_buf->bo = ttm_bo_reference(bo);
 		val_buf->usage = TTM_USAGE_READWRITE;
-		val_buf->new_sync_obj_arg = (void *) dev_priv;
+		val_buf->new_sync_obj_arg = (void *) DRM_VMW_FENCE_FLAG_EXEC;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		++sw_context->cur_val_buf;
 	}
@@ -320,7 +320,6 @@ static int vmw_cmd_wait_query(struct vmw_private *dev_priv,
 	vmw_dmabuf_unreference(&vmw_bo);
 	return 0;
 }
-
 
 static int vmw_cmd_dma(struct vmw_private *dev_priv,
 		       struct vmw_sw_context *sw_context,
@@ -676,6 +675,50 @@ static int vmw_resize_cmd_bounce(struct vmw_sw_context *sw_context,
 	return 0;
 }
 
+/**
+ * vmw_execbuf_fence_commands - create and submit a command stream fence
+ *
+ * Creates a fence object and submits a command stream marker.
+ * If this fails for some reason, We sync the fifo and return NULL.
+ * It is then safe to fence buffers with a NULL pointer.
+ */
+
+int vmw_execbuf_fence_commands(struct drm_file *file_priv,
+			       struct vmw_private *dev_priv,
+			       struct vmw_fence_obj **p_fence,
+			       uint32_t *p_handle)
+{
+	uint32_t sequence;
+	int ret;
+	bool synced = false;
+
+
+	ret = vmw_fifo_send_fence(dev_priv, &sequence);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Fence submission error. Syncing.\n");
+		synced = true;
+	}
+
+	if (p_handle != NULL)
+		ret = vmw_user_fence_create(file_priv, dev_priv->fman,
+					    sequence,
+					    DRM_VMW_FENCE_FLAG_EXEC,
+					    p_fence, p_handle);
+	else
+		ret = vmw_fence_create(dev_priv->fman, sequence,
+				       DRM_VMW_FENCE_FLAG_EXEC,
+				       p_fence);
+
+	if (unlikely(ret != 0 && !synced)) {
+		(void) vmw_fallback_wait(dev_priv, false, false,
+					 sequence, false,
+					 VMW_FENCE_WAIT_TIMEOUT);
+		*p_fence = NULL;
+	}
+
+	return 0;
+}
+
 int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
@@ -686,9 +729,10 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	int ret;
 	void *user_cmd;
 	void *cmd;
-	uint32_t seqno;
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	struct vmw_fence_obj *fence;
+	uint32_t handle;
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
@@ -755,34 +799,60 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	memcpy(cmd, sw_context->cmd_bounce, arg->command_size);
 	vmw_fifo_commit(dev_priv, arg->command_size);
 
-	ret = vmw_fifo_send_fence(dev_priv, &seqno);
-
-	ttm_eu_fence_buffer_objects(&sw_context->validate_nodes,
-				    (void *)(unsigned long) seqno);
-	vmw_clear_validations(sw_context);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
-
+	user_fence_rep = (struct drm_vmw_fence_rep __user *)
+		(unsigned long)arg->fence_rep;
+	ret = vmw_execbuf_fence_commands(file_priv, dev_priv,
+					 &fence,
+					 (user_fence_rep) ? &handle : NULL);
 	/*
 	 * This error is harmless, because if fence submission fails,
-	 * vmw_fifo_send_fence will sync.
+	 * vmw_fifo_send_fence will sync. The error will be propagated to
+	 * user-space in @fence_rep
 	 */
 
 	if (ret != 0)
 		DRM_ERROR("Fence submission error. Syncing.\n");
 
-	fence_rep.error = ret;
-	fence_rep.fence_seq = (uint64_t) seqno;
-	fence_rep.pad64 = 0;
+	ttm_eu_fence_buffer_objects(&sw_context->validate_nodes,
+				    (void *) fence);
 
-	user_fence_rep = (struct drm_vmw_fence_rep __user *)
-	    (unsigned long)arg->fence_rep;
+	vmw_clear_validations(sw_context);
+	mutex_unlock(&dev_priv->cmdbuf_mutex);
 
-	/*
-	 * copy_to_user errors will be detected by user space not
-	 * seeing fence_rep::error filled in.
-	 */
+	if (user_fence_rep) {
+		fence_rep.error = ret;
+		fence_rep.handle = handle;
+		fence_rep.seqno = fence->seqno;
+		vmw_update_seqno(dev_priv, &dev_priv->fifo);
+		fence_rep.passed_seqno = dev_priv->last_read_seqno;
 
-	ret = copy_to_user(user_fence_rep, &fence_rep, sizeof(fence_rep));
+		/*
+		 * copy_to_user errors will be detected by user space not
+		 * seeing fence_rep::error filled in. Typically
+		 * user-space would have pre-set that member to -EFAULT.
+		 */
+		ret = copy_to_user(user_fence_rep, &fence_rep,
+				   sizeof(fence_rep));
+
+		/*
+		 * User-space lost the fence object. We need to sync
+		 * and unreference the handle.
+		 */
+		if (unlikely(ret != 0) && (fence_rep.error == 0)) {
+			BUG_ON(fence == NULL);
+
+			ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
+						  handle, TTM_REF_USAGE);
+			DRM_ERROR("Fence copy error. Syncing.\n");
+			(void) vmw_fence_obj_wait(fence,
+						  fence->signal_mask,
+						  false, false,
+						  VMW_FENCE_WAIT_TIMEOUT);
+		}
+	}
+
+	if (likely(fence != NULL))
+		vmw_fence_obj_unreference(&fence);
 
 	vmw_kms_cursor_post_execbuf(dev_priv);
 	ttm_read_unlock(&vmaster->lock);

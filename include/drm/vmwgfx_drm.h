@@ -48,8 +48,12 @@
 #define DRM_VMW_UNREF_SURFACE        10
 #define DRM_VMW_REF_SURFACE          11
 #define DRM_VMW_EXECBUF              12
-#define DRM_VMW_FENCE_WAIT           13
-#define DRM_VMW_GET_3D_CAP           14
+#define DRM_VMW_GET_3D_CAP           13
+#define DRM_VMW_FENCE_WAIT           14
+#define DRM_VMW_FENCE_SIGNALED       15
+#define DRM_VMW_FENCE_UNREF          16
+#define DRM_VMW_FENCE_EVENT          17
+
 
 /*************************************************************************/
 /**
@@ -318,14 +322,23 @@ struct drm_vmw_execbuf_arg {
 	uint32_t command_size;
 	uint32_t throttle_us;
 	uint64_t fence_rep;
-	 uint32_t version;
-	 uint32_t flags;
+	uint32_t version;
+	uint32_t flags;
 };
 
 /**
  * struct drm_vmw_fence_rep
  *
- * @fence_seq: Fence seqno associated with a command submission.
+ * @handle: Fence object handle for fence associated with a command submission.
+ * @mask: Fence flags relevant for this fence object.
+ * @seqno: Fence sequence number in fifo. A fence object with a lower
+ * seqno will signal the EXEC flag before a fence object with a higher
+ * seqno. This can be used by user-space to avoid kernel calls to determine
+ * whether a fence has signaled the EXEC flag. Note that @seqno will
+ * wrap at 32-bit.
+ * @passed_seqno: The highest seqno number processed by the hardware
+ * so far. This can be used to mark user-space fence objects as signaled, and
+ * to determine whether a fence seqno might be stale.
  * @error: This member should've been set to -EFAULT on submission.
  * The following actions should be take on completion:
  * error == -EFAULT: Fence communication failed. The host is synchronized.
@@ -339,9 +352,12 @@ struct drm_vmw_execbuf_arg {
  */
 
 struct drm_vmw_fence_rep {
-	uint64_t fence_seq;
-	int32_t error;
+	uint32_t handle;
+	uint32_t mask;
+	uint32_t seqno;
+	uint32_t passed_seqno;
 	uint32_t pad64;
+	int32_t error;
 };
 
 /*************************************************************************/
@@ -428,14 +444,6 @@ union drm_vmw_alloc_dmabuf_arg {
 struct drm_vmw_unref_dmabuf_arg {
 	uint32_t handle;
 	uint32_t pad64;
-};
-
-
-struct drm_vmw_fence_wait_arg {
-	uint64_t seqno;
-	uint64_t kernel_cookie;
-	int32_t cookie_valid;
-	int32_t pad64;
 };
 
 /*************************************************************************/
@@ -559,6 +567,7 @@ struct drm_vmw_stream_arg {
  * Return a single stream that was claimed by this process. Also makes
  * sure that the stream has been stopped.
  */
+
 /*************************************************************************/
 /**
  * DRM_VMW_GET_3D_CAP
@@ -606,5 +615,115 @@ struct drm_vmw_update_layout_arg {
 	uint32_t pad64;
 	uint64_t rects;
 };
+
+
+/*************************************************************************/
+/**
+ * DRM_VMW_FENCE_WAIT
+ *
+ * Waits for a fence object to signal. The wait is interruptible, so that
+ * signals may be delivered during the interrupt. The wait may timeout,
+ * in which case the calls returns -EBUSY. If the wait is restarted,
+ * that is restarting without resetting @cookie_valid to zero,
+ * the timeout is computed from the first call.
+ *
+ * The flags argument to the DRM_VMW_FENCE_WAIT ioctl indicates what to wait
+ * on:
+ * DRM_VMW_FENCE_FLAG_EXEC: All commands ahead of the fence in the command
+ * stream
+ * have executed.
+ * DRM_VMW_FENCE_FLAG_QUERY: All query results resulting from query finish
+ * commands
+ * in the buffer given to the EXECBUF ioctl returning the fence object handle
+ * are available to user-space.
+ *
+ * DRM_VMW_WAIT_OPTION_UNREF: If this wait option is given, and the
+ * fenc wait ioctl returns 0, the fence object has been unreferenced after
+ * the wait.
+ */
+
+#define DRM_VMW_FENCE_FLAG_EXEC   (1 << 0)
+#define DRM_VMW_FENCE_FLAG_QUERY  (1 << 1)
+
+#define DRM_VMW_WAIT_OPTION_UNREF (1 << 0)
+
+/**
+ * struct drm_vmw_fence_wait_arg
+ *
+ * @handle: Fence object handle as returned by the DRM_VMW_EXECBUF ioctl.
+ * @cookie_valid: Must be reset to 0 on first call. Left alone on restart.
+ * @kernel_cookie: Set to 0 on first call. Left alone on restart.
+ * @timeout_us: Wait timeout in microseconds. 0 for indefinite timeout.
+ * @lazy: Set to 1 if timing is not critical. Allow more than a kernel tick
+ * before returning.
+ * @flags: Fence flags to wait on.
+ * @wait_options: Options that control the behaviour of the wait ioctl.
+ *
+ * Input argument to the DRM_VMW_FENCE_WAIT ioctl.
+ */
+
+struct drm_vmw_fence_wait_arg {
+	uint32_t handle;
+	int32_t  cookie_valid;
+	uint64_t kernel_cookie;
+	uint64_t timeout_us;
+	int32_t lazy;
+	int32_t flags;
+	int32_t wait_options;
+	int32_t pad64;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_FENCE_SIGNALED
+ *
+ * Checks if a fence object is signaled..
+ */
+
+/**
+ * struct drm_vmw_fence_signaled_arg
+ *
+ * @handle: Fence object handle as returned by the DRM_VMW_EXECBUF ioctl.
+ * @flags: Fence object flags input to DRM_VMW_FENCE_SIGNALED ioctl
+ * @signaled: Out: Flags signaled.
+ * @sequence: Out: Highest sequence passed so far. Can be used to signal the
+ * EXEC flag of user-space fence objects.
+ *
+ * Input/Output argument to the DRM_VMW_FENCE_SIGNALED and DRM_VMW_FENCE_UNREF
+ * ioctls.
+ */
+
+struct drm_vmw_fence_signaled_arg {
+	 uint32_t handle;
+	 uint32_t flags;
+	 int32_t signaled;
+	 uint32_t passed_seqno;
+	 uint32_t signaled_flags;
+	 uint32_t pad64;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_FENCE_UNREF
+ *
+ * Unreferences a fence object, and causes it to be destroyed if there are no
+ * other references to it.
+ *
+ */
+
+/**
+ * struct drm_vmw_fence_arg
+ *
+ * @handle: Fence object handle as returned by the DRM_VMW_EXECBUF ioctl.
+ *
+ * Input/Output argument to the DRM_VMW_FENCE_UNREF ioctl..
+ */
+
+struct drm_vmw_fence_arg {
+	 uint32_t handle;
+	 uint32_t pad64;
+};
+
+
 
 #endif

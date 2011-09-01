@@ -31,10 +31,6 @@
 #include "ttm/ttm_placement.h"
 #include "drmP.h"
 
-#define VMW_RES_CONTEXT ttm_driver_type0
-#define VMW_RES_SURFACE ttm_driver_type1
-#define VMW_RES_STREAM ttm_driver_type2
-
 struct vmw_user_context {
 	struct ttm_base_object base;
 	struct vmw_resource res;

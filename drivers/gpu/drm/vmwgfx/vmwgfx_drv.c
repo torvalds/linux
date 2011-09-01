@@ -82,12 +82,18 @@
 #define DRM_IOCTL_VMW_EXECBUF					\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_EXECBUF,		\
 		struct drm_vmw_execbuf_arg)
+#define DRM_IOCTL_VMW_GET_3D_CAP				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_GET_3D_CAP,		\
+		 struct drm_vmw_get_3d_cap_arg)
 #define DRM_IOCTL_VMW_FENCE_WAIT				\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_FENCE_WAIT,		\
 		 struct drm_vmw_fence_wait_arg)
-#define DRM_IOCTL_VMW_GET_3D_CAP				\
-	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_GET_3D_CAP,		\
-		struct drm_vmw_get_3d_cap_arg)
+#define DRM_IOCTL_VMW_FENCE_SIGNALED				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_FENCE_SIGNALED,	\
+		 struct drm_vmw_fence_signaled_arg)
+#define DRM_IOCTL_VMW_FENCE_UNREF				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_FENCE_UNREF,		\
+		 struct drm_vmw_fence_arg)
 
 /**
  * The core DRM version of this macro doesn't account for
@@ -131,7 +137,12 @@ static struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_wait_ioctl,
+	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_obj_wait_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_FENCE_SIGNALED,
+		      vmw_fence_obj_signaled_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_FENCE_UNREF, vmw_fence_obj_unref_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_GET_3D_CAP, vmw_get_cap_3d_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
@@ -198,12 +209,14 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 		DRM_ERROR("Unable to initialize FIFO.\n");
 		return ret;
 	}
+	vmw_fence_fifo_up(dev_priv->fman);
 
 	return 0;
 }
 
 static void vmw_release_device(struct vmw_private *dev_priv)
 {
+	vmw_fence_fifo_down(dev_priv->fman);
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
 }
 
@@ -434,6 +447,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			goto out_no_device;
 		}
 	}
+
+	dev_priv->fman = vmw_fence_manager_init(dev_priv);
+	if (unlikely(dev_priv->fman == NULL))
+		goto out_no_fman;
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;
@@ -475,6 +492,8 @@ out_no_fifo:
 	vmw_overlay_close(dev_priv);
 	vmw_kms_close(dev_priv);
 out_no_kms:
+	vmw_fence_manager_takedown(dev_priv->fman);
+out_no_fman:
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else
@@ -518,6 +537,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 	}
 	vmw_kms_close(dev_priv);
 	vmw_overlay_close(dev_priv);
+	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else

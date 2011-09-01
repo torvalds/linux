@@ -40,8 +40,13 @@ irqreturn_t vmw_irq_handler(DRM_IRQ_ARGS)
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	spin_unlock(&dev_priv->irq_lock);
 
-	if (status & SVGA_IRQFLAG_ANY_FENCE)
+	if (status & SVGA_IRQFLAG_ANY_FENCE) {
+		__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		uint32_t seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
+
+		vmw_fences_update(dev_priv->fman, seqno);
 		wake_up_all(&dev_priv->fence_queue);
+	}
 	if (status & SVGA_IRQFLAG_FIFO_PROGRESS)
 		wake_up_all(&dev_priv->fifo_queue);
 
@@ -68,12 +73,12 @@ void vmw_update_seqno(struct vmw_private *dev_priv,
 			 struct vmw_fifo_state *fifo_state)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
-
 	uint32_t seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
 
 	if (dev_priv->last_read_seqno != seqno) {
 		dev_priv->last_read_seqno = seqno;
 		vmw_marker_pull(&fifo_state->marker_queue, seqno);
+		vmw_fences_update(dev_priv->fman, seqno);
 	}
 }
 
@@ -175,7 +180,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	return ret;
 }
 
-static void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
+void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
 {
 	mutex_lock(&dev_priv->hw_mutex);
 	if (dev_priv->fence_queue_waiters++ == 0) {
@@ -192,7 +197,7 @@ static void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
 	mutex_unlock(&dev_priv->hw_mutex);
 }
 
-static void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
+void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
 {
 	mutex_lock(&dev_priv->hw_mutex);
 	if (--dev_priv->fence_queue_waiters == 0) {
@@ -285,26 +290,4 @@ void vmw_irq_uninstall(struct drm_device *dev)
 
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-}
-
-#define VMW_FENCE_WAIT_TIMEOUT 3*HZ;
-
-int vmw_fence_wait_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
-{
-	struct drm_vmw_fence_wait_arg *arg =
-	    (struct drm_vmw_fence_wait_arg *)data;
-	unsigned long timeout;
-
-	if (!arg->cookie_valid) {
-		arg->cookie_valid = 1;
-		arg->kernel_cookie = jiffies + VMW_FENCE_WAIT_TIMEOUT;
-	}
-
-	timeout = jiffies;
-	if (time_after_eq(timeout, (unsigned long)arg->kernel_cookie))
-		return -EBUSY;
-
-	timeout = (unsigned long)arg->kernel_cookie - timeout;
-	return vmw_wait_seqno(vmw_priv(dev), true, arg->seqno, true, timeout);
 }

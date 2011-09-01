@@ -38,6 +38,7 @@
 #include "ttm/ttm_lock.h"
 #include "ttm/ttm_execbuf_util.h"
 #include "ttm/ttm_module.h"
+#include "vmwgfx_fence.h"
 
 #define VMWGFX_DRIVER_DATE "20100927"
 #define VMWGFX_DRIVER_MAJOR 1
@@ -52,6 +53,11 @@
 
 #define VMW_PL_GMR TTM_PL_PRIV0
 #define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
+
+#define VMW_RES_CONTEXT ttm_driver_type0
+#define VMW_RES_SURFACE ttm_driver_type1
+#define VMW_RES_STREAM ttm_driver_type2
+#define VMW_RES_FENCE ttm_driver_type3
 
 struct vmw_fpriv {
 	struct drm_master *locked_master;
@@ -245,6 +251,7 @@ struct vmw_private {
 	atomic_t fifo_queue_waiters;
 	uint32_t last_read_seqno;
 	spinlock_t irq_lock;
+	struct vmw_fence_manager *fman;
 
 	/*
 	 * Device state
@@ -456,8 +463,6 @@ extern int vmw_irq_postinstall(struct drm_device *dev);
 extern void vmw_irq_uninstall(struct drm_device *dev);
 extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
 				uint32_t seqno);
-extern int vmw_fence_wait_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
 extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     bool lazy,
 			     bool fifo_idle,
@@ -466,7 +471,8 @@ extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     unsigned long timeout);
 extern void vmw_update_seqno(struct vmw_private *dev_priv,
 				struct vmw_fifo_state *fifo_state);
-
+extern void vmw_seqno_waiter_add(struct vmw_private *dev_priv);
+extern void vmw_seqno_waiter_remove(struct vmw_private *dev_priv);
 
 /**
  * Rudimentary fence-like objects currently used only for throttling -
@@ -572,4 +578,8 @@ static inline struct vmw_dma_buffer *vmw_dmabuf_reference(struct vmw_dma_buffer 
 	return NULL;
 }
 
+static inline struct ttm_mem_global *vmw_mem_glob(struct vmw_private *dev_priv)
+{
+	return (struct ttm_mem_global *) dev_priv->mem_global_ref.object;
+}
 #endif
