@@ -356,7 +356,7 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 
 int dialog_inputbox(WINDOW *main_window,
 		const char *title, const char *prompt,
-		const char *init, char *result, int result_len)
+		const char *init, char **resultp, int *result_len)
 {
 	int prompt_lines = 0;
 	int prompt_width = 0;
@@ -367,7 +367,12 @@ int dialog_inputbox(WINDOW *main_window,
 	int i, x, y;
 	int res = -1;
 	int cursor_position = strlen(init);
+	char *result = *resultp;
 
+	if (strlen(init)+1 > *result_len) {
+		*result_len = strlen(init)+1;
+		*resultp = result = realloc(result, *result_len);
+	}
 
 	/* find the widest line of msg: */
 	prompt_lines = get_line_no(prompt);
@@ -384,7 +389,7 @@ int dialog_inputbox(WINDOW *main_window,
 	y = (LINES-(prompt_lines+4))/2;
 	x = (COLS-(prompt_width+4))/2;
 
-	strncpy(result, init, result_len);
+	strncpy(result, init, *result_len);
 
 	/* create the windows */
 	win = newwin(prompt_lines+6, prompt_width+7, y, x);
@@ -443,7 +448,7 @@ int dialog_inputbox(WINDOW *main_window,
 		case KEY_UP:
 		case KEY_RIGHT:
 			if (cursor_position < len &&
-			    cursor_position < min(result_len, prompt_width))
+			    cursor_position < min(*result_len, prompt_width))
 				cursor_position++;
 			break;
 		case KEY_DOWN:
@@ -452,8 +457,13 @@ int dialog_inputbox(WINDOW *main_window,
 				cursor_position--;
 			break;
 		default:
-			if ((isgraph(res) || isspace(res)) &&
-					len-2 < result_len) {
+			if ((isgraph(res) || isspace(res))) {
+				/* one for new char, one for '\0' */
+				if (len+2 > *result_len) {
+					*result_len = len+2;
+					*resultp = result = realloc(result,
+								*result_len);
+				}
 				/* insert the char at the proper position */
 				memmove(&result[cursor_position+1],
 						&result[cursor_position],
