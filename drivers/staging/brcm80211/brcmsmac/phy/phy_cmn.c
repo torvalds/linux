@@ -27,6 +27,16 @@
 #include "phy_lcn.h"
 #include "phyreg_n.h"
 
+#define VALID_N_RADIO(radioid) ((radioid == BCM2055_ID) || \
+				 (radioid == BCM2056_ID) || \
+				 (radioid == BCM2057_ID))
+
+#define VALID_LCN_RADIO(radioid)	(radioid == BCM2064_ID)
+
+#define VALID_RADIO(pi, radioid)        ( \
+		(ISNPHY(pi) ? VALID_N_RADIO(radioid) : false) || \
+		(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : false))
+
 struct chan_info_basic {
 	u16 chan;
 	u16 freq;
@@ -545,7 +555,8 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 	pi->pubpi.phy_corenum = PHY_CORE_NUM_2;
 	pi->pubpi.ana_rev = (phyversion & PV_AV_MASK) >> PV_AV_SHIFT;
 
-	if (!VALID_PHYTYPE(pi->pubpi.phy_type))
+	if (!pi->pubpi.phy_type == PHY_TYPE_N &&
+	    !pi->pubpi.phy_type == PHY_TYPE_LCN)
 		goto err;
 
 	if (BAND_5G(bandtype)) {
@@ -1340,7 +1351,7 @@ u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi, uint band)
 	for (i = 0; i < ARRAY_SIZE(chan_info_all); i++) {
 		channel = chan_info_all[i].chan;
 
-		if (ISNPHY(pi) && IS40MHZ(pi)) {
+		if (ISNPHY(pi) && pi->bw == WL_CHANSPEC_BW_40) {
 			uint j;
 
 			for (j = 0; j < ARRAY_SIZE(chan_info_all); j++) {
@@ -2881,7 +2892,8 @@ void wlc_phy_stf_chain_init(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
 	pi->sh->hw_phyrxchain = rxchain;
 	pi->sh->phytxchain = txchain;
 	pi->sh->phyrxchain = rxchain;
-	pi->pubpi.phy_corenum = (u8) PHY_BITSCNT(pi->sh->phyrxchain);
+	pi->pubpi.phy_corenum = (u8) brcmu_bitcount((u8 *)&pi->sh->phyrxchain,
+						    sizeof(u8));
 }
 
 void wlc_phy_stf_chain_set(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
@@ -2893,7 +2905,8 @@ void wlc_phy_stf_chain_set(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
 	if (ISNPHY(pi))
 		wlc_phy_rxcore_setstate_nphy(pih, rxchain);
 
-	pi->pubpi.phy_corenum = (u8) PHY_BITSCNT(pi->sh->phyrxchain);
+	pi->pubpi.phy_corenum = (u8) brcmu_bitcount((u8 *)&pi->sh->phyrxchain,
+						    sizeof(u8));
 }
 
 void wlc_phy_stf_chain_get(struct brcms_phy_pub *pih, u8 *txchain, u8 *rxchain)

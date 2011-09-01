@@ -40,15 +40,8 @@ struct brcms_phy_srom_fem {
 	u8 antswctrllut;
 };
 
-#undef ISNPHY
-#undef ISLCNPHY
 #define ISNPHY(pi)	PHYTYPE_IS((pi)->pubpi.phy_type, PHY_TYPE_N)
 #define ISLCNPHY(pi)	PHYTYPE_IS((pi)->pubpi.phy_type, PHY_TYPE_LCN)
-
-#define ISPHY_11N_CAP(pi)	(ISNPHY(pi) || ISLCNPHY(pi))
-
-#define IS20MHZ(pi)	((pi)->bw == WL_CHANSPEC_BW_20)
-#define IS40MHZ(pi)	((pi)->bw == WL_CHANSPEC_BW_40)
 
 #define PHY_GET_RFATTN(rfgain)	((rfgain) & 0x0f)
 #define PHY_GET_PADMIX(rfgain)	(((rfgain) & 0x10) >> 4)
@@ -237,35 +230,8 @@ enum phy_cal_mode {
 #define PHY_CHAIN_TX_DISABLE_TEMP	115
 #define PHY_HYSTERESIS_DELTATEMP	5
 
-#define PHY_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
-
-#define MOD_PHY_REG(pi, phy_type, reg_name, field, value) \
-	mod_phy_reg(pi, phy_type##_##reg_name, \
-		    phy_type##_##reg_name##_##field##_MASK, \
-		    (value) << phy_type##_##reg_name##_##field##_##SHIFT)
-
-#define READ_PHY_REG(pi, phy_type, reg_name, field) \
-	((read_phy_reg(pi, phy_type##_##reg_name) & \
-	  phy_type##_##reg_name##_##field##_##MASK) \
-	 >> phy_type##_##reg_name##_##field##_##SHIFT)
-
-#define	VALID_PHYTYPE(phytype)	(((uint)phytype == PHY_TYPE_N) || \
-				((uint)phytype == PHY_TYPE_LCN))
-
-#define VALID_N_RADIO(radioid) ((radioid == BCM2055_ID) || \
-				 (radioid == BCM2056_ID) || \
-				 (radioid == BCM2057_ID))
-
-#define VALID_LCN_RADIO(radioid)	(radioid == BCM2064_ID)
-
-#define VALID_RADIO(pi, radioid)        ( \
-		(ISNPHY(pi) ? VALID_N_RADIO(radioid) : false) || \
-		(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : false))
-
 #define SCAN_INPROG_PHY(pi) \
 	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_SCAN))
-
-#define RM_INPROG_PHY(pi)       (mboolisset(pi->measure_hold, PHY_HOLD_FOR_RM))
 
 #define PLT_INPROG_PHY(pi)      (mboolisset(pi->measure_hold, PHY_HOLD_FOR_PLT))
 

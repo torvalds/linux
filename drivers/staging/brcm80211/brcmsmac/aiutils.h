@@ -233,48 +233,15 @@
 #define	SRC_SIZE_SHIFT		1
 #define	SRC_PRESENT		0x00000001
 
-/* 4330 chip-specific ChipStatus register bits */
- /* SDIO || gSPI */
-#define CST4330_CHIPMODE_SDIOD(cs)	(((cs) & 0x7) < 6)
- /* USB || USBDA */
-#define CST4330_CHIPMODE_USB20D(cs)	(((cs) & 0x7) >= 6)
- /* SDIO */
-#define CST4330_CHIPMODE_SDIO(cs)	(((cs) & 0x4) == 0)
- /* gSPI */
-#define CST4330_CHIPMODE_GSPI(cs)	(((cs) & 0x6) == 4)
- /* USB packet-oriented */
-#define CST4330_CHIPMODE_USB(cs)	(((cs) & 0x7) == 6)
- /* USB Direct Access */
-#define CST4330_CHIPMODE_USBDA(cs)	(((cs) & 0x7) == 7)
-#define	CST4330_OTP_PRESENT		0x00000010
-#define	CST4330_LPO_AUTODET_EN		0x00000020
-#define	CST4330_ARMREMAP_0		0x00000040
- /* takes priority over OTP if both set */
-#define	CST4330_SPROM_PRESENT		0x00000080
-#define	CST4330_ILPDIV_EN		0x00000100
-#define	CST4330_LPO_SEL			0x00000200
-#define	CST4330_RES_INIT_MODE_SHIFT	10
-#define	CST4330_RES_INIT_MODE_MASK	0x00000c00
-#define CST4330_CBUCK_MODE_SHIFT	12
-#define CST4330_CBUCK_MODE_MASK		0x00003000
-#define	CST4330_CBUCK_POWER_OK		0x00004000
-#define	CST4330_BB_PLL_LOCKED		0x00008000
-
 /* Package IDs */
-#define BCM4329_289PIN_PKG_ID	0	/* 4329 289-pin package id */
-#define BCM4329_182PIN_PKG_ID	1	/* 4329N 182-pin package id */
 #define	BCM4717_PKG_ID		9	/* 4717 package id */
 #define	BCM4718_PKG_ID		10	/* 4718 package id */
-#define HDLSIM_PKG_ID		14	/* HDL simulator package id */
-#define HWSIM_PKG_ID		15	/* Hardware simulator package id */
 #define BCM43224_FAB_SMIC	0xa	/* the chip is manufactured by SMIC */
 
 /* these are router chips */
 #define	BCM4716_CHIP_ID		0x4716	/* 4716 chipcommon chipid */
 #define	BCM47162_CHIP_ID	47162	/* 47162 chipcommon chipid */
 #define	BCM4748_CHIP_ID		0x4748	/* 4716 chipcommon chipid (OTP, RBBU) */
-#define	BCM5356_CHIP_ID		0x5356	/* 5356 chipcommon chipid */
-#define	BCM5357_CHIP_ID		0x5357	/* 5357 chipcommon chipid */
 
 
 #define	SI_INFO(sih)	((struct si_info *)sih)
@@ -423,9 +390,6 @@ struct si_pub {
 
 /* Define SI_VMSG to printf for verbose debugging, but don't check it in */
 #define	SI_VMSG(args)
-
-#define	IS_SIM(chippkg)	\
-	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
 struct pci_dev;
 

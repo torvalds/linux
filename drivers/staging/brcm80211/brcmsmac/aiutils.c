@@ -202,10 +202,6 @@
  /* 12 mA drive strengh for later 4313 */
 #define CCTRL_4313_12MA_LED_DRIVE    0x00000007
 
-#define BCM47162_DMP() ((sih->chip == BCM47162_CHIP_ID) && \
-		(sih->chiprev == 0) && \
-		(sii->coreid[sii->curidx] == MIPS74K_CORE_ID))
-
 /* Manufacturer Ids */
 #define	MFGID_ARM		0x43b
 #define	MFGID_BRCM		0x4bf
@@ -750,11 +746,6 @@ uint ai_flag(struct si_pub *sih)
 	struct aidmp *ai;
 
 	sii = SI_INFO(sih);
-	if (BCM47162_DMP()) {
-		SI_ERROR(("%s: Attempting to read MIPS DMP registers "
-			  "on 47162a0", __func__));
-		return sii->curidx;
-	}
 	ai = sii->curwrap;
 
 	return R_REG(&ai->oobselouta30) & 0x1f;
@@ -805,12 +796,6 @@ void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val)
 
 	sii = SI_INFO(sih);
 
-	if (BCM47162_DMP()) {
-		SI_ERROR(("%s: Accessing MIPS DMP register (ioctrl) on 47162a0",
-			  __func__));
-		return;
-	}
-
 	ai = sii->curwrap;
 
 	if (mask || val) {
@@ -826,12 +811,6 @@ u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val)
 	u32 w;
 
 	sii = SI_INFO(sih);
-	if (BCM47162_DMP()) {
-		SI_ERROR(("%s: Accessing MIPS DMP register (ioctrl) on 47162a0",
-			  __func__));
-		return 0;
-	}
-
 	ai = sii->curwrap;
 
 	if (mask || val) {
@@ -871,12 +850,6 @@ u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val)
 	u32 w;
 
 	sii = SI_INFO(sih);
-	if (BCM47162_DMP()) {
-		SI_ERROR(("%s: Accessing MIPS DMP register (iostatus) "
-			  "on 47162a0", __func__));
-		return 0;
-	}
-
 	ai = sii->curwrap;
 
 	if (mask || val) {
@@ -1073,7 +1046,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 
-	sih->issim = IS_SIM(sih->chippkg);
+	sih->issim = false;
 
 	/* scan for cores */
 	if (socitype == SOCI_AI) {

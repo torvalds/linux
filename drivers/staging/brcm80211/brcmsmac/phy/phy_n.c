@@ -14756,7 +14756,7 @@ static void wlc_phy_ipa_set_tx_digi_filts_nphy(struct brcms_phy *pi)
 				      NPHY_IPA_REV4_txdigi_filtcoeffs[type][j]);
 	}
 
-	if (IS40MHZ(pi)) {
+	if (pi->bw == WL_CHANSPEC_BW_40) {
 		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
 			write_phy_reg(pi, 0x186 + j,
 				      NPHY_IPA_REV4_txdigi_filtcoeffs[3][j]);
@@ -14779,7 +14779,7 @@ static void wlc_phy_ipa_restore_tx_digi_filts_nphy(struct brcms_phy *pi)
 {
 	int j;
 
-	if (IS40MHZ(pi)) {
+	if (pi->bw == WL_CHANSPEC_BW_40) {
 		for (j = 0; j < NPHY_NUM_DIG_FILT_COEFFS; j++)
 			write_phy_reg(pi, 0x195 + j,
 				      NPHY_IPA_REV4_txdigi_filtcoeffs[4][j]);
@@ -20851,7 +20851,8 @@ wlc_phy_chanspec_radio2056_setup(struct brcms_phy *pi,
 						 mixg_boost_tune);
 			} else {
 
-				bias = IS40MHZ(pi) ? 0x40 : 0x20;
+				bias = (pi->bw == WL_CHANSPEC_BW_40) ?
+				       0x40 : 0x20;
 
 				WRITE_RADIO_REG2(pi, RADIO_2056, TX, core,
 						 INTPAG_IMAIN_STAT, bias);
@@ -24872,11 +24873,13 @@ wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *txgains,
 		if (CHSPEC_IS2G(pi->radio_chanspec)) {
 			if ((pi->pubpi.radiorev <= 4)
 			    || (pi->pubpi.radiorev == 6))
-				m[core] = IS40MHZ(pi) ? 60 : 79;
+				m[core] = (pi->bw == WL_CHANSPEC_BW_40) ?
+					  60 : 79;
 			else
-				m[core] = IS40MHZ(pi) ? 45 : 64;
+				m[core] = (pi->bw == WL_CHANSPEC_BW_40) ?
+					  45 : 64;
 		} else {
-			m[core] = IS40MHZ(pi) ? 75 : 107;
+			m[core] = (pi->bw == WL_CHANSPEC_BW_40) ? 75 : 107;
 		}
 
 		m[phy_a7] = 0;
@@ -25015,9 +25018,9 @@ wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *txgains,
 		}
 
 		if (CHSPEC_IS2G(pi->radio_chanspec))
-			m[core] = IS40MHZ(pi) ? 45 : 64;
+			m[core] = (pi->bw == WL_CHANSPEC_BW_40) ? 45 : 64;
 		else
-			m[core] = IS40MHZ(pi) ? 75 : 107;
+			m[core] = (pi->bw == WL_CHANSPEC_BW_40) ? 75 : 107;
 
 		m[phy_a7] = 0;
 		wlc_phy_ipa_set_bbmult_nphy(pi, m[0], m[1]);
@@ -27583,8 +27586,10 @@ static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
 			txlpf_rccal_lpc = ((int)best_rccal[rx_core] - 12) + 10;
 
 			if (PHY_IPA(pi)) {
-				txlpf_rccal_lpc += IS40MHZ(pi) ? 24 : 12;
-				txlpf_idac = IS40MHZ(pi) ? 0x0e : 0x13;
+				txlpf_rccal_lpc +=
+					(pi->bw == WL_CHANSPEC_BW_40) ? 24 : 12;
+				txlpf_idac = (pi->bw == WL_CHANSPEC_BW_40) ?
+					     0x0e : 0x13;
 				WRITE_RADIO_REG2(pi, RADIO_2056, TX, rx_core,
 						 TXLPF_IDAC_4, txlpf_idac);
 			}
@@ -28391,7 +28396,8 @@ void wlc_phy_txpwrctrl_enable_nphy(struct brcms_phy *pi, u8 ctrl_type)
 		else if (NREV_LT(pi->pubpi.phy_rev, 2))
 			mod_phy_reg(pi, 0xdc, 0x00ff, 0x5a);
 
-		if (NREV_LT(pi->pubpi.phy_rev, 2) && IS40MHZ(pi))
+		if (NREV_LT(pi->pubpi.phy_rev, 2) &&
+		    pi->bw == WL_CHANSPEC_BW_40)
 			wlapi_bmac_mhf(pi->sh->physhim, MHF1, MHF1_IQSWAP_WAR,
 				       MHF1_IQSWAP_WAR, BRCM_BAND_ALL);
 
@@ -28449,7 +28455,8 @@ void wlc_phy_txpwrctrl_enable_nphy(struct brcms_phy *pi, u8 ctrl_type)
 		else if (NREV_LT(pi->pubpi.phy_rev, 2))
 			mod_phy_reg(pi, 0xdc, 0x00ff, 0x40);
 
-		if (NREV_LT(pi->pubpi.phy_rev, 2) && IS40MHZ(pi))
+		if (NREV_LT(pi->pubpi.phy_rev, 2) &&
+		    pi->bw == WL_CHANSPEC_BW_40)
 			wlapi_bmac_mhf(pi->sh->physhim, MHF1, MHF1_IQSWAP_WAR,
 				       0x0, BRCM_BAND_ALL);
 
