@@ -2387,27 +2387,9 @@ u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 	return tmp_Short;
 }
 
-void
-ActUpdateChannelAccessSetting(
-	struct net_device *dev,
+void ActUpdateChannelAccessSetting(struct net_device *dev,
 	enum wireless_mode WirelessMode,
-	struct channel_access_setting *ChnlAccessSetting
-	)
+	struct channel_access_setting *ChnlAccessSetting)
 {
-		struct r8192_priv *priv = rtllib_priv(dev);
-
-		return;
-
-		{
-			u16	SIFS_Timer;
-
-			if (WirelessMode == WIRELESS_MODE_G)
-				SIFS_Timer = 0x0e0e;
-			else
-				 SIFS_Timer = priv->SifsTime;
-
-			priv->rtllib->SetHwRegHandler(dev, HW_VAR_SIFS,
-						     (u8 *)&SIFS_Timer);
-		}
-
+	return;
 }
