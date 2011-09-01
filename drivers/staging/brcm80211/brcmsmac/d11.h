@@ -23,8 +23,6 @@
 #include "pub.h"
 #include "dma.h"
 
-#define	BCN_TMPL_LEN		512	/* length of the BCN template area */
-
 /* RX FIFO numbers */
 #define	RX_FIFO			0	/* data and ctl frames */
 #define	RX_TXSTATUS_FIFO	3	/* RX fifo for tx status packages */
@@ -1396,9 +1394,6 @@ struct d11rxhdr {
 	u16 RxTSFTime;
 	u16 RxChan;
 } __packed;
-
-#define	RXHDR_LEN		24	/* sizeof struct d11rxhdr */
-#define	FRAMELEN(h)		((h)->RxFrameSize)
 
 /*
  * rxhdr: received frame header data

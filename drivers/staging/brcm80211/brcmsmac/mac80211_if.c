@@ -37,9 +37,6 @@
 #define LOCK(wl)	spin_lock_bh(&(wl)->lock)
 #define UNLOCK(wl)	spin_unlock_bh(&(wl)->lock)
 
-#define HW_TO_WL(hw)	 (hw->priv)
-#define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
-
 /* locking from inside brcms_isr */
 #define ISR_LOCK(wl, flags)\
 	do {\
@@ -308,9 +305,6 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 {
 	struct brcms_info *wl = hw->priv;
 	bool blocked;
-	/*
-	  struct ieee80211_channel *curchan = hw->conf.channel;
-	*/
 
 	ieee80211_wake_queues(hw);
 	LOCK(wl);
@@ -344,7 +338,7 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return -EOPNOTSUPP;
 	}
 
-	wl = HW_TO_WL(hw);
+	wl = hw->priv;
 	LOCK(wl);
 	err = brcms_up(wl);
 	UNLOCK(wl);
@@ -361,7 +355,7 @@ brcms_ops_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl;
 
-	wl = HW_TO_WL(hw);
+	wl = hw->priv;
 
 	/* put driver in down state */
 	LOCK(wl);
@@ -376,7 +370,7 @@ static int
 ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 		 enum nl80211_channel_type type)
 {
-	struct brcms_info *wl = HW_TO_WL(hw);
+	struct brcms_info *wl = hw->priv;
 	int err = 0;
 
 	switch (type) {
@@ -400,7 +394,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ieee80211_conf *conf = &hw->conf;
-	struct brcms_info *wl = HW_TO_WL(hw);
+	struct brcms_info *wl = hw->priv;
 	int err = 0;
 	int new_int;
 	struct wiphy *wiphy = hw->wiphy;
@@ -468,7 +462,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct brcms_info *wl = HW_TO_WL(hw);
+	struct brcms_info *wl = hw->priv;
 	struct wiphy *wiphy = hw->wiphy;
 	int val;
 
@@ -818,7 +812,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 
 static void brcms_ops_rfkill_poll(struct ieee80211_hw *hw)
 {
-	struct brcms_info *wl = HW_TO_WL(hw);
+	struct brcms_info *wl = hw->priv;
 	bool blocked;
 
 	LOCK(wl);
@@ -830,7 +824,7 @@ static void brcms_ops_rfkill_poll(struct ieee80211_hw *hw)
 
 static void brcms_ops_flush(struct ieee80211_hw *hw, bool drop)
 {
-	struct brcms_info *wl = HW_TO_WL(hw);
+	struct brcms_info *wl = hw->priv;
 
 	no_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
 
@@ -1028,7 +1022,7 @@ static void brcms_remove(struct pci_dev *pdev)
 	int status;
 
 	hw = pci_get_drvdata(pdev);
-	wl = HW_TO_WL(hw);
+	wl = hw->priv;
 	if (!wl) {
 		pr_err("wl: brcms_remove: pci_get_drvdata failed\n");
 		return;
@@ -1090,7 +1084,7 @@ static irqreturn_t brcms_isr(int irq, void *dev_id)
  */
 static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
-	struct brcms_info *wl = HW_TO_WL(hw);
+	struct brcms_info *wl = hw->priv;
 	int has_5g;
 	char phy_list[4];
 
@@ -1339,7 +1333,7 @@ static int brcms_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ieee80211_hw *hw;
 
 	hw = pci_get_drvdata(pdev);
-	wl = HW_TO_WL(hw);
+	wl = hw->priv;
 	if (!wl) {
 		wiphy_err(wl->wiphy,
 			  "brcms_suspend: pci_get_drvdata failed\n");
@@ -1364,7 +1358,7 @@ static int brcms_resume(struct pci_dev *pdev)
 	u32 val;
 
 	hw = pci_get_drvdata(pdev);
-	wl = HW_TO_WL(hw);
+	wl = hw->priv;
 	if (!wl) {
 		wiphy_err(wl->wiphy,
 			  "wl: brcms_resume: pci_get_drvdata failed\n");
@@ -1458,7 +1452,7 @@ void brcms_txflowcontrol(struct brcms_info *wl, struct brcms_if *wlif,
  */
 void brcms_init(struct brcms_info *wl)
 {
-	BCMMSG(WL_TO_HW(wl)->wiphy, "wl%d\n", wl->pub->unit);
+	BCMMSG(wl->pub->ieee_hw->wiphy, "wl%d\n", wl->pub->unit);
 	brcms_reset(wl);
 
 	brcms_c_init(wl->wlc);
@@ -1469,7 +1463,7 @@ void brcms_init(struct brcms_info *wl)
  */
 uint brcms_reset(struct brcms_info *wl)
 {
-	BCMMSG(WL_TO_HW(wl)->wiphy, "wl%d\n", wl->pub->unit);
+	BCMMSG(wl->pub->ieee_hw->wiphy, "wl%d\n", wl->pub->unit);
 	brcms_c_reset(wl->wlc);
 
 	/* dpc will not be rescheduled */

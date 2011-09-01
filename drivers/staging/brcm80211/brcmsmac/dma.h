@@ -20,6 +20,10 @@
 #include <linux/delay.h>
 #include "types.h"		/* forward structure declarations */
 
+/* map/unmap direction */
+#define	DMA_TX	1		/* TX direction for DMA */
+#define	DMA_RX	2		/* RX direction for DMA */
+
 /* DMA structure:
  *  support two DMA engines: 32 bits address or 64 bit addressing
  *  basic DMA register set is per channel(transmit or receive)
@@ -46,11 +50,6 @@ struct dma64regs {
 	u32 status0;	/* current descriptor, xmt state */
 	u32 status1;	/* active descriptor, xmt error */
 };
-
-/* map/unmap direction */
-#define	DMA_TX	1		/* TX direction for DMA */
-#define	DMA_RX	2		/* RX direction for DMA */
-#define BUS_SWAP32(v)		(v)
 
 /* range param for dma_getnexttxp() and dma_txreclaim */
 enum txd_range {

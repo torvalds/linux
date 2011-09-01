@@ -199,8 +199,6 @@
 
 #define	MAXNAMEL	8	/* 8 char names */
 
-#define	DI_INFO(dmah)	((dma_info_t *)dmah)
-
 /* descriptor bumping macros */
 /* faster than %, but n must be power of 2 */
 #define	XXD(x, n)	((x) & ((n) - 1))
