@@ -1044,7 +1044,7 @@ struct brcms_bss_cfg {
 	((uint)((wlc)->band->bandunit ? BAND_2G_INDEX : BAND_5G_INDEX))
 
 #define IS_MBAND_UNLOCKED(wlc) \
-	((NBANDS(wlc) > 1) && !(wlc)->bandlocked)
+	((wlc->pub->_nbands > 1) && !(wlc)->bandlocked)
 
 #define BRCMS_BAND_PI_RADIO_CHANSPEC wlc_phy_chanspec_get(wlc->band->pi)
 

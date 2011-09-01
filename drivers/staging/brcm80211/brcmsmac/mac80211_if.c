@@ -1114,7 +1114,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	}
 
 	/* Assume all bands use the same phy.  True for 11n devices. */
-	if (NBANDS_PUB(wl->pub) > 1) {
+	if (wl->pub->_nbands > 1) {
 		has_5g++;
 		if (phy_list[0] == 'n' || phy_list[0] == 'c')
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =

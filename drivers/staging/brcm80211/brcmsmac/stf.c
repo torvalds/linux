@@ -290,7 +290,7 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 		return -EINVAL;
 
 	if (txstreams == 1) {
-		for (i = 0; i < NBANDS(wlc); i++)
+		for (i = 0; i < wlc->pub->_nbands; i++)
 			if ((RSPEC_STF(wlc->bandstate[i]->rspec_override) !=
 			     PHY_TXC1_MODE_SISO)
 			    || (RSPEC_STF(wlc->bandstate[i]->mrspec_override) !=
