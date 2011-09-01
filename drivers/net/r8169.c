@@ -3080,6 +3080,14 @@ static void rtl8169_phy_reset(struct net_device *dev,
 	netif_err(tp, link, dev, "PHY reset failed\n");
 }
 
+static bool rtl_tbi_enabled(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	return (tp->mac_version == RTL_GIGA_MAC_VER_01) &&
+	    (RTL_R8(PHYstatus) & TBI_Enable);
+}
+
 static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -3112,7 +3120,7 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 			   ADVERTISED_1000baseT_Half |
 			   ADVERTISED_1000baseT_Full : 0));
 
-	if (RTL_R8(PHYstatus) & TBI_Enable)
+	if (rtl_tbi_enabled(tp))
 		netif_info(tp, link, dev, "TBI auto-negotiating\n");
 }
 
@@ -3738,8 +3746,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->features |= rtl_try_msi(pdev, ioaddr, cfg);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
-	if ((tp->mac_version <= RTL_GIGA_MAC_VER_06) &&
-	    (RTL_R8(PHYstatus) & TBI_Enable)) {
+	if (rtl_tbi_enabled(tp)) {
 		tp->set_speed = rtl8169_set_speed_tbi;
 		tp->get_settings = rtl8169_gset_tbi;
 		tp->phy_reset_enable = rtl8169_tbi_reset_enable;
