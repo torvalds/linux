@@ -1050,6 +1050,10 @@ static int do_test(int m)
 				  speed_template_8_32);
 		test_cipher_speed("cbc(blowfish)", DECRYPT, sec, NULL, 0,
 				  speed_template_8_32);
+		test_cipher_speed("ctr(blowfish)", ENCRYPT, sec, NULL, 0,
+				  speed_template_8_32);
+		test_cipher_speed("ctr(blowfish)", DECRYPT, sec, NULL, 0,
+				  speed_template_8_32);
 		break;
 
 	case 204:
