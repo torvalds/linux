@@ -42,6 +42,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/dwc3-omap.h>
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -193,6 +194,7 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 
 static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 {
+	struct dwc3_omap_data	*pdata = pdev->dev.platform_data;
 	struct platform_device	*dwc3;
 	struct dwc3_omap	*omap;
 	struct resource		*res;
@@ -257,6 +259,26 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	omap->irq	= irq;
 	omap->base	= base;
 	omap->dwc3	= dwc3;
+
+	reg = dwc3_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS);
+
+	if (!pdata) {
+		dev_dbg(&pdev->dev, "missing platform data\n");
+	} else {
+		switch (pdata->utmi_mode) {
+		case DWC3_OMAP_UTMI_MODE_SW:
+			reg |= USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+			break;
+		case DWC3_OMAP_UTMI_MODE_HW:
+			reg &= ~USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+			break;
+		default:
+			dev_dbg(&pdev->dev, "UNKNOWN utmi mode %d\n",
+					pdata->utmi_mode);
+		}
+	}
+
+	dwc3_writel(omap->base, USBOTGSS_UTMI_OTG_STATUS, reg);
 
 	/* check the DMA Status */
 	reg = dwc3_readl(omap->base, USBOTGSS_SYSCONFIG);
