@@ -85,6 +85,9 @@
 #define DRM_IOCTL_VMW_FENCE_WAIT				\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_FENCE_WAIT,		\
 		 struct drm_vmw_fence_wait_arg)
+#define DRM_IOCTL_VMW_GET_3D_CAP				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_GET_3D_CAP,		\
+		struct drm_vmw_get_3d_cap_arg)
 
 /**
  * The core DRM version of this macro doesn't account for
@@ -129,6 +132,8 @@ static struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_wait_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_GET_3D_CAP, vmw_get_cap_3d_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 };
 

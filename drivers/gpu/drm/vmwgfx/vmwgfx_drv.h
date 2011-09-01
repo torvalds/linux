@@ -397,6 +397,8 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 
 extern int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
+extern int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 
 /**
  * Fifo utilities - vmwgfx_fifo.c

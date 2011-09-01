@@ -49,6 +49,7 @@
 #define DRM_VMW_REF_SURFACE          11
 #define DRM_VMW_EXECBUF              12
 #define DRM_VMW_FENCE_WAIT           13
+#define DRM_VMW_GET_3D_CAP           14
 
 /*************************************************************************/
 /**
@@ -68,6 +69,7 @@
 #define DRM_VMW_PARAM_HW_CAPS          3
 #define DRM_VMW_PARAM_FIFO_CAPS        4
 #define DRM_VMW_PARAM_MAX_FB_SIZE      5
+#define DRM_VMW_PARAM_FIFO_HW_VERSION  6
 
 /**
  * struct drm_vmw_getparam_arg
@@ -557,6 +559,29 @@ struct drm_vmw_stream_arg {
  * Return a single stream that was claimed by this process. Also makes
  * sure that the stream has been stopped.
  */
+/*************************************************************************/
+/**
+ * DRM_VMW_GET_3D_CAP
+ *
+ * Read 3D capabilities from the FIFO
+ *
+ */
+
+/**
+ * struct drm_vmw_get_3d_cap_arg
+ *
+ * @buffer: Pointer to a buffer for capability data, cast to an uint64_t
+ * @size: Max size to copy
+ *
+ * Input argument to the DRM_VMW_GET_3D_CAP_IOCTL
+ * ioctls.
+ */
+
+struct drm_vmw_get_3d_cap_arg {
+	uint64_t buffer;
+	uint32_t max_size;
+	uint32_t pad64;
+};
 
 /*************************************************************************/
 /**
