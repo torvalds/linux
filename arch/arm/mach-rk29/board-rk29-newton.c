@@ -753,6 +753,31 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
+
+#ifdef CONFIG_GS_KXTF9
+#include <linux/kxtf9.h>
+#define KXTF9_DEVICE_MAP 1
+#define KXTF9_MAP_X (KXTF9_DEVICE_MAP-1)%2
+#define KXTF9_MAP_Y KXTF9_DEVICE_MAP%2
+#define KXTF9_NEG_X (KXTF9_DEVICE_MAP/2)%2
+#define KXTF9_NEG_Y (KXTF9_DEVICE_MAP+1)/4
+#define KXTF9_NEG_Z (KXTF9_DEVICE_MAP-1)/4
+struct kxtf9_platform_data kxtf9_pdata = {
+	.min_interval = 1,
+	.poll_interval = 20,
+	.g_range = KXTF9_G_2G,
+	.axis_map_x = KXTF9_MAP_X,
+	.axis_map_y = KXTF9_MAP_Y,
+	.axis_map_z = 2,
+	.negate_x = KXTF9_NEG_X,
+	.negate_y = KXTF9_NEG_Y,
+	.negate_z = KXTF9_NEG_Z,
+	//.ctrl_regc_init = KXTF9_G_2G | ODR50F,
+	//.ctrl_regb_init = ENABLE,
+};
+#endif /* CONFIG_GS_KXTF9 */
+
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -1162,7 +1187,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
-	#if defined (CONFIG_BATTERY_BQ27541)
+#if defined (CONFIG_BATTERY_BQ27541)
 	{
 		.type    		= "bq27541",
 		.addr           = 0x55,
@@ -1885,6 +1910,9 @@ static struct platform_device *devices[] __initdata = {
         &rk29_device_iis_8ch,
 #endif
 
+#ifdef CONFIG_KEYS_RK29
+	&rk29_device_keys,
+#endif
 #ifdef CONFIG_KEYS_RK29_NEWTON
 	&rk29_device_keys,
 #endif
@@ -1914,6 +1942,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_RK29
 	&rk29_device_fb,
 	&rk29_device_dma_cpy,
+#endif
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
 	&rk29_device_backlight,
