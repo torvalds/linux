@@ -515,6 +515,7 @@ int ft5406_platform_wakeup(void)
 {
 	printk("ft5406_platform_wakeup\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
 	return 0;
 }
 
@@ -548,11 +549,11 @@ int gt819_init_platform_hw(void)
 	gpio_direction_output(TOUCH_RESET_PIN, 0);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	mdelay(10);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	mdelay(10);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+//	mdelay(10);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	gpio_direction_input(TOUCH_INT_PIN);
-	mdelay(10);
+//	mdelay(10);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 	msleep(300);
     return 0;

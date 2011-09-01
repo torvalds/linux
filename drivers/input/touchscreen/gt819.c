@@ -602,7 +602,22 @@ static int gt819_remove(struct i2c_client *client)
 static int gt819_init_panel(struct goodix_ts_data *ts)
 {
 	int ret,I2cDelay;
+	int len = sizeof(config_info)-1;
 	uint8_t rd_cfg_buf[10];
+	struct goodix_platform_data *pdata = ts->client->dev.platform_data;
+
+	ret = gt819_set_regs(ts->client, 101, &config_info[1], len);
+	if(ret < 0)
+	{
+		pdata->platform_sleep();
+		msleep(10);
+		pdata->platform_wakeup();
+		msleep(100);
+		printk("First IIC request failed,retry!\n");
+		ret = gt819_set_regs(ts->client, 101, &config_info[1], len);
+		if(ret<0)
+		return ret;
+	}
 
 	ret = gt819_read_regs(ts->client, 101, rd_cfg_buf, 10);
 	if (ret < 0)
@@ -650,7 +665,7 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 {
 	int ret = 0;
 	char version[17];
-	char version_base[17]={"GT81XNI_1R05_18G"};
+	char version_base[17]={"GT81XNI_1R05_18Q"};
 	struct goodix_ts_data *ts;
 	struct goodix_platform_data *pdata = client->dev.platform_data;
 	const char irq_table[4] = {IRQ_TYPE_EDGE_RISING,

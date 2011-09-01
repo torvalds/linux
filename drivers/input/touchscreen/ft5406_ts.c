@@ -676,13 +676,11 @@ static int ft5406_resume(struct i2c_client *client)
 
 static void ft5406_suspend_early(struct early_suspend *h)
 {
-	dev_info(&this_client->dev, "ft5406_suspend_early!\n");
 	ft5406_suspend(this_client,PMSG_SUSPEND);
 }
 
 static void ft5406_resume_early(struct early_suspend *h)
 {
-	dev_info(&this_client->dev, "ft5406_resume_early!\n");
 	ft5406_resume(this_client);
 }
 static int __devexit ft5406_remove(struct i2c_client *client)
