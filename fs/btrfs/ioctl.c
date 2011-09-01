@@ -1140,9 +1140,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		btrfs_set_super_incompat_flags(disk_super, features);
 	}
 
-	if (!file)
-		kfree(ra);
-	return defrag_count;
+	ret = defrag_count;
 
 out_ra:
 	if (!file)
