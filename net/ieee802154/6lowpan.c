@@ -479,10 +479,10 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 	int stat = NET_RX_SUCCESS;
 
 	new = skb_copy_expand(skb, sizeof(struct ipv6hdr), skb_tailroom(skb),
-								GFP_KERNEL);
+								GFP_ATOMIC);
 	kfree_skb(skb);
 
-	if (NULL == new)
+	if (!new)
 		return -ENOMEM;
 
 	skb_push(new, sizeof(struct ipv6hdr));
@@ -495,13 +495,14 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &lowpan_devices, list)
 		if (lowpan_dev_info(entry->ldev)->real_dev == new->dev) {
-			skb = skb_copy(new, GFP_KERNEL);
-			skb->dev = entry->ldev;
+			skb = skb_copy(new, GFP_ATOMIC);
+			if (!skb) {
+				stat = -ENOMEM;
+				break;
+			}
 
-			if (in_interrupt())
-				stat = netif_rx(skb);
-			else
-				stat = netif_rx_ni(skb);
+			skb->dev = entry->ldev;
+			stat = netif_rx(skb);
 		}
 	rcu_read_unlock();
 
