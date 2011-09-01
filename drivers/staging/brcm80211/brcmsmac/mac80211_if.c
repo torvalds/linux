@@ -37,6 +37,9 @@
 #define LOCK(wl)	spin_lock_bh(&(wl)->lock)
 #define UNLOCK(wl)	spin_unlock_bh(&(wl)->lock)
 
+#define HW_TO_WL(hw)	 (hw->priv)
+#define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
+
 /* locking from inside brcms_isr */
 #define ISR_LOCK(wl, flags)\
 	do {\
@@ -54,13 +57,6 @@
 #define INT_LOCK(wl, flags)	spin_lock_irqsave(&(wl)->isr_lock, flags)
 #define INT_UNLOCK(wl, flags)	spin_unlock_irqrestore(&(wl)->isr_lock, flags)
 
-static void brcms_timer(unsigned long data);
-static void _brcms_timer(struct brcms_timer *t);
-
-
-static int ieee_hw_init(struct ieee80211_hw *hw);
-static int ieee_hw_rate_init(struct ieee80211_hw *hw);
-
 /* Flags we support */
 #define MAC_FILTERS (FIF_PROMISC_IN_BSS | \
 	FIF_ALLMULTI | \
@@ -70,21 +66,42 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw);
 	FIF_OTHER_BSS | \
 	FIF_BCN_PRBRESP_PROMISC)
 
+#define CHAN2GHZ(channel, freqency, chflags)  { \
+	.band = IEEE80211_BAND_2GHZ, \
+	.center_freq = (freqency), \
+	.hw_value = (channel), \
+	.flags = chflags, \
+	.max_antenna_gain = 0, \
+	.max_power = 19, \
+}
+
+#define CHAN5GHZ(channel, chflags)  { \
+	.band = IEEE80211_BAND_5GHZ, \
+	.center_freq = 5000 + 5*(channel), \
+	.hw_value = (channel), \
+	.flags = chflags, \
+	.max_antenna_gain = 0, \
+	.max_power = 21, \
+}
+
+#define RATE(rate100m, _flags) { \
+	.bitrate = (rate100m), \
+	.flags = (_flags), \
+	.hw_value = (rate100m / 5), \
+}
+
+struct firmware_hdr {
+	u32 offset;
+	u32 len;
+	u32 idx;
+};
+
+char *brcms_firmwares[MAX_FW_IMAGES] = {
+	"brcm/bcm43xx",
+	NULL
+};
+
 static int n_adapters_found;
-
-static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev);
-static void brcms_release_fw(struct brcms_info *wl);
-
-/* local prototypes */
-static void brcms_dpc(unsigned long data);
-static irqreturn_t brcms_isr(int irq, void *dev_id);
-
-static int __devinit brcms_pci_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *ent);
-static void brcms_remove(struct pci_dev *pdev);
-static void brcms_free(struct brcms_info *wl);
-static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate,
-				 bool is_br);
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
@@ -107,50 +124,170 @@ static int msglevel = 0xdeadbeef;
 module_param(msglevel, int, 0);
 #endif				/* BCMDBG */
 
-#define HW_TO_WL(hw)	 (hw->priv)
-#define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
+static struct ieee80211_channel brcms_2ghz_chantable[] = {
+	CHAN2GHZ(1, 2412, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN2GHZ(2, 2417, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN2GHZ(3, 2422, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN2GHZ(4, 2427, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN2GHZ(5, 2432, 0),
+	CHAN2GHZ(6, 2437, 0),
+	CHAN2GHZ(7, 2442, 0),
+	CHAN2GHZ(8, 2447, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(9, 2452, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(10, 2457, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(11, 2462, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(12, 2467,
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(13, 2472,
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(14, 2484,
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
+};
 
-/* MAC80211 callback functions */
-static int brcms_ops_start(struct ieee80211_hw *hw);
-static void brcms_ops_stop(struct ieee80211_hw *hw);
-static int brcms_ops_add_interface(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif);
-static void brcms_ops_remove_interface(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif);
-static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed);
-static void brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_bss_conf *info,
-				    u32 changed);
-static void brcms_ops_configure_filter(struct ieee80211_hw *hw,
-				    unsigned int changed_flags,
-				    unsigned int *total_flags, u64 multicast);
-static int brcms_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-			  bool set);
-static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw);
-static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw);
-static void brcms_ops_set_tsf(struct ieee80211_hw *hw, u64 tsf);
-static int brcms_ops_get_stats(struct ieee80211_hw *hw,
-			    struct ieee80211_low_level_stats *stats);
-static void brcms_ops_sta_notify(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      enum sta_notify_cmd cmd,
-			      struct ieee80211_sta *sta);
-static int brcms_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
-			  const struct ieee80211_tx_queue_params *params);
-static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw);
-static int brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct ieee80211_sta *sta);
-static int brcms_ops_sta_remove(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta);
-static int brcms_ops_ampdu_action(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			       u8 buf_size);
-static void brcms_ops_rfkill_poll(struct ieee80211_hw *hw);
-static void brcms_ops_flush(struct ieee80211_hw *hw, bool drop);
+static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
+	/* UNII-1 */
+	CHAN5GHZ(36, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(40, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(44, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(48, IEEE80211_CHAN_NO_HT40PLUS),
+	/* UNII-2 */
+	CHAN5GHZ(52,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(56,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(60,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(64,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	/* MID */
+	CHAN5GHZ(100,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(104,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(108,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(112,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(116,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(120,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(124,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(128,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(132,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(136,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(140,
+		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS |
+		 IEEE80211_CHAN_NO_HT40MINUS),
+	/* UNII-3 */
+	CHAN5GHZ(149, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(153, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(157, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN5GHZ(161, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(165, IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
+};
+
+/*
+ * The rate table is used for both 2.4G and 5G rates. The
+ * latter being a subset as it does not support CCK rates.
+ */
+static struct ieee80211_rate legacy_ratetable[] = {
+	RATE(10, 0),
+	RATE(20, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(55, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(110, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(60, 0),
+	RATE(90, 0),
+	RATE(120, 0),
+	RATE(180, 0),
+	RATE(240, 0),
+	RATE(360, 0),
+	RATE(480, 0),
+	RATE(540, 0),
+};
+
+static struct ieee80211_supported_band brcms_band_2GHz_nphy = {
+	.band = IEEE80211_BAND_2GHZ,
+	.channels = brcms_2ghz_chantable,
+	.n_channels = ARRAY_SIZE(brcms_2ghz_chantable),
+	.bitrates = legacy_ratetable,
+	.n_bitrates = ARRAY_SIZE(legacy_ratetable),
+	.ht_cap = {
+		   /* from include/linux/ieee80211.h */
+		   .cap = IEEE80211_HT_CAP_GRN_FLD |
+		   IEEE80211_HT_CAP_SGI_20 |
+		   IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,
+		   .ht_supported = true,
+		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
+		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
+		   .mcs = {
+			   /* placeholders for now */
+			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
+			   .rx_highest = 500,
+			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
+		   }
+};
+
+static struct ieee80211_supported_band brcms_band_5GHz_nphy = {
+	.band = IEEE80211_BAND_5GHZ,
+	.channels = brcms_5ghz_nphy_chantable,
+	.n_channels = ARRAY_SIZE(brcms_5ghz_nphy_chantable),
+	.bitrates = legacy_ratetable + BRCMS_LEGACY_5G_RATE_OFFSET,
+	.n_bitrates = ARRAY_SIZE(legacy_ratetable) -
+			BRCMS_LEGACY_5G_RATE_OFFSET,
+	.ht_cap = {
+		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
+			  IEEE80211_HT_CAP_SGI_40 |
+			  IEEE80211_HT_CAP_40MHZ_INTOLERANT, /* No 40 mhz yet */
+		   .ht_supported = true,
+		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
+		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
+		   .mcs = {
+			   /* placeholders for now */
+			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
+			   .rx_highest = 500,
+			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
+		   }
+};
+
+/* flags the given rate in rateset as requested */
+static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
+{
+	u32 i;
+
+	for (i = 0; i < rs->count; i++) {
+		if (rate != (rs->rates[i] & 0x7f))
+			continue;
+
+		if (is_br)
+			rs->rates[i] |= BRCMS_RATE_FLAG;
+		else
+			rs->rates[i] &= BRCMS_RATE_MASK;
+		return;
+	}
+}
 
 static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -735,6 +872,283 @@ static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
 	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
 }
 
+static void brcms_dpc(unsigned long data)
+{
+	struct brcms_info *wl;
+
+	wl = (struct brcms_info *) data;
+
+	LOCK(wl);
+
+	/* call the common second level interrupt handler */
+	if (wl->pub->up) {
+		if (wl->resched) {
+			unsigned long flags;
+
+			INT_LOCK(wl, flags);
+			brcms_c_intrsupd(wl->wlc);
+			INT_UNLOCK(wl, flags);
+		}
+
+		wl->resched = brcms_c_dpc(wl->wlc, true);
+	}
+
+	/* brcms_c_dpc() may bring the driver down */
+	if (!wl->pub->up)
+		goto done;
+
+	/* re-schedule dpc */
+	if (wl->resched)
+		tasklet_schedule(&wl->tasklet);
+	else
+		/* re-enable interrupts */
+		brcms_intrson(wl);
+
+ done:
+	UNLOCK(wl);
+}
+
+/*
+ * Precondition: Since this function is called in brcms_pci_probe() context,
+ * no locking is required.
+ */
+static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev)
+{
+	int status;
+	struct device *device = &pdev->dev;
+	char fw_name[100];
+	int i;
+
+	memset(&wl->fw, 0, sizeof(struct brcms_firmware));
+	for (i = 0; i < MAX_FW_IMAGES; i++) {
+		if (brcms_firmwares[i] == NULL)
+			break;
+		sprintf(fw_name, "%s-%d.fw", brcms_firmwares[i],
+			UCODE_LOADER_API_VER);
+		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
+		if (status) {
+			wiphy_err(wl->wiphy, "%s: fail to load firmware %s\n",
+				  KBUILD_MODNAME, fw_name);
+			return status;
+		}
+		sprintf(fw_name, "%s_hdr-%d.fw", brcms_firmwares[i],
+			UCODE_LOADER_API_VER);
+		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
+		if (status) {
+			wiphy_err(wl->wiphy, "%s: fail to load firmware %s\n",
+				  KBUILD_MODNAME, fw_name);
+			return status;
+		}
+		wl->fw.hdr_num_entries[i] =
+		    wl->fw.fw_hdr[i]->size / (sizeof(struct firmware_hdr));
+	}
+	wl->fw.fw_cnt = i;
+	return brcms_ucode_data_init(wl);
+}
+
+/*
+ * Precondition: Since this function is called in brcms_pci_probe() context,
+ * no locking is required.
+ */
+static void brcms_release_fw(struct brcms_info *wl)
+{
+	int i;
+	for (i = 0; i < MAX_FW_IMAGES; i++) {
+		release_firmware(wl->fw.fw_bin[i]);
+		release_firmware(wl->fw.fw_hdr[i]);
+	}
+}
+
+/**
+ * This function frees the WL per-device resources.
+ *
+ * This function frees resources owned by the WL device pointed to
+ * by the wl parameter.
+ *
+ * precondition: can both be called locked and unlocked
+ *
+ */
+static void brcms_free(struct brcms_info *wl)
+{
+	struct brcms_timer *t, *next;
+
+	/* free ucode data */
+	if (wl->fw.fw_cnt)
+		brcms_ucode_data_free();
+	if (wl->irq)
+		free_irq(wl->irq, wl);
+
+	/* kill dpc */
+	tasklet_kill(&wl->tasklet);
+
+	if (wl->pub)
+		brcms_c_module_unregister(wl->pub, "linux", wl);
+
+	/* free common resources */
+	if (wl->wlc) {
+		brcms_c_detach(wl->wlc);
+		wl->wlc = NULL;
+		wl->pub = NULL;
+	}
+
+	/* virtual interface deletion is deferred so we cannot spinwait */
+
+	/* wait for all pending callbacks to complete */
+	while (atomic_read(&wl->callbacks) > 0)
+		schedule();
+
+	/* free timers */
+	for (t = wl->timers; t; t = next) {
+		next = t->next;
+#ifdef BCMDBG
+		kfree(t->name);
+#endif
+		kfree(t);
+	}
+
+	/*
+	 * unregister_netdev() calls get_stats() which may read chip
+	 * registers so we cannot unmap the chip registers until
+	 * after calling unregister_netdev() .
+	 */
+	if (wl->regsva)
+		iounmap((void *)wl->regsva);
+
+	wl->regsva = NULL;
+}
+
+/*
+* called from both kernel as from this kernel module.
+* precondition: perimeter lock is not acquired.
+*/
+static void brcms_remove(struct pci_dev *pdev)
+{
+	struct brcms_info *wl;
+	struct ieee80211_hw *hw;
+	int status;
+
+	hw = pci_get_drvdata(pdev);
+	wl = HW_TO_WL(hw);
+	if (!wl) {
+		pr_err("wl: brcms_remove: pci_get_drvdata failed\n");
+		return;
+	}
+
+	LOCK(wl);
+	status = brcms_c_chipmatch(pdev->vendor, pdev->device);
+	UNLOCK(wl);
+	if (!status) {
+		wiphy_err(wl->wiphy, "wl: brcms_remove: chipmatch "
+				     "failed\n");
+		return;
+	}
+	if (wl->wlc) {
+		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
+		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
+		ieee80211_unregister_hw(hw);
+		LOCK(wl);
+		brcms_down(wl);
+		UNLOCK(wl);
+	}
+	pci_disable_device(pdev);
+
+	brcms_free(wl);
+
+	pci_set_drvdata(pdev, NULL);
+	ieee80211_free_hw(hw);
+}
+
+static irqreturn_t brcms_isr(int irq, void *dev_id)
+{
+	struct brcms_info *wl;
+	bool ours, wantdpc;
+	unsigned long flags;
+
+	wl = (struct brcms_info *) dev_id;
+
+	ISR_LOCK(wl, flags);
+
+	/* call common first level interrupt handler */
+	ours = brcms_c_isr(wl->wlc, &wantdpc);
+	if (ours) {
+		/* if more to do... */
+		if (wantdpc) {
+
+			/* ...and call the second level interrupt handler */
+			/* schedule dpc */
+			tasklet_schedule(&wl->tasklet);
+		}
+	}
+
+	ISR_UNLOCK(wl, flags);
+
+	return IRQ_RETVAL(ours);
+}
+
+/*
+ * is called in brcms_pci_probe() context, therefore no locking required.
+ */
+static int ieee_hw_rate_init(struct ieee80211_hw *hw)
+{
+	struct brcms_info *wl = HW_TO_WL(hw);
+	int has_5g;
+	char phy_list[4];
+
+	has_5g = 0;
+
+	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
+	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
+
+	if (brcms_c_get(wl->wlc, BRCM_GET_PHYLIST, (int *)&phy_list) < 0)
+		wiphy_err(hw->wiphy, "Phy list failed\n");
+
+	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
+		if (phy_list[0] == 'c') {
+			/* Single stream */
+			brcms_band_2GHz_nphy.ht_cap.mcs.rx_mask[1] = 0;
+			brcms_band_2GHz_nphy.ht_cap.mcs.rx_highest = 72;
+		}
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &brcms_band_2GHz_nphy;
+	} else {
+		return -EPERM;
+	}
+
+	/* Assume all bands use the same phy.  True for 11n devices. */
+	if (NBANDS_PUB(wl->pub) > 1) {
+		has_5g++;
+		if (phy_list[0] == 'n' || phy_list[0] == 'c')
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			    &brcms_band_5GHz_nphy;
+		else
+			return -EPERM;
+	}
+	return 0;
+}
+
+/*
+ * is called in brcms_pci_probe() context, therefore no locking required.
+ */
+static int ieee_hw_init(struct ieee80211_hw *hw)
+{
+	hw->flags = IEEE80211_HW_SIGNAL_DBM
+	    /* | IEEE80211_HW_CONNECTION_MONITOR  What is this? */
+	    | IEEE80211_HW_REPORTS_TX_ACK_STATUS
+	    | IEEE80211_HW_AMPDU_AGGREGATION;
+
+	hw->extra_tx_headroom = brcms_c_get_header_len();
+	hw->queues = N_TX_QUEUES;
+	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
+
+	/* channel change time is dependent on chip and band  */
+	hw->channel_change_time = 7 * 1000;
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
+	hw->rate_control_algorithm = "minstrel_ht";
+
+	hw->sta_data_size = sizeof(struct scb);
+	return ieee_hw_rate_init(hw);
+}
+
 /**
  * attach to the WL device.
  *
@@ -854,242 +1268,6 @@ fail:
 }
 
 
-
-#define CHAN2GHZ(channel, freqency, chflags)  { \
-	.band = IEEE80211_BAND_2GHZ, \
-	.center_freq = (freqency), \
-	.hw_value = (channel), \
-	.flags = chflags, \
-	.max_antenna_gain = 0, \
-	.max_power = 19, \
-}
-
-static struct ieee80211_channel brcms_2ghz_chantable[] = {
-	CHAN2GHZ(1, 2412, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(2, 2417, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(3, 2422, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(4, 2427, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(5, 2432, 0),
-	CHAN2GHZ(6, 2437, 0),
-	CHAN2GHZ(7, 2442, 0),
-	CHAN2GHZ(8, 2447, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(9, 2452, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(10, 2457, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(11, 2462, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(12, 2467,
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(13, 2472,
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(14, 2484,
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
-};
-
-#define CHAN5GHZ(channel, chflags)  { \
-	.band = IEEE80211_BAND_5GHZ, \
-	.center_freq = 5000 + 5*(channel), \
-	.hw_value = (channel), \
-	.flags = chflags, \
-	.max_antenna_gain = 0, \
-	.max_power = 21, \
-}
-
-static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
-	/* UNII-1 */
-	CHAN5GHZ(36, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(40, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(44, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(48, IEEE80211_CHAN_NO_HT40PLUS),
-	/* UNII-2 */
-	CHAN5GHZ(52,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(56,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(60,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(64,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	/* MID */
-	CHAN5GHZ(100,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(104,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(108,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(112,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(116,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(120,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(124,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(128,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(132,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(136,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(140,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS |
-		 IEEE80211_CHAN_NO_HT40MINUS),
-	/* UNII-3 */
-	CHAN5GHZ(149, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(153, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(157, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(161, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(165, IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
-};
-
-#define RATE(rate100m, _flags) { \
-	.bitrate = (rate100m), \
-	.flags = (_flags), \
-	.hw_value = (rate100m / 5), \
-}
-
-/*
- * The rate table is used for both 2.4G and 5G rates. The
- * latter being a subset as it does not support CCK rates.
- */
-static struct ieee80211_rate legacy_ratetable[] = {
-	RATE(10, 0),
-	RATE(20, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATE(55, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATE(110, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATE(60, 0),
-	RATE(90, 0),
-	RATE(120, 0),
-	RATE(180, 0),
-	RATE(240, 0),
-	RATE(360, 0),
-	RATE(480, 0),
-	RATE(540, 0),
-};
-
-static struct ieee80211_supported_band brcms_band_2GHz_nphy = {
-	.band = IEEE80211_BAND_2GHZ,
-	.channels = brcms_2ghz_chantable,
-	.n_channels = ARRAY_SIZE(brcms_2ghz_chantable),
-	.bitrates = legacy_ratetable,
-	.n_bitrates = ARRAY_SIZE(legacy_ratetable),
-	.ht_cap = {
-		   /* from include/linux/ieee80211.h */
-		   .cap = IEEE80211_HT_CAP_GRN_FLD |
-		   IEEE80211_HT_CAP_SGI_20 |
-		   IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,
-		   .ht_supported = true,
-		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
-		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
-		   .mcs = {
-			   /* placeholders for now */
-			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
-			   .rx_highest = 500,
-			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
-		   }
-};
-
-static struct ieee80211_supported_band brcms_band_5GHz_nphy = {
-	.band = IEEE80211_BAND_5GHZ,
-	.channels = brcms_5ghz_nphy_chantable,
-	.n_channels = ARRAY_SIZE(brcms_5ghz_nphy_chantable),
-	.bitrates = legacy_ratetable + BRCMS_LEGACY_5G_RATE_OFFSET,
-	.n_bitrates = ARRAY_SIZE(legacy_ratetable) -
-			BRCMS_LEGACY_5G_RATE_OFFSET,
-	.ht_cap = {
-		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
-			  IEEE80211_HT_CAP_SGI_40 |
-			  IEEE80211_HT_CAP_40MHZ_INTOLERANT, /* No 40 mhz yet */
-		   .ht_supported = true,
-		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
-		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
-		   .mcs = {
-			   /* placeholders for now */
-			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
-			   .rx_highest = 500,
-			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
-		   }
-};
-
-/*
- * is called in brcms_pci_probe() context, therefore no locking required.
- */
-static int ieee_hw_rate_init(struct ieee80211_hw *hw)
-{
-	struct brcms_info *wl = HW_TO_WL(hw);
-	int has_5g;
-	char phy_list[4];
-
-	has_5g = 0;
-
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
-	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
-
-	if (brcms_c_get(wl->wlc, BRCM_GET_PHYLIST, (int *)&phy_list) < 0)
-		wiphy_err(hw->wiphy, "Phy list failed\n");
-
-	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
-		if (phy_list[0] == 'c') {
-			/* Single stream */
-			brcms_band_2GHz_nphy.ht_cap.mcs.rx_mask[1] = 0;
-			brcms_band_2GHz_nphy.ht_cap.mcs.rx_highest = 72;
-		}
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &brcms_band_2GHz_nphy;
-	} else {
-		return -EPERM;
-	}
-
-	/* Assume all bands use the same phy.  True for 11n devices. */
-	if (NBANDS_PUB(wl->pub) > 1) {
-		has_5g++;
-		if (phy_list[0] == 'n' || phy_list[0] == 'c')
-			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			    &brcms_band_5GHz_nphy;
-		else
-			return -EPERM;
-	}
-	return 0;
-}
-
-/*
- * is called in brcms_pci_probe() context, therefore no locking required.
- */
-static int ieee_hw_init(struct ieee80211_hw *hw)
-{
-	hw->flags = IEEE80211_HW_SIGNAL_DBM
-	    /* | IEEE80211_HW_CONNECTION_MONITOR  What is this? */
-	    | IEEE80211_HW_REPORTS_TX_ACK_STATUS
-	    | IEEE80211_HW_AMPDU_AGGREGATION;
-
-	hw->extra_tx_headroom = brcms_c_get_header_len();
-	hw->queues = N_TX_QUEUES;
-	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
-
-	/* channel change time is dependent on chip and band  */
-	hw->channel_change_time = 7 * 1000;
-	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
-
-	hw->rate_control_algorithm = "minstrel_ht";
-
-	hw->sta_data_size = sizeof(struct scb);
-	return ieee_hw_rate_init(hw);
-}
 
 /**
  * determines if a device is a WL device, and if so, attaches it.
@@ -1216,47 +1394,6 @@ static int brcms_resume(struct pci_dev *pdev)
 	return err;
 }
 
-/*
-* called from both kernel as from this kernel module.
-* precondition: perimeter lock is not acquired.
-*/
-static void brcms_remove(struct pci_dev *pdev)
-{
-	struct brcms_info *wl;
-	struct ieee80211_hw *hw;
-	int status;
-
-	hw = pci_get_drvdata(pdev);
-	wl = HW_TO_WL(hw);
-	if (!wl) {
-		pr_err("wl: brcms_remove: pci_get_drvdata failed\n");
-		return;
-	}
-
-	LOCK(wl);
-	status = brcms_c_chipmatch(pdev->vendor, pdev->device);
-	UNLOCK(wl);
-	if (!status) {
-		wiphy_err(wl->wiphy, "wl: brcms_remove: chipmatch "
-				     "failed\n");
-		return;
-	}
-	if (wl->wlc) {
-		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
-		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
-		ieee80211_unregister_hw(hw);
-		LOCK(wl);
-		brcms_down(wl);
-		UNLOCK(wl);
-	}
-	pci_disable_device(pdev);
-
-	brcms_free(wl);
-
-	pci_set_drvdata(pdev, NULL);
-	ieee80211_free_hw(hw);
-}
-
 static struct pci_driver brcms_pci_driver = {
 	.name     = KBUILD_MODNAME,
 	.probe    = brcms_pci_probe,
@@ -1306,81 +1443,6 @@ static void __exit brcms_module_exit(void)
 
 module_init(brcms_module_init);
 module_exit(brcms_module_exit);
-
-/**
- * This function frees the WL per-device resources.
- *
- * This function frees resources owned by the WL device pointed to
- * by the wl parameter.
- *
- * precondition: can both be called locked and unlocked
- *
- */
-static void brcms_free(struct brcms_info *wl)
-{
-	struct brcms_timer *t, *next;
-
-	/* free ucode data */
-	if (wl->fw.fw_cnt)
-		brcms_ucode_data_free();
-	if (wl->irq)
-		free_irq(wl->irq, wl);
-
-	/* kill dpc */
-	tasklet_kill(&wl->tasklet);
-
-	if (wl->pub)
-		brcms_c_module_unregister(wl->pub, "linux", wl);
-
-	/* free common resources */
-	if (wl->wlc) {
-		brcms_c_detach(wl->wlc);
-		wl->wlc = NULL;
-		wl->pub = NULL;
-	}
-
-	/* virtual interface deletion is deferred so we cannot spinwait */
-
-	/* wait for all pending callbacks to complete */
-	while (atomic_read(&wl->callbacks) > 0)
-		schedule();
-
-	/* free timers */
-	for (t = wl->timers; t; t = next) {
-		next = t->next;
-#ifdef BCMDBG
-		kfree(t->name);
-#endif
-		kfree(t);
-	}
-
-	/*
-	 * unregister_netdev() calls get_stats() which may read chip
-	 * registers so we cannot unmap the chip registers until
-	 * after calling unregister_netdev() .
-	 */
-	if (wl->regsva)
-		iounmap((void *)wl->regsva);
-
-	wl->regsva = NULL;
-}
-
-/* flags the given rate in rateset as requested */
-static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
-{
-	u32 i;
-
-	for (i = 0; i < rs->count; i++) {
-		if (rate != (rs->rates[i] & 0x7f))
-			continue;
-
-		if (is_br)
-			rs->rates[i] |= BRCMS_RATE_FLAG;
-		else
-			rs->rates[i] &= BRCMS_RATE_MASK;
-		return;
-	}
-}
 
 /*
  * precondition: perimeter lock has been acquired
@@ -1486,77 +1548,6 @@ void brcms_down(struct brcms_info *wl)
 	LOCK(wl);
 }
 
-static irqreturn_t brcms_isr(int irq, void *dev_id)
-{
-	struct brcms_info *wl;
-	bool ours, wantdpc;
-	unsigned long flags;
-
-	wl = (struct brcms_info *) dev_id;
-
-	ISR_LOCK(wl, flags);
-
-	/* call common first level interrupt handler */
-	ours = brcms_c_isr(wl->wlc, &wantdpc);
-	if (ours) {
-		/* if more to do... */
-		if (wantdpc) {
-
-			/* ...and call the second level interrupt handler */
-			/* schedule dpc */
-			tasklet_schedule(&wl->tasklet);
-		}
-	}
-
-	ISR_UNLOCK(wl, flags);
-
-	return IRQ_RETVAL(ours);
-}
-
-static void brcms_dpc(unsigned long data)
-{
-	struct brcms_info *wl;
-
-	wl = (struct brcms_info *) data;
-
-	LOCK(wl);
-
-	/* call the common second level interrupt handler */
-	if (wl->pub->up) {
-		if (wl->resched) {
-			unsigned long flags;
-
-			INT_LOCK(wl, flags);
-			brcms_c_intrsupd(wl->wlc);
-			INT_UNLOCK(wl, flags);
-		}
-
-		wl->resched = brcms_c_dpc(wl->wlc, true);
-	}
-
-	/* brcms_c_dpc() may bring the driver down */
-	if (!wl->pub->up)
-		goto done;
-
-	/* re-schedule dpc */
-	if (wl->resched)
-		tasklet_schedule(&wl->tasklet);
-	else
-		/* re-enable interrupts */
-		brcms_intrson(wl);
-
- done:
-	UNLOCK(wl);
-}
-
-/*
- * is called by the kernel from software irq context
- */
-static void brcms_timer(unsigned long data)
-{
-	_brcms_timer((struct brcms_timer *) data);
-}
-
 /*
 * precondition: perimeter lock is not acquired
  */
@@ -1579,6 +1570,14 @@ static void _brcms_timer(struct brcms_timer *t)
 	atomic_dec(&t->wl->callbacks);
 
 	UNLOCK(t->wl);
+}
+
+/*
+ * is called by the kernel from software irq context
+ */
+static void brcms_timer(unsigned long data)
+{
+	_brcms_timer((struct brcms_timer *) data);
 }
 
 /*
@@ -1695,17 +1694,6 @@ void brcms_free_timer(struct brcms_info *wl, struct brcms_timer *t)
 
 }
 
-struct firmware_hdr {
-	u32 offset;
-	u32 len;
-	u32 idx;
-};
-
-char *brcms_firmwares[MAX_FW_IMAGES] = {
-	"brcm/bcm43xx",
-	NULL
-};
-
 /*
  * precondition: perimeter lock has been acquired
  */
@@ -1771,64 +1759,12 @@ int brcms_ucode_init_uint(struct brcms_info *wl, u32 *data, u32 idx)
 }
 
 /*
- * Precondition: Since this function is called in brcms_pci_probe() context,
- * no locking is required.
- */
-static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev)
-{
-	int status;
-	struct device *device = &pdev->dev;
-	char fw_name[100];
-	int i;
-
-	memset(&wl->fw, 0, sizeof(struct brcms_firmware));
-	for (i = 0; i < MAX_FW_IMAGES; i++) {
-		if (brcms_firmwares[i] == NULL)
-			break;
-		sprintf(fw_name, "%s-%d.fw", brcms_firmwares[i],
-			UCODE_LOADER_API_VER);
-		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
-		if (status) {
-			wiphy_err(wl->wiphy, "%s: fail to load firmware %s\n",
-				  KBUILD_MODNAME, fw_name);
-			return status;
-		}
-		sprintf(fw_name, "%s_hdr-%d.fw", brcms_firmwares[i],
-			UCODE_LOADER_API_VER);
-		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
-		if (status) {
-			wiphy_err(wl->wiphy, "%s: fail to load firmware %s\n",
-				  KBUILD_MODNAME, fw_name);
-			return status;
-		}
-		wl->fw.hdr_num_entries[i] =
-		    wl->fw.fw_hdr[i]->size / (sizeof(struct firmware_hdr));
-	}
-	wl->fw.fw_cnt = i;
-	return brcms_ucode_data_init(wl);
-}
-
-/*
  * precondition: can both be called locked and unlocked
  */
 void brcms_ucode_free_buf(void *p)
 {
 	kfree(p);
 }
-
-/*
- * Precondition: Since this function is called in brcms_pci_probe() context,
- * no locking is required.
- */
-static void brcms_release_fw(struct brcms_info *wl)
-{
-	int i;
-	for (i = 0; i < MAX_FW_IMAGES; i++) {
-		release_firmware(wl->fw.fw_bin[i]);
-		release_firmware(wl->fw.fw_hdr[i]);
-	}
-}
-
 
 /*
  * checks validity of all firmware images loaded from user space
