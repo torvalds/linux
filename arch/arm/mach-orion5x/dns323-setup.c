@@ -77,7 +77,7 @@ static int __init dns323_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * Check for devices with hard-wired IRQs.
 	 */
-	irq = orion5x_pci_map_irq(const dev, slot, pin);
+	irq = orion5x_pci_map_irq(dev, slot, pin);
 	if (irq != -1)
 		return irq;
 
