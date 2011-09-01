@@ -23,6 +23,8 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/serial_core.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>

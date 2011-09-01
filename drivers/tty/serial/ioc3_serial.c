@@ -13,6 +13,7 @@
  */
 #include <linux/errno.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/circ_buf.h>
 #include <linux/serial_reg.h>

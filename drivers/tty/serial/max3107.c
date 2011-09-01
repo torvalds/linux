@@ -31,6 +31,8 @@
 #include <linux/device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/freezer.h>

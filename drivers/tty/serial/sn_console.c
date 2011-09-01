@@ -39,6 +39,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/console.h>
 #include <linux/module.h>

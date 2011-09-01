@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
