@@ -717,13 +717,6 @@ static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 	iowrite32(rdba, &hw->reg->RX_DSC_BASE);
 	iowrite32(rdlen, &hw->reg->RX_DSC_SIZE);
 	iowrite32((rdba + rdlen), &hw->reg->RX_DSC_SW_P);
-
-	/* Enables Receive DMA */
-	rxdma = ioread32(&hw->reg->DMA_CTRL);
-	rxdma |= PCH_GBE_RX_DMA_EN;
-	iowrite32(rxdma, &hw->reg->DMA_CTRL);
-	/* Enables Receive */
-	iowrite32(PCH_GBE_MRE_MAC_RX_EN, &hw->reg->MAC_RX_EN);
 }
 
 /**
@@ -1095,6 +1088,19 @@ void pch_gbe_update_stats(struct pch_gbe_adapter *adapter)
 	netdev->stats.tx_carrier_errors = stats->tx_carrier_errors;
 
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
+}
+
+static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
+{
+	u32 rxdma;
+
+	/* Enables Receive DMA */
+	rxdma = ioread32(&hw->reg->DMA_CTRL);
+	rxdma |= PCH_GBE_RX_DMA_EN;
+	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+	/* Enables Receive */
+	iowrite32(PCH_GBE_MRE_MAC_RX_EN, &hw->reg->MAC_RX_EN);
+	return;
 }
 
 /**
@@ -1717,6 +1723,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
 	pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
 	adapter->tx_queue_len = netdev->tx_queue_len;
+	pch_gbe_start_receive(&adapter->hw);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
