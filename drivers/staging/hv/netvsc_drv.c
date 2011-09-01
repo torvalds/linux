@@ -190,7 +190,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	} else {
 		/* we are shutting down or bus overloaded, just drop packet */
 		net->stats.tx_dropped++;
-		netvsc_xmit_completion(packet);
+		kfree(packet);
+		dev_kfree_skb_any(skb);
 	}
 
 	return NETDEV_TX_OK;
