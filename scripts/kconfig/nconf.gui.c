@@ -367,6 +367,7 @@ int dialog_inputbox(WINDOW *main_window,
 	int i, x, y;
 	int res = -1;
 	int cursor_position = strlen(init);
+	int cursor_form_win;
 	char *result = *resultp;
 
 	if (strlen(init)+1 > *result_len) {
@@ -410,7 +411,9 @@ int dialog_inputbox(WINDOW *main_window,
 	fill_window(prompt_win, prompt);
 
 	mvwprintw(form_win, 0, 0, "%*s", prompt_width, " ");
-	mvwprintw(form_win, 0, 0, "%s", result);
+	cursor_form_win = min(cursor_position, prompt_width-1);
+	mvwprintw(form_win, 0, 0, "%s",
+		  result + cursor_position-cursor_form_win);
 
 	/* create panels */
 	panel = new_panel(win);
@@ -436,6 +439,8 @@ int dialog_inputbox(WINDOW *main_window,
 						&result[cursor_position],
 						len-cursor_position+1);
 				cursor_position--;
+				cursor_form_win--;
+				len--;
 			}
 			break;
 		case KEY_DC:
@@ -443,18 +448,22 @@ int dialog_inputbox(WINDOW *main_window,
 				memmove(&result[cursor_position],
 						&result[cursor_position+1],
 						len-cursor_position+1);
+				len--;
 			}
 			break;
 		case KEY_UP:
 		case KEY_RIGHT:
-			if (cursor_position < len &&
-			    cursor_position < min(*result_len, prompt_width))
+			if (cursor_position < len) {
 				cursor_position++;
+				cursor_form_win++;
+			}
 			break;
 		case KEY_DOWN:
 		case KEY_LEFT:
-			if (cursor_position > 0)
+			if (cursor_position > 0) {
 				cursor_position--;
+				cursor_form_win--;
+			}
 			break;
 		default:
 			if ((isgraph(res) || isspace(res))) {
@@ -470,16 +479,24 @@ int dialog_inputbox(WINDOW *main_window,
 						len-cursor_position+1);
 				result[cursor_position] = res;
 				cursor_position++;
+				cursor_form_win++;
+				len++;
 			} else {
 				mvprintw(0, 0, "unknown key: %d\n", res);
 			}
 			break;
 		}
+		if (cursor_form_win < 0)
+			cursor_form_win = 0;
+		else if (cursor_form_win > prompt_width-1)
+			cursor_form_win = prompt_width-1;
+
 		wmove(form_win, 0, 0);
 		wclrtoeol(form_win);
 		mvwprintw(form_win, 0, 0, "%*s", prompt_width, " ");
-		mvwprintw(form_win, 0, 0, "%s", result);
-		wmove(form_win, 0, cursor_position);
+		mvwprintw(form_win, 0, 0, "%s",
+			result + cursor_position-cursor_form_win);
+		wmove(form_win, 0, cursor_form_win);
 		touchwin(win);
 		refresh_all_windows(main_window);
 
