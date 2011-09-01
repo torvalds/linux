@@ -10,6 +10,13 @@ config PANEL_GENERIC_DPI
 	  Supports LCD Panel used in TI SDP3430 and EVM boards,
 	  OMAP3517 EVM boards and CM-T35.
 
+config PANEL_DVI
+	tristate "DVI output"
+	depends on OMAP2_DSS_DPI
+	help
+	  Driver for external monitors, connected via DVI. The driver uses i2c
+	  to read EDID information from the monitor.
+
 config PANEL_LGPHILIPS_LB035Q02
 	tristate "LG.Philips LB035Q02 LCD Panel"
 	depends on OMAP2_DSS_DPI && SPI
