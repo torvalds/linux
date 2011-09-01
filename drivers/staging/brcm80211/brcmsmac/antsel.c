@@ -49,15 +49,6 @@
 #define ANT_SELCFG_NUM_2x4	4
 #define ANT_SELCFG_DEF_2x4	0x02	/* default antenna configuration */
 
-/* static functions */
-static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
-				 struct brcms_antselcfg *antsel);
-static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id);
-static u16 brcms_c_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg);
-static void brcms_c_antsel_init_cfg(struct antsel_info *asi,
-				struct brcms_antselcfg *antsel,
-				bool auto_sel);
-
 const u16 mimo_2x4_div_antselpat_tbl[] = {
 	0, 0, 0x9, 0xa,		/* ant0: 0 ant1: 2,3 */
 	0, 0, 0x5, 0x6,		/* ant0: 1 ant1: 2,3 */
@@ -81,6 +72,38 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 1, 2, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
+
+/* boardlevel antenna selection: init antenna selection structure */
+static void
+brcms_c_antsel_init_cfg(struct antsel_info *asi, struct brcms_antselcfg *antsel,
+		    bool auto_sel)
+{
+	if (asi->antsel_type == ANTSEL_2x3) {
+		u8 antcfg_def = ANT_SELCFG_DEF_2x3 |
+		    ((asi->antsel_avail && auto_sel) ? ANT_SELCFG_AUTO : 0);
+		antsel->ant_config[ANT_SELCFG_TX_DEF] = antcfg_def;
+		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = antcfg_def;
+		antsel->ant_config[ANT_SELCFG_RX_DEF] = antcfg_def;
+		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = antcfg_def;
+		antsel->num_antcfg = ANT_SELCFG_NUM_2x3;
+
+	} else if (asi->antsel_type == ANTSEL_2x4) {
+
+		antsel->ant_config[ANT_SELCFG_TX_DEF] = ANT_SELCFG_DEF_2x4;
+		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = ANT_SELCFG_DEF_2x4;
+		antsel->ant_config[ANT_SELCFG_RX_DEF] = ANT_SELCFG_DEF_2x4;
+		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = ANT_SELCFG_DEF_2x4;
+		antsel->num_antcfg = ANT_SELCFG_NUM_2x4;
+
+	} else {		/* no antenna selection available */
+
+		antsel->ant_config[ANT_SELCFG_TX_DEF] = ANT_SELCFG_DEF_2x2;
+		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = ANT_SELCFG_DEF_2x2;
+		antsel->ant_config[ANT_SELCFG_RX_DEF] = ANT_SELCFG_DEF_2x2;
+		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = ANT_SELCFG_DEF_2x2;
+		antsel->num_antcfg = 0;
+	}
+}
 
 struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 {
@@ -150,115 +173,6 @@ void brcms_c_antsel_detach(struct antsel_info *asi)
 	kfree(asi);
 }
 
-void brcms_c_antsel_init(struct antsel_info *asi)
-{
-	if ((asi->antsel_type == ANTSEL_2x3) ||
-	    (asi->antsel_type == ANTSEL_2x4))
-		brcms_c_antsel_cfgupd(asi, &asi->antcfg_11n);
-}
-
-/* boardlevel antenna selection: init antenna selection structure */
-static void
-brcms_c_antsel_init_cfg(struct antsel_info *asi, struct brcms_antselcfg *antsel,
-		    bool auto_sel)
-{
-	if (asi->antsel_type == ANTSEL_2x3) {
-		u8 antcfg_def = ANT_SELCFG_DEF_2x3 |
-		    ((asi->antsel_avail && auto_sel) ? ANT_SELCFG_AUTO : 0);
-		antsel->ant_config[ANT_SELCFG_TX_DEF] = antcfg_def;
-		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = antcfg_def;
-		antsel->ant_config[ANT_SELCFG_RX_DEF] = antcfg_def;
-		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = antcfg_def;
-		antsel->num_antcfg = ANT_SELCFG_NUM_2x3;
-
-	} else if (asi->antsel_type == ANTSEL_2x4) {
-
-		antsel->ant_config[ANT_SELCFG_TX_DEF] = ANT_SELCFG_DEF_2x4;
-		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = ANT_SELCFG_DEF_2x4;
-		antsel->ant_config[ANT_SELCFG_RX_DEF] = ANT_SELCFG_DEF_2x4;
-		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = ANT_SELCFG_DEF_2x4;
-		antsel->num_antcfg = ANT_SELCFG_NUM_2x4;
-
-	} else {		/* no antenna selection available */
-
-		antsel->ant_config[ANT_SELCFG_TX_DEF] = ANT_SELCFG_DEF_2x2;
-		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = ANT_SELCFG_DEF_2x2;
-		antsel->ant_config[ANT_SELCFG_RX_DEF] = ANT_SELCFG_DEF_2x2;
-		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = ANT_SELCFG_DEF_2x2;
-		antsel->num_antcfg = 0;
-	}
-}
-
-void
-brcms_c_antsel_antcfg_get(struct antsel_info *asi, bool usedef, bool sel,
-		      u8 antselid, u8 fbantselid, u8 *antcfg,
-		      u8 *fbantcfg)
-{
-	u8 ant;
-
-	/* if use default, assign it and return */
-	if (usedef) {
-		*antcfg = asi->antcfg_11n.ant_config[ANT_SELCFG_TX_DEF];
-		*fbantcfg = *antcfg;
-		return;
-	}
-
-	if (!sel) {
-		*antcfg = asi->antcfg_11n.ant_config[ANT_SELCFG_TX_UNICAST];
-		*fbantcfg = *antcfg;
-
-	} else {
-		ant = asi->antcfg_11n.ant_config[ANT_SELCFG_TX_UNICAST];
-		if ((ant & ANT_SELCFG_AUTO) == ANT_SELCFG_AUTO) {
-			*antcfg = brcms_c_antsel_id2antcfg(asi, antselid);
-			*fbantcfg = brcms_c_antsel_id2antcfg(asi, fbantselid);
-		} else {
-			*antcfg =
-			    asi->antcfg_11n.ant_config[ANT_SELCFG_TX_UNICAST];
-			*fbantcfg = *antcfg;
-		}
-	}
-	return;
-}
-
-/* boardlevel antenna selection: convert mimo_antsel (ucode interface) to id */
-u8 brcms_c_antsel_antsel2id(struct antsel_info *asi, u16 antsel)
-{
-	u8 antselid = 0;
-
-	if (asi->antsel_type == ANTSEL_2x4) {
-		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
-		antselid = mimo_2x4_div_antselid_tbl[(antsel & 0xf)];
-		return antselid;
-
-	} else if (asi->antsel_type == ANTSEL_2x3) {
-		/* 2x3 antenna selection, 3 cfgs: 0-1 0-2 2-1 */
-		antselid = mimo_2x3_div_antselid_tbl[(antsel & 0xf)];
-		return antselid;
-	}
-
-	return antselid;
-}
-
-/* boardlevel antenna selection: convert id to ant_cfg */
-static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id)
-{
-	u8 antcfg = ANT_SELCFG_DEF_2x2;
-
-	if (asi->antsel_type == ANTSEL_2x4) {
-		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
-		antcfg = (((id & 0x2) << 3) | ((id & 0x1) + 2));
-		return antcfg;
-
-	} else if (asi->antsel_type == ANTSEL_2x3) {
-		/* 2x3 antenna selection, 3 cfgs: 0-1 0-2 2-1 */
-		antcfg = (((id & 0x02) << 4) | ((id & 0x1) + 1));
-		return antcfg;
-	}
-
-	return antcfg;
-}
-
 /*
  * boardlevel antenna selection:
  *   convert ant_cfg to mimo_antsel (ucode interface)
@@ -316,3 +230,81 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 
 	return 0;
 }
+
+void brcms_c_antsel_init(struct antsel_info *asi)
+{
+	if ((asi->antsel_type == ANTSEL_2x3) ||
+	    (asi->antsel_type == ANTSEL_2x4))
+		brcms_c_antsel_cfgupd(asi, &asi->antcfg_11n);
+}
+
+/* boardlevel antenna selection: convert id to ant_cfg */
+static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id)
+{
+	u8 antcfg = ANT_SELCFG_DEF_2x2;
+
+	if (asi->antsel_type == ANTSEL_2x4) {
+		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
+		antcfg = (((id & 0x2) << 3) | ((id & 0x1) + 2));
+		return antcfg;
+
+	} else if (asi->antsel_type == ANTSEL_2x3) {
+		/* 2x3 antenna selection, 3 cfgs: 0-1 0-2 2-1 */
+		antcfg = (((id & 0x02) << 4) | ((id & 0x1) + 1));
+		return antcfg;
+	}
+
+	return antcfg;
+}
+
+void
+brcms_c_antsel_antcfg_get(struct antsel_info *asi, bool usedef, bool sel,
+		      u8 antselid, u8 fbantselid, u8 *antcfg,
+		      u8 *fbantcfg)
+{
+	u8 ant;
+
+	/* if use default, assign it and return */
+	if (usedef) {
+		*antcfg = asi->antcfg_11n.ant_config[ANT_SELCFG_TX_DEF];
+		*fbantcfg = *antcfg;
+		return;
+	}
+
+	if (!sel) {
+		*antcfg = asi->antcfg_11n.ant_config[ANT_SELCFG_TX_UNICAST];
+		*fbantcfg = *antcfg;
+
+	} else {
+		ant = asi->antcfg_11n.ant_config[ANT_SELCFG_TX_UNICAST];
+		if ((ant & ANT_SELCFG_AUTO) == ANT_SELCFG_AUTO) {
+			*antcfg = brcms_c_antsel_id2antcfg(asi, antselid);
+			*fbantcfg = brcms_c_antsel_id2antcfg(asi, fbantselid);
+		} else {
+			*antcfg =
+			    asi->antcfg_11n.ant_config[ANT_SELCFG_TX_UNICAST];
+			*fbantcfg = *antcfg;
+		}
+	}
+	return;
+}
+
+/* boardlevel antenna selection: convert mimo_antsel (ucode interface) to id */
+u8 brcms_c_antsel_antsel2id(struct antsel_info *asi, u16 antsel)
+{
+	u8 antselid = 0;
+
+	if (asi->antsel_type == ANTSEL_2x4) {
+		/* 2x4 antenna diversity board, 4 cfgs: 0-2 0-3 1-2 1-3 */
+		antselid = mimo_2x4_div_antselid_tbl[(antsel & 0xf)];
+		return antselid;
+
+	} else if (asi->antsel_type == ANTSEL_2x3) {
+		/* 2x3 antenna selection, 3 cfgs: 0-1 0-2 2-1 */
+		antselid = mimo_2x3_div_antselid_tbl[(antsel & 0xf)];
+		return antselid;
+	}
+
+	return antselid;
+}
+
