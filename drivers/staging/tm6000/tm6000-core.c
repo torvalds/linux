@@ -619,7 +619,8 @@ int tm6000_reset(struct tm6000_core *dev)
 		return err;
 	}
 
-	msleep(5);
+	if ((dev->quirks & TM6000_QUIRK_NO_USB_DELAY) == 0)
+		msleep(5);
 
 	/*
 	 * Not all devices have int_in defined

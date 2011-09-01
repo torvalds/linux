@@ -169,6 +169,8 @@ struct tm6000_endpoint {
 	unsigned			maxsize;
 };
 
+#define TM6000_QUIRK_NO_USB_DELAY (1 << 0)
+
 struct tm6000_core {
 	/* generic device properties */
 	char				name[30];	/* name (including minor) of the device */
@@ -260,6 +262,8 @@ struct tm6000_core {
 	struct usb_isoc_ctl          isoc_ctl;
 
 	spinlock_t                   slock;
+
+	unsigned long quirks;
 };
 
 enum tm6000_ops_type {
