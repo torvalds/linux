@@ -448,7 +448,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 	}
 
-	RT_TRACE((COMP_PS && COMP_RF), "<===MgntActSet_RF_State()\n");
+	RT_TRACE((COMP_PS | COMP_RF), "<===MgntActSet_RF_State()\n");
 	return bActionAllowed;
 }
 
@@ -596,9 +596,6 @@ static void rtl8192_qos_activate(void *data)
 				  qos_activate);
 	struct net_device *dev = priv->rtllib->dev;
 	int i;
-
-	if (priv == NULL)
-		return;
 
 	mutex_lock(&priv->mutex);
 	if (priv->rtllib->state != RTLLIB_LINKED)
@@ -1342,6 +1339,7 @@ static short rtl8192_init(struct net_device *dev)
 
 	if (rtl8192_pci_initdescring(dev) != 0) {
 		printk(KERN_ERR "Endopoints initialization failed");
+		free_irq(dev->irq, dev);
 		return -1;
 	}
 
@@ -2117,7 +2115,8 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 			entry->OWN = 1;
 		}
 
-		entry->EOR = 1;
+		if(entry)
+			entry->EOR = 1;
 	}
 	return 0;
 }
@@ -2862,7 +2861,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	struct r8192_priv *priv = NULL;
 	struct rtl819x_ops *ops = (struct rtl819x_ops *)(id->driver_data);
 	unsigned long pmem_start, pmem_len, pmem_flags;
-	int err = 0;
+	int err = -ENOMEM;
 	bool bdma64 = false;
 	u8 revision_id;
 
@@ -2878,14 +2877,14 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_INFO "Unable to obtain 32bit DMA for consistent allocations\n");
-			pci_disable_device(pdev);
-			return -ENOMEM;
+			goto err_pci_disable;
 		}
 	}
 	dev = alloc_rtllib(sizeof(struct r8192_priv));
 	if (!dev)
-		return -ENOMEM;
+		goto err_pci_disable;
 
+	err = -ENODEV;
 	if (bdma64)
 		dev->features |= NETIF_F_HIGHDMA;
 
@@ -2907,20 +2906,20 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 	if (!(pmem_flags & IORESOURCE_MEM)) {
 		RT_TRACE(COMP_ERR, "region #1 not a MMIO resource, aborting");
-		goto fail;
+		goto err_rel_rtllib;
 	}
 
 	printk(KERN_INFO "Memory mapped space start: 0x%08lx\n", pmem_start);
 	if (!request_mem_region(pmem_start, pmem_len, DRV_NAME)) {
 		RT_TRACE(COMP_ERR, "request_mem_region failed!");
-		goto fail;
+		goto err_rel_rtllib;
 	}
 
 
 	ioaddr = (unsigned long)ioremap_nocache(pmem_start, pmem_len);
 	if (ioaddr == (unsigned long)NULL) {
 		RT_TRACE(COMP_ERR, "ioremap failed!");
-		goto fail1;
+		goto err_rel_mem;
 	}
 
 	dev->mem_start = ioaddr;
@@ -2929,12 +2928,12 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, 0x08, &revision_id);
 	/* If the revisionid is 0x10, the device uses rtl8192se. */
 	if (pdev->device == 0x8192 && revision_id == 0x10)
-		goto fail1;
+		goto err_rel_mem;
 
 	priv->ops = ops;
 
 	if (rtl8192_pci_findadapter(pdev, dev) == false)
-		goto fail1;
+		goto err_rel_mem;
 
 	dev->irq = pdev->irq;
 	priv->irq = 0;
@@ -2967,7 +2966,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
 	if (rtl8192_init(dev) != 0) {
 		RT_TRACE(COMP_ERR, "Initialization failed");
-		goto fail1;
+		goto err_free_irq;
 	}
 
 	netif_carrier_off(dev);
@@ -2987,28 +2986,19 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
 
-fail1:
-	if (dev->mem_start != (unsigned long)NULL) {
-		iounmap((void *)dev->mem_start);
-		release_mem_region(pci_resource_start(pdev, 1),
-				pci_resource_len(pdev, 1));
-	}
-
-fail:
-	if (dev) {
-		if (priv->irq) {
-			free_irq(dev->irq, dev);
-			priv->irq = 0;
-		}
-		free_rtllib(dev);
-	}
-
-	pci_disable_device(pdev);
+err_free_irq:
+	free_irq(dev->irq, dev);
+	priv->irq = 0;
+err_rel_mem:
+	release_mem_region(pmem_start, pmem_len);
+err_rel_rtllib:
+	free_rtllib(dev);
 
 	DMESG("wlan driver load failed\n");
 	pci_set_drvdata(pdev, NULL);
-	return -ENODEV;
-
+err_pci_disable:
+	pci_disable_device(pdev);
+	return err;
 }
 
 static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
