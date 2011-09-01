@@ -29,6 +29,53 @@
 	brcms_c_valid_channel20_in_band((wlc)->cmi, bandunit, val)
 #define	VALID_CHANNEL20(wlc, val) brcms_c_valid_channel20((wlc)->cmi, val)
 
+/* QDB() macro takes a dB value and converts to a quarter dB value */
+#define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)
+
+#define  LOCALE_CHAN_01_11	 (1<<0)
+#define  LOCALE_CHAN_12_13	 (1<<1)
+#define  LOCALE_CHAN_14		 (1<<2)
+#define  LOCALE_SET_5G_LOW_JP1   (1<<3)	/* 34-48, step 2 */
+#define  LOCALE_SET_5G_LOW_JP2   (1<<4)	/* 34-46, step 4 */
+#define  LOCALE_SET_5G_LOW1      (1<<5)	/* 36-48, step 4 */
+#define  LOCALE_SET_5G_LOW2      (1<<6)	/* 52 */
+#define  LOCALE_SET_5G_LOW3      (1<<7)	/* 56-64, step 4 */
+#define  LOCALE_SET_5G_MID1      (1<<8)	/* 100-116, step 4 */
+#define  LOCALE_SET_5G_MID2	 (1<<9)	/* 120-124, step 4 */
+#define  LOCALE_SET_5G_MID3      (1<<10)	/* 128 */
+#define  LOCALE_SET_5G_HIGH1     (1<<11)	/* 132-140, step 4 */
+#define  LOCALE_SET_5G_HIGH2     (1<<12)	/* 149-161, step 4 */
+#define  LOCALE_SET_5G_HIGH3     (1<<13)	/* 165 */
+#define  LOCALE_CHAN_52_140_ALL  (1<<14)
+#define  LOCALE_SET_5G_HIGH4     (1<<15)	/* 184-216 */
+
+#define  LOCALE_CHAN_36_64	(LOCALE_SET_5G_LOW1 | \
+				 LOCALE_SET_5G_LOW2 | \
+				 LOCALE_SET_5G_LOW3)
+#define  LOCALE_CHAN_52_64	(LOCALE_SET_5G_LOW2 | LOCALE_SET_5G_LOW3)
+#define  LOCALE_CHAN_100_124	(LOCALE_SET_5G_MID1 | LOCALE_SET_5G_MID2)
+#define  LOCALE_CHAN_100_140	(LOCALE_SET_5G_MID1 | LOCALE_SET_5G_MID2 | \
+				  LOCALE_SET_5G_MID3 | LOCALE_SET_5G_HIGH1)
+#define  LOCALE_CHAN_149_165	(LOCALE_SET_5G_HIGH2 | LOCALE_SET_5G_HIGH3)
+#define  LOCALE_CHAN_184_216	LOCALE_SET_5G_HIGH4
+
+#define  LOCALE_CHAN_01_14	(LOCALE_CHAN_01_11 | \
+				 LOCALE_CHAN_12_13 | \
+				 LOCALE_CHAN_14)
+
+#define  LOCALE_RADAR_SET_NONE		  0
+#define  LOCALE_RADAR_SET_1		  1
+
+#define  LOCALE_RESTRICTED_NONE		  0
+#define  LOCALE_RESTRICTED_SET_2G_SHORT   1
+#define  LOCALE_RESTRICTED_CHAN_165       2
+#define  LOCALE_CHAN_ALL_5G		  3
+#define  LOCALE_RESTRICTED_JAPAN_LEGACY   4
+#define  LOCALE_RESTRICTED_11D_2G	  5
+#define  LOCALE_RESTRICTED_11D_5G	  6
+#define  LOCALE_RESTRICTED_LOW_HI	  7
+#define  LOCALE_RESTRICTED_12_13_14	  8
+
 struct brcms_cm_band {
 	/* struct locale_info flags */
 	u8 locale_flags;
@@ -56,58 +103,6 @@ struct brcms_cm_info {
 	/* channels on which we cannot transmit */
 	struct brcms_chanvec quiet_channels;
 };
-
-static int brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
-			     const struct country_info *country);
-static void brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
-				   const char *country_abbrev,
-				   const char *ccode, uint regrev,
-				   const struct country_info *country);
-static int brcms_c_set_countrycode(struct brcms_cm_info *wlc_cm,
-				   const char *ccode);
-static int brcms_c_set_countrycode_rev(struct brcms_cm_info *wlc_cm,
-				   const char *country_abbrev,
-				   const char *ccode, int regrev);
-static int brcms_c_country_aggregate_map(struct brcms_cm_info *wlc_cm,
-				const char *ccode,
-				char *mapped_ccode, uint *mapped_regrev);
-
-static const struct country_info *
-brcms_c_country_lookup_direct(const char *ccode, uint regrev);
-
-static const struct country_info *
-brcms_c_countrycode_map(struct brcms_cm_info *wlc_cm,
-			const char *ccode, char *mapped_ccode,
-			uint *mapped_regrev);
-
-static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm);
-static void brcms_c_quiet_channels_reset(struct brcms_cm_info *wlc_cm);
-static bool brcms_c_quiet_chanspec(struct brcms_cm_info *wlc_cm,
-				   u16 chspec);
-static bool brcms_c_valid_channel20_db(struct brcms_cm_info *wlc_cm, uint val);
-static bool brcms_c_valid_channel20_in_band(struct brcms_cm_info *wlc_cm,
-					    uint bandunit, uint val);
-static bool brcms_c_valid_channel20(struct brcms_cm_info *wlc_cm, uint val);
-
-static const struct country_info *
-brcms_c_country_lookup(struct brcms_c_info *wlc, const char *ccode);
-
-static void brcms_c_locale_get_channels(const struct locale_info *locale,
-				    struct brcms_chanvec *valid_channels);
-static const struct locale_info *brcms_c_get_locale_2g(u8 locale_idx);
-static const struct locale_info *brcms_c_get_locale_5g(u8 locale_idx);
-static bool brcms_c_japan(struct brcms_c_info *wlc);
-static bool brcms_c_japan_ccode(const char *ccode);
-static void brcms_c_channel_min_txpower_limits_with_local_constraint(
-	struct brcms_cm_info *wlc_cm, struct txpwr_limits *txpwr,
-	u8 local_constraint_qdbm);
-static void brcms_c_locale_add_channels(struct brcms_chanvec *target,
-				    const struct brcms_chanvec *channels);
-static const struct locale_mimo_info *brcms_c_get_mimo_2g(u8 locale_idx);
-static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx);
-
-/* QDB() macro takes a dB value and converts to a quarter dB value */
-#define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)
 
 /* Regulatory Matrix Spreadsheet (CLM) MIMO v3.7.9 */
 
@@ -199,50 +194,6 @@ static const struct brcms_chanvec restricted_set_12_13_14 = {
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	 0x00, 0x00, 0x00, 0x00}
 };
-
-#define  LOCALE_CHAN_01_11	 (1<<0)
-#define  LOCALE_CHAN_12_13	 (1<<1)
-#define  LOCALE_CHAN_14		 (1<<2)
-#define  LOCALE_SET_5G_LOW_JP1   (1<<3)	/* 34-48, step 2 */
-#define  LOCALE_SET_5G_LOW_JP2   (1<<4)	/* 34-46, step 4 */
-#define  LOCALE_SET_5G_LOW1      (1<<5)	/* 36-48, step 4 */
-#define  LOCALE_SET_5G_LOW2      (1<<6)	/* 52 */
-#define  LOCALE_SET_5G_LOW3      (1<<7)	/* 56-64, step 4 */
-#define  LOCALE_SET_5G_MID1      (1<<8)	/* 100-116, step 4 */
-#define  LOCALE_SET_5G_MID2	 (1<<9)	/* 120-124, step 4 */
-#define  LOCALE_SET_5G_MID3      (1<<10)	/* 128 */
-#define  LOCALE_SET_5G_HIGH1     (1<<11)	/* 132-140, step 4 */
-#define  LOCALE_SET_5G_HIGH2     (1<<12)	/* 149-161, step 4 */
-#define  LOCALE_SET_5G_HIGH3     (1<<13)	/* 165 */
-#define  LOCALE_CHAN_52_140_ALL  (1<<14)
-#define  LOCALE_SET_5G_HIGH4     (1<<15)	/* 184-216 */
-
-#define  LOCALE_CHAN_36_64	(LOCALE_SET_5G_LOW1 | \
-				 LOCALE_SET_5G_LOW2 | \
-				 LOCALE_SET_5G_LOW3)
-#define  LOCALE_CHAN_52_64	(LOCALE_SET_5G_LOW2 | LOCALE_SET_5G_LOW3)
-#define  LOCALE_CHAN_100_124	(LOCALE_SET_5G_MID1 | LOCALE_SET_5G_MID2)
-#define  LOCALE_CHAN_100_140	(LOCALE_SET_5G_MID1 | LOCALE_SET_5G_MID2 | \
-				  LOCALE_SET_5G_MID3 | LOCALE_SET_5G_HIGH1)
-#define  LOCALE_CHAN_149_165	(LOCALE_SET_5G_HIGH2 | LOCALE_SET_5G_HIGH3)
-#define  LOCALE_CHAN_184_216	LOCALE_SET_5G_HIGH4
-
-#define  LOCALE_CHAN_01_14	(LOCALE_CHAN_01_11 | \
-				 LOCALE_CHAN_12_13 | \
-				 LOCALE_CHAN_14)
-
-#define  LOCALE_RADAR_SET_NONE		  0
-#define  LOCALE_RADAR_SET_1		  1
-
-#define  LOCALE_RESTRICTED_NONE		  0
-#define  LOCALE_RESTRICTED_SET_2G_SHORT   1
-#define  LOCALE_RESTRICTED_CHAN_165       2
-#define  LOCALE_CHAN_ALL_5G		  3
-#define  LOCALE_RESTRICTED_JAPAN_LEGACY   4
-#define  LOCALE_RESTRICTED_11D_2G	  5
-#define  LOCALE_RESTRICTED_11D_5G	  6
-#define  LOCALE_RESTRICTED_LOW_HI	  7
-#define  LOCALE_RESTRICTED_12_13_14	  8
 
 /* global memory to provide working buffer for expanded locale */
 
@@ -612,182 +563,38 @@ static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx)
 	return g_mimo_5g_table[locale_idx];
 }
 
-struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
-{
-	struct brcms_cm_info *wlc_cm;
-	char country_abbrev[BRCM_CNTRY_BUF_SZ];
-	const struct country_info *country;
-	struct brcms_pub *pub = wlc->pub;
-	char *ccode;
-
-	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
-
-	wlc_cm = kzalloc(sizeof(struct brcms_cm_info), GFP_ATOMIC);
-	if (wlc_cm == NULL) {
-		wiphy_err(wlc->wiphy, "wl%d: %s: out of memory", pub->unit,
-			  __func__);
-		return NULL;
-	}
-	wlc_cm->pub = pub;
-	wlc_cm->wlc = wlc;
-	wlc->cmi = wlc_cm;
-
-	/* store the country code for passing up as a regulatory hint */
-	ccode = getvar(wlc->pub->vars, "ccode");
-	if (ccode)
-		strncpy(wlc->pub->srom_ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
-
-	/*
-	 * internal country information which must match
-	 * regulatory constraints in firmware
-	 */
-	memset(country_abbrev, 0, BRCM_CNTRY_BUF_SZ);
-	strncpy(country_abbrev, "X2", sizeof(country_abbrev) - 1);
-	country = brcms_c_country_lookup(wlc, country_abbrev);
-
-	/* save default country for exiting 11d regulatory mode */
-	strncpy(wlc->country_default, country_abbrev, BRCM_CNTRY_BUF_SZ - 1);
-
-	/* initialize autocountry_default to driver default */
-	strncpy(wlc->autocountry_default, "X2", BRCM_CNTRY_BUF_SZ - 1);
-
-	brcms_c_set_countrycode(wlc_cm, country_abbrev);
-
-	return wlc_cm;
-}
-
-void brcms_c_channel_mgr_detach(struct brcms_cm_info *wlc_cm)
-{
-	kfree(wlc_cm);
-}
-
-u8
-brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
-				     uint bandunit)
-{
-	return wlc_cm->bandstate[bandunit].locale_flags;
-}
-
-/*
- * set the driver's current country and regulatory information using
- * a country code as the source. Lookup built in country information
- * found with the country code.
- */
 static int
-brcms_c_set_countrycode(struct brcms_cm_info *wlc_cm, const char *ccode)
+brcms_c_country_aggregate_map(struct brcms_cm_info *wlc_cm, const char *ccode,
+			  char *mapped_ccode, uint *mapped_regrev)
 {
-	char country_abbrev[BRCM_CNTRY_BUF_SZ];
-	strncpy(country_abbrev, ccode, BRCM_CNTRY_BUF_SZ);
-	return brcms_c_set_countrycode_rev(wlc_cm, country_abbrev, ccode, -1);
+	return false;
 }
 
-static int
-brcms_c_set_countrycode_rev(struct brcms_cm_info *wlc_cm,
-			const char *country_abbrev,
-			const char *ccode, int regrev)
-{
-	const struct country_info *country;
-	char mapped_ccode[BRCM_CNTRY_BUF_SZ];
-	uint mapped_regrev;
-
-	/* if regrev is -1, lookup the mapped country code,
-	 * otherwise use the ccode and regrev directly
-	 */
-	if (regrev == -1) {
-		/*
-		 * map the country code to a built-in country
-		 * code, regrev, and country_info
-		 */
-		country =
-		    brcms_c_countrycode_map(wlc_cm, ccode, mapped_ccode,
-					&mapped_regrev);
-	} else {
-		/* find the matching built-in country definition */
-		country = brcms_c_country_lookup_direct(ccode, regrev);
-		strncpy(mapped_ccode, ccode, BRCM_CNTRY_BUF_SZ);
-		mapped_regrev = regrev;
-	}
-
-	if (country == NULL)
-		return -EINVAL;
-
-	/* set the driver state for the country */
-	brcms_c_set_country_common(wlc_cm, country_abbrev, mapped_ccode,
-			       mapped_regrev, country);
-
-	return 0;
-}
-
-/*
- * set the driver's current country and regulatory information
- * using a country code as the source. Look up built in country
- * information found with the country code.
- */
-static void
-brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
-		       const char *country_abbrev,
-		       const char *ccode, uint regrev,
-		       const struct country_info *country)
-{
-	const struct locale_mimo_info *li_mimo;
-	const struct locale_info *locale;
-	struct brcms_c_info *wlc = wlc_cm->wlc;
-	char prev_country_abbrev[BRCM_CNTRY_BUF_SZ];
-
-	/* save current country state */
-	wlc_cm->country = country;
-
-	memset(&prev_country_abbrev, 0, BRCM_CNTRY_BUF_SZ);
-	strncpy(prev_country_abbrev, wlc_cm->country_abbrev,
-		BRCM_CNTRY_BUF_SZ - 1);
-
-	strncpy(wlc_cm->country_abbrev, country_abbrev, BRCM_CNTRY_BUF_SZ - 1);
-	strncpy(wlc_cm->ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
-	wlc_cm->regrev = regrev;
-
-	/* disable/restore nmode based on country regulations */
-	li_mimo = brcms_c_get_mimo_2g(country->locale_mimo_2G);
-	if (li_mimo && (li_mimo->flags & BRCMS_NO_MIMO)) {
-		brcms_c_set_nmode(wlc, OFF);
-		wlc->stf->no_cddstbc = true;
-	} else {
-		wlc->stf->no_cddstbc = false;
-		if (N_ENAB(wlc->pub) != wlc->protection->nmode_user)
-			brcms_c_set_nmode(wlc, wlc->protection->nmode_user);
-	}
-
-	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_2G_INDEX]);
-	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_5G_INDEX]);
-	/* set or restore gmode as required by regulatory */
-	locale = brcms_c_get_locale_2g(country->locale_2G);
-	if (locale && (locale->flags & BRCMS_NO_OFDM))
-		brcms_c_set_gmode(wlc, GMODE_LEGACY_B, false);
-	else
-		brcms_c_set_gmode(wlc, wlc->protection->gmode_user, false);
-
-	brcms_c_channels_init(wlc_cm, country);
-
-	return;
-}
-
-/* Lookup a country info structure from a null terminated country code
- * The lookup is case sensitive.
+/* Lookup a country info structure from a null terminated country
+ * abbreviation and regrev directly with no translation.
  */
 static const struct country_info *
-brcms_c_country_lookup(struct brcms_c_info *wlc, const char *ccode)
+brcms_c_country_lookup_direct(const char *ccode, uint regrev)
 {
-	const struct country_info *country;
-	char mapped_ccode[BRCM_CNTRY_BUF_SZ];
-	uint mapped_regrev;
+	uint size, i;
+
+	/* Should just return 0 for single locale driver. */
+	/* Keep it this way in case we add more locales. (for now anyway) */
 
 	/*
-	 * map the country code to a built-in country code, regrev, and
-	 * country_info struct
+	 * all other country def arrays are for regrev == 0, so if
+	 * regrev is non-zero, fail
 	 */
-	country = brcms_c_countrycode_map(wlc->cmi, ccode, mapped_ccode,
-					  &mapped_regrev);
+	if (regrev > 0)
+		return NULL;
 
-	return country;
+	/* find matched table entry from country code */
+	size = ARRAY_SIZE(cntry_locales);
+	for (i = 0; i < size; i++) {
+		if (strcmp(ccode, cntry_locales[i].abbrev) == 0)
+			return &cntry_locales[i].country;
+	}
+	return NULL;
 }
 
 static const struct country_info *
@@ -838,147 +645,24 @@ brcms_c_countrycode_map(struct brcms_cm_info *wlc_cm, const char *ccode,
 	return country;
 }
 
-static int
-brcms_c_country_aggregate_map(struct brcms_cm_info *wlc_cm, const char *ccode,
-			  char *mapped_ccode, uint *mapped_regrev)
-{
-	return false;
-}
-
-/* Lookup a country info structure from a null terminated country
- * abbreviation and regrev directly with no translation.
+/* Lookup a country info structure from a null terminated country code
+ * The lookup is case sensitive.
  */
 static const struct country_info *
-brcms_c_country_lookup_direct(const char *ccode, uint regrev)
+brcms_c_country_lookup(struct brcms_c_info *wlc, const char *ccode)
 {
-	uint size, i;
-
-	/* Should just return 0 for single locale driver. */
-	/* Keep it this way in case we add more locales. (for now anyway) */
+	const struct country_info *country;
+	char mapped_ccode[BRCM_CNTRY_BUF_SZ];
+	uint mapped_regrev;
 
 	/*
-	 * all other country def arrays are for regrev == 0, so if
-	 * regrev is non-zero, fail
+	 * map the country code to a built-in country code, regrev, and
+	 * country_info struct
 	 */
-	if (regrev > 0)
-		return NULL;
+	country = brcms_c_countrycode_map(wlc->cmi, ccode, mapped_ccode,
+					  &mapped_regrev);
 
-	/* find matched table entry from country code */
-	size = ARRAY_SIZE(cntry_locales);
-	for (i = 0; i < size; i++) {
-		if (strcmp(ccode, cntry_locales[i].abbrev) == 0)
-			return &cntry_locales[i].country;
-	}
-	return NULL;
-}
-
-static int
-brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
-		      const struct country_info *country)
-{
-	struct brcms_c_info *wlc = wlc_cm->wlc;
-	uint i, j;
-	struct brcms_band *band;
-	const struct locale_info *li;
-	struct brcms_chanvec sup_chan;
-	const struct locale_mimo_info *li_mimo;
-
-	band = wlc->band;
-	for (i = 0; i < NBANDS(wlc);
-	     i++, band = wlc->bandstate[OTHERBANDUNIT(wlc)]) {
-
-		li = BAND_5G(band->bandtype) ?
-		    brcms_c_get_locale_5g(country->locale_5G) :
-		    brcms_c_get_locale_2g(country->locale_2G);
-		wlc_cm->bandstate[band->bandunit].locale_flags = li->flags;
-		li_mimo = BAND_5G(band->bandtype) ?
-		    brcms_c_get_mimo_5g(country->locale_mimo_5G) :
-		    brcms_c_get_mimo_2g(country->locale_mimo_2G);
-
-		/* merge the mimo non-mimo locale flags */
-		wlc_cm->bandstate[band->bandunit].locale_flags |=
-		    li_mimo->flags;
-
-		wlc_cm->bandstate[band->bandunit].restricted_channels =
-		    g_table_restricted_chan[li->restricted_channels];
-		wlc_cm->bandstate[band->bandunit].radar_channels =
-		    g_table_radar_set[li->radar_channels];
-
-		/*
-		 * set the channel availability, masking out the channels
-		 * that may not be supported on this phy.
-		 */
-		wlc_phy_chanspec_band_validch(band->pi, band->bandtype,
-					      &sup_chan);
-		brcms_c_locale_get_channels(li,
-					&wlc_cm->bandstate[band->bandunit].
-					valid_channels);
-		for (j = 0; j < sizeof(struct brcms_chanvec); j++)
-			wlc_cm->bandstate[band->bandunit].valid_channels.
-			    vec[j] &= sup_chan.vec[j];
-	}
-
-	brcms_c_quiet_channels_reset(wlc_cm);
-	brcms_c_channels_commit(wlc_cm);
-
-	return 0;
-}
-
-/* Update the radio state (enable/disable) and tx power targets
- * based on a new set of channel/regulatory information
- */
-static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
-{
-	struct brcms_c_info *wlc = wlc_cm->wlc;
-	uint chan;
-	struct txpwr_limits txpwr;
-
-	/* search for the existence of any valid channel */
-	for (chan = 0; chan < MAXCHANNEL; chan++) {
-		if (VALID_CHANNEL20_DB(wlc, chan))
-			break;
-	}
-	if (chan == MAXCHANNEL)
-		chan = INVCHANNEL;
-
-	/*
-	 * based on the channel search above, set or
-	 * clear WL_RADIO_COUNTRY_DISABLE.
-	 */
-	if (chan == INVCHANNEL) {
-		/*
-		 * country/locale with no valid channels, set
-		 * the radio disable bit
-		 */
-		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-		wiphy_err(wlc->wiphy, "wl%d: %s: no valid channel for \"%s\" "
-			  "nbands %d bandlocked %d\n", wlc->pub->unit,
-			  __func__, wlc_cm->country_abbrev, NBANDS(wlc),
-			  wlc->bandlocked);
-	} else if (mboolisset(wlc->pub->radio_disabled,
-			      WL_RADIO_COUNTRY_DISABLE)) {
-		/*
-		 * country/locale with valid channel, clear
-		 * the radio disable bit
-		 */
-		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-	}
-
-	/*
-	 * Now that the country abbreviation is set, if the radio supports 2G,
-	 * then set channel 14 restrictions based on the new locale.
-	 */
-	if (NBANDS(wlc) > 1 || BAND_2G(wlc->band->bandtype))
-		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
-						     brcms_c_japan(wlc) ? true :
-						     false);
-
-	if (wlc->pub->up && chan != INVCHANNEL) {
-		brcms_c_channel_reg_limits(wlc_cm, wlc->chanspec, &txpwr);
-		brcms_c_channel_min_txpower_limits_with_local_constraint(wlc_cm,
-			&txpwr, BRCMS_TXPWR_MAX);
-		wlc_phy_txpower_limit_set(wlc->band->pi, &txpwr, wlc->chanspec);
-	}
+	return country;
 }
 
 /*
@@ -1006,15 +690,22 @@ static void brcms_c_quiet_channels_reset(struct brcms_cm_info *wlc_cm)
 	}
 }
 
-static bool
-brcms_c_quiet_chanspec(struct brcms_cm_info *wlc_cm, u16 chspec)
+/* Is the channel valid for the current locale and current band? */
+static bool brcms_c_valid_channel20(struct brcms_cm_info *wlc_cm, uint val)
 {
-	return N_ENAB(wlc_cm->wlc->pub) && CHSPEC_IS40(chspec) ?
-		(isset(wlc_cm->quiet_channels.vec,
-		       LOWER_20_SB(CHSPEC_CHANNEL(chspec))) ||
-		 isset(wlc_cm->quiet_channels.vec,
-		       UPPER_20_SB(CHSPEC_CHANNEL(chspec)))) :
-		isset(wlc_cm->quiet_channels.vec, CHSPEC_CHANNEL(chspec));
+	struct brcms_c_info *wlc = wlc_cm->wlc;
+
+	return ((val < MAXCHANNEL) &&
+		isset(wlc_cm->bandstate[wlc->band->bandunit].valid_channels.vec,
+		      val));
+}
+
+/* Is the channel valid for the current locale and specified band? */
+static bool brcms_c_valid_channel20_in_band(struct brcms_cm_info *wlc_cm,
+					    uint bandunit, uint val)
+{
+	return ((val < MAXCHANNEL)
+		&& isset(wlc_cm->bandstate[bandunit].valid_channels.vec, val));
 }
 
 /* Is the channel valid for the current locale? (but don't consider channels not
@@ -1029,22 +720,17 @@ static bool brcms_c_valid_channel20_db(struct brcms_cm_info *wlc_cm, uint val)
 		 && VALID_CHANNEL20_IN_BAND(wlc, OTHERBANDUNIT(wlc), val));
 }
 
-/* Is the channel valid for the current locale and specified band? */
-static bool brcms_c_valid_channel20_in_band(struct brcms_cm_info *wlc_cm,
-					    uint bandunit, uint val)
+/* JP, J1 - J10 are Japan ccodes */
+static bool brcms_c_japan_ccode(const char *ccode)
 {
-	return ((val < MAXCHANNEL)
-		&& isset(wlc_cm->bandstate[bandunit].valid_channels.vec, val));
+	return (ccode[0] == 'J' &&
+		(ccode[1] == 'P' || (ccode[1] >= '1' && ccode[1] <= '9')));
 }
 
-/* Is the channel valid for the current locale and current band? */
-static bool brcms_c_valid_channel20(struct brcms_cm_info *wlc_cm, uint val)
+/* Returns true if currently set country is Japan or variant */
+static bool brcms_c_japan(struct brcms_c_info *wlc)
 {
-	struct brcms_c_info *wlc = wlc_cm->wlc;
-
-	return ((val < MAXCHANNEL) &&
-		isset(wlc_cm->bandstate[wlc->band->bandunit].valid_channels.vec,
-		      val));
+	return brcms_c_japan_ccode(wlc->cmi->country_abbrev);
 }
 
 static void
@@ -1120,6 +806,284 @@ brcms_c_channel_min_txpower_limits_with_local_constraint(
 	/* 40MHz MCS 32 */
 	txpwr->mcs32 = min(txpwr->mcs32, local_constraint_qdbm);
 
+}
+
+/* Update the radio state (enable/disable) and tx power targets
+ * based on a new set of channel/regulatory information
+ */
+static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
+{
+	struct brcms_c_info *wlc = wlc_cm->wlc;
+	uint chan;
+	struct txpwr_limits txpwr;
+
+	/* search for the existence of any valid channel */
+	for (chan = 0; chan < MAXCHANNEL; chan++) {
+		if (VALID_CHANNEL20_DB(wlc, chan))
+			break;
+	}
+	if (chan == MAXCHANNEL)
+		chan = INVCHANNEL;
+
+	/*
+	 * based on the channel search above, set or
+	 * clear WL_RADIO_COUNTRY_DISABLE.
+	 */
+	if (chan == INVCHANNEL) {
+		/*
+		 * country/locale with no valid channels, set
+		 * the radio disable bit
+		 */
+		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
+		wiphy_err(wlc->wiphy, "wl%d: %s: no valid channel for \"%s\" "
+			  "nbands %d bandlocked %d\n", wlc->pub->unit,
+			  __func__, wlc_cm->country_abbrev, NBANDS(wlc),
+			  wlc->bandlocked);
+	} else if (mboolisset(wlc->pub->radio_disabled,
+			      WL_RADIO_COUNTRY_DISABLE)) {
+		/*
+		 * country/locale with valid channel, clear
+		 * the radio disable bit
+		 */
+		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
+	}
+
+	/*
+	 * Now that the country abbreviation is set, if the radio supports 2G,
+	 * then set channel 14 restrictions based on the new locale.
+	 */
+	if (NBANDS(wlc) > 1 || BAND_2G(wlc->band->bandtype))
+		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
+						     brcms_c_japan(wlc) ? true :
+						     false);
+
+	if (wlc->pub->up && chan != INVCHANNEL) {
+		brcms_c_channel_reg_limits(wlc_cm, wlc->chanspec, &txpwr);
+		brcms_c_channel_min_txpower_limits_with_local_constraint(wlc_cm,
+			&txpwr, BRCMS_TXPWR_MAX);
+		wlc_phy_txpower_limit_set(wlc->band->pi, &txpwr, wlc->chanspec);
+	}
+}
+
+static int
+brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
+		      const struct country_info *country)
+{
+	struct brcms_c_info *wlc = wlc_cm->wlc;
+	uint i, j;
+	struct brcms_band *band;
+	const struct locale_info *li;
+	struct brcms_chanvec sup_chan;
+	const struct locale_mimo_info *li_mimo;
+
+	band = wlc->band;
+	for (i = 0; i < NBANDS(wlc);
+	     i++, band = wlc->bandstate[OTHERBANDUNIT(wlc)]) {
+
+		li = BAND_5G(band->bandtype) ?
+		    brcms_c_get_locale_5g(country->locale_5G) :
+		    brcms_c_get_locale_2g(country->locale_2G);
+		wlc_cm->bandstate[band->bandunit].locale_flags = li->flags;
+		li_mimo = BAND_5G(band->bandtype) ?
+		    brcms_c_get_mimo_5g(country->locale_mimo_5G) :
+		    brcms_c_get_mimo_2g(country->locale_mimo_2G);
+
+		/* merge the mimo non-mimo locale flags */
+		wlc_cm->bandstate[band->bandunit].locale_flags |=
+		    li_mimo->flags;
+
+		wlc_cm->bandstate[band->bandunit].restricted_channels =
+		    g_table_restricted_chan[li->restricted_channels];
+		wlc_cm->bandstate[band->bandunit].radar_channels =
+		    g_table_radar_set[li->radar_channels];
+
+		/*
+		 * set the channel availability, masking out the channels
+		 * that may not be supported on this phy.
+		 */
+		wlc_phy_chanspec_band_validch(band->pi, band->bandtype,
+					      &sup_chan);
+		brcms_c_locale_get_channels(li,
+					&wlc_cm->bandstate[band->bandunit].
+					valid_channels);
+		for (j = 0; j < sizeof(struct brcms_chanvec); j++)
+			wlc_cm->bandstate[band->bandunit].valid_channels.
+			    vec[j] &= sup_chan.vec[j];
+	}
+
+	brcms_c_quiet_channels_reset(wlc_cm);
+	brcms_c_channels_commit(wlc_cm);
+
+	return 0;
+}
+
+/*
+ * set the driver's current country and regulatory information
+ * using a country code as the source. Look up built in country
+ * information found with the country code.
+ */
+static void
+brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
+		       const char *country_abbrev,
+		       const char *ccode, uint regrev,
+		       const struct country_info *country)
+{
+	const struct locale_mimo_info *li_mimo;
+	const struct locale_info *locale;
+	struct brcms_c_info *wlc = wlc_cm->wlc;
+	char prev_country_abbrev[BRCM_CNTRY_BUF_SZ];
+
+	/* save current country state */
+	wlc_cm->country = country;
+
+	memset(&prev_country_abbrev, 0, BRCM_CNTRY_BUF_SZ);
+	strncpy(prev_country_abbrev, wlc_cm->country_abbrev,
+		BRCM_CNTRY_BUF_SZ - 1);
+
+	strncpy(wlc_cm->country_abbrev, country_abbrev, BRCM_CNTRY_BUF_SZ - 1);
+	strncpy(wlc_cm->ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
+	wlc_cm->regrev = regrev;
+
+	/* disable/restore nmode based on country regulations */
+	li_mimo = brcms_c_get_mimo_2g(country->locale_mimo_2G);
+	if (li_mimo && (li_mimo->flags & BRCMS_NO_MIMO)) {
+		brcms_c_set_nmode(wlc, OFF);
+		wlc->stf->no_cddstbc = true;
+	} else {
+		wlc->stf->no_cddstbc = false;
+		if (N_ENAB(wlc->pub) != wlc->protection->nmode_user)
+			brcms_c_set_nmode(wlc, wlc->protection->nmode_user);
+	}
+
+	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_2G_INDEX]);
+	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_5G_INDEX]);
+	/* set or restore gmode as required by regulatory */
+	locale = brcms_c_get_locale_2g(country->locale_2G);
+	if (locale && (locale->flags & BRCMS_NO_OFDM))
+		brcms_c_set_gmode(wlc, GMODE_LEGACY_B, false);
+	else
+		brcms_c_set_gmode(wlc, wlc->protection->gmode_user, false);
+
+	brcms_c_channels_init(wlc_cm, country);
+
+	return;
+}
+
+static int
+brcms_c_set_countrycode_rev(struct brcms_cm_info *wlc_cm,
+			const char *country_abbrev,
+			const char *ccode, int regrev)
+{
+	const struct country_info *country;
+	char mapped_ccode[BRCM_CNTRY_BUF_SZ];
+	uint mapped_regrev;
+
+	/* if regrev is -1, lookup the mapped country code,
+	 * otherwise use the ccode and regrev directly
+	 */
+	if (regrev == -1) {
+		/*
+		 * map the country code to a built-in country
+		 * code, regrev, and country_info
+		 */
+		country =
+		    brcms_c_countrycode_map(wlc_cm, ccode, mapped_ccode,
+					&mapped_regrev);
+	} else {
+		/* find the matching built-in country definition */
+		country = brcms_c_country_lookup_direct(ccode, regrev);
+		strncpy(mapped_ccode, ccode, BRCM_CNTRY_BUF_SZ);
+		mapped_regrev = regrev;
+	}
+
+	if (country == NULL)
+		return -EINVAL;
+
+	/* set the driver state for the country */
+	brcms_c_set_country_common(wlc_cm, country_abbrev, mapped_ccode,
+			       mapped_regrev, country);
+
+	return 0;
+}
+
+/*
+ * set the driver's current country and regulatory information using
+ * a country code as the source. Lookup built in country information
+ * found with the country code.
+ */
+static int
+brcms_c_set_countrycode(struct brcms_cm_info *wlc_cm, const char *ccode)
+{
+	char country_abbrev[BRCM_CNTRY_BUF_SZ];
+	strncpy(country_abbrev, ccode, BRCM_CNTRY_BUF_SZ);
+	return brcms_c_set_countrycode_rev(wlc_cm, country_abbrev, ccode, -1);
+}
+
+struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
+{
+	struct brcms_cm_info *wlc_cm;
+	char country_abbrev[BRCM_CNTRY_BUF_SZ];
+	const struct country_info *country;
+	struct brcms_pub *pub = wlc->pub;
+	char *ccode;
+
+	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
+
+	wlc_cm = kzalloc(sizeof(struct brcms_cm_info), GFP_ATOMIC);
+	if (wlc_cm == NULL) {
+		wiphy_err(wlc->wiphy, "wl%d: %s: out of memory", pub->unit,
+			  __func__);
+		return NULL;
+	}
+	wlc_cm->pub = pub;
+	wlc_cm->wlc = wlc;
+	wlc->cmi = wlc_cm;
+
+	/* store the country code for passing up as a regulatory hint */
+	ccode = getvar(wlc->pub->vars, "ccode");
+	if (ccode)
+		strncpy(wlc->pub->srom_ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
+
+	/*
+	 * internal country information which must match
+	 * regulatory constraints in firmware
+	 */
+	memset(country_abbrev, 0, BRCM_CNTRY_BUF_SZ);
+	strncpy(country_abbrev, "X2", sizeof(country_abbrev) - 1);
+	country = brcms_c_country_lookup(wlc, country_abbrev);
+
+	/* save default country for exiting 11d regulatory mode */
+	strncpy(wlc->country_default, country_abbrev, BRCM_CNTRY_BUF_SZ - 1);
+
+	/* initialize autocountry_default to driver default */
+	strncpy(wlc->autocountry_default, "X2", BRCM_CNTRY_BUF_SZ - 1);
+
+	brcms_c_set_countrycode(wlc_cm, country_abbrev);
+
+	return wlc_cm;
+}
+
+void brcms_c_channel_mgr_detach(struct brcms_cm_info *wlc_cm)
+{
+	kfree(wlc_cm);
+}
+
+u8
+brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
+				     uint bandunit)
+{
+	return wlc_cm->bandstate[bandunit].locale_flags;
+}
+
+static bool
+brcms_c_quiet_chanspec(struct brcms_cm_info *wlc_cm, u16 chspec)
+{
+	return N_ENAB(wlc_cm->wlc->pub) && CHSPEC_IS40(chspec) ?
+		(isset(wlc_cm->quiet_channels.vec,
+		       LOWER_20_SB(CHSPEC_CHANNEL(chspec))) ||
+		 isset(wlc_cm->quiet_channels.vec,
+		       UPPER_20_SB(CHSPEC_CHANNEL(chspec)))) :
+		isset(wlc_cm->quiet_channels.vec, CHSPEC_CHANNEL(chspec));
 }
 
 void
@@ -1469,19 +1433,6 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	wlc_phy_txpower_limits_dump(txpwr);
 #endif
 	return;
-}
-
-/* Returns true if currently set country is Japan or variant */
-static bool brcms_c_japan(struct brcms_c_info *wlc)
-{
-	return brcms_c_japan_ccode(wlc->cmi->country_abbrev);
-}
-
-/* JP, J1 - J10 are Japan ccodes */
-static bool brcms_c_japan_ccode(const char *ccode)
-{
-	return (ccode[0] == 'J' &&
-		(ccode[1] == 'P' || (ccode[1] >= '1' && ccode[1] <= '9')));
 }
 
 /*
