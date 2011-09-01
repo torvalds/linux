@@ -494,8 +494,9 @@ int netvsc_send(struct hv_device *device,
 	if (ret != 0)
 		netdev_err(ndev, "Unable to send packet %p ret %d\n",
 			   packet, ret);
+	else
+		atomic_inc(&net_device->num_outstanding_sends);
 
-	atomic_inc(&net_device->num_outstanding_sends);
 	return ret;
 }
 
