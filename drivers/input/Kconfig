@@ -185,6 +185,8 @@ source "drivers/input/magnetometer/Kconfig"
 
 source "drivers/input/gsensor/Kconfig"
 
+source "drivers/input/gyroscope/Kconfig"
+
 source "drivers/input/jogball/Kconfig"
 
 source "drivers/input/lightsensor/Kconfig"
