@@ -34,9 +34,9 @@
 #define GET32_0(x) (((x) >> (24)) & (0xff))
 
 #define bf_F(x) (((S[GET32_0(x)] + S[256 + GET32_1(x)]) ^ \
-          S[512 + GET32_2(x)]) + S[768 + GET32_3(x)])
+		S[512 + GET32_2(x)]) + S[768 + GET32_3(x)])
 
-#define ROUND(a, b, n)  b ^= P[n]; a ^= bf_F (b)
+#define ROUND(a, b, n) ({ b ^= P[n]; a ^= bf_F(b); })
 
 static void bf_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
@@ -108,6 +108,8 @@ static void bf_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 static struct crypto_alg alg = {
 	.cra_name		=	"blowfish",
+	.cra_driver_name	=	"blowfish-generic",
+	.cra_priority		=	100,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	BF_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct bf_ctx),
@@ -118,8 +120,8 @@ static struct crypto_alg alg = {
 	.cia_min_keysize	=	BF_MIN_KEY_SIZE,
 	.cia_max_keysize	=	BF_MAX_KEY_SIZE,
 	.cia_setkey		=	blowfish_setkey,
-	.cia_encrypt 		=	bf_encrypt,
-	.cia_decrypt  		=	bf_decrypt } }
+	.cia_encrypt		=	bf_encrypt,
+	.cia_decrypt		=	bf_decrypt } }
 };
 
 static int __init blowfish_mod_init(void)
@@ -137,3 +139,4 @@ module_exit(blowfish_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Blowfish Cipher Algorithm");
+MODULE_ALIAS("blowfish");
