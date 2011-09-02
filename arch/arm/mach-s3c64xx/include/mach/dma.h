@@ -99,7 +99,7 @@ struct s3c2410_dma_chan {
 	unsigned char		 peripheral;
 
 	unsigned int		 flags;
-	enum s3c2410_dmasrc	 source;
+	enum dma_data_direction	 source;
 
 
 	dma_addr_t		dev_addr;

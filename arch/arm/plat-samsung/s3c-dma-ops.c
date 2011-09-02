@@ -48,10 +48,7 @@ static unsigned s3c_dma_request(enum dma_ch dma_ch,
 	data->ch = dma_ch;
 	list_add_tail(&data->node, &dma_list);
 
-	if (info->direction == DMA_FROM_DEVICE)
-		s3c2410_dma_devconfig(dma_ch, S3C2410_DMASRC_HW, info->fifo);
-	else
-		s3c2410_dma_devconfig(dma_ch, S3C2410_DMASRC_MEM, info->fifo);
+	s3c2410_dma_devconfig(dma_ch, info->direction, info->fifo);
 
 	if (info->cap == DMA_CYCLIC)
 		s3c2410_dma_setflags(dma_ch, S3C2410_DMAF_CIRCULAR);

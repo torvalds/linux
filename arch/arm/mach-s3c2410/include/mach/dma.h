@@ -174,7 +174,7 @@ struct s3c2410_dma_chan {
 	struct s3c2410_dma_client *client;
 
 	/* channel configuration */
-	enum s3c2410_dmasrc	 source;
+	enum dma_data_direction	 source;
 	enum dma_ch		 req_ch;
 	unsigned long		 dev_addr;
 	unsigned long		 load_timeout;
