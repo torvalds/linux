@@ -880,7 +880,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 	/* name and offsets for dma_attach */
 	snprintf(name, sizeof(name), "wl%d", unit);
 
-	if (wlc_hw->di[0] == 0) {	/* Init FIFOs */
+	if (wlc_hw->di[0] == NULL) {	/* Init FIFOs */
 		int dma_attach_err = 0;
 
 		/*
@@ -5006,7 +5006,8 @@ static void brcms_c_update_mimo_band_bwcap(struct brcms_c_info *wlc, u8 bwcap)
  */
 struct brcms_c_info *
 brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
-	       bool piomode, void *regsva, struct pci_dev *btparam, uint *perr)
+	       bool piomode, void __iomem *regsva, struct pci_dev *btparam,
+	       uint *perr)
 {
 	struct brcms_c_info *wlc;
 	uint err = 0;
@@ -7096,8 +7097,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	int len, phylen, rts_phylen;
 	u16 mch, phyctl, xfts, mainrates;
 	u16 seq = 0, mcl = 0, status = 0, frameid = 0;
-	u32 rspec[2] = { BRCM_RATE_1M, BRCM_RATE_1M }, rts_rspec[2] = {
-	BRCM_RATE_1M, BRCM_RATE_1M};
+	u32 rspec[2] = { BRCM_RATE_1M, BRCM_RATE_1M };
+	u32 rts_rspec[2] = { BRCM_RATE_1M, BRCM_RATE_1M };
 	bool use_rts = false;
 	bool use_cts = false;
 	bool use_rifs = false;
@@ -7741,9 +7742,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	return 0;
 }
 
-bool
-brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
-		     struct ieee80211_hw *hw)
+void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
+			      struct ieee80211_hw *hw)
 {
 	u8 prio;
 	uint fifo;
@@ -7760,10 +7760,9 @@ brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 	if (unlikely
 	    (brcms_c_d11hdrs_mac80211(
 		wlc, hw, sdu, scb, 0, 1, fifo, 0, NULL, 0)))
-		return -EINVAL;
+		return;
 	brcms_c_txq_enq(wlc, scb, sdu, BRCMS_PRIO_TO_PREC(prio));
 	brcms_c_send_q(wlc);
-	return 0;
 }
 
 void brcms_c_send_q(struct brcms_c_info *wlc)
@@ -9100,7 +9099,7 @@ brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 	return;
 }
 
-int brcms_c_get_header_len()
+int brcms_c_get_header_len(void)
 {
 	return TXOFF;
 }

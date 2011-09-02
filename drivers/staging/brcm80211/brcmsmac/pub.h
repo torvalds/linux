@@ -536,7 +536,8 @@ struct brcms_antselcfg {
 /* common functions for every port */
 struct brcms_c_info *
 brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
-	       bool piomode, void *regsva, struct pci_dev *btparam, uint *perr);
+	       bool piomode, void __iomem *regsva, struct pci_dev *btparam,
+	       uint *perr);
 extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);
@@ -553,7 +554,7 @@ extern void brcms_c_intrsrestore(struct brcms_c_info *wlc, u32 macintmask);
 extern bool brcms_c_intrsupd(struct brcms_c_info *wlc);
 extern bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc);
 extern bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded);
-extern bool brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
+extern void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
 				     struct sk_buff *sdu,
 				     struct ieee80211_hw *hw);
 extern int brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
