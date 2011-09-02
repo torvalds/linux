@@ -700,7 +700,9 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH] = "thresh",
 	[IIO_EV_TYPE_MAG] = "mag",
-	[IIO_EV_TYPE_ROC] = "roc"
+	[IIO_EV_TYPE_ROC] = "roc",
+	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
+	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
 };
 
 static const char * const iio_ev_dir_text[] = {

@@ -118,6 +118,8 @@ enum iio_event_type {
 	IIO_EV_TYPE_THRESH,
 	IIO_EV_TYPE_MAG,
 	IIO_EV_TYPE_ROC,
+	IIO_EV_TYPE_THRESH_ADAPTIVE,
+	IIO_EV_TYPE_MAG_ADAPTIVE,
 };
 
 enum iio_event_direction {
@@ -142,6 +144,7 @@ enum iio_event_direction {
 #define IIO_UNMOD_EVENT_CODE(channelclass, number, type, direction)	\
 	IIO_EVENT_CODE(channelclass, 0, direction, type, number, 0, 0)
 
+#define IIO_EVENT_CODE_EXTRACT_TYPE(mask) ((mask >> 56) & 0xFF)
 #define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 48) & 0xFF)
 
 /* Event code number extraction depends on which type of event we have.
