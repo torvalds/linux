@@ -1010,7 +1010,8 @@ brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
 		wlc->stf->no_cddstbc = true;
 	} else {
 		wlc->stf->no_cddstbc = false;
-		if (N_ENAB(wlc->pub) != wlc->protection->nmode_user)
+		if ((wlc->pub->_n_enab & SUPPORT_11N) !=
+		    wlc->protection->nmode_user)
 			brcms_c_set_nmode(wlc, wlc->protection->nmode_user);
 	}
 
@@ -1137,7 +1138,8 @@ brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
 static bool
 brcms_c_quiet_chanspec(struct brcms_cm_info *wlc_cm, u16 chspec)
 {
-	return N_ENAB(wlc_cm->wlc->pub) && CHSPEC_IS40(chspec) ?
+	return (wlc_cm->wlc->pub->_n_enab & SUPPORT_11N) &&
+		CHSPEC_IS40(chspec) ?
 		(isset(wlc_cm->quiet_channels.vec,
 		       LOWER_20_SB(CHSPEC_CHANNEL(chspec))) ||
 		 isset(wlc_cm->quiet_channels.vec,

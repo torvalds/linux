@@ -180,7 +180,7 @@ static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on)
 	wlc->pub->_ampdu = false;
 
 	if (on) {
-		if (!N_ENAB(wlc->pub)) {
+		if (!(wlc->pub->_n_enab & SUPPORT_11N)) {
 			wiphy_err(ampdu->wlc->wiphy, "wl%d: driver not "
 				"nmode enabled\n", wlc->pub->unit);
 			return -ENOTSUPP;

@@ -293,28 +293,21 @@ enum wlc_par_id {
 #define SUPPORT_HT	(ENAB_1x1|ENAB_2x2|ENAB_3x3)
 
 /* WL11N Support */
-#define N_ENAB(pub) ((pub)->_n_enab & SUPPORT_11N)
-#define N_REQD(pub) ((pub)->_n_reqd)
-
-#define HT_ENAB(pub) 0
-
 #define AMPDU_AGG_HOST	1
-#define AMPDU_ENAB(pub) ((pub)->_ampdu)
 
-#define EDCF_ENAB(pub) (WME_ENAB(pub))
-#define QOS_ENAB(pub) (WME_ENAB(pub) || N_ENAB(pub))
-
-#define MONITOR_ENAB(wlc)	((wlc)->monitor)
-
-#define PROMISC_ENAB(wlc)	((wlc)->promisc)
-
-#define	BRCMS_PREC_COUNT	16	/* Max precedence level implemented */
+#define EDCF_ENAB(pub) ((pub)->_wme != OFF)
+#define QOS_ENAB(pub) ((pub)->_wme != OFF || (pub)->_n_enab & SUPPORT_11N)
 
 /* pri is priority encoded in the packet. This maps the Packet priority to
  * enqueue precedence as defined in wlc_prec_map
  */
 extern const u8 wlc_prio2prec_map[];
 #define BRCMS_PRIO_TO_PREC(pri)	wlc_prio2prec_map[(pri) & 7]
+
+#define	BRCMS_PREC_COUNT	16	/* Max precedence level implemented */
+
+/* Mask to describe all precedence levels */
+#define BRCMS_PREC_BMP_ALL		MAXBITVAL(BRCMS_PREC_COUNT)
 
 /*
  * This maps priority to one precedence higher - Used by PS-Poll response
@@ -323,12 +316,6 @@ extern const u8 wlc_prio2prec_map[];
  */
 #define BRCMS_PRIO_TO_HI_PREC(pri)	min(BRCMS_PRIO_TO_PREC(pri) + 1,\
 					    BRCMS_PREC_COUNT - 1)
-
-extern const u8 wme_fifo2ac[];
-#define WME_PRIO2AC(prio)	wme_fifo2ac[prio2fifo[(prio)]]
-
-/* Mask to describe all precedence levels */
-#define BRCMS_PREC_BMP_ALL		MAXBITVAL(BRCMS_PREC_COUNT)
 
 /* Define a bitmap of precedences comprised by each AC */
 #define BRCMS_PREC_BMP_AC_BE	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BE)) | \
@@ -347,14 +334,6 @@ extern const u8 wme_fifo2ac[];
 			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VO)) |	\
 			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NC)) |	\
 			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NC)))
-
-/* WME Support */
-#define WME_ENAB(pub) ((pub)->_wme != OFF)
-#define WME_AUTO(wlc) ((wlc)->pub->_wme == AUTO)
-
-/* invalid core flags, use the saved coreflags */
-#define BRCMS_USE_COREFLAGS	0xffffffff
-
 
 /* network protection config */
 #define	BRCMS_PROT_G_SPEC		1	/* SPEC g protection */
@@ -409,66 +388,17 @@ extern const u8 wme_fifo2ac[];
 #define GMODE_LRS		5
 #define GMODE_MAX		6
 
-/* values for PLCPHdr_override */
-#define BRCMS_PLCP_AUTO	-1
-#define BRCMS_PLCP_SHORT	0
-#define BRCMS_PLCP_LONG	1
+/* MCS values greater than this enable multiple streams */
+#define HIGHEST_SINGLE_STREAM_MCS	7
 
-/* values for g_protection_override and n_protection_override */
-#define BRCMS_PROTECTION_AUTO		-1
-#define BRCMS_PROTECTION_OFF		0
-#define BRCMS_PROTECTION_ON		1
-#define BRCMS_PROTECTION_MMHDR_ONLY	2
-#define BRCMS_PROTECTION_CTS_ONLY		3
+#define	MAXBANDS		2	/* Maximum #of bands */
 
-/* values for g_protection_control and n_protection_control */
-#define BRCMS_PROTECTION_CTL_OFF		0
-#define BRCMS_PROTECTION_CTL_LOCAL	1
-#define BRCMS_PROTECTION_CTL_OVERLAP	2
-
-/* values for n_protection */
-#define BRCMS_N_PROTECTION_OFF		0
-#define BRCMS_N_PROTECTION_OPTIONAL	1
-#define BRCMS_N_PROTECTION_20IN40		2
-#define BRCMS_N_PROTECTION_MIXEDMODE	3
-
-/* values for band specific 40MHz capabilities */
-#define BRCMS_N_BW_20ALL			0
-#define BRCMS_N_BW_40ALL			1
-#define BRCMS_N_BW_20IN2G_40IN5G		2
-
-/* bitflags for SGI support (sgi_rx iovar) */
-#define BRCMS_N_SGI_20			0x01
-#define BRCMS_N_SGI_40			0x02
-
-/* defines used by the nrate iovar */
-/* MSC in use,indicates b0-6 holds an mcs */
-#define NRATE_MCS_INUSE	0x00000080
-/* rate/mcs value */
-#define NRATE_RATE_MASK 0x0000007f
-/* stf mode mask: siso, cdd, stbc, sdm */
-#define NRATE_STF_MASK	0x0000ff00
-/* stf mode shift */
-#define NRATE_STF_SHIFT	8
-/* bit indicates override both rate & mode */
-#define NRATE_OVERRIDE	0x80000000
-/* bit indicate to override mcs only */
-#define NRATE_OVERRIDE_MCS_ONLY 0x40000000
-#define NRATE_SGI_MASK  0x00800000	/* sgi mode */
-#define NRATE_SGI_SHIFT 23	/* sgi mode */
-#define NRATE_LDPC_CODING 0x00400000	/* bit indicates adv coding in use */
-#define NRATE_LDPC_SHIFT 22	/* ldpc shift */
-
-#define NRATE_STF_SISO	0	/* stf mode SISO */
-#define NRATE_STF_CDD	1	/* stf mode CDD */
-#define NRATE_STF_STBC	2	/* stf mode STBC */
-#define NRATE_STF_SDM	3	/* stf mode SDM */
+/* bandstate array indices */
+#define BAND_2G_INDEX		0	/* wlc->bandstate[x] index */
+#define BAND_5G_INDEX		1	/* wlc->bandstate[x] index */
 
 /* max number of antenna configurations */
 #define ANT_SELCFG_MAX		4
-
-/* MCS values greater than this enable multiple streams */
-#define HIGHEST_SINGLE_STREAM_MCS	7
 
 struct brcms_antselcfg {
 	u8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
@@ -558,13 +488,5 @@ extern void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc,
 /* helper functions */
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);
 extern bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc);
-
-#define	MAXBANDS		2	/* Maximum #of bands */
-/* bandstate array indices */
-#define BAND_2G_INDEX		0	/* wlc->bandstate[x] index */
-#define BAND_5G_INDEX		1	/* wlc->bandstate[x] index */
-
-#define BAND_2G_NAME		"2.4G"
-#define BAND_5G_NAME		"5G"
 
 #endif				/* _BRCM_PUB_H_ */

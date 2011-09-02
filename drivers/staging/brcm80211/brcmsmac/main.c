@@ -271,6 +271,64 @@
 #define	WL_SPURAVOID_ON1	1
 #define	WL_SPURAVOID_ON2	2
 
+/* invalid core flags, use the saved coreflags */
+#define BRCMS_USE_COREFLAGS	0xffffffff
+
+/* values for PLCPHdr_override */
+#define BRCMS_PLCP_AUTO	-1
+#define BRCMS_PLCP_SHORT	0
+#define BRCMS_PLCP_LONG	1
+
+/* values for g_protection_override and n_protection_override */
+#define BRCMS_PROTECTION_AUTO		-1
+#define BRCMS_PROTECTION_OFF		0
+#define BRCMS_PROTECTION_ON		1
+#define BRCMS_PROTECTION_MMHDR_ONLY	2
+#define BRCMS_PROTECTION_CTS_ONLY		3
+
+/* values for g_protection_control and n_protection_control */
+#define BRCMS_PROTECTION_CTL_OFF		0
+#define BRCMS_PROTECTION_CTL_LOCAL	1
+#define BRCMS_PROTECTION_CTL_OVERLAP	2
+
+/* values for n_protection */
+#define BRCMS_N_PROTECTION_OFF		0
+#define BRCMS_N_PROTECTION_OPTIONAL	1
+#define BRCMS_N_PROTECTION_20IN40		2
+#define BRCMS_N_PROTECTION_MIXEDMODE	3
+
+/* values for band specific 40MHz capabilities */
+#define BRCMS_N_BW_20ALL			0
+#define BRCMS_N_BW_40ALL			1
+#define BRCMS_N_BW_20IN2G_40IN5G		2
+
+/* bitflags for SGI support (sgi_rx iovar) */
+#define BRCMS_N_SGI_20			0x01
+#define BRCMS_N_SGI_40			0x02
+
+/* defines used by the nrate iovar */
+/* MSC in use,indicates b0-6 holds an mcs */
+#define NRATE_MCS_INUSE	0x00000080
+/* rate/mcs value */
+#define NRATE_RATE_MASK 0x0000007f
+/* stf mode mask: siso, cdd, stbc, sdm */
+#define NRATE_STF_MASK	0x0000ff00
+/* stf mode shift */
+#define NRATE_STF_SHIFT	8
+/* bit indicates override both rate & mode */
+#define NRATE_OVERRIDE	0x80000000
+/* bit indicate to override mcs only */
+#define NRATE_OVERRIDE_MCS_ONLY 0x40000000
+#define NRATE_SGI_MASK  0x00800000	/* sgi mode */
+#define NRATE_SGI_SHIFT 23	/* sgi mode */
+#define NRATE_LDPC_CODING 0x00400000	/* bit indicates adv coding in use */
+#define NRATE_LDPC_SHIFT 22	/* ldpc shift */
+
+#define NRATE_STF_SISO	0	/* stf mode SISO */
+#define NRATE_STF_CDD	1	/* stf mode CDD */
+#define NRATE_STF_STBC	2	/* stf mode STBC */
+#define NRATE_STF_SDM	3	/* stf mode SDM */
+
 /*
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
  */
@@ -3323,7 +3381,7 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 		/* fill in hw_rate */
 		brcms_c_rateset_filter(&default_rateset, &wlc->band->hw_rateset,
 				   false, BRCMS_RATES_CCK_OFDM, BRCMS_RATE_MASK,
-				   (bool) N_ENAB(wlc->pub));
+				   (bool) (wlc->pub->_n_enab & SUPPORT_11N));
 
 		/* init basic rate lookup */
 		brcms_c_rate_lookup_init(wlc, &default_rateset);
@@ -3608,14 +3666,14 @@ void brcms_c_mac_promisc(struct brcms_c_info *wlc)
 	 * the MCTL_PROMISC bit since all BSS data traffic is
 	 * directed at the AP
 	 */
-	if (PROMISC_ENAB(wlc->pub))
+	if (wlc->pub->promisc)
 		promisc_bits |= MCTL_PROMISC;
 
 	/* monitor mode needs both MCTL_PROMISC and MCTL_KEEPCONTROL
 	 * Note: monitor mode also needs MCTL_BCNS_PROMISC, but that is
 	 * handled in brcms_c_mac_bcn_promisc()
 	 */
-	if (MONITOR_ENAB(wlc))
+	if (wlc->monitor)
 		promisc_bits |= MCTL_PROMISC | MCTL_KEEPCONTROL;
 
 	brcms_c_mctrl(wlc, MCTL_PROMISC | MCTL_KEEPCONTROL, promisc_bits);
@@ -4925,10 +4983,10 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 	/* init bss rates to the band specific default rate set */
 	brcms_c_rateset_default(&bi->rateset, NULL, band->phytype,
 		band->bandtype, false, BRCMS_RATE_MASK_FULL,
-		(bool) N_ENAB(wlc->pub), CHSPEC_WLC_BW(chanspec),
-		wlc->stf->txstreams);
+		(bool) (wlc->pub->_n_enab & SUPPORT_11N),
+		CHSPEC_WLC_BW(chanspec), wlc->stf->txstreams);
 
-	if (N_ENAB(wlc->pub))
+	if (wlc->pub->_n_enab & SUPPORT_11N)
 		bi->flags |= BRCMS_BSS_HT;
 }
 
@@ -5139,7 +5197,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		brcms_c_rateset_filter(&wlc->band->defrateset,
 				   &wlc->band->hw_rateset, false,
 				   BRCMS_RATES_CCK_OFDM, BRCMS_RATE_MASK,
-				   (bool) N_ENAB(wlc->pub));
+				   (bool) (wlc->pub->_n_enab & SUPPORT_11N));
 	}
 
 	/*
@@ -5194,8 +5252,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 
 	wlc->mimoft = FT_HT;
 	wlc->ht_cap.cap_info = HT_CAP;
-	if (HT_ENAB(wlc->pub))
-		wlc->stf->ldpc = AUTO;
 
 	wlc->mimo_40txbw = AUTO;
 	wlc->ofdm_40txbw = AUTO;
@@ -5843,7 +5899,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	/* if N-support is enabled, allow Gmode set as long as requested
 	 * Gmode is not GMODE_LEGACY_B
 	 */
-	if (N_ENAB(wlc->pub) && gmode == GMODE_LEGACY_B)
+	if ((wlc->pub->_n_enab & SUPPORT_11N) && gmode == GMODE_LEGACY_B)
 		return -ENOTSUPP;
 
 	/* verify that we are dealing with 2G band and grab the band pointer */
@@ -6269,7 +6325,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 			memcpy(&rs.rates, &in_rs->rates, rs.count);
 
 			/* merge rateset coming in with the current mcsset */
-			if (N_ENAB(wlc->pub)) {
+			if (wlc->pub->_n_enab & SUPPORT_11N) {
 				struct brcms_bss_info *mcsset_bss;
 				if (bsscfg->associated)
 					mcsset_bss = current_bss;
@@ -6957,7 +7013,7 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 		return (u32) rate;
 
 	/* validate the combination of rate/mcs/stf is allowed */
-	if (N_ENAB(wlc->pub) && ismcs) {
+	if ((wlc->pub->_n_enab & SUPPORT_11N) && ismcs) {
 		/* mcs only allowed when nmode */
 		if (stf > PHY_TXC1_MODE_SDM) {
 			wiphy_err(wlc->wiphy, "wl%d: %s: Invalid stf\n",
@@ -7223,7 +7279,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 	phyctl1_stf = wlc->stf->ss_opmode;
 
-	if (N_ENAB(wlc->pub)) {
+	if (wlc->pub->_n_enab & SUPPORT_11N) {
 		for (k = 0; k < hw->max_rates; k++) {
 			/*
 			 * apply siso/cdd to single stream mcs's or ofdm
@@ -9287,7 +9343,7 @@ void brcms_default_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs)
 {
 	brcms_c_rateset_default(rs, NULL, wlc->band->phytype,
 		wlc->band->bandtype, false, BRCMS_RATE_MASK_FULL,
-		(bool) N_ENAB(wlc->pub),
+		(bool) (wlc->pub->_n_enab & SUPPORT_11N),
 		CHSPEC_WLC_BW(wlc->default_bss->chanspec),
 		wlc->stf->txstreams);
 }
