@@ -402,6 +402,10 @@ static int __devinit ad7152_probe(struct i2c_client *client,
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ad7152_info;
 	indio_dev->channels = ad7152_channels;
+	if (id->driver_data == 0)
+		indio_dev->num_channels = ARRAY_SIZE(ad7152_channels);
+	else
+		indio_dev->num_channels = 1;
 	indio_dev->num_channels = ARRAY_SIZE(ad7152_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -430,7 +434,7 @@ static int __devexit ad7152_remove(struct i2c_client *client)
 
 static const struct i2c_device_id ad7152_id[] = {
 	{ "ad7152", 0 },
-	{ "ad7153", 0 },
+	{ "ad7153", 1 },
 	{}
 };
 
