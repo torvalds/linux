@@ -479,12 +479,17 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 	struct wl1271_cmd_sched_scan_ssid_list *cmd = NULL;
 	struct cfg80211_match_set *sets = req->match_sets;
 	struct cfg80211_ssid *ssids = req->ssids;
-	int ret = 0, type, i, j;
+	int ret = 0, type, i, j, n_match_ssids = 0;
 
 	wl1271_debug(DEBUG_CMD, "cmd sched scan ssid list");
 
+	/* count the match sets that contain SSIDs */
+	for (i = 0; i < req->n_match_sets; i++)
+		if (sets[i].ssid.ssid_len > 0)
+			n_match_ssids++;
+
 	/* No filter, no ssids or only bcast ssid */
-	if (!req->n_match_sets &&
+	if (!n_match_ssids &&
 	    (!req->n_ssids ||
 	     (req->n_ssids == 1 && req->ssids[0].ssid_len == 0))) {
 		type = SCAN_SSID_FILTER_ANY;
@@ -497,7 +502,7 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 		goto out;
 	}
 
-	if (!req->n_match_sets) {
+	if (!n_match_ssids) {
 		/* No filter, with ssids */
 		type = SCAN_SSID_FILTER_DISABLED;
 
@@ -514,6 +519,10 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 
 		/* Add all SSIDs from the filters */
 		for (i = 0; i < req->n_match_sets; i++) {
+			/* ignore sets without SSIDs */
+			if (!sets[i].ssid.ssid_len)
+				continue;
+
 			cmd->ssids[cmd->n_ssids].type = SCAN_SSID_TYPE_PUBLIC;
 			cmd->ssids[cmd->n_ssids].len = sets[i].ssid.ssid_len;
 			memcpy(cmd->ssids[cmd->n_ssids].ssid,
