@@ -151,7 +151,7 @@ static ssize_t ilitek_file_write(struct file *filp, const char *buf, size_t coun
 	msg[0].scl_rate = 400*1000;
 	msg[0].udelay = 80;
 
-	printk("%s:count=0x%x\n",__FUNCTION__,count);
+	DBG("%s:count=0x%x\n",__FUNCTION__,count);
 	
 	// before sending data to touch device, we need to check whether the device is working or not
 	if(g_ts->valid_i2c_register == 0){
@@ -266,7 +266,7 @@ static int ilitek_file_ioctl(struct inode *inode, struct file *filp, unsigned in
 		return -1;
 	}
 	
-	printk("%s:cmd=0x%x\n",__FUNCTION__,cmd);
+	DBG("%s:cmd=0x%x\n",__FUNCTION__,cmd);
 	
     	return 0;
 }
