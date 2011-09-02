@@ -80,6 +80,12 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE,
 };
 
+enum iio_endian {
+	IIO_CPU,
+	IIO_BE,
+	IIO_LE,
+};
+
 /**
  * struct iio_chan_spec - specification of a single channel
  * @type:		What type of measurement is the channel making.
@@ -95,6 +101,7 @@ enum iio_chan_info_enum {
  *			storage_bits:	Realbits + padding
  *			shift:		Shift right by this before masking out
  *					realbits.
+ *			endianness:	little or big endian
  * @info_mask:		What information is to be exported about this channel.
  *			This includes calibbias, scale etc.
  * @event_mask:	What events can this channel produce.
@@ -123,6 +130,7 @@ struct iio_chan_spec {
 		u8	realbits;
 		u8	storagebits;
 		u8	shift;
+		enum iio_endian endianness;
 	} scan_type;
 	long			info_mask;
 	long			event_mask;

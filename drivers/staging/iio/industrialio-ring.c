@@ -25,6 +25,10 @@
 #include "sysfs.h"
 #include "ring_generic.h"
 
+static const char * const iio_endian_prefix[] = {
+	[IIO_BE] = "be",
+	[IIO_LE] = "le",
+};
 
 /**
  * iio_ring_read_first_n_outer() - chrdev read for ring buffer access
@@ -96,7 +100,16 @@ static ssize_t iio_show_fixed_type(struct device *dev,
 				   char *buf)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	return sprintf(buf, "%c%d/%d>>%u\n",
+	u8 type = this_attr->c->scan_type.endianness;
+
+	if (type == IIO_CPU) {
+		if (__LITTLE_ENDIAN)
+			type = IIO_LE;
+		else
+			type = IIO_BE;
+	}
+	return sprintf(buf, "%s:%c%d/%d>>%u\n",
+		       iio_endian_prefix[type],
 		       this_attr->c->scan_type.sign,
 		       this_attr->c->scan_type.realbits,
 		       this_attr->c->scan_type.storagebits,
