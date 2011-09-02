@@ -36,17 +36,17 @@
 
 struct cx25821_board cx25821_boards[] = {
 	[UNKNOWN_BOARD] = {
-			   .name = "UNKNOWN/GENERIC",
-			   /* Ensure safe default for unknown boards */
-			   .clk_freq = 0,
-			   },
+		.name = "UNKNOWN/GENERIC",
+		/* Ensure safe default for unknown boards */
+		.clk_freq = 0,
+	},
 
 	[CX25821_BOARD] = {
-			   .name = "CX25821",
-			   .portb = CX25821_RAW,
-			   .portc = CX25821_264,
-			   .input[0].type = CX25821_VMUX_COMPOSITE,
-			   },
+		.name = "CX25821",
+		.portb = CX25821_RAW,
+		.portc = CX25821_264,
+		.input[0].type = CX25821_VMUX_COMPOSITE,
+	},
 
 };
 
@@ -54,10 +54,10 @@ const unsigned int cx25821_bcount = ARRAY_SIZE(cx25821_boards);
 
 struct cx25821_subid cx25821_subids[] = {
 	{
-	 .subvendor = 0x14f1,
-	 .subdevice = 0x0920,
-	 .card = CX25821_BOARD,
-	 },
+		.subvendor = 0x14f1,
+		.subdevice = 0x0920,
+		.card = CX25821_BOARD,
+	},
 };
 
 void cx25821_card_setup(struct cx25821_dev *dev)
