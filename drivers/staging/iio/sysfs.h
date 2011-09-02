@@ -114,36 +114,40 @@ struct iio_const_attr {
 #define IIO_CONST_ATTR_TEMP_SCALE(_string)		\
 	IIO_CONST_ATTR(temp_scale, _string)
 
-#define IIO_EV_TYPE_THRESH		0
-#define IIO_EV_TYPE_MAG			1
-#define IIO_EV_TYPE_ROC			2
+enum iio_event_type {
+	IIO_EV_TYPE_THRESH,
+	IIO_EV_TYPE_MAG,
+	IIO_EV_TYPE_ROC,
+};
 
-#define IIO_EV_DIR_EITHER		0
-#define IIO_EV_DIR_RISING		1
-#define IIO_EV_DIR_FALLING		2
+enum iio_event_direction {
+	IIO_EV_DIR_EITHER,
+	IIO_EV_DIR_RISING,
+	IIO_EV_DIR_FALLING,
+};
+
+#define IIO_EVENT_CODE(chan_type, modifier, direction,			\
+		       type, chan, chan1, chan2)			\
+	(((u64)type << 56) | ((u64)direction << 48) | ((u64)modifier << 40) | \
+	 ((u64)chan_type << 32) | (chan2 << 16) | chan1 | chan)
 
 #define IIO_EV_TYPE_MAX 8
 #define IIO_EV_BIT(type, direction)			\
 	(1 << (type*IIO_EV_TYPE_MAX + direction))
 
-#define IIO_EVENT_CODE(channelclass, orient_bit, number,		\
-		       modifier, type, direction)			\
-	(channelclass | (orient_bit << 8) | ((number) << 9) |		\
-	 ((modifier) << 13) | ((type) << 16) | ((direction) << 24))
-
 #define IIO_MOD_EVENT_CODE(channelclass, number, modifier,		\
 			   type, direction)				\
-	IIO_EVENT_CODE(channelclass, 1, number, modifier, type, direction)
+	IIO_EVENT_CODE(channelclass, modifier, direction, type, number, 0, 0)
 
 #define IIO_UNMOD_EVENT_CODE(channelclass, number, type, direction)	\
-	IIO_EVENT_CODE(channelclass, 0, number, 0, type, direction)
+	IIO_EVENT_CODE(channelclass, 0, direction, type, number, 0, 0)
 
-#define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 24) & 0xf)
+#define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 48) & 0xFF)
 
 /* Event code number extraction depends on which type of event we have.
  * Perhaps review this function in the future*/
-#define IIO_EVENT_CODE_EXTRACT_NUM(mask) ((mask >> 9) & 0x0f)
+#define IIO_EVENT_CODE_EXTRACT_NUM(mask) (mask & 0xFFFF)
 
-#define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 13) & 0x7)
+#define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 40) & 0xFF)
 
 #endif /* _INDUSTRIAL_IO_SYSFS_H_ */

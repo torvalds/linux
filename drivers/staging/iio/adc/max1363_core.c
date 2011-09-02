@@ -553,7 +553,7 @@ static IIO_CONST_ATTR(sampling_frequency_available,
 		"133000 665000 33300 16600 8300 4200 2000 1000");
 
 static int max1363_read_thresh(struct iio_dev *indio_dev,
-			       int event_code,
+			       u64 event_code,
 			       int *val)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
@@ -565,7 +565,7 @@ static int max1363_read_thresh(struct iio_dev *indio_dev,
 }
 
 static int max1363_write_thresh(struct iio_dev *indio_dev,
-				int event_code,
+				u64 event_code,
 				int val)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
@@ -593,7 +593,7 @@ static int max1363_write_thresh(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static const int max1363_event_codes[] = {
+static const u64 max1363_event_codes[] = {
 	IIO_UNMOD_EVENT_CODE(IIO_IN, 0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
 	IIO_UNMOD_EVENT_CODE(IIO_IN, 1, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
 	IIO_UNMOD_EVENT_CODE(IIO_IN, 2, IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
@@ -624,7 +624,7 @@ static irqreturn_t max1363_event_handler(int irq, void *private)
 }
 
 static int max1363_read_event_config(struct iio_dev *indio_dev,
-				     int event_code)
+				     u64 event_code)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 
@@ -776,7 +776,7 @@ error_ret:
 }
 
 static int max1363_write_event_config(struct iio_dev *indio_dev,
-				      int event_code,
+				      u64 event_code,
 				      int state)
 {
 	int ret = 0;

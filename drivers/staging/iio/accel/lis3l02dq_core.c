@@ -200,14 +200,14 @@ static u8 lis3l02dq_axis_map[3][3] = {
 };
 
 static int lis3l02dq_read_thresh(struct iio_dev *indio_dev,
-				 int e,
+				 u64 e,
 				 int *val)
 {
 	return lis3l02dq_read_reg_s16(indio_dev, LIS3L02DQ_REG_THS_L_ADDR, val);
 }
 
 static int lis3l02dq_write_thresh(struct iio_dev *indio_dev,
-				  int event_code,
+				  u64 event_code,
 				  int val)
 {
 	u16 value = val;
@@ -534,7 +534,7 @@ static struct iio_chan_spec lis3l02dq_channels[] = {
 
 
 static ssize_t lis3l02dq_read_event_config(struct iio_dev *indio_dev,
-					   int event_code)
+					   u64 event_code)
 {
 
 	u8 val;
@@ -586,7 +586,7 @@ error_ret:
 }
 
 static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
-					int event_code,
+					u64 event_code,
 					int state)
 {
 	int ret = 0;

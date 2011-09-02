@@ -48,19 +48,22 @@ enum iio_chan_type {
 #define	IIO_IN IIO_VOLTAGE
 #define	IIO_IN_DIFF IIO_VOLTAGE_DIFF
 
-#define IIO_MOD_X			0
-#define IIO_MOD_LIGHT_BOTH		0
-#define IIO_MOD_Y			1
-#define IIO_MOD_LIGHT_IR		1
-#define IIO_MOD_Z			2
-#define IIO_MOD_X_AND_Y			3
-#define IIO_MOD_X_ANX_Z			4
-#define IIO_MOD_Y_AND_Z			5
-#define IIO_MOD_X_AND_Y_AND_Z		6
-#define IIO_MOD_X_OR_Y			7
-#define IIO_MOD_X_OR_Z			8
-#define IIO_MOD_Y_OR_Z			9
-#define IIO_MOD_X_OR_Y_OR_Z		10
+enum iio_modifier {
+	IIO_NO_MOD,
+	IIO_MOD_X,
+	IIO_MOD_Y,
+	IIO_MOD_Z,
+	IIO_MOD_X_AND_Y,
+	IIO_MOD_X_ANX_Z,
+	IIO_MOD_Y_AND_Z,
+	IIO_MOD_X_AND_Y_AND_Z,
+	IIO_MOD_X_OR_Y,
+	IIO_MOD_X_OR_Z,
+	IIO_MOD_Y_OR_Z,
+	IIO_MOD_X_OR_Y_OR_Z,
+	IIO_MOD_LIGHT_BOTH,
+	IIO_MOD_LIGHT_IR,
+};
 
 /* Could add the raw attributes as well - allowing buffer only devices */
 enum iio_chan_info_enum {
@@ -243,17 +246,17 @@ struct iio_info {
 			 long mask);
 
 	int (*read_event_config)(struct iio_dev *indio_dev,
-				 int event_code);
+				 u64 event_code);
 
 	int (*write_event_config)(struct iio_dev *indio_dev,
-				  int event_code,
+				  u64 event_code,
 				  int state);
 
 	int (*read_event_value)(struct iio_dev *indio_dev,
-				int event_code,
+				u64 event_code,
 				int *val);
 	int (*write_event_value)(struct iio_dev *indio_dev,
-				 int event_code,
+				 u64 event_code,
 				 int val);
 	int (*validate_trigger)(struct iio_dev *indio_dev,
 				struct iio_trigger *trig);
@@ -328,7 +331,7 @@ void iio_device_unregister(struct iio_dev *dev_info);
  * @ev_code:		What event
  * @timestamp:		When the event occurred
  **/
-int iio_push_event(struct iio_dev *dev_info, int ev_code, s64 timestamp);
+int iio_push_event(struct iio_dev *dev_info, u64 ev_code, s64 timestamp);
 
 extern struct bus_type iio_bus_type;
 

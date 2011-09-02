@@ -17,7 +17,7 @@
  *		the interrupt handler)
  */
 struct iio_event_data {
-	int	id;
+	u64	id;
 	s64	timestamp;
 };
 

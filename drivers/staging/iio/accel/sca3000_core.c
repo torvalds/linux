@@ -695,7 +695,7 @@ static IIO_CONST_ATTR_TEMP_OFFSET("-214.6");
  * sca3000_read_thresh() - query of a threshold
  **/
 static int sca3000_read_thresh(struct iio_dev *indio_dev,
-			       int e,
+			       u64 e,
 			       int *val)
 {
 	int ret, i;
@@ -723,8 +723,8 @@ static int sca3000_read_thresh(struct iio_dev *indio_dev,
  * sca3000_write_thresh() control of threshold
  **/
 static int sca3000_write_thresh(struct iio_dev *indio_dev,
-				    int e,
-				    int val)
+				u64 e,
+				int val)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int num = IIO_EVENT_CODE_EXTRACT_MODIFIER(e);
@@ -858,7 +858,7 @@ done:
  * sca3000_read_event_config() what events are enabled
  **/
 static int sca3000_read_event_config(struct iio_dev *indio_dev,
-				     int e)
+				     u64 e)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
@@ -961,7 +961,7 @@ error_ret:
  * this mode is disabled.  Currently normal mode is assumed.
  **/
 static int sca3000_write_event_config(struct iio_dev *indio_dev,
-				      int e,
+				      u64 e,
 				      int state)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);

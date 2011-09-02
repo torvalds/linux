@@ -549,8 +549,8 @@ static const struct iio_chan_spec tsl2563_channels[] = {
 };
 
 static int tsl2563_read_thresh(struct iio_dev *indio_dev,
-				int event_code,
-				int *val)
+			       u64 event_code,
+			       int *val)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
@@ -569,7 +569,7 @@ static int tsl2563_read_thresh(struct iio_dev *indio_dev,
 }
 
 static ssize_t tsl2563_write_thresh(struct iio_dev *indio_dev,
-				  int event_code,
+				  u64 event_code,
 				  int val)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
@@ -617,8 +617,8 @@ static irqreturn_t tsl2563_event_handler(int irq, void *private)
 }
 
 static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
-					int event_code,
-					int state)
+					  u64 event_code,
+					  int state)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret = 0;
@@ -659,7 +659,7 @@ out:
 }
 
 static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
-					   int event_code)
+					 u64 event_code)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;

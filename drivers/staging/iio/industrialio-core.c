@@ -71,15 +71,12 @@ static const char * const iio_chan_type_name_spec_complex[] = {
 	[IIO_VOLTAGE_DIFF] = "voltage%d-voltage%d",
 };
 
-static const char * const iio_modifier_names_light[] = {
-	[IIO_MOD_LIGHT_BOTH] = "both",
-	[IIO_MOD_LIGHT_IR] = "ir",
-};
-
-static const char * const iio_modifier_names_axial[] = {
+static const char * const iio_modifier_names[] = {
 	[IIO_MOD_X] = "x",
 	[IIO_MOD_Y] = "y",
 	[IIO_MOD_Z] = "z",
+	[IIO_MOD_LIGHT_BOTH] = "both",
+	[IIO_MOD_LIGHT_IR] = "ir",
 };
 
 /* relies on pairs of these shared then separate */
@@ -124,7 +121,7 @@ struct iio_event_interface {
 	unsigned long flags;
 };
 
-int iio_push_event(struct iio_dev *dev_info, int ev_code, s64 timestamp)
+int iio_push_event(struct iio_dev *dev_info, u64 ev_code, s64 timestamp)
 {
 	struct iio_event_interface *ev_int = dev_info->event_interface;
 	struct iio_detected_event_list *ev;
@@ -409,32 +406,14 @@ static int __iio_build_postfix(struct iio_chan_spec const *chan,
 	if (generic || (!chan->modified && !chan->extend_name)) {
 		all_post = kasprintf(GFP_KERNEL, "%s", postfix);
 	} else if (chan->modified) {
-		const char *intermediate;
-		switch (chan->type) {
-		case IIO_INTENSITY:
-			intermediate
-				= iio_modifier_names_light[chan->channel2];
-			break;
-		case IIO_ACCEL:
-		case IIO_GYRO:
-		case IIO_MAGN:
-		case IIO_INCLI:
-		case IIO_ROT:
-		case IIO_ANGL:
-			intermediate
-				= iio_modifier_names_axial[chan->channel2];
-			break;
-		default:
-			return -EINVAL;
-		}
 		if (chan->extend_name)
 			all_post = kasprintf(GFP_KERNEL, "%s_%s_%s",
-					     intermediate,
+					     iio_modifier_names[chan->channel2],
 					     chan->extend_name,
 					     postfix);
 		else
 			all_post = kasprintf(GFP_KERNEL, "%s_%s",
-					     intermediate,
+					     iio_modifier_names[chan->channel2],
 					     postfix);
 	} else
 		all_post = kasprintf(GFP_KERNEL, "%s_%s", chan->extend_name,
@@ -824,28 +803,22 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			ret = -ENOMEM;
 			goto error_ret;
 		}
-		switch (chan->type) {
-			/* Switch this to a table at some point */
-		case IIO_VOLTAGE:
-			mask = IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
-						    i/IIO_EV_TYPE_MAX,
-						    i%IIO_EV_TYPE_MAX);
-			break;
-		case IIO_ACCEL:
+		if (chan->modified)
 			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
 						  i/IIO_EV_TYPE_MAX,
 						  i%IIO_EV_TYPE_MAX);
-			break;
-		case IIO_VOLTAGE_DIFF:
-			mask = IIO_MOD_EVENT_CODE(chan->type, chan->channel,
+		else if (chan->type == IIO_VOLTAGE_DIFF)
+			mask = IIO_MOD_EVENT_CODE(chan->type,
+						  chan->channel,
 						  chan->channel2,
 						  i/IIO_EV_TYPE_MAX,
 						  i%IIO_EV_TYPE_MAX);
-			break;
-		default:
-			printk(KERN_INFO "currently unhandled type of event\n");
-			continue;
-		}
+		else
+			mask = IIO_UNMOD_EVENT_CODE(chan->type,
+						    chan->channel,
+						    i/IIO_EV_TYPE_MAX,
+						    i%IIO_EV_TYPE_MAX);
+
 		ret = __iio_add_chan_devattr(postfix,
 					     "events",
 					     chan,
