@@ -306,6 +306,12 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 	u32 i, i2ccmd = 0;
 	u16 phy_data_swapped;
 
+	/* Prevent overwritting SFP I2C EEPROM which is at A0 address.*/
+	if ((hw->phy.addr == 0) || (hw->phy.addr > 7)) {
+		hw_dbg("PHY I2C Address %d is out of range.\n",
+			  hw->phy.addr);
+		return -E1000_ERR_CONFIG;
+	}
 
 	/* Swap the data bytes for the I2C interface */
 	phy_data_swapped = ((data >> 8) & 0x00FF) | ((data << 8) & 0xFF00);
