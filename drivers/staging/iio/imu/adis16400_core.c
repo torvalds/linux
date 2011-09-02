@@ -393,7 +393,7 @@ static int adis16400_initial_setup(struct iio_dev *indio_dev)
 		if ((prod_id & 0xF000) != st->variant->product_id)
 			dev_warn(&indio_dev->dev, "incorrect id");
 
-		printk(KERN_INFO "%s: prod_id 0x%04x at CS%d (irq %d)\n",
+		dev_info(&indio_dev->dev, "%s: prod_id 0x%04x at CS%d (irq %d)\n",
 		       indio_dev->name, prod_id,
 		       st->us->chip_select, st->us->irq);
 	}
