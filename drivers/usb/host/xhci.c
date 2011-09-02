@@ -1747,13 +1747,275 @@ static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
 				xhci->num_active_eps);
 }
 
-/* Run the algorithm on the bandwidth table.  If this table is part of a
- * TT, see if we need to update the number of active TTs.
+unsigned int xhci_get_block_size(struct usb_device *udev)
+{
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		return FS_BLOCK;
+	case USB_SPEED_HIGH:
+		return HS_BLOCK;
+	case USB_SPEED_SUPER:
+		return SS_BLOCK;
+	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_WIRELESS:
+	default:
+		/* Should never happen */
+		return 1;
+	}
+}
+
+unsigned int xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
+{
+	if (interval_bw->overhead[LS_OVERHEAD_TYPE])
+		return LS_OVERHEAD;
+	if (interval_bw->overhead[FS_OVERHEAD_TYPE])
+		return FS_OVERHEAD;
+	return HS_OVERHEAD;
+}
+
+/* If we are changing a LS/FS device under a HS hub,
+ * make sure (if we are activating a new TT) that the HS bus has enough
+ * bandwidth for this new TT.
+ */
+static int xhci_check_tt_bw_table(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		int old_active_eps)
+{
+	struct xhci_interval_bw_table *bw_table;
+	struct xhci_tt_bw_info *tt_info;
+
+	/* Find the bandwidth table for the root port this TT is attached to. */
+	bw_table = &xhci->rh_bw[virt_dev->real_port - 1].bw_table;
+	tt_info = virt_dev->tt_info;
+	/* If this TT already had active endpoints, the bandwidth for this TT
+	 * has already been added.  Removing all periodic endpoints (and thus
+	 * making the TT enactive) will only decrease the bandwidth used.
+	 */
+	if (old_active_eps)
+		return 0;
+	if (old_active_eps == 0 && tt_info->active_eps != 0) {
+		if (bw_table->bw_used + TT_HS_OVERHEAD > HS_BW_LIMIT)
+			return -ENOMEM;
+		return 0;
+	}
+	/* Not sure why we would have no new active endpoints...
+	 *
+	 * Maybe because of an Evaluate Context change for a hub update or a
+	 * control endpoint 0 max packet size change?
+	 * FIXME: skip the bandwidth calculation in that case.
+	 */
+	return 0;
+}
+
+/*
+ * This algorithm is a very conservative estimate of the worst-case scheduling
+ * scenario for any one interval.  The hardware dynamically schedules the
+ * packets, so we can't tell which microframe could be the limiting factor in
+ * the bandwidth scheduling.  This only takes into account periodic endpoints.
+ *
+ * Obviously, we can't solve an NP complete problem to find the minimum worst
+ * case scenario.  Instead, we come up with an estimate that is no less than
+ * the worst case bandwidth used for any one microframe, but may be an
+ * over-estimate.
+ *
+ * We walk the requirements for each endpoint by interval, starting with the
+ * smallest interval, and place packets in the schedule where there is only one
+ * possible way to schedule packets for that interval.  In order to simplify
+ * this algorithm, we record the largest max packet size for each interval, and
+ * assume all packets will be that size.
+ *
+ * For interval 0, we obviously must schedule all packets for each interval.
+ * The bandwidth for interval 0 is just the amount of data to be transmitted
+ * (the sum of all max ESIT payload sizes, plus any overhead per packet times
+ * the number of packets).
+ *
+ * For interval 1, we have two possible microframes to schedule those packets
+ * in.  For this algorithm, if we can schedule the same number of packets for
+ * each possible scheduling opportunity (each microframe), we will do so.  The
+ * remaining number of packets will be saved to be transmitted in the gaps in
+ * the next interval's scheduling sequence.
+ *
+ * As we move those remaining packets to be scheduled with interval 2 packets,
+ * we have to double the number of remaining packets to transmit.  This is
+ * because the intervals are actually powers of 2, and we would be transmitting
+ * the previous interval's packets twice in this interval.  We also have to be
+ * sure that when we look at the largest max packet size for this interval, we
+ * also look at the largest max packet size for the remaining packets and take
+ * the greater of the two.
+ *
+ * The algorithm continues to evenly distribute packets in each scheduling
+ * opportunity, and push the remaining packets out, until we get to the last
+ * interval.  Then those packets and their associated overhead are just added
+ * to the bandwidth used.
  */
 static int xhci_check_bw_table(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		int old_active_eps)
 {
+	unsigned int bw_reserved;
+	unsigned int max_bandwidth;
+	unsigned int bw_used;
+	unsigned int block_size;
+	struct xhci_interval_bw_table *bw_table;
+	unsigned int packet_size = 0;
+	unsigned int overhead = 0;
+	unsigned int packets_transmitted = 0;
+	unsigned int packets_remaining = 0;
+	unsigned int i;
+
+	if (virt_dev->udev->speed == USB_SPEED_HIGH) {
+		max_bandwidth = HS_BW_LIMIT;
+		/* Convert percent of bus BW reserved to blocks reserved */
+		bw_reserved = DIV_ROUND_UP(HS_BW_RESERVED * max_bandwidth, 100);
+	} else {
+		max_bandwidth = FS_BW_LIMIT;
+		bw_reserved = DIV_ROUND_UP(FS_BW_RESERVED * max_bandwidth, 100);
+	}
+
+	bw_table = virt_dev->bw_table;
+	/* We need to translate the max packet size and max ESIT payloads into
+	 * the units the hardware uses.
+	 */
+	block_size = xhci_get_block_size(virt_dev->udev);
+
+	/* If we are manipulating a LS/FS device under a HS hub, double check
+	 * that the HS bus has enough bandwidth if we are activing a new TT.
+	 */
+	if (virt_dev->tt_info) {
+		xhci_dbg(xhci, "Recalculating BW for rootport %u\n",
+				virt_dev->real_port);
+		if (xhci_check_tt_bw_table(xhci, virt_dev, old_active_eps)) {
+			xhci_warn(xhci, "Not enough bandwidth on HS bus for "
+					"newly activated TT.\n");
+			return -ENOMEM;
+		}
+		xhci_dbg(xhci, "Recalculating BW for TT slot %u port %u\n",
+				virt_dev->tt_info->slot_id,
+				virt_dev->tt_info->ttport);
+	} else {
+		xhci_dbg(xhci, "Recalculating BW for rootport %u\n",
+				virt_dev->real_port);
+	}
+
+	/* Add in how much bandwidth will be used for interval zero, or the
+	 * rounded max ESIT payload + number of packets * largest overhead.
+	 */
+	bw_used = DIV_ROUND_UP(bw_table->interval0_esit_payload, block_size) +
+		bw_table->interval_bw[0].num_packets *
+		xhci_get_largest_overhead(&bw_table->interval_bw[0]);
+
+	for (i = 1; i < XHCI_MAX_INTERVAL; i++) {
+		unsigned int bw_added;
+		unsigned int largest_mps;
+		unsigned int interval_overhead;
+
+		/*
+		 * How many packets could we transmit in this interval?
+		 * If packets didn't fit in the previous interval, we will need
+		 * to transmit that many packets twice within this interval.
+		 */
+		packets_remaining = 2 * packets_remaining +
+			bw_table->interval_bw[i].num_packets;
+
+		/* Find the largest max packet size of this or the previous
+		 * interval.
+		 */
+		if (list_empty(&bw_table->interval_bw[i].endpoints))
+			largest_mps = 0;
+		else {
+			struct xhci_virt_ep *virt_ep;
+			struct list_head *ep_entry;
+
+			ep_entry = bw_table->interval_bw[i].endpoints.next;
+			virt_ep = list_entry(ep_entry,
+					struct xhci_virt_ep, bw_endpoint_list);
+			/* Convert to blocks, rounding up */
+			largest_mps = DIV_ROUND_UP(
+					virt_ep->bw_info.max_packet_size,
+					block_size);
+		}
+		if (largest_mps > packet_size)
+			packet_size = largest_mps;
+
+		/* Use the larger overhead of this or the previous interval. */
+		interval_overhead = xhci_get_largest_overhead(
+				&bw_table->interval_bw[i]);
+		if (interval_overhead > overhead)
+			overhead = interval_overhead;
+
+		/* How many packets can we evenly distribute across
+		 * (1 << (i + 1)) possible scheduling opportunities?
+		 */
+		packets_transmitted = packets_remaining >> (i + 1);
+
+		/* Add in the bandwidth used for those scheduled packets */
+		bw_added = packets_transmitted * (overhead + packet_size);
+
+		/* How many packets do we have remaining to transmit? */
+		packets_remaining = packets_remaining % (1 << (i + 1));
+
+		/* What largest max packet size should those packets have? */
+		/* If we've transmitted all packets, don't carry over the
+		 * largest packet size.
+		 */
+		if (packets_remaining == 0) {
+			packet_size = 0;
+			overhead = 0;
+		} else if (packets_transmitted > 0) {
+			/* Otherwise if we do have remaining packets, and we've
+			 * scheduled some packets in this interval, take the
+			 * largest max packet size from endpoints with this
+			 * interval.
+			 */
+			packet_size = largest_mps;
+			overhead = interval_overhead;
+		}
+		/* Otherwise carry over packet_size and overhead from the last
+		 * time we had a remainder.
+		 */
+		bw_used += bw_added;
+		if (bw_used > max_bandwidth) {
+			xhci_warn(xhci, "Not enough bandwidth. "
+					"Proposed: %u, Max: %u\n",
+				bw_used, max_bandwidth);
+			return -ENOMEM;
+		}
+	}
+	/*
+	 * Ok, we know we have some packets left over after even-handedly
+	 * scheduling interval 15.  We don't know which microframes they will
+	 * fit into, so we over-schedule and say they will be scheduled every
+	 * microframe.
+	 */
+	if (packets_remaining > 0)
+		bw_used += overhead + packet_size;
+
+	if (!virt_dev->tt_info && virt_dev->udev->speed == USB_SPEED_HIGH) {
+		unsigned int port_index = virt_dev->real_port - 1;
+
+		/* OK, we're manipulating a HS device attached to a
+		 * root port bandwidth domain.  Include the number of active TTs
+		 * in the bandwidth used.
+		 */
+		bw_used += TT_HS_OVERHEAD *
+			xhci->rh_bw[port_index].num_active_tts;
+	}
+
+	xhci_dbg(xhci, "Final bandwidth: %u, Limit: %u, Reserved: %u, "
+		"Available: %u " "percent\n",
+		bw_used, max_bandwidth, bw_reserved,
+		(max_bandwidth - bw_used - bw_reserved) * 100 /
+		max_bandwidth);
+
+	bw_used += bw_reserved;
+	if (bw_used > max_bandwidth) {
+		xhci_warn(xhci, "Not enough bandwidth. Proposed: %u, Max: %u\n",
+				bw_used, max_bandwidth);
+		return -ENOMEM;
+	}
+
+	bw_table->bw_used = bw_used;
 	return 0;
 }
 
@@ -1888,9 +2150,11 @@ void xhci_update_tt_active_eps(struct xhci_hcd *xhci,
 	if (old_active_eps == 0 &&
 				virt_dev->tt_info->active_eps != 0) {
 		rh_bw_info->num_active_tts += 1;
+		rh_bw_info->bw_table.bw_used += TT_HS_OVERHEAD;
 	} else if (old_active_eps != 0 &&
 				virt_dev->tt_info->active_eps == 0) {
 		rh_bw_info->num_active_tts -= 1;
+		rh_bw_info->bw_table.bw_used -= TT_HS_OVERHEAD;
 	}
 }
 

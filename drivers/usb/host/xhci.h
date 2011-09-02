@@ -756,6 +756,49 @@ struct xhci_bw_info {
 	unsigned int		type;
 };
 
+/* "Block" sizes in bytes the hardware uses for different device speeds.
+ * The logic in this part of the hardware limits the number of bits the hardware
+ * can use, so must represent bandwidth in a less precise manner to mimic what
+ * the scheduler hardware computes.
+ */
+#define	FS_BLOCK	1
+#define	HS_BLOCK	4
+#define	SS_BLOCK	16
+#define	DMI_BLOCK	32
+
+/* Each device speed has a protocol overhead (CRC, bit stuffing, etc) associated
+ * with each byte transferred.  SuperSpeed devices have an initial overhead to
+ * set up bursts.  These are in blocks, see above.  LS overhead has already been
+ * translated into FS blocks.
+ */
+#define DMI_OVERHEAD 8
+#define DMI_OVERHEAD_BURST 4
+#define SS_OVERHEAD 8
+#define SS_OVERHEAD_BURST 32
+#define HS_OVERHEAD 26
+#define FS_OVERHEAD 20
+#define LS_OVERHEAD 128
+/* The TTs need to claim roughly twice as much bandwidth (94 bytes per
+ * microframe ~= 24Mbps) of the HS bus as the devices can actually use because
+ * of overhead associated with split transfers crossing microframe boundaries.
+ * 31 blocks is pure protocol overhead.
+ */
+#define TT_HS_OVERHEAD (31 + 94)
+#define TT_DMI_OVERHEAD (25 + 12)
+
+/* Bandwidth limits in blocks */
+#define FS_BW_LIMIT		1285
+#define TT_BW_LIMIT		1320
+#define HS_BW_LIMIT		1607
+#define SS_BW_LIMIT_IN		3906
+#define DMI_BW_LIMIT_IN		3906
+#define SS_BW_LIMIT_OUT		3906
+#define DMI_BW_LIMIT_OUT	3906
+
+/* Percentage of bus bandwidth reserved for non-periodic transfers */
+#define FS_BW_RESERVED		10
+#define HS_BW_RESERVED		20
+
 struct xhci_virt_ep {
 	struct xhci_ring		*ring;
 	/* Related to endpoints that are configured to use stream IDs only */
@@ -823,6 +866,8 @@ struct xhci_interval_bw {
 struct xhci_interval_bw_table {
 	unsigned int		interval0_esit_payload;
 	struct xhci_interval_bw	interval_bw[XHCI_MAX_INTERVAL];
+	/* Includes reserved bandwidth for async endpoints */
+	unsigned int		bw_used;
 };
 
 
@@ -1397,6 +1442,7 @@ struct xhci_hcd {
 #define XHCI_EP_LIMIT_QUIRK	(1 << 5)
 #define XHCI_BROKEN_MSI		(1 << 6)
 #define XHCI_RESET_ON_RESUME	(1 << 7)
+#define	XHCI_SW_BW_CHECKING	(1 << 8)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
