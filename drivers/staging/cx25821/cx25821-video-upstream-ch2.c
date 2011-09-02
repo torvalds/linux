@@ -40,8 +40,8 @@ MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
 MODULE_LICENSE("GPL");
 
-static int _intr_msk =
-	FLD_VID_SRC_RISC1 | FLD_VID_SRC_UF | FLD_VID_SRC_SYNC | FLD_VID_SRC_OPC_ERR;
+static int _intr_msk = FLD_VID_SRC_RISC1 | FLD_VID_SRC_UF | FLD_VID_SRC_SYNC |
+			FLD_VID_SRC_OPC_ERR;
 
 static __le32 *cx25821_update_riscprogram_ch2(struct cx25821_dev *dev,
 					      __le32 *rp, unsigned int offset,
@@ -166,13 +166,9 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 		if (UNSET != top_offset) {
 			fifo_enable = (frame == 0) ? FIFO_ENABLE : FIFO_DISABLE;
 			rp = cx25821_risc_field_upstream_ch2(dev, rp,
-							     dev->
-							     _data_buf_phys_addr_ch2
-							     + databuf_offset,
-							     top_offset, 0, bpl,
-							     odd_num_lines,
-							     fifo_enable,
-							     ODD_FIELD);
+				dev->_data_buf_phys_addr_ch2 + databuf_offset,
+				top_offset, 0, bpl, odd_num_lines, fifo_enable,
+				ODD_FIELD);
 		}
 
 		fifo_enable = FIFO_DISABLE;
@@ -571,14 +567,10 @@ int cx25821_video_upstream_irq_ch2(struct cx25821_dev *dev, int chan_num,
 				    odd_risc_prog_size;
 
 				rp = cx25821_update_riscprogram_ch2(dev,
-								    dev->
-								    _dma_virt_start_addr_ch2,
-								    TOP_OFFSET,
-								    line_size_in_bytes,
-								    0x0,
-								    singlefield_lines,
-								    FIFO_DISABLE,
-								    ODD_FIELD);
+						dev->_dma_virt_start_addr_ch2,
+						TOP_OFFSET, line_size_in_bytes,
+						0x0, singlefield_lines,
+						FIFO_DISABLE, ODD_FIELD);
 
 			       /* Jump to Even Risc program of 1st Frame */
 				*(rp++) = cpu_to_le32(RISC_JUMP);
