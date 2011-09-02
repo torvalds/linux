@@ -195,6 +195,14 @@ enum sas_open_rej_reason {
 	SAS_OREJ_RSVD_RETRY = 18,
 };
 
+enum sas_gpio_reg_type {
+	SAS_GPIO_REG_CFG   = 0,
+	SAS_GPIO_REG_RX    = 1,
+	SAS_GPIO_REG_RX_GP = 2,
+	SAS_GPIO_REG_TX    = 3,
+	SAS_GPIO_REG_TX_GP = 4,
+};
+
 struct  dev_to_host_fis {
 	u8     fis_type;	  /* 0x34 */
 	u8     flags;

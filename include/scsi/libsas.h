@@ -405,6 +405,13 @@ static inline void sas_phy_disconnected(struct asd_sas_phy *phy)
 	phy->linkrate = SAS_LINK_RATE_UNKNOWN;
 }
 
+static inline unsigned int to_sas_gpio_od(int device, int bit)
+{
+	return 3 * device + bit;
+}
+
+int try_test_sas_gpio_gp_bit(unsigned int od, u8 *data, u8 index, u8 count);
+
 /* ---------- Tasks ---------- */
 /*
       service_response |  SAS_TASK_COMPLETE  |  SAS_TASK_UNDELIVERED |
@@ -592,6 +599,10 @@ struct sas_domain_function_template {
 
 	/* Phy management */
 	int (*lldd_control_phy)(struct asd_sas_phy *, enum phy_func, void *);
+
+	/* GPIO support */
+	int (*lldd_write_gpio)(struct sas_ha_struct *, u8 reg_type,
+			       u8 reg_index, u8 reg_count, u8 *write_data);
 };
 
 extern int sas_register_ha(struct sas_ha_struct *);
