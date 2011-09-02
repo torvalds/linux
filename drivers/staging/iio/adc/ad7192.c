@@ -146,7 +146,7 @@ struct ad7192_state {
 	u32				mode;
 	u32				conf;
 	u32				scale_avail[8][2];
-	u32				available_scan_masks[9];
+	long				available_scan_masks[9];
 	u8				gpocon;
 	u8				devid;
 	/*
@@ -460,7 +460,7 @@ static int ad7192_scan_from_ring(struct ad7192_state *st, unsigned ch, int *val)
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
 
-	if (!(ring->scan_mask & (1 << ch)))
+	if (!(test_bit(ch, ring->scan_mask)))
 		return  -EBUSY;
 
 	ret = ring->access->read_last(ring, (u8 *) &dat64);
@@ -482,7 +482,7 @@ static int ad7192_ring_preenable(struct iio_dev *indio_dev)
 	if (!ring->scan_count)
 		return -EINVAL;
 
-	channel = __ffs(ring->scan_mask);
+	channel = find_first_bit(ring->scan_mask, indio_dev->masklength);
 
 	d_size = ring->scan_count *
 		 indio_dev->channels[0].scan_type.storagebits / 8;

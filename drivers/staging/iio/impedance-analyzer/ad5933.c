@@ -640,7 +640,7 @@ static void ad5933_work(struct work_struct *work)
 
 	if (status & AD5933_STAT_DATA_VALID) {
 		ad5933_i2c_read(st->client,
-				(ring->scan_mask & (1 << 0)) ?
+				test_bit(1, ring->scan_mask) ?
 				AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
 				ring->scan_count * 2, (u8 *)buf);
 

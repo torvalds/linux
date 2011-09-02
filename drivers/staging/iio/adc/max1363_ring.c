@@ -21,12 +21,14 @@
 
 #include "max1363.h"
 
-int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
+int max1363_single_channel_from_ring(const long *mask, struct max1363_state *st)
 {
 	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
-	int count = 0, ret;
+	int count = 0, ret, index;
 	u8 *ring_data;
-	if (!(st->current_mode->modemask & mask)) {
+	index = find_first_bit(mask, MAX1363_MAX_CHANNELS);
+
+	if (!(test_bit(index, st->current_mode->modemask))) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -41,12 +43,8 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 	if (ret)
 		goto error_free_ring_data;
 	/* Need a count of channels prior to this one */
-	mask >>= 1;
-	while (mask) {
-		if (mask & st->current_mode->modemask)
-			count++;
-		mask >>= 1;
-	}
+
+	count = bitmap_weight(mask, index - 1);
 	if (st->chip_info->bits != 8)
 		ret = ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
 			+ (int)(ring_data[count*2 + 1]);
@@ -85,7 +83,8 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 
 	max1363_set_scan_mode(st);
 
-	numvals = hweight_long(st->current_mode->modemask);
+	numvals = bitmap_weight(st->current_mode->modemask,
+				indio_dev->masklength);
 	if (ring->access->set_bytes_per_datum) {
 		if (ring->scan_timestamp)
 			d_size += sizeof(s64);
@@ -110,7 +109,8 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	__u8 *rxbuf;
 	int b_sent;
 	size_t d_size;
-	unsigned long numvals = hweight_long(st->current_mode->modemask);
+	unsigned long numvals = bitmap_weight(st->current_mode->modemask,
+					      MAX1363_MAX_CHANNELS);
 
 	/* Ensure the timestamp is 8 byte aligned */
 	if (st->chip_info->bits != 8)

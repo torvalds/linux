@@ -51,7 +51,8 @@ struct ad7793_state {
 	u16				mode;
 	u16				conf;
 	u32				scale_avail[8][2];
-	u32				available_scan_masks[7];
+	/* Note this uses fact that 8 the mask always fits in a long */
+	unsigned long			available_scan_masks[7];
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -321,7 +322,7 @@ static int ad7793_scan_from_ring(struct ad7793_state *st, unsigned ch, int *val)
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
 
-	if (!(ring->scan_mask & (1 << ch)))
+	if (!(test_bit(ch, ring->scan_mask)))
 		return  -EBUSY;
 
 	ret = ring->access->read_last(ring, (u8 *) &dat64);
@@ -343,7 +344,8 @@ static int ad7793_ring_preenable(struct iio_dev *indio_dev)
 	if (!ring->scan_count)
 		return -EINVAL;
 
-	channel = __ffs(ring->scan_mask);
+	channel = find_first_bit(ring->scan_mask,
+				 indio_dev->masklength);
 
 	d_size = ring->scan_count *
 		 indio_dev->channels[0].scan_type.storagebits / 8;
@@ -875,10 +877,12 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	indio_dev->num_channels = 7;
 	indio_dev->info = &ad7793_info;
 
-	for (i = 0; i < indio_dev->num_channels; i++)
-		st->available_scan_masks[i] = (1 << i) | (1 <<
-			indio_dev->channels[indio_dev->num_channels - 1].
-			scan_index);
+	for (i = 0; i < indio_dev->num_channels; i++) {
+		set_bit(i, &st->available_scan_masks[i]);
+		set_bit(indio_dev->
+			channels[indio_dev->num_channels - 1].scan_index,
+			&st->available_scan_masks[i]);
+	}
 
 	init_waitqueue_head(&st->wq_data_avail);
 

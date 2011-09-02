@@ -767,7 +767,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	for (i = 0; i < AD7758_NUM_WAVESRC; i++)
-		st->available_scan_masks[i] = 1 << i;
+		set_bit(i, &st->available_scan_masks[i]);
 
 	indio_dev->available_scan_masks = st->available_scan_masks;
 

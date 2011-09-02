@@ -61,8 +61,9 @@ ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
 	ret = ring->access->read_last(ring, (u8 *)data);
 	if (ret)
 		goto error_free_data;
-	*val = data[bitmap_weight(&ring->scan_mask, index)];
+	*val = data[bitmap_weight(ring->scan_mask, index)];
 error_free_data:
+
 	kfree(data);
 
 	return ret;
@@ -99,7 +100,7 @@ static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 	mutex_lock(&st->buf_lock);
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array)/4; i++)
-		if (ring->scan_mask & (1 << i)) {
+		if (test_bit(i, ring->scan_mask)) {
 			/* lower byte */
 			xfers[j].tx_buf = st->tx + 2*j;
 			st->tx[2*j] = read_all_tx_array[i*4];

@@ -132,9 +132,7 @@ static ssize_t iio_scan_el_show(struct device *dev,
 
 static int iio_scan_mask_clear(struct iio_ring_buffer *ring, int bit)
 {
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-	ring->scan_mask &= ~(1 << bit);
+	clear_bit(bit, ring->scan_mask);
 	ring->scan_count--;
 	return 0;
 }
@@ -323,10 +321,26 @@ int iio_ring_buffer_register(struct iio_dev *indio_dev,
 	if (channels) {
 		/* new magic */
 		for (i = 0; i < num_channels; i++) {
+			/* Establish necessary mask length */
+			if (channels[i].scan_index >
+			    (int)indio_dev->masklength - 1)
+				indio_dev->masklength
+					= indio_dev->channels[i].scan_index + 1;
+
 			ret = iio_ring_add_channel_sysfs(indio_dev,
 							 &channels[i]);
 			if (ret < 0)
 				goto error_cleanup_group;
+		}
+		if (indio_dev->masklength && ring->scan_mask == NULL) {
+			ring->scan_mask
+				= kzalloc(sizeof(*ring->scan_mask)*
+					  BITS_TO_LONGS(indio_dev->masklength),
+					  GFP_KERNEL);
+			if (ring->scan_mask == NULL) {
+				ret = -ENOMEM;
+				goto error_cleanup_group;
+			}
 		}
 	}
 
@@ -343,6 +357,7 @@ EXPORT_SYMBOL(iio_ring_buffer_register);
 
 void iio_ring_buffer_unregister(struct iio_dev *indio_dev)
 {
+	kfree(indio_dev->ring->scan_mask);
 	if (indio_dev->ring->attrs)
 		sysfs_remove_group(&indio_dev->dev.kobj,
 				   indio_dev->ring->attrs);
@@ -539,3 +554,85 @@ int iio_sw_ring_preenable(struct iio_dev *indio_dev)
 	return 0;
 }
 EXPORT_SYMBOL(iio_sw_ring_preenable);
+
+
+/* note NULL used as error indicator as it doesn't make sense. */
+static unsigned long *iio_scan_mask_match(unsigned long *av_masks,
+					  unsigned int masklength,
+					  unsigned long *mask)
+{
+	if (bitmap_empty(mask, masklength))
+		return NULL;
+	while (*av_masks) {
+		if (bitmap_subset(mask, av_masks, masklength))
+			return av_masks;
+		av_masks += BITS_TO_LONGS(masklength);
+	}
+	return NULL;
+}
+
+/**
+ * iio_scan_mask_set() - set particular bit in the scan mask
+ * @ring: the ring buffer whose scan mask we are interested in
+ * @bit: the bit to be set.
+ **/
+int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit)
+{
+	struct iio_dev *dev_info = ring->indio_dev;
+	unsigned long *mask;
+	unsigned long *trialmask;
+
+	trialmask = kmalloc(sizeof(*trialmask)*
+			    BITS_TO_LONGS(dev_info->masklength),
+			    GFP_KERNEL);
+
+	if (trialmask == NULL)
+		return -ENOMEM;
+	if (!dev_info->masklength) {
+		WARN_ON("trying to set scan mask prior to registering ring\n");
+		kfree(trialmask);
+		return -EINVAL;
+	}
+	bitmap_copy(trialmask, ring->scan_mask, dev_info->masklength);
+	set_bit(bit, trialmask);
+
+	if (dev_info->available_scan_masks) {
+		mask = iio_scan_mask_match(dev_info->available_scan_masks,
+					   dev_info->masklength,
+					   trialmask);
+		if (!mask) {
+			kfree(trialmask);
+			return -EINVAL;
+		}
+	}
+	bitmap_copy(ring->scan_mask, trialmask, dev_info->masklength);
+	ring->scan_count++;
+
+	kfree(trialmask);
+
+	return 0;
+};
+EXPORT_SYMBOL_GPL(iio_scan_mask_set);
+
+int iio_scan_mask_query(struct iio_ring_buffer *ring, int bit)
+{
+	struct iio_dev *dev_info = ring->indio_dev;
+	long *mask;
+
+	if (bit > dev_info->masklength)
+		return -EINVAL;
+
+	if (!ring->scan_mask)
+		return 0;
+	if (dev_info->available_scan_masks)
+		mask = iio_scan_mask_match(dev_info->available_scan_masks,
+					   dev_info->masklength,
+					   ring->scan_mask);
+	else
+		mask = ring->scan_mask;
+	if (!mask)
+		return 0;
+
+	return test_bit(bit, mask);
+};
+EXPORT_SYMBOL_GPL(iio_scan_mask_query);

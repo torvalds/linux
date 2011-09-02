@@ -85,7 +85,7 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array); i++)
-		if (indio_dev->ring->scan_mask & (1 << i)) {
+		if (test_bit(i, indio_dev->ring->scan_mask)) {
 			xfers[j].tx_buf = &read_all_tx_array[i];
 			xfers[j].bits_per_word = 16;
 			xfers[j].len = 2;
@@ -117,7 +117,8 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	int i = 0, j, ret = 0;
 	s16 *data;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);
-	unsigned long mask = ring->scan_mask;
+	/* Asumption that long is enough for maximum channels */
+	unsigned long mask = *ring->scan_mask;
 
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {

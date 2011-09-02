@@ -104,7 +104,7 @@ struct iio_ring_buffer {
 	int					bpe;
 	struct attribute_group			*scan_el_attrs;
 	int					scan_count;
-	unsigned long				scan_mask;
+	long					*scan_mask;
 	bool					scan_timestamp;
 	const struct iio_ring_access_funcs	*access;
 	const struct iio_ring_setup_ops		*setup_ops;
@@ -124,6 +124,8 @@ struct iio_ring_buffer {
 void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 			  struct iio_dev *dev_info);
 
+void iio_ring_buffer_deinit(struct iio_ring_buffer *ring);
+
 /**
  * __iio_update_ring_buffer() - update common elements of ring buffers
  * @ring:		ring buffer that is the event source
@@ -137,70 +139,14 @@ static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
 	ring->length = length;
 }
 
-/*
- * These are mainly provided to allow for a change of implementation if a device
- * has a large number of scan elements
- */
-#define IIO_MAX_SCAN_LENGTH 31
-
-/* note 0 used as error indicator as it doesn't make sense. */
-static inline u32 iio_scan_mask_match(u32 *av_masks, u32 mask)
-{
-	while (*av_masks) {
-		if (!(~*av_masks & mask))
-			return *av_masks;
-		av_masks++;
-	}
-	return 0;
-}
-
-static inline int iio_scan_mask_query(struct iio_ring_buffer *ring, int bit)
-{
-	struct iio_dev *dev_info = ring->indio_dev;
-	u32 mask;
-
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-
-	if (!ring->scan_mask)
-		return 0;
-
-	if (dev_info->available_scan_masks)
-		mask = iio_scan_mask_match(dev_info->available_scan_masks,
-					ring->scan_mask);
-	else
-		mask = ring->scan_mask;
-
-	if (!mask)
-		return -EINVAL;
-
-	return !!(mask & (1 << bit));
-};
+int iio_scan_mask_query(struct iio_ring_buffer *ring, int bit);
 
 /**
  * iio_scan_mask_set() - set particular bit in the scan mask
  * @ring: the ring buffer whose scan mask we are interested in
  * @bit: the bit to be set.
  **/
-static inline int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit)
-{
-	struct iio_dev *dev_info = ring->indio_dev;
-	u32 mask;
-	u32 trialmask = ring->scan_mask | (1 << bit);
-
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-	if (dev_info->available_scan_masks) {
-		mask = iio_scan_mask_match(dev_info->available_scan_masks,
-					trialmask);
-		if (!mask)
-			return -EINVAL;
-	}
-	ring->scan_mask = trialmask;
-	ring->scan_count++;
-
-	return 0;
-};
+int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit);
 
 #define to_iio_ring_buffer(d)				\
 	container_of(d, struct iio_ring_buffer, dev)

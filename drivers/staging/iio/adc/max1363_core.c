@@ -42,14 +42,14 @@
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1363_CONFIG_SCAN_SINGLE_1			\
 			| MAX1363_CONFIG_SE,				\
-			.modemask = _mask,				\
+			.modemask[0] = _mask,				\
 			}
 
 #define MAX1363_MODE_SCAN_TO_CHANNEL(_num, _mask) {			\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1363_CONFIG_SCAN_TO_CS			\
 			| MAX1363_CONFIG_SE,				\
-			.modemask = _mask,				\
+			.modemask[0] = _mask,				\
 			}
 
 /* note not available for max1363 hence naming */
@@ -57,14 +57,14 @@
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1236_SCAN_MID_TO_CHANNEL			\
 			| MAX1363_CONFIG_SE,				\
-			.modemask = _mask				\
+			.modemask[0] = _mask				\
 }
 
 #define MAX1363_MODE_DIFF_SINGLE(_nump, _numm, _mask) {			\
 		.conf = MAX1363_CHANNEL_SEL(_nump)			\
 			| MAX1363_CONFIG_SCAN_SINGLE_1			\
 			| MAX1363_CONFIG_DE,				\
-			.modemask = _mask				\
+			.modemask[0] = _mask				\
 			}
 
 /* Can't think how to automate naming so specify for now */
@@ -72,7 +72,7 @@
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1363_CONFIG_SCAN_TO_CS			\
 			| MAX1363_CONFIG_DE,				\
-			.modemask = _mask				\
+			.modemask[0] = _mask				\
 			}
 
 /* note only available for max1363 hence naming */
@@ -80,7 +80,7 @@
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1236_SCAN_MID_TO_CHANNEL			\
 			| MAX1363_CONFIG_SE,				\
-			.modemask = _mask				\
+			.modemask[0] = _mask				\
 }
 
 static const struct max1363_mode max1363_mode_table[] = {
@@ -147,13 +147,15 @@ static const struct max1363_mode max1363_mode_table[] = {
 };
 
 const struct max1363_mode
-*max1363_match_mode(u32 mask, const struct max1363_chip_info *ci)
+*max1363_match_mode(unsigned long *mask, const struct max1363_chip_info *ci)
 {
 	int i;
 	if (mask)
 		for (i = 0; i < ci->num_modes; i++)
-			if (!((~max1363_mode_table[ci->mode_list[i]].modemask) &
-			      mask))
+			if (bitmap_subset(mask,
+					  max1363_mode_table[ci->mode_list[i]].
+					  modemask,
+					  MAX1363_MAX_CHANNELS))
 				return &max1363_mode_table[ci->mode_list[i]];
 	return NULL;
 }
@@ -187,7 +189,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 	int ret = 0;
 	s32 data;
 	char rxbuf[2];
-	long mask;
+	const unsigned long *mask;
 	struct max1363_state *st = iio_priv(indio_dev);
 	struct i2c_client *client = st->client;
 
@@ -644,7 +646,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	int ret, i = 3, j;
 	unsigned long numelements;
 	int len;
-	long modemask;
+	const long *modemask;
 
 	if (!enabled) {
 		/* transition to ring capture is not currently supported */
@@ -672,7 +674,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 		st->configbyte |= max1363_mode_table[d1m0to3m2].conf;
 		modemask = max1363_mode_table[d1m0to3m2].modemask;
 	}
-	numelements = hweight_long(modemask);
+	numelements = bitmap_weight(modemask, MAX1363_MAX_CHANNELS);
 	len = 3 * numelements + 3;
 	tx_buf = kmalloc(len, GFP_KERNEL);
 	if (!tx_buf) {
@@ -688,7 +690,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	 * setup to match what we need.
 	 */
 	for (j = 0; j < 8; j++)
-		if (modemask & (1 << j)) {
+		if (test_bit(j, modemask)) {
 			/* Establish the mode is in the scan */
 			if (st->mask_low & (1 << j)) {
 				tx_buf[i] = (st->thresh_low[j] >> 4) & 0xFF;
@@ -1281,7 +1283,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	st->client = client;
 
 	indio_dev->available_scan_masks
-		= kzalloc(sizeof(*indio_dev->available_scan_masks)*
+		= kzalloc(BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*
 			  (st->chip_info->num_modes + 1), GFP_KERNEL);
 	if (!indio_dev->available_scan_masks) {
 		ret = -ENOMEM;
@@ -1289,9 +1291,10 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	}
 
 	for (i = 0; i < st->chip_info->num_modes; i++)
-		indio_dev->available_scan_masks[i] =
-			max1363_mode_table[st->chip_info->mode_list[i]]
-			.modemask;
+		bitmap_copy(indio_dev->available_scan_masks +
+			    BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*i,
+			    max1363_mode_table[st->chip_info->mode_list[i]]
+			    .modemask, MAX1363_MAX_CHANNELS);
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;

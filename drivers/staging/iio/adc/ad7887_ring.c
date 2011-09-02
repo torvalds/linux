@@ -19,13 +19,13 @@
 
 #include "ad7887.h"
 
-int ad7887_scan_from_ring(struct ad7887_state *st, long mask)
+int ad7887_scan_from_ring(struct ad7887_state *st, int channum)
 {
 	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
 	int count = 0, ret;
 	u16 *ring_data;
 
-	if (!(ring->scan_mask & mask)) {
+	if (!(test_bit(channum, ring->scan_mask))) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -41,7 +41,8 @@ int ad7887_scan_from_ring(struct ad7887_state *st, long mask)
 		goto error_free_ring_data;
 
 	/* for single channel scan the result is stored with zero offset */
-	if ((ring->scan_mask == ((1 << 1) | (1 << 0))) && (mask == (1 << 1)))
+	if ((test_bit(1, ring->scan_mask) || test_bit(0, ring->scan_mask)) &&
+	    (channum == 1))
 		count = 1;
 
 	ret = be16_to_cpu(ring_data[count]);
@@ -78,7 +79,8 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
 							    st->d_size);
 
-	switch (ring->scan_mask) {
+	/* We know this is a single long so can 'cheat' */
+	switch (*ring->scan_mask) {
 	case (1 << 0):
 		st->ring_msg = &st->msg[AD7887_CH0];
 		break;

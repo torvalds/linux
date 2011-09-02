@@ -98,7 +98,7 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 	if (!ring->scan_count)
 		return -EINVAL;
 
-	channel = __ffs(ring->scan_mask);
+	channel = find_first_bit(ring->scan_mask, indio_dev->masklength);
 
 	d_size = st->ade7758_ring_channels[channel].scan_type.storagebits / 8;
 

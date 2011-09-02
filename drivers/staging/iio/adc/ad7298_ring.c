@@ -24,7 +24,7 @@ int ad7298_scan_from_ring(struct iio_dev *dev_info, long ch)
 	int ret;
 	u16 *ring_data;
 
-	if (!(ring->scan_mask & (1 << ch))) {
+	if (!(test_bit(ch, ring->scan_mask))) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -79,7 +79,7 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 	command = AD7298_WRITE | st->ext_ref;
 
 	for (i = 0, m = AD7298_CH(0); i < AD7298_MAX_CHAN; i++, m >>= 1)
-		if (ring->scan_mask & (1 << i))
+		if (test_bit(i, ring->scan_mask))
 			command |= m;
 
 	st->tx_buf[0] = cpu_to_be16(command);

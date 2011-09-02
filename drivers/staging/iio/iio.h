@@ -272,6 +272,8 @@ struct iio_info {
  * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
+ * @masklength:		[INTERN] the length of the mask established from
+ *			channels
  * @trig:		[INTERN] current device trigger (ring buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @channels:		[DRIVER] channel specification structure table
@@ -294,7 +296,8 @@ struct iio_dev {
 	struct iio_ring_buffer		*ring;
 	struct mutex			mlock;
 
-	u32				*available_scan_masks;
+	unsigned long			*available_scan_masks;
+	unsigned			masklength;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
 
