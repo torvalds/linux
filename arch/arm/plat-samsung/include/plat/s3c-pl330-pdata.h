@@ -12,7 +12,7 @@
 #ifndef __S3C_PL330_PDATA_H
 #define __S3C_PL330_PDATA_H
 
-#include <plat/s3c-dma-pl330.h>
+#include <plat/dma-pl330.h>
 
 /*
  * Every PL330 DMAC has max 32 peripheral interfaces,

@@ -8,8 +8,8 @@
  * (at your option) any later version.
  */
 
-#ifndef	__S3C_DMA_PL330_H_
-#define	__S3C_DMA_PL330_H_
+#ifndef __DMA_PL330_H_
+#define __DMA_PL330_H_ __FILE__
 
 #define S3C2410_DMAF_AUTOSTART		(1 << 0)
 #define S3C2410_DMAF_CIRCULAR		(1 << 1)
@@ -20,7 +20,7 @@
  * For the sake of consistency across client drivers,
  * We keep the channel names unchanged and only add
  * missing peripherals are added.
- * Order is not important since S3C PL330 API driver
+ * Order is not important since DMA PL330 API driver
  * use these just as IDs.
  */
 enum dma_ch {
@@ -95,4 +95,4 @@ static inline bool s3c_dma_has_circular(void)
 
 #include <plat/dma.h>
 
-#endif	/* __S3C_DMA_PL330_H_ */
+#endif	/* __DMA_PL330_H_ */
