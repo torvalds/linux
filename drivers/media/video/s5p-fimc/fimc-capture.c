@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
@@ -271,6 +272,16 @@ static int stop_streaming(struct vb2_queue *q)
 	return fimc_stop_capture(fimc);
 }
 
+int fimc_capture_suspend(struct fimc_dev *fimc)
+{
+	return -EBUSY;
+}
+
+int fimc_capture_resume(struct fimc_dev *fimc)
+{
+	return 0;
+}
+
 static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
 {
 	if (!fr || plane >= fr->fmt->memplanes)
@@ -396,9 +407,14 @@ static int fimc_capture_open(struct file *file)
 	if (fimc_m2m_active(fimc))
 		return -EBUSY;
 
+	ret = pm_runtime_get_sync(&fimc->pdev->dev);
+	if (ret)
+		return ret;
+
 	if (++fimc->vid_cap.refcnt == 1) {
 		ret = fimc_isp_subdev_init(fimc, 0);
 		if (ret) {
+			pm_runtime_put_sync(&fimc->pdev->dev);
 			fimc->vid_cap.refcnt--;
 			return -EIO;
 		}
@@ -425,6 +441,8 @@ static int fimc_capture_close(struct file *file)
 		clk_disable(fimc->clock[CLK_CAM]);
 		fimc_subdev_unregister(fimc);
 	}
+
+	pm_runtime_put(&fimc->pdev->dev);
 
 	return 0;
 }

@@ -48,22 +48,26 @@ enum {
 };
 
 enum fimc_dev_flags {
-	/* for m2m node */
-	ST_IDLE,
-	ST_OUTDMA_RUN,
+	ST_LPM,
+	/* m2m node */
+	ST_M2M_RUN,
 	ST_M2M_PEND,
-	/* for capture node */
+	ST_M2M_SUSPENDING,
+	ST_M2M_SUSPENDED,
+	/* capture node */
 	ST_CAPT_PEND,
 	ST_CAPT_RUN,
 	ST_CAPT_STREAM,
 	ST_CAPT_SHUT,
+	ST_CAPT_BUSY,
 };
 
-#define fimc_m2m_active(dev) test_bit(ST_OUTDMA_RUN, &(dev)->state)
+#define fimc_m2m_active(dev) test_bit(ST_M2M_RUN, &(dev)->state)
 #define fimc_m2m_pending(dev) test_bit(ST_M2M_PEND, &(dev)->state)
 
 #define fimc_capture_running(dev) test_bit(ST_CAPT_RUN, &(dev)->state)
 #define fimc_capture_pending(dev) test_bit(ST_CAPT_PEND, &(dev)->state)
+#define fimc_capture_busy(dev) test_bit(ST_CAPT_BUSY, &(dev)->state)
 
 enum fimc_datapath {
 	FIMC_CAMERA,
@@ -644,6 +648,8 @@ void fimc_unregister_capture_device(struct fimc_dev *fimc);
 int fimc_sensor_sd_init(struct fimc_dev *fimc, int index);
 int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
 			     struct fimc_vid_buffer *fimc_vb);
+int fimc_capture_suspend(struct fimc_dev *fimc);
+int fimc_capture_resume(struct fimc_dev *fimc);
 
 /* Locking: the caller holds fimc->slock */
 static inline void fimc_activate_capture(struct fimc_ctx *ctx)
