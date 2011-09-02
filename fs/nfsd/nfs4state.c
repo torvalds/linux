@@ -2573,7 +2573,6 @@ static __be32
 nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_stateid **stpp)
 {
 	struct nfs4_stateid *local;
-	__be32 status = nfserr_share_denied;
 	struct nfs4_stateowner *sop = open->op_stateowner;
 
 	list_for_each_entry(local, &fp->fi_stateids, st_perfile) {
@@ -2585,11 +2584,9 @@ nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_state
 			*stpp = local;
 		/* check for conflicting share reservations */
 		if (!test_share(local, open))
-			goto out;
+			return nfserr_share_denied;
 	}
-	status = 0;
-out:
-	return status;
+	return nfs_ok;
 }
 
 static inline struct nfs4_stateid *
