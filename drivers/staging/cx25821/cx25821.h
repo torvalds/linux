@@ -179,15 +179,17 @@ struct cx25821_input {
 	u32 gpio0, gpio1, gpio2, gpio3;
 };
 
-typedef enum {
+enum port {
 	CX25821_UNDEFINED = 0,
 	CX25821_RAW,
 	CX25821_264
-} port_t;
+};
 
 struct cx25821_board {
 	char *name;
-	port_t porta, portb, portc;
+	enum port porta;
+	enum port portb;
+	enum port portc;
 	unsigned int tuner_type;
 	unsigned int radio_type;
 	unsigned char tuner_addr;
