@@ -474,18 +474,6 @@ static inline bool efx_link_state_equal(const struct efx_link_state *left,
 }
 
 /**
- * struct efx_mac_operations - Efx MAC operations table
- * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
- * @update_stats: Update statistics
- * @check_fault: Check fault state. True if fault present.
- */
-struct efx_mac_operations {
-	int (*reconfigure) (struct efx_nic *efx);
-	void (*update_stats) (struct efx_nic *efx);
-	bool (*check_fault)(struct efx_nic *efx);
-};
-
-/**
  * struct efx_phy_operations - Efx PHY operations table
  * @probe: Probe PHY and initialise efx->mdio.mode_support, efx->mdio.mmds,
  *	efx->loopback_modes.
@@ -676,7 +664,6 @@ struct efx_filter_state;
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @stats_buffer: DMA buffer for statistics
- * @mac_op: MAC interface
  * @phy_type: PHY type
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
@@ -767,8 +754,6 @@ struct efx_nic {
 
 	struct efx_buffer stats_buffer;
 
-	const struct efx_mac_operations *mac_op;
-
 	unsigned int phy_type;
 	const struct efx_phy_operations *phy_op;
 	void *phy_data;
@@ -843,12 +828,13 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @push_irq_moderation: Apply interrupt moderation value
  * @push_multicast_hash: Apply multicast hash table
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
+ * @reconfigure_mac: Reconfigure MAC only. Serialised by the mac_lock
+ * @check_mac_fault: Check MAC fault state. True if fault present.
  * @get_wol: Get WoL configuration from driver state
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
  * @test_registers: Test read/write functionality of control registers
  * @test_nvram: Test validity of NVRAM contents
- * @default_mac_ops: efx_mac_operations to set at startup
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
@@ -888,12 +874,13 @@ struct efx_nic_type {
 	void (*push_irq_moderation)(struct efx_channel *channel);
 	void (*push_multicast_hash)(struct efx_nic *efx);
 	int (*reconfigure_port)(struct efx_nic *efx);
+	int (*reconfigure_mac)(struct efx_nic *efx);
+	bool (*check_mac_fault)(struct efx_nic *efx);
 	void (*get_wol)(struct efx_nic *efx, struct ethtool_wolinfo *wol);
 	int (*set_wol)(struct efx_nic *efx, u32 type);
 	void (*resume_wol)(struct efx_nic *efx);
 	int (*test_registers)(struct efx_nic *efx);
 	int (*test_nvram)(struct efx_nic *efx);
-	const struct efx_mac_operations *default_mac_ops;
 
 	int revision;
 	unsigned int mem_map_size;

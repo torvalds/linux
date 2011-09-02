@@ -19,7 +19,6 @@
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
-#include "mac.h"
 #include "spi.h"
 #include "nic.h"
 #include "regs.h"
@@ -613,7 +612,7 @@ static void falcon_stats_complete(struct efx_nic *efx)
 	nic_data->stats_pending = false;
 	if (*nic_data->stats_dma_done == FALCON_STATS_DONE) {
 		rmb(); /* read the done flag before the stats */
-		efx->mac_op->update_stats(efx);
+		falcon_update_stats_xmac(efx);
 	} else {
 		netif_err(efx, hw, efx->net_dev,
 			  "timed out waiting for statistics\n");
@@ -670,7 +669,7 @@ static int falcon_reconfigure_port(struct efx_nic *efx)
 	falcon_reset_macs(efx);
 
 	efx->phy_op->reconfigure(efx);
-	rc = efx->mac_op->reconfigure(efx);
+	rc = falcon_reconfigure_xmac(efx);
 	BUG_ON(rc);
 
 	falcon_start_nic_stats(efx);
@@ -1218,7 +1217,7 @@ static void falcon_monitor(struct efx_nic *efx)
 		falcon_deconfigure_mac_wrapper(efx);
 
 		falcon_reset_macs(efx);
-		rc = efx->mac_op->reconfigure(efx);
+		rc = falcon_reconfigure_xmac(efx);
 		BUG_ON(rc);
 
 		falcon_start_nic_stats(efx);
@@ -1676,7 +1675,7 @@ static void falcon_update_nic_stats(struct efx_nic *efx)
 	    *nic_data->stats_dma_done == FALCON_STATS_DONE) {
 		nic_data->stats_pending = false;
 		rmb(); /* read the done flag before the stats */
-		efx->mac_op->update_stats(efx);
+		falcon_update_stats_xmac(efx);
 	}
 }
 
@@ -1769,11 +1768,12 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
+	.reconfigure_mac = falcon_reconfigure_xmac,
+	.check_mac_fault = falcon_xmac_check_fault,
 	.get_wol = falcon_get_wol,
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
 	.test_nvram = falcon_test_nvram,
-	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_A1,
 	.mem_map_size = 0x20000,
@@ -1811,12 +1811,13 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
+	.reconfigure_mac = falcon_reconfigure_xmac,
+	.check_mac_fault = falcon_xmac_check_fault,
 	.get_wol = falcon_get_wol,
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
 	.test_registers = falcon_b0_test_registers,
 	.test_nvram = falcon_test_nvram,
-	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,
 	/* Map everything up to and including the RSS indirection

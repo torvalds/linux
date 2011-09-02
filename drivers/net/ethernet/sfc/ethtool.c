@@ -750,7 +750,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 			/* Recover by resetting the EM block */
 			falcon_stop_nic_stats(efx);
 			falcon_drain_tx_fifo(efx);
-			efx->mac_op->reconfigure(efx);
+			falcon_reconfigure_xmac(efx);
 			falcon_start_nic_stats(efx);
 		} else {
 			/* Schedule a reset to recover */
@@ -775,7 +775,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
 	 * if the user just changed the advertised capabilities, but there's no
 	 * harm doing this twice */
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 out:
 	mutex_unlock(&efx->mac_lock);

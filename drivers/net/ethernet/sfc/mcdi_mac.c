@@ -9,7 +9,6 @@
 
 #include "net_driver.h"
 #include "efx.h"
-#include "mac.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 
@@ -115,7 +114,7 @@ fail:
 	return rc;
 }
 
-static int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
+int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
 {
 	int rc;
 
@@ -130,16 +129,9 @@ static int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
 }
 
 
-static bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
+bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 {
 	u32 faults;
 	int rc = efx_mcdi_get_mac_faults(efx, &faults);
 	return (rc != 0) || (faults != 0);
 }
-
-
-const struct efx_mac_operations efx_mcdi_mac_operations = {
-	.reconfigure	= efx_mcdi_mac_reconfigure,
-	.update_stats	= efx_port_dummy_op_void,
-	.check_fault	= efx_mcdi_mac_check_fault,
-};

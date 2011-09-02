@@ -569,7 +569,7 @@ static int efx_wait_for_link(struct efx_nic *efx)
 		mutex_lock(&efx->mac_lock);
 		link_up = link_state->up;
 		if (link_up)
-			link_up = !efx->mac_op->check_fault(efx);
+			link_up = !efx->type->check_mac_fault(efx);
 		mutex_unlock(&efx->mac_lock);
 
 		if (link_up) {

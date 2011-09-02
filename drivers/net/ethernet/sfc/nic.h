@@ -189,6 +189,9 @@ extern bool efx_nic_event_present(struct efx_channel *channel);
 /* MAC/PHY */
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
+extern bool falcon_xmac_check_fault(struct efx_nic *efx);
+extern int falcon_reconfigure_xmac(struct efx_nic *efx);
+extern void falcon_update_stats_xmac(struct efx_nic *efx);
 
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);

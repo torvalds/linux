@@ -18,7 +18,6 @@
 #include "bitfield.h"
 #include "efx.h"
 #include "nic.h"
-#include "mac.h"
 #include "spi.h"
 #include "regs.h"
 #include "io.h"
@@ -631,13 +630,14 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = siena_push_irq_moderation,
 	.push_multicast_hash = siena_push_multicast_hash,
+	.reconfigure_mac = efx_mcdi_mac_reconfigure,
+	.check_mac_fault = efx_mcdi_mac_check_fault,
 	.reconfigure_port = efx_mcdi_phy_reconfigure,
 	.get_wol = siena_get_wol,
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,
 	.test_registers = siena_test_registers,
 	.test_nvram = efx_mcdi_nvram_test_all,
-	.default_mac_ops = &efx_mcdi_mac_operations,
 
 	.revision = EFX_REV_SIENA_A0,
 	.mem_map_size = (FR_CZ_MC_TREG_SMEM +

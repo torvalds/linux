@@ -900,7 +900,7 @@ static void efx_mac_work(struct work_struct *data)
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_enabled) {
 		efx->type->push_multicast_hash(efx);
-		efx->mac_op->reconfigure(efx);
+		efx->type->reconfigure_mac(efx);
 	}
 	mutex_unlock(&efx->mac_lock);
 }
@@ -941,7 +941,7 @@ static int efx_init_port(struct efx_nic *efx)
 
 	/* Reconfigure the MAC before creating dma queues (required for
 	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
@@ -969,7 +969,7 @@ static void efx_start_port(struct efx_nic *efx)
 	/* efx_mac_work() might have been scheduled after efx_stop_port(),
 	 * and then cancelled by efx_flush_all() */
 	efx->type->push_multicast_hash(efx);
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 	mutex_unlock(&efx->mac_lock);
 }
@@ -1807,7 +1807,7 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	/* Reconfigure the MAC before enabling the dma queues so that
 	 * the RX buffers don't overflow */
 	net_dev->mtu = new_mtu;
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_init_channels(efx);
@@ -1835,7 +1835,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	return 0;
@@ -1948,10 +1948,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &efx_netdev_ops;
 	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
-
-	/* Clear MAC statistics */
-	efx->mac_op->update_stats(efx);
-	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
 
 	rtnl_lock();
 
@@ -2069,7 +2065,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 				  "could not restore PHY settings\n");
 	}
 
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 	efx_init_channels(efx);
 	efx_restore_filters(efx);
@@ -2274,7 +2270,6 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 	efx->net_dev = net_dev;
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
-	efx->mac_op = type->default_mac_ops;
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
