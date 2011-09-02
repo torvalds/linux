@@ -18,6 +18,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl330.h>
 #include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
 
 #define NR_DEFAULT_DESC	16
 
@@ -69,6 +70,10 @@ struct dma_pl330_chan {
 	 * NULL if the channel is available to be acquired.
 	 */
 	void *pl330_chid;
+
+	/* For D-to-M and M-to-D channels */
+	int burst_sz; /* the peripheral fifo width */
+	dma_addr_t fifo_addr;
 };
 
 struct dma_pl330_dmac {
@@ -456,7 +461,7 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 
 	if (peri) {
 		desc->req.rqtype = peri->rqtype;
-		desc->req.peri = peri->peri_id;
+		desc->req.peri = pch->chan.chan_id;
 	} else {
 		desc->req.rqtype = MEMTOMEM;
 		desc->req.peri = 0;
@@ -582,7 +587,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct dma_pl330_peri *peri = chan->private;
 	struct scatterlist *sg;
 	unsigned long flags;
-	int i, burst_size;
+	int i;
 	dma_addr_t addr;
 
 	if (unlikely(!pch || !sgl || !sg_len || !peri))
@@ -598,8 +603,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	addr = peri->fifo_addr;
-	burst_size = peri->burst_sz;
+	addr = pch->fifo_addr;
 
 	first = NULL;
 
@@ -647,7 +651,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				sg_dma_address(sg), addr, sg_dma_len(sg));
 		}
 
-		desc->rqcfg.brst_size = burst_size;
+		desc->rqcfg.brst_size = pch->burst_sz;
 		desc->rqcfg.brst_len = 1;
 	}
 
