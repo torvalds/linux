@@ -17,6 +17,7 @@
 #include "core.h"
 
 #include <linux/circ_buf.h>
+#include <linux/fs.h>
 
 #include "debug.h"
 #include "target.h"
@@ -32,6 +33,7 @@ struct ath6kl_fwlog_slot {
 #define ATH6KL_FWLOG_SIZE 32768
 #define ATH6KL_FWLOG_SLOT_SIZE (sizeof(struct ath6kl_fwlog_slot) + \
 				ATH6KL_FWLOG_PAYLOAD_SIZE)
+#define ATH6KL_FWLOG_VALID_MASK 0x1ffff
 
 int ath6kl_printk(const char *level, const char *fmt, ...)
 {
@@ -280,6 +282,46 @@ static const struct file_operations fops_fwlog = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath6kl_fwlog_mask_read(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[16];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%x\n", ar->debug.fwlog_mask);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath6kl_fwlog_mask_write(struct file *file,
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &ar->debug.fwlog_mask);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_wmi_config_debug_module_cmd(ar->wmi,
+						 ATH6KL_FWLOG_VALID_MASK,
+						 ar->debug.fwlog_mask);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_fwlog_mask = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_fwlog_mask_read,
+	.write = ath6kl_fwlog_mask_write,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
@@ -497,6 +539,12 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	spin_lock_init(&ar->debug.fwlog_lock);
 
+	/*
+	 * Actually we are lying here but don't know how to read the mask
+	 * value from the firmware.
+	 */
+	ar->debug.fwlog_mask = 0;
+
 	ar->debugfs_phy = debugfs_create_dir("ath6kl",
 					     ar->wdev->wiphy->debugfsdir);
 	if (!ar->debugfs_phy) {
@@ -513,6 +561,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("fwlog", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_fwlog);
+
+	debugfs_create_file("fwlog_mask", S_IRUSR | S_IWUSR, ar->debugfs_phy,
+			    ar, &fops_fwlog_mask);
 
 	return 0;
 }

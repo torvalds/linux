@@ -2083,6 +2083,11 @@ struct wmix_hb_challenge_resp_cmd {
 	__le32 source;
 } __packed;
 
+struct ath6kl_wmix_dbglog_cfg_module_cmd {
+	__le32 valid;
+	__le32 config;
+} __packed;
+
 /* End of Extended WMI (WMIX) */
 
 enum wmi_sync_flag {
@@ -2162,6 +2167,7 @@ int ath6kl_wmi_set_lpreamble_cmd(struct wmi *wmi, u8 status,
 				 u8 preamble_policy);
 
 int ath6kl_wmi_get_challenge_resp_cmd(struct wmi *wmi, u32 cookie, u32 source);
+int ath6kl_wmi_config_debug_module_cmd(struct wmi *wmi, u32 valid, u32 config);
 
 int ath6kl_wmi_get_stats_cmd(struct wmi *wmi);
 int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 key_index,
