@@ -377,9 +377,15 @@ static __devinit int max8925_init_charger(struct max8925_chip *chip,
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_TOPOFF, "charger-topoff");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_TMR_FAULT, "charger-timer-expire");
 
-	info->ac_online = 0;
 	info->usb_online = 0;
 	info->bat_online = 0;
+
+	/* check for power - can miss interrupt at boot time */
+	if (start_measure(info, MEASURE_VCHG) * 2000 > 500000)
+		info->ac_online = 1;
+	else
+		info->ac_online = 0;
+
 	ret = max8925_reg_read(info->gpm, MAX8925_CHG_STATUS);
 	if (ret >= 0) {
 		/*
