@@ -68,14 +68,10 @@ struct ad5791_platform_data {
 
 /**
  * struct ad5791_chip_info - chip specific information
- * @bits:		accuracy of the DAC in bits
- * @left_shift:		number of bits the datum must be shifted
  * @get_lin_comp:	function pointer to the device specific function
  */
 
 struct ad5791_chip_info {
-	u8			bits;
-	u8			left_shift;
 	int (*get_lin_comp)	(unsigned int span);
 };
 
