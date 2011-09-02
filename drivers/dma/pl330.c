@@ -262,10 +262,11 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned long arg)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
-	struct dma_pl330_desc *desc;
+	struct dma_pl330_desc *desc, *_dt;
 	unsigned long flags;
 	struct dma_pl330_dmac *pdmac = pch->dmac;
 	struct dma_slave_config *slave_config;
+	LIST_HEAD(list);
 
 	switch (cmd) {
 	case DMA_TERMINATE_ALL:
@@ -275,12 +276,14 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 		pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
 
 		/* Mark all desc done */
-		list_for_each_entry(desc, &pch->work_list, node)
+		list_for_each_entry_safe(desc, _dt, &pch->work_list , node) {
 			desc->status = DONE;
+			pch->completed = desc->txd.cookie;
+			list_move_tail(&desc->node, &list);
+		}
 
+		list_splice_tail_init(&list, &pdmac->desc_pool);
 		spin_unlock_irqrestore(&pch->lock, flags);
-
-		pl330_tasklet((unsigned long) pch);
 		break;
 	case DMA_SLAVE_CONFIG:
 		slave_config = (struct dma_slave_config *)arg;
