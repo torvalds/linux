@@ -418,7 +418,7 @@ static int ad7291_write_event_config(struct iio_dev *indio_dev,
 				~(1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code));
 		else if (state && (!(chip->c_mask &
 				(1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code)))))
-			chip->c_mask &=
+			chip->c_mask |=
 				(1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code));
 		else
 			break;
