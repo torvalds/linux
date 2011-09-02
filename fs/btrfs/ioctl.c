@@ -765,7 +765,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 	int ret = 1;
 
 	/*
-	 * make sure that once we start defragging and extent, we keep on
+	 * make sure that once we start defragging an extent, we keep on
 	 * defragging it
 	 */
 	if (start < *defrag_end)
@@ -810,7 +810,6 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 	 * extent will force at least part of that big extent to be defragged.
 	 */
 	if (ret) {
-		*last_len += len;
 		*defrag_end = extent_map_end(em);
 	} else {
 		*last_len = 0;
@@ -984,13 +983,14 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	u64 skip = 0;
 	u64 defrag_end = 0;
 	u64 newer_off = range->start;
-	int newer_left = 0;
 	unsigned long i;
+	unsigned long ra_index = 0;
 	int ret;
 	int defrag_count = 0;
 	int compress_type = BTRFS_COMPRESS_ZLIB;
 	int extent_thresh = range->extent_thresh;
-	int newer_cluster = (256 * 1024) >> PAGE_CACHE_SHIFT;
+	int max_cluster = (256 * 1024) >> PAGE_CACHE_SHIFT;
+	int cluster = max_cluster;
 	u64 new_align = ~((u64)128 * 1024 - 1);
 	struct page **pages = NULL;
 
@@ -1020,7 +1020,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		ra = &file->f_ra;
 	}
 
-	pages = kmalloc(sizeof(struct page *) * newer_cluster,
+	pages = kmalloc(sizeof(struct page *) * max_cluster,
 			GFP_NOFS);
 	if (!pages) {
 		ret = -ENOMEM;
@@ -1045,7 +1045,6 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			 * the extents in the file evenly spaced
 			 */
 			i = (newer_off & new_align) >> PAGE_CACHE_SHIFT;
-			newer_left = newer_cluster;
 		} else
 			goto out_ra;
 	} else {
@@ -1077,12 +1076,26 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			i = max(i + 1, next);
 			continue;
 		}
+
+		if (!newer_than) {
+			cluster = (PAGE_CACHE_ALIGN(defrag_end) >>
+				   PAGE_CACHE_SHIFT) - i;
+			cluster = min(cluster, max_cluster);
+		} else {
+			cluster = max_cluster;
+		}
+
 		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)
 			BTRFS_I(inode)->force_compress = compress_type;
 
-		btrfs_force_ra(inode->i_mapping, ra, file, i, newer_cluster);
+		if (i + cluster > ra_index) {
+			ra_index = max(i, ra_index);
+			btrfs_force_ra(inode->i_mapping, ra, file, ra_index,
+				       cluster);
+			ra_index += max_cluster;
+		}
 
-		ret = cluster_pages_for_defrag(inode, pages, i, newer_cluster);
+		ret = cluster_pages_for_defrag(inode, pages, i, cluster);
 		if (ret < 0)
 			goto out_ra;
 
@@ -1102,15 +1115,17 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			if (!ret) {
 				range->start = newer_off;
 				i = (newer_off & new_align) >> PAGE_CACHE_SHIFT;
-				newer_left = newer_cluster;
 			} else {
 				break;
 			}
 		} else {
-			if (ret > 0)
+			if (ret > 0) {
 				i += ret;
-			else
+				last_len += ret << PAGE_CACHE_SHIFT;
+			} else {
 				i++;
+				last_len = 0;
+			}
 		}
 	}
 
