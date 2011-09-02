@@ -761,7 +761,7 @@ static void get_sregs_arch206(struct kvm_vcpu *vcpu,
 {
 	sregs->u.e.features |= KVM_SREGS_E_ARCH206;
 
-	sregs->u.e.pir = 0;
+	sregs->u.e.pir = vcpu->vcpu_id;
 	sregs->u.e.mcsrr0 = vcpu->arch.mcsrr0;
 	sregs->u.e.mcsrr1 = vcpu->arch.mcsrr1;
 	sregs->u.e.decar = vcpu->arch.decar;
@@ -774,7 +774,7 @@ static int set_sregs_arch206(struct kvm_vcpu *vcpu,
 	if (!(sregs->u.e.features & KVM_SREGS_E_ARCH206))
 		return 0;
 
-	if (sregs->u.e.pir != 0)
+	if (sregs->u.e.pir != vcpu->vcpu_id)
 		return -EINVAL;
 
 	vcpu->arch.mcsrr0 = sregs->u.e.mcsrr0;
