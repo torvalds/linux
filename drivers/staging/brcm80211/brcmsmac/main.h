@@ -23,7 +23,6 @@
 #include "types.h"
 #include "d11.h"
 
-#define MA_WINDOW_SZ		8	/* moving average window size */
 #define	INVCHANNEL		255	/* invalid channel */
 
 /* max # brcms_c_module_register() calls */

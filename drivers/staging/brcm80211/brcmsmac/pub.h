@@ -40,10 +40,6 @@
 #define BRCMS_20_MHZ	20	/* 20Mhz nphy channel bandwidth */
 #define BRCMS_40_MHZ	40	/* 40Mhz nphy channel bandwidth */
 
-#define CHSPEC_WLC_BW(chanspec)	(CHSPEC_IS40(chanspec) ? BRCMS_40_MHZ : \
-				 CHSPEC_IS20(chanspec) ? BRCMS_20_MHZ : \
-							 BRCMS_10_MHZ)
-
 #define	BRCMS_RSSI_MINVAL	-200	/* Low value, e.g. for forcing roam */
 #define	BRCMS_RSSI_NO_SIGNAL	-91	/* NDIS RSSI link quality cutoffs */
 #define	BRCMS_RSSI_VERY_LOW	-80	/* Very low quality cutoffs */
@@ -51,13 +47,6 @@
 #define	BRCMS_RSSI_GOOD		-68	/* Good quality cutoffs */
 #define	BRCMS_RSSI_VERY_GOOD	-58	/* Very good quality cutoffs */
 #define	BRCMS_RSSI_EXCELLENT	-57	/* Excellent quality cutoffs */
-
-/* macro to perform PHY -> D11 PHY TYPE, currently 1:1 */
-#define BRCMS_PHYTYPE(_x) (_x)
-
-#define MA_WINDOW_SZ		8	/* moving average window size */
-
-#define BRCMS_SNR_INVALID		0	/* invalid SNR value */
 
 /* a large TX Power as an init value to factor out of min() calculations,
  * keep low enough to fit in an s8, units are .25 dBm
@@ -87,9 +76,6 @@
 /* driver's default tx antenna setting */
 #define ANT_TX_DEF		3
 
-/* use all available core for transmit */
-#define TXCORE_POLICY_ALL	0x1
-
 /* Tx Chain values */
 /* def bitmap of txchain */
 #define TXCHAIN_DEF		0x1
@@ -113,14 +99,8 @@
 #define ANTSWITCH_TYPE_3	3
 
 #define RXBUFSZ		PKTBUFSZ
-/* aid bitmap size in bytes */
-#define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)
 
 #define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
-
-#define	WL_SPURAVOID_OFF	0
-#define	WL_SPURAVOID_ON1	1
-#define	WL_SPURAVOID_ON2	2
 
 struct brcms_tunables {
 	int ntxd;	/* size of tx descriptor table */
@@ -158,23 +138,10 @@ struct rsn_parms {
 	u8 PAD[4];		/* padding for future growth */
 };
 
-/*
- * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
- */
-#define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
-
-#define RSN_FLAGS_SUPPORTED		0x1	/* Flag for rsn_params */
-#define RSN_FLAGS_PREAUTH		0x2	/* Flag for WPA2 rsn_params */
-
 /* All the HT-specific default advertised capabilities (including AMPDU)
  * should be grouped here at one place
  */
 #define AMPDU_DEF_MPDU_DENSITY	6	/* default mpdu density (110 ==> 4us) */
-
-/* defaults for the HT (MIMO) bss */
-#define HT_CAP	(IEEE80211_HT_CAP_SM_PS |\
-	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
-	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
 /* wlc internal bss_info */
 struct brcms_bss_info {
@@ -201,22 +168,6 @@ struct brcms_bss_info {
 	u8 mcipher;		/* multicast cipher */
 	u8 wpacfg;		/* wpa config index */
 };
-
-/* IOVar flags for common error checks */
-#define IOVF_MFG	(1<<3)	/* flag for mfgtest iovars */
-#define IOVF_WHL	(1<<4)	/* value must be whole (0-max) */
-#define IOVF_NTRL	(1<<5)	/* value must be natural (1-max) */
-
-#define IOVF_SET_UP	(1<<6)	/* set requires driver be up */
-#define IOVF_SET_DOWN	(1<<7)	/* set requires driver be down */
-#define IOVF_SET_CLK	(1<<8)	/* set requires core clock */
-#define IOVF_SET_BAND	(1<<9)	/* set requires fixed band */
-
-#define IOVF_GET_UP	(1<<10)	/* get requires driver be up */
-#define IOVF_GET_DOWN	(1<<11)	/* get requires driver be down */
-#define IOVF_GET_CLK	(1<<12)	/* get requires core clock */
-#define IOVF_GET_BAND	(1<<13)	/* get requires fixed band */
-#define IOVF_OPEN_ALLOW	(1<<14)	/* set allowed iovar for opensrc */
 
 #define MAC80211_PROMISC_BCNS	(1 << 0)
 #define MAC80211_SCAN		(1 << 1)

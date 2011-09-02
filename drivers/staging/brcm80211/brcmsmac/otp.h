@@ -30,12 +30,6 @@
 /* OTP Size */
 #define OTP_SZ_MAX		(6144/8)	/* maximum bytes in one CIS */
 
-/* Fixed size subregions sizes in words */
-#define OTPGU_CI_SZ		2
-
-/* OTP usage */
-#define OTP4325_FM_DISABLED_OFFSET	188
-
 struct otpinfo;
 
 /* Exported functions */

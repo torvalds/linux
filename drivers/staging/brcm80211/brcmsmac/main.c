@@ -267,6 +267,20 @@
 #define APHY_SLOT_TIME		9
 #define BPHY_SLOT_TIME		20
 
+#define	WL_SPURAVOID_OFF	0
+#define	WL_SPURAVOID_ON1	1
+#define	WL_SPURAVOID_ON2	2
+
+/*
+ * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
+ */
+#define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
+
+/* defaults for the HT (MIMO) bss */
+#define HT_CAP	(IEEE80211_HT_CAP_SM_PS |\
+	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
+	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
+
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.
  * the size is in units of 256bytes(one block), total size is HW dependent
@@ -360,6 +374,10 @@
 
 #define IS_MBAND_UNLOCKED(wlc) \
 	((wlc->pub->_nbands > 1) && !(wlc)->bandlocked)
+
+#define CHSPEC_WLC_BW(chanspec)	(CHSPEC_IS40(chanspec) ? BRCMS_40_MHZ : \
+				 CHSPEC_IS20(chanspec) ? BRCMS_20_MHZ : \
+							 BRCMS_10_MHZ)
 
 /* dup state between BMAC(struct brcms_hardware) and HIGH(struct brcms_c_info)
    driver */

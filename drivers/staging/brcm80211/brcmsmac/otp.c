@@ -64,6 +64,9 @@
 
 #define MAXNUMRDES		9	/* Maximum OTP redundancy entries */
 
+/* Fixed size subregions sizes in words */
+#define OTPGU_CI_SZ		2
+
 /* OTP function struct */
 struct otp_fn_s {
 	int (*size)(struct otpinfo *oi);
@@ -110,8 +113,6 @@ static struct otpinfo otpinfo;
  *	ipxotp_nvread()
  *
  */
-
-#define HWSW_RGN(rgn)		(((rgn) == OTP_HW_RGN) ? "h/w" : "s/w")
 
 /* OTP layout */
 /* CC revs 21, 24 and 27 OTP General Use Region word offset */
