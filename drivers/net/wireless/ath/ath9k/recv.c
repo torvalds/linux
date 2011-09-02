@@ -1950,7 +1950,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			ath_rx_ps(sc, skb);
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
-		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
+		if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx == 3)
 			ath_ant_comb_scan(sc, &rs);
 
 		ieee80211_rx(hw, skb);
