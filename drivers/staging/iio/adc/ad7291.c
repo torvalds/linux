@@ -34,17 +34,42 @@
 /*
  * AD7291 registers definition
  */
-#define AD7291_COMMAND			0
-#define AD7291_VOLTAGE			1
-#define AD7291_T_SENSE			2
-#define AD7291_T_AVERAGE		3
-#define AD7291_VOLTAGE_LIMIT_BASE	4
-#define AD7291_VOLTAGE_LIMIT_COUNT	8
+#define AD7291_COMMAND			0x00
+#define AD7291_VOLTAGE			0x01
+#define AD7291_T_SENSE			0x02
+#define AD7291_T_AVERAGE		0x03
+#define AD7291_CH0_DATA_HIGH		0x04
+#define AD7291_CH0_DATA_LOW		0x05
+#define AD7291_CH0_HYST			0x06
+#define AD7291_CH1_DATA_HIGH		0x07
+#define AD7291_CH1_DATA_LOW		0x08
+#define AD7291_CH1_HYST			0x09
+#define AD7291_CH2_DATA_HIGH		0x0A
+#define AD7291_CH2_DATA_LOW		0x0B
+#define AD7291_CH2_HYST			0x0C
+#define AD7291_CH3_DATA_HIGH		0x0D
+#define AD7291_CH3_DATA_LOW		0x0E
+#define AD7291_CH3_HYST			0x0F
+#define AD7291_CH4_DATA_HIGH		0x10
+#define AD7291_CH4_DATA_LOW		0x11
+#define AD7291_CH4_HYST			0x12
+#define AD7291_CH5_DATA_HIGH		0x13
+#define AD7291_CH5_DATA_LOW		0x14
+#define AD7291_CH5_HYST			0x15
+#define AD7291_CH6_DATA_HIGH		0x16
+#define AD7291_CH6_DATA_LOW		0x17
+#define AD7291_CH6_HYST			0x18
+#define AD7291_CH7_DATA_HIGH		0x19
+#define AD7291_CH7_DATA_LOW		0x1A
+#define AD7291_CH7_HYST			0x2B
 #define AD7291_T_SENSE_HIGH		0x1C
 #define AD7291_T_SENSE_LOW		0x1D
 #define AD7291_T_SENSE_HYST		0x1E
 #define AD7291_VOLTAGE_ALERT_STATUS	0x1F
 #define AD7291_T_ALERT_STATUS		0x20
+
+#define AD7291_VOLTAGE_LIMIT_COUNT	8
+
 
 /*
  * AD7291 command
@@ -198,7 +223,7 @@ static inline ssize_t ad7291_show_hyst(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", data & 0x0FFF);
+	return sprintf(buf, "%d\n", data & AD7291_VALUE_MASK);
 }
 
 static inline ssize_t ad7291_set_hyst(struct device *dev,
@@ -228,28 +253,28 @@ static IIO_DEVICE_ATTR(in_temp0_thresh_both_hyst_raw,
 		       AD7291_T_SENSE_HYST);
 static IIO_DEVICE_ATTR(in_voltage0_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x06);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH0_HYST);
 static IIO_DEVICE_ATTR(in_voltage1_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x09);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH1_HYST);
 static IIO_DEVICE_ATTR(in_voltage2_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x0C);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH2_HYST);
 static IIO_DEVICE_ATTR(in_voltage3_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x0F);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH3_HYST);
 static IIO_DEVICE_ATTR(in_voltage4_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x12);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH4_HYST);
 static IIO_DEVICE_ATTR(in_voltage5_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x15);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH5_HYST);
 static IIO_DEVICE_ATTR(in_voltage6_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x18);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH6_HYST);
 static IIO_DEVICE_ATTR(in_voltage7_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
-		       ad7291_show_hyst, ad7291_set_hyst, 0x1B);
+		       ad7291_show_hyst, ad7291_set_hyst, AD7291_CH7_HYST);
 
 static struct attribute *ad7291_event_attributes[] = {
 	&iio_dev_attr_in_temp0_thresh_both_hyst_raw.dev_attr.attr,
@@ -266,16 +291,16 @@ static struct attribute *ad7291_event_attributes[] = {
 
 /* high / low */
 static u8 ad7291_limit_regs[9][2] = {
-	{ 0x04, 0x05 },
-	{ 0x07, 0x08 },
-	{ 0x0A, 0x0B },
-	{ 0x0E, 0x0D }, /* note reversed order */
-	{ 0x10, 0x11 },
-	{ 0x13, 0x14 },
-	{ 0x16, 0x17 },
-	{ 0x19, 0x1A },
+	{ AD7291_CH0_DATA_HIGH, AD7291_CH0_DATA_LOW },
+	{ AD7291_CH1_DATA_HIGH, AD7291_CH1_DATA_LOW },
+	{ AD7291_CH2_DATA_HIGH, AD7291_CH2_DATA_LOW },
+	{ AD7291_CH3_DATA_HIGH, AD7291_CH3_DATA_LOW }, /* FIXME: ? */
+	{ AD7291_CH4_DATA_HIGH, AD7291_CH4_DATA_LOW },
+	{ AD7291_CH5_DATA_HIGH, AD7291_CH5_DATA_LOW },
+	{ AD7291_CH6_DATA_HIGH, AD7291_CH6_DATA_LOW },
+	{ AD7291_CH7_DATA_HIGH, AD7291_CH7_DATA_LOW },
 	/* temp */
-	{ 0x1C, 0x1D },
+	{ AD7291_T_SENSE_HIGH, AD7291_T_SENSE_LOW },
 };
 
 static int ad7291_read_event_value(struct iio_dev *indio_dev,
@@ -298,7 +323,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 		ret = ad7291_i2c_read(chip, reg, &uval);
 		if (ret < 0)
 			return ret;
-		*val = swab16(uval) & 0x0FFF;
+		*val = uval & AD7291_VALUE_MASK;
 		return 0;
 
 	case IIO_TEMP:
@@ -309,7 +334,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 		ret = ad7291_i2c_read(chip, reg, &signval);
 		if (ret < 0)
 			return ret;
-		signval = (s16)((swab16(signval) & 0x0FFF) << 4) >> 4;
+		signval = (s16)((signval & AD7291_VALUE_MASK) << 4) >> 4;
 		*val = signval;
 		return 0;
 	default:
@@ -332,9 +357,7 @@ static int ad7291_write_event_value(struct iio_dev *indio_dev,
 		reg = ad7291_limit_regs[IIO_EVENT_CODE_EXTRACT_NUM(event_code)]
 			[!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			   IIO_EV_DIR_RISING)];
-
 		return ad7291_i2c_write(chip, reg, val);
-
 	case IIO_TEMP:
 		if (val > 2047 || val < -2048)
 			return -EINVAL;
@@ -386,6 +409,7 @@ static int ad7291_write_event_config(struct iio_dev *indio_dev,
 	 * use continuous sampling mode.
 	 * Possible to disable temp as well but that makes single read tricky.
 	 */
+
 	switch (IIO_EVENT_CODE_EXTRACT_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		if ((!state) && (chip->c_mask &
@@ -399,7 +423,7 @@ static int ad7291_write_event_config(struct iio_dev *indio_dev,
 		else
 			break;
 
-		regval &= 0xFFFE;
+		regval &= ~AD7291_AUTOCYCLE;
 		regval |= ((u16)chip->c_mask << 8);
 		if (chip->c_mask) /* Enable autocycle? */
 			regval |= AD7291_AUTOCYCLE;
@@ -456,7 +480,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 				mutex_unlock(&chip->state_lock);
 				return ret;
 			}
-			*val = swab16((u16)ret) & 0x0FFF;
+			*val = swab16((u16)ret) & AD7291_VALUE_MASK;
 			mutex_unlock(&chip->state_lock);
 			return IIO_VAL_INT;
 		case IIO_TEMP:
@@ -465,7 +489,8 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 						       AD7291_T_SENSE);
 			if (ret < 0)
 				return ret;
-			signval = (s16)((swab16((u16)ret) & 0x0FFF) << 4) >> 4;
+			signval = (s16)((swab16((u16)ret) &
+				AD7291_VALUE_MASK) << 4) >> 4;
 			*val = signval;
 			return IIO_VAL_INT;
 		default:
@@ -476,7 +501,8 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 					       AD7291_T_AVERAGE);
 			if (ret < 0)
 				return ret;
-			signval = (s16)((swab16((u16)ret) & 0x0FFF) << 4) >> 4;
+			signval = (s16)((swab16((u16)ret) &
+				AD7291_VALUE_MASK) << 4) >> 4;
 			*val = signval;
 			return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
