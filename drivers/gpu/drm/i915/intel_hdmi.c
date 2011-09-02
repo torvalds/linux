@@ -514,7 +514,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
-	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
 	/* Set up the DDC bus. */
 	if (sdvox_reg == SDVOB) {

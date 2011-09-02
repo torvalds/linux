@@ -674,8 +674,8 @@ typedef struct drm_i915_private {
 	/* Panel fitter placement and size for Ironlake+ */
 	u32 pch_pf_pos, pch_pf_size;
 
-	struct drm_crtc *plane_to_crtc_mapping[2];
-	struct drm_crtc *pipe_to_crtc_mapping[2];
+	struct drm_crtc *plane_to_crtc_mapping[3];
+	struct drm_crtc *pipe_to_crtc_mapping[3];
 	wait_queue_head_t pending_flip_queue;
 	bool flip_pending_is_done;
 

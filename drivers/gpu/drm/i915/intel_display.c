@@ -2092,6 +2092,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	switch (plane) {
 	case 0:
 	case 1:
+	case 2:
 		break;
 	default:
 		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
@@ -2191,6 +2192,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	case 0:
 	case 1:
 		break;
+	case 2:
+		if (IS_IVYBRIDGE(dev))
+			break;
+		/* fall through otherwise */
 	default:
 		DRM_ERROR("no plane for crtc\n");
 		return -EINVAL;
@@ -2889,6 +2894,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 			temp |= (TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
 		else if (pipe == 1 && (temp & TRANSB_DPLL_ENABLE) == 0)
 			temp |= (TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+		else if (pipe == 2 && (temp & TRANSC_DPLL_ENABLE) == 0)
+			temp |= (TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
 		I915_WRITE(PCH_DPLL_SEL, temp);
 	}
 

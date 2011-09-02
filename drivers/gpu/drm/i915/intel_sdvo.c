@@ -2203,7 +2203,7 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags)
 			      bytes[0], bytes[1]);
 		return false;
 	}
-	intel_sdvo->base.crtc_mask = (1 << 0) | (1 << 1);
+	intel_sdvo->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
 	return true;
 }
