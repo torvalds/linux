@@ -978,6 +978,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	struct btrfs_super_block *disk_super;
 	struct file_ra_state *ra = NULL;
 	unsigned long last_index;
+	u64 isize = i_size_read(inode);
 	u64 features;
 	u64 last_len = 0;
 	u64 skip = 0;
@@ -1003,7 +1004,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			compress_type = range->compress_type;
 	}
 
-	if (inode->i_size == 0)
+	if (isize == 0)
 		return 0;
 
 	/*
@@ -1028,10 +1029,10 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 	/* find the last page to defrag */
 	if (range->start + range->len > range->start) {
-		last_index = min_t(u64, inode->i_size - 1,
+		last_index = min_t(u64, isize - 1,
 			 range->start + range->len - 1) >> PAGE_CACHE_SHIFT;
 	} else {
-		last_index = (inode->i_size - 1) >> PAGE_CACHE_SHIFT;
+		last_index = (isize - 1) >> PAGE_CACHE_SHIFT;
 	}
 
 	if (newer_than) {
