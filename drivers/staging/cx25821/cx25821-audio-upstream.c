@@ -538,13 +538,9 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 				    AUDIO_RISC_DMA_BUF_SIZE;
 
 				rp = cx25821_risc_field_upstream_audio(dev,
-								       dev->
-								       _risc_virt_start_addr
-								       + 1,
-								       dev->
-								       _audiodata_buf_phys_addr,
-								       AUDIO_LINE_SIZE,
-								       FIFO_DISABLE);
+						dev->_risc_virt_start_addr + 1,
+						dev->_audiodata_buf_phys_addr,
+						AUDIO_LINE_SIZE, FIFO_DISABLE);
 
 				if (USE_RISC_NOOP_AUDIO) {
 					for (i = 0; i < NUM_NO_OPS; i++) {
