@@ -1821,7 +1821,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 		if (blk != leaf_no)
 			brelse(bh);
 
-		gfs2_rlist_add(sdp, &rlist, blk);
+		gfs2_rlist_add(dip, &rlist, blk);
 		l_blocks++;
 	}
 

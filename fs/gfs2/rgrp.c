@@ -1560,7 +1560,7 @@ fail:
 
 /**
  * gfs2_rlist_add - add a RG to a list of RGs
- * @sdp: the filesystem
+ * @ip: the inode
  * @rlist: the list of resource groups
  * @block: the block
  *
@@ -1570,9 +1570,10 @@ fail:
  *
  */
 
-void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
+void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 		    u64 block)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_rgrpd **tmp;
 	unsigned int new_space;
@@ -1581,12 +1582,15 @@ void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
 	if (gfs2_assert_warn(sdp, !rlist->rl_ghs))
 		return;
 
-	rgd = gfs2_blk2rgrpd(sdp, block);
+	if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, block))
+		rgd = ip->i_rgd;
+	else
+		rgd = gfs2_blk2rgrpd(sdp, block);
 	if (!rgd) {
-		if (gfs2_consist(sdp))
-			fs_err(sdp, "block = %llu\n", (unsigned long long)block);
+		fs_err(sdp, "rlist_add: no rgrp for block %llu\n", (unsigned long long)block);
 		return;
 	}
+	ip->i_rgd = rgd;
 
 	for (x = 0; x < rlist->rl_rgrps; x++)
 		if (rlist->rl_rgd[x] == rgd)
