@@ -1634,7 +1634,7 @@ u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate)
 
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_11n_rate_series series[4];
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
@@ -1694,7 +1694,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 			/* MCS rates */
 			series[i].Rate = rix | 0x80;
 			series[i].ChSel = ath_txchainmask_reduction(sc,
-					common->tx_chainmask, series[i].Rate);
+					ah->txchainmask, series[i].Rate);
 			series[i].PktDuration = ath_pkt_duration(sc, rix, len,
 				 is_40, is_sgi, is_sp);
 			if (rix < 8 && (tx_info->flags & IEEE80211_TX_CTL_STBC))
@@ -1719,10 +1719,10 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 		}
 
 		if (bf->bf_state.bfs_paprd)
-			series[i].ChSel = common->tx_chainmask;
+			series[i].ChSel = ah->txchainmask;
 		else
 			series[i].ChSel = ath_txchainmask_reduction(sc,
-					common->tx_chainmask, series[i].Rate);
+					ah->txchainmask, series[i].Rate);
 
 		series[i].PktDuration = ath9k_hw_computetxtime(sc->sc_ah,
 			phy, rate->bitrate * 100, len, rix, is_sp);

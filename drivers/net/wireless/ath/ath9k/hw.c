@@ -1479,9 +1479,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u64 tsf = 0;
 	int i, r;
 
-	ah->txchainmask = common->tx_chainmask;
-	ah->rxchainmask = common->rx_chainmask;
-
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
 
@@ -2095,6 +2092,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	pCap->tx_chainmask = fixup_chainmask(chip_chainmask, pCap->tx_chainmask);
 	pCap->rx_chainmask = fixup_chainmask(chip_chainmask, pCap->rx_chainmask);
+	ah->txchainmask = pCap->tx_chainmask;
+	ah->rxchainmask = pCap->rx_chainmask;
 
 	ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
 

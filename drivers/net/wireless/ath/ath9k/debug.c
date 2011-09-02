@@ -95,11 +95,11 @@ static ssize_t read_file_tx_chainmask(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", common->tx_chainmask);
+	len = sprintf(buf, "0x%08x\n", ah->txchainmask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -107,7 +107,7 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	unsigned long mask;
 	char buf[32];
 	ssize_t len;
@@ -120,8 +120,8 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 	if (strict_strtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	common->tx_chainmask = mask;
-	sc->sc_ah->caps.tx_chainmask = mask;
+	ah->txchainmask = mask;
+	ah->caps.tx_chainmask = mask;
 	return count;
 }
 
@@ -138,11 +138,11 @@ static ssize_t read_file_rx_chainmask(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", common->rx_chainmask);
+	len = sprintf(buf, "0x%08x\n", ah->rxchainmask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -150,7 +150,7 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	unsigned long mask;
 	char buf[32];
 	ssize_t len;
@@ -163,8 +163,8 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 	if (strict_strtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	common->rx_chainmask = mask;
-	sc->sc_ah->caps.rx_chainmask = mask;
+	ah->rxchainmask = mask;
+	ah->caps.rx_chainmask = mask;
 	return count;
 }
 

@@ -140,9 +140,6 @@ struct ath_common {
 	u8 curbssid[ETH_ALEN];
 	u8 bssidmask[ETH_ALEN];
 
-	u8 tx_chainmask;
-	u8 rx_chainmask;
-
 	u32 rx_bufsize;
 
 	u32 keymax;

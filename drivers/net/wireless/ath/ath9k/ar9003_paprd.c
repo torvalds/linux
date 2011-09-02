@@ -113,7 +113,7 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 	if (delta > scale)
 		return -1;
 
-	switch (get_streams(common->tx_chainmask)) {
+	switch (get_streams(ah->txchainmask)) {
 	case 1:
 		delta = 6;
 		break;
@@ -126,7 +126,7 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 	default:
 		delta = 0;
 		ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Invalid tx-chainmask: %u\n", common->tx_chainmask);
+		"Invalid tx-chainmask: %u\n", ah->txchainmask);
 	}
 
 	power += delta;

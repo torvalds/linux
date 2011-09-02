@@ -318,7 +318,6 @@ static void ath_paprd_activate(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
-	struct ath_common *common = ath9k_hw_common(ah);
 	int chain;
 
 	if (!caldata || !caldata->paprd_done)
@@ -327,7 +326,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 	ath9k_ps_wakeup(sc);
 	ar9003_paprd_enable(ah, false);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
-		if (!(common->tx_chainmask & BIT(chain)))
+		if (!(ah->txchainmask & BIT(chain)))
 			continue;
 
 		ar9003_paprd_populate_single_table(ah, caldata, chain);
@@ -414,7 +413,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
 
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
-		if (!(common->tx_chainmask & BIT(chain)))
+		if (!(ah->txchainmask & BIT(chain)))
 			continue;
 
 		chain_ok = 0;
@@ -535,7 +534,7 @@ void ath_ani_calibrate(unsigned long data)
 	if (longcal || shortcal) {
 		common->ani.caldone =
 			ath9k_hw_calibrate(ah, ah->curchan,
-						common->rx_chainmask, longcal);
+						ah->rxchainmask, longcal);
 	}
 
 	ath9k_ps_restore(sc);
