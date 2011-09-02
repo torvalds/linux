@@ -132,12 +132,18 @@ static cycle_t exynos4_frc_read(struct clocksource *cs)
 	return ((cycle_t)hi << 32) | lo;
 }
 
+static void exynos4_frc_resume(struct clocksource *cs)
+{
+	exynos4_mct_frc_start(0, 0);
+}
+
 struct clocksource mct_frc = {
 	.name		= "mct-frc",
 	.rating		= 400,
 	.read		= exynos4_frc_read,
 	.mask		= CLOCKSOURCE_MASK(64),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.resume		= exynos4_frc_resume,
 };
 
 static void __init exynos4_clocksource_init(void)
