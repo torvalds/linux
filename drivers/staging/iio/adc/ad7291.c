@@ -1,7 +1,7 @@
 /*
- * AD7291 digital temperature sensor driver supporting AD7291
+ * AD7291 8-Channel, I2C, 12-Bit SAR ADC with Temperature Sensor
  *
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -49,8 +49,8 @@
  */
 #define AD7291_AUTOCYCLE		0x1
 #define AD7291_RESET			0x2
-#define AD7291_ALART_CLEAR		0x4
-#define AD7291_ALART_POLARITY		0x8
+#define AD7291_ALERT_CLEAR		0x4
+#define AD7291_ALERT_POLARITY		0x8
 #define AD7291_EXT_REF			0x10
 #define AD7291_NOISE_DELAY		0x20
 #define AD7291_T_SENSE_MASK		0x40
@@ -135,10 +135,10 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	if (!(t_status || v_status))
 		return IRQ_HANDLED;
 
-	command = chip->command | AD7291_ALART_CLEAR;
+	command = chip->command | AD7291_ALERT_CLEAR;
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
-	command = chip->command & ~AD7291_ALART_CLEAR;
+	command = chip->command & ~AD7291_ALERT_CLEAR;
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
 	/* For now treat t_sense and t_sense_average the same */
@@ -559,7 +559,7 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 			goto error_free_dev;
 
 		/* set irq polarity low level */
-		chip->command |= AD7291_ALART_POLARITY;
+		chip->command |= AD7291_ALERT_POLARITY;
 	}
 
 	ret = ad7291_i2c_write(chip, AD7291_COMMAND, chip->command);
