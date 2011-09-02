@@ -58,18 +58,6 @@
 /* bar0 + 12K accesses chipc core registers */
 #define PCI_16KB0_CCREGS_OFFSET	(12 * 1024)
 
-#define PCI_CLKRUN_DSBL	0x8000	/* Bit 15 forceClkrun */
-
-/* Sonics to PCI translation types */
-#define	SBTOPCI_PREF	0x4		/* prefetch enable */
-#define	SBTOPCI_BURST	0x8		/* burst enable */
-#define	SBTOPCI_RC_READMULTI	0x20	/* memory read multiple */
-
-/* PCI core index in SROM shadow area */
-#define SRSH_PI_OFFSET	0	/* first word */
-#define SRSH_PI_MASK	0xf000	/* bit 15:12 */
-#define SRSH_PI_SHIFT	12	/* bit 15:12 */
-
 struct sbpciregs;
 struct sbpcieregs;
 
