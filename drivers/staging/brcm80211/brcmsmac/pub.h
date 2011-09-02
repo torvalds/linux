@@ -285,22 +285,13 @@ enum wlc_par_id {
  * *********************************************
  */
 
-/* AP Support (versus STA) */
-#define	AP_ENAB(pub)	(0)
-
-/* Macro to check if APSTA mode enabled */
-#define APSTA_ENAB(pub)	(0)
-
-/* Some useful combinations */
-#define STA_ONLY(pub)	(!AP_ENAB(pub))
-#define AP_ONLY(pub)	(AP_ENAB(pub) && !APSTA_ENAB(pub))
-
 #define ENAB_1x1	0x01
 #define ENAB_2x2	0x02
 #define ENAB_3x3	0x04
 #define ENAB_4x4	0x08
 #define SUPPORT_11N	(ENAB_1x1|ENAB_2x2)
 #define SUPPORT_HT	(ENAB_1x1|ENAB_2x2|ENAB_3x3)
+
 /* WL11N Support */
 #define N_ENAB(pub) ((pub)->_n_enab & SUPPORT_11N)
 #define N_REQD(pub) ((pub)->_n_reqd)
