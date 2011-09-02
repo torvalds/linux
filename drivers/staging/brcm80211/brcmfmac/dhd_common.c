@@ -840,7 +840,7 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 	const char *str;
 	int buf_len;
 	int str_len;
-	char *arg_save = 0, *arg_org = 0;
+	char *arg_save = NULL, *arg_org = NULL;
 	int rc;
 	char buf[128];
 	struct brcmf_pkt_filter_enable enable_parm;
@@ -915,9 +915,9 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	int rc;
 	u32 mask_size;
 	u32 pattern_size;
-	char *argv[8], *buf = 0;
+	char *argv[8], *buf = NULL;
 	int i = 0;
-	char *arg_save = 0, *arg_org = 0;
+	char *arg_save = NULL, *arg_org = NULL;
 
 	arg_save = kstrdup(arg, GFP_ATOMIC);
 	if (!arg_save) {
@@ -1099,7 +1099,7 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
-	brcmu_mkiovar("ver", 0, 0, buf, sizeof(buf));
+	brcmu_mkiovar("ver", NULL, 0, buf, sizeof(buf));
 	brcmf_proto_cdc_query_ioctl(drvr, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	strsep(&ptr, "\n");
 	/* Print fw version info */
