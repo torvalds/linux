@@ -133,14 +133,13 @@ static int ath6kl_set_host_app_area(struct ath6kl *ar)
 	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_app_host_interest));
 	address = TARG_VTOP(ar->target_type, address);
 
-	if (ath6kl_read_reg_diag(ar, &address, &data))
+	if (ath6kl_diag_read32(ar, address, &data))
 		return -EIO;
 
 	address = TARG_VTOP(ar->target_type, data);
 	host_app_area.wmi_protocol_ver = WMI_PROTOCOL_VERSION;
-	if (ath6kl_access_datadiag(ar, address,
-				(u8 *)&host_app_area,
-				sizeof(struct host_app_area), false))
+	if (ath6kl_diag_write(ar, address, (u8 *) &host_app_area,
+			      sizeof(struct host_app_area)))
 		return -EIO;
 
 	return 0;
@@ -377,7 +376,7 @@ static void ath6kl_dump_target_assert_info(struct ath6kl *ar)
 	address = TARG_VTOP(ar->target_type, address);
 
 	/* read RAM location through diagnostic window */
-	status = ath6kl_read_reg_diag(ar, &address, &regdump_loc);
+	status = ath6kl_diag_read32(ar, address, &regdump_loc);
 
 	if (status || !regdump_loc) {
 		ath6kl_err("failed to get ptr to register dump area\n");
@@ -389,11 +388,8 @@ static void ath6kl_dump_target_assert_info(struct ath6kl *ar)
 	regdump_loc = TARG_VTOP(ar->target_type, regdump_loc);
 
 	/* fetch register dump data */
-	status = ath6kl_access_datadiag(ar,
-					regdump_loc,
-					(u8 *)&regdump_val[0],
-					REG_DUMP_COUNT_AR6003 * (sizeof(u32)),
-					true);
+	status = ath6kl_diag_read(ar, regdump_loc, (u8 *)&regdump_val[0],
+				  REG_DUMP_COUNT_AR6003 * (sizeof(u32)));
 
 	if (status) {
 		ath6kl_err("failed to get register dump\n");

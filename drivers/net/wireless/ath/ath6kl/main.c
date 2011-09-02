@@ -229,74 +229,84 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 }
 
 /*
- * Read from the ATH6KL through its diagnostic window. No cooperation from
- * the Target is required for this.
+ * Read from the hardware through its diagnostic window. No cooperation
+ * from the firmware is required for this.
  */
-int ath6kl_read_reg_diag(struct ath6kl *ar, u32 *address, u32 *data)
+int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
 {
-	int status;
+	int ret;
 
 	/* set window register to start read cycle */
-	status = ath6kl_set_addrwin_reg(ar, WINDOW_READ_ADDR_ADDRESS,
-					*address);
-
-	if (status)
-		return status;
+	ret = ath6kl_set_addrwin_reg(ar, WINDOW_READ_ADDR_ADDRESS, address);
+	if (ret)
+		return ret;
 
 	/* read the data */
-	status = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *)data,
-				     sizeof(u32), HIF_RD_SYNC_BYTE_INC);
-	if (status) {
-		ath6kl_err("failed to read from window data addr\n");
-		return status;
+	ret = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *) value,
+				  sizeof(*value), HIF_RD_SYNC_BYTE_INC);
+	if (ret) {
+		ath6kl_warn("failed to read32 through diagnose window: %d\n",
+			    ret);
+		return ret;
 	}
 
-	return status;
+	return 0;
 }
-
 
 /*
  * Write to the ATH6KL through its diagnostic window. No cooperation from
  * the Target is required for this.
  */
-static int ath6kl_write_reg_diag(struct ath6kl *ar, u32 *address, u32 *data)
+static int ath6kl_diag_write32(struct ath6kl *ar, u32 address, u32 value)
 {
-	int status;
+	int ret;
 
 	/* set write data */
-	status = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *)data,
-				     sizeof(u32), HIF_WR_SYNC_BYTE_INC);
-	if (status) {
-		ath6kl_err("failed to write 0x%x to window data addr\n", *data);
-		return status;
+	ret = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *) &value,
+				  sizeof(value), HIF_WR_SYNC_BYTE_INC);
+	if (ret) {
+		ath6kl_err("failed to write 0x%x during diagnose window to 0x%d\n",
+			   address, value);
+		return ret;
 	}
 
 	/* set window register, which starts the write cycle */
 	return ath6kl_set_addrwin_reg(ar, WINDOW_WRITE_ADDR_ADDRESS,
-				      *address);
+				      address);
 }
 
-int ath6kl_access_datadiag(struct ath6kl *ar, u32 address,
-			   u8 *data, u32 length, bool read)
+int ath6kl_diag_read(struct ath6kl *ar, u32 address, void *data, u32 length)
 {
-	u32 count;
-	int status = 0;
+	u32 count, *buf = data;
+	int ret;
 
-	for (count = 0; count < length; count += 4, address += 4) {
-		if (read) {
-			status = ath6kl_read_reg_diag(ar, &address,
-						      (u32 *) &data[count]);
-			if (status)
-				break;
-		} else {
-			status = ath6kl_write_reg_diag(ar, &address,
-						       (u32 *) &data[count]);
-			if (status)
-				break;
-		}
+	if (WARN_ON(length % 4))
+		return -EINVAL;
+
+	for (count = 0; count < length / 4; count++, address += 4) {
+		ret = ath6kl_diag_read32(ar, address, &buf[count]);
+		if (ret)
+			return ret;
 	}
 
-	return status;
+	return 0;
+}
+
+int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length)
+{
+	u32 count, *buf = data;
+	int ret;
+
+	if (WARN_ON(length % 4))
+		return -EINVAL;
+
+	for (count = 0; count < length / 4; count++, address += 4) {
+		ret = ath6kl_diag_write32(ar, address, buf[count]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /* FIXME: move to a better place, target.h? */
@@ -328,7 +338,7 @@ static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 		break;
 	}
 
-	status = ath6kl_write_reg_diag(ar, &address, &data);
+	status = ath6kl_diag_write32(ar, address, data);
 
 	if (status)
 		ath6kl_err("failed to reset target\n");
