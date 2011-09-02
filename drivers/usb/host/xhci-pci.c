@@ -136,6 +136,7 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 		xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
 		xhci->quirks |= XHCI_EP_LIMIT_QUIRK;
 		xhci->limit_active_eps = 64;
+		xhci->quirks |= XHCI_SW_BW_CHECKING;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
 			pdev->device == PCI_DEVICE_ID_ASROCK_P67) {
