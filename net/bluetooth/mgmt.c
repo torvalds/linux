@@ -1365,13 +1365,11 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	hci_dev_lock_bh(hdev);
 
-	if (cp->io_cap == 0x03) {
-		sec_level = BT_SECURITY_MEDIUM;
+	sec_level = BT_SECURITY_MEDIUM;
+	if (cp->io_cap == 0x03)
 		auth_type = HCI_AT_DEDICATED_BONDING;
-	} else {
-		sec_level = BT_SECURITY_HIGH;
+	else
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
-	}
 
 	entry = hci_find_adv_entry(hdev, &cp->bdaddr);
 	if (entry)
