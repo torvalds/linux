@@ -27,12 +27,11 @@ enum iio_data_type {
 
 enum iio_chan_type {
 	/* real channel types */
-	IIO_IN,
-	IIO_OUT,
+	IIO_VOLTAGE,
 	IIO_CURRENT,
 	IIO_POWER,
 	IIO_ACCEL,
-	IIO_IN_DIFF,
+	IIO_VOLTAGE_DIFF,
 	IIO_GYRO,
 	IIO_MAGN,
 	IIO_LIGHT,
@@ -44,6 +43,10 @@ enum iio_chan_type {
 	IIO_ANGL,
 	IIO_TIMESTAMP,
 };
+
+/* Nasty hack to avoid massive churn */
+#define	IIO_IN IIO_VOLTAGE
+#define	IIO_IN_DIFF IIO_VOLTAGE_DIFF
 
 #define IIO_MOD_X			0
 #define IIO_MOD_LIGHT_BOTH		0
@@ -127,14 +130,17 @@ struct iio_chan_spec {
 	unsigned		processed_val:1;
 	unsigned		modified:1;
 	unsigned		indexed:1;
+	unsigned		output:1;
 };
 
 #define IIO_ST(si, rb, sb, sh)						\
 	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
 
-#define IIO_CHAN(_type, _mod, _indexed, _proc, _name, _chan, _chan2,	\
+/* Macro assumes input channels */
+#define IIO_CHAN(_type, _mod, _indexed, _proc, _name, _chan, _chan2, \
 		 _inf_mask, _address, _si, _stype, _event_mask)		\
 	{ .type = _type,						\
+	  .output = 0,							\
 	  .modified = _mod,						\
 	  .indexed = _indexed,						\
 	  .processed_val = _proc,					\

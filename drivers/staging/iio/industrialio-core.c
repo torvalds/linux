@@ -44,13 +44,17 @@ static const char * const iio_data_type_name[] = {
 	[IIO_PROCESSED] = "input",
 };
 
+static const char * const iio_direction[] = {
+	[0] = "in",
+	[1] = "out",
+};
+
 static const char * const iio_chan_type_name_spec_shared[] = {
-	[IIO_IN] = "in",
-	[IIO_OUT] = "out",
+	[IIO_VOLTAGE] = "voltage",
 	[IIO_CURRENT] = "current",
 	[IIO_POWER] = "power",
 	[IIO_ACCEL] = "accel",
-	[IIO_IN_DIFF] = "in-in",
+	[IIO_VOLTAGE_DIFF] = "voltage-voltage",
 	[IIO_GYRO] = "gyro",
 	[IIO_MAGN] = "magn",
 	[IIO_LIGHT] = "illuminance",
@@ -64,7 +68,7 @@ static const char * const iio_chan_type_name_spec_shared[] = {
 };
 
 static const char * const iio_chan_type_name_spec_complex[] = {
-	[IIO_IN_DIFF] = "in%d-in%d",
+	[IIO_VOLTAGE_DIFF] = "voltage%d-voltage%d",
 };
 
 static const char * const iio_modifier_names_light[] = {
@@ -462,19 +466,22 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 		goto error_ret;
 
 	/* Special case for types that uses both channel numbers in naming */
-	if (chan->type == IIO_IN_DIFF && !generic)
+	if (chan->type == IIO_VOLTAGE_DIFF && !generic)
 		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s",
+			= kasprintf(GFP_KERNEL, "%s_%s_%s",
+				    iio_direction[chan->output],
 				    iio_chan_type_name_spec_complex[chan->type],
 				    full_postfix);
 	else if (generic || !chan->indexed)
 		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s",
+			= kasprintf(GFP_KERNEL, "%s_%s_%s",
+				    iio_direction[chan->output],
 				    iio_chan_type_name_spec_shared[chan->type],
 				    full_postfix);
 	else
 		name_format
-			= kasprintf(GFP_KERNEL, "%s%d_%s",
+			= kasprintf(GFP_KERNEL, "%s_%s%d_%s",
+				    iio_direction[chan->output],
 				    iio_chan_type_name_spec_shared[chan->type],
 				    chan->channel,
 				    full_postfix);
@@ -587,7 +594,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *dev_info,
 	ret = __iio_add_chan_devattr(iio_data_type_name[chan->processed_val],
 				     NULL, chan,
 				     &iio_read_channel_info,
-				     (chan->type == IIO_OUT ?
+				     (chan->output ?
 				      &iio_write_channel_info : NULL),
 				     0,
 				     0,
@@ -819,7 +826,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 		}
 		switch (chan->type) {
 			/* Switch this to a table at some point */
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			mask = IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
 						    i/IIO_EV_TYPE_MAX,
 						    i%IIO_EV_TYPE_MAX);
@@ -829,7 +836,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 						  i/IIO_EV_TYPE_MAX,
 						  i%IIO_EV_TYPE_MAX);
 			break;
-		case IIO_IN_DIFF:
+		case IIO_VOLTAGE_DIFF:
 			mask = IIO_MOD_EVENT_CODE(chan->type, chan->channel,
 						  chan->channel2,
 						  i/IIO_EV_TYPE_MAX,

@@ -97,63 +97,35 @@ enum ad5686_supported_device_ids {
 	ID_AD5685,
 	ID_AD5686,
 };
-
+#define AD5868_CHANNEL(chan, bits, shift) {			\
+		.type = IIO_VOLTAGE,				\
+		.indexed = 1,					\
+		.output = 1,					\
+		.channel = chan,				\
+		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),	\
+		.address = AD5686_ADDR_DAC0,			\
+		.scan_type = IIO_ST('u', bits, 16, shift)	\
+}
 static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
 	[ID_AD5684] = {
-		.channel[0] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC0,
-				    0, IIO_ST('u', 12, 16, 4), 0),
-		.channel[1] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 1, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC1,
-				    1, IIO_ST('u', 12, 16, 4), 0),
-		.channel[2] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 2, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC2,
-				    2, IIO_ST('u', 12, 16, 4), 0),
-		.channel[3] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 3, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC3,
-				    3, IIO_ST('u', 12, 16, 4), 0),
+		.channel[0] = AD5868_CHANNEL(0, 12, 4),
+		.channel[1] = AD5868_CHANNEL(1, 12, 4),
+		.channel[2] = AD5868_CHANNEL(2, 12, 4),
+		.channel[3] = AD5868_CHANNEL(3, 12, 4),
 		.int_vref_mv = 2500,
 	},
 	[ID_AD5685] = {
-		.channel[0] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC0,
-				    0, IIO_ST('u', 14, 16, 2), 0),
-		.channel[1] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 1, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC1,
-				    1, IIO_ST('u', 14, 16, 2), 0),
-		.channel[2] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 2, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC2,
-				    2, IIO_ST('u', 14, 16, 2), 0),
-		.channel[3] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 3, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC3,
-				    3, IIO_ST('u', 14, 16, 2), 0),
+		.channel[0] = AD5868_CHANNEL(0, 14, 2),
+		.channel[1] = AD5868_CHANNEL(1, 14, 2),
+		.channel[2] = AD5868_CHANNEL(2, 14, 2),
+		.channel[3] = AD5868_CHANNEL(3, 14, 2),
 		.int_vref_mv = 2500,
 	},
 	[ID_AD5686] = {
-		.channel[0] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC0,
-				    0, IIO_ST('u', 16, 16, 0), 0),
-		.channel[1] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 1, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC1,
-				    1, IIO_ST('u', 16, 16, 0), 0),
-		.channel[2] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 2, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC2,
-				    2, IIO_ST('u', 16, 16, 0), 0),
-		.channel[3] = IIO_CHAN(IIO_OUT, 0, 1, 0, NULL, 3, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				    AD5686_ADDR_DAC3,
-				    3, IIO_ST('u', 16, 16, 0), 0),
+		.channel[0] = AD5868_CHANNEL(0, 16, 0),
+		.channel[1] = AD5868_CHANNEL(1, 16, 0),
+		.channel[2] = AD5868_CHANNEL(2, 16, 0),
+		.channel[3] = AD5868_CHANNEL(3, 16, 0),
 		.int_vref_mv = 2500,
 	},
 };
