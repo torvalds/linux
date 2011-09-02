@@ -101,7 +101,7 @@ struct ad7291_chip_info {
 	struct regulator	*reg;
 	u16			int_vref_mv;
 	u16			command;
-	u8			c_mask;	/* Active voltage channels for events */
+	u16			c_mask;	/* Active voltage channels for events */
 	struct mutex 		state_lock;
 };
 
@@ -381,7 +381,7 @@ static int ad7291_read_event_config(struct iio_dev *indio_dev,
 	switch (IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		if (chip->c_mask &
-		    (1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code)))
+		    (1 << (15 - IIO_EVENT_CODE_EXTRACT_NUM(event_code))))
 			return 1;
 		else
 			return 0;
@@ -412,19 +412,19 @@ static int ad7291_write_event_config(struct iio_dev *indio_dev,
 
 	switch (IIO_EVENT_CODE_EXTRACT_TYPE(event_code)) {
 	case IIO_VOLTAGE:
-		if ((!state) && (chip->c_mask &
-			       (1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code))))
-			chip->c_mask &=
-				~(1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code));
-		else if (state && (!(chip->c_mask &
-				(1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code)))))
-			chip->c_mask |=
-				(1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code));
+		if ((!state) && (chip->c_mask & (1 << (15 -
+				IIO_EVENT_CODE_EXTRACT_NUM(event_code)))))
+			chip->c_mask &= ~(1 << (15 - IIO_EVENT_CODE_EXTRACT_NUM
+							(event_code)));
+		else if (state && (!(chip->c_mask & (1 << (15 -
+				IIO_EVENT_CODE_EXTRACT_NUM(event_code))))))
+			chip->c_mask |= (1 << (15 - IIO_EVENT_CODE_EXTRACT_NUM
+							(event_code)));
 		else
 			break;
 
 		regval &= ~AD7291_AUTOCYCLE;
-		regval |= ((u16)chip->c_mask << 8);
+		regval |= chip->c_mask;
 		if (chip->c_mask) /* Enable autocycle? */
 			regval |= AD7291_AUTOCYCLE;
 
@@ -461,7 +461,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			mutex_lock(&chip->state_lock);
 			/* If in autocycle mode drop through */
-			if (chip->command & 0x1) {
+			if (chip->command & AD7291_AUTOCYCLE) {
 				mutex_unlock(&chip->state_lock);
 				return -EBUSY;
 			}
