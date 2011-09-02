@@ -309,6 +309,81 @@ int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length)
 	return 0;
 }
 
+int ath6kl_read_fwlogs(struct ath6kl *ar)
+{
+	struct ath6kl_dbglog_hdr debug_hdr;
+	struct ath6kl_dbglog_buf debug_buf;
+	u32 address, length, dropped, firstbuf, debug_hdr_addr;
+	int ret = 0, loop;
+	u8 *buf;
+
+	buf = kmalloc(ATH6KL_FWLOG_PAYLOAD_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	address = TARG_VTOP(ar->target_type,
+			    ath6kl_get_hi_item_addr(ar,
+						    HI_ITEM(hi_dbglog_hdr)));
+
+	ret = ath6kl_diag_read32(ar, address, &debug_hdr_addr);
+	if (ret)
+		goto out;
+
+	/* Get the contents of the ring buffer */
+	if (debug_hdr_addr == 0) {
+		ath6kl_warn("Invalid address for debug_hdr_addr\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	address = TARG_VTOP(ar->target_type, debug_hdr_addr);
+	ath6kl_diag_read(ar, address, &debug_hdr, sizeof(debug_hdr));
+
+	address = TARG_VTOP(ar->target_type,
+			    le32_to_cpu(debug_hdr.dbuf_addr));
+	firstbuf = address;
+	dropped = le32_to_cpu(debug_hdr.dropped);
+	ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+
+	loop = 100;
+
+	do {
+		address = TARG_VTOP(ar->target_type,
+				    le32_to_cpu(debug_buf.buffer_addr));
+		length = le32_to_cpu(debug_buf.length);
+
+		if (length != 0 && (le32_to_cpu(debug_buf.length) <=
+				    le32_to_cpu(debug_buf.bufsize))) {
+			length = ALIGN(length, 4);
+
+			ret = ath6kl_diag_read(ar, address,
+					       buf, length);
+			if (ret)
+				goto out;
+
+			ath6kl_debug_fwlog_event(ar, buf, length);
+		}
+
+		address = TARG_VTOP(ar->target_type,
+				    le32_to_cpu(debug_buf.next));
+		ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+		if (ret)
+			goto out;
+
+		loop--;
+
+		if (WARN_ON(loop == 0)) {
+			ret = -ETIMEDOUT;
+			goto out;
+		}
+	} while (address != firstbuf);
+
+out:
+	kfree(buf);
+
+	return ret;
+}
+
 /* FIXME: move to a better place, target.h? */
 #define AR6003_RESET_CONTROL_ADDRESS 0x00004000
 #define AR6004_RESET_CONTROL_ADDRESS 0x00004000

@@ -343,4 +343,18 @@ struct host_interest {
 
 #define ATH6KL_FWLOG_PAYLOAD_SIZE		1500
 
+struct ath6kl_dbglog_buf {
+	__le32 next;
+	__le32 buffer_addr;
+	__le32 bufsize;
+	__le32 length;
+	__le32 count;
+	__le32 free;
+} __packed;
+
+struct ath6kl_dbglog_hdr {
+	__le32 dbuf_addr;
+	__le32 dropped;
+} __packed;
+
 #endif

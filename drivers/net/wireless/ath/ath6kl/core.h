@@ -26,6 +26,7 @@
 #include "htc.h"
 #include "wmi.h"
 #include "bmi.h"
+#include "target.h"
 
 #define MAX_ATH6KL                        1
 #define ATH6KL_MAX_RX_BUFFERS             16
@@ -494,6 +495,19 @@ static inline void ath6kl_deposit_credit_to_ep(struct htc_credit_state_info
 	cred_info->cur_free_credits -= credits;
 }
 
+static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
+					  u32 item_offset)
+{
+	u32 addr = 0;
+
+	if (ar->target_type == TARGET_TYPE_AR6003)
+		addr = ATH6KL_AR6003_HI_START_ADDR + item_offset;
+	else if (ar->target_type == TARGET_TYPE_AR6004)
+		addr = ATH6KL_AR6004_HI_START_ADDR + item_offset;
+
+	return addr;
+}
+
 void ath6kl_destroy(struct net_device *dev, unsigned int unregister);
 int ath6kl_configure_target(struct ath6kl *ar);
 void ath6kl_detect_error(unsigned long ptr);
@@ -510,6 +524,7 @@ void ath6kl_cleanup_amsdu_rxbufs(struct ath6kl *ar);
 int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length);
 int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value);
 int ath6kl_diag_read(struct ath6kl *ar, u32 address, void *data, u32 length);
+int ath6kl_read_fwlogs(struct ath6kl *ar);
 void ath6kl_init_profile_info(struct ath6kl *ar);
 void ath6kl_tx_data_cleanup(struct ath6kl *ar);
 void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,

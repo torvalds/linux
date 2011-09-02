@@ -247,6 +247,9 @@ static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
+	/* read undelivered logs from firmware */
+	ath6kl_read_fwlogs(ar);
+
 	spin_lock_bh(&ar->debug.fwlog_lock);
 
 	while (len < buf_len && !ath6kl_debug_fwlog_empty(ar)) {

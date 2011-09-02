@@ -110,19 +110,6 @@ static u8 ath6kl_get_fw_iftype(struct ath6kl *ar)
 	}
 }
 
-static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
-					  u32 item_offset)
-{
-	u32 addr = 0;
-
-	if (ar->target_type == TARGET_TYPE_AR6003)
-		addr = ATH6KL_AR6003_HI_START_ADDR + item_offset;
-	else if (ar->target_type == TARGET_TYPE_AR6004)
-		addr = ATH6KL_AR6004_HI_START_ADDR + item_offset;
-
-	return addr;
-}
-
 static int ath6kl_set_host_app_area(struct ath6kl *ar)
 {
 	u32 address, data;
