@@ -29,7 +29,7 @@ int adis16400_probe_trigger(struct iio_dev *indio_dev)
 	struct adis16400_state *st = iio_priv(indio_dev);
 
 	st->trig = iio_allocate_trigger("%s-dev%d",
-					spi_get_device_id(st->us)->name,
+					indio_dev->name,
 					indio_dev->id);
 	if (st->trig == NULL) {
 		ret = -ENOMEM;
