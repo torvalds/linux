@@ -955,6 +955,7 @@ config ARCH_ZYNQ
 	select ARM_AMBA
 	select ICST
 	select USE_OF
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice
