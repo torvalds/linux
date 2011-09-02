@@ -435,7 +435,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 			}
 			/* Enable this channel alone */
 			regval = chip->command & (~AD7291_VOLTAGE_MASK);
-			regval |= 1 << (chan->channel + 8);
+			regval |= 1 << (15 - chan->channel);
 			ret = ad7291_i2c_write(chip, AD7291_COMMAND, regval);
 			if (ret < 0) {
 				mutex_unlock(&chip->state_lock);
