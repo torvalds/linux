@@ -310,7 +310,7 @@ struct cx25821_dev {
 	int _audiofile_status;
 	int _audio_lines_count;
 	int _audioframe_count;
-	int _audio_upstream_channel_select;
+	int _audio_upstream_channel;
 	int _last_index_irq;    /* The last interrupt index processed. */
 
 	__le32 *_risc_audio_jmp_addr;

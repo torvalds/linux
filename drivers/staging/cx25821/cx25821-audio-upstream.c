@@ -107,7 +107,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 {
 	unsigned int line;
 	struct sram_channel *sram_ch =
-	   dev->channels[dev->_audio_upstream_channel_select].sram_channels;
+	   dev->channels[dev->_audio_upstream_channel].sram_channels;
 	int offset = 0;
 
 	/* scan lines */
@@ -351,7 +351,7 @@ static void cx25821_audioups_handler(struct work_struct *work)
 
 	cx25821_get_audio_data(dev,
 			      dev->channels[dev->
-				       _audio_upstream_channel_select].
+				       _audio_upstream_channel].
 				       sram_channels);
 }
 
@@ -604,7 +604,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 	if (!dev)
 		return -1;
 
-	sram_ch = dev->channels[dev->_audio_upstream_channel_select].sram_channels;
+	sram_ch = dev->channels[dev->_audio_upstream_channel].sram_channels;
 
 	msk_stat = cx_read(sram_ch->int_mstat);
 	audio_status = cx_read(sram_ch->int_stat);
@@ -614,7 +614,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 		handled =
 		    cx25821_audio_upstream_irq(dev,
 					       dev->
-					       _audio_upstream_channel_select,
+					       _audio_upstream_channel,
 					       audio_status);
 	}
 
@@ -726,7 +726,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 		return 0;
 	}
 
-	dev->_audio_upstream_channel_select = channel_select;
+	dev->_audio_upstream_channel = channel_select;
 	sram_ch = dev->channels[channel_select].sram_channels;
 
 	/* Work queue */
