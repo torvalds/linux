@@ -220,11 +220,6 @@
 #define PHYTYPE_IS(var, val)\
 	(PHYCONF_HAS(val) && (PHYCONF_IS(val) || ((var) == (val))))
 
-/* Finally, early-exit from switch case if anyone wants it... */
-
-#define CASECHECK(config, val)	if (!(CONF_HAS(config, val))) break
-#define CASEMSK(config, mask)	if (!(CONF_MSK(config, mask))) break
-
 /* Set up PHYTYPE automatically: (depends on PHY_TYPE_X, from d11.h) */
 
 #define _PHYCONF_N (1 << PHY_TYPE_N)

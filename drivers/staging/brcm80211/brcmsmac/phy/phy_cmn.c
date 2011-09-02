@@ -204,7 +204,8 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 
 	switch (pi->pubpi.phy_type) {
 	case PHY_TYPE_N:
-		CASECHECK(PHYTYPE, PHY_TYPE_N);
+		if (!CONF_HAS(PHYTYPE, PHY_TYPE_N))
+			break;
 		if (NREV_GE(pi->pubpi.phy_rev, 7))
 			addr |= RADIO_2057_READ_OFF;
 		else
@@ -212,7 +213,8 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 		break;
 
 	case PHY_TYPE_LCN:
-		CASECHECK(PHYTYPE, PHY_TYPE_LCN);
+		if (!CONF_HAS(PHYTYPE, PHY_TYPE_LCN))
+			break;
 		addr |= RADIO_2064_READ_OFF;
 		break;
 
