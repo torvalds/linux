@@ -586,8 +586,10 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 
 	chip->client = client;
-	/* Tsense always enabled */
-	chip->command = AD7291_NOISE_DELAY | AD7291_T_SENSE_MASK;
+
+	chip->command = AD7291_NOISE_DELAY |
+			AD7291_T_SENSE_MASK | /* Tsense always enabled */
+			AD7291_ALERT_POLARITY; /* set irq polarity low level */
 
 	if (voltage_uv) {
 		chip->int_vref_mv = voltage_uv / 1000;
@@ -604,6 +606,18 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 	indio_dev->info = &ad7291_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
+	ret = ad7291_i2c_write(chip, AD7291_COMMAND, AD7291_RESET);
+	if (ret) {
+		ret = -EIO;
+		goto error_disable_reg;
+	}
+
+	ret = ad7291_i2c_write(chip, AD7291_COMMAND, chip->command);
+	if (ret) {
+		ret = -EIO;
+		goto error_disable_reg;
+	}
+
 	if (client->irq > 0) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
@@ -613,15 +627,6 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 					   indio_dev);
 		if (ret)
 			goto error_disable_reg;
-
-		/* set irq polarity low level */
-		chip->command |= AD7291_ALERT_POLARITY;
-	}
-
-	ret = ad7291_i2c_write(chip, AD7291_COMMAND, chip->command);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
 	}
 
 	ret = iio_device_register(indio_dev);
