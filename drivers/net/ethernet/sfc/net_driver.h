@@ -704,6 +704,7 @@ struct efx_filter_state;
  *	can provide.  Generic code converts these into a standard
  *	&struct net_device_stats.
  * @stats_lock: Statistics update lock. Serialises statistics fetches
+ *	and access to @mac_stats.
  *
  * This is stored in the private area of the &struct net_device.
  */

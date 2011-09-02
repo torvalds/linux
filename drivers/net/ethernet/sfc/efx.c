@@ -1743,8 +1743,8 @@ static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struc
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 
 	spin_lock_bh(&efx->stats_lock);
+
 	efx->type->update_stats(efx);
-	spin_unlock_bh(&efx->stats_lock);
 
 	stats->rx_packets = mac_stats->rx_packets;
 	stats->tx_packets = mac_stats->tx_packets;
@@ -1767,6 +1767,8 @@ static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struc
 			    mac_stats->rx_symbol_error);
 	stats->tx_errors = (stats->tx_window_errors +
 			    mac_stats->tx_bad);
+
+	spin_unlock_bh(&efx->stats_lock);
 
 	return stats;
 }
