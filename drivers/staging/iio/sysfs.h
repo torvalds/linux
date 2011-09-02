@@ -146,7 +146,10 @@ enum iio_event_direction {
 	IIO_EVENT_CODE(channelclass, 0, 0, direction, type, number, 0, 0)
 
 #define IIO_EVENT_CODE_EXTRACT_TYPE(mask) ((mask >> 56) & 0xFF)
+
 #define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 48) & 0xCF)
+
+#define IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(mask) ((mask >> 32) & 0xFF)
 
 /* Event code number extraction depends on which type of event we have.
  * Perhaps review this function in the future*/

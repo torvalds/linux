@@ -314,7 +314,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 	u16 uval;
 	s16 signval;
 
-	switch (IIO_EVENT_CODE_EXTRACT_TYPE(event_code)) {
+	switch (IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		reg = ad7291_limit_regs[IIO_EVENT_CODE_EXTRACT_NUM(event_code)]
 			[!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
@@ -350,7 +350,7 @@ static int ad7291_write_event_value(struct iio_dev *indio_dev,
 	u8 reg;
 	s16 signval;
 
-	switch (IIO_EVENT_CODE_EXTRACT_TYPE(event_code)) {
+	switch (IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		if (val > 0xFFF || val < 0)
 			return -EINVAL;
@@ -378,7 +378,7 @@ static int ad7291_read_event_config(struct iio_dev *indio_dev,
 	/* To be enabled the channel must simply be on. If any are enabled
 	   we are in continuous sampling mode */
 
-	switch (IIO_EVENT_CODE_EXTRACT_TYPE(event_code)) {
+	switch (IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		if (chip->c_mask &
 		    (1 << IIO_EVENT_CODE_EXTRACT_NUM(event_code)))
