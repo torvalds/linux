@@ -160,25 +160,31 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 static int start_measure(struct max8925_power_info *info, int type)
 {
 	unsigned char buf[2] = {0, 0};
+	int meas_cmd;
 	int meas_reg = 0, ret;
 
 	switch (type) {
 	case MEASURE_VCHG:
+		meas_cmd = MAX8925_CMD_VCHG;
 		meas_reg = MAX8925_ADC_VCHG;
 		break;
 	case MEASURE_VBBATT:
+		meas_cmd = MAX8925_CMD_VBBATT;
 		meas_reg = MAX8925_ADC_VBBATT;
 		break;
 	case MEASURE_VMBATT:
+		meas_cmd = MAX8925_CMD_VMBATT;
 		meas_reg = MAX8925_ADC_VMBATT;
 		break;
 	case MEASURE_ISNS:
+		meas_cmd = MAX8925_CMD_ISNS;
 		meas_reg = MAX8925_ADC_ISNS;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	max8925_reg_write(info->adc, meas_cmd, 0);
 	max8925_bulk_read(info->adc, meas_reg, 2, buf);
 	ret = ((buf[0]<<8) | buf[1]) >> 4;
 
