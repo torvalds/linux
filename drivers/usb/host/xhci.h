@@ -799,6 +799,7 @@ struct xhci_virt_device {
 	u32				cmd_status;
 	struct list_head		cmd_list;
 	u8				fake_port;
+	u8				real_port;
 };
 
 

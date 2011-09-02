@@ -922,6 +922,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 			top_dev = top_dev->parent)
 		/* Found device below root hub */;
 	dev->fake_port = top_dev->portnum;
+	dev->real_port = port_num;
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", port_num);
 	xhci_dbg(xhci, "Set fake root hub portnum to %d\n", dev->fake_port);
 
