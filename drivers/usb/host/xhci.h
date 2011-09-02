@@ -774,6 +774,26 @@ struct xhci_virt_ep {
 	bool			skip;
 };
 
+enum xhci_overhead_type {
+	LS_OVERHEAD_TYPE = 0,
+	FS_OVERHEAD_TYPE,
+	HS_OVERHEAD_TYPE,
+};
+
+struct xhci_interval_bw {
+	unsigned int		num_packets;
+	/* How many endpoints of each speed are present. */
+	unsigned int		overhead[3];
+};
+
+#define	XHCI_MAX_INTERVAL	16
+
+struct xhci_interval_bw_table {
+	unsigned int		interval0_esit_payload;
+	struct xhci_interval_bw	interval_bw[XHCI_MAX_INTERVAL];
+};
+
+
 struct xhci_virt_device {
 	struct usb_device		*udev;
 	/*
@@ -800,6 +820,30 @@ struct xhci_virt_device {
 	struct list_head		cmd_list;
 	u8				fake_port;
 	u8				real_port;
+	struct xhci_interval_bw_table	*bw_table;
+	struct xhci_tt_bw_info		*tt_info;
+};
+
+/*
+ * For each roothub, keep track of the bandwidth information for each periodic
+ * interval.
+ *
+ * If a high speed hub is attached to the roothub, each TT associated with that
+ * hub is a separate bandwidth domain.  The interval information for the
+ * endpoints on the devices under that TT will appear in the TT structure.
+ */
+struct xhci_root_port_bw_info {
+	struct list_head		tts;
+	unsigned int			num_active_tts;
+	struct xhci_interval_bw_table	bw_table;
+};
+
+struct xhci_tt_bw_info {
+	struct list_head		tt_list;
+	int				slot_id;
+	int				ttport;
+	struct xhci_interval_bw_table	bw_table;
+	int				active_eps;
 };
 
 
@@ -1268,6 +1312,8 @@ struct xhci_hcd {
 	int slot_id;
 	/* Internal mirror of the HW's dcbaa */
 	struct xhci_virt_device	*devs[MAX_HC_SLOTS];
+	/* For keeping track of bandwidth domains per roothub. */
+	struct xhci_root_port_bw_info	*rh_bw;
 
 	/* DMA pools */
 	struct dma_pool	*device_pool;
@@ -1508,6 +1554,10 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd);
 irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd);
 int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_alloc_tt_info(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct usb_device *hdev,
+		struct usb_tt *tt, gfp_t mem_flags);
 int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		unsigned int num_streams, gfp_t mem_flags);

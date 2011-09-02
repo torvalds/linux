@@ -2990,6 +2990,14 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	if (hdev->speed == USB_SPEED_HIGH &&
+			xhci_alloc_tt_info(xhci, vdev, hdev, tt, GFP_ATOMIC)) {
+		xhci_dbg(xhci, "Could not allocate xHCI TT structure.\n");
+		xhci_free_command(xhci, config_cmd);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -ENOMEM;
+	}
+
 	xhci_slot_copy(xhci, config_cmd->in_ctx, vdev->out_ctx);
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, config_cmd->in_ctx);
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);

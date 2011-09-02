@@ -687,7 +687,98 @@ static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
 	ep->xhci = xhci;
 }
 
-/* All the xhci_tds in the ring's TD list should be freed at this point */
+static void xhci_free_tt_info(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		int slot_id)
+{
+	struct list_head *tt;
+	struct list_head *tt_list_head;
+	struct list_head *tt_next;
+	struct xhci_tt_bw_info *tt_info;
+
+	/* If the device never made it past the Set Address stage,
+	 * it may not have the real_port set correctly.
+	 */
+	if (virt_dev->real_port == 0 ||
+			virt_dev->real_port > HCS_MAX_PORTS(xhci->hcs_params1)) {
+		xhci_dbg(xhci, "Bad real port.\n");
+		return;
+	}
+
+	tt_list_head = &(xhci->rh_bw[virt_dev->real_port - 1].tts);
+	if (list_empty(tt_list_head))
+		return;
+
+	list_for_each(tt, tt_list_head) {
+		tt_info = list_entry(tt, struct xhci_tt_bw_info, tt_list);
+		if (tt_info->slot_id == slot_id)
+			break;
+	}
+	/* Cautionary measure in case the hub was disconnected before we
+	 * stored the TT information.
+	 */
+	if (tt_info->slot_id != slot_id)
+		return;
+
+	tt_next = tt->next;
+	tt_info = list_entry(tt, struct xhci_tt_bw_info,
+			tt_list);
+	/* Multi-TT hubs will have more than one entry */
+	do {
+		list_del(tt);
+		kfree(tt_info);
+		tt = tt_next;
+		if (list_empty(tt_list_head))
+			break;
+		tt_next = tt->next;
+		tt_info = list_entry(tt, struct xhci_tt_bw_info,
+				tt_list);
+	} while (tt_info->slot_id == slot_id);
+}
+
+int xhci_alloc_tt_info(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct usb_device *hdev,
+		struct usb_tt *tt, gfp_t mem_flags)
+{
+	struct xhci_tt_bw_info		*tt_info;
+	unsigned int			num_ports;
+	int				i, j;
+
+	if (!tt->multi)
+		num_ports = 1;
+	else
+		num_ports = hdev->maxchild;
+
+	for (i = 0; i < num_ports; i++, tt_info++) {
+		struct xhci_interval_bw_table *bw_table;
+
+		tt_info = kzalloc(sizeof(*tt_info), mem_flags);
+		if (!tt_info)
+			goto free_tts;
+		INIT_LIST_HEAD(&tt_info->tt_list);
+		list_add(&tt_info->tt_list,
+				&xhci->rh_bw[virt_dev->real_port - 1].tts);
+		tt_info->slot_id = virt_dev->udev->slot_id;
+		if (tt->multi)
+			tt_info->ttport = i+1;
+		bw_table = &tt_info->bw_table;
+		for (j = 0; j < XHCI_MAX_INTERVAL; j++)
+			INIT_LIST_HEAD(&bw_table->interval_bw[j].endpoints);
+	}
+	return 0;
+
+free_tts:
+	xhci_free_tt_info(xhci, virt_dev, virt_dev->udev->slot_id);
+	return -ENOMEM;
+}
+
+
+/* All the xhci_tds in the ring's TD list should be freed at this point.
+ * Should be called with xhci->lock held if there is any chance the TT lists
+ * will be manipulated by the configure endpoint, allocate device, or update
+ * hub functions while this function is removing the TT entries from the list.
+ */
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 {
 	struct xhci_virt_device *dev;
@@ -709,6 +800,8 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 			xhci_free_stream_info(xhci,
 					dev->eps[i].stream_info);
 	}
+	/* If this is a hub, free the TT(s) from the TT list */
+	xhci_free_tt_info(xhci, dev, slot_id);
 
 	if (dev->ring_cache) {
 		for (i = 0; i < dev->num_rings_cached; i++)
@@ -925,6 +1018,36 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	dev->real_port = port_num;
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", port_num);
 	xhci_dbg(xhci, "Set fake root hub portnum to %d\n", dev->fake_port);
+
+	/* Find the right bandwidth table that this device will be a part of.
+	 * If this is a full speed device attached directly to a root port (or a
+	 * decendent of one), it counts as a primary bandwidth domain, not a
+	 * secondary bandwidth domain under a TT.  An xhci_tt_info structure
+	 * will never be created for the HS root hub.
+	 */
+	if (!udev->tt || !udev->tt->hub->parent) {
+		dev->bw_table = &xhci->rh_bw[port_num - 1].bw_table;
+	} else {
+		struct xhci_root_port_bw_info *rh_bw;
+		struct xhci_tt_bw_info *tt_bw;
+
+		rh_bw = &xhci->rh_bw[port_num - 1];
+		/* Find the right TT. */
+		list_for_each_entry(tt_bw, &rh_bw->tts, tt_list) {
+			if (tt_bw->slot_id != udev->tt->hub->slot_id)
+				continue;
+
+			if (!dev->udev->tt->multi ||
+					(udev->tt->multi &&
+					 tt_bw->ttport == dev->udev->ttport)) {
+				dev->bw_table = &tt_bw->bw_table;
+				dev->tt_info = tt_bw;
+				break;
+			}
+		}
+		if (!dev->tt_info)
+			xhci_warn(xhci, "WARN: Didn't find a matching TT\n");
+	}
 
 	/* Is this a LS/FS device under an external HS hub? */
 	if (udev->tt && udev->tt->hub->parent) {
@@ -1552,6 +1675,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	kfree(xhci->usb2_ports);
 	kfree(xhci->usb3_ports);
 	kfree(xhci->port_array);
+	kfree(xhci->rh_bw);
 
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
@@ -1821,6 +1945,12 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->port_array = kzalloc(sizeof(*xhci->port_array)*num_ports, flags);
 	if (!xhci->port_array)
 		return -ENOMEM;
+
+	xhci->rh_bw = kzalloc(sizeof(*xhci->rh_bw)*num_ports, flags);
+	if (!xhci->rh_bw)
+		return -ENOMEM;
+	for (i = 0; i < num_ports; i++)
+		INIT_LIST_HEAD(&xhci->rh_bw[i].tts);
 
 	/*
 	 * For whatever reason, the first capability offset is from the
