@@ -1512,7 +1512,6 @@ static void __exit cx25821_fini(void)
 	pci_unregister_driver(&cx25821_pci_driver);
 }
 
-EXPORT_SYMBOL(cx25821_set_gpiopin_direction);
 
 module_init(cx25821_init);
 module_exit(cx25821_fini);
