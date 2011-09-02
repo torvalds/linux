@@ -1052,7 +1052,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		i = range->start >> PAGE_CACHE_SHIFT;
 	}
 	if (!max_to_defrag)
-		max_to_defrag = last_index - 1;
+		max_to_defrag = last_index;
 
 	while (i <= last_index && defrag_count < max_to_defrag) {
 		/*
