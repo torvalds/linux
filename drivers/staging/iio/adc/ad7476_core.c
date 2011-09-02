@@ -129,7 +129,6 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
-	bool reg_done = false;
 
 	indio_dev = iio_allocate_device(sizeof(*st));
 	if (indio_dev == NULL) {
@@ -180,28 +179,29 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-
 	ret = iio_ring_buffer_register(indio_dev,
 				       st->chip_info->channel,
 				       ARRAY_SIZE(st->chip_info->channel));
 	if (ret)
 		goto error_cleanup_ring;
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_ring_unregister;
 	return 0;
 
+error_ring_unregister:
+	iio_ring_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7476_ring_cleanup(indio_dev);
-	iio_device_unregister(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	if (!reg_done)
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
+
 error_ret:
 	return ret;
 }

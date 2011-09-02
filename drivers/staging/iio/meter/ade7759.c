@@ -480,19 +480,17 @@ static int __devinit ade7759_probe(struct spi_device *spi)
 	indio_dev->info = &ade7759_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
+	/* Get the device into a sane initial state */
+	ret = ade7759_initial_setup(indio_dev);
+	if (ret)
+		goto error_free_dev;
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	/* Get the device into a sane initial state */
-	ret = ade7759_initial_setup(indio_dev);
-	if (ret)
-		goto error_unreg_dev;
 	return 0;
 
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:

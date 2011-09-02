@@ -657,7 +657,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 static int __devinit ad799x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct ad799x_platform_data *pdata = client->dev.platform_data;
 	struct ad799x_state *st;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
@@ -701,11 +701,6 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_cleanup_ring;
-	regdone = 1;
-
 	ret = iio_ring_buffer_register(indio_dev,
 				       indio_dev->channels,
 				       indio_dev->num_channels);
@@ -723,9 +718,14 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 		if (ret)
 			goto error_cleanup_ring;
 	}
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_free_irq;
 
 	return 0;
 
+error_free_irq:
+	free_irq(client->irq, indio_dev);
 error_cleanup_ring:
 	ad799x_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -734,10 +734,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }

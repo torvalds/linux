@@ -283,9 +283,12 @@ struct iio_info {
  * @num_channels:	[DRIVER] number of chanels specified in @channels.
  * @channel_attr_list:	[INTERN] keep track of automatically created channel
  *			attributes
+ * @chan_attr_group:	[INTERN] group for all attrs in base directory
  * @name:		[DRIVER] name of the device.
  * @info:		[DRIVER] callbacks and constant info from driver
  * @chrdev:		[INTERN] associated character device
+ * @groups:		[INTERN] attribute groups
+ * @groupcounter:	[INTERN] index of next attribute group
  **/
 struct iio_dev {
 	int				id;
@@ -308,9 +311,13 @@ struct iio_dev {
 	int				num_channels;
 
 	struct list_head		channel_attr_list;
+	struct attribute_group		chan_attr_group;
 	const char			*name;
 	const struct iio_info		*info;
 	struct cdev			chrdev;
+#define IIO_MAX_GROUPS 6
+	const struct attribute_group	*groups[IIO_MAX_GROUPS + 1];
+	int				groupcounter;
 };
 
 /**

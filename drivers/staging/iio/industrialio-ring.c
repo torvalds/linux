@@ -207,10 +207,10 @@ error_ret:
 static int iio_ring_add_channel_sysfs(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan)
 {
-	int ret;
+	int ret, attrcount = 0;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 
-	ret = __iio_add_chan_devattr("index", "scan_elements",
+	ret = __iio_add_chan_devattr("index",
 				     chan,
 				     &iio_show_scan_index,
 				     NULL,
@@ -220,8 +220,8 @@ static int iio_ring_add_channel_sysfs(struct iio_dev *indio_dev,
 				     &ring->scan_el_dev_attr_list);
 	if (ret)
 		goto error_ret;
-
-	ret = __iio_add_chan_devattr("type", "scan_elements",
+	attrcount++;
+	ret = __iio_add_chan_devattr("type",
 				     chan,
 				     &iio_show_fixed_type,
 				     NULL,
@@ -231,9 +231,9 @@ static int iio_ring_add_channel_sysfs(struct iio_dev *indio_dev,
 				     &ring->scan_el_dev_attr_list);
 	if (ret)
 		goto error_ret;
-
+	attrcount++;
 	if (chan->type != IIO_TIMESTAMP)
-		ret = __iio_add_chan_devattr("en", "scan_elements",
+		ret = __iio_add_chan_devattr("en",
 					     chan,
 					     &iio_scan_el_show,
 					     &iio_scan_el_store,
@@ -242,7 +242,7 @@ static int iio_ring_add_channel_sysfs(struct iio_dev *indio_dev,
 					     &indio_dev->dev,
 					     &ring->scan_el_dev_attr_list);
 	else
-		ret = __iio_add_chan_devattr("en", "scan_elements",
+		ret = __iio_add_chan_devattr("en",
 					     chan,
 					     &iio_scan_el_ts_show,
 					     &iio_scan_el_ts_store,
@@ -250,6 +250,8 @@ static int iio_ring_add_channel_sysfs(struct iio_dev *indio_dev,
 					     0,
 					     &indio_dev->dev,
 					     &ring->scan_el_dev_attr_list);
+	attrcount++;
+	ret = attrcount;
 error_ret:
 	return ret;
 }
@@ -257,66 +259,40 @@ error_ret:
 static void iio_ring_remove_and_free_scan_dev_attr(struct iio_dev *indio_dev,
 						   struct iio_dev_attr *p)
 {
-	sysfs_remove_file_from_group(&indio_dev->dev.kobj,
-				     &p->dev_attr.attr, "scan_elements");
 	kfree(p->dev_attr.attr.name);
 	kfree(p);
 }
-
-static struct attribute *iio_scan_el_dummy_attrs[] = {
-	NULL
-};
-
-static struct attribute_group iio_scan_el_dummy_group = {
-	.name = "scan_elements",
-	.attrs = iio_scan_el_dummy_attrs
-};
 
 static void __iio_ring_attr_cleanup(struct iio_dev *indio_dev)
 {
 	struct iio_dev_attr *p, *n;
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	int anydynamic = !list_empty(&ring->scan_el_dev_attr_list);
+
 	list_for_each_entry_safe(p, n,
 				 &ring->scan_el_dev_attr_list, l)
 		iio_ring_remove_and_free_scan_dev_attr(indio_dev, p);
-
-	if (ring->scan_el_attrs)
-		sysfs_remove_group(&indio_dev->dev.kobj,
-				   ring->scan_el_attrs);
-	else if (anydynamic)
-		sysfs_remove_group(&indio_dev->dev.kobj,
-				   &iio_scan_el_dummy_group);
 }
+
+static const char * const iio_scan_elements_group_name = "scan_elements";
 
 int iio_ring_buffer_register(struct iio_dev *indio_dev,
 			     const struct iio_chan_spec *channels,
 			     int num_channels)
 {
+	struct iio_dev_attr *p;
+	struct attribute **attr;
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	int ret, i;
+	int ret, i, attrn, attrcount, attrcount_orig = 0;
 
-	if (ring->scan_el_attrs) {
-		ret = sysfs_create_group(&indio_dev->dev.kobj,
-					 ring->scan_el_attrs);
-		if (ret) {
-			dev_err(&indio_dev->dev,
-				"Failed to add sysfs scan elements\n");
-			goto error_ret;
-		}
-	} else if (channels) {
-		ret = sysfs_create_group(&indio_dev->dev.kobj,
-					 &iio_scan_el_dummy_group);
-		if (ret)
-			goto error_ret;
-	}
-	if (ring->attrs) {
-		ret = sysfs_create_group(&indio_dev->dev.kobj,
-					 ring->attrs);
-		if (ret)
-			goto error_cleanup_dynamic;
-	}
+	if (ring->attrs)
+		indio_dev->groups[indio_dev->groupcounter++] = ring->attrs;
 
+	if (ring->scan_el_attrs != NULL) {
+		attr = ring->scan_el_attrs->attrs;
+		while (*attr++ != NULL)
+			attrcount_orig++;
+	}
+	attrcount = attrcount_orig;
 	INIT_LIST_HEAD(&ring->scan_el_dev_attr_list);
 	if (channels) {
 		/* new magic */
@@ -330,7 +306,8 @@ int iio_ring_buffer_register(struct iio_dev *indio_dev,
 			ret = iio_ring_add_channel_sysfs(indio_dev,
 							 &channels[i]);
 			if (ret < 0)
-				goto error_cleanup_group;
+				goto error_cleanup_dynamic;
+			attrcount += ret;
 		}
 		if (indio_dev->masklength && ring->scan_mask == NULL) {
 			ring->scan_mask
@@ -339,18 +316,36 @@ int iio_ring_buffer_register(struct iio_dev *indio_dev,
 					  GFP_KERNEL);
 			if (ring->scan_mask == NULL) {
 				ret = -ENOMEM;
-				goto error_cleanup_group;
+				goto error_cleanup_dynamic;
 			}
 		}
 	}
 
+	ring->scan_el_group.name = iio_scan_elements_group_name;
+
+	ring->scan_el_group.attrs
+		= kzalloc(sizeof(ring->scan_el_group.attrs[0])*(attrcount + 1),
+			  GFP_KERNEL);
+	if (ring->scan_el_group.attrs == NULL) {
+		ret = -ENOMEM;
+		goto error_free_scan_mask;
+	}
+	if (ring->scan_el_attrs)
+		memcpy(ring->scan_el_group.attrs, ring->scan_el_attrs,
+		       sizeof(ring->scan_el_group.attrs[0])*attrcount_orig);
+	attrn = attrcount_orig;
+
+	list_for_each_entry(p, &ring->scan_el_dev_attr_list, l)
+		ring->scan_el_group.attrs[attrn++] = &p->dev_attr.attr;
+	indio_dev->groups[indio_dev->groupcounter++] = &ring->scan_el_group;
+
 	return 0;
-error_cleanup_group:
-	if (ring->attrs)
-		sysfs_remove_group(&indio_dev->dev.kobj, ring->attrs);
+
+error_free_scan_mask:
+	kfree(ring->scan_mask);
 error_cleanup_dynamic:
 	__iio_ring_attr_cleanup(indio_dev);
-error_ret:
+
 	return ret;
 }
 EXPORT_SYMBOL(iio_ring_buffer_register);
@@ -358,9 +353,7 @@ EXPORT_SYMBOL(iio_ring_buffer_register);
 void iio_ring_buffer_unregister(struct iio_dev *indio_dev)
 {
 	kfree(indio_dev->ring->scan_mask);
-	if (indio_dev->ring->attrs)
-		sysfs_remove_group(&indio_dev->dev.kobj,
-				   indio_dev->ring->attrs);
+	kfree(indio_dev->ring->scan_el_group.attrs);
 	__iio_ring_attr_cleanup(indio_dev);
 }
 EXPORT_SYMBOL(iio_ring_buffer_unregister);

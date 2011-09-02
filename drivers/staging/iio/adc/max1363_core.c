@@ -1254,7 +1254,7 @@ static int max1363_initial_setup(struct max1363_state *st)
 static int __devinit max1363_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	int ret, i, regdone = 0;
+	int ret, i;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *reg;
@@ -1312,10 +1312,6 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_free_available_scan_masks;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_cleanup_ring;
-	regdone = 1;
 	ret = iio_ring_buffer_register(indio_dev,
 				       st->chip_info->channels,
 				       st->chip_info->num_channels);
@@ -1334,8 +1330,13 @@ static int __devinit max1363_probe(struct i2c_client *client,
 			goto error_uninit_ring;
 	}
 
-	return 0;
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		goto error_free_irq;
 
+	return 0;
+error_free_irq:
+	free_irq(st->client->irq, indio_dev);
 error_uninit_ring:
 	iio_ring_buffer_unregister(indio_dev);
 error_cleanup_ring:
@@ -1343,10 +1344,7 @@ error_cleanup_ring:
 error_free_available_scan_masks:
 	kfree(indio_dev->available_scan_masks);
 error_free_device:
-	if (!regdone)
-		iio_free_device(indio_dev);
-	else
-		iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 error_disable_reg:
 	regulator_disable(reg);
 error_put_reg:

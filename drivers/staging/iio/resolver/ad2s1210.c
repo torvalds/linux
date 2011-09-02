@@ -784,6 +784,7 @@ static int __devexit ad2s1210_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad2s1210_state *st = iio_priv(indio_dev);
+
 	ad2s1210_free_gpios(st);
 	iio_device_unregister(indio_dev);
 

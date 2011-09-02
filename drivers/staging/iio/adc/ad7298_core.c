@@ -165,7 +165,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	int ret, regdone = 0;
+	int ret;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
 	if (indio_dev == NULL)
@@ -218,19 +218,19 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-	regdone = 1;
-
 	ret = iio_ring_buffer_register(indio_dev,
 				       &ad7298_channels[1], /* skip temp0 */
 				       ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
 		goto error_cleanup_ring;
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unregister_ring;
 
 	return 0;
 
+error_unregister_ring:
+	iio_ring_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -239,11 +239,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }

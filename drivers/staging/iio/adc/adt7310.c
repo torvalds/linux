@@ -782,10 +782,6 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	indio_dev->info = &adt7310_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	/* CT critcal temperature event. line 0 */
 	if (spi_dev->irq) {
 		if (adt7310_platform_data[2])
@@ -799,7 +795,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_dev;
 	}
 
 	/* INT bound temperature alarm event. line 1 */
@@ -836,6 +832,10 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 		}
 	}
 
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unreg_int_irq;
+
 	dev_info(&spi_dev->dev, "%s temperature sensor registered.\n",
 			indio_dev->name);
 
@@ -845,8 +845,6 @@ error_unreg_int_irq:
 	free_irq(adt7310_platform_data[0], indio_dev);
 error_unreg_ct_irq:
 	free_irq(spi_dev->irq, indio_dev);
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:

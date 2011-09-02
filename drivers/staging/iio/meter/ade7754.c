@@ -536,7 +536,7 @@ static const struct iio_info ade7754_info = {
 
 static int __devinit ade7754_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct ade7754_state *st;
 	struct iio_dev *indio_dev;
 
@@ -558,22 +558,18 @@ static int __devinit ade7754_probe(struct spi_device *spi)
 	indio_dev->info = &ade7754_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-	regdone = 1;
-
 	/* Get the device into a sane initial state */
 	ret = ade7754_initial_setup(indio_dev);
 	if (ret)
 		goto error_free_dev;
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_free_dev;
+
 	return 0;
 
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 error_ret:
 	return ret;

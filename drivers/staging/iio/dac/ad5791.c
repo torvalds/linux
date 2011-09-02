@@ -396,6 +396,8 @@ static int __devexit ad5791_remove(struct spi_device *spi)
 	}
 	iio_device_unregister(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	return 0;
 }
 

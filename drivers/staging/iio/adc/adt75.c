@@ -567,10 +567,6 @@ static int __devinit adt75_probe(struct i2c_client *client,
 	indio_dev->info = &adt75_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	if (client->irq > 0) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
@@ -579,7 +575,7 @@ static int __devinit adt75_probe(struct i2c_client *client,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_dev;
 
 		ret = adt75_i2c_read(indio_dev, ADT75_CONFIG, &chip->config);
 		if (ret) {
@@ -597,14 +593,16 @@ static int __devinit adt75_probe(struct i2c_client *client,
 		}
 	}
 
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unreg_irq;
+
 	dev_info(&client->dev, "%s temperature sensor registered.\n",
 			 indio_dev->name);
 
 	return 0;
 error_unreg_irq:
 	free_irq(client->irq, indio_dev);
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:

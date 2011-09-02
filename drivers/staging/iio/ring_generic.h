@@ -9,6 +9,7 @@
 
 #ifndef _IIO_RING_GENERIC_H_
 #define _IIO_RING_GENERIC_H_
+#include <linux/sysfs.h>
 #include "iio.h"
 #include "chrdev.h"
 
@@ -109,7 +110,7 @@ struct iio_ring_buffer {
 	const struct iio_ring_access_funcs	*access;
 	const struct iio_ring_setup_ops		*setup_ops;
 	struct list_head			scan_el_dev_attr_list;
-
+	struct attribute_group			scan_el_group;
 	wait_queue_head_t			pollq;
 	bool					stufftoread;
 	unsigned long				flags;

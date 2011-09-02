@@ -282,6 +282,11 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 	struct regulator *reg;
 	int ret, voltage_uv = 0;
 
+	indio_dev = iio_allocate_device(sizeof(*st));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
 	reg = regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(reg)) {
 		ret = regulator_enable(reg);
@@ -291,11 +296,6 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 		voltage_uv = regulator_get_voltage(reg);
 	}
 
-	indio_dev = iio_allocate_device(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 	if (voltage_uv)
@@ -315,10 +315,6 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 		indio_dev->info = &ad5504_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	if (spi->irq) {
 		ret = request_threaded_irq(spi->irq,
 					   NULL,
@@ -327,15 +323,17 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 					   spi_get_device_id(st->spi)->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_iio_device;
+			goto error_disable_reg;
 	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_free_irq;
 
 	return 0;
 
-error_unreg_iio_device:
-	iio_device_unregister(indio_dev);
-error_free_dev:
-	iio_free_device(indio_dev);
+error_free_irq:
+	free_irq(spi->irq, indio_dev);
 error_disable_reg:
 	if (!IS_ERR(reg))
 		regulator_disable(reg);
@@ -343,6 +341,8 @@ error_put_reg:
 	if (!IS_ERR(reg))
 		regulator_put(reg);
 
+	iio_free_device(indio_dev);
+error_ret:
 	return ret;
 }
 
@@ -350,16 +350,16 @@ static int __devexit ad5504_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5504_state *st = iio_priv(indio_dev);
-	struct regulator *reg = st->reg;
+
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 
-	iio_device_unregister(indio_dev);
-
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
+
+	iio_device_unregister(indio_dev);
 
 	return 0;
 }

@@ -439,7 +439,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 {
 	struct ad7606_platform_data *pdata = dev->platform_data;
 	struct ad7606_state *st;
-	int ret, regdone = 0;
+	int ret;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
 	if (indio_dev == NULL) {
@@ -501,18 +501,18 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (ret)
 		goto error_free_irq;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_irq;
-	regdone = 1;
-
 	ret = iio_ring_buffer_register(indio_dev,
 				       indio_dev->channels,
 				       indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unregister_ring;
 
 	return indio_dev;
+error_unregister_ring:
+	iio_ring_buffer_unregister(indio_dev);
 
 error_cleanup_ring:
 	ad7606_ring_cleanup(indio_dev);
@@ -529,10 +529,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ERR_PTR(ret);
 }

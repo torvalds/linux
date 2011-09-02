@@ -827,7 +827,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct ad7793_state *st;
 	struct iio_dev *indio_dev;
-	int ret, i, voltage_uv = 0, regdone = 0;
+	int ret, i, voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -890,11 +890,6 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring;
-	regdone = 1;
-
 	ret = ad7793_probe_trigger(indio_dev);
 	if (ret)
 		goto error_unreg_ring;
@@ -906,6 +901,10 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 		goto error_remove_trigger;
 
 	ret = ad7793_setup(st);
+	if (ret)
+		goto error_uninitialize_ring;
+
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_uninitialize_ring;
 
@@ -924,10 +923,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }

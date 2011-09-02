@@ -749,10 +749,6 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 	indio_dev->info = &adt7410_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	/* CT critcal temperature event. line 0 */
 	if (client->irq) {
 		ret = request_threaded_irq(client->irq,
@@ -762,7 +758,7 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 					   id->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_dev;
 	}
 
 	/* INT bound temperature alarm event. line 1 */
@@ -799,6 +795,9 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 			goto error_unreg_int_irq;
 		}
 	}
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unreg_int_irq;
 
 	dev_info(&client->dev, "%s temperature sensor registered.\n",
 			 id->name);
@@ -809,8 +808,6 @@ error_unreg_int_irq:
 	free_irq(adt7410_platform_data[0], indio_dev);
 error_unreg_ct_irq:
 	free_irq(client->irq, indio_dev);
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:

@@ -733,7 +733,7 @@ static const struct iio_info ade7758_info = {
 
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
-	int i, ret, regdone = 0;
+	int i, ret;
 	struct ade7758_state *st;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
@@ -775,11 +775,6 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_tx;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
-
 	ret = iio_ring_buffer_register(indio_dev,
 				       &ade7758_channels[0],
 				       ARRAY_SIZE(ade7758_channels));
@@ -796,8 +791,12 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	if (spi->irq) {
 		ret = ade7758_probe_trigger(indio_dev);
 		if (ret)
-			goto error_remove_trigger;
+			goto error_uninitialize_ring;
 	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_remove_trigger;
 
 	return 0;
 
@@ -813,10 +812,7 @@ error_free_tx:
 error_free_rx:
 	kfree(st->rx);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }

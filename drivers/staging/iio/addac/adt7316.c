@@ -2167,10 +2167,6 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	if (chip->bus.irq > 0) {
 		if (adt7316_platform_data[0])
 			chip->bus.irq_flags = adt7316_platform_data[0];
@@ -2182,7 +2178,7 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_dev;
 
 		if (chip->bus.irq_flags & IRQF_TRIGGER_HIGH)
 			chip->config1 |= ADT7316_INT_POLARITY;
@@ -2200,6 +2196,10 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		goto error_unreg_irq;
 	}
 
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unreg_irq;
+
 	dev_info(dev, "%s temperature sensor, ADC and DAC registered.\n",
 			indio_dev->name);
 
@@ -2207,8 +2207,6 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 
 error_unreg_irq:
 	free_irq(chip->bus.irq, indio_dev);
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:
@@ -2221,7 +2219,6 @@ int __devexit adt7316_remove(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adt7316_chip_info *chip = iio_priv(indio_dev);
 
-	dev_set_drvdata(dev, NULL);
 	if (chip->bus.irq)
 		free_irq(chip->bus.irq, indio_dev);
 	iio_device_unregister(indio_dev);

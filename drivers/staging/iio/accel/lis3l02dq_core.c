@@ -663,7 +663,7 @@ static const struct iio_info lis3l02dq_info = {
 
 static int __devinit lis3l02dq_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct lis3l02dq_state *st;
 	struct iio_dev *indio_dev;
 
@@ -689,11 +689,6 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	ret = lis3l02dq_configure_ring(indio_dev);
 	if (ret)
 		goto error_free_dev;
-
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
 
 	ret = iio_ring_buffer_register(indio_dev,
 				       lis3l02dq_channels,
@@ -722,6 +717,11 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	ret = lis3l02dq_initial_setup(indio_dev);
 	if (ret)
 		goto error_remove_trigger;
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_remove_trigger;
+
 	return 0;
 
 error_remove_trigger:
@@ -735,9 +735,6 @@ error_uninitialize_ring:
 error_unreg_ring_funcs:
 	lis3l02dq_unconfigure_ring(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
 		iio_free_device(indio_dev);
 error_ret:
 	return ret;
@@ -790,9 +787,8 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	lis3l02dq_remove_trigger(indio_dev);
 	iio_ring_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_ring(indio_dev);
-	iio_device_unregister(indio_dev);
 
-	return 0;
+	iio_device_unregister(indio_dev);
 
 err_ret:
 	return ret;

@@ -675,7 +675,7 @@ static void ad5933_work(struct work_struct *work)
 static int __devinit ad5933_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	int ret, regdone = 0, voltage_uv = 0;
+	int ret, voltage_uv = 0;
 	struct ad5933_platform_data *pdata = client->dev.platform_data;
 	struct ad5933_state *st;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
@@ -727,11 +727,6 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring;
-	regdone = 1;
-
 	/* skip temp0_input, register in0_(real|imag)_raw */
 	ret = iio_ring_buffer_register(indio_dev, &ad5933_channels[1], 2);
 	if (ret)
@@ -742,6 +737,10 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 	iio_scan_mask_set(indio_dev->ring, 1);
 
 	ret = ad5933_setup(st);
+	if (ret)
+		goto error_uninitialize_ring;
+
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_uninitialize_ring;
 
@@ -758,10 +757,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }

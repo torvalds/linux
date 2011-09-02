@@ -272,7 +272,6 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 
 	return 0;
 
-
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);

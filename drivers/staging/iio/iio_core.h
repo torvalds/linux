@@ -14,7 +14,6 @@
 #define _IIO_CORE_H_
 
 int __iio_add_chan_devattr(const char *postfix,
-			   const char *group,
 			   struct iio_chan_spec const *chan,
 			   ssize_t (*func)(struct device *dev,
 					   struct device_attribute *attr,

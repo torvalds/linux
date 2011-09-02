@@ -578,7 +578,7 @@ static const struct iio_info ad774x_info = {
 static int __devinit ad774x_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	int ret = 0, regdone = 0;
+	int ret;
 	struct ad774x_chip_info *chip;
 	struct iio_dev *indio_dev;
 
@@ -599,11 +599,6 @@ static int __devinit ad774x_probe(struct i2c_client *client,
 	indio_dev->info = &ad774x_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-	regdone = 1;
-
 	if (client->irq) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
@@ -615,15 +610,18 @@ static int __devinit ad774x_probe(struct i2c_client *client,
 			goto error_free_dev;
 	}
 
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_free_irq;
+
 	dev_err(&client->dev, "%s capacitive sensor registered, irq: %d\n", id->name, client->irq);
 
 	return 0;
 
+error_free_irq:
+	free_irq(client->irq, indio_dev);
 error_free_dev:
-	if (regdone)
-		free_irq(client->irq, indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }

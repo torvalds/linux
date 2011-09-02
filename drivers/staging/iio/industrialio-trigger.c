@@ -475,8 +475,10 @@ EXPORT_SYMBOL(iio_free_trigger);
 
 int iio_device_register_trigger_consumer(struct iio_dev *dev_info)
 {
-	return sysfs_create_group(&dev_info->dev.kobj,
-				  &iio_trigger_consumer_attr_group);
+	dev_info->groups[dev_info->groupcounter++] =
+		&iio_trigger_consumer_attr_group;
+
+	return 0;
 }
 
 void iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
@@ -484,8 +486,6 @@ void iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
 	/* Clean up and associated but not attached triggers references */
 	if (dev_info->trig)
 		iio_put_trigger(dev_info->trig);
-	sysfs_remove_group(&dev_info->dev.kobj,
-			   &iio_trigger_consumer_attr_group);
 }
 
 int iio_triggered_ring_postenable(struct iio_dev *indio_dev)

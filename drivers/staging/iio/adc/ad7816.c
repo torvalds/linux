@@ -396,10 +396,6 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 	indio_dev->info = &ad7816_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_gpio;
-
 	if (spi_dev->irq) {
 		/* Only low trigger is supported in ad7816/7/8 */
 		ret = request_threaded_irq(spi_dev->irq,
@@ -409,16 +405,19 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_gpio;
 	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_free_irq;
 
 	dev_info(&spi_dev->dev, "%s temperature sensor and ADC registered.\n",
 			 indio_dev->name);
 
 	return 0;
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
+error_free_irq:
+	free_irq(spi_dev->irq, indio_dev);
 error_free_gpio:
 	gpio_free(chip->busy_pin);
 error_free_gpio_convert:

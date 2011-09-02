@@ -463,7 +463,7 @@ static const struct iio_info adis16201_info = {
 
 static int __devinit adis16201_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct adis16201_state *st;
 	struct iio_dev *indio_dev;
 
@@ -492,11 +492,6 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
-
 	ret = iio_ring_buffer_register(indio_dev,
 				       adis16201_channels,
 				       ARRAY_SIZE(adis16201_channels));
@@ -515,6 +510,10 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 	ret = adis16201_initial_setup(indio_dev);
 	if (ret)
 		goto error_remove_trigger;
+
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		goto error_remove_trigger;
 	return 0;
 
 error_remove_trigger:
@@ -524,10 +523,7 @@ error_uninitialize_ring:
 error_unreg_ring_funcs:
 	adis16201_unconfigure_ring(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
