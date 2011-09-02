@@ -18,14 +18,9 @@
 
 #include <linux/serial_reg.h>
 
-#include <asm/memory.h>
-
 #include <mach/serial.h>
 
 #define UART_SHIFT	2
-
-#define davinci_uart_v2p(x)	((x) - PAGE_OFFSET + PLAT_PHYS_OFFSET)
-#define davinci_uart_p2v(x)	((x) - PLAT_PHYS_OFFSET + PAGE_OFFSET)
 
 		.pushsection .data
 davinci_uart_phys:	.word	0
@@ -35,38 +30,38 @@ davinci_uart_virt:	.word	0
 		.macro addruart, rp, rv, tmp
 
 		/* Use davinci_uart_phys/virt if already configured */
-10:		mrc	p15, 0, \rp, c1, c0
-		tst	\rp, #1			@ MMU enabled?
-		ldreq	\rp, =davinci_uart_v2p(davinci_uart_phys)
-		ldrne	\rp, =davinci_uart_phys
-		add	\rv, \rp, #4		@ davinci_uart_virt
-		ldr	\rp, [\rp, #0]
-		ldr	\rv, [\rv, #0]
+10:		adr	\rp, 99f		@ get effective addr of 99f
+		ldr	\rv, [\rp]		@ get absolute addr of 99f
+		sub	\rv, \rv, \rp		@ offset between the two
+		ldr	\rp, [\rp, #4]		@ abs addr of omap_uart_phys
+		sub	\tmp, \rp, \rv		@ make it effective
+		ldr	\rp, [\tmp, #0]		@ davinci_uart_phys
+		ldr	\rv, [\tmp, #4]		@ davinci_uart_virt
 		cmp	\rp, #0			@ is port configured?
 		cmpne	\rv, #0
-		bne	99f			@ already configured
+		bne	100f			@ already configured
 
 		/* Check the debug UART address set in uncompress.h */
-		mrc	p15, 0, \rp, c1, c0
-		tst	\rp, #1			@ MMU enabled?
-
 		and	\rp, pc, #0xff000000
 		ldr	\rv, =DAVINCI_UART_INFO_OFS
 		add	\rp, \rp, \rv
 
-		ldreq	\rv, =davinci_uart_v2p(davinci_uart_phys)
-		ldrne	\rv, =davinci_uart_phys
-
 		/* Copy uart phys address from decompressor uart info */
-		ldr	\tmp, [\rp, #0]
-		str	\tmp, [\rv, #0]
+		ldr	\rv, [\rp, #0]
+		str	\rv, [\tmp, #0]
 
 		/* Copy uart virt address from decompressor uart info */
-		ldr	\tmp, [\rp, #4]
-		str	\tmp, [\rv, #4]
+		ldr	\rv, [\rp, #4]
+		str	\rv, [\tmp, #4]
 
 		b	10b
-99:
+
+		.align
+99:		.word	.
+		.word	davinci_uart_phys
+		.ltorg
+
+100:
 		.endm
 
 		.macro	senduart,rd,rx
