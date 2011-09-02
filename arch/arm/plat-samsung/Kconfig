@@ -300,12 +300,6 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
-config S3C_PL330_DMA
-	bool
-	select PL330
-	help
-	  S3C DMA API Driver for PL330 DMAC.
-
 config SAMSUNG_DMADEV
 	bool
 	select DMADEVICES

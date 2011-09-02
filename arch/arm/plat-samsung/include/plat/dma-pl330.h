@@ -11,9 +11,6 @@
 #ifndef __DMA_PL330_H_
 #define __DMA_PL330_H_ __FILE__
 
-#define S3C2410_DMAF_AUTOSTART		(1 << 0)
-#define S3C2410_DMAF_CIRCULAR		(1 << 1)
-
 /*
  * PL330 can assign any channel to communicate with
  * any of the peripherals attched to the DMAC.
@@ -88,6 +85,10 @@ enum dma_ch {
 	DMACH_MAX,
 };
 
+struct s3c2410_dma_client {
+	char	*name;
+};
+
 static inline bool s3c_dma_has_circular(void)
 {
 	return true;
@@ -97,6 +98,7 @@ static inline bool samsung_dma_is_dmadev(void)
 {
 	return true;
 }
-#include <plat/dma.h>
+
+#include <plat/dma-ops.h>
 
 #endif	/* __DMA_PL330_H_ */
