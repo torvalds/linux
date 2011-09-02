@@ -73,6 +73,7 @@ struct dma_pl330_chan {
 
 	/* For D-to-M and M-to-D channels */
 	int burst_sz; /* the peripheral fifo width */
+	int burst_len; /* the number of burst */
 	dma_addr_t fifo_addr;
 };
 
@@ -263,23 +264,47 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	struct dma_pl330_desc *desc;
 	unsigned long flags;
+	struct dma_pl330_dmac *pdmac = pch->dmac;
+	struct dma_slave_config *slave_config;
 
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
+	switch (cmd) {
+	case DMA_TERMINATE_ALL:
+		spin_lock_irqsave(&pch->lock, flags);
+
+		/* FLUSH the PL330 Channel thread */
+		pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
+
+		/* Mark all desc done */
+		list_for_each_entry(desc, &pch->work_list, node)
+			desc->status = DONE;
+
+		spin_unlock_irqrestore(&pch->lock, flags);
+
+		pl330_tasklet((unsigned long) pch);
+		break;
+	case DMA_SLAVE_CONFIG:
+		slave_config = (struct dma_slave_config *)arg;
+
+		if (slave_config->direction == DMA_TO_DEVICE) {
+			if (slave_config->dst_addr)
+				pch->fifo_addr = slave_config->dst_addr;
+			if (slave_config->dst_addr_width)
+				pch->burst_sz = __ffs(slave_config->dst_addr_width);
+			if (slave_config->dst_maxburst)
+				pch->burst_len = slave_config->dst_maxburst;
+		} else if (slave_config->direction == DMA_FROM_DEVICE) {
+			if (slave_config->src_addr)
+				pch->fifo_addr = slave_config->src_addr;
+			if (slave_config->src_addr_width)
+				pch->burst_sz = __ffs(slave_config->src_addr_width);
+			if (slave_config->src_maxburst)
+				pch->burst_len = slave_config->src_maxburst;
+		}
+		break;
+	default:
+		dev_err(pch->dmac->pif.dev, "Not supported command.\n");
 		return -ENXIO;
-
-	spin_lock_irqsave(&pch->lock, flags);
-
-	/* FLUSH the PL330 Channel thread */
-	pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
-
-	/* Mark all desc done */
-	list_for_each_entry(desc, &pch->work_list, node)
-		desc->status = DONE;
-
-	spin_unlock_irqrestore(&pch->lock, flags);
-
-	pl330_tasklet((unsigned long) pch);
+	}
 
 	return 0;
 }
