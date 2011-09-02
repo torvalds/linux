@@ -123,22 +123,6 @@ extern const struct brcms_mcs_info mcs_table[];
 		  RSPEC_ISSGI(rspec)) : \
 	(rspec & RSPEC_RATE_MASK))
 
-/* return rate in unit of 500Kbps -- for internal use in wlc_rate_sel.c */
-#define RSPEC2RATE500K(rspec) \
-	((rspec & RSPEC_MIMORATE) ? \
-	 MCS_RATE((rspec & RSPEC_RATE_MASK), state->is40bw, \
-		   RSPEC_ISSGI(rspec))/500 : \
-	(rspec & RSPEC_RATE_MASK))
-
-#define CRSPEC2RATE500K(rspec) \
-	((rspec & RSPEC_MIMORATE) ? \
-	 MCS_RATE((rspec & RSPEC_RATE_MASK), RSPEC_IS40MHZ(rspec), \
-		   RSPEC_ISSGI(rspec))/500 :\
-	(rspec & RSPEC_RATE_MASK))
-
-#define RSPEC2KBPS(rspec) \
-	(IS_MCS(rspec) ? RSPEC2RATE(rspec) : RSPEC2RATE(rspec)*500)
-
 #define RSPEC_PHYTXBYTE2(rspec)	((rspec & 0xff00) >> 8)
 
 #define RSPEC_GET_BW(rspec)	((rspec & RSPEC_BW_MASK) >> RSPEC_BW_SHIFT)

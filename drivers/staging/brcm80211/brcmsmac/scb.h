@@ -24,6 +24,16 @@
 
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
 
+#define AMPDU_MAX_SCB_TID	NUMPRIO
+
+/* scb flags */
+#define SCB_WMECAP		0x0040	/* may ONLY be set if pub->_wme!=OFF */
+#define SCB_HTCAP		0x10000	/* HT (MIMO) capable device */
+#define SCB_IS40		0x80000	/* 40MHz capable */
+#define SCB_STBCCAP		0x40000000	/* STBC Capable */
+
+#define SCB_MAGIC	0xbeefcafe
+
 /* structure to store per-tid state for the ampdu initiator */
 struct scb_ampdu_tid_ini {
 	u8 tx_in_transit; /* number of pending mpdus in transit in driver */
@@ -33,8 +43,6 @@ struct scb_ampdu_tid_ini {
 	struct scb *scb;  /* backptr for easy lookup */
 	u8 ba_wsize;	  /* negotiated ba window size (in pdu) */
 };
-
-#define AMPDU_MAX_SCB_TID	NUMPRIO
 
 struct scb_ampdu {
 	struct scb *scb;	/* back pointer for easy reference */
@@ -54,8 +62,6 @@ struct scb_ampdu {
 	struct scb_ampdu_tid_ini ini[AMPDU_MAX_SCB_TID];
 };
 
-#define SCB_MAGIC	0xbeefcafe
-
 /* station control block - one per remote MAC address */
 struct scb {
 	u32 magic;
@@ -74,14 +80,4 @@ struct scb {
 	struct scb_ampdu scb_ampdu;	/* AMPDU state including per tid info */
 };
 
-/* scb flags */
-#define SCB_WMECAP		0x0040	/* may ONLY be set if pub->_wme!=OFF */
-#define SCB_HTCAP		0x10000	/* HT (MIMO) capable device */
-#define SCB_IS40		0x80000	/* 40MHz capable */
-#define SCB_STBCCAP		0x40000000	/* STBC Capable */
-#define SCB_WME(a)		((a)->flags & SCB_WMECAP)/* implies WME enab */
-#define SCB_SEQNUM(scb, prio)	((scb)->seqnum[(prio)])
-#define SCB_PS(a)		NULL
-#define SCB_STBC_CAP(a)		((a)->flags & SCB_STBCCAP)
-#define SCB_AMPDU(a)		true
 #endif				/* _BRCM_SCB_H_ */

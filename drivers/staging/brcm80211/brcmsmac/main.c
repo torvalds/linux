@@ -7196,11 +7196,11 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		} else {
 			/* Increment the counter for first fragment */
 			if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-				SCB_SEQNUM(scb, p->priority)++;
+				scb->seqnum[p->priority]++;
 
 			/* extract fragment number from frame first */
 			seq = le16_to_cpu(seq) & FRAGNUM_MASK;
-			seq |= (SCB_SEQNUM(scb, p->priority) << SEQNUM_SHIFT);
+			seq |= (scb->seqnum[p->priority] << SEQNUM_SHIFT);
 			h->seq_ctrl = cpu_to_le16(seq);
 
 			frameid = ((seq << TXFID_SEQ_SHIFT) & TXFID_SEQ_MASK) |
@@ -7210,7 +7210,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	frameid |= queue & TXFID_QUEUE_MASK;
 
 	/* set the ignpmq bit for all pkts tx'd in PS mode and for beacons */
-	if (SCB_PS(scb) || ieee80211_is_beacon(h->frame_control))
+	if (ieee80211_is_beacon(h->frame_control))
 		mcl |= TXC_IGNOREPMQ;
 
 	txrate[0] = tx_info->control.rates;
@@ -7685,7 +7685,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	}
 
 	ac = skb_get_queue_mapping(p);
-	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
+	if ((scb->flags & SCB_WMECAP) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
 		/* WME: Update TXOP threshold */

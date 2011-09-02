@@ -221,7 +221,8 @@ struct brcms_stf {
 
 #define BRCMS_STF_SS_STBC_TX(wlc, scb) \
 	(((wlc)->stf->txstreams > 1) && (((wlc)->band->band_stf_stbc_tx == ON) \
-	 || (SCB_STBC_CAP((scb)) && (wlc)->band->band_stf_stbc_tx == AUTO && \
+	 || (((scb)->flags & SCB_STBCCAP) && \
+	     (wlc)->band->band_stf_stbc_tx == AUTO && \
 	     isset(&((wlc)->stf->ss_algo_channel), PHY_TXC1_MODE_STBC))))
 
 #define BRCMS_STBC_CAP_PHY(wlc) (BRCMS_ISNPHY(wlc->band) && \
