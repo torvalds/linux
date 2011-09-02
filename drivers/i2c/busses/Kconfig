@@ -110,7 +110,6 @@ config I2C_I801
 config I2C_ISCH
 	tristate "Intel SCH SMBus 1.0"
 	depends on PCI
-	select MFD_CORE
 	select LPC_SCH
 	help
 	  Say Y here if you want to use SMBus controller on the Intel SCH

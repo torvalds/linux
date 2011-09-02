@@ -2,23 +2,8 @@
 # Multifunction miscellaneous devices
 #
 
-menuconfig MFD_SUPPORT
-	bool "Multifunction device drivers"
-	depends on HAS_IOMEM
-	default y
-	help
-	  Multifunction devices embed several functions (e.g. GPIOs,
-	  touchscreens, keyboards, current regulators, power management chips,
-	  etc...) in one single integrated circuit. They usually talk to the
-	  main CPU through one or more IRQ lines and low speed data busses (SPI,
-	  I2C, etc..). They appear as one single device to the main system
-	  through the data bus and the MFD framework allows for sub devices
-	  (a.k.a. functions) to appear as discrete platform devices.
-	  MFDs are typically found on embedded platforms.
-
-	  This option alone does not add any kernel code.
-
-if MFD_SUPPORT
+if HAS_IOMEM
+menu "Multifunction device drivers"
 
 config MFD_CORE
 	tristate
@@ -772,7 +757,8 @@ config MFD_AAT2870_CORE
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
-endif # MFD_SUPPORT
+endmenu
+endif
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
