@@ -289,72 +289,52 @@ static const enum max1363_modes max1363_mode_list[] = {
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)	\
 	 | IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
 #define MAX1363_INFO_MASK (1 << IIO_CHAN_INFO_SCALE_SHARED)
-
-static struct iio_chan_spec max1363_channels[] = {
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0, MAX1363_INFO_MASK,
-		 _s0, 0, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 _s1, 1, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0, MAX1363_INFO_MASK,
-		 _s2, 2, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0, MAX1363_INFO_MASK,
-		 _s3, 3, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 0, 1, MAX1363_INFO_MASK,
-		 d0m1, 4, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 2, 3, MAX1363_INFO_MASK,
-		 d2m3, 5, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 d1m0, 6, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 3, 2, MAX1363_INFO_MASK,
-		 d3m2, 7, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
-	IIO_CHAN_SOFT_TIMESTAMP(8)
-};
-
-static struct iio_chan_spec max1361_channels[] = {
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0, MAX1363_INFO_MASK,
-		 _s0, 0, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 _s1, 1, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0, MAX1363_INFO_MASK,
-		 _s2, 2, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0, MAX1363_INFO_MASK,
-		 _s3, 3, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 0, 1, MAX1363_INFO_MASK,
-		 d0m1, 4, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 2, 3, MAX1363_INFO_MASK,
-		 d2m3, 5, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 d1m0, 6, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 3, 2, MAX1363_INFO_MASK,
-		 d3m2, 7, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
-	IIO_CHAN_SOFT_TIMESTAMP(8)
-};
-
-#define MAX1363_CHAN_U(num, address, scan_index, bits)		\
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, num, 0, MAX1363_INFO_MASK,	\
-		 address, scan_index, IIO_ST('u', bits,		\
-					     (bits == 8) ? 8 : 16, 0), 0)
-/* bipolar channel */
-#define MAX1363_CHAN_B(num, num2, address, scan_index, bits)		\
-	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, num, num2, MAX1363_INFO_MASK,\
-		 address, scan_index, IIO_ST('s', bits,		\
-					     (bits == 8) ? 8 : 16, 0), 0)
-
-#define MAX1363_4X_CHANS(bits) {		\
-	MAX1363_CHAN_U(0, _s0, 0, bits),	\
-	MAX1363_CHAN_U(1, _s1, 1, bits),	\
-	MAX1363_CHAN_U(2, _s2, 2, bits),	\
-	MAX1363_CHAN_U(3, _s3, 3, bits),	\
-	MAX1363_CHAN_B(0, 1, d0m1, 4, bits),	\
-	MAX1363_CHAN_B(2, 3, d2m3, 5, bits),	\
-	MAX1363_CHAN_B(1, 0, d1m0, 6, bits),	\
-	MAX1363_CHAN_B(3, 2, d3m2, 7, bits),	\
-	IIO_CHAN_SOFT_TIMESTAMP(8)		\
+#define MAX1363_CHAN_U(num, addr, si, bits, evmask)			\
+	{								\
+		.type = IIO_VOLTAGE,					\
+		.indexed = 1,						\
+		.channel = num,						\
+		.address = addr,					\
+		.info_mask = MAX1363_INFO_MASK,				\
+		.scan_type = IIO_ST('u', bits, (bits > 8) ? 16 : 8, 0), \
+		.scan_index = si,					\
+		.event_mask = evmask,					\
 	}
 
-static struct iio_chan_spec max1036_channels[] = MAX1363_4X_CHANS(8);
-static struct iio_chan_spec max1136_channels[] = MAX1363_4X_CHANS(10);
-static struct iio_chan_spec max1236_channels[] = MAX1363_4X_CHANS(12);
+/* bipolar channel */
+#define MAX1363_CHAN_B(num, num2, addr, si, bits, evmask)		\
+	{								\
+		.type = IIO_VOLTAGE,					\
+		.differential = 1,					\
+		.indexed = 1,						\
+		.channel = num,						\
+		.channel2 = num2,					\
+		.address = addr,					\
+		.info_mask = MAX1363_INFO_MASK,				\
+		.scan_type = IIO_ST('u', bits, (bits > 8) ? 16 : 8, 0), \
+		.scan_index = si,					\
+		.event_mask = evmask,					\
+	}
+
+#define MAX1363_4X_CHANS(bits, em) {			\
+	MAX1363_CHAN_U(0, _s0, 0, bits, em),		\
+	MAX1363_CHAN_U(1, _s1, 1, bits, em),		\
+	MAX1363_CHAN_U(2, _s2, 2, bits, em),		\
+	MAX1363_CHAN_U(3, _s3, 3, bits, em),		\
+	MAX1363_CHAN_B(0, 1, d0m1, 4, bits, em),	\
+	MAX1363_CHAN_B(2, 3, d2m3, 5, bits, em),	\
+	MAX1363_CHAN_B(1, 0, d1m0, 6, bits, em),	\
+	MAX1363_CHAN_B(3, 2, d3m2, 7, bits, em),	\
+	IIO_CHAN_SOFT_TIMESTAMP(8)			\
+	}
+
+static struct iio_chan_spec max1036_channels[] = MAX1363_4X_CHANS(8, 0);
+static struct iio_chan_spec max1136_channels[] = MAX1363_4X_CHANS(10, 0);
+static struct iio_chan_spec max1236_channels[] = MAX1363_4X_CHANS(12, 0);
+static struct iio_chan_spec max1361_channels[] =
+	MAX1363_4X_CHANS(10, MAX1363_EV_M);
+static struct iio_chan_spec max1363_channels[] =
+	MAX1363_4X_CHANS(12, MAX1363_EV_M);
 
 /* Appies to max1236, max1237 */
 static const enum max1363_modes max1236_mode_list[] = {
@@ -379,30 +359,30 @@ static const enum max1363_modes max1238_mode_list[] = {
 };
 
 #define MAX1363_12X_CHANS(bits) {			\
-	MAX1363_CHAN_U(0, _s0, 0, bits),		\
-	MAX1363_CHAN_U(1, _s1, 1, bits),		\
-	MAX1363_CHAN_U(2, _s2, 2, bits),		\
-	MAX1363_CHAN_U(3, _s3, 3, bits),		\
-	MAX1363_CHAN_U(4, _s4, 4, bits),		\
-	MAX1363_CHAN_U(5, _s5, 5, bits),		\
-	MAX1363_CHAN_U(6, _s6, 6, bits),		\
-	MAX1363_CHAN_U(7, _s7, 7, bits),		\
-	MAX1363_CHAN_U(8, _s8, 8, bits),		\
-	MAX1363_CHAN_U(9, _s9, 9, bits),		\
-	MAX1363_CHAN_U(10, _s10, 10, bits),		\
-	MAX1363_CHAN_U(11, _s11, 11, bits),		\
-	MAX1363_CHAN_B(0, 1, d0m1, 12, bits),		\
-	MAX1363_CHAN_B(2, 3, d2m3, 13, bits),		\
-	MAX1363_CHAN_B(4, 5, d4m5, 14, bits),		\
-	MAX1363_CHAN_B(6, 7, d6m7, 15, bits),		\
-	MAX1363_CHAN_B(8, 9, d8m9, 16, bits),		\
-	MAX1363_CHAN_B(10, 11, d10m11, 17, bits),	\
-	MAX1363_CHAN_B(1, 0, d1m0, 18, bits),		\
-	MAX1363_CHAN_B(3, 2, d3m2, 19, bits),		\
-	MAX1363_CHAN_B(5, 4, d5m4, 20, bits),		\
-	MAX1363_CHAN_B(7, 6, d7m6, 21, bits),		\
-	MAX1363_CHAN_B(9, 8, d9m8, 22, bits),		\
-	MAX1363_CHAN_B(11, 10, d11m10, 23, bits),	\
+	MAX1363_CHAN_U(0, _s0, 0, bits, 0),		\
+	MAX1363_CHAN_U(1, _s1, 1, bits, 0),		\
+	MAX1363_CHAN_U(2, _s2, 2, bits, 0),		\
+	MAX1363_CHAN_U(3, _s3, 3, bits, 0),		\
+	MAX1363_CHAN_U(4, _s4, 4, bits, 0),		\
+	MAX1363_CHAN_U(5, _s5, 5, bits, 0),		\
+	MAX1363_CHAN_U(6, _s6, 6, bits, 0),		\
+	MAX1363_CHAN_U(7, _s7, 7, bits, 0),		\
+	MAX1363_CHAN_U(8, _s8, 8, bits, 0),		\
+	MAX1363_CHAN_U(9, _s9, 9, bits, 0),		\
+	MAX1363_CHAN_U(10, _s10, 10, bits, 0),		\
+	MAX1363_CHAN_U(11, _s11, 11, bits, 0),		\
+	MAX1363_CHAN_B(0, 1, d0m1, 12, bits, 0),	\
+	MAX1363_CHAN_B(2, 3, d2m3, 13, bits, 0),	\
+	MAX1363_CHAN_B(4, 5, d4m5, 14, bits, 0),	\
+	MAX1363_CHAN_B(6, 7, d6m7, 15, bits, 0),	\
+	MAX1363_CHAN_B(8, 9, d8m9, 16, bits, 0),	\
+	MAX1363_CHAN_B(10, 11, d10m11, 17, bits, 0),	\
+	MAX1363_CHAN_B(1, 0, d1m0, 18, bits, 0),	\
+	MAX1363_CHAN_B(3, 2, d3m2, 19, bits, 0),	\
+	MAX1363_CHAN_B(5, 4, d5m4, 20, bits, 0),	\
+	MAX1363_CHAN_B(7, 6, d7m6, 21, bits, 0),	\
+	MAX1363_CHAN_B(9, 8, d9m8, 22, bits, 0),	\
+	MAX1363_CHAN_B(11, 10, d11m10, 23, bits, 0),	\
 	IIO_CHAN_SOFT_TIMESTAMP(24)			\
 	}
 static struct iio_chan_spec max1038_channels[] = MAX1363_12X_CHANS(8);
@@ -427,25 +407,25 @@ static const enum max1363_modes max11608_mode_list[] = {
 	d1m0to3m2, d1m0to5m4, d1m0to7m6,
 };
 
-#define MAX1363_8X_CHANS(bits) {				\
-		MAX1363_CHAN_U(0, _s0, 0, bits),		\
-			MAX1363_CHAN_U(1, _s1, 1, bits),	\
-			MAX1363_CHAN_U(2, _s2, 2, bits),	\
-			MAX1363_CHAN_U(3, _s3, 3, bits),	\
-			MAX1363_CHAN_U(4, _s4, 4, bits),	\
-			MAX1363_CHAN_U(5, _s5, 5, bits),	\
-			MAX1363_CHAN_U(6, _s6, 6, bits),	\
-			MAX1363_CHAN_U(7, _s7, 7, bits),	\
-			MAX1363_CHAN_B(0, 1, d0m1, 8, bits),	\
-			MAX1363_CHAN_B(2, 3, d2m3, 9, bits),	\
-			MAX1363_CHAN_B(4, 5, d4m5, 10, bits),	\
-			MAX1363_CHAN_B(6, 7, d6m7, 11, bits),	\
-			MAX1363_CHAN_B(1, 0, d1m0, 12, bits),	\
-			MAX1363_CHAN_B(3, 2, d3m2, 13, bits),	\
-			MAX1363_CHAN_B(5, 4, d5m4, 14, bits),	\
-			MAX1363_CHAN_B(7, 6, d7m6, 15, bits),	\
-			IIO_CHAN_SOFT_TIMESTAMP(16)		\
-		}
+#define MAX1363_8X_CHANS(bits) {			\
+	MAX1363_CHAN_U(0, _s0, 0, bits, 0),		\
+	MAX1363_CHAN_U(1, _s1, 1, bits, 0),		\
+	MAX1363_CHAN_U(2, _s2, 2, bits, 0),		\
+	MAX1363_CHAN_U(3, _s3, 3, bits, 0),		\
+	MAX1363_CHAN_U(4, _s4, 4, bits, 0),		\
+	MAX1363_CHAN_U(5, _s5, 5, bits, 0),		\
+	MAX1363_CHAN_U(6, _s6, 6, bits, 0),		\
+	MAX1363_CHAN_U(7, _s7, 7, bits, 0),		\
+	MAX1363_CHAN_B(0, 1, d0m1, 8, bits, 0),	\
+	MAX1363_CHAN_B(2, 3, d2m3, 9, bits, 0),	\
+	MAX1363_CHAN_B(4, 5, d4m5, 10, bits, 0),	\
+	MAX1363_CHAN_B(6, 7, d6m7, 11, bits, 0),	\
+	MAX1363_CHAN_B(1, 0, d1m0, 12, bits, 0),	\
+	MAX1363_CHAN_B(3, 2, d3m2, 13, bits, 0),	\
+	MAX1363_CHAN_B(5, 4, d5m4, 14, bits, 0),	\
+	MAX1363_CHAN_B(7, 6, d7m6, 15, bits, 0),	\
+	IIO_CHAN_SOFT_TIMESTAMP(16)			\
+}
 static struct iio_chan_spec max11602_channels[] = MAX1363_8X_CHANS(8);
 static struct iio_chan_spec max11608_channels[] = MAX1363_8X_CHANS(10);
 static struct iio_chan_spec max11614_channels[] = MAX1363_8X_CHANS(12);
@@ -455,10 +435,10 @@ static const enum max1363_modes max11644_mode_list[] = {
 };
 
 #define MAX1363_2X_CHANS(bits) {			\
-	MAX1363_CHAN_U(0, _s0, 0, bits),		\
-	MAX1363_CHAN_U(1, _s1, 1, bits),		\
-	MAX1363_CHAN_B(0, 1, d0m1, 2, bits),		\
-	MAX1363_CHAN_B(1, 0, d1m0, 3, bits),		\
+	MAX1363_CHAN_U(0, _s0, 0, bits, 0),		\
+	MAX1363_CHAN_U(1, _s1, 1, bits, 0),		\
+	MAX1363_CHAN_B(0, 1, d0m1, 2, bits, 0),	\
+	MAX1363_CHAN_B(1, 0, d1m0, 3, bits, 0),	\
 	IIO_CHAN_SOFT_TIMESTAMP(4)			\
 	}
 

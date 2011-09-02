@@ -49,12 +49,11 @@ static const char * const iio_direction[] = {
 	[1] = "out",
 };
 
-static const char * const iio_chan_type_name_spec_shared[] = {
+static const char * const iio_chan_type_name_spec[] = {
 	[IIO_VOLTAGE] = "voltage",
 	[IIO_CURRENT] = "current",
 	[IIO_POWER] = "power",
 	[IIO_ACCEL] = "accel",
-	[IIO_VOLTAGE_DIFF] = "voltage-voltage",
 	[IIO_GYRO] = "gyro",
 	[IIO_MAGN] = "magn",
 	[IIO_LIGHT] = "illuminance",
@@ -66,10 +65,6 @@ static const char * const iio_chan_type_name_spec_shared[] = {
 	[IIO_ANGL] = "angl",
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_CAPACITANCE] = "capacitance",
-};
-
-static const char * const iio_chan_type_name_spec_complex[] = {
-	[IIO_VOLTAGE_DIFF] = "voltage%d-voltage%d",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -158,7 +153,6 @@ error_ret:
 }
 EXPORT_SYMBOL(iio_push_event);
 
-
 /* This turns up an awful lot */
 ssize_t iio_read_const_attr(struct device *dev,
 			    struct device_attribute *attr,
@@ -167,7 +161,6 @@ ssize_t iio_read_const_attr(struct device *dev,
 	return sprintf(buf, "%s\n", to_iio_const_attr(attr)->string);
 }
 EXPORT_SYMBOL(iio_read_const_attr);
-
 
 static ssize_t iio_event_chrdev_read(struct file *filep,
 				     char __user *buf,
@@ -397,36 +390,6 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	return len;
 }
 
-static int __iio_build_postfix(struct iio_chan_spec const *chan,
-			       bool generic,
-			       const char *postfix,
-			       char **result)
-{
-	char *all_post;
-	/* 3 options - generic, extend_name, modified - if generic, extend_name
-	* and modified cannot apply.*/
-
-	if (generic || (!chan->modified && !chan->extend_name)) {
-		all_post = kasprintf(GFP_KERNEL, "%s", postfix);
-	} else if (chan->modified) {
-		if (chan->extend_name)
-			all_post = kasprintf(GFP_KERNEL, "%s_%s_%s",
-					     iio_modifier_names[chan->channel2],
-					     chan->extend_name,
-					     postfix);
-		else
-			all_post = kasprintf(GFP_KERNEL, "%s_%s",
-					     iio_modifier_names[chan->channel2],
-					     postfix);
-	} else
-		all_post = kasprintf(GFP_KERNEL, "%s_%s", chan->extend_name,
-				     postfix);
-	if (all_post == NULL)
-		return -ENOMEM;
-	*result = all_post;
-	return 0;
-}
-
 static
 int __iio_device_attr_init(struct device_attribute *dev_attr,
 			   const char *postfix,
@@ -443,31 +406,77 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	int ret;
 	char *name_format, *full_postfix;
 	sysfs_attr_init(&dev_attr->attr);
-	ret = __iio_build_postfix(chan, generic, postfix, &full_postfix);
-	if (ret)
+
+	/* Build up postfix of <extend_name>_<modifier>_postfix */
+	if (chan->modified) {
+		if (chan->extend_name)
+			full_postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
+						 iio_modifier_names[chan
+								    ->channel2],
+						 chan->extend_name,
+						 postfix);
+		else
+			full_postfix = kasprintf(GFP_KERNEL, "%s_%s",
+						 iio_modifier_names[chan
+								    ->channel2],
+						 postfix);
+	} else {
+		if (chan->extend_name == NULL)
+			full_postfix = kstrdup(postfix, GFP_KERNEL);
+		else
+			full_postfix = kasprintf(GFP_KERNEL,
+						 "%s_%s",
+						 chan->extend_name,
+						 postfix);
+	}
+	if (full_postfix == NULL) {
+		ret = -ENOMEM;
 		goto error_ret;
+	}
 
-	/* Special case for types that uses both channel numbers in naming */
-	if (chan->type == IIO_VOLTAGE_DIFF && !generic)
-		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s_%s",
-				    iio_direction[chan->output],
-				    iio_chan_type_name_spec_complex[chan->type],
-				    full_postfix);
-	else if (generic || !chan->indexed)
-		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s_%s",
-				    iio_direction[chan->output],
-				    iio_chan_type_name_spec_shared[chan->type],
-				    full_postfix);
-	else
-		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s%d_%s",
-				    iio_direction[chan->output],
-				    iio_chan_type_name_spec_shared[chan->type],
-				    chan->channel,
-				    full_postfix);
-
+	if (chan->differential) { /* Differential  can not have modifier */
+		if (generic)
+			name_format
+				= kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
+					    iio_direction[chan->output],
+					    iio_chan_type_name_spec[chan->type],
+					    iio_chan_type_name_spec[chan->type],
+					    full_postfix);
+		else if (chan->indexed)
+			name_format
+				= kasprintf(GFP_KERNEL, "%s_%s%d-%s%d_%s",
+					    iio_direction[chan->output],
+					    iio_chan_type_name_spec[chan->type],
+					    chan->channel,
+					    iio_chan_type_name_spec[chan->type],
+					    chan->channel2,
+					    full_postfix);
+		else {
+			WARN_ON("Differential channels must be indexed\n");
+			ret = -EINVAL;
+			goto error_free_full_postfix;
+		}
+	} else { /* Single ended */
+		if (generic)
+			name_format
+				= kasprintf(GFP_KERNEL, "%s_%s_%s",
+					    iio_direction[chan->output],
+					    iio_chan_type_name_spec[chan->type],
+					    full_postfix);
+		else if (chan->indexed)
+			name_format
+				= kasprintf(GFP_KERNEL, "%s_%s%d_%s",
+					    iio_direction[chan->output],
+					    iio_chan_type_name_spec[chan->type],
+					    chan->channel,
+					    full_postfix);
+		else
+			name_format
+				= kasprintf(GFP_KERNEL, "%s_%s_%s",
+					    iio_direction[chan->output],
+					    iio_chan_type_name_spec[chan->type],
+					    full_postfix);
+	}
 	if (name_format == NULL) {
 		ret = -ENOMEM;
 		goto error_free_full_postfix;
@@ -805,12 +814,14 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
 						  i/IIO_EV_DIR_MAX,
 						  i%IIO_EV_DIR_MAX);
-		else if (chan->type == IIO_VOLTAGE_DIFF)
-			mask = IIO_MOD_EVENT_CODE(chan->type,
-						  chan->channel,
-						  chan->channel2,
-						  i/IIO_EV_DIR_MAX,
-						  i%IIO_EV_DIR_MAX);
+		else if (chan->differential)
+			mask = IIO_EVENT_CODE(chan->type,
+					      0, 0,
+					      i%IIO_EV_DIR_MAX,
+					      i/IIO_EV_DIR_MAX,
+					      0,
+					      chan->channel,
+					      chan->channel2);
 		else
 			mask = IIO_UNMOD_EVENT_CODE(chan->type,
 						    chan->channel,

@@ -495,7 +495,8 @@ static int ad7280_channel_init(struct ad7280_state *st)
 		for (ch = AD7280A_CELL_VOLTAGE_1; ch <= AD7280A_AUX_ADC_6; ch++,
 			cnt++) {
 			if (ch < AD7280A_AUX_ADC_1) {
-				st->channels[cnt].type = IIO_IN_DIFF;
+				st->channels[cnt].type = IIO_VOLTAGE;
+				st->channels[cnt].differential = 1;
 				st->channels[cnt].channel = (dev * 6) + ch;
 				st->channels[cnt].channel2 =
 					st->channels[cnt].channel + 1;
@@ -515,7 +516,8 @@ static int ad7280_channel_init(struct ad7280_state *st)
 			st->channels[cnt].scan_type.shift = 0;
 		}
 
-	st->channels[cnt].type = IIO_IN_DIFF;
+	st->channels[cnt].type = IIO_VOLTAGE;
+	st->channels[cnt].differential = 1;
 	st->channels[cnt].channel = 0;
 	st->channels[cnt].channel2 = dev * 6;
 	st->channels[cnt].address = AD7280A_ALL_CELLS;
@@ -692,18 +694,22 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 			if (((channels[i] >> 11) & 0xFFF) >=
 				st->cell_threshhigh)
 				iio_push_event(dev_info,
-					IIO_UNMOD_EVENT_CODE(IIO_IN_DIFF,
-					0,
-					IIO_EV_TYPE_THRESH,
-					IIO_EV_DIR_RISING),
+					IIO_EVENT_CODE(IIO_VOLTAGE,
+						       1,
+						       0,
+						       IIO_EV_DIR_RISING,
+						       IIO_EV_TYPE_THRESH,
+						       0, 0, 0),
 					iio_get_time_ns());
 			else if (((channels[i] >> 11) & 0xFFF) <=
 				st->cell_threshlow)
 				iio_push_event(dev_info,
-					IIO_UNMOD_EVENT_CODE(IIO_IN_DIFF,
-					0,
-					IIO_EV_TYPE_THRESH,
-					IIO_EV_DIR_FALLING),
+					IIO_EVENT_CODE(IIO_VOLTAGE,
+						       1,
+						       0,
+						       IIO_EV_DIR_FALLING,
+						       IIO_EV_TYPE_THRESH,
+						       0, 0, 0),
 					iio_get_time_ns());
 		} else {
 			if (((channels[i] >> 11) & 0xFFF) >= st->aux_threshhigh)

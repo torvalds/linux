@@ -886,8 +886,7 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 			((1 << (chan->scan_type.realbits)) - 1);
 
 		switch (chan->type) {
-		case IIO_IN:
-		case IIO_IN_DIFF:
+		case IIO_VOLTAGE:
 			if (!unipolar)
 				*val -= (1 << (chan->scan_type.realbits - 1));
 			break;
@@ -986,7 +985,8 @@ static const struct iio_info ad7192_info = {
 };
 
 #define AD7192_CHAN_DIFF(_chan, _chan2, _name, _address, _si)		\
-	{ .type = IIO_IN_DIFF,						\
+	{ .type = IIO_VOLTAGE,						\
+	  .differential = 1,						\
 	  .indexed = 1,							\
 	  .extend_name = _name,						\
 	  .channel = _chan,						\
@@ -997,7 +997,7 @@ static const struct iio_info ad7192_info = {
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
 
 #define AD7192_CHAN(_chan, _address, _si)				\
-	{ .type = IIO_IN,						\
+	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
 	  .info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),		\

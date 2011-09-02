@@ -31,7 +31,6 @@ enum iio_chan_type {
 	IIO_CURRENT,
 	IIO_POWER,
 	IIO_ACCEL,
-	IIO_VOLTAGE_DIFF,
 	IIO_GYRO,
 	IIO_MAGN,
 	IIO_LIGHT,
@@ -124,6 +123,7 @@ enum iio_endian {
  *			the value in channel will be suppressed for attribute
  *			but not for event codes. Typically set it to 0 when
  *			the index is false.
+ * @differential:	Channel is differential.
  */
 struct iio_chan_spec {
 	enum iio_chan_type	type;
@@ -145,6 +145,7 @@ struct iio_chan_spec {
 	unsigned		modified:1;
 	unsigned		indexed:1;
 	unsigned		output:1;
+	unsigned		differential:1;
 };
 
 #define IIO_ST(si, rb, sb, sh)						\
