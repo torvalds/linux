@@ -847,14 +847,9 @@ static void domain_flush_complete(struct protection_domain *domain)
 static void domain_flush_devices(struct protection_domain *domain)
 {
 	struct iommu_dev_data *dev_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(&domain->lock, flags);
 
 	list_for_each_entry(dev_data, &domain->dev_list, list)
 		device_flush_dte(dev_data);
-
-	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 /****************************************************************************
