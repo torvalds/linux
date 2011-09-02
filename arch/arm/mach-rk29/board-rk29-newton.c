@@ -60,12 +60,10 @@
 #ifdef CONFIG_BU92747GUW_CIR
 #include "../../../drivers/cir/bu92747guw_cir.h"
 #endif
-#ifdef CONFIG_RK29_NEWTON_CLOCK
-// 1: newton for 1.2G
-#define RK29_NEWTON_CPU_CLK     1
-// 1: newton for hardware 1.5V
-#define RK29_NEWTON_NEWBOARD    1
-#endif
+
+// define for newton for hardware 1.5V
+#define RK29_NEWTON_NEWBOARD
+
 
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -1390,7 +1388,11 @@ static struct regulator_init_data rk29_pwm_regulator_data = {
 	.constraints = {
 		.name = "PWM2",
 		.min_uV =  950000,
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+		.max_uV = 1500000,
+#else
 		.max_uV = 1400000,
+#endif
 		.apply_uV = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
 	},
@@ -1700,7 +1702,7 @@ static struct platform_device rk29sdk_rfkill = {
 
 
 #ifdef CONFIG_VIVANTE
-#ifdef RK29_NEWTON_CPU_CLK
+#ifdef CONFIG_RK29_NEWTON_CLOCK
 #define GPU_HIGH_CLOCK        504 // 504 456
 #define GPU_LOW_CLOCK         300
 #else
@@ -2252,10 +2254,17 @@ static void __init machine_rk29_init_irq(void)
 }
 
 static struct cpufreq_frequency_table freq_table[] = {
-#ifdef RK29_NEWTON_CPU_CLK
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+	{ .index = 1200000, .frequency =  408000 },
+	{ .index = 1250000, .frequency =  816000 },
+	{ .index = 1300000, .frequency = 1008000 },
+	{ .index = 1460000, .frequency = 1200000 },
+#else
+#ifdef RK29_NEWTON_NEWBOARD
 /*
  * hardware change the max vdd from 1.4 to 1.5, so new table is:
  *           1.075 -> 1.133
+ *           1.1   -> 1.16
  *           1.125 -> 1.20
  *           1.15  -> 1.225
  *           1.225 -> 1.313
@@ -2265,17 +2274,7 @@ static struct cpufreq_frequency_table freq_table[] = {
  *           1.40  -> 1.5
  * 
 */
-	{ .index = 1075000, .frequency =  408000 },
-	{ .index = 1150000, .frequency =  816000 },
-	{ .index = 1225000, .frequency = 1008000 },
-
-//	{ .index = 1300000, .frequency = 1200000 },
-//	{ .index = 1325000, .frequency = 1200000 },
-	{ .index = 1350000, .frequency = 1200000 },
-//	{ .index = 1400000, .frequency = 1200000 },
-#else
-#ifdef RK29_NEWTON_NEWBOARD
-	{ .index = 1075000, .frequency =  408000 },
+	{ .index = 1125000, .frequency =  408000 },
 	{ .index = 1150000, .frequency =  816000 },
 	{ .index = 1225000, .frequency = 1008000 },
 #else
@@ -2283,7 +2282,7 @@ static struct cpufreq_frequency_table freq_table[] = {
 	{ .index = 1200000, .frequency =  816000 },
 	{ .index = 1300000, .frequency = 1008000 },
 #endif // RK29_NEWTON_NEWBOARD
-#endif // RK29_NEWTON_CPU_CLK
+#endif // CONFIG_RK29_NEWTON_CLOCK
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
@@ -2348,7 +2347,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-#ifdef RK29_NEWTON_CPU_CLK
+#ifdef CONFIG_RK29_NEWTON_CLOCK
 	rk29_clock_init(periph_pll_144mhz);
 #else
 	rk29_clock_init(periph_pll_default);
