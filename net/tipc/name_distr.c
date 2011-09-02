@@ -173,13 +173,14 @@ void tipc_named_withdraw(struct publication *publ)
  * tipc_named_node_up - tell specified node about all publications by this node
  */
 
-void tipc_named_node_up(unsigned long node)
+void tipc_named_node_up(unsigned long nodearg)
 {
 	struct tipc_node *n_ptr;
 	struct link *l_ptr;
 	struct publication *publ;
 	struct distr_item *item = NULL;
 	struct sk_buff *buf = NULL;
+	u32 node = (u32)nodearg;
 	u32 left = 0;
 	u32 rest;
 	u32 max_item_buf = 0;
@@ -187,7 +188,7 @@ void tipc_named_node_up(unsigned long node)
 	/* compute maximum amount of publication data to send per message */
 
 	read_lock_bh(&tipc_net_lock);
-	n_ptr = tipc_node_find((u32)node);
+	n_ptr = tipc_node_find(node);
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[0];
