@@ -1765,17 +1765,22 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	virt_dev = xhci->devs[udev->slot_id];
-	if (command) {
-		in_ctx = command->in_ctx;
-		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
-				xhci_reserve_host_resources(xhci, in_ctx)) {
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_warn(xhci, "Not enough host resources, "
-					"active endpoint contexts = %u\n",
-					xhci->num_active_eps);
-			return -ENOMEM;
-		}
 
+	if (command)
+		in_ctx = command->in_ctx;
+	else
+		in_ctx = virt_dev->in_ctx;
+
+	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
+			xhci_reserve_host_resources(xhci, in_ctx)) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_warn(xhci, "Not enough host resources, "
+				"active endpoint contexts = %u\n",
+				xhci->num_active_eps);
+		return -ENOMEM;
+	}
+
+	if (command) {
 		cmd_completion = command->completion;
 		cmd_status = &command->status;
 		command->command_trb = xhci->cmd_ring->enqueue;
@@ -1789,15 +1794,6 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 		list_add_tail(&command->cmd_list, &virt_dev->cmd_list);
 	} else {
-		in_ctx = virt_dev->in_ctx;
-		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
-				xhci_reserve_host_resources(xhci, in_ctx)) {
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_warn(xhci, "Not enough host resources, "
-					"active endpoint contexts = %u\n",
-					xhci->num_active_eps);
-			return -ENOMEM;
-		}
 		cmd_completion = &virt_dev->cmd_completion;
 		cmd_status = &virt_dev->cmd_status;
 	}
