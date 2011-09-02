@@ -793,10 +793,16 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		}
 	}
 
-	if (request->n_channels > 0) {
+	/*
+	 * Scan only the requested channels if the request specifies a set of
+	 * channels. If the list is longer than the target supports, do not
+	 * configure the list and instead, scan all available channels.
+	 */
+	if (request->n_channels > 0 &&
+	    request->n_channels <= WMI_MAX_CHANNELS) {
 		u8 i;
 
-		n_channels = min(127U, request->n_channels);
+		n_channels = request->n_channels;
 
 		channels = kzalloc(n_channels * sizeof(u16), GFP_KERNEL);
 		if (channels == NULL) {
@@ -813,8 +819,8 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				       false, 0, 0, n_channels, channels);
 	if (ret)
 		ath6kl_err("wmi_startscan_cmd failed\n");
-
-	ar->scan_req = request;
+	else
+		ar->scan_req = request;
 
 	kfree(channels);
 
