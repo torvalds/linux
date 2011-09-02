@@ -945,8 +945,7 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 		return -ENODEV;
 
 	if (check_virt_dev) {
-		if (!udev->slot_id || !xhci->devs
-			|| !xhci->devs[udev->slot_id]) {
+		if (!udev->slot_id || !xhci->devs[udev->slot_id]) {
 			printk(KERN_DEBUG "xHCI %s called with unaddressed "
 						"device\n", func);
 			return -EINVAL;
