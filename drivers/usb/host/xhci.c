@@ -1035,6 +1035,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct xhci_td *buffer;
 	unsigned long flags;
 	int ret = 0;
 	unsigned int slot_id, ep_index;
@@ -1065,13 +1066,15 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	if (!urb_priv)
 		return -ENOMEM;
 
+	buffer = kzalloc(size * sizeof(struct xhci_td), mem_flags);
+	if (!buffer) {
+		kfree(urb_priv);
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < size; i++) {
-		urb_priv->td[i] = kzalloc(sizeof(struct xhci_td), mem_flags);
-		if (!urb_priv->td[i]) {
-			urb_priv->length = i;
-			xhci_urb_free_priv(xhci, urb_priv);
-			return -ENOMEM;
-		}
+		urb_priv->td[i] = buffer;
+		buffer++;
 	}
 
 	urb_priv->length = size;
