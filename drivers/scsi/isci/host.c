@@ -1263,6 +1263,10 @@ void isci_host_deinit(struct isci_host *ihost)
 {
 	int i;
 
+	/* disable output data selects */
+	for (i = 0; i < isci_gpio_count(ihost); i++)
+		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
+
 	isci_host_change_state(ihost, isci_stopping);
 	for (i = 0; i < SCI_MAX_PORTS; i++) {
 		struct isci_port *iport = &ihost->ports[i];
@@ -1281,6 +1285,12 @@ void isci_host_deinit(struct isci_host *ihost)
 	spin_unlock_irq(&ihost->scic_lock);
 
 	wait_for_stop(ihost);
+
+	/* disable sgpio: where the above wait should give time for the
+	 * enclosure to sample the gpios going inactive
+	 */
+	writel(0, &ihost->scu_registers->peg0.sgpio.interface_control);
+
 	sci_controller_reset(ihost);
 
 	/* Cancel any/all outstanding port timers */
@@ -2365,6 +2375,12 @@ int isci_host_init(struct isci_host *ihost)
 	for (i = 0; i < SCI_MAX_PHYS; i++)
 		isci_phy_init(&ihost->phys[i], ihost, i);
 
+	/* enable sgpio */
+	writel(1, &ihost->scu_registers->peg0.sgpio.interface_control);
+	for (i = 0; i < isci_gpio_count(ihost); i++)
+		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
+	writel(0, &ihost->scu_registers->peg0.sgpio.vendor_specific_code);
+
 	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
 		struct isci_remote_device *idev = &ihost->devices[i];
 
@@ -2759,4 +2775,57 @@ enum sci_task_status sci_controller_start_task(struct isci_host *ihost,
 	}
 
 	return status;
+}
+
+static int sci_write_gpio_tx_gp(struct isci_host *ihost, u8 reg_index, u8 reg_count, u8 *write_data)
+{
+	int d;
+
+	/* no support for TX_GP_CFG */
+	if (reg_index == 0)
+		return -EINVAL;
+
+	for (d = 0; d < isci_gpio_count(ihost); d++) {
+		u32 val = 0x444; /* all ODx.n clear */
+		int i;
+
+		for (i = 0; i < 3; i++) {
+			int bit = (i << 2) + 2;
+
+			bit = try_test_sas_gpio_gp_bit(to_sas_gpio_od(d, i),
+						       write_data, reg_index,
+						       reg_count);
+			if (bit < 0)
+				break;
+
+			/* if od is set, clear the 'invert' bit */
+			val &= ~(bit << ((i << 2) + 2));
+		}
+
+		if (i < 3)
+			break;
+		writel(val, &ihost->scu_registers->peg0.sgpio.output_data_select[d]);
+	}
+
+	/* unless reg_index is > 1, we should always be able to write at
+	 * least one register
+	 */
+	return d > 0;
+}
+
+int isci_gpio_write(struct sas_ha_struct *sas_ha, u8 reg_type, u8 reg_index,
+		    u8 reg_count, u8 *write_data)
+{
+	struct isci_host *ihost = sas_ha->lldd_ha;
+	int written;
+
+	switch (reg_type) {
+	case SAS_GPIO_REG_TX_GP:
+		written = sci_write_gpio_tx_gp(ihost, reg_index, reg_count, write_data);
+		break;
+	default:
+		written = -EINVAL;
+	}
+
+	return written;
 }

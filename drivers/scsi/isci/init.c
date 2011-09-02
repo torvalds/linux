@@ -192,6 +192,9 @@ static struct sas_domain_function_template isci_transport_ops  = {
 
 	/* Phy management */
 	.lldd_control_phy	= isci_phy_control,
+
+	/* GPIO support */
+	.lldd_write_gpio	= isci_gpio_write,
 };
 
 
