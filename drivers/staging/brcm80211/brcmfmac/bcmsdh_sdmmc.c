@@ -76,9 +76,8 @@ brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev, wait_queue_head_t wq)
 #endif
 }
 
-extern int
-brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
-			 uint regaddr, u8 *byte)
+int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
+			     uint regaddr, u8 *byte)
 {
 	int err_ret;
 
@@ -173,9 +172,9 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 	return err_ret;
 }
 
-extern int
-brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw,
-			 uint func, uint addr, u32 *word, uint nbytes)
+int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
+			     uint rw, uint func, uint addr, u32 *word,
+			     uint nbytes)
 {
 	int err_ret = -EIO;
 
@@ -304,11 +303,10 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
  * aligned packet.
  *
  */
-extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			   uint fix_inc, uint write, uint func, uint addr,
-			   uint reg_width, uint buflen_u, u8 *buffer,
-			   struct sk_buff *pkt)
+int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
+			       uint fix_inc, uint write, uint func, uint addr,
+			       uint reg_width, uint buflen_u, u8 *buffer,
+			       struct sk_buff *pkt)
 {
 	int Status;
 	struct sk_buff *mypkt = NULL;
@@ -425,9 +423,8 @@ static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 	return scratch;
 }
 
-extern int
-brcmf_sdioh_cis_read(struct brcmf_sdio_dev *sdiodev, uint func,
-		     u8 *cisd, u32 length)
+int brcmf_sdioh_cis_read(struct brcmf_sdio_dev *sdiodev, uint func,
+			 u8 *cisd, u32 length)
 {
 	u32 count;
 	int offset;
