@@ -57,7 +57,7 @@ struct thread_info {
 #define task_thread_info(tsk)	((struct thread_info *) NULL)
 #else
 #include <asm/asm-offsets.h>
-#define task_thread_info(tsk)	((struct thread_info *)((char *)tsk+TASK_TINFO))
+#define task_thread_info(tsk)	((struct thread_info *)((char *)tsk+TASK_INFO))
 #endif
 
 #define init_thread_info	(init_task.thread.info)
