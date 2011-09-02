@@ -476,6 +476,7 @@ struct ath6kl {
 		spinlock_t fwlog_lock;
 		void *fwlog_tmp;
 		u32 fwlog_mask;
+		unsigned int dbgfs_diag_reg;
 	} debug;
 #endif /* CONFIG_ATH6KL_DEBUG */
 };
