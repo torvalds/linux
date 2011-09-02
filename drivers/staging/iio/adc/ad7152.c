@@ -441,17 +441,17 @@ static const struct iio_chan_spec ad7152_channels[] = {
 		(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 	}, {
 		.type = IIO_CAPACITANCE,
+		.differential = 1,
 		.indexed = 1,
-		.channel = 1,
+		.channel = 0,
+		.channel2 = 2,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |
 		(1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
 		(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 	}, {
 		.type = IIO_CAPACITANCE,
-		.differential = 1,
 		.indexed = 1,
-		.channel = 0,
-		.channel2 = 2,
+		.channel = 1,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |
 		(1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
 		(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
