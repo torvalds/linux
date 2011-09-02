@@ -1,10 +1,8 @@
 config BRCMUTIL
 	tristate
-	default n
 
 config BRCMSMAC
 	tristate "Broadcom IEEE802.11n PCIe SoftMAC WLAN driver"
-	default n
 	depends on PCI
 	depends on WLAN && MAC80211
 	depends on BCMA=n
@@ -20,7 +18,6 @@ config BRCMSMAC
 
 config BRCMFMAC
 	tristate "Broadcom IEEE802.11n embedded FullMAC WLAN driver"
-	default n
 	depends on MMC
 	depends on WLAN && CFG80211
 	select BRCMUTIL
@@ -33,7 +30,6 @@ config BRCMFMAC
 
 config BRCMDBG
 	bool "Broadcom driver debug functions"
-	default n
 	depends on BRCMSMAC || BRCMFMAC
 	---help---
 	  Selecting this enables additional code for debug purposes.
