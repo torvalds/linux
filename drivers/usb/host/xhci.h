@@ -611,11 +611,13 @@ struct xhci_ep_ctx {
 #define EP_STATE_ERROR		4
 /* Mult - Max number of burtst within an interval, in EP companion desc. */
 #define EP_MULT(p)		(((p) & 0x3) << 8)
+#define CTX_TO_EP_MULT(p)	(((p) >> 8) & 0x3)
 /* bits 10:14 are Max Primary Streams */
 /* bit 15 is Linear Stream Array */
 /* Interval - period between requests to an endpoint - 125u increments. */
 #define EP_INTERVAL(p)		(((p) & 0xff) << 16)
 #define EP_INTERVAL_TO_UFRAMES(p)		(1 << (((p) >> 16) & 0xff))
+#define CTX_TO_EP_INTERVAL(p)	(((p) >> 16) & 0xff)
 #define EP_MAXPSTREAMS_MASK	(0x1f << 10)
 #define EP_MAXPSTREAMS(p)	(((p) << 10) & EP_MAXPSTREAMS_MASK)
 /* Endpoint is set up with a Linear Stream Array (vs. Secondary Stream Array) */
@@ -640,6 +642,7 @@ struct xhci_ep_ctx {
 /* bit 6 reserved */
 /* bit 7 is Host Initiate Disable - for disabling stream selection */
 #define MAX_BURST(p)	(((p)&0xff) << 8)
+#define CTX_TO_MAX_BURST(p)	(((p) >> 8) & 0xff)
 #define MAX_PACKET(p)	(((p)&0xffff) << 16)
 #define MAX_PACKET_MASK		(0xffff << 16)
 #define MAX_PACKET_DECODED(p)	(((p) >> 16) & 0xffff)
@@ -652,6 +655,7 @@ struct xhci_ep_ctx {
 /* tx_info bitmasks */
 #define AVG_TRB_LENGTH_FOR_EP(p)	((p) & 0xffff)
 #define MAX_ESIT_PAYLOAD_FOR_EP(p)	(((p) & 0xffff) << 16)
+#define CTX_TO_MAX_ESIT_PAYLOAD(p)	(((p) >> 16) & 0xffff)
 
 /* deq bitmasks */
 #define EP_CTX_CYCLE_MASK		(1 << 0)
@@ -669,6 +673,11 @@ struct xhci_input_control_ctx {
 	__le32	add_flags;
 	__le32	rsvd2[6];
 };
+
+#define	EP_IS_ADDED(ctrl_ctx, i) \
+	(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1)))
+#define	EP_IS_DROPPED(ctrl_ctx, i)       \
+	(le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1)))
 
 /* Represents everything that is needed to issue a command on the command ring.
  * It's useful to pre-allocate these for commands that cannot fail due to
@@ -731,6 +740,22 @@ struct xhci_stream_info {
 #define	SMALL_STREAM_ARRAY_SIZE		256
 #define	MEDIUM_STREAM_ARRAY_SIZE	1024
 
+/* Some Intel xHCI host controllers need software to keep track of the bus
+ * bandwidth.  Keep track of endpoint info here.  Each root port is allocated
+ * the full bus bandwidth.  We must also treat TTs (including each port under a
+ * multi-TT hub) as a separate bandwidth domain.  The direct memory interface
+ * (DMI) also limits the total bandwidth (across all domains) that can be used.
+ */
+struct xhci_bw_info {
+	unsigned int		ep_interval;
+	/* mult and num_packets are zero-based */
+	unsigned int		mult;
+	unsigned int		num_packets;
+	unsigned int		max_packet_size;
+	unsigned int		max_esit_payload;
+	unsigned int		type;
+};
+
 struct xhci_virt_ep {
 	struct xhci_ring		*ring;
 	/* Related to endpoints that are configured to use stream IDs only */
@@ -772,6 +797,7 @@ struct xhci_virt_ep {
 	 * process the missed tds on the endpoint ring.
 	 */
 	bool			skip;
+	struct xhci_bw_info	bw_info;
 };
 
 enum xhci_overhead_type {
@@ -1485,6 +1511,11 @@ unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index);
 unsigned int xhci_last_valid_endpoint(u32 added_ctxs);
 void xhci_endpoint_zero(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_host_endpoint *ep);
+void xhci_clear_endpoint_bw_info(struct xhci_bw_info *bw_info);
+void xhci_update_bw_info(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_input_control_ctx *ctrl_ctx,
+		struct xhci_virt_device *virt_dev);
 void xhci_endpoint_copy(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *in_ctx,
 		struct xhci_container_ctx *out_ctx,

@@ -1410,6 +1410,69 @@ void xhci_endpoint_zero(struct xhci_hcd *xhci,
 	 */
 }
 
+void xhci_clear_endpoint_bw_info(struct xhci_bw_info *bw_info)
+{
+	bw_info->ep_interval = 0;
+	bw_info->mult = 0;
+	bw_info->num_packets = 0;
+	bw_info->max_packet_size = 0;
+	bw_info->type = 0;
+	bw_info->max_esit_payload = 0;
+}
+
+void xhci_update_bw_info(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_input_control_ctx *ctrl_ctx,
+		struct xhci_virt_device *virt_dev)
+{
+	struct xhci_bw_info *bw_info;
+	struct xhci_ep_ctx *ep_ctx;
+	unsigned int ep_type;
+	int i;
+
+	for (i = 1; i < 31; ++i) {
+		bw_info = &virt_dev->eps[i].bw_info;
+
+		/* We can't tell what endpoint type is being dropped, but
+		 * unconditionally clearing the bandwidth info for non-periodic
+		 * endpoints should be harmless because the info will never be
+		 * set in the first place.
+		 */
+		if (!EP_IS_ADDED(ctrl_ctx, i) && EP_IS_DROPPED(ctrl_ctx, i)) {
+			/* Dropped endpoint */
+			xhci_clear_endpoint_bw_info(bw_info);
+			continue;
+		}
+
+		if (EP_IS_ADDED(ctrl_ctx, i)) {
+			ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, i);
+			ep_type = CTX_TO_EP_TYPE(le32_to_cpu(ep_ctx->ep_info2));
+
+			/* Ignore non-periodic endpoints */
+			if (ep_type != ISOC_OUT_EP && ep_type != INT_OUT_EP &&
+					ep_type != ISOC_IN_EP &&
+					ep_type != INT_IN_EP)
+				continue;
+
+			/* Added or changed endpoint */
+			bw_info->ep_interval = CTX_TO_EP_INTERVAL(
+					le32_to_cpu(ep_ctx->ep_info));
+			bw_info->mult = CTX_TO_EP_MULT(
+					le32_to_cpu(ep_ctx->ep_info));
+			/* Number of packets is zero-based in the input context,
+			 * but we want one-based for the interval table.
+			 */
+			bw_info->num_packets = CTX_TO_MAX_BURST(
+					le32_to_cpu(ep_ctx->ep_info2)) + 1;
+			bw_info->max_packet_size = MAX_PACKET_DECODED(
+					le32_to_cpu(ep_ctx->ep_info2));
+			bw_info->type = ep_type;
+			bw_info->max_esit_payload = CTX_TO_MAX_ESIT_PAYLOAD(
+					le32_to_cpu(ep_ctx->tx_info));
+		}
+	}
+}
+
 /* Copy output xhci_ep_ctx to the input xhci_ep_ctx copy.
  * Useful when you want to change one particular aspect of the endpoint and then
  * issue a configure endpoint command.

@@ -1912,6 +1912,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1))))
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
 	}
+	xhci_update_bw_info(xhci, virt_dev->in_ctx, ctrl_ctx, virt_dev);
 	xhci_zero_in_ctx(xhci, virt_dev);
 	/*
 	 * Install any rings for completely new endpoints or changed endpoints,
@@ -2668,6 +2669,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
 			last_freed_endpoint = i;
 		}
+		xhci_clear_endpoint_bw_info(&virt_dev->eps[i].bw_info);
 	}
 	xhci_dbg(xhci, "Output context after successful reset device cmd:\n");
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx, last_freed_endpoint);
