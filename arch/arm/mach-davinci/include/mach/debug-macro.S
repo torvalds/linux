@@ -50,21 +50,20 @@ davinci_uart_virt:	.word	0
 		mrc	p15, 0, \rp, c1, c0
 		tst	\rp, #1			@ MMU enabled?
 
-		/* Copy uart phys address from decompressor uart info */
+		and	\rp, pc, #0xff000000
+		ldr	\rv, =DAVINCI_UART_INFO_OFS
+		add	\rp, \rp, \rv
+
 		ldreq	\rv, =davinci_uart_v2p(davinci_uart_phys)
 		ldrne	\rv, =davinci_uart_phys
-		ldreq	\rp, =DAVINCI_UART_INFO
-		ldrne	\rp, =davinci_uart_p2v(DAVINCI_UART_INFO)
-		ldr	\rp, [\rp, #0]
-		str	\rp, [\rv]
+
+		/* Copy uart phys address from decompressor uart info */
+		ldr	\tmp, [\rp, #0]
+		str	\tmp, [\rv, #0]
 
 		/* Copy uart virt address from decompressor uart info */
-		ldreq	\rv, =davinci_uart_v2p(davinci_uart_virt)
-		ldrne	\rv, =davinci_uart_virt
-		ldreq	\rp, =DAVINCI_UART_INFO
-		ldrne	\rp, =davinci_uart_p2v(DAVINCI_UART_INFO)
-		ldr	\rp, [\rp, #4]
-		str	\rp, [\rv]
+		ldr	\tmp, [\rp, #4]
+		str	\tmp, [\rv, #4]
 
 		b	10b
 99:
