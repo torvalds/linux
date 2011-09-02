@@ -160,9 +160,9 @@ static IIO_DEVICE_ATTR(in_capacitance0_calibscale_calibration,
 static IIO_DEVICE_ATTR(in_capacitance1_calibscale_calibration,
 		       S_IWUSR, NULL, ad7152_start_gain_calib, 1);
 
-/* Values are Update Rate (Hz), Conversion Time (ms) */
+/* Values are Update Rate (Hz), Conversion Time (ms) + 1*/
 static const unsigned char ad7152_filter_rate_table[][2] = {
-	{200, 5}, {50, 20}, {20, 50}, {17, 60},
+	{200, 5 + 1}, {50, 20 + 1}, {20, 50 + 1}, {17, 60 + 1},
 };
 
 static ssize_t ad7152_show_filter_rate_setup(struct device *dev,
@@ -366,6 +366,9 @@ static int ad7152_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			goto out;
 		*val = swab16(ret);
+
+		if (chan->differential)
+			*val -= 0x8000;
 
 		ret = IIO_VAL_INT;
 		break;
