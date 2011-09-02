@@ -1069,12 +1069,10 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 	iotlb_init_entry(&e, da, pa, flags);
 
 	ret = omap_iopgtable_store_entry(oiommu, &e);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "omap_iopgtable_store_entry failed: %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
