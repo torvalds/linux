@@ -480,7 +480,7 @@ static void unmap_iovm_area(struct iommu_domain *domain, struct omap_iommu *obj,
 		order = get_order(bytes);
 
 		err = iommu_unmap(domain, start, order);
-		if (err)
+		if (err < 0)
 			break;
 
 		dev_dbg(obj->dev, "%s: unmap %08x(%x) %08x\n",

@@ -1081,18 +1081,13 @@ static int omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
 	struct omap_iommu_domain *omap_domain = domain->priv;
 	struct omap_iommu *oiommu = omap_domain->iommu_dev;
 	struct device *dev = oiommu->dev;
-	size_t bytes = PAGE_SIZE << order;
-	size_t ret;
+	size_t unmap_size;
 
-	dev_dbg(dev, "unmapping da 0x%lx size 0x%x\n", da, bytes);
+	dev_dbg(dev, "unmapping da 0x%lx order %d\n", da, order);
 
-	ret = iopgtable_clear_entry(oiommu, da);
-	if (ret != bytes) {
-		dev_err(dev, "entry @ 0x%lx was %d; not %d\n", da, ret, bytes);
-		return -EINVAL;
-	}
+	unmap_size = iopgtable_clear_entry(oiommu, da);
 
-	return 0;
+	return unmap_size ? get_order(unmap_size) : -EINVAL;
 }
 
 static int
