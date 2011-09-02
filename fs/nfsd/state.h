@@ -448,7 +448,6 @@ struct nfs4_stateid {
 #define LOCK_STATE              0x00000008
 #define RD_STATE	        0x00000010
 #define WR_STATE	        0x00000020
-#define CLOSE_STATE             0x00000040
 
 struct nfsd4_compound_state;
 

@@ -3070,15 +3070,13 @@ laundromat_main(struct work_struct *not_used)
 }
 
 static struct nfs4_stateowner *
-search_close_lru(u32 st_id, int flags)
+search_close_lru(u32 st_id)
 {
-	struct nfs4_stateowner *local = NULL;
+	struct nfs4_stateowner *local;
 
-	if (flags & CLOSE_STATE) {
-		list_for_each_entry(local, &close_lru, so_close_lru) {
-			if (local->so_id == st_id)
-				return local;
-		}
+	list_for_each_entry(local, &close_lru, so_close_lru) {
+		if (local->so_id == st_id)
+			return local;
 	}
 	return NULL;
 }
@@ -3381,7 +3379,6 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 			 stateid_t *stateid, int flags,
 			 struct nfs4_stateid **stpp)
 {
-	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	__be32 status;
@@ -3404,28 +3401,14 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	* the confirmed flag is incorrecly set, or the generation 
 	* number is incorrect.  
 	*/
-	stp = find_stateid(stateid, flags);
-	if (stp == NULL) {
-		/*
-		 * Also, we should make sure this isn't just the result of
-		 * a replayed close:
-		 */
-		sop = search_close_lru(stateid->si_stateownerid, flags);
-		/* It's not stale; let's assume it's expired: */
-		if (sop == NULL)
-			return nfserr_expired;
-		cstate->replay_owner = sop;
-		status = nfsd4_check_seqid(cstate, sop, seqid);
-		if (status)
-			return status;
-		return nfserr_bad_seqid;
-	}
+	*stpp = find_stateid(stateid, flags);
+	if (*stpp == NULL)
+		return nfserr_expired;
 
-	*stpp = stp;
-	sop = stp->st_stateowner;
+	sop = (*stpp)->st_stateowner;
 	cstate->replay_owner = sop;
 
-	if (nfs4_check_fh(current_fh, stp)) {
+	if (nfs4_check_fh(current_fh, *stpp)) {
 		dprintk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
 		return nfserr_bad_stateid;
 	}
@@ -3439,7 +3422,7 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 				" confirmed yet!\n");
 		return nfserr_bad_stateid;
 	}
-	status = check_stateid_generation(stateid, &stp->st_stateid, nfsd4_has_session(cstate));
+	status = check_stateid_generation(stateid, &(*stpp)->st_stateid, nfsd4_has_session(cstate));
 	if (status)
 		return status;
 	renew_client(sop->so_client);
@@ -3574,7 +3557,22 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* check close_lru for replay */
 	status = nfs4_preprocess_seqid_op(cstate, close->cl_seqid,
 					&close->cl_stateid, 
-					OPEN_STATE | CLOSE_STATE, &stp);
+					OPEN_STATE, &stp);
+	if (stp == NULL && status == nfserr_expired) {
+		/*
+		 * Also, we should make sure this isn't just the result of
+		 * a replayed close:
+		 */
+		so = search_close_lru(close->cl_stateid.si_stateownerid);
+		/* It's not stale; let's assume it's expired: */
+		if (so == NULL)
+			goto out;
+		cstate->replay_owner = so;
+		status = nfsd4_check_seqid(cstate, so, close->cl_seqid);
+		if (status)
+			goto out;
+		status = nfserr_bad_seqid;
+	}
 	if (status)
 		goto out; 
 	so = stp->st_stateowner;
