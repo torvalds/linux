@@ -1,7 +1,7 @@
 /*
  * AD7150 capacitive sensor driver supporting AD7150/1/6
  *
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -45,14 +45,6 @@
 #define AD7150_SN1                 21
 #define AD7150_SN0                 22
 #define AD7150_ID                  23
-
-#define AD7150_MAX_CONV_MODE       4
-
-/**
- * Todo list:
- * - Review whether old_state usage makes sense.
- * - get rid of explicit control of conversion mode
- */
 
 /**
  * struct ad7150_chip_info - instance specific chip data
@@ -592,24 +584,40 @@ static int __devinit ad7150_probe(struct i2c_client *client,
 					   &ad7150_event_handler,
 					   IRQF_TRIGGER_RISING |
 					   IRQF_TRIGGER_FALLING,
-					   "ad7150",
+					   "ad7150_irq1",
 					   indio_dev);
 		if (ret)
 			goto error_free_dev;
 	}
 
+	if (client->dev.platform_data) {
+		ret = request_threaded_irq(*(unsigned int *)
+					   client->dev.platform_data,
+					   NULL,
+					   &ad7150_event_handler,
+					   IRQF_TRIGGER_RISING |
+					   IRQF_TRIGGER_FALLING,
+					   "ad7150_irq2",
+					   indio_dev);
+		if (ret)
+			goto error_free_irq;
+	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_irq;
+		goto error_free_irq2;
 
 	dev_info(&client->dev, "%s capacitive sensor registered,irq: %d\n",
 		 id->name, client->irq);
 
 	return 0;
+error_free_irq2:
+	if (client->dev.platform_data)
+		free_irq(*(unsigned int *)client->dev.platform_data,
+			 indio_dev);
 error_free_irq:
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
-
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:
@@ -622,6 +630,10 @@ static int __devexit ad7150_remove(struct i2c_client *client)
 
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
+
+	if (client->dev.platform_data)
+		free_irq(*(unsigned int *)client->dev.platform_data, indio_dev);
+
 	iio_device_unregister(indio_dev);
 
 	return 0;
@@ -656,7 +668,7 @@ static __exit void ad7150_exit(void)
 }
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ad7150/1/6 capacitive sensor driver");
+MODULE_DESCRIPTION("Analog Devices AD7150/1/6 capacitive sensor driver");
 MODULE_LICENSE("GPL v2");
 
 module_init(ad7150_init);
