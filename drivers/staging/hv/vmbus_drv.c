@@ -93,6 +93,14 @@ static void get_channel_info(struct hv_device *device,
 		debug_info.outbound.bytes_avail_towrite;
 }
 
+#define VMBUS_ALIAS_LEN ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2)
+static void print_alias_name(struct hv_device *hv_dev, char *alias_name)
+{
+	int i;
+	for (i = 0; i < VMBUS_ALIAS_LEN; i += 2)
+		sprintf(&alias_name[i], "%02x", hv_dev->dev_type.b[i/2]);
+}
+
 /*
  * vmbus_show_device_attr - Show the device attribute in sysfs.
  *
@@ -105,6 +113,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
 	struct hv_device_info device_info;
+	char alias_name[VMBUS_ALIAS_LEN + 1];
 
 	memset(&device_info, 0, sizeof(struct hv_device_info));
 
@@ -148,6 +157,9 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 			       device_info.chn_instance.b[13],
 			       device_info.chn_instance.b[14],
 			       device_info.chn_instance.b[15]);
+	} else if (!strcmp(dev_attr->attr.name, "modalias")) {
+		print_alias_name(hv_dev, alias_name);
+		return sprintf(buf, "vmbus:%s\n", alias_name);
 	} else if (!strcmp(dev_attr->attr.name, "state")) {
 		return sprintf(buf, "%d\n", device_info.chn_state);
 	} else if (!strcmp(dev_attr->attr.name, "id")) {
@@ -204,6 +216,7 @@ static struct device_attribute vmbus_device_attrs[] = {
 	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(monitor_id, S_IRUGO, vmbus_show_device_attr, NULL),
+	__ATTR(modalias, S_IRUGO, vmbus_show_device_attr, NULL),
 
 	__ATTR(server_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(server_monitor_latency, S_IRUGO, vmbus_show_device_attr, NULL),
@@ -242,12 +255,10 @@ static struct device_attribute vmbus_device_attrs[] = {
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct hv_device *dev = device_to_hv_device(device);
-	int i, ret;
-	char alias_name[((sizeof((struct hv_vmbus_device_id *)0)->guid) + 1) * 2];
+	int ret;
+	char alias_name[VMBUS_ALIAS_LEN + 1];
 
-	for (i = 0; i < ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2); i += 2)
-		sprintf(&alias_name[i], "%02x", dev->dev_type.b[i/2]);
-
+	print_alias_name(dev, alias_name);
 	ret = add_uevent_var(env, "MODALIAS=vmbus:%s", alias_name);
 	return ret;
 }
