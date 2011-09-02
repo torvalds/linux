@@ -1473,7 +1473,7 @@ static void __devexit cx25821_finidev(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
-static struct pci_device_id cx25821_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(cx25821_pci_tbl) = {
 	{
 	 /* CX25821 Athena */
 	 .vendor = 0x14f1,
