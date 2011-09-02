@@ -59,17 +59,17 @@ static struct miscdevice bu92747guw_device;
 int repeat_flag=-1;
 int start_flag = 0;
 //mutex lock between remote and irda
-static DEFINE_MUTEX(bu92747_mutex);
-void bu92747_lock(void)
-{
-	mutex_lock(&bu92747_mutex);
-}
-//void bu92747_unlock(void)
-//{
-//	mutex_unlock(&bu92747_mutex);
-//}
 
 
+
+
+#ifdef CONFIG_RK_IRDA_UART
+extern int bu92747_try_lock(void);
+extern void bu92747_unlock(void);
+#else
+int bu92747_try_lock(void) {return 1;}
+void bu92747_unlock(void) {return;}
+#endif
 
 
 
@@ -753,10 +753,18 @@ static int bu92747_open(struct inode *inode, struct file *file)
 	struct i2c_client *client = container_of(bu92747guw_device.parent, struct i2c_client, dev);
 	struct bu92747_data_info *bu92747 = (struct bu92747_data_info *)i2c_get_clientdata(client);
 	struct bu92747guw_platform_data *pdata = bu92747->platdata;
-
+	int ret = 0;
 	BU92747_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
 	printk("bu92747_open\n");
+
+
+	ret = bu92747_try_lock();
+	if (ret == 0){
+		printk("cannot get lock. Please close irda!\n");
+		return -2;
+	}
+	
 	bu92747->state = 0;
 	start_flag = 0;
 	repeat_flag = -1;
@@ -799,6 +807,7 @@ static int bu92747_release(struct inode *inode, struct file *file)
 	}
 	
 //	bu92747->state = BU92747_CLOSE;
+	bu92747_unlock();
 
 	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
 	
