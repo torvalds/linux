@@ -89,7 +89,7 @@ struct s3c2410_dma_client {
 	char	*name;
 };
 
-static inline bool s3c_dma_has_circular(void)
+static inline bool samsung_dma_has_circular(void)
 {
 	return true;
 }

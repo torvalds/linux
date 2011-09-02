@@ -58,7 +58,7 @@ enum dma_ch {
 	DMACH_MAX		/* the end */
 };
 
-static __inline__ bool s3c_dma_has_circular(void)
+static inline bool samsung_dma_has_circular(void)
 {
 	return true;
 }

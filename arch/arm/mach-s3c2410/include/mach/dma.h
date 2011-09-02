@@ -50,6 +50,11 @@ enum dma_ch {
 	DMACH_MAX,		/* the end entry */
 };
 
+static inline bool samsung_dma_has_circular(void)
+{
+	return false;
+}
+
 static inline bool samsung_dma_is_dmadev(void)
 {
 	return false;
@@ -201,10 +206,5 @@ struct s3c2410_dma_chan {
 };
 
 typedef unsigned long dma_device_t;
-
-static inline bool s3c_dma_has_circular(void)
-{
-	return false;
-}
 
 #endif /* __ASM_ARCH_DMA_H */
