@@ -515,7 +515,7 @@ int __iio_add_chan_devattr(const char *postfix,
 						struct device_attribute *attr,
 						const char *buf,
 						size_t len),
-			   int mask,
+			   u64 mask,
 			   bool generic,
 			   struct device *dev,
 			   struct list_head *attr_list)
@@ -783,7 +783,8 @@ static ssize_t iio_ev_value_store(struct device *dev,
 static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 				      struct iio_chan_spec const *chan)
 {
-	int ret = 0, i, mask = 0, attrcount = 0;
+	int ret = 0, i, attrcount = 0;
+	u64 mask = 0;
 	char *postfix;
 	if (!chan->event_mask)
 		return 0;

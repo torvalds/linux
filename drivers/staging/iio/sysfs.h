@@ -22,7 +22,7 @@ struct iio_chan_spec;
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;
-	int address;
+	u64 address;
 	struct list_head l;
 	struct iio_chan_spec const *c;
 };

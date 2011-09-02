@@ -22,7 +22,7 @@ int __iio_add_chan_devattr(const char *postfix,
 						struct device_attribute *attr,
 						const char *buf,
 						size_t len),
-			   int mask,
+			   u64 mask,
 			   bool generic,
 			   struct device *dev,
 			   struct list_head *attr_list);
