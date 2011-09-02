@@ -779,7 +779,7 @@ extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 /* Linux network driver ioctl encoding */
 struct brcmf_c_ioctl {
 	uint cmd;		/* common ioctl definition */
-	void *buf;		/* pointer to user buffer */
+	void __user *buf;	/* pointer to user buffer */
 	uint len;		/* length of user buffer */
 	bool set;		/* get or set request (optional) */
 	uint used;		/* bytes read or written (optional) */

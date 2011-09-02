@@ -835,7 +835,7 @@ static struct ethtool_ops brcmf_ethtool_ops = {
 	.get_drvinfo = brcmf_ethtool_get_drvinfo
 };
 
-static int brcmf_ethtool(struct brcmf_info *drvr_priv, void *uaddr)
+static int brcmf_ethtool(struct brcmf_info *drvr_priv, void __user *uaddr)
 {
 	struct ethtool_drvinfo info;
 	char drvname[sizeof(info.driver)];
@@ -1001,7 +1001,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	}
 
 	/* To differentiate read 4 more byes */
-	if ((copy_from_user(&driver, (char *)ifr->ifr_data +
+	if ((copy_from_user(&driver, (char __user *)ifr->ifr_data +
 			    sizeof(struct brcmf_ioctl), sizeof(uint)) != 0)) {
 		bcmerror = -EINVAL;
 		goto done;

@@ -540,7 +540,7 @@ brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 	ioc.buf = arg;
 	ioc.len = len;
 	strcpy(ifr.ifr_name, dev->name);
-	ifr.ifr_data = (caddr_t)&ioc;
+	ifr.ifr_data = (char __user *)&ioc;
 
 	fs = get_fs();
 	set_fs(get_ds());
