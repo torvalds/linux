@@ -152,6 +152,7 @@
  * LCR=0xBF (or DLAB=1 for 16C660)
  */
 #define UART_EFR	2	/* I/O: Extended Features Register */
+#define UART_XR_EFR	9	/* I/O: Extended Features Register (XR17D15x) */
 #define UART_EFR_CTS		0x80 /* CTS flow control */
 #define UART_EFR_RTS		0x40 /* RTS flow control */
 #define UART_EFR_SCD		0x20 /* Special character detect */

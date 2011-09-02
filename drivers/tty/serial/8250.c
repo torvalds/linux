@@ -309,6 +309,13 @@ static const struct serial8250_config uart_config[] = {
 				  UART_FCR_T_TRIG_01,
 		.flags		= UART_CAP_FIFO | UART_CAP_RTOIE,
 	},
+	[PORT_XR17D15X] = {
+		.name		= "XR17D15X",
+		.fifo_size	= 64,
+		.tx_loadsz	= 64,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR,
+	},
 };
 
 #if defined(CONFIG_MIPS_ALCHEMY)
@@ -1073,6 +1080,14 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 		DEBUG_AUTOCONF("Couldn't force IER_UUE to 0 ");
 	}
 	serial_outp(up, UART_IER, iersave);
+
+	/*
+	 * Exar uarts have EFR in a weird location
+	 */
+	if (up->port.flags & UPF_EXAR_EFR) {
+		up->port.type = PORT_XR17D15X;
+		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR;
+	}
 
 	/*
 	 * We distinguish between 16550A and U6 16550A by counting
@@ -2417,7 +2432,10 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			efr |= UART_EFR_CTS;
 
 		serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_outp(up, UART_EFR, efr);
+		if (up->port.flags & UPF_EXAR_EFR)
+			serial_outp(up, UART_XR_EFR, efr);
+		else
+			serial_outp(up, UART_EFR, efr);
 	}
 
 #ifdef CONFIG_ARCH_OMAP
