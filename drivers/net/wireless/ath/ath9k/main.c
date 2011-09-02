@@ -596,74 +596,6 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 		ath_tx_node_cleanup(sc, an);
 }
 
-void ath_hw_check(struct work_struct *work)
-{
-	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	unsigned long flags;
-	int busy;
-
-	ath9k_ps_wakeup(sc);
-	if (ath9k_hw_check_alive(sc->sc_ah))
-		goto out;
-
-	spin_lock_irqsave(&common->cc_lock, flags);
-	busy = ath_update_survey_stats(sc);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
-
-	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
-		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
-	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3) {
-			spin_lock_bh(&sc->sc_pcu_lock);
-			ath_reset(sc, true);
-			spin_unlock_bh(&sc->sc_pcu_lock);
-		}
-	} else if (busy >= 0)
-		sc->hw_busy_count = 0;
-
-out:
-	ath9k_ps_restore(sc);
-}
-
-static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
-{
-	static int count;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-
-	if (pll_sqsum >= 0x40000) {
-		count++;
-		if (count == 3) {
-			/* Rx is hung for more than 500ms. Reset it */
-			ath_dbg(common, ATH_DBG_RESET,
-				"Possible RX hang, resetting");
-			spin_lock_bh(&sc->sc_pcu_lock);
-			ath_reset(sc, true);
-			spin_unlock_bh(&sc->sc_pcu_lock);
-			count = 0;
-		}
-	} else
-		count = 0;
-}
-
-void ath_hw_pll_work(struct work_struct *work)
-{
-	struct ath_softc *sc = container_of(work, struct ath_softc,
-					    hw_pll_work.work);
-	u32 pll_sqsum;
-
-	if (AR_SREV_9485(sc->sc_ah)) {
-
-		ath9k_ps_wakeup(sc);
-		pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
-		ath9k_ps_restore(sc);
-
-		ath_hw_pll_rx_hang_check(sc, pll_sqsum);
-
-		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/5);
-	}
-}
-
 
 void ath9k_tasklet(unsigned long data)
 {
@@ -1035,6 +967,75 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath9k_ps_restore(sc);
 
 	return r;
+}
+
+void ath_hw_check(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long flags;
+	int busy;
+
+	ath9k_ps_wakeup(sc);
+	if (ath9k_hw_check_alive(sc->sc_ah))
+		goto out;
+
+	spin_lock_irqsave(&common->cc_lock, flags);
+	busy = ath_update_survey_stats(sc);
+	spin_unlock_irqrestore(&common->cc_lock, flags);
+
+	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
+		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
+	if (busy >= 99) {
+		if (++sc->hw_busy_count >= 3) {
+			spin_lock_bh(&sc->sc_pcu_lock);
+			ath_reset(sc, true);
+			spin_unlock_bh(&sc->sc_pcu_lock);
+		}
+
+	} else if (busy >= 0)
+		sc->hw_busy_count = 0;
+
+out:
+	ath9k_ps_restore(sc);
+}
+
+static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
+{
+	static int count;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (pll_sqsum >= 0x40000) {
+		count++;
+		if (count == 3) {
+			/* Rx is hung for more than 500ms. Reset it */
+			ath_dbg(common, ATH_DBG_RESET,
+				"Possible RX hang, resetting");
+			spin_lock_bh(&sc->sc_pcu_lock);
+			ath_reset(sc, true);
+			spin_unlock_bh(&sc->sc_pcu_lock);
+			count = 0;
+		}
+	} else
+		count = 0;
+}
+
+void ath_hw_pll_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    hw_pll_work.work);
+	u32 pll_sqsum;
+
+	if (AR_SREV_9485(sc->sc_ah)) {
+
+		ath9k_ps_wakeup(sc);
+		pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
+		ath9k_ps_restore(sc);
+
+		ath_hw_pll_rx_hang_check(sc, pll_sqsum);
+
+		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/5);
+	}
 }
 
 /**********************/
