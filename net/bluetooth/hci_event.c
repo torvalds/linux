@@ -1103,9 +1103,10 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 		return 0;
 
 	/* Only request authentication for SSP connections or non-SSP
-	 * devices with sec_level HIGH */
+	 * devices with sec_level HIGH or if MITM protection is requested */
 	if (!(hdev->ssp_mode > 0 && conn->ssp_mode > 0) &&
-				conn->pending_sec_level != BT_SECURITY_HIGH)
+				conn->pending_sec_level != BT_SECURITY_HIGH &&
+				!(conn->auth_type & 0x01))
 		return 0;
 
 	return 1;
