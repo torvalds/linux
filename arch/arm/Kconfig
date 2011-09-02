@@ -324,6 +324,7 @@ config ARCH_BCMRING
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Broadcom's BCMRing platform.
 
