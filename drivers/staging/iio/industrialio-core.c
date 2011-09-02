@@ -65,6 +65,7 @@ static const char * const iio_chan_type_name_spec_shared[] = {
 	[IIO_ROT] = "rot",
 	[IIO_ANGL] = "angl",
 	[IIO_TIMESTAMP] = "timestamp",
+	[IIO_CAPACITANCE] = "capacitance",
 };
 
 static const char * const iio_chan_type_name_spec_complex[] = {
@@ -89,6 +90,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
 	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
 	= "quadrature_correction_raw",
+	[IIO_CHAN_INFO_AVERAGE_RAW_SHARED/2] = "mean_raw",
 };
 
 /**
