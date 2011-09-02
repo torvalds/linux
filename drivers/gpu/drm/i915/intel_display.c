@@ -1172,6 +1172,9 @@ static void intel_enable_pch_pll(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 
+	if (pipe > 1)
+		return;
+
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
 
@@ -1191,6 +1194,9 @@ static void intel_disable_pch_pll(struct drm_i915_private *dev_priv,
 {
 	int reg;
 	u32 val;
+
+	if (pipe > 1)
+		return;
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
