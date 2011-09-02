@@ -791,27 +791,27 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 
 	for_each_set_bit(i, &chan->event_mask, sizeof(chan->event_mask)*8) {
 		postfix = kasprintf(GFP_KERNEL, "%s_%s_en",
-				    iio_ev_type_text[i/IIO_EV_TYPE_MAX],
-				    iio_ev_dir_text[i%IIO_EV_TYPE_MAX]);
+				    iio_ev_type_text[i/IIO_EV_DIR_MAX],
+				    iio_ev_dir_text[i%IIO_EV_DIR_MAX]);
 		if (postfix == NULL) {
 			ret = -ENOMEM;
 			goto error_ret;
 		}
 		if (chan->modified)
 			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
-						  i/IIO_EV_TYPE_MAX,
-						  i%IIO_EV_TYPE_MAX);
+						  i/IIO_EV_DIR_MAX,
+						  i%IIO_EV_DIR_MAX);
 		else if (chan->type == IIO_VOLTAGE_DIFF)
 			mask = IIO_MOD_EVENT_CODE(chan->type,
 						  chan->channel,
 						  chan->channel2,
-						  i/IIO_EV_TYPE_MAX,
-						  i%IIO_EV_TYPE_MAX);
+						  i/IIO_EV_DIR_MAX,
+						  i%IIO_EV_DIR_MAX);
 		else
 			mask = IIO_UNMOD_EVENT_CODE(chan->type,
 						    chan->channel,
-						    i/IIO_EV_TYPE_MAX,
-						    i%IIO_EV_TYPE_MAX);
+						    i/IIO_EV_DIR_MAX,
+						    i%IIO_EV_DIR_MAX);
 
 		ret = __iio_add_chan_devattr(postfix,
 					     chan,
@@ -827,8 +827,8 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			goto error_ret;
 		attrcount++;
 		postfix = kasprintf(GFP_KERNEL, "%s_%s_value",
-				    iio_ev_type_text[i/IIO_EV_TYPE_MAX],
-				    iio_ev_dir_text[i%IIO_EV_TYPE_MAX]);
+				    iio_ev_type_text[i/IIO_EV_DIR_MAX],
+				    iio_ev_dir_text[i%IIO_EV_DIR_MAX]);
 		if (postfix == NULL) {
 			ret = -ENOMEM;
 			goto error_ret;

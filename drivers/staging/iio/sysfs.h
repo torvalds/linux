@@ -131,9 +131,9 @@ enum iio_event_direction {
 	(((u64)type << 56) | ((u64)direction << 48) | ((u64)modifier << 40) | \
 	 ((u64)chan_type << 32) | (chan2 << 16) | chan1 | chan)
 
-#define IIO_EV_TYPE_MAX 8
+#define IIO_EV_DIR_MAX 4
 #define IIO_EV_BIT(type, direction)			\
-	(1 << (type*IIO_EV_TYPE_MAX + direction))
+	(1 << (type*IIO_EV_DIR_MAX + direction))
 
 #define IIO_MOD_EVENT_CODE(channelclass, number, modifier,		\
 			   type, direction)				\
