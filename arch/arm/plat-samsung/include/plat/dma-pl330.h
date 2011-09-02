@@ -93,6 +93,10 @@ static inline bool s3c_dma_has_circular(void)
 	return true;
 }
 
+static inline bool samsung_dma_is_dmadev(void)
+{
+	return true;
+}
 #include <plat/dma.h>
 
 #endif	/* __DMA_PL330_H_ */

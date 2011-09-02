@@ -13,7 +13,6 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H __FILE__
 
-#include <plat/dma.h>
 #include <linux/sysdev.h>
 
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
@@ -50,6 +49,13 @@ enum dma_ch {
 	DMACH_UART3_SRC2,
 	DMACH_MAX,		/* the end entry */
 };
+
+static inline bool samsung_dma_is_dmadev(void)
+{
+	return false;
+}
+
+#include <plat/dma.h>
 
 #define DMACH_LOW_LEVEL	(1<<28)	/* use this to specifiy hardware ch no */
 

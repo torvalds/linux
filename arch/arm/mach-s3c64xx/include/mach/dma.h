@@ -63,6 +63,10 @@ static __inline__ bool s3c_dma_has_circular(void)
 	return true;
 }
 
+static inline bool samsung_dma_is_dmadev(void)
+{
+	return false;
+}
 #define S3C2410_DMAF_CIRCULAR		(1 << 0)
 
 #include <plat/dma.h>
