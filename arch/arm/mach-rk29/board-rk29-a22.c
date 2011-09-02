@@ -3030,6 +3030,7 @@ static void rk29_pm_power_off(void)
 	while (1);
 }
 
+extern struct usb_mass_storage_platform_data mass_storage_pdata;
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
@@ -3039,6 +3040,8 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 	//arm_pm_restart = rk29_pm_power_restart;
+
+	mass_storage_pdata.nluns = 1;//change number of LUNS
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
