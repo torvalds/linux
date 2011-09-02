@@ -1,5 +1,5 @@
 /*
- * Engenio/LSI RDAC SCSI Device Handler
+ * LSI/Engenio/NetApp E-Series RDAC SCSI Device Handler
  *
  * Copyright (C) 2005 Mike Christie. All rights reserved.
  * Copyright (C) Chandra Seetharaman, IBM Corp. 2007
@@ -947,7 +947,7 @@ static void __exit rdac_exit(void)
 module_init(rdac_init);
 module_exit(rdac_exit);
 
-MODULE_DESCRIPTION("Multipath LSI/Engenio RDAC driver");
+MODULE_DESCRIPTION("Multipath LSI/Engenio/NetApp E-Series RDAC driver");
 MODULE_AUTHOR("Mike Christie, Chandra Seetharaman");
 MODULE_VERSION("01.00.0000.0000");
 MODULE_LICENSE("GPL");
