@@ -179,17 +179,14 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 
 	       /* Even field */
 		rp = cx25821_risc_field_upstream_ch2(dev, rp,
-						     dev->
-						     _data_buf_phys_addr_ch2 +
-						     databuf_offset,
-						     bottom_offset, 0x200, bpl,
-						     singlefield_lines,
-						     fifo_enable, EVEN_FIELD);
+				dev->_data_buf_phys_addr_ch2 + databuf_offset,
+				bottom_offset, 0x200, bpl, singlefield_lines,
+				fifo_enable, EVEN_FIELD);
 
 		if (frame == 0) {
 			risc_flag = RISC_CNT_RESET;
-			risc_phys_jump_addr =
-			    dev->_dma_phys_start_addr_ch2 + risc_program_size;
+			risc_phys_jump_addr = dev->_dma_phys_start_addr_ch2 +
+					risc_program_size;
 		} else {
 			risc_flag = RISC_CNT_INC;
 			risc_phys_jump_addr = dev->_dma_phys_start_addr_ch2;
@@ -511,9 +508,8 @@ static int cx25821_upstream_buffer_prepare_ch2(struct cx25821_dev *dev,
 		return ret;
 
 	/* Creating RISC programs */
-	ret =
-	    cx25821_risc_buffer_upstream_ch2(dev, dev->pci, 0, bpl,
-					     dev->_lines_count_ch2);
+	ret = cx25821_risc_buffer_upstream_ch2(dev, dev->pci, 0, bpl,
+						dev->_lines_count_ch2);
 	if (ret < 0) {
 		pr_info("Failed creating Video Upstream Risc programs!\n");
 		goto error;
@@ -806,8 +802,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 		}
 	}
 
-	retval =
-	    cx25821_sram_channel_setup_upstream(dev, sram_ch,
+	retval = cx25821_sram_channel_setup_upstream(dev, sram_ch,
 						dev->_line_size_ch2, 0);
 
 	/* setup fifo + format */
@@ -817,8 +812,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	dev->upstream_databuf_size_ch2 = data_frame_size * 2;
 
 	/* Allocating buffers and prepare RISC program */
-	retval =
-	    cx25821_upstream_buffer_prepare_ch2(dev, sram_ch,
+	retval = cx25821_upstream_buffer_prepare_ch2(dev, sram_ch,
 						dev->_line_size_ch2);
 	if (retval < 0) {
 		pr_err("%s: Failed to set up Video upstream buffers!\n",
