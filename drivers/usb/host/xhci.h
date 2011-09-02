@@ -798,7 +798,7 @@ struct xhci_virt_device {
 	/* Status of the last command issued for this device */
 	u32				cmd_status;
 	struct list_head		cmd_list;
-	u8				port;
+	u8				fake_port;
 };
 
 

@@ -232,7 +232,7 @@ int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 			continue;
 		speed = xhci->devs[i]->udev->speed;
 		if (((speed == USB_SPEED_SUPER) == (hcd->speed == HCD_USB3))
-				&& xhci->devs[i]->port == port) {
+				&& xhci->devs[i]->fake_port == port) {
 			slot_id = i;
 			break;
 		}

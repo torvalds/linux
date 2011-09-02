@@ -921,9 +921,9 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	for (top_dev = udev; top_dev->parent && top_dev->parent->parent;
 			top_dev = top_dev->parent)
 		/* Found device below root hub */;
-	dev->port = top_dev->portnum;
+	dev->fake_port = top_dev->portnum;
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", port_num);
-	xhci_dbg(xhci, "Set fake root hub portnum to %d\n", dev->port);
+	xhci_dbg(xhci, "Set fake root hub portnum to %d\n", dev->fake_port);
 
 	/* Is this a LS/FS device under an external HS hub? */
 	if (udev->tt && udev->tt->hub->parent) {
