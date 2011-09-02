@@ -236,6 +236,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	del_timer_sync(&common->ani.timer);
 	cancel_work_sync(&sc->paprd_work);
 	cancel_work_sync(&sc->hw_check_work);
+	cancel_work_sync(&sc->hw_reset_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
 
@@ -608,9 +609,7 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
-		spin_lock(&sc->sc_pcu_lock);
-		ath_reset(sc, true);
-		spin_unlock(&sc->sc_pcu_lock);
+		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		return;
 	}
 
@@ -901,7 +900,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_ps_restore(sc);
 }
 
-int ath_reset(struct ath_softc *sc, bool retry_tx)
+static int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -967,6 +966,15 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath9k_ps_restore(sc);
 
 	return r;
+}
+
+void ath_reset_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, hw_reset_work);
+
+	spin_lock_bh(&sc->sc_pcu_lock);
+	ath_reset(sc, true);
+	spin_unlock_bh(&sc->sc_pcu_lock);
 }
 
 void ath_hw_check(struct work_struct *work)
@@ -1230,6 +1238,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	cancel_delayed_work_sync(&sc->hw_pll_work);
 	cancel_work_sync(&sc->paprd_work);
 	cancel_work_sync(&sc->hw_check_work);
+	cancel_work_sync(&sc->hw_reset_work);
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		ath_dbg(common, ATH_DBG_ANY, "Device not present\n");
