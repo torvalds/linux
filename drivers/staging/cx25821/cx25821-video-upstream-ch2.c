@@ -145,15 +145,16 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 	if (dev->_isNTSC_ch2) {
 		odd_num_lines = singlefield_lines + 1;
 		risc_program_size = FRAME1_VID_PROG_SIZE;
-		frame_size =
-		    (bpl ==
-		     Y411_LINE_SZ) ? FRAME_SIZE_NTSC_Y411 :
-		    FRAME_SIZE_NTSC_Y422;
+		if (bpl == Y411_LINE_SZ)
+			frame_size = FRAME_SIZE_NTSC_Y411;
+		else
+			frame_size = FRAME_SIZE_NTSC_Y422;
 	} else {
 		risc_program_size = PAL_VID_PROG_SIZE;
-		frame_size =
-		    (bpl ==
-		     Y411_LINE_SZ) ? FRAME_SIZE_PAL_Y411 : FRAME_SIZE_PAL_Y422;
+		if (bpl == Y411_LINE_SZ)
+			frame_size = FRAME_SIZE_PAL_Y411;
+		else
+			frame_size = FRAME_SIZE_PAL_Y422;
 	}
 
 	/* Virtual address of Risc buffer program */
@@ -565,10 +566,10 @@ int cx25821_video_upstream_irq_ch2(struct cx25821_dev *dev, int chan_num,
 			}
 
 			if (dev->_dma_virt_start_addr_ch2 != NULL) {
-				line_size_in_bytes =
-				    (dev->_pixel_format_ch2 ==
-				     PIXEL_FRMT_411) ? Y411_LINE_SZ :
-				    Y422_LINE_SZ;
+				if (dev->_pixel_format_ch2 == PIXEL_FRMT_411)
+					line_size_in_bytes = Y411_LINE_SZ;
+				else
+					line_size_in_bytes = Y422_LINE_SZ;
 				risc_phys_jump_addr =
 				    dev->_dma_phys_start_addr_ch2 +
 				    odd_risc_prog_size;
