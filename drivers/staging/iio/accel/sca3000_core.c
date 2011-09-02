@@ -1161,6 +1161,12 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 				       ARRAY_SIZE(sca3000_channels));
 	if (ret < 0)
 		goto error_unregister_dev;
+	if (indio_dev->ring) {
+		iio_scan_mask_set(indio_dev->ring, 0);
+		iio_scan_mask_set(indio_dev->ring, 1);
+		iio_scan_mask_set(indio_dev->ring, 2);
+	}
+
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
 		ret = request_threaded_irq(spi->irq,
 					   NULL,

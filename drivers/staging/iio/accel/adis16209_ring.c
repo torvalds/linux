@@ -118,16 +118,6 @@ int adis16209_configure_ring(struct iio_dev *indio_dev)
 	ring->setup_ops = &adis16209_ring_setup_ops;
 	ring->owner = THIS_MODULE;
 
-	/* Set default scan mode */
-	iio_scan_mask_set(ring, ADIS16209_SCAN_SUPPLY);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_ACC_X);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_ACC_Y);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_AUX_ADC);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_TEMP);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_INCLI_X);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_INCLI_Y);
-	iio_scan_mask_set(ring, ADIS16209_SCAN_ROT);
-
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &adis16209_trigger_handler,
 						 IRQF_ONESHOT,

@@ -441,11 +441,6 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	ring->setup_ops = &lis3l02dq_ring_setup_ops;
 	ring->owner = THIS_MODULE;
 
-	/* Set default scan mode */
-	iio_scan_mask_set(ring, 0);
-	iio_scan_mask_set(ring, 1);
-	iio_scan_mask_set(ring, 2);
-
 	/* Functions are NULL as we set handler below */
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &lis3l02dq_trigger_handler,

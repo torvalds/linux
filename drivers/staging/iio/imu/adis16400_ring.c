@@ -189,9 +189,6 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	ring->scan_timestamp = true;
 	ring->setup_ops = &adis16400_ring_setup_ops;
 	ring->owner = THIS_MODULE;
-	/* Set default scan mode */
-	ring->scan_mask = st->variant->default_scan_mask;
-	ring->scan_count = hweight_long(st->variant->default_scan_mask);
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &adis16400_trigger_handler,

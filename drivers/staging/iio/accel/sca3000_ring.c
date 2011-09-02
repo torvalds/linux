@@ -294,10 +294,6 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 
 	indio_dev->ring->access = &sca3000_ring_access_funcs;
 
-	iio_scan_mask_set(indio_dev->ring, 0);
-	iio_scan_mask_set(indio_dev->ring, 1);
-	iio_scan_mask_set(indio_dev->ring, 2);
-
 	return 0;
 }
 
