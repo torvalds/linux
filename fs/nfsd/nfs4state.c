@@ -3434,11 +3434,6 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	if (status)
 		return status;
 
-	if (sop->so_confirmed && flags & CONFIRM) {
-		dprintk("NFSD: preprocess_seqid_op: expected"
-				" unconfirmed stateowner!\n");
-		return nfserr_bad_stateid;
-	}
 	if (!sop->so_confirmed && !(flags & CONFIRM)) {
 		dprintk("NFSD: preprocess_seqid_op: stateowner not"
 				" confirmed yet!\n");
@@ -3473,9 +3468,11 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					oc->oc_seqid, &oc->oc_req_stateid,
 					CONFIRM | OPEN_STATE, &stp);
 	if (status)
-		goto out; 
-
+		goto out;
 	sop = stp->st_stateowner;
+	status = nfserr_bad_stateid;
+	if (sop->so_confirmed)
+		goto out;
 	sop->so_confirmed = 1;
 	update_stateid(&stp->st_stateid);
 	memcpy(&oc->oc_resp_stateid, &stp->st_stateid, sizeof(stateid_t));
@@ -3483,6 +3480,7 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		__func__, oc->oc_seqid, STATEID_VAL(&stp->st_stateid));
 
 	nfsd4_create_clid_dir(sop->so_client);
+	status = nfs_ok;
 out:
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
