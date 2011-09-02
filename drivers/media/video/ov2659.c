@@ -65,8 +65,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         1
-#define CONFIG_SENSOR_Mirror        1 
-#define CONFIG_SENSOR_Flip          1
+#define CONFIG_SENSOR_Mirror        0 
+#define CONFIG_SENSOR_Flip          0
 
 #define CONFIG_SENSOR_I2C_SPEED     350000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
