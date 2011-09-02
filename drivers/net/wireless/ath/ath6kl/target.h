@@ -340,4 +340,7 @@ struct host_interest {
 #define AR6004_REV1_BOARD_DATA_ADDRESS          0x435400
 #define AR6004_REV1_BOARD_EXT_DATA_ADDRESS      0x437000
 #define AR6004_REV1_RAM_RESERVE_SIZE            11264
+
+#define ATH6KL_FWLOG_PAYLOAD_SIZE		1500
+
 #endif

@@ -21,6 +21,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
+#include <linux/circ_buf.h>
 #include <net/cfg80211.h>
 #include "htc.h"
 #include "wmi.h"
@@ -467,6 +468,14 @@ struct ath6kl {
 	u32 send_action_id;
 	bool probe_req_report;
 	u16 next_chan;
+
+#ifdef CONFIG_ATH6KL_DEBUG
+	struct {
+		struct circ_buf fwlog_buf;
+		spinlock_t fwlog_lock;
+		void *fwlog_tmp;
+	} debug;
+#endif /* CONFIG_ATH6KL_DEBUG */
 };
 
 static inline void *ath6kl_priv(struct net_device *dev)

@@ -1389,6 +1389,8 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 
 	ath6kl_bmi_cleanup(ar);
 
+	ath6kl_debug_cleanup(ar);
+
 	if (unregister && test_bit(NETDEV_REGISTERED, &ar->flag)) {
 		unregister_netdev(dev);
 		clear_bit(NETDEV_REGISTERED, &ar->flag);

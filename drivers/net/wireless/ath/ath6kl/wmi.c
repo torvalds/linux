@@ -2903,6 +2903,7 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 	case WMIX_HB_CHALLENGE_RESP_EVENTID:
 		break;
 	case WMIX_DBGLOG_EVENTID:
+		ath6kl_debug_fwlog_event(wmi->parent_dev, datap, len);
 		break;
 	default:
 		ath6kl_err("unknown cmd id 0x%x\n", id);

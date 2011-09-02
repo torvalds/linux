@@ -15,7 +15,23 @@
  */
 
 #include "core.h"
+
+#include <linux/circ_buf.h>
+
 #include "debug.h"
+#include "target.h"
+
+struct ath6kl_fwlog_slot {
+	__le32 timestamp;
+	__le32 length;
+
+	/* max ATH6KL_FWLOG_PAYLOAD_SIZE bytes */
+	u8 payload[0];
+};
+
+#define ATH6KL_FWLOG_SIZE 32768
+#define ATH6KL_FWLOG_SLOT_SIZE (sizeof(struct ath6kl_fwlog_slot) + \
+				ATH6KL_FWLOG_PAYLOAD_SIZE)
 
 int ath6kl_printk(const char *level, const char *fmt, ...)
 {
@@ -152,6 +168,117 @@ static int ath6kl_debugfs_open(struct inode *inode, struct file *file)
 	file->private_data = inode->i_private;
 	return 0;
 }
+
+static void ath6kl_debug_fwlog_add(struct ath6kl *ar, const void *buf,
+				   size_t buf_len)
+{
+	struct circ_buf *fwlog = &ar->debug.fwlog_buf;
+	size_t space;
+	int i;
+
+	/* entries must all be equal size */
+	if (WARN_ON(buf_len != ATH6KL_FWLOG_SLOT_SIZE))
+		return;
+
+	space = CIRC_SPACE(fwlog->head, fwlog->tail, ATH6KL_FWLOG_SIZE);
+	if (space < buf_len)
+		/* discard oldest slot */
+		fwlog->tail = (fwlog->tail + ATH6KL_FWLOG_SLOT_SIZE) &
+			(ATH6KL_FWLOG_SIZE - 1);
+
+	for (i = 0; i < buf_len; i += space) {
+		space = CIRC_SPACE_TO_END(fwlog->head, fwlog->tail,
+					  ATH6KL_FWLOG_SIZE);
+
+		if ((size_t) space > buf_len - i)
+			space = buf_len - i;
+
+		memcpy(&fwlog->buf[fwlog->head], buf, space);
+		fwlog->head = (fwlog->head + space) & (ATH6KL_FWLOG_SIZE - 1);
+	}
+
+}
+
+void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
+{
+	struct ath6kl_fwlog_slot *slot = ar->debug.fwlog_tmp;
+	size_t slot_len;
+
+	if (WARN_ON(len > ATH6KL_FWLOG_PAYLOAD_SIZE))
+		return;
+
+	spin_lock_bh(&ar->debug.fwlog_lock);
+
+	slot->timestamp = cpu_to_le32(jiffies);
+	slot->length = cpu_to_le32(len);
+	memcpy(slot->payload, buf, len);
+
+	slot_len = sizeof(*slot) + len;
+
+	if (slot_len < ATH6KL_FWLOG_SLOT_SIZE)
+		memset(slot->payload + len, 0,
+		       ATH6KL_FWLOG_SLOT_SIZE - slot_len);
+
+	ath6kl_debug_fwlog_add(ar, slot, ATH6KL_FWLOG_SLOT_SIZE);
+
+	spin_unlock_bh(&ar->debug.fwlog_lock);
+}
+
+static bool ath6kl_debug_fwlog_empty(struct ath6kl *ar)
+{
+	return CIRC_CNT(ar->debug.fwlog_buf.head,
+			ar->debug.fwlog_buf.tail,
+			ATH6KL_FWLOG_SLOT_SIZE) == 0;
+}
+
+static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	struct circ_buf *fwlog = &ar->debug.fwlog_buf;
+	size_t len = 0, buf_len = count;
+	ssize_t ret_cnt;
+	char *buf;
+	int ccnt;
+
+	buf = vmalloc(buf_len);
+	if (!buf)
+		return -ENOMEM;
+
+	spin_lock_bh(&ar->debug.fwlog_lock);
+
+	while (len < buf_len && !ath6kl_debug_fwlog_empty(ar)) {
+		ccnt = CIRC_CNT_TO_END(fwlog->head, fwlog->tail,
+				       ATH6KL_FWLOG_SIZE);
+
+		if ((size_t) ccnt > buf_len - len)
+			ccnt = buf_len - len;
+
+		memcpy(buf + len, &fwlog->buf[fwlog->tail], ccnt);
+		len += ccnt;
+
+		fwlog->tail = (fwlog->tail + ccnt) &
+			(ATH6KL_FWLOG_SIZE - 1);
+	}
+
+	spin_unlock_bh(&ar->debug.fwlog_lock);
+
+	if (WARN_ON(len > buf_len))
+		len = buf_len;
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	vfree(buf);
+
+	return ret_cnt;
+}
+
+static const struct file_operations fops_fwlog = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_fwlog_read,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 
 static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -358,10 +485,25 @@ static const struct file_operations fops_credit_dist_stats = {
 
 int ath6kl_debug_init(struct ath6kl *ar)
 {
+	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
+	if (ar->debug.fwlog_buf.buf == NULL)
+		return -ENOMEM;
+
+	ar->debug.fwlog_tmp = kmalloc(ATH6KL_FWLOG_SLOT_SIZE, GFP_KERNEL);
+	if (ar->debug.fwlog_tmp == NULL) {
+		vfree(ar->debug.fwlog_buf.buf);
+		return -ENOMEM;
+	}
+
+	spin_lock_init(&ar->debug.fwlog_lock);
+
 	ar->debugfs_phy = debugfs_create_dir("ath6kl",
 					     ar->wdev->wiphy->debugfsdir);
-	if (!ar->debugfs_phy)
+	if (!ar->debugfs_phy) {
+		vfree(ar->debug.fwlog_buf.buf);
+		kfree(ar->debug.fwlog_tmp);
 		return -ENOMEM;
+	}
 
 	debugfs_create_file("tgt_stats", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_tgt_stats);
@@ -369,6 +511,16 @@ int ath6kl_debug_init(struct ath6kl *ar)
 	debugfs_create_file("credit_dist_stats", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_credit_dist_stats);
 
+	debugfs_create_file("fwlog", S_IRUSR, ar->debugfs_phy, ar,
+			    &fops_fwlog);
+
 	return 0;
 }
+
+void ath6kl_debug_cleanup(struct ath6kl *ar)
+{
+	vfree(ar->debug.fwlog_buf.buf);
+	kfree(ar->debug.fwlog_tmp);
+}
+
 #endif
