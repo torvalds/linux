@@ -88,14 +88,12 @@ struct thread_struct {
 	unsigned long  fp[8*3];
 	unsigned long  fpcntl[3];	/* fp control regs */
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */
-	struct thread_info info;
 };
 
 #define INIT_THREAD  {							\
 	.ksp	= sizeof(init_stack) + (unsigned long) init_stack,	\
 	.sr	= PS_S,							\
 	.fs	= __KERNEL_DS,						\
-	.info	= INIT_THREAD_INFO(init_task),				\
 }
 
 #ifdef CONFIG_MMU

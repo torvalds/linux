@@ -47,34 +47,6 @@ struct thread_info {
 
 #define init_stack		(init_thread_union.stack)
 
-#ifdef CONFIG_MMU
-
-#ifndef __ASSEMBLY__
-#include <asm/current.h>
-#endif
-
-#ifdef ASM_OFFSETS_C
-#define task_thread_info(tsk)	((struct thread_info *) NULL)
-#else
-#include <asm/asm-offsets.h>
-#define task_thread_info(tsk)	((struct thread_info *)((char *)tsk+TASK_INFO))
-#endif
-
-#define init_thread_info	(init_task.thread.info)
-#define task_stack_page(tsk)	((tsk)->stack)
-#define current_thread_info()	task_thread_info(current)
-
-#define __HAVE_THREAD_FUNCTIONS
-
-#define setup_thread_stack(p, org) ({			\
-	*(struct task_struct **)(p)->stack = (p);	\
-	task_thread_info(p)->task = (p);		\
-})
-
-#define end_of_stack(p)		((unsigned long *)(p)->stack + 1)
-
-#else /* !CONFIG_MMU */
-
 #ifndef __ASSEMBLY__
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
@@ -91,8 +63,6 @@ static inline struct thread_info *current_thread_info(void)
 #endif
 
 #define init_thread_info	(init_thread_union.thread_info)
-
-#endif /* CONFIG_MMU */
 
 /* entry.S relies on these definitions!
  * bits 0-7 are tested at every exception exit
