@@ -30,8 +30,19 @@
 #include "drv_types.h"
 #include "xmit_osdep.h"
 
-#define MAX_XMITBUF_SZ	(2048)
-#define NR_XMITBUFF	(4)
+#ifdef CONFIG_R8712_TX_AGGR
+#define MAX_XMITBUF_SZ  (16384)
+#else
+#define MAX_XMITBUF_SZ  (2048)
+#endif
+
+#define NR_XMITBUFF     (4)
+
+#ifdef CONFIG_R8712_TX_AGGR
+#define AGGR_NR_HIGH_BOUND      (4) /*(8) */
+#define AGGR_NR_LOW_BOUND       (2)
+#endif
+
 #define XMITBUF_ALIGN_SZ 512
 #define TX_GUARD_BAND		5
 #define MAX_NUMBLKS		(1)
