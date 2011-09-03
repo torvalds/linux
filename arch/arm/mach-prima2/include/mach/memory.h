@@ -11,11 +11,4 @@
 
 #define PLAT_PHYS_OFFSET        UL(0x00000000)
 
-/*
- * Restrict DMA-able region to workaround silicon limitation.
- * The limitation restricts buffers available for DMA to SD/MMC
- * hardware to be below 256MB
- */
-#define ARM_DMA_ZONE_SIZE	(SZ_256M)
-
 #endif
