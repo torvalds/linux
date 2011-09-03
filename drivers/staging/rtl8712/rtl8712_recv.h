@@ -140,7 +140,6 @@ union recv_frame {
 	union {
 		struct list_head list;
 		struct recv_frame_hdr hdr;
-		addr_t mem[RECVFRAME_HDR_ALIGN>>2];
 	} u;
 };
 

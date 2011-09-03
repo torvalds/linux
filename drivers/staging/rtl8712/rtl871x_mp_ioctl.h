@@ -332,7 +332,6 @@ struct rfintfs_parm {
 
 struct mp_xmit_packet {
 	unsigned int len;
-	unsigned int mem[MAX_MP_XMITBUF_SZ >> 2];
 };
 
 struct psmode_param {

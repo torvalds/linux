@@ -126,7 +126,6 @@ struct mp_xmit_frame {
 	struct urb *pxmit_urb[8];
 	u8 bpending[8];
 	u8 last[8];
-	uint mem[(MAX_MP_XMITBUF_SZ >> 2)];
 };
 
 struct mp_wiparam {
