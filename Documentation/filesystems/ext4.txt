@@ -160,7 +160,9 @@ noload			if the filesystem was not unmounted cleanly,
                      	lead to any number of problems.
 
 data=journal		All data are committed into the journal prior to being
-			written into the main file system.
+			written into the main file system.  Enabling
+			this mode will disable delayed allocation and
+			O_DIRECT support.
 
 data=ordered	(*)	All data are forced directly out to the main file
 			system prior to its metadata being committed to the
@@ -419,8 +421,8 @@ written to the journal first, and then to its final location.
 In the event of a crash, the journal can be replayed, bringing both data and
 metadata into a consistent state.  This mode is the slowest except when data
 needs to be read from and written to disk at the same time where it
-outperforms all others modes.  Currently ext4 does not have delayed
-allocation support if this data journalling mode is selected.
+outperforms all others modes.  Enabling this mode will disable delayed
+allocation and O_DIRECT support.
 
 /proc entries
 =============
