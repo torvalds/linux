@@ -79,7 +79,7 @@ static void configure_adc(struct snd_soc_codec *sn95031_codec, int val)
  */
 static int find_free_channel(struct snd_soc_codec *sn95031_codec)
 {
-	int ret = 0, i, value;
+	int i, value;
 
 	/* check whether ADC is enabled */
 	value = snd_soc_read(sn95031_codec, SN95031_ADC1CNTL1);
@@ -91,12 +91,10 @@ static int find_free_channel(struct snd_soc_codec *sn95031_codec)
 	for (i = 0; i <	SN95031_ADC_CHANLS_MAX; i++) {
 		value = snd_soc_read(sn95031_codec,
 				SN95031_ADC_CHNL_START_ADDR + i);
-		if (value & SN95031_STOPBIT_MASK) {
-			ret = i;
+		if (value & SN95031_STOPBIT_MASK)
 			break;
-		}
 	}
-	return (ret > SN95031_ADC_LOOP_MAX) ? (-EINVAL) : ret;
+	return (i == SN95031_ADC_CHANLS_MAX) ? (-EINVAL) : i;
 }
 
 /* Initialize the ADC for reading micbias values. Can sleep. */
