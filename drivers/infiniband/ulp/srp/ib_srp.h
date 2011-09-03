@@ -179,7 +179,7 @@ struct srp_target_port {
 	struct list_head	list;
 	struct completion	done;
 	int			status;
-	int			qp_in_error;
+	bool			qp_in_error;
 
 	struct completion	tsk_mgmt_done;
 	u8			tsk_mgmt_status;

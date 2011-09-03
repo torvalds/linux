@@ -515,6 +515,8 @@ static int srp_connect_target(struct srp_target_port *target)
 	int retries = 3;
 	int ret;
 
+	target->qp_in_error = false;
+
 	ret = srp_lookup_path(target);
 	if (ret)
 		return ret;
@@ -689,7 +691,6 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	for (i = 0; i < SRP_SQ_SIZE; ++i)
 		list_add(&target->tx_ring[i]->list, &target->free_tx);
 
-	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
 
 unblock:
@@ -1269,6 +1270,15 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 			     PFX "Recv failed with error code %d\n", res);
 }
 
+static void srp_handle_qp_err(enum ib_wc_status wc_status,
+			      enum ib_wc_opcode wc_opcode,
+			      struct srp_target_port *target)
+{
+	shost_printk(KERN_ERR, target->scsi_host, PFX "failed %s status %d\n",
+		     wc_opcode & IB_WC_RECV ? "receive" : "send", wc_status);
+	target->qp_in_error = true;
+}
+
 static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
 {
 	struct srp_target_port *target = target_ptr;
@@ -1276,15 +1286,12 @@ static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
 
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
-		if (wc.status) {
-			shost_printk(KERN_ERR, target->scsi_host,
-				     PFX "failed receive status %d\n",
-				     wc.status);
-			target->qp_in_error = 1;
+		if (likely(wc.status == IB_WC_SUCCESS)) {
+			srp_handle_recv(target, &wc);
+		} else {
+			srp_handle_qp_err(wc.status, wc.opcode, target);
 			break;
 		}
-
-		srp_handle_recv(target, &wc);
 	}
 }
 
@@ -1295,16 +1302,13 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 	struct srp_iu *iu;
 
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
-		if (wc.status) {
-			shost_printk(KERN_ERR, target->scsi_host,
-				     PFX "failed send status %d\n",
-				     wc.status);
-			target->qp_in_error = 1;
+		if (likely(wc.status == IB_WC_SUCCESS)) {
+			iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
+			list_add(&iu->list, &target->free_tx);
+		} else {
+			srp_handle_qp_err(wc.status, wc.opcode, target);
 			break;
 		}
-
-		iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
-		list_add(&iu->list, &target->free_tx);
 	}
 }
 
@@ -2269,7 +2273,6 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err_free_ib;
 
-	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
 	if (ret) {
 		shost_printk(KERN_ERR, target->scsi_host,
