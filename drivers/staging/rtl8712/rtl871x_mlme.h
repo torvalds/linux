@@ -95,6 +95,7 @@ struct mlme_priv {
 	struct  __queue scanned_queue;
 	u8 *free_bss_buf;
 	unsigned long num_of_scanned;
+	u8 passive_mode; /*add for Android's SCAN-ACTIVE/SCAN-PASSIVE */
 	struct ndis_802_11_ssid	assoc_ssid;
 	u8 assoc_bssid[6];
 	struct wlan_network cur_network;
@@ -226,8 +227,6 @@ void r8712_joinbss_reset(struct _adapter *padapter);
 unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 				     u8 *out_ie, uint in_len, uint *pout_len);
 void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority);
-unsigned int r8712_add_ht_addt_info(struct _adapter *padapter, u8 *in_ie,
-				    u8 *out_ie, uint in_len, uint *pout_len);
 int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork);
 
 #endif /*__RTL871X_MLME_H_*/

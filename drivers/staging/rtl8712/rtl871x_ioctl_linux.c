@@ -49,7 +49,7 @@
 #include <net/iw_handler.h>
 #include <linux/if_arp.h>
 
-#define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 30)
+#define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 0x1E)
 
 #define SCAN_ITEM_SIZE 768
 #define MAX_CUSTOM_LEN 64
@@ -953,6 +953,10 @@ static int r8711_wx_get_range(struct net_device *dev,
 	return 0;
 }
 
+static int r8711_wx_get_rate(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra);
+
 static int r871x_wx_set_priv(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *awrq,
@@ -960,6 +964,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 {
 	int ret = 0, len = 0;
 	char *ext;
+	struct _adapter *padapter = netdev_priv(dev);
 	struct iw_point *dwrq = (struct iw_point *)awrq;
 
 	len = dwrq->length;
@@ -970,6 +975,87 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		kfree(ext);
 		return -EFAULT;
 	}
+
+	if (0 == strcasecmp(ext, "RSSI")) {
+		/*Return received signal strength indicator in -db for */
+		/* current AP */
+		/*<ssid> Rssi xx */
+		struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+		struct wlan_network *pcur_network = &pmlmepriv->cur_network;
+		/*static u8 xxxx; */
+		if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+			sprintf(ext, "%s rssi %d",
+				pcur_network->network.Ssid.Ssid,
+				/*(xxxx=xxxx+10) */
+				((padapter->recvpriv.fw_rssi)>>1)-95
+				/*pcur_network->network.Rssi */
+				);
+		} else {
+			sprintf(ext, "OK");
+		}
+	} else if (0 == strcasecmp(ext, "LINKSPEED")) {
+		/*Return link speed in MBPS */
+		/*LinkSpeed xx */
+		union iwreq_data wrqd;
+		int ret_inner;
+		int mbps;
+
+		ret_inner = r8711_wx_get_rate(dev, info, &wrqd, extra);
+		if (0 != ret_inner)
+			mbps = 0;
+		else
+			mbps = wrqd.bitrate.value / 1000000;
+		sprintf(ext, "LINKSPEED %d", mbps);
+	} else if (0 == strcasecmp(ext, "MACADDR")) {
+		/*Return mac address of the station */
+		/*Macaddr = xx.xx.xx.xx.xx.xx */
+		sprintf(ext,
+			"MACADDR = %02x.%02x.%02x.%02x.%02x.%02x",
+			*(dev->dev_addr), *(dev->dev_addr+1),
+			*(dev->dev_addr+2), *(dev->dev_addr+3),
+			*(dev->dev_addr+4), *(dev->dev_addr+5));
+	} else if (0 == strcasecmp(ext, "SCAN-ACTIVE")) {
+		/*Set scan type to active */
+		/*OK if successful */
+		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+		pmlmepriv->passive_mode = 1;
+		sprintf(ext, "OK");
+	} else if (0 == strcasecmp(ext, "SCAN-PASSIVE")) {
+		/*Set scan type to passive */
+		/*OK if successful */
+		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+		pmlmepriv->passive_mode = 0;
+		sprintf(ext, "OK");
+	} else if (0 == strncmp(ext, "DCE-E", 5)) {
+		/*Set scan type to passive */
+		/*OK if successful */
+		r8712_disconnectCtrlEx_cmd(padapter
+			, 1 /*u32 enableDrvCtrl */
+			, 5 /*u32 tryPktCnt */
+			, 100 /*u32 tryPktInterval */
+			, 5000 /*u32 firstStageTO */
+		);
+		sprintf(ext, "OK");
+	} else if (0 == strncmp(ext, "DCE-D", 5)) {
+		/*Set scan type to passive */
+		/*OK if successfu */
+		r8712_disconnectCtrlEx_cmd(padapter
+			, 0 /*u32 enableDrvCtrl */
+			, 5 /*u32 tryPktCnt */
+			, 100 /*u32 tryPktInterval */
+			, 5000 /*u32 firstStageTO */
+		);
+		sprintf(ext, "OK");
+	} else {
+		printk(KERN_INFO "r8712u: r871x_wx_set_priv: unknown Command"
+		       " %s.\n", ext);
+		goto FREE_EXT;
+	}
+	if (copy_to_user(dwrq->pointer, ext,
+				min(dwrq->length, (__u16)(strlen(ext)+1))))
+		ret = -EFAULT;
+
+FREE_EXT:
 	kfree(ext);
 	return ret;
 }
@@ -1158,7 +1244,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
 	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) {
 		msleep(30);
 		cnt++;
-		if (cnt > 1000)
+		if (cnt > 100)
 			break;
 	}
 	spin_lock_irqsave(&queue->lock, irqL);
@@ -1233,6 +1319,17 @@ static int r8711_wx_set_essid(struct net_device *dev,
 			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.SsidLength))
 			    && (pnetwork->network.Ssid.SsidLength ==
 			     ndis_ssid.SsidLength)) {
+				if (check_fwstate(pmlmepriv,
+							WIFI_ADHOC_STATE)) {
+					if (pnetwork->network.
+						InfrastructureMode
+						!=
+						padapter->mlmepriv.
+						cur_network.network.
+						InfrastructureMode)
+						continue;
+				}
+
 				if (!r8712_set_802_11_infrastructure_mode(
 				     padapter,
 				     pnetwork->network.InfrastructureMode))
@@ -1345,6 +1442,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ndis_wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 	struct ieee80211_ht_cap *pht_capie;
+	unsigned char rf_type = padapter->registrypriv.rf_config;
 	int i;
 	u8 *p;
 	u16 rate, max_rate = 0, ht_cap = false;
@@ -1377,7 +1475,9 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			i++;
 		}
 		if (ht_cap == true) {
-			if (mcs_rate & 0x8000) /* MCS15 */
+			if (mcs_rate & 0x8000 /* MCS15 */
+				&&
+				RTL8712_RF_2T2R == rf_type)
 				max_rate = (bw_40MHz) ? ((short_GI) ? 300 :
 					    270) : ((short_GI) ? 144 : 130);
 			else if (mcs_rate & 0x0080) /* MCS7 */
@@ -1984,6 +2084,27 @@ static int r871x_set_pid(struct net_device *dev,
 	return 0;
 }
 
+static int r871x_set_chplan(struct net_device *dev,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
+{
+	int ret = 0;
+	struct _adapter *padapter = (struct _adapter *) netdev_priv(dev);
+	struct iw_point *pdata = &wrqu->data;
+	int ch_plan = -1;
+
+	if ((padapter->bDriverStopped) || (pdata == NULL)) {
+		ret = -EINVAL;
+		goto exit;
+	}
+	ch_plan = (int)*extra;
+	r8712_set_chplan_cmd(padapter, ch_plan);
+
+exit:
+
+	return ret;
+}
+
 static int r871x_wps_start(struct net_device *dev,
 			   struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
@@ -2223,6 +2344,10 @@ static const struct iw_priv_args r8711_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x6,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "wps_start"
+	},
+	{
+		SIOCIWFIRSTPRIV + 0x7,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "chplan"
 	}
 };
 
@@ -2233,7 +2358,8 @@ static iw_handler r8711_private_handler[] = {
 	r871x_mp_ioctl_hdl,
 	r871x_get_ap_info, /*for MM DTV platform*/
 	r871x_set_pid,
-	 r871x_wps_start,
+	r871x_wps_start,
+	r871x_set_chplan
 };
 
 static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
@@ -2254,7 +2380,13 @@ static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
 		tmp_qual = padapter->recvpriv.signal;
 		tmp_noise = padapter->recvpriv.noise;
 		piwstats->qual.level = tmp_level;
-		piwstats->qual.qual = tmp_qual;
+		/*piwstats->qual.qual = tmp_qual;
+		 * The NetworkManager of Fedora 10, 13 will use the link
+		 * quality for its display.
+		 * So, use the fw_rssi on link quality variable because
+		 * fw_rssi will be updated per 2 seconds.
+		 */
+		piwstats->qual.qual = tmp_level;
 		piwstats->qual.noise = tmp_noise;
 	}
 	piwstats->qual.updated = IW_QUAL_ALL_UPDATED;
@@ -2269,5 +2401,5 @@ struct iw_handler_def r871x_handlers_def = {
 	.num_private = sizeof(r8711_private_handler) / sizeof(iw_handler),
 	.num_private_args = sizeof(r8711_private_args) /
 			    sizeof(struct iw_priv_args),
-	.get_wireless_stats = r871x_get_wireless_stats,
+	.get_wireless_stats = r871x_get_wireless_stats
 };
