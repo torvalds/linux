@@ -58,7 +58,6 @@
 #include "ethernet.h"
 #include <linux/if_arp.h>
 #include <linux/firmware.h>
-#define   _usb_alloc_urb(x, y)       usb_alloc_urb(x, y)
 #define   _usb_submit_urb(x, y)     usb_submit_urb(x, y)
 
 struct	__queue	{

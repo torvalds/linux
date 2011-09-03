@@ -48,7 +48,7 @@ struct zero_bulkout_context {
 
 uint r8712_usb_init_intf_priv(struct intf_priv *pintfpriv)
 {
-	pintfpriv->piorw_urb = _usb_alloc_urb(0, GFP_ATOMIC);
+	pintfpriv->piorw_urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pintfpriv->piorw_urb)
 		return _FAIL;
 	sema_init(&(pintfpriv->io_retevt), 0);

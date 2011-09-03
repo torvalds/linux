@@ -51,7 +51,7 @@ int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 	int res = _SUCCESS;
 
 	precvbuf->irp_pending = false;
-	precvbuf->purb = _usb_alloc_urb(0, GFP_KERNEL);
+	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (precvbuf->purb == NULL)
 		res = _FAIL;
 	precvbuf->pskb = NULL;
