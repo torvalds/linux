@@ -452,7 +452,8 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	if (time_after(jiffies, mi->stats_update + (mp->update_interval / 2 * HZ) / 1000)) {
 		minstrel_ht_update_stats(mp, mi);
-		minstrel_aggr_check(mp, sta, skb);
+		if (!(info->flags & IEEE80211_TX_CTL_AMPDU))
+			minstrel_aggr_check(mp, sta, skb);
 	}
 }
 
