@@ -28,6 +28,8 @@
 
 #define _HCI_INTF_C_
 
+#include <linux/usb.h>
+
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "recv_osdep.h"

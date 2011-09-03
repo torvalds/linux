@@ -39,6 +39,15 @@
 #include "rtl871x_ioctl_set.h"
 #include "rtl871x_mp_ioctl.h"
 #include "mlme_osdep.h"
+#include <linux/wireless.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/version.h>
+#include <linux/io.h>
+#include <linux/semaphore.h>
+#include <net/iw_handler.h>
+#include <linux/if_arp.h>
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 30)
 

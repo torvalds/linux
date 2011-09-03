@@ -28,6 +28,8 @@
 
 #define _XMIT_OSDEP_C_
 
+#include <linux/usb.h>
+
 #include "osdep_service.h"
 #include "drv_types.h"
 

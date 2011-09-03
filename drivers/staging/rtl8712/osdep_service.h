@@ -29,35 +29,19 @@
 #define _SUCCESS	1
 #define _FAIL		0
 
-#include "basic_types.h"
+#include <linux/version.h>
 #include <linux/spinlock.h>
+
+#include <linux/interrupt.h>
 #include <linux/semaphore.h>
+#include <linux/sched.h>
 #include <linux/sem.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <net/iw_handler.h>
-#include <linux/proc_fs.h>	/* Necessary because we use the proc fs */
-#include <linux/compiler.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/kref.h>
-#include <linux/skbuff.h>
-#include <linux/usb.h>
-#include <linux/usb/ch9.h>
-#include <linux/io.h>
-#include <linux/circ_buf.h>
-#include <linux/uaccess.h>
-#include <asm/byteorder.h>
-#include <linux/atomic.h>
-#include <linux/wireless.h>
-#include <linux/rtnetlink.h>
-#include "ethernet.h"
-#include <linux/if_arp.h>
-#include <linux/firmware.h>
+#include <linux/proc_fs.h>      /* Necessary because we use the proc fs */
+
+#include "basic_types.h"
 
 struct	__queue	{
 	struct	list_head	queue;

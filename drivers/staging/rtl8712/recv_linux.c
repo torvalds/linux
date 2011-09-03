@@ -28,11 +28,15 @@
 
 #define _RECV_OSDEP_C_
 
+#include <linux/usb.h>
+
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "wifi.h"
 #include "recv_osdep.h"
 #include "osdep_intf.h"
+#include "ethernet.h"
+#include <linux/if_arp.h>
 #include "usb_ops.h"
 
 /*init os related resource in struct recv_priv*/
