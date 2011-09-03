@@ -4166,6 +4166,20 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 	loff_t first_page_offset, last_page_offset;
 	int ret, credits, blocks_released, err = 0;
 
+	/* No need to punch hole beyond i_size */
+	if (offset >= inode->i_size)
+		return 0;
+
+	/*
+	 * If the hole extends beyond i_size, set the hole
+	 * to end after the page that contains i_size
+	 */
+	if (offset + length > inode->i_size) {
+		length = inode->i_size +
+		   PAGE_CACHE_SIZE - (inode->i_size & (PAGE_CACHE_SIZE - 1)) -
+		   offset;
+	}
+
 	first_block = (offset + sb->s_blocksize - 1) >>
 		EXT4_BLOCK_SIZE_BITS(sb);
 	last_block = (offset + length) >> EXT4_BLOCK_SIZE_BITS(sb);
@@ -4182,11 +4196,10 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 	 */
 	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 		err = filemap_write_and_wait_range(mapping,
-			first_page_offset == 0 ? 0 : first_page_offset-1,
-			last_page_offset);
+			offset, offset + length - 1);
 
-			if (err)
-				return err;
+		if (err)
+			return err;
 	}
 
 	/* Now release the pages */
@@ -4244,6 +4257,26 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 		if (page_len > 0) {
 			err = ext4_discard_partial_page_buffers(handle, mapping,
 					last_page_offset, page_len, 0);
+			if (err)
+				goto out;
+		}
+	}
+
+
+	/*
+	 * If i_size is contained in the last page, we need to
+	 * unmap and zero the partial page after i_size
+	 */
+	if (inode->i_size >> PAGE_CACHE_SHIFT == last_page &&
+	   inode->i_size % PAGE_CACHE_SIZE != 0) {
+
+		page_len = PAGE_CACHE_SIZE -
+			(inode->i_size & (PAGE_CACHE_SIZE - 1));
+
+		if (page_len > 0) {
+			err = ext4_discard_partial_page_buffers(handle,
+			  mapping, inode->i_size, page_len, 0);
+
 			if (err)
 				goto out;
 		}
