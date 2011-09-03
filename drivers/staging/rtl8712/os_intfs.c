@@ -177,7 +177,7 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 
 static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 {
-	struct _adapter *padapter = (struct _adapter *)_netdev_priv(pnetdev);
+	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
 	struct sockaddr *addr = p;
 
 	if (padapter->bup == false)
@@ -187,7 +187,7 @@ static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 
 static struct net_device_stats *r871x_net_get_stats(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *) _netdev_priv(pnetdev);
+	struct _adapter *padapter = (struct _adapter *) netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 	struct recv_priv *precvpriv = &(padapter->recvpriv);
 
@@ -221,7 +221,7 @@ struct net_device *r8712_init_netdev(void)
 		strcpy(ifname, "wlan%d");
 		dev_alloc_name(pnetdev, ifname);
 	}
-	padapter = (struct _adapter *) _netdev_priv(pnetdev);
+	padapter = (struct _adapter *) netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
 	printk(KERN_INFO "r8712u: register rtl8712_netdev_ops to"
 	       " netdev_ops\n");
@@ -383,7 +383,7 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
  */
 static int netdev_open(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *)_netdev_priv(pnetdev);
+	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
 
 	if (padapter->bup == false) {
 		padapter->bDriverStopped = false;
@@ -448,7 +448,7 @@ netdev_open_error:
  */
 static int netdev_close(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *) _netdev_priv(pnetdev);
+	struct _adapter *padapter = (struct _adapter *) netdev_priv(pnetdev);
 
 	/* Close LED*/
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_POWER_OFF);

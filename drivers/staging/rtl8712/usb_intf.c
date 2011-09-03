@@ -378,7 +378,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	pnetdev = r8712_init_netdev();
 	if (!pnetdev)
 		goto error;
-	padapter = (struct _adapter *)_netdev_priv(pnetdev);
+	padapter = (struct _adapter *)netdev_priv(pnetdev);
 	disable_ht_for_spec_devid(pdid, padapter);
 	pdvobjpriv = &padapter->dvobjpriv;
 	pdvobjpriv->padapter = padapter;
