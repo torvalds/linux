@@ -280,19 +280,18 @@ struct mi_regs {
 #define PHY_INDEX_REG              0x10
 #define PHY_DATA_REG               0x11
 
-#define PHY_MPHY_CONTROL_REG       0x12	/* #define TRU_VMI_MPHY_CONTROL_REGISTER           18 */
-
-#define PHY_LOOPBACK_CONTROL       0x13	/* #define TRU_VMI_LOOPBACK_CONTROL_1_REGISTER     19 */
-					/* #define TRU_VMI_LOOPBACK_CONTROL_2_REGISTER     20 */
-#define PHY_REGISTER_MGMT_CONTROL  0x15	/* #define TRU_VMI_MI_SEQ_CONTROL_REGISTER         21 */
-#define PHY_CONFIG                 0x16	/* #define TRU_VMI_CONFIGURATION_REGISTER          22 */
-#define PHY_PHY_CONTROL            0x17	/* #define TRU_VMI_PHY_CONTROL_REGISTER            23 */
-#define PHY_INTERRUPT_MASK         0x18	/* #define TRU_VMI_INTERRUPT_MASK_REGISTER         24 */
-#define PHY_INTERRUPT_STATUS       0x19	/* #define TRU_VMI_INTERRUPT_STATUS_REGISTER       25 */
-#define PHY_PHY_STATUS             0x1A	/* #define TRU_VMI_PHY_STATUS_REGISTER             26 */
-#define PHY_LED_1                  0x1B	/* #define TRU_VMI_LED_CONTROL_1_REGISTER          27 */
-#define PHY_LED_2                  0x1C	/* #define TRU_VMI_LED_CONTROL_2_REGISTER          28 */
-					/* #define TRU_VMI_LINK_CONTROL_REGISTER           29 */
-					/* #define TRU_VMI_TIMING_CONTROL_REGISTER */
+#define PHY_MPHY_CONTROL_REG       0x12
+#define PHY_LOOPBACK_CONTROL       0x13	/* TRU_VMI_LOOPBACK_CONTROL_1_REG 19 */
+					/* TRU_VMI_LOOPBACK_CONTROL_2_REG 20 */
+#define PHY_REGISTER_MGMT_CONTROL  0x15	/* TRU_VMI_MI_SEQ_CONTROL_REG     21 */
+#define PHY_CONFIG                 0x16	/* TRU_VMI_CONFIGURATION_REG      22 */
+#define PHY_PHY_CONTROL            0x17	/* TRU_VMI_PHY_CONTROL_REG        23 */
+#define PHY_INTERRUPT_MASK         0x18	/* TRU_VMI_INTERRUPT_MASK_REG     24 */
+#define PHY_INTERRUPT_STATUS       0x19	/* TRU_VMI_INTERRUPT_STATUS_REG   25 */
+#define PHY_PHY_STATUS             0x1A	/* TRU_VMI_PHY_STATUS_REG         26 */
+#define PHY_LED_1                  0x1B	/* TRU_VMI_LED_CONTROL_1_REG      27 */
+#define PHY_LED_2                  0x1C	/* TRU_VMI_LED_CONTROL_2_REG      28 */
+					/* TRU_VMI_LINK_CONTROL_REG       29 */
+					/* TRU_VMI_TIMING_CONTROL_REG        */
 
 #endif /* _ET1310_PHY_H_ */

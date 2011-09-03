@@ -191,7 +191,8 @@ void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	cfg1 |= CFG1_RX_ENABLE | CFG1_TX_ENABLE | CFG1_TX_FLOW;
 	/* Initialize loop back to off */
 	cfg1 &= ~(CFG1_LOOPBACK | CFG1_RX_FLOW);
-	if (adapter->flowcontrol == FLOW_RXONLY || adapter->flowcontrol == FLOW_BOTH)
+	if (adapter->flowcontrol == FLOW_RXONLY ||
+				adapter->flowcontrol == FLOW_BOTH)
 		cfg1 |= CFG1_RX_FLOW;
 	writel(cfg1, &mac->cfg1);
 
@@ -287,7 +288,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	writel(sa_lo, &rxmac->sa_lo);
 
 	sa_hi = (u32) (adapter->addr[0] << ET_WOL_HI_SA1_SHIFT) |
-	               adapter->addr[1];
+		       adapter->addr[1];
 	writel(sa_hi, &rxmac->sa_hi);
 
 	/* Disable all Packet Filtering */

@@ -132,7 +132,7 @@ int et131x_mii_read(struct et131x_adapter *adapter, u8 reg, u16 *value)
 {
 	struct phy_device *phydev = adapter->phydev;
 
-	if(!phydev)
+	if (!phydev)
 		return -EIO;
 
 	return et131x_phy_mii_read(adapter, phydev->addr, reg, value);
@@ -224,7 +224,7 @@ int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 	u32 mii_cmd;
 	u32 mii_indicator;
 
-	if(!phydev)
+	if (!phydev)
 		return -EIO;
 
 	addr = phydev->addr;
@@ -465,10 +465,12 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 				u16 register18;
 
 				et131x_mii_read(adapter, 0x12, &register18);
-				et131x_mii_write(adapter, 0x12, register18 | 0x4);
+				et131x_mii_write(adapter, 0x12,
+						 register18 | 0x4);
 				et131x_mii_write(adapter, 0x10,
 						 register18 | 0x8402);
-				et131x_mii_write(adapter, 0x11, register18 | 511);
+				et131x_mii_write(adapter, 0x11,
+						 register18 | 511);
 				et131x_mii_write(adapter, 0x12, register18);
 			}
 
@@ -529,10 +531,12 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 				u16 register18;
 
 				et131x_mii_read(adapter, 0x12, &register18);
-				et131x_mii_write(adapter, 0x12, register18 | 0x4);
+				et131x_mii_write(adapter, 0x12,
+						 register18 | 0x4);
 				et131x_mii_write(adapter, 0x10,
 						 register18 | 0x8402);
-				et131x_mii_write(adapter, 0x11, register18 | 511);
+				et131x_mii_write(adapter, 0x11,
+						 register18 | 511);
 				et131x_mii_write(adapter, 0x12, register18);
 			}
 

@@ -435,7 +435,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	add_10bit(&adapter->tx_ring.send_idx, thiscopy);
 
 	if (INDEX10(adapter->tx_ring.send_idx) == 0 ||
-		    INDEX10(adapter->tx_ring.send_idx) == NUM_DESC_PER_RING_TX) {
+		  INDEX10(adapter->tx_ring.send_idx) == NUM_DESC_PER_RING_TX) {
 		adapter->tx_ring.send_idx &= ~ET_DMA10_MASK;
 		adapter->tx_ring.send_idx ^= ET_DMA10_WRAP;
 	}
@@ -641,7 +641,8 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 		 * they point to
 		 */
 		do {
-			desc = (struct tx_desc *)(adapter->tx_ring.tx_desc_ring +
+			desc = (struct tx_desc *)
+				    (adapter->tx_ring.tx_desc_ring +
 						INDEX10(tcb->index_start));
 
 			pci_unmap_single(adapter->pdev,

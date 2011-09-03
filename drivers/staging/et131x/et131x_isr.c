@@ -119,7 +119,8 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	u32 mask;
 
 	/* Enable all global interrupts */
-	if (adapter->flowcontrol == FLOW_TXONLY || adapter->flowcontrol == FLOW_BOTH)
+	if (adapter->flowcontrol == FLOW_TXONLY ||
+			    adapter->flowcontrol == FLOW_BOTH)
 		mask = INT_MASK_ENABLE;
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
@@ -276,7 +277,8 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle Free Buffer Ring 0 and 1 Low interrupt */
-		if (status & (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
+		if (status &
+		    (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
 			/*
 			 * This indicates the number of unused buffers in
 			 * RXDMA free buffer ring 0 is <= the limit you

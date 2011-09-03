@@ -58,10 +58,10 @@ static void et131x_get_drvinfo(struct net_device *netdev,
 }
 
 static struct ethtool_ops et131x_ethtool_ops = {
-        .get_settings = et131x_get_settings,
-        .set_settings = et131x_set_settings,
-        .get_drvinfo = et131x_get_drvinfo,
-        .get_link = ethtool_op_get_link,
+	.get_settings = et131x_get_settings,
+	.set_settings = et131x_set_settings,
+	.get_drvinfo = et131x_get_drvinfo,
+	.get_link = ethtool_op_get_link,
 };
 
 void et131x_set_ethtool_ops(struct net_device *netdev)

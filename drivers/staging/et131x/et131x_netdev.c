@@ -408,7 +408,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 	unsigned long flags;
 
 	/* If the device is closed, ignore the timeout */
-	if (~(adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE));
+	if (~(adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE))
 		return;
 
 	/* Any nonrecoverable hardware error?
@@ -453,7 +453,10 @@ void et131x_tx_timeout(struct net_device *netdev)
 			/* Disable device interrupts */
 			et131x_disable_interrupts(adapter);
 
-			/* Enable the Tx and Rx DMA engines (if not already enabled) */
+			/*
+			 * Enable the Tx and Rx DMA engines
+			 * (if not already enabled)
+			 */
 			et131x_rx_dma_enable(adapter);
 			et131x_tx_dma_enable(adapter);
 

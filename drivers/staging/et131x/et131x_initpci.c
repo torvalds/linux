@@ -487,30 +487,30 @@ int et131x_mii_probe(struct net_device *netdev)
 	phydev = phy_connect(netdev, dev_name(&phydev->dev),
 			&et131x_adjust_link, 0, PHY_INTERFACE_MODE_MII);
 
-	if(IS_ERR(phydev)) {
+	if (IS_ERR(phydev)) {
 		dev_err(&adapter->pdev->dev, "Could not attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
 	phydev->supported &= (SUPPORTED_10baseT_Half
-                                | SUPPORTED_10baseT_Full
-                                | SUPPORTED_100baseT_Half
-                                | SUPPORTED_100baseT_Full
-                                | SUPPORTED_Autoneg
-                                | SUPPORTED_MII
-                                | SUPPORTED_TP);
+				| SUPPORTED_10baseT_Full
+				| SUPPORTED_100baseT_Half
+				| SUPPORTED_100baseT_Full
+				| SUPPORTED_Autoneg
+				| SUPPORTED_MII
+				| SUPPORTED_TP);
 
 	if (adapter->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
 		phydev->supported |= SUPPORTED_1000baseT_Full;
 
-        phydev->advertising = phydev->supported;
-        adapter->phydev = phydev;
+	phydev->advertising = phydev->supported;
+	adapter->phydev = phydev;
 
-        dev_info(&adapter->pdev->dev, "attached PHY driver [%s] "
-                "(mii_bus:phy_addr=%s)\n",
-                phydev->drv->name, dev_name(&phydev->dev));
+	dev_info(&adapter->pdev->dev, "attached PHY driver [%s] "
+		 "(mii_bus:phy_addr=%s)\n",
+		 phydev->drv->name, dev_name(&phydev->dev));
 
-        return 0;
+	return 0;
 }
 
 /**
@@ -707,22 +707,22 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	adapter->mii_bus->write = et131x_mdio_write;
 	adapter->mii_bus->reset = et131x_mdio_reset;
 	adapter->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-        if (!adapter->mii_bus->irq) {
-                dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
+	if (!adapter->mii_bus->irq) {
+		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
 		goto err_mdio_free;
-        }
+	}
 
-        for (ii = 0; ii < PHY_MAX_ADDR; ii++)
-                adapter->mii_bus->irq[ii] = PHY_POLL;
+	for (ii = 0; ii < PHY_MAX_ADDR; ii++)
+		adapter->mii_bus->irq[ii] = PHY_POLL;
 
-        if (mdiobus_register(adapter->mii_bus)) {
-                dev_err(&pdev->dev, "failed to register MII bus\n");
+	if (mdiobus_register(adapter->mii_bus)) {
+		dev_err(&pdev->dev, "failed to register MII bus\n");
 		mdiobus_free(adapter->mii_bus);
 		goto err_mdio_free_irq;
-        }
+	}
 
 	if (et131x_mii_probe(netdev)) {
-                dev_err(&pdev->dev, "failed to probe MII bus\n");
+		dev_err(&pdev->dev, "failed to probe MII bus\n");
 		goto err_mdio_unregister;
 	}
 
