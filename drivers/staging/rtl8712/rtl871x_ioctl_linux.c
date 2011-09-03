@@ -169,10 +169,6 @@ static inline char *translate_scan(struct _adapter *padapter,
 	struct iw_event iwe;
 	struct ieee80211_ht_cap *pht_capie;
 	char *current_val;
-	u8 *buf = (u8 *)_malloc(pnetwork->network.IELength * 2);
-	u8 *wpa_ie = (u8 *)_malloc(255);
-	u8 *rsn_ie = (u8 *)_malloc(255);
-	u8 *wps_ie = (u8 *)_malloc(MAX_WPS_IE_LEN);
 	s8 *p;
 	u32 i = 0, ht_ielen = 0;
 	u16	cap, ht_cap = false, mcs_rate;
@@ -289,6 +285,8 @@ static inline char *translate_scan(struct _adapter *padapter,
 		start = current_val;
 	/* parsing WPA/WPA2 IE */
 	{
+		u8 buf[MAX_WPA_IE_LEN];
+		u8 wpa_ie[255], rsn_ie[255];
 		u16 wpa_len = 0, rsn_len = 0;
 		int n;
 		sint out_len = 0;
@@ -339,6 +337,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	}
 
 	{ /* parsing WPS IE */
+		u8 wps_ie[512];
 		uint wps_ielen;
 
 		if (r8712_get_wps_ie(pnetwork->network.IEs,
@@ -363,10 +362,6 @@ static inline char *translate_scan(struct _adapter *padapter,
 	iwe.u.qual.noise = 0; /* noise level */
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 	/* how to translate rssi to ?% */
-	kfree(buf);
-	kfree(wpa_ie);
-	kfree(rsn_ie);
-	kfree(wps_ie);
 	return start;
 }
 
