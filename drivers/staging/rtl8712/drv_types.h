@@ -181,6 +181,9 @@ struct _adapter {
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
 	int pid; /*process id from UI*/
+	_workitem wkFilterRxFF0;
+	u8 blnEnableRxFF0Filter;
+	spinlock_t lockRxFF0Filter;
 };
 
 static inline u8 *myid(struct eeprom_priv *peepriv)
