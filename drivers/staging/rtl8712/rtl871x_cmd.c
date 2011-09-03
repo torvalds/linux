@@ -371,8 +371,17 @@ u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 void r8712_getbbrfreg_cmdrsp_callback(struct _adapter *padapter,
 				      struct cmd_obj *pcmd)
 {
-	kfree((unsigned char *) pcmd->parmbuf);
-	kfree((unsigned char *) pcmd);
+	kfree(pcmd->parmbuf);
+	kfree(pcmd);
+	padapter->mppriv.workparam.bcompleted = true;
+}
+
+void r8712_readtssi_cmdrsp_callback(struct _adapter *padapter,
+				struct cmd_obj *pcmd)
+{
+	kfree(pcmd->parmbuf);
+	kfree(pcmd);
+
 	padapter->mppriv.workparam.bcompleted = true;
 }
 
