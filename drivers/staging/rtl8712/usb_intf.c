@@ -622,6 +622,8 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		}
 		flush_scheduled_work();
 		udelay(1);
+		/*Stop driver mlme relation timer */
+		r8712_stop_drv_timers(padapter);
 		r871x_dev_unload(padapter);
 		r8712_free_drv_sw(padapter);
 	}

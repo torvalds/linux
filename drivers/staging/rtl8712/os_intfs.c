@@ -261,7 +261,7 @@ static void start_drv_timers(struct _adapter *padapter)
 	_set_timer(&padapter->mlmepriv.wdg_timer, 2000);
 }
 
-static void stop_drv_timers(struct _adapter *padapter)
+void r8712_stop_drv_timers(struct _adapter *padapter)
 {
 	_cancel_timer_ex(&padapter->mlmepriv.assoc_timer);
 	_cancel_timer_ex(&padapter->mlmepriv.sitesurveyctrl.
@@ -468,8 +468,6 @@ static int netdev_close(struct net_device *pnetdev)
 	r8712_free_assoc_resources(padapter);
 	/*s2-4.*/
 	r8712_free_network_queue(padapter);
-	/*Stop driver mlme relation timer*/
-	stop_drv_timers(padapter);
 	/* The interface is no longer Up: */
 	padapter->bup = false;
 	return 0;

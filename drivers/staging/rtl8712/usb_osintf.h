@@ -42,6 +42,7 @@ uint rtl8712_hal_deinit(struct _adapter *padapter);
 void rtl871x_intf_stop(struct _adapter *padapter);
 void r871x_dev_unload(struct _adapter *padapter);
 void r8712_stop_drv_threads(struct _adapter *padapter);
+void r8712_stop_drv_timers(struct _adapter *padapter);
 u8 r8712_init_drv_sw(struct _adapter *padapter);
 u8 r8712_free_drv_sw(struct _adapter *padapter);
 struct net_device *r8712_init_netdev(void);
