@@ -530,7 +530,7 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 		memcpy(buf, pie , ielen);
 		pos = buf;
 		if (ielen < RSN_HEADER_LEN) {
-			ret  = -1;
+			ret  = -EINVAL;
 			goto exit;
 		}
 		if (r8712_parse_wpa_ie(buf, ielen, &group_cipher,
@@ -740,8 +740,9 @@ static int r8711_wx_get_freq(struct net_device *dev,
 			       pcur_bss->Configuration.DSConfig-1] * 100000;
 		wrqu->freq.e = 1;
 		wrqu->freq.i = pcur_bss->Configuration.DSConfig;
-	} else
-		return -1;
+	} else {
+		return -ENOLINK;
+	}
 	return 0;
 }
 
@@ -772,8 +773,8 @@ static int r8711_wx_set_mode(struct net_device *dev,
 		r8712_setopmode_cmd(padapter, networkType);
 	else
 		r8712_setopmode_cmd(padapter, Ndis802_11AutoUnknown);
-	if (!r8712_set_802_11_infrastructure_mode(padapter, networkType))
-		return -1;
+
+	r8712_set_802_11_infrastructure_mode(padapter, networkType);
 	return 0;
 }
 
@@ -1090,7 +1091,7 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	enum NDIS_802_11_AUTHENTICATION_MODE	authmode;
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true)
-		return -1;
+		return -EBUSY;
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
 		return ret;
 	if (temp->sa_family != ARPHRD_ETHER)
@@ -1107,16 +1108,15 @@ static int r8711_wx_set_wap(struct net_device *dev,
 		pmlmepriv->pscanned = get_next(pmlmepriv->pscanned);
 		dst_bssid = pnetwork->network.MacAddress;
 		if (!memcmp(dst_bssid, temp->sa_data, ETH_ALEN)) {
-			if (r8712_set_802_11_infrastructure_mode(padapter,
-			    pnetwork->network.InfrastructureMode) == false)
-				ret = -1;
+			r8712_set_802_11_infrastructure_mode(padapter,
+			    pnetwork->network.InfrastructureMode);
 			break;
 		}
 	}
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	if (!ret) {
 		if (!r8712_set_802_11_authentication_mode(padapter, authmode))
-			ret = -1;
+			ret = -ENOMEM;
 		else {
 			if (!r8712_set_802_11_bssid(padapter, temp->sa_data))
 				ret = -1;
@@ -1191,7 +1191,7 @@ static int r8711_wx_set_scan(struct net_device *dev,
 		return -1;
 	}
 	if (padapter->bup == false)
-		return -1;
+		return -ENETDOWN;
 	if (padapter->hw_init_completed == false)
 		return -1;
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) ||
@@ -1294,7 +1294,7 @@ static int r8711_wx_set_essid(struct net_device *dev,
 	u32 len;
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
-		return -1;
+		return -EBUSY;
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 		return 0;
 	if (wrqu->essid.length > IW_ESSID_MAX_SIZE)
@@ -1330,10 +1330,9 @@ static int r8711_wx_set_essid(struct net_device *dev,
 						continue;
 				}
 
-				if (!r8712_set_802_11_infrastructure_mode(
+				r8712_set_802_11_infrastructure_mode(
 				     padapter,
-				     pnetwork->network.InfrastructureMode))
-					return -1;
+				     pnetwork->network.InfrastructureMode);
 				break;
 			}
 		}
@@ -1357,8 +1356,9 @@ static int r8711_wx_get_essid(struct net_device *dev,
 		wrqu->essid.length = len;
 		memcpy(extra, pcur_bss->Ssid.Ssid, len);
 		wrqu->essid.flags = 1;
-	} else
-		ret = -1;
+	} else {
+		ret = -ENOLINK;
+	}
 	return ret;
 }
 
@@ -1430,7 +1430,7 @@ set_rate:
 			datarates[i] = 0xff;
 	}
 	if (r8712_setdatarate_cmd(padapter, datarates) != _SUCCESS)
-		ret = -1;
+		ret = -ENOMEM;
 	return ret;
 }
 
@@ -1492,7 +1492,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			wrqu->bitrate.value = max_rate * 500000;
 		}
 	} else
-		return -1;
+		return -ENOLINK;
 	return 0;
 }
 
@@ -1822,7 +1822,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 	param_len = sizeof(struct ieee_param) + pext->key_len;
 	param = (struct ieee_param *)_malloc(param_len);
 	if (param == NULL)
-		return -1;
+		return -ENOMEM;
 	memset(param, 0, param_len);
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
 	memset(param->sta_addr, 0xff, ETH_ALEN);
@@ -1840,7 +1840,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 		alg_name = "CCMP";
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
 	if (pext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
@@ -1906,7 +1906,7 @@ static int dummy(struct net_device *dev,
 		struct iw_request_info *a,
 		union iwreq_data *wrqu, char *b)
 {
-	return -1;
+	return -ENOSYS;
 }
 
 static int r8711_drvext_hdl(struct net_device *dev,

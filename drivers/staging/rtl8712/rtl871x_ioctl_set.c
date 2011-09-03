@@ -243,7 +243,7 @@ done:
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 }
 
-u8 r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
+void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE networktype)
 {
 	unsigned long irqL;
@@ -290,7 +290,6 @@ u8 r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		}
 		spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 	}
-	return true;
 }
 
 u8 r8712_set_802_11_disassociate(struct _adapter *padapter)
