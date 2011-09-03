@@ -7,6 +7,7 @@
   Copyright (c) 2005-2009 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
+  Copyright (c) 2010-2011 Rafał Miłecki <zajec5@gmail.com>
 
   SDIO support
   Copyright (c) 2009 Albert Herranz <albert_herranz@yahoo.es>
@@ -64,6 +65,7 @@ MODULE_AUTHOR("Martin Langer");
 MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_AUTHOR("Gábor Stefanik");
+MODULE_AUTHOR("Rafał Miłecki");
 MODULE_LICENSE("GPL");
 
 MODULE_FIRMWARE("b43/ucode11.fw");
