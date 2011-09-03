@@ -68,7 +68,6 @@ struct	__queue	{
 #define _buffer unsigned char
 #define thread_exit() complete_and_exit(NULL, 0)
 #define _workitem struct work_struct
-#define MSECS(t)        (HZ * ((t) / 1000) + (HZ * ((t) % 1000)) / 1000)
 
 #define _init_queue(pqueue)				\
 	do {						\
