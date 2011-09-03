@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <asm/sizes.h>
 
-#ifndef CONFIG_NO_MACH_MEMORY_H
+#ifdef CONFIG_NEED_MACH_MEMORY_H
 #include <mach/memory.h>
 #endif
 

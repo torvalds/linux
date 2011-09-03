@@ -211,14 +211,16 @@ config ARM_PATCH_PHYS_VIRT
 	  this feature (eg, building a kernel for a single machine) and
 	  you need to shrink the kernel to the minimal size.
 
-config NO_MACH_MEMORY_H
+config NEED_MACH_MEMORY_H
 	bool
 	help
-	  Select this when mach/memory.h is removed.
+	  Select this when mach/memory.h is required to provide special
+	  definitions for this platform.  The need for mach/memory.h should
+	  be avoided when possible.
 
 config PHYS_OFFSET
 	hex "Physical address of main memory"
-	depends on !ARM_PATCH_PHYS_VIRT && NO_MACH_MEMORY_H
+	depends on !ARM_PATCH_PHYS_VIRT && !NEED_MACH_MEMORY_H
 	help
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
@@ -254,6 +256,7 @@ config ARCH_INTEGRATOR
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_FPGA_IRQ
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for ARM's Integrator platform.
 
@@ -269,6 +272,7 @@ config ARCH_REALVIEW
 	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
+	select NEED_MACH_MEMORY_H
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -285,7 +289,6 @@ config ARCH_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
-	select NO_MACH_MEMORY_H
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -302,7 +305,6 @@ config ARCH_VEXPRESS
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
-	select NO_MACH_MEMORY_H
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
@@ -324,7 +326,6 @@ config ARCH_BCMRING
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Broadcom's BCMRing platform.
 
@@ -332,6 +333,7 @@ config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
 	select CPU_ARM720T
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
@@ -342,7 +344,6 @@ config ARCH_CNS3XXX
 	select ARM_GIC
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
@@ -351,7 +352,6 @@ config ARCH_GEMINI
 	select CPU_FA526
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
@@ -365,7 +365,6 @@ config ARCH_PRIMA2
 	select GENERIC_IRQ_CHIP
 	select USE_OF
 	select ZONE_DMA
-	select NO_MACH_MEMORY_H
 	help
           Support for CSR SiRFSoC ARM Cortex A9 Platform
 
@@ -375,6 +374,7 @@ config ARCH_EBSA110
 	select ISA
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
@@ -390,6 +390,7 @@ config ARCH_EP93XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MEMORY_H
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -398,6 +399,7 @@ config ARCH_FOOTBRIDGE
 	select CPU_SA110
 	select FOOTBRIDGE
 	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
@@ -410,7 +412,6 @@ config ARCH_MXC
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select HAVE_SCHED_CLOCK
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -420,7 +421,6 @@ config ARCH_MXS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Freescale MXS-based family of processors
 
@@ -430,7 +430,6 @@ config ARCH_NETX
 	select CPU_ARM926T
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
-	select NO_MACH_MEMORY_H
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
 
@@ -439,7 +438,6 @@ config ARCH_H720X
 	select CPU_ARM720T
 	select ISA_DMA_API
 	select ARCH_USES_GETTIMEOFFSET
-	select NO_MACH_MEMORY_H
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
@@ -451,6 +449,7 @@ config ARCH_IOP13XX
 	select PCI
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -461,7 +460,6 @@ config ARCH_IOP32X
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
 	  processors.
@@ -473,7 +471,6 @@ config ARCH_IOP33X
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
@@ -483,6 +480,7 @@ config ARCH_IXP23XX
 	select CPU_XSC3
  	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
 
@@ -492,6 +490,7 @@ config ARCH_IXP2000
 	select CPU_XSCALE
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
@@ -505,7 +504,6 @@ config ARCH_IXP4XX
 	select HAVE_SCHED_CLOCK
 	select MIGHT_HAVE_PCI
 	select DMABOUNCE if PCI
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
@@ -516,7 +514,6 @@ config ARCH_DOVE
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
@@ -527,7 +524,6 @@ config ARCH_KIRKWOOD
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
 	  88F6180, 88F6192 and 88F6281.
@@ -543,7 +539,6 @@ config ARCH_LPC32XX
 	select CLKDEV_LOOKUP
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the NXP LPC32XX family of processors
 
@@ -554,7 +549,6 @@ config ARCH_MV78XX0
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
 	  MV781x0, MV782x0.
@@ -567,7 +561,6 @@ config ARCH_ORION5X
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
@@ -583,7 +576,6 @@ config ARCH_MMP
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
@@ -592,6 +584,7 @@ config ARCH_KS8695
 	select CPU_ARM922T
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
@@ -603,7 +596,6 @@ config ARCH_W90X900
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
 	  At present, the w90x900 has been renamed nuc900, regarding
@@ -617,7 +609,6 @@ config ARCH_NUC93X
 	bool "Nuvoton NUC93X CPU"
 	select CPU_ARM926T
 	select CLKDEV_LOOKUP
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
 	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
@@ -632,7 +623,6 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SCHED_CLOCK
 	select ARCH_HAS_CPUFREQ
-	select NO_MACH_MEMORY_H
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).
@@ -642,7 +632,6 @@ config ARCH_PNX4008
 	select CPU_ARM926T
 	select CLKDEV_LOOKUP
 	select ARCH_USES_GETTIMEOFFSET
-	select NO_MACH_MEMORY_H
 	help
 	  This enables support for Philips PNX4008 mobile platform.
 
@@ -661,7 +650,6 @@ config ARCH_PXA
 	select SPARSE_IRQ
 	select AUTO_ZRELADDR
 	select MULTI_IRQ_HANDLER
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -671,7 +659,6 @@ config ARCH_MSM
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Qualcomm MSM/QSD based systems.  This runs on the
 	  apps processor of the MSM/QSD and depends on a shared memory
@@ -689,6 +676,7 @@ config ARCH_SHMOBILE
 	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
 	select PM_GENERIC_DOMAINS if PM
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
@@ -703,6 +691,7 @@ config ARCH_RPC
 	select NO_IOPORT
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -721,6 +710,7 @@ config ARCH_SA1100
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for StrongARM 11x0 based boards.
 
@@ -732,7 +722,6 @@ config ARCH_S3C2410
 	select CLKDEV_LOOKUP
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C if I2C
-	select NO_MACH_MEMORY_H
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -765,7 +754,6 @@ config ARCH_S3C64XX
 	select SAMSUNG_GPIOLIB_4BIT
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select NO_MACH_MEMORY_H
 	help
 	  Samsung S3C64XX series based systems
 
@@ -781,7 +769,6 @@ config ARCH_S5P64X0
 	select HAVE_SCHED_CLOCK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
-	select NO_MACH_MEMORY_H
 	help
 	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
 	  SMDK6450.
@@ -797,7 +784,6 @@ config ARCH_S5PC100
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select NO_MACH_MEMORY_H
 	help
 	  Samsung S5PC100 series based systems
 
@@ -817,6 +803,7 @@ config ARCH_S5PV210
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
@@ -833,6 +820,7 @@ config ARCH_EXYNOS4
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
 	help
 	  Samsung EXYNOS4 series based systems
 
@@ -844,6 +832,7 @@ config ARCH_SHARK
 	select ZONE_DMA
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
@@ -855,7 +844,6 @@ config ARCH_TCC_926
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Telechips TCC ARM926-based systems.
 
@@ -872,6 +860,7 @@ config ARCH_U300
 	select CLKDEV_LOOKUP
 	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
@@ -883,7 +872,6 @@ config ARCH_U8500
 	select CLKDEV_LOOKUP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_CPUFREQ
-	select NO_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
@@ -895,7 +883,6 @@ config ARCH_NOMADIK
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
-	select NO_MACH_MEMORY_H
 	help
 	  Support for the Nomadik platform by ST-Ericsson
 
@@ -909,7 +896,6 @@ config ARCH_DAVINCI
 	select GENERIC_ALLOCATOR
 	select GENERIC_IRQ_CHIP
 	select ARCH_HAS_HOLES_MEMORYMODEL
-	select NO_MACH_MEMORY_H
 	help
 	  Support for TI's DaVinci platform.
 
@@ -933,7 +919,6 @@ config PLAT_SPEAR
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
-	select NO_MACH_MEMORY_H
 	help
 	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
@@ -945,7 +930,6 @@ config ARCH_VT8500
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_PWM
-	select NO_MACH_MEMORY_H
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 
@@ -959,7 +943,6 @@ config ARCH_ZYNQ
 	select ARM_AMBA
 	select ICST
 	select USE_OF
-	select NO_MACH_MEMORY_H
 	help
 	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice
