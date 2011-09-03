@@ -187,7 +187,7 @@ void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	usb_fill_bulk_urb(piorw_urb, pusbd, pipe,
 			  wmem, cnt, usb_write_mem_complete,
 			  pio_queue);
-	status = _usb_submit_urb(piorw_urb, GFP_ATOMIC);
+	status = usb_submit_urb(piorw_urb, GFP_ATOMIC);
 	_down_sema(&pintfpriv->io_retevt);
 }
 
@@ -305,7 +305,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 				  precvbuf->pbuf, MAX_RECVBUF_SZ,
 				  r8712_usb_read_port_complete,
 				  precvbuf);
-		err = _usb_submit_urb(purb, GFP_ATOMIC);
+		err = usb_submit_urb(purb, GFP_ATOMIC);
 		if ((err) && (err != (-EPERM)))
 			ret = _FAIL;
 	} else
@@ -462,7 +462,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 			  pxmitframe->mem_addr,
 			  cnt, usb_write_port_complete,
 			  pxmitframe); /* context is xmit_frame */
-	status = _usb_submit_urb(purb, GFP_ATOMIC);
+	status = usb_submit_urb(purb, GFP_ATOMIC);
 	if (!status)
 		ret = _SUCCESS;
 	else

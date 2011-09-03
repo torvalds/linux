@@ -58,7 +58,6 @@
 #include "ethernet.h"
 #include <linux/if_arp.h>
 #include <linux/firmware.h>
-#define   _usb_submit_urb(x, y)     usb_submit_urb(x, y)
 
 struct	__queue	{
 	struct	list_head	queue;
