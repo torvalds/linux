@@ -29,7 +29,12 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
+/* Realtek's v2.6.6 reduced this to 4. However, under heavy network and CPU
+ * loads, even 8 receive buffers might not be enough; cutting it to 4 seemed
+ * unwise.
+ */
 #define NR_RECVBUFF (8)
+
 #define NR_PREALLOC_RECV_SKB (8)
 #define RXDESC_SIZE	24
 #define RXDESC_OFFSET RXDESC_SIZE

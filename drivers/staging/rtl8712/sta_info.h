@@ -63,8 +63,8 @@ struct sta_info {
 	struct sta_recv_priv sta_recvpriv;
 	uint state;
 	uint aid;
-	u8	mac_id;
-	u8	qos_option;
+	uint	mac_id;
+	uint	qos_option;
 	u8	hwaddr[ETH_ALEN];
 	uint	ieee8021x_blocked;	/*0: allowed, 1:blocked */
 	uint	XPrivacy; /*aes, tkip...*/

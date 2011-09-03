@@ -192,7 +192,7 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 	} else
 		pattrib->tcpchk_valid = 0; /* invalid */
 	pattrib->mcs_rate = (u8)((le32_to_cpu(prxstat->rxdw3)) & 0x3f);
-	pattrib->htc = (u8)((le32_to_cpu(prxstat->rxdw3) >> 6) & 0x1);
+	pattrib->htc = (u8)((le32_to_cpu(prxstat->rxdw3) >> 14) & 0x1);
 	/*Offset 16*/
 	/*Offset 20*/
 	/*phy_info*/
@@ -207,7 +207,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 				   struct  __queue *defrag_q)
 {
 	struct list_head *plist, *phead;
-	u8	wlanhdr_offset;
+	u8	*data, wlanhdr_offset;
 	u8	curfragnum;
 	struct recv_frame_hdr *pfhdr, *pnfhdr;
 	union recv_frame *prframe, *pnextrframe;
@@ -224,22 +224,25 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 		/*the first fragment number must be 0
 		 *free the whole queue*/
 		r8712_free_recvframe(prframe, pfree_recv_queue);
-		prframe = NULL;
-		goto exit;
+		r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);
+		return NULL;
 	}
-	plist = get_next(phead);
+	curfragnum++;
+	plist = get_list_head(defrag_q);
+	plist = get_next(plist);
+	data = get_recvframe_data(prframe);
 	while (end_of_queue_search(phead, plist) == false) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
-		/*check the fragment sequence  (2nd ~n fragment frame) */
 		pnfhdr = &pnextrframe->u.hdr;
-		curfragnum++;
+		/*check the fragment sequence  (2nd ~n fragment frame) */
 		if (curfragnum != pnfhdr->attrib.frag_num) {
 			/* the fragment number must increase  (after decache)
 			 * release the defrag_q & prframe */
 			r8712_free_recvframe(prframe, pfree_recv_queue);
-			prframe = NULL;
-			goto exit;
+			r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);
+			return NULL;
 		}
+		curfragnum++;
 		/* copy the 2nd~n fragment frame's payload to the first fragment
 		 * get the 2nd~last fragment frame's payload */
 		wlanhdr_offset = pnfhdr->attrib.hdrlen + pnfhdr->attrib.iv_len;
@@ -252,7 +255,6 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 		pfhdr->attrib.icv_len = pnfhdr->attrib.icv_len;
 		plist = get_next(plist);
 	}
-exit:
 	/* free the defrag_q queue and return the prframe */
 	r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);
 	return prframe;
@@ -1074,7 +1076,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		/* for first fragment packet, driver need allocate 1536 +
 		 * drvinfo_sz + RXDESC_SIZE to defrag packet. */
 		if ((mf == 1) && (frag == 0))
-			alloc_sz = 1658;
+			alloc_sz = 1658;/*1658+6=1664, 1664 is 128 alignment.*/
 		else
 			alloc_sz = tmp_len;
 		/* 2 is for IP header 4 bytes alignment in QoS packet case.

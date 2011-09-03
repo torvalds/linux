@@ -37,6 +37,7 @@
 
 static void dump_xframe(struct _adapter *padapter,
 			struct xmit_frame *pxmitframe);
+static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz);
 
 sint _r8712_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag)
 {
@@ -238,13 +239,24 @@ exit_dequeue_xframe_ex:
 void r8712_do_queue_select(struct _adapter *padapter,
 			   struct pkt_attrib *pattrib)
 {
-	u8 qsel = 0;
+	unsigned int qsel = 0;
 	struct dvobj_priv *pdvobj = (struct dvobj_priv *)&padapter->dvobjpriv;
 
 	if (pdvobj->nr_endpoint == 6)
-		qsel = pattrib->priority;
-	else if (pdvobj->nr_endpoint == 4)
-		qsel = pattrib->priority;
+		qsel = (unsigned int) pattrib->priority;
+	else if (pdvobj->nr_endpoint == 4) {
+		qsel = (unsigned int) pattrib->priority;
+		if (qsel == 0 || qsel == 3)
+			qsel = 3;
+		else if (qsel == 1 || qsel == 2)
+			qsel = 1;
+		else if (qsel == 4 || qsel == 5)
+			qsel = 5;
+		else if (qsel == 6 || qsel == 7)
+			qsel = 7;
+		else
+			qsel = 3;
+	}
 	pattrib->qsel = qsel;
 }
 

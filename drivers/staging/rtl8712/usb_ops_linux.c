@@ -334,17 +334,16 @@ void r8712_xmit_bh(void *priv)
 	struct _adapter *padapter = (struct _adapter *)priv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	while (1) {
-		if ((padapter->bDriverStopped == true) ||
-		    (padapter->bSurpriseRemoved == true)) {
-			printk(KERN_ERR "r8712u: xmit_bh => bDriverStopped"
-			       " or bSurpriseRemoved\n");
-			break;
-		}
-		ret = r8712_xmitframe_complete(padapter, pxmitpriv, NULL);
-		if (ret == false)
-			break;
+	if ((padapter->bDriverStopped == true) ||
+	    (padapter->bSurpriseRemoved == true)) {
+		printk(KERN_ERR "r8712u: xmit_bh => bDriverStopped"
+		       " or bSurpriseRemoved\n");
+		return;
 	}
+	ret = r8712_xmitframe_complete(padapter, pxmitpriv, NULL);
+	if (ret == false)
+		return;
+	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
 
 static void usb_write_port_complete(struct urb *purb)

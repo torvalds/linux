@@ -93,9 +93,9 @@ struct pkt_attrib {
 
 	u16	seqnum;
 	u16	ether_type;
-	u32	pktlen;		/* the original 802.3 pkt raw_data len
+	u16	pktlen;		/* the original 802.3 pkt raw_data len
 				 * (not include ether_hdr data) */
-	u32	last_txcmdsz;
+	u16	last_txcmdsz;
 
 	u8	pkt_hdrlen;	/*the original 802.3 pkt header len*/
 	u8	hdrlen;		/*the WLAN Header Len*/
@@ -225,6 +225,9 @@ struct	xmit_priv {
 	struct semaphore tx_retevt;/*all tx return event;*/
 	u8	txirp_cnt;
 	struct tasklet_struct xmit_tasklet;
+	_workitem xmit_pipe4_reset_wi;
+	_workitem xmit_pipe6_reset_wi;
+	_workitem xmit_piped_reset_wi;
 	/*per AC pending irp*/
 	int beq_cnt;
 	int bkq_cnt;

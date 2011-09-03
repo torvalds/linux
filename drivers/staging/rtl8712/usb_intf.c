@@ -368,23 +368,25 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	struct _adapter *padapter = NULL;
 	struct dvobj_priv *pdvobjpriv;
 	struct net_device *pnetdev;
+	struct usb_device *udev;
 
 	printk(KERN_INFO "r8712u: DriverVersion: %s\n", DRVER);
 	/* In this probe function, O.S. will provide the usb interface pointer
 	 * to driver. We have to increase the reference count of the usb device
 	 * structure by using the usb_get_dev function.
 	 */
-	usb_get_dev(interface_to_usbdev(pusb_intf));
+	udev = interface_to_usbdev(pusb_intf);
+	usb_get_dev(udev);
 	pintf = pusb_intf;
 	/* step 1. */
 	pnetdev = r8712_init_netdev();
 	if (!pnetdev)
 		goto error;
-	padapter = (struct _adapter *)netdev_priv(pnetdev);
+	padapter = netdev_priv(pnetdev);
 	disable_ht_for_spec_devid(pdid, padapter);
 	pdvobjpriv = &padapter->dvobjpriv;
 	pdvobjpriv->padapter = padapter;
-	padapter->dvobjpriv.pusbdev = interface_to_usbdev(pusb_intf);
+	padapter->dvobjpriv.pusbdev = udev;
 	usb_set_intfdata(pusb_intf, pnetdev);
 	SET_NETDEV_DEV(pnetdev, &pusb_intf->dev);
 	/* step 2. */
@@ -594,9 +596,10 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 6. Tell the network stack we exist */
 	if (register_netdev(pnetdev) != 0)
 		goto error;
+	spin_lock_init(&padapter->lockRxFF0Filter);
 	return 0;
 error:
-	usb_put_dev(interface_to_usbdev(pusb_intf));
+	usb_put_dev(udev);
 	usb_set_intfdata(pusb_intf, NULL);
 	if (padapter->dvobj_deinit != NULL)
 		padapter->dvobj_deinit(padapter);
@@ -613,6 +616,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct usb_device *udev = interface_to_usbdev(pusb_intf);
 
+	usb_set_intfdata(pusb_intf, NULL);
 	if (padapter) {
 		if (drvpriv.drv_registered == true)
 			padapter->bSurpriseRemoved = true;

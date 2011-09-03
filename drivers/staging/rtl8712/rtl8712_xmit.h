@@ -64,6 +64,8 @@
 #define OWN	BIT(31)
 #define FSG	BIT(27)
 #define LSG	BIT(26)
+#define TYPE_SHT (24)
+#define TYPE_MSK (0x03000000)
 
 /*OFFSET 4*/
 #define PKT_OFFSET_SZ (0)
@@ -74,6 +76,7 @@
 #define BMC BIT(7)
 #define BK BIT(30)
 #define AGG_EN BIT(29)
+#define RTS_RC_SHT (16)
 
 /*OFFSET 12*/
 #define SEQ_SHT (16)
@@ -83,6 +86,8 @@
 
 /*OFFSET 20*/
 #define DISFB BIT(15)
+#define RSVD6_MSK (0x00E00000)
+#define RSVD6_SHT (21)
 
 struct tx_desc {
 	/*DWORD 0*/

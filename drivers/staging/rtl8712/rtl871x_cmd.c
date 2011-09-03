@@ -240,7 +240,7 @@ u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara,
 				   GEN_CMD_CODE(_SiteSurvey));
 	psurveyPara->bsslimit = cpu_to_le32(48);
-	psurveyPara->passive_mode = cpu_to_le32(1);
+	psurveyPara->passive_mode = cpu_to_le32(pmlmepriv->passive_mode);
 	psurveyPara->ss_ssidlen = 0;
 	memset(psurveyPara->ss_ssid, 0, IW_ESSID_MAX_SIZE + 1);
 	if ((pssid != NULL) && (pssid->SsidLength)) {
@@ -251,6 +251,7 @@ u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 	_set_timer(&pmlmepriv->scan_to_timer, SCANNING_TIMEOUT);
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_SITE_SURVEY);
+	padapter->blnEnableRxFF0Filter = 0;
 	return _SUCCESS;
 }
 
@@ -756,6 +757,33 @@ u8 r8712_setrttbl_cmd(struct _adapter *padapter,
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetrttblparm,
 				   GEN_CMD_CODE(_SetRaTable));
 	memcpy(psetrttblparm, prate_table, sizeof(struct setratable_parm));
+	r8712_enqueue_cmd(pcmdpriv, ph2c);
+	return _SUCCESS;
+}
+
+u8 r8712_gettssi_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
+{
+	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
+	struct cmd_obj *ph2c;
+	struct readTSSI_parm *prdtssiparm;
+
+	ph2c = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	if (ph2c == NULL)
+		return _FAIL;
+	prdtssiparm = (struct readTSSI_parm *)
+		_malloc(sizeof(struct readTSSI_parm));
+	if (prdtssiparm == NULL) {
+		kfree((unsigned char *) ph2c);
+		return _FAIL;
+	}
+	_init_listhead(&ph2c->list);
+	ph2c->cmdcode = GEN_CMD_CODE(_ReadTSSI);
+	ph2c->parmbuf = (unsigned char *)prdtssiparm;
+	ph2c->cmdsz = sizeof(struct readTSSI_parm);
+	ph2c->rsp = pval;
+	ph2c->rspsz = sizeof(struct readTSSI_rsp);
+
+	prdtssiparm->offset = offset;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 	return _SUCCESS;
 }

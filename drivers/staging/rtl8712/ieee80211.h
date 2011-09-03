@@ -137,7 +137,7 @@ struct ieee_ibss_seq {
 	u8 mac[ETH_ALEN];
 	u16 seq_num;
 	u16 frag_num;
-	unsigned int packet_time;
+	unsigned long packet_time;
 	struct list_head list;
 };
 
@@ -669,7 +669,6 @@ struct ieee80211_txb {
 #define CRC_LENGTH                 4U
 
 #define MAX_WPA_IE_LEN 128
-#define MAX_WPS_IE_LEN 512
 
 #define NETWORK_EMPTY_ESSID (1<<0)
 #define NETWORK_HAS_OFDM    (1<<1)
@@ -789,8 +788,7 @@ int r8712_parse_wpa2_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 		     u8 *wpa_ie, u16 *wpa_len);
 int r8712_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
-int r8712_generate_ie(struct registry_priv *pregistrypriv,
-		      struct _adapter *padapter);
+int r8712_generate_ie(struct registry_priv *pregistrypriv);
 uint r8712_is_cckrates_included(u8 *rate);
 uint r8712_is_cckratesonly_included(u8 *rate);
 

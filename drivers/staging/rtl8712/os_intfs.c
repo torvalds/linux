@@ -286,6 +286,9 @@ static u8 init_default_value(struct _adapter *padapter)
 	pxmitpriv->vcs_type = pregistrypriv->vcs_type;
 	pxmitpriv->rts_thresh = pregistrypriv->rts_thresh;
 	pxmitpriv->frag_len = pregistrypriv->frag_thresh;
+	/* mlme_priv */
+	/* Maybe someday we should rename this variable to "active_mode"(Jeff)*/
+	pmlmepriv->passive_mode = 1; /* 1: active, 0: passive. */
 	/*ht_priv*/
 	{
 		int i;
