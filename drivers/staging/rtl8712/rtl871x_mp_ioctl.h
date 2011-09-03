@@ -434,8 +434,7 @@ static struct mp_ioctl_handler mp_ioctl_hdl[] = {
 	{sizeof(struct psmode_param), NULL, 0},/*13*/
 	{sizeof(struct eeprom_rw_param), NULL, 0},/*14*/
 	{sizeof(struct eeprom_rw_param), NULL, 0},/*15*/
-	{sizeof(u8), oid_rt_pro_set_power_tracking_hdl,
-			     OID_RT_PRO_SET_POWER_TRACKING},/*16*/
+	{sizeof(unsigned char), NULL, 0},/*16*/
 	{sizeof(u32), NULL, 0},/*17*/
 	{sizeof(u32), oid_rt_pro_set_continuous_tx_hdl,
 			     OID_RT_PRO_SET_CONTINUOUS_TX},/*18*/
